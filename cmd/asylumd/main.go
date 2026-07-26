@@ -6,6 +6,8 @@
 //	asylumd migrate         Datenbankmigrationen einspielen
 //	asylumd setup-token     einmaligen Token für die Ersteinrichtung ausgeben
 //	asylumd reset-password  Passwort eines Kontos lokal zurücksetzen
+//	asylumd update          auf die neueste Fassung des Kanals aktualisieren
+//	asylumd rollback        zur zuvor installierten Fassung zurückkehren
 //	asylumd version         Versionsangaben ausgeben
 package main
 
@@ -59,6 +61,10 @@ func run(args []string) error {
 		return cmdSetupToken(rest)
 	case "reset-password":
 		return cmdResetPassword(rest)
+	case "update":
+		return cmdUpdate(rest)
+	case "rollback":
+		return cmdRollback(rest)
 	case "version", "--version", "-v":
 		return cmdVersion(rest)
 	case "help", "--help", "-h":
@@ -78,12 +84,15 @@ Aufruf:
   asylum migrate [--config PFAD]       Datenbankmigrationen einspielen
   asylum setup-token [--config PFAD]   Token für die Ersteinrichtung ausgeben
   asylum reset-password BENUTZER       Passwort zurücksetzen (Rettungsweg)
+  asylum update [--check]              auf die neueste Fassung aktualisieren
+  asylum rollback                      zur vorherigen Fassung zurückkehren
   asylum version [--fingerprint]       Versionsangaben ausgeben
   asylum help                          diese Hilfe
 
 Umgebungsvariablen überschreiben die Konfigurationsdatei:
   ASYLUM_CONFIG, ASYLUM_BIND, ASYLUM_PORT, ASYLUM_LOG_LEVEL,
-  ASYLUM_TLS_CERT, ASYLUM_TLS_KEY, ASYLUM_DATA_DIR
+  ASYLUM_TLS_CERT, ASYLUM_TLS_KEY, ASYLUM_DATA_DIR,
+  ASYLUM_UPDATE_CHANNEL, ASYLUM_UPDATE_BASE_URL
 `)
 }
 

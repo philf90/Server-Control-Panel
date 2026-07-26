@@ -16,15 +16,29 @@ Erledigt: DNS samt Domain-Verifizierung und GitHub Pages
 ([08-runbook-domain.md](08-runbook-domain.md)), Signaturschlüssel als
 Repository-Secret `MINISIGN_KEY`.
 
+**Namenskollision gefunden und behoben.** Die offene Prüfung des
+Debian-Namensraums hat einen Treffer ergeben: `asylum` ist in Debian und Ubuntu
+seit Jahren an ein Spiel vergeben (`universe/games`, „surreal platform shooting
+game"), Fassung 0.3.2 — also *höher* als unsere. `apt install asylum` hätte das
+Spiel gebracht, auch mit eingebundenem Repository. Das Debian-Paket heißt
+deshalb **`asylum-panel`**. Projektname, Daemon (`asylumd`) und Befehl
+(`asylum`) bleiben unverändert: `/usr/bin/asylum` steht im `PATH` vor
+`/usr/games/asylum`, und da sich die Pfade unterscheiden, streiten sich die
+Pakete auch nicht um eine Datei. Geprüft wurde das gegen ein echtes, signiertes
+apt-Repository — `apt` löst `asylum-panel` eindeutig auf unser Paket auf.
+
 Offen, keiner davon blockiert die Weiterentwicklung:
 
 - **Kein Default-Branch.** Das Repository hat nur den Arbeitsbranch und
   `gh-pages`. Vor dem ersten Release muss der Stand als `main` landen — ein Tag
   auf einem Feature-Branch wäre ein seltsamer Ausgangspunkt für ein
   öffentliches Projekt.
-- **Namensprüfungen abschließen:** Debian-Kommandokollision, Paket-Namensräume,
-  Marken in Klasse 9/42 — Befehle in
+- **Marken in Klasse 9/42** noch zu prüfen — Befehle in
   [07-name-lizenz-domain.md](07-name-lizenz-domain.md#verbleibende-prüfschritte).
+- **GPG-Schlüssel für das APT-Repository** als Secret `APT_GPG_KEY` hinterlegen.
+  Ohne ihn überspringt der Release-Workflow den apt-Schritt mit einer Warnung;
+  alles andere am Release funktioniert. Anleitung in
+  [05-updates.md](05-updates.md#signaturschlüssel-des-repositories).
 - **Copyright-Zeile in `LICENSE`** auf den endgültigen Rechtsträger anpassen.
 - **TTL der DNS-Einträge** von 10 auf 3600 anheben, sobald alles steht.
 
@@ -94,8 +108,17 @@ Zwei Dinge wurden dabei gefunden und behoben:
 - **Die Grundlast lag bei 80 MB** statt der zugesagten 40. Ursache und Lösung stehen
   in [02-architektur.md](02-architektur.md#argon2-und-das-speicherbudget).
 
-Offen aus M1: Wechsel des zweiten Faktors im laufenden Betrieb (aktuell nur über
-`asylum reset-password`), und eine Ansicht der eigenen aktiven Sitzungen.
+**Nachgeliefert (zusammen mit M3):** Der zweite Faktor lässt sich jetzt im
+laufenden Betrieb wechseln — mit Rückfrage nach dem aktuellen Passwort, denn
+sonst könnte eine übernommene Sitzung den Inhaber mit dessen eigenem
+Schutzmechanismus aussperren. Das neue Geheimnis liegt bis zur Bestätigung nur
+im Arbeitsspeicher; ein Abbruch ändert nichts. Nach dem Wechsel werden neue
+Wiederherstellungscodes ausgegeben und alle anderen Sitzungen beendet.
+
+Ebenfalls nachgeliefert: die Ansicht der eigenen aktiven Sitzungen mit Adresse,
+Programm und letzter Aktivität, einzeln oder gesammelt beendbar. Das ist mehr
+als Bequemlichkeit — ein entwendetes Sitzungscookie hinterlässt sonst keine
+Spur, die dem Betroffenen auffiele.
 
 ### M2 — Systemmodule (3 Wochen)
 `privops.Executor`, Dienste (systemd/D-Bus), Pakete (apt), Firewall (nftables)
@@ -135,6 +158,49 @@ Operationstests gegen einen einspeisbaren Runner.
 Kanäle, Metadatenformat, Selbstupdate mit Healthcheck und Rollback,
 `asylum update` / `asylum rollback`, APT-Repository-Job in der Pipeline.
 
+**Stand: umgesetzt.** Einzelheiten in [05-updates.md](05-updates.md).
+
+| Kennzahl | Grenze | Ist |
+|---|---|---|
+| Binärgröße | < 30 MB | 14 MB |
+| Direkte Abhängigkeiten | < 25 | 6 (`golang.org/x/crypto` für BLAKE2b) |
+| Testabdeckung `update` | > 85 % (CI-Schwelle) | 87,8 % |
+
+Die Signaturprüfung ist in Go umgesetzt und ruft kein externes `minisign` auf.
+Geprüft wurde sie gegen echtes minisign-Material im Repository
+(`internal/update/testdata`), nicht nur gegen die eigene Vorstellung vom Format.
+
+**Der vollständige Weg wurde gegen laufende Prozesse geprüft**, nicht nur im
+Test: zwei echte Binaries (0.1.0 und 0.2.0), mit dem echten Projektschlüssel
+signiert, über HTTPS mit Zertifikatsprüfung geladen, ausgetauscht, neu
+gestartet, per `/healthz` bestätigt — und anschließend wieder zurückgerollt.
+Ebenso geprüft wurden vier Angriffe: ausgetauschtes Archiv, manipulierte
+Prüfsummenliste, fremd signierte Liste und Metadaten, die eine höhere Fassung
+behaupten als die Signatur beglaubigt. Alle vier wurden abgelehnt, ohne dass
+etwas auf der Platte angefasst wurde.
+
+Der wichtigste Fall zuletzt: eine **echt signierte, aber kaputte** Fassung, die
+sich installieren lässt und dann nicht startet. Nach 60 Sekunden ohne Antwort
+auf `/healthz` hat der Server von allein die vorherige Fassung zurückgespielt
+und neu gestartet.
+
+Drei Dinge kamen gegenüber der Planung hinzu oder wurden anders entschieden:
+
+- **Der Vorgang läuft in einer eigenen systemd-Unit**, nicht im Panel. systemd
+  beendet beim Neustart die gesamte Kontrollgruppe — ein Update darin würde
+  genau zwischen Tausch und Bereitschaftsprüfung abgeschnitten. `asylum update`
+  weigert sich deshalb, in der Kontrollgruppe des Dienstes zu laufen.
+- **Ein Datenbankabzug vor dem Tausch.** Migrationen laufen nur vorwärts; ein
+  Rollback des Binaries allein ließe eine ältere Fassung auf ein neueres Schema
+  treffen. Eingespielt wird der Abzug nur vom selbsttätigen Rückweg.
+- **cosign entfällt.** Begründung in
+  [05-updates.md](05-updates.md#release-pipeline).
+
+Nicht geprüft werden konnte, was ohne systemd als PID 1 nicht prüfbar ist: der
+Aufruf über `systemd-run` bricht in dieser Umgebung an der fehlenden
+Bus-Verbindung ab. Die Argumentliste akzeptiert das echte `systemd-run`; der
+Fehler wird sauber bis in die Oberfläche durchgereicht.
+
 ### M4 — v0.1.0 Public Beta (1 Woche)
 Dokumentation, Screenshots, Landingpage, `SECURITY.md`, Issue-Templates,
 Contribution-Guide, externer Sicherheits-Review der Auth- und Update-Pfade.
@@ -156,8 +222,9 @@ Diese Werte gehören in die CI, nicht in ein Wiki:
 | Installationsdauer | < 30 s auf einem 1-vCPU-VPS |
 | Direkte Go-Abhängigkeiten | < 25 |
 | Testabdeckung `auth` | > 85 % |
+| Testabdeckung `update` | > 85 % |
 | Testabdeckung `privops`, `store`, `certs`, `config` | > 72–82 %, je Paket |
-| Testabdeckung `httpd` | > 58 % |
+| Testabdeckung `httpd` | > 63 % |
 
 Ein Benchmark-Job misst RSS und Binärgröße bei jedem Release und lässt den Build
 fehlschlagen, wenn eine Grenze gerissen wird. Ohne diesen Zwang wird aus "schlank"

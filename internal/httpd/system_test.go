@@ -32,6 +32,9 @@ type fakeOps struct {
 	actions      []string
 	appliedRules [][]privops.FirewallRule
 	upgradeDone  chan struct{}
+
+	selfUpdates   []privops.SelfUpdateSpec
+	selfUpdateErr error
 }
 
 func newFakeOps() *fakeOps {
@@ -174,6 +177,13 @@ func (f *fakeOps) Logs(context.Context, privops.LogQuery) ([]privops.LogEntry, e
 }
 
 func (f *fakeOps) LogUnits(context.Context) ([]string, error) { return f.units, nil }
+
+func (f *fakeOps) SelfUpdateStart(_ context.Context, spec privops.SelfUpdateSpec) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.selfUpdates = append(f.selfUpdates, spec)
+	return f.selfUpdateErr
+}
 
 // newSystemServer baut einen Server mit dem gefälschten Executor.
 func newSystemServer(t *testing.T) (*Server, *fakeOps) {

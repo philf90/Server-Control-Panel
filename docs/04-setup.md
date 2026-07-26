@@ -133,20 +133,38 @@ Stable-Releases (statisches Hosting oder GitHub Pages genügt).
 ## Zweiter Weg: APT-Repository
 
 Der Installer ist der bequeme Weg. Für Nutzer mit Konfigurationsmanagement oder
-Compliance-Anforderungen sollte es zusätzlich ein signiertes APT-Repository geben:
+Compliance-Anforderungen gibt es zusätzlich ein signiertes APT-Repository:
 
 ```bash
-curl -fsSL https://repo.cloudsrv24.de/apt/gpg.key \
-  | sudo gpg --dearmor -o /usr/share/keyrings/asylum.gpg
-echo "deb [signed-by=/usr/share/keyrings/asylum.gpg] https://repo.cloudsrv24.de/apt stable main" \
-  | sudo tee /etc/apt/sources.list.d/asylum.list
-sudo apt update && sudo apt install asylum
+sudo curl -fsSL --proto '=https' --tlsv1.2 \
+  https://repo.cloudsrv24.de/apt/asylum-archive-keyring.gpg \
+  -o /usr/share/keyrings/asylum-archive-keyring.gpg
+
+sudo tee /etc/apt/sources.list.d/asylum.sources > /dev/null <<'EOF'
+Types: deb
+URIs: https://repo.cloudsrv24.de/apt
+Suites: stable
+Components: main
+Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
+EOF
+
+sudo apt update && sudo apt install asylum-panel
 ```
 
-Die `.deb`-Pakete entstehen ohnehin im Release-Prozess (nfpm über GoReleaser), das
-Repository lässt sich mit `aptly` oder `reprepro` in einem GitHub-Actions-Job bauen
-und über GitHub Pages oder ein Object-Storage-Bucket ausliefern. Vorteil: Updates
-laufen über `apt upgrade` wie bei jeder anderen Systemsoftware.
+**Das Paket heißt `asylum-panel`, nicht `asylum`.** Der Name `asylum` ist in
+Debian und Ubuntu seit Jahren an ein Spiel vergeben (`universe/games`), dessen
+Fassung über unserer liegt — `apt install asylum` brächte also das Spiel. Der
+*Befehl* heißt weiterhin `asylum`: `/usr/bin/asylum` steht im `PATH` vor
+`/usr/games/asylum`.
+
+Die `.deb`-Pakete entstehen im Release-Prozess (nfpm über GoReleaser); das
+Repository baut ein GitHub-Actions-Job mit `apt-ftparchive` und veröffentlicht es
+über GitHub Pages. Aufbau und Signaturschlüssel:
+[05-updates.md](05-updates.md#apt-repository).
+
+Ein Hinweis zur Wahl des Weges: Über apt aktualisiert, entfällt der
+Bereitschaftscheck mit selbsttätigem Rollback — apt kennt so etwas nicht. Wer
+beides will, nutzt apt für die Erstinstallation und danach `asylum update`.
 
 ## Alternative Deployments
 

@@ -185,6 +185,10 @@ jobs:
           }
           base="https://github.com/${REPO}/releases/download/v${VERSION}"
 
+          # checksums_url und signature_url stehen ausdrücklich in der Datei:
+          # Der Daemon prüft das Archiv gegen genau diese signierte Liste. Ohne
+          # die Angaben leitet er sie aus der Archivadresse ab — das bleibt als
+          # Rückfallweg für ältere Metadaten bestehen.
           cat > "updates/${CHANNEL}.json" <<JSON
           {
             "version": "${VERSION}",
@@ -192,6 +196,8 @@ jobs:
             "min_upgradable_from": "0.1.0",
             "notes_url": "https://github.com/${REPO}/releases/tag/v${VERSION}",
             "severity": "normal",
+            "checksums_url": "${base}/SHA256SUMS",
+            "signature_url": "${base}/SHA256SUMS.minisig",
             "artifacts": {
               "linux_amd64": {
                 "url": "${base}/asylumd_${VERSION}_linux_amd64.tar.gz",
@@ -206,6 +212,110 @@ jobs:
           JSON
 
           python3 -m json.tool "updates/${CHANNEL}.json" >/dev/null
+
+          # Die Prüfsummen dürfen nicht leer bleiben: Ein leeres Feld würde
+          # erst beim Nutzer auffallen, und zwar als abgelehntes Update.
+          for arch in amd64 arm64; do
+            if [ -z "$(sha_for "$arch")" ]; then
+              echo "Für $arch fehlt die Prüfsumme in SHA256SUMS."
+              exit 1
+            fi
+          done
+
+      - name: APT-Repository aktualisieren
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          CHANNEL: ${{ steps.channel.outputs.name }}
+          APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          # Das APT-Repository ist ein Zusatzangebot für Administratoren, die
+          # ihre Server ohnehin über apt fahren. Der empfohlene Weg bleibt das
+          # eingebaute Update: nur dieses prüft nach dem Neustart, ob das Panel
+          # wieder antwortet, und nimmt ein fehlgeschlagenes Update selbsttätig
+          # zurück. apt kann das nicht — es kennt keinen Healthcheck.
+          #
+          # Ohne hinterlegten GPG-Schlüssel wird der Schritt übersprungen statt
+          # ein unsigniertes Repository zu veröffentlichen. Ein unsigniertes
+          # apt-Repository ist schlimmer als gar keines.
+          if [ -z "${APT_GPG_KEY:-}" ]; then
+            echo "::warning::Secret APT_GPG_KEY fehlt — das APT-Repository wird nicht aktualisiert."
+            echo "Anleitung: docs/05-updates.md, Abschnitt \"APT-Repository\"."
+            exit 0
+          fi
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq apt-utils gnupg
+
+          cd pages
+          mkdir -p "apt/pool/main/a/asylum-panel" "apt/dists/${CHANNEL}/main/binary-amd64" \
+                   "apt/dists/${CHANNEL}/main/binary-arm64"
+
+          # Neue Pakete in den Pool. Ältere Fassungen bleiben liegen, damit ein
+          # gezieltes Downgrade über apt möglich bleibt.
+          cp ../dist/*.deb "apt/pool/main/a/asylum-panel/"
+
+          # Aus apt heraus, nicht darüber: apt-ftparchive schreibt den
+          # übergebenen Pfad wörtlich in das Feld "Filename". Von außen
+          # aufgerufen stünde dort "apt/pool/…", und apt suchte das Paket
+          # unter …/apt/apt/pool/….
+          (
+            cd apt
+            for arch in amd64 arm64; do
+              apt-ftparchive --arch "$arch" packages pool \
+                > "dists/${CHANNEL}/main/binary-${arch}/Packages"
+              gzip -9kf "dists/${CHANNEL}/main/binary-${arch}/Packages"
+            done
+
+            # Über eine Zwischendatei: Die Umleitung legt die Zieldatei an,
+            # bevor apt-ftparchive das Verzeichnis liest — Release stünde
+            # sonst mit einer Prüfsumme über sich selbst in der eigenen Liste.
+            rm -f "dists/${CHANNEL}/Release"
+            apt-ftparchive \
+              -o APT::FTPArchive::Release::Origin="Project Asylum" \
+              -o APT::FTPArchive::Release::Label="Project Asylum" \
+              -o APT::FTPArchive::Release::Suite="${CHANNEL}" \
+              -o APT::FTPArchive::Release::Codename="${CHANNEL}" \
+              -o APT::FTPArchive::Release::Architectures="amd64 arm64" \
+              -o APT::FTPArchive::Release::Components="main" \
+              -o APT::FTPArchive::Release::Description="Project Asylum ${CHANNEL}" \
+              release "dists/${CHANNEL}" > "${RUNNER_TEMP}/Release"
+            mv "${RUNNER_TEMP}/Release" "dists/${CHANNEL}/Release"
+          )
+
+          export GNUPGHOME="${RUNNER_TEMP}/gnupg"
+          mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
+          printf '%s\n' "$APT_GPG_KEY" | gpg --batch --import
+          keyid="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/{print $5; exit}')"
+
+          sign() {
+            gpg --batch --yes --pinentry-mode loopback \
+                --passphrase "${APT_GPG_PASSPHRASE:-}" \
+                --local-user "$keyid" "$@"
+          }
+          rm -f "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/InRelease"
+          sign --armor --detach-sign -o "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
+          sign --clearsign          -o "apt/dists/${CHANNEL}/InRelease"    "apt/dists/${CHANNEL}/Release"
+
+          # Der öffentliche Schlüssel liegt daneben, damit ihn der Installer
+          # und ein Administrator von Hand einrichten können.
+          gpg --export "$keyid" > apt/asylum-archive-keyring.gpg
+          gpg --export --armor "$keyid" > apt/KEY.asc
+
+          # Gegenprobe: Ein Repository, dessen Signatur nicht zur eigenen
+          # Release-Datei passt, würde bei jedem Nutzer "NO_PUBKEY" oder
+          # "BADSIG" auslösen — das muss hier auffallen, nicht dort.
+          gpg --verify "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
+          for arch in amd64 arm64; do
+            pkgs="apt/dists/${CHANNEL}/main/binary-${arch}/Packages"
+            grep -q "^Version: ${VERSION}\$" "$pkgs"
+            # Der Pfad muss ohne führendes "apt/" dastehen, sonst lädt apt ins Leere.
+            grep -q "^Filename: pool/main/a/asylum-panel/" "$pkgs"
+            grep -qv "^Filename: apt/" "$pkgs"
+          done
+          echo "APT-Repository für ${CHANNEL} steht."
 
       - name: Veröffentlichen
         run: |

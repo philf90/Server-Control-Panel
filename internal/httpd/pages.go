@@ -80,6 +80,9 @@ type totpPage struct {
 
 type codesPage struct {
 	Codes []string
+	// AfterChange unterscheidet den Wechsel von der Ersteinrichtung: Danach
+	// führt der Weg zurück zur Kontoseite, nicht in die Übersicht.
+	AfterChange bool
 }
 
 type dashboardPage struct {
@@ -94,6 +97,8 @@ type auditPage struct {
 type accountPage struct {
 	RecoveryCodesLeft int
 	NewCodes          []string
+	Sessions          []sessionView
+	OtherSessions     int
 }
 
 type usersPage struct {

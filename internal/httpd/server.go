@@ -55,6 +55,14 @@ type Server struct {
 	ops     privops.Executor
 	jobs    *jobs
 	fwGuard *firewallGuard
+	upd     *updateState
+	pending *pendingSecrets
+
+	// updHTTP ersetzt den HTTP-Client der Update-Abfrage. Im Betrieb ist er
+	// leer und update.NewClient bestimmt ihn; Tests setzen hier den Client
+	// ihres eigenen Metadatenservers ein, statt die Zertifikatsprüfung im
+	// Produktivcode abschaltbar zu machen.
+	updHTTP *http.Client
 }
 
 // New baut den Server auf. Templates werden hier geparst, damit ein Fehler
@@ -80,6 +88,8 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 		ops:     ops,
 		jobs:    newJobs(),
 		fwGuard: newFirewallGuard(),
+		upd:     newUpdateState(),
+		pending: newPendingSecrets(),
 	}, nil
 }
 

@@ -71,6 +71,25 @@ aussieht.
 MVP. Da der gesamte Systemzugriff hinter einem Interface liegt, lässt sich der
 zweite Schritt später ohne Rewrite gehen:
 
+### Der Update-Vorgang läuft außerhalb des Dienstes
+
+Das Selbstupdate ist die einzige Operation, die den eigenen Prozess beendet.
+systemd beendet beim Stop einer Unit deren **gesamte Kontrollgruppe** — ein
+Update, das darin liefe, würde genau zwischen dem Austausch des Binaries und der
+Bereitschaftsprüfung abgeschnitten. Zurück bliebe eine ungeprüfte neue Fassung
+ohne jemanden, der sie im Zweifel zurücknimmt.
+
+Deshalb setzt das Panel den Lauf über `systemd-run --unit=asylum-update-… --collect`
+als eigene Transient-Unit ab, und `asylum update` prüft vor dem ersten
+Schreibzugriff selbst nach, ob es in der Kontrollgruppe des Dienstes läuft
+(`/proc/self/cgroup` gegen `systemctl show asylumd --property=ControlGroup`).
+Trifft das zu, weigert es sich mit einer erklärenden Meldung.
+
+Die Folge für die Oberfläche: Ein offener SSE-Kanal überlebt den Neustart nicht.
+Der Update-Lauf schreibt darum in `/var/log/asylum/update.log`, und die
+Update-Seite fragt nach dem Neustart wieder ab, statt auf eine bestehende
+Verbindung zu bauen. Einzelheiten in [05-updates.md](05-updates.md).
+
 ### Ausbaustufe: Privilege Separation (ab v0.4 geplant)
 
 ```
@@ -185,13 +204,15 @@ Ergebnis: 16 MB Grundlast, die auch nach Anmeldungen dort bleibt.
 | Exposure | Optionale Bindung auf `127.0.0.1` bzw. WireGuard-Interface, empfohlen für Produktivsysteme |
 | Autorisierung | Rollen (Owner / Admin / Operator / ReadOnly), serverseitig geprüft |
 | Audit | Jede mutierende Aktion mit Nutzer, IP, Ziel, Ergebnis, Zeitstempel |
-| Supply Chain | Signierte Releases (cosign/minisign), SHA256SUMS, SBOM, reproduzierbare Builds |
+| Supply Chain | minisign-signierte Releases, SHA256SUMS, SBOM, reproduzierbare Builds; Public Key im Binary eingebaut |
+| Selbstupdate | Signaturprüfung in Go (kein externes Programm), atomarer `rename(2)`, Bereitschaftsprüfung mit selbsttätigem Rollback, Datenbankabzug vor dem Tausch |
 
 ## Repository-Layout
 
 ```
 .
-├── cmd/asylumd/                 main(): serve | install | update | version | reset-password
+├── cmd/asylumd/              main(): serve | migrate | setup-token | reset-password
+│                             | update | rollback | version
 ├── internal/
 │   ├── httpd/                Router, Middleware, Handler
 │   ├── ui/                   Templates + statische Assets (embed.FS)

@@ -16,6 +16,10 @@
     Server ablegen, den sie absichern.
   </p>
 
+  {{if .Content.AfterChange}}
+  <a class="button" href="/account">Zurück zum Konto</a>
+  {{else}}
   <a class="button" href="/">Weiter zur Übersicht</a>
+  {{end}}
 </div>
 {{template "footer" .}}{{end}}

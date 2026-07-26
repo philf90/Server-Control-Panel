@@ -59,7 +59,14 @@ signs:
 
 nfpms:
   - id: deb
-    package_name: asylum
+    # Nicht "asylum": Dieser Name ist in Debian und Ubuntu seit Jahren an ein
+    # Spiel vergeben (universe/games, "surreal platform shooting game"), und
+    # dessen Fassung 0.3.2 liegt über unserer. "apt install asylum" brächte
+    # also das Spiel, selbst wenn dieses Repository eingebunden ist. Der
+    # Befehl heißt weiterhin asylum: /usr/bin/asylum steht im PATH vor
+    # /usr/games/asylum, und weil die Pfade sich unterscheiden, streiten sich
+    # die beiden Pakete auch nicht um eine Datei.
+    package_name: asylum-panel
     vendor: Project Asylum
     homepage: https://repo.cloudsrv24.de/
     maintainer: Project Asylum <noreply@users.noreply.github.com>

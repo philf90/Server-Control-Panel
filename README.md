@@ -7,10 +7,11 @@ Ein schlankes, ressourcenschonendes Control Panel für Linux-Server (primär Ubu
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: M2 — Systemmodule.** Installation, TLS, Release-Pfad,
-> Zwei-Faktor-Anmeldung, Rollen, Audit-Log, Live-Dashboard sowie die Verwaltung
-> von Diensten, Paketen, Firewall, Systembenutzern und Logs stehen. Als Nächstes
-> folgt M3: Selbstupdate mit Healthcheck und Rollback.
+> **Status: M3 — Update-Mechanik.** Installation, TLS, Release-Pfad,
+> Zwei-Faktor-Anmeldung, Rollen, Audit-Log, Live-Dashboard, die Verwaltung von
+> Diensten, Paketen, Firewall, Systembenutzern und Logs sowie das signierte
+> Selbstupdate mit Healthcheck und selbsttätigem Rollback stehen. Als Nächstes
+> folgt M4: Dokumentation, `SECURITY.md`, externer Review — die Public Beta.
 
 ## Zielbild
 
@@ -23,8 +24,13 @@ Der Installer gibt am Ende einen einmaligen Setup-Link aus. Dort werden
 Administrator-Konto und Zwei-Faktor-Anmeldung eingerichtet — es wird bewusst kein
 Passwort vergeben, das im Terminal oder in der Shell-History stünde.
 
-Gemessen am aktuellen Stand: 13 MB Binary, 15,9 MB RSS im Leerlauf, 39 ms für eine
+Gemessen am aktuellen Stand: 14 MB Binary, 15,9 MB RSS im Leerlauf, 39 ms für eine
 Anmeldung, TLS 1.3 mit selbstsigniertem Zertifikat beim ersten Start.
+
+Aktualisiert wird über das Panel oder mit `sudo asylum update`: Signatur gegen den
+im Binary eingebauten Schlüssel, atomarer Tausch, Neustart, Bereitschaftsprüfung —
+und ohne Antwort binnen einer Minute stellt der Server von allein die vorherige
+Fassung wieder her.
 
 Keine Runtime-Abhängigkeiten. Kein Docker-Zwang. Kein PHP-Stack. Kein Node auf dem
 Zielserver.
@@ -94,7 +100,7 @@ sudo asylum reset-password NAME  # Rettungsweg, wenn der Zugang verloren ist
 | Scope | **Server-Administrations-Panel** — kein Hosting-Panel (kein Mail, kein DNS, keine Kundenverwaltung) |
 | Sprache | **Go**, statisches Single Binary |
 | Lizenz | **Apache-2.0** |
-| Name | **Project Asylum** — CLI `asylum`, Daemon `asylumd`, Paket `asylum` |
+| Name | **Project Asylum** — CLI `asylum`, Daemon `asylumd`, Debian-Paket `asylum-panel` (`asylum` ist dort an ein Spiel vergeben) |
 | Domain | **`repo.cloudsrv24.de`** auf GitHub Pages — Installer, Update-Metadaten und APT-Repo unter einem Host |
 
 ## Lizenz

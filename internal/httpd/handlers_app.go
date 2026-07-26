@@ -49,9 +49,19 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, status in
 		s.log.Warn("wiederherstellungscodes zählen", "err", err)
 	}
 
+	sessions := s.sessionViews(r)
+	others := 0
+	for _, sess := range sessions {
+		if !sess.Current {
+			others++
+		}
+	}
+
 	page := s.base(r, "Konto", "account").with(accountPage{
 		RecoveryCodesLeft: left,
 		NewCodes:          newCodes,
+		Sessions:          sessions,
+		OtherSessions:     others,
 	})
 	if flash != "" {
 		page = page.withFlash(flash)

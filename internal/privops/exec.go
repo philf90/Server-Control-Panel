@@ -32,19 +32,20 @@ var ErrNotAllowed = errors.New("kommando nicht erlaubt")
 // Der Pfad wird nicht über $PATH gesucht: Ein manipuliertes PATH-Element wäre
 // sonst ein direkter Weg zu Codeausführung als root.
 var allowedCommands = map[string][]string{
-	"systemctl":  {"/usr/bin/systemctl", "/bin/systemctl"},
-	"journalctl": {"/usr/bin/journalctl", "/bin/journalctl"},
-	"apt-get":    {"/usr/bin/apt-get"},
-	"apt-cache":  {"/usr/bin/apt-cache"},
-	"dpkg-query": {"/usr/bin/dpkg-query"},
-	"nft":        {"/usr/sbin/nft", "/sbin/nft"},
-	"ufw":        {"/usr/sbin/ufw", "/sbin/ufw"},
-	"useradd":    {"/usr/sbin/useradd", "/sbin/useradd"},
-	"usermod":    {"/usr/sbin/usermod", "/sbin/usermod"},
-	"userdel":    {"/usr/sbin/userdel", "/sbin/userdel"},
-	"passwd":     {"/usr/bin/passwd"},
-	"ssh-keygen": {"/usr/bin/ssh-keygen"},
-	"id":         {"/usr/bin/id", "/bin/id"},
+	"systemctl":   {"/usr/bin/systemctl", "/bin/systemctl"},
+	"systemd-run": {"/usr/bin/systemd-run", "/bin/systemd-run"},
+	"journalctl":  {"/usr/bin/journalctl", "/bin/journalctl"},
+	"apt-get":     {"/usr/bin/apt-get"},
+	"apt-cache":   {"/usr/bin/apt-cache"},
+	"dpkg-query":  {"/usr/bin/dpkg-query"},
+	"nft":         {"/usr/sbin/nft", "/sbin/nft"},
+	"ufw":         {"/usr/sbin/ufw", "/sbin/ufw"},
+	"useradd":     {"/usr/sbin/useradd", "/sbin/useradd"},
+	"usermod":     {"/usr/sbin/usermod", "/sbin/usermod"},
+	"userdel":     {"/usr/sbin/userdel", "/sbin/userdel"},
+	"passwd":      {"/usr/bin/passwd"},
+	"ssh-keygen":  {"/usr/bin/ssh-keygen"},
+	"id":          {"/usr/bin/id", "/bin/id"},
 }
 
 // Command beschreibt einen Aufruf. Args werden als Argumentvektor übergeben,

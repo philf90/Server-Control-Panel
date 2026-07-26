@@ -46,6 +46,9 @@ type Executor interface {
 	// Logs
 	Logs(ctx context.Context, q LogQuery) ([]LogEntry, error)
 	LogUnits(ctx context.Context) ([]string, error)
+
+	// Selbstupdate
+	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error
 }
 
 // LineWriter nimmt zeilenweise Ausgabe entgegen, etwa für die Live-Anzeige

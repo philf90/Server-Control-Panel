@@ -39,11 +39,14 @@ updates:
   check: daily
   auto_apply: security
   window: "03:00-05:00"
+  base_url: https://repo.cloudsrv24.de
 YAML
   chown root:"$RUN_USER" "$CONFIG_FILE"
   chmod 0640 "$CONFIG_FILE"
 fi
 
+# /usr/bin steht im PATH vor /usr/games, wo das gleichnamige Debian-Spiel
+# liegt. Der Befehl asylum meint deshalb dieses Panel.
 ln -sf "$BINARY" /usr/bin/asylum
 
 "$BINARY" migrate --config "$CONFIG_FILE" >/dev/null

@@ -97,3 +97,71 @@ func (db *DB) PurgeExpiredSessions(ctx context.Context) (int64, error) {
 	}
 	return res.RowsAffected()
 }
+
+// ListUserSessions liefert die gültigen Sitzungen eines Benutzers, die zuletzt
+// gesehene zuerst.
+//
+// Diese Liste ist der einzige Weg, eine übernommene Sitzung überhaupt zu
+// bemerken: Ein gestohlenes Cookie hinterlässt sonst keine Spur, die dem
+// Betroffenen auffiele.
+func (db *DB) ListUserSessions(ctx context.Context, userID int64) ([]Session, error) {
+	rows, err := db.sql.QueryContext(ctx, `
+		SELECT id, user_id, csrf_token, created_at, last_seen_at, expires_at, ip, user_agent
+		FROM sessions
+		WHERE user_id = ? AND expires_at > ?
+		ORDER BY last_seen_at DESC`,
+		userID, time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		return nil, fmt.Errorf("sitzungen lesen: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []Session
+	for rows.Next() {
+		var (
+			s                                Session
+			createdAt, lastSeenAt, expiresAt string
+		)
+		if err := rows.Scan(&s.ID, &s.UserID, &s.CSRFToken, &createdAt,
+			&lastSeenAt, &expiresAt, &s.IP, &s.UserAgent); err != nil {
+			return nil, fmt.Errorf("sitzungen lesen: %w", err)
+		}
+		s.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+		s.LastSeenAt, _ = time.Parse(time.RFC3339, lastSeenAt)
+		s.ExpiresAt, _ = time.Parse(time.RFC3339, expiresAt)
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// DeleteUserSession beendet genau eine Sitzung eines Benutzers.
+//
+// Die Benutzerkennung steht bewusst mit in der Bedingung: Ohne sie könnte ein
+// angemeldetes Konto durch Raten einer fremden Sitzungskennung andere
+// Benutzer abmelden.
+func (db *DB) DeleteUserSession(ctx context.Context, userID int64, id string) error {
+	res, err := db.sql.ExecContext(ctx,
+		`DELETE FROM sessions WHERE id = ? AND user_id = ?`, id, userID)
+	if err != nil {
+		return fmt.Errorf("sitzung beenden: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// DeleteOtherUserSessions beendet alle Sitzungen eines Benutzers außer der
+// angegebenen und liefert deren Anzahl.
+func (db *DB) DeleteOtherUserSessions(ctx context.Context, userID int64, keep string) (int64, error) {
+	res, err := db.sql.ExecContext(ctx,
+		`DELETE FROM sessions WHERE user_id = ? AND id <> ?`, userID, keep)
+	if err != nil {
+		return 0, fmt.Errorf("sitzungen beenden: %w", err)
+	}
+	return res.RowsAffected()
+}

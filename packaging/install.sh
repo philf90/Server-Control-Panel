@@ -14,6 +14,9 @@ umask 022
 
 REPO="${ASYLUM_REPO:-philf90/Server-Control-Panel}"
 CHANNEL="${ASYLUM_CHANNEL:-stable}"
+# Bezugsquelle für Update-Metadaten. Sie landet in der Konfiguration, damit
+# das eingebaute Update dieselbe Quelle nutzt wie dieser Installer.
+BASE_URL="${ASYLUM_BASE_URL:-https://repo.cloudsrv24.de}"
 VERSION="${ASYLUM_VERSION:-latest}"
 PORT="${ASYLUM_PORT:-8443}"
 BIND="${ASYLUM_BIND:-0.0.0.0}"
@@ -276,6 +279,7 @@ updates:
   check: daily
   auto_apply: security
   window: "03:00-05:00"
+  base_url: ${BASE_URL}
 YAML
   chown root:"$RUN_USER" "$CONFIG_FILE"
   chmod 0640 "$CONFIG_FILE"

@@ -74,10 +74,12 @@ jobs:
           check store   78
           check certs   78
           check config  82
+          # update trägt die Signaturprüfung und den Austausch des Binaries.
+          check update  85
           # httpd besteht zu einem großen Teil aus Anzeigelogik; die
           # sicherheitsrelevanten Pfade darin (Sitzung, CSRF, Rollen) sind
           # eigens getestet.
-          check httpd   58
+          check httpd   63
 
       - name: Build
         run: |

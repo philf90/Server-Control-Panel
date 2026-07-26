@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -54,13 +55,16 @@ type Log struct {
 	Format string `yaml:"format"`
 }
 
-// Updates entspricht dem in docs/05-updates.md beschriebenen Block. In M0 wird
-// er eingelesen und validiert, aber noch nicht ausgewertet.
+// Updates entspricht dem in docs/05-updates.md beschriebenen Block.
 type Updates struct {
 	Channel   string `yaml:"channel"`
 	Check     string `yaml:"check"`
 	AutoApply string `yaml:"auto_apply"`
 	Window    string `yaml:"window"`
+	// BaseURL ist der Ort der Update-Metadaten. Er ist einstellbar, damit ein
+	// Betreiber einen eigenen Spiegel setzen kann; die Signaturprüfung bleibt
+	// davon unberührt, der Schlüssel steckt im Binary.
+	BaseURL string `yaml:"base_url"`
 }
 
 // Default liefert die Vorgabekonfiguration.
@@ -87,6 +91,7 @@ func Default() Config {
 			Check:     "daily",
 			AutoApply: "security",
 			Window:    "03:00-05:00",
+			BaseURL:   "https://repo.cloudsrv24.de",
 		},
 	}
 }
@@ -145,6 +150,12 @@ func (c *Config) applyEnv() error {
 	if v := os.Getenv("ASYLUM_LOG_LEVEL"); v != "" {
 		c.Log.Level = v
 	}
+	if v := os.Getenv("ASYLUM_UPDATE_CHANNEL"); v != "" {
+		c.Updates.Channel = v
+	}
+	if v := os.Getenv("ASYLUM_UPDATE_BASE_URL"); v != "" {
+		c.Updates.BaseURL = v
+	}
 	return nil
 }
 
@@ -179,10 +190,16 @@ func (c Config) Validate() error {
 	default:
 		return fmt.Errorf("log.format: %q ist unbekannt (text|json)", c.Log.Format)
 	}
+	// Es gibt genau zwei Kanäle, weil die Freigabepipeline genau zwei bedient.
+	// Ein dritter Name in der Konfiguration wäre eine Zusage, die niemand
+	// einlöst — der Fehler fiele erst beim Update auf.
 	switch c.Updates.Channel {
-	case "stable", "beta", "nightly":
+	case "stable", "beta":
 	default:
-		return fmt.Errorf("updates.channel: %q ist unbekannt (stable|beta|nightly)", c.Updates.Channel)
+		return fmt.Errorf("updates.channel: %q ist unbekannt (stable|beta)", c.Updates.Channel)
+	}
+	if u, err := url.Parse(c.Updates.BaseURL); err != nil || u.Scheme != "https" || u.Host == "" {
+		return fmt.Errorf("updates.base_url: %q ist keine https-Adresse", c.Updates.BaseURL)
 	}
 	switch c.Updates.AutoApply {
 	case "none", "security", "patch", "all":

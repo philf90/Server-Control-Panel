@@ -88,24 +88,50 @@ ist deutlich unterscheidbarer als das Einzelwort), Bildsprache und Claim eindeut
 Zuflucht/Schutz ausrichten, und in `README`/Landingpage den Namen in einem Halbsatz
 erklären.
 
+### Erledigt: Debian- und Ubuntu-Namensraum
+
+Die Prüfung ist nachgeholt und hat einen Treffer ergeben:
+
+```
+$ apt-cache policy asylum
+asylum:
+  Candidate: 0.3.2-3build1
+     0.3.2-3build1 500 … noble/universe amd64 Packages
+
+$ apt-cache show asylum | grep -E '^(Section|Description)'
+Section: universe/games
+Description: surreal platform shooting game
+```
+
+Das Paket liefert `/usr/games/asylum`. Zwei getrennte Fragen:
+
+- **Paketname — kollidiert.** `asylum` ist vergeben, und mit 0.3.2 liegt es
+  *über* unserer Fassung; apt hätte also selbst mit eingebundenem Repository das
+  Spiel bevorzugt. **Entscheidung: Das Debian-Paket heißt `asylum-panel`.**
+  Geprüft gegen ein echtes, signiertes apt-Repository: `apt install asylum-panel`
+  löst eindeutig auf unser Paket auf. Frei sind außerdem `asylumd`,
+  `project-asylum` und `asylum-server`.
+- **Befehlsname — kollidiert nicht.** Unser `asylum` liegt in `/usr/bin`
+  (Paket) bzw. `/usr/local/bin` (Installer), beides steht im `PATH` vor
+  `/usr/games`. Da sich die Pfade unterscheiden, gibt es auch keinen
+  dpkg-Konflikt: Beide Pakete könnten nebeneinander installiert sein.
+
+Projektname, Daemon `asylumd` und Befehl `asylum` bleiben damit unverändert.
+
 ### Verbleibende Prüfschritte
 
-Aus der Entwicklungsumgebung nicht durchführbar (Netzwerk-Policy blockiert RDAP und
-`packages.debian.org`) — vor dem ersten öffentlichen Release manuell erledigen:
+Vor dem ersten öffentlichen Release:
 
 ```bash
-# 1. Kommandokollision in Debian/Ubuntu
-apt-file search --regexp '/(usr/)?s?bin/asylum(d)?$'
-
-# 2. Paket-Namensräume reservieren
+# 1. Paket-Namensräume reservieren
 #    crates.io · npmjs.com · hub.docker.com · pkg.go.dev
 
-# 3. Marken in Klasse 9 (Software) und 42 (IT-Dienstleistungen)
+# 2. Marken in Klasse 9 (Software) und 42 (IT-Dienstleistungen)
 #    DPMA: register.dpma.de · EUIPO: euipo.europa.eu/eSearch
 #    Asylum Records und The Asylum liegen in Klasse 41 (Unterhaltung),
 #    kollidieren also voraussichtlich nicht — trotzdem prüfen
 
-# 4. GitHub-Organisation (github.com/Asylum-os und github.com/AsylumCorp existieren
+# 3. GitHub-Organisation (github.com/Asylum-os und github.com/AsylumCorp existieren
 #    bereits; für dieses Projekt z. B. "project-asylum" oder "asylum-panel")
 ```
 

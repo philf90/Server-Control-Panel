@@ -28,6 +28,27 @@
   </div>
 
   <div class="card">
+    <h2>Zweiten Faktor wechseln</h2>
+    <p class="hint">
+      Für ein neues Telefon oder eine andere Authenticator-App. Der bisherige
+      Faktor gilt weiter, bis der neue bestätigt ist.
+    </p>
+    <form method="post" action="/account/2fa" autocomplete="on">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+
+      <label for="totp_current_password">Aktuelles Passwort</label>
+      <input type="password" id="totp_current_password" name="current_password"
+             autocomplete="current-password" required>
+
+      <p class="hint">
+        Beim Abschluss werden neue Wiederherstellungscodes erzeugt und alle
+        anderen Sitzungen beendet.
+      </p>
+      <button type="submit" class="secondary">Wechsel beginnen</button>
+    </form>
+  </div>
+
+  <div class="card">
     <h2>Passwort ändern</h2>
     <form method="post" action="/account/password" autocomplete="on">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -45,6 +66,58 @@
       <button type="submit">Passwort ändern</button>
     </form>
   </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Aktive Sitzungen</h2>
+    <span class="muted">{{len .Sessions}} offen</span>
+  </div>
+  <p class="hint">
+    Eine Sitzung, die hier steht und nicht von diesem Gerät stammt, gehört
+    beendet — und danach gehört das Passwort geändert.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Kennung</th><th>Adresse</th><th>Programm</th><th>Zuletzt aktiv</th><th>Angemeldet</th><th></th></tr>
+      </thead>
+      <tbody>
+        {{range .Sessions}}
+        <tr>
+          <td>
+            <code>{{.Short}}</code>
+            {{if .Current}}<span class="badge">diese Sitzung</span>{{end}}
+          </td>
+          <td><code>{{.IP}}</code></td>
+          <td class="muted">{{.UserAgent}}</td>
+          <td class="muted" title="{{datetime .LastSeenAt}}">{{since .LastSeenAt}}</td>
+          <td class="muted">{{datetime .CreatedAt}}</td>
+          <td class="actions">
+            {{if not .Current}}
+            <form method="post" action="/account/sessions/revoke">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="session" value="{{.ID}}">
+              <button type="submit" class="link">beenden</button>
+            </form>
+            {{end}}
+          </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="6" class="muted">Keine Sitzung offen.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  {{if .OtherSessions}}
+  <form method="post" action="/account/sessions/revoke-others"
+        onsubmit="return confirm('Alle anderen Sitzungen beenden?')">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <button type="submit" class="secondary">Alle anderen Sitzungen beenden</button>
+  </form>
+  {{end}}
 </div>
 {{end}}
 {{template "footer" .}}{{end}}

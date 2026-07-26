@@ -40,6 +40,13 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))
 	mux.Handle("POST /account/password", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasswordChange))))
 	mux.Handle("POST /account/recovery-codes", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleRecoveryCodes))))
+	// Wechsel des zweiten Faktors im laufenden Betrieb — bis hierher ging das
+	// nur über "asylum reset-password" auf der Kommandozeile des Servers.
+	mux.Handle("POST /account/2fa", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleTOTPChangeStart))))
+	mux.Handle("GET /account/2fa/qr.png", s.protected(http.HandlerFunc(s.handleTOTPChangeQR)))
+	mux.Handle("POST /account/2fa/confirm", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleTOTPChangeConfirm))))
+	mux.Handle("POST /account/sessions/revoke", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleSessionRevoke))))
+	mux.Handle("POST /account/sessions/revoke-others", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleSessionRevokeOthers))))
 
 	// Systemverwaltung: lesen darf jede Rolle, ändern nur Admin und Owner.
 	mux.Handle("GET /services", s.protected(http.HandlerFunc(s.handleServices)))
@@ -63,6 +70,14 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /system-users/{name}/keys/remove", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyRemove)))))
 
 	mux.Handle("GET /logs", s.protected(http.HandlerFunc(s.handleLogs)))
+
+	mux.Handle("GET /update", s.protected(http.HandlerFunc(s.handleUpdate)))
+	mux.Handle("GET /update/status", s.protected(http.HandlerFunc(s.handleUpdateStatus)))
+	mux.Handle("POST /update/check", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleUpdateCheck)))))
+	// Das Einspielen tauscht das Programm aus, das alle übrigen Rechte
+	// durchsetzt — deshalb nur Owner.
+	mux.Handle("POST /update/apply", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUpdateApply)))))
+	mux.Handle("POST /update/rollback", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUpdateRollback)))))
 
 	// Nur Owner.
 	mux.Handle("GET /users", s.protected(s.requireOwner(http.HandlerFunc(s.handleUsers))))

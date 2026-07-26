@@ -1,40 +1,34 @@
 # 06 — Roadmap & offene Entscheidungen
 
+## Getroffene Entscheidungen
+
+| Punkt | Entscheidung | Detail |
+|---|---|---|
+| **Scope** | **A — Server-Administrations-Panel.** Kein Hosting-Panel; vHosts, PHP, Mail und DNS bleiben Nicht-Ziele bzw. spätere optionale Module. | [03-funktionsumfang.md](03-funktionsumfang.md) |
+| **Sprache** | Go, statisches Single Binary | [01-sprachwahl.md](01-sprachwahl.md) |
+| **Lizenz** | Apache-2.0 (`LICENSE` im Root) | [07-name-lizenz-domain.md](07-name-lizenz-domain.md#lizenz-apache-20) |
+
 ## Offene Entscheidungen
 
-Diese vier Punkte sollten vor dem ersten Produktivcode geklärt sein, weil sie
-schwer nachträglich zu ändern sind.
+Beide Punkte blockieren M0 nicht — Code kann mit dem Platzhalternamen beginnen —,
+sollten aber vor der ersten öffentlichen Veröffentlichung stehen, weil sie danach
+teuer zu ändern sind.
 
-### 1. Scope
+### 1. Name
 
-Systemadministrations-Panel (Empfehlung) oder Hosting-Panel mit vHosts, PHP, Mail
-und DNS? Siehe [03-funktionsumfang.md](03-funktionsumfang.md#scope-entscheidung-zuerst).
-Die Entscheidung bestimmt Zielgruppe, Aufwand und die Frage, ob "schlank" als
-Versprechen haltbar bleibt.
+`scp` ist nur ein Platzhalter und scheidet endgültig aus: es kollidiert mit `scp(1)`
+aus OpenSSH. Kandidaten, Rechercheergebnisse und die verbleibenden Prüfschritte
+(Debian-Kommandokollision, Paketnamensräume, Marke, Domain) stehen in
+[07-name-lizenz-domain.md](07-name-lizenz-domain.md#name). Aktuelle Empfehlung:
+**Pult**.
 
-### 2. Name
+### 2. Domain
 
-`scp` als Binary-Name kollidiert mit `scp(1)` aus OpenSSH — das ist ein echtes
-Problem, kein kosmetisches. Der Platzhalter in dieser Dokumentation muss ersetzt
-werden. Kriterien: nicht belegt in Debian/Ubuntu, freier GitHub-Org-Name, freie
-`.org`- oder `.dev`-Domain, 3–8 Zeichen.
-
-### 3. Lizenz
-
-| Option | Wirkung |
-|---|---|
-| **Apache-2.0** (Empfehlung) | Maximale Verbreitung, Patentklausel, unproblematisch für Firmen |
-| **AGPL-3.0** | Schützt vor SaaS-Weiterverwertung ohne Rückfluss, schreckt aber Firmennutzer und damit Contributors ab |
-| **BSL / Fair-Source** | Nur sinnvoll bei geplanter Kommerzialisierung; kostet Community-Vertrauen |
-
-Bei einem Infrastruktur-Tool, das von Verbreitung lebt, wiegt der Verbreitungs­vorteil
-von Apache-2.0 schwerer als der Schutz der AGPL.
-
-### 4. Domain
-
-Gebraucht werden drei Hostnamen (können auf demselben statischen Hosting liegen):
-`get.<domain>` (Installer), `updates.<domain>` (Kanal-Metadaten),
-`apt.<domain>` (Paket-Repository).
+Gebraucht werden drei Hostnamen für die Auslieferungskette — `get.` (Installer),
+`updates.` (Kanal-Metadaten), `apt.` (Paket-Repository). Alle drei sind statische
+Dateien und können kostenlos auf GitHub Pages liegen. Empfehlung `.dev` wegen
+HSTS-Preloading; Begründung und Alternativen ohne eigene Domain in
+[07-name-lizenz-domain.md](07-name-lizenz-domain.md#domain--was-damit-gemeint-ist).
 
 ---
 

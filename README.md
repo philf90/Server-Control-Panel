@@ -41,14 +41,19 @@ Zielserver.
 | [docs/04-setup.md](docs/04-setup.md) | One-Line-Installer, APT-Repository, Deinstallation |
 | [docs/05-updates.md](docs/05-updates.md) | Release-Kanäle, Update-Wege, Migrationen, Rollback |
 | [docs/06-roadmap.md](docs/06-roadmap.md) | Meilensteine und offene Entscheidungen |
+| [docs/07-name-lizenz-domain.md](docs/07-name-lizenz-domain.md) | Namensfindung, Lizenzfolgen, Projekt-Domain |
 
-## Offene Entscheidungen
+## Stand der Entscheidungen
 
-Vor dem Start der Implementierung sollten diese Punkte entschieden werden — siehe
-[docs/06-roadmap.md](docs/06-roadmap.md#offene-entscheidungen):
+| Punkt | Stand |
+|---|---|
+| Scope | **Server-Administrations-Panel** — kein Hosting-Panel (kein Mail, kein DNS, keine Kundenverwaltung) |
+| Sprache | **Go**, statisches Single Binary |
+| Lizenz | **Apache-2.0** |
+| Name | offen — Empfehlung `Pult`, Kandidaten in [docs/07](docs/07-name-lizenz-domain.md#name). `scp`/`scpd` in der Doku ist ein Platzhalter |
+| Domain | offen — Empfehlung `<name>.dev` mit `get.` / `updates.` / `apt.` |
 
-1. **Scope:** Systemadministrations-Panel oder (später auch) Hosting-Panel mit
-   vHosts/PHP/Mail/DNS?
-2. **Produktname & Binary-Name** (aktuell Platzhalter `scp` / `scpd`).
-3. **Lizenz** (Empfehlung: Apache-2.0, Alternative AGPL-3.0).
-4. **Domain für Installer und Update-Metadaten.**
+## Lizenz
+
+[Apache-2.0](LICENSE). Beiträge per DCO (`git commit -s`); ein CLA ist nicht
+vorgesehen.

@@ -34,8 +34,17 @@ func newTestServer(t *testing.T) *Server {
 		t.Fatalf("Migrate: %v", err)
 	}
 
+	// Alle Pfade in ein Wegwerfverzeichnis: Ein Test, der nach /var/log/asylum
+	// schreibt, läuft nur als root durch und fällt sonst erst in der CI auf.
+	cfg := config.Default()
+	dir := t.TempDir()
+	cfg.Paths.Data = filepath.Join(dir, "lib")
+	cfg.Paths.Log = filepath.Join(dir, "log")
+	cfg.Server.TLS.Cert = filepath.Join(dir, "server.crt")
+	cfg.Server.TLS.Key = filepath.Join(dir, "server.key")
+
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv, err := New(config.Default(), logger, db, newFakeOps())
+	srv, err := New(cfg, logger, db, newFakeOps())
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

@@ -5,13 +5,30 @@ scheitert, wenn Schritt 1 noch nicht propagiert ist.
 
 ## Status
 
+Stand 2026-07-26, per DNS-Abfrage gegen `8.8.8.8` geprüft:
+
 | Schritt | Stand |
 |---|---|
 | CNAME `repo.cloudsrv24.de` → `philf90.github.io.` | ✅ gesetzt, löst auf 185.199.108–111.153 auf |
-| Domain-Verifizierung (TXT) | offen |
-| Pages-Quelle + Custom Domain im Repository | offen |
-| `gh-pages`-Branch | existiert noch nicht |
-| Enforce HTTPS | offen |
+| TXT `_github-pages-challenge-philf90.cloudsrv24.de` | ✅ vorhanden, korrekter Name ohne doppeltes Suffix |
+| CAA `cloudsrv24.de` | ✅ keine Records → jede CA darf ausstellen |
+| CAA am CNAME-Ziel `philf90.github.io` | ✅ `letsencrypt.org`, `digicert.com`, `sectigo.com` erlaubt |
+| Pages-Quelle + Custom Domain, Enforce HTTPS | erledigt laut Betreiber; das Zertifikat selbst ist aus der Entwicklungsumgebung nicht prüfbar (TLS-Interception durch das Egress-Gateway) |
+
+### Zur CAA-Situation
+
+`repo.cloudsrv24.de` ist ein CNAME. Nach RFC 8659 wertet eine CA in diesem Fall die
+CAA-Records des CNAME-Ziels aus — also die von `philf90.github.io`, und die erlauben
+Let's Encrypt explizit. Zusammen mit der leeren CAA-Menge auf `cloudsrv24.de` ist die
+Zertifikatsausstellung damit von beiden Seiten unblockiert.
+
+### Offener Feinschliff: TTL
+
+Beide Records werden derzeit mit **TTL 10 Sekunden** ausgeliefert. Das ist für die
+Einrichtungsphase praktisch (Änderungen greifen sofort), im Dauerbetrieb aber
+unnötig: jede Auflösung erzeugt eine echte Anfrage an die autoritativen Nameserver,
+und ein DNS-Ausfall schlägt ohne Cache-Puffer sofort durch. Sobald die Einrichtung
+steht, auf **3600** anheben — der TXT-Record verträgt sogar mehr.
 
 ---
 

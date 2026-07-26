@@ -38,12 +38,12 @@ jobs:
         run: go test -race -coverprofile=coverage.out ./...
 
       - name: Abdeckung der sicherheitsrelevanten Pakete
-        # auth, store, httpd, config und certs tragen die Last der
+        # auth, privops, store, httpd, config und certs tragen die Last der
         # Angriffsfläche. Sinkt die Abdeckung dort, soll der Build fehlschlagen
         # und nicht ein Report in einem Dashboard verstauben.
         run: |
           go tool cover -func=coverage.out | tail -n1
-          for pkg in auth store config certs httpd; do
+          for pkg in auth privops store config certs httpd; do
             pct="$(go tool cover -func=coverage.out \
                    | grep "/internal/${pkg}/" \
                    | awk '{gsub("%","",$3); sum+=$3; n++} END {if (n>0) printf "%.0f", sum/n; else print 0}')"

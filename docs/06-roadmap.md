@@ -95,6 +95,36 @@ Offen aus M1: Wechsel des zweiten Faktors im laufenden Betrieb (aktuell nur übe
 `privops.Executor`, Dienste (systemd/D-Bus), Pakete (apt), Firewall (nftables)
 inklusive Lockout-Schutz, Benutzer & SSH-Keys, journald-Logs.
 
+**Stand: umgesetzt.** Der `privops.Executor` ist die einzige Stelle mit
+Systemzugriff; alles darüber kennt nur typisierte Operationen. Umgesetzt sind
+Dienste, Pakete, Firewall, Systembenutzer samt SSH-Schlüsseln und das Journal.
+
+| Kennzahl | Grenze | Ist |
+|---|---|---|
+| Binärgröße | < 30 MB | 14 MB |
+| Direkte Abhängigkeiten | < 25 | 5 |
+| Testabdeckung `privops` | > 80 % | siehe CI-Schwelle |
+
+Zwei Abweichungen von der Planung, beide bewusst und in
+[02-architektur.md](02-architektur.md#abweichung-von-der-ursprünglichen-planung-systemctl-statt-d-bus)
+bzw. [03-funktionsumfang.md](03-funktionsumfang.md) begründet:
+
+- **systemctl statt D-Bus** — keine zusätzliche Abhängigkeit, dieselben Daten,
+  und jede Aktion bleibt eine nachvollziehbare Kommandozeile.
+- **ufw wird verwaltet, fremde nftables-Regelwerke nur angezeigt** — ein
+  automatischer Eingriff in fremde Ketten kann die laufende SSH-Sitzung kappen.
+
+Der Lockout-Schutz ist umgesetzt: Jede Firewall-Änderung gilt zunächst auf
+Probe, ohne Bestätigung binnen 60 Sekunden stellt der Server den vorherigen
+Stand wieder her — serverseitig, unabhängig davon, ob der Browser noch offen ist.
+
+Gegen ein laufendes System geprüft wurden Paketliste (echtes `apt-get
+--simulate`), Systembenutzer (echtes `/etc/passwd`), Firewall-Erkennung und die
+Fehlerbehandlung bei fehlendem systemd. Die systemd- und journald-Pfade selbst
+konnten in der Entwicklungsumgebung nicht gegen ein laufendes systemd geprüft
+werden — dort greifen Parsertests gegen aufgezeichnete Ausgaben und
+Operationstests gegen einen einspeisbaren Runner.
+
 ### M3 — Update-Mechanik (1 Woche)
 Kanäle, Metadatenformat, Selbstupdate mit Healthcheck und Rollback,
 `asylum update` / `asylum rollback`, APT-Repository-Job in der Pipeline.

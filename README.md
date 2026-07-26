@@ -7,10 +7,10 @@ Ein schlankes, ressourcenschonendes Control Panel für Linux-Server (primär Ubu
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: M1 — Anmeldung und Übersicht.** Installation, TLS, systemd-Integration,
-> Release-Pfad, Zwei-Faktor-Anmeldung, Rollen, Audit-Log und das Live-Dashboard
-> stehen. Was noch fehlt, sind die Verwaltungsmodule selbst — Dienste, Pakete,
-> Firewall, Benutzer und Logs kommen mit M2.
+> **Status: M2 — Systemmodule.** Installation, TLS, Release-Pfad,
+> Zwei-Faktor-Anmeldung, Rollen, Audit-Log, Live-Dashboard sowie die Verwaltung
+> von Diensten, Paketen, Firewall, Systembenutzern und Logs stehen. Als Nächstes
+> folgt M3: Selbstupdate mit Healthcheck und Rollback.
 
 ## Zielbild
 
@@ -50,6 +50,7 @@ internal/certs/       selbstsigniertes TLS-Material, Fingerprint
 internal/store/       SQLite, Migrationen, Nutzer, Sessions, Audit
 internal/auth/        Argon2id, TOTP, Tokens, Ratenbegrenzung
 internal/metrics/     /proc-Sampler und Ringpuffer
+internal/privops/     einzige Stelle mit Systemzugriff (systemd, apt, ufw, …)
 internal/httpd/       Router, Middleware, Handler, SSE
 internal/systemd/     sd_notify und Watchdog ohne cgo
 internal/ui/          Templates und Assets (embed)

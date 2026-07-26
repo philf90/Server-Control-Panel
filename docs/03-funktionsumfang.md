@@ -51,7 +51,12 @@ der ersten Stunde tut.
 - Unattended-Upgrades ein-/ausschalten und Konfiguration anzeigen.
 
 ### Firewall
-- nftables als Backend; `ufw` wird erkannt und dann respektiert statt umgangen.
+- `ufw` wird verwaltet, wo es aktiv ist — es ist auf Ubuntu und Debian der
+  Regelfall und selbst ein Frontend für nftables.
+- Ein eigenes nftables-Regelwerk wird **angezeigt, aber nicht verändert.**
+  Ein automatischer Eingriff in fremde Ketten kann bestehende Regeln unwirksam
+  machen oder die laufende SSH-Sitzung kappen. Ein Panel, das den Server
+  aussperrt, hat schlimmer versagt als eines, das eine Funktion nicht anbietet.
 - Regeln für eingehende Ports (Port, Protokoll, Quelle, Kommentar).
 - Presets: SSH, HTTP/HTTPS, Panel-Port.
 - **Lockout-Schutz:** Regeländerungen greifen zunächst probeweise; ohne Bestätigung

@@ -1,0 +1,43 @@
+{{define "service"}}{{template "header" .}}
+{{with .Content.Detail}}
+<div class="card">
+  <div class="card-head">
+    <h2><code>{{.Unit}}</code></h2>
+    <span class="badge {{if .Failed}}error{{else if .Running}}ok{{end}}">{{.Active}} · {{.Sub}}</span>
+  </div>
+  <p class="muted">{{.Description}}</p>
+
+  <dl>
+    <dt>Autostart</dt><dd>{{if .Enabled}}{{.Enabled}}{{else}}—{{end}}</dd>
+    <dt>Seit</dt><dd>{{if .Since}}{{.Since}}{{else}}—{{end}}</dd>
+    <dt>Haupt-PID</dt><dd>{{if .MainPID}}{{.MainPID}}{{else}}—{{end}}</dd>
+    <dt>Speicher</dt><dd>{{if .Memory}}{{bytes .Memory}}{{else}}—{{end}}</dd>
+    <dt>Tasks</dt><dd>{{if .Tasks}}{{.Tasks}}{{else}}—{{end}}</dd>
+    <dt>Unit-Datei</dt><dd><code>{{.FragmentP}}</code></dd>
+  </dl>
+
+  {{if $.CanWrite}}
+  <div class="button-row">
+    {{range $action := list "start" "stop" "restart" "reload" "enable" "disable"}}
+    <form method="post" action="/services/{{$.Content.Detail.Unit}}">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="action" value="{{$action}}">
+      <button type="submit" class="secondary">{{$action}}</button>
+    </form>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+
+<div class="card">
+  <h2>Letzte Logzeilen</h2>
+  {{if .RecentLogs}}
+  <pre class="logs">{{range .RecentLogs}}<span class="prio-{{.PriorityName}}">{{datetime .At}}  {{.Message}}</span>
+{{end}}</pre>
+  {{else}}
+  <p class="muted">Keine Einträge im Journal.</p>
+  {{end}}
+</div>
+{{end}}
+<p><a href="/services">← zurück zur Übersicht</a></p>
+{{template "footer" .}}{{end}}

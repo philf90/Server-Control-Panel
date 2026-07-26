@@ -27,6 +27,7 @@ import (
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
 	"github.com/philf90/asylum/internal/httpd"
+	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 	"github.com/philf90/asylum/internal/version"
 	"golang.org/x/term"
@@ -122,7 +123,7 @@ func cmdServe(args []string) error {
 		logger.Info("Migrationen eingespielt", "anzahl", applied)
 	}
 
-	srv, err := httpd.New(cfg, logger, db)
+	srv, err := httpd.New(cfg, logger, db, privops.NewSystem())
 	if err != nil {
 		return err
 	}

@@ -35,7 +35,7 @@ func newTestServer(t *testing.T) *Server {
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv, err := New(config.Default(), logger, db)
+	srv, err := New(config.Default(), logger, db, newFakeOps())
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}

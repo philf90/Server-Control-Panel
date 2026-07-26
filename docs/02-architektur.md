@@ -43,6 +43,30 @@ werden als `[]string` an `exec.CommandContext` übergeben, niemals über eine Sh
 Unit-Namen, Paketnamen und Benutzernamen werden gegen strikte Allowlists/Regexes
 validiert, bevor sie den Executor erreichen.
 
+Drei Umsetzungsdetails, die in der Praxis den Unterschied machen:
+
+- **Kommando-Allowlist mit absoluten Pfaden.** Nur eine feste Liste von
+  Programmen ist aufrufbar, und der Pfad wird nicht über `$PATH` gesucht — ein
+  manipuliertes PATH-Element wäre sonst ein direkter Weg zu Codeausführung als
+  root.
+- **Feste Umgebung.** `LC_ALL=C` hält die Ausgabe in der Sprache, deren Format
+  die Parser kennen; auf einem deutsch eingestellten Server scheiterte das
+  Parsen sonst.
+- **Gedeckelte Ausgabe.** Ein Kommando mit endloser Ausgabe kann den Speicher
+  des Panels nicht füllen; jenseits von 4 MiB wird gekürzt und das kenntlich
+  gemacht.
+
+### Abweichung von der ursprünglichen Planung: systemctl statt D-Bus
+
+Die Konzeption sah den Zugriff auf systemd über D-Bus vor. Umgesetzt ist der
+Aufruf von `systemctl` mit `--output=json`. Gründe: keine zusätzliche
+Abhängigkeit, dieselben Daten, und jede Aktion des Panels bleibt eine
+nachvollziehbare Kommandozeile — was zum Grundsatz „nichts verstecken" besser
+passt als ein Methodenaufruf auf einem Bus. Die Spaltenansicht von `systemctl`
+wird bewusst nicht geparst: Unit-Beschreibungen enthalten Leerzeichen, und ein
+Spaltenparser bricht an der ersten Beschreibung, die nach einem Statuswort
+aussieht.
+
 **Warum trotzdem ein Prozess?** Zwei Prozesse mit IPC verdoppeln die Komplexität im
 MVP. Da der gesamte Systemzugriff hinter einem Interface liegt, lässt sich der
 zweite Schritt später ohne Rewrite gehen:

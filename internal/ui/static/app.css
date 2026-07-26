@@ -311,3 +311,89 @@ code {
   color: var(--muted);
   font-size: 0.78rem;
 }
+
+/* ------------------------------------------------------- Systemmodule (M2) */
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.card-head h2 { margin: 0; }
+
+.filter-form {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.filter-form input,
+.filter-form select { width: auto; min-width: 9rem; }
+.filter-form button { margin-top: 0; }
+
+.button-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.button-row form { margin: 0; }
+.button-row button { margin-top: 0; }
+
+button[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.warn-text { color: var(--warn); font-weight: 600; }
+
+.alert.warn-box {
+  background: rgba(160, 110, 30, 0.14);
+  color: var(--warn);
+}
+
+.alert.warn-box form.inline { display: inline; margin-left: 0.75rem; }
+.alert.warn-box button { margin-top: 0.5rem; }
+
+pre.logs {
+  max-height: 26rem;
+  overflow: auto;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: var(--bar-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+pre.logs span { display: block; }
+.prio-emerg, .prio-alert, .prio-crit, .prio-err { color: var(--danger); }
+.prio-warn { color: var(--warn); }
+.prio-debug { opacity: 0.65; }
+
+table.rules input,
+table.rules select {
+  width: 100%;
+  min-width: 5rem;
+  padding: 0.35rem 0.5rem;
+}
+
+table.rules td { vertical-align: middle; }
+
+.sr-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+a { color: var(--accent); }
+.menu { flex-wrap: wrap; }

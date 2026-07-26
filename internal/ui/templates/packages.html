@@ -1,0 +1,88 @@
+{{define "packages"}}{{template "header" .}}
+{{with .Content}}
+{{if .Reboot.Required}}
+<div class="alert warn-box">
+  <strong>Neustart erforderlich.</strong>
+  {{if .Reboot.Packages}}Ausgelöst durch: {{range $i, $p := .Reboot.Packages}}{{if $i}}, {{end}}<code>{{$p}}</code>{{end}}{{end}}
+</div>
+{{end}}
+
+<div class="card">
+  <div class="card-head">
+    <h2>Verfügbare Updates</h2>
+    <span class="muted">
+      {{len .Packages}} Pakete{{if .Security}} · <span class="warn-text">{{.Security}} Sicherheitsupdates</span>{{end}}
+    </span>
+  </div>
+
+  {{if $.CanWrite}}
+  <div class="button-row">
+    <form method="post" action="/packages/refresh">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button type="submit" class="secondary" {{if .JobRunning}}disabled{{end}}>Paketlisten aktualisieren</button>
+    </form>
+    {{if .Security}}
+    <form method="post" action="/packages/upgrade">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="scope" value="security">
+      <button type="submit" {{if .JobRunning}}disabled{{end}}>Nur Sicherheitsupdates einspielen</button>
+    </form>
+    {{end}}
+    {{if .Packages}}
+    <form method="post" action="/packages/upgrade"
+          onsubmit="return confirm('Alle {{len .Packages}} Updates einspielen?')">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="scope" value="all">
+      <button type="submit" class="secondary" {{if .JobRunning}}disabled{{end}}>Alle einspielen</button>
+    </form>
+    {{end}}
+  </div>
+  {{end}}
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Paket</th><th>Installiert</th><th>Verfügbar</th><th>Quelle</th>{{if $.CanWrite}}<th></th>{{end}}</tr>
+      </thead>
+      <tbody>
+        {{range .Packages}}
+        <tr>
+          <td>
+            <code>{{.Name}}</code>
+            {{if .Security}}<span class="badge error">Sicherheit</span>{{end}}
+          </td>
+          <td class="muted">{{.CurrentVersion}}</td>
+          <td>{{.NewVersion}}</td>
+          <td class="muted">{{.Origin}}</td>
+          {{if $.CanWrite}}
+          <td class="actions">
+            <form method="post" action="/packages/upgrade">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="package" value="{{.Name}}">
+              <button type="submit" class="link" {{if $.Content.JobRunning}}disabled{{end}}>einspielen</button>
+            </form>
+          </td>
+          {{end}}
+        </tr>
+        {{else}}
+        <tr><td colspan="5" class="muted">Das System ist auf dem aktuellen Stand.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{if or .JobRunning .JobLines}}
+<div class="card">
+  <div class="card-head">
+    <h2>Vorgang</h2>
+    <span id="job-status" class="muted">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
+  </div>
+  {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
+  <pre class="logs" id="job-output">{{range .JobLines}}{{.}}
+{{end}}</pre>
+</div>
+{{if .JobRunning}}<script src="/static/job.js" defer></script>{{end}}
+{{end}}
+{{end}}
+{{template "footer" .}}{{end}}

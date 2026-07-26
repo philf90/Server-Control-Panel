@@ -37,6 +37,9 @@ func funcs() template.FuncMap {
 		"datetime": func(t time.Time) string { return t.Local().Format("02.01.2006 15:04:05") },
 		"date":     func(t time.Time) string { return t.Local().Format("02.01.2006") },
 		"since":    formatSince,
+		// list baut im Template eine Aufzählung, etwa für die Schaltflächen
+		// einer Dienstdetailseite.
+		"list": func(items ...string) []string { return items },
 	}
 }
 

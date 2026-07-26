@@ -1,0 +1,91 @@
+{{define "firewall"}}{{template "header" .}}
+{{with .Content}}
+{{if .Pending}}
+<div class="alert warn-box">
+  <strong>Bestätigung ausstehend.</strong>
+  Die neuen Regeln gelten auf Probe. Ohne Bestätigung wird in
+  <strong id="fw-countdown" data-seconds="{{.RemainingSeconds}}">{{.RemainingSeconds}}</strong>
+  Sekunden der vorherige Stand wiederhergestellt.
+  <form method="post" action="/firewall/confirm" class="inline">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <button type="submit">Verbindung besteht — Regeln behalten</button>
+  </form>
+</div>
+<script src="/static/countdown.js" defer></script>
+{{end}}
+
+<div class="card">
+  <div class="card-head">
+    <h2>Firewall</h2>
+    <span>
+      <span class="badge {{if .State.Active}}ok{{end}}">{{.State.Backend}}</span>
+      {{if .State.Active}}aktiv{{else}}inaktiv{{end}}
+    </span>
+  </div>
+
+  {{if .State.Notice}}<p class="hint">{{.State.Notice}}</p>{{end}}
+
+  {{if and $.CanWrite .State.Managed}}
+  <p class="hint">
+    Hier steht der vollständige gewünschte Regelsatz für eingehenden Verkehr.
+    Eine geleerte Portnummer entfernt die Zeile. Nach dem Speichern gelten die
+    Regeln zunächst auf Probe — bestätige sie, solange die Verbindung noch steht.
+  </p>
+
+  <form method="post" action="/firewall">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <div class="table-wrap">
+      <table class="rules">
+        <thead><tr><th>Port</th><th>Protokoll</th><th>Quelle</th><th>Kommentar</th></tr></thead>
+        <tbody>
+          {{range .State.Rules}}
+          <tr>
+            <td><input type="text" name="port" value="{{.Port}}" inputmode="numeric" size="6"></td>
+            <td>
+              <select name="protocol">
+                <option value="tcp" {{if eq .Protocol "tcp"}}selected{{end}}>tcp</option>
+                <option value="udp" {{if eq .Protocol "udp"}}selected{{end}}>udp</option>
+              </select>
+            </td>
+            <td><input type="text" name="source" value="{{.Source}}" placeholder="überall"></td>
+            <td><input type="text" name="comment" value="{{.Comment}}" maxlength="120"></td>
+          </tr>
+          {{end}}
+          <tr>
+            <td><input type="text" name="port" placeholder="443" inputmode="numeric" size="6"></td>
+            <td>
+              <select name="protocol">
+                <option value="tcp">tcp</option>
+                <option value="udp">udp</option>
+              </select>
+            </td>
+            <td><input type="text" name="source" placeholder="überall"></td>
+            <td><input type="text" name="comment" placeholder="neue Regel" maxlength="120"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <button type="submit">Regelsatz speichern</button>
+  </form>
+  {{else}}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Port</th><th>Protokoll</th><th>Quelle</th><th>Kommentar</th></tr></thead>
+      <tbody>
+        {{range .State.Rules}}
+        <tr>
+          <td>{{.Port}}</td>
+          <td>{{.Protocol}}</td>
+          <td class="muted">{{if .Source}}{{.Source}}{{else}}überall{{end}}</td>
+          <td class="muted">{{.Comment}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4" class="muted">keine Regeln für eingehenden Verkehr</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{template "footer" .}}{{end}}

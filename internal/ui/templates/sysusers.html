@@ -1,0 +1,128 @@
+{{define "sysusers"}}{{template "header" .}}
+{{with .Content}}
+<div class="card">
+  <div class="card-head">
+    <h2>Systembenutzer</h2>
+    <span class="muted">{{len .Users}} Konten</span>
+  </div>
+  <p class="hint">
+    Das sind die Konten des Betriebssystems, nicht die des Panels. Neue Konten
+    bekommen kein Passwort — die Anmeldung läuft über SSH-Schlüssel.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>UID</th><th>Gruppen</th><th>Shell</th><th>Schlüssel</th><th>Status</th>{{if $.CanWrite}}<th></th>{{end}}</tr>
+      </thead>
+      <tbody>
+        {{range .Users}}
+        <tr {{if .System}}class="muted-row"{{end}}>
+          <td><a href="/system-users?user={{.Name}}">{{.Name}}</a>{{if .Comment}} <span class="muted">{{.Comment}}</span>{{end}}</td>
+          <td class="muted">{{.UID}}</td>
+          <td class="muted">{{range $i, $g := .Groups}}{{if $i}}, {{end}}{{$g}}{{end}}</td>
+          <td class="muted"><code>{{.Shell}}</code></td>
+          <td>{{if .SSHKeys}}{{.SSHKeys}}{{else}}—{{end}}</td>
+          <td>{{if .Locked}}<span class="badge">gesperrt</span>{{else if .HasShell}}<span class="badge ok">aktiv</span>{{else}}<span class="muted">kein Login</span>{{end}}</td>
+          {{if $.CanWrite}}
+          <td class="actions">
+            {{if not .System}}
+            <form method="post" action="/system-users/{{.Name}}/locked">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="locked" value="{{if .Locked}}0{{else}}1{{end}}">
+              <button type="submit" class="link">{{if .Locked}}entsperren{{else}}sperren{{end}}</button>
+            </form>
+            <form method="post" action="/system-users/{{.Name}}/delete"
+                  onsubmit="return confirm('Konto {{.Name}} löschen? Das Home-Verzeichnis bleibt erhalten.')">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <button type="submit" class="link danger">löschen</button>
+            </form>
+            {{end}}
+          </td>
+          {{end}}
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{if .Selected}}
+<div class="card">
+  <div class="card-head">
+    <h2>SSH-Schlüssel von <code>{{.Selected}}</code></h2>
+    <a href="/system-users" class="muted">schließen</a>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Typ</th><th>Fingerprint</th><th>Kommentar</th>{{if $.CanWrite}}<th></th>{{end}}</tr></thead>
+      <tbody>
+        {{range .Keys}}
+        <tr>
+          <td><code>{{.Type}}</code>{{if .Bits}} <span class="muted">{{.Bits}} Bit</span>{{end}}</td>
+          <td><code>{{.Fingerprint}}</code></td>
+          <td class="muted">{{.Comment}}</td>
+          {{if $.CanWrite}}
+          <td class="actions">
+            <form method="post" action="/system-users/{{$.Content.Selected}}/keys/remove"
+                  onsubmit="return confirm('Diesen Schlüssel entfernen? Der Zugang darüber geht verloren.')">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="fingerprint" value="{{.Fingerprint}}">
+              <button type="submit" class="link danger">entfernen</button>
+            </form>
+          </td>
+          {{end}}
+        </tr>
+        {{else}}
+        <tr><td colspan="4" class="muted">keine Schlüssel hinterlegt</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  {{if $.CanWrite}}
+  <form method="post" action="/system-users/{{.Selected}}/keys">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <label for="key">Öffentlichen Schlüssel hinzufügen</label>
+    <input type="text" id="key" name="key" required
+           placeholder="ssh-ed25519 AAAAC3... philipp@laptop">
+    <p class="hint">Eine Zeile aus <code>~/.ssh/id_ed25519.pub</code>. Optionen vor dem Schlüsseltyp werden nicht angenommen.</p>
+    <button type="submit">Hinzufügen</button>
+  </form>
+  {{end}}
+</div>
+{{end}}
+
+{{if $.CanWrite}}
+<div class="card">
+  <h2>Konto anlegen</h2>
+  <form method="post" action="/system-users" class="row-form">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <div>
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" required pattern="[a-z_][a-z0-9_-]*" maxlength="32">
+    </div>
+    <div>
+      <label for="comment">Beschreibung</label>
+      <input type="text" id="comment" name="comment" maxlength="120">
+    </div>
+    <div>
+      <label for="shell">Shell</label>
+      <input type="text" id="shell" name="shell" value="/bin/bash">
+    </div>
+    <div>
+      <label for="groups">Gruppen</label>
+      <input type="text" id="groups" name="groups" placeholder="sudo, docker">
+    </div>
+    <div class="submit"><button type="submit">Anlegen</button></div>
+  </form>
+  <label for="ssh_key" class="sr-label">Öffentlicher SSH-Schlüssel (optional)</label>
+  <p class="hint">
+    Ohne Schlüssel hat das Konto keine Anmeldemöglichkeit — er lässt sich auch
+    später über die Liste oben nachtragen. Das Home-Verzeichnis wird angelegt.
+  </p>
+</div>
+{{end}}
+{{end}}
+{{template "footer" .}}{{end}}

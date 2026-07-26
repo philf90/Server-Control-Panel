@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -39,6 +40,29 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))
 	mux.Handle("POST /account/password", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasswordChange))))
 	mux.Handle("POST /account/recovery-codes", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleRecoveryCodes))))
+
+	// Systemverwaltung: lesen darf jede Rolle, ändern nur Admin und Owner.
+	mux.Handle("GET /services", s.protected(http.HandlerFunc(s.handleServices)))
+	mux.Handle("GET /services/{unit}", s.protected(http.HandlerFunc(s.handleServiceDetail)))
+	mux.Handle("POST /services/{unit}", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleServiceAction)))))
+
+	mux.Handle("GET /packages", s.protected(http.HandlerFunc(s.handlePackages)))
+	mux.Handle("GET /packages/events", s.protected(http.HandlerFunc(s.handlePackageEvents)))
+	mux.Handle("POST /packages/refresh", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handlePackageRefresh)))))
+	mux.Handle("POST /packages/upgrade", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handlePackageUpgrade)))))
+
+	mux.Handle("GET /firewall", s.protected(http.HandlerFunc(s.handleFirewall)))
+	mux.Handle("POST /firewall", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallApply)))))
+	mux.Handle("POST /firewall/confirm", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallConfirm)))))
+
+	mux.Handle("GET /system-users", s.protected(http.HandlerFunc(s.handleSystemUsers)))
+	mux.Handle("POST /system-users", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserCreate)))))
+	mux.Handle("POST /system-users/{name}/locked", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserLock)))))
+	mux.Handle("POST /system-users/{name}/delete", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserDelete)))))
+	mux.Handle("POST /system-users/{name}/keys", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyAdd)))))
+	mux.Handle("POST /system-users/{name}/keys/remove", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyRemove)))))
+
+	mux.Handle("GET /logs", s.protected(http.HandlerFunc(s.handleLogs)))
 
 	// Nur Owner.
 	mux.Handle("GET /users", s.protected(s.requireOwner(http.HandlerFunc(s.handleUsers))))
@@ -143,18 +167,30 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// writeEvent schickt einen Metrik-Schnappschuss. Die Nutzlast ist bereits
+// JSON und wird unverändert geschrieben — kompaktes JSON enthält keine
+// Zeilenumbrüche, die das Ereignis vorzeitig beenden könnten.
 func writeEvent(w http.ResponseWriter, rc *http.ResponseController, snap metrics.Snapshot) bool {
 	payload, err := json.Marshal(snap)
 	if err != nil {
 		return false
 	}
-	if _, err := w.Write([]byte("event: metrics\ndata: ")); err != nil {
+	if _, err := fmt.Fprintf(w, "event: metrics\ndata: %s\n\n", payload); err != nil {
 		return false
 	}
-	if _, err := w.Write(payload); err != nil {
+	return rc.Flush() == nil
+}
+
+// writeSSE schickt eine Textzeile, etwa aus der Ausgabe eines laufenden
+// Kommandos. Der Text wird als JSON-Zeichenkette kodiert: Ein Zeilenumbruch
+// oder ein Steuerzeichen würde das Ereignis sonst mitten im Datenfeld beenden.
+// Der Empfänger parst die Zeile entsprechend mit JSON.parse.
+func writeSSE(w http.ResponseWriter, rc *http.ResponseController, event, text string) bool {
+	encoded, err := json.Marshal(text)
+	if err != nil {
 		return false
 	}
-	if _, err := w.Write([]byte("\n\n")); err != nil {
+	if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, encoded); err != nil {
 		return false
 	}
 	return rc.Flush() == nil

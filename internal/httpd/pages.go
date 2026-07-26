@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/philf90/asylum/internal/metrics"
+	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 	"github.com/philf90/asylum/internal/version"
 )
@@ -97,4 +98,46 @@ type accountPage struct {
 
 type usersPage struct {
 	Users []store.User
+}
+
+// --------------------------------------------------- Seiten der Systemmodule ---
+
+type servicesPage struct {
+	Services []privops.Service
+	Filter   privops.ServiceFilter
+	Failed   int
+	State    string
+}
+
+type serviceDetailPage struct {
+	Detail privops.ServiceDetail
+}
+
+type packagesPage struct {
+	Packages []privops.Package
+	Security int
+	Reboot   privops.RebootState
+
+	JobLines   []string
+	JobRunning bool
+	JobDone    bool
+	JobError   string
+}
+
+type firewallPage struct {
+	State            privops.FirewallState
+	Pending          bool
+	RemainingSeconds int
+}
+
+type sysUsersPage struct {
+	Users    []privops.SystemUser
+	Selected string
+	Keys     []privops.SSHKey
+}
+
+type logsPage struct {
+	Entries []privops.LogEntry
+	Units   []string
+	Query   privops.LogQuery
 }

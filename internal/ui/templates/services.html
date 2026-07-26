@@ -1,0 +1,66 @@
+{{define "services"}}{{template "header" .}}
+{{with .Content}}
+<div class="card">
+  <div class="card-head">
+    <h2>Dienste</h2>
+    <span class="muted">{{len .Services}} Units{{if .Failed}} · <span class="warn-text">{{.Failed}} fehlgeschlagen</span>{{end}}</span>
+  </div>
+
+  <form method="get" action="/services" class="filter-form">
+    <input type="search" name="q" value="{{.Filter.Search}}" placeholder="Unit oder Beschreibung suchen">
+    <select name="state">
+      <option value="" {{if eq .State ""}}selected{{end}}>alle Zustände</option>
+      <option value="active" {{if eq .State "active"}}selected{{end}}>nur laufende</option>
+      <option value="failed" {{if eq .State "failed"}}selected{{end}}>nur fehlgeschlagene</option>
+    </select>
+    <button type="submit" class="secondary">Filtern</button>
+  </form>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Unit</th><th>Beschreibung</th><th>Zustand</th><th>Autostart</th>{{if $.CanWrite}}<th></th>{{end}}</tr>
+      </thead>
+      <tbody>
+        {{range .Services}}
+        <tr {{if .Failed}}class="warn"{{end}}>
+          <td><a href="/services/{{.Unit}}"><code>{{.Unit}}</code></a></td>
+          <td class="muted">{{.Description}}</td>
+          <td>
+            <span class="badge {{if .Failed}}error{{else if .Running}}ok{{end}}">{{.Active}}</span>
+            <span class="muted">{{.Sub}}</span>
+          </td>
+          <td class="muted">{{if .Enabled}}{{.Enabled}}{{else}}—{{end}}</td>
+          {{if $.CanWrite}}
+          <td class="actions">
+            {{if .Running}}
+            <form method="post" action="/services/{{.Unit}}">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="action" value="restart">
+              <button type="submit" class="link">neu starten</button>
+            </form>
+            <form method="post" action="/services/{{.Unit}}"
+                  onsubmit="return confirm('{{.Unit}} wirklich stoppen?')">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="action" value="stop">
+              <button type="submit" class="link danger">stoppen</button>
+            </form>
+            {{else}}
+            <form method="post" action="/services/{{.Unit}}">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="action" value="start">
+              <button type="submit" class="link">starten</button>
+            </form>
+            {{end}}
+          </td>
+          {{end}}
+        </tr>
+        {{else}}
+        <tr><td colspan="5" class="muted">keine Units gefunden</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{end}}
+{{template "footer" .}}{{end}}

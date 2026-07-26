@@ -17,6 +17,7 @@ import (
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
 	"github.com/philf90/asylum/internal/metrics"
+	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 	"github.com/philf90/asylum/internal/systemd"
 	"github.com/philf90/asylum/internal/ui"
@@ -49,14 +50,22 @@ type Server struct {
 	ring    *metrics.Ring
 	limiter *auth.Limiter
 	hub     *hub
+
+	// ops ist der einzige Weg zu privilegierten Systemoperationen.
+	ops     privops.Executor
+	jobs    *jobs
+	fwGuard *firewallGuard
 }
 
 // New baut den Server auf. Templates werden hier geparst, damit ein Fehler
 // beim Start auffällt und nicht erst beim ersten Aufruf.
-func New(cfg config.Config, logger *slog.Logger, db *store.DB) (*Server, error) {
+func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Executor) (*Server, error) {
 	tmpl, err := ui.Templates()
 	if err != nil {
 		return nil, fmt.Errorf("templates: %w", err)
+	}
+	if ops == nil {
+		ops = privops.NewSystem()
 	}
 	return &Server{
 		cfg:     cfg,
@@ -68,6 +77,9 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB) (*Server, error) 
 		ring:    metrics.NewRing(historyEntries),
 		limiter: auth.NewLimiter(),
 		hub:     newHub(),
+		ops:     ops,
+		jobs:    newJobs(),
+		fwGuard: newFirewallGuard(),
 	}, nil
 }
 

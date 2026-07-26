@@ -8,6 +8,12 @@
 # Go
 vendor/
 
+# Signaturschlüssel — der private Schlüssel gehört niemals ins Repository.
+# Der öffentliche liegt bewusst als packaging/minisign.pub darin.
+*.key
+!packaging/minisign.pub
+minisign.key
+
 # Lokale Entwicklung
 *.db
 *.db-wal

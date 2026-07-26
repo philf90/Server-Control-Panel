@@ -30,8 +30,11 @@ UNIT_FILE="/etc/systemd/system/asylumd.service"
 SERVICE="asylumd"
 RUN_USER="asylum"
 
-# Wird beim Release durch den echten Schlüssel ersetzt.
-MINISIGN_PUBKEY="${ASYLUM_MINISIGN_PUBKEY:-RWQPLACEHOLDER0000000000000000000000000000000}"
+# Öffentlicher Signaturschlüssel des Projekts. Er steht hier im Klartext,
+# damit der Installer ohne Netzabfrage prüfen kann — derselbe Schlüssel liegt
+# als packaging/minisign.pub im Repository und unter
+# https://repo.cloudsrv24.de/minisign.pub zum Vergleich.
+MINISIGN_PUBKEY="${ASYLUM_MINISIGN_PUBKEY:-RWQj/sAQQiq7Aa8sPaBSb21Wcbp9n165J+s6z8qqq0GUmB2ZXzDNoNXf}"
 
 TMP=""
 BACKUP_BINARY=""
@@ -180,8 +183,8 @@ verify_artifacts() {
 
   if [ "${ASYLUM_SKIP_SIGNATURE:-0}" = "1" ]; then
     warn "Signaturprüfung übersprungen (ASYLUM_SKIP_SIGNATURE=1)."
-  elif [ "$MINISIGN_PUBKEY" = "RWQPLACEHOLDER0000000000000000000000000000000" ]; then
-    die "In diesem Skript steht noch kein Signaturschlüssel. Mit ASYLUM_SKIP_SIGNATURE=1 lässt sich die Prüfung bewusst überspringen — auf Produktivsystemen nicht empfohlen."
+  elif [ -z "$MINISIGN_PUBKEY" ]; then
+    die "In diesem Skript steht kein Signaturschlüssel. Mit ASYLUM_SKIP_SIGNATURE=1 lässt sich die Prüfung bewusst überspringen — auf Produktivsystemen nicht empfohlen."
   elif ensure_minisign; then
     log "Prüfe Signatur der Prüfsummendatei …"
     minisign -Vm "${dir}/SHA256SUMS" -P "$MINISIGN_PUBKEY" >/dev/null \

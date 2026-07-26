@@ -45,11 +45,18 @@ zuerst hat, kann jedes Feature ab Tag eins real ausliefern.
 
 Verifiziert wurde außerdem: HTTP/2 über TLS 1.3, Erzeugung und Wiederverwendung des
 selbstsignierten Zertifikats, Sicherheitsheader, `/healthz` mit Versionsangabe,
-geordnetes Herunterfahren auf SIGTERM. Offen bis zum ersten Tag: der
-minisign-Schlüssel muss erzeugt, als `MINISIGN_KEY`-Secret hinterlegt und der
-Public Key in `packaging/install.sh` eingesetzt werden — bis dahin verweigert der
-Installer die Installation, sofern nicht ausdrücklich
-`ASYLUM_SKIP_SIGNATURE=1` gesetzt wird.
+geordnetes Herunterfahren auf SIGTERM.
+
+**Signaturkette steht.** Der Public Key liegt in `packaging/minisign.pub` und
+eingebettet in `packaging/install.sh`. Geprüft wurde die tatsächlich ausgelieferte
+`verify_artifacts`-Funktion gegen ein echtes signiertes Artefakt — sie akzeptiert
+die gültige Kette und lehnt manipuliertes Archiv, manipulierte Prüfsummendatei und
+fremden Schlüssel jeweils ab. Der Release-Workflow prüft vor dem Bauen, dass der
+hinterlegte private Schlüssel zum veröffentlichten Public Key passt; ein
+vertauschtes Secret fällt damit im CI auf und nicht erst beim Nutzer.
+
+Bis zum ersten Tag bleibt genau ein Schritt: der private Schlüssel muss als
+Repository-Secret `MINISIGN_KEY` hinterlegt werden.
 
 ### M1 — Auth & Dashboard (2 Wochen)
 SQLite mit Migrationen, Argon2id, TOTP, Sessions, CSRF, RBAC, Audit-Log,

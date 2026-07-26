@@ -39,6 +39,34 @@ Setup-Token. Der erste Aufruf der URL mit diesem Token legt den Admin-Account
 inklusive 2FA an. So landet nie ein Klartext-Passwort in der Shell-History oder im
 Terminal-Log.
 
+## Signaturprüfung von Hand
+
+Der Installer prüft die Signatur selbst, gegen den in ihm eingebetteten Public Key.
+Wer das nicht dem Skript überlassen will, prüft vorher selbst:
+
+```bash
+# Public Key des Projekts (identisch mit packaging/minisign.pub im Repository)
+KEY="RWQj/sAQQiq7Aa8sPaBSb21Wcbp9n165J+s6z8qqq0GUmB2ZXzDNoNXf"
+
+V=0.1.0
+base="https://github.com/philf90/Server-Control-Panel/releases/download/v${V}"
+curl -fsSLO "${base}/SHA256SUMS"
+curl -fsSLO "${base}/SHA256SUMS.minisig"
+curl -fsSLO "${base}/asylumd_${V}_linux_amd64.tar.gz"
+
+minisign -Vm SHA256SUMS -P "$KEY"          # Signatur der Prüfsummendatei
+sha256sum -c --ignore-missing SHA256SUMS   # Prüfsumme des Archivs
+```
+
+Die Kette ist bewusst zweistufig: Signiert wird nur die Prüfsummendatei, die
+Archive hängen über ihre Prüfsumme daran. Das kommt ohne Netzabfrage aus — anders
+als bei einer Transparenzprotokoll-Prüfung genügt der eine eingebettete Schlüssel.
+
+Der Schlüssel steht zusätzlich unter
+<https://repo.cloudsrv24.de/minisign.pub> und im Repository unter
+`packaging/minisign.pub`. Stimmen die drei Fundstellen überein, ist ein
+untergeschobener Installer mit fremdem Schlüssel ausgeschlossen.
+
 ## Eigenschaften des Installers
 
 | Eigenschaft | Umsetzung |

@@ -379,9 +379,16 @@ jobs:
           GNUPGHOME="$verify_home" gpg --verify \
             "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
 
+          # nfpm ersetzt den ersten Bindestrich einer Vorabversion durch eine
+          # Tilde: aus 0.1.0-rc.1 wird 0.1.0~rc.1. Das ist Absicht und richtig —
+          # in Debian sortiert "~" vor der Freigabe, eine Vorabversion überholt
+          # sie also nicht. Gesucht werden muss folglich die Debian-Schreibweise.
+          deb_version="${VERSION/-/\~}"
+          echo "Version im Tag: ${VERSION}, im Paket: ${deb_version}"
+
           for arch in amd64 arm64; do
             pkgs="apt/dists/${CHANNEL}/main/binary-${arch}/Packages"
-            grep -q "^Version: ${VERSION}\$" "$pkgs"
+            grep -q "^Version: ${deb_version}\$" "$pkgs"
             # Der Pfad muss ohne führendes "apt/" dastehen, sonst lädt apt ins Leere.
             grep -q "^Filename: pool/main/a/asylum-panel/" "$pkgs"
             grep -qv "^Filename: apt/" "$pkgs"

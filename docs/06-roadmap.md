@@ -35,9 +35,12 @@ Offen, keiner davon blockiert die Weiterentwicklung:
   öffentliches Projekt.
 - **Marken in Klasse 9/42** noch zu prüfen — Befehle in
   [07-name-lizenz-domain.md](07-name-lizenz-domain.md#verbleibende-prüfschritte).
-- **GPG-Schlüssel für das APT-Repository** als Secret `APT_GPG_KEY` hinterlegen.
-  Ohne ihn überspringt der Release-Workflow den apt-Schritt mit einer Warnung;
-  alles andere am Release funktioniert. Anleitung in
+- **Secrets `APT_GPG_KEY` und `APT_GPG_PASSPHRASE` hinterlegen.** Der Schlüssel
+  ist erzeugt, sein öffentlicher Teil liegt als
+  `packaging/asylum-archive-keyring.gpg` im Repository; nur der private Teil
+  fehlt noch in den Repository-Secrets. Bis dahin überspringt der
+  Release-Workflow den apt-Schritt mit einer Warnung, alles andere am Release
+  funktioniert. Einzelheiten in
   [05-updates.md](05-updates.md#signaturschlüssel-des-repositories).
 - **Copyright-Zeile in `LICENSE`** auf den endgültigen Rechtsträger anpassen.
 - **TTL der DNS-Einträge** von 10 auf 3600 anheben, sobald alles steht.

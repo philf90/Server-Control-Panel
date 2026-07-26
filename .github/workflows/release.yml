@@ -290,6 +290,20 @@ jobs:
           printf '%s\n' "$APT_GPG_KEY" | gpg --batch --import
           keyid="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/{print $5; exit}')"
 
+          # Passt das Secret zum veröffentlichten Schlüsselbund? Ein vertauschter
+          # Schlüssel fällt sonst erst bei den Nutzern auf — als "NO_PUBKEY", und
+          # zwar bei allen gleichzeitig. Verglichen wird der Fingerprint, nicht
+          # die Datei: Schlüsselbunde können sich in Signaturen und
+          # Zeitstempeln unterscheiden und trotzdem denselben Schlüssel meinen.
+          fpr_secret="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')"
+          fpr_public="$(gpg --show-keys --with-colons ../src/packaging/asylum-archive-keyring.gpg \
+                        | awk -F: '/^fpr/{print $10; exit}')"
+          if [ "$fpr_secret" != "$fpr_public" ]; then
+            echo "Der hinterlegte Schlüssel ($fpr_secret) ist nicht der veröffentlichte ($fpr_public)."
+            exit 1
+          fi
+          echo "Signaturschlüssel passt zu packaging/asylum-archive-keyring.gpg: $fpr_secret"
+
           sign() {
             gpg --batch --yes --pinentry-mode loopback \
                 --passphrase "${APT_GPG_PASSPHRASE:-}" \
@@ -299,15 +313,27 @@ jobs:
           sign --armor --detach-sign -o "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
           sign --clearsign          -o "apt/dists/${CHANNEL}/InRelease"    "apt/dists/${CHANNEL}/Release"
 
-          # Der öffentliche Schlüssel liegt daneben, damit ihn der Installer
-          # und ein Administrator von Hand einrichten können.
-          gpg --export "$keyid" > apt/asylum-archive-keyring.gpg
-          gpg --export --armor "$keyid" > apt/KEY.asc
+          # Ausgeliefert wird der Schlüsselbund aus dem Repository, nicht ein
+          # frisch aus dem Secret exportierter: So ist die Datei, der die Nutzer
+          # vertrauen, dieselbe, die im Quelltext nachlesbar ist.
+          cp ../src/packaging/asylum-archive-keyring.gpg apt/asylum-archive-keyring.gpg
+          cp ../src/packaging/asylum-archive-keyring.asc apt/KEY.asc
 
           # Gegenprobe: Ein Repository, dessen Signatur nicht zur eigenen
           # Release-Datei passt, würde bei jedem Nutzer "NO_PUBKEY" oder
           # "BADSIG" auslösen — das muss hier auffallen, nicht dort.
           gpg --verify "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
+          gpg --verify "apt/dists/${CHANNEL}/InRelease"
+
+          # Und die Gegenprobe aus Sicht eines Nutzers: Prüft der ausgelieferte
+          # Schlüsselbund allein — ohne den privaten Schlüssel im Ring — die
+          # Signatur? Genau das macht apt.
+          verify_home="${RUNNER_TEMP}/gnupg-verify"
+          rm -rf "$verify_home"; mkdir -p "$verify_home"; chmod 700 "$verify_home"
+          GNUPGHOME="$verify_home" gpg --import apt/asylum-archive-keyring.gpg
+          GNUPGHOME="$verify_home" gpg --verify \
+            "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
+
           for arch in amd64 arm64; do
             pkgs="apt/dists/${CHANNEL}/main/binary-${arch}/Packages"
             grep -q "^Version: ${VERSION}\$" "$pkgs"

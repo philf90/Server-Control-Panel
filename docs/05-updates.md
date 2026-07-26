@@ -309,6 +309,14 @@ EOF
 sudo apt update && sudo apt install asylum-panel
 ```
 
+Wer dem Download nicht traut, vergleicht den Fingerprint mit dem unten
+genannten:
+
+```bash
+gpg --show-keys /usr/share/keyrings/asylum-archive-keyring.gpg
+# FC79D6FB2CA8321BBA071E05AC66AF2CEEB9AA1A
+```
+
 Ältere Fassungen bleiben im Pool liegen, ein gezieltes Downgrade über apt bleibt
 also möglich.
 
@@ -317,16 +325,58 @@ also möglich.
 apt braucht OpenPGP; minisign kann es nicht. Das ist deshalb ein **zweiter**
 Schlüssel, unabhängig vom Signaturschlüssel der Artefakte.
 
-Erzeugen und als Repository-Secrets hinterlegen:
-
-```bash
-gpg --batch --pinentry-mode loopback --passphrase '' \
-    --quick-generate-key "Project Asylum <…>" default default never
-gpg --armor --export-secret-keys <KEYID>   # → Secret APT_GPG_KEY
+```
+Project Asylum Archive Signing Key <noreply@users.noreply.github.com>
+ed25519, ohne Ablaufdatum
+Fingerprint: FC79D6FB2CA8321BBA071E05AC66AF2CEEB9AA1A
 ```
 
-Bei einem Schlüssel mit Passphrase kommt diese zusätzlich in
-`APT_GPG_PASSPHRASE`.
+Er liegt im Repository unter `packaging/asylum-archive-keyring.gpg` (binär, das
+Format, das apt erwartet) und `packaging/asylum-archive-keyring.asc` (Textform
+zum Nachlesen). Der private Teil liegt ausschließlich in den
+Repository-Secrets `APT_GPG_KEY` (ASCII-armiert) und `APT_GPG_PASSPHRASE`.
+
+Der Release-Workflow prüft vor dem Signieren, dass der Fingerprint des Secrets
+zum veröffentlichten Schlüsselbund passt, und verifiziert die erzeugte Signatur
+anschließend noch einmal aus Nutzersicht — mit einem leeren Schlüsselring, in
+den nur der ausgelieferte öffentliche Schlüssel importiert wurde. Genau so
+arbeitet apt. Ein vertauschtes Secret fällt damit im CI auf und nicht als
+`NO_PUBKEY` bei allen Nutzern gleichzeitig.
+
+Ein Job in der CI hält zusätzlich die drei Orte zusammen, an denen der
+Schlüssel auftaucht: Schlüsselbund, Textfassung und der Fingerprint in diesem
+Dokument.
+
+#### Warum kein Ablaufdatum
+
+Ein abgelaufener Archivschlüssel bricht `apt update` bei jedem Nutzer — und
+zwar an dem Tag, an dem niemand damit rechnet. Für ein Projekt mit einem
+Betreuer ist die Wahrscheinlichkeit, eine Verlängerung zu verschlafen, höher
+als das Risiko, das ein Ablaufdatum abfedern soll. Der Schlüssel gilt deshalb
+unbegrenzt.
+
+Der Weg für den Ernstfall ist stattdessen eingebaut: Das Repository liefert ein
+eigenes Paket **`asylum-archive-keyring`**, das den Schlüsselbund unter
+`/usr/share/keyrings/asylum-archive-keyring.gpg` ablegt — nach dem Vorbild von
+`debian-archive-keyring`. `asylum-panel` empfiehlt es (`Recommends`), aus dem
+Repository heraus wird es also mitinstalliert. Ein Schlüsselwechsel lässt sich
+damit über ein gewöhnliches `apt upgrade` ausliefern, statt jeden Nutzer von
+Hand eine Datei herunterladen zu lassen.
+
+Dass es ein **eigenes** Paket ist und nicht Teil von `asylum-panel`, hat einen
+Grund, der erst beim Deinstallieren sichtbar wird: Läge die Datei im
+Panel-Paket, nähme `apt remove asylum-panel` sie mit — und die Paketquelle
+stünde ohne Schlüssel da, mit `NO_PUBKEY` bei jedem weiteren `apt update`.
+Getrennt bleibt der Schlüssel liegen.
+
+`Recommends` statt `Depends`, weil das `.deb` auch einzeln aus einem
+GitHub-Release installiert wird; eine harte Abhängigkeit auf ein Paket, das dann
+in keiner Quelle steht, ließe genau diese Installation scheitern.
+
+Wer den Schlüssel über den `curl`-Aufruf oben eingerichtet hat, muss ihn bei
+einem Wechsel selbst erneuern — sofern er nicht ohnehin `asylum-archive-keyring`
+installiert hat, das dieselbe Datei verwaltet. Ein Widerrufszertifikat liegt
+beim privaten Schlüssel.
 
 Fehlt `APT_GPG_KEY`, überspringt der Workflow den Schritt mit einer Warnung,
 statt ein unsigniertes Repository zu veröffentlichen — ein unsigniertes

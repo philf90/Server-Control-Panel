@@ -157,6 +157,10 @@ Fassung über unserer liegt — `apt install asylum` brächte also das Spiel. De
 *Befehl* heißt weiterhin `asylum`: `/usr/bin/asylum` steht im `PATH` vor
 `/usr/games/asylum`.
 
+Der erste `curl`-Aufruf holt den Schlüssel nur zum Einstieg. Danach übernimmt das
+Paket `asylum-archive-keyring` dieselbe Datei und hält sie aktuell —
+`asylum-panel` empfiehlt es, aus dem Repository wird es also mitinstalliert.
+
 Die `.deb`-Pakete entstehen im Release-Prozess (nfpm über GoReleaser); das
 Repository baut ein GitHub-Actions-Job mit `apt-ftparchive` und veröffentlicht es
 über GitHub Pages. Aufbau und Signaturschlüssel:

@@ -129,6 +129,47 @@ jobs:
           sudo apt-get install -y -qq shellcheck
           shellcheck packaging/install.sh packaging/nfpm/*.sh
 
+  keys:
+    name: Signaturschlüssel
+    runs-on: ubuntu-latest
+    # Der eingebaute minisign-Schlüssel wird von einem Test in internal/update
+    # geprüft. Hier geht es um den zweiten Schlüssel: den des APT-Repositories.
+    # Er taucht an drei Stellen auf — als Schlüsselbund, als Textfassung und
+    # als Fingerprint in der Dokumentation. Laufen die auseinander, merkt es
+    # sonst zuerst ein Nutzer, dessen apt-update mit NO_PUBKEY abbricht.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Schlüsselbund, Textfassung und Dokumentation vergleichen
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+
+          fpr() { gpg --show-keys --with-colons "$1" | awk -F: '/^fpr/{print $10; exit}'; }
+          binary="$(fpr packaging/asylum-archive-keyring.gpg)"
+          armored="$(fpr packaging/asylum-archive-keyring.asc)"
+
+          if [ -z "$binary" ]; then
+            echo "packaging/asylum-archive-keyring.gpg enthält keinen lesbaren Schlüssel."
+            exit 1
+          fi
+          if [ "$binary" != "$armored" ]; then
+            echo "Schlüsselbund ($binary) und Textfassung ($armored) sind verschiedene Schlüssel."
+            exit 1
+          fi
+          if ! grep -qF "$binary" docs/05-updates.md; then
+            echo "Der Fingerprint $binary steht nicht in docs/05-updates.md."
+            exit 1
+          fi
+
+          # Ein privater Schlüssel gehört niemals ins Repository.
+          if gpg --list-packets packaging/asylum-archive-keyring.gpg 2>/dev/null \
+             | grep -qi "secret key"; then
+            echo "Die Datei enthält privates Schlüsselmaterial."
+            exit 1
+          fi
+          echo "APT-Signaturschlüssel stimmig: $binary"
+
   security:
     name: Schwachstellen und Lizenzen
     runs-on: ubuntu-latest

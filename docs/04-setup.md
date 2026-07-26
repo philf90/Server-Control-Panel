@@ -1,0 +1,142 @@
+# 04 — One-Click-Setup
+
+## Der Befehl
+
+```bash
+curl -fsSL https://get.example.org/install.sh -o install.sh
+sudo bash install.sh
+```
+
+Die Kurzform `curl … | sudo bash` funktioniert ebenfalls und wird von den meisten
+Projekten beworben. Sie sollte im README aber **nicht** die primär dokumentierte
+Variante sein: Ein abgebrochener Download kann bei Pipe-to-Shell ein halbes Skript
+ausführen, und für ein Tool, das root-Rechte übernimmt, ist "erst herunterladen,
+dann ausführen" die ehrlichere Empfehlung. Beide Wege dokumentieren, den sicheren
+zuerst.
+
+## Was der Installer tut
+
+```
+ 1. Vorbedingungen prüfen   root? Ubuntu 22.04+/Debian 12+? x86_64 oder aarch64?
+                            systemd vorhanden? curl/tar vorhanden?
+ 2. Version auflösen        GitHub Releases API → neuestes Tag im gewählten Kanal
+ 3. Herunterladen           scpd_<version>_linux_<arch>.tar.gz + SHA256SUMS + .sig
+ 4. Verifizieren            Signatur (minisign/cosign) gegen im Skript eingebetteten
+                            Public Key, dann Prüfsumme
+ 5. Systembenutzer          Gruppe/User `scp` (--system, kein Login, kein Home)
+ 6. Dateien platzieren      /usr/local/lib/scp/scpd, Symlink /usr/local/bin/scp,
+                            Verzeichnisse mit korrekten Rechten
+ 7. Erstkonfiguration       /etc/scp/config.yaml, self-signed TLS-Zertifikat
+ 8. Datenbank               scpd migrate  (legt SQLite an, spielt Migrationen ein)
+ 9. systemd                 Unit installieren, daemon-reload, enable --now
+10. Firewall                Panel-Port in ufw/nftables freigeben (falls aktiv)
+11. Healthcheck             bis zu 30 s auf HTTP 200 an /healthz warten
+12. Ausgabe                 URL, Setup-Token, Fingerprint des TLS-Zertifikats
+```
+
+Schritt 12 gibt **kein Passwort** aus, sondern einen einmaligen, zeitlich begrenzten
+Setup-Token. Der erste Aufruf der URL mit diesem Token legt den Admin-Account
+inklusive 2FA an. So landet nie ein Klartext-Passwort in der Shell-History oder im
+Terminal-Log.
+
+## Eigenschaften des Installers
+
+| Eigenschaft | Umsetzung |
+|---|---|
+| **Idempotent** | Zweiter Aufruf aktualisiert, statt zu zerstören; bestehende Config und DB bleiben unangetastet |
+| **Unattended** | Alle Eingaben über Umgebungsvariablen (`SCP_PORT`, `SCP_BIND`, `SCP_CHANNEL`, `SCP_VERSION`, `SCP_NO_FIREWALL=1`) |
+| **Fehlertolerant** | `set -euo pipefail`, `trap` mit Cleanup und Rollback bei Abbruch |
+| **Gesprächig** | Jeder Schritt mit Status, Fehler mit konkretem Hinweis statt Stacktrace |
+| **Prüfbar** | Das Skript ist im Repo versioniert, nicht generiert; die Download-URL zeigt auf ein Release-Artefakt, nicht auf `main` |
+| **Deinstallierbar** | `sudo bash install.sh --uninstall` bzw. `sudo scp uninstall [--purge]` |
+
+## Skelett
+
+```bash
+#!/usr/bin/env bash
+# install.sh — Server Control Panel
+set -euo pipefail
+
+REPO="philf90/Server-Control-Panel"
+CHANNEL="${SCP_CHANNEL:-stable}"
+VERSION="${SCP_VERSION:-latest}"
+PORT="${SCP_PORT:-8443}"
+PREFIX="/usr/local/lib/scp"
+MINISIGN_PUBKEY="RWQ...."          # im Skript eingebettet
+
+log()  { printf '\033[1;34m::\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
+die()  { printf '\033[1;31mxx\033[0m %s\n' "$*" >&2; exit 1; }
+
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+require_root()  { [ "$(id -u)" -eq 0 ] || die "Bitte mit sudo ausführen."; }
+
+detect_os() {
+  [ -r /etc/os-release ] || die "Nicht unterstütztes System (kein /etc/os-release)."
+  . /etc/os-release
+  case "$ID" in
+    ubuntu|debian) : ;;
+    *) case "${ID_LIKE:-}" in
+         *debian*) warn "Nicht offiziell getestet: $PRETTY_NAME" ;;
+         *) die "Nur Ubuntu und Debian werden unterstützt (gefunden: $PRETTY_NAME)." ;;
+       esac ;;
+  esac
+  command -v systemctl >/dev/null || die "systemd wird benötigt."
+}
+
+detect_arch() {
+  case "$(uname -m)" in
+    x86_64)  ARCH=amd64 ;;
+    aarch64) ARCH=arm64 ;;
+    *) die "Nicht unterstützte Architektur: $(uname -m)" ;;
+  esac
+}
+
+# … resolve_version, download, verify, install_files, setup_systemd,
+#    open_firewall, health_check, print_summary
+```
+
+Der vollständige Installer gehört nach `packaging/install.sh` und wird bei jedem
+Release unverändert als Artefakt mit veröffentlicht. `https://get.example.org/install.sh`
+ist lediglich eine Weiterleitung auf das Artefakt des jeweils aktuellen
+Stable-Releases (statisches Hosting oder GitHub Pages genügt).
+
+## Zweiter Weg: APT-Repository
+
+Der Installer ist der bequeme Weg. Für Nutzer mit Konfigurationsmanagement oder
+Compliance-Anforderungen sollte es zusätzlich ein signiertes APT-Repository geben:
+
+```bash
+curl -fsSL https://apt.example.org/gpg.key \
+  | sudo gpg --dearmor -o /usr/share/keyrings/scp.gpg
+echo "deb [signed-by=/usr/share/keyrings/scp.gpg] https://apt.example.org stable main" \
+  | sudo tee /etc/apt/sources.list.d/scp.list
+sudo apt update && sudo apt install server-control-panel
+```
+
+Die `.deb`-Pakete entstehen ohnehin im Release-Prozess (nfpm über GoReleaser), das
+Repository lässt sich mit `aptly` oder `reprepro` in einem GitHub-Actions-Job bauen
+und über GitHub Pages oder ein Object-Storage-Bucket ausliefern. Vorteil: Updates
+laufen über `apt upgrade` wie bei jeder anderen Systemsoftware.
+
+## Alternative Deployments
+
+- **Docker:** möglich (`docker run --privileged --pid=host -v /:/host`), aber ein
+  Panel, das den Host verwalten soll, braucht so viele Ausnahmen vom
+  Container-Modell, dass der Gewinn gering ist. Sinnvoll höchstens für die spätere
+  Multi-Server-Variante, wo die Web-Komponente wirklich isoliert laufen kann.
+- **cloud-init:** ein Ein-Zeilen-`runcmd` mit dem Installer und gesetzten
+  `SCP_*`-Variablen — deckt automatisierte VPS-Provisionierung ohne Zusatzaufwand ab.
+- **Ansible-Rolle:** dünner Wrapper um das `.deb`, gehört in ein eigenes Repository.
+
+## Deinstallation
+
+```bash
+sudo scp uninstall           # Dienst stoppen, Binary + Unit entfernen, Daten behalten
+sudo scp uninstall --purge   # zusätzlich /etc/scp und /var/lib/scp entfernen
+```
+
+Der Uninstaller entfernt außerdem alle vom Panel gesetzten Konfigurationsblöcke
+(erkennbar an den Managed-Markern) und stellt die letzten Backups wieder her. Ein
+Panel, das sich nicht sauber wieder entfernen lässt, wird zu Recht nicht installiert.

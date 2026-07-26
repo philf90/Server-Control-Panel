@@ -1,0 +1,22 @@
+# Build-Artefakte
+/dist/
+/bin/
+*.exe
+*.test
+*.out
+
+# Go
+vendor/
+
+# Lokale Entwicklung
+*.db
+*.db-wal
+*.db-shm
+*.local.yaml
+.env
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

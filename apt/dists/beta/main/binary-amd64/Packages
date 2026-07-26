@@ -1,0 +1,39 @@
+Package: asylum-archive-keyring
+Architecture: all
+Version: 0.1.0~rc.2
+Priority: optional
+Section: admin
+Maintainer: Project Asylum <noreply@users.noreply.github.com>
+Installed-Size: 0
+Filename: pool/main/a/asylum-archive-keyring/asylum-archive-keyring_0.1.0-rc.2_linux_all.deb
+Size: 1594
+MD5sum: 1cc2b739065c7f6da5671b559603bde7
+SHA1: 577f1611c2aa920f90d9973b38585580404274bd
+SHA256: 5225da3968fbffdcda5106c091e372aceb16388c377a3a2b896e8a66a839ba53
+SHA512: eb50a616f215f63a01a815414237bacb9694bfbf0d9b7f98f4b40b34f4241f6e6f87d0462f953bd114e6aaa1405e6f5778c28152630293337c4dd519921529e7
+Homepage: https://repo.cloudsrv24.de/
+Description: Schlüsselbund des Project-Asylum-APT-Repositories.
+ Enthält den öffentlichen OpenPGP-Schlüssel, mit dem die Release-Dateien
+ unter https://repo.cloudsrv24.de/apt signiert sind.
+
+Package: asylum-panel
+Architecture: amd64
+Version: 0.1.0~rc.2
+Priority: optional
+Section: admin
+Maintainer: Project Asylum <noreply@users.noreply.github.com>
+Installed-Size: 14384
+Depends: systemd
+Recommends: minisign, asylum-archive-keyring
+Filename: pool/main/a/asylum-panel/asylum-panel_0.1.0-rc.2_linux_amd64.deb
+Size: 6223688
+MD5sum: 01945402884ba93f5f92971eaacd91cd
+SHA1: 27232ad149fc85d20fd1b93ca5f1e39336ddcd5e
+SHA256: 92cfb30fe22ff546b5e71771b92d254f2804078b5bc72aeca4709e6c68d4b118
+SHA512: f4b202c132ed109bfef65e6bf645b0633f3b9a1adcfd14aadf2b9e280e3e7c51b06070c21caba8c2af4269a7c6616fb76d3bf17a7e2e88842fdf2bc14e58aa62
+Homepage: https://repo.cloudsrv24.de/
+Description: Schlankes Control Panel für Linux-Server.
+ Administration, Security, YAML, Logs, Updates, Monitoring — ein Binary,
+ keine Runtime-Abhängigkeiten.
+Architecture-Variant: amd64v1
+

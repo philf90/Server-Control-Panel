@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Asylum</title>
+<style>
+:root{color-scheme:light dark}
+body{margin:0;padding:3rem 1.25rem;font:16px/1.6 system-ui,sans-serif;
+     max-width:44rem;margin-inline:auto}
+h1{margin:0;font-size:1.6rem}
+.claim{margin:.35rem 0 2rem;color:#2f6f4f;font-size:.85rem;font-weight:600}
+pre{padding:1rem;border-radius:8px;overflow-x:auto;
+    background:rgba(127,127,127,.12)}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.9em}
+h2{margin:2rem 0 .5rem;font-size:1.05rem}
+.hint{font-size:.85rem;opacity:.75}
+footer{margin-top:2.5rem;font-size:.8rem;opacity:.7}
+</style>
+</head>
+<body>
+<h1>Project Asylum</h1>
+<p class="claim">Administration · Security · YAML · Logs · Updates · Monitoring</p>
+<p>Schlankes Control Panel für Ubuntu- und Debian-Server. Ein Binary,
+keine Runtime-Abhängigkeiten.</p>
+
+<h2>Installieren</h2>
+<pre><code>curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
+sudo bash install.sh</code></pre>
+<p>Der Installer gibt am Ende einen einmaligen Link zur Ersteinrichtung
+aus. Signatur und Prüfsumme jedes Artefakts prüft er selbst — gegen den
+Schlüssel, der in ihm steht.</p>
+
+<h2>Über apt</h2>
+<pre><code>sudo curl -fsSL --proto '=https' --tlsv1.2   https://repo.cloudsrv24.de/apt/asylum-archive-keyring.gpg   -o /usr/share/keyrings/asylum-archive-keyring.gpg
+sudo tee /etc/apt/sources.list.d/asylum.sources &gt;/dev/null &lt;&lt;'EOF'
+Types: deb
+URIs: https://repo.cloudsrv24.de/apt
+Suites: stable
+Components: main
+Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
+EOF
+sudo apt update &amp;&amp; sudo apt install asylum-panel</code></pre>
+<p class="hint">Das Paket heißt <code>asylum-panel</code> — <code>asylum</code>
+ist in Debian an ein Spiel vergeben. Der Befehl heißt weiterhin
+<code>asylum</code>. Über apt entfällt die Bereitschaftsprüfung mit
+selbsttätigem Rückweg; die gibt es nur bei <code>asylum update</code>.</p>
+
+<h2>Signaturschlüssel</h2>
+<p>Artefakte, minisign (<a href="/minisign.pub">minisign.pub</a>):</p>
+<pre><code>RWQj/sAQQiq7Aa8sPaBSb21Wcbp9n165J+s6z8qqq0GUmB2ZXzDNoNXf</code></pre>
+<p>APT-Repository, OpenPGP (<a href="/apt/KEY.asc">KEY.asc</a>):</p>
+<pre><code>FC79D6FB2CA8321BBA071E05AC66AF2CEEB9AA1A</code></pre>
+
+<footer>
+Version 0.1.0-rc.2 ·
+<a href="https://github.com/philf90/Server-Control-Panel">Quellcode</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/releases/tag/v0.1.0-rc.2">Release-Notizen</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/blob/main/SECURITY.md">Sicherheit</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/blob/main/CHANGELOG.md">Changelog</a> ·
+Apache-2.0
+</footer>
+</body>
+</html>

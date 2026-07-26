@@ -1,0 +1,15 @@
+# Untergrenze für direkte Updates: Wer eine ältere Fassung als die hier
+# genannte einsetzt, muss erst über eine Zwischenversion gehen.
+#
+# Leer bedeutet: keine Grenze. Das ist die Vorgabe und soll es bleiben — ein
+# Wert gehört hier nur hinein, wenn eine Migration tatsächlich einen Sprung
+# unmöglich macht.
+#
+# ACHTUNG, hier ist schon einmal etwas schiefgegangen: Der Wert darf niemals
+# neuer sein als die veröffentlichte Fassung. Nach SemVer gilt 0.1.0 als
+# NEUER als 0.1.0-rc.1 — stand hier "0.1.0", während 0.1.0-rc.2
+# veröffentlicht wurde, konnte kein Beta-Tester mehr aktualisieren, mit dem
+# Rat, "zuerst auf 0.1.0 zu aktualisieren", das es noch gar nicht gab.
+# Ein Test in internal/update wacht seitdem darüber.
+#
+# Zeilen mit # sind Kommentar. Darunter steht der Wert, sonst nichts.

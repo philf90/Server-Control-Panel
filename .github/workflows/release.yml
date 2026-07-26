@@ -27,6 +27,11 @@ jobs:
           go-version: stable
 
       - name: Tests vor dem Release
+        env:
+          # Damit TestMinUpgradableFrom die eigentliche Frage beantworten kann:
+          # Ist die Untergrenze für direkte Updates älter als das, was gerade
+          # veröffentlicht wird? Ein zu neuer Wert sperrt jeden Nutzer aus.
+          ASYLUM_RELEASE_VERSION: ${{ github.ref_name }}
         run: go test ./...
 
       - name: minisign bereitstellen
@@ -216,6 +221,13 @@ jobs:
           </html>
           HTML
 
+          # Untergrenze für direkte Updates. Sie steht in einer eigenen Datei und
+          # nicht hier, weil sie zum Stand des Codes gehört und nicht zur
+          # Pipeline: Sie ändert sich, wenn eine Migration einen Sprung
+          # unmöglich macht. Leer heißt "keine Grenze" und ist der Regelfall.
+          MIN_UPGRADABLE="$(grep -v '^#' ../src/packaging/min-upgradable-from | tr -d '[:space:]')"
+          echo "min_upgradable_from: [${MIN_UPGRADABLE}]"
+
           sha_for() {
             grep " asylumd_${VERSION}_linux_${1}.tar.gz\$" ../dist/SHA256SUMS | awk '{print $1}'
           }
@@ -229,7 +241,7 @@ jobs:
           {
             "version": "${VERSION}",
             "released_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "min_upgradable_from": "0.1.0",
+            "min_upgradable_from": "${MIN_UPGRADABLE}",
             "notes_url": "https://github.com/${REPO}/releases/tag/v${VERSION}",
             "severity": "normal",
             "checksums_url": "${base}/SHA256SUMS",

@@ -238,6 +238,18 @@ Binary, nicht auf dem Server.
 }
 ```
 
+`min_upgradable_from` kommt aus `packaging/min-upgradable-from` und ist im
+Regelfall **leer** — also keine Grenze. Ein Wert gehört nur hinein, wenn eine
+Migration einen direkten Sprung tatsächlich unmöglich macht.
+
+Dabei ist eine Falle eingebaut, in die dieses Projekt schon einmal getreten
+ist: Der Wert darf niemals neuer sein als die veröffentlichte Fassung. Stand
+dort `0.1.0`, während `0.1.0-rc.2` erschien, konnte **kein** Beta-Tester mehr
+aktualisieren — nach SemVer ist `0.1.0` neuer als `0.1.0-rc.1`, die Sperre
+gegen zu große Sprünge griff also bei jedem, mit dem Rat, „zuerst auf 0.1.0 zu
+aktualisieren", das es noch gar nicht gab. Ein Test in `internal/update` prüft
+das seither bei jedem Release gegen den Tag.
+
 Unbekannte Felder werden überlesen: Ein neuerer Server darf mehr schreiben, als
 ein älteres Binary kennt. Fehlen `checksums_url` und `signature_url`, werden sie
 aus der Archivadresse abgeleitet — so sehen ältere Metadaten aus.

@@ -47,11 +47,15 @@ jobs:
       - name: Signaturschlüssel gegen den veröffentlichten Public Key prüfen
         # Ein vertauschtes Secret fällt sonst erst auf, wenn der Installer bei
         # den Nutzern die Signatur ablehnt.
+        env:
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
         run: |
           umask 077
           echo "probe" > "${RUNNER_TEMP}/probe.txt"
-          minisign -s "${RUNNER_TEMP}/minisign.key" -Sm "${RUNNER_TEMP}/probe.txt" \
-            < /dev/null > /dev/null
+          # Bei einem Schlüssel ohne Passwort ist die Eingabe leer und wird
+          # ignoriert; mit Passwort liest minisign sie von stdin.
+          printf '%s\n' "${MINISIGN_PASSWORD:-}" \
+            | minisign -s "${RUNNER_TEMP}/minisign.key" -Sm "${RUNNER_TEMP}/probe.txt" > /dev/null
           minisign -Vm "${RUNNER_TEMP}/probe.txt" -P "$(tail -n1 packaging/minisign.pub)" \
             > /dev/null
           echo "Der hinterlegte Schlüssel passt zu packaging/minisign.pub."

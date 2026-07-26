@@ -127,7 +127,21 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
-          shellcheck packaging/install.sh packaging/nfpm/*.sh
+          shellcheck packaging/install.sh packaging/nfpm/*.sh packaging/release-dry-run.sh
+
+  release-probe:
+    name: Freigabepipeline probeweise
+    runs-on: ubuntu-latest
+    # Der Schritt, der Landingpage und Update-Metadaten schreibt, lief bisher
+    # erstmals dann, wenn ein Tag gesetzt war — also genau dann, wenn ein
+    # Fehler teuer ist. Zwei Freigaben sind daran gescheitert. Hier läuft er
+    # unverändert gegen eine Attrappe, bevor jemand taggt.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probelauf
+        run: |
+          python3 -m pip install --quiet pyyaml
+          ./packaging/release-dry-run.sh
 
   keys:
     name: Signaturschlüssel

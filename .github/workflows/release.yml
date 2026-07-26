@@ -152,6 +152,21 @@ jobs:
           aptfpr="$(gpg --show-keys --with-colons ../src/packaging/asylum-archive-keyring.gpg 2>/dev/null \
                     | awk -F: '/^fpr/{print $10; exit}')"
           aptfpr="${aptfpr:-siehe /apt/KEY.asc}"
+
+          # Welche Suite die Seite empfehlen darf, hängt daran, was es gibt.
+          # Ein Kanalverzeichnis entsteht erst mit der ersten passenden
+          # Veröffentlichung; stünde hier fest "stable", liefe jeder Leser
+          # während der Beta-Phase in ein 404 beim ersten "apt update".
+          # Sobald es Stable einmal gibt, bleibt es die Empfehlung — auch wenn
+          # gerade eine Vorabversion veröffentlicht wird.
+          if [ -f apt/dists/stable/Release ] || [ "${CHANNEL}" = "stable" ]; then
+            suite="stable"
+            suitehint="Es gibt zusätzlich den Kanal <code>beta</code> mit Vorabversionen."
+          else
+            suite="beta"
+            suitehint="Bis zur ersten Freigabe gibt es nur <code>beta</code>. <code>Suites: stable</code> beantwortet apt bis dahin mit einem 404 — der Kanal ist noch leer."
+          fi
+
           cat > index.html <<HTML
           <!doctype html>
           <html lang="de">
@@ -193,11 +208,12 @@ jobs:
           sudo tee /etc/apt/sources.list.d/asylum.sources &gt;/dev/null &lt;&lt;'EOF'
           Types: deb
           URIs: https://repo.cloudsrv24.de/apt
-          Suites: stable
+          Suites: ${suite}
           Components: main
           Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
           EOF
           sudo apt update &amp;&amp; sudo apt install asylum-panel</code></pre>
+          <p class="hint">${suitehint}</p>
           <p class="hint">Das Paket heißt <code>asylum-panel</code> — <code>asylum</code>
           ist in Debian an ein Spiel vergeben. Der Befehl heißt weiterhin
           <code>asylum</code>. Über apt entfällt die Bereitschaftsprüfung mit
@@ -225,7 +241,12 @@ jobs:
           # nicht hier, weil sie zum Stand des Codes gehört und nicht zur
           # Pipeline: Sie ändert sich, wenn eine Migration einen Sprung
           # unmöglich macht. Leer heißt "keine Grenze" und ist der Regelfall.
-          MIN_UPGRADABLE="$(grep -v '^#' ../src/packaging/min-upgradable-from | tr -d '[:space:]')"
+          # "|| true" ist nicht dekorativ: Die Datei besteht im Regelfall nur
+          # aus Kommentarzeilen, grep findet dann nichts und endet mit 1 —
+          # unter "set -e" bräche der ganze Schritt genau dann ab, wenn alles
+          # in Ordnung ist.
+          MIN_UPGRADABLE="$(grep -v '^[[:space:]]*#' ../src/packaging/min-upgradable-from \
+                            | tr -d '[:space:]' || true)"
           echo "min_upgradable_from: [${MIN_UPGRADABLE}]"
 
           sha_for() {

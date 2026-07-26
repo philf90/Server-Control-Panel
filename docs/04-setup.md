@@ -143,12 +143,34 @@ sudo curl -fsSL --proto '=https' --tlsv1.2 \
 sudo tee /etc/apt/sources.list.d/asylum.sources > /dev/null <<'EOF'
 Types: deb
 URIs: https://repo.cloudsrv24.de/apt
-Suites: stable
+Suites: beta
 Components: main
 Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
 EOF
 
 sudo apt update && sudo apt install asylum-panel
+```
+
+**`Suites:` muss zu einem Kanal passen, den es schon gibt.** Der Wert ist der
+Kanal aus [05-updates.md](05-updates.md#kanäle): `stable` oder `beta`. Ein Kanal
+entsteht erst, wenn zum ersten Mal eine passende Fassung veröffentlicht wurde —
+`beta` mit der ersten Vorabversion, `stable` mit der ersten Freigabe. Solange es
+nur Vorabversionen gibt (`0.1.0-rc.2` und dergleichen), existiert
+`apt/dists/stable/` schlicht nicht, und apt bricht ab:
+
+```
+Fehl: https://repo.cloudsrv24.de/apt stable Release  404  Not Found
+E: Das Depot »… stable Release« enthält keine Release-Datei.
+```
+
+Das ist kein Fehler des Repositories, sondern die richtige Antwort auf die
+Frage nach einem Kanal ohne Inhalt. Bis zur ersten Freigabe steht dort also
+`Suites: beta`; danach genügt ein Ändern der Zeile auf `stable` und ein
+`sudo apt update`. Welche Kanäle es aktuell gibt, steht auf
+[repo.cloudsrv24.de](https://repo.cloudsrv24.de/) und lässt sich direkt prüfen:
+
+```bash
+curl -fsI https://repo.cloudsrv24.de/apt/dists/stable/Release >/dev/null && echo vorhanden
 ```
 
 **Das Paket heißt `asylum-panel`, nicht `asylum`.** Der Name `asylum` ist in

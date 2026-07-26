@@ -61,6 +61,21 @@ nicht als Release getaggt.
   Daten".** Sie rendert aus dem Ringpuffer, und der bekommt nur alle 30 Sekunden
   einen Eintrag. Jetzt aus der jüngsten Messung. Betraf jede frische
   Installation und jeden Neustart nach einem Update.
+- **Die apt-Anleitung nannte einen Kanal, den es noch nicht gab.**
+  Dokumentation und Landingpage zeigten `Suites: stable`, während bislang nur
+  Vorabversionen veröffentlicht sind — die landen im Kanal `beta`. Ein
+  `apt update` endete damit in `404 Not Found` und
+  „enthält keine Release-Datei". Die Anleitungen nennen jetzt `beta` und
+  erklären, dass ein Kanal erst mit der ersten passenden Veröffentlichung
+  entsteht; die Landingpage bestimmt die Empfehlung aus dem tatsächlichen
+  Bestand des Repositories.
+- **Die Freigabepipeline brach beim Lesen der Datei
+  `packaging/min-upgradable-from` ab**, sobald diese wie vorgesehen nur aus
+  Kommentarzeilen bestand: `grep` endet ohne Treffer mit Code 1, und unter
+  `set -e` riss das den ganzen Schritt mit. Neu ist ein Probelauf
+  (`packaging/release-dry-run.sh`), der diesen Schritt bei jedem CI-Lauf gegen
+  eine Attrappe ausführt — bisher lief er erstmals, wenn schon ein Tag gesetzt
+  war.
 
 ## [0.1.0] — noch nicht veröffentlicht
 

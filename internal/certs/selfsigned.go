@@ -23,6 +23,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/philf90/asylum/internal/netinfo"
 )
 
 // Validity ist die Laufzeit des selbstsignierten Zertifikats.
@@ -97,14 +99,15 @@ func DefaultHosts() []string {
 	if h, err := os.Hostname(); err == nil && h != "" {
 		set[h] = struct{}{}
 	}
-	if addrs, err := net.InterfaceAddrs(); err == nil {
-		for _, a := range addrs {
-			ipnet, ok := a.(*net.IPNet)
-			if !ok || ipnet.IP.IsLoopback() || ipnet.IP.IsLinkLocalUnicast() {
-				continue
-			}
-			set[ipnet.IP.String()] = struct{}{}
-		}
+	// Der vollqualifizierte Name muss mit hinein: Unter ihm ruft der Browser
+	// das Panel auf. Fehlte er, käme zur Warnung vor dem selbstsignierten
+	// Zertifikat noch eine vor dem falschen Namen — zwei Warnungen, von denen
+	// die zweite nach einem Angriff aussieht.
+	if fqdn := netinfo.FQDN(); fqdn != "" {
+		set[fqdn] = struct{}{}
+	}
+	for _, addr := range netinfo.Addresses() {
+		set[addr] = struct{}{}
 	}
 	hosts := make([]string, 0, len(set))
 	for h := range set {

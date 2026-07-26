@@ -39,6 +39,38 @@ Setup-Token. Der erste Aufruf der URL mit diesem Token legt den Admin-Account
 inklusive 2FA an. So landet nie ein Klartext-Passwort in der Shell-History oder im
 Terminal-Log.
 
+### Welche Adresse im Link steht
+
+Ist das Panel an alle Schnittstellen gebunden — der Standard —, nennt der Link
+den **vollqualifizierten** Namen des Rechners, also das, was `hostname -f`
+ausgibt. Nicht den kurzen aus `hostname`: `https://cloudsrv24:8443/…` löst auf
+dem Server selbst auf, im Browser eines anderen Rechners aber nicht, und wem
+die fehlende Domainendung nicht auffällt, der sucht den Fehler beim Panel.
+
+Der Name wird wie bei `hostname -f` ermittelt: kurzer Name auflösen, Adressen
+rückwärts nachschlagen, den Eintrag nehmen, der den kurzen Namen verlängert. Ein
+generischer PTR des Anbieters (`static-203-0-113-7.hoster.example`) wird
+verworfen — er löst zwar auf, steht aber nicht im Zertifikat.
+
+Auf einem frisch aufgesetzten Server existiert oft noch kein DNS-Eintrag. Dafür
+nennt die Ausgabe zusätzlich die IP-Adressen des Servers:
+
+```
+  Ersteinrichtung — dieser Link gilt 59 Minuten und nur einmal:
+
+  https://cloudsrv24.de:8443/setup?token=…
+
+  Löst "cloudsrv24.de" bei Ihnen nicht auf, ersetzen Sie den Namen im Link durch
+  eine dieser Adressen: 203.0.113.7
+```
+
+Beide Wege funktionieren: Name **und** Adressen stehen als SAN im
+selbstsignierten Zertifikat, sonst käme zur Warnung vor dem unbekannten
+Aussteller noch eine vor dem falschen Namen — und die sieht aus wie ein Angriff.
+
+Wer das Panel an eine bestimmte Adresse bindet (`server.bind`), bekommt genau
+diese im Link; dann wird nichts geraten.
+
 ## Signaturprüfung von Hand
 
 Der Installer prüft die Signatur selbst, gegen den in ihm eingebetteten Public Key.

@@ -29,6 +29,7 @@ import (
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
 	"github.com/philf90/asylum/internal/httpd"
+	"github.com/philf90/asylum/internal/netinfo"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 	"github.com/philf90/asylum/internal/version"
@@ -249,6 +250,13 @@ func cmdSetupToken(args []string) error {
 
 `, int(time.Until(expires).Minutes()), url)
 
+	// Der Name im Link muss im Netz des Nutzers auflösen. Auf einem frisch
+	// aufgesetzten Server tut er das oft noch nicht; dann hilft die Adresse.
+	if alt := setupAlternatives(host); len(alt) > 0 {
+		fmt.Printf("  Löst %q bei Ihnen nicht auf, ersetzen Sie den Namen im Link durch\n"+
+			"  eine dieser Adressen: %s\n\n", host, strings.Join(alt, ", "))
+	}
+
 	if fp, err := certs.Fingerprint(cfg.Server.TLS.Cert); err == nil {
 		fmt.Printf("  Der Browser wird vor dem selbstsignierten Zertifikat warnen.\n"+
 			"  Erwarteter SHA-256-Fingerprint:\n  %s\n\n", fp)
@@ -382,15 +390,42 @@ func openDB(cfg config.Config) (*store.DB, error) {
 // hostForURL wählt die Adresse für die ausgegebene Setup-URL. Bei einer
 // Bindung auf alle Schnittstellen ist der Hostname die brauchbarere Angabe als
 // 0.0.0.0.
+//
+// Es muss der vollqualifizierte Name sein. os.Hostname() liefert auf Debian und
+// Ubuntu den kurzen ("cloudsrv24" statt "cloudsrv24.de"); der löst auf dem
+// Rechner selbst auf, im Browser eines anderen aber nicht. Der Link führte
+// damit ins Leere, ohne dass der Grund erkennbar war.
 func hostForURL(cfg config.Config) string {
 	bind := cfg.Server.Bind
-	if bind == "" || bind == "0.0.0.0" || bind == "::" {
-		if h, err := os.Hostname(); err == nil && h != "" {
-			return h
-		}
-		return "localhost"
+	if bind != "" && bind != "0.0.0.0" && bind != "::" {
+		return bind
 	}
-	return bind
+	if h := netinfo.FQDN(); h != "" {
+		return h
+	}
+	return "localhost"
+}
+
+// setupAlternatives nennt Adressen, unter denen das Panel außerdem erreichbar
+// ist. Sie sind der Ausweg, wenn der Name des Rechners im Netz des Nutzers
+// nicht auflöst — was bei einem frisch aufgesetzten Server der Normalfall ist,
+// solange noch kein DNS-Eintrag existiert.
+//
+// Ohne diesen Hinweis bleibt jemandem ohne Erfahrung nur die Vermutung, das
+// Panel sei nicht gestartet.
+func setupAlternatives(host string) []string {
+	var alt []string
+	for _, addr := range netinfo.Addresses() {
+		if addr == host {
+			continue
+		}
+		if strings.Contains(addr, ":") {
+			// IPv6 gehört in der Adresszeile in eckige Klammern.
+			addr = "[" + addr + "]"
+		}
+		alt = append(alt, addr)
+	}
+	return alt
 }
 
 // readPassword liest ohne Echo, fällt aber auf zeilenweises Lesen zurück, wenn

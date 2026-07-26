@@ -61,6 +61,18 @@ nicht als Release getaggt.
   Daten".** Sie rendert aus dem Ringpuffer, und der bekommt nur alle 30 Sekunden
   einen Eintrag. Jetzt aus der jüngsten Messung. Betraf jede frische
   Installation und jeden Neustart nach einem Update.
+- **Der Link zur Ersteinrichtung nannte den Rechner ohne Domainendung.**
+  `asylum setup-token` gab `https://cloudsrv24:8443/setup?token=…` aus, weil
+  `os.Hostname()` auf Debian und Ubuntu den kurzen Namen liefert. Auf dem Server
+  selbst löst der auf, im Browser eines anderen Rechners nicht — der Link führte
+  ins Leere, und die fehlende Endung sieht man nur, wenn man weiß, dass sie
+  fehlen kann. Ermittelt wird jetzt der vollqualifizierte Name wie bei
+  `hostname -f`. Findet sich keiner, nennt die Ausgabe zusätzlich die
+  IP-Adressen des Servers als Ausweg.
+- **Das selbstsignierte Zertifikat enthielt den vollqualifizierten Namen
+  nicht.** Wer die fehlende Domainendung von Hand ergänzte, bekam deshalb zur
+  Warnung vor dem unbekannten Aussteller noch eine vor dem falschen Namen. Beide
+  zusammen sehen aus wie ein Angriff. Der Name steht jetzt im SAN.
 - **Die apt-Anleitung nannte einen Kanal, den es noch nicht gab.**
   Dokumentation und Landingpage zeigten `Suites: stable`, während bislang nur
   Vorabversionen veröffentlicht sind — die landen im Kanal `beta`. Ein

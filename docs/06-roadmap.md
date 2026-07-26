@@ -12,15 +12,21 @@
 
 ## Offene Punkte
 
-Keiner davon blockiert M0.
+Erledigt: DNS samt Domain-Verifizierung und GitHub Pages
+([08-runbook-domain.md](08-runbook-domain.md)), Signaturschlüssel als
+Repository-Secret `MINISIGN_KEY`.
 
+Offen, keiner davon blockiert die Weiterentwicklung:
+
+- **Kein Default-Branch.** Das Repository hat nur den Arbeitsbranch und
+  `gh-pages`. Vor dem ersten Release muss der Stand als `main` landen — ein Tag
+  auf einem Feature-Branch wäre ein seltsamer Ausgangspunkt für ein
+  öffentliches Projekt.
 - **Namensprüfungen abschließen:** Debian-Kommandokollision, Paket-Namensräume,
   Marken in Klasse 9/42 — Befehle in
   [07-name-lizenz-domain.md](07-name-lizenz-domain.md#verbleibende-prüfschritte).
-- **DNS setzen und GitHub Pages aktivieren:** CNAME, Domain-Verifizierung,
-  „Enforce HTTPS" — siehe
-  [07-name-lizenz-domain.md](07-name-lizenz-domain.md#dns-konfiguration).
 - **Copyright-Zeile in `LICENSE`** auf den endgültigen Rechtsträger anpassen.
+- **TTL der DNS-Einträge** von 10 auf 3600 anheben, sobald alles steht.
 
 ---
 

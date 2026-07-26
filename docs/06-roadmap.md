@@ -7,28 +7,20 @@
 | **Scope** | **A — Server-Administrations-Panel.** Kein Hosting-Panel; vHosts, PHP, Mail und DNS bleiben Nicht-Ziele bzw. spätere optionale Module. | [03-funktionsumfang.md](03-funktionsumfang.md) |
 | **Sprache** | Go, statisches Single Binary | [01-sprachwahl.md](01-sprachwahl.md) |
 | **Lizenz** | Apache-2.0 (`LICENSE` im Root) | [07-name-lizenz-domain.md](07-name-lizenz-domain.md#lizenz-apache-20) |
+| **Name** | **Project Asylum** — CLI `asylum`, Daemon `asylumd` | [07-name-lizenz-domain.md](07-name-lizenz-domain.md#name-project-asylum) |
+| **Domain** | `repo.cloudsrv24.de` auf GitHub Pages, ein Host für Installer, Update-Metadaten und APT-Repo | [07-name-lizenz-domain.md](07-name-lizenz-domain.md#domain-repocloudsrv24de) |
 
-## Offene Entscheidungen
+## Offene Punkte
 
-Beide Punkte blockieren M0 nicht — Code kann mit dem Platzhalternamen beginnen —,
-sollten aber vor der ersten öffentlichen Veröffentlichung stehen, weil sie danach
-teuer zu ändern sind.
+Keiner davon blockiert M0.
 
-### 1. Name
-
-`scp` ist nur ein Platzhalter und scheidet endgültig aus: es kollidiert mit `scp(1)`
-aus OpenSSH. Kandidaten, Rechercheergebnisse und die verbleibenden Prüfschritte
-(Debian-Kommandokollision, Paketnamensräume, Marke, Domain) stehen in
-[07-name-lizenz-domain.md](07-name-lizenz-domain.md#name). Aktuelle Empfehlung:
-**Pult**.
-
-### 2. Domain
-
-Gebraucht werden drei Hostnamen für die Auslieferungskette — `get.` (Installer),
-`updates.` (Kanal-Metadaten), `apt.` (Paket-Repository). Alle drei sind statische
-Dateien und können kostenlos auf GitHub Pages liegen. Empfehlung `.dev` wegen
-HSTS-Preloading; Begründung und Alternativen ohne eigene Domain in
-[07-name-lizenz-domain.md](07-name-lizenz-domain.md#domain--was-damit-gemeint-ist).
+- **Namensprüfungen abschließen:** Debian-Kommandokollision, Paket-Namensräume,
+  Marken in Klasse 9/42 — Befehle in
+  [07-name-lizenz-domain.md](07-name-lizenz-domain.md#verbleibende-prüfschritte).
+- **DNS setzen und GitHub Pages aktivieren:** CNAME, Domain-Verifizierung,
+  „Enforce HTTPS" — siehe
+  [07-name-lizenz-domain.md](07-name-lizenz-domain.md#dns-konfiguration).
+- **Copyright-Zeile in `LICENSE`** auf den endgültigen Rechtsträger anpassen.
 
 ---
 
@@ -36,7 +28,7 @@ HSTS-Preloading; Begründung und Alternativen ohne eigene Domain in
 
 ### M0 — Grundgerüst (1 Woche)
 Go-Modul, Repo-Layout, CI (lint/test/build), GoReleaser mit Tarball und `.deb`,
-`install.sh` mit Signaturprüfung, systemd-Unit, `scpd serve` liefert eine leere
+`install.sh` mit Signaturprüfung, systemd-Unit, `asylumd serve` liefert eine leere
 Seite über TLS aus. **Ergebnis: der One-Line-Install funktioniert — ohne Features.**
 
 Diese Reihenfolge ist bewusst gewählt: Deployment und Update-Pfad sind die
@@ -53,7 +45,7 @@ inklusive Lockout-Schutz, Benutzer & SSH-Keys, journald-Logs.
 
 ### M3 — Update-Mechanik (1 Woche)
 Kanäle, Metadatenformat, Selbstupdate mit Healthcheck und Rollback,
-`scp update` / `scp rollback`, APT-Repository-Job in der Pipeline.
+`asylum update` / `asylum rollback`, APT-Repository-Job in der Pipeline.
 
 ### M4 — v0.1.0 Public Beta (1 Woche)
 Dokumentation, Screenshots, Landingpage, `SECURITY.md`, Issue-Templates,

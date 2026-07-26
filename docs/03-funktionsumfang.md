@@ -30,7 +30,7 @@ der ersten Stunde tut.
 - Geführtes Erst-Setup: Admin-Account, TOTP-2FA, Hostname, Zeitzone.
 - Login mit Argon2id + TOTP, serverseitige Sessions, Rate-Limiting.
 - Rollen: Owner, Admin, ReadOnly.
-- `scp reset-password` als lokaler Rettungsanker über SSH.
+- `asylum reset-password` als lokaler Rettungsanker über SSH.
 
 ### Dashboard
 - CPU (gesamt + je Kern), RAM/Swap, Load, Uptime, Kernel- und Distributionsversion.

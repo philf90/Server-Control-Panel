@@ -3,7 +3,7 @@
 ## Der Befehl
 
 ```bash
-curl -fsSL https://get.example.org/install.sh -o install.sh
+curl -fsSL https://repo.cloudsrv24.de/install.sh -o install.sh
 sudo bash install.sh
 ```
 
@@ -20,14 +20,14 @@ zuerst.
  1. Vorbedingungen prüfen   root? Ubuntu 22.04+/Debian 12+? x86_64 oder aarch64?
                             systemd vorhanden? curl/tar vorhanden?
  2. Version auflösen        GitHub Releases API → neuestes Tag im gewählten Kanal
- 3. Herunterladen           scpd_<version>_linux_<arch>.tar.gz + SHA256SUMS + .sig
+ 3. Herunterladen           asylumd_<version>_linux_<arch>.tar.gz + SHA256SUMS + .sig
  4. Verifizieren            Signatur (minisign/cosign) gegen im Skript eingebetteten
                             Public Key, dann Prüfsumme
- 5. Systembenutzer          Gruppe/User `scp` (--system, kein Login, kein Home)
- 6. Dateien platzieren      /usr/local/lib/scp/scpd, Symlink /usr/local/bin/scp,
+ 5. Systembenutzer          Gruppe/User `asylum` (--system, kein Login, kein Home)
+ 6. Dateien platzieren      /usr/local/lib/asylum/asylumd, Symlink /usr/local/bin/asylum,
                             Verzeichnisse mit korrekten Rechten
- 7. Erstkonfiguration       /etc/scp/config.yaml, self-signed TLS-Zertifikat
- 8. Datenbank               scpd migrate  (legt SQLite an, spielt Migrationen ein)
+ 7. Erstkonfiguration       /etc/asylum/config.yaml, self-signed TLS-Zertifikat
+ 8. Datenbank               asylumd migrate  (legt SQLite an, spielt Migrationen ein)
  9. systemd                 Unit installieren, daemon-reload, enable --now
 10. Firewall                Panel-Port in ufw/nftables freigeben (falls aktiv)
 11. Healthcheck             bis zu 30 s auf HTTP 200 an /healthz warten
@@ -44,24 +44,24 @@ Terminal-Log.
 | Eigenschaft | Umsetzung |
 |---|---|
 | **Idempotent** | Zweiter Aufruf aktualisiert, statt zu zerstören; bestehende Config und DB bleiben unangetastet |
-| **Unattended** | Alle Eingaben über Umgebungsvariablen (`SCP_PORT`, `SCP_BIND`, `SCP_CHANNEL`, `SCP_VERSION`, `SCP_NO_FIREWALL=1`) |
+| **Unattended** | Alle Eingaben über Umgebungsvariablen (`ASYLUM_PORT`, `ASYLUM_BIND`, `ASYLUM_CHANNEL`, `ASYLUM_VERSION`, `ASYLUM_NO_FIREWALL=1`) |
 | **Fehlertolerant** | `set -euo pipefail`, `trap` mit Cleanup und Rollback bei Abbruch |
 | **Gesprächig** | Jeder Schritt mit Status, Fehler mit konkretem Hinweis statt Stacktrace |
 | **Prüfbar** | Das Skript ist im Repo versioniert, nicht generiert; die Download-URL zeigt auf ein Release-Artefakt, nicht auf `main` |
-| **Deinstallierbar** | `sudo bash install.sh --uninstall` bzw. `sudo scp uninstall [--purge]` |
+| **Deinstallierbar** | `sudo bash install.sh --uninstall` bzw. `sudo asylum uninstall [--purge]` |
 
 ## Skelett
 
 ```bash
 #!/usr/bin/env bash
-# install.sh — Server Control Panel
+# install.sh — Project Asylum
 set -euo pipefail
 
-REPO="philf90/Server-Control-Panel"
-CHANNEL="${SCP_CHANNEL:-stable}"
-VERSION="${SCP_VERSION:-latest}"
-PORT="${SCP_PORT:-8443}"
-PREFIX="/usr/local/lib/scp"
+REPO="philf90/Server-Control-Panel"     # ggf. auf project-asylum umziehen
+CHANNEL="${ASYLUM_CHANNEL:-stable}"
+VERSION="${ASYLUM_VERSION:-latest}"
+PORT="${ASYLUM_PORT:-8443}"
+PREFIX="/usr/local/lib/asylum"
 MINISIGN_PUBKEY="RWQ...."          # im Skript eingebettet
 
 log()  { printf '\033[1;34m::\033[0m %s\n' "$*"; }
@@ -98,7 +98,7 @@ detect_arch() {
 ```
 
 Der vollständige Installer gehört nach `packaging/install.sh` und wird bei jedem
-Release unverändert als Artefakt mit veröffentlicht. `https://get.example.org/install.sh`
+Release unverändert als Artefakt mit veröffentlicht. `https://repo.cloudsrv24.de/install.sh`
 ist lediglich eine Weiterleitung auf das Artefakt des jeweils aktuellen
 Stable-Releases (statisches Hosting oder GitHub Pages genügt).
 
@@ -108,11 +108,11 @@ Der Installer ist der bequeme Weg. Für Nutzer mit Konfigurationsmanagement oder
 Compliance-Anforderungen sollte es zusätzlich ein signiertes APT-Repository geben:
 
 ```bash
-curl -fsSL https://apt.example.org/gpg.key \
-  | sudo gpg --dearmor -o /usr/share/keyrings/scp.gpg
-echo "deb [signed-by=/usr/share/keyrings/scp.gpg] https://apt.example.org stable main" \
-  | sudo tee /etc/apt/sources.list.d/scp.list
-sudo apt update && sudo apt install server-control-panel
+curl -fsSL https://repo.cloudsrv24.de/apt/gpg.key \
+  | sudo gpg --dearmor -o /usr/share/keyrings/asylum.gpg
+echo "deb [signed-by=/usr/share/keyrings/asylum.gpg] https://repo.cloudsrv24.de/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/asylum.list
+sudo apt update && sudo apt install asylum
 ```
 
 Die `.deb`-Pakete entstehen ohnehin im Release-Prozess (nfpm über GoReleaser), das
@@ -127,14 +127,14 @@ laufen über `apt upgrade` wie bei jeder anderen Systemsoftware.
   Container-Modell, dass der Gewinn gering ist. Sinnvoll höchstens für die spätere
   Multi-Server-Variante, wo die Web-Komponente wirklich isoliert laufen kann.
 - **cloud-init:** ein Ein-Zeilen-`runcmd` mit dem Installer und gesetzten
-  `SCP_*`-Variablen — deckt automatisierte VPS-Provisionierung ohne Zusatzaufwand ab.
+  `ASYLUM_*`-Variablen — deckt automatisierte VPS-Provisionierung ohne Zusatzaufwand ab.
 - **Ansible-Rolle:** dünner Wrapper um das `.deb`, gehört in ein eigenes Repository.
 
 ## Deinstallation
 
 ```bash
-sudo scp uninstall           # Dienst stoppen, Binary + Unit entfernen, Daten behalten
-sudo scp uninstall --purge   # zusätzlich /etc/scp und /var/lib/scp entfernen
+sudo asylum uninstall           # Dienst stoppen, Binary + Unit entfernen, Daten behalten
+sudo asylum uninstall --purge   # zusätzlich /etc/asylum und /var/lib/asylum entfernen
 ```
 
 Der Uninstaller entfernt außerdem alle vom Panel gesetzten Konfigurationsblöcke

@@ -10,7 +10,7 @@ Netz. Das sind zwei Dinge, die man ungern im selben Prozess hat.
 
 ```
                         ┌──────────────────────────────┐
-   Browser  ──TLS──▶    │  scpd (root, systemd-gehärtet)│
+   Browser  ──TLS──▶    │ asylumd (root, systemd-härtet)│
                         │                              │
                         │  ┌────────────────────────┐  │
                         │  │ HTTP-Layer / Templates │  │
@@ -50,7 +50,7 @@ zweite Schritt später ohne Rewrite gehen:
 ### Ausbaustufe: Privilege Separation (ab v0.4 geplant)
 
 ```
-scpd-web  (User scp, unprivilegiert)  ──unix socket──▶  scpd-agent (root, minimal)
+asylumd-web  (User asylum, unprivilegiert)  ──unix socket──▶  asylumd-agent (root, minimal)
 ```
 
 Der Web-Prozess verliert damit root komplett. Der Agent implementiert dasselbe
@@ -62,7 +62,7 @@ nichts.
 ```ini
 [Service]
 Type=notify
-ExecStart=/usr/local/lib/scp/scpd serve
+ExecStart=/usr/local/lib/asylum/asylumd serve
 NoNewPrivileges=no          # apt/useradd brauchen setuid-Aufrufe
 ProtectSystem=full
 ProtectHome=read-only
@@ -93,14 +93,14 @@ Das häufigste Ärgernis bestehender Panels: sie überschreiben handgepflegte Co
 
 1. Panel-verwaltete Abschnitte werden markiert:
    ```
-   # >>> managed by server-control-panel (id: firewall-base) >>>
+   # >>> managed by asylum (id: firewall-base) >>>
    ...
-   # <<< managed by server-control-panel <<<
+   # <<< managed by asylum <<<
    ```
 2. Alles außerhalb der Marker wird nie angefasst.
 3. Wo möglich: eigene Drop-in-Dateien statt Änderungen an Distributionsdateien
    (`/etc/ssh/sshd_config.d/`, `/etc/systemd/system/<unit>.d/`, `/etc/sysctl.d/`).
-4. Vor jeder Schreiboperation: Backup nach `/var/lib/scp/backups/<ts>/<pfad>`.
+4. Vor jeder Schreiboperation: Backup nach `/var/lib/asylum/backups/<ts>/<pfad>`.
 5. Nach jeder Änderung: Validierung vor dem Reload (`sshd -t`, `nft -c -f`,
    `nginx -t`). Schlägt sie fehl → automatisches Rollback, Fehler im UI.
 6. Wurde eine verwaltete Datei außerhalb des Panels geändert (Hash-Vergleich),
@@ -109,14 +109,14 @@ Das häufigste Ärgernis bestehender Panels: sie überschreiben handgepflegte Co
 ## Datenhaltung
 
 ```
-/usr/local/lib/scp/scpd            Binary (root:root 0755)
-/usr/local/bin/scp                 Symlink auf das Binary (CLI-Modus)
-/etc/scp/config.yaml               Konfiguration (root:scp 0640)
-/etc/scp/tls/                      Zertifikate
-/var/lib/scp/scp.db                SQLite (0600)
-/var/lib/scp/backups/              Config-Backups
-/var/log/scp/audit.log             Audit-Log (append-only, logrotate)
-/var/lib/scp/releases/             vorheriges Binary für Rollback
+/usr/local/lib/asylum/asylumd    Binary (root:root 0755)
+/usr/local/bin/asylum            Symlink auf das Binary (CLI-Modus)
+/etc/asylum/config.yaml          Konfiguration (root:asylum 0640)
+/etc/asylum/tls/                 Zertifikate
+/var/lib/asylum/asylum.db        SQLite (0600)
+/var/lib/asylum/backups/         Config-Backups
+/var/log/asylum/audit.log        Audit-Log (append-only, logrotate)
+/var/lib/asylum/releases/        vorheriges Binary für Rollback
 ```
 
 **SQLite** genügt vollständig: Nutzer, Sessions, Rollen, Audit-Log, Einstellungen,
@@ -146,7 +146,7 @@ ein Control Panel.
 
 ```
 .
-├── cmd/scpd/                 main(): serve | install | update | version | reset-password
+├── cmd/asylumd/                 main(): serve | install | update | version | reset-password
 ├── internal/
 │   ├── httpd/                Router, Middleware, Handler
 │   ├── ui/                   Templates + statische Assets (embed.FS)

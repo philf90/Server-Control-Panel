@@ -11,7 +11,7 @@ dürfen brechen, Patch-Releases nie.
 | `beta` | Vorabversionen | Tester |
 | `nightly` | Builds von `main` | Entwicklung, ausdrücklich ohne Garantie |
 
-Der Kanal steht in `/etc/scp/config.yaml` und ist im UI umstellbar. Ein Wechsel von
+Der Kanal steht in `/etc/asylum/config.yaml` und ist im UI umstellbar. Ein Wechsel von
 `beta` zurück auf `stable` wartet, bis Stable die installierte Version eingeholt hat
 — es wird nie automatisch downgraded.
 
@@ -22,7 +22,7 @@ Alle drei greifen auf dieselben Release-Artefakte zu, sind also austauschbar:
 ### 1. Im Panel (Standardweg)
 
 Ein Hintergrund-Job prüft täglich (mit zufälligem Versatz, um Lastspitzen auf dem
-Update-Server zu vermeiden) `https://updates.example.org/<kanal>.json`:
+Update-Server zu vermeiden) `https://repo.cloudsrv24.de/updates/<kanal>.json`:
 
 ```json
 {
@@ -32,8 +32,8 @@ Update-Server zu vermeiden) `https://updates.example.org/<kanal>.json`:
   "notes_url": "https://github.com/philf90/Server-Control-Panel/releases/tag/v0.4.2",
   "severity": "security",
   "artifacts": {
-    "linux_amd64": { "url": "…/scpd_0.4.2_linux_amd64.tar.gz", "sha256": "…" },
-    "linux_arm64": { "url": "…/scpd_0.4.2_linux_arm64.tar.gz", "sha256": "…" }
+    "linux_amd64": { "url": "…/asylumd_0.4.2_linux_amd64.tar.gz", "sha256": "…" },
+    "linux_arm64": { "url": "…/asylumd_0.4.2_linux_arm64.tar.gz", "sha256": "…" }
   },
   "signature": "…"
 }
@@ -44,10 +44,10 @@ Das UI zeigt Version, Changelog und Schweregrad. Ein Klick startet das Update.
 ### 2. CLI
 
 ```bash
-sudo scp update              # auf neueste Version im konfigurierten Kanal
-sudo scp update --version 0.4.2
-sudo scp update --check      # nur prüfen, Exit-Code 0 = aktuell, 10 = Update verfügbar
-sudo scp rollback            # zurück auf die vorherige Version
+sudo asylum update              # auf neueste Version im konfigurierten Kanal
+sudo asylum update --version 0.4.2
+sudo asylum update --check      # nur prüfen, Exit-Code 0 = aktuell, 10 = Update verfügbar
+sudo asylum rollback            # zurück auf die vorherige Version
 ```
 
 ### 3. APT
@@ -62,12 +62,12 @@ Migrations- und Restart-Logik auf.
  1. Metadaten holen        Signatur der Metadaten prüfen
  2. Vorbedingungen         installierte Version >= min_upgradable_from?
                            freier Speicher? Läuft gerade ein Job?
- 3. Download               nach /var/lib/scp/staging/, SHA256 + Signatur prüfen
+ 3. Download               nach /var/lib/asylum/staging/, SHA256 + Signatur prüfen
  4. Selbsttest             neues Binary mit `--version` und `--selftest` starten
- 5. DB-Backup              SQLite-Snapshot nach /var/lib/scp/backups/pre-<version>.db
+ 5. DB-Backup              SQLite-Snapshot nach /var/lib/asylum/backups/pre-<version>.db
  6. Binary tauschen        neues Binary daneben legen, dann rename(2) — atomar;
-                           altes Binary nach /var/lib/scp/releases/<alte-version>
- 7. Migrationen            `scpd migrate` — versioniert, forward-only, in einer
+                           altes Binary nach /var/lib/asylum/releases/<alte-version>
+ 7. Migrationen            `asylumd migrate` — versioniert, forward-only, in einer
                            Transaktion je Migration
  8. Neustart               systemctl restart, Type=notify → systemd wartet auf Ready
  9. Healthcheck            30 s auf /healthz mit erwarteter Version
@@ -125,14 +125,14 @@ GitHub Actions, ausgelöst durch ein `v*`-Tag:
 lint (golangci-lint)  ─┐
 test (go test ./...)  ─┤
 govulncheck           ─┼─▶ goreleaser ─▶ Artefakte:
-build-matrix          ─┘                  scpd_<ver>_linux_{amd64,arm64}.tar.gz
-   amd64, arm64                           server-control-panel_<ver>_{amd64,arm64}.deb
+build-matrix          ─┘                  asylumd_<ver>_linux_{amd64,arm64}.tar.gz
+   amd64, arm64                           asylum_<ver>_{amd64,arm64}.deb
                                           install.sh
                                           SHA256SUMS (+ .sig)
                                           SBOM (syft)
                                           → GitHub Release
                                           → APT-Repo-Job
-                                          → updates.example.org/<kanal>.json
+                                          → repo.cloudsrv24.de/updates/<kanal>.json
 ```
 
 Signiert wird mit **cosign** (keyless über OIDC, bindet die Signatur an

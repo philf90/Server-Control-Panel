@@ -1,6 +1,11 @@
-# Server Control Panel
+# Project Asylum
 
 Ein schlankes, ressourcenschonendes Control Panel für Linux-Server (primär Ubuntu & Debian).
+
+**A**dministration · **S**ecurity · **Y**AML · **L**ogs · **U**pdates · **M**onitoring
+
+*Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
+beherrschbar bleibt.
 
 > **Status: Konzeptphase.** Dieses Repository enthält aktuell nur die technische
 > Konzeption. Es gibt noch keinen lauffähigen Code. Ziel dieser Phase ist es,
@@ -10,7 +15,7 @@ Ein schlankes, ressourcenschonendes Control Panel für Linux-Server (primär Ubu
 ## Zielbild
 
 ```bash
-curl -fsSL https://get.example.org/install.sh -o install.sh
+curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
 sudo bash install.sh
 ```
 
@@ -50,8 +55,8 @@ Zielserver.
 | Scope | **Server-Administrations-Panel** — kein Hosting-Panel (kein Mail, kein DNS, keine Kundenverwaltung) |
 | Sprache | **Go**, statisches Single Binary |
 | Lizenz | **Apache-2.0** |
-| Name | offen — Empfehlung `Pult`, Kandidaten in [docs/07](docs/07-name-lizenz-domain.md#name). `scp`/`scpd` in der Doku ist ein Platzhalter |
-| Domain | offen — Empfehlung `<name>.dev` mit `get.` / `updates.` / `apt.` |
+| Name | **Project Asylum** — CLI `asylum`, Daemon `asylumd`, Paket `asylum` |
+| Domain | **`repo.cloudsrv24.de`** auf GitHub Pages — Installer, Update-Metadaten und APT-Repo unter einem Host |
 
 ## Lizenz
 

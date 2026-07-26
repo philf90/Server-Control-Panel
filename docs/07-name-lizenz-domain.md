@@ -6,112 +6,131 @@
 |---|---|
 | **Scope** | A — Server-Administrations-Panel. Hosting-Funktionen (vHosts, PHP, Mail, DNS) sind Nicht-Ziele bzw. später optionale Module. |
 | **Lizenz** | Apache-2.0 |
-| **Name** | offen — Kandidaten und Prüfverfahren siehe unten |
-| **Domain** | offen — Bedeutung und Optionen siehe unten |
+| **Name** | **Project Asylum** — Binary `asylum`, Daemon `asylumd`, Paket `asylum` |
+| **Domain** | `repo.cloudsrv24.de` — ein Host für Installer, Update-Metadaten und APT-Repository |
 
 ---
 
-## Name
+## Name: Project Asylum
 
-### Kriterien
+*Asylum* im Sinne von **Zufluchtsort, sicherer Ort** — nicht im Sinne der Anstalt.
+Das Panel ist der Ort, an dem ein Server sicher, überschaubar und beherrschbar
+bleibt. Diese Lesart muss die Bildsprache konsequent tragen (Schild, Zuflucht, Hafen),
+sonst setzt sich die andere durch.
 
-1. **CLI-tauglich:** 4–7 Zeichen, tippbar, keine Sonderzeichen, keine Verwechslung mit
-   einem bestehenden Kommando. `scp` scheidet deshalb aus — es ist OpenSSH.
-2. **Suchbar:** Ein Name, der 200 andere Treffer hat, kostet dauerhaft Sichtbarkeit.
-3. **Frei:** Kein prominentes Projekt gleichen Namens, keine eingetragene Marke in
-   Klasse 9/42, Domain und Paketnamen verfügbar.
-4. **Aussprechbar in DE und EN**, keine Umlaute, kein ß.
+### Namensraum im Produkt
 
-### Befund der Recherche
-
-Generische englische Wörter sind im Infrastruktur-Umfeld praktisch vollständig
-belegt. Stichproben:
-
-| Kandidat | Treffer |
+| Ebene | Wert |
 |---|---|
-| `vane` | Arista Network-Validation-Tool, AI-Suchmaschine (ex-Perplexica), Rust-Proxy-CLI, Bot-Detection-SDK |
-| `steer` | Coding-Agent (Rust), AI-Runtime-Enforcement, Git-Deploy-Tool, Lightning-Node-Manager, CMS |
-| `osprey` | mind. 8 Projekte (MRS-Toolbox, Discord Rules Engine, Voice-Typing, Rocketry, …) |
-| `grip` | in Debian als Paket vorhanden (GitHub-Readme-Preview) — direkte Kommandokollision |
-| `helm`, `forge`, `bolt`, `rudder`, `harbor` | jeweils prominent belegt, teils im selben Themenfeld |
+| Projektname | Project Asylum |
+| CLI / Symlink | `asylum` |
+| Daemon / Binary | `asylumd` |
+| Debian-Paket | `asylum` |
+| Systembenutzer | `asylum` |
+| Pfade | `/etc/asylum/`, `/var/lib/asylum/`, `/var/log/asylum/` |
+| Env-Präfix | `ASYLUM_` |
 
-Konsequenz: Erfolgreiche Projekte dieser Nische nehmen **Kunstwörter oder
-ungewöhnliche Schreibweisen** — Traefik, Coolify, Dokploy, Authentik, Portainer,
-Umami, Pocketbase. Das ist kein Zufall, sondern die einzige Strategie, die 2026 noch
-freie Namen liefert.
+### Das Akronym
 
-### Kandidaten
+Die sechs Buchstaben decken exakt den MVP-Funktionsumfang aus
+[03-funktionsumfang.md](03-funktionsumfang.md) ab — das Akronym ist damit kein
+nachträglicher Wortwitz, sondern die Modulliste:
 
-| Name | Herkunft / Bedeutung | Bewertung |
+| | Begriff | Deckt ab |
 |---|---|---|
-| **Pult** ⭐ | *Schaltpult / Bedienpult* — die exakte deutsche Entsprechung von "control panel" | 4 Zeichen, kein Softwareprojekt dieses Namens auffindbar, in EN aussprechbar, `pult services restart nginx` liest sich gut. **Empfehlung.** |
-| **Griff** | „den Server im Griff haben" | 5 Zeichen, starke Metapher; Nähe zu *Griffe* (Python-Tool) und zum Namen Griffin |
-| **Hebel** | Hebelwirkung — kleines Werkzeug, große Wirkung | 5 Zeichen, softwareseitig unbelegt, in EN etwas erklärungsbedürftig |
-| **Havn** | Hafen/harbour in brandbarer Schreibweise | 4 Zeichen, sehr gut suchbar; semantische Nähe zu *Harbor* (Container-Registry) |
-| **Hosta** | Pflanzengattung, enthält sichtbar *host* | 5 Zeichen, im Softwarebereich unverbraucht, neutral international |
-| **Servus** | süddeutsch/österreichischer Gruß, enthält *serv* | sympathisch und einprägsam, wirkt aber je nach Publikum unseriös — Wildcard |
+| **A** | **Administration** | systemd-Dienste, apt-Pakete, Cron & Timer, Dateien |
+| **S** | **Security** | nftables-Firewall, SSH-Härtung, Systembenutzer & SSH-Keys, 2FA, RBAC, Audit-Log |
+| **Y** | **YAML** | deklarative, versionierbare Konfiguration in `/etc/asylum/config.yaml` statt versteckter Datenbank-Einstellungen |
+| **L** | **Logs** | journald: filtern, live folgen, exportieren |
+| **U** | **Updates** | System-Updates (apt, unattended-upgrades) und Panel-Updates mit Rollback |
+| **M** | **Monitoring** | Live-Metriken, Dashboard, Schwellwerte und Benachrichtigungen |
 
-`Pult` bringt drei Dinge zusammen, die selten zusammenkommen: es bedeutet exakt das,
-was die Software ist, es ist kurz genug für die Kommandozeile, und es scheint frei zu
-sein. Der leichte deutsche Einschlag ist unproblematisch — Umami, Authentik und
-Traefik zeigen, dass nicht-englische Namen international funktionieren, solange sie
-aussprechbar sind.
+> **Administration · Security · YAML · Logs · Updates · Monitoring**
 
-### Verbleibende Prüfschritte vor der Festlegung
+### Alternative Belegungen je Buchstabe
 
-Diese Prüfungen ließen sich aus der Entwicklungsumgebung heraus nicht durchführen
-(die Netzwerk-Policy blockiert RDAP und `packages.debian.org`) und sollten vor der
-endgültigen Wahl manuell erfolgen:
+Falls die Schwerpunkte sich verschieben, funktionieren auch diese — die Tabelle oben
+ist die empfohlene Kombination, weil jeder Begriff genau einem Modul entspricht und
+keiner doppelt belegt ist:
+
+| | Alternativen |
+|---|---|
+| **A** | Automation · Access · Audit · Agent · Alerting · Apt |
+| **S** | Services · Systemd · Storage · Supervision · SSH · Sicherheit |
+| **Y** | Yardstick (Schwellwerte, Benchmarks) · Yield (Auslastung, Durchsatz) |
+| **L** | Lifecycle · Least-Privilege · Load · Linux |
+| **U** | Users · Uptime · Unattended · Upgrades |
+| **M** | Metrics · Management · Maintenance · Modules |
+
+Zum **Y**: Das ist der einzige harte Buchstabe. `YAML` ist die stärkste Wahl, weil es
+etwas Konkretes über das Produkt aussagt (Konfiguration ist eine lesbare Datei, kein
+Datenbankfeld) statt ein Füllwort zu sein. Ein rein deutsches Akronym ist nicht
+möglich — im Deutschen existiert praktisch kein passendes Y-Wort.
+
+### Bekannte Nachteile des Namens
+
+Dokumentiert, damit die Entscheidung bewusst getroffen ist:
+
+1. **Konnotation im Englischen:** Umgangssprachlich ist *asylum* zuerst die
+   psychiatrische Anstalt (*lunatic asylum*) — ein Begriff mit stigmatisierender
+   Geschichte. Die Lesart „Zuflucht" ist korrekt, aber nicht die erste, die ein
+   englischsprachiger Nutzer abruft.
+2. **Konnotation im Deutschen:** *Asyl* ist migrationspolitisch aufgeladen. Bei einem
+   Projekt mit deutschem Absender wird der Name mitgelesen.
+3. **Suchbarkeit:** Der Namensraum ist gut gefüllt — Asylum Records (Warner), The
+   Asylum (Filmstudio), [Asylum-os](https://github.com/Asylum-os) (Buildroot-basiertes
+   OS), [SDL Asylum](https://github.com/M-HT/asylum) (Spiele-Port). Keines davon ist
+   ein Server-Tool, es gibt also keine Verwechslungsgefahr im Anwendungsfeld — aber
+   organische Suchtreffer sind schwerer zu erobern.
+
+Gegenmaßnahmen: durchgängig **„Project Asylum"** als Wortmarke verwenden (die Phrase
+ist deutlich unterscheidbarer als das Einzelwort), Bildsprache und Claim eindeutig auf
+Zuflucht/Schutz ausrichten, und in `README`/Landingpage den Namen in einem Halbsatz
+erklären.
+
+### Verbleibende Prüfschritte
+
+Aus der Entwicklungsumgebung nicht durchführbar (Netzwerk-Policy blockiert RDAP und
+`packages.debian.org`) — vor dem ersten öffentlichen Release manuell erledigen:
 
 ```bash
 # 1. Kommandokollision in Debian/Ubuntu
-apt-file search --regexp '/(usr/)?s?bin/pult$'
+apt-file search --regexp '/(usr/)?s?bin/asylum(d)?$'
 
-# 2. Paket-Namensräume
-#    packages.debian.org/pult · crates.io/crates/pult · npmjs.com/package/pult
-#    pkg.go.dev/search?q=pult
+# 2. Paket-Namensräume reservieren
+#    crates.io · npmjs.com · hub.docker.com · pkg.go.dev
 
-# 3. Domain-Verfügbarkeit
-whois pult.dev   # bzw. RDAP: https://rdap.org/domain/pult.dev
-
-# 4. Marken (Klassen 9 und 42)
+# 3. Marken in Klasse 9 (Software) und 42 (IT-Dienstleistungen)
 #    DPMA: register.dpma.de · EUIPO: euipo.europa.eu/eSearch
-#    Wichtig, sobald das Projekt kommerziell werden könnte
+#    Asylum Records und The Asylum liegen in Klasse 41 (Unterhaltung),
+#    kollidieren also voraussichtlich nicht — trotzdem prüfen
 
-# 5. GitHub-Organisation
-#    github.com/pult ist bereits ein Nutzerkonto → Organisation ggf. als
-#    "pult-panel" oder "getpult" registrieren; der Projektname bleibt davon
-#    unberührt
+# 4. GitHub-Organisation (github.com/Asylum-os und github.com/AsylumCorp existieren
+#    bereits; für dieses Projekt z. B. "project-asylum" oder "asylum-panel")
 ```
 
 ---
 
 ## Lizenz: Apache-2.0
 
-Entschieden wie empfohlen. `LICENSE` liegt im Repository-Root.
+`LICENSE` liegt im Repository-Root.
 
 ### Was daraus konkret folgt
 
 - **Copyright-Zeile:** Der Platzhalter im Anhang lautet aktuell
-  „Server Control Panel Contributors". Sobald Projektname und ggf. Rechtsträger
-  feststehen, anpassen.
+  „Server Control Panel Contributors" und sollte auf den endgültigen Projekt- bzw.
+  Rechtsträgernamen angepasst werden.
 - **Datei-Header:** Apache-2.0 empfiehlt einen kurzen Header je Quelldatei. Für ein
-  Go-Projekt genügt in der Praxis der `LICENSE`-Datei im Root plus ein Hinweis in
-  `README.md`; einheitliche Header sind optional, aber bei späterer Verwendung durch
-  Firmen hilfreich.
+  Go-Projekt genügt in der Praxis die `LICENSE` im Root plus ein Hinweis im README;
+  einheitliche Header sind optional, aber bei Nutzung durch Firmen hilfreich.
 - **NOTICE-Datei:** Nur nötig, wenn Drittcode mit eigener NOTICE eingebunden wird.
-  Dann muss deren Inhalt übernommen werden.
-- **DCO statt CLA:** Für Beiträge das Developer Certificate of Origin verwenden
-  (`git commit -s`) statt eines Contributor License Agreements. Geringere Hürde,
-  in der Community akzeptiert, für Apache-2.0-Projekte ausreichend.
-- **Abhängigkeiten-Hygiene — der wichtigste Punkt:** In ein statisch gelinktes Binary
-  darf kein GPL-/AGPL-lizenzierter Code eingebunden werden, sonst wird das gesamte
-  Binary von der GPL erfasst. Erlaubt sind MIT, BSD, Apache-2.0, ISC, MPL-2.0
-  (dateibasiertes Copyleft, unkritisch bei unveränderter Nutzung). Das ist im
-  Go-Ökosystem normalerweise kein Problem, muss aber in der CI erzwungen werden:
+- **DCO statt CLA:** Beiträge über das Developer Certificate of Origin
+  (`git commit -s`). Geringere Hürde als ein CLA und für Apache-2.0 ausreichend.
+- **Abhängigkeiten-Hygiene — der praktisch wichtigste Punkt:** In ein statisch
+  gelinktes Binary darf kein GPL-/AGPL-Code, sonst wird das gesamte Binary von der
+  GPL erfasst. Erlaubt sind MIT, BSD, Apache-2.0, ISC, MPL-2.0. In der CI erzwingen:
 
   ```yaml
-  # .github/workflows/ci.yml
   - name: License-Check
     run: |
       go install github.com/google/go-licenses@latest
@@ -119,61 +138,143 @@ Entschieden wie empfohlen. `LICENSE` liegt im Repository-Root.
         --disallowed_types=forbidden,restricted,reciprocal
   ```
 
-  Aufrufen von GPL-Programmen als externe Prozesse (`apt`, `nft`, `systemctl`) ist
-  davon nicht betroffen — das ist normale Nutzung, kein Linking.
+  Das Aufrufen GPL-lizenzierter Programme als externe Prozesse (`apt`, `nft`,
+  `systemctl`) ist davon nicht betroffen — das ist Nutzung, kein Linking.
 
 ---
 
-## Domain — was damit gemeint ist
+## Domain: `repo.cloudsrv24.de`
 
-Gemeint ist die **Domain des Projekts**, nicht die Domain, unter der das Panel später
-auf einem Kundenserver läuft. Sie wird an drei Stellen der Auslieferungskette
-gebraucht:
+Ein einziger Host trägt die gesamte Auslieferungskette. Statt drei Subdomains werden
+Pfade verwendet:
 
-| Hostname | Wofür | Was dort liegt |
+| URL | Inhalt |
+|---|---|
+| `https://repo.cloudsrv24.de/` | schlichte Landingpage mit Installationsbefehl |
+| `https://repo.cloudsrv24.de/install.sh` | Installer des aktuellen Stable-Releases |
+| `https://repo.cloudsrv24.de/updates/stable.json` | Update-Metadaten Stable-Kanal |
+| `https://repo.cloudsrv24.de/updates/beta.json` | Update-Metadaten Beta-Kanal |
+| `https://repo.cloudsrv24.de/apt/` | APT-Repository (`dists/`, `pool/`, `gpg.key`) |
+
+Alles davon sind statische Dateien → **GitHub Pages** genügt, es entstehen keine
+Serverkosten.
+
+### DNS-Konfiguration
+
+**Empfohlen — CNAME.** Für eine Subdomain ist das der von GitHub vorgesehene Weg. Er
+überlebt IP-Wechsel bei GitHub und aktiviert deren Load-Balancing:
+
+```dns
+repo.cloudsrv24.de.   3600   IN   CNAME   philf90.github.io.
+```
+
+Wichtig: `philf90.github.io` ist der **Benutzer-/Organisationsname**, nicht der
+Repository-Name — es lautet also nicht `philf90.github.io/Server-Control-Panel`. Ein
+CNAME-Record darf am selben Namen nicht mit anderen Records koexistieren.
+
+**Falls nur A-Records möglich sind**, sind dies die vier Adressen von GitHub Pages
+(soeben per DNS verifiziert):
+
+```dns
+repo.cloudsrv24.de.   3600   IN   A   185.199.108.153
+repo.cloudsrv24.de.   3600   IN   A   185.199.109.153
+repo.cloudsrv24.de.   3600   IN   A   185.199.110.153
+repo.cloudsrv24.de.   3600   IN   A   185.199.111.153
+```
+
+Optional zusätzlich IPv6 (Werte laut GitHub-Dokumentation, vor dem Setzen
+gegenprüfen):
+
+```dns
+repo.cloudsrv24.de.   3600   IN   AAAA   2606:50c0:8000::153
+repo.cloudsrv24.de.   3600   IN   AAAA   2606:50c0:8001::153
+repo.cloudsrv24.de.   3600   IN   AAAA   2606:50c0:8002::153
+repo.cloudsrv24.de.   3600   IN   AAAA   2606:50c0:8003::153
+```
+
+Beide Varianten funktionieren; die Zuordnung Anfrage → Repository macht GitHub über
+den `Host`-Header und die im Repository hinterlegte Custom Domain, nicht über die IP.
+
+**Empfohlen zusätzlich — Domain-Verifizierung gegen Subdomain-Takeover.** GitHub
+erzeugt dafür in den Account-Einstellungen (*Pages* → *Verified domains*) einen
+TXT-Record der Form:
+
+```dns
+_github-pages-challenge-philf90.cloudsrv24.de.   IN   TXT   "<token>"
+```
+
+Ohne Verifizierung könnte ein anderer GitHub-Account dieselbe Custom Domain für sich
+beanspruchen, falls das Repository je gelöscht wird — bei einer Domain, die
+root-Installer ausliefert, ist das ein reales Risiko.
+
+**CAA-Records prüfen:** Falls für `cloudsrv24.de` CAA-Records gesetzt sind, muss
+`letsencrypt.org` erlaubt sein, sonst kann GitHub kein Zertifikat ausstellen:
+
+```bash
+dig +short CAA cloudsrv24.de
+```
+
+### Einrichtung auf GitHub-Seite
+
+1. Im Repository einen Branch `gh-pages` anlegen (oder `docs/` auf `main` verwenden).
+2. *Settings → Pages*: Quelle auf diesen Branch stellen.
+3. *Custom domain* auf `repo.cloudsrv24.de` setzen → GitHub legt automatisch die
+   Datei `CNAME` mit diesem Inhalt im Pages-Branch an. **Diese Datei darf der
+   Release-Job nicht überschreiben.**
+4. Nach DNS-Propagierung stellt GitHub automatisch ein Let's-Encrypt-Zertifikat aus
+   (dauert bis zu einer Stunde). Danach **„Enforce HTTPS" aktivieren.**
+5. `.nojekyll` im Pages-Root ablegen, sonst ignoriert Jekyll Verzeichnisse mit
+   führendem Unterstrich — bei APT-Metadaten relevant.
+
+### Sicherheitshinweis zur TLD
+
+`.de` steht — anders als `.dev` — **nicht** in der HSTS-Preload-Liste. Ein Aufruf von
+`http://repo.cloudsrv24.de/install.sh` kann also theoretisch abgefangen werden, bevor
+die Weiterleitung auf HTTPS greift. Drei Maßnahmen:
+
+1. Der dokumentierte Befehl erzwingt HTTPS explizit:
+   ```bash
+   curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
+   ```
+2. „Enforce HTTPS" in den Pages-Einstellungen (setzt einen HSTS-Header für die
+   Domain — wirkt allerdings erst ab dem zweiten Aufruf).
+3. Der eigentliche Schutz bleibt die **Signaturprüfung**: Der Installer verifiziert
+   jedes heruntergeladene Artefakt gegen den im Skript eingebetteten minisign-Public-Key.
+   Selbst ein manipulierter Transport liefert damit kein installierbares Binary.
+
+Sollte das Projekt später eine eigene Domain bekommen, ist `.dev` wegen des
+Preloadings die bessere Wahl — `repo.cloudsrv24.de` bleibt dann als Weiterleitung
+bestehen.
+
+### Grenzen von GitHub Pages
+
+| Grenze | Wert | Bedeutung für uns |
 |---|---|---|
-| `get.<domain>` | Installer-URL im README und in jeder Anleitung | Weiterleitung auf `install.sh` des aktuellen Stable-Releases |
-| `updates.<domain>` | Update-Prüfung der laufenden Installationen | `stable.json`, `beta.json` mit Version, Prüfsummen, Signatur |
-| `apt.<domain>` | APT-Repository | `dists/`, `pool/`, signierte `Release`-Dateien |
+| Repository-Größe | 1 GB empfohlen | Der APT-`pool/` mit `.deb`-Dateien wächst je Release um ca. 25 MB (amd64 + arm64) → **alte Versionen im Release-Job aussortieren**, z. B. die letzten 10 behalten |
+| Bandbreite | 100 GB/Monat (weich) | Für Metadaten und `install.sh` unkritisch. Die Tarballs liegen ohnehin auf GitHub Releases, das eigene Kontingente hat |
+| Builds | 10/Stunde | Bei Release-Frequenz irrelevant |
+| Kein Custom Header | — | HSTS und `Cache-Control` sind nicht frei setzbar; falls das später stört, ist Cloudflare Pages oder ein Object-Storage-Bucket der Umstieg |
 
-Alle drei sind statische Dateien und können auf **GitHub Pages** liegen — es entstehen
-also keine Serverkosten, nur die Domaingebühr (ca. 10–20 €/Jahr).
+Wenn der APT-`pool/` zu groß wird, ist die saubere Lösung, `dists/` (Metadaten) auf
+Pages zu belassen und die `.deb`-Dateien per `pool/`-Redirect von GitHub Releases
+ausliefern zu lassen.
 
-### Braucht es die Domain zwingend?
+### Was der Release-Job schreibt
 
-Nein. Es geht auch ohne, mit Einschränkungen:
+Bei jedem `v*`-Tag aktualisiert GitHub Actions den Pages-Branch:
 
-| Zweck | Ohne eigene Domain | Nachteil |
-|---|---|---|
-| Installer | `https://github.com/<user>/<repo>/releases/latest/download/install.sh` | Lang, schwer diktierbar, GitHub-gebunden |
-| Update-Metadaten | GitHub Releases API | Rate-Limit von 60 Anfragen/Stunde je IP; bei vielen Installationen hinter Provider-NAT wird das zum Problem. Eine statische JSON-Datei auf GitHub Pages umgeht das. |
-| APT-Repo | `https://<user>.github.io/<repo>/apt` | Funktioniert, wirkt aber provisorisch und zementiert den GitHub-Namespace in jeder `sources.list` der Nutzer |
-
-### Empfehlung
-
-Eine eigene, kurze Domain passend zum Namen — z. B. `pult.dev` mit den drei
-Subdomains. Zwei Argumente sprechen für **`.dev`**:
-
-1. Die TLD steht vollständig in der **HSTS-Preload-Liste** der Browser und
-   HTTP-Clients. Ein Installer-Download kann damit nicht auf HTTP heruntergestuft
-   werden — bei einem Skript, das mit root-Rechten ausgeführt wird, ist das ein
-   echtes Sicherheitsargument, kein Kosmetikum.
-2. Kein Registrierungsvorbehalt, sofort verfügbar, günstig.
-
-`.org` ist die klassische Alternative für Open-Source-Projekte und signalisiert
-Gemeinnützigkeit. `.io` würde ich meiden (Unsicherheit um die TLD-Zukunft, hoher
-Preis).
-
-Eine Subdomain einer bestehenden Firmendomain (z. B. `pult.netzhost24.de`) ist
-technisch gleichwertig, lässt das Projekt aber als Firmenprodukt erscheinen. Für ein
-Community-Projekt, das Beiträge anziehen soll, ist eine neutrale Projektdomain die
-bessere Wahl. Umgekehrt gilt: Wenn das Panel bewusst als Produkt von netzhost24
-positioniert werden soll, ist die Subdomain die konsequentere Variante — das ist eine
-Positionierungs-, keine technische Frage.
-
-### Was zu registrieren ist, sobald der Name steht
-
-- Domain + die drei Subdomains, DNS auf GitHub Pages
-- GitHub-Organisation (ggf. mit Suffix, siehe oben)
-- Namensreservierung, wo relevant: crates.io, npm, Docker Hub — auch wenn zunächst
-  ungenutzt, verhindert das Namenskaperung
+```
+gh-pages/
+├── CNAME                      repo.cloudsrv24.de   (nicht überschreiben)
+├── .nojekyll
+├── index.html                 Landingpage mit Installationsbefehl
+├── install.sh                 Kopie des Release-Artefakts
+├── minisign.pub               öffentlicher Signaturschlüssel zum Nachprüfen
+├── updates/
+│   ├── stable.json
+│   └── beta.json
+└── apt/
+    ├── gpg.key
+    ├── dists/stable/…
+    └── pool/main/a/asylum/asylum_<ver>_<arch>.deb
+```

@@ -126,3 +126,67 @@ func TestDeleteOtherUserSessions(t *testing.T) {
 		t.Errorf("zweiter Lauf: %d, %v", n, err)
 	}
 }
+
+// TestSetTOTPCounter deckt den Wiederholungsschutz auf Datenbankebene ab.
+func TestSetTOTPCounter(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	user := newSessionUser(t, db, "philipp")
+
+	loaded, err := db.UserByID(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.TOTPLastCounter != 0 {
+		t.Fatalf("frisches Konto startet bei %d, erwartet 0", loaded.TOTPLastCounter)
+	}
+
+	if err := db.SetTOTPCounter(ctx, user, 100); err != nil {
+		t.Fatalf("SetTOTPCounter: %v", err)
+	}
+	if loaded, _ = db.UserByID(ctx, user); loaded.TOTPLastCounter != 100 {
+		t.Errorf("Zähler = %d, erwartet 100", loaded.TOTPLastCounter)
+	}
+
+	// Derselbe Stand noch einmal: Das ist der Wettlauf zweier gleichzeitiger
+	// Anmeldungen mit demselben Code. Genau eine darf durchkommen.
+	if err := db.SetTOTPCounter(ctx, user, 100); !errors.Is(err, ErrNotFound) {
+		t.Errorf("zweiter Versuch mit demselben Stand = %v, erwartet ErrNotFound", err)
+	}
+	// Ein älterer Stand ebenfalls nicht — sonst ließe sich der Schutz
+	// zurückdrehen.
+	if err := db.SetTOTPCounter(ctx, user, 99); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Rückschritt = %v, erwartet ErrNotFound", err)
+	}
+	if loaded, _ = db.UserByID(ctx, user); loaded.TOTPLastCounter != 100 {
+		t.Errorf("Zähler wurde verändert: %d", loaded.TOTPLastCounter)
+	}
+
+	// Ein neueres Fenster geht durch.
+	if err := db.SetTOTPCounter(ctx, user, 101); err != nil {
+		t.Errorf("neueres Fenster: %v", err)
+	}
+}
+
+// TestSetTOTPZuruecksetztDenZaehler: Ein neues Geheimnis bringt eine eigene
+// Zählerfolge mit. Bliebe der alte Stand stehen, wären die ersten Codes des
+// neuen Faktors reihenweise ungültig.
+func TestSetTOTPZuruecksetztDenZaehler(t *testing.T) {
+	db := testDB(t)
+	ctx := context.Background()
+	user := newSessionUser(t, db, "philipp")
+
+	if err := db.SetTOTPCounter(ctx, user, 5000); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetTOTP(ctx, user, "NEUESGEHEIMNIS", true); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := db.UserByID(ctx, user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.TOTPLastCounter != 0 {
+		t.Errorf("Zähler nach Geheimniswechsel = %d, erwartet 0", loaded.TOTPLastCounter)
+	}
+}

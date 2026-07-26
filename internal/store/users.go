@@ -33,9 +33,12 @@ type User struct {
 	Role          string
 	TOTPSecret    string
 	TOTPConfirmed bool
-	Disabled      bool
-	CreatedAt     time.Time
-	LastLoginAt   *time.Time
+	// TOTPLastCounter ist das zuletzt angenommene TOTP-Zeitfenster. Es
+	// verhindert, dass derselbe Code ein zweites Mal gilt.
+	TOTPLastCounter uint64
+	Disabled        bool
+	CreatedAt       time.Time
+	LastLoginAt     *time.Time
 }
 
 // CanWrite sagt, ob die Rolle verändernde Aktionen ausführen darf.
@@ -71,7 +74,7 @@ func (db *DB) CreateUser(ctx context.Context, u User) (int64, error) {
 	return res.LastInsertId()
 }
 
-const userColumns = `id, username, password_hash, role, totp_secret, totp_confirmed, disabled, created_at, last_login_at`
+const userColumns = `id, username, password_hash, role, totp_secret, totp_confirmed, totp_last_counter, disabled, created_at, last_login_at`
 
 // UserByName sucht einen Benutzer am Anmeldenamen.
 func (db *DB) UserByName(ctx context.Context, username string) (User, error) {
@@ -117,7 +120,8 @@ func (db *DB) SetPassword(ctx context.Context, userID int64, hash string) error 
 // SetTOTP hinterlegt oder bestätigt das TOTP-Geheimnis.
 func (db *DB) SetTOTP(ctx context.Context, userID int64, secret string, confirmed bool) error {
 	_, err := db.sql.ExecContext(ctx,
-		`UPDATE users SET totp_secret = ?, totp_confirmed = ? WHERE id = ?`,
+		// Der Zählerstand gehört zum alten Geheimnis; ein neues fängt bei 0 an.
+		`UPDATE users SET totp_secret = ?, totp_confirmed = ?, totp_last_counter = 0 WHERE id = ?`,
 		secret, boolToInt(confirmed), userID)
 	if err != nil {
 		return fmt.Errorf("totp setzen: %w", err)
@@ -202,7 +206,7 @@ func scanUser(row scanner) (User, error) {
 		lastLogin     sql.NullString
 	)
 	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.TOTPSecret,
-		&totpConfirmed, &disabled, &createdAt, &lastLogin)
+		&totpConfirmed, &u.TOTPLastCounter, &disabled, &createdAt, &lastLogin)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -226,4 +230,27 @@ func boolToInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// SetTOTPCounter hält fest, welches Zeitfenster zuletzt angenommen wurde.
+//
+// Die Bedingung im UPDATE ist kein Beiwerk: Zwei gleichzeitige Anmeldungen mit
+// demselben Code dürfen nicht beide durchgehen. Nur die erste findet den
+// kleineren Stand vor und schreibt; die zweite ändert nichts und bekommt
+// ErrNotFound.
+func (db *DB) SetTOTPCounter(ctx context.Context, userID int64, counter uint64) error {
+	res, err := db.sql.ExecContext(ctx,
+		`UPDATE users SET totp_last_counter = ? WHERE id = ? AND totp_last_counter < ?`,
+		counter, userID, counter)
+	if err != nil {
+		return fmt.Errorf("totp-zähler speichern: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

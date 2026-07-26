@@ -65,34 +65,81 @@ func totpCounter(t time.Time) (uint64, error) {
 	return uint64(secs) / uint64(totpPeriod.Seconds()), nil
 }
 
-// VerifyTOTP prüft einen eingegebenen Code gegen das Geheimnis.
-func VerifyTOTP(secret, code string, now time.Time) bool {
+// TOTPCheck ist das Ergebnis von CheckTOTP.
+type TOTPCheck struct {
+	// Counter ist das getroffene Zeitfenster; nur bei Valid gesetzt.
+	Counter uint64
+	// Valid heißt: Der Code stimmt und wurde noch nicht eingelöst.
+	Valid bool
+	// Reused heißt: Der Code stimmt, war aber schon einmal angenommen.
+	//
+	// Der Unterschied zu "stimmt nicht" ist betrieblich wichtig: Ein
+	// wiederverwendeter Code deutet darauf hin, dass jemand mitgelesen hat.
+	// Ein falscher deutet auf ein Vertippen.
+	Reused bool
+}
+
+// CheckTOTP prüft einen Code gegen das Geheimnis.
+//
+// Codes aus Zeitfenstern bis einschließlich "used" gelten als verbraucht. Ohne
+// diese Grenze bliebe ein Code sein ganzes Fenster über gültig — bei einer
+// Toleranz von einem Fenster also bis zu anderthalb Minuten, und beliebig oft.
+// Wer ihn mitliest, könnte ihn in dieser Zeit ein zweites Mal einlösen.
+// RFC 6238 §5.2 verlangt deshalb, dass ein bereits angenommener Code nicht
+// erneut angenommen wird.
+//
+// Der Aufrufer speichert Counter nach einer geglückten Anmeldung und reicht ihn
+// beim nächsten Mal als "used" wieder herein.
+func CheckTOTP(secret, code string, now time.Time, used uint64) TOTPCheck {
 	code = strings.TrimSpace(code)
 	if len(code) != totpDigits {
-		return false
+		return TOTPCheck{}
 	}
 	key, err := decodeSecret(secret)
 	if err != nil {
-		return false
+		return TOTPCheck{}
 	}
 
-	counter, err := totpCounter(now)
+	current, err := totpCounter(now)
 	if err != nil {
-		return false
+		return TOTPCheck{}
 	}
+
 	// Alle Fenster durchlaufen, ohne früh abzubrechen: Ein Abbruch beim
 	// Treffer würde über die Laufzeit verraten, welches Fenster gepasst hat.
+	// Aus demselben Grund wird der Treffer verzweigungsfrei eingesammelt.
 	var match int
+	var matched uint64
 	for i := -totpSkew; i <= totpSkew; i++ {
 		// Am unteren Rand nicht ins Negative rutschen: In der ersten halben
 		// Minute nach 1970 gäbe es kein vorheriges Fenster.
-		if i < 0 && counter < uint64(-i) {
+		if i < 0 && current < uint64(-i) {
 			continue
 		}
-		want := hotp(key, uint64(int64(counter)+int64(i))) //nolint:gosec // Untergrenze eine Zeile darüber geprüft
-		match |= subtle.ConstantTimeCompare([]byte(want), []byte(code))
+		window := uint64(int64(current) + int64(i)) //nolint:gosec // Untergrenze eine Zeile darüber geprüft
+		// ConstantTimeCompare liefert laut Vertrag genau 0 oder 1; die
+		// Multiplikation wählt damit verzweigungsfrei aus.
+		hit := subtle.ConstantTimeCompare([]byte(hotp(key, window)), []byte(code))
+		match |= hit
+		matched |= uint64(hit) * window //nolint:gosec // hit ist 0 oder 1, siehe Kommentar
 	}
-	return match == 1
+	if match != 1 {
+		return TOTPCheck{}
+	}
+	// Der Zählerstand selbst ist kein Geheimnis; hier darf verzweigt werden.
+	if matched <= used {
+		return TOTPCheck{Reused: true}
+	}
+	return TOTPCheck{Counter: matched, Valid: true}
+}
+
+// VerifyTOTP prüft einen Code ohne Wiederholungsschutz.
+//
+// Für die Anmeldung ist CheckTOTP zu verwenden. Diese Fassung bleibt für die
+// Fälle, in denen es noch keinen gespeicherten Zählerstand gibt: die
+// Ersteinrichtung und den Wechsel des zweiten Faktors.
+func VerifyTOTP(secret, code string, now time.Time) bool {
+	return CheckTOTP(secret, code, now, 0).Valid
 }
 
 // TOTPProvisioningURI liefert die otpauth://-URI für Authenticator-Apps.

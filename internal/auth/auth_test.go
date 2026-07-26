@@ -308,3 +308,81 @@ func TestLimiterSeparatesKeys(t *testing.T) {
 		t.Error("die Sperre einer Adresse darf keine andere treffen")
 	}
 }
+
+// TestCheckTOTPWiederholung deckt den Wiederholungsschutz auf Paketebene ab.
+func TestCheckTOTPWiederholung(t *testing.T) {
+	secret, err := GenerateTOTPSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	code, err := TOTPCode(secret, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first := CheckTOTP(secret, code, now, 0)
+	if !first.Valid || first.Reused {
+		t.Fatalf("erste Prüfung = %+v", first)
+	}
+	if first.Counter == 0 {
+		t.Fatal("kein Zeitfenster zurückgegeben")
+	}
+
+	// Mit demselben Zähler als verbraucht: derselbe Code gilt nicht mehr,
+	// und der Grund ist unterscheidbar.
+	again := CheckTOTP(secret, code, now, first.Counter)
+	if again.Valid {
+		t.Error("ein verbrauchter Code wurde erneut angenommen")
+	}
+	if !again.Reused {
+		t.Error("der Grund wird nicht als Wiederverwendung gemeldet")
+	}
+
+	// Ein falscher Code ist etwas anderes als ein verbrauchter.
+	wrong := CheckTOTP(secret, "000000", now, 0)
+	if wrong.Valid || wrong.Reused {
+		t.Errorf("falscher Code = %+v", wrong)
+	}
+
+	// Der Code des nächsten Fensters gilt trotz verbrauchtem Vorgänger.
+	next := now.Add(30 * time.Second)
+	nextCode, err := TOTPCode(secret, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := CheckTOTP(secret, nextCode, next, first.Counter); !got.Valid {
+		t.Errorf("der nächste Code wurde abgewiesen: %+v", got)
+	}
+}
+
+// TestCheckTOTPToleranzfensterVerbraucht: Die Toleranz von einem Fenster darf
+// den Schutz nicht aushebeln. Ein Code aus dem vorherigen Fenster gilt nicht
+// mehr, sobald das aktuelle angenommen wurde.
+func TestCheckTOTPToleranzfensterVerbraucht(t *testing.T) {
+	secret, err := GenerateTOTPSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	vorher, err := TOTPCode(secret, now.Add(-30*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	jetzt := CheckTOTP(secret, mustCode(t, secret, now), now, 0)
+	if !jetzt.Valid {
+		t.Fatal("der aktuelle Code wurde nicht angenommen")
+	}
+	if got := CheckTOTP(secret, vorher, now, jetzt.Counter); got.Valid {
+		t.Error("der Code des vorherigen Fensters gilt weiterhin")
+	}
+}
+
+func mustCode(t *testing.T, secret string, at time.Time) string {
+	t.Helper()
+	c, err := TOTPCode(secret, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}

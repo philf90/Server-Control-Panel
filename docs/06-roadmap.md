@@ -43,6 +43,10 @@ Offen, keiner davon blockiert die Weiterentwicklung:
   funktioniert. Einzelheiten in
   [05-updates.md](05-updates.md#signaturschlüssel-des-repositories).
 - **Copyright-Zeile in `LICENSE`** auf den endgültigen Rechtsträger anpassen.
+  Steht derzeit auf „Project Asylum Contributors" — das trägt für ein
+  Gemeinschaftsprojekt, wäre für eine Firma aber anzupassen.
+- **Externer Sicherheits-Review** der Anmelde- und Updatepfade.
+- **Bildschirmfotos auf einem echten Server** neu aufnehmen.
 - **TTL der DNS-Einträge** von 10 auf 3600 anheben, sobald alles steht.
 
 ---
@@ -166,7 +170,7 @@ Kanäle, Metadatenformat, Selbstupdate mit Healthcheck und Rollback,
 | Kennzahl | Grenze | Ist |
 |---|---|---|
 | Binärgröße | < 30 MB | 14 MB |
-| Direkte Abhängigkeiten | < 25 | 6 (`golang.org/x/crypto` für BLAKE2b) |
+| Direkte Abhängigkeiten | < 25 | 5 (BLAKE2b kommt aus `x/crypto`, das für Argon2 ohnehin dabei war) |
 | Testabdeckung `update` | > 85 % (CI-Schwelle) | 87,8 % |
 
 Die Signaturprüfung ist in Go umgesetzt und ruft kein externes `minisign` auf.
@@ -207,6 +211,36 @@ Fehler wird sauber bis in die Oberfläche durchgereicht.
 ### M4 — v0.1.0 Public Beta (1 Woche)
 Dokumentation, Screenshots, Landingpage, `SECURITY.md`, Issue-Templates,
 Contribution-Guide, externer Sicherheits-Review der Auth- und Update-Pfade.
+
+**Stand: umgesetzt bis auf den externen Review.** Neu im Wurzelverzeichnis:
+[`SECURITY.md`](../SECURITY.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
+[`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md), [`CHANGELOG.md`](../CHANGELOG.md),
+[`UPGRADING.md`](../UPGRADING.md); dazu Issue- und PR-Vorlagen und eine
+ausgebaute Landingpage mit beiden Signaturschlüsseln.
+
+**Die Bildschirmfotos entstanden durch einen echten Browser**, der die
+Ersteinrichtung vollständig durchlaufen hat — Konto anlegen, TOTP einrichten,
+anmelden. Sie liegen unter [`docs/bilder/`](bilder/). Einschränkung: aufgenommen
+in einem Container ohne systemd, weshalb Dienste, Pakete und Firewall dort ihre
+Fehlerbehandlung zeigen statt echter Daten. Vor der Veröffentlichung sollten sie
+auf einem echten Server neu entstehen.
+
+**Zwei Fehler kamen dabei ans Licht**, beide behoben und mit Regressionstests
+versehen:
+
+- **Die Übersicht zeigte nach jedem Start eine halbe Minute lang „keine
+  Daten".** Sie rendert aus dem Ringpuffer, und der bekommt nur alle 30 Sekunden
+  einen Eintrag. Betraf jede frische Installation und jeden Neustart nach einem
+  Update — also genau den ersten Eindruck. Jetzt aus der jüngsten Messung.
+- **TOTP-Codes galten mehrfach.** Gefunden bei der Durchsicht der Anmeldepfade;
+  Einzelheiten in [09-sicherheitsbetrachtung.md](09-sicherheitsbetrachtung.md).
+
+**Der externe Sicherheits-Review steht aus** und lässt sich nicht projektintern
+ersetzen. Was es gibt, ist eine Selbstbetrachtung der Anmelde- und Updatepfade
+mit Angreifermodell, Abwägungen und offenen Punkten
+([09-sicherheitsbetrachtung.md](09-sicherheitsbetrachtung.md)) — vom selben
+Kreis geschrieben, der den Code geschrieben hat, und damit kein Ersatz für
+fremde Augen. `SECURITY.md` sagt das ausdrücklich, statt es zu verschweigen.
 
 **Summe bis zur nutzbaren Beta: ~8 Wochen** für eine Vollzeit-Person, entsprechend
 länger nebenberuflich. Danach v0.2 (Dateimanager, Cron, Terminal,

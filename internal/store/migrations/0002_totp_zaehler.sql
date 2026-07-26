@@ -1,0 +1,12 @@
+-- Wiederholungsschutz für den zweiten Faktor.
+--
+-- Ohne gespeicherten Zählerstand bleibt ein TOTP-Code sein ganzes Zeitfenster
+-- über gültig — bei einer Toleranz von einem Fenster bis zu anderthalb Minuten,
+-- und beliebig oft. Wer ihn mitliest, könnte ihn in dieser Zeit ein zweites Mal
+-- einlösen. RFC 6238 §5.2 verlangt, dass ein bereits angenommener Code nicht
+-- erneut angenommen wird; dafür merkt sich der Server das zuletzt akzeptierte
+-- Fenster je Konto.
+--
+-- 0 bedeutet: noch kein Code angenommen. Bestehende Konten starten dort und
+-- verlieren dadurch nichts.
+ALTER TABLE users ADD COLUMN totp_last_counter INTEGER NOT NULL DEFAULT 0;

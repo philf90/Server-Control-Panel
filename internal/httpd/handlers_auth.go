@@ -71,16 +71,18 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.log.Error("passwort prüfen", "err", err)
 	}
-	secondFactorOK := s.checkSecondFactor(ctx, user, code)
+	factor := s.checkSecondFactor(ctx, user, code, passwordOK)
 
-	if !passwordOK || !secondFactorOK || user.Disabled {
+	if !passwordOK || !factor.ok || user.Disabled {
 		s.limiter.Fail(ipKey)
 		s.limiter.Fail(userKey)
 		detail := "falsches Passwort"
 		switch {
 		case user.Disabled:
 			detail = "Konto gesperrt"
-		case passwordOK && !secondFactorOK:
+		case passwordOK && factor.reused:
+			detail = "der Code des zweiten Faktors war bereits verbraucht"
+		case passwordOK && !factor.ok:
 			detail = "zweiter Faktor falsch"
 		}
 		s.audit(r, "login.failed", username, store.ResultDenied, detail)
@@ -88,6 +90,25 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		// niemanden etwas an, der ihn nicht kennt.
 		s.failLogin(w, r, username, "")
 		return
+	}
+
+	// Jetzt erst gilt der Code als verbraucht. Die Bedingung im UPDATE
+	// entscheidet zugleich ein Wettrennen: Melden sich zwei Anfragen
+	// gleichzeitig mit demselben Code an, kommt genau eine durch.
+	if factor.counter > 0 {
+		if err := s.db.SetTOTPCounter(ctx, user.ID, factor.counter); err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				s.limiter.Fail(ipKey)
+				s.limiter.Fail(userKey)
+				s.audit(r, "login.failed", username, store.ResultDenied,
+					"der Code des zweiten Faktors war bereits verbraucht")
+				s.failLogin(w, r, username, "")
+				return
+			}
+			s.log.Error("totp-zähler speichern", "err", err)
+			s.renderError(w, r, http.StatusInternalServerError, "Die Anmeldung konnte nicht abgeschlossen werden.")
+			return
+		}
 	}
 
 	s.limiter.Reset(ipKey)
@@ -111,30 +132,63 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 const dummyHash = "$argon2id$v=19$m=32768,t=3,p=2$" +
 	"AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
+// secondFactor beschreibt das Ergebnis der Prüfung des zweiten Faktors.
+type secondFactor struct {
+	ok bool
+	// counter ist das getroffene TOTP-Zeitfenster. Es wird erst nach einer
+	// insgesamt erfolgreichen Anmeldung festgeschrieben.
+	counter uint64
+	// viaRecoveryCode heißt: ein Wiederherstellungscode wurde eingelöst und
+	// ist damit bereits verbraucht.
+	viaRecoveryCode bool
+	// reused heißt: Der Code war einmal gültig, ist aber schon eingelöst.
+	// Das gehört so ins Audit-Log — es deutet auf Mitlesen hin, nicht auf
+	// ein Vertippen.
+	reused bool
+}
+
 // checkSecondFactor prüft TOTP oder — falls das Format passt — einen
 // Wiederherstellungscode.
-func (s *Server) checkSecondFactor(ctx context.Context, user store.User, code string) bool {
+//
+// Der TOTP-Zähler wird hier **nicht** fortgeschrieben. RFC 6238 §5.2 verlangt,
+// dass ein Code nicht erneut gilt, "after the successful validation has been
+// issued" — also nach einer geglückten Anmeldung, nicht nach jedem Versuch.
+// Würde schon ein Fehlversuch den Code verbrauchen, müsste jeder, der sich beim
+// Passwort vertippt, eine halbe Minute auf den nächsten warten.
+//
+// passwordOK steuert, ob überhaupt ein Wiederherstellungscode eingelöst wird:
+// Dessen Prüfung verbraucht ihn unwiderruflich, und das darf nicht passieren,
+// solange das Passwort nicht stimmt. Sonst könnte jeder mit der Codeliste, aber
+// ohne Passwort, die Vorräte des Kontos aufbrauchen.
+func (s *Server) checkSecondFactor(ctx context.Context, user store.User, code string, passwordOK bool) secondFactor {
 	if !user.TOTPConfirmed {
 		// Konto mitten in der Einrichtung: Der zweite Faktor wird gleich
 		// danach erzwungen (requireAuth leitet auf /setup/2fa).
-		return true
+		return secondFactor{ok: true}
 	}
 	if code == "" {
-		return false
-	}
-	if auth.VerifyTOTP(user.TOTPSecret, code, time.Now()) {
-		return true
+		return secondFactor{}
 	}
 
+	switch check := auth.CheckTOTP(user.TOTPSecret, code, time.Now(), user.TOTPLastCounter); {
+	case check.Valid:
+		return secondFactor{ok: true, counter: check.Counter}
+	case check.Reused:
+		return secondFactor{reused: true}
+	}
+
+	if !passwordOK {
+		return secondFactor{}
+	}
 	normalized := auth.NormalizeRecoveryCode(code)
 	if len(normalized) < 8 {
-		return false
+		return secondFactor{}
 	}
 	if err := s.db.UseRecoveryCode(ctx, user.ID, auth.HashToken(normalized)); err == nil {
 		s.log.Warn("Anmeldung mit Wiederherstellungscode", "user", user.Username)
-		return true
+		return secondFactor{ok: true, viaRecoveryCode: true}
 	}
-	return false
+	return secondFactor{}
 }
 
 func (s *Server) failLogin(w http.ResponseWriter, r *http.Request, username, message string) {

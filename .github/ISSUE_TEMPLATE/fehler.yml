@@ -1,0 +1,75 @@
+name: Fehler melden
+description: Etwas verhält sich anders als beschrieben.
+labels: ["fehler"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Betrifft es die Sicherheit, bitte **kein Issue** — siehe
+        [SECURITY.md](https://github.com/philf90/Server-Control-Panel/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: was
+    attributes:
+      label: Was passiert
+      description: Und was Sie stattdessen erwartet hätten.
+    validations:
+      required: true
+
+  - type: textarea
+    id: schritte
+    attributes:
+      label: Schritte zum Nachvollziehen
+      placeholder: |
+        1. …
+        2. …
+        3. Fehler erscheint
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Fassung
+      description: Ausgabe von `asylum version`
+      placeholder: "0.1.0 (a1b2c3d)"
+    validations:
+      required: true
+
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Distribution und Fassung, Architektur
+      placeholder: "Ubuntu 24.04 LTS, amd64"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installationsweg
+      options: ["install.sh", "APT-Repository", "Tarball von Hand", "selbst gebaut"]
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Protokoll
+      description: >-
+        `journalctl -u asylumd -n 100 --no-pager`. Wird als Code formatiert,
+        Backticks sind nicht nötig.
+      render: text
+
+  - type: checkboxes
+    id: geprueft
+    attributes:
+      label: Vorab
+      options:
+        - label: Ich habe nachgesehen, ob es dazu schon ein Issue gibt.
+          required: true
+        - label: >-
+            Ich habe aus dem Protokoll entfernt, was nicht öffentlich werden
+            soll — Hostnamen, Adressen, Benutzernamen.
+          required: true

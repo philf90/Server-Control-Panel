@@ -11,10 +11,13 @@ import (
 )
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	snap, ok := s.ring.Last()
+	// Bewusst die jüngste Messung und nicht der letzte Ringpuffer-Eintrag:
+	// Der Ring bekommt nur alle 30 Sekunden etwas. Daraus zu rendern hieße,
+	// dass eine frische Installation — und jeder Neustart nach einem Update —
+	// eine halbe Minute lang "keine Daten" zeigt. Der Live-Kanal füllt zwar
+	// die Zahlen nach, aber nicht die Tabellen; die entstehen serverseitig.
+	snap, ok := s.lastSnapshot()
 	if !ok {
-		// Kurz nach dem Start liegt noch nichts im Ringpuffer; der Live-Kanal
-		// füllt die Seite binnen zwei Sekunden.
 		snap.UptimeText = "wird ermittelt"
 	}
 	s.renderPage(w, r, http.StatusOK, "dashboard",

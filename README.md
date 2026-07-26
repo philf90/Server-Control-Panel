@@ -35,6 +35,31 @@ Fassung wieder her.
 Keine Runtime-Abhängigkeiten. Kein Docker-Zwang. Kein PHP-Stack. Kein Node auf dem
 Zielserver.
 
+## So sieht es aus
+
+Die Übersicht: Auslastung, Dateisysteme, Netzwerk und die größten Prozesse, alle
+zwei Sekunden über einen Live-Kanal aktualisiert.
+
+![Übersicht](docs/bilder/uebersicht.png)
+
+Die Update-Seite. Was hier steht, ist auch das Versprechen: geprüfte Signatur,
+atomarer Tausch, und ohne Antwort binnen einer Minute stellt der Server von
+allein die vorherige Fassung wieder her.
+
+![Updates](docs/bilder/updates.png)
+
+Die Kontoseite mit den eigenen offenen Sitzungen. Ein entwendetes Cookie
+hinterlässt sonst keine Spur, die dem Betroffenen auffiele.
+
+![Konto](docs/bilder/konto.png)
+
+Weitere Ansichten: [Dienste](docs/bilder/dienste.png) ·
+[Firewall](docs/bilder/firewall.png) · [Audit-Log](docs/bilder/audit.png)
+
+> Die Bilder stammen aus einem Container ohne systemd — Dienste, Pakete und
+> Firewall zeigen dort ihre Fehlerbehandlung statt echter Daten. Auf einem
+> Server sieht das entsprechend voller aus.
+
 ## Entwicklung
 
 ```bash
@@ -44,19 +69,21 @@ make run       # lokal auf https://127.0.0.1:8443, Daten unter ./.local
 make dist      # Release-Artefakte lokal (goreleaser --snapshot)
 ```
 
-Voraussetzung ist Go 1.24 oder neuer. Fünf direkte Abhängigkeiten
-(YAML, SQLite in reinem Go, Argon2, QR-Code, Terminal-Eingabe), alles Weitere ist
-Standardbibliothek. TOTP ist bewusst selbst implementiert — dreißig Zeilen über
+Die benötigte Go-Fassung steht in `go.mod` und gilt als Untergrenze. Fünf direkte
+Abhängigkeiten (YAML, SQLite in reinem Go, `x/crypto` für Argon2 und BLAKE2b,
+QR-Code, Terminal-Eingabe), alles Weitere ist Standardbibliothek. TOTP ist bewusst selbst implementiert — dreißig Zeilen über
 `crypto/hmac`, geprüft gegen die Testvektoren aus RFC 6238.
 
 ```
-cmd/asylumd/          serve | migrate | setup-token | reset-password | version
+cmd/asylumd/          serve | migrate | setup-token | reset-password
+                      | update | rollback | version
 internal/config/      Konfiguration laden, Umgebung, Validierung
 internal/certs/       selbstsigniertes TLS-Material, Fingerprint
 internal/store/       SQLite, Migrationen, Nutzer, Sessions, Audit
 internal/auth/        Argon2id, TOTP, Tokens, Ratenbegrenzung
 internal/metrics/     /proc-Sampler und Ringpuffer
 internal/privops/     einzige Stelle mit Systemzugriff (systemd, apt, ufw, …)
+internal/update/      Signaturprüfung, Download, Austausch, Rückweg
 internal/httpd/       Router, Middleware, Handler, SSE
 internal/systemd/     sd_notify und Watchdog ohne cgo
 internal/ui/          Templates und Assets (embed)
@@ -68,6 +95,8 @@ packaging/            install.sh, systemd-Unit, .deb-Skripte
 ```bash
 sudo asylum setup-token          # einmaliger Link, 60 Minuten gültig
 sudo asylum reset-password NAME  # Rettungsweg, wenn der Zugang verloren ist
+sudo asylum update --check       # nachsehen, ob etwas anliegt
+sudo asylum rollback             # zurück auf die vorherige Fassung
 ```
 
 ## Leitplanken
@@ -92,6 +121,11 @@ sudo asylum reset-password NAME  # Rettungsweg, wenn der Zugang verloren ist
 | [docs/06-roadmap.md](docs/06-roadmap.md) | Meilensteine und offene Entscheidungen |
 | [docs/07-name-lizenz-domain.md](docs/07-name-lizenz-domain.md) | Namensfindung, Lizenzfolgen, Projekt-Domain |
 | [docs/08-runbook-domain.md](docs/08-runbook-domain.md) | Runbook: DNS-Verifizierung und GitHub Pages einrichten |
+| [docs/09-sicherheitsbetrachtung.md](docs/09-sicherheitsbetrachtung.md) | Anmelde- und Updatepfade: Angreifermodell, Abwägungen, offene Punkte |
+
+Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
+[CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und
+[UPGRADING.md](UPGRADING.md).
 
 ## Stand der Entscheidungen
 
@@ -102,6 +136,16 @@ sudo asylum reset-password NAME  # Rettungsweg, wenn der Zugang verloren ist
 | Lizenz | **Apache-2.0** |
 | Name | **Project Asylum** — CLI `asylum`, Daemon `asylumd`, Debian-Paket `asylum-panel` (`asylum` ist dort an ein Spiel vergeben) |
 | Domain | **`repo.cloudsrv24.de`** auf GitHub Pages — Installer, Update-Metadaten und APT-Repo unter einem Host |
+
+## Mitarbeiten
+
+Fehlerberichte und Beiträge sind willkommen — [CONTRIBUTING.md](CONTRIBUTING.md)
+sagt, was ein Pull Request erfüllen muss, damit niemand Arbeit investiert, die an
+einer ungeschriebenen Regel scheitert.
+
+**Eine Sicherheitslücke gehört nicht in ein Issue**, sondern in den privaten
+Kanal aus [SECURITY.md](SECURITY.md). Dieses Panel läuft mit root-Rechten; ein
+offener Bericht ist eine Anleitung für alle, die noch nicht aktualisiert haben.
 
 ## Lizenz
 

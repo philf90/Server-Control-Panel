@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Sicherheitslücke melden
+    url: https://github.com/philf90/Server-Control-Panel/security/advisories/new
+    about: >-
+      Bitte niemals als öffentliches Issue. Dieses Panel läuft mit root-Rechten —
+      ein offener Bericht ist eine Anleitung für alle, die noch nicht
+      aktualisiert haben. Siehe SECURITY.md.
+  - name: Frage oder Idee
+    url: https://github.com/philf90/Server-Control-Panel/discussions
+    about: Für alles, was noch kein Fehlerbericht ist.

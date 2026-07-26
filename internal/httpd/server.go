@@ -52,6 +52,13 @@ type Server struct {
 	hub     *hub
 
 	// ops ist der einzige Weg zu privilegierten Systemoperationen.
+	// latest ist die zuletzt genommene Messung. Sie ist nicht dasselbe wie der
+	// letzte Ringpuffer-Eintrag: Der Ring hält den Verlauf und bekommt nur
+	// alle 30 Sekunden etwas, die Übersicht braucht aber sofort Zahlen.
+	latestMu sync.RWMutex
+	latest   metrics.Snapshot
+	hasLast  bool
+
 	ops     privops.Executor
 	jobs    *jobs
 	fwGuard *firewallGuard
@@ -202,7 +209,9 @@ func (s *Server) sampleLoop(ctx context.Context) {
 	defer ticker.Stop()
 
 	// Erster Aufruf setzt nur die Vorwerte; Deltas gibt es ab dem zweiten.
-	s.sampler.Sample()
+	// Absolute Größen — Speicher, Dateisysteme, Prozesse — stehen aber schon
+	// hier, und die gehören sofort auf die Seite.
+	s.setLatest(s.sampler.Sample())
 
 	tick := 0
 	for {
@@ -211,6 +220,7 @@ func (s *Server) sampleLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			snap := s.sampler.Sample()
+			s.setLatest(snap)
 			s.hub.broadcast(snap)
 			tick++
 			if tick%historyEvery == 0 {
@@ -218,6 +228,25 @@ func (s *Server) sampleLoop(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// setLatest merkt sich die jüngste Messung.
+func (s *Server) setLatest(snap metrics.Snapshot) {
+	s.latestMu.Lock()
+	defer s.latestMu.Unlock()
+	s.latest = snap
+	s.hasLast = true
+}
+
+// lastSnapshot liefert die jüngste Messung für den Seitenaufbau.
+func (s *Server) lastSnapshot() (metrics.Snapshot, bool) {
+	s.latestMu.RLock()
+	defer s.latestMu.RUnlock()
+	if s.hasLast {
+		return s.latest, true
+	}
+	// Vor der ersten Messung: was im Ring liegt, ist besser als nichts.
+	return s.ring.Last()
 }
 
 // housekeeping räumt regelmäßig auf.

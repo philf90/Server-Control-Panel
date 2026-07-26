@@ -215,6 +215,36 @@ func TestDashboardForLoggedInUser(t *testing.T) {
 	}
 }
 
+// TestDashboardZeigtSofortMesswerte hält eine Lücke fest, die beim Anlegen
+// der Bildschirmfotos auffiel: Die Übersicht rendert aus der jüngsten Messung,
+// nicht aus dem Ringpuffer. Der Ring bekommt nur alle 30 Sekunden einen
+// Eintrag — daraus zu rendern hieße, dass eine frische Installation und jeder
+// Neustart nach einem Update eine halbe Minute lang "keine Daten" zeigt.
+func TestDashboardZeigtSofortMesswerte(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	// Genau der Zustand kurz nach dem Start: eine Messung liegt vor, der
+	// Ringpuffer ist noch leer.
+	if _, ok := s.ring.Last(); ok {
+		t.Fatal("der Ringpuffer sollte zu Beginn leer sein")
+	}
+	s.setLatest(s.sampler.Sample())
+
+	body := get(t, s, "/", cookie).Body.String()
+	if strings.Contains(body, "wird ermittelt") {
+		t.Error("die Übersicht meldet trotz vorliegender Messung keine Daten")
+	}
+	// Die Tabellen entstehen serverseitig; der Live-Kanal füllt sie nicht nach.
+	if !strings.Contains(body, "Dateisysteme") {
+		t.Error("die Dateisystemtabelle fehlt")
+	}
+	if strings.Count(body, "keine Daten") > 1 {
+		t.Errorf("die Übersicht ist weitgehend leer:\n%s", body)
+	}
+}
+
 func TestSessionInvalidCookieIsIgnored(t *testing.T) {
 	s := newTestServer(t)
 	addUser(t, s, "philipp", store.RoleOwner)

@@ -1,0 +1,34 @@
+name: Funktion vorschlagen
+description: Etwas fehlt.
+labels: ["funktion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Project Asylum ist ein **Server-Administrations-Panel**, kein
+        Hosting-Panel. vHosts, Mail, DNS und Kundenverwaltung sind bewusste
+        Nicht-Ziele — nachzulesen in
+        [docs/03-funktionsumfang.md](https://github.com/philf90/Server-Control-Panel/blob/main/docs/03-funktionsumfang.md).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem lösen Sie damit
+      description: >-
+        Bitte die Aufgabe beschreiben, nicht die Lösung. Oft gibt es einen
+        einfacheren Weg als den zuerst gedachten.
+    validations:
+      required: true
+
+  - type: textarea
+    id: vorschlag
+    attributes:
+      label: Wie es aussehen könnte
+    validations:
+      required: true
+
+  - type: textarea
+    id: heute
+    attributes:
+      label: Wie lösen Sie es heute
+      description: Von Hand, mit einem anderen Werkzeug, gar nicht?

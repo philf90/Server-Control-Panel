@@ -1,0 +1,211 @@
+# 09 — Sicherheitsbetrachtung: Anmeldung und Updates
+
+> **Was dieses Dokument nicht ist.** Kein externer Review. Es ist eine
+> Selbstbetrachtung derselben Leute, die den Code geschrieben haben — mit allen
+> blinden Flecken, die das mit sich bringt. Es steht hier, damit fremde Prüfer
+> nicht bei null anfangen müssen und damit Betreiber die getroffenen
+> Abwägungen kennen, bevor sie sich darauf verlassen.
+
+Betrachtet werden die beiden Pfade, an denen ein Fehler die Kontrolle über den
+Server kostet: die Anmeldung und das Selbstupdate.
+
+## Angreifermodell
+
+| Angreifer | Was er kann | Wogegen er antritt |
+|---|---|---|
+| **Unangemeldet aus dem Netz** | HTTPS-Anfragen an das Panel | Rate-Begrenzung, Argon2id, zweiter Faktor |
+| **Auf dem Weg dazwischen** | Verkehr lesen und verändern | TLS; beim Update zusätzlich die Signaturkette |
+| **Mit übernommener Sitzung** | Cookie eines angemeldeten Kontos | Rollen, CSRF, Passwortabfrage vor dem Faktorwechsel |
+| **Angemeldet mit geringer Rolle** | ReadOnly oder Admin | serverseitige Rollenprüfung je Route |
+| **Wer den Updateserver kontrolliert** | Metadaten und Artefakte austauschen | eingebauter Signaturschlüssel |
+
+Ausdrücklich **nicht** im Modell: wer bereits root auf dem Server hat. Wer das
+hat, braucht keine Lücke im Panel.
+
+## Anmeldung
+
+### Ablauf
+
+```
+POST /login
+  ├─ Middleware: Rate-Limit je Quell-IP          (routes.go: rateLimited)
+  ├─ Handler:    Rate-Limit je Konto
+  ├─ Konto laden — unbekannt? trotzdem Argon2 gegen einen Dummy rechnen
+  ├─ Passwort:   Argon2id, zeitkonstanter Vergleich
+  ├─ Faktor:     TOTP mit Wiederholungsschutz, sonst Wiederherstellungscode
+  ├─ Alles zusammen prüfen — nach außen immer dieselbe Meldung
+  ├─ Erst jetzt: TOTP-Zähler festschreiben
+  └─ Sitzung anlegen, Cookie setzen, Audit-Eintrag
+```
+
+### Was bewusst so ist
+
+**Zwei Rate-Begrenzungen, nicht eine.** Je Quell-IP in der Middleware, je Konto
+im Handler. Nur je IP zu begrenzen ließe ein verteiltes Ausprobieren eines
+einzelnen Kontos zu; nur je Konto zu begrenzen erlaubte einem Angreifer, ein
+fremdes Konto durch Fehlversuche gezielt auszusperren — die IP-Grenze bremst ihn
+vorher aus.
+
+**`X-Forwarded-For` wird nicht ausgewertet.** Ein blind übernommener Header
+würde die Rate-Begrenzung mit einer Kopfzeile aushebelbar machen. Wer das Panel
+hinter einen Reverse Proxy stellt, muss das bewusst nachrüsten.
+
+**Bei unbekanntem Konto wird trotzdem Argon2 gerechnet.** Ohne diesen
+Zeitausgleich verriete die Antwortzeit, welche Konten es gibt.
+
+**Nach außen immer dieselbe Meldung.** Welcher der beiden Faktoren gestimmt hat,
+geht niemanden etwas an, der ihn nicht kennt. Im Audit-Log steht der Grund
+vollständig — dort darf er stehen, dort liest ihn nur, wer schon angemeldet ist.
+
+**Alle Vergleiche geheimer Werte sind zeitkonstant**: Passwort-Hash
+(`password.go`), TOTP-Code (`totp.go`), CSRF-Token (`session.go`).
+
+**In der Datenbank steht nie ein Sitzungs-Cookie**, nur dessen SHA-256. Ein
+Datenbankabzug erlaubt damit keine Übernahme laufender Sitzungen.
+
+**Der zweite Faktor lässt sich nicht abschalten.** Es gibt keine Einstellung
+dafür — ein Panel mit root-Rechten und nur einem Passwort ist die Sorte
+Bequemlichkeit, die man später bereut.
+
+### Gefunden und behoben: TOTP-Codes galten mehrfach
+
+Bei dieser Durchsicht fiel auf, dass `VerifyTOTP` zustandslos war. Ein Code galt
+sein ganzes Zeitfenster über — bei einer Toleranz von einem Fenster bis zu
+**anderthalb Minuten** — und beliebig oft. RFC 6238 §5.2 verlangt das Gegenteil:
+
+> *The verifier MUST NOT accept the second attempt of the OTP after the
+> successful validation has been issued for the first OTP.*
+
+**Angriffsweg.** Wer einen gültigen Code mitliest und das Passwort kennt, konnte
+ihn innerhalb der Frist erneut einlösen. Mitlesen ist keine exotische Annahme:
+ein Phishing-Formular, das Passwort und Code entgegennimmt und weiterreicht, ein
+protokollierender Proxy davor, ein Blick über die Schulter.
+
+**Behoben.** Das Konto merkt sich das zuletzt angenommene Zeitfenster
+(`users.totp_last_counter`, Migration 0002). Codes aus diesem oder einem
+früheren Fenster werden abgewiesen.
+
+Drei Feinheiten daran:
+
+- **Verbraucht wird erst nach einer geglückten Anmeldung**, nicht bei jedem
+  Versuch. Sonst müsste jeder, der sich beim Passwort vertippt, eine halbe
+  Minute auf den nächsten Code warten.
+- **Das UPDATE trägt seine Bedingung mit** (`WHERE totp_last_counter < ?`).
+  Melden sich zwei Anfragen gleichzeitig mit demselben Code an, kommt genau
+  eine durch — die zweite ändert keine Zeile und wird abgewiesen.
+- **Eine Wiederverwendung wird im Audit-Log als solche vermerkt**, unterscheidbar
+  von einem falschen Code. Das eine deutet auf Mitlesen hin, das andere auf ein
+  Vertippen.
+
+### Ebenfalls geändert: Wiederherstellungscodes
+
+Ein Wiederherstellungscode wird beim Prüfen unwiderruflich eingelöst. Bis dahin
+geschah das unabhängig davon, ob das Passwort stimmte — wer die Codeliste hatte,
+aber nicht das Passwort, konnte die Vorräte eines Kontos aufbrauchen. Jetzt wird
+ein Wiederherstellungscode nur noch bei richtigem Passwort überhaupt geprüft.
+
+### Offene Punkte
+
+- **Keine Sperre eines Kontos nach dauerhaftem Beschuss.** Die Verzögerung
+  wächst exponentiell bis 15 Minuten, aber ein Konto wird nie endgültig
+  gesperrt. Das ist Absicht — eine automatische Sperre ist ein Werkzeug, mit dem
+  sich der rechtmäßige Inhaber aussperren lässt. Wer eine will, muss sie
+  bewusst wollen.
+- **Die Rate-Zähler liegen im Speicher.** Ein Neustart des Panels setzt sie
+  zurück. Da ein Neustart root voraussetzt, ist das für einen Angreifer von
+  außen kein Weg.
+- **Kein WebAuthn.** TOTP ist gegen Phishing nicht sicher: Ein Formular, das
+  Passwort und Code entgegennimmt und sofort weiterreicht, kommt durch — der
+  Wiederholungsschutz verkürzt nur das Zeitfenster, er schließt die Lücke nicht.
+  WebAuthn wäre die richtige Antwort und steht für nach v0.1.
+
+## Selbstupdate
+
+Der ausführliche Ablauf steht in [05-updates.md](05-updates.md); hier nur, was
+sicherheitsrelevant ist.
+
+### Der Vertrauensanker
+
+Ein einziger Wert: der öffentliche minisign-Schlüssel als Konstante im Binary
+(`internal/update/key.go`). Weder die Metadatendatei noch der Downloadserver
+noch ein Programm im `PATH` kann ihn ersetzen. Die Signaturprüfung ist in Go
+umgesetzt und ruft kein externes `minisign` auf — ein untergeschobenes Programm
+im `PATH` könnte sonst jede Signatur für gültig erklären.
+
+Ein Test wacht darüber, dass der eingebaute Schlüssel, `packaging/minisign.pub`
+und der in `install.sh` eingebettete nicht auseinanderlaufen.
+
+### Warum die Metadatendatei nicht signiert ist
+
+`updates/<kanal>.json` ist ein Wegweiser, keine Vertrauensquelle. Wer sie
+fälscht, kann höchstens auf eine andere — ebenfalls echt signierte — Fassung
+zeigen oder das Update verhindern. Beides ist unangenehm, aber keine
+Codeausführung.
+
+Genau deshalb ist der Abgleich des beglaubigten Kommentars wesentlich: minisign
+signiert neben der Prüfsummenliste einen Kommentar, der die Fassung nennt.
+Stimmt er nicht mit den Metadaten überein, bricht das Update ab. **Ohne diese
+Prüfung wäre ein Downgrade möglich** — eine gefälschte Metadatendatei könnte die
+echte Signatur einer älteren Fassung mit bekannter Lücke vorlegen. Der Fall wird
+getestet.
+
+Geprüft wird außerdem die globale Signatur, die Signatur und Kommentar gemeinsam
+abdeckt; ohne sie ließe sich der Kommentar austauschen.
+
+### Weitere Festlegungen
+
+- **Nur `https`**, auch nach Weiterleitungen und auch für Adressen, die aus der
+  Metadatendatei stammen. Ohne diese Prüfung könnte eine manipulierte Datei den
+  Download auf `http://` oder `file://` umlenken.
+- **Größengrenzen** auf jeden Abruf, damit ein Server das Panel nicht mit einem
+  endlosen Datenstrom beschäftigt.
+- **Das Archiv wird im Speicher ausgepackt**, und nur `asylumd` daraus. Es
+  entsteht kein Pfad, der über `../` ausbrechen oder als Symlink woandershin
+  zeigen könnte.
+- **ELF-Kennung geprüft**, bevor irgendetwas abgelegt wird. Eine
+  HTML-Fehlerseite fällt damit auf.
+- **`asylumd.neu` wird angesprochen, bevor getauscht wird.** Eine falsche
+  Architektur oder ein beschädigter Download fällt vor dem Tausch auf.
+- **Der Tausch ist ein `rename(2)`** im selben Verzeichnis, also atomar.
+- **Der Vorgang läuft außerhalb der Kontrollgruppe des Dienstes.** systemd
+  beendet beim Neustart die gesamte Kontrollgruppe; ein Update darin würde
+  zwischen Tausch und Bereitschaftsprüfung abgeschnitten — mit einer ungeprüften
+  neuen Fassung und niemandem, der sie zurücknimmt. `asylum update` weigert
+  sich, in der Kontrollgruppe des Dienstes zu laufen.
+- **Einspielen darf nur Owner.** Wer ein Update auslöst, bestimmt, welcher Code
+  als root läuft. Das ist keine gewöhnliche Schreiboperation.
+
+### Offene Punkte
+
+- **Kein Herkunftsnachweis der Artefakte.** minisign sagt „von diesem
+  Schlüssel", nicht „aus diesem Repository, aus diesem Workflow". cosign mit
+  OIDC würde das leisten, setzt aber eine Rekor-Abfrage über das Netz voraus —
+  und der Updateweg soll gerade nicht von einem weiteren erreichbaren Dienst
+  abhängen. Als Ergänzung neben minisign bleibt es sinnvoll.
+- **Der private Signaturschlüssel liegt als GitHub-Secret.** Wer die Kontrolle
+  über das Repository erlangt, kann signieren. Ein Hardware-Token oder ein
+  getrennter Signierdienst wäre besser, ist für ein Projekt dieser Größe aber
+  unverhältnismäßig.
+- **Der APT-Weg hat keine Bereitschaftsprüfung.** `apt upgrade` kennt keinen
+  Healthcheck und keinen Rollback. Deshalb ist das eingebaute Update der
+  empfohlene Weg, und der apt-Weg das Zusatzangebot.
+
+## Was geprüft wurde und wie
+
+| Gegenstand | Art der Prüfung |
+|---|---|
+| Signaturformat | gegen echtes minisign-Material im Repository, nicht gegen die eigene Vorstellung davon |
+| Vollständige Updatekette | zwei echte Binaries, mit dem Projektschlüssel signiert, über HTTPS geladen, getauscht, neu gestartet, zurückgerollt |
+| Manipulationen | ausgetauschtes Archiv, veränderte Prüfsummenliste, fremde Signatur, Downgrade über Metadaten — alle vier abgewiesen |
+| Selbsttätiger Rückweg | echt signierte, aber nicht startfähige Fassung; nach 60 s ohne Antwort stellte der Server die vorherige wieder her |
+| Rollentrennung | je verändernder Route ein Test, dass ReadOnly und Admin abgewiesen werden |
+| TOTP | Testvektoren aus RFC 6238, Gegenprobe mit einer unabhängigen Implementierung, Wiederholungsschutz mit eigenen Tests |
+| APT-Repository | gegen echtes `apt`: Einrichtung, Installation, manipulierte `InRelease` (BADSIG), manipulierte Paketliste (Hash-Mismatch) |
+
+**Nicht geprüft werden konnte**, was ohne systemd als PID 1 nicht prüfbar ist:
+der Aufruf über `systemd-run` und die journald-Pfade. Dort greifen Parsertests
+gegen aufgezeichnete Ausgaben und ein einspeisbarer Runner.
+
+## Wenn Sie eine Lücke finden
+
+[SECURITY.md](../SECURITY.md) — bitte nicht als öffentliches Issue.

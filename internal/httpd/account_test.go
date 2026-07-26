@@ -332,3 +332,113 @@ func TestShortenUserAgent(t *testing.T) {
 		t.Errorf("eine lange Kennung wird nicht gekürzt: %d Zeichen", len(got))
 	}
 }
+
+// ------------------------------------------- Wiederholungsschutz für TOTP ---
+
+// TestTOTPCodeGiltNurEinmal hält die Anforderung aus RFC 6238 §5.2 fest: Ein
+// angenommener Code darf kein zweites Mal gelten. Ohne das bliebe er sein
+// ganzes Zeitfenster über gültig — bis zu anderthalb Minuten, und beliebig oft.
+func TestTOTPCodeGiltNurEinmal(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+
+	code, err := auth.TOTPCode(user.TOTPSecret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	form := url.Values{"username": {"philipp"}, "password": {testPassword}, "code": {code}}
+
+	first := post(t, s, "/login", form, nil)
+	if first.Code != http.StatusSeeOther {
+		t.Fatalf("erste Anmeldung: Status = %d, erwartet 303", first.Code)
+	}
+
+	second := post(t, s, "/login", form, nil)
+	if second.Code != http.StatusUnauthorized {
+		t.Fatalf("zweite Anmeldung mit demselben Code: Status = %d, erwartet 401", second.Code)
+	}
+
+	// Und die Ablehnung steht mit ihrem Grund im Audit-Log.
+	entries, err := s.db.ListAudit(context.Background(), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vermerkt bool
+	for _, e := range entries {
+		if e.Action == "login.failed" && strings.Contains(e.Detail, "verbraucht") {
+			vermerkt = true
+		}
+	}
+	if !vermerkt {
+		t.Error("der verbrauchte Code wurde nicht als solcher protokolliert")
+	}
+}
+
+// TestFehlversuchVerbrauchtDenCodeNicht ist die Kehrseite: Wer sich beim
+// Passwort vertippt, soll nicht eine halbe Minute auf den nächsten Code warten
+// müssen. Verbraucht wird erst nach einer geglückten Anmeldung.
+func TestFehlversuchVerbrauchtDenCodeNicht(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+
+	code, err := auth.TOTPCode(user.TOTPSecret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	falsch := post(t, s, "/login", url.Values{
+		"username": {"philipp"}, "password": {"daneben"}, "code": {code},
+	}, nil)
+	if falsch.Code != http.StatusUnauthorized {
+		t.Fatalf("Fehlversuch: Status = %d, erwartet 401", falsch.Code)
+	}
+
+	richtig := post(t, s, "/login", url.Values{
+		"username": {"philipp"}, "password": {testPassword}, "code": {code},
+	}, nil)
+	if richtig.Code != http.StatusSeeOther {
+		t.Fatalf("derselbe Code nach einem Fehlversuch: Status = %d, erwartet 303", richtig.Code)
+	}
+}
+
+// TestFalschesPasswortVerbrauchtKeinenWiederherstellungscode: Die Prüfung eines
+// Wiederherstellungscodes löst ihn unwiderruflich ein. Ohne Passwort darf das
+// nicht geschehen — sonst könnte jemand mit der Codeliste, aber ohne Passwort,
+// die Vorräte des Kontos aufbrauchen.
+func TestFalschesPasswortVerbrauchtKeinenWiederherstellungscode(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+
+	codes, hashes, err := auth.NewRecoveryCodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.ReplaceRecoveryCodes(context.Background(), user.ID, hashes); err != nil {
+		t.Fatal(err)
+	}
+
+	vorher, err := s.db.CountUnusedRecoveryCodes(context.Background(), user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	post(t, s, "/login", url.Values{
+		"username": {"philipp"}, "password": {"daneben"}, "code": {codes[0]},
+	}, nil)
+
+	nachher, err := s.db.CountUnusedRecoveryCodes(context.Background(), user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nachher != vorher {
+		t.Errorf("ein Fehlversuch hat einen Wiederherstellungscode verbraucht: %d → %d", vorher, nachher)
+	}
+
+	// Mit richtigem Passwort greift derselbe Code dann sehr wohl.
+	rec := post(t, s, "/login", url.Values{
+		"username": {"philipp"}, "password": {testPassword}, "code": {codes[0]},
+	}, nil)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("Anmeldung mit Wiederherstellungscode: Status = %d, erwartet 303", rec.Code)
+	}
+}

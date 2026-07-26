@@ -132,6 +132,9 @@ nfpms:
     formats: [deb]
     section: admin
     priority: optional
+    # meta: das Paket bekommt keine gebauten Binaries, nur die Dateien unter
+    # contents. Ohne das läge asylumd ein zweites Mal im Schlüsselbund-Paket.
+    meta: true
     contents:
       - src: packaging/asylum-archive-keyring.gpg
         dst: /usr/share/keyrings/asylum-archive-keyring.gpg

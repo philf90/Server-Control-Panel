@@ -286,12 +286,21 @@ jobs:
           sudo apt-get install -y -qq apt-utils gnupg
 
           cd pages
-          mkdir -p "apt/pool/main/a/asylum-panel" "apt/dists/${CHANNEL}/main/binary-amd64" \
+          mkdir -p "apt/dists/${CHANNEL}/main/binary-amd64" \
                    "apt/dists/${CHANNEL}/main/binary-arm64"
 
-          # Neue Pakete in den Pool. Ältere Fassungen bleiben liegen, damit ein
-          # gezieltes Downgrade über apt möglich bleibt.
-          cp ../dist/*.deb "apt/pool/main/a/asylum-panel/"
+          # Neue Pakete in den Pool, jedes unter seinem eigenen Namen — das ist
+          # die Debian-Konvention pool/main/<anfangsbuchstabe>/<paket>/. Ein
+          # pauschales Kopieren legte das Schlüsselbund-Paket in das
+          # Verzeichnis des Panels; apt stört das nicht, ein Mensch schon.
+          # Ältere Fassungen bleiben liegen, damit ein gezieltes Downgrade
+          # über apt möglich bleibt.
+          for deb in ../dist/*.deb; do
+            name="$(dpkg-deb -f "$deb" Package)"
+            dir="apt/pool/main/${name:0:1}/${name}"
+            mkdir -p "$dir"
+            cp "$deb" "$dir/"
+          done
 
           # Aus apt heraus, nicht darüber: apt-ftparchive schreibt den
           # übergebenen Pfad wörtlich in das Feld "Filename". Von außen
@@ -376,6 +385,8 @@ jobs:
             # Der Pfad muss ohne führendes "apt/" dastehen, sonst lädt apt ins Leere.
             grep -q "^Filename: pool/main/a/asylum-panel/" "$pkgs"
             grep -qv "^Filename: apt/" "$pkgs"
+            # Und der Schlüsselbund muss dabei sein — asylum-panel empfiehlt ihn.
+            grep -q "^Package: asylum-archive-keyring$" "$pkgs"
           done
           echo "APT-Repository für ${CHANNEL} steht."
 

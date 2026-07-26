@@ -385,16 +385,36 @@ health_check() {
 }
 
 summary() {
-  local fingerprint host
+  local fingerprint host setup_url
   fingerprint="$(openssl x509 -in "${TLS_DIR}/server.crt" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2)"
   host="$(hostname -I 2>/dev/null | awk '{print $1}')"
   [ -n "$host" ] || host="$(hostname -f 2>/dev/null || hostname)"
 
-  cat <<SUMMARY
+  printf '\n  %sProject Asylum %s ist installiert.%s\n\n' "$C_OK" "$VERSION" "$C_OFF"
 
-  ${C_OK}Project Asylum ${VERSION} ist installiert.${C_OFF}
+  # Der Token wird nur bei einer Erstinstallation erzeugt; bei einem Update
+  # scheitert der Aufruf absichtlich, weil bereits ein Konto existiert.
+  if setup_url="$("$BINARY" setup-token --config "$CONFIG_FILE" --url-only 2>/dev/null)"; then
+    # Die URL zeigt auf den Hostnamen des Servers; für den Zugriff von außen
+    # ist die tatsächliche Adresse oft die brauchbarere Angabe.
+    setup_url="${setup_url/https:\/\/$(hostname):/https://${host}:}"
+    cat <<SETUP
+  ${C_OK}Ersteinrichtung${C_OFF} — dieser Link gilt 60 Minuten und nur einmal:
 
+  ${setup_url}
+
+  Dort werden Administrator-Konto und Zwei-Faktor-Anmeldung eingerichtet.
+  Es wird bewusst kein Passwort vergeben, das hier im Terminal stünde.
+
+SETUP
+  else
+    cat <<EXISTING
   Adresse      https://${host}:${PORT}/
+
+EXISTING
+  fi
+
+  cat <<SUMMARY
   Zertifikat   selbstsigniert, SHA-256:
                ${fingerprint}
 
@@ -405,10 +425,8 @@ summary() {
   Dienst       systemctl status ${SERVICE}
   Logs         journalctl -u ${SERVICE} -f
   Version      asylum version
+  Ausgesperrt  sudo asylum reset-password BENUTZER
   Entfernen    sudo bash install.sh --uninstall
-
-  Hinweis: Dieses Release richtet Installation, TLS und den Update-Pfad ein.
-  Anmeldung, Rollen und die Verwaltungsmodule folgen mit der nächsten Version.
 
 SUMMARY
 }

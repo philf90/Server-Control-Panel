@@ -1,0 +1,50 @@
+{{define "account"}}{{template "header" .}}
+{{with .Content}}
+{{if .NewCodes}}
+<div class="card">
+  <h2>Neue Wiederherstellungscodes</h2>
+  <p>Einmalige Anzeige. Die vorherigen Codes gelten nicht mehr.</p>
+  <ul class="codes">
+    {{range .NewCodes}}<li><code>{{.}}</code></li>{{end}}
+  </ul>
+</div>
+{{end}}
+
+<div class="grid two">
+  <div class="card">
+    <h2>Konto</h2>
+    <dl>
+      <dt>Anmeldename</dt><dd>{{$.User.Username}}</dd>
+      <dt>Rolle</dt><dd><span class="badge">{{$.User.Role}}</span></dd>
+      <dt>Angelegt</dt><dd>{{date $.User.CreatedAt}}</dd>
+      <dt>Zwei-Faktor</dt><dd>{{if $.User.TOTPConfirmed}}aktiv{{else}}nicht eingerichtet{{end}}</dd>
+      <dt>Wiederherstellungscodes</dt><dd>{{.RecoveryCodesLeft}} übrig</dd>
+    </dl>
+
+    <form method="post" action="/account/recovery-codes">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button type="submit" class="secondary">Neue Wiederherstellungscodes erzeugen</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Passwort ändern</h2>
+    <form method="post" action="/account/password" autocomplete="on">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+
+      <label for="current_password">Aktuelles Passwort</label>
+      <input type="password" id="current_password" name="current_password" autocomplete="current-password" required>
+
+      <label for="new_password">Neues Passwort</label>
+      <input type="password" id="new_password" name="new_password" autocomplete="new-password" required minlength="12">
+
+      <label for="new_password_confirm">Neues Passwort wiederholen</label>
+      <input type="password" id="new_password_confirm" name="new_password_confirm" autocomplete="new-password" required minlength="12">
+
+      <p class="hint">Mit der Änderung werden alle anderen Sitzungen beendet.</p>
+      <button type="submit">Passwort ändern</button>
+    </form>
+  </div>
+</div>
+{{end}}
+{{template "footer" .}}{{end}}

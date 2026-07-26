@@ -1,0 +1,41 @@
+{{define "header"}}<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} — Project Asylum</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+{{if .LoggedIn}}
+<nav class="topbar">
+  <div class="brand">
+    <strong>Asylum</strong>
+    <span class="host">{{.Host.Hostname}}</span>
+  </div>
+  <ul class="menu">
+    <li><a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>Übersicht</a></li>
+    <li><a href="/audit" {{if eq .Nav "audit"}}class="active"{{end}}>Audit-Log</a></li>
+    {{if .IsOwner}}<li><a href="/users" {{if eq .Nav "users"}}class="active"{{end}}>Benutzer</a></li>{{end}}
+    <li><a href="/account" {{if eq .Nav "account"}}class="active"{{end}}>Konto</a></li>
+  </ul>
+  <form method="post" action="/logout" class="logout">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <span class="who">{{.User.Username}}<span class="role">{{.User.Role}}</span></span>
+    <button type="submit" class="link">Abmelden</button>
+  </form>
+</nav>
+{{end}}
+<main{{if not .LoggedIn}} class="narrow"{{end}}>
+{{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
+{{if .Flash}}<div class="alert ok">{{.Flash}}</div>{{end}}
+{{end}}
+
+{{define "footer"}}
+</main>
+<footer class="page-footer">
+  <span>Project Asylum {{.Version}}</span>
+  {{if .LoggedIn}}<span>{{.Host.Distro}} · Kernel {{.Host.Kernel}} · {{.Host.Cores}} Kerne · {{.Host.Arch}}</span>{{end}}
+</footer>
+</body>
+</html>{{end}}

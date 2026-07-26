@@ -1,0 +1,32 @@
+{{define "audit"}}{{template "header" .}}
+<div class="card">
+  <h2>Audit-Log</h2>
+  <p class="hint">
+    Jede verändernde Aktion mit Benutzer, Adresse, Ziel und Ergebnis. Das Log
+    ist nur additiv — es gibt bewusst keine Möglichkeit, Einträge zu ändern oder
+    zu löschen.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Zeitpunkt</th><th>Benutzer</th><th>Aktion</th><th>Ziel</th><th>Ergebnis</th><th>Adresse</th><th>Detail</th></tr>
+      </thead>
+      <tbody>
+        {{range .Content.Entries}}
+        <tr>
+          <td class="nowrap">{{datetime .At}}</td>
+          <td>{{.Actor}}</td>
+          <td><code>{{.Action}}</code></td>
+          <td class="muted">{{.Target}}</td>
+          <td><span class="badge {{.Result}}">{{.Result}}</span></td>
+          <td class="muted">{{.IP}}</td>
+          <td class="muted">{{.Detail}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="7" class="muted">noch keine Einträge</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{template "footer" .}}{{end}}

@@ -1,0 +1,236 @@
+package httpd
+
+import (
+	"context"
+	"crypto/subtle"
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/philf90/asylum/internal/auth"
+	"github.com/philf90/asylum/internal/store"
+)
+
+const (
+	sessionCookie = "asylum_session"
+
+	// Absolute Obergrenze einer Sitzung: Nach zwölf Stunden ist erneute
+	// Anmeldung fällig, egal wie aktiv jemand war.
+	sessionAbsoluteTTL = 12 * time.Hour
+	// Leerlauf-Grenze: zwei Stunden ohne Anfrage beenden die Sitzung.
+	sessionIdleTTL = 2 * time.Hour
+)
+
+type ctxKey int
+
+const (
+	ctxUser ctxKey = iota
+	ctxSession
+)
+
+// userFrom liefert den angemeldeten Benutzer aus dem Kontext.
+func userFrom(ctx context.Context) (store.User, bool) {
+	u, ok := ctx.Value(ctxUser).(store.User)
+	return u, ok
+}
+
+// sessionFrom liefert die Sitzung aus dem Kontext.
+func sessionFrom(ctx context.Context) (store.Session, bool) {
+	s, ok := ctx.Value(ctxSession).(store.Session)
+	return s, ok
+}
+
+// startSession legt eine Sitzung an und setzt das Cookie.
+func (s *Server) startSession(w http.ResponseWriter, r *http.Request, user store.User) error {
+	token, err := auth.NewToken()
+	if err != nil {
+		return err
+	}
+	csrf, err := auth.NewToken()
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	sess := store.Session{
+		ID:         auth.HashToken(token),
+		UserID:     user.ID,
+		CSRFToken:  csrf,
+		CreatedAt:  now,
+		LastSeenAt: now,
+		ExpiresAt:  now.Add(sessionIdleTTL),
+		IP:         clientIP(r),
+		UserAgent:  truncate(r.UserAgent(), 200),
+	}
+	if err := s.db.CreateSession(r.Context(), sess); err != nil {
+		return err
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  sessionCookie,
+		Value: token,
+		Path:  "/",
+		// Secure: Das Panel ist ausschließlich über HTTPS erreichbar.
+		// SameSite=Strict: Das Cookie geht bei keiner fremden Verlinkung mit,
+		// was zusammen mit dem CSRF-Token einen zweiten Riegel darstellt.
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   int(sessionAbsoluteTTL.Seconds()),
+	})
+	return nil
+}
+
+// endSession meldet die aktuelle Sitzung ab.
+func (s *Server) endSession(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie(sessionCookie); err == nil {
+		_ = s.db.DeleteSession(r.Context(), auth.HashToken(c.Value))
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookie,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+}
+
+// loadSession legt Benutzer und Sitzung in den Kontext, sofern angemeldet.
+// Nicht angemeldete Anfragen laufen unverändert weiter — das Abweisen
+// übernimmt requireAuth.
+func (s *Server) loadSession(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie(sessionCookie)
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ctx := r.Context()
+		sess, err := s.db.SessionByID(ctx, auth.HashToken(cookie.Value))
+		if err != nil {
+			if !errors.Is(err, store.ErrNotFound) {
+				s.log.Error("sitzung laden", "err", err)
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		user, err := s.db.UserByID(ctx, sess.UserID)
+		if err != nil || user.Disabled {
+			_ = s.db.DeleteSession(ctx, sess.ID)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Leerlauf-Fenster verlängern, aber nie über die absolute Grenze
+		// hinaus.
+		now := time.Now()
+		absolute := sess.CreatedAt.Add(sessionAbsoluteTTL)
+		newExpiry := now.Add(sessionIdleTTL)
+		if newExpiry.After(absolute) {
+			newExpiry = absolute
+		}
+		if newExpiry.After(now) && newExpiry.Sub(sess.ExpiresAt) > time.Minute {
+			if err := s.db.TouchSession(ctx, sess.ID, newExpiry); err != nil {
+				s.log.Warn("sitzung verlängern", "err", err)
+			}
+			sess.ExpiresAt = newExpiry
+		}
+
+		ctx = context.WithValue(ctx, ctxUser, user)
+		ctx = context.WithValue(ctx, ctxSession, sess)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// requireAuth weist nicht angemeldete Anfragen ab und erzwingt den Abschluss
+// der Zwei-Faktor-Einrichtung.
+func (s *Server) requireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFrom(r.Context())
+		if !ok {
+			s.redirectToLogin(w, r)
+			return
+		}
+		// Ein Konto ohne bestätigtes TOTP darf nichts außer die Einrichtung.
+		if !user.TOTPConfirmed {
+			http.Redirect(w, r, "/setup/2fa", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requireWrite lässt nur Rollen mit Schreibrecht durch.
+func (s *Server) requireWrite(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFrom(r.Context())
+		if !ok || !user.CanWrite() {
+			s.audit(r, "access.denied", r.URL.Path, store.ResultDenied, "Schreibrecht fehlt")
+			s.renderError(w, r, http.StatusForbidden, "Diese Aktion erfordert Schreibrechte.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requireOwner lässt nur die Owner-Rolle durch.
+func (s *Server) requireOwner(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFrom(r.Context())
+		if !ok || !user.CanManageUsers() {
+			s.audit(r, "access.denied", r.URL.Path, store.ResultDenied, "Owner-Rolle erforderlich")
+			s.renderError(w, r, http.StatusForbidden, "Diese Aktion ist der Owner-Rolle vorbehalten.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// verifyCSRF prüft bei allen verändernden Anfragen das Double-Submit-Token.
+func (s *Server) verifyCSRF(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		sess, ok := sessionFrom(r.Context())
+		if !ok {
+			s.renderError(w, r, http.StatusForbidden, "Keine gültige Sitzung.")
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			s.renderError(w, r, http.StatusBadRequest, "Formulardaten unlesbar.")
+			return
+		}
+		got := r.PostFormValue("_csrf")
+		if subtle.ConstantTimeCompare([]byte(got), []byte(sess.CSRFToken)) != 1 {
+			s.audit(r, "csrf.rejected", r.URL.Path, store.ResultDenied, "")
+			s.renderError(w, r, http.StatusForbidden, "Das Formular ist abgelaufen. Bitte die Seite neu laden.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) redirectToLogin(w http.ResponseWriter, r *http.Request) {
+	// Bei einer abgelaufenen Sitzung im Hintergrund-Request (SSE, fetch) wäre
+	// eine Weiterleitung auf HTML sinnlos — dort zählt der Statuscode.
+	if r.Header.Get("Accept") == "text/event-stream" {
+		http.Error(w, "nicht angemeldet", http.StatusUnauthorized)
+		return
+	}
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
+}

@@ -7,13 +7,19 @@ import (
 	"time"
 )
 
-// contentSecurityPolicy ist bewusst eng: In M0 gibt es kein JavaScript und
-// keine externen Ressourcen. Jede spätere Lockerung soll eine bewusste
-// Entscheidung mit Begründung sein, kein stilles Aufweichen.
+// contentSecurityPolicy ist bewusst eng. Kein 'unsafe-inline', keine externen
+// Quellen: Alle Skripte und Stile kommen aus dem Binary selbst. Jede spätere
+// Lockerung soll eine bewusste Entscheidung mit Begründung sein, kein stilles
+// Aufweichen.
+//
+// script-src und connect-src sind für die Live-Ansicht nötig (SSE über
+// EventSource), form-action 'self' für die Formulare der Oberfläche.
 const contentSecurityPolicy = "default-src 'none'; " +
+	"script-src 'self'; " +
 	"style-src 'self'; " +
 	"img-src 'self' data:; " +
-	"form-action 'none'; " +
+	"connect-src 'self'; " +
+	"form-action 'self'; " +
 	"base-uri 'none'; " +
 	"frame-ancestors 'none'"
 
@@ -38,6 +44,15 @@ type statusRecorder struct {
 	http.ResponseWriter
 	status int
 	bytes  int
+}
+
+// Unwrap gibt den umhüllten Writer frei.
+//
+// Ohne diese Methode verliert jede Hülle die Zusatzfähigkeiten des echten
+// Writers — insbesondere http.Flusher, ohne den Server-Sent Events nicht
+// funktionieren. http.NewResponseController folgt dieser Kette.
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
 }
 
 func (r *statusRecorder) WriteHeader(code int) {

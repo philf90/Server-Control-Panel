@@ -7,11 +7,10 @@ Ein schlankes, ressourcenschonendes Control Panel für Linux-Server (primär Ubu
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: M0 — Grundgerüst.** Installation, TLS, systemd-Integration und der
-> Release-Pfad stehen und sind lauffähig. Verwaltungsfunktionen gibt es noch
-> keine: Anmeldung, Rollen und das Dashboard kommen mit M1. Diese Reihenfolge ist
-> Absicht — Deployment und Update sind die schwierigsten Teile eines Panels und
-> werden sonst zu spät gebaut.
+> **Status: M1 — Anmeldung und Übersicht.** Installation, TLS, systemd-Integration,
+> Release-Pfad, Zwei-Faktor-Anmeldung, Rollen, Audit-Log und das Live-Dashboard
+> stehen. Was noch fehlt, sind die Verwaltungsmodule selbst — Dienste, Pakete,
+> Firewall, Benutzer und Logs kommen mit M2.
 
 ## Zielbild
 
@@ -20,9 +19,12 @@ curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o i
 sudo bash install.sh
 ```
 
-Danach: ein einzelner, statisch gelinkter Daemon, als systemd-Service eingerichtet
-und über HTTPS erreichbar. Gemessen am aktuellen Stand — 8,4 MB Binary, 10,2 MB RSS
-im Leerlauf, TLS 1.3 mit selbstsigniertem Zertifikat beim ersten Start.
+Der Installer gibt am Ende einen einmaligen Setup-Link aus. Dort werden
+Administrator-Konto und Zwei-Faktor-Anmeldung eingerichtet — es wird bewusst kein
+Passwort vergeben, das im Terminal oder in der Shell-History stünde.
+
+Gemessen am aktuellen Stand: 13 MB Binary, 15,9 MB RSS im Leerlauf, 39 ms für eine
+Anmeldung, TLS 1.3 mit selbstsigniertem Zertifikat beim ersten Start.
 
 Keine Runtime-Abhängigkeiten. Kein Docker-Zwang. Kein PHP-Stack. Kein Node auf dem
 Zielserver.
@@ -36,17 +38,29 @@ make run       # lokal auf https://127.0.0.1:8443, Daten unter ./.local
 make dist      # Release-Artefakte lokal (goreleaser --snapshot)
 ```
 
-Voraussetzung ist Go 1.24 oder neuer. Eine einzige direkte Abhängigkeit
-(`gopkg.in/yaml.v3`), alles Weitere ist Standardbibliothek.
+Voraussetzung ist Go 1.24 oder neuer. Fünf direkte Abhängigkeiten
+(YAML, SQLite in reinem Go, Argon2, QR-Code, Terminal-Eingabe), alles Weitere ist
+Standardbibliothek. TOTP ist bewusst selbst implementiert — dreißig Zeilen über
+`crypto/hmac`, geprüft gegen die Testvektoren aus RFC 6238.
 
 ```
-cmd/asylumd/          Einstiegspunkt: serve | migrate | version
+cmd/asylumd/          serve | migrate | setup-token | reset-password | version
 internal/config/      Konfiguration laden, Umgebung, Validierung
 internal/certs/       selbstsigniertes TLS-Material, Fingerprint
-internal/httpd/       Router, Middleware, Handler
+internal/store/       SQLite, Migrationen, Nutzer, Sessions, Audit
+internal/auth/        Argon2id, TOTP, Tokens, Ratenbegrenzung
+internal/metrics/     /proc-Sampler und Ringpuffer
+internal/httpd/       Router, Middleware, Handler, SSE
 internal/systemd/     sd_notify und Watchdog ohne cgo
 internal/ui/          Templates und Assets (embed)
 packaging/            install.sh, systemd-Unit, .deb-Skripte
+```
+
+### Ersteinrichtung von Hand
+
+```bash
+sudo asylum setup-token          # einmaliger Link, 60 Minuten gültig
+sudo asylum reset-password NAME  # Rettungsweg, wenn der Zugang verloren ist
 ```
 
 ## Leitplanken

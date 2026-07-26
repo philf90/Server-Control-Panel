@@ -1,4 +1,4 @@
-// Package httpd stellt den HTTPS-Listener des Panels bereit.
+// Package httpd stellt den HTTPS-Listener und die Weboberfläche bereit.
 package httpd
 
 import (
@@ -10,10 +10,14 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
+	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
+	"github.com/philf90/asylum/internal/metrics"
+	"github.com/philf90/asylum/internal/store"
 	"github.com/philf90/asylum/internal/systemd"
 	"github.com/philf90/asylum/internal/ui"
 )
@@ -21,22 +25,35 @@ import (
 const (
 	readHeaderTimeout = 10 * time.Second
 	readTimeout       = 30 * time.Second
-	writeTimeout      = 60 * time.Second
-	idleTimeout       = 120 * time.Second
-	shutdownTimeout   = 15 * time.Second
+	// Kein WriteTimeout: Server-Sent Events sind langlebige Antworten, die ein
+	// pauschales Schreiblimit nach kurzer Zeit abschneiden würde. Gegen
+	// Slowloris schützen ReadHeaderTimeout und IdleTimeout.
+	idleTimeout     = 120 * time.Second
+	shutdownTimeout = 15 * time.Second
+
+	// Live-Takt der Oberfläche und Ablagetakt des Ringpuffers.
+	liveInterval   = 2 * time.Second
+	historyEvery   = 15          // jeder 15. Live-Tick landet im Ringpuffer (= 30 s)
+	historyEntries = 2 * 60 * 24 // 24 h in 30-s-Auflösung
 )
 
-// Server bündelt Konfiguration, Logger und den HTTP-Server.
+// Server bündelt alles, was die Weboberfläche braucht.
 type Server struct {
 	cfg     config.Config
 	log     *slog.Logger
+	db      *store.DB
 	tmpl    *template.Template
 	started time.Time
+
+	sampler *metrics.Sampler
+	ring    *metrics.Ring
+	limiter *auth.Limiter
+	hub     *hub
 }
 
 // New baut den Server auf. Templates werden hier geparst, damit ein Fehler
 // beim Start auffällt und nicht erst beim ersten Aufruf.
-func New(cfg config.Config, logger *slog.Logger) (*Server, error) {
+func New(cfg config.Config, logger *slog.Logger, db *store.DB) (*Server, error) {
 	tmpl, err := ui.Templates()
 	if err != nil {
 		return nil, fmt.Errorf("templates: %w", err)
@@ -44,8 +61,13 @@ func New(cfg config.Config, logger *slog.Logger) (*Server, error) {
 	return &Server{
 		cfg:     cfg,
 		log:     logger,
+		db:      db,
 		tmpl:    tmpl,
 		started: time.Now(),
+		sampler: metrics.NewSampler(),
+		ring:    metrics.NewRing(historyEntries),
+		limiter: auth.NewLimiter(),
+		hub:     newHub(),
 	}, nil
 }
 
@@ -75,7 +97,6 @@ func (s *Server) Run(ctx context.Context) error {
 		Handler:           s.Handler(),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
-		WriteTimeout:      writeTimeout,
 		IdleTimeout:       idleTimeout,
 		ErrorLog:          slog.NewLogLogger(s.log.Handler(), slog.LevelWarn),
 		TLSConfig: &tls.Config{
@@ -101,6 +122,14 @@ func (s *Server) Run(ctx context.Context) error {
 		return fmt.Errorf("listen %s: %w", srv.Addr, err)
 	}
 
+	var wg sync.WaitGroup
+	bgCtx, stopBackground := context.WithCancel(ctx)
+	defer stopBackground()
+
+	wg.Add(2)
+	go func() { defer wg.Done(); s.sampleLoop(bgCtx) }()
+	go func() { defer wg.Done(); s.housekeeping(bgCtx) }()
+
 	errCh := make(chan error, 1)
 	go func() {
 		s.log.Info("Panel erreichbar", "url", fmt.Sprintf("https://%s/", srv.Addr))
@@ -110,6 +139,8 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 		errCh <- nil
 	}()
+
+	s.logSetupHint(ctx)
 
 	_ = systemd.Ready()
 	_ = systemd.Status(fmt.Sprintf("hört auf %s", srv.Addr))
@@ -124,6 +155,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	_ = systemd.Stopping()
 	s.log.Info("Shutdown angefordert, laufende Anfragen werden beendet")
+	stopBackground()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
@@ -133,7 +165,66 @@ func (s *Server) Run(ctx context.Context) error {
 		_ = srv.Close()
 		return fmt.Errorf("shutdown: %w", err)
 	}
+	wg.Wait()
 	return <-errCh
+}
+
+// sampleLoop erhebt die Metriken zentral: ein Sampler für alle Betrachter.
+// Würde jede SSE-Verbindung selbst messen, käme es zu Wettläufen um die
+// Vorwerte der Delta-Berechnung und zu unnötiger Last.
+func (s *Server) sampleLoop(ctx context.Context) {
+	ticker := time.NewTicker(liveInterval)
+	defer ticker.Stop()
+
+	// Erster Aufruf setzt nur die Vorwerte; Deltas gibt es ab dem zweiten.
+	s.sampler.Sample()
+
+	tick := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			snap := s.sampler.Sample()
+			s.hub.broadcast(snap)
+			tick++
+			if tick%historyEvery == 0 {
+				s.ring.Add(snap)
+			}
+		}
+	}
+}
+
+// housekeeping räumt regelmäßig auf.
+func (s *Server) housekeeping(ctx context.Context) {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if n, err := s.db.PurgeExpiredSessions(ctx); err != nil {
+				s.log.Warn("abgelaufene Sitzungen aufräumen", "err", err)
+			} else if n > 0 {
+				s.log.Debug("abgelaufene Sitzungen entfernt", "anzahl", n)
+			}
+			s.limiter.Cleanup()
+		}
+	}
+}
+
+// logSetupHint weist beim Start darauf hin, wenn noch kein Konto existiert.
+func (s *Server) logSetupHint(ctx context.Context) {
+	n, err := s.db.CountUsers(ctx)
+	if err != nil {
+		s.log.Error("benutzer zählen", "err", err)
+		return
+	}
+	if n == 0 {
+		s.log.Warn("noch kein Konto eingerichtet — Setup-Token erzeugen mit: asylum setup-token")
+	}
 }
 
 // startWatchdog pingt systemd, solange der Kontext lebt.
@@ -158,4 +249,49 @@ func (s *Server) startWatchdog(ctx context.Context) (stop func()) {
 		}
 	}()
 	return cancel
+}
+
+// hub verteilt Snapshots an alle offenen SSE-Verbindungen.
+type hub struct {
+	mu   sync.RWMutex
+	subs map[chan metrics.Snapshot]struct{}
+}
+
+func newHub() *hub {
+	return &hub{subs: make(map[chan metrics.Snapshot]struct{})}
+}
+
+func (h *hub) subscribe() chan metrics.Snapshot {
+	ch := make(chan metrics.Snapshot, 1)
+	h.mu.Lock()
+	h.subs[ch] = struct{}{}
+	h.mu.Unlock()
+	return ch
+}
+
+func (h *hub) unsubscribe(ch chan metrics.Snapshot) {
+	h.mu.Lock()
+	delete(h.subs, ch)
+	h.mu.Unlock()
+	close(ch)
+}
+
+// broadcast schickt nicht-blockierend: Ein langsamer Client überspringt einen
+// Takt, statt den Sampler für alle anderen aufzuhalten.
+func (h *hub) broadcast(snap metrics.Snapshot) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for ch := range h.subs {
+		select {
+		case ch <- snap:
+		default:
+		}
+	}
+}
+
+func (h *hub) count() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.subs)
 }

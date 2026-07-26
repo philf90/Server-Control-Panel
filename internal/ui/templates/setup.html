@@ -1,0 +1,23 @@
+{{define "setup"}}{{template "header" .}}
+<div class="card auth">
+  <h1>Ersteinrichtung</h1>
+  <p>Dieses Konto erhält die Rolle <strong>Owner</strong> und damit alle Rechte.</p>
+
+  <form method="post" action="/setup" autocomplete="on">
+    <input type="hidden" name="token" value="{{.Content.Token}}">
+
+    <label for="username">Anmeldename</label>
+    <input type="text" id="username" name="username" autocomplete="username" autofocus required
+           minlength="3" maxlength="32" pattern="[A-Za-z0-9._\-]+">
+
+    <label for="password">Passwort</label>
+    <input type="password" id="password" name="password" autocomplete="new-password" required minlength="12">
+    <p class="hint">Mindestens 12 Zeichen. Eine Passphrase aus mehreren Wörtern ist besser als Sonderzeichen-Akrobatik.</p>
+
+    <label for="password_confirm">Passwort wiederholen</label>
+    <input type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" required minlength="12">
+
+    <button type="submit">Konto anlegen</button>
+  </form>
+</div>
+{{template "footer" .}}{{end}}

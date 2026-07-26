@@ -127,11 +127,32 @@ reicht ein Ringpuffer im RAM (z. B. 24 h in 30-s-Auflösung ≈ wenige MB). Wer 
 Langzeit-Metriken will, exportiert nach Prometheus — dafür gibt es bessere Tools als
 ein Control Panel.
 
+### Argon2 und das Speicherbudget
+
+Die beiden Zusagen „Argon2id mit ordentlichen Parametern" und „unter 40 MB im
+Leerlauf" stehen sich im Weg: Jede Passwortprüfung belegt kurzzeitig die volle
+Argon2-Speichermenge, und Go gibt freigewordene Heap-Bereiche nur zögerlich an das
+Betriebssystem zurück. Ohne Gegenmaßnahme bleibt die Grundlast nach der ersten
+Anmeldung dauerhaft erhöht — gemessen 80 MB statt 16 MB.
+
+Drei Entscheidungen lösen das, ohne die Passwortsicherheit anzutasten:
+
+1. **32 MiB statt der oft zitierten 64 MiB.** Immer noch deutlich über der
+   OWASP-Mindestempfehlung von 19 MiB.
+2. **Berechnungen werden serialisiert.** Der Spitzenbedarf ist damit genau einmal
+   die Argon2-Menge, unabhängig von der Zahl gleichzeitiger Anmeldeversuche. Ohne
+   diese Schranke wäre die Anmeldeseite ein bequemer Speicher-Erschöpfungsangriff.
+3. **Nach jeder Berechnung wird der Speicher aktiv zurückgegeben.** Als Lastangriff
+   taugt das nicht: Die Argon2-Berechnung selbst kostet ein Vielfaches eines
+   Sammellaufs, und die Ratenbegrenzung deckelt die Versuche zusätzlich.
+
+Ergebnis: 16 MB Grundlast, die auch nach Anmeldungen dort bleibt.
+
 ## Sicherheitsgrundlagen
 
 | Bereich | Umsetzung |
 |---|---|
-| Passwörter | Argon2id (`m=64MB, t=3, p=2`), kein SHA-basierter Fallback |
+| Passwörter | Argon2id (`m=32MiB, t=3, p=2`), serialisiert, kein SHA-basierter Fallback |
 | 2FA | TOTP, beim ersten Login erzwungen; Recovery-Codes einmalig anzeigbar |
 | Sessions | HttpOnly, Secure, SameSite=Strict, serverseitig in SQLite, absolute + idle Expiry |
 | CSRF | Double-Submit-Token für alle mutierenden Requests |

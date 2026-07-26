@@ -1,0 +1,22 @@
+{{define "login"}}{{template "header" .}}
+<div class="card auth">
+  <h1>Project Asylum</h1>
+  <p class="claim">Administration · Security · YAML · Logs · Updates · Monitoring</p>
+
+  <form method="post" action="/login" autocomplete="on">
+    <label for="username">Anmeldename</label>
+    <input type="text" id="username" name="username" value="{{.Content.Username}}"
+           autocomplete="username" autofocus required>
+
+    <label for="password">Passwort</label>
+    <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+    <label for="code">Code aus der Authenticator-App</label>
+    <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+           pattern="[0-9a-zA-Z\-]*" placeholder="123456">
+    <p class="hint">Ein Wiederherstellungscode wird hier ebenfalls angenommen.</p>
+
+    <button type="submit">Anmelden</button>
+  </form>
+</div>
+{{template "footer" .}}{{end}}

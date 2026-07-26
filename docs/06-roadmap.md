@@ -55,6 +55,35 @@ Installer die Installation, sofern nicht ausdrücklich
 SQLite mit Migrationen, Argon2id, TOTP, Sessions, CSRF, RBAC, Audit-Log,
 Setup-Token-Flow, Metriken-Sampler mit Ringpuffer, Dashboard mit SSE.
 
+**Stand: umgesetzt.**
+
+| Kennzahl | Grenze | Ist |
+|---|---|---|
+| Binärgröße | < 30 MB | 13 MB |
+| RSS im Leerlauf | < 40 MB | 15,9 MB |
+| RSS nach Anmeldungen | < 40 MB | 15,9 MB (siehe [02](02-architektur.md#argon2-und-das-speicherbudget)) |
+| Anmeldedauer | — | 39 ms |
+| Direkte Abhängigkeiten | < 25 | 5 |
+
+Der vollständige Ablauf wurde gegen die laufende Instanz geprüft: Setup-Token →
+Kontoanlage → TOTP-Einrichtung mit QR-Code → Wiederherstellungscodes → Abmelden →
+Anmelden mit zweitem Faktor → Live-Metriken über SSE. Der TOTP-Code für die Prüfung
+stammte aus einer unabhängigen Python-Implementierung, die Go-Seite hat ihn
+akzeptiert; zusätzlich laufen die Testvektoren aus RFC 6238 in der Testsuite.
+
+Zwei Dinge wurden dabei gefunden und behoben:
+
+- **Der Live-Kanal war tot.** Die Logging-Middleware umhüllt den `ResponseWriter`,
+  und die Hülle war kein `http.Flusher` — Server-Sent Events liefen deshalb in einen
+  Fehler. Behoben über `http.NewResponseController` und eine `Unwrap`-Methode; ein
+  Regressionstest läuft nun bewusst durch die vollständige Middleware-Kette, weil
+  ein Test direkt gegen den Handler die Lücke nicht gesehen hätte.
+- **Die Grundlast lag bei 80 MB** statt der zugesagten 40. Ursache und Lösung stehen
+  in [02-architektur.md](02-architektur.md#argon2-und-das-speicherbudget).
+
+Offen aus M1: Wechsel des zweiten Faktors im laufenden Betrieb (aktuell nur über
+`asylum reset-password`), und eine Ansicht der eigenen aktiven Sitzungen.
+
 ### M2 — Systemmodule (3 Wochen)
 `privops.Executor`, Dienste (systemd/D-Bus), Pakete (apt), Firewall (nftables)
 inklusive Lockout-Schutz, Benutzer & SSH-Keys, journald-Logs.

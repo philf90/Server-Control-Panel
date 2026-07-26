@@ -138,6 +138,48 @@ jobs:
           cp ../src/packaging/minisign.pub minisign.pub
           mkdir -p updates
 
+          # Landingpage. Sobald .nojekyll gesetzt ist, rendert GitHub Pages
+          # keine Markdown-Dateien mehr — ohne index.html liefe die Wurzel der
+          # Domain in einen 404.
+          pubkey="$(tail -n1 minisign.pub)"
+          cat > index.html <<HTML
+          <!doctype html>
+          <html lang="de">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Project Asylum</title>
+          <style>
+          :root{color-scheme:light dark}
+          body{margin:0;padding:3rem 1.25rem;font:16px/1.6 system-ui,sans-serif;
+               max-width:44rem;margin-inline:auto}
+          h1{margin:0;font-size:1.6rem}
+          .claim{margin:.35rem 0 2rem;color:#2f6f4f;font-size:.85rem;font-weight:600}
+          pre{padding:1rem;border-radius:8px;overflow-x:auto;
+              background:rgba(127,127,127,.12)}
+          code{font-family:ui-monospace,Menlo,monospace;font-size:.9em}
+          footer{margin-top:2.5rem;font-size:.8rem;opacity:.7}
+          </style>
+          </head>
+          <body>
+          <h1>Project Asylum</h1>
+          <p class="claim">Administration · Security · YAML · Logs · Updates · Monitoring</p>
+          <p>Schlankes Control Panel für Ubuntu- und Debian-Server. Ein Binary,
+          keine Runtime-Abhängigkeiten.</p>
+          <pre><code>curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
+          sudo bash install.sh</code></pre>
+          <p>Der Installer prüft Signatur und Prüfsumme jedes Artefakts. Öffentlicher
+          Signaturschlüssel (<a href="/minisign.pub">minisign.pub</a>):</p>
+          <pre><code>${pubkey}</code></pre>
+          <footer>
+          Version ${VERSION} · <a href="https://github.com/${REPO}">Quellcode</a> ·
+          <a href="https://github.com/${REPO}/releases/tag/v${VERSION}">Release-Notizen</a> ·
+          Apache-2.0
+          </footer>
+          </body>
+          </html>
+          HTML
+
           sha_for() {
             grep " asylumd_${VERSION}_linux_${1}.tar.gz\$" ../dist/SHA256SUMS | awk '{print $1}'
           }

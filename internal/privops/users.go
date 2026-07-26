@@ -289,7 +289,10 @@ func (s *System) writeAuthorizedKeys(user string, lines []string) error {
 	if err := os.Chown(dir, uid, gid); err != nil && !os.IsPermission(err) {
 		return fmt.Errorf("%s: %w", dir, err)
 	}
-	if err := os.Chmod(dir, 0o700); err != nil {
+	// 0700 statt 0600: Ein Verzeichnis braucht das Ausführungsrecht, sonst ist
+	// es nicht betretbar. sshd besteht zugleich darauf, dass niemand sonst
+	// Zugriff hat.
+	if err := os.Chmod(dir, 0o700); err != nil { //nolint:gosec // Verzeichnis, kein File
 		return fmt.Errorf("%s: %w", dir, err)
 	}
 

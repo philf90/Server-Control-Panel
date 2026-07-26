@@ -44,7 +44,25 @@ func TOTPCode(secret string, t time.Time) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return hotp(key, uint64(t.Unix())/uint64(totpPeriod.Seconds())), nil
+	counter, err := totpCounter(t)
+	if err != nil {
+		return "", err
+	}
+	return hotp(key, counter), nil
+}
+
+// totpCounter bildet den Zeitpunkt auf das Zählfenster ab.
+//
+// Zeiten vor 1970 ergeben einen negativen Wert; ungeprüft in uint64 gewandelt
+// entstünde daraus ein astronomischer Zähler und damit ein Code, der zu nichts
+// passt. Das ist im Betrieb kaum erreichbar — aber eine falsch gestellte
+// Systemuhr ist genau der Fall, in dem man verständliche Fehler braucht.
+func totpCounter(t time.Time) (uint64, error) {
+	secs := t.Unix()
+	if secs < 0 {
+		return 0, fmt.Errorf("die Systemzeit liegt vor 1970 — der zweite Faktor kann so nicht geprüft werden")
+	}
+	return uint64(secs) / uint64(totpPeriod.Seconds()), nil
 }
 
 // VerifyTOTP prüft einen eingegebenen Code gegen das Geheimnis.
@@ -58,12 +76,20 @@ func VerifyTOTP(secret, code string, now time.Time) bool {
 		return false
 	}
 
-	counter := uint64(now.Unix()) / uint64(totpPeriod.Seconds())
+	counter, err := totpCounter(now)
+	if err != nil {
+		return false
+	}
 	// Alle Fenster durchlaufen, ohne früh abzubrechen: Ein Abbruch beim
 	// Treffer würde über die Laufzeit verraten, welches Fenster gepasst hat.
 	var match int
 	for i := -totpSkew; i <= totpSkew; i++ {
-		want := hotp(key, uint64(int64(counter)+int64(i)))
+		// Am unteren Rand nicht ins Negative rutschen: In der ersten halben
+		// Minute nach 1970 gäbe es kein vorheriges Fenster.
+		if i < 0 && counter < uint64(-i) {
+			continue
+		}
+		want := hotp(key, uint64(int64(counter)+int64(i))) //nolint:gosec // Untergrenze eine Zeile darüber geprüft
 		match |= subtle.ConstantTimeCompare([]byte(want), []byte(code))
 	}
 	return match == 1

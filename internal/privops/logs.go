@@ -159,9 +159,14 @@ func journalMessage(v any) string {
 	case []any:
 		buf := make([]byte, 0, len(m))
 		for _, item := range m {
-			if f, ok := item.(float64); ok {
-				buf = append(buf, byte(int(f)))
+			f, ok := item.(float64)
+			// Werte außerhalb eines Bytes stammen aus einer kaputten oder
+			// manipulierten Zeile. Ungeprüft konvertiert würden sie still
+			// überlaufen und andere Zeichen ergeben.
+			if !ok || f < 0 || f > 255 {
+				continue
 			}
+			buf = append(buf, byte(f))
 		}
 		return strings.ToValidUTF8(string(buf), "�")
 	default:

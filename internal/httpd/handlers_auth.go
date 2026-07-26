@@ -12,9 +12,6 @@ import (
 	"rsc.io/qr"
 )
 
-// setupTokenTTL ist die Gültigkeit des einmaligen Setup-Tokens.
-const setupTokenTTL = 60 * time.Minute
-
 // issuer erscheint in der Authenticator-App.
 const totpIssuer = "Project Asylum"
 

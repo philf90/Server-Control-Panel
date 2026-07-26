@@ -8,9 +8,6 @@ on:
 permissions:
   contents: read
 
-env:
-  GO_VERSION: "1.24"
-
 jobs:
   build:
     name: Build und Tests
@@ -20,8 +17,11 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
-          check-latest: true
+          # Version aus go.mod statt fest verdrahtet. Eine Abweichung zwischen
+          # beidem lässt Go zur Laufzeit eine Toolchain nachladen — in dieser
+          # nachgeladenen Toolchain fehlte "covdata", woran der Testlauf
+          # scheiterte, obwohl alle Tests grün waren.
+          go-version-file: go.mod
 
       - name: Formatierung
         run: |
@@ -38,21 +38,37 @@ jobs:
         run: go test -race -coverprofile=coverage.out ./...
 
       - name: Abdeckung der sicherheitsrelevanten Pakete
-        # auth, privops, store, httpd, config und certs tragen die Last der
-        # Angriffsfläche. Sinkt die Abdeckung dort, soll der Build fehlschlagen
-        # und nicht ein Report in einem Dashboard verstauben.
+        # Die Schwellen sind ein Sperrklinken-Mechanismus gegen Rückschritt,
+        # keine runden Wunschzahlen: Sie liegen knapp unter dem heutigen Stand.
+        # Gemessen wird die Statement-Abdeckung aus dem Testlauf — der
+        # Mittelwert über Funktionen wäre irreführend, weil er eine
+        # dreizeilige Funktion so stark gewichtet wie eine dreißigzeilige.
         run: |
-          go tool cover -func=coverage.out | tail -n1
-          for pkg in auth privops store config certs httpd; do
-            pct="$(go tool cover -func=coverage.out \
-                   | grep "/internal/${pkg}/" \
-                   | awk '{gsub("%","",$3); sum+=$3; n++} END {if (n>0) printf "%.0f", sum/n; else print 0}')"
-            echo "internal/${pkg}: ${pct}%"
-            if [ "${pct:-0}" -lt 70 ]; then
-              echo "Abdeckung von internal/${pkg} liegt unter 70 %."
+          set -euo pipefail
+          go test -coverprofile=/dev/null ./... > coverage.txt
+          cat coverage.txt
+
+          check() {
+            pkg="$1"; floor="$2"
+            pct="$(grep -E "internal/${pkg}\s" coverage.txt \
+                   | grep -oE 'coverage: [0-9.]+%' | grep -oE '[0-9.]+' || echo 0)"
+            printf 'internal/%-10s %5s %% (Grenze %s %%)\n' "$pkg" "$pct" "$floor"
+            if [ "$(printf '%.0f' "$pct")" -lt "$floor" ]; then
+              echo "Abdeckung von internal/${pkg} liegt unter ${floor} %."
               exit 1
             fi
-          done
+          }
+
+          # Pakete, die die Angriffsfläche tragen.
+          check auth    85
+          check privops 72
+          check store   78
+          check certs   78
+          check config  82
+          # httpd besteht zu einem großen Teil aus Anzeigelogik; die
+          # sicherheitsrelevanten Pfade darin (Sitzung, CSRF, Rollen) sind
+          # eigens getestet.
+          check httpd   58
 
       - name: Build
         run: |
@@ -83,10 +99,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
-      - uses: golangci/golangci-lint-action@v6
+          go-version-file: go.mod
+      # v8 ist die erste Fassung, die golangci-lint v2 und dessen
+      # Konfigurationsformat versteht. Mit v6 brach der Job nach 95 ms mit
+      # Code 3 ab: unlesbare Konfiguration.
+      - uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.12
 
   shell:
     name: Shell-Skripte
@@ -106,7 +125,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: go.mod
 
       - name: govulncheck
         run: |

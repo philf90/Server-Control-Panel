@@ -46,8 +46,9 @@ func (s *System) FirewallState(ctx context.Context) (FirewallState, error) {
 func (s *System) ufwState(ctx context.Context) (FirewallState, bool, error) {
 	res, err := s.run(ctx, Command{Name: "ufw", Args: []string{"status", "numbered"}})
 	if err != nil {
-		// ufw ist nicht installiert — kein Fehler, nur kein Backend.
-		return FirewallState{}, false, nil
+		// ufw ist nicht installiert — kein Fehler, nur kein Backend. Der
+		// Aufrufer probiert danach nftables.
+		return FirewallState{}, false, nil //nolint:nilerr // fehlendes Backend ist kein Fehlerfall
 	}
 	if res.ExitCode != 0 {
 		return FirewallState{}, false, nil
@@ -69,7 +70,7 @@ func (s *System) ufwState(ctx context.Context) (FirewallState, bool, error) {
 func (s *System) nftState(ctx context.Context) (FirewallState, bool, error) {
 	res, err := s.run(ctx, Command{Name: "nft", Args: []string{"list", "ruleset"}})
 	if err != nil {
-		return FirewallState{}, false, nil
+		return FirewallState{}, false, nil //nolint:nilerr // fehlendes Backend ist kein Fehlerfall
 	}
 	if res.ExitCode != 0 || strings.TrimSpace(res.Stdout) == "" {
 		return FirewallState{}, false, nil

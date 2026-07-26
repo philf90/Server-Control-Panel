@@ -129,7 +129,10 @@ func (s *Server) Run(ctx context.Context) error {
 		},
 	}
 
-	ln, err := net.Listen("tcp", srv.Addr)
+	// ListenConfig statt net.Listen: Damit bricht auch das Öffnen des Sockets
+	// ab, wenn der Start abgebrochen wird.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", srv.Addr)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", srv.Addr, err)
 	}
@@ -300,10 +303,4 @@ func (h *hub) broadcast(snap metrics.Snapshot) {
 		default:
 		}
 	}
-}
-
-func (h *hub) count() int {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	return len(h.subs)
 }

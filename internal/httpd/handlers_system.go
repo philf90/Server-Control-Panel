@@ -170,7 +170,7 @@ func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 
 	// Eigener Kontext: Der Vorgang überlebt das Ende der Anfrage. Ein
 	// abgebrochenes apt-get hinterlässt ein halb konfiguriertes System.
-	go func() {
+	go func() { //nolint:gosec // eigener Kontext ist hier Absicht, siehe Kommentar oben
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 		defer cancel()
 

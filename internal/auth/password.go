@@ -110,9 +110,15 @@ func VerifyPassword(password, encoded string) (bool, error) {
 	if err != nil {
 		return false, ErrInvalidHash
 	}
+	// Ohne Prüfung ginge eine unsinnige Länge ungebremst in die
+	// Schlüsselableitung — und ein manipulierter Datenbankeintrag könnte
+	// Speicher in beliebiger Höhe anfordern.
+	if len(want) < 16 || len(want) > 1024 {
+		return false, ErrInvalidHash
+	}
 
 	hashSlots <- struct{}{}
-	got := argon2.IDKey([]byte(password), salt, timeCost, memory, threads, uint32(len(want)))
+	got := argon2.IDKey([]byte(password), salt, timeCost, memory, threads, uint32(len(want))) //nolint:gosec // Länge oben auf 16–1024 begrenzt
 	<-hashSlots
 	releaseMemory()
 

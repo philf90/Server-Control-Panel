@@ -11,9 +11,9 @@ import (
 // Schlüssel der settings-Tabelle.
 const (
 	// SettingSetupTokenHash hält den SHA-256 des einmaligen Setup-Tokens.
-	SettingSetupTokenHash = "setup_token_hash"
+	SettingSetupTokenHash = "setup_token_hash" //nolint:gosec // Name des Schlüssels, kein Geheimnis
 	// SettingSetupTokenExpires hält dessen Ablaufzeitpunkt.
-	SettingSetupTokenExpires = "setup_token_expires"
+	SettingSetupTokenExpires = "setup_token_expires" //nolint:gosec // Name des Schlüssels, kein Geheimnis
 )
 
 // SetSetting legt einen Wert ab.

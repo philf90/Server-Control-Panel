@@ -189,7 +189,8 @@ func TestNewTokenIsUnique(t *testing.T) {
 }
 
 func TestHashTokenIsStable(t *testing.T) {
-	if HashToken("abc") != HashToken("abc") {
+	first, second := HashToken("abc"), HashToken("abc")
+	if first != second {
 		t.Error("gleiche Eingabe ergibt unterschiedliche Hashes")
 	}
 	if HashToken("abc") == HashToken("abd") {

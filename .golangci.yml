@@ -6,7 +6,6 @@ linters:
     - bodyclose
     - errorlint
     - gosec
-    - misspell
     - nilerr
     - noctx
     - revive
@@ -22,6 +21,14 @@ linters:
       rules:
         - name: exported
           disabled: true
+    staticcheck:
+      # ST1005 verlangt kleingeschriebene Fehlermeldungen. Die Regel stammt aus
+      # dem englischen Sprachgebrauch; dieses Projekt gibt seine Meldungen auf
+      # Deutsch aus, und dort sind Substantive großzuschreiben. Ein
+      # kleingeschriebenes "paketname" wäre schlicht falsches Deutsch.
+      checks:
+        - all
+        - -ST1005
 
   exclusions:
     rules:
@@ -33,6 +40,10 @@ linters:
 formatters:
   enable:
     - gofmt
+
+# misspell ist bewusst nicht aktiv: Der Wortschatz dieses Projekts ist deutsch,
+# und der Linter meldet "Konfiguration" als Falschschreibung von
+# "Configuration". Rechtschreibprüfung auf Englisch passt hier nicht.
 
 issues:
   max-issues-per-linter: 0

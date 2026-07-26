@@ -107,8 +107,10 @@ func (s *System) PackageUpgrade(ctx context.Context, opts UpgradeOptions, stream
 func (s *System) RebootRequired(ctx context.Context) (RebootState, error) {
 	_ = ctx
 
+	// Fehlt die Markierung, steht kein Neustart an — das ist der Normalfall
+	// und kein Fehler.
 	if _, err := os.Stat("/var/run/reboot-required"); err != nil {
-		return RebootState{}, nil
+		return RebootState{}, nil //nolint:nilerr // fehlende Markierung heißt: kein Neustart nötig
 	}
 	state := RebootState{Required: true}
 

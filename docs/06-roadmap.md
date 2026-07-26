@@ -103,7 +103,7 @@ Dienste, Pakete, Firewall, Systembenutzer samt SSH-Schlüsseln und das Journal.
 |---|---|---|
 | Binärgröße | < 30 MB | 14 MB |
 | Direkte Abhängigkeiten | < 25 | 5 |
-| Testabdeckung `privops` | > 80 % | siehe CI-Schwelle |
+| Testabdeckung `privops` | > 72 % (CI-Schwelle) | 75,5 % |
 
 Zwei Abweichungen von der Planung, beide bewusst und in
 [02-architektur.md](02-architektur.md#abweichung-von-der-ursprünglichen-planung-systemctl-statt-d-bus)
@@ -149,11 +149,21 @@ Diese Werte gehören in die CI, nicht in ein Wiki:
 | Kaltstart bis Ready | < 1 s |
 | Installationsdauer | < 30 s auf einem 1-vCPU-VPS |
 | Direkte Go-Abhängigkeiten | < 25 |
-| Testabdeckung `auth`, `privops`, `update` | > 80 % |
+| Testabdeckung `auth` | > 85 % |
+| Testabdeckung `privops`, `store`, `certs`, `config` | > 72–82 %, je Paket |
+| Testabdeckung `httpd` | > 58 % |
 
 Ein Benchmark-Job misst RSS und Binärgröße bei jedem Release und lässt den Build
 fehlschlagen, wenn eine Grenze gerissen wird. Ohne diesen Zwang wird aus "schlank"
 innerhalb eines Jahres ein Marketingbegriff.
+
+Zur Abdeckung: Gemessen wird die **Statement-Abdeckung** aus dem Testlauf, nicht
+der Mittelwert über Funktionen — letzterer gewichtet eine dreizeilige Funktion so
+stark wie eine dreißigzeilige und ist damit leicht zu schönen. Die Schwellen liegen
+bewusst knapp unter dem jeweils erreichten Stand: Sie sind eine Sperrklinke gegen
+Rückschritt, keine runden Wunschzahlen. `httpd` liegt niedriger, weil das Paket zu
+großen Teilen aus Anzeigelogik besteht; die sicherheitsrelevanten Pfade darin
+(Sitzung, CSRF, Rollen) sind eigens getestet.
 
 ## Risiken
 

@@ -1,0 +1,47 @@
+{{define "index"}}<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Asylum</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Project Asylum</h1>
+    <p class="claim">Administration · Security · YAML · Logs · Updates · Monitoring</p>
+  </header>
+
+  <section class="card">
+    <h2>Der Dienst läuft</h2>
+    <dl>
+      <dt>Version</dt><dd><code>{{.Version}}</code></dd>
+      <dt>Host</dt><dd><code>{{.Hostname}}</code></dd>
+      <dt>Läuft seit</dt><dd>{{.Uptime}}</dd>
+    </dl>
+  </section>
+
+  <section class="card note">
+    <h2>Meilenstein M0</h2>
+    <p>
+      Dieses Release enthält bewusst noch keine Verwaltungsfunktionen. Es stellt
+      sicher, dass Installation, TLS, systemd-Integration und der Update-Pfad
+      funktionieren, bevor die ersten Module gebaut werden.
+    </p>
+    <p>
+      Als Nächstes kommt <strong>M1</strong>: Anmeldung mit Argon2id und TOTP,
+      Rollen, Audit-Log und das Dashboard.
+    </p>
+  </section>
+
+  <footer>
+    <p>
+      Das Zertifikat ist beim ersten Start selbstsigniert erzeugt worden. Die
+      Browserwarnung ist erwartbar — den Fingerprint zeigt
+      <code>asylumd version --fingerprint</code>.
+    </p>
+  </footer>
+</main>
+</body>
+</html>{{end}}

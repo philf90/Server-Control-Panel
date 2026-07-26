@@ -1,0 +1,51 @@
+# Diese Unit gehört zum .deb-Paket und verwendet deshalb die FHS-Pfade unter
+# /usr/lib. Der curl-Installer schreibt sich eine eigene, inhaltsgleiche Unit
+# mit /usr/local-Pfaden — beide Installationswege kommen sich nicht ins Gehege.
+
+[Unit]
+Description=Project Asylum — Control Panel
+Documentation=https://github.com/philf90/Server-Control-Panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+ExecStart=/usr/lib/asylum/asylumd serve --config /etc/asylum/config.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+WatchdogSec=30s
+TimeoutStartSec=60s
+TimeoutStopSec=30s
+
+# Das Panel verwaltet den Host, braucht also root. Die folgenden Einstellungen
+# begrenzen den Schaden, ohne die Verwaltungsaufgaben zu blockieren.
+# NoNewPrivileges bleibt aus: apt, useradd und passwd rufen setuid-Programme auf.
+NoNewPrivileges=no
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+# Selbstverpflichtung: Das Panel darf nicht unbemerkt fett werden.
+# Wird das Limit erreicht, ist das ein Bug, kein Anlass zum Hochsetzen.
+MemoryMax=256M
+TasksMax=256
+
+# Schreibzugriff auf die eigenen Verzeichnisse trotz ProtectSystem=full.
+ReadWritePaths=/etc/asylum /var/lib/asylum /var/log/asylum
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=asylumd
+
+[Install]
+WantedBy=multi-user.target

@@ -35,6 +35,22 @@ Diese Reihenfolge ist bewusst gewählt: Deployment und Update-Pfad sind die
 schwierigsten Teile eines Panels und werden am häufigsten zu spät gebaut. Wer sie
 zuerst hat, kann jedes Feature ab Tag eins real ausliefern.
 
+**Stand: umgesetzt.** Gemessen am gebauten Binary:
+
+| Kennzahl | Grenze | Ist |
+|---|---|---|
+| Binärgröße | < 30 MB | 8,4 MB |
+| RSS im Leerlauf | < 40 MB | 10,2 MB |
+| Direkte Abhängigkeiten | < 25 | 1 (`gopkg.in/yaml.v3`) |
+
+Verifiziert wurde außerdem: HTTP/2 über TLS 1.3, Erzeugung und Wiederverwendung des
+selbstsignierten Zertifikats, Sicherheitsheader, `/healthz` mit Versionsangabe,
+geordnetes Herunterfahren auf SIGTERM. Offen bis zum ersten Tag: der
+minisign-Schlüssel muss erzeugt, als `MINISIGN_KEY`-Secret hinterlegt und der
+Public Key in `packaging/install.sh` eingesetzt werden — bis dahin verweigert der
+Installer die Installation, sofern nicht ausdrücklich
+`ASYLUM_SKIP_SIGNATURE=1` gesetzt wird.
+
 ### M1 — Auth & Dashboard (2 Wochen)
 SQLite mit Migrationen, Argon2id, TOTP, Sessions, CSRF, RBAC, Audit-Log,
 Setup-Token-Flow, Metriken-Sampler mit Ringpuffer, Dashboard mit SSE.

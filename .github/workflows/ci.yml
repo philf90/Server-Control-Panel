@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.24"
+
+jobs:
+  build:
+    name: Build und Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Formatierung
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Nicht formatiert:"; echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Tests
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Abdeckung der sicherheitsrelevanten Pakete
+        # config, certs und httpd tragen die Last der Angriffsfläche. Sinkt die
+        # Abdeckung dort, soll der Build fehlschlagen und nicht ein Report in
+        # einem Dashboard verstauben.
+        run: |
+          go tool cover -func=coverage.out | tail -n1
+          for pkg in config certs httpd; do
+            pct="$(go tool cover -func=coverage.out \
+                   | grep "/internal/${pkg}/" \
+                   | awk '{gsub("%","",$3); sum+=$3; n++} END {if (n>0) printf "%.0f", sum/n; else print 0}')"
+            echo "internal/${pkg}: ${pct}%"
+            if [ "${pct:-0}" -lt 70 ]; then
+              echo "Abdeckung von internal/${pkg} liegt unter 70 %."
+              exit 1
+            fi
+          done
+
+      - name: Build
+        run: |
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH="$arch" \
+              go build -trimpath -ldflags "-s -w" -o "/tmp/asylumd_${arch}" ./cmd/asylumd
+          done
+          ls -l /tmp/asylumd_*
+
+      - name: Binärgröße prüfen
+        # Grenze aus docs/06-roadmap.md. Sie steht hier, damit "schlank" eine
+        # Zusage bleibt und kein Marketingbegriff wird.
+        run: |
+          max=$((30 * 1024 * 1024))
+          for f in /tmp/asylumd_amd64 /tmp/asylumd_arm64; do
+            size="$(stat -c%s "$f")"
+            echo "$(basename "$f"): $((size / 1024 / 1024)) MB"
+            if [ "$size" -gt "$max" ]; then
+              echo "Binärgröße überschreitet 30 MB."
+              exit 1
+            fi
+          done
+
+  lint:
+    name: Linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  shell:
+    name: Shell-Skripte
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck packaging/install.sh packaging/nfpm/*.sh
+
+  security:
+    name: Schwachstellen und Lizenzen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      - name: Lizenzen der Abhängigkeiten
+        # Kein GPL-/AGPL-Code im statisch gelinkten Binary — siehe
+        # docs/07-name-lizenz-domain.md.
+        run: |
+          go install github.com/google/go-licenses@latest
+          go-licenses check ./... \
+            --disallowed_types=forbidden,restricted,reciprocal

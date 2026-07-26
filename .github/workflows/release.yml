@@ -1,0 +1,158 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  GO_VERSION: "1.24"
+
+jobs:
+  release:
+    name: Bauen, signieren, veröffentlichen
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Tests vor dem Release
+        run: go test ./...
+
+      - name: minisign bereitstellen
+        env:
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+        run: |
+          if [ -z "$MINISIGN_KEY" ]; then
+            echo "Secret MINISIGN_KEY fehlt — ohne Signatur wird nicht veröffentlicht."
+            exit 1
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq minisign
+          umask 077
+          printf '%s' "$MINISIGN_KEY" > "${RUNNER_TEMP}/minisign.key"
+
+      - uses: anchore/sbom-action/download-syft@v0
+
+      - name: Version bestimmen
+        id: meta
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MINISIGN_KEY_FILE: ${{ runner.temp }}/minisign.key
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
+
+      - name: Artefakte für den Pages-Job sichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/SHA256SUMS
+            dist/SHA256SUMS.minisig
+            dist/*.deb
+          retention-days: 1
+
+  publish:
+    name: repo.cloudsrv24.de aktualisieren
+    needs: release
+    runs-on: ubuntu-latest
+    # Vorabversionen landen nicht im Stable-Kanal.
+    steps:
+      - name: Quellstand des Tags auschecken
+        uses: actions/checkout@v4
+        with:
+          path: src
+
+      - name: Pages-Branch auschecken
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Kanal bestimmen
+        id: channel
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          case "$VERSION" in
+            *-*) echo "name=beta"   >> "$GITHUB_OUTPUT" ;;
+            *)   echo "name=stable" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Installer und Update-Metadaten schreiben
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          CHANNEL: ${{ steps.channel.outputs.name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd pages
+
+          # CNAME und .nojekyll gehören der Pages-Konfiguration und werden hier
+          # niemals angefasst.
+          test -f CNAME || echo "WARNUNG: CNAME fehlt im Pages-Branch"
+          touch .nojekyll
+
+          cp ../src/packaging/install.sh install.sh
+          chmod 0644 install.sh
+          mkdir -p updates
+
+          sha_for() {
+            grep " asylumd_${VERSION}_linux_${1}.tar.gz\$" ../dist/SHA256SUMS | awk '{print $1}'
+          }
+          base="https://github.com/${REPO}/releases/download/v${VERSION}"
+
+          cat > "updates/${CHANNEL}.json" <<JSON
+          {
+            "version": "${VERSION}",
+            "released_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "min_upgradable_from": "0.1.0",
+            "notes_url": "https://github.com/${REPO}/releases/tag/v${VERSION}",
+            "severity": "normal",
+            "artifacts": {
+              "linux_amd64": {
+                "url": "${base}/asylumd_${VERSION}_linux_amd64.tar.gz",
+                "sha256": "$(sha_for amd64)"
+              },
+              "linux_arm64": {
+                "url": "${base}/asylumd_${VERSION}_linux_arm64.tar.gz",
+                "sha256": "$(sha_for arm64)"
+              }
+            }
+          }
+          JSON
+
+          python3 -m json.tool "updates/${CHANNEL}.json" >/dev/null
+
+      - name: Veröffentlichen
+        run: |
+          cd pages
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Keine Änderungen."
+            exit 0
+          fi
+          git commit -m "chore(pages): Release ${{ needs.release.outputs.version }}"
+          git push

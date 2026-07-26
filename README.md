@@ -7,10 +7,11 @@ Ein schlankes, ressourcenschonendes Control Panel für Linux-Server (primär Ubu
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: Konzeptphase.** Dieses Repository enthält aktuell nur die technische
-> Konzeption. Es gibt noch keinen lauffähigen Code. Ziel dieser Phase ist es,
-> Sprachwahl, Funktionsumfang, Setup- und Update-Mechanik festzuzurren, bevor die
-> erste Zeile Produktivcode entsteht.
+> **Status: M0 — Grundgerüst.** Installation, TLS, systemd-Integration und der
+> Release-Pfad stehen und sind lauffähig. Verwaltungsfunktionen gibt es noch
+> keine: Anmeldung, Rollen und das Dashboard kommen mit M1. Diese Reihenfolge ist
+> Absicht — Deployment und Update sind die schwierigsten Teile eines Panels und
+> werden sonst zu spät gebaut.
 
 ## Zielbild
 
@@ -19,12 +20,34 @@ curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o i
 sudo bash install.sh
 ```
 
-Nach ca. 20 Sekunden: ein einzelner, statisch gelinkter Daemon (~15–25 MB RSS im
-Leerlauf), als systemd-Service eingerichtet, erreichbar unter
-`https://<server-ip>:8443` mit generiertem Admin-Passwort und aktiviertem 2FA-Setup.
+Danach: ein einzelner, statisch gelinkter Daemon, als systemd-Service eingerichtet
+und über HTTPS erreichbar. Gemessen am aktuellen Stand — 8,4 MB Binary, 10,2 MB RSS
+im Leerlauf, TLS 1.3 mit selbstsigniertem Zertifikat beim ersten Start.
 
 Keine Runtime-Abhängigkeiten. Kein Docker-Zwang. Kein PHP-Stack. Kein Node auf dem
 Zielserver.
+
+## Entwicklung
+
+```bash
+make check     # formatieren, vet, Tests mit Race-Detector
+make build     # Binary nach bin/asylumd
+make run       # lokal auf https://127.0.0.1:8443, Daten unter ./.local
+make dist      # Release-Artefakte lokal (goreleaser --snapshot)
+```
+
+Voraussetzung ist Go 1.24 oder neuer. Eine einzige direkte Abhängigkeit
+(`gopkg.in/yaml.v3`), alles Weitere ist Standardbibliothek.
+
+```
+cmd/asylumd/          Einstiegspunkt: serve | migrate | version
+internal/config/      Konfiguration laden, Umgebung, Validierung
+internal/certs/       selbstsigniertes TLS-Material, Fingerprint
+internal/httpd/       Router, Middleware, Handler
+internal/systemd/     sd_notify und Watchdog ohne cgo
+internal/ui/          Templates und Assets (embed)
+packaging/            install.sh, systemd-Unit, .deb-Skripte
+```
 
 ## Leitplanken
 

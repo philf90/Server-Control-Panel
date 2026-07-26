@@ -47,6 +47,7 @@ Zielserver.
 | [docs/05-updates.md](docs/05-updates.md) | Release-Kanäle, Update-Wege, Migrationen, Rollback |
 | [docs/06-roadmap.md](docs/06-roadmap.md) | Meilensteine und offene Entscheidungen |
 | [docs/07-name-lizenz-domain.md](docs/07-name-lizenz-domain.md) | Namensfindung, Lizenzfolgen, Projekt-Domain |
+| [docs/08-runbook-domain.md](docs/08-runbook-domain.md) | Runbook: DNS-Verifizierung und GitHub Pages einrichten |
 
 ## Stand der Entscheidungen
 

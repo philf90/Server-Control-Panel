@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -343,5 +344,102 @@ func TestParseDomains(t *testing.T) {
 	}
 	if leer, err := parseDomains("  \n "); err != nil || leer != nil {
 		t.Errorf("leere Eingabe = %v, %v — erwartet nil, nil", leer, err)
+	}
+}
+
+// pruefeHook nimmt nur absolute Pfade auf ausführbare Dateien an und gibt sie
+// normalisiert zurück. Ein Hook läuft als root; ein relativer Pfad hinge davon
+// ab, in welchem Verzeichnis der Dienst gerade steht, und ein Tippfehler fiele
+// erst beim Bezug auf — Minuten später, in einer Logzeile.
+func TestPruefeHook(t *testing.T) {
+	dir := t.TempDir()
+
+	skript := filepath.Join(dir, "setze.sh")
+	if err := os.WriteFile(skript, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ohneRecht := filepath.Join(dir, "ohne-recht.sh")
+	if err := os.WriteFile(ohneRecht, []byte("#!/bin/sh\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Der Umweg über ".." ist derselbe Pfad und muss auch so gespeichert
+	// werden — sonst stehen zwei Schreibweisen für dieselbe Datei in der
+	// Konfiguration.
+	umweg := filepath.Join(dir, "unterordner", "..", "setze.sh")
+	got, err := pruefeHook("Setzen", umweg)
+	if err != nil {
+		t.Fatalf("%q: %v", umweg, err)
+	}
+	if got != skript {
+		t.Errorf("= %q, erwartet den normalisierten Pfad %q", got, skript)
+	}
+
+	for _, f := range []struct {
+		name string
+		pfad string
+		will string
+	}{
+		{"leer", "", "fehlt"},
+		{"relativ", "setze.sh", "kein absoluter Pfad"},
+		{"nicht vorhanden", filepath.Join(dir, "gibtesnicht.sh"), "nicht vorhanden"},
+		{"Verzeichnis", dir, "nicht ausführbar"},
+		{"ohne Ausführungsrecht", ohneRecht, "nicht ausführbar"},
+	} {
+		t.Run(f.name, func(t *testing.T) {
+			pfad, err := pruefeHook("Setzen", f.pfad)
+			if err == nil {
+				t.Fatalf("%q wurde angenommen", f.pfad)
+			}
+			if pfad != "" {
+				t.Errorf("trotz Fehler kam ein Pfad zurück: %q", pfad)
+			}
+			if !strings.Contains(err.Error(), f.will) {
+				t.Errorf("Meldung = %q, erwartet einen Hinweis auf %q", err, f.will)
+			}
+		})
+	}
+}
+
+// Ein leeres Token-Feld darf einen hinterlegten Zugang nicht löschen: Die
+// Oberfläche zeigt das Token nie zurück, also ist "leer" die Normalanzeige.
+// Würde Speichern es dabei verwerfen, bräche die Erneuerung beim nächsten Mal.
+func TestCloudflareTokenBleibtBeiLeeremFeld(t *testing.T) {
+	dir := t.TempDir()
+	s := &Server{cfg: config.Config{Paths: config.Paths{Data: dir}}}
+
+	pfad, err := s.cloudflareToken("geheim-123", config.TLSSettings{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(raw)) != "geheim-123" {
+		t.Errorf("Inhalt = %q", raw)
+	}
+	info, err := os.Stat(pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("Rechte = %o, erwartet 600 — ein API-Schlüssel", info.Mode().Perm())
+	}
+
+	alt := config.TLSSettings{}
+	alt.ACME.DNS01.Cloudflare.APITokenFile = pfad
+	wieder, err := s.cloudflareToken("", alt)
+	if err != nil {
+		t.Fatalf("leeres Feld hat den Zugang verworfen: %v", err)
+	}
+	if wieder != pfad {
+		t.Errorf("= %q, erwartet den bestehenden Pfad %q", wieder, pfad)
+	}
+
+	// Ohne hinterlegtes und ohne eingegebenes Token muss es eine Meldung
+	// geben, statt eine Einstellung zu speichern, die nie funktioniert.
+	if _, err := s.cloudflareToken("", config.TLSSettings{}); err == nil {
+		t.Error("kein Token und kein Fehler")
 	}
 }

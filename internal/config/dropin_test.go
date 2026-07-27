@@ -215,3 +215,106 @@ func TestLeereHauptdateiIstKeinFehler(t *testing.T) {
 		t.Errorf("Vorgaben nicht übernommen: %+v", cfg.Server)
 	}
 }
+
+// TestTLSSettingsOfErgaenztDenModus: Eine Konfiguration ohne ausdrücklichen
+// Modus ist selbstsigniert. Stünde im Formular ein leeres Feld, sähe die
+// Zertifikatsseite so aus, als wäre nichts eingestellt — und ein Speichern
+// würde den Betrieb umstellen, ohne dass jemand etwas ausgewählt hat.
+func TestTLSSettingsOfErgaenztDenModus(t *testing.T) {
+	leer := TLSSettingsOf(Config{})
+	if leer.Mode != TLSModeSelfSigned {
+		t.Errorf("Modus = %q, erwartet %q", leer.Mode, TLSModeSelfSigned)
+	}
+
+	c := Default()
+	c.Server.TLS.Mode = TLSModeACME
+	c.ACME.Email = "admin@example.org"
+	c.ACME.Domains = []string{"panel.example.org"}
+
+	set := TLSSettingsOf(c)
+	if set.Mode != TLSModeACME {
+		t.Errorf("Modus = %q, erwartet %q", set.Mode, TLSModeACME)
+	}
+	if set.ACME.Email != "admin@example.org" || len(set.ACME.Domains) != 1 {
+		t.Errorf("ACME-Werte nicht übernommen: %+v", set.ACME)
+	}
+}
+
+// Ein unlesbares Ergänzungsverzeichnis ist etwas anderes als keines: Hier liegt
+// eine Datei, wo ein Verzeichnis hingehört. Stillschweigend weiterzulaufen
+// hieße, die eingestellten TLS-Werte zu übergehen.
+func TestErgaenzungsverzeichnisIstEineDatei(t *testing.T) {
+	pfad := schreibeConfig(t, "")
+	if err := os.WriteFile(ConfDir(pfad), []byte("kein Verzeichnis\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(pfad)
+	if err == nil {
+		t.Fatal("das Verzeichnis war nicht lesbar, Load meldete aber nichts")
+	}
+	if !strings.Contains(err.Error(), ConfDirName) {
+		t.Errorf("die Meldung nennt das Verzeichnis nicht: %v", err)
+	}
+}
+
+// Im Ergänzungsverzeichnis darf anderes liegen — eine Notiz, ein
+// Sicherungsverzeichnis. Gelesen wird nur *.yaml.
+func TestNurYamlWirdGelesen(t *testing.T) {
+	pfad := schreibeConfig(t, "")
+	dir := ConfDir(pfad)
+	if err := os.MkdirAll(filepath.Join(dir, "sicherung"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for name, inhalt := range map[string]string{
+		"notiz.txt":    "das ist kein YAML: {{{\n",
+		"alt.yaml.bak": "acme:\n  email: alt@example.org\n",
+		"10-tls.yaml":  "acme:\n  email: gilt@example.org\n",
+		"leer.yaml":    "",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(inhalt), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cfg, err := Load(pfad)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.ACME.Email != "gilt@example.org" {
+		t.Errorf("E-Mail = %q — es wurde die falsche Datei gelesen", cfg.ACME.Email)
+	}
+}
+
+// Ein toter Verweis sieht für os.ReadDir aus wie eine gewöhnliche Datei und
+// scheitert erst beim Lesen. Die Meldung muss den Namen nennen, sonst sucht
+// der Betreiber im Falschen.
+func TestUnlesbareErgaenzungMeldetDenNamen(t *testing.T) {
+	pfad := schreibeConfig(t, "")
+	dir := ConfDir(pfad)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "gibtesnicht"), filepath.Join(dir, "20-tot.yaml")); err != nil {
+		t.Skipf("Symlinks nicht verfügbar: %v", err)
+	}
+	_, err := Load(pfad)
+	if err == nil {
+		t.Fatal("die unlesbare Ergänzung wurde übergangen")
+	}
+	if !strings.Contains(err.Error(), "20-tot.yaml") {
+		t.Errorf("die Meldung nennt die Datei nicht: %v", err)
+	}
+}
+
+// WriteManagedTLS darf nicht behaupten, gespeichert zu haben, wenn das
+// Verzeichnis nicht angelegt werden kann — sonst zeigt die Oberfläche einen
+// Erfolg an und der Dienst läuft weiter wie zuvor.
+func TestWriteManagedTLSMeldetVerzeichnisfehler(t *testing.T) {
+	pfad := schreibeConfig(t, "")
+	if err := os.WriteFile(ConfDir(pfad), []byte("kein Verzeichnis\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteManagedTLS(pfad, TLSSettings{Mode: TLSModeACME}); err == nil {
+		t.Fatal("kein Fehler, obwohl nichts geschrieben werden konnte")
+	}
+}

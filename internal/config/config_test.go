@@ -131,3 +131,37 @@ func TestAddrEmptyBindListensEverywhere(t *testing.T) {
 		t.Errorf("Addr() = %q, erwartet %q", got, want)
 	}
 }
+
+// Die ASYLUM_*-Variablen sind die Schnittstelle des Installers: Er schreibt
+// keine Konfigurationsdatei, sondern setzt sie in der systemd-Unit. Kommt eine
+// davon nicht an, läuft der Dienst mit einer Vorgabe weiter, die niemand
+// gewählt hat — etwa mit dem falschen Datenverzeichnis.
+func TestUmgebungsvariablenDesInstallers(t *testing.T) {
+	t.Setenv("ASYLUM_TLS_CERT", "/eigen/panel.crt")
+	t.Setenv("ASYLUM_TLS_KEY", "/eigen/panel.key")
+	t.Setenv("ASYLUM_DATA_DIR", "/srv/asylum")
+	t.Setenv("ASYLUM_LOG_LEVEL", "debug")
+	t.Setenv("ASYLUM_UPDATE_CHANNEL", "beta")
+	t.Setenv("ASYLUM_UPDATE_BASE_URL", "https://updates.example.org")
+
+	cfg, err := Load(schreibeConfig(t, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []struct {
+		name string
+		ist  string
+		soll string
+	}{
+		{"server.tls.cert", cfg.Server.TLS.Cert, "/eigen/panel.crt"},
+		{"server.tls.key", cfg.Server.TLS.Key, "/eigen/panel.key"},
+		{"paths.data", cfg.Paths.Data, "/srv/asylum"},
+		{"log.level", cfg.Log.Level, "debug"},
+		{"updates.channel", cfg.Updates.Channel, "beta"},
+		{"updates.base_url", cfg.Updates.BaseURL, "https://updates.example.org"},
+	} {
+		if f.ist != f.soll {
+			t.Errorf("%s = %q, erwartet %q", f.name, f.ist, f.soll)
+		}
+	}
+}

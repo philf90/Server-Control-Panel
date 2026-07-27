@@ -73,7 +73,7 @@ jobs:
           check privops 72
           check store   78
           check certs   78
-          check config  82
+          check config  88
           # update trägt die Signaturprüfung und den Austausch des Binaries.
           check update  85
           # httpd besteht zu einem großen Teil aus Anzeigelogik; die

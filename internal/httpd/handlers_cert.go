@@ -189,18 +189,18 @@ func (s *Server) parseTLSForm(r *http.Request) (config.TLSSettings, error) {
 				"wählen Sie Hook oder Cloudflare, oder stellen Sie die Prüfmethode zurück")
 		}
 	case config.DNS01ProviderHook:
-		hookSet := strings.TrimSpace(r.PostFormValue("hook_set"))
-		hookClean := strings.TrimSpace(r.PostFormValue("hook_clean"))
-		if err := pruefeHook("Setzen", hookSet); err != nil {
+		hookSet, err := pruefeHook("Setzen", strings.TrimSpace(r.PostFormValue("hook_set")))
+		if err != nil {
 			return set, err
 		}
-		if err := pruefeHook("Aufräumen", hookClean); err != nil {
+		hookClean, err := pruefeHook("Aufräumen", strings.TrimSpace(r.PostFormValue("hook_clean")))
+		if err != nil {
 			return set, err
 		}
 		set.ACME.DNS01.Hook.Set = hookSet
 		set.ACME.DNS01.Hook.Clean = hookClean
 	case config.DNS01ProviderCloudflare:
-		datei, err := s.cloudflareToken(r, alt)
+		datei, err := s.cloudflareToken(strings.TrimSpace(r.PostFormValue("cf_token")), alt)
 		if err != nil {
 			return set, err
 		}
@@ -220,10 +220,9 @@ func (s *Server) parseTLSForm(r *http.Request) (config.TLSSettings, error) {
 // lesbar, ein API-Schlüssel hat dort nichts zu suchen. Wird nichts eingegeben,
 // bleibt das bereits hinterlegte Token bestehen: Ein leeres Feld darf einen
 // funktionierenden Zugang nicht löschen.
-func (s *Server) cloudflareToken(r *http.Request, alt config.TLSSettings) (string, error) {
+func (s *Server) cloudflareToken(token string, alt config.TLSSettings) (string, error) {
 	pfad := filepath.Join(s.cfg.Paths.Data, "acme", "cloudflare.token")
 
-	token := strings.TrimSpace(r.PostFormValue("cf_token"))
 	if token == "" {
 		if fileExists(alt.ACME.DNS01.Cloudflare.APITokenFile) {
 			return alt.ACME.DNS01.Cloudflare.APITokenFile, nil
@@ -234,7 +233,12 @@ func (s *Server) cloudflareToken(r *http.Request, alt config.TLSSettings) (strin
 	if err := os.MkdirAll(filepath.Dir(pfad), 0o700); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(pfad, []byte(token+"\n"), 0o600); err != nil {
+	// gosec meldet hier G703 (Pfaddurchquerung), weil ein Wert aus dem Formular
+	// in den Aufruf fließt. Das ist der Inhalt, nicht der Pfad: "pfad" besteht
+	// aus drei festen Bestandteilen und enthält nichts Eingegebenes. Genau
+	// darum steht das Token in einer eigenen Datei — den Namen bestimmt das
+	// Panel, nicht der Eingebende.
+	if err := os.WriteFile(pfad, []byte(token+"\n"), 0o600); err != nil { //nolint:gosec // siehe oben: eingegeben ist der Inhalt, nicht der Pfad
 		return "", err
 	}
 	return pfad, nil
@@ -245,21 +249,28 @@ func (s *Server) cloudflareToken(r *http.Request, alt config.TLSSettings) (strin
 // Ein Hook ist ein Programm, das der Daemon als root startet. Ein relativer
 // Pfad hinge davon ab, in welchem Verzeichnis der Dienst gerade läuft, und ein
 // Tippfehler fiele erst beim Bezug auf — Minuten später, in einem Logeintrag.
-func pruefeHook(rolle, pfad string) error {
+// Zurück kommt der normalisierte Pfad — er wird so gespeichert, wie er geprüft
+// wurde.
+func pruefeHook(rolle, pfad string) (string, error) {
 	if pfad == "" {
-		return fmt.Errorf("der Pfad zum %s-Skript fehlt", rolle)
+		return "", fmt.Errorf("der Pfad zum %s-Skript fehlt", rolle)
 	}
 	if !filepath.IsAbs(pfad) {
-		return fmt.Errorf("%s: %q ist kein absoluter Pfad", rolle, pfad)
+		return "", fmt.Errorf("%s: %q ist kein absoluter Pfad", rolle, pfad)
 	}
+	// Normalisieren, bevor der Pfad das erste Mal benutzt wird: "/opt/../etc/x"
+	// und "/etc/x" sind dieselbe Datei, sollen aber nicht als zwei verschiedene
+	// Einstellungen in der Konfiguration landen.
+	pfad = filepath.Clean(pfad)
+
 	info, err := os.Stat(pfad)
 	if err != nil {
-		return fmt.Errorf("%s: %q ist nicht vorhanden", rolle, pfad)
+		return "", fmt.Errorf("%s: %q ist nicht vorhanden", rolle, pfad)
 	}
 	if info.IsDir() || info.Mode().Perm()&0o111 == 0 {
-		return fmt.Errorf("%s: %q ist nicht ausführbar", rolle, pfad)
+		return "", fmt.Errorf("%s: %q ist nicht ausführbar", rolle, pfad)
 	}
-	return nil
+	return pfad, nil
 }
 
 // parseDomains liest die Namen, einen je Zeile. Leer ist zulässig und

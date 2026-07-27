@@ -245,9 +245,9 @@ fremde Augen. `SECURITY.md` sagt das ausdrücklich, statt es zu verschweigen.
 
 ### Freigabekandidaten
 
-Der Weg zu 0.1.0 läuft über Vorabversionen im Kanal `beta`. Jede hat bisher
-genau einen Fehler zutage gefördert, den kein Test gefunden hatte — das ist ihr
-Zweck.
+Der Weg zu 0.1.0 läuft über Vorabversionen im Kanal `beta`. Jede hat Fehler
+zutage gefördert, die kein Test gefunden hatte — die späteren fast alle erst im
+Betrieb auf einem echten Server. Genau das ist ihr Zweck.
 
 | Fassung | Gefunden | Behoben in |
 |---|---|---|
@@ -258,16 +258,29 @@ Zweck.
 | `0.1.0-rc.3` | Kein einziger Breakpoint im Stylesheet — auf dem Telefon bricht die Navigation in vier Zeilen um und Tabellen laufen aus dem Rand. | `rc.4` |
 | `0.1.0-rc.3` | ufw wird als inaktiv angezeigt, lässt sich aus dem Panel aber weder installieren noch aktivieren. | `rc.4` |
 | `0.1.0-rc.3` | Drei fast gleichlautende Menüpunkte (`Konten`, `Benutzer`, `Konto`) — die SSH-Schlüsselverwaltung galt deshalb im eigenen Projekt als fehlend. | `rc.4` |
+| `0.1.0-rc.4` | ufw ließ sich nicht einschalten: `ufw status` gibt im ausgeschalteten Zustand keine Regeln aus, das Panel sah seine eigene Portregel nie und verweigerte den Start — der Knopf erschien nie. Ausgeschaltet wird jetzt `ufw show added` gelesen. | `rc.5` |
+| `0.1.0-rc.4` | Die Karten der Übersicht waren verschieden breit; eine IPv6-Adresse zog eine `1fr`-Spur auf. Behoben mit `minmax(0, 1fr)`. | `rc.5` |
+| `0.1.0-rc.5` | Die Auslastungsbalken funktionierten nie: ihre Breite kam aus einem `style`-Attribut, das die CSP verwirft — die Dateisystembalken standen dauerhaft auf 100 %. Jetzt ein `<progress>` mit dem Wert im Attribut. | `rc.6` |
+| `0.1.0-rc.5` | Durchsatzwerte unter 1 KiB standen ungerundet da (`385.76… B/s`): Die Go-Seite schnitt beim Wandeln nach `uint64` ab, die Browserseite nicht. | `rc.6` |
+| `0.1.0-rc.6` | Such- und Filterfelder unter „Dienste" und „Logs" waren ungestylt — `input type="search"` fehlte in der CSS-Regel, der Browser zeichnete sie selbst; dazu klebte „Nach Updates suchen" ohne Abstand an der Bezugsquelle. | `rc.7` |
 
 Die ersten beiden Fehler traten erst auf, als ein Tag gesetzt war. Deshalb läuft
 der betroffene Schritt seit `rc.3` bei jedem CI-Lauf probeweise gegen eine
 Attrappe (`packaging/release-dry-run.sh`).
 
-Die beiden Befunde aus `rc.3` stammen aus der ersten Installation auf einem
-echten, öffentlich erreichbaren Server — bedient vom Telefon. Beide waren in
-der Entwicklungsumgebung unsichtbar: Am Schreibtisch fällt ein fehlender
-Breakpoint nicht auf, und in einem Container ohne systemd zeigt die
-Firewall-Seite ihre Fehlerbehandlung statt eines installierten, inaktiven ufw.
+Die Befunde ab `rc.3` stammen aus dem Betrieb auf einem echten, öffentlich
+erreichbaren Server — häufig vom Telefon aus bedient. Fast alle waren in der
+Entwicklungsumgebung unsichtbar: Am Schreibtisch fällt ein fehlender Breakpoint
+nicht auf, ein Container ohne systemd zeigt statt einer inaktiven Firewall ihre
+Fehlerbehandlung, und ein Auslastungsbalken, den `live.js` nachzieht, sieht
+richtig aus, obwohl sein Wert nie ankam. Für die Messung solcher Fälle schreibt
+`TestDumpSeiten` seit `rc.6` vollständige Seiten mit Beispieldaten heraus.
+
+`rc.7` trägt neben dem Fehler oben einen bewussten Umbau: Die Navigation ist
+jetzt eine nach System, Sicherheit und Betrieb gruppierte Seitenleiste statt
+einer waagerechten Leiste mit zehn gleichrangigen Punkten. Kein Betriebsbefund,
+sondern Vorsorge — zehn Punkte in einer Zeile waren schon knapp, die für v0.2
+geplanten Module würden sie sprengen.
 
 **Für 0.1.0 offen:** ein Freigabekandidat, der bei einem unbeteiligten Tester
 von der Installation bis zur Anmeldung ohne Eingriff durchläuft. Erst der Tag

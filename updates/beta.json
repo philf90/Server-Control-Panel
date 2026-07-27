@@ -1,19 +1,19 @@
 {
-  "version": "0.2.0-rc.3",
-  "released_at": "2026-07-27T10:33:10Z",
+  "version": "0.2.0-rc.4",
+  "released_at": "2026-07-27T11:34:36Z",
   "min_upgradable_from": "",
-  "notes_url": "https://github.com/philf90/Server-Control-Panel/releases/tag/v0.2.0-rc.3",
+  "notes_url": "https://github.com/philf90/Server-Control-Panel/releases/tag/v0.2.0-rc.4",
   "severity": "normal",
-  "checksums_url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.2.0-rc.3/SHA256SUMS",
-  "signature_url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.2.0-rc.3/SHA256SUMS.minisig",
+  "checksums_url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.2.0-rc.4/SHA256SUMS",
+  "signature_url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.2.0-rc.4/SHA256SUMS.minisig",
   "artifacts": {
     "linux_amd64": {
-      "url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.2.0-rc.3/asylumd_0.2.0-rc.3_linux_amd64.tar.gz",
-      "sha256": "c03bfac4ab3df572e54c622aab0ce90294620623a37b5b520484630977b6f5e6"
+      "url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.2.0-rc.4/asylumd_0.2.0-rc.4_linux_amd64.tar.gz",
+      "sha256": "ad6ca12ef76d430d41930f1748aea8efe532460c8365c0b463cfc42eaafeb486"
     },
     "linux_arm64": {
-      "url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.2.0-rc.3/asylumd_0.2.0-rc.3_linux_arm64.tar.gz",
-      "sha256": "d0ec731821b4df34c2b18de32ed89e9518de6465dcd616c601dd1224c52e2c4e"
+      "url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.2.0-rc.4/asylumd_0.2.0-rc.4_linux_arm64.tar.gz",
+      "sha256": "2adf1b4430699fb0b127d9af88763aba4376afd780f231e05599981e9c44321b"
     }
   }
 }

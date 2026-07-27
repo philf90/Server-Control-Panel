@@ -4,35 +4,35 @@ Hash: SHA512
 Architectures: amd64 arm64
 Codename: beta
 Components: main
-Date: Mon, 27 Jul 2026 14:01:44 +0000
+Date: Mon, 27 Jul 2026 16:59:02 +0000
 Description: Project Asylum beta
 Label: Project Asylum
 Origin: Project Asylum
 Suite: beta
 MD5Sum:
- 42b96698b7eecdf491d9b1e655c6fe2b            20160 main/binary-amd64/Packages
- 7035c3e620ba2a6d39af94430322f8b7             5022 main/binary-amd64/Packages.gz
- fa6753e6a50b0a6e84460d54b28845cb            19800 main/binary-arm64/Packages
- 888e81ef2f051543b7272e63d69f534b             4996 main/binary-arm64/Packages.gz
+ 5ac40ad32bbe6838e229906aeeb39d31            21840 main/binary-amd64/Packages
+ 1a7d4b1439e3cfffdc11b6c337b1ee14             5389 main/binary-amd64/Packages.gz
+ fbaa522a982891bf85bc39d45df7308d            21450 main/binary-arm64/Packages
+ 88dc6810cc542b59f9f1e62653405bbf             5354 main/binary-arm64/Packages.gz
 SHA1:
- 09b65a57a3000ffee80617e647e595ea47c21ff2            20160 main/binary-amd64/Packages
- a871e07da5db768e452edb6bff7f23a1901f80d4             5022 main/binary-amd64/Packages.gz
- 350bb4a71865dc3dd79a204bb40105f377ba1be1            19800 main/binary-arm64/Packages
- a0df520ca39f67018515ba979128c856d644451a             4996 main/binary-arm64/Packages.gz
+ a1335b1191f033dbd91bbbceaafbd9a198fc3030            21840 main/binary-amd64/Packages
+ b06ffae9a23e636fc398007dd4747604f621643b             5389 main/binary-amd64/Packages.gz
+ d4cc7257016be09d592479da3186221958d1bb4e            21450 main/binary-arm64/Packages
+ 8a5d5bb803cbf534849981b91f8c1d22389a1aa2             5354 main/binary-arm64/Packages.gz
 SHA256:
- c1a43e9837ba66ab069b1e0e7d2e55b945b331a973d89ff6854a2f427f1694c5            20160 main/binary-amd64/Packages
- 361023913dfed18511b1985057547328b72fad44a00ae6e93980c82beccaa43b             5022 main/binary-amd64/Packages.gz
- 9b0ae274b66bd056328f3c55ad6714d76f50e3b3364598fc8b50048d7096f044            19800 main/binary-arm64/Packages
- 34bfaa856ea8425bc39b4be36c5dbf860983f8df31b7ac8cf3314e7862d44593             4996 main/binary-arm64/Packages.gz
+ 8e8f78f4234462508d2de3bca047a35af5385ffe39b97e0b8f54967145050bec            21840 main/binary-amd64/Packages
+ be4ad0fe3dedf9087daec23a4548bb02a00cbf6141997206e61a52cf4687dfc6             5389 main/binary-amd64/Packages.gz
+ 336f05120537edfd75a8ba63dd4cd35d7eff33e415c200df501619a1e1ed3437            21450 main/binary-arm64/Packages
+ f8a347d409e39ff3b0f4c8c6c0de8e9b575ee2e55c59f9b197fca89d20393483             5354 main/binary-arm64/Packages.gz
 SHA512:
- 6e4d53ff069ebb8fa480ddbb0c3dd567bd53b9e31845ceba34c0a7e1d6abde6888801a927cd17f671dfbfa6ab9e76bc950854fee51800257f507d800e151ad82            20160 main/binary-amd64/Packages
- f68629a6365a5243b63de6d1ae6e6f66e220b8e816e30db94cd75d1bbeb0b95dc47d99eab7df79bd90a65a4822e3fad098eb06a51dbbd37fd72d7a7802118921             5022 main/binary-amd64/Packages.gz
- 58cf14cadf8f4346716fe90467671c4f5bde684d018a24b8e8053815111ca5cfcd9b87f83003a9fdea67e62ac9dbb9853fe6ddd47b461cc35b8226fd8ccdef9c            19800 main/binary-arm64/Packages
- 099ac1344d40bd3d5c6b325a62fbd88a7ff0b802b21199676e2739118b12f0b6db60a272360ea9b4b369b1b075f7d4d41c26e4d6b74c8c53ab6cfdeb1e766e65             4996 main/binary-arm64/Packages.gz
+ b79be9623d1a076a92222fae6b693f05d8e89df7e85b38e212070306e73c1ab930908973df2e5dfef21b27e822022d5702c131d97967c80b8f4bf574d5e8328d            21840 main/binary-amd64/Packages
+ 00b247964a3689a885ed6d1b6093a2701382edd4e03d11697c6744f102fcbb853764420508776e55ea80dd81dc5834e3e7c7b5beb7628a8dde92e1ac184581db             5389 main/binary-amd64/Packages.gz
+ f83697453ac669e32c9a7a6e4f43e3c240c1f2dea04b9f964fce0ddf054e867569b17d9ce3f7deb775ff195a2d31d818b7736c2e07a0ed099b3db2951894829e            21450 main/binary-arm64/Packages
+ ad519c761e855814c73c9ba6760684f4e9d6c62cd81937d79e6d923e0dfca979c84d7148cffd73405e17bc5a1baf55b30a21c56eec95ab842e2eaf8e4dcebca3             5354 main/binary-arm64/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iHUEARYKAB0WIQT8edb7LKgyG7oHHgWsZq8s7rmqGgUCamdkyQAKCRCsZq8s7rmq
-GrnWAQCAH7XvUQfVHlzfIXIXveZASsJoa+7/YybPCAUQUAxBJgEA2FVMw4wmub6G
-FCv5QudZGjF0iI8t3AqXWe+h6qS6ygU=
-=Fmaq
+iHUEARYKAB0WIQT8edb7LKgyG7oHHgWsZq8s7rmqGgUCameOVwAKCRCsZq8s7rmq
+GsVeAP9z6gERswU6dMIzWUEcy67zS58wtPF8vLlqoTAL00BNIAD/eIfxT/4MJK7B
+QFJ0+owk1n3jN4VVjMo96xgcuQpcmQ4=
+=3BIF
 -----END PGP SIGNATURE-----

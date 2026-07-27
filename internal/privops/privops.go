@@ -33,6 +33,8 @@ type Executor interface {
 	// Firewall
 	FirewallState(ctx context.Context) (FirewallState, error)
 	FirewallApply(ctx context.Context, rules []FirewallRule) error
+	FirewallInstall(ctx context.Context, stream LineWriter) error
+	FirewallSetActive(ctx context.Context, active bool) error
 
 	// Systembenutzer und SSH
 	SystemUsers(ctx context.Context) ([]SystemUser, error)
@@ -158,6 +160,11 @@ type FirewallState struct {
 	Rules   []FirewallRule  `json:"rules"`
 	// Managed sagt, ob das Panel den Regelsatz verwaltet oder ihn nur anzeigt.
 	Managed bool `json:"managed"`
+	// Installed sagt, ob das Paket ufw vorhanden ist. Ohne diese Angabe sähen
+	// "nicht installiert" und "installiert, aber kaputt" gleich aus, und die
+	// Oberfläche könnte nicht entscheiden, ob sie zum Installieren oder zum
+	// Aktivieren auffordert.
+	Installed bool `json:"installed"`
 	// Notice erklärt bei nicht verwalteten Regelwerken, warum.
 	Notice string `json:"notice"`
 }

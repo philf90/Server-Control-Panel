@@ -4,8 +4,6 @@ import (
 	"context"
 	"sync"
 	"time"
-
-	"github.com/philf90/asylum/internal/privops"
 )
 
 // maxJobLines begrenzt den mitgeschriebenen Ausgabepuffer eines Jobs.
@@ -140,17 +138,24 @@ func (r *jobs) get(kind string) *job {
 
 // ------------------------------------------------- Firewall-Rückrollschutz ---
 
-// firewallGuard rollt eine Regeländerung zurück, wenn sie nicht bestätigt wird.
+// firewallGuard nimmt eine Firewall-Änderung zurück, wenn sie nicht bestätigt
+// wird.
 //
 // Der häufigste Weg, sich von einem Server auszusperren, ist eine
 // Firewall-Regel, die den eigenen Zugang mit abschneidet — und man merkt es
 // genau dann, wenn man es nicht mehr korrigieren kann. Deshalb gilt jede
 // Änderung zunächst auf Probe: Ohne Bestätigung im Browser stellt das Panel
 // den vorherigen Stand wieder her.
+//
+// Das gilt nicht nur für Regeln. Das Einschalten von ufw ist die gefährlichere
+// der beiden Änderungen, weil dabei mit einem Schlag alles abgewiesen wird, was
+// nicht ausdrücklich erlaubt ist. Der Rückweg ist dann nicht "vorherige Regeln
+// wiederherstellen", sondern "wieder ausschalten" — deshalb merkt sich der
+// Wächter eine Rücknahmefunktion statt eines Regelsatzes.
 type firewallGuard struct {
 	mu       sync.Mutex
 	pending  bool
-	previous []privops.FirewallRule
+	subject  string
 	deadline time.Time
 	cancel   context.CancelFunc
 }
@@ -160,8 +165,9 @@ const firewallConfirmWindow = 60 * time.Second
 
 func newFirewallGuard() *firewallGuard { return &firewallGuard{} }
 
-// arm merkt sich den vorherigen Stand und startet die Frist.
-func (g *firewallGuard) arm(previous []privops.FirewallRule, revert func(context.Context, []privops.FirewallRule) error) {
+// arm startet die Frist. subject benennt für die Oberfläche, was auf Probe
+// steht; revert nimmt es zurück, wenn niemand bestätigt.
+func (g *firewallGuard) arm(subject string, revert func(context.Context) error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -170,7 +176,7 @@ func (g *firewallGuard) arm(previous []privops.FirewallRule, revert func(context
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	g.pending = true
-	g.previous = previous
+	g.subject = subject
 	g.deadline = time.Now().Add(firewallConfirmWindow)
 	g.cancel = cancel
 
@@ -189,15 +195,14 @@ func (g *firewallGuard) arm(previous []privops.FirewallRule, revert func(context
 			g.mu.Unlock()
 			return
 		}
-		rules := g.previous
 		g.pending = false
-		g.previous = nil
+		g.subject = ""
 		g.cancel = nil
 		g.mu.Unlock()
 
 		revertCtx, revertCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer revertCancel()
-		_ = revert(revertCtx, rules)
+		_ = revert(revertCtx)
 	}()
 }
 
@@ -213,9 +218,16 @@ func (g *firewallGuard) confirm() bool {
 		g.cancel()
 	}
 	g.pending = false
-	g.previous = nil
+	g.subject = ""
 	g.cancel = nil
 	return true
+}
+
+// subjectOf benennt, was gerade auf Probe steht.
+func (g *firewallGuard) subjectOf() string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.subject
 }
 
 // state liefert den Zustand für die Oberfläche.

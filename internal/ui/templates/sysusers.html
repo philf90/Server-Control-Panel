@@ -6,8 +6,11 @@
     <span class="muted">{{len .Users}} Konten</span>
   </div>
   <p class="hint">
-    Das sind die Konten des Betriebssystems, nicht die des Panels. Neue Konten
-    bekommen kein Passwort — die Anmeldung läuft über SSH-Schlüssel.
+    Das sind die Konten des Betriebssystems, nicht die des Panels — die stehen
+    unter <a href="/users">Panel-Zugänge</a>. Neue Konten bekommen kein Passwort;
+    die Anmeldung läuft über SSH-Schlüssel. Ein Klick auf die Spalte
+    <strong>Schlüssel</strong> öffnet die Verwaltung der hinterlegten
+    <code>authorized_keys</code> eines Kontos.
   </p>
 
   <div class="table-wrap">
@@ -22,7 +25,7 @@
           <td class="muted">{{.UID}}</td>
           <td class="muted">{{range $i, $g := .Groups}}{{if $i}}, {{end}}{{$g}}{{end}}</td>
           <td class="muted"><code>{{.Shell}}</code></td>
-          <td>{{if .SSHKeys}}{{.SSHKeys}}{{else}}—{{end}}</td>
+          <td><a href="/system-users?user={{.Name}}">{{if .SSHKeys}}{{.SSHKeys}}{{else}}keine{{end}}</a></td>
           <td>{{if .Locked}}<span class="badge">gesperrt</span>{{else if .HasShell}}<span class="badge ok">aktiv</span>{{else}}<span class="muted">kein Login</span>{{end}}</td>
           {{if $.CanWrite}}
           <td class="actions">

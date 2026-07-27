@@ -11,7 +11,9 @@
     return;
   }
 
-  var source = new EventSource("/packages/events");
+  // Die Quelle steht am Element, nicht hier: Dasselbe Skript liest den
+  // Paketvorgang und die ufw-Installation mit.
+  var source = new EventSource(output.dataset.events || "/packages/events");
 
   source.addEventListener("output", function (event) {
     var line;

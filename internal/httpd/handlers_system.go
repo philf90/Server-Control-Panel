@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -82,7 +83,10 @@ func (s *Server) handleServiceAction(w http.ResponseWriter, r *http.Request) {
 
 // ----------------------------------------------------------------- Pakete ---
 
-const jobPackages = "packages"
+const (
+	jobPackages        = "packages"
+	jobFirewallInstall = "firewall-install"
+)
 
 func (s *Server) handlePackages(w http.ResponseWriter, r *http.Request) {
 	s.renderPackages(w, r, http.StatusOK, "", "")
@@ -194,7 +198,18 @@ func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 
 // handlePackageEvents streamt die Ausgabe des laufenden Paketvorgangs.
 func (s *Server) handlePackageEvents(w http.ResponseWriter, r *http.Request) {
-	j := s.jobs.get(jobPackages)
+	s.streamJob(w, r, jobPackages)
+}
+
+// handleFirewallEvents streamt die Ausgabe der ufw-Installation.
+func (s *Server) handleFirewallEvents(w http.ResponseWriter, r *http.Request) {
+	s.streamJob(w, r, jobFirewallInstall)
+}
+
+// streamJob schickt den bisherigen und den folgenden Ausstoß eines Vorgangs
+// als Server-Sent Events.
+func (s *Server) streamJob(w http.ResponseWriter, r *http.Request, kind string) {
+	j := s.jobs.get(kind)
 	if j == nil {
 		http.Error(w, "kein Vorgang", http.StatusNotFound)
 		return
@@ -272,11 +287,26 @@ func (s *Server) renderFirewall(w http.ResponseWriter, r *http.Request, status i
 	}
 
 	pending, remaining := s.fwGuard.state()
-	page := s.base(r, "Firewall", "firewall").with(firewallPage{
+	content := firewallPage{
 		State:            state,
 		Pending:          pending,
+		PendingSubject:   s.fwGuard.subjectOf(),
 		RemainingSeconds: int(remaining.Seconds()),
-	})
+		PanelPort:        s.cfg.Server.Port,
+		PanelPortOpen:    ruleCoversPort(state.Rules, s.cfg.Server.Port),
+		OpenPorts:        openPortSummary(state.Rules),
+	}
+	if j := s.jobs.get(jobFirewallInstall); j != nil {
+		lines, done, jobErr := j.snapshot()
+		content.JobLines = lines
+		content.JobRunning = !done
+		content.JobDone = done
+		if jobErr != nil {
+			content.JobError = jobErr.Error()
+		}
+	}
+
+	page := s.base(r, "Firewall", "firewall").with(content)
 	if flash != "" {
 		page = page.withFlash(flash)
 	}
@@ -310,27 +340,130 @@ func (s *Server) handleFirewallApply(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("%d Regeln, Bestätigung ausstehend", len(rules)))
 
 	// Auf Probe: ohne Bestätigung wird der vorherige Stand wiederhergestellt.
-	s.fwGuard.arm(before.Rules, func(ctx context.Context, previous []privops.FirewallRule) error {
+	previous := before.Rules
+	s.fwGuard.arm("Regelsatz", func(ctx context.Context) error {
 		s.log.Warn("Firewall-Änderung nicht bestätigt — Rückbau läuft")
-		err := s.ops.FirewallApply(ctx, previous)
-
-		result, detail := store.ResultOK, "automatisch zurückgerollt (keine Bestätigung)"
-		if err != nil {
-			result, detail = store.ResultError, "Rückbau fehlgeschlagen: "+err.Error()
-			s.log.Error("firewall-rückbau", "err", err)
-		}
-		if auditErr := s.db.AppendAudit(context.Background(), store.AuditEntry{
-			At: time.Now(), Actor: "system", Action: "firewall.revert",
-			Result: result, IP: "-", Detail: detail,
-		}); auditErr != nil {
-			s.log.Error("audit-eintrag", "err", auditErr)
-		}
-		return err
+		return s.revertFirewall(ctx, "firewall.revert", s.ops.FirewallApply(ctx, previous))
 	})
 
 	s.renderFirewall(w, r, http.StatusOK,
 		"Die Regeln gelten auf Probe. Ohne Bestätigung innerhalb von 60 Sekunden "+
 			"wird der vorherige Stand wiederhergestellt.", "")
+}
+
+// revertFirewall schreibt das Ergebnis einer Rücknahme ins Audit-Log.
+//
+// Der Rückbau läuft, wenn niemand mehr zusieht — im schlimmsten Fall, weil das
+// Panel nicht mehr erreichbar ist. Wenn er dann auch noch scheitert, ist der
+// Audit-Eintrag die einzige Spur, die davon übrig bleibt.
+func (s *Server) revertFirewall(_ context.Context, action string, err error) error {
+	result, detail := store.ResultOK, "automatisch zurückgerollt (keine Bestätigung)"
+	if err != nil {
+		result, detail = store.ResultError, "Rückbau fehlgeschlagen: "+err.Error()
+		s.log.Error("firewall-rückbau", "err", err)
+	}
+	if auditErr := s.db.AppendAudit(context.Background(), store.AuditEntry{
+		At: time.Now(), Actor: "system", Action: action,
+		Result: result, IP: "-", Detail: detail,
+	}); auditErr != nil {
+		s.log.Error("audit-eintrag", "err", auditErr)
+	}
+	return err
+}
+
+// handleFirewallActivate schaltet ufw ein oder aus.
+//
+// Das Einschalten ist die gefährlichste Aktion, die dieses Panel kennt: ufw
+// weist danach alles ab, was nicht ausdrücklich erlaubt ist — auch die
+// Verbindung, über die gerade geklickt wurde. Bestehende Verbindungen
+// überleben dank Conntrack meist den Moment, der nächste Seitenaufruf aber
+// nicht mehr. Deshalb zwei Sicherungen: Ohne freigegebenen Panel-Port wird die
+// Aktivierung verweigert, und danach gilt sie auf Probe.
+func (s *Server) handleFirewallActivate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	activate := r.PostFormValue("active") == "1"
+
+	state, err := s.ops.FirewallState(ctx)
+	if err != nil {
+		s.renderFirewall(w, r, http.StatusBadGateway, "", err.Error())
+		return
+	}
+	if !state.Installed {
+		s.renderFirewall(w, r, http.StatusBadRequest, "",
+			"ufw ist nicht installiert.")
+		return
+	}
+
+	if activate {
+		if !ruleCoversPort(state.Rules, s.cfg.Server.Port) {
+			s.audit(r, "firewall.activate", "", store.ResultError, "Panel-Port nicht freigegeben")
+			s.renderFirewall(w, r, http.StatusBadRequest, "", fmt.Sprintf(
+				"Für Port %d gibt es keine Regel — das Panel wäre nach dem Einschalten "+
+					"nicht mehr erreichbar, auch nicht zum Bestätigen. Legen Sie die Regel "+
+					"zuerst an.", s.cfg.Server.Port))
+			return
+		}
+	}
+
+	if err := s.ops.FirewallSetActive(ctx, activate); err != nil {
+		s.audit(r, "firewall.activate", "", store.ResultError, err.Error())
+		s.renderFirewall(w, r, http.StatusBadGateway, "", err.Error())
+		return
+	}
+
+	if !activate {
+		// Ausschalten öffnet, es sperrt nicht aus. Keine Probe nötig.
+		s.audit(r, "firewall.activate", "", store.ResultOK, "ufw ausgeschaltet")
+		s.renderFirewall(w, r, http.StatusOK,
+			"ufw ist ausgeschaltet. Der Server nimmt wieder jede eingehende Verbindung an.", "")
+		return
+	}
+
+	s.audit(r, "firewall.activate", "", store.ResultOK, "ufw eingeschaltet, Bestätigung ausstehend")
+	s.fwGuard.arm("Aktivierung", func(ctx context.Context) error {
+		s.log.Warn("Firewall-Aktivierung nicht bestätigt — ufw wird wieder ausgeschaltet")
+		return s.revertFirewall(ctx, "firewall.revert", s.ops.FirewallSetActive(ctx, false))
+	})
+
+	s.renderFirewall(w, r, http.StatusOK, fmt.Sprintf(
+		"ufw ist auf Probe eingeschaltet. Erreichbar bleiben nur: %s. Ohne Bestätigung "+
+			"innerhalb von 60 Sekunden wird ufw wieder ausgeschaltet.",
+		openPortSummary(state.Rules)), "")
+}
+
+// handleFirewallInstall installiert ufw als Hintergrundvorgang.
+func (s *Server) handleFirewallInstall(w http.ResponseWriter, r *http.Request) {
+	user, _ := userFrom(r.Context())
+
+	j, started := s.jobs.start(jobFirewallInstall, user.Username)
+	if !started {
+		s.renderFirewall(w, r, http.StatusConflict, "", "Die Installation läuft bereits.")
+		return
+	}
+	s.audit(r, "firewall.install", "ufw", store.ResultOK, "gestartet")
+
+	// Wie beim Paket-Update: eigener Kontext, damit ein abgebrochener
+	// Seitenaufruf kein halb konfiguriertes dpkg hinterlässt.
+	go func() { //nolint:gosec // eigener Kontext ist hier Absicht
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+		defer cancel()
+
+		err := s.ops.FirewallInstall(ctx, j.append)
+		j.finish(err)
+
+		result, detail := store.ResultOK, "abgeschlossen"
+		if err != nil {
+			result, detail = store.ResultError, err.Error()
+		}
+		if auditErr := s.db.AppendAudit(context.Background(), store.AuditEntry{
+			At: time.Now(), Actor: user.Username, Action: "firewall.install",
+			Target: "ufw", Result: result, IP: "-", Detail: detail,
+		}); auditErr != nil {
+			s.log.Error("audit-eintrag", "err", auditErr)
+		}
+	}()
+
+	http.Redirect(w, r, "/firewall", http.StatusSeeOther)
 }
 
 func (s *Server) handleFirewallConfirm(w http.ResponseWriter, r *http.Request) {
@@ -339,7 +472,44 @@ func (s *Server) handleFirewallConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, "firewall.confirm", "", store.ResultOK, "")
-	s.renderFirewall(w, r, http.StatusOK, "Die Regeln sind bestätigt und bleiben bestehen.", "")
+	s.renderFirewall(w, r, http.StatusOK, "Die Änderung ist bestätigt und bleibt bestehen.", "")
+}
+
+// ruleCoversPort sagt, ob der Regelsatz einen Port von überall her freigibt.
+//
+// Eine auf eine Quelle eingeschränkte Regel zählt hier bewusst nicht: Sie mag
+// den eigenen Zugang decken, aber das lässt sich von hier aus nicht
+// feststellen — und eine Sicherung, die im Zweifel "passt schon" sagt, ist
+// keine.
+func ruleCoversPort(rules []privops.FirewallRule, port int) bool {
+	for _, r := range rules {
+		if r.Port == port && r.Source == "" {
+			return true
+		}
+	}
+	return false
+}
+
+// openPortSummary listet auf, was nach dem Einschalten erreichbar bleibt.
+func openPortSummary(rules []privops.FirewallRule) string {
+	if len(rules) == 0 {
+		return "keine Zugänge"
+	}
+	seen := make(map[string]struct{}, len(rules))
+	parts := make([]string, 0, len(rules))
+	for _, r := range rules {
+		label := fmt.Sprintf("%d/%s", r.Port, r.Protocol)
+		if r.Source != "" {
+			label += " von " + r.Source
+		}
+		if _, dup := seen[label]; dup {
+			continue
+		}
+		seen[label] = struct{}{}
+		parts = append(parts, label)
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, ", ")
 }
 
 // parseRuleForm liest den Regelsatz aus dem Formular.

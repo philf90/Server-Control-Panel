@@ -12,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/philf90/asylum/internal/netinfo"
 )
 
 type cpuTimes struct {
@@ -447,6 +449,9 @@ func interfaceAddrs() map[string][]string {
 func readHost() Host {
 	h := Host{Cores: runtime.NumCPU(), Arch: runtime.GOARCH}
 	h.Hostname, _ = os.Hostname()
+	// Einmal beim Start, nicht je Messung: netinfo.FQDN() fragt im Zweifel
+	// den Resolver, und der Sampler läuft alle 30 Sekunden.
+	h.FQDN = netinfo.FQDN()
 
 	if raw, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil {
 		h.Kernel = strings.TrimSpace(string(raw))

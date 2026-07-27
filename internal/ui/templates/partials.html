@@ -11,19 +11,19 @@
 <nav class="topbar">
   <div class="brand">
     <strong>Asylum</strong>
-    <span class="host">{{.Host.Hostname}}</span>
+    <span class="host">{{.Host.Name}}</span>
   </div>
   <ul class="menu">
     <li><a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>Übersicht</a></li>
     <li><a href="/services" {{if eq .Nav "services"}}class="active"{{end}}>Dienste</a></li>
     <li><a href="/packages" {{if eq .Nav "packages"}}class="active"{{end}}>Pakete</a></li>
     <li><a href="/firewall" {{if eq .Nav "firewall"}}class="active"{{end}}>Firewall</a></li>
-    <li><a href="/system-users" {{if eq .Nav "sysusers"}}class="active"{{end}}>Konten</a></li>
+    <li><a href="/system-users" {{if eq .Nav "sysusers"}}class="active"{{end}}>Systembenutzer</a></li>
     <li><a href="/logs" {{if eq .Nav "logs"}}class="active"{{end}}>Logs</a></li>
     <li><a href="/update" {{if eq .Nav "update"}}class="active"{{end}}>Updates</a></li>
     <li><a href="/audit" {{if eq .Nav "audit"}}class="active"{{end}}>Audit-Log</a></li>
-    {{if .IsOwner}}<li><a href="/users" {{if eq .Nav "users"}}class="active"{{end}}>Benutzer</a></li>{{end}}
-    <li><a href="/account" {{if eq .Nav "account"}}class="active"{{end}}>Konto</a></li>
+    {{if .IsOwner}}<li><a href="/users" {{if eq .Nav "users"}}class="active"{{end}}>Panel-Zugänge</a></li>{{end}}
+    <li><a href="/account" {{if eq .Nav "account"}}class="active"{{end}}>Mein Konto</a></li>
   </ul>
   <form method="post" action="/logout" class="logout">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">

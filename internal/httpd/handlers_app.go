@@ -60,7 +60,7 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, status in
 		}
 	}
 
-	page := s.base(r, "Konto", "account").with(accountPage{
+	page := s.base(r, "Mein Konto", "account").with(accountPage{
 		RecoveryCodesLeft: left,
 		NewCodes:          newCodes,
 		Sessions:          sessions,
@@ -162,7 +162,7 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, status int,
 		s.renderError(w, r, http.StatusInternalServerError, "Die Benutzerliste konnte nicht gelesen werden.")
 		return
 	}
-	page := s.base(r, "Benutzer", "users").with(usersPage{Users: users})
+	page := s.base(r, "Panel-Zugänge", "users").with(usersPage{Users: users})
 	if flash != "" {
 		page = page.withFlash(flash)
 	}

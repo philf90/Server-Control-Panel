@@ -3,12 +3,18 @@
 {{if .Pending}}
 <div class="alert warn-box">
   <strong>Bestätigung ausstehend.</strong>
+  {{if eq .PendingSubject "Aktivierung"}}
+  ufw ist auf Probe eingeschaltet. Ohne Bestätigung wird es in
+  <strong id="fw-countdown" data-seconds="{{.RemainingSeconds}}">{{.RemainingSeconds}}</strong>
+  Sekunden wieder ausgeschaltet.
+  {{else}}
   Die neuen Regeln gelten auf Probe. Ohne Bestätigung wird in
   <strong id="fw-countdown" data-seconds="{{.RemainingSeconds}}">{{.RemainingSeconds}}</strong>
   Sekunden der vorherige Stand wiederhergestellt.
+  {{end}}
   <form method="post" action="/firewall/confirm" class="inline">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <button type="submit">Verbindung besteht — Regeln behalten</button>
+    <button type="submit">Verbindung besteht — so lassen</button>
   </form>
 </div>
 <script src="/static/countdown.js" defer></script>
@@ -24,6 +30,55 @@
   </div>
 
   {{if .State.Notice}}<p class="hint">{{.State.Notice}}</p>{{end}}
+
+  {{if $.CanWrite}}
+  {{if not .State.Installed}}
+  {{if ne .State.Backend "nftables"}}
+  <div class="button-row">
+    <form method="post" action="/firewall/install">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button type="submit">ufw installieren</button>
+    </form>
+    <p class="hint">
+      Installiert das Paket <code>ufw</code> über apt. Danach lässt sich hier ein
+      Regelsatz anlegen und die Firewall einschalten.
+    </p>
+  </div>
+  {{end}}
+  {{else if not .State.Active}}
+  <div class="button-row">
+    {{if .PanelPortOpen}}
+    <form method="post" action="/firewall/active"
+          onsubmit="return confirm('ufw einschalten? Danach ist nur noch erreichbar: {{.OpenPorts}}. Ohne Bestätigung binnen 60 Sekunden wird automatisch wieder ausgeschaltet.')">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="active" value="1">
+      <button type="submit">ufw einschalten</button>
+    </form>
+    <p class="hint">
+      Nach dem Einschalten ist nur noch erreichbar: <strong>{{.OpenPorts}}</strong>.
+      Alles andere wird abgewiesen. Die Änderung gilt zunächst auf Probe —
+      ohne Bestätigung binnen 60 Sekunden schaltet das Panel ufw wieder aus.
+    </p>
+    {{else}}
+    <p class="hint warn-text">
+      <strong>Einschalten ist gesperrt.</strong> Für Port {{.PanelPort}} gibt es
+      keine Regel. Wäre ufw eingeschaltet, wäre das Panel nicht mehr erreichbar
+      — auch nicht, um die Änderung zurückzunehmen. Legen Sie die Regel unten
+      an, dann erscheint der Knopf.
+    </p>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="button-row">
+    <form method="post" action="/firewall/active"
+          onsubmit="return confirm('ufw ausschalten? Der Server nimmt danach jede eingehende Verbindung an.')">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="active" value="0">
+      <button type="submit" class="link danger">ufw ausschalten</button>
+    </form>
+  </div>
+  {{end}}
+  {{end}}
 
   {{if and $.CanWrite .State.Managed}}
   <p class="hint">
@@ -87,5 +142,18 @@
   </div>
   {{end}}
 </div>
+
+{{if or .JobRunning .JobLines}}
+<div class="card">
+  <div class="card-head">
+    <h2>Installation von ufw</h2>
+    <span id="job-status" class="muted">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
+  </div>
+  {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
+  <pre class="logs" id="job-output" data-events="/firewall/events">{{range .JobLines}}{{.}}
+{{end}}</pre>
+</div>
+{{if .JobRunning}}<script src="/static/job.js" defer></script>{{end}}
+{{end}}
 {{end}}
 {{template "footer" .}}{{end}}

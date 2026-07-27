@@ -253,14 +253,141 @@ Zweck.
 | `0.1.0-rc.2` | `min_upgradable_from` stand fest auf `0.1.0` und sperrte damit jeden Beta-Tester aus: Nach SemVer ist die Freigabe neuer als ihre Vorabversionen. | `rc.3` |
 | `0.1.0-rc.2` | Die apt-Anleitung nannte `Suites: stable` — ein Kanal, den es noch nicht gab. | `rc.3` |
 | `0.1.0-rc.2` | Der Link zur Ersteinrichtung nannte den kurzen Rechnernamen ohne Domainendung und war von außen unbrauchbar; der vollqualifizierte Name fehlte zudem im Zertifikat. | `rc.3` |
+| `0.1.0-rc.3` | Kein einziger Breakpoint im Stylesheet — auf dem Telefon bricht die Navigation in vier Zeilen um und Tabellen laufen aus dem Rand. | `rc.4` |
+| `0.1.0-rc.3` | ufw wird als inaktiv angezeigt, lässt sich aus dem Panel aber weder installieren noch aktivieren. | `rc.4` |
 
 Die ersten beiden Fehler traten erst auf, als ein Tag gesetzt war. Deshalb läuft
 der betroffene Schritt seit `rc.3` bei jedem CI-Lauf probeweise gegen eine
 Attrappe (`packaging/release-dry-run.sh`).
 
+Die beiden Befunde aus `rc.3` stammen aus der ersten Installation auf einem
+echten, öffentlich erreichbaren Server — bedient vom Telefon. Beide waren in
+der Entwicklungsumgebung unsichtbar: Am Schreibtisch fällt ein fehlender
+Breakpoint nicht auf, und in einem Container ohne systemd zeigt die
+Firewall-Seite ihre Fehlerbehandlung statt eines installierten, inaktiven ufw.
+
 **Für 0.1.0 offen:** ein Freigabekandidat, der bei einem unbeteiligten Tester
 von der Installation bis zur Anmeldung ohne Eingriff durchläuft. Erst der Tag
 ohne Bindestrich legt den Kanal `stable` an.
+
+---
+
+## Umsetzungsplan bis 0.3.0
+
+### rc.4 — Befunde aus der echten Installation
+
+Kein neues Feature; nur das, was der Betrieb auf einem echten Server gezeigt
+hat.
+
+**1. Responsives Layout.** `internal/ui/static/app.css` hat 399 Zeilen und genau
+einen `@media`-Block — für Dark Mode. Es gibt keinen einzigen Breakpoint. Das
+`viewport`-Meta ist korrekt gesetzt, das Layout dahinter nicht.
+
+- Breakpoints bei ~600 px und ~900 px; die Topbar unterhalb davon als
+  eingeklapptes Menü statt als umbrechende Liste.
+- Tabellen unter 600 px als Karten, eine je Zeile, Spaltenname als Label.
+  `overflow-x: auto` allein genügt nicht: Eine seitlich scrollende Tabelle ist
+  bedienbar, aber man sieht ihr nicht an, dass rechts noch etwas steht.
+- Zahlenspalten (`0,5 %`, `5,5 GiB`) gegen Umbruch schützen.
+- Dienste- und Paketlisten mit kompakteren Zeilen; Suche und Filter oben
+  festhalten. 159 Units bei zehn sichtbaren Zeilen sind keine Liste, sondern ein
+  Scrollband.
+- Nachweis über einen echten Browser bei 375, 414, 768 und 1280 px.
+
+**2. Firewall: Zustand erkennen *und* handeln können.** Heute unterscheidet
+`privops.FirewallState` drei Fälle, aber zu keinem gibt es eine Handlung.
+
+- Installation über `dpkg-query` feststellen, statt sie aus dem Fehlschlag des
+  Aufrufs zu erschließen.
+- Fehlt das Paket: Installation über das vorhandene Paketmodul anbieten, statt
+  eine Kommandozeile zum Abtippen zu drucken.
+- Ist ufw installiert und inaktiv: **Aktivieren.** Bisher lässt das Panel den
+  Regelsatz speichern und schreibt daneben, dass er nicht greift — die
+  schlechteste der möglichen Antworten.
+- **Sicherheitskritisch:** `ufw enable` bei voreingestelltem `deny incoming`
+  ohne SSH-Regel sperrt den Bedienenden sofort aus. Die Aktivierung läuft
+  deshalb durch dieselbe 60-Sekunden-Probe mit selbsttätigem Rückweg wie jede
+  Regeländerung und verweigert sich, solange weder SSH- noch Panel-Port
+  freigegeben sind.
+
+**3. Navigation entwirren.** Drei fast gleichlautende Einträge nebeneinander —
+`Konten` (Systembenutzer), `Benutzer` (Panel-Zugänge), `Konto` (eigenes Profil).
+Wie gut das trägt, zeigt der Umstand, dass die SSH-Schlüsselverwaltung *im
+eigenen Projekt* für fehlend gehalten wurde: Sie liegt vollständig unter
+„Konten" — Liste mit Fingerprint und Bitlänge, Hinzufügen, Entfernen, je
+Systembenutzer.
+
+**4. Instanzname in der Kopfzeile.** Zeigt den kurzen Rechnernamen, weil dort
+noch `os.Hostname()` steht. Seit `rc.3` gibt es `netinfo.FQDN()`.
+
+### 0.1.0 — Freigabe
+
+Kein Code, sondern das, was ein erstes öffentliches Release ausmacht:
+Bildschirmfotos auf einem echten Server (nach rc.4, damit sie das neue Layout
+zeigen), DNS-TTL von 10 auf 3600, Copyright-Zeile in `LICENSE` auf den
+endgültigen Rechtsträger, Tag ohne Bindestrich.
+
+### 0.2.0 — Let's Encrypt
+
+Der größte Einzelgewinn an Vertrauenswürdigkeit. Ein Panel, dessen Nutzer bei
+jedem Aufruf eine TLS-Warnung wegklicken, gewöhnt ihnen genau das ab, was es
+schützen soll.
+
+- ACME über `golang.org/x/crypto/acme` — kein neuer schwerer Baustein,
+  `x/crypto` ist wegen Argon2 ohnehin dabei.
+- **HTTP-01 braucht Port 80.** Bei einem Panel auf 8443 ist das ein Eingriff:
+  ein kurzzeitiger Listener und eine Firewall-Regel. DNS-01 wäre sauberer,
+  verlangt aber Zugangsdaten zum DNS-Anbieter — das ist eine zweite
+  Ausbaustufe, nicht die erste.
+- Erneuerung als Zeitgeber im Daemon, mit **Rückfall auf das selbstsignierte
+  Zertifikat**. Ein Panel, das wegen einer gescheiterten ACME-Anfrage nicht mehr
+  startet, ist schlimmer als eines mit Warnung.
+- Die Rate-Limits von Let's Encrypt beachten: Bei Fehlversuchen nicht in einer
+  Schleife anfragen.
+- Voraussetzung ist ein auflösender Name. Den ermittelt seit `rc.3`
+  `internal/netinfo`.
+
+### 0.3.0 — Passkeys
+
+Zuerst **zusätzlich zu**, nicht anstelle von Passwort und TOTP.
+
+- Ein Passkey ist gerätegebundener Besitz. Fällt das Gerät aus, ist der Zugang
+  weg. Es gibt `asylum reset-password` über SSH als Rettungsanker — der setzt
+  aber SSH-Zugang voraus, und den soll das Panel gerade entbehrlich machen.
+- WebAuthn ist mehr als eine eingebundene Bibliothek: Registrierung, Assertion,
+  Speicherung der Credential-IDs, mehrere Schlüssel je Konto, Zusammenspiel mit
+  den bestehenden Wiederherstellungscodes, und die Entscheidung, ob ein Passkey
+  den zweiten Faktor ersetzt oder Passwort *und* Faktor.
+- Reihenfolge: erst als zusätzlicher zweiter Faktor neben TOTP, dann — wenn sich
+  das im Betrieb bewährt — als vollständiger Ersatz mit ausdrücklicher
+  Zustimmung.
+
+### Laufend, an keine Fassung gebunden
+
+Externer Sicherheits-Review (sinnvollerweise **nach** 0.2.0, weil Let's Encrypt
+und Passkeys die Anmeldepfade nochmals anfassen — sonst wird zweimal geprüft),
+Marken in Klasse 9/42, Paket-Namensräume, GitHub-Organisation.
+
+### Aufwand
+
+| Phase | Inhalt | Aufwand |
+|---|---|---|
+| `rc.4` | Responsives Layout, ufw-Handlung, Navigation, Instanzname | ~1,5 Wochen |
+| `0.1.0` | Bildschirmfotos, TTL, `LICENSE`, Tag | ~2 Tage |
+| `0.2.0` | Let's Encrypt | ~1,5–2 Wochen |
+| `0.3.0` | Passkeys | ~2 Wochen |
+
+Zwei Abwägungen, die bewusst so und nicht anders getroffen sind:
+
+**Das responsive Layout gehört vor 0.1.0.** Ein Server-Panel wird vom Telefon
+aus bedient — genau dann, wenn etwas kaputt ist und niemand am Schreibtisch
+sitzt. Es ist außerdem das Erste, was jeder Besucher sieht.
+
+**Let's Encrypt gehört nicht in 0.1.0.** Es ist der wertvollste nächste Schritt,
+aber eine Beta darf mit selbstsigniertem Zertifikat leben, solange
+[`SECURITY.md`](../SECURITY.md) den Fingerprint-Abgleich beschreibt. Es
+vorzuziehen verschöbe die Freigabe um zwei Wochen und vergrößerte die Fläche,
+die noch niemand von außen geprüft hat.
 
 **Summe bis zur nutzbaren Beta: ~8 Wochen** für eine Vollzeit-Person, entsprechend
 länger nebenberuflich. Danach v0.2 (Dateimanager, Cron, Terminal,

@@ -79,7 +79,7 @@
     <span id="job-status" class="muted">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
   </div>
   {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
-  <pre class="logs" id="job-output">{{range .JobLines}}{{.}}
+  <pre class="logs" id="job-output" data-events="/packages/events">{{range .JobLines}}{{.}}
 {{end}}</pre>
 </div>
 {{if .JobRunning}}<script src="/static/job.js" defer></script>{{end}}

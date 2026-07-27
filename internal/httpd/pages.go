@@ -130,9 +130,26 @@ type packagesPage struct {
 }
 
 type firewallPage struct {
-	State            privops.FirewallState
-	Pending          bool
+	State   privops.FirewallState
+	Pending bool
+	// PendingSubject benennt, was auf Probe steht — Regelsatz oder
+	// Aktivierung. Beide laufen über denselben Wächter, aber der Satz
+	// "wird zurückgerollt" bedeutet je nachdem etwas anderes.
+	PendingSubject   string
 	RemainingSeconds int
+	// PanelPort und PanelPortOpen entscheiden, ob das Einschalten überhaupt
+	// angeboten werden darf: Ohne Regel für diesen Port wäre danach auch die
+	// Bestätigungsseite nicht mehr erreichbar.
+	PanelPort     int
+	PanelPortOpen bool
+	// OpenPorts ist die Liste dessen, was nach dem Einschalten erreichbar
+	// bleibt — ausgeschrieben, damit niemand raten muss.
+	OpenPorts string
+	// Ausgabe der ufw-Installation, wie beim Paketvorgang.
+	JobLines   []string
+	JobRunning bool
+	JobDone    bool
+	JobError   string
 }
 
 type sysUsersPage struct {

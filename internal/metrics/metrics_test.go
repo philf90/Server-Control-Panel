@@ -145,3 +145,24 @@ func TestClampPct(t *testing.T) {
 		t.Error("Werte im Bereich dürfen sich nicht ändern")
 	}
 }
+
+// TestHostName: Die Kopfzeile des Panels soll den Namen zeigen, unter dem der
+// Rechner erreichbar ist — sonst steht dort "cloudsrv24", während im Browser
+// "cloudsrv24.de" steht, und der Abgleich, ob man auf der richtigen Maschine
+// ist, wird zum Ratespiel.
+func TestHostName(t *testing.T) {
+	faelle := []struct {
+		host Host
+		want string
+	}{
+		{Host{Hostname: "cloudsrv24", FQDN: "cloudsrv24.de"}, "cloudsrv24.de"},
+		// Ohne auflösenden Namen bleibt nur der kurze — besser als nichts.
+		{Host{Hostname: "cloudsrv24"}, "cloudsrv24"},
+		{Host{}, ""},
+	}
+	for _, f := range faelle {
+		if got := f.host.Name(); got != f.want {
+			t.Errorf("Host%+v.Name() = %q, erwartet %q", f.host, got, f.want)
+		}
+	}
+}

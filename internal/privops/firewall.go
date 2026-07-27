@@ -23,10 +23,29 @@ import (
 
 // FirewallState ermittelt den Zustand der Firewall.
 func (s *System) FirewallState(ctx context.Context) (FirewallState, error) {
-	if state, ok, err := s.ufwState(ctx); err != nil {
+	installed, err := s.ufwInstalled(ctx)
+	if err != nil {
 		return FirewallState{}, err
-	} else if ok {
-		return state, nil
+	}
+
+	if installed {
+		state, ok, err := s.ufwState(ctx)
+		if err != nil {
+			return FirewallState{}, err
+		}
+		if ok {
+			return state, nil
+		}
+		// Das Paket ist da, das Programm antwortet aber nicht. Das ist kein
+		// "kein Backend", sondern eine kaputte Installation — und das gehört
+		// gesagt, statt es als fehlendes ufw auszugeben.
+		return FirewallState{
+			Backend:   BackendNone,
+			Installed: true,
+			Notice: "Das Paket ufw ist installiert, aber \"ufw status\" antwortet nicht. " +
+				"Die Installation ist unvollständig — \"apt install --reinstall ufw\" " +
+				"setzt sie instand.",
+		}, nil
 	}
 
 	if state, ok, err := s.nftState(ctx); err != nil {
@@ -36,18 +55,36 @@ func (s *System) FirewallState(ctx context.Context) (FirewallState, error) {
 	}
 
 	return FirewallState{
-		Backend: BackendNone,
-		Notice: "Es wurde kein aktives Firewall-Regelwerk gefunden. " +
-			"Für einen Server im offenen Netz ist ufw der einfachste Weg: " +
-			"apt install ufw && ufw allow OpenSSH && ufw enable.",
+		Backend:   BackendNone,
+		Installed: false,
+		Notice: "Es wurde kein Firewall-Regelwerk gefunden. Für einen Server im " +
+			"offenen Netz ist ufw der einfachste Weg — das Panel kann es " +
+			"installieren und einrichten.",
 	}, nil
+}
+
+// ufwInstalled fragt die Paketverwaltung statt den Aufruf.
+//
+// Bisher galt ufw als fehlend, sobald "ufw status" fehlschlug. Damit sahen eine
+// fehlende Installation und ein kaputtes ufw gleich aus, und beide bekamen den
+// Rat, ufw zu installieren — im zweiten Fall ein falscher.
+func (s *System) ufwInstalled(ctx context.Context) (bool, error) {
+	res, err := s.run(ctx, Command{
+		Name: "dpkg-query",
+		Args: []string{"-W", "-f=${db:Status-Status}", "ufw"},
+	})
+	if err != nil {
+		// Ohne dpkg-query ist das kein Debian-System, auf dem das Panel
+		// Pakete verwaltet. Kein Fehler, nur keine Auskunft.
+		return false, nil //nolint:nilerr // fehlendes dpkg ist kein Fehlerfall
+	}
+	// Bei einem unbekannten Paket endet dpkg-query mit Code 1.
+	return res.ExitCode == 0 && strings.TrimSpace(res.Stdout) == "installed", nil
 }
 
 func (s *System) ufwState(ctx context.Context) (FirewallState, bool, error) {
 	res, err := s.run(ctx, Command{Name: "ufw", Args: []string{"status", "numbered"}})
 	if err != nil {
-		// ufw ist nicht installiert — kein Fehler, nur kein Backend. Der
-		// Aufrufer probiert danach nftables.
 		return FirewallState{}, false, nil //nolint:nilerr // fehlendes Backend ist kein Fehlerfall
 	}
 	if res.ExitCode != 0 {
@@ -56,15 +93,68 @@ func (s *System) ufwState(ctx context.Context) (FirewallState, bool, error) {
 
 	active := strings.Contains(res.Stdout, "Status: active")
 	state := FirewallState{
-		Backend: BackendUFW,
-		Active:  active,
-		Managed: true,
-		Rules:   parseUFWStatus(res.Stdout),
+		Backend:   BackendUFW,
+		Active:    active,
+		Managed:   true,
+		Installed: true,
+		Rules:     parseUFWStatus(res.Stdout),
 	}
 	if !active {
-		state.Notice = "ufw ist installiert, aber nicht aktiv — die Regeln unten greifen nicht."
+		state.Notice = "ufw ist installiert, aber nicht aktiv — die Regeln unten greifen nicht. " +
+			"Der Server nimmt derzeit jede eingehende Verbindung an."
 	}
 	return state, true, nil
+}
+
+// FirewallInstall installiert ufw.
+//
+// Bewusst kein allgemeines "installiere Paket X": Der Paketweg des Panels
+// trägt aus gutem Grund "--only-upgrade" und kann darüber nichts Neues ins
+// System bringen. Diese Operation kennt genau ein Paket, und der Name steht
+// hier im Quelltext statt im Formular.
+func (s *System) FirewallInstall(ctx context.Context, stream LineWriter) error {
+	res, err := s.run(ctx, Command{
+		Name: "apt-get",
+		Args: []string{
+			"install", "--yes",
+			"-o", "Dpkg::Options::=--force-confdef",
+			"-o", "Dpkg::Options::=--force-confold",
+			"--", "ufw",
+		},
+		Timeout: longTimeout,
+		Stream:  stream,
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("apt-get install ufw endete mit Code %d", res.ExitCode)
+	}
+	return nil
+}
+
+// FirewallSetActive schaltet ufw ein oder aus.
+//
+// "--force" ist beim Einschalten nötig, weil ufw sonst interaktiv fragt, ob
+// bestehende SSH-Verbindungen unterbrochen werden dürfen — und es gibt kein
+// Terminal, das antworten könnte. Die Frage wird nicht übergangen, sondern eine
+// Ebene höher gestellt: Der Aufrufer prüft vorher, welche Zugänge nach dem
+// Einschalten offen bleiben, und die Änderung gilt zunächst auf Probe.
+func (s *System) FirewallSetActive(ctx context.Context, active bool) error {
+	args := []string{"--force", "enable"}
+	verb := "enable"
+	if !active {
+		args, verb = []string{"disable"}, "disable"
+	}
+
+	res, err := s.run(ctx, Command{Name: "ufw", Args: args})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("ufw %s: %s", verb, firstLine(res.Stderr))
+	}
+	return nil
 }
 
 func (s *System) nftState(ctx context.Context) (FirewallState, bool, error) {

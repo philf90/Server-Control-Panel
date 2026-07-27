@@ -79,10 +79,26 @@ type Process struct {
 // Host sind die Angaben, die sich zur Laufzeit nicht ändern.
 type Host struct {
 	Hostname string `json:"hostname"`
-	Kernel   string `json:"kernel"`
-	Distro   string `json:"distro"`
-	Cores    int    `json:"cores"`
-	Arch     string `json:"arch"`
+	// FQDN ist der vollqualifizierte Name — das, was "hostname -f" ausgibt.
+	// Er steht neben Hostname und nicht an dessen Stelle, weil beide
+	// verschiedene Fragen beantworten: Hostname ist der Name, unter dem sich
+	// der Rechner selbst kennt, FQDN der, unter dem ihn andere erreichen.
+	// In der Oberfläche zählt der zweite: Nur er lässt sich mit der Adresse
+	// im Browser vergleichen.
+	FQDN   string `json:"fqdn"`
+	Kernel string `json:"kernel"`
+	Distro string `json:"distro"`
+	Cores  int    `json:"cores"`
+	Arch   string `json:"arch"`
+}
+
+// Name liefert die Bezeichnung für die Anzeige: den vollqualifizierten Namen,
+// solange es einen gibt.
+func (h Host) Name() string {
+	if h.FQDN != "" {
+		return h.FQDN
+	}
+	return h.Hostname
 }
 
 // Sampler erhebt Snapshots und hält die Vorwerte für Deltaberechnungen.

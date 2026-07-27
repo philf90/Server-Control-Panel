@@ -274,9 +274,17 @@ func TestPackageRefreshReportsFailure(t *testing.T) {
 	}
 }
 
+// ufwPaketVorhanden lässt dpkg-query melden, dass ufw installiert ist. Ohne
+// diese Antwort gilt ufw als fehlend — der Zustand wird seit rc.4 an der
+// Paketverwaltung festgestellt und nicht mehr am Fehlschlag des Aufrufs.
+func ufwPaketVorhanden(f *fakeRunner) {
+	f.responses["dpkg-query"] = Result{Stdout: "installed"}
+}
+
 func TestFirewallStateDetectsBackends(t *testing.T) {
 	t.Run("ufw aktiv", func(t *testing.T) {
 		f := newFakeRunner()
+		ufwPaketVorhanden(f)
 		f.responses["ufw status"] = Result{Stdout: ufwStatusOut}
 
 		state, err := NewSystemWithRunner(f).FirewallState(context.Background())
@@ -293,6 +301,7 @@ func TestFirewallStateDetectsBackends(t *testing.T) {
 
 	t.Run("ufw inaktiv", func(t *testing.T) {
 		f := newFakeRunner()
+		ufwPaketVorhanden(f)
 		f.responses["ufw status"] = Result{Stdout: "Status: inactive"}
 
 		state, _ := NewSystemWithRunner(f).FirewallState(context.Background())
@@ -330,7 +339,91 @@ func TestFirewallStateDetectsBackends(t *testing.T) {
 		if !strings.Contains(state.Notice, "ufw") {
 			t.Error("der Hinweis nennt keinen Lösungsweg")
 		}
+		if state.Installed {
+			t.Error("ohne dpkg-Eintrag darf ufw nicht als installiert gelten")
+		}
 	})
+
+	// Bis rc.3 sahen "nicht installiert" und "installiert, aber kaputt" gleich
+	// aus: Beide fielen durch den fehlgeschlagenen Aufruf, beide bekamen den
+	// Rat, ufw zu installieren. Im zweiten Fall ist der falsch — das Paket ist
+	// ja da.
+	t.Run("Paket da, Programm kaputt", func(t *testing.T) {
+		f := newFakeRunner()
+		ufwPaketVorhanden(f)
+		f.errs["ufw"] = ErrNotAllowed
+
+		state, err := NewSystemWithRunner(f).FirewallState(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !state.Installed {
+			t.Error("das Paket ist laut dpkg vorhanden")
+		}
+		if !strings.Contains(state.Notice, "unvollständig") {
+			t.Errorf("der Hinweis erklärt den Fall nicht: %q", state.Notice)
+		}
+	})
+
+	// Ist ufw installiert, wird nftables nicht mehr befragt: ufw *ist* ein
+	// nftables-Frontend, und sein eigenes Regelwerk als fremdes zu melden
+	// würde die Verwaltung abschalten.
+	t.Run("installiertes ufw verdeckt nftables nicht fälschlich", func(t *testing.T) {
+		f := newFakeRunner()
+		ufwPaketVorhanden(f)
+		f.responses["ufw status"] = Result{Stdout: ufwStatusOut}
+		f.responses["nft list ruleset"] = Result{Stdout: "table inet filter {}"}
+
+		state, _ := NewSystemWithRunner(f).FirewallState(context.Background())
+		if state.Backend != BackendUFW || !state.Managed {
+			t.Errorf("unerwartet: %+v", state)
+		}
+	})
+}
+
+func TestFirewallSetActive(t *testing.T) {
+	// "--force" ist nicht schmückend: Ohne es fragt ufw interaktiv, ob
+	// bestehende SSH-Verbindungen unterbrochen werden dürfen, und es gibt kein
+	// Terminal, das antworten könnte. Der Aufruf bliebe hängen.
+	f := newFakeRunner()
+	if err := NewSystemWithRunner(f).FirewallSetActive(context.Background(), true); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(f.calls[len(f.calls)-1].Args, " ")
+	if got != "--force enable" {
+		t.Errorf("Argumente = %q, erwartet \"--force enable\"", got)
+	}
+
+	f = newFakeRunner()
+	if err := NewSystemWithRunner(f).FirewallSetActive(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	got = strings.Join(f.calls[len(f.calls)-1].Args, " ")
+	if got != "disable" {
+		t.Errorf("Argumente = %q, erwartet \"disable\"", got)
+	}
+}
+
+// TestFirewallInstallNurUfw: Der Paketweg des Panels trägt aus gutem Grund
+// "--only-upgrade" und kann darüber nichts Neues installieren. Diese Operation
+// darf diese Grenze nur für genau ein Paket öffnen — und dessen Name kommt aus
+// dem Quelltext, nicht aus einem Formular.
+func TestFirewallInstallNurUfw(t *testing.T) {
+	f := newFakeRunner()
+	if err := NewSystemWithRunner(f).FirewallInstall(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	last := f.calls[len(f.calls)-1]
+	if last.Name != "apt-get" {
+		t.Fatalf("Kommando = %q", last.Name)
+	}
+	args := strings.Join(last.Args, " ")
+	if !strings.HasSuffix(args, "-- ufw") {
+		t.Errorf("Argumente = %q — das Paket muss das letzte Wort nach \"--\" sein", args)
+	}
+	if strings.Contains(args, "--only-upgrade") {
+		t.Error("--only-upgrade verhinderte gerade die Installation")
+	}
 }
 
 func TestLogUnitsFiltersInvalidNames(t *testing.T) {

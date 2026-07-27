@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -128,6 +129,27 @@ func (f *fakeOps) FirewallState(context.Context) (privops.FirewallState, error) 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.firewall, nil
+}
+
+func (f *fakeOps) FirewallInstall(_ context.Context, stream privops.LineWriter) error {
+	f.mu.Lock()
+	f.actions = append(f.actions, "firewall:install")
+	f.firewall.Installed = true
+	f.mu.Unlock()
+
+	if stream != nil {
+		stream("Richte ufw ein …")
+	}
+	return nil
+}
+
+func (f *fakeOps) FirewallSetActive(_ context.Context, active bool) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.actions = append(f.actions, fmt.Sprintf("firewall:active:%t", active))
+	f.firewall.Active = active
+	return nil
 }
 
 func (f *fakeOps) FirewallApply(_ context.Context, rules []privops.FirewallRule) error {
@@ -417,9 +439,9 @@ func TestFirewallRollbackAfterTimeout(t *testing.T) {
 
 	// arm() nutzt die feste Frist; für den Test wird der Rückbau direkt
 	// ausgelöst, indem die Frist über einen eigenen Aufruf simuliert wird.
-	guard.arm(previous, func(ctx context.Context, rules []privops.FirewallRule) error {
-		reverted <- rules
-		return ops.FirewallApply(ctx, rules)
+	guard.arm("Regelsatz", func(ctx context.Context) error {
+		reverted <- previous
+		return ops.FirewallApply(ctx, previous)
 	})
 
 	if pending, _ := guard.state(); !pending {
@@ -515,4 +537,216 @@ type rejectingRunner struct{}
 
 func (rejectingRunner) Run(context.Context, privops.Command) (privops.Result, error) {
 	panic("es wurde ein Kommando ausgeführt, obwohl die Validierung greifen sollte")
+}
+
+// TestFirewallAktivierungOhnePanelPortWirdVerweigert deckt die gefährlichste
+// Aktion des Panels ab.
+//
+// ufw weist nach dem Einschalten alles ab, was nicht ausdrücklich erlaubt ist.
+// Fehlt die Regel für den Panel-Port, ist danach auch die Seite nicht mehr
+// erreichbar, auf der man die Änderung zurücknehmen könnte. Der
+// Rückrollschutz griffe zwar nach 60 Sekunden — aber sich auf ihn zu
+// verlassen, wo eine Vorabprüfung genügt, wäre die schlechtere Zusage.
+func TestFirewallAktivierungOhnePanelPortWirdVerweigert(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	ops.mu.Lock()
+	ops.firewall = privops.FirewallState{
+		Backend: privops.BackendUFW, Active: false, Managed: true, Installed: true,
+		Rules: []privops.FirewallRule{{Port: 22, Protocol: "tcp"}},
+	}
+	ops.mu.Unlock()
+
+	rec := post(t, s, "/firewall/active", url.Values{
+		"_csrf": {csrf}, "active": {"1"},
+	}, cookie)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Status = %d, erwartet 400", rec.Code)
+	}
+	ops.mu.Lock()
+	defer ops.mu.Unlock()
+	for _, a := range ops.actions {
+		if strings.HasPrefix(a, "firewall:active") {
+			t.Fatalf("ufw wurde trotzdem geschaltet: %v", ops.actions)
+		}
+	}
+	if pending, _ := s.fwGuard.state(); pending {
+		t.Error("es steht eine Bestätigung aus, obwohl nichts geschaltet wurde")
+	}
+}
+
+// Mit freigegebenem Panel-Port geht es durch — und steht danach auf Probe.
+func TestFirewallAktivierungStehtAufProbe(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	ops.mu.Lock()
+	ops.firewall = privops.FirewallState{
+		Backend: privops.BackendUFW, Active: false, Managed: true, Installed: true,
+		Rules: []privops.FirewallRule{
+			{Port: 22, Protocol: "tcp"},
+			{Port: s.cfg.Server.Port, Protocol: "tcp", Comment: "Panel"},
+		},
+	}
+	ops.mu.Unlock()
+
+	rec := post(t, s, "/firewall/active", url.Values{
+		"_csrf": {csrf}, "active": {"1"},
+	}, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200", rec.Code)
+	}
+
+	pending, _ := s.fwGuard.state()
+	if !pending {
+		t.Fatal("die Aktivierung steht nicht auf Probe")
+	}
+	if got := s.fwGuard.subjectOf(); got != "Aktivierung" {
+		t.Errorf("Gegenstand der Probe = %q", got)
+	}
+	// Ohne Bestätigung wäre der Rückweg das Ausschalten, nicht ein Regelsatz.
+	s.fwGuard.confirm()
+}
+
+// Ausschalten öffnet und braucht deshalb keine Probe — eine Frist, nach der
+// die Firewall von selbst wieder zugeht, wäre eine böse Überraschung.
+func TestFirewallAusschaltenOhneProbe(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	ops.mu.Lock()
+	ops.firewall = privops.FirewallState{
+		Backend: privops.BackendUFW, Active: true, Managed: true, Installed: true,
+	}
+	ops.mu.Unlock()
+
+	rec := post(t, s, "/firewall/active", url.Values{
+		"_csrf": {csrf}, "active": {"0"},
+	}, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d", rec.Code)
+	}
+	if pending, _ := s.fwGuard.state(); pending {
+		t.Error("das Ausschalten steht auf Probe — es sperrt aber niemanden aus")
+	}
+}
+
+// TestRuleCoversPort: Eine auf eine Quelle eingeschränkte Regel zählt nicht.
+// Sie mag den eigenen Zugang decken, aber von hier aus lässt sich das nicht
+// feststellen — und eine Sicherung, die im Zweifel "passt schon" sagt, ist
+// keine.
+func TestRuleCoversPort(t *testing.T) {
+	rules := []privops.FirewallRule{
+		{Port: 22, Protocol: "tcp"},
+		{Port: 8443, Protocol: "tcp", Source: "203.0.113.0/24"},
+	}
+	if !ruleCoversPort(rules, 22) {
+		t.Error("22/tcp von überall wurde nicht erkannt")
+	}
+	if ruleCoversPort(rules, 8443) {
+		t.Error("eine auf eine Quelle beschränkte Regel darf nicht als Freigabe zählen")
+	}
+	if ruleCoversPort(rules, 443) {
+		t.Error("443 ist nicht freigegeben")
+	}
+}
+
+func TestOpenPortSummary(t *testing.T) {
+	if got := openPortSummary(nil); got != "keine Zugänge" {
+		t.Errorf("leerer Regelsatz = %q", got)
+	}
+	got := openPortSummary([]privops.FirewallRule{
+		{Port: 8443, Protocol: "tcp"},
+		{Port: 22, Protocol: "tcp"},
+		{Port: 22, Protocol: "tcp"}, // Dublette
+		{Port: 5432, Protocol: "tcp", Source: "203.0.113.0/24"},
+	})
+	want := "22/tcp, 5432/tcp von 203.0.113.0/24, 8443/tcp"
+	if got != want {
+		t.Errorf("= %q\nerwartet %q", got, want)
+	}
+}
+
+// TestFirewallSeiteRendertAlleZustaende: Ein Template bricht erst beim
+// Rendern. Die Firewall-Seite hat seit rc.4 vier Zustände, und drei davon
+// bekäme man in der Entwicklung nie zu Gesicht.
+func TestFirewallSeiteRendertAlleZustaende(t *testing.T) {
+	faelle := []struct {
+		name     string
+		state    privops.FirewallState
+		erwartet string
+		fehlt    string
+	}{
+		{
+			name: "gar kein ufw",
+			state: privops.FirewallState{
+				Backend: privops.BackendNone, Installed: false,
+			},
+			erwartet: "ufw installieren",
+		},
+		{
+			name: "installiert, inaktiv, Panel-Port zu",
+			state: privops.FirewallState{
+				Backend: privops.BackendUFW, Installed: true, Managed: true,
+				Rules: []privops.FirewallRule{{Port: 22, Protocol: "tcp"}},
+			},
+			erwartet: "Einschalten ist gesperrt",
+			fehlt:    "ufw einschalten",
+		},
+		{
+			name: "installiert, inaktiv, Panel-Port offen",
+			state: privops.FirewallState{
+				Backend: privops.BackendUFW, Installed: true, Managed: true,
+				Rules: []privops.FirewallRule{{Port: 8443, Protocol: "tcp"}},
+			},
+			erwartet: "ufw einschalten",
+		},
+		{
+			name: "aktiv",
+			state: privops.FirewallState{
+				Backend: privops.BackendUFW, Installed: true, Managed: true, Active: true,
+				Rules: []privops.FirewallRule{{Port: 8443, Protocol: "tcp"}},
+			},
+			erwartet: "ufw ausschalten",
+			fehlt:    "ufw installieren",
+		},
+		{
+			// Fremdes nftables-Regelwerk: kein Angebot, irgendetwas zu
+			// installieren oder zu schalten. Das Panel sieht hier nur zu.
+			name: "fremdes nftables",
+			state: privops.FirewallState{
+				Backend: privops.BackendNFTables, Installed: false, Active: true,
+			},
+			fehlt: "ufw installieren",
+		},
+	}
+
+	for _, f := range faelle {
+		t.Run(f.name, func(t *testing.T) {
+			s, ops := newSystemServer(t)
+			user := addUser(t, s, "admin", store.RoleAdmin)
+			cookie, _ := login(t, s, user)
+
+			ops.mu.Lock()
+			ops.firewall = f.state
+			ops.mu.Unlock()
+
+			rec := get(t, s, "/firewall", cookie)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("Status = %d", rec.Code)
+			}
+			body := rec.Body.String()
+			if f.erwartet != "" && !strings.Contains(body, f.erwartet) {
+				t.Errorf("%q fehlt auf der Seite", f.erwartet)
+			}
+			if f.fehlt != "" && strings.Contains(body, f.fehlt) {
+				t.Errorf("%q steht auf der Seite, gehört dort aber nicht hin", f.fehlt)
+			}
+		})
+	}
 }

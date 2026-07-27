@@ -368,6 +368,7 @@ func TestFirewallApplyRefusesUnmanagedBackend(t *testing.T) {
 
 func TestFirewallApplyAddsAndRemoves(t *testing.T) {
 	f := newFakeRunner()
+	ufwPaketVorhanden(f)
 	f.responses["ufw status numbered"] = Result{Stdout: ufwStatusOut}
 	sys := NewSystemWithRunner(f)
 

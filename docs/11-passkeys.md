@@ -44,24 +44,39 @@ Schema, kein Port. Daraus folgt:
 Das verzahnt sich mit dem TLS-Zertifikat: derselbe Name, der im Zertifikat steht
 ([10-tls-acme.md](10-tls-acme.md)), ist die natürliche RP-ID.
 
-## Konfiguration
+## Konfiguration — meist keine
+
+Der Normalfall braucht **keinen Eintrag**. Passkeys sind automatisch verfügbar,
+sobald ein auflösbarer Name als RP-ID feststeht. Das Panel sucht ihn der Reihe
+nach:
+
+1. eine ausdrückliche Angabe (`auth.webauthn.rp_id`),
+2. die ACME-Domains (`acme.domains`),
+3. die Namen im aktiven TLS-Zertifikat,
+4. den vollqualifizierten Rechnernamen (`netinfo.FQDN()`).
+
+Spätestens mit einem Zertifikat auf einen echten Namen — selbstsigniert mit
+gesetztem FQDN oder von Let's Encrypt — erscheint der Passkey-Abschnitt im Konto
+von selbst. Findet sich nur eine IP oder ein bloßer Rechnername ohne Domain,
+bleiben Passkeys aus (WebAuthn verlangt eine registrierbare Domain; `localhost`
+ist die Ausnahme für die Entwicklung).
+
+Eingreifen muss man nur in Ausnahmen:
 
 ```yaml
 auth:
   webauthn:
-    enabled: true                         # Vorgabe: false
-    rp_id: panel.example.org              # leer = aus Zertifikatsnamen/FQDN ableiten
-    display_name: Project Asylum          # steht im Anmeldedialog des Browsers
-    origins:                              # leer = https://<rp_id>:<panel-port>
-      - https://panel.example.org:8443
+    enabled: false                        # ganz abschalten (Vorgabe: automatisch)
+    rp_id: panel.example.org              # Namen festsetzen statt ableiten
+    display_name: Project Asylum          # Text im Anmeldedialog des Browsers
+    origins:                              # nur nötig hinter einem Reverse-Proxy
+      - https://panel.example.org:8443    #   sonst: https://<rp_id>:<panel-port>
 ```
 
-Bleibt `enabled` aus oder findet sich kein auflösbarer Name (nur eine IP), zeigt
-das Panel den Passkey-Abschnitt gar nicht erst an — die übrige Anmeldung ist
-davon unberührt. `rp_id` und `origins` leer zu lassen ist der Normalfall: Das
-Panel leitet sie aus den Zertifikatsnamen bzw. dem vollqualifizierten
-Rechnernamen und dem eigenen Port ab. Wer hinter einem Reverse-Proxy unter einem
-anderen Ursprung erreichbar ist, trägt ihn unter `origins` ein.
+`enabled` hat drei Zustände: nicht gesetzt = automatisch, `true` erzwingt
+(und warnt beim Start, wenn kein Name feststeht), `false` schaltet aus. Wichtig
+bleibt: Das Panel muss über diesen Namen aufgerufen werden, nicht über die IP —
+sonst passt der Ursprung nicht und der Browser verweigert.
 
 ## Was gespeichert wird
 

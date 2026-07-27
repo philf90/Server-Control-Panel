@@ -33,8 +33,10 @@ nicht als Release getaggt.
   aktuelle Passwort), umbenennen, entfernen. Bei der Anmeldung ein Knopf neben
   „Anmelden"; der Weg mit Passwort und Code bleibt unverändert der Rückfall
   ohne JavaScript und für Konten ohne Passkey. Über SSH gibt es
-  `asylum passkey list|remove` als Rettungsweg. Aus per Vorgabe; einzuschalten
-  über `auth.webauthn.enabled` und einen auflösbaren Hostnamen als RP-ID.
+  `asylum passkey list|remove` als Rettungsweg. Ohne Konfiguration verfügbar,
+  sobald ein auflösbarer Name als RP-ID feststeht (aus Zertifikat, ACME-Domain
+  oder FQDN) — spätestens mit einem Zertifikat auf einen echten Namen erscheint
+  der Abschnitt von selbst. `auth.webauthn.enabled: false` schaltet aus.
   Einzelheiten in [docs/11-passkeys.md](docs/11-passkeys.md).
 - **Ein Neustart lässt sich aus dem Panel anstoßen.** Steht ein Neustart aus
   (etwa nach einem Kernel-Update), führt die Übersicht ihn im Handlungsbedarf

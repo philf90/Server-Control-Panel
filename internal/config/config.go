@@ -181,10 +181,14 @@ type Auth struct {
 }
 
 // WebAuthn steuert die Passkeys. Sie sind ein zusätzlicher zweiter Faktor neben
-// TOTP; ohne getroffene Wahl bleibt alles beim Bewährten.
+// TOTP.
 type WebAuthn struct {
-	// Enabled schaltet den Passkey-Pfad frei. Vorgabe: aus.
-	Enabled bool `yaml:"enabled"`
+	// Enabled schaltet den Passkey-Pfad frei. Drei Zustände: nicht gesetzt
+	// bedeutet automatisch — Passkeys sind an, sobald ein auflösbarer Name als
+	// RP-ID feststeht (aus Zertifikat, ACME-Domain oder FQDN). true erzwingt
+	// sie (und verlangt einen Namen), false schaltet sie aus. So braucht der
+	// Normalfall keinen Eintrag.
+	Enabled *bool `yaml:"enabled"`
 	// RPID ist die registrierbare Domain, an die ein Passkey gebunden wird.
 	// Leer heißt: zur Laufzeit aus dem vollqualifizierten Rechnernamen bzw. den
 	// Zertifikatsnamen ableiten. Über eine IP funktioniert WebAuthn nicht.

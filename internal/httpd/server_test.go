@@ -45,6 +45,11 @@ func newTestServer(t *testing.T) *Server {
 	// Die Einstellungen der Zertifikatsseite werden in eine Ergänzung neben
 	// dieser Datei geschrieben. Ohne Pfad landete sie unter /etc/asylum.
 	cfg.SourcePath = filepath.Join(dir, "config.yaml")
+	// Passkeys ausdrücklich aus, damit die Tests nicht vom FQDN der Testmaschine
+	// abhängen (der Normalfall leitet sie automatisch ab). Wer sie braucht,
+	// ruft enablePasskeys.
+	aus := false
+	cfg.Auth.WebAuthn.Enabled = &aus
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv, err := New(cfg, logger, db, newFakeOps())

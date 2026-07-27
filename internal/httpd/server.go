@@ -101,10 +101,7 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 	if ops == nil {
 		ops = privops.NewSystem()
 	}
-	pk, err := buildPasskeys(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("passkeys: %w", err)
-	}
+	pk := buildPasskeys(cfg, logger)
 	return &Server{
 		cfg:      cfg,
 		cfgPath:  cfg.SourcePath,
@@ -126,28 +123,26 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 	}, nil
 }
 
-// buildPasskeys richtet den WebAuthn-Manager aus der Konfiguration ein. Ist die
-// Funktion abgeschaltet oder fehlt ein auflösbarer Name (WebAuthn verlangt eine
-// Domain, keine IP), bleibt sie aus: Rückgabe (nil, nil), und die Kontoseite
-// zeigt den Passkey-Abschnitt nicht.
-func buildPasskeys(cfg config.Config) (*passkeys.Manager, error) {
+// buildPasskeys richtet den WebAuthn-Manager ein. Ohne Zutun: Passkeys sind an,
+// sobald sich ein auflösbarer Name als RP-ID ableiten lässt — aus der
+// ausdrücklichen Angabe, den ACME-Domains, dem aktiven Zertifikat oder dem
+// vollqualifizierten Rechnernamen. So muss für den Normalfall nichts in der
+// Konfiguration stehen; spätestens mit einem Zertifikat auf einen echten Namen
+// erscheint der Passkey-Abschnitt von selbst. `enabled: false` schaltet aus,
+// `enabled: true` erzwingt und warnt, wenn kein Name feststeht.
+func buildPasskeys(cfg config.Config, log *slog.Logger) *passkeys.Manager {
 	w := cfg.Auth.WebAuthn
-	if !w.Enabled {
-		return nil, nil
+	if w.Enabled != nil && !*w.Enabled {
+		return nil // ausdrücklich aus
 	}
 
-	rpID := w.RPID
+	rpID := deriveRPID(cfg)
 	if rpID == "" {
-		if len(cfg.ACME.Domains) > 0 {
-			rpID = cfg.ACME.Domains[0]
-		} else {
-			rpID = netinfo.FQDN()
+		if w.Enabled != nil && *w.Enabled {
+			log.Warn("Passkeys sind eingeschaltet, aber es steht kein auflösbarer Name fest — " +
+				"bitte auth.webauthn.rp_id auf die Domain des Panels setzen")
 		}
-	}
-	// Ohne Punkt ist es kein qualifizierter Name (localhost ausgenommen), und
-	// eine IP-Adresse taugt als RP-ID ohnehin nicht.
-	if rpID == "" || net.ParseIP(rpID) != nil || (!strings.Contains(rpID, ".") && rpID != "localhost") {
-		return nil, nil
+		return nil
 	}
 
 	origins := w.Origins
@@ -163,7 +158,50 @@ func buildPasskeys(cfg config.Config) (*passkeys.Manager, error) {
 	if name == "" {
 		name = "Project Asylum"
 	}
-	return passkeys.New(passkeys.Config{RPID: rpID, DisplayName: name, Origins: origins})
+	m, err := passkeys.New(passkeys.Config{RPID: rpID, DisplayName: name, Origins: origins})
+	if err != nil {
+		log.Error("Passkeys konnten nicht eingerichtet werden", "err", err)
+		return nil
+	}
+	log.Info("Passkeys aktiv", "rp_id", rpID)
+	return m
+}
+
+// deriveRPID sucht den besten Namen für die RP-ID der Reihe nach: ausdrückliche
+// Angabe, ACME-Domains, die Namen im aktiven Zertifikat, zuletzt der
+// vollqualifizierte Rechnername. Geliefert wird nur ein für WebAuthn
+// brauchbarer Name.
+func deriveRPID(cfg config.Config) string {
+	if n := usableRPID(cfg.Auth.WebAuthn.RPID); n != "" {
+		return n
+	}
+	for _, d := range cfg.ACME.Domains {
+		if n := usableRPID(d); n != "" {
+			return n
+		}
+	}
+	if info, err := certs.Describe(cfg.Server.TLS.Cert); err == nil {
+		for _, d := range info.DNSNames {
+			if n := usableRPID(d); n != "" {
+				return n
+			}
+		}
+	}
+	return usableRPID(netinfo.FQDN())
+}
+
+// usableRPID gibt den Namen zurück, wenn er sich als RP-ID eignet, sonst "".
+// WebAuthn verlangt eine registrierbare Domain: keine IP, und ohne Punkt nur
+// das für die Entwicklung erlaubte localhost.
+func usableRPID(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" || net.ParseIP(name) != nil {
+		return ""
+	}
+	if !strings.Contains(name, ".") && name != "localhost" {
+		return ""
+	}
+	return name
 }
 
 // Run startet den Listener und blockiert, bis ctx abgebrochen wird.

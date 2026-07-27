@@ -3,6 +3,8 @@ package httpd
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/philf90/asylum/internal/config"
 	"github.com/philf90/asylum/internal/passkeys"
 	"github.com/philf90/asylum/internal/store"
 )
@@ -124,6 +127,55 @@ func TestPasskeyRenameAndDelete(t *testing.T) {
 	}
 	if n, _ := s.db.CountWebAuthnCredentials(context.Background(), user.ID); n != 0 {
 		t.Errorf("nach delete sind noch %d Passkeys da", n)
+	}
+}
+
+func TestBuildPasskeysDerivation(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ptr := func(b bool) *bool { return &b }
+
+	base := func() config.Config {
+		c := config.Default()
+		c.Server.Port = 8443
+		return c
+	}
+
+	// Ausdrücklich aus → kein Manager, auch mit gutem Namen.
+	c := base()
+	c.Auth.WebAuthn.Enabled = ptr(false)
+	c.Auth.WebAuthn.RPID = "panel.example.org"
+	if buildPasskeys(c, log) != nil {
+		t.Error("enabled=false sollte Passkeys ausschalten")
+	}
+
+	// Automatisch (nicht gesetzt) mit ableitbarem Namen aus den ACME-Domains.
+	c = base()
+	c.ACME.Domains = []string{"panel.example.org"}
+	if buildPasskeys(c, log) == nil {
+		t.Error("automatisch: mit ACME-Domain sollten Passkeys an sein")
+	}
+
+	// Automatisch, aber der einzige Name ist eine IP → aus.
+	c = base()
+	c.Auth.WebAuthn.RPID = "203.0.113.10"
+	if buildPasskeys(c, log) != nil {
+		t.Error("eine IP taugt nicht als RP-ID")
+	}
+
+	// Ausdrücklich an mit gesetztem Namen → an.
+	c = base()
+	c.Auth.WebAuthn.Enabled = ptr(true)
+	c.Auth.WebAuthn.RPID = "panel.example.org"
+	if buildPasskeys(c, log) == nil {
+		t.Error("enabled=true mit rp_id sollte Passkeys anschalten")
+	}
+
+	// usableRPID: bloßer Name ohne Punkt taugt nicht, localhost schon.
+	if usableRPID("vm") != "" {
+		t.Error("ein Name ohne Punkt ist keine RP-ID")
+	}
+	if usableRPID("localhost") != "localhost" {
+		t.Error("localhost ist als RP-ID erlaubt")
 	}
 }
 

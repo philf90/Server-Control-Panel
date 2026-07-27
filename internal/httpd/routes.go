@@ -47,6 +47,12 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /account/2fa/confirm", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleTOTPChangeConfirm))))
 	mux.Handle("POST /account/sessions/revoke", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleSessionRevoke))))
 	mux.Handle("POST /account/sessions/revoke-others", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleSessionRevokeOthers))))
+	// Passkeys (WebAuthn) als zusätzlicher zweiter Faktor. Registrierung läuft
+	// über zwei JSON-Schritte, Umbenennen und Entfernen als gewöhnliche POSTs.
+	mux.Handle("POST /account/passkeys/register/begin", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRegisterBegin))))
+	mux.Handle("POST /account/passkeys/register/finish", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRegisterFinish))))
+	mux.Handle("POST /account/passkeys/{id}/rename", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRename))))
+	mux.Handle("POST /account/passkeys/{id}/delete", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyDelete))))
 
 	// Systemverwaltung: lesen darf jede Rolle, ändern nur Admin und Owner.
 	mux.Handle("GET /services", s.protected(http.HandlerFunc(s.handleServices)))

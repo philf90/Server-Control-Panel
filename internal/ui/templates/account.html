@@ -75,6 +75,67 @@
   </div>
 </div>
 
+{{if .WebAuthnOn}}
+<div class="section">
+  <div class="sechead">
+    <span class="seclabel">Passkeys</span>
+    <span class="sub">{{len .Passkeys}} hinterlegt</span>
+  </div>
+  <p class="hint">
+    Ein Passkey ist ein zusätzlicher zweiter Faktor — Fingerabdruck, Gesicht oder
+    ein Sicherheitsschlüssel statt eines Codes. Er ergänzt die Authenticator-App,
+    er ersetzt sie nicht: Der Code bleibt der Rückweg, wenn ein Gerät fehlt.
+  </p>
+
+  {{if .Passkeys}}
+  <div class="card flush">
+    <div class="table-wrap">
+      <table class="cards">
+        <thead>
+          <tr><th data-rolle="haupt">Name</th><th>Art</th><th data-rolle="neben">Hinzugefügt</th><th data-rolle="neben">Zuletzt genutzt</th><th></th></tr>
+        </thead>
+        <tbody>
+          {{range .Passkeys}}
+          <tr>
+            <td data-label="Name" data-rolle="haupt">{{.Label}}</td>
+            <td data-label="Art">{{if .Synced}}<span class="badge ok">synchronisiert</span>{{else}}<span class="badge">gerätegebunden</span>{{end}}</td>
+            <td class="muted" data-label="Hinzugefügt" data-rolle="neben">{{date .CreatedAt}}</td>
+            <td class="muted" data-label="Zuletzt genutzt" data-rolle="neben">{{if .LastUsedAt}}{{since .LastUsedAt}}{{else}}nie{{end}}</td>
+            <td class="actions">
+              <form method="post" action="/account/passkeys/{{.ID}}/rename" class="rename">
+                <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                <input type="text" name="label" value="{{.Label}}" maxlength="60" aria-label="Neuer Name">
+                <button type="submit" class="small">umbenennen</button>
+              </form>
+              <form method="post" action="/account/passkeys/{{.ID}}/delete"
+                    onsubmit="return confirm('Passkey „{{.Label}}“ entfernen? Die Anmeldung über dieses Gerät geht damit verloren.')">
+                <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                <button type="submit" class="small danger">entfernen</button>
+              </form>
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{end}}
+
+  <form id="passkey-add" class="row-form" autocomplete="off" data-csrf="{{$.CSRF}}">
+    <div>
+      <label for="pk-label">Name des Passkeys</label>
+      <input type="text" id="pk-label" name="label" maxlength="60" placeholder="z. B. iPhone oder Titan-Stick">
+    </div>
+    <div>
+      <label for="pk-pass">Aktuelles Passwort</label>
+      <input type="password" id="pk-pass" name="password" autocomplete="current-password" required>
+    </div>
+    <div class="submit"><button type="submit">Passkey hinzufügen</button></div>
+  </form>
+  <p class="hint" id="pk-status" role="status" hidden></p>
+</div>
+{{end}}
+
 <div class="section">
   <div class="sechead">
     <span class="seclabel">Aktive Sitzungen</span>
@@ -128,5 +189,6 @@
   </form>
   {{end}}
 </div>
+{{if .WebAuthnOn}}<script src="/static/passkey-register.js" defer></script>{{end}}
 {{end}}
 {{template "footer" .}}{{end}}

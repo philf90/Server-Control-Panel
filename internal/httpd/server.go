@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
 	"github.com/philf90/asylum/internal/metrics"
+	"github.com/philf90/asylum/internal/netinfo"
+	"github.com/philf90/asylum/internal/passkeys"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 	"github.com/philf90/asylum/internal/systemd"
@@ -65,6 +68,11 @@ type Server struct {
 	upd     *updateState
 	pending *pendingSecrets
 
+	// passkeys führt die WebAuthn-Zeremonien. Nil, wenn Passkeys nicht
+	// eingeschaltet oder mangels auflösbarem Namen nicht möglich sind — dann
+	// blendet die Kontoseite den Abschnitt aus.
+	passkeys *passkeys.Manager
+
 	// updHTTP ersetzt den HTTP-Client der Update-Abfrage. Im Betrieb ist er
 	// leer und update.NewClient bestimmt ihn; Tests setzen hier den Client
 	// ihres eigenen Metadatenservers ein, statt die Zertifikatsprüfung im
@@ -93,24 +101,69 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 	if ops == nil {
 		ops = privops.NewSystem()
 	}
+	pk, err := buildPasskeys(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("passkeys: %w", err)
+	}
 	return &Server{
-		cfg:     cfg,
-		cfgPath: cfg.SourcePath,
-		tls:     newTLSControl(config.TLSSettingsOf(cfg)),
-		log:     logger,
-		db:      db,
-		tmpl:    tmpl,
-		started: time.Now(),
-		sampler: metrics.NewSampler(),
-		ring:    metrics.NewRing(historyEntries),
-		limiter: auth.NewLimiter(),
-		hub:     newHub(),
-		ops:     ops,
-		jobs:    newJobs(),
-		fwGuard: newFirewallGuard(),
-		upd:     newUpdateState(),
-		pending: newPendingSecrets(),
+		cfg:      cfg,
+		cfgPath:  cfg.SourcePath,
+		tls:      newTLSControl(config.TLSSettingsOf(cfg)),
+		log:      logger,
+		db:       db,
+		tmpl:     tmpl,
+		started:  time.Now(),
+		sampler:  metrics.NewSampler(),
+		ring:     metrics.NewRing(historyEntries),
+		limiter:  auth.NewLimiter(),
+		hub:      newHub(),
+		ops:      ops,
+		jobs:     newJobs(),
+		fwGuard:  newFirewallGuard(),
+		upd:      newUpdateState(),
+		pending:  newPendingSecrets(),
+		passkeys: pk,
 	}, nil
+}
+
+// buildPasskeys richtet den WebAuthn-Manager aus der Konfiguration ein. Ist die
+// Funktion abgeschaltet oder fehlt ein auflösbarer Name (WebAuthn verlangt eine
+// Domain, keine IP), bleibt sie aus: Rückgabe (nil, nil), und die Kontoseite
+// zeigt den Passkey-Abschnitt nicht.
+func buildPasskeys(cfg config.Config) (*passkeys.Manager, error) {
+	w := cfg.Auth.WebAuthn
+	if !w.Enabled {
+		return nil, nil
+	}
+
+	rpID := w.RPID
+	if rpID == "" {
+		if len(cfg.ACME.Domains) > 0 {
+			rpID = cfg.ACME.Domains[0]
+		} else {
+			rpID = netinfo.FQDN()
+		}
+	}
+	// Ohne Punkt ist es kein qualifizierter Name (localhost ausgenommen), und
+	// eine IP-Adresse taugt als RP-ID ohnehin nicht.
+	if rpID == "" || net.ParseIP(rpID) != nil || (!strings.Contains(rpID, ".") && rpID != "localhost") {
+		return nil, nil
+	}
+
+	origins := w.Origins
+	if len(origins) == 0 {
+		origin := "https://" + rpID
+		if cfg.Server.Port != 443 {
+			origin = fmt.Sprintf("https://%s:%d", rpID, cfg.Server.Port)
+		}
+		origins = []string{origin}
+	}
+
+	name := w.DisplayName
+	if name == "" {
+		name = "Project Asylum"
+	}
+	return passkeys.New(passkeys.Config{RPID: rpID, DisplayName: name, Origins: origins})
 }
 
 // Run startet den Listener und blockiert, bis ctx abgebrochen wird.

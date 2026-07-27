@@ -190,6 +190,9 @@ type accountPage struct {
 	NewCodes          []string
 	Sessions          []sessionView
 	OtherSessions     int
+	// WebAuthnOn sagt, ob der Passkey-Abschnitt überhaupt erscheint.
+	WebAuthnOn bool
+	Passkeys   []passkeyView
 }
 
 type usersPage struct {

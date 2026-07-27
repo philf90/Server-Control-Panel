@@ -35,6 +35,17 @@ func TestDumpSeiten(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
+	// --- Passkeys: Funktion an, zwei Beispielschlüssel für das Bildschirmfoto ---
+	enablePasskeys(t, s)
+	for _, pk := range []store.WebAuthnCredential{
+		{UserID: user.ID, CredentialID: "pk-phone", Label: "iPhone", Data: []byte(`{"flags":{"backupEligible":true,"backupState":true}}`)},
+		{UserID: user.ID, CredentialID: "pk-key", Label: "Titan-Stick", Data: []byte(`{}`)},
+	} {
+		if _, err := s.db.AddWebAuthnCredential(ctx, pk); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	// --- Dienste: eine repräsentative Auswahl statt zweier Zeilen ---
 	ops.mu.Lock()
 	ops.services = nil

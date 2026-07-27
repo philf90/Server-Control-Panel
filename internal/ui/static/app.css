@@ -687,6 +687,12 @@ button.small:focus-visible, .button.small:focus-visible {
 .row-form label { margin-top: 0; }
 .row-form .submit button { margin-top: 0; }
 
+/* Die Umbenennen-Zeile eines Passkeys: Feld und Knopf nebeneinander, damit die
+   Aktionsspalte nicht in die Höhe wächst. */
+form.rename { display: flex; gap: 0.4rem; align-items: center; margin: 0; }
+form.rename input { width: 9rem; padding: 0.3rem 0.5rem; }
+form.rename button { margin: 0; }
+
 .hint { color: var(--muted); font-size: 0.82rem; }
 
 /* ----------------------------------------------------------------- Meldungen */

@@ -206,11 +206,22 @@ func (s *Server) renderAccount(w http.ResponseWriter, r *http.Request, status in
 		}
 	}
 
+	var passkeyList []passkeyView
+	if s.passkeys != nil {
+		if stored, err := s.db.WebAuthnCredentialsByUser(r.Context(), user.ID); err != nil {
+			s.log.Warn("passkeys laden", "err", err)
+		} else {
+			passkeyList = passkeyViews(stored)
+		}
+	}
+
 	page := s.base(r, "Mein Konto", "account").with(accountPage{
 		RecoveryCodesLeft: left,
 		NewCodes:          newCodes,
 		Sessions:          sessions,
 		OtherSessions:     others,
+		WebAuthnOn:        s.passkeys != nil,
+		Passkeys:          passkeyList,
 	})
 	if flash != "" {
 		page = page.withFlash(flash)

@@ -66,6 +66,14 @@ main.narrow {
 .brand strong { letter-spacing: -0.01em; }
 .brand .host { color: var(--muted); font-size: 0.85rem; }
 
+/* Der Projektname führt zur Übersicht — das erwartet man von einem Logo. Er
+   trägt aber die Vordergrundfarbe, nicht das Akzentgrün der übrigen Links:
+   ein grün eingefärbter Markenname sähe aus wie ein Link im Fließtext, nicht
+   wie das Logo. */
+.brand-link { color: inherit; text-decoration: none; }
+.brand-link:hover strong { color: var(--accent); }
+.brand-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
 .menu {
   display: flex;
   gap: 1.25rem;
@@ -86,13 +94,33 @@ main.narrow {
 .menu a.active { color: var(--fg); border-bottom-color: var(--accent); }
 
 .logout { display: flex; align-items: center; gap: 0.75rem; margin: 0; }
-.who { color: var(--muted); font-size: 0.85rem; }
+.logout form { margin: 0; }
+
+/* Der Benutzername führt aufs eigene Profil und sieht deshalb aus wie eine
+   Schaltfläche: Rahmen, Höhe, ein Ziel, das man auch auf dem Telefon trifft.
+   Bis rc.4 war er ein grauer Text neben dem Abmelden-Knopf und wirkte wie eine
+   reine Beschriftung — niemand hätte ihn angetippt. */
+.who {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.who:hover { border-color: var(--accent); color: var(--accent); }
+.who.active { border-color: var(--accent); }
+.who:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .who .role {
-  margin-left: 0.4rem;
-  padding: 0.1rem 0.4rem;
+  padding: 0.05rem 0.35rem;
   border: 1px solid var(--line);
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
 /* ------------------------------------------------------------------ Karten */
@@ -210,7 +238,11 @@ td.zustand { white-space: nowrap; }
 
 label { display: block; margin: 0.9rem 0 0.3rem; font-size: 0.85rem; color: var(--muted); }
 
-input[type="text"], input[type="password"], select {
+/* type="search" gehört bewusst dazu: Die Such- und Filterfelder unter
+   "Dienste" und "Logs" sind <input type="search">. Fehlte der Typ hier, malte
+   der Browser sie in seinem eigenen Stil — abgerundete Kapsel, andere Höhe,
+   anderer Rahmen — mitten zwischen die übrigen Felder, die dieser Regel folgen. */
+input[type="text"], input[type="password"], input[type="search"], select {
   width: 100%;
   padding: 0.55rem 0.7rem;
   background: var(--bg);
@@ -219,6 +251,10 @@ input[type="text"], input[type="password"], select {
   border-radius: 6px;
   font: inherit;
 }
+
+/* Ohne das behält die Suche in WebKit ihre eingebaute Lupen-Kapselform und
+   ignoriert Rahmen und Radius von oben. */
+input[type="search"] { -webkit-appearance: none; appearance: none; }
 
 input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
@@ -409,6 +445,14 @@ code {
 
 .button-row form { margin: 0; }
 .button-row button { margin-top: 0; }
+
+/* Folgt eine Knopfreihe direkt auf eine Definitionsliste (Update-Seite:
+   Knopf "Nach Updates suchen" unmittelbar unter "Bezugsquelle"; ebenso die
+   Dienst-Detailseite), fehlt der Abstand: dl trägt margin: 0, und ein
+   Flex-Behälter verschmilzt seinen Außenabstand nicht mit dem Vorgänger.
+   Deshalb hier gezielt — nicht global, sonst bekämen die Seiten, deren
+   Knopfreihe auf eine Kopfzeile mit eigenem Abstand folgt, den Abstand doppelt. */
+dl + .button-row { margin-top: 1.25rem; }
 
 button[disabled] { opacity: 0.5; cursor: not-allowed; }
 

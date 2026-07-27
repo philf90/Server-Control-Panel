@@ -10,7 +10,7 @@
 {{if .LoggedIn}}
 <nav class="topbar">
   <div class="brand">
-    <strong>Asylum</strong>
+    <a href="/" class="brand-link" aria-label="Zur Übersicht"><strong>Asylum</strong></a>
     <span class="host">{{.Host.Name}}</span>
   </div>
   <!--
@@ -34,11 +34,14 @@
     {{if .IsOwner}}<li><a href="/users" {{if eq .Nav "users"}}class="active"{{end}}>Panel-Zugänge</a></li>{{end}}
     <li><a href="/account" {{if eq .Nav "account"}}class="active"{{end}}>Mein Konto</a></li>
   </ul>
-  <form method="post" action="/logout" class="logout">
-    <input type="hidden" name="_csrf" value="{{.CSRF}}">
-    <span class="who">{{.User.Username}}<span class="role">{{.User.Role}}</span></span>
-    <button type="submit" class="small">Abmelden</button>
-  </form>
+  <div class="logout">
+    <a href="/account" class="who{{if eq .Nav "account"}} active{{end}}"
+       {{if eq .Nav "account"}}aria-current="page"{{end}}>{{.User.Username}}<span class="role">{{.User.Role}}</span></a>
+    <form method="post" action="/logout">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <button type="submit" class="small">Abmelden</button>
+    </form>
+  </div>
 </nav>
 {{end}}
 <main{{if not .LoggedIn}} class="narrow"{{end}}>

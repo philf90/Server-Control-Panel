@@ -8,41 +8,52 @@
 </head>
 <body>
 {{if .LoggedIn}}
-<nav class="topbar">
-  <div class="brand">
-    <a href="/" class="brand-link" aria-label="Zur Übersicht"><strong>Asylum</strong></a>
-    <span class="host">{{.Host.Name}}</span>
-  </div>
+<div class="app">
+<nav class="sidebar">
   <!--
     Die Umschaltung läuft über eine Checkbox und nicht über <details>: Ein
     geschlossenes <details> versteckt seine Kinder im Browser so, dass sich
     das per CSS nicht wieder aufheben lässt — auf breiten Bildschirmen wäre
-    das Menü dann weg. Geprüft in Chromium, beide Varianten.
+    das Menü dann weg. Geprüft in Chromium, beide Varianten. Die Checkbox
+    steht bewusst vor .side-body, damit ":checked ~ .side-body" greift.
     Ohne JavaScript, damit die Navigation nicht an einem Skript hängt.
   -->
   <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Menü anzeigen">
-  <label for="nav-toggle" class="nav-button" aria-hidden="true">Menü</label>
-  <ul class="menu">
-    <li><a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>Übersicht</a></li>
-    <li><a href="/services" {{if eq .Nav "services"}}class="active"{{end}}>Dienste</a></li>
-    <li><a href="/packages" {{if eq .Nav "packages"}}class="active"{{end}}>Pakete</a></li>
-    <li><a href="/firewall" {{if eq .Nav "firewall"}}class="active"{{end}}>Firewall</a></li>
-    <li><a href="/system-users" {{if eq .Nav "sysusers"}}class="active"{{end}}>Systembenutzer</a></li>
-    <li><a href="/logs" {{if eq .Nav "logs"}}class="active"{{end}}>Logs</a></li>
-    <li><a href="/update" {{if eq .Nav "update"}}class="active"{{end}}>Updates</a></li>
-    <li><a href="/audit" {{if eq .Nav "audit"}}class="active"{{end}}>Audit-Log</a></li>
-    {{if .IsOwner}}<li><a href="/users" {{if eq .Nav "users"}}class="active"{{end}}>Panel-Zugänge</a></li>{{end}}
-    <li><a href="/account" {{if eq .Nav "account"}}class="active"{{end}}>Mein Konto</a></li>
-  </ul>
-  <div class="logout">
-    <a href="/account" class="who{{if eq .Nav "account"}} active{{end}}"
-       {{if eq .Nav "account"}}aria-current="page"{{end}}>{{.User.Username}}<span class="role">{{.User.Role}}</span></a>
-    <form method="post" action="/logout">
-      <input type="hidden" name="_csrf" value="{{.CSRF}}">
-      <button type="submit" class="small">Abmelden</button>
-    </form>
+  <div class="side-head">
+    <a href="/" class="brand-link" aria-label="Zur Übersicht"><strong>Asylum</strong><span class="host">{{.Host.Name}}</span></a>
+    <label for="nav-toggle" class="nav-button" aria-hidden="true">Menü</label>
+  </div>
+  <div class="side-body">
+    <div class="navgrp">
+      <a href="/" class="item{{if eq .Nav "dashboard"}} active{{end}}"{{if eq .Nav "dashboard"}} aria-current="page"{{end}}>Übersicht</a>
+    </div>
+    <div class="navgrp">
+      <span class="navgrp-label">System</span>
+      <a href="/services" class="item{{if eq .Nav "services"}} active{{end}}"{{if eq .Nav "services"}} aria-current="page"{{end}}>Dienste</a>
+      <a href="/packages" class="item{{if eq .Nav "packages"}} active{{end}}"{{if eq .Nav "packages"}} aria-current="page"{{end}}>Pakete</a>
+      <a href="/system-users" class="item{{if eq .Nav "sysusers"}} active{{end}}"{{if eq .Nav "sysusers"}} aria-current="page"{{end}}>Systembenutzer</a>
+    </div>
+    <div class="navgrp">
+      <span class="navgrp-label">Sicherheit</span>
+      <a href="/firewall" class="item{{if eq .Nav "firewall"}} active{{end}}"{{if eq .Nav "firewall"}} aria-current="page"{{end}}>Firewall</a>
+      {{if .IsOwner}}<a href="/users" class="item{{if eq .Nav "users"}} active{{end}}"{{if eq .Nav "users"}} aria-current="page"{{end}}>Panel-Zugänge</a>{{end}}
+      <a href="/audit" class="item{{if eq .Nav "audit"}} active{{end}}"{{if eq .Nav "audit"}} aria-current="page"{{end}}>Audit-Log</a>
+    </div>
+    <div class="navgrp">
+      <span class="navgrp-label">Betrieb</span>
+      <a href="/logs" class="item{{if eq .Nav "logs"}} active{{end}}"{{if eq .Nav "logs"}} aria-current="page"{{end}}>Logs</a>
+      <a href="/update" class="item{{if eq .Nav "update"}} active{{end}}"{{if eq .Nav "update"}} aria-current="page"{{end}}>Updates</a>
+    </div>
+    <div class="side-foot">
+      <a href="/account" class="who{{if eq .Nav "account"}} active{{end}}"{{if eq .Nav "account"}} aria-current="page"{{end}}>{{.User.Username}}<span class="role">{{.User.Role}}</span></a>
+      <form method="post" action="/logout">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <button type="submit" class="small">Abmelden</button>
+      </form>
+    </div>
   </div>
 </nav>
+<div class="content">
 {{end}}
 <main{{if not .LoggedIn}} class="narrow"{{end}}>
 {{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
@@ -55,5 +66,9 @@
   <span>Project Asylum {{.Version}}</span>
   {{if .LoggedIn}}<span>{{.Host.Distro}} · Kernel {{.Host.Kernel}} · {{.Host.Cores}} Kerne · {{.Host.Arch}}</span>{{end}}
 </footer>
+{{if .LoggedIn}}
+</div><!-- .content -->
+</div><!-- .app -->
+{{end}}
 </body>
 </html>{{end}}

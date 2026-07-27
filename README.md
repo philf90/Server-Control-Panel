@@ -7,11 +7,13 @@ Ein schlankes, ressourcenschonendes Control Panel für Linux-Server (primär Ubu
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: M3 — Update-Mechanik.** Installation, TLS, Release-Pfad,
-> Zwei-Faktor-Anmeldung, Rollen, Audit-Log, Live-Dashboard, die Verwaltung von
-> Diensten, Paketen, Firewall, Systembenutzern und Logs sowie das signierte
-> Selbstupdate mit Healthcheck und selbsttätigem Rollback stehen. Als Nächstes
-> folgt M4: Dokumentation, `SECURITY.md`, externer Review — die Public Beta.
+> **Status: Freigabekandidaten auf dem Weg zu 0.1.0.** Installation, TLS,
+> Release-Pfad, Zwei-Faktor-Anmeldung, Rollen, Audit-Log, Live-Dashboard, die
+> Verwaltung von Diensten, Paketen, Firewall, Systembenutzern und Logs sowie das
+> signierte Selbstupdate mit Healthcheck und selbsttätigem Rollback stehen
+> (M0–M4). Die Navigation ist eine nach System, Sicherheit und Betrieb
+> gruppierte Seitenleiste. Offen bis 0.1.0: Bildschirmfotos von einem echten
+> Server, externer Sicherheits-Review, der erste Tag ohne Bindestrich.
 
 ## Zielbild
 
@@ -37,6 +39,10 @@ Zielserver.
 
 ## So sieht es aus
 
+Links eine Seitenleiste, in der die Punkte nach **System**, **Sicherheit** und
+**Betrieb** gruppiert sind; der Projektname führt zur Übersicht, der eigene Name
+unten aufs Profil. Auf schmalen Bildschirmen klappt sie zu einer Kopfzeile ein.
+
 Die Übersicht: Auslastung, Dateisysteme, Netzwerk und die größten Prozesse, alle
 zwei Sekunden über einen Live-Kanal aktualisiert.
 
@@ -53,17 +59,20 @@ hinterlässt sonst keine Spur, die dem Betroffenen auffiele.
 
 ![Konto](docs/bilder/konto.png)
 
-Auf dem Telefon wird aus jeder Tabellenzeile eine Karte — ein Server-Panel wird
-genau dann gebraucht, wenn man nicht am Schreibtisch sitzt.
+Auf dem Telefon klappt die Seitenleiste zu einer Kopfzeile ein, und aus jeder
+Tabellenzeile wird eine Karte — ein Server-Panel wird genau dann gebraucht, wenn
+man nicht am Schreibtisch sitzt.
 
 <img src="docs/bilder/schmal.png" alt="Systembenutzer auf einem Telefon" width="320">
 
 Weitere Ansichten: [Dienste](docs/bilder/dienste.png) ·
 [Firewall](docs/bilder/firewall.png) · [Audit-Log](docs/bilder/audit.png)
 
-> Die Bilder stammen aus einem Container ohne systemd — Dienste, Pakete und
-> Firewall zeigen dort ihre Fehlerbehandlung statt echter Daten. Auf einem
-> Server sieht das entsprechend voller aus.
+> Die Bilder entstehen reproduzierbar aus der Anwendung selbst
+> (`ASYLUM_DUMP_DIR=… go test ./internal/httpd -run TestDumpSeiten`), mit
+> repräsentativen Beispieldaten: Dienste, Pakete, Firewall und Systembenutzer
+> über den einspeisbaren Runner, die Übersicht aus einem gestellten Snapshot.
+> Bildschirmfotos von einem echten Server unter systemd stehen für 0.1.0 noch aus.
 
 ## Entwicklung
 

@@ -27,6 +27,7 @@ type Config struct {
 	Paths   Paths   `yaml:"paths"`
 	Log     Log     `yaml:"log"`
 	Updates Updates `yaml:"updates"`
+	ACME    ACME    `yaml:"acme"`
 }
 
 // Server beschreibt den HTTPS-Listener des Panels.
@@ -36,12 +37,76 @@ type Server struct {
 	TLS  TLS    `yaml:"tls"`
 }
 
-// TLS verweist auf das Zertifikat. Fehlen die Dateien, erzeugt der Daemon beim
-// Start ein selbstsigniertes Paar.
+// TLS-Modi.
+const (
+	// TLSModeSelfSigned: der Daemon erzeugt beim ersten Start ein
+	// selbstsigniertes Paar (Vorgabe).
+	TLSModeSelfSigned = "selfsigned"
+	// TLSModeACME: das Zertifikat kommt von einer ACME-Instanz (Let's Encrypt).
+	// Schlägt der Bezug fehl, fällt der Daemon aufs selbstsignierte Paar zurück.
+	TLSModeACME = "acme"
+)
+
+// TLS steuert die Herkunft des Zertifikats. `mode: selfsigned` ist die Vorgabe;
+// fehlen die Dateien, erzeugt der Daemon beim Start ein selbstsigniertes Paar.
 type TLS struct {
+	Mode string `yaml:"mode"`
 	Cert string `yaml:"cert"`
 	Key  string `yaml:"key"`
 }
+
+// ACME beschreibt den Bezug eines Zertifikats über das ACME-Protokoll
+// (Let's Encrypt). Der Block wird nur ausgewertet, wenn `server.tls.mode: acme`
+// gesetzt ist.
+type ACME struct {
+	// Email ist die Kontaktadresse des ACME-Kontos (Ablaufwarnungen).
+	Email string `yaml:"email"`
+	// Domains sind die Namen im Zertifikat. Leer = der vollqualifizierte
+	// Rechnername (netinfo.FQDN()), zur Laufzeit ermittelt.
+	Domains []string `yaml:"domains"`
+	// DirectoryURL überschreibt das ACME-Verzeichnis, etwa für das
+	// Staging-System beim Testen. Leer = Let's-Encrypt-Produktion.
+	DirectoryURL string `yaml:"directory_url"`
+	// Challenge: leer = automatisch (DNS-01, wenn ein Anbieter gesetzt ist,
+	// sonst HTTP-01, falls Port 80 frei ist), oder ausdrücklich http-01/dns-01.
+	Challenge string     `yaml:"challenge"`
+	HTTP01    ACMEHTTP01 `yaml:"http01"`
+	DNS01     ACMEDNS01  `yaml:"dns01"`
+}
+
+// ACMEHTTP01 steuert die HTTP-01-Prüfung über Port 80.
+type ACMEHTTP01 struct {
+	// OpenFirewall öffnet für die Dauer der Prüfung kurz Port 80 über ufw.
+	OpenFirewall bool `yaml:"open_firewall"`
+}
+
+// ACMEDNS01 steuert die DNS-01-Prüfung.
+type ACMEDNS01 struct {
+	// Provider: hook (Betreiber-Skript) oder cloudflare (eingebaute HTTP-API).
+	Provider   string         `yaml:"provider"`
+	Hook       ACMEHook       `yaml:"hook"`
+	Cloudflare ACMECloudflare `yaml:"cloudflare"`
+}
+
+// ACMEHook ruft ein vom Betreiber gestelltes Programm, das den TXT-Record
+// setzt und wieder entfernt. So bleibt kein Anbieter im Binary.
+type ACMEHook struct {
+	Set   string `yaml:"set"`
+	Clean string `yaml:"clean"`
+}
+
+// ACMECloudflare setzt den TXT-Record über die Cloudflare-API.
+type ACMECloudflare struct {
+	// APITokenFile ist der Pfad zu einer Datei mit dem API-Token (0600).
+	// Bewusst kein Token im Klartext in der Konfiguration.
+	APITokenFile string `yaml:"api_token_file"`
+}
+
+// DNS-01-Anbieter.
+const (
+	DNS01ProviderHook       = "hook"
+	DNS01ProviderCloudflare = "cloudflare"
+)
 
 // Paths bündelt die Datenverzeichnisse.
 type Paths struct {
@@ -74,6 +139,7 @@ func Default() Config {
 			Bind: "0.0.0.0",
 			Port: 8443,
 			TLS: TLS{
+				Mode: TLSModeSelfSigned,
 				Cert: "/etc/asylum/tls/server.crt",
 				Key:  "/etc/asylum/tls/server.key",
 			},
@@ -205,6 +271,56 @@ func (c Config) Validate() error {
 	case "none", "security", "patch", "all":
 	default:
 		return fmt.Errorf("updates.auto_apply: %q ist unbekannt (none|security|patch|all)", c.Updates.AutoApply)
+	}
+
+	// Leerer Modus gilt als selfsigned: Eine Konfiguration aus der Zeit vor
+	// diesem Feld darf nicht ungültig werden.
+	switch c.Server.TLS.Mode {
+	case "", TLSModeSelfSigned:
+	case TLSModeACME:
+		if err := c.ACME.validate(); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("server.tls.mode: %q ist unbekannt (selfsigned|acme)", c.Server.TLS.Mode)
+	}
+	return nil
+}
+
+// validate prüft den ACME-Block. Aufgerufen nur, wenn der Modus acme ist —
+// sonst darf der Block unvollständig bleiben, ohne den Start zu verhindern.
+func (a ACME) validate() error {
+	if a.Email == "" {
+		return errors.New("acme.email darf im Modus acme nicht leer sein")
+	}
+	if a.DirectoryURL != "" {
+		if u, err := url.Parse(a.DirectoryURL); err != nil || u.Scheme != "https" || u.Host == "" {
+			return fmt.Errorf("acme.directory_url: %q ist keine https-Adresse", a.DirectoryURL)
+		}
+	}
+	switch a.Challenge {
+	case "", "http-01", "dns-01":
+	default:
+		return fmt.Errorf("acme.challenge: %q ist unbekannt (leer=automatisch|http-01|dns-01)", a.Challenge)
+	}
+
+	switch a.DNS01.Provider {
+	case "":
+		// Kein DNS-Anbieter konfiguriert. Nur ein Widerspruch, wenn dns-01
+		// ausdrücklich verlangt ist — bei automatischer Wahl bleibt HTTP-01.
+		if a.Challenge == "dns-01" {
+			return errors.New("acme.challenge ist dns-01, aber acme.dns01.provider ist leer")
+		}
+	case DNS01ProviderHook:
+		if a.DNS01.Hook.Set == "" || a.DNS01.Hook.Clean == "" {
+			return errors.New("acme.dns01.hook: set und clean müssen gesetzt sein")
+		}
+	case DNS01ProviderCloudflare:
+		if a.DNS01.Cloudflare.APITokenFile == "" {
+			return errors.New("acme.dns01.cloudflare.api_token_file darf nicht leer sein")
+		}
+	default:
+		return fmt.Errorf("acme.dns01.provider: %q ist unbekannt (hook|cloudflare)", a.DNS01.Provider)
 	}
 	return nil
 }

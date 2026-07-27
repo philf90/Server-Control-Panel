@@ -70,6 +70,10 @@ type Server struct {
 	// ihres eigenen Metadatenservers ein, statt die Zertifikatsprüfung im
 	// Produktivcode abschaltbar zu machen.
 	updHTTP *http.Client
+
+	// certHolder trägt das aktive TLS-Zertifikat und erlaubt den Austausch zur
+	// Laufzeit (Grundlage für die ACME-Erneuerung ohne Neustart). In Run gesetzt.
+	certHolder *certs.Holder
 }
 
 // New baut den Server auf. Templates werden hier geparst, damit ein Fehler
@@ -120,6 +124,11 @@ func (s *Server) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("tls-material laden: %w", err)
 	}
+	// Das Zertifikat kommt über GetCertificate aus einem Halter statt aus einer
+	// festen Certificates-Liste. Beim selbstsignierten Betrieb ist das
+	// gleichbedeutend; der Halter ist die Stelle, an der die spätere
+	// ACME-Erneuerung das Zertifikat ohne Neustart austauscht.
+	s.certHolder = certs.NewHolder(keyPair)
 
 	srv := &http.Server{
 		Addr:              s.cfg.Addr(),
@@ -129,8 +138,8 @@ func (s *Server) Run(ctx context.Context) error {
 		IdleTimeout:       idleTimeout,
 		ErrorLog:          slog.NewLogLogger(s.log.Handler(), slog.LevelWarn),
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{keyPair},
-			MinVersion:   tls.VersionTLS12,
+			GetCertificate: s.certHolder.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
 			CurvePreferences: []tls.CurveID{
 				tls.X25519, tls.CurveP256,
 			},

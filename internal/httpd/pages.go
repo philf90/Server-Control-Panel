@@ -82,6 +82,9 @@ type errorPage struct {
 
 type loginPage struct {
 	Username string
+	// WebAuthnOn blendet den Passkey-Knopf ein. Ohne eingeschaltete Funktion
+	// gäbe es keinen Endpunkt, den er ansprechen könnte.
+	WebAuthnOn bool
 }
 
 type setupPage struct {

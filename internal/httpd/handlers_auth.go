@@ -30,7 +30,8 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 				with(loginPage{}))
 		return
 	}
-	s.renderPage(w, r, http.StatusOK, "login", s.base(r, "Anmeldung", "").with(loginPage{}))
+	s.renderPage(w, r, http.StatusOK, "login",
+		s.base(r, "Anmeldung", "").with(loginPage{WebAuthnOn: s.passkeys != nil}))
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +197,7 @@ func (s *Server) failLogin(w http.ResponseWriter, r *http.Request, username, mes
 		message = "Anmeldung fehlgeschlagen."
 	}
 	s.renderPage(w, r, http.StatusUnauthorized, "login",
-		s.base(r, "Anmeldung", "").withError(message).with(loginPage{Username: username}))
+		s.base(r, "Anmeldung", "").withError(message).with(loginPage{Username: username, WebAuthnOn: s.passkeys != nil}))
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {

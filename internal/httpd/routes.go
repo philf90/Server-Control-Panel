@@ -24,6 +24,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /login", s.handleLoginForm)
 	mux.Handle("POST /login", s.rateLimited(http.HandlerFunc(s.handleLogin)))
+	// Anmeldung mit Passkey: zwei Schritte, beide ratenbegrenzt wie /login und
+	// ohne CSRF (es gibt noch keine Sitzung). Die Assertion selbst ist an den
+	// Ursprung gebunden und damit der Schutz gegen fremde Seiten.
+	mux.Handle("POST /login/passkey/begin", s.rateLimited(http.HandlerFunc(s.handlePasskeyLoginBegin)))
+	mux.Handle("POST /login/passkey/finish", s.rateLimited(http.HandlerFunc(s.handlePasskeyLoginFinish)))
 	mux.HandleFunc("GET /setup", s.handleSetupForm)
 	mux.Handle("POST /setup", s.rateLimited(http.HandlerFunc(s.handleSetup)))
 

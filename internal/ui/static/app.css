@@ -233,11 +233,11 @@ main.narrow {
 }
 .themebtn:hover { filter: none; border-color: var(--accent); color: var(--accent); }
 .themebtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* Ohne diese Zeile bliebe der Knopf sichtbar, obwohl er hidden ist: Die
+/* Ohne diese Zeile bliebe ein Knopf sichtbar, obwohl er hidden ist: Die
    allgemeine button-Regel setzt display: inline-block und schlägt damit das
-   display: none des hidden-Attributs. Ohne JavaScript trägt der Umschalter
-   nichts — dann soll er auch nicht dastehen. */
-.themebtn[hidden] { display: none; }
+   display: none des hidden-Attributs. Betrifft alles, was erst per JavaScript
+   eingeblendet wird — Theme-Umschalter, Passkey-Knöpfe. */
+button[hidden], .button[hidden] { display: none; }
 
 /* ------------------------------------------------------------------ Karten */
 

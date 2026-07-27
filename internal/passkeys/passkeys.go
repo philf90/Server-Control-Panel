@@ -219,6 +219,21 @@ func (m *Manager) take(token string, userID int64) (wa.SessionData, bool) {
 	return p.data, true
 }
 
+// LoginUserID verrät, welchem Konto eine offene Anmelde-Challenge gehört, ohne
+// sie zu verbrauchen. Die Anmeldung kennt beim Abschluss nur das Token aus dem
+// Vorab-Cookie, nicht das Konto — erst damit lässt sich der Benutzer samt seiner
+// Credentials laden und an FinishLogin übergeben, das die Challenge dann
+// einlöst. Ein abgelaufenes Token zählt als nicht vorhanden.
+func (m *Manager) LoginUserID(token string) (int64, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	p, ok := m.sessions[token]
+	if !ok || p.expires.Before(m.now()) {
+		return 0, false
+	}
+	return p.userID, true
+}
+
 func (m *Manager) gcLocked() {
 	now := m.now()
 	for k, p := range m.sessions {

@@ -126,6 +126,94 @@ func TestPasskeyRenameAndDelete(t *testing.T) {
 	}
 }
 
+// seedCredential legt einen Passkey mit gerade genug Inhalt an, dass BeginLogin
+// ihn in die erlaubten Credentials aufnimmt.
+func seedCredential(t *testing.T, s *Server, userID int64, credID string) {
+	t.Helper()
+	// "id" ist im go-webauthn-Credential ein []byte und wird von encoding/json
+	// base64-dekodiert.
+	if _, err := s.db.AddWebAuthnCredential(context.Background(), store.WebAuthnCredential{
+		UserID: userID, CredentialID: credID, Label: "Testschlüssel", Data: []byte(`{"id":"AQIDBA=="}`),
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPasskeyLoginBeginBranches(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+
+	// Funktion aus → 404.
+	rec := post(t, s, "/login/passkey/begin", url.Values{"username": {"philipp"}, "password": {testPassword}}, nil)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("aus: Status = %d, erwartet 404", rec.Code)
+	}
+
+	enablePasskeys(t, s)
+
+	// Falsches Passwort → 401.
+	rec = post(t, s, "/login/passkey/begin", url.Values{"username": {"philipp"}, "password": {"falsch"}}, nil)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("falsches Passwort: Status = %d, erwartet 401", rec.Code)
+	}
+
+	// Richtiges Passwort, aber kein Passkey → 409.
+	rec = post(t, s, "/login/passkey/begin", url.Values{"username": {"philipp"}, "password": {testPassword}}, nil)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("ohne Passkey: Status = %d, erwartet 409", rec.Code)
+	}
+
+	// Mit Passkey → 200, Optionen und Vorab-Cookie.
+	seedCredential(t, s, user.ID, "cred-1")
+	rec = post(t, s, "/login/passkey/begin", url.Values{"username": {"philipp"}, "password": {testPassword}}, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("mit Passkey: Status = %d, Body %s", rec.Code, rec.Body.String())
+	}
+	var preauth string
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == preauthCookie {
+			preauth = c.Value
+		}
+	}
+	if preauth == "" {
+		t.Error("kein Vorab-Cookie gesetzt")
+	}
+	var body struct {
+		PublicKey struct {
+			Challenge        string `json:"challenge"`
+			AllowCredentials []any  `json:"allowCredentials"`
+		} `json:"publicKey"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("Antwort unlesbar: %v", err)
+	}
+	if body.PublicKey.Challenge == "" {
+		t.Error("keine Challenge")
+	}
+	if len(body.PublicKey.AllowCredentials) != 1 {
+		t.Errorf("allowCredentials = %d, erwartet 1", len(body.PublicKey.AllowCredentials))
+	}
+}
+
+func TestPasskeyLoginFinishNeedsCookie(t *testing.T) {
+	s := newTestServer(t)
+	enablePasskeys(t, s)
+	addUser(t, s, "philipp", store.RoleOwner)
+
+	// Kein Vorab-Cookie → 400.
+	rec := post(t, s, "/login/passkey/finish", url.Values{"credential": {"{}"}}, nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("ohne Cookie: Status = %d, erwartet 400", rec.Code)
+	}
+
+	// Unbekanntes Token → 400 (die Challenge gibt es nicht).
+	rr := post(t, s, "/login/passkey/finish", url.Values{"credential": {"{}"}},
+		&http.Cookie{Name: preauthCookie, Value: "gibtsnicht"})
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("unbekanntes Token: Status = %d, erwartet 400", rr.Code)
+	}
+}
+
 // Ein Passkey darf nur mit gültigem CSRF-Token angelegt werden — sonst wäre der
 // zweite Faktor über eine fremde Seite hinzufügbar.
 func TestPasskeyRegisterBeginRejectsBadCSRF(t *testing.T) {

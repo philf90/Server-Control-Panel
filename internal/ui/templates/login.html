@@ -17,6 +17,11 @@
     <p class="hint">Ein Wiederherstellungscode wird hier ebenfalls angenommen.</p>
 
     <button type="submit">Anmelden</button>
+    {{if .Content.WebAuthnOn}}
+    <button type="button" id="passkey-login" class="secondary" hidden>Stattdessen mit Passkey anmelden</button>
+    <p class="hint" id="pk-login-status" role="status" hidden></p>
+    {{end}}
   </form>
 </div>
+{{if .Content.WebAuthnOn}}<script src="/static/passkey-login.js" defer></script>{{end}}
 {{template "footer" .}}{{end}}

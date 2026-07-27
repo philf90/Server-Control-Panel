@@ -27,27 +27,26 @@ deshalb **`asylum-panel`**. Projektname, Daemon (`asylumd`) und Befehl
 Pakete auch nicht um eine Datei. Geprüft wurde das gegen ein echtes, signiertes
 apt-Repository — `apt` löst `asylum-panel` eindeutig auf unser Paket auf.
 
+Ebenfalls erledigt: `main` ist angelegt und als Standardbranch gesetzt, die
+Secrets `APT_GPG_KEY` und `APT_GPG_PASSPHRASE` liegen im Repository — das
+APT-Repository wird seit 0.1.0-rc.2 signiert veröffentlicht und ist auf einem
+echten Server gegen `apt` geprüft.
+
 Offen, keiner davon blockiert die Weiterentwicklung:
 
-- **Kein Default-Branch.** Das Repository hat nur den Arbeitsbranch und
-  `gh-pages`. Vor dem ersten Release muss der Stand als `main` landen — ein Tag
-  auf einem Feature-Branch wäre ein seltsamer Ausgangspunkt für ein
-  öffentliches Projekt.
-- **Marken in Klasse 9/42** noch zu prüfen — Befehle in
+- **Marken in Klasse 9/42** noch zu prüfen, dazu Paket-Namensräume und
+  GitHub-Organisation — Befehle in
   [07-name-lizenz-domain.md](07-name-lizenz-domain.md#verbleibende-prüfschritte).
-- **Secrets `APT_GPG_KEY` und `APT_GPG_PASSPHRASE` hinterlegen.** Der Schlüssel
-  ist erzeugt, sein öffentlicher Teil liegt als
-  `packaging/asylum-archive-keyring.gpg` im Repository; nur der private Teil
-  fehlt noch in den Repository-Secrets. Bis dahin überspringt der
-  Release-Workflow den apt-Schritt mit einer Warnung, alles andere am Release
-  funktioniert. Einzelheiten in
-  [05-updates.md](05-updates.md#signaturschlüssel-des-repositories).
 - **Copyright-Zeile in `LICENSE`** auf den endgültigen Rechtsträger anpassen.
   Steht derzeit auf „Project Asylum Contributors" — das trägt für ein
   Gemeinschaftsprojekt, wäre für eine Firma aber anzupassen.
 - **Externer Sicherheits-Review** der Anmelde- und Updatepfade.
-- **Bildschirmfotos auf einem echten Server** neu aufnehmen.
+- **Bildschirmfotos auf einem echten Server** neu aufnehmen. Seit rc.2 gibt es
+  eine echte Installation, an der das möglich ist.
 - **TTL der DNS-Einträge** von 10 auf 3600 anheben, sobald alles steht.
+- **Kanal `stable` existiert noch nicht.** Er entsteht mit dem ersten Tag ohne
+  Bindestrich. Bis dahin führt `Suites: stable` in ein 404; die Anleitungen
+  nennen deshalb `beta`. Siehe [05-updates.md](05-updates.md#apt-repository).
 
 ---
 
@@ -241,6 +240,27 @@ mit Angreifermodell, Abwägungen und offenen Punkten
 ([09-sicherheitsbetrachtung.md](09-sicherheitsbetrachtung.md)) — vom selben
 Kreis geschrieben, der den Code geschrieben hat, und damit kein Ersatz für
 fremde Augen. `SECURITY.md` sagt das ausdrücklich, statt es zu verschweigen.
+
+### Freigabekandidaten
+
+Der Weg zu 0.1.0 läuft über Vorabversionen im Kanal `beta`. Jede hat bisher
+genau einen Fehler zutage gefördert, den kein Test gefunden hatte — das ist ihr
+Zweck.
+
+| Fassung | Gefunden | Behoben in |
+|---|---|---|
+| `0.1.0-rc.1` | Die Ersetzung der Debian-Version (`0.1.0-rc.1` → `0.1.0~rc.1`) war nie in der Datei angekommen. | `rc.2` |
+| `0.1.0-rc.2` | `min_upgradable_from` stand fest auf `0.1.0` und sperrte damit jeden Beta-Tester aus: Nach SemVer ist die Freigabe neuer als ihre Vorabversionen. | `rc.3` |
+| `0.1.0-rc.2` | Die apt-Anleitung nannte `Suites: stable` — ein Kanal, den es noch nicht gab. | `rc.3` |
+| `0.1.0-rc.2` | Der Link zur Ersteinrichtung nannte den kurzen Rechnernamen ohne Domainendung und war von außen unbrauchbar; der vollqualifizierte Name fehlte zudem im Zertifikat. | `rc.3` |
+
+Die ersten beiden Fehler traten erst auf, als ein Tag gesetzt war. Deshalb läuft
+der betroffene Schritt seit `rc.3` bei jedem CI-Lauf probeweise gegen eine
+Attrappe (`packaging/release-dry-run.sh`).
+
+**Für 0.1.0 offen:** ein Freigabekandidat, der bei einem unbeteiligten Tester
+von der Installation bis zur Anmeldung ohne Eingriff durchläuft. Erst der Tag
+ohne Bindestrich legt den Kanal `stable` an.
 
 **Summe bis zur nutzbaren Beta: ~8 Wochen** für eine Vollzeit-Person, entsprechend
 länger nebenberuflich. Danach v0.2 (Dateimanager, Cron, Terminal,

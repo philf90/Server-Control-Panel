@@ -28,7 +28,10 @@ func (h *hookSetter) removeTXT(ctx context.Context, domain, record, value string
 }
 
 func runHook(ctx context.Context, path, action, domain, record, value string) error {
-	cmd := exec.CommandContext(ctx, path, action, record, value)
+	// G204: Der Pfad stammt aus der Konfiguration des Betreibers (acme.dns01.hook),
+	// nicht aus einer Anfrage. Ein Hook, der ein Programm ruft, ist der Sinn der
+	// Sache — genau dafür ist das Feld da.
+	cmd := exec.CommandContext(ctx, path, action, record, value) //nolint:gosec // G204: Pfad aus vertrauenswürdiger Konfiguration
 	cmd.Env = append(os.Environ(),
 		"ASYLUM_ACME_ACTION="+action,
 		"ASYLUM_ACME_DOMAIN="+domain,

@@ -1,39 +1,39 @@
 {{define "logs"}}{{template "header" .}}
 {{with .Content}}
-<div class="card">
-  <div class="card-head">
-    <h2>Journal</h2>
-    <span class="muted">{{len .Entries}} Zeilen</span>
+<div class="pagehead">
+  <div>
+    <h1>Journal</h1>
+    <span class="sub">systemd-journald · {{len .Entries}} Zeilen</span>
   </div>
-
-  <form method="get" action="/logs" class="filter-form">
-    <select name="unit">
-      <option value="">alle Units</option>
-      {{range .Units}}<option value="{{.}}" {{if eq . $.Content.Query.Unit}}selected{{end}}>{{.}}</option>{{end}}
-    </select>
-    <select name="priority">
-      <option value="">alle Stufen</option>
-      <option value="3" {{if eq .Query.Priority 3}}selected{{end}}>Fehler und schlimmer</option>
-      <option value="4" {{if eq .Query.Priority 4}}selected{{end}}>Warnungen und schlimmer</option>
-      <option value="6" {{if eq .Query.Priority 6}}selected{{end}}>Info und schlimmer</option>
-    </select>
-    <select name="since">
-      <option value="">ohne Zeitgrenze</option>
-      <option value="-1h" {{if eq .Query.Since "-1h"}}selected{{end}}>letzte Stunde</option>
-      <option value="-6h" {{if eq .Query.Since "-6h"}}selected{{end}}>letzte 6 Stunden</option>
-      <option value="today" {{if eq .Query.Since "today"}}selected{{end}}>heute</option>
-      <option value="-7d" {{if eq .Query.Since "-7d"}}selected{{end}}>letzte 7 Tage</option>
-    </select>
-    <input type="search" name="q" value="{{.Query.Search}}" placeholder="Volltext">
-    <button type="submit" class="secondary">Filtern</button>
-  </form>
-
-  {{if .Entries}}
-  <pre class="logs">{{range .Entries}}<span class="prio-{{.PriorityName}}">{{datetime .At}}  {{if .Unit}}{{.Unit}}  {{end}}{{.Message}}</span>
-{{end}}</pre>
-  {{else}}
-  <p class="muted">Keine passenden Einträge.</p>
-  {{end}}
 </div>
+
+<form method="get" action="/logs" class="filter-form">
+  <select name="unit">
+    <option value="">alle Units</option>
+    {{range .Units}}<option value="{{.}}" {{if eq . $.Content.Query.Unit}}selected{{end}}>{{.}}</option>{{end}}
+  </select>
+  <select name="priority">
+    <option value="">alle Stufen</option>
+    <option value="3" {{if eq .Query.Priority 3}}selected{{end}}>Fehler und schlimmer</option>
+    <option value="4" {{if eq .Query.Priority 4}}selected{{end}}>Warnungen und schlimmer</option>
+    <option value="6" {{if eq .Query.Priority 6}}selected{{end}}>Info und schlimmer</option>
+  </select>
+  <select name="since">
+    <option value="">ohne Zeitgrenze</option>
+    <option value="-1h" {{if eq .Query.Since "-1h"}}selected{{end}}>letzte Stunde</option>
+    <option value="-6h" {{if eq .Query.Since "-6h"}}selected{{end}}>letzte 6 Stunden</option>
+    <option value="today" {{if eq .Query.Since "today"}}selected{{end}}>heute</option>
+    <option value="-7d" {{if eq .Query.Since "-7d"}}selected{{end}}>letzte 7 Tage</option>
+  </select>
+  <input type="search" name="q" value="{{.Query.Search}}" placeholder="Volltext">
+  <button type="submit" class="secondary">Filtern</button>
+</form>
+
+{{if .Entries}}
+<pre class="logs">{{range .Entries}}<span class="prio-{{.PriorityName}}">{{datetime .At}}  {{if .Unit}}{{.Unit}}  {{end}}{{.Message}}</span>
+{{end}}</pre>
+{{else}}
+<div class="card"><p class="muted">Keine passenden Einträge.</p></div>
+{{end}}
 {{end}}
 {{template "footer" .}}{{end}}

@@ -1,5 +1,5 @@
 {{define "header"}}<!doctype html>
-<html lang="de">
+<html lang="de"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,6 +47,7 @@
     </div>
     <div class="side-foot">
       <a href="/account" class="who{{if eq .Nav "account"}} active{{end}}"{{if eq .Nav "account"}} aria-current="page"{{end}}>{{.User.Username}}<span class="role">{{.User.Role}}</span></a>
+      <button type="button" class="themebtn" id="theme-toggle" hidden aria-live="polite">◐ Design</button>
       <form method="post" action="/logout">
         <input type="hidden" name="_csrf" value="{{.CSRF}}">
         <button type="submit" class="small">Abmelden</button>
@@ -71,5 +72,6 @@
 </div><!-- .content -->
 </div><!-- .app -->
 {{end}}
+<script src="/static/theme.js" defer></script>
 </body>
 </html>{{end}}

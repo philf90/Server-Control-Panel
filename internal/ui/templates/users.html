@@ -1,19 +1,25 @@
 {{define "users"}}{{template "header" .}}
-<div class="card">
-  <h2>Panel-Zugänge</h2>
+<div class="pagehead">
+  <div>
+    <h1>Panel-Zugänge</h1>
+    <span class="sub">Wer sich am Panel anmelden darf</span>
+  </div>
+</div>
+
+<div class="card flush">
   <div class="table-wrap">
     <table class="cards">
       <thead>
-        <tr><th>Anmeldename</th><th>Rolle</th><th>2FA</th><th>Status</th><th>Letzte Anmeldung</th><th></th></tr>
+        <tr><th data-rolle="haupt">Anmeldename</th><th>Rolle</th><th data-rolle="neben">2FA</th><th>Status</th><th data-rolle="neben">Letzte Anmeldung</th><th></th></tr>
       </thead>
       <tbody>
         {{range .Content.Users}}
         <tr {{if .Disabled}}class="muted-row"{{end}}>
-          <td data-label="Anmeldename">{{.Username}}</td>
+          <td data-label="Anmeldename" data-rolle="haupt">{{.Username}}</td>
           <td data-label="Rolle"><span class="badge">{{.Role}}</span></td>
-          <td data-label="2FA">{{if .TOTPConfirmed}}aktiv{{else}}offen{{end}}</td>
-          <td data-label="Status">{{if .Disabled}}gesperrt{{else}}aktiv{{end}}</td>
-          <td class="muted" data-label="Letzte Anmeldung">{{if .LastLoginAt}}{{since .LastLoginAt}}{{else}}nie{{end}}</td>
+          <td data-label="2FA" data-rolle="neben">{{if .TOTPConfirmed}}<span class="badge ok">aktiv</span>{{else}}<span class="badge warn">offen</span>{{end}}</td>
+          <td data-label="Status">{{if .Disabled}}<span class="badge warn">gesperrt</span>{{else}}<span class="badge ok">aktiv</span>{{end}}</td>
+          <td class="muted" data-label="Letzte Anmeldung" data-rolle="neben">{{if .LastLoginAt}}{{since .LastLoginAt}}{{else}}nie{{end}}</td>
           <td class="actions">
             {{if ne .ID $.User.ID}}
             <form method="post" action="/users/{{.ID}}/disabled">
@@ -35,32 +41,34 @@
   </div>
 </div>
 
-<div class="card">
-  <h2>Zugang anlegen</h2>
-  <p class="hint">
-    Der zweite Faktor wird beim ersten Anmelden des neuen Kontos eingerichtet.
-    Vorher ist außer dieser Einrichtung nichts erreichbar.
-  </p>
-  <form method="post" action="/users" class="row-form" autocomplete="off">
-    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+<div class="section">
+  <div class="seclabel">Zugang anlegen</div>
+  <div class="card">
+    <p class="hint">
+      Der zweite Faktor wird beim ersten Anmelden des neuen Kontos eingerichtet.
+      Vorher ist außer dieser Einrichtung nichts erreichbar.
+    </p>
+    <form method="post" action="/users" class="row-form" autocomplete="off">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
 
-    <div>
-      <label for="username">Anmeldename</label>
-      <input type="text" id="username" name="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._\-]+">
-    </div>
-    <div>
-      <label for="password">Startpasswort</label>
-      <input type="password" id="password" name="password" required minlength="12" autocomplete="new-password">
-    </div>
-    <div>
-      <label for="role">Rolle</label>
-      <select id="role" name="role">
-        <option value="readonly">ReadOnly — nur lesen</option>
-        <option value="admin">Admin — verwalten</option>
-        <option value="owner">Owner — alles, inklusive Benutzer</option>
-      </select>
-    </div>
-    <div class="submit"><button type="submit">Anlegen</button></div>
-  </form>
+      <div>
+        <label for="username">Anmeldename</label>
+        <input type="text" id="username" name="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._\-]+">
+      </div>
+      <div>
+        <label for="password">Startpasswort</label>
+        <input type="password" id="password" name="password" required minlength="12" autocomplete="new-password">
+      </div>
+      <div>
+        <label for="role">Rolle</label>
+        <select id="role" name="role">
+          <option value="readonly">ReadOnly — nur lesen</option>
+          <option value="admin">Admin — verwalten</option>
+          <option value="owner">Owner — alles, inklusive Benutzer</option>
+        </select>
+      </div>
+      <div class="submit"><button type="submit">Anlegen</button></div>
+    </form>
+  </div>
 </div>
 {{template "footer" .}}{{end}}

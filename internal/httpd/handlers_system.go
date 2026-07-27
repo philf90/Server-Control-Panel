@@ -149,6 +149,20 @@ func (s *Server) handlePackageRefresh(w http.ResponseWriter, r *http.Request) {
 	s.renderPackages(w, r, http.StatusOK, "Paketlisten aktualisiert.", "")
 }
 
+// handleReboot startet den Server neu. Das ist die einschneidendste Aktion des
+// Panels — deshalb nur für Owner (in den Routen) und mit CSRF. Ein Erfolg
+// zerreißt die Verbindung binnen Sekunden; die Meldung, die wir noch senden,
+// ist eher Höflichkeit als Zusicherung.
+func (s *Server) handleReboot(w http.ResponseWriter, r *http.Request) {
+	if err := s.ops.Reboot(r.Context()); err != nil {
+		s.audit(r, "system.reboot", "", store.ResultError, err.Error())
+		s.renderPackages(w, r, http.StatusBadGateway, "", "Der Neustart konnte nicht angestoßen werden: "+err.Error())
+		return
+	}
+	s.audit(r, "system.reboot", "", store.ResultOK, "")
+	s.renderPackages(w, r, http.StatusOK, "Der Neustart wurde angestoßen. Die Verbindung bricht gleich ab und kommt nach dem Hochfahren zurück.", "")
+}
+
 func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 	user, _ := userFrom(r.Context())
 

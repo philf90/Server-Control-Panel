@@ -25,7 +25,12 @@ type basePage struct {
 	Host     metrics.Host
 	Flash    string
 	Error    string
-	Content  any
+	// Theme ist "dark", "light" oder leer. Leer heißt: keine ausdrückliche
+	// Wahl, es gilt die Systemeinstellung. Der Wert kommt aus dem Cookie
+	// asylum_theme und wird ans <html> gerendert, damit die Seite ohne
+	// Aufblitzen im richtigen Modus ankommt.
+	Theme   string
+	Content any
 }
 
 func (s *Server) base(r *http.Request, title, nav string) basePage {
@@ -43,6 +48,15 @@ func (s *Server) base(r *http.Request, title, nav string) basePage {
 	}
 	if sess, ok := sessionFrom(r.Context()); ok {
 		p.CSRF = sess.CSRFToken
+	}
+	// Die Themenwahl steht in einem Cookie. Nur die beiden erwarteten Werte
+	// werden übernommen — alles andere zählt als „keine Wahl" und überlässt die
+	// Entscheidung der Systemeinstellung. So kann ein manipulierter Cookie-Wert
+	// nicht ins Attribut durchschlagen.
+	if c, err := r.Cookie("asylum_theme"); err == nil {
+		if c.Value == "dark" || c.Value == "light" {
+			p.Theme = c.Value
+		}
 	}
 	return p
 }

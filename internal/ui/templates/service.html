@@ -1,12 +1,16 @@
 {{define "service"}}{{template "header" .}}
 {{with .Content.Detail}}
-<div class="card">
-  <div class="card-head">
-    <h2><code>{{.Unit}}</code></h2>
+<div class="pagehead">
+  <div>
+    <h1><code>{{.Unit}}</code></h1>
+    <span class="sub">{{.Description}}</span>
+  </div>
+  <div class="right">
     <span class="badge {{if .Failed}}error{{else if .Running}}ok{{end}}">{{.Active}} · {{.Sub}}</span>
   </div>
-  <p class="muted">{{.Description}}</p>
+</div>
 
+<div class="card">
   <dl>
     <dt>Autostart</dt><dd>{{if .Enabled}}{{.Enabled}}{{else}}—{{end}}</dd>
     <dt>Seit</dt><dd>{{if .Since}}{{.Since}}{{else}}—{{end}}</dd>
@@ -22,22 +26,23 @@
     <form method="post" action="/services/{{$.Content.Detail.Unit}}">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="action" value="{{$action}}">
-      <button type="submit" class="secondary">{{$action}}</button>
+      <button type="submit" class="small">{{$action}}</button>
     </form>
     {{end}}
   </div>
   {{end}}
 </div>
 
-<div class="card">
-  <h2>Letzte Logzeilen</h2>
+<div class="section">
+  <div class="seclabel">Letzte Logzeilen</div>
   {{if .RecentLogs}}
   <pre class="logs">{{range .RecentLogs}}<span class="prio-{{.PriorityName}}">{{datetime .At}}  {{.Message}}</span>
 {{end}}</pre>
   {{else}}
-  <p class="muted">Keine Einträge im Journal.</p>
+  <div class="card"><p class="muted">Keine Einträge im Journal.</p></div>
   {{end}}
 </div>
-{{end}}
+
 <p><a href="/services">← zurück zur Übersicht</a></p>
+{{end}}
 {{template "footer" .}}{{end}}

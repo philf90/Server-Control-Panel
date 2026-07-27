@@ -4,6 +4,9 @@
   --muted: #5b6570;
   --card: #ffffff;
   --line: #dfe3e8;
+  /* --line2 ist die leisere Trennlinie zwischen Tabellenzeilen; --line bleibt
+     die kräftigere Umrandung von Karten und Kopfzeilen. */
+  --line2: #eef0f3;
   --accent: #2f6f4f;
   --accent-fg: #ffffff;
   --warn: #a8460f;
@@ -13,13 +16,21 @@
   --bar-bg: #e8ebee;
 }
 
+/* Der Dunkelmodus gilt in zwei Fällen: Das System wünscht ihn (und der Nutzer
+   hat nicht ausdrücklich auf hell gestellt), oder der Nutzer hat ihn selbst
+   gewählt. Beide setzen dieselben Marken. Sie stehen bewusst doppelt: Eine
+   Media-Query und ein Attributselektor lassen sich nicht in einer Regelgruppe
+   zusammenfassen, und ein Attributselektor (`:root[data-theme]`) ist
+   spezifischer als das nackte `:root` der Media-Query — deshalb gewinnt eine
+   ausdrückliche Wahl immer über die Systemvorgabe. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #14171a;
     --fg: #e6e9ec;
     --muted: #9aa4ae;
     --card: #1c2024;
     --line: #2c3238;
+    --line2: #232a30;
     --accent: #6fbf95;
     --accent-fg: #10231a;
     --warn: #e0a26a;
@@ -28,6 +39,21 @@
     --err-bg: #2e1f1e;
     --bar-bg: #262c32;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #14171a;
+  --fg: #e6e9ec;
+  --muted: #9aa4ae;
+  --card: #1c2024;
+  --line: #2c3238;
+  --line2: #232a30;
+  --accent: #6fbf95;
+  --accent-fg: #10231a;
+  --warn: #e0a26a;
+  --danger: #f2917f;
+  --ok-bg: #1d2b23;
+  --err-bg: #2e1f1e;
+  --bar-bg: #262c32;
 }
 
 * { box-sizing: border-box; }
@@ -188,20 +214,87 @@ main.narrow {
   color: var(--muted);
 }
 
+/* Der Umschalter für Hell/Dunkel sitzt im Fußteil der Leiste. Er ist bewusst
+   unscheinbar — Rahmen wie der Zugang darüber, kein Fülldruck. Ohne Skript
+   bliebe er wirkungslos; deshalb wird er von theme.js eingeblendet (hidden im
+   Markup) und trägt dann die Systemvorgabe als Beschriftung. */
+.themebtn {
+  margin: 0;
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.themebtn:hover { filter: none; border-color: var(--accent); color: var(--accent); }
+.themebtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Ohne diese Zeile bliebe der Knopf sichtbar, obwohl er hidden ist: Die
+   allgemeine button-Regel setzt display: inline-block und schlägt damit das
+   display: none des hidden-Attributs. Ohne JavaScript trägt der Umschalter
+   nichts — dann soll er auch nicht dastehen. */
+.themebtn[hidden] { display: none; }
+
 /* ------------------------------------------------------------------ Karten */
 
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 1.25rem 1.5rem;
   margin-bottom: 1rem;
 }
+
+/* Karten, in denen eine Tabelle randlos sitzt: Die Zellen bringen ihren
+   Abstand selbst mit (th/td-Padding), die Karte gibt nur Rahmen und Radius.
+   overflow: hidden hält die Ecken rund, auch wenn eine Zeile hervorgehoben ist. */
+.card.flush { padding: 0; overflow: hidden; }
+.card.flush > .table-wrap { border-radius: inherit; }
 
 .card h1 { margin: 0 0 0.5rem; font-size: 1.4rem; }
 .card h2 { margin: 0 0 0.85rem; font-size: 1rem; }
 .card p { margin: 0 0 0.85rem; }
 .card p:last-child { margin-bottom: 0; }
+
+/* ---------------------------------------------------------- Seitenkopf ---
+ *
+ * Jede Modulseite beginnt mit einem Kopf: Titel als h1, eine Unterzeile mit
+ * der Kennzahl (»148 Units · 1 fehlgeschlagen«) und rechts der Platz für die
+ * Aktionen der Seite. Er steht außerhalb der Karten, nicht als h2 in einer
+ * Karte — so trägt jede Seite dieselbe Handschrift wie die Übersicht. */
+.pagehead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+.pagehead h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.02em; }
+.pagehead .sub { color: var(--muted); font-size: 0.88rem; }
+.pagehead .right { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.pagehead .right form { margin: 0; }
+.pagehead .right button,
+.pagehead .right .button { margin-top: 0; }
+
+/* Ein leiser Abschnittstitel zwischen zwei Blöcken einer Seite (wie auf der
+   Übersicht). .seclabel ist weiter oben bei der Übersicht definiert. */
+.section { margin-top: 1.5rem; }
+/* Abschnittskopf mit Titel links und einer Randnotiz rechts (etwa dem Status
+   eines laufenden Vorgangs). */
+.sechead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.7rem;
+}
+.sechead .seclabel { margin-bottom: 0; }
+.sechead .sub { color: var(--muted); font-size: 0.85rem; }
 
 .card.auth { padding: 1.75rem; }
 .card.auth h1 { text-align: center; }
@@ -397,9 +490,26 @@ dd { margin: 0; }
 .table-wrap { overflow-x: auto; }
 
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--line); }
-th { color: var(--muted); font-weight: 500; font-size: 0.8rem; }
+th {
+  text-align: left;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+td {
+  text-align: left;
+  padding: 0.72rem 1rem;
+  border-bottom: 1px solid var(--line2);
+  vertical-align: middle;
+}
 tbody tr:last-child td { border-bottom: none; }
+/* Eine leise Hervorhebung der Zeile unter dem Zeiger — Orientierung in langen
+   Listen. Auf dem Telefon (Kartenmodus, kein Zeiger) trägt sie nicht. */
+tbody tr:hover td { background: var(--line2); }
 td.muted, .muted { color: var(--muted); }
 td.nowrap { white-space: nowrap; }
 tr.warn td { color: var(--warn); }
@@ -417,18 +527,50 @@ td.actions form { margin: 0; }
    liest sich wie zwei Angaben und macht die Zeile höher. */
 td.zustand { white-space: nowrap; }
 
+/* Badges sind Pillen. Statusbadges (ok/warn/error) tragen einen farbigen Punkt
+   und einen leicht getönten Grund; neutrale Badges (Rollen, »noch 62 Tage«,
+   »selbstsigniert«) bleiben eine schlichte Pille ohne Punkt — sonst wäre jede
+   Zeile voller bunter Kreise. */
 .badge {
-  display: inline-block;
-  padding: 0.1rem 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.12rem 0.55rem;
   border: 1px solid var(--line);
-  border-radius: 4px;
-  font-size: 0.75rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
-.badge.ok { color: var(--accent); border-color: var(--accent); }
-.badge.denied { color: var(--warn); border-color: var(--warn); }
-.badge.warn { color: var(--warn); border-color: var(--warn); }
-.badge.error { color: var(--danger); border-color: var(--danger); }
+.badge.ok::before,
+.badge.warn::before,
+.badge.denied::before,
+.badge.error::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge.ok {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.badge.denied,
+.badge.warn {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+.badge.error {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
 
 /* -------------------------------------------------------------- Formulare */
 
@@ -460,10 +602,10 @@ button, .button {
   padding: 0.55rem 1.1rem;
   background: var(--accent);
   color: var(--accent-fg);
-  border: none;
-  border-radius: 6px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
   font: inherit;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
@@ -490,11 +632,24 @@ button.small, .button.small {
   background: transparent;
   color: var(--fg);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+}
+
+/* Ein kleiner, aber vorrangiger Knopf in einer Zeile (etwa »Neu starten« im
+   Handlungsbedarf): gefüllt wie der große Primärknopf, aber in Listenhöhe. */
+button.small.primary, .button.small.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+button.small.primary:hover, .button.small.primary:hover {
+  filter: brightness(1.08);
+  border-color: var(--accent);
+  color: var(--accent-fg);
 }
 
 button.small:hover, .button.small:hover {
@@ -654,13 +809,22 @@ button[disabled] { opacity: 0.5; cursor: not-allowed; }
 
 .warn-text { color: var(--warn); font-weight: 600; }
 
+/* Die Warnbox trägt links den Text und rechts, wo es einen gibt, den Knopf zur
+   Sache (Firewall bestätigen, jetzt neu starten). Ein farbiger Rand macht sie
+   als Hinweis kenntlich, ohne die ganze Fläche grell zu füllen. */
 .alert.warn-box {
-  background: rgba(160, 110, 30, 0.14);
-  color: var(--warn);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: color-mix(in srgb, var(--warn) 12%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--card));
+  color: var(--fg);
 }
-
-.alert.warn-box form.inline { display: inline; margin-left: 0.75rem; }
-.alert.warn-box button { margin-top: 0.5rem; }
+.alert.warn-box > div { flex: 1; min-width: 12rem; }
+.alert.warn-box form.inline { margin: 0; }
+.alert.warn-box form.inline button { margin: 0; }
 
 pre.logs {
   max-height: 26rem;

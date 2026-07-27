@@ -104,7 +104,10 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 		if len(rb.Packages) > 0 {
 			detail = "Ausgelöst durch: " + strings.Join(rb.Packages, ", ")
 		}
-		out = append(out, dashSignal{Level: "warn", Tag: "System", Title: "Ein Neustart steht aus", Detail: detail})
+		out = append(out, dashSignal{
+			Level: "warn", Tag: "System", Title: "Ein Neustart steht aus", Detail: detail,
+			ActionLabel: "Zu den Paketen", ActionHref: "/packages",
+		})
 	}
 
 	return out

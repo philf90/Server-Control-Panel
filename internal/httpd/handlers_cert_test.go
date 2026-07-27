@@ -31,7 +31,7 @@ func TestCertificatePageSelfSigned(t *testing.T) {
 		t.Fatalf("Status = %d, erwartet 200", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"TLS-Zertifikat", "selbstsigniert", "panel.example.test"} {
+	for _, want := range []string{"Zertifikat", "selbstsigniert", "panel.example.test"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("Seite enthält %q nicht", want)
 		}

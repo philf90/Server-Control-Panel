@@ -1,26 +1,26 @@
 {{define "audit"}}{{template "header" .}}
-<div class="card">
-  <h2>Audit-Log</h2>
-  <p class="hint">
-    Jede verändernde Aktion mit Benutzer, Adresse, Ziel und Ergebnis. Das Log
-    ist nur additiv — es gibt bewusst keine Möglichkeit, Einträge zu ändern oder
-    zu löschen.
-  </p>
+<div class="pagehead">
+  <div>
+    <h1>Audit-Log</h1>
+    <span class="sub">nur additiv · jede verändernde Aktion mit Benutzer, Adresse, Ziel und Ergebnis</span>
+  </div>
+</div>
+<div class="card flush">
   <div class="table-wrap">
     <table class="cards">
       <thead>
-        <tr><th>Zeitpunkt</th><th>Benutzer</th><th>Aktion</th><th>Ziel</th><th>Ergebnis</th><th>Adresse</th><th>Detail</th></tr>
+        <tr><th data-rolle="haupt">Zeitpunkt</th><th>Benutzer</th><th>Aktion</th><th data-rolle="neben">Ziel</th><th>Ergebnis</th><th data-rolle="neben">Adresse</th><th data-rolle="neben">Detail</th></tr>
       </thead>
       <tbody>
         {{range .Content.Entries}}
         <tr>
-          <td class="nowrap" data-label="Zeitpunkt">{{datetime .At}}</td>
+          <td class="nowrap" data-label="Zeitpunkt" data-rolle="haupt">{{datetime .At}}</td>
           <td data-label="Benutzer">{{.Actor}}</td>
           <td data-label="Aktion"><code>{{.Action}}</code></td>
-          <td class="muted" data-label="Ziel">{{.Target}}</td>
+          <td class="muted" data-label="Ziel" data-rolle="neben">{{.Target}}</td>
           <td data-label="Ergebnis"><span class="badge {{.Result}}">{{.Result}}</span></td>
-          <td class="muted" data-label="Adresse">{{.IP}}</td>
-          <td class="muted" data-label="Detail">{{.Detail}}</td>
+          <td class="muted" data-label="Adresse" data-rolle="neben">{{.IP}}</td>
+          <td class="muted" data-label="Detail" data-rolle="neben">{{.Detail}}</td>
         </tr>
         {{else}}
         <tr><td colspan="7" class="muted">noch keine Einträge</td></tr>

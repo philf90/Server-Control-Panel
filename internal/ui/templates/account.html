@@ -1,8 +1,15 @@
 {{define "account"}}{{template "header" .}}
 {{with .Content}}
+<div class="pagehead">
+  <div>
+    <h1>Mein Konto</h1>
+    <span class="sub">{{$.User.Username}} · {{$.User.Role}}</span>
+  </div>
+</div>
+
 {{if .NewCodes}}
 <div class="card">
-  <h2>Neue Wiederherstellungscodes</h2>
+  <div class="seclabel">Neue Wiederherstellungscodes</div>
   <p>Einmalige Anzeige. Die vorherigen Codes gelten nicht mehr.</p>
   <ul class="codes">
     {{range .NewCodes}}<li><code>{{.}}</code></li>{{end}}
@@ -12,12 +19,12 @@
 
 <div class="grid two">
   <div class="card">
-    <h2>Mein Konto</h2>
+    <div class="seclabel">Konto</div>
     <dl>
       <dt>Anmeldename</dt><dd>{{$.User.Username}}</dd>
       <dt>Rolle</dt><dd><span class="badge">{{$.User.Role}}</span></dd>
       <dt>Angelegt</dt><dd>{{date $.User.CreatedAt}}</dd>
-      <dt>Zwei-Faktor</dt><dd>{{if $.User.TOTPConfirmed}}aktiv{{else}}nicht eingerichtet{{end}}</dd>
+      <dt>Zwei-Faktor</dt><dd>{{if $.User.TOTPConfirmed}}<span class="badge ok">aktiv</span>{{else}}<span class="badge warn">nicht eingerichtet</span>{{end}}</dd>
       <dt>Wiederherstellungscodes</dt><dd>{{.RecoveryCodesLeft}} übrig</dd>
     </dl>
 
@@ -28,7 +35,7 @@
   </div>
 
   <div class="card">
-    <h2>Zweiten Faktor wechseln</h2>
+    <div class="seclabel">Zweiten Faktor wechseln</div>
     <p class="hint">
       Für ein neues Telefon oder eine andere Authenticator-App. Der bisherige
       Faktor gilt weiter, bis der neue bestätigt ist.
@@ -49,7 +56,7 @@
   </div>
 
   <div class="card">
-    <h2>Passwort ändern</h2>
+    <div class="seclabel">Passwort ändern</div>
     <form method="post" action="/account/password" autocomplete="on">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
 
@@ -68,47 +75,49 @@
   </div>
 </div>
 
-<div class="card">
-  <div class="card-head">
-    <h2>Aktive Sitzungen</h2>
-    <span class="muted">{{len .Sessions}} offen</span>
+<div class="section">
+  <div class="sechead">
+    <span class="seclabel">Aktive Sitzungen</span>
+    <span class="sub">{{len .Sessions}} offen</span>
   </div>
   <p class="hint">
     Eine Sitzung, die hier steht und nicht von diesem Gerät stammt, gehört
     beendet — und danach gehört das Passwort geändert.
   </p>
 
-  <div class="table-wrap">
-    <table class="cards">
-      <thead>
-        <tr><th>Kennung</th><th>Adresse</th><th>Programm</th><th>Zuletzt aktiv</th><th>Angemeldet</th><th></th></tr>
-      </thead>
-      <tbody>
-        {{range .Sessions}}
-        <tr>
-          <td data-label="Kennung">
-            <code>{{.Short}}</code>
-            {{if .Current}}<span class="badge">diese Sitzung</span>{{end}}
-          </td>
-          <td data-label="Adresse"><code>{{.IP}}</code></td>
-          <td class="muted" data-label="Programm">{{.UserAgent}}</td>
-          <td class="muted" title="{{datetime .LastSeenAt}}" data-label="Zuletzt aktiv">{{since .LastSeenAt}}</td>
-          <td class="muted" data-label="Angemeldet">{{datetime .CreatedAt}}</td>
-          <td class="actions">
-            {{if not .Current}}
-            <form method="post" action="/account/sessions/revoke">
-              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-              <input type="hidden" name="session" value="{{.ID}}">
-              <button type="submit" class="small">beenden</button>
-            </form>
-            {{end}}
-          </td>
-        </tr>
-        {{else}}
-        <tr><td colspan="6" class="muted">Keine Sitzung offen.</td></tr>
-        {{end}}
-      </tbody>
-    </table>
+  <div class="card flush">
+    <div class="table-wrap">
+      <table class="cards">
+        <thead>
+          <tr><th data-rolle="haupt">Kennung</th><th>Adresse</th><th data-rolle="neben">Programm</th><th data-rolle="neben">Zuletzt aktiv</th><th data-rolle="neben">Angemeldet</th><th></th></tr>
+        </thead>
+        <tbody>
+          {{range .Sessions}}
+          <tr>
+            <td data-label="Kennung" data-rolle="haupt">
+              <code>{{.Short}}</code>
+              {{if .Current}}<span class="badge ok">diese Sitzung</span>{{end}}
+            </td>
+            <td data-label="Adresse"><code>{{.IP}}</code></td>
+            <td class="muted" data-label="Programm" data-rolle="neben">{{.UserAgent}}</td>
+            <td class="muted" title="{{datetime .LastSeenAt}}" data-label="Zuletzt aktiv" data-rolle="neben">{{since .LastSeenAt}}</td>
+            <td class="muted" data-label="Angemeldet" data-rolle="neben">{{datetime .CreatedAt}}</td>
+            <td class="actions">
+              {{if not .Current}}
+              <form method="post" action="/account/sessions/revoke">
+                <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                <input type="hidden" name="session" value="{{.ID}}">
+                <button type="submit" class="small">beenden</button>
+              </form>
+              {{end}}
+            </td>
+          </tr>
+          {{else}}
+          <tr><td colspan="6" class="muted">Keine Sitzung offen.</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   {{if .OtherSessions}}

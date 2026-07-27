@@ -1,32 +1,34 @@
 {{define "sysusers"}}{{template "header" .}}
 {{with .Content}}
-<div class="card">
-  <div class="card-head">
-    <h2>Systembenutzer</h2>
-    <span class="muted">{{len .Users}} Konten</span>
+<div class="pagehead">
+  <div>
+    <h1>Systembenutzer</h1>
+    <span class="sub">{{len .Users}} Konten des Betriebssystems · Anmeldung per SSH-Schlüssel</span>
   </div>
-  <p class="hint">
-    Das sind die Konten des Betriebssystems, nicht die des Panels — die stehen
-    unter <a href="/users">Panel-Zugänge</a>. Neue Konten bekommen kein Passwort;
-    die Anmeldung läuft über SSH-Schlüssel. Ein Klick auf die Spalte
-    <strong>Schlüssel</strong> öffnet die Verwaltung der hinterlegten
-    <code>authorized_keys</code> eines Kontos.
-  </p>
+</div>
+<p class="hint">
+  Das sind die Konten des Betriebssystems, nicht die des Panels — die stehen
+  unter <a href="/users">Panel-Zugänge</a>. Neue Konten bekommen kein Passwort;
+  die Anmeldung läuft über SSH-Schlüssel. Ein Klick auf die Spalte
+  <strong>Schlüssel</strong> öffnet die Verwaltung der hinterlegten
+  <code>authorized_keys</code> eines Kontos.
+</p>
 
+<div class="card flush">
   <div class="table-wrap">
     <table class="cards">
       <thead>
-        <tr><th>Name</th><th>UID</th><th>Gruppen</th><th>Shell</th><th>Schlüssel</th><th>Status</th>{{if $.CanWrite}}<th></th>{{end}}</tr>
+        <tr><th data-rolle="haupt">Name</th><th data-rolle="neben">UID</th><th data-rolle="neben">Gruppen</th><th data-rolle="neben">Shell</th><th>Schlüssel</th><th>Status</th>{{if $.CanWrite}}<th></th>{{end}}</tr>
       </thead>
       <tbody>
         {{range .Users}}
         <tr {{if .System}}class="muted-row"{{end}}>
-          <td data-label="Name"><a href="/system-users?user={{.Name}}#schluessel">{{.Name}}</a>{{if .Comment}} <span class="muted">{{.Comment}}</span>{{end}}</td>
-          <td class="muted" data-label="UID">{{.UID}}</td>
-          <td class="muted" data-label="Gruppen">{{range $i, $g := .Groups}}{{if $i}}, {{end}}{{$g}}{{end}}</td>
-          <td class="muted" data-label="Shell"><code>{{.Shell}}</code></td>
+          <td data-label="Name" data-rolle="haupt"><a href="/system-users?user={{.Name}}#schluessel">{{.Name}}</a>{{if .Comment}} <span class="muted">{{.Comment}}</span>{{end}}</td>
+          <td class="muted" data-label="UID" data-rolle="neben">{{.UID}}</td>
+          <td class="muted" data-label="Gruppen" data-rolle="neben">{{range $i, $g := .Groups}}{{if $i}}, {{end}}{{$g}}{{end}}</td>
+          <td class="muted" data-label="Shell" data-rolle="neben"><code>{{.Shell}}</code></td>
           <td data-label="Schlüssel"><a href="/system-users?user={{.Name}}#schluessel">{{if .SSHKeys}}{{.SSHKeys}}{{else}}keine{{end}}</a></td>
-          <td data-label="Status">{{if .Locked}}<span class="badge">gesperrt</span>{{else if .HasShell}}<span class="badge ok">aktiv</span>{{else}}<span class="muted">kein Login</span>{{end}}</td>
+          <td data-label="Status">{{if .Locked}}<span class="badge warn">gesperrt</span>{{else if .HasShell}}<span class="badge ok">aktiv</span>{{else}}<span class="badge">kein Login</span>{{end}}</td>
           {{if $.CanWrite}}
           <td class="actions">
             {{if .Protected}}
@@ -53,80 +55,85 @@
 </div>
 
 {{if .Selected}}
-<div class="card" id="schluessel">
-  <div class="card-head">
-    <h2>SSH-Schlüssel von <code>{{.Selected}}</code></h2>
+<div class="section" id="schluessel">
+  <div class="sechead">
+    <span class="seclabel">SSH-Schlüssel von <code>{{.Selected}}</code></span>
     <a href="/system-users" class="button small">schließen</a>
   </div>
-
-  <div class="table-wrap">
-    <table class="cards">
-      <thead><tr><th>Typ</th><th>Fingerprint</th><th>Kommentar</th>{{if $.CanWrite}}<th></th>{{end}}</tr></thead>
-      <tbody>
-        {{range .Keys}}
-        <tr>
-          <td data-label="Typ"><code>{{.Type}}</code>{{if .Bits}} <span class="muted">{{.Bits}} Bit</span>{{end}}</td>
-          <td data-label="Fingerprint"><code>{{.Fingerprint}}</code></td>
-          <td class="muted" data-label="Kommentar">{{.Comment}}</td>
-          {{if $.CanWrite}}
-          <td class="actions">
-            <form method="post" action="/system-users/{{$.Content.Selected}}/keys/remove"
-                  onsubmit="return confirm('Diesen Schlüssel entfernen? Der Zugang darüber geht verloren.')">
-              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-              <input type="hidden" name="fingerprint" value="{{.Fingerprint}}">
-              <button type="submit" class="small danger">entfernen</button>
-            </form>
-          </td>
+  <div class="card flush">
+    <div class="table-wrap">
+      <table class="cards">
+        <thead><tr><th data-rolle="haupt">Typ</th><th>Fingerprint</th><th data-rolle="neben">Kommentar</th>{{if $.CanWrite}}<th></th>{{end}}</tr></thead>
+        <tbody>
+          {{range .Keys}}
+          <tr>
+            <td data-label="Typ" data-rolle="haupt"><code>{{.Type}}</code>{{if .Bits}} <span class="muted">{{.Bits}} Bit</span>{{end}}</td>
+            <td data-label="Fingerprint"><code>{{.Fingerprint}}</code></td>
+            <td class="muted" data-label="Kommentar" data-rolle="neben">{{.Comment}}</td>
+            {{if $.CanWrite}}
+            <td class="actions">
+              <form method="post" action="/system-users/{{$.Content.Selected}}/keys/remove"
+                    onsubmit="return confirm('Diesen Schlüssel entfernen? Der Zugang darüber geht verloren.')">
+                <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                <input type="hidden" name="fingerprint" value="{{.Fingerprint}}">
+                <button type="submit" class="small danger">entfernen</button>
+              </form>
+            </td>
+            {{end}}
+          </tr>
+          {{else}}
+          <tr><td colspan="4" class="muted">keine Schlüssel hinterlegt</td></tr>
           {{end}}
-        </tr>
-        {{else}}
-        <tr><td colspan="4" class="muted">keine Schlüssel hinterlegt</td></tr>
-        {{end}}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   {{if $.CanWrite}}
-  <form method="post" action="/system-users/{{.Selected}}/keys">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <label for="key">Öffentlichen Schlüssel hinzufügen</label>
-    <input type="text" id="key" name="key" required
-           placeholder="ssh-ed25519 AAAAC3... philipp@laptop">
-    <p class="hint">Eine Zeile aus <code>~/.ssh/id_ed25519.pub</code>. Optionen vor dem Schlüsseltyp werden nicht angenommen.</p>
-    <button type="submit">Hinzufügen</button>
-  </form>
+  <div class="card">
+    <form method="post" action="/system-users/{{.Selected}}/keys">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <label for="key">Öffentlichen Schlüssel hinzufügen</label>
+      <input type="text" id="key" name="key" required
+             placeholder="ssh-ed25519 AAAAC3... philipp@laptop">
+      <p class="hint">Eine Zeile aus <code>~/.ssh/id_ed25519.pub</code>. Optionen vor dem Schlüsseltyp werden nicht angenommen.</p>
+      <button type="submit">Hinzufügen</button>
+    </form>
+  </div>
   {{end}}
 </div>
 {{end}}
 
 {{if $.CanWrite}}
-<div class="card">
-  <h2>Konto anlegen</h2>
-  <form method="post" action="/system-users" class="row-form">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <div>
-      <label for="name">Name</label>
-      <input type="text" id="name" name="name" required pattern="[a-z_][a-z0-9_-]*" maxlength="32">
-    </div>
-    <div>
-      <label for="comment">Beschreibung</label>
-      <input type="text" id="comment" name="comment" maxlength="120">
-    </div>
-    <div>
-      <label for="shell">Shell</label>
-      <input type="text" id="shell" name="shell" value="/bin/bash">
-    </div>
-    <div>
-      <label for="groups">Gruppen</label>
-      <input type="text" id="groups" name="groups" placeholder="sudo, docker">
-    </div>
-    <div class="submit"><button type="submit">Anlegen</button></div>
-  </form>
-  <label for="ssh_key" class="sr-label">Öffentlicher SSH-Schlüssel (optional)</label>
-  <p class="hint">
-    Ohne Schlüssel hat das Konto keine Anmeldemöglichkeit — er lässt sich auch
-    später über die Liste oben nachtragen. Das Home-Verzeichnis wird angelegt.
-  </p>
+<div class="section">
+  <div class="seclabel">Konto anlegen</div>
+  <div class="card">
+    <form method="post" action="/system-users" class="row-form">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <div>
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" required pattern="[a-z_][a-z0-9_-]*" maxlength="32">
+      </div>
+      <div>
+        <label for="comment">Beschreibung</label>
+        <input type="text" id="comment" name="comment" maxlength="120">
+      </div>
+      <div>
+        <label for="shell">Shell</label>
+        <input type="text" id="shell" name="shell" value="/bin/bash">
+      </div>
+      <div>
+        <label for="groups">Gruppen</label>
+        <input type="text" id="groups" name="groups" placeholder="sudo, docker">
+      </div>
+      <div class="submit"><button type="submit">Anlegen</button></div>
+    </form>
+    <label for="ssh_key" class="sr-label">Öffentlicher SSH-Schlüssel (optional)</label>
+    <p class="hint">
+      Ohne Schlüssel hat das Konto keine Anmeldemöglichkeit — er lässt sich auch
+      später über die Liste oben nachtragen. Das Home-Verzeichnis wird angelegt.
+    </p>
+  </div>
 </div>
 {{end}}
 {{end}}

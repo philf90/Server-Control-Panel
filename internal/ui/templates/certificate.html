@@ -1,11 +1,27 @@
 {{define "certificate"}}{{template "header" .}}
 {{with .Content}}
-<div class="card">
-  <div class="card-head">
-    <h2>TLS-Zertifikat</h2>
-    <span class="muted">Modus {{.Mode}}</span>
+<div class="pagehead">
+  <div>
+    <h1>Zertifikat</h1>
+    <span class="sub">TLS · {{if eq .Mode "acme"}}Let's Encrypt{{else}}selbstsigniert{{end}}</span>
   </div>
+  <div class="right">
+    {{if .ReadError}}
+    <span class="badge error">nicht lesbar</span>
+    {{else if .Info.SelfSigned}}
+    <span class="badge warn">selbstsigniert</span>
+    {{else if lt .DaysLeft 0}}
+    <span class="badge error">abgelaufen</span>
+    {{else if lt .DaysLeft 14}}
+    <span class="badge error">von CA · noch {{.DaysLeft}} Tage</span>
+    {{else}}
+    <span class="badge ok">von CA beglaubigt · {{.DaysLeft}} Tage</span>
+    {{end}}
+  </div>
+</div>
 
+<div class="card">
+  <div class="seclabel">Aktuelles Zertifikat</div>
   {{if .ReadError}}
   <div class="alert error">Das Zertifikat konnte nicht gelesen werden: {{.ReadError}}</div>
   {{else}}
@@ -30,26 +46,30 @@
 
   {{if .Info.SelfSigned}}
   <div class="alert warn-box">
-    Ein selbstsigniertes Zertifikat lässt den Browser warnen. Gleiche den
-    Fingerprint oben mit dem ab, den der Installer ausgegeben hat — stimmt er
-    überein, ist die Verbindung echt. Für ein von Browsern anerkanntes
-    Zertifikat siehe unten.
+    <div>
+      Ein selbstsigniertes Zertifikat lässt den Browser warnen. Gleiche den
+      Fingerprint oben mit dem ab, den der Installer ausgegeben hat — stimmt er
+      überein, ist die Verbindung echt. Für ein von Browsern anerkanntes
+      Zertifikat siehe unten.
+    </div>
   </div>
   {{end}}
   {{end}}
 </div>
 
 <div class="card">
-  <div class="card-head">
-    <h2>Automatischer Bezug (Let's Encrypt)</h2>
+  <div class="sechead">
+    <span class="seclabel">Automatischer Bezug (Let's Encrypt)</span>
     {{if eq .Mode "acme"}}<span class="badge ok">eingeschaltet</span>{{else}}<span class="badge">aus</span>{{end}}
   </div>
 
   {{if .Attempt.Running}}
   <div class="alert warn-box">
-    <strong>Bezug läuft.</strong> Der Verlauf steht unten und schreibt sich von
-    selbst fort. Bei der Prüfung über DNS kann das einige Minuten dauern; der
-    Vorgang läuft auch weiter, wenn Sie diese Seite schließen.
+    <div>
+      <strong>Bezug läuft.</strong> Der Verlauf steht unten und schreibt sich von
+      selbst fort. Bei der Prüfung über DNS kann das einige Minuten dauern; der
+      Vorgang läuft auch weiter, wenn Sie diese Seite schließen.
+    </div>
   </div>
   {{else if .Attempt.Err}}
   <div class="alert error">
@@ -210,10 +230,10 @@
 </div>
 
 {{if or .JobRunning .JobLines}}
-<div class="card">
-  <div class="card-head">
-    <h2>Verlauf des Bezugs</h2>
-    <span id="job-status" class="muted">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
+<div class="section">
+  <div class="sechead">
+    <span class="seclabel">Verlauf des Bezugs</span>
+    <span id="job-status" class="sub">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
   </div>
   {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
   <pre class="logs" id="job-output" data-events="/certificate/events">{{range .JobLines}}{{.}}

@@ -103,6 +103,29 @@ func (s *System) PackageUpgrade(ctx context.Context, opts UpgradeOptions, stream
 	return nil
 }
 
+// Reboot startet den Rechner über systemd neu. `systemctl reboot` meldet den
+// Wunsch an PID 1 und kehrt zurück; das eigentliche Herunterfahren übernimmt
+// systemd. Anders als beim Selbstupdate ist hier keine eigene Unit nötig — ein
+// Neustart beendet ohnehin alles, es gibt nichts, das ihn überdauern müsste.
+func (s *System) Reboot(ctx context.Context) error {
+	res, err := s.run(ctx, Command{
+		Name:    "systemctl",
+		Args:    []string{"reboot"},
+		Timeout: defaultTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		msg := firstLine(res.Stderr)
+		if msg == "" {
+			msg = firstLine(res.Stdout)
+		}
+		return fmt.Errorf("systemctl reboot: %s", msg)
+	}
+	return nil
+}
+
 // RebootRequired sagt, ob ein Neustart aussteht.
 func (s *System) RebootRequired(ctx context.Context) (RebootState, error) {
 	_ = ctx

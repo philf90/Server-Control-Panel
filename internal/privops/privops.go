@@ -29,6 +29,10 @@ type Executor interface {
 	PackageUpgradable(ctx context.Context) ([]Package, error)
 	PackageUpgrade(ctx context.Context, opts UpgradeOptions, stream LineWriter) error
 	RebootRequired(ctx context.Context) (RebootState, error)
+	// Reboot startet den Rechner neu. Der Aufruf kehrt zurück, sobald systemd
+	// den Neustart angenommen hat — er ist kein Versprechen, dass der Prozess
+	// die Zeile noch überlebt.
+	Reboot(ctx context.Context) error
 
 	// Firewall
 	FirewallState(ctx context.Context) (FirewallState, error)

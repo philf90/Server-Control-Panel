@@ -27,6 +27,18 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Ein Neustart lässt sich aus dem Panel anstoßen.** Steht ein Neustart aus
+  (etwa nach einem Kernel-Update), führt die Übersicht ihn im Handlungsbedarf
+  auf und verlinkt auf die Pakete-Seite; dort steht neben dem Hinweis der Knopf
+  »Jetzt neu starten«. Er ist Owner-Konten vorbehalten und fragt vor dem
+  Auslösen nach — ein Neustart beendet alle Sitzungen und Dienste. Umgesetzt
+  über eine neue, typisierte `Reboot`-Operation im `privops.Executor`
+  (`systemctl reboot`), nicht über ein freies Kommando.
+- **Hell und Dunkel lassen sich von Hand umschalten.** Bisher folgte das Panel
+  nur der Systemeinstellung. Unten in der Seitenleiste steht jetzt ein
+  Umschalter; die Wahl liegt in einem Cookie und wird serverseitig gerendert,
+  sodass die Seite ohne Aufblitzen im gewählten Modus ankommt. Ohne getroffene
+  Wahl gilt weiter die Systemeinstellung.
 - **Der Zertifikatsbezug zeigt live, was er tut.** Unter den Einstellungen steht
   jetzt ein Verlauf, der sich von selbst fortschreibt — Anmeldung, Auftrag,
   gesetzter TXT-Record, das Warten auf die DNS-Ausbreitung samt gebrauchter
@@ -86,6 +98,14 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Alle Seiten tragen dieselbe Handschrift wie der Leitstand.** Jede Modulseite
+  beginnt jetzt mit einem Seitenkopf (Titel als Überschrift, eine Unterzeile mit
+  der Kennzahl, rechts die Aktionen der Seite) statt mit einer Überschrift in
+  einer Karte. Die Tabellen sind ruhiger — Kapitälchen-Kopf, leise Trennlinien,
+  eine Hervorhebung der Zeile unter dem Zeiger —, Badges sind Pillen mit einem
+  farbigen Punkt für Zustände, und die Karten sind stärker abgerundet. Das ist
+  eine durchgängige Überarbeitung des Stylesheets; die Seiten wirkten zuvor
+  neben der neuen Übersicht veraltet.
 - **Die Übersicht ist ein Leitstand.** Statt eines Gitters gleichrangiger
   Kacheln, aus dem der Betrachter selbst herauslesen musste, ob dem Server
   etwas fehlt, führt jetzt ein Urteil in einem Satz: Läuft alles normal, oder

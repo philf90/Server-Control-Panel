@@ -1,44 +1,49 @@
 {{define "update"}}{{template "header" .}}
 {{with .Content}}
-
-<div class="card">
-  <div class="card-head">
-    <h2>Fassung</h2>
-    <span class="muted">Kanal {{.Channel}}</span>
+<div class="pagehead">
+  <div>
+    <h1>Updates</h1>
+    <span class="sub">Kanal {{.Channel}}</span>
   </div>
-
-  <dl>
-    <dt>Installiert</dt><dd><code>{{.Current}}</code></dd>
-    <dt>Verfügbar</dt>
-    <dd>
-      {{if .Available}}
-        <code>{{.Available}}</code>
-        {{if .HasUpdate}}<span class="badge error">neuer</span>{{else}}<span class="badge">aktuell</span>{{end}}
-        {{if eq .Severity "security"}}<span class="badge error">Sicherheitsupdate</span>{{end}}
-        {{if .NotesURL}}· <a href="{{.NotesURL}}" rel="noopener noreferrer" target="_blank">Änderungen</a>{{end}}
-      {{else}}
-        <span class="muted">noch nicht geprüft</span>
-      {{end}}
-    </dd>
-    {{if not .CheckedAt.IsZero}}
-    <dt>Zuletzt geprüft</dt><dd class="muted">{{datetime .CheckedAt}}</dd>
-    {{end}}
-    {{if .Previous}}
-    <dt>Sicherung</dt><dd class="muted"><code>{{.Previous}}</code> — die Fassung vor dem letzten Update</dd>
-    {{end}}
-    <dt>Bezugsquelle</dt><dd class="muted"><code>{{.BaseURL}}</code></dd>
-  </dl>
-
-  {{if .CheckError}}<div class="alert error">{{.CheckError}}</div>{{end}}
-
   {{if $.CanWrite}}
-  <div class="button-row">
+  <div class="right">
     <form method="post" action="/update/check">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <button type="submit" class="secondary" {{if .Running}}disabled{{end}}>Nach Updates suchen</button>
     </form>
+  </div>
+  {{end}}
+</div>
 
-    {{if $.IsOwner}}
+{{if .CheckError}}<div class="alert error">{{.CheckError}}</div>{{end}}
+
+<div class="grid two">
+  <div class="card">
+    <div class="seclabel">Fassung</div>
+    <dl>
+      <dt>Installiert</dt><dd><code>{{.Current}}</code></dd>
+      <dt>Verfügbar</dt>
+      <dd>
+        {{if .Available}}
+          <code>{{.Available}}</code>
+          {{if .HasUpdate}}<span class="badge error">neuer</span>{{else}}<span class="badge ok">aktuell</span>{{end}}
+          {{if eq .Severity "security"}}<span class="badge error">Sicherheitsupdate</span>{{end}}
+          {{if .NotesURL}}· <a href="{{.NotesURL}}" rel="noopener noreferrer" target="_blank">Änderungen</a>{{end}}
+        {{else}}
+          <span class="muted">noch nicht geprüft</span>
+        {{end}}
+      </dd>
+      {{if not .CheckedAt.IsZero}}
+      <dt>Zuletzt geprüft</dt><dd class="muted">{{datetime .CheckedAt}}</dd>
+      {{end}}
+      {{if .Previous}}
+      <dt>Sicherung</dt><dd class="muted"><code>{{.Previous}}</code></dd>
+      {{end}}
+      <dt>Bezugsquelle</dt><dd class="muted"><code>{{.BaseURL}}</code></dd>
+    </dl>
+
+    {{if and $.CanWrite $.IsOwner}}
+    <div class="button-row">
       {{if and .HasUpdate (not .Running)}}
       <form method="post" action="/update/apply"
             onsubmit="return confirm('Auf {{.Available}} aktualisieren? Das Panel startet dabei neu.')">
@@ -53,36 +58,34 @@
         <button type="submit" class="secondary">Zurück auf {{.Previous}}</button>
       </form>
       {{end}}
+    </div>
     {{end}}
   </div>
-  {{end}}
-</div>
 
-<div class="card">
-  <div class="card-head">
-    <h2>Wie das Update abläuft</h2>
+  <div class="card">
+    <div class="seclabel">Wie das Update abläuft</div>
+    <p class="muted">
+      Das Archiv wird geladen und gegen den im Programm eingebauten
+      Signaturschlüssel geprüft — erst Signatur, dann Prüfsumme, dann Inhalt.
+      Danach wird das Programm daneben abgelegt, auf seine Fassung angesprochen
+      und in einem Zug ausgetauscht. Meldet sich der Dienst nach dem Neustart
+      nicht binnen einer Minute mit der neuen Fassung, spielt der Server die
+      vorherige selbsttätig zurück — auch dann, wenn dieser Browser längst
+      geschlossen ist.
+    </p>
+    <p class="muted">
+      Der Vorgang läuft in einer eigenen systemd-Unit, nicht im Panel selbst.
+      Deshalb bricht die Verbindung zu dieser Seite währenddessen kurz ab; sie
+      findet von allein zurück.
+    </p>
   </div>
-  <p class="muted">
-    Das Archiv wird geladen und gegen den im Programm eingebauten
-    Signaturschlüssel geprüft — erst Signatur, dann Prüfsumme, dann Inhalt.
-    Danach wird das Programm daneben abgelegt, auf seine Fassung angesprochen
-    und in einem Zug ausgetauscht. Meldet sich der Dienst nach dem Neustart
-    nicht binnen einer Minute mit der neuen Fassung, spielt der Server die
-    vorherige selbsttätig zurück — auch dann, wenn dieser Browser längst
-    geschlossen ist.
-  </p>
-  <p class="muted">
-    Der Vorgang läuft in einer eigenen systemd-Unit, nicht im Panel selbst.
-    Deshalb bricht die Verbindung zu dieser Seite währenddessen kurz ab; sie
-    findet von allein zurück.
-  </p>
 </div>
 
 {{if or .Running .LogLines}}
-<div class="card">
-  <div class="card-head">
-    <h2>Protokoll des letzten Vorgangs</h2>
-    <span id="update-status" class="muted">{{if .Running}}läuft …{{else}}abgeschlossen{{end}}</span>
+<div class="section">
+  <div class="sechead">
+    <span class="seclabel">Protokoll des letzten Vorgangs</span>
+    <span id="update-status" class="sub">{{if .Running}}läuft …{{else}}abgeschlossen{{end}}</span>
   </div>
   <pre class="logs" id="update-output">{{range .LogLines}}{{.}}
 {{end}}</pre>

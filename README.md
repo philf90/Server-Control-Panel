@@ -41,7 +41,9 @@ Zielserver.
 
 Links eine Seitenleiste, in der die Punkte nach **System**, **Sicherheit** und
 **Betrieb** gruppiert sind; der Projektname führt zur Übersicht, der eigene Name
-unten aufs Profil. Auf schmalen Bildschirmen klappt sie zu einer Kopfzeile ein.
+unten aufs Profil. Darunter ein Umschalter für hellen und dunklen Modus — ohne
+Wahl gilt die Systemeinstellung. Auf schmalen Bildschirmen klappt die Leiste zu
+einer Kopfzeile ein.
 
 Die Übersicht ist ein Leitstand: zuoberst ein Urteil in einem Satz — läuft
 alles normal, oder brauchen einige Dinge Aufmerksamkeit? Darunter steht nur,

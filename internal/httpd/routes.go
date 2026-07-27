@@ -57,6 +57,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /packages/events", s.protected(http.HandlerFunc(s.handlePackageEvents)))
 	mux.Handle("POST /packages/refresh", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handlePackageRefresh)))))
 	mux.Handle("POST /packages/upgrade", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handlePackageUpgrade)))))
+	// Neustart ist die einschneidendste Aktion — nur Owner, wie beim Update.
+	mux.Handle("POST /system/reboot", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleReboot)))))
 
 	mux.Handle("GET /firewall", s.protected(http.HandlerFunc(s.handleFirewall)))
 	mux.Handle("POST /firewall", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallApply)))))

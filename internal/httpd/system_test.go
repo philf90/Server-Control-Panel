@@ -29,6 +29,7 @@ type fakeOps struct {
 	logs       []privops.LogEntry
 	units      []string
 	upgradeErr error
+	rebootErr  error
 	sshPorts   []int
 
 	actions      []string
@@ -125,6 +126,11 @@ func (f *fakeOps) PackageUpgrade(_ context.Context, opts privops.UpgradeOptions,
 
 func (f *fakeOps) RebootRequired(context.Context) (privops.RebootState, error) {
 	return f.reboot, nil
+}
+
+func (f *fakeOps) Reboot(context.Context) error {
+	f.record("reboot")
+	return f.rebootErr
 }
 
 func (f *fakeOps) FirewallState(context.Context) (privops.FirewallState, error) {
@@ -340,6 +346,51 @@ func TestServiceActionRunsAndAudits(t *testing.T) {
 	}
 	if !found {
 		t.Error("die Aktion steht nicht im Audit-Log")
+	}
+}
+
+func TestRebootOwnerOnly(t *testing.T) {
+	// Ein Admin darf vieles, aber nicht neu starten — das ist Owner-Sache wie
+	// das Update. Der Aufruf muss abgewiesen werden, ohne dass die Operation
+	// den Executor erreicht.
+	s, ops := newSystemServer(t)
+	admin := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, admin)
+
+	rec := post(t, s, "/system/reboot", url.Values{"_csrf": {csrf}}, cookie)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("Status = %d, erwartet 403", rec.Code)
+	}
+	if got := ops.recorded(); len(got) != 0 {
+		t.Fatalf("der Neustart wurde trotz fehlender Rechte ausgeführt: %v", got)
+	}
+}
+
+func TestRebootRunsAndAudits(t *testing.T) {
+	s, ops := newSystemServer(t)
+	owner := addUser(t, s, "chef", store.RoleOwner)
+	cookie, csrf := login(t, s, owner)
+
+	rec := post(t, s, "/system/reboot", url.Values{"_csrf": {csrf}}, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200", rec.Code)
+	}
+	if got := ops.recorded(); len(got) != 1 || got[0] != "reboot" {
+		t.Fatalf("ausgeführt: %v, erwartet [reboot]", got)
+	}
+
+	entries, err := s.db.ListAudit(context.Background(), 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, e := range entries {
+		if e.Action == "system.reboot" && e.Result == store.ResultOK {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("der Neustart steht nicht im Audit-Log")
 	}
 }
 

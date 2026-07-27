@@ -428,16 +428,33 @@ entstanden; die Verläufe stammen dort aus einem gestellten Ringpuffer, wie der
 
 Zuerst **zusätzlich zu**, nicht anstelle von Passwort und TOTP.
 
-- Ein Passkey ist gerätegebundener Besitz. Fällt das Gerät aus, ist der Zugang
-  weg. Es gibt `asylum reset-password` über SSH als Rettungsanker — der setzt
-  aber SSH-Zugang voraus, und den soll das Panel gerade entbehrlich machen.
-- WebAuthn ist mehr als eine eingebundene Bibliothek: Registrierung, Assertion,
-  Speicherung der Credential-IDs, mehrere Schlüssel je Konto, Zusammenspiel mit
-  den bestehenden Wiederherstellungscodes, und die Entscheidung, ob ein Passkey
-  den zweiten Faktor ersetzt oder Passwort *und* Faktor.
-- Reihenfolge: erst als zusätzlicher zweiter Faktor neben TOTP, dann — wenn sich
-  das im Betrieb bewährt — als vollständiger Ersatz mit ausdrücklicher
-  Zustimmung.
+**Stand: umgesetzt (additiv), bis auf den externen Review.** Einzelheiten in
+[11-passkeys.md](11-passkeys.md). Gebaut wurde in vier Schritten:
+
+- **Fundament** — Tabelle `webauthn_credentials`, Store-Methoden und ein Adapter
+  um `github.com/go-webauthn/webauthn` (die einzige neue direkte Abhängigkeit,
+  6 statt 5). Die Krypto ist bewusst nicht selbst geschrieben; das Panel liefert
+  Benutzertyp, Persistenz und den kurzlebigen Challenge-Speicher.
+- **Registrierung** im Konto: hinzufügen, umbenennen, entfernen. Das Anlegen
+  verlangt das aktuelle Passwort, damit eine übernommene Sitzung nicht unbemerkt
+  einen dauerhaften Schlüssel hinterlegt.
+- **Anmeldung** in zwei Schritten (Passwort → Assertion), mit einem
+  kurzlebigen Vorab-Cookie für den Zwischenstand. Der bisherige Login mit
+  Passwort und Code bleibt unangetastet — der Rückweg ohne JavaScript und für
+  Konten ohne Passkey.
+- **Grenzfälle und Rettung** — `asylum passkey list|remove` über SSH,
+  Klon-Erkennung (vermerkt, sperrt aber nicht), Audit-Einträge, Dokumentation.
+
+Der vollständige Durchlauf ist mit einem echten Browser und virtuellem
+Authenticator geprüft (`TestPasskeyBrowserFlow`): registrieren, abmelden, mit
+Passkey anmelden. Voraussetzung im Betrieb ist ein auflösbarer Hostname als
+RP-ID — über eine IP funktioniert WebAuthn nicht.
+
+- Reihenfolge: erst als zusätzlicher zweiter Faktor neben TOTP (jetzt), dann —
+  wenn sich das im Betrieb bewährt — als vollständiger Ersatz mit ausdrücklicher
+  Zustimmung. Der Ersatz ist noch offen: Ein Passkey ist gerätegebundener
+  Besitz; fällt das Gerät aus, muss ein Rückweg bleiben. Heute ist das TOTP,
+  dazu `asylum reset-password` über SSH.
 
 ### Laufend, an keine Fassung gebunden
 

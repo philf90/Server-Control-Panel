@@ -27,6 +27,15 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Passkeys als zusätzlicher zweiter Faktor (WebAuthn).** Neben der
+  Authenticator-App lässt sich jetzt ein Passkey hinterlegen — Fingerabdruck,
+  Gesicht oder ein Sicherheitsschlüssel. Im Konto: hinzufügen (verlangt das
+  aktuelle Passwort), umbenennen, entfernen. Bei der Anmeldung ein Knopf neben
+  „Anmelden"; der Weg mit Passwort und Code bleibt unverändert der Rückfall
+  ohne JavaScript und für Konten ohne Passkey. Über SSH gibt es
+  `asylum passkey list|remove` als Rettungsweg. Aus per Vorgabe; einzuschalten
+  über `auth.webauthn.enabled` und einen auflösbaren Hostnamen als RP-ID.
+  Einzelheiten in [docs/11-passkeys.md](docs/11-passkeys.md).
 - **Ein Neustart lässt sich aus dem Panel anstoßen.** Steht ein Neustart aus
   (etwa nach einem Kernel-Update), führt die Übersicht ihn im Handlungsbedarf
   auf und verlinkt auf die Pakete-Seite; dort steht neben dem Hinweis der Knopf

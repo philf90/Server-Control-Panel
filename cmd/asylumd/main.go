@@ -69,6 +69,8 @@ func run(args []string) error {
 		return cmdRollback(rest)
 	case "cert":
 		return cmdCert(rest)
+	case "passkey":
+		return cmdPasskey(rest)
 	case "version", "--version", "-v":
 		return cmdVersion(rest)
 	case "help", "--help", "-h":
@@ -91,6 +93,8 @@ Aufruf:
   asylum update [--check]              auf die neueste Fassung aktualisieren
   asylum rollback                      zur vorherigen Fassung zurückkehren
   asylum cert status                   Zustand des TLS-Zertifikats ausgeben
+  asylum passkey list BENUTZER         hinterlegte Passkeys anzeigen
+  asylum passkey remove BENUTZER …     Passkey entfernen (--id N oder --all)
   asylum version [--fingerprint]       Versionsangaben ausgeben
   asylum help                          diese Hilfe
 
@@ -361,6 +365,111 @@ func cmdResetPassword(args []string) error {
 		fmt.Println("Beim nächsten Anmelden wird der zweite Faktor neu eingerichtet.")
 	}
 	return nil
+}
+
+// cmdPasskey ist der Rettungsweg für Passkeys über SSH: anzeigen und entfernen,
+// ohne die Weboberfläche. Gedacht für den Fall, dass ein Gerät verloren ist oder
+// ein Konto aufgeräumt werden muss. Anlegen geht bewusst nur im Panel — dafür
+// braucht es den Browser und den Authenticator.
+func cmdPasskey(args []string) error {
+	if len(args) == 0 {
+		return errors.New("passkey: Unterkommando fehlt (list|remove)")
+	}
+	sub, rest := args[0], args[1:]
+
+	fs := flag.NewFlagSet("passkey "+sub, flag.ContinueOnError)
+	cfgPath := fs.String("config", defaultConfigPath(), "Pfad zur Konfigurationsdatei")
+	id := fs.Int64("id", 0, "Kennung des zu entfernenden Passkeys")
+	all := fs.Bool("all", false, "alle Passkeys des Kontos entfernen")
+	if err := fs.Parse(rest); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return errors.New("Aufruf: asylum passkey " + sub + " BENUTZER")
+	}
+	username := fs.Arg(0)
+
+	cfg, err := config.Load(*cfgPath)
+	if err != nil {
+		return err
+	}
+	db, err := openDB(cfg)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	user, err := db.UserByName(ctx, username)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("kein Konto mit dem Namen %q", username)
+		}
+		return err
+	}
+
+	creds, err := db.WebAuthnCredentialsByUser(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+
+	switch sub {
+	case "list":
+		if len(creds) == 0 {
+			fmt.Printf("Konto %q hat keine Passkeys.\n", username)
+			return nil
+		}
+		fmt.Printf("Passkeys von %q:\n\n", username)
+		fmt.Printf("%-6s %-24s %-12s %s\n", "ID", "Name", "Hinzugefügt", "Zuletzt genutzt")
+		for _, c := range creds {
+			label := c.Label
+			if label == "" {
+				label = "(ohne Namen)"
+			}
+			used := "nie"
+			if c.LastUsedAt != nil {
+				used = c.LastUsedAt.Local().Format("2006-01-02 15:04")
+			}
+			fmt.Printf("%-6d %-24s %-12s %s\n",
+				c.ID, label, c.CreatedAt.Local().Format("2006-01-02"), used)
+		}
+		return nil
+
+	case "remove":
+		if *all {
+			for _, c := range creds {
+				if err := db.DeleteWebAuthnCredential(ctx, c.ID, user.ID); err != nil {
+					return err
+				}
+			}
+			_ = db.AppendAudit(ctx, store.AuditEntry{
+				Actor: "cli(root)", Action: "passkey.remove", Target: username,
+				Result: store.ResultOK, IP: "lokal", Detail: fmt.Sprintf("alle (%d)", len(creds)),
+			})
+			fmt.Printf("Konto %q: %d Passkey(s) entfernt.\n", username, len(creds))
+			return nil
+		}
+		if *id == 0 {
+			return errors.New("passkey remove: --id N oder --all angeben (Kennungen über: asylum passkey list BENUTZER)")
+		}
+		if err := db.DeleteWebAuthnCredential(ctx, *id, user.ID); err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return fmt.Errorf("Konto %q hat keinen Passkey mit der Kennung %d", username, *id)
+			}
+			return err
+		}
+		_ = db.AppendAudit(ctx, store.AuditEntry{
+			Actor: "cli(root)", Action: "passkey.remove", Target: username,
+			Result: store.ResultOK, IP: "lokal", Detail: fmt.Sprintf("Kennung %d", *id),
+		})
+		fmt.Printf("Konto %q: Passkey %d entfernt.\n", username, *id)
+		return nil
+
+	default:
+		return fmt.Errorf("passkey: unbekanntes Unterkommando %q (list|remove)", sub)
+	}
 }
 
 func cmdVersion(args []string) error {

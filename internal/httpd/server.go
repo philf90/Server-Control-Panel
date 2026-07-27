@@ -239,12 +239,16 @@ func (s *Server) newACMEManager() (*acme.Manager, error) {
 		return nil, errors.New("keine Domain ermittelbar (acme.domains leer und FQDN unbekannt)")
 	}
 	return acme.New(acme.Options{
-		Dir:          filepath.Join(s.cfg.Paths.Data, "acme"),
-		Email:        s.cfg.ACME.Email,
-		Domains:      domains,
-		DirectoryURL: s.cfg.ACME.DirectoryURL,
-		Challenge:    s.cfg.ACME.Challenge,
-		HTTP01Addr:   ":80",
+		Dir:                 filepath.Join(s.cfg.Paths.Data, "acme"),
+		Email:               s.cfg.ACME.Email,
+		Domains:             domains,
+		DirectoryURL:        s.cfg.ACME.DirectoryURL,
+		Challenge:           s.cfg.ACME.Challenge,
+		HTTP01Addr:          ":80",
+		DNS01Provider:       s.cfg.ACME.DNS01.Provider,
+		HookSet:             s.cfg.ACME.DNS01.Hook.Set,
+		HookClean:           s.cfg.ACME.DNS01.Hook.Clean,
+		CloudflareTokenFile: s.cfg.ACME.DNS01.Cloudflare.APITokenFile,
 	}, s.certHolder, s.log)
 }
 

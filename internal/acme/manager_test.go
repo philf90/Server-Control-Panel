@@ -157,12 +157,3 @@ func TestEnsureKeepsSelfSignedOnFailure(t *testing.T) {
 		t.Error("das selbstsignierte Zertifikat wurde trotz Fehlschlags ersetzt")
 	}
 }
-
-func TestSolverFactoryRejectsDNS01(t *testing.T) {
-	if _, err := solverFactory(Options{Challenge: "dns-01"}); err == nil {
-		t.Error("dns-01 sollte in dieser Fassung abgelehnt werden")
-	}
-	if _, err := solverFactory(Options{Challenge: ""}); err != nil {
-		t.Errorf("automatische Wahl sollte http-01 ergeben: %v", err)
-	}
-}

@@ -36,6 +36,13 @@ type Options struct {
 	DirectoryURL string   // leer = LE-Produktion; für Tests das Staging
 	Challenge    string   // "" (automatisch) | http-01 | dns-01
 	HTTP01Addr   string   // Bindeadresse für HTTP-01, Vorgabe ":80"
+
+	// DNS-01: Anbieter und dessen Zugang. Ist ein Anbieter gesetzt, wählt die
+	// automatische Challenge-Bestimmung DNS-01 statt HTTP-01.
+	DNS01Provider       string // "" | hook | cloudflare
+	HookSet             string
+	HookClean           string
+	CloudflareTokenFile string
 }
 
 // Manager spielt ein vorhandenes Zertifikat ein, besorgt bei Bedarf ein neues
@@ -56,7 +63,7 @@ func New(opts Options, holder *certs.Holder, log *slog.Logger) (*Manager, error)
 	if len(opts.Domains) == 0 {
 		return nil, errors.New("keine Domain für ACME")
 	}
-	factory, err := solverFactory(opts)
+	factory, err := solverFactory(opts, log)
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +84,17 @@ func New(opts Options, holder *certs.Holder, log *slog.Logger) (*Manager, error)
 	}, nil
 }
 
-// solverFactory wählt den Challenge-Löser. Automatisch bedeutet in dieser
-// Fassung HTTP-01; DNS-01 folgt in Phase 3.
-func solverFactory(opts Options) (func(context.Context) (challengeSolver, error), error) {
+// solverFactory wählt den Challenge-Löser. Automatisch (leere Challenge) wählt
+// DNS-01, wenn ein DNS-Anbieter konfiguriert ist, sonst HTTP-01 — das löst den
+// Fall, dass auf Port 80 schon ein Webserver läuft.
+func solverFactory(opts Options, log *slog.Logger) (func(context.Context) (challengeSolver, error), error) {
 	challenge := opts.Challenge
 	if challenge == "" {
-		challenge = "http-01"
+		if opts.DNS01Provider != "" {
+			challenge = "dns-01"
+		} else {
+			challenge = "http-01"
+		}
 	}
 	switch challenge {
 	case "http-01":
@@ -94,7 +106,13 @@ func solverFactory(opts Options) (func(context.Context) (challengeSolver, error)
 			return newHTTP01Solver(ctx, addr)
 		}, nil
 	case "dns-01":
-		return nil, errors.New("dns-01 ist in dieser Fassung noch nicht verfügbar (folgt in Phase 3)")
+		setter, err := newDNSSetter(opts)
+		if err != nil {
+			return nil, err
+		}
+		return func(context.Context) (challengeSolver, error) {
+			return newDNS01Solver(setter, log), nil
+		}, nil
 	default:
 		return nil, fmt.Errorf("unbekannte challenge %q", challenge)
 	}

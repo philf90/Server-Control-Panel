@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -123,6 +124,114 @@ func TestPasskeyRenameAndDelete(t *testing.T) {
 	}
 	if n, _ := s.db.CountWebAuthnCredentials(context.Background(), user.ID); n != 0 {
 		t.Errorf("nach delete sind noch %d Passkeys da", n)
+	}
+}
+
+// beginPasskeyLogin führt den ersten Schritt aus und gibt das Vorab-Cookie
+// zurück, mit dem der zweite Schritt geprüft werden kann.
+func beginPasskeyLogin(t *testing.T, s *Server, username string) *http.Cookie {
+	t.Helper()
+	rec := post(t, s, "/login/passkey/begin", url.Values{"username": {username}, "password": {testPassword}}, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("begin: Status = %d, Body %s", rec.Code, rec.Body.String())
+	}
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == preauthCookie && c.Value != "" {
+			return &http.Cookie{Name: preauthCookie, Value: c.Value}
+		}
+	}
+	t.Fatal("kein Vorab-Cookie aus begin")
+	return nil
+}
+
+func hasSessionCookie(rec *httptest.ResponseRecorder) bool {
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == sessionCookie && c.Value != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// Eine manipulierte oder unsinnige Assertion darf keine Sitzung ergeben, und das
+// Vorab-Token gilt danach nicht mehr — kein Replay.
+func TestPasskeyLoginRejectsBadAssertion(t *testing.T) {
+	s := newTestServer(t)
+	enablePasskeys(t, s)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	seedCredential(t, s, user.ID, "cred-1")
+
+	preauth := beginPasskeyLogin(t, s, "philipp")
+
+	rec := post(t, s, "/login/passkey/finish", url.Values{"credential": {`{"kaputt":true}`}}, preauth)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("Status = %d, erwartet 401", rec.Code)
+	}
+	if hasSessionCookie(rec) {
+		t.Error("trotz abgelehnter Assertion wurde eine Sitzung angelegt")
+	}
+
+	// Dasselbe Vorab-Token ein zweites Mal: Die Challenge ist verbraucht.
+	rec = post(t, s, "/login/passkey/finish", url.Values{"credential": {`{"kaputt":true}`}}, preauth)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Replay: Status = %d, erwartet 400", rec.Code)
+	}
+
+	// Im Audit steht der Fehlversuch.
+	entries, _ := s.db.ListAudit(context.Background(), 20)
+	found := false
+	for _, e := range entries {
+		if e.Action == "login.failed" && e.Result == store.ResultDenied {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("der abgelehnte Passkey-Versuch steht nicht im Audit-Log")
+	}
+}
+
+// Eine unsinnige Registrierungsantwort legt keinen Passkey an.
+func TestPasskeyRegisterRejectsGarbage(t *testing.T) {
+	s := newTestServer(t)
+	enablePasskeys(t, s)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, csrf := login(t, s, user)
+
+	// Gültiges Token holen.
+	rec := post(t, s, "/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {testPassword}}, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("begin: %d", rec.Code)
+	}
+	var body struct {
+		Token string `json:"token"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+
+	rec = post(t, s, "/account/passkeys/register/finish",
+		url.Values{"_csrf": {csrf}, "token": {body.Token}, "label": {"X"}, "credential": {`{"kaputt":true}`}}, cookie)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("finish: Status = %d, erwartet 400", rec.Code)
+	}
+	if n, _ := s.db.CountWebAuthnCredentials(context.Background(), user.ID); n != 0 {
+		t.Errorf("trotz kaputter Antwort wurde ein Passkey angelegt (%d)", n)
+	}
+}
+
+// Wiederholte falsche Passwörter über den Passkey-Beginn lösen dieselbe
+// Kontosperre aus wie der gewöhnliche Login — der Endpunkt ist kein Schlupfloch
+// am Ratenlimit vorbei.
+func TestPasskeyLoginBeginRateLimited(t *testing.T) {
+	s := newTestServer(t)
+	enablePasskeys(t, s)
+	addUser(t, s, "philipp", store.RoleOwner)
+
+	var last int
+	for i := 0; i < 6; i++ {
+		rec := post(t, s, "/login/passkey/begin", url.Values{"username": {"philipp"}, "password": {"falsch"}}, nil)
+		last = rec.Code
+	}
+	if last != http.StatusTooManyRequests {
+		t.Errorf("nach wiederholten Fehlversuchen Status = %d, erwartet 429", last)
 	}
 }
 

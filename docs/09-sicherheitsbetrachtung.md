@@ -114,10 +114,44 @@ ein Wiederherstellungscode nur noch bei richtigem Passwort überhaupt geprüft.
 - **Die Rate-Zähler liegen im Speicher.** Ein Neustart des Panels setzt sie
   zurück. Da ein Neustart root voraussetzt, ist das für einen Angreifer von
   außen kein Weg.
-- **Kein WebAuthn.** TOTP ist gegen Phishing nicht sicher: Ein Formular, das
-  Passwort und Code entgegennimmt und sofort weiterreicht, kommt durch — der
+- **TOTP allein ist gegen Phishing nicht sicher.** Ein Formular, das Passwort
+  und Code entgegennimmt und sofort weiterreicht, kommt durch — der
   Wiederholungsschutz verkürzt nur das Zeitfenster, er schließt die Lücke nicht.
-  WebAuthn wäre die richtige Antwort und steht für nach v0.1.
+  Die Antwort darauf sind Passkeys (siehe unten); sie stehen seit 0.3.0 als
+  zusätzlicher Faktor bereit, sind aber noch nicht Pflicht.
+
+### Passkeys (WebAuthn)
+
+Seit 0.3.0 lässt sich ein Passkey als zweiter Faktor hinterlegen. Er ist die
+Antwort auf die Phishing-Schwäche von TOTP: Der private Schlüssel verlässt das
+Gerät nie, und die Signatur ist an den Ursprung gebunden — eine nachgebaute
+Seite unter anderem Namen bekommt keine gültige Antwort. Einzelheiten und die
+Entwurfsentscheidungen stehen in [11-passkeys.md](11-passkeys.md).
+
+Was bewusst so ist:
+
+- **Additiv, nicht ersetzend.** TOTP bleibt Pflicht, die Wiederherstellungscodes
+  bleiben der Notnagel. So sperrt weder ein verlorenes Gerät noch das Entfernen
+  eines Passkeys jemanden aus, und der Anmeldeweg ohne JavaScript bleibt.
+- **Die Krypto kommt aus einer Bibliothek** (go-webauthn), nicht aus Eigenbau —
+  anders als bei TOTP, das dreißig Zeilen sind. WebAuthn ist zu umfangreich, um
+  es für einen sicherheitskritischen Pfad selbst zu schreiben.
+- **Anlegen verlangt das aktuelle Passwort**, damit eine übernommene Sitzung
+  nicht unbemerkt einen dauerhaften Schlüssel hinterlegt.
+- **Die halb fertige Anmeldung gewährt nichts.** Zwischen Passwort und Assertion
+  liegt nur ein kurzlebiges, serverseitiges Token; ohne gültige Signatur entsteht
+  keine Sitzung. Beide Schritte gehen durch dieselbe Ratenbegrenzung wie der
+  gewöhnliche Login.
+- **Klon-Hinweis ohne Sperre.** Ein rückläufiger Sign-Count wird vermerkt, sperrt
+  aber nicht — ein zu Recht wiederhergestellter Authenticator soll niemanden
+  aussperren.
+
+Geprüft wurde nicht nur der Idealfall: Ein echter Browser mit virtuellem
+Authenticator fährt den vollen Weg (registrieren, abmelden, anmelden), und
+derselbe Weg mit einer unterwegs **verfälschten Signatur** wird abgelehnt, ohne
+dass eine Sitzung entsteht. Dazu kommen Tests für die Verzweigungen des Servers:
+falsches Passwort, kein Passkey, verbrauchtes Vorab-Token (kein Replay), kaputte
+Antwort, und die Kontosperre beim Beschuss über den Passkey-Beginn.
 
 ## Selbstupdate
 

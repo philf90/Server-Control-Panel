@@ -15,12 +15,10 @@ import (
 	"github.com/philf90/asylum/internal/store"
 )
 
-// TestPasskeyBrowserFlow fährt den vollständigen Durchlauf mit einem echten
-// Browser und virtuellem Authenticator: Passkey im Konto registrieren, abmelden,
-// mit dem Passkey anmelden. Er prüft, was ein Handler-Test nicht kann — dass die
-// im Browser erzeugten Zeremonie-Antworten von passkey-register.js/-login.js
-// richtig serialisiert und von go-webauthn samt unserer RP-Konfiguration
-// akzeptiert werden.
+// runPasskeyBrowser startet das Panel über TLS auf localhost, hängt einen
+// virtuellen Authenticator ein und fährt den Node-Treiber im gewünschten Modus.
+// Rückgabe ist die kombinierte Ausgabe des Treibers und der Server samt Benutzer
+// zum Nachprüfen.
 //
 // Bewusst hinter einer Umgebungsvariablen: Der Test braucht Node und Chromium
 // und läuft nicht in jeder CI. Aufruf:
@@ -29,8 +27,9 @@ import (
 //	  ASYLUM_NODE=/opt/node22/bin/node \
 //	  ASYLUM_NODE_PATH=/opt/node22/lib/node_modules \
 //	  ASYLUM_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome \
-//	  go test ./internal/httpd -run TestPasskeyBrowserFlow -v
-func TestPasskeyBrowserFlow(t *testing.T) {
+//	  go test ./internal/httpd -run TestPasskeyBrowser -v
+func runPasskeyBrowser(t *testing.T, mode string) (string, *Server, store.User) {
+	t.Helper()
 	if os.Getenv("ASYLUM_PASSKEY_E2E") == "" {
 		t.Skip("ohne ASYLUM_PASSKEY_E2E nichts zu tun (braucht Node und Chromium)")
 	}
@@ -42,17 +41,12 @@ func TestPasskeyBrowserFlow(t *testing.T) {
 
 	s := newTestServer(t)
 
-	// Listener zuerst öffnen, damit der Port für den Origin feststeht, bevor der
-	// WebAuthn-Manager gebaut wird.
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
 
-	// RP-ID localhost, Origin auf genau diesen Port — der Browser ruft die Seite
-	// über https://localhost:PORT auf (localhost gilt als sicherer Kontext,
-	// anders als eine IP).
 	m, err := passkeys.New(passkeys.Config{
 		RPID:        "localhost",
 		DisplayName: "Project Asylum",
@@ -66,31 +60,34 @@ func TestPasskeyBrowserFlow(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	ts := &httptest.Server{
-		Listener: ln,
-		Config:   &http.Server{Handler: s.Handler()},
-	}
+	ts := &httptest.Server{Listener: ln, Config: &http.Server{Handler: s.Handler()}}
 	ts.StartTLS()
 	defer ts.Close()
 
 	base := fmt.Sprintf("https://localhost:%d", port)
-	script := "testdata/passkey_e2e.js"
-
-	cmd := exec.Command(node, script, base, "philipp", testPassword, cookie.Value, chromium)
+	cmd := exec.Command(node, "testdata/passkey_e2e.js", mode, base, "philipp", testPassword, cookie.Value, chromium)
 	cmd.Env = os.Environ()
 	if np := os.Getenv("ASYLUM_NODE_PATH"); np != "" {
 		cmd.Env = append(cmd.Env, "NODE_PATH="+np)
 	}
 	out, err := cmd.CombinedOutput()
-	t.Logf("node:\n%s", out)
+	t.Logf("node (%s):\n%s", mode, out)
 	if err != nil {
-		t.Fatalf("Browserdurchlauf fehlgeschlagen: %v", err)
+		t.Fatalf("Browserdurchlauf (%s) fehlgeschlagen: %v", mode, err)
 	}
-	if !strings.Contains(string(out), "E2E-OK") {
+	return string(out), s, user
+}
+
+// TestPasskeyBrowserFlow: der vollständige positive Durchlauf — Passkey im Konto
+// registrieren, abmelden, mit dem Passkey anmelden. Belegt, dass die im Browser
+// erzeugten Zeremonie-Antworten richtig serialisiert und von go-webauthn samt
+// unserer RP-Konfiguration akzeptiert werden.
+func TestPasskeyBrowserFlow(t *testing.T) {
+	out, s, user := runPasskeyBrowser(t, "flow")
+	if !strings.Contains(out, "E2E-OK") {
 		t.Fatalf("kein Erfolg gemeldet:\n%s", out)
 	}
 
-	// Der Passkey wurde registriert und beim Anmelden fortgeschrieben.
 	creds, err := s.db.WebAuthnCredentialsByUser(context.Background(), user.ID)
 	if err != nil || len(creds) != 1 {
 		t.Fatalf("Passkeys nach Durchlauf = %d (%v), erwartet 1", len(creds), err)
@@ -99,7 +96,6 @@ func TestPasskeyBrowserFlow(t *testing.T) {
 		t.Error("der Passkey wurde bei der Anmeldung nicht als genutzt vermerkt")
 	}
 
-	// Und es gibt eine geglückte Anmeldung über Passkey im Audit-Log.
 	entries, err := s.db.ListAudit(context.Background(), 50)
 	if err != nil {
 		t.Fatal(err)
@@ -113,6 +109,29 @@ func TestPasskeyBrowserFlow(t *testing.T) {
 	if !found {
 		t.Error("keine Passkey-Anmeldung im Audit-Log")
 	}
+}
+
+// TestPasskeyBrowserTamper: derselbe Weg, aber die Assertion wird unterwegs
+// verfälscht (Signatur umgedreht). Die Anmeldung MUSS scheitern — der Beweis,
+// dass eine manipulierte Antwort durch die ganze Kette abgelehnt wird und nicht
+// nur im Idealfall stimmt.
+func TestPasskeyBrowserTamper(t *testing.T) {
+	out, s, user := runPasskeyBrowser(t, "tamper")
+	if !strings.Contains(out, "TAMPER-REJECTED") {
+		t.Fatalf("die verfälschte Assertion wurde nicht abgelehnt:\n%s", out)
+	}
+
+	// Keine geglückte Anmeldung im Audit — nur der Fehlversuch.
+	entries, err := s.db.ListAudit(context.Background(), 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Action == "login.success" && strings.Contains(e.Detail, "Passkey") {
+			t.Fatalf("trotz verfälschter Assertion steht eine Anmeldung im Audit-Log")
+		}
+	}
+	_ = user
 }
 
 func envOr(key, def string) string {

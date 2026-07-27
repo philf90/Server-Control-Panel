@@ -42,32 +42,171 @@
 <div class="card">
   <div class="card-head">
     <h2>Automatischer Bezug (Let's Encrypt)</h2>
+    {{if eq .Mode "acme"}}<span class="badge ok">eingeschaltet</span>{{else}}<span class="badge">aus</span>{{end}}
   </div>
 
-  {{if eq .Mode "acme"}}
-  <dl>
-    <dt>Domains</dt>
-    <dd>{{range $i, $d := .Domains}}{{if $i}}, {{end}}<code>{{$d}}</code>{{else}}<span class="muted">der vollqualifizierte Rechnername</span>{{end}}</dd>
-    <dt>Prüfverfahren</dt>
-    <dd>
-      {{if .Challenge}}<code>{{.Challenge}}</code>{{else}}<span class="muted">automatisch</span>{{end}}
-      {{if .Provider}}· DNS-Anbieter <code>{{.Provider}}</code>{{end}}
-    </dd>
-  </dl>
-  <p class="muted">
-    Das Zertifikat wird im Hintergrund bezogen und rund 30 Tage vor Ablauf
-    erneuert — ohne Neustart. Gelingt der Bezug nicht, bleibt das
-    selbstsignierte Zertifikat, damit das Panel erreichbar bleibt.
+  {{if .Attempt.Running}}
+  <div class="alert warn-box">
+    <strong>Bezug läuft.</strong> Das kann bei der Prüfung über DNS einige
+    Minuten dauern. Laden Sie die Seite neu, um das Ergebnis zu sehen.
+  </div>
+  {{else if .Attempt.Err}}
+  <div class="alert error">
+    <strong>Letzter Versuch fehlgeschlagen</strong> ({{datetime .Attempt.At}}):
+    {{.Attempt.Err}}
+  </div>
+  {{else if not .Attempt.At.IsZero}}
+  <div class="alert ok">Letzter Bezug erfolgreich: {{datetime .Attempt.At}}</div>
+  {{end}}
+
+  <p class="hint">
+    Ein von Browsern anerkanntes Zertifikat — über Port 80 (HTTP-01) oder, wenn
+    dort schon ein Webserver läuft, über einen DNS-Eintrag (DNS-01). Alles
+    Nötige steht hier; die Konfigurationsdatei muss dafür niemand anfassen.
+    Gespeichert wird nach <code>{{.ManagedFile}}</code>.
   </p>
-  {{else}}
-  <p class="muted">
-    Der automatische Bezug ist nicht eingeschaltet. Mit
-    <code>server.tls.mode: acme</code> in der Konfiguration holt das Panel ein
-    von Browsern anerkanntes Zertifikat — über Port 80 (HTTP-01) oder, wenn
-    dort schon ein Webserver läuft, über einen DNS-Eintrag (DNS-01). Die
-    Einzelheiten stehen in <code>docs/10-tls-acme.md</code>.
-  </p>
+
+  {{if not $.CanWrite}}
+  <p class="hint">Zum Ändern fehlen Ihnen die Rechte.</p>
+  {{end}}
+
+  <form method="post" action="/certificate" class="rules-form">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+
+    <fieldset class="rule">
+      <legend>Betriebsart</legend>
+      <div class="wahl">
+        <label>
+          <input type="radio" name="mode" value="selfsigned" {{if ne .Mode "acme"}}checked{{end}} {{if not $.CanWrite}}disabled{{end}}>
+          Selbstsigniert — kein Netzzugriff nötig, der Browser warnt
+        </label>
+        <label>
+          <input type="radio" name="mode" value="acme" {{if eq .Mode "acme"}}checked{{end}} {{if not $.CanWrite}}disabled{{end}}>
+          Let's Encrypt — automatisch beziehen und erneuern
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="rule">
+      <legend>Namen und Kontakt</legend>
+      <div class="felder">
+        <div class="feld weit">
+          <label for="domains">Domains, eine je Zeile</label>
+          <textarea id="domains" name="domains" rows="3"
+                    placeholder="{{range $i, $d := .EffectiveDomains}}{{if $i}}&#10;{{end}}{{$d}}{{end}}"
+                    {{if not $.CanWrite}}disabled{{end}}>{{.DomainsText}}</textarea>
+          <p class="hint">
+            Leer lassen heißt: der vollqualifizierte Rechnername.
+            {{if .EffectiveDomains}}Verwendet würde derzeit
+            {{range $i, $d := .EffectiveDomains}}{{if $i}}, {{end}}<code>{{$d}}</code>{{end}}.
+            {{else}}<span class="warn-text">Derzeit ist kein Name ermittelbar — tragen Sie einen ein.</span>{{end}}
+            Jeder Name muss von außen auf diesen Server zeigen, sonst schlägt die Prüfung fehl.
+          </p>
+        </div>
+        <div class="feld weit">
+          <label for="email">Kontaktadresse</label>
+          <input type="email" id="email" name="email" value="{{.Set.ACME.Email}}"
+                 placeholder="admin@example.org" {{if not $.CanWrite}}disabled{{end}}>
+          <p class="hint">Dorthin warnt Let's Encrypt, wenn eine Erneuerung ausbleibt.</p>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="rule">
+      <legend>Prüfverfahren</legend>
+      <div class="felder">
+        <div class="feld">
+          <label for="challenge">Verfahren</label>
+          <select id="challenge" name="challenge" {{if not $.CanWrite}}disabled{{end}}>
+            <option value="" {{if eq .Set.ACME.Challenge ""}}selected{{end}}>automatisch</option>
+            <option value="http-01" {{if eq .Set.ACME.Challenge "http-01"}}selected{{end}}>HTTP-01 (Port 80)</option>
+            <option value="dns-01" {{if eq .Set.ACME.Challenge "dns-01"}}selected{{end}}>DNS-01 (TXT-Eintrag)</option>
+          </select>
+          <p class="hint">Automatisch heißt: DNS-01, wenn unten ein Anbieter steht, sonst HTTP-01.</p>
+        </div>
+        <div class="feld">
+          <label for="provider">DNS-Anbieter</label>
+          <select id="provider" name="provider" {{if not $.CanWrite}}disabled{{end}}>
+            <option value="" {{if eq .Set.ACME.DNS01.Provider ""}}selected{{end}}>keiner</option>
+            <option value="hook" {{if eq .Set.ACME.DNS01.Provider "hook"}}selected{{end}}>eigenes Skript (Hook)</option>
+            <option value="cloudflare" {{if eq .Set.ACME.DNS01.Provider "cloudflare"}}selected{{end}}>Cloudflare</option>
+          </select>
+        </div>
+        <div class="feld weit">
+          <p class="hint">
+            Für HTTP-01 muss Port 80 von außen erreichbar sein und darf nicht
+            von einem anderen Webserver belegt sein — das Panel hört dort nur
+            während der Ausstellung. Läuft dort schon etwas, ist DNS-01 der Weg.
+          </p>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="rule zugang">
+      <legend>Zugang des DNS-Anbieters</legend>
+      <div class="felder">
+        <div class="feld">
+          <label for="hook_set">Hook: TXT setzen</label>
+          <input type="text" id="hook_set" name="hook_set" value="{{.Set.ACME.DNS01.Hook.Set}}"
+                 placeholder="/usr/local/bin/dns-set" {{if not $.CanWrite}}disabled{{end}}>
+        </div>
+        <div class="feld">
+          <label for="hook_clean">Hook: TXT entfernen</label>
+          <input type="text" id="hook_clean" name="hook_clean" value="{{.Set.ACME.DNS01.Hook.Clean}}"
+                 placeholder="/usr/local/bin/dns-clean" {{if not $.CanWrite}}disabled{{end}}>
+        </div>
+        <div class="feld weit">
+          <label for="cf_token">Cloudflare API-Token</label>
+          <input type="password" id="cf_token" name="cf_token" autocomplete="off"
+                 placeholder="{{if .TokenHinterlegt}}hinterlegt — leer lassen, um es zu behalten{{else}}Token mit Zone:DNS:Edit{{end}}"
+                 {{if not $.CanWrite}}disabled{{end}}>
+          <p class="hint">
+            Wird in eine eigene Datei mit Rechten 0600 geschrieben, nicht in die
+            Konfiguration — und hier nie wieder angezeigt.
+          </p>
+        </div>
+      </div>
+      <p class="hint">
+        Ausgewertet wird nur, was zum oben gewählten Anbieter gehört. Die
+        Hook-Skripte müssen absolute Pfade auf ausführbare Dateien sein; Aufbau
+        und Beispiel stehen in <code>docs/10-tls-acme.md</code>.
+      </p>
+    </fieldset>
+
+    <fieldset class="rule">
+      <legend>Testbetrieb</legend>
+      <div class="feld weit">
+        <label>
+          <input type="checkbox" name="staging" value="1" {{if .Staging}}checked{{end}} {{if not $.CanWrite}}disabled{{end}}>
+          Testverzeichnis von Let's Encrypt verwenden
+        </label>
+        <p class="hint">
+          Stellt Zertifikate aus, denen kein Browser traut — dafür sind die
+          Grenzen weit. Zum Einrichten eines DNS-Zugangs der richtige Weg: Die
+          Produktionsgrenze liegt bei fünf Fehlversuchen je Konto und Stunde.
+        </p>
+      </div>
+    </fieldset>
+
+    {{if $.CanWrite}}
+    <div class="button-row">
+      <button type="submit">Einstellungen speichern</button>
+    </div>
+    {{end}}
+  </form>
+
+  {{if and $.CanWrite (eq .Mode "acme")}}
+  <form method="post" action="/certificate/obtain" class="button-row">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <button type="submit" class="secondary" {{if .Attempt.Running}}disabled{{end}}>Jetzt beziehen</button>
+    <p class="hint">
+      Fordert sofort ein Zertifikat an, auch wenn das vorhandene noch gültig
+      ist — gedacht, um eine geänderte Einstellung zu prüfen. Beachten Sie die
+      Grenzen der CA; zum Ausprobieren das Testverzeichnis oben.
+    </p>
+  </form>
   {{end}}
 </div>
 {{end}}
+<script src="/static/certform.js" defer></script>
 {{template "footer" .}}{{end}}

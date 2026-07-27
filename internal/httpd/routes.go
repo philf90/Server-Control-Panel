@@ -66,6 +66,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /firewall/events", s.protected(http.HandlerFunc(s.handleFirewallEvents)))
 
 	mux.Handle("GET /certificate", s.protected(http.HandlerFunc(s.handleCertificate)))
+	mux.Handle("POST /certificate", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleCertificateSettings)))))
+	mux.Handle("POST /certificate/obtain", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleCertificateObtain)))))
 
 	mux.Handle("GET /system-users", s.protected(http.HandlerFunc(s.handleSystemUsers)))
 	mux.Handle("POST /system-users", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserCreate)))))

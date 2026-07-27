@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -155,5 +156,95 @@ func TestEnsureKeepsSelfSignedOnFailure(t *testing.T) {
 	// Der Halter trägt weiterhin das selbstsignierte Zertifikat.
 	if got := holderLeaf(t, holder).NotAfter; got.Sub(selfSignedExpiry).Abs() > time.Second {
 		t.Error("das selbstsignierte Zertifikat wurde trotz Fehlschlags ersetzt")
+	}
+}
+
+// TestEnsureBeziehtNeuBeiGeaenderterDomain deckt einen Fall ab, der erst mit
+// den Einstellungen in der Oberfläche wirklich auftritt.
+//
+// Bis hierher sah ensure nur auf die Restlaufzeit. Wer die Domain änderte —
+// seit der Zertifikatsseite ein Klick — bekam bis zu 60 Tage lang weiter das
+// Zertifikat für den alten Namen ausgeliefert, und der Browser warnte zu
+// Recht. Die Ursache wäre für niemanden erkennbar gewesen: Die Oberfläche
+// zeigte den neuen Namen, ausgeliefert wurde der alte.
+func TestEnsureBeziehtNeuBeiGeaenderterDomain(t *testing.T) {
+	now := time.Now()
+	dir := t.TempDir()
+
+	// Abgelegt: ein lange gültiges Zertifikat für den *alten* Namen.
+	certPEM, keyPEM := makeCert(t, now.Add(80*24*time.Hour))
+	if err := saveCert(dir, certPEM, keyPEM); err != nil {
+		t.Fatal(err)
+	}
+
+	neuPEM, neuKeyPEM := makeCertFor(t, "neu.example.test", now.Add(90*24*time.Hour))
+	iss := &fakeIssuer{certPEM: neuPEM, keyPEM: neuKeyPEM}
+
+	m := newTestManager(dir, selfSignedHolder(t, now.Add(2*365*24*time.Hour)), iss, now)
+	m.domains = []string{"neu.example.test"}
+	m.ensure(context.Background())
+
+	if iss.calls != 1 {
+		t.Fatalf("issuer wurde %d-mal gerufen, erwartet 1 — das alte Zertifikat "+
+			"deckt den neuen Namen nicht ab", iss.calls)
+	}
+	if err := holderLeaf(t, m.holder).VerifyHostname("neu.example.test"); err != nil {
+		t.Errorf("der Halter trägt kein Zertifikat für den neuen Namen: %v", err)
+	}
+}
+
+// Deckt das abgelegte Zertifikat alle Namen ab, wird nicht neu bezogen — sonst
+// liefe jede Prüfung in die Rate-Limits der CA.
+func TestEnsureBehaeltZertifikatMitAllenNamen(t *testing.T) {
+	now := time.Now()
+	dir := t.TempDir()
+	certPEM, keyPEM := makeCertFor(t, "panel.example.test", now.Add(80*24*time.Hour))
+	if err := saveCert(dir, certPEM, keyPEM); err != nil {
+		t.Fatal(err)
+	}
+	iss := &fakeIssuer{err: errors.New("darf nicht gerufen werden")}
+
+	m := newTestManager(dir, selfSignedHolder(t, now.Add(2*365*24*time.Hour)), iss, now)
+	m.ensure(context.Background())
+
+	if iss.calls != 0 {
+		t.Error("issuer wurde gerufen, obwohl das Zertifikat passt")
+	}
+}
+
+// TestObtainNowIgnoriertVorhandenes: Der Knopf "Jetzt beziehen" soll eine
+// geänderte Einstellung prüfen. Ein Aufruf, der beim ersten gültigen
+// Zertifikat abbricht, prüfte gar nichts.
+func TestObtainNowIgnoriertVorhandenes(t *testing.T) {
+	now := time.Now()
+	dir := t.TempDir()
+	certPEM, keyPEM := makeCert(t, now.Add(80*24*time.Hour))
+	if err := saveCert(dir, certPEM, keyPEM); err != nil {
+		t.Fatal(err)
+	}
+	neuPEM, neuKeyPEM := makeCert(t, now.Add(90*24*time.Hour))
+	iss := &fakeIssuer{certPEM: neuPEM, keyPEM: neuKeyPEM}
+
+	m := newTestManager(dir, selfSignedHolder(t, now.Add(2*365*24*time.Hour)), iss, now)
+	if err := m.ObtainNow(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if iss.calls != 1 {
+		t.Errorf("issuer wurde %d-mal gerufen, erwartet 1", iss.calls)
+	}
+}
+
+// Scheitert der Bezug, muss der Fehler beim Aufrufer ankommen — der Knopf soll
+// ja gerade die Rückmeldung geben.
+func TestObtainNowMeldetFehler(t *testing.T) {
+	m := newTestManager(t.TempDir(), selfSignedHolder(t, time.Now().Add(time.Hour)),
+		&fakeIssuer{err: errors.New("DNS-Anbieter antwortet nicht")}, time.Now())
+
+	err := m.ObtainNow(context.Background())
+	if err == nil {
+		t.Fatal("kein Fehler, obwohl der Bezug fehlschlug")
+	}
+	if !strings.Contains(err.Error(), "DNS-Anbieter") {
+		t.Errorf("der Grund fehlt in der Meldung: %v", err)
 	}
 }

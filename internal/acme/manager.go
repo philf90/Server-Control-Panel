@@ -137,7 +137,11 @@ func (m *Manager) Start(ctx context.Context) {
 // liefert die Wartezeit bis zur nächsten Prüfung.
 func (m *Manager) ensure(ctx context.Context) time.Duration {
 	if cert, err := loadCert(m.dir); err == nil {
-		if rem := m.remaining(cert); rem > m.renewBefore {
+		// Restlaufzeit allein genügt nicht. Wer die Domains ändert — seit die
+		// Einstellungen in der Oberfläche liegen, ein Klick — hätte sonst bis
+		// zu 60 Tage lang weiter das Zertifikat für die alten Namen
+		// ausgeliefert, und der Browser hätte zu Recht gewarnt.
+		if rem := m.remaining(cert); rem > m.renewBefore && covers(cert, m.domains) {
 			m.holder.Set(cert)
 			return rem - m.renewBefore
 		}
@@ -165,6 +169,41 @@ func (m *Manager) ensure(ctx context.Context) time.Duration {
 		return 24 * time.Hour
 	}
 	return rem - m.renewBefore
+}
+
+// ObtainNow besorgt sofort ein Zertifikat, ohne auf ein vorhandenes zu sehen.
+//
+// Der Knopf "Jetzt beziehen" in der Oberfläche braucht das: Nach einer
+// Änderung an Anbieter oder Zugangsdaten will man wissen, ob es klappt — und
+// nicht bis zur nächsten Erneuerung warten. Die Rate-Limits der CA liegen
+// damit in der Hand des Bedienenden; die Oberfläche sagt das dazu.
+func (m *Manager) ObtainNow(ctx context.Context) error {
+	if err := m.obtainAndStore(ctx); err != nil {
+		return err
+	}
+	cert, err := loadCert(m.dir)
+	if err != nil {
+		return fmt.Errorf("frisch bezogenes Zertifikat nicht ladbar: %w", err)
+	}
+	m.holder.Set(cert)
+	m.log.Info("ACME-Zertifikat bezogen", "domains", m.domains, "ablauf", cert.Leaf.NotAfter)
+	return nil
+}
+
+// Domains liefert die Namen, für die dieser Manager arbeitet.
+func (m *Manager) Domains() []string { return m.domains }
+
+// covers sagt, ob das Zertifikat alle geforderten Namen abdeckt.
+func covers(cert tls.Certificate, domains []string) bool {
+	if cert.Leaf == nil {
+		return false
+	}
+	for _, d := range domains {
+		if cert.Leaf.VerifyHostname(d) != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *Manager) obtainAndStore(ctx context.Context) error {

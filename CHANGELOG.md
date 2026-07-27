@@ -27,6 +27,18 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **TLS und Let's Encrypt lassen sich im Panel einstellen** — unter
+  *Sicherheit → Zertifikat*. Betriebsart, Domains, Kontaktadresse,
+  Prüfverfahren, DNS-Anbieter samt Hook-Pfaden oder Cloudflare-Token und das
+  Testverzeichnis. Eine Konfigurationsdatei muss dafür niemand mehr anfassen.
+  Eine Änderung greift sofort: Der Bezug wird mit den neuen Werten neu
+  angestoßen, ohne Neustart des Dienstes. Dazu ein Knopf **Jetzt beziehen**,
+  der eine geänderte Einstellung sofort prüft.
+- **Ergänzungsdateien unter `/etc/asylum/conf.d/`.** Sie werden nach der
+  Hauptdatei in Namensreihenfolge gelesen. Das Panel schreibt dort genau eine
+  Datei (`10-tls.yaml`) und fasst `config.yaml` nicht an — Kommentare und
+  eigene Anmerkungen des Betreibers bleiben erhalten. Wer eine Einstellung
+  festhalten will, legt sie in eine Datei mit höherem Namen.
 - **Zertifikate von Let's Encrypt (ACME).** Mit `server.tls.mode: acme` holt
   das Panel ein von Browsern anerkanntes Zertifikat und erneuert es rund 30 Tage
   vor Ablauf — im Hintergrund, ohne Neustart. Zwei Prüfverfahren:
@@ -112,6 +124,18 @@ nicht als Release getaggt.
   Die Signaturprüfung bleibt davon unberührt.
 
 ### Behoben
+
+- **Eine Domainänderung wirkte bis zu 60 Tage nicht.** Der ACME-Manager sah nur
+  auf die Restlaufzeit des abgelegten Zertifikats, nicht darauf, ob es die
+  eingestellten Namen abdeckt. Wer die Domain änderte — seit der
+  Zertifikatsseite ein Klick — bekam weiter das alte Zertifikat ausgeliefert,
+  und der Browser warnte zu Recht. Die Ursache wäre für niemanden erkennbar
+  gewesen: Die Oberfläche zeigte den neuen Namen, ausgeliefert wurde der alte.
+- **Eine leere `config.yaml` verhinderte den Start** mit der Meldung `EOF`.
+  Eine leere Datei bedeutet jetzt: bei den Vorgaben bleiben.
+- **Das Kästchen „Port 80 öffnen" ist entfallen.** `http01.open_firewall` ist
+  vorgesehen, wird aber von nichts ausgewertet — eine Bedienmöglichkeit ohne
+  Wirkung sieht aus wie eine Zusage.
 
 - **Die Auslastungsbalken standen immer auf 100 %.** Ihre Breite kam aus
   einem `style`-Attribut, und die Content-Security-Policy des Panels erlaubt

@@ -583,11 +583,53 @@ fieldset.rule legend {
   font-size: 0.78rem;
 }
 
-fieldset.rule .feld { display: grid; gap: 0.2rem; }
+/* align-content: start ist nicht kosmetisch: Ohne die Angabe verhält sich
+   "normal" wie "stretch", und ein Feld, das neben einem höheren steht, zieht
+   seine Zeilen auseinander — die beiden Auswahlfelder standen dadurch 35
+   Pixel versetzt untereinander. */
+fieldset.rule .feld { display: grid; gap: 0.2rem; align-content: start; }
 fieldset.rule label { margin: 0; font-size: 0.78rem; color: var(--muted); }
 fieldset.rule input,
 fieldset.rule select { width: 100%; margin: 0; padding: 0.4rem 0.55rem; }
 fieldset.rule .hint { margin: 0.6rem 0 0; }
+
+/* Ein Feld, das über die ganze Breite läuft — Freitext, lange Adressen, eine
+   Auswahl mit erklärendem Satz darunter. */
+fieldset.rule .feld.weit { grid-column: 1 / -1; }
+
+/* Das hidden-Attribut muss auch gegen eine eigene display-Regel gewinnen.
+   Ohne diese Zeile setzt "fieldset.rule .feld { display: grid }" das
+   display:none des Browsers außer Kraft: Das Feld gilt als versteckt, steht
+   aber weiter auf dem Bildschirm. */
+fieldset.rule[hidden],
+fieldset.rule .feld[hidden] { display: none; }
+fieldset.rule textarea {
+  width: 100%;
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  resize: vertical;
+}
+fieldset.rule .feld .hint { margin: 0.25rem 0 0; }
+
+/* Auswahl zwischen zwei Betriebsarten: untereinander, mit klickbarem Text. */
+.wahl { display: grid; gap: 0.4rem; }
+.wahl label,
+fieldset.rule .feld > label:has(input[type="checkbox"]) {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  color: var(--fg);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+/* Die Auswahlkästchen behalten ihre eigene Größe. Die Regel muss so genau
+   sein: "fieldset.rule input { width: 100% }" weiter oben ist spezifischer als
+   ein bloßes ".wahl input" und machte aus dem Auswahlknopf ein 762 Pixel
+   breites Feld, dessen Beschriftung am rechten Rand landete. */
+.wahl input[type="radio"],
+fieldset.rule input[type="radio"],
+fieldset.rule input[type="checkbox"] { width: auto; margin: 0; flex: 0 0 auto; }
 
 /* Die Regel, ohne die das Panel nach dem Einschalten nicht mehr erreichbar
    wäre. Sie ist festgesetzt — erzwungen wird sie serverseitig.

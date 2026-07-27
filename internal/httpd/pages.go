@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/philf90/asylum/internal/certs"
+	"github.com/philf90/asylum/internal/config"
 	"github.com/philf90/asylum/internal/metrics"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
@@ -103,10 +104,24 @@ type certPage struct {
 	// ReadError: Konnte die Datei nicht gelesen werden, steht hier der Grund —
 	// die Seite bleibt erreichbar, statt mit 500 zu scheitern.
 	ReadError string
-	// ACME-Konfiguration, nur im Modus acme gefüllt.
-	Domains   []string
-	Challenge string
-	Provider  string
+	// Set sind die Einstellungen, wie sie im Formular stehen.
+	Set config.TLSSettings
+	// DomainsText ist die Eingabefassung von Set.ACME.Domains, ein Name je
+	// Zeile. Leer heißt: der vollqualifizierte Rechnername.
+	DomainsText string
+	// EffectiveDomains sind die Namen, die tatsächlich verwendet würden —
+	// aufgelöst, damit niemand raten muss, was "leer" bedeutet.
+	EffectiveDomains []string
+	// Staging sagt, ob das Testverzeichnis von Let's Encrypt eingestellt ist.
+	Staging bool
+	// TokenHinterlegt: Ein gespeichertes Cloudflare-Token wird nie
+	// zurückgezeigt, aber sein Vorhandensein schon.
+	TokenHinterlegt bool
+	// Attempt ist der letzte Bezugsversuch.
+	Attempt tlsAttempt
+	// ManagedFile ist die Datei, in der die Einstellungen landen. Sie wird
+	// genannt, weil das Panel nichts versteckt.
+	ManagedFile string
 }
 
 type accountPage struct {

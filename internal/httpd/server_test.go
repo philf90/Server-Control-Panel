@@ -42,6 +42,9 @@ func newTestServer(t *testing.T) *Server {
 	cfg.Paths.Log = filepath.Join(dir, "log")
 	cfg.Server.TLS.Cert = filepath.Join(dir, "server.crt")
 	cfg.Server.TLS.Key = filepath.Join(dir, "server.key")
+	// Die Einstellungen der Zertifikatsseite werden in eine Ergänzung neben
+	// dieser Datei geschrieben. Ohne Pfad landete sie unter /etc/asylum.
+	cfg.SourcePath = filepath.Join(dir, "config.yaml")
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv, err := New(cfg, logger, db, newFakeOps())

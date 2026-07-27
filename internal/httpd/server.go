@@ -10,16 +10,13 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/philf90/asylum/internal/acme"
 	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
 	"github.com/philf90/asylum/internal/metrics"
-	"github.com/philf90/asylum/internal/netinfo"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 	"github.com/philf90/asylum/internal/systemd"
@@ -77,6 +74,13 @@ type Server struct {
 	// certHolder trägt das aktive TLS-Zertifikat und erlaubt den Austausch zur
 	// Laufzeit (Grundlage für die ACME-Erneuerung ohne Neustart). In Run gesetzt.
 	certHolder *certs.Holder
+
+	// tls hält die Einstellungen, die über die Oberfläche änderbar sind, und
+	// beaufsichtigt den ACME-Vorgang. Siehe tlsctl.go.
+	tls *tlsControl
+	// cfgPath ist der Pfad der Konfigurationsdatei. Gebraucht wird er, um die
+	// vom Panel verwaltete Ergänzung daneben zu schreiben.
+	cfgPath string
 }
 
 // New baut den Server auf. Templates werden hier geparst, damit ein Fehler
@@ -91,6 +95,8 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 	}
 	return &Server{
 		cfg:     cfg,
+		cfgPath: cfg.SourcePath,
+		tls:     newTLSControl(config.TLSSettingsOf(cfg)),
 		log:     logger,
 		db:      db,
 		tmpl:    tmpl,
@@ -174,17 +180,12 @@ func (s *Server) Run(ctx context.Context) error {
 	go func() { defer wg.Done(); s.sampleLoop(bgCtx) }()
 	go func() { defer wg.Done(); s.housekeeping(bgCtx) }()
 
-	// Im Modus acme läuft der Zertifikatsbezug im Hintergrund und tauscht das
-	// Zertifikat über den Halter ein. Startet er nicht, bleibt das
-	// selbstsignierte Paar — das Panel ist erreichbar, notfalls mit Warnung.
-	if s.cfg.Server.TLS.Mode == config.TLSModeACME {
-		if mgr, err := s.newACMEManager(); err != nil {
-			s.log.Warn("ACME nicht aktiv, selbstsigniertes Zertifikat bleibt", "err", err)
-		} else {
-			wg.Add(1)
-			go func() { defer wg.Done(); mgr.Start(bgCtx) }()
-		}
-	}
+	// Der Zertifikatsbezug läuft unter eigener Aufsicht: Er lässt sich zur
+	// Laufzeit neu starten, wenn jemand die Einstellungen in der Oberfläche
+	// ändert. Startet er nicht, bleibt das selbstsignierte Paar — das Panel
+	// ist erreichbar, notfalls mit Warnung.
+	s.startACME(bgCtx)
+	defer s.stopACME()
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -223,33 +224,6 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	wg.Wait()
 	return <-errCh
-}
-
-// newACMEManager baut den ACME-Manager aus der Konfiguration. Fehlt eine
-// auflösbare Domain, gibt es keinen sinnvollen Namen für ein Zertifikat — dann
-// bleibt es beim selbstsignierten Paar.
-func (s *Server) newACMEManager() (*acme.Manager, error) {
-	domains := s.cfg.ACME.Domains
-	if len(domains) == 0 {
-		if fqdn := netinfo.FQDN(); fqdn != "" {
-			domains = []string{fqdn}
-		}
-	}
-	if len(domains) == 0 {
-		return nil, errors.New("keine Domain ermittelbar (acme.domains leer und FQDN unbekannt)")
-	}
-	return acme.New(acme.Options{
-		Dir:                 filepath.Join(s.cfg.Paths.Data, "acme"),
-		Email:               s.cfg.ACME.Email,
-		Domains:             domains,
-		DirectoryURL:        s.cfg.ACME.DirectoryURL,
-		Challenge:           s.cfg.ACME.Challenge,
-		HTTP01Addr:          ":80",
-		DNS01Provider:       s.cfg.ACME.DNS01.Provider,
-		HookSet:             s.cfg.ACME.DNS01.Hook.Set,
-		HookClean:           s.cfg.ACME.DNS01.Hook.Clean,
-		CloudflareTokenFile: s.cfg.ACME.DNS01.Cloudflare.APITokenFile,
-	}, s.certHolder, s.log)
 }
 
 // sampleLoop erhebt die Metriken zentral: ein Sampler für alle Betrachter.

@@ -6,12 +6,46 @@ Fingerprints belegt, dass die Verbindung echt ist. Wer einen auflösenden Namen
 hat, holt sich stattdessen ein von Browsern anerkanntes Zertifikat über
 **ACME (Let's Encrypt)**.
 
-Beides steuert `server.tls.mode`:
-
 | Modus | Bedeutung |
 |---|---|
 | `selfsigned` | Vorgabe. Selbstsigniertes Zertifikat, im Panel unter **Zertifikat** und über `asylum cert status` einsehbar. |
 | `acme` | Zertifikat von Let's Encrypt. Solange keins bezogen ist — oder wenn der Bezug scheitert — bleibt das selbstsignierte im Einsatz. |
+
+## Eingestellt wird im Panel
+
+**Alles auf dieser Seite lässt sich unter „Zertifikat" in der Oberfläche
+einstellen.** Eine Konfigurationsdatei muss dafür niemand anfassen — für ein
+Control Panel wäre alles andere eine merkwürdige Zumutung. Die folgenden
+Abschnitte erklären, was die Felder bedeuten und was hinter den Kulissen
+passiert; wer lieber Dateien bearbeitet, findet weiter unten die YAML-Fassung.
+
+Was im Panel gespeichert wird, landet in einer eigenen Datei:
+
+```
+/etc/asylum/config.yaml        gehört dem Betreiber, wird nie umgeschrieben
+/etc/asylum/conf.d/10-tls.yaml vom Panel verwaltet, bei jedem Speichern neu
+/etc/asylum/conf.d/*.yaml      eigene Ergänzungen; höherer Name gewinnt
+```
+
+Die Dateien in `conf.d` werden nach der Hauptdatei in Namensreihenfolge
+gelesen. Wer eine Einstellung von Hand festhalten will, die das Panel nicht
+überschreiben soll, legt sie in eine Datei mit höherer Nummer, etwa
+`90-eigen.yaml`.
+
+Eine Änderung greift **sofort**: Der Bezug wird mit den neuen Werten neu
+angestoßen, ohne den Dienst neu zu starten. Ein Panel, das sich für eine
+Einstellung selbst abschießt, wäre genau dann weg, wenn man sehen will, ob die
+Einstellung stimmt.
+
+Der Knopf **Jetzt beziehen** fordert sofort ein Zertifikat an, auch wenn das
+vorhandene noch gültig ist — gedacht, um eine geänderte Einstellung zu prüfen.
+Er zählt auf die Rate-Limits der CA; zum Ausprobieren gibt es daneben das
+Testverzeichnis.
+
+Das Cloudflare-Token wird im Panel eingegeben, aber **nicht** in der
+Konfiguration abgelegt: Es landet in `<paths.data>/acme/cloudflare.token` mit
+Rechten 0600 und wird nie wieder angezeigt. Ein leeres Feld beim Speichern
+lässt ein bereits hinterlegtes Token unangetastet.
 
 ## Grundsatz: nie ausfallen
 
@@ -40,7 +74,11 @@ gibt es zwei Wege:
 Ist ein DNS-Anbieter konfiguriert, wählt das Panel **automatisch DNS-01**, sonst
 HTTP-01. Mit `acme.challenge` lässt sich das festnageln (`http-01` / `dns-01`).
 
-## Konfiguration
+## Dieselben Einstellungen als YAML
+
+Wer die Werte lieber in eine Datei schreibt — etwa aus einem
+Konfigurationsmanagement heraus — nutzt dieselben Felder. Sie gehören in
+`/etc/asylum/config.yaml` oder in eine eigene Ergänzung unter `conf.d`.
 
 ```yaml
 server:
@@ -123,7 +161,10 @@ ganze Ablauf lässt sich damit gefahrlos durchspielen.
 - **`http01.open_firewall`** ist vorgesehen, aber noch ohne Wirkung: Ein
   gefahrloses „Port 80 kurz öffnen" braucht eine eigene Firewall-Primitive
   (das vorhandene `FirewallApply` setzt den ganzen Regelsatz). Bis dahin muss
-  Port 80 für HTTP-01 von außen erreichbar sein; DNS-01 umgeht das.
+  Port 80 für HTTP-01 von außen erreichbar sein; DNS-01 umgeht das. **Im Panel
+  gibt es dafür deshalb kein Kästchen** — eine Bedienmöglichkeit ohne Wirkung
+  sieht aus wie eine Zusage. Wer den Wert in der Konfigurationsdatei gesetzt
+  hat, behält ihn; das Panel fasst ihn nicht an.
 - Der Live-Weg gegen einen echten CA wird gegen das Staging auf einem echten
   Server geprüft; in der Entwicklungsumgebung ohne öffentlichen Namen ist das
   nicht möglich.

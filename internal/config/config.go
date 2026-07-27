@@ -8,6 +8,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/url"
 	"os"
@@ -28,6 +29,11 @@ type Config struct {
 	Log     Log     `yaml:"log"`
 	Updates Updates `yaml:"updates"`
 	ACME    ACME    `yaml:"acme"`
+
+	// SourcePath ist die Datei, aus der geladen wurde. Kein YAML-Feld: Das
+	// Panel braucht den Pfad, um seine Ergänzung daneben zu schreiben, und
+	// niemand soll ihn in der Datei selbst setzen können.
+	SourcePath string `yaml:"-"`
 }
 
 // Server beschreibt den HTTPS-Listener des Panels.
@@ -173,7 +179,11 @@ func Load(path string) (Config, error) {
 		case err == nil:
 			dec := yaml.NewDecoder(strings.NewReader(string(raw)))
 			dec.KnownFields(true)
-			if err := dec.Decode(&cfg); err != nil {
+			// io.EOF heißt hier: Die Datei ist leer. Das ist kein Fehler,
+			// sondern eine Konfiguration, die es bei den Vorgaben belässt —
+			// eine versehentlich geleerte Datei sonst mit "EOF" abzulehnen
+			// wäre eine Fehlermeldung, aus der niemand schlau wird.
+			if err := dec.Decode(&cfg); err != nil && !errors.Is(err, io.EOF) {
 				return Config{}, fmt.Errorf("%s: %w", path, err)
 			}
 		case errors.Is(err, os.ErrNotExist):
@@ -183,12 +193,20 @@ func Load(path string) (Config, error) {
 		}
 	}
 
+	// Ergänzungen nach der Hauptdatei: Was die Oberfläche einstellt, liegt
+	// dort und überschreibt die Vorgabe des Betreibers bewusst — er hat es ja
+	// im Panel so eingestellt.
+	if err := loadDropins(&cfg, ConfDir(path)); err != nil {
+		return Config{}, err
+	}
+
 	if err := cfg.applyEnv(); err != nil {
 		return Config{}, err
 	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
+	cfg.SourcePath = path
 	return cfg, nil
 }
 

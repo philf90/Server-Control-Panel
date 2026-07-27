@@ -46,6 +46,18 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Die Navigation ist eine Seitenleiste.** Statt zehn Punkten in einer Zeile
+  stehen sie senkrecht und nach **System**, **Sicherheit** und **Betrieb**
+  gruppiert; der eigene Zugang und das Abmelden sitzen unten fest. Der Menüpunkt
+  „Mein Konto" entfällt — der Benutzername in der Leiste ist der Weg aufs Profil,
+  der Projektname der Weg zur Übersicht. Schmal klappt die Leiste zu einer
+  Kopfzeile ein. Der Grund ist Platz: Zehn Punkte in einer Zeile waren schon
+  knapp, die geplanten Module würden sie sprengen.
+- **Such- und Filterfelder unter „Dienste" und „Logs" sind gestaltet.** Sie sind
+  `<input type="search">`; die Regel für Eingabefelder kannte diesen Typ nicht,
+  sodass der Browser sie in seinem eigenen Stil zeichnete.
+- **Der Knopf „Nach Updates suchen" hat wieder Abstand** zur Bezugsquelle
+  darüber; eine Definitionsliste trägt keinen Außenabstand nach unten.
 - **Der schmale Modus beginnt bei 900 statt 600 Pixeln** — dieselbe Grenze wie
   für die Navigation. Dazwischen stand sonst eine fünfspaltige Tabelle mit
   umbrechendem Text; bei 768 Pixeln schwankten die Zeilenhöhen um 75 Pixel.

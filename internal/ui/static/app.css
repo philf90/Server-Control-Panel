@@ -51,48 +51,141 @@ main.narrow {
 }
 
 /* ------------------------------------------------------------- Navigation */
+/*
+ * Die Navigation ist eine Seitenleiste, keine Topbar. Zehn Menüpunkte in einer
+ * Zeile waren schon knapp; mit den geplanten Modulen (Dateimanager, Cron,
+ * Terminal) trägt eine waagerechte Leiste die Menge nicht mehr. Senkrecht
+ * passen sie ohne Umbruch untereinander und lassen sich in Gruppen mit
+ * Überschriften ordnen. Schmal wird aus der Leiste eine Kopfzeile mit
+ * einklappbarem Menü — dieselbe checkbox-basierte Mechanik wie zuvor, ohne
+ * JavaScript.
+ */
 
-.topbar {
+.app {
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* min-width: 0 ist nötig, sonst zieht eine breite Tabelle die Inhaltsspalte
+   über die Rasterspur hinaus — ein Grid-Element hat von sich aus
+   min-width: auto und schrumpft nicht unter seine breiteste Stelle. */
+.content { min-width: 0; }
+
+/* Die Leiste bleibt beim Scrollen stehen: top: 0 mit voller Höhe und eigenem
+   Bildlauf, falls die Punkte einmal höher werden als der Bildschirm. */
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0.85rem;
+  background: var(--card);
+  border-right: 1px solid var(--line);
+}
+
+.side-head {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  padding: 0.75rem 1.25rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
+  justify-content: space-between;
+  padding: 0.15rem 0.4rem 0.6rem;
 }
 
-.brand { display: flex; align-items: baseline; gap: 0.5rem; }
-.brand strong { letter-spacing: -0.01em; }
-.brand .host { color: var(--muted); font-size: 0.85rem; }
+/* Der Projektname führt zur Übersicht — das erwartet man von einem Logo. Er
+   trägt die Vordergrundfarbe, nicht das Akzentgrün der übrigen Links: ein grün
+   eingefärbter Markenname sähe aus wie ein Link im Fließtext, nicht wie das
+   Logo. */
+.brand-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--fg);
+  text-decoration: none;
+}
+.brand-link strong { letter-spacing: -0.01em; }
+.brand-link .host { color: var(--muted); font-size: 0.8rem; }
+.brand-link:hover strong { color: var(--accent); }
+.brand-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
-.menu {
+/* Menügruppen und Fußteil. Füllt die restliche Höhe, damit der Fußteil unten
+   sitzt (margin-top: auto weiter unten). Schmal ist genau dieser Bereich das,
+   was der Menüknopf ein- und ausblendet. */
+.side-body {
   display: flex;
-  gap: 1.25rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  flex-direction: column;
   flex: 1;
+  gap: 0.15rem;
 }
 
-.menu a {
+.navgrp { display: flex; flex-direction: column; gap: 0.1rem; margin-top: 0.6rem; }
+.navgrp:first-child { margin-top: 0; }
+
+.navgrp-label {
+  padding: 0.35rem 0.6rem 0.2rem;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.sidebar a.item {
+  display: block;
+  padding: 0.45rem 0.6rem;
+  border-radius: 7px;
+  border-left: 2px solid transparent;
   color: var(--muted);
   text-decoration: none;
-  padding-bottom: 2px;
-  border-bottom: 2px solid transparent;
+  font-size: 0.9rem;
+}
+.sidebar a.item:hover { color: var(--fg); background: var(--bg); }
+.sidebar a.item.active {
+  color: var(--accent);
+  background: var(--ok-bg);
+  border-left-color: var(--accent);
+  font-weight: 600;
 }
 
-.menu a:hover { color: var(--fg); }
-.menu a.active { color: var(--fg); border-bottom-color: var(--accent); }
+/* Eigener Zugang und Abmelden sitzen unten fest. */
+.side-foot {
+  margin-top: auto;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.side-foot form { margin: 0; }
+.side-foot button.small { width: 100%; }
 
-.logout { display: flex; align-items: center; gap: 0.75rem; margin: 0; }
-.who { color: var(--muted); font-size: 0.85rem; }
+/* Der Benutzername führt aufs eigene Profil und sieht deshalb aus wie eine
+   Schaltfläche: Rahmen, Höhe, ein Ziel, das man auch auf dem Telefon trifft.
+   Bis rc.4 war er ein grauer Text und wirkte wie eine reine Beschriftung —
+   niemand hätte ihn angetippt. Die Rolle rückt ans rechte Ende des Chips. */
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.who:hover { border-color: var(--accent); color: var(--accent); }
+.who.active { border-color: var(--accent); }
+.who:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .who .role {
-  margin-left: 0.4rem;
-  padding: 0.1rem 0.4rem;
+  margin-left: auto;
+  padding: 0.05rem 0.35rem;
   border: 1px solid var(--line);
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
 /* ------------------------------------------------------------------ Karten */
@@ -210,7 +303,11 @@ td.zustand { white-space: nowrap; }
 
 label { display: block; margin: 0.9rem 0 0.3rem; font-size: 0.85rem; color: var(--muted); }
 
-input[type="text"], input[type="password"], select {
+/* type="search" gehört bewusst dazu: Die Such- und Filterfelder unter
+   "Dienste" und "Logs" sind <input type="search">. Fehlte der Typ hier, malte
+   der Browser sie in seinem eigenen Stil — abgerundete Kapsel, andere Höhe,
+   anderer Rahmen — mitten zwischen die übrigen Felder, die dieser Regel folgen. */
+input[type="text"], input[type="password"], input[type="search"], select {
   width: 100%;
   padding: 0.55rem 0.7rem;
   background: var(--bg);
@@ -219,6 +316,10 @@ input[type="text"], input[type="password"], select {
   border-radius: 6px;
   font: inherit;
 }
+
+/* Ohne das behält die Suche in WebKit ihre eingebaute Lupen-Kapselform und
+   ignoriert Rahmen und Radius von oben. */
+input[type="search"] { -webkit-appearance: none; appearance: none; }
 
 input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
@@ -410,6 +511,14 @@ code {
 .button-row form { margin: 0; }
 .button-row button { margin-top: 0; }
 
+/* Folgt eine Knopfreihe direkt auf eine Definitionsliste (Update-Seite:
+   Knopf "Nach Updates suchen" unmittelbar unter "Bezugsquelle"; ebenso die
+   Dienst-Detailseite), fehlt der Abstand: dl trägt margin: 0, und ein
+   Flex-Behälter verschmilzt seinen Außenabstand nicht mit dem Vorgänger.
+   Deshalb hier gezielt — nicht global, sonst bekämen die Seiten, deren
+   Knopfreihe auf eine Kopfzeile mit eigenem Abstand folgt, den Abstand doppelt. */
+dl + .button-row { margin-top: 1.25rem; }
+
 button[disabled] { opacity: 0.5; cursor: not-allowed; }
 
 .warn-text { color: var(--warn); font-weight: 600; }
@@ -534,7 +643,9 @@ a { color: var(--accent); }
  */
 
 /* Die Schaltfläche fürs Menü gibt es nur schmal. Die Checkbox bleibt im
-   Zugriff der Tastatur, ist aber nicht zu sehen. */
+   Zugriff der Tastatur, ist aber nicht zu sehen. Sie steht als erstes Kind der
+   Leiste vor .side-body, damit ":checked ~ .side-body" das Menü ein- und
+   ausblenden kann. */
 .nav-toggle {
   position: absolute;
   width: 1px;
@@ -544,27 +655,34 @@ a { color: var(--accent); }
 
 .nav-button { display: none; }
 
-.nav-toggle:focus-visible + .nav-button {
+.nav-toggle:focus-visible + .side-head .nav-button {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 /* ---------------------------------------------- bis 900 px: Navigation --- */
 
+/* Schmal ist die Leiste keine Spalte mehr, sondern eine Kopfzeile: Marke und
+   Menüknopf in einer Zeile, die Gruppen darunter erst auf Tippen. Ein Menü,
+   das den Inhalt überlagert statt ihn wegzuschieben, ist auf einem kleinen
+   Bildschirm schlimmer — deshalb liegt .side-body im Fluss und schiebt den
+   Inhalt nach unten. */
 @media (max-width: 900px) {
-  .topbar {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.5rem 1rem;
+  .app { display: block; }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    overflow: visible;
     padding: 0.6rem 0.9rem;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
   }
 
-  .brand { grid-column: 1; }
+  .side-head { padding: 0; }
+
   .nav-button {
     display: inline-block;
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
     padding: 0.3rem 0.7rem;
     border: 1px solid var(--line);
     border-radius: 6px;
@@ -574,33 +692,24 @@ a { color: var(--accent); }
     user-select: none;
   }
 
-  .logout {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-content: space-between;
-  }
-
-  /* Aufgeklappt eine Liste, zugeklappt weg. Kein Überlagern des Inhalts:
-     Ein Menü, das den Text verdeckt, den man gerade lesen wollte, ist auf
-     einem kleinen Bildschirm schlimmer als eines, das ihn wegschiebt. */
-  .nav-toggle:not(:checked) ~ .menu { display: none; }
-  .nav-toggle:checked ~ .menu {
-    display: block;
-    grid-column: 1 / -1;
-    grid-row: 3;
+  .nav-toggle:not(:checked) ~ .side-body { display: none; }
+  .nav-toggle:checked ~ .side-body {
+    display: flex;
     border-top: 1px solid var(--line);
-    padding-top: 0.5rem;
+    margin-top: 0.6rem;
+    padding-top: 0.4rem;
   }
 
-  .menu li { margin: 0; }
-  .menu a {
-    display: block;
-    padding: 0.6rem 0.2rem;
-    border-bottom: none;
-    border-left: 2px solid transparent;
-    padding-left: 0.6rem;
+  /* Der Fußteil rückt zu den Gruppen (kein margin-top: auto ohne volle Höhe)
+     und läuft waagerecht: Name links, Abmelden rechts. */
+  .side-foot {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
   }
-  .menu a.active { border-left-color: var(--accent); }
+  .side-foot .who { flex: 1; }
+  .side-foot button.small { width: auto; }
 }
 
 /* ------------------------------------------------- bis 900 px: Inhalte --- */

@@ -95,8 +95,10 @@ func TestStylesheetHatBreakpoints(t *testing.T) {
 			t.Errorf("app.css hat keinen Breakpoint für %q", breite)
 		}
 	}
-	// Ohne diese Regel klappt die Navigation schmal nicht mehr zu.
-	if !strings.Contains(css, ".nav-toggle:not(:checked) ~ .menu") {
+	// Ohne diese Regel klappt die Navigation schmal nicht mehr zu. Seit der
+	// Umstellung auf die Seitenleiste blendet der Umschalter .side-body ein
+	// und aus, nicht mehr eine .menu-Liste.
+	if !strings.Contains(css, ".nav-toggle:not(:checked) ~ .side-body") {
 		t.Error("die Umschaltung der Navigation fehlt")
 	}
 }

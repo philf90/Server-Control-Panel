@@ -121,18 +121,21 @@
   </div>
   {{end}}
 
-  <form id="passkey-add" class="row-form" autocomplete="off" data-csrf="{{$.CSRF}}">
-    <div>
-      <label for="pk-label">Name des Passkeys</label>
-      <input type="text" id="pk-label" name="label" maxlength="60" placeholder="z. B. iPhone oder Titan-Stick">
-    </div>
-    <div>
-      <label for="pk-pass">Aktuelles Passwort</label>
-      <input type="password" id="pk-pass" name="password" autocomplete="current-password" required>
-    </div>
-    <div class="submit"><button type="submit">Passkey hinzufügen</button></div>
-  </form>
-  <p class="hint" id="pk-status" role="status" hidden></p>
+  <div class="card">
+    <div class="seclabel">Passkey hinzufügen</div>
+    <form id="passkey-add" class="row-form" autocomplete="off" data-csrf="{{$.CSRF}}">
+      <div>
+        <label for="pk-label">Name des Passkeys</label>
+        <input type="text" id="pk-label" name="label" maxlength="60" placeholder="z. B. iPhone oder Titan-Stick">
+      </div>
+      <div>
+        <label for="pk-pass">Aktuelles Passwort</label>
+        <input type="password" id="pk-pass" name="password" autocomplete="current-password" required>
+      </div>
+      <div class="submit"><button type="submit">Passkey hinzufügen</button></div>
+    </form>
+    <p class="hint" id="pk-status" role="status" hidden></p>
+  </div>
 </div>
 {{end}}
 

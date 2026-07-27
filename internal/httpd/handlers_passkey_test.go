@@ -155,13 +155,6 @@ func TestBuildPasskeysDerivation(t *testing.T) {
 		t.Error("automatisch: mit ACME-Domain sollten Passkeys an sein")
 	}
 
-	// Automatisch, aber der einzige Name ist eine IP → aus.
-	c = base()
-	c.Auth.WebAuthn.RPID = "203.0.113.10"
-	if buildPasskeys(c, log) != nil {
-		t.Error("eine IP taugt nicht als RP-ID")
-	}
-
 	// Ausdrücklich an mit gesetztem Namen → an.
 	c = base()
 	c.Auth.WebAuthn.Enabled = ptr(true)
@@ -170,12 +163,28 @@ func TestBuildPasskeysDerivation(t *testing.T) {
 		t.Error("enabled=true mit rp_id sollte Passkeys anschalten")
 	}
 
-	// usableRPID: bloßer Name ohne Punkt taugt nicht, localhost schon.
-	if usableRPID("vm") != "" {
-		t.Error("ein Name ohne Punkt ist keine RP-ID")
+	// deriveRPID nimmt die ACME-Domain vor allem anderen — die Reihenfolge ist
+	// zusicherbar, unabhängig vom FQDN der Testmaschine.
+	c = base()
+	c.Auth.WebAuthn.RPID = "gesetzt.example.org"
+	c.ACME.Domains = []string{"acme.example.org"}
+	if got := deriveRPID(c); got != "gesetzt.example.org" {
+		t.Errorf("deriveRPID = %q, erwartet die ausdrückliche Angabe", got)
 	}
-	if usableRPID("localhost") != "localhost" {
-		t.Error("localhost ist als RP-ID erlaubt")
+
+	// usableRPID trägt die Regel, welcher Name als RP-ID taugt — hier
+	// deterministisch geprüft, ohne Abhängigkeit vom FQDN.
+	for name, want := range map[string]string{
+		"203.0.113.10": "", // IP
+		"::1":          "", // IPv6
+		"vm":           "", // ohne Punkt
+		"":             "", // leer
+		"localhost":    "localhost",
+		"panel.x.org":  "panel.x.org",
+	} {
+		if got := usableRPID(name); got != want {
+			t.Errorf("usableRPID(%q) = %q, erwartet %q", name, got, want)
+		}
 	}
 }
 

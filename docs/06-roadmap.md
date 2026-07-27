@@ -393,6 +393,37 @@ echten Server (ohne öffentlichen Namen in der Entwicklungsumgebung nicht
 möglich) und das gefahrlose kurzzeitige Öffnen von Port 80 für HTTP-01, das eine
 eigene Firewall-Primitive braucht.
 
+### 0.2.0 — Übersicht als Leitstand
+
+**Stand: umgesetzt.** Kein neues Systemmodul, sondern eine Neufassung der
+meistbesuchten Seite. Der Anlass war eine Rückmeldung, kein Testbefund: Die
+Übersicht wirkte „fad und wenig aufschlussreich" — ein Gitter gleichrangiger
+Kacheln (CPU, Speicher, Last, Laufzeit), aus dem der Betrachter selbst
+herauslesen musste, ob dem Server etwas fehlt.
+
+Jetzt führt die Seite ein Urteil in einem Satz: Läuft alles normal, oder
+brauchen *n* Dinge Aufmerksamkeit? Darunter steht ein Handlungsbedarf-Block, der
+nur erscheint, wenn es etwas zu tun gibt — fehlgeschlagene Dienste, knapper
+Plattenplatz (ab 85 %, kritisch ab 95 %), ein ausstehender Neustart —, jeweils
+mit einem Link auf die zuständige Seite. Erst danach folgt die Telemetrie: CPU,
+Arbeitsspeicher, Last und Netz je als Kachel mit dem Verlauf der letzten
+Stunden, dazu Dateisysteme und die größten Prozesse.
+
+Zwei Entscheidungen dabei, beide der Architektur des Panels geschuldet:
+
+- **Die Verläufe zeichnet der Server**, nicht der Browser. Die CSP verbietet
+  Inline-Skripte; die Sparklines sind fertige SVG-Pfade aus dem Ringpuffer. Die
+  großen Zahlen tragen weiter `data-live` und werden vom SSE-Kanal nachgezogen.
+- **Der Handlungsbedarf kommt ohne Schreibpfad aus.** Seine Aktionen sind bloße
+  Links — von der Übersicht aus wird nichts geändert, deshalb braucht die Seite
+  weder CSRF noch einen Schreibendpunkt. Die Signale werden mit kurzem Timeout
+  (3 s) aus günstigen Quellen gesammelt; ein hängendes `systemctl` darf die
+  meistbesuchte Seite nicht blockieren, dann fehlt eben ein Signal.
+
+Die Bildschirmfotos unter [`docs/bilder/`](bilder/) sind für die Übersicht neu
+entstanden; die Verläufe stammen dort aus einem gestellten Ringpuffer, wie der
+übrige Snapshot.
+
 ### 0.3.0 — Passkeys
 
 Zuerst **zusätzlich zu**, nicht anstelle von Passwort und TOTP.

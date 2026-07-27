@@ -43,8 +43,13 @@ Links eine Seitenleiste, in der die Punkte nach **System**, **Sicherheit** und
 **Betrieb** gruppiert sind; der Projektname führt zur Übersicht, der eigene Name
 unten aufs Profil. Auf schmalen Bildschirmen klappt sie zu einer Kopfzeile ein.
 
-Die Übersicht: Auslastung, Dateisysteme, Netzwerk und die größten Prozesse, alle
-zwei Sekunden über einen Live-Kanal aktualisiert.
+Die Übersicht ist ein Leitstand: zuoberst ein Urteil in einem Satz — läuft
+alles normal, oder brauchen einige Dinge Aufmerksamkeit? Darunter steht nur,
+was zu tun ist (ausgefallene Dienste, knapper Plattenplatz, ausstehender
+Neustart), jeweils mit dem Weg zur zuständigen Seite. Erst dann folgt die
+Telemetrie — CPU, Arbeitsspeicher, Last und Netz je mit dem Verlauf der letzten
+Stunden —, dazu Dateisysteme und die größten Prozesse. Die Zahlen aktualisiert
+ein Live-Kanal alle zwei Sekunden; die Verläufe sind serverseitig gezeichnet.
 
 ![Übersicht](docs/bilder/uebersicht.png)
 

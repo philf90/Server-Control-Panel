@@ -86,6 +86,20 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Die Übersicht ist ein Leitstand.** Statt eines Gitters gleichrangiger
+  Kacheln, aus dem der Betrachter selbst herauslesen musste, ob dem Server
+  etwas fehlt, führt jetzt ein Urteil in einem Satz: Läuft alles normal, oder
+  brauchen einige Dinge Aufmerksamkeit? Darunter erscheint — nur wenn es etwas
+  zu tun gibt — ein Handlungsbedarf-Block mit ausgefallenen Diensten, knappem
+  Plattenplatz (ab 85 %, kritisch ab 95 %) und ausstehendem Neustart, jeweils
+  mit dem Weg zur zuständigen Seite. Erst dann folgt die Telemetrie: CPU,
+  Arbeitsspeicher, Last und Netz je als Kachel mit dem Verlauf der letzten
+  Stunden, dazu Dateisysteme und die größten Prozesse. Die Verläufe zeichnet
+  der Server als SVG-Pfad (die CSP verbietet Inline-Skripte); die großen Zahlen
+  tragen weiter `data-live` und werden vom Live-Kanal nachgezogen. Der
+  Handlungsbedarf kommt ohne Schreibpfad und ohne CSRF aus, weil seine Aktionen
+  bloße Links sind, und wird mit kurzem Timeout gesammelt — ein hängendes
+  `systemctl` darf die meistbesuchte Seite nicht blockieren.
 - **Die Navigation ist eine Seitenleiste.** Statt zehn Punkten in einer Zeile
   stehen sie senkrecht und nach **System**, **Sicherheit** und **Betrieb**
   gruppiert; der eigene Zugang und das Abmelden sitzen unten fest. Der Menüpunkt

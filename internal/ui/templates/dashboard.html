@@ -1,104 +1,135 @@
 {{define "dashboard"}}{{template "header" .}}
 {{with .Content}}
-<div class="grid stats">
-  <div class="card stat">
-    <h2>CPU</h2>
-    <div class="value"><span data-live="cpu.total">{{pct .Snapshot.CPU.Total}}</span> %</div>
-    <progress class="bar" max="100" value="{{pct .Snapshot.CPU.Total}}" data-live-value="cpu.total" aria-hidden="true"></progress>
-    <dl class="mini">
-      <dt>iowait</dt><dd><span data-live="cpu.iowait">{{pct .Snapshot.CPU.IOWait}}</span> %</dd>
-      <dt>steal</dt><dd><span data-live="cpu.steal">{{pct .Snapshot.CPU.Steal}}</span> %</dd>
-    </dl>
-  </div>
 
-  <div class="card stat">
-    <h2>Arbeitsspeicher</h2>
-    <div class="value"><span data-live="memory.used_pct">{{pct .Snapshot.Memory.UsedPct}}</span> %</div>
-    <progress class="bar" max="100" value="{{pct .Snapshot.Memory.UsedPct}}" data-live-value="memory.used_pct" aria-hidden="true"></progress>
-    <dl class="mini">
-      <dt>belegt</dt><dd data-live-bytes="memory.used">{{bytes .Snapshot.Memory.Used}}</dd>
-      <dt>gesamt</dt><dd>{{bytes .Snapshot.Memory.Total}}</dd>
-      {{if .Snapshot.Memory.SwapTotal}}
-      <dt>Swap</dt><dd data-live-bytes="memory.swap_used">{{bytes .Snapshot.Memory.SwapUsed}}</dd>
-      {{end}}
-    </dl>
+{{/* Urteil in einem Satz: Geht es dem Server gut? Die Farbe des Bandes und das
+     Zeichen im Kreis richten sich nach .Verdict.Level ("ok" | "warn"). */}}
+<div class="verdict {{.Verdict.Level}}">
+  <span class="vicon" aria-hidden="true">{{if eq .Verdict.Level "ok"}}✓{{else}}!{{end}}</span>
+  <div class="vtext">
+    <b>{{.Verdict.Title}}</b>
+    <span>{{.Verdict.Sub}}</span>
   </div>
+  {{if .HasData}}<div class="vstamp">{{datetime .Snapshot.At}}</div>{{end}}
+</div>
 
-  <div class="card stat">
-    <h2>Load</h2>
-    <div class="value">
-      <span data-live="load.0">{{pct (index .Snapshot.Load 0)}}</span>
+{{/* Handlungsbedarf steht nur, wenn es etwas zu tun gibt. Jede Aktion ist ein
+     Link auf die zuständige Seite — von der Übersicht aus wird nichts
+     geschrieben, deshalb kommt die Seite ohne CSRF und ohne Schreibpfad aus. */}}
+{{if .Signals}}
+<section class="tosee">
+  <div class="seclabel">Handlungsbedarf</div>
+  {{range .Signals}}
+  <div class="action">
+    <span class="dot {{if eq .Level "crit"}}crit{{else}}warn{{end}}"></span>
+    <span class="tag">{{.Tag}}</span>
+    <div class="txt">
+      <b>{{.Title}}</b>
+      {{if .Detail}}<span>{{.Detail}}</span>{{end}}
     </div>
-    <dl class="mini">
-      <dt>5 Min</dt><dd><span data-live="load.1">{{pct (index .Snapshot.Load 1)}}</span></dd>
-      <dt>15 Min</dt><dd><span data-live="load.2">{{pct (index .Snapshot.Load 2)}}</span></dd>
-    </dl>
+    {{if .ActionHref}}<a class="button small{{if .Primary}} primary{{end}}" href="{{.ActionHref}}">{{.ActionLabel}}</a>{{end}}
   </div>
+  {{end}}
+</section>
+{{end}}
 
-  <div class="card stat">
-    <h2>Laufzeit</h2>
-    <div class="value small" data-live-text="uptime">{{.Snapshot.UptimeText}}</div>
-    <dl class="mini">
-      <dt>System</dt><dd>{{$.Host.Distro}}</dd>
-      <dt>Kernel</dt><dd>{{$.Host.Kernel}}</dd>
-    </dl>
+{{/* Telemetrie · die vier Kennzahlen mit Verlauf der letzten 24 Stunden. Die
+     Sparklines sind serverseitig erzeugte SVG-Pfade (CSP: kein Inline-Skript).
+     Die großen Zahlen tragen data-live und werden vom Live-Kanal nachgezogen. */}}
+<section class="telemetrie">
+  <div class="seclabel">Telemetrie · letzte 24 Stunden</div>
+  <div class="telegrid">
+
+    <div class="tele">
+      <div class="k">CPU</div>
+      <div class="v"><span data-live="cpu.total">{{pct .Snapshot.CPU.Total}}</span><small>%</small></div>
+      {{if .Sparks.CPU.Has}}
+      <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
+        <path d="{{.Sparks.CPU.Path}}"/><circle cx="{{.Sparks.CPU.X}}" cy="{{.Sparks.CPU.Y}}" r="1.9"/>
+      </svg>
+      {{end}}
+      <div class="foot">iowait <span data-live="cpu.iowait">{{pct .Snapshot.CPU.IOWait}}</span> % · steal <span data-live="cpu.steal">{{pct .Snapshot.CPU.Steal}}</span> %</div>
+    </div>
+
+    <div class="tele">
+      <div class="k">Arbeitsspeicher</div>
+      <div class="v"><span data-live="memory.used_pct">{{pct .Snapshot.Memory.UsedPct}}</span><small>%</small></div>
+      {{if .Sparks.Mem.Has}}
+      <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
+        <path d="{{.Sparks.Mem.Path}}"/><circle cx="{{.Sparks.Mem.X}}" cy="{{.Sparks.Mem.Y}}" r="1.9"/>
+      </svg>
+      {{end}}
+      <div class="foot"><span data-live-bytes="memory.used">{{bytes .Snapshot.Memory.Used}}</span> von {{bytes .Snapshot.Memory.Total}}{{if .Snapshot.Memory.SwapTotal}} · Swap <span data-live-bytes="memory.swap_used">{{bytes .Snapshot.Memory.SwapUsed}}</span>{{end}}</div>
+    </div>
+
+    <div class="tele">
+      <div class="k">Last</div>
+      <div class="v"><span data-live="load.0">{{pct (index .Snapshot.Load 0)}}</span></div>
+      {{if .Sparks.Load.Has}}
+      <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
+        <path d="{{.Sparks.Load.Path}}"/><circle cx="{{.Sparks.Load.X}}" cy="{{.Sparks.Load.Y}}" r="1.9"/>
+      </svg>
+      {{end}}
+      <div class="foot">{{$.Host.Cores}} Kerne · 5 Min <span data-live="load.1">{{pct (index .Snapshot.Load 1)}}</span> · 15 Min <span data-live="load.2">{{pct (index .Snapshot.Load 2)}}</span></div>
+    </div>
+
+    <div class="tele">
+      <div class="k">Netzwerk</div>
+      {{if .Snapshot.Interfaces}}{{$i := index .Snapshot.Interfaces 0}}
+      <div class="v">{{rate $i.RXRate}}</div>
+      {{if .Sparks.Net.Has}}
+      <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
+        <path d="{{.Sparks.Net.Path}}"/><circle cx="{{.Sparks.Net.X}}" cy="{{.Sparks.Net.Y}}" r="1.9"/>
+      </svg>
+      {{end}}
+      <div class="foot"><code>{{$i.Name}}</code> · gesendet {{rate $i.TXRate}}</div>
+      {{else}}
+      <div class="v">—</div>
+      <div class="foot">keine Schnittstelle</div>
+      {{end}}
+    </div>
+
   </div>
-</div>
+</section>
 
-<div class="card">
-  <h2>Dateisysteme</h2>
-  <div class="table-wrap">
-    <table class="cards">
-      <thead>
-        <tr><th data-rolle="haupt">Einhängepunkt</th><th data-rolle="neben">Gerät</th><th data-rolle="neben">Typ</th><th data-rolle="neben">Belegt</th><th data-rolle="neben">Gesamt</th><th>Auslastung</th><th data-rolle="neben">Inodes</th></tr>
-      </thead>
-      <tbody>
-        {{range .Snapshot.Filesystems}}
-        <tr {{if ge .UsedPct 90.0}}class="warn"{{end}}>
-          <td data-label="Einhängepunkt" data-rolle="haupt"><code>{{.Mount}}</code>{{if .AlsoAt}}
-            <span class="muted auch-an" title="{{range $i, $m := .AlsoAt}}{{if $i}}, {{end}}{{$m}}{{end}}">auch an {{len .AlsoAt}} weiteren Stellen</span>{{end}}</td>
-          <td class="muted" data-label="Gerät" data-rolle="neben">{{.Device}}</td>
-          <td class="muted" data-label="Typ" data-rolle="neben">{{.Type}}</td>
-          <td data-label="Belegt" data-rolle="neben">{{bytes .Used}}</td>
-          <td data-label="Gesamt" data-rolle="neben">{{bytes .Total}}</td>
-          <td data-label="Auslastung">
-            <progress class="bar inline" max="100" value="{{pct .UsedPct}}" aria-hidden="true"></progress>
-            {{pct .UsedPct}} %
-          </td>
-          <td {{if ge .InodesPct 90.0}}class="warn"{{end}} data-label="Inodes" data-rolle="neben">{{pct .InodesPct}} %</td>
-        </tr>
-        {{else}}
-        <tr><td colspan="7" class="muted">keine Daten</td></tr>
-        {{end}}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<div class="grid two">
+{{/* Dateisysteme — die Tabelle bleibt eine "cards"-Tabelle: schmal wird jede
+     Zeile zu einer Karte, jede Zelle holt ihre Beschriftung aus data-label. */}}
+<section class="fs">
+  <div class="seclabel">Dateisysteme</div>
   <div class="card">
-    <h2>Netzwerk</h2>
     <div class="table-wrap">
       <table class="cards">
-        <thead><tr><th data-rolle="haupt">Schnittstelle</th><th>Adressen</th><th data-rolle="neben">Empfangen</th><th data-rolle="neben">Gesendet</th></tr></thead>
-        <tbody data-live-table="interfaces">
-          {{range .Snapshot.Interfaces}}
-          <tr>
-            <td data-label="Schnittstelle" data-rolle="haupt"><code>{{.Name}}</code></td>
-            <td class="muted" data-label="Adressen">{{range .Addrs}}{{.}}<br>{{end}}</td>
-            <td data-label="Empfangen" data-rolle="neben">{{rate .RXRate}}</td>
-            <td data-label="Gesendet" data-rolle="neben">{{rate .TXRate}}</td>
+        <thead>
+          <tr><th data-rolle="haupt">Einhängepunkt</th><th data-rolle="neben">Gerät</th><th data-rolle="neben">Typ</th><th data-rolle="neben">Belegt</th><th data-rolle="neben">Gesamt</th><th>Auslastung</th><th data-rolle="neben">Inodes</th></tr>
+        </thead>
+        <tbody>
+          {{range .Snapshot.Filesystems}}
+          <tr {{if ge .UsedPct 90.0}}class="warn"{{end}}>
+            <td data-label="Einhängepunkt" data-rolle="haupt"><code>{{.Mount}}</code>{{if .AlsoAt}}
+              <span class="muted auch-an" title="{{range $i, $m := .AlsoAt}}{{if $i}}, {{end}}{{$m}}{{end}}">auch an {{len .AlsoAt}} weiteren Stellen</span>{{end}}</td>
+            <td class="muted" data-label="Gerät" data-rolle="neben">{{.Device}}</td>
+            <td class="muted" data-label="Typ" data-rolle="neben">{{.Type}}</td>
+            <td data-label="Belegt" data-rolle="neben">{{bytes .Used}}</td>
+            <td data-label="Gesamt" data-rolle="neben">{{bytes .Total}}</td>
+            <td data-label="Auslastung">
+              <progress class="bar inline" max="100" value="{{pct .UsedPct}}" aria-hidden="true"></progress>
+              {{pct .UsedPct}} %
+            </td>
+            <td {{if ge .InodesPct 90.0}}class="warn"{{end}} data-label="Inodes" data-rolle="neben">{{pct .InodesPct}} %</td>
           </tr>
           {{else}}
-          <tr><td colspan="4" class="muted">keine Daten</td></tr>
+          <tr><td colspan="7" class="muted">keine Daten</td></tr>
           {{end}}
         </tbody>
       </table>
     </div>
   </div>
+</section>
 
+{{/* Top-Prozesse — was gerade CPU und Speicher zieht. Der Live-Kanal ersetzt
+     die Zeilen (data-live-table); die Namen der Spalten stehen in der Kopfzeile. */}}
+<section class="procs">
+  <div class="seclabel">Top-Prozesse</div>
   <div class="card">
-    <h2>Top-Prozesse</h2>
     <div class="table-wrap">
       <table class="cards">
         <thead><tr><th data-rolle="neben">PID</th><th data-rolle="haupt">Prozess</th><th data-rolle="neben">Benutzer</th><th>CPU</th><th data-rolle="neben">RAM</th></tr></thead>
@@ -118,7 +149,7 @@
       </table>
     </div>
   </div>
-</div>
+</section>
 
 <p class="live-note">
   <span class="dot" id="live-dot"></span>

@@ -222,6 +222,136 @@ main.narrow {
 .stat .value { font-size: 2rem; font-weight: 600; line-height: 1.1; }
 .stat .value.small { font-size: 1.25rem; }
 
+/* ================================================================ Leitstand ==
+ *
+ * Die Übersicht ist der Leitstand: ein Urteil in einem Satz, darunter nur das,
+ * was zu tun ist, dann die Telemetrie mit Verlauf. Kein Meer gleichrangiger
+ * Kacheln mehr — wer die Seite öffnet, soll in einer Sekunde wissen, ob alles
+ * in Ordnung ist.
+ */
+
+/* Abschnitte mit halblauter Überschrift. Der erste sitzt direkt unter dem
+   Urteil, die weiteren mit Luft dazwischen. */
+.tosee, .telemetrie, .fs, .procs { margin-bottom: 1.4rem; }
+.seclabel {
+  display: block;
+  margin-bottom: 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* --- Urteilsband --------------------------------------------------------- */
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  padding: 0.95rem 1.15rem;
+  margin-bottom: 1.4rem;
+  border: 1px solid;
+  border-radius: 12px;
+  /* Warnung ist die Vorgabe: gelbgrundig, damit ein offener Punkt auffällt. */
+  background: color-mix(in srgb, var(--warn) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--warn) 30%, var(--card));
+}
+.verdict.ok {
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--card));
+}
+.verdict .vicon {
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent-fg);
+  background: var(--warn);
+}
+.verdict.ok .vicon { background: var(--accent); }
+.verdict .vtext b { display: block; font-size: 1.02rem; }
+.verdict .vtext span { font-size: 0.88rem; color: var(--muted); }
+.verdict .vstamp { margin-left: auto; font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+
+/* --- Handlungsbedarf ----------------------------------------------------- */
+.action {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.8rem 1.05rem;
+  margin-bottom: 0.7rem;
+}
+.action:last-child { margin-bottom: 0; }
+/* Der Punkt am Zeilenanfang teilt die Dringlichkeit mit. Er nutzt dieselbe
+   .dot-Grundform wie die Live-Anzeige, nur mit eigenen Farben. */
+.action .dot { flex: none; }
+.dot.crit { background: var(--danger); }
+.dot.warn { background: var(--warn); }
+.action .tag {
+  flex: none;
+  padding: 0.18rem 0.5rem;
+  border-radius: 5px;
+  background: var(--bar-bg);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.action .txt { flex: 1; min-width: 0; }
+.action .txt b { display: block; font-size: 0.95rem; }
+.action .txt span { font-size: 0.85rem; color: var(--muted); }
+/* Der Aktionsknopf ist ein .button.small (Rahmen, kein Fülldruck). Der
+   vorrangige bekommt die Akzentfüllung — er ist der eine Klick, der zählt. */
+.action .button.small { margin: 0; }
+.action .button.small.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+.action .button.small.primary:hover { filter: brightness(1.08); color: var(--accent-fg); }
+
+/* --- Telemetrie ---------------------------------------------------------- */
+.telegrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem; }
+.tele {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.9rem 1rem 0.85rem;
+}
+.tele .k {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tele .v {
+  margin-top: 0.15rem;
+  font-size: 1.9rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.tele .v small { font-size: 0.85rem; font-weight: 500; color: var(--muted); margin-left: 0.1rem; }
+/* Der Verlauf ist ein serverseitig erzeugter SVG-Pfad. Farbe und Strichstärke
+   kommen aus dem CSS, damit kein Inline-Attribut nötig ist (CSP). */
+.tele .spark { display: block; width: 100%; height: 34px; margin: 0.35rem 0 0.5rem; }
+.tele .spark path { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.tele .spark circle { fill: var(--accent); }
+.tele .foot { margin-top: auto; font-size: 0.76rem; color: var(--muted); }
+.tele .foot code { font-size: 0.9em; }
+
 /* Der Auslastungsbalken ist ein <progress> und kein div mit Inline-Breite.
  *
  * Die Content-Security-Policy des Panels erlaubt kein style-Attribut
@@ -783,6 +913,21 @@ a { color: var(--accent); }
   .grid.stats { grid-template-columns: minmax(0, 1fr); }
   .grid.two { grid-template-columns: minmax(0, 1fr); }
   .stat .value { font-size: 1.6rem; }
+
+  /* Vier Telemetriekacheln nebeneinander sind schmal nicht lesbar — die
+     große Zahl bräche um. Zwei mal zwei behalten die Zahl in einer Zeile. */
+  .telegrid { grid-template-columns: 1fr 1fr; }
+  .tele .v { font-size: 1.6rem; }
+
+  /* Das Urteilsband bleibt eine Zeile, der Zeitstempel darf aber unter den
+     Text rutschen, statt die Zeile in die Breite zu ziehen. */
+  .verdict .vstamp { display: none; }
+
+  /* Der Aktionsknopf springt schmal unter den Text, über die ganze Breite —
+     ein Tippziel, das man trifft. */
+  .action { flex-wrap: wrap; }
+  .action .txt { flex: 1 1 60%; }
+  .action .button.small { flex: 1 1 100%; text-align: center; }
 
   .button-row { flex-direction: column; align-items: stretch; }
   .button-row button { width: 100%; }

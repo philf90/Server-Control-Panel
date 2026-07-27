@@ -131,6 +131,12 @@ func TestKeineInlineStyles(t *testing.T) {
 
 // TestBalkenOhneInlineBreite hält fest, wodurch der Inline-Style ersetzt
 // wurde: ein <progress>, das seinen Wert in einem Attribut trägt.
+//
+// Seit dem Leitstand trägt die Übersicht CPU und Arbeitsspeicher als
+// Telemetriekacheln mit Verlauf, nicht mehr als Balken; ein Balken bleibt bei
+// den Dateisystemen, wo die Auslastung je Zeile zählt. Entscheidend ist nicht
+// die Anzahl, sondern dass der Balken seinen Wert in einem Attribut trägt und
+// keine Inline-Breite gesetzt wird.
 func TestBalkenOhneInlineBreite(t *testing.T) {
 	raw, err := templateFS.ReadFile("templates/dashboard.html")
 	if err != nil {
@@ -138,9 +144,11 @@ func TestBalkenOhneInlineBreite(t *testing.T) {
 	}
 	dashboard := string(raw)
 
-	if strings.Count(dashboard, "<progress") != 3 {
-		t.Errorf("%d Balken, erwartet 3 (CPU, Arbeitsspeicher, Dateisysteme)",
-			strings.Count(dashboard, "<progress"))
+	if strings.Count(dashboard, "<progress") < 1 {
+		t.Error("kein <progress>-Balken in der Übersicht — die Auslastung der Dateisysteme fehlt")
+	}
+	if !strings.Contains(dashboard, "value=\"{{pct .UsedPct}}\"") {
+		t.Error("der Dateisystembalken trägt seinen Wert nicht mehr in einem value-Attribut")
 	}
 	if strings.Contains(dashboard, "data-live-width") {
 		t.Error("data-live-width setzte eine Breite — der Balken trägt jetzt einen Wert")

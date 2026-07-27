@@ -90,6 +90,45 @@ type codesPage struct {
 type dashboardPage struct {
 	Snapshot metrics.Snapshot
 	HasData  bool
+	Verdict  dashVerdict
+	Signals  []dashSignal
+	Sparks   dashSparks
+}
+
+// dashVerdict ist das Urteil in einem Satz ganz oben: Geht es dem Server gut?
+type dashVerdict struct {
+	Level string // "ok" | "warn"
+	Title string
+	Sub   string
+}
+
+// dashSignal ist ein Punkt auf der Handlungsbedarf-Liste. Die Aktion ist ein
+// Link auf die zuständige Seite — keine schreibende Aktion von der Übersicht
+// aus, damit die Seite ohne CSRF und ohne Schreibpfad auskommt.
+type dashSignal struct {
+	Level       string // "crit" | "warn"
+	Tag         string // "Dienst" | "Speicher" | "System"
+	Title       string
+	Detail      string
+	ActionLabel string
+	ActionHref  string
+	Primary     bool
+}
+
+// dashSparks hält die fertigen SVG-Pfade der Telemetrie-Verläufe. Serverseitig
+// erzeugt, damit die Seite ohne Inline-Skript auskommt (CSP).
+type dashSparks struct {
+	CPU  spark
+	Mem  spark
+	Load spark
+	Net  spark
+}
+
+// spark ist ein einzelner Verlauf: der Pfad plus der Endpunkt für den Punkt.
+type spark struct {
+	Path string
+	X, Y string
+	Has  bool
 }
 
 type auditPage struct {

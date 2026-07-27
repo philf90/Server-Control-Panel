@@ -1,12 +1,17 @@
 package httpd
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/philf90/asylum/internal/auth"
+	"github.com/philf90/asylum/internal/metrics"
+	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 )
 
@@ -20,8 +25,146 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		snap.UptimeText = "wird ermittelt"
 	}
+
+	signals := s.dashboardSignals(r.Context(), snap)
+	verdict := dashVerdict{
+		Level: "ok",
+		Title: "Alles läuft normal",
+		Sub:   "Keine offenen Punkte.",
+	}
+	if n := len(signals); n == 1 {
+		verdict = dashVerdict{Level: "warn", Title: "1 Ding braucht Aufmerksamkeit", Sub: "Alles übrige läuft normal."}
+	} else if n > 1 {
+		verdict = dashVerdict{Level: "warn", Title: fmt.Sprintf("%d Dinge brauchen Aufmerksamkeit", n), Sub: "Alles übrige läuft normal."}
+	}
+
 	s.renderPage(w, r, http.StatusOK, "dashboard",
-		s.base(r, "Übersicht", "dashboard").with(dashboardPage{Snapshot: snap, HasData: ok}))
+		s.base(r, "Übersicht", "dashboard").with(dashboardPage{
+			Snapshot: snap,
+			HasData:  ok,
+			Verdict:  verdict,
+			Signals:  signals,
+			Sparks:   s.dashboardSparks(),
+		}))
+}
+
+// dashboardSignals sammelt die Punkte für „Handlungsbedarf". Bewusst nur aus
+// günstigen Quellen und mit kurzem Timeout: Die Übersicht ist die meistbesuchte
+// Seite und darf nicht an einem hängenden systemctl kleben bleiben. Jeder
+// Fehler wird verschluckt — dann fehlt eben ein Signal, die Seite steht aber.
+func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []dashSignal {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	var out []dashSignal
+
+	// Fehlgeschlagene Dienste.
+	if svcs, err := s.ops.Services(ctx, privops.ServiceFilter{}); err == nil {
+		var failed []string
+		for _, sv := range svcs {
+			if sv.Failed() {
+				failed = append(failed, sv.Unit)
+			}
+		}
+		switch {
+		case len(failed) == 1:
+			out = append(out, dashSignal{
+				Level: "crit", Tag: "Dienst", Title: failed[0] + " ist ausgefallen",
+				Detail:      "Der Dienst läuft nicht mehr. Auf der Dienste-Seite lässt er sich neu starten.",
+				ActionLabel: "Dienste öffnen", ActionHref: "/services", Primary: true,
+			})
+		case len(failed) > 1:
+			out = append(out, dashSignal{
+				Level: "crit", Tag: "Dienste", Title: fmt.Sprintf("%d Dienste sind ausgefallen", len(failed)),
+				Detail:      strings.Join(failed, " · "),
+				ActionLabel: "Dienste öffnen", ActionHref: "/services", Primary: true,
+			})
+		}
+	}
+
+	// Plattendruck — aus der bereits vorliegenden Messung, ohne zusätzlichen Aufruf.
+	for _, fs := range snap.Filesystems {
+		switch {
+		case fs.UsedPct >= 95:
+			out = append(out, dashSignal{
+				Level: "crit", Tag: "Speicher", Title: fmt.Sprintf("%s ist zu %.0f %% belegt", fs.Mount, fs.UsedPct),
+				Detail: "Es wird eng — hier drohen Schreibfehler.", ActionLabel: "Pakete öffnen", ActionHref: "/packages",
+			})
+		case fs.UsedPct >= 85:
+			out = append(out, dashSignal{
+				Level: "warn", Tag: "Speicher", Title: fmt.Sprintf("%s ist zu %.0f %% belegt", fs.Mount, fs.UsedPct),
+				Detail: "Bei einem größeren Update könnte der Platz knapp werden.", ActionLabel: "Pakete öffnen", ActionHref: "/packages",
+			})
+		}
+	}
+
+	// Neustart nötig.
+	if rb, err := s.ops.RebootRequired(ctx); err == nil && rb.Required {
+		detail := "Ein Kernel- oder Bibliotheks-Update wartet auf einen Neustart."
+		if len(rb.Packages) > 0 {
+			detail = "Ausgelöst durch: " + strings.Join(rb.Packages, ", ")
+		}
+		out = append(out, dashSignal{Level: "warn", Tag: "System", Title: "Ein Neustart steht aus", Detail: detail})
+	}
+
+	return out
+}
+
+// dashboardSparks baut die Verläufe der letzten 24 Stunden aus dem Ringpuffer.
+func (s *Server) dashboardSparks() dashSparks {
+	all := s.ring.All()
+	cpu := make([]float64, 0, len(all))
+	mem := make([]float64, 0, len(all))
+	load := make([]float64, 0, len(all))
+	net := make([]float64, 0, len(all))
+	for _, sn := range all {
+		cpu = append(cpu, sn.CPU.Total)
+		mem = append(mem, sn.Memory.UsedPct)
+		load = append(load, sn.Load[0])
+		var n float64
+		for _, ifc := range sn.Interfaces {
+			n += ifc.RXRate + ifc.TXRate
+		}
+		net = append(net, n)
+	}
+	return dashSparks{CPU: buildSpark(cpu), Mem: buildSpark(mem), Load: buildSpark(load), Net: buildSpark(net)}
+}
+
+// buildSpark erzeugt den SVG-Pfad eines Verlaufs in einem 100×34-Feld. Weniger
+// als zwei Punkte ergeben keinen Verlauf (Has=false) — dann zeigt die Kachel
+// nur die Zahl.
+func buildSpark(vals []float64) spark {
+	if len(vals) < 2 {
+		return spark{}
+	}
+	const w, h, pad = 100.0, 34.0, 2.0
+	minV, maxV := vals[0], vals[0]
+	for _, v := range vals {
+		if v < minV {
+			minV = v
+		}
+		if v > maxV {
+			maxV = v
+		}
+	}
+	span := maxV - minV
+	if span == 0 {
+		span = 1
+	}
+	dx := (w - 2*pad) / float64(len(vals)-1)
+	var b strings.Builder
+	var lx, ly float64
+	for i, v := range vals {
+		x := pad + float64(i)*dx
+		y := h - pad - ((v-minV)/span)*(h-2*pad)
+		if i == 0 {
+			fmt.Fprintf(&b, "M%.1f %.1f", x, y)
+		} else {
+			fmt.Fprintf(&b, " L%.1f %.1f", x, y)
+		}
+		lx, ly = x, y
+	}
+	return spark{Path: b.String(), X: fmt.Sprintf("%.1f", lx), Y: fmt.Sprintf("%.1f", ly), Has: true}
 }
 
 func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request) {

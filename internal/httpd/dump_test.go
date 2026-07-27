@@ -129,13 +129,34 @@ func TestDumpSeiten(t *testing.T) {
 	}
 	zertVorgang.End(nil)
 
+	// --- Übersicht: Ringpuffer für die Telemetrieverläufe (Sparklines) ---
+	//
+	// Der Leitstand zeichnet je Kachel den Verlauf der letzten Stunden. Die
+	// Werte hier sind erfunden, aber plausibel — ein ruhiger Server mit einer
+	// kleinen CPU-Spitze in der Nacht.
+	const giB = 1 << 30
+	cpuVerlauf := []float64{5, 6, 5, 7, 6, 8, 7, 9, 12, 16, 22, 19, 14, 11, 9, 8, 7, 7, 6, 7, 6, 7, 6, 6}
+	memVerlauf := []float64{30, 30, 29, 30, 31, 30, 30, 31, 30, 30, 29, 30, 30, 31, 30, 30, 30, 29, 30, 30, 31, 30, 30, 30}
+	loadVerlauf := []float64{.10, .11, .10, .12, .11, .13, .15, .18, .16, .14, .13, .12, .12, .13, .12, .11, .12, .13, .14, .13, .12, .12, .11, .12}
+	netVerlauf := []float64{4, 7, 5, 9, 12, 8, 14, 10, 18, 11, 7, 13, 9, 16, 10, 6, 12, 8, 11, 15, 9, 7, 10, 12}
+	for i := range cpuVerlauf {
+		s.ring.Add(metrics.Snapshot{
+			At:     now.Add(time.Duration(i-len(cpuVerlauf)) * time.Hour),
+			CPU:    metrics.CPU{Total: cpuVerlauf[i]},
+			Memory: metrics.Memory{UsedPct: memVerlauf[i]},
+			Load:   [3]float64{loadVerlauf[i], 0, 0},
+			Interfaces: []metrics.Interface{
+				{Name: "eth0", RXRate: netVerlauf[i] * 1024, TXRate: netVerlauf[i] * 300},
+			},
+		})
+	}
+
 	// --- Übersicht: ein repräsentativer Snapshot ---
 	//
 	// Bewusst nicht s.sampler.Sample(): Die echte Messung dieser
 	// Entwicklungsmaschine trüge deren Prozess- und Dateisystemnamen ins
 	// Bildschirmfoto. Die Zahlen hier sind erfundene, aber plausible Werte
 	// eines kleinen Servers.
-	const giB = 1 << 30
 	s.setLatest(metrics.Snapshot{
 		At:         now,
 		CPU:        metrics.CPU{Total: 6.4, PerCore: []float64{7.1, 5.0, 8.2, 5.3}, IOWait: 0.4, Steal: 0.0},

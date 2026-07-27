@@ -27,6 +27,20 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Der Zertifikatsbezug zeigt live, was er tut.** Unter den Einstellungen steht
+  jetzt ein Verlauf, der sich von selbst fortschreibt — Anmeldung, Auftrag,
+  gesetzter TXT-Record, das Warten auf die DNS-Ausbreitung samt gebrauchter
+  Zeit, die Bestätigung, das Abholen und das Einsetzen mit Ablaufdatum.
+  Vorher war das der stummste Teil des Panels: Ein DNS-01-Durchlauf wartet bis
+  zu zwei Minuten auf die Sichtbarkeit des Records und danach unbestimmt lange
+  auf die CA, ohne dass irgendetwas davon zu sehen war — und ein Fehlschlag kam
+  als ein einziger Satz zurück, aus dem nicht hervorging, ob der DNS-Anbieter,
+  die Ausbreitung oder Let's Encrypt das Problem war. Der Vorgang läuft weiter,
+  wenn die Seite geschlossen wird; wer zurückkommt, bekommt den ganzen Ablauf.
+  Auch die Erneuerung, die vor Ablauf von allein läuft, schreibt mit. Geheimnisse
+  stehen nie darin — weder der Challenge-Wert noch die Zugangsdaten des
+  Anbieters; ein Test wacht darüber.
+
 - **TLS und Let's Encrypt lassen sich im Panel einstellen** — unter
   *Sicherheit → Zertifikat*. Betriebsart, Domains, Kontaktadresse,
   Prüfverfahren, DNS-Anbieter samt Hook-Pfaden oder Cloudflare-Token und das
@@ -125,6 +139,13 @@ nicht als Release getaggt.
 
 ### Behoben
 
+- **Zwei Zertifikatsbezüge konnten sich überlagern.** Der Knopf „Jetzt beziehen"
+  und die Erneuerung im Hintergrund laufen in verschiedenen Goroutinen und
+  schrieben ohne Absprache in dasselbe Verzeichnis. Wahrscheinlich war das nicht
+  — zwischen zwei selbsttätigen Erneuerungen liegen rund 60 Tage —, aber ein
+  halb überschriebenes Schlüsselpaar wäre ein Fehler gewesen, den niemand
+  reproduzieren kann. Beide teilen sich jetzt eine Sperre; nachgewiesen mit
+  einem Test, der ohne sie zuverlässig scheitert.
 - **Eine Domainänderung wirkte bis zu 60 Tage nicht.** Der ACME-Manager sah nur
   auf die Restlaufzeit des abgelegten Zertifikats, nicht darauf, ob es die
   eingestellten Namen abdeckt. Wer die Domain änderte — seit der

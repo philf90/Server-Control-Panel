@@ -47,8 +47,9 @@
 
   {{if .Attempt.Running}}
   <div class="alert warn-box">
-    <strong>Bezug läuft.</strong> Das kann bei der Prüfung über DNS einige
-    Minuten dauern. Laden Sie die Seite neu, um das Ergebnis zu sehen.
+    <strong>Bezug läuft.</strong> Der Verlauf steht unten und schreibt sich von
+    selbst fort. Bei der Prüfung über DNS kann das einige Minuten dauern; der
+    Vorgang läuft auch weiter, wenn Sie diese Seite schließen.
   </div>
   {{else if .Attempt.Err}}
   <div class="alert error">
@@ -207,6 +208,25 @@
   </form>
   {{end}}
 </div>
+
+{{if or .JobRunning .JobLines}}
+<div class="card">
+  <div class="card-head">
+    <h2>Verlauf des Bezugs</h2>
+    <span id="job-status" class="muted">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
+  </div>
+  {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
+  <pre class="logs" id="job-output" data-events="/certificate/events">{{range .JobLines}}{{.}}
+{{end}}</pre>
+  <p class="hint">
+    Angestoßen: {{.JobActor}}. Der Verlauf steht auch für die Erneuerung, die
+    vor Ablauf von selbst läuft — er bleibt bis zum nächsten Bezug stehen und
+    beginnt nach einem Neustart des Dienstes von vorn.
+  </p>
+</div>
+{{if .JobRunning}}<script src="/static/job.js" defer></script>{{end}}
 {{end}}
+{{end}}
+
 <script src="/static/certform.js" defer></script>
 {{template "footer" .}}{{end}}

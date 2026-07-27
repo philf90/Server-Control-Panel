@@ -1,12 +1,14 @@
 package httpd
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
@@ -441,5 +443,135 @@ func TestCloudflareTokenBleibtBeiLeeremFeld(t *testing.T) {
 	// geben, statt eine Einstellung zu speichern, die nie funktioniert.
 	if _, err := s.cloudflareToken("", config.TLSSettings{}); err == nil {
 		t.Error("kein Token und kein Fehler")
+	}
+}
+
+// Der Verlauf ist die Antwort auf das eigentliche Ärgernis: Ein Bezug dauert
+// bis zu fünf Minuten, und bis hierher stand die Seite dabei still. Was
+// certProgress meldet, muss auf der Seite ankommen und über /certificate/events
+// weiterlaufen.
+func TestZertVerlaufErscheintAufDerSeite(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	// Ohne Vorgang gibt es nichts zu zeigen und nichts zu streamen.
+	if body := get(t, s, "/certificate", cookie).Body.String(); strings.Contains(body, "Verlauf des Bezugs") {
+		t.Error("ein Verlauf wird angezeigt, obwohl nie einer lief")
+	}
+	if rec := get(t, s, "/certificate/events", cookie); rec.Code != http.StatusNotFound {
+		t.Errorf("Strom ohne Vorgang: Status = %d, erwartet 404", rec.Code)
+	}
+
+	p := certProgress{s: s}
+	p.Begin([]string{"panel.example.org"})
+	p.Step("_acme-challenge.panel.example.org: TXT-Record gesetzt")
+
+	body := get(t, s, "/certificate", cookie).Body.String()
+	for _, will := range []string{
+		"Verlauf des Bezugs",
+		"Bezug für: panel.example.org",
+		"TXT-Record gesetzt",
+		`data-events="/certificate/events"`,
+		"/static/job.js", // nur solange er läuft
+		"läuft …",
+	} {
+		if !strings.Contains(body, will) {
+			t.Errorf("auf der Seite fehlt %q", will)
+		}
+	}
+
+	// Wer später dazukommt, bekommt den ganzen bisherigen Lauf. Der Strom
+	// bleibt danach offen — deshalb mit Frist, sonst wartete der Test bis zum
+	// Ende des Vorgangs, den hier niemand beendet.
+	rec := stream(t, s, "/certificate/events", cookie, 200*time.Millisecond)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Strom: Status = %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "TXT-Record gesetzt") {
+		t.Errorf("der Strom liefert den bisherigen Lauf nicht: %s", rec.Body.String())
+	}
+
+	// Eine Zeile, die während des Mitlesens entsteht, muss ankommen — das ist
+	// der ganze Zweck der Übung.
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		p.Step("panel.example.org: bestätigt")
+	}()
+	rec = stream(t, s, "/certificate/events", cookie, 300*time.Millisecond)
+	if !strings.Contains(rec.Body.String(), "bestätigt") {
+		t.Errorf("eine später entstandene Zeile kam nicht an: %s", rec.Body.String())
+	}
+
+	p.End(nil)
+	body = get(t, s, "/certificate", cookie).Body.String()
+	if !strings.Contains(body, "abgeschlossen") || strings.Contains(body, "läuft …") {
+		t.Error("der abgeschlossene Vorgang steht weiter auf \"läuft\"")
+	}
+	// Ist nichts mehr zu erwarten, hat das Nachladeskript nichts zu tun.
+	if strings.Contains(body, "/static/job.js") {
+		t.Error("das Live-Skript wird auch nach dem Ende noch eingebunden")
+	}
+}
+
+// Ein Fehlschlag muss als Fehlschlag dastehen — sonst sieht ein Bezug, bei dem
+// nichts herauskam, aus wie ein gelungener.
+func TestZertVerlaufZeigtFehlschlag(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	p := certProgress{s: s}
+	p.Begin([]string{"panel.example.org"})
+	p.End(errors.New("autorisierung fehlgeschlagen für panel.example.org"))
+
+	body := get(t, s, "/certificate", cookie).Body.String()
+	for _, will := range []string{"fehlgeschlagen", "autorisierung fehlgeschlagen"} {
+		if !strings.Contains(body, will) {
+			t.Errorf("auf der Seite fehlt %q", will)
+		}
+	}
+	if a := s.tls.attempt(); a.Running || a.Err == "" {
+		t.Errorf("Zustand nach dem Fehlschlag: %+v", a)
+	}
+}
+
+// Der Auslöser gehört an den Vorgang: Eine Erneuerung, die von selbst lief,
+// darf nicht den Namen dessen tragen, der zuletzt gedrückt hat.
+func TestZertVerlaufNenntDenAusloeser(t *testing.T) {
+	s := newTestServer(t)
+	p := certProgress{s: s}
+
+	s.tls.setActor("philipp")
+	p.Begin([]string{"panel.example.org"})
+	if j := s.jobs.get(jobCertificate); j == nil || j.actor != "philipp" {
+		t.Fatalf("Auslöser = %v, erwartet philipp", j)
+	}
+	p.End(nil)
+
+	// Kein neuer Auslöser: der nächste Lauf ist ein selbsttätiger.
+	p.Begin([]string{"panel.example.org"})
+	if j := s.jobs.get(jobCertificate); j == nil || j.actor != "automatisch" {
+		t.Fatalf("Auslöser = %v, erwartet automatisch", j)
+	}
+}
+
+// obtainNow legt den Vorgang an, bevor es zurückkehrt. Täte es das erst im
+// Hintergrund, zeigte die Antwortseite noch den vorigen Lauf — genau der
+// Zustand, den diese Anzeige beheben soll.
+func TestObtainNowLegtDenVorgangSofortAn(t *testing.T) {
+	s := newTestServer(t)
+
+	// Ohne eingeschalteten ACME-Betrieb gibt es keinen Manager und damit auch
+	// keinen Vorgang; die Meldung muss das sagen.
+	err := s.obtainNow("philipp")
+	if err == nil {
+		t.Fatal("ohne eingeschalteten Bezug kam kein Fehler")
+	}
+	if !strings.Contains(err.Error(), "nicht eingeschaltet") {
+		t.Errorf("Meldung = %q", err)
+	}
+	if s.jobs.get(jobCertificate) != nil {
+		t.Error("es wurde ein Vorgang angelegt, obwohl nichts läuft")
 	}
 }

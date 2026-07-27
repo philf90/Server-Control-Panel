@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +37,11 @@ type tlsControl struct {
 
 	// last hält den letzten Bezugsversuch für die Anzeige.
 	last tlsAttempt
+
+	// actor merkt, wer den nächsten Bezug angestoßen hat. Eine Erneuerung, die
+	// vor Ablauf von selbst läuft, hat niemanden — dann steht "automatisch" am
+	// Vorgang, und im Audit-Log ist zu sehen, dass es kein Klick war.
+	actor string
 }
 
 // tlsAttempt ist der letzte Bezugsversuch, so wie ihn die Seite zeigt.
@@ -65,6 +71,78 @@ func (c *tlsControl) setAttempt(a tlsAttempt) {
 	c.mu.Lock()
 	c.last = a
 	c.mu.Unlock()
+}
+
+func (c *tlsControl) setActor(name string) {
+	c.mu.Lock()
+	c.actor = name
+	c.mu.Unlock()
+}
+
+// takeActor liefert den Auslöser des beginnenden Bezugs und vergisst ihn.
+// Vergessen ist wichtig: Sonst stünde beim nächsten selbsttätigen Lauf noch der
+// Name dessen, der zuletzt gedrückt hat — und das wäre schlicht falsch.
+func (c *tlsControl) takeActor() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	name := c.actor
+	c.actor = ""
+	if name == "" {
+		return "automatisch"
+	}
+	return name
+}
+
+// jobCertificate ist die Art des Vorgangs "Zertifikatsbezug" — dieselbe
+// Mechanik wie beim Paketvorgang und der ufw-Installation.
+const jobCertificate = "certificate"
+
+// certProgress überträgt den Verlauf eines Bezugs aus dem acme-Paket in einen
+// Job, den die Zertifikatsseite mitliest.
+//
+// Der Umweg über den Job und nicht direkt in die Antwort: Ein Bezug dauert bis
+// zu fünf Minuten und läuft weiter, wenn der Browser weggeht. Wer die Seite
+// später wieder öffnet, soll den ganzen Ablauf vorfinden — auch den einer
+// Erneuerung, die nachts von selbst lief.
+type certProgress struct{ s *Server }
+
+func (p certProgress) Begin(domains []string) {
+	// start und nicht "in jedem Fall neu": Beim Knopf in der Oberfläche ist der
+	// Job schon angelegt (siehe obtainNow), damit die Antwortseite ihn zeigen
+	// kann, bevor dieser Hintergrundlauf überhaupt begonnen hat. Hier wird er
+	// dann weitergeschrieben statt ersetzt. Bei der selbsttätigen Erneuerung
+	// gibt es keinen, und start legt ihn an.
+	j, _ := p.s.jobs.start(jobCertificate, p.s.tls.takeActor())
+	j.append("Bezug für: " + strings.Join(domains, ", "))
+	p.s.tls.setAttempt(tlsAttempt{Running: true, At: time.Now()})
+}
+
+func (p certProgress) Step(text string) {
+	if j := p.s.jobs.get(jobCertificate); j != nil {
+		j.append(text)
+	}
+}
+
+func (p certProgress) End(err error) {
+	j := p.s.jobs.get(jobCertificate)
+	a := tlsAttempt{At: time.Now()}
+	if err != nil {
+		a.Err = err.Error()
+	}
+	p.s.tls.setAttempt(a)
+
+	if j == nil {
+		return
+	}
+	// Die Schlusszeile vor finish: Danach sind die Mitleser abgemeldet und
+	// bekämen sie nicht mehr.
+	if err != nil {
+		j.append("Fehlgeschlagen: " + err.Error())
+	} else {
+		j.append("Fertig.")
+	}
+	j.finish(err)
 }
 
 // tlsSettings liefert die geltenden Einstellungen.
@@ -101,6 +179,7 @@ func (s *Server) newACMEManager(set config.TLSSettings) (*acme.Manager, error) {
 		HookSet:             set.ACME.DNS01.Hook.Set,
 		HookClean:           set.ACME.DNS01.Hook.Clean,
 		CloudflareTokenFile: set.ACME.DNS01.Cloudflare.APITokenFile,
+		Progress:            certProgress{s: s},
 	}, s.certHolder, s.log)
 }
 
@@ -194,7 +273,7 @@ func (s *Server) applyTLSSettings(set config.TLSSettings) error {
 // auch wenn der Browser die Seite verlässt: Ein DNS-01-Durchlauf kann Minuten
 // dauern, und ein abgebrochener Vorgang hinterließe einen halb angelegten
 // ACME-Auftrag.
-func (s *Server) obtainNow() error {
+func (s *Server) obtainNow(actor string) error {
 	s.tls.mu.RLock()
 	mgr, laeuft := s.tls.mgr, s.tls.last.Running
 	s.tls.mu.RUnlock()
@@ -206,20 +285,25 @@ func (s *Server) obtainNow() error {
 		return errors.New("der automatische Bezug ist nicht eingeschaltet")
 	}
 
+	// Auslöser, Zustand und Job noch vor dem Start der Goroutine: Der Handler
+	// rendert die Antwortseite unmittelbar nach dieser Funktion. Entstünde der
+	// Job erst im Hintergrundlauf, zeigte diese Seite noch den vorigen Vorgang
+	// als "abgeschlossen" und hängte die Live-Ausgabe an gar nichts an — genau
+	// der Zustand, den diese Anzeige beheben soll. Nebenbei schließt das
+	// Setzen von Running hier den Wettlauf zweier schneller Klicks.
+	s.tls.setActor(actor)
 	s.tls.setAttempt(tlsAttempt{Running: true, At: time.Now()})
+	s.jobs.start(jobCertificate, actor)
+
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), obtainTimeout)
 		defer cancel()
 
-		err := mgr.ObtainNow(ctx)
-		a := tlsAttempt{At: time.Now()}
-		if err != nil {
-			a.Err = err.Error()
+		if err := mgr.ObtainNow(ctx); err != nil {
 			s.log.Warn("Zertifikatsbezug fehlgeschlagen", "err", err)
-		} else {
-			s.log.Info("Zertifikat bezogen", "domains", mgr.Domains())
+			return
 		}
-		s.tls.setAttempt(a)
+		s.log.Info("Zertifikat bezogen", "domains", mgr.Domains())
 	}()
 	return nil
 }

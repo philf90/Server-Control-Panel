@@ -74,6 +74,11 @@ jobs:
           check store   78
           check certs   78
           check config  88
+          # acme besorgt das Zertifikat, mit dem alles andere geschützt wird.
+          # Der Anteil ist niedriger als bei den übrigen, weil der Weg gegen
+          # einen echten CA nur auf einem Server mit öffentlichem Namen läuft;
+          # geprüft ist, was ohne ihn prüfbar ist.
+          check acme    55
           # update trägt die Signaturprüfung und den Austausch des Binaries.
           check update  85
           # httpd besteht zu einem großen Teil aus Anzeigelogik; die

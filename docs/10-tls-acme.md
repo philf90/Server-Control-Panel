@@ -40,7 +40,8 @@ Einstellung stimmt.
 Der Knopf **Jetzt beziehen** fordert sofort ein Zertifikat an, auch wenn das
 vorhandene noch gültig ist — gedacht, um eine geänderte Einstellung zu prüfen.
 Er zählt auf die Rate-Limits der CA; zum Ausprobieren gibt es daneben das
-Testverzeichnis.
+Testverzeichnis. Was dabei geschieht, steht darunter im Verlauf (siehe
+[Der Verlauf eines Bezugs](#der-verlauf-eines-bezugs)).
 
 Das Cloudflare-Token wird im Panel eingegeben, aber **nicht** in der
 Konfiguration abgelegt: Es landet in `<paths.data>/acme/cloudflare.token` mit
@@ -155,6 +156,58 @@ ganze Ablauf lässt sich damit gefahrlos durchspielen.
   ```
   sudo asylum cert status
   ```
+
+## Der Verlauf eines Bezugs
+
+Unter den Einstellungen steht **Verlauf des Bezugs**: Schritt für Schritt, was
+gerade passiert, und zwar während es passiert — die Seite schreibt sich von
+selbst fort (Server-Sent Events, kein Nachladen nötig).
+
+Das ist kein Beiwerk. Ein Bezug über DNS-01 wartet bis zu zwei Minuten darauf,
+dass der TXT-Record im öffentlichen DNS auftaucht, und danach unbestimmt lange
+auf die CA. Ohne Meldungen dazwischen steht die Seite minutenlang still, und ein
+Fehlschlag kommt als ein einziger Satz zurück, aus dem nicht hervorgeht, an
+welcher Stelle es gehakt hat. Ein typischer Ablauf:
+
+```
+Bezug für: panel.example.org
+Kontoschlüssel bereit
+Bei Let's Encrypt (Testverzeichnis) angemeldet als admin@example.org
+Prüfverfahren: dns-01
+Auftrag angelegt, 1 Autorisierung(en) zu erledigen
+_acme-challenge.panel.example.org: TXT-Record gesetzt
+_acme-challenge.panel.example.org: warte auf Sichtbarkeit im DNS (bis zu 2m0s)
+_acme-challenge.panel.example.org: sichtbar nach 12s
+panel.example.org: Prüfung angestoßen, warte auf Let's Encrypt (Testverzeichnis)
+panel.example.org: bestätigt
+_acme-challenge.panel.example.org: TXT-Record entfernt
+Schlüssel erzeugt, Zertifikatsanforderung eingereicht
+Zertifikat abgeholt, Kette aus 2 Zertifikat(en)
+Zertifikat eingesetzt, gültig bis 2026-10-25 09:14 UTC
+Fertig.
+```
+
+Dazu drei Zusagen:
+
+- **Der Vorgang gehört nicht dem Browser.** Er läuft weiter, wenn die Seite
+  geschlossen wird — ein abgebrochener Bezug hinterließe einen halb angelegten
+  ACME-Auftrag. Wer später zurückkommt, bekommt den ganzen bisherigen Ablauf.
+- **Auch die selbsttätige Erneuerung schreibt mit.** Läuft sie vor Ablauf von
+  allein, steht am nächsten Morgen der Verlauf da statt einer Logzeile. Wer sie
+  angestoßen hat, steht darunter — bei einer Erneuerung „automatisch".
+- **Es stehen keine Geheimnisse darin.** Die Zeilen gehen in den Browser und
+  bleiben im Puffer stehen; der Challenge-Wert, der Kontoschlüssel und die
+  Zugangsdaten des DNS-Anbieters tauchen deshalb nie auf. Der *Name* des
+  TXT-Records schon — ohne ihn kann niemand nachsehen, ob der Eintrag angekommen
+  ist. Ein Test wacht darüber.
+
+Der Verlauf liegt im Arbeitsspeicher: Er bleibt bis zum nächsten Bezug stehen
+und beginnt nach einem Neustart des Dienstes von vorn. Was dauerhaft
+nachvollziehbar sein muss, steht im Audit-Log (`tls.obtain`, `tls.settings`).
+
+Ein Bezug zur Zeit: Der Knopf und die Erneuerung im Hintergrund teilen sich eine
+Sperre. Sonst schrieben beide in dasselbe Verzeichnis, und ihre Zeilen liefen
+ineinander.
 
 ## Offen
 

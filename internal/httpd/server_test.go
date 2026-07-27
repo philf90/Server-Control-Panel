@@ -114,6 +114,26 @@ func get(t *testing.T, s *Server, path string, cookie *http.Cookie) *httptest.Re
 	return rec
 }
 
+// stream ruft einen SSE-Endpunkt mit einer Frist ab.
+//
+// Ein laufender Vorgang hält die Verbindung offen — genau dafür ist sie da. Ein
+// Test, der sie ohne Frist abriefe, wartete auf ein Ende, das niemand herbeiführt.
+// Die Frist steht für den Betrachter, der die Seite irgendwann verlässt.
+func stream(t *testing.T, s *Server, path string, cookie *http.Cookie, frist time.Duration) *httptest.ResponseRecorder {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), frist)
+	defer cancel()
+
+	req := httptest.NewRequest(http.MethodGet, path, nil).WithContext(ctx)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	return rec
+}
+
 func post(t *testing.T, s *Server, path string, form url.Values, cookie *http.Cookie) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))

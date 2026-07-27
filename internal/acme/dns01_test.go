@@ -36,7 +36,7 @@ func (f *fakeSetter) removeTXT(_ context.Context, _, record, _ string) error {
 }
 
 func newTestDNSSolver(setter dnsSetter) *dns01Solver {
-	s := newDNS01Solver(setter, discardLogger())
+	s := newDNS01Solver(setter, discardLogger(), reporter{})
 	s.waitTimeout = 20 * time.Millisecond
 	s.pollEvery = 1 * time.Millisecond
 	return s
@@ -100,7 +100,7 @@ func TestDNS01Cleanup(t *testing.T) {
 
 func TestSolverFactoryDNS01Selection(t *testing.T) {
 	// Automatisch mit konfiguriertem Anbieter → dns-01.
-	f, err := solverFactory(Options{DNS01Provider: providerHook, HookSet: "/bin/true", HookClean: "/bin/true"}, discardLogger())
+	f, err := solverFactory(Options{DNS01Provider: providerHook, HookSet: "/bin/true", HookClean: "/bin/true"}, discardLogger(), reporter{})
 	if err != nil {
 		t.Fatalf("automatische Wahl mit Anbieter: %v", err)
 	}
@@ -113,12 +113,12 @@ func TestSolverFactoryDNS01Selection(t *testing.T) {
 	}
 
 	// Ausdrücklich dns-01 ohne Anbieter → Fehler.
-	if _, err := solverFactory(Options{Challenge: "dns-01"}, discardLogger()); err == nil {
+	if _, err := solverFactory(Options{Challenge: "dns-01"}, discardLogger(), reporter{}); err == nil {
 		t.Error("dns-01 ohne Anbieter sollte einen Fehler ergeben")
 	}
 
 	// Automatisch ohne Anbieter → http-01 (kein Fehler beim Bau der Factory).
-	if _, err := solverFactory(Options{}, discardLogger()); err != nil {
+	if _, err := solverFactory(Options{}, discardLogger(), reporter{}); err != nil {
 		t.Errorf("automatische Wahl ohne Anbieter sollte http-01 ergeben: %v", err)
 	}
 }

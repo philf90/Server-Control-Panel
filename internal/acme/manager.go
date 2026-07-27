@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/philf90/asylum/internal/certs"
@@ -43,6 +44,10 @@ type Options struct {
 	HookSet             string
 	HookClean           string
 	CloudflareTokenFile string
+
+	// Progress bekommt den Verlauf jedes Bezugs gemeldet — auch den der
+	// nächtlichen Erneuerung, nicht nur den eines angestoßenen. Darf nil sein.
+	Progress Progress
 }
 
 // Manager spielt ein vorhandenes Zertifikat ein, besorgt bei Bedarf ein neues
@@ -56,6 +61,13 @@ type Manager struct {
 	renewBefore time.Duration
 	log         *slog.Logger
 	now         func() time.Time
+	report      reporter
+
+	// obtainMu lässt nur einen Bezug zur Zeit zu. Die Hintergrunderneuerung und
+	// der Knopf "Jetzt beziehen" laufen in verschiedenen Goroutinen; ohne die
+	// Sperre schrieben beide in dasselbe Verzeichnis, und ihre Fortschrittszeilen
+	// liefen ineinander.
+	obtainMu sync.Mutex
 }
 
 // New baut den Manager aus der Konfiguration.
@@ -63,7 +75,8 @@ func New(opts Options, holder *certs.Holder, log *slog.Logger) (*Manager, error)
 	if len(opts.Domains) == 0 {
 		return nil, errors.New("keine Domain für ACME")
 	}
-	factory, err := solverFactory(opts, log)
+	rep := reporter{p: opts.Progress}
+	factory, err := solverFactory(opts, log, rep)
 	if err != nil {
 		return nil, err
 	}
@@ -77,17 +90,19 @@ func New(opts Options, holder *certs.Holder, log *slog.Logger) (*Manager, error)
 			directoryURL: opts.DirectoryURL,
 			newSolver:    factory,
 			log:          log,
+			report:       rep,
 		},
 		renewBefore: defaultRenewBefore,
 		log:         log,
 		now:         time.Now,
+		report:      rep,
 	}, nil
 }
 
 // solverFactory wählt den Challenge-Löser. Automatisch (leere Challenge) wählt
 // DNS-01, wenn ein DNS-Anbieter konfiguriert ist, sonst HTTP-01 — das löst den
 // Fall, dass auf Port 80 schon ein Webserver läuft.
-func solverFactory(opts Options, log *slog.Logger) (func(context.Context) (challengeSolver, error), error) {
+func solverFactory(opts Options, log *slog.Logger, report reporter) (func(context.Context) (challengeSolver, error), error) {
 	challenge := opts.Challenge
 	if challenge == "" {
 		if opts.DNS01Provider != "" {
@@ -111,7 +126,7 @@ func solverFactory(opts Options, log *slog.Logger) (func(context.Context) (chall
 			return nil, err
 		}
 		return func(context.Context) (challengeSolver, error) {
-			return newDNS01Solver(setter, log), nil
+			return newDNS01Solver(setter, log, report), nil
 		}, nil
 	default:
 		return nil, fmt.Errorf("unbekannte challenge %q", challenge)
@@ -147,18 +162,12 @@ func (m *Manager) ensure(ctx context.Context) time.Duration {
 		}
 	}
 
-	if err := m.obtainAndStore(ctx); err != nil {
+	cert, err := m.runObtain(ctx)
+	if err != nil {
 		m.log.Warn("ACME-Bezug fehlgeschlagen, selbstsigniertes Zertifikat bleibt",
 			"domains", m.domains, "err", err)
 		return retryInterval
 	}
-
-	cert, err := loadCert(m.dir)
-	if err != nil {
-		m.log.Warn("frisch bezogenes Zertifikat nicht ladbar", "err", err)
-		return retryInterval
-	}
-	m.holder.Set(cert)
 	m.log.Info("ACME-Zertifikat aktiv", "domains", m.domains, "ablauf", cert.Leaf.NotAfter)
 
 	rem := m.remaining(cert)
@@ -178,14 +187,10 @@ func (m *Manager) ensure(ctx context.Context) time.Duration {
 // nicht bis zur nächsten Erneuerung warten. Die Rate-Limits der CA liegen
 // damit in der Hand des Bedienenden; die Oberfläche sagt das dazu.
 func (m *Manager) ObtainNow(ctx context.Context) error {
-	if err := m.obtainAndStore(ctx); err != nil {
+	cert, err := m.runObtain(ctx)
+	if err != nil {
 		return err
 	}
-	cert, err := loadCert(m.dir)
-	if err != nil {
-		return fmt.Errorf("frisch bezogenes Zertifikat nicht ladbar: %w", err)
-	}
-	m.holder.Set(cert)
 	m.log.Info("ACME-Zertifikat bezogen", "domains", m.domains, "ablauf", cert.Leaf.NotAfter)
 	return nil
 }
@@ -206,12 +211,42 @@ func covers(cert tls.Certificate, domains []string) bool {
 	return true
 }
 
-func (m *Manager) obtainAndStore(ctx context.Context) error {
+// runObtain ist der einzige Weg zu einem neuen Zertifikat. Beide Auslöser —
+// die Erneuerung im Hintergrund und der Knopf in der Oberfläche — gehen hier
+// durch, damit der Verlauf in beiden Fällen gemeldet wird. Eine Erneuerung, die
+// nachts um drei von selbst läuft, hinterlässt so am Morgen einen lesbaren
+// Ablauf statt einer einzigen Logzeile.
+func (m *Manager) runObtain(ctx context.Context) (tls.Certificate, error) {
+	m.obtainMu.Lock()
+	defer m.obtainMu.Unlock()
+
+	m.report.begin(m.domains)
+	cert, err := m.obtainStoreLoad(ctx)
+	m.report.end(err)
+	return cert, err
+}
+
+func (m *Manager) obtainStoreLoad(ctx context.Context) (tls.Certificate, error) {
 	certPEM, keyPEM, err := m.issuer.obtain(ctx, m.domains)
 	if err != nil {
-		return err
+		return tls.Certificate{}, err
 	}
-	return saveCert(m.dir, certPEM, keyPEM)
+	if err := saveCert(m.dir, certPEM, keyPEM); err != nil {
+		return tls.Certificate{}, fmt.Errorf("zertifikat ablegen: %w", err)
+	}
+	cert, err := loadCert(m.dir)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("frisch bezogenes Zertifikat nicht ladbar: %w", err)
+	}
+
+	// Erst hier wird ausgeliefert. Bis zu dieser Zeile hat der Browser noch das
+	// alte Zertifikat bekommen — das ist der Sinn des Halters.
+	m.holder.Set(cert)
+	if cert.Leaf != nil {
+		m.report.step("Zertifikat eingesetzt, gültig bis %s",
+			cert.Leaf.NotAfter.Format("2006-01-02 15:04 MST"))
+	}
+	return cert, nil
 }
 
 // remaining liefert die Restlaufzeit des Zertifikats. Fehlt das geparste Leaf,

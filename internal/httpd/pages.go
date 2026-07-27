@@ -122,6 +122,14 @@ type certPage struct {
 	// ManagedFile ist die Datei, in der die Einstellungen landen. Sie wird
 	// genannt, weil das Panel nichts versteckt.
 	ManagedFile string
+
+	// Verlauf des Bezugs, wie beim Paketvorgang. JobActor benennt, wer ihn
+	// angestoßen hat — "automatisch" bei einer Erneuerung vor Ablauf.
+	JobLines   []string
+	JobRunning bool
+	JobDone    bool
+	JobError   string
+	JobActor   string
 }
 
 type accountPage struct {

@@ -57,6 +57,16 @@ func (s *Server) renderCertificate(w http.ResponseWriter, r *http.Request, statu
 		Attempt:          s.tls.attempt(),
 		ManagedFile:      config.ManagedTLSPath(s.cfgPath),
 	}
+	if j := s.jobs.get(jobCertificate); j != nil {
+		lines, done, jobErr := j.snapshot()
+		page.JobLines = lines
+		page.JobRunning = !done
+		page.JobDone = done
+		page.JobActor = j.actor
+		if jobErr != nil {
+			page.JobError = jobErr.Error()
+		}
+	}
 	if info, err := certs.Describe(path); err != nil {
 		page.ReadError = err.Error()
 	} else {
@@ -124,14 +134,24 @@ func (s *Server) handleCertificateSettings(w http.ResponseWriter, r *http.Reques
 
 // handleCertificateObtain stößt einen sofortigen Bezug an.
 func (s *Server) handleCertificateObtain(w http.ResponseWriter, r *http.Request) {
-	if err := s.obtainNow(); err != nil {
+	var actor string
+	if u, ok := userFrom(r.Context()); ok {
+		actor = u.Username
+	}
+
+	if err := s.obtainNow(actor); err != nil {
 		s.audit(r, "tls.obtain", "", store.ResultError, err.Error())
 		s.renderCertificate(w, r, http.StatusBadRequest, "", err.Error())
 		return
 	}
 	s.audit(r, "tls.obtain", strings.Join(acmeDomains(s.tlsSettings()), ","), store.ResultOK, "gestartet")
 	s.renderCertificate(w, r, http.StatusOK,
-		"Der Bezug läuft. Laden Sie die Seite in einer Minute neu — das Ergebnis steht hier und im Audit-Log.", "")
+		"Der Bezug läuft — der Verlauf steht unten und aktualisiert sich von selbst.", "")
+}
+
+// handleCertificateEvents streamt den Verlauf des laufenden Bezugs.
+func (s *Server) handleCertificateEvents(w http.ResponseWriter, r *http.Request) {
+	s.streamJob(w, r, jobCertificate)
 }
 
 // parseTLSForm liest und prüft das Formular.

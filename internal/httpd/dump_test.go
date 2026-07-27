@@ -103,6 +103,32 @@ func TestDumpSeiten(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// --- Zertifikat: ein abgeschlossener Bezug, damit der Verlauf zu sehen ist ---
+	//
+	// Die Zeilen entsprechen dem, was certProgress bei einem DNS-01-Durchlauf
+	// meldet. Ein echter Bezug ist hier nicht möglich (kein ACME-Server), aber
+	// die Darstellung soll trotzdem messbar sein.
+	zertVorgang := certProgress{s: s}
+	zertVorgang.Begin([]string{"panel.example.org"})
+	for _, zeile := range []string{
+		"Kontoschlüssel bereit",
+		"Bei Let's Encrypt (Testverzeichnis) angemeldet als admin@example.org",
+		"Prüfverfahren: dns-01",
+		"Auftrag angelegt, 1 Autorisierung(en) zu erledigen",
+		"_acme-challenge.panel.example.org: TXT-Record gesetzt",
+		"_acme-challenge.panel.example.org: warte auf Sichtbarkeit im DNS (bis zu 2m0s)",
+		"_acme-challenge.panel.example.org: sichtbar nach 12s",
+		"panel.example.org: Prüfung angestoßen, warte auf Let's Encrypt (Testverzeichnis)",
+		"panel.example.org: bestätigt",
+		"_acme-challenge.panel.example.org: TXT-Record entfernt",
+		"Schlüssel erzeugt, Zertifikatsanforderung eingereicht",
+		"Zertifikat abgeholt, Kette aus 2 Zertifikat(en)",
+		"Zertifikat eingesetzt, gültig bis 2026-10-25 09:14 UTC",
+	} {
+		zertVorgang.Step(zeile)
+	}
+	zertVorgang.End(nil)
+
 	// --- Übersicht: ein repräsentativer Snapshot ---
 	//
 	// Bewusst nicht s.sampler.Sample(): Die echte Messung dieser

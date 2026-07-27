@@ -17,20 +17,20 @@
   </form>
 
   <div class="table-wrap">
-    <table>
+    <table class="cards">
       <thead>
         <tr><th>Unit</th><th>Beschreibung</th><th>Zustand</th><th>Autostart</th>{{if $.CanWrite}}<th></th>{{end}}</tr>
       </thead>
       <tbody>
         {{range .Services}}
         <tr {{if .Failed}}class="warn"{{end}}>
-          <td><a href="/services/{{.Unit}}"><code>{{.Unit}}</code></a></td>
-          <td class="muted">{{.Description}}</td>
-          <td>
+          <td data-label="Unit"><a href="/services/{{.Unit}}"><code>{{.Unit}}</code></a></td>
+          <td class="muted" data-label="Beschreibung">{{.Description}}</td>
+          <td data-label="Zustand">
             <span class="badge {{if .Failed}}error{{else if .Running}}ok{{end}}">{{.Active}}</span>
             <span class="muted">{{.Sub}}</span>
           </td>
-          <td class="muted">{{if .Enabled}}{{.Enabled}}{{else}}—{{end}}</td>
+          <td class="muted" data-label="Autostart">{{if .Enabled}}{{.Enabled}}{{else}}—{{end}}</td>
           {{if $.CanWrite}}
           <td class="actions">
             {{if .Running}}

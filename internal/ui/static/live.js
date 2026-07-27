@@ -121,15 +121,39 @@
     return td;
   }
 
+  // Auf schmalen Bildschirmen wird jede Tabellenzeile zu einer Karte, und
+  // jede Zelle holt ihre Beschriftung aus data-label. Die Zellen hier
+  // entstehen neu — ohne diesen Schritt wären die Beschriftungen nach der
+  // ersten Messung verschwunden, also 30 Sekunden nach dem Seitenaufruf.
+  //
+  // Die Namen kommen aus der Kopfzeile derselben Tabelle statt aus einer
+  // zweiten Liste hier: Eine Kopie liefe früher oder später auseinander.
+  function labelsOf(tbody) {
+    var table = tbody.closest("table");
+    if (!table) {
+      return [];
+    }
+    return Array.prototype.map.call(
+      table.querySelectorAll("thead th"),
+      function (th) {
+        return th.textContent.trim();
+      }
+    );
+  }
+
   function fillTable(name, rows, render) {
     var tbody = document.querySelector('[data-live-table="' + name + '"]');
     if (!tbody || !rows) {
       return;
     }
+    var labels = labelsOf(tbody);
     var frag = document.createDocumentFragment();
     rows.forEach(function (row) {
       var tr = document.createElement("tr");
-      render(row).forEach(function (cell) {
+      render(row).forEach(function (cell, i) {
+        if (labels[i]) {
+          cell.dataset.label = labels[i];
+        }
         tr.appendChild(cell);
       });
       frag.appendChild(tr);

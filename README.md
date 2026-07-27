@@ -53,6 +53,11 @@ hinterlässt sonst keine Spur, die dem Betroffenen auffiele.
 
 ![Konto](docs/bilder/konto.png)
 
+Auf dem Telefon wird aus jeder Tabellenzeile eine Karte — ein Server-Panel wird
+genau dann gebraucht, wenn man nicht am Schreibtisch sitzt.
+
+<img src="docs/bilder/schmal.png" alt="Systembenutzer auf einem Telefon" width="320">
+
 Weitere Ansichten: [Dienste](docs/bilder/dienste.png) ·
 [Firewall](docs/bilder/firewall.png) · [Audit-Log](docs/bilder/audit.png)
 

@@ -90,32 +90,32 @@
   <form method="post" action="/firewall">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <div class="table-wrap">
-      <table class="rules">
+      <table class="cards rules">
         <thead><tr><th>Port</th><th>Protokoll</th><th>Quelle</th><th>Kommentar</th></tr></thead>
         <tbody>
           {{range .State.Rules}}
           <tr>
-            <td><input type="text" name="port" value="{{.Port}}" inputmode="numeric" size="6"></td>
-            <td>
+            <td data-label="Port"><input type="text" name="port" value="{{.Port}}" inputmode="numeric" size="6"></td>
+            <td data-label="Protokoll">
               <select name="protocol">
                 <option value="tcp" {{if eq .Protocol "tcp"}}selected{{end}}>tcp</option>
                 <option value="udp" {{if eq .Protocol "udp"}}selected{{end}}>udp</option>
               </select>
             </td>
-            <td><input type="text" name="source" value="{{.Source}}" placeholder="überall"></td>
-            <td><input type="text" name="comment" value="{{.Comment}}" maxlength="120"></td>
+            <td data-label="Quelle"><input type="text" name="source" value="{{.Source}}" placeholder="überall"></td>
+            <td data-label="Kommentar"><input type="text" name="comment" value="{{.Comment}}" maxlength="120"></td>
           </tr>
           {{end}}
           <tr>
-            <td><input type="text" name="port" placeholder="443" inputmode="numeric" size="6"></td>
-            <td>
+            <td data-label="Port"><input type="text" name="port" placeholder="443" inputmode="numeric" size="6"></td>
+            <td data-label="Protokoll">
               <select name="protocol">
                 <option value="tcp">tcp</option>
                 <option value="udp">udp</option>
               </select>
             </td>
-            <td><input type="text" name="source" placeholder="überall"></td>
-            <td><input type="text" name="comment" placeholder="neue Regel" maxlength="120"></td>
+            <td data-label="Quelle"><input type="text" name="source" placeholder="überall"></td>
+            <td data-label="Kommentar"><input type="text" name="comment" placeholder="neue Regel" maxlength="120"></td>
           </tr>
         </tbody>
       </table>
@@ -124,15 +124,15 @@
   </form>
   {{else}}
   <div class="table-wrap">
-    <table>
+    <table class="cards">
       <thead><tr><th>Port</th><th>Protokoll</th><th>Quelle</th><th>Kommentar</th></tr></thead>
       <tbody>
         {{range .State.Rules}}
         <tr>
-          <td>{{.Port}}</td>
-          <td>{{.Protocol}}</td>
-          <td class="muted">{{if .Source}}{{.Source}}{{else}}überall{{end}}</td>
-          <td class="muted">{{.Comment}}</td>
+          <td data-label="Port">{{.Port}}</td>
+          <td data-label="Protokoll">{{.Protocol}}</td>
+          <td class="muted" data-label="Quelle">{{if .Source}}{{.Source}}{{else}}überall{{end}}</td>
+          <td class="muted" data-label="Kommentar">{{.Comment}}</td>
         </tr>
         {{else}}
         <tr><td colspan="4" class="muted">keine Regeln für eingehenden Verkehr</td></tr>

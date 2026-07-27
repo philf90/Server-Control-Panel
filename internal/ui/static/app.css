@@ -396,4 +396,192 @@ table.rules td { vertical-align: middle; }
 }
 
 a { color: var(--accent); }
-.menu { flex-wrap: wrap; }
+
+/* ================================================================= Schmal ==
+ *
+ * Bis rc.3 hatte dieses Stylesheet keinen einzigen Breakpoint — der einzige
+ * @media-Block galt dem Dunkelmodus. Auf dem Telefon brach die Navigation in
+ * vier ausgefranste Zeilen um, und Tabellen liefen aus dem Rand: Bei
+ * "Dateisysteme" endete die Anzeige mitten in der Spaltenüberschrift.
+ *
+ * Ein Server-Panel wird vom Telefon aus bedient — genau dann, wenn etwas
+ * kaputt ist und niemand am Schreibtisch sitzt. Es ist außerdem das Erste,
+ * was jeder Besucher sieht.
+ */
+
+/* Die Schaltfläche fürs Menü gibt es nur schmal. Die Checkbox bleibt im
+   Zugriff der Tastatur, ist aber nicht zu sehen. */
+.nav-toggle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.nav-button { display: none; }
+
+.nav-toggle:focus-visible + .nav-button {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------- bis 900 px: Navigation --- */
+
+@media (max-width: 900px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem 1rem;
+    padding: 0.6rem 0.9rem;
+  }
+
+  .brand { grid-column: 1; }
+  .nav-button {
+    display: inline-block;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .logout {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: space-between;
+  }
+
+  /* Aufgeklappt eine Liste, zugeklappt weg. Kein Überlagern des Inhalts:
+     Ein Menü, das den Text verdeckt, den man gerade lesen wollte, ist auf
+     einem kleinen Bildschirm schlimmer als eines, das ihn wegschiebt. */
+  .nav-toggle:not(:checked) ~ .menu { display: none; }
+  .nav-toggle:checked ~ .menu {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    border-top: 1px solid var(--line);
+    padding-top: 0.5rem;
+  }
+
+  .menu li { margin: 0; }
+  .menu a {
+    display: block;
+    padding: 0.6rem 0.2rem;
+    border-bottom: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.6rem;
+  }
+  .menu a.active { border-left-color: var(--accent); }
+}
+
+/* ------------------------------------------------- bis 600 px: Inhalte --- */
+
+@media (max-width: 600px) {
+  main { padding: 1rem 0.75rem 2rem; }
+  main.narrow { padding-top: 1.5rem; }
+
+  .card { padding: 0.9rem 1rem; border-radius: 8px; }
+  .card-head { flex-wrap: wrap; gap: 0.35rem; }
+
+  /* Die zweispaltige Definitionsliste bleibt: "iowait  0,0 %" nebeneinander
+     ist kurz genug und braucht halb so viel Höhe wie gestapelt. Nur der
+     Abstand zwischen den Spalten wird kleiner. */
+  dl { gap: 0.3rem 0.75rem; }
+  dl dd { overflow-wrap: anywhere; }
+
+  .grid.stats { grid-template-columns: 1fr; }
+  .grid.two { grid-template-columns: 1fr; }
+  .stat .value { font-size: 1.6rem; }
+
+  .button-row { flex-direction: column; align-items: stretch; }
+  .button-row button { width: 100%; }
+
+  /* --- Tabellen als Karten ---
+   *
+   * "overflow-x: auto" allein genügt nicht: Eine seitlich scrollende Tabelle
+   * ist zwar bedienbar, aber man sieht ihr nicht an, dass rechts noch etwas
+   * steht. Genau so verschwand die Spalte "Belegt" aus der Dateisystemliste.
+   *
+   * Jede Zeile wird zu einer Karte, jede Zelle bekommt ihre Spaltenüberschrift
+   * aus data-label davor. Tabellen ohne data-label bleiben unverändert
+   * scrollbar — dann fehlt nur die Beschriftung, nichts bricht.
+   */
+  table.cards, table.cards thead, table.cards tbody,
+  table.cards tr, table.cards td { display: block; width: 100%; }
+
+  table.cards thead { display: none; }
+
+  table.cards tr {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.6rem;
+  }
+
+  table.cards td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    border-bottom: none;
+    text-align: right;
+  }
+
+  table.cards td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: left;
+    flex: 0 0 auto;
+  }
+
+  /* Leere Zellen ohne Beschriftung fallen weg, statt eine leere Zeile in der
+     Karte zu hinterlassen. */
+  table.cards td:empty { display: none; }
+
+  table.cards td.actions { justify-content: flex-start; padding-top: 0.5rem; }
+
+  /* Eine Zeile, die nur "keine Einträge" sagt, ist keine Karte. */
+  table.cards td[colspan] { justify-content: center; text-align: center; }
+
+  /* Formulartabellen (Firewall-Regeln): Beschriftung links, Feld rechts. */
+  table.cards.rules td { flex-wrap: wrap; }
+  table.cards.rules input,
+  table.cards.rules select { flex: 1 1 8rem; min-width: 0; }
+
+  /* Zahlen und Einheiten gehören zusammen. "0,5 %" auf zwei Zeilen zu
+     brechen macht aus einer Messung ein Rätsel. */
+  td.nowrap, .stat .value, .badge { white-space: nowrap; }
+
+  pre.logs { font-size: 0.75rem; }
+}
+
+/* ------------------------------------------------------- lange Listen --- */
+
+/* 159 Units bei zehn sichtbaren Zeilen sind keine Liste, sondern ein
+   Scrollband. Suche und Filter bleiben deshalb am oberen Rand stehen, damit
+   man nicht für jede Änderung des Filters zurückscrollen muss. */
+@media (max-width: 600px) {
+  .filter-form {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    gap: 0.4rem;
+    margin: -0.9rem -1rem 0.75rem;
+    padding: 0.6rem 1rem;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Volle Breite statt zweier halber Felder nebeneinander: Ein Tippziel von
+     9rem auf einem 375-px-Bildschirm trifft man nur mit Glück. */
+  .filter-form input,
+  .filter-form select,
+  .filter-form button { width: 100%; min-width: 0; }
+}

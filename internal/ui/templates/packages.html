@@ -40,20 +40,20 @@
   {{end}}
 
   <div class="table-wrap">
-    <table>
+    <table class="cards">
       <thead>
         <tr><th>Paket</th><th>Installiert</th><th>Verfügbar</th><th>Quelle</th>{{if $.CanWrite}}<th></th>{{end}}</tr>
       </thead>
       <tbody>
         {{range .Packages}}
         <tr>
-          <td>
+          <td data-label="Paket">
             <code>{{.Name}}</code>
             {{if .Security}}<span class="badge error">Sicherheit</span>{{end}}
           </td>
-          <td class="muted">{{.CurrentVersion}}</td>
-          <td>{{.NewVersion}}</td>
-          <td class="muted">{{.Origin}}</td>
+          <td class="muted" data-label="Installiert">{{.CurrentVersion}}</td>
+          <td data-label="Verfügbar">{{.NewVersion}}</td>
+          <td class="muted" data-label="Quelle">{{.Origin}}</td>
           {{if $.CanWrite}}
           <td class="actions">
             <form method="post" action="/packages/upgrade">

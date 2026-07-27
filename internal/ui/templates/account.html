@@ -79,21 +79,21 @@
   </p>
 
   <div class="table-wrap">
-    <table>
+    <table class="cards">
       <thead>
         <tr><th>Kennung</th><th>Adresse</th><th>Programm</th><th>Zuletzt aktiv</th><th>Angemeldet</th><th></th></tr>
       </thead>
       <tbody>
         {{range .Sessions}}
         <tr>
-          <td>
+          <td data-label="Kennung">
             <code>{{.Short}}</code>
             {{if .Current}}<span class="badge">diese Sitzung</span>{{end}}
           </td>
-          <td><code>{{.IP}}</code></td>
-          <td class="muted">{{.UserAgent}}</td>
-          <td class="muted" title="{{datetime .LastSeenAt}}">{{since .LastSeenAt}}</td>
-          <td class="muted">{{datetime .CreatedAt}}</td>
+          <td data-label="Adresse"><code>{{.IP}}</code></td>
+          <td class="muted" data-label="Programm">{{.UserAgent}}</td>
+          <td class="muted" title="{{datetime .LastSeenAt}}" data-label="Zuletzt aktiv">{{since .LastSeenAt}}</td>
+          <td class="muted" data-label="Angemeldet">{{datetime .CreatedAt}}</td>
           <td class="actions">
             {{if not .Current}}
             <form method="post" action="/account/sessions/revoke">

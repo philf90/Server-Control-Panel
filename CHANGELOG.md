@@ -46,6 +46,15 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Die Navigation hatte drei fast gleichlautende Einträge** — `Konten`
+  (Systembenutzer), `Benutzer` (Panel-Zugänge) und `Konto` (eigenes Profil).
+  Sie heißen jetzt **Systembenutzer**, **Panel-Zugänge** und **Mein Konto**.
+  Wie gut die alten Namen trugen, zeigt der Umstand, dass die
+  SSH-Schlüsselverwaltung im eigenen Projekt für fehlend gehalten wurde: Sie
+  liegt vollständig unter „Konten".
+- **Die Kopfzeile zeigt den vollqualifizierten Rechnernamen**, nicht mehr den
+  kurzen aus `os.Hostname()`. So lässt er sich mit der Adresse im Browser
+  vergleichen.
 - **Das Debian-Paket heißt `asylum-panel`**, nicht `asylum`. Letzteres ist in
   Debian und Ubuntu an ein Spiel vergeben, dessen Fassung über unserer liegt —
   `apt install asylum` hätte das Spiel gebracht. Der Befehl heißt weiterhin
@@ -57,6 +66,23 @@ nicht als Release getaggt.
 
 ### Behoben
 
+- **Auf dem Telefon war das Panel kaum bedienbar.** Das Stylesheet hatte keinen
+  einzigen Breakpoint — der einzige `@media`-Block galt dem Dunkelmodus. Die
+  Navigation brach in vier ausgefranste Zeilen um, und Tabellen liefen aus dem
+  Rand: In der Dateisystemliste endete die Anzeige mitten in der
+  Spaltenüberschrift. Neu sind zwei Breakpoints, eine einklappbare Navigation
+  ohne JavaScript und Tabellen, die schmal zu Karten werden. Geprüft mit einem
+  echten Browser bei 375, 414, 768 und 1280 Pixeln auf allen zehn Seiten.
+- **ufw ließ sich nur betrachten, nicht bedienen.** Die Firewall-Seite meldete
+  „installiert, aber nicht aktiv" und bot keinen Weg, das zu ändern; ein
+  Regelsatz ließ sich speichern, obwohl daneben stand, dass er nicht greift.
+  ufw lässt sich jetzt aus dem Panel installieren und einschalten. Die
+  Aktivierung wird verweigert, solange der Panel-Port nicht freigegeben ist,
+  und gilt danach auf Probe mit selbsttätigem Rückweg.
+- **Der Zustand von ufw wurde am Fehlschlag des Aufrufs festgestellt.** Damit
+  sahen „nicht installiert" und „installiert, aber kaputt" gleich aus, und
+  beide bekamen den Rat, ufw zu installieren — im zweiten Fall ein falscher.
+  Gefragt wird jetzt die Paketverwaltung.
 - **Die Übersicht zeigte nach jedem Start eine halbe Minute lang „keine
   Daten".** Sie rendert aus dem Ringpuffer, und der bekommt nur alle 30 Sekunden
   einen Eintrag. Jetzt aus der jüngsten Messung. Betraf jede frische

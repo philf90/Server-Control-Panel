@@ -48,23 +48,23 @@
 <div class="card">
   <h2>Dateisysteme</h2>
   <div class="table-wrap">
-    <table>
+    <table class="cards">
       <thead>
         <tr><th>Einhängepunkt</th><th>Gerät</th><th>Typ</th><th>Belegt</th><th>Gesamt</th><th>Auslastung</th><th>Inodes</th></tr>
       </thead>
       <tbody>
         {{range .Snapshot.Filesystems}}
         <tr {{if ge .UsedPct 90.0}}class="warn"{{end}}>
-          <td><code>{{.Mount}}</code></td>
-          <td class="muted">{{.Device}}</td>
-          <td class="muted">{{.Type}}</td>
-          <td>{{bytes .Used}}</td>
-          <td>{{bytes .Total}}</td>
-          <td>
+          <td data-label="Einhängepunkt"><code>{{.Mount}}</code></td>
+          <td class="muted" data-label="Gerät">{{.Device}}</td>
+          <td class="muted" data-label="Typ">{{.Type}}</td>
+          <td data-label="Belegt">{{bytes .Used}}</td>
+          <td data-label="Gesamt">{{bytes .Total}}</td>
+          <td data-label="Auslastung">
             <div class="bar inline"><span style="width:{{pct .UsedPct}}%"></span></div>
             {{pct .UsedPct}} %
           </td>
-          <td {{if ge .InodesPct 90.0}}class="warn"{{end}}>{{pct .InodesPct}} %</td>
+          <td {{if ge .InodesPct 90.0}}class="warn"{{end}} data-label="Inodes">{{pct .InodesPct}} %</td>
         </tr>
         {{else}}
         <tr><td colspan="7" class="muted">keine Daten</td></tr>
@@ -78,15 +78,15 @@
   <div class="card">
     <h2>Netzwerk</h2>
     <div class="table-wrap">
-      <table>
+      <table class="cards">
         <thead><tr><th>Schnittstelle</th><th>Adressen</th><th>Empfangen</th><th>Gesendet</th></tr></thead>
         <tbody data-live-table="interfaces">
           {{range .Snapshot.Interfaces}}
           <tr>
-            <td><code>{{.Name}}</code></td>
-            <td class="muted">{{range .Addrs}}{{.}}<br>{{end}}</td>
-            <td>{{rate .RXRate}}</td>
-            <td>{{rate .TXRate}}</td>
+            <td data-label="Schnittstelle"><code>{{.Name}}</code></td>
+            <td class="muted" data-label="Adressen">{{range .Addrs}}{{.}}<br>{{end}}</td>
+            <td data-label="Empfangen">{{rate .RXRate}}</td>
+            <td data-label="Gesendet">{{rate .TXRate}}</td>
           </tr>
           {{else}}
           <tr><td colspan="4" class="muted">keine Daten</td></tr>
@@ -99,16 +99,16 @@
   <div class="card">
     <h2>Top-Prozesse</h2>
     <div class="table-wrap">
-      <table>
+      <table class="cards">
         <thead><tr><th>PID</th><th>Prozess</th><th>Benutzer</th><th>CPU</th><th>RAM</th></tr></thead>
         <tbody data-live-table="top_processes">
           {{range .Snapshot.TopProcesses}}
           <tr>
-            <td class="muted">{{.PID}}</td>
-            <td title="{{.Command}}">{{.Name}}</td>
-            <td class="muted">{{.User}}</td>
-            <td>{{pct .CPUPct}} %</td>
-            <td>{{bytes .RSS}}</td>
+            <td class="muted" data-label="PID">{{.PID}}</td>
+            <td title="{{.Command}}" data-label="Prozess">{{.Name}}</td>
+            <td class="muted" data-label="Benutzer">{{.User}}</td>
+            <td data-label="CPU">{{pct .CPUPct}} %</td>
+            <td data-label="RAM">{{bytes .RSS}}</td>
           </tr>
           {{else}}
           <tr><td colspan="5" class="muted">keine Daten</td></tr>

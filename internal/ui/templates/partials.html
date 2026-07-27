@@ -13,6 +13,15 @@
     <strong>Asylum</strong>
     <span class="host">{{.Host.Name}}</span>
   </div>
+  <!--
+    Die Umschaltung läuft über eine Checkbox und nicht über <details>: Ein
+    geschlossenes <details> versteckt seine Kinder im Browser so, dass sich
+    das per CSS nicht wieder aufheben lässt — auf breiten Bildschirmen wäre
+    das Menü dann weg. Geprüft in Chromium, beide Varianten.
+    Ohne JavaScript, damit die Navigation nicht an einem Skript hängt.
+  -->
+  <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Menü anzeigen">
+  <label for="nav-toggle" class="nav-button" aria-hidden="true">Menü</label>
   <ul class="menu">
     <li><a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>Übersicht</a></li>
     <li><a href="/services" {{if eq .Nav "services"}}class="active"{{end}}>Dienste</a></li>

@@ -2,18 +2,18 @@
 <div class="card">
   <h2>Panel-Zugänge</h2>
   <div class="table-wrap">
-    <table>
+    <table class="cards">
       <thead>
         <tr><th>Anmeldename</th><th>Rolle</th><th>2FA</th><th>Status</th><th>Letzte Anmeldung</th><th></th></tr>
       </thead>
       <tbody>
         {{range .Content.Users}}
         <tr {{if .Disabled}}class="muted-row"{{end}}>
-          <td>{{.Username}}</td>
-          <td><span class="badge">{{.Role}}</span></td>
-          <td>{{if .TOTPConfirmed}}aktiv{{else}}offen{{end}}</td>
-          <td>{{if .Disabled}}gesperrt{{else}}aktiv{{end}}</td>
-          <td class="muted">{{if .LastLoginAt}}{{since .LastLoginAt}}{{else}}nie{{end}}</td>
+          <td data-label="Anmeldename">{{.Username}}</td>
+          <td data-label="Rolle"><span class="badge">{{.Role}}</span></td>
+          <td data-label="2FA">{{if .TOTPConfirmed}}aktiv{{else}}offen{{end}}</td>
+          <td data-label="Status">{{if .Disabled}}gesperrt{{else}}aktiv{{end}}</td>
+          <td class="muted" data-label="Letzte Anmeldung">{{if .LastLoginAt}}{{since .LastLoginAt}}{{else}}nie{{end}}</td>
           <td class="actions">
             {{if ne .ID $.User.ID}}
             <form method="post" action="/users/{{.ID}}/disabled">

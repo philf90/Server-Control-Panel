@@ -222,7 +222,9 @@ Ersteinrichtung vollständig durchlaufen hat — Konto anlegen, TOTP einrichten,
 anmelden. Sie liegen unter [`docs/bilder/`](bilder/). Einschränkung: aufgenommen
 in einem Container ohne systemd, weshalb Dienste, Pakete und Firewall dort ihre
 Fehlerbehandlung zeigen statt echter Daten. Vor der Veröffentlichung sollten sie
-auf einem echten Server neu entstehen.
+auf einem echten Server neu entstehen. Für `rc.4` wurden sie erneuert, weil die
+Navigation andere Namen trägt und das schmale Layout dazugekommen ist — die
+Einschränkung gilt unverändert.
 
 **Zwei Fehler kamen dabei ans Licht**, beide behoben und mit Regressionstests
 versehen:
@@ -255,6 +257,7 @@ Zweck.
 | `0.1.0-rc.2` | Der Link zur Ersteinrichtung nannte den kurzen Rechnernamen ohne Domainendung und war von außen unbrauchbar; der vollqualifizierte Name fehlte zudem im Zertifikat. | `rc.3` |
 | `0.1.0-rc.3` | Kein einziger Breakpoint im Stylesheet — auf dem Telefon bricht die Navigation in vier Zeilen um und Tabellen laufen aus dem Rand. | `rc.4` |
 | `0.1.0-rc.3` | ufw wird als inaktiv angezeigt, lässt sich aus dem Panel aber weder installieren noch aktivieren. | `rc.4` |
+| `0.1.0-rc.3` | Drei fast gleichlautende Menüpunkte (`Konten`, `Benutzer`, `Konto`) — die SSH-Schlüsselverwaltung galt deshalb im eigenen Projekt als fehlend. | `rc.4` |
 
 Die ersten beiden Fehler traten erst auf, als ein Tag gesetzt war. Deshalb läuft
 der betroffene Schritt seit `rc.3` bei jedem CI-Lauf probeweise gegen eine
@@ -276,8 +279,27 @@ ohne Bindestrich legt den Kanal `stable` an.
 
 ### rc.4 — Befunde aus der echten Installation
 
-Kein neues Feature; nur das, was der Betrieb auf einem echten Server gezeigt
-hat.
+**Stand: umgesetzt.** Kein neues Feature; nur das, was der Betrieb auf einem
+echten Server gezeigt hat.
+
+Geprüft wurde gegen einen echten Browser bei 375, 414, 768 und 1280 Pixeln auf
+allen zehn Seiten: Der Seitenkörper darf nicht waagerecht scrollen, und die
+Navigation muss schmal eingeklappt und breit ausgeklappt sein. Derselbe Prüfer
+lief gegen den Stand davor und meldete dort, was zu erwarten war — eine Tabelle,
+die im 375-Pixel-Fenster bis 631 Pixel reicht.
+
+Zwei Dinge fielen dabei zusätzlich auf und sind mit behoben:
+
+- **Der Live-Kanal hätte die Beschriftungen wieder weggeworfen.** Übersicht und
+  Prozessliste bauen ihre Zellen alle 30 Sekunden neu; ohne Anpassung wären die
+  Karten eine halbe Minute nach dem Seitenaufruf wieder namenlos gewesen. Die
+  Namen kommen jetzt aus der Kopfzeile derselben Tabelle statt aus einer zweiten
+  Liste im Skript.
+- **`<details>` trägt hier nicht.** Der naheliegende Weg für ein einklappbares
+  Menü scheitert daran, dass ein geschlossenes `<details>` seine Kinder so
+  versteckt, dass CSS das nicht wieder aufheben kann — auf breiten Bildschirmen
+  wäre das Menü verschwunden. In Chromium nachgemessen, beide Varianten;
+  umgesetzt ist die mit einer Checkbox, ohne JavaScript.
 
 **1. Responsives Layout.** `internal/ui/static/app.css` hat 399 Zeilen und genau
 einen `@media`-Block — für Dark Mode. Es gibt keinen einzigen Breakpoint. Das

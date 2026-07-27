@@ -1,0 +1,73 @@
+{{define "certificate"}}{{template "header" .}}
+{{with .Content}}
+<div class="card">
+  <div class="card-head">
+    <h2>TLS-Zertifikat</h2>
+    <span class="muted">Modus {{.Mode}}</span>
+  </div>
+
+  {{if .ReadError}}
+  <div class="alert error">Das Zertifikat konnte nicht gelesen werden: {{.ReadError}}</div>
+  {{else}}
+  <dl>
+    <dt>Herkunft</dt>
+    <dd>
+      {{.Source}}
+      {{if .Info.SelfSigned}}<span class="badge warn">selbstsigniert</span>{{else}}<span class="badge ok">von einer CA beglaubigt</span>{{end}}
+    </dd>
+    <dt>Namen</dt>
+    <dd>{{range $i, $n := .Info.DNSNames}}{{if $i}}, {{end}}<code>{{$n}}</code>{{else}}<span class="muted">keine</span>{{end}}</dd>
+    <dt>Aussteller</dt><dd class="muted">{{.Info.Issuer}}</dd>
+    <dt>Gültig bis</dt>
+    <dd>
+      {{datetime .Info.NotAfter}}
+      {{if lt .DaysLeft 0}}<span class="badge error">abgelaufen</span>
+      {{else if lt .DaysLeft 14}}<span class="badge error">noch {{.DaysLeft}} Tage</span>
+      {{else}}<span class="badge">noch {{.DaysLeft}} Tage</span>{{end}}
+    </dd>
+    <dt>Fingerprint</dt><dd class="muted"><code>{{.Info.Fingerprint}}</code></dd>
+  </dl>
+
+  {{if .Info.SelfSigned}}
+  <div class="alert warn-box">
+    Ein selbstsigniertes Zertifikat lässt den Browser warnen. Gleiche den
+    Fingerprint oben mit dem ab, den der Installer ausgegeben hat — stimmt er
+    überein, ist die Verbindung echt. Für ein von Browsern anerkanntes
+    Zertifikat siehe unten.
+  </div>
+  {{end}}
+  {{end}}
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Automatischer Bezug (Let's Encrypt)</h2>
+  </div>
+
+  {{if eq .Mode "acme"}}
+  <dl>
+    <dt>Domains</dt>
+    <dd>{{range $i, $d := .Domains}}{{if $i}}, {{end}}<code>{{$d}}</code>{{else}}<span class="muted">der vollqualifizierte Rechnername</span>{{end}}</dd>
+    <dt>Prüfverfahren</dt>
+    <dd>
+      {{if .Challenge}}<code>{{.Challenge}}</code>{{else}}<span class="muted">automatisch</span>{{end}}
+      {{if .Provider}}· DNS-Anbieter <code>{{.Provider}}</code>{{end}}
+    </dd>
+  </dl>
+  <p class="muted">
+    Das Zertifikat wird im Hintergrund bezogen und rund 30 Tage vor Ablauf
+    erneuert — ohne Neustart. Gelingt der Bezug nicht, bleibt das
+    selbstsignierte Zertifikat, damit das Panel erreichbar bleibt.
+  </p>
+  {{else}}
+  <p class="muted">
+    Der automatische Bezug ist nicht eingeschaltet. Mit
+    <code>server.tls.mode: acme</code> in der Konfiguration holt das Panel ein
+    von Browsern anerkanntes Zertifikat — über Port 80 (HTTP-01) oder, wenn
+    dort schon ein Webserver läuft, über einen DNS-Eintrag (DNS-01). Die
+    Einzelheiten stehen in <code>docs/10-tls-acme.md</code>.
+  </p>
+  {{end}}
+</div>
+{{end}}
+{{template "footer" .}}{{end}}

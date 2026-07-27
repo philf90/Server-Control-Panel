@@ -297,6 +297,7 @@ td.zustand { white-space: nowrap; }
 
 .badge.ok { color: var(--accent); border-color: var(--accent); }
 .badge.denied { color: var(--warn); border-color: var(--warn); }
+.badge.warn { color: var(--warn); border-color: var(--warn); }
 .badge.error { color: var(--danger); border-color: var(--danger); }
 
 /* -------------------------------------------------------------- Formulare */

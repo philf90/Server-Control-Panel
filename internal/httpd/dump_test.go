@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/philf90/asylum/internal/auth"
+	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/metrics"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
@@ -97,6 +98,11 @@ func TestDumpSeiten(t *testing.T) {
 		}
 	}
 
+	// --- Zertifikat: selbstsigniertes Material anlegen, damit die Seite Daten hat ---
+	if _, err := certs.EnsurePair(s.cfg.Server.TLS.Cert, s.cfg.Server.TLS.Key, []string{"panel.example.test"}); err != nil {
+		t.Fatal(err)
+	}
+
 	// --- Übersicht: ein repräsentativer Snapshot ---
 	//
 	// Bewusst nicht s.sampler.Sample(): Die echte Messung dieser
@@ -138,6 +144,7 @@ func TestDumpSeiten(t *testing.T) {
 		{"/update", "updates.html"},
 		{"/audit", "audit.html"},
 		{"/account", "konto.html"},
+		{"/certificate", "zertifikat.html"},
 	}
 	for _, seite := range seiten {
 		rec := get(t, s, seite.pfad, cookie)

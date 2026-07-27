@@ -36,6 +36,7 @@
     <div class="navgrp">
       <span class="navgrp-label">Sicherheit</span>
       <a href="/firewall" class="item{{if eq .Nav "firewall"}} active{{end}}"{{if eq .Nav "firewall"}} aria-current="page"{{end}}>Firewall</a>
+      <a href="/certificate" class="item{{if eq .Nav "certificate"}} active{{end}}"{{if eq .Nav "certificate"}} aria-current="page"{{end}}>Zertifikat</a>
       {{if .IsOwner}}<a href="/users" class="item{{if eq .Nav "users"}} active{{end}}"{{if eq .Nav "users"}} aria-current="page"{{end}}>Panel-Zugänge</a>{{end}}
       <a href="/audit" class="item{{if eq .Nav "audit"}} active{{end}}"{{if eq .Nav "audit"}} aria-current="page"{{end}}>Audit-Log</a>
     </div>

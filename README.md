@@ -136,6 +136,7 @@ sudo asylum rollback             # zurück auf die vorherige Fassung
 | [docs/07-name-lizenz-domain.md](docs/07-name-lizenz-domain.md) | Namensfindung, Lizenzfolgen, Projekt-Domain |
 | [docs/08-runbook-domain.md](docs/08-runbook-domain.md) | Runbook: DNS-Verifizierung und GitHub Pages einrichten |
 | [docs/09-sicherheitsbetrachtung.md](docs/09-sicherheitsbetrachtung.md) | Anmelde- und Updatepfade: Angreifermodell, Abwägungen, offene Punkte |
+| [docs/10-tls-acme.md](docs/10-tls-acme.md) | TLS: selbstsigniert und Let's Encrypt (HTTP-01, DNS-01 über Hook/Cloudflare) |
 
 Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
 [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und

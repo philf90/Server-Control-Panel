@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/philf90/asylum/internal/acme"
 	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
@@ -66,6 +67,8 @@ func run(args []string) error {
 		return cmdUpdate(rest)
 	case "rollback":
 		return cmdRollback(rest)
+	case "cert":
+		return cmdCert(rest)
 	case "version", "--version", "-v":
 		return cmdVersion(rest)
 	case "help", "--help", "-h":
@@ -87,6 +90,7 @@ Aufruf:
   asylum reset-password BENUTZER       Passwort zurücksetzen (Rettungsweg)
   asylum update [--check]              auf die neueste Fassung aktualisieren
   asylum rollback                      zur vorherigen Fassung zurückkehren
+  asylum cert status                   Zustand des TLS-Zertifikats ausgeben
   asylum version [--fingerprint]       Versionsangaben ausgeben
   asylum help                          diese Hilfe
 
@@ -379,6 +383,65 @@ func cmdVersion(args []string) error {
 			return fmt.Errorf("fingerprint: %w", err)
 		}
 		fmt.Printf("\nTLS-Zertifikat: %s\nSHA-256:        %s\n", cfg.Server.TLS.Cert, fp)
+	}
+	return nil
+}
+
+func cmdCert(args []string) error {
+	if len(args) == 0 {
+		return errors.New("cert: Unterkommando fehlt (status)")
+	}
+	sub, rest := args[0], args[1:]
+	fs := flag.NewFlagSet("cert "+sub, flag.ContinueOnError)
+	cfgPath := fs.String("config", defaultConfigPath(), "Pfad zur Konfigurationsdatei")
+	if err := fs.Parse(rest); err != nil {
+		return err
+	}
+	cfg, err := config.Load(*cfgPath)
+	if err != nil {
+		return err
+	}
+	switch sub {
+	case "status":
+		return certStatus(cfg)
+	default:
+		return fmt.Errorf("cert: unbekanntes Unterkommando %q (status)", sub)
+	}
+}
+
+func certStatus(cfg config.Config) error {
+	path := cfg.Server.TLS.Cert
+	source := "selbstsigniert"
+
+	if cfg.Server.TLS.Mode == config.TLSModeACME {
+		fmt.Println("Modus:        acme (Let's Encrypt)")
+		acmeCert := acme.CertPath(cfg.Paths.Data)
+		if _, err := os.Stat(acmeCert); err == nil {
+			path, source = acmeCert, "ACME (Let's Encrypt)"
+		} else {
+			source = "selbstsigniert (Rückfall — noch kein ACME-Zertifikat bezogen)"
+		}
+	} else {
+		fmt.Println("Modus:        selfsigned")
+	}
+
+	info, err := certs.Describe(path)
+	if err != nil {
+		return fmt.Errorf("zertifikat lesen: %w", err)
+	}
+
+	fmt.Printf("Quelle:       %s\n", source)
+	fmt.Printf("Datei:        %s\n", info.Path)
+	fmt.Printf("Subject:      %s\n", info.Subject)
+	fmt.Printf("Issuer:       %s\n", info.Issuer)
+	if len(info.DNSNames) > 0 {
+		fmt.Printf("Namen:        %s\n", strings.Join(info.DNSNames, ", "))
+	}
+	fmt.Printf("Gültig:       %s bis %s\n",
+		info.NotBefore.Local().Format("2006-01-02"), info.NotAfter.Local().Format("2006-01-02"))
+	fmt.Printf("Restlaufzeit: %d Tage\n", int(time.Until(info.NotAfter).Hours()/24))
+	if info.SelfSigned {
+		fmt.Printf("\nSelbstsigniert — Browser zeigen eine Warnung. Fingerprint zum Abgleich:\n%s\n", info.Fingerprint)
 	}
 	return nil
 }

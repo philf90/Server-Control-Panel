@@ -25,6 +25,12 @@ const (
 	keyFile        = "key.pem"
 )
 
+// CertPath liefert den Pfad des über ACME bezogenen Zertifikats unterhalb des
+// Datenverzeichnisses — für CLI und Panel, die die Datei nur lesen.
+func CertPath(dataDir string) string {
+	return filepath.Join(dataDir, "acme", certFile)
+}
+
 // loadOrCreateAccountKey lädt den ACME-Kontoschlüssel oder legt ihn an. Er wird
 // über Erneuerungen hinweg wiederverwendet: Ein neuer Schlüssel wäre ein neues
 // Konto und zählte gegen die Rate-Limits von Let's Encrypt.

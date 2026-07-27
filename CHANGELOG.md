@@ -27,6 +27,20 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Zertifikate von Let's Encrypt (ACME).** Mit `server.tls.mode: acme` holt
+  das Panel ein von Browsern anerkanntes Zertifikat und erneuert es rund 30 Tage
+  vor Ablauf — im Hintergrund, ohne Neustart. Zwei Prüfverfahren:
+  **HTTP-01** über einen kurzlebigen Listener auf Port 80 und **DNS-01** über
+  einen TXT-Record, der ohne Port 80 auskommt (wichtig, wenn dort schon ein
+  Webserver läuft). DNS-01 gibt es über einen **Hook** (Betreiber-Skript, kein
+  Anbieter im Binary) oder eingebaut über **Cloudflare** (reines HTTP, Token aus
+  einer Datei). Ist ein DNS-Anbieter gesetzt, wählt das Panel automatisch
+  DNS-01, sonst HTTP-01. Scheitert der Bezug, bleibt das selbstsignierte
+  Zertifikat — das Panel bleibt erreichbar. Einzelheiten in
+  [docs/10-tls-acme.md](docs/10-tls-acme.md).
+- **Seite „Zertifikat"** (unter Sicherheit) und **`asylum cert status`** zeigen
+  Herkunft, Namen, Aussteller, Restlaufzeit und Fingerprint des ausgelieferten
+  Zertifikats.
 - **Selbstupdate** mit Signaturprüfung, Bereitschaftsprüfung und selbsttätigem
   Rückweg: `asylum update`, `asylum rollback` und eine Update-Seite im Panel.
   Die minisign-Prüfung ist in Go umgesetzt und braucht kein externes Programm.

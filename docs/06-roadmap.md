@@ -368,19 +368,30 @@ Der größte Einzelgewinn an Vertrauenswürdigkeit. Ein Panel, dessen Nutzer bei
 jedem Aufruf eine TLS-Warnung wegklicken, gewöhnt ihnen genau das ab, was es
 schützen soll.
 
+**Stand: umgesetzt bis auf die Prüfung gegen einen echten CA.** Einzelheiten in
+[10-tls-acme.md](10-tls-acme.md). Gebaut wurde:
+
 - ACME über `golang.org/x/crypto/acme` — kein neuer schwerer Baustein,
   `x/crypto` ist wegen Argon2 ohnehin dabei.
-- **HTTP-01 braucht Port 80.** Bei einem Panel auf 8443 ist das ein Eingriff:
-  ein kurzzeitiger Listener und eine Firewall-Regel. DNS-01 wäre sauberer,
-  verlangt aber Zugangsdaten zum DNS-Anbieter — das ist eine zweite
-  Ausbaustufe, nicht die erste.
-- Erneuerung als Zeitgeber im Daemon, mit **Rückfall auf das selbstsignierte
-  Zertifikat**. Ein Panel, das wegen einer gescheiterten ACME-Anfrage nicht mehr
-  startet, ist schlimmer als eines mit Warnung.
-- Die Rate-Limits von Let's Encrypt beachten: Bei Fehlversuchen nicht in einer
-  Schleife anfragen.
+- Ein Zertifikatshalter, der das Zertifikat zur Laufzeit tauscht: Erneuerung
+  ohne Neustart.
+- Erneuerung als Zeitgeber im Daemon (~30 Tage vor Ablauf), mit **Rückfall auf
+  das selbstsignierte Zertifikat** — ein Panel, das wegen einer gescheiterten
+  ACME-Anfrage nicht mehr startet, ist schlimmer als eines mit Warnung. Nach
+  einem Fehlversuch wird nicht in einer Schleife angefragt (Rate-Limits).
+- **HTTP-01 und DNS-01.** Anders als zunächst geplant kam DNS-01 gleich dazu:
+  Läuft auf Port 80 schon ein Webserver, ist HTTP-01 nicht nutzbar. DNS-01 gibt
+  es über einen **Hook** (Betreiber-Skript, kein Anbieter im Binary) und
+  eingebaut über **Cloudflare** (reines HTTP, Token aus einer Datei). Ist ein
+  DNS-Anbieter gesetzt, wird automatisch DNS-01 gewählt.
 - Voraussetzung ist ein auflösender Name. Den ermittelt seit `rc.3`
   `internal/netinfo`.
+- Anzeige über die Seite **Zertifikat** und `asylum cert status`.
+
+Offen: die Prüfung des Live-Wegs gegen das Let's-Encrypt-**Staging** auf einem
+echten Server (ohne öffentlichen Namen in der Entwicklungsumgebung nicht
+möglich) und das gefahrlose kurzzeitige Öffnen von Port 80 für HTTP-01, das eine
+eigene Firewall-Primitive braucht.
 
 ### 0.3.0 — Passkeys
 

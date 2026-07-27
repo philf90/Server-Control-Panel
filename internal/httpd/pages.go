@@ -3,6 +3,7 @@ package httpd
 import (
 	"net/http"
 
+	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/metrics"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
@@ -92,6 +93,20 @@ type dashboardPage struct {
 
 type auditPage struct {
 	Entries []store.AuditEntry
+}
+
+type certPage struct {
+	Mode     string // selfsigned | acme
+	Source   string // menschlich lesbare Herkunft des aktiven Zertifikats
+	Info     certs.Info
+	DaysLeft int
+	// ReadError: Konnte die Datei nicht gelesen werden, steht hier der Grund —
+	// die Seite bleibt erreichbar, statt mit 500 zu scheitern.
+	ReadError string
+	// ACME-Konfiguration, nur im Modus acme gefüllt.
+	Domains   []string
+	Challenge string
+	Provider  string
 }
 
 type accountPage struct {

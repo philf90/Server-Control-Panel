@@ -36,11 +36,12 @@ Schlüssel, der in ihm steht.</p>
 sudo tee /etc/apt/sources.list.d/asylum.sources &gt;/dev/null &lt;&lt;'EOF'
 Types: deb
 URIs: https://repo.cloudsrv24.de/apt
-Suites: stable
+Suites: beta
 Components: main
 Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
 EOF
 sudo apt update &amp;&amp; sudo apt install asylum-panel</code></pre>
+<p class="hint">Bis zur ersten Freigabe gibt es nur <code>beta</code>. <code>Suites: stable</code> beantwortet apt bis dahin mit einem 404 — der Kanal ist noch leer.</p>
 <p class="hint">Das Paket heißt <code>asylum-panel</code> — <code>asylum</code>
 ist in Debian an ein Spiel vergeben. Der Befehl heißt weiterhin
 <code>asylum</code>. Über apt entfällt die Bereitschaftsprüfung mit
@@ -53,9 +54,9 @@ selbsttätigem Rückweg; die gibt es nur bei <code>asylum update</code>.</p>
 <pre><code>FC79D6FB2CA8321BBA071E05AC66AF2CEEB9AA1A</code></pre>
 
 <footer>
-Version 0.1.0-rc.2 ·
+Version 0.1.0-rc.3 ·
 <a href="https://github.com/philf90/Server-Control-Panel">Quellcode</a> ·
-<a href="https://github.com/philf90/Server-Control-Panel/releases/tag/v0.1.0-rc.2">Release-Notizen</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/releases/tag/v0.1.0-rc.3">Release-Notizen</a> ·
 <a href="https://github.com/philf90/Server-Control-Panel/blob/main/SECURITY.md">Sicherheit</a> ·
 <a href="https://github.com/philf90/Server-Control-Panel/blob/main/CHANGELOG.md">Changelog</a> ·
 Apache-2.0

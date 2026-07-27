@@ -402,9 +402,11 @@ summary() {
   # Der Token wird nur bei einer Erstinstallation erzeugt; bei einem Update
   # scheitert der Aufruf absichtlich, weil bereits ein Konto existiert.
   if setup_url="$("$BINARY" setup-token --config "$CONFIG_FILE" --url-only 2>/dev/null)"; then
-    # Die URL zeigt auf den Hostnamen des Servers; für den Zugriff von außen
-    # ist die tatsächliche Adresse oft die brauchbarere Angabe.
-    setup_url="${setup_url/https:\/\/$(hostname):/https://${host}:}"
+    # Die URL kommt unverändert aus dem Binary: Es kennt den
+    # vollqualifizierten Namen des Rechners und schreibt ihn hinein. Hier
+    # stand früher ein Textersatz, der den Namen gegen die IP tauschte — der
+    # ist entfallen, weil zwei Stellen, die dieselbe Adresse bilden, früher
+    # oder später auseinanderlaufen.
     cat <<SETUP
   ${C_OK}Ersteinrichtung${C_OFF} — dieser Link gilt 60 Minuten und nur einmal:
 
@@ -414,6 +416,14 @@ summary() {
   Es wird bewusst kein Passwort vergeben, das hier im Terminal stünde.
 
 SETUP
+    # Auf einem frisch aufgesetzten Server gibt es den DNS-Eintrag oft noch
+    # nicht. Dann ist die Adresse der einzige Weg hinein.
+    if [ -n "$host" ] && [ "https://${host}:${PORT}" != "${setup_url%%/setup*}" ]; then
+      cat <<FALLBACK
+  Löst der Name bei Ihnen nicht auf, ersetzen Sie ihn im Link durch ${host}.
+
+FALLBACK
+    fi
   else
     cat <<EXISTING
   Adresse      https://${host}:${PORT}/

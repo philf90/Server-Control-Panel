@@ -163,7 +163,7 @@ td.muted, .muted { color: var(--muted); }
 td.nowrap { white-space: nowrap; }
 tr.warn td { color: var(--warn); }
 tr.muted-row td { opacity: 0.55; }
-td.actions { display: flex; gap: 0.75rem; }
+td.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 td.actions form { margin: 0; }
 
 .badge {
@@ -216,16 +216,51 @@ button.secondary {
   border: 1px solid var(--line);
 }
 
-button.link {
+/* Aktionen in Listen und Kopfzeilen.
+ *
+ * Bis rc.4 waren das unterstrichene Links in Knopfform — "sperren",
+ * "löschen", "einspielen". Auf dem Telefon ist ein unterstrichenes Wort ein
+ * Tippziel von wenigen Millimetern Höhe, und "löschen" sah aus wie "mehr
+ * lesen". Jetzt sind es Schaltflächen mit Rahmen und einer Höhe, die man
+ * trifft. */
+button.small, .button.small {
   margin: 0;
-  padding: 0;
-  background: none;
-  color: var(--accent);
-  font-weight: 400;
-  text-decoration: underline;
+  min-height: 2.3rem;
+  padding: 0.35rem 0.8rem;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-button.link.danger { color: var(--danger); }
+button.small:hover, .button.small:hover {
+  filter: none;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Gefährliche Aktionen sind erkennbar, aber nicht aufdringlich: Rand und
+   Schrift in Warnfarbe, gefüllt erst beim Zeigen. Ein durchgehend roter Knopf
+   neben jedem Eintrag macht eine Liste unlesbar. */
+button.small.danger, .button.small.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+}
+
+button.small.danger:hover, .button.small.danger:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--accent-fg);
+}
+
+button.small:focus-visible, .button.small:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
 .row-form {
   display: grid;
@@ -377,14 +412,46 @@ pre.logs span { display: block; }
 .prio-warn { color: var(--warn); }
 .prio-debug { opacity: 0.65; }
 
-table.rules input,
-table.rules select {
-  width: 100%;
-  min-width: 5rem;
-  padding: 0.35rem 0.5rem;
+/* ------------------------------------------------------ Firewall-Regeln --- */
+
+/* Bis rc.4 war das eine Tabelle mit vier Eingabefeldern je Zeile. Schmal
+   ergab das vier verschieden breite Felder untereinander, deren Beschriftungen
+   unterschiedlich weit einrückten — jede Zeile sah anders aus als die
+   darüber. Jetzt ist jede Regel ein eigener Block mit gleichem Raster. */
+
+.rules-form { display: grid; gap: 0.75rem; }
+
+fieldset.rule {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0;
+  padding: 0.75rem 1rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
-table.rules td { vertical-align: middle; }
+fieldset.rule legend {
+  padding: 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+fieldset.rule .feld { display: grid; gap: 0.2rem; }
+fieldset.rule label { margin: 0; font-size: 0.78rem; color: var(--muted); }
+fieldset.rule input,
+fieldset.rule select { width: 100%; margin: 0; padding: 0.4rem 0.55rem; }
+fieldset.rule .hint { grid-column: 1 / -1; margin: 0; }
+
+/* Die Regel, ohne die das Panel nach dem Einschalten nicht mehr erreichbar
+   wäre. Sie ist sichtbar festgesetzt — erzwungen wird sie serverseitig. */
+fieldset.rule.locked { border-color: var(--accent); }
+fieldset.rule.locked input[readonly] {
+  background: var(--bar-bg);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+fieldset.rule.proposed { border-style: dashed; }
 
 .sr-label {
   position: absolute;
@@ -494,8 +561,13 @@ a { color: var(--accent); }
   dl { gap: 0.3rem 0.75rem; }
   dl dd { overflow-wrap: anywhere; }
 
-  .grid.stats { grid-template-columns: 1fr; }
-  .grid.two { grid-template-columns: 1fr; }
+  /* minmax(0, 1fr) statt 1fr: Ein Grid-Element hat von sich aus
+     min-width: auto und zieht die Spur auf seine breiteste unteilbare
+     Stelle auf. Eine IPv6-Adresse in der Netzwerktabelle machte die Karte
+     dadurch 414 px breit, während die Nachbarkarte bei 332 px blieb —
+     nebeneinander sah das nach zwei verschiedenen Layouts aus. */
+  .grid.stats { grid-template-columns: minmax(0, 1fr); }
+  .grid.two { grid-template-columns: minmax(0, 1fr); }
   .stat .value { font-size: 1.6rem; }
 
   .button-row { flex-direction: column; align-items: stretch; }
@@ -516,21 +588,40 @@ a { color: var(--accent); }
 
   table.cards thead { display: none; }
 
+  /* Die Zeile ist ein Flex-Behälter, damit die Rollen unten ihre Reihenfolge
+     selbst bestimmen können. Im Markup stehen die Spalten in der Reihenfolge,
+     die breit sinnvoll ist (PID vor Prozessname); schmal muss der Name nach
+     oben und die Begleitangaben müssen beieinanderliegen, sonst bricht jede
+     für sich um und die Karte wird so hoch wie vorher. */
   table.cards tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.9rem;
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 0.5rem 0.75rem;
     margin-bottom: 0.6rem;
   }
 
+  /* In Kartenform gibt es nichts, was waagerecht zu scrollen wäre — die
+     Zeilen sind gestapelte Blöcke. Ein Scrollbehälter drumherum lässt
+     überbreite Inhalte aber genau das tun, statt sie umbrechen zu lassen. */
+  .table-wrap { overflow-x: visible; }
+
   table.cards td {
     display: flex;
+    flex: 1 1 100%;
+    order: 0;
     justify-content: space-between;
     align-items: baseline;
     gap: 1rem;
+    min-width: 0;
     padding: 0.25rem 0;
     border-bottom: none;
     text-align: right;
+    /* Eine Adresse ohne Trennstelle darf die Karte nicht auseinanderziehen. */
+    overflow-wrap: anywhere;
   }
 
   table.cards td[data-label]::before {
@@ -549,6 +640,57 @@ a { color: var(--accent); }
 
   /* Eine Zeile, die nur "keine Einträge" sagt, ist keine Karte. */
   table.cards td[colspan] { justify-content: center; text-align: center; }
+
+  /* --- Rollen: nicht jede Angabe wiegt gleich schwer ---
+   *
+   * Sieben gleichrangige Label-Wert-Zeilen je Dateisystem ergaben auf dem
+   * Telefon eine Liste, durch die man minutenlang scrollt. Die Zellen sagen
+   * deshalb, welche Rolle sie spielen: "haupt" ist der Name des Eintrags und
+   * wird zur Überschrift der Karte, "neben" sind Begleitangaben, die in einer
+   * gemeinsamen Zeile laufen. Alles andere bleibt eine eigene Zeile.
+   *
+   * Nichts wird ausgeblendet — es wird nur anders gesetzt.
+   */
+  table.cards td[data-rolle="haupt"] {
+    order: -1;
+    display: block;
+    flex: 1 1 100%;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0 0 0.35rem;
+    margin-bottom: 0.35rem;
+    border-bottom: 1px solid var(--line);
+  }
+  table.cards td[data-rolle="haupt"]::before { content: none; }
+
+  /* Begleitangaben rutschen ans Ende und laufen in einer gemeinsamen Zeile,
+     die bei Bedarf umbricht — statt fünf Zeilen für fünf Kleinigkeiten. */
+  table.cards td[data-rolle="neben"] {
+    order: 1;
+    display: block;
+    /* width: auto ist nicht überflüssig: Die Grundregel oben setzt allen
+       Zellen width: 100%, und flex-basis: auto übernimmt genau diesen Wert —
+       jede Begleitangabe bekäme sonst wieder eine eigene Zeile. */
+    width: auto;
+    flex: 0 0 auto;
+    padding: 0.1rem 0;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: left;
+  }
+  table.cards td[data-rolle="neben"]::before {
+    content: attr(data-label) " ";
+    font-size: inherit;
+  }
+  /* Getrennt wird über den Abstand, nicht über ein Zeichen: Die sichtbare
+     Reihenfolge weicht von der im Markup ab, ein Trennpunkt zwischen
+     Nachbarn im Markup landete deshalb mal mitten in der Zeile und mal an
+     ihrem Anfang. */
+
+  table.cards td.actions { order: 2; flex: 1 1 100%; }
+
+  .auch-an { display: block; font-size: 0.75rem; font-weight: 400; }
 
   /* Formulartabellen (Firewall-Regeln): Beschriftung links, Feld rechts. */
   table.cards.rules td { flex-wrap: wrap; }

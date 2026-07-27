@@ -454,3 +454,71 @@ func TestRebootRequiredWithoutMarker(t *testing.T) {
 		t.Log("Markierung vorhanden, aber ohne Paketliste — zulässig")
 	}
 }
+
+// TestParseUFWAdded deckt die Sackgasse ab, die rc.4 im Betrieb hatte.
+//
+// "ufw status" gibt im ausgeschalteten Zustand nur "Status: inactive" aus —
+// keine einzige Regel, obwohl die Regeln längst angelegt sind. Das Panel
+// verweigert das Einschalten aber, solange es keine Regel für seinen eigenen
+// Port sieht. Ergebnis: Der Regelsatz ließ sich speichern, der Knopf erschien
+// nie, und niemand konnte erkennen, warum.
+func TestParseUFWAdded(t *testing.T) {
+	// Ausgabe eines echten "ufw show added".
+	out := `Added user rules (see 'ufw status' for running firewall):
+ufw allow 8443/tcp comment 'Asylum-Panel'
+ufw allow 22/tcp comment 'SSH'
+ufw allow from 203.0.113.0/24 to any port 5432 proto tcp comment 'Datenbank intern'
+ufw allow 53/udp
+ufw deny 25/tcp comment 'kein Mail'
+ufw allow OpenSSH
+`
+	rules := parseUFWAdded(out)
+
+	if len(rules) != 4 {
+		t.Fatalf("%d Regeln, erwartet 4: %+v", len(rules), rules)
+	}
+	// Sortiert nach Port.
+	if rules[0].Port != 22 || rules[0].Protocol != "tcp" || rules[0].Comment != "SSH" {
+		t.Errorf("Regel 1 = %+v", rules[0])
+	}
+	if rules[1].Port != 53 || rules[1].Protocol != "udp" {
+		t.Errorf("Regel 2 = %+v", rules[1])
+	}
+	if rules[2].Port != 5432 || rules[2].Source != "203.0.113.0/24" ||
+		rules[2].Comment != "Datenbank intern" {
+		t.Errorf("Regel 3 = %+v", rules[2])
+	}
+	if rules[3].Port != 8443 || rules[3].Comment != "Asylum-Panel" {
+		t.Errorf("Regel 4 = %+v", rules[3])
+	}
+
+	// "deny" und benannte Profile bleiben außen vor — was das Panel nicht als
+	// verwaltete Regel führt, entfernt es beim Speichern auch nicht.
+	for _, r := range rules {
+		if r.Port == 25 {
+			t.Error("eine deny-Regel wurde als verwaltete Freigabe gelesen")
+		}
+	}
+}
+
+// TestFirewallStateLiestRegelnAuchAusgeschaltet: der ganze Weg, nicht nur der
+// Parser.
+func TestFirewallStateLiestRegelnAuchAusgeschaltet(t *testing.T) {
+	f := newFakeRunner()
+	ufwPaketVorhanden(f)
+	f.responses["ufw status"] = Result{Stdout: "Status: inactive"}
+	f.responses["ufw show added"] = Result{Stdout: `Added user rules (see 'ufw status' for running firewall):
+ufw allow 8443/tcp comment 'Asylum-Panel'
+`}
+
+	state, err := NewSystemWithRunner(f).FirewallState(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.Active {
+		t.Error("ufw gilt als aktiv, obwohl es aus ist")
+	}
+	if len(state.Rules) != 1 || state.Rules[0].Port != 8443 {
+		t.Fatalf("Regeln = %+v — ohne sie erscheint der Knopf zum Einschalten nie", state.Rules)
+	}
+}

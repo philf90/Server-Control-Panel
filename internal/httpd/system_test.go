@@ -29,6 +29,7 @@ type fakeOps struct {
 	logs       []privops.LogEntry
 	units      []string
 	upgradeErr error
+	sshPorts   []int
 
 	actions      []string
 	appliedRules [][]privops.FirewallRule
@@ -53,6 +54,7 @@ func newFakeOps() *fakeOps {
 			Rules: []privops.FirewallRule{{Port: 22, Protocol: "tcp", Comment: "SSH"}},
 		},
 		sysUsers: []privops.SystemUser{
+			{Name: "root", UID: 0, Home: "/root", Shell: "/bin/bash", HasShell: true, Protected: true},
 			{Name: "philipp", UID: 1000, Home: "/home/philipp", Shell: "/bin/bash", HasShell: true},
 			{Name: "www-data", UID: 33, System: true},
 		},
@@ -129,6 +131,15 @@ func (f *fakeOps) FirewallState(context.Context) (privops.FirewallState, error) 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.firewall, nil
+}
+
+func (f *fakeOps) SSHPorts(context.Context) []int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.sshPorts) > 0 {
+		return f.sshPorts
+	}
+	return []int{22}
 }
 
 func (f *fakeOps) FirewallInstall(_ context.Context, stream privops.LineWriter) error {
@@ -748,5 +759,172 @@ func TestFirewallSeiteRendertAlleZustaende(t *testing.T) {
 				t.Errorf("%q steht auf der Seite, gehört dort aber nicht hin", f.fehlt)
 			}
 		})
+	}
+}
+
+// TestPanelRegelWirdErzwungen: Im Browser steht die Regel für den Panel-Port
+// schreibgeschützt da. Ein schreibgeschütztes Feld ist aber eine Bitte, keine
+// Sperre — wer die Anfrage selbst zusammenstellt, lässt es weg. Dann muss der
+// Server sie ergänzen, sonst sperrt das nächste Einschalten aus.
+func TestPanelRegelWirdErzwungen(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	// Absichtlich nur eine SSH-Regel senden — der Panel-Port fehlt.
+	rec := post(t, s, "/firewall", url.Values{
+		"_csrf": {csrf}, "port": {"22"}, "protocol": {"tcp"},
+		"source": {""}, "comment": {"SSH"},
+	}, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d", rec.Code)
+	}
+
+	ops.mu.Lock()
+	defer ops.mu.Unlock()
+	if len(ops.appliedRules) == 0 {
+		t.Fatal("es wurde nichts angewendet")
+	}
+	angewendet := ops.appliedRules[len(ops.appliedRules)-1]
+	if !ruleCoversPort(angewendet, s.cfg.Server.Port) {
+		t.Errorf("die Regel für Port %d fehlt: %+v", s.cfg.Server.Port, angewendet)
+	}
+}
+
+// Eine bestehende Regel für den Panel-Port wird nicht verdoppelt und nicht
+// überschrieben — wer sein Panel bewusst nur aus einem Netz erreichbar macht,
+// soll das dürfen.
+func TestEnsurePanelRule(t *testing.T) {
+	vorhanden := []privops.FirewallRule{
+		{Port: 8443, Protocol: "tcp", Source: "203.0.113.0/24", Comment: "nur intern"},
+	}
+	got := ensurePanelRule(vorhanden, 8443)
+	if len(got) != 1 || got[0].Source != "203.0.113.0/24" {
+		t.Errorf("bestehende Regel wurde verändert: %+v", got)
+	}
+
+	got = ensurePanelRule(nil, 8443)
+	if len(got) != 1 || got[0].Port != 8443 || got[0].Source != "" {
+		t.Errorf("= %+v, erwartet eine Regel für 8443 von überall", got)
+	}
+}
+
+// TestFirewallZeilenVorschlagFuerSSH: Wer ufw ohne SSH-Regel einschaltet,
+// verliert den zweiten Weg auf den Server — und merkt es erst, wenn er ihn
+// braucht. Der Port kommt aus sshd_config, nicht aus der Annahme "22".
+func TestFirewallZeilenVorschlagFuerSSH(t *testing.T) {
+	s, ops := newSystemServer(t)
+
+	ops.mu.Lock()
+	ops.sshPorts = []int{2222}
+	ops.mu.Unlock()
+
+	rows := s.firewallRows(context.Background(), nil)
+
+	if len(rows) != 2 {
+		t.Fatalf("%d Zeilen, erwartet 2 (Panel + SSH-Vorschlag): %+v", len(rows), rows)
+	}
+	if !rows[0].Locked || rows[0].Rule.Port != s.cfg.Server.Port {
+		t.Errorf("die erste Zeile ist nicht die festgesetzte Panel-Regel: %+v", rows[0])
+	}
+	if !rows[1].Proposed || rows[1].Rule.Port != 2222 {
+		t.Errorf("der SSH-Vorschlag nennt Port %d, erwartet 2222", rows[1].Rule.Port)
+	}
+
+	// Gibt es die Regel schon, wird nichts vorgeschlagen.
+	rows = s.firewallRows(context.Background(), []privops.FirewallRule{
+		{Port: 2222, Protocol: "tcp"},
+	})
+	for _, row := range rows {
+		if row.Proposed {
+			t.Errorf("Vorschlag für eine bereits bestehende Regel: %+v", row)
+		}
+	}
+}
+
+// Die Panel-Regel steht immer an erster Stelle und übernimmt eine bereits
+// bestehende Quelle, statt sie zu verwerfen.
+func TestFirewallZeilenUebernimmtBestehendePanelRegel(t *testing.T) {
+	s, _ := newSystemServer(t)
+	rows := s.firewallRows(context.Background(), []privops.FirewallRule{
+		{Port: 80, Protocol: "tcp", Comment: "HTTP"},
+		{Port: s.cfg.Server.Port, Protocol: "tcp", Source: "203.0.113.0/24", Comment: "Panel intern"},
+	})
+	if !rows[0].Locked || rows[0].Rule.Source != "203.0.113.0/24" {
+		t.Errorf("erste Zeile = %+v", rows[0])
+	}
+	// Die Panel-Regel darf nicht zusätzlich als normale Zeile auftauchen.
+	treffer := 0
+	for _, row := range rows {
+		if row.Rule.Port == s.cfg.Server.Port {
+			treffer++
+		}
+	}
+	if treffer != 1 {
+		t.Errorf("die Panel-Regel steht %d Mal in der Liste", treffer)
+	}
+}
+
+// TestGeschuetzteKontenOhneAktionen: root lässt sich über das Panel nicht
+// löschen — privops.protectedUser weist es ab. Die Oberfläche bot den Knopf
+// trotzdem an, und ein Knopf, der zuverlässig scheitert, ist schlimmer als
+// keiner: Er sieht aus wie eine Funktion und ist eine Falle.
+func TestGeschuetzteKontenOhneAktionen(t *testing.T) {
+	s, _ := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, _ := login(t, s, user)
+
+	rec := get(t, s, "/system-users", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+
+	if strings.Contains(body, "/system-users/root/delete") {
+		t.Error("für root wird ein Löschen-Formular ausgegeben")
+	}
+	if strings.Contains(body, "/system-users/root/locked") {
+		t.Error("für root wird ein Sperren-Formular ausgegeben")
+	}
+	// Ein regulärer Benutzer behält seine Aktionen.
+	if !strings.Contains(body, "/system-users/philipp/delete") {
+		t.Error("dem regulären Konto fehlen die Aktionen")
+	}
+	if !strings.Contains(body, "geschützt") {
+		t.Error("der Grund für die fehlenden Knöpfe wird nicht genannt")
+	}
+}
+
+// Der Klick auf die Schlüsselzahl soll dort landen, wo die Schlüssel stehen.
+func TestSchluesselLinkSpringtZurKarte(t *testing.T) {
+	s, _ := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, _ := login(t, s, user)
+
+	body := get(t, s, "/system-users", cookie).Body.String()
+	if !strings.Contains(body, `href="/system-users?user=philipp#schluessel"`) {
+		t.Error("der Link zur Schlüsselverwaltung trägt keine Sprungmarke")
+	}
+
+	body = get(t, s, "/system-users?user=philipp", cookie).Body.String()
+	if !strings.Contains(body, `id="schluessel"`) {
+		t.Error("die Schlüsselkarte trägt keine Sprungmarke")
+	}
+}
+
+// TestKeineAktionsLinksMehr: Aktionen sind Schaltflächen, keine
+// unterstrichenen Wörter. Auf dem Telefon ist ein unterstrichenes Wort ein
+// Tippziel von wenigen Millimetern, und "löschen" sah aus wie "mehr lesen".
+func TestKeineAktionsLinksMehr(t *testing.T) {
+	s, _ := newSystemServer(t)
+	user := addUser(t, s, "owner", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	for _, pfad := range []string{"/", "/services", "/packages", "/firewall",
+		"/system-users", "/users", "/account", "/update", "/audit", "/logs"} {
+		body := get(t, s, pfad, cookie).Body.String()
+		if strings.Contains(body, `class="link`) {
+			t.Errorf("%s enthält noch eine als Link gestaltete Aktion", pfad)
+		}
 	}
 }

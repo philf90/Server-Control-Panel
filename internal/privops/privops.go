@@ -35,6 +35,7 @@ type Executor interface {
 	FirewallApply(ctx context.Context, rules []FirewallRule) error
 	FirewallInstall(ctx context.Context, stream LineWriter) error
 	FirewallSetActive(ctx context.Context, active bool) error
+	SSHPorts(ctx context.Context) []int
 
 	// Systembenutzer und SSH
 	SystemUsers(ctx context.Context) ([]SystemUser, error)
@@ -181,17 +182,22 @@ type FirewallRule struct {
 
 // SystemUser ist ein Benutzer aus /etc/passwd.
 type SystemUser struct {
-	Name     string   `json:"name"`
-	UID      int      `json:"uid"`
-	GID      int      `json:"gid"`
-	Comment  string   `json:"comment"`
-	Home     string   `json:"home"`
-	Shell    string   `json:"shell"`
-	Groups   []string `json:"groups"`
-	Locked   bool     `json:"locked"`
-	System   bool     `json:"system"`
-	SSHKeys  int      `json:"ssh_keys"`
-	HasShell bool     `json:"has_shell"`
+	Name    string   `json:"name"`
+	UID     int      `json:"uid"`
+	GID     int      `json:"gid"`
+	Comment string   `json:"comment"`
+	Home    string   `json:"home"`
+	Shell   string   `json:"shell"`
+	Groups  []string `json:"groups"`
+	Locked  bool     `json:"locked"`
+	System  bool     `json:"system"`
+	// Protected: Das Konto lässt sich über das Panel nicht sperren oder
+	// löschen. Die Prüfung sitzt in protectedUser und greift ohnehin — aber
+	// eine Oberfläche, die "löschen" anbietet und dann verweigert, ist die
+	// schlechteste der möglichen Antworten. root gehört dazu.
+	Protected bool `json:"protected"`
+	SSHKeys   int  `json:"ssh_keys"`
+	HasShell  bool `json:"has_shell"`
 }
 
 // SystemUserSpec beschreibt einen anzulegenden Benutzer.

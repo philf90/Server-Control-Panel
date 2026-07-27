@@ -295,6 +295,7 @@ func (s *Server) renderFirewall(w http.ResponseWriter, r *http.Request, status i
 		PanelPort:        s.cfg.Server.Port,
 		PanelPortOpen:    ruleCoversPort(state.Rules, s.cfg.Server.Port),
 		OpenPorts:        openPortSummary(state.Rules),
+		Rows:             s.firewallRows(r.Context(), state.Rules),
 	}
 	if j := s.jobs.get(jobFirewallInstall); j != nil {
 		lines, done, jobErr := j.snapshot()
@@ -330,6 +331,12 @@ func (s *Server) handleFirewallApply(w http.ResponseWriter, r *http.Request) {
 		s.renderFirewall(w, r, http.StatusBadRequest, "", err.Error())
 		return
 	}
+
+	// Die Regel für den eigenen Port wird nicht dem Formular überlassen. Im
+	// Browser steht sie schreibgeschützt da, aber ein schreibgeschütztes Feld
+	// ist eine Bitte, keine Sperre — wer die Anfrage selbst zusammenstellt,
+	// lässt sie einfach weg. Hier wird sie ergänzt, falls sie fehlt.
+	rules = ensurePanelRule(rules, s.cfg.Server.Port)
 
 	if err := s.ops.FirewallApply(ctx, rules); err != nil {
 		s.audit(r, "firewall.apply", "", store.ResultError, err.Error())
@@ -729,4 +736,77 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		page = page.withError(errMsg)
 	}
 	s.renderPage(w, r, http.StatusOK, "logs", page)
+}
+
+// ensurePanelRule sorgt dafür, dass der Port des Panels freigegeben bleibt.
+//
+// Ohne diese Regel sperrt das nächste "ufw enable" den Bedienenden aus, und
+// zwar aus der Seite heraus, auf der er das zurücknehmen könnte. Eine bereits
+// vorhandene Regel für diesen Port bleibt unangetastet — auch eine auf eine
+// Quelle eingeschränkte: Wer sein Panel bewusst nur aus dem eigenen Netz
+// erreichbar macht, soll das dürfen.
+func ensurePanelRule(rules []privops.FirewallRule, panelPort int) []privops.FirewallRule {
+	for _, r := range rules {
+		if r.Port == panelPort {
+			return rules
+		}
+	}
+	return append(rules, privops.FirewallRule{
+		Port: panelPort, Protocol: "tcp", Comment: panelRuleComment,
+	})
+}
+
+// panelRuleComment kennzeichnet die Regel, die das Panel selbst braucht.
+const panelRuleComment = "Asylum-Panel"
+
+// firewallRows baut die Zeilen des Formulars: die Regel des Panels zuerst und
+// festgesetzt, danach die bestehenden, zuletzt Vorschläge für SSH.
+//
+// Der Vorschlag ist kein Selbstzweck. Wer ufw ohne SSH-Regel einschaltet,
+// verliert den zweiten Weg auf den Server — und merkt es erst, wenn er ihn
+// braucht. Der Port kommt aus sshd_config, nicht aus der Annahme "22".
+func (s *Server) firewallRows(ctx context.Context, rules []privops.FirewallRule) []firewallRow {
+	panelPort := s.cfg.Server.Port
+
+	rows := make([]firewallRow, 0, len(rules)+2)
+	rest := make([]privops.FirewallRule, 0, len(rules))
+
+	panelRule := privops.FirewallRule{Port: panelPort, Protocol: "tcp", Comment: panelRuleComment}
+	for _, r := range rules {
+		if r.Port == panelPort && r.Protocol == "tcp" {
+			panelRule = r
+			continue
+		}
+		rest = append(rest, r)
+	}
+	rows = append(rows, firewallRow{
+		Rule:   panelRule,
+		Locked: true,
+		Note:   "Über diesen Port erreichen Sie das Panel. Die Regel lässt sich nicht entfernen.",
+	})
+
+	belegt := func(port int) bool {
+		for _, r := range rest {
+			if r.Port == port {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, r := range rest {
+		rows = append(rows, firewallRow{Rule: r})
+	}
+
+	for _, port := range s.ops.SSHPorts(ctx) {
+		if port == panelPort || belegt(port) {
+			continue
+		}
+		rows = append(rows, firewallRow{
+			Rule:     privops.FirewallRule{Port: port, Protocol: "tcp", Comment: "SSH"},
+			Proposed: true,
+			Note:     "Vorschlag: Auf diesem Port lauscht sshd laut Konfiguration. Ohne die Regel wäre SSH nach dem Einschalten zu.",
+		})
+	}
+	return rows
 }

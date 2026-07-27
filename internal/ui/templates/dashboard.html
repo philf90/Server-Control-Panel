@@ -50,21 +50,22 @@
   <div class="table-wrap">
     <table class="cards">
       <thead>
-        <tr><th>Einhängepunkt</th><th>Gerät</th><th>Typ</th><th>Belegt</th><th>Gesamt</th><th>Auslastung</th><th>Inodes</th></tr>
+        <tr><th data-rolle="haupt">Einhängepunkt</th><th data-rolle="neben">Gerät</th><th data-rolle="neben">Typ</th><th data-rolle="neben">Belegt</th><th data-rolle="neben">Gesamt</th><th>Auslastung</th><th data-rolle="neben">Inodes</th></tr>
       </thead>
       <tbody>
         {{range .Snapshot.Filesystems}}
         <tr {{if ge .UsedPct 90.0}}class="warn"{{end}}>
-          <td data-label="Einhängepunkt"><code>{{.Mount}}</code></td>
-          <td class="muted" data-label="Gerät">{{.Device}}</td>
-          <td class="muted" data-label="Typ">{{.Type}}</td>
-          <td data-label="Belegt">{{bytes .Used}}</td>
-          <td data-label="Gesamt">{{bytes .Total}}</td>
+          <td data-label="Einhängepunkt" data-rolle="haupt"><code>{{.Mount}}</code>{{if .AlsoAt}}
+            <span class="muted auch-an" title="{{range $i, $m := .AlsoAt}}{{if $i}}, {{end}}{{$m}}{{end}}">auch an {{len .AlsoAt}} weiteren Stellen</span>{{end}}</td>
+          <td class="muted" data-label="Gerät" data-rolle="neben">{{.Device}}</td>
+          <td class="muted" data-label="Typ" data-rolle="neben">{{.Type}}</td>
+          <td data-label="Belegt" data-rolle="neben">{{bytes .Used}}</td>
+          <td data-label="Gesamt" data-rolle="neben">{{bytes .Total}}</td>
           <td data-label="Auslastung">
             <div class="bar inline"><span style="width:{{pct .UsedPct}}%"></span></div>
             {{pct .UsedPct}} %
           </td>
-          <td {{if ge .InodesPct 90.0}}class="warn"{{end}} data-label="Inodes">{{pct .InodesPct}} %</td>
+          <td {{if ge .InodesPct 90.0}}class="warn"{{end}} data-label="Inodes" data-rolle="neben">{{pct .InodesPct}} %</td>
         </tr>
         {{else}}
         <tr><td colspan="7" class="muted">keine Daten</td></tr>
@@ -79,14 +80,14 @@
     <h2>Netzwerk</h2>
     <div class="table-wrap">
       <table class="cards">
-        <thead><tr><th>Schnittstelle</th><th>Adressen</th><th>Empfangen</th><th>Gesendet</th></tr></thead>
+        <thead><tr><th data-rolle="haupt">Schnittstelle</th><th>Adressen</th><th data-rolle="neben">Empfangen</th><th data-rolle="neben">Gesendet</th></tr></thead>
         <tbody data-live-table="interfaces">
           {{range .Snapshot.Interfaces}}
           <tr>
-            <td data-label="Schnittstelle"><code>{{.Name}}</code></td>
+            <td data-label="Schnittstelle" data-rolle="haupt"><code>{{.Name}}</code></td>
             <td class="muted" data-label="Adressen">{{range .Addrs}}{{.}}<br>{{end}}</td>
-            <td data-label="Empfangen">{{rate .RXRate}}</td>
-            <td data-label="Gesendet">{{rate .TXRate}}</td>
+            <td data-label="Empfangen" data-rolle="neben">{{rate .RXRate}}</td>
+            <td data-label="Gesendet" data-rolle="neben">{{rate .TXRate}}</td>
           </tr>
           {{else}}
           <tr><td colspan="4" class="muted">keine Daten</td></tr>
@@ -100,15 +101,15 @@
     <h2>Top-Prozesse</h2>
     <div class="table-wrap">
       <table class="cards">
-        <thead><tr><th>PID</th><th>Prozess</th><th>Benutzer</th><th>CPU</th><th>RAM</th></tr></thead>
+        <thead><tr><th data-rolle="neben">PID</th><th data-rolle="haupt">Prozess</th><th data-rolle="neben">Benutzer</th><th>CPU</th><th data-rolle="neben">RAM</th></tr></thead>
         <tbody data-live-table="top_processes">
           {{range .Snapshot.TopProcesses}}
           <tr>
-            <td class="muted" data-label="PID">{{.PID}}</td>
-            <td title="{{.Command}}" data-label="Prozess">{{.Name}}</td>
-            <td class="muted" data-label="Benutzer">{{.User}}</td>
+            <td class="muted" data-label="PID" data-rolle="neben">{{.PID}}</td>
+            <td title="{{.Command}}" data-label="Prozess" data-rolle="haupt">{{.Name}}</td>
+            <td class="muted" data-label="Benutzer" data-rolle="neben">{{.User}}</td>
             <td data-label="CPU">{{pct .CPUPct}} %</td>
-            <td data-label="RAM">{{bytes .RSS}}</td>
+            <td data-label="RAM" data-rolle="neben">{{bytes .RSS}}</td>
           </tr>
           {{else}}
           <tr><td colspan="5" class="muted">keine Daten</td></tr>

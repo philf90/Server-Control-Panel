@@ -150,6 +150,21 @@ type firewallPage struct {
 	JobRunning bool
 	JobDone    bool
 	JobError   string
+	// Rows sind die Zeilen des Formulars: die festgesetzte Regel des Panels,
+	// die bestehenden Regeln und Vorschläge für SSH.
+	Rows []firewallRow
+}
+
+// firewallRow ist eine Zeile im Regelformular.
+type firewallRow struct {
+	Rule privops.FirewallRule
+	// Locked: Port und Protokoll stehen fest. Gilt für den Port, über den das
+	// Panel erreichbar ist — ohne ihn sperrt das nächste Einschalten aus.
+	Locked bool
+	// Proposed: eine Regel, die es noch nicht gibt, aber geben sollte.
+	Proposed bool
+	// Note erklärt in einem Satz, warum die Zeile so ist, wie sie ist.
+	Note string
 }
 
 type sysUsersPage struct {

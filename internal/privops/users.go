@@ -395,14 +395,15 @@ func parsePasswd(content string) []SystemUser {
 
 		shell := f[6]
 		users = append(users, SystemUser{
-			Name:     f[0],
-			UID:      uid,
-			GID:      gid,
-			Comment:  strings.SplitN(f[4], ",", 2)[0],
-			Home:     f[5],
-			Shell:    shell,
-			System:   uid < uidMin && f[0] != "root",
-			HasShell: shell != "/usr/sbin/nologin" && shell != "/sbin/nologin" && shell != "/bin/false",
+			Name:      f[0],
+			UID:       uid,
+			GID:       gid,
+			Comment:   strings.SplitN(f[4], ",", 2)[0],
+			Home:      f[5],
+			Shell:     shell,
+			System:    uid < uidMin && f[0] != "root",
+			Protected: protectedUser(f[0]) != nil,
+			HasShell:  shell != "/usr/sbin/nologin" && shell != "/sbin/nologin" && shell != "/bin/false",
 		})
 	}
 

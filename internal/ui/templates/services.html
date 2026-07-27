@@ -37,19 +37,19 @@
             <form method="post" action="/services/{{.Unit}}">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="action" value="restart">
-              <button type="submit" class="link">neu starten</button>
+              <button type="submit" class="small">neu starten</button>
             </form>
             <form method="post" action="/services/{{.Unit}}"
                   onsubmit="return confirm('{{.Unit}} wirklich stoppen?')">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="action" value="stop">
-              <button type="submit" class="link danger">stoppen</button>
+              <button type="submit" class="small danger">stoppen</button>
             </form>
             {{else}}
             <form method="post" action="/services/{{.Unit}}">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="action" value="start">
-              <button type="submit" class="link">starten</button>
+              <button type="submit" class="small">starten</button>
             </form>
             {{end}}
           </td>

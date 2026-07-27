@@ -59,7 +59,7 @@
             <form method="post" action="/packages/upgrade">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="package" value="{{.Name}}">
-              <button type="submit" class="link" {{if $.Content.JobRunning}}disabled{{end}}>einspielen</button>
+              <button type="submit" class="small" {{if $.Content.JobRunning}}disabled{{end}}>einspielen</button>
             </form>
           </td>
           {{end}}

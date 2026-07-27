@@ -45,14 +45,20 @@ type Memory struct {
 
 // Filesystem beschreibt einen eingehängten Datenträger.
 type Filesystem struct {
-	Mount      string  `json:"mount"`
-	Device     string  `json:"device"`
-	Type       string  `json:"type"`
-	Total      uint64  `json:"total"`
-	Used       uint64  `json:"used"`
-	UsedPct    float64 `json:"used_pct"`
-	InodesUsed uint64  `json:"inodes_used"`
-	InodesPct  float64 `json:"inodes_pct"`
+	Mount  string `json:"mount"`
+	Device string `json:"device"`
+	Type   string `json:"type"`
+	// AlsoAt sind weitere Einhängepunkte desselben Dateisystems. Die
+	// systemd-Härtung der eigenen Unit hängt Teile von / an mehreren Stellen
+	// erneut ein; ohne Zusammenfassung stünde dieselbe Platte sieben Mal in
+	// der Liste, jedes Mal mit denselben Zahlen. Verschwiegen wird nichts —
+	// die Stellen stehen hier.
+	AlsoAt     []string `json:"also_at,omitempty"`
+	Total      uint64   `json:"total"`
+	Used       uint64   `json:"used"`
+	UsedPct    float64  `json:"used_pct"`
+	InodesUsed uint64   `json:"inodes_used"`
+	InodesPct  float64  `json:"inodes_pct"`
 }
 
 // Interface beschreibt eine Netzwerkschnittstelle mit Durchsatz pro Sekunde.

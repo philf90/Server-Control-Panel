@@ -62,9 +62,10 @@
     {{else}}
     <p class="hint warn-text">
       <strong>Einschalten ist gesperrt.</strong> Für Port {{.PanelPort}} gibt es
-      keine Regel. Wäre ufw eingeschaltet, wäre das Panel nicht mehr erreichbar
-      — auch nicht, um die Änderung zurückzunehmen. Legen Sie die Regel unten
-      an, dann erscheint der Knopf.
+      noch keine gespeicherte Regel. Wäre ufw eingeschaltet, wäre das Panel nicht
+      mehr erreichbar — auch nicht, um die Änderung zurückzunehmen. Die Regel
+      steht unten bereits eingetragen: einmal <em>Regelsatz speichern</em>, dann
+      erscheint der Knopf.
     </p>
     {{end}}
   </div>
@@ -74,7 +75,7 @@
           onsubmit="return confirm('ufw ausschalten? Der Server nimmt danach jede eingehende Verbindung an.')">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="active" value="0">
-      <button type="submit" class="link danger">ufw ausschalten</button>
+      <button type="submit" class="small danger">ufw ausschalten</button>
     </form>
   </div>
   {{end}}
@@ -87,39 +88,75 @@
     Regeln zunächst auf Probe — bestätige sie, solange die Verbindung noch steht.
   </p>
 
-  <form method="post" action="/firewall">
+  <form method="post" action="/firewall" class="rules-form">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <div class="table-wrap">
-      <table class="cards rules">
-        <thead><tr><th>Port</th><th>Protokoll</th><th>Quelle</th><th>Kommentar</th></tr></thead>
-        <tbody>
-          {{range .State.Rules}}
-          <tr>
-            <td data-label="Port"><input type="text" name="port" value="{{.Port}}" inputmode="numeric" size="6"></td>
-            <td data-label="Protokoll">
-              <select name="protocol">
-                <option value="tcp" {{if eq .Protocol "tcp"}}selected{{end}}>tcp</option>
-                <option value="udp" {{if eq .Protocol "udp"}}selected{{end}}>udp</option>
-              </select>
-            </td>
-            <td data-label="Quelle"><input type="text" name="source" value="{{.Source}}" placeholder="überall"></td>
-            <td data-label="Kommentar"><input type="text" name="comment" value="{{.Comment}}" maxlength="120"></td>
-          </tr>
-          {{end}}
-          <tr>
-            <td data-label="Port"><input type="text" name="port" placeholder="443" inputmode="numeric" size="6"></td>
-            <td data-label="Protokoll">
-              <select name="protocol">
-                <option value="tcp">tcp</option>
-                <option value="udp">udp</option>
-              </select>
-            </td>
-            <td data-label="Quelle"><input type="text" name="source" placeholder="überall"></td>
-            <td data-label="Kommentar"><input type="text" name="comment" placeholder="neue Regel" maxlength="120"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+
+    {{range .Rows}}
+    <fieldset class="rule{{if .Locked}} locked{{end}}{{if .Proposed}} proposed{{end}}">
+      <legend>
+        {{if .Locked}}Panel{{else if .Proposed}}Vorschlag{{else if .Rule.Comment}}{{.Rule.Comment}}{{else}}Regel{{end}}
+      </legend>
+
+      <div class="feld">
+        <label for="port-{{.Rule.Port}}-{{.Rule.Protocol}}">Port</label>
+        {{if .Locked}}
+        <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" value="{{.Rule.Port}}" readonly>
+        <input type="hidden" name="port" value="{{.Rule.Port}}">
+        {{else}}
+        <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" name="port" value="{{.Rule.Port}}" inputmode="numeric">
+        {{end}}
+      </div>
+
+      <div class="feld">
+        <label for="proto-{{.Rule.Port}}-{{.Rule.Protocol}}">Protokoll</label>
+        {{if .Locked}}
+        <input type="text" id="proto-{{.Rule.Port}}-{{.Rule.Protocol}}" value="{{.Rule.Protocol}}" readonly>
+        <input type="hidden" name="protocol" value="{{.Rule.Protocol}}">
+        {{else}}
+        <select id="proto-{{.Rule.Port}}-{{.Rule.Protocol}}" name="protocol">
+          <option value="tcp" {{if eq .Rule.Protocol "tcp"}}selected{{end}}>tcp</option>
+          <option value="udp" {{if eq .Rule.Protocol "udp"}}selected{{end}}>udp</option>
+        </select>
+        {{end}}
+      </div>
+
+      <div class="feld">
+        <label for="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}">Quelle</label>
+        <input type="text" id="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}" name="source" value="{{.Rule.Source}}" placeholder="überall">
+      </div>
+
+      <div class="feld">
+        <label for="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}">Kommentar</label>
+        <input type="text" id="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}" name="comment" value="{{.Rule.Comment}}" maxlength="120">
+      </div>
+
+      {{if .Note}}<p class="hint">{{.Note}}</p>{{end}}
+    </fieldset>
+    {{end}}
+
+    <fieldset class="rule neu">
+      <legend>Neue Regel</legend>
+      <div class="feld">
+        <label for="port-neu">Port</label>
+        <input type="text" id="port-neu" name="port" placeholder="443" inputmode="numeric">
+      </div>
+      <div class="feld">
+        <label for="proto-neu">Protokoll</label>
+        <select id="proto-neu" name="protocol">
+          <option value="tcp">tcp</option>
+          <option value="udp">udp</option>
+        </select>
+      </div>
+      <div class="feld">
+        <label for="quelle-neu">Quelle</label>
+        <input type="text" id="quelle-neu" name="source" placeholder="überall">
+      </div>
+      <div class="feld">
+        <label for="kommentar-neu">Kommentar</label>
+        <input type="text" id="kommentar-neu" name="comment" maxlength="120" placeholder="wofür">
+      </div>
+    </fieldset>
+
     <button type="submit">Regelsatz speichern</button>
   </form>
   {{else}}

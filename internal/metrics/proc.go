@@ -218,7 +218,7 @@ func readFilesystems() []Filesystem {
 	defer func() { _ = f.Close() }()
 
 	seen := make(map[string]bool)
-	var out []Filesystem
+	sammler := &fsSammler{nachID: make(map[string]int)}
 
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
@@ -244,6 +244,11 @@ func readFilesystems() []Filesystem {
 			continue
 		}
 
+		id := fmt.Sprintf("%s|%d|%d", device, st.Fsid.X__val[0], st.Fsid.X__val[1])
+		if sammler.weitererOrt(id, mount) {
+			continue
+		}
+
 		bsize := uint64(st.Bsize) //nolint:gosec // Bsize ist auf Linux positiv
 		total := st.Blocks * bsize
 		free := st.Bavail * bsize
@@ -260,11 +265,10 @@ func readFilesystems() []Filesystem {
 			fs.InodesUsed = st.Files - st.Ffree
 			fs.InodesPct = clampPct(float64(fs.InodesUsed) / float64(st.Files) * 100)
 		}
-		out = append(out, fs)
+		sammler.neu(id, fs)
 	}
 
-	sort.Slice(out, func(i, j int) bool { return out[i].Mount < out[j].Mount })
-	return out
+	return sammler.fertig()
 }
 
 // /proc/mounts kodiert Leerzeichen und Konsorten oktal.
@@ -498,4 +502,49 @@ func clampPct(v float64) float64 {
 	default:
 		return v
 	}
+}
+
+// fsSammler fasst mehrere Einhängepunkte desselben Dateisystems zu einem
+// Eintrag zusammen.
+//
+// Die systemd-Härtung der eigenen Unit hängt Teile von / erneut ein: /etc,
+// /home, /root, /tmp, /usr und /var/… erscheinen in /proc/mounts als eigene
+// Zeilen, alle mit den Zahlen von /. In der Übersicht standen dadurch sieben
+// Einträge für eine Platte — auf einem Telefon knapp fünfzig Zeilen, die
+// dasselbe sagen.
+//
+// Verschwiegen wird nichts: Die weiteren Stellen stehen in AlsoAt.
+type fsSammler struct {
+	nachID map[string]int
+	out    []Filesystem
+}
+
+// weitererOrt meldet, ob dieses Dateisystem schon bekannt ist, und merkt sich
+// den zusätzlichen Einhängepunkt. Der kürzere Pfad wird zum Hauptnamen — "/"
+// sagt mehr über die Platte aus als "/var/lib/asylum".
+func (c *fsSammler) weitererOrt(id, mount string) bool {
+	i, ok := c.nachID[id]
+	if !ok {
+		return false
+	}
+	if len(mount) < len(c.out[i].Mount) {
+		c.out[i].AlsoAt = append(c.out[i].AlsoAt, c.out[i].Mount)
+		c.out[i].Mount = mount
+	} else {
+		c.out[i].AlsoAt = append(c.out[i].AlsoAt, mount)
+	}
+	return true
+}
+
+func (c *fsSammler) neu(id string, fs Filesystem) {
+	c.nachID[id] = len(c.out)
+	c.out = append(c.out, fs)
+}
+
+func (c *fsSammler) fertig() []Filesystem {
+	for i := range c.out {
+		sort.Strings(c.out[i].AlsoAt)
+	}
+	sort.Slice(c.out, func(i, j int) bool { return c.out[i].Mount < c.out[j].Mount })
+	return c.out
 }

@@ -19,12 +19,12 @@
             <form method="post" action="/users/{{.ID}}/disabled">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="disabled" value="{{if .Disabled}}0{{else}}1{{end}}">
-              <button type="submit" class="link">{{if .Disabled}}freigeben{{else}}sperren{{end}}</button>
+              <button type="submit" class="small">{{if .Disabled}}freigeben{{else}}sperren{{end}}</button>
             </form>
             <form method="post" action="/users/{{.ID}}/delete"
                   onsubmit="return confirm('Konto {{.Username}} wirklich löschen?')">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-              <button type="submit" class="link danger">löschen</button>
+              <button type="submit" class="small danger">löschen</button>
             </form>
             {{end}}
           </td>

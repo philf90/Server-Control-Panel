@@ -21,24 +21,26 @@
       <tbody>
         {{range .Users}}
         <tr {{if .System}}class="muted-row"{{end}}>
-          <td data-label="Name"><a href="/system-users?user={{.Name}}">{{.Name}}</a>{{if .Comment}} <span class="muted">{{.Comment}}</span>{{end}}</td>
+          <td data-label="Name"><a href="/system-users?user={{.Name}}#schluessel">{{.Name}}</a>{{if .Comment}} <span class="muted">{{.Comment}}</span>{{end}}</td>
           <td class="muted" data-label="UID">{{.UID}}</td>
           <td class="muted" data-label="Gruppen">{{range $i, $g := .Groups}}{{if $i}}, {{end}}{{$g}}{{end}}</td>
           <td class="muted" data-label="Shell"><code>{{.Shell}}</code></td>
-          <td data-label="Schlüssel"><a href="/system-users?user={{.Name}}">{{if .SSHKeys}}{{.SSHKeys}}{{else}}keine{{end}}</a></td>
+          <td data-label="Schlüssel"><a href="/system-users?user={{.Name}}#schluessel">{{if .SSHKeys}}{{.SSHKeys}}{{else}}keine{{end}}</a></td>
           <td data-label="Status">{{if .Locked}}<span class="badge">gesperrt</span>{{else if .HasShell}}<span class="badge ok">aktiv</span>{{else}}<span class="muted">kein Login</span>{{end}}</td>
           {{if $.CanWrite}}
           <td class="actions">
-            {{if not .System}}
+            {{if .Protected}}
+            <span class="muted" title="Ohne dieses Konto ist das System nicht mehr bedienbar.">geschützt</span>
+            {{else if not .System}}
             <form method="post" action="/system-users/{{.Name}}/locked">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="locked" value="{{if .Locked}}0{{else}}1{{end}}">
-              <button type="submit" class="link">{{if .Locked}}entsperren{{else}}sperren{{end}}</button>
+              <button type="submit" class="small">{{if .Locked}}entsperren{{else}}sperren{{end}}</button>
             </form>
             <form method="post" action="/system-users/{{.Name}}/delete"
                   onsubmit="return confirm('Konto {{.Name}} löschen? Das Home-Verzeichnis bleibt erhalten.')">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-              <button type="submit" class="link danger">löschen</button>
+              <button type="submit" class="small danger">löschen</button>
             </form>
             {{end}}
           </td>
@@ -51,10 +53,10 @@
 </div>
 
 {{if .Selected}}
-<div class="card">
+<div class="card" id="schluessel">
   <div class="card-head">
     <h2>SSH-Schlüssel von <code>{{.Selected}}</code></h2>
-    <a href="/system-users" class="muted">schließen</a>
+    <a href="/system-users" class="button small">schließen</a>
   </div>
 
   <div class="table-wrap">
@@ -72,7 +74,7 @@
                   onsubmit="return confirm('Diesen Schlüssel entfernen? Der Zugang darüber geht verloren.')">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="fingerprint" value="{{.Fingerprint}}">
-              <button type="submit" class="link danger">entfernen</button>
+              <button type="submit" class="small danger">entfernen</button>
             </form>
           </td>
           {{end}}

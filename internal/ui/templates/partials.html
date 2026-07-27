@@ -37,7 +37,7 @@
   <form method="post" action="/logout" class="logout">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">
     <span class="who">{{.User.Username}}<span class="role">{{.User.Role}}</span></span>
-    <button type="submit" class="link">Abmelden</button>
+    <button type="submit" class="small">Abmelden</button>
   </form>
 </nav>
 {{end}}

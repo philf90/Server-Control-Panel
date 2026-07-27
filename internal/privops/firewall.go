@@ -99,9 +99,22 @@ func (s *System) ufwState(ctx context.Context) (FirewallState, bool, error) {
 		Installed: true,
 		Rules:     parseUFWStatus(res.Stdout),
 	}
+
 	if !active {
 		state.Notice = "ufw ist installiert, aber nicht aktiv — die Regeln unten greifen nicht. " +
 			"Der Server nimmt derzeit jede eingehende Verbindung an."
+
+		// "ufw status" gibt im ausgeschalteten Zustand nur "Status: inactive"
+		// aus und keine einzige Regel — die angelegten Regeln stehen trotzdem
+		// in /etc/ufw/user.rules und gelten ab dem Einschalten.
+		//
+		// Ohne diesen zweiten Aufruf entstünde eine Sackgasse: Das Panel
+		// verweigert das Einschalten, solange es keine Regel für seinen
+		// eigenen Port sieht — und sehen kann es keine, solange ufw aus ist.
+		// Der Regelsatz ließe sich speichern, ohne dass sich je etwas ändert.
+		if added, err := s.run(ctx, Command{Name: "ufw", Args: []string{"show", "added"}}); err == nil && added.ExitCode == 0 {
+			state.Rules = parseUFWAdded(added.Stdout)
+		}
 	}
 	return state, true, nil
 }
@@ -351,6 +364,66 @@ func parseNFTAccepts(out string) []FirewallRule {
 			}
 			seen[key] = true
 			rules = append(rules, FirewallRule{Port: port, Protocol: proto})
+		}
+	}
+
+	sort.Slice(rules, func(i, j int) bool {
+		if rules[i].Port != rules[j].Port {
+			return rules[i].Port < rules[j].Port
+		}
+		return rules[i].Protocol < rules[j].Protocol
+	})
+	return rules
+}
+
+// Zeilen von "ufw show added" — die Regeln in Befehlsform, wie sie in
+// /etc/ufw/user.rules stehen:
+//
+//	ufw allow 8443/tcp comment 'Asylum-Panel'
+//	ufw allow from 203.0.113.0/24 to any port 5432 proto tcp comment 'DB'
+//
+// Nur "allow" für eingehenden Verkehr wird gelesen. Alles andere — deny,
+// limit, Weiterleitungen, benannte Profile — bleibt außen vor und damit
+// unangetastet: Was das Panel nicht als verwaltete Regel führt, entfernt es
+// beim Speichern auch nicht.
+var (
+	ufwAddedSimple = regexp.MustCompile(
+		`^ufw allow (\d+)(?:/(tcp|udp))?(?:\s+comment\s+'([^']*)')?$`)
+	ufwAddedFrom = regexp.MustCompile(
+		`^ufw allow from (\S+) to any port (\d+)(?:\s+proto (tcp|udp))?(?:\s+comment\s+'([^']*)')?$`)
+)
+
+func parseUFWAdded(out string) []FirewallRule {
+	var rules []FirewallRule
+
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+
+		if m := ufwAddedSimple.FindStringSubmatch(line); m != nil {
+			port, err := strconv.Atoi(m[1])
+			if err != nil {
+				continue
+			}
+			proto := m[2]
+			if proto == "" {
+				proto = "tcp"
+			}
+			rules = append(rules, FirewallRule{Port: port, Protocol: proto, Comment: m[3]})
+			continue
+		}
+
+		if m := ufwAddedFrom.FindStringSubmatch(line); m != nil {
+			port, err := strconv.Atoi(m[2])
+			if err != nil {
+				continue
+			}
+			proto := m[3]
+			if proto == "" {
+				proto = "tcp"
+			}
+			rules = append(rules, FirewallRule{
+				Port: port, Protocol: proto, Source: m[1], Comment: m[4],
+			})
 		}
 	}
 

@@ -46,6 +46,21 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Aktionen sind Schaltflächen, keine unterstrichenen Wörter.** „sperren",
+  „löschen", „einspielen" waren als Links gestaltet — auf dem Telefon ein
+  Tippziel von wenigen Millimetern, und „löschen" sah aus wie „mehr lesen".
+- **Die Firewall-Maske ist ein Block je Regel** statt einer Tabelle mit vier
+  Eingabefeldern pro Zeile. Schmal ergab die Tabelle vier verschieden breite
+  Felder untereinander, deren Beschriftungen unterschiedlich weit einrückten.
+- **Die Regel für den Panel-Port ist gesetzt und nicht entfernbar.** Sie steht
+  vorausgefüllt an erster Stelle; erzwungen wird sie serverseitig, denn ein
+  schreibgeschütztes Feld ist eine Bitte, keine Sperre. Für SSH schlägt das
+  Panel eine Regel vor — mit dem Port aus `sshd_config`, nicht mit der Annahme
+  22.
+- **Lange Listen auf der Übersicht sind kompakter.** Zellen tragen jetzt eine
+  Rolle: Der Name eines Eintrags wird zur Überschrift der Karte,
+  Begleitangaben laufen in einer gemeinsamen Zeile. Aus sieben Zeilen je
+  Dateisystem werden drei. Ausgeblendet wird nichts.
 - **Die Navigation hatte drei fast gleichlautende Einträge** — `Konten`
   (Systembenutzer), `Benutzer` (Panel-Zugänge) und `Konto` (eigenes Profil).
   Sie heißen jetzt **Systembenutzer**, **Panel-Zugänge** und **Mein Konto**.
@@ -66,6 +81,26 @@ nicht als Release getaggt.
 
 ### Behoben
 
+- **Die Firewall ließ sich nicht einschalten, solange sie aus war.** `ufw
+  status` gibt im ausgeschalteten Zustand nur `Status: inactive` aus und keine
+  einzige Regel — auch dann nicht, wenn längst welche angelegt sind. Das Panel
+  verweigert das Einschalten aber, solange es keine Regel für seinen eigenen
+  Port sieht. Der Regelsatz ließ sich speichern, der Knopf erschien nie, und
+  der Grund war nirgends zu erkennen. Im ausgeschalteten Zustand wird jetzt
+  `ufw show added` gelesen.
+- **Auf der Übersicht stand dieselbe Platte bis zu sieben Mal.** Die
+  systemd-Härtung der eigenen Unit hängt Teile von `/` an weiteren Stellen ein;
+  in `/proc/mounts` sind das eigene Zeilen mit denselben Zahlen. Gleiche
+  Dateisysteme werden jetzt zusammengefasst, die weiteren Einhängepunkte
+  stehen am Eintrag.
+- **Karten auf der Übersicht waren unterschiedlich breit.** Eine IPv6-Adresse
+  in der Netzwerktabelle zog die Rasterspur auf 414 Pixel, während die
+  Nachbarkarte bei 332 blieb — nebeneinander sah das nach zwei Layouts aus.
+  Ursache war `1fr`: Ein Grid-Element hat von sich aus `min-width: auto`.
+- **Geschützte Konten boten „sperren" und „löschen" an.** `root` lässt sich
+  über das Panel nicht verändern — die Prüfung greift serverseitig und lehnt
+  ab. Angeboten wurde es trotzdem, und ein Knopf, der zuverlässig scheitert,
+  ist schlimmer als keiner.
 - **Auf dem Telefon war das Panel kaum bedienbar.** Das Stylesheet hatte keinen
   einzigen Breakpoint — der einzige `@media`-Block galt dem Dunkelmodus. Die
   Navigation brach in vier ausgefranste Zeilen um, und Tabellen liefen aus dem

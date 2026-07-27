@@ -128,7 +128,7 @@
   //
   // Die Namen kommen aus der Kopfzeile derselben Tabelle statt aus einer
   // zweiten Liste hier: Eine Kopie liefe früher oder später auseinander.
-  function labelsOf(tbody) {
+  function spaltenOf(tbody) {
     var table = tbody.closest("table");
     if (!table) {
       return [];
@@ -136,7 +136,7 @@
     return Array.prototype.map.call(
       table.querySelectorAll("thead th"),
       function (th) {
-        return th.textContent.trim();
+        return { label: th.textContent.trim(), rolle: th.dataset.rolle || "" };
       }
     );
   }
@@ -146,13 +146,21 @@
     if (!tbody || !rows) {
       return;
     }
-    var labels = labelsOf(tbody);
+    var spalten = spaltenOf(tbody);
     var frag = document.createDocumentFragment();
     rows.forEach(function (row) {
       var tr = document.createElement("tr");
       render(row).forEach(function (cell, i) {
-        if (labels[i]) {
-          cell.dataset.label = labels[i];
+        var sp = spalten[i];
+        if (!sp) {
+          tr.appendChild(cell);
+          return;
+        }
+        if (sp.label) {
+          cell.dataset.label = sp.label;
+        }
+        if (sp.rolle) {
+          cell.dataset.rolle = sp.rolle;
         }
         tr.appendChild(cell);
       });

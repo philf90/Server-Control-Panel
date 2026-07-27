@@ -29,6 +29,7 @@ type Config struct {
 	Log     Log     `yaml:"log"`
 	Updates Updates `yaml:"updates"`
 	ACME    ACME    `yaml:"acme"`
+	Auth    Auth    `yaml:"auth"`
 
 	// SourcePath ist die Datei, aus der geladen wurde. Kein YAML-Feld: Das
 	// Panel braucht den Pfad, um seine Ergänzung daneben zu schreiben, und
@@ -165,7 +166,35 @@ func Default() Config {
 			Window:    "03:00-05:00",
 			BaseURL:   "https://repo.cloudsrv24.de",
 		},
+		Auth: Auth{
+			WebAuthn: WebAuthn{
+				DisplayName: "Project Asylum",
+			},
+		},
 	}
+}
+
+// Auth bündelt die Einstellungen der Anmeldung, die über Passwort und TOTP
+// hinausgehen.
+type Auth struct {
+	WebAuthn WebAuthn `yaml:"webauthn"`
+}
+
+// WebAuthn steuert die Passkeys. Sie sind ein zusätzlicher zweiter Faktor neben
+// TOTP; ohne getroffene Wahl bleibt alles beim Bewährten.
+type WebAuthn struct {
+	// Enabled schaltet den Passkey-Pfad frei. Vorgabe: aus.
+	Enabled bool `yaml:"enabled"`
+	// RPID ist die registrierbare Domain, an die ein Passkey gebunden wird.
+	// Leer heißt: zur Laufzeit aus dem vollqualifizierten Rechnernamen bzw. den
+	// Zertifikatsnamen ableiten. Über eine IP funktioniert WebAuthn nicht.
+	RPID string `yaml:"rp_id"`
+	// DisplayName steht im Anmeldedialog des Browsers.
+	DisplayName string `yaml:"display_name"`
+	// Origins sind die erlaubten vollständigen Ursprünge. Leer heißt: zur
+	// Laufzeit aus RPID und Panel-Port bilden. Wer hinter einem Reverse-Proxy
+	// unter einem anderen Ursprung erreichbar ist, trägt ihn hier ein.
+	Origins []string `yaml:"origins"`
 }
 
 // Load liest die Konfigurationsdatei, legt die Umgebungsvariablen darüber und
@@ -301,6 +330,22 @@ func (c Config) Validate() error {
 		}
 	default:
 		return fmt.Errorf("server.tls.mode: %q ist unbekannt (selfsigned|acme)", c.Server.TLS.Mode)
+	}
+	if err := c.Auth.WebAuthn.validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validate prüft den WebAuthn-Block. RPID und Origins dürfen leer bleiben (dann
+// werden sie zur Laufzeit abgeleitet); was aber dasteht, muss stimmen — ein
+// falscher Ursprung fiele sonst erst bei der ersten Anmeldung auf.
+func (w WebAuthn) validate() error {
+	for _, o := range w.Origins {
+		u, err := url.Parse(o)
+		if err != nil || u.Scheme != "https" || u.Host == "" {
+			return fmt.Errorf("auth.webauthn.origins: %q ist keine https-Adresse", o)
+		}
 	}
 	return nil
 }

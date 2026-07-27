@@ -97,37 +97,36 @@
         {{if .Locked}}Panel{{else if .Proposed}}Vorschlag{{else if .Rule.Comment}}{{.Rule.Comment}}{{else}}Regel{{end}}
       </legend>
 
-      <div class="feld">
-        <label for="port-{{.Rule.Port}}-{{.Rule.Protocol}}">Port</label>
-        {{if .Locked}}
-        <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" value="{{.Rule.Port}}" readonly>
-        <input type="hidden" name="port" value="{{.Rule.Port}}">
-        {{else}}
-        <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" name="port" value="{{.Rule.Port}}" inputmode="numeric">
-        {{end}}
-      </div>
+      <div class="felder">
+        <div class="feld">
+          <label for="port-{{.Rule.Port}}-{{.Rule.Protocol}}">Port{{if .Locked}} <span class="fest">fest</span>{{end}}</label>
+          {{if .Locked}}
+          <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" value="{{.Rule.Port}}" readonly>
+          <input type="hidden" name="port" value="{{.Rule.Port}}">
+          {{else}}
+          <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" name="port" value="{{.Rule.Port}}" inputmode="numeric">
+          {{end}}
+        </div>
 
-      <div class="feld">
-        <label for="proto-{{.Rule.Port}}-{{.Rule.Protocol}}">Protokoll</label>
-        {{if .Locked}}
-        <input type="text" id="proto-{{.Rule.Port}}-{{.Rule.Protocol}}" value="{{.Rule.Protocol}}" readonly>
-        <input type="hidden" name="protocol" value="{{.Rule.Protocol}}">
-        {{else}}
-        <select id="proto-{{.Rule.Port}}-{{.Rule.Protocol}}" name="protocol">
-          <option value="tcp" {{if eq .Rule.Protocol "tcp"}}selected{{end}}>tcp</option>
-          <option value="udp" {{if eq .Rule.Protocol "udp"}}selected{{end}}>udp</option>
-        </select>
-        {{end}}
-      </div>
+        <div class="feld">
+          <label for="proto-{{.Rule.Port}}-{{.Rule.Protocol}}">Protokoll{{if .Locked}} <span class="fest">fest</span>{{end}}</label>
+          <select id="proto-{{.Rule.Port}}-{{.Rule.Protocol}}"
+                  {{if .Locked}}disabled{{else}}name="protocol"{{end}}>
+            <option value="tcp" {{if eq .Rule.Protocol "tcp"}}selected{{end}}>tcp</option>
+            <option value="udp" {{if eq .Rule.Protocol "udp"}}selected{{end}}>udp</option>
+          </select>
+          {{if .Locked}}<input type="hidden" name="protocol" value="{{.Rule.Protocol}}">{{end}}
+        </div>
 
-      <div class="feld">
-        <label for="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}">Quelle</label>
-        <input type="text" id="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}" name="source" value="{{.Rule.Source}}" placeholder="überall">
-      </div>
+        <div class="feld">
+          <label for="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}">Quelle</label>
+          <input type="text" id="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}" name="source" value="{{.Rule.Source}}" placeholder="überall">
+        </div>
 
-      <div class="feld">
-        <label for="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}">Kommentar</label>
-        <input type="text" id="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}" name="comment" value="{{.Rule.Comment}}" maxlength="120">
+        <div class="feld">
+          <label for="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}">Kommentar</label>
+          <input type="text" id="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}" name="comment" value="{{.Rule.Comment}}" maxlength="120">
+        </div>
       </div>
 
       {{if .Note}}<p class="hint">{{.Note}}</p>{{end}}
@@ -136,24 +135,26 @@
 
     <fieldset class="rule neu">
       <legend>Neue Regel</legend>
-      <div class="feld">
-        <label for="port-neu">Port</label>
-        <input type="text" id="port-neu" name="port" placeholder="443" inputmode="numeric">
-      </div>
-      <div class="feld">
-        <label for="proto-neu">Protokoll</label>
-        <select id="proto-neu" name="protocol">
-          <option value="tcp">tcp</option>
-          <option value="udp">udp</option>
-        </select>
-      </div>
-      <div class="feld">
-        <label for="quelle-neu">Quelle</label>
-        <input type="text" id="quelle-neu" name="source" placeholder="überall">
-      </div>
-      <div class="feld">
-        <label for="kommentar-neu">Kommentar</label>
-        <input type="text" id="kommentar-neu" name="comment" maxlength="120" placeholder="wofür">
+      <div class="felder">
+        <div class="feld">
+          <label for="port-neu">Port</label>
+          <input type="text" id="port-neu" name="port" placeholder="443" inputmode="numeric">
+        </div>
+        <div class="feld">
+          <label for="proto-neu">Protokoll</label>
+          <select id="proto-neu" name="protocol">
+            <option value="tcp">tcp</option>
+            <option value="udp">udp</option>
+          </select>
+        </div>
+        <div class="feld">
+          <label for="quelle-neu">Quelle</label>
+          <input type="text" id="quelle-neu" name="source" placeholder="überall">
+        </div>
+        <div class="feld">
+          <label for="kommentar-neu">Kommentar</label>
+          <input type="text" id="kommentar-neu" name="comment" maxlength="120" placeholder="wofür">
+        </div>
       </div>
     </fieldset>
 

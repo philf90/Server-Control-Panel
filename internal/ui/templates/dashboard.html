@@ -4,7 +4,7 @@
   <div class="card stat">
     <h2>CPU</h2>
     <div class="value"><span data-live="cpu.total">{{pct .Snapshot.CPU.Total}}</span> %</div>
-    <div class="bar"><span data-live-width="cpu.total" style="width:{{pct .Snapshot.CPU.Total}}%"></span></div>
+    <progress class="bar" max="100" value="{{pct .Snapshot.CPU.Total}}" data-live-value="cpu.total" aria-hidden="true"></progress>
     <dl class="mini">
       <dt>iowait</dt><dd><span data-live="cpu.iowait">{{pct .Snapshot.CPU.IOWait}}</span> %</dd>
       <dt>steal</dt><dd><span data-live="cpu.steal">{{pct .Snapshot.CPU.Steal}}</span> %</dd>
@@ -14,7 +14,7 @@
   <div class="card stat">
     <h2>Arbeitsspeicher</h2>
     <div class="value"><span data-live="memory.used_pct">{{pct .Snapshot.Memory.UsedPct}}</span> %</div>
-    <div class="bar"><span data-live-width="memory.used_pct" style="width:{{pct .Snapshot.Memory.UsedPct}}%"></span></div>
+    <progress class="bar" max="100" value="{{pct .Snapshot.Memory.UsedPct}}" data-live-value="memory.used_pct" aria-hidden="true"></progress>
     <dl class="mini">
       <dt>belegt</dt><dd data-live-bytes="memory.used">{{bytes .Snapshot.Memory.Used}}</dd>
       <dt>gesamt</dt><dd>{{bytes .Snapshot.Memory.Total}}</dd>
@@ -62,7 +62,7 @@
           <td data-label="Belegt" data-rolle="neben">{{bytes .Used}}</td>
           <td data-label="Gesamt" data-rolle="neben">{{bytes .Total}}</td>
           <td data-label="Auslastung">
-            <div class="bar inline"><span style="width:{{pct .UsedPct}}%"></span></div>
+            <progress class="bar inline" max="100" value="{{pct .UsedPct}}" aria-hidden="true"></progress>
             {{pct .UsedPct}} %
           </td>
           <td {{if ge .InodesPct 90.0}}class="warn"{{end}} data-label="Inodes" data-rolle="neben">{{pct .InodesPct}} %</td>

@@ -90,7 +90,7 @@ func TestStylesheetHatBreakpoints(t *testing.T) {
 	}
 	css := string(raw)
 
-	for _, breite := range []string{"max-width: 900px", "max-width: 600px"} {
+	for _, breite := range []string{"max-width: 900px"} {
 		if !strings.Contains(css, breite) {
 			t.Errorf("app.css hat keinen Breakpoint für %q", breite)
 		}
@@ -98,5 +98,60 @@ func TestStylesheetHatBreakpoints(t *testing.T) {
 	// Ohne diese Regel klappt die Navigation schmal nicht mehr zu.
 	if !strings.Contains(css, ".nav-toggle:not(:checked) ~ .menu") {
 		t.Error("die Umschaltung der Navigation fehlt")
+	}
+}
+
+// TestKeineInlineStyles: Die Content-Security-Policy des Panels erlaubt kein
+// style-Attribut ("style-src 'self'" ohne unsafe-inline). Der Browser verwirft
+// so ein Attribut stillschweigend — die Seite sieht dann nicht kaputt aus,
+// sondern nur falsch.
+//
+// Genau das war bei den Auslastungsbalken der Fall: style="width:38%" kam nie
+// an, die Balken standen immer auf 100 %. Bei CPU und Arbeitsspeicher fiel es
+// nicht auf, weil live.js die Breite kurz darauf über das CSSOM nachzog; die
+// Balken der Dateisysteme zog niemand nach.
+func TestKeineInlineStyles(t *testing.T) {
+	dateien, err := templateFS.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range dateien {
+		raw, err := templateFS.ReadFile("templates/" + d.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(raw), "style=\"") || strings.Contains(string(raw), "style='") {
+			t.Errorf("%s enthält ein style-Attribut — die CSP verwirft es, "+
+				"die Angabe kommt beim Nutzer nie an", d.Name())
+		}
+	}
+}
+
+// TestBalkenOhneInlineBreite hält fest, wodurch der Inline-Style ersetzt
+// wurde: ein <progress>, das seinen Wert in einem Attribut trägt.
+func TestBalkenOhneInlineBreite(t *testing.T) {
+	raw, err := templateFS.ReadFile("templates/dashboard.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dashboard := string(raw)
+
+	if strings.Count(dashboard, "<progress") != 3 {
+		t.Errorf("%d Balken, erwartet 3 (CPU, Arbeitsspeicher, Dateisysteme)",
+			strings.Count(dashboard, "<progress"))
+	}
+	if strings.Contains(dashboard, "data-live-width") {
+		t.Error("data-live-width setzte eine Breite — der Balken trägt jetzt einen Wert")
+	}
+
+	css, err := staticFS.ReadFile("static/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Ohne die herstellereigenen Pseudoelemente bleibt der Balken ungefärbt.
+	for _, teil := range []string{"::-webkit-progress-value", "::-moz-progress-bar"} {
+		if !strings.Contains(string(css), teil) {
+			t.Errorf("app.css färbt %s nicht ein", teil)
+		}
 	}
 }

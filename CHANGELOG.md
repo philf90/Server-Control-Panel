@@ -46,6 +46,12 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Der schmale Modus beginnt bei 900 statt 600 Pixeln** — dieselbe Grenze wie
+  für die Navigation. Dazwischen stand sonst eine fünfspaltige Tabelle mit
+  umbrechendem Text; bei 768 Pixeln schwankten die Zeilenhöhen um 75 Pixel.
+- **Festgesetzte Felder sehen aus wie alle anderen.** Was fest ist, sagt die
+  Beschriftung, nicht ein abweichender Hintergrund. Der Speichern-Knopf ist so
+  breit wie sein Text und nicht mehr wie die Seite.
 - **Aktionen sind Schaltflächen, keine unterstrichenen Wörter.** „sperren",
   „löschen", „einspielen" waren als Links gestaltet — auf dem Telefon ein
   Tippziel von wenigen Millimetern, und „löschen" sah aus wie „mehr lesen".
@@ -81,6 +87,24 @@ nicht als Release getaggt.
 
 ### Behoben
 
+- **Die Auslastungsbalken standen immer auf 100 %.** Ihre Breite kam aus
+  einem `style`-Attribut, und die Content-Security-Policy des Panels erlaubt
+  keine Inline-Styles — der Browser verwarf die Angabe stillschweigend. Bei
+  CPU und Arbeitsspeicher fiel es nicht auf, weil `live.js` die Breite kurz
+  darauf über das CSSOM nachzog; die Balken der Dateisysteme zog niemand nach.
+  Der Balken ist jetzt ein `<progress>` und trägt seinen Wert in einem
+  Attribut. Ein Test wacht darüber, dass kein `style`-Attribut zurückkehrt.
+- **Durchsatzwerte unter 1 KiB standen ungerundet da** — „385.76365553133 B/s"
+  in der Netzwerktabelle. Die Go-Seite schnitt ab, die Browserseite nicht.
+- **Die Dienstliste sprang zeilenweise auf und ab.** Unter 1200 Pixeln
+  Fensterbreite brachen die Aktionsknöpfe um, wodurch aus einer 54 Pixel hohen
+  Zeile eine 99 Pixel hohe wurde. Die Knöpfe bleiben jetzt nebeneinander, und
+  Zustand samt Unterzustand stehen in einer Zeile.
+- **Die Felder der Firewall-Maske waren verschieden breit.** Ein `<fieldset>`
+  rendert seinen Inhalt in einer anonymen Box und verhält sich als
+  Rastercontainer uneinheitlich: Blöcke mit Hinweistext bekamen 214 Pixel
+  breite Spalten, Blöcke ohne 271. Das Raster sitzt jetzt in einem eigenen
+  Behälter.
 - **Die Firewall ließ sich nicht einschalten, solange sie aus war.** `ufw
   status` gibt im ausgeschalteten Zustand nur `Status: inactive` aus und keine
   einzige Regel — auch dann nicht, wenn längst welche angelegt sind. Das Panel

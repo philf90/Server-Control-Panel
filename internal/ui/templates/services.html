@@ -26,7 +26,7 @@
         <tr {{if .Failed}}class="warn"{{end}}>
           <td data-label="Unit"><a href="/services/{{.Unit}}"><code>{{.Unit}}</code></a></td>
           <td class="muted" data-label="Beschreibung">{{.Description}}</td>
-          <td data-label="Zustand">
+          <td class="zustand" data-label="Zustand">
             <span class="badge {{if .Failed}}error{{else if .Running}}ok{{end}}">{{.Active}}</span>
             <span class="muted">{{.Sub}}</span>
           </td>

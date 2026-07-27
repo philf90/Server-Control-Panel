@@ -21,7 +21,9 @@
 
   function formatBytes(b) {
     if (b < 1024) {
-      return b + " B";
+      // Gerundet, nicht roh: Die Durchsatzwerte sind Fließkommazahlen, und
+      // ohne diese Zeile stand in der Netzwerktabelle "385.76365553133 B/s".
+      return Math.round(b) + " B";
     }
     var units = ["KiB", "MiB", "GiB", "TiB", "PiB"];
     var i = -1;
@@ -67,10 +69,12 @@
       }
     });
 
-    document.querySelectorAll("[data-live-width]").forEach(function (el) {
-      var v = pick(snapshot, el.getAttribute("data-live-width"));
+    document.querySelectorAll("[data-live-value]").forEach(function (el) {
+      var v = pick(snapshot, el.getAttribute("data-live-value"));
       if (typeof v === "number") {
-        el.style.width = Math.max(0, Math.min(100, v)).toFixed(1) + "%";
+        // Kein el.style.width: Der Balken ist ein <progress>, und die
+        // Content-Security-Policy des Panels lässt keine Inline-Styles zu.
+        el.value = Math.max(0, Math.min(100, v));
       }
     });
 

@@ -129,20 +129,38 @@ main.narrow {
 .stat .value { font-size: 2rem; font-weight: 600; line-height: 1.1; }
 .stat .value.small { font-size: 1.25rem; }
 
+/* Der Auslastungsbalken ist ein <progress> und kein div mit Inline-Breite.
+ *
+ * Die Content-Security-Policy des Panels erlaubt kein style-Attribut
+ * ("style-src 'self'" ohne unsafe-inline). Ein style="width:38%" wird vom
+ * Browser stillschweigend verworfen — der Balken stand dann immer auf 100 %.
+ * Bei CPU und Arbeitsspeicher fiel das nicht auf, weil live.js die Breite
+ * kurz darauf über das CSSOM nachzog; die Balken der Dateisysteme haben
+ * niemand nachgezogen und waren immer voll.
+ *
+ * <progress> trägt seinen Wert in einem Attribut. Das ist CSP-fest, braucht
+ * kein JavaScript und ist obendrein das Element, das die Sache meint.
+ */
 .bar {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
   height: 6px;
-  background: var(--bar-bg);
+  border: none;
   border-radius: 3px;
-  overflow: hidden;
+  background: var(--bar-bg);
   margin: 0.6rem 0;
+  overflow: hidden;
 }
 
-.bar span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.4s ease;
-}
+/* Die Teile eines <progress> lassen sich nur über herstellereigene
+   Pseudoelemente einfärben, und sie dürfen nicht in einer gemeinsamen
+   Regelgruppe stehen: Kennt ein Browser eines davon nicht, verwirft er die
+   ganze Regel. */
+.bar::-webkit-progress-bar { background: var(--bar-bg); border-radius: 3px; }
+.bar::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
+.bar::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 
 .bar.inline { display: inline-block; width: 5rem; margin: 0 0.5rem 0 0; vertical-align: middle; }
 
@@ -163,8 +181,18 @@ td.muted, .muted { color: var(--muted); }
 td.nowrap { white-space: nowrap; }
 tr.warn td { color: var(--warn); }
 tr.muted-row td { opacity: 0.55; }
-td.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+/* Die Knöpfe einer Zeile bleiben nebeneinander. Umbrachen sie, wurde aus
+   einer 54 Pixel hohen Zeile eine 99 Pixel hohe, und die Liste sprang
+   zeilenweise auf und ab — bei 1024 Pixeln Fensterbreite gemessen.
+   flex-wrap: nowrap sorgt außerdem dafür, dass die Tabelle der Spalte von
+   vornherein genug Platz zuteilt: Ihre Mindestbreite ist dann die Summe der
+   Knöpfe und nicht der breiteste einzelne. */
+td.actions { display: flex; flex-wrap: nowrap; gap: 0.5rem; justify-content: flex-end; }
 td.actions form { margin: 0; }
+
+/* Zustand und Unterzustand gehören in eine Zeile — "active" über "exited"
+   liest sich wie zwei Angaben und macht die Zeile höher. */
+td.zustand { white-space: nowrap; }
 
 .badge {
   display: inline-block;
@@ -421,14 +449,22 @@ pre.logs span { display: block; }
 
 .rules-form { display: grid; gap: 0.75rem; }
 
+/* Das Raster sitzt in einem eigenen Behälter und nicht auf dem <fieldset>
+   selbst: Ein fieldset rendert seinen Inhalt in einer anonymen Box, und als
+   Rastercontainer verhielt es sich in Chromium uneinheitlich — Blöcke mit
+   einem Hinweistext bekamen 214 Pixel breite Spalten, Blöcke ohne 271. Genau
+   das ließ die Maske unfertig aussehen. */
 fieldset.rule {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 0.6rem 1rem;
   margin: 0;
   padding: 0.75rem 1rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+fieldset.rule .felder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.6rem 1rem;
 }
 
 fieldset.rule legend {
@@ -441,17 +477,38 @@ fieldset.rule .feld { display: grid; gap: 0.2rem; }
 fieldset.rule label { margin: 0; font-size: 0.78rem; color: var(--muted); }
 fieldset.rule input,
 fieldset.rule select { width: 100%; margin: 0; padding: 0.4rem 0.55rem; }
-fieldset.rule .hint { grid-column: 1 / -1; margin: 0; }
+fieldset.rule .hint { margin: 0.6rem 0 0; }
 
 /* Die Regel, ohne die das Panel nach dem Einschalten nicht mehr erreichbar
-   wäre. Sie ist sichtbar festgesetzt — erzwungen wird sie serverseitig. */
+   wäre. Sie ist festgesetzt — erzwungen wird sie serverseitig.
+ *
+ * Die Felder sehen aus wie alle anderen: gleiche Größe, gleiche Farbe. Was
+ * fest ist, sagt die Beschriftung, nicht ein abweichender Hintergrund. Eine
+ * Maske, in der jede zweite Zeile anders aussieht, wirkt kaputt — und der
+ * Unterschied zwischen "grau" und "nicht grau" erklärt ohnehin nichts. */
 fieldset.rule.locked { border-color: var(--accent); }
-fieldset.rule.locked input[readonly] {
-  background: var(--bar-bg);
-  color: var(--muted);
-  cursor: not-allowed;
-}
 fieldset.rule.proposed { border-style: dashed; }
+
+.fest {
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+fieldset.rule input[readonly],
+fieldset.rule select[disabled] {
+  color: var(--fg);
+  opacity: 1;
+  cursor: default;
+}
+
+/* Der Knopf ist so breit wie sein Text. Als Rasterelement zöge er sich sonst
+   über die ganze Zeile — bei 1400 Pixeln ein Speichern-Knopf von einem Meter. */
+.rules-form > button { justify-self: start; margin-top: 0.25rem; }
 
 .sr-label {
   position: absolute;
@@ -546,9 +603,14 @@ a { color: var(--accent); }
   .menu a.active { border-left-color: var(--accent); }
 }
 
-/* ------------------------------------------------- bis 600 px: Inhalte --- */
+/* ------------------------------------------------- bis 900 px: Inhalte --- */
 
-@media (max-width: 600px) {
+/* Dieselbe Grenze wie für die Navigation: Es gibt einen schmalen Modus, nicht
+   zwei. Zwischen 600 und 900 Pixeln blieb sonst eine fünfspaltige Tabelle
+   stehen, deren Beschreibungsspalte über mehrere Zeilen lief — bei 768 Pixeln
+   schwankten die Zeilenhöhen um 75 Pixel. Eine Kartenliste ist dort besser
+   lesbar als eine gequetschte Tabelle. */
+@media (max-width: 900px) {
   main { padding: 1rem 0.75rem 2rem; }
   main.narrow { padding-top: 1.5rem; }
 
@@ -709,7 +771,7 @@ a { color: var(--accent); }
 /* 159 Units bei zehn sichtbaren Zeilen sind keine Liste, sondern ein
    Scrollband. Suche und Filter bleiben deshalb am oberen Rand stehen, damit
    man nicht für jede Änderung des Filters zurückscrollen muss. */
-@media (max-width: 600px) {
+@media (max-width: 900px) {
   .filter-form {
     position: sticky;
     top: 0;

@@ -2,7 +2,6 @@ package httpd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/philf90/asylum/internal/privops"
+	"github.com/philf90/asylum/internal/store"
 )
 
 // Der Dateimanager ist das erste Modul, dessen Ziel aus der Anfrage kommt und
@@ -129,7 +129,7 @@ func (s *Server) handleFileDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", anhang(eintrag.Name))
 	w.Header().Set("Cache-Control", "no-store")
 
-	s.audit(r, "files.download", eintrag.Path, "ok", formatBytesKurz(eintrag.Size))
+	s.audit(r, "files.download", eintrag.Path, store.ResultOK, formatBytesKurz(eintrag.Size))
 	http.ServeContent(w, r, eintrag.Name, eintrag.ModTime, leser)
 }
 
@@ -160,10 +160,10 @@ func (s *Server) handleFileArchive(w http.ResponseWriter, r *http.Request) {
 		// nicht. Der Empfänger merkt es am unvollständigen Archiv — gzip und tar
 		// haben beide einen Abschluss, der dann fehlt.
 		s.log.Error("Archiv abgebrochen", "path", pfad, "err", err)
-		s.audit(r, "files.archive", pfad, "fehler", err.Error())
+		s.audit(r, "files.archive", pfad, store.ResultError, err.Error())
 		return
 	}
-	s.audit(r, "files.archive", pfad, "ok",
+	s.audit(r, "files.archive", pfad, store.ResultOK,
 		fmt.Sprintf("%d Dateien, %s, %d ausgelassen", res.Files, formatBytesKurz(res.Bytes), res.Skipped))
 }
 
@@ -293,28 +293,14 @@ func anhang(name string) string {
 		ascii.String(), url.PathEscape(name))
 }
 
-// filesFehler übersetzt einen Fehler des Dateimanagers in einen Statuscode.
-//
-// Die Unterscheidung ist mehr als Kosmetik: Ein abgelehnter Pfad ist etwas
-// anderes als ein fehlender, und ein Bedienfehler etwas anderes als ein
-// Serverfehler. Ohne sie stünde für jeden Fall 500 im Protokoll.
+// filesFehler beantwortet einen Fehler des Dateimanagers mit passendem
+// Statuscode. Die Zuordnung steht in statusVon.
 func (s *Server) filesFehler(w http.ResponseWriter, r *http.Request, err error) {
-	nachricht := err.Error()
-	switch {
-	case errors.Is(err, privops.ErrDenied):
-		s.renderError(w, r, http.StatusForbidden, nachricht)
-	case errors.Is(err, privops.ErrConflict):
-		s.renderError(w, r, http.StatusConflict, nachricht)
-	case errors.Is(err, privops.ErrTooLarge):
-		s.renderError(w, r, http.StatusRequestEntityTooLarge, nachricht)
-	case errors.Is(err, privops.ErrNotRegular):
-		s.renderError(w, r, http.StatusUnsupportedMediaType, nachricht)
-	case strings.Contains(nachricht, "gibt es nicht"):
-		s.renderError(w, r, http.StatusNotFound, nachricht)
-	default:
+	status := statusVon(err)
+	if status == http.StatusBadRequest {
 		s.log.Warn("Dateimanager", "path", r.URL.Query().Get("path"), "err", err)
-		s.renderError(w, r, http.StatusBadRequest, nachricht)
 	}
+	s.renderError(w, r, status, err.Error())
 }
 
 // formatBytesKurz ist die Größenangabe für Audit-Einträge.

@@ -1,0 +1,161 @@
+{{define "file-entry"}}{{template "header" .}}
+{{with .Content}}
+<div class="pagehead">
+  <div>
+    <h1>{{.Entry.Name}}</h1>
+    <span class="sub">
+      {{if .Entry.IsDir}}Ordner{{else if eq .Entry.Kind "verweis"}}Verweis{{else if eq .Entry.Kind "sonstiges"}}besonderer Eintrag{{else}}Datei · {{size .Entry.Size}}{{end}}
+      {{if not .Entry.Writable}} · <span class="warn-text">nur lesbar</span>{{end}}
+    </span>
+  </div>
+  <div class="right">
+    <a class="button secondary small" href="{{.ListLink}}">zurück zur Liste</a>
+    {{if .Entry.IsDir}}
+      <a class="button small" href="/files/archive?path={{.Entry.Path | urlquery}}">als tar.gz laden</a>
+    {{else if .Entry.Readable}}
+      <a class="button small" href="/files/download?path={{.Entry.Path | urlquery}}">herunterladen</a>
+    {{end}}
+  </div>
+</div>
+
+<nav class="krumen" aria-label="Pfad">
+  {{range .Crumbs}}<a href="/files?path={{.Path | urlquery}}">{{.Name}}</a>{{end}}
+</nav>
+
+{{if .Entry.Sensitive}}
+<div class="alert warn">
+  Dieser Eintrag ist gesperrt: {{.Entry.SensitiveReason}}. Das Panel liefert seinen Inhalt
+  nicht aus und ändert ihn nicht — auch nicht für die Rolle Owner. Über SSH ist die Datei
+  erreichbar.
+</div>
+{{end}}
+
+<div class="card">
+  <h2>Angaben</h2>
+  <dl>
+    <dt>Pfad</dt><dd><code>{{.Entry.Path}}</code></dd>
+    <dt>Rechte</dt><dd><code>{{.Entry.ModeOctal}}</code> <span class="muted">{{.Entry.ModeText}}</span></dd>
+    <dt>Eigentümer</dt><dd>{{.Entry.Owner}}:{{.Entry.Group}} <span class="muted">({{.Entry.UID}}:{{.Entry.GID}})</span></dd>
+    <dt>Geändert</dt><dd>{{datetime .Entry.ModTime}}</dd>
+    {{if eq .Entry.Kind "verweis"}}
+    <dt>Ziel</dt><dd><code>{{.Entry.LinkTarget}}</code>{{if .Entry.LinkBroken}} <span class="badge error">gibt es nicht</span>{{end}}</dd>
+    {{end}}
+    {{if .Measurement}}
+    <dt>Enthält</dt>
+    <dd>
+      {{.Measurement.Files}} Dateien, {{.Measurement.Dirs}} Ordner{{if .Measurement.Symlinks}}, {{.Measurement.Symlinks}} Verweise{{end}} · {{size .Measurement.Bytes}}
+      {{if .Measurement.Sensitive}}<br><span class="warn-text">{{.Measurement.Sensitive}} gesperrte Einträge darunter — rekursive Eingriffe werden deshalb abgelehnt.</span>{{end}}
+      {{if .Measurement.Mounts}}<br><span class="warn-text">Darunter ist ein weiteres Dateisystem eingehängt — rekursive Eingriffe werden deshalb abgelehnt.</span>{{end}}
+      {{if .Measurement.Truncated}}<br><span class="muted">Zählung abgebrochen: zu viele Einträge.</span>{{end}}
+    </dd>
+    {{end}}
+  </dl>
+</div>
+
+{{if and $.CanWrite .Entry.Writable (not .Entry.Sensitive)}}
+<div class="section">
+  <div class="sechead"><span class="seclabel">Umbenennen und verschieben</span></div>
+  <div class="card">
+    <form method="post" action="/files/rename" class="row-form">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="path" value="{{.Entry.Path}}">
+      <label>Neuer Name
+        <input type="text" name="name" value="{{.Entry.Name}}" required maxlength="255">
+      </label>
+      <div class="submit"><button type="submit" class="small">umbenennen</button></div>
+    </form>
+
+    <form method="post" action="/files/move" class="row-form">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="path" value="{{.Entry.Path}}">
+      <label>Zielordner
+        <input type="text" name="target" value="{{.Dir}}" required placeholder="/srv/daten">
+      </label>
+      <div class="submit"><button type="submit" class="small">verschieben</button></div>
+    </form>
+
+    <form method="post" action="/files/copy" class="row-form">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="path" value="{{.Entry.Path}}">
+      <label>Kopieren nach
+        <input type="text" name="target" value="{{.Dir}}" required placeholder="/srv/daten">
+      </label>
+      <div class="submit"><button type="submit" class="small">kopieren</button></div>
+    </form>
+    <p class="muted klein">
+      Verschieben über eine Dateisystemgrenze kopiert und löscht danach — erst nach dem
+      geglückten Kopieren, nie davor. Große Bäume laufen als Hintergrundvorgang weiter,
+      auch wenn Sie die Seite verlassen.
+    </p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="sechead"><span class="seclabel">Rechte und Eigentümer</span></div>
+  <div class="card">
+    <form method="post" action="/files/mode" class="row-form">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="path" value="{{.Entry.Path}}">
+      <label>Rechte (oktal)
+        <input type="text" name="mode" value="{{.Entry.ModeOctal}}" pattern="[0-7]{3,4}"
+               inputmode="numeric" placeholder="0644">
+      </label>
+      <label>Eigentümer
+        <select name="owner">
+          <option value="">unverändert</option>
+          {{range $.Content.Users}}<option value="{{.}}"{{if eq . $.Content.Entry.Owner}} selected{{end}}>{{.}}</option>{{end}}
+        </select>
+      </label>
+      <label>Gruppe
+        <select name="group">
+          <option value="">unverändert</option>
+          {{range $.Content.Groups}}<option value="{{.}}"{{if eq . $.Content.Entry.Group}} selected{{end}}>{{.}}</option>{{end}}
+        </select>
+      </label>
+      {{if .Entry.IsDir}}
+      <label class="mitcheck">
+        <input type="checkbox" name="recursive" value="1">
+        auch alles darunter
+      </label>
+      {{end}}
+      <div class="submit"><button type="submit" class="small">anwenden</button></div>
+    </form>
+    <p class="muted klein">
+      Bei einem Verweis gilt ein Eigentümerwechsel dem Verweis selbst, nicht seinem Ziel;
+      Rechte lassen sich auf einem Verweis gar nicht setzen — sie gehören immer dem Ziel,
+      und das liegt möglicherweise dort, wo das Panel nichts zu ändern hat.
+    </p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="sechead"><span class="seclabel">Löschen</span></div>
+  <div class="card">
+    <form method="post" action="/files/delete"
+          onsubmit="return confirm({{.LoeschFrage}})">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="path" value="{{.Entry.Path}}">
+      <p class="muted">
+        {{if .Measurement}}
+          Gelöscht wird der Ordner mit allem darunter: {{.Measurement.Files}} Dateien,
+          {{.Measurement.Dirs}} Ordner, {{size .Measurement.Bytes}}. Ein Papierkorb gibt es nicht.
+        {{else}}
+          Gelöscht wird {{.Entry.Name}}. Ein Papierkorb gibt es nicht.
+        {{end}}
+      </p>
+      <button type="submit" class="small danger">endgültig löschen</button>
+    </form>
+  </div>
+</div>
+{{else if not $.CanWrite}}
+<p class="muted klein fuss">
+  Ihre Rolle darf lesen und herunterladen, aber nichts ändern.
+</p>
+{{else if not .Entry.Writable}}
+<p class="muted klein fuss">
+  Dieser Pfad liegt außerhalb der Bereiche, in denen das Panel schreiben darf. Lesen und
+  Herunterladen bleiben möglich.
+</p>
+{{end}}
+{{end}}
+{{template "footer" .}}{{end}}

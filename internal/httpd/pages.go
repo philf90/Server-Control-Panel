@@ -327,6 +327,29 @@ type filesPage struct {
 	Free uint64
 }
 
+// fileEntryPage ist die Detailseite eines Eintrags.
+//
+// Eigene Seite statt Formularen in jeder Tabellenzeile: Umbenennen,
+// Verschieben, Rechte und Löschen brauchen Eingabefelder, und zweitausend
+// Zeilen mit je vier Formularen wären weder auf dem Telefon bedienbar noch
+// schnell zu rendern. Dieselbe Aufteilung wie bei den Diensten.
+type fileEntryPage struct {
+	Entry  privops.FileEntry
+	Dir    string
+	Crumbs []crumb
+	// Measurement ist bei Verzeichnissen die Zählung darunter. Sie steht neben
+	// dem Löschknopf: "4.132 Dateien, 1,2 GiB" ist die Rückfrage, die zählt.
+	Measurement *privops.Measurement
+	// Users und Groups sind die Namen des Systems für die Auswahl beim
+	// Eigentümerwechsel. Freitext gibt es dort nicht.
+	Users  []string
+	Groups []string
+	// Editable sagt, ob der Editor angeboten wird.
+	Editable bool
+	// Text ist der Inhalt für den Editor, falls die Seite ihn zeigt.
+	Text *privops.TextFile
+}
+
 // crumb ist ein Bestandteil des klickbaren Pfads.
 type crumb struct {
 	Name string

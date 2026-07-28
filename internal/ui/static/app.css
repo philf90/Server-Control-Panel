@@ -1382,3 +1382,16 @@ table.dateien .hoch:hover { color: var(--accent); }
   table.dateien td.num { text-align: left; }
   .krumen { font-size: 0.82rem; }
 }
+
+/* Ein Kontrollkästchen samt Beschriftung in einer Rasterzeile von .row-form.
+   Ohne die Regel läge das Kästchen über dem Text und die Zeile wäre doppelt so
+   hoch wie ihre Nachbarn. */
+label.mitcheck {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0;
+  padding-bottom: 0.15rem;
+  font-size: 0.9rem;
+}
+label.mitcheck input { width: auto; margin: 0; }

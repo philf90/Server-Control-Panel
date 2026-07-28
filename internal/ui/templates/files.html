@@ -35,6 +35,32 @@
 </div>
 {{end}}
 
+{{if and $.CanWrite .Dir.Writable (not .Suche)}}
+<div class="card anlegen">
+  <form method="post" action="/files/mkdir" class="row-form">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <input type="hidden" name="dir" value="{{.Path}}">
+    <label>Neuer Ordner
+      <input type="text" name="name" required maxlength="255" placeholder="Name">
+    </label>
+    <div class="submit"><button type="submit" class="small">anlegen</button></div>
+  </form>
+  <form method="post" action="/files/touch" class="row-form">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <input type="hidden" name="dir" value="{{.Path}}">
+    <label>Neue leere Datei
+      <input type="text" name="name" required maxlength="255" placeholder="name.conf">
+    </label>
+    <div class="submit"><button type="submit" class="small">anlegen</button></div>
+  </form>
+</div>
+{{else if and $.CanWrite (not .Dir.Writable) (not .Suche)}}
+<p class="muted klein">
+  In diesem Verzeichnis darf das Panel nichts anlegen — es liegt außerhalb der
+  Schreibbereiche. Lesen und Herunterladen bleiben möglich.
+</p>
+{{end}}
+
 {{if .Truncated}}
 <div class="alert warn">
   Die Liste ist nicht vollständig: {{.TruncatedReason}}. Ein Verzeichnis mit sehr vielen
@@ -81,11 +107,10 @@
           <td class="actions">
             {{if .Sensitive}}
               <span class="muted klein">{{.SensitiveReason}}</span>
-            {{else if .IsDir}}
-              <a class="button small" href="/files/archive?path={{.Path | urlquery}}">tar.gz</a>
             {{else if eq .Kind "datei"}}
               <a class="button small" href="/files/download?path={{.Path | urlquery}}">laden</a>
             {{end}}
+            <a class="button small secondary" href="{{$.Content.EntryLink .Path}}">Details</a>
           </td>
         </tr>
         {{else}}

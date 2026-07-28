@@ -24,6 +24,13 @@ import (
 // wäre für eine Prüfung unbrauchbar.
 func newFilesServer(t *testing.T) (*Server, string) {
 	t.Helper()
+	return newFilesServerMit(t, nil)
+}
+
+// newFilesServerMit erlaubt es, die Politik anzupassen — etwa um eine Sperre
+// tiefer im Baum zu prüfen.
+func newFilesServerMit(t *testing.T, anpassen func(*privops.FilesPolicy)) (*Server, string) {
+	t.Helper()
 	s := newTestServer(t)
 
 	wurzel, err := filepath.EvalSymlinks(t.TempDir())
@@ -34,12 +41,16 @@ func newFilesServer(t *testing.T) (*Server, string) {
 		t.Fatal(err)
 	}
 
-	fsys, err := privops.NewFileSystem(privops.FilesPolicy{
+	pol := privops.FilesPolicy{
 		ReadableRoots: []string{wurzel},
 		WritableRoots: []string{filepath.Join(wurzel, "schreibbar")},
 		DeniedPaths:   []string{filepath.Join(wurzel, "*.geheim")},
 		BackupDir:     filepath.Join(wurzel, "sicherungen"),
-	})
+	}
+	if anpassen != nil {
+		anpassen(&pol)
+	}
+	fsys, err := privops.NewFileSystem(pol)
 	if err != nil {
 		t.Fatalf("NewFileSystem: %v", err)
 	}

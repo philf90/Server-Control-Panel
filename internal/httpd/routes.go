@@ -109,9 +109,20 @@ func (s *Server) Handler() http.Handler {
 	// abschalten entfernt Rechte, nicht nur den Menüpunkt.
 	if s.files != nil {
 		mux.Handle("GET /files", s.protected(http.HandlerFunc(s.handleFiles)))
+		mux.Handle("GET /files/entry", s.protected(http.HandlerFunc(s.handleFileEntry)))
 		mux.Handle("GET /files/detail", s.protected(http.HandlerFunc(s.handleFileDetail)))
 		mux.Handle("GET /files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
 		mux.Handle("GET /files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
+		mux.Handle("GET /files/events", s.protected(http.HandlerFunc(s.handleFileEvents)))
+		// Verändern: Schreibrolle und CSRF, wie in jedem anderen Modul. Die
+		// Prüfung des Pfads selbst liegt in der Pfadwache, nicht hier.
+		mux.Handle("POST /files/mkdir", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMkdir)))))
+		mux.Handle("POST /files/touch", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileTouch)))))
+		mux.Handle("POST /files/rename", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileRename)))))
+		mux.Handle("POST /files/copy", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileCopy)))))
+		mux.Handle("POST /files/move", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMove)))))
+		mux.Handle("POST /files/delete", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileDelete)))))
+		mux.Handle("POST /files/mode", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMode)))))
 	}
 
 	mux.Handle("GET /logs", s.protected(http.HandlerFunc(s.handleLogs)))

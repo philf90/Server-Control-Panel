@@ -202,6 +202,7 @@ func TestDumpSeiten(t *testing.T) {
 	seiten := []struct{ pfad, name string }{
 		{"/", "uebersicht.html"},
 		{"/files?path=" + dateiWurzel, "dateien.html"},
+		{"/files/entry?path=" + dateiWurzel + "/nginx", "datei-detail.html"},
 		{"/services", "dienste.html"},
 		{"/firewall", "firewall.html"},
 		{"/system-users", "system-users.html"},

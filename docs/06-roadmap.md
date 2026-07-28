@@ -456,6 +456,27 @@ RP-ID — über eine IP funktioniert WebAuthn nicht.
   Besitz; fällt das Gerät aus, muss ein Rückweg bleiben. Heute ist das TOTP,
   dazu `asylum reset-password` über SSH.
 
+### 0.4.0 — Zugang zurücksetzen
+
+Der Umkehrschluss aus dem Passkey-Kapitel: Wenn ein Passkey ein Nachweis ist, der
+Phishing widersteht, taugt er auch dort, wo bisher nur SSH half. Zwei Wege, beide
+eng gefasst, Einzelheiten in
+[12-zugang-zuruecksetzen.md](12-zugang-zuruecksetzen.md):
+
+- **Der Owner setzt einen fremden Zugang zurück** — Passwort (als Einmalpasswort
+  mit Wechselzwang), zweiter Faktor oder Passkeys, einzeln auslösbar. Verlangt
+  das eigene Passwort des Owners; das eigene Konto ist ausgenommen.
+- **Vergessenes Passwort per Passkey**, ohne genanntes Konto und mit
+  verpflichtender Prüfung am Gerät. Damit verrät der Weg keine Anmeldenamen und
+  besteht aus zwei Faktoren, nicht einem.
+
+Bewusst **ohne E-Mail**: Ein Reset per Mail würde das Postfach zum Hauptschlüssel
+des Servers machen und auf einer frischen Maschine still im Spam versagen. Sollte
+später ein Mailkanal kommen, dann zuerst für Benachrichtigungen.
+
+`asylum reset-password` bleibt als Anker — der Fall „weder Passkey noch zweiter
+Owner" muss irgendwo endlich sein.
+
 ### Laufend, an keine Fassung gebunden
 
 Externer Sicherheits-Review (sinnvollerweise **nach** 0.2.0, weil Let's Encrypt

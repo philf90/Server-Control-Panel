@@ -38,6 +38,24 @@ nicht als Release getaggt.
   oder FQDN) — spätestens mit einem Zertifikat auf einen echten Namen erscheint
   der Abschnitt von selbst. `auth.webauthn.enabled: false` schaltet aus.
   Einzelheiten in [docs/11-passkeys.md](docs/11-passkeys.md).
+- **Ein Zugang lässt sich im Panel zurücksetzen.** Auf *Panel-Zugänge* steht
+  unter der Tabelle „Zugang zurücksetzen": Passwort, zweiter Faktor oder
+  Passkeys, einzeln auslösbar; je Tabellenzeile führt ein Link dorthin und wählt
+  das Konto vor. Das Passwort wird als **Einmalpasswort** vergeben und genau
+  einmal angezeigt — das Konto muss es bei der nächsten Anmeldung ersetzen und
+  kommt vorher auf keine andere Seite. Jede Aktion verlangt das eigene Passwort
+  des Owners, beendet die Sitzungen des Zielkontos und steht im Audit-Log; das
+  eigene Konto ist ausgenommen. Bis hierher ging das nur über
+  `sudo asylum reset-password` auf dem Server.
+- **Ein vergessenes Passwort lässt sich per Passkey selbst zurücksetzen.** Unter
+  dem Anmeldeformular steht „Passwort vergessen?". Die Zeremonie nennt **kein
+  Konto** — der Browser bietet an, was er für dieses Panel hat — und verlangt
+  zwingend die Prüfung am Gerät (PIN, Fingerabdruck, Gesicht). Damit besteht der
+  Nachweis aus zwei Teilen, und der Weg verrät keine Anmeldenamen. Ein
+  Wiederherstellungscode half hier nie: Er wird nur eingelöst, wenn das Passwort
+  stimmt. Damit neue Passkeys dafür taugen, verlangt die Registrierung jetzt
+  `residentKey: "preferred"`. Bewusst **ohne Mailversand** — die Abwägung steht
+  in [docs/12-zugang-zuruecksetzen.md](docs/12-zugang-zuruecksetzen.md).
 - **Ein Neustart lässt sich aus dem Panel anstoßen.** Steht ein Neustart aus
   (etwa nach einem Kernel-Update), führt die Übersicht ihn im Handlungsbedarf
   auf und verlinkt auf die Pakete-Seite; dort steht neben dem Hinweis der Knopf

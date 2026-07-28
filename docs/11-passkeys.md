@@ -139,6 +139,16 @@ Anlegen geht bewusst nur im Panel — dafür braucht es den Browser und den
 Authenticator. Da TOTP als zweiter Faktor bestehen bleibt, sperrt das Entfernen
 eines Passkeys niemanden aus.
 
+Seit 0.4.0 kann ein Owner die Passkeys eines fremden Kontos auch im Panel
+entfernen, und ein Passkey dient umgekehrt als Nachweis für ein vergessenes
+Passwort. Beides steht in
+[12-zugang-zuruecksetzen.md](12-zugang-zuruecksetzen.md). Dafür verlangt die
+Registrierung seit 0.4.0 `residentKey: "preferred"`: Nur ein *auffindbarer*
+Passkey trägt seine Kontozuordnung im Authenticator, und nur damit kommt eine
+Zeremonie ohne genanntes Konto zustande. `"required"` wäre falsch — ein
+Sicherheitsschlüssel mit belegtem Speicher würde die Registrierung abweisen, und
+als zweiter Faktor ist ein Passkey ohne diese Eigenschaft unverändert brauchbar.
+
 ## Browser-Unterstützung
 
 Passkeys funktionieren in aktuellen Fassungen von Chrome/Edge, Firefox und Safari

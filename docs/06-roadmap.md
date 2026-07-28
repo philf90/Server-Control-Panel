@@ -424,6 +424,47 @@ Die Bildschirmfotos unter [`docs/bilder/`](bilder/) sind für die Übersicht neu
 entstanden; die Verläufe stammen dort aus einem gestellten Ringpuffer, wie der
 übrige Snapshot.
 
+**Nachgezogen nach dem Betrieb.** Drei Befunde, alle von der Seite selbst:
+
+- **Die Verläufe liefen aus.** Der viewBox ist 100 Einheiten breit und wird mit
+  `preserveAspectRatio="none"` auf die Kachelbreite gezogen — waagerecht mit
+  Faktor 2,7, senkrecht mit 1. Die Strichstärke wurde mitgezogen: Steile Stücke
+  waren über 4 Pixel breit, flache blieben bei 1,6, und der Endpunkt kam als
+  liegende Ellipse heraus. Jetzt `vector-effect: non-scaling-stroke`, und der
+  Endpunkt ist ein Segment der Länge null mit runder Kappe. Dazu werden die bis
+  zu 2880 Messungen des Ringpuffers auf 60 Stützstellen gemittelt — zehn Punkte
+  je Pixel ergeben keinen Verlauf, sondern ein Band — und die Skalierung hat
+  eine Mindestspanne, damit ein ruhiger Server ruhig aussieht statt wie ein
+  Gebirge.
+- **Die Netzwerkkachel zeigte `docker0`.** Sie nahm die erste Schnittstelle der
+  alphabetisch sortierten Liste; auf jedem Server mit Docker ist das die Brücke,
+  über die nach draußen nichts geht. Die Kachel stand dauerhaft auf 0 B/s, und
+  der Name daneben machte die falsche Angabe glaubwürdig. Gewählt wird jetzt die
+  Schnittstelle mit der Standardroute (`/proc/net/route`,
+  `/proc/net/ipv6_route`), nachrangig eine mit einem Gerät hinter sich
+  (`/sys/class/net/<name>/device`). Eine Brücke oder ein Bündel darf gewinnen,
+  wenn der Verkehr dort hinausgeht — auf einem Hypervisor ist `br0` die richtige
+  Antwort. Der Netzverlauf zählt dieselbe Schnittstelle statt der Summe über
+  alle.
+- **Die weiteren Einhängepunkte einer Platte gab es nur als `title`-Attribut.**
+  Ein Kasten, der nach einer Sekunde erscheint, keine Zahlen tragen kann und auf
+  einem Telefon gar nicht. Sie sind jetzt eigene Zeilen der Liste, eingeklappt,
+  mit den Zahlen des Dateisystems, an dem sie hängen. Der Umschalter ist eine
+  Checkbox und kein Knopf mit Skript — dieselbe Entscheidung wie beim Menü.
+
+Neu ist außerdem, dass sich die Verläufe ablesen lassen: Der Zeiger zeigt Wert
+und Uhrzeit der Messung unter ihm. Die Messpunkte stehen fertig formatiert in
+einem `data`-Attribut, das Skript sucht nur den nächsten — gerechnet wird
+weiterhin auf dem Server, und ohne das Skript bleibt der Verlauf zu sehen.
+
+Nachgewiesen ist das im echten Browser (`TestUebersichtBrowser`, hinter
+`ASYLUM_UEBERSICHT_E2E`): Der Treiber vermisst den gemalten Endpunkt aus einem
+Bildschirmfoto — 4 × 4 Pixel rund, vorher 16 × 10 —, führt den Zeiger über die
+Kachel, klappt die Dateisystemliste auf und liest mit, ob die Richtlinie etwas
+verworfen hat. Zwei der drei Punkte kann kein Go-Test beantworten: Ob ein
+Segment der Länge null überhaupt einen Punkt malt und ob `:has()` greift, sagt
+nur der Browser.
+
 ### 0.3.0 — Passkeys
 
 Zuerst **zusätzlich zu**, nicht anstelle von Passwort und TOTP.

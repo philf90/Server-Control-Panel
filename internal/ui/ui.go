@@ -53,6 +53,12 @@ func funcs() template.FuncMap {
 	}
 }
 
+// FormatRate ist der Durchsatztext für Go-Code, der dasselbe schreiben muss wie
+// die Templates — etwa die Messpunkte der Netzkachel, die serverseitig
+// entstehen. Zwei Fassungen derselben Formatierung liefen früher oder später
+// auseinander.
+func FormatRate(bytesPerSecond float64) string { return formatRate(bytesPerSecond) }
+
 func formatBytes(b uint64) string {
 	const unit = 1024
 	if b < unit {

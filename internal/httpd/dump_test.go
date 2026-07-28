@@ -156,8 +156,13 @@ func TestDumpSeiten(t *testing.T) {
 			CPU:    metrics.CPU{Total: cpuVerlauf[i]},
 			Memory: metrics.Memory{UsedPct: memVerlauf[i]},
 			Load:   [3]float64{loadVerlauf[i], 0, 0},
+			// docker0 steht bewusst dabei: Der Netzverlauf zählt nur die
+			// markierte Schnittstelle. Wäre er die Summe über alle, käme eine
+			// Zahl heraus, die zu keiner Angabe auf der Kachel gehört.
 			Interfaces: []metrics.Interface{
-				{Name: "eth0", RXRate: netVerlauf[i] * 1024, TXRate: netVerlauf[i] * 300},
+				{Name: "docker0"},
+				{Name: "eth0", Physical: true, Primary: true,
+					RXRate: netVerlauf[i] * 1024, TXRate: netVerlauf[i] * 300},
 			},
 		})
 	}
@@ -175,12 +180,19 @@ func TestDumpSeiten(t *testing.T) {
 		Load:       [3]float64{0.18, 0.12, 0.09},
 		Uptime:     8*24*time.Hour + 4*time.Hour,
 		UptimeText: "8 Tage, 4 Std",
+		// Die weiteren Einhängepunkte von / sind die, die die ausgelieferte
+		// systemd-Unit anlegt: Ihre Härtung hängt Teile von / erneut ein. Auf
+		// einem echten Server steht die Liste genau so da — im Bildschirmfoto
+		// soll deshalb auch der Aufklapper zu sehen sein.
 		Filesystems: []metrics.Filesystem{
-			{Mount: "/", Device: "/dev/vda1", Type: "ext4", Total: 40 * giB, Used: 96 * giB / 10, UsedPct: 24.0, InodesPct: 3.2},
+			{Mount: "/", Device: "/dev/vda1", Type: "ext4", Total: 40 * giB, Used: 96 * giB / 10, UsedPct: 24.0, InodesPct: 3.2,
+				AlsoAt: []string{"/etc/asylum", "/tmp", "/usr", "/var/lib/asylum", "/var/log/asylum", "/var/tmp"}},
 			{Mount: "/boot", Device: "/dev/vda2", Type: "ext4", Total: 1 * giB, Used: 36 * giB / 100, UsedPct: 36.4, InodesPct: 0.4},
 		},
 		Interfaces: []metrics.Interface{
-			{Name: "eth0", Addrs: []string{"203.0.113.10/24", "2001:db8::10/64"}, RXRate: 12480, TXRate: 3620, RXBytes: 4823449600, TXBytes: 1290551296},
+			{Name: "docker0", Addrs: []string{"172.17.0.1/16"}},
+			{Name: "eth0", Addrs: []string{"203.0.113.10/24", "2001:db8::10/64"}, Physical: true, Primary: true,
+				RXRate: 12480, TXRate: 3620, RXBytes: 4823449600, TXBytes: 1290551296},
 		},
 		TopProcesses: []metrics.Process{
 			{PID: 612, Name: "postgres", User: "postgres", CPUPct: 1.2, RSS: 268 * giB / 1024, RSSPct: 6.4},

@@ -103,6 +103,74 @@ func TestStylesheetHatBreakpoints(t *testing.T) {
 	}
 }
 
+// TestSparklineOhneVerzerrtenStrich hält fest, warum die Verläufe in den
+// Telemetriekacheln unsauber aussahen.
+//
+// Der viewBox ist 100 Einheiten breit und wird mit preserveAspectRatio="none"
+// auf die Kachelbreite von rund 270 Pixeln gezogen — waagerecht mit Faktor 2,7,
+// senkrecht mit 1. Ohne vector-effect: non-scaling-stroke wird die Strichstärke
+// mitgezogen: Steile Stücke waren über 4 Pixel breit, flache blieben bei 1,6,
+// und der Endpunkt (damals ein <circle>) kam als liegende Ellipse heraus. Der
+// Verlauf sah aus, als würde er auslaufen.
+func TestSparklineOhneVerzerrtenStrich(t *testing.T) {
+	raw, err := staticFS.ReadFile("static/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(raw)
+
+	if !strings.Contains(css, "vector-effect: non-scaling-stroke") {
+		t.Error("app.css zieht die Strichstärke der Verläufe wieder mit der Breite mit")
+	}
+
+	dashboard, err := templateFS.ReadFile("templates/dashboard.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dashboard), "<circle") {
+		t.Error("der Endpunkt ist wieder ein <circle> — die waagerechte Streckung macht daraus eine Ellipse")
+	}
+	// Ohne die Messpunkte im data-Attribut gäbe es keinen Wert unter dem
+	// Zeiger: Ein Inline-Skript, das sie mitbrächte, verwirft die CSP.
+	if !strings.Contains(string(dashboard), "data-spark=") {
+		t.Error("die Messpunkte der Verläufe fehlen im Markup")
+	}
+}
+
+// TestDateisystemeSindAufklappbar: Die weiteren Einhängepunkte einer Platte sind
+// eigene Zeilen, eingeklappt. Der Umschalter ist eine Checkbox, damit das ohne
+// JavaScript geht — und weil die Folgezeilen keine Geschwister der Checkbox
+// sind, braucht es :has() auf dem gemeinsamen <tbody>.
+func TestDateisystemeSindAufklappbar(t *testing.T) {
+	raw, err := staticFS.ReadFile("static/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(raw)
+
+	for _, regel := range []string{
+		".fstab tr.fs-sub { display: none; }",
+		"tbody:has(.fs-switch:checked)",
+	} {
+		if !strings.Contains(css, regel) {
+			t.Errorf("app.css fehlt %q — die Liste klappt nicht mehr auf", regel)
+		}
+	}
+	// Ein <tbody> je Platte heißt: Die letzte Zeile einer Gruppe darf ihre
+	// Trennlinie nicht verlieren, sonst sehen zwei Platten wie eine aus.
+	if !strings.Contains(css, "tbody:last-of-type tr:last-child td { border-bottom: none; }") {
+		t.Error("die Trennlinie zwischen zwei Dateisystemgruppen fehlt")
+	}
+
+	dashboard, err := templateFS.ReadFile("templates/dashboard.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dashboard), "auch-an") {
+		t.Error("der Hinweis mit title-Attribut ist zurück — er kann keine Zahlen tragen")
+	}
+}
+
 // TestKeineInlineStyles: Die Content-Security-Policy des Panels erlaubt kein
 // style-Attribut ("style-src 'self'" ohne unsafe-inline). Der Browser verwirft
 // so ein Attribut stillschweigend — die Seite sieht dann nicht kaputt aus,
@@ -147,7 +215,10 @@ func TestBalkenOhneInlineBreite(t *testing.T) {
 	if strings.Count(dashboard, "<progress") < 1 {
 		t.Error("kein <progress>-Balken in der Übersicht — die Auslastung der Dateisysteme fehlt")
 	}
-	if !strings.Contains(dashboard, "value=\"{{pct .UsedPct}}\"") {
+	// $fs statt . seit dem Aufklappen: Die Zeile steht in zwei verschachtelten
+	// Bereichen, weil die weiteren Einhängepunkte einer Platte deren Zahlen
+	// zeigen.
+	if !strings.Contains(dashboard, "value=\"{{pct $fs.UsedPct}}\"") {
 		t.Error("der Dateisystembalken trägt seinen Wert nicht mehr in einem value-Attribut")
 	}
 	if strings.Contains(dashboard, "data-live-width") {

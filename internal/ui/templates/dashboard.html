@@ -34,7 +34,9 @@
 
 {{/* Telemetrie · die vier Kennzahlen mit Verlauf der letzten 24 Stunden. Die
      Sparklines sind serverseitig erzeugte SVG-Pfade (CSP: kein Inline-Skript).
-     Die großen Zahlen tragen data-live und werden vom Live-Kanal nachgezogen. */}}
+     Die großen Zahlen tragen data-live und werden vom Live-Kanal nachgezogen.
+     Den Wert unter dem Zeiger holt spark.js aus data-spark; ohne das Skript
+     bleibt der Verlauf zu sehen, nur eben ohne Ablesen. */}}
 <section class="telemetrie">
   <div class="seclabel">Telemetrie · letzte 24 Stunden</div>
   <div class="telegrid">
@@ -42,46 +44,34 @@
     <div class="tele">
       <div class="k">CPU</div>
       <div class="v"><span data-live="cpu.total">{{pct .Snapshot.CPU.Total}}</span><small>%</small></div>
-      {{if .Sparks.CPU.Has}}
-      <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
-        <path d="{{.Sparks.CPU.Path}}"/><circle cx="{{.Sparks.CPU.X}}" cy="{{.Sparks.CPU.Y}}" r="1.9"/>
-      </svg>
-      {{end}}
+      {{template "sparkline" .Sparks.CPU}}
       <div class="foot">iowait <span data-live="cpu.iowait">{{pct .Snapshot.CPU.IOWait}}</span> % · steal <span data-live="cpu.steal">{{pct .Snapshot.CPU.Steal}}</span> %</div>
     </div>
 
     <div class="tele">
       <div class="k">Arbeitsspeicher</div>
       <div class="v"><span data-live="memory.used_pct">{{pct .Snapshot.Memory.UsedPct}}</span><small>%</small></div>
-      {{if .Sparks.Mem.Has}}
-      <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
-        <path d="{{.Sparks.Mem.Path}}"/><circle cx="{{.Sparks.Mem.X}}" cy="{{.Sparks.Mem.Y}}" r="1.9"/>
-      </svg>
-      {{end}}
+      {{template "sparkline" .Sparks.Mem}}
       <div class="foot"><span data-live-bytes="memory.used">{{bytes .Snapshot.Memory.Used}}</span> von {{bytes .Snapshot.Memory.Total}}{{if .Snapshot.Memory.SwapTotal}} · Swap <span data-live-bytes="memory.swap_used">{{bytes .Snapshot.Memory.SwapUsed}}</span>{{end}}</div>
     </div>
 
     <div class="tele">
       <div class="k">Last</div>
       <div class="v"><span data-live="load.0">{{pct (index .Snapshot.Load 0)}}</span></div>
-      {{if .Sparks.Load.Has}}
-      <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
-        <path d="{{.Sparks.Load.Path}}"/><circle cx="{{.Sparks.Load.X}}" cy="{{.Sparks.Load.Y}}" r="1.9"/>
-      </svg>
-      {{end}}
+      {{template "sparkline" .Sparks.Load}}
       <div class="foot">{{$.Host.Cores}} Kerne · 5 Min <span data-live="load.1">{{pct (index .Snapshot.Load 1)}}</span> · 15 Min <span data-live="load.2">{{pct (index .Snapshot.Load 2)}}</span></div>
     </div>
 
+    {{/* Die Netzkachel nennt die Schnittstelle mit der Standardroute, nicht die
+         erste der alphabetischen Liste. Das war zuvor auf jedem Server mit
+         Docker die Brücke docker0 — dauerhaft 0 B/s, mit einem Namen daneben,
+         der die falsche Angabe glaubwürdig machte. */}}
     <div class="tele">
       <div class="k">Netzwerk</div>
-      {{if .Snapshot.Interfaces}}{{$i := index .Snapshot.Interfaces 0}}
-      <div class="v">{{rate $i.RXRate}}</div>
-      {{if .Sparks.Net.Has}}
-      <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">
-        <path d="{{.Sparks.Net.Path}}"/><circle cx="{{.Sparks.Net.X}}" cy="{{.Sparks.Net.Y}}" r="1.9"/>
-      </svg>
-      {{end}}
-      <div class="foot"><code>{{$i.Name}}</code> · gesendet {{rate $i.TXRate}}</div>
+      {{if .HasNet}}
+      <div class="v">{{rate .Net.RXRate}}</div>
+      {{template "sparkline" .Sparks.Net}}
+      <div class="foot"><code>{{.Net.Name}}</code> · gesendet {{rate .Net.TXRate}}</div>
       {{else}}
       <div class="v">—</div>
       <div class="foot">keine Schnittstelle</div>
@@ -92,34 +82,65 @@
 </section>
 
 {{/* Dateisysteme — die Tabelle bleibt eine "cards"-Tabelle: schmal wird jede
-     Zeile zu einer Karte, jede Zelle holt ihre Beschriftung aus data-label. */}}
+     Zeile zu einer Karte, jede Zelle holt ihre Beschriftung aus data-label.
+
+     Ein Dateisystem, das an mehreren Stellen hängt (die systemd-Härtung der
+     eigenen Unit tut das mit Teilen von /), ist ein Eintrag mit Aufklapper:
+     eingeklappt steht nur der kürzeste Pfad, aufgeklappt stehen die weiteren
+     Stellen als eigene Zeilen mit ihren Zahlen. Zuvor gab es sie nur als
+     title-Attribut — ein Kasten, der nach einer Sekunde erscheint, keine Zahlen
+     tragen kann und auf einem Telefon gar nicht.
+
+     Jedes Dateisystem hat sein eigenes <tbody>: Der Umschalter ist eine
+     Checkbox (wie beim Menü, damit es ohne JavaScript geht), und ein Selektor
+     über den gemeinsamen Vorfahren genügt dann für alle Gruppen. */}}
 <section class="fs">
   <div class="seclabel">Dateisysteme</div>
   <div class="card">
     <div class="table-wrap">
-      <table class="cards">
+      <table class="cards fstab">
         <thead>
           <tr><th data-rolle="haupt">Einhängepunkt</th><th data-rolle="neben">Gerät</th><th data-rolle="neben">Typ</th><th data-rolle="neben">Belegt</th><th data-rolle="neben">Gesamt</th><th>Auslastung</th><th data-rolle="neben">Inodes</th></tr>
         </thead>
+        {{range $i, $fs := .Snapshot.Filesystems}}
+        {{$eng := ge $fs.UsedPct 90.0}}
         <tbody>
-          {{range .Snapshot.Filesystems}}
-          <tr {{if ge .UsedPct 90.0}}class="warn"{{end}}>
-            <td data-label="Einhängepunkt" data-rolle="haupt"><code>{{.Mount}}</code>{{if .AlsoAt}}
-              <span class="muted auch-an" title="{{range $i, $m := .AlsoAt}}{{if $i}}, {{end}}{{$m}}{{end}}">auch an {{len .AlsoAt}} weiteren Stellen</span>{{end}}</td>
-            <td class="muted" data-label="Gerät" data-rolle="neben">{{.Device}}</td>
-            <td class="muted" data-label="Typ" data-rolle="neben">{{.Type}}</td>
-            <td data-label="Belegt" data-rolle="neben">{{bytes .Used}}</td>
-            <td data-label="Gesamt" data-rolle="neben">{{bytes .Total}}</td>
+          <tr{{if $eng}} class="warn"{{end}}>
+            <td data-label="Einhängepunkt" data-rolle="haupt">{{if $fs.AlsoAt}}<input type="checkbox" id="fs-{{$i}}" class="fs-switch"><code>{{$fs.Mount}}</code>
+              <label for="fs-{{$i}}" class="fs-mehr">auch an {{len $fs.AlsoAt}} weiteren Stellen</label>{{else}}<code>{{$fs.Mount}}</code>{{end}}</td>
+            <td class="muted" data-label="Gerät" data-rolle="neben">{{$fs.Device}}</td>
+            <td class="muted" data-label="Typ" data-rolle="neben">{{$fs.Type}}</td>
+            <td data-label="Belegt" data-rolle="neben">{{bytes $fs.Used}}</td>
+            <td data-label="Gesamt" data-rolle="neben">{{bytes $fs.Total}}</td>
             <td data-label="Auslastung">
-              <progress class="bar inline" max="100" value="{{pct .UsedPct}}" aria-hidden="true"></progress>
-              {{pct .UsedPct}} %
+              <progress class="bar inline" max="100" value="{{pct $fs.UsedPct}}" aria-hidden="true"></progress>
+              {{pct $fs.UsedPct}} %
             </td>
-            <td {{if ge .InodesPct 90.0}}class="warn"{{end}} data-label="Inodes" data-rolle="neben">{{pct .InodesPct}} %</td>
+            <td {{if ge $fs.InodesPct 90.0}}class="warn"{{end}} data-label="Inodes" data-rolle="neben">{{pct $fs.InodesPct}} %</td>
           </tr>
-          {{else}}
-          <tr><td colspan="7" class="muted">keine Daten</td></tr>
+          {{/* Die weiteren Stellen tragen die Zahlen des Dateisystems, an dem
+               sie hängen — es ist dasselbe, erkennbar am Gerät. Getrennte
+               Zahlen zu zeigen hieße, sich welche auszudenken. */}}
+          {{range $m := $fs.AlsoAt}}
+          <tr class="fs-sub{{if $eng}} warn{{end}}">
+            <td data-label="Einhängepunkt" data-rolle="haupt"><span class="fs-zweig" aria-hidden="true">↳</span> <code>{{$m}}</code></td>
+            <td class="muted" data-label="Gerät" data-rolle="neben">{{$fs.Device}}</td>
+            <td class="muted" data-label="Typ" data-rolle="neben">{{$fs.Type}}</td>
+            <td data-label="Belegt" data-rolle="neben">{{bytes $fs.Used}}</td>
+            <td data-label="Gesamt" data-rolle="neben">{{bytes $fs.Total}}</td>
+            <td data-label="Auslastung">
+              <progress class="bar inline" max="100" value="{{pct $fs.UsedPct}}" aria-hidden="true"></progress>
+              {{pct $fs.UsedPct}} %
+            </td>
+            <td {{if ge $fs.InodesPct 90.0}}class="warn"{{end}} data-label="Inodes" data-rolle="neben">{{pct $fs.InodesPct}} %</td>
+          </tr>
           {{end}}
         </tbody>
+        {{else}}
+        <tbody>
+          <tr><td colspan="7" class="muted">keine Daten</td></tr>
+        </tbody>
+        {{end}}
       </table>
     </div>
   </div>
@@ -157,4 +178,21 @@
 </p>
 {{end}}
 <script src="/static/live.js" defer></script>
+<script src="/static/spark.js" defer></script>
 {{template "footer" .}}{{end}}
+
+{{/* Ein Verlauf. Der Pfad und die Messpunkte kommen fertig vom Server; Farbe,
+     Strichstärke und die Regel gegen die Verzerrung stehen im Stylesheet.
+
+     preserveAspectRatio="none" zieht die 100 Einheiten Breite auf die
+     Kachelbreite. Ohne vector-effect: non-scaling-stroke (app.css) würde die
+     Strichstärke mitgezogen — steile Stücke wurden breiter als flache, und der
+     Endpunkt lief als liegende Ellipse aus. */}}
+{{define "sparkline"}}{{if .Has}}
+<div class="sparkbox">
+  <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true" data-spark="{{.Points}}">
+    <path class="line" d="{{.Path}}"/>
+    <path class="dot" d="{{.Dot}}"/>
+  </svg>
+</div>
+{{end}}{{end}}

@@ -152,6 +152,20 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Die weiteren Einhängepunkte einer Platte klappen in der Übersicht auf.** Ein
+  Dateisystem, das an mehreren Stellen hängt — die Härtung der eigenen Unit tut
+  das mit Teilen von `/` —, stand als eine Zeile mit dem Hinweis „auch an 6
+  weiteren Stellen" da; die Stellen selbst gab es nur als `title`-Attribut: ein
+  Kasten, der nach einer Sekunde erscheint, keine Zahlen tragen kann und auf
+  einem Telefon gar nicht. Sie sind jetzt eigene Zeilen der Liste mit den Zahlen
+  des Dateisystems, an dem sie hängen. Voreingestellt eingeklappt; der
+  Umschalter ist eine Checkbox und kein Knopf mit Skript, damit die Liste ohne
+  JavaScript aufklappbar bleibt — dieselbe Entscheidung wie beim Menü.
+- **Die Verläufe der Telemetriekacheln lassen sich ablesen.** Der Zeiger zeigt
+  Wert und Uhrzeit der Messung unter ihm. Die Messpunkte stehen fertig
+  formatiert in einem `data`-Attribut, das Skript sucht nur den nächsten:
+  Gerechnet und gerundet wird weiter auf dem Server, und ohne das Skript bleibt
+  der Verlauf zu sehen.
 - **Die systemd-Unit erlaubt dem Dienst Schreibzugriff auf `/etc`, `/home` und
   `/root`** (`ProtectSystem=true` statt `full`, `ProtectHome=false` statt
   `read-only`). Ohne diese Lockerung könnte der Dateimanager keine
@@ -246,6 +260,35 @@ nicht als Release getaggt.
 
 ### Behoben
 
+- **Die Netzwerkkachel der Übersicht zeigte `docker0`.** Sie nahm die erste
+  Schnittstelle der alphabetisch sortierten Liste, und auf jedem Server mit
+  Docker ist das die Brücke, über die nach draußen kein Byte geht: Die Kachel
+  stand dauerhaft auf 0 B/s, während die echte Karte Last hatte — und der Name
+  darunter machte die falsche Angabe glaubwürdig. Gewählt wird jetzt die
+  Schnittstelle mit der Standardroute (`/proc/net/route`,
+  `/proc/net/ipv6_route`), nachrangig eine mit einem Gerät hinter sich
+  (`/sys/class/net/<name>/device`). Eine Brücke oder ein Bündel darf gewinnen,
+  wenn der Verkehr dort hinausgeht — auf einem Hypervisor ist `br0` die richtige
+  Antwort, nicht ihr Anschluss. Auch der Netzverlauf zählt nur noch diese
+  Schnittstelle statt der Summe über alle; sein Wert gehörte vorher zu keiner
+  Zahl auf der Kachel. Die vollständige Liste bleibt unberührt.
+- **Die Sparklines der Telemetriekacheln liefen aus.** Ihr viewBox ist 100
+  Einheiten breit und wird mit `preserveAspectRatio="none"` auf die Kachelbreite
+  von rund 270 Pixeln gezogen — waagerecht mit Faktor 2,7, senkrecht mit 1. Die
+  Strichstärke wurde mitgezogen: Steile Stücke waren über 4 Pixel breit, flache
+  blieben bei 1,6, und der Endpunkt kam als liegende Ellipse heraus. Jetzt gilt
+  sie in Bildschirmpixeln (`vector-effect: non-scaling-stroke`), und der
+  Endpunkt ist ein Segment der Länge null mit runder Kappe statt eines
+  `<circle>`. Zwei weitere Gründe für den unruhigen Eindruck sind mit behoben:
+  Die bis zu 2880 Messungen des Ringpuffers werden auf 60 Stützstellen gemittelt
+  — zehn Punkte je Pixel ergeben kein Bild, sondern ein Band —, und die
+  Skalierung hat eine Mindestspanne. Eine CPU, die zwischen 0,1 und 0,3 Prozent
+  pendelt, sah vorher aus wie ein Gebirge.
+
+  Gemessen im echten Browser: `TestUebersichtBrowser` vermisst den gemalten
+  Endpunkt aus einem Bildschirmfoto (4 × 4 Pixel rund, vorher 16 × 10), führt
+  den Zeiger über die Kachel und klappt die Dateisystemliste auf. Ob ein Segment
+  der Länge null einen Punkt malt und ob `:has()` greift, sagt kein Go-Test.
 - **Ein Zeilenumbruch in einem Zielpfad landete unverändert im Audit-Log.**
   Gefunden beim Angriffsdurchgang des Dateimanagers, betrifft aber jeden
   Aufrufer: `store.AppendAudit` macht Steuerzeichen und

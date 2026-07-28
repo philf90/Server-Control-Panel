@@ -114,6 +114,11 @@ type dashboardPage struct {
 	Verdict  dashVerdict
 	Signals  []dashSignal
 	Sparks   dashSparks
+	// Net ist die Schnittstelle der Netzwerkkachel: die mit der Standardroute,
+	// nicht die erste der alphabetisch sortierten Liste. HasNet ist falsch, wenn
+	// es überhaupt keine gibt.
+	Net    metrics.Interface
+	HasNet bool
 }
 
 // dashVerdict ist das Urteil in einem Satz ganz oben: Geht es dem Server gut?
@@ -145,11 +150,17 @@ type dashSparks struct {
 	Net  spark
 }
 
-// spark ist ein einzelner Verlauf: der Pfad plus der Endpunkt für den Punkt.
+// spark ist ein einzelner Verlauf: der Pfad, der Endpunkt und die Messpunkte.
 type spark struct {
 	Path string
-	X, Y string
-	Has  bool
+	// Dot ist der Endpunkt als eigener Pfad (Segment der Länge null mit runder
+	// Kappe), damit ihn die waagerechte Streckung des Feldes nicht verzerrt.
+	Dot string
+	// Points sind die Stützstellen als JSON: Stelle im Feld, Uhrzeit, Wert. Sie
+	// stehen in einem data-Attribut, aus dem spark.js den Wert unter dem Zeiger
+	// anzeigt — die CSP erlaubt kein Inline-Skript, das sie mitbrächte.
+	Points string
+	Has    bool
 }
 
 type auditPage struct {

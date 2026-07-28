@@ -285,6 +285,7 @@ func (s *Sampler) sampleInterfaces(elapsed float64) []Interface {
 	for name, c := range current {
 		iface := Interface{
 			Name: name, RXBytes: c.rx, TXBytes: c.tx, Addrs: addrs[name],
+			Physical: hatGeraet(name),
 		}
 		if prev, ok := s.prevNet[name]; ok && elapsed > 0 {
 			if c.rx >= prev.rx {
@@ -299,6 +300,11 @@ func (s *Sampler) sampleInterfaces(elapsed float64) []Interface {
 	s.prevNet = current
 
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	// Die Reihenfolge bleibt alphabetisch — sie ist die Liste. Welche
+	// Schnittstelle die Übersicht zeigt, entscheidet die Markierung.
+	if i := hauptschnittstelle(out, standardrouten()); i >= 0 {
+		out[i].Primary = true
+	}
 	return out
 }
 

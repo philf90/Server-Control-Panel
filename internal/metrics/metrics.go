@@ -25,6 +25,24 @@ type Snapshot struct {
 	TopProcesses []Process     `json:"top_processes"`
 }
 
+// PrimaryInterface liefert die Schnittstelle, die für die Anzeige zählt: die
+// mit der Standardroute beziehungsweise die einzige echte Karte.
+//
+// Snapshots aus älteren Ringpuffer-Einträgen und aus Testdaten tragen die
+// Markierung nicht; dann bleibt die erste Schnittstelle. Das ist der Stand vor
+// dieser Auswahl und damit kein Rückschritt.
+func (s Snapshot) PrimaryInterface() (Interface, bool) {
+	for _, ifc := range s.Interfaces {
+		if ifc.Primary {
+			return ifc, true
+		}
+	}
+	if len(s.Interfaces) > 0 {
+		return s.Interfaces[0], true
+	}
+	return Interface{}, false
+}
+
 // CPU hält die Auslastung insgesamt und je Kern, jeweils in Prozent.
 type CPU struct {
 	Total   float64   `json:"total"`
@@ -69,6 +87,14 @@ type Interface struct {
 	RXRate  float64  `json:"rx_rate"`
 	TXRate  float64  `json:"tx_rate"`
 	Addrs   []string `json:"addrs"`
+	// Physical sagt, ob hinter der Schnittstelle ein Gerät steckt (PCI, USB,
+	// virtio) — im Unterschied zu docker0, veth…, br-… oder wg0, die der
+	// Kernel selbst erzeugt.
+	Physical bool `json:"physical"`
+	// Primary markiert die eine Schnittstelle, über die dieser Rechner am Netz
+	// hängt. Sie steht in der Übersicht; die vollständige Liste bleibt
+	// unberührt. Wie sie bestimmt wird, steht in schnittstellen.go.
+	Primary bool `json:"primary"`
 }
 
 // Process ist ein Eintrag der Top-Liste.

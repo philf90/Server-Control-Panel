@@ -2,8 +2,10 @@ package httpd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"github.com/philf90/asylum/internal/metrics"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
+	"github.com/philf90/asylum/internal/ui"
 )
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +41,10 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		verdict = dashVerdict{Level: "warn", Title: fmt.Sprintf("%d Dinge brauchen Aufmerksamkeit", n), Sub: "Alles übrige läuft normal."}
 	}
 
+	// Nicht die erste Schnittstelle der Liste, sondern die, über die dieser
+	// Rechner am Netz hängt. Die Auswahl steht in internal/metrics.
+	iface, hasIface := snap.PrimaryInterface()
+
 	s.renderPage(w, r, http.StatusOK, "dashboard",
 		s.base(r, "Übersicht", "dashboard").with(dashboardPage{
 			Snapshot: snap,
@@ -45,6 +52,8 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			Verdict:  verdict,
 			Signals:  signals,
 			Sparks:   s.dashboardSparks(),
+			Net:      iface,
+			HasNet:   hasIface,
 		}))
 }
 
@@ -114,33 +123,88 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 }
 
 // dashboardSparks baut die Verläufe der letzten 24 Stunden aus dem Ringpuffer.
+//
+// Der Netzverlauf zählt nur die Hauptschnittstelle. Vorher war er die Summe
+// über alle — mit Docker also der echten Karte plus einer Brücke, die
+// stillsteht. Was dabei herauskam, gehörte zu keiner Zahl auf der Kachel.
 func (s *Server) dashboardSparks() dashSparks {
 	all := s.ring.All()
+	at := make([]time.Time, 0, len(all))
 	cpu := make([]float64, 0, len(all))
 	mem := make([]float64, 0, len(all))
 	load := make([]float64, 0, len(all))
 	net := make([]float64, 0, len(all))
 	for _, sn := range all {
+		at = append(at, sn.At)
 		cpu = append(cpu, sn.CPU.Total)
 		mem = append(mem, sn.Memory.UsedPct)
 		load = append(load, sn.Load[0])
 		var n float64
-		for _, ifc := range sn.Interfaces {
-			n += ifc.RXRate + ifc.TXRate
+		if ifc, ok := sn.PrimaryInterface(); ok {
+			n = ifc.RXRate + ifc.TXRate
 		}
 		net = append(net, n)
 	}
-	return dashSparks{CPU: buildSpark(cpu), Mem: buildSpark(mem), Load: buildSpark(load), Net: buildSpark(net)}
+	return dashSparks{
+		CPU:  buildSpark(at, cpu, prozentText, 5),
+		Mem:  buildSpark(at, mem, prozentText, 5),
+		Load: buildSpark(at, load, lastText, 0.5),
+		Net:  buildSpark(at, net, durchsatzText, 4096),
+	}
 }
 
-// buildSpark erzeugt den SVG-Pfad eines Verlaufs in einem 100×34-Feld. Weniger
-// als zwei Punkte ergeben keinen Verlauf (Has=false) — dann zeigt die Kachel
-// nur die Zahl.
-func buildSpark(vals []float64) spark {
-	if len(vals) < 2 {
+// Die Texte der Messpunkte entstehen hier und nicht im Browser: Einheit,
+// Rundung und Sprache stehen im Panel an einer Stelle, und das Skript für den
+// Mouseover bleibt eine Anzeige ohne eigene Rechnung.
+func prozentText(v float64) string { return fmt.Sprintf("%.1f %%", v) }
+
+// Die Last wird auf zwei Stellen genannt. Die große Zahl der Kachel zeigt eine;
+// im Verlauf eines ruhigen Servers wäre damit jeder Punkt "0.0".
+func lastText(v float64) string { return fmt.Sprintf("%.2f", v) }
+
+// "gesamt", weil der Verlauf empfangen und gesendet zusammenfasst, die große
+// Zahl der Kachel aber nur das Empfangene nennt. Ohne das Wort sähe der
+// Messpunkt neben der Kachel wie ein Widerspruch aus.
+func durchsatzText(v float64) string { return ui.FormatRate(v) + " gesamt" }
+
+const (
+	sparkBreite = 100.0
+	sparkHoehe  = 34.0
+	sparkRand   = 2.0
+	// sparkPunkte begrenzt die Zahl der gezeichneten Stützstellen.
+	//
+	// Der Ringpuffer hält 24 Stunden in 30-Sekunden-Auflösung, also bis zu 2880
+	// Messungen. Auf 100 Einheiten Breite liegen die 0,03 Einheiten
+	// auseinander — bei rund 270 Pixeln Kachelbreite etwa zehn Punkte je Pixel.
+	// Daraus wird kein Verlauf, sondern ein Band: Der Strich überzeichnet sich
+	// selbst und sieht ausgelaufen aus. 60 Stützstellen sind je eine für 24
+	// Minuten und in einer Kachel dieser Größe noch unterscheidbar.
+	sparkPunkte = 60
+)
+
+// sparkPunkt ist eine Stützstelle des Verlaufs, wie sie der Mouseover braucht:
+// die Stelle im Feld und der Text dazu.
+type sparkPunkt struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	T string  `json:"t"`
+	V string  `json:"v"`
+}
+
+// buildSpark erzeugt den SVG-Pfad eines Verlaufs in einem 100×34-Feld, den
+// Endpunkt und die Messpunkte für den Mouseover. Weniger als zwei Werte ergeben
+// keinen Verlauf (Has=false) — dann zeigt die Kachel nur die Zahl.
+//
+// minSpan ist die kleinste Spanne, über die skaliert wird. Ohne sie zieht die
+// Min-Max-Skalierung jeden Bruchteil auf die volle Kachelhöhe: Eine CPU, die
+// zwischen 0,1 und 0,3 Prozent pendelt, sah aus wie ein Gebirge, und ein
+// ruhiger Server wirkte unruhig. Mit ihr bleibt flach, was flach ist.
+func buildSpark(at []time.Time, vals []float64, text func(float64) string, minSpan float64) spark {
+	if len(vals) < 2 || len(at) != len(vals) {
 		return spark{}
 	}
-	const w, h, pad = 100.0, 34.0, 2.0
+	at, vals = verdichten(at, vals, sparkPunkte)
+
 	minV, maxV := vals[0], vals[0]
 	for _, v := range vals {
 		if v < minV {
@@ -150,25 +214,81 @@ func buildSpark(vals []float64) spark {
 			maxV = v
 		}
 	}
+	if maxV-minV < minSpan {
+		mitte := (minV + maxV) / 2
+		minV, maxV = mitte-minSpan/2, mitte+minSpan/2
+		// Keine Messgröße dieser Seite ist negativ. Liegt die Spanne im
+		// Nullbereich, wird sie dort verankert, statt Platz unter der Null zu
+		// verschenken.
+		if minV < 0 {
+			minV, maxV = 0, minSpan
+		}
+	}
 	span := maxV - minV
-	if span == 0 {
+	if span <= 0 {
 		span = 1
 	}
-	dx := (w - 2*pad) / float64(len(vals)-1)
+
+	dx := (sparkBreite - 2*sparkRand) / float64(len(vals)-1)
 	var b strings.Builder
-	var lx, ly float64
+	punkte := make([]sparkPunkt, 0, len(vals))
 	for i, v := range vals {
-		x := pad + float64(i)*dx
-		y := h - pad - ((v-minV)/span)*(h-2*pad)
+		x := einstellig(sparkRand + float64(i)*dx)
+		y := einstellig(sparkHoehe - sparkRand - ((v-minV)/span)*(sparkHoehe-2*sparkRand))
 		if i == 0 {
 			fmt.Fprintf(&b, "M%.1f %.1f", x, y)
 		} else {
 			fmt.Fprintf(&b, " L%.1f %.1f", x, y)
 		}
-		lx, ly = x, y
+		punkte = append(punkte, sparkPunkt{X: x, Y: y, T: at[i].Local().Format("15:04"), V: text(v)})
 	}
-	return spark{Path: b.String(), X: fmt.Sprintf("%.1f", lx), Y: fmt.Sprintf("%.1f", ly), Has: true}
+
+	roh, err := json.Marshal(punkte)
+	if err != nil {
+		// Kann mit diesen Feldern nicht scheitern; dann eben ohne Mouseover.
+		roh = []byte("[]")
+	}
+	letzter := punkte[len(punkte)-1]
+	return spark{
+		Path: b.String(),
+		// Der Endpunkt ist ein Segment der Länge null mit runder Kappe. Ein
+		// <circle> würde von derselben waagerechten Streckung getroffen wie der
+		// Strich und käme als liegende Ellipse heraus; ein Strich mit
+		// non-scaling-stroke ergibt einen runden Punkt.
+		Dot:    fmt.Sprintf("M%.1f %.1f L%.1f %.1f", letzter.X, letzter.Y, letzter.X, letzter.Y),
+		Points: string(roh),
+		Has:    true,
+	}
 }
+
+// verdichten mittelt einen Verlauf auf höchstens so viele Stützstellen. Der
+// Zeitstempel einer Stützstelle ist der aus der Mitte ihres Abschnitts.
+func verdichten(at []time.Time, vals []float64, stuetzstellen int) ([]time.Time, []float64) {
+	if stuetzstellen < 2 || len(vals) <= stuetzstellen {
+		return at, vals
+	}
+	ausAt := make([]time.Time, 0, stuetzstellen)
+	ausV := make([]float64, 0, stuetzstellen)
+	for i := 0; i < stuetzstellen; i++ {
+		von := i * len(vals) / stuetzstellen
+		bis := (i + 1) * len(vals) / stuetzstellen
+		if bis <= von {
+			continue
+		}
+		var summe float64
+		for _, v := range vals[von:bis] {
+			summe += v
+		}
+		ausV = append(ausV, summe/float64(bis-von))
+		ausAt = append(ausAt, at[von+(bis-von)/2])
+	}
+	return ausAt, ausV
+}
+
+// einstellig rundet auf eine Nachkommastelle — dieselbe Genauigkeit, mit der
+// der Pfad geschrieben wird. Sonst nennt das JSON für den Mouseover eine
+// Stelle, die im Bild nicht existiert.
+func einstellig(v float64) float64 { return math.Round(v*10) / 10 }
 
 func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request) {
 	limit := 100

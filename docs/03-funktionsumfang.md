@@ -38,8 +38,13 @@ der ersten Stunde tut.
 
 ### Dashboard
 - CPU (gesamt + je Kern), RAM/Swap, Load, Uptime, Kernel- und Distributionsversion.
-- Belegung aller gemounteten Dateisysteme, Inode-Warnung.
-- Netzwerk-Durchsatz je Interface, IPv4/IPv6-Adressen.
+- Verlauf der letzten 24 Stunden je Kachel; per Mouseover Wert und Uhrzeit der
+  einzelnen Messung.
+- Belegung aller gemounteten Dateisysteme, Inode-Warnung. Ein Dateisystem, das an
+  mehreren Stellen hängt, ist ein Eintrag zum Aufklappen — die weiteren Stellen
+  stehen darunter.
+- Netzwerk-Durchsatz je Interface, IPv4/IPv6-Adressen. Die Kachel zeigt die
+  Schnittstelle mit der Standardroute, nicht eine Docker-Brücke.
 - Top-Prozesse nach CPU und RAM.
 - Live-Aktualisierung über SSE (1–2 s Intervall, nur bei geöffnetem Tab).
 

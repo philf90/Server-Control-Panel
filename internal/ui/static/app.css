@@ -1395,3 +1395,32 @@ label.mitcheck {
   font-size: 0.9rem;
 }
 label.mitcheck input { width: auto; margin: 0; }
+
+/* Die Ablagefläche für Uploads. Sie hebt sich beim Ziehen hervor, damit
+   erkennbar ist, dass sie das Ziel ist — ein Rahmen, der erst beim Loslassen
+   reagiert, hilft nicht. */
+.card.hochladen { border-style: dashed; }
+.card.hochladen.bereit { border-color: var(--accent); background: var(--ok-bg); }
+.card.hochladen input[type="file"] {
+  width: 100%;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+}
+/* Dieselbe Falle wie bei den Knöpfen weiter oben: Ein display in einer eigenen
+   Regel schlägt das display: none des hidden-Attributs. Ohne diese Zeile stand
+   ein leerer grauer Balken dauerhaft unter dem Formular. */
+.card.hochladen progress[hidden] { display: none; }
+.card.hochladen progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  margin-top: 0.75rem;
+  appearance: none;
+  border: none;
+  background: var(--bar-bg);
+  border-radius: 3px;
+}
+.card.hochladen progress::-webkit-progress-bar { background: var(--bar-bg); border-radius: 3px; }
+.card.hochladen progress::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
+.card.hochladen progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
+.card.hochladen p { margin: 0.4rem 0 0; }

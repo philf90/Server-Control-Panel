@@ -54,6 +54,31 @@
     <div class="submit"><button type="submit" class="small">anlegen</button></div>
   </form>
 </div>
+
+<div class="card hochladen" id="ablage">
+  <!--
+    Die Reihenfolge der Felder ist hier sicherheitsrelevant: Der Server liest
+    den Körper als Strom und prüft den CSRF-Token, bevor das erste Byte
+    Dateiinhalt kommt. _csrf und dir müssen deshalb vor dem Dateifeld stehen.
+    Siehe handlers_files_upload.go.
+  -->
+  <form method="post" action="/files/upload" enctype="multipart/form-data" id="upload-form">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <input type="hidden" name="dir" value="{{.Path}}">
+    <div class="row-form">
+      <label>Dateien hierher legen oder auswählen
+        <input type="file" name="file" id="upload-datei" multiple required>
+      </label>
+      <label class="mitcheck">
+        <input type="checkbox" name="overwrite" value="1">
+        Bestehende ersetzen (mit Sicherung)
+      </label>
+      <div class="submit"><button type="submit" class="small">hochladen</button></div>
+    </div>
+    <progress id="upload-fortschritt" max="100" value="0" hidden></progress>
+    <p class="muted klein" id="upload-stand" aria-live="polite"></p>
+  </form>
+</div>
 {{else if and $.CanWrite (not .Dir.Writable) (not .Suche)}}
 <p class="muted klein">
   In diesem Verzeichnis darf das Panel nichts anlegen — es liegt außerhalb der
@@ -126,5 +151,6 @@
   selbst nicht. Gesperrte Einträge stehen in der Liste, damit erkennbar bleibt, dass es sie
   gibt — ihr Inhalt wird nicht ausgeliefert. Über SSH sind sie erreichbar.
 </p>
+{{if and $.CanWrite .Dir.Writable (not .Suche)}}<script src="/static/files-upload.js" defer></script>{{end}}
 {{end}}
 {{template "footer" .}}{{end}}

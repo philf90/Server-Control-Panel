@@ -218,8 +218,7 @@ func (s *Server) verifyCSRF(next http.Handler) http.Handler {
 			return
 		}
 
-		sess, ok := sessionFrom(r.Context())
-		if !ok {
+		if _, ok := sessionFrom(r.Context()); !ok {
 			s.renderError(w, r, http.StatusForbidden, "Keine gültige Sitzung.")
 			return
 		}
@@ -227,14 +226,28 @@ func (s *Server) verifyCSRF(next http.Handler) http.Handler {
 			s.renderError(w, r, http.StatusBadRequest, "Formulardaten unlesbar.")
 			return
 		}
-		got := r.PostFormValue("_csrf")
-		if subtle.ConstantTimeCompare([]byte(got), []byte(sess.CSRFToken)) != 1 {
+		if !s.csrfPasst(r, r.PostFormValue("_csrf")) {
 			s.audit(r, "csrf.rejected", r.URL.Path, store.ResultDenied, "")
 			s.renderError(w, r, http.StatusForbidden, "Das Formular ist abgelaufen. Bitte die Seite neu laden.")
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// csrfPasst vergleicht einen Token mit dem der Sitzung.
+//
+// Ausgelagert, weil ein Endpunkt den Token nicht aus einem geparsten Formular
+// nehmen kann: Der Upload liest den Körper als Strom, und r.PostFormValue würde
+// ihn vorher vollständig in Speicher und Temp-Dateien ziehen. Dort wird der
+// Token aus dem ersten Multipart-Teil oder aus einer Kopfzeile geholt und
+// hierher gegeben. Siehe handlers_files_upload.go.
+func (s *Server) csrfPasst(r *http.Request, got string) bool {
+	sess, ok := sessionFrom(r.Context())
+	if !ok {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(sess.CSRFToken)) == 1
 }
 
 func (s *Server) redirectToLogin(w http.ResponseWriter, r *http.Request) {

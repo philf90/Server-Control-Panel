@@ -123,6 +123,13 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("POST /files/move", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMove)))))
 		mux.Handle("POST /files/delete", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileDelete)))))
 		mux.Handle("POST /files/mode", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMode)))))
+		// Der Upload steht bewusst nicht hinter verifyCSRF: Die Middleware holt
+		// den Token über r.PostFormValue, und das zöge den gesamten Körper in
+		// Speicher und Temp-Dateien, bevor der Handler ihn streamen könnte. Er
+		// prüft den Token selbst — aus der Kopfzeile oder aus dem ersten
+		// Multipart-Teil, in jedem Fall vor dem ersten Byte Dateiinhalt.
+		// Begründung und Ablauf in handlers_files_upload.go.
+		mux.Handle("POST /files/upload", s.protected(s.requireWrite(http.HandlerFunc(s.handleFileUpload))))
 	}
 
 	mux.Handle("GET /logs", s.protected(http.HandlerFunc(s.handleLogs)))

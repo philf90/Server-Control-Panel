@@ -78,11 +78,15 @@ func auditFeld(v string) string {
 		case r == '\t':
 			b.WriteString(`\t`)
 		case r < 0x20 || r == 0x7f:
-			b.WriteString(fmt.Sprintf(`\x%02x`, r))
+			// Fprintf statt WriteString(Sprintf(…)): Der Umweg über eine
+			// Zwischenzeichenkette kostet eine Allokation je Zeichen, und
+			// staticcheck (QF1012) besteht darauf. Ein strings.Builder gibt beim
+			// Schreiben nie einen Fehler zurück.
+			_, _ = fmt.Fprintf(&b, `\x%02x`, r)
 		// Die Schreibrichtungs-Umschalter lassen einen Eintrag anders aussehen,
 		// als er ist — in einem Audit-Log der letzte Ort, an dem das tragbar wäre.
 		case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069:
-			b.WriteString(fmt.Sprintf(`\u%04x`, r))
+			_, _ = fmt.Fprintf(&b, `\u%04x`, r)
 		default:
 			b.WriteRune(r)
 		}

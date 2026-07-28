@@ -119,9 +119,16 @@ jobs:
       # v8 ist die erste Fassung, die golangci-lint v2 und dessen
       # Konfigurationsformat versteht. Mit v6 brach der Job nach 95 ms mit
       # Code 3 ab: unlesbare Konfiguration.
+      #
+      # Die Fassung des Linters steht vollständig da, nicht als "v2.12": Eine
+      # Minor-Angabe löst der Job auf den jeweils neuesten Patch auf, und ein
+      # neuer Patch bringt neue Regeln mit. Genau das hat einen grünen Stand rot
+      # werden lassen, ohne dass sich eine Zeile Code geändert hätte (v2.12.2
+      # ergänzte QF1012). Ein Linter-Sprung soll ein Commit sein, den jemand
+      # bewusst macht — mit der Gelegenheit, die neuen Befunde zu lesen.
       - uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.12
+          version: v2.12.2
 
   editor:
     name: Editor-Bundle reproduzierbar

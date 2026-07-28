@@ -12,10 +12,14 @@
 
     <label for="password">Passwort</label>
     <input type="password" id="password" name="password" autocomplete="new-password" required minlength="12">
-    <p class="hint">Mindestens 12 Zeichen. Eine Passphrase aus mehreren Wörtern ist besser als Sonderzeichen-Akrobatik.</p>
 
     <label for="password_confirm">Passwort wiederholen</label>
     <input type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" required minlength="12">
+
+    {{/* Der Anmeldename steht hier noch nicht fest — er wird im Feld darüber
+         eingegeben. Das Skript liest ihn von dort, deshalb bleibt "name" leer. */}}
+    {{template "passwortpruefung" dict "feld" "password" "policy" .Policy "name" ""}}
+    <p class="hint">Eine Passphrase aus mehreren Wörtern ist besser als Sonderzeichen-Akrobatik.</p>
 
     <button type="submit">Konto anlegen</button>
   </form>

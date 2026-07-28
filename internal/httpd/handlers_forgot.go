@@ -274,7 +274,7 @@ func (s *Server) handleForgotNew(w http.ResponseWriter, r *http.Request) {
 			"Die beiden Passwörter stimmen nicht überein.")
 		return
 	}
-	if err := auth.CheckPasswordPolicy(next); err != nil {
+	if err := auth.CheckPasswordPolicy(ticket.username, next); err != nil {
 		s.renderForgotNew(w, r, http.StatusBadRequest, ticket.username, err.Error())
 		return
 	}

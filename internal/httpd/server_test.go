@@ -413,16 +413,18 @@ func TestPostWithWrongCSRFTokenIsRejected(t *testing.T) {
 	}
 }
 
+// TestUserCreateWithCSRF: Anzugeben sind nur Anmeldename und Rolle. Das
+// Startpasswort erzeugt das Panel, zeigt es einmal und verlangt den Wechsel.
 func TestUserCreateWithCSRF(t *testing.T) {
 	s := newTestServer(t)
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	cookie, csrf := login(t, s, owner)
 
 	rec := post(t, s, "/users", url.Values{
-		"_csrf": {csrf}, "username": {"kollege"}, "password": {testPassword}, "role": {"readonly"},
+		"_csrf": {csrf}, "username": {"kollege"}, "role": {"readonly"},
 	}, cookie)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200", rec.Code)
+		t.Fatalf("Status = %d, erwartet 200 (Body: %s)", rec.Code, rec.Body.String())
 	}
 
 	user, err := s.db.UserByName(context.Background(), "kollege")
@@ -435,23 +437,88 @@ func TestUserCreateWithCSRF(t *testing.T) {
 	if user.TOTPConfirmed {
 		t.Error("neues Konto darf nicht mit bestätigtem zweiten Faktor starten")
 	}
+	if !user.MustChangePassword {
+		t.Error("das Startpasswort ist kein Einmalpasswort — der Wechselzwang fehlt")
+	}
+
+	// Die Seite zeigt das Passwort genau einmal. Es muss der Richtlinie
+	// entsprechen: Auf der Wechselseite wird es als aktuelles Passwort geprüft.
+	passwort := einmalpasswortAus(t, rec.Body.String())
+	if err := auth.CheckPasswordPolicy(user.Username, passwort); err != nil {
+		t.Errorf("das erzeugte Passwort verstößt gegen die Richtlinie: %v", err)
+	}
+	ok, err := auth.VerifyPassword(passwort, user.PasswordHash)
+	if err != nil || !ok {
+		t.Error("das angezeigte Passwort gehört nicht zum gespeicherten Hash")
+	}
 }
 
-func TestUserCreateRejectsWeakPassword(t *testing.T) {
+// Das Startpasswort darf nirgends stehen als auf dieser einen Seite — im
+// Audit-Log steht nur, dass eines vergeben wurde.
+func TestUserCreateSchreibtDasPasswortNichtInsAudit(t *testing.T) {
 	s := newTestServer(t)
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	cookie, csrf := login(t, s, owner)
 
 	rec := post(t, s, "/users", url.Values{
-		"_csrf": {csrf}, "username": {"schwach"}, "password": {"kurz"}, "role": {"admin"},
+		"_csrf": {csrf}, "username": {"kollege"}, "role": {"admin"},
 	}, cookie)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("Status = %d, erwartet 400", rec.Code)
+	passwort := einmalpasswortAus(t, rec.Body.String())
+
+	entries, err := s.db.ListAudit(context.Background(), 20)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := s.db.UserByName(context.Background(), "schwach"); err == nil {
-		t.Error("Konto mit zu kurzem Passwort wurde angelegt")
+	var vermerkt bool
+	for _, e := range entries {
+		if e.Action != "user.create" {
+			continue
+		}
+		vermerkt = strings.Contains(e.Detail, "Einmalpasswort")
+		if strings.Contains(e.Detail, passwort) || strings.Contains(e.Target, passwort) {
+			t.Fatal("das Startpasswort steht im Audit-Log")
+		}
+	}
+	if !vermerkt {
+		t.Error("im Audit-Log fehlt der Vermerk über das Einmalpasswort")
 	}
 }
+
+// Ein neues Konto kommt nirgendwo hin, bis der zweite Faktor steht und das
+// Startpasswort ersetzt ist — in dieser Reihenfolge.
+func TestNeuesKontoMussPasswortWechseln(t *testing.T) {
+	s := newTestServer(t)
+	owner := addUser(t, s, "owner", store.RoleOwner)
+	ownerCookie, csrf := login(t, s, owner)
+
+	post(t, s, "/users", url.Values{
+		"_csrf": {csrf}, "username": {"kollege"}, "role": {"admin"},
+	}, ownerCookie)
+
+	neu, err := s.db.UserByName(context.Background(), "kollege")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie, _ := login(t, s, neu)
+
+	// Erst der zweite Faktor.
+	rec := get(t, s, "/", cookie)
+	if loc := rec.Header().Get("Location"); rec.Code != http.StatusSeeOther || loc != "/setup/2fa" {
+		t.Fatalf("Status = %d, Location = %q — erwartet 303 auf /setup/2fa", rec.Code, loc)
+	}
+
+	// Danach der Wechsel des Startpassworts.
+	if err := s.db.SetTOTP(context.Background(), neu.ID, neu.TOTPSecret, true); err != nil {
+		t.Fatal(err)
+	}
+	rec = get(t, s, "/", cookie)
+	if loc := rec.Header().Get("Location"); rec.Code != http.StatusSeeOther || loc != "/account/password-change" {
+		t.Fatalf("Status = %d, Location = %q — erwartet 303 auf /account/password-change", rec.Code, loc)
+	}
+}
+
+// Das Einmalpasswort liest einmalpasswortAus aus der Antwort — der Helfer steht
+// bei den Tests zum Zurücksetzen (reset_test.go), weil dieselbe Seite es zeigt.
 
 // ----------------------------------------------------------------- Anmeldung ---
 

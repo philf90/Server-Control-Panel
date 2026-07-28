@@ -69,6 +69,8 @@
       <label for="new_password_confirm">Neues Passwort wiederholen</label>
       <input type="password" id="new_password_confirm" name="new_password_confirm" autocomplete="new-password" required minlength="12">
 
+      {{template "passwortpruefung" dict "feld" "new_password" "policy" $.Policy "name" $.User.Username}}
+
       <p class="hint">Mit der Änderung werden alle anderen Sitzungen beendet.</p>
       <button type="submit">Passwort ändern</button>
     </form>

@@ -67,6 +67,32 @@ Datenbankabzug erlaubt damit keine Übernahme laufender Sitzungen.
 dafür — ein Panel mit root-Rechten und nur einem Passwort ist die Sorte
 Bequemlichkeit, die man später bereut.
 
+**Die Passwortrichtlinie prüft Ratbarkeit, nicht Zeichenklassen.** Verlangt
+werden mindestens 12 Zeichen; zusätzlich abgelehnt wird, was jede Längenregel
+besteht und trotzdem in Sekunden geraten ist: der eigene Anmeldename (auch als
+Teil des Passworts, unabhängig von der Schreibweise) und eine bloße Wiederholung
+oder durchgehende Zeichenfolge (`aaaaaaaaaaaa`, `abcdefghijkl`). Beides steht in
+NIST 800-63B §5.1.1.2 als Empfehlung; Vorschriften zu Groß-, Klein- und
+Sonderzeichen stehen dort ausdrücklich **nicht** — sie führen zu `Passwort1!`.
+
+Die Regeln sind Daten (`auth.Policy()`) und keine bloße Prüffunktion, weil die
+Oberfläche sie zeigt: Auf allen vier Seiten, die ein neues Passwort verlangen,
+stehen die Bedingungen mit Haken oder Kreuz daneben, dazu eine Stärkeschätzung.
+Wer ein Passwort wählt, soll die Bedingungen lesen können und nicht erst durch
+eine Ablehnung erfahren, welche es gibt.
+
+Die Anzeige rechnet im Browser (`passwort.js`) — eine Rückfrage beim Server je
+Tastendruck käme nicht in Frage. Verbindlich bleibt die Prüfung in Go; die
+doppelte Regel ist der Preis dafür und mit einem Browsertest gesichert, der
+dieselbe Tabelle durch beide Wege schickt und Regel für Regel vergleicht
+(`TestPasswortpruefungBrowser`). Läuft eine Fassung weg, zeigt die Seite grün,
+während der Server ablehnt — der Test fällt dann um.
+
+**Offen und bewusst nicht getan:** eine Sperrliste häufiger Passwörter. Sie ist
+die wirksamste der NIST-Empfehlungen, braucht aber eine Quelle, eine Größe und
+eine Pflege — das gehört in eine eigene Entscheidung und nicht als stille Zutat
+in ein Anzeige-Arbeitspaket.
+
 ### Gefunden und behoben: TOTP-Codes galten mehrfach
 
 Bei dieser Durchsicht fiel auf, dass `VerifyTOTP` zustandslos war. Ein Code galt

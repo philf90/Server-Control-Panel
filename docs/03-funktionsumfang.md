@@ -30,6 +30,12 @@ der ersten Stunde tut.
 - Geführtes Erst-Setup: Admin-Account, TOTP-2FA, Hostname, Zeitzone.
 - Login mit Argon2id + TOTP, serverseitige Sessions, Rate-Limiting.
 - Rollen: Owner, Admin, ReadOnly.
+- Panel-Zugang anlegen: nur Anmeldename und Rolle. Das Startpasswort erzeugt das
+  Panel, zeigt es genau einmal und verlangt bei der ersten Anmeldung den Wechsel.
+- Passwortrichtlinie: mindestens 12 Zeichen, nicht der Anmeldename, keine bloße
+  Wiederholung oder Zeichenfolge — keine Vorschriften zu Zeichenklassen. Wo ein
+  neues Passwort gewählt wird, stehen die Bedingungen mit Haken oder Kreuz
+  daneben, dazu eine Stärkeschätzung.
 - `asylum reset-password` als lokaler Rettungsanker über SSH.
 - Zugang zurücksetzen im Panel: Einmalpasswort mit Wechselzwang, zweiter Faktor
   und Passkeys — durch den Owner; ein vergessenes Passwort per Passkey durch den

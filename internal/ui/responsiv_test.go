@@ -343,3 +343,59 @@ func TestBalkenOhneInlineBreite(t *testing.T) {
 		}
 	}
 }
+
+// TestJedesNeuePasswortfeldZeigtDieRichtlinie: Wo ein neues Passwort gewählt
+// wird, müssen die Bedingungen dabeistehen.
+//
+// Vier Seiten verlangen eines — Ersteinrichtung, Kontoseite, erzwungener
+// Wechsel und der Weg über einen Passkey. Vorher stand unter dem Feld ein Satz
+// ("Mindestens 12 Zeichen"), und die übrigen Regeln erfuhr man erst durch eine
+// Ablehnung. Der Test hält fest, dass keine dieser Seiten die Anzeige verliert:
+// Eine Regel, die man nicht lesen kann, ist eine Falle.
+func TestJedesNeuePasswortfeldZeigtDieRichtlinie(t *testing.T) {
+	seiten := []string{"setup.html", "account.html", "password-change.html", "forgot-new.html"}
+
+	for _, name := range seiten {
+		raw, err := templateFS.ReadFile("templates/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		inhalt := string(raw)
+
+		if !strings.Contains(inhalt, `type="password"`) {
+			t.Errorf("%s hat kein Passwortfeld mehr — dann gehört sie nicht in diese Liste", name)
+			continue
+		}
+		if !strings.Contains(inhalt, `{{template "passwortpruefung"`) {
+			t.Errorf("%s zeigt die Passwortrichtlinie nicht", name)
+		}
+		// Die alte Fassung nannte die Mindestlänge im Fließtext. Bleibt sie
+		// stehen, gibt es zwei Quellen für dieselbe Zahl.
+		if strings.Contains(inhalt, "Mindestens 12 Zeichen") {
+			t.Errorf("%s schreibt die Mindestlänge im Text fest — sie kommt aus internal/auth", name)
+		}
+	}
+}
+
+// Die Prüfliste ist eine Übersetzung von auth.CheckPasswordPolicy. Die Zahlen
+// dürfen im Skript nicht ein zweites Mal stehen, sonst laufen Anzeige und
+// Prüfung auseinander.
+func TestPasswortSkriptSchreibtKeineZahlenFest(t *testing.T) {
+	raw, err := staticFS.ReadFile("static/passwort.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(raw)
+
+	// Die Werte kommen aus den data-Attributen, die aus auth.Policy() gerendert
+	// werden (dataset.pwMin / dataset.pwMax).
+	if !strings.Contains(js, "pwMin") {
+		t.Error("passwort.js liest die Mindestlänge nicht aus dem Markup")
+	}
+	if !strings.Contains(js, "pwMax") {
+		t.Error("passwort.js liest die Obergrenze nicht aus dem Markup")
+	}
+	if strings.Contains(js, "1024") || strings.Contains(js, ">= 12") {
+		t.Error("passwort.js nennt eine Zahl der Richtlinie selbst — sie gehört ins Markup")
+	}
+}

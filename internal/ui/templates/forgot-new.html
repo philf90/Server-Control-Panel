@@ -14,7 +14,9 @@
     <label for="new_password_confirm">Neues Passwort wiederholen</label>
     <input type="password" id="new_password_confirm" name="new_password_confirm"
            autocomplete="new-password" minlength="12" required>
-    <p class="hint">Mindestens 12 Zeichen. Länge zählt mehr als Sonderzeichen.</p>
+
+    {{template "passwortpruefung" dict "feld" "new_password" "policy" .Policy "name" .Content.Username}}
+    <p class="hint">Länge zählt mehr als Sonderzeichen.</p>
 
     <button type="submit">Passwort setzen</button>
   </form>

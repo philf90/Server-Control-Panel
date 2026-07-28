@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -79,14 +80,108 @@ func TestDummyHashShapeIsUsable(t *testing.T) {
 }
 
 func TestPasswordPolicy(t *testing.T) {
-	if err := CheckPasswordPolicy("kurz"); err == nil {
-		t.Error("zu kurzes Passwort muss abgelehnt werden")
+	const name = "philipp"
+
+	faelle := []struct {
+		was      string
+		passwort string
+		erlaubt  bool
+	}{
+		{"zu kurz", "kurz", false},
+		{"gerade lang genug", "korrekt pferd batterie", true},
+		{"genau die Mindestlänge", "abcdefg hijk", true},
+		{"übermäßig lang", strings.Repeat("ab", 1000), false},
+
+		// Dasselbe Zeichen zwölf Mal bestand die alte Regel — Länge allein sagt
+		// nichts über Ratbarkeit.
+		{"nur Wiederholung", strings.Repeat("a", MinPasswordLength), false},
+		{"durchgehende Folge", "abcdefghijklmn", false},
+		// Absteigend heißt Schritt für Schritt: "987654321098" springt an der
+		// Null zurück auf die Neun und ist damit keine durchgehende Folge.
+		{"absteigende Folge", "zyxwvutsrqponm", false},
+		{"Ziffern mit Umbruch", "987654321098", true},
+		{"Folge nur als Teil", "xkcd abcdefg zzz", true},
+
+		// Der Anmeldename ist das Erste, was ein Angreifer probiert.
+		{"ist der Anmeldename", name + name, false},
+		{"enthält den Anmeldenamen", "meinPhilippPasswort", false},
+		{"nur ähnlich", "philosophie im regen", true},
 	}
-	if err := CheckPasswordPolicy(strings.Repeat("a", MinPasswordLength)); err != nil {
-		t.Errorf("Passwort mit Mindestlänge abgelehnt: %v", err)
+
+	for _, f := range faelle {
+		t.Run(f.was, func(t *testing.T) {
+			err := CheckPasswordPolicy(name, f.passwort)
+			if f.erlaubt && err != nil {
+				t.Errorf("%q wurde abgelehnt: %v", f.passwort, err)
+			}
+			if !f.erlaubt && err == nil {
+				t.Errorf("%q wurde angenommen", f.passwort)
+			}
+		})
 	}
-	if err := CheckPasswordPolicy(strings.Repeat("a", 2000)); err == nil {
-		t.Error("übermäßig langes Passwort muss abgelehnt werden")
+
+	// Ohne Anmeldenamen entfällt nur diese eine Prüfung, die übrigen gelten.
+	if err := CheckPasswordPolicy("", "korrekt pferd batterie"); err != nil {
+		t.Errorf("ohne Namen abgelehnt: %v", err)
+	}
+	if err := CheckPasswordPolicy("", "kurz"); err == nil {
+		t.Error("ohne Namen darf die Längenregel nicht entfallen")
+	}
+}
+
+// Die Richtlinie ist auch Anzeige: Jede Regel, die ablehnen kann, braucht einen
+// Satz in der Oberfläche — sonst erfährt man sie erst durch die Ablehnung.
+func TestPolicyBeschreibtJedeRegel(t *testing.T) {
+	p := Policy()
+	if p.MinLength != MinPasswordLength || p.MaxBytes != MaxPasswordBytes {
+		t.Errorf("Policy nennt andere Zahlen als die Konstanten: %+v", p)
+	}
+
+	gewollt := []PasswordRuleKey{RuleLength, RuleNotUsername, RuleNotTrivial, RuleMaxBytes}
+	if len(p.Rules) != len(gewollt) {
+		t.Fatalf("%d Regeln, erwartet %d: %+v", len(p.Rules), len(gewollt), p.Rules)
+	}
+	for i, key := range gewollt {
+		if p.Rules[i].Key != key {
+			t.Errorf("Regel %d = %q, erwartet %q", i, p.Rules[i].Key, key)
+		}
+		if strings.TrimSpace(p.Rules[i].Text) == "" {
+			t.Errorf("Regel %q hat keinen Text", key)
+		}
+	}
+	// Die Zahl im Satz muss die geltende sein, nicht eine abgeschriebene.
+	if !strings.Contains(p.Rules[0].Text, strconv.Itoa(MinPasswordLength)) {
+		t.Errorf("der Text zur Längenregel nennt die Mindestlänge nicht: %q", p.Rules[0].Text)
+	}
+}
+
+func TestPasswordIsTrivial(t *testing.T) {
+	trivial := []string{"aaaa", "1111111111", "abcdef", "fedcba", "123456789", "..."}
+	for _, p := range trivial {
+		if !PasswordIsTrivial(p) {
+			t.Errorf("%q gilt nicht als trivial", p)
+		}
+	}
+	harmlos := []string{"", "a", "ab", "korrekt pferd batterie", "aabbcc", "abcx"}
+	for _, p := range harmlos {
+		if PasswordIsTrivial(p) {
+			t.Errorf("%q gilt als trivial", p)
+		}
+	}
+}
+
+func TestPasswordUnlikeUsername(t *testing.T) {
+	if PasswordUnlikeUsername("philipp", "Philipp1234567") {
+		t.Error("die Prüfung darf nicht auf Groß- und Kleinschreibung hereinfallen")
+	}
+	if !PasswordUnlikeUsername("philipp", "korrekt pferd batterie") {
+		t.Error("ein Passwort ohne den Namen wurde abgelehnt")
+	}
+	if !PasswordUnlikeUsername("", "irgendetwas langes hier") {
+		t.Error("ohne Namen gibt es nichts zu prüfen")
+	}
+	if !PasswordUnlikeUsername("   ", "irgendetwas langes hier") {
+		t.Error("ein leerer Name mit Leerzeichen darf nicht jedes Passwort sperren")
 	}
 }
 
@@ -258,7 +353,7 @@ func TestNewTemporaryPassword(t *testing.T) {
 
 	// Die Passwortregel muss es erfüllen: Auf der Wechselseite wird es als
 	// aktuelles Passwort geprüft.
-	if err := CheckPasswordPolicy(pw); err != nil {
+	if err := CheckPasswordPolicy("", pw); err != nil {
 		t.Errorf("das Einmalpasswort %q verstößt gegen die Regel: %v", pw, err)
 	}
 

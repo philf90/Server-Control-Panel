@@ -63,6 +63,40 @@
 {{if .Flash}}<div class="alert ok">{{.Flash}}</div>{{end}}
 {{end}}
 
+{{/* Passwortprüfung: die geltende Richtlinie, eine Stärkeschätzung und je Regel
+     ein Haken oder ein Kreuz.
+
+     Aufruf mit drei Werten, weil ein template-Aufruf nur eines annimmt:
+
+       {{template "passwortpruefung" dict "feld" "new_password" "policy" $.Policy "name" $.User.Username}}
+
+     Die Regeln und die Zahlen darin kommen aus internal/auth und werden hier
+     nur gerendert. Ohne passwort.js steht die Liste ohne Haken da — die
+     Bedingungen sind dann trotzdem zu lesen, und geprüft wird ohnehin auf dem
+     Server. "name" darf leer sein: Auf der Einrichtungsseite steht der
+     Anmeldename im Formular daneben, und das Skript liest ihn dort. */}}
+{{define "passwortpruefung"}}
+<div class="pwcheck"
+     data-pw-feld="{{.feld}}"
+     data-pw-min="{{.policy.MinLength}}"
+     data-pw-max="{{.policy.MaxBytes}}"
+     data-pw-name="{{.name}}">
+  <div class="pwstaerke">
+    <span class="pwtitel">Stärke</span>
+    <progress class="bar pwbalken" max="100" value="0" aria-hidden="true"></progress>
+    <span class="pwwort" aria-live="polite">noch keine Eingabe</span>
+  </div>
+  <ul class="pwregeln">
+    {{range .policy.Rules}}
+    <li data-pw-regel="{{.Key}}">{{.Text}}</li>
+    {{end}}
+  </ul>
+</div>
+{{/* Das Skript steht in der Teilvorlage und nicht in den vier Seiten: So kommt
+     es genau dort mit, wo die Anzeige steht, und nirgends sonst. */}}
+<script src="/static/passwort.js" defer></script>
+{{end}}
+
 {{define "footer"}}
 </main>
 <footer class="page-footer">

@@ -40,130 +40,166 @@
 <script src="/static/countdown.js" defer></script>
 {{end}}
 
-{{if .State.Notice}}<p class="hint">{{.State.Notice}}</p>{{end}}
+{{/* Zustand und Regelsatz stehen in Karten wie auf jeder anderen Seite.
+     Vorher lagen Hinweistexte, Knöpfe und die Regelblöcke frei auf dem
+     Seitenhintergrund: Die Seite sah aus wie ein Entwurf, während Übersicht,
+     Pakete und Dienste ihre Inhalte in Karten führen. */}}
+<div class="section">
+  <div class="sechead">
+    <span class="seclabel">Zustand</span>
+    <span class="sub">{{if .State.Active}}Regeln greifen{{else if .State.Installed}}Regeln greifen nicht{{else}}nicht eingerichtet{{end}}</span>
+  </div>
+  <div class="card">
+    {{if .State.Notice}}
+    <p class="zustand-text{{if not .State.Active}} warn-text{{end}}">{{.State.Notice}}</p>
+    {{else if .State.Active}}
+    <p class="zustand-text">
+      ufw ist aktiv und weist alles ab, was der Regelsatz unten nicht ausdrücklich
+      erlaubt. Erreichbar bleibt: <strong>{{.OpenPorts}}</strong>.
+    </p>
+    {{end}}
 
-{{if $.CanWrite}}
-{{if not .State.Installed}}
-{{if ne .State.Backend "nftables"}}
-<div class="button-row">
-  <form method="post" action="/firewall/install">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <button type="submit">ufw installieren</button>
-  </form>
-  <p class="hint">
-    Installiert das Paket <code>ufw</code> über apt. Danach lässt sich hier ein
-    Regelsatz anlegen und die Firewall einschalten.
-  </p>
+    {{if $.CanWrite}}
+    {{if not .State.Installed}}
+    {{if ne .State.Backend "nftables"}}
+    <div class="button-row">
+      <form method="post" action="/firewall/install">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <button type="submit">ufw installieren</button>
+      </form>
+      <p class="hint">
+        Installiert das Paket <code>ufw</code> über apt. Danach lässt sich hier ein
+        Regelsatz anlegen und die Firewall einschalten.
+      </p>
+    </div>
+    {{end}}
+    {{else if not .State.Active}}
+    {{if .PanelPortOpen}}
+    <div class="button-row">
+      <form method="post" action="/firewall/active"
+            onsubmit="return confirm('ufw einschalten? Danach ist nur noch erreichbar: {{.OpenPorts}}. Ohne Bestätigung binnen 60 Sekunden wird automatisch wieder ausgeschaltet.')">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <input type="hidden" name="active" value="1">
+        <button type="submit">ufw einschalten</button>
+      </form>
+      <p class="hint">
+        Nach dem Einschalten ist nur noch erreichbar: <strong>{{.OpenPorts}}</strong>.
+        Alles andere wird abgewiesen. Die Änderung gilt zunächst auf Probe —
+        ohne Bestätigung binnen 60 Sekunden schaltet das Panel ufw wieder aus.
+      </p>
+    </div>
+    {{else}}
+    {{/* Kein loser Absatz mehr: Ein gesperrtes Einschalten ist eine Meldung und
+         sieht auch so aus. */}}
+    <div class="alert warn-box">
+      <div>
+        <strong>Einschalten ist gesperrt.</strong> Für Port {{.PanelPort}} gibt es
+        noch keine gespeicherte Regel. Wäre ufw eingeschaltet, wäre das Panel nicht
+        mehr erreichbar — auch nicht, um die Änderung zurückzunehmen. Die Regel
+        steht unten bereits eingetragen: einmal <em>Regelsatz speichern</em>, dann
+        erscheint der Knopf.
+      </div>
+    </div>
+    {{end}}
+    {{end}}
+    {{end}}
+  </div>
 </div>
-{{end}}
-{{else if not .State.Active}}
-<div class="button-row">
-  {{if .PanelPortOpen}}
-  <form method="post" action="/firewall/active"
-        onsubmit="return confirm('ufw einschalten? Danach ist nur noch erreichbar: {{.OpenPorts}}. Ohne Bestätigung binnen 60 Sekunden wird automatisch wieder ausgeschaltet.')">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <input type="hidden" name="active" value="1">
-    <button type="submit">ufw einschalten</button>
-  </form>
-  <p class="hint">
-    Nach dem Einschalten ist nur noch erreichbar: <strong>{{.OpenPorts}}</strong>.
-    Alles andere wird abgewiesen. Die Änderung gilt zunächst auf Probe —
-    ohne Bestätigung binnen 60 Sekunden schaltet das Panel ufw wieder aus.
-  </p>
-  {{else}}
-  <p class="hint warn-text">
-    <strong>Einschalten ist gesperrt.</strong> Für Port {{.PanelPort}} gibt es
-    noch keine gespeicherte Regel. Wäre ufw eingeschaltet, wäre das Panel nicht
-    mehr erreichbar — auch nicht, um die Änderung zurückzunehmen. Die Regel
-    steht unten bereits eingetragen: einmal <em>Regelsatz speichern</em>, dann
-    erscheint der Knopf.
-  </p>
-  {{end}}
-</div>
-{{end}}
-{{end}}
 
 {{if and $.CanWrite .State.Managed}}
-<p class="hint">
-  Hier steht der vollständige gewünschte Regelsatz für eingehenden Verkehr.
-  Eine geleerte Portnummer entfernt die Zeile. Nach dem Speichern gelten die
-  Regeln zunächst auf Probe — bestätige sie, solange die Verbindung noch steht.
-</p>
+<div class="section">
+  <div class="sechead">
+    <span class="seclabel">Regelsatz für eingehenden Verkehr</span>
+    <span class="sub">{{len .Rows}} Zeilen</span>
+  </div>
+  <div class="card">
+    <p class="hint">
+      Hier steht der vollständige gewünschte Regelsatz. Eine geleerte Portnummer
+      entfernt die Zeile. Nach dem Speichern gelten die Regeln zunächst auf Probe —
+      bestätige sie, solange die Verbindung noch steht.
+    </p>
 
-<form method="post" action="/firewall" class="rules-form">
-  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <form method="post" action="/firewall" class="rules-form">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
 
-  {{range .Rows}}
-  <fieldset class="rule{{if .Locked}} locked{{end}}{{if .Proposed}} proposed{{end}}">
-    <legend>
-      {{if .Locked}}Panel{{else if .Proposed}}Vorschlag{{else if .Rule.Comment}}{{.Rule.Comment}}{{else}}Regel{{end}}
-    </legend>
+      {{range .Rows}}
+      <fieldset class="rule{{if .Locked}} locked{{end}}{{if .Proposed}} proposed{{end}}">
+        <legend>
+          {{if .Locked}}Panel{{else if .Proposed}}Vorschlag{{else if .Rule.Comment}}{{.Rule.Comment}}{{else}}Regel{{end}}
+        </legend>
 
-    <div class="felder">
-      <div class="feld">
-        <label for="port-{{.Rule.Port}}-{{.Rule.Protocol}}">Port{{if .Locked}} <span class="fest">fest</span>{{end}}</label>
-        {{if .Locked}}
-        <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" value="{{.Rule.Port}}" readonly>
-        <input type="hidden" name="port" value="{{.Rule.Port}}">
-        {{else}}
-        <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" name="port" value="{{.Rule.Port}}" inputmode="numeric">
-        {{end}}
-      </div>
+        <div class="felder">
+          <div class="feld">
+            <label for="port-{{.Rule.Port}}-{{.Rule.Protocol}}">Port{{if .Locked}} <span class="fest">fest</span>{{end}}</label>
+            {{if .Locked}}
+            <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" value="{{.Rule.Port}}" readonly>
+            <input type="hidden" name="port" value="{{.Rule.Port}}">
+            {{else}}
+            <input type="text" id="port-{{.Rule.Port}}-{{.Rule.Protocol}}" name="port" value="{{.Rule.Port}}" inputmode="numeric">
+            {{end}}
+          </div>
 
-      <div class="feld">
-        <label for="proto-{{.Rule.Port}}-{{.Rule.Protocol}}">Protokoll{{if .Locked}} <span class="fest">fest</span>{{end}}</label>
-        <select id="proto-{{.Rule.Port}}-{{.Rule.Protocol}}"
-                {{if .Locked}}disabled{{else}}name="protocol"{{end}}>
-          <option value="tcp" {{if eq .Rule.Protocol "tcp"}}selected{{end}}>tcp</option>
-          <option value="udp" {{if eq .Rule.Protocol "udp"}}selected{{end}}>udp</option>
-        </select>
-        {{if .Locked}}<input type="hidden" name="protocol" value="{{.Rule.Protocol}}">{{end}}
-      </div>
+          <div class="feld">
+            <label for="proto-{{.Rule.Port}}-{{.Rule.Protocol}}">Protokoll{{if .Locked}} <span class="fest">fest</span>{{end}}</label>
+            <select id="proto-{{.Rule.Port}}-{{.Rule.Protocol}}"
+                    {{if .Locked}}disabled{{else}}name="protocol"{{end}}>
+              <option value="tcp" {{if eq .Rule.Protocol "tcp"}}selected{{end}}>tcp</option>
+              <option value="udp" {{if eq .Rule.Protocol "udp"}}selected{{end}}>udp</option>
+            </select>
+            {{if .Locked}}<input type="hidden" name="protocol" value="{{.Rule.Protocol}}">{{end}}
+          </div>
 
-      <div class="feld">
-        <label for="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}">Quelle</label>
-        <input type="text" id="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}" name="source" value="{{.Rule.Source}}" placeholder="überall">
-      </div>
+          <div class="feld">
+            <label for="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}">Quelle</label>
+            <input type="text" id="quelle-{{.Rule.Port}}-{{.Rule.Protocol}}" name="source" value="{{.Rule.Source}}" placeholder="überall">
+          </div>
 
-      <div class="feld">
-        <label for="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}">Kommentar</label>
-        <input type="text" id="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}" name="comment" value="{{.Rule.Comment}}" maxlength="120">
-      </div>
-    </div>
+          <div class="feld">
+            <label for="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}">Kommentar</label>
+            <input type="text" id="kommentar-{{.Rule.Port}}-{{.Rule.Protocol}}" name="comment" value="{{.Rule.Comment}}" maxlength="120">
+          </div>
+        </div>
 
-    {{if .Note}}<p class="hint">{{.Note}}</p>{{end}}
-  </fieldset>
-  {{end}}
+        {{if .Note}}<p class="hint">{{.Note}}</p>{{end}}
+      </fieldset>
+      {{end}}
 
-  <fieldset class="rule neu">
-    <legend>Neue Regel</legend>
-    <div class="felder">
-      <div class="feld">
-        <label for="port-neu">Port</label>
-        <input type="text" id="port-neu" name="port" placeholder="443" inputmode="numeric">
-      </div>
-      <div class="feld">
-        <label for="proto-neu">Protokoll</label>
-        <select id="proto-neu" name="protocol">
-          <option value="tcp">tcp</option>
-          <option value="udp">udp</option>
-        </select>
-      </div>
-      <div class="feld">
-        <label for="quelle-neu">Quelle</label>
-        <input type="text" id="quelle-neu" name="source" placeholder="überall">
-      </div>
-      <div class="feld">
-        <label for="kommentar-neu">Kommentar</label>
-        <input type="text" id="kommentar-neu" name="comment" maxlength="120" placeholder="wofür">
-      </div>
-    </div>
-  </fieldset>
+      <fieldset class="rule neu">
+        <legend>Neue Regel</legend>
+        <div class="felder">
+          <div class="feld">
+            <label for="port-neu">Port</label>
+            <input type="text" id="port-neu" name="port" placeholder="443" inputmode="numeric">
+          </div>
+          <div class="feld">
+            <label for="proto-neu">Protokoll</label>
+            <select id="proto-neu" name="protocol">
+              <option value="tcp">tcp</option>
+              <option value="udp">udp</option>
+            </select>
+          </div>
+          <div class="feld">
+            <label for="quelle-neu">Quelle</label>
+            <input type="text" id="quelle-neu" name="source" placeholder="überall">
+          </div>
+          <div class="feld">
+            <label for="kommentar-neu">Kommentar</label>
+            <input type="text" id="kommentar-neu" name="comment" maxlength="120" placeholder="wofür">
+          </div>
+        </div>
+      </fieldset>
 
-  <button type="submit">Regelsatz speichern</button>
-</form>
+      <button type="submit">Regelsatz speichern</button>
+    </form>
+  </div>
+</div>
 {{else}}
-<div class="card flush">
+<div class="section">
+  <div class="sechead">
+    <span class="seclabel">Regelsatz für eingehenden Verkehr</span>
+    <span class="sub">{{len .State.Rules}} Regeln</span>
+  </div>
+  <div class="card flush">
   <div class="table-wrap">
     <table class="cards">
       <thead><tr><th data-rolle="haupt">Port</th><th>Protokoll</th><th data-rolle="neben">Quelle</th><th>Kommentar</th></tr></thead>
@@ -180,6 +216,7 @@
         {{end}}
       </tbody>
     </table>
+  </div>
   </div>
 </div>
 {{end}}

@@ -251,7 +251,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		fail("Die beiden Passwörter stimmen nicht überein.")
 		return
 	}
-	if err := auth.CheckPasswordPolicy(password); err != nil {
+	if err := auth.CheckPasswordPolicy(username, password); err != nil {
 		fail(err.Error())
 		return
 	}

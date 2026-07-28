@@ -855,6 +855,70 @@ form.rename button { margin: 0; }
 
 .hint { color: var(--muted); font-size: 0.82rem; }
 
+/* --- Passwortprüfung ------------------------------------------------------
+ *
+ * Die Richtlinie, eine Stärkeschätzung und je Regel ein Haken oder ein Kreuz.
+ * Bis hierher stand unter dem Feld ein Satz ("Mindestens 12 Zeichen"), und
+ * welche Regeln es noch gibt, erfuhr man erst durch eine Ablehnung.
+ *
+ * Ohne passwort.js bleibt die Liste ohne Zeichen stehen: Die Bedingungen sind
+ * dann zu lesen, nur nicht mitgeprüft. Deshalb ist der neutrale Zustand die
+ * Vorgabe und nicht "verletzt" — eine Seite ohne Skript soll nicht aussehen,
+ * als hätte man alles falsch gemacht.
+ */
+.pwcheck {
+  margin: 0.6rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.pwstaerke {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+}
+.pwstaerke .pwtitel { color: var(--muted); flex: 0 0 auto; }
+.pwstaerke .pwwort { flex: 0 0 auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Der Balken ist ein <progress> und trägt seinen Wert in einem Attribut — die
+   CSP des Panels lässt keine Inline-Breite zu (siehe .bar weiter oben). */
+.pwbalken { margin: 0; flex: 1 1 auto; }
+
+/* Die Farbe des Balkens sagt dasselbe wie das Wort daneben. Herstellereigene
+   Pseudoelemente müssen einzeln stehen: Kennt ein Browser eines nicht,
+   verwirft er die ganze Regelgruppe. */
+.pwbalken.schwach::-webkit-progress-value { background: var(--danger); }
+.pwbalken.schwach::-moz-progress-bar { background: var(--danger); }
+.pwbalken.mittel::-webkit-progress-value { background: var(--warn); }
+.pwbalken.mittel::-moz-progress-bar { background: var(--warn); }
+.pwbalken.gut::-webkit-progress-value { background: var(--accent); }
+.pwbalken.gut::-moz-progress-bar { background: var(--accent); }
+.pwbalken.stark::-webkit-progress-value { background: var(--accent); }
+.pwbalken.stark::-moz-progress-bar { background: var(--accent); }
+
+.pwregeln {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.pwregeln li { display: flex; align-items: baseline; gap: 0.4rem; padding: 0.1rem 0; }
+/* Das Zeichen steht in einem ::before und nicht im Markup: Es ist Zustand,
+   nicht Inhalt — ein Screenreader liest die Regel, nicht das Symbol. */
+.pwregeln li::before {
+  content: "•";
+  flex: 0 0 0.9rem;
+  text-align: center;
+}
+.pwregeln li.erfuellt { color: var(--fg); }
+.pwregeln li.erfuellt::before { content: "✓"; color: var(--accent); font-weight: 700; }
+.pwregeln li.verletzt { color: var(--warn); }
+.pwregeln li.verletzt::before { content: "✕"; font-weight: 700; }
+.pwregeln li.unentschieden::before { content: "•"; }
+
 /* ----------------------------------------------------------------- Meldungen */
 
 .alert {
@@ -1015,7 +1079,14 @@ pre.logs span { display: block; }
 /* Bis rc.4 war das eine Tabelle mit vier Eingabefeldern je Zeile. Schmal
    ergab das vier verschieden breite Felder untereinander, deren Beschriftungen
    unterschiedlich weit einrückten — jede Zeile sah anders aus als die
-   darüber. Jetzt ist jede Regel ein eigener Block mit gleichem Raster. */
+   darüber. Jetzt ist jede Regel ein eigener Block mit gleichem Raster.
+
+   Diese Blöcke lagen anschließend frei auf dem Seitenhintergrund, während jede
+   andere Seite ihre Inhalte in Karten führt: Die Firewall sah dadurch aus wie
+   ein Entwurf. Sie stehen jetzt in einer Karte, und die Blöcke darin tragen den
+   Seitenhintergrund — dasselbe Mittel wie bei der Passwortprüfung: ein
+   verschachteltes Feld hebt sich durch die ruhigere Fläche ab, nicht durch eine
+   weitere Linie. */
 
 .rules-form { display: grid; gap: 0.75rem; }
 
@@ -1029,7 +1100,14 @@ fieldset.rule {
   padding: 0.75rem 1rem 0.9rem;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: var(--bg);
 }
+
+/* Der Zustandstext der Firewall ist kein Kleingedrucktes: Ob die Regeln greifen
+   oder nicht, ist die wichtigste Angabe der Seite. */
+.zustand-text { margin: 0; }
+.zustand-text + .button-row,
+.zustand-text + .alert { margin-top: 0.9rem; }
 
 fieldset.rule .felder {
   display: grid;

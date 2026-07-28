@@ -1,13 +1,16 @@
 package httpd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/metrics"
 	"github.com/philf90/asylum/internal/store"
 )
@@ -306,3 +309,97 @@ func TestUebersichtOhneDaten(t *testing.T) {
 
 // formatEins schreibt eine Zahl so, wie sie im Pfad steht: eine Nachkommastelle.
 func formatEins(v float64) string { return fmt.Sprintf("%.1f", v) }
+
+// ------------------------------------------------------ Passwortrichtlinie ---
+
+// TestKontoseiteZeigtDieRichtlinie: Beim Ändern des eigenen Passworts stehen die
+// Bedingungen dabei — mit den Zahlen aus internal/auth, nicht abgeschrieben.
+func TestKontoseiteZeigtDieRichtlinie(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	body := get(t, s, "/account", cookie).Body.String()
+
+	if !strings.Contains(body, `class="pwcheck"`) {
+		t.Fatal("die Passwortprüfung fehlt auf der Kontoseite")
+	}
+	for _, want := range []string{
+		`data-pw-feld="new_password"`,
+		fmt.Sprintf(`data-pw-min="%d"`, auth.MinPasswordLength),
+		fmt.Sprintf(`data-pw-max="%d"`, auth.MaxPasswordBytes),
+		// Der Anmeldename kommt vom Server: Nur so kann das Skript die Regel
+		// „nicht der Anmeldename" beantworten.
+		`data-pw-name="philipp"`,
+		`src="/static/passwort.js"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("die Seite enthält %q nicht", want)
+		}
+	}
+	// Jede Regel der Richtlinie steht mit Schlüssel und Satz in der Liste.
+	for _, regel := range auth.Policy().Rules {
+		if !strings.Contains(body, fmt.Sprintf(`data-pw-regel="%s"`, regel.Key)) {
+			t.Errorf("die Regel %q fehlt in der Liste", regel.Key)
+		}
+		if !strings.Contains(body, regel.Text) {
+			t.Errorf("der Satz zur Regel %q fehlt: %q", regel.Key, regel.Text)
+		}
+	}
+}
+
+// Dieselbe Anzeige auf der Seite des erzwungenen Wechsels: Genau dort landet ein
+// neues Konto mit seinem Startpasswort, und dort braucht es die Bedingungen am
+// dringendsten.
+func TestErzwungenerWechselZeigtDieRichtlinie(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	hash, err := auth.HashPassword("ein Einmalpasswort das reicht")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.SetTemporaryPassword(context.Background(), user.ID, hash); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := get(t, s, "/account/password-change", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `class="pwcheck"`) {
+		t.Error("die Passwortprüfung fehlt auf der Wechselseite")
+	}
+	if !strings.Contains(body, `data-pw-name="philipp"`) {
+		t.Error("der Anmeldename fehlt — die Regel dazu bleibt unentschieden")
+	}
+}
+
+// Die Ersteinrichtung kennt den Anmeldenamen noch nicht: Er wird im Formular
+// daneben eingegeben, und das Skript liest ihn dort.
+func TestEinrichtungZeigtDieRichtlinie(t *testing.T) {
+	s := newTestServer(t)
+	ctx := context.Background()
+
+	token, err := auth.NewToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.SetSetting(ctx, store.SettingSetupTokenHash, auth.HashToken(token)); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.SetSetting(ctx, store.SettingSetupTokenExpires,
+		time.Now().Add(time.Hour).Format(time.RFC3339)); err != nil {
+		t.Fatal(err)
+	}
+
+	body := get(t, s, "/setup?token="+url.QueryEscape(token), nil).Body.String()
+	if !strings.Contains(body, `data-pw-feld="password"`) {
+		t.Error("die Passwortprüfung fehlt in der Ersteinrichtung")
+	}
+	if !strings.Contains(body, `data-pw-name=""`) {
+		t.Error("hier darf kein Anmeldename vorgegeben sein — er steht noch nicht fest")
+	}
+}

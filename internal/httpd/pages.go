@@ -3,6 +3,7 @@ package httpd
 import (
 	"net/http"
 
+	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/config"
 	"github.com/philf90/asylum/internal/metrics"
@@ -33,6 +34,12 @@ type basePage struct {
 	// FilesOn sagt, ob der Dateimanager eingeschaltet ist. Ist er es nicht,
 	// fehlt der Menüpunkt — es gibt dann auch keine Route dahinter.
 	FilesOn bool
+	// Policy ist die geltende Passwortrichtlinie. Sie steht in jeder Seite, weil
+	// vier davon ein neues Passwort verlangen (Einrichtung, Kontoseite,
+	// erzwungener Wechsel, Passkey-Weg) und alle dieselbe Anzeige benutzen. Die
+	// Zahlen kommen von hier ins Markup — das Skript für die Prüfliste soll sie
+	// nicht ein zweites Mal festschreiben.
+	Policy  auth.PasswordPolicy
 	Content any
 }
 
@@ -43,6 +50,7 @@ func (s *Server) base(r *http.Request, title, nav string) basePage {
 		Version: version.String(),
 		Host:    s.sampler.Host(),
 		FilesOn: s.files != nil,
+		Policy:  auth.Policy(),
 	}
 	if u, ok := userFrom(r.Context()); ok {
 		p.User = u
@@ -223,11 +231,17 @@ type usersPage struct {
 	ResetID int64
 }
 
-// resetPage zeigt das Einmalpasswort nach einer Zurücksetzung — genau einmal,
-// wie die Wiederherstellungscodes.
+// resetPage zeigt ein Einmalpasswort — genau einmal, wie die
+// Wiederherstellungscodes.
+//
+// Zwei Anlässe, eine Seite: ein zurückgesetzter Zugang und ein neu angelegtes
+// Konto. Der Weg danach ist derselbe (anmelden, zweiter Faktor, Wechselzwang),
+// deshalb wäre eine zweite Vorlage eine Kopie, die früher oder später
+// auseinanderläuft. Created unterscheidet nur die Wortwahl.
 type resetPage struct {
 	Username string
 	Password string
+	Created  bool
 }
 
 type forgotPage struct {

@@ -234,7 +234,7 @@ func (s *Server) handlePasswordChangeForced(w http.ResponseWriter, r *http.Reque
 			"Das neue Passwort muss sich vom vergebenen unterscheiden.")
 		return
 	}
-	if err := auth.CheckPasswordPolicy(next); err != nil {
+	if err := auth.CheckPasswordPolicy(user.Username, next); err != nil {
 		s.renderForcedChange(w, r, http.StatusBadRequest, err.Error())
 		return
 	}

@@ -50,6 +50,27 @@ func funcs() template.FuncMap {
 		// list baut im Template eine Aufzählung, etwa für die Schaltflächen
 		// einer Dienstdetailseite.
 		"list": func(items ...string) []string { return items },
+		// dict bündelt mehrere Werte für eine Teilvorlage. Ein "template"-Aufruf
+		// nimmt genau ein Argument; die Passwortprüfung braucht drei (Feld,
+		// Richtlinie, Anmeldename), und sie an vier Stellen aus einem
+		// seitenspezifischen Struct zu bauen wäre viermal dieselbe Arbeit.
+		//
+		// Ein ungerades Argumentpaar ist ein Programmierfehler und soll beim
+		// Rendern auffallen, nicht stillschweigend einen halben Wert liefern.
+		"dict": func(paare ...any) (map[string]any, error) {
+			if len(paare)%2 != 0 {
+				return nil, fmt.Errorf("dict: %d Argumente, erwartet Paare aus Name und Wert", len(paare))
+			}
+			out := make(map[string]any, len(paare)/2)
+			for i := 0; i < len(paare); i += 2 {
+				name, ok := paare[i].(string)
+				if !ok {
+					return nil, fmt.Errorf("dict: Argument %d ist kein Name", i+1)
+				}
+				out[name] = paare[i+1]
+			}
+			return out, nil
+		},
 	}
 }
 

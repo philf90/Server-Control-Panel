@@ -319,7 +319,7 @@ func cmdResetPassword(args []string) error {
 	if password != confirm {
 		return errors.New("die beiden Passwörter stimmen nicht überein")
 	}
-	if err := auth.CheckPasswordPolicy(password); err != nil {
+	if err := auth.CheckPasswordPolicy(user.Username, password); err != nil {
 		return err
 	}
 

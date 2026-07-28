@@ -27,6 +27,29 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Die Passwortrichtlinie steht dort, wo ein Passwort gewählt wird.** Bisher
+  stand unter dem Feld ein Satz („Mindestens 12 Zeichen"); welche Regeln es sonst
+  gibt, erfuhr man erst durch eine Ablehnung. Jetzt zeigen alle vier Seiten mit
+  einem neuen Passwort — Ersteinrichtung, Kontoseite, erzwungener Wechsel und der
+  Weg über einen Passkey — jede Bedingung mit Haken oder Kreuz, dazu eine
+  Stärkeschätzung als Balken mit einem Wort daneben (schwach, mittel, gut, stark).
+  Verletzt eine Eingabe eine Regel, sagt die Anzeige „nicht zulässig" statt eine
+  Stärke zu loben, die der Server nicht annimmt.
+
+  Die Zahlen der Richtlinie stehen genau einmal (`auth.Policy()`) und werden ins
+  Markup gerendert; das Skript für die Anzeige schreibt keine davon fest.
+  Verbindlich bleibt die Prüfung auf dem Server. Dass beide Fassungen dasselbe
+  sagen, hält ein Browsertest fest, der dieselbe Tabelle durch Go und durch die
+  Anzeige schickt und Regel für Regel vergleicht.
+- **Die Richtlinie prüft zwei Fälle mehr**, die jede Längenregel bestehen und
+  trotzdem in Sekunden geraten sind: den eigenen Anmeldenamen (auch als Teil des
+  Passworts, unabhängig von der Schreibweise) und eine bloße Wiederholung oder
+  durchgehende Zeichenfolge (`aaaaaaaaaaaa`, `abcdefghijkl`). Weiterhin **keine**
+  Vorschriften zu Groß-, Klein- und Sonderzeichen: Die führen zu `Passwort1!`,
+  und NIST 800-63B rät seit 2017 davon ab. Bestehende Passwörter sind unberührt —
+  geprüft wird, was neu gesetzt wird. Einzelheiten und was bewusst offen bleibt:
+  [docs/09-sicherheitsbetrachtung.md](docs/09-sicherheitsbetrachtung.md).
+
 - **Dateimanager über das gesamte Dateisystem.** Browsen mit klickbarem Pfad und
   sortierbarer Liste, Namenssuche unterhalb eines Verzeichnisses, Download
   einzelner Dateien, ganze Ordner als `tar.gz`, Upload mit Fortschrittsbalken
@@ -152,6 +175,21 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Ein Panel-Zugang wird mit Anmeldename und Rolle angelegt — nichts weiter.**
+  Das Feld für ein Startpasswort ist entfallen: Das Panel erzeugt es selbst
+  (zufällig, der Richtlinie entsprechend), zeigt es genau einmal an und verlangt
+  bei der ersten Anmeldung den Wechsel. Dieselbe Mechanik wie beim Zurücksetzen
+  eines Zugangs, dieselbe Seite. Ein selbst getipptes Startpasswort war so gut,
+  wie es dem Owner an diesem Tag einfiel, stand als Klartext in seinem Formular
+  und blieb gültig, bis das neue Konto von selbst auf den Wechsel kam. Im
+  Audit-Log steht, dass ein Einmalpasswort vergeben wurde — nie das Passwort.
+- **Die Firewall-Seite sieht aus wie der Rest des Panels.** Hinweistexte, Knöpfe
+  und die Regelblöcke lagen frei auf dem Seitenhintergrund, während Übersicht,
+  Pakete und Dienste ihre Inhalte in Karten führen — die Seite wirkte wie ein
+  Entwurf. Jetzt zwei benannte Abschnitte in Karten: **Zustand** (greifen die
+  Regeln? was bleibt erreichbar? welcher Knopf ist fällig?) und **Regelsatz für
+  eingehenden Verkehr** mit den Regelblöcken darin. Das gesperrte Einschalten ist
+  eine Meldung und kein loser Absatz mehr.
 - **Die Zeilenformulare füllen ihre Karte.** `.row-form` verteilte gleich große
   Rasterspuren (`repeat(auto-fit, minmax(12rem, 1fr))`) — auch an die Spalte des
   Knopfes, der davon rund 95 Pixel braucht. Der Rest der Spur blieb leer: bei

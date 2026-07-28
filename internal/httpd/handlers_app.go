@@ -373,7 +373,7 @@ func (s *Server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 		s.renderAccount(w, r, http.StatusBadRequest, "", "Die beiden neuen Passwörter stimmen nicht überein.", nil)
 		return
 	}
-	if err := auth.CheckPasswordPolicy(next); err != nil {
+	if err := auth.CheckPasswordPolicy(user.Username, next); err != nil {
 		s.renderAccount(w, r, http.StatusBadRequest, "", err.Error(), nil)
 		return
 	}
@@ -471,9 +471,19 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, status int,
 	s.renderPage(w, r, status, "users", page)
 }
 
+// handleUserCreate legt ein Panel-Konto an. Anzugeben sind nur Anmeldename und
+// Rolle.
+//
+// Das Startpasswort erzeugt das Panel selbst und zeigt es genau einmal — derselbe
+// Weg wie beim Zurücksetzen eines Zugangs und bei den Wiederherstellungscodes.
+// Bis hierher tippte der Owner es in ein Feld, und das hatte drei Nachteile: Es
+// war so gut, wie er es an diesem Tag gerade gewählt hat, es stand als Klartext
+// in seinem Formular (und je nach Browser in dessen Speicher), und es blieb
+// gültig, bis das neue Konto von selbst auf die Idee kam, es zu wechseln. Das
+// erzeugte Passwort ist zufällig, entspricht der Richtlinie und ist ein
+// Einmalpasswort: Bei der ersten Anmeldung verlangt das Panel den Wechsel.
 func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.PostFormValue("username"))
-	password := r.PostFormValue("password")
 	role := r.PostFormValue("role")
 
 	if !validUsername(username) {
@@ -485,11 +495,13 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		s.renderUsers(w, r, http.StatusBadRequest, "", "Unbekannte Rolle.")
 		return
 	}
-	if err := auth.CheckPasswordPolicy(password); err != nil {
-		s.renderUsers(w, r, http.StatusBadRequest, "", err.Error())
+
+	password, err := auth.NewTemporaryPassword()
+	if err != nil {
+		s.log.Error("startpasswort erzeugen", "err", err)
+		s.renderUsers(w, r, http.StatusInternalServerError, "", "Das Passwort konnte nicht erzeugt werden.")
 		return
 	}
-
 	hash, err := auth.HashPassword(password)
 	if err != nil {
 		s.log.Error("passwort hashen", "err", err)
@@ -504,10 +516,12 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Der zweite Faktor wird beim ersten Anmelden des neuen Kontos
-	// eingerichtet — requireAuth lässt vorher nichts anderes zu.
+	// eingerichtet, danach folgt der Passwortwechsel — requireSetupDone und
+	// requireAuth lassen vorher nichts anderes zu.
 	_, err = s.db.CreateUser(r.Context(), store.User{
 		Username: username, PasswordHash: hash, Role: role,
 		TOTPSecret: secret, TOTPConfirmed: false,
+		MustChangePassword: true,
 	})
 	if err != nil {
 		s.audit(r, "user.create", username, store.ResultError, err.Error())
@@ -515,9 +529,16 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 			"Das Konto konnte nicht angelegt werden — vermutlich ist der Name bereits vergeben.")
 		return
 	}
-	s.audit(r, "user.create", username, store.ResultOK, "Rolle "+role)
-	s.renderUsers(w, r, http.StatusOK,
-		"Konto "+username+" angelegt. Beim ersten Anmelden wird der zweite Faktor eingerichtet.", "")
+	// Im Audit-Log steht, dass ein Einmalpasswort vergeben wurde — nie das
+	// Passwort selbst.
+	s.audit(r, "user.create", username, store.ResultOK, "Rolle "+role+", Einmalpasswort vergeben")
+
+	s.renderPage(w, r, http.StatusOK, "reset",
+		s.base(r, "Zugang angelegt", "users").with(resetPage{
+			Username: username,
+			Password: password,
+			Created:  true,
+		}))
 }
 
 func (s *Server) handleUserDisable(w http.ResponseWriter, r *http.Request) {

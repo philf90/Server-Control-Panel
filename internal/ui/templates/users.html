@@ -103,9 +103,14 @@
 <div class="section">
   <div class="seclabel">Zugang anlegen</div>
   <div class="card">
+    {{/* Kein Feld für ein Startpasswort: Das erzeugt das Panel und zeigt es
+         genau einmal an. Ein selbst getipptes wäre so gut, wie es dem Owner an
+         diesem Tag einfällt, stünde als Klartext in seinem Formular und bliebe
+         gültig, bis das neue Konto von selbst auf den Wechsel kommt. */}}
     <p class="hint">
-      Der zweite Faktor wird beim ersten Anmelden des neuen Kontos eingerichtet.
-      Vorher ist außer dieser Einrichtung nichts erreichbar.
+      Das Startpasswort erzeugt das Panel und zeigt es genau einmal an. Beim
+      ersten Anmelden richtet das Konto seinen zweiten Faktor ein und legt
+      danach ein eigenes Passwort fest; vorher ist nichts anderes erreichbar.
     </p>
     <form method="post" action="/users" class="row-form" autocomplete="off">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
@@ -113,10 +118,6 @@
       <div>
         <label for="username">Anmeldename</label>
         <input type="text" id="username" name="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9._\-]+">
-      </div>
-      <div>
-        <label for="password">Startpasswort</label>
-        <input type="password" id="password" name="password" required minlength="12" autocomplete="new-password">
       </div>
       <div>
         <label for="role">Rolle</label>

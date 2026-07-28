@@ -127,16 +127,139 @@ func VerifyPassword(password, encoded string) (bool, error) {
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }
 
-// CheckPasswordPolicy prüft die Mindestanforderungen an ein neues Passwort.
+// MaxPasswordBytes ist die Obergrenze. Sie ist keine Schikane, sondern eine
+// Schranke gegen Argon2-Aufrufe mit beliebig großer Eingabe.
+const MaxPasswordBytes = 1024
+
+// Die Passwortrichtlinie des Panels.
 //
-// Bewusst nur Länge: Zeichenklassen-Regeln führen erwiesenermaßen zu
-// "Passwort1!" statt zu besseren Passwörtern.
-func CheckPasswordPolicy(password string) error {
+// Weiterhin keine Zeichenklassen-Regeln: Sie führen erwiesenermaßen zu
+// "Passwort1!" statt zu besseren Passwörtern, und NIST 800-63B rät seit 2017
+// ausdrücklich davon ab. Was stattdessen geprüft wird, sind die Fälle, in denen
+// ein langes Passwort trotzdem leicht zu erraten ist: der eigene Anmeldename und
+// eine bloße Wiederholung oder Zeichenfolge. Beides steht in derselben
+// Empfehlung (§5.1.1.2, "context-specific words", "repetitive or sequential
+// characters").
+//
+// Die Regeln sind Daten und nicht bloß Programmcode, weil die Oberfläche sie
+// zeigt: Wer ein Passwort wählt, soll die Bedingungen lesen können und nicht
+// erst durch eine Ablehnung erfahren, welche es gibt.
+
+// PasswordRuleKey benennt eine Regel. Derselbe Schlüssel steht im Markup
+// (data-pw-regel) und in passwort.js, das die Regeln beim Tippen mitprüft.
+type PasswordRuleKey string
+
+const (
+	RuleLength      PasswordRuleKey = "laenge"
+	RuleMaxBytes    PasswordRuleKey = "hoechstlaenge"
+	RuleNotUsername PasswordRuleKey = "nichtname"
+	RuleNotTrivial  PasswordRuleKey = "abwechslung"
+)
+
+// PasswordRule ist ein Element der Richtlinie: ein Schlüssel für das Skript und
+// ein Satz für den Menschen.
+type PasswordRule struct {
+	Key  PasswordRuleKey
+	Text string
+}
+
+// PasswordPolicy ist die geltende Richtlinie in der Form, in der die Oberfläche
+// sie braucht. Die Zahlen stehen genau einmal — hier — und werden ins Markup
+// gerendert, damit das Skript sie nicht ein zweites Mal festschreibt.
+type PasswordPolicy struct {
+	MinLength int
+	MaxBytes  int
+	Rules     []PasswordRule
+}
+
+// Policy liefert die Richtlinie samt ihrer lesbaren Elemente.
+func Policy() PasswordPolicy {
+	return PasswordPolicy{
+		MinLength: MinPasswordLength,
+		MaxBytes:  MaxPasswordBytes,
+		Rules: []PasswordRule{
+			{RuleLength, fmt.Sprintf("mindestens %d Zeichen", MinPasswordLength)},
+			{RuleNotUsername, "nicht der Anmeldename und nicht ein Teil davon"},
+			{RuleNotTrivial, "keine bloße Wiederholung oder Zeichenfolge (aaaa…, 1234…)"},
+			{RuleMaxBytes, fmt.Sprintf("höchstens %d Byte", MaxPasswordBytes)},
+		},
+	}
+}
+
+// CheckPasswordPolicy prüft ein neues Passwort gegen die Richtlinie. username
+// darf leer sein — dann entfällt die Prüfung gegen den Anmeldenamen.
+//
+// Die Reihenfolge der Prüfungen entspricht der Reihenfolge der Regeln in der
+// Anzeige: Wer eine Ablehnung liest, findet den Satz dazu an derselben Stelle
+// wieder.
+func CheckPasswordPolicy(username, password string) error {
 	if len([]rune(password)) < MinPasswordLength {
 		return fmt.Errorf("das Passwort muss mindestens %d Zeichen haben", MinPasswordLength)
 	}
-	if len(password) > 1024 {
-		return errors.New("das Passwort ist zu lang (höchstens 1024 Byte)")
+	if !PasswordUnlikeUsername(username, password) {
+		return errors.New("das Passwort darf nicht den Anmeldenamen enthalten")
+	}
+	if PasswordIsTrivial(password) {
+		return errors.New("das Passwort ist eine bloße Wiederholung oder Zeichenfolge")
+	}
+	if len(password) > MaxPasswordBytes {
+		return fmt.Errorf("das Passwort ist zu lang (höchstens %d Byte)", MaxPasswordBytes)
 	}
 	return nil
+}
+
+// PasswordUnlikeUsername meldet, ob das Passwort frei vom Anmeldenamen ist.
+// Ohne Namen gibt es nichts zu prüfen, dann gilt die Regel als erfüllt.
+func PasswordUnlikeUsername(username, password string) bool {
+	name := strings.ToLower(strings.TrimSpace(username))
+	if name == "" {
+		return true
+	}
+	return !strings.Contains(strings.ToLower(password), name)
+}
+
+// PasswordIsTrivial erkennt zwei Muster, die jede Längenregel bestehen und
+// trotzdem in Sekunden geraten sind: dasselbe Zeichen wiederholt und eine
+// durchgehende Folge in der Zeichentabelle ("abcdefghijkl", "987654321098").
+//
+// Bewusst nur diese beiden und keine Wörterbuchprüfung: Eine Sperrliste
+// häufiger Passwörter wäre der nächste sinnvolle Schritt, sie gehört aber mit
+// Herkunft und Pflege in eine eigene Entscheidung — nicht als stille Zutat.
+func PasswordIsTrivial(password string) bool {
+	runen := []rune(password)
+	if len(runen) < 2 {
+		return false
+	}
+
+	einerlei := true
+	for _, r := range runen[1:] {
+		if r != runen[0] {
+			einerlei = false
+			break
+		}
+	}
+	if einerlei {
+		return true
+	}
+
+	// Eine Folge ist erst eine, wenn sie über das ganze Passwort läuft. Ein
+	// "abc" mitten in einem Passwortsatz ist keine.
+	//
+	// Unter vier Zeichen wird nicht geprüft: "ab" ist zwar formal eine Folge,
+	// aber die Aussage "das ist eine bloße Zeichenfolge" trägt dort nichts —
+	// zu kurz ist es ohnehin, und in der Anzeige neben dem Eingabefeld sähe
+	// eine rote Regel beim zweiten Buchstaben nach einem Fehler aus.
+	if len(runen) < 4 {
+		return false
+	}
+	auf, ab := true, true
+	for i := 1; i < len(runen); i++ {
+		if runen[i] != runen[i-1]+1 {
+			auf = false
+		}
+		if runen[i] != runen[i-1]-1 {
+			ab = false
+		}
+	}
+	return auf || ab
 }

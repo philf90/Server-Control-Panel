@@ -54,26 +54,33 @@ sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
 {{end}}
 
 {{if and $.CanWrite .Dir.Writable (not .Suche)}}
-<div class="card anlegen">
-  <form method="post" action="/files/mkdir" class="row-form">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <input type="hidden" name="dir" value="{{.Path}}">
-    <label>Neuer Ordner
-      <input type="text" name="name" required maxlength="255" placeholder="Name">
-    </label>
-    <div class="submit"><button type="submit" class="small">anlegen</button></div>
-  </form>
-  <form method="post" action="/files/touch" class="row-form">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <input type="hidden" name="dir" value="{{.Path}}">
-    <label>Neue leere Datei
-      <input type="text" name="name" required maxlength="255" placeholder="name.conf">
-    </label>
-    <div class="submit"><button type="submit" class="small">anlegen</button></div>
-  </form>
-</div>
+{{/* Anlegen und Hochladen waren zwei Karten übereinander — zusammen gut 200
+     Pixel Höhe vor der Liste, für drei Eingaben. Jetzt eine Karte: oben die
+     beiden Namensfelder nebeneinander, unten die Ablage.
 
-<div class="card hochladen" id="ablage">
+     Eingeklappt (etwa in einem <details>) wäre sie noch kleiner, aber dann
+     hätte sie keine Fläche mehr: files-upload.js hängt die Ereignisse für
+     Ziehen und Ablegen an #ablage, und ein zugeklapptes Element nimmt keine
+     Datei an. Deshalb schmaler, nicht versteckt. */}}
+<div class="card neu hochladen" id="ablage">
+  <div class="neuzeile">
+    <form method="post" action="/files/mkdir" class="row-form">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="dir" value="{{.Path}}">
+      <label>Neuer Ordner
+        <input type="text" name="name" required maxlength="255" placeholder="Name">
+      </label>
+      <div class="submit"><button type="submit" class="small">anlegen</button></div>
+    </form>
+    <form method="post" action="/files/touch" class="row-form">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="dir" value="{{.Path}}">
+      <label>Neue leere Datei
+        <input type="text" name="name" required maxlength="255" placeholder="name.conf">
+      </label>
+      <div class="submit"><button type="submit" class="small">anlegen</button></div>
+    </form>
+  </div>
   <!--
     Die Reihenfolge der Felder ist hier sicherheitsrelevant: Der Server liest
     den Körper als Strom und prüft den CSRF-Token, bevor das erste Byte
@@ -115,12 +122,15 @@ sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
 <div class="card flush">
   <div class="table-wrap">
     <table class="cards dateien">
+      {{/* Fünf Spalten statt sechs: Rechte und Eigentümer sagen dasselbe über
+           denselben Eintrag und standen in zwei Spalten mit je einer kurzen
+           Angabe. Zusammen sind sie eine Zelle („root:root · 0644") und lassen
+           dem Namen die Breite, die er braucht. */}}
       <thead>
         <tr>
           <th data-rolle="haupt"><a href="{{.SortLink "name"}}">Name{{.SortPfeil "name"}}</a></th>
           <th class="num"><a href="{{.SortLink "size"}}">Größe{{.SortPfeil "size"}}</a></th>
-          <th data-rolle="neben">Rechte</th>
-          <th data-rolle="neben">Eigentümer</th>
+          <th data-rolle="neben">Eigentümer, Rechte</th>
           <th><a href="{{.SortLink "time"}}">Geändert{{.SortPfeil "time"}}</a></th>
           <th></th>
         </tr>
@@ -128,7 +138,7 @@ sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
       <tbody>
         {{if and .Parent (not .Suche)}}
         <tr>
-          <td data-label="Name" data-rolle="haupt" colspan="6"><a href="{{.Link .Parent}}" class="hoch">↑ übergeordnet</a></td>
+          <td data-label="Name" data-rolle="haupt" colspan="5"><a href="{{.Link .Parent}}" class="hoch">↑ übergeordnet</a></td>
         </tr>
         {{end}}
         {{range .Entries}}
@@ -136,29 +146,49 @@ sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
           <td data-label="Name" data-rolle="haupt">
             {{if .IsDir}}
               <a href="{{$.Content.Link .Path}}" class="eintrag ordner"><span class="art" aria-hidden="true">▸</span>{{.Name}}</a>
-            {{else}}
+            {{else if .Sensitive}}
+              {{/* Ein gesperrter Eintrag führt nirgendwohin: Auch die
+                   Detailseite zeigt nur, dass es ihn gibt. */}}
               <span class="eintrag"><span class="art" aria-hidden="true">{{if eq .Kind "verweis"}}↪{{else if eq .Kind "sonstiges"}}◇{{else}}·{{end}}</span>{{.Name}}</span>
+            {{else}}
+              {{/* Der Name führt zu den Angaben. Vorher war er ein toter Text
+                   und „Details" ein eigener Knopf — jetzt ist das Naheliegende
+                   auch anklickbar, und das Menü daneben bleibt schmal. */}}
+              <a href="{{$.Content.EntryLink .Path}}" class="eintrag datei"><span class="art" aria-hidden="true">{{if eq .Kind "verweis"}}↪{{else if eq .Kind "sonstiges"}}◇{{else}}·{{end}}</span>{{.Name}}</a>
             {{end}}
             {{if eq .Kind "verweis"}}<span class="muted ziel">→ {{.LinkTarget}}{{if .LinkBroken}} <span class="badge error">Ziel fehlt</span>{{end}}</span>{{end}}
             {{if .Sensitive}}<span class="badge denied" title="{{.SensitiveReason}}">gesperrt</span>{{end}}
             {{if $.Content.Suche}}<span class="muted ziel">{{.Path}}</span>{{end}}
           </td>
           <td class="num" data-label="Größe">{{if .IsDir}}—{{else}}{{size .Size}}{{end}}</td>
-          <td data-label="Rechte" data-rolle="neben"><code title="{{.ModeText}}">{{.ModeOctal}}</code></td>
-          <td data-label="Eigentümer" data-rolle="neben" class="muted">{{.Owner}}:{{.Group}}</td>
+          <td data-label="Eigentümer, Rechte" data-rolle="neben" class="muted">{{.Owner}}:{{.Group}} · <code title="{{.ModeText}}">{{.ModeOctal}}</code></td>
           <td data-label="Geändert" class="muted num">{{datetime .ModTime}}</td>
           <td class="actions">
+            {{/* Bis zu drei Knöpfe je Zeile waren bei zwanzig Einträgen sechzig
+                 Knöpfe. Ein Menü je Zeile zeigt dasselbe, nimmt aber nur die
+                 Breite eines Zeichens. <details> statt Skript: Die CSP erlaubt
+                 kein Inline-Skript, und ohne JavaScript soll es auch gehen. */}}
             {{if .Sensitive}}
               <span class="muted klein">{{.SensitiveReason}}</span>
-            {{else if eq .Kind "datei"}}
-              {{if and $.CanWrite .Writable}}<a class="button small" href="{{$.Content.EditLink .Path}}">bearbeiten</a>{{end}}
-              <a class="button small" href="/files/download?path={{.Path | urlquery}}">laden</a>
+            {{else}}
+            <details class="zeilenmenu">
+              <summary class="button small secondary" title="Aktionen" aria-label="Aktionen für {{.Name}}">⋯</summary>
+              <div class="menuliste">
+                {{if .IsDir}}
+                  <a href="{{$.Content.Link .Path}}">öffnen</a>
+                  <a href="/files/archive?path={{.Path | urlquery}}">als tar.gz laden</a>
+                {{else if eq .Kind "datei"}}
+                  {{if and $.CanWrite .Writable}}<a href="{{$.Content.EditLink .Path}}">bearbeiten</a>{{end}}
+                  <a href="/files/download?path={{.Path | urlquery}}">herunterladen</a>
+                {{end}}
+                <a href="{{$.Content.EntryLink .Path}}">Details, Rechte, Löschen</a>
+              </div>
+            </details>
             {{end}}
-            <a class="button small secondary" href="{{$.Content.EntryLink .Path}}">Details</a>
           </td>
         </tr>
         {{else}}
-        <tr><td colspan="6" class="muted">{{if .Suche}}keine Treffer{{else}}dieses Verzeichnis ist leer{{end}}</td></tr>
+        <tr><td colspan="5" class="muted">{{if .Suche}}keine Treffer{{else}}dieses Verzeichnis ist leer{{end}}</td></tr>
         {{end}}
       </tbody>
     </table>

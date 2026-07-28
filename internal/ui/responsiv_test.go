@@ -2,6 +2,7 @@ package ui
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -397,5 +398,92 @@ func TestPasswortSkriptSchreibtKeineZahlenFest(t *testing.T) {
 	}
 	if strings.Contains(js, "1024") || strings.Contains(js, ">= 12") {
 		t.Error("passwort.js nennt eine Zahl der Richtlinie selbst — sie gehört ins Markup")
+	}
+}
+
+// TestKolspanDecktAlleSpalten: Eine Zeile, die sich über die ganze Tabelle legt
+// ("keine Einträge", "↑ übergeordnet"), muss so viele Spalten überspannen, wie
+// die Kopfzeile hat.
+//
+// Der Anlass: In der Dateiliste wurden Rechte und Eigentümer zu einer Spalte
+// zusammengelegt — sechs Spalten wurden fünf. Ein colspan="6" bleibt dabei
+// stehen, ohne dass etwas kaputt aussieht: Der Browser fügt eine sechste Spalte
+// hinzu, die Tabelle wird um eine leere Spur breiter, und in der Zeile
+// "übergeordnet" rutscht der Rest nach links. Breit fällt das kaum auf, schmal
+// gar nicht — im Kartenmodus zählt colspan nicht mehr.
+func TestKolspanDecktAlleSpalten(t *testing.T) {
+	kolspanRe := regexp.MustCompile(`colspan="(\d+)"`)
+
+	dateien, err := templateFS.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	geprueft := 0
+	for _, d := range dateien {
+		raw, err := templateFS.ReadFile("templates/" + d.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tabelle := range tabellenRe.FindAllString(string(raw), -1) {
+			spalten := len(spalteRe.FindAllString(theadRe.FindString(tabelle), -1))
+			if spalten == 0 {
+				continue
+			}
+			for _, m := range kolspanRe.FindAllStringSubmatch(tbodyRe.FindString(tabelle), -1) {
+				geprueft++
+				if m[1] != strconv.Itoa(spalten) {
+					t.Errorf("%s: colspan=%q, die Kopfzeile hat aber %d Spalten",
+						d.Name(), m[1], spalten)
+				}
+			}
+		}
+	}
+	if geprueft == 0 {
+		t.Error("keine einzige Zeile mit colspan gefunden — der Test prüft nichts")
+	}
+	t.Logf("%d Zeilen mit colspan geprüft", geprueft)
+}
+
+// TestZeilenmenueOhneSkript: Das Menü in der Dateiliste ist ein <details> und
+// braucht kein JavaScript.
+//
+// Die naheliegende Umsetzung wäre ein Knopf mit einem Klick-Handler. Die
+// Content-Security-Policy des Panels verbietet Inline-Skripte, und die Liste
+// muss ohne Skript bedienbar bleiben — sie ist der Weg zu jeder Datei.
+//
+// Die Falle steckt in den Behältern, und es sind zwei: .table-wrap scrollt
+// waagerecht (ein "overflow-x: auto" macht aus dem senkrechten "visible" ein
+// "auto"), und .card.flush schneidet ab, damit die Ecken der Tabelle rund
+// bleiben. Ohne beide Ausnahmen ist vom Menü der letzten Zeile ein Streifen von
+// zehn Pixeln zu sehen — aufgeklappt, aber unlesbar.
+func TestZeilenmenueOhneSkript(t *testing.T) {
+	files, err := templateFS.ReadFile("templates/files.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(files), `<details class="zeilenmenu">`) {
+		t.Error("das Zeilenmenü ist kein <details> mehr — ohne Skript geht dann nichts")
+	}
+
+	raw, err := staticFS.ReadFile("static/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(raw)
+	for _, behaelter := range []string{".table-wrap:has(.zeilenmenu[open])", ".card.flush:has(.zeilenmenu[open])"} {
+		if !strings.Contains(css, behaelter) {
+			t.Errorf("%s beschneidet das aufgeklappte Menü wieder", behaelter)
+		}
+	}
+	// Ohne beide Regeln bleibt das Dreieck des <details> neben dem Zeichen
+	// stehen — in Blink und Gecko ::marker, in älteren Safaris das eigene
+	// Pseudoelement.
+	for _, regel := range []string{
+		".zeilenmenu > summary::marker { content: \"\"; }",
+		".zeilenmenu > summary::-webkit-details-marker { display: none; }",
+	} {
+		if !strings.Contains(css, regel) {
+			t.Errorf("app.css fehlt %q", regel)
+		}
 	}
 }

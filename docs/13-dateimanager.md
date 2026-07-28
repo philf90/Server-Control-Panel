@@ -204,6 +204,52 @@ Der Abschnitt erscheint auch für die Rolle `readonly` — als Beschreibung ohne
 Formular. Ein `<form>` auf `/files/mode` begegnet einer Rolle, die es nicht
 benutzen darf, gar nicht erst im Markup.
 
+Unter 900 Pixeln Fensterbreite ist das Raster keine Tabelle mehr, sondern ein
+Block je Rolle: Name, Kästchen mit ihren Worten, darunter der Satz. Als Tabelle
+braucht es gut 980 Pixel — bei 700 war der Satz mitten im Wort abgeschnitten,
+bei 390 fehlte er ganz. Er ist der Grund, warum es das Raster gibt.
+
+## Was die Oberfläche verdichtet
+
+Der Dateimanager ist die Seite mit den meisten Angaben je Zeile, und sie war
+dadurch die längste des Panels. Verdichtet wurde in fünf Schritten — keiner
+davon streicht eine Funktion, alle sparen Fläche:
+
+1. **Rechte und Eigentümer in einer Spalte** (`root:root · 0644`). Zwei Spalten
+   mit je einer kurzen Angabe sagten dasselbe über denselben Eintrag; aus sechs
+   Spalten wurden fünf, und der Name hat die Breite, die er braucht.
+2. **Ein Menü je Zeile statt bis zu drei Knöpfen.** Bei zwanzig Einträgen waren
+   das sechzig Knöpfe. Im Menü steht weiter alles: öffnen und tar.gz bei
+   Ordnern, bearbeiten und herunterladen bei Dateien, immer die Detailseite.
+   Der Name selbst führt jetzt dorthin.
+3. **Anlegen und Hochladen in einer Karte.** Vorher zwei Karten übereinander
+   für drei Eingaben.
+4. **Die Angaben der Detailseite in einer Zeile** statt als Definitionsliste
+   mit fünf Zeilen. Was eine Warnung ist, bleibt eine eigene Zeile.
+5. **Löschen bei den Aktionen oben rechts** statt als eigener Abschnitt am Fuß.
+   Die Rückfrage nennt weiter die Zahlen; sie ist die einzige Bremse, denn einen
+   Papierkorb gibt es nicht.
+
+Zwei Dinge daran sind Fallen, die ein Bild nicht zeigt:
+
+- **Das Menü ist ein `<details>`, kein Skript.** Die CSP verbietet Inline-Skripte,
+  und die Liste ist der Weg zu jeder Datei — sie muss ohne JavaScript
+  funktionieren. Der Preis: Ein offenes Menü schließt nicht von selbst, wenn man
+  ein zweites öffnet.
+- **Zwei Vorfahren beschneiden das Aufgeklappte.** `.table-wrap` scrollt
+  waagerecht (und ein `overflow-x: auto` macht aus dem senkrechten `visible` ein
+  `auto`), `.card.flush` schneidet ab, damit die Ecken der Tabelle rund bleiben.
+  Vom Menü der letzten Zeile blieb dadurch ein Streifen von zehn Pixeln
+  sichtbar. Solange eines offen ist, beschneidet keiner von beiden
+  (`:has(.zeilenmenu[open])`). Ein Browsertest prüft das mit
+  `elementFromPoint` — und zwar in einem hohen Fenster, weil
+  `scrollIntoViewIfNeeded` ein `overflow: hidden` scrollbar macht und das Menü
+  damit *in* die Beschneidung schieben würde.
+
+Die Karte zum Hochladen ist deshalb *nicht* eingeklappt: `files-upload.js` hängt
+die Ereignisse für Ziehen und Ablegen an sie, und ein zugeklapptes Element nimmt
+keine Datei an.
+
 ## Upload
 
 Der Upload ist der einzige Endpunkt des Panels, der einen großen Körper liest.

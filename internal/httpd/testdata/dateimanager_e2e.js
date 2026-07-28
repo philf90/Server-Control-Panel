@@ -9,8 +9,11 @@
 //  2. Läuft die Ziffer mit den Kästchen im Gleichschritt? Beides ist eine
 //     Umrechnung, und beide Richtungen müssen sich treffen.
 //
+//  3. Sieht man das Zeilenmenü der Liste, wenn es aufgeklappt ist? Zwei
+//     Vorfahren beschneiden — die Karte und der Scrollbehälter der Tabelle.
+//
 // Erwartete Umgebung: ASYLUM_E2E_URL, ASYLUM_E2E_COOKIE, ASYLUM_E2E_PATH,
-// ASYLUM_CHROMIUM, ASYLUM_NODE_PATH.
+// ASYLUM_E2E_DIR, ASYLUM_CHROMIUM, ASYLUM_NODE_PATH.
 
 const { chromium } = require("playwright");
 
@@ -102,12 +105,58 @@ async function main() {
   await seite.check('[data-rechte-sonder="sticky"]');
   const nachSonder = await seite.inputValue("#mode");
 
+  // --- 3. Zeilenmenü in der Liste -------------------------------------------
+  //
+  // Die Aktionen einer Zeile stecken in einem <details>. Ob es aufgeht, sagt
+  // das Markup; ob man das Aufgeklappte auch sieht, nicht: Zwei Vorfahren
+  // beschneiden (die Karte und der Scrollbehälter der Tabelle), und
+  // abgeschnitten war es zuletzt bis auf zehn Pixel.
+  // Hohes Fenster, damit die letzte Zeile samt Menü hineinpasst: Scrollen wäre
+  // hier kein Ausweg, sondern der Grund für ein falsches Ergebnis. Ein
+  // "overflow: hidden" macht die Karte für Skripte scrollbar —
+  // scrollIntoViewIfNeeded schiebt das Menü dann genau in die Beschneidung
+  // hinein, und der Test sähe es frei liegen.
+  await seite.setViewportSize({ width: 1280, height: 1500 });
+  await seite.goto(basis + "/files?path=" + encodeURIComponent(process.env.ASYLUM_E2E_DIR), {
+    waitUntil: "load",
+  });
+  const letztes = seite.locator("table.dateien .zeilenmenu").last();
+  const menue = { zahl: await seite.locator("table.dateien .zeilenmenu").count() };
+  menue.knoepfeFrei = await seite.locator("table.dateien td.actions > a.button").count();
+  await letztes.locator("summary").click();
+  await seite.waitForTimeout(80);
+  Object.assign(
+    menue,
+    await seite.evaluate(() => {
+      const liste = document.querySelector(".zeilenmenu[open] .menuliste");
+      const eintraege = Array.from(liste.querySelectorAll("a"));
+      const r = liste.getBoundingClientRect();
+      // Der harte Test: Liegt der Mittelpunkt jedes Eintrags frei? Wird er von
+      // einem Vorfahren beschnitten, antwortet elementFromPoint mit etwas
+      // anderem — oder mit null, wenn er außerhalb des Fensters liegt.
+      const frei = eintraege.every((a) => {
+        const b = a.getBoundingClientRect();
+        const o = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+        return o !== null && (o === a || a.contains(o));
+      });
+      return {
+        eintraege: eintraege.map((a) => a.textContent.trim()),
+        frei,
+        hoehe: Math.round(r.height),
+        // Bleibt die Liste innerhalb der Karte? Nach rechts hinaus wäre sie
+        // teils unter dem Fensterrand.
+        inDerKarte: r.right <= liste.closest(".card").getBoundingClientRect().right + 1,
+      };
+    }),
+  );
+
   console.log(
     JSON.stringify({
       verstoesse,
       auswahl,
       nachKlick,
       rechte: { vorher, kaestchenFrei, nachKasten, nachZiffer, nachSonder },
+      menue,
     }),
   );
   await browser.close();

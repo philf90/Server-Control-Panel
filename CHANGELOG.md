@@ -205,6 +205,28 @@ nicht als Release getaggt.
   nur im Knopf — dasselbe Ziel, dieselbe Prüfung. Aus drei Formularen mit
   eigenem Feld und eigenem Knopf sind zwei Zeilen geworden; welcher Knopf
   gedrückt wurde, entscheidet über `formaction`.
+- **Der Dateimanager ist deutlich kürzer geworden — ohne eine Funktion zu
+  verlieren.** Fünf Eingriffe: Rechte und Eigentümer stehen in einer Spalte
+  (`root:root · 0644`, aus sechs Spalten werden fünf); die bis zu drei Knöpfe je
+  Zeile sind ein Menü je Zeile (bei zwanzig Einträgen waren das sechzig Knöpfe) —
+  darin weiter öffnen und `tar.gz` bei Ordnern, bearbeiten und herunterladen bei
+  Dateien, immer die Detailseite, zu der jetzt auch der Name selbst führt;
+  Anlegen und Hochladen sitzen in einer Karte statt in zwei; die Angaben der
+  Detailseite stehen in einer Zeile statt als Definitionsliste mit fünf; und
+  Löschen steht bei den Aktionen oben rechts statt als eigener Abschnitt am Fuß.
+  Die Rückfrage nennt weiter die Zahlen — sie ist die einzige Bremse, denn einen
+  Papierkorb gibt es nicht.
+
+  Das Menü ist ein `<details>` und braucht kein JavaScript; ein offenes Menü
+  schließt dafür nicht von selbst, wenn man ein zweites öffnet. Die Karte zum
+  Hochladen bleibt sichtbar statt eingeklappt: Sie ist die Ablagefläche für
+  Ziehen und Ablegen, und ein zugeklapptes Element nimmt keine Datei an.
+- **Das Rechteraster ist unter 900 Pixeln Fensterbreite ein Block je Rolle.**
+  Als Tabelle braucht es gut 980 Pixel: Bei 700 war der Satz mitten im Wort
+  abgeschnitten („hineinwechse"), bei 390 fehlte er ganz — und er ist der Grund,
+  warum es das Raster gibt. Ursache war ein `overflow-x: visible`, das für die
+  Kartentabellen gedacht war und dem Raster seinen Scrollbehälter nahm; es gilt
+  jetzt nur noch für Tabellen, die schmal zu Karten werden.
 - **Ein Panel-Zugang wird mit Anmeldename und Rolle angelegt — nichts weiter.**
   Das Feld für ein Startpasswort ist entfallen: Das Panel erzeugt es selbst
   (zufällig, der Richtlinie entsprechend), zeigt es genau einmal an und verlangt

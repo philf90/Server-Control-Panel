@@ -140,7 +140,9 @@
         <tr>
           <th scope="row">{{.Label}}</th>
           {{range .Rights}}
-          <td>
+          {{/* data-label trägt das Wort für die schmale Ansicht: Dort fällt die
+               Kopfzeile weg, und ein Kästchen ohne Beschriftung sagt nichts. */}}
+          <td data-label="{{.Short}}">
             <input type="checkbox" id="r-{{$rolle.Key}}-{{.Key}}"
                    data-rechte-rolle="{{$rolle.Key}}" data-rechte-recht="{{.Key}}"
                    data-rechte-wort="{{.Label}}"

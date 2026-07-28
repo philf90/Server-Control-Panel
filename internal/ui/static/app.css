@@ -884,6 +884,54 @@ form.rename button { margin: 0; }
 .rechtegitter input[type="checkbox"]:disabled { opacity: 0.85; cursor: default; }
 .rechtegitter .bedeutet { color: var(--muted); white-space: nowrap; }
 
+/* Schmal wird aus jeder Rolle ein Block: der Name, darunter die Kästchen mit
+   ihren Worten, darunter der Satz. Als Tabelle braucht das Raster gut 980 Pixel
+   — bei 700 war der Satz mitten im Wort abgeschnitten ("hineinwechse"), bei 390
+   fehlte er ganz. Er ist der Grund, warum es das Raster gibt.
+
+   Die Schwelle ist dieselbe wie für die Kartentabellen: Ab hier ist keine
+   Tabelle mehr eine Tabelle. Die Worte stehen in data-label, damit ein Kästchen
+   ohne Kopfzeile nicht unbeschriftet dasteht. */
+@media (max-width: 900px) {
+  .rechtegitter, .rechtegitter tbody, .rechtegitter tr { display: block; width: 100%; }
+  .rechtegitter thead { display: none; }
+  .rechtegitter tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 1rem;
+    padding: 0.5rem 0;
+  }
+  .rechtegitter tr + tr { border-top: 1px solid var(--line2); }
+  .rechtegitter tbody th {
+    flex: 1 1 100%;
+    padding: 0 0 0.3rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  .rechtegitter td {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 0 0 auto;
+    padding: 0.15rem 0;
+  }
+  .rechtegitter td[data-label]::after {
+    content: attr(data-label);
+    font-size: 0.78rem;
+  }
+  /* Der Satz gehört unter die Kästchen und darf umbrechen — er ist der einzige
+     Teil des Rasters, der aus Worten besteht. */
+  .rechtegitter td.bedeutet {
+    flex: 1 1 100%;
+    padding-top: 0.25rem;
+    white-space: normal;
+    font-size: 0.82rem;
+  }
+}
+
 .sonderbits {
   display: flex;
   flex-wrap: wrap;
@@ -1479,8 +1527,11 @@ a { color: var(--accent); }
 
   /* In Kartenform gibt es nichts, was waagerecht zu scrollen wäre — die
      Zeilen sind gestapelte Blöcke. Ein Scrollbehälter drumherum lässt
-     überbreite Inhalte aber genau das tun, statt sie umbrechen zu lassen. */
-  .table-wrap { overflow-x: visible; }
+     überbreite Inhalte aber genau das tun, statt sie umbrechen zu lassen.
+     Nur gilt das für Tabellen, die schmal zu Karten werden: Das Rechteraster
+     bleibt eine Tabelle, und ohne den Scrollbehälter schob es die ganze Seite
+     nach rechts — bei 390 Pixeln fehlte die Spalte mit den Sätzen. */
+  .table-wrap:has(table.cards) { overflow-x: visible; }
 
   table.cards td {
     display: flex;
@@ -1569,6 +1620,30 @@ a { color: var(--accent); }
      ihrem Anfang. */
 
   table.cards td.actions { order: 2; flex: 1 1 100%; }
+
+  /* Die Dateiliste macht es anders: Dort ist die Aktionszelle ein Menü, also
+     ein Zeichen breit, und braucht keine eigene Zeile. Sie stellt sich neben
+     die Begleitangaben und rückt nach rechts — sonst kostete jede Karte 44
+     Pixel für drei Punkte.
+
+     width: auto ist nicht überflüssig, dieselbe Falle wie bei den
+     Begleitangaben: Die Grundregel gibt jeder Zelle width: 100%, und
+     flex-basis: auto übernimmt genau diesen Wert. */
+  table.dateien td.actions {
+    /* Breit ist die Zelle eine Tabellenzelle (siehe unten, wegen der
+       Trennlinie); in der Karte ist sie wieder ein Flex-Element wie alle
+       anderen. Ohne die Zeile bliebe sie eine Zelle in einem Flex-Behälter und
+       stünde als Block über die ganze Breite. */
+    display: flex;
+    order: 1;
+    width: auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    padding-top: 0;
+    justify-content: flex-end;
+    text-align: right;
+  }
 
   /* Der Aufklapper der Dateisysteme wird schmal zu einer eigenen Zeile unter
      dem Pfad — daneben wäre die Karte zu eng. Die aufgeklappten Zeilen sind
@@ -1701,6 +1776,80 @@ table.dateien td { overflow-wrap: anywhere; }
 table.dateien .hoch { color: var(--muted); text-decoration: none; }
 table.dateien .hoch:hover { color: var(--accent); }
 
+/* Der Dateiname führt zu den Angaben, trägt aber keine Linkfarbe: Zwanzig
+   farbige Zeilen sind ein Farbfeld, kein Hinweis. Ordner behalten ihre Farbe —
+   sie führen woanders hin (in den Ordner) als alles andere in der Zeile. */
+table.dateien a.eintrag.datei { color: inherit; text-decoration: none; }
+table.dateien a.eintrag.datei:hover { color: var(--accent); text-decoration: underline; }
+
+/* --- Das Menü einer Zeile ------------------------------------------------
+ *
+ * Bis zu drei Knöpfe je Zeile ergaben bei zwanzig Einträgen sechzig Knöpfe und
+ * eine Aktionsspalte, die breiter war als die Spalte "Geändert". Ein <details>
+ * je Zeile zeigt dasselbe: aufgeklappt eine Liste, zugeklappt ein Zeichen.
+ *
+ * Ohne JavaScript, weil die CSP kein Inline-Skript zulässt und die Liste auch
+ * ohne Skript bedienbar bleiben muss. Der Preis: Ein offenes Menü schließt
+ * nicht von selbst, wenn man ein zweites öffnet. Zwei offene Menüs sind
+ * unordentlich, aber nichts geht dabei verloren.
+ */
+/* Die Aktionszelle der Dateiliste ist wieder eine Tabellenzelle, kein
+   Flex-Behälter: In ihr steht nur noch das Menü. Das ist keine Kosmetik — ein
+   "display: flex" nimmt der Zelle ihre Zellenhöhe, ihr unterer Rahmen sitzt
+   dann am Ende des eigenen Inhalts statt am Zeilenende, und die Trennlinie der
+   Zeile war unter dem Menü um zwei Pixel versetzt. */
+table.dateien td.actions { display: table-cell; text-align: right; vertical-align: middle; }
+
+.zeilenmenu { position: relative; display: inline-block; }
+.zeilenmenu > summary {
+  display: inline-block;
+  cursor: pointer;
+  /* Zwei Wege, denselben Dreiecksmarker loszuwerden: ::marker gilt in Blink
+     und Gecko, das WebKit-Pseudoelement in älteren Safaris. */
+  list-style: none;
+  padding: 0.2rem 0.55rem;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+}
+.zeilenmenu > summary::marker { content: ""; }
+.zeilenmenu > summary::-webkit-details-marker { display: none; }
+.zeilenmenu[open] > summary { border-color: var(--accent); color: var(--accent); }
+.zeilenmenu .menuliste {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 11rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  text-align: left;
+}
+.zeilenmenu .menuliste a {
+  display: block;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 0.85rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.zeilenmenu .menuliste a:hover { background: var(--line2); color: var(--accent); }
+
+/* Die Falle dabei sind die Behälter, und es sind zwei: .table-wrap scrollt
+   waagerecht, und "overflow-x: auto" macht aus dem senkrechten "visible" ein
+   "auto"; .card.flush schneidet mit "overflow: hidden" ab, damit die Ecken der
+   Tabelle rund bleiben. Vom Menü der letzten Zeile war dadurch ein Streifen von
+   zehn Pixeln zu sehen — aufgeklappt, aber unlesbar. Solange eines offen ist,
+   beschneiden beide nicht. Die Ecken sind dann für einen Moment eckig; das ist
+   der billigere Preis. */
+.table-wrap:has(.zeilenmenu[open]),
+.card.flush:has(.zeilenmenu[open]) { overflow: visible; }
+
 @media (max-width: 600px) {
   /* Im Kartenmodus ist rechtsbündig falsch: Dort steht die Größe hinter ihrer
      Beschriftung und nicht in einer Spalte. */
@@ -1720,6 +1869,19 @@ label.mitcheck {
   font-size: 0.9rem;
 }
 label.mitcheck input { width: auto; margin: 0; }
+
+/* Anlegen und Hochladen in einer Karte: die beiden Namensfelder in einer Zeile,
+   darunter die Ablage. Die Trennlinie sagt, dass unten etwas anderes beginnt —
+   ohne sie sähe die Karte aus wie ein Formular mit vier Feldern. */
+.neuzeile {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.5rem;
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+.neuzeile > form { flex: 1 1 20rem; min-width: 0; margin: 0; }
 
 /* Die Ablagefläche für Uploads. Sie hebt sich beim Ziehen hervor, damit
    erkennbar ist, dass sie das Ziel ist — ein Rahmen, der erst beim Loslassen
@@ -1749,6 +1911,26 @@ label.mitcheck input { width: auto; margin: 0; }
 .card.hochladen progress::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
 .card.hochladen progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .card.hochladen p { margin: 0.4rem 0 0; }
+
+/* --- Die Angaben eines Eintrags in einer Zeile ---------------------------
+ *
+ * Vorher eine Definitionsliste: Pfad, Eigentümer, Geändert, gelegentlich Ziel
+ * und Enthält — fünf Zeilen für fünf kurze Werte, eine Karte hoch wie das
+ * Formular darunter. Als eine umbrechende Zeile bleibt der Platz beim Inhalt.
+ * Die Karte wird dafür flacher als die übrigen: Sie trägt keine Überschrift. */
+.card.angaben { padding: 0.75rem 1rem; }
+.angabenzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.5rem;
+  margin: 0;
+  font-size: 0.9rem;
+  /* Ein Pfad ohne Trennstelle darf die Karte nicht auseinanderziehen. */
+  overflow-wrap: anywhere;
+}
+.angabenzeile .trenner { color: var(--muted); }
+.card.angaben p + p { margin: 0.4rem 0 0; }
 
 /* ------------------------------------------------------------ Editor --- */
 

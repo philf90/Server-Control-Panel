@@ -20,6 +20,19 @@
       {{if .Editable}}<a class="button small" href="{{.EditLink}}">bearbeiten</a>{{end}}
       <a class="button small" href="/files/download?path={{.Entry.Path | urlquery}}">herunterladen</a>
     {{end}}
+    {{if $schreibend}}
+    {{/* Löschen stand als eigener Abschnitt unten: Überschrift, Karte, ein
+         erklärender Satz und der Knopf — die vierte Platte der Seite für eine
+         Aktion. Es gehört zu den Aktionen oben rechts. Die Rückfrage nennt
+         weiter die Zahlen (LoeschFrage), und sie ist die einzige Bremse, die
+         zählt: Einen Papierkorb gibt es nicht. */}}
+    <form method="post" action="/files/delete" class="kopfform"
+          onsubmit="return confirm({{.LoeschFrage}})">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="path" value="{{.Entry.Path}}">
+      <button type="submit" class="small danger" title="Ohne Papierkorb — endgültig">löschen</button>
+    </form>
+    {{end}}
   </div>
 </div>
 
@@ -35,25 +48,33 @@
 </div>
 {{end}}
 
-<div class="card">
-  <h2>Angaben</h2>
-  <dl>
-    <dt>Pfad</dt><dd><code>{{.Entry.Path}}</code></dd>
-    <dt>Eigentümer</dt><dd>{{.Entry.Owner}}:{{.Entry.Group}} <span class="muted">({{.Entry.UID}}:{{.Entry.GID}})</span></dd>
-    <dt>Geändert</dt><dd>{{datetime .Entry.ModTime}}</dd>
+{{/* Die Angaben waren eine Definitionsliste: drei bis fünf Zeilen mit je einem
+     Wort links und einem kurzen Wert rechts, über eine ganze Karte verteilt.
+     Als eine Zeile mit Trennpunkten steht dasselbe da — die Bezeichnungen
+     ergeben sich aus der Form („root:root", ein Datum, ein Pfad in
+     Festbreitenschrift). Was eine Warnung ist, bleibt eine eigene Zeile: Sie
+     darf nicht zwischen Kleinigkeiten verschwinden. */}}
+<div class="card angaben">
+  <p class="angabenzeile">
+    <code>{{.Entry.Path}}</code>
+    <span class="trenner" aria-hidden="true">·</span>
+    <span title="Eigentümer und Gruppe">{{.Entry.Owner}}:{{.Entry.Group}} <span class="muted">({{.Entry.UID}}:{{.Entry.GID}})</span></span>
+    <span class="trenner" aria-hidden="true">·</span>
+    <span title="letzte Änderung">{{datetime .Entry.ModTime}}</span>
     {{if eq .Entry.Kind "verweis"}}
-    <dt>Ziel</dt><dd><code>{{.Entry.LinkTarget}}</code>{{if .Entry.LinkBroken}} <span class="badge error">gibt es nicht</span>{{end}}</dd>
+    <span class="trenner" aria-hidden="true">·</span>
+    <span>→ <code>{{.Entry.LinkTarget}}</code>{{if .Entry.LinkBroken}} <span class="badge error">gibt es nicht</span>{{end}}</span>
     {{end}}
     {{if .Measurement}}
-    <dt>Enthält</dt>
-    <dd>
-      {{.Measurement.Files}} Dateien, {{.Measurement.Dirs}} Ordner{{if .Measurement.Symlinks}}, {{.Measurement.Symlinks}} Verweise{{end}} · {{size .Measurement.Bytes}}
-      {{if .Measurement.Sensitive}}<br><span class="warn-text">{{.Measurement.Sensitive}} gesperrte Einträge darunter — rekursive Eingriffe werden deshalb abgelehnt.</span>{{end}}
-      {{if .Measurement.Mounts}}<br><span class="warn-text">Darunter ist ein weiteres Dateisystem eingehängt — rekursive Eingriffe werden deshalb abgelehnt.</span>{{end}}
-      {{if .Measurement.Truncated}}<br><span class="muted">Zählung abgebrochen: zu viele Einträge.</span>{{end}}
-    </dd>
+    <span class="trenner" aria-hidden="true">·</span>
+    <span>enthält {{.Measurement.Files}} Dateien, {{.Measurement.Dirs}} Ordner{{if .Measurement.Symlinks}}, {{.Measurement.Symlinks}} Verweise{{end}} · {{size .Measurement.Bytes}}</span>
     {{end}}
-  </dl>
+  </p>
+  {{if .Measurement}}
+  {{if .Measurement.Sensitive}}<p class="warn-text klein">{{.Measurement.Sensitive}} gesperrte Einträge darunter — rekursive Eingriffe werden deshalb abgelehnt.</p>{{end}}
+  {{if .Measurement.Mounts}}<p class="warn-text klein">Darunter ist ein weiteres Dateisystem eingehängt — rekursive Eingriffe werden deshalb abgelehnt.</p>{{end}}
+  {{if .Measurement.Truncated}}<p class="muted klein">Zählung abgebrochen: zu viele Einträge.</p>{{end}}
+  {{end}}
 </div>
 
 {{if $schreibend}}
@@ -162,26 +183,15 @@
 </div>
 
 {{if $schreibend}}
-
-<div class="section">
-  <div class="sechead"><span class="seclabel">Löschen</span></div>
-  <div class="card">
-    <form method="post" action="/files/delete"
-          onsubmit="return confirm({{.LoeschFrage}})">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <input type="hidden" name="path" value="{{.Entry.Path}}">
-      <p class="muted">
-        {{if .Measurement}}
-          Gelöscht wird der Ordner mit allem darunter: {{.Measurement.Files}} Dateien,
-          {{.Measurement.Dirs}} Ordner, {{size .Measurement.Bytes}}. Ein Papierkorb gibt es nicht.
-        {{else}}
-          Gelöscht wird {{.Entry.Name}}. Ein Papierkorb gibt es nicht.
-        {{end}}
-      </p>
-      <button type="submit" class="small danger">endgültig löschen</button>
-    </form>
-  </div>
-</div>
+{{/* Der Knopf zum Löschen steht oben rechts; hier bleibt nur der Satz, der
+     nicht in eine Rückfrage passt. */}}
+<p class="muted klein fuss">
+  Gelöscht wird
+  {{- if .Measurement}} der Ordner mit allem darunter: {{.Measurement.Files}} Dateien,
+  {{.Measurement.Dirs}} Ordner, {{size .Measurement.Bytes}}
+  {{- else}} {{.Entry.Name}}
+  {{- end}}. Einen Papierkorb gibt es nicht.
+</p>
 {{else if not $.CanWrite}}
 <p class="muted klein fuss">
   Ihre Rolle darf lesen und herunterladen, aber nichts ändern.

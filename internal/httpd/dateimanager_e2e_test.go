@@ -64,6 +64,7 @@ func TestDateimanagerBrowser(t *testing.T) {
 		"ASYLUM_E2E_URL="+ts.URL,
 		"ASYLUM_E2E_COOKIE="+cookie.Name+"="+cookie.Value,
 		"ASYLUM_E2E_PATH="+datei,
+		"ASYLUM_E2E_DIR="+arbeit,
 		"ASYLUM_CHROMIUM="+chromium,
 	)
 	if p := os.Getenv("ASYLUM_NODE_PATH"); p != "" {
@@ -108,6 +109,14 @@ func TestDateimanagerBrowser(t *testing.T) {
 			} `json:"nachZiffer"`
 			NachSonder string `json:"nachSonder"`
 		} `json:"rechte"`
+		Menue struct {
+			Zahl        int      `json:"zahl"`
+			KnoepfeFrei int      `json:"knoepfeFrei"`
+			Eintraege   []string `json:"eintraege"`
+			Frei        bool     `json:"frei"`
+			Hoehe       int      `json:"hoehe"`
+			InDerKarte  bool     `json:"inDerKarte"`
+		} `json:"menue"`
 	}
 	if err := json.Unmarshal([]byte(letzteZeile(string(ausgabe))), &e); err != nil {
 		t.Fatalf("Ausgabe des Treibers unlesbar: %v", err)
@@ -178,5 +187,31 @@ func TestDateimanagerBrowser(t *testing.T) {
 	// Sticky-Bit: die erste Ziffer springt auf 1.
 	if e.Rechte.NachSonder != "1600" {
 		t.Errorf("nach dem Sticky-Bit = %q, erwartet 1600", e.Rechte.NachSonder)
+	}
+
+	// --- Zeilenmenü der Liste ------------------------------------------------
+	if e.Menue.Zahl == 0 {
+		t.Fatal("keine einzige Zeile mit Menü in der Liste")
+	}
+	if e.Menue.KnoepfeFrei != 0 {
+		t.Errorf("%d Knöpfe stehen frei in der Aktionsspalte — sie gehören ins Menü",
+			e.Menue.KnoepfeFrei)
+	}
+	// Aufgeklappt und trotzdem unsichtbar ist der Fehler, den nur ein Browser
+	// findet: Karte und Scrollbehälter beschneiden, und vom Menü der letzten
+	// Zeile blieb ein Streifen von zehn Pixeln.
+	if !e.Menue.Frei {
+		t.Errorf("das aufgeklappte Menü ist verdeckt oder abgeschnitten (Höhe %d)", e.Menue.Hoehe)
+	}
+	if !e.Menue.InDerKarte {
+		t.Error("das Menü ragt über die Karte hinaus")
+	}
+	// Was drinsteht, muss vollständig sein: Bearbeiten und Herunterladen waren
+	// vorher Knöpfe in der Zeile. Verdichten heißt nicht streichen.
+	gefundenImMenue := strings.Join(e.Menue.Eintraege, " | ")
+	for _, want := range []string{"bearbeiten", "herunterladen", "Details"} {
+		if !strings.Contains(gefundenImMenue, want) {
+			t.Errorf("%q fehlt im Menü: %s", want, gefundenImMenue)
+		}
 	}
 }

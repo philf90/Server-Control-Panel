@@ -534,3 +534,100 @@ func TestFilesDirsKennzeichnetNurLesbare(t *testing.T) {
 		t.Errorf("der Ordner nurlesbar fehlt in der Auswahl: %+v", antwort.Dirs)
 	}
 }
+
+// TestFilesListeZeigtAktionenImMenue: Die Aktionsspalte trägt ein Menü je Zeile,
+// keine Reihe von Knöpfen — und im Menü steht weiter alles, was die Rolle darf.
+//
+// Vorher standen bis zu drei Knöpfe in jeder Zeile (bearbeiten, laden, Details).
+// Bei zwanzig Einträgen waren das sechzig Knöpfe, und die Spalte war breiter als
+// die Spalte "Geändert". Beim Verdichten ist die naheliegende Abkürzung, die
+// Aktionen einfach zu streichen und auf die Detailseite zu verweisen; dieser
+// Test hält fest, dass sie erreichbar geblieben sind.
+func TestFilesListeZeigtAktionenImMenue(t *testing.T) {
+	s, wurzel := newFilesServer(t)
+	arbeit := filepath.Join(wurzel, "schreibbar")
+	lege(t, filepath.Join(arbeit, "da.txt"), "x")
+
+	owner := addUser(t, s, "philipp", store.RoleOwner)
+	ownerCookie, _ := login(t, s, owner)
+
+	rec := get(t, s, "/files?path="+urlWert(arbeit), ownerCookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
+	}
+	seite := rec.Body.String()
+
+	if !strings.Contains(seite, `<details class="zeilenmenu">`) {
+		t.Error("die Zeile hat kein Menü — die Aktionsspalte ist wieder eine Knopfreihe")
+	}
+	for _, ziel := range []string{"/files/edit?", "/files/download?", "/files/entry?"} {
+		if !strings.Contains(seite, ziel) {
+			t.Errorf("%s ist aus der Liste verschwunden", ziel)
+		}
+	}
+	// Das Menü braucht keine Knöpfe: Ein <a class="button"> in der Aktionszelle
+	// wäre der alte Zustand.
+	if strings.Contains(seite, `<a class="button small" href="/files/download`) {
+		t.Error("der Ladeknopf steht wieder frei in der Zeile")
+	}
+
+	// Dieselbe Liste für eine nur lesende Rolle: Das Menü bleibt, der Weg in den
+	// Editor nicht.
+	leser := addUser(t, s, "leser", store.RoleReadOnly)
+	leserCookie, _ := login(t, s, leser)
+	rec = get(t, s, "/files?path="+urlWert(arbeit), leserCookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status %d", rec.Code)
+	}
+	seite = rec.Body.String()
+	if !strings.Contains(seite, `<details class="zeilenmenu">`) {
+		t.Error("die lesende Rolle sieht kein Menü")
+	}
+	if strings.Contains(seite, "/files/edit?") {
+		t.Error("die nur lesende Rolle sieht den Weg in den Editor")
+	}
+}
+
+// TestFilesDetailseiteLoeschtAusDemKopf: Das Löschen steht bei den Aktionen der
+// Seite, nicht in einem eigenen Abschnitt am Fuß.
+//
+// Der eigene Abschnitt war die vierte Platte der Seite — Überschrift, Karte,
+// Erklärung, Knopf — für eine Aktion, die aus einem Klick besteht. Die
+// Rückfrage bleibt, und sie nennt weiter die Zahlen: Sie ist die einzige Bremse,
+// denn einen Papierkorb gibt es nicht.
+func TestFilesDetailseiteLoeschtAusDemKopf(t *testing.T) {
+	s, wurzel := newFilesServer(t)
+	arbeit := filepath.Join(wurzel, "schreibbar")
+	lege(t, filepath.Join(arbeit, "weg.txt"), "x")
+
+	owner := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, owner)
+
+	rec := get(t, s, "/files/entry?path="+urlWert(filepath.Join(arbeit, "weg.txt")), cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
+	}
+	seite := rec.Body.String()
+
+	// Der Seitenkopf reicht vom Beginn der Kopfzeile bis zum klickbaren Pfad
+	// darunter — was danach kommt, sind die Abschnitte der Seite.
+	kopf := seite[strings.Index(seite, `<div class="pagehead">`):strings.Index(seite, `<nav class="krumen"`)]
+	if !strings.Contains(kopf, `action="/files/delete"`) {
+		t.Error("der Knopf zum Löschen steht nicht im Seitenkopf")
+	}
+	// Die Rückfrage ist der Ersatz für den erklärenden Abschnitt: Ohne sie wäre
+	// aus einem Klick ein endgültiger geworden.
+	if !strings.Contains(seite, "return confirm(") {
+		t.Error("die Rückfrage vor dem Löschen fehlt")
+	}
+	if strings.Contains(seite, ">Löschen<") {
+		t.Error("der eigene Abschnitt Löschen ist zurück")
+	}
+	// Die Angaben stehen in einer Zeile, nicht mehr als Definitionsliste.
+	if strings.Contains(seite, "<dl>") {
+		t.Error("die Angaben sind wieder eine Definitionsliste")
+	}
+	if !strings.Contains(seite, `class="angabenzeile"`) {
+		t.Error("die Zeile mit den Angaben fehlt")
+	}
+}

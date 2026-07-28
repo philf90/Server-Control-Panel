@@ -194,6 +194,76 @@ type fileDetail struct {
 	Measurement *privops.Measurement `json:"measurement,omitempty"`
 }
 
+// handleFileDirs liefert die Unterverzeichnisse eines Pfades als JSON.
+//
+// Grundlage der Zielauswahl beim Kopieren und Verschieben: Dort war das Ziel ein
+// freies Textfeld, und ein Tippfehler wurde erst beim Absenden zu einer
+// Fehlermeldung — im schlimmsten Fall zu einem Ordner, den es vorher nicht gab.
+// Auswählbar ist jetzt nur, was dieser Endpunkt genannt hat.
+//
+// Das ist keine Sicherheitsgrenze, sondern eine Bedienhilfe: Geprüft wird
+// weiterhin serverseitig beim Ausführen (die Pfadwache in privops). Ein
+// selbstgebauter POST kommt an der Auswahl vorbei und an der Wache nicht.
+//
+// Ausgeliefert werden nur Namen von Verzeichnissen — dieselben, die die Liste
+// ohnehin zeigt, und durch dieselbe Wache gefiltert.
+func (s *Server) handleFileDirs(w http.ResponseWriter, r *http.Request) {
+	pfad := s.filesPfad(r.URL.Query().Get("path"))
+
+	liste, err := s.files.List(r.Context(), pfad, privops.ListOptions{
+		Sort:       privops.SortName,
+		ShowHidden: r.URL.Query().Get("hidden") == "1",
+	})
+	if err != nil {
+		s.filesFehler(w, r, err)
+		return
+	}
+
+	antwort := fileDirs{
+		Path:      liste.Dir.Path,
+		Parent:    liste.Parent,
+		Writable:  liste.Dir.Writable,
+		Crumbs:    krumen(liste.Dir.Path),
+		Roots:     s.files.WritableRoots(),
+		Truncated: liste.Truncated,
+		Dirs:      []fileDirEntry{},
+	}
+	for _, e := range liste.Entries {
+		if !e.IsDir() {
+			continue
+		}
+		antwort.Dirs = append(antwort.Dirs, fileDirEntry{
+			Name:      e.Name,
+			Path:      e.Path,
+			Writable:  e.Writable,
+			Sensitive: e.Sensitive,
+		})
+	}
+	s.writeJSON(w, http.StatusOK, antwort)
+}
+
+// fileDirs ist die Antwort für die Zielauswahl.
+type fileDirs struct {
+	Path   string  `json:"path"`
+	Parent string  `json:"parent"`
+	Crumbs []crumb `json:"crumbs"`
+	// Writable sagt, ob in diesem Verzeichnis selbst etwas landen darf. Nur dann
+	// gibt die Auswahl den Knopf frei.
+	Writable bool `json:"writable"`
+	// Roots sind die Schreibbereiche als Sprungmarken: Von dort aus findet man
+	// jedes erlaubte Ziel, ohne einen Pfad zu kennen.
+	Roots     []string       `json:"roots"`
+	Dirs      []fileDirEntry `json:"dirs"`
+	Truncated bool           `json:"truncated"`
+}
+
+type fileDirEntry struct {
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	Writable  bool   `json:"writable"`
+	Sensitive bool   `json:"sensitive"`
+}
+
 // ------------------------------------------------------------- Hilfsmittel ---
 
 // Link baut den Verweis auf ein Verzeichnis und behält Sortierung und die

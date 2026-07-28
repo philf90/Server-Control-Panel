@@ -381,6 +381,22 @@ type fileEntryPage struct {
 	Editable bool
 	// Text ist der Inhalt für den Editor, falls die Seite ihn zeigt.
 	Text *privops.TextFile
+	// Rechte ist die Rechteangabe in Worten: drei Rollen, drei Rechte, dazu die
+	// Sonderbits. Serverseitig aufgeschlüsselt, damit die Beschreibung auch ohne
+	// Skript stimmt — rechte.js macht daraus die Eingabe.
+	Rechte privops.ModeDescription
+	// Ziele sind die Ordner, die ohne Skript zur Wahl stehen: die
+	// Schreibbereiche und die Ordner auf dem Weg hierher. Mit Skript wird daraus
+	// eine durchsuchbare Auswahl (zielwahl.js über /files/dirs). Ein freies
+	// Textfeld gibt es in keinem der beiden Fälle.
+	Ziele []fileTarget
+}
+
+// fileTarget ist ein Ziel in der Auswahl zum Verschieben und Kopieren.
+type fileTarget struct {
+	Path     string
+	Label    string
+	Selected bool
 }
 
 // fileEditPage ist die Editor-Seite.
@@ -407,9 +423,11 @@ type fileEditPage struct {
 }
 
 // crumb ist ein Bestandteil des klickbaren Pfads.
+// crumb ist ein Glied des klickbaren Pfades. Die JSON-Namen braucht die
+// Zielauswahl beim Kopieren und Verschieben (/files/dirs).
 type crumb struct {
-	Name string
-	Path string
+	Name string `json:"name"`
+	Path string `json:"path"`
 }
 
 type logsPage struct {

@@ -404,6 +404,151 @@ func FormatMode(m fs.FileMode) string {
 	return fmt.Sprintf("%04o", bitsFromMode(m))
 }
 
+// ------------------------------------------------------- Rechte in Worten ---
+
+// Eine Rechteangabe ist für die meisten Menschen eine vierstellige Zahl ohne
+// Bedeutung, und "drwxr-xr-x" ist auch nur eine kürzere Verschlüsselung
+// derselben Zahl. Wer wissen will, ob eine Konfigurationsdatei für alle lesbar
+// ist, soll das lesen können — und beim Ändern nicht zwei Ziffern im Kopf
+// addieren müssen.
+//
+// Deshalb sind die Rechte hier Daten: drei Rollen, drei Rechte, dazu die
+// Sonderbits. Die Oberfläche macht daraus ein Kästchenraster und einen Satz; die
+// Ziffer bleibt daneben stehen, weil sie in jeder Anleitung steht.
+//
+// Bei einem Verzeichnis bedeuten dieselben Bits etwas anderes: "x" heißt nicht
+// ausführen, sondern hineinwechseln, und ohne "x" ist ein Verzeichnis auch mit
+// "r" nicht benutzbar. Das ist die häufigste Verwechslung überhaupt, deshalb
+// steht die Unterscheidung in den Worten.
+
+// ModeRight ist eines der drei Rechte einer Rolle.
+type ModeRight struct {
+	// Key ist "r", "w" oder "x" — derselbe Schlüssel steht im Markup.
+	Key string `json:"key"`
+	// Label ist das Wort dafür, je nach Art des Eintrags. Es steht im Satz:
+	// "darf Inhalt auflisten und hineinwechseln".
+	Label string `json:"label"`
+	// Short ist dasselbe für eine Spaltenüberschrift. Ohne die kurze Fassung
+	// wurde aus "Einträge anlegen und löschen" ein dreizeiliger Tabellenkopf,
+	// höher als das Raster darunter.
+	Short string `json:"short"`
+	Set   bool   `json:"set"`
+}
+
+// ModeRole ist eine der drei Gruppen: Eigentümer, Gruppe, alle anderen.
+type ModeRole struct {
+	Key    string      `json:"key"`
+	Label  string      `json:"label"`
+	Rights []ModeRight `json:"rights"`
+	// Text ist der Satzteil hinter dem Rollennamen: "darf lesen und schreiben"
+	// oder "darf nichts".
+	Text string `json:"text"`
+}
+
+// ModeSpecial ist ein gesetztes Sonderbit mit seiner Bedeutung.
+type ModeSpecial struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
+	Text  string `json:"text"`
+	Set   bool   `json:"set"`
+}
+
+// ModeDescription ist eine Rechteangabe, aufgeschlüsselt.
+type ModeDescription struct {
+	Octal    string        `json:"octal"`
+	Symbolic string        `json:"symbolic"`
+	Roles    []ModeRole    `json:"roles"`
+	Specials []ModeSpecial `json:"specials"`
+}
+
+// rechteWorte: die Wortwahl je Recht, einmal für Dateien und einmal für
+// Verzeichnisse — lang für den Satz, kurz für die Spaltenüberschrift.
+var rechteWorte = map[bool]map[string][2]string{
+	false: {
+		"r": {"lesen", "lesen"},
+		"w": {"ändern", "ändern"},
+		"x": {"ausführen", "ausführen"},
+	},
+	true: {
+		"r": {"Inhalt auflisten", "auflisten"},
+		"w": {"Einträge anlegen und löschen", "anlegen, löschen"},
+		"x": {"hineinwechseln", "betreten"},
+	},
+}
+
+// DescribeMode schlüsselt eine Rechteangabe auf. istVerzeichnis entscheidet über
+// die Wortwahl, nicht über die Bits.
+func DescribeMode(m fs.FileMode, istVerzeichnis bool) ModeDescription {
+	bits := bitsFromMode(m)
+	worte := rechteWorte[istVerzeichnis]
+
+	rollen := []struct {
+		key, label string
+		schieben   uint32
+	}{
+		{"user", "Eigentümer", 6},
+		{"group", "Gruppe", 3},
+		{"other", "alle anderen", 0},
+	}
+
+	out := ModeDescription{
+		Octal:    FormatMode(m),
+		Symbolic: m.String(),
+	}
+	for _, r := range rollen {
+		drei := (bits >> r.schieben) & 0o7
+		rolle := ModeRole{Key: r.key, Label: r.label}
+		var erlaubt []string
+		for _, recht := range []struct {
+			key string
+			bit uint32
+		}{{"r", 4}, {"w", 2}, {"x", 1}} {
+			gesetzt := drei&recht.bit != 0
+			rolle.Rights = append(rolle.Rights, ModeRight{
+				Key:   recht.key,
+				Label: worte[recht.key][0],
+				Short: worte[recht.key][1],
+				Set:   gesetzt,
+			})
+			if gesetzt {
+				erlaubt = append(erlaubt, worte[recht.key][0])
+			}
+		}
+		rolle.Text = "darf " + aufzaehlung(erlaubt)
+		out.Roles = append(out.Roles, rolle)
+	}
+
+	// Die Sonderbits stehen immer in der Liste, auch ungesetzt: Sie erklären die
+	// erste Ziffer, die sonst niemand einordnen kann.
+	out.Specials = []ModeSpecial{
+		{
+			Key: "setuid", Label: "setuid", Set: bits&0o4000 != 0,
+			Text: "beim Ausführen gilt der Eigentümer der Datei, nicht der Aufrufer",
+		},
+		{
+			Key: "setgid", Label: "setgid", Set: bits&0o2000 != 0,
+			Text: "neue Einträge erben die Gruppe des Verzeichnisses",
+		},
+		{
+			Key: "sticky", Label: "Sticky-Bit", Set: bits&0o1000 != 0,
+			Text: "löschen darf nur, wem der Eintrag gehört (wie in /tmp)",
+		},
+	}
+	return out
+}
+
+// aufzaehlung baut "nichts", "lesen" oder "lesen, ändern und ausführen".
+func aufzaehlung(teile []string) string {
+	switch len(teile) {
+	case 0:
+		return "nichts"
+	case 1:
+		return teile[0]
+	default:
+		return strings.Join(teile[:len(teile)-1], ", ") + " und " + teile[len(teile)-1]
+	}
+}
+
 // ParseMode liest eine oktale Rechteangabe. Erlaubt sind drei oder vier
 // Stellen; alles andere wäre eher Tippfehler als Absicht.
 func ParseMode(s string) (fs.FileMode, error) {

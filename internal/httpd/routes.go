@@ -111,6 +111,7 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("GET /files", s.protected(http.HandlerFunc(s.handleFiles)))
 		mux.Handle("GET /files/entry", s.protected(http.HandlerFunc(s.handleFileEntry)))
 		mux.Handle("GET /files/detail", s.protected(http.HandlerFunc(s.handleFileDetail)))
+		mux.Handle("GET /files/dirs", s.protected(http.HandlerFunc(s.handleFileDirs)))
 		mux.Handle("GET /files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
 		mux.Handle("GET /files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
 		mux.Handle("GET /files/events", s.protected(http.HandlerFunc(s.handleFileEvents)))

@@ -422,3 +422,115 @@ func TestFilesWarntBeiNichtBeschreibbaremBereich(t *testing.T) {
 		t.Error("der Hinweis nennt nicht, wie es behoben wird")
 	}
 }
+
+// ------------------------------------------------- Zielauswahl (/files/dirs) ---
+
+// TestFilesDirsNenntNurOrdner: Die Auswahl beim Verschieben und Kopieren zieht
+// ihre Struktur aus diesem Endpunkt. Er darf nur Verzeichnisse nennen — und nur
+// solche, die die Pfadwache ohnehin zeigt.
+func TestFilesDirsNenntNurOrdner(t *testing.T) {
+	s, wurzel := newFilesServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	arbeit := filepath.Join(wurzel, "schreibbar")
+	for _, d := range []string{"ziel-a", "ziel-b"} {
+		if err := os.MkdirAll(filepath.Join(arbeit, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	lege(t, filepath.Join(arbeit, "datei.txt"), "x")
+
+	rec := get(t, s, "/files/dirs?path="+urlWert(arbeit), cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200 (%s)", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("Content-Type = %q", ct)
+	}
+
+	var antwort fileDirs
+	if err := json.Unmarshal(rec.Body.Bytes(), &antwort); err != nil {
+		t.Fatalf("Antwort ist kein JSON: %v", err)
+	}
+	if antwort.Path != arbeit {
+		t.Errorf("Path = %q, erwartet %q", antwort.Path, arbeit)
+	}
+	if !antwort.Writable {
+		t.Error("der Schreibbereich gilt als nicht beschreibbar")
+	}
+	if len(antwort.Dirs) != 2 {
+		t.Fatalf("%d Einträge, erwartet 2 (nur Ordner): %+v", len(antwort.Dirs), antwort.Dirs)
+	}
+	for _, d := range antwort.Dirs {
+		if !d.Writable {
+			t.Errorf("%s gilt als nicht beschreibbar", d.Path)
+		}
+		if strings.HasSuffix(d.Name, ".txt") {
+			t.Errorf("eine Datei ist in der Auswahl: %s", d.Name)
+		}
+	}
+	// Die Schreibbereiche kommen mit: Sie sind die Sprungmarken der Auswahl.
+	if len(antwort.Roots) == 0 {
+		t.Error("die Schreibbereiche fehlen in der Antwort")
+	}
+	if len(antwort.Crumbs) == 0 {
+		t.Error("der klickbare Pfad fehlt")
+	}
+}
+
+// Außerhalb der sichtbaren Bereiche gibt der Endpunkt nichts heraus — dieselbe
+// Wache wie für die Liste, und der Statuscode sagt, woran es lag.
+func TestFilesDirsBleibtInDerWache(t *testing.T) {
+	s, _ := newFilesServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	for pfad, wollen := range map[string]int{
+		"/etc":            http.StatusForbidden,
+		"/":               http.StatusForbidden,
+		"/proc/self/root": http.StatusForbidden,
+		// Ein relativer Pfad ist keine Politikfrage, sondern eine unbrauchbare
+		// Angabe — die Wache unterscheidet das, und der Statuscode auch.
+		"../../etc": http.StatusBadRequest,
+	} {
+		rec := get(t, s, "/files/dirs?path="+urlWert(pfad), cookie)
+		if rec.Code != wollen {
+			t.Errorf("%s: Status = %d, erwartet %d", pfad, rec.Code, wollen)
+		}
+	}
+}
+
+// Ein nicht beschreibbarer Ordner steht in der Auswahl, ist aber als solcher
+// gekennzeichnet: Die Auswahl gibt den Knopf nur für beschreibbare Ziele frei.
+func TestFilesDirsKennzeichnetNurLesbare(t *testing.T) {
+	s, wurzel := newFilesServer(t)
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	if err := os.MkdirAll(filepath.Join(wurzel, "nurlesbar", "tief"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	var antwort fileDirs
+	rec := get(t, s, "/files/dirs?path="+urlWert(wurzel), cookie)
+	if err := json.Unmarshal(rec.Body.Bytes(), &antwort); err != nil {
+		t.Fatal(err)
+	}
+	if antwort.Writable {
+		t.Error("die Lesewurzel gilt als beschreibbar")
+	}
+	var gesehen bool
+	for _, d := range antwort.Dirs {
+		if d.Name != "nurlesbar" {
+			continue
+		}
+		gesehen = true
+		if d.Writable {
+			t.Error("nurlesbar gilt als beschreibbar")
+		}
+	}
+	if !gesehen {
+		t.Errorf("der Ordner nurlesbar fehlt in der Auswahl: %+v", antwort.Dirs)
+	}
+}

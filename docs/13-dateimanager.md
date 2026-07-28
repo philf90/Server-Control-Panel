@@ -147,6 +147,63 @@ Dazu:
   Konfigurationsdatei, die nach dem Speichern plötzlich `root:root 0644`
   gehört, wäre für den Dienst, der sie liest, möglicherweise unbrauchbar.
 
+## Ziel wählen statt tippen
+
+Verschieben und Kopieren brauchen ein Zielverzeichnis. Bis 0.3.0-rc.4 war das ein
+freies Textfeld mit dem aktuellen Ordner als Vorgabe. Das ist die Sorte Eingabe,
+die zwei Arten von Fehlern erlaubt: einen Tippfehler, der erst beim Absenden
+auffällt — und einen, der *nicht* auffällt, weil `mv /a/b /srv/date` beim
+fehlenden Zielordner umbenennt statt zu verschieben.
+
+Zur Wahl steht deshalb nur, was es gibt:
+
+- **Mit Skript** eine durchsuchbare Auswahl. Sie holt die Struktur von
+  `GET /files/dirs?path=…` — Unterverzeichnisse, übergeordneter Ordner,
+  klickbarer Pfad, die Schreibbereiche als Sprungmarken. Ein Ordner ohne
+  Schreibrecht ist sichtbar, aber nicht wählbar; ein gesperrter Eintrag ist
+  sichtbar und nicht anklickbar.
+- **Ohne Skript** eine serverseitig gefüllte Auswahlliste: die Schreibbereiche
+  und die Ordner auf dem Weg zum Eintrag. Weniger Reichweite, aber auch hier
+  keine freie Eingabe.
+
+`/files/dirs` liefert nur Verzeichnisnamen und geht durch dieselbe Pfadwache wie
+die Liste — es gibt also nichts zu sehen, was die Liste nicht ohnehin zeigt.
+
+**Die Auswahl ist eine Bedienhilfe, keine Sicherheitsgrenze.** Verbindlich bleibt
+die Prüfung beim Ausführen: Ein selbstgebauter POST kommt an der Auswahl vorbei
+und an der Wache nicht. Das ist die gleiche Arbeitsteilung wie bei den
+Auswahlfeldern für Eigentümer und Gruppe.
+
+## Rechte in Worten
+
+`0755` ist für die meisten Menschen eine Zahl ohne Bedeutung, und `drwxr-xr-x`
+ist nur eine kürzere Verschlüsselung derselben Zahl. Die Detailseite zeigt beides
+weiter an — sie stehen in jeder Anleitung —, aber die Angabe selbst ist ein
+Raster: drei Rollen, drei Rechte, je Zeile ein Satz.
+
+Bei einem Verzeichnis bedeuten dieselben Bits etwas anderes, und genau das ist
+die häufigste Verwechslung überhaupt:
+
+| Bit | Datei | Verzeichnis |
+|---|---|---|
+| `r` | lesen | Inhalt auflisten |
+| `w` | ändern | Einträge anlegen und löschen |
+| `x` | ausführen | hineinwechseln |
+
+Die Sonderbits stehen mit ihrer Bedeutung dabei und erklären die erste Stelle:
+setuid, setgid und das Sticky-Bit von `/tmp`.
+
+Aufgeschlüsselt wird serverseitig (`privops.DescribeMode`), damit die Beschreibung
+auch ohne Skript stimmt. Die Kästchen kommen gesperrt an; `rechte.js` schaltet sie
+frei und hält sie mit der Ziffer im Gleichschritt — Kästchen ändern die Ziffer,
+eine getippte Ziffer setzt die Kästchen. Ohne Skript bleibt das Raster eine
+Beschreibung des Ist-Zustands, und die Ziffer ist das Eingabefeld, das sie vorher
+war.
+
+Der Abschnitt erscheint auch für die Rolle `readonly` — als Beschreibung ohne
+Formular. Ein `<form>` auf `/files/mode` begegnet einer Rolle, die es nicht
+benutzen darf, gar nicht erst im Markup.
+
 ## Upload
 
 Der Upload ist der einzige Endpunkt des Panels, der einen großen Körper liest.

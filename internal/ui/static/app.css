@@ -855,6 +855,116 @@ form.rename button { margin: 0; }
 
 .hint { color: var(--muted); font-size: 0.82rem; }
 
+/* --- Rechte als Raster ----------------------------------------------------
+ *
+ * Drei Rollen, drei Rechte, dazu ein Satz je Zeile. Die Oktalzahl bleibt
+ * daneben stehen: Sie steht in jeder Anleitung, und wer sie kennt, tippt sie
+ * weiter. Ohne rechte.js sind die Kästchen gesperrt — dann ist das Raster eine
+ * Beschreibung des Ist-Zustands und keine Bedienung, die nichts bewirkt.
+ */
+.rechtegitter { width: auto; font-size: 0.88rem; }
+.rechtegitter th,
+.rechtegitter td { padding: 0.35rem 0.9rem 0.35rem 0; border: none; }
+.rechtegitter thead th {
+  padding-bottom: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.rechtegitter tbody th {
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.rechtegitter tbody tr:hover td { background: none; }
+.rechtegitter input[type="checkbox"] { width: 1.05rem; height: 1.05rem; margin: 0; }
+/* Gesperrte Kästchen sind kein Fehler, sondern der Zustand ohne Skript. Sie
+   sollen lesbar bleiben und nicht ausgegraut wirken. */
+.rechtegitter input[type="checkbox"]:disabled { opacity: 0.85; cursor: default; }
+.rechtegitter .bedeutet { color: var(--muted); white-space: nowrap; }
+
+.sonderbits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.2rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line2);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+/* Die Ziffer ist sechs Zeichen breit und kein Fließtextfeld. Ohne die Angabe
+   greift "input { width: 100% }" von weiter oben, und "0644" stand allein in
+   einer Zeile von tausend Pixeln. */
+.rechtezeile { display: flex; align-items: baseline; gap: 0.5rem; margin-top: 0.9rem; }
+.rechtezeile label { margin: 0; font-size: 0.78rem; color: var(--muted); }
+.rechtezeile input#mode {
+  width: 6rem;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+/* Im Formular folgt darunter die Zeile mit Eigentümer, Gruppe und Knopf. Sie ist
+   ein .row-form und braucht den Abstand oben, nicht die Ziffernzeile. */
+.rechte + .row-form { margin-top: 0.9rem; }
+
+/* --- Zielauswahl beim Verschieben und Kopieren -----------------------------
+ *
+ * Kein freies Textfeld: Auswählbar ist nur, was /files/dirs genannt hat. Die
+ * Fläche liegt im Seitenhintergrund wie die Regelblöcke der Firewall — ein
+ * verschachteltes Feld hebt sich durch die ruhigere Fläche ab.
+ */
+.zielwahl {
+  margin-top: 0.2rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.ziel-kopf { font-size: 0.85rem; margin-bottom: 0.45rem; }
+.ziel-gewaehlt { font-weight: 600; }
+.ziel-pfad,
+.ziel-marken {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.45rem;
+}
+.ziel-marken { margin: 0.45rem 0 0; }
+.ziel-liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-height: 9.5rem;
+  overflow-y: auto;
+}
+/* Die Knöpfe der Auswahl sind klein und leise: Es sind Wege, keine Aktionen.
+   Der einzige, der etwas festlegt, ist "diesen Ordner wählen". */
+.zielwahl button {
+  margin: 0;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--fg);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+.zielwahl button:hover:not(:disabled) { border-color: var(--accent); filter: none; }
+.zielwahl button:disabled { opacity: 0.5; cursor: default; }
+.zielwahl .ziel-krume { border-style: dashed; }
+.zielwahl .ziel-eintrag::before { content: "▸ "; color: var(--muted); }
+.zielwahl .ziel-eintrag.nurlesbar { color: var(--muted); }
+.zielwahl .ziel-hierher {
+  margin-left: auto;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.ziel-stand { margin: 0.45rem 0 0; }
+
 /* --- Passwortprüfung ------------------------------------------------------
  *
  * Die Richtlinie, eine Stärkeschätzung und je Regel ein Haken oder ein Kreuz.

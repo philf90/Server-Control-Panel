@@ -257,6 +257,8 @@ func (s *Server) renderFileEntry(w http.ResponseWriter, r *http.Request, status 
 		seite.Users, seite.Groups = users, groups
 	}
 	seite.Editable = eintrag.Readable() && eintrag.Writable
+	seite.Rechte = privops.DescribeMode(eintrag.Mode, eintrag.IsDir())
+	seite.Ziele = s.fileZiele(eintrag)
 
 	basis := s.base(r, eintrag.Name, "files").with(seite)
 	if flash != "" {
@@ -266,6 +268,42 @@ func (s *Server) renderFileEntry(w http.ResponseWriter, r *http.Request, status 
 		basis = basis.withError(fehler)
 	}
 	s.renderPage(w, r, status, "file-entry", basis)
+}
+
+// fileZiele sind die Ziele, die ohne Skript zur Wahl stehen: die Schreibbereiche
+// und die Ordner auf dem Weg zum Eintrag.
+//
+// Das Ziel war bis hierher ein freies Textfeld. Ein Tippfehler wurde damit erst
+// beim Absenden zu einer Fehlermeldung, und "/srv/date" statt "/srv/daten" legt
+// im Zweifel nichts an, sondern benennt um. Zur Wahl steht jetzt nur, was es
+// gibt — mit Skript durchsuchbar (zielwahl.js), ohne Skript diese Liste.
+//
+// Ohne List-Aufruf: Die Ordner auf dem Weg hierher stehen im Pfad, und die
+// Schreibbereiche kennt die Wache. Das genügt als Rückfall; das Durchsuchen
+// beliebiger Tiefen ist die Aufgabe des Skripts.
+func (s *Server) fileZieleFuerPfad(dir string) []fileTarget {
+	gesehen := make(map[string]bool)
+	out := make([]fileTarget, 0, 8)
+	hinzu := func(pfad, label string) {
+		if pfad == "" || gesehen[pfad] {
+			return
+		}
+		gesehen[pfad] = true
+		out = append(out, fileTarget{Path: pfad, Label: label, Selected: pfad == dir})
+	}
+
+	hinzu(dir, dir+" (hier)")
+	for _, k := range krumen(dir) {
+		hinzu(k.Path, k.Path)
+	}
+	for _, w := range s.files.WritableRoots() {
+		hinzu(w, w+" (Schreibbereich)")
+	}
+	return out
+}
+
+func (s *Server) fileZiele(eintrag privops.FileEntry) []fileTarget {
+	return s.fileZieleFuerPfad(filepath.Dir(eintrag.Path))
 }
 
 // renderFiles rendert die Liste eines Verzeichnisses mit Meldung.

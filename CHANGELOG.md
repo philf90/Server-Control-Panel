@@ -175,6 +175,36 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Rechte im Dateimanager stehen als Raster da, nicht als Ziffer.** Drei Rollen,
+  drei Rechte, je Zeile ein Satz: „Eigentümer darf Inhalt auflisten, Einträge
+  anlegen und löschen und hineinwechseln". Bei einem Verzeichnis heißt `x` nicht
+  ausführen, sondern hineinwechseln, und `r` nicht lesen, sondern auflisten — die
+  häufigste Verwechslung überhaupt, jetzt steht sie in den Worten. Die
+  Oktalzahl bleibt daneben und läuft mit den Kästchen im Gleichschritt: Kästchen
+  ändern die Ziffer, eine getippte Ziffer setzt die Kästchen. Die Sonderbits
+  (setuid, setgid, Sticky) stehen mit ihrer Bedeutung dabei und erklären die
+  erste Stelle.
+
+  Beschrieben wird serverseitig (`privops.DescribeMode`), damit die Angabe auch
+  ohne Skript stimmt; ohne Skript sind die Kästchen gesperrt und beschreiben den
+  Ist-Zustand. Der Abschnitt erscheint jetzt auch für die nur lesende Rolle — als
+  Beschreibung ohne Formular.
+- **Verschieben und Kopieren wählen ihr Ziel aus, statt es tippen zu lassen.**
+  Das Ziel war ein freies Textfeld: Ein Tippfehler wurde erst beim Absenden zu
+  einer Fehlermeldung, und `/srv/date` statt `/srv/daten` benennt beim
+  Verschieben um, statt zu verschieben. Zur Wahl steht jetzt nur, was es gibt —
+  eine durchsuchbare Auswahl über den neuen Endpunkt `/files/dirs`, mit den
+  Schreibbereichen als Sprungmarken; ein Ordner ohne Schreibrecht ist sichtbar,
+  aber nicht wählbar. Ohne Skript bleibt eine serverseitig gefüllte Auswahlliste
+  (Schreibbereiche und der Weg zum Eintrag) — auch die ist nicht frei.
+
+  Verbindlich bleibt die Prüfung beim Ausführen: Die Auswahl ist eine
+  Bedienhilfe, keine Sicherheitsgrenze. Ein selbstgebauter POST kommt an ihr
+  vorbei und an der Pfadwache nicht.
+- **Verschieben und Kopieren teilen sich ein Formular.** Sie unterscheiden sich
+  nur im Knopf — dasselbe Ziel, dieselbe Prüfung. Aus drei Formularen mit
+  eigenem Feld und eigenem Knopf sind zwei Zeilen geworden; welcher Knopf
+  gedrückt wurde, entscheidet über `formaction`.
 - **Ein Panel-Zugang wird mit Anmeldename und Rolle angelegt — nichts weiter.**
   Das Feld für ein Startpasswort ist entfallen: Das Panel erzeugt es selbst
   (zufällig, der Richtlinie entsprechend), zeigt es genau einmal an und verlangt

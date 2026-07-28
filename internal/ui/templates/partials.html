@@ -110,3 +110,68 @@
 <script src="/static/theme.js" defer></script>
 </body>
 </html>{{end}}
+
+{{/* Rechte als Raster: drei Rollen, drei Rechte, ein Satz je Zeile, dazu die
+     Sonderbits und die Oktalzahl.
+
+     Aufruf mit vier Werten:
+
+       {{template "rechtegitter" dict "rechte" .Rechte "octal" "0644" "ordner" false "eingabe" true}}
+
+     "eingabe" entscheidet, ob daraus eine Bedienung wird. Die Kästchen kommen in
+     beiden Fällen gesperrt an — rechte.js schaltet sie frei, wenn es läuft. Ohne
+     Skript beschreiben sie den Ist-Zustand, und die Ziffer bleibt das Feld, das
+     sie immer war. Die Worte je Recht stehen in data-rechte-wort und kommen aus
+     privops.DescribeMode: Ein Verzeichnis wird betreten, eine Datei ausgeführt. */}}
+{{define "rechtegitter"}}
+<div class="rechte"{{if .eingabe}} data-rechte-feld="mode"{{end}}>
+  <div class="table-wrap">
+    <table class="rechtegitter">
+      <thead>
+        <tr>
+          <th>Wer</th>
+          {{range (index .rechte.Roles 0).Rights}}<th>{{.Short}}</th>{{end}}
+          <th>bedeutet</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .rechte.Roles}}
+        {{$rolle := .}}
+        <tr>
+          <th scope="row">{{.Label}}</th>
+          {{range .Rights}}
+          <td>
+            <input type="checkbox" id="r-{{$rolle.Key}}-{{.Key}}"
+                   data-rechte-rolle="{{$rolle.Key}}" data-rechte-recht="{{.Key}}"
+                   data-rechte-wort="{{.Label}}"
+                   {{if .Set}}checked{{end}} disabled
+                   aria-label="{{$rolle.Label}}: {{.Label}}">
+          </td>
+          {{end}}
+          <td class="bedeutet" data-rechte-satz="{{.Key}}">{{.Text}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sonderbits">
+    {{range .rechte.Specials}}
+    <label class="mitcheck" title="{{.Text}}">
+      <input type="checkbox" data-rechte-sonder="{{.Key}}" {{if .Set}}checked{{end}} disabled>
+      {{.Label}}
+    </label>
+    {{end}}
+  </div>
+
+  <div class="rechtezeile">
+    <label for="mode">Oktal</label>
+    {{if .eingabe}}
+    <input type="text" id="mode" name="mode" value="{{.octal}}" pattern="[0-7]{3,4}"
+           inputmode="numeric" placeholder="0644" size="6">
+    {{else}}
+    <input type="text" id="mode" value="{{.octal}}" size="6" readonly>
+    {{end}}
+  </div>
+</div>
+{{end}}

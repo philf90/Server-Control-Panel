@@ -1,5 +1,9 @@
 {{define "file-entry"}}{{template "header" .}}
 {{with .Content}}
+{{/* Darf hier etwas geändert werden? Die Bedingung stand vorher an drei Stellen
+     wortgleich; die Rechteanzeige braucht sie jetzt auch, und zwar mit anderer
+     Antwort (sie wird immer gezeigt, nur nicht immer als Formular). */}}
+{{$schreibend := and $.CanWrite .Entry.Writable (not .Entry.Sensitive)}}
 <div class="pagehead">
   <div>
     <h1>{{.Entry.Name}}</h1>
@@ -35,7 +39,6 @@
   <h2>Angaben</h2>
   <dl>
     <dt>Pfad</dt><dd><code>{{.Entry.Path}}</code></dd>
-    <dt>Rechte</dt><dd><code>{{.Entry.ModeOctal}}</code> <span class="muted">{{.Entry.ModeText}}</span></dd>
     <dt>Eigentümer</dt><dd>{{.Entry.Owner}}:{{.Entry.Group}} <span class="muted">({{.Entry.UID}}:{{.Entry.GID}})</span></dd>
     <dt>Geändert</dt><dd>{{datetime .Entry.ModTime}}</dd>
     {{if eq .Entry.Kind "verweis"}}
@@ -53,9 +56,15 @@
   </dl>
 </div>
 
-{{if and $.CanWrite .Entry.Writable (not .Entry.Sensitive)}}
+{{if $schreibend}}
+{{/* Umbenennen, verschieben und kopieren standen als drei Formulare
+     untereinander, jedes mit eigenem Feld und eigenem Knopf. Verschieben und
+     Kopieren unterscheiden sich aber nur im Knopf — dasselbe Ziel, dieselbe
+     Prüfung. Sie teilen sich jetzt ein Formular und eine Zielauswahl; welcher
+     Knopf gedrückt wurde, entscheidet über formaction. Das sind zwei Zeilen
+     statt vier. */}}
 <div class="section">
-  <div class="sechead"><span class="seclabel">Umbenennen und verschieben</span></div>
+  <div class="sechead"><span class="seclabel">Name und Ort</span></div>
   <div class="card">
     <form method="post" action="/files/rename" class="row-form">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -66,22 +75,24 @@
       <div class="submit"><button type="submit" class="small">umbenennen</button></div>
     </form>
 
-    <form method="post" action="/files/move" class="row-form">
+    {{/* Das Ziel ist keine freie Eingabe: Auswählbar ist nur, was es gibt. Ohne
+         Skript die Liste unten (Schreibbereiche und der Weg hierher), mit Skript
+         eine durchsuchbare Auswahl über /files/dirs. */}}
+    <form method="post" action="/files/move" class="row-form zielform">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="path" value="{{.Entry.Path}}">
-      <label>Zielordner
-        <input type="text" name="target" value="{{.Dir}}" required placeholder="/srv/daten">
-      </label>
-      <div class="submit"><button type="submit" class="small">verschieben</button></div>
-    </form>
-
-    <form method="post" action="/files/copy" class="row-form">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <input type="hidden" name="path" value="{{.Entry.Path}}">
-      <label>Kopieren nach
-        <input type="text" name="target" value="{{.Dir}}" required placeholder="/srv/daten">
-      </label>
-      <div class="submit"><button type="submit" class="small">kopieren</button></div>
+      <div class="weit">
+        <label for="ziel">Zielordner</label>
+        <div class="zielwahl" data-ziel-start="{{.Dir}}" data-ziel-feld="ziel">
+          <select id="ziel" name="target" class="ziel-auswahl" required>
+            {{range .Ziele}}<option value="{{.Path}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+          </select>
+        </div>
+      </div>
+      <div class="submit button-row">
+        <button type="submit" class="small" formaction="/files/move">verschieben</button>
+        <button type="submit" class="small secondary" formaction="/files/copy">kopieren</button>
+      </div>
     </form>
     <p class="muted klein">
       Verschieben über eine Dateisystemgrenze kopiert und löscht danach — erst nach dem
@@ -90,44 +101,67 @@
     </p>
   </div>
 </div>
+{{end}}
 
+{{/* Rechte: immer sichtbar, weil die Beschreibung auch für eine Rolle zählt, die
+     nichts ändern darf. Beschrieben wird serverseitig (privops.DescribeMode);
+     rechte.js schaltet die Kästchen frei und hält sie mit der Ziffer im
+     Gleichschritt. Ohne Skript bleiben sie gesperrt und sind das, was sie dann
+     sind: eine Darstellung des Ist-Zustands.
+
+     Das Raster steht in einer Teilvorlage, weil es zweimal gebraucht wird: für
+     die lesende Rolle als bloße Anzeige und für die schreibende innerhalb des
+     Formulars. Ein <form> auf /files/mode darf einer Rolle, die es nicht
+     benutzen darf, nicht einmal im Markup begegnen. */}}
 <div class="section">
-  <div class="sechead"><span class="seclabel">Rechte und Eigentümer</span></div>
+  <div class="sechead">
+    <span class="seclabel">Rechte{{if $schreibend}} und Eigentümer{{end}}</span>
+    <span class="sub"><code>{{.Entry.ModeOctal}}</code> · <code>{{.Entry.ModeText}}</code></span>
+  </div>
   <div class="card">
-    <form method="post" action="/files/mode" class="row-form">
+    {{if $schreibend}}
+    <form method="post" action="/files/mode">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="path" value="{{.Entry.Path}}">
-      <label>Rechte (oktal)
-        <input type="text" name="mode" value="{{.Entry.ModeOctal}}" pattern="[0-7]{3,4}"
-               inputmode="numeric" placeholder="0644">
-      </label>
-      <label>Eigentümer
-        <select name="owner">
-          <option value="">unverändert</option>
-          {{range $.Content.Users}}<option value="{{.}}"{{if eq . $.Content.Entry.Owner}} selected{{end}}>{{.}}</option>{{end}}
-        </select>
-      </label>
-      <label>Gruppe
-        <select name="group">
-          <option value="">unverändert</option>
-          {{range $.Content.Groups}}<option value="{{.}}"{{if eq . $.Content.Entry.Group}} selected{{end}}>{{.}}</option>{{end}}
-        </select>
-      </label>
-      {{if .Entry.IsDir}}
-      <label class="mitcheck">
-        <input type="checkbox" name="recursive" value="1">
-        auch alles darunter
-      </label>
-      {{end}}
-      <div class="submit"><button type="submit" class="small">anwenden</button></div>
+      {{template "rechtegitter" dict "rechte" .Rechte "octal" .Entry.ModeOctal "ordner" .Entry.IsDir "eingabe" true}}
+      <div class="row-form rechtezeile">
+        <div>
+          <label for="owner">Eigentümer</label>
+          <select id="owner" name="owner">
+            <option value="">unverändert</option>
+            {{range $.Content.Users}}<option value="{{.}}"{{if eq . $.Content.Entry.Owner}} selected{{end}}>{{.}}</option>{{end}}
+          </select>
+        </div>
+        <div>
+          <label for="group">Gruppe</label>
+          <select id="group" name="group">
+            <option value="">unverändert</option>
+            {{range $.Content.Groups}}<option value="{{.}}"{{if eq . $.Content.Entry.Group}} selected{{end}}>{{.}}</option>{{end}}
+          </select>
+        </div>
+        {{if .Entry.IsDir}}
+        <div>
+          <label class="mitcheck">
+            <input type="checkbox" name="recursive" value="1">
+            auch alles darunter
+          </label>
+        </div>
+        {{end}}
+        <div class="submit"><button type="submit" class="small">anwenden</button></div>
+      </div>
     </form>
     <p class="muted klein">
       Bei einem Verweis gilt ein Eigentümerwechsel dem Verweis selbst, nicht seinem Ziel;
       Rechte lassen sich auf einem Verweis gar nicht setzen — sie gehören immer dem Ziel,
       und das liegt möglicherweise dort, wo das Panel nichts zu ändern hat.
     </p>
+    {{else}}
+    {{template "rechtegitter" dict "rechte" .Rechte "octal" .Entry.ModeOctal "ordner" .Entry.IsDir "eingabe" false}}
+    {{end}}
   </div>
 </div>
+
+{{if $schreibend}}
 
 <div class="section">
   <div class="sechead"><span class="seclabel">Löschen</span></div>
@@ -157,6 +191,14 @@
   Dieser Pfad liegt außerhalb der Bereiche, in denen das Panel schreiben darf. Lesen und
   Herunterladen bleiben möglich.
 </p>
+{{end}}
+{{if $schreibend}}
+{{/* Beide Skripte machen aus einer Anzeige eine Eingabe. Ohne sie bleibt die
+     Seite bedienbar: Die Kästchen sind gesperrt und beschreiben den Ist-Zustand,
+     die Ziffer ist ein Feld wie vorher, und das Ziel kommt aus der Auswahlliste
+     mit den serverseitig bekannten Ordnern. */}}
+<script src="/static/rechte.js" defer></script>
+<script src="/static/zielwahl.js" defer></script>
 {{end}}
 {{end}}
 {{template "footer" .}}{{end}}

@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -62,7 +64,10 @@ type Server struct {
 	latest   metrics.Snapshot
 	hasLast  bool
 
-	ops     privops.Executor
+	ops privops.Executor
+	// files ist der Dateimanager. Nil, wenn das Modul abgeschaltet ist oder
+	// seine Politik nicht aufgeht — dann gibt es weder Routen noch Menüpunkt.
+	files   privops.Files
 	jobs    *jobs
 	fwGuard *firewallGuard
 	upd     *updateState
@@ -105,6 +110,7 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 		ops = privops.NewSystem()
 	}
 	pk := buildPasskeys(cfg, logger)
+	dateien := buildFiles(cfg, logger)
 	return &Server{
 		cfg:      cfg,
 		cfgPath:  cfg.SourcePath,
@@ -124,7 +130,75 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 		pending:  newPendingSecrets(),
 		resets:   newResetTickets(),
 		passkeys: pk,
+		files:    dateien,
 	}, nil
+}
+
+// buildFiles richtet den Dateimanager ein.
+//
+// Ohne Eintrag in der Konfiguration gilt die Vorgabe: Lesen überall, Schreiben
+// in den Bereichen, die die systemd-Unit zulässt. `files.enabled: false`
+// schaltet das Modul ab — dann entstehen weder Routen noch Menüpunkt.
+//
+// Eine widersprüchliche Politik schaltet ebenfalls ab, mit Meldung im
+// Protokoll. Der Dienst startet trotzdem: Ein Panel, das wegen einer
+// Einstellung des Dateimanagers nicht mehr erreichbar ist, wäre die schlechtere
+// Antwort — dann käme man an genau die Einstellung nicht mehr heran.
+func buildFiles(cfg config.Config, log *slog.Logger) privops.Files {
+	if !cfg.Files.On() {
+		log.Info("Dateimanager abgeschaltet (files.enabled: false)")
+		return nil
+	}
+
+	pol := privops.DefaultFilesPolicy(filepath.Join(cfg.Paths.Data, "backups"))
+	if len(cfg.Files.ReadableRoots) > 0 {
+		pol.ReadableRoots = cfg.Files.ReadableRoots
+	}
+	// Unterschied zwischen "nicht gesetzt" und "ausdrücklich leer": Ein
+	// `writable_roots: []` macht den Dateimanager bewusst nur lesend, und das
+	// darf die Vorgabe nicht überschreiben.
+	if cfg.Files.WritableRoots != nil {
+		pol.WritableRoots = cfg.Files.WritableRoots
+	}
+	pol.DeniedPaths = cfg.Files.DeniedPaths
+	pol.FollowSymlinks = cfg.Files.FollowSymlinks
+
+	upload, edit, err := cfg.Files.Limits()
+	if err != nil {
+		// Kann hier nicht mehr auftreten (Validate hat es geprüft), wäre aber
+		// stillschweigend zu übergehen der falsche Umgang damit.
+		log.Error("Dateimanager: Größengrenzen unlesbar", "err", err)
+		return nil
+	}
+	if upload > 0 {
+		pol.MaxUpload = upload
+	}
+	if edit > 0 {
+		pol.MaxEditSize = edit
+	}
+
+	// Schreibwurzeln, die es auf diesem System nicht gibt, fallen heraus: Nicht
+	// jede Installation hat /srv oder /media, und eine Wurzel, die auf nichts
+	// zeigt, wäre nur ein irreführender Eintrag in jeder Fehlermeldung.
+	if cfg.Files.WritableRoots == nil {
+		vorhanden := make([]string, 0, len(pol.WritableRoots))
+		for _, w := range pol.WritableRoots {
+			if info, err := os.Stat(w); err == nil && info.IsDir() {
+				vorhanden = append(vorhanden, w)
+			}
+		}
+		pol.WritableRoots = vorhanden
+	}
+
+	fsys, err := privops.NewFileSystem(pol)
+	if err != nil {
+		log.Error("Dateimanager konnte nicht eingerichtet werden — das Modul bleibt aus", "err", err)
+		return nil
+	}
+	log.Info("Dateimanager aktiv",
+		"lesbar", strings.Join(pol.ReadableRoots, ","),
+		"schreibbar", strings.Join(pol.WritableRoots, ","))
+	return fsys
 }
 
 // buildPasskeys richtet den WebAuthn-Manager ein. Ohne Zutun: Passkeys sind an,

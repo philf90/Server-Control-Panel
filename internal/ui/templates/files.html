@@ -1,0 +1,105 @@
+{{define "files"}}{{template "header" .}}
+{{with .Content}}
+<div class="pagehead">
+  <div>
+    <h1>Dateien</h1>
+    <span class="sub">
+      {{if .Suche}}{{len .Entries}} Treffer für „{{.Query}}"{{else}}{{.Total}} Einträge{{end}}
+      {{if .Free}} · {{bytes .Free}} frei{{end}}
+    </span>
+  </div>
+  <div class="right">
+    {{if and .Dir.IsDir (not .Suche)}}
+    <a class="button secondary small" href="/files/archive?path={{.Path | urlquery}}">als tar.gz laden</a>
+    {{end}}
+  </div>
+</div>
+
+<nav class="krumen" aria-label="Pfad">
+  {{range .Crumbs}}<a href="{{$.Content.Link .Path}}">{{.Name}}</a>{{end}}
+</nav>
+
+<form method="get" action="/files" class="filter-form">
+  <input type="hidden" name="path" value="{{.Path}}">
+  {{if .Hidden}}<input type="hidden" name="hidden" value="1">{{end}}
+  <input type="search" name="q" value="{{.Query}}" placeholder="Namen unterhalb dieses Ordners suchen">
+  <button type="submit" class="secondary">Suchen</button>
+  {{if .Suche}}<a class="button small" href="{{.Link .Path}}">Suche beenden</a>{{end}}
+  <a class="button small" href="{{.HiddenLink}}">{{if .Hidden}}Versteckte ausblenden{{else}}Versteckte zeigen{{end}}</a>
+</form>
+
+{{if .Roots}}
+<div class="wurzeln">
+  <span class="muted">Bereiche:</span>
+  {{range .Roots}}<a href="{{$.Content.Link .}}"><code>{{.}}</code></a>{{end}}
+</div>
+{{end}}
+
+{{if .Truncated}}
+<div class="alert warn">
+  Die Liste ist nicht vollständig: {{.TruncatedReason}}. Ein Verzeichnis mit sehr vielen
+  Einträgen wird abgeschnitten, damit die Seite bedienbar bleibt — suchen Sie nach dem
+  Namen, wenn Sie einen bestimmten Eintrag brauchen.
+</div>
+{{end}}
+
+<div class="card flush">
+  <div class="table-wrap">
+    <table class="cards dateien">
+      <thead>
+        <tr>
+          <th data-rolle="haupt"><a href="{{.SortLink "name"}}">Name{{.SortPfeil "name"}}</a></th>
+          <th class="num"><a href="{{.SortLink "size"}}">Größe{{.SortPfeil "size"}}</a></th>
+          <th data-rolle="neben">Rechte</th>
+          <th data-rolle="neben">Eigentümer</th>
+          <th><a href="{{.SortLink "time"}}">Geändert{{.SortPfeil "time"}}</a></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{if and .Parent (not .Suche)}}
+        <tr>
+          <td data-label="Name" data-rolle="haupt" colspan="6"><a href="{{.Link .Parent}}" class="hoch">↑ übergeordnet</a></td>
+        </tr>
+        {{end}}
+        {{range .Entries}}
+        <tr>
+          <td data-label="Name" data-rolle="haupt">
+            {{if .IsDir}}
+              <a href="{{$.Content.Link .Path}}" class="eintrag ordner"><span class="art" aria-hidden="true">▸</span>{{.Name}}</a>
+            {{else}}
+              <span class="eintrag"><span class="art" aria-hidden="true">{{if eq .Kind "verweis"}}↪{{else if eq .Kind "sonstiges"}}◇{{else}}·{{end}}</span>{{.Name}}</span>
+            {{end}}
+            {{if eq .Kind "verweis"}}<span class="muted ziel">→ {{.LinkTarget}}{{if .LinkBroken}} <span class="badge error">Ziel fehlt</span>{{end}}</span>{{end}}
+            {{if .Sensitive}}<span class="badge denied" title="{{.SensitiveReason}}">gesperrt</span>{{end}}
+            {{if $.Content.Suche}}<span class="muted ziel">{{.Path}}</span>{{end}}
+          </td>
+          <td class="num" data-label="Größe">{{if .IsDir}}—{{else}}{{size .Size}}{{end}}</td>
+          <td data-label="Rechte" data-rolle="neben"><code title="{{.ModeText}}">{{.ModeOctal}}</code></td>
+          <td data-label="Eigentümer" data-rolle="neben" class="muted">{{.Owner}}:{{.Group}}</td>
+          <td data-label="Geändert" class="muted num">{{datetime .ModTime}}</td>
+          <td class="actions">
+            {{if .Sensitive}}
+              <span class="muted klein">{{.SensitiveReason}}</span>
+            {{else if .IsDir}}
+              <a class="button small" href="/files/archive?path={{.Path | urlquery}}">tar.gz</a>
+            {{else if eq .Kind "datei"}}
+              <a class="button small" href="/files/download?path={{.Path | urlquery}}">laden</a>
+            {{end}}
+          </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="6" class="muted">{{if .Suche}}keine Treffer{{else}}dieses Verzeichnis ist leer{{end}}</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="muted klein fuss">
+  Verweisen folgt das Panel nicht: Angezeigt wird das Ziel, gelesen wird die Verweisdatei
+  selbst nicht. Gesperrte Einträge stehen in der Liste, damit erkennbar bleibt, dass es sie
+  gibt — ihr Inhalt wird nicht ausgeliefert. Über SSH sind sie erreichbar.
+</p>
+{{end}}
+{{template "footer" .}}{{end}}

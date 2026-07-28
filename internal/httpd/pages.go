@@ -29,7 +29,10 @@ type basePage struct {
 	// Wahl, es gilt die Systemeinstellung. Der Wert kommt aus dem Cookie
 	// asylum_theme und wird ans <html> gerendert, damit die Seite ohne
 	// Aufblitzen im richtigen Modus ankommt.
-	Theme   string
+	Theme string
+	// FilesOn sagt, ob der Dateimanager eingeschaltet ist. Ist er es nicht,
+	// fehlt der Menüpunkt — es gibt dann auch keine Route dahinter.
+	FilesOn bool
 	Content any
 }
 
@@ -39,6 +42,7 @@ func (s *Server) base(r *http.Request, title, nav string) basePage {
 		Nav:     nav,
 		Version: version.String(),
 		Host:    s.sampler.Host(),
+		FilesOn: s.files != nil,
 	}
 	if u, ok := userFrom(r.Context()); ok {
 		p.User = u
@@ -291,6 +295,42 @@ type sysUsersPage struct {
 	Users    []privops.SystemUser
 	Selected string
 	Keys     []privops.SSHKey
+}
+
+// filesPage ist die Seite des Dateimanagers.
+type filesPage struct {
+	// Path ist das angezeigte Verzeichnis, Dir sein Eintrag.
+	Path   string
+	Dir    privops.FileEntry
+	Parent string
+	Crumbs []crumb
+	// Roots sind die freigegebenen Bäume als Einstiegspunkte.
+	Roots []string
+
+	Entries []privops.FileEntry
+	Total   int
+	// Truncated und TruncatedReason sagen, dass die Liste nicht vollständig ist.
+	// Eine gekürzte Liste ohne Hinweis wäre eine Falschaussage: Man sieht ihr
+	// nicht an, dass etwas fehlt.
+	Truncated       bool
+	TruncatedReason string
+
+	Sort   string
+	Desc   bool
+	Hidden bool
+	// Query und Suche: Ist gesucht worden, zeigt die Liste Treffer statt eines
+	// Verzeichnisinhalts.
+	Query string
+	Suche bool
+
+	// Free ist der freie Platz des Dateisystems an dieser Stelle.
+	Free uint64
+}
+
+// crumb ist ein Bestandteil des klickbaren Pfads.
+type crumb struct {
+	Name string
+	Path string
 }
 
 type logsPage struct {

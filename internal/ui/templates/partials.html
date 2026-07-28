@@ -32,6 +32,7 @@
       <a href="/services" class="item{{if eq .Nav "services"}} active{{end}}"{{if eq .Nav "services"}} aria-current="page"{{end}}>Dienste</a>
       <a href="/packages" class="item{{if eq .Nav "packages"}} active{{end}}"{{if eq .Nav "packages"}} aria-current="page"{{end}}>Pakete</a>
       <a href="/system-users" class="item{{if eq .Nav "sysusers"}} active{{end}}"{{if eq .Nav "sysusers"}} aria-current="page"{{end}}>Systembenutzer</a>
+      {{if .FilesOn}}<a href="/files" class="item{{if eq .Nav "files"}} active{{end}}"{{if eq .Nav "files"}} aria-current="page"{{end}}>Dateien</a>{{end}}
     </div>
     <div class="navgrp">
       <span class="navgrp-label">Sicherheit</span>

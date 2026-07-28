@@ -192,8 +192,16 @@ func TestDumpSeiten(t *testing.T) {
 		},
 	})
 
+	// --- Dateimanager: ein Verzeichnis mit Beispielinhalt ---
+	//
+	// Auch hier nicht das echte Dateisystem: Ein Bildschirmfoto soll nicht die
+	// Verzeichnisse dieser Maschine zeigen, und die Entwicklungsumgebung hat
+	// weder /etc/nginx noch typische Server-Ablagen.
+	dateiWurzel := dumpDateien(t, s)
+
 	seiten := []struct{ pfad, name string }{
 		{"/", "uebersicht.html"},
+		{"/files?path=" + dateiWurzel, "dateien.html"},
 		{"/services", "dienste.html"},
 		{"/firewall", "firewall.html"},
 		{"/system-users", "system-users.html"},
@@ -216,4 +224,52 @@ func TestDumpSeiten(t *testing.T) {
 		}
 		fmt.Println("geschrieben:", seite.name, len(body), "Bytes")
 	}
+}
+
+// dumpDateien richtet für das Bildschirmfoto ein Verzeichnis mit
+// Beispielinhalt ein und hängt den Dateimanager davor.
+//
+// Enthalten ist bewusst auch ein gesperrter Eintrag und ein Verweis: Beides
+// sieht man auf dem Bild sonst nie, und beides ist eine Aussage der Oberfläche,
+// die stimmen muss.
+func dumpDateien(t *testing.T, s *Server) string {
+	t.Helper()
+
+	wurzel, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	beispiele := map[string]string{
+		"nginx/nginx.conf":                  "user www-data;\nworker_processes auto;\n",
+		"nginx/sites-enabled/beispiel.conf": "server {\n  listen 443 ssl;\n}\n",
+		"asylum/config.yaml":                "server:\n  port: 8443\n",
+		"ssl/private/server.key":            "-----BEGIN PRIVATE KEY-----\n",
+		"hosts":                             "127.0.0.1 localhost\n",
+		"fstab":                             "/dev/vda1 / ext4 defaults 0 1\n",
+	}
+	for name, inhalt := range beispiele {
+		pfad := filepath.Join(wurzel, name)
+		if err := os.MkdirAll(filepath.Dir(pfad), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(pfad, []byte(inhalt), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink("nginx/nginx.conf", filepath.Join(wurzel, "nginx.conf")); err != nil {
+		t.Fatal(err)
+	}
+
+	fsys, err := privops.NewFileSystem(privops.FilesPolicy{
+		ReadableRoots: []string{wurzel},
+		WritableRoots: []string{wurzel},
+		DeniedPaths:   []string{filepath.Join(wurzel, "ssl", "private", "*")},
+		BackupDir:     filepath.Join(t.TempDir(), "backups"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(fsys.Close)
+	s.files = fsys
+	return wurzel
 }

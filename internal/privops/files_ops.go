@@ -63,6 +63,11 @@ func (f *FileSystem) WritableRoots() []string {
 	return append([]string{}, f.wache.schreib...)
 }
 
+// ReadableRoots liefert die sichtbaren Bereiche.
+func (f *FileSystem) ReadableRoots() []string {
+	return append([]string{}, f.wache.lese...)
+}
+
 // ------------------------------------------------------------ Namen zu IDs ---
 
 // namensbuch löst UID und GID in Namen auf. Es wird je Aufruf einmal gefüllt:

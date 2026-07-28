@@ -31,7 +31,17 @@ func Static() (fs.FS, error) {
 
 func funcs() template.FuncMap {
 	return template.FuncMap{
-		"bytes":    formatBytes,
+		"bytes": formatBytes,
+		// size ist die Fassung für Dateigrößen: Das Dateisystem liefert sie als
+		// int64, und ein Template kann nicht wandeln. Negativ gibt es dort
+		// nicht; käme es doch, wäre 0 B die harmlosere Anzeige als eine
+		// sechzehnstellige Zahl.
+		"size": func(n int64) string {
+			if n < 0 {
+				return "0 B"
+			}
+			return formatBytes(uint64(n))
+		},
 		"rate":     formatRate,
 		"pct":      func(v float64) string { return fmt.Sprintf("%.1f", v) },
 		"datetime": func(t time.Time) string { return t.Local().Format("02.01.2006 15:04:05") },

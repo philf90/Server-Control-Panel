@@ -1190,7 +1190,14 @@ a { color: var(--accent); }
      Karte zu hinterlassen. */
   table.cards td:empty { display: none; }
 
-  table.cards td.actions { justify-content: flex-start; padding-top: 0.5rem; }
+  /* Im Kartenmodus darf die Aktionszeile umbrechen. Das nowrap oben gilt der
+     Tabellenansicht, in der ein Umbruch die Zeilenhöhe springen lässt; hier
+     steht ohnehin jede Karte für sich. Ohne den Umbruch schob die Passkey-Zeile
+     (Textfeld plus zwei Knöpfe) die Seite bei 375 Pixeln um 48 Pixel nach
+     rechts. */
+  table.cards td.actions { justify-content: flex-start; padding-top: 0.5rem; flex-wrap: wrap; }
+  table.cards td.actions form,
+  table.cards td.actions input { min-width: 0; }
 
   /* Eine Zeile, die nur "keine Einträge" sagt, ist keine Karte. */
   table.cards td[colspan] { justify-content: center; text-align: center; }
@@ -1269,8 +1276,14 @@ a { color: var(--accent); }
     top: 0;
     z-index: 2;
     gap: 0.4rem;
-    margin: -0.9rem -1rem 0.75rem;
-    padding: 0.6rem 1rem;
+    /* Der waagerechte Randausgleich muss dem Innenabstand von main entsprechen
+       (0,75rem unterhalb von 900 px). Mit -1rem ragte die Leiste auf jeder
+       Seite 4 Pixel heraus, und der Seitenkörper ließ sich waagerecht
+       scrollen — bei 375, 414 und 768 Pixeln nachgemessen. Sichtbar war es
+       kaum, im Betrieb aber genau die Art Ruckeln, die eine Bedienung vom
+       Telefon zäh macht. */
+    margin: -0.9rem -0.75rem 0.75rem;
+    padding: 0.6rem 0.75rem;
     background: var(--card);
     border-bottom: 1px solid var(--line);
   }
@@ -1280,4 +1293,92 @@ a { color: var(--accent); }
   .filter-form input,
   .filter-form select,
   .filter-form button { width: 100%; min-width: 0; }
+}
+
+/* ------------------------------------------------------- Dateimanager --- */
+
+/* Der klickbare Pfad. Jede Stufe ist ein Ziel, weil der Weg zurück in einem
+   Dateimanager häufiger gebraucht wird als der Weg vorwärts. Das Trennzeichen
+   kommt aus CSS und nicht aus dem Template: So lässt sich der Pfad markieren
+   und kopieren, ohne dass Schrägstriche doppelt darin stehen. */
+.krumen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.15rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+.krumen a {
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.krumen a:hover { color: var(--fg); background: var(--line2); }
+.krumen a:last-child { color: var(--fg); font-weight: 600; }
+.krumen a + a::before {
+  content: "/";
+  margin-right: 0.35rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+.krumen a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Die freigegebenen Bereiche als Einstiegspunkte. Ohne sie müsste man sich von
+   der Wurzel nach /var/log durchklicken. */
+.wurzeln {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.85rem;
+}
+.wurzeln { min-width: 0; }
+.wurzeln a { text-decoration: none; min-width: 0; max-width: 100%; }
+/* overflow-wrap statt Abschneiden: Eine eigene Lesewurzel kann ein langer Pfad
+   sein, und bei 375 Pixeln schob sie die Seite sonst um wenige Pixel nach
+   rechts — genau der Befund, der in rc.3 die Tabellen betraf. */
+.wurzeln a code {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  overflow-wrap: anywhere;
+}
+.wurzeln a:hover code { border-color: var(--accent); color: var(--accent); }
+
+/* Eine Zeile der Dateiliste. Das Zeichen vorn ersetzt ein Symbolset: Es kostet
+   keine Datei, keine Anfrage und kein Byte im Binary. */
+.eintrag { display: inline-flex; align-items: baseline; gap: 0.45rem; min-width: 0; }
+.eintrag .art { flex: none; width: 0.8rem; color: var(--muted); text-align: center; }
+.eintrag.ordner { font-weight: 600; }
+.eintrag.ordner .art { color: var(--accent); }
+td .ziel {
+  display: block;
+  margin-left: 1.25rem;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.klein { font-size: 0.8rem; }
+p.fuss { margin-top: 1rem; max-width: 60ch; }
+
+/* Zahlenspalten rechtsbündig und ohne Umbruch: "1,4 GiB" auf zwei Zeilen macht
+   aus einer Größe ein Rätsel, und linksbündige Zahlen lassen sich nicht
+   vergleichen. */
+table.dateien td.num, table.dateien th.num { text-align: right; white-space: nowrap; }
+table.dateien th a { color: inherit; text-decoration: none; }
+table.dateien th a:hover { color: var(--fg); }
+table.dateien td { overflow-wrap: anywhere; }
+table.dateien .hoch { color: var(--muted); text-decoration: none; }
+table.dateien .hoch:hover { color: var(--accent); }
+
+@media (max-width: 600px) {
+  /* Im Kartenmodus ist rechtsbündig falsch: Dort steht die Größe hinter ihrer
+     Beschriftung und nicht in einer Spalte. */
+  table.dateien td.num { text-align: left; }
+  .krumen { font-size: 0.82rem; }
 }

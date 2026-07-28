@@ -71,6 +71,9 @@ type Files interface {
 	// OwnerCandidates liefert die Benutzer- und Gruppennamen des Systems für die
 	// Auswahlfelder von chown. Freitext gibt es dort bewusst nicht.
 	OwnerCandidates(ctx context.Context) (users, groups []string, err error)
+	// ReadableRoots sind die Bäume, die überhaupt sichtbar sind. Die Oberfläche
+	// zeigt sie als Einstiegspunkte.
+	ReadableRoots() []string
 	// WritableRoots und Verify sagen, wo geschrieben werden darf und ob das auch
 	// tatsächlich möglich ist — eine per Selbstupdate aktualisierte Installation
 	// trägt noch die alte systemd-Härtung.

@@ -30,6 +30,7 @@ type Config struct {
 	Updates Updates `yaml:"updates"`
 	ACME    ACME    `yaml:"acme"`
 	Auth    Auth    `yaml:"auth"`
+	Files   Files   `yaml:"files"`
 
 	// SourcePath ist die Datei, aus der geladen wurde. Kein YAML-Feld: Das
 	// Panel braucht den Pfad, um seine Ergänzung daneben zu schreiben, und
@@ -201,6 +202,108 @@ type WebAuthn struct {
 	Origins []string `yaml:"origins"`
 }
 
+// Files steuert den Dateimanager.
+//
+// Ohne Eintrag gilt: Lesen im gesamten Dateisystem, Schreiben in den Bereichen,
+// die die systemd-Unit zulässt (/usr und /boot bleiben über ProtectSystem=true
+// schreibgeschützt). Wer das einschränken will, trägt eigene Wurzeln ein; wer
+// den Dateimanager gar nicht möchte, setzt `enabled: false` — das entfernt
+// Routen und Rechte, nicht nur den Menüpunkt.
+type Files struct {
+	// Enabled: nicht gesetzt bedeutet an. false schaltet das Modul vollständig
+	// ab.
+	Enabled *bool `yaml:"enabled"`
+	// ReadableRoots sind die Bäume, die überhaupt sichtbar sind. Leer = "/".
+	ReadableRoots []string `yaml:"readable_roots"`
+	// WritableRoots sind die Bäume, in denen geändert werden darf. Leer nimmt
+	// die Vorgabe; eine leere Liste ausdrücklich zu setzen ist über
+	// `writable_roots: []` möglich und macht den Dateimanager nur lesend.
+	WritableRoots []string `yaml:"writable_roots"`
+	// DeniedPaths ergänzt die eingebaute Sperrliste (Muster nach
+	// filepath.Match). Verkleinern lässt sie sich nicht.
+	DeniedPaths []string `yaml:"denied_paths"`
+	// FollowSymlinks erlaubt Inhalte durch einen Verweis hindurch. Vorgabe aus.
+	FollowSymlinks bool `yaml:"follow_symlinks"`
+	// MaxUpload und MaxEditSize als Größenangabe mit Einheit, etwa "2GiB".
+	MaxUpload   string `yaml:"max_upload"`
+	MaxEditSize string `yaml:"max_edit_size"`
+}
+
+// On sagt, ob der Dateimanager eingeschaltet ist.
+func (f Files) On() bool { return f.Enabled == nil || *f.Enabled }
+
+// Limits liefert die Größengrenzen in Bytes. Leere Angaben bleiben 0; der
+// Aufrufer setzt dann seine Vorgabe ein.
+func (f Files) Limits() (upload, edit int64, err error) {
+	if upload, err = ParseSize(f.MaxUpload); err != nil {
+		return 0, 0, fmt.Errorf("files.max_upload: %w", err)
+	}
+	if edit, err = ParseSize(f.MaxEditSize); err != nil {
+		return 0, 0, fmt.Errorf("files.max_edit_size: %w", err)
+	}
+	return upload, edit, nil
+}
+
+// validate prüft den Files-Block.
+func (f Files) validate() error {
+	for name, liste := range map[string][]string{
+		"files.readable_roots": f.ReadableRoots,
+		"files.writable_roots": f.WritableRoots,
+	} {
+		for _, p := range liste {
+			if !filepath.IsAbs(p) {
+				return fmt.Errorf("%s: %q muss ein absoluter Pfad sein", name, p)
+			}
+			if p != filepath.Clean(p) {
+				return fmt.Errorf("%s: %q ist nicht in Normalform (erwartet %q)", name, p, filepath.Clean(p))
+			}
+		}
+	}
+	for _, p := range f.DeniedPaths {
+		if !filepath.IsAbs(p) {
+			return fmt.Errorf("files.denied_paths: %q muss ein absoluter Pfad sein", p)
+		}
+	}
+	_, _, err := f.Limits()
+	return err
+}
+
+// ParseSize liest eine Größenangabe wie "2GiB", "512MiB" oder "1048576".
+//
+// Bewusst nur Zweierpotenz-Einheiten: Eine Grenze, die als "2GB" dasteht und
+// intern 2 GiB bedeutet, wäre eine kleine Unwahrheit an einer Stelle, an der es
+// auf Zahlen ankommt.
+func ParseSize(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, nil
+	}
+	einheiten := []struct {
+		suffix string
+		faktor int64
+	}{
+		{"GiB", 1 << 30}, {"MiB", 1 << 20}, {"KiB", 1 << 10}, {"B", 1},
+	}
+	zahl, faktor := s, int64(1)
+	for _, e := range einheiten {
+		if rest, ok := strings.CutSuffix(s, e.suffix); ok {
+			zahl, faktor = strings.TrimSpace(rest), e.faktor
+			break
+		}
+	}
+	v, err := strconv.ParseInt(zahl, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%q ist keine Größenangabe (erlaubt: Zahl, KiB, MiB, GiB)", s)
+	}
+	if v < 0 {
+		return 0, fmt.Errorf("%q ist negativ", s)
+	}
+	if v > (1<<62)/faktor {
+		return 0, fmt.Errorf("%q ist zu groß", s)
+	}
+	return v * faktor, nil
+}
+
 // Load liest die Konfigurationsdatei, legt die Umgebungsvariablen darüber und
 // validiert das Ergebnis. Eine fehlende Datei ist kein Fehler.
 func Load(path string) (Config, error) {
@@ -338,7 +441,7 @@ func (c Config) Validate() error {
 	if err := c.Auth.WebAuthn.validate(); err != nil {
 		return err
 	}
-	return nil
+	return c.Files.validate()
 }
 
 // validate prüft den WebAuthn-Block. RPID und Origins dürfen leer bleiben (dann

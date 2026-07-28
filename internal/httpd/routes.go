@@ -105,6 +105,15 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /system-users/{name}/keys", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyAdd)))))
 	mux.Handle("POST /system-users/{name}/keys/remove", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyRemove)))))
 
+	// Dateimanager. Ist das Modul abgeschaltet, entstehen die Routen nicht —
+	// abschalten entfernt Rechte, nicht nur den Menüpunkt.
+	if s.files != nil {
+		mux.Handle("GET /files", s.protected(http.HandlerFunc(s.handleFiles)))
+		mux.Handle("GET /files/detail", s.protected(http.HandlerFunc(s.handleFileDetail)))
+		mux.Handle("GET /files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
+		mux.Handle("GET /files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
+	}
+
 	mux.Handle("GET /logs", s.protected(http.HandlerFunc(s.handleLogs)))
 
 	mux.Handle("GET /update", s.protected(http.HandlerFunc(s.handleUpdate)))

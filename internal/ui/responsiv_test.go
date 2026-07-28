@@ -103,6 +103,113 @@ func TestStylesheetHatBreakpoints(t *testing.T) {
 	}
 }
 
+// TestJedesLabelHatSeinFeld: Eine Beschriftung mit for="x" braucht ein Feld mit
+// id="x" in derselben Vorlage.
+//
+// Der Anlass ist ein Befund auf der Seite Systembenutzer: Dort stand hinter dem
+// </form> ein <label for="ssh_key"> für Screenreader — das Feld dazu gab es
+// nicht. Der Handler nahm "ssh_key" seit dem ersten Tag an und hätte den
+// Schlüssel beim Anlegen abgelegt; erreichbar war die Angabe nie, und der
+// Hinweistext beschrieb eine Eingabe, die niemand machen konnte.
+//
+// Breit sieht so etwas richtig aus: Ein Label, das ins Leere zeigt, ist
+// unsichtbar. Deshalb dieser Test.
+func TestJedesLabelHatSeinFeld(t *testing.T) {
+	forRe := regexp.MustCompile(`\bfor="([^"]+)"`)
+	idRe := regexp.MustCompile(`\bid="([^"]+)"`)
+
+	dateien, err := templateFS.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	geprueft := 0
+	for _, d := range dateien {
+		raw, err := templateFS.ReadFile("templates/" + d.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		inhalt := string(raw)
+
+		ids := make(map[string]bool)
+		for _, m := range idRe.FindAllStringSubmatch(inhalt, -1) {
+			ids[m[1]] = true
+		}
+		for _, m := range forRe.FindAllStringSubmatch(inhalt, -1) {
+			geprueft++
+			if !ids[m[1]] {
+				t.Errorf("%s: <label for=%q> hat kein Feld mit dieser id — "+
+					"die Beschriftung zeigt ins Leere, und wer sie liest, sucht eine "+
+					"Eingabe, die es nicht gibt", d.Name(), m[1])
+			}
+		}
+	}
+	if geprueft == 0 {
+		t.Error("keine einzige Beschriftung mit for-Attribut gefunden — der Test prüft nichts")
+	}
+	t.Logf("%d Beschriftungen geprüft", geprueft)
+}
+
+// TestSprungzieleExistieren: Ein Anker auf "#x" braucht ein Element mit id="x"
+// in derselben Vorlage. Dieselbe Art Fehler wie eine Beschriftung ins Leere —
+// nur merkt man sie beim Klicken, weil nichts geschieht.
+func TestSprungzieleExistieren(t *testing.T) {
+	ankerRe := regexp.MustCompile(`href="[^"]*#([a-zA-Z0-9_-]+)"`)
+	idRe := regexp.MustCompile(`\bid="([^"]+)"`)
+
+	dateien, err := templateFS.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	geprueft := 0
+	for _, d := range dateien {
+		raw, err := templateFS.ReadFile("templates/" + d.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		inhalt := string(raw)
+
+		ids := make(map[string]bool)
+		for _, m := range idRe.FindAllStringSubmatch(inhalt, -1) {
+			ids[m[1]] = true
+		}
+		for _, m := range ankerRe.FindAllStringSubmatch(inhalt, -1) {
+			geprueft++
+			if !ids[m[1]] {
+				t.Errorf("%s: der Anker #%s hat kein Ziel in dieser Vorlage", d.Name(), m[1])
+			}
+		}
+	}
+	if geprueft == 0 {
+		t.Error("kein einziger Anker gefunden — der Test prüft nichts")
+	}
+	t.Logf("%d Anker geprüft", geprueft)
+}
+
+// TestZeilenformularFuelltDieBreite hält fest, warum .row-form kein Raster mehr
+// ist: Mit "repeat(auto-fit, minmax(12rem, 1fr))" bekam die Spalte des Knopfes
+// denselben Anteil wie ein Eingabefeld, und rechts neben dem Knopf blieben gut
+// 130 Pixel leer — die Karte sah aus, als sei sie zu breit für ihren Inhalt.
+func TestZeilenformularFuelltDieBreite(t *testing.T) {
+	raw, err := staticFS.ReadFile("static/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(raw)
+
+	if strings.Contains(css, "grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr))") {
+		t.Error(".row-form verteilt wieder gleich große Spuren — die Spur des Knopfes bleibt halb leer")
+	}
+	if !strings.Contains(css, ".row-form > .submit { flex: 0 0 auto; }") {
+		t.Error("der Knopf nimmt nicht mehr nur seine eigene Breite")
+	}
+	// Ohne min-width: 0 schiebt ein Feld mit langem Vorgabewert die Zeile über
+	// die Karte hinaus — ein Flex-Element schrumpft von sich aus nicht unter
+	// seine inhaltsbedingte Mindestbreite.
+	if !strings.Contains(css, ".row-form > * { flex: 1 1 12rem; min-width: 0; }") {
+		t.Error("die Felder teilen sich den Rest der Zeile nicht mehr")
+	}
+}
+
 // TestSparklineOhneVerzerrtenStrich hält fest, warum die Verläufe in den
 // Telemetriekacheln unsauber aussahen.
 //

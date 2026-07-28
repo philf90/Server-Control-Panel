@@ -35,6 +35,7 @@ type fakeOps struct {
 
 	actions      []string
 	appliedRules [][]privops.FirewallRule
+	createdUsers []privops.SystemUserSpec
 	upgradeDone  chan struct{}
 
 	// Das Aktualisieren der Paketlisten läuft wie das Einspielen als Vorgang im
@@ -213,7 +214,21 @@ func (f *fakeOps) SystemUsers(context.Context) ([]privops.SystemUser, error) { r
 
 func (f *fakeOps) SystemUserCreate(_ context.Context, spec privops.SystemUserSpec) error {
 	f.record("sysuser:create:" + spec.Name)
+	f.mu.Lock()
+	f.createdUsers = append(f.createdUsers, spec)
+	f.mu.Unlock()
 	return nil
+}
+
+// lastCreated liefert die Vorgabe des zuletzt angelegten Kontos.
+func (f *fakeOps) lastCreated(t *testing.T) privops.SystemUserSpec {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.createdUsers) == 0 {
+		t.Fatal("es wurde kein Konto angelegt")
+	}
+	return f.createdUsers[len(f.createdUsers)-1]
 }
 
 func (f *fakeOps) SystemUserSetLocked(_ context.Context, name string, locked bool) error {
@@ -812,7 +827,7 @@ func TestSystemUserActions(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	post(t, s, "/system-users", url.Values{
-		"_csrf": {csrf}, "name": {"deploy"}, "shell": {"/bin/bash"}, "create_home": {"1"},
+		"_csrf": {csrf}, "name": {"deploy"}, "shell": {"/bin/bash"},
 	}, cookie)
 	post(t, s, "/system-users/deploy/locked", url.Values{"_csrf": {csrf}, "locked": {"1"}}, cookie)
 	post(t, s, "/system-users/deploy/keys", url.Values{
@@ -834,6 +849,41 @@ func TestSystemUserActions(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("Aufruf %d = %q, erwartet %q", i, got[i], want[i])
 		}
+	}
+}
+
+// TestSystemUserCreateLegtHomeAn: Das Formular verspricht „Das
+// Home-Verzeichnis wird angelegt" — und hielt es nicht.
+//
+// CreateHome hing an einem Feld "create_home", das es im Formular nie gab:
+// useradd lief also immer mit --no-create-home. Ohne Home gibt es kein ~/.ssh,
+// das dem Konto gehört, und damit keine Anmeldung per Schlüssel — der einzige
+// Weg, den diese Konten haben.
+func TestSystemUserCreateLegtHomeAn(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	const schluessel = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample deploy@ci"
+	rec := post(t, s, "/system-users", url.Values{
+		"_csrf": {csrf}, "name": {"deploy"}, "shell": {"/bin/bash"},
+		"groups": {"sudo, docker"}, "ssh_key": {schluessel},
+	}, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200 (Body: %s)", rec.Code, rec.Body.String())
+	}
+
+	spec := ops.lastCreated(t)
+	if !spec.CreateHome {
+		t.Error("das Home-Verzeichnis wird nicht angelegt — das Formular verspricht es")
+	}
+	// Der Schlüssel aus dem Formular muss ankommen. Er tat es nie: Das Feld
+	// dazu fehlte, es gab nur seine Beschriftung.
+	if spec.SSHKey != schluessel {
+		t.Errorf("SSHKey = %q, erwartet %q", spec.SSHKey, schluessel)
+	}
+	if got := strings.Join(spec.Groups, ","); got != "sudo,docker" {
+		t.Errorf("Gruppen = %q, erwartet \"sudo,docker\"", got)
 	}
 }
 

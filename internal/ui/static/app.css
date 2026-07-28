@@ -284,6 +284,10 @@ button[hidden], .button[hidden] { display: none; }
 /* Ein leiser Abschnittstitel zwischen zwei Blöcken einer Seite (wie auf der
    Übersicht). .seclabel ist weiter oben bei der Übersicht definiert. */
 .section { margin-top: 1.5rem; }
+/* Sprungziel eines Ankers ("Neues Konto ↓", "Schlüssel"): Der Abschnitt soll
+   nicht bündig an der oberen Fensterkante kleben, sonst sieht es aus, als sei
+   die Seite abgeschnitten. */
+.section[id] { scroll-margin-top: 1rem; }
 /* Abschnittskopf mit Titel links und einer Randnotiz rechts (etwa dem Status
    eines laufenden Vorgangs). */
 .sechead {
@@ -786,25 +790,53 @@ button.small:focus-visible, .button.small:focus-visible {
   outline-offset: 1px;
 }
 
+/* Eine Zeile aus Eingabefeldern mit einem Knopf am Ende.
+ *
+ * Flexbox und nicht mehr ein Raster aus "repeat(auto-fit, minmax(12rem, 1fr))":
+ * Dort bekam die Spalte des Knopfes denselben Anteil wie ein Eingabefeld. Der
+ * Knopf braucht davon rund 95 Pixel, der Rest der Spur blieb leer — im Formular
+ * „Konto anlegen" waren das bei 1280 Pixeln Fensterbreite gut 130 Pixel
+ * Leerraum am rechten Rand, und die vier Felder davor waren dafür schmaler als
+ * nötig. Die Karte sah aus, als sei sie zu breit für ihren Inhalt.
+ *
+ * Hier nimmt der Knopf seine eigene Breite, und die Felder teilen sich den
+ * Rest. 12rem bleibt die Untergrenze eines Feldes: Darunter wird umbrochen.
+ */
 .row-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  /* Ein Zeilenabstand, der beim Umbruch trägt: Im Raster von vorher stand 0,
+     weil dort nie etwas umbrach, was nicht sollte. Bricht die Zeile — schmal
+     oder bei fünf Feldern —, klebte die Beschriftung der zweiten Zeile am Feld
+     der ersten. */
+  gap: 0.55rem 1rem;
   align-items: end;
 }
+
+/* min-width: 0, weil ein Flex-Element sonst nicht unter seine inhaltsbedingte
+   Mindestbreite schrumpft — ein Feld mit langem Vorgabewert (etwa ein Pfad)
+   schöbe die Zeile über die Karte hinaus. */
+.row-form > * { flex: 1 1 12rem; min-width: 0; }
+.row-form > .submit { flex: 0 0 auto; }
+
+/* Ein Feld, das eine Zeile für sich braucht: ein öffentlicher SSH-Schlüssel
+   ist rund 70 Zeichen lang und in einer Viertelzeile nicht zu prüfen. */
+.row-form > .weit { flex: 1 1 100%; }
 
 .row-form label { margin-top: 0; }
 .row-form .submit button { margin-top: 0; }
 
 /* Zugang zurücksetzen: drei Aktionen hängen an einem Formular, weil sie sich
-   dasselbe Konto und dieselbe Passwortabfrage teilen. In einer 12-rem-Spalte
-   des Rasters wären sie unlesbar gequetscht — also eine eigene Zeile darunter. */
+   dasselbe Konto und dieselbe Passwortabfrage teilen. Neben den Feldern wären
+   sie unlesbar gequetscht — also eine eigene Zeile darunter. */
 .row-form .submit.reset-actions {
-  grid-column: 1 / -1;
+  flex: 1 1 100%;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 1rem;
+  /* Weniger als vorher: Den übrigen Abstand trägt jetzt der Zeilenabstand
+     des Formulars. */
+  margin-top: 0.45rem;
 }
 
 /* Aufzählung als Erläuterung: Was jede der drei Aktionen bewirkt, gehört
@@ -1090,14 +1122,10 @@ fieldset.rule select[disabled] {
    über die ganze Zeile — bei 1400 Pixeln ein Speichern-Knopf von einem Meter. */
 .rules-form > button { justify-self: start; margin-top: 0.25rem; }
 
-.sr-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
+/* .sr-label ist entfallen. Es gab genau eine Verwendung: die unsichtbare
+   Beschriftung eines Schlüsselfeldes auf der Seite Systembenutzer, das es nicht
+   gab. Das Feld ist jetzt da und trägt eine sichtbare Beschriftung — eine
+   Klasse für Regeln, die niemand anwendet, sieht nach Absicht aus. */
 
 a { color: var(--accent); }
 

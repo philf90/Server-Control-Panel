@@ -35,6 +35,11 @@ func TestDumpSeiten(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
+	// Ein zweites Panel-Konto: Ohne ein fremdes Konto zeigt „Panel-Zugänge" den
+	// Abschnitt zum Zurücksetzen nicht — das eigene steht dort bewusst nicht zur
+	// Auswahl.
+	addUser(t, s, "kollege", store.RoleReadOnly)
+
 	// --- Passkeys: Funktion an, zwei Beispielschlüssel für das Bildschirmfoto ---
 	enablePasskeys(t, s)
 	for _, pk := range []store.WebAuthnCredential{
@@ -256,6 +261,10 @@ func TestDumpSeiten(t *testing.T) {
 		{"/logs", "logs.html"},
 		{"/update", "updates.html"},
 		{"/audit", "audit.html"},
+		// Panel-Zugänge fehlte in dieser Liste. Die Seite trägt zwei Formulare
+		// (Konto anlegen, Zugang zurücksetzen) — genau die Art Inhalt, deren
+		// Umbruch man im Browser nachmessen will.
+		{"/users", "panel-zugaenge.html"},
 		{"/account", "konto.html"},
 		{"/certificate", "zertifikat.html"},
 	}

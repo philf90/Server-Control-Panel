@@ -681,10 +681,18 @@ func (s *Server) renderSystemUsers(w http.ResponseWriter, r *http.Request, statu
 
 func (s *Server) handleSystemUserCreate(w http.ResponseWriter, r *http.Request) {
 	spec := privops.SystemUserSpec{
-		Name:       strings.TrimSpace(r.PostFormValue("name")),
-		Comment:    strings.TrimSpace(r.PostFormValue("comment")),
-		Shell:      strings.TrimSpace(r.PostFormValue("shell")),
-		CreateHome: r.PostFormValue("create_home") == "1",
+		Name:    strings.TrimSpace(r.PostFormValue("name")),
+		Comment: strings.TrimSpace(r.PostFormValue("comment")),
+		Shell:   strings.TrimSpace(r.PostFormValue("shell")),
+		// Das Home-Verzeichnis wird immer angelegt.
+		//
+		// Vorher hing das an einem Formularfeld "create_home", das es nie gab:
+		// useradd lief also stets mit --no-create-home, während das Formular
+		// „Das Home-Verzeichnis wird angelegt" versprach. Ohne Home gibt es kein
+		// ~/.ssh, das dem Konto gehört — und damit keine Anmeldung per Schlüssel,
+		// den einzigen Weg, den diese Konten haben (sshd besteht auf einem Home,
+		// das nur dem Konto selbst zugänglich ist).
+		CreateHome: true,
 		SSHKey:     strings.TrimSpace(r.PostFormValue("ssh_key")),
 	}
 	if groups := strings.TrimSpace(r.PostFormValue("groups")); groups != "" {

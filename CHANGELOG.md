@@ -152,6 +152,18 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Die Zeilenformulare füllen ihre Karte.** `.row-form` verteilte gleich große
+  Rasterspuren (`repeat(auto-fit, minmax(12rem, 1fr))`) — auch an die Spalte des
+  Knopfes, der davon rund 95 Pixel braucht. Der Rest der Spur blieb leer: bei
+  „Konto anlegen" gut 130 Pixel am rechten Rand, während die vier Felder davor
+  schmaler waren als nötig. Die Karte sah aus, als sei sie zu breit für ihren
+  Inhalt. Jetzt nimmt der Knopf seine eigene Breite, und die Felder teilen sich
+  den Rest; beim Umbruch trägt ein Zeilenabstand, wo vorher die Beschriftung der
+  zweiten Zeile am Feld der ersten klebte. Betrifft alle Zeilenformulare —
+  Dateien, Dateidetails, Systembenutzer, Panel-Zugänge, Konto.
+- **Auf „Systembenutzer" führt ein Knopf oben zum Anlegen.** Bei 33 Konten steht
+  das Formular hinter einer langen Liste; ohne diesen Weg scrollt man sie jedes
+  Mal ab. Ein Anker, kein Skript.
 - **„Paketlisten aktualisieren" zeigt, was `apt-get update` gemeldet hat.**
   Bisher lief der Aufruf im Seitenaufruf, und seine Ausgabe wurde gesammelt und
   verworfen: Übrig blieb im Fehlerfall die erste `stderr`-Zeile. Wer wissen
@@ -277,6 +289,21 @@ nicht als Release getaggt.
 
 ### Behoben
 
+- **Ein Systembenutzer bekam kein Home-Verzeichnis, obwohl das Formular es
+  versprach.** `CreateHome` hing an einem Feld `create_home`, das es im Formular
+  nie gab — `useradd` lief also immer mit `--no-create-home`, während darunter
+  „Das Home-Verzeichnis wird angelegt" stand. Ohne Home gibt es kein `~/.ssh`,
+  das dem Konto gehört, und damit keine Anmeldung per Schlüssel: den einzigen
+  Weg, den diese Konten haben (sshd besteht auf einem Home, das nur dem Konto
+  selbst zugänglich ist). Es wird jetzt immer angelegt.
+- **Das Feld für den SSH-Schlüssel beim Anlegen eines Systembenutzers fehlte.**
+  Vorhanden war nur seine Beschriftung für Screenreader — hinter dem `</form>`,
+  also selbst dann ohne Wirkung, wenn es ein Feld gegeben hätte. Der Handler
+  nimmt `ssh_key` seit dem ersten Tag an und legt den Schlüssel beim Anlegen ab;
+  erreichbar war die Angabe nie, und der Hinweistext („Ohne Schlüssel …")
+  beschrieb eine Eingabe, die niemand machen konnte. Das Feld steht jetzt im
+  Formular, über die ganze Breite. Zwei neue Tests halten die Gattung fest: Jede
+  Beschriftung braucht ihr Feld, jeder Anker sein Ziel.
 - **Die Netzwerkkachel der Übersicht zeigte `docker0`.** Sie nahm die erste
   Schnittstelle der alphabetisch sortierten Liste, und auf jedem Server mit
   Docker ist das die Brücke, über die nach draußen kein Byte geht: Die Kachel

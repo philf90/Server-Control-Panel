@@ -5,6 +5,15 @@
     <h1>Systembenutzer</h1>
     <span class="sub">{{len .Users}} Konten des Betriebssystems · Anmeldung per SSH-Schlüssel</span>
   </div>
+  {{/* Der Sprung nach unten statt eines zweiten Formulars hier oben: Auf einem
+       Server mit 33 Konten steht das Anlegen hinter einer langen Liste, und
+       ohne diesen Weg scrollt man sie jedes Mal ab. Ein Anker braucht kein
+       Skript, und der Pfeil sagt, wohin es geht. */}}
+  {{if $.CanWrite}}
+  <div class="right">
+    <a class="button secondary" href="#konto-anlegen">Neues Konto <span aria-hidden="true">↓</span></a>
+  </div>
+  {{end}}
 </div>
 <p class="hint">
   Das sind die Konten des Betriebssystems, nicht die des Panels — die stehen
@@ -105,9 +114,15 @@
 {{end}}
 
 {{if $.CanWrite}}
-<div class="section">
+<div class="section" id="konto-anlegen">
   <div class="seclabel">Konto anlegen</div>
   <div class="card">
+    {{/* Das Schlüsselfeld gehört in dieses Formular und nicht daneben: Der
+         Handler nimmt "ssh_key" seit dem ersten Tag an und legt den Schlüssel
+         beim Anlegen ab — nur gab es das Feld nie, bloß seine Beschriftung für
+         Screenreader hinter dem </form>. Damit war die Angabe unerreichbar, und
+         der Hinweis darunter („Ohne Schlüssel …") beschrieb eine Eingabe, die
+         niemand machen konnte. */}}
     <form method="post" action="/system-users" class="row-form">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <div>
@@ -126,9 +141,13 @@
         <label for="groups">Gruppen</label>
         <input type="text" id="groups" name="groups" placeholder="sudo, docker">
       </div>
+      <div class="weit">
+        <label for="ssh_key">Öffentlicher SSH-Schlüssel (optional)</label>
+        <input type="text" id="ssh_key" name="ssh_key"
+               placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... philipp@laptop">
+      </div>
       <div class="submit"><button type="submit">Anlegen</button></div>
     </form>
-    <label for="ssh_key" class="sr-label">Öffentlicher SSH-Schlüssel (optional)</label>
     <p class="hint">
       Ohne Schlüssel hat das Konto keine Anmeldemöglichkeit — er lässt sich auch
       später über die Liste oben nachtragen. Das Home-Verzeichnis wird angelegt.

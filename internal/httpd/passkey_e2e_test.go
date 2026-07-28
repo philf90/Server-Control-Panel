@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/passkeys"
 	"github.com/philf90/asylum/internal/store"
 )
@@ -132,6 +133,82 @@ func TestPasskeyBrowserTamper(t *testing.T) {
 		}
 	}
 	_ = user
+}
+
+// e2eNewPassword muss mit NEW_PASSWORD im Browsertreiber übereinstimmen.
+const e2eNewPassword = "ein frisches langes Passwort"
+
+// TestPasskeyBrowserForgot: der Weg für ein vergessenes Passwort, echt im
+// Browser. Belegt das, was sich mit einem eingesetzten Ticket nicht prüfen
+// lässt — dass eine Zeremonie ohne genanntes Konto tatsächlich zustande kommt
+// (der Authenticator muss den Passkey von sich aus anbieten) und dass die
+// Antwort durch go-webauthn und unsere RP-Konfiguration hindurch angenommen
+// wird.
+func TestPasskeyBrowserForgot(t *testing.T) {
+	out, s, user := runPasskeyBrowser(t, "forgot")
+	if !strings.Contains(out, "FORGOT-OK") {
+		t.Fatalf("kein Erfolg gemeldet:\n%s", out)
+	}
+
+	nach, err := s.db.UserByID(context.Background(), user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok, err := auth.VerifyPassword(e2eNewPassword, nach.PasswordHash)
+	if err != nil || !ok {
+		t.Errorf("das im Browser gesetzte Passwort gilt nicht (ok=%v, err=%v)", ok, err)
+	}
+	// Kein Wechselzwang: Der Inhaber hat es selbst gewählt.
+	if nach.MustChangePassword {
+		t.Error("nach der Selbstbedienung steht ein Wechselzwang an")
+	}
+
+	entries, err := s.db.ListAudit(context.Background(), 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, e := range entries {
+		if e.Action == "password.reset" && e.Result == store.ResultOK {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("die Zurücksetzung steht nicht im Audit-Log")
+	}
+}
+
+// TestPasskeyBrowserForgotWithoutUV: derselbe Weg mit einem Authenticator, der
+// nichts am Gerät prüft. Die Zurücksetzung MUSS scheitern — daran hängt die
+// ganze Begründung des Entwurfs: Besitz allein ist ein Faktor, und ein Faktor
+// genügt nicht, um ein Passwort zu ersetzen.
+func TestPasskeyBrowserForgotWithoutUV(t *testing.T) {
+	out, s, user := runPasskeyBrowser(t, "forgot-nouv")
+	if !strings.Contains(out, "NOUV-REJECTED") {
+		t.Fatalf("ein Passkey ohne Prüfung am Gerät wurde angenommen:\n%s", out)
+	}
+
+	nach, err := s.db.UserByID(context.Background(), user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nach.PasswordHash != user.PasswordHash {
+		t.Error("das Passwort wurde trotz fehlender Prüfung am Gerät geändert")
+	}
+	for _, e := range mustAudit(t, s) {
+		if e.Action == "password.reset" && e.Result == store.ResultOK {
+			t.Error("eine geglückte Zurücksetzung steht im Audit-Log")
+		}
+	}
+}
+
+func mustAudit(t *testing.T, s *Server) []store.AuditEntry {
+	t.Helper()
+	entries, err := s.db.ListAudit(context.Background(), 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return entries
 }
 
 func envOr(key, def string) string {

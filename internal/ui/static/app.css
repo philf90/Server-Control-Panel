@@ -299,6 +299,10 @@ button[hidden], .button[hidden] { display: none; }
 .card.auth { padding: 1.75rem; }
 .card.auth h1 { text-align: center; }
 
+/* Der Weg für ein vergessenes Passwort steht unter dem Formular, nicht darin —
+   mit Abstand zum letzten Knopf, sonst liest er sich wie dessen Untertitel. */
+.card.auth .vergessen { margin-top: 1.2rem; }
+
 .claim {
   margin: 0 0 1.5rem;
   text-align: center;
@@ -612,7 +616,9 @@ button, .button {
 
 button:hover, .button:hover { filter: brightness(1.08); }
 
-button.secondary {
+/* Auch für Links in Knopfform — "Zurück zur Anmeldung" ist ein <a>, soll aber
+   nicht aussehen wie die Hauptaktion der Seite. */
+button.secondary, .button.secondary {
   background: transparent;
   color: var(--fg);
   border: 1px solid var(--line);
@@ -686,6 +692,25 @@ button.small:focus-visible, .button.small:focus-visible {
 
 .row-form label { margin-top: 0; }
 .row-form .submit button { margin-top: 0; }
+
+/* Zugang zurücksetzen: drei Aktionen hängen an einem Formular, weil sie sich
+   dasselbe Konto und dieselbe Passwortabfrage teilen. In einer 12-rem-Spalte
+   des Rasters wären sie unlesbar gequetscht — also eine eigene Zeile darunter. */
+.row-form .submit.reset-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Aufzählung als Erläuterung: Was jede der drei Aktionen bewirkt, gehört
+   ausgeschrieben daneben — nicht in die Beschriftung eines Knopfes. */
+ul.hint {
+  margin: 1rem 0 0;
+  padding-left: 1.1rem;
+}
+ul.hint li + li { margin-top: 0.4rem; }
 
 /* Die Umbenennen-Zeile eines Passkeys: Feld und Knopf nebeneinander, damit die
    Aktionsspalte nicht in die Höhe wächst. */

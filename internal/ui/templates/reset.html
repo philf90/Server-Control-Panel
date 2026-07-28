@@ -1,0 +1,24 @@
+{{define "reset"}}{{template "header" .}}
+<div class="card auth">
+  <h1>Zugang zurückgesetzt</h1>
+  <p>
+    Für <strong>{{.Content.Username}}</strong> gilt ab jetzt dieses Passwort. Es
+    wird <strong>jetzt einmalig</strong> angezeigt — danach steht es nirgends
+    mehr, auch nicht im Audit-Log.
+  </p>
+
+  <ul class="codes">
+    <li><code>{{.Content.Password}}</code></li>
+  </ul>
+
+  <p class="hint">
+    Beim nächsten Anmelden muss das Konto ein eigenes Passwort festlegen; vorher
+    ist nichts anderes erreichbar. Alle offenen Sitzungen dieses Kontos sind
+    beendet, eine etwaige Sperre ist aufgehoben. Der zweite Faktor ist
+    unverändert — falls auch das Telefon fehlt, ist er gesondert
+    zurückzusetzen.
+  </p>
+
+  <a class="button" href="/users">Zurück zu den Panel-Zugängen</a>
+</div>
+{{template "footer" .}}{{end}}

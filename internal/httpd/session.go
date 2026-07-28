@@ -146,9 +146,28 @@ func (s *Server) loadSession(next http.Handler) http.Handler {
 	})
 }
 
-// requireAuth weist nicht angemeldete Anfragen ab und erzwingt den Abschluss
-// der Zwei-Faktor-Einrichtung.
+// requireAuth weist nicht angemeldete Anfragen ab und erzwingt beides, was vor
+// dem eigentlichen Panel zu erledigen ist: die Zwei-Faktor-Einrichtung und den
+// Wechsel eines Einmalpassworts.
 func (s *Server) requireAuth(next http.Handler) http.Handler {
+	return s.requireSetupDone(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, _ := userFrom(r.Context())
+		// Ein Einmalpasswort aus einer Zurücksetzung trägt genau bis hierher.
+		// Der Owner, der es vergeben hat, kennt es — es darf keine dauerhafte
+		// Zugangsberechtigung daraus werden.
+		if user.MustChangePassword {
+			http.Redirect(w, r, "/account/password-change", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}))
+}
+
+// requireSetupDone verlangt eine Anmeldung mit abgeschlossener
+// Zwei-Faktor-Einrichtung, aber ohne den Wechselzwang zu prüfen. Genau das
+// braucht die Wechselseite selbst: Ginge sie durch requireAuth, würde sie auf
+// sich selbst weiterleiten.
+func (s *Server) requireSetupDone(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, ok := userFrom(r.Context())
 		if !ok {

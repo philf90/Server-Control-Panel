@@ -153,6 +153,42 @@ dass eine Sitzung entsteht. Dazu kommen Tests für die Verzweigungen des Servers
 falsches Passwort, kein Passkey, verbrauchtes Vorab-Token (kein Replay), kaputte
 Antwort, und die Kontosperre beim Beschuss über den Passkey-Beginn.
 
+### Zugang zurücksetzen
+
+Seit 0.4.0 muss ein vergessenes Passwort nicht mehr über SSH gelöst werden. Die
+Einzelheiten und die Abwägungen stehen in
+[12-zugang-zuruecksetzen.md](12-zugang-zuruecksetzen.md); sicherheitsrelevant ist
+davon:
+
+- **Kein Rettungsweg über E-Mail.** Das Panel verschickt keine Post. Ein Reset
+  per Mail würde das Postfach zum Hauptschlüssel des Servers machen; heute
+  braucht eine Übernahme Passwort **und** zweiten Faktor. Dazu käme ein Notweg,
+  der auf einer frischen Maschine still im Spam versagt — im Notfall die
+  schlechteste Eigenschaft, die ein Notweg haben kann.
+- **Der Owner-Reset verlangt das eigene Passwort des Owners.** Ein übernommenes
+  Owner-Cookie soll nicht stillschweigend fremde Konten übernehmen. Das eigene
+  Konto ist von diesem Weg ausgenommen.
+- **Ein vergebenes Einmalpasswort trägt genau eine Anmeldung.** Danach kommt das
+  Konto nur auf die Wechselseite — der Owner kennt das Passwort, es darf keine
+  dauerhafte Zugangsberechtigung daraus werden.
+- **Die Selbstbedienung verlangt zwei Teile, nicht einen.** Der Passkey-Nachweis
+  läuft mit `userVerification: "required"`: Besitz des Authenticators **und** die
+  Prüfung am Gerät. Ein entwendetes, entsperrtes Notebook genügt nicht.
+- **Sie verrät keine Konten.** Die Zeremonie läuft über auffindbare Passkeys und
+  nennt weder Anmeldenamen noch Credential-Kennungen. Damit entsteht kein neuer
+  Weg, vorhandene Konten zu erraten — was eine gewöhnliche Assertion mit ihrer
+  Liste erlaubter Credentials sehr wohl täte.
+- **Das Ticket zwischen Nachweis und neuem Passwort liegt serverseitig**, gilt
+  zehn Minuten und genau einmal. CSRF-Schutz ist `SameSite=Strict` am Cookie —
+  eine Sitzung, aus der ein Token käme, gibt es an dieser Stelle noch nicht.
+- **Ein gesperrtes Konto kommt nicht durch.** Es soll sich nicht selbst befreien.
+
+Auch hier ist der Negativfall geprüft, und zwar im echten Browser: Ein
+Authenticator, der nichts am Gerät prüft, führt zu keiner Zurücksetzung
+(`TestPasskeyBrowserForgotWithoutUV`). Daran hängt die Begründung des ganzen
+Wegs — Besitz allein ist ein Faktor, und ein Faktor genügt nicht, um ein
+Passwort zu ersetzen.
+
 ## Selbstupdate
 
 Der ausführliche Ablauf steht in [05-updates.md](05-updates.md); hier nur, was

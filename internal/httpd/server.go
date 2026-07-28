@@ -67,6 +67,9 @@ type Server struct {
 	fwGuard *firewallGuard
 	upd     *updateState
 	pending *pendingSecrets
+	// resets hält die per Passkey bestätigten Nachweise für ein vergessenes
+	// Passwort. Siehe handlers_forgot.go.
+	resets *resetTickets
 
 	// passkeys führt die WebAuthn-Zeremonien. Nil, wenn Passkeys nicht
 	// eingeschaltet oder mangels auflösbarem Namen nicht möglich sind — dann
@@ -119,6 +122,7 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 		fwGuard:  newFirewallGuard(),
 		upd:      newUpdateState(),
 		pending:  newPendingSecrets(),
+		resets:   newResetTickets(),
 		passkeys: pk,
 	}, nil
 }

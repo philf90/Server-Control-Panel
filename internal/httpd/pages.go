@@ -200,6 +200,29 @@ type accountPage struct {
 
 type usersPage struct {
 	Users []store.User
+	// Others sind alle Konten außer dem eigenen — die Auswahl für den Abschnitt
+	// „Zugang zurücksetzen". Ist sie leer, entfällt der Abschnitt: Bei einer
+	// Installation mit einem einzigen Konto gibt es dort nichts zu tun.
+	Others []store.User
+	// ResetID ist die Vorauswahl aus dem Sprunglink der Tabellenzeile.
+	ResetID int64
+}
+
+// resetPage zeigt das Einmalpasswort nach einer Zurücksetzung — genau einmal,
+// wie die Wiederherstellungscodes.
+type resetPage struct {
+	Username string
+	Password string
+}
+
+type forgotPage struct {
+	// WebAuthnOn entscheidet, ob es überhaupt einen Weg gibt. Ohne Passkeys
+	// nennt die Seite den Befehl für die Kommandozeile.
+	WebAuthnOn bool
+}
+
+type forgotNewPage struct {
+	Username string
 }
 
 // --------------------------------------------------- Seiten der Systemmodule ---

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 	"time"
 
@@ -113,7 +114,18 @@ func (u User) WebAuthnCredentials() []wa.Credential { return u.Credentials }
 func (m *Manager) BeginRegistration(u User) (*protocol.CredentialCreation, string, error) {
 	// excludeCredentials aus den vorhandenen Passkeys: derselbe Authenticator
 	// soll sich nicht zweimal registrieren.
-	opts, data, err := m.wa.BeginRegistration(u, wa.WithExclusions(excludeList(u.Credentials)))
+	//
+	// ResidentKey "preferred": Ein auffindbarer (discoverable) Schlüssel liegt
+	// mit seiner Kontozuordnung im Authenticator selbst. Nur damit funktioniert
+	// die Zurücksetzung eines vergessenen Passworts, denn dort gibt es kein
+	// Konto, das der Server vorher nennen könnte — der Browser bietet an, was er
+	// für diese Domain hat. "required" wäre falsch: Ein Sicherheitsschlüssel mit
+	// belegtem Speicher würde die Registrierung abweisen, und ein Passkey ohne
+	// diese Eigenschaft ist als zweiter Faktor unverändert brauchbar.
+	opts, data, err := m.wa.BeginRegistration(u,
+		wa.WithExclusions(excludeList(u.Credentials)),
+		wa.WithResidentKeyRequirement(protocol.ResidentKeyRequirementPreferred),
+	)
 	if err != nil {
 		return nil, "", fmt.Errorf("registrierung beginnen: %w", err)
 	}
@@ -172,6 +184,87 @@ func (m *Manager) FinishLogin(u User, token string, body io.Reader) (*wa.Credent
 		return nil, fmt.Errorf("anmeldung prüfen: %w", err)
 	}
 	return cred, nil
+}
+
+// ---------------------------------------- Anmeldung ohne genanntes Konto ---
+
+// ErrNoUserVerification meldet eine Assertion ohne Prüfung am Gerät — ohne PIN,
+// Fingerabdruck oder Gesicht. Für den gewöhnlichen zweiten Faktor genügt der
+// Besitz des Authenticators; für eine Zurücksetzung nicht.
+var ErrNoUserVerification = errors.New("Passkey ohne Prüfung am Gerät bestätigt")
+
+// BeginDiscoverableLogin eröffnet eine Zeremonie, in der der Browser selbst
+// anbietet, welche Passkeys er für diese Domain hat. Anders als BeginLogin
+// braucht sie kein Konto — und verrät deshalb auch keins.
+//
+// Die Prüfung am Gerät ist Pflicht (userVerification "required"). Damit besteht
+// der Nachweis aus zwei Teilen: dem Besitz des Authenticators und dem Wissen
+// oder Merkmal, das ihn entsperrt. Ein entwendetes, entsperrtes Notebook genügt
+// nicht. Die Bibliothek prüft das Flag beim Abschluss; FinishDiscoverableLogin
+// prüft es zusätzlich selbst.
+func (m *Manager) BeginDiscoverableLogin() (*protocol.CredentialAssertion, string, error) {
+	opts, data, err := m.wa.BeginDiscoverableLogin(wa.WithUserVerification(protocol.VerificationRequired))
+	if err != nil {
+		return nil, "", fmt.Errorf("anmeldung beginnen: %w", err)
+	}
+	// userID 0: Zu Beginn ist das Konto unbekannt — es steht erst in der Antwort
+	// des Authenticators.
+	token, err := m.store(0, data)
+	if err != nil {
+		return nil, "", err
+	}
+	return opts, token, nil
+}
+
+// FinishDiscoverableLogin prüft die Assertion. lookup übersetzt die Kennung aus
+// der Antwort in ein Konto; sie ist dieselben acht Bytes, die WebAuthnID
+// erzeugt.
+//
+// Zurückgegeben wird das aufgelöste Konto samt genutztem Credential.
+func (m *Manager) FinishDiscoverableLogin(token string, body io.Reader, lookup func(userID int64) (User, error)) (User, *wa.Credential, error) {
+	data, ok := m.takeDiscoverable(token)
+	if !ok {
+		return User{}, nil, ErrNoSession
+	}
+	parsed, err := protocol.ParseCredentialRequestResponseBody(body)
+	if err != nil {
+		return User{}, nil, fmt.Errorf("antwort lesen: %w", err)
+	}
+
+	var resolved User
+	handler := func(_, userHandle []byte) (wa.User, error) {
+		if len(userHandle) != 8 {
+			return nil, fmt.Errorf("unerwartete Kontokennung (%d Byte)", len(userHandle))
+		}
+		id := binary.BigEndian.Uint64(userHandle)
+		if id > math.MaxInt64 {
+			return nil, errors.New("unerwartete Kontokennung")
+		}
+		u, err := lookup(int64(id))
+		if err != nil {
+			return nil, err
+		}
+		resolved = u
+		return u, nil
+	}
+
+	cred, err := m.wa.ValidateDiscoverableLogin(handler, data, parsed)
+	if err != nil {
+		return User{}, nil, fmt.Errorf("anmeldung prüfen: %w", err)
+	}
+	// Gürtel und Hosenträger: Die Bibliothek prüft das Flag, weil die Zeremonie
+	// mit "required" begonnen wurde. Diese Zusage steht hier trotzdem noch
+	// einmal ausdrücklich im Code — sie ist der Unterschied zwischen einem und
+	// zwei Faktoren.
+	if !cred.Flags.UserVerified {
+		return User{}, nil, ErrNoUserVerification
+	}
+	return resolved, cred, nil
+}
+
+// takeDiscoverable löst eine Zeremonie ein, die ohne Konto begonnen wurde.
+func (m *Manager) takeDiscoverable(token string) (wa.SessionData, bool) {
+	return m.take(token, 0)
 }
 
 // CredentialID liefert die base64url-Kennung eines Credentials — der Wert, unter

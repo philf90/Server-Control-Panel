@@ -1,0 +1,41 @@
+{{define "forgot"}}{{template "header" .}}
+<div class="card auth">
+  <h1>Passwort vergessen</h1>
+
+  {{if .Content.WebAuthnOn}}
+  <p>
+    Ein hinterlegter Passkey genügt als Nachweis. Der Browser zeigt, welche er
+    für dieses Panel hat — ein Anmeldename ist nicht nötig.
+  </p>
+
+  <button type="button" id="passkey-reset" hidden>Mit Passkey bestätigen</button>
+  <p class="hint" id="pk-reset-status" role="status" hidden></p>
+
+  <p class="hint">
+    Der Passkey muss dabei auf dem Gerät bestätigt werden — mit PIN,
+    Fingerabdruck oder Gesicht. Erst beides zusammen, Gerät und Bestätigung,
+    erlaubt das Setzen eines neuen Passworts.
+  </p>
+  {{else}}
+  <p>
+    Für dieses Panel sind keine Passkeys eingeschaltet, deshalb gibt es hier
+    keinen Weg zurück ins Konto.
+  </p>
+  {{end}}
+
+  <div class="section">
+    <div class="seclabel">Ohne Passkey</div>
+    <p class="hint">
+      Auf dem Server, mit Zugriff über SSH:
+    </p>
+    <ul class="codes"><li><code>sudo asylum reset-password BENUTZER</code></li></ul>
+    <p class="hint">
+      Wer einen zweiten Owner-Zugang hat, kann das Passwort auch dort unter
+      „Panel-Zugänge“ zurücksetzen lassen.
+    </p>
+  </div>
+
+  <a class="button secondary" href="/login">Zurück zur Anmeldung</a>
+</div>
+{{if .Content.WebAuthnOn}}<script src="/static/passkey-reset.js" defer></script>{{end}}
+{{template "footer" .}}{{end}}

@@ -1,0 +1,27 @@
+{{define "forgot-new"}}{{template "header" .}}
+<div class="card auth">
+  <h1>Neues Passwort</h1>
+  <p>
+    Der Passkey wurde angenommen. Für <strong>{{.Content.Username}}</strong> darf
+    jetzt ein neues Passwort gesetzt werden.
+  </p>
+
+  <form method="post" action="/login/forgot/new" autocomplete="off">
+    <label for="new_password">Neues Passwort</label>
+    <input type="password" id="new_password" name="new_password"
+           autocomplete="new-password" minlength="12" autofocus required>
+
+    <label for="new_password_confirm">Neues Passwort wiederholen</label>
+    <input type="password" id="new_password_confirm" name="new_password_confirm"
+           autocomplete="new-password" minlength="12" required>
+    <p class="hint">Mindestens 12 Zeichen. Länge zählt mehr als Sonderzeichen.</p>
+
+    <button type="submit">Passwort setzen</button>
+  </form>
+
+  <p class="hint">
+    Danach sind alle Sitzungen dieses Kontos beendet. Der zweite Faktor bleibt
+    unverändert — die Anmeldung danach verlangt ihn wie gewohnt.
+  </p>
+</div>
+{{template "footer" .}}{{end}}

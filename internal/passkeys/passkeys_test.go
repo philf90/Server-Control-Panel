@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/protocol"
 	wa "github.com/go-webauthn/webauthn/webauthn"
 )
 
@@ -114,6 +115,47 @@ func TestFinishWithUnknownTokenIsNoSession(t *testing.T) {
 	}
 	if _, err := m.FinishLogin(u, "gibtsnicht", strings.NewReader("{}")); !errors.Is(err, ErrNoSession) {
 		t.Errorf("FinishLogin = %v, erwartet ErrNoSession", err)
+	}
+	lookup := func(int64) (User, error) { return User{}, errors.New("nicht gefragt") }
+	if _, _, err := m.FinishDiscoverableLogin("gibtsnicht", strings.NewReader("{}"), lookup); !errors.Is(err, ErrNoSession) {
+		t.Errorf("FinishDiscoverableLogin = %v, erwartet ErrNoSession", err)
+	}
+}
+
+// TestBeginDiscoverableLoginRequiresUserVerification hält die Zusage fest, auf
+// der die Zurücksetzung eines vergessenen Passworts beruht: Die Zeremonie nennt
+// kein Konto (also auch keine Credential-Kennungen, aus denen sich eines
+// erraten ließe) und verlangt die Prüfung am Gerät.
+func TestBeginDiscoverableLoginRequiresUserVerification(t *testing.T) {
+	m := testManager(t)
+
+	opts, token, err := m.BeginDiscoverableLogin()
+	if err != nil {
+		t.Fatalf("BeginDiscoverableLogin: %v", err)
+	}
+	if token == "" {
+		t.Fatal("kein Token")
+	}
+	if got := opts.Response.UserVerification; got != protocol.VerificationRequired {
+		t.Errorf("UserVerification = %q, erwartet %q", got, protocol.VerificationRequired)
+	}
+	if n := len(opts.Response.AllowedCredentials); n != 0 {
+		t.Errorf("die Optionen nennen %d Credentials, erwartet 0", n)
+	}
+
+	// Die Challenge hängt an keinem Konto und wird über takeDiscoverable
+	// eingelöst — genau einmal.
+	if _, ok := m.take(token, 42); ok {
+		t.Error("die Challenge ließ sich einem Konto zuordnen")
+	}
+	if _, token, err = m.BeginDiscoverableLogin(); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := m.takeDiscoverable(token); !ok {
+		t.Error("die Challenge wurde nicht hinterlegt")
+	}
+	if _, ok := m.takeDiscoverable(token); ok {
+		t.Error("dieselbe Challenge ließ sich zweimal einlösen")
 	}
 }
 

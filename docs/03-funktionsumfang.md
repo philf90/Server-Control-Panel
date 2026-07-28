@@ -31,6 +31,10 @@ der ersten Stunde tut.
 - Login mit Argon2id + TOTP, serverseitige Sessions, Rate-Limiting.
 - Rollen: Owner, Admin, ReadOnly.
 - `asylum reset-password` als lokaler Rettungsanker über SSH.
+- Zugang zurücksetzen im Panel: Einmalpasswort mit Wechselzwang, zweiter Faktor
+  und Passkeys — durch den Owner; ein vergessenes Passwort per Passkey durch den
+  Inhaber selbst. Kein Mailversand, siehe
+  [12-zugang-zuruecksetzen.md](12-zugang-zuruecksetzen.md).
 
 ### Dashboard
 - CPU (gesamt + je Kern), RAM/Swap, Load, Uptime, Kernel- und Distributionsversion.

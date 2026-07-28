@@ -43,6 +43,67 @@ macht das von allein — dort liegen Sekunden dazwischen, keine Tage.
 
 ## Von 0.x auf 0.x+1
 
+### Auf 0.3.0: die systemd-Unit anpassen, wenn Sie den Dateimanager nutzen wollen
+
+0.3.0 bringt einen Dateimanager. Er braucht Schreibzugriff dort, wo
+Konfiguration und Daten liegen, und die mitgelieferte systemd-Unit erlaubt das
+ab dieser Fassung:
+
+| Vorher | Ab 0.3.0 |
+|---|---|
+| `ProtectSystem=full` | `ProtectSystem=true` |
+| `ProtectHome=read-only` | `ProtectHome=false` |
+
+`/usr`, `/boot` und `/efi` bleiben nur lesbar; schreibbar werden `/etc`, `/home`
+und `/root`.
+
+**Das Selbstupdate tauscht das Programm, nie die Unit.** Wer über
+`asylum update` oder den Installer aktualisiert, hat danach also die neue
+Fassung des Panels und die alte Härtung — und dann scheitert jeder
+Schreibversuch unter `/etc` oder `/home` mit `EROFS`. Am Verzeichnis selbst ist
+das nicht zu erkennen: Die Rechtebits sagen nichts über einen read-only
+eingehängten Baum.
+
+Das Panel prüft das beim ersten Aufruf der Dateiseite mit einem echten
+Schreibversuch und zeigt die betroffenen Bereiche samt Behebung an. Von Hand:
+
+```bash
+sudo systemctl edit --full asylumd
+#   ProtectSystem=full        →  ProtectSystem=true
+#   ProtectHome=read-only     →  ProtectHome=false
+sudo systemctl daemon-reload
+sudo systemctl restart asylumd
+```
+
+Beim Debian-Paket geht es auch ohne Bearbeiten: Ein `apt upgrade` bringt die
+neue Unit mit. Haben Sie sie von Hand geändert, fragt `dpkg` nach — dann ist
+„die Fassung aus dem Paket übernehmen" die richtige Antwort.
+
+**Wenn Sie den Dateimanager nicht wollen**, ist nichts zu tun. Sie können die
+Härtung so lassen, wie sie ist, und das Modul abschalten:
+
+```yaml
+# /etc/asylum/config.yaml
+files:
+  enabled: false
+```
+
+Das entfernt Routen und Rechte, nicht nur den Menüpunkt.
+
+Was Sie außerdem wissen sollten, wenn Sie ihn nutzen:
+
+- **Manche Pfade sind für das Panel tabu** — Passwort-Hashes, private
+  Schlüssel, die Datenbank des Panels. Sie erscheinen in der Liste mit
+  Begründung, ihr Inhalt wird nie ausgeliefert. Auch nicht für die Rolle
+  `owner`. Über SSH sind sie erreichbar wie immer.
+- **Lesen darf jede angemeldete Rolle**, auch `readonly`. Ändern nur `admin`
+  und `owner`.
+- **Downloads stehen im Audit-Log.** Bei einem Dateimanager ist die
+  interessantere Frage nicht, wer etwas geschrieben, sondern wer etwas
+  mitgenommen hat.
+
+Einzelheiten: [docs/13-dateimanager.md](docs/13-dateimanager.md).
+
 ### Auf die nächste Fassung nach 0.1.0
 
 Nichts zu tun. Die Änderungen an `updates.channel` und der Umbenennung des

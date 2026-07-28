@@ -237,17 +237,56 @@ func TestDumpSeiten(t *testing.T) {
 func dumpDateien(t *testing.T, s *Server) string {
 	t.Helper()
 
-	wurzel, err := filepath.EvalSymlinks(t.TempDir())
+	// Fester, lesbarer Ort statt t.TempDir(): Der Pfad steht im klickbaren
+	// Pfad des Bildschirmfotos, und "TestDumpSeiten2328801387" sieht dort aus
+	// wie ein Fehler. Das Verzeichnis wird am Ende wieder entfernt.
+	basis, err := filepath.EvalSymlinks(os.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
+	wurzel := filepath.Join(basis, "asylum-beispiel", "etc")
+	if err := os.RemoveAll(filepath.Dir(wurzel)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(filepath.Dir(wurzel)) })
+
 	beispiele := map[string]string{
-		"nginx/nginx.conf":                  "user www-data;\nworker_processes auto;\n",
-		"nginx/sites-enabled/beispiel.conf": "server {\n  listen 443 ssl;\n}\n",
-		"asylum/config.yaml":                "server:\n  port: 8443\n",
+		"nginx/nginx.conf": `user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 768;
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    types_hash_max_size 2048;
+    server_tokens off;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    gzip on;
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+`,
+		"nginx/sites-enabled/beispiel.conf": "server {\n  listen 443 ssl;\n  server_name beispiel.de;\n}\n",
+		"asylum/config.yaml":                "server:\n  bind: 0.0.0.0\n  port: 8443\n",
+		"asylum/conf.d/10-tls.yaml":         "server:\n  tls:\n    mode: acme\n",
 		"ssl/private/server.key":            "-----BEGIN PRIVATE KEY-----\n",
-		"hosts":                             "127.0.0.1 localhost\n",
+		"hosts":                             "127.0.0.1 localhost\n::1 localhost\n",
 		"fstab":                             "/dev/vda1 / ext4 defaults 0 1\n",
+		"os-release":                        "PRETTY_NAME=\"Ubuntu 24.04.4 LTS\"\n",
 	}
 	for name, inhalt := range beispiele {
 		pfad := filepath.Join(wurzel, name)
@@ -258,6 +297,8 @@ func dumpDateien(t *testing.T, s *Server) string {
 			t.Fatal(err)
 		}
 	}
+	// Ein Verweis und ein gesperrter Pfad: Beides ist eine Aussage der
+	// Oberfläche, die stimmen muss, und auf einem Bild sonst nie zu sehen.
 	if err := os.Symlink("nginx/nginx.conf", filepath.Join(wurzel, "nginx.conf")); err != nil {
 		t.Fatal(err)
 	}

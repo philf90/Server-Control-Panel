@@ -27,6 +27,31 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Dateimanager über das gesamte Dateisystem.** Browsen mit klickbarem Pfad und
+  sortierbarer Liste, Namenssuche unterhalb eines Verzeichnisses, Download
+  einzelner Dateien, ganze Ordner als `tar.gz`, Upload mit Fortschrittsbalken
+  und Ablagefläche, Anlegen, Umbenennen, Verschieben, Kopieren, Löschen sowie
+  Rechte und Eigentümer. Dazu ein Editor mit Zeilennummern und Hervorhebung für
+  YAML, JSON, INI, Shell, nginx, Dockerfile und TOML.
+
+  Lesen darf jede angemeldete Rolle, ändern nur Admin und Owner. **Manche Pfade
+  sind für das Panel tabu — auch für Owner:** die Passwort-Hashes des Systems,
+  SSH-Host-Schlüssel, der private TLS-Schlüssel und die Datenbank des Panels.
+  Sie stehen mit Begründung in der Liste, ihr Inhalt wird nie ausgeliefert; wer
+  sie braucht, hat SSH. Rekursive Eingriffe werden vorher gezählt und
+  abgelehnt, wenn Gesperrtes darunter liegt oder eine Dateisystemgrenze
+  überschritten würde — ein Löschen von `/etc` darf `/etc/shadow` nicht
+  mitnehmen. Jede Änderung **und jeder Download** steht im Audit-Log.
+
+  Der Editor erhält Zeilenenden, erkennt eine von außen geänderte Datei am Hash
+  und rollt zurück, wenn `sshd -t` oder `nft -c -f` die neue Fassung ablehnen.
+  Vor jedem Überschreiben entsteht eine Sicherung unter
+  `/var/lib/asylum/backups/`.
+
+  Abschaltbar über `files.enabled: false` — das entfernt Routen und Rechte, nicht
+  nur den Menüpunkt. Einstellbar sind außerdem sichtbare und beschreibbare
+  Bereiche, eigene Sperrmuster und die Größengrenzen.
+  Einzelheiten in [docs/13-dateimanager.md](docs/13-dateimanager.md).
 - **Passkeys als zusätzlicher zweiter Faktor (WebAuthn).** Neben der
   Authenticator-App lässt sich jetzt ein Passkey hinterlegen — Fingerabdruck,
   Gesicht oder ein Sicherheitsschlüssel. Im Konto: hinzufügen (verlangt das
@@ -127,6 +152,25 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **Die systemd-Unit erlaubt dem Dienst Schreibzugriff auf `/etc`, `/home` und
+  `/root`** (`ProtectSystem=true` statt `full`, `ProtectHome=false` statt
+  `read-only`). Ohne diese Lockerung könnte der Dateimanager keine
+  Konfigurationsdatei speichern: Der Schreibversuch scheitert dann mit `EROFS`,
+  und das ist an den Rechtebits des Verzeichnisses nicht zu erkennen. `/usr`,
+  `/boot` und `/efi` bleiben schreibgeschützt — dort hat ein Panel nichts von
+  Hand zu ändern, und der Schutz gegen ein untergeschobenes Binary bleibt damit
+  erhalten.
+
+  **Das Selbstupdate tauscht das Programm, nie die Unit.** Bestehende
+  Installationen behalten die alte Härtung; das Panel erkennt das mit einem
+  echten Schreibversuch und zeigt auf der Dateiseite, wie es behoben wird. Weg
+  und Begründung in [UPGRADING.md](UPGRADING.md).
+- **Die Content-Security-Policy der Editor-Seite erlaubt ein nonce-gebundenes
+  Stil-Element.** CodeMirror trägt seine Regeln zur Laufzeit ein, und
+  `style-src 'self'` verwirft das — im Browser nachgemessen, der Editor blieb
+  ungestylt. Statt `'unsafe-inline'` für die Seite trägt die Antwort einen je
+  Antwort neu gezogenen Nonce; erlaubt ist damit genau das eine Element, das
+  ihn kennt. Alle anderen Seiten behalten die unveränderte Richtlinie.
 - **Alle Seiten tragen dieselbe Handschrift wie der Leitstand.** Jede Modulseite
   beginnt jetzt mit einem Seitenkopf (Titel als Überschrift, eine Unterzeile mit
   der Kennzahl, rechts die Aktionen der Seite) statt mit einer Überschrift in
@@ -202,6 +246,17 @@ nicht als Release getaggt.
 
 ### Behoben
 
+- **Die Filterleiste ragte im schmalen Modus vier Pixel über den Rand.** Ihr
+  negativer Randausgleich stand auf `-1rem`, der Innenabstand von `main`
+  unterhalb von 900 Pixeln aber auf `0,75rem`. Betroffen waren Dienste, Logs und
+  die neue Dateiseite; der Seitenkörper ließ sich dadurch waagerecht scrollen.
+- **Die Passkey-Zeile im Konto schob die Seite bei 375 Pixeln um 48 Pixel nach
+  rechts.** Textfeld und zwei Knöpfe in einer Aktionszelle mit
+  `flex-wrap: nowrap`. Im Kartenmodus darf sie jetzt umbrechen; das `nowrap`
+  gilt der Tabellenansicht, in der ein Umbruch die Zeilenhöhen springen lässt.
+- Beides gefunden, weil die neue Seite mit einem echten Browser über alle elf
+  Seiten bei 375, 414, 768 und 1280 Pixeln gemessen wurde. Keine Seite scrollt
+  jetzt bei einer dieser Breiten waagerecht.
 - **Zwei Zertifikatsbezüge konnten sich überlagern.** Der Knopf „Jetzt beziehen"
   und die Erneuerung im Hintergrund laufen in verschiedenen Goroutinen und
   schrieben ohne Absprache in dasselbe Verzeichnis. Wahrscheinlich war das nicht

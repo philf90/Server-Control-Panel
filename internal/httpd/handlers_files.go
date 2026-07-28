@@ -91,6 +91,7 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 	if frei, err := s.files.FreeSpace(r.Context(), pfad); err == nil {
 		seite.Free = frei
 	}
+	seite.Warnungen = s.filesWarnungen(r.Context())
 
 	s.renderPage(w, r, http.StatusOK, "files", s.base(r, "Dateien", "files").with(seite))
 }
@@ -319,4 +320,39 @@ func formatBytesKurz(n int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTP"[exp])
+}
+
+// filesWurzelPruefung liefert die Selbstprüfung der Schreibbereiche, einmal je
+// Prozess.
+//
+// Der Grund ist eine Eigenart des Selbstupdates: Es tauscht das Programm, nie
+// die systemd-Unit. Eine Installation, die von einer Fassung vor 0.3.0 kommt,
+// trägt deshalb noch ProtectSystem=full und ProtectHome=read-only — und dann
+// scheitert jeder Schreibversuch unter /etc und /home mit EROFS, ohne dass die
+// Rechtebits der Verzeichnisse etwas davon verraten. Ohne diesen Hinweis suchen
+// Betreiber den Fehler im Panel statt in ihrer Unit.
+func (s *Server) filesWurzelPruefung(ctx context.Context) []privops.RootStatus {
+	s.filesPruefOnce.Do(func() {
+		s.filesPruefung = s.files.Verify(ctx)
+		for _, st := range s.filesPruefung {
+			if st.Exists && !st.Writable {
+				s.log.Warn("Dateimanager: Bereich nicht beschreibbar",
+					"pfad", st.Path, "grund", st.Reason)
+			}
+		}
+	})
+	return s.filesPruefung
+}
+
+// filesWarnungen sind die Bereiche, in denen nicht geschrieben werden kann,
+// obwohl sie es sollten. Ein fehlendes Verzeichnis (etwa /srv auf einem System
+// ohne) ist keine Warnung — es ist einfach nicht da.
+func (s *Server) filesWarnungen(ctx context.Context) []privops.RootStatus {
+	var out []privops.RootStatus
+	for _, st := range s.filesWurzelPruefung(ctx) {
+		if st.Exists && !st.Writable {
+			out = append(out, st)
+		}
+	}
+	return out
 }

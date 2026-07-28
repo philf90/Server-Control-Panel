@@ -288,6 +288,7 @@ func (s *Server) renderFiles(w http.ResponseWriter, r *http.Request, status int,
 	if frei, err := s.files.FreeSpace(r.Context(), dir); err == nil {
 		seite.Free = frei
 	}
+	seite.Warnungen = s.filesWarnungen(r.Context())
 
 	basis := s.base(r, "Dateien", "files").with(seite)
 	if flash != "" {

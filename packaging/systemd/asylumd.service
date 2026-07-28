@@ -21,9 +21,21 @@ TimeoutStopSec=30s
 # Das Panel verwaltet den Host, braucht also root. Die folgenden Einstellungen
 # begrenzen den Schaden, ohne die Verwaltungsaufgaben zu blockieren.
 # NoNewPrivileges bleibt aus: apt, useradd und passwd rufen setuid-Programme auf.
+#
+# ProtectSystem=true statt full, ProtectHome=false statt read-only: Der
+# Dateimanager (ab 0.3.0) bearbeitet Konfigurationsdateien unter /etc und Daten
+# unter /home und /root. Mit "full" wäre /etc nur lesbar, mit
+# ProtectHome=read-only auch /home — jeder Schreibversuch dort scheiterte mit
+# EROFS, und zwar ohne dass die Rechtebits der Verzeichnisse etwas davon
+# verraten. /usr, /boot und /efi bleiben über "true" schreibgeschützt: Dort hat
+# ein Panel nichts von Hand zu ändern, und der Schutz gegen ein untergeschobenes
+# Binary bleibt damit erhalten.
+#
+# Wer den Dateimanager nicht braucht, kann beides wieder verschärfen und
+# `files.enabled: false` setzen.
 NoNewPrivileges=no
-ProtectSystem=full
-ProtectHome=read-only
+ProtectSystem=true
+ProtectHome=false
 PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
@@ -40,7 +52,9 @@ SystemCallArchitectures=native
 MemoryMax=256M
 TasksMax=256
 
-# Schreibzugriff auf die eigenen Verzeichnisse trotz ProtectSystem=full.
+# Die eigenen Verzeichnisse ausdrücklich, auch wenn ProtectSystem=true sie schon
+# zulässt: Wer die Härtung später wieder verschärft, soll den Dienst nicht
+# nebenbei lahmlegen.
 ReadWritePaths=/etc/asylum /var/lib/asylum /var/log/asylum
 
 StandardOutput=journal

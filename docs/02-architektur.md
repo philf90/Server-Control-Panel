@@ -107,8 +107,8 @@ nichts.
 Type=notify
 ExecStart=/usr/local/lib/asylum/asylumd serve
 NoNewPrivileges=no          # apt/useradd brauchen setuid-Aufrufe
-ProtectSystem=full
-ProtectHome=read-only
+ProtectSystem=true          # /usr, /boot, /efi read-only; /etc schreibbar
+ProtectHome=false           # der Dateimanager arbeitet in /home und /root
 PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
@@ -127,6 +127,21 @@ WatchdogSec=30s
 
 `MemoryMax` ist Absicherung *und* Selbstverpflichtung: das Panel darf nicht
 unbemerkt fett werden.
+
+**Warum `ProtectSystem` nicht auf `full` steht (seit 0.3.0).** `full` stellt
+neben `/usr` und `/boot` auch `/etc` auf read-only, `ProtectHome=read-only`
+zusätzlich `/home` und `/root`. Ein Dateimanager, der Konfigurationsdateien
+bearbeiten soll, scheitert damit an jedem Schreibversuch — und zwar mit `EROFS`,
+was am Verzeichnis selbst nicht zu erkennen ist. `true` lässt `/usr`, `/boot`
+und `/efi` geschützt: Dort hat ein Panel nichts von Hand zu ändern, und der
+Schutz gegen ein untergeschobenes Binary bleibt damit erhalten. Wer den
+Dateimanager nicht braucht, verschärft beides wieder und setzt
+`files.enabled: false`.
+
+Das Selbstupdate tauscht das Programm, nie die Unit. Eine Installation, die von
+einer älteren Fassung kommt, trägt deshalb weiter die alte Härtung; das Panel
+erkennt das mit einem echten Schreibversuch und sagt es
+([13-dateimanager.md](13-dateimanager.md#systemd-härtung)).
 
 ## Umgang mit Konfigurationsdateien
 
@@ -157,7 +172,7 @@ Das häufigste Ärgernis bestehender Panels: sie überschreiben handgepflegte Co
 /etc/asylum/config.yaml          Konfiguration (root:asylum 0640)
 /etc/asylum/tls/                 Zertifikate
 /var/lib/asylum/asylum.db        SQLite (0600)
-/var/lib/asylum/backups/         Config-Backups
+/var/lib/asylum/backups/         Config-Backups und Sicherungen des Dateimanagers
 /var/log/asylum/audit.log        Audit-Log (append-only, logrotate)
 /var/lib/asylum/releases/        vorheriges Binary für Rollback
 ```
@@ -220,7 +235,8 @@ Ergebnis: 16 MB Grundlast, die auch nach Anmeldungen dort bleibt.
 │   ├── privops/              privilegierte Operationen (einziger Systemzugriff)
 │   ├── modules/
 │   │   ├── metrics/  services/  packages/  firewall/
-│   │   ├── users/    logs/      files/     cron/
+│   │   ├── users/    logs/      cron/
+│   ├── privops/files*.go pfadwache.go   Dateimanager (Pfadwache = die Grenze)
 │   ├── store/                SQLite, Migrationen (embedded)
 │   ├── audit/
 │   └── update/               Selbstupdate, Signaturprüfung, Rollback

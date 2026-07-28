@@ -325,6 +325,10 @@ type filesPage struct {
 
 	// Free ist der freie Platz des Dateisystems an dieser Stelle.
 	Free uint64
+	// Warnungen sind Schreibbereiche, in die der Dienst nicht schreiben kann,
+	// obwohl die Konfiguration es vorsieht. Praktisch immer eine systemd-Unit
+	// aus der Zeit vor dem Dateimanager — siehe filesWurzelPruefung.
+	Warnungen []privops.RootStatus
 }
 
 // fileEntryPage ist die Detailseite eines Eintrags.

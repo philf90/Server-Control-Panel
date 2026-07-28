@@ -26,7 +26,7 @@ Der Installer gibt am Ende einen einmaligen Setup-Link aus. Dort werden
 Administrator-Konto und Zwei-Faktor-Anmeldung eingerichtet — es wird bewusst kein
 Passwort vergeben, das im Terminal oder in der Shell-History stünde.
 
-Gemessen am aktuellen Stand: 14 MB Binary, 15,9 MB RSS im Leerlauf, 39 ms für eine
+Gemessen am aktuellen Stand: 16,6 MB Binary, 15,9 MB RSS im Leerlauf, 39 ms für eine
 Anmeldung, TLS 1.3 mit selbstsigniertem Zertifikat beim ersten Start.
 
 Aktualisiert wird über das Panel oder mit `sudo asylum update`: Signatur gegen den
@@ -66,6 +66,16 @@ hinterlässt sonst keine Spur, die dem Betroffenen auffiele.
 
 ![Konto](docs/bilder/konto.png)
 
+Der Dateimanager über das gesamte Dateisystem: browsen, herunterladen,
+hochladen, Rechte und Eigentümer setzen, Verzeichnisse als `tar.gz` laden,
+Textdateien im Editor bearbeiten. Manche Pfade sind für das Panel tabu — die
+Passwort-Hashes des Systems, private Schlüssel, die eigene Datenbank. Sie
+erscheinen in der Liste mit Begründung, ihr Inhalt wird nie ausgeliefert, auch
+nicht für die Rolle Owner: Wer diese Dateien braucht, hat SSH.
+Einzelheiten in [docs/13-dateimanager.md](docs/13-dateimanager.md).
+
+![Dateien](docs/bilder/dateien.png)
+
 Auf dem Telefon klappt die Seitenleiste zu einer Kopfzeile ein, und aus jeder
 Tabellenzeile wird eine Karte — ein Server-Panel wird genau dann gebraucht, wenn
 man nicht am Schreibtisch sitzt.
@@ -73,7 +83,9 @@ man nicht am Schreibtisch sitzt.
 <img src="docs/bilder/schmal.png" alt="Systembenutzer auf einem Telefon" width="320">
 
 Weitere Ansichten: [Dienste](docs/bilder/dienste.png) ·
-[Firewall](docs/bilder/firewall.png) · [Audit-Log](docs/bilder/audit.png)
+[Firewall](docs/bilder/firewall.png) · [Audit-Log](docs/bilder/audit.png) ·
+[Datei-Editor](docs/bilder/datei-editor.png) ·
+[Angaben zu einer Datei](docs/bilder/datei-detail.png)
 
 > Die Bilder entstehen reproduzierbar aus der Anwendung selbst
 > (`ASYLUM_DUMP_DIR=… go test ./internal/httpd -run TestDumpSeiten`), mit
@@ -146,6 +158,7 @@ sudo asylum rollback             # zurück auf die vorherige Fassung
 | [docs/10-tls-acme.md](docs/10-tls-acme.md) | TLS: selbstsigniert und Let's Encrypt (HTTP-01, DNS-01 über Hook/Cloudflare) |
 | [docs/11-passkeys.md](docs/11-passkeys.md) | Passkeys (WebAuthn) als zweiter Faktor: Entwurf, Konfiguration, Rettungsweg |
 | [docs/12-zugang-zuruecksetzen.md](docs/12-zugang-zuruecksetzen.md) | Vergessenes Passwort, verlorenes Telefon — und warum es keinen Weg über E-Mail gibt |
+| [docs/13-dateimanager.md](docs/13-dateimanager.md) | Dateimanager: Pfadwache, Sperrliste, Upload-Strom, Editor und die CSP |
 
 Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
 [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und

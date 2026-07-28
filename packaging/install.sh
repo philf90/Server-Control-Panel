@@ -308,9 +308,12 @@ WatchdogSec=30s
 TimeoutStartSec=60s
 TimeoutStopSec=30s
 
+# ProtectSystem=true und ProtectHome=false: Der Dateimanager bearbeitet
+# Konfigurationsdateien unter /etc und Daten unter /home. /usr, /boot und /efi
+# bleiben schreibgeschützt. Siehe packaging/systemd/asylumd.service.
 NoNewPrivileges=no
-ProtectSystem=full
-ProtectHome=read-only
+ProtectSystem=true
+ProtectHome=false
 PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes

@@ -381,3 +381,44 @@ func TestFilesOhneAnmeldungKeinZugriff(t *testing.T) {
 func urlWert(pfad string) string {
 	return strings.NewReplacer(" ", "%20", "+", "%2B", "&", "%26", "#", "%23", "?", "%3F").Replace(pfad)
 }
+
+// TestFilesWarntBeiNichtBeschreibbaremBereich prüft den Hinweis, der jede per
+// Selbstupdate aktualisierte Installation betrifft: Das Update tauscht das
+// Programm, nie die systemd-Unit. Trägt sie noch ProtectHome=read-only,
+// scheitert jeder Schreibversuch mit EROFS — und zwar ohne dass die Rechtebits
+// etwas davon verraten.
+func TestFilesWarntBeiNichtBeschreibbaremBereich(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("als root ist auch ein Verzeichnis ohne Schreibrecht beschreibbar")
+	}
+	var wurzel string
+	s, w := newFilesServerMit(t, func(p *privops.FilesPolicy) {
+		wurzel = p.ReadableRoots[0]
+		p.WritableRoots = append(p.WritableRoots, filepath.Join(wurzel, "gesperrt"))
+	})
+	wurzel = w
+
+	// Ein Verzeichnis, in das der Prozess nicht schreiben darf.
+	gesperrt := filepath.Join(wurzel, "gesperrt")
+	if err := os.MkdirAll(gesperrt, 0o500); err != nil {
+		t.Fatal(err)
+	}
+
+	user := addUser(t, s, "philipp", store.RoleOwner)
+	cookie, _ := login(t, s, user)
+
+	rec := get(t, s, "/files?path="+urlWert(wurzel), cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "kann in diesen Bereichen nicht schreiben") {
+		t.Error("der Hinweis auf den nicht beschreibbaren Bereich fehlt")
+	}
+	if !strings.Contains(body, "ProtectHome") {
+		t.Error("der Hinweis nennt die wahrscheinliche Ursache nicht")
+	}
+	if !strings.Contains(body, "systemctl edit") {
+		t.Error("der Hinweis nennt nicht, wie es behoben wird")
+	}
+}

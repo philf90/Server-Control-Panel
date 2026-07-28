@@ -35,6 +35,24 @@
 </div>
 {{end}}
 
+{{if .Warnungen}}
+<div class="alert warn">
+  <strong>Das Panel kann in diesen Bereichen nicht schreiben:</strong>
+  <ul class="hint">
+    {{range .Warnungen}}<li><code>{{.Path}}</code> — {{.Reason}}</li>{{end}}
+  </ul>
+  Fast immer liegt das an der systemd-Unit: Ein Selbstupdate tauscht das Programm,
+  nie die Unit. Eine Installation aus der Zeit vor dem Dateimanager trägt noch
+  <code>ProtectSystem=full</code> und <code>ProtectHome=read-only</code>. So wird sie
+  angepasst:
+  <pre class="logs klein">sudo systemctl edit --full asylumd
+# ProtectSystem=true, ProtectHome=false setzen
+sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
+  Einzelheiten in UPGRADING.md. Lesen und Herunterladen funktionieren auch ohne
+  diese Änderung.
+</div>
+{{end}}
+
 {{if and $.CanWrite .Dir.Writable (not .Suche)}}
 <div class="card anlegen">
   <form method="post" action="/files/mkdir" class="row-form">

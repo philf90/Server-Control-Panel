@@ -67,11 +67,16 @@ type Server struct {
 	ops privops.Executor
 	// files ist der Dateimanager. Nil, wenn das Modul abgeschaltet ist oder
 	// seine Politik nicht aufgeht — dann gibt es weder Routen noch Menüpunkt.
-	files   privops.Files
-	jobs    *jobs
-	fwGuard *firewallGuard
-	upd     *updateState
-	pending *pendingSecrets
+	files privops.Files
+	// filesGeprueft hält das Ergebnis der Selbstprüfung der Schreibbereiche.
+	// Einmal je Prozess: Die Prüfung schreibt in jedem Bereich eine Datei und
+	// wieder weg, und das gehört nicht in jeden Seitenaufruf.
+	filesPruefOnce sync.Once
+	filesPruefung  []privops.RootStatus
+	jobs           *jobs
+	fwGuard        *firewallGuard
+	upd            *updateState
+	pending        *pendingSecrets
 	// resets hält die per Passkey bestätigten Nachweise für ein vergessenes
 	// Passwort. Siehe handlers_forgot.go.
 	resets *resetTickets

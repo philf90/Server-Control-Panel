@@ -85,9 +85,14 @@ der ersten Stunde tut.
 
 ## v0.2 — Alltagstauglichkeit
 
-- **Dateimanager:** Browsen, Umbenennen, Rechte/Owner, Upload/Download, Editor mit
-  Syntax-Highlighting für Configs. Bewusst schlicht — keine Archiv-Extraktion, kein
-  Cloud-Sync.
+- **Dateimanager — umgesetzt in 0.3.0.** Browsen, Umbenennen, Rechte/Owner,
+  Upload/Download, Editor mit Syntax-Highlighting für Configs. Dazu Anlegen,
+  Verschieben, Kopieren, Löschen mit gezählter Rückfrage, Namenssuche und
+  Verzeichnis-Download als `tar.gz`. Bewusst schlicht — **keine
+  Archiv-Extraktion** (Zip-Slip, Speicher, Rechte; `tar -x` über SSH ist der
+  bessere Weg), kein Cloud-Sync, kein Papierkorb. Manche Pfade sind für das
+  Panel tabu, auch für die Rolle Owner: Passwort-Hashes, private Schlüssel, die
+  eigene Datenbank. Einzelheiten in [13-dateimanager.md](13-dateimanager.md).
 - **Cron & systemd-Timer:** Anzeigen, anlegen, bearbeiten, letzte Ausführung mit
   Exit-Code und Ausgabe.
 - **Web-Terminal:** PTY über WebSocket. Nur für Owner-Rolle, per Default

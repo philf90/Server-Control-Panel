@@ -477,6 +477,61 @@ später ein Mailkanal kommen, dann zuerst für Benachrichtigungen.
 `asylum reset-password` bleibt als Anker — der Fall „weder Passkey noch zweiter
 Owner" muss irgendwo endlich sein.
 
+### 0.3.0 — Dateimanager
+
+**Stand: umgesetzt.** Einzelheiten in [13-dateimanager.md](13-dateimanager.md).
+Gebaut in sieben Schritten: Pfadwache, Leseansicht, Schreiboperationen, Upload,
+Editor, Härtung und Angriffsdurchgang.
+
+| Kennzahl | Grenze | Ist |
+|---|---|---|
+| Binärgröße | < 30 MB | 16,6 MB (davon 351 KiB Editor-Bundle) |
+| Direkte Go-Abhängigkeiten | < 25 | 6 (unverändert — alles über die Standardbibliothek) |
+| Testabdeckung `privops` | > 72 % (CI-Schwelle) | 76 % |
+| Testabdeckung `httpd` | > 63 % (CI-Schwelle) | 69 % |
+| Haufenwachstum bei 40-MiB-Upload | — | 0 B (gestreamt) |
+
+Der Dateimanager ist das erste Modul, dessen Ziel aus der Anfrage kommt und
+nicht aus einer Allowlist: Bei den Diensten steht ein Unit-Name zur Wahl, hier
+jeder Pfad des Servers. Die gesamte Prüfung liegt deshalb an einer Stelle
+(`internal/privops/pfadwache.go`), aufgelöst wird über `os.Root` statt über
+Zeichenketten, und kein Handler baut je selbst einen Pfad zusammen.
+
+Fünf Entscheidungen, die den Zuschnitt bestimmen:
+
+- **Eine eingebaute Sperrliste, die für jede Rolle gilt** — auch für Owner:
+  Passwort-Hashes, SSH-Host-Schlüssel, der private TLS-Schlüssel, die Datenbank
+  des Panels. Eine übernommene Sitzung soll nicht mit zwei Klicks das Material
+  holen können, mit dem sich jede weitere Schutzschicht umgehen lässt. Der
+  Eintrag bleibt sichtbar und nennt den Grund; wer die Datei braucht, hat SSH.
+- **Inhalt nur bei regulären Dateien.** Ein `open()` auf eine FIFO blockiert
+  unbegrenzt, `/dev/zero` liefert unendlich viel, `/proc/kcore` behauptet
+  128 TiB. `/proc`, `/sys` und `/dev` werden gar nicht betreten.
+- **Rekursive Eingriffe werden vorher gezählt** und abgelehnt, wenn Gesperrtes
+  darunter liegt oder eine Dateisystemgrenze überschritten würde: Ein Löschen
+  von `/etc` darf `/etc/shadow` nicht mitnehmen, eines von `/mnt` nicht die
+  eingehängte Platte leeren.
+- **Der Upload streamt.** `r.ParseMultipartForm` zöge zwei Gigabyte in Speicher
+  und Temp-Dateien; bei `MemoryMax=256M` ist das kein Weg. Der CSRF-Token wird
+  deshalb aus dem ersten Multipart-Teil geprüft, vor dem ersten Byte Inhalt.
+- **Die Härtung der Unit geht auf**, aber nur so weit wie nötig:
+  `ProtectSystem=true` statt `full`, `ProtectHome=false`. `/usr` und `/boot`
+  bleiben schreibgeschützt.
+
+**Was der Bau zutage gebracht hat**, jenseits des geplanten Umfangs:
+
+- **CodeMirror lief nicht unter der Content-Security-Policy.** Chromium verwarf
+  das Stil-Element, das der Editor zur Laufzeit anlegt; er blieb ungestylt.
+  Statt `'unsafe-inline'` für die Seite trägt die Antwort jetzt einen Nonce, den
+  CodeMirror mitbekommt — erlaubt ist damit genau das eine Element, das den Wert
+  kennt. Gemessen im Browser, nicht vermutet.
+- **Zwei Layoutfehler, beide älter als der Dateimanager.** Die Filterleiste ragte
+  im schmalen Modus auf jeder Seite vier Pixel über den Rand (negativer
+  Randausgleich `-1rem` gegen `0,75rem` Innenabstand von `main`), und die
+  Passkey-Zeile im Konto schob die Seite bei 375 Pixeln um 48 Pixel nach rechts.
+  Gefunden, weil die neue Seite über alle elf Seiten × vier Breiten gemessen
+  wurde; behoben für alle.
+
 ### Laufend, an keine Fassung gebunden
 
 Externer Sicherheits-Review (sinnvollerweise **nach** 0.2.0, weil Let's Encrypt

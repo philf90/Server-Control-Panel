@@ -189,6 +189,68 @@ Authenticator, der nichts am Gerät prüft, führt zu keiner Zurücksetzung
 Wegs — Besitz allein ist ein Faktor, und ein Faktor genügt nicht, um ein
 Passwort zu ersetzen.
 
+## Dateimanager
+
+Der Dateimanager (ab 0.3.0) vergrößert die Angriffsfläche des Panels stärker als
+jedes andere Modul: Bis hierher stand in jeder Anfrage ein Wert aus einer
+Allowlist — ein Unit-Name, ein Paketname, ein Port. Jetzt steht dort ein Pfad,
+und der Prozess läuft als root.
+
+### Was ein übernommener Zugang damit kann
+
+Alles, was der Bedienende auch könnte: Konfigurationsdateien ändern, Daten
+herunterladen, Verzeichnisse löschen. Das ist keine neue Klasse von Schaden —
+wer ein Panel mit Schreibrecht übernimmt, kann ohnehin Dienste stoppen, Pakete
+installieren und Benutzer anlegen. Neu ist die **Bequemlichkeit**: Ein Download
+über eine Weboberfläche hinterlässt weniger Spuren als eine SSH-Sitzung und
+braucht kein Werkzeug.
+
+Drei Riegel dagegen:
+
+1. **Die Sperrliste.** Passwort-Hashes (`/etc/shadow`), SSH-Host-Schlüssel, der
+   private TLS-Schlüssel und die Datenbank des Panels sind für das Modul tabu —
+   für **jede** Rolle, auch für Owner. Sonst wäre ein übernommener Zugang
+   gleichbedeutend mit dem Verlust aller weiteren Schutzschichten: Mit der
+   Datenbank hat man die Hashes aller Panel-Zugänge und die Passkey-Daten, mit
+   dem TLS-Schlüssel jede künftige Verbindung. Die Liste ist eingebaut und über
+   die Konfiguration nur erweiterbar.
+2. **Jeder Download im Audit-Log.** Bei einem Dateimanager ist die interessantere
+   Frage nicht, wer etwas geschrieben, sondern wer etwas mitgenommen hat.
+3. **Rollen.** Lesen darf jede angemeldete Rolle, ändern nur `admin` und
+   `owner`. Jeder Schreibendpunkt ist einzeln gegen fehlendes CSRF-Token und
+   gegen eine nur lesende Rolle geprüft — eine vergessene Middleware-Kette an
+   einer einzigen Route wäre ein Loch, das kein anderer Test findet.
+
+### Was gegen Pfadausbruch getan ist
+
+Die gesamte Prüfung liegt in `internal/privops/pfadwache.go`. Aufgelöst wird über
+`os.Root`, nicht über Zeichenketten: Ein Symlink `/tmp/x → /etc/shadow` wäre
+sonst ein Umweg um jede Prüfung, die nur die Zeichenkette ansieht. Geprüft
+werden beide Fassungen des Pfads — die angefragte und die aufgelöste — und für
+die Sperrliste zusätzlich jeder Vorfahre.
+
+Ein eigener Angriffsdurchgang (`files_angriff_test.go`) fährt gegen das Modul:
+Pfadausbruch in mehreren Kodierungen, Symlinks auf Gesperrtes, `/proc/self/root`
+als Sprungbrett, Hardlinks, Namen mit NUL-Byte, Zeilenumbruch und
+Schreibrichtungs-Umschaltern, Rollenanhebung, fehlende Tokens, Dateinamen mit
+Pfadanteilen im Upload.
+
+### Offene Punkte
+
+- **Ein Angreifer, der schon lokal schreiben darf**, kann ein Verzeichnis mitten
+  im Pfad im richtigen Augenblick durch einen Verweis ersetzen (TOCTOU). Gegen
+  die letzte Komponente hilft `O_NOFOLLOW`, gegen die mittleren wäre ein Öffnen
+  Komponente für Komponente nötig. Wer lokal schreiben kann, braucht das Panel
+  dafür allerdings nicht — das Risiko ist bewusst getragen.
+- **Die gelockerte Härtung.** `ProtectHome=false` und `ProtectSystem=true` statt
+  `full` sind eine echte Abschwächung: Ein Codeausführungsfehler im Panel kann
+  jetzt mehr anrichten. `/usr` und `/boot` bleiben schreibgeschützt, damit ein
+  untergeschobenes Binary nicht der nächste Schritt ist. Wer den Dateimanager
+  nicht braucht, verschärft beides und setzt `files.enabled: false`.
+- **Der Editor-Nonce lockert `style-src`** für genau eine Seite auf ein
+  nonce-gebundenes Element. Das ist deutlich enger als `'unsafe-inline'`, aber
+  nicht so eng wie `'self'` allein.
+
 ## Selbstupdate
 
 Der ausführliche Ablauf steht in [05-updates.md](05-updates.md); hier nur, was

@@ -66,6 +66,31 @@ func NewRecoveryCodes() (codes []string, hashes []string, err error) {
 	return codes, hashes, nil
 }
 
+// NewTemporaryPassword erzeugt ein Einmalpasswort für eine Zurücksetzung durch
+// den Owner.
+//
+// Dasselbe verwechslungsarme Alphabet wie bei den Wiederherstellungscodes: Der
+// Wert wird abgeschrieben oder durchgesagt, nicht kopiert. Vier Gruppen à vier
+// Zeichen ergeben rund 78 Bit — weit jenseits dessen, was die Ratenbegrenzung
+// des Anmeldepfads zulässt, und lang genug für die Passwortregel.
+func NewTemporaryPassword() (string, error) {
+	const alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+	const groups, groupLen = 4, 4
+
+	buf := make([]byte, groups*groupLen)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("einmalpasswort erzeugen: %w", err)
+	}
+	var sb strings.Builder
+	for i, b := range buf {
+		if i > 0 && i%groupLen == 0 {
+			sb.WriteByte('-')
+		}
+		sb.WriteByte(alphabet[int(b)%len(alphabet)])
+	}
+	return sb.String(), nil
+}
+
 // NormalizeRecoveryCode macht die Eingabe unabhängig von Groß-/Kleinschreibung
 // und Trennzeichen.
 func NormalizeRecoveryCode(code string) string {

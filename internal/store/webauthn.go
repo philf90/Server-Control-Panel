@@ -98,6 +98,19 @@ func (db *DB) DeleteWebAuthnCredential(ctx context.Context, id, userID int64) er
 	return notFoundIfNoRows(res)
 }
 
+// DeleteWebAuthnCredentialsByUser entfernt alle Passkeys eines Kontos und
+// liefert die Anzahl. Gedacht für den Fall, den der Kontoinhaber nicht mehr
+// selbst lösen kann: Das Gerät ist weg, und mit ihm der Zugriff auf die
+// Kontoseite, auf der er den Schlüssel entfernen würde.
+func (db *DB) DeleteWebAuthnCredentialsByUser(ctx context.Context, userID int64) (int64, error) {
+	res, err := db.sql.ExecContext(ctx,
+		`DELETE FROM webauthn_credentials WHERE user_id = ?`, userID)
+	if err != nil {
+		return 0, fmt.Errorf("passkeys löschen: %w", err)
+	}
+	return res.RowsAffected()
+}
+
 // CountWebAuthnCredentials zählt die Passkeys eines Kontos.
 func (db *DB) CountWebAuthnCredentials(ctx context.Context, userID int64) (int, error) {
 	var n int

@@ -37,8 +37,12 @@ type User struct {
 	// verhindert, dass derselbe Code ein zweites Mal gilt.
 	TOTPLastCounter uint64
 	Disabled        bool
-	CreatedAt       time.Time
-	LastLoginAt     *time.Time
+	// MustChangePassword heißt: Das aktuelle Passwort ist ein Einmalpasswort
+	// aus einer Zurücksetzung. Bis es ersetzt ist, kommt das Konto nur auf die
+	// Wechselseite.
+	MustChangePassword bool
+	CreatedAt          time.Time
+	LastLoginAt        *time.Time
 }
 
 // CanWrite sagt, ob die Rolle verändernde Aktionen ausführen darf.
@@ -63,10 +67,10 @@ func (db *DB) CreateUser(ctx context.Context, u User) (int64, error) {
 		return 0, fmt.Errorf("unbekannte Rolle %q", u.Role)
 	}
 	res, err := db.sql.ExecContext(ctx, `
-		INSERT INTO users (username, password_hash, role, totp_secret, totp_confirmed, disabled, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		INSERT INTO users (username, password_hash, role, totp_secret, totp_confirmed, disabled, must_change_password, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		u.Username, u.PasswordHash, u.Role, u.TOTPSecret, boolToInt(u.TOTPConfirmed),
-		boolToInt(u.Disabled), time.Now().UTC().Format(time.RFC3339),
+		boolToInt(u.Disabled), boolToInt(u.MustChangePassword), time.Now().UTC().Format(time.RFC3339),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("benutzer anlegen: %w", err)
@@ -74,7 +78,7 @@ func (db *DB) CreateUser(ctx context.Context, u User) (int64, error) {
 	return res.LastInsertId()
 }
 
-const userColumns = `id, username, password_hash, role, totp_secret, totp_confirmed, totp_last_counter, disabled, created_at, last_login_at`
+const userColumns = `id, username, password_hash, role, totp_secret, totp_confirmed, totp_last_counter, disabled, must_change_password, created_at, last_login_at`
 
 // UserByName sucht einen Benutzer am Anmeldenamen.
 func (db *DB) UserByName(ctx context.Context, username string) (User, error) {
@@ -109,10 +113,30 @@ func (db *DB) ListUsers(ctx context.Context) ([]User, error) {
 }
 
 // SetPassword ersetzt den Passwort-Hash.
+//
+// Der Wechselzwang fällt dabei weg: Wer hier ankommt, hat das Passwort selbst
+// gewählt — sei es auf der Kontoseite, nach einem Passkey-Nachweis oder über die
+// Kommandozeile des Servers. Genau das war die Bedingung, die der Zwang stellt.
 func (db *DB) SetPassword(ctx context.Context, userID int64, hash string) error {
-	_, err := db.sql.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ?`, hash, userID)
+	_, err := db.sql.ExecContext(ctx,
+		`UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?`, hash, userID)
 	if err != nil {
 		return fmt.Errorf("passwort setzen: %w", err)
+	}
+	return nil
+}
+
+// SetTemporaryPassword hinterlegt ein Einmalpasswort und verlangt den Wechsel
+// bei der nächsten Anmeldung.
+//
+// Getrennt von SetPassword, weil sich die beiden Fälle im Ergebnis
+// unterscheiden müssen: Hier hat jemand anderes das Passwort gewählt und kennt
+// es. Es soll eine Anmeldung tragen, nicht länger.
+func (db *DB) SetTemporaryPassword(ctx context.Context, userID int64, hash string) error {
+	_, err := db.sql.ExecContext(ctx,
+		`UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?`, hash, userID)
+	if err != nil {
+		return fmt.Errorf("einmalpasswort setzen: %w", err)
 	}
 	return nil
 }
@@ -202,11 +226,12 @@ func scanUser(row scanner) (User, error) {
 		u             User
 		totpConfirmed int
 		disabled      int
+		mustChange    int
 		createdAt     string
 		lastLogin     sql.NullString
 	)
 	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Role, &u.TOTPSecret,
-		&totpConfirmed, &u.TOTPLastCounter, &disabled, &createdAt, &lastLogin)
+		&totpConfirmed, &u.TOTPLastCounter, &disabled, &mustChange, &createdAt, &lastLogin)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
@@ -216,6 +241,7 @@ func scanUser(row scanner) (User, error) {
 
 	u.TOTPConfirmed = totpConfirmed != 0
 	u.Disabled = disabled != 0
+	u.MustChangePassword = mustChange != 0
 	u.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 	if lastLogin.Valid {
 		if t, err := time.Parse(time.RFC3339, lastLogin.String); err == nil {

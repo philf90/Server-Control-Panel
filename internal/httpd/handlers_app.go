@@ -319,7 +319,29 @@ func (s *Server) renderUsers(w http.ResponseWriter, r *http.Request, status int,
 		s.renderError(w, r, http.StatusInternalServerError, "Die Benutzerliste konnte nicht gelesen werden.")
 		return
 	}
-	page := s.base(r, "Panel-Zugänge", "users").with(usersPage{Users: users})
+	// Das eigene Konto gehört nicht in die Auswahl zum Zurücksetzen: Ein Owner,
+	// der sich selbst ein Einmalpasswort vergibt, hat nichts gewonnen.
+	actor, _ := userFrom(r.Context())
+	others := make([]store.User, 0, len(users))
+	for _, u := range users {
+		if u.ID != actor.ID {
+			others = append(others, u)
+		}
+	}
+	// Vorauswahl aus dem Sprunglink der Tabellenzeile. Ein unbrauchbarer Wert
+	// bedeutet schlicht keine Vorauswahl.
+	var resetID int64
+	if raw := r.URL.Query().Get("reset"); raw != "" {
+		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			resetID = id
+		}
+	}
+
+	page := s.base(r, "Panel-Zugänge", "users").with(usersPage{
+		Users:   users,
+		Others:  others,
+		ResetID: resetID,
+	})
 	if flash != "" {
 		page = page.withFlash(flash)
 	}

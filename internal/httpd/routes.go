@@ -29,6 +29,15 @@ func (s *Server) Handler() http.Handler {
 	// Ursprung gebunden und damit der Schutz gegen fremde Seiten.
 	mux.Handle("POST /login/passkey/begin", s.rateLimited(http.HandlerFunc(s.handlePasskeyLoginBegin)))
 	mux.Handle("POST /login/passkey/finish", s.rateLimited(http.HandlerFunc(s.handlePasskeyLoginFinish)))
+	// Vergessenes Passwort: Nachweis über einen auffindbaren Passkey mit Prüfung
+	// am Gerät. Kein Konto in der Anfrage, deshalb auch keine Auskunft darüber,
+	// welche es gibt. Alle Schritte ratenbegrenzt; CSRF entfällt, weil es noch
+	// keine Sitzung gibt — der Riegel ist SameSite=Strict am Ticket-Cookie.
+	mux.HandleFunc("GET /login/forgot", s.handleForgotForm)
+	mux.Handle("POST /login/forgot/begin", s.rateLimited(http.HandlerFunc(s.handleForgotBegin)))
+	mux.Handle("POST /login/forgot/finish", s.rateLimited(http.HandlerFunc(s.handleForgotFinish)))
+	mux.Handle("GET /login/forgot/new", s.rateLimited(http.HandlerFunc(s.handleForgotNewForm)))
+	mux.Handle("POST /login/forgot/new", s.rateLimited(http.HandlerFunc(s.handleForgotNew)))
 	mux.HandleFunc("GET /setup", s.handleSetupForm)
 	mux.Handle("POST /setup", s.rateLimited(http.HandlerFunc(s.handleSetup)))
 
@@ -37,6 +46,12 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /setup/2fa", s.loggedIn(s.verifyCSRF(http.HandlerFunc(s.handleTOTPConfirm))))
 	mux.Handle("GET /setup/2fa/qr.png", s.loggedIn(http.HandlerFunc(s.handleTOTPQR)))
 	mux.Handle("POST /logout", s.loggedIn(s.verifyCSRF(http.HandlerFunc(s.handleLogout))))
+
+	// Erzwungener Wechsel eines Einmalpassworts. Bewusst requireSetupDone und
+	// nicht protected: requireAuth leitet ein Konto mit Wechselzwang genau
+	// hierher: durch protected wäre das eine Weiterleitung auf sich selbst.
+	mux.Handle("GET /account/password-change", s.requireSetupDone(http.HandlerFunc(s.handlePasswordChangeForcedForm)))
+	mux.Handle("POST /account/password-change", s.requireSetupDone(s.verifyCSRF(http.HandlerFunc(s.handlePasswordChangeForced))))
 
 	// Vollständig angemeldet.
 	mux.Handle("GET /{$}", s.protected(http.HandlerFunc(s.handleDashboard)))
@@ -105,6 +120,14 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /users", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserCreate)))))
 	mux.Handle("POST /users/{id}/disabled", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserDisable)))))
 	mux.Handle("POST /users/{id}/delete", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserDelete)))))
+	// Zurücksetzen eines fremden Zugangs. Das Konto steht im Formularfeld
+	// "target", nicht im Pfad: Alle drei Aktionen teilen ein Formular, und der
+	// Knopf wählt über formaction das Ziel — ohne Skript, das die CSP ohnehin
+	// nicht inline zuließe. Jede verlangt zusätzlich das eigene Passwort des
+	// Owners; siehe handlers_reset.go.
+	mux.Handle("POST /users/reset-password", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserResetPassword)))))
+	mux.Handle("POST /users/reset-2fa", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserReset2FA)))))
+	mux.Handle("POST /users/reset-passkeys", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserResetPasskeys)))))
 
 	if static, err := ui.Static(); err == nil {
 		fileServer := http.FileServer(http.FS(static))

@@ -27,6 +27,7 @@
               <input type="hidden" name="disabled" value="{{if .Disabled}}0{{else}}1{{end}}">
               <button type="submit" class="small">{{if .Disabled}}freigeben{{else}}sperren{{end}}</button>
             </form>
+            <a class="button small" href="/users?reset={{.ID}}#zuruecksetzen">zurücksetzen</a>
             <form method="post" action="/users/{{.ID}}/delete"
                   onsubmit="return confirm('Konto {{.Username}} wirklich löschen?')">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -40,6 +41,64 @@
     </table>
   </div>
 </div>
+
+{{if .Content.Others}}
+<div class="section" id="zuruecksetzen">
+  <div class="seclabel">Zugang zurücksetzen</div>
+  <div class="card">
+    <p class="hint">
+      Für den Fall, dass jemand sein Passwort vergessen oder sein Telefon
+      verloren hat. Bis hierher führte dieser Weg über <code>sudo asylum
+      reset-password</code> auf dem Server. Das eigene Konto steht nicht zur
+      Wahl — dafür gibt es <a href="/account">Mein Konto</a>.
+    </p>
+
+    <!-- Drei Ziele, ein Formular: Der Knopf bestimmt über formaction, welche
+         Zurücksetzung gemeint ist. So genügt eine einzige Eingabe des eigenen
+         Passworts, und die Seite braucht kein Skript — die CSP lässt keines
+         inline zu. -->
+    <form method="post" action="/users/reset-password" class="row-form" autocomplete="off">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+
+      <div>
+        <label for="reset-user">Konto</label>
+        <select id="reset-user" name="target">
+          {{range .Content.Others}}
+          <option value="{{.ID}}" {{if eq .ID $.Content.ResetID}}selected{{end}}>{{.Username}}</option>
+          {{end}}
+        </select>
+      </div>
+      <div>
+        <label for="owner_password">Mein Passwort</label>
+        <input type="password" id="owner_password" name="owner_password" required
+               autocomplete="current-password">
+      </div>
+      <div class="submit reset-actions">
+        <button type="submit" class="small">Passwort zurücksetzen</button>
+        <button type="submit" class="small" formaction="/users/reset-2fa">Zweiten Faktor zurücksetzen</button>
+        <button type="submit" class="small danger" formaction="/users/reset-passkeys">Passkeys entfernen</button>
+      </div>
+    </form>
+
+    <ul class="hint">
+      <li>
+        <strong>Passwort zurücksetzen</strong> vergibt ein Einmalpasswort, das
+        genau einmal angezeigt wird. Das Konto muss es bei der nächsten Anmeldung
+        ersetzen; offene Sitzungen werden beendet, eine Sperre aufgehoben.
+      </li>
+      <li>
+        <strong>Zweiten Faktor zurücksetzen</strong> macht TOTP unbestätigt und
+        leert die Wiederherstellungscodes. Beim nächsten Anmelden wird er neu
+        eingerichtet; das Passwort bleibt.
+      </li>
+      <li>
+        <strong>Passkeys entfernen</strong> löscht alle hinterlegten Passkeys des
+        Kontos — für verlorene Geräte.
+      </li>
+    </ul>
+  </div>
+</div>
+{{end}}
 
 <div class="section">
   <div class="seclabel">Zugang anlegen</div>

@@ -262,6 +262,10 @@ type packagesPage struct {
 	JobRunning bool
 	JobDone    bool
 	JobError   string
+	// JobNote ist eine Anmerkung, die kein Fehler ist: der Teilerfolg von
+	// apt-get update, bei dem einzelne Quellen klemmen und die übrigen Listen
+	// trotzdem neu sind.
+	JobNote string
 }
 
 type firewallPage struct {

@@ -261,16 +261,137 @@ func TestPackageUpgradableUsesSimulation(t *testing.T) {
 	}
 }
 
+// Scheitert jede Quelle, ist das ein Fehlschlag und wird als solcher gemeldet.
 func TestPackageRefreshReportsFailure(t *testing.T) {
 	f := newFakeRunner()
 	f.responses["apt-get update"] = Result{ExitCode: 100, Stderr: "E: Failed to fetch"}
 
-	err := NewSystemWithRunner(f).PackageRefresh(context.Background())
+	_, err := NewSystemWithRunner(f).PackageRefresh(context.Background(), nil)
 	if err == nil {
 		t.Fatal("ein Fehlschlag muss gemeldet werden")
 	}
 	if !strings.Contains(err.Error(), "Failed to fetch") {
 		t.Errorf("die apt-Meldung fehlt: %v", err)
+	}
+}
+
+// Ohne verwertbare Meldung auf stderr bleibt der Code — eine Fehlermeldung ohne
+// Inhalt wäre schlimmer als eine mit einer Zahl.
+func TestPackageRefreshOhneMeldung(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["apt-get update"] = Result{ExitCode: 100}
+
+	_, err := NewSystemWithRunner(f).PackageRefresh(context.Background(), nil)
+	if err == nil || !strings.Contains(err.Error(), "100") {
+		t.Errorf("Fehler = %v, erwartet eine Meldung mit dem Code", err)
+	}
+}
+
+// TestPackageRefreshTeilerfolg ist der eigentliche Grund für PackageRefreshResult.
+//
+// Die Ausgabe ist die eines echten Laufs auf einer Maschine mit zwei
+// aufgegebenen PPAs: apt beendet sich mit 100, obwohl Ubuntu und Docker
+// erfolgreich abgeholt wurden. Bis hierher meldete das Panel dafür
+// „Paketlisten konnten nicht aktualisiert werden" — falsch, denn die Listen
+// waren neu.
+func TestPackageRefreshTeilerfolg(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["apt-get update"] = Result{
+		ExitCode: 100,
+		Stdout:   aptUpdateOut,
+		Stderr: "E: Failed to fetch https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu/dists/noble/InRelease  403  Forbidden\n" +
+			"E: The repository 'https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu noble InRelease' is no longer signed.",
+	}
+
+	var zeilen []string
+	res, err := NewSystemWithRunner(f).PackageRefresh(context.Background(),
+		func(line string) { zeilen = append(zeilen, line) })
+	if err != nil {
+		t.Fatalf("ein Teilerfolg ist kein Fehler: %v", err)
+	}
+	if !res.Partial() {
+		t.Errorf("kein Teilerfolg erkannt: %+v", res)
+	}
+	if len(res.Failed) != 2 {
+		t.Fatalf("%d gescheiterte Quellen, erwartet 2: %+v", len(res.Failed), res.Failed)
+	}
+	if res.Reached != 4 {
+		t.Errorf("%d Antworten gezählt, erwartet 4", res.Reached)
+	}
+
+	erste := res.Failed[0]
+	if !strings.Contains(erste.Source, "deadsnakes") || !strings.Contains(erste.Source, "InRelease") {
+		t.Errorf("Quelle = %q", erste.Source)
+	}
+	// Der Grund steht bei apt eingerückt in der Folgezeile.
+	if erste.Reason != "403 Forbidden [IP: 185.125.189.187 443]" {
+		t.Errorf("Grund = %q", erste.Reason)
+	}
+
+	// Und die Ausgabe wurde weitergegeben — sie ist der Auszug in der Oberfläche.
+	if len(zeilen) == 0 {
+		t.Fatal("keine Zeile weitergegeben")
+	}
+	if !strings.Contains(strings.Join(zeilen, "\n"), "Reading package lists") {
+		t.Errorf("die Ausgabe kam unvollständig an:\n%s", strings.Join(zeilen, "\n"))
+	}
+}
+
+// Ein sauberer Lauf: nichts gescheitert, kein Teilerfolg.
+func TestPackageRefreshVollstaendig(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["apt-get update"] = Result{Stdout: "Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease\nReading package lists...\n"}
+
+	res, err := NewSystemWithRunner(f).PackageRefresh(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("PackageRefresh: %v", err)
+	}
+	if res.Partial() || len(res.Failed) != 0 {
+		t.Errorf("unerwartet: %+v", res)
+	}
+	if res.Reached != 1 {
+		t.Errorf("%d Antworten, erwartet 1", res.Reached)
+	}
+}
+
+// aptUpdateOut ist die stdout-Ausgabe eines echten Laufs (Ubuntu 24.04,
+// LC_ALL=C), gekürzt auf die Zeilenarten, die vorkommen: Err mit eingerücktem
+// Grund, Hit, Get, Ign und die Schlusszeile.
+const aptUpdateOut = `Err:1 https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu noble InRelease
+  403  Forbidden [IP: 185.125.189.187 443]
+Err:2 https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble InRelease
+  403  Forbidden [IP: 185.125.189.187 443]
+Hit:3 http://archive.ubuntu.com/ubuntu noble InRelease
+Get:4 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+Ign:5 http://apt.example.test/ubuntu noble InRelease
+Get:6 https://download.docker.com/linux/ubuntu noble InRelease [48.5 kB]
+Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1433 kB]
+Reading package lists...
+`
+
+// Ign zählt weder als Antwort noch als Fehler, und eine Ausgabe ohne
+// Err-Zeilen ergibt keine gescheiterte Quelle.
+func TestParseAptUpdate(t *testing.T) {
+	res := parseAptUpdate(aptUpdateOut)
+	if res.Reached != 4 {
+		t.Errorf("%d Antworten (Hit/Get), erwartet 4 — Ign darf nicht zählen", res.Reached)
+	}
+	if len(res.Failed) != 2 {
+		t.Errorf("%d Fehler, erwartet 2", len(res.Failed))
+	}
+
+	// Kein Grund in der Folgezeile: Dann bleibt das Feld leer, statt die
+	// nächste Quelle hineinzuziehen.
+	ohneGrund := parseAptUpdate("Err:1 http://apt.example.test/ubuntu noble InRelease\nHit:2 http://archive.ubuntu.com/ubuntu noble InRelease\n")
+	if len(ohneGrund.Failed) != 1 {
+		t.Fatalf("%d Fehler, erwartet 1", len(ohneGrund.Failed))
+	}
+	if ohneGrund.Failed[0].Reason != "" {
+		t.Errorf("Grund = %q, erwartet leer", ohneGrund.Failed[0].Reason)
+	}
+
+	if leer := parseAptUpdate(""); leer.Reached != 0 || len(leer.Failed) != 0 {
+		t.Errorf("leere Ausgabe ergab %+v", leer)
 	}
 }
 

@@ -8,22 +8,47 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
-// PackageRefresh aktualisiert die Paketlisten (apt-get update).
-func (s *System) PackageRefresh(ctx context.Context) error {
+// PackageRefresh aktualisiert die Paketlisten (apt-get update) und schreibt die
+// Ausgabe live weiter.
+//
+// „-q" und nicht „-qq": Ohne Fortschrittsbalken, aber mit den Zeilen, die etwas
+// sagen — welche Quelle geantwortet hat, welche nicht und warum. Genau die
+// stehen im Panel als Konsolenauszug; verworfen wurden sie bis hierher.
+//
+// Ein Exit-Code ungleich null bedeutet nicht zwangsläufig einen Fehlschlag:
+// Klemmt eine von sieben Quellen, meldet apt 100, und die sechs übrigen sind
+// trotzdem aktuell. Dieser Fall kommt als Ergebnis zurück (Partial), nicht als
+// Fehler — siehe PackageRefreshResult.
+func (s *System) PackageRefresh(ctx context.Context, stream LineWriter) (PackageRefreshResult, error) {
 	res, err := s.run(ctx, Command{
 		Name:    "apt-get",
 		Args:    []string{"update", "-q"},
-		Timeout: 5 * 60 * 1e9, // 5 Minuten
+		Timeout: 5 * time.Minute,
+		Stream:  stream,
 	})
 	if err != nil {
-		return err
+		return PackageRefreshResult{}, err
 	}
-	if res.ExitCode != 0 {
-		return fmt.Errorf("apt-get update: %s", firstLine(res.Stderr))
+
+	// Die Err-Zeilen und ihre Begründungen stehen auf stdout, die E-Zeilen auf
+	// stderr. Ausgewertet wird stdout; stderr trägt die Meldung für den Fall,
+	// dass gar nichts geglückt ist.
+	out := parseAptUpdate(res.Stdout)
+	switch {
+	case res.ExitCode == 0:
+		return out, nil
+	case out.Partial():
+		return out, nil
+	default:
+		meldung := firstLine(res.Stderr)
+		if meldung == "" {
+			meldung = fmt.Sprintf("Code %d", res.ExitCode)
+		}
+		return out, fmt.Errorf("apt-get update: %s", meldung)
 	}
-	return nil
 }
 
 // PackageUpgradable listet die aktualisierbaren Pakete.
@@ -153,6 +178,49 @@ func (s *System) RebootRequired(ctx context.Context) (RebootState, error) {
 }
 
 // ------------------------------------------------------------------ Parser ---
+
+// Die Zeilen von apt-get update. LC_ALL=C hält sie in der Form, die hier
+// erwartet wird (siehe exec.go):
+//
+//	Hit:3 http://archive.ubuntu.com/ubuntu noble InRelease
+//	Get:4 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+//	Err:1 https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu noble InRelease
+//	  403  Forbidden [IP: 185.125.189.187 443]
+//
+// Der Grund einer gescheiterten Quelle steht eingerückt in der Folgezeile.
+// „Ign:" zählt weder als Antwort noch als Fehler — apt übergeht die Quelle
+// bewusst.
+var (
+	aptHolPattern = regexp.MustCompile(`^(?:Hit|Get):\d+\s+\S`)
+	aptErrPattern = regexp.MustCompile(`^Err:\d+\s+(\S.*)$`)
+)
+
+func parseAptUpdate(out string) PackageRefreshResult {
+	var res PackageRefreshResult
+
+	lines := strings.Split(out, "\n")
+	for i, line := range lines {
+		line = strings.TrimRight(line, "\r")
+		switch {
+		case aptHolPattern.MatchString(line):
+			res.Reached++
+		case aptErrPattern.MatchString(line):
+			fehler := SourceFailure{
+				Source: strings.TrimSpace(aptErrPattern.FindStringSubmatch(line)[1]),
+			}
+			if i+1 < len(lines) {
+				naechste := strings.TrimRight(lines[i+1], "\r")
+				if strings.HasPrefix(naechste, " ") && strings.TrimSpace(naechste) != "" {
+					// Mehrfache Leerzeichen zu einem: apt richtet die Begründung
+					// aus ("403  Forbidden"), in einem Satz stört das.
+					fehler.Reason = strings.Join(strings.Fields(naechste), " ")
+				}
+			}
+			res.Failed = append(res.Failed, fehler)
+		}
+	}
+	return res
+}
 
 // Beispielzeile:
 //

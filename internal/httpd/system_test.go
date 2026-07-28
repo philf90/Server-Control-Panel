@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -35,6 +36,13 @@ type fakeOps struct {
 	actions      []string
 	appliedRules [][]privops.FirewallRule
 	upgradeDone  chan struct{}
+
+	// Das Aktualisieren der Paketlisten läuft wie das Einspielen als Vorgang im
+	// Hintergrund. refreshDone sagt dem Test, dass er gelaufen ist.
+	refreshLines  []string
+	refreshResult privops.PackageRefreshResult
+	refreshErr    error
+	refreshDone   chan struct{}
 
 	selfUpdates   []privops.SelfUpdateSpec
 	selfUpdateErr error
@@ -70,6 +78,16 @@ func newFakeOps() *fakeOps {
 		},
 		units:       []string{"ssh.service"},
 		upgradeDone: make(chan struct{}),
+
+		// Die Vorgabe ist ein sauberer Lauf: zwei Quellen geantwortet, keine
+		// gescheitert.
+		refreshLines: []string{
+			"Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease",
+			"Get:2 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]",
+			"Reading package lists...",
+		},
+		refreshResult: privops.PackageRefreshResult{Reached: 2},
+		refreshDone:   make(chan struct{}),
 	}
 }
 
@@ -105,9 +123,15 @@ func (f *fakeOps) ServiceAction(_ context.Context, unit string, action privops.S
 	return nil
 }
 
-func (f *fakeOps) PackageRefresh(context.Context) error {
+func (f *fakeOps) PackageRefresh(_ context.Context, stream privops.LineWriter) (privops.PackageRefreshResult, error) {
 	f.record("package:refresh")
-	return nil
+	if stream != nil {
+		for _, line := range f.refreshLines {
+			stream(line)
+		}
+	}
+	close(f.refreshDone)
+	return f.refreshResult, f.refreshErr
 }
 
 func (f *fakeOps) PackageUpgradable(context.Context) ([]privops.Package, error) {
@@ -441,6 +465,227 @@ func TestPackageUpgradeStartsJob(t *testing.T) {
 	}
 	lines, done, _ := job.snapshot()
 	t.Errorf("Job unvollständig: done=%t lines=%v", done, lines)
+}
+
+// TestPackageRefreshZeigtKonsolenauszug: Das Aktualisieren der Paketlisten läuft
+// als Vorgang und legt seine Ausgabe offen.
+//
+// Bis hierher lief es im Seitenaufruf, und die zwanzig Zeilen von apt-get update
+// wurden gesammelt und verworfen — wer wissen wollte, welche Quelle geantwortet
+// hat, brauchte SSH.
+func TestPackageRefreshZeigtKonsolenauszug(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	rec := post(t, s, "/packages/refresh", url.Values{"_csrf": {csrf}}, cookie)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("Status = %d, erwartet 303", rec.Code)
+	}
+	select {
+	case <-ops.refreshDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("der Vorgang wurde nicht gestartet")
+	}
+	warteAufJob(t, s)
+
+	body := get(t, s, "/packages", cookie).Body.String()
+	for _, want := range []string{
+		"Vorgang",
+		`id="job-output"`,
+		"Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease",
+		"Reading package lists...",
+		"abgeschlossen",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("die Seite enthält %q nicht", want)
+		}
+	}
+	// Ein sauberer Lauf ist keine Warnung.
+	if strings.Contains(body, "ließ sich nicht abholen") {
+		t.Error("ein vollständiger Lauf wird als Teilerfolg dargestellt")
+	}
+
+	// Und der Lauf steht im Audit-Log, mit Anfang und Ende.
+	entries, err := s.db.ListAudit(context.Background(), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gestartet, beendet bool
+	for _, e := range entries {
+		if e.Action != "package.refresh" {
+			continue
+		}
+		switch e.Detail {
+		case "gestartet":
+			gestartet = true
+		case "abgeschlossen":
+			beendet = e.Result == store.ResultOK
+		}
+	}
+	if !gestartet || !beendet {
+		t.Errorf("Audit unvollständig: gestartet=%t beendet=%t", gestartet, beendet)
+	}
+}
+
+// TestPackageRefreshTeilerfolgIstWarnung: Klemmt eine Quelle und laufen die
+// übrigen durch, ist das eine Warnung mit Nennung der Quelle — kein Fehlschlag.
+// apt beendet sich in diesem Fall mit 100, und das Panel meldete dafür
+// „Paketlisten konnten nicht aktualisiert werden", obwohl die Listen neu waren.
+func TestPackageRefreshTeilerfolgIstWarnung(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	ops.mu.Lock()
+	ops.refreshLines = []string{
+		"Err:1 https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble InRelease",
+		"  403  Forbidden [IP: 185.125.189.187 443]",
+		"Hit:2 http://archive.ubuntu.com/ubuntu noble InRelease",
+		"Reading package lists...",
+	}
+	ops.refreshResult = privops.PackageRefreshResult{
+		Reached: 1,
+		Failed: []privops.SourceFailure{{
+			Source: "https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble InRelease",
+			Reason: "403 Forbidden [IP: 185.125.189.187 443]",
+		}},
+	}
+	ops.mu.Unlock()
+
+	if rec := post(t, s, "/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
+		t.Fatalf("Status = %d, erwartet 303", rec.Code)
+	}
+	select {
+	case <-ops.refreshDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("der Vorgang wurde nicht gestartet")
+	}
+	warteAufJob(t, s)
+
+	body := get(t, s, "/packages", cookie).Body.String()
+	if !strings.Contains(body, "warn-box") {
+		t.Error("der Teilerfolg erscheint nicht als Warnung")
+	}
+	for _, want := range []string{
+		"Eine Quelle ließ sich nicht abholen",
+		"ondrej/php",
+		"403 Forbidden",
+		"mit Einschränkung abgeschlossen",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("die Warnung enthält %q nicht", want)
+		}
+	}
+	// Ein Teilerfolg ist kein Fehler: keine rote Meldung.
+	if strings.Contains(body, `class="alert error"`) {
+		t.Error("der Teilerfolg wird als Fehlschlag dargestellt")
+	}
+
+	// Im Audit-Log steht, welche Quelle gefehlt hat.
+	entries, err := s.db.ListAudit(context.Background(), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vermerkt bool
+	for _, e := range entries {
+		if e.Action == "package.refresh" && strings.Contains(e.Detail, "nicht erreichbar") {
+			vermerkt = e.Result == store.ResultOK && strings.Contains(e.Detail, "ondrej/php")
+		}
+	}
+	if !vermerkt {
+		t.Error("der Teilerfolg steht nicht im Audit-Log")
+	}
+}
+
+// Scheitert der Lauf ganz, bleibt es bei einer Fehlermeldung — und der Auszug
+// steht trotzdem da.
+func TestPackageRefreshFehlschlag(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	ops.mu.Lock()
+	ops.refreshLines = []string{"Err:1 http://archive.ubuntu.com/ubuntu noble InRelease", "  Temporary failure resolving"}
+	ops.refreshResult = privops.PackageRefreshResult{}
+	ops.refreshErr = errors.New("apt-get update: E: Failed to fetch")
+	ops.mu.Unlock()
+
+	if rec := post(t, s, "/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
+		t.Fatalf("Status = %d, erwartet 303", rec.Code)
+	}
+	select {
+	case <-ops.refreshDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("der Vorgang wurde nicht gestartet")
+	}
+	warteAufJob(t, s)
+
+	body := get(t, s, "/packages", cookie).Body.String()
+	for _, want := range []string{"fehlgeschlagen", "Failed to fetch", "Temporary failure resolving"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("die Seite enthält %q nicht", want)
+		}
+	}
+}
+
+// TestPackageEventsLiefertDenAuszug prüft den Weg, über den der Auszug im
+// Browser entsteht: den SSE-Kanal.
+//
+// Der Kanal gab es schon für das Einspielen, geprüft war er nicht. Mit dem
+// Aktualisieren der Paketlisten hat er einen zweiten Nutzer — und für ihn ist er
+// die eigentliche Anzeige, nicht die Beigabe.
+func TestPackageEventsLiefertDenAuszug(t *testing.T) {
+	s, ops := newSystemServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, csrf := login(t, s, user)
+
+	// Ohne Vorgang gibt es nichts zu streamen.
+	if rec := get(t, s, "/packages/events", cookie); rec.Code != http.StatusNotFound {
+		t.Errorf("ohne Vorgang: Status = %d, erwartet 404", rec.Code)
+	}
+
+	if rec := post(t, s, "/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
+		t.Fatalf("Status = %d, erwartet 303", rec.Code)
+	}
+	select {
+	case <-ops.refreshDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("der Vorgang wurde nicht gestartet")
+	}
+	warteAufJob(t, s)
+
+	// Wer später dazukommt, bekommt den ganzen Lauf und danach das Ende.
+	body := stream(t, s, "/packages/events", cookie, 2*time.Second).Body.String()
+	for _, want := range []string{
+		"event: output",
+		`"Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease"`,
+		`"Reading package lists..."`,
+		"event: end",
+		`data: "ok"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("der Kanal enthält %q nicht:\n%s", want, body)
+		}
+	}
+}
+
+// warteAufJob wartet, bis der Paketvorgang beendet ist. Er läuft in einer
+// eigenen Goroutine mit eigenem Kontext — ohne das Warten liest der Test die
+// Seite, während der Vorgang noch läuft.
+func warteAufJob(t *testing.T, s *Server) {
+	t.Helper()
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if j := s.jobs.get(jobPackages); j != nil {
+			if _, done, _ := j.snapshot(); done {
+				return
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("der Vorgang ist nicht fertig geworden")
 }
 
 // ---------------------------------------------------- Firewall-Rückrollschutz ---

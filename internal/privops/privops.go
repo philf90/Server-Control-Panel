@@ -25,7 +25,7 @@ type Executor interface {
 	ServiceAction(ctx context.Context, unit string, action ServiceAction) error
 
 	// Pakete
-	PackageRefresh(ctx context.Context) error
+	PackageRefresh(ctx context.Context, stream LineWriter) (PackageRefreshResult, error)
 	PackageUpgradable(ctx context.Context) ([]Package, error)
 	PackageUpgrade(ctx context.Context, opts UpgradeOptions, stream LineWriter) error
 	RebootRequired(ctx context.Context) (RebootState, error)
@@ -150,6 +150,34 @@ type UpgradeOptions struct {
 type RebootState struct {
 	Required bool     `json:"required"`
 	Packages []string `json:"packages"`
+}
+
+// PackageRefreshResult sagt, was ein Lauf von apt-get update erreicht hat.
+//
+// Nötig ist das wegen des Teilerfolgs: apt beendet sich mit 100, sobald eine
+// einzige Quelle klemmt — auch dann, wenn alle übrigen aktualisiert wurden. Ein
+// nackter Fehler wäre an dieser Stelle falsch. Er war es bisher: Auf einem
+// Server mit einer aufgegebenen PPA meldete das Panel „Paketlisten konnten
+// nicht aktualisiert werden", obwohl die Listen von Ubuntu und Docker frisch
+// waren.
+type PackageRefreshResult struct {
+	// Reached zählt die Antworten (Hit/Get). Es ist die Kennzahl dafür, dass
+	// überhaupt etwas geglückt ist, und keine Zahl für die Anzeige: apt zählt
+	// Indexdateien, nicht Quellen — eine Quelle liefert mehrere.
+	Reached int
+	// Failed sind die Quellen, die nicht abgeholt werden konnten.
+	Failed []SourceFailure
+}
+
+// Partial sagt, ob der Lauf teils geglückt ist: einzelne Quellen klemmen, die
+// übrigen sind auf dem neuen Stand.
+func (r PackageRefreshResult) Partial() bool { return len(r.Failed) > 0 && r.Reached > 0 }
+
+// SourceFailure ist eine Quelle, die apt nicht abholen konnte, mit dem Grund
+// aus der Folgezeile (etwa „403 Forbidden").
+type SourceFailure struct {
+	Source string
+	Reason string
 }
 
 // -------------------------------------------------------------- Firewall ---

@@ -81,13 +81,18 @@
   </div>
 </div>
 
+{{/* Der Auszug steht immer, nicht nur im Fehlerfall: Welche Quelle geantwortet
+     hat und welche nicht, ist auch dann die Auskunft, die zählt, wenn alles
+     gut ging. JobNote ist der Teilerfolg — kein Fehler, aber auch keine
+     vollständige Erneuerung. */}}
 {{if or .JobRunning .JobLines}}
 <div class="section">
   <div class="sechead">
     <span class="seclabel">Vorgang</span>
-    <span class="sub" id="job-status">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
+    <span class="sub" id="job-status">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else if .JobNote}}mit Einschränkung abgeschlossen{{else}}abgeschlossen{{end}}</span>
   </div>
   {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
+  {{if .JobNote}}<div class="alert warn-box">{{.JobNote}}</div>{{end}}
   <pre class="logs" id="job-output" data-events="/packages/events">{{range .JobLines}}{{.}}
 {{end}}</pre>
 </div>

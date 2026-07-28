@@ -152,6 +152,23 @@ nicht als Release getaggt.
 
 ### Geändert
 
+- **„Paketlisten aktualisieren" zeigt, was `apt-get update` gemeldet hat.**
+  Bisher lief der Aufruf im Seitenaufruf, und seine Ausgabe wurde gesammelt und
+  verworfen: Übrig blieb im Fehlerfall die erste `stderr`-Zeile. Wer wissen
+  wollte, welche Quelle geantwortet hat und welche nicht, brauchte SSH. Der Lauf
+  ist jetzt ein Vorgang mit Live-Ausgabe — dieselbe Mechanik wie beim Einspielen,
+  mit eigenem Kontext, damit ein geschlossener Tab kein laufendes `apt-get`
+  abbricht. Der Auszug steht immer da, nicht nur bei Fehlern.
+
+  **Ein Teilerfolg ist keine Fehlermeldung mehr.** apt beendet sich mit 100,
+  sobald eine einzige Quelle klemmt — auch dann, wenn alle übrigen aktualisiert
+  wurden. Auf einem Server mit einer aufgegebenen PPA meldete das Panel dafür
+  „Paketlisten konnten nicht aktualisiert werden", obwohl die Listen von Ubuntu
+  und Docker frisch waren. Jetzt wird die Ausgabe ausgewertet: Gibt es Antworten
+  *und* gescheiterte Quellen, ist es eine Warnung, die die betroffenen Quellen
+  mit Grund nennt („403 Forbidden") und dazusagt, dass die Aufstellung
+  unvollständig sein kann. Scheitert alles, bleibt es ein Fehler. Der Ausgang
+  steht mit den betroffenen Quellen im Audit-Log.
 - **Die weiteren Einhängepunkte einer Platte klappen in der Übersicht auf.** Ein
   Dateisystem, das an mehreren Stellen hängt — die Härtung der eigenen Unit tut
   das mit Teilen von `/` —, stand als eine Zeile mit dem Hinweis „auch an 6

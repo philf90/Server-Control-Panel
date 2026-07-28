@@ -79,6 +79,39 @@ func TestDumpSeiten(t *testing.T) {
 	}
 	ops.mu.Unlock()
 
+	// --- Pakete: ein abgeschlossener Lauf von apt-get update ---
+	//
+	// Die Zeilen sind die eines echten Laufs (Ubuntu 24.04, LC_ALL=C), samt
+	// eines Teilerfolgs: Zwei aufgegebene PPAs antworten mit 403, die übrigen
+	// Quellen sind neu. Genau dieser Fall soll im Bildschirmfoto zu sehen sein —
+	// er ist der Grund, warum der Auszug überhaupt angezeigt wird.
+	if j, ok := s.jobs.start(jobPackages, "philipp"); ok {
+		for _, zeile := range []string{
+			"Err:1 https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble InRelease",
+			"  403  Forbidden [IP: 185.125.189.187 443]",
+			"Hit:2 http://archive.ubuntu.com/ubuntu noble InRelease",
+			"Get:3 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]",
+			"Get:4 http://archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]",
+			"Get:5 https://download.docker.com/linux/ubuntu noble InRelease [48.5 kB]",
+			"Get:6 http://security.ubuntu.com/ubuntu noble-security/main amd64 Packages [1110 kB]",
+			"Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1433 kB]",
+			"Fetched 2843 kB in 2s (1421 kB/s)",
+			"Reading package lists...",
+			"E: Failed to fetch https://ppa.launchpadcontent.net/ondrej/php/ubuntu/dists/noble/InRelease  403  Forbidden [IP: 185.125.189.187 443]",
+			"E: The repository 'https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble InRelease' is no longer signed.",
+		} {
+			j.append(zeile)
+		}
+		j.setNote(refreshHinweis(privops.PackageRefreshResult{
+			Reached: 6,
+			Failed: []privops.SourceFailure{{
+				Source: "https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble InRelease",
+				Reason: "403 Forbidden [IP: 185.125.189.187 443]",
+			}},
+		}))
+		j.finish(nil)
+	}
+
 	// --- Konto: Wiederherstellungscodes und mehrere Sitzungen ---
 	if _, hashes, err := auth.NewRecoveryCodes(); err != nil {
 		t.Fatal(err)

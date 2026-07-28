@@ -25,6 +25,10 @@ type job struct {
 	err      error
 	done     bool
 	subs     map[chan string]struct{}
+	// note ist eine Anmerkung zum Ergebnis, die kein Fehler ist: der
+	// Teilerfolg von apt-get update etwa, bei dem einzelne Quellen klemmen und
+	// die übrigen Listen trotzdem neu sind.
+	note string
 }
 
 func newJob(kind, actor string) *job {
@@ -70,6 +74,20 @@ func (j *job) finish(err error) {
 	for _, ch := range subs {
 		close(ch)
 	}
+}
+
+// setNote hinterlegt die Anmerkung zum Ergebnis. Vor finish aufzurufen: Wer den
+// Vorgang als beendet sieht, soll auch die Anmerkung sehen.
+func (j *job) setNote(note string) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.note = note
+}
+
+func (j *job) noteOf() string {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	return j.note
 }
 
 func (j *job) snapshot() (lines []string, done bool, err error) {

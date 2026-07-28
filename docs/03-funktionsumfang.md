@@ -56,6 +56,9 @@ der ersten Stunde tut.
 ### Pakete & Updates (apt)
 - Verfügbare Updates anzeigen, Sicherheitsupdates markiert.
 - Einzeln oder gesamt einspielen, Live-Ausgabe im Browser.
+- Paketlisten aktualisieren mit dem Auszug von `apt-get update`: welche Quelle
+  geantwortet hat, welche nicht und warum. Klemmt eine Quelle und laufen die
+  übrigen durch, ist das eine Warnung mit Nennung der Quelle — kein Fehlschlag.
 - Reboot-Required-Hinweis (`/var/run/reboot-required`).
 - Unattended-Upgrades ein-/ausschalten und Konfiguration anzeigen.
 

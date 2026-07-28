@@ -124,6 +124,7 @@ func (s *Server) renderPackages(w http.ResponseWriter, r *http.Request, status i
 		content.JobLines = lines
 		content.JobRunning = !done
 		content.JobDone = done
+		content.JobNote = j.noteOf()
 		if jobErr != nil {
 			content.JobError = jobErr.Error()
 		}
@@ -139,14 +140,84 @@ func (s *Server) renderPackages(w http.ResponseWriter, r *http.Request, status i
 	s.renderPage(w, r, status, "packages", page)
 }
 
+// handlePackageRefresh holt die Paketlisten neu — als Vorgang mit Live-Ausgabe.
+//
+// Bis hierher lief das im Seitenaufruf und ohne Ausgabe: Die zwanzig Zeilen von
+// apt-get update wurden gesammelt und verworfen, übrig blieb im Fehlerfall die
+// erste stderr-Zeile. Wer wissen wollte, welche Quelle klemmt, musste sich
+// über SSH anmelden.
+//
+// Derselbe Vorgangsschlüssel wie das Einspielen: Zwei apt-Läufe blockieren sich
+// an der dpkg-Sperre, das soll die Oberfläche verhindern und nicht ausprobieren.
 func (s *Server) handlePackageRefresh(w http.ResponseWriter, r *http.Request) {
-	if err := s.ops.PackageRefresh(r.Context()); err != nil {
-		s.audit(r, "package.refresh", "", store.ResultError, err.Error())
-		s.renderPackages(w, r, http.StatusBadGateway, "", "Paketlisten konnten nicht aktualisiert werden: "+err.Error())
+	user, _ := userFrom(r.Context())
+
+	j, started := s.jobs.start(jobPackages, user.Username)
+	if !started {
+		s.renderPackages(w, r, http.StatusConflict, "", "Es läuft bereits ein Paketvorgang.")
 		return
 	}
-	s.audit(r, "package.refresh", "", store.ResultOK, "")
-	s.renderPackages(w, r, http.StatusOK, "Paketlisten aktualisiert.", "")
+	s.audit(r, "package.refresh", "", store.ResultOK, "gestartet")
+
+	// Eigener Kontext, wie beim Einspielen: Der Vorgang soll nicht daran
+	// hängen, ob der Tab offen bleibt. Die Frist liegt über der des Kommandos
+	// selbst (5 Minuten), damit sie erst greift, wenn dort etwas festhängt.
+	go func() { //nolint:gosec // eigener Kontext ist hier Absicht, siehe Kommentar oben
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		res, err := s.ops.PackageRefresh(ctx, j.append)
+
+		result, detail := store.ResultOK, "abgeschlossen"
+		switch {
+		case err != nil:
+			result, detail = store.ResultError, err.Error()
+		case res.Partial():
+			// Teilerfolg: Die Listen sind neu, aber nicht vollständig. Das
+			// gehört in die Oberfläche und ins Audit-Log — verschwiegen wäre es
+			// eine Zusage, die niemand halten kann.
+			j.setNote(refreshHinweis(res))
+			detail = fmt.Sprintf("%d Quelle(n) nicht erreichbar: %s",
+				len(res.Failed), quellenListe(res.Failed))
+		}
+		j.finish(err)
+
+		if auditErr := s.db.AppendAudit(context.Background(), store.AuditEntry{
+			At: time.Now(), Actor: user.Username, Action: "package.refresh",
+			Result: result, IP: "-", Detail: detail,
+		}); auditErr != nil {
+			s.log.Error("audit-eintrag", "err", auditErr)
+		}
+	}()
+
+	http.Redirect(w, r, "/packages", http.StatusSeeOther)
+}
+
+// refreshHinweis formuliert den Teilerfolg für die Oberfläche.
+//
+// Ohne Zahl der geglückten Quellen: apt zählt Indexdateien, nicht Quellen, und
+// eine hergeleitete Zahl wäre eine Behauptung. Genannt wird, was fehlt.
+func refreshHinweis(res privops.PackageRefreshResult) string {
+	einleitung := "Eine Quelle ließ sich nicht abholen"
+	if len(res.Failed) > 1 {
+		einleitung = fmt.Sprintf("%d Quellen ließen sich nicht abholen", len(res.Failed))
+	}
+	return einleitung + ": " + quellenListe(res.Failed) +
+		". Die übrigen Listen sind auf dem neuen Stand — die Aufstellung unten " +
+		"kann deshalb unvollständig sein. Einzelheiten stehen im Auszug."
+}
+
+// quellenListe nennt die gescheiterten Quellen mit ihrem Grund.
+func quellenListe(failed []privops.SourceFailure) string {
+	teile := make([]string, 0, len(failed))
+	for _, f := range failed {
+		if f.Reason != "" {
+			teile = append(teile, f.Source+" ("+f.Reason+")")
+			continue
+		}
+		teile = append(teile, f.Source)
+	}
+	return strings.Join(teile, " · ")
 }
 
 // handleReboot startet den Server neu. Das ist die einschneidendste Aktion des

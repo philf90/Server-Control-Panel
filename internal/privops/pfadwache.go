@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 )
 
 // Die Pfadwache ist die einzige Stelle, an der ein Pfad aus einer HTTP-Anfrage
@@ -61,6 +62,11 @@ type pfadwache struct {
 
 	mu    sync.Mutex
 	roots map[string]*os.Root
+
+	// Kennungen (Gerät und Inode) der gesperrten Dateien, einmal je Prozess
+	// ermittelt. Siehe geheimeKennungen.
+	idOnce sync.Once
+	ids    map[[2]uint64]string
 }
 
 // pfad ist ein geprüfter Pfad. Nur hierüber laufen die Operationen.
@@ -386,6 +392,62 @@ func (w *pfadwache) sensibel(echt, roh string) (bool, string) {
 func (w *pfadwache) istSensibel(p string) bool {
 	ok, _ := w.sensibel(p, p)
 	return ok
+}
+
+// geheimeKennungen sind Gerät und Inode der gesperrten Dateien.
+//
+// Die Sperrliste vergleicht Pfade, und ein Pfad ist nicht die Datei: Ein
+// Hardlink auf /etc/shadow trägt einen anderen Namen und käme an jedem
+// Mustervergleich vorbei. Dasselbe gilt für einen Bind-Mount. Deshalb wird
+// zusätzlich die Identität geprüft — Gerät und Inode der geöffneten Datei gegen
+// die der gesperrten.
+//
+// Einmal je Prozess: Die Liste umfasst ein Dutzend Muster, und ein Glob je
+// Lesezugriff wäre Aufwand ohne Gegenwert. Neu entstandene Dateien deckt
+// weiterhin der Mustervergleich ab; die Kennungen sind das Netz für Aliase auf
+// die zum Startzeitpunkt vorhandenen Geheimnisse.
+func (w *pfadwache) geheimeKennungen() map[[2]uint64]string {
+	w.idOnce.Do(func() {
+		w.ids = make(map[[2]uint64]string)
+		for _, d := range w.verboten {
+			treffer, err := filepath.Glob(d.Pattern)
+			if err != nil {
+				continue
+			}
+			for _, t := range treffer {
+				if istOeffentlicherSchluessel(filepath.Base(t)) {
+					continue
+				}
+				info, err := os.Lstat(t)
+				if err != nil || !info.Mode().IsRegular() {
+					continue
+				}
+				st, ok := info.Sys().(*syscall.Stat_t)
+				if !ok {
+					continue
+				}
+				grund := d.Reason
+				if grund == "" {
+					grund = "gesperrt"
+				}
+				w.ids[[2]uint64{uint64(st.Dev), st.Ino}] = grund //nolint:unconvert // Feldtyp je Plattform verschieden
+			}
+		}
+	})
+	return w.ids
+}
+
+// pruefeKennung lehnt eine geöffnete Datei ab, die dieselbe Datei ist wie ein
+// gesperrter Pfad — unter welchem Namen auch immer.
+func (w *pfadwache) pruefeKennung(info fs.FileInfo, name string) error {
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return nil
+	}
+	if grund, gesperrt := w.geheimeKennungen()[[2]uint64{uint64(st.Dev), st.Ino}]; gesperrt { //nolint:unconvert // Feldtyp je Plattform verschieden
+		return fmt.Errorf("%w: %s ist dieselbe Datei wie ein gesperrter Pfad (%s)", ErrDenied, name, grund)
+	}
+	return nil
 }
 
 // vorfahren liefert den Pfad und alle darüberliegenden Verzeichnisse.

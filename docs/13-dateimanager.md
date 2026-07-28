@@ -87,6 +87,12 @@ Zwei Feinheiten:
 Ergänzen lässt sich die Liste über `files.denied_paths` (Muster nach
 `filepath.Match`). Verkleinern nicht.
 
+**Ein Pfad ist nicht die Datei.** Ein Hardlink auf `/etc/shadow` trägt einen
+Namen, den kein Muster trifft; dasselbe gilt für einen Bind-Mount. Deshalb wird
+zusätzlich die Identität geprüft: Gerät und Inode der geöffneten Datei gegen die
+der gesperrten, einmal je Prozess ermittelt. Neu entstandene Dateien deckt
+weiterhin der Mustervergleich ab.
+
 ## Was nicht angefasst wird
 
 - **`/proc`, `/sys` und `/dev`** werden nicht durchlaufen und nicht

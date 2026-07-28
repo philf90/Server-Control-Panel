@@ -246,6 +246,14 @@ nicht als Release getaggt.
 
 ### Behoben
 
+- **Ein Zeilenumbruch in einem Zielpfad landete unverändert im Audit-Log.**
+  Gefunden beim Angriffsdurchgang des Dateimanagers, betrifft aber jeden
+  Aufrufer: `store.AppendAudit` macht Steuerzeichen und
+  Schreibrichtungs-Umschalter jetzt als Escape-Folge sichtbar und begrenzt die
+  Feldlänge auf 1024 Zeichen. Heute liegt das Log in SQLite, wo eine Spalte
+  einen Zeilenumbruch verträgt — für das geplante zeilenweise Protokoll unter
+  `/var/log/asylum/audit.log` wären aus einem Eintrag zwei geworden, und der
+  zweite wäre frei erfunden.
 - **Die Filterleiste ragte im schmalen Modus vier Pixel über den Rand.** Ihr
   negativer Randausgleich stand auf `-1rem`, der Innenabstand von `main`
   unterhalb von 900 Pixeln aber auf `0,75rem`. Betroffen waren Dienste, Logs und

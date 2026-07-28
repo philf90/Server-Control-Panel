@@ -483,13 +483,20 @@ Owner" muss irgendwo endlich sein.
 Gebaut in sieben Schritten: Pfadwache, Leseansicht, Schreiboperationen, Upload,
 Editor, Härtung und Angriffsdurchgang.
 
-| Kennzahl | Grenze | Ist |
-|---|---|---|
-| Binärgröße | < 30 MB | 16,6 MB (davon 351 KiB Editor-Bundle) |
-| Direkte Go-Abhängigkeiten | < 25 | 6 (unverändert — alles über die Standardbibliothek) |
-| Testabdeckung `privops` | > 72 % (CI-Schwelle) | 76 % |
-| Testabdeckung `httpd` | > 63 % (CI-Schwelle) | 69 % |
-| Haufenwachstum bei 40-MiB-Upload | — | 0 B (gestreamt) |
+| Kennzahl | Grenze | Ist | Ohne den Dateimanager |
+|---|---|---|---|
+| Binärgröße | < 30 MB | 16,6 MB | 15,8 MB |
+| RSS im Leerlauf | < 40 MB | 22,0 MB | 19,7 MB |
+| Direkte Go-Abhängigkeiten | < 25 | 6 | 6 |
+| Testabdeckung `privops` | > 72 % (CI-Schwelle) | 76 % | 75 % |
+| Testabdeckung `httpd` | > 63 % (CI-Schwelle) | 69 % | 67 % |
+| Haufenwachstum bei 40-MiB-Upload | — | 0 B (gestreamt) | — |
+
+Die rechte Spalte ist derselbe Stand ohne diesen Zweig (`a4e07c4`), auf derselben
+Maschine mit derselben Methode gemessen — sonst wäre der Vergleich keiner. Der
+Dateimanager kostet also 0,8 MB im Binary (davon 351 KiB das Editor-Bundle) und
+2,3 MB Grundlast. Keine neue Go-Abhängigkeit: Der gesamte Dateizugriff läuft über
+die Standardbibliothek (`os.Root`, `archive/tar`, `compress/gzip`).
 
 Der Dateimanager ist das erste Modul, dessen Ziel aus der Anfrage kommt und
 nicht aus einer Allowlist: Bei den Diensten steht ein Unit-Name zur Wahl, hier

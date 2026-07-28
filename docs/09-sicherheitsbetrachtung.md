@@ -221,6 +221,31 @@ Drei Riegel dagegen:
    gegen eine nur lesende Rolle geprüft — eine vergessene Middleware-Kette an
    einer einzigen Route wäre ein Loch, das kein anderer Test findet.
 
+### Beim Angriffsdurchgang gefunden
+
+Zwei Dinge, die der Durchgang zutage gebracht hat und die vorher keinem Test
+aufgefallen wären:
+
+- **Ein Hardlink umging die Sperrliste.** Sie vergleicht Pfade, und ein Pfad ist
+  nicht die Datei: `ln /etc/shadow /srv/harmlos.txt` trägt einen Namen, den kein
+  Muster trifft. Die Wache prüft deshalb zusätzlich die Identität — Gerät und
+  Inode der geöffneten Datei gegen die der gesperrten, ermittelt einmal je
+  Prozess. Damit ist auch ein Bind-Mount auf ein Geheimnis abgedeckt. Der Test
+  dazu scheitert zuverlässig, wenn man die Prüfung entfernt.
+
+  Praktisch braucht dieser Angriff lokalen Schreibzugriff, und
+  `fs.protected_hardlinks` (Vorgabe auf jeder gängigen Distribution) verbietet
+  das Verlinken fremder Dateien. Die Prüfung ist trotzdem drin: Ein Riegel, der
+  von einer Kernel-Einstellung abhängt, ist kein Riegel.
+- **Ein Zeilenumbruch im Pfad landete unverändert im Audit-Log.** Das Log liegt
+  heute in SQLite, wo eine Spalte einen Zeilenumbruch verträgt; die Roadmap sieht
+  aber zusätzlich ein zeilenweises Protokoll unter `/var/log/asylum/audit.log`
+  vor, und dort wären aus einem Eintrag zwei geworden — der zweite frei
+  erfunden. `store.AppendAudit` macht Steuerzeichen und
+  Schreibrichtungs-Umschalter jetzt als Escape-Folge sichtbar und begrenzt die
+  Feldlänge. Sichtbar machen statt entfernen: Ein Pfad, aus dem stillschweigend
+  Zeichen verschwinden, führt bei der Fehlersuche in die Irre.
+
 ### Was gegen Pfadausbruch getan ist
 
 Die gesamte Prüfung liegt in `internal/privops/pfadwache.go`. Aufgelöst wird über

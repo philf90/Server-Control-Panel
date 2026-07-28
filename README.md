@@ -26,7 +26,7 @@ Der Installer gibt am Ende einen einmaligen Setup-Link aus. Dort werden
 Administrator-Konto und Zwei-Faktor-Anmeldung eingerichtet — es wird bewusst kein
 Passwort vergeben, das im Terminal oder in der Shell-History stünde.
 
-Gemessen am aktuellen Stand: 16,6 MB Binary, 15,9 MB RSS im Leerlauf, 39 ms für eine
+Gemessen am aktuellen Stand: 16,6 MB Binary, 22 MB RSS im Leerlauf, 39 ms für eine
 Anmeldung, TLS 1.3 mit selbstsigniertem Zertifikat beim ersten Start.
 
 Aktualisiert wird über das Panel oder mit `sudo asylum update`: Signatur gegen den

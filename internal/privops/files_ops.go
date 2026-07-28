@@ -299,6 +299,17 @@ func (f *FileSystem) oeffnenNurLesen(pf *pfad) (*os.File, error) {
 		_ = datei.Close()
 		return nil, fmt.Errorf("%s: %w", pf.Roh, err)
 	}
+	// Zusätzlich zur Sperrliste die Identität: Ein Hardlink auf /etc/shadow
+	// trägt einen anderen Namen und käme an jedem Mustervergleich vorbei.
+	info, err := datei.Stat()
+	if err != nil {
+		_ = datei.Close()
+		return nil, fmt.Errorf("%s: %w", pf.Roh, err)
+	}
+	if err := f.wache.pruefeKennung(info, pf.Roh); err != nil {
+		_ = datei.Close()
+		return nil, err
+	}
 	return datei, nil
 }
 

@@ -114,6 +114,8 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("GET /files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
 		mux.Handle("GET /files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
 		mux.Handle("GET /files/events", s.protected(http.HandlerFunc(s.handleFileEvents)))
+		mux.Handle("GET /files/edit", s.protected(http.HandlerFunc(s.handleFileEdit)))
+		mux.Handle("POST /files/save", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileSave)))))
 		// Verändern: Schreibrolle und CSRF, wie in jedem anderen Modul. Die
 		// Prüfung des Pfads selbst liegt in der Pfadwache, nicht hier.
 		mux.Handle("POST /files/mkdir", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMkdir)))))

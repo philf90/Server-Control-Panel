@@ -9,7 +9,7 @@ LDFLAGS := -s -w \
 	-X $(PKG)/internal/version.Commit=$(COMMIT) \
 	-X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: help build test lint fmt vet run dist clean check
+.PHONY: help build test lint fmt vet run dist clean check editor
 
 help: ## Diese Übersicht
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -44,6 +44,10 @@ run: build ## Lokal starten (Port 8443, Daten unter ./.local)
 	ASYLUM_BIND=127.0.0.1 \
 	ASYLUM_LOG_LEVEL=debug \
 	./bin/$(BINARY) serve
+
+editor: ## Editor-Bundle (CodeMirror) neu bauen
+	@command -v npm >/dev/null 2>&1 || { echo "npm nicht installiert — der eingecheckte Bundle bleibt, wie er ist"; exit 0; }
+	cd packaging/editor && npm ci --no-audit --no-fund && node build.mjs
 
 dist: ## Release-Artefakte lokal bauen (ohne Veröffentlichung)
 	@command -v goreleaser >/dev/null 2>&1 \

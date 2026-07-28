@@ -39,13 +39,17 @@ var allowedCommands = map[string][]string{
 	"apt-cache":   {"/usr/bin/apt-cache"},
 	"dpkg-query":  {"/usr/bin/dpkg-query"},
 	"nft":         {"/usr/sbin/nft", "/sbin/nft"},
-	"ufw":         {"/usr/sbin/ufw", "/sbin/ufw"},
-	"useradd":     {"/usr/sbin/useradd", "/sbin/useradd"},
-	"usermod":     {"/usr/sbin/usermod", "/sbin/usermod"},
-	"userdel":     {"/usr/sbin/userdel", "/sbin/userdel"},
-	"passwd":      {"/usr/bin/passwd"},
-	"ssh-keygen":  {"/usr/bin/ssh-keygen"},
-	"id":          {"/usr/bin/id", "/bin/id"},
+	// sshd wird ausschließlich mit -t aufgerufen: Konfiguration prüfen, nichts
+	// starten. Der Editor kann sshd_config ändern, und ein Tippfehler darin
+	// kostet den Zugang zum Server — siehe configcheck.go.
+	"sshd":       {"/usr/sbin/sshd", "/sbin/sshd"},
+	"ufw":        {"/usr/sbin/ufw", "/sbin/ufw"},
+	"useradd":    {"/usr/sbin/useradd", "/sbin/useradd"},
+	"usermod":    {"/usr/sbin/usermod", "/sbin/usermod"},
+	"userdel":    {"/usr/sbin/userdel", "/sbin/userdel"},
+	"passwd":     {"/usr/bin/passwd"},
+	"ssh-keygen": {"/usr/bin/ssh-keygen"},
+	"id":         {"/usr/bin/id", "/bin/id"},
 }
 
 // Command beschreibt einen Aufruf. Args werden als Argumentvektor übergeben,

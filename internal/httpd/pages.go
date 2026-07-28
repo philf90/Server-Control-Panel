@@ -350,6 +350,29 @@ type fileEntryPage struct {
 	Text *privops.TextFile
 }
 
+// fileEditPage ist die Editor-Seite.
+type fileEditPage struct {
+	Entry  privops.FileEntry
+	Text   privops.TextFile
+	Dir    string
+	Crumbs []crumb
+	// Sprache ist die Kennung für die Hervorhebung, vom Server bestimmt: Dort
+	// ist der ganze Pfad bekannt, und /etc/nginx/sites-enabled/beispiel hat
+	// keine Endung.
+	Sprache string
+	// Eingabe ist der Inhalt im Textfeld. Nach einem Konflikt ist das die
+	// Fassung des Benutzers, sonst die von der Platte.
+	Eingabe string
+	// Konflikt sagt, dass die Datei zwischenzeitlich von außen geändert wurde.
+	Konflikt bool
+	// Pruefung ist das Ergebnis des Prüfprogramms, falls es für diese Datei
+	// eines gibt.
+	Pruefung *privops.ConfigCheckResult
+	// Nonce weist das Stil-Element des Editors gegenüber der
+	// Content-Security-Policy aus. Je Antwort neu.
+	Nonce string
+}
+
 // crumb ist ein Bestandteil des klickbaren Pfads.
 type crumb struct {
 	Name string

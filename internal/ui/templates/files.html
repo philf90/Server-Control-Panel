@@ -133,6 +133,7 @@
             {{if .Sensitive}}
               <span class="muted klein">{{.SensitiveReason}}</span>
             {{else if eq .Kind "datei"}}
+              {{if and $.CanWrite .Writable}}<a class="button small" href="{{$.Content.EditLink .Path}}">bearbeiten</a>{{end}}
               <a class="button small" href="/files/download?path={{.Path | urlquery}}">laden</a>
             {{end}}
             <a class="button small secondary" href="{{$.Content.EntryLink .Path}}">Details</a>

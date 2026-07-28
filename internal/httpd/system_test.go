@@ -38,6 +38,12 @@ type fakeOps struct {
 
 	selfUpdates   []privops.SelfUpdateSpec
 	selfUpdateErr error
+
+	// configCheck ist die Antwort auf eine Konfigurationsprüfung. Ohne Eintrag
+	// meldet die Attrappe "nicht geprüft" — dasselbe, was das echte System für
+	// eine Datei ohne Prüfprogramm sagt.
+	configCheck    privops.ConfigCheckResult
+	configCheckErr error
 }
 
 func newFakeOps() *fakeOps {
@@ -216,6 +222,13 @@ func (f *fakeOps) Logs(context.Context, privops.LogQuery) ([]privops.LogEntry, e
 }
 
 func (f *fakeOps) LogUnits(context.Context) ([]string, error) { return f.units, nil }
+
+func (f *fakeOps) ConfigCheck(_ context.Context, path string) (privops.ConfigCheckResult, error) {
+	f.record("configcheck:" + path)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.configCheck, f.configCheckErr
+}
 
 func (f *fakeOps) SelfUpdateStart(_ context.Context, spec privops.SelfUpdateSpec) error {
 	f.mu.Lock()

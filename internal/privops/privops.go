@@ -50,6 +50,11 @@ type Executor interface {
 	AuthorizedKeyAdd(ctx context.Context, user, key string) error
 	AuthorizedKeyRemove(ctx context.Context, user, fingerprint string) error
 
+	// Konfigurationsprüfung. Sie gehört hierher und nicht in Files: Geprüft
+	// wird mit einem Programm des Systems, und der Aufruf von Programmen ist
+	// genau das, was dieses Interface bündelt.
+	ConfigCheck(ctx context.Context, path string) (ConfigCheckResult, error)
+
 	// Logs
 	Logs(ctx context.Context, q LogQuery) ([]LogEntry, error)
 	LogUnits(ctx context.Context) ([]string, error)

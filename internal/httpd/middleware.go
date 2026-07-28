@@ -7,21 +7,41 @@ import (
 	"time"
 )
 
-// contentSecurityPolicy ist bewusst eng. Kein 'unsafe-inline', keine externen
-// Quellen: Alle Skripte und Stile kommen aus dem Binary selbst. Jede spätere
-// Lockerung soll eine bewusste Entscheidung mit Begründung sein, kein stilles
-// Aufweichen.
+// Die Content-Security-Policy ist bewusst eng. Kein 'unsafe-inline', keine
+// externen Quellen: Alle Skripte und Stile kommen aus dem Binary selbst. Jede
+// spätere Lockerung soll eine bewusste Entscheidung mit Begründung sein, kein
+// stilles Aufweichen.
 //
 // script-src und connect-src sind für die Live-Ansicht nötig (SSE über
 // EventSource), form-action 'self' für die Formulare der Oberfläche.
-const contentSecurityPolicy = "default-src 'none'; " +
+const cspBasis = "default-src 'none'; " +
 	"script-src 'self'; " +
-	"style-src 'self'; " +
 	"img-src 'self' data:; " +
 	"connect-src 'self'; " +
 	"form-action 'self'; " +
 	"base-uri 'none'; " +
 	"frame-ancestors 'none'"
+
+// contentSecurityPolicy gilt für jede Seite.
+const contentSecurityPolicy = cspBasis + "; style-src 'self'"
+
+// cspMitStilNonce erlaubt einem einzelnen Stil-Element, sich mit dem genannten
+// Nonce auszuweisen.
+//
+// Gebraucht wird das genau an einer Stelle: Der Editor (CodeMirror) trägt seine
+// Regeln zur Laufzeit in ein eigenes <style>-Element ein. Unter `style-src
+// 'self'` verwirft Chromium das — im Browser nachgemessen, der Editor blieb
+// ungestylt. Der naheliegende Ausweg wäre 'unsafe-inline' für diese Seite; damit
+// wäre aber jeder eingeschleuste Stil erlaubt, und Stile können Inhalte
+// verdecken oder Eingaben abfließen lassen (etwa über einen
+// Hintergrundbild-Selektor auf einem Passwortfeld).
+//
+// Ein Nonce erlaubt stattdessen genau das eine Element, das den Wert kennt. Der
+// Wert wird je Antwort neu gezogen und über ein data-Attribut an den Editor
+// gegeben, der ihn an CodeMirror weiterreicht (EditorView.cspNonce).
+func cspMitStilNonce(nonce string) string {
+	return cspBasis + "; style-src 'self' 'nonce-" + nonce + "'"
+}
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

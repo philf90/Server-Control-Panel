@@ -13,6 +13,7 @@
     {{if .Entry.IsDir}}
       <a class="button small" href="/files/archive?path={{.Entry.Path | urlquery}}">als tar.gz laden</a>
     {{else if .Entry.Readable}}
+      {{if .Editable}}<a class="button small" href="{{.EditLink}}">bearbeiten</a>{{end}}
       <a class="button small" href="/files/download?path={{.Entry.Path | urlquery}}">herunterladen</a>
     {{end}}
   </div>

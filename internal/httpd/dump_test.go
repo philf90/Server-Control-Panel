@@ -203,6 +203,7 @@ func TestDumpSeiten(t *testing.T) {
 		{"/", "uebersicht.html"},
 		{"/files?path=" + dateiWurzel, "dateien.html"},
 		{"/files/entry?path=" + dateiWurzel + "/nginx", "datei-detail.html"},
+		{"/files/edit?path=" + dateiWurzel + "/nginx/nginx.conf", "datei-editor.html"},
 		{"/services", "dienste.html"},
 		{"/firewall", "firewall.html"},
 		{"/system-users", "system-users.html"},

@@ -8,6 +8,11 @@
 # Go
 vendor/
 
+# Node-Abhängigkeiten der Editor-Build-Kette. Der gebaute Bundle unter
+# internal/ui/static/editor/ liegt bewusst im Repository (ein Go-Build soll
+# keine Node-Kette brauchen); die Abhängigkeiten dafür nicht.
+packaging/editor/node_modules/
+
 # Signaturschlüssel — der private Schlüssel gehört niemals ins Repository.
 # Der öffentliche liegt bewusst als packaging/minisign.pub darin.
 *.key

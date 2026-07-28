@@ -123,6 +123,56 @@ jobs:
         with:
           version: v2.12
 
+  editor:
+    name: Editor-Bundle reproduzierbar
+    runs-on: ubuntu-latest
+    # internal/ui/static/editor/cm.js liegt im Repository, damit ein Go-Build
+    # keine Node-Kette braucht. Ein eingecheckter Bundle, den niemand nachbauen
+    # kann, wäre allerdings Fremdcode ohne Herkunftsnachweis: Niemand könnte
+    # sagen, ob der Inhalt zu den genannten Quellen passt. Dieser Job baut ihn
+    # aus dem festgeschriebenen Lockfile nach und vergleicht byteweise.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Nachbauen und vergleichen
+        run: |
+          set -euo pipefail
+          cp internal/ui/static/editor/cm.js "${RUNNER_TEMP}/cm.js.eingecheckt"
+          cd packaging/editor
+          npm ci --no-audit --no-fund
+          node build.mjs
+          cd ../..
+          if ! cmp -s "${RUNNER_TEMP}/cm.js.eingecheckt" internal/ui/static/editor/cm.js; then
+            echo "Der eingecheckte Editor-Bundle stimmt nicht mit dem Nachbau überein."
+            echo "Bitte 'make editor' laufen lassen und das Ergebnis mit einchecken."
+            ls -l "${RUNNER_TEMP}/cm.js.eingecheckt" internal/ui/static/editor/cm.js
+            exit 1
+          fi
+          echo "Bundle reproduzierbar: $(stat -c%s internal/ui/static/editor/cm.js) Bytes"
+
+      - name: Lizenzen des Fremdcodes
+        # Im Binary landet nur MIT-Code. Eine Abhängigkeit, die das ändert,
+        # soll hier auffallen und nicht erst bei einer Lizenzprüfung durch
+        # Dritte.
+        run: |
+          set -euo pipefail
+          cd packaging/editor
+          erlaubt="MIT ISC BSD-2-Clause BSD-3-Clause Apache-2.0"
+          fehler=0
+          for pfad in node_modules/*/package.json node_modules/@*/*/package.json; do
+            [ -f "$pfad" ] || continue
+            name="$(node -p "require('./$pfad').name")"
+            lizenz="$(node -p "require('./$pfad').license || ''")"
+            case " $erlaubt " in
+              *" $lizenz "*) ;;
+              *) echo "unerwartete Lizenz: $name = ${lizenz:-keine}"; fehler=1 ;;
+            esac
+          done
+          [ "$fehler" -eq 0 ] || exit 1
+          echo "alle Lizenzen im erlaubten Rahmen"
+
   shell:
     name: Shell-Skripte
     runs-on: ubuntu-latest

@@ -225,6 +225,52 @@ func TestRecoveryCodes(t *testing.T) {
 	}
 }
 
+// TestNewTemporaryPassword prüft die drei Zusagen des Einmalpassworts: Es genügt
+// der Passwortregel (sonst wäre es beim Wechsel nicht einmal als aktuelles
+// Passwort brauchbar), es besteht aus verwechslungsarmen Zeichen (es wird
+// abgeschrieben oder durchgesagt, nicht kopiert), und zwei Aufrufe liefern nicht
+// dasselbe.
+func TestNewTemporaryPassword(t *testing.T) {
+	pw, err := NewTemporaryPassword()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Vier Gruppen à vier Zeichen, durch Bindestriche getrennt.
+	groups := strings.Split(pw, "-")
+	if len(groups) != 4 {
+		t.Fatalf("%q hat %d Gruppen, erwartet 4", pw, len(groups))
+	}
+	for _, g := range groups {
+		if len(g) != 4 {
+			t.Errorf("Gruppe %q ist %d Zeichen lang, erwartet 4", g, len(g))
+		}
+	}
+
+	// Keine Vokale und kein 0/1/l/o — nichts, was beim Abschreiben verwechselt
+	// wird.
+	const erlaubt = "abcdefghjkmnpqrstuvwxyz23456789"
+	for _, r := range strings.ReplaceAll(pw, "-", "") {
+		if !strings.ContainsRune(erlaubt, r) {
+			t.Errorf("%q enthält das Zeichen %q, das nicht im Alphabet steht", pw, r)
+		}
+	}
+
+	// Die Passwortregel muss es erfüllen: Auf der Wechselseite wird es als
+	// aktuelles Passwort geprüft.
+	if err := CheckPasswordPolicy(pw); err != nil {
+		t.Errorf("das Einmalpasswort %q verstößt gegen die Regel: %v", pw, err)
+	}
+
+	zweites, err := NewTemporaryPassword()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pw == zweites {
+		t.Error("zwei Aufrufe liefern dasselbe Passwort")
+	}
+}
+
 func TestNormalizeRecoveryCode(t *testing.T) {
 	want := "abcdefghijkl"
 	for _, in := range []string{"abcd-efgh-ijkl", "ABCD-EFGH-IJKL", "  abcd efgh ijkl  ", "abcdefghijkl"} {

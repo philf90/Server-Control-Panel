@@ -9,6 +9,7 @@ import (
 	"github.com/philf90/asylum/internal/metrics"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
+	"github.com/philf90/asylum/internal/ui"
 	"github.com/philf90/asylum/internal/version"
 )
 
@@ -39,8 +40,111 @@ type basePage struct {
 	// erzwungener Wechsel, Passkey-Weg) und alle dieselbe Anzeige benutzen. Die
 	// Zahlen kommen von hier ins Markup — das Skript für die Prüfliste soll sie
 	// nicht ein zweites Mal festschreiben.
-	Policy  auth.PasswordPolicy
+	Policy auth.PasswordPolicy
+	// Lage ist der Zustand der Maschine, wie ihn die Statusleiste am oberen
+	// Rand jeder Seite zeigt. Er steht hier und nicht nur im Dashboard-Modell,
+	// weil genau das der Punkt ist: Wer auf „Dienste" wechselt, um einen
+	// Ausfall zu beheben, soll CPU, Speicher und Platte weiter sehen.
+	Lage lage
+	// Konsole sind die zuletzt vom Panel ausgeführten Systembefehle. Leer,
+	// wenn kein Journal geführt wird oder noch nichts lief.
+	Konsole []privops.Notiz
 	Content any
+}
+
+// lage ist der Zustand für die Statusleiste. Alle Zahlen kommen aus der
+// jüngsten Messung, die ohnehin für den Live-Kanal vorliegt — die Leiste kostet
+// damit keinen zusätzlichen Systemzugriff.
+type lage struct {
+	Bekannt   bool
+	CPU       float64
+	Mem       float64
+	Load      float64
+	Uptime    string
+	Disk      float64
+	DiskMount string
+	HatDisk   bool
+	Netz      string
+	NetzName  string
+	HatNetz   bool
+
+	// Alarme und Warnungen zählen den offenen Handlungsbedarf. Sie speisen den
+	// Zähler rechts in der Leiste.
+	Alarme    int
+	Warnungen int
+	// DienstePip und PaketePip sind "", "warn" oder "crit" und färben den Punkt
+	// am jeweiligen Ziel der Symbolschiene. Damit verrät das Menü, wo etwas
+	// offen ist, ohne dass man jede Seite besuchen muss.
+	DienstePip string
+	PaketePip  string
+}
+
+// Offen ist die Gesamtzahl der Punkte, die Aufmerksamkeit brauchen.
+func (l lage) Offen() int { return l.Alarme + l.Warnungen }
+
+// Stufe ist die höchste offene Stufe: "crit", "warn" oder "" für nichts offen.
+func (l lage) Stufe() string {
+	switch {
+	case l.Alarme > 0:
+		return "crit"
+	case l.Warnungen > 0:
+		return "warn"
+	default:
+		return ""
+	}
+}
+
+// baueLage setzt den Zustand für die Statusleiste zusammen.
+func (s *Server) baueLage(r *http.Request) lage {
+	l := lage{}
+	snap, ok := s.lastSnapshot()
+	if ok {
+		l.Bekannt = true
+		l.CPU = snap.CPU.Total
+		l.Mem = snap.Memory.UsedPct
+		l.Uptime = snap.UptimeText
+		if len(snap.Load) > 0 {
+			l.Load = snap.Load[0]
+		}
+		// Von allen Dateisystemen das engste: Wer eine Zahl in der Leiste hat,
+		// will die schlechteste, nicht die alphabetisch erste.
+		for _, fs := range snap.Filesystems {
+			if !l.HatDisk || fs.UsedPct > l.Disk {
+				l.Disk, l.DiskMount, l.HatDisk = fs.UsedPct, fs.Mount, true
+			}
+		}
+		if ifc, hat := snap.PrimaryInterface(); hat {
+			l.Netz, l.NetzName, l.HatNetz = ui.FormatRate(ifc.RXRate), ifc.Name, true
+		}
+	}
+
+	for _, sig := range s.lageStand() {
+		if sig.Level == "crit" {
+			l.Alarme++
+		} else {
+			l.Warnungen++
+		}
+		// Die Punkte an der Schiene folgen denselben Signalen wie die
+		// Übersicht — sonst widersprächen sich Menü und Seite.
+		switch sig.Tag {
+		case "Dienst", "Dienste":
+			l.DienstePip = hoehereStufe(l.DienstePip, sig.Level)
+		case "System", "Speicher":
+			l.PaketePip = hoehereStufe(l.PaketePip, sig.Level)
+		}
+	}
+	return l
+}
+
+// hoehereStufe behält die schlimmere der beiden Stufen.
+func hoehereStufe(bisher, neu string) string {
+	if bisher == "crit" || neu == "crit" {
+		return "crit"
+	}
+	if bisher == "warn" || neu == "warn" {
+		return "warn"
+	}
+	return ""
 }
 
 func (s *Server) base(r *http.Request, title, nav string) basePage {
@@ -57,6 +161,10 @@ func (s *Server) base(r *http.Request, title, nav string) basePage {
 		p.LoggedIn = true
 		p.CanWrite = u.CanWrite()
 		p.IsOwner = u.CanManageUsers()
+		// Erst nach der Anmeldung: Vor ihr hat niemand Anspruch darauf zu
+		// erfahren, wie es der Maschine geht oder was auf ihr lief.
+		p.Lage = s.baueLage(r)
+		p.Konsole = s.journal.Letzte(24)
 	}
 	if sess, ok := sessionFrom(r.Context()); ok {
 		p.CSRF = sess.CSRFToken

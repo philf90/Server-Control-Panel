@@ -7,60 +7,175 @@
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
+{{template "symbolvorrat" .}}
 {{if .LoggedIn}}
 <div class="app">
-<nav class="sidebar">
+{{template "statusleiste" .}}
+<div class="app-body">
   <!--
     Die Umschaltung läuft über eine Checkbox und nicht über <details>: Ein
     geschlossenes <details> versteckt seine Kinder im Browser so, dass sich
     das per CSS nicht wieder aufheben lässt — auf breiten Bildschirmen wäre
-    das Menü dann weg. Geprüft in Chromium, beide Varianten. Die Checkbox
-    steht bewusst vor .side-body, damit ":checked ~ .side-body" greift.
+    die Schiene dann weg. Geprüft in Chromium, beide Varianten. Die Checkbox
+    steht bewusst vor .rail, damit ":checked ~ .rail" greift.
     Ohne JavaScript, damit die Navigation nicht an einem Skript hängt.
   -->
-  <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Menü anzeigen">
-  <div class="side-head">
-    <a href="/" class="brand-link" aria-label="Zur Übersicht"><strong>Asylum</strong><span class="host">{{.Host.Name}}</span></a>
-    <label for="nav-toggle" class="nav-button" aria-hidden="true">Menü</label>
-  </div>
-  <div class="side-body">
-    <div class="navgrp">
-      <a href="/" class="item{{if eq .Nav "dashboard"}} active{{end}}"{{if eq .Nav "dashboard"}} aria-current="page"{{end}}>Übersicht</a>
-    </div>
-    <div class="navgrp">
-      <span class="navgrp-label">System</span>
-      <a href="/services" class="item{{if eq .Nav "services"}} active{{end}}"{{if eq .Nav "services"}} aria-current="page"{{end}}>Dienste</a>
-      <a href="/packages" class="item{{if eq .Nav "packages"}} active{{end}}"{{if eq .Nav "packages"}} aria-current="page"{{end}}>Pakete</a>
-      <a href="/system-users" class="item{{if eq .Nav "sysusers"}} active{{end}}"{{if eq .Nav "sysusers"}} aria-current="page"{{end}}>Systembenutzer</a>
-      {{if .FilesOn}}<a href="/files" class="item{{if eq .Nav "files"}} active{{end}}"{{if eq .Nav "files"}} aria-current="page"{{end}}>Dateien</a>{{end}}
-    </div>
-    <div class="navgrp">
-      <span class="navgrp-label">Sicherheit</span>
-      <a href="/firewall" class="item{{if eq .Nav "firewall"}} active{{end}}"{{if eq .Nav "firewall"}} aria-current="page"{{end}}>Firewall</a>
-      <a href="/certificate" class="item{{if eq .Nav "certificate"}} active{{end}}"{{if eq .Nav "certificate"}} aria-current="page"{{end}}>Zertifikat</a>
-      {{if .IsOwner}}<a href="/users" class="item{{if eq .Nav "users"}} active{{end}}"{{if eq .Nav "users"}} aria-current="page"{{end}}>Panel-Zugänge</a>{{end}}
-      <a href="/audit" class="item{{if eq .Nav "audit"}} active{{end}}"{{if eq .Nav "audit"}} aria-current="page"{{end}}>Audit-Log</a>
-    </div>
-    <div class="navgrp">
-      <span class="navgrp-label">Betrieb</span>
-      <a href="/logs" class="item{{if eq .Nav "logs"}} active{{end}}"{{if eq .Nav "logs"}} aria-current="page"{{end}}>Logs</a>
-      <a href="/update" class="item{{if eq .Nav "update"}} active{{end}}"{{if eq .Nav "update"}} aria-current="page"{{end}}>Updates</a>
-    </div>
-    <div class="side-foot">
-      <a href="/account" class="who{{if eq .Nav "account"}} active{{end}}"{{if eq .Nav "account"}} aria-current="page"{{end}}>{{.User.Username}}<span class="role">{{.User.Role}}</span></a>
-      <button type="button" class="themebtn" id="theme-toggle" hidden aria-live="polite">◐ Design</button>
-      <form method="post" action="/logout">
-        <input type="hidden" name="_csrf" value="{{.CSRF}}">
-        <button type="submit" class="small">Abmelden</button>
-      </form>
-    </div>
-  </div>
-</nav>
-<div class="content">
+  <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Weitere Ziele anzeigen">
+  <nav class="rail" aria-label="Bereiche">
+    {{template "railziel" dict "href" "/" "nav" "dashboard" "hier" .Nav "sym" "lage" "text" "Lage" "tab" true "pip" ""}}
+    {{template "railziel" dict "href" "/services" "nav" "services" "hier" .Nav "sym" "dienst" "text" "Dienste" "tab" true "pip" .Lage.DienstePip}}
+    {{template "railziel" dict "href" "/packages" "nav" "packages" "hier" .Nav "sym" "paket" "text" "Pakete" "tab" false "pip" .Lage.PaketePip}}
+    {{template "railziel" dict "href" "/system-users" "nav" "sysusers" "hier" .Nav "sym" "user" "text" "Konten" "tab" false "pip" ""}}
+    {{if .FilesOn}}{{template "railziel" dict "href" "/files" "nav" "files" "hier" .Nav "sym" "datei" "text" "Dateien" "tab" false "pip" ""}}{{end}}
+    {{template "railziel" dict "href" "/firewall" "nav" "firewall" "hier" .Nav "sym" "firewall" "text" "Firewall" "tab" true "pip" ""}}
+    {{template "railziel" dict "href" "/certificate" "nav" "certificate" "hier" .Nav "sym" "tls" "text" "TLS" "tab" false "pip" ""}}
+    {{if .IsOwner}}{{template "railziel" dict "href" "/users" "nav" "users" "hier" .Nav "sym" "zugang" "text" "Zugänge" "tab" false "pip" ""}}{{end}}
+    {{template "railziel" dict "href" "/audit" "nav" "audit" "hier" .Nav "sym" "audit" "text" "Audit" "tab" false "pip" ""}}
+    {{template "railziel" dict "href" "/logs" "nav" "logs" "hier" .Nav "sym" "logs" "text" "Journal" "tab" true "pip" ""}}
+    {{template "railziel" dict "href" "/update" "nav" "update" "hier" .Nav "sym" "update" "text" "Updates" "tab" false "pip" ""}}
+    {{/* Schmal ist die Schiene eine Leiste am unteren Rand mit vier Zielen und
+         diesem Knopf; alles Weitere klappt darüber auf. Breit ist er unsichtbar
+         — dort steht die Schiene ohnehin vollständig da. */}}
+    <label for="nav-toggle" class="rail-mehr">
+      <span class="rail-sym" aria-hidden="true">•••</span>
+      <span class="rail-text">Mehr</span>
+    </label>
+    <span class="rail-space"></span>
+    {{template "railziel" dict "href" "/account" "nav" "account" "hier" .Nav "sym" "user" "text" .User.Username "tab" false "pip" ""}}
+    <button type="button" class="themebtn" id="theme-toggle" hidden aria-live="polite">◐ Design</button>
+    <form method="post" action="/logout" class="rail-logout">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <button type="submit" class="small">Abmelden</button>
+    </form>
+  </nav>
+  <div class="content">
 {{end}}
 <main{{if not .LoggedIn}} class="narrow"{{end}}>
 {{if .Error}}<div class="alert error">{{.Error}}</div>{{end}}
 {{if .Flash}}<div class="alert ok">{{.Flash}}</div>{{end}}
+{{end}}
+
+{{/* Die Statusleiste steht auf jeder Seite. Das ist der ganze Punkt: Wer auf
+     „Dienste" wechselt, um einen Ausfall zu beheben, verliert die Übersicht
+     nicht aus dem Blick. Jede Anzeige darin ist ein Link auf die zuständige
+     Seite — eine auffällige Zahl soll ein Griff sein, kein Text.
+
+     Die Werte tragen dieselben data-live-Attribute wie die Kacheln der
+     Übersicht; live.js zieht sie auf allen Seiten nach. Ohne das Skript steht
+     der Stand des Seitenaufrufs da, und das ist immer noch die Wahrheit von
+     vor einer Sekunde. */}}
+{{define "statusleiste"}}
+<header class="status">
+  <a class="status-host" href="/" aria-label="Zur Übersicht">
+    <span class="lamp {{with .Lage.Stufe}}{{.}}{{else}}ok{{end}}" aria-hidden="true"></span>
+    <strong>{{.Host.Name}}</strong>
+    <small>{{.Host.Distro}}{{if .Lage.Uptime}} · seit {{.Lage.Uptime}}{{end}}</small>
+  </a>
+
+  <div class="gauges">
+    <a class="gauge" href="/" title="Prozessorlast — zur Übersicht">
+      <span class="g-k">CPU</span><span class="g-v"><span data-live="cpu.total">{{pct .Lage.CPU}}</span><small>%</small></span>
+    </a>
+    <a class="gauge" href="/" title="Arbeitsspeicher — zur Übersicht">
+      <span class="g-k">MEM</span><span class="g-v"><span data-live="memory.used_pct">{{pct .Lage.Mem}}</span><small>%</small></span>
+    </a>
+    {{if .Lage.HatDisk}}
+    <a class="gauge" href="/" title="Am engsten belegtes Dateisystem">
+      <span class="g-k">DISK</span><span class="g-v">{{pct .Lage.Disk}}<small>%</small></span><span class="g-n">{{.Lage.DiskMount}}</span>
+    </a>
+    {{end}}
+    <a class="gauge" href="/" title="Systemlast im Mittel der letzten Minute">
+      <span class="g-k">LAST</span><span class="g-v"><span data-live="load.0">{{pct .Lage.Load}}</span></span><span class="g-n">{{.Host.Cores}}&nbsp;Kerne</span>
+    </a>
+    {{if .Lage.HatNetz}}
+    <a class="gauge" href="/" title="Empfangen über die Standardroute">
+      <span class="g-k">NETZ</span><span class="g-v">{{.Lage.Netz}}</span><span class="g-n">{{.Lage.NetzName}}</span>
+    </a>
+    {{end}}
+  </div>
+
+  <span class="status-space"></span>
+
+  {{/* Der Zähler ist die Antwort auf die Frage, mit der man das Panel öffnet.
+       Er steht auch dann, wenn nichts offen ist — ein Feld, das nur bei
+       Problemen erscheint, lässt einen im Normalfall raten. */}}
+  {{if .Lage.Offen}}
+  <a class="status-flag {{.Lage.Stufe}}" href="/">
+    <span class="lamp {{.Lage.Stufe}}" aria-hidden="true"></span>
+    {{.Lage.Offen}} offen
+  </a>
+  {{else}}
+  <a class="status-flag ok" href="/"><span class="lamp ok" aria-hidden="true"></span>nichts offen</a>
+  {{end}}
+
+  {{/* Der Live-Punkt sitzt hier, weil live.js an ihm hängt: Ohne #live-status
+       steigt das Skript aus. So bekommt jede Seite den Kanal — und nebenbei
+       die Auskunft, ob die Zahlen daneben gerade fortgeschrieben werden. */}}
+  <span class="status-live" title="Live-Aktualisierung">
+    <span class="dot" id="live-dot"></span>
+    <span class="visually-hidden" id="live-status">Live-Aktualisierung wird verbunden …</span>
+  </span>
+
+</header>
+{{end}}
+
+{{/* Ein Ziel an der Symbolschiene. Der Punkt oben rechts sagt, dass dort etwas
+     offen ist — damit verrät das Menü, wo etwas zu tun ist, ohne dass man jede
+     Seite einzeln besuchen muss.
+
+     "tab" markiert die vier Ziele, die auf einem Telefon in der Leiste am
+     unteren Rand stehen bleiben. Der Rest liegt hinter „Menü". */}}
+{{define "railziel"}}
+<a href="{{.href}}" class="rail-item{{if eq .nav .hier}} active{{end}}{{if .tab}} tab{{end}}"{{if eq .nav .hier}} aria-current="page"{{end}}>
+  {{if .pip}}<span class="pip {{.pip}}" aria-hidden="true"></span>{{end}}
+  <svg class="rail-sym" aria-hidden="true"><use href="#sym-{{.sym}}"/></svg>
+  <span class="rail-text">{{.text}}</span>
+</a>
+{{end}}
+
+{{/* Die Konsole zeigt, was das Panel auf der Maschine ausgeführt hat: Befehl,
+     Rückgabewert, Laufzeit. Eingeklappt steht die letzte Zeile, aufgeklappt die
+     letzten vierundzwanzig.
+
+     <details> und nicht die Checkbox aus der Navigation: Hier ist das Verbergen
+     der Kinder genau das Gewünschte, und ein Aufklapper ohne JavaScript ist
+     genau das, was das Element ist.
+
+     Sie nimmt keine Eingabe entgegen. Ein Terminal wäre ein eigenes Modul mit
+     eigener Sicherheitsbetrachtung — siehe docs/15-neuordnung.md. */}}
+{{define "konsole"}}
+<details class="konsole">
+  <summary>
+    <span class="k-titel">Konsole</span>
+    {{if .Konsole}}
+    {{$letzte := index .Konsole 0}}
+    <code class="k-cmd">{{$letzte.Befehl}}</code>
+    <span class="k-res {{if $letzte.Gelungen}}ok{{else}}err{{end}}">
+      {{if $letzte.Gelungen}}✓ 0{{else if $letzte.Fehler}}✗{{else}}✗ {{$letzte.ExitCode}}{{end}} · {{$letzte.DauerText}}
+    </span>
+    {{else}}
+    <span class="k-leer">noch kein Systembefehl in dieser Sitzung</span>
+    {{end}}
+  </summary>
+  <div class="k-liste">
+    {{range .Konsole}}
+    <div class="k-zeile">
+      <span class="k-zeit">{{.Zeit.Local.Format "15:04:05"}}</span>
+      <span class="k-prompt" aria-hidden="true">#</span>
+      <code class="k-cmd">{{.Befehl}}</code>
+      <span class="k-res {{if .Gelungen}}ok{{else}}err{{end}}">{{if .Gelungen}}✓ 0{{else if .Fehler}}✗{{else}}✗ {{.ExitCode}}{{end}} · {{.DauerText}}</span>
+      {{if .Meldung}}<span class="k-meldung">↳ {{.Meldung}}</span>{{end}}
+      {{if .Fehler}}<span class="k-meldung">↳ {{.Fehler}}</span>{{end}}
+    </div>
+    {{else}}
+    <p class="k-leer">Seit dem Start des Panels wurde kein Systembefehl ausgeführt.</p>
+    {{end}}
+    <p class="k-fuss">
+      Die Konsole zeigt, was das Panel ausgeführt hat — sie nimmt keine Eingabe
+      entgegen. Dieselben Befehle wirken über SSH.
+    </p>
+  </div>
+</details>
 {{end}}
 
 {{/* Passwortprüfung: die geltende Richtlinie, eine Stärkeschätzung und je Regel
@@ -104,8 +219,15 @@
   {{if .LoggedIn}}<span>{{.Host.Distro}} · Kernel {{.Host.Kernel}} · {{.Host.Cores}} Kerne · {{.Host.Arch}}</span>{{end}}
 </footer>
 {{if .LoggedIn}}
+{{template "konsole" .}}
 </div><!-- .content -->
+</div><!-- .app-body -->
 </div><!-- .app -->
+{{/* live.js hängt an #live-status in der Statusleiste und läuft deshalb auf
+     jeder Seite, nicht nur auf der Übersicht: Die Zahlen in der Leiste sollen
+     überall fortgeschrieben werden. Ohne das Skript bleibt der Stand des
+     Seitenaufrufs stehen. */}}
+<script src="/static/live.js" defer></script>
 {{end}}
 <script src="/static/theme.js" defer></script>
 {{/* Die Rückfrage vor zerstörenden Aktionen steht in jeder Seite, nicht in den
@@ -181,4 +303,22 @@
     {{end}}
   </div>
 </div>
+{{end}}
+
+{{/* Der Symbolvorrat steht einmal je Seite; die Schiene verweist mit <use>
+     darauf. Ausgeschrieben stünde jedes Zeichen zwölfmal im Markup. */}}
+{{define "symbolvorrat"}}
+<svg class="symbolvorrat" aria-hidden="true" focusable="false">
+  <symbol id="sym-lage" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="8" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="11" width="7" height="10" rx="1"/></symbol>
+  <symbol id="sym-dienst" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></symbol>
+  <symbol id="sym-paket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></symbol>
+  <symbol id="sym-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></symbol>
+  <symbol id="sym-datei" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h9l2 2h5v12H4z"/></symbol>
+  <symbol id="sym-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l8 3v5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6l8-3z"/></symbol>
+  <symbol id="sym-tls" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></symbol>
+  <symbol id="sym-zugang" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5"/><path d="M17 10h4M17 14h4"/></symbol>
+  <symbol id="sym-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h14v16l-7-3-7 3z"/></symbol>
+  <symbol id="sym-logs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></symbol>
+  <symbol id="sym-update" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 4v10M8 10l4 4 4-4M5 19h14"/></symbol>
+</svg>
 {{end}}

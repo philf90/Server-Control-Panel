@@ -65,6 +65,22 @@ type Server struct {
 	hasLast  bool
 
 	ops privops.Executor
+	// journal hält die zuletzt ausgeführten Systembefehle für die Konsole am
+	// unteren Rand jeder Seite. Es ist nur gefüllt, wenn der Server seinen
+	// Executor selbst gebaut hat — wer einen eigenen einsetzt (Tests), bekommt
+	// eine leere Konsole statt eines falschen Bildes.
+	journal *privops.Journal
+	// lageCache ist der zuletzt erhobene Handlungsbedarf. Er speist die
+	// Warnpunkte an der Symbolschiene, die auf jeder Seite stehen. Ihn bei
+	// jedem Seitenaufruf frisch zu erheben hieße, jede Seite an ein systemctl
+	// und ein apt zu hängen — dafür ist er zu teuer und zu selten anders.
+	lageMu      sync.RWMutex
+	lageCache   []dashSignal
+	lageErhoben time.Time
+	// lageFrisch stellt sicher, dass immer nur einer erhebt. Wer nicht
+	// drankommt, nimmt den vorherigen Stand: Eine Seite wartet nicht auf ein
+	// hängendes Kommando.
+	lageFrisch sync.Mutex
 	// files ist der Dateimanager. Nil, wenn das Modul abgeschaltet ist oder
 	// seine Politik nicht aufgeht — dann gibt es weder Routen noch Menüpunkt.
 	files privops.Files
@@ -111,8 +127,14 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 	if err != nil {
 		return nil, fmt.Errorf("templates: %w", err)
 	}
+	// Das Journal hängt am Runner, nicht am Executor: So wird jeder Aufruf
+	// erfasst, ohne dass ihn jede einzelne Operation melden müsste. Wer einen
+	// eigenen Executor mitgibt, bekommt keines — sein Runner ist uns unbekannt,
+	// und ein halb gefülltes Journal wäre irreführender als ein leeres.
+	var journal *privops.Journal
 	if ops == nil {
-		ops = privops.NewSystem()
+		journal = privops.NewJournal()
+		ops = privops.NewSystemMitJournal(journal)
 	}
 	pk := buildPasskeys(cfg, logger)
 	dateien := buildFiles(cfg, logger)
@@ -129,6 +151,7 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 		limiter:  auth.NewLimiter(),
 		hub:      newHub(),
 		ops:      ops,
+		journal:  journal,
 		jobs:     newJobs(),
 		fwGuard:  newFirewallGuard(),
 		upd:      newUpdateState(),
@@ -424,9 +447,60 @@ func (s *Server) sampleLoop(ctx context.Context) {
 			tick++
 			if tick%historyEvery == 0 {
 				s.ring.Add(snap)
+				// Im selben Takt den Handlungsbedarf nachziehen. Damit ist der
+				// Cache im laufenden Betrieb praktisch immer warm, und keine
+				// Seite muss ihn selbst erheben.
+				s.lageErheben(ctx)
 			}
 		}
 	}
+}
+
+// lageTTL ist die Standzeit des Handlungsbedarfs. Steht nichts Frischeres zur
+// Verfügung, zeigt die Schiene lieber gar keinen Punkt als einen von gestern.
+// Der Wert liegt über dem Ablagetakt, damit ein einzelner verpasster Tick die
+// Punkte nicht flackern lässt.
+const lageTTL = 5 * time.Minute
+
+// lageStand liefert den zuletzt erhobenen Handlungsbedarf für die Warnpunkte
+// an der Symbolschiene.
+//
+// Er erhebt bewusst nichts: Diese Funktion läuft bei jedem Seitenaufbau, und
+// eine beliebige Seite darf nicht an einem systemctl hängen — auch nicht
+// einmal je Standzeit. Gefüllt wird der Stand vom Messtakt und von der
+// Übersicht, die ihre Signale ohnehin frisch erhebt. Ist noch nichts erhoben,
+// bleiben die Punkte weg; das ist die ehrlichere Aussage als ein geratener.
+func (s *Server) lageStand() []dashSignal {
+	s.lageMu.RLock()
+	defer s.lageMu.RUnlock()
+	if s.lageErhoben.IsZero() || time.Since(s.lageErhoben) > lageTTL {
+		return nil
+	}
+	return s.lageCache
+}
+
+// lageErheben zieht den Handlungsbedarf neu und legt ihn ab. Aufgerufen wird
+// es aus dem Messtakt, nicht aus einem Seitenaufbau.
+func (s *Server) lageErheben(ctx context.Context) {
+	// Nur einer erhebt. Läuft schon eine Erhebung, ist die zweite überflüssig.
+	if !s.lageFrisch.TryLock() {
+		return
+	}
+	defer s.lageFrisch.Unlock()
+
+	snap, _ := s.lastSnapshot()
+	s.lageSetzen(s.dashboardSignals(ctx, snap))
+}
+
+// lageSetzen legt einen frisch erhobenen Stand ab. Die Übersicht ruft es auf,
+// weil sie ihre Signale ohnehin frisch erhebt — so ist der Warnpunkt an der
+// Schiene nach einem geglückten Neustart sofort weg und nicht erst mit dem
+// nächsten Messtakt.
+func (s *Server) lageSetzen(signale []dashSignal) {
+	s.lageMu.Lock()
+	defer s.lageMu.Unlock()
+	s.lageCache = signale
+	s.lageErhoben = time.Now()
 }
 
 // setLatest merkt sich die jüngste Messung.

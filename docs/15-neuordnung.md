@@ -6,7 +6,12 @@ Mappe mit allen Mockups in Hell und Dunkel:
 
 **[docs/entwuerfe/neuordnung.html](entwuerfe/neuordnung.html)** — im Browser öffnen.
 
-Die Datei ist statisches HTML ohne Schriftdateien und ohne externe Aufrufe,
+Dazu eine zweite Mappe, die Entwurf 1 über den gesamten Bestand durchzieht —
+alle 23 Seiten, je am Bildschirm und auf dem Telefon:
+
+**[docs/entwuerfe/entwurf1-alle-seiten.html](entwuerfe/entwurf1-alle-seiten.html)**
+
+Beide Dateien sind statisches HTML ohne Schriftdateien und ohne externe Aufrufe,
 genau wie das Panel selbst. Jeder Rahmen hat einen eigenen Hell/Dunkel-Schalter,
 oben stellt einer alle zugleich.
 
@@ -76,6 +81,32 @@ dann Dateien und Systembenutzer. Die Auswahl steht in der URL
 teilbar bleiben. Die Änderungsablage lohnt zuerst bei der Firewall.
 `internal/ui/templates/services.html`, `firewall.html`, `files.html`,
 `sysusers.html` · neue Teilvorlage „inspektor“
+
+## Entwurf 1 über den ganzen Bestand
+
+Die zweite Mappe zieht die Kommandobrücke durch alle vorhandenen Seiten. Die
+Schale ist überall dieselbe und besteht aus vier Teilen: Statusleiste,
+Symbolschiene, Inhaltsfeld, Konsole. Nur der Inhaltsbereich wechselt.
+
+Auf 360 Pixeln wandern drei Dinge, der Rest bleibt:
+
+| | Bildschirm | Telefon |
+|---|---|---|
+| Messwerte | fünf in der Statusleiste | schiebbares Band unter der Kopfzeile |
+| Navigation | Symbolschiene links, 11 Ziele | Reiterleiste unten, 5 Ziele + „Mehr“ |
+| Konsole | Schublade unten, aufziehbar | eine Zeile, tippbar auf Vollbild |
+| Tabellen | Spalten | eine Karte je Zeile |
+
+Zwei Seiten weichen bewusst ab: Der **Datei-Editor** legt Messwerte und Konsole
+ab, um Höhe zu gewinnen, und bekommt eine Zeichenleiste über der Tastatur. Bei
+**Zwei-Faktor einrichten** entfällt der QR-Code — er zeigt auf dasselbe Gerät,
+und ein Telefon kann seinen eigenen Bildschirm nicht scannen; stattdessen ein
+`otpauth://`-Verweis.
+
+Offene Punkte, die die Mappe benennt: die Belegung der Reiterleiste ist geraten,
+der Warnpunkt kennt nur zwei Stufen, die Statusleiste braucht Kennzahlen in
+jedem Seitenmodell, und für das Konsolen-Echo fehlt noch die Liste dessen, was
+nicht in eine Zeile darf — Tokens, Passwörter, Schlüssel.
 
 ## Vorher zu klären
 

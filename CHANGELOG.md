@@ -9,6 +9,65 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Geändert
+
+- **Die Oberfläche wird eine Kommandobrücke.** Die Übersicht zeigte zuverlässig,
+  wie es dem Server geht — nur verschwand sie, sobald man handelte. Wer auf
+  „Dienste" wechselte, um einen Ausfall zu beheben, sah CPU, Speicher und Platte
+  in genau dem Moment nicht mehr, in dem sie interessant wurden. Aus der
+  gruppierten Seitenleiste wird deshalb eine Schale aus vier Teilen, die auf
+  jeder Seite gleich ist:
+
+  - Eine **Statusleiste** über allem mit Wirt, Laufzeit, CPU, Speicher, Platte,
+    Last und Netz. Jede Anzeige darin ist ein Link — eine auffällige Zahl soll
+    ein Griff sein, kein Text. Die Werte schreibt der Live-Kanal jetzt auf allen
+    Seiten fort, nicht mehr nur auf der Übersicht.
+  - Eine **Symbolschiene** statt der Menüspalte: elf Ziele auf gut vier
+    Zeichenbreiten, mit einem Warnpunkt je Bereich. Damit verrät das Menü, wo
+    etwas offen ist, ohne dass man jede Seite einzeln besuchen muss.
+  - Eine **Konsole** am unteren Rand — siehe unten.
+
+  Der Akzent wechselt von Grün auf Signalbernstein; Grün, Gelb und Rot bleiben
+  damit dem Zustand vorbehalten und bedeuten nichts anderes mehr. Schiene,
+  Statusleiste und Konsole sind auch im hellen Modus dunkel: Eine
+  Instrumententafel hat eine Blende, und sie trennt das Gerät vom Inhalt
+  deutlicher als jede Linie.
+
+- **Schmal wird aus der Schiene eine Leiste am unteren Rand** — in
+  Daumenreichweite, was die Spalte links nie war. Vier Ziele bleiben stehen
+  (Lage, Dienste, Firewall, Journal), der Rest klappt über „Mehr" auf. Die
+  Kennzahlen werden ein seitlich schiebbares Band unter der Kopfzeile.
+
+### Hinzugefügt
+
+- **Konsolen-Echo: Das Panel zeigt, was es ausführt.** Am unteren Rand jeder
+  Seite steht der zuletzt auf der Maschine ausgeführte Befehl mit Rückgabewert
+  und Laufzeit; aufgeklappt die letzten vierundzwanzig. Wer auf „neu starten"
+  klickt, sieht `systemctl restart ssh.service` — und wer per SSH weiterarbeitet,
+  findet dieselben Befehle vor. Fehlschläge stehen mit der ersten Meldung dabei,
+  nicht nur mit einem Kreuz.
+
+  Aufgezeichnet wird am Runner, nicht an jeder einzelnen Operation, damit keine
+  Stelle vergessen werden kann. Das Journal liegt nur im Speicher und in einem
+  Ring fester Größe — ein Nebenprodukt der Oberfläche darf weder wachsen noch
+  einen Neustart überleben; dauerhaft protokolliert das Audit-Log. Stdin wird
+  nie aufgezeichnet (dort stehen die Passwörter, die `passwd` entgegennimmt),
+  und Argumente nach einer Option, die nach einem Geheimnis klingt, werden
+  verdeckt. Die Konsole nimmt keine Eingabe entgegen: Ein Terminal wäre ein
+  eigenes Modul mit eigener Sicherheitsbetrachtung.
+
+- **Warnpunkte an der Schiene.** Sie folgen denselben Signalen wie die
+  Übersicht, damit sich Menü und Seite nicht widersprechen. Erhoben wird der
+  Stand im Messtakt und bei jedem Aufruf der Übersicht — ein Seitenaufbau löst
+  bewusst kein `systemctl` aus, sonst hinge jede Seite an einem Systemaufruf.
+  Ist nichts Frisches da, bleiben die Punkte weg; das ist die ehrlichere
+  Aussage als ein geratener.
+
+- Drei Entwürfe für die Neuordnung der Oberfläche als Mappe mit Mockups, dazu
+  eine zweite Mappe, die Entwurf 1 über alle 23 Seiten durchzieht — am
+  Bildschirm und auf dem Telefon. Siehe
+  [docs/15-neuordnung.md](docs/15-neuordnung.md).
+
 ### Sicherheit
 
 - **Die Rückfragen vor zerstörenden Aktionen haben nie gefragt.** Dreizehn

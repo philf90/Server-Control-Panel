@@ -11,9 +11,10 @@ beherrschbar bleibt.
 > Release-Pfad, Zwei-Faktor-Anmeldung, Rollen, Audit-Log, Live-Dashboard, die
 > Verwaltung von Diensten, Paketen, Firewall, Systembenutzern und Logs sowie das
 > signierte Selbstupdate mit Healthcheck und selbsttätigem Rollback stehen
-> (M0–M4). Die Navigation ist eine nach System, Sicherheit und Betrieb
-> gruppierte Seitenleiste. Offen bis 0.1.0: Bildschirmfotos von einem echten
-> Server, externer Sicherheits-Review, der erste Tag ohne Bindestrich.
+> (M0–M4). Die Oberfläche ist eine Kommandobrücke: Statusleiste über allem,
+> Symbolschiene statt Menüspalte, Konsole am unteren Rand. Offen bis 0.1.0:
+> Bildschirmfotos von einem echten Server, externer Sicherheits-Review, der
+> erste Tag ohne Bindestrich.
 
 ## Zielbild
 
@@ -39,11 +40,19 @@ Zielserver.
 
 ## So sieht es aus
 
-Links eine Seitenleiste, in der die Punkte nach **System**, **Sicherheit** und
-**Betrieb** gruppiert sind; der Projektname führt zur Übersicht, der eigene Name
-unten aufs Profil. Darunter ein Umschalter für hellen und dunklen Modus — ohne
-Wahl gilt die Systemeinstellung. Auf schmalen Bildschirmen klappt die Leiste zu
-einer Kopfzeile ein.
+Vier Teile, auf jeder Seite dieselben. Oben eine **Statusleiste** mit Wirt,
+Laufzeit, CPU, Speicher, Platte, Last und Netz — jede Anzeige darin ist ein
+Link, und ein Live-Kanal schreibt die Zahlen überall fort. Links eine
+**Symbolschiene** mit elf Zielen, jedes mit einem Warnpunkt, wenn dort etwas
+offen ist: Das Menü verrät damit, wo etwas zu tun ist, ohne dass man jede Seite
+besuchen muss. Unten eine **Konsole**, die den zuletzt auf der Maschine
+ausgeführten Befehl mit Rückgabewert und Laufzeit zeigt; aufgeklappt die letzten
+vierundzwanzig. Dazwischen der Inhalt.
+
+Der Sinn der Anordnung: Wer auf „Dienste" wechselt, um einen Ausfall zu beheben,
+verliert die Kennzahlen nicht aus dem Blick — vorher standen sie nur auf der
+Übersicht. Im Fuß der Schiene ein Umschalter für hellen und dunklen Modus; ohne
+Wahl gilt die Systemeinstellung.
 
 Die Übersicht ist ein Leitstand: zuoberst ein Urteil in einem Satz — läuft
 alles normal, oder brauchen einige Dinge Aufmerksamkeit? Darunter steht nur,
@@ -76,9 +85,11 @@ Einzelheiten in [docs/13-dateimanager.md](docs/13-dateimanager.md).
 
 ![Dateien](docs/bilder/dateien.png)
 
-Auf dem Telefon klappt die Seitenleiste zu einer Kopfzeile ein, und aus jeder
-Tabellenzeile wird eine Karte — ein Server-Panel wird genau dann gebraucht, wenn
-man nicht am Schreibtisch sitzt.
+Auf dem Telefon wird aus der Schiene eine Leiste am unteren Rand — in
+Daumenreichweite, was die Spalte links nie war. Vier Ziele bleiben stehen, der
+Rest klappt über „Mehr" auf; die Kennzahlen werden ein schiebbares Band, und aus
+jeder Tabellenzeile wird eine Karte. Ein Server-Panel wird genau dann gebraucht,
+wenn man nicht am Schreibtisch sitzt.
 
 <img src="docs/bilder/schmal.png" alt="Systembenutzer auf einem Telefon" width="320">
 

@@ -17,6 +17,36 @@ oben stellt einer alle zugleich.
 
 ---
 
+## Stand der Umsetzung
+
+**Entwurf 1 ist umgesetzt.** Die Schale steht auf jeder Seite: Statusleiste mit
+Wirt, Laufzeit und fünf Kennzahlen (jede ein Link), Symbolschiene mit elf Zielen
+und Warnpunkt je Bereich, Konsole am unteren Rand mit dem zuletzt ausgeführten
+Befehl. Schmal wird aus der Schiene eine Leiste am unteren Rand mit vier Zielen
+und einem Knopf für den Rest.
+
+| Teil | Wo |
+|---|---|
+| Statusleiste, Schiene, Konsole | `internal/ui/templates/partials.html` |
+| Marken, Grundriss, Schmalmodus | `internal/ui/static/app.css` |
+| Kennzahlen je Seite, Warnpunkte | `internal/httpd/pages.go`, `server.go` |
+| Konsolen-Echo | `internal/privops/journal.go` |
+
+Zwei Entscheidungen, die beim Bauen fielen:
+
+- **Ein Seitenaufbau löst keinen Systemaufruf aus.** Der erste Versuch erhob den
+  Handlungsbedarf für die Warnpunkte beim Rendern — damit hing jede Seite an
+  einem `systemctl`. Erhoben wird jetzt im Messtakt und beim Aufruf der
+  Übersicht; ist nichts Frisches da, bleiben die Punkte weg.
+- **Das Journal hängt am Runner**, nicht an den einzelnen Operationen. So kann
+  keine Stelle vergessen werden. Es liegt nur im Speicher, in einem Ring fester
+  Größe; Stdin wird nie aufgezeichnet, und Argumente nach einer Option, die nach
+  einem Geheimnis klingt, werden verdeckt.
+
+**Noch nicht umgesetzt:** die Befehlspalette (⌘K). Sie braucht einen eigenen
+Suchindex über Dienste, Dateien und Regeln und bleibt der optionale Teil des
+Entwurfs — die Schale trägt ohne sie.
+
 ## Befund
 
 Vier Entscheidungen, die einzeln richtig waren und zusammen dazu führen, dass

@@ -33,7 +33,11 @@
 
   // Die Beschriftung nennt, wohin der Klick führt — nicht den Ist-Zustand.
   function label() {
-    btn.textContent = current() === "dark" ? "◐ Heller Modus" : "◐ Dunkler Modus";
+    // Kurz, weil der Knopf im Fuß der Symbolschiene steht und die nur gut
+    // vier Zeichen breit ist. Was er tut, sagt zusätzlich das title-Attribut.
+    var dunkel = current() === "dark";
+    btn.textContent = dunkel ? "◐ Hell" : "◐ Dunkel";
+    btn.title = dunkel ? "Auf hellen Modus umschalten" : "Auf dunklen Modus umschalten";
   }
 
   function setCookie(value) {

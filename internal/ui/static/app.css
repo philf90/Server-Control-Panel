@@ -1,19 +1,38 @@
 :root {
-  --bg: #f6f7f9;
-  --fg: #1c2024;
-  --muted: #5b6570;
-  --card: #ffffff;
-  --line: #dfe3e8;
+  /* Kommandobrücke: eine Instrumententafel, keine Textseite. Der Untergrund
+     ist ein gestrichenes Stahlgrau, der Akzent ein Signalbernstein — die Farbe
+     einer Leuchtanzeige im Rack. Sie trägt Bedienung und Hervorhebung; grün,
+     gelb und rot bleiben dem Zustand vorbehalten. */
+  --bg: #e2e5e4;
+  --fg: #10161a;
+  --muted: #5b6a6d;
+  --card: #f7f8f7;
+  --card2: #eceeed;
+  --line: #cbd1d0;
   /* --line2 ist die leisere Trennlinie zwischen Tabellenzeilen; --line bleibt
      die kräftigere Umrandung von Karten und Kopfzeilen. */
-  --line2: #eef0f3;
-  --accent: #2f6f4f;
+  --line2: #dde1e0;
+  --accent: #96590a;
   --accent-fg: #ffffff;
-  --warn: #a8460f;
-  --danger: #b3261e;
-  --ok-bg: #e7f4ec;
-  --err-bg: #fdecea;
-  --bar-bg: #e8ebee;
+  --accent-bg: #f6e9d1;
+  --ok: #13703f;
+  --warn: #8c5c00;
+  --danger: #ad2a1d;
+  --ok-bg: #e2efe7;
+  --err-bg: #fbe7e4;
+  --bar-bg: #d8dedd;
+  /* Schiene, Statusleiste und Konsole sind auch im hellen Modus dunkel: Eine
+     Instrumententafel hat eine Blende, und sie trennt das Gerät vom Inhalt
+     deutlicher als jede Linie. */
+  --rail: #12191c;
+  --rail-fg: #b9c6c9;
+  --rail-hi: #ffffff;
+  --rail-line: #263136;
+  --konsole: #12191c;
+  --konsole-fg: #c6d3d6;
+  /* Die Höhe der Statusleiste steht fest, damit die Schiene exakt darunter
+     beginnen und den Rest der Bildschirmhöhe füllen kann. */
+  --status-h: 2.2rem;
 }
 
 /* Der Dunkelmodus gilt in zwei Fällen: Das System wünscht ihn (und der Nutzer
@@ -25,35 +44,53 @@
    ausdrückliche Wahl immer über die Systemvorgabe. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #14171a;
-    --fg: #e6e9ec;
-    --muted: #9aa4ae;
-    --card: #1c2024;
-    --line: #2c3238;
-    --line2: #232a30;
-    --accent: #6fbf95;
-    --accent-fg: #10231a;
-    --warn: #e0a26a;
-    --danger: #f2917f;
-    --ok-bg: #1d2b23;
-    --err-bg: #2e1f1e;
-    --bar-bg: #262c32;
+    --bg: #0d1316;
+    --fg: #d8e2e5;
+    --muted: #7b8d95;
+    --card: #141c20;
+    --card2: #101719;
+    --line: #243036;
+    --line2: #1b2429;
+    --accent: #f2a73b;
+    --accent-fg: #17110a;
+    --accent-bg: #2b2113;
+    --ok: #43c46e;
+    --warn: #e3a62a;
+    --danger: #f2604a;
+    --ok-bg: #12241a;
+    --err-bg: #2a1613;
+    --bar-bg: #1e262b;
+    --rail: #090e10;
+    --rail-fg: #8b9ba1;
+    --rail-hi: #e6f0f3;
+    --rail-line: #1a2327;
+    --konsole: #070b0d;
+    --konsole-fg: #b6c6cb;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #14171a;
-  --fg: #e6e9ec;
-  --muted: #9aa4ae;
-  --card: #1c2024;
-  --line: #2c3238;
-  --line2: #232a30;
-  --accent: #6fbf95;
-  --accent-fg: #10231a;
-  --warn: #e0a26a;
-  --danger: #f2917f;
-  --ok-bg: #1d2b23;
-  --err-bg: #2e1f1e;
-  --bar-bg: #262c32;
+  --bg: #0d1316;
+  --fg: #d8e2e5;
+  --muted: #7b8d95;
+  --card: #141c20;
+  --card2: #101719;
+  --line: #243036;
+  --line2: #1b2429;
+  --accent: #f2a73b;
+  --accent-fg: #17110a;
+  --accent-bg: #2b2113;
+  --ok: #43c46e;
+  --warn: #e3a62a;
+  --danger: #f2604a;
+  --ok-bg: #12241a;
+  --err-bg: #2a1613;
+  --bar-bg: #1e262b;
+  --rail: #090e10;
+  --rail-fg: #8b9ba1;
+  --rail-hi: #e6f0f3;
+  --rail-line: #1a2327;
+  --konsole: #070b0d;
+  --konsole-fg: #b6c6cb;
 }
 
 * { box-sizing: border-box; }
@@ -76,168 +113,324 @@ main.narrow {
   padding-top: 4rem;
 }
 
-/* ------------------------------------------------------------- Navigation */
-/*
- * Die Navigation ist eine Seitenleiste, keine Topbar. Zehn Menüpunkte in einer
- * Zeile waren schon knapp; mit den geplanten Modulen (Dateimanager, Cron,
- * Terminal) trägt eine waagerechte Leiste die Menge nicht mehr. Senkrecht
- * passen sie ohne Umbruch untereinander und lassen sich in Gruppen mit
- * Überschriften ordnen. Schmal wird aus der Leiste eine Kopfzeile mit
- * einklappbarem Menü — dieselbe checkbox-basierte Mechanik wie zuvor, ohne
- * JavaScript.
+/* ============================================================= Kommandobrücke ==
+ *
+ * Vier Teile, auf jeder Seite dieselben:
+ *
+ *   1 Statusleiste   Wirt, Messwerte, offener Handlungsbedarf — verschwindet nie
+ *   2 Symbolschiene  die Ziele, mit Warnpunkt je Bereich
+ *   3 Inhaltsfeld    was die Seite ausmacht
+ *   4 Konsole        was das Panel auf der Maschine ausgeführt hat
+ *
+ * Der Sinn der Anordnung: Wer auf „Dienste" wechselt, um einen Ausfall zu
+ * beheben, sieht CPU, Speicher und Platte weiterhin. Vorher standen sie nur
+ * auf der Übersicht — ein Cockpit, dessen Instrumente beim Steuern ausgehen.
  */
 
 .app {
-  display: grid;
-  grid-template-columns: 15.5rem minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
+}
+
+.app-body {
+  display: grid;
+  grid-template-columns: 4.2rem minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
 }
 
 /* min-width: 0 ist nötig, sonst zieht eine breite Tabelle die Inhaltsspalte
    über die Rasterspur hinaus — ein Grid-Element hat von sich aus
    min-width: auto und schrumpft nicht unter seine breiteste Stelle. */
-.content { min-width: 0; }
+.content { min-width: 0; display: flex; flex-direction: column; }
 
-/* Die Leiste bleibt beim Scrollen stehen: top: 0 mit voller Höhe und eigenem
-   Bildlauf, falls die Punkte einmal höher werden als der Bildschirm. */
-.sidebar {
+/* Der Symbolvorrat ist nur eine Ablage für <use>; er darf nichts einnehmen. */
+.symbolvorrat { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* --- 1 Statusleiste ------------------------------------------------------ */
+
+.status {
   position: sticky;
   top: 0;
+  z-index: 30;
+  height: var(--status-h);
+  display: flex;
+  align-items: stretch;
+  background: var(--rail);
+  color: var(--rail-fg);
+  border-bottom: 1px solid var(--rail-line);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-host {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  border-right: 1px solid var(--rail-line);
+  color: var(--rail-hi);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.status-host small { color: var(--rail-fg); font-weight: 400; opacity: 0.75; }
+.status-host:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* Jede Anzeige ist ein Link: Eine auffällige Zahl soll ein Griff sein. */
+.gauges {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.gauges::-webkit-scrollbar { display: none; }
+
+.gauge {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border-right: 1px solid var(--rail-line);
+  color: var(--rail-fg);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.gauge:hover { background: rgba(255, 255, 255, 0.06); }
+.gauge .g-k { font-size: 0.56rem; letter-spacing: 0.13em; opacity: 0.62; }
+.gauge .g-v { font-size: 0.78rem; color: var(--rail-hi); }
+.gauge .g-v small { font-size: 0.62rem; opacity: 0.7; }
+.gauge .g-n { font-size: 0.56rem; opacity: 0.45; }
+
+.status-space { flex: 1; }
+
+.status-flag {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  border-left: 1px solid var(--rail-line);
+  text-decoration: none;
+  color: var(--rail-fg);
+  white-space: nowrap;
+}
+.status-flag:hover { background: rgba(255, 255, 255, 0.06); }
+.status-flag.crit { color: var(--danger); font-weight: 700; }
+.status-flag.warn { color: var(--warn); font-weight: 700; }
+
+.status-live {
+  display: flex;
+  align-items: center;
+  padding: 0.45rem 0.7rem;
+  border-left: 1px solid var(--rail-line);
+}
+
+/* Nur für Screenreader: Der Live-Zustand steht als Punkt da, sein Text nicht. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- 2 Symbolschiene ----------------------------------------------------- */
+
+.rail {
+  position: sticky;
+  top: var(--status-h);
   align-self: start;
-  height: 100vh;
+  /* Volle Höhe statt max-height: Nur so schiebt .rail-space den Fuß mit
+     Design-Schalter und Abmelden ans untere Ende. */
+  height: calc(100vh - var(--status-h));
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  padding: 1rem 0.85rem;
-  background: var(--card);
-  border-right: 1px solid var(--line);
+  gap: 1px;
+  padding: 0.3rem 0;
+  background: var(--rail);
+  border-right: 1px solid var(--rail-line);
 }
 
-.side-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.15rem 0.4rem 0.6rem;
-}
-
-/* Der Projektname führt zur Übersicht — das erwartet man von einem Logo. Er
-   trägt die Vordergrundfarbe, nicht das Akzentgrün der übrigen Links: ein grün
-   eingefärbter Markenname sähe aus wie ein Link im Fließtext, nicht wie das
-   Logo. */
-.brand-link {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  color: var(--fg);
-  text-decoration: none;
-}
-.brand-link strong { letter-spacing: -0.01em; }
-.brand-link .host { color: var(--muted); font-size: 0.8rem; }
-.brand-link:hover strong { color: var(--accent); }
-.brand-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
-
-/* Menügruppen und Fußteil. Füllt die restliche Höhe, damit der Fußteil unten
-   sitzt (margin-top: auto weiter unten). Schmal ist genau dieser Bereich das,
-   was der Menüknopf ein- und ausblendet. */
-.side-body {
+.rail-item {
+  position: relative;
   display: flex;
   flex-direction: column;
-  flex: 1;
-  gap: 0.15rem;
-}
-
-.navgrp { display: flex; flex-direction: column; gap: 0.1rem; margin-top: 0.6rem; }
-.navgrp:first-child { margin-top: 0; }
-
-.navgrp-label {
-  padding: 0.35rem 0.6rem 0.2rem;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.sidebar a.item {
-  display: block;
-  padding: 0.45rem 0.6rem;
-  border-radius: 7px;
+  align-items: center;
+  gap: 1px;
+  padding: 0.4rem 0.1rem;
+  text-decoration: none;
+  color: var(--rail-fg);
   border-left: 2px solid transparent;
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.9rem;
 }
-.sidebar a.item:hover { color: var(--fg); background: var(--bg); }
-.sidebar a.item.active {
+.rail-sym { width: 17px; height: 17px; flex: none; }
+.rail-text {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-item:hover { color: var(--rail-hi); background: rgba(255, 255, 255, 0.05); }
+.rail-item.active {
   color: var(--accent);
-  background: var(--ok-bg);
   border-left-color: var(--accent);
-  font-weight: 600;
+  background: rgba(242, 167, 59, 0.1);
 }
+.rail-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
-/* Eigener Zugang und Abmelden sitzen unten fest. */
-.side-foot {
-  margin-top: auto;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+/* Der Warnpunkt sagt, dass dort etwas offen ist — ohne dass man hinklicken
+   muss. Er folgt denselben Signalen wie die Übersicht. */
+.rail-item .pip {
+  position: absolute;
+  top: 5px;
+  right: calc(50% - 15px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 0 2px var(--rail);
 }
-.side-foot form { margin: 0; }
-.side-foot button.small { width: 100%; }
+.rail-item .pip.crit { background: var(--danger); }
 
-/* Der Benutzername führt aufs eigene Profil und sieht deshalb aus wie eine
-   Schaltfläche: Rahmen, Höhe, ein Ziel, das man auch auf dem Telefon trifft.
-   Bis rc.4 war er ein grauer Text und wirkte wie eine reine Beschriftung —
-   niemand hätte ihn angetippt. Die Rolle rückt ans rechte Ende des Chips. */
-.who {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--fg);
-  text-decoration: none;
-  font-size: 0.85rem;
-}
-.who:hover { border-color: var(--accent); color: var(--accent); }
-.who.active { border-color: var(--accent); }
-.who:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.who .role {
-  margin-left: auto;
-  padding: 0.05rem 0.35rem;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
+.rail-space { flex: 1; min-height: 0.5rem; }
 
-/* Der Umschalter für Hell/Dunkel sitzt im Fußteil der Leiste. Er ist bewusst
-   unscheinbar — Rahmen wie der Zugang darüber, kein Fülldruck. Ohne Skript
-   bliebe er wirkungslos; deshalb wird er von theme.js eingeblendet (hidden im
-   Markup) und trägt dann die Systemvorgabe als Beschriftung. */
-.themebtn {
-  margin: 0;
+/* Der Fuß der Schiene hat 4,2 rem Breite — ein Knopf mit der Beschriftung
+   „Dunkler Modus" passt dort nicht und bräche die Spalte auf. Beide Knöpfe
+   bekommen deshalb eigene, schmale Maße und die Farben der Blende; ihr Text
+   wird gekürzt, statt umzubrechen. */
+.rail-logout { margin: 0; padding: 0 0.2rem 0.25rem; }
+.rail-logout button.small,
+.rail .themebtn {
+  display: block;
   width: 100%;
-  padding: 0.35rem 0.6rem;
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
+  min-width: 0;
+  margin: 0;
+  padding: 0.28rem 0.1rem;
+  border: 1px solid var(--rail-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--rail-fg);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.themebtn:hover { filter: none; border-color: var(--accent); color: var(--accent); }
-.themebtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* Ohne diese Zeile bliebe ein Knopf sichtbar, obwohl er hidden ist: Die
-   allgemeine button-Regel setzt display: inline-block und schlägt damit das
-   display: none des hidden-Attributs. Betrifft alles, was erst per JavaScript
-   eingeblendet wird — Theme-Umschalter, Passkey-Knöpfe. */
-button[hidden], .button[hidden] { display: none; }
+.rail-logout button.small:hover,
+.rail .themebtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: transparent;
+}
+.rail .themebtn { margin: 0 0.2rem 0.25rem; }
+
+/* --- 4 Konsole ----------------------------------------------------------- */
+
+/* Sie klebt am unteren Rand des Inhalts und bleibt beim Scrollen stehen:
+   Eingeklappt eine Zeile — der letzte Befehl mit Rückgabewert und Laufzeit. */
+.konsole {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: auto;
+  background: var(--konsole);
+  color: var(--konsole-fg);
+  border-top: 1px solid var(--rail-line);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.konsole summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  list-style: none;
+  min-width: 0;
+}
+.konsole summary::-webkit-details-marker { display: none; }
+.konsole summary::before {
+  content: "▲";
+  font-size: 0.55rem;
+  opacity: 0.55;
+  flex: none;
+}
+.konsole[open] summary::before { content: "▼"; }
+.konsole summary:hover { background: rgba(255, 255, 255, 0.05); }
+.konsole summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.k-titel {
+  font-size: 0.56rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  flex: none;
+}
+.k-cmd {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: 0.7rem;
+}
+.k-res { flex: none; font-size: 0.65rem; }
+.k-res.ok { color: var(--ok); }
+.k-res.err { color: var(--danger); }
+.k-leer { opacity: 0.5; font-style: normal; }
+
+.konsole[open] { border-top-color: var(--accent); }
+.k-liste {
+  max-height: 40vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--rail-line);
+}
+.k-zeile {
+  display: grid;
+  grid-template-columns: 5.2rem 1rem minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.25rem 0.9rem;
+  border-bottom: 1px solid var(--rail-line);
+}
+.k-zeile:hover { background: rgba(255, 255, 255, 0.05); }
+.k-zeit { opacity: 0.5; }
+.k-prompt { color: var(--accent); }
+/* Die Meldung eines fehlgeschlagenen Aufrufs steht unter dem Befehl, nicht
+   daneben: Sie ist meist länger als die Spalte breit ist. */
+.k-meldung {
+  grid-column: 3 / -1;
+  opacity: 0.65;
+  font-size: 0.65rem;
+  overflow-wrap: anywhere;
+}
+.k-fuss {
+  margin: 0;
+  padding: 0.4rem 0.9rem;
+  opacity: 0.5;
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
 
 /* ------------------------------------------------------------------ Karten */
 
@@ -1392,10 +1585,9 @@ a { color: var(--accent); }
  * was jeder Besucher sieht.
  */
 
-/* Die Schaltfläche fürs Menü gibt es nur schmal. Die Checkbox bleibt im
-   Zugriff der Tastatur, ist aber nicht zu sehen. Sie steht als erstes Kind der
-   Leiste vor .side-body, damit ":checked ~ .side-body" das Menü ein- und
-   ausblenden kann. */
+/* Die Checkbox bleibt im Zugriff der Tastatur, ist aber nicht zu sehen. Sie
+   steht als erstes Kind von .app-body vor .rail, damit ":checked ~ .rail" die
+   ausgeklappte Schiene erreichen kann. */
 .nav-toggle {
   position: absolute;
   width: 1px;
@@ -1403,63 +1595,97 @@ a { color: var(--accent); }
   opacity: 0;
 }
 
-.nav-button { display: none; }
-
-.nav-toggle:focus-visible + .side-head .nav-button {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+/* Breit gibt es keinen Menüknopf: Die Schiene steht ohnehin vollständig da. */
+.rail-mehr { display: none; }
 
 /* ---------------------------------------------- bis 900 px: Navigation --- */
 
-/* Schmal ist die Leiste keine Spalte mehr, sondern eine Kopfzeile: Marke und
-   Menüknopf in einer Zeile, die Gruppen darunter erst auf Tippen. Ein Menü,
-   das den Inhalt überlagert statt ihn wegzuschieben, ist auf einem kleinen
-   Bildschirm schlimmer — deshalb liegt .side-body im Fluss und schiebt den
-   Inhalt nach unten. */
+/* Schmal wird aus der senkrechten Schiene eine Leiste am unteren Rand — in
+   Daumenreichweite, was die Spalte links nie war. Vier Ziele bleiben stehen
+   (die mit .tab), der Rest klappt darüber auf. Zwölf Symbole nebeneinander
+   wären auf 360 Pixeln je 30 Pixel breit und niemand träfe sie. */
 @media (max-width: 900px) {
-  .app { display: block; }
+  .app-body { display: block; }
 
-  .sidebar {
-    position: static;
-    height: auto;
+  /* Platz für die Leiste, damit ihr letzter Eintrag nichts verdeckt. */
+  .content { padding-bottom: 3.5rem; }
+
+  .status { font-size: 0.66rem; }
+  .status-host small { display: none; }
+  .status-live { display: none; }
+
+  .rail {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    max-height: none;
+    align-self: auto;
     overflow: visible;
-    padding: 0.6rem 0.9rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 0;
     border-right: none;
-    border-bottom: 1px solid var(--line);
+    border-top: 1px solid var(--rail-line);
   }
 
-  .side-head { padding: 0; }
+  .rail-item,
+  .rail-mehr {
+    flex: 1 1 0;
+    min-width: 0;
+    border-left: none;
+    border-top: 2px solid transparent;
+    padding: 0.4rem 0.15rem 0.5rem;
+  }
+  .rail-item.active {
+    border-left-color: transparent;
+    border-top-color: var(--accent);
+  }
+  .rail-item .pip { right: calc(50% - 14px); }
 
-  .nav-button {
-    display: inline-block;
-    padding: 0.3rem 0.7rem;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    color: var(--muted);
-    font-size: 0.85rem;
+  /* Eingeklappt: nur die vier Ziele der Leiste und der Knopf. */
+  .rail-item:not(.tab) { display: none; }
+  .rail-space,
+  .rail-logout,
+  .rail .themebtn { display: none; }
+
+  .rail-mehr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    color: var(--rail-fg);
     cursor: pointer;
     user-select: none;
   }
-
-  .nav-toggle:not(:checked) ~ .side-body { display: none; }
-  .nav-toggle:checked ~ .side-body {
+  .rail-mehr .rail-sym {
     display: flex;
-    border-top: 1px solid var(--line);
-    margin-top: 0.6rem;
-    padding-top: 0.4rem;
-  }
-
-  /* Der Fußteil rückt zu den Gruppen (kein margin-top: auto ohne volle Höhe)
-     und läuft waagerecht: Name links, Abmelden rechts. */
-  .side-foot {
-    flex-direction: row;
     align-items: center;
-    gap: 0.6rem;
-    margin-top: 0.6rem;
+    justify-content: center;
+    height: 17px;
+    letter-spacing: 0.08em;
   }
-  .side-foot .who { flex: 1; }
-  .side-foot button.small { width: auto; }
+  .nav-toggle:focus-visible ~ .rail .rail-mehr { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* Aufgeklappt: die vollständige Schiene als Blatt über der Leiste, vier
+     Ziele je Zeile. Der Knopf bleibt sichtbar und schließt wieder. */
+  .nav-toggle:checked ~ .rail .rail-item { display: flex; flex: 0 0 25%; }
+  .nav-toggle:checked ~ .rail .rail-mehr { flex: 0 0 25%; color: var(--accent); }
+  .nav-toggle:checked ~ .rail .rail-logout,
+  .nav-toggle:checked ~ .rail .themebtn {
+    display: block;
+    flex: 0 0 50%;
+    margin: 0.3rem 0;
+  }
+  .nav-toggle:checked ~ .rail { padding-bottom: 0.3rem; }
+
+  /* Die Konsole legt sich über die Leiste, nicht darunter. */
+  .konsole { bottom: 3.5rem; }
+  .k-zeile { grid-template-columns: 4.6rem 0.8rem minmax(0, 1fr); }
+  .k-zeile .k-res { grid-column: 3; text-align: right; }
 }
 
 /* ------------------------------------------------- bis 900 px: Inhalte --- */

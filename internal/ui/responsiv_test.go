@@ -96,11 +96,16 @@ func TestStylesheetHatBreakpoints(t *testing.T) {
 			t.Errorf("app.css hat keinen Breakpoint für %q", breite)
 		}
 	}
-	// Ohne diese Regel klappt die Navigation schmal nicht mehr zu. Seit der
-	// Umstellung auf die Seitenleiste blendet der Umschalter .side-body ein
-	// und aus, nicht mehr eine .menu-Liste.
-	if !strings.Contains(css, ".nav-toggle:not(:checked) ~ .side-body") {
+	// Ohne diese Regel klappt die Navigation schmal nicht mehr auf. Seit der
+	// Umstellung auf die Kommandobrücke ist die Navigation eine Symbolschiene:
+	// Schmal wird sie eine Leiste am unteren Rand mit vier Zielen, und der
+	// Umschalter blendet die übrigen darüber ein.
+	if !strings.Contains(css, ".nav-toggle:checked ~ .rail .rail-item") {
 		t.Error("die Umschaltung der Navigation fehlt")
+	}
+	// Die Leiste am unteren Rand darf den Inhalt nicht verdecken.
+	if !strings.Contains(css, ".content { padding-bottom:") {
+		t.Error("schmal fehlt der Platz unter dem Inhalt für die Leiste")
 	}
 }
 

@@ -29,7 +29,11 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		snap.UptimeText = "wird ermittelt"
 	}
 
+	// Die Übersicht erhebt frisch — und legt das Ergebnis für die Warnpunkte an
+	// der Symbolschiene ab. Sonst hinge der Punkt nach einem geglückten
+	// Neustart noch bis zum Ablauf der Standzeit an der Schiene.
 	signals := s.dashboardSignals(r.Context(), snap)
+	s.lageSetzen(signals)
 	verdict := dashVerdict{
 		Level: "ok",
 		Title: "Alles läuft normal",

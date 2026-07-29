@@ -1,0 +1,603 @@
+# 16 — Neukonzeption: vom Server-Panel zum Server-und-Apps-Panel
+
+Dieses Dokument ist der Bauplan für die zweite Ausbaustufe des Projekts. Es
+revidiert zwei Grundsatzentscheidungen aus [03-funktionsumfang.md](03-funktionsumfang.md)
+— den Scope und die Vorgabe „schlank als hartes Budget" —, legt den
+Funktionsschnitt der Fassungen 0.5 bis 1.0 fest und beschreibt die neue
+Oberfläche. Die zugehörige Entwurfsmappe mit allen Bildschirmen:
+
+**[docs/entwuerfe/neukonzept.html](entwuerfe/neukonzept.html)** — im Browser öffnen.
+
+Wie die bisherigen Mappen ist sie statisches HTML ohne Schriftdateien und ohne
+externe Aufrufe. Die Seitenleisten in den Rahmen sind echte Verweise — man
+bedient die Mappe wie das Panel und springt von Bildschirm zu Bildschirm.
+
+---
+
+## 1. Anlass und Auftrag
+
+Drei Dinge ändern sich, drei bleiben.
+
+**Was sich ändert:**
+
+1. **Der Scope wächst von A nach A+.** Das Panel bleibt Serververwaltung, nimmt
+   aber die Betriebsthemen dazu, für die heute doch wieder SSH nötig ist:
+   Container, Webserver mit Domains und Zertifikaten, Datenbanken, Zeitpläne,
+   Backups. Nicht als Hosting-Panel mit Kunden und Mail — als Werkzeug für den
+   einen eigenen Server, auf dem Anwendungen laufen.
+2. **Die Oberfläche wird neu gebaut.** Die Kommandobrücke aus
+   [15-neuordnung.md](15-neuordnung.md) hat sich im Betrieb nicht bewährt; was
+   sich bewährt hat, sind die Telemetrie-Kacheln der Übersicht — dunkle Karte,
+   große Zahl, bernsteinfarbener Verlauf. Sie werden zum Ausgangspunkt des neuen
+   Gestaltungssystems, alles andere entsteht neu.
+3. **„Schlank" fällt als harte Vorgabe.** Die CI-Grenzen für Binärgröße und
+   Grundlast bleiben als Messwerte erhalten, aber sie entscheiden nicht mehr
+   gegen Funktionen. Konkret heißt das: ein Frontend mit Build-Schritt und
+   Node in der Werkzeugkette ist jetzt zulässig — auf dem Zielserver ändert
+   sich nichts, dort landet weiterhin genau ein Binary.
+
+**Was bleibt:**
+
+1. **Ein Binary, ein Server, apt.** Keine Laufzeitabhängigkeiten, kein Docker
+   als Voraussetzung, kein Node auf dem Zielsystem.
+2. **Nicht-besitzergreifend.** Das Panel schreibt nur in verwaltete Blöcke und
+   eigene Drop-in-Dateien, sichert vor jedem Schreiben, validiert vor jedem
+   Neuladen und erkennt fremde Änderungen am Hash. Der Server bleibt „normal"
+   — wer das Panel deinstalliert, behält eine funktionierende Maschine.
+3. **Das Go-Fundament.** `privops`, Anmeldung samt Passkeys, Metrik-Sammler,
+   Store, signiertes Selbstupdate und ACME sind erprobt, getestet und von
+   Freigabekandidaten gehärtet. Sie werden weitergebaut, nicht ersetzt.
+
+## 2. Revision der Nicht-Ziele
+
+Die Nicht-Ziel-Liste aus [03-funktionsumfang.md](03-funktionsumfang.md) war
+richtig für Scope A. Zwei Einträge fallen, der Rest gilt verschärft weiter.
+
+| Bisher Nicht-Ziel | Jetzt | Begründung |
+|---|---|---|
+| vHosts / Reverse Proxy | **Ziel (0.7)** | Der häufigste Handgriff nach dem Aufsetzen eines Dienstes ist „mach ihn unter einem Namen mit TLS erreichbar". Das ACME-Modul existiert bereits; der Schritt von „Zertifikat fürs Panel" zu „Zertifikat je Domain" ist der kleinste im ganzen Vorhaben. |
+| Datenbanken (MySQL/PostgreSQL) | **Ziel (0.8)** | Jede zweite Anwendung braucht eine. Datenbank und Benutzer anlegen ist typisierbar und klein — verwaltet wird die Instanz, nicht der Inhalt. |
+
+**Unverändert Nicht-Ziele, jetzt mit größerem Gewicht:**
+
+- **Kein Mailserver-Stack.** Die Erfahrung aller Hosting-Panels: Mail erzeugt
+  80 % des Supports. Daran ändert der neue Scope nichts.
+- **Kein autoritativer DNS-Server.**
+- **Keine Kunden-, Reseller- oder Abrechnungsverwaltung.** Das Panel verwaltet
+  einen Server für seinen Betreiber, nicht ein Geschäft.
+- **Kein eigenes Paketformat**, keine Software-Stacks an apt vorbei. Auch der
+  Webserver und die Datenbank kommen aus den Distributionsquellen.
+- **Kein Ersatz für Konfigurationsmanagement.** Wer deklarativ über Flotten
+  arbeitet, bleibt bei Ansible besser aufgehoben.
+- **Keine Windows-Unterstützung.**
+
+Die Positionierungstabelle in 03 verschiebt sich damit: Der Vergleichspunkt ist
+nicht mehr nur Cockpit/Webmin, sondern auch CloudPanel und Coolify — mit dem
+Unterschied, dass Asylum nicht-besitzergreifend bleibt und keinen eigenen Stack
+neben das System stellt.
+
+## 3. Leitbild und Positionierung
+
+**Ein modernes Verwaltungs- und Betriebs-Panel für einen einzelnen Ubuntu- oder
+Debian-Server, auf dem Anwendungen laufen.** Die Zielperson betreibt einen VPS
+oder eine dedizierte Maschine, allein oder im kleinen Team, und will drei Dinge
+ohne SSH erledigen können: den Zustand sehen, den Server pflegen, Anwendungen
+betreiben.
+
+| Produkt | Positionierung | Abgrenzung |
+|---|---|---|
+| Cockpit | Serververwaltung, Red-Hat-zentriert | Debian/Ubuntu-first, ein Binary, App-Betrieb eingeschlossen |
+| Webmin | alles, Perl, gealtert | fokussiert, sicher voreingestellt, moderne Oberfläche |
+| CloudPanel / HestiaCP | Hosting, schreibt das System weitreichend um | nicht-besitzergreifend, der Server bleibt normal |
+| Coolify | App-Deployment, Docker-zentriert | der Server selbst ist Bürger erster Klasse; Docker ist Option, nicht Voraussetzung |
+| Portainer | nur Container | Container sind ein Modul unter mehreren |
+
+Die fünf Leitplanken aus dem README gelten fort, eine wird umformuliert:
+„Schlank und ressourcenschonend" wird zu **„sparsam auf dem Server, großzügig
+in der Werkstatt"** — auf dem Zielsystem bleiben die Budgets, in der
+Entwicklung ist eine Frontend-Werkzeugkette zulässig.
+
+## 4. Basisfunktionen — das Fundament
+
+Was ein Panel für Ubuntu/Debian-Server auf jeden Fall können muss. Der Bestand
+deckt fast alles davon ab — das ist das Ergebnis der Fassungen 0.1 bis 0.4 und
+der Grund, das Fundament zu behalten.
+
+### 4.1 Vorhanden und bewährt
+
+| Basisfunktion | Umsetzung |
+|---|---|
+| Geführtes Erst-Setup, Anmeldung (Argon2id + TOTP), Passkeys, Rollen Owner/Admin/ReadOnly, Sitzungsverwaltung, Zugang zurücksetzen ohne Mail | `internal/auth`, `internal/passkeys`, [12-zugang-zuruecksetzen.md](12-zugang-zuruecksetzen.md) |
+| Übersicht mit Urteil, Handlungsbedarf und 24-h-Telemetrie (CPU, Speicher, Last, Netz, Dateisysteme, Prozesse), live über SSE | `internal/metrics`, `internal/httpd` |
+| Dienste: systemd-Units auflisten, starten, stoppen, neu laden, aktivieren | `internal/privops/services.go` |
+| Pakete & Updates: apt mit Live-Ausgabe, Sicherheitsupdates markiert, Reboot-Hinweis | `internal/privops/packages.go` |
+| Firewall: ufw mit 60-Sekunden-Probe und selbsttätigem Rückweg; fremde nftables-Regelwerke nur anzeigen | `internal/privops/firewall.go` |
+| Systembenutzer und `authorized_keys`, SSH-Härtung mit `sshd -t`-Validierung | `internal/privops/users.go`, `sshd.go` |
+| Dateimanager mit Pfadwache, Sperrliste auch für Owner, streamendem Upload und Editor | [13-dateimanager.md](13-dateimanager.md) |
+| Logs: journald mit Filter und Live-Follow | `internal/privops/journal.go` |
+| Audit-Log, TLS (selbstsigniert + Let's Encrypt), signiertes Selbstupdate mit Rollback | `internal/store/audit.go`, [10-tls-acme.md](10-tls-acme.md), [05-updates.md](05-updates.md) |
+| Rückfragen in drei Stufen, serverseitig erzwungen | [14-bestaetigungen.md](14-bestaetigungen.md) |
+
+### 4.2 Neu als Basis
+
+Drei Dinge fehlen dem Fundament, und alle drei sind Voraussetzung für die
+Ausbaustufen — deshalb gehören sie in die erste neue Fassung und nicht in ein
+späteres Modul.
+
+**Cron & systemd-Timer.** Anzeigen, anlegen, bearbeiten, letzte Ausführung mit
+Exit-Code und Ausgabe. War schon in 03 für v0.2 vorgesehen; mit Backups (0.9)
+werden Timer außerdem zur internen Infrastruktur. privops wächst um
+`CronList`, `CronWrite`, `TimerList`, `TimerRuns` — Cron-Einträge entstehen als
+eigene Datei unter `/etc/cron.d/` mit verwaltetem Marker, nie durch Editieren
+fremder Crontabs.
+
+**Ein einheitliches Job-Modell.** Heute löst jedes Modul lange Vorgänge selbst:
+Pakete streamen über einen eigenen Kanal, die Firewall-Probe hält ihren eigenen
+Zustand. Mit Docker, Webserver und Backups kommen drei weitere Vorgangs-Typen
+dazu — ab dann ist die Einzellösung ein Fehler. Ein Job hat eine Nummer, einen
+Auslöser (wer, wann, was), einen Stream aus dem Konsolen-Echo, einen Exit-Code
+und bleibt nach Abschluss abrufbar. Die Oberfläche zeigt jeden Job gleich an,
+egal aus welchem Modul er stammt.
+
+**Eine JSON-Schnittstelle `/api/v1/*`.** Die neue Oberfläche ist die einzige
+Kundin, aber die Schnittstelle wird von Anfang an so geschnitten, als käme
+später eine zweite (CLI, Automatisierung): Ressourcen statt Seiten, Fehler als
+strukturierte Antworten, Berechtigungen serverseitig am Endpunkt. Dazu
+**API-Tokens** als zweiter Anmeldeweg neben der Sitzung: serverseitig nur der
+Hash gespeichert (dasselbe Muster wie Sitzungen), an das Rollenmodell gebunden,
+mit Ablaufdatum, im Audit-Log sichtbar. Öffentlich dokumentiert und stabil wird
+die API erst später (siehe Roadmap) — aber falsch geschnitten wird sie sonst
+jetzt.
+
+## 5. Erweiterte Funktionen — die Ausbaustufen 0.5 bis 1.0
+
+Die 0.4er-Reihe läuft auf der bestehenden Oberfläche aus. Die Neukonzeption
+beginnt mit 0.5 und endet mit der Freigabe 1.0. Jede Stufe nennt, was
+`privops` dazulernen muss — das ist der eigentliche Kostentreiber, nicht die
+Oberfläche: Eine neue Seite ist ein Nachmittag, eine neue Systemfläche ist eine
+Sicherheitsbetrachtung.
+
+### 0.5 — Neues Fundament
+
+Die neue Oberfläche mit vollständiger Funktionsparität zum Bestand, dazu die
+drei Basis-Neuerungen aus 4.2. Kein neues Systemrisiko: privops wächst nur um
+die Cron/Timer-Familie, alles andere ist Umbau über dem Bestand.
+
+- Neue Oberfläche (Svelte, siehe Abschnitt 8) für alle vorhandenen Module.
+- `/api/v1` für alles, was die Oberfläche braucht; die alten HTML-Routen
+  fallen mit dem Umstieg, nicht vorher.
+- Job-Modell; Pakete und Firewall-Probe ziehen als erste um.
+- Cron & systemd-Timer als neues Modul.
+- API-Tokens (intern, für die eigene Oberfläche und `asylum`-CLI).
+
+*Größter Einzelschritt des Vorhabens. Er ist bewusst die erste Stufe: Jede
+weitere baut auf API, Job-Modell und neuer Oberfläche auf — in umgekehrter
+Reihenfolge würde jedes Modul zweimal gebaut.*
+
+### 0.6 — Docker
+
+Container, Images, Volumes, Netzwerke, Compose-Stacks, Container-Logs und
+-Statistiken. Podman bleibt Roadmap — erst eine Laufzeit richtig.
+
+- **Stacks sind das führende Objekt.** Ein Stack ist ein Verzeichnis
+  `/opt/asylum/stacks/<name>/` mit einer `compose.yaml`, die durch die
+  Pfadwache und einen Compose-Prüfer läuft. Container entstehen ausschließlich
+  aus Compose-Dateien — ein freies `docker run` mit beliebigen Flags gibt es
+  nicht, aus demselben Grund, aus dem privops keine freie Shell hat.
+- privops wächst um die `Docker*`-Familie: typisierte Operationen über die
+  `docker`-CLI (Allowlist-Pfad, `--format json`), **nicht** über eine
+  Socket-Bibliothek. Zwei Gründe: kein neuer schwerer Baustein im
+  Abhängigkeitsbudget, und jede Aktion bleibt eine nachvollziehbare
+  Kommandozeile im Konsolen-Echo — Grundsatz IV überlebt nur so.
+- Fehlt Docker, bietet das Panel die Installation über das Paketmodul an —
+  dieselbe Antwort wie bei ufw in rc.4, nicht eine Kommandozeile zum Abtippen.
+
+### 0.7 — Webserver & Domains
+
+nginx oder Caddy — erkannt wird, was läuft; fehlt beides, wird eines über das
+Paketmodul installiert (Voreinstellung nginx, weil auf Bestandsservern häufiger
+vorhanden). Sites sind der Gegenstand, nicht Konfigurationsdateien:
+
+- Eine Site ist Domain → Ziel → TLS. Ziele: Reverse-Proxy auf einen Container
+  oder Port, statisches Verzeichnis, PHP-FPM (optional, über das Paketmodul).
+- Geschrieben wird ausschließlich als verwaltetes Drop-in
+  (`/etc/nginx/conf.d/asylum-<site>.conf` mit Marker und Hash-Konflikterkennung
+  wie bei `internal/config`); fremde vHosts werden angezeigt, nie verändert —
+  dieselbe Trennung wie bei nftables.
+- Jeder Schreibvorgang läuft als Kette: Backup → schreiben → `nginx -t` bzw.
+  `caddy validate` → neu laden → **Probe**. Antwortet der Server nach dem
+  Neuladen nicht mehr (das Panel kann selbst hinter dem Proxy liegen), stellt
+  der Rückweg den vorigen Stand wieder her — dieselbe 60-Sekunden-Mechanik wie
+  bei der Firewall, und aus demselben Grund.
+- TLS je Domain über das vorhandene ACME-Modul; der Zertifikatshalter wird
+  mehrfähig (heute hält er genau ein Zertifikat, das des Panels).
+- privops wächst um `WebServerState`, `SiteList`, `SiteApply`, `SiteRemove`.
+
+### 0.8 — Datenbanken
+
+MariaDB/MySQL und PostgreSQL: Instanz-Status, Datenbanken und Benutzer
+anlegen und entfernen, Zeichensatz/Locale, Dumps erzeugen und einspielen.
+
+- Admin-Zugriff über **Unix-Socket-Peer-Authentifizierung als root** — das
+  Panel speichert kein Datenbank-Admin-Passwort, weil es keines braucht. Auf
+  Debian/Ubuntu ist Socket-Auth für beide Systeme die Voreinstellung.
+- Passwörter angelegter Datenbank-Benutzer werden genau einmal angezeigt —
+  dasselbe Muster wie bei Panel-Zugängen — und tauchen weder im Konsolen-Echo
+  noch im Audit-Log auf (die bestehende Geheimnis-Verdeckung des
+  privops-Journals wird um die betreffenden Argumentformen erweitert).
+- Dumps laufen als Jobs mit Stream und landen in einem Verzeichnis, das der
+  Dateimanager kennt; Einspielen ist Stufe 3 (getippter Datenbankname).
+- privops wächst um `DbState`, `DbList`, `DbCreate`, `DbDrop`, `DbUserCreate`,
+  `DbUserDrop`, `DbDump`, `DbRestore`.
+
+### 0.9 — Backups
+
+restic-Integration: Ziele (lokal, SFTP, S3-kompatibel), Zeitpläne über
+systemd-Timer (das Modul aus 0.5), Aufbewahrungsregeln, Wiederherstellung.
+
+- **Der Restore-Test ist der Kern des Moduls**, nicht die Sicherung. Ein Backup,
+  das es gibt, aber nicht zurückspielbar ist, ist schlimmer als keines, weil es
+  Sorglosigkeit erzeugt. Jeder Zeitplan enthält deshalb einen wiederkehrenden
+  Prüflauf (`restic check` plus Probe-Restore einer Stichprobe), dessen
+  Ergebnis auf der Übersicht als Handlungsbedarf erscheint, wenn er scheitert
+  oder ausbleibt.
+- Das Repository-Passwort ist das erste echte Betriebsgeheimnis, das das Panel
+  dauerhaft halten muss (siehe 7.4).
+- Bewusst die letzte Stufe: Sie braucht Timer (0.5), sichert sinnvollerweise
+  Stacks (0.6) und Datenbanken (0.8) — und sie ist die Funktion, bei der ein
+  Konstruktionsfehler am teuersten ist.
+- privops wächst um `BackupTargetCheck`, `BackupRun`, `BackupList`,
+  `BackupRestore`, `BackupPrune`.
+
+### 1.0 — Freigabe
+
+Kein neues Feature. Externer Sicherheits-Review der neuen Flächen (Docker,
+Webserver-Schreibpfad, Datenbanken, API-Tokens) — der ausstehende Review aus
+[06-roadmap.md](06-roadmap.md) wird damit auf den Endstand gezogen statt
+zweimal beauftragt. Dazu Dokumentation, Screenshots vom echten Server,
+Migrationspfad von 0.4.
+
+## 6. Roadmap — was bewusst später kommt
+
+Jeder Eintrag nennt den Grund für das Warten und das Design-Risiko, das vor dem
+Bau geklärt sein muss. Die Liste ersetzt die v0.2/v0.3-Abschnitte in 03.
+
+| Feature | Warum später | Was vorher geklärt sein muss |
+|---|---|---|
+| **Multi-Server** | Erfordert die Prozesstrennung aus [02-architektur.md](02-architektur.md) und ein Panel/Agent-Protokoll; prägt jede Architekturentscheidung | Trust-Modell: Ein kompromittiertes Panel darf nicht n Server kompromittieren. Update-Pfad je Agent. Wo liegt die Wahrheit — Panel oder Agent? |
+| **Web-Terminal** | Die gefährlichste Funktion des Panels: ein PTY über WebSocket umgeht die gesamte privops-Typisierung, das Konsolen-Echo und die Rückfragen | Opt-in per Konfigurationsdatei (nicht per Oberfläche), nur Owner, Sitzungsaufzeichnung ins Audit, eigene Sicherheitsbetrachtung wie beim Dateimanager |
+| **Plugins / Module Dritter** | Braucht eine stabile API (frühestens nach 1.0); ein Plugin im Prozess erbt alle Rechte des Panels | Go-Plugins sind praktisch unbrauchbar (Versionskopplung) — realistisch ist ein Unterprozess mit IPC und eigenem Rechteschnitt; das ist ein eigenes Projekt |
+| **Benachrichtigungen** (Mail/Webhook/ntfy) | Braucht Zustell-Semantik (Wiederholung, Entprellung) und Geheimnisverwaltung für SMTP/Token | Schwellenmodell gegen Alarm-Müdigkeit: Was meldet wann, und wie schweigt man es gezielt? Die Signalquelle existiert schon (Handlungsbedarf) |
+| **Metriken-Langzeitspeicher** | Der 24-h-Ring deckt „was ist gerade los" ab; Langzeit ist eine Speicher- und Kompaktierungsfrage | Downsampling-Politik, SQLite-Wachstum vs. eigenes Format; wer echte Langzeitmetriken will, exportiert besser nach Prometheus |
+| **Öffentliche API + CLI-Fernzugriff** | Die API entsteht in 0.5, aber Versionsstabilität verspricht man nur einmal | Token-Scopes feiner als Rollen? Versionierungs- und Abkündigungsregeln, Rate-Limits |
+| **WireGuard** | Nützlich, aber unabhängig von allem anderen; verliert gegen die App-Stufen | Schlüsselverwaltung (private Keys der Peers nie speichern), QR-Ausgabe |
+| **Podman** | Erst eine Container-Laufzeit richtig | Abbildung auf dieselbe typisierte Operationsfamilie wie Docker |
+| **PWA / Mobile** | Das responsive Web kommt zuerst; ein Manifest ist der billige Zwischenschritt | Push-Benachrichtigungen hängen am Notifications-Feature |
+
+Das **Web-Terminal** stand in 03 noch unter v0.2. Es wandert bewusst hinter
+1.0: Der neue Scope vergrößert die Angriffsfläche bereits um Docker und den
+Webserver-Schreibpfad, und ein Terminal zusätzlich vor dem externen Review wäre
+die falsche Reihenfolge.
+
+## 7. Sicherheitsfundament ab Tag eins
+
+### 7.1 Der Bestand bleibt Gesetz
+
+Nichts an der Neukonzeption lockert eine bestehende Regel:
+
+- **privops als einzige Systemgrenze** — typisierte Operationen, Allowlist mit
+  absoluten Pfaden, keine Shell, festes Environment, Ausgabe- und Zeitbudget.
+- **CSP `default-src 'none'`** ohne `unsafe-inline`/`unsafe-eval`; der
+  Nonce-Mechanismus bleibt die dokumentierte Ausnahme.
+- Argon2id, TOTP mit Zähler, Passkeys, serverseitige Sitzungen (nur Hashes in
+  der Datenbank), CSRF auf jeder schreibenden Route, Rate-Limits.
+- Signierte Releases, Schlüssel im Binary, Selbstupdate mit Probe und Rückweg.
+- Pfadwache mit Sperrliste, die auch für Owner gilt.
+- Rückfragen in drei Stufen, serverseitig erzwungen.
+- Audit-Log und Konsolen-Echo — das Panel verschweigt nichts.
+
+### 7.2 Neu: Docker ist root-Äquivalenz
+
+Wer den Docker-Socket hat, hat die Maschine (`-v /:/host` genügt). Daraus
+folgen die Regeln des Moduls:
+
+- Der Socket wird **nie** an die Oberfläche oder API durchgereicht; es gibt
+  ausschließlich typisierte privops-Operationen.
+- Container entstehen nur aus Compose-Dateien unter der Pfadwache. Vor jedem
+  `up` läuft ein Prüfer: `privileged`, Host-PID/-Netz, Device-Mounts und
+  Bind-Mounts auf Pfade der Sperrliste werden abgelehnt; Bind-Mounts außerhalb
+  des Stack-Verzeichnisses sind Stufe 3 (getippter Stack-Name). Der Prüfer ist
+  eine Bedienhilfe **und** eine Grenze — er läuft serverseitig, nicht im
+  Formular.
+- Images nur per Digest oder Tag aus konfigurierbaren Registries; `docker login`
+  -Geheimnisse gehören in die Geheimnisverwaltung (7.4), nicht in die Compose-Datei.
+
+### 7.3 Neu: Schreibpfade, die das Panel selbst treffen können
+
+Der Webserver-Schreibpfad hat dieselbe Eigenschaft wie die Firewall: Ein
+Fehler kann die Erreichbarkeit des Panels selbst kosten (Panel hinter dem
+Proxy, Port-Kollision auf 443). Deshalb gilt für Sites dieselbe Mechanik wie
+für Regeln — validieren, neu laden, Probe, selbsttätiger Rückweg — und nicht
+nur ein Bestätigungsdialog. Ein Dialog schützt vor Versehen; die Probe schützt
+auch dann, wenn man nicht mehr klicken kann.
+
+### 7.4 Neu: Geheimnisse, die das Panel halten muss
+
+Bis 0.4 speichert das Panel keine fremden Geheimnisse (das Cloudflare-Token
+liegt als Datei beim Betreiber). Mit den Ausbaustufen kommen drei dazu:
+Registry-Zugänge (0.6), restic-Repository-Passwörter (0.9), später
+SMTP/Webhook-Token. Grundsätze:
+
+- **Vermeiden vor verwalten:** Datenbanken laufen über Socket-Auth — kein
+  gespeichertes Admin-Passwort. Erzeugte DB-Passwörter werden einmal angezeigt
+  und nicht aufgehoben.
+- Was bleibt, liegt verschlüsselt im Store; der Schlüssel kommt aus
+  `systemd`-Credentials (`LoadCredential`) oder einer Root-Datei, nie aus der
+  Datenbank selbst. Anzeigen gibt es nicht, nur Ersetzen.
+- Das privops-Journal maskiert die zugehörigen Argumentformen; die Liste
+  maskierter Muster wächst mit jedem Modul und ist getestet.
+
+### 7.5 Neu: API-Tokens
+
+- Nur der Hash liegt im Store (Muster der Sitzungen), Anzeige genau einmal.
+- Tokens sind an eine Rolle gebunden und können sie nur unterschreiten, nie
+  überschreiten; Ablaufdatum verpflichtend, Widerruf einzeln, jede Nutzung im
+  Audit-Log mit Token-Kennung.
+- Kein Token im Query-String (Logs), nur als Header.
+
+### 7.6 Neu: die Node-Lieferkette
+
+Mit dem Frontend-Build betritt npm die Werkzeugkette — nicht den Server. Die
+Regeln folgen dem Muster des Editor-Bundles, das dieses Problem bereits gelöst
+hat (`.github/workflows/ci.yml`, Job „Editor-Bundle reproduzierbar"):
+
+- Lockfile eingecheckt, Installation nur `npm ci`, Node-Version gepinnt.
+- Das gebaute Bundle ist eingecheckt; die CI baut es nach und vergleicht
+  byteweise. Ein Go-Build braucht kein Node — der eingecheckte Stand trägt.
+- Lizenz-Prüfung über `node_modules` (Allowlist wie bisher), `npm audit` als
+  Warnstufe im CI.
+- **Kein CDN, keine externen Schriftarten, keine Laufzeit-Nachladung** — die
+  CSP beweist das strukturell weiter: `default-src 'none'` lässt gar keinen
+  fremden Host zu.
+
+## 8. Neue Oberfläche
+
+### 8.1 Technikentscheidung
+
+**Svelte 5 + Vite als reines SPA-Build, TypeScript, keine Chart-Bibliothek für
+die Telemetrie.** Quelle unter `web/`, Build-Ergebnis eingecheckt unter
+`internal/ui/dist/`, eingebettet über das vorhandene `embed.FS` — auf dem
+Server bleibt es ein Binary.
+
+Gegen die Alternativen, kurz:
+
+- **React** bringt ein Laufzeit-Framework und den größten transitiven
+  Abhängigkeitsbaum mit — genau die Lieferketten-Fläche, die 7.6 klein halten
+  will — und bezahlt das mit nichts, was dieses Projekt braucht.
+- **Vue** wäre gleichwertig möglich; Svelte compiliert die Reaktivität weg,
+  erzeugt kleinere Bundles und arbeitet ohne eval-artige Konstrukte — die
+  strikte CSP ist ein hartes Auswahlkriterium, kein Stilpunkt.
+- **SvelteKit** wird bewusst nicht genommen: kein Node-Server, kein SSR —
+  Vite mit dem Svelte-Plugin genügt und hält die Build-Kette klein.
+- **htmx/Alpine über den Go-Templates** wäre der kleinste Bruch, kann aber
+  Befehlspalette, Live-Job-Streams und flüssige Inspektoren nur mit genau dem
+  Inline-Skript-Stil, den die CSP verbietet — die Fassung wäre eine Sackgasse
+  vor der nächsten.
+
+**Routing als Hybrid.** Alles vor der Anmeldung — Login, Setup,
+Passwort-Zwangswechsel, Zugang zurücksetzen, Fehlerseiten — bleibt
+server-gerendertes Go-Template: kleinste Angriffsfläche vor Auth, funktioniert
+ohne JavaScript, trägt den bestehenden CSRF- und Sitzungsfluss. Alles hinter
+der Anmeldung ist eine SPA mit History-Routing; unbekannte Pfade liefern für
+angemeldete Sitzungen das `index.html`-Fallback.
+
+**Ehrlich benannt, weil es eine Abkehr ist:** Die Kernoberfläche verliert die
+Ohne-JavaScript-Fähigkeit. Bisher galt „jede Seite trägt ohne Skript"; künftig
+gilt das nur noch für die Seiten vor der Anmeldung. Das ist der Preis für
+Befehlspalette, Live-Streams und Inspektoren — und er wird bewusst bezahlt,
+nicht übersehen. Die Rückfragen bleiben trotzdem serverseitig erzwungen
+(`bestaetigt`-Feld im Handler); der Dialog im Browser bleibt Bedienhilfe.
+
+**Live-Daten.** Der bestehende SSE-Hub bleibt unverändert; im Frontend hängt
+ein dünner Store um `EventSource` (Reconnect macht der Browser), den die
+Komponenten abonnieren. Jobs (0.5) senden über denselben Kanal mit eigenen
+Event-Typen. Kein Zustands-Framework — ein Fetch-Wrapper mit CSRF-Header und
+Svelte-Stores genügen.
+
+**Telemetrie-Karten.** Die Sparkline-Berechnung bleibt auf dem Server:
+`buildSpark` (Verdichtung auf 60 Stützstellen, Mindestspanne, vorformatierte
+Messpunkt-Texte) liefert künftig JSON über `/api/v1/metrics/history` statt
+fertiger SVG-Pfade im Template. Gezeichnet wird in einer eigenen
+`StatCard`-Komponente — inline-SVG, dieselbe Geometrie (viewBox 100 × 34,
+`vector-effect: non-scaling-stroke`, Endpunkt als Null-Segment mit runder
+Kappe). **Keine Chart-Bibliothek:** Die Feinheiten dieser Karten sind in 0.2
+teuer gelernt und fertig gelöst; eine Bibliothek würde sie schlechter
+nachbauen und die einzige Stelle ersetzen, die dem Nutzer gefällt. Für eine
+spätere Metrik-Detailseite (Zoom, mehrere Reihen) ist uPlot vorgemerkt —
+klein, abhängigkeitsfrei, Canvas — aber nicht in 0.5.
+
+**Zahlen und Sprache kommen weiter vom Server.** Einheiten, Rundung und
+deutsche Beschriftung stehen an einer Stelle; das Frontend formatiert nicht
+selbst. Alle Oberflächentexte liegen in einem Modul (`web/src/lib/texte.ts`),
+keine i18n-Bibliothek — Deutsch ist die Sprache des Projekts, Englisch käme
+als zweite Ausbaustufe desselben Moduls.
+
+**Build und CI.** Makefile-Ziel `ui` nach dem Muster von `editor` (ohne npm
+bleibt der eingecheckte Stand); CI-Job „UI-Bundle reproduzierbar" exakt nach
+dem Editor-Muster. Vite muss dafür deterministisch bauen: feste Chunk- und
+Hash-Namen, keine Zeitstempel im Output — das ist ein Prüfpunkt der ersten
+Woche, nicht eine Annahme. Content-gehashte Dateinamen erlauben
+`Cache-Control: immutable` statt der heutigen 300 Sekunden. Der
+CSP-Verstoß-Mitleser aus den E2E-Tests läuft gegen jede neue Seite.
+
+### 8.2 Gestaltungssystem „Leitstand"
+
+Der Name ist geerbt: Entwurf 3 aus [15-neuordnung.md](15-neuordnung.md) hieß
+Leitstand und hatte den Grundsatz, der jetzt das ganze System trägt — **Farbe
+trägt ausschließlich Zustand.** Umgesetzt wurde damals Entwurf 1; die
+Neukonzeption dreht das um: Leitstand gewinnt und erbt von der Kommandobrücke
+die Schale (Statusband, Konsolen-Echo).
+
+**Der Keim.** Die Telemetrie-Kachel — dunkle Karte, Beschriftung in
+Kapitälchen, große Zahl mit Tabellenziffern, bernsteinfarbener Verlauf,
+Unterzeile in Mono — ist der einzige Bestandteil, der bleibt. Ihre Machart
+wird zur Regel für alles: dunkle Flächen in drei Stufen, eine warme
+Akzentfarbe, Werte in Mono, Zustand in Grün/Rot/Blau mit Text oder Symbol
+daneben, nie Farbe allein.
+
+**Farbwerte** (dark-first; das helle Schema ist eine Ableitung mit denselben
+Rollen, kein zweites Design):
+
+| Rolle | Wert |
+|---|---|
+| Hintergrund | `#0c0e11` |
+| Fläche (Karte, Leiste) | `#13161b` |
+| Fläche erhöht (Kopfzeilen, Eingaben) | `#1a1e25` |
+| Linien | `#262b33` |
+| Text / gedämpft / schwach | `#e8eaed` / `#9aa1ab` / `#6b7280` |
+| **Akzent Bernstein** — Verläufe, aktive Navigation, primäre Knöpfe, Fokusring, Warnstufe | `#e8a33d` |
+| Zustand läuft | `#4cc38a` |
+| Zustand Fehler / zerstörend | `#e5484d` |
+| Information | `#5eb1ef` |
+
+Die Zustandsfarben sind gegen die dunklen Flächen auf Kontrast ≥ 3:1 und
+CVD-Unterscheidbarkeit geprüft; sie treten nie als Serienfarben in einem
+Diagramm auf — die Verläufe sind immer einreihig und immer bernsteinfarben.
+
+**Typografie.** System-Sans für Text (keine Schriftdateien — dieselbe Regel
+wie „keine externen Aufrufe"), Mono für Werte, Pfade, Befehle und Logs, überall
+`font-variant-numeric: tabular-nums`. Skala 13/14/16/20/28/40 px; die 40er
+gehört der Kachelzahl.
+
+**Grundriss.** Vier Teile, auf jeder Seite gleich:
+
+1. **Statusband** oben: Host und Laufzeit, drei bis vier Mini-Verläufe
+   (CPU/RAM/Netz) mit aktuellem Wert — jeder ein Verweis auf die Übersicht —,
+   die Befehlspalette (⌘K), ein Live-Punkt für den SSE-Kanal. Grundsatz I:
+   der Zustand geht nie weg.
+2. **Seitenleiste** links, 240 px, einklappbar auf eine 64-px-Symbolschiene.
+   Vier Gruppen: **System** (Übersicht, Dienste, Pakete, Cron & Timer),
+   **Apps** (Docker, Webserver, Datenbanken, Backups), **Sicherheit**
+   (Firewall, Benutzer & SSH, Zertifikate), **Betrieb** (Dateien, Logs, Audit,
+   Einstellungen). Warnpunkt je Eintrag wie bisher.
+3. **Inhalt** mit Brotkrume, Seitentitel und den Mustern aus dem
+   Komponentenvorrat.
+4. **Protokollzeile** unten: der zuletzt ausgeführte Befehl mit Exit-Code und
+   Dauer, aufziehbar zur Vollansicht — das Konsolen-Echo aus dem
+   privops-Journal, unverändert. Grundsätze III und IV.
+
+**Komponentenvorrat.**
+
+| Komponente | Zweck |
+|---|---|
+| `StatCard` | die Telemetrie-Kachel; einzige Diagrammform der Übersicht |
+| `DataTable` | Sortierung, Filter oben fixiert, unter 600 px eine Karte je Zeile (die rc.4-Lektion) |
+| `Inspector` | Drawer rechts für das ausgewählte Objekt — Details, Aktionen, letzte Logzeilen ohne Seitenwechsel; die Auswahl steht in der URL, damit Verweise teilbar bleiben (das Werkbank-Erbe aus Entwurf 2) |
+| `JobStream` | Live-Ausgabe eines Jobs mit Kopfzeile (Nummer, Auslöser, Dauer) und Exit-Banner |
+| `ConfirmDialog` | die drei Stufen aus [14-bestaetigungen.md](14-bestaetigungen.md); serverseitig erzwungen, im Browser als Dialog mit Zahlen und getipptem Wort |
+| `CommandPalette` | ⌘K: Navigation, Aktionen, Dienste- und Dateisuche — der offene Punkt aus 15, mit der SPA erstmals sauber baubar |
+| `Toast`, `Badge`, `StatusDot`, `EmptyState`, `Tabs`, `KeyValue` | die üblichen Kleinteile; `EmptyState` kennt den Zustand „ohne systemd" als gültigen, gestalteten Fall |
+
+**Barrierefreiheit und Responsivität.** Sichtbarer Bernstein-Fokusring auf
+allem Bedienbaren; Kontraste gegen die dunklen Flächen AA-geprüft;
+`prefers-reduced-motion` schaltet Übergänge und Verlaufs-Animationen ab;
+Zahlen umbruchgeschützt; unter 900 px klappt die Seitenleiste zur Schiene,
+unter 600 px wird sie zur unteren Reiterleiste (fünf Ziele + „Mehr") und
+Tabellen werden Karten — die Belegung übernimmt die erprobte Antwort aus der
+Kommandobrücke.
+
+### 8.3 Interaktionsgrundsätze
+
+Die fünf Grundsätze aus [15-neuordnung.md](15-neuordnung.md) gelten
+unverändert — sie waren nie das Problem der Kommandobrücke, sondern ihr
+richtiger Kern:
+
+| | |
+|---|---|
+| I | Der Zustand geht nie weg — Statusband auf jeder Seite |
+| II | Jede Zahl ist ein Griff — Kacheln, Kennzahlen und Warnpunkte sind Verweise |
+| III | Handlungen sind quittiert — Jobs mit Stream, Exit und Verlauf |
+| IV | Das Panel verschweigt nichts — Protokollzeile mit jedem Befehl im Klartext |
+| V | Erst das Urteil, dann die Zahlen — die Übersicht beginnt mit einem Satz |
+
+Dazu kommt ein sechster, der die neuen Module bindet:
+
+| | |
+|---|---|
+| VI | Was schiefgehen kann, hat einen Rückweg — Probe mit Frist statt bloßer Rückfrage, wo ein Fehler das Panel selbst aussperren kann |
+
+## 9. Architekturfolgen im Backend
+
+- **`internal/httpd` teilt sich** in die API-Schicht (`/api/v1`, JSON, Tokens)
+  und die schmale Restmenge server-gerenderter Seiten (vor Auth). Die
+  Handler-Logik zieht in service-artige Funktionen, die API und — solange die
+  Umstellung läuft — die alten Seiten gemeinsam nutzen.
+- **Job-Modell** als eigenes Paket (`internal/jobs`): Registry, Verlauf im
+  Store, Stream über den SSE-Hub. Pakete/Firewall ziehen um, alles Neue
+  beginnt dort.
+- **privops wächst um vier Familien** (`Docker*`, `Site*`, `Db*`, `Backup*`
+  plus `Cron*/Timer*`) und bleibt die einzige Systemgrenze. Die
+  Allowlist wächst um `docker`, `nginx`/`caddy`, `mysql`/`psql`, `restic`,
+  `crontab` — jeweils absolute Pfade, `--format json` wo möglich.
+- **Die Prozesstrennung** (unprivilegierter Webprozess, root-Agent über
+  Unix-Socket), im privops-Interface seit jeher als Fluchtlinie vermerkt, wird
+  mit dem Wachstum wichtiger, bleibt aber nach 1.0 — sie ändert nichts an der
+  Operationsschnittstelle und kann deshalb warten, ohne dass etwas zweimal
+  gebaut wird.
+- **Store**: neue Tabellen für Jobs, API-Tokens, Backup-Ziele/-Läufe,
+  Site-Metadaten; Migrationen wie gehabt.
+- **Messwerte statt Budgets:** Binärgröße und RSS werden weiter je Release
+  gemessen und im CHANGELOG genannt; die CI-Grenze wird auf das neue Maß
+  gehoben (Richtwert: Binary < 40 MB, RSS-Leerlauf < 64 MB) statt gestrichen —
+  eine Sperrklinke gegen Wildwuchs bleibt, nur die Klinke sitzt höher.
+
+## 10. Meilensteine und Aufwand
+
+Schätzung für eine Vollzeit-Person, nebenberuflich entsprechend länger. Die
+0.5 ist bewusst der dickste Brocken — sie kauft allen späteren Stufen die
+doppelte Arbeit ab.
+
+| Stufe | Inhalt | Aufwand |
+|---|---|---|
+| Vorbau | Entwurfsmappe verabschieden, `web/`-Gerüst, Vite-Reproduzierbarkeit nachweisen, API-Skelett | ~1 Woche |
+| 0.5 | Neue Oberfläche mit Parität, `/api/v1`, Job-Modell, Cron & Timer, API-Tokens | ~6–8 Wochen |
+| 0.6 | Docker | ~3 Wochen |
+| 0.7 | Webserver & Domains | ~3 Wochen |
+| 0.8 | Datenbanken | ~2 Wochen |
+| 0.9 | Backups | ~3 Wochen |
+| 1.0 | externer Review, Befundbehebung, Doku, Screenshots | ~2 Wochen + Wartezeit |
+
+**Summe: rund ein halbes Jahr Vollzeit.** Nach jeder Stufe ist etwas
+Auslieferbares da; der Update-Kanal `beta` trägt die Zwischenstände wie bisher.
+
+## 11. Risiken und Gegenmaßnahmen
+
+| Risiko | Gegenmaßnahme |
+|---|---|
+| Die 0.5 wird zur Dauerbaustelle (Parität unterschätzt) | Parität ist als Liste der heutigen Seiten definiert und abzuhaken; kein neues Feature in 0.5 außer den drei Basis-Neuerungen |
+| Docker-Modul wird zur Sicherheitslücke | Kein Socket-Durchgriff, Compose-Prüfer serverseitig, Stufe-3-Rückfragen, externer Review vor 1.0 |
+| Webserver-Schreibpfad sperrt das Panel aus | Probe mit Frist und selbsttätigem Rückweg (Grundsatz VI); zusätzlich bleibt `asylum` über SSH der Rettungsanker |
+| Vite baut nicht reproduzierbar | Nachweis in der ersten Woche (Vorbau), bevor irgendetwas darauf aufsetzt; notfalls Rollup-Konfiguration härten oder Hashes aus dem Dateinamen nehmen und über Manifest auflösen |
+| npm-Lieferkette | Lockfile + `npm ci` + byteweiser Nachbau in CI + Lizenz-Allowlist; kein Laufzeit-CDN, strukturell durch CSP verhindert |
+| Ohne-JS-Abkehr verprellt Bestandsnutzer | Vor Auth bleibt alles ohne JS; die Abkehr steht im CHANGELOG und in diesem Dokument, nicht im Kleingedruckten |
+| Ein-Personen-Projekt versandet auf halber Strecke | Stufenschnitt so, dass jede Fassung für sich nützlich ist; 0.5 ersetzt den Bestand vollständig, bevor Neues beginnt |
+
+## 12. Folgearbeiten an bestehenden Dokumenten
+
+Dieses Dokument ändert Entscheidungen, die anderswo dokumentiert sind. Damit
+die Doku nicht lügt, sind nach der Verabschiedung anzupassen:
+
+- **[03-funktionsumfang.md](03-funktionsumfang.md):** Verweis auf die Revision
+  der Nicht-Ziele (Abschnitt 2) und den neuen Stufenschnitt (Abschnitt 5);
+  v0.2/v0.3-Abschnitte als überholt markieren.
+- **[06-roadmap.md](06-roadmap.md):** Meilensteine ab 0.5 aus Abschnitt 10
+  übernehmen; Qualitätsziele-Tabelle an Abschnitt 9 angleichen.
+- **[15-neuordnung.md](15-neuordnung.md):** Vermerk, dass die Kommandobrücke
+  durch den Leitstand abgelöst wird; die fünf Grundsätze bleiben in Kraft.
+- **README:** Leitplanke „schlank und ressourcenschonend" umformulieren
+  (Abschnitt 3), Scope-Beschreibung erweitern.
+- **CONTRIBUTING:** Abschnitt zur Frontend-Werkzeugkette (Node-Version,
+  `make ui`, Reproduzierbarkeit) ergänzen.
+
+Nichts davon geschieht in diesem Zug — erst wenn die Umsetzung der 0.5
+beginnt, sonst dokumentiert die Doku einen Zustand, den es noch nicht gibt.

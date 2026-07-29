@@ -73,6 +73,12 @@ func (s *Server) base(r *http.Request, title, nav string) basePage {
 	return p
 }
 
+// Rechnername ist das Wort, das systemweite Aktionen (Neustart, ufw
+// ausschalten) als getippte Bestätigung verlangen. Es steht in den Vorlagen im
+// data-Attribut des Dialogs und kommt aus derselben Funktion wie die Prüfung im
+// Handler — siehe bestaetigung.go.
+func (b basePage) Rechnername() string { return rechnername(b.Host) }
+
 func (b basePage) with(content any) basePage {
 	b.Content = content
 	return b

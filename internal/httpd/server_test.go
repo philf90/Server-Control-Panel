@@ -60,6 +60,23 @@ func newTestServer(t *testing.T) *Server {
 }
 
 // addUser legt ein vollständig eingerichtetes Konto an.
+// ja bestätigt ein Formular für einen zerstörenden Endpunkt.
+//
+// Seit die Rückfrage im Handler steht (siehe bestaetigung.go), tut ein solcher
+// Endpunkt ohne "bestaetigt" nichts, sondern antwortet mit der Zwischenseite.
+// Tests, die die Aktion selbst prüfen, bestätigen deshalb mit; wer die Rückfrage
+// prüft, lässt es weg — siehe TestZerstoerendeAktionenFragenZurueck.
+//
+// Das zweite Argument ist das getippte Wort der dritten Stufe (Kontoname,
+// Ordnername, Hostname). Wo keines verlangt ist, bleibt es weg.
+func ja(v url.Values, tippen ...string) url.Values {
+	v.Set("bestaetigt", "1")
+	if len(tippen) > 0 {
+		v.Set("tippen", tippen[0])
+	}
+	return v
+}
+
 func addUser(t *testing.T, s *Server, username, role string) store.User {
 	t.Helper()
 	ctx := context.Background()
@@ -373,7 +390,8 @@ func TestLastOwnerCannotBeDeleted(t *testing.T) {
 	cookie, csrf := login(t, s, owner)
 
 	other := addUser(t, s, "zweiter", store.RoleReadOnly)
-	rec := post(t, s, "/users/"+strconv.FormatInt(other.ID, 10)+"/delete", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/users/"+strconv.FormatInt(other.ID, 10)+"/delete",
+		ja(url.Values{"_csrf": {csrf}}, other.Username), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Löschen eines Nicht-Owners: Status = %d", rec.Code)
 	}

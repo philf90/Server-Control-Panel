@@ -28,7 +28,12 @@
       <dt>Wiederherstellungscodes</dt><dd>{{.RecoveryCodesLeft}} übrig</dd>
     </dl>
 
-    <form method="post" action="/account/recovery-codes">
+    {{/* Hier stand nie eine Rückfrage, und der Knopf macht die alte Liste
+         ungültig — bemerkt wird das erst, wenn man sie braucht. */}}
+    <form method="post" action="/account/recovery-codes"
+          data-bestaetigen="Neue Wiederherstellungscodes erzeugen? Die bisherigen gelten danach nicht mehr, eine ausgedruckte Liste ist wertlos."
+          data-bestaetigen-titel="Neue Wiederherstellungscodes"
+          data-bestaetigen-knopf="neue Codes erzeugen">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <button type="submit" class="secondary">Neue Wiederherstellungscodes erzeugen</button>
     </form>
@@ -110,7 +115,9 @@
                 <button type="submit" class="small">umbenennen</button>
               </form>
               <form method="post" action="/account/passkeys/{{.ID}}/delete"
-                    onsubmit="return confirm('Passkey „{{.Label}}“ entfernen? Die Anmeldung über dieses Gerät geht damit verloren.')">
+                    data-bestaetigen="Passkey „{{.Label}}“ entfernen? Die Anmeldung über dieses Gerät ist danach nicht mehr möglich."
+                    data-bestaetigen-titel="Passkey entfernen"
+                    data-bestaetigen-knopf="entfernen">
                 <input type="hidden" name="_csrf" value="{{$.CSRF}}">
                 <button type="submit" class="small danger">entfernen</button>
               </form>
@@ -188,7 +195,9 @@
 
   {{if .OtherSessions}}
   <form method="post" action="/account/sessions/revoke-others"
-        onsubmit="return confirm('Alle anderen Sitzungen beenden?')">
+        data-bestaetigen="Alle anderen Sitzungen dieses Kontos beenden? Diese bleibt offen, alle übrigen müssen sich neu anmelden."
+        data-bestaetigen-titel="Sitzungen beenden"
+        data-bestaetigen-knopf="andere Sitzungen beenden">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <button type="submit" class="secondary">Alle anderen Sitzungen beenden</button>
   </form>

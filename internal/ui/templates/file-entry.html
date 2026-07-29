@@ -23,11 +23,18 @@
     {{if $schreibend}}
     {{/* Löschen stand als eigener Abschnitt unten: Überschrift, Karte, ein
          erklärender Satz und der Knopf — die vierte Platte der Seite für eine
-         Aktion. Es gehört zu den Aktionen oben rechts. Die Rückfrage nennt
-         weiter die Zahlen (LoeschFrage), und sie ist die einzige Bremse, die
-         zählt: Einen Papierkorb gibt es nicht. */}}
+         Aktion. Es gehört zu den Aktionen oben rechts.
+
+         data-bestaetigen statt onsubmit: Ein Inline-Handler wird von der CSP
+         verworfen, das Attribut hat hier nie einen Dialog gezeigt. Verbindlich
+         ist ohnehin der Handler — er löscht nichts ohne das Feld "bestaetigt".
+         Bei einem Ordner mit Inhalt verlangt er zusätzlich den getippten Namen;
+         data-bestaetigen-tippen sagt dem Dialog dasselbe. */}}
     <form method="post" action="/files/delete" class="kopfform"
-          onsubmit="return confirm({{.LoeschFrage}})">
+          data-bestaetigen="{{.LoeschFrage}}"
+          data-bestaetigen-titel="Löschen"
+          data-bestaetigen-knopf="endgültig löschen"
+          data-bestaetigen-tippen="{{.LoeschTippen}}">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="path" value="{{.Entry.Path}}">
       <button type="submit" class="small danger" title="Ohne Papierkorb — endgültig">löschen</button>

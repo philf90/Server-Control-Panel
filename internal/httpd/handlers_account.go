@@ -308,6 +308,16 @@ func (s *Server) handleSessionRevokeOthers(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel:   "Sitzungen beenden",
+		Frage:   "Alle anderen Sitzungen dieses Kontos beenden?",
+		Punkte:  []string{"Diese Sitzung bleibt offen. Alle übrigen müssen sich neu anmelden."},
+		Knopf:   "andere Sitzungen beenden",
+		Abbruch: "/account",
+	}) {
+		return
+	}
+
 	n, err := s.db.DeleteOtherUserSessions(r.Context(), user.ID, sess.ID)
 	if err != nil {
 		s.log.Error("sitzungen beenden", "err", err)

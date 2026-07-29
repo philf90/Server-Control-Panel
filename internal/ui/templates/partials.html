@@ -108,6 +108,11 @@
 </div><!-- .app -->
 {{end}}
 <script src="/static/theme.js" defer></script>
+{{/* Die Rückfrage vor zerstörenden Aktionen steht in jeder Seite, nicht in den
+     acht, die einen solchen Knopf tragen: Ein Skript, das man beim Hinzufügen
+     eines Löschknopfes vergessen kann, ist keines. Es wirkt nur auf Formulare
+     mit data-bestaetigen, und verbindlich ist ohnehin der Handler. */}}
+{{if .LoggedIn}}<script src="/static/bestaetigen.js" defer></script>{{end}}
 </body>
 </html>{{end}}
 

@@ -785,6 +785,21 @@ button.small.danger:hover, .button.small.danger:hover {
   color: var(--accent-fg);
 }
 
+/* Der bestätigende Knopf einer Rückfrage ist gefüllt: Er steht allein in einem
+   Dialog oder auf einer Seite, die nur diese eine Frage stellt — dort ist die
+   Zurückhaltung von .small.danger fehl am Platz. In Listen bleibt sie.
+   --accent-fg trägt die Schrift, weil es im Dunkelmodus dunkel ist: Weiß auf
+   dem hellen Rot dieses Modus wäre kaum zu lesen. */
+button.danger:not(.small), .button.danger:not(.small) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--accent-fg);
+}
+button.danger:not(.small):hover, .button.danger:not(.small):hover {
+  filter: brightness(1.08);
+  color: var(--accent-fg);
+}
+
 button.small:focus-visible, .button.small:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -1980,3 +1995,39 @@ label.mitcheck input { width: auto; margin: 0; }
 }
 
 .alert pre.logs { margin: 0.5rem 0 0; max-height: 12rem; }
+
+/* --------------------------------------------- Rückfrage vor dem Löschen ---
+ *
+ * Zwei Auftritte für denselben Schritt: der Dialog auf der Seite (mit Skript)
+ * und die Zwischenseite (ohne). Beide sagen dasselbe, beide sehen gleich aus —
+ * wer den Dialog kennt, erkennt die Seite wieder.
+ */
+.card.ruecksfrage { max-width: 46rem; }
+.card.ruecksfrage .frage { font-size: 1.05rem; margin-bottom: 0.85rem; }
+.card.ruecksfrage .folgen { margin-top: 0; }
+.card.ruecksfrage .button-row { margin-bottom: 0; }
+.tippzeile { margin: 1rem 0; max-width: 22rem; }
+.tippzeile label { display: block; font-size: 0.85rem; color: var(--muted); }
+
+/* Der Dialog. Das ::backdrop macht das Dahinterliegende unwichtig — ohne die
+   Abdunkelung liest man weiter die Liste und nicht die Frage. */
+dialog.frage-dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--fg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+dialog.frage-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+.frage-titel { margin: 0 0 0.5rem; font-size: 1.05rem; }
+.frage-text { margin: 0 0 0.9rem; font-size: 0.95rem; }
+.frage-tippen { margin-bottom: 1rem; }
+.frage-tippen[hidden] { display: none; }
+.frage-tippen .frage-label { display: block; font-size: 0.85rem; color: var(--muted); }
+.frage-tippen input { margin-top: 0.25rem; }
+.frage-knoepfe { margin-bottom: 0; }
+/* Ein gesperrter Knopf soll gesperrt aussehen: Solange das Wort nicht getippt
+   ist, führt er zu nichts. */
+.frage-knoepfe button:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -42,7 +42,9 @@
               <button type="submit" class="small">neu starten</button>
             </form>
             <form method="post" action="/services/{{.Unit}}"
-                  onsubmit="return confirm('{{.Unit}} wirklich stoppen?')">
+                  data-bestaetigen="{{.Unit}} stoppen? Was der Dienst bereitstellt, ist danach nicht mehr erreichbar."
+                  data-bestaetigen-titel="Dienst stoppen"
+                  data-bestaetigen-knopf="stoppen">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="action" value="stop">
               <button type="submit" class="small danger">stoppen</button>

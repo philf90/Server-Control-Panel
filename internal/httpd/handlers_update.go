@@ -207,6 +207,19 @@ func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 		s.renderUpdate(w, r, http.StatusBadRequest, "", "Es liegt keine neuere Fassung vor.")
 		return
 	}
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel: "Panel aktualisieren",
+		Frage: "Das Panel von " + version.Version + " auf " + rel.Version + " aktualisieren?",
+		Punkte: []string{
+			"Der Dienst startet dabei neu — diese Seite ist einen Moment nicht erreichbar.",
+			"Die laufende Fassung wird gesichert; ein Rückweg bleibt.",
+		},
+		Knopf:   "auf " + rel.Version + " aktualisieren",
+		Abbruch: "/update",
+	}) {
+		return
+	}
+
 	// Die angezeigte Fassung wird mitgegeben: Der Hintergrundlauf installiert
 	// genau das, was der Auslöser gesehen hat, und nicht eine, die
 	// zwischenzeitlich veröffentlicht wurde.
@@ -227,6 +240,19 @@ func (s *Server) handleUpdateRollback(w http.ResponseWriter, r *http.Request) {
 		s.renderUpdate(w, r, http.StatusBadRequest, "", "Es liegt keine Sicherung einer vorherigen Fassung bereit.")
 		return
 	}
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel: "Zurück auf die vorherige Fassung",
+		Frage: "Das Panel von " + version.Version + " zurück auf " + previous + " setzen?",
+		Punkte: []string{
+			"Der Dienst startet dabei neu — diese Seite ist einen Moment nicht erreichbar.",
+			"Zurückgesetzt wird das Programm, nicht die Datenbank: Was neuere Fassungen an ihr geändert haben, bleibt.",
+		},
+		Knopf:   "zurück auf " + previous,
+		Abbruch: "/update",
+	}) {
+		return
+	}
+
 	s.startSelfUpdate(w, r, privops.SelfUpdateSpec{Rollback: true}, previous, "update.rollback")
 }
 

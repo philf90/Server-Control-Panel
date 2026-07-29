@@ -49,7 +49,10 @@
               <button type="submit" class="small">{{if .Locked}}entsperren{{else}}sperren{{end}}</button>
             </form>
             <form method="post" action="/system-users/{{.Name}}/delete"
-                  onsubmit="return confirm('Konto {{.Name}} löschen? Das Home-Verzeichnis bleibt erhalten.')">
+                  data-bestaetigen="Das Systemkonto {{.Name}} endgültig löschen? Das Home-Verzeichnis bleibt erhalten, der Zugang über SSH nicht."
+                  data-bestaetigen-titel="Systemkonto löschen"
+                  data-bestaetigen-knopf="endgültig löschen"
+                  data-bestaetigen-tippen="{{.Name}}">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <button type="submit" class="small danger">löschen</button>
             </form>
@@ -82,7 +85,9 @@
             {{if $.CanWrite}}
             <td class="actions">
               <form method="post" action="/system-users/{{$.Content.Selected}}/keys/remove"
-                    onsubmit="return confirm('Diesen Schlüssel entfernen? Der Zugang darüber geht verloren.')">
+                    data-bestaetigen="Diesen Schlüssel von {{$.Content.Selected}} entfernen? Wer nur ihn hat, kommt danach über SSH nicht mehr auf den Server."
+                    data-bestaetigen-titel="SSH-Schlüssel entfernen"
+                    data-bestaetigen-knopf="entfernen">
                 <input type="hidden" name="_csrf" value="{{$.CSRF}}">
                 <input type="hidden" name="fingerprint" value="{{.Fingerprint}}">
                 <button type="submit" class="small danger">entfernen</button>

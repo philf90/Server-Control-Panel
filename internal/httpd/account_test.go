@@ -262,7 +262,7 @@ func TestAlleAnderenSitzungenBeenden(t *testing.T) {
 	zweite, _ := login(t, s, user)
 	dritte, _ := login(t, s, user)
 
-	rec := post(t, s, "/account/sessions/revoke-others", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/account/sessions/revoke-others", ja(url.Values{"_csrf": {csrf}}), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}

@@ -138,7 +138,52 @@ func (s *Server) handleFileDelete(w http.ResponseWriter, r *http.Request) {
 	pfad := r.PostFormValue("path")
 	elter := filepath.Dir(filepath.Clean(pfad))
 
+	// Erst durch die Pfadwache, dann fragen: Ein Pfad, den die Wache ablehnt,
+	// soll die Antwort der Wache bekommen (403 oder 400) und keine Rückfrage, in
+	// der er noch einmal geschrieben steht. Lesen darf vor der Bestätigung
+	// geschehen, verändern nicht.
+	eintrag, err := s.files.Stat(r.Context(), pfad)
+	if err != nil {
+		s.eintragAntwort(w, r, pfad, "files.delete", pfad, err, "")
+		return
+	}
 	mass, _ := s.files.Measure(r.Context(), pfad)
+
+	// Die Zahlen stehen in der Frage, weil sie die Entscheidung tragen: „Ordner
+	// wirklich löschen?" befähigt zu keiner, „4132 Dateien, 1,2 GiB" schon. Bei
+	// einem Ordner mit Inhalt kommt die dritte Stufe dazu — dort steht hinter
+	// einem Klick nicht ein Eintrag, sondern ein Baum.
+	name := filepath.Base(pfad)
+	frage := name + " endgültig löschen?"
+	folgen := []string{"Einen Papierkorb gibt es nicht. Rückgängig geht das nur aus einer Sicherung."}
+	tippen := ""
+	if eintrag.IsDir() {
+		frage = fmt.Sprintf("%s enthält %d Dateien und %d Ordner (%s). Alles endgültig löschen?",
+			name, mass.Files, mass.Dirs, formatBytesKurz(mass.Bytes))
+		folgen = append(folgen, "Gelöscht wird der Ordner mit allem, was darunter liegt.")
+		if mass.Files+mass.Dirs+mass.Symlinks > 0 {
+			tippen = name
+		}
+	}
+	// Gefragt wird nur, wo gelöscht werden könnte. Liegt der Pfad außerhalb der
+	// Schreibbereiche oder ist er gesperrt, soll die Ablehnung der Wache kommen —
+	// eine Rückfrage, deren Bestätigung dann in ein 403 läuft, wäre eine
+	// Zumutung. Die Ablehnung selbst entsteht weiter unten in Remove; hier fällt
+	// nur die Rückfrage weg.
+	if eintrag.Writable && !eintrag.Sensitive {
+		if !s.bestaetigt(w, r, bestaetigung{
+			Titel:   "Löschen",
+			Frage:   frage,
+			Punkte:  append(folgen, pfad),
+			Knopf:   "endgültig löschen",
+			Tippen:  tippen,
+			Abbruch: "/files/entry?" + url.Values{"path": {pfad}}.Encode(),
+			Felder:  []bestaetigungFeld{{Name: "path", Wert: pfad}},
+		}) {
+			return
+		}
+	}
+
 	if mass.Files+mass.Dirs+mass.Symlinks > grosseVorgangSchwelle {
 		gestartet := s.starteDateiJob(r, "files.delete", pfad, func(ctx context.Context, fortschritt privops.Progress) error {
 			return s.files.Remove(ctx, pfad, fortschritt)
@@ -452,6 +497,23 @@ func (p fileEntryPage) ListLink() string {
 // Bei einem Verzeichnis steht die Zahl darin. "Ordner wirklich löschen?" ist
 // keine Rückfrage, die zu einer Entscheidung befähigt — "4132 Dateien, 1,2 GiB"
 // schon.
+// LoeschTippen ist das Wort, das der Handler vor dem Löschen verlangt — der Name
+// des Eintrags bei einem Ordner mit Inhalt, sonst leer.
+//
+// Es steht hier und nicht in der Vorlage, damit Dialog und Handler dieselbe
+// Regel benutzen. Stünde sie zweimal, verlangte der Server irgendwann ein Wort,
+// nach dem der Dialog nicht fragt — und der Knopf führte ohne Erklärung auf eine
+// Zwischenseite.
+func (p fileEntryPage) LoeschTippen() string {
+	if !p.Entry.IsDir() || p.Measurement == nil {
+		return ""
+	}
+	if p.Measurement.Files+p.Measurement.Dirs+p.Measurement.Symlinks == 0 {
+		return ""
+	}
+	return p.Entry.Name
+}
+
 func (p fileEntryPage) LoeschFrage() string {
 	if p.Measurement != nil {
 		return fmt.Sprintf("%s enthält %d Dateien und %d Ordner (%s). Alles endgültig löschen?",

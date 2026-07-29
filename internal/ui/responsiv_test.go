@@ -487,3 +487,138 @@ func TestZeilenmenueOhneSkript(t *testing.T) {
 		}
 	}
 }
+
+// TestKeineInlineHandler: Kein onsubmit, kein onclick, nirgends.
+//
+// Der Anlass ist der Befund, der die Rückfragen ausgelöst hat: Dreizehn
+// Formulare trugen ein onsubmit="return confirm(…)". Die
+// Content-Security-Policy des Panels ist `script-src 'self'` ohne
+// 'unsafe-inline'; Chromium verwirft ein solches Attribut, bevor es einmal
+// läuft. Im Browser nachgemessen: kein Dialog, ein Klick, Konto weg.
+//
+// Dieselbe Falle wie beim style-Attribut — es steht im Markup, sieht richtig
+// aus, und der Browser wirft es still weg. Deshalb dieser Test statt eines guten
+// Vorsatzes.
+func TestKeineInlineHandler(t *testing.T) {
+	handlerRe := regexp.MustCompile(`\son[a-z]+\s*=\s*["']`)
+
+	dateien, err := templateFS.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range dateien {
+		raw, err := templateFS.ReadFile("templates/" + d.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, treffer := range handlerRe.FindAllString(string(raw), -1) {
+			t.Errorf("%s enthält einen Inline-Handler (%s) — die CSP verwirft ihn, "+
+				"die Rückfrage kommt beim Nutzer nie an", d.Name(), strings.TrimSpace(treffer))
+		}
+	}
+}
+
+// TestZerstoerendeFormulareFragenZurueck: Jedes Formular auf eine zerstörende
+// Route trägt data-bestaetigen.
+//
+// Die Liste steht hier ausgeschrieben, damit eine neue zerstörende Route auffällt:
+// Wer sie hinzufügt, muss diesen Test anfassen — und dabei entscheiden, welche
+// Stufe sie braucht. Verbindlich ist die Prüfung im Handler
+// (internal/httpd/bestaetigung.go); dieses Attribut ist der Dialog davor.
+//
+// Die Ausnahmen sind benannt und begründet. Eine unbenannte gibt es nicht.
+func TestZerstoerendeFormulareFragenZurueck(t *testing.T) {
+	// Route → braucht ein getipptes Wort?
+	zerstoerend := map[string]bool{
+		"/users/{{.ID}}/delete":                            true,
+		"/system-users/{{.Name}}/delete":                   true,
+		"/system-users/{{$.Content.Selected}}/keys/remove": false,
+		"/account/passkeys/{{.ID}}/delete":                 false,
+		"/account/sessions/revoke-others":                  false,
+		"/account/recovery-codes":                          false,
+		"/files/delete":                                    false, // Ordner mit Inhalt: LoeschTippen
+		"/system/reboot":                                   true,
+		"/packages/upgrade":                                false,
+		"/update/apply":                                    false,
+		"/update/rollback":                                 false,
+	}
+	// Begründete Ausnahmen: Formulare auf zerstörende Routen ohne Dialog.
+	//
+	//   /users/reset-passkeys, /users/reset-2fa: Das Formular verlangt das eigene
+	//   Passwort des Owners — die Bremse steht schon darin. Der Knopf für die
+	//   Passkeys trägt trotzdem einen Dialog, aber am Knopf und nicht am
+	//   Formular (drei Knöpfe, drei formactions).
+	//
+	//   /firewall: Ein geleerter Port entfernt eine Regel. Der Regelsatz gilt
+	//   nach dem Speichern zunächst auf Probe und nimmt sich ohne Bestätigung
+	//   von selbst zurück — eine wirksamere Sicherung als ein Dialog.
+
+	formRe := regexp.MustCompile(`(?s)<form[^>]*action="([^"]+)"[^>]*>`)
+
+	dateien, err := templateFS.ReadDir("templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Gezählt wird je Route, nicht je Formular: /packages/upgrade steht zweimal
+	// im Markup — einmal für „alle Updates einspielen" (das fragt) und einmal je
+	// Paketzeile (ein gezielter Klick in seiner Zeile, der nicht fragt). Ein
+	// Dialog vor jeder Kleinigkeit erzieht zum Wegklicken.
+	type befund struct{ dialog, tippen bool }
+	gefunden := make(map[string]befund)
+	for _, d := range dateien {
+		raw, err := templateFS.ReadFile("templates/" + d.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range formRe.FindAllStringSubmatch(string(raw), -1) {
+			if _, zerstoert := zerstoerend[m[1]]; !zerstoert {
+				continue
+			}
+			b := gefunden[m[1]]
+			b.dialog = b.dialog || strings.Contains(m[0], "data-bestaetigen=")
+			b.tippen = b.tippen || strings.Contains(m[0], "data-bestaetigen-tippen=")
+			gefunden[m[1]] = b
+		}
+	}
+	for route, brauchtTippen := range zerstoerend {
+		b, da := gefunden[route]
+		if !da {
+			t.Errorf("kein Formular auf %s gefunden — die Liste in diesem Test ist veraltet", route)
+			continue
+		}
+		if !b.dialog {
+			t.Errorf("das Formular auf %s fragt nicht zurück", route)
+		}
+		if brauchtTippen && !b.tippen {
+			t.Errorf("%s ist unumkehrbar oder sperrt aus und verlangt trotzdem "+
+				"kein getipptes Wort", route)
+		}
+	}
+}
+
+// TestBestaetigenSkriptOhneZahlen: Das Skript für den Dialog schreibt keine
+// Frage und kein Wort fest. Beides kommt aus dem Markup und damit vom Server,
+// der es auch prüft — sonst fragte der Dialog nach etwas anderem als der
+// Handler verlangt.
+func TestBestaetigenSkriptOhneZahlen(t *testing.T) {
+	raw, err := staticFS.ReadFile("static/bestaetigen.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(raw)
+
+	for _, teil := range []string{"dataset.bestaetigen", "bestaetigenTippen", "requestSubmit"} {
+		if !strings.Contains(js, teil) {
+			t.Errorf("bestaetigen.js benutzt %s nicht", teil)
+		}
+	}
+	// requestSubmit statt submit: submit() ignoriert das formaction des Knopfes.
+	// Auf Panel-Zugänge entscheidet genau das, welche Zurücksetzung gemeint ist.
+	if strings.Contains(js, "form.submit()") && !strings.Contains(js, "form.requestSubmit") {
+		t.Error("bestaetigen.js schickt mit submit() ab — das formaction des Knopfes fällt dabei weg")
+	}
+	// Die Bestätigung setzt genau das Feld, das der Handler liest.
+	if !strings.Contains(js, `"bestaetigt"`) {
+		t.Error("bestaetigen.js setzt das Feld bestaetigt nicht")
+	}
+}

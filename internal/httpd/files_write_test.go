@@ -123,7 +123,7 @@ func TestFilesLoeschen(t *testing.T) {
 	arbeit := filepath.Join(wurzel, "schreibbar")
 
 	lege(t, filepath.Join(arbeit, "weg.txt"), "x")
-	rec := post(t, s, "/files/delete", formular(csrf, "path", filepath.Join(arbeit, "weg.txt")), cookie)
+	rec := post(t, s, "/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "weg.txt"))), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete: Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -133,7 +133,7 @@ func TestFilesLoeschen(t *testing.T) {
 
 	// Ein Verzeichnis samt Inhalt.
 	lege(t, filepath.Join(arbeit, "baum", "tief", "a.txt"), "x")
-	rec = post(t, s, "/files/delete", formular(csrf, "path", filepath.Join(arbeit, "baum")), cookie)
+	rec = post(t, s, "/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "baum")), "baum"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete Ordner: Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -178,7 +178,7 @@ func TestFilesLoeschenSchuetztGesperrtes(t *testing.T) {
 	lege(t, filepath.Join(arbeit, "baum", "harmlos.txt"), "x")
 	lege(t, filepath.Join(arbeit, "baum", "schluessel.geheim"), "privat")
 
-	rec := post(t, s, "/files/delete", formular(csrf, "path", filepath.Join(arbeit, "baum")), cookie)
+	rec := post(t, s, "/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "baum")), "baum"), cookie)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("Status %d, erwartet 403 — %s", rec.Code, rec.Body.String())
 	}
@@ -410,7 +410,7 @@ func TestFilesGrosserVorgangLaeuftAlsJob(t *testing.T) {
 		lege(t, filepath.Join(gross, fmt.Sprintf("d%04d.txt", i)), "x")
 	}
 
-	rec := post(t, s, "/files/delete", formular(csrf, "path", gross), cookie)
+	rec := post(t, s, "/files/delete", ja(formular(csrf, "path", gross), "viele"), cookie)
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("Status %d, erwartet 202 — %s", rec.Code, rec.Body.String())
 	}

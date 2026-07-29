@@ -9,7 +9,11 @@
     <span class="badge {{if .State.Active}}ok{{else}}warn{{end}}">{{if .State.Active}}aktiv{{else}}inaktiv{{end}}</span>
     {{if and $.CanWrite .State.Active}}
     <form method="post" action="/firewall/active"
-          onsubmit="return confirm('ufw ausschalten? Der Server nimmt danach jede eingehende Verbindung an.')">
+          data-bestaetigen="ufw auf {{$.Rechnername}} ausschalten? Der Server nimmt danach jede eingehende Verbindung an — auf allen Ports, von überall."
+        data-bestaetigen-titel="ufw ausschalten"
+        data-bestaetigen-knopf="ufw ausschalten"
+        data-bestaetigen-tippen="{{$.Rechnername}}"
+        data-bestaetigen-hinweis="Zum Bestätigen den Hostnamen eingeben: {{$.Rechnername}}">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="active" value="0">
       <button type="submit" class="small danger">ufw ausschalten</button>
@@ -77,7 +81,9 @@
     {{if .PanelPortOpen}}
     <div class="button-row">
       <form method="post" action="/firewall/active"
-            onsubmit="return confirm('ufw einschalten? Danach ist nur noch erreichbar: {{.OpenPorts}}. Ohne Bestätigung binnen 60 Sekunden wird automatisch wieder ausgeschaltet.')">
+            data-bestaetigen="ufw einschalten? Erreichbar bleibt danach nur: {{.OpenPorts}}. Ohne Bestätigung binnen 60 Sekunden schaltet sich ufw wieder aus."
+        data-bestaetigen-titel="ufw einschalten"
+        data-bestaetigen-knopf="ufw einschalten">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
         <input type="hidden" name="active" value="1">
         <button type="submit">ufw einschalten</button>

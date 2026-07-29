@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -423,9 +424,9 @@ func TestRebootRunsAndAudits(t *testing.T) {
 	owner := addUser(t, s, "chef", store.RoleOwner)
 	cookie, csrf := login(t, s, owner)
 
-	rec := post(t, s, "/system/reboot", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/system/reboot", ja(url.Values{"_csrf": {csrf}}, s.rechnername()), cookie)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200", rec.Code)
+		t.Fatalf("Status = %d, erwartet 200 — %s", rec.Code, rec.Body.String())
 	}
 	if got := ops.recorded(); len(got) != 1 || got[0] != "reboot" {
 		t.Fatalf("ausgeführt: %v, erwartet [reboot]", got)
@@ -451,7 +452,7 @@ func TestPackageUpgradeStartsJob(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/packages/upgrade", url.Values{"_csrf": {csrf}, "scope": {"security"}}, cookie)
+	rec := post(t, s, "/packages/upgrade", ja(url.Values{"_csrf": {csrf}, "scope": {"security"}}), cookie)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("Status = %d, erwartet 303", rec.Code)
 	}
@@ -833,7 +834,7 @@ func TestSystemUserActions(t *testing.T) {
 	post(t, s, "/system-users/deploy/keys", url.Values{
 		"_csrf": {csrf}, "key": {"ssh-ed25519 AAAA deploy@ci"},
 	}, cookie)
-	post(t, s, "/system-users/deploy/delete", url.Values{"_csrf": {csrf}}, cookie)
+	post(t, s, "/system-users/deploy/delete", ja(url.Values{"_csrf": {csrf}}, "deploy"), cookie)
 
 	want := []string{
 		"sysuser:create:deploy",
@@ -896,7 +897,7 @@ func TestSystemUserPathIsPassedThroughValidation(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/system-users/root/delete", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/system-users/root/delete", ja(url.Values{"_csrf": {csrf}}, "root"), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("Status = %d, erwartet 400 — root ist geschützt", rec.Code)
 	}
@@ -964,11 +965,11 @@ func TestFirewallAktivierungStehtAufProbe(t *testing.T) {
 	}
 	ops.mu.Unlock()
 
-	rec := post(t, s, "/firewall/active", url.Values{
+	rec := post(t, s, "/firewall/active", ja(url.Values{
 		"_csrf": {csrf}, "active": {"1"},
-	}, cookie)
+	}), cookie)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200", rec.Code)
+		t.Fatalf("Status = %d, erwartet 200 — %s", rec.Code, rec.Body.String())
 	}
 
 	pending, _ := s.fwGuard.state()
@@ -995,11 +996,18 @@ func TestFirewallAusschaltenOhneProbe(t *testing.T) {
 	}
 	ops.mu.Unlock()
 
-	rec := post(t, s, "/firewall/active", url.Values{
+	// Ausschalten ist die dritte Stufe: Der Hostname muss getippt werden.
+	rec := post(t, s, "/firewall/active", ja(url.Values{
 		"_csrf": {csrf}, "active": {"0"},
-	}, cookie)
+	}, s.rechnername()), cookie)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d", rec.Code)
+		t.Fatalf("Status = %d — %s", rec.Code, rec.Body.String())
+	}
+	// Und ufw ist tatsächlich aus. Ohne diese Prüfung bestand der Test auch
+	// dann, wenn statt der Aktion die Rückfrage kam: Die Zwischenseite antwortet
+	// mit 200, und eine Probe stellt sie auch nicht.
+	if !slices.Contains(ops.recorded(), "firewall:active:false") {
+		t.Fatalf("ufw wurde nicht ausgeschaltet: %v", ops.recorded())
 	}
 	if pending, _ := s.fwGuard.state(); pending {
 		t.Error("das Ausschalten steht auf Probe — es sperrt aber niemanden aus")

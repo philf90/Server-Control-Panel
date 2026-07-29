@@ -46,14 +46,18 @@
     <div class="button-row">
       {{if and .HasUpdate (not .Running)}}
       <form method="post" action="/update/apply"
-            onsubmit="return confirm('Auf {{.Available}} aktualisieren? Das Panel startet dabei neu.')">
+            data-bestaetigen="Das Panel auf {{.Available}} aktualisieren? Der Dienst startet dabei neu, diese Seite ist einen Moment nicht erreichbar."
+            data-bestaetigen-titel="Panel aktualisieren"
+            data-bestaetigen-knopf="auf {{.Available}} aktualisieren">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
         <button type="submit">Auf {{.Available}} aktualisieren</button>
       </form>
       {{end}}
       {{if and .CanRollback (not .Running)}}
       <form method="post" action="/update/rollback"
-            onsubmit="return confirm('Zurück auf {{.Previous}}? Das Panel startet dabei neu.')">
+            data-bestaetigen="Das Panel zurück auf {{.Previous}} setzen? Der Dienst startet dabei neu; die Datenbank wird nicht zurückgesetzt."
+            data-bestaetigen-titel="Zurück auf die vorherige Fassung"
+            data-bestaetigen-knopf="zurück auf {{.Previous}}">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
         <button type="submit" class="secondary">Zurück auf {{.Previous}}</button>
       </form>

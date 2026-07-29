@@ -11,6 +11,34 @@ nicht als Release getaggt.
 
 ### Sicherheit
 
+- **Die Rückfragen vor zerstörenden Aktionen haben nie gefragt.** Dreizehn
+  Formulare trugen ein `onsubmit="return confirm(…)"`: Panel-Zugang löschen,
+  Systemkonto löschen, SSH-Schlüssel entfernen, Passkey entfernen, Dateien
+  löschen, ufw ein- und ausschalten, Server neu starten, alle Updates
+  einspielen, Dienst stoppen, Panel-Update, Rollback, alle anderen Sitzungen
+  beenden. Die eigene Content-Security-Policy (`script-src 'self'` ohne
+  `'unsafe-inline'`) lässt keinen Inline-Handler zu — der Browser verwirft ihn
+  still. Im Browser nachgemessen: `form.onsubmit` war keine Funktion, kein
+  Dialog erschien, und das Konto war nach einem Klick weg. Jede dieser Stellen
+  sah im Code abgesichert aus, keine war es.
+
+  Die Rückfrage steht jetzt im Handler: Ohne das Feld `bestaetigt` führt keine
+  dieser Aktionen etwas aus, und ohne Skript kommt eine Zwischenseite, die sagt,
+  was passieren wird. Bei unumkehrbaren oder aussperrenden Aktionen muss
+  zusätzlich der Name des Ziels getippt werden — bei systemweiten (Neustart, ufw
+  ausschalten) der **Hostname**, gegen den Fehler, den kein Klick abfängt: die
+  richtige Aktion auf dem falschen Server. Dazu ein Dialog im Browser
+  (`<dialog>`, kein `window.confirm`), der dieselbe Frage ohne Seitenwechsel
+  stellt. Einzelheiten in
+  [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md).
+
+  Ohne Rückfrage bleibt, was umkehrbar ist: sperren, entsperren, starten, neu
+  starten, ein einzelnes Paket einspielen, eine einzelne Sitzung beenden. Ein
+  Dialog vor jeder Kleinigkeit erzieht zum Wegklicken.
+- **Zwei Aktionen hatten überhaupt keine Rückfrage:** „Passkeys entfernen" auf
+  Panel-Zugänge und das Erzeugen neuer Wiederherstellungscodes — letzteres macht
+  eine ausgedruckte Liste wertlos, und bemerkt wird das erst, wenn man sie
+  braucht. Beide fragen jetzt.
 - **TOTP-Codes gelten nur noch einmal.** Bis hierher war die Prüfung
   zustandslos: Ein Code blieb sein ganzes Zeitfenster über gültig — bei einer
   Toleranz von einem Fenster bis zu anderthalb Minuten — und beliebig oft. Wer

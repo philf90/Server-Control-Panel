@@ -616,9 +616,14 @@ func TestFilesDetailseiteLoeschtAusDemKopf(t *testing.T) {
 		t.Error("der Knopf zum Löschen steht nicht im Seitenkopf")
 	}
 	// Die Rückfrage ist der Ersatz für den erklärenden Abschnitt: Ohne sie wäre
-	// aus einem Klick ein endgültiger geworden.
-	if !strings.Contains(seite, "return confirm(") {
+	// aus einem Klick ein endgültiger geworden. Sie steht in data-bestaetigen und
+	// nicht in einem onsubmit — ein Inline-Handler wird von der CSP verworfen,
+	// und verbindlich ist ohnehin der Handler (siehe bestaetigung.go).
+	if !strings.Contains(seite, "data-bestaetigen=") {
 		t.Error("die Rückfrage vor dem Löschen fehlt")
+	}
+	if strings.Contains(seite, "onsubmit=") {
+		t.Error("die Rückfrage steht wieder in einem Inline-Handler — die CSP verwirft ihn")
 	}
 	if strings.Contains(seite, ">Löschen<") {
 		t.Error("der eigene Abschnitt Löschen ist zurück")

@@ -159,6 +159,7 @@ sudo asylum rollback             # zurück auf die vorherige Fassung
 | [docs/11-passkeys.md](docs/11-passkeys.md) | Passkeys (WebAuthn) als zweiter Faktor: Entwurf, Konfiguration, Rettungsweg |
 | [docs/12-zugang-zuruecksetzen.md](docs/12-zugang-zuruecksetzen.md) | Vergessenes Passwort, verlorenes Telefon — und warum es keinen Weg über E-Mail gibt |
 | [docs/13-dateimanager.md](docs/13-dateimanager.md) | Dateimanager: Pfadwache, Sperrliste, Upload-Strom, Editor und die CSP |
+| [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md) | Rückfragen vor zerstörenden Aktionen: drei Stufen, und warum sie im Handler stehen |
 
 Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
 [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und

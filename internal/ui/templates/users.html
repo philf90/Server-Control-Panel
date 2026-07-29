@@ -28,8 +28,15 @@
               <button type="submit" class="small">{{if .Disabled}}freigeben{{else}}sperren{{end}}</button>
             </form>
             <a class="button small" href="/users?reset={{.ID}}#zuruecksetzen">zurücksetzen</a>
+            {{/* data-bestaetigen statt onsubmit: Der Inline-Handler wurde von
+                 der CSP verworfen und hat nie einen Dialog gezeigt. Verbindlich
+                 ist der Handler — er löscht nichts ohne "bestaetigt" und
+                 verlangt hier zusätzlich den getippten Anmeldenamen. */}}
             <form method="post" action="/users/{{.ID}}/delete"
-                  onsubmit="return confirm('Konto {{.Username}} wirklich löschen?')">
+                  data-bestaetigen="Konto {{.Username}} ({{.Role}}) endgültig löschen? Offene Sitzungen, Passkeys und Wiederherstellungscodes gehen mit."
+                  data-bestaetigen-titel="Panel-Zugang löschen"
+                  data-bestaetigen-knopf="endgültig löschen"
+                  data-bestaetigen-tippen="{{.Username}}">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <button type="submit" class="small danger">löschen</button>
             </form>
@@ -76,7 +83,14 @@
       <div class="submit reset-actions">
         <button type="submit" class="small">Passwort zurücksetzen</button>
         <button type="submit" class="small" formaction="/users/reset-2fa">Zweiten Faktor zurücksetzen</button>
-        <button type="submit" class="small danger" formaction="/users/reset-passkeys">Passkeys entfernen</button>
+        {{/* Die Angabe steht am Knopf und nicht am Formular: Drei Knöpfe, drei
+             formactions, drei verschiedene Fragen. Eine Zwischenseite gibt es
+             hier nicht — das eigene Passwort im Formular ist die Bremse, und es
+             gehörte nicht in ein verstecktes Feld einer gerenderten Seite. */}}
+        <button type="submit" class="small danger" formaction="/users/reset-passkeys"
+                data-bestaetigen="Alle Passkeys des gewählten Kontos entfernen? Die Anmeldung über die hinterlegten Geräte ist danach nicht mehr möglich."
+                data-bestaetigen-titel="Passkeys entfernen"
+                data-bestaetigen-knopf="Passkeys entfernen">Passkeys entfernen</button>
       </div>
     </form>
 

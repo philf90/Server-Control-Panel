@@ -187,12 +187,57 @@ func (s *Server) handlePasskeyDelete(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusBadRequest, "Ungültige Kennung.")
 		return
 	}
+	// Der Name des Passkeys steht in der Frage, nicht nur seine Kennung: In einer
+	// Liste von drei Geräten ist „Passkey entfernen?" keine Auskunft darüber,
+	// welches Gerät gemeint ist. Wie viele es sonst noch gibt, gehört auch dazu —
+	// beim letzten ist es der letzte Anmeldeweg ohne Passwort.
+	name, uebrig := s.passkeyName(r, user.ID, id)
+	folgen := []string{"Die Anmeldung über dieses Gerät ist danach nicht mehr möglich."}
+	if uebrig == 0 {
+		folgen = append(folgen, "Es ist der letzte hinterlegte Passkey dieses Kontos.")
+	}
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel:   "Passkey entfernen",
+		Frage:   "Passkey „" + name + "\" entfernen?",
+		Punkte:  folgen,
+		Knopf:   "entfernen",
+		Abbruch: "/account",
+	}) {
+		return
+	}
+
 	if err := s.db.DeleteWebAuthnCredential(r.Context(), id, user.ID); err != nil {
 		s.renderAccount(w, r, http.StatusBadRequest, "", "Der Passkey ließ sich nicht entfernen.", nil)
 		return
 	}
 	s.audit(r, "passkey.remove", user.Username, store.ResultOK, "")
 	s.renderAccount(w, r, http.StatusOK, "Der Passkey wurde entfernt.", "", nil)
+}
+
+// passkeyName liefert die Beschriftung eines Passkeys und die Zahl der übrigen
+// desselben Kontos — beides für die Rückfrage vor dem Entfernen.
+//
+// Findet sich der Eintrag nicht, bleibt es bei einem allgemeinen Namen: Die
+// Rückfrage soll auch dann erscheinen. Ob es den Passkey gibt und ob er zu
+// diesem Konto gehört, entscheidet ohnehin das Löschen selbst.
+func (s *Server) passkeyName(r *http.Request, userID, id int64) (string, int) {
+	stored, err := s.db.WebAuthnCredentialsByUser(r.Context(), userID)
+	if err != nil {
+		s.log.Warn("passkeys laden", "err", err)
+		return "dieses Gerät", 0
+	}
+	name := "dieses Gerät"
+	uebrig := 0
+	for _, c := range stored {
+		if c.ID == id {
+			if c.Label != "" {
+				name = c.Label
+			}
+			continue
+		}
+		uebrig++
+	}
+	return name, uebrig
 }
 
 func (s *Server) writeJSON(w http.ResponseWriter, status int, v any) {

@@ -130,6 +130,29 @@ geschah das unabhängig davon, ob das Passwort stimmte — wer die Codeliste hat
 aber nicht das Passwort, konnte die Vorräte eines Kontos aufbrauchen. Jetzt wird
 ein Wiederherstellungscode nur noch bei richtigem Passwort überhaupt geprüft.
 
+### Gefunden und behoben: die Rückfragen vor dem Löschen waren Zierde
+
+Dreizehn Formulare trugen ein `onsubmit="return confirm(…)"` — Panel-Zugang
+löschen, Systemkonto löschen, SSH-Schlüssel entfernen, Passkey entfernen,
+Dateien löschen, ufw ein- und ausschalten, Neustart, Updates, Dienst stoppen,
+Rollback, Sitzungen beenden. Keines hat je gefragt: Die eigene
+Content-Security-Policy (`script-src 'self'` ohne `'unsafe-inline'`) lässt keinen
+Inline-Handler zu, der Browser verwirft ihn still. Im Browser nachgemessen —
+`form.onsubmit` war keine Funktion, kein Dialog erschien, das Konto war nach
+einem Klick weg.
+
+Das ist keine Rechteschwäche: Wer klicken durfte, durfte die Aktion auch. Es ist
+eine Schwäche gegen den Fehlgriff, und der ist bei einem Admin-Panel der
+wahrscheinlichere Schadensfall — eine Zeile zu tief in der Liste getroffen, und
+das falsche Konto ist gelöscht. Die Rückfrage steht jetzt im Handler: Ohne das
+Feld `bestaetigt` führt keine dieser Aktionen etwas aus, bei den unumkehrbaren
+muss zusätzlich der Name des Ziels (bei systemweiten Aktionen der Hostname)
+getippt werden. Einzelheiten in
+[docs/14-bestaetigungen.md](14-bestaetigungen.md).
+
+Nebenbefund derselben Betrachtung: Die Anzeige „Alle Passkeys entfernen" und
+das Erzeugen neuer Wiederherstellungscodes hatten überhaupt keine Rückfrage.
+
 ### Offene Punkte
 
 - **Keine Sperre eines Kontos nach dauerhaftem Beschuss.** Die Verzögerung

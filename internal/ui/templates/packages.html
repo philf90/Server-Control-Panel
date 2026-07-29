@@ -29,8 +29,15 @@
     {{if .Reboot.Packages}}Ausgelöst durch: {{range $i, $p := .Reboot.Packages}}{{if $i}}, {{end}}<code>{{$p}}</code>{{end}}{{end}}
   </div>
   {{if $.IsOwner}}
+  {{/* Der getippte Hostname ist die dritte Stufe: Wer zwei Server im Browser
+       offen hat, startet so nicht den falschen neu. Er steht in der
+       Seitenleiste — abzulesen, nicht zu erraten. */}}
   <form method="post" action="/system/reboot" class="inline"
-        onsubmit="return confirm('Den Server jetzt neu starten? Alle Sitzungen und Dienste werden dabei beendet.')">
+        data-bestaetigen="Den Server {{$.Rechnername}} jetzt neu starten? Alle Dienste werden beendet, und diese Sitzung bricht dabei ab."
+        data-bestaetigen-titel="Server neu starten"
+        data-bestaetigen-knopf="jetzt neu starten"
+        data-bestaetigen-tippen="{{$.Rechnername}}"
+        data-bestaetigen-hinweis="Zum Bestätigen den Hostnamen eingeben: {{$.Rechnername}}">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <button type="submit" class="small danger">Jetzt neu starten</button>
   </form>
@@ -40,7 +47,9 @@
 
 {{if $.CanWrite}}{{if .Packages}}
 <form method="post" action="/packages/upgrade" class="button-row"
-      onsubmit="return confirm('Alle {{len .Packages}} Updates einspielen?')">
+      data-bestaetigen="Alle {{len .Packages}} verfügbaren Updates einspielen? Betroffene Dienste werden dabei neu gestartet."
+      data-bestaetigen-titel="Updates einspielen"
+      data-bestaetigen-knopf="Updates einspielen">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <input type="hidden" name="scope" value="all">
   <button type="submit" class="secondary" {{if .JobRunning}}disabled{{end}}>Alle Updates einspielen</button>

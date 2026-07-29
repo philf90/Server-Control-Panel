@@ -156,7 +156,7 @@ func TestUpdateApplyStoesstVorgangAn(t *testing.T) {
 	if rec := post(t, s, "/update/check", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusOK {
 		t.Fatalf("check: Status = %d", rec.Code)
 	}
-	rec = post(t, s, "/update/apply", url.Values{"_csrf": {csrf}}, cookie)
+	rec = post(t, s, "/update/apply", ja(url.Values{"_csrf": {csrf}}), cookie)
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("Status = %d, erwartet 202: %s", rec.Code, rec.Body.String())
 	}
@@ -182,7 +182,7 @@ func TestUpdateApplyStoesstVorgangAn(t *testing.T) {
 	}
 
 	// Ein zweiter Anstoß muss abgewiesen werden, solange der erste läuft.
-	rec = post(t, s, "/update/apply", url.Values{"_csrf": {csrf}}, cookie)
+	rec = post(t, s, "/update/apply", ja(url.Values{"_csrf": {csrf}}), cookie)
 	if rec.Code != http.StatusConflict {
 		t.Errorf("zweiter Anstoß: Status = %d, erwartet 409", rec.Code)
 	}

@@ -409,6 +409,22 @@ func (s *Server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleRecoveryCodes(w http.ResponseWriter, r *http.Request) {
 	user, _ := userFrom(r.Context())
 
+	// Neue Codes machen die alten ungültig. Wer die alte Liste ausgedruckt hat
+	// und den Knopf im Vorbeigehen trifft, hält danach Papier ohne Wert in der
+	// Hand — und merkt es erst, wenn er sie braucht.
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel: "Neue Wiederherstellungscodes",
+		Frage: "Neue Wiederherstellungscodes erzeugen? Die bisherigen gelten danach nicht mehr.",
+		Punkte: []string{
+			"Die neuen Codes werden genau einmal angezeigt.",
+			"Eine ausgedruckte oder abgelegte alte Liste ist danach wertlos.",
+		},
+		Knopf:   "neue Codes erzeugen",
+		Abbruch: "/account",
+	}) {
+		return
+	}
+
 	codes, hashes, err := auth.NewRecoveryCodes()
 	if err != nil {
 		s.log.Error("wiederherstellungscodes", "err", err)
@@ -600,6 +616,24 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	}
+
+	// Dritte Stufe: Der Anmeldename muss getippt werden. Ein Konto zu löschen
+	// ist unumkehrbar, und in einer Liste von Zeilen mit gleich aussehenden
+	// Knöpfen trifft man leicht die falsche.
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel: "Panel-Zugang löschen",
+		Frage: "Konto " + target.Username + " (" + target.Role + ") endgültig löschen?",
+		Punkte: []string{
+			"Offene Sitzungen dieses Kontos werden beendet.",
+			"Passkeys, zweiter Faktor und Wiederherstellungscodes gehen mit.",
+			"Wer nur vorübergehend keinen Zugang haben soll, wird gesperrt statt gelöscht — das lässt sich zurücknehmen.",
+		},
+		Knopf:   "endgültig löschen",
+		Tippen:  target.Username,
+		Abbruch: "/users",
+	}) {
+		return
 	}
 
 	if _, err := s.db.SQL().ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, target.ID); err != nil {

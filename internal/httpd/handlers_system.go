@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,6 +72,27 @@ func (s *Server) handleServiceDetail(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleServiceAction(w http.ResponseWriter, r *http.Request) {
 	unit := r.PathValue("unit")
 	action := privops.ServiceAction(r.PostFormValue("action"))
+
+	// Nur das Stoppen fragt zurück. Starten und Neustarten sind umkehrbar — ein
+	// Dialog davor erzieht zum Wegklicken und entwertet die Rückfrage dort, wo
+	// sie zählt. Die Prüfung steht im Handler und nicht in der Liste: Die
+	// Detailseite eines Dienstes hat denselben Knopf, und sie hatte nie eine
+	// Rückfrage.
+	if action == "stop" {
+		if !s.bestaetigt(w, r, bestaetigung{
+			Titel: "Dienst stoppen",
+			Frage: unit + " stoppen?",
+			Punkte: []string{
+				"Was der Dienst bereitstellt, ist danach nicht mehr erreichbar.",
+				"Der Autostart bleibt unberührt: Nach einem Neustart des Servers läuft er wieder.",
+			},
+			Knopf:   "stoppen",
+			Abbruch: "/services/" + unit,
+			Felder:  []bestaetigungFeld{{Name: "action", Wert: "stop"}},
+		}) {
+			return
+		}
+	}
 
 	if err := s.ops.ServiceAction(r.Context(), unit, action); err != nil {
 		s.audit(r, "service."+string(action), unit, store.ResultError, err.Error())
@@ -225,6 +247,27 @@ func quellenListe(failed []privops.SourceFailure) string {
 // zerreißt die Verbindung binnen Sekunden; die Meldung, die wir noch senden,
 // ist eher Höflichkeit als Zusicherung.
 func (s *Server) handleReboot(w http.ResponseWriter, r *http.Request) {
+	// Dritte Stufe, und das getippte Wort ist der Hostname: Wer zwei Server im
+	// Browser offen hat, tippt so nicht den falschen neu. Der Name steht im
+	// Seitenkopf und in der Fußzeile — er ist keine Prüfung, sondern ein
+	// Innehalten mit Blick auf das richtige Feld.
+	host := s.rechnername()
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel: "Server neu starten",
+		Frage: "Den Server " + host + " jetzt neu starten?",
+		Punkte: []string{
+			"Alle Dienste werden beendet und danach wieder gestartet.",
+			"Diese Sitzung bricht ab und kommt erst nach dem Hochfahren zurück.",
+			"Wie lange das dauert, hängt am Server — das Panel kann es nicht sagen.",
+		},
+		Knopf:         "jetzt neu starten",
+		Tippen:        host,
+		TippenHinweis: "Zum Bestätigen den Hostnamen eingeben: " + host,
+		Abbruch:       "/packages",
+	}) {
+		return
+	}
+
 	if err := s.ops.Reboot(r.Context()); err != nil {
 		s.audit(r, "system.reboot", "", store.ResultError, err.Error())
 		s.renderPackages(w, r, http.StatusBadGateway, "", "Der Neustart konnte nicht angestoßen werden: "+err.Error())
@@ -240,6 +283,31 @@ func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 	opts := privops.UpgradeOptions{OnlySecurity: r.PostFormValue("scope") == "security"}
 	if name := strings.TrimSpace(r.PostFormValue("package")); name != "" {
 		opts.Packages = []string{name}
+	}
+
+	// Ein einzelnes Paket einzuspielen ist ein gezielter Klick in seiner Zeile —
+	// dafür braucht es keine Rückfrage. „Alle Updates einspielen" kann Dutzende
+	// Pakete und Dienste-Neustarts bedeuten; wie viele, weiß die Seite.
+	if len(opts.Packages) == 0 {
+		liste, _ := s.ops.PackageUpgradable(r.Context())
+		frage := "Alle verfügbaren Updates einspielen?"
+		if n := len(liste); n > 0 {
+			frage = fmt.Sprintf("Alle %d verfügbaren Updates einspielen?", n)
+		}
+		if !s.bestaetigt(w, r, bestaetigung{
+			Titel: "Updates einspielen",
+			Frage: frage,
+			Punkte: []string{
+				"Betroffene Dienste werden dabei neu gestartet.",
+				"Der Vorgang läuft im Hintergrund weiter, auch wenn Sie die Seite verlassen.",
+				"Manche Pakete verlangen danach einen Neustart des Servers.",
+			},
+			Knopf:   "Updates einspielen",
+			Abbruch: "/packages",
+			Felder:  []bestaetigungFeld{{Name: "scope", Wert: r.PostFormValue("scope")}},
+		}) {
+			return
+		}
 	}
 
 	j, started := s.jobs.start(jobPackages, user.Username)
@@ -495,6 +563,44 @@ func (s *Server) handleFirewallActivate(w http.ResponseWriter, r *http.Request) 
 					"zuerst an.", s.cfg.Server.Port))
 			return
 		}
+		// Einschalten sperrt aus, wenn eine Regel fehlt — deshalb steht in der
+		// Frage, was erreichbar bleibt. Eine dritte Stufe braucht es hier nicht:
+		// Die Probezeit von 60 Sekunden nimmt den Fehler von selbst zurück.
+		if !s.bestaetigt(w, r, bestaetigung{
+			Titel: "ufw einschalten",
+			Frage: "ufw einschalten? Erreichbar bleibt danach nur: " + openPortSummary(state.Rules) + ".",
+			Punkte: []string{
+				"Alles andere wird abgewiesen — auch Zugänge, die gerade offen sind.",
+				"Die Regeln gelten zunächst auf Probe: Ohne Bestätigung binnen 60 Sekunden schaltet sich ufw wieder aus.",
+				"Bestätigen Sie, solange diese Verbindung noch steht.",
+			},
+			Knopf:   "ufw einschalten",
+			Abbruch: "/firewall",
+			Felder:  []bestaetigungFeld{{Name: "active", Wert: "1"}},
+		}) {
+			return
+		}
+	} else {
+		// Dritte Stufe mit dem Hostnamen: Ausschalten öffnet den Server für
+		// jede eingehende Verbindung, und dieser Zustand nimmt sich nicht von
+		// selbst zurück.
+		host := s.rechnername()
+		if !s.bestaetigt(w, r, bestaetigung{
+			Titel: "ufw ausschalten",
+			Frage: "ufw auf " + host + " ausschalten?",
+			Punkte: []string{
+				"Der Server nimmt danach jede eingehende Verbindung an — auf allen Ports, von überall.",
+				"Der Regelsatz bleibt gespeichert und gilt wieder, sobald ufw eingeschaltet wird.",
+				"Anders als beim Einschalten gibt es hier keine Probezeit: Der Zustand bleibt, bis jemand ihn ändert.",
+			},
+			Knopf:         "ufw ausschalten",
+			Tippen:        host,
+			TippenHinweis: "Zum Bestätigen den Hostnamen eingeben: " + host,
+			Abbruch:       "/firewall",
+			Felder:        []bestaetigungFeld{{Name: "active", Wert: "0"}},
+		}) {
+			return
+		}
 	}
 
 	if err := s.ops.FirewallSetActive(ctx, activate); err != nil {
@@ -735,6 +841,27 @@ func (s *Server) handleSystemUserDelete(w http.ResponseWriter, r *http.Request) 
 	name := r.PathValue("name")
 	removeHome := r.PostFormValue("remove_home") == "1"
 
+	folgen := []string{
+		"Der Zugang über SSH mit diesem Konto ist danach nicht mehr möglich.",
+		"Dateien, die dem Konto gehören, bleiben liegen — sie tragen danach nur noch eine Zahl als Eigentümer.",
+	}
+	if removeHome {
+		folgen = append(folgen, "Das Home-Verzeichnis wird mit gelöscht.")
+	} else {
+		folgen = append(folgen, "Das Home-Verzeichnis bleibt erhalten.")
+	}
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel:   "Systemkonto löschen",
+		Frage:   "Das Systemkonto " + name + " endgültig löschen?",
+		Punkte:  folgen,
+		Knopf:   "endgültig löschen",
+		Tippen:  name,
+		Abbruch: "/system-users",
+		Felder:  []bestaetigungFeld{{Name: "remove_home", Wert: r.PostFormValue("remove_home")}},
+	}) {
+		return
+	}
+
 	if err := s.ops.SystemUserDelete(r.Context(), name, removeHome); err != nil {
 		s.audit(r, "sysuser.delete", name, store.ResultError, err.Error())
 		s.renderSystemUsers(w, r, http.StatusBadRequest, "", err.Error())
@@ -764,6 +891,23 @@ func (s *Server) handleSSHKeyAdd(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSSHKeyRemove(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	fingerprint := r.PostFormValue("fingerprint")
+
+	// Der Fingerprint steht in der Frage: Wer drei Schlüssel hinterlegt hat,
+	// entscheidet sonst blind. Er ist zugleich das einzige Feld, das beim zweiten
+	// POST wieder mitmuss — der Kontoname steht im Pfad.
+	if !s.bestaetigt(w, r, bestaetigung{
+		Titel: "SSH-Schlüssel entfernen",
+		Frage: "Diesen Schlüssel von " + name + " entfernen?",
+		Punkte: []string{
+			fingerprint,
+			"Wer nur diesen Schlüssel hat, kommt danach über SSH nicht mehr auf den Server.",
+		},
+		Knopf:   "entfernen",
+		Abbruch: "/system-users?user=" + url.QueryEscape(name),
+		Felder:  []bestaetigungFeld{{Name: "fingerprint", Wert: fingerprint}},
+	}) {
+		return
+	}
 
 	if err := s.ops.AuthorizedKeyRemove(r.Context(), name, fingerprint); err != nil {
 		s.audit(r, "sshkey.remove", name, store.ResultError, err.Error())

@@ -121,7 +121,7 @@ func TestPasskeyRenameAndDelete(t *testing.T) {
 
 	// Entfernen.
 	rec = post(t, s, "/account/passkeys/"+strconv.FormatInt(id, 10)+"/delete",
-		url.Values{"_csrf": {csrf}}, cookie)
+		ja(url.Values{"_csrf": {csrf}}), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete Status = %d", rec.Code)
 	}

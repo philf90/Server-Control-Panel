@@ -9,6 +9,12 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0-rc.2] — 2026-07-30
+
+Drei Module der neuen Oberfläche und das Muster, das die weiteren übernehmen.
+Die alte Oberfläche unter `/` ist unverändert — kein Diff in
+`internal/ui/templates`, `internal/ui/static` und `handlers_system.go`.
+
 ### Hinzugefügt
 
 - **Befehlspalette in der neuen Oberfläche.** `⌘K` beziehungsweise `Strg+K`

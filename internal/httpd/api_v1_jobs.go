@@ -31,7 +31,8 @@ import (
 // die Liste auch — und sie ist ohnehin die Stelle, an der die Beschriftung steht.
 var jobArten = map[string]string{
 	jobPackages:        "Paketvorgang",
-	jobFirewallInstall: "ufw einrichten",
+	jobFirewallInstall: "ufw einspielen",
+	jobFiles:           "Dateivorgang",
 }
 
 // apiJob ist der Zustand eines Vorgangs.

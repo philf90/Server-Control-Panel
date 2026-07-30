@@ -228,12 +228,19 @@ type firewallGuard struct {
 	subject  string
 	deadline time.Time
 	cancel   context.CancelFunc
+	// fenster ist die Frist. Als Feld und nicht als Konstante im Code, damit der
+	// Rückbau prüfbar ist: Die 60 Sekunden des Betriebs abzuwarten wäre ein Test,
+	// den niemand laufen lässt — und dann bliebe die wichtigste Sicherung des
+	// Panels die einzige ungeprüfte.
+	fenster time.Duration
 }
 
 // firewallConfirmWindow ist die Frist zur Bestätigung.
 const firewallConfirmWindow = 60 * time.Second
 
-func newFirewallGuard() *firewallGuard { return &firewallGuard{} }
+func newFirewallGuard() *firewallGuard {
+	return &firewallGuard{fenster: firewallConfirmWindow}
+}
 
 // arm startet die Frist. subject benennt für die Oberfläche, was auf Probe
 // steht; revert nimmt es zurück, wenn niemand bestätigt.
@@ -244,14 +251,21 @@ func (g *firewallGuard) arm(subject string, revert func(context.Context) error) 
 	if g.cancel != nil {
 		g.cancel()
 	}
+	fenster := g.fenster
+	if fenster <= 0 {
+		// Eine Frist von null wäre ein Rückbau, der sofort losläuft — sicherer ist
+		// die Vorgabe als eine Zahl, die niemand gesetzt hat.
+		fenster = firewallConfirmWindow
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	g.pending = true
 	g.subject = subject
-	g.deadline = time.Now().Add(firewallConfirmWindow)
+	g.deadline = time.Now().Add(fenster)
 	g.cancel = cancel
 
 	go func() {
-		timer := time.NewTimer(firewallConfirmWindow)
+		timer := time.NewTimer(fenster)
 		defer timer.Stop()
 
 		select {

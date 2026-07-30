@@ -87,6 +87,68 @@ func (s *Server) Handler() http.Handler {
 	// also ohne Schreibrecht und ohne Token — dieselbe Grenze wie bei GET /logs.
 	mux.Handle("GET /api/v1/logs", s.protected(http.HandlerFunc(s.handleAPILogs)))
 	mux.Handle("GET /api/v1/logs/follow", s.protected(http.HandlerFunc(s.handleAPILogsFollow)))
+	// Firewall. Bestätigen ist ausdrücklich schreibend und braucht das Token:
+	// Ein GET, der eine Probe endgültig macht, wäre über einen Bildverweis von
+	// einer fremden Seite auslösbar.
+	mux.Handle("GET /api/v1/firewall", s.protected(http.HandlerFunc(s.handleAPIFirewall)))
+	mux.Handle("POST /api/v1/firewall/rules",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallRules))))
+	mux.Handle("POST /api/v1/firewall/active",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallActive))))
+	mux.Handle("POST /api/v1/firewall/confirm",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallConfirm))))
+	mux.Handle("POST /api/v1/firewall/install",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallInstall))))
+	// Dateien. Wie bei den alten Routen entstehen sie nur, wenn das Modul läuft
+	// — abschalten entfernt Rechte, nicht nur den Menüpunkt.
+	if s.files != nil {
+		mux.Handle("GET /api/v1/files", s.protected(http.HandlerFunc(s.handleAPIFiles)))
+		mux.Handle("GET /api/v1/files/entry", s.protected(http.HandlerFunc(s.handleAPIFileEntry)))
+		mux.Handle("GET /api/v1/files/dirs", s.protected(http.HandlerFunc(s.handleAPIFileDirs)))
+		// Download und Archiv sind DIESELBEN Handler wie unter /files. Sie
+		// streamen Bytes, und es gäbe an einer zweiten Fassung nichts zu
+		// gewinnen außer der Gelegenheit, dass eine der beiden den
+		// Content-Disposition-Kopf verliert. Nur der Pfad ist neu, damit die
+		// Verweise der neuen Oberfläche den Wegfall der alten überleben.
+		//
+		// Der Preis steht dabei: Scheitert der Aufruf, kommt die Fehlerseite der
+		// alten Oberfläche und nicht JSON. Das ist hier die richtige Antwort —
+		// der Browser navigiert dorthin, es ist kein fetch, und eine
+		// JSON-Fehlermeldung im Adressfeld wäre die schlechtere Auskunft.
+		mux.Handle("GET /api/v1/files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
+		mux.Handle("GET /api/v1/files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
+		// Verändern: Schreibrolle und Token, wie in jedem anderen Modul. Die
+		// Prüfung des Pfads selbst liegt in der Pfadwache, nicht hier.
+		mux.Handle("POST /api/v1/files/mkdir",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileMkdir))))
+		mux.Handle("POST /api/v1/files/touch",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileTouch))))
+		mux.Handle("POST /api/v1/files/rename",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileRename))))
+		mux.Handle("POST /api/v1/files/copy",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileCopy))))
+		mux.Handle("POST /api/v1/files/move",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileMove))))
+		mux.Handle("POST /api/v1/files/delete",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileDelete))))
+		mux.Handle("POST /api/v1/files/mode",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileMode))))
+		// Der Upload ist derselbe Handler wie unter /files/upload — und wie dort
+		// liegt er NICHT hinter apiSchreibend: Die Middleware liest das Token aus
+		// einer Kopfzeile, und das täte sie auch hier; aber der Handler streamt
+		// den Körper Teil für Teil, prüft das Token selbst vor dem ersten Byte
+		// Dateiinhalt und darf sich dabei nicht darauf verlassen, dass jemand
+		// vorher hineingesehen hat. Die Begründung im Einzelnen steht in
+		// handlers_files_upload.go. Er antwortet JSON, wenn der Aufrufer es
+		// verlangt (Accept: application/json) — die neue Oberfläche tut das.
+		mux.Handle("POST /api/v1/files/upload",
+			s.protected(s.requireWrite(http.HandlerFunc(s.handleFileUpload))))
+		// Der Editor. Lesen ist ein GET ohne Token; Schreiben geht durch dieselbe
+		// Kette wie jede andere Veränderung.
+		mux.Handle("GET /api/v1/files/text", s.protected(http.HandlerFunc(s.handleAPIFileText)))
+		mux.Handle("POST /api/v1/files/text",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileTextSave))))
+	}
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

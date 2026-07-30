@@ -13,7 +13,14 @@
   // Die Kennungen der Ziele in lib/ziele.ts sind dieselben, die der Router
   // liefert. Eine Eigenschaft müsste jede Seite selbst setzen — und eine davon
   // wird es vergessen.
-  const aktiv = $derived(weg.seite);
+  //
+  // Die Kennung aus der Adresse hat Vorrang vor der Seite, und das ist mehr als
+  // eine Feinheit: Ein angekündigtes Modul (/v2/docker) rendert die Seite „bald",
+  // heißt aber weiter „docker". Ohne den Vorrang wäre bei ihm kein Punkt
+  // hervorgehoben, und die Seite sähe aus wie eine, auf die man versehentlich
+  // geraten ist. Bei einem Pfad, den es gar nicht gibt, bleibt bewusst nichts
+  // markiert — die Übersicht hervorzuheben wäre eine Behauptung über den Ort.
+  const aktiv = $derived(weg.modul || weg.seite);
 </script>
 
 <aside class="seitenleiste">

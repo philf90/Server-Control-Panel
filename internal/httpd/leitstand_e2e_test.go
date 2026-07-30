@@ -2,9 +2,11 @@ package httpd
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -162,6 +164,188 @@ type ergebnisLeitstand struct {
 			Beschriftung  string  `json:"beschriftung"`
 		} `json:"schmal"`
 	} `json:"logs"`
+	Firewall struct {
+		Zeilen []struct {
+			Text      string `json:"text"`
+			Vorschlag bool   `json:"vorschlag"`
+		} `json:"zeilen"`
+		ProbeVorher         bool   `json:"probeVorher"`
+		UebernehmenGesperrt bool   `json:"uebernehmenGesperrt"`
+		EntwurfHinweis      string `json:"entwurfHinweis"`
+		Rueckfrage          struct {
+			Frage    string `json:"frage"`
+			Punkte   int    `json:"punkte"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"rueckfrage"`
+		Probe struct {
+			ErsteZahl     int    `json:"ersteZahl"`
+			VorDerTabelle bool   `json:"vorDerTabelle"`
+			Text          string `json:"text"`
+			LaeuftRunter  bool   `json:"laeuftRunter"`
+		} `json:"probe"`
+		ProbeNachNeuladen int `json:"probeNachNeuladen"`
+		NachBestaetigen   struct {
+			Probe   bool   `json:"probe"`
+			Meldung string `json:"meldung"`
+		} `json:"nachBestaetigen"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"firewall"`
+	Dateien struct {
+		Wurzeln []string `json:"wurzeln"`
+		Krumen  []string `json:"krumen"`
+		Reihen  []struct {
+			Name     string `json:"name"`
+			Groesse  string `json:"groesse"`
+			Rechte   string `json:"rechte"`
+			Gesperrt bool   `json:"gesperrt"`
+		} `json:"reihen"`
+		NachOrdnerklick struct {
+			Pfad   string   `json:"pfad"`
+			Krumen []string `json:"krumen"`
+			Reihen []string `json:"reihen"`
+		} `json:"nachOrdnerklick"`
+		NachZurueck struct {
+			Pfad   string   `json:"pfad"`
+			Reihen []string `json:"reihen"`
+		} `json:"nachZurueck"`
+		Inspektor struct {
+			Titel      string   `json:"titel"`
+			Paare      int      `json:"paare"`
+			Rechtetext []string `json:"rechtetext"`
+			Aktionen   []string `json:"aktionen"`
+			DownloadZu string   `json:"downloadZu"`
+		} `json:"inspektor"`
+		GesperrtInspektor struct {
+			Warnung  string   `json:"warnung"`
+			Aktionen []string `json:"aktionen"`
+		} `json:"gesperrtInspektor"`
+		Suche struct {
+			Band   string   `json:"band"`
+			Reihen []string `json:"reihen"`
+			Orte   []string `json:"orte"`
+		} `json:"suche"`
+		NachSuchende int    `json:"nachSuchende"`
+		SortiertNach string `json:"sortiertNach"`
+		NachNeuladen string `json:"nachNeuladen"`
+		AlteAnsicht  string `json:"alteAnsicht"`
+		Schmal       struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"dateien"`
+	Schreiben struct {
+		WerkstattHier bool `json:"werkstattHier"`
+		NachAnlegen   struct {
+			Meldung string `json:"meldung"`
+			Auswahl string `json:"auswahl"`
+			InListe bool   `json:"inListe"`
+		} `json:"nachAnlegen"`
+		NachUmbenennen struct {
+			Meldung  string `json:"meldung"`
+			BandOben bool   `json:"bandOben"`
+			Titel    string `json:"titel"`
+			InListe  bool   `json:"inListe"`
+		} `json:"nachUmbenennen"`
+		Rechtemaske struct {
+			Oktal         string `json:"oktal"`
+			Auswahlfelder int    `json:"auswahlfelder"`
+			Rekursiv      bool   `json:"rekursiv"`
+		} `json:"rechtemaske"`
+		RekursivFrage struct {
+			Frage    string `json:"frage"`
+			Punkte   int    `json:"punkte"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"rekursivFrage"`
+		NachAbbruchRekursiv bool `json:"nachAbbruchRekursiv"`
+		LoeschFrage         struct {
+			Frage    string `json:"frage"`
+			Punkte   int    `json:"punkte"`
+			Tippfeld bool   `json:"tippfeld"`
+			Hinweis  string `json:"hinweis"`
+			Gesperrt bool   `json:"gesperrt"`
+		} `json:"loeschFrage"`
+		DialogSitz struct {
+			Links   float64 `json:"links"`
+			Breite  float64 `json:"breite"`
+			Fenster float64 `json:"fenster"`
+			Mittig  bool    `json:"mittig"`
+		} `json:"dialogSitz"`
+		NachLoeschAbbruch struct {
+			DialogZu bool `json:"dialogZu"`
+			NochDa   bool `json:"nochDa"`
+		} `json:"nachLoeschAbbruch"`
+		NachLoeschen struct {
+			Meldung   string `json:"meldung"`
+			Inspektor bool   `json:"inspektor"`
+			NochDa    bool   `json:"nochDa"`
+		} `json:"nachLoeschen"`
+		Zielwahl struct {
+			Textfelder int      `json:"textfelder"`
+			Ordner     []string `json:"ordner"`
+			Ziel       string   `json:"ziel"`
+			KnopfOffen bool     `json:"knopfOffen"`
+		} `json:"zielwahl"`
+		NachKopieren struct {
+			Meldung          string  `json:"meldung"`
+			DialogZu         bool    `json:"dialogZu"`
+			OriginalDa       bool    `json:"originalDa"`
+			KoerperBreite    float64 `json:"koerperBreite"`
+			FensterBreite    float64 `json:"fensterBreite"`
+			InspektorRechts  float64 `json:"inspektorRechts"`
+			LetzterKnopfDrin bool    `json:"letzterKnopfDrin"`
+		} `json:"nachKopieren"`
+		WerkstattDraussen  bool     `json:"werkstattDraussen"`
+		HandgriffeDraussen []string `json:"handgriffeDraussen"`
+	} `json:"schreiben"`
+	Editor struct {
+		KernVorher     int `json:"kernVorher"`
+		KernVorOeffnen int `json:"kernVorOeffnen"`
+		KernNachher    int `json:"kernNachher"`
+		Aufbau         struct {
+			Adresse       string   `json:"adresse"`
+			Zeilennummern int      `json:"zeilennummern"`
+			Inhalt        string   `json:"inhalt"`
+			Sprache       []string `json:"sprache"`
+			Rahmen        string   `json:"rahmen"`
+			Schrift       string   `json:"schrift"`
+			ListeDa       bool     `json:"listeDa"`
+			KrumenDa      bool     `json:"krumenDa"`
+		} `json:"aufbau"`
+		NachTippen    bool `json:"nachTippen"`
+		NachSpeichern struct {
+			Meldung       string `json:"meldung"`
+			Ungespeichert bool   `json:"ungespeichert"`
+		} `json:"nachSpeichern"`
+		GroesseDanach  string `json:"groesseDanach"`
+		FremdSchreiben int    `json:"fremdSchreiben"`
+		Konflikt       struct {
+			Meldung       string `json:"meldung"`
+			FremdKnopf    bool   `json:"fremdKnopf"`
+			EigenerTextDa bool   `json:"eigenerTextDa"`
+			Knopf         string `json:"knopf"`
+		} `json:"konflikt"`
+		NachUebernahme struct {
+			Meldung     string `json:"meldung"`
+			Inhalt      string `json:"inhalt"`
+			KonfliktWeg bool   `json:"konfliktWeg"`
+		} `json:"nachUebernahme"`
+		NachZurueck struct {
+			EditorDa   bool   `json:"editorDa"`
+			PfadDa     bool   `json:"pfadDa"`
+			Bearbeiten string `json:"bearbeiten"`
+		} `json:"nachZurueck"`
+	} `json:"editor"`
+	Bald struct {
+		Pfad     string `json:"pfad"`
+		Titel    string `json:"titel"`
+		Marke    string `json:"marke"`
+		Satz     string `json:"satz"`
+		Ersatz   string `json:"ersatz"`
+		NavAktiv string `json:"navAktiv"`
+	} `json:"bald"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -219,10 +403,23 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	node := envOr("ASYLUM_NODE", "node")
 
-	s := newTestServer(t)
+	// Der Dateimanager zeigt auf ein Wegwerfverzeichnis, nicht auf "/": Der Test
+	// soll das System des Entwicklers nicht anfassen und nicht von seinem Inhalt
+	// abhängen. Die Struktur darin ist absichtlich so gewählt, dass sie die drei
+	// Fälle trägt, die die Seite unterscheiden muss — ein beschreibbarer Ordner,
+	// ein nur lesbarer, und ein gesperrter Eintrag.
+	s, dateiWurzel := newFilesServer(t)
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 	fuelleUebersicht(s)
+
+	lege(t, filepath.Join(dateiWurzel, "schreibbar", "notizen.txt"), "hallo welt")
+	lege(t, filepath.Join(dateiWurzel, "schreibbar", "server.conf"), "port: 8443\n")
+	lege(t, filepath.Join(dateiWurzel, "schreibbar", "tief", "gesucht.conf"), "a: 1")
+	lege(t, filepath.Join(dateiWurzel, "schluessel.geheim"), "privat")
+	if err := os.MkdirAll(filepath.Join(dateiWurzel, "nurlesbar"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Ein ausstehender Neustart, damit die Paketseite ihren Handlungsbedarf zeigt
 	// — und damit die dritte Bestätigungsstufe im Browser geprüft werden kann. Es
@@ -239,11 +436,25 @@ func TestLeitstandBrowser(t *testing.T) {
 		{At: time.Now(), Unit: "cron.service", Priority: 4, Message: "waehrend-des-verfolgens"},
 	}
 
+	// ufw als vorhanden und mit einer Regel für den Panel-Port. Die Vorgabe der
+	// Attrappe ist „aktiv, aber nicht installiert" — ein Zustand, den es auf einem
+	// echten System nicht gibt, und die Firewallseite zeigt dann zu Recht nur den
+	// Knopf zum Einspielen. Ohne den Panel-Port stünde außerdem die Sperre gegen
+	// das Aussperren im Weg, und geprüft werden soll hier die Probe.
+	ops.firewall = privops.FirewallState{
+		Backend: privops.BackendUFW, Active: true, Managed: true, Installed: true,
+		Rules: []privops.FirewallRule{
+			{Port: 8443, Protocol: "tcp", Comment: "Asylum-Panel"},
+			{Port: 22, Protocol: "tcp", Comment: "SSH"},
+		},
+	}
+
 	ts := httptest.NewServer(s.Handler())
 	defer ts.Close()
 
 	cmd := exec.Command(node, "testdata/leitstand_e2e.js")
 	cmd.Env = append(os.Environ(),
+		"ASYLUM_E2E_DATEIWURZEL="+dateiWurzel,
 		"ASYLUM_E2E_URL="+ts.URL,
 		"ASYLUM_E2E_COOKIE="+cookie.Name+"="+cookie.Value,
 		"ASYLUM_CHROMIUM="+chromium,
@@ -710,6 +921,497 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if l.Schmal.Beschriftung == "" {
 		t.Error("die Zellen der Logliste tragen im Schmalmodus keine Spaltenbeschriftung")
+	}
+
+	// 6e. Das Modul Firewall — Grundsatz VI. Der Kern ist die Probe: Sie muss
+	// oben stehen, herunterlaufen und sich beenden lassen.
+	f := e.Firewall
+	if len(f.Zeilen) == 0 {
+		t.Error("die Firewall zeigt keine Regeln")
+	}
+	// Die Attrappe kennt sshd auf Port 22 und hat dafür eine Regel — der
+	// Vorschlag entsteht also nicht. Geprüft wird, dass Vorschläge überhaupt
+	// unterscheidbar sind: Ein Vorschlag gilt nicht, er wird angeboten.
+	if f.ProbeVorher {
+		t.Error("vor jeder Änderung läuft schon eine Probe")
+	}
+	if !f.UebernehmenGesperrt {
+		t.Error("der Knopf zum Übernehmen ist offen, obwohl nichts bearbeitet wurde — " +
+			"ein Klick stellte dann den unveränderten Stand ohne Grund auf Probe")
+	}
+	if f.EntwurfHinweis == "" {
+		t.Error("nach dem Bearbeiten fehlt der Hinweis, dass der Entwurf noch nicht gilt")
+	}
+	if f.Rueckfrage.Punkte == 0 || !strings.Contains(f.Rueckfrage.Frage, "8080") {
+		t.Errorf("die Rückfrage nennt nicht, was gilt: %q (%d Punkte)",
+			f.Rueckfrage.Frage, f.Rueckfrage.Punkte)
+	}
+	if f.Rueckfrage.Tippfeld {
+		t.Error("Regeln übernehmen verlangt ein getipptes Wort — es ist Stufe 2, " +
+			"weil die Probe den Fehler von selbst zurücknimmt")
+	}
+
+	// Die Probe selbst.
+	if f.Probe.ErsteZahl <= 0 || f.Probe.ErsteZahl > 60 {
+		t.Errorf("die Uhr startet bei %d, erwartet zwischen 1 und 60", f.Probe.ErsteZahl)
+	}
+	if !f.Probe.VorDerTabelle {
+		t.Error("die Probe steht nicht über der Tabelle — wer hereinkommt, während " +
+			"eine Frist läuft, muss zuerst den Knopf sehen, der sie beendet")
+	}
+	if f.Probe.Text == "" {
+		t.Error("die Probe sagt nicht, was auf Probe steht")
+	}
+	if !f.Probe.LaeuftRunter {
+		t.Error("die Uhr läuft nicht herunter — dann ist sie eine Zahl und keine Frist")
+	}
+	// Der wichtigste Punkt: Nach einem Neuladen ist die Probe wieder da. Sie ist
+	// Zustand des Servers, nicht der Seite.
+	if f.ProbeNachNeuladen <= 0 {
+		t.Error("nach dem Neuladen ist die Probe verschwunden — dann fände jemand, " +
+			"der die Seite neu lädt, den Bestätigungsknopf nicht mehr und die " +
+			"Änderung fiele weg, ohne dass er weiß, warum")
+	}
+	if f.NachBestaetigen.Probe {
+		t.Error("nach dem Bestätigen läuft die Probe weiter")
+	}
+	if f.NachBestaetigen.Meldung == "" {
+		t.Error("nach dem Bestätigen sagt nichts, dass die Änderung bleibt")
+	}
+
+	if f.Schmal.FensterBreite == 0 {
+		t.Error("die Firewallseite wurde nicht im Schmalmodus gemessen")
+	} else if f.Schmal.KoerperBreite > f.Schmal.FensterBreite+1 {
+		t.Errorf("die Firewallseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			f.Schmal.KoerperBreite, f.Schmal.FensterBreite)
+	}
+
+	// 6f. Das Modul Dateien. Der Kern ist die Bewegung: Der Ort steht in der
+	// Adresse, jeder Schritt hinein ist ein Schritt im Verlauf, und der
+	// Zurück-Knopf führt eine Ebene höher. Das ist eine Aussage über pushState
+	// und nicht über die Antwort des Servers — deshalb steht sie hier und nicht
+	// in api_dateien_test.go.
+	dat := e.Dateien
+	if len(dat.Wurzeln) == 0 {
+		t.Error("die Dateiseite zeigt keine Bereiche — dann gibt es keinen Einstiegspunkt")
+	}
+	if len(dat.Krumen) < 2 {
+		t.Errorf("der Krumenpfad hat %d Glieder, erwartet mindestens zwei", len(dat.Krumen))
+	}
+	if len(dat.Reihen) == 0 {
+		t.Fatal("die Dateiliste ist leer")
+	}
+	// Der gesperrte Eintrag steht in der Liste und ist als solcher gekennzeichnet.
+	// Ihn zu verstecken hieße, jemanden über den Inhalt seines Servers zu belügen.
+	var gesperrtGefunden bool
+	for _, r := range dat.Reihen {
+		if strings.Contains(r.Name, "schluessel.geheim") {
+			gesperrtGefunden = true
+			if !r.Gesperrt {
+				t.Error("schluessel.geheim ist nicht als gesperrt gekennzeichnet")
+			}
+		}
+	}
+	if !gesperrtGefunden {
+		t.Error("der gesperrte Eintrag fehlt in der Liste — er soll sichtbar sein")
+	}
+	if dat.AlteAnsicht == "" || !strings.HasPrefix(dat.AlteAnsicht, "/files?") {
+		t.Errorf("der Weg in die alte Ansicht fehlt oder zeigt woandershin: %q", dat.AlteAnsicht)
+	}
+
+	// Ein Klick auf einen Ordner geht hinein.
+	if !strings.HasSuffix(dat.NachOrdnerklick.Pfad, "/schreibbar") {
+		t.Errorf("nach dem Klick auf den Ordner steht %q in der Adresse", dat.NachOrdnerklick.Pfad)
+	}
+	if !slices.ContainsFunc(dat.NachOrdnerklick.Reihen, func(s string) bool {
+		return strings.Contains(s, "notizen.txt")
+	}) {
+		t.Errorf("der Inhalt des Ordners fehlt: %v", dat.NachOrdnerklick.Reihen)
+	}
+	if len(dat.NachOrdnerklick.Krumen) <= len(dat.Krumen) {
+		t.Errorf("der Krumenpfad ist nicht gewachsen: %v → %v", dat.Krumen, dat.NachOrdnerklick.Krumen)
+	}
+	// Und der Zurück-Knopf führt eine Ebene höher — nicht aus der Seite heraus.
+	if strings.HasSuffix(dat.NachZurueck.Pfad, "/schreibbar") || dat.NachZurueck.Pfad == "" {
+		t.Errorf("der Zurück-Knopf führt nicht eine Ebene höher, sondern nach %q — "+
+			"dann ist das Hineinwechseln kein Schritt im Verlauf", dat.NachZurueck.Pfad)
+	}
+	if !slices.ContainsFunc(dat.NachZurueck.Reihen, func(s string) bool {
+		return strings.Contains(s, "schreibbar")
+	}) {
+		t.Errorf("nach dem Zurückgehen steht der Ordner nicht in der Liste: %v", dat.NachZurueck.Reihen)
+	}
+
+	// Der Inspektor: Rechte in Worten, und der Download als echter Verweis.
+	if dat.Inspektor.Paare < 5 {
+		t.Errorf("der Inspektor zeigt %d Angaben, erwartet mindestens fünf", dat.Inspektor.Paare)
+	}
+	if len(dat.Inspektor.Rechtetext) != 3 {
+		t.Errorf("die Rechte in Worten haben %d Zeilen, erwartet drei (Eigentümer, "+
+			"Gruppe, alle anderen): %v", len(dat.Inspektor.Rechtetext), dat.Inspektor.Rechtetext)
+	}
+	// „0644" sagt nur denen etwas, die es ohnehin wissen. Der Satz daneben ist
+	// die Auskunft, die eine Entscheidung trägt.
+	if !slices.ContainsFunc(dat.Inspektor.Rechtetext, func(s string) bool {
+		return strings.Contains(s, "darf")
+	}) {
+		t.Errorf("die Rechte stehen nicht in Worten: %v", dat.Inspektor.Rechtetext)
+	}
+	if dat.Inspektor.DownloadZu != "A" {
+		t.Errorf("der Download ist ein %q und kein <a> — ein fetch zöge die Datei "+
+			"in den Speicher des Tabs statt in den Download-Manager", dat.Inspektor.DownloadZu)
+	}
+
+	// Der gesperrte Eintrag: benannt, und ohne Handgriff auf seinen Inhalt.
+	if dat.GesperrtInspektor.Warnung == "" {
+		t.Error("der Inspektor eines gesperrten Eintrags sagt nicht, warum er gesperrt ist")
+	}
+	for _, verboten := range []string{"herunterladen", "bearbeiten", "kopieren"} {
+		if slices.ContainsFunc(dat.GesperrtInspektor.Aktionen, func(s string) bool {
+			return strings.Contains(s, verboten)
+		}) {
+			t.Errorf("der gesperrte Eintrag bietet %q an: %v — der Knopf ist bereits "+
+				"der Fehler, auch wenn der Endpunkt danach 403 antwortet",
+				verboten, dat.GesperrtInspektor.Aktionen)
+		}
+	}
+
+	// Die Suche findet unterhalb — das kann ein Browserfilter nicht.
+	if len(dat.Suche.Reihen) != 1 || !strings.Contains(dat.Suche.Reihen[0], "gesucht.conf") {
+		t.Errorf("die Suche findet %v, erwartet genau gesucht.conf", dat.Suche.Reihen)
+	}
+	if len(dat.Suche.Orte) == 0 || !strings.Contains(dat.Suche.Orte[0], "/tief/") {
+		t.Errorf("am Treffer steht kein Ort: %v — ein Suchergebnis quer über "+
+			"Unterordner wäre ohne ihn eine Sammlung von Namen", dat.Suche.Orte)
+	}
+	if dat.Suche.Band == "" {
+		t.Error("über der Trefferliste steht nicht, dass es eine Suche ist")
+	}
+	if dat.NachSuchende < 2 {
+		t.Errorf("nach dem Beenden der Suche stehen %d Zeilen da, erwartet die Liste zurück",
+			dat.NachSuchende)
+	}
+
+	// Sortierung in der Adresse: teilbar, und ein Neuladen zeigt dasselbe.
+	if dat.SortiertNach != "size" {
+		t.Errorf("die Sortierung steht als %q in der Adresse, erwartet size", dat.SortiertNach)
+	}
+	if !strings.Contains(dat.NachNeuladen, "↑") && !strings.Contains(dat.NachNeuladen, "↓") {
+		t.Errorf("nach dem Neuladen fehlt der Pfeil an der Spalte: %q — dann ist die "+
+			"Sortierung nicht ablesbar", dat.NachNeuladen)
+	}
+
+	if dat.Schmal.FensterBreite == 0 {
+		t.Error("die Dateiseite wurde nicht im Schmalmodus gemessen")
+	} else if dat.Schmal.KoerperBreite > dat.Schmal.FensterBreite+1 {
+		t.Errorf("die Dateiseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			dat.Schmal.KoerperBreite, dat.Schmal.FensterBreite)
+	}
+
+	// 6f2. Die Schreibvorgänge im Dateimodul. Der Kern ist die Rückfrage, und
+	// geprüft wird nicht, dass ein Dialog erscheint, sondern dass nach dem Abbruch
+	// NICHTS geschehen ist. Bis 0.3.0-rc.5 waren dreizehn Rückfragen im Projekt so
+	// gebaut, dass keine einzige gefragt hat — und alle sahen richtig aus.
+	sch := e.Schreiben
+
+	// Anlegen.
+	if sch.NachAnlegen.Meldung == "" {
+		t.Error("nach dem Anlegen sagt nichts, dass es geklappt hat")
+	}
+	if !sch.NachAnlegen.InListe {
+		t.Error("der neu angelegte Ordner steht nicht in der Liste — die Liste wurde nicht neu geholt")
+	}
+	if !strings.HasSuffix(sch.NachAnlegen.Auswahl, "/vom-browser") {
+		t.Errorf("der neue Eintrag ist nicht ausgewählt (Auswahl = %q) — wer einen "+
+			"Ordner anlegt, will meist gleich hinein", sch.NachAnlegen.Auswahl)
+	}
+
+	// Umbenennen: Die Meldung gehört an die Stelle, an der der Knopf war.
+	if sch.NachUmbenennen.Meldung == "" {
+		t.Error("nach dem Umbenennen steht im Inspektor keine Meldung")
+	}
+	if sch.NachUmbenennen.BandOben {
+		t.Error("die Meldung des Umbenennens steht ÜBER der Liste — sie gehört dorthin, " +
+			"wo der Knopf war, sonst wird sie nicht gelesen")
+	}
+	if !strings.Contains(sch.NachUmbenennen.Titel, "umbenannt") {
+		t.Errorf("der Inspektor trägt weiter %q — er folgt dem Eintrag nicht", sch.NachUmbenennen.Titel)
+	}
+	if !sch.NachUmbenennen.InListe {
+		t.Error("der neue Name steht nicht in der Liste")
+	}
+
+	// Die Rechtemaske ist vorbelegt und bietet Auswahlfelder statt Freitext.
+	if sch.Rechtemaske.Oktal == "" {
+		t.Error("die Rechtemaske ist nicht vorbelegt — wer die Rechte ansehen will, " +
+			"müsste sie abschreiben")
+	}
+	if sch.Rechtemaske.Auswahlfelder < 2 {
+		t.Errorf("die Maske hat %d Auswahlfelder, erwartet zwei (Eigentümer, Gruppe) — "+
+			"Freitext führt zu Tippfehlern, die als „Benutzer gibt es nicht\" zurückkommen",
+			sch.Rechtemaske.Auswahlfelder)
+	}
+	if !sch.Rechtemaske.Rekursiv {
+		t.Error("bei einem Ordner fehlt der Schalter für den rekursiven Lauf")
+	}
+
+	// Der rekursive Lauf fragt zurück — die Verschärfung gegenüber der alten
+	// Oberfläche.
+	if sch.RekursivFrage.Frage == "" || sch.RekursivFrage.Punkte < 2 {
+		t.Errorf("der rekursive Lauf fragt nicht ausreichend zurück: %q (%d Punkte)",
+			sch.RekursivFrage.Frage, sch.RekursivFrage.Punkte)
+	}
+	if sch.RekursivFrage.Tippfeld {
+		t.Error("der rekursive Lauf verlangt ein getipptes Wort — er ist Stufe 2")
+	}
+	if !sch.NachAbbruchRekursiv {
+		t.Error("nach dem Abbruch steht der Dialog noch")
+	}
+
+	// Löschen eines Ordners mit Inhalt: Stufe 3, und der Knopf bleibt gesperrt.
+	if !sch.LoeschFrage.Tippfeld {
+		t.Error("das Löschen eines Ordners mit Inhalt verlangt kein getipptes Wort — " +
+			"hinter dem Klick steht dort ein Baum und nicht ein Eintrag")
+	}
+	if !sch.LoeschFrage.Gesperrt {
+		t.Error("der Löschknopf ist offen, bevor das Wort getippt ist")
+	}
+	// „1 Datei" im Singular ist derselbe Nachweis wie „4132 Dateien": Die Frage
+	// nennt, was verschwindet, und nicht nur dass etwas verschwindet.
+	if !strings.Contains(sch.LoeschFrage.Frage, "Datei") {
+		t.Errorf("die Frage nennt die Zählung nicht: %q", sch.LoeschFrage.Frage)
+	}
+	// Und sie nennt nicht, was es nicht gibt: „1 Datei, 0 Ordner" ist eine
+	// Aufzählung mit einem Posten, der von dem ablenkt, auf den es ankommt.
+	if strings.Contains(sch.LoeschFrage.Frage, "0 Ordner") {
+		t.Errorf("die Frage zählt einen leeren Posten mit: %q", sch.LoeschFrage.Frage)
+	}
+	// Der Dialog sitzt in der Mitte. Der Rücksetzer in app.css (`* { margin: 0 }`)
+	// nimmt einem modalen <dialog> die Zentrierung, die der Browser über
+	// `margin: auto` herstellt — ein Dialog in der linken oberen Ecke funktioniert,
+	// sieht aber aus wie ein Fehler.
+	if !sch.DialogSitz.Mittig {
+		t.Errorf("der Rückfragedialog sitzt bei %.0f Pixeln (Breite %.0f, Fenster %.0f) — "+
+			"nicht mittig", sch.DialogSitz.Links, sch.DialogSitz.Breite, sch.DialogSitz.Fenster)
+	}
+
+	// Und der Punkt, der zählt: Nach dem Abbruch steht der Ordner noch da.
+	if !sch.NachLoeschAbbruch.DialogZu {
+		t.Error("Escape schließt den Löschdialog nicht")
+	}
+	if !sch.NachLoeschAbbruch.NochDa {
+		t.Error("nach dem ABBRUCH ist der Ordner weg — die Rückfrage hat nicht gefragt, " +
+			"sondern nur gefragt ausgesehen")
+	}
+
+	// Nach dem echten Löschen ist er weg und der Inspektor zu.
+	if sch.NachLoeschen.NochDa {
+		t.Error("nach dem Löschen steht der Ordner noch in der Liste")
+	}
+	if sch.NachLoeschen.Inspektor {
+		t.Error("nach dem Löschen steht der Inspektor noch — er zeigte einen Eintrag, den es nicht gibt")
+	}
+	if sch.NachLoeschen.Meldung == "" {
+		t.Error("nach dem Löschen sagt nichts, dass es geschehen ist")
+	}
+
+	// Die Zielauswahl: ein Ordnerbrowser und kein Textfeld.
+	if sch.Zielwahl.Textfelder != 0 {
+		t.Errorf("die Zielauswahl hat %d Textfelder — ein Tippfehler wurde damit erst "+
+			"beim Absenden zu einer Meldung", sch.Zielwahl.Textfelder)
+	}
+	if len(sch.Zielwahl.Ordner) == 0 {
+		t.Error("die Zielauswahl nennt keine Ordner")
+	}
+	if sch.Zielwahl.Ziel == "" {
+		t.Error("die Zielauswahl sagt nicht, welches Ziel gerade gewählt ist")
+	}
+	if !sch.Zielwahl.KnopfOffen {
+		t.Error("der Knopf ist gesperrt, obwohl das Ziel beschreibbar ist")
+	}
+	if sch.NachKopieren.Meldung == "" {
+		t.Error("nach dem Kopieren fehlt die Meldung")
+	}
+	if !sch.NachKopieren.DialogZu {
+		t.Error("nach dem Kopieren steht die Zielauswahl noch")
+	}
+	if !sch.NachKopieren.OriginalDa {
+		t.Error("nach dem Kopieren ist das Original weg — dann war es ein Verschieben")
+	}
+	// Die Meldung enthält einen Pfad, und ein Pfad ohne Trennstelle hat eine große
+	// Mindestbreite. Ohne overflow-wrap wuchs die Spalte der Werkbank über das
+	// Fenster hinaus: Der Inspektor wurde rechts abgeschnitten, und die
+	// Schaltfläche „löschen" lag außerhalb des Bildes.
+	if sch.NachKopieren.FensterBreite == 0 {
+		t.Error("die Breite nach dem Kopieren wurde nicht gemessen")
+	} else if sch.NachKopieren.KoerperBreite > sch.NachKopieren.FensterBreite+1 {
+		t.Errorf("nach dem Kopieren ist die Seite %.0f Pixel breit bei %.0f Pixeln Fenster — "+
+			"die Meldung mit dem Pfad sprengt das Gitter",
+			sch.NachKopieren.KoerperBreite, sch.NachKopieren.FensterBreite)
+	}
+	if sch.NachKopieren.InspektorRechts > sch.NachKopieren.FensterBreite+1 {
+		t.Errorf("der Inspektor endet bei %.0f Pixeln, das Fenster bei %.0f — er ist rechts abgeschnitten",
+			sch.NachKopieren.InspektorRechts, sch.NachKopieren.FensterBreite)
+	}
+	if !sch.NachKopieren.LetzterKnopfDrin {
+		t.Error("die letzte Schaltfläche des Inspektors liegt außerhalb von ihm — " +
+			"sie ist da, aber nicht zu sehen, und das ist schlimmer als keine")
+	}
+
+	// Die Gegenprobe: Wo nicht geschrieben werden darf, gibt es die Knöpfe nicht.
+	if sch.WerkstattDraussen {
+		t.Error("in einem nur lesbaren Bereich steht die Werkstatt — jeder Knopf darin " +
+			"liefe zuverlässig in ein 403")
+	}
+	for _, verboten := range []string{"löschen", "umbenennen", "Rechte", "verschieben"} {
+		if slices.ContainsFunc(sch.HandgriffeDraussen, func(s string) bool {
+			return strings.Contains(s, verboten)
+		}) {
+			t.Errorf("am gesperrten Eintrag steht %q: %v", verboten, sch.HandgriffeDraussen)
+		}
+	}
+
+	// Fehlende Antworten. Sie werden im Treiber mitgeschrieben, und bis hierher
+	// hat sie niemand ausgewertet — eine Datei, die es nicht gibt, wäre also
+	// unbemerkt geblieben. Bewusst ausgenommen sind 409 und 412: Beide sind eine
+	// Auskunft, um die ausdrücklich gebeten wurde, und keine fehlende Antwort.
+	if len(e.Fehlend) > 0 {
+		t.Errorf("Antworten mit Fehlerstatus, die keine Auskunft sind: %v", e.Fehlend)
+	}
+
+	// 6f3. Der Editor. Er ist der Prüfstein des Moduls, und zwar an der Stelle, an
+	// der dieses Projekt schon zweimal gescheitert ist: Die
+	// Content-Security-Policy erlaubt kein Inline-Skript und kein
+	// Inline-Stylesheet, und CodeMirror trägt seine Stilregeln zur Laufzeit ein.
+	// Ob das durchgeht, sagt kein Go-Test und kein Build — nur der Browser gegen
+	// die UNVERÄNDERTE Richtlinie. Verstöße stünden oben in e.Verstoesse; hier
+	// wird geprüft, dass das Ergebnis auch ankommt.
+	ed := e.Editor
+
+	// Der Brocken kommt NACHGELADEN. Das ist der ganze Zweck der Aufteilung: Ein
+	// Panel, das für die Übersicht 350 KiB Editor mitlädt, ist auf einer
+	// schlechten Leitung eine Zumutung — für alle, nicht nur für die, die
+	// editieren.
+	if ed.KernVorOeffnen != 0 {
+		t.Errorf("der Editor-Brocken wurde %d mal geholt, bevor jemand ihn geöffnet hat — "+
+			"dann ist die Aufteilung wirkungslos", ed.KernVorOeffnen)
+	}
+	if ed.KernNachher == 0 {
+		t.Error("der Editor-Brocken wurde nie geholt — dann läuft CodeMirror aus dem " +
+			"Hauptbündel, und die Aufteilung ist nur eine Datei mehr")
+	}
+
+	// Läuft CodeMirror? Zeilennummern entstehen erst, wenn es läuft.
+	if ed.Aufbau.Zeilennummern == 0 {
+		t.Error("der Editor zeigt keine Zeilennummern — CodeMirror läuft nicht")
+	}
+	if !strings.Contains(ed.Aufbau.Inhalt, "8443") {
+		t.Errorf("der Inhalt der Datei steht nicht im Editor: %q", ed.Aufbau.Inhalt)
+	}
+	// Und der Nachweis, um den es geht: Der Stil ist angekommen. Verwirft die
+	// Richtlinie die Regeln, die CodeMirror zur Laufzeit einträgt, fehlt der
+	// Rahmen und die Schrift ist nicht Mono.
+	if ed.Aufbau.Rahmen == "" || ed.Aufbau.Rahmen == "0px" {
+		t.Errorf("der Editor hat keinen Rahmen (%q) — die zur Laufzeit eingetragenen "+
+			"Stilregeln sind nicht angekommen. Genau daran ist der Editor der alten "+
+			"Oberfläche schon einmal gescheitert.", ed.Aufbau.Rahmen)
+	}
+	if !strings.Contains(strings.ToLower(ed.Aufbau.Schrift), "mono") {
+		t.Errorf("die Schrift des Editors ist %q, erwartet eine Monoschrift — "+
+			"das Thema ist nicht angekommen", ed.Aufbau.Schrift)
+	}
+	// Die Sprache steht als Marke da. server.conf in einem Ordner ohne „nginx" im
+	// Namen ist ini — bestimmt vom Server, weil dort der ganze Pfad bekannt ist.
+	if !slices.ContainsFunc(ed.Aufbau.Sprache, func(s string) bool { return s == "ini" }) {
+		t.Errorf("die Sprache steht nicht am Editor: %v", ed.Aufbau.Sprache)
+	}
+	// Der Ort bleibt: Der Editor ersetzt die Liste nicht.
+	if !ed.Aufbau.ListeDa || !ed.Aufbau.KrumenDa {
+		t.Error("mit offenem Editor fehlt die Liste oder der Krumenpfad — dann ist der " +
+			"Ort verloren, an dem man ist")
+	}
+	if !strings.HasSuffix(ed.Aufbau.Adresse, "server.conf") {
+		t.Errorf("die bearbeitete Datei steht nicht in der Adresse (%q) — ein Verweis "+
+			"darauf wäre nicht teilbar", ed.Aufbau.Adresse)
+	}
+
+	// Tippen kennzeichnet, Speichern hebt das Kennzeichen auf.
+	if !ed.NachTippen {
+		t.Error("nach dem Tippen fehlt das Kennzeichen „ungespeichert\"")
+	}
+	if ed.NachSpeichern.Meldung == "" {
+		t.Error("nach dem Speichern sagt nichts, dass es geklappt hat")
+	}
+	if ed.NachSpeichern.Ungespeichert {
+		t.Error("nach dem Speichern steht weiter „ungespeichert\" — dann weiß niemand, " +
+			"ob die Datei auf der Platte der im Editor entspricht")
+	}
+	if ed.GroesseDanach == "" {
+		t.Error("die Liste unter dem Editor zeigt keine Größe — sie wurde nicht neu geholt")
+	}
+
+	// Und der Fall, um den es beim Editor eines Panels wirklich geht: zwei
+	// Menschen an derselben Datei.
+	if ed.FremdSchreiben != http.StatusOK {
+		t.Fatalf("das Schreiben von außerhalb ergab %d — der Konflikt konnte nicht "+
+			"nachgestellt werden", ed.FremdSchreiben)
+	}
+	if ed.Konflikt.Meldung == "" {
+		t.Error("der Konflikt wird nicht gemeldet — dann wurde die fremde Änderung " +
+			"überschrieben, und niemand hat es erfahren")
+	}
+	if !ed.Konflikt.EigenerTextDa {
+		t.Error("nach dem Konflikt ist der eigene Text weg — das ist der Kern der Sache: " +
+			"Die eigene Arbeit darf nicht verloren gehen, weil jemand anders gespeichert hat")
+	}
+	if !ed.Konflikt.FremdKnopf {
+		t.Error("der Konflikt bietet nur einen Ausweg an — den fremden Stand zu übernehmen " +
+			"ist der zweite, und ohne ihn ist es keine Wahl")
+	}
+	if !strings.Contains(ed.Konflikt.Knopf, "überschreiben") {
+		t.Errorf("der Knopf heißt weiter %q — Überschreiben ist eine andere Handlung als "+
+			"Speichern, und er soll es sagen", ed.Konflikt.Knopf)
+	}
+	if !strings.Contains(ed.NachUebernahme.Inhalt, "von auswaerts") {
+		t.Errorf("nach der Übernahme steht nicht der fremde Stand im Editor: %q",
+			ed.NachUebernahme.Inhalt)
+	}
+	if !ed.NachUebernahme.KonfliktWeg {
+		t.Error("nach der Übernahme steht die Konfliktmeldung noch")
+	}
+
+	// Der Zurück-Knopf schließt den Editor und lässt die Seite stehen.
+	if ed.NachZurueck.EditorDa || ed.NachZurueck.Bearbeiten != "" {
+		t.Errorf("der Zurück-Knopf schließt den Editor nicht (bearbeiten=%q)",
+			ed.NachZurueck.Bearbeiten)
+	}
+	if !ed.NachZurueck.PfadDa {
+		t.Error("der Zurück-Knopf hat auch den Ort verworfen — er soll nur den Editor schließen")
+	}
+
+	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2
+	// stillschweigend auf der Übersicht; jetzt sagt eine Seite, worum es geht.
+	b := e.Bald
+	if b.Pfad != "/v2/docker" {
+		t.Errorf("der Pfad ist %q, erwartet /v2/docker", b.Pfad)
+	}
+	if b.Titel != "Docker" {
+		t.Errorf("die Überschrift ist %q, erwartet Docker — die Seite nennt nicht, "+
+			"worum es geht", b.Titel)
+	}
+	if !strings.Contains(b.Marke, "0.6") {
+		t.Errorf("die Marke ist %q, erwartet die geplante Fassung 0.6", b.Marke)
+	}
+	if b.Satz == "" {
+		t.Error("die Seite sagt nicht, dass es das Modul noch nicht gibt")
+	}
+	if b.Ersatz == "" {
+		t.Error("die Seite nennt keinen Weg, der heute schon geht")
+	}
+	if b.NavAktiv != "/v2/docker" {
+		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q) — "+
+			"dann sieht die Seite aus wie eine, auf die man versehentlich geraten ist",
+			b.NavAktiv)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

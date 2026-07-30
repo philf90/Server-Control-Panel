@@ -481,6 +481,17 @@ func unterEinerWurzel(p string, wurzeln []string) bool {
 	return false
 }
 
+// PruefeName prüft den Namen eines neuen Eintrags — für Aufrufer außerhalb des
+// Pakets.
+//
+// Sie steht hier und nicht als zweite Regel in der Schnittstellenschicht, weil
+// zwei Fassungen derselben Prüfung auseinanderlaufen: Die eine verbietet dann den
+// Schrägstrich, die andere nicht, und welche gilt, hängt vom Endpunkt ab.
+// Verbindlich bleibt der Aufruf innerhalb der Wache — dies ist die Auskunft
+// darüber, damit eine Eingabemaske den Grund nennen kann, statt einen
+// zusammengesetzten Pfad in eine unverständliche Ablehnung laufen zu lassen.
+func PruefeName(name string) error { return pruefeName(name) }
+
 // pruefeName prüft den Namen eines neuen Eintrags.
 func pruefeName(name string) error {
 	switch name {

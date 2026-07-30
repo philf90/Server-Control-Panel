@@ -83,11 +83,16 @@ async function main() {
 
   const fehlend = [];
   seite.on("response", (r) => {
-    // 409 ist keine fehlende Antwort, sondern eine Rückfrage: Der Handler führt
-    // nichts aus, solange die Bestätigung fehlt, und schickt stattdessen deren
-    // Text (siehe api_v1_bestaetigung.go). Sie hier mitzuzählen wäre Rauschen,
-    // das eine echte 404 später verdeckt.
-    if (r.status() >= 400 && r.status() !== 409) {
+    // Zwei Statuscodes sind KEINE fehlende Antwort, sondern eine Auskunft, um die
+    // ausdrücklich gebeten wurde:
+    //
+    //   409 — unbestätigt; der Handler führt nichts aus und schickt stattdessen
+    //         den Text der Rückfrage (api_v1_bestaetigung.go).
+    //   412 — die Datei wurde von außen geändert; der Editor bekommt den fremden
+    //         Stand statt ihn zu überschreiben (api_v1_dateien_editor.go).
+    //
+    // Sie hier mitzuzählen wäre Rauschen, das eine echte 404 verdeckt.
+    if (r.status() >= 400 && r.status() !== 409 && r.status() !== 412) {
       fehlend.push(`${r.status()} ${r.url()}`);
       gesammelt.push(`response: ${r.status()} ${r.url()}`);
     }
@@ -754,6 +759,848 @@ async function main() {
   }
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 11. Das Modul Firewall — Grundsatz VI, „Was schiefgehen kann, hat einen
+  //     Rückweg." Geprüft wird die Probe: Steht sie ganz oben? Zählt der
+  //     Countdown herunter? Und beendet der Knopf sie wirklich?
+  const firewall = {};
+  await seite.goto(`${basis}/v2/firewall`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  firewall.zeilen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      text: tr.textContent.replace(/\s+/g, " ").trim(),
+      vorschlag: tr.classList.contains("vorschlag"),
+    })),
+  );
+  // Vor einer Änderung läuft keine Probe.
+  firewall.probeVorher = await seite.evaluate(
+    () => document.querySelector(".probe") !== null,
+  );
+  // „Regeln übernehmen" ist aus, solange nichts bearbeitet wurde: Ein Knopf, der
+  // den unveränderten Stand noch einmal schreibt, stellt ohne Grund auf Probe.
+  firewall.uebernehmenGesperrt = await seite.evaluate(() => {
+    const knoepfe = [...document.querySelectorAll(".aktionen .knopf")];
+    const u = knoepfe.find((b) => b.textContent.includes("übernehmen"));
+    return u ? u.disabled : null;
+  });
+
+  // Eine Regel hinzufügen und übernehmen. Die Rückfrage kommt vom Server.
+  await seite.click(".aktionen .knopf.leise");
+  await seite.waitForTimeout(150);
+  firewall.entwurfHinweis = await seite.evaluate(
+    () => document.querySelector(".hinweis")?.textContent.trim() ?? "",
+  );
+  // Port in die neue (letzte) Zeile tippen.
+  const felder = await seite.$$("table.tabelle input[type=number]");
+  await felder[felder.length - 1].fill("8080");
+  await seite.waitForTimeout(120);
+
+  await seite.evaluate(() => {
+    const u = [...document.querySelectorAll(".aktionen .knopf")].find((b) =>
+      b.textContent.includes("übernehmen"),
+    );
+    u.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  firewall.rueckfrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d?.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: d?.querySelectorAll(".punkte li").length ?? 0,
+      tippfeld: d?.querySelector(".tippen") !== null,
+    };
+  });
+  await seite.click("dialog.rueckfrage .knopf.gefahr");
+
+  // Und jetzt der Kern: Die Probe steht oben, und die Uhr läuft.
+  await seite.waitForSelector(".probe .uhr", { timeout: 5000 });
+  const erste = Number(await seite.textContent(".probe .uhr"));
+  firewall.probe = {
+    ersteZahl: erste,
+    // Steht die Probe VOR der Tabelle? Wer hereinkommt, während eine Frist
+    // läuft, muss zuerst den Knopf sehen, der sie beendet.
+    vorDerTabelle: await seite.evaluate(() => {
+      const p = document.querySelector(".probe").getBoundingClientRect();
+      const t = document.querySelector(".tabelle-rahmen").getBoundingClientRect();
+      return p.top < t.top;
+    }),
+    text: await seite.evaluate(
+      () => document.querySelector(".probe b")?.textContent.trim() ?? "",
+    ),
+  };
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-firewall.png`,
+      fullPage: true,
+    });
+  }
+
+  // Die Uhr muss kleiner werden. Auf eine kleinere Zahl warten und nicht auf
+  // eine Dauer: Ein fester Schlaf wäre auf einer langsamen Maschine zu kurz.
+  try {
+    await seite.waitForFunction(
+      (start) => Number(document.querySelector(".probe .uhr")?.textContent) < start,
+      erste,
+      { timeout: 5000 },
+    );
+    firewall.probe.laeuftRunter = true;
+  } catch {
+    firewall.probe.laeuftRunter = false;
+  }
+
+  // Ein Neuladen findet die Probe vor: Sie ist Zustand des Servers, nicht der
+  // Seite. Das ist der Fall, in dem es darauf ankommt — wer neu lädt, weil die
+  // Seite nach einer Regeländerung hängt, muss den Knopf trotzdem finden.
+  await seite.goto(`${basis}/v2/firewall`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".probe .uhr", { timeout: 5000 });
+  firewall.probeNachNeuladen = Number(await seite.textContent(".probe .uhr"));
+
+  // Bestätigen beendet sie.
+  await seite.click(".probe .knopf");
+  await seite.waitForTimeout(400);
+  firewall.nachBestaetigen = await seite.evaluate(() => ({
+    probe: document.querySelector(".probe") !== null,
+    meldung: document.querySelector(".meldung")?.textContent.trim() ?? "",
+  }));
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  firewall.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-firewall-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 12. Das Modul Dateien. Es ist das erste, dessen Ort in der Adresse steht und
+  //     dessen Bewegung ein Schritt im Verlauf ist — und genau das prüft ein
+  //     Go-Test nicht: Ob der Zurück-Knopf eine Ebene höher führt, ist eine
+  //     Aussage über history.pushState und nicht über die Antwort des Servers.
+  const wurzel = process.env.ASYLUM_E2E_DATEIWURZEL ?? "";
+  const dateien = {};
+  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  dateien.wurzeln = await seite.evaluate(() =>
+    [...document.querySelectorAll(".bereiche button")].map((b) => b.textContent.trim()),
+  );
+  dateien.krumen = await seite.evaluate(() =>
+    [...document.querySelectorAll(".krumen button")].map((b) => b.textContent.trim()),
+  );
+  dateien.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector(".zeile")?.textContent.trim() ?? "",
+      groesse: tr.children[1]?.textContent.trim() ?? "",
+      rechte: tr.children[3]?.textContent.trim() ?? "",
+      gesperrt: tr.querySelector(".zustand.warn") !== null,
+    })),
+  );
+  dateien.alteAnsicht = await seite.evaluate(
+    () => document.querySelector(".fuss a")?.getAttribute("href") ?? "",
+  );
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien.png`,
+      fullPage: true,
+    });
+  }
+
+  // Ein Klick auf einen Ordner geht hinein — nicht in den Inspektor. Ein
+  // Doppelklick als Unterschied wäre auf einem Telefon nicht bedienbar.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find((b) =>
+      b.classList.contains("ordner") && b.textContent.includes("schreibbar"),
+    );
+    z.click();
+  });
+  await seite.waitForFunction(
+    () => new URL(location.href).searchParams.get("pfad")?.endsWith("/schreibbar"),
+    null,
+    { timeout: 5000 },
+  );
+  await seite.waitForTimeout(300);
+  dateien.nachOrdnerklick = await seite.evaluate(() => ({
+    pfad: new URL(location.href).searchParams.get("pfad") ?? "",
+    krumen: [...document.querySelectorAll(".krumen button")].map((b) => b.textContent.trim()),
+    reihen: [...document.querySelectorAll("table.tabelle .zeile")].map((b) =>
+      b.textContent.trim(),
+    ),
+  }));
+
+  // Und der Zurück-Knopf führt eine Ebene höher. Das ist der Punkt: Bei den
+  // Diensten ersetzt der Wechsel der Auswahl den Verlaufseintrag, hier muss
+  // jeder Schritt hinein einer sein.
+  await seite.goBack();
+  await seite.waitForTimeout(400);
+  dateien.nachZurueck = await seite.evaluate(() => ({
+    pfad: new URL(location.href).searchParams.get("pfad") ?? "",
+    reihen: [...document.querySelectorAll("table.tabelle .zeile")].map((b) =>
+      b.textContent.trim(),
+    ),
+  }));
+
+  // Der Inspektor einer Datei: Rechte in Worten, und ein Download, der ein
+  // echter Verweis ist. Wäre es ein Knopf mit fetch, zöge er die Datei in den
+  // Speicher des Tabs.
+  await seite.goto(
+    `${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel + "/schreibbar")}` +
+      `&eintrag=${encodeURIComponent(wurzel + "/schreibbar/notizen.txt")}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  await seite.waitForSelector(".inspektor .rechteblock dd", { timeout: 5000 });
+  dateien.inspektor = await seite.evaluate(() => {
+    const i = document.querySelector(".inspektor");
+    return {
+      titel: i.querySelector("h2, .titel")?.textContent.trim() ?? i.getAttribute("aria-label") ?? "",
+      paare: i.querySelectorAll("dl.kv dt").length,
+      // Beschriftung UND Wert: „darf lesen" allein wäre kein Nachweis, dass
+      // dabeisteht, für WEN es gilt.
+      rechtetext: [...i.querySelectorAll(".rechteblock dt")].map((dt, n) => {
+        const dd = i.querySelectorAll(".rechteblock dd")[n];
+        return `${dt.textContent.trim()}: ${dd ? dd.textContent.replace(/\s+/g, " ").trim() : ""}`;
+      }),
+      aktionen: [...i.querySelectorAll(".aktionen .knopf")].map((a) =>
+        a.textContent.trim(),
+      ),
+      downloadZu:
+        [...i.querySelectorAll(".aktionen a")].find((a) =>
+          a.textContent.includes("herunterladen"),
+        )?.tagName ?? "",
+    };
+  });
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-inspektor.png`,
+      fullPage: true,
+    });
+  }
+
+  // Der gesperrte Eintrag: sichtbar, benannt — und ohne einen Handgriff, der
+  // seinen Inhalt anfassen würde. Der Knopf wäre bereits der Fehler, auch wenn
+  // der Endpunkt danach 403 antwortet.
+  await seite.goto(
+    `${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}` +
+      `&eintrag=${encodeURIComponent(wurzel + "/schluessel.geheim")}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  dateien.gesperrtInspektor = await seite.evaluate(() => {
+    const i = document.querySelector(".inspektor");
+    return {
+      warnung: i.querySelector(".warnung")?.textContent.trim() ?? "",
+      aktionen: [...i.querySelectorAll(".aktionen .knopf")].map((a) =>
+        a.textContent.trim(),
+      ),
+    };
+  });
+
+  // Die Suche geht an den Server und findet unterhalb. Ein Browserfilter könnte
+  // das nicht — und behauptete bei einer gekürzten Liste „kein Treffer" für eine
+  // Datei, die es gibt.
+  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+  await seite.fill(".suche input", "gesucht");
+  await seite.press(".suche input", "Enter");
+  await seite.waitForSelector(".band.info", { timeout: 5000 });
+  dateien.suche = await seite.evaluate(() => ({
+    band: document.querySelector(".band.info")?.textContent.replace(/\s+/g, " ").trim() ?? "",
+    reihen: [...document.querySelectorAll("table.tabelle .zeile")].map((b) =>
+      b.textContent.trim(),
+    ),
+    orte: [...document.querySelectorAll("table.tabelle .ort")].map((o) =>
+      o.textContent.trim(),
+    ),
+  }));
+
+  // Suche beenden bringt die Liste zurück.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".suche .knopf")].find((x) =>
+      x.textContent.includes("beenden"),
+    );
+    b.click();
+  });
+  await seite.waitForFunction(
+    () => document.querySelector(".band.info") === null,
+    null,
+    { timeout: 5000 },
+  );
+  dateien.nachSuchende = await seite.evaluate(
+    () => document.querySelectorAll("table.tabelle tbody tr").length,
+  );
+
+  // Sortieren steht in der Adresse — teilbar, und ein Neuladen zeigt dasselbe.
+  await seite.evaluate(() => {
+    const s = [...document.querySelectorAll("table.tabelle th .spalte")].find((x) =>
+      x.textContent.includes("Größe"),
+    );
+    s.click();
+  });
+  await seite.waitForTimeout(300);
+  dateien.sortiertNach = await seite.evaluate(
+    () => new URL(location.href).searchParams.get("sort") ?? "",
+  );
+  await seite.reload({ waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle th .spalte", { timeout: 5000 });
+  dateien.nachNeuladen = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll("table.tabelle th .spalte")]
+        .find((x) => x.textContent.includes("Größe"))
+        ?.textContent.trim() ?? "",
+  );
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  dateien.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 12b. Die Schreibvorgänge. Der Kern ist die Rückfrage: Ohne Bestätigung darf
+  //      NICHTS geschehen, und bei einem Ordner mit Inhalt muss der Dialog nach
+  //      einem getippten Wort fragen. Bis 0.3.0-rc.5 waren dreizehn Rückfragen im
+  //      Projekt so gebaut, dass keine einzige gefragt hat — deshalb wird hier
+  //      nicht nur der Dialog gezählt, sondern nach dem Abbruch geprüft, dass der
+  //      Eintrag noch in der Liste steht.
+  const schreiben = {};
+  const schreibbar = `${wurzel}/schreibbar`;
+  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector(".werkstatt", { timeout: 5000 });
+
+  // Die Werkstatt steht nur, wo geschrieben werden darf. In der Leseworzel
+  // darüber darf sie nicht sein — ein Knopf, der zuverlässig in ein 403 läuft,
+  // nennt den Fehler erst nach dem Klick.
+  schreiben.werkstattHier = true;
+
+  // Einen Ordner anlegen.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".werkstatt .knopf")].find((x) =>
+      x.textContent.includes("Neuer Ordner"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".maske input", { timeout: 5000 });
+  await seite.fill(".maske input", "vom-browser");
+  await seite.press(".maske input", "Enter");
+  await seite.waitForSelector(".band.gut", { timeout: 5000 });
+  schreiben.nachAnlegen = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+    // Der neue Eintrag ist ausgewählt: Wer einen Ordner anlegt, will meist gleich
+    // hinein oder die Rechte setzen.
+    auswahl: new URL(location.href).searchParams.get("eintrag") ?? "",
+    inListe: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("vom-browser"),
+    ),
+  }));
+
+  // Umbenennen im Inspektor.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find((x) =>
+      x.textContent.trim() === "umbenennen",
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".inspektor .maske input", { timeout: 5000 });
+  await seite.fill(".inspektor .maske input", "umbenannt");
+  await seite.press(".inspektor .maske input", "Enter");
+  await seite.waitForSelector(".inspektor .meldung", { timeout: 5000 });
+  schreiben.nachUmbenennen = await seite.evaluate(() => ({
+    // Die Meldung steht IM INSPEKTOR und nicht über der Liste: Sie gehört an die
+    // Stelle, an der der Knopf war.
+    meldung: document.querySelector(".inspektor .meldung")?.textContent.trim() ?? "",
+    bandOben: document.querySelector(".band.gut") !== null,
+    titel: document.querySelector(".inspektor h2")?.textContent.trim() ?? "",
+    inListe: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("umbenannt"),
+    ),
+  }));
+
+  // Rechte setzen — Stufe 1 für einen einzelnen Eintrag, also ohne Dialog.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
+      (x) => x.textContent.trim() === "Rechte",
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".rechtemaske", { timeout: 5000 });
+  schreiben.rechtemaske = await seite.evaluate(() => {
+    const m = document.querySelector(".rechtemaske");
+    return {
+      // Vorbelegt mit dem, was gilt: Ein leeres Feld hieße „nichts ändern", und
+      // wer die Rechte ansehen will, soll sie nicht abschreiben müssen.
+      oktal: m.querySelector('input[type="text"]')?.value ?? "",
+      auswahlfelder: m.querySelectorAll("select").length,
+      // Der rekursive Schalter gibt es nur bei einem Ordner.
+      rekursiv: m.querySelector('input[type="checkbox"]') !== null,
+    };
+  });
+
+  // Und jetzt der rekursive Lauf: Er MUSS zurückfragen. Das ist die Verschärfung
+  // gegenüber der alten Oberfläche.
+  await seite.evaluate(() => {
+    const m = document.querySelector(".rechtemaske");
+    m.querySelector('input[type="text"]').value = "0700";
+    m.querySelector('input[type="text"]').dispatchEvent(new Event("input", { bubbles: true }));
+    m.querySelector('input[type="checkbox"]').click();
+  });
+  await seite.waitForTimeout(120);
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".rechtemaske .knopf")].find((x) =>
+      x.textContent.includes("anwenden"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  schreiben.rekursivFrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: d.querySelectorAll(".punkte li").length,
+      tippfeld: d.querySelector(".tippen") !== null,
+    };
+  });
+  // Abbrechen — und danach darf nichts geschehen sein.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(200);
+  schreiben.nachAbbruchRekursiv = await seite.evaluate(
+    () => document.querySelector("dialog.rueckfrage") === null,
+  );
+
+  // Löschen eines Ordners MIT Inhalt: Stufe 3.
+  await seite.goto(
+    `${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}` +
+      `&eintrag=${encodeURIComponent(schreibbar + "/tief")}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await seite.waitForSelector(".inspektor .aktionen .knopf.gefahr", { timeout: 5000 });
+  await seite.click(".inspektor .aktionen .knopf.gefahr");
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  schreiben.loeschFrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: d.querySelectorAll(".punkte li").length,
+      tippfeld: d.querySelector(".tippen") !== null,
+      hinweis: d.querySelector(".tippen-hinweis, label")?.textContent.trim() ?? "",
+      // Der Knopf bleibt gesperrt, bis das Wort stimmt.
+      gesperrt: [...d.querySelectorAll(".knopf")].find((b) =>
+        b.textContent.includes("löschen"),
+      )?.disabled,
+    };
+  });
+
+  // Wo sitzt der Dialog? Ein modales <dialog> zentriert der Browser über
+  // `margin: auto` — und der Rücksetzer in app.css (`* { margin: 0 }`) nimmt ihm
+  // das. Gemessen und nicht angenommen: Ein Dialog in der linken oberen Ecke
+  // funktioniert, sieht aber aus wie ein Fehler.
+  schreiben.dialogSitz = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage").getBoundingClientRect();
+    return {
+      links: Math.round(d.left),
+      breite: Math.round(d.width),
+      fenster: window.innerWidth,
+      // Waagerecht mittig? Zwei Pixel Toleranz für Rundung.
+      mittig: Math.abs(d.left - (window.innerWidth - d.width) / 2) <= 2,
+    };
+  });
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-loeschfrage.png`,
+    });
+  }
+
+  // Abbrechen, und der Ordner steht noch da. DAS ist die Prüfung, die zählt.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  schreiben.nachLoeschAbbruch = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    nochDa: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("tief"),
+    ),
+  }));
+
+  // Jetzt wirklich: Wort tippen und löschen.
+  await seite.click(".inspektor .aktionen .knopf.gefahr");
+  await seite.waitForSelector("dialog.rueckfrage .tippen", { timeout: 5000 });
+  await seite.fill("dialog.rueckfrage .tippen", "tief");
+  await seite.waitForTimeout(120);
+  await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    [...d.querySelectorAll(".knopf")].find((b) => b.textContent.includes("löschen")).click();
+  });
+  await seite.waitForSelector(".band.gut", { timeout: 5000 });
+  schreiben.nachLoeschen = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+    // Der Inspektor ist zu: Es gibt den Eintrag nicht mehr.
+    inspektor: document.querySelector(".inspektor") !== null,
+    nochDa: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("tief"),
+    ),
+  }));
+
+  // Die Zielauswahl beim Kopieren: ein Ordnerbrowser und kein Textfeld.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find((x) =>
+      x.textContent.includes("notizen.txt"),
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
+      (x) => x.textContent.trim() === "kopieren",
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.zielwahl[open]", { timeout: 5000 });
+  await seite.waitForSelector("dialog.zielwahl .ordner button", { timeout: 5000 });
+  schreiben.zielwahl = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.zielwahl");
+    return {
+      // Kein Textfeld: Ein Tippfehler wurde sonst erst beim Absenden zu einer
+      // Meldung, und "/srv/date" statt "/srv/daten" legt nichts an.
+      textfelder: d.querySelectorAll('input[type="text"]').length,
+      ordner: [...d.querySelectorAll(".ordner button")].map((b) => b.textContent.trim()),
+      ziel: d.querySelector(".gewaehlt .pfad")?.textContent.trim() ?? "",
+      knopfOffen: ![...d.querySelectorAll(".knoepfe .knopf")].find((b) =>
+        b.textContent.includes("kopieren"),
+      )?.disabled,
+    };
+  });
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-zielwahl.png`,
+      fullPage: true,
+    });
+  }
+
+  // In einen Unterordner wechseln und dorthin kopieren. Der Ordner heißt
+  // „umbenannt" — er wurde weiter oben angelegt und umbenannt. Ins EIGENE
+  // Verzeichnis zu kopieren wäre ein 400 („gibt es bereits"), und der Test
+  // prüfte dann versehentlich die Fehlerbehandlung statt des Kopierens.
+  await seite.waitForFunction(
+    () =>
+      [...document.querySelectorAll("dialog.zielwahl .ordner button")].some((x) =>
+        x.textContent.includes("umbenannt"),
+      ),
+    null,
+    { timeout: 5000 },
+  );
+  await seite.evaluate(() => {
+    [...document.querySelectorAll("dialog.zielwahl .ordner button")]
+      .find((x) => x.textContent.includes("umbenannt"))
+      .click();
+  });
+  await seite.waitForFunction(
+    () =>
+      document
+        .querySelector("dialog.zielwahl .gewaehlt .pfad")
+        ?.textContent.endsWith("/umbenannt"),
+    null,
+    { timeout: 5000 },
+  );
+  await seite.evaluate(() => {
+    const d = document.querySelector("dialog.zielwahl");
+    [...d.querySelectorAll(".knoepfe .knopf")]
+      .find((b) => b.textContent.includes("kopieren"))
+      .click();
+  });
+  await seite.waitForSelector(".inspektor .meldung", { timeout: 5000 });
+  schreiben.nachKopieren = await seite.evaluate(() => ({
+    meldung: document.querySelector(".inspektor .meldung")?.textContent.trim() ?? "",
+    dialogZu: document.querySelector("dialog.zielwahl") === null,
+    // Das Original steht noch da — sonst wäre es ein Verschieben.
+    originalDa: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("notizen.txt"),
+    ),
+    // Und die Messung, die den Fehler gefunden hat: Diese Meldung enthält einen
+    // PFAD, und ein Pfad ohne Trennstelle hat eine große Mindestbreite. Ohne
+    // overflow-wrap wuchs die Spalte der Werkbank über das Fenster hinaus, der
+    // Inspektor wurde rechts abgeschnitten und „löschen" lag außerhalb des
+    // Bildes. Gemessen wird deshalb beides: der Seitenkörper und die rechte
+    // Kante des Inspektors.
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+    inspektorRechts: Math.round(
+      document.querySelector(".inspektor").getBoundingClientRect().right,
+    ),
+    // Die letzte Schaltfläche muss innerhalb des Inspektors liegen.
+    letzterKnopfDrin: (() => {
+      const i = document.querySelector(".inspektor").getBoundingClientRect();
+      const knoepfe = [...document.querySelectorAll(".inspektor .aktionen .knopf")];
+      const letzter = knoepfe[knoepfe.length - 1]?.getBoundingClientRect();
+      return letzter ? letzter.right <= i.right + 1 : false;
+    })(),
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-schreiben.png`,
+      fullPage: true,
+    });
+  }
+
+  // Und die Gegenprobe: In der Leseworzel gibt es keine Werkstatt.
+  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+  schreiben.werkstattDraussen = await seite.evaluate(
+    () => document.querySelector(".werkstatt") !== null,
+  );
+  // Und am Eintrag dort keine verändernden Handgriffe.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find((x) =>
+      x.textContent.includes("schluessel.geheim"),
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  schreiben.handgriffeDraussen = await seite.evaluate(() =>
+    [...document.querySelectorAll(".inspektor .aktionen .knopf")].map((b) =>
+      b.textContent.trim(),
+    ),
+  );
+
+  // 12c. Der Editor. Er ist der Prüfstein dieses Moduls, und zwar an einer
+  //      Stelle, an der dieses Projekt schon zweimal gescheitert ist: Die
+  //      Content-Security-Policy des Panels erlaubt kein Inline-Skript und kein
+  //      Inline-Stylesheet, und CodeMirror trägt seine Stilregeln zur Laufzeit
+  //      ein. Ob das durchgeht, sagt kein Go-Test und kein Build — nur der
+  //      Browser gegen die UNVERÄNDERTE Richtlinie.
+  //
+  //      Dazu kommt: Der Editor ist ein NACHGELADENER Brocken (dynamisches
+  //      import()). Dass er über die Richtlinie hinweg geholt wird, ist die
+  //      zweite Frage, die nur hier zu beantworten ist.
+  const editor = {};
+  const editorPfad = `${wurzel}/schreibbar/server.conf`;
+  // Die Zahl der Anfragen vor dem Öffnen: Der Brocken darf VORHER nicht geholt
+  // worden sein. Das ist der ganze Zweck der Aufteilung.
+  editor.kernVorher = angefragt.filter((u) => u.includes("editorkern")).length;
+
+  await seite.goto(
+    `${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}` +
+      `&eintrag=${encodeURIComponent(editorPfad)}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await seite.waitForSelector(".inspektor .aktionen .knopf", { timeout: 5000 });
+  editor.kernVorOeffnen = angefragt.filter((u) => u.includes("editorkern")).length;
+
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
+      (x) => x.textContent.trim() === "bearbeiten",
+    );
+    b.click();
+  });
+  // Auf die Zeilennummern warten: Sie entstehen erst, wenn CodeMirror läuft. Auf
+  // den Kasten zu warten hieße, auf das leere Zuhause zu warten.
+  await seite.waitForSelector(".editor .cm-gutters", { timeout: 10000 });
+  editor.kernNachher = angefragt.filter((u) => u.includes("editorkern")).length;
+
+  editor.aufbau = await seite.evaluate(() => {
+    const e = document.querySelector(".editor");
+    const zeilen = e.querySelectorAll(".cm-gutterElement").length;
+    return {
+      // Die Adresse trägt die bearbeitete Datei: teilbar, und der Zurück-Knopf
+      // schließt den Editor.
+      adresse: new URL(location.href).searchParams.get("bearbeiten") ?? "",
+      zeilennummern: zeilen,
+      inhalt: e.querySelector(".cm-content")?.textContent ?? "",
+      sprache: [...e.querySelectorAll(".marke")].map((m) => m.textContent.trim()),
+      // Und der Nachweis, um den es geht: Ist der Stil angekommen? Kommt die
+      // Regel nicht durch die Richtlinie, ist der Rahmen nicht da und die
+      // Schriftart nicht Mono.
+      rahmen: getComputedStyle(e.querySelector(".cm-editor")).borderTopWidth,
+      schrift: getComputedStyle(e.querySelector(".cm-scroller")).fontFamily,
+      // Die Liste steht weiter darunter: Der Editor ersetzt sie nicht, damit der
+      // Ort nicht verloren geht.
+      listeDa: document.querySelector("table.tabelle") !== null,
+      krumenDa: document.querySelector(".krumen") !== null,
+    };
+  });
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-editor.png`,
+      fullPage: true,
+    });
+  }
+
+  // Tippen und speichern.
+  await seite.click(".editor .cm-content");
+  await seite.keyboard.press("End");
+  await seite.keyboard.type("\n# vom-browser");
+  await seite.waitForTimeout(150);
+  editor.nachTippen = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll(".editor .marke")].some((m) =>
+        m.textContent.includes("ungespeichert"),
+      ),
+  );
+
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".editor .fuss .knopf")].find((x) =>
+      x.textContent.includes("speichern"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".editor .band.gut", { timeout: 5000 });
+  editor.nachSpeichern = await seite.evaluate(() => ({
+    meldung: document.querySelector(".editor .band.gut")?.textContent.trim() ?? "",
+    // Das Kennzeichen ist weg: Es gibt nichts Ungespeichertes mehr.
+    ungespeichert: [...document.querySelectorAll(".editor .marke")].some((m) =>
+      m.textContent.includes("ungespeichert"),
+    ),
+  }));
+  // Und die Größe in der Liste ist eine andere — die Liste wurde neu geholt.
+  editor.groesseDanach = await seite.evaluate(() => {
+    const zeile = [...document.querySelectorAll("table.tabelle tbody tr")].find((tr) =>
+      tr.textContent.includes("server.conf"),
+    );
+    return zeile?.children[1]?.textContent.trim() ?? "";
+  });
+
+  // Der Konflikt — der Fall, um den es beim Editor eines Panels wirklich geht:
+  // Zwei Menschen bearbeiten dieselbe Datei. Nachgestellt wird er ehrlich: Die
+  // Datei wird VON AUSSERHALB des Editors geschrieben (eigener Aufruf mit
+  // ueberschreiben), während der Editor seinen alten Hash noch hält. Danach läuft
+  // das Speichern über die Schaltfläche — und muss in den Konflikt laufen statt
+  // die fremde Änderung zu überschreiben.
+  editor.fremdSchreiben = await seite.evaluate(async (pfad) => {
+    const sitzung = await (
+      await fetch("/api/v1/session", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      })
+    ).json();
+    const antwort = await fetch("/api/v1/files/text", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-Token": sitzung.csrf,
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        pfad,
+        inhalt: "von auswaerts\n",
+        hash: "",
+        crlf: false,
+        ohne_schlussumbruch: false,
+        ueberschreiben: true,
+      }),
+    });
+    return antwort.status;
+  }, editorPfad);
+
+  // Jetzt im Editor tippen und speichern: Das muss der Konflikt sein.
+  await seite.click(".editor .cm-content");
+  await seite.keyboard.press("End");
+  await seite.keyboard.type("\n# und noch etwas");
+  await seite.evaluate(() => {
+    [...document.querySelectorAll(".editor .fuss .knopf")]
+      .find((x) => x.textContent.includes("speichern"))
+      .click();
+  });
+  await seite.waitForSelector(".editor .band.schlecht", { timeout: 5000 });
+  editor.konflikt = await seite.evaluate(() => {
+    const band = document.querySelector(".editor .band.schlecht");
+    return {
+      meldung: band?.textContent.replace(/\s+/g, " ").trim() ?? "",
+      // Der zweite Ausweg muss angeboten werden: die fremde Fassung übernehmen.
+      // Ein Konflikt mit nur einem Knopf ist keine Wahl.
+      fremdKnopf: [...band.querySelectorAll(".knopf")].some((b) =>
+        b.textContent.includes("übernehmen"),
+      ),
+      // Und der eigene Text steht noch im Editor. DAS ist der Kern: Die eigene
+      // Arbeit geht nicht verloren, weil jemand anders gespeichert hat.
+      eigenerTextDa: (document.querySelector(".editor .cm-content")?.textContent ?? "").includes(
+        "und noch etwas",
+      ),
+      // Der Speicherknopf heißt jetzt anders: Überschreiben ist eine andere
+      // Handlung als Speichern, und der Knopf sagt es.
+      knopf:
+        [...document.querySelectorAll(".editor .fuss .knopf")]
+          .map((b) => b.textContent.trim())
+          .join(" ") ?? "",
+    };
+  });
+
+  // Und der ehrliche zweite Weg: den fremden Stand übernehmen.
+  await seite.evaluate(() => {
+    [...document.querySelectorAll(".editor .band.schlecht .knopf")]
+      .find((b) => b.textContent.includes("übernehmen"))
+      .click();
+  });
+  await seite.waitForSelector(".editor .band.gut", { timeout: 5000 });
+  editor.nachUebernahme = await seite.evaluate(() => ({
+    meldung: document.querySelector(".editor .band.gut")?.textContent.trim() ?? "",
+    inhalt: document.querySelector(".editor .cm-content")?.textContent ?? "",
+    konfliktWeg: document.querySelector(".editor .band.schlecht") === null,
+  }));
+
+  // Der Zurück-Knopf schließt den Editor und lässt die Seite stehen.
+  await seite.goBack();
+  await seite.waitForTimeout(400);
+  editor.nachZurueck = await seite.evaluate(() => ({
+    editorDa: document.querySelector(".editor") !== null,
+    pfadDa: new URL(location.href).searchParams.get("pfad") !== null,
+    bearbeiten: new URL(location.href).searchParams.get("bearbeiten") ?? "",
+  }));
+
+  // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
+  //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
+  //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
+  const bald = {};
+  await seite.click('.seitenleiste a[href="/v2/docker"]');
+  await seite.waitForSelector(".platte .satz", { timeout: 5000 });
+  bald.pfad = new URL(seite.url()).pathname;
+  bald.titel = await seite.evaluate(
+    () => document.querySelector(".h1")?.textContent.trim() ?? "",
+  );
+  bald.marke = await seite.evaluate(
+    () => document.querySelector(".kopfzeile .marke")?.textContent.trim() ?? "",
+  );
+  bald.satz = await seite.evaluate(
+    () => document.querySelector(".platte .satz")?.textContent.trim() ?? "",
+  );
+  bald.ersatz = await seite.evaluate(
+    () => document.querySelector(".ersatz a")?.getAttribute("href") ?? "",
+  );
+  // Der Menüpunkt ist hervorgehoben: Wer hier steht, soll sehen, wo er steht.
+  bald.navAktiv = await seite.evaluate(
+    () =>
+      document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",
+  );
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-bald.png`,
+      fullPage: true,
+    });
+  }
+
   await browser.close();
 
   console.log(
@@ -769,6 +1616,11 @@ async function main() {
       dienste,
       pakete,
       logs,
+      firewall,
+      dateien,
+      schreiben,
+      editor,
+      bald,
       zweige,
       schmal,
       strich,

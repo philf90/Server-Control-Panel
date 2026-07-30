@@ -16,6 +16,9 @@
   import DiensteSeite from "./seiten/Dienste.svelte";
   import PaketeSeite from "./seiten/Pakete.svelte";
   import LogsSeite from "./seiten/Logs.svelte";
+  import FirewallSeite from "./seiten/Firewall.svelte";
+  import DateienSeite from "./seiten/Dateien.svelte";
+  import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
   import { live } from "./lib/live.svelte";
   import { t } from "./lib/texte";
@@ -110,6 +113,14 @@
       {:else if weg.seite === "logs"}
         <!-- Die Logseite braucht die Sitzung nicht: Lesen darf jede Rolle. -->
         <LogsSeite />
+      {:else if weg.seite === "firewall"}
+        <FirewallSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "dateien"}
+        <DateienSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "bald"}
+        <!-- Ein Modul, das es noch nicht gibt. Es braucht nichts von hier — die
+             Seite sagt nur, mit welcher Fassung es kommt. -->
+        <BaldSeite />
       {:else if uebersicht}
         <UebersichtSeite {uebersicht} {verlaeufe} {signale} {signalFehler} erneutErheben={signaleLaden} />
       {:else}

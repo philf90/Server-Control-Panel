@@ -5,16 +5,30 @@
 import type {
   AktionAntwort,
   Bestaetigung,
+  Dateiantwort,
+  Dateiauftrag,
+  Dateidetail,
+  Dateihandlung,
+  Dateiliste,
+  Dateitext,
   Dienste,
   DienstAktion,
   DienstDetail,
+  Firewall,
+  FirewallAntwort,
   Job,
   Logs,
+  Ordnerauswahl,
   Pakete,
+  Pruefung,
+  Regel,
   Signale,
   Sitzung,
   Uebersicht,
+  Textantwort,
+  Textauftrag,
   Umfang,
+  Uploadantwort,
   Verlaeufe,
   VorgangGestartet,
 } from "./typen";
@@ -37,6 +51,42 @@ export class BestaetigungNoetig extends Error {
   constructor(public readonly bestaetigung: Bestaetigung) {
     super(bestaetigung.frage);
     this.name = "BestaetigungNoetig";
+  }
+}
+
+/** Textkonflikt steht für die Antwort 412 des Editors: Die Datei wurde
+ *  zwischenzeitlich von außen geändert.
+ *
+ *  Ein eigener Fehlertyp und nicht der Rückweg über BestaetigungNoetig, obwohl
+ *  beides „nicht ausgeführt, entscheide" heißt. Der Grund ist, was danach
+ *  geschieht: Eine Rückfrage bestätigt man und die Aktion läuft wie geplant; ein
+ *  Konflikt hat ZWEI Auswege — die eigene Fassung durchsetzen oder die fremde
+ *  übernehmen. Ein Dialog mit einem Knopf hätte den zweiten verschluckt. */
+export class Textkonflikt extends Error {
+  constructor(
+    public readonly meldung: string,
+    public readonly jetzt: Dateitext,
+  ) {
+    super(meldung);
+    this.name = "Textkonflikt";
+  }
+}
+
+/** Pruefungabgelehnt steht für die Antwort, wenn das Prüfprogramm des Systems die
+ *  Datei ablehnt.
+ *
+ *  Sie ist die wichtigste Antwort dieses Moduls, und deshalb ein eigener Typ: Die
+ *  Datei wurde geschrieben UND wieder zurückgerollt. „Fehler beim Speichern"
+ *  wäre hier die schädlichste Auskunft — der Bediener würde erneut speichern. */
+export class Pruefungabgelehnt extends Error {
+  constructor(
+    public readonly meldung: string,
+    public readonly pruefung: Pruefung,
+    public readonly zurueck: string,
+    public readonly text: Dateitext | null,
+  ) {
+    super(meldung);
+    this.name = "Pruefungabgelehnt";
   }
 }
 
@@ -130,6 +180,29 @@ export const api = {
    *  sie ist nur leer. */
   job: (art: string) => anfrageOderLeer<Job>(`/jobs/${encodeURIComponent(art)}`),
 
+  firewall: () => anfrage<Firewall>("/firewall"),
+  /** regelnUebernehmen schickt den VOLLSTÄNDIGEN gewünschten Regelsatz, nicht
+   *  eine einzelne Änderung. Damit ist der Zustand danach eindeutig, auch wenn
+   *  zwei Personen gleichzeitig arbeiten. Stufe 2. */
+  regelnUebernehmen: (regeln: Regel[], bestaetigt = false) =>
+    anfrage<FirewallAntwort>("/firewall/rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ regeln, bestaetigt, getippt: "" }),
+    }),
+  /** ufwSchalten: Einschalten ist Stufe 2 (die Probe fängt den Fehler),
+   *  Ausschalten Stufe 3 mit dem Hostnamen (es gibt keine Probe dafür). */
+  ufwSchalten: (aktiv: boolean, bestaetigt = false, getippt = "") =>
+    anfrage<FirewallAntwort>("/firewall/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktiv, bestaetigt, getippt }),
+    }),
+  /** probeBestaetigen beendet die Frist. Ohne Rückfrage: Bestätigen ist die
+   *  Zustimmung zu etwas, das gerade schon gilt. */
+  probeBestaetigen: () => anfrage<FirewallAntwort>("/firewall/confirm", { method: "POST" }),
+  ufwEinspielen: () => anfrage<VorgangGestartet>("/firewall/install", { method: "POST" }),
+
   /** logs fragt das Journal ab. Die Filter stehen als Abfragezeichenkette in
    *  der Adresse — dieselbe, die der Strom bekommt, damit er nicht mehr zeigt
    *  als die Liste vorher hergab. */
@@ -154,6 +227,156 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ umfang: "alle", paket: "", bestaetigt, getippt }),
     }),
+
+  // ---------------------------------------------------------------- Dateien ---
+  //
+  // Der Pfad wandert als Abfrageparameter und nicht im Pfadsegment: Ein Pfad
+  // enthält Schrägstriche, und ein doppelt kodiertes Segment wäre die Stelle, an
+  // der ein Verzeichnisname mit Sonderzeichen irgendwann nicht mehr auffindbar
+  // ist. Der Server prüft ihn ohnehin in der Pfadwache, nicht am Muster.
+
+  /** dateien liest ein Verzeichnis oder — mit `q` — sucht darunter. Dieselbe
+   *  Antwortform für beides. */
+  dateien: (pfad: string, opt: { sort?: string; absteigend?: boolean; versteckt?: boolean; q?: string } = {}) => {
+    const p = new URLSearchParams();
+    if (pfad) p.set("pfad", pfad);
+    if (opt.sort && opt.sort !== "name") p.set("sort", opt.sort);
+    if (opt.absteigend) p.set("desc", "1");
+    if (opt.versteckt) p.set("versteckt", "1");
+    if (opt.q) p.set("q", opt.q);
+    const suchpfad = p.toString();
+    return anfrage<Dateiliste>(`/files${suchpfad ? `?${suchpfad}` : ""}`);
+  },
+
+  /** eintrag holt das Detail eines Eintrags: Rechte in Worten, die Zählung eines
+   *  Baums, die Namen für chown. Eigener Aufruf, weil die Liste das für
+   *  zweitausend Zeilen nicht mitschleppen soll. */
+  eintrag: (pfad: string) =>
+    anfrage<Dateidetail>(`/files/entry?${new URLSearchParams({ pfad })}`),
+
+  /** ordner liefert die Unterverzeichnisse für die Zielauswahl. */
+  ordner: (pfad: string, versteckt = false) => {
+    const p = new URLSearchParams();
+    if (pfad) p.set("pfad", pfad);
+    if (versteckt) p.set("versteckt", "1");
+    return anfrage<Ordnerauswahl>(`/files/dirs${p.toString() ? `?${p}` : ""}`);
+  },
+
+  /** herunterladen und archiv sind Adressen und keine Aufrufe: Der Browser holt
+   *  sie selbst, damit der Download-Manager sie bekommt und nicht der Speicher
+   *  des Tabs. Deshalb geben sie eine Zeichenkette zurück. */
+  herunterladen: (pfad: string) => `/api/v1/files/download?${new URLSearchParams({ pfad })}`,
+  archiv: (pfad: string) => `/api/v1/files/archive?${new URLSearchParams({ pfad })}`,
+
+  /** dateiHandlung ist der eine Aufruf für alle verändernden Endpunkte.
+   *
+   *  Ein Aufruf und nicht acht: Der Körper ist derselbe, der Rückweg über
+   *  BestaetigungNoetig ist derselbe, und acht Fassungen wären acht Stellen, an
+   *  denen `bestaetigt` fehlen kann. Welche Handlung welche Rückfrage hat, steht
+   *  ausschließlich im Handler — eine zweite Liste davon hier wäre die Stelle, an
+   *  der eine neue zerstörende Handlung ohne Rückfrage durchrutscht. */
+  dateiHandlung: (
+    handlung: Dateihandlung,
+    felder: Partial<Dateiauftrag>,
+    bestaetigt = false,
+    getippt = "",
+  ) =>
+    anfrage<Dateiantwort>(`/files/${handlung}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pfad: "",
+        name: "",
+        ziel: "",
+        rechte: "",
+        eigentuemer: "",
+        gruppe: "",
+        rekursiv: false,
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    }),
+
+  /** hochladen schickt Dateien als Multipart.
+   *
+   *  Nicht über anfrage(): Der Körper ist ein FormData, und ein
+   *  Content-Type-Kopf, den wir selbst setzen, verlöre die Grenzmarke. Der Token
+   *  steht deshalb in der Kopfzeile — denselben Weg nimmt der Handler, der den
+   *  Körper Teil für Teil streamt und ihn nicht als Formular parsen kann.
+   *
+   *  Die Reihenfolge der Felder ist sicherheitsrelevant: `dir` steht vor den
+   *  Dateien, damit der Handler das Ziel kennt, bevor das erste Byte Inhalt
+   *  fließt. FormData behält die Einfügereihenfolge. */
+  hochladen: async (dir: string, dateien: File[], ueberschreiben = false) => {
+    const form = new FormData();
+    form.set("dir", dir);
+    if (ueberschreiben) form.set("overwrite", "1");
+    for (const d of dateien) form.append("datei", d, d.name);
+
+    const antwort = await fetch("/api/v1/files/upload", {
+      method: "POST",
+      headers: { Accept: "application/json", "X-CSRF-Token": token },
+      credentials: "same-origin",
+      body: form,
+    });
+    if (antwort.status === 401) throw new AbgemeldetFehler();
+    const rumpf = (await antwort.json()) as Uploadantwort;
+    if (!antwort.ok || rumpf.error) {
+      throw new Error(rumpf.error || `HTTP ${antwort.status}`);
+    }
+    return rumpf;
+  },
+
+  /** text holt eine Datei für den Editor. */
+  text: (pfad: string) => anfrage<Dateitext>(`/files/text?${new URLSearchParams({ pfad })}`),
+
+  /** textSpeichern schreibt zurück — mit eigenem Fehlerweg für die beiden
+   *  Antworten, die keine Fehler sind, sondern Entscheidungen.
+   *
+   *  Nicht über anfrage(): Dort trägt 409 schon eine Bedeutung (Rückfrage), und
+   *  ein !ok-Rumpf wird auf `fehler` reduziert. Hier braucht die Oberfläche mehr —
+   *  den fremden Stand beim Konflikt (412) und die Ausgabe des Prüfprogramms samt
+   *  Rückweg bei einer Ablehnung (400). Beides in `fehler` zu quetschen hieße,
+   *  die Auskunft wegzuwerfen, auf die es ankommt. */
+  async textSpeichern(auftrag: Textauftrag): Promise<Textantwort> {
+    const antwort = await fetch("/api/v1/files/text", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-Token": token,
+      },
+      credentials: "same-origin",
+      body: JSON.stringify(auftrag),
+    });
+    if (antwort.status === 401) throw new AbgemeldetFehler();
+
+    if (antwort.status === 412) {
+      const rumpf = (await antwort.json()) as { fehler: string; jetzt: Dateitext };
+      throw new Textkonflikt(rumpf.fehler, rumpf.jetzt);
+    }
+    if (!antwort.ok) {
+      const rumpf = (await antwort.json()) as {
+        fehler?: string;
+        pruefung?: Pruefung;
+        zurueck?: string;
+        text?: Dateitext;
+      };
+      // Nur wenn eine Prüfung dabeisteht, ist es die Ablehnung des
+      // Prüfprogramms. Ein 403 der Pfadwache ist ein gewöhnlicher Fehler.
+      if (rumpf.pruefung) {
+        throw new Pruefungabgelehnt(
+          rumpf.fehler ?? "abgelehnt",
+          rumpf.pruefung,
+          rumpf.zurueck ?? "",
+          rumpf.text ?? null,
+        );
+      }
+      throw new Error(rumpf.fehler ?? `HTTP ${antwort.status}`);
+    }
+    return (await antwort.json()) as Textantwort;
+  },
 
   dienste: () => anfrage<Dienste>("/services"),
   dienst: (unit: string) => anfrage<DienstDetail>(`/services/${encodeURIComponent(unit)}`),

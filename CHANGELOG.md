@@ -33,6 +33,16 @@ nicht als Release getaggt.
   Diagramm-Bibliothek:** Die Feinheiten dieser Kachel sind in 0.2.0 teuer
   gelernt und stecken in wenigen Zeilen.
 
+  **Zur Reihenfolge, weil dieselbe Fassung beides enthält:** Die Kommandobrücke
+  weiter unten in diesem Abschnitt ist der Umbau der *alten* Oberfläche — er ist
+  gebaut und ausgeliefert worden, und die Rückmeldung darauf war, dass er nicht
+  trägt. Aus ihr entstand die Neukonzeption. Die alte Oberfläche ist damit
+  **eingefroren**: keine Gestaltung, keine Funktion mehr, weil jede Stunde dort
+  in Arbeit ginge, die mit dem Umschalten gelöscht wird. Sie bleibt lauffähig,
+  bis die neue Parität erreicht hat. Ein sicherheitsrelevanter Fehler wird auch
+  dort behoben, solange sie ausgeliefert wird — eingefroren heißt nicht
+  abgeschaltet.
+
 - **JSON-Schnittstelle `/api/v1`** mit `session`, `overview` und
   `metrics/history` als einzige Datenquelle der neuen Oberfläche. Der
   Live-Kanal bleibt der bestehende SSE-Hub, den beide Oberflächen gemeinsam

@@ -3,7 +3,7 @@
 Dieses Dokument ist der Bauplan für die zweite Ausbaustufe des Projekts. Es
 revidiert zwei Grundsatzentscheidungen aus [03-funktionsumfang.md](03-funktionsumfang.md)
 — den Scope und die Vorgabe „schlank als hartes Budget" —, legt den
-Funktionsschnitt der Fassungen 0.5 bis 1.0 fest und beschreibt die neue
+Funktionsschnitt der Fassungen 0.4 bis 1.0 fest und beschreibt die neue
 Oberfläche. Die zugehörige Entwurfsmappe mit allen Bildschirmen:
 
 **[docs/entwuerfe/neukonzept.html](entwuerfe/neukonzept.html)** — im Browser öffnen.
@@ -55,8 +55,8 @@ richtig für Scope A. Zwei Einträge fallen, der Rest gilt verschärft weiter.
 
 | Bisher Nicht-Ziel | Jetzt | Begründung |
 |---|---|---|
-| vHosts / Reverse Proxy | **Ziel (0.7)** | Der häufigste Handgriff nach dem Aufsetzen eines Dienstes ist „mach ihn unter einem Namen mit TLS erreichbar". Das ACME-Modul existiert bereits; der Schritt von „Zertifikat fürs Panel" zu „Zertifikat je Domain" ist der kleinste im ganzen Vorhaben. |
-| Datenbanken (MySQL/PostgreSQL) | **Ziel (0.8)** | Jede zweite Anwendung braucht eine. Datenbank und Benutzer anlegen ist typisierbar und klein — verwaltet wird die Instanz, nicht der Inhalt. |
+| vHosts / Reverse Proxy | **Ziel (0.6)** | Der häufigste Handgriff nach dem Aufsetzen eines Dienstes ist „mach ihn unter einem Namen mit TLS erreichbar". Das ACME-Modul existiert bereits; der Schritt von „Zertifikat fürs Panel" zu „Zertifikat je Domain" ist der kleinste im ganzen Vorhaben. |
+| Datenbanken (MySQL/PostgreSQL) | **Ziel (0.7)** | Jede zweite Anwendung braucht eine. Datenbank und Benutzer anlegen ist typisierbar und klein — verwaltet wird die Instanz, nicht der Inhalt. |
 
 **Unverändert Nicht-Ziele, jetzt mit größerem Gewicht:**
 
@@ -100,7 +100,7 @@ Entwicklung ist eine Frontend-Werkzeugkette zulässig.
 ## 4. Basisfunktionen — das Fundament
 
 Was ein Panel für Ubuntu/Debian-Server auf jeden Fall können muss. Der Bestand
-deckt fast alles davon ab — das ist das Ergebnis der Fassungen 0.1 bis 0.4 und
+deckt fast alles davon ab — das ist das Ergebnis der Fassungen 0.1 bis 0.3 und
 der Grund, das Fundament zu behalten.
 
 ### 4.1 Vorhanden und bewährt
@@ -125,7 +125,7 @@ Ausbaustufen — deshalb gehören sie in die erste neue Fassung und nicht in ein
 späteres Modul.
 
 **Cron & systemd-Timer.** Anzeigen, anlegen, bearbeiten, letzte Ausführung mit
-Exit-Code und Ausgabe. War schon in 03 für v0.2 vorgesehen; mit Backups (0.9)
+Exit-Code und Ausgabe. War schon in 03 für v0.2 vorgesehen; mit Backups (0.8)
 werden Timer außerdem zur internen Infrastruktur. privops wächst um
 `CronList`, `CronWrite`, `TimerList`, `TimerRuns` — Cron-Einträge entstehen als
 eigene Datei unter `/etc/cron.d/` mit verwaltetem Marker, nie durch Editieren
@@ -149,15 +149,24 @@ mit Ablaufdatum, im Audit-Log sichtbar. Öffentlich dokumentiert und stabil wird
 die API erst später (siehe Roadmap) — aber falsch geschnitten wird sie sonst
 jetzt.
 
-## 5. Erweiterte Funktionen — die Ausbaustufen 0.5 bis 1.0
+## 5. Erweiterte Funktionen — die Ausbaustufen 0.4 bis 1.0
 
-Die 0.4er-Reihe läuft auf der bestehenden Oberfläche aus. Die Neukonzeption
-beginnt mit 0.5 und endet mit der Freigabe 1.0. Jede Stufe nennt, was
-`privops` dazulernen muss — das ist der eigentliche Kostentreiber, nicht die
-Oberfläche: Eine neue Seite ist ein Nachmittag, eine neue Systemfläche ist eine
-Sicherheitsbetrachtung.
+Der Stand vor der Neukonzeption ist `v0.3.0-rc.6`; eine Fassung ohne Bindestrich
+gab es nie. Die Neukonzeption beginnt deshalb mit **`0.4.0-rc.1`** und endet mit
+der Freigabe 1.0.
 
-### 0.5 — Neues Fundament
+**Die bestehende Oberfläche ist eingefroren.** Sie bekommt keine Gestaltung und
+keine Funktion mehr — jede Stunde dort wäre in Arbeit investiert, die mit dem
+Umschalten gelöscht wird. Sie bleibt lauffähig, bis die Parität steht, und wird
+dann in einem Zug entfernt. Eine Ausnahme, die keine Aufweichung ist: Ein
+sicherheitsrelevanter Fehler wird auch dort behoben, solange sie ausgeliefert
+wird — sie ist eingefroren, nicht abgeschaltet.
+
+Jede Stufe nennt, was `privops` dazulernen muss — das ist der eigentliche
+Kostentreiber, nicht die Oberfläche: Eine neue Seite ist ein Nachmittag, eine
+neue Systemfläche ist eine Sicherheitsbetrachtung.
+
+### 0.4 — Neues Fundament
 
 Die neue Oberfläche mit vollständiger Funktionsparität zum Bestand, dazu die
 drei Basis-Neuerungen aus 4.2. Kein neues Systemrisiko: privops wächst nur um
@@ -174,7 +183,7 @@ die Cron/Timer-Familie, alles andere ist Umbau über dem Bestand.
 weitere baut auf API, Job-Modell und neuer Oberfläche auf — in umgekehrter
 Reihenfolge würde jedes Modul zweimal gebaut.*
 
-### 0.6 — Docker
+### 0.5 — Docker
 
 Container, Images, Volumes, Netzwerke, Compose-Stacks, Container-Logs und
 -Statistiken. Podman bleibt Roadmap — erst eine Laufzeit richtig.
@@ -192,7 +201,7 @@ Container, Images, Volumes, Netzwerke, Compose-Stacks, Container-Logs und
 - Fehlt Docker, bietet das Panel die Installation über das Paketmodul an —
   dieselbe Antwort wie bei ufw in rc.4, nicht eine Kommandozeile zum Abtippen.
 
-### 0.7 — Webserver & Domains
+### 0.6 — Webserver & Domains
 
 nginx oder Caddy — erkannt wird, was läuft; fehlt beides, wird eines über das
 Paketmodul installiert (Voreinstellung nginx, weil auf Bestandsservern häufiger
@@ -213,7 +222,7 @@ vorhanden). Sites sind der Gegenstand, nicht Konfigurationsdateien:
   mehrfähig (heute hält er genau ein Zertifikat, das des Panels).
 - privops wächst um `WebServerState`, `SiteList`, `SiteApply`, `SiteRemove`.
 
-### 0.8 — Datenbanken
+### 0.7 — Datenbanken
 
 MariaDB/MySQL und PostgreSQL: Instanz-Status, Datenbanken und Benutzer
 anlegen und entfernen, Zeichensatz/Locale, Dumps erzeugen und einspielen.
@@ -230,10 +239,10 @@ anlegen und entfernen, Zeichensatz/Locale, Dumps erzeugen und einspielen.
 - privops wächst um `DbState`, `DbList`, `DbCreate`, `DbDrop`, `DbUserCreate`,
   `DbUserDrop`, `DbDump`, `DbRestore`.
 
-### 0.9 — Backups
+### 0.8 — Backups
 
 restic-Integration: Ziele (lokal, SFTP, S3-kompatibel), Zeitpläne über
-systemd-Timer (das Modul aus 0.5), Aufbewahrungsregeln, Wiederherstellung.
+systemd-Timer (das Modul aus 0.4), Aufbewahrungsregeln, Wiederherstellung.
 
 - **Der Restore-Test ist der Kern des Moduls**, nicht die Sicherung. Ein Backup,
   das es gibt, aber nicht zurückspielbar ist, ist schlimmer als keines, weil es
@@ -243,8 +252,8 @@ systemd-Timer (das Modul aus 0.5), Aufbewahrungsregeln, Wiederherstellung.
   oder ausbleibt.
 - Das Repository-Passwort ist das erste echte Betriebsgeheimnis, das das Panel
   dauerhaft halten muss (siehe 7.4).
-- Bewusst die letzte Stufe: Sie braucht Timer (0.5), sichert sinnvollerweise
-  Stacks (0.6) und Datenbanken (0.8) — und sie ist die Funktion, bei der ein
+- Bewusst die letzte Stufe: Sie braucht Timer (0.4), sichert sinnvollerweise
+  Stacks (0.5) und Datenbanken (0.7) — und sie ist die Funktion, bei der ein
   Konstruktionsfehler am teuersten ist.
 - privops wächst um `BackupTargetCheck`, `BackupRun`, `BackupList`,
   `BackupRestore`, `BackupPrune`.
@@ -255,7 +264,7 @@ Kein neues Feature. Externer Sicherheits-Review der neuen Flächen (Docker,
 Webserver-Schreibpfad, Datenbanken, API-Tokens) — der ausstehende Review aus
 [06-roadmap.md](06-roadmap.md) wird damit auf den Endstand gezogen statt
 zweimal beauftragt. Dazu Dokumentation, Screenshots vom echten Server,
-Migrationspfad von 0.4.
+Migrationspfad von 0.3.
 
 ## 6. Roadmap — was bewusst später kommt
 
@@ -269,7 +278,7 @@ Bau geklärt sein muss. Die Liste ersetzt die v0.2/v0.3-Abschnitte in 03.
 | **Plugins / Module Dritter** | Braucht eine stabile API (frühestens nach 1.0); ein Plugin im Prozess erbt alle Rechte des Panels | Go-Plugins sind praktisch unbrauchbar (Versionskopplung) — realistisch ist ein Unterprozess mit IPC und eigenem Rechteschnitt; das ist ein eigenes Projekt |
 | **Benachrichtigungen** (Mail/Webhook/ntfy) | Braucht Zustell-Semantik (Wiederholung, Entprellung) und Geheimnisverwaltung für SMTP/Token | Schwellenmodell gegen Alarm-Müdigkeit: Was meldet wann, und wie schweigt man es gezielt? Die Signalquelle existiert schon (Handlungsbedarf) |
 | **Metriken-Langzeitspeicher** | Der 24-h-Ring deckt „was ist gerade los" ab; Langzeit ist eine Speicher- und Kompaktierungsfrage | Downsampling-Politik, SQLite-Wachstum vs. eigenes Format; wer echte Langzeitmetriken will, exportiert besser nach Prometheus |
-| **Öffentliche API + CLI-Fernzugriff** | Die API entsteht in 0.5, aber Versionsstabilität verspricht man nur einmal | Token-Scopes feiner als Rollen? Versionierungs- und Abkündigungsregeln, Rate-Limits |
+| **Öffentliche API + CLI-Fernzugriff** | Die API entsteht in 0.4, aber Versionsstabilität verspricht man nur einmal | Token-Scopes feiner als Rollen? Versionierungs- und Abkündigungsregeln, Rate-Limits |
 | **WireGuard** | Nützlich, aber unabhängig von allem anderen; verliert gegen die App-Stufen | Schlüsselverwaltung (private Keys der Peers nie speichern), QR-Ausgabe |
 | **Podman** | Erst eine Container-Laufzeit richtig | Abbildung auf dieselbe typisierte Operationsfamilie wie Docker |
 | **PWA / Mobile** | Das responsive Web kommt zuerst; ein Manifest ist der billige Zwischenschritt | Push-Benachrichtigungen hängen am Notifications-Feature |
@@ -323,9 +332,9 @@ auch dann, wenn man nicht mehr klicken kann.
 
 ### 7.4 Neu: Geheimnisse, die das Panel halten muss
 
-Bis 0.4 speichert das Panel keine fremden Geheimnisse (das Cloudflare-Token
+Bis 0.3 speichert das Panel keine fremden Geheimnisse (das Cloudflare-Token
 liegt als Datei beim Betreiber). Mit den Ausbaustufen kommen drei dazu:
-Registry-Zugänge (0.6), restic-Repository-Passwörter (0.9), später
+Registry-Zugänge (0.5), restic-Repository-Passwörter (0.8), später
 SMTP/Webhook-Token. Grundsätze:
 
 - **Vermeiden vor verwalten:** Datenbanken laufen über Socket-Auth — kein
@@ -359,6 +368,114 @@ hat (`.github/workflows/ci.yml`, Job „Editor-Bundle reproduzierbar"):
 - **Kein CDN, keine externen Schriftarten, keine Laufzeit-Nachladung** — die
   CSP beweist das strukturell weiter: `default-src 'none'` lässt gar keinen
   fremden Host zu.
+
+### 7.7 Sitzungen und Zugangsdauer
+
+Die Mechanik bleibt unverändert — sie ist erprobt und wird übernommen. Was
+fehlte, ist ihre Beschreibung: Die Laufzeiten standen bisher **nirgends in der
+Dokumentation**, nur als Konstanten in `internal/httpd/session.go`.
+[02-architektur.md](02-architektur.md) nennt lediglich „absolute + idle
+Expiry". Das wird hier nachgetragen, weil eine Zusage, die niemand nachlesen
+kann, keine ist.
+
+**Speicherung.** Das Cookie `asylum_session` trägt einen 32-Byte-Zufallswert,
+die Datenbank speichert nur dessen SHA-256. Ein Datenbankabzug erlaubt damit
+keine Übernahme laufender Sitzungen. Attribute: `HttpOnly`, `Secure`,
+`SameSite=Strict`. Je Zeile stehen daneben CSRF-Token, IP, User-Agent (auf 200
+Zeichen gekürzt), Anlage-, Aktivitäts- und Ablaufzeit.
+
+**Laufzeiten.**
+
+| Größe | Wert |
+|---|---|
+| Absolute Lebensdauer | **12 Stunden** ab Anmeldung |
+| Leerlauf-Fenster | **2 Stunden**, gleitend |
+| Cookie `Max-Age` | 12 Stunden, wird nie erneuert |
+| Aufräumtakt für abgelaufene Zeilen | 10 Minuten |
+| Zwischenschritt der Passkey-Anmeldung | 2 Minuten |
+| Setup-Token | 60 Minuten |
+| Ticket „Passwort vergessen" | 10 Minuten, einmalig |
+| TOTP-Wechsel in Arbeit | 15 Minuten |
+| Einmalpasswort nach Zurücksetzung | **kein Zeitlimit** — verfällt durch Gebrauch |
+
+Bei jeder Anfrage wandert das Ablaufdatum auf „jetzt + 2 h", hart begrenzt auf
+„Anmeldung + 12 h". Geschrieben wird nur, wenn sich dadurch mehr als eine
+Minute ändert — die Datenbank sieht also höchstens einen Schreibvorgang pro
+Minute und Sitzung, nicht einen pro Anfrage.
+
+Zwei Nebenwirkungen dieser Konstruktion, beide bekannt und beide hingenommen:
+Das Cookie lebt zwölf Stunden, die Datenbankzeile im Leerlauf zwei — nach einer
+Pause liegt ein technisch gültiges Cookie im Browser, dem serverseitig nichts
+mehr entspricht (harmlos, aber die Werte sind nur durch Absicht gekoppelt).
+Und etwa zehn Stunden nach der Anmeldung greift die absolute Grenze; ab dann
+ändert sich das Ablaufdatum nicht mehr, die Ein-Minuten-Schwelle schlägt nie
+wieder zu, und die Spalte „letzte Aktivität" auf der Kontoseite friert für die
+letzten zwei Stunden ein.
+
+**Was eine Sitzung beendet.** Vollständig, weil eine unvollständige Liste an
+dieser Stelle gefährlich ist:
+
+| Umfang | Anlass |
+|---|---|
+| Die eine | Abmelden · Widerruf einer eigenen Sitzung · Ablauf beim Lesen · Konto beim nächsten Aufruf gesperrt oder gelöscht |
+| Alle des Kontos | eigene Passwortänderung (danach sofort eine frische) · erzwungener Wechsel eines Einmalpassworts · Passwort-Zurücksetzung durch den Owner · 2FA-Zurücksetzung durch den Owner · Konto sperren · Konto löschen (per `ON DELETE CASCADE`) · „Passwort vergessen" · `asylum reset-password` über SSH |
+| Alle anderen | Wechsel des zweiten Faktors · „alle anderen beenden" (Stufe 2) |
+| Global | nur der Aufräumlauf, und nur schon abgelaufene Zeilen |
+
+Jeder dieser Wege schreibt einen Audit-Eintrag mit dem Vermerk, dass Sitzungen
+beendet wurden.
+
+**Was Sitzungen nicht beendet** — und was davon Absicht ist:
+
+- **Ein Passkey-Wechsel beendet nichts.** Weder das Hinzufügen oder Entfernen
+  eines eigenen Passkeys noch das Löschen aller Passkeys eines fremden Kontos
+  durch den Owner. Beim TOTP-Wechsel wird es gemacht, und die Begründung dort
+  („meist eine Reaktion auf ein verlorenes Gerät") gilt für einen verlorenen
+  Passkey genauso. **Das ist eine Inkonsistenz, keine Abwägung** — sie gehört
+  behoben.
+- **Eine Kontosperre durch das Rate-Limiting beendet nichts.** Die Sperre liegt
+  nur im Arbeitsspeicher und wird ausschließlich an den Anmeldewegen geprüft;
+  wer schon angemeldet ist, bleibt es. Das ist richtig — die Sperre schützt
+  gegen Erraten, nicht gegen eine bereits übernommene Sitzung —, war aber
+  nirgends festgehalten.
+- **Sitzungen überleben Neustart und Selbstupdate**, weil sie ausschließlich in
+  SQLite liegen. Nicht überleben die flüchtigen Zustände: Rate-Limit-Zähler,
+  halbfertige TOTP-Einrichtungen, WebAuthn-Challenges, Reset-Tickets.
+- **Ein Datenbank-Rollback kann widerrufene Sitzungen wiederbeleben**, weil der
+  Rückweg die ganze Datei zurückspielt, `sessions` eingeschlossen. Begrenzt
+  durch den Zuschnitt (selbsttätig nur wenige Sekunden nach einem
+  fehlgeschlagenen Update, von Hand nur mit `--restore-db`), im Code aber nur
+  als Datenverlust-Risiko vermerkt, nicht als dieses.
+- **Einen Rollenwechsel gibt es nicht** — es existiert keine Route dafür. Käme
+  eine, bräuchte sie keine Invalidierung: Der Nutzerdatensatz wird bei jeder
+  Anfrage neu gelesen, eine geänderte Rolle greift also sofort.
+
+**Vier Entscheidungen für die 0.4**, die aus der neuen Oberfläche folgen:
+
+1. **Die Umschalt-Migration beendet alle Sitzungen** (`DELETE FROM sessions`).
+   Sitzungen überleben das Update, Assets liegen im Browser-Zwischenspeicher —
+   ohne diesen Schnitt sitzt nach dem Umschalten jemand mit gültiger Sitzung vor
+   einer halb alten Oberfläche. Eine Zeile SQL gegen eine ganze Klasse von
+   Resten; der Preis ist eine Neuanmeldung für alle.
+2. **Der SSE-Strom wird neu geprüft.** Heute prüft die Middleware die Sitzung
+   beim Verbindungsaufbau, danach läuft die Schleife bis zum Abbruch weiter. In
+   der neuen Oberfläche hält jeder offene Reiter dauerhaft einen `EventSource` —
+   ein Dashboard auf einem Wandmonitor zeichnet also weiter Live-Zahlen,
+   während die Sitzung serverseitig längst abgelaufen ist, und der erste Klick
+   wirft auf die Anmeldung. Der Strom muss den Ablauf selbst erkennen und
+   schließen.
+3. **Passkey-Wechsel beendet die übrigen Sitzungen** — die Inkonsistenz oben
+   wird mit dem Umbau der Kontoseite behoben, nicht davor: Es ist derselbe
+   Handgriff.
+4. **API-Tokens folgen den Invalidierungspfaden.** Heute heißt „alle Sitzungen
+   des Kontos beenden" wirklich alles. Sobald Tokens existieren, sind sie ein
+   zweiter Zugangsweg — eine Passwort-Zurücksetzung durch den Owner muss auch
+   sie widerrufen, sonst ist ein zurückgesetztes Konto nicht zurückgesetzt.
+
+*Erledigt mit der ersten Stufe:* Eine abgelaufene Sitzung antwortete jeder
+Hintergrund-Anfrage außer SSE mit einer Weiterleitung auf HTML — für ein `fetch`
+ein Parserfehler statt der Ursache. Unter `/api/` steht jetzt ein 401 mit
+JSON-Rumpf, erkannt am Pfad und nicht am Accept-Kopf.
 
 ## 8. Neue Oberfläche
 
@@ -400,7 +517,7 @@ nicht übersehen. Die Rückfragen bleiben trotzdem serverseitig erzwungen
 
 **Live-Daten.** Der bestehende SSE-Hub bleibt unverändert; im Frontend hängt
 ein dünner Store um `EventSource` (Reconnect macht der Browser), den die
-Komponenten abonnieren. Jobs (0.5) senden über denselben Kanal mit eigenen
+Komponenten abonnieren. Jobs (0.4) senden über denselben Kanal mit eigenen
 Event-Typen. Kein Zustands-Framework — ein Fetch-Wrapper mit CSRF-Header und
 Svelte-Stores genügen.
 
@@ -414,7 +531,7 @@ Kappe). **Keine Chart-Bibliothek:** Die Feinheiten dieser Karten sind in 0.2
 teuer gelernt und fertig gelöst; eine Bibliothek würde sie schlechter
 nachbauen und die einzige Stelle ersetzen, die dem Nutzer gefällt. Für eine
 spätere Metrik-Detailseite (Zoom, mehrere Reihen) ist uPlot vorgemerkt —
-klein, abhängigkeitsfrei, Canvas — aber nicht in 0.5.
+klein, abhängigkeitsfrei, Canvas — aber nicht in 0.4.
 
 **Zahlen und Sprache kommen weiter vom Server.** Einheiten, Rundung und
 deutsche Beschriftung stehen an einer Stelle; das Frontend formatiert nicht
@@ -554,17 +671,17 @@ Dazu kommt ein sechster, der die neuen Module bindet:
 ## 10. Meilensteine und Aufwand
 
 Schätzung für eine Vollzeit-Person, nebenberuflich entsprechend länger. Die
-0.5 ist bewusst der dickste Brocken — sie kauft allen späteren Stufen die
+0.4 ist bewusst der dickste Brocken — sie kauft allen späteren Stufen die
 doppelte Arbeit ab.
 
 | Stufe | Inhalt | Aufwand |
 |---|---|---|
 | Vorbau | Entwurfsmappe verabschieden, `web/`-Gerüst, Vite-Reproduzierbarkeit nachweisen, API-Skelett | ~1 Woche |
-| 0.5 | Neue Oberfläche mit Parität, `/api/v1`, Job-Modell, Cron & Timer, API-Tokens | ~6–8 Wochen |
-| 0.6 | Docker | ~3 Wochen |
-| 0.7 | Webserver & Domains | ~3 Wochen |
-| 0.8 | Datenbanken | ~2 Wochen |
-| 0.9 | Backups | ~3 Wochen |
+| 0.4 | Neue Oberfläche mit Parität, `/api/v1`, Job-Modell, Cron & Timer, API-Tokens | ~6–8 Wochen |
+| 0.5 | Docker | ~3 Wochen |
+| 0.6 | Webserver & Domains | ~3 Wochen |
+| 0.7 | Datenbanken | ~2 Wochen |
+| 0.8 | Backups | ~3 Wochen |
 | 1.0 | externer Review, Befundbehebung, Doku, Screenshots | ~2 Wochen + Wartezeit |
 
 **Summe: rund ein halbes Jahr Vollzeit.** Nach jeder Stufe ist etwas
@@ -574,30 +691,38 @@ Auslieferbares da; der Update-Kanal `beta` trägt die Zwischenstände wie bisher
 
 | Risiko | Gegenmaßnahme |
 |---|---|
-| Die 0.5 wird zur Dauerbaustelle (Parität unterschätzt) | Parität ist als Liste der heutigen Seiten definiert und abzuhaken; kein neues Feature in 0.5 außer den drei Basis-Neuerungen |
+| Die 0.4 wird zur Dauerbaustelle (Parität unterschätzt) | Parität ist als Liste der heutigen Seiten definiert und abzuhaken; kein neues Feature in 0.4 außer den drei Basis-Neuerungen |
 | Docker-Modul wird zur Sicherheitslücke | Kein Socket-Durchgriff, Compose-Prüfer serverseitig, Stufe-3-Rückfragen, externer Review vor 1.0 |
 | Webserver-Schreibpfad sperrt das Panel aus | Probe mit Frist und selbsttätigem Rückweg (Grundsatz VI); zusätzlich bleibt `asylum` über SSH der Rettungsanker |
 | Vite baut nicht reproduzierbar | Nachweis in der ersten Woche (Vorbau), bevor irgendetwas darauf aufsetzt; notfalls Rollup-Konfiguration härten oder Hashes aus dem Dateinamen nehmen und über Manifest auflösen |
 | npm-Lieferkette | Lockfile + `npm ci` + byteweiser Nachbau in CI + Lizenz-Allowlist; kein Laufzeit-CDN, strukturell durch CSP verhindert |
 | Ohne-JS-Abkehr verprellt Bestandsnutzer | Vor Auth bleibt alles ohne JS; die Abkehr steht im CHANGELOG und in diesem Dokument, nicht im Kleingedruckten |
-| Ein-Personen-Projekt versandet auf halber Strecke | Stufenschnitt so, dass jede Fassung für sich nützlich ist; 0.5 ersetzt den Bestand vollständig, bevor Neues beginnt |
+| Ein-Personen-Projekt versandet auf halber Strecke | Stufenschnitt so, dass jede Fassung für sich nützlich ist; 0.4 ersetzt den Bestand vollständig, bevor Neues beginnt |
 
 ## 12. Folgearbeiten an bestehenden Dokumenten
 
 Dieses Dokument ändert Entscheidungen, die anderswo dokumentiert sind. Damit
-die Doku nicht lügt, sind nach der Verabschiedung anzupassen:
+die Doku nicht lügt, sind anzupassen:
 
 - **[03-funktionsumfang.md](03-funktionsumfang.md):** Verweis auf die Revision
   der Nicht-Ziele (Abschnitt 2) und den neuen Stufenschnitt (Abschnitt 5);
   v0.2/v0.3-Abschnitte als überholt markieren.
-- **[06-roadmap.md](06-roadmap.md):** Meilensteine ab 0.5 aus Abschnitt 10
-  übernehmen; Qualitätsziele-Tabelle an Abschnitt 9 angleichen.
+- **[06-roadmap.md](06-roadmap.md):** Meilensteine ab 0.4 aus Abschnitt 10
+  übernehmen; Qualitätsziele-Tabelle an Abschnitt 9 angleichen; festhalten,
+  dass die bestehende Oberfläche eingefroren ist.
 - **[15-neuordnung.md](15-neuordnung.md):** Vermerk, dass die Kommandobrücke
   durch den Leitstand abgelöst wird; die fünf Grundsätze bleiben in Kraft.
 - **README:** Leitplanke „schlank und ressourcenschonend" umformulieren
   (Abschnitt 3), Scope-Beschreibung erweitern.
-- **CONTRIBUTING:** Abschnitt zur Frontend-Werkzeugkette (Node-Version,
-  `make ui`, Reproduzierbarkeit) ergänzen.
+- **[02-architektur.md](02-architektur.md):** Die Sitzungszeile der
+  Sicherheitstabelle nennt „absolute + idle Expiry" ohne Zahlen — Verweis auf
+  Abschnitt 7.7 ergänzen. Dort steht außerdem `internal/auth` als Heimat der
+  Sitzungen; tatsächlich liegen sie in `internal/store` und
+  `internal/httpd`.
 
-Nichts davon geschieht in diesem Zug — erst wenn die Umsetzung der 0.5
-beginnt, sonst dokumentiert die Doku einen Zustand, den es noch nicht gibt.
+**Erledigt:** CONTRIBUTING trägt den Abschnitt zur Frontend-Werkzeugkette
+(Node 22, `make ui`, Reproduzierbarkeit, die drei Regeln für `web/`) seit der
+ersten Stufe.
+
+Der Rest geschieht mit der Umsetzung der jeweiligen Stufe und nicht vorab —
+sonst beschreibt die Doku einen Zustand, den es noch nicht gibt.

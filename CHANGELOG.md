@@ -62,6 +62,18 @@ nicht als Release getaggt.
   Spaltenbeschriftung — die Lektion aus `rc.4`, jetzt durch einen Test an den
   Quellen und eine Messung im Browser abgesichert.
 
+- **`packaging/dev-deploy.sh`** tauscht das Binary einer laufenden Installation
+  gegen einen Eigenbau — für Stände, die man auf einem echten Server sehen will,
+  bevor es ein Release gibt. Der reguläre Weg trägt sie nicht: `install.sh` lädt
+  immer aus dem Release und prüft die Signatur, `asylum update` braucht
+  signierte Metadaten. Beides wird nicht umgangen, sondern beiseitegelassen.
+
+  Das Skript liest den Zielpfad **aus der laufenden Unit** statt zu raten (die
+  curl-Installation legt das Binary unter `/usr/local/lib/asylum`, das `.deb`
+  unter `/usr/lib/asylum`), sichert das alte, tauscht, prüft die Bereitschaft
+  und rollt bei jedem Fehlschlag von allein zurück. Es steht in der
+  shellcheck-Liste der CI.
+
 - **JSON-Schnittstelle `/api/v1`** mit `session`, `overview`, `signals` und
   `metrics/history` als einzige Datenquelle der neuen Oberfläche. Der
   Live-Kanal bleibt der bestehende SSE-Hub, den beide Oberflächen gemeinsam

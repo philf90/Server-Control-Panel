@@ -261,7 +261,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
-          shellcheck packaging/install.sh packaging/nfpm/*.sh packaging/release-dry-run.sh
+          shellcheck packaging/install.sh packaging/nfpm/*.sh packaging/release-dry-run.sh \
+            packaging/dev-deploy.sh
 
   release-probe:
     name: Freigabepipeline probeweise

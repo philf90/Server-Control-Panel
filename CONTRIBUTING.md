@@ -83,6 +83,48 @@ ASYLUM_LEITSTAND_E2E=1 \
   go test ./internal/httpd -run TestLeitstandBrowser -v
 ```
 
+### Einen Eigenbau auf einem echten Server ausprobieren
+
+Die Befunde, die zählen, kommen aus dem Betrieb: Fast alle Fehler der
+Freigabekandidaten waren in der Entwicklungsumgebung unsichtbar. Ein Stand ohne
+Release lässt sich deshalb direkt einsetzen — der reguläre Weg trägt ihn nicht,
+und das ist Absicht: `install.sh` lädt immer aus dem Release und prüft die
+Signatur, `asylum update` braucht signierte Metadaten. Beides wird nicht
+umgangen, sondern beiseitegelassen.
+
+```bash
+# lokal bauen — statisch, ohne Laufzeitabhängigkeiten
+make build
+
+# hochladen und tauschen (auf dem Server als root)
+scp bin/asylumd packaging/dev-deploy.sh root@server:/tmp/
+ssh root@server 'chmod +x /tmp/dev-deploy.sh && /tmp/dev-deploy.sh /tmp/asylumd'
+```
+
+`packaging/dev-deploy.sh` liest den Zielpfad **aus der laufenden Unit** statt zu
+raten — die curl-Installation legt das Binary unter `/usr/local/lib/asylum`, das
+`.deb` unter `/usr/lib/asylum`, und wer den falschen Pfad überschreibt, hat
+danach zwei Fassungen und keine Ahnung, welche läuft. Es sichert das alte
+Binary, tauscht, startet und prüft die Bereitschaft; antwortet der neue Stand
+nicht, rollt es von allein zurück. Der Rückweg von Hand:
+
+```bash
+/tmp/dev-deploy.sh --rollback
+```
+
+**Die Datenbank vorher sichern, sobald ein Stand eine Migration mitbringt.**
+Migrationen laufen nur vorwärts; nach einem Rückweg träfe die vorherige Fassung
+ein neueres Schema. Das Skript weist darauf hin, kann es aber nicht für dich
+entscheiden:
+
+```bash
+systemctl stop asylumd
+cp -a /var/lib/asylum/asylum.db{,-wal,-shm} /wohin/auch/immer/
+```
+
+Bis zur Übersicht des Leitstands bringt kein Stand eine Migration mit; die
+ersten kommen mit dem Job-Modell und den API-Tokens.
+
 ## Was ein Pull Request erfüllen muss
 
 Die CI prüft das alles; lokal geht es schneller.

@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/philf90/asylum/internal/auth"
+	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 )
@@ -53,6 +56,7 @@ type ergebnisLeitstand struct {
 		Schritte          []string `json:"schritte"`
 		FokusImFeld       bool     `json:"fokusImFeld"`
 		ZieleGesamt       int      `json:"zieleGesamt"`
+		ZieleInLeiste     int      `json:"zieleInLeiste"`
 		TrefferNginx      []string `json:"trefferNginx"`
 		TrefferOhneUmlaut []string `json:"trefferOhneUmlaut"`
 		LeerZustand       string   `json:"leerZustand"`
@@ -338,6 +342,237 @@ type ergebnisLeitstand struct {
 			Bearbeiten string `json:"bearbeiten"`
 		} `json:"nachZurueck"`
 	} `json:"editor"`
+	Audit struct {
+		ZeilenAnfangs int      `json:"zeilenAnfangs"`
+		Wesen         string   `json:"wesen"`
+		Knoepfe       []string `json:"knoepfe"`
+		NachFilter    struct {
+			Adresse    string   `json:"adresse"`
+			Ergebnisse []string `json:"ergebnisse"`
+		} `json:"nachFilter"`
+		NachNeuladen      string `json:"nachNeuladen"`
+		NachZuruecksetzen int    `json:"nachZuruecksetzen"`
+		Einzelheiten      struct {
+			Paare       int  `json:"paare"`
+			Aufgeklappt bool `json:"aufgeklappt"`
+		} `json:"einzelheiten"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"audit"`
+	Konten struct {
+		Wesen  string `json:"wesen"`
+		Reihen []struct {
+			Name string `json:"name"`
+			Warn bool   `json:"warn"`
+		} `json:"reihen"`
+		Filter         []string `json:"filter"`
+		RootHandgriffe []string `json:"rootHandgriffe"`
+		RootHinweis    bool     `json:"rootHinweis"`
+		Philipp        struct {
+			Handgriffe     []string `json:"handgriffe"`
+			Schluessel     int      `json:"schluessel"`
+			Datei          bool     `json:"datei"`
+			LetzterHinweis string   `json:"letzterHinweis"`
+		} `json:"philipp"`
+		LetzterSchluessel struct {
+			Frage    string `json:"frage"`
+			Tippfeld bool   `json:"tippfeld"`
+			Gesperrt bool   `json:"gesperrt"`
+		} `json:"letzterSchluessel"`
+		NachAbbruch struct {
+			DialogZu   bool `json:"dialogZu"`
+			Schluessel int  `json:"schluessel"`
+		} `json:"nachAbbruch"`
+		Anlegen struct {
+			Auswahlfelder  int    `json:"auswahlfelder"`
+			Hinweis        string `json:"hinweis"`
+			Schluesselfeld bool   `json:"schluesselfeld"`
+		} `json:"anlegen"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"konten"`
+	Zugaenge struct {
+		Wesen  string `json:"wesen"`
+		Reihen []struct {
+			Name    string `json:"name"`
+			Ich     bool   `json:"ich"`
+			Zustand string `json:"zustand"`
+		} `json:"reihen"`
+		ImMenue bool `json:"imMenue"`
+		Eigenes struct {
+			Handgriffe int    `json:"handgriffe"`
+			Schranke   bool   `json:"schranke"`
+			Hinweis    string `json:"hinweis"`
+		} `json:"eigenes"`
+		Fremdes struct {
+			Handgriffe []string `json:"handgriffe"`
+			Warum      string   `json:"warum"`
+			FeldTyp    string   `json:"feldTyp"`
+			Gesperrt   []bool   `json:"gesperrt"`
+			Knoepfe    []string `json:"knoepfe"`
+		} `json:"fremdes"`
+		Sperren struct {
+			Frage    string  `json:"frage"`
+			Tippfeld bool    `json:"tippfeld"`
+			Links    float64 `json:"links"`
+			Rechts   float64 `json:"rechts"`
+			Oben     float64 `json:"oben"`
+		} `json:"sperren"`
+		Loeschen struct {
+			GesperrtFalsch  *bool `json:"gesperrtFalsch"`
+			GesperrtRichtig *bool `json:"gesperrtRichtig"`
+		} `json:"loeschen"`
+		NachAbbruch struct {
+			DialogZu bool `json:"dialogZu"`
+			Reihen   int  `json:"reihen"`
+		} `json:"nachAbbruch"`
+		Einmal struct {
+			Wort    string   `json:"wort"`
+			Warnung string   `json:"warnung"`
+			Knoepfe []string `json:"knoepfe"`
+			Links   float64  `json:"links"`
+			Rechts  float64  `json:"rechts"`
+		} `json:"einmal"`
+		NachEscape bool `json:"nachEscape"`
+		FeldLeer   bool `json:"feldLeer"`
+		Zu         bool `json:"zu"`
+		Schmal     struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"zugaenge"`
+	Upd struct {
+		Wesen       string   `json:"wesen"`
+		Angaben     []string `json:"angaben"`
+		VorPruefung struct {
+			EinspielenText      string `json:"einspielenText"`
+			EinspielenGesperrt  bool   `json:"einspielenGesperrt"`
+			Satz                bool   `json:"satz"`
+			AbbruchAngekuendigt bool   `json:"abbruchAngekuendigt"`
+			Rueckweg            bool   `json:"rueckweg"`
+			KeineSicherung      bool   `json:"keineSicherung"`
+		} `json:"vorPruefung"`
+		NachPruefung struct {
+			Meldung  string   `json:"meldung"`
+			Marke    []string `json:"marke"`
+			Notizen  string   `json:"notizen"`
+			Knopf    string   `json:"knopf"`
+			Gesperrt bool     `json:"gesperrt"`
+		} `json:"nachPruefung"`
+		Frage struct {
+			Text     string   `json:"text"`
+			Punkte   []string `json:"punkte"`
+			Tippfeld bool     `json:"tippfeld"`
+			Knopf    string   `json:"knopf"`
+		} `json:"frage"`
+		NachAbbruch struct {
+			DialogZu bool `json:"dialogZu"`
+			KeinLauf bool `json:"keinLauf"`
+		} `json:"nachAbbruch"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"upd"`
+	Zert struct {
+		Wesen                string   `json:"wesen"`
+		Kopfzustand          string   `json:"kopfzustand"`
+		Angaben              []string `json:"angaben"`
+		SelbstsigniertSatz   string   `json:"selbstsigniertSatz"`
+		VerwalteteDatei      bool     `json:"verwalteteDatei"`
+		SelbstsigniertFelder struct {
+			Email   bool `json:"email"`
+			Methode bool `json:"methode"`
+		} `json:"selbstsigniertFelder"`
+		AcmeFelder struct {
+			Email    bool `json:"email"`
+			Namen    bool `json:"namen"`
+			Methode  bool `json:"methode"`
+			Anbieter bool `json:"anbieter"`
+			Hook     bool `json:"hook"`
+			Token    bool `json:"token"`
+			Geltend  bool `json:"geltend"`
+		} `json:"acmeFelder"`
+		HTTP01 bool `json:"http01"`
+		Hook   struct {
+			Setzen     bool `json:"setzen"`
+			Aufraeumen bool `json:"aufraeumen"`
+			Token      bool `json:"token"`
+		} `json:"hook"`
+		Cloudflare struct {
+			Token string `json:"token"`
+			Hook  bool   `json:"hook"`
+			Warum bool   `json:"warum"`
+		} `json:"cloudflare"`
+		NachSpeichern struct {
+			Meldung       string `json:"meldung"`
+			Hinweis       string `json:"hinweis"`
+			Zwischen      bool   `json:"zwischen"`
+			BeziehenOffen bool   `json:"beziehenOffen"`
+		} `json:"nachSpeichern"`
+		Rueckschritt struct {
+			Frage    string   `json:"frage"`
+			Punkte   []string `json:"punkte"`
+			Tippfeld bool     `json:"tippfeld"`
+		} `json:"rueckschritt"`
+		NachAbbruch string `json:"nachAbbruch"`
+		Schmal      struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"zert"`
+	Konto struct {
+		Wesen   string   `json:"wesen"`
+		Bloecke []string `json:"bloecke"`
+		Warum   []struct {
+			Titel string `json:"titel"`
+			Satz  string `json:"satz"`
+		} `json:"warum"`
+		Sitzungen []struct {
+			Diese bool   `json:"diese"`
+			Knopf string `json:"knopf"`
+		} `json:"sitzungen"`
+		PasskeysAus bool `json:"passkeysAus"`
+		Wechsel     struct {
+			Hervorgehoben bool   `json:"hervorgehoben"`
+			Frist         string `json:"frist"`
+			Geheimnis     string `json:"geheimnis"`
+			QRPfad        string `json:"qrPfad"`
+			QRGeladen     bool   `json:"qrGeladen"`
+		} `json:"wechsel"`
+		NachNeuladen bool `json:"nachNeuladen"`
+		FalscherCode struct {
+			Meldung   string `json:"meldung"`
+			NochOffen bool   `json:"nochOffen"`
+		} `json:"falscherCode"`
+		NachAbbruch struct {
+			WechselWeg bool   `json:"wechselWeg"`
+			Meldung    string `json:"meldung"`
+		} `json:"nachAbbruch"`
+		CodesFrage string `json:"codesFrage"`
+		Codes      struct {
+			Anzahl  int     `json:"anzahl"`
+			Warnung string  `json:"warnung"`
+			Links   float64 `json:"links"`
+			Rechts  float64 `json:"rechts"`
+		} `json:"codes"`
+		CodesNachEscape bool   `json:"codesNachEscape"`
+		CodesOffen      string `json:"codesOffen"`
+		Schmal          struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"konto"`
+	FremdeRolle struct {
+		ImMenue     bool   `json:"imMenue"`
+		InPalette   int    `json:"inPalette"`
+		Satz        string `json:"satz"`
+		ErneutKnopf bool   `json:"erneutKnopf"`
+	} `json:"fremdeRolle"`
 	Bald struct {
 		Pfad     string `json:"pfad"`
 		Titel    string `json:"titel"`
@@ -413,6 +648,49 @@ func TestLeitstandBrowser(t *testing.T) {
 	cookie, _ := login(t, s, user)
 	fuelleUebersicht(s)
 
+	// Ein ZWEITER Panel-Zugang, und ein zweiter mit einer anderen Rolle. Beide
+	// sind für das Modul Panel-Zugänge nötig, und aus zwei verschiedenen Gründen:
+	//
+	//   * „vertretung" ist das FREMDE Konto. Am eigenen gibt es hier keine
+	//     Handgriffe, und ohne ein zweites liefe der Browsertest nur durch eine
+	//     Liste mit einer Zeile, an der nichts zu prüfen ist.
+	//   * „gehilfe" trägt die Gegenprobe: Der Menüpunkt gehört der Owner-Rolle,
+	//     und dass er für andere fehlt, ist nur mit einer zweiten Sitzung zu
+	//     sehen.
+	addUser(t, s, "vertretung", store.RoleAdmin)
+	gehilfe := addUser(t, s, "gehilfe", store.RoleAdmin)
+	gehilfeCookie, _ := login(t, s, gehilfe)
+
+	// Ein Metadatenserver für die Updateseite, und eine echte Fassung: Ein selbst
+	// gebautes Binary meldet „dev" und bekommt bewusst kein Update angeboten — dann
+	// wäre auf der Seite nichts zu prüfen. Der Client des Testservers kennt dessen
+	// Zertifikat, damit die Prüfung im Produktivcode unangetastet bleibt.
+	setVersion(t, "0.1.0")
+	meta := metadataServer(t, testChannelJSON)
+	s.cfg.Updates.BaseURL = meta.URL
+	s.cfg.Updates.Channel = "stable"
+	s.updHTTP = meta.Client()
+
+	// Das selbstsignierte TLS-Paar. Im Test entsteht es nicht von selbst —
+	// EnsurePair läuft nur in Run —, und ohne es zeigte die Zertifikatsseite den
+	// Lesefehler statt des Zustands. Ein laufendes Panel hat immer ein Zertifikat;
+	// ein Bildschirmfoto ohne eines wäre eine Lüge über die Fläche.
+	if _, err := certs.EnsurePair(s.cfg.Server.TLS.Cert, s.cfg.Server.TLS.Key,
+		[]string{"panel.example.test"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wiederherstellungscodes für das eigene Konto. Ohne sie stünde auf der
+	// Kontoseite „keiner mehr übrig" samt roter Warnung — ein Zustand, den es nach
+	// der Erstinstallation nicht gibt, weil dort immer Codes vergeben werden. Ein
+	// Bildschirmfoto davon wäre eine Lüge über die Fläche, dieselbe wie bei den
+	// SSH-Schlüsseln der Attrappe.
+	if _, hashes, err := auth.NewRecoveryCodes(); err != nil {
+		t.Fatal(err)
+	} else if err := s.db.ReplaceRecoveryCodes(t.Context(), user.ID, hashes); err != nil {
+		t.Fatal(err)
+	}
+
 	lege(t, filepath.Join(dateiWurzel, "schreibbar", "notizen.txt"), "hallo welt")
 	lege(t, filepath.Join(dateiWurzel, "schreibbar", "server.conf"), "port: 8443\n")
 	lege(t, filepath.Join(dateiWurzel, "schreibbar", "tief", "gesucht.conf"), "a: 1")
@@ -427,6 +705,30 @@ func TestLeitstandBrowser(t *testing.T) {
 	ops := s.ops.(*fakeOps)
 	ops.reboot = privops.RebootState{
 		Required: true, Packages: []string{"linux-image-generic"},
+	}
+
+	// GENAU EIN SSH-Schlüssel. Das ist der Fall, um den es im Kontenmodul geht:
+	// Ihn zu entfernen legt den Zugang still, und die Rückfrage ist dann eine
+	// andere als bei „einen von dreien". Mit der Vorgabe der Attrappe (keine
+	// Schlüssel) wäre dieser Weg im Browser nie gelaufen.
+	ops.keys = []privops.SSHKey{
+		{Type: "ssh-ed25519", Comment: "philipp@arbeitsplatz", Fingerprint: "SHA256:MtQrPfe1"},
+	}
+	// Und die Kontenliste passend dazu. Die Attrappe liefert dieselben Schlüssel
+	// für jedes Konto — auf einem echten System zählt SSHKeys aus derselben Datei,
+	// die AuthorizedKeys liest. Die Zahlen hier von Hand gleichzuziehen ist kein
+	// Schönheitsdienst: Ohne das zeigte die Liste „0 Schlüssel" und der Inspektor
+	// daneben einen, und ein Bildschirmfoto davon wäre eine Lüge über die Fläche.
+	ops.sysUsers = []privops.SystemUser{
+		{Name: "root", UID: 0, Home: "/root", Shell: "/bin/bash", HasShell: true,
+			Protected: true, SSHKeys: 1, Groups: []string{"root"}},
+		{Name: "philipp", UID: 1000, GID: 1000, Home: "/home/philipp", Shell: "/bin/bash",
+			HasShell: true, SSHKeys: 1, Comment: "Betreiber", Groups: []string{"philipp", "sudo"}},
+		// Ein Menschenkonto OHNE Schlüssel: Es kommt nicht auf den Server, und
+		// genau diese Auffälligkeit soll im Bild stehen.
+		{Name: "monteur", UID: 1001, GID: 1001, Home: "/home/monteur", Shell: "/bin/bash",
+			HasShell: true, SSHKeys: 0, Comment: "Wartung"},
+		{Name: "www-data", UID: 33, System: true, Shell: "/usr/sbin/nologin"},
 	}
 
 	// Ein Eintrag, der erst WÄHREND des Verfolgens hereinkommt. Ohne ihn prüfte
@@ -457,6 +759,8 @@ func TestLeitstandBrowser(t *testing.T) {
 		"ASYLUM_E2E_DATEIWURZEL="+dateiWurzel,
 		"ASYLUM_E2E_URL="+ts.URL,
 		"ASYLUM_E2E_COOKIE="+cookie.Name+"="+cookie.Value,
+		// Die zweite Sitzung für die Gegenprobe mit einer anderen Rolle.
+		"ASYLUM_E2E_COOKIE2="+gehilfeCookie.Name+"="+gehilfeCookie.Value,
 		"ASYLUM_CHROMIUM="+chromium,
 	)
 	if p := os.Getenv("ASYLUM_NODE_PATH"); p != "" {
@@ -608,9 +912,15 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !e.Palette.FokusImFeld {
 		t.Error("nach dem Öffnen liegt der Fokus nicht im Suchfeld — man müsste erst hinklicken")
 	}
-	if e.Palette.ZieleGesamt != 15 {
-		t.Errorf("%d Ziele in der Palette, erwartet 15 (dieselben wie in der Seitenleiste)",
-			e.Palette.ZieleGesamt)
+	// Gegen die Seitenleiste und nicht gegen eine feste Zahl: Ein neues Modul
+	// erschien sonst in der Leiste, aber nicht in der Suche, und niemandem fiele
+	// auf, warum es sich nicht finden lässt. Eine Zahl im Test nachzuziehen wäre
+	// kein Nachweis dafür.
+	if e.Palette.ZieleInLeiste == 0 {
+		t.Error("die Seitenleiste hat keine Ziele — dann sagt der Vergleich mit der Palette nichts")
+	} else if e.Palette.ZieleGesamt != e.Palette.ZieleInLeiste {
+		t.Errorf("%d Ziele in der Palette, %d in der Seitenleiste — zwei Listen desselben "+
+			"Menüs laufen auseinander", e.Palette.ZieleGesamt, e.Palette.ZieleInLeiste)
 	}
 	// Der Unterschied zwischen einer Suche und einer Liste: ein Wort, das im
 	// Namen nicht vorkommt.
@@ -1387,6 +1697,609 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if !ed.NachZurueck.PfadDa {
 		t.Error("der Zurück-Knopf hat auch den Ort verworfen — er soll nur den Editor schließen")
+	}
+
+	// 6h. Das Modul Audit. Zwei Dinge sind nur im Browser zu sehen: dass der
+	// Filter in der Adresse steht und ein Neuladen ihn vorfindet, und dass es
+	// keinen Knopf gibt, der etwas am Protokoll ändert.
+	au := e.Audit
+	if au.ZeilenAnfangs == 0 {
+		t.Error("das Protokoll ist leer — der Browsertest hat sich vorher angemeldet " +
+			"und Dutzende Aktionen ausgeführt, es müsste voll sein")
+	}
+	if au.Wesen == "" {
+		t.Error("über der Liste steht nicht, dass das Protokoll nur additiv ist")
+	}
+	// Kein Knopf verändert etwas. Das ist die Aussage des Moduls.
+	for _, verboten := range []string{"löschen", "bearbeiten", "leeren", "entfernen"} {
+		if slices.ContainsFunc(au.Knoepfe, func(s string) bool {
+			return strings.Contains(strings.ToLower(s), verboten)
+		}) {
+			t.Errorf("das Auditmodul bietet %q an: %v — das Protokoll ist nur additiv",
+				verboten, au.Knoepfe)
+		}
+	}
+
+	// Der Filter steht in der Adresse und wirkt.
+	if au.NachFilter.Adresse != "denied" {
+		t.Errorf("der Filter steht als %q in der Adresse, erwartet denied — ein "+
+			"Verweis darauf wäre sonst nicht teilbar", au.NachFilter.Adresse)
+	}
+	if len(au.NachFilter.Ergebnisse) == 0 {
+		t.Error("der Filter auf „abgelehnt\" liefert keine Zeile — der Browsertest hat " +
+			"vorher Aktionen abgelehnt bekommen (gesperrte Pfade), es müsste welche geben")
+	}
+	for _, erg := range au.NachFilter.Ergebnisse {
+		if !strings.Contains(erg, "abgelehnt") {
+			t.Errorf("nach dem Filter steht %q in der Liste, erwartet nur abgelehnte", erg)
+		}
+	}
+	if !strings.Contains(au.NachNeuladen, "abgelehnt") {
+		t.Errorf("nach dem Neuladen ist der Filter nicht mehr hervorgehoben (%q) — "+
+			"dann ist er Zustand der Seite und nicht der Adresse", au.NachNeuladen)
+	}
+	if au.NachZuruecksetzen <= len(au.NachFilter.Ergebnisse) {
+		t.Errorf("nach dem Zurücksetzen stehen %d Zeilen da, gefiltert waren es %d — "+
+			"der Filter wurde nicht gelöst", au.NachZuruecksetzen, len(au.NachFilter.Ergebnisse))
+	}
+
+	// Die Einzelheiten klappen auf.
+	if !au.Einzelheiten.Aufgeklappt || au.Einzelheiten.Paare < 3 {
+		t.Errorf("die Einzelheiten einer Zeile klappen nicht auf (%d Angaben, "+
+			"aria-expanded=%v)", au.Einzelheiten.Paare, au.Einzelheiten.Aufgeklappt)
+	}
+
+	if au.Schmal.FensterBreite == 0 {
+		t.Error("die Auditseite wurde nicht im Schmalmodus gemessen")
+	} else if au.Schmal.KoerperBreite > au.Schmal.FensterBreite+1 {
+		t.Errorf("die Auditseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			au.Schmal.KoerperBreite, au.Schmal.FensterBreite)
+	}
+
+	// 6i. Benutzer & SSH. Der Kern ist die Frage beim LETZTEN Schlüssel und die
+	// Gegenprobe an root: Ein geschütztes Konto darf keinen Knopf zeigen, der
+	// dann verweigert.
+	ko := e.Konten
+	if ko.Wesen == "" {
+		t.Error("es fehlt der Satz, der Systemkonten von Panel-Zugängen unterscheidet — " +
+			"wer das verwechselt, legt ein Konto an, das nichts kann")
+	}
+	if len(ko.Reihen) == 0 {
+		t.Fatal("die Kontenliste ist leer")
+	}
+	if len(ko.Filter) < 3 {
+		t.Errorf("die Zähler sind keine Filter: %v", ko.Filter)
+	}
+
+	// root ist geschützt.
+	for _, verboten := range []string{"sperren", "löschen", "entsperren"} {
+		if slices.ContainsFunc(ko.RootHandgriffe, func(s string) bool {
+			return strings.Contains(s, verboten)
+		}) {
+			t.Errorf("root bietet %q an: %v — die Prüfung in privops greift ohnehin, "+
+				"aber ein Knopf, der dann verweigert, ist die schlechteste Antwort",
+				verboten, ko.RootHandgriffe)
+		}
+	}
+	if !ko.RootHinweis {
+		t.Error("bei root steht nicht, WARUM die Handgriffe fehlen — sie einfach " +
+			"weglassen sieht wie ein halb gebautes Modul aus")
+	}
+
+	// Ein gewöhnliches Konto: alles da, Schlüssel im Inspektor.
+	for _, erwartet := range []string{"sperren", "löschen"} {
+		if !slices.ContainsFunc(ko.Philipp.Handgriffe, func(s string) bool {
+			return strings.Contains(s, erwartet)
+		}) {
+			t.Errorf("philipp bietet %q nicht an: %v", erwartet, ko.Philipp.Handgriffe)
+		}
+	}
+	if ko.Philipp.Schluessel == 0 {
+		t.Error("die Schlüssel stehen nicht im Inspektor")
+	}
+	if !ko.Philipp.Datei {
+		t.Error("der Ort der Schlüsseldatei fehlt — wer den Zugang verliert, muss " +
+			"wissen, wo er von Hand nachsehen kann")
+	}
+	if ko.Philipp.LetzterHinweis == "" {
+		t.Error("bei genau einem Schlüssel fehlt die Anmerkung, BEVOR jemand klickt")
+	}
+
+	// Und der Punkt: Der letzte Schlüssel verlangt den Kontonamen.
+	if !ko.LetzterSchluessel.Tippfeld {
+		t.Error("der letzte Schlüssel lässt sich ohne getipptes Wort entfernen — " +
+			"danach hat das Konto keinen Zugang mehr, das ist Stufe 3")
+	}
+	if !strings.Contains(ko.LetzterSchluessel.Frage, "EINZIGE") {
+		t.Errorf("die Frage sagt nicht, dass es der einzige Schlüssel ist: %q",
+			ko.LetzterSchluessel.Frage)
+	}
+	if !ko.LetzterSchluessel.Gesperrt {
+		t.Error("der Knopf ist offen, bevor das Wort getippt ist")
+	}
+	if !ko.NachAbbruch.DialogZu {
+		t.Error("Escape schließt den Dialog nicht")
+	}
+	if ko.NachAbbruch.Schluessel == 0 {
+		t.Error("nach dem ABBRUCH ist der Schlüssel weg — die Rückfrage hat nicht " +
+			"gefragt, sondern nur gefragt ausgesehen")
+	}
+
+	// Die Maske zum Anlegen: Auswahlfelder statt Freitext.
+	if ko.Anlegen.Auswahlfelder < 2 {
+		t.Errorf("die Maske hat %d Auswahlfelder, erwartet zwei (Schale, Gruppen) — "+
+			"Freitext schlägt Werte vor, die der Server ablehnt", ko.Anlegen.Auswahlfelder)
+	}
+	if !strings.Contains(ko.Anlegen.Hinweis, "Passwort") {
+		t.Errorf("die Maske sagt nicht, dass das Konto kein Passwort bekommt: %q",
+			ko.Anlegen.Hinweis)
+	}
+	if !ko.Anlegen.Schluesselfeld {
+		t.Error("der Schlüssel lässt sich beim Anlegen nicht mitgeben — dann entsteht " +
+			"erst ein Konto, das niemand benutzen kann")
+	}
+
+	if ko.Schmal.FensterBreite == 0 {
+		t.Error("die Kontenseite wurde nicht im Schmalmodus gemessen")
+	} else if ko.Schmal.KoerperBreite > ko.Schmal.FensterBreite+1 {
+		t.Errorf("die Kontenseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			ko.Schmal.KoerperBreite, ko.Schmal.FensterBreite)
+	}
+
+	// 6j. Panel-Zugänge. Vier Dinge, die nur der Browser zeigt: die eigene Zeile
+	// ohne Handgriffe, die offen stehende Schranke vor den Zurücksetzungen, das
+	// Einmalpasswort in einem Dialog, den Escape nicht schließt, und dass beide
+	// Dialoge in der Mitte sitzen.
+	pz := e.Zugaenge
+	if pz.Wesen == "" {
+		t.Error("es fehlt der Satz, der Panel-Zugänge von Systemkonten unterscheidet")
+	}
+	if !pz.ImMenue {
+		t.Error("der Menüpunkt für die Panel-Zugänge fehlt der Owner-Rolle")
+	}
+	if len(pz.Reihen) < 2 {
+		t.Fatalf("die Zugangsliste hat %d Zeilen, erwartet mindestens zwei — mit einer "+
+			"einzigen ist am fremden Konto nichts zu prüfen", len(pz.Reihen))
+	}
+	eigeneMarkiert := false
+	for _, r := range pz.Reihen {
+		if r.Name == "philipp" {
+			eigeneMarkiert = r.Ich
+		}
+		if r.Zustand == "" {
+			t.Errorf("die Zeile %q hat keinen Zustand", r.Name)
+		}
+	}
+	if !eigeneMarkiert {
+		t.Error("die eigene Zeile ist nicht markiert — dann sieht das Fehlen der " +
+			"Handgriffe wie eine Panne aus")
+	}
+
+	// Das eigene Konto: keine Handgriffe, keine Schranke, aber der Satz, der es
+	// erklärt.
+	if pz.Eigenes.Handgriffe != 0 {
+		t.Errorf("das eigene Konto bietet %d Handgriffe — sperren oder löschen wäre "+
+			"ein Selbstausschluss, Passwort und zweiter Faktor stehen auf der Kontoseite",
+			pz.Eigenes.Handgriffe)
+	}
+	if pz.Eigenes.Schranke {
+		t.Error("am eigenen Konto steht die Zurücksetzungsschranke — sie führt hier zu nichts")
+	}
+	if !strings.Contains(pz.Eigenes.Hinweis, "Kontoseite") {
+		t.Errorf("am eigenen Konto fehlt der Verweis auf die Kontoseite: %q", pz.Eigenes.Hinweis)
+	}
+
+	// Das fremde Konto: alles da, und die Schranke davor sichtbar gesperrt.
+	fr := pz.Fremdes
+	for _, erwartet := range []string{"sperren", "löschen"} {
+		if !slices.Contains(fr.Handgriffe, erwartet) {
+			t.Errorf("das fremde Konto bietet %q nicht an: %v", erwartet, fr.Handgriffe)
+		}
+	}
+	if fr.FeldTyp != "password" {
+		t.Errorf("das Feld für das eigene Passwort ist vom Typ %q, erwartet password", fr.FeldTyp)
+	}
+	if !strings.Contains(fr.Warum, "eigenes Passwort") {
+		t.Errorf("es steht nicht, WESSEN Passwort gemeint ist: %q", fr.Warum)
+	}
+	if len(fr.Gesperrt) < 2 {
+		t.Errorf("die Schranke hat %d Knöpfe, erwartet mindestens zwei "+
+			"(Passwort, zweiter Faktor): %v", len(fr.Gesperrt), fr.Knoepfe)
+	}
+	for i, gesperrt := range fr.Gesperrt {
+		if !gesperrt {
+			t.Errorf("der Knopf %q ist offen, obwohl das Passwortfeld leer ist — "+
+				"dann kommt die Bedingung als 403 nach dem Klick statt vor ihm",
+				fr.Knoepfe[i])
+		}
+	}
+
+	// Sperren ist Stufe 2, Löschen Stufe 3.
+	if pz.Sperren.Tippfeld {
+		t.Error("das Sperren verlangt ein getipptes Wort — es ist umkehrbar, Stufe 2 genügt")
+	}
+	if !strings.Contains(pz.Sperren.Frage, "vertretung") {
+		t.Errorf("die Frage nennt das Konto nicht: %q", pz.Sperren.Frage)
+	}
+	// Die Mitte, gemessen: `* { margin: 0 }` hat margin:auto schon einmal
+	// geschlagen, und alle Dialoge klebten oben links. Gesehen hat das erst ein
+	// Bildschirmfoto — jetzt fällt es hier auf.
+	if math.Abs(pz.Sperren.Links-pz.Sperren.Rechts) > 2 {
+		t.Errorf("die Rückfrage sitzt nicht waagerecht in der Mitte: %.0f links, %.0f rechts",
+			pz.Sperren.Links, pz.Sperren.Rechts)
+	}
+	if pz.Sperren.Oben < 10 {
+		t.Errorf("die Rückfrage klebt am oberen Rand (%.0f Pixel)", pz.Sperren.Oben)
+	}
+	if pz.Loeschen.GesperrtFalsch == nil || !*pz.Loeschen.GesperrtFalsch {
+		t.Error("beim Löschen ist der Knopf offen, obwohl der Name falsch getippt ist")
+	}
+	if pz.Loeschen.GesperrtRichtig == nil || *pz.Loeschen.GesperrtRichtig {
+		t.Error("beim Löschen bleibt der Knopf gesperrt, obwohl der Name stimmt — " +
+			"dann ist die Stufe keine Rückfrage, sondern eine Sperre")
+	}
+	if !pz.NachAbbruch.DialogZu {
+		t.Error("Escape schließt die Rückfrage nicht")
+	}
+	if pz.NachAbbruch.Reihen < 2 {
+		t.Errorf("nach dem ABBRUCH sind es %d Zeilen — die Rückfrage hat nicht gefragt, "+
+			"sondern nur gefragt ausgesehen", pz.NachAbbruch.Reihen)
+	}
+
+	// Das Einmalpasswort: sichtbar, mit dem Satz, dass es nur einmal da ist, und
+	// gegen Escape gesichert.
+	if pz.Einmal.Wort == "" {
+		t.Error("nach der Zurücksetzung steht kein Einmalpasswort da")
+	}
+	if !strings.Contains(pz.Einmal.Warnung, "nur hier") {
+		t.Errorf("es steht nicht dabei, dass das Passwort nur einmal kommt: %q", pz.Einmal.Warnung)
+	}
+	if math.Abs(pz.Einmal.Links-pz.Einmal.Rechts) > 2 {
+		t.Errorf("der Passwortdialog sitzt nicht in der Mitte: %.0f links, %.0f rechts",
+			pz.Einmal.Links, pz.Einmal.Rechts)
+	}
+	if !pz.NachEscape {
+		t.Error("Escape schließt den Passwortdialog — dann ist das Einmalpasswort weg, " +
+			"bevor es jemand gelesen hat, und es kommt kein zweites Mal")
+	}
+	if !pz.FeldLeer {
+		t.Error("das Passwortfeld ist nach dem Aufruf noch gefüllt — der nächste Klick " +
+			"träfe ein anderes Ziel als der Tippende im Kopf hatte")
+	}
+	if !pz.Zu {
+		t.Error("der Passwortdialog lässt sich über seinen Knopf nicht schließen")
+	}
+	if pz.Schmal.FensterBreite == 0 {
+		t.Error("die Zugangsseite wurde nicht im Schmalmodus gemessen")
+	} else if pz.Schmal.KoerperBreite > pz.Schmal.FensterBreite+1 {
+		t.Errorf("die Zugangsseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			pz.Schmal.KoerperBreite, pz.Schmal.FensterBreite)
+	}
+
+	// 6n. Updates des Panels. Der Kern ist, dass „noch nicht geprüft" ein eigener
+	// Zustand ist und dass der Verbindungsabbruch VORHER angekündigt wird — er
+	// gehört zum Vorgang und sieht ohne Ankündigung wie ein Fehlschlag aus.
+	up := e.Upd
+	if up.Wesen == "" {
+		t.Error("es fehlt der Satz darüber, was beim Selbstupdate geschieht")
+	}
+	for _, feld := range []string{"Laufende Fassung", "Kanal", "Metadatenquelle", "Zuletzt geprüft"} {
+		if !slices.Contains(up.Angaben, feld) {
+			t.Errorf("die Angabe %q fehlt: %v", feld, up.Angaben)
+		}
+	}
+
+	// Vor der Prüfung.
+	vp := up.VorPruefung
+	if !vp.EinspielenGesperrt {
+		t.Error("vor der Prüfung ist der Knopf zum Einspielen offen — es gibt nichts " +
+			"einzuspielen, und der Server lehnte ab")
+	}
+	if !vp.Satz {
+		t.Error("„noch nicht geprüft\" steht nicht als Satz da — es ist ein anderer " +
+			"Zustand als „kein Update verfügbar\"")
+	}
+	if !vp.AbbruchAngekuendigt {
+		t.Error("der Verbindungsabbruch beim Neustart ist nicht vorher angekündigt — " +
+			"dann sieht er wie ein Fehlschlag aus")
+	}
+	if vp.Rueckweg {
+		t.Error("ohne Sicherung steht ein Rückweg-Knopf da — er liefe zuverlässig ins Leere")
+	}
+	if !vp.KeineSicherung {
+		t.Error("es steht nicht dabei, WARUM der Rückweg fehlt")
+	}
+
+	// Nach der Prüfung.
+	np := up.NachPruefung
+	if !strings.Contains(np.Meldung, "9.9.9") {
+		t.Errorf("die gefundene Fassung steht nicht in der Meldung: %q", np.Meldung)
+	}
+	sicherheit := false
+	for _, m := range np.Marke {
+		if strings.Contains(m, "Sicherheitsupdate") {
+			sicherheit = true
+		}
+	}
+	if !sicherheit {
+		t.Errorf("die Einstufung als Sicherheitsupdate fehlt: %v", np.Marke)
+	}
+	if np.Notizen == "" {
+		t.Error("der Verweis auf die Änderungsnotizen fehlt")
+	}
+	if !strings.Contains(np.Knopf, "9.9.9") {
+		t.Errorf("der Knopf nennt die Zielfassung nicht: %q — „aktualisieren\" allein "+
+			"sagt nicht, worauf", np.Knopf)
+	}
+	if np.Gesperrt {
+		t.Error("nach der Prüfung ist der Knopf zum Einspielen noch gesperrt")
+	}
+
+	// Die Rückfrage nennt beide Folgen.
+	if !strings.Contains(up.Frage.Text, "9.9.9") {
+		t.Errorf("die Frage nennt die Zielfassung nicht: %q", up.Frage.Text)
+	}
+	neustart, rueckweg := false, false
+	for _, p := range up.Frage.Punkte {
+		if strings.Contains(p, "startet dabei neu") {
+			neustart = true
+		}
+		if strings.Contains(p, "Rückweg") {
+			rueckweg = true
+		}
+	}
+	if !neustart {
+		t.Errorf("die Frage nennt den Neustart nicht: %v", up.Frage.Punkte)
+	}
+	if !rueckweg {
+		t.Errorf("die Frage nennt den Rückweg nicht: %v — dass es einen gibt, ist der "+
+			"Grund, warum hier Stufe 2 genügt", up.Frage.Punkte)
+	}
+	if !up.NachAbbruch.DialogZu {
+		t.Error("Escape schließt die Rückfrage nicht")
+	}
+	if !up.NachAbbruch.KeinLauf {
+		t.Error("nach dem ABBRUCH läuft ein Vorgang — die Rückfrage hat nicht gefragt, " +
+			"sondern nur gefragt ausgesehen")
+	}
+	if up.Schmal.FensterBreite == 0 {
+		t.Error("die Updateseite wurde nicht im Schmalmodus gemessen")
+	} else if up.Schmal.KoerperBreite > up.Schmal.FensterBreite+1 {
+		t.Errorf("die Updateseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — "+
+			"sie scrollt waagerecht", up.Schmal.KoerperBreite, up.Schmal.FensterBreite)
+	}
+
+	// 6m. Zertifikat und ACME. Der Kern ist das gestaffelte Formular: Es zeigt nur,
+	// was zur getroffenen Wahl passt. Ein Feld, das nichts bewirkt, ist eine
+	// Aufforderung, etwas Wirkungsloses einzutragen.
+	ze := e.Zert
+	if ze.Wesen == "" {
+		t.Error("es fehlt der Satz darüber, was das Zertifikat ist")
+	}
+	if ze.Kopfzustand == "" {
+		t.Error("der Zustand des Zertifikats steht nicht in der Kopfzeile")
+	}
+	for _, feld := range []string{"Herkunft", "Gültig", "Aussteller", "Fingerprint", "Datei"} {
+		if !slices.Contains(ze.Angaben, feld) {
+			t.Errorf("die Angabe %q fehlt: %v", feld, ze.Angaben)
+		}
+	}
+	if !strings.Contains(ze.SelbstsigniertSatz, "warnt") {
+		t.Errorf("bei einem selbstsignierten Zertifikat steht nicht, dass jeder Browser "+
+			"warnt: %q", ze.SelbstsigniertSatz)
+	}
+	if !ze.VerwalteteDatei {
+		t.Error("die Datei, in der die Einstellungen landen, wird nicht genannt — " +
+			"das Panel versteckt nichts")
+	}
+
+	// Gestaffelt: Bei „selbstsigniert" keine ACME-Felder.
+	if ze.SelbstsigniertFelder.Email || ze.SelbstsigniertFelder.Methode {
+		t.Errorf("bei selbstsigniert stehen ACME-Felder da: %+v", ze.SelbstsigniertFelder)
+	}
+	// Bei ACME und „automatisch": Adresse, Namen, Methode — aber weder Hook-Pfade
+	// noch Token, denn welcher Anbieter gemeint ist, steht noch nicht fest.
+	af := ze.AcmeFelder
+	if !af.Email || !af.Namen || !af.Methode {
+		t.Errorf("bei ACME fehlen Grundfelder: %+v", af)
+	}
+	if af.Hook || af.Token {
+		t.Errorf("bei ACME ohne gewählten Anbieter stehen schon Anbieterfelder da: %+v", af)
+	}
+	if !af.Geltend {
+		t.Error("die aufgelösten Namen fehlen — dann muss man raten, was „leer\" bedeutet")
+	}
+	if !ze.HTTP01 {
+		t.Error("bei HTTP-01 steht ein Anbieterfeld da — es bewirkt dort nichts")
+	}
+	if !ze.Hook.Setzen || !ze.Hook.Aufraeumen {
+		t.Errorf("beim Hook fehlen die zwei Pfadfelder: %+v", ze.Hook)
+	}
+	if ze.Hook.Token {
+		t.Error("beim Hook steht ein Tokenfeld da")
+	}
+	// Das Token ist ein Passwortfeld: Es soll nicht offen auf dem Schirm stehen.
+	if ze.Cloudflare.Token != "password" {
+		t.Errorf("das Tokenfeld ist vom Typ %q, erwartet password", ze.Cloudflare.Token)
+	}
+	if ze.Cloudflare.Hook {
+		t.Error("bei Cloudflare stehen die Hook-Pfade da")
+	}
+	if !ze.Cloudflare.Warum {
+		t.Error("es steht nicht dabei, dass das Token in einer eigenen Datei mit 0600 landet")
+	}
+
+	// Nach dem Speichern: der Zwischenzustand ist benannt, und beziehen ist offen.
+	if !strings.Contains(ze.NachSpeichern.Meldung, "gespeichert") {
+		t.Errorf("nach dem Speichern fehlt die Quittung: %q", ze.NachSpeichern.Meldung)
+	}
+	if !ze.NachSpeichern.Zwischen {
+		t.Error("der Zwischenzustand „eingestellt, aber noch nichts bezogen\" ist nicht " +
+			"benannt — dann sucht jemand den Fehler an der falschen Stelle")
+	}
+	if !ze.NachSpeichern.BeziehenOffen {
+		t.Error("nach dem Einschalten ist „jetzt beziehen\" noch gesperrt")
+	}
+
+	// Der Rückschritt fragt zurück, und nach dem ABBRUCH steht die Einstellung noch.
+	if !strings.Contains(ze.Rueckschritt.Frage, "selbstsigniert") {
+		t.Errorf("die Frage benennt den Rückschritt nicht: %q", ze.Rueckschritt.Frage)
+	}
+	warnt := false
+	for _, p := range ze.Rueckschritt.Punkte {
+		if strings.Contains(p, "warnt") {
+			warnt = true
+		}
+	}
+	if !warnt {
+		t.Errorf("die Frage sagt nicht, dass danach jeder Browser warnt: %v", ze.Rueckschritt.Punkte)
+	}
+	if ze.Rueckschritt.Tippfeld {
+		t.Error("der Rückschritt verlangt ein getipptes Wort — er ist umkehrbar")
+	}
+	if !strings.Contains(ze.NachAbbruch, "Let's Encrypt") {
+		t.Errorf("nach dem ABBRUCH steht %q eingestellt — die Rückfrage hat nicht "+
+			"gefragt, sondern nur gefragt ausgesehen", ze.NachAbbruch)
+	}
+	if ze.Schmal.FensterBreite == 0 {
+		t.Error("die Zertifikatsseite wurde nicht im Schmalmodus gemessen")
+	} else if ze.Schmal.KoerperBreite > ze.Schmal.FensterBreite+1 {
+		t.Errorf("die Zertifikatsseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — "+
+			"sie scrollt waagerecht", ze.Schmal.KoerperBreite, ze.Schmal.FensterBreite)
+	}
+
+	// 6l. Das eigene Konto. Die Passkeys haben ihren eigenen Durchlauf mit
+	// virtuellem Authenticator (TestPasskeyBrowserV2); hier steht der Rest.
+	ek := e.Konto
+	if ek.Wesen == "" {
+		t.Error("es fehlt der Satz, der das eigene Konto von den Panel-Zugängen unterscheidet")
+	}
+	// Fünf Blöcke: Überblick (ohne Titel), Passwort, zweiter Faktor, Codes,
+	// Passkeys, Sitzungen.
+	if len(ek.Bloecke) < 5 {
+		t.Errorf("%d benannte Blöcke, erwartet mindestens fünf: %v", len(ek.Bloecke), ek.Bloecke)
+	}
+	if len(ek.Warum) < 5 {
+		t.Errorf("%d benannte Blöcke mit Begründung, erwartet mindestens fünf", len(ek.Warum))
+	}
+	for _, w := range ek.Warum {
+		if w.Satz == "" {
+			t.Errorf("der Block %q hat keinen Satz darüber, warum es ihn gibt — Grundsatz V",
+				w.Titel)
+		}
+	}
+	if !ek.PasskeysAus {
+		t.Error("ohne eingeschaltete Passkeys steht das nicht dabei — dann fehlt der " +
+			"Grund, warum der Block leer ist")
+	}
+	if len(ek.Sitzungen) == 0 {
+		t.Fatal("die Sitzungsliste ist leer")
+	}
+	eigene := 0
+	for _, sz := range ek.Sitzungen {
+		if sz.Diese {
+			eigene++
+			// Die eigene Sitzung zu beenden IST ein Abmelden. „beenden" wäre eine
+			// Untertreibung darüber, was gleich passiert.
+			if sz.Knopf != "abmelden" {
+				t.Errorf("der Knopf der eigenen Sitzung heißt %q, erwartet „abmelden\"", sz.Knopf)
+			}
+		} else if sz.Knopf != "beenden" {
+			t.Errorf("der Knopf einer fremden Sitzung heißt %q", sz.Knopf)
+		}
+	}
+	if eigene != 1 {
+		t.Errorf("%d Sitzungen sind als die eigene markiert, erwartet genau eine — ohne "+
+			"die Markierung beendet man aus Versehen die, in der man sitzt", eigene)
+	}
+
+	// Der Wechsel des zweiten Faktors.
+	if !ek.Wechsel.Hervorgehoben {
+		t.Error("ein offener Wechsel ist nicht hervorgehoben — dann bleibt der halbe " +
+			"Wechsel liegen, ohne dass es auffällt")
+	}
+	if ek.Wechsel.Frist == "" {
+		t.Error("am offenen Wechsel steht nicht, wie lange er gilt")
+	}
+	if ek.Wechsel.Geheimnis == "" {
+		t.Error("das Geheimnis steht nicht als Text da — nicht jeder kann einen " +
+			"QR-Code abfotografieren")
+	}
+	if !strings.HasPrefix(ek.Wechsel.QRPfad, "/api/v1/") {
+		t.Errorf("der QR-Code kommt von %q, erwartet einen Pfad unter /api/v1/ — ein "+
+			"data:-URI hätte das Geheimnis ein zweites Mal in der Antwort", ek.Wechsel.QRPfad)
+	}
+	// Die Lektion aus rc.5 und dem Editor: Ein von der Richtlinie verworfenes Bild
+	// steht als <img> im DOM und ist doch nicht da.
+	if !ek.Wechsel.QRGeladen {
+		t.Error("der QR-Code ist nicht geladen — img-src der Inhaltsrichtlinie verwirft ihn")
+	}
+	if !ek.NachNeuladen {
+		t.Error("nach dem Neuladen ist der begonnene Wechsel verschwunden — der Zustand " +
+			"liegt auf dem Server und soll das überstehen")
+	}
+	if !strings.Contains(ek.FalscherCode.Meldung, "Code") {
+		t.Errorf("ein falscher Code wird nicht als solcher benannt: %q", ek.FalscherCode.Meldung)
+	}
+	if !ek.FalscherCode.NochOffen {
+		t.Error("nach einem falschen Code ist der Wechsel abgebrochen — er müsste " +
+			"offen bleiben, damit man es erneut versuchen kann")
+	}
+	if !ek.NachAbbruch.WechselWeg {
+		t.Error("der Abbruch hat den Wechsel nicht verworfen")
+	}
+	if !strings.Contains(ek.NachAbbruch.Meldung, "gilt weiter") {
+		t.Errorf("nach dem Abbruch steht nicht, dass der bisherige Faktor weiter gilt: %q",
+			ek.NachAbbruch.Meldung)
+	}
+
+	// Die Wiederherstellungscodes.
+	if !strings.Contains(ek.CodesFrage, "nicht mehr") {
+		t.Errorf("die Frage sagt nicht, dass die alten Codes verfallen: %q", ek.CodesFrage)
+	}
+	if ek.Codes.Anzahl == 0 {
+		t.Error("es werden keine Codes angezeigt")
+	}
+	if !strings.Contains(ek.Codes.Warnung, "nur jetzt") {
+		t.Errorf("es steht nicht dabei, dass die Liste nur einmal kommt: %q", ek.Codes.Warnung)
+	}
+	if math.Abs(ek.Codes.Links-ek.Codes.Rechts) > 2 {
+		t.Errorf("der Codes-Dialog sitzt nicht in der Mitte: %.0f links, %.0f rechts",
+			ek.Codes.Links, ek.Codes.Rechts)
+	}
+	if !ek.CodesNachEscape {
+		t.Error("Escape schließt den Codes-Dialog — dann ist die Liste weg, bevor sie " +
+			"jemand abgeschrieben hat, und sie kommt kein zweites Mal")
+	}
+	if ek.CodesOffen == "" {
+		t.Error("nach dem Erzeugen steht die Zahl der offenen Codes nicht da")
+	}
+	if ek.Schmal.FensterBreite == 0 {
+		t.Error("die Kontoseite wurde nicht im Schmalmodus gemessen")
+	} else if ek.Schmal.KoerperBreite > ek.Schmal.FensterBreite+1 {
+		t.Errorf("die Kontoseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			ek.Schmal.KoerperBreite, ek.Schmal.FensterBreite)
+	}
+
+	// 6k. Die Gegenprobe mit einer anderen Rolle. Ein Menüpunkt, der zuverlässig
+	// „der Owner-Rolle vorbehalten" antwortet, ist kein Menüpunkt.
+	fro := e.FremdeRolle
+	if fro.ImMenue {
+		t.Error("die Admin-Rolle sieht den Menüpunkt für die Panel-Zugänge — er führt " +
+			"für sie nur auf 403")
+	}
+	if fro.InPalette != 0 {
+		t.Errorf("die Befehlspalette findet für die Admin-Rolle %d Treffer zu „zugänge\" — "+
+			"in der Leiste gefiltert und in der Suche nicht ist genau der Fehler, den "+
+			"zwei Filter derselben Regel machen", fro.InPalette)
+	}
+	if !strings.Contains(fro.Satz, "Owner") {
+		t.Errorf("der Pfad von Hand aufgerufen sagt nicht, warum er nichts zeigt: %q", fro.Satz)
+	}
+	if fro.ErneutKnopf {
+		t.Error("bei der Rechtefrage steht ein Knopf „Erneut versuchen" + `" — er brächte ` +
+			"nie ein anderes Ergebnis, und die Meldung wäre damit zweimal falsch: " +
+			"im Grund und im Ausweg")
 	}
 
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2

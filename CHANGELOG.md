@@ -9,6 +9,185 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0-rc.4] — 2026-07-30
+
+**Die Funktionsparität der neuen Oberfläche ist erreicht.** Alle zwölf Module der
+alten Fläche stehen unter `/v2/`; die Liste steht in
+[docs/16-neukonzeption.md](docs/16-neukonzeption.md) unter „Stand der Parität".
+Nicht übertragen und absichtlich server-gerendert bleiben Anmeldung,
+Erstinstallation, erzwungener Passwortwechsel und der Weg für ein vergessenes
+Passwort — sie liegen vor der Anmeldung und müssen ohne JavaScript laufen.
+
+Offen für die 0.4 bleiben die zwei Neuerungen, die keine Parität sind: Cron &
+systemd-Timer sowie API-Tokens. Die alte Oberfläche unter `/` ist unverändert und
+bleibt bis zum Umschalten erreichbar.
+
+### Hinzugefügt
+
+- **Modul Audit in der neuen Oberfläche.** Das Protokoll mit Filter auf dem
+  Server (Akteur, Bereich, Ergebnis, Suche in Ziel und Einzelheiten) und
+  Blätterung über die Kennung statt über `OFFSET` — bei einem Protokoll, das
+  während des Blätterns wächst, verschiebt `OFFSET` die Grenze und überspringt
+  Einträge. Nur lesend, und das ist keine Auslassung: Der Store hat bewusst
+  keine Lösch- oder Änderungsfunktion.
+
+- **Modul Benutzer & SSH in der neuen Oberfläche.** Sechs Routen: Systemkonten
+  des Wirtsystems und ihre Schlüssel. Ein Konto ohne Schlüssel ist eine
+  Auffälligkeit mit eigenem Zähler — aber nur bei Menschenkonten, bei einem
+  Dienstkonto ist es die Bauart. Der letzte Schlüssel eines Kontos verlangt
+  Stufe 3 mit dem Kontonamen: Ihn zu entfernen legt den Zugang still.
+
+- **Modul Panel-Zugänge in der neuen Oberfläche.** Sieben Routen — die Konten
+  DIESER Oberfläche, nicht die des Servers. Vier Schranken aus der alten Fläche
+  bleiben unverändert: nur die Owner-Rolle (auch lesend), jede Zurücksetzung
+  verlangt das eigene Passwort des Owners, das eigene Konto läuft nicht über
+  diesen Weg, und das letzte Owner-Konto lässt sich nicht löschen.
+
+  **`store.User` wird nie serialisiert.** Der Typ trägt `PasswordHash` und
+  `TOTPSecret`. Die Antwort zählt ihre Felder ausdrücklich auf, statt den
+  Store-Typ mit `json:"-"` an den heiklen Stellen einzubetten: Kommt dem Store
+  ein Feld hinzu, wandert es beim Einbetten mit, hier nicht. Ein Test prüft das
+  an den WERTEN im rohen Körper und nicht an Feldnamen — ein umbenanntes Feld
+  rutschte sonst durch.
+
+  **Die Bedingung steht vor dem Handgriff.** Das Feld für das eigene Passwort
+  steht offen im Inspektor, und die drei Zurücksetzungen sind gesperrt, solange
+  es leer ist. Ein Knopf, der erst nach dem Klick mit 403 antwortet, ist selbst
+  der Fehler. Nach jedem Aufruf wird das Feld geleert — auch nach einem
+  gescheiterten, weil ein gefülltes Feld zum zweiten Versuch mit demselben
+  falschen Wort verleitet.
+
+  **Ein Einmalpasswort steht genau einmal da**, in einem Dialog, den Escape
+  nicht schließt. Es erscheint nicht im Audit-Protokoll, nicht im Konsolen-Echo
+  und in keiner zweiten Antwort; wer es verliert, setzt erneut zurück.
+
+- **Modul Eigenes Konto in der neuen Oberfläche.** Dreizehn Routen: Passwort,
+  zweiter Faktor mit QR-Code, Wiederherstellungscodes, Passkeys (WebAuthn) und
+  die offenen Sitzungen. Keine Werkbank, sondern ein Stapel benannter Blöcke —
+  hier gibt es ein Konto und fünf verschiedene Handgriffe daran, jeder mit dem
+  Satz darüber, warum es ihn gibt.
+
+  **Jede Rolle verwaltet ihr eigenes Konto**, auch „readonly". Der einzige
+  schreibende Bereich der Schnittstelle ohne Rollenprüfung, und das ist kein
+  Versehen: Sonst bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen,
+  mit dem es angelegt wurde. Die Schranke ist stattdessen das aktuelle Passwort
+  bei jeder Änderung an einem Anmeldeweg, und dass diese Endpunkte ausschließlich
+  das Konto der laufenden Sitzung anfassen.
+
+  **Die eigene Sitzung überlebt die eigene Passwortänderung.** Alle Sitzungen des
+  Kontos werden beendet — auch die, in der man sitzt —, die eigene wird sofort neu
+  aufgebaut, und die Antwort trägt das frische Sitzungstoken. Ohne beides wäre die
+  Oberfläche nach einer geglückten Änderung abgemeldet, und die naheliegende
+  Deutung wäre „hat nicht funktioniert".
+
+  **Der halbe Wechsel des zweiten Faktors liegt auf dem Server** und übersteht
+  ein Neuladen, mit der Frist daneben. Neu gegenüber der alten Oberfläche ist ein
+  Knopf zum Abbrechen: Dort verließ man die Seite und wartete die 15 Minuten ab —
+  in einer Einzelseiten-Anwendung ist „die Seite verlassen" kein Vorgang mehr.
+
+  **Passkeys in der neuen Oberfläche.** Die Zeremonie läuft über zwei Aufrufe,
+  weil dazwischen der Browser mit dem Gerät spricht; die Umrechnung base64url ↔
+  ArrayBuffer steht in `web/src/lib/api.ts`. Geprüft ist das mit einem virtuellen
+  Authenticator im Browser, und zwar nicht daran, dass ein Eintrag in der Liste
+  erscheint, sondern daran, dass ein über `/v2/konto` hinterlegter Passkey eine
+  echte Anmeldung trägt — ein Fehler in der Umrechnung fällt in keinem Go-Test
+  auf, weil die Endpunkte korrekt antworten und nur nie ein gültiger Nachweis
+  ankommt.
+
+- **Modul Zertifikate in der neuen Oberfläche.** Zustand des ausgelieferten
+  Zertifikats, Einstellungen für den ACME-Bezug und der Bezug selbst. Oben, was
+  gerade ausgeliefert wird, darunter, wie es bezogen wird — wer die Seite öffnet,
+  will in den meisten Fällen das Erste wissen.
+
+  **Einstellung und Wirklichkeit werden auseinandergehalten.** „acme"
+  eingestellt heißt nicht „acme ausgeliefert": Bis der erste Bezug glückt, bleibt
+  das selbstsignierte Zertifikat aktiv. Beides steht da, und der Zwischenzustand
+  ist benannt — ohne das sucht jemand den Fehler an der falschen Stelle.
+
+  **Das Formular zeigt nur, was zur Wahl passt.** DNS-01 braucht einen Anbieter,
+  Hook zwei Pfade, Cloudflare ein Token; Felder, die zur getroffenen Wahl nichts
+  beitragen, stehen nicht da. Geschickt wird, was zu sehen ist, und nicht der
+  letzte Zustand jedes Feldes — sonst antwortet der Server mit einer Begründung
+  für ein Feld, das gar nicht dasteht.
+
+  **Der Bezug ist ein Vorgang und bekommt keinen eigenen Ereignisstrom.** Er
+  läuft über `/api/v1/jobs/certificate/events` wie der Paketvorgang und das
+  Einspielen von ufw — das einheitliche Job-Modell aus
+  [docs/16-neukonzeption.md](docs/16-neukonzeption.md) statt eines vierten
+  Endpunkts. Die alte Oberfläche behält ihren Strom unter `/certificate/events`.
+
+  **Der Rückschritt auf ein selbstsigniertes Zertifikat fragt zurück** (Stufe 2)
+  — danach warnt jeder Browser beim Aufruf des Panels. Der einzige Unterschied im
+  Verhalten gegenüber der alten Fläche.
+
+- **Modul Updates in der neuen Oberfläche.** Fünf Routen: Zustand, Poller,
+  Prüfen, Einspielen, Rückweg. Damit ist die Funktionsparität der 0.4 erreicht —
+  alle Module der alten Oberfläche stehen unter `/v2/`.
+
+  **Kein Ereignisstrom, sondern ein Poller.** Dieses Modul startet seinen eigenen
+  Dienst neu; ein offener Kanal übersteht das nicht, und ein Job im Speicher des
+  Prozesses, den der Vorgang gerade beendet, auch nicht. Der Update-Lauf schreibt
+  in eine Protokolldatei, und `/api/v1/update/status` liest sie — nach dem
+  Neustart genauso wie davor.
+
+  **Der Verbindungsabbruch ist der Normalfall und wird vorher angekündigt.** Die
+  Oberfläche hält drei Zustände auseinander: es läuft und der Dienst antwortet, es
+  läuft und der Dienst antwortet nicht (das ist der Neustart — als Fehlermeldung
+  würde jemand neu laden, während unter ihm das Binary getauscht wird), und der
+  Dienst antwortet wieder. Im dritten Fall entscheidet die FASSUNG, was gemeldet
+  wird: eine andere als zu Beginn heißt „durch", dieselbe heißt „schiefgegangen,
+  der Verlauf sagt was". Sie kommt aus dem neuen Programm und ist damit die
+  verlässlichste Auskunft, die es gibt.
+
+  **Nur die Owner-Rolle löst aus**, Prüfen darf jede schreibberechtigte Rolle
+  (es ändert nichts). Eingespielt wird genau die Fassung, die der Auslöser gesehen
+  hat — nicht eine, die zwischen Anzeige und Klick veröffentlicht wurde.
+
+- **Rollenabhängige Navigation in der neuen Oberfläche.** Was eine Rolle nicht
+  erreicht, steht nicht in der Seitenleiste und nicht in der Befehlspalette —
+  wie in der alten Oberfläche (`{{if .IsOwner}}`). Gefiltert wird an einer
+  Stelle (`web/src/lib/ziele.ts`): Zwei Filter derselben Regel laufen
+  auseinander, und der übersehene wäre die Palette. Verbindlich bleibt die
+  Route.
+
+### Geändert
+
+- **Der Menüpunkt „Einstellungen" ist aufgeteilt.** Er zeigte auf `/users`, die
+  Kontenliste — ein Name, der etwas anderes versprach, als dahinter stand. Jetzt
+  „Panel-Zugänge" (unter `/v2/zugaenge`) und „Eigenes Konto" (unter `/v2/konto`).
+  „Panel-Zugänge" steht direkt unter „Benutzer & SSH": Die zwei Kontenarten sind
+  die häufigste Verwechslung im Panel.
+
+- **Eine abgelehnte Rechtefrage ist kein Ladefehler mehr.** Antwortet die
+  Schnittstelle mit 403, sagt die Seite den Grund und stellt keinen Knopf
+  „Erneut versuchen" daneben — er brächte nie ein anderes Ergebnis.
+
+### Hinweise zu diesem Stand
+
+- **Die alte Oberfläche ist unverändert.** Kein Diff in
+  `internal/ui/templates`, `internal/ui/static`, `handlers_app.go`,
+  `handlers_reset.go`, `handlers_cert.go`, `handlers_update.go`,
+  `handlers_passkey.go` und `tlsctl.go`. In `handlers_account.go` steht
+  ausschließlich eine neue Methode, die nur die neue Fläche ruft.
+
+- **`internal/privops` und `internal/store` wachsen rein additiv.** Neu sind
+  `LoginShells` und `Groups` (Auskünfte für die Auswahlfelder beim Anlegen eines
+  Systemkontos) und `store.DeleteUser`. Nichts davon ändert bestehendes
+  Verhalten; anders als in rc.3 wirkt diesmal keine Korrektur auf beide Flächen.
+
+- **`packaging/min-upgradable-from` bleibt leer und damit ohne Grenze.** Dieser
+  Stand bringt keine Migration mit — kein neues `internal/store/migrations/*` —,
+  ein Rückweg auf 0.4.0-rc.3 trifft also kein neueres Schema. Die ersten
+  Migrationen kommen mit dem Verlauf der Vorgänge und den API-Tokens; dann gehört
+  dort ein Wert hinein.
+
+- **Nicht gegen echte Systeme geprüft**, weil es sie in der Bauumgebung nicht
+  gibt: `useradd`/`usermod`, `/etc/shadow`, ein echter ACME-Server sowie
+  `systemd-run` samt Signaturprüfung des Selbstupdates. Geprüft sind die Aufträge
+  an privops, die Ablehnungen und die Anzeige — für die drei Flächen, die diese
+  Werkzeuge brauchen, ist ein Durchlauf auf einem echten Server vor der Freigabe
+  1.0 vorgesehen.
+
 ## [0.4.0-rc.3] — 2026-07-30
 
 Das größte Modul der neuen Oberfläche und das einzige echte technische Risiko

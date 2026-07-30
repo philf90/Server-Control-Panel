@@ -26,6 +26,12 @@ export type Seite =
   | "logs"
   | "firewall"
   | "dateien"
+  | "audit"
+  | "benutzer"
+  | "zugaenge"
+  | "konto"
+  | "zertifikate"
+  | "panelupdate"
   | "bald";
 
 /** gebauteSeiten sind die Kennungen, die eine eigene Seite haben. Als Objekt und
@@ -37,6 +43,12 @@ const gebauteSeiten: Record<string, Seite> = {
   logs: "logs",
   firewall: "firewall",
   dateien: "dateien",
+  audit: "audit",
+  benutzer: "benutzer",
+  zugaenge: "zugaenge",
+  konto: "konto",
+  zertifikate: "zertifikate",
+  updates: "panelupdate",
 };
 
 /** angekuendigt sind die Module, die es noch nicht gibt, die aber im Menü stehen.

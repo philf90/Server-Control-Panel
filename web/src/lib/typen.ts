@@ -660,3 +660,458 @@ export type Textantwort = {
   text: Dateitext;
   pruefung?: Pruefung;
 };
+
+// -------------------------------------------------------------------- Audit ---
+
+/** Auditzeile ist ein Eintrag des Revisionsprotokolls. */
+export type Auditzeile = {
+  id: number;
+  zeit: string;
+  /** at ist der Tag (2026-07-30) zum Gruppieren; zeit die Anzeige. */
+  at: string;
+  akteur: string;
+  aktion: string;
+  /** familie ist der Teil der Aktion vor dem ersten Punkt — die Zuordnung zum
+   *  Modul. Der Server bildet sie, damit Filterleiste und Zeile dieselbe Regel
+   *  benutzen. */
+  familie: string;
+  ziel: string;
+  ergebnis: "ok" | "denied" | "error";
+  /** stufe ist die Klasse für die Einfärbung. „denied" ist eine Warnung und kein
+   *  Fehler: Es heißt, dass die Politik gegriffen hat. */
+  stufe: "gut" | "warn" | "schlecht";
+  ip: string;
+  detail: string;
+};
+
+/** Audit ist die Antwort von GET /api/v1/audit. */
+export type Audit = {
+  zeilen: Auditzeile[];
+  /** weiter ist die ID für die nächste Seite, 0 am Ende. Geblättert wird über
+   *  eine ID und nicht über einen Versatz: Das Protokoll wächst, während man
+   *  darin liest. */
+  weiter: number;
+  akteure: string[];
+  familien: string[];
+  filter: {
+    akteur: string;
+    familie: string;
+    ergebnis: string;
+    suche: string;
+  };
+};
+
+// ------------------------------------------------------- Systembenutzer ---
+
+/** Systemkonto ist ein Konto des WIRTSYSTEMS — nicht des Panels. Der Unterschied
+ *  ist wichtig: Ein Systemkonto kommt über SSH auf den Server, ein Panelkonto in
+ *  diese Fläche. */
+export type Systemkonto = {
+  name: string;
+  uid: number;
+  gid: number;
+  comment: string;
+  home: string;
+  shell: string;
+  groups: string[] | null;
+  locked: boolean;
+  system: boolean;
+  /** protected: Das Konto lässt sich über das Panel nicht sperren oder löschen
+   *  (root). Die Prüfung sitzt in privops und greift ohnehin — aber eine
+   *  Oberfläche, die „löschen" anbietet und dann verweigert, ist die schlechteste
+   *  der möglichen Antworten. */
+  protected: boolean;
+  ssh_keys: number;
+  has_shell: boolean;
+  /** art ordnet ein: „mensch" mit Anmeldeschale, „dienst" ohne. */
+  art: "mensch" | "dienst";
+  zustand: "gut" | "warn" | "schlecht";
+  /** ohne_schluessel heißt: Dieses Konto kann sich nicht anmelden. Nur bei
+   *  Menschenkonten gesetzt — bei einem Dienstkonto ist es die Bauart. */
+  ohne_schluessel: boolean;
+  aktionen: Kontohandgriff[];
+};
+
+export type Kontohandgriff = "sperren" | "entsperren" | "loeschen" | "schluessel";
+
+/** Systembenutzer ist die Antwort von GET /api/v1/system-users. */
+export type Systembenutzer = {
+  konten: Systemkonto[];
+  zaehler: {
+    gesamt: number;
+    menschen: number;
+    dienste: number;
+    gesperrt: number;
+    ohne_schluessel: number;
+  };
+  /** schalen und gruppen füllen die Auswahlfelder. Sie kommen aus /etc/shells
+   *  und /etc/group — denselben Quellen, gegen die der Server prüft. Ein
+   *  Auswahlfeld, das etwas vorschlägt, das der Server ablehnt, wäre die
+   *  schlechteste Bedienhilfe. */
+  schalen: string[];
+  gruppen: string[];
+  fehler: string;
+};
+
+/** Schluessel ist ein Eintrag aus authorized_keys. */
+export type Schluessel = {
+  type: string;
+  comment: string;
+  fingerprint: string;
+  bits: number;
+  /** staerke ist eine Einschätzung in Worten — „2048 Bit RSA" ist für die
+   *  meisten keine Aussage, „nach heutigem Maß knapp" schon. */
+  staerke: string;
+  schwach: boolean;
+};
+
+export type Schluesselliste = {
+  konto: string;
+  schluessel: Schluessel[];
+  /** datei ist der Ort, an dem sie stehen. Wer den Zugang verliert, muss wissen,
+   *  wo er von Hand nachsehen kann. */
+  datei: string;
+};
+
+/** Kontoauftrag ist der Körper der verändernden Endpunkte. */
+export type Kontoauftrag = {
+  name: string;
+  notiz: string;
+  schale: string;
+  gruppen: string[];
+  schluessel: string;
+  fingerprint: string;
+  /** gesperrt ist der GEWÜNSCHTE Zustand und kein Umschalter: Bei zwei offenen
+   *  Browserfenstern ist „umschalten" nicht bestimmt. */
+  gesperrt: boolean;
+  home_entfernen: boolean;
+};
+
+export type Kontoantwort = {
+  meldung: string;
+  konto?: Systemkonto;
+  /** hinweis ist eine Anmerkung, die kein Fehler ist — „das Konto hat noch
+   *  keinen Schlüssel und kommt damit nicht auf den Server". */
+  hinweis?: string;
+};
+
+// -------------------------------------------------------- Panel-Zugänge ---
+
+/** Panelkonto ist ein Konto DIESER Oberfläche — nicht des Wirtsystems.
+ *
+ *  Was hier NICHT steht, ist die Aussage des Typs: kein Passwort-Hash, kein
+ *  TOTP-Geheimnis. Der Server zählt die Felder ausdrücklich auf, statt store.User
+ *  mit `json:"-"` an den heiklen Stellen einzubetten — kommt dort ein Feld dazu,
+ *  wandert es nicht mit. Diese Seite hier ist die Gegenprobe: Sie kennt nichts
+ *  anderes. */
+export type Panelkonto = {
+  id: number;
+  name: string;
+  rolle: string;
+  /** rolle_was erklärt die Rolle in einem Satzteil. „admin" sagt nicht, was es
+   *  bedeutet. */
+  rolle_was: string;
+  zustand: "gut" | "warn" | "schlecht";
+  zustand_text: string;
+  gesperrt: boolean;
+  zweiter_faktor: boolean;
+  /** einmalpasswort heißt: Das aktuelle Passwort kommt aus einer Zurücksetzung
+   *  und wird bei der nächsten Anmeldung ersetzt. */
+  einmalpasswort: boolean;
+  passkeys: number;
+  angelegt: string;
+  /** letzte_anmeldung ist leer, wenn sich das Konto noch nie angemeldet hat. Das
+   *  ist eine Aussage und kein fehlender Wert. */
+  letzte_anmeldung: string;
+  /** ich markiert das eigene Konto. Es hat hier keine Handgriffe: Wer sein
+   *  eigenes Passwort ändern will, tut das auf der Kontoseite, und sperren oder
+   *  löschen wäre ein Selbstausschluss. */
+  ich: boolean;
+  /** letzter_owner heißt: Dieses Konto darf nicht gelöscht werden, weil danach
+   *  niemand mehr Konten verwalten könnte. */
+  letzter_owner: boolean;
+  aktionen: Panelhandgriff[];
+};
+
+export type Panelhandgriff =
+  | "sperren"
+  | "freigeben"
+  | "loeschen"
+  | "passwort"
+  | "zweiter-faktor"
+  | "passkeys";
+
+/** Panelzugaenge ist die Antwort von GET /api/v1/panel-users. */
+export type Panelzugaenge = {
+  konten: Panelkonto[];
+  /** ich ist die Kennung des eigenen Kontos — damit die eigene Zeile ohne
+   *  Namensvergleich erkennbar ist. */
+  ich: number;
+  zaehler: {
+    gesamt: number;
+    owner: number;
+    gesperrt: number;
+    /** offen zählt Konten, deren Einrichtung noch nicht durch ist. Die Zahl, die
+     *  eine Nachfrage nach sich zieht. */
+    offen: number;
+  };
+  rollen: { wert: string; was: string }[];
+  /** passkeys_moeglich sagt, ob dieses Panel überhaupt Passkeys kennt. Ist es
+   *  abgeschaltet, fehlt der Handgriff — statt eines Knopfes, der nichts
+   *  findet. */
+  passkeys_moeglich: boolean;
+};
+
+/** Panelauftrag ist der Körper der verändernden Endpunkte. */
+export type Panelauftrag = {
+  name: string;
+  rolle: string;
+  /** gesperrt ist der GEWÜNSCHTE Zustand und kein Umschalter. */
+  gesperrt: boolean;
+  /** eigenes_passwort ist das Passwort DES OWNERS, nicht des Zielkontos: die
+   *  zweite Schranke vor jeder Zurücksetzung. Ein übernommenes Cookie allein soll
+   *  keine fremden Konten übernehmen können. */
+  eigenes_passwort: string;
+};
+
+export type Panelantwort = {
+  meldung: string;
+  konto?: Panelkonto;
+  /** einmalpasswort steht GENAU EINMAL hier und nirgends sonst: nicht im
+   *  Protokoll, nicht in einer zweiten Antwort. Wer es verliert, setzt erneut
+   *  zurück. */
+  einmalpasswort?: string;
+  neues_konto?: string;
+  hinweis?: string;
+};
+
+// --------------------------------------------------------- Eigenes Konto ---
+
+/** EigenesKonto ist die Antwort von GET /api/v1/account. */
+export type EigenesKonto = {
+  name: string;
+  rolle: string;
+  rolle_was: string;
+  angelegt: string;
+  zweiter_faktor: boolean;
+  /** codes_offen ist die Zahl der noch unbenutzten Wiederherstellungscodes. Bei
+   *  0 ist der Weg zurück ins Konto verstellt, wenn das Telefon abhandenkommt —
+   *  deshalb steht die Zahl überhaupt da. */
+  codes_offen: number;
+  wechselzwang: boolean;
+  sitzungen: Sitzungszeile[];
+  andere: number;
+  passkeys_moeglich: boolean;
+  passkeys: Passkey[];
+  /** wechsel steht, wenn ein Wechsel des zweiten Faktors angefangen ist. Der
+   *  Zustand liegt auf dem SERVER, nicht im Browser: Nach einem Neuladen ist das
+   *  die einzige Auskunft darüber, dass noch etwas offen ist. */
+  wechsel?: ZweiterFaktorWechsel;
+};
+
+/** Sitzungszeile ist eine offene Sitzung des eigenen Kontos.
+ *
+ *  Die Liste ist mehr als Bequemlichkeit: Ein entwendetes Sitzungscookie
+ *  hinterlässt sonst keine Spur, die dem Betroffenen auffiele. */
+export type Sitzungszeile = {
+  id: string;
+  kurz: string;
+  ip: string;
+  programm: string;
+  seit: string;
+  zuletzt: string;
+  laeuft_ab: string;
+  /** diese markiert die Sitzung, in der man gerade sitzt. Sie zu beenden ist ein
+   *  Abmelden, und die Oberfläche sagt das auch so. */
+  diese: boolean;
+};
+
+export type ZweiterFaktorWechsel = {
+  geheimnis: string;
+  geheimnis_text: string;
+  uri: string;
+  /** qr ist der PFAD zum Bild, nicht das Bild. Die Richtlinie erlaubt beides
+   *  (img-src 'self' data:), aber ein data:-URI hätte das Geheimnis ein zweites
+   *  Mal in der Antwort stehen lassen. */
+  qr: string;
+  laeuft_ab: string;
+};
+
+export type Passkey = {
+  id: number;
+  name: string;
+  /** synced: geräteübergreifend gesichert (Cloud-Passkey) oder an ein Gerät
+   *  gebunden. Der Unterschied gehört in die Anzeige — ein gerätegebundener
+   *  Schlüssel ist mit dem Gerät verloren. */
+  synced: boolean;
+  angelegt: string;
+  /** zuletzt ist leer, wenn sich mit dem Passkey noch niemand angemeldet hat.
+   *  Ein hinterlegter Schlüssel, der nie benutzt wurde, ist ungeprüft. */
+  zuletzt: string;
+};
+
+/** Kontoauftrag2 ist der Körper der verändernden Endpunkte des eigenen Kontos.
+ *
+ *  Der Name mit der Zwei ist keine Verlegenheit: „Kontoauftrag" ist an die
+ *  Systemkonten vergeben, und dieselbe Verwechslung, die die Oberfläche
+ *  auseinanderhält, soll sich hier nicht durch gleiche Namen wieder einschleichen.
+ *  Gelesen wird der Typ nur an einer Stelle. */
+export type Kontoauftrag2 = {
+  /** passwort ist das AKTUELLE Passwort — die Schranke vor jeder Änderung an
+   *  einem Anmeldeweg. Es wird nicht gespeichert, nicht in die Adresse
+   *  geschrieben und nach dem Aufruf im Feld gelöscht. */
+  passwort: string;
+  neu: string;
+  neu_wiederholt: string;
+  code: string;
+  sitzung: string;
+  name: string;
+};
+
+export type Kontoantwort2 = {
+  meldung: string;
+  konto?: EigenesKonto;
+  /** codes stehen GENAU EINMAL hier. Wer sie verliert, erzeugt neue. */
+  codes?: string[];
+  /** csrf ist ein frisches Sitzungstoken. Gesetzt, wenn die Handlung die eigene
+   *  Sitzung erneuert hat — nach einer Passwortänderung sind alle Sitzungen des
+   *  Kontos beendet, auch die eigene. Ohne dieses Feld schlüge der nächste
+   *  schreibende Aufruf fehl, nach einer Handlung, die geglückt ist. */
+  csrf?: string;
+  /** abgemeldet heißt: Diese Sitzung ist beendet. Die Oberfläche führt dann zur
+   *  Anmeldung. */
+  abgemeldet?: boolean;
+  hinweis?: string;
+};
+
+/** PasskeyBeginn ist die Antwort von …/passkeys/register/begin.
+ *
+ *  optionen sind die Optionen für navigator.credentials.create, durchgereicht wie
+ *  go-webauthn sie baut — bewusst nicht nachgebaut: Eine Nachbildung wäre eine
+ *  zweite Stelle, die bei jeder Erweiterung des Standards nachgezogen werden
+ *  müsste. */
+export type PasskeyBeginn = {
+  ticket: string;
+  optionen: Record<string, unknown>;
+};
+
+// ------------------------------------------------------------- Zertifikat ---
+
+/** Wahl ist ein wählbarer Wert mit seiner Erklärung. Vom Server, weil dort die
+ *  Bedingungen bekannt sind: HTTP-01 braucht Port 80, DNS-01 einen Anbieter. */
+export type Wahl = { wert: string; name: string; was: string };
+
+/** Zertifikat ist die Antwort von GET /api/v1/certificate. */
+export type Zertifikat = {
+  /** modus ist die EINSTELLUNG ("selfsigned" | "acme"), quelle die Herkunft des
+   *  gerade ausgelieferten Zertifikats. Beides fällt auseinander, solange kein
+   *  Bezug geglückt ist — und genau dieser Zwischenzustand ist der, den jemand
+   *  erklärt bekommen möchte. */
+  modus: string;
+  quelle: string;
+  zustand: "gut" | "warn" | "schlecht";
+  zustand_text: string;
+
+  datei: string;
+  inhaber: string;
+  aussteller: string;
+  namen: string[];
+  fingerprint: string;
+  gueltig_ab: string;
+  gueltig_bis: string;
+  /** tage_uebrig kann negativ sein. */
+  tage_uebrig: number;
+  selbstsigniert: boolean;
+  lesefehler: string;
+
+  email: string;
+  /** namenstext ist die Eingabefassung: ein Name je Zeile. Leer heißt „der
+   *  vollqualifizierte Rechnername". */
+  namenstext: string;
+  geltende_namen: string[];
+  pruefmethode: string;
+  anbieter: string;
+  hook_setzen: string;
+  hook_aufraeumen: string;
+  /** token_hinterlegt: Das Token selbst kommt nie zurück, sein Vorhandensein
+   *  schon — sonst müsste man es bei jedem Speichern neu eingeben. */
+  token_hinterlegt: boolean;
+  testverzeichnis: boolean;
+  /** verwaltete_datei ist die Datei, in der die Einstellungen landen. Sie steht
+   *  in der Oberfläche, weil das Panel nichts versteckt. */
+  verwaltete_datei: string;
+
+  bezug_laeuft: boolean;
+  bezug_zeit: string;
+  bezug_fehler: string;
+  job: Job | null;
+
+  pruefmethoden: Wahl[];
+  anbieter_liste: Wahl[];
+};
+
+/** Zertifikatauftrag ist der Körper von POST /api/v1/certificate. */
+export type Zertifikatauftrag = {
+  modus: string;
+  email: string;
+  namenstext: string;
+  pruefmethode: string;
+  anbieter: string;
+  hook_setzen: string;
+  hook_aufraeumen: string;
+  /** token leer heißt: das hinterlegte behalten. Ein leeres Feld darf keinen
+   *  funktionierenden Zugang löschen. */
+  token: string;
+  testverzeichnis: boolean;
+};
+
+export type Zertifikatantwort = {
+  meldung: string;
+  zertifikat?: Zertifikat;
+  hinweis?: string;
+};
+
+// ----------------------------------------------------------------- Update ---
+
+/** Panelupdate ist die Antwort von GET /api/v1/update. */
+export type Panelupdate = {
+  /** fassung ist die LAUFENDE Fassung. Sie ist die Antwort auf die Frage, ob ein
+   *  Update durch ist: Wer nach dem Neustart eine andere zurückbekommt, weiß es —
+   *  denn sie kommt aus dem neuen Programm. */
+  fassung: string;
+  kanal: string;
+  quelle: string;
+  /** geprueft_am ist leer, solange in dieser Laufzeit nicht geprüft wurde. Das
+   *  heißt „noch nicht gefragt" und nicht „kein Update". */
+  geprueft_am: string;
+  verfuegbar: string;
+  erschienen: string;
+  notizen: string;
+  dringlichkeit: string;
+  update_da: boolean;
+  pruef_fehler: string;
+  laeuft: boolean;
+  ziel: string;
+  zeilen: string[];
+  vorher: string;
+  rueckweg_moeglich: boolean;
+  /** darf_ausloesen kommt vom Server: Nur die Owner-Rolle darf Update und
+   *  Rückweg anstoßen. Die Oberfläche soll die Regel nicht ein zweites Mal
+   *  kennen. */
+  darf_ausloesen: boolean;
+};
+
+/** Updatestand ist die Antwort des Pollers. Absichtlich klein — sie wird im
+ *  Sekundentakt gefragt, auch während der Dienst neu startet. */
+export type Updatestand = {
+  fassung: string;
+  laeuft: boolean;
+  ziel: string;
+  zeilen: string[];
+};
+
+export type Updateantwort = {
+  meldung: string;
+  update?: Panelupdate;
+  hinweis?: string;
+};

@@ -194,6 +194,38 @@ die Cron/Timer-Familie, alles andere ist Umbau über dem Bestand.
 weitere baut auf API, Job-Modell und neuer Oberfläche auf — in umgekehrter
 Reihenfolge würde jedes Modul zweimal gebaut.*
 
+#### Stand der Parität
+
+Die Parität ist als Liste der heutigen Seiten definiert und abzuhaken — das ist
+die Gegenmaßnahme gegen das Risiko „die 0.4 wird zur Dauerbaustelle" (siehe
+Abschnitt 11). Zur Fassung 0.4.0-rc.4 steht sie vollständig:
+
+| Modul der alten Fläche | Neue Fläche | Anmerkung |
+|---|---|---|
+| Lage (`/`) | `/v2/` | Telemetrie-Kacheln, Urteil, Handlungsbedarf, Dateisysteme, Prozesse |
+| Dienste | `/v2/dienste` | Werkbank mit Inspektor |
+| Pakete | `/v2/pakete` | erstes Modul im Job-Modell |
+| Konten (System) | `/v2/benutzer` | Systemkonten und SSH-Schlüssel |
+| Dateien | `/v2/dateien` | einschließlich Editor (CodeMirror im Bundle) |
+| Firewall | `/v2/firewall` | mit Probe und Rückweg |
+| TLS | `/v2/zertifikate` | Bezug über das Job-Modell statt eigenem Strom |
+| Zugänge (Panel) | `/v2/zugaenge` | nur Owner-Rolle, Menüpunkt entsprechend gefiltert |
+| Audit | `/v2/audit` | Filter auf dem Server, Blätterung über die Kennung |
+| Journal | `/v2/logs` | mit Verfolgen |
+| Updates | `/v2/updates` | Poller statt Strom — der Vorgang startet den Dienst neu |
+| Konto (eigenes) | `/v2/konto` | Passwort, zweiter Faktor, Passkeys, Sitzungen |
+
+**Nicht übertragen, und zwar absichtlich:** Anmeldung, Erstinstallation, der
+erzwungene Passwortwechsel und der Weg für ein vergessenes Passwort bleiben
+server-gerenderte Vorlagen. Sie liegen vor der Anmeldung oder an ihrer Stelle,
+müssen ohne JavaScript laufen und sind der Grund für das Hybrid-Routing aus
+Abschnitt 8.1.
+
+Offen für die 0.4 bleiben damit die zwei Basis-Neuerungen, die keine Parität
+sind, sondern Zuwachs: **Cron & systemd-Timer** (neue privops-Familie) und
+**API-Tokens** (erste Store-Erweiterung). Danach folgt das Umschalten: `/v2` wird
+`/`, die alten Vorlagen fallen in einem Zug, und die Sitzungen werden verworfen.
+
 ### 0.5 — Docker
 
 Container, Images, Volumes, Netzwerke, Compose-Stacks, Container-Logs und
@@ -606,8 +638,27 @@ gehört der Kachelzahl.
 2. **Seitenleiste** links, 240 px, einklappbar auf eine 64-px-Symbolschiene.
    Vier Gruppen: **System** (Übersicht, Dienste, Pakete, Cron & Timer),
    **Apps** (Docker, Webserver, Datenbanken, Backups), **Sicherheit**
-   (Firewall, Benutzer & SSH, Zertifikate), **Betrieb** (Dateien, Logs, Audit,
-   Einstellungen). Warnpunkt je Eintrag wie bisher.
+   (Firewall, Benutzer & SSH, Panel-Zugänge, Zertifikate), **Betrieb**
+   (Dateien, Logs, Audit, Eigenes Konto, Updates). Warnpunkt je Eintrag wie
+   bisher.
+
+   Der Punkt hieß im Entwurf „Einstellungen" und zeigte bis 0.4.0-rc.3 auf
+   `/users` — die Kontenliste. Der Name versprach etwas anderes, als dahinter
+   stand. Aufgeteilt in „Panel-Zugänge" (Konten dieser Oberfläche, der
+   Owner-Rolle vorbehalten) und „Eigenes Konto" (jede Rolle, weil jeder sein
+   eigenes Passwort und seinen zweiten Faktor wechseln können muss —
+   `apiEigenerZugriff` prüft dort nur das Sitzungstoken, die Schranke ist das
+   aktuelle Passwort); „Panel-Zugänge" steht
+   absichtlich direkt unter „Benutzer & SSH", weil die zwei Kontenarten die
+   häufigste Verwechslung im Panel sind und zwei Menüpunkte nebeneinander mehr
+   über den Unterschied sagen als jeder Erklärsatz auf einer der beiden Seiten.
+
+   Was die Rolle nicht erreicht, steht nicht in der Leiste und nicht in der
+   Befehlspalette. Gefiltert wird in `web/src/lib/ziele.ts` und nicht an beiden
+   Stellen: Zwei Filter derselben Regel laufen auseinander, und der übersehene
+   wäre die Palette — dort fällt ein Ziel zu viel niemandem auf, bis es
+   angeklickt wird. Verbindlich bleibt die Route (`apiOwner`), die Leiste ist
+   Bedienhilfe.
 3. **Inhalt** mit Brotkrume, Seitentitel und den Mustern aus dem
    Komponentenvorrat.
 4. **Protokollzeile** unten: der zuletzt ausgeführte Befehl mit Exit-Code und

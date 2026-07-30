@@ -82,6 +82,12 @@ async function main() {
   seite.on("request", (r) => angefragt.push(r.url()));
 
   const fehlend = [];
+  // absichtlich sammelt Pfade, an denen dieser Lauf SELBST eine Ablehnung
+  // provoziert — etwa einen falschen Bestätigungscode. Eine solche Ablehnung ist
+  // das geprüfte Verhalten und keine fehlende Antwort. Ausgenommen wird der Pfad
+  // und nicht der Statuscode: „400 überall in Ordnung" machte den Sammler blind
+  // für die Fehler, um die es ihm geht.
+  const absichtlich = [];
   seite.on("response", (r) => {
     // Zwei Statuscodes sind KEINE fehlende Antwort, sondern eine Auskunft, um die
     // ausdrücklich gebeten wurde:
@@ -92,6 +98,7 @@ async function main() {
     //         Stand statt ihn zu überschreiben (api_v1_dateien_editor.go).
     //
     // Sie hier mitzuzählen wäre Rauschen, das eine echte 404 verdeckt.
+    if (absichtlich.some((p) => r.url().includes(p))) return;
     if (r.status() >= 400 && r.status() !== 409 && r.status() !== 412) {
       fehlend.push(`${r.status()} ${r.url()}`);
       gesammelt.push(`response: ${r.status()} ${r.url()}`);
@@ -242,6 +249,13 @@ async function main() {
   );
   palette.zieleGesamt = await seite.evaluate(
     () => document.querySelectorAll('[role="option"]').length,
+  );
+  // Und dieselbe Zahl aus der Seitenleiste. Verglichen wird gegeneinander und
+  // nicht gegen eine feste Zahl: Ein neues Modul erschien sonst in der Leiste,
+  // aber nicht in der Suche — genau der Fehler, den lib/ziele.ts verhindern
+  // soll —, und eine Zahl im Test nachzuziehen ist kein Nachweis.
+  palette.zieleInLeiste = await seite.evaluate(
+    () => document.querySelectorAll(".seitenleiste nav a").length,
   );
 
   // Ein Suchwort, das NICHT im Namen steht: "nginx" muss den Webserver finden.
@@ -1570,6 +1584,883 @@ async function main() {
     bearbeiten: new URL(location.href).searchParams.get("bearbeiten") ?? "",
   }));
 
+  // 12d. Das Modul Audit. Zwei Dinge sind hier nur im Browser zu sehen: dass der
+  //      Filter in der ADRESSE steht (ein Verweis auf „alles, was philipp am
+  //      Dateimanager abgelehnt bekam" ist damit teilbar), und dass „weitere 100
+  //      laden" ANHÄNGT statt zu ersetzen — ein Seitenwechsel, der die Liste
+  //      austauscht, verliert die Zeile, wegen der man weitergeblättert hat.
+  const audit = {};
+  await seite.goto(`${basis}/v2/audit`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  audit.zeilenAnfangs = await seite.evaluate(
+    () => document.querySelectorAll("table.tabelle tbody tr").length,
+  );
+  audit.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  // Es gibt keinen Knopf, der etwas ändert. Das ist die Aussage des Moduls, und
+  // sie ist auch eine Aussage über die Fläche: kein „löschen", kein „bearbeiten".
+  audit.knoepfe = await seite.evaluate(() =>
+    [...document.querySelectorAll(".knopf")].map((b) => b.textContent.trim()),
+  );
+
+  // Nach Ergebnis filtern. Der Filter wandert in die Adresse.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".stufen button")].find((x) =>
+      x.textContent.includes("abgelehnt"),
+    );
+    b.click();
+  });
+  await seite.waitForFunction(
+    () => new URL(location.href).searchParams.get("ergebnis") === "denied",
+    null,
+    { timeout: 5000 },
+  );
+  await seite.waitForTimeout(300);
+  audit.nachFilter = await seite.evaluate(() => ({
+    adresse: new URL(location.href).searchParams.get("ergebnis") ?? "",
+    ergebnisse: [...document.querySelectorAll("table.tabelle tbody tr .zustand")].map((z) =>
+      z.textContent.trim(),
+    ),
+  }));
+
+  // Ein Neuladen zeigt dasselbe — der Filter ist Zustand der Adresse, nicht der
+  // Seite.
+  await seite.reload({ waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".stufen button.an", { timeout: 5000 });
+  audit.nachNeuladen = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll(".stufen button.an")]
+        .map((b) => b.textContent.trim())
+        .join(","),
+  );
+
+  // Filter zurücksetzen.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".knopf")].find((x) =>
+      x.textContent.includes("zurücksetzen"),
+    );
+    b.click();
+  });
+  await seite.waitForFunction(
+    () => new URL(location.href).searchParams.get("ergebnis") === null,
+    null,
+    { timeout: 5000 },
+  );
+  await seite.waitForTimeout(300);
+  audit.nachZuruecksetzen = await seite.evaluate(
+    () => document.querySelectorAll("table.tabelle tbody tr").length,
+  );
+
+  // Die Einzelheiten klappen auf. Sie stehen nicht in der Zeile, weil ein Detail
+  // bis 1024 Zeichen lang sein darf und die Liste dann keine mehr wäre.
+  await seite.click("table.tabelle tbody .zeile");
+  await seite.waitForSelector("tr.einzelheiten", { timeout: 5000 });
+  audit.einzelheiten = await seite.evaluate(() => ({
+    paare: document.querySelectorAll("tr.einzelheiten dl.kv dt").length,
+    aufgeklappt: document.querySelector('table.tabelle .zeile[aria-expanded="true"]') !== null,
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-audit.png`,
+      fullPage: true,
+    });
+  }
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  audit.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 12e. Benutzer & SSH. Der Kern ist die Frage beim LETZTEN Schlüssel: Sie ist
+  //      eine andere als „einen von dreien entfernen", weil danach das Konto
+  //      keinen Zugang mehr hat. Und die Gegenprobe an root: Ein geschütztes Konto
+  //      darf keinen Knopf zeigen, der dann verweigert.
+  const konten = {};
+  await seite.goto(`${basis}/v2/benutzer`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  konten.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  konten.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector(".zeile")?.textContent.trim() ?? "",
+      warn: tr.querySelector("td:nth-child(3) .zustand.warn") !== null,
+    })),
+  );
+  // Die Zähler sind Filter.
+  konten.filter = await seite.evaluate(() =>
+    [...document.querySelectorAll(".stufen button")].map((b) =>
+      b.textContent.replace(/\s+/g, " ").trim(),
+    ),
+  );
+
+  // root: geschützt, also keine verändernden Knöpfe.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find(
+      (x) => x.textContent.trim() === "root",
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  konten.rootHandgriffe = await seite.evaluate(() =>
+    [...document.querySelectorAll(".inspektor .aktionen .knopf")].map((b) =>
+      b.textContent.trim(),
+    ),
+  );
+  konten.rootHinweis = await seite.evaluate(() =>
+    [...document.querySelectorAll(".inspektor .detail")].some((p) =>
+      p.textContent.includes("nicht sperren"),
+    ),
+  );
+
+  // philipp: alles da, und die Schlüssel stehen im Inspektor.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find(
+      (x) => x.textContent.trim() === "philipp",
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor .schluesselblock", { timeout: 5000 });
+  konten.philipp = await seite.evaluate(() => ({
+    handgriffe: [...document.querySelectorAll(".inspektor .aktionen .knopf")].map((b) =>
+      b.textContent.trim(),
+    ),
+    schluessel: document.querySelectorAll(".inspektor .schluesselliste li").length,
+    // Der Ort der Datei steht dabei: Wer den Zugang verliert, muss wissen, wo er
+    // von Hand nachsehen kann.
+    datei: [...document.querySelectorAll(".inspektor .schluesselblock .detail")].some((p) =>
+      p.textContent.includes("authorized_keys"),
+    ),
+    // Bei genau einem Schlüssel steht die Anmerkung da, BEVOR jemand klickt.
+    letzterHinweis:
+      document.querySelector(".inspektor .schluesselblock .anmerkung")?.textContent.trim() ?? "",
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-benutzer.png`,
+      fullPage: true,
+    });
+  }
+
+  // Und jetzt der Punkt: Der letzte Schlüssel verlangt den Kontonamen.
+  await seite.click(".inspektor .schluesselliste .knopf");
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  konten.letzterSchluessel = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      tippfeld: d.querySelector(".tippen") !== null,
+      gesperrt: [...d.querySelectorAll(".knopf")].find((b) =>
+        b.textContent.includes("entfernen"),
+      )?.disabled,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  konten.nachAbbruch = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    // Der Schlüssel steht noch da. DAS ist die Prüfung, die zählt.
+    schluessel: document.querySelectorAll(".inspektor .schluesselliste li").length,
+  }));
+
+  // Die Maske zum Anlegen: Auswahlfelder und kein Freitext für Schale und Gruppen.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".werkzeuge .knopf")].find((x) =>
+      x.textContent.includes("Konto anlegen"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector("form.anlegen", { timeout: 5000 });
+  konten.anlegen = await seite.evaluate(() => {
+    const f = document.querySelector("form.anlegen");
+    return {
+      auswahlfelder: f.querySelectorAll("select").length,
+      hinweis: f.querySelector(".detail")?.textContent.trim() ?? "",
+      schluesselfeld: f.querySelector("textarea") !== null,
+    };
+  });
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  konten.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 12f. Panel-Zugänge. Vier Dinge sind hier nur im Browser zu sehen:
+  //
+  //      1. Die eigene Zeile trägt eine Marke und KEINE Handgriffe. Ein Modul,
+  //         das sie einfach weglässt, sieht halb gebaut aus.
+  //      2. Die Schranke vor den Zurücksetzungen steht offen da, und ihre Knöpfe
+  //         sind gesperrt, solange das Feld leer ist. Das ist der Unterschied
+  //         zwischen einer sichtbaren Bedingung und einem 403 nach dem Klick.
+  //      3. Das Einmalpasswort steht in einem Dialog, den Escape NICHT schließt.
+  //         Es kommt kein zweites Mal; ein Band, das beim nächsten Klick
+  //         verschwindet, wäre die falsche Form.
+  //      4. Der Dialog sitzt in der Mitte. Dieselbe Messung wie bei der
+  //         Rückfrage, und aus demselben Grund: `* { margin: 0 }` hat
+  //         margin:auto schon einmal geschlagen, und gesehen hat das erst ein
+  //         Bildschirmfoto.
+  const zugaenge = {};
+  await seite.goto(`${basis}/v2/zugaenge`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  zugaenge.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  zugaenge.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector(".zeile")?.textContent.trim() ?? "",
+      ich: tr.querySelector(".namenszelle .marke") !== null,
+      zustand: tr.querySelector("td:nth-child(5) .zustand")?.textContent.trim() ?? "",
+    })),
+  );
+  // Der Menüpunkt ist da — für die Owner-Rolle. Die Gegenprobe steht in 12g.
+  zugaenge.imMenue = await seite.evaluate(
+    () => document.querySelector('.seitenleiste a[href="/v2/zugaenge"]') !== null,
+  );
+
+  // Das eigene Konto: markiert, ohne Handgriffe, mit dem Satz, der das erklärt.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find(
+      (x) => x.textContent.trim() === "philipp",
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  zugaenge.eigenes = await seite.evaluate(() => ({
+    handgriffe: document.querySelectorAll(".inspektor .aktionen .knopf").length,
+    schranke: document.querySelector(".inspektor .schranke") !== null,
+    hinweis:
+      document.querySelector(".inspektor .anmerkung")?.textContent.trim() ?? "",
+  }));
+
+  // Und das fremde Konto: alles da, und die Schranke davor.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find(
+      (x) => x.textContent.trim() === "vertretung",
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor .schranke", { timeout: 5000 });
+  zugaenge.fremdes = await seite.evaluate(() => {
+    const schranke = document.querySelector(".inspektor .schranke");
+    return {
+      handgriffe: [...document.querySelectorAll(".inspektor .handgriffe .knopf")].map((b) =>
+        b.textContent.trim(),
+      ),
+      // Der Satz sagt, WESSEN Passwort gemeint ist — die häufigste Verwechslung
+      // an dieser Stelle.
+      warum: schranke.querySelector(".detail")?.textContent.trim() ?? "",
+      feldTyp: schranke.querySelector("input")?.getAttribute("type") ?? "",
+      // Gesperrt, solange das Feld leer ist.
+      gesperrt: [...schranke.querySelectorAll(".knopf")].map((b) => b.disabled),
+      knoepfe: [...schranke.querySelectorAll(".knopf")].map((b) => b.textContent.trim()),
+    };
+  });
+
+  // Sperren ist Stufe 2: eine Frage, kein Tippfeld.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .handgriffe .knopf")].find(
+      (x) => x.textContent.trim() === "sperren",
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  zugaenge.sperren = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    const r = d.getBoundingClientRect();
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      tippfeld: d.querySelector(".tippen") !== null,
+      // Die Mitte, gemessen: links und rechts derselbe Abstand.
+      links: r.left,
+      rechts: window.innerWidth - r.right,
+      oben: r.top,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+
+  // Löschen ist Stufe 3: Der Anmeldename muss getippt werden, und der Knopf
+  // bleibt gesperrt, bis er stimmt.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .handgriffe .knopf")].find(
+      (x) => x.textContent.trim() === "löschen",
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open] .tippen", { timeout: 5000 });
+  await seite.fill("dialog.rueckfrage .tippen input", "vertretun");
+  await seite.waitForTimeout(120);
+  const gesperrtFalsch = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll("dialog.rueckfrage .knopf")].find((b) =>
+        b.textContent.includes("löschen"),
+      )?.disabled ?? null,
+  );
+  await seite.fill("dialog.rueckfrage .tippen input", "vertretung");
+  await seite.waitForTimeout(120);
+  const gesperrtRichtig = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll("dialog.rueckfrage .knopf")].find((b) =>
+        b.textContent.includes("löschen"),
+      )?.disabled ?? null,
+  );
+  zugaenge.loeschen = { gesperrtFalsch, gesperrtRichtig };
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  // Das Konto steht noch. DAS ist die Prüfung, die zählt.
+  zugaenge.nachAbbruch = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    reihen: document.querySelectorAll("table.tabelle tbody tr").length,
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zugaenge.png`,
+      fullPage: true,
+    });
+  }
+
+  // Und jetzt die Zurücksetzung mit dem eigenen Passwort. Das Einmalpasswort
+  // landet in einem Dialog, den Escape nicht schließt.
+  await seite.fill(".inspektor .schranke input", "ein sehr langes Testpasswort");
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .schranke .knopf")].find((x) =>
+      x.textContent.includes("Passwort zurücksetzen"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.einmal[open]", { timeout: 5000 });
+  zugaenge.einmal = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.einmal");
+    const r = d.getBoundingClientRect();
+    return {
+      wort: d.querySelector(".wort")?.textContent.trim() ?? "",
+      // „steht nur hier" — der Satz muss dabeistehen, sonst schließt man den
+      // Dialog und hat das Passwort verloren.
+      warnung: d.querySelector(".warnung")?.textContent.trim() ?? "",
+      knoepfe: [...d.querySelectorAll(".knopf")].map((b) => b.textContent.trim()),
+      links: r.left,
+      rechts: window.innerWidth - r.right,
+    };
+  });
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    // Das Einmalpasswort bekommt ein eigenes Bild: Es ist die heikelste Fläche des
+    // Moduls, und ob der Satz „steht nur hier" daneben auch gelesen wird, sieht man
+    // nur an der Anordnung.
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-einmalpasswort.png`,
+    });
+  }
+
+  // Escape darf ihn NICHT schließen.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  zugaenge.nachEscape = await seite.evaluate(
+    () => document.querySelector("dialog.einmal[open]") !== null,
+  );
+  // Und das Feld ist danach leer: Ein gefülltes Passwortfeld verleitet zum
+  // nächsten Klick auf ein anderes Ziel.
+  zugaenge.feldLeer = await seite.evaluate(
+    () => (document.querySelector(".inspektor .schranke input")?.value ?? "x") === "",
+  );
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll("dialog.einmal .knopf")].find((x) =>
+      x.textContent.includes("notiert"),
+    );
+    b.click();
+  });
+  await seite.waitForTimeout(250);
+  zugaenge.zu = await seite.evaluate(
+    () => document.querySelector("dialog.einmal") === null,
+  );
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  zugaenge.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 12g. Die Gegenprobe mit einer anderen Rolle. Ein eigener Browserkontext mit
+  //      dem Cookie eines Admin-Kontos: Der Menüpunkt fehlt, die Palette findet
+  //      ihn nicht, und der Pfad von Hand aufgerufen sagt, WARUM er nichts zeigt.
+  //      Das ist Bedienhilfe und keine Sicherheitsmaßnahme — die Route antwortet
+  //      ohnehin 403 —, aber ein Menüpunkt, der zuverlässig „vorbehalten" sagt,
+  //      ist eine Einladung, es trotzdem zu versuchen.
+  const fremdeRolle = {};
+  if (process.env.ASYLUM_E2E_COOKIE2) {
+    const [n2, w2] = process.env.ASYLUM_E2E_COOKIE2.split("=");
+    const kontext2 = await browser.newContext({ ignoreHTTPSErrors: true });
+    await kontext2.addCookies([
+      {
+        name: n2,
+        value: w2,
+        domain: url.hostname,
+        path: "/",
+        httpOnly: true,
+        secure: false,
+        sameSite: "Strict",
+      },
+    ]);
+    const seite2 = await kontext2.newPage();
+    await seite2.goto(`${basis}/v2/`, { waitUntil: "domcontentloaded" });
+    await seite2.waitForSelector(".seitenleiste a", { timeout: 5000 });
+    fremdeRolle.imMenue = await seite2.evaluate(
+      () => document.querySelector('.seitenleiste a[href="/v2/zugaenge"]') !== null,
+    );
+    // Die Palette: Auch dort nicht.
+    await seite2.keyboard.press("Control+k");
+    await seite2.waitForSelector('[role="dialog"]', { timeout: 5000 });
+    await seite2.fill("input.feld", "zugänge");
+    await seite2.waitForTimeout(200);
+    fremdeRolle.inPalette = await seite2.evaluate(
+      () => document.querySelectorAll('[role="option"]').length,
+    );
+    await seite2.keyboard.press("Escape");
+
+    // Der Pfad von Hand: Die Seite sagt, warum sie leer ist.
+    await seite2.goto(`${basis}/v2/zugaenge`, { waitUntil: "domcontentloaded" });
+    await seite2.waitForSelector(".hinweis", { timeout: 5000 });
+    fremdeRolle.satz = await seite2.evaluate(
+      () => document.querySelector(".hinweis .detail")?.textContent.trim() ?? "",
+    );
+    // Und KEIN Knopf „Erneut versuchen": Er brächte nie ein anderes Ergebnis.
+    fremdeRolle.erneutKnopf = await seite2.evaluate(
+      () => document.querySelector(".hinweis .knopf") !== null,
+    );
+    if (process.env.ASYLUM_E2E_SHOTS) {
+      await seite2.screenshot({
+        path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zugaenge-fremde-rolle.png`,
+        fullPage: true,
+      });
+    }
+    await kontext2.close();
+  }
+
+  // 12j. Updates des Panels. Drei Dinge sind hier nur im Browser zu sehen:
+  //
+  //      1. „Noch nicht geprüft" ist ein eigener Zustand und nicht „kein
+  //         Update". Der Knopf zum Einspielen ist dann gesperrt.
+  //      2. Nach der Prüfung steht die gefundene Fassung da, samt Einstufung als
+  //         Sicherheitsupdate und Verweis auf die Notizen.
+  //      3. Die Rückfrage nennt BEIDE Folgen: Neustart und Rückweg. Der Satz
+  //         über den Verbindungsabbruch steht schon vorher auf der Seite — ohne
+  //         ihn sieht der Abbruch wie ein Fehlschlag aus.
+  //
+  //      Der Vorgang selbst wird hier NICHT ausgelöst: Er tauscht das Binary des
+  //      laufenden Testservers. Was danach geschieht, prüfen die Go-Tests an der
+  //      Attrappe.
+  const upd = {};
+  await seite.goto(`${basis}/v2/updates`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("section.platte", { timeout: 5000 });
+
+  upd.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  upd.angaben = await seite.evaluate(() =>
+    [...document.querySelectorAll("dl.kv dt")].map((dt) => dt.textContent.trim()),
+  );
+  upd.vorPruefung = await seite.evaluate(() => {
+    const knoepfe = [...document.querySelectorAll(".knopf")];
+    return {
+      // Der Knopf trägt vor der Prüfung nicht „auf X aktualisieren", weil kein X
+      // bekannt ist — er lädt zur Prüfung ein.
+      einspielenText:
+        knoepfe.find((b) => b.textContent.includes("aktualisieren"))?.textContent.trim() ??
+        "",
+      einspielenGesperrt: knoepfe.find((b) =>
+        b.textContent.includes("aktualisieren"),
+      )?.disabled,
+      // „noch nicht geprüft" steht als Satz da.
+      satz: [...document.querySelectorAll(".detail")].some((p) =>
+        p.textContent.includes("noch nicht geprüft"),
+      ),
+      // Und der Verbindungsabbruch ist vorher angekündigt.
+      abbruchAngekuendigt: [...document.querySelectorAll(".detail")].some((p) =>
+        p.textContent.includes("verliert für einige Sekunden die Verbindung"),
+      ),
+      // Ohne Sicherung kein Rückweg.
+      rueckweg: [...document.querySelectorAll(".knopf")].some((b) =>
+        b.textContent.includes("zurück auf"),
+      ),
+      keineSicherung: [...document.querySelectorAll(".detail")].some((p) =>
+        p.textContent.includes("keine Sicherung"),
+      ),
+    };
+  });
+
+  // Prüfen. Die Attrappe liefert Fassung 9.9.9 als Sicherheitsupdate.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".knopf")].find(
+      (x) => x.textContent.trim() === "nach Updates suchen",
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".band.gut", { timeout: 8000 });
+  upd.nachPruefung = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+    marke: [...document.querySelectorAll(".marke")].map((m) => m.textContent.trim()),
+    notizen: document.querySelector(".detail a")?.getAttribute("href") ?? "",
+    knopf:
+      [...document.querySelectorAll(".knopf")]
+        .find((b) => b.textContent.includes("aktualisieren"))
+        ?.textContent.trim() ?? "",
+    gesperrt: [...document.querySelectorAll(".knopf")].find((b) =>
+      b.textContent.includes("aktualisieren"),
+    )?.disabled,
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-updates.png`,
+      fullPage: true,
+    });
+  }
+
+  // Die Rückfrage — und danach ABBRECHEN. Ausgeführt wird hier nichts: Der
+  // Vorgang tauscht das Binary des laufenden Testservers.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".knopf")].find((x) =>
+      x.textContent.includes("aktualisieren"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  upd.frage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      text: d.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: [...d.querySelectorAll(".punkte li")].map((li) => li.textContent.trim()),
+      tippfeld: d.querySelector(".tippen") !== null,
+      knopf:
+        [...d.querySelectorAll(".knopf")]
+          .find((b) => b.textContent.includes("aktualisieren"))
+          ?.textContent.trim() ?? "",
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(400);
+  upd.nachAbbruch = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    // Es läuft nichts: Kein Band über einen laufenden Vorgang.
+    keinLauf: ![...document.querySelectorAll(".band")].some((b) =>
+      b.textContent.includes("Vorgang läuft"),
+    ),
+  }));
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  upd.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 12i. Zertifikat und ACME. Drei Dinge sind hier nur im Browser zu sehen:
+  //
+  //      1. Das Formular zeigt NUR, was zur Wahl passt. Ein Anbieterfeld bei
+  //         HTTP-01 oder ein Tokenfeld beim Hook wäre die Aufforderung, etwas
+  //         einzutragen, das nichts bewirkt.
+  //      2. Der Zwischenzustand „eingestellt, aber noch nichts bezogen" ist
+  //         benannt. Ohne das sucht jemand den Fehler an der falschen Stelle.
+  //      3. Der Rückschritt auf selbstsigniert fragt zurück, und nach dem
+  //         ABBRUCH steht die Einstellung noch.
+  const zert = {};
+  await seite.goto(`${basis}/v2/zertifikate`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".wahl label", { timeout: 5000 });
+
+  zert.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  zert.kopfzustand = await seite.evaluate(
+    () => document.querySelector(".kopfzeile .zustand")?.textContent.trim() ?? "",
+  );
+  zert.angaben = await seite.evaluate(() =>
+    [...document.querySelectorAll("dl.kv dt")].map((dt) => dt.textContent.trim()),
+  );
+  // Selbstsigniert ist benannt, nicht bloß eingefärbt.
+  zert.selbstsigniertSatz = await seite.evaluate(
+    () => document.querySelector(".anmerkung")?.textContent.trim() ?? "",
+  );
+  // Und die verwaltete Datei steht dabei: Das Panel versteckt nichts.
+  zert.verwalteteDatei = await seite.evaluate(() =>
+    [...document.querySelectorAll(".detail")].some((p) => p.textContent.includes("Gespeichert wird in")),
+  );
+
+  // Bei „selbstsigniert" stehen keine ACME-Felder da.
+  zert.selbstsigniertFelder = await seite.evaluate(() => ({
+    email: document.querySelector("#zert-email") !== null,
+    methode: document.querySelector("#zert-methode") !== null,
+  }));
+
+  // Auf ACME umstellen: Jetzt kommen die Felder, und zwar gestaffelt.
+  await seite.click('.wahl label:has-text("Let\'s Encrypt") input');
+  await seite.waitForSelector("#zert-email", { timeout: 5000 });
+  zert.acmeFelder = await seite.evaluate(() => ({
+    email: document.querySelector("#zert-email") !== null,
+    namen: document.querySelector("#zert-namen") !== null,
+    methode: document.querySelector("#zert-methode") !== null,
+    // Bei „automatisch" ist der Anbieter zulässig, aber nicht nötig.
+    anbieter: document.querySelector("#zert-anbieter") !== null,
+    hook: document.querySelector("#zert-hook-setzen") !== null,
+    token: document.querySelector("#zert-token") !== null,
+    // Die aufgelösten Namen stehen da, damit niemand raten muss, was „leer" heißt.
+    geltend: [...document.querySelectorAll(".detail")].some((p) =>
+      p.textContent.includes("Verwendet würde"),
+    ),
+  }));
+
+  // HTTP-01: kein Anbieterfeld.
+  await seite.selectOption("#zert-methode", "http-01");
+  await seite.waitForTimeout(200);
+  zert.http01 = await seite.evaluate(
+    () => document.querySelector("#zert-anbieter") === null,
+  );
+
+  // DNS-01 mit Hook: zwei Pfadfelder, kein Token.
+  await seite.selectOption("#zert-methode", "dns-01");
+  await seite.waitForSelector("#zert-anbieter", { timeout: 5000 });
+  await seite.selectOption("#zert-anbieter", "hook");
+  await seite.waitForSelector("#zert-hook-setzen", { timeout: 5000 });
+  zert.hook = await seite.evaluate(() => ({
+    setzen: document.querySelector("#zert-hook-setzen") !== null,
+    aufraeumen: document.querySelector("#zert-hook-aufraeumen") !== null,
+    token: document.querySelector("#zert-token") !== null,
+  }));
+
+  // Cloudflare: Tokenfeld, und es ist ein Passwortfeld.
+  await seite.selectOption("#zert-anbieter", "cloudflare");
+  await seite.waitForSelector("#zert-token", { timeout: 5000 });
+  zert.cloudflare = await seite.evaluate(() => ({
+    token: document.querySelector("#zert-token")?.getAttribute("type") ?? "",
+    hook: document.querySelector("#zert-hook-setzen") !== null,
+    warum: [...document.querySelectorAll(".detail")].some((p) =>
+      p.textContent.includes("0600"),
+    ),
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zertifikat.png`,
+      fullPage: true,
+    });
+  }
+
+  // Jetzt gültig ausfüllen und speichern — HTTP-01, damit kein Anbieter nötig
+  // ist. Der Weg dorthin führt ABSICHTLICH über die Cloudflare-Wahl von oben:
+  // Geschickt werden muss, was zu sehen ist, und nicht der letzte Zustand jedes
+  // Feldes. Ohne das ginge der unsichtbare Anbieter mit, und der Server lehnte
+  // mit einer Begründung für ein Feld ab, das gar nicht dasteht.
+  await seite.selectOption("#zert-methode", "http-01");
+  await seite.fill("#zert-email", "admin@example.test");
+  await seite.fill("#zert-namen", "panel.example.test");
+  await seite.click('form button[type=submit]');
+  await seite.waitForSelector(".band.gut", { timeout: 5000 });
+  zert.nachSpeichern = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+    hinweis: document.querySelector(".band.warn")?.textContent.trim() ?? "",
+    // Der Zwischenzustand: eingestellt, aber noch nichts bezogen.
+    zwischen: [...document.querySelectorAll(".anmerkung")].some((p) =>
+      p.textContent.includes("noch kein Zertifikat bezogen"),
+    ),
+    // Und jetzt ist „jetzt beziehen" offen.
+    beziehenOffen: ![...document.querySelectorAll(".knopf")].find((b) =>
+      b.textContent.includes("jetzt beziehen"),
+    )?.disabled,
+  }));
+
+  // Der Rückschritt fragt zurück.
+  await seite.click('.wahl label:has-text("selbstsigniert") input');
+  await seite.click('form button[type=submit]');
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  zert.rueckschritt = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: [...d.querySelectorAll(".punkte li")].map((li) => li.textContent.trim()),
+      tippfeld: d.querySelector(".tippen") !== null,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(400);
+  // Nach dem ABBRUCH steht die Einstellung noch — das prüft, ob die Rückfrage
+  // gefragt hat oder nur gefragt aussah.
+  await seite.reload({ waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".wahl label", { timeout: 5000 });
+  zert.nachAbbruch = await seite.evaluate(
+    () => document.querySelector('.wahl label.an .name')?.textContent.trim() ?? "",
+  );
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  zert.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 12h. Das eigene Konto. Die Passkeys stehen hier NICHT — die brauchen einen
+  //      virtuellen Authenticator und haben ihren eigenen Durchlauf
+  //      (passkey_e2e.js, Modus „v2"). Was hier geprüft wird, ist der Rest, und
+  //      drei Dinge daran sind nur im Browser zu sehen:
+  //
+  //      1. Der begonnene Wechsel des zweiten Faktors übersteht ein NEULADEN.
+  //         Der Zustand liegt auf dem Server; ein halber Wechsel, der beim
+  //         Seitenwechsel verschwindet, wäre eine Falle.
+  //      2. Der QR-Code kommt tatsächlich an. Er ist ein Bild von /api/v1/… und
+  //         die Richtlinie sagt `img-src 'self'` — genau die Stelle, an der das
+  //         Projekt zweimal gescheitert ist.
+  //      3. Die eigene Sitzung ist in der Liste markiert, und ihr Knopf heißt
+  //         „abmelden" und nicht „beenden".
+  const konto = {};
+  await seite.goto(`${basis}/v2/konto`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("#pw-aktuell", { timeout: 5000 });
+
+  konto.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  konto.bloecke = await seite.evaluate(() =>
+    [...document.querySelectorAll("section.platte > b")].map((b) => b.textContent.trim()),
+  );
+  // Jeder BENANNTE Block sagt, warum es ihn gibt — Grundsatz V. Der erste Block
+  // ist ausgenommen und hat deshalb auch keinen Titel: Er zeigt nur Tatsachen
+  // (Rolle, angelegt, offene Codes), und die brauchen keine Begründung.
+  konto.warum = await seite.evaluate(() =>
+    [...document.querySelectorAll("section.platte")]
+      .filter((s) => s.querySelector(":scope > b") !== null)
+      .map((s) => ({
+        titel: s.querySelector(":scope > b").textContent.trim(),
+        satz: s.querySelector(".detail")?.textContent.trim() ?? "",
+      })),
+  );
+  konto.sitzungen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      diese: tr.querySelector(".marke") !== null,
+      knopf: tr.querySelector(".knopf")?.textContent.trim() ?? "",
+    })),
+  );
+  konto.passkeysAus = await seite.evaluate(() =>
+    [...document.querySelectorAll("section.platte .detail")].some((p) =>
+      p.textContent.includes("abgeschaltet"),
+    ),
+  );
+
+  // Der Wechsel des zweiten Faktors: beginnen, neu laden, abbrechen.
+  await seite.fill("#f2-pass", "ein sehr langes Testpasswort");
+  await seite.click('form:has(#f2-pass) button[type=submit]');
+  await seite.waitForSelector("#f2-code", { timeout: 5000 });
+  konto.wechsel = await seite.evaluate(() => {
+    const platte = [...document.querySelectorAll("section.platte")].find((s) =>
+      s.querySelector("#f2-code"),
+    );
+    const bild = platte.querySelector("img");
+    return {
+      hervorgehoben: platte.classList.contains("offen"),
+      frist: platte.querySelector(".anmerkung")?.textContent.trim() ?? "",
+      geheimnis: platte.querySelector(".geheimnis code")?.textContent.trim() ?? "",
+      qrPfad: bild?.getAttribute("src") ?? "",
+      // naturalWidth > 0 heißt: Das Bild ist geladen. Ein von der Richtlinie
+      // verworfenes Bild hätte ein <img> mit 0 — genau der Fall, den ein
+      // DOM-Test nicht sieht.
+      qrGeladen: (bild?.naturalWidth ?? 0) > 0,
+    };
+  });
+
+  // Neu laden: Der halbe Wechsel steht wieder da.
+  await seite.reload({ waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("#f2-code", { timeout: 5000 });
+  konto.nachNeuladen = true;
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-konto.png`,
+      fullPage: true,
+    });
+  }
+
+  // Ein falscher Code stellt nichts um und sagt das. Die Ablehnung ist hier das
+  // geprüfte Verhalten — deshalb steht der Pfad in `absichtlich`.
+  absichtlich.push("/api/v1/account/2fa/confirm");
+  await seite.fill("#f2-code", "000000");
+  await seite.click('form:has(#f2-code) button[type=submit]');
+  await seite.waitForSelector(".band.schlecht", { timeout: 5000 });
+  konto.falscherCode = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.schlecht")?.textContent.trim() ?? "",
+    nochOffen: document.querySelector("#f2-code") !== null,
+  }));
+
+  // Abbrechen: Der Wechsel ist weg, der bisherige Faktor gilt weiter.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll("section.platte .knopf")].find((x) =>
+      x.textContent.includes("Wechsel abbrechen"),
+    );
+    b.click();
+  });
+  await seite.waitForTimeout(600);
+  konto.nachAbbruch = await seite.evaluate(() => ({
+    wechselWeg: document.querySelector("#f2-code") === null,
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+  }));
+
+  // Neue Wiederherstellungscodes: Stufe 2, dann eine Liste in einem Dialog, den
+  // Escape nicht schließt.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll("section.platte .knopf")].find(
+      (x) => x.textContent.trim() === "Neue Codes erzeugen",
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  konto.codesFrage = await seite.evaluate(
+    () => document.querySelector("dialog.rueckfrage .frage")?.textContent.trim() ?? "",
+  );
+  await seite.click('dialog.rueckfrage button:text("neue Codes erzeugen")');
+  await seite.waitForSelector("dialog.codes[open]", { timeout: 5000 });
+  konto.codes = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.codes");
+    const r = d.getBoundingClientRect();
+    return {
+      anzahl: d.querySelectorAll(".liste li").length,
+      warnung: d.querySelector(".warnung")?.textContent.trim() ?? "",
+      links: r.left,
+      rechts: window.innerWidth - r.right,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  konto.codesNachEscape = await seite.evaluate(
+    () => document.querySelector("dialog.codes[open]") !== null,
+  );
+  await seite.click('dialog.codes button:text("notiert")');
+  await seite.waitForTimeout(250);
+
+  // Und die Zahl unten steht danach richtig da.
+  konto.codesOffen = await seite.evaluate(() => {
+    const dd = [...document.querySelectorAll("dl.kv dd")];
+    return dd.map((d) => d.textContent.trim()).find((x) => x.includes("unbenutzt")) ?? "";
+  });
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  konto.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
@@ -1620,6 +2511,13 @@ async function main() {
       dateien,
       schreiben,
       editor,
+      audit,
+      konten,
+      zugaenge,
+      zert,
+      upd,
+      konto,
+      fremdeRolle,
       bald,
       zweige,
       schmal,

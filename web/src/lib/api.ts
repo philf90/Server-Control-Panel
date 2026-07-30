@@ -4,6 +4,7 @@
 
 import type {
   AktionAntwort,
+  Audit,
   Bestaetigung,
   Dateiantwort,
   Dateiauftrag,
@@ -14,23 +15,40 @@ import type {
   Dienste,
   DienstAktion,
   DienstDetail,
+  EigenesKonto,
   Firewall,
   FirewallAntwort,
   Job,
   Logs,
+  Kontoantwort2,
+  Kontoauftrag2,
   Ordnerauswahl,
   Pakete,
+  PasskeyBeginn,
+  Panelantwort,
+  Panelauftrag,
+  Panelzugaenge,
   Pruefung,
   Regel,
+  Schluesselliste,
   Signale,
   Sitzung,
+  Panelupdate,
   Uebersicht,
+  Updateantwort,
+  Updatestand,
   Textantwort,
   Textauftrag,
+  Systembenutzer,
+  Kontoantwort,
+  Kontoauftrag,
   Umfang,
   Uploadantwort,
   Verlaeufe,
   VorgangGestartet,
+  Zertifikat,
+  Zertifikatantwort,
+  Zertifikatauftrag,
 } from "./typen";
 
 /** AbgemeldetFehler steht für die eine Antwort, die nicht wie ein Fehler
@@ -40,6 +58,20 @@ export class AbgemeldetFehler extends Error {
   constructor() {
     super("nicht angemeldet");
     this.name = "AbgemeldetFehler";
+  }
+}
+
+/** VerbotenFehler steht für 403: Die Rolle darf das nicht.
+ *
+ *  Ein eigener Typ, weil die Oberfläche daraus etwas anderes machen muss als aus
+ *  einem Ladefehler. „Die Daten konnten nicht geladen werden" mit einem Knopf
+ *  „Erneut versuchen" ist bei einer Rechtefrage die falsche Auskunft in zwei
+ *  Punkten: Der Grund ist nicht ein Fehlschlag, und der Knopf führt nie zu einem
+ *  anderen Ergebnis. Die Meldung des Servers trägt den Grund. */
+export class VerbotenFehler extends Error {
+  constructor(meldung: string) {
+    super(meldung);
+    this.name = "VerbotenFehler";
   }
 }
 
@@ -102,6 +134,30 @@ export function csrfToken(): string {
   return token;
 }
 
+// WebAuthn arbeitet mit ArrayBuffers, JSON kann keine tragen — an dieser Grenze
+// wird umgerechnet. Dieselben zwei Funktionen stehen in
+// internal/ui/static/passkey-register.js für die alte Oberfläche; sie sind so
+// klein und so festgelegt (RFC 4648 §5), dass eine geteilte Fassung nur eine
+// Abhängigkeit zwischen zwei Flächen wäre, die sonst nichts miteinander teilen.
+
+function b64urlZuPuffer(s: string): ArrayBuffer {
+  const gefuellt = s.replace(/-/g, "+").replace(/_/g, "/").padEnd(
+    s.length + ((4 - (s.length % 4)) % 4),
+    "=",
+  );
+  const roh = atob(gefuellt);
+  const bytes = new Uint8Array(roh.length);
+  for (let i = 0; i < roh.length; i++) bytes[i] = roh.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function pufferZuB64url(puffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(puffer);
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 async function anfrage<T>(pfad: string, init?: RequestInit): Promise<T> {
   const schreibend = init?.method !== undefined && init.method !== "GET";
 
@@ -139,6 +195,10 @@ async function anfrage<T>(pfad: string, init?: RequestInit): Promise<T> {
     } catch {
       /* Statuscode genügt. */
     }
+    // 403 ist kein Fehlschlag, sondern eine Auskunft über die Rolle. Wer sie als
+    // Ladefehler zeigt, stellt einen Knopf daneben, der nie ein anderes Ergebnis
+    // bringt.
+    if (antwort.status === 403) throw new VerbotenFehler(meldung);
     throw new Error(meldung);
   }
   return (await antwort.json()) as T;
@@ -377,6 +437,257 @@ export const api = {
     }
     return (await antwort.json()) as Textantwort;
   },
+
+  /** audit holt eine Seite des Revisionsprotokolls. Gefiltert wird auf dem
+   *  Server: Das Protokoll wächst unbegrenzt, und ein Filter über einem
+   *  Ausschnitt behauptete „kein Treffer" für einen Eintrag, den es gibt. */
+  audit: (suchpfad = "") => anfrage<Audit>(`/audit${suchpfad ? `?${suchpfad}` : ""}`),
+
+  // ------------------------------------------------------- Systembenutzer ---
+
+  systembenutzer: () => anfrage<Systembenutzer>("/system-users"),
+
+  /** schluessel holt die authorized_keys eines Kontos. Eigener Aufruf, weil die
+   *  Liste für dreißig Dienstkonten nichts mitschleppen soll, was nur beim
+   *  Anklicken eines einzelnen interessiert. */
+  schluessel: (konto: string) =>
+    anfrage<Schluesselliste>(`/system-users/${encodeURIComponent(konto)}/keys`),
+
+  /** kontoHandlung ist der eine Aufruf für alle verändernden Endpunkte —
+   *  dieselbe Überlegung wie bei dateiHandlung: Der Rückweg über
+   *  BestaetigungNoetig ist derselbe, und fünf Fassungen wären fünf Stellen, an
+   *  denen die Bestätigung nicht durchgereicht wird.
+   *
+   *  wohin ist der Pfad hinter /system-users: "" zum Anlegen, sonst
+   *  "/{name}/locked", "/{name}/delete", "/{name}/keys" oder
+   *  "/{name}/keys/remove". */
+  kontoHandlung: (
+    wohin: string,
+    felder: Partial<Kontoauftrag>,
+    bestaetigt = false,
+    getippt = "",
+  ) =>
+    anfrage<Kontoantwort>(`/system-users${wohin}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "",
+        notiz: "",
+        schale: "",
+        gruppen: [],
+        schluessel: "",
+        fingerprint: "",
+        gesperrt: false,
+        home_entfernen: false,
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    }),
+
+  // ----------------------------------------------------------------- Update ---
+
+  panelupdate: () => anfrage<Panelupdate>("/update"),
+
+  /** updatestand ist der Poller. Er wird auch dann gefragt, wenn der Dienst
+   *  gerade neu startet — dann scheitert der Aufruf, und DAS ist der Normalfall
+   *  dieses Moduls und kein Fehler. Der Aufrufer behandelt es entsprechend. */
+  updatestand: () => anfrage<Updatestand>("/update/status"),
+
+  updatePruefen: () =>
+    anfrage<Updateantwort>("/update/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }),
+
+  /** updateHandlung stößt Einspielen oder Rückweg an. wohin ist "/apply" oder
+   *  "/rollback". Beide antworten 202: angenommen, nicht ausgeführt — der Vorgang
+   *  läuft in einer eigenen Unit weiter und beendet dabei diesen Dienst. */
+  updateHandlung: (wohin: string, bestaetigt = false, getippt = "") =>
+    anfrage<Updateantwort>(`/update${wohin}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bestaetigt, getippt }),
+    }),
+
+  // ------------------------------------------------------------- Zertifikat ---
+
+  zertifikat: () => anfrage<Zertifikat>("/certificate"),
+
+  /** zertifikatSpeichern übernimmt die Einstellungen. Wirft BestaetigungNoetig
+   *  beim Rückschritt auf ein selbstsigniertes Zertifikat — danach warnt jeder
+   *  Browser, und das ist ein Fall für eine Rückfrage. */
+  zertifikatSpeichern: (felder: Partial<Zertifikatauftrag>, bestaetigt = false, getippt = "") =>
+    anfrage<Zertifikatantwort>("/certificate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modus: "selfsigned",
+        email: "",
+        namenstext: "",
+        pruefmethode: "",
+        anbieter: "",
+        hook_setzen: "",
+        hook_aufraeumen: "",
+        token: "",
+        testverzeichnis: false,
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    }),
+
+  /** zertifikatBeziehen stößt einen sofortigen Bezug an. Der Verlauf kommt über
+   *  den Vorgangsstrom (/api/v1/jobs/certificate/events) — derselbe Weg wie beim
+   *  Paketvorgang. */
+  zertifikatBeziehen: () =>
+    anfrage<Zertifikatantwort>("/certificate/obtain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }),
+
+  // --------------------------------------------------------- Eigenes Konto ---
+
+  konto: () => anfrage<EigenesKonto>("/account"),
+
+  /** kontoHandlung2 ist der eine Aufruf für die verändernden Endpunkte des
+   *  eigenen Kontos.
+   *
+   *  wohin ist der Pfad hinter /account: "/password", "/recovery-codes", "/2fa",
+   *  "/2fa/confirm", "/2fa/cancel", "/sessions/revoke", "/sessions/revoke-others"
+   *  oder "/passkeys/{id}/rename" und "/passkeys/{id}/delete".
+   *
+   *  Erneuert die Handlung die Sitzung — das tut die Passwortänderung, weil sie
+   *  ALLE Sitzungen des Kontos beendet, auch die eigene —, kommt ein frisches
+   *  CSRF-Token in der Antwort. Es wird hier übernommen und nicht vom Aufrufer:
+   *  Wer das vergäße, hätte eine Oberfläche, die nach einer geglückten Änderung
+   *  bei jedem weiteren Aufruf „Sitzungstoken passt nicht" meldet. */
+  async kontoHandlung2(
+    wohin: string,
+    felder: Partial<Kontoauftrag2>,
+    bestaetigt = false,
+    getippt = "",
+  ): Promise<Kontoantwort2> {
+    const antwort = await anfrage<Kontoantwort2>(`/account${wohin}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        passwort: "",
+        neu: "",
+        neu_wiederholt: "",
+        code: "",
+        sitzung: "",
+        name: "",
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    });
+    if (antwort.csrf) token = antwort.csrf;
+    return antwort;
+  },
+
+  /** passkeyAnlegen führt die WebAuthn-Zeremonie durch: Optionen holen, das
+   *  Gerät fragen, den Nachweis einschicken.
+   *
+   *  Die Umrechnung base64url ↔ ArrayBuffer steht hier, weil sie hierher gehört:
+   *  WebAuthn arbeitet mit Puffern, JSON kann keine tragen. Das ist keine
+   *  Eigenheit dieses Panels, sondern der Schnittstelle — und es ist genau die
+   *  Stelle, an der eine eigene Umsetzung schiefgeht.
+   *
+   *  Der Server prüft den Nachweis; dass er das durch die ganze Kette hindurch
+   *  tut, ist mit einem virtuellen Authenticator im Browser nachgewiesen
+   *  (internal/httpd/passkey_e2e_test.go). Hier wird nichts geprüft und nichts
+   *  entschieden. */
+  async passkeyAnlegen(name: string, passwort: string): Promise<Kontoantwort2> {
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      throw new Error(
+        "Dieser Browser kennt keine Passkeys. Die Anmeldung mit Passwort und " +
+          "zweitem Faktor bleibt unverändert.",
+      );
+    }
+    const beginn = await anfrage<PasskeyBeginn>("/account/passkeys/register/begin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passwort, name }),
+    });
+
+    // Die Optionen kommen durchgereicht, wie go-webauthn sie baut: Was hier
+    // umgerechnet wird, sind genau die Felder, die als Puffer verlangt werden.
+    const optionen = beginn.optionen as {
+      challenge: string;
+      user: { id: string };
+      excludeCredentials?: { id: string; type: string; transports?: string[] }[];
+    };
+    const publicKey = {
+      ...optionen,
+      challenge: b64urlZuPuffer(optionen.challenge),
+      user: { ...optionen.user, id: b64urlZuPuffer(optionen.user.id) },
+      excludeCredentials: optionen.excludeCredentials?.map((c) => ({
+        ...c,
+        id: b64urlZuPuffer(c.id),
+      })),
+    } as PublicKeyCredentialCreationOptions;
+
+    const cred = (await navigator.credentials.create({ publicKey })) as PublicKeyCredential | null;
+    if (!cred) throw new Error("Das Gerät hat keinen Passkey geliefert.");
+    const antwortDesGeraets = cred.response as AuthenticatorAttestationResponse;
+
+    const nachweis = {
+      id: cred.id,
+      rawId: pufferZuB64url(cred.rawId),
+      type: cred.type,
+      clientExtensionResults: cred.getClientExtensionResults?.() ?? {},
+      response: {
+        clientDataJSON: pufferZuB64url(antwortDesGeraets.clientDataJSON),
+        attestationObject: pufferZuB64url(antwortDesGeraets.attestationObject),
+        transports: antwortDesGeraets.getTransports?.() ?? [],
+      },
+    };
+
+    const antwort = await anfrage<Kontoantwort2>("/account/passkeys/register/finish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticket: beginn.ticket, name, nachweis }),
+    });
+    if (antwort.csrf) token = antwort.csrf;
+    return antwort;
+  },
+
+  // -------------------------------------------------------- Panel-Zugänge ---
+
+  panelzugaenge: () => anfrage<Panelzugaenge>("/panel-users"),
+
+  /** panelHandlung ist der eine Aufruf für alle verändernden Endpunkte.
+   *
+   *  wohin ist der Pfad hinter /panel-users: "" zum Anlegen, sonst
+   *  "/{id}/disabled", "/{id}/delete", "/{id}/reset-password", "/{id}/reset-2fa"
+   *  oder "/{id}/reset-passkeys".
+   *
+   *  eigenes_passwort steht im Körper und nirgends sonst: Es wird nicht
+   *  gespeichert, nicht in den Zustand geschrieben und nach dem Aufruf im
+   *  Eingabefeld gelöscht. */
+  panelHandlung: (
+    wohin: string,
+    felder: Partial<Panelauftrag>,
+    bestaetigt = false,
+    getippt = "",
+  ) =>
+    anfrage<Panelantwort>(`/panel-users${wohin}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "",
+        rolle: "",
+        gesperrt: false,
+        eigenes_passwort: "",
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    }),
 
   dienste: () => anfrage<Dienste>("/services"),
   dienst: (unit: string) => anfrage<DienstDetail>(`/services/${encodeURIComponent(unit)}`),

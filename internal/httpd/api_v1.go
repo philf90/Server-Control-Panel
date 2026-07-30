@@ -286,11 +286,13 @@ func (s *Server) handleAPISignals(w http.ResponseWriter, r *http.Request) {
 // Umschalten leer. Bewusst hier und nicht in dashboardSignals: Die alte
 // Oberfläche darf ihre eigenen Verweise behalten, sie ist eingefroren.
 var umzug = map[string]string{
-	"/services": "/v2/dienste",
-	"/packages": "/v2/pakete",
-	"/logs":     "/v2/logs",
-	"/firewall": "/v2/firewall",
-	"/files":    "/v2/dateien",
+	"/services":     "/v2/dienste",
+	"/packages":     "/v2/pakete",
+	"/logs":         "/v2/logs",
+	"/firewall":     "/v2/firewall",
+	"/files":        "/v2/dateien",
+	"/audit":        "/v2/audit",
+	"/system-users": "/v2/benutzer",
 }
 
 func neuerPfad(href string) string {

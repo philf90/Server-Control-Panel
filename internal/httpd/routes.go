@@ -149,6 +149,91 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("POST /api/v1/files/text",
 			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileTextSave))))
 	}
+	// Audit. Nur lesend, und das ist keine Auslassung: Das Protokoll ist nur
+	// additiv, es gibt im Store bewusst keine Lösch- oder Änderungsfunktion.
+	mux.Handle("GET /api/v1/audit", s.protected(http.HandlerFunc(s.handleAPIAudit)))
+	// Systembenutzer und ihre SSH-Schlüssel. Konten des WIRTSYSTEMS, nicht die des
+	// Panels — die stehen unter /api/v1/panel-users.
+	mux.Handle("GET /api/v1/system-users", s.protected(http.HandlerFunc(s.handleAPISystemUsers)))
+	mux.Handle("GET /api/v1/system-users/{name}/keys", s.protected(http.HandlerFunc(s.handleAPISSHKeys)))
+	mux.Handle("POST /api/v1/system-users",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISystemUserCreate))))
+	mux.Handle("POST /api/v1/system-users/{name}/locked",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISystemUserLocked))))
+	mux.Handle("POST /api/v1/system-users/{name}/delete",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISystemUserDelete))))
+	mux.Handle("POST /api/v1/system-users/{name}/keys",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISSHKeyAdd))))
+	mux.Handle("POST /api/v1/system-users/{name}/keys/remove",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISSHKeyRemove))))
+	// Panel-Zugänge. Die Konten DIESER Oberfläche, nicht die des Wirtsystems.
+	// Sämtliche Routen — auch die lesende — liegen hinter apiOwner: Wer keine Konten
+	// verwalten darf, soll die Kontenliste auch nicht einsehen. apiOwner steht vor
+	// apiSchreibend, damit der Grund der richtige ist.
+	mux.Handle("GET /api/v1/panel-users",
+		s.protected(s.apiOwner(http.HandlerFunc(s.handleAPIPanelUsers))))
+	mux.Handle("POST /api/v1/panel-users",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserCreate)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/disabled",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserDisabled)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/delete",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserDelete)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/reset-password",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserResetPassword)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/reset-2fa",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserReset2FA)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/reset-passkeys",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserResetPasskeys)))))
+	// Selbstupdate und Rückweg. Der Stand wird im Sekundentakt gefragt — auch
+	// während der Dienst neu startet —, deshalb ein eigener, kleiner Endpunkt und
+	// kein Ereignisstrom: Ein offener Kanal übersteht den Neustart nicht.
+	// Auslösen darf nur die Owner-Rolle; die Prüfung ändert nichts und steht allen
+	// schreibberechtigten Rollen offen.
+	mux.Handle("GET /api/v1/update", s.protected(http.HandlerFunc(s.handleAPIUpdate)))
+	mux.Handle("GET /api/v1/update/status", s.protected(http.HandlerFunc(s.handleAPIUpdateStand)))
+	mux.Handle("POST /api/v1/update/check",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIUpdatePruefen))))
+	mux.Handle("POST /api/v1/update/apply",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIUpdateEinspielen)))))
+	mux.Handle("POST /api/v1/update/rollback",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIUpdateRueckweg)))))
+	// Zertifikat und ACME. Kein eigener Ereignisstrom: Der Bezug ist ein Vorgang
+	// und läuft über /api/v1/jobs/certificate/events wie die anderen.
+	mux.Handle("GET /api/v1/certificate", s.protected(http.HandlerFunc(s.handleAPIZertifikat)))
+	mux.Handle("POST /api/v1/certificate",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIZertifikatSpeichern))))
+	mux.Handle("POST /api/v1/certificate/obtain",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIZertifikatBezug))))
+	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
+	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst
+	// bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen, mit dem es
+	// angelegt wurde. Das CSRF-Token prüft apiEigenerZugriff, die zweite Schranke
+	// ist das aktuelle Passwort.
+	mux.Handle("GET /api/v1/account", s.protected(http.HandlerFunc(s.handleAPIKonto)))
+	mux.Handle("GET /api/v1/account/2fa/qr.png",
+		s.protected(http.HandlerFunc(s.handleAPIKontoZweiterFaktorQR)))
+	mux.Handle("POST /api/v1/account/password",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoPasswort))))
+	mux.Handle("POST /api/v1/account/recovery-codes",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoCodes))))
+	mux.Handle("POST /api/v1/account/2fa",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoZweiterFaktorStart))))
+	mux.Handle("POST /api/v1/account/2fa/confirm",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoZweiterFaktorConfirm))))
+	mux.Handle("POST /api/v1/account/2fa/cancel",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoZweiterFaktorAbbruch))))
+	mux.Handle("POST /api/v1/account/sessions/revoke",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoSitzungBeenden))))
+	mux.Handle("POST /api/v1/account/sessions/revoke-others",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoSitzungenBeenden))))
+	mux.Handle("POST /api/v1/account/passkeys/register/begin",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyBegin))))
+	mux.Handle("POST /api/v1/account/passkeys/register/finish",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyFinish))))
+	mux.Handle("POST /api/v1/account/passkeys/{id}/rename",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyRename))))
+	mux.Handle("POST /api/v1/account/passkeys/{id}/delete",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyDelete))))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

@@ -33,6 +33,11 @@ var jobArten = map[string]string{
 	jobPackages:        "Paketvorgang",
 	jobFirewallInstall: "ufw einspielen",
 	jobFiles:           "Dateivorgang",
+	// Der Bezug eines Zertifikats ist ein Vorgang wie die anderen: Er laeuft
+	// Minuten, schreibt Zeilen und endet mit Erfolg oder Fehler. Die alte
+	// Oberflaeche hat dafuer einen eigenen Strom unter /certificate/events; die
+	// neue braucht keinen zweiten.
+	jobCertificate: "Zertifikatsbezug",
 }
 
 // apiJob ist der Zustand eines Vorgangs.

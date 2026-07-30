@@ -44,6 +44,18 @@
       <circle cx="6" cy="5.5" r="2.4" />
       <path d="M1.8 13.4c.5-2.4 2.2-3.6 4.2-3.6s3.7 1.2 4.2 3.6M11 3.4a2.4 2.4 0 0 1 0 4.3M11.7 10c1.4.4 2.3 1.5 2.6 3.2" />
     </symbol>
+    <!-- Ein Schlüssel für die Panel-Zugänge: Er unterscheidet sich auf einen Blick
+         von den zwei Personen bei „Benutzer & SSH", und darauf kommt es hier an —
+         die beiden Punkte stehen im Menü direkt untereinander. -->
+    <symbol id="sym-schluessel" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="5.4" cy="5.4" r="3.1" />
+      <path d="M7.7 7.7l5.6 5.6M11.3 10.1l-1.3 1.3M13.3 12.1l-1.3 1.3" />
+    </symbol>
+    <!-- Eine Person für das eigene Konto — gegen die zwei bei den Systemkonten. -->
+    <symbol id="sym-person" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="8" cy="5.2" r="2.6" />
+      <path d="M3 13.6c.6-2.6 2.6-4.1 5-4.1s4.4 1.5 5 4.1" />
+    </symbol>
     <symbol id="sym-siegel" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
       <circle cx="8" cy="6" r="4" /><path d="M6 9.4l-1 4.2 3-1.6 3 1.6-1-4.2" />
     </symbol>
@@ -56,6 +68,13 @@
     <symbol id="sym-buch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
       <rect x="2.8" y="1.8" width="10.4" height="12.4" rx="1.2" />
       <path d="M5.4 5h5.2M5.4 8h5.2M5.4 11h3" />
+    </symbol>
+    <!-- Ein Pfeil nach oben aus einem Sockel: die Fassung, die nachrückt. Bewusst
+         anders als die Kiste bei „Pakete" — das eine aktualisiert das Panel, das
+         andere das System, und die Verwechslung wäre folgenreich. -->
+    <symbol id="sym-pfeil-hoch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 10.4V2.6M4.9 5.7L8 2.6l3.1 3.1" />
+      <path d="M2.6 12.2v.6c0 .6.5 1.1 1.1 1.1h8.6c.6 0 1.1-.5 1.1-1.1v-.6" />
     </symbol>
     <symbol id="sym-regler" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
       <path d="M2 4.4h12M2 8h12M2 11.6h12" />

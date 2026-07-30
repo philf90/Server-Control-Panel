@@ -8,10 +8,12 @@
   // Diese Fassung sucht die Navigationsziele. Dienste, Dateien und Regeln kommen
   // dazu, sobald die Module sie über /api/v1 anbieten; die Suche ist dafür so
   // geschnitten, dass eine zweite Quelle nur eine weitere Liste ist.
-  import { alleZiele, suche, type Ziel } from "../lib/ziele";
+  import { sichtbareZiele, suche, type Ziel } from "../lib/ziele";
   import { palette } from "../lib/palette.svelte";
   import { weg } from "../lib/weg.svelte";
   import { t } from "../lib/texte";
+
+  let { istOwner = false }: { istOwner?: boolean } = $props();
 
   let begriff = $state("");
   let auswahl = $state(0);
@@ -19,7 +21,9 @@
   let liste: HTMLElement | undefined = $state();
 
   const offen = $derived(palette.offen);
-  const treffer = $derived(suche(begriff, alleZiele));
+  // Dieselbe Rollenprüfung wie in der Leiste, und aus demselben Grund: Ein Ziel,
+  // das nur 403 antwortet, ist kein Treffer.
+  const treffer = $derived(suche(begriff, sichtbareZiele(istOwner)));
 
   // Beim Öffnen leer anfangen. Ein stehengebliebener Begriff von vorhin ist
   // nicht Bequemlichkeit, sondern eine Trefferliste, die nicht zur Absicht passt.

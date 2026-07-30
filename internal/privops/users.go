@@ -22,6 +22,7 @@ var (
 	passwdPath = "/etc/passwd"
 	groupPath  = "/etc/group"
 	shadowPath = "/etc/shadow"
+	shellsPath = "/etc/shells"
 )
 
 // SystemUsers liest die Benutzer des Systems.
@@ -515,4 +516,77 @@ func contains(list []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// LoginShells liefert die Anmeldeschalen des Systems für ein Auswahlfeld.
+//
+// Gelesen wird /etc/shells — dieselbe Datei, gegen die ValidateShell prüft. Das
+// ist der Punkt: Die Oberfläche soll genau die Werte anbieten, die die Prüfung
+// annimmt. Eine eigene Liste daneben wäre die Stelle, an der ein Auswahlfeld
+// etwas vorschlägt, das der Server dann ablehnt.
+//
+// Die drei Nicht-Schalen kommen dazu, weil ValidateShell sie ebenfalls durchlässt
+// und weil sie der eigentliche Zweck der halben Kontenliste sind: Ein Dienstkonto
+// bekommt nologin, damit sich damit niemand anmelden kann.
+func (s *System) LoginShells(ctx context.Context) ([]string, error) {
+	_ = ctx
+
+	raw, err := os.ReadFile(shellsPath)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", shellsPath, err)
+	}
+
+	gesehen := map[string]bool{}
+	out := make([]string, 0, 8)
+	hinzu := func(s string) {
+		if s == "" || gesehen[s] {
+			return
+		}
+		gesehen[s] = true
+		out = append(out, s)
+	}
+
+	for _, zeile := range strings.Split(string(raw), "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || strings.HasPrefix(zeile, "#") {
+			continue
+		}
+		hinzu(zeile)
+	}
+	// Nur die, die es auf diesem System auch gibt: /sbin/nologin und
+	// /usr/sbin/nologin sind je nach Distribution das eine oder das andere, und
+	// ein Vorschlag auf einen Pfad, der nicht existiert, macht das Konto
+	// unbenutzbar.
+	for _, ohne := range []string{"/usr/sbin/nologin", "/sbin/nologin", "/bin/false"} {
+		if _, err := os.Stat(ohne); err == nil {
+			hinzu(ohne)
+		}
+	}
+	return out, nil
+}
+
+// Groups liefert die Gruppennamen des Systems für ein Auswahlfeld.
+//
+// Dieselbe Überlegung wie bei LoginShells: Angeboten wird, was es gibt. useradd
+// nimmt eine Gruppe, die nicht existiert, nicht an — und ein Textfeld machte aus
+// einem Tippfehler eine Fehlermeldung nach dem Absenden.
+func (s *System) Groups(ctx context.Context) ([]string, error) {
+	_ = ctx
+
+	raw, err := os.ReadFile(groupPath)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", groupPath, err)
+	}
+
+	out := make([]string, 0, 64)
+	for _, zeile := range strings.Split(string(raw), "\n") {
+		// Format: name:passwd:gid:mitglieder
+		name, _, gefunden := strings.Cut(zeile, ":")
+		if !gefunden || name == "" || strings.HasPrefix(name, "#") {
+			continue
+		}
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out, nil
 }

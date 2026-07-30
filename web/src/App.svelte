@@ -18,6 +18,12 @@
   import LogsSeite from "./seiten/Logs.svelte";
   import FirewallSeite from "./seiten/Firewall.svelte";
   import DateienSeite from "./seiten/Dateien.svelte";
+  import SystembenutzerSeite from "./seiten/Systembenutzer.svelte";
+  import PanelzugaengeSeite from "./seiten/Panelzugaenge.svelte";
+  import KontoSeite from "./seiten/Konto.svelte";
+  import ZertifikatSeite from "./seiten/Zertifikat.svelte";
+  import PanelupdateSeite from "./seiten/Panelupdate.svelte";
+  import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
   import { live } from "./lib/live.svelte";
@@ -80,7 +86,7 @@
 </script>
 
 <Symbolvorrat />
-<Befehlspalette />
+<Befehlspalette istOwner={sitzung?.ist_owner ?? false} />
 
 {#if abgemeldet}
   <div class="mitte">
@@ -90,7 +96,7 @@
 {:else}
   <div class="schale">
     <Statusband name={uebersicht?.name ?? ""} uptime={uebersicht?.snapshot?.uptime ?? ""} />
-    <Seitenleiste />
+    <Seitenleiste istOwner={sitzung?.ist_owner ?? false} />
 
     <main class="inhalt">
       {#if fehler}
@@ -117,6 +123,31 @@
         <FirewallSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "dateien"}
         <DateienSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "benutzer"}
+        <SystembenutzerSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "zugaenge"}
+        <!-- Die Panel-Zugänge liegen hinter der Owner-Rolle, und zwar auf dem
+             Server: Jede der sieben Routen antwortet sonst 403. Der Menüpunkt
+             fehlt für andere Rollen; wer den Pfad trotzdem aufruft, bekommt hier
+             die Ladefehlermeldung der Seite mit dem Satz des Servers darin. Eine
+             zweite Rollenprüfung an dieser Stelle wäre die Stelle, an der beide
+             Listen auseinanderlaufen. -->
+        <PanelzugaengeSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "zertifikate"}
+        <ZertifikatSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "panelupdate"}
+        <!-- Die Updateseite holt ihre Rechte aus ihrer eigenen Antwort: Nur die
+             Owner-Rolle darf auslösen, und diese Regel steht auf dem Server. -->
+        <PanelupdateSeite />
+      {:else if weg.seite === "konto"}
+        <!-- Die Kontoseite bekommt keine Rechte-Eigenschaft: Sein EIGENES Konto
+             verwaltet jede Rolle, auch „readonly". Was sie braucht, holt sie
+             selbst; die Schranke ist das aktuelle Passwort und nicht die Rolle. -->
+        <KontoSeite />
+      {:else if weg.seite === "audit"}
+        <!-- Das Protokoll braucht die Sitzung nicht: Lesen darf jede Rolle, und
+             verändern kann es niemand. -->
+        <AuditSeite />
       {:else if weg.seite === "bald"}
         <!-- Ein Modul, das es noch nicht gibt. Es braucht nichts von hier — die
              Seite sagt nur, mit welcher Fassung es kommt. -->

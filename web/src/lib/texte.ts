@@ -28,7 +28,13 @@ export const t = {
     dateien: "Dateien",
     logs: "Logs",
     audit: "Audit",
-    einstellungen: "Einstellungen",
+    // „Panel-Zugänge" und nicht „Benutzer": Der Unterschied zu „Benutzer & SSH"
+    // muss im Menü stehen, nicht erst auf der Seite. Bis 0.4.0-rc.3 hieß dieser
+    // Punkt „Einstellungen" und führte auf die Kontenliste der alten Oberfläche —
+    // ein Name, der etwas anderes versprach, als dahinter stand.
+    zugaenge: "Panel-Zugänge",
+    konto: "Eigenes Konto",
+    update: "Updates",
   },
 
   kacheln: {
@@ -363,6 +369,418 @@ export const t = {
     // hier nach einer Unit oder einem Pfad sucht und nichts findet, hält die
     // Suche für kaputt — sie hat nur einen anderen Gegenstand.
     spaeter: "Units, Pfade und Pakete sucht man auf ihrer Seite",
+  },
+
+  konten: {
+    laedt: "wird geladen …",
+    // Der Satz, der die beiden Kontenarten auseinanderhält. Wer das verwechselt,
+    // legt ein Konto an, das nichts kann — oder eines, das mehr kann als gedacht.
+    wesen:
+      "Konten des Servers, nicht des Panels: Damit kommt man über SSH auf die Maschine. Die Zugänge zum Panel selbst stehen unter „Panel-Zugänge“; sie verwaltet die Owner-Rolle.",
+    name: "Name",
+    uid: "UID",
+    gruppen: "Gruppen",
+    schale: "Anmeldeschale",
+    schluesselSpalte: "Schlüssel",
+    zustand: "Zustand",
+    notiz: "Notiz",
+    home: "Home",
+    suchen: "Konto suchen",
+    // Die Zähler sind die Filter — Grundsatz II: jede Zahl ist ein Griff.
+    alle: "alle",
+    menschen: "mit Anmeldung",
+    dienste: "Dienstkonten",
+    gesperrt: "gesperrt",
+    ohneSchluessel: "ohne Schlüssel",
+    nichts: "Kein Konto passt.",
+    entsperrt: "aktiv",
+    // Die Auffälligkeit, die eine Handlung nach sich zieht.
+    ohneSchluesselWarnung:
+      "Dieses Konto hat keinen Schlüssel und kein Passwort — es kommt nicht auf den Server.",
+    dienstkonto:
+      "Dienstkonto ohne Anmeldeschale. Es dient einem Programm, nicht einem Menschen — eine Anmeldung ist nicht vorgesehen.",
+    geschuetzt: "Dieses Konto lässt sich über das Panel nicht sperren und nicht löschen.",
+    nurLesen: "Dieses Konto darf lesen, aber keine Systemkonten ändern.",
+
+    anlegen: "Konto anlegen",
+    anlegenTitel: "Neues Systemkonto",
+    anlegenHinweis:
+      "Das Konto bekommt kein Passwort. Die Anmeldung läuft über den SSH-Schlüssel — ohne Schlüssel kommt niemand herein.",
+    namePlatzhalter: "kontoname",
+    notizPlatzhalter: "wofür ist das Konto",
+    schluesselPlatzhalter: "ssh-ed25519 AAAA… kommentar",
+    schluesselFeld: "Öffentlicher SSH-Schlüssel",
+    schluesselOptional: "kann auch später hinterlegt werden",
+    abbrechen: "abbrechen",
+
+    handgriff: {
+      sperren: "sperren",
+      entsperren: "entsperren",
+      loeschen: "löschen",
+      schluessel: "Schlüssel",
+    },
+    homeEntfernen: "Home-Verzeichnis mit löschen",
+    schluesselTitel: "SSH-Schlüssel",
+    schluesselDatei: (datei: string) => `Hinterlegt in ${datei}`,
+    keineSchluessel: "Kein Schlüssel hinterlegt.",
+    schluesselHinzu: "Schlüssel hinterlegen",
+    schluesselEntfernen: "entfernen",
+    schwach: "schwach",
+    letzterSchluessel:
+      "Das ist der einzige Schlüssel. Ohne ihn hat das Konto keinen Zugang mehr.",
+    fingerprint: "Fingerprint",
+    art: "Art",
+  },
+
+  update: {
+    laedt: "wird geladen …",
+    wesen:
+      "Das Panel aktualisiert sich selbst: Es lädt die Fassung aus dem eingestellten Kanal, prüft sie gegen den eingebauten Signaturschlüssel und tauscht das Programm aus. Die vorherige Fassung bleibt als Sicherung liegen.",
+    // Der Block heißt „Stand" und die Zeile darin „Laufende Fassung": Dasselbe
+    // Wort zweimal übereinander liest man als Versehen.
+    standTitel: "Stand",
+    fassung: "Laufende Fassung",
+    kanal: "Kanal",
+    quelle: "Metadatenquelle",
+    geprueftAm: "Zuletzt geprüft",
+    nieGeprueft: "in dieser Laufzeit noch nicht",
+    verfuegbar: "Im Kanal steht",
+    erschienen: "Erschienen",
+    notizen: "Änderungsnotizen",
+    notizenLink: "Notizen zu dieser Fassung",
+    sicherheit: "Sicherheitsupdate",
+    aktuell: "Diese Fassung ist aktuell.",
+    pruefen: "nach Updates suchen",
+    prueffehler: "Die Metadaten sind nicht erreichbar:",
+    // „noch nicht gefragt" ist ein anderer Zustand als „kein Update".
+    nichtGeprueft:
+      "In dieser Laufzeit wurde noch nicht geprüft. Der letzte Befund steht im Speicher und ist nach einem Neustart des Dienstes weg.",
+
+    einspielenTitel: "Aktualisieren",
+    einspielen: (v: string) => `auf ${v} aktualisieren`,
+    // Solange keine Fassung bekannt ist, heißt der Knopf schlicht so — und ist
+    // gesperrt. Ihn stattdessen „nach Updates suchen" zu nennen, wie es eine
+    // frühere Fassung tat, ergab zwei Knöpfe mit demselben Wort, von denen einer
+    // etwas anderes tut.
+    einspielenUnbekannt: "aktualisieren",
+    // Die Sätze, die den Verbindungsabbruch vorher ankündigen. Ohne sie sieht er
+    // wie ein Fehlschlag aus.
+    einspielenWarum:
+      "Der Dienst startet dabei neu. Die Oberfläche verliert für einige Sekunden die Verbindung — das gehört dazu und ist kein Fehler.",
+    nurOwner:
+      "Update und Rückweg löst nur die Owner-Rolle aus: Sie tauschen das Programm aus, das alle anderen Rechte durchsetzt.",
+    erstPruefen: "Zum Aktualisieren zuerst nach Updates suchen.",
+
+    rueckwegTitel: "Rückweg",
+    rueckweg: (v: string) => `zurück auf ${v}`,
+    rueckwegWarum:
+      "Zurückgesetzt wird das Programm, nicht die Datenbank: Was neuere Fassungen an ihr geändert haben, bleibt.",
+    keineSicherung:
+      "Es liegt keine Sicherung einer vorherigen Fassung bereit — ein Rückweg ist erst nach dem ersten Update möglich.",
+    vorher: "Gesicherte Fassung",
+
+    verlaufTitel: "Verlauf",
+    keinVerlauf: "Noch kein Update-Protokoll — vor dem ersten Lauf gibt es nichts zu zeigen.",
+    laeuft: (v: string) => `Der Vorgang läuft — Ziel ist Fassung ${v}.`,
+    // Der Kern der Anzeige während des Laufs: Die Verbindung reißt ab, und das
+    // ist der Normalfall.
+    wartetAufNeustart:
+      "Die Verbindung ist weg. Das Panel startet neu; diese Seite versucht es weiter.",
+    wiederDa: (v: string) => `Fassung ${v} antwortet. Der Vorgang ist durch.`,
+    unveraendert: (v: string) =>
+      `Das Panel antwortet wieder, weiter mit Fassung ${v}. Der Verlauf unten sagt, woran es lag.`,
+  },
+
+  zert: {
+    laedt: "wird geladen …",
+    wesen:
+      "Das Zertifikat, mit dem das Panel selbst ausgeliefert wird. Ein selbstsigniertes funktioniert, aber jeder Browser widerspricht; Let's Encrypt beglaubigt es und erneuert es von selbst.",
+    // Der Zustand des ausgelieferten Zertifikats.
+    zustand: "Zustand",
+    quelle: "Herkunft",
+    datei: "Datei",
+    inhaber: "Inhaber",
+    aussteller: "Aussteller",
+    namen: "Namen im Zertifikat",
+    fingerprint: "Fingerprint",
+    gueltig: "Gültig",
+    bis: (ab: string, bis: string) => `${ab} bis ${bis}`,
+    tage: (n: number) =>
+      n < 0
+        ? `seit ${-n} Tagen abgelaufen`
+        : n === 1
+          ? "noch 1 Tag"
+          : `noch ${n} Tage`,
+    lesefehler: "Das Zertifikat ist nicht lesbar:",
+    // Der Zwischenzustand, den man erklärt bekommen möchte.
+    nochNichtBezogen:
+      "Der automatische Bezug ist eingestellt, aber noch kein Zertifikat bezogen. Ausgeliefert wird bis dahin das selbstsignierte.",
+    selbstsigniertWarnung:
+      "Selbstsigniert: Jeder Browser warnt beim Aufruf. Für ein beglaubigtes Zertifikat unten den automatischen Bezug einschalten.",
+
+    // ---------------------------------------------------------- Bezugsart ---
+    // „Bezugsart" und nicht „Bezug": Der Block darunter heißt so, und zwei
+    // Überschriften mit demselben Wort auf einem Schirm liest man als Versehen.
+    modusTitel: "Bezugsart",
+    selbstsigniert: "selbstsigniert",
+    selbstsigniertWas:
+      "Das Panel erzeugt das Paar selbst. Kein Netzzugang nötig, aber jeder Browser warnt.",
+    acme: "Let's Encrypt (ACME)",
+    acmeWas:
+      "Beglaubigt und wird vor Ablauf selbst erneuert. Braucht einen von außen erreichbaren Namen.",
+
+    // ----------------------------------------------------- Einstellungen ---
+    einstellungenTitel: "Einstellungen für den Bezug",
+    email: "Kontaktadresse",
+    emailWarum:
+      "Dorthin schickt Let's Encrypt die Warnung, wenn eine Erneuerung ausbleibt.",
+    namenFeld: "Namen",
+    namenWarum:
+      "Ein Name je Zeile. Leer heißt: der vollqualifizierte Rechnername des Servers.",
+    geltend: "Verwendet würde:",
+    keineNamen:
+      "Kein Name ermittelbar — ohne vollqualifizierten Rechnernamen gibt es nichts zu beantragen.",
+    pruefmethode: "Prüfmethode",
+    anbieter: "DNS-Anbieter",
+    hookSetzen: "Programm zum Setzen",
+    hookAufraeumen: "Programm zum Aufräumen",
+    hookWarum:
+      "Absolute Pfade auf ausführbare Programme. Sie laufen als root und setzen beziehungsweise entfernen den TXT-Eintrag.",
+    token: "Cloudflare-API-Token",
+    tokenHinterlegt:
+      "Ein Token ist hinterlegt. Das Feld leer lassen behält es; ein neuer Wert ersetzt es.",
+    tokenWarum:
+      "Das Token landet in einer eigenen Datei mit Rechten 0600 — nicht in der Konfiguration, die für die Gruppe des Dienstes lesbar ist. Zurückgezeigt wird es nie.",
+    testverzeichnis: "Testverzeichnis von Let's Encrypt verwenden",
+    testverzeichnisWarum:
+      "Stellt Zertifikate aus, denen kein Browser traut — dafür sind die Grenzen weit. Der richtige Ort, um einen DNS-Hook einzurichten, ohne die Produktionsgrenzen zu verbrauchen.",
+    testverzeichnisAktiv:
+      "Es ist das Testverzeichnis eingestellt. Ein damit bezogenes Zertifikat wird von keinem Browser akzeptiert.",
+    verwalteteDatei: (datei: string) => `Gespeichert wird in ${datei}`,
+    speichern: "Einstellungen speichern",
+    nurLesen: "Dieses Konto darf den Zertifikatsbezug nicht ändern.",
+
+    // ----------------------------------------------------------- Bezug ---
+    bezugTitel: "Bezug",
+    beziehen: "jetzt beziehen",
+    bezugLaeuft: "Es läuft ein Bezug.",
+    bezugZuletzt: (zeit: string) => `Letzter Versuch: ${zeit}`,
+    bezugFehler: "Der letzte Versuch ist gescheitert:",
+    bezugWarum:
+      "Ein Bezug nimmt nichts weg: Das bisherige Zertifikat bleibt aktiv, bis ein neues da ist. Über DNS kann er einige Minuten dauern.",
+    bezugNurACME:
+      "Beziehen geht erst, wenn der automatische Bezug eingeschaltet und gespeichert ist.",
+  },
+
+  konto: {
+    laedt: "wird geladen …",
+    wesen:
+      "Ihr eigenes Konto: Anmeldung, zweiter Faktor, Passkeys und die offenen Sitzungen. Konten anderer stehen unter Panel-Zugänge.",
+    rolle: "Rolle",
+    angelegt: "Angelegt",
+    codesOffen: "Wiederherstellungscodes",
+    codesZahl: (n: number) => (n === 1 ? "1 unbenutzt" : `${n} unbenutzt`),
+    // Bei 0 ist der Weg zurück ins Konto verstellt, wenn das Telefon
+    // abhandenkommt. Das ist der Grund, warum die Zahl überhaupt dasteht.
+    codesKeine: "keiner mehr übrig",
+    codesWarnung:
+      "Es ist kein Wiederherstellungscode mehr übrig. Geht das Telefon verloren, führt der Weg zurück nur noch über die Kommandozeile des Servers.",
+    wechselzwang:
+      "Das aktuelle Passwort ist ein Einmalpasswort aus einer Zurücksetzung. Bitte jetzt ein eigenes wählen.",
+
+    // ---------------------------------------------------------- Passwort ---
+    passwortTitel: "Passwort",
+    aktuell: "Aktuelles Passwort",
+    // Der Satz sagt, WARUM danach gefragt wird. Ohne ihn wirkt es wie eine
+    // Formalität.
+    aktuellWarum:
+      "Jede Änderung an einem Anmeldeweg verlangt Ihr aktuelles Passwort — eine übernommene Sitzung soll Sie nicht aus Ihrem eigenen Konto aussperren können.",
+    neu: "Neues Passwort",
+    neuWiederholt: "Neues Passwort wiederholen",
+    passwortAendern: "Passwort ändern",
+    passwortFolge:
+      "Alle anderen Sitzungen werden dabei beendet. Diese bleibt offen.",
+
+    // --------------------------------------------------- Zweiter Faktor ---
+    faktorTitel: "Zweiter Faktor",
+    faktorGut: "Eingerichtet und bestätigt.",
+    faktorWechseln: "Zweiten Faktor wechseln",
+    faktorWarum:
+      "Für ein neues Telefon: Der bisherige Faktor gilt weiter, bis der neue bestätigt ist.",
+    wechselOffen: "Wechsel begonnen",
+    wechselBis: (zeit: string) => `gültig bis ${zeit}`,
+    wechselScannen:
+      "Den Code in der Authenticator-App einlesen oder das Geheimnis von Hand eintragen, dann den angezeigten Sechsstelligen bestätigen.",
+    geheimnis: "Geheimnis",
+    qrAlt: "QR-Code für die Authenticator-App",
+    code: "Code aus der App",
+    faktorBestaetigen: "Wechsel abschließen",
+    faktorAbbrechen: "Wechsel abbrechen",
+    faktorFolge:
+      "Mit dem Abschluss werden neue Wiederherstellungscodes erzeugt und alle anderen Sitzungen beendet.",
+
+    // ------------------------------------------------------------ Codes ---
+    codesTitel: "Wiederherstellungscodes",
+    codesWarum:
+      "Der Weg zurück, wenn das Telefon mit der Authenticator-App verloren ist. Jeder Code gilt einmal.",
+    codesNeu: "Neue Codes erzeugen",
+    codesEinmal:
+      "Diese Liste erscheint nur jetzt und wird nicht noch einmal angezeigt. Bitte ausdrucken oder in einen Passwortspeicher legen.",
+    kopieren: "kopieren",
+    kopiert: "kopiert",
+    verstanden: "notiert, schließen",
+
+    // --------------------------------------------------------- Passkeys ---
+    passkeysTitel: "Passkeys",
+    passkeysWarum:
+      "Ein Passkey ersetzt das Passwort bei der Anmeldung: Bestätigt wird am Gerät — mit Fingerabdruck, Gesicht oder Geräte-PIN. Der zweite Faktor bleibt davon unberührt.",
+    passkeysAus:
+      "Passkeys sind in dieser Installation abgeschaltet. Eingeschaltet werden sie in der Konfigurationsdatei.",
+    passkeysKeine: "Es ist kein Passkey hinterlegt.",
+    passkeyAnlegen: "Passkey hinterlegen",
+    passkeyName: "Name des Geräts",
+    passkeyNamePlatzhalter: "Telefon, Notebook, Sicherheitsschlüssel",
+    // Der Unterschied gehört in die Anzeige: Ein gerätegebundener Schlüssel ist
+    // mit dem Gerät verloren.
+    synced: "geräteübergreifend",
+    gebunden: "an dieses Gerät gebunden",
+    nieBenutzt: "noch nie benutzt",
+    umbenennen: "umbenennen",
+    entfernen: "entfernen",
+    speichern: "speichern",
+    abbrechen: "abbrechen",
+    // Der Satz während der Zeremonie. Ohne ihn steht der Bediener vor einem
+    // Systemdialog, den er nicht angefordert zu haben glaubt.
+    amGeraet: "Bitte am Gerät bestätigen …",
+    passkeyAbgebrochen: "Am Gerät abgebrochen. Es wurde nichts hinterlegt.",
+    keinWebAuthn:
+      "Dieser Browser kennt keine Passkeys. Die Anmeldung mit Passwort und zweitem Faktor bleibt unverändert.",
+
+    // -------------------------------------------------------- Sitzungen ---
+    sitzungenTitel: "Offene Sitzungen",
+    // Der eigentliche Zweck dieser Liste — sie ist keine Statistik.
+    sitzungenWarum:
+      "Ein entwendetes Sitzungscookie hinterlässt sonst keine Spur. Adresse und letzte Aktivität machen eine fremde Sitzung sichtbar; der Knopf daneben beendet sie.",
+    von: "Von",
+    programm: "Programm",
+    seit: "Angemeldet",
+    zuletzt: "Zuletzt gesehen",
+    laeuftAb: "Läuft ab",
+    diese: "diese Sitzung",
+    beenden: "beenden",
+    abmelden: "abmelden",
+    andereBeenden: (n: number) =>
+      n === 1 ? "eine weitere Sitzung beenden" : `alle ${n} anderen Sitzungen beenden`,
+    keineAnderen: "Keine weitere Sitzung offen.",
+    abgemeldet: "Diese Sitzung ist beendet. Bitte neu anmelden.",
+    zurAnmeldung: "Zur Anmeldung",
+  },
+
+  zugaenge: {
+    laedt: "wird geladen …",
+    // Der Gegensatz zum wesen-Satz bei „Benutzer & SSH". Beide Sätze zusammen
+    // halten die zwei Kontenarten auseinander, und sie stehen absichtlich
+    // nebeneinander im Menü.
+    wesen:
+      "Konten dieser Oberfläche, nicht des Servers: Damit kommt man in das Panel. Systemkonten für SSH stehen unter Benutzer & SSH.",
+    nurOwner:
+      "Diese Fläche ist der Owner-Rolle vorbehalten. Wer Konten verwalten kann, kann jedem Zugang zu allem anderen geben.",
+    name: "Anmeldename",
+    rolle: "Rolle",
+    zustand: "Zustand",
+    passkeysSpalte: "Passkeys",
+    letzteAnmeldung: "Letzte Anmeldung",
+    angelegt: "Angelegt",
+    nie: "noch nie",
+    suchen: "Zugang suchen",
+    alle: "alle",
+    owner: "Owner",
+    gesperrt: "gesperrt",
+    aktiv: "aktiv",
+    offen: "Einrichtung offen",
+    nichts: "Kein Zugang passt.",
+    ich: "das ist Ihr Konto",
+    ichHinweis:
+      "Am eigenen Konto ändert man hier nichts: Passwort, zweiter Faktor und Passkeys stehen auf der Kontoseite, und sperren oder löschen wäre ein Selbstausschluss.",
+    letzterOwner:
+      "Das letzte Owner-Konto. Es lässt sich nicht löschen — danach könnte niemand mehr Konten verwalten.",
+    keinZweiterFaktor:
+      "Der zweite Faktor ist noch nicht eingerichtet. Das geschieht bei der nächsten Anmeldung.",
+    einmalpasswortOffen:
+      "Das Konto hat ein Einmalpasswort aus einer Zurücksetzung. Es wird bei der nächsten Anmeldung ersetzt.",
+    nurLesen: "Dieses Konto darf keine Panel-Zugänge ändern.",
+
+    anlegen: "Zugang anlegen",
+    anlegenTitel: "Neuer Panel-Zugang",
+    // Warum es kein Passwortfeld gibt. Der Satz ist die Antwort auf die Frage,
+    // die jeder stellt, der hier ein solches Feld erwartet.
+    anlegenHinweis:
+      "Das Startpasswort erzeugt das Panel. Es steht genau einmal in der Antwort, gilt als Einmalpasswort und wird bei der ersten Anmeldung ersetzt — zusammen mit der Einrichtung des zweiten Faktors.",
+    namePlatzhalter: "anmeldename",
+    abbrechen: "abbrechen",
+
+    handgriff: {
+      sperren: "sperren",
+      freigeben: "freigeben",
+      loeschen: "löschen",
+      passwort: "Passwort zurücksetzen",
+      "zweiter-faktor": "zweiten Faktor zurücksetzen",
+      passkeys: "Passkeys entfernen",
+    } as Record<string, string>,
+
+    // Die zweite Schranke. Der Satz sagt, WESSEN Passwort gemeint ist — die
+    // häufigste Verwechslung an dieser Stelle.
+    eigenesPasswort: "Ihr eigenes Passwort",
+    eigenesPasswortWarum:
+      "Zum Zurücksetzen eines fremden Kontos ist Ihr eigenes Passwort nötig. Ein übernommenes Fenster allein soll kein anderes Konto übernehmen können.",
+    weiter: "zurücksetzen",
+
+    // Das Einmalpasswort. Es steht genau einmal da, und das muss dabeistehen.
+    einmalpasswortTitel: "Einmalpasswort",
+    einmalpasswortEinmal:
+      "Dieses Passwort steht nur hier und wird nicht noch einmal angezeigt. Wer es verliert, setzt erneut zurück.",
+    kopieren: "kopieren",
+    kopiert: "kopiert",
+    verstanden: "notiert, schließen",
+    fuer: (name: string) => `für ${name}`,
+
+    passkeysAus: "Passkeys sind in dieser Installation abgeschaltet.",
+    passkeysAnzahl: (n: number) => (n === 1 ? "1 Passkey" : `${n} Passkeys`),
+    keinePasskeys: "kein Passkey",
+  },
+
+  audit: {
+    laedt: "wird geladen …",
+    zeit: "Zeit",
+    akteur: "Wer",
+    aktion: "Was",
+    ziel: "Woran",
+    ergebnis: "Ergebnis",
+    ip: "Von",
+    detail: "Einzelheiten",
+    alleAkteure: "alle Konten",
+    alleFamilien: "alle Bereiche",
+    alleErgebnisse: "alle Ergebnisse",
+    suchen: "in Ziel und Einzelheiten suchen",
+    suchenKurz: "suchen",
+    zuruecksetzen: "Filter zurücksetzen",
+    mehr: "weitere 100 laden",
+    laedtMehr: "lädt …",
+    ende: "Das ist der Anfang des Protokolls.",
+    nichts: "Kein Eintrag passt zu diesem Filter.",
+    leer: "Das Protokoll ist leer.",
+    // Die Wörter für die drei Ergebnisse. „denied" ist keine Panne: Es heißt,
+    // dass die Politik gegriffen hat.
+    ergebnisse: {
+      ok: "getan",
+      denied: "abgelehnt",
+      error: "gescheitert",
+    } as Record<string, string>,
+    // Der Satz über der Liste. Er sagt, was das Protokoll ist und was es nicht
+    // ist — es gibt keinen Knopf, der etwas darin ändert, und das ist Absicht.
+    wesen:
+      "Nur additiv: Einträge lassen sich nicht ändern und nicht löschen — auch nicht von der Owner-Rolle.",
+    gefiltert: (n: number) => (n === 1 ? "1 Eintrag" : `${n} Einträge`),
   },
 
   bald: {

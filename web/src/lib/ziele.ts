@@ -32,6 +32,14 @@ export type Ziel = {
   /** Schon in der neuen Oberfläche gebaut? Die Palette sagt es dazu, damit
    *  niemand rätselt, warum eine Seite anders aussieht als die davor. */
   neu?: boolean;
+  /** nurOwner blendet das Ziel für andere Rollen aus — Menü und Palette.
+   *
+   *  Das ist Bedienhilfe und keine Sicherheitsmaßnahme: Die Route selbst liegt
+   *  hinter apiOwner und antwortet 403, egal was hier steht. Aber ein Menüpunkt,
+   *  der zuverlässig „vorbehalten" sagt, ist kein Menüpunkt — er ist eine
+   *  Einladung, es trotzdem zu versuchen. Die alte Oberfläche hielt es genauso
+   *  ({{if .IsOwner}} in partials.html). */
+  nurOwner?: boolean;
   /** Wörter, unter denen jemand sucht, die aber nicht im Namen stehen.
    *
    *  Das ist der Unterschied zwischen einer Palette und einer Liste: Wer
@@ -136,16 +144,32 @@ export const gruppen: Gruppe[] = [
         id: "benutzer",
         label: t.ziele.benutzer,
         symbol: "personen",
-        href: "/system-users",
+        href: "/v2/benutzer",
         gruppe: t.bereiche.sicherheit,
+        neu: true,
         auch: ["ssh", "schluessel", "key", "authorized_keys", "systembenutzer", "konten"],
+      },
+      {
+        // Direkt neben „Benutzer & SSH", und das ist Absicht: Die beiden
+        // Kontenarten sind die häufigste Verwechslung im Panel, und zwei
+        // Menüpunkte nebeneinander sagen mehr über den Unterschied als jeder
+        // Erklärsatz auf einer der beiden Seiten.
+        id: "zugaenge",
+        label: t.ziele.zugaenge,
+        symbol: "schluessel",
+        href: "/v2/zugaenge",
+        gruppe: t.bereiche.sicherheit,
+        neu: true,
+        nurOwner: true,
+        auch: ["panel", "rollen", "owner", "admin", "passkey", "2fa", "totp", "sperren"],
       },
       {
         id: "zertifikate",
         label: t.ziele.zertifikate,
         symbol: "siegel",
-        href: "/certificate",
+        href: "/v2/zertifikate",
         gruppe: t.bereiche.sicherheit,
+        neu: true,
         auch: ["tls", "ssl", "acme", "lets encrypt", "letsencrypt", "https"],
       },
     ],
@@ -175,17 +199,38 @@ export const gruppen: Gruppe[] = [
         id: "audit",
         label: t.ziele.audit,
         symbol: "buch",
-        href: "/audit",
+        href: "/v2/audit",
         gruppe: t.bereiche.betrieb,
+        neu: true,
         auch: ["revision", "wer", "nachvollziehen", "verlauf"],
       },
       {
-        id: "einstellungen",
-        label: t.ziele.einstellungen,
-        symbol: "regler",
-        href: "/users",
+        // Hieß bis 0.4.0-rc.3 „Einstellungen" und führte auf /users — die
+        // Kontenliste. Der Name versprach etwas anderes, als dahinter stand, und
+        // seit es „Panel-Zugänge" gibt, wäre er auch noch doppelt. Was bleibt, ist
+        // das eigene Konto: Passwort, zweiter Faktor, Passkeys, Sitzungen.
+        //
+        // Jede Rolle sieht diesen Punkt: Sein eigenes Konto verwaltet jeder.
+        id: "konto",
+        label: t.ziele.konto,
+        symbol: "person",
+        href: "/v2/konto",
         gruppe: t.bereiche.betrieb,
-        auch: ["panel", "konto", "rollen", "port", "update", "token"],
+        neu: true,
+        auch: ["passwort", "2fa", "totp", "passkey", "sitzungen", "abmelden", "profil"],
+      },
+      {
+        // Die Updates des PANELS, nicht die des Systems — die stehen unter
+        // „Pakete". Der Punkt stand bis 0.4.0-rc.3 nur in der Schiene der alten
+        // Oberfläche und hatte in der neuen keinen; die Suchwörter halten die
+        // beiden auseinander.
+        id: "updates",
+        label: t.ziele.update,
+        symbol: "pfeil-hoch",
+        href: "/v2/updates",
+        gruppe: t.bereiche.betrieb,
+        neu: true,
+        auch: ["selbstupdate", "panel", "fassung", "version", "rollback", "rückweg", "signatur"],
       },
     ],
   },
@@ -193,6 +238,24 @@ export const gruppen: Gruppe[] = [
 
 /** alleZiele ist die flache Liste für die Suche. */
 export const alleZiele: Ziel[] = gruppen.flatMap((g) => g.ziele);
+
+/** sichtbareZiele lässt weg, was die Rolle nicht erreicht.
+ *
+ *  Einmal hier und nicht in der Leiste UND in der Palette: Zwei Filter derselben
+ *  Regel laufen auseinander, und der übersehene wäre die Palette — dort fällt ein
+ *  Ziel zu viel niemandem auf, bis es angeklickt wird. */
+export function sichtbareZiele(istOwner: boolean, ziele: Ziel[] = alleZiele): Ziel[] {
+  return ziele.filter((z) => !z.nurOwner || istOwner);
+}
+
+/** sichtbareGruppen ist dasselbe für die Seitenleiste. Eine Gruppe, die dadurch
+ *  leer wird, fällt mit weg — eine Überschrift ohne Punkte darunter sieht wie ein
+ *  Fehler aus. */
+export function sichtbareGruppen(istOwner: boolean): Gruppe[] {
+  return gruppen
+    .map((g) => ({ titel: g.titel, ziele: sichtbareZiele(istOwner, g.ziele) }))
+    .filter((g) => g.ziele.length > 0);
+}
 
 /** normal macht Suchbegriff und Ziel vergleichbar: Kleinbuchstaben, Umlaute
  *  aufgelöst. Wer „zertifikate" ohne Umlaut oder „ubersicht" tippt, soll finden,

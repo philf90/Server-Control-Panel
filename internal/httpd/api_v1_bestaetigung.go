@@ -50,6 +50,35 @@ func (s *Server) apiSchreibend(next http.Handler) http.Handler {
 	})
 }
 
+// apiEigenerZugriff prüft NUR das Sitzungstoken, nicht die Rolle.
+//
+// Gebraucht für das eigene Konto, und das ist keine Lockerung von apiSchreibend,
+// sondern eine andere Frage: Dort geht es um Zustände des Systems, die eine Rolle
+// verändern darf oder nicht. Hier verändert jemand seinen EIGENEN Anmeldeweg, und
+// das darf jede Rolle — sonst bliebe ein Konto mit Leserecht auf dem
+// Einmalpasswort sitzen, mit dem es angelegt wurde, und könnte weder Passwort
+// noch zweiten Faktor wechseln.
+//
+// Die Schranke dieser Endpunkte ist deshalb nicht die Rolle, sondern zweierlei:
+// Sie fassen ausschließlich das Konto der laufenden Sitzung an (die Kennung kommt
+// aus dem Kontext, nie aus dem Anfragekörper), und jede Änderung an einem
+// Anmeldeweg verlangt das aktuelle Passwort.
+func (s *Server) apiEigenerZugriff(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := userFrom(r.Context()); !ok {
+			s.apiFehler(w, http.StatusUnauthorized, "nicht angemeldet")
+			return
+		}
+		if !s.csrfPasst(r, r.Header.Get("X-CSRF-Token")) {
+			s.audit(r, "csrf.rejected", r.URL.Path, store.ResultDenied, "")
+			s.apiFehler(w, http.StatusForbidden,
+				"Das Sitzungstoken passt nicht. Bitte die Seite neu laden.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // apiOwner lässt nur die Owner-Rolle durch — mit JSON-Ausgang, wie
 // apiSchreibend. Vor apiSchreibend gestellt, damit der Grund der richtige ist:
 // Wer nicht Owner ist, soll das erfahren und nicht „Token fehlt".

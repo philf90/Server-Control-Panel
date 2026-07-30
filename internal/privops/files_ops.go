@@ -68,6 +68,13 @@ func (f *FileSystem) ReadableRoots() []string {
 	return append([]string{}, f.wache.lese...)
 }
 
+// Limits liefert die Obergrenzen für Editor und Upload. Beide sind in
+// NewFileSystem auf die Vorgaben gesetzt, wenn die Politik nichts nennt — hier
+// steht deshalb nie eine Null.
+func (f *FileSystem) Limits() (maxEdit, maxUpload int64) {
+	return f.pol.MaxEditSize, f.pol.MaxUpload
+}
+
 // ------------------------------------------------------------ Namen zu IDs ---
 
 // namensbuch löst UID und GID in Namen auf. Es wird je Aufruf einmal gefüllt:

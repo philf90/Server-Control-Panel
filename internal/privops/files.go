@@ -74,6 +74,15 @@ type Files interface {
 	// ReadableRoots sind die Bäume, die überhaupt sichtbar sind. Die Oberfläche
 	// zeigt sie als Einstiegspunkte.
 	ReadableRoots() []string
+	// Limits nennt die beiden Obergrenzen, die die Oberfläche kennen muss:
+	// bis wohin der Editor eine Datei öffnet und wie groß ein Upload sein darf.
+	//
+	// Sie stehen hier und nicht nur in der Politik, weil die Alternative eine
+	// Schaltfläche wäre, die zuverlässig in ein 413 läuft: „Bearbeiten" an einer
+	// Logdatei von 800 MiB anzubieten heißt, den Fehler erst nach dem Klick zu
+	// nennen. Verbindlich bleiben die Grenzen im Dateimanager selbst — das hier
+	// ist die Auskunft darüber, nicht die Prüfung.
+	Limits() (maxEdit, maxUpload int64)
 	// WritableRoots und Verify sagen, wo geschrieben werden darf und ob das auch
 	// tatsächlich möglich ist — eine per Selbstupdate aktualisierte Installation
 	// trägt noch die alte systemd-Härtung.

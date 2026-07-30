@@ -873,6 +873,231 @@ async function main() {
   }
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 12. Das Modul Dateien. Es ist das erste, dessen Ort in der Adresse steht und
+  //     dessen Bewegung ein Schritt im Verlauf ist — und genau das prüft ein
+  //     Go-Test nicht: Ob der Zurück-Knopf eine Ebene höher führt, ist eine
+  //     Aussage über history.pushState und nicht über die Antwort des Servers.
+  const wurzel = process.env.ASYLUM_E2E_DATEIWURZEL ?? "";
+  const dateien = {};
+  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  dateien.wurzeln = await seite.evaluate(() =>
+    [...document.querySelectorAll(".bereiche button")].map((b) => b.textContent.trim()),
+  );
+  dateien.krumen = await seite.evaluate(() =>
+    [...document.querySelectorAll(".krumen button")].map((b) => b.textContent.trim()),
+  );
+  dateien.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector(".zeile")?.textContent.trim() ?? "",
+      groesse: tr.children[1]?.textContent.trim() ?? "",
+      rechte: tr.children[3]?.textContent.trim() ?? "",
+      gesperrt: tr.querySelector(".zustand.warn") !== null,
+    })),
+  );
+  dateien.alteAnsicht = await seite.evaluate(
+    () => document.querySelector(".fuss a")?.getAttribute("href") ?? "",
+  );
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien.png`,
+      fullPage: true,
+    });
+  }
+
+  // Ein Klick auf einen Ordner geht hinein — nicht in den Inspektor. Ein
+  // Doppelklick als Unterschied wäre auf einem Telefon nicht bedienbar.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find((b) =>
+      b.classList.contains("ordner") && b.textContent.includes("schreibbar"),
+    );
+    z.click();
+  });
+  await seite.waitForFunction(
+    () => new URL(location.href).searchParams.get("pfad")?.endsWith("/schreibbar"),
+    null,
+    { timeout: 5000 },
+  );
+  await seite.waitForTimeout(300);
+  dateien.nachOrdnerklick = await seite.evaluate(() => ({
+    pfad: new URL(location.href).searchParams.get("pfad") ?? "",
+    krumen: [...document.querySelectorAll(".krumen button")].map((b) => b.textContent.trim()),
+    reihen: [...document.querySelectorAll("table.tabelle .zeile")].map((b) =>
+      b.textContent.trim(),
+    ),
+  }));
+
+  // Und der Zurück-Knopf führt eine Ebene höher. Das ist der Punkt: Bei den
+  // Diensten ersetzt der Wechsel der Auswahl den Verlaufseintrag, hier muss
+  // jeder Schritt hinein einer sein.
+  await seite.goBack();
+  await seite.waitForTimeout(400);
+  dateien.nachZurueck = await seite.evaluate(() => ({
+    pfad: new URL(location.href).searchParams.get("pfad") ?? "",
+    reihen: [...document.querySelectorAll("table.tabelle .zeile")].map((b) =>
+      b.textContent.trim(),
+    ),
+  }));
+
+  // Der Inspektor einer Datei: Rechte in Worten, und ein Download, der ein
+  // echter Verweis ist. Wäre es ein Knopf mit fetch, zöge er die Datei in den
+  // Speicher des Tabs.
+  await seite.goto(
+    `${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel + "/schreibbar")}` +
+      `&eintrag=${encodeURIComponent(wurzel + "/schreibbar/notizen.txt")}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  await seite.waitForSelector(".inspektor .rechteblock dd", { timeout: 5000 });
+  dateien.inspektor = await seite.evaluate(() => {
+    const i = document.querySelector(".inspektor");
+    return {
+      titel: i.querySelector("h2, .titel")?.textContent.trim() ?? i.getAttribute("aria-label") ?? "",
+      paare: i.querySelectorAll("dl.kv dt").length,
+      rechtetext: [...i.querySelectorAll(".rechteblock dd")].map((li) =>
+        li.textContent.replace(/\s+/g, " ").trim(),
+      ),
+      aktionen: [...i.querySelectorAll(".aktionen .knopf")].map((a) =>
+        a.textContent.trim(),
+      ),
+      downloadZu:
+        [...i.querySelectorAll(".aktionen a")].find((a) =>
+          a.textContent.includes("herunterladen"),
+        )?.tagName ?? "",
+    };
+  });
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-inspektor.png`,
+      fullPage: true,
+    });
+  }
+
+  // Der gesperrte Eintrag: sichtbar, benannt — und ohne einen Handgriff, der
+  // seinen Inhalt anfassen würde. Der Knopf wäre bereits der Fehler, auch wenn
+  // der Endpunkt danach 403 antwortet.
+  await seite.goto(
+    `${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}` +
+      `&eintrag=${encodeURIComponent(wurzel + "/schluessel.geheim")}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  dateien.gesperrtInspektor = await seite.evaluate(() => {
+    const i = document.querySelector(".inspektor");
+    return {
+      warnung: i.querySelector(".warnung")?.textContent.trim() ?? "",
+      aktionen: [...i.querySelectorAll(".aktionen .knopf")].map((a) =>
+        a.textContent.trim(),
+      ),
+    };
+  });
+
+  // Die Suche geht an den Server und findet unterhalb. Ein Browserfilter könnte
+  // das nicht — und behauptete bei einer gekürzten Liste „kein Treffer" für eine
+  // Datei, die es gibt.
+  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+  await seite.fill(".suche input", "gesucht");
+  await seite.press(".suche input", "Enter");
+  await seite.waitForSelector(".band.info", { timeout: 5000 });
+  dateien.suche = await seite.evaluate(() => ({
+    band: document.querySelector(".band.info")?.textContent.replace(/\s+/g, " ").trim() ?? "",
+    reihen: [...document.querySelectorAll("table.tabelle .zeile")].map((b) =>
+      b.textContent.trim(),
+    ),
+    orte: [...document.querySelectorAll("table.tabelle .ort")].map((o) =>
+      o.textContent.trim(),
+    ),
+  }));
+
+  // Suche beenden bringt die Liste zurück.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".suche .knopf")].find((x) =>
+      x.textContent.includes("beenden"),
+    );
+    b.click();
+  });
+  await seite.waitForFunction(
+    () => document.querySelector(".band.info") === null,
+    null,
+    { timeout: 5000 },
+  );
+  dateien.nachSuchende = await seite.evaluate(
+    () => document.querySelectorAll("table.tabelle tbody tr").length,
+  );
+
+  // Sortieren steht in der Adresse — teilbar, und ein Neuladen zeigt dasselbe.
+  await seite.evaluate(() => {
+    const s = [...document.querySelectorAll("table.tabelle th .spalte")].find((x) =>
+      x.textContent.includes("Größe"),
+    );
+    s.click();
+  });
+  await seite.waitForTimeout(300);
+  dateien.sortiertNach = await seite.evaluate(
+    () => new URL(location.href).searchParams.get("sort") ?? "",
+  );
+  await seite.reload({ waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle th .spalte", { timeout: 5000 });
+  dateien.nachNeuladen = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll("table.tabelle th .spalte")]
+        .find((x) => x.textContent.includes("Größe"))
+        ?.textContent.trim() ?? "",
+  );
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  dateien.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
+  //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
+  //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
+  const bald = {};
+  await seite.click('.seitenleiste a[href="/v2/docker"]');
+  await seite.waitForSelector(".platte .satz", { timeout: 5000 });
+  bald.pfad = new URL(seite.url()).pathname;
+  bald.titel = await seite.evaluate(
+    () => document.querySelector(".h1")?.textContent.trim() ?? "",
+  );
+  bald.marke = await seite.evaluate(
+    () => document.querySelector(".kopfzeile .marke")?.textContent.trim() ?? "",
+  );
+  bald.satz = await seite.evaluate(
+    () => document.querySelector(".platte .satz")?.textContent.trim() ?? "",
+  );
+  bald.ersatz = await seite.evaluate(
+    () => document.querySelector(".ersatz a")?.getAttribute("href") ?? "",
+  );
+  // Der Menüpunkt ist hervorgehoben: Wer hier steht, soll sehen, wo er steht.
+  bald.navAktiv = await seite.evaluate(
+    () =>
+      document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",
+  );
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-bald.png`,
+      fullPage: true,
+    });
+  }
+
   await browser.close();
 
   console.log(
@@ -889,6 +1114,8 @@ async function main() {
       pakete,
       logs,
       firewall,
+      dateien,
+      bald,
       zweige,
       schmal,
       strich,

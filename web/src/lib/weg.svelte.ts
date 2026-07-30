@@ -19,29 +19,62 @@ export const BASIS = "/v2";
 /** Seite ist die Kennung der stehenden Seite — dieselbe wie die id des Ziels in
  *  lib/ziele.ts, damit die Seitenleiste ohne eine zweite Zuordnung weiß, welcher
  *  Punkt hervorgehoben ist. */
-export type Seite = "uebersicht" | "dienste" | "pakete" | "logs" | "firewall";
+export type Seite =
+  | "uebersicht"
+  | "dienste"
+  | "pakete"
+  | "logs"
+  | "firewall"
+  | "dateien"
+  | "bald";
+
+/** gebauteSeiten sind die Kennungen, die eine eigene Seite haben. Als Objekt und
+ *  nicht als switch, damit die Liste einmal steht — sie ist auch die Antwort auf
+ *  die Frage, was schon da ist. */
+const gebauteSeiten: Record<string, Seite> = {
+  dienste: "dienste",
+  pakete: "pakete",
+  logs: "logs",
+  firewall: "firewall",
+  dateien: "dateien",
+};
+
+/** angekuendigt sind die Module, die es noch nicht gibt, die aber im Menü stehen.
+ *
+ *  Sie brauchen einen eigenen Zustand, weil die Alternative schlechter ist: Bis
+ *  hierher zeigten sie auf /v2/ und landeten stillschweigend auf der Übersicht —
+ *  ein Klick auf „Docker", der die Startseite bringt, sieht wie ein Fehler aus.
+ *  Der Wert ist die Fassung, mit der das Modul kommt; die Seite sagt es. */
+export const angekuendigt: Record<string, string> = {
+  cron: "0.5",
+  docker: "0.6",
+  webserver: "0.7",
+  datenbanken: "0.8",
+  backups: "0.9",
+};
+
+/** modul ist die Kennung hinter /v2/… — für die Seite „bald" die Auskunft,
+ *  welches Modul gemeint war. */
+export function modulAus(pfad: string): string {
+  const rest = pfad.startsWith(BASIS) ? pfad.slice(BASIS.length) : pfad;
+  return rest.replace(/^\/+|\/+$/g, "");
+}
 
 function seiteAus(pfad: string): Seite {
-  const rest = pfad.startsWith(BASIS) ? pfad.slice(BASIS.length) : pfad;
   // Ohne Schrägstriche vergleichen: /v2/dienste und /v2/dienste/ sind dieselbe
   // Seite, und ein Verweis mit oder ohne den letzten Strich soll nicht der
   // Unterschied zwischen einer Seite und dem leeren Zustand sein.
-  switch (rest.replace(/^\/+|\/+$/g, "")) {
-    case "dienste":
-      return "dienste";
-    case "pakete":
-      return "pakete";
-    case "logs":
-      return "logs";
-    case "firewall":
-      return "firewall";
-    default:
-      return "uebersicht";
-  }
+  const rest = modulAus(pfad);
+  if (gebauteSeiten[rest]) return gebauteSeiten[rest];
+  if (angekuendigt[rest]) return "bald";
+  return "uebersicht";
 }
 
 class Weg {
   seite = $state<Seite>(seiteAus(location.pathname));
+  /** modul ist die Kennung aus der Adresse. Für die gebauten Seiten dasselbe wie
+   *  seite; für „bald" die einzige Auskunft darüber, welches Modul gemeint war. */
+  modul = $state<string>(modulAus(location.pathname));
   /** parameter ist die Abfrage der Adresse als einfaches Objekt. Als Objekt und
    *  nicht als URLSearchParams, weil Svelte Änderungen an einem Objekt
    *  beobachtet und an einer Instanz mit interner Liste nicht. */
@@ -53,6 +86,7 @@ class Weg {
     // Inspektor, und auf einem Telefon ist er der Weg, den man nimmt.
     window.addEventListener("popstate", () => {
       this.seite = seiteAus(location.pathname);
+      this.modul = modulAus(location.pathname);
       this.parameter = paramAus(location.search);
     });
   }
@@ -65,6 +99,7 @@ class Weg {
     const ziel = new URL(href, location.origin);
     history.pushState(null, "", ziel.pathname + ziel.search);
     this.seite = seiteAus(ziel.pathname);
+    this.modul = modulAus(ziel.pathname);
     this.parameter = paramAus(ziel.search);
     // Nach einem Seitenwechsel steht der Blick sonst dort, wo er auf der
     // vorigen Seite war — in der Mitte einer Liste, die es nicht mehr gibt.
@@ -95,6 +130,41 @@ class Weg {
       history.replaceState(null, "", ziel.pathname + ziel.search);
     } else {
       history.pushState(null, "", ziel.pathname + ziel.search);
+    }
+    this.parameter = paramAus(ziel.search);
+  }
+
+  /** setzeAlle schreibt mehrere Parameter auf einmal und entscheidet den Verlauf
+   *  selbst. Leerer Wert entfernt den Parameter.
+   *
+   *  Zwei Gründe für diese Fassung neben setze:
+   *
+   *   1. Ein Wechsel des Verzeichnisses im Dateimanager ändert drei Parameter —
+   *      Pfad, Auswahl, Suchbegriff. Mit drei setze-Aufrufen wären das drei
+   *      Einträge im Verlauf, und der Zurück-Knopf käme in einen Zwischenzustand,
+   *      den nie jemand gesehen hat.
+   *   2. setze entscheidet den Verlauf aus dem vorigen Wert („erste Auswahl ist
+   *      ein Schritt"). Beim Blättern durch Verzeichnisse ist das falsch: Jeder
+   *      Schritt hinein ist einer, und man will Ebene für Ebene zurück. Deshalb
+   *      sagt der Aufrufer es hier ausdrücklich. */
+  setzeAlle(werte: Record<string, string>, schritt = false): void {
+    const ziel = new URL(location.href);
+    let geaendert = false;
+    for (const [name, wert] of Object.entries(werte)) {
+      if ((this.parameter[name] ?? "") === wert) continue;
+      geaendert = true;
+      if (wert) {
+        ziel.searchParams.set(name, wert);
+      } else {
+        ziel.searchParams.delete(name);
+      }
+    }
+    if (!geaendert) return;
+
+    if (schritt) {
+      history.pushState(null, "", ziel.pathname + ziel.search);
+    } else {
+      history.replaceState(null, "", ziel.pathname + ziel.search);
     }
     this.parameter = paramAus(ziel.search);
   }

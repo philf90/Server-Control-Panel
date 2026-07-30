@@ -231,6 +231,57 @@ export const t = {
       `Für Port ${port} gibt es keine Regel von überall her. Ohne sie verweigert der Server das Einschalten — das Panel wäre danach nicht mehr erreichbar, auch nicht zum Bestätigen.`,
   },
 
+  dateien: {
+    laedt: "wird geladen …",
+    suchen: "Namen suchen",
+    suchenHier: "unterhalb dieses Ordners suchen",
+    suchergebnis: (begriff: string, n: number) =>
+      `${n} Treffer für „${begriff}“`,
+    suchenBeenden: "Suche beenden",
+    versteckte: "versteckte zeigen",
+    name: "Name",
+    groesse: "Größe",
+    geaendert: "Geändert",
+    rechte: "Rechte",
+    eigentuemer: "Eigentümer",
+    art: "Art",
+    hoch: "eine Ebene höher",
+    leer: "Dieser Ordner ist leer.",
+    nichtsGefunden: "Kein Eintrag passt.",
+    wurzeln: "Bereiche",
+    frei: "frei",
+    freiKnapp: "wenig Platz",
+    // Die Zählung unter der Liste. Sie nennt, was ausgeliefert wurde — bei einer
+    // gekürzten Liste steht die wahre Zahl daneben in gekuerzt_grund.
+    inhalt: (ordner: number, dateien: number, bytes: string) =>
+      `${ordner} Ordner, ${dateien} ${dateien === 1 ? "Datei" : "Dateien"} · ${bytes}`,
+    gesperrt: "gesperrt",
+    gesperrtErklaerung:
+      "Der Pfad steht auf der Sperrliste. Der Eintrag ist sichtbar, sein Inhalt wird nie gelesen, geschrieben oder ausgeliefert.",
+    nurLesen: "Dieses Konto darf lesen, aber nichts verändern.",
+    nichtBeschreibbar:
+      "Dieser Bereich ist nicht beschreibbar — verändernde Handgriffe fehlen deshalb.",
+    verweisAuf: "zeigt auf",
+    verweisGebrochen: "Das Ziel des Verweises existiert nicht.",
+    inhaltZaehlung: "Inhalt",
+    grenzeEditor: (text: string) => `Der Editor öffnet Dateien bis ${text}.`,
+    // Der Weg zurück bleibt sichtbar, solange die alte Fläche mehr kann.
+    alteAnsicht: "dieser Ordner in der alten Ansicht",
+    handgriff: {
+      oeffnen: "öffnen",
+      herunterladen: "herunterladen",
+      archiv: "als tar.gz laden",
+      bearbeiten: "bearbeiten",
+      umbenennen: "umbenennen",
+      kopieren: "kopieren",
+      verschieben: "verschieben",
+      rechte: "Rechte",
+      loeschen: "löschen",
+      anlegen: "anlegen",
+      hochladen: "hochladen",
+    },
+  },
+
   vorgang: {
     laeuft: "läuft",
     fertig: "abgeschlossen",
@@ -260,9 +311,22 @@ export const t = {
     waehlen: "wählen",
     oeffnen: "öffnen",
     neu: "neu",
-    // Ehrlich benannt: Die Palette sucht heute Ziele, keine Dienste. Wer das
-    // erwartet und nichts findet, hält die Suche für kaputt.
-    spaeter: "Dienste und Dateien folgen mit ihren Modulen",
+    // Ehrlich benannt: Die Palette sucht heute Ziele, keine Einträge darin. Wer
+    // hier nach einer Unit oder einem Pfad sucht und nichts findet, hält die
+    // Suche für kaputt — sie hat nur einen anderen Gegenstand.
+    spaeter: "Units, Pfade und Pakete sucht man auf ihrer Seite",
+  },
+
+  bald: {
+    ab: (fassung: string) => `geplant für ${fassung}`,
+    satz: (modul: string, fassung: string) =>
+      fassung
+        ? `${modul} gibt es noch nicht. Das Modul ist für Fassung ${fassung} vorgesehen.`
+        : `${modul} gibt es noch nicht.`,
+    warum:
+      "Der Menüpunkt steht trotzdem hier, weil er zum Leitbild gehört und die Reihenfolge der Module absehbar sein soll. Er führt auf diese Auskunft und nicht auf die Startseite — ein Klick, der stillschweigend woanders landet, sieht wie ein Fehler aus.",
+    heute: "Was heute an seiner Stelle geht",
+    zu: (label: string) => `zu ${label}`,
   },
 
   stufe: {

@@ -32,6 +32,7 @@ import (
 var jobArten = map[string]string{
 	jobPackages:        "Paketvorgang",
 	jobFirewallInstall: "ufw einspielen",
+	jobFiles:           "Dateivorgang",
 }
 
 // apiJob ist der Zustand eines Vorgangs.

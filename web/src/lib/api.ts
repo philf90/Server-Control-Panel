@@ -5,6 +5,8 @@
 import type {
   AktionAntwort,
   Bestaetigung,
+  Dateidetail,
+  Dateiliste,
   Dienste,
   DienstAktion,
   DienstDetail,
@@ -12,6 +14,7 @@ import type {
   FirewallAntwort,
   Job,
   Logs,
+  Ordnerauswahl,
   Pakete,
   Regel,
   Signale,
@@ -180,6 +183,46 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ umfang: "alle", paket: "", bestaetigt, getippt }),
     }),
+
+  // ---------------------------------------------------------------- Dateien ---
+  //
+  // Der Pfad wandert als Abfrageparameter und nicht im Pfadsegment: Ein Pfad
+  // enthält Schrägstriche, und ein doppelt kodiertes Segment wäre die Stelle, an
+  // der ein Verzeichnisname mit Sonderzeichen irgendwann nicht mehr auffindbar
+  // ist. Der Server prüft ihn ohnehin in der Pfadwache, nicht am Muster.
+
+  /** dateien liest ein Verzeichnis oder — mit `q` — sucht darunter. Dieselbe
+   *  Antwortform für beides. */
+  dateien: (pfad: string, opt: { sort?: string; absteigend?: boolean; versteckt?: boolean; q?: string } = {}) => {
+    const p = new URLSearchParams();
+    if (pfad) p.set("pfad", pfad);
+    if (opt.sort && opt.sort !== "name") p.set("sort", opt.sort);
+    if (opt.absteigend) p.set("desc", "1");
+    if (opt.versteckt) p.set("versteckt", "1");
+    if (opt.q) p.set("q", opt.q);
+    const suchpfad = p.toString();
+    return anfrage<Dateiliste>(`/files${suchpfad ? `?${suchpfad}` : ""}`);
+  },
+
+  /** eintrag holt das Detail eines Eintrags: Rechte in Worten, die Zählung eines
+   *  Baums, die Namen für chown. Eigener Aufruf, weil die Liste das für
+   *  zweitausend Zeilen nicht mitschleppen soll. */
+  eintrag: (pfad: string) =>
+    anfrage<Dateidetail>(`/files/entry?${new URLSearchParams({ pfad })}`),
+
+  /** ordner liefert die Unterverzeichnisse für die Zielauswahl. */
+  ordner: (pfad: string, versteckt = false) => {
+    const p = new URLSearchParams();
+    if (pfad) p.set("pfad", pfad);
+    if (versteckt) p.set("versteckt", "1");
+    return anfrage<Ordnerauswahl>(`/files/dirs${p.toString() ? `?${p}` : ""}`);
+  },
+
+  /** herunterladen und archiv sind Adressen und keine Aufrufe: Der Browser holt
+   *  sie selbst, damit der Download-Manager sie bekommt und nicht der Speicher
+   *  des Tabs. Deshalb geben sie eine Zeichenkette zurück. */
+  herunterladen: (pfad: string) => `/api/v1/files/download?${new URLSearchParams({ pfad })}`,
+  archiv: (pfad: string) => `/api/v1/files/archive?${new URLSearchParams({ pfad })}`,
 
   dienste: () => anfrage<Dienste>("/services"),
   dienst: (unit: string) => anfrage<DienstDetail>(`/services/${encodeURIComponent(unit)}`),

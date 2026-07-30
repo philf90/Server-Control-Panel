@@ -99,6 +99,25 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallConfirm))))
 	mux.Handle("POST /api/v1/firewall/install",
 		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallInstall))))
+	// Dateien. Wie bei den alten Routen entstehen sie nur, wenn das Modul läuft
+	// — abschalten entfernt Rechte, nicht nur den Menüpunkt.
+	if s.files != nil {
+		mux.Handle("GET /api/v1/files", s.protected(http.HandlerFunc(s.handleAPIFiles)))
+		mux.Handle("GET /api/v1/files/entry", s.protected(http.HandlerFunc(s.handleAPIFileEntry)))
+		mux.Handle("GET /api/v1/files/dirs", s.protected(http.HandlerFunc(s.handleAPIFileDirs)))
+		// Download und Archiv sind DIESELBEN Handler wie unter /files. Sie
+		// streamen Bytes, und es gäbe an einer zweiten Fassung nichts zu
+		// gewinnen außer der Gelegenheit, dass eine der beiden den
+		// Content-Disposition-Kopf verliert. Nur der Pfad ist neu, damit die
+		// Verweise der neuen Oberfläche den Wegfall der alten überleben.
+		//
+		// Der Preis steht dabei: Scheitert der Aufruf, kommt die Fehlerseite der
+		// alten Oberfläche und nicht JSON. Das ist hier die richtige Antwort —
+		// der Browser navigiert dorthin, es ist kein fetch, und eine
+		// JSON-Fehlermeldung im Adressfeld wäre die schlechtere Auskunft.
+		mux.Handle("GET /api/v1/files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
+		mux.Handle("GET /api/v1/files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
+	}
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

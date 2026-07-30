@@ -137,6 +137,14 @@ html {
   color: var(--tx-mut);
 }
 
+/* Eine Marke, die etwas zu sagen hat: knapper Platz auf dem Dateisystem, eine
+ * abgelaufene Frist. Farbe trägt hier keine Aussage allein — der Text daneben
+ * sagt dasselbe in Worten. */
+.marke.warn {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
 /* ── Tabellen ─────────────────────────────────────────────────────────────
  * Die Grundlage für jede Liste des Panels. Unter 600 px wird aus jeder Zeile
  * eine Karte: `overflow-x: auto` allein genügt nicht — eine seitlich
@@ -307,6 +315,14 @@ progress.balken.eng::-moz-progress-bar {
   background: transparent;
   border-color: var(--err);
   color: var(--err);
+}
+
+/* Die kleine Fassung steht in Werkzeugzeilen neben einem Eingabefeld. Ein Knopf
+ * in voller Größe macht die Zeile dort höher als das Feld, und die Zeile
+ * verschiebt sich, sobald ein zweiter dazukommt. */
+.knopf.klein {
+  font-size: 0.74rem;
+  padding: 0.26rem 0.55rem;
 }
 
 .knopf.gefahr:hover:not(:disabled) {

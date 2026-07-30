@@ -381,3 +381,178 @@ export type Verlaeufe = {
   load: Verlauf;
   netz: Verlauf;
 };
+
+// ------------------------------------------------------------------ Dateien ---
+
+/** Dateiart ist das, womit man es zu tun hat. Die Unterscheidung ist mehr als
+ *  Kosmetik: Nur eine reguläre Datei wird gelesen, bearbeitet oder
+ *  heruntergeladen — ein open() auf eine FIFO blockiert unbegrenzt. Die Wörter
+ *  kommen aus privops.FileKind. */
+export type Dateiart = "datei" | "ordner" | "verweis" | "sonstiges";
+
+/** Handgriff ist eine Aktion an einem Eintrag. Der Server sagt, welche passen;
+ *  die Liste hier hält die Wörter fest, damit ein Tippfehler beim Vergleich
+ *  auffällt und nicht still zu einem fehlenden Knopf wird. */
+export type Handgriff =
+  | "oeffnen"
+  | "herunterladen"
+  | "archiv"
+  | "bearbeiten"
+  | "umbenennen"
+  | "kopieren"
+  | "verschieben"
+  | "rechte"
+  | "loeschen"
+  | "anlegen"
+  | "hochladen";
+
+/** Krume ist ein Glied des klickbaren Pfades. */
+export type Krume = { name: string; path: string };
+
+/** Eintrag ist eine Zeile der Dateiliste. Die Felder mit englischen Namen kommen
+ *  unverändert aus privops.FileEntry — sie trägt ihre JSON-Namen selbst, und sie
+ *  hier umzubenennen hieße, sie an zwei Stellen zu pflegen. */
+export type Eintrag = {
+  name: string;
+  path: string;
+  kind: Dateiart;
+  size: number;
+  mode_octal: string;
+  mode_text: string;
+  uid: number;
+  gid: number;
+  owner: string;
+  group: string;
+  mod_time: string;
+  link_target?: string;
+  link_broken?: boolean;
+  /** gesperrt: Der Pfad steht auf der Sperrliste. Er ist sichtbar, sein Inhalt
+   *  wird aber nie gelesen, geschrieben oder ausgeliefert. */
+  sensitive?: boolean;
+  sensitive_reason?: string;
+  /** writable: Der Eintrag liegt unter einer Schreibwurzel. Nur dann bietet die
+   *  Oberfläche verändernde Handgriffe an. */
+  writable: boolean;
+  groesse_text: string;
+  geaendert_text: string;
+  art: string;
+};
+
+/** Wurzelstand ist das Ergebnis der Selbstprüfung eines Schreibbereichs. */
+export type Wurzelstand = {
+  path: string;
+  exists: boolean;
+  writable: boolean;
+  reason?: string;
+};
+
+/** Mass ist die Zählung unterhalb eines Pfades — die Grundlage der Rückfrage vor
+ *  einem rekursiven Eingriff. */
+export type Mass = {
+  files: number;
+  dirs: number;
+  symlinks: number;
+  bytes: number;
+  /** gesperrt und mounts lehnen einen rekursiven Eingriff ab: Ein Löschen von
+   *  /etc darf nicht /etc/shadow mitnehmen, und eines von /mnt nicht die
+   *  eingehängte Platte leeren. */
+  sensitive: number;
+  mounts: number;
+  truncated: boolean;
+};
+
+/** Dateiliste ist die Antwort von GET /api/v1/files — für ein Verzeichnis wie
+ *  für ein Suchergebnis. Dieselbe Form für beides, weil die Oberfläche beides in
+ *  derselben Tabelle zeigt. */
+export type Dateiliste = {
+  pfad: string;
+  ordner: Eintrag;
+  eltern: string;
+  krumen: Krume[];
+  wurzeln: string[];
+  schreibwurzeln: string[];
+  eintraege: Eintrag[];
+  /** gesamt ist die Zahl der Einträge VOR der Kürzung. */
+  gesamt: number;
+  gekuerzt: boolean;
+  gekuerzt_grund: string;
+  /** suche trägt den Begriff, wenn die Liste ein Suchergebnis ist. */
+  suche: string;
+  sortierung: Sortierung;
+  absteigend: boolean;
+  versteckt: boolean;
+  zaehler: {
+    ordner: number;
+    dateien: number;
+    verweise: number;
+    sonstiges: number;
+    bytes: number;
+    bytes_text: string;
+    gesperrt: number;
+  };
+  frei: number;
+  frei_text: string;
+  frei_knapp: boolean;
+  warnungen: Wurzelstand[];
+  /** vorgang ist ein laufender oder gerade beendeter Dateivorgang. Er gehört in
+   *  diese Antwort, weil ein rekursives Löschen die Liste ändert, während man
+   *  sie ansieht. */
+  vorgang: Job | null;
+};
+
+/** Sortierung der Liste. Verzeichnisse stehen immer vorn — das entscheidet der
+ *  Server, nicht dieses Feld. */
+export type Sortierung = "name" | "size" | "time";
+
+/** Recht ist ein einzelnes Bit in Worten. */
+export type Recht = { key: string; label: string; short: string; set: boolean };
+export type Rechterolle = { key: string; label: string; text: string; rights: Recht[] };
+export type Sonderbit = { key: string; label: string; set: boolean; text: string };
+
+/** Rechte ist die Aufschlüsselung einer Rechteangabe. „0755" sagt nur denen
+ *  etwas, die es ohnehin wissen. */
+export type Rechte = {
+  octal: string;
+  symbolic: string;
+  roles: Rechterolle[];
+  specials: Sonderbit[];
+};
+
+/** Dateidetail ist die Antwort von GET /api/v1/files/entry. */
+export type Dateidetail = {
+  eintrag: Eintrag;
+  ordner: string;
+  krumen: Krume[];
+  mass?: Mass;
+  mass_text?: string;
+  rechte: Rechte;
+  benutzer: string[];
+  gruppen: string[];
+  schreibwurzeln: string[];
+  aktionen: Handgriff[];
+  max_edit: number;
+  max_edit_text: string;
+  max_upload: number;
+  max_upload_text: string;
+};
+
+/** Ordnerzeile ist ein Unterverzeichnis in der Zielauswahl. */
+export type Ordnerzeile = {
+  name: string;
+  pfad: string;
+  beschreibbar: boolean;
+  gesperrt: boolean;
+};
+
+/** Ordnerauswahl ist die Antwort von GET /api/v1/files/dirs — die Grundlage der
+ *  Zielwahl beim Kopieren und Verschieben. Auswählbar ist nur, was dieser
+ *  Endpunkt genannt hat; geprüft wird trotzdem serverseitig. */
+export type Ordnerauswahl = {
+  pfad: string;
+  eltern: string;
+  krumen: Krume[];
+  beschreibbar: boolean;
+  wurzeln: string[];
+  ordner: Ordnerzeile[];
+  gekuerzt: boolean;
+};

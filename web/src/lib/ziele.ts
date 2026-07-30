@@ -5,10 +5,20 @@
 // Ein neues Modul erscheint dann in der Leiste, aber nicht in der Suche, und
 // niemandem fällt auf, warum es sich nicht finden lässt.
 //
-// Solange die neue Oberfläche neben der alten läuft, zeigen Ziele ohne eigene
-// Seite auf die alte unter /. Kein toter Verweis, und der Weg zurück ist immer
-// da. Mit dem Umschalten wandern die href-Werte auf /v2-Pfade — dann steht die
-// Änderung an genau dieser Stelle.
+// Solange die neue Oberfläche neben der alten läuft, gibt es drei Arten von
+// Zielen, und der Unterschied gehört in die Adresse:
+//
+//   * gebaut (neu: true) — eigene Seite unter /v2/….
+//   * vorhanden, aber noch nicht übertragen — Verweis auf die alte Oberfläche
+//     unter /. Kein toter Verweis, und der Weg zurück ist immer da.
+//   * angekündigt — ein Modul, das es noch nicht gibt (Cron, Docker,
+//     Webserver, Datenbanken, Backups). Sie zeigten bis 0.4.0-rc.2 auf /v2/ und
+//     landeten stillschweigend auf der Übersicht; das sah wie ein Fehler aus.
+//     Jetzt haben sie einen eigenen Pfad und eine Seite, die sagt, mit welcher
+//     Fassung sie kommen (lib/weg.svelte.ts, `angekuendigt`).
+//
+// Mit dem Umschalten wandern die href-Werte der zweiten Art auf /v2-Pfade —
+// dann steht die Änderung an genau dieser Stelle.
 
 import { t } from "./texte";
 
@@ -67,7 +77,7 @@ export const gruppen: Gruppe[] = [
         id: "cron",
         label: t.ziele.cron,
         symbol: "uhr",
-        href: "/v2/",
+        href: "/v2/cron",
         gruppe: t.bereiche.system,
         auch: ["zeitplan", "crontab", "timer", "geplant"],
       },
@@ -80,7 +90,7 @@ export const gruppen: Gruppe[] = [
         id: "docker",
         label: t.ziele.docker,
         symbol: "container",
-        href: "/v2/",
+        href: "/v2/docker",
         gruppe: t.bereiche.apps,
         auch: ["container", "compose", "stack", "image", "podman"],
       },
@@ -88,7 +98,7 @@ export const gruppen: Gruppe[] = [
         id: "webserver",
         label: t.ziele.webserver,
         symbol: "globus",
-        href: "/v2/",
+        href: "/v2/webserver",
         gruppe: t.bereiche.apps,
         auch: ["nginx", "caddy", "vhost", "site", "domain", "proxy"],
       },
@@ -96,7 +106,7 @@ export const gruppen: Gruppe[] = [
         id: "datenbanken",
         label: t.ziele.datenbanken,
         symbol: "datenbank",
-        href: "/v2/",
+        href: "/v2/datenbanken",
         gruppe: t.bereiche.apps,
         auch: ["mysql", "mariadb", "postgres", "postgresql", "dump", "sql"],
       },
@@ -104,7 +114,7 @@ export const gruppen: Gruppe[] = [
         id: "backups",
         label: t.ziele.backups,
         symbol: "archiv",
-        href: "/v2/",
+        href: "/v2/backups",
         gruppe: t.bereiche.apps,
         auch: ["restic", "sicherung", "restore", "wiederherstellen"],
       },
@@ -147,8 +157,9 @@ export const gruppen: Gruppe[] = [
         id: "dateien",
         label: t.ziele.dateien,
         symbol: "ordner",
-        href: "/files",
+        href: "/v2/dateien",
         gruppe: t.bereiche.betrieb,
+        neu: true,
         auch: ["dateimanager", "editor", "upload", "pfad", "verzeichnis"],
       },
       {

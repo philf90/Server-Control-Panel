@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -191,6 +192,57 @@ type ergebnisLeitstand struct {
 			FensterBreite float64 `json:"fensterBreite"`
 		} `json:"schmal"`
 	} `json:"firewall"`
+	Dateien struct {
+		Wurzeln []string `json:"wurzeln"`
+		Krumen  []string `json:"krumen"`
+		Reihen  []struct {
+			Name     string `json:"name"`
+			Groesse  string `json:"groesse"`
+			Rechte   string `json:"rechte"`
+			Gesperrt bool   `json:"gesperrt"`
+		} `json:"reihen"`
+		NachOrdnerklick struct {
+			Pfad   string   `json:"pfad"`
+			Krumen []string `json:"krumen"`
+			Reihen []string `json:"reihen"`
+		} `json:"nachOrdnerklick"`
+		NachZurueck struct {
+			Pfad   string   `json:"pfad"`
+			Reihen []string `json:"reihen"`
+		} `json:"nachZurueck"`
+		Inspektor struct {
+			Titel      string   `json:"titel"`
+			Paare      int      `json:"paare"`
+			Rechtetext []string `json:"rechtetext"`
+			Aktionen   []string `json:"aktionen"`
+			DownloadZu string   `json:"downloadZu"`
+		} `json:"inspektor"`
+		GesperrtInspektor struct {
+			Warnung  string   `json:"warnung"`
+			Aktionen []string `json:"aktionen"`
+		} `json:"gesperrtInspektor"`
+		Suche struct {
+			Band   string   `json:"band"`
+			Reihen []string `json:"reihen"`
+			Orte   []string `json:"orte"`
+		} `json:"suche"`
+		NachSuchende int    `json:"nachSuchende"`
+		SortiertNach string `json:"sortiertNach"`
+		NachNeuladen string `json:"nachNeuladen"`
+		AlteAnsicht  string `json:"alteAnsicht"`
+		Schmal       struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"dateien"`
+	Bald struct {
+		Pfad     string `json:"pfad"`
+		Titel    string `json:"titel"`
+		Marke    string `json:"marke"`
+		Satz     string `json:"satz"`
+		Ersatz   string `json:"ersatz"`
+		NavAktiv string `json:"navAktiv"`
+	} `json:"bald"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -248,10 +300,23 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	node := envOr("ASYLUM_NODE", "node")
 
-	s := newTestServer(t)
+	// Der Dateimanager zeigt auf ein Wegwerfverzeichnis, nicht auf "/": Der Test
+	// soll das System des Entwicklers nicht anfassen und nicht von seinem Inhalt
+	// abhängen. Die Struktur darin ist absichtlich so gewählt, dass sie die drei
+	// Fälle trägt, die die Seite unterscheiden muss — ein beschreibbarer Ordner,
+	// ein nur lesbarer, und ein gesperrter Eintrag.
+	s, dateiWurzel := newFilesServer(t)
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 	fuelleUebersicht(s)
+
+	lege(t, filepath.Join(dateiWurzel, "schreibbar", "notizen.txt"), "hallo welt")
+	lege(t, filepath.Join(dateiWurzel, "schreibbar", "server.conf"), "port: 8443\n")
+	lege(t, filepath.Join(dateiWurzel, "schreibbar", "tief", "gesucht.conf"), "a: 1")
+	lege(t, filepath.Join(dateiWurzel, "schluessel.geheim"), "privat")
+	if err := os.MkdirAll(filepath.Join(dateiWurzel, "nurlesbar"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Ein ausstehender Neustart, damit die Paketseite ihren Handlungsbedarf zeigt
 	// — und damit die dritte Bestätigungsstufe im Browser geprüft werden kann. Es
@@ -286,6 +351,7 @@ func TestLeitstandBrowser(t *testing.T) {
 
 	cmd := exec.Command(node, "testdata/leitstand_e2e.js")
 	cmd.Env = append(os.Environ(),
+		"ASYLUM_E2E_DATEIWURZEL="+dateiWurzel,
 		"ASYLUM_E2E_URL="+ts.URL,
 		"ASYLUM_E2E_COOKIE="+cookie.Name+"="+cookie.Value,
 		"ASYLUM_CHROMIUM="+chromium,
@@ -815,6 +881,153 @@ func TestLeitstandBrowser(t *testing.T) {
 	} else if f.Schmal.KoerperBreite > f.Schmal.FensterBreite+1 {
 		t.Errorf("die Firewallseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
 			f.Schmal.KoerperBreite, f.Schmal.FensterBreite)
+	}
+
+	// 6f. Das Modul Dateien. Der Kern ist die Bewegung: Der Ort steht in der
+	// Adresse, jeder Schritt hinein ist ein Schritt im Verlauf, und der
+	// Zurück-Knopf führt eine Ebene höher. Das ist eine Aussage über pushState
+	// und nicht über die Antwort des Servers — deshalb steht sie hier und nicht
+	// in api_dateien_test.go.
+	dat := e.Dateien
+	if len(dat.Wurzeln) == 0 {
+		t.Error("die Dateiseite zeigt keine Bereiche — dann gibt es keinen Einstiegspunkt")
+	}
+	if len(dat.Krumen) < 2 {
+		t.Errorf("der Krumenpfad hat %d Glieder, erwartet mindestens zwei", len(dat.Krumen))
+	}
+	if len(dat.Reihen) == 0 {
+		t.Fatal("die Dateiliste ist leer")
+	}
+	// Der gesperrte Eintrag steht in der Liste und ist als solcher gekennzeichnet.
+	// Ihn zu verstecken hieße, jemanden über den Inhalt seines Servers zu belügen.
+	var gesperrtGefunden bool
+	for _, r := range dat.Reihen {
+		if strings.Contains(r.Name, "schluessel.geheim") {
+			gesperrtGefunden = true
+			if !r.Gesperrt {
+				t.Error("schluessel.geheim ist nicht als gesperrt gekennzeichnet")
+			}
+		}
+	}
+	if !gesperrtGefunden {
+		t.Error("der gesperrte Eintrag fehlt in der Liste — er soll sichtbar sein")
+	}
+	if dat.AlteAnsicht == "" || !strings.HasPrefix(dat.AlteAnsicht, "/files?") {
+		t.Errorf("der Weg in die alte Ansicht fehlt oder zeigt woandershin: %q", dat.AlteAnsicht)
+	}
+
+	// Ein Klick auf einen Ordner geht hinein.
+	if !strings.HasSuffix(dat.NachOrdnerklick.Pfad, "/schreibbar") {
+		t.Errorf("nach dem Klick auf den Ordner steht %q in der Adresse", dat.NachOrdnerklick.Pfad)
+	}
+	if !slices.ContainsFunc(dat.NachOrdnerklick.Reihen, func(s string) bool {
+		return strings.Contains(s, "notizen.txt")
+	}) {
+		t.Errorf("der Inhalt des Ordners fehlt: %v", dat.NachOrdnerklick.Reihen)
+	}
+	if len(dat.NachOrdnerklick.Krumen) <= len(dat.Krumen) {
+		t.Errorf("der Krumenpfad ist nicht gewachsen: %v → %v", dat.Krumen, dat.NachOrdnerklick.Krumen)
+	}
+	// Und der Zurück-Knopf führt eine Ebene höher — nicht aus der Seite heraus.
+	if strings.HasSuffix(dat.NachZurueck.Pfad, "/schreibbar") || dat.NachZurueck.Pfad == "" {
+		t.Errorf("der Zurück-Knopf führt nicht eine Ebene höher, sondern nach %q — "+
+			"dann ist das Hineinwechseln kein Schritt im Verlauf", dat.NachZurueck.Pfad)
+	}
+	if !slices.ContainsFunc(dat.NachZurueck.Reihen, func(s string) bool {
+		return strings.Contains(s, "schreibbar")
+	}) {
+		t.Errorf("nach dem Zurückgehen steht der Ordner nicht in der Liste: %v", dat.NachZurueck.Reihen)
+	}
+
+	// Der Inspektor: Rechte in Worten, und der Download als echter Verweis.
+	if dat.Inspektor.Paare < 5 {
+		t.Errorf("der Inspektor zeigt %d Angaben, erwartet mindestens fünf", dat.Inspektor.Paare)
+	}
+	if len(dat.Inspektor.Rechtetext) != 3 {
+		t.Errorf("die Rechte in Worten haben %d Zeilen, erwartet drei (Eigentümer, "+
+			"Gruppe, alle anderen): %v", len(dat.Inspektor.Rechtetext), dat.Inspektor.Rechtetext)
+	}
+	// „0644" sagt nur denen etwas, die es ohnehin wissen. Der Satz daneben ist
+	// die Auskunft, die eine Entscheidung trägt.
+	if !slices.ContainsFunc(dat.Inspektor.Rechtetext, func(s string) bool {
+		return strings.Contains(s, "darf")
+	}) {
+		t.Errorf("die Rechte stehen nicht in Worten: %v", dat.Inspektor.Rechtetext)
+	}
+	if dat.Inspektor.DownloadZu != "A" {
+		t.Errorf("der Download ist ein %q und kein <a> — ein fetch zöge die Datei "+
+			"in den Speicher des Tabs statt in den Download-Manager", dat.Inspektor.DownloadZu)
+	}
+
+	// Der gesperrte Eintrag: benannt, und ohne Handgriff auf seinen Inhalt.
+	if dat.GesperrtInspektor.Warnung == "" {
+		t.Error("der Inspektor eines gesperrten Eintrags sagt nicht, warum er gesperrt ist")
+	}
+	for _, verboten := range []string{"herunterladen", "bearbeiten", "kopieren"} {
+		if slices.ContainsFunc(dat.GesperrtInspektor.Aktionen, func(s string) bool {
+			return strings.Contains(s, verboten)
+		}) {
+			t.Errorf("der gesperrte Eintrag bietet %q an: %v — der Knopf ist bereits "+
+				"der Fehler, auch wenn der Endpunkt danach 403 antwortet",
+				verboten, dat.GesperrtInspektor.Aktionen)
+		}
+	}
+
+	// Die Suche findet unterhalb — das kann ein Browserfilter nicht.
+	if len(dat.Suche.Reihen) != 1 || !strings.Contains(dat.Suche.Reihen[0], "gesucht.conf") {
+		t.Errorf("die Suche findet %v, erwartet genau gesucht.conf", dat.Suche.Reihen)
+	}
+	if len(dat.Suche.Orte) == 0 || !strings.Contains(dat.Suche.Orte[0], "/tief/") {
+		t.Errorf("am Treffer steht kein Ort: %v — ein Suchergebnis quer über "+
+			"Unterordner wäre ohne ihn eine Sammlung von Namen", dat.Suche.Orte)
+	}
+	if dat.Suche.Band == "" {
+		t.Error("über der Trefferliste steht nicht, dass es eine Suche ist")
+	}
+	if dat.NachSuchende < 2 {
+		t.Errorf("nach dem Beenden der Suche stehen %d Zeilen da, erwartet die Liste zurück",
+			dat.NachSuchende)
+	}
+
+	// Sortierung in der Adresse: teilbar, und ein Neuladen zeigt dasselbe.
+	if dat.SortiertNach != "size" {
+		t.Errorf("die Sortierung steht als %q in der Adresse, erwartet size", dat.SortiertNach)
+	}
+	if !strings.Contains(dat.NachNeuladen, "↑") && !strings.Contains(dat.NachNeuladen, "↓") {
+		t.Errorf("nach dem Neuladen fehlt der Pfeil an der Spalte: %q — dann ist die "+
+			"Sortierung nicht ablesbar", dat.NachNeuladen)
+	}
+
+	if dat.Schmal.FensterBreite == 0 {
+		t.Error("die Dateiseite wurde nicht im Schmalmodus gemessen")
+	} else if dat.Schmal.KoerperBreite > dat.Schmal.FensterBreite+1 {
+		t.Errorf("die Dateiseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			dat.Schmal.KoerperBreite, dat.Schmal.FensterBreite)
+	}
+
+	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2
+	// stillschweigend auf der Übersicht; jetzt sagt eine Seite, worum es geht.
+	b := e.Bald
+	if b.Pfad != "/v2/docker" {
+		t.Errorf("der Pfad ist %q, erwartet /v2/docker", b.Pfad)
+	}
+	if b.Titel != "Docker" {
+		t.Errorf("die Überschrift ist %q, erwartet Docker — die Seite nennt nicht, "+
+			"worum es geht", b.Titel)
+	}
+	if !strings.Contains(b.Marke, "0.6") {
+		t.Errorf("die Marke ist %q, erwartet die geplante Fassung 0.6", b.Marke)
+	}
+	if b.Satz == "" {
+		t.Error("die Seite sagt nicht, dass es das Modul noch nicht gibt")
+	}
+	if b.Ersatz == "" {
+		t.Error("die Seite nennt keinen Weg, der heute schon geht")
+	}
+	if b.NavAktiv != "/v2/docker" {
+		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q) — "+
+			"dann sieht die Seite aus wie eine, auf die man versehentlich geraten ist",
+			b.NavAktiv)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

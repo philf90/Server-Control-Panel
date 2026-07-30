@@ -2,7 +2,7 @@
 // Die Oberfläche liest wenige Ressourcen — ein Cache mit Invalidierungsregeln
 // würde hier mehr Fragen stellen als beantworten.
 
-import type { Sitzung, Uebersicht, Verlaeufe } from "./typen";
+import type { Signale, Sitzung, Uebersicht, Verlaeufe } from "./typen";
 
 /** AbgemeldetFehler steht für die eine Antwort, die nicht wie ein Fehler
  *  behandelt werden darf: Die Sitzung ist weg, und die Oberfläche muss zur
@@ -70,4 +70,7 @@ export const api = {
   },
   uebersicht: () => anfrage<Uebersicht>("/overview"),
   verlaeufe: () => anfrage<Verlaeufe>("/metrics/history"),
+  // Eigener Aufruf, weil die Erhebung systemctl anfasst und echte Zeit kostet.
+  // Die Oberfläche zeigt die Kacheln, während er noch läuft.
+  signale: () => anfrage<Signale>("/signals"),
 };

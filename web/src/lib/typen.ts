@@ -115,6 +115,31 @@ export type Uebersicht = {
   letzter_befehl: Befehl | null;
 };
 
+/** Urteil ist der Satz über dem Handlungsbedarf. Gezählt und formuliert wird
+ *  auf dem Server, damit alte und neue Oberfläche denselben Satz sagen. */
+export type Urteil = {
+  level: "ok" | "warn";
+  titel: string;
+  sub: string;
+};
+
+/** Signal ist ein Punkt des Handlungsbedarfs. */
+export type Signal = {
+  level: "crit" | "warn";
+  tag: string;
+  titel: string;
+  detail: string;
+  aktion_label: string;
+  aktion_href: string;
+  vorrangig: boolean;
+};
+
+/** Signale ist die Antwort von GET /api/v1/signals. */
+export type Signale = {
+  urteil: Urteil;
+  signale: Signal[];
+};
+
 /** Punkt ist eine Stützstelle eines Verlaufs: Stelle im 100×34-Feld und die
  *  fertigen Texte für die Ablesung. Gerechnet wird auf dem Server. */
 export type Punkt = {

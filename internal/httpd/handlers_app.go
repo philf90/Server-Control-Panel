@@ -34,16 +34,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	// Neustart noch bis zum Ablauf der Standzeit an der Schiene.
 	signals := s.dashboardSignals(r.Context(), snap)
 	s.lageSetzen(signals)
-	verdict := dashVerdict{
-		Level: "ok",
-		Title: "Alles läuft normal",
-		Sub:   "Keine offenen Punkte.",
-	}
-	if n := len(signals); n == 1 {
-		verdict = dashVerdict{Level: "warn", Title: "1 Ding braucht Aufmerksamkeit", Sub: "Alles übrige läuft normal."}
-	} else if n > 1 {
-		verdict = dashVerdict{Level: "warn", Title: fmt.Sprintf("%d Dinge brauchen Aufmerksamkeit", n), Sub: "Alles übrige läuft normal."}
-	}
+	verdict := urteilAus(signals)
 
 	// Nicht die erste Schnittstelle der Liste, sondern die, über die dieser
 	// Rechner am Netz hängt. Die Auswahl steht in internal/metrics.
@@ -124,6 +115,32 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 	}
 
 	return out
+}
+
+// urteilAus fasst den Handlungsbedarf in einen Satz.
+//
+// Grundsatz V aus docs/15-neuordnung.md: erst das Urteil, dann die Zahlen. Der
+// Anlass war eine Rückmeldung, kein Testbefund — die Übersicht wirkte „fad und
+// wenig aufschlussreich", weil der Betrachter aus einem Gitter gleichrangiger
+// Kacheln selbst herauslesen musste, ob dem Server etwas fehlt.
+//
+// Ausgelagert, damit beide Oberflächen denselben Satz sagen: Die alte rendert
+// ihn in eine Vorlage, die neue holt ihn über /api/v1/signals. Zwei Fassungen
+// derselben Zählung liefen früher oder später auseinander, und dann behauptet
+// eine Seite „alles läuft normal", während die andere zwei offene Punkte nennt.
+func urteilAus(signals []dashSignal) dashVerdict {
+	switch n := len(signals); n {
+	case 0:
+		return dashVerdict{Level: "ok", Title: "Alles läuft normal", Sub: "Keine offenen Punkte."}
+	case 1:
+		return dashVerdict{Level: "warn", Title: "1 Ding braucht Aufmerksamkeit", Sub: "Alles übrige läuft normal."}
+	default:
+		return dashVerdict{
+			Level: "warn",
+			Title: fmt.Sprintf("%d Dinge brauchen Aufmerksamkeit", n),
+			Sub:   "Alles übrige läuft normal.",
+		}
+	}
 }
 
 // dashboardSparks baut die Verläufe der letzten 24 Stunden aus dem Ringpuffer.

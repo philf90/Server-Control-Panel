@@ -43,7 +43,26 @@ nicht als Release getaggt.
   dort behoben, solange sie ausgeliefert wird — eingefroren heißt nicht
   abgeschaltet.
 
-- **JSON-Schnittstelle `/api/v1`** mit `session`, `overview` und
+- **Die Übersicht des Leitstands ist vollständig.** Über den Kacheln stehen
+  Urteilszeile und Handlungsbedarf, darunter Dateisysteme und die größten
+  Prozesse — dieselben Daten wie bisher, in der Reihenfolge von Grundsatz V:
+  erst das Urteil, dann die Zahlen.
+
+  Der Handlungsbedarf kommt aus einem **eigenen Aufruf** (`/api/v1/signals`) und
+  hat einen **eigenen Fehlerweg**. Beides aus demselben Grund: Seine Erhebung
+  ruft `systemctl` und prüft die Neustartmarkierung, sie kostet also echte Zeit
+  und kann scheitern. Die Kacheln stehen längst, während er läuft; scheitert er,
+  sagt die Urteilszeile das ausdrücklich — eine gescheiterte Erhebung ist nicht
+  dasselbe wie „alles in Ordnung", und wer das verwechselt, baut ein Panel, das
+  schweigt, wenn es klemmt.
+
+  Ein Dateisystem, das an mehreren Stellen hängt, bleibt ein Eintrag zum
+  Aufklappen; die weiteren Stellen tragen die Zahlen der Platte, an der sie
+  hängen. Unter 600 Pixeln wird jede Tabellenzeile zu einer Karte mit
+  Spaltenbeschriftung — die Lektion aus `rc.4`, jetzt durch einen Test an den
+  Quellen und eine Messung im Browser abgesichert.
+
+- **JSON-Schnittstelle `/api/v1`** mit `session`, `overview`, `signals` und
   `metrics/history` als einzige Datenquelle der neuen Oberfläche. Der
   Live-Kanal bleibt der bestehende SSE-Hub, den beide Oberflächen gemeinsam
   lesen. Neu ist `session`: Das CSRF-Token liegt in der Sitzungszeile und ging
@@ -51,6 +70,27 @@ nicht als Release getaggt.
   gerendertes HTML und braucht es über die Schnittstelle.
 
 ### Behoben
+
+- **Drei Fehler in der neuen Übersicht, alle von einem Bildschirmfoto gefunden**
+  und nicht von einem Test — die Tests waren grün, weil im DOM alles vorhanden
+  war. Für jeden gibt es jetzt eine Messung im Browser:
+
+  Die Tabellenkomponenten gaben je **zwei Wurzelelemente** aus (Titel und
+  Rahmen). Im Gitter der Übersicht ist jedes Wurzelelement eine eigene Zelle —
+  der Titel stand links, die Tabelle rechts. Gemessen wird jetzt, ob jeder Titel
+  die linke Kante seiner Tabelle hat und über ihr sitzt.
+
+  Der Tabellenrahmen hatte **`overflow: hidden`** und beschnitt die letzte
+  Spalte, ohne einen Balken zu zeigen — die Seite sah heil aus, während die
+  Inode-Werte fehlten. Jetzt `overflow-x: auto`, und ein Test schlägt an, wenn
+  Inhalt in einem Rahmen mit `hidden` breiter ist als der Rahmen.
+
+  Der **Live-Kanal überschrieb vollständige Listen mit dünneren.** Sein erstes
+  Ereignis ist der letzte Ringpuffer-Eintrag, und der Ring hält den Verlauf,
+  nicht zwingend jede Liste. Wer ihn bedingungslos bevorzugt, zeigt „keine
+  Dateisysteme gefunden", während der Server längst geantwortet hat. Entschieden
+  wird jetzt je Liste: Ein Linux-Rechner hat immer Dateisysteme und Prozesse,
+  eine leere Liste heißt also nicht „keine", sondern „nicht in dieser Nachricht".
 
 - **Eine abgelaufene Sitzung antwortete der Schnittstelle mit HTML.**
   `redirectToLogin` beantwortete nur den SSE-Fall mit einem Statuscode; jede

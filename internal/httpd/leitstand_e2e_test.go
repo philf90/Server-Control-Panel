@@ -25,6 +25,34 @@ type ergebnisLeitstand struct {
 		Protokoll    int    `json:"protokoll"`
 		KartenFarbe  string `json:"kartenFarbe"`
 	} `json:"montiert"`
+	Uebersicht struct {
+		UrteilText        string `json:"urteilText"`
+		UrteilUnbekannt   bool   `json:"urteilUnbekannt"`
+		Punkte            int    `json:"punkte"`
+		PunkteMitGriff    int    `json:"punkteMitGriff"`
+		Tabellen          int    `json:"tabellen"`
+		DateisystemZeilen int    `json:"dateisystemZeilen"`
+	} `json:"uebersicht"`
+	TitelSitz []struct {
+		Name          string `json:"name"`
+		Gefunden      bool   `json:"gefunden"`
+		GleicheKante  bool   `json:"gleicheKante"`
+		TitelDarueber bool   `json:"titelDarueber"`
+	} `json:"titelSitz"`
+	RahmenSitz []struct {
+		InhaltBreite float64 `json:"inhaltBreite"`
+		RahmenBreite float64 `json:"rahmenBreite"`
+		Scrollbar    string  `json:"scrollbar"`
+	} `json:"rahmenSitz"`
+	Zweige struct {
+		Vorher  int `json:"vorher"`
+		Nachher int `json:"nachher"`
+	} `json:"zweige"`
+	Schmal struct {
+		KoerperBreite float64 `json:"koerperBreite"`
+		FensterBreite float64 `json:"fensterBreite"`
+		Beschriftung  string  `json:"beschriftung"`
+	} `json:"schmal"`
 	Strich *struct {
 		SVGBreite    float64 `json:"svgBreite"`
 		Effekt       string  `json:"effekt"`
@@ -51,6 +79,9 @@ type ergebnisLeitstand struct {
 //     stärker gestreckt als senkrecht.
 //  4. Trägt der Live-Kanal? Die Zahl kommt beim Aufbau aus der Schnittstelle
 //     und wird danach aus dem SSE-Strom fortgeschrieben.
+//  5. Werden Tabellen unter 600 Pixeln zu Karten? Der Seitenkörper darf nicht
+//     waagerecht scrollen — die Lektion aus rc.4, gemessen und nicht vermutet.
+//  6. Klappen die weiteren Einhängepunkte einer Platte auf?
 //
 // Bewusst hinter einer Umgebungsvariablen: Der Test braucht Node und Chromium
 // und läuft nicht in jeder CI. Aufruf:
@@ -162,5 +193,82 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if e.Ablesung == "" {
 		t.Error("der Zeiger über dem Verlauf zeigt keinen Messwert")
+	}
+
+	// 5. Urteil und Handlungsbedarf. Das Test-Doppel führt einen ausgefallenen
+	//    Dienst, es muss also ein Punkt erscheinen — und ein gescheiterter
+	//    Abruf darf nicht als „alles in Ordnung" durchgehen.
+	if e.Uebersicht.UrteilUnbekannt {
+		t.Errorf("die Erhebung ist gescheitert: %q", e.Uebersicht.UrteilText)
+	}
+	if !strings.Contains(e.Uebersicht.UrteilText, "Aufmerksamkeit") {
+		t.Errorf("Urteil %q nennt keinen Handlungsbedarf, obwohl ein Dienst ausgefallen ist",
+			e.Uebersicht.UrteilText)
+	}
+	if e.Uebersicht.Punkte == 0 {
+		t.Error("die Liste des Handlungsbedarfs ist leer")
+	}
+	// Grundsatz II: Jede Zahl ist ein Griff. Ein Punkt ohne Weg dorthin ist eine
+	// Meldung, die man nur zur Kenntnis nehmen kann.
+	if e.Uebersicht.PunkteMitGriff != e.Uebersicht.Punkte {
+		t.Errorf("%d von %d Punkten tragen einen Weg zur Behebung",
+			e.Uebersicht.PunkteMitGriff, e.Uebersicht.Punkte)
+	}
+	if e.Uebersicht.Tabellen != 2 {
+		t.Errorf("%d Tabellen, erwartet 2 (Dateisysteme und Prozesse)", e.Uebersicht.Tabellen)
+	}
+
+	// Jeder Tabellentitel sitzt über seiner Tabelle. Der Fehler, gegen den das
+	// geschrieben ist: Zwei Wurzelelemente je Komponente sind im Gitter zwei
+	// Zellen — der Titel stand links, die Tabelle rechts. Der DOM-Test war grün,
+	// weil beide Elemente da waren.
+	if len(e.TitelSitz) == 0 {
+		t.Error("kein Tabellentitel gefunden")
+	}
+	for _, sitz := range e.TitelSitz {
+		if !sitz.Gefunden {
+			t.Errorf("Titel %q gehört zu keiner Tabelle in derselben Wurzel", sitz.Name)
+			continue
+		}
+		if !sitz.GleicheKante {
+			t.Errorf("Titel %q hat nicht die linke Kante seiner Tabelle — er steht daneben, nicht darüber", sitz.Name)
+		}
+		if !sitz.TitelDarueber {
+			t.Errorf("Titel %q sitzt nicht über seiner Tabelle", sitz.Name)
+		}
+	}
+
+	// Keine Tabelle wird stillschweigend beschnitten. Wenn der Inhalt breiter ist
+	// als der Rahmen, muss der Rahmen scrollen — sonst fehlt eine Spalte, ohne
+	// dass es jemand merkt. Genau das war der Fall: overflow: hidden am Rahmen.
+	for i, r := range e.RahmenSitz {
+		if r.InhaltBreite > r.RahmenBreite+1 && r.Scrollbar == "hidden" {
+			t.Errorf("Tabelle %d: Inhalt %.0f px in einem Rahmen von %.0f px mit overflow-x: hidden — "+
+				"die letzte Spalte ist abgeschnitten, und nichts sagt es",
+				i, r.InhaltBreite, r.RahmenBreite)
+		}
+	}
+
+	// 6. Die weiteren Einhängepunkte klappen auf.
+	if e.Zweige.Vorher != 0 {
+		t.Errorf("%d Zweigzeilen sind offen, bevor jemand geklickt hat", e.Zweige.Vorher)
+	}
+	if e.Zweige.Nachher == 0 {
+		t.Error("nach dem Klick erscheinen keine weiteren Einhängepunkte")
+	}
+
+	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.
+	if e.Schmal.FensterBreite == 0 {
+		t.Fatal("die Fensterbreite wurde nicht gemessen")
+	}
+	// Ein Pixel Toleranz für Rundung; mehr wäre echtes Überlaufen.
+	if e.Schmal.KoerperBreite > e.Schmal.FensterBreite+1 {
+		t.Errorf("der Seitenkörper ist %.0f Pixel breit bei %.0f Pixeln Fenster — "+
+			"er scrollt waagerecht, und genau das war der Befund aus rc.3",
+			e.Schmal.KoerperBreite, e.Schmal.FensterBreite)
+	}
+	if e.Schmal.Beschriftung == "" || e.Schmal.Beschriftung == "none" {
+		t.Errorf("die Zellen zeigen im Schmalmodus keine Spaltenbeschriftung (%q) — "+
+			"in der Kartenansicht stünde dort ein Wert ohne Namen", e.Schmal.Beschriftung)
 	}
 }

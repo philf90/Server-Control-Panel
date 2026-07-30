@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/philf90/asylum/internal/metrics"
+	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 	"github.com/philf90/asylum/internal/ui"
 )
@@ -300,5 +301,167 @@ func TestAPIVerlaufOhneMessungenLiefertLeeresFeld(t *testing.T) {
 	}
 	if got.CPU.Points == nil {
 		t.Error("Points ist nil — erwartet ein leeres Feld")
+	}
+}
+
+// Urteil und Handlungsbedarf entstehen an einer Stelle. Der Satz steckte bis zur
+// Auslagerung inline in handleDashboard; hätte die Schnittstelle ihn nachgebaut,
+// könnte die eine Seite „alles läuft normal" behaupten, während die andere zwei
+// offene Punkte nennt. Dieser Test hält die eine Stelle fest.
+func TestUrteilZaehltUndFormuliert(t *testing.T) {
+	faelle := []struct {
+		anzahl int
+		level  string
+		titel  string
+	}{
+		{0, "ok", "Alles läuft normal"},
+		{1, "warn", "1 Ding braucht Aufmerksamkeit"},
+		{2, "warn", "2 Dinge brauchen Aufmerksamkeit"},
+		{7, "warn", "7 Dinge brauchen Aufmerksamkeit"},
+	}
+	for _, f := range faelle {
+		signale := make([]dashSignal, f.anzahl)
+		got := urteilAus(signale)
+		if got.Level != f.level {
+			t.Errorf("%d Signale: Level %q, erwartet %q", f.anzahl, got.Level, f.level)
+		}
+		if got.Title != f.titel {
+			t.Errorf("%d Signale: Titel %q, erwartet %q", f.anzahl, got.Title, f.titel)
+		}
+	}
+}
+
+// Der Handlungsbedarf ist eine eigene Ressource, weil seine Erhebung systemctl
+// anfasst. Geprüft wird, dass sie dieselben Punkte nennt, die auch die
+// Warnpunkte der Navigation speisen — und dass ein ausgefallener Dienst als
+// kritisch mit einem Weg dorthin erscheint.
+func TestAPISignaleNennenAusgefallenenDienst(t *testing.T) {
+	s := newTestServer(t)
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, _ := login(t, s, user)
+
+	var got apiSignale
+	antwort := get(t, s, "/api/v1/signals", cookie)
+	if antwort.Code != http.StatusOK {
+		t.Fatalf("Status %d", antwort.Code)
+	}
+	if err := json.Unmarshal(antwort.Body.Bytes(), &got); err != nil {
+		t.Fatalf("kein JSON: %v", err)
+	}
+
+	// Das Test-Doppel führt nginx.service als failed.
+	if len(got.Signale) == 0 {
+		t.Fatal("kein Signal, obwohl ein Dienst ausgefallen ist")
+	}
+	var dienst *apiSignal
+	for i := range got.Signale {
+		if strings.Contains(got.Signale[i].Titel, "nginx.service") {
+			dienst = &got.Signale[i]
+		}
+	}
+	if dienst == nil {
+		t.Fatalf("der ausgefallene Dienst fehlt: %+v", got.Signale)
+	}
+	if dienst.Level != "crit" {
+		t.Errorf("Level %q, erwartet crit — ein Ausfall ist keine Warnung", dienst.Level)
+	}
+	// Grundsatz II: Jede Zahl ist ein Griff. Ein Punkt ohne Weg dorthin wäre
+	// eine Meldung, die man nur zur Kenntnis nehmen kann.
+	if dienst.AktionHref == "" || dienst.AktionLabel == "" {
+		t.Errorf("das Signal trägt keinen Weg zur Behebung: %+v", dienst)
+	}
+	if got.Urteil.Level != "warn" {
+		t.Errorf("Urteil %q, erwartet warn", got.Urteil.Level)
+	}
+}
+
+// Ohne offene Punkte muss das Feld leer sein und nicht null: „nichts zu tun" ist
+// ein Zustand, den die Oberfläche zeigt, und kein fehlender Wert. Ein null
+// zwänge jede Kundin zu einer zweiten Sonderregel für denselben Fall.
+func TestAPISignaleOhnePunkteLiefertLeeresFeldUndUrteilOK(t *testing.T) {
+	s := newTestServer(t)
+	// Ein sauberer Server: kein ausgefallener Dienst, kein Neustart.
+	ops, ok := s.ops.(*fakeOps)
+	if !ok {
+		t.Fatalf("unerwarteter Executor %T", s.ops)
+	}
+	ops.services = []privops.Service{
+		{Unit: "ssh.service", Active: "active", Sub: "running"},
+	}
+
+	user := addUser(t, s, "admin", store.RoleAdmin)
+	cookie, _ := login(t, s, user)
+
+	roh := get(t, s, "/api/v1/signals", cookie).Body.String()
+	if strings.Contains(roh, `"signale":null`) {
+		t.Error("die Signale sind null statt eines leeren Feldes")
+	}
+
+	var got apiSignale
+	if err := json.Unmarshal([]byte(roh), &got); err != nil {
+		t.Fatalf("kein JSON: %v", err)
+	}
+	if len(got.Signale) != 0 {
+		t.Errorf("%d Signale auf einem sauberen Server: %+v", len(got.Signale), got.Signale)
+	}
+	if got.Urteil.Level != "ok" {
+		t.Errorf("Urteil %q, erwartet ok", got.Urteil.Level)
+	}
+}
+
+// Plattendruck kommt aus der bereits vorliegenden Messung, ohne zusätzlichen
+// Systemaufruf. Die Schwellen sind 85 % (Warnung) und 95 % (kritisch); ein
+// Dateisystem knapp darunter darf nicht melden, sonst wird die Liste zum
+// Rauschen und man sieht die echten Punkte nicht mehr.
+func TestAPISignalePlattendruckAnDenSchwellen(t *testing.T) {
+	faelle := []struct {
+		pct    float64
+		erwart string // "" = kein Signal
+	}{
+		{72.0, ""},
+		{84.9, ""},
+		{85.0, "warn"},
+		{94.9, "warn"},
+		{95.0, "crit"},
+		{99.5, "crit"},
+	}
+
+	for _, f := range faelle {
+		s := newTestServer(t)
+		ops := s.ops.(*fakeOps)
+		ops.services = nil // nur der Plattendruck soll melden
+		s.setLatest(metrics.Snapshot{
+			At:          time.Now(),
+			Filesystems: []metrics.Filesystem{{Mount: "/daten", UsedPct: f.pct}},
+		})
+
+		user := addUser(t, s, "admin", store.RoleAdmin)
+		cookie, _ := login(t, s, user)
+
+		var got apiSignale
+		if err := json.Unmarshal(get(t, s, "/api/v1/signals", cookie).Body.Bytes(), &got); err != nil {
+			t.Fatalf("kein JSON: %v", err)
+		}
+
+		var platte *apiSignal
+		for i := range got.Signale {
+			if strings.Contains(got.Signale[i].Titel, "/daten") {
+				platte = &got.Signale[i]
+			}
+		}
+
+		if f.erwart == "" {
+			if platte != nil {
+				t.Errorf("%.1f %% meldet %q — unter der Schwelle darf nichts melden", f.pct, platte.Level)
+			}
+			continue
+		}
+		if platte == nil {
+			t.Errorf("%.1f %% meldet nichts, erwartet %s", f.pct, f.erwart)
+			continue
+		}
+		if platte.Level != f.erwart {
+			t.Errorf("%.1f %%: Level %q, erwartet %q", f.pct, platte.Level, f.erwart)
+		}
 	}
 }

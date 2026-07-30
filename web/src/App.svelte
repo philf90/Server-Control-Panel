@@ -10,10 +10,12 @@
   import { AbgemeldetFehler, api } from "./lib/api";
   import { live } from "./lib/live.svelte";
   import { t } from "./lib/texte";
-  import type { Uebersicht, Verlaeufe } from "./lib/typen";
+  import type { Signale, Uebersicht, Verlaeufe } from "./lib/typen";
 
   let uebersicht = $state<Uebersicht | null>(null);
   let verlaeufe = $state<Verlaeufe | null>(null);
+  let signale = $state<Signale | null>(null);
+  let signalFehler = $state(false);
   let fehler = $state("");
   let abgemeldet = $state(false);
 
@@ -33,6 +35,29 @@
         return;
       }
       fehler = e instanceof Error ? e.message : t.fehler.laden;
+      return;
+    }
+
+    await signaleLaden();
+  }
+
+  // Der Handlungsbedarf hat einen EIGENEN Fehlerweg, und das ist der Kern der
+  // Sache: Seine Erhebung ruft systemctl und prüft die Neustartmarkierung, sie
+  // kann also hängen oder scheitern, wo der Rest längst steht. Ein gemeinsames
+  // catch hätte die ganze Seite geleert, weil ein Systemaufruf nicht antwortet —
+  // und damit genau den Fehler wiederholt, den die alte Übersicht schon einmal
+  // hatte, als sie den Handlungsbedarf beim Rendern erhob. Fehlt das Signal,
+  // fehlt eben das Signal; die Zahlen bleiben.
+  async function signaleLaden() {
+    signalFehler = false;
+    try {
+      signale = await api.signale();
+    } catch (e) {
+      if (e instanceof AbgemeldetFehler) {
+        abgemeldet = true;
+        return;
+      }
+      signalFehler = true;
     }
   }
 
@@ -59,7 +84,7 @@
           <button class="knopf" onclick={laden}>{t.fehler.erneut}</button>
         </div>
       {:else if uebersicht}
-        <UebersichtSeite {uebersicht} {verlaeufe} />
+        <UebersichtSeite {uebersicht} {verlaeufe} {signale} {signalFehler} erneutErheben={signaleLaden} />
       {:else}
         <p class="detail">{t.live.warte}</p>
       {/if}

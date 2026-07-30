@@ -57,6 +57,36 @@ export const t = {
     gesendet: "gesendet",
     keineDaten: "Noch keine Messwerte — der erste Takt kommt in wenigen Sekunden.",
     keinVerlauf: "Für einen Verlauf sind noch zu wenige Messungen da.",
+
+    urteilLaeuft: "Der Zustand wird erhoben …",
+    urteilUnbekannt: "Der Zustand konnte nicht erhoben werden.",
+    urteilUnbekanntDetail:
+      "Die Messwerte unten stimmen — nur die Prüfung auf Dienste, Platte und Neustart ist ausgefallen.",
+    handlungsbedarf: "Handlungsbedarf",
+
+    dateisysteme: "Dateisysteme",
+    einhaengepunkt: "Einhängepunkt",
+    geraet: "Gerät",
+    auslastung: "Auslastung",
+    belegt: "Belegt",
+    inodes: "Inodes",
+    dieselbePlatte: "dieselbe Platte",
+    keineDateisysteme: "Keine Dateisysteme gefunden.",
+    // Eine Zahl im Text braucht beide Formen — „auch an 1 weiteren Stellen"
+    // liest sich falsch, und genau solche Stellen fallen im Betrieb auf.
+    weitereStellen: (n: number) =>
+      n === 1 ? "auch an einer weiteren Stelle" : `auch an ${n} weiteren Stellen`,
+
+    prozesse: "Prozesse · Spitzenreiter",
+    prozess: "Prozess",
+    benutzer: "Benutzer",
+    speicher: "Speicher",
+    keineProzesse: "Keine Prozessdaten verfügbar.",
+  },
+
+  stufe: {
+    kritisch: "kritisch",
+    warnung: "Warnung",
   },
 
   fehler: {

@@ -14,6 +14,12 @@
 //     als senkrecht. Ohne vector-effect zieht der Browser die Strichstärke mit.
 //  4. Trägt der Live-Kanal? Die große Zahl kommt beim Aufbau aus /api/v1/overview
 //     und wird danach aus dem SSE-Strom fortgeschrieben.
+//  5. Werden Tabellen unter 600 Pixeln zu Karten? `overflow-x: auto` allein
+//     genügt nicht — eine seitlich scrollende Tabelle ist bedienbar, aber man
+//     sieht ihr nicht an, dass rechts noch etwas steht. Gemessen wird, ob der
+//     Seitenkörper waagerecht scrollt und ob die Spaltennamen als Beschriftung
+//     erscheinen.
+//  6. Klappen die weiteren Einhängepunkte einer Platte auf?
 //
 // Aufruf über TestLeitstandBrowser. Erwartete Umgebung:
 //   ASYLUM_E2E_URL, ASYLUM_E2E_COOKIE, ASYLUM_CHROMIUM
@@ -99,6 +105,68 @@ async function main() {
     };
   });
 
+  // Urteil und Handlungsbedarf: Beide kommen aus einem eigenen Aufruf, der
+  // systemctl anfasst — sie erscheinen also nach den Kacheln.
+  await seite.waitForSelector(".urteil b", { timeout: 10000 });
+  const uebersicht = await seite.evaluate(() => {
+    const urteil = document.querySelector(".urteil");
+    const punkte = [...document.querySelectorAll(".handlungsbedarf li")];
+    return {
+      urteilText: urteil ? urteil.textContent.trim().replace(/\s+/g, " ") : "",
+      urteilUnbekannt: urteil ? urteil.classList.contains("unbekannt") : null,
+      punkte: punkte.length,
+      // Jeder Punkt trägt einen Weg dorthin, wo man ihn behebt.
+      punkteMitGriff: punkte.filter((li) => li.querySelector("a.griff")).length,
+      tabellen: document.querySelectorAll("table.tabelle").length,
+      dateisystemZeilen: document.querySelectorAll("table.tabelle tbody tr").length,
+    };
+  });
+
+  // Sitzt jeder Tabellentitel ÜBER seiner Tabelle und nicht daneben?
+  //
+  // Diese Messung gibt es, weil der Fehler passiert ist: Jede Tabellen-
+  // komponente gab zwei Wurzelelemente aus (Titel und Rahmen), und im Gitter
+  // der Übersicht ist jedes Wurzelelement eine eigene Zelle — der Titel landete
+  // in der linken Spalte, die Tabelle in der rechten. Der DOM-Test war grün,
+  // weil beide Elemente vorhanden waren. Gesehen hat es erst ein Bildschirmfoto,
+  // und danach war klar, was zu messen ist: dieselbe linke Kante, Titel oben.
+  const titelSitz = await seite.evaluate(() => {
+    return [...document.querySelectorAll(".tabelle-titel")].map((titel) => {
+      const rahmen = titel.parentElement.querySelector(".tabelle-rahmen");
+      if (!rahmen) return { name: titel.textContent.trim(), gefunden: false };
+      const t = titel.getBoundingClientRect();
+      const r = rahmen.getBoundingClientRect();
+      return {
+        name: titel.textContent.trim(),
+        gefunden: true,
+        gleicheKante: Math.abs(t.left - r.left) <= 1,
+        titelDarueber: t.bottom <= r.top + 1,
+      };
+    });
+  });
+
+  // Wird eine Tabelle beschnitten? Der Rahmen hatte overflow: hidden, und die
+  // letzte Spalte war halb abgeschnitten — ohne Balken, also ohne Hinweis. Gemessen
+  // wird deshalb, ob der Inhalt in den Rahmen passt; passt er nicht, muss der
+  // Rahmen wenigstens scrollen können.
+  const rahmenSitz = await seite.evaluate(() => {
+    return [...document.querySelectorAll(".tabelle-rahmen")].map((r) => ({
+      inhaltBreite: r.scrollWidth,
+      rahmenBreite: r.clientWidth,
+      scrollbar: getComputedStyle(r).overflowX,
+    }));
+  });
+
+  // 6. Die weiteren Einhängepunkte aufklappen.
+  let zweige = { vorher: 0, nachher: 0 };
+  const mehr = await seite.$("button.mehr");
+  if (mehr) {
+    zweige.vorher = await seite.evaluate(() => document.querySelectorAll("tr.zweig").length);
+    await mehr.click();
+    await seite.waitForSelector("tr.zweig", { timeout: 3000 }).catch(() => {});
+    zweige.nachher = await seite.evaluate(() => document.querySelectorAll("tr.zweig").length);
+  }
+
   // 3. Strich und Endpunkt vermessen — dieselbe Messung wie bei der alten
   //    Übersicht, weil die Kachel neu gebaut ist.
   const strich = await seite.evaluate(() => {
@@ -142,6 +210,30 @@ async function main() {
     }
   }
 
+  // 5. Schmalmodus: Der Seitenkörper darf nicht waagerecht scrollen, und die
+  //    Zellen müssen ihre Spaltenbeschriftung zeigen.
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(200);
+  const schmal = await seite.evaluate(() => {
+    const zelle = document.querySelector("table.tabelle td[data-spalte]");
+    return {
+      koerperBreite: document.body.scrollWidth,
+      fensterBreite: window.innerWidth,
+      // ::before mit content: attr(data-spalte) — sichtbar nur im Schmalmodus.
+      beschriftung: zelle
+        ? getComputedStyle(zelle, "::before").content.replace(/"/g, "")
+        : "",
+    };
+  });
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+  await seite.waitForTimeout(200);
+
   if (process.env.ASYLUM_E2E_SHOTS) {
     await seite.mouse.move(0, 0);
     await seite.screenshot({
@@ -158,6 +250,11 @@ async function main() {
       fehler,
       fehlend,
       montiert,
+      uebersicht,
+      titelSitz,
+      rahmenSitz,
+      zweige,
+      schmal,
       strich,
       live,
       ablesung,

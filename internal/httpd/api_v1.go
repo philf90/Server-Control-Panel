@@ -189,6 +189,68 @@ func (s *Server) handleAPIOverview(w http.ResponseWriter, r *http.Request) {
 	s.apiJSON(w, http.StatusOK, antwort)
 }
 
+// apiUrteil ist der Satz über dem Handlungsbedarf.
+type apiUrteil struct {
+	Level string `json:"level"` // "ok" | "warn"
+	Titel string `json:"titel"`
+	Sub   string `json:"sub"`
+}
+
+// apiSignal ist ein Punkt des Handlungsbedarfs.
+type apiSignal struct {
+	Level       string `json:"level"` // "crit" | "warn"
+	Tag         string `json:"tag"`
+	Titel       string `json:"titel"`
+	Detail      string `json:"detail"`
+	AktionLabel string `json:"aktion_label"`
+	AktionHref  string `json:"aktion_href"`
+	Vorrangig   bool   `json:"vorrangig"`
+}
+
+// apiSignale ist die Antwort von GET /api/v1/signals.
+type apiSignale struct {
+	Urteil  apiUrteil   `json:"urteil"`
+	Signale []apiSignal `json:"signale"`
+}
+
+// handleAPISignals erhebt den Handlungsbedarf.
+//
+// Eigene Ressource und nicht Teil von overview: Die Erhebung ruft systemctl und
+// prüft die Neustartmarkierung, sie kostet also echte Zeit. overview soll billig
+// bleiben, damit die Oberfläche es bei jedem Aufbau fragen kann — dieser
+// Endpunkt darf länger brauchen, und die Oberfläche zeigt die Kacheln, während
+// er noch läuft.
+//
+// Wie bei der alten Übersicht wird das Ergebnis für die Warnpunkte der
+// Navigation abgelegt. Ohne das hinge ein Punkt nach einem geglückten Neustart
+// noch bis zum Ablauf der Standzeit am Ziel.
+func (s *Server) handleAPISignals(w http.ResponseWriter, r *http.Request) {
+	snap, _ := s.lastSnapshot()
+	signale := s.dashboardSignals(r.Context(), snap)
+	s.lageSetzen(signale)
+
+	urteil := urteilAus(signale)
+	antwort := apiSignale{
+		Urteil: apiUrteil{Level: urteil.Level, Titel: urteil.Title, Sub: urteil.Sub},
+		// Leeres Feld statt null: „nichts zu tun" ist ein Zustand, den die
+		// Oberfläche zeigt, und kein fehlender Wert.
+		Signale: make([]apiSignal, 0, len(signale)),
+	}
+	for _, sig := range signale {
+		antwort.Signale = append(antwort.Signale, apiSignal{
+			Level:       sig.Level,
+			Tag:         sig.Tag,
+			Titel:       sig.Title,
+			Detail:      sig.Detail,
+			AktionLabel: sig.ActionLabel,
+			AktionHref:  sig.ActionHref,
+			Vorrangig:   sig.Primary,
+		})
+	}
+
+	s.apiJSON(w, http.StatusOK, antwort)
+}
+
 // apiVerlauf ist ein Verlauf, wie ihn die Kachel zeichnet: der Pfad im
 // 100×34-Feld, der Endpunkt und die Stützstellen mit fertigen Texten.
 type apiVerlauf struct {

@@ -133,11 +133,238 @@ html {
   color: var(--tx-mut);
 }
 
+/* ── Tabellen ─────────────────────────────────────────────────────────────
+ * Die Grundlage für jede Liste des Panels. Unter 600 px wird aus jeder Zeile
+ * eine Karte: `overflow-x: auto` allein genügt nicht — eine seitlich
+ * scrollende Tabelle ist bedienbar, aber man sieht ihr nicht an, dass rechts
+ * noch etwas steht. Das ist die Lektion aus rc.4, und sie gilt hier weiter.
+ *
+ * Die Beschriftung der Karte kommt aus `data-spalte` an der Zelle. Ein Test
+ * hält fest, dass keine Zelle sie vergisst — ohne sie steht in der Karte ein
+ * Wert ohne Namen.
+ */
+
+.tabelle-rahmen {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  /* overflow-x: auto und nicht hidden. Mit hidden BESCHNEIDET der Rahmen die
+   * Tabelle: Die letzte Spalte war halb abgeschnitten, und weil kein Balken
+   * erschien, sah die Seite heil aus. Ein sichtbarer Balken ist die schlechtere
+   * Optik und die bessere Auskunft — er sagt, dass rechts noch etwas steht.
+   * Gesehen hat das ein Bildschirmfoto, kein Test. */
+  overflow-x: auto;
+}
+
+.tabelle-titel {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tx-mut);
+  padding: 0 0.2rem 0.45rem;
+}
+
+table.tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  color: var(--tx);
+}
+
+table.tabelle th {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+  text-align: left;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface2);
+  white-space: nowrap;
+}
+
+table.tabelle td {
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+table.tabelle tr:last-child td {
+  border-bottom: none;
+}
+
+table.tabelle .zahlenspalte {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  /* Zahlenspalten gegen Umbruch schützen — „5,5 GiB" darf nicht auf zwei
+   * Zeilen zerfallen. */
+  white-space: nowrap;
+}
+
+table.tabelle .pfad {
+  font-family: var(--mono);
+  font-size: 0.79rem;
+}
+
+table.tabelle .gedaempft {
+  color: var(--tx-mut);
+}
+
+table.tabelle tr.eng td {
+  background: rgba(229, 72, 77, 0.06);
+}
+
+/* ── Auslastungsbalken ────────────────────────────────────────────────────
+ * Ein <progress> mit dem Wert im Attribut, nicht ein <div> mit Breite im
+ * style-Attribut: Die Richtlinie des Panels verwirft Inline-Stile, und genau
+ * daran hingen die Balken der alten Übersicht dauerhaft auf 100 %, ohne dass
+ * es jemandem auffiel (rc.5).
+ */
+progress.balken {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 90px;
+  height: 6px;
+  border: none;
+  border-radius: 3px;
+  background: var(--surface3);
+  overflow: hidden;
+}
+
+progress.balken::-webkit-progress-bar {
+  background: var(--surface3);
+  border-radius: 3px;
+}
+
+progress.balken::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+progress.balken::-moz-progress-bar {
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+progress.balken.eng::-webkit-progress-value {
+  background: var(--err);
+}
+
+progress.balken.eng::-moz-progress-bar {
+  background: var(--err);
+}
+
+/* ── Zustandspunkt ───────────────────────────────────────────────────────
+ * Farbe trägt Zustand — aber nie allein. Neben dem Punkt steht immer ein Wort.
+ */
+.zustand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.zustand i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--tx-faint);
+}
+
+.zustand.gut i {
+  background: var(--ok);
+}
+.zustand.warn i {
+  background: var(--accent);
+}
+.zustand.schlecht i {
+  background: var(--err);
+}
+.zustand.info i {
+  background: var(--info);
+}
+
 /* Unter 900 px wird die Seitenleiste zur Symbolschiene. Die untere
- * Reiterleiste für Telefone kommt mit der Übersicht in der nächsten Stufe —
- * bis dahin ist die Schiene der belastbare Zwischenstand. */
+ * Reiterleiste für Telefone kommt mit dem Umschalten — bis dahin ist die
+ * Schiene der belastbare Zwischenstand. */
 @media (max-width: 900px) {
   .schale {
     grid-template-columns: 64px 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  table.tabelle thead {
+    /* Nicht display:none — ein Vorleseprogramm soll die Spaltennamen
+     * weiterhin finden. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  table.tabelle tr {
+    display: block;
+    border-bottom: 1px solid var(--line);
+    padding: 0.5rem 0.2rem;
+  }
+
+  table.tabelle tr:last-child {
+    border-bottom: none;
+  }
+
+  table.tabelle td {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    border-bottom: none;
+    padding: 0.2rem 0.8rem;
+    /* Ohne min-width: 0 kann der Wert nicht schrumpfen und läuft aus der Karte —
+     * lange Pfade und Größen waren rechts abgeschnitten. */
+    min-width: 0;
+  }
+
+  table.tabelle td::before {
+    content: attr(data-spalte);
+    flex: none;
+    /* 6,5rem statt 8: Die Beschriftung ist kurz, der Wert braucht den Platz. */
+    min-width: 6.5rem;
+    font-size: 0.68rem;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tx-faint);
+  }
+
+  /* Zellen mit colspan tragen einen Satz über die ganze Zeile, keinen Wert zu
+   * einer Spalte — sie bekommen deshalb keine Beschriftung und keinen Einzug. */
+  table.tabelle td[colspan] {
+    display: block;
+  }
+
+  table.tabelle td[colspan]::before {
+    content: none;
+  }
+
+  table.tabelle .zahlenspalte {
+    text-align: left;
+    /* In der Karte darf die Zahl umbrechen, wenn sie sonst hinausläuft: Hier
+     * steht sie allein in ihrer Zeile, ein Umbruch verwechselt also nichts. */
+    white-space: normal;
+  }
+
+  /* Pfade sind die längsten Werte der Tabelle. In der Karte dürfen sie an jeder
+   * Stelle brechen — abgeschnitten wäre der Pfad unbrauchbar, umgebrochen
+   * bleibt er lesbar. */
+  table.tabelle .pfad {
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
 }

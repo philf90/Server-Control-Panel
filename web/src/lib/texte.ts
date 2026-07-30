@@ -267,6 +267,39 @@ export const t = {
     grenzeEditor: (text: string) => `Der Editor öffnet Dateien bis ${text}.`,
     // Der Weg zurück bleibt sichtbar, solange die alte Fläche mehr kann.
     alteAnsicht: "dieser Ordner in der alten Ansicht",
+
+    // ---------------------------------------------------------- Verändern ---
+    neuerOrdner: "Neuer Ordner",
+    neueDatei: "Neue Datei",
+    anlegen: "anlegen",
+    namePlatzhalter: "Name",
+    hochladenTitel: "Dateien hochladen",
+    hochladenWaehlen: "Dateien auswählen",
+    hochladenLaeuft: "wird übertragen …",
+    ueberschreiben: "vorhandene ersetzen (mit Sicherung)",
+    hochladenGrenze: (text: string) => `Höchstens ${text} je Datei.`,
+    umbenennenTitel: "Umbenennen",
+    zielwahlKopieren: "Wohin kopieren?",
+    zielwahlVerschieben: "Wohin verschieben?",
+    zielIst: "Ziel",
+    zielNichtBeschreibbar:
+      "In diesen Ordner darf nicht geschrieben werden — wählen Sie einen anderen.",
+    zielGekuerzt: "Die Liste ist gekürzt; tieferliegende Ordner erreicht man über die Krumen.",
+    keineUnterordner: "Hier gibt es keine Unterordner.",
+    nurDurchsehen: "nur durchsehen",
+    rechteTitel: "Rechte und Eigentümer",
+    rechteOktal: "Rechte (oktal)",
+    rechteAnwenden: "anwenden",
+    rekursiv: "auf alle Einträge darunter anwenden",
+    ohneAenderung: "unverändert",
+    abbrechen: "abbrechen",
+    // Das Ergebnis einer Handlung. Es steht im Inspektor und nicht als Toast:
+    // Wer eine Datei umbenennt, sieht danach dorthin, wo er den Knopf gedrückt
+    // hat.
+    erledigt: "erledigt",
+    nichtsGeaendert: "Es war nichts zu ändern — die Werte stehen schon so.",
+    hochgeladen: (n: number) =>
+      n === 1 ? "Eine Datei hochgeladen." : `${n} Dateien hochgeladen.`,
     handgriff: {
       oeffnen: "öffnen",
       herunterladen: "herunterladen",

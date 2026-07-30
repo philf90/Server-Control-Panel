@@ -5,7 +5,10 @@
 import type {
   AktionAntwort,
   Bestaetigung,
+  Dateiantwort,
+  Dateiauftrag,
   Dateidetail,
+  Dateihandlung,
   Dateiliste,
   Dienste,
   DienstAktion,
@@ -21,6 +24,7 @@ import type {
   Sitzung,
   Uebersicht,
   Umfang,
+  Uploadantwort,
   Verlaeufe,
   VorgangGestartet,
 } from "./typen";
@@ -223,6 +227,66 @@ export const api = {
    *  des Tabs. Deshalb geben sie eine Zeichenkette zurück. */
   herunterladen: (pfad: string) => `/api/v1/files/download?${new URLSearchParams({ pfad })}`,
   archiv: (pfad: string) => `/api/v1/files/archive?${new URLSearchParams({ pfad })}`,
+
+  /** dateiHandlung ist der eine Aufruf für alle verändernden Endpunkte.
+   *
+   *  Ein Aufruf und nicht acht: Der Körper ist derselbe, der Rückweg über
+   *  BestaetigungNoetig ist derselbe, und acht Fassungen wären acht Stellen, an
+   *  denen `bestaetigt` fehlen kann. Welche Handlung welche Rückfrage hat, steht
+   *  ausschließlich im Handler — eine zweite Liste davon hier wäre die Stelle, an
+   *  der eine neue zerstörende Handlung ohne Rückfrage durchrutscht. */
+  dateiHandlung: (
+    handlung: Dateihandlung,
+    felder: Partial<Dateiauftrag>,
+    bestaetigt = false,
+    getippt = "",
+  ) =>
+    anfrage<Dateiantwort>(`/files/${handlung}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pfad: "",
+        name: "",
+        ziel: "",
+        rechte: "",
+        eigentuemer: "",
+        gruppe: "",
+        rekursiv: false,
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    }),
+
+  /** hochladen schickt Dateien als Multipart.
+   *
+   *  Nicht über anfrage(): Der Körper ist ein FormData, und ein
+   *  Content-Type-Kopf, den wir selbst setzen, verlöre die Grenzmarke. Der Token
+   *  steht deshalb in der Kopfzeile — denselben Weg nimmt der Handler, der den
+   *  Körper Teil für Teil streamt und ihn nicht als Formular parsen kann.
+   *
+   *  Die Reihenfolge der Felder ist sicherheitsrelevant: `dir` steht vor den
+   *  Dateien, damit der Handler das Ziel kennt, bevor das erste Byte Inhalt
+   *  fließt. FormData behält die Einfügereihenfolge. */
+  hochladen: async (dir: string, dateien: File[], ueberschreiben = false) => {
+    const form = new FormData();
+    form.set("dir", dir);
+    if (ueberschreiben) form.set("overwrite", "1");
+    for (const d of dateien) form.append("datei", d, d.name);
+
+    const antwort = await fetch("/api/v1/files/upload", {
+      method: "POST",
+      headers: { Accept: "application/json", "X-CSRF-Token": token },
+      credentials: "same-origin",
+      body: form,
+    });
+    if (antwort.status === 401) throw new AbgemeldetFehler();
+    const rumpf = (await antwort.json()) as Uploadantwort;
+    if (!antwort.ok || rumpf.error) {
+      throw new Error(rumpf.error || `HTTP ${antwort.status}`);
+    }
+    return rumpf;
+  },
 
   dienste: () => anfrage<Dienste>("/services"),
   dienst: (unit: string) => anfrage<DienstDetail>(`/services/${encodeURIComponent(unit)}`),

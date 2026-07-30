@@ -117,6 +117,32 @@ func (s *Server) Handler() http.Handler {
 		// JSON-Fehlermeldung im Adressfeld wäre die schlechtere Auskunft.
 		mux.Handle("GET /api/v1/files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
 		mux.Handle("GET /api/v1/files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
+		// Verändern: Schreibrolle und Token, wie in jedem anderen Modul. Die
+		// Prüfung des Pfads selbst liegt in der Pfadwache, nicht hier.
+		mux.Handle("POST /api/v1/files/mkdir",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileMkdir))))
+		mux.Handle("POST /api/v1/files/touch",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileTouch))))
+		mux.Handle("POST /api/v1/files/rename",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileRename))))
+		mux.Handle("POST /api/v1/files/copy",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileCopy))))
+		mux.Handle("POST /api/v1/files/move",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileMove))))
+		mux.Handle("POST /api/v1/files/delete",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileDelete))))
+		mux.Handle("POST /api/v1/files/mode",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileMode))))
+		// Der Upload ist derselbe Handler wie unter /files/upload — und wie dort
+		// liegt er NICHT hinter apiSchreibend: Die Middleware liest das Token aus
+		// einer Kopfzeile, und das täte sie auch hier; aber der Handler streamt
+		// den Körper Teil für Teil, prüft das Token selbst vor dem ersten Byte
+		// Dateiinhalt und darf sich dabei nicht darauf verlassen, dass jemand
+		// vorher hineingesehen hat. Die Begründung im Einzelnen steht in
+		// handlers_files_upload.go. Er antwortet JSON, wenn der Aufrufer es
+		// verlangt (Accept: application/json) — die neue Oberfläche tut das.
+		mux.Handle("POST /api/v1/files/upload",
+			s.protected(s.requireWrite(http.HandlerFunc(s.handleFileUpload))))
 	}
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))

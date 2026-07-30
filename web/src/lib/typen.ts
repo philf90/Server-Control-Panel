@@ -556,3 +556,51 @@ export type Ordnerauswahl = {
   ordner: Ordnerzeile[];
   gekuerzt: boolean;
 };
+
+/** Dateihandlung ist eine verändernde Handlung — der Endpunkt heißt so. */
+export type Dateihandlung =
+  | "mkdir"
+  | "touch"
+  | "rename"
+  | "copy"
+  | "move"
+  | "delete"
+  | "mode";
+
+/** Dateiauftrag ist der Körper einer verändernden Anfrage. Ein Typ für alle
+ *  Handlungen: Die Felder überschneiden sich fast vollständig, und was eine
+ *  Handlung nicht braucht, bleibt leer. */
+export type Dateiauftrag = {
+  /** pfad ist das Ziel. Bei mkdir und touch das Verzeichnis, in dem angelegt
+   *  wird; sonst der Eintrag selbst. */
+  pfad: string;
+  name: string;
+  /** ziel ist das Zielverzeichnis beim Kopieren und Verschieben. */
+  ziel: string;
+  rechte: string;
+  eigentuemer: string;
+  gruppe: string;
+  rekursiv: boolean;
+};
+
+/** Dateiantwort ist die Antwort auf eine ausgeführte Handlung. */
+export type Dateiantwort = {
+  meldung: string;
+  /** eintrag ist der neu gelesene Zustand des Ziels. Fehlt nach dem Löschen —
+   *  es gibt ihn dann nicht mehr. */
+  eintrag?: Dateidetail;
+  /** ordner ist der Ort, den die Liste danach zeigen soll. */
+  ordner: string;
+  /** vorgang ist gesetzt, wenn die Handlung im Hintergrund läuft (202). Dann
+   *  steht der Zustand des Ziels erst fest, wenn der Vorgang fertig ist. */
+  vorgang?: Job;
+};
+
+/** Uploadantwort ist die Antwort des Upload-Endpunkts. Die englischen Namen
+ *  stammen aus der alten Oberfläche — es ist derselbe Handler, und ihn
+ *  umzubenennen hieße, die alte Seite mitzuändern. */
+export type Uploadantwort = {
+  ok?: boolean;
+  error?: string;
+  entries?: Eintrag[];
+};

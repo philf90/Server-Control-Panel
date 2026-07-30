@@ -46,6 +46,23 @@
   padding: 0;
 }
 
+/* Und die eine Ausnahme davon, die der Rücksetzer oben braucht.
+ *
+ * Ein modales <dialog> zentriert der Browser über `margin: auto` aus seinem
+ * eigenen Stylesheet — `* { margin: 0 }` schlägt das, weil jede Autorenregel vor
+ * der des Browsers kommt, unabhängig von der Spezifität. Ohne diese Zeile saßen
+ * ALLE Rückfragen des Panels in der linken oberen Ecke: Sie funktionierten,
+ * sahen aber aus wie ein Fehler. Aufgefallen ist es erst am Dateimodul, weil
+ * dort zum ersten Mal ein Bildschirmfoto mit offenem Dialog entstand — gemessen
+ * wird der Sitz jetzt im Browsertest.
+ *
+ * Die Regel steht hier und nicht in den Dialogkomponenten: Die Ursache ist der
+ * Rücksetzer, und jede neue Komponente mit <dialog> hätte den Fehler sonst
+ * erneut. */
+dialog {
+  margin: auto;
+}
+
 html {
   background: var(--bg);
   color: var(--tx);

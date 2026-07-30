@@ -958,9 +958,12 @@ async function main() {
     return {
       titel: i.querySelector("h2, .titel")?.textContent.trim() ?? i.getAttribute("aria-label") ?? "",
       paare: i.querySelectorAll("dl.kv dt").length,
-      rechtetext: [...i.querySelectorAll(".rechteblock dd")].map((li) =>
-        li.textContent.replace(/\s+/g, " ").trim(),
-      ),
+      // Beschriftung UND Wert: „darf lesen" allein wäre kein Nachweis, dass
+      // dabeisteht, für WEN es gilt.
+      rechtetext: [...i.querySelectorAll(".rechteblock dt")].map((dt, n) => {
+        const dd = i.querySelectorAll(".rechteblock dd")[n];
+        return `${dt.textContent.trim()}: ${dd ? dd.textContent.replace(/\s+/g, " ").trim() : ""}`;
+      }),
       aktionen: [...i.querySelectorAll(".aktionen .knopf")].map((a) =>
         a.textContent.trim(),
       ),
@@ -1067,6 +1070,315 @@ async function main() {
   }
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 12b. Die Schreibvorgänge. Der Kern ist die Rückfrage: Ohne Bestätigung darf
+  //      NICHTS geschehen, und bei einem Ordner mit Inhalt muss der Dialog nach
+  //      einem getippten Wort fragen. Bis 0.3.0-rc.5 waren dreizehn Rückfragen im
+  //      Projekt so gebaut, dass keine einzige gefragt hat — deshalb wird hier
+  //      nicht nur der Dialog gezählt, sondern nach dem Abbruch geprüft, dass der
+  //      Eintrag noch in der Liste steht.
+  const schreiben = {};
+  const schreibbar = `${wurzel}/schreibbar`;
+  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector(".werkstatt", { timeout: 5000 });
+
+  // Die Werkstatt steht nur, wo geschrieben werden darf. In der Leseworzel
+  // darüber darf sie nicht sein — ein Knopf, der zuverlässig in ein 403 läuft,
+  // nennt den Fehler erst nach dem Klick.
+  schreiben.werkstattHier = true;
+
+  // Einen Ordner anlegen.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".werkstatt .knopf")].find((x) =>
+      x.textContent.includes("Neuer Ordner"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".maske input", { timeout: 5000 });
+  await seite.fill(".maske input", "vom-browser");
+  await seite.press(".maske input", "Enter");
+  await seite.waitForSelector(".band.gut", { timeout: 5000 });
+  schreiben.nachAnlegen = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+    // Der neue Eintrag ist ausgewählt: Wer einen Ordner anlegt, will meist gleich
+    // hinein oder die Rechte setzen.
+    auswahl: new URL(location.href).searchParams.get("eintrag") ?? "",
+    inListe: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("vom-browser"),
+    ),
+  }));
+
+  // Umbenennen im Inspektor.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find((x) =>
+      x.textContent.trim() === "umbenennen",
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".inspektor .maske input", { timeout: 5000 });
+  await seite.fill(".inspektor .maske input", "umbenannt");
+  await seite.press(".inspektor .maske input", "Enter");
+  await seite.waitForSelector(".inspektor .meldung", { timeout: 5000 });
+  schreiben.nachUmbenennen = await seite.evaluate(() => ({
+    // Die Meldung steht IM INSPEKTOR und nicht über der Liste: Sie gehört an die
+    // Stelle, an der der Knopf war.
+    meldung: document.querySelector(".inspektor .meldung")?.textContent.trim() ?? "",
+    bandOben: document.querySelector(".band.gut") !== null,
+    titel: document.querySelector(".inspektor h2")?.textContent.trim() ?? "",
+    inListe: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("umbenannt"),
+    ),
+  }));
+
+  // Rechte setzen — Stufe 1 für einen einzelnen Eintrag, also ohne Dialog.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
+      (x) => x.textContent.trim() === "Rechte",
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".rechtemaske", { timeout: 5000 });
+  schreiben.rechtemaske = await seite.evaluate(() => {
+    const m = document.querySelector(".rechtemaske");
+    return {
+      // Vorbelegt mit dem, was gilt: Ein leeres Feld hieße „nichts ändern", und
+      // wer die Rechte ansehen will, soll sie nicht abschreiben müssen.
+      oktal: m.querySelector('input[type="text"]')?.value ?? "",
+      auswahlfelder: m.querySelectorAll("select").length,
+      // Der rekursive Schalter gibt es nur bei einem Ordner.
+      rekursiv: m.querySelector('input[type="checkbox"]') !== null,
+    };
+  });
+
+  // Und jetzt der rekursive Lauf: Er MUSS zurückfragen. Das ist die Verschärfung
+  // gegenüber der alten Oberfläche.
+  await seite.evaluate(() => {
+    const m = document.querySelector(".rechtemaske");
+    m.querySelector('input[type="text"]').value = "0700";
+    m.querySelector('input[type="text"]').dispatchEvent(new Event("input", { bubbles: true }));
+    m.querySelector('input[type="checkbox"]').click();
+  });
+  await seite.waitForTimeout(120);
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".rechtemaske .knopf")].find((x) =>
+      x.textContent.includes("anwenden"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  schreiben.rekursivFrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: d.querySelectorAll(".punkte li").length,
+      tippfeld: d.querySelector(".tippen") !== null,
+    };
+  });
+  // Abbrechen — und danach darf nichts geschehen sein.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(200);
+  schreiben.nachAbbruchRekursiv = await seite.evaluate(
+    () => document.querySelector("dialog.rueckfrage") === null,
+  );
+
+  // Löschen eines Ordners MIT Inhalt: Stufe 3.
+  await seite.goto(
+    `${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}` +
+      `&eintrag=${encodeURIComponent(schreibbar + "/tief")}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await seite.waitForSelector(".inspektor .aktionen .knopf.gefahr", { timeout: 5000 });
+  await seite.click(".inspektor .aktionen .knopf.gefahr");
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  schreiben.loeschFrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: d.querySelectorAll(".punkte li").length,
+      tippfeld: d.querySelector(".tippen") !== null,
+      hinweis: d.querySelector(".tippen-hinweis, label")?.textContent.trim() ?? "",
+      // Der Knopf bleibt gesperrt, bis das Wort stimmt.
+      gesperrt: [...d.querySelectorAll(".knopf")].find((b) =>
+        b.textContent.includes("löschen"),
+      )?.disabled,
+    };
+  });
+
+  // Wo sitzt der Dialog? Ein modales <dialog> zentriert der Browser über
+  // `margin: auto` — und der Rücksetzer in app.css (`* { margin: 0 }`) nimmt ihm
+  // das. Gemessen und nicht angenommen: Ein Dialog in der linken oberen Ecke
+  // funktioniert, sieht aber aus wie ein Fehler.
+  schreiben.dialogSitz = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage").getBoundingClientRect();
+    return {
+      links: Math.round(d.left),
+      breite: Math.round(d.width),
+      fenster: window.innerWidth,
+      // Waagerecht mittig? Zwei Pixel Toleranz für Rundung.
+      mittig: Math.abs(d.left - (window.innerWidth - d.width) / 2) <= 2,
+    };
+  });
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-loeschfrage.png`,
+    });
+  }
+
+  // Abbrechen, und der Ordner steht noch da. DAS ist die Prüfung, die zählt.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  schreiben.nachLoeschAbbruch = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    nochDa: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("tief"),
+    ),
+  }));
+
+  // Jetzt wirklich: Wort tippen und löschen.
+  await seite.click(".inspektor .aktionen .knopf.gefahr");
+  await seite.waitForSelector("dialog.rueckfrage .tippen", { timeout: 5000 });
+  await seite.fill("dialog.rueckfrage .tippen", "tief");
+  await seite.waitForTimeout(120);
+  await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    [...d.querySelectorAll(".knopf")].find((b) => b.textContent.includes("löschen")).click();
+  });
+  await seite.waitForSelector(".band.gut", { timeout: 5000 });
+  schreiben.nachLoeschen = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+    // Der Inspektor ist zu: Es gibt den Eintrag nicht mehr.
+    inspektor: document.querySelector(".inspektor") !== null,
+    nochDa: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("tief"),
+    ),
+  }));
+
+  // Die Zielauswahl beim Kopieren: ein Ordnerbrowser und kein Textfeld.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find((x) =>
+      x.textContent.includes("notizen.txt"),
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
+      (x) => x.textContent.trim() === "kopieren",
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.zielwahl[open]", { timeout: 5000 });
+  await seite.waitForSelector("dialog.zielwahl .ordner button", { timeout: 5000 });
+  schreiben.zielwahl = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.zielwahl");
+    return {
+      // Kein Textfeld: Ein Tippfehler wurde sonst erst beim Absenden zu einer
+      // Meldung, und "/srv/date" statt "/srv/daten" legt nichts an.
+      textfelder: d.querySelectorAll('input[type="text"]').length,
+      ordner: [...d.querySelectorAll(".ordner button")].map((b) => b.textContent.trim()),
+      ziel: d.querySelector(".gewaehlt .pfad")?.textContent.trim() ?? "",
+      knopfOffen: ![...d.querySelectorAll(".knoepfe .knopf")].find((b) =>
+        b.textContent.includes("kopieren"),
+      )?.disabled,
+    };
+  });
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-zielwahl.png`,
+      fullPage: true,
+    });
+  }
+
+  // In einen Unterordner wechseln und dorthin kopieren. Der Ordner heißt
+  // „umbenannt" — er wurde weiter oben angelegt und umbenannt. Ins EIGENE
+  // Verzeichnis zu kopieren wäre ein 400 („gibt es bereits"), und der Test
+  // prüfte dann versehentlich die Fehlerbehandlung statt des Kopierens.
+  await seite.waitForFunction(
+    () =>
+      [...document.querySelectorAll("dialog.zielwahl .ordner button")].some((x) =>
+        x.textContent.includes("umbenannt"),
+      ),
+    null,
+    { timeout: 5000 },
+  );
+  await seite.evaluate(() => {
+    [...document.querySelectorAll("dialog.zielwahl .ordner button")]
+      .find((x) => x.textContent.includes("umbenannt"))
+      .click();
+  });
+  await seite.waitForFunction(
+    () =>
+      document
+        .querySelector("dialog.zielwahl .gewaehlt .pfad")
+        ?.textContent.endsWith("/umbenannt"),
+    null,
+    { timeout: 5000 },
+  );
+  await seite.evaluate(() => {
+    const d = document.querySelector("dialog.zielwahl");
+    [...d.querySelectorAll(".knoepfe .knopf")]
+      .find((b) => b.textContent.includes("kopieren"))
+      .click();
+  });
+  await seite.waitForSelector(".inspektor .meldung", { timeout: 5000 });
+  schreiben.nachKopieren = await seite.evaluate(() => ({
+    meldung: document.querySelector(".inspektor .meldung")?.textContent.trim() ?? "",
+    dialogZu: document.querySelector("dialog.zielwahl") === null,
+    // Das Original steht noch da — sonst wäre es ein Verschieben.
+    originalDa: [...document.querySelectorAll("table.tabelle .zeile")].some((z) =>
+      z.textContent.includes("notizen.txt"),
+    ),
+    // Und die Messung, die den Fehler gefunden hat: Diese Meldung enthält einen
+    // PFAD, und ein Pfad ohne Trennstelle hat eine große Mindestbreite. Ohne
+    // overflow-wrap wuchs die Spalte der Werkbank über das Fenster hinaus, der
+    // Inspektor wurde rechts abgeschnitten und „löschen" lag außerhalb des
+    // Bildes. Gemessen wird deshalb beides: der Seitenkörper und die rechte
+    // Kante des Inspektors.
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+    inspektorRechts: Math.round(
+      document.querySelector(".inspektor").getBoundingClientRect().right,
+    ),
+    // Die letzte Schaltfläche muss innerhalb des Inspektors liegen.
+    letzterKnopfDrin: (() => {
+      const i = document.querySelector(".inspektor").getBoundingClientRect();
+      const knoepfe = [...document.querySelectorAll(".inspektor .aktionen .knopf")];
+      const letzter = knoepfe[knoepfe.length - 1]?.getBoundingClientRect();
+      return letzter ? letzter.right <= i.right + 1 : false;
+    })(),
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-schreiben.png`,
+      fullPage: true,
+    });
+  }
+
+  // Und die Gegenprobe: In der Leseworzel gibt es keine Werkstatt.
+  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+  schreiben.werkstattDraussen = await seite.evaluate(
+    () => document.querySelector(".werkstatt") !== null,
+  );
+  // Und am Eintrag dort keine verändernden Handgriffe.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find((x) =>
+      x.textContent.includes("schluessel.geheim"),
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  schreiben.handgriffeDraussen = await seite.evaluate(() =>
+    [...document.querySelectorAll(".inspektor .aktionen .knopf")].map((b) =>
+      b.textContent.trim(),
+    ),
+  );
+
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
@@ -1115,6 +1427,7 @@ async function main() {
       logs,
       firewall,
       dateien,
+      schreiben,
       bald,
       zweige,
       schmal,

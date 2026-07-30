@@ -27,7 +27,6 @@ package httpd
 import (
 	"context"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -264,9 +263,10 @@ type apiDateiDetail struct {
 	// die Liste.
 	Ordner string  `json:"ordner"`
 	Krumen []crumb `json:"krumen"`
-	// Mass ist die Zählung unterhalb eines Verzeichnisses. Sie trägt die
-	// Rückfrage vor dem Löschen und steht deshalb schon im Detail: Wer die Zahl
-	// erst im Dialog sieht, hat den Knopf schon gedrückt.
+	// Mass ist die Zählung UNTERHALB eines Verzeichnisses — ohne das Verzeichnis
+	// selbst, anders als privops.Measure sie liefert (siehe unterhalb). Sie trägt
+	// die Rückfrage vor dem Löschen und steht deshalb schon im Detail: Wer die
+	// Zahl erst im Dialog sieht, hat den Knopf schon gedrückt.
 	Mass     *privops.Measurement `json:"mass,omitempty"`
 	MassText string               `json:"mass_text,omitempty"`
 	// Rechte ist die Aufschlüsselung in Worten. „0755" sagt nur denen etwas, die
@@ -350,56 +350,69 @@ func dateiAktionen(e privops.FileEntry, maxEdit int64) []string {
 func (s *Server) handleAPIFileEntry(w http.ResponseWriter, r *http.Request) {
 	pfad := r.URL.Query().Get("pfad")
 
-	eintrag, err := s.files.Stat(r.Context(), pfad)
-	if err != nil {
+	// Erst durch die Wache: Ein abgelehnter oder fehlender Pfad soll ihre Antwort
+	// bekommen (403, 404) und nicht ein leeres Detail.
+	if _, err := s.files.Stat(r.Context(), pfad); err != nil {
 		s.apiDateiFehler(w, err)
 		return
 	}
 
-	maxEdit, maxUpload := s.files.Limits()
-	antwort := apiDateiDetail{
-		Eintrag:        eintragAus(eintrag),
-		Ordner:         filepath.Dir(eintrag.Path),
-		Krumen:         krumen(eintrag.Path),
-		Rechte:         privops.DescribeMode(eintrag.Mode, eintrag.IsDir()),
-		Benutzer:       []string{},
-		Gruppen:        []string{},
-		Schreibwurzeln: s.files.WritableRoots(),
-		Aktionen:       dateiAktionen(eintrag, maxEdit),
-		MaxEdit:        maxEdit,
-		MaxEditText:    groesseText(maxEdit),
-		MaxUpload:      maxUpload,
-		MaxUploadText:  groesseText(maxUpload),
+	// Zusammengebaut wird das Detail in dateiDetail — dieselbe Funktion, die auch
+	// die Antwort nach einer Handlung trägt (api_v1_dateien_schreiben.go). Zwei
+	// Fassungen davon wären die Stelle, an der eine irgendwann ein Feld verliert:
+	// Nach einem chmod stünden die Rechte dann anders da als nach einem Neuladen.
+	detail, ok := s.dateiDetail(r, pfad)
+	if !ok {
+		s.apiFehler(w, http.StatusBadGateway, "Der Eintrag ist nicht lesbar.")
+		return
 	}
-	if eintrag.IsDir() {
-		if mass, err := s.files.Measure(r.Context(), eintrag.Path); err == nil {
-			antwort.Mass = &mass
-			antwort.MassText = massText(mass)
-		}
+	s.apiJSON(w, http.StatusOK, *detail)
+}
+
+// unterhalb zieht den gemessenen Eintrag selbst aus einer Zählung heraus.
+//
+// privops.Measure zählt ihn mit: fs.WalkDir besucht die Wurzel des Laufs, und ein
+// leeres Verzeichnis kommt deshalb als „1 Ordner" zurück. Für zwei Dinge ist das
+// falsch, und beide sind mehr als Kosmetik:
+//
+//   - Die Frage vor dem Löschen lautete „leer enthält 0 Dateien, 1 Ordner (0 B).
+//     Alles endgültig löschen?" — eine Aussage über den Ordner selbst, gestellt
+//     als Aussage über seinen Inhalt.
+//   - Die Bestätigungsstufe hing an derselben Summe. Damit war JEDER Ordner
+//     Stufe 3, auch der leere: Wer ein versehentlich angelegtes Verzeichnis
+//     wieder loswerden wollte, musste seinen Namen abschreiben. Eine Hürde ohne
+//     Anlass entwertet die Hürde dort, wo sie zählt (docs/14-bestaetigungen.md).
+//
+// Die alte Oberfläche trägt diesen Fehler noch; sie ist eingefroren und behält
+// ihn. Die Regel steht deshalb hier und nicht in privops: Measure zählt richtig,
+// was es zu zählen behauptet — die Frage ist, was die Oberfläche daraus macht.
+func unterhalb(m privops.Measurement, istOrdner bool) privops.Measurement {
+	if istOrdner && m.Dirs > 0 {
+		m.Dirs--
 	}
-	// Scheitert die Namensabfrage, bleiben die Listen leer und die Oberfläche
-	// bietet chown nicht an. Das ist die richtige Antwort: Ein Auswahlfeld ohne
-	// Auswahl ist schlechter als kein Auswahlfeld.
-	if users, groups, err := s.files.OwnerCandidates(r.Context()); err == nil {
-		if len(users) > 0 {
-			antwort.Benutzer = users
-		}
-		if len(groups) > 0 {
-			antwort.Gruppen = groups
-		}
-	}
-	s.apiJSON(w, http.StatusOK, antwort)
+	return m
 }
 
 // massText schreibt eine Zählung als Satzteil — der Text, der in der Rückfrage
 // vor einem rekursiven Eingriff steht.
 func massText(m privops.Measurement) string {
-	teile := []string{
-		strconv.Itoa(m.Files) + " " + einsOder(m.Files, "Datei", "Dateien"),
-		strconv.Itoa(m.Dirs) + " " + einsOder(m.Dirs, "Ordner", "Ordner"),
+	// Nur nennen, was es gibt: „1 Datei, 0 Ordner" ist eine Aufzählung mit einem
+	// Posten, der nichts beiträgt, und in einer Rückfrage lenkt jede solche Zahl
+	// von der ab, auf die es ankommt.
+	var teile []string
+	if m.Files > 0 {
+		teile = append(teile, strconv.Itoa(m.Files)+" "+einsOder(m.Files, "Datei", "Dateien"))
+	}
+	if m.Dirs > 0 {
+		teile = append(teile, strconv.Itoa(m.Dirs)+" Ordner")
 	}
 	if m.Symlinks > 0 {
 		teile = append(teile, strconv.Itoa(m.Symlinks)+" "+einsOder(m.Symlinks, "Verweis", "Verweise"))
+	}
+	if len(teile) == 0 {
+		// Der leere Fall braucht ein Wort: Ein Satz, der mit „ (0 B)" beginnt,
+		// liest sich wie ein abgeschnittener.
+		return "keine Einträge"
 	}
 	text := strings.Join(teile, ", ") + " (" + groesseText(m.Bytes) + ")"
 	if m.Truncated {

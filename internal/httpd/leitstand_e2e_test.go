@@ -235,6 +235,70 @@ type ergebnisLeitstand struct {
 			FensterBreite float64 `json:"fensterBreite"`
 		} `json:"schmal"`
 	} `json:"dateien"`
+	Schreiben struct {
+		WerkstattHier bool `json:"werkstattHier"`
+		NachAnlegen   struct {
+			Meldung string `json:"meldung"`
+			Auswahl string `json:"auswahl"`
+			InListe bool   `json:"inListe"`
+		} `json:"nachAnlegen"`
+		NachUmbenennen struct {
+			Meldung  string `json:"meldung"`
+			BandOben bool   `json:"bandOben"`
+			Titel    string `json:"titel"`
+			InListe  bool   `json:"inListe"`
+		} `json:"nachUmbenennen"`
+		Rechtemaske struct {
+			Oktal         string `json:"oktal"`
+			Auswahlfelder int    `json:"auswahlfelder"`
+			Rekursiv      bool   `json:"rekursiv"`
+		} `json:"rechtemaske"`
+		RekursivFrage struct {
+			Frage    string `json:"frage"`
+			Punkte   int    `json:"punkte"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"rekursivFrage"`
+		NachAbbruchRekursiv bool `json:"nachAbbruchRekursiv"`
+		LoeschFrage         struct {
+			Frage    string `json:"frage"`
+			Punkte   int    `json:"punkte"`
+			Tippfeld bool   `json:"tippfeld"`
+			Hinweis  string `json:"hinweis"`
+			Gesperrt bool   `json:"gesperrt"`
+		} `json:"loeschFrage"`
+		DialogSitz struct {
+			Links   float64 `json:"links"`
+			Breite  float64 `json:"breite"`
+			Fenster float64 `json:"fenster"`
+			Mittig  bool    `json:"mittig"`
+		} `json:"dialogSitz"`
+		NachLoeschAbbruch struct {
+			DialogZu bool `json:"dialogZu"`
+			NochDa   bool `json:"nochDa"`
+		} `json:"nachLoeschAbbruch"`
+		NachLoeschen struct {
+			Meldung   string `json:"meldung"`
+			Inspektor bool   `json:"inspektor"`
+			NochDa    bool   `json:"nochDa"`
+		} `json:"nachLoeschen"`
+		Zielwahl struct {
+			Textfelder int      `json:"textfelder"`
+			Ordner     []string `json:"ordner"`
+			Ziel       string   `json:"ziel"`
+			KnopfOffen bool     `json:"knopfOffen"`
+		} `json:"zielwahl"`
+		NachKopieren struct {
+			Meldung          string  `json:"meldung"`
+			DialogZu         bool    `json:"dialogZu"`
+			OriginalDa       bool    `json:"originalDa"`
+			KoerperBreite    float64 `json:"koerperBreite"`
+			FensterBreite    float64 `json:"fensterBreite"`
+			InspektorRechts  float64 `json:"inspektorRechts"`
+			LetzterKnopfDrin bool    `json:"letzterKnopfDrin"`
+		} `json:"nachKopieren"`
+		WerkstattDraussen  bool     `json:"werkstattDraussen"`
+		HandgriffeDraussen []string `json:"handgriffeDraussen"`
+	} `json:"schreiben"`
 	Bald struct {
 		Pfad     string `json:"pfad"`
 		Titel    string `json:"titel"`
@@ -1003,6 +1067,169 @@ func TestLeitstandBrowser(t *testing.T) {
 	} else if dat.Schmal.KoerperBreite > dat.Schmal.FensterBreite+1 {
 		t.Errorf("die Dateiseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
 			dat.Schmal.KoerperBreite, dat.Schmal.FensterBreite)
+	}
+
+	// 6f2. Die Schreibvorgänge im Dateimodul. Der Kern ist die Rückfrage, und
+	// geprüft wird nicht, dass ein Dialog erscheint, sondern dass nach dem Abbruch
+	// NICHTS geschehen ist. Bis 0.3.0-rc.5 waren dreizehn Rückfragen im Projekt so
+	// gebaut, dass keine einzige gefragt hat — und alle sahen richtig aus.
+	sch := e.Schreiben
+
+	// Anlegen.
+	if sch.NachAnlegen.Meldung == "" {
+		t.Error("nach dem Anlegen sagt nichts, dass es geklappt hat")
+	}
+	if !sch.NachAnlegen.InListe {
+		t.Error("der neu angelegte Ordner steht nicht in der Liste — die Liste wurde nicht neu geholt")
+	}
+	if !strings.HasSuffix(sch.NachAnlegen.Auswahl, "/vom-browser") {
+		t.Errorf("der neue Eintrag ist nicht ausgewählt (Auswahl = %q) — wer einen "+
+			"Ordner anlegt, will meist gleich hinein", sch.NachAnlegen.Auswahl)
+	}
+
+	// Umbenennen: Die Meldung gehört an die Stelle, an der der Knopf war.
+	if sch.NachUmbenennen.Meldung == "" {
+		t.Error("nach dem Umbenennen steht im Inspektor keine Meldung")
+	}
+	if sch.NachUmbenennen.BandOben {
+		t.Error("die Meldung des Umbenennens steht ÜBER der Liste — sie gehört dorthin, " +
+			"wo der Knopf war, sonst wird sie nicht gelesen")
+	}
+	if !strings.Contains(sch.NachUmbenennen.Titel, "umbenannt") {
+		t.Errorf("der Inspektor trägt weiter %q — er folgt dem Eintrag nicht", sch.NachUmbenennen.Titel)
+	}
+	if !sch.NachUmbenennen.InListe {
+		t.Error("der neue Name steht nicht in der Liste")
+	}
+
+	// Die Rechtemaske ist vorbelegt und bietet Auswahlfelder statt Freitext.
+	if sch.Rechtemaske.Oktal == "" {
+		t.Error("die Rechtemaske ist nicht vorbelegt — wer die Rechte ansehen will, " +
+			"müsste sie abschreiben")
+	}
+	if sch.Rechtemaske.Auswahlfelder < 2 {
+		t.Errorf("die Maske hat %d Auswahlfelder, erwartet zwei (Eigentümer, Gruppe) — "+
+			"Freitext führt zu Tippfehlern, die als „Benutzer gibt es nicht\" zurückkommen",
+			sch.Rechtemaske.Auswahlfelder)
+	}
+	if !sch.Rechtemaske.Rekursiv {
+		t.Error("bei einem Ordner fehlt der Schalter für den rekursiven Lauf")
+	}
+
+	// Der rekursive Lauf fragt zurück — die Verschärfung gegenüber der alten
+	// Oberfläche.
+	if sch.RekursivFrage.Frage == "" || sch.RekursivFrage.Punkte < 2 {
+		t.Errorf("der rekursive Lauf fragt nicht ausreichend zurück: %q (%d Punkte)",
+			sch.RekursivFrage.Frage, sch.RekursivFrage.Punkte)
+	}
+	if sch.RekursivFrage.Tippfeld {
+		t.Error("der rekursive Lauf verlangt ein getipptes Wort — er ist Stufe 2")
+	}
+	if !sch.NachAbbruchRekursiv {
+		t.Error("nach dem Abbruch steht der Dialog noch")
+	}
+
+	// Löschen eines Ordners mit Inhalt: Stufe 3, und der Knopf bleibt gesperrt.
+	if !sch.LoeschFrage.Tippfeld {
+		t.Error("das Löschen eines Ordners mit Inhalt verlangt kein getipptes Wort — " +
+			"hinter dem Klick steht dort ein Baum und nicht ein Eintrag")
+	}
+	if !sch.LoeschFrage.Gesperrt {
+		t.Error("der Löschknopf ist offen, bevor das Wort getippt ist")
+	}
+	// „1 Datei" im Singular ist derselbe Nachweis wie „4132 Dateien": Die Frage
+	// nennt, was verschwindet, und nicht nur dass etwas verschwindet.
+	if !strings.Contains(sch.LoeschFrage.Frage, "Datei") {
+		t.Errorf("die Frage nennt die Zählung nicht: %q", sch.LoeschFrage.Frage)
+	}
+	// Und sie nennt nicht, was es nicht gibt: „1 Datei, 0 Ordner" ist eine
+	// Aufzählung mit einem Posten, der von dem ablenkt, auf den es ankommt.
+	if strings.Contains(sch.LoeschFrage.Frage, "0 Ordner") {
+		t.Errorf("die Frage zählt einen leeren Posten mit: %q", sch.LoeschFrage.Frage)
+	}
+	// Der Dialog sitzt in der Mitte. Der Rücksetzer in app.css (`* { margin: 0 }`)
+	// nimmt einem modalen <dialog> die Zentrierung, die der Browser über
+	// `margin: auto` herstellt — ein Dialog in der linken oberen Ecke funktioniert,
+	// sieht aber aus wie ein Fehler.
+	if !sch.DialogSitz.Mittig {
+		t.Errorf("der Rückfragedialog sitzt bei %.0f Pixeln (Breite %.0f, Fenster %.0f) — "+
+			"nicht mittig", sch.DialogSitz.Links, sch.DialogSitz.Breite, sch.DialogSitz.Fenster)
+	}
+
+	// Und der Punkt, der zählt: Nach dem Abbruch steht der Ordner noch da.
+	if !sch.NachLoeschAbbruch.DialogZu {
+		t.Error("Escape schließt den Löschdialog nicht")
+	}
+	if !sch.NachLoeschAbbruch.NochDa {
+		t.Error("nach dem ABBRUCH ist der Ordner weg — die Rückfrage hat nicht gefragt, " +
+			"sondern nur gefragt ausgesehen")
+	}
+
+	// Nach dem echten Löschen ist er weg und der Inspektor zu.
+	if sch.NachLoeschen.NochDa {
+		t.Error("nach dem Löschen steht der Ordner noch in der Liste")
+	}
+	if sch.NachLoeschen.Inspektor {
+		t.Error("nach dem Löschen steht der Inspektor noch — er zeigte einen Eintrag, den es nicht gibt")
+	}
+	if sch.NachLoeschen.Meldung == "" {
+		t.Error("nach dem Löschen sagt nichts, dass es geschehen ist")
+	}
+
+	// Die Zielauswahl: ein Ordnerbrowser und kein Textfeld.
+	if sch.Zielwahl.Textfelder != 0 {
+		t.Errorf("die Zielauswahl hat %d Textfelder — ein Tippfehler wurde damit erst "+
+			"beim Absenden zu einer Meldung", sch.Zielwahl.Textfelder)
+	}
+	if len(sch.Zielwahl.Ordner) == 0 {
+		t.Error("die Zielauswahl nennt keine Ordner")
+	}
+	if sch.Zielwahl.Ziel == "" {
+		t.Error("die Zielauswahl sagt nicht, welches Ziel gerade gewählt ist")
+	}
+	if !sch.Zielwahl.KnopfOffen {
+		t.Error("der Knopf ist gesperrt, obwohl das Ziel beschreibbar ist")
+	}
+	if sch.NachKopieren.Meldung == "" {
+		t.Error("nach dem Kopieren fehlt die Meldung")
+	}
+	if !sch.NachKopieren.DialogZu {
+		t.Error("nach dem Kopieren steht die Zielauswahl noch")
+	}
+	if !sch.NachKopieren.OriginalDa {
+		t.Error("nach dem Kopieren ist das Original weg — dann war es ein Verschieben")
+	}
+	// Die Meldung enthält einen Pfad, und ein Pfad ohne Trennstelle hat eine große
+	// Mindestbreite. Ohne overflow-wrap wuchs die Spalte der Werkbank über das
+	// Fenster hinaus: Der Inspektor wurde rechts abgeschnitten, und die
+	// Schaltfläche „löschen" lag außerhalb des Bildes.
+	if sch.NachKopieren.FensterBreite == 0 {
+		t.Error("die Breite nach dem Kopieren wurde nicht gemessen")
+	} else if sch.NachKopieren.KoerperBreite > sch.NachKopieren.FensterBreite+1 {
+		t.Errorf("nach dem Kopieren ist die Seite %.0f Pixel breit bei %.0f Pixeln Fenster — "+
+			"die Meldung mit dem Pfad sprengt das Gitter",
+			sch.NachKopieren.KoerperBreite, sch.NachKopieren.FensterBreite)
+	}
+	if sch.NachKopieren.InspektorRechts > sch.NachKopieren.FensterBreite+1 {
+		t.Errorf("der Inspektor endet bei %.0f Pixeln, das Fenster bei %.0f — er ist rechts abgeschnitten",
+			sch.NachKopieren.InspektorRechts, sch.NachKopieren.FensterBreite)
+	}
+	if !sch.NachKopieren.LetzterKnopfDrin {
+		t.Error("die letzte Schaltfläche des Inspektors liegt außerhalb von ihm — " +
+			"sie ist da, aber nicht zu sehen, und das ist schlimmer als keine")
+	}
+
+	// Die Gegenprobe: Wo nicht geschrieben werden darf, gibt es die Knöpfe nicht.
+	if sch.WerkstattDraussen {
+		t.Error("in einem nur lesbaren Bereich steht die Werkstatt — jeder Knopf darin " +
+			"liefe zuverlässig in ein 403")
+	}
+	for _, verboten := range []string{"löschen", "umbenennen", "Rechte", "verschieben"} {
+		if slices.ContainsFunc(sch.HandgriffeDraussen, func(s string) bool {
+			return strings.Contains(s, verboten)
+		}) {
+			t.Errorf("am gesperrten Eintrag steht %q: %v", verboten, sch.HandgriffeDraussen)
+		}
 	}
 
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2

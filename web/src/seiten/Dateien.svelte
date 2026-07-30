@@ -17,12 +17,23 @@
   //     nie: kein Download, kein Editor, kein Kopieren. Das steht an der Zeile
   //     und im Inspektor, nicht in einer Fehlermeldung nach dem Klick.
   import Inspektor from "../komponenten/Inspektor.svelte";
+  import Rueckfrage from "../komponenten/Rueckfrage.svelte";
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
-  import { AbgemeldetFehler, api } from "../lib/api";
+  import Zielwahl from "../komponenten/Zielwahl.svelte";
+  import { AbgemeldetFehler, BestaetigungNoetig, api } from "../lib/api";
   import { t } from "../lib/texte";
   import { Vorgang } from "../lib/vorgang.svelte";
   import { verweis, weg } from "../lib/weg.svelte";
-  import type { Dateidetail, Dateiliste, Eintrag, Handgriff, Sortierung } from "../lib/typen";
+  import type {
+    Bestaetigung,
+    Dateiauftrag,
+    Dateidetail,
+    Dateihandlung,
+    Dateiliste,
+    Eintrag,
+    Handgriff,
+    Sortierung,
+  } from "../lib/typen";
 
   let { darfSchreiben = false }: { darfSchreiben?: boolean } = $props();
 
@@ -109,6 +120,7 @@
   /** hinein wechselt das Verzeichnis. Ein Schritt im Verlauf, und Auswahl wie
    *  Suchbegriff fallen dabei weg: Beides bezog sich auf den alten Ort. */
   function hinein(ziel: string) {
+    meldungenLeeren();
     weg.setzeAlle({ pfad: ziel, eintrag: "", q: "" }, true);
   }
 
@@ -121,10 +133,12 @@
       hinein(e.path);
       return;
     }
+    meldungenLeeren();
     weg.setzeAlle({ eintrag: e.path }, !gewaehlt);
   }
 
   function schliessen() {
+    meldungenLeeren();
     weg.setzeAlle({ eintrag: "" }, false);
   }
 
@@ -141,17 +155,287 @@
 
   function suchen(e: SubmitEvent) {
     e.preventDefault();
+    meldungenLeeren();
     weg.setzeAlle({ q: suchfeld.trim(), eintrag: "" }, true);
   }
 
   function sucheBeenden() {
     suchfeld = "";
+    meldungenLeeren();
     weg.setzeAlle({ q: "", eintrag: "" }, true);
   }
 
   function kann(h: Handgriff): boolean {
     return detail?.aktionen.includes(h) ?? false;
   }
+
+  // ------------------------------------------------------------- Verändern ---
+  //
+  // Jede verändernde Handlung läuft durch handlung(). Der Grund dafür ist die
+  // Rückfrage: Sie kommt als 409 vom Server, und der zweite Anlauf ist DERSELBE
+  // Aufruf mit bestaetigt=true. Wäre das an sieben Stellen ausgeschrieben, wäre
+  // eine davon die, an der die Bestätigung nicht mit durchgereicht wird — und
+  // dann führte ein Knopf zuverlässig in einen Dialog, der nichts tut.
+
+  let laufendeHandlung = $state<Dateihandlung | "upload" | "">("");
+  let handlungMeldung = $state("");
+  let handlungFehler = $state("");
+  /** offeneFrage hält die Rückfrage zusammen mit dem Weg, sie auszuführen. Beides
+   *  zusammen, weil ein Dialog, der nicht weiß, was er bestätigt, nichts tun
+   *  kann. */
+  let offeneFrage = $state<{
+    frage: Bestaetigung;
+    weiter: (getippt: string) => Promise<void>;
+  } | null>(null);
+
+  /** anlegen ist die offene Eingabemaske über der Liste, "" heißt geschlossen. */
+  let anlegen = $state<"" | "ordner" | "datei">("");
+  let neuerName = $state("");
+  /** umbenennen ist offen, wenn im Inspektor der Name bearbeitet wird. */
+  let umbenennenOffen = $state(false);
+  let namensfeld = $state("");
+  /** zielwahl ist offen, während der Ordnerbrowser steht. */
+  let zielwahl = $state<"copy" | "move" | "">("");
+  /** rechteOffen und die drei Felder darunter sind die Maske für chmod/chown. */
+  let rechteOffen = $state(false);
+  let rechtefeld = $state("");
+  let besitzerfeld = $state("");
+  let gruppenfeld = $state("");
+  let rekursivfeld = $state(false);
+  let ueberschreiben = $state(false);
+  let dateifeld: HTMLInputElement | undefined = $state();
+
+  /** meldungImInspektor sagt, WO die Rückmeldung steht.
+   *
+   *  Nicht Kosmetik: „Umbenannt in x" gehört an die Stelle, an der der Knopf war,
+   *  und „3 Dateien hochgeladen" über die Liste, in der sie jetzt stehen. Eine
+   *  Meldung, die nach einem Klick im Inspektor am anderen Ende der Seite
+   *  erscheint, wird nicht gelesen. */
+  let meldungImInspektor = $state(false);
+
+  /** Masken schließen, wenn die Auswahl wechselt: Eine offene Rechtemaske mit den
+   *  Werten der vorigen Datei wäre die gefährlichste Art von Aufräumfehler — der
+   *  Knopf hieße weiter „anwenden" und träfe etwas anderes.
+   *
+   *  Die Meldungen werden hier NICHT geleert, und das ist überlegt: Eine Handlung
+   *  wechselt oft selbst die Auswahl (nach dem Anlegen ist der neue Eintrag
+   *  gewählt, nach dem Löschen keiner), und dieser Effekt lief danach — er hätte
+   *  genau die Meldung weggewischt, die die Handlung eben erzeugt hat. Geleert
+   *  wird beim Klick des Bedieners, unten in waehlen(), hinein() und
+   *  schliessen(). */
+  $effect(() => {
+    const ziel = gewaehlt;
+    void ziel;
+    umbenennenOffen = false;
+    rechteOffen = false;
+    zielwahl = "";
+  });
+
+  function meldungenLeeren() {
+    handlungMeldung = "";
+    handlungFehler = "";
+  }
+
+  /** handlung führt eine verändernde Handlung aus und behandelt die Rückfrage.
+   *
+   *  nachher entscheidet, wohin die Oberfläche danach sieht. Es steht als
+   *  Rückruf hier und nicht in jedem Aufrufer, weil es je Handlung etwas anderes
+   *  ist: Nach dem Verschieben folgt der Blick dem Eintrag an seinen neuen Ort,
+   *  nach dem Löschen bleibt er im übergeordneten Ordner. */
+  async function handlung(
+    h: Dateihandlung,
+    felder: Partial<Dateiauftrag>,
+    nachher: (ordner: string, neuerPfad: string) => void,
+    imInspektor = true,
+  ) {
+    laufendeHandlung = h;
+    meldungImInspektor = imInspektor;
+    handlungMeldung = "";
+    handlungFehler = "";
+
+    const lauf = async (bestaetigt: boolean, getippt: string) => {
+      const antwort = await api.dateiHandlung(h, felder, bestaetigt, getippt);
+      offeneFrage = null;
+      handlungMeldung = antwort.meldung;
+      // Läuft es als Vorgang, hängt sich die Platte an den Strom. Der Zustand des
+      // Ziels steht dann erst am Ende fest — deshalb kein Detail aus dieser
+      // Antwort.
+      if (antwort.vorgang) vorgang.setzen(antwort.vorgang);
+      if (antwort.eintrag) detail = antwort.eintrag;
+      nachher(antwort.ordner, antwort.eintrag?.eintrag.path ?? "");
+      await neuLaden();
+    };
+
+    try {
+      await lauf(false, "");
+    } catch (e) {
+      if (e instanceof AbgemeldetFehler) throw e;
+      if (e instanceof BestaetigungNoetig) {
+        // Auch der zweite Anlauf kann zurückkommen: bei Stufe 3, wenn das
+        // getippte Wort nicht passte. Dann trägt die Frage das Feld `fehler` und
+        // der Dialog bleibt stehen.
+        offeneFrage = { frage: e.bestaetigung, weiter: (w) => lauf(true, w) };
+        return;
+      }
+      handlungFehler = e instanceof Error ? e.message : t.fehler.laden;
+    } finally {
+      // Ohne Bedingung: Steht die Rückfrage noch, wäre der Knopf darin sonst für
+      // immer gesperrt. Genau dieser Fehler stand schon einmal im Paketmodul.
+      laufendeHandlung = "";
+    }
+  }
+
+  /** offeneFrageBestaetigen ist der Weg vom Dialog zurück in die Handlung. Die
+   *  Fehlerbehandlung liegt bewusst hier und nicht im Dialog: Auch der zweite
+   *  Anlauf kann scheitern, und dann soll die Meldung im Inspektor stehen. */
+  async function offeneFrageBestaetigen(getippt: string) {
+    const frage = offeneFrage;
+    if (!frage) return;
+    laufendeHandlung = laufendeHandlung || "delete";
+    try {
+      await frage.weiter(getippt);
+    } catch (e) {
+      if (e instanceof AbgemeldetFehler) throw e;
+      if (e instanceof BestaetigungNoetig) {
+        offeneFrage = { frage: e.bestaetigung, weiter: frage.weiter };
+        return;
+      }
+      offeneFrage = null;
+      handlungFehler = e instanceof Error ? e.message : t.fehler.laden;
+    } finally {
+      laufendeHandlung = "";
+    }
+  }
+
+  function neuLaden() {
+    return laden(pfad, begriff, sortierung, absteigend, versteckt);
+  }
+
+  function ordnerAnlegen(e: SubmitEvent) {
+    e.preventDefault();
+    const name = neuerName.trim();
+    if (!name || !daten) return;
+    const art: Dateihandlung = anlegen === "ordner" ? "mkdir" : "touch";
+    void handlung(
+      art,
+      { pfad: daten.pfad, name },
+      (_, neu) => {
+        anlegen = "";
+        neuerName = "";
+        // Der neue Eintrag wird ausgewählt: Wer einen Ordner anlegt, will meist
+        // gleich hinein oder die Rechte setzen.
+        if (neu) weg.setzeAlle({ eintrag: neu }, !gewaehlt);
+      },
+      false,
+    );
+  }
+
+  function umbenennen(e: SubmitEvent) {
+    e.preventDefault();
+    const name = namensfeld.trim();
+    if (!name || !detail) return;
+    void handlung("rename", { pfad: detail.eintrag.path, name }, (_, neu) => {
+      umbenennenOffen = false;
+      if (neu) weg.setzeAlle({ eintrag: neu }, false);
+    });
+  }
+
+  function zielGewaehlt(ziel: string) {
+    if (!detail) return;
+    const verschieben = zielwahl === "move";
+    const pfadJetzt = detail.eintrag.path;
+    zielwahl = "";
+    void handlung(verschieben ? "move" : "copy", { pfad: pfadJetzt, ziel }, (ordner, neu) => {
+      // Nach dem Verschieben folgt der Blick dem Eintrag: Er ist hier weg, und
+      // eine Liste ohne ihn ohne weitere Auskunft sieht aus, als wäre er
+      // verschwunden. Nach dem Kopieren bleibt der Blick, wo er war — das
+      // Original steht noch da, und die Meldung nennt das Ziel.
+      if (verschieben) weg.setzeAlle({ pfad: ordner, eintrag: neu }, true);
+    });
+  }
+
+  function loeschen() {
+    if (!detail) return;
+    void handlung(
+      "delete",
+      { pfad: detail.eintrag.path },
+      (ordner) => {
+        detail = null;
+        weg.setzeAlle({ pfad: ordner, eintrag: "" }, false);
+      },
+      // Über die Liste: Der Inspektor geht mit dem gelöschten Eintrag zu, und
+      // eine Meldung darin wäre nie zu sehen.
+      false,
+    );
+  }
+
+  function rechteOeffnen() {
+    if (!detail) return;
+    // Vorbelegt mit dem, was gilt: Ein leeres Feld hieße „nichts ändern", und
+    // wer die Rechte ansehen will, soll sie nicht abschreiben müssen.
+    rechtefeld = detail.rechte.octal;
+    besitzerfeld = detail.eintrag.owner;
+    gruppenfeld = detail.eintrag.group;
+    rekursivfeld = false;
+    rechteOffen = true;
+  }
+
+  function rechteAnwenden(e: SubmitEvent) {
+    e.preventDefault();
+    if (!detail) return;
+    const jetzt = detail;
+    // Nur schicken, was sich geändert hat. Ein chown auf denselben Eigentümer
+    // wäre ein Audit-Eintrag ohne Vorgang — und bei „rekursiv" ein Lauf über den
+    // ganzen Baum, der nichts tut außer Zeit zu kosten.
+    const felder: Partial<Dateiauftrag> = { pfad: jetzt.eintrag.path, rekursiv: rekursivfeld };
+    if (rechtefeld.trim() !== jetzt.rechte.octal) felder.rechte = rechtefeld.trim();
+    if (besitzerfeld !== jetzt.eintrag.owner) felder.eigentuemer = besitzerfeld;
+    if (gruppenfeld !== jetzt.eintrag.group) felder.gruppe = gruppenfeld;
+    // Bei einem rekursiven Lauf ist „unverändert" trotzdem eine Handlung: Die
+    // Einträge darunter tragen andere Werte, und genau die sollen gleichgezogen
+    // werden.
+    if (rekursivfeld) {
+      felder.rechte = rechtefeld.trim();
+      felder.eigentuemer = besitzerfeld;
+      felder.gruppe = gruppenfeld;
+    }
+    if (!felder.rechte && !felder.eigentuemer && !felder.gruppe) {
+      handlungFehler = t.dateien.nichtsGeaendert;
+      return;
+    }
+    void handlung("mode", felder, () => {
+      rechteOffen = false;
+    });
+  }
+
+  async function hochladen() {
+    const dateien = [...(dateifeld?.files ?? [])];
+    if (dateien.length === 0 || !daten) return;
+
+    laufendeHandlung = "upload";
+    meldungImInspektor = false;
+    handlungMeldung = "";
+    handlungFehler = "";
+    try {
+      const antwort = await api.hochladen(daten.pfad, dateien, ueberschreiben);
+      const anzahl = antwort.entries?.length ?? 0;
+      handlungMeldung = t.dateien.hochgeladen(anzahl);
+      if (dateifeld) dateifeld.value = "";
+      await neuLaden();
+    } catch (e) {
+      if (e instanceof AbgemeldetFehler) throw e;
+      handlungFehler = e instanceof Error ? e.message : t.fehler.laden;
+    } finally {
+      laufendeHandlung = "";
+    }
+  }
+
+  /** darfHierAnlegen sagt, ob im STEHENDEN Ordner etwas landen darf. Nicht
+   *  dasselbe wie darfSchreiben: Das Konto darf, der Ort nicht — und dann sind
+   *  die Knöpfe nicht da, statt in ein 403 zu laufen. */
+  const darfHierAnlegen = $derived(
+    darfSchreiben && !!daten?.ordner.writable && !daten?.ordner.sensitive && !begriff,
+  );
 
   function artKlasse(e: Eintrag): string {
     if (e.sensitive) return "warn";
@@ -268,6 +552,90 @@
       </button>
     {/if}
   </div>
+
+  <!-- Anlegen und Hochladen beziehen sich auf den STEHENDEN Ordner und nicht auf
+       die Auswahl — deshalb stehen sie hier und nicht im Inspektor. Sie sind nur
+       da, wo sie gehen: Ein Konto mit Schreibrecht in einem nur lesbaren Bereich
+       bekommt sie nicht angeboten. Während einer Suche fehlen sie ebenfalls — die
+       Trefferliste steht quer über Ordner, und „hier anlegen" hätte dann kein
+       eindeutiges Hier. -->
+  {#if darfHierAnlegen}
+    <div class="werkstatt">
+      <button
+        type="button"
+        class="knopf leise klein"
+        class:an={anlegen === "ordner"}
+        onclick={() => {
+          anlegen = anlegen === "ordner" ? "" : "ordner";
+          neuerName = "";
+        }}
+      >
+        + {t.dateien.neuerOrdner}
+      </button>
+      <button
+        type="button"
+        class="knopf leise klein"
+        class:an={anlegen === "datei"}
+        onclick={() => {
+          anlegen = anlegen === "datei" ? "" : "datei";
+          neuerName = "";
+        }}
+      >
+        + {t.dateien.neueDatei}
+      </button>
+
+      <span class="trennstrich" aria-hidden="true"></span>
+
+      <label class="hochladen">
+        <span class="nur-vorlese">{t.dateien.hochladenTitel}</span>
+        <!-- Ohne Formular: Der Aufruf schickt FormData über fetch, weil der
+             Handler den Körper Teil für Teil streamt. Ein normales Formular zöge
+             eine Datei von zwei Gigabyte durch den Formularparser. -->
+        <input bind:this={dateifeld} type="file" multiple onchange={hochladen} />
+      </label>
+      <label class="schalter">
+        <input type="checkbox" bind:checked={ueberschreiben} />
+        {t.dateien.ueberschreiben}
+      </label>
+      {#if laufendeHandlung === "upload"}
+        <span class="detail">{t.dateien.hochladenLaeuft}</span>
+      {/if}
+    </div>
+
+    {#if anlegen}
+      <form class="maske" onsubmit={ordnerAnlegen}>
+        <label>
+          <span class="nur-vorlese">{t.dateien.namePlatzhalter}</span>
+          <!-- autofocus ist hier richtig: Die Maske erscheint auf einen Klick,
+               und der nächste Schritt ist immer das Tippen des Namens. -->
+          <!-- svelte-ignore a11y_autofocus -->
+          <input
+            bind:value={neuerName}
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            autofocus
+            placeholder={anlegen === "ordner" ? t.dateien.neuerOrdner : t.dateien.neueDatei}
+          />
+        </label>
+        <button type="submit" class="knopf klein" disabled={!neuerName.trim() || laufendeHandlung !== ""}>
+          {t.dateien.anlegen}
+        </button>
+        <button type="button" class="knopf leise klein" onclick={() => (anlegen = "")}>
+          {t.dateien.abbrechen}
+        </button>
+      </form>
+    {/if}
+  {:else if darfSchreiben && daten.ordner.writable === false && !begriff}
+    <p class="detail">{t.dateien.nichtBeschreibbar}</p>
+  {/if}
+
+  {#if handlungMeldung && !meldungImInspektor}
+    <p class="band gut" role="status">{handlungMeldung}</p>
+  {/if}
+  {#if handlungFehler && !meldungImInspektor}
+    <p class="band schlecht" role="alert">{handlungFehler}</p>
+  {/if}
 
   {#if begriff}
     <p class="band info" role="status">
@@ -481,8 +849,167 @@
 
             {#if !darfSchreiben}
               <p class="detail">{t.dateien.nurLesen}</p>
-            {:else if !detail.eintrag.writable}
-              <p class="detail">{t.dateien.nichtBeschreibbar}</p>
+            {:else}
+              <!-- Die verändernden Handgriffe. Angezeigt wird nur, was der Server
+                   in `aktionen` genannt hat — die Bedienhilfe aus dateiAktionen().
+                   Verbindlich bleibt die Pfadwache; hier steht nur, was gehen
+                   kann. -->
+              <div class="aktionen">
+                {#if kann("kopieren")}
+                  <button
+                    type="button"
+                    class="knopf leise"
+                    disabled={laufendeHandlung !== ""}
+                    onclick={() => (zielwahl = "copy")}
+                  >
+                    {t.dateien.handgriff.kopieren}
+                  </button>
+                {/if}
+                {#if kann("verschieben")}
+                  <button
+                    type="button"
+                    class="knopf leise"
+                    disabled={laufendeHandlung !== ""}
+                    onclick={() => (zielwahl = "move")}
+                  >
+                    {t.dateien.handgriff.verschieben}
+                  </button>
+                {/if}
+                {#if kann("umbenennen")}
+                  <button
+                    type="button"
+                    class="knopf leise"
+                    class:an={umbenennenOffen}
+                    onclick={() => {
+                      umbenennenOffen = !umbenennenOffen;
+                      namensfeld = detail!.eintrag.name;
+                    }}
+                  >
+                    {t.dateien.handgriff.umbenennen}
+                  </button>
+                {/if}
+                {#if kann("rechte")}
+                  <button
+                    type="button"
+                    class="knopf leise"
+                    class:an={rechteOffen}
+                    onclick={() => (rechteOffen ? (rechteOffen = false) : rechteOeffnen())}
+                  >
+                    {t.dateien.handgriff.rechte}
+                  </button>
+                {/if}
+                {#if kann("loeschen")}
+                  <button
+                    type="button"
+                    class="knopf gefahr"
+                    disabled={laufendeHandlung !== ""}
+                    onclick={loeschen}
+                  >
+                    {t.dateien.handgriff.loeschen}
+                  </button>
+                {/if}
+              </div>
+
+              {#if umbenennenOffen}
+                <form class="maske" onsubmit={umbenennen}>
+                  <label>
+                    <span class="nur-vorlese">{t.dateien.umbenennenTitel}</span>
+                    <!-- svelte-ignore a11y_autofocus -->
+                    <input
+                      bind:value={namensfeld}
+                      type="text"
+                      autocomplete="off"
+                      spellcheck="false"
+                      autofocus
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    class="knopf klein"
+                    disabled={!namensfeld.trim() ||
+                      namensfeld.trim() === detail.eintrag.name ||
+                      laufendeHandlung !== ""}
+                  >
+                    {t.dateien.handgriff.umbenennen}
+                  </button>
+                  <button
+                    type="button"
+                    class="knopf leise klein"
+                    onclick={() => (umbenennenOffen = false)}
+                  >
+                    {t.dateien.abbrechen}
+                  </button>
+                </form>
+              {/if}
+
+              {#if rechteOffen}
+                <form class="rechtemaske" onsubmit={rechteAnwenden}>
+                  <label>
+                    <span>{t.dateien.rechteOktal}</span>
+                    <input
+                      bind:value={rechtefeld}
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      spellcheck="false"
+                      size="5"
+                    />
+                  </label>
+                  <!-- Auswahlfelder und kein Freitext: Ein Tippfehler kam sonst
+                       als „Benutzer gibt es nicht" zurück. Die Namen liefert der
+                       Server; ist die Liste leer, fehlt das Feld statt einer
+                       Auswahl ohne Auswahl. -->
+                  {#if detail.benutzer.length > 0}
+                    <label>
+                      <span>{t.dateien.eigentuemer}</span>
+                      <select bind:value={besitzerfeld}>
+                        {#each detail.benutzer as b (b)}
+                          <option value={b}>{b}</option>
+                        {/each}
+                      </select>
+                    </label>
+                  {/if}
+                  {#if detail.gruppen.length > 0}
+                    <label>
+                      <span>{t.dateien.gruppe}</span>
+                      <select bind:value={gruppenfeld}>
+                        {#each detail.gruppen as g (g)}
+                          <option value={g}>{g}</option>
+                        {/each}
+                      </select>
+                    </label>
+                  {/if}
+                  {#if detail.eintrag.kind === "ordner"}
+                    <label class="schalter">
+                      <input type="checkbox" bind:checked={rekursivfeld} />
+                      {t.dateien.rekursiv}
+                    </label>
+                  {/if}
+                  <div class="aktionen">
+                    <button type="submit" class="knopf klein" disabled={laufendeHandlung !== ""}>
+                      {t.dateien.rechteAnwenden}
+                    </button>
+                    <button
+                      type="button"
+                      class="knopf leise klein"
+                      onclick={() => (rechteOffen = false)}
+                    >
+                      {t.dateien.abbrechen}
+                    </button>
+                  </div>
+                </form>
+              {/if}
+
+              {#if handlungMeldung && meldungImInspektor}
+                <p class="meldung" role="status">{handlungMeldung}</p>
+              {/if}
+              {#if handlungFehler && meldungImInspektor}
+                <p class="warnung" role="alert">{handlungFehler}</p>
+              {/if}
+
+              {#if !detail.eintrag.writable}
+                <p class="detail">{t.dateien.nichtBeschreibbar}</p>
+              {/if}
             {/if}
           {/if}
         {/snippet}
@@ -500,6 +1027,27 @@
          jemanden mit einer halben Fläche allein zu lassen. -->
     · <a href={`/files?path=${encodeURIComponent(daten.pfad)}`}>{t.dateien.alteAnsicht}</a>
   </p>
+{/if}
+
+{#if zielwahl && detail}
+  <Zielwahl
+    start={detail.ordner}
+    titel={zielwahl === "move" ? t.dateien.zielwahlVerschieben : t.dateien.zielwahlKopieren}
+    knopf={zielwahl === "move"
+      ? t.dateien.handgriff.verschieben
+      : t.dateien.handgriff.kopieren}
+    waehlen={zielGewaehlt}
+    abbrechen={() => (zielwahl = "")}
+  />
+{/if}
+
+{#if offeneFrage}
+  <Rueckfrage
+    frage={offeneFrage.frage}
+    laeuft={laufendeHandlung !== ""}
+    bestaetigen={offeneFrageBestaetigen}
+    abbrechen={() => (offeneFrage = null)}
+  />
 {/if}
 
 <style>
@@ -609,6 +1157,88 @@
     cursor: pointer;
   }
 
+  /* Die Werkstatt: was sich auf den STEHENDEN Ordner bezieht. Getrennt von der
+   * Werkzeugzeile darüber (Suche, Sortierung), weil das eine liest und das andere
+   * schreibt — und weil die Zeile ganz fehlt, wo nicht geschrieben werden darf. */
+  .werkstatt {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.7rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .trennstrich {
+    width: 1px;
+    height: 1.1rem;
+    background: var(--line2);
+  }
+
+  .hochladen input[type="file"] {
+    color: var(--tx-mut);
+    font: 0.76rem var(--sans);
+    max-width: 100%;
+  }
+
+  .maske {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.7rem;
+  }
+
+  .maske input[type="text"] {
+    background: var(--surface);
+    border: 1px solid var(--line2);
+    border-radius: 8px;
+    padding: 0.32rem 0.6rem;
+    color: var(--tx);
+    font: 0.82rem var(--mono);
+    width: 14rem;
+    max-width: 100%;
+  }
+
+  .rechtemaske {
+    display: grid;
+    gap: 0.5rem;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.7rem 0.8rem;
+  }
+
+  .rechtemaske > label {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--tx-mut);
+  }
+
+  .rechtemaske > label.schalter {
+    grid-template-columns: auto 1fr;
+  }
+
+  .rechtemaske input[type="text"],
+  .rechtemaske select {
+    background: var(--surface);
+    border: 1px solid var(--line2);
+    border-radius: 7px;
+    padding: 0.28rem 0.5rem;
+    color: var(--tx);
+    font: 0.8rem var(--mono);
+    min-width: 0;
+  }
+
+  .knopf.an {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+
   .band {
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -621,6 +1251,11 @@
   .band.warn {
     border-color: var(--accent-dim);
     color: var(--accent);
+  }
+
+  .band.gut {
+    border-color: var(--ok);
+    color: var(--ok);
   }
 
   .band.schlecht {
@@ -745,6 +1380,9 @@
     display: flex;
     gap: 0.45rem;
     flex-wrap: wrap;
+    /* Ohne min-width: 0 kann der Kasten nicht schrumpfen, und im Gitter der
+     * Werkbank wächst dann die ganze Spalte über das Fenster hinaus. */
+    min-width: 0;
   }
 
   .fuss {
@@ -766,8 +1404,24 @@
     font: 0.82rem var(--mono);
   }
 
+  /* overflow-wrap: anywhere ist hier keine Kosmetik. Die Meldungen dieses Moduls
+   * enthalten PFADE („Nach /var/lib/sehr/tiefer/ordner kopiert."), und ein Pfad
+   * ohne Trennstelle hat eine große Mindestbreite. Ohne diese Zeile wuchs die
+   * Spalte der Werkbank über das Fenster hinaus: Der Inspektor wurde rechts
+   * abgeschnitten, und die Schaltfläche „löschen" lag außerhalb des Bildes.
+   * Gesehen hat das ein Bildschirmfoto — gemessen wird es jetzt im Browsertest. */
+  .meldung,
   .warnung {
     font-size: 0.82rem;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  .meldung {
+    color: var(--ok);
+  }
+
+  .warnung {
     color: var(--err);
   }
 </style>

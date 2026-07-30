@@ -9,6 +9,18 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0-rc.3] — 2026-07-30
+
+Das größte Modul der neuen Oberfläche und das einzige echte technische Risiko
+des Umbaus: CodeMirror liegt jetzt im Vite-Bundle, und die Inhaltsrichtlinie
+bleibt streng. Dazu drei behobene Fehler, die älter sind als dieses Modul —
+einer davon betraf alle Rückfragen der neuen Oberfläche seit ihrem ersten Modul.
+
+Die alte Oberfläche unter `/` ist unverändert: kein Diff in
+`internal/ui/templates`, `internal/ui/static` und `handlers_system.go`. Zwei
+Korrekturen in `internal/privops` wirken allerdings auf beide Flächen — sie
+stehen unten unter „Behoben" benannt.
+
 ### Hinzugefügt
 
 - **Modul Dateien in der neuen Oberfläche — Blättern, Verändern, Editor.** Das

@@ -9,6 +9,8 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0-rc.4] — 2026-07-30
+
 **Die Funktionsparität der neuen Oberfläche ist erreicht.** Alle zwölf Module der
 alten Fläche stehen unter `/v2/`; die Liste steht in
 [docs/16-neukonzeption.md](docs/16-neukonzeption.md) unter „Stand der Parität".
@@ -159,6 +161,32 @@ bleibt bis zum Umschalten erreichbar.
 - **Eine abgelehnte Rechtefrage ist kein Ladefehler mehr.** Antwortet die
   Schnittstelle mit 403, sagt die Seite den Grund und stellt keinen Knopf
   „Erneut versuchen" daneben — er brächte nie ein anderes Ergebnis.
+
+### Hinweise zu diesem Stand
+
+- **Die alte Oberfläche ist unverändert.** Kein Diff in
+  `internal/ui/templates`, `internal/ui/static`, `handlers_app.go`,
+  `handlers_reset.go`, `handlers_cert.go`, `handlers_update.go`,
+  `handlers_passkey.go` und `tlsctl.go`. In `handlers_account.go` steht
+  ausschließlich eine neue Methode, die nur die neue Fläche ruft.
+
+- **`internal/privops` und `internal/store` wachsen rein additiv.** Neu sind
+  `LoginShells` und `Groups` (Auskünfte für die Auswahlfelder beim Anlegen eines
+  Systemkontos) und `store.DeleteUser`. Nichts davon ändert bestehendes
+  Verhalten; anders als in rc.3 wirkt diesmal keine Korrektur auf beide Flächen.
+
+- **`packaging/min-upgradable-from` bleibt leer und damit ohne Grenze.** Dieser
+  Stand bringt keine Migration mit — kein neues `internal/store/migrations/*` —,
+  ein Rückweg auf 0.4.0-rc.3 trifft also kein neueres Schema. Die ersten
+  Migrationen kommen mit dem Verlauf der Vorgänge und den API-Tokens; dann gehört
+  dort ein Wert hinein.
+
+- **Nicht gegen echte Systeme geprüft**, weil es sie in der Bauumgebung nicht
+  gibt: `useradd`/`usermod`, `/etc/shadow`, ein echter ACME-Server sowie
+  `systemd-run` samt Signaturprüfung des Selbstupdates. Geprüft sind die Aufträge
+  an privops, die Ablehnungen und die Anzeige — für die drei Flächen, die diese
+  Werkzeuge brauchen, ist ein Durchlauf auf einem echten Server vor der Freigabe
+  1.0 vorgesehen.
 
 ## [0.4.0-rc.3] — 2026-07-30
 

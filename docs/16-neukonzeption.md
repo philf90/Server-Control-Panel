@@ -810,6 +810,76 @@ schließen hieße, den Probezustand in die Schale zu heben und auf jeder Seite
 abzufragen; das ist eine Abfrage auf jeder Seite für einen Zustand, den es
 selten gibt. Vertagt, nicht vergessen.
 
+**Die Oberfläche bietet nur an, was gehen kann.** Festgelegt am Modul
+**Dateien** — dem einzigen, dessen Ziel aus der Anfrage kommt und nicht aus einer
+Allowlist, und dem einzigen, in dem ein Eintrag sichtbar sein kann, ohne
+anfassbar zu sein.
+
+Der Server rechnet je Eintrag aus, welche Handgriffe zu ihm passen
+(`dateiAktionen`), und die Oberfläche zeigt nur diese. Das ist eine
+**Bedienhilfe und keine Rechteprüfung** — verbindlich bleibt die Pfadwache in
+privops, und ein selbstgebautes POST kommt an der Liste vorbei und an der Wache
+nicht. Der Grund, sie überhaupt zu berechnen, ist ein anderer: Ein Knopf, der
+zuverlässig in ein 403 oder 413 läuft, nennt den Fehler erst nach dem Klick, und
+dann ist der Knopf schon der Fehler. Konkret heißt das:
+
+- Ein **gesperrter** Eintrag steht in der Liste und ist als gesperrt benannt —
+  ihn zu verstecken hieße, jemanden über den Inhalt seines Servers zu belügen.
+  Sein Inhalt wird nie angefasst: kein Download, kein Editor, kein Kopieren.
+- **Kopieren hängt am Ziel, nicht an der Quelle.** Aus `/usr/share` nach `/srv`
+  zu kopieren ist erlaubt, obwohl die Quelle nicht beschreibbar ist.
+- Der **Editor** erscheint nur unter seiner Größengrenze. Eine Logdatei von
+  800 MiB im Browser zu öffnen ist kein Handgriff, sondern ein Absturz. Damit
+  privops die Grenze nennen kann, ohne sie zu prüfen, gibt es `Files.Limits()`.
+- **Anlegen und Hochladen** beziehen sich auf den stehenden Ordner und stehen
+  deshalb über der Liste, nicht im Inspektor. Sie fehlen ganz, wo nicht
+  geschrieben werden darf — und während einer Suche, weil die Trefferliste quer
+  über Ordner steht und „hier anlegen" dann kein eindeutiges *Hier* hat.
+
+**Der Ort ist ein Schritt im Verlauf.** Bei den Diensten ersetzt der Wechsel der
+Auswahl den Verlaufseintrag; im Dateimanager wäre das falsch. Wer drei Ebenen
+tief steht, will mit dem Zurück-Knopf eine Ebene höher und nicht aus der Seite
+heraus. Dafür setzt der Router mehrere Parameter in *einem* Eintrag
+(`weg.setzeAlle`): Ein Ordnerwechsel ändert Ort, Auswahl und Suchbegriff
+gleichzeitig, und drei einzelne Schritte hätten den Zurück-Knopf in
+Zwischenzustände geführt, die nie jemand gesehen hat.
+
+**Gefiltert wird hier nicht im Browser.** Die Liste eines Verzeichnisses ist bei
+zweitausend Einträgen gekürzt, und ein Browserfilter darüber behauptete „kein
+Treffer" für eine Datei, die es gibt. Die Suche geht an den Server und findet
+auch in Unterordnern — mit dem Ort am Treffer, weil ein Ergebnis quer über
+Unterordner ohne ihn eine Sammlung von Namen ist, von denen keiner auffindbar
+ist.
+
+**Zwei Statuscodes des Editors, und warum sie nicht 409 sind.** Der Hash-Konflikt
+antwortet **412**: In dieser Schnittstelle trägt 409 schon die Bedeutung
+„unbestätigt, hier ist der Text der Rückfrage". Zwei Bedeutungen an einem Code
+hätte die Oberfläche an einem Feld im Rumpf auseinanderhalten müssen, und die
+Stelle, an der jemand das vergisst, wäre die, an der ein Konflikt als Rückfrage
+erscheint und ein zweiter Klick die fremde Änderung überschreibt. Der Konflikt
+hat außerdem **zwei** Auswege — die eigene Fassung durchsetzen oder die fremde
+übernehmen —, und ein Dialog mit einem Knopf hätte den zweiten verschluckt.
+
+Die Ablehnung durch das Prüfprogramm antwortet **400 mit eigenem Rumpf**: Ausgabe
+des Programms wörtlich, dazu der Satz, was mit dem Vorzustand geschehen ist.
+„Fehler beim Speichern" wäre hier die schädlichste Auskunft — der Bediener würde
+erneut speichern.
+
+**CodeMirror im Vite-Bundle, und der Nonce, der dazugehört.** Der Editor liegt
+als eigener Brocken (`web/src/lib/editorkern.ts`, ~356 KiB) und wird über ein
+dynamisches `import()` nachgeladen; das Hauptbündel bleibt bei ~166 KiB. Beim
+ersten Anlauf stand hier die Annahme, CodeMirror trage seine Stilregeln über
+CSSOM in ein vorhandenes Stylesheet ein und sei von `style-src 'self'` deshalb
+nicht betroffen. **Das war falsch:** style-mod legt ein eigenes `<style>`-Element
+an, Chromium verwirft es, und der Editor bleibt ungestylt. Gefunden hat es der
+Browsertest, keine Überlegung — an genau dieser Stelle ist das Projekt schon
+zweimal gescheitert. Der Ausweg ist derselbe wie auf der Editorseite der alten
+Oberfläche: ein Nonce für dieses eine Element, je Antwort neu gezogen, in der
+Richtlinie genannt und über `EditorView.cspNonce` weitergereicht. Er steht in
+einem `<meta>` der Hülle und wird immer gesetzt, nicht nur bei offenem Editor —
+die Hülle kommt einmal, der Editor öffnet später ohne neue Antwort, und ein
+Nonce, der erst mit ihm käme, käme nie.
+
 **Rechte am Endpunkt, sichtbar in der Oberfläche.** Schreibrecht und
 Sitzungstoken werden vor jeder verändernden Anfrage geprüft (`X-CSRF-Token` als
 Kopfzeile, nicht als Feld — eine Kopfzeile kann ein Formular von einer fremden

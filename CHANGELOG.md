@@ -11,6 +11,60 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Modul Dateien in der neuen Oberfläche — Blättern, Verändern, Editor.** Das
+  größte Modul des Panels (17 Routen in der alten Oberfläche, `privops.Files` mit
+  23 Methoden) in drei Schritten. Blättern mit Krumenpfad und Inspektor, alle
+  Handgriffe der alten Fläche, und der Editor mit CodeMirror.
+
+  **Die Oberfläche bietet nur an, was gehen kann.** Der Server rechnet je Eintrag
+  aus, welche Handgriffe zu ihm passen, und die Oberfläche zeigt nur diese. Das
+  ist eine Bedienhilfe und keine Rechteprüfung — verbindlich bleibt die Pfadwache
+  in privops. Der Grund dafür: Ein Knopf, der zuverlässig in ein 403 oder 413
+  läuft, nennt den Fehler erst nach dem Klick, und dann ist der Knopf schon der
+  Fehler. Ein gesperrter Eintrag steht sichtbar in der Liste und ist benannt,
+  sein Inhalt wird aber nie angefasst; Kopieren hängt am Ziel und nicht an der
+  Quelle; der Editor erscheint nur unter seiner Größengrenze.
+
+  **Der Ort ist ein Schritt im Verlauf.** Wer drei Ebenen tief steht, kommt mit
+  dem Zurück-Knopf eine Ebene höher und nicht aus der Seite heraus. Gesucht wird
+  auf dem Server und nicht im Browser: Die Liste ist bei zweitausend Einträgen
+  gekürzt, und ein Browserfilter darüber behauptete „kein Treffer" für eine Datei,
+  die es gibt. Am Treffer steht der Ort, weil ein Ergebnis quer über Unterordner
+  sonst eine Sammlung von Namen ist, von denen keiner auffindbar ist.
+
+  **Der Editor hält drei Zusagen, und alle drei sind älter als diese
+  Oberfläche:** Zeilenenden und ein fehlender Schlussumbruch bleiben, wie sie
+  waren; wurde die Datei zwischenzeitlich von außen geändert, wird die fremde
+  Änderung nicht überschrieben; und lehnt das Prüfprogramm des Systems die Datei
+  ab, ist der Vorzustand zurückgeschrieben, samt wörtlicher Ausgabe des Programms.
+  Der Konflikt hat zwei Auswege — die eigene Fassung durchsetzen oder die fremde
+  übernehmen —, und beide stehen da.
+
+  **CodeMirror liegt jetzt im Vite-Bundle**, als eigener Brocken, der erst beim
+  Öffnen des Editors nachgeladen wird: Das Hauptbündel bleibt bei ~166 KiB, der
+  Editor kommt mit ~356 KiB dazu, wenn er gebraucht wird. Die Fassungen sind exakt
+  festgeschrieben, die Herkunft steht in `web/THIRD-PARTY.md`, und die
+  Reproduzierbarkeit ist über drei Fälle nachgewiesen — zwei Läufe hintereinander,
+  ein anderer Verzeichnispfad, ein frisches `npm ci`.
+
+  Das brauchte einen Nonce für Stile: CodeMirror legt für seine Regeln ein
+  `<style>`-Element an, und `style-src 'self'` verwirft das. Derselbe Weg wie auf
+  der Editorseite der alten Oberfläche — nicht `unsafe-inline`, weil damit jeder
+  eingeschleuste Stil erlaubt wäre.
+
+  Nicht gegen ein echtes System geprüft: `sshd -t` und `nft -c -f` gibt es in der
+  Entwicklungsumgebung nicht. Der Weg mit Prüfung und Rückrollen ist deshalb nur
+  gegen eine Attrappe gelaufen.
+
+- **Angekündigte Module sagen, dass es sie noch nicht gibt.** Cron, Docker,
+  Webserver, Datenbanken und Backups stehen im Menü der neuen Oberfläche, weil
+  sie zum Leitbild gehören — sie zeigten aber auf die Startseite und landeten
+  stillschweigend dort. Ein Klick auf „Docker", der die Übersicht bringt, sieht
+  wie ein Fehler aus, und in einem Panel ist das nicht harmlos: Es ist die Stelle,
+  an der man anfängt, der Oberfläche nicht mehr zu glauben. Sie haben jetzt eigene
+  Pfade und eine Seite, die nennt, mit welcher Fassung das Modul kommt und was
+  heute an seiner Stelle geht.
+
 - **Modul Firewall in der neuen Oberfläche, mit sichtbarer Probezeit.** Grundsatz
   VI aus [docs/16-neukonzeption.md](docs/16-neukonzeption.md): „Was schiefgehen
   kann, hat einen Rückweg." Jede Änderung gilt zunächst auf Probe — ohne
@@ -179,6 +233,26 @@ Die alte Oberfläche unter `/` ist unverändert — kein Diff in
   die dasteht.
 
 ### Behoben
+
+- **Alle Rückfragen der neuen Oberfläche saßen in der linken oberen Ecke.** Ein
+  modales `<dialog>` zentriert der Browser über `margin: auto` aus seinem eigenen
+  Stylesheet, und der Rücksetzer der Oberfläche (`* { margin: 0 }`) schlug das —
+  eine Autorenregel kommt vor der des Browsers, unabhängig von der Spezifität. Sie
+  funktionierten, sahen aber aus wie ein Fehler. Aufgefallen ist es erst am
+  Dateimodul, weil dort zum ersten Mal ein Bildschirmfoto mit offenem Dialog
+  entstand; der Sitz wird jetzt im Browsertest gemessen.
+
+- **Ein leerer Ordner verlangte zum Löschen seinen Namen als Tippbestätigung.**
+  Die Zählung eines Verzeichnisses enthält es selbst — `fs.WalkDir` besucht die
+  Wurzel des Laufs. Damit war jeder Ordner Stufe 3, auch der leere, und die Frage
+  lautete „enthält 0 Dateien, 1 Ordner" für etwas, worin nichts liegt. Eine Hürde
+  ohne Anlass entwertet die Hürde dort, wo sie zählt. Die neue Oberfläche zieht den
+  Eintrag heraus; die alte ist eingefroren und behält den Fehler.
+
+- **Die Größengrenze des Editors wurde als Bedienfehler protokolliert.** Eine zu
+  große Datei antwortete 400 statt 413, weil der Fehler nicht in `ErrTooLarge`
+  eingewickelt war — der Upload macht es seit 0.3.0 richtig. Betrifft beide
+  Oberflächen.
 
 - **Escape schloss zwei Dinge auf einmal.** Ein Escape im Rückfrage-Dialog brach
   nicht nur die Rückfrage ab, sondern schloss auch den Inspektor darunter — die

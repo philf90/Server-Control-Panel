@@ -74,12 +74,45 @@ nicht als Release getaggt.
   „in neuem Tab öffnen" funktionieren überall, weil die Verweise echte `<a href>`
   bleiben.
 
+- **Modul Pakete in der neuen Oberfläche** — das erste mit einer Handlung, die
+  Minuten dauert, und damit die Stelle, an der Grundsatz III („Handlungen sind
+  quittiert") Form bekommt. Sicherheitsupdates stehen oben, weil sie der Grund
+  sind, die Seite zu öffnen; die Zähler darüber sind selbst die Filter; ein
+  einzelnes Paket lässt sich in seiner Zeile einspielen.
+
+  Ein ausstehender Neustart steht über allem anderen: Er bedeutet, dass
+  eingespielte Updates noch nicht wirken, und nennt das Paket, das ihn verlangt.
+  Der Knopf dazu erscheint nur, wenn er aussteht — ein Knopf, der immer da ist,
+  wird irgendwann versehentlich gedrückt — und nur für die Owner-Rolle. Er ist
+  die einzige Aktion der neuen Oberfläche mit Bestätigungsstufe 3: Getippt wird
+  der Hostname, damit niemand den richtigen Neustart auf dem falschen Server
+  auslöst.
+
+- **Vorgänge als eigene Ressource, mit Live-Auszug.** `/api/v1/jobs/{art}` sagt,
+  was läuft, wer es angestoßen hat, wie lange es dauert und wie es ausging; ein
+  Ereignisstrom daneben liefert die Zeilen, während sie entstehen. Eine Platte in
+  der Oberfläche zeigt das für jeden Vorgang gleich — Docker, Backups und die
+  Firewall-Einrichtung erben sie.
+
+  Der Start antwortet mit **202** und wartet nicht auf apt: Eine Anfrage, die
+  zwanzig Minuten offen bleibt, überlebt keinen Zwischenserver. Der Vorgang läuft
+  auf dem Server weiter, wenn jemand die Seite verlässt — wer zurückkommt, findet
+  ihn samt Auszug vor. Ein zweiter Paketvorgang wird abgewiesen (**409**), statt
+  sich an der dpkg-Sperre zu verklemmen. Ein Teilerfolg von `apt-get update` gilt
+  weiter als Teilerfolg und nennt die klemmende Quelle: verschwiegen wäre er eine
+  Zusage, die niemand halten kann.
+
 ### Behoben
 
 - **Escape schloss zwei Dinge auf einmal.** Ein Escape im Rückfrage-Dialog brach
   nicht nur die Rückfrage ab, sondern schloss auch den Inspektor darunter — die
   Auswahl war danach weg. Ein offener Dialog besitzt Escape jetzt allein. Gesehen
   hat das der Browsertest, kein Nachdenken.
+
+- **Der bestätigende Knopf im Neustart-Dialog blieb für immer gesperrt.** Die
+  Paketseite hielt die Aktion noch für laufend, während der Dialog schon stand —
+  eine Rückfrage, die man nicht bestätigen kann. Auch das hat der Browsertest
+  gefunden; im Code sah die Bedingung richtig aus.
 
 ## [0.4.0-rc.1] — 2026-07-30
 

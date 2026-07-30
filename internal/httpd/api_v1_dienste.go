@@ -20,9 +20,6 @@ package httpd
 //     der Dialog im Browser darf sich irren, ohne dass es gefährlich wird.
 
 import (
-	"encoding/json"
-	"errors"
-	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -303,20 +300,8 @@ func (s *Server) handleAPIServiceAction(w http.ResponseWriter, r *http.Request) 
 	s.apiJSON(w, http.StatusOK, antwort)
 }
 
-// apiKoerper liest den JSON-Körper einer Aktion.
-//
-// Mit Grenze: Ein Körper ohne Obergrenze ist ein Weg, dem Panel den Speicher
-// zu nehmen, und diese Anfragen sind wenige hundert Bytes groß.
+// apiKoerper liest den JSON-Körper einer Dienstaktion.
 func (s *Server) apiKoerper(w http.ResponseWriter, r *http.Request) (apiAktionAnfrage, bool) {
 	var anfrage apiAktionAnfrage
-	dec := json.NewDecoder(io.LimitReader(r.Body, 64<<10))
-	// Unbekannte Felder abweisen: Ein Tippfehler in "bestaetigt" wäre sonst
-	// stillschweigend ein fehlendes Feld — also eine Rückfrage, die nie
-	// beantwortet wurde, obwohl der Aufrufer meint, sie beantwortet zu haben.
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&anfrage); err != nil && !errors.Is(err, io.EOF) {
-		s.apiFehler(w, http.StatusBadRequest, "Der Anfragekörper ist unlesbar: "+err.Error())
-		return anfrage, false
-	}
-	return anfrage, true
+	return anfrage, s.apiJSONKoerper(w, r, &anfrage)
 }

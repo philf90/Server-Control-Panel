@@ -90,6 +90,58 @@ func (j *job) noteOf() string {
 	return j.note
 }
 
+// jobStand ist der vollständige Zustand eines Vorgangs.
+//
+// snapshot liefert drei Werte, weil die alten Seiten nur drei brauchen. Die
+// JSON-Schnittstelle braucht mehr: Wer nach einem Neuladen auf die Seite kommt,
+// soll sehen, wer den Vorgang angestoßen hat, wann, und wie lange er lief —
+// Grundsatz III aus docs/15-neuordnung.md, „Handlungen sind quittiert". Als
+// eigener Typ und nicht als fünf weitere Rückgabewerte, damit ein Aufrufer nicht
+// zwei davon vertauscht.
+type jobStand struct {
+	Art      string
+	Akteur   string
+	Start    time.Time
+	Ende     time.Time
+	Zeilen   []string
+	Fertig   bool
+	Fehler   error
+	Hinweis  string
+	Laufzeit time.Duration
+}
+
+// stand liest alles unter einem Schloss. Einzelne Lesemethoden hintereinander
+// aufzurufen ergäbe ein Bild aus zwei Augenblicken: Zwischen `fertig` und
+// `zeilen` kann der Vorgang enden, und die Oberfläche zeigte dann einen
+// laufenden Vorgang mit vollständiger Ausgabe — oder umgekehrt.
+func (j *job) stand() jobStand {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	zeilen := make([]string, len(j.lines))
+	copy(zeilen, j.lines)
+
+	// Bei einem laufenden Vorgang ist die Laufzeit die bis jetzt; bei einem
+	// beendeten die gemessene. Ohne diese Unterscheidung wüchse die Angabe eines
+	// vor Stunden beendeten Laufs immer weiter.
+	ende := j.finished
+	if !j.done {
+		ende = time.Now()
+	}
+
+	return jobStand{
+		Art:      j.kind,
+		Akteur:   j.actor,
+		Start:    j.started,
+		Ende:     j.finished,
+		Zeilen:   zeilen,
+		Fertig:   j.done,
+		Fehler:   j.err,
+		Hinweis:  j.note,
+		Laufzeit: ende.Sub(j.started),
+	}
+}
+
 func (j *job) snapshot() (lines []string, done bool, err error) {
 	j.mu.RLock()
 	defer j.mu.RUnlock()

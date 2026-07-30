@@ -8,10 +8,14 @@ import type {
   Dienste,
   DienstAktion,
   DienstDetail,
+  Job,
+  Pakete,
   Signale,
   Sitzung,
   Uebersicht,
+  Umfang,
   Verlaeufe,
+  VorgangGestartet,
 } from "./typen";
 
 /** AbgemeldetFehler steht für die eine Antwort, die nicht wie ein Fehler
@@ -89,6 +93,23 @@ async function anfrage<T>(pfad: string, init?: RequestInit): Promise<T> {
   return (await antwort.json()) as T;
 }
 
+/** anfrageOderLeer behandelt 204 als „nichts da" statt als Fehler.
+ *
+ *  Nötig für Vorgänge: Bevor jemand das erste Mal auf „Listen holen" gedrückt
+ *  hat, gibt es keinen. Das ist ein Zustand, den die Oberfläche zeigt (nämlich
+ *  gar nichts), und kein Fehler, den sie melden müsste. */
+async function anfrageOderLeer<T>(pfad: string, init?: RequestInit): Promise<T | null> {
+  const antwort = await fetch(`/api/v1${pfad}`, {
+    ...init,
+    headers: { Accept: "application/json", ...init?.headers },
+    credentials: "same-origin",
+  });
+  if (antwort.status === 204) return null;
+  if (antwort.status === 401) throw new AbgemeldetFehler();
+  if (!antwort.ok) throw new Error(`HTTP ${antwort.status}`);
+  return (await antwort.json()) as T;
+}
+
 export const api = {
   /** sitzung holt Konto, Rolle und CSRF-Token und merkt sich das Token für
    *  alle schreibenden Aufrufe. Muss vor dem ersten davon gelaufen sein. */
@@ -102,6 +123,31 @@ export const api = {
   // Eigener Aufruf, weil die Erhebung systemctl anfasst und echte Zeit kostet.
   // Die Oberfläche zeigt die Kacheln, während er noch läuft.
   signale: () => anfrage<Signale>("/signals"),
+
+  /** job liefert den Zustand eines Vorgangs, oder null, wenn noch keiner
+   *  gelaufen ist. Der Server antwortet dann mit 204 — die Ressource gibt es,
+   *  sie ist nur leer. */
+  job: (art: string) => anfrageOderLeer<Job>(`/jobs/${encodeURIComponent(art)}`),
+
+  pakete: () => anfrage<Pakete>("/packages"),
+  paketlistenHolen: () =>
+    anfrage<VorgangGestartet>("/packages/refresh", { method: "POST" }),
+  /** einspielen startet ein Update. Wirft BestaetigungNoetig bei „alle" und
+   *  „sicherheit"; ein einzelnes Paket ist ein gezielter Klick und läuft
+   *  ohne Rückfrage. */
+  einspielen: (umfang: Umfang, paket = "", bestaetigt = false) =>
+    anfrage<VorgangGestartet>("/packages/upgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ umfang, paket, bestaetigt, getippt: "" }),
+    }),
+  /** neustarten ist Stufe 3: Das getippte Wort ist der Hostname. */
+  neustarten: (bestaetigt = false, getippt = "") =>
+    anfrage<{ meldung: string }>("/system/reboot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ umfang: "alle", paket: "", bestaetigt, getippt }),
+    }),
 
   dienste: () => anfrage<Dienste>("/services"),
   dienst: (unit: string) => anfrage<DienstDetail>(`/services/${encodeURIComponent(unit)}`),

@@ -50,6 +50,21 @@ func (s *Server) apiSchreibend(next http.Handler) http.Handler {
 	})
 }
 
+// apiOwner lässt nur die Owner-Rolle durch — mit JSON-Ausgang, wie
+// apiSchreibend. Vor apiSchreibend gestellt, damit der Grund der richtige ist:
+// Wer nicht Owner ist, soll das erfahren und nicht „Token fehlt".
+func (s *Server) apiOwner(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFrom(r.Context())
+		if !ok || !user.CanManageUsers() {
+			s.audit(r, "access.denied", r.URL.Path, store.ResultDenied, "Owner-Rolle erforderlich")
+			s.apiFehler(w, http.StatusForbidden, "Diese Aktion ist der Owner-Rolle vorbehalten.")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // apiBestaetigung ist der Text einer Rückfrage — dieselben Felder wie
 // bestaetigung, nur ohne die, die zu einer gerenderten Seite gehören (Aktion,
 // Abbruch, Felder). Die kennt die Oberfläche selbst: Sie hat den Knopf gedrückt

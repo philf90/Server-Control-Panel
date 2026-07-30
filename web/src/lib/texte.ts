@@ -125,6 +125,50 @@ export const t = {
       n === 1 ? "1 fehlgeschlagen" : `${n} fehlgeschlagen`,
   },
 
+  pakete: {
+    laedt: "wird geladen …",
+    suchen: "Paket suchen",
+    keine: "Alles auf dem neuesten Stand.",
+    keineDetail:
+      "Es sind keine Updates verfügbar. Wann die Listen zuletzt geholt wurden, sagt der Auszug unten.",
+    nichts: "Kein Paket passt zu dieser Suche.",
+    alle: "alle",
+    paket: "Paket",
+    version: "Version",
+    quelle: "Quelle",
+    art: "Art",
+    sicherheit: "Sicherheit",
+    normal: "Update",
+    listenHolen: "Listen holen",
+    alleEinspielen: "Alle einspielen",
+    nurSicherheit: "Nur Sicherheitsupdates",
+    einzelnEinspielen: "einspielen",
+    nurLesen: "Dieses Konto darf lesen, aber nicht einspielen.",
+    // Der Neustart wird nur angeboten, wenn er aussteht — ein Knopf, der immer
+    // da ist, wird irgendwann versehentlich gedrückt.
+    neustartTitel: "Ein Neustart steht aus",
+    neustartWegen: "Verlangt von:",
+    neustartKnopf: "Server neu starten",
+    neustartNurOwner: "Den Neustart löst nur die Owner-Rolle aus.",
+    neustartAngestossen:
+      "Der Neustart wurde angestoßen. Die Verbindung bricht gleich ab und kommt nach dem Hochfahren zurück.",
+    updates: (n: number) => (n === 1 ? "1 Update" : `${n} Updates`),
+    sicherheitsupdates: (n: number) =>
+      n === 1 ? "1 Sicherheitsupdate" : `${n} Sicherheitsupdates`,
+  },
+
+  vorgang: {
+    laeuft: "läuft",
+    fertig: "abgeschlossen",
+    gescheitert: "gescheitert",
+    teils: "teils geglückt",
+    von: "von",
+    auszug: "Ausgabe des Vorgangs",
+    zumEnde: "zum Ende springen",
+    wartetAufAusgabe: "wartet auf die erste Ausgabe …",
+    stromWeg: "Der Live-Auszug ist abgerissen — der Vorgang läuft weiter.",
+  },
+
   inspektor: {
     titel: "Einzelheiten",
     schliessen: "Einzelheiten schließen",

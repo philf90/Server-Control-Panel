@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 )
 
@@ -95,6 +96,48 @@ type ergebnisLeitstand struct {
 			InspektorOben bool    `json:"inspektorOben"`
 		} `json:"schmal"`
 	} `json:"dienste"`
+	Pakete struct {
+		Reihen []struct {
+			Name string `json:"name"`
+			Art  string `json:"art"`
+		} `json:"reihen"`
+		Neustart struct {
+			Da    bool   `json:"da"`
+			Text  string `json:"text"`
+			Knopf bool   `json:"knopf"`
+		} `json:"neustart"`
+		Vorgang struct {
+			Titel   string   `json:"titel"`
+			Zustand string   `json:"zustand"`
+			Zeilen  []string `json:"zeilen"`
+			Kopf    string   `json:"kopf"`
+		} `json:"vorgang"`
+		StromGeoeffnet bool `json:"stromGeoeffnet"`
+		NachNeuladen   struct {
+			Zeilen  int    `json:"zeilen"`
+			Zustand string `json:"zustand"`
+		} `json:"nachNeuladen"`
+		Rueckfrage struct {
+			Frage    string `json:"frage"`
+			Punkte   int    `json:"punkte"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"rueckfrage"`
+		NachAbbruch bool `json:"nachAbbruch"`
+		StufeDrei   struct {
+			Tippfeld      bool   `json:"tippfeld"`
+			Hinweis       string `json:"hinweis"`
+			Wort          string `json:"wort"`
+			Gesperrt      bool   `json:"gesperrt"`
+			FokusImFeld   bool   `json:"fokusImFeld"`
+			NachFalschem  bool   `json:"nachFalschem"`
+			NachRichtigem bool   `json:"nachRichtigem"`
+		} `json:"stufeDrei"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+			Beschriftung  string  `json:"beschriftung"`
+		} `json:"schmal"`
+	} `json:"pakete"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -156,6 +199,13 @@ func TestLeitstandBrowser(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 	fuelleUebersicht(s)
+
+	// Ein ausstehender Neustart, damit die Paketseite ihren Handlungsbedarf zeigt
+	// — und damit die dritte Bestätigungsstufe im Browser geprüft werden kann. Es
+	// ist die einzige Aktion der neuen Oberfläche, die sie verlangt.
+	s.ops.(*fakeOps).reboot = privops.RebootState{
+		Required: true, Packages: []string{"linux-image-generic"},
+	}
 
 	ts := httptest.NewServer(s.Handler())
 	defer ts.Close()
@@ -447,6 +497,110 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !d.Schmal.InspektorOben {
 		t.Error("schmal steht der Inspektor unter der Liste — wer eine Zeile angeklickt " +
 			"hat, müsste erst scrollen, um zu sehen, was er angeklickt hat")
+	}
+
+	// 6c. Das Modul Pakete und die Vorgangsplatte — Grundsatz III.
+	p := e.Pakete
+	if len(p.Reihen) != 2 {
+		t.Errorf("%d Zeilen in der Paketliste, erwartet 2", len(p.Reihen))
+	} else {
+		// Sicherheitsupdates oben, und erkennbar an einem Wort und nicht nur an
+		// der Farbe.
+		if p.Reihen[0].Name != "libssl3" {
+			t.Errorf("erstes Paket ist %q, erwartet libssl3 — Sicherheit gehört nach oben",
+				p.Reihen[0].Name)
+		}
+		if !strings.Contains(p.Reihen[0].Art, "Sicherheit") {
+			t.Errorf("die Sicherheitszeile trägt kein Wort dafür: %q", p.Reihen[0].Art)
+		}
+	}
+	if !p.Neustart.Da {
+		t.Error("der ausstehende Neustart wird nicht angezeigt — es ist die wichtigste " +
+			"Aussage der Seite, weil eingespielte Updates dann noch nicht wirken")
+	}
+	if !strings.Contains(p.Neustart.Text, "linux-image-generic") {
+		t.Errorf("der Hinweis nennt das verlangende Paket nicht: %q", p.Neustart.Text)
+	}
+	if !p.Neustart.Knopf {
+		t.Error("dem Owner wird kein Neustart-Knopf angeboten")
+	}
+
+	// Der Vorgang: Die Zeilen kommen über den Ereignisstrom. Das ist der Kern von
+	// Grundsatz III — bis 0.3.0 sammelte das Panel die zwanzig Zeilen von
+	// apt-get update und verwarf sie.
+	if len(p.Vorgang.Zeilen) == 0 {
+		t.Error("der Auszug des Vorgangs ist leer — die Zeilen kommen nicht über den Strom an")
+	}
+	if p.Vorgang.Titel == "" || p.Vorgang.Zustand == "" {
+		t.Errorf("die Platte nennt Titel %q und Zustand %q", p.Vorgang.Titel, p.Vorgang.Zustand)
+	}
+	// Wer den Vorgang angestoßen hat, gehört dazu: Auf einem Server mit mehreren
+	// Konten ist das die erste Frage.
+	if !strings.Contains(p.Vorgang.Kopf, "philipp") {
+		t.Errorf("die Platte nennt nicht, wer den Vorgang angestoßen hat: %q", p.Vorgang.Kopf)
+	}
+	// Und die Seite hat den Ereignisstrom geöffnet. Das ist nicht am Bild zu
+	// erkennen: Die Attrappe ist in Millisekunden fertig, die Zeilen stünden
+	// deshalb auch da, wenn die Seite nur die Ressource abgefragt hätte. Bei einem
+	// echten apt-Lauf über eine Viertelstunde wäre das der Unterschied zwischen
+	// einer Quittung und einem Standbild. Was der Strom überträgt, prüft
+	// TestAPIVorgangStromLiefertZeilenUndEnde am Endpunkt selbst.
+	if !p.StromGeoeffnet {
+		t.Error("die Seite hat den Ereignisstrom des Vorgangs nicht geöffnet — " +
+			"die Ausgabe käme dann erst, wenn der Vorgang schon vorbei ist")
+	}
+	// Nach dem Neuladen ist er wieder da: Der Vorgang liegt auf dem Server, nicht
+	// in der Seite.
+	if p.NachNeuladen.Zeilen == 0 {
+		t.Error("nach dem Neuladen ist der Vorgang verschwunden — er läuft auf dem " +
+			"Server weiter, und wer zurückkommt, soll ihn vorfinden")
+	}
+
+	if !strings.Contains(p.Rueckfrage.Frage, "2") {
+		t.Errorf("die Rückfrage zum Einspielen nennt die Zahl nicht: %q", p.Rueckfrage.Frage)
+	}
+	if p.Rueckfrage.Punkte == 0 {
+		t.Error("die Rückfrage nennt keine Folgen")
+	}
+	if p.Rueckfrage.Tippfeld {
+		t.Error("Updates einspielen verlangt ein getipptes Wort — es ist Stufe 2")
+	}
+	if !p.NachAbbruch {
+		t.Error("Escape bricht die Rückfrage nicht ab")
+	}
+
+	// Stufe 3: die Sperre ist der ganze Unterschied zu Stufe 2.
+	d3 := p.StufeDrei
+	if !d3.Tippfeld {
+		t.Fatal("der Neustart verlangt kein getipptes Wort — er ist Stufe 3")
+	}
+	if d3.Wort == "" || !strings.Contains(d3.Hinweis, d3.Wort) {
+		t.Errorf("der Hinweis sagt nicht, was zu tippen ist: %q", d3.Hinweis)
+	}
+	if !d3.Gesperrt {
+		t.Error("der Knopf ist offen, bevor etwas getippt wurde — dann ist die dritte " +
+			"Stufe eine Anzeige und keine Sicherung")
+	}
+	if !d3.FokusImFeld {
+		t.Error("der Fokus liegt nicht im Eingabefeld — bei Stufe 3 gehört er dorthin " +
+			"und nicht auf den gefährlichen Knopf")
+	}
+	if !d3.NachFalschem {
+		t.Error("ein falsches Wort gibt den Knopf frei")
+	}
+	if d3.NachRichtigem {
+		t.Error("das richtige Wort gibt den Knopf nicht frei — in Großschreibung " +
+			"getippt muss es genügen, wie auf dem Server (EqualFold)")
+	}
+
+	if p.Schmal.FensterBreite == 0 {
+		t.Error("die Paketseite wurde nicht im Schmalmodus gemessen")
+	} else if p.Schmal.KoerperBreite > p.Schmal.FensterBreite+1 {
+		t.Errorf("die Paketseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			p.Schmal.KoerperBreite, p.Schmal.FensterBreite)
+	}
+	if p.Schmal.Beschriftung == "" {
+		t.Error("die Zellen der Paketliste tragen im Schmalmodus keine Spaltenbeschriftung")
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

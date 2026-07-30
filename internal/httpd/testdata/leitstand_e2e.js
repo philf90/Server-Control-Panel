@@ -72,6 +72,15 @@ async function main() {
   });
   // Fehlende Antworten mit Adresse festhalten: "404" allein sagt nicht, ob ein
   // Asset fehlt (schwer) oder der Browser nach einem Favicon fragt (harmlos).
+  // Alle angefragten Adressen mitschreiben. Gebraucht wird das für eine Frage,
+  // die man dem fertigen Bild nicht ansehen kann: Hat die Seite den
+  // Ereignisstrom eines Vorgangs überhaupt geöffnet? Die Zeilen stünden auch da,
+  // wenn sie nur die Ressource abgefragt hätte — bei einem Vorgang, der eine
+  // Viertelstunde läuft, wäre das der Unterschied zwischen einer Quittung und
+  // einem Standbild.
+  const angefragt = [];
+  seite.on("request", (r) => angefragt.push(r.url()));
+
   const fehlend = [];
   seite.on("response", (r) => {
     // 409 ist keine fehlende Antwort, sondern eine Rückfrage: Der Handler führt
@@ -481,6 +490,145 @@ async function main() {
   }
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 9. Das Modul Pakete und die Vorgangsplatte. Hier hängt am Browser, was kein
+  //    Go-Test sehen kann: Kommen die Zeilen über den Ereignisstrom an, und
+  //    findet jemand, der die Seite neu lädt, den Vorgang vor?
+  const pakete = {};
+  await seite.goto(`${basis}/v2/pakete`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle .pfad", { timeout: 5000 });
+
+  pakete.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector(".pfad")?.textContent.trim() ?? "",
+      // Sicherheitszeilen sind zusätzlich zur Farbe an einem Wort erkennbar.
+      art: tr.querySelector(".zustand")?.textContent.trim() ?? "",
+    })),
+  );
+  // Der Neustart-Hinweis erscheint nur, wenn einer aussteht — ein Knopf, der
+  // immer da ist, wird irgendwann versehentlich gedrückt. Die Attrappe sagt in
+  // diesem Lauf ja, und der Hinweis nennt das Paket, das ihn verlangt.
+  pakete.neustart = await seite.evaluate(() => {
+    const n = document.querySelector(".neustart");
+    return {
+      da: n !== null,
+      text: n?.textContent.trim() ?? "",
+      knopf: n?.querySelector(".knopf") !== null,
+    };
+  });
+
+  // Listen holen: Der Knopf löst einen Vorgang aus, die Platte erscheint, und
+  // die Zeilen von apt stehen darin. Ohne die wäre die Quittung eine Behauptung.
+  await seite.click(".aktionen .knopf.leise");
+  await seite.waitForSelector(".vorgang", { timeout: 5000 });
+  await seite.waitForFunction(
+    () => (document.querySelectorAll(".vorgang .auszug .zeile").length ?? 0) > 0,
+    null,
+    { timeout: 5000 },
+  );
+  pakete.vorgang = await seite.evaluate(() => {
+    const v = document.querySelector(".vorgang");
+    return {
+      titel: v?.querySelector("b")?.textContent.trim() ?? "",
+      zustand: v?.querySelector(".zustand")?.textContent.trim() ?? "",
+      zeilen: [...v.querySelectorAll(".auszug .zeile")].map((d) => d.textContent),
+      // Die Fußzeile nennt, wer den Vorgang angestoßen hat, und die Laufzeit.
+      kopf: v?.querySelector(".mut")?.textContent.trim() ?? "",
+    };
+  });
+
+  pakete.stromGeoeffnet = angefragt.some((u) => u.includes("/api/v1/jobs/packages/events"));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-pakete.png`,
+      fullPage: true,
+    });
+  }
+
+  // Neu laden: Der Vorgang ist auf dem Server, nicht in der Seite. Wer
+  // zurückkommt, findet ihn vor — mit denselben Zeilen.
+  await seite.goto(`${basis}/v2/pakete`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".vorgang", { timeout: 5000 });
+  pakete.nachNeuladen = await seite.evaluate(() => ({
+    zeilen: document.querySelectorAll(".vorgang .auszug .zeile").length,
+    zustand: document.querySelector(".vorgang .zustand")?.textContent.trim() ?? "",
+  }));
+
+  // Alle einspielen fragt zurück, und die Frage nennt die Zahl.
+  const alleKnopf = ".aktionen .knopf:not(.leise)";
+  await seite.click(alleKnopf);
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  pakete.rueckfrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d?.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: d?.querySelectorAll(".punkte li").length ?? 0,
+      tippfeld: d?.querySelector(".tippen") !== null,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(200);
+  pakete.nachAbbruch = await seite.evaluate(
+    () => document.querySelector("dialog.rueckfrage") === null,
+  );
+
+  // Stufe 3 am Neustart: Der bestätigende Knopf bleibt gesperrt, bis der
+  // Hostname stimmt. Das ist die einzige Stelle in der neuen Oberfläche, an der
+  // die dritte Stufe zu prüfen ist — und die Sperre ist der ganze Unterschied
+  // zwischen Stufe 2 und Stufe 3.
+  await seite.click(".neustart .knopf");
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  pakete.stufeDrei = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    const hinweis = d?.querySelector(".tippen span")?.textContent ?? "";
+    return {
+      tippfeld: d?.querySelector(".tippen input") !== null,
+      hinweis,
+      // Der Hostname steht im Hinweis — abzulesen, nicht zu erraten.
+      wort: hinweis.split(": ").pop() ?? "",
+      gesperrt: d?.querySelector(".knopf.gefahr")?.disabled ?? false,
+      // Der gefährliche Knopf darf den Fokus nicht haben; bei Stufe 3 liegt er
+      // im Eingabefeld.
+      fokusImFeld: document.activeElement?.closest(".tippen") !== null,
+    };
+  });
+
+  // Ein falsches Wort lässt den Knopf gesperrt, das richtige gibt ihn frei.
+  await seite.fill("dialog.rueckfrage .tippen input", "falsch");
+  await seite.waitForTimeout(120);
+  pakete.stufeDrei.nachFalschem = await seite.evaluate(
+    () => document.querySelector("dialog.rueckfrage .knopf.gefahr")?.disabled ?? false,
+  );
+  await seite.fill("dialog.rueckfrage .tippen input", pakete.stufeDrei.wort.toUpperCase());
+  await seite.waitForTimeout(120);
+  // Großschreibung darf genügen: Auf einem Telefon macht die Tastatur aus "vm"
+  // gern "Vm". Der Server prüft ebenso.
+  pakete.stufeDrei.nachRichtigem = await seite.evaluate(
+    () => document.querySelector("dialog.rueckfrage .knopf.gefahr")?.disabled ?? true,
+  );
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(200);
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  pakete.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+    beschriftung: (() => {
+      const zelle = document.querySelector("table.tabelle td[data-spalte]");
+      return zelle
+        ? getComputedStyle(zelle, "::before").content.replace(/"/g, "")
+        : "";
+    })(),
+  }));
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-pakete-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   await browser.close();
 
   console.log(
@@ -494,6 +642,7 @@ async function main() {
       rahmenSitz,
       palette,
       dienste,
+      pakete,
       zweige,
       schmal,
       strich,

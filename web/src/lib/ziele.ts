@@ -58,8 +58,9 @@ export const gruppen: Gruppe[] = [
         id: "pakete",
         label: t.ziele.pakete,
         symbol: "kiste",
-        href: "/packages",
+        href: "/v2/pakete",
         gruppe: t.bereiche.system,
+        neu: true,
         auch: ["apt", "updates", "aktualisierung", "upgrade", "sicherheitsupdates"],
       },
       {

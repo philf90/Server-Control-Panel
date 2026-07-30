@@ -139,6 +139,17 @@ Auslöser (wer, wann, was), einen Stream aus dem Konsolen-Echo, einen Exit-Code
 und bleibt nach Abschluss abrufbar. Die Oberfläche zeigt jeden Job gleich an,
 egal aus welchem Modul er stammt.
 
+> **Stand nach dem Modul Pakete:** Der *sichtbare* Teil davon steht — eine
+> Ressource `/api/v1/jobs/{art}` mit Zustand, Auslöser, Laufzeit und Auszug, ein
+> Ereignisstrom daneben, und eine Platte in der Oberfläche, die jeder Vorgang
+> gleich benutzt. Der *innere* Teil ist noch der alte: Die Registry liegt in
+> `internal/httpd` und hält je Art den letzten Vorgang im Speicher. Was noch
+> fehlt, ist die Nummer und der Verlauf über einen Neustart des Panels hinaus —
+> beides verlangt eine Tabelle im Store. Das geschieht beim Umschalten, wenn die
+> alte Oberfläche gelöscht ist und nur noch ein Leser übrig ist: Solange beide
+> laufen, wäre eine zweite Registry der schlimmere Fehler — ein Vorgang, der
+> doppelt startet, weil zwei Verwaltungen nichts voneinander wissen.
+
 **Eine JSON-Schnittstelle `/api/v1/*`.** Die neue Oberfläche ist die einzige
 Kundin, aber die Schnittstelle wird von Anfang an so geschnitten, als käme
 später eine zweite (CLI, Automatisierung): Ressourcen statt Seiten, Fehler als
@@ -692,6 +703,31 @@ Dialog selbst ist ein echtes `<dialog>` mit `showModal()`: Fokusfang, oberste
 Ebene und Escape kommen vom Browser. Ein `<div>` mit Schleier nachzubauen ist die
 Stelle, an der Tastaturbedienung still verloren geht.
 
+**Lange Handlungen sind Vorgänge.** Festgelegt am Modul **Pakete**, dem ersten
+mit einer Aktion, die Minuten dauert. Der POST startet und ist sofort zurück
+(**202**) — er wartet nicht auf apt; eine Anfrage, die zwanzig Minuten offen
+bleibt, überlebt keinen Zwischenserver und kein WLAN. Zugesehen wird über
+`/api/v1/jobs/{art}`: die Ressource für den Zustand, der Ereignisstrom daneben
+für die Zeilen, während sie entstehen. Der Strom sagt nur „vorbei" — ob es
+geglückt ist, wie lange es dauerte und ob eine Anmerkung dazugehört, steht in der
+Ressource, und die wird am Ende noch einmal gefragt. Zwei Fassungen dieser
+Auskunft liefen auseinander, und dann sagte die Zeile über dem Auszug etwas
+anderes als der Auszug.
+
+Drei Einzelheiten, die keine Wahl sind:
+
+- **Der Vorgang läuft auf dem Server weiter.** Wer die Seite verlässt und
+  zurückkommt, findet ihn vor, mit Auszug und Laufzeit. Ein abgebrochenes
+  `apt-get` mitten im dpkg-Lauf hinterlässt ein halb konfiguriertes System; das
+  darf nicht davon abhängen, ob ein Tab offen bleibt.
+- **Angehängt wird an die Antwort, nicht an einen späteren Abruf.** Der Server
+  hat den Vorgang gerade angelegt, er läuft also — der Strom kann sofort auf.
+  Erst abzufragen wäre eine Runde später, und bei einem Vorgang, der in der
+  Zwischenzeit fertig wird, käme „läuft nicht" zurück und der Strom ginge nie
+  auf. Bei `apt-get update` über einen schnellen Spiegel ist das der Normalfall.
+- **Höchstens einer je Art.** Zwei apt-Läufe blockieren sich an der dpkg-Sperre.
+  Das soll die Oberfläche verhindern (**409**) und nicht ausprobieren.
+
 **Rechte am Endpunkt, sichtbar in der Oberfläche.** Schreibrecht und
 Sitzungstoken werden vor jeder verändernden Anfrage geprüft (`X-CSRF-Token` als
 Kopfzeile, nicht als Feld — eine Kopfzeile kann ein Formular von einer fremden
@@ -707,7 +743,10 @@ wie ein halb gebautes Modul aus.
   Umstellung läuft — die alten Seiten gemeinsam nutzen.
 - **Job-Modell** als eigenes Paket (`internal/jobs`): Registry, Verlauf im
   Store, Stream über den SSE-Hub. Pakete/Firewall ziehen um, alles Neue
-  beginnt dort.
+  beginnt dort. **Beim Umschalten und nicht davor:** Die Schnittstelle nach
+  außen steht seit dem Modul Pakete (siehe 4.2 und 8.4), die Verwaltung bleibt
+  vorerst in `internal/httpd`, weil die alte Oberfläche sie mitbenutzt. Eine
+  zweite Registry neben der ersten wäre ein Vorgang, der doppelt startet.
 - **privops wächst um vier Familien** (`Docker*`, `Site*`, `Db*`, `Backup*`
   plus `Cron*/Timer*`) und bleibt die einzige Systemgrenze. Die
   Allowlist wächst um `docker`, `nginx`/`caddy`, `mysql`/`psql`, `restic`,

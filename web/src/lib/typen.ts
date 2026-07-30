@@ -193,6 +193,63 @@ export type Dienste = {
   };
 };
 
+/** Job ist ein langlaufender Vorgang: Paketlisten holen, Updates einspielen,
+ *  später ein Abbild ziehen oder ein Backup prüfen.
+ *
+ *  laeuft und gescheitert sind zwei Felder und nicht ein Wort: „läuft noch" und
+ *  „ist gescheitert" schließen sich aus, aber „fertig und geglückt" ist der
+ *  Zustand, in dem beide falsch sind — und den will die Oberfläche ohne
+ *  Fallunterscheidung erkennen. */
+export type Job = {
+  art: string;
+  titel: string;
+  akteur: string;
+  laeuft: boolean;
+  gescheitert: boolean;
+  fehler: string;
+  /** hinweis ist eine Anmerkung zum Ergebnis, die kein Fehler ist — der
+   *  Teilerfolg von apt-get update etwa. */
+  hinweis: string;
+  zeilen: string[];
+  start: string;
+  dauer_text: string;
+};
+
+/** Paket ist eine Zeile der Paketliste. */
+export type Paket = {
+  name: string;
+  von: string;
+  nach: string;
+  quelle: string;
+  architektur: string;
+  sicherheit: boolean;
+};
+
+/** Pakete ist die Antwort von GET /api/v1/packages. */
+export type Pakete = {
+  pakete: Paket[];
+  zaehler: { gesamt: number; sicherheit: number };
+  neustart: { erforderlich: boolean; pakete: string[] };
+  /** job ist der laufende oder letzte Paketvorgang — in dieser Antwort, damit
+   *  die Seite mit einem Aufruf vollständig ist. */
+  job: Job | null;
+  /** rechnername ist das Wort, das beim Neustart getippt werden muss. */
+  rechnername: string;
+  /** fehler ist gesetzt, wenn die Liste nicht zu lesen war. Die
+   *  Neustartmarkierung und ein laufender Vorgang gelten trotzdem. */
+  fehler: string;
+};
+
+/** Umfang eines Updates. Ein Wort statt zweier Wahrheitswerte — „alles und nur
+ *  Sicherheit" wäre ein Zustand, den es nicht gibt. */
+export type Umfang = "alle" | "sicherheit" | "einzeln";
+
+/** VorgangGestartet ist die Antwort auf einen gestarteten Vorgang (202). */
+export type VorgangGestartet = {
+  meldung: string;
+  job: Job;
+};
+
 /** Bestaetigung ist der Text einer Rückfrage, wie der Server sie stellt.
  *
  *  Sie kommt vom Server und wird nicht im Browser formuliert: Der Handler führt

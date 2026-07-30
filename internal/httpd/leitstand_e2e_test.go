@@ -44,6 +44,18 @@ type ergebnisLeitstand struct {
 		RahmenBreite float64 `json:"rahmenBreite"`
 		Scrollbar    string  `json:"scrollbar"`
 	} `json:"rahmenSitz"`
+	Palette struct {
+		Schritte          []string `json:"schritte"`
+		FokusImFeld       bool     `json:"fokusImFeld"`
+		ZieleGesamt       int      `json:"zieleGesamt"`
+		TrefferNginx      []string `json:"trefferNginx"`
+		TrefferOhneUmlaut []string `json:"trefferOhneUmlaut"`
+		LeerZustand       string   `json:"leerZustand"`
+		NachEscape        bool     `json:"nachEscape"`
+		ZweiteGewaehlt    bool     `json:"zweiteGewaehlt"`
+		KlickInnenHaelt   bool     `json:"klickInnenHaelt"`
+		KlickDaneben      bool     `json:"klickDanebenSchliesst"`
+	} `json:"palette"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -255,6 +267,47 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if e.Zweige.Nachher == 0 {
 		t.Error("nach dem Klick erscheinen keine weiteren Einhängepunkte")
+	}
+
+	// Die Befehlspalette — der offene Punkt aus docs/15-neuordnung.md.
+	if len(e.Palette.Schritte) != 2 {
+		t.Errorf("die Palette ließ sich nicht auf beiden Wegen öffnen: %v", e.Palette.Schritte)
+	}
+	if !e.Palette.FokusImFeld {
+		t.Error("nach dem Öffnen liegt der Fokus nicht im Suchfeld — man müsste erst hinklicken")
+	}
+	if e.Palette.ZieleGesamt != 15 {
+		t.Errorf("%d Ziele in der Palette, erwartet 15 (dieselben wie in der Seitenleiste)",
+			e.Palette.ZieleGesamt)
+	}
+	// Der Unterschied zwischen einer Suche und einer Liste: ein Wort, das im
+	// Namen nicht vorkommt.
+	if len(e.Palette.TrefferNginx) == 0 || !strings.Contains(e.Palette.TrefferNginx[0], "Webserver") {
+		t.Errorf("die Suche nach \"nginx\" findet den Webserver nicht: %v", e.Palette.TrefferNginx)
+	}
+	// Wer den Umlaut weglässt, soll finden, was er meint — sonst ist die Suche
+	// eine Rechtschreibprüfung.
+	if len(e.Palette.TrefferOhneUmlaut) == 0 ||
+		!strings.Contains(e.Palette.TrefferOhneUmlaut[0], "bersicht") {
+		t.Errorf("die Suche nach \"ubersicht\" ohne Umlaut findet nichts: %v",
+			e.Palette.TrefferOhneUmlaut)
+	}
+	if e.Palette.LeerZustand == "" {
+		t.Error("ohne Treffer sagt die Palette nichts — ein leerer Kasten sieht wie ein Fehler aus")
+	}
+	if !e.Palette.NachEscape {
+		t.Error("Escape schließt die Palette nicht")
+	}
+	if !e.Palette.ZweiteGewaehlt {
+		t.Error("der Pfeil nach unten wandert nicht — die Palette ist nur mit der Maus bedienbar")
+	}
+	// Der Schleier horcht auf Klicks, die Palette liegt darin. Wird das Ziel des
+	// Klicks nicht geprüft, schließt jeder Klick ins Suchfeld die Palette wieder.
+	if !e.Palette.KlickInnenHaelt {
+		t.Error("ein Klick in die Palette schließt sie — man kommt nicht ins Suchfeld")
+	}
+	if !e.Palette.KlickDaneben {
+		t.Error("ein Klick neben die Palette schließt sie nicht — der einzige Ausweg wäre Escape")
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

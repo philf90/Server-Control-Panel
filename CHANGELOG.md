@@ -9,6 +9,32 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Hinzugefügt
+
+- **Befehlspalette in der neuen Oberfläche.** `⌘K` beziehungsweise `Strg+K`
+  öffnet ein Suchfeld über allem und springt von dort an jede Stelle des Panels;
+  der Hinweis im Statusband ist selbst der Knopf, damit das Kürzel kein Wissen
+  voraussetzt, das die Oberfläche verschweigt. Bedienbar allein mit der Tastatur:
+  Pfeile wählen, `Pos1`/`Ende` springen an die Enden, `Enter` öffnet, `Escape`
+  schließt und gibt den Fokus dorthin zurück, wo er war.
+
+  Gesucht wird nicht nur im Namen. Jedes Ziel führt die Wörter mit, unter denen
+  jemand danach sucht — `nginx` findet den Webserver, `ssl` das Zertifikat,
+  `apt` die Pakete —, und Umlaute sind aufgelöst, sodass auch `ubersicht`
+  trifft. Gewichtet wird in vier Stufen, damit das Naheliegende oben steht und
+  die Reihenfolge nicht vom Menüaufbau abhängt.
+
+  Damit ist der offene Punkt aus
+  [docs/15-neuordnung.md](docs/15-neuordnung.md) erledigt: In der alten
+  Oberfläche wäre die Palette ein Skript in der Seite gewesen, das die
+  Inhaltsrichtlinie verwirft. Die Navigationsziele stehen jetzt **einmal** in
+  `web/src/lib/ziele.ts` und werden von Seitenleiste und Palette gemeinsam
+  gelesen — zwei Listen desselben Menüs laufen sonst auseinander, und ein neues
+  Modul wäre in der Leiste zu sehen, aber nicht zu finden. Dienste, Dateien und
+  Regeln als eigene Treffer kommen dazu, sobald die Module sie über `/api/v1`
+  anbieten; die Suche ist dafür so geschnitten, dass eine zweite Quelle nur eine
+  weitere Liste ist.
+
 ## [0.4.0-rc.1] — 2026-07-30
 
 ### Hinzugefügt

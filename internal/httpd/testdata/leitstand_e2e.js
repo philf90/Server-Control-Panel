@@ -210,6 +210,87 @@ async function main() {
     }
   }
 
+  // Die Befehlspalette. Geprüft wird der Weg, den jemand mit der Tastatur nimmt:
+  // öffnen, tippen, mit dem Pfeil wählen, Enter. Ein DOM-Test sieht davon
+  // nichts — ob ⌘K überhaupt ankommt und ob der Fokus im Feld landet, sagt nur
+  // der Browser.
+  const palette = { schritte: [] };
+  await seite.keyboard.press("Control+k");
+  await seite.waitForSelector('[role="dialog"]', { timeout: 3000 });
+  palette.schritte.push("mit Strg+K geöffnet");
+
+  palette.fokusImFeld = await seite.evaluate(
+    () => document.activeElement?.classList.contains("feld") ?? false,
+  );
+  palette.zieleGesamt = await seite.evaluate(
+    () => document.querySelectorAll('[role="option"]').length,
+  );
+
+  // Ein Suchwort, das NICHT im Namen steht: "nginx" muss den Webserver finden.
+  // Genau daran entscheidet sich, ob die Palette eine Suche ist oder eine Liste.
+  await seite.fill("input.feld", "nginx");
+  await seite.waitForTimeout(120);
+  palette.trefferNginx = await seite.evaluate(() =>
+    [...document.querySelectorAll('[role="option"]')].map((o) =>
+      o.querySelector(".label")?.textContent.trim(),
+    ),
+  );
+
+  // Umlaut weggelassen: "ubersicht" muss die Übersicht finden.
+  await seite.fill("input.feld", "ubersicht");
+  await seite.waitForTimeout(120);
+  palette.trefferOhneUmlaut = await seite.evaluate(() =>
+    [...document.querySelectorAll('[role="option"]')].map((o) =>
+      o.querySelector(".label")?.textContent.trim(),
+    ),
+  );
+
+  // Nichts gefunden ist ein Zustand, kein Fehler.
+  await seite.fill("input.feld", "xyzquatsch");
+  await seite.waitForTimeout(120);
+  palette.leerZustand = await seite.evaluate(
+    () => document.querySelector(".leer")?.textContent.trim() ?? "",
+  );
+
+  // Escape schließt.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(150);
+  palette.nachEscape = await seite.evaluate(
+    () => document.querySelector('[role="dialog"]') === null,
+  );
+
+  // Der Knopf im Statusband öffnet sie ebenfalls, und der Pfeil wandert.
+  await seite.click(".statusband .kbd");
+  await seite.waitForSelector('[role="dialog"]', { timeout: 3000 });
+  palette.schritte.push("über den Knopf im Statusband geöffnet");
+  await seite.keyboard.press("ArrowDown");
+  await seite.waitForTimeout(80);
+  palette.zweiteGewaehlt = await seite.evaluate(() => {
+    const gewaehlt = document.querySelectorAll('[role="option"]');
+    return gewaehlt[1]?.getAttribute("aria-selected") === "true";
+  });
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-palette.png`,
+    });
+  }
+
+  // Ein Klick in die Palette darf sie nicht schließen, ein Klick daneben schon.
+  // Das hängt am Ziel des Klicks: Der Schleier horcht, die Palette liegt darin.
+  // Ohne diese zwei Messungen wäre der Unterschied unbemerkt — die Tastatur
+  // nimmt beide Wege nicht.
+  await seite.click(".feldzeile .lupe");
+  await seite.waitForTimeout(120);
+  palette.klickInnenHaelt = await seite.evaluate(
+    () => document.querySelector('[role="dialog"]') !== null,
+  );
+  await seite.mouse.click(20, 20);
+  await seite.waitForTimeout(150);
+  palette.klickDanebenSchliesst = await seite.evaluate(
+    () => document.querySelector('[role="dialog"]') === null,
+  );
+
   // 5. Schmalmodus: Der Seitenkörper darf nicht waagerecht scrollen, und die
   //    Zellen müssen ihre Spaltenbeschriftung zeigen.
   await seite.setViewportSize({ width: 375, height: 800 });
@@ -253,6 +334,7 @@ async function main() {
       uebersicht,
       titelSitz,
       rahmenSitz,
+      palette,
       zweige,
       schmal,
       strich,

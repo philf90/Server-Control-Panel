@@ -1,54 +1,14 @@
 <script lang="ts">
   // Vier Gruppen statt einer Liste gleichrangiger Punkte: System, Apps,
   // Sicherheit, Betrieb. Der Zuschnitt kommt aus docs/16-neukonzeption.md 8.2
-  // und trägt die Module, die in 0.6 bis 0.9 dazukommen.
+  // und trägt die Module, die in 0.5 bis 0.8 dazukommen.
   //
-  // Solange die neue Oberfläche neben der alten läuft, zeigen die Ziele ohne
-  // eigene Seite auf die alte unter / — kein toter Verweis, und der Weg zurück
-  // ist immer da.
-  import { t } from "../lib/texte";
+  // Die Ziele selbst stehen in lib/ziele.ts, weil die Befehlspalette dieselbe
+  // Liste braucht. Zwei Listen desselben Menüs laufen auseinander: Ein neues
+  // Modul erschiene dann in der Leiste, aber nicht in der Suche.
+  import { gruppen } from "../lib/ziele";
 
   let { aktiv = "uebersicht" }: { aktiv?: string } = $props();
-
-  type Ziel = { id: string; label: string; symbol: string; href: string };
-
-  const gruppen: { titel: string; ziele: Ziel[] }[] = [
-    {
-      titel: t.bereiche.system,
-      ziele: [
-        { id: "uebersicht", label: t.ziele.uebersicht, symbol: "messuhr", href: "/v2/" },
-        { id: "dienste", label: t.ziele.dienste, symbol: "zahnrad", href: "/services" },
-        { id: "pakete", label: t.ziele.pakete, symbol: "kiste", href: "/packages" },
-        { id: "cron", label: t.ziele.cron, symbol: "uhr", href: "/v2/" },
-      ],
-    },
-    {
-      titel: t.bereiche.apps,
-      ziele: [
-        { id: "docker", label: t.ziele.docker, symbol: "container", href: "/v2/" },
-        { id: "webserver", label: t.ziele.webserver, symbol: "globus", href: "/v2/" },
-        { id: "datenbanken", label: t.ziele.datenbanken, symbol: "datenbank", href: "/v2/" },
-        { id: "backups", label: t.ziele.backups, symbol: "archiv", href: "/v2/" },
-      ],
-    },
-    {
-      titel: t.bereiche.sicherheit,
-      ziele: [
-        { id: "firewall", label: t.ziele.firewall, symbol: "schild", href: "/firewall" },
-        { id: "benutzer", label: t.ziele.benutzer, symbol: "personen", href: "/system-users" },
-        { id: "zertifikate", label: t.ziele.zertifikate, symbol: "siegel", href: "/certificate" },
-      ],
-    },
-    {
-      titel: t.bereiche.betrieb,
-      ziele: [
-        { id: "dateien", label: t.ziele.dateien, symbol: "ordner", href: "/files" },
-        { id: "logs", label: t.ziele.logs, symbol: "zeilen", href: "/logs" },
-        { id: "audit", label: t.ziele.audit, symbol: "buch", href: "/audit" },
-        { id: "einstellungen", label: t.ziele.einstellungen, symbol: "regler", href: "/settings" },
-      ],
-    },
-  ];
 </script>
 
 <aside class="seitenleiste">

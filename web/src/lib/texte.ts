@@ -84,6 +84,18 @@ export const t = {
     keineProzesse: "Keine Prozessdaten verfügbar.",
   },
 
+  palette: {
+    titel: "Suchen und springen",
+    platzhalter: "Suchen oder springen …",
+    nichts: "Nichts gefunden.",
+    waehlen: "wählen",
+    oeffnen: "öffnen",
+    neu: "neu",
+    // Ehrlich benannt: Die Palette sucht heute Ziele, keine Dienste. Wer das
+    // erwartet und nichts findet, hält die Suche für kaputt.
+    spaeter: "Dienste und Dateien folgen mit ihren Modulen",
+  },
+
   stufe: {
     kritisch: "kritisch",
     warnung: "Warnung",

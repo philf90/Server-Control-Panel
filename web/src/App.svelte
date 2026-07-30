@@ -6,6 +6,7 @@
   import Statusband from "./komponenten/Statusband.svelte";
   import Protokollzeile from "./komponenten/Protokollzeile.svelte";
   import Symbolvorrat from "./komponenten/Symbolvorrat.svelte";
+  import Befehlspalette from "./komponenten/Befehlspalette.svelte";
   import UebersichtSeite from "./seiten/Uebersicht.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
   import { live } from "./lib/live.svelte";
@@ -65,6 +66,7 @@
 </script>
 
 <Symbolvorrat />
+<Befehlspalette />
 
 {#if abgemeldet}
   <div class="mitte">

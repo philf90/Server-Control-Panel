@@ -235,6 +235,17 @@ func (f *fakeOps) letzteRegeln() []privops.FirewallRule {
 
 func (f *fakeOps) SystemUsers(context.Context) ([]privops.SystemUser, error) { return f.sysUsers, nil }
 
+// LoginShells und Groups liefern feste Listen. Die Attrappe liest keine
+// Systemdateien — geprüft wird hier, dass die Oberfläche die Auskunft weitergibt,
+// nicht dass /etc/shells richtig geparst wird. Das steht in privops.
+func (f *fakeOps) LoginShells(context.Context) ([]string, error) {
+	return []string{"/bin/bash", "/bin/sh", "/usr/sbin/nologin"}, nil
+}
+
+func (f *fakeOps) Groups(context.Context) ([]string, error) {
+	return []string{"sudo", "users", "www-data"}, nil
+}
+
 func (f *fakeOps) SystemUserCreate(_ context.Context, spec privops.SystemUserSpec) error {
 	f.record("sysuser:create:" + spec.Name)
 	f.mu.Lock()

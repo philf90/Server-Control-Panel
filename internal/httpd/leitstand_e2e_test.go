@@ -357,6 +357,40 @@ type ergebnisLeitstand struct {
 			FensterBreite float64 `json:"fensterBreite"`
 		} `json:"schmal"`
 	} `json:"audit"`
+	Konten struct {
+		Wesen  string `json:"wesen"`
+		Reihen []struct {
+			Name string `json:"name"`
+			Warn bool   `json:"warn"`
+		} `json:"reihen"`
+		Filter         []string `json:"filter"`
+		RootHandgriffe []string `json:"rootHandgriffe"`
+		RootHinweis    bool     `json:"rootHinweis"`
+		Philipp        struct {
+			Handgriffe     []string `json:"handgriffe"`
+			Schluessel     int      `json:"schluessel"`
+			Datei          bool     `json:"datei"`
+			LetzterHinweis string   `json:"letzterHinweis"`
+		} `json:"philipp"`
+		LetzterSchluessel struct {
+			Frage    string `json:"frage"`
+			Tippfeld bool   `json:"tippfeld"`
+			Gesperrt bool   `json:"gesperrt"`
+		} `json:"letzterSchluessel"`
+		NachAbbruch struct {
+			DialogZu   bool `json:"dialogZu"`
+			Schluessel int  `json:"schluessel"`
+		} `json:"nachAbbruch"`
+		Anlegen struct {
+			Auswahlfelder  int    `json:"auswahlfelder"`
+			Hinweis        string `json:"hinweis"`
+			Schluesselfeld bool   `json:"schluesselfeld"`
+		} `json:"anlegen"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"konten"`
 	Bald struct {
 		Pfad     string `json:"pfad"`
 		Titel    string `json:"titel"`
@@ -446,6 +480,30 @@ func TestLeitstandBrowser(t *testing.T) {
 	ops := s.ops.(*fakeOps)
 	ops.reboot = privops.RebootState{
 		Required: true, Packages: []string{"linux-image-generic"},
+	}
+
+	// GENAU EIN SSH-Schlüssel. Das ist der Fall, um den es im Kontenmodul geht:
+	// Ihn zu entfernen legt den Zugang still, und die Rückfrage ist dann eine
+	// andere als bei „einen von dreien". Mit der Vorgabe der Attrappe (keine
+	// Schlüssel) wäre dieser Weg im Browser nie gelaufen.
+	ops.keys = []privops.SSHKey{
+		{Type: "ssh-ed25519", Comment: "philipp@arbeitsplatz", Fingerprint: "SHA256:MtQrPfe1"},
+	}
+	// Und die Kontenliste passend dazu. Die Attrappe liefert dieselben Schlüssel
+	// für jedes Konto — auf einem echten System zählt SSHKeys aus derselben Datei,
+	// die AuthorizedKeys liest. Die Zahlen hier von Hand gleichzuziehen ist kein
+	// Schönheitsdienst: Ohne das zeigte die Liste „0 Schlüssel" und der Inspektor
+	// daneben einen, und ein Bildschirmfoto davon wäre eine Lüge über die Fläche.
+	ops.sysUsers = []privops.SystemUser{
+		{Name: "root", UID: 0, Home: "/root", Shell: "/bin/bash", HasShell: true,
+			Protected: true, SSHKeys: 1, Groups: []string{"root"}},
+		{Name: "philipp", UID: 1000, GID: 1000, Home: "/home/philipp", Shell: "/bin/bash",
+			HasShell: true, SSHKeys: 1, Comment: "Betreiber", Groups: []string{"philipp", "sudo"}},
+		// Ein Menschenkonto OHNE Schlüssel: Es kommt nicht auf den Server, und
+		// genau diese Auffälligkeit soll im Bild stehen.
+		{Name: "monteur", UID: 1001, GID: 1001, Home: "/home/monteur", Shell: "/bin/bash",
+			HasShell: true, SSHKeys: 0, Comment: "Wartung"},
+		{Name: "www-data", UID: 33, System: true, Shell: "/usr/sbin/nologin"},
 	}
 
 	// Ein Eintrag, der erst WÄHREND des Verfolgens hereinkommt. Ohne ihn prüfte
@@ -1463,6 +1521,96 @@ func TestLeitstandBrowser(t *testing.T) {
 	} else if au.Schmal.KoerperBreite > au.Schmal.FensterBreite+1 {
 		t.Errorf("die Auditseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
 			au.Schmal.KoerperBreite, au.Schmal.FensterBreite)
+	}
+
+	// 6i. Benutzer & SSH. Der Kern ist die Frage beim LETZTEN Schlüssel und die
+	// Gegenprobe an root: Ein geschütztes Konto darf keinen Knopf zeigen, der
+	// dann verweigert.
+	ko := e.Konten
+	if ko.Wesen == "" {
+		t.Error("es fehlt der Satz, der Systemkonten von Panel-Zugängen unterscheidet — " +
+			"wer das verwechselt, legt ein Konto an, das nichts kann")
+	}
+	if len(ko.Reihen) == 0 {
+		t.Fatal("die Kontenliste ist leer")
+	}
+	if len(ko.Filter) < 3 {
+		t.Errorf("die Zähler sind keine Filter: %v", ko.Filter)
+	}
+
+	// root ist geschützt.
+	for _, verboten := range []string{"sperren", "löschen", "entsperren"} {
+		if slices.ContainsFunc(ko.RootHandgriffe, func(s string) bool {
+			return strings.Contains(s, verboten)
+		}) {
+			t.Errorf("root bietet %q an: %v — die Prüfung in privops greift ohnehin, "+
+				"aber ein Knopf, der dann verweigert, ist die schlechteste Antwort",
+				verboten, ko.RootHandgriffe)
+		}
+	}
+	if !ko.RootHinweis {
+		t.Error("bei root steht nicht, WARUM die Handgriffe fehlen — sie einfach " +
+			"weglassen sieht wie ein halb gebautes Modul aus")
+	}
+
+	// Ein gewöhnliches Konto: alles da, Schlüssel im Inspektor.
+	for _, erwartet := range []string{"sperren", "löschen"} {
+		if !slices.ContainsFunc(ko.Philipp.Handgriffe, func(s string) bool {
+			return strings.Contains(s, erwartet)
+		}) {
+			t.Errorf("philipp bietet %q nicht an: %v", erwartet, ko.Philipp.Handgriffe)
+		}
+	}
+	if ko.Philipp.Schluessel == 0 {
+		t.Error("die Schlüssel stehen nicht im Inspektor")
+	}
+	if !ko.Philipp.Datei {
+		t.Error("der Ort der Schlüsseldatei fehlt — wer den Zugang verliert, muss " +
+			"wissen, wo er von Hand nachsehen kann")
+	}
+	if ko.Philipp.LetzterHinweis == "" {
+		t.Error("bei genau einem Schlüssel fehlt die Anmerkung, BEVOR jemand klickt")
+	}
+
+	// Und der Punkt: Der letzte Schlüssel verlangt den Kontonamen.
+	if !ko.LetzterSchluessel.Tippfeld {
+		t.Error("der letzte Schlüssel lässt sich ohne getipptes Wort entfernen — " +
+			"danach hat das Konto keinen Zugang mehr, das ist Stufe 3")
+	}
+	if !strings.Contains(ko.LetzterSchluessel.Frage, "EINZIGE") {
+		t.Errorf("die Frage sagt nicht, dass es der einzige Schlüssel ist: %q",
+			ko.LetzterSchluessel.Frage)
+	}
+	if !ko.LetzterSchluessel.Gesperrt {
+		t.Error("der Knopf ist offen, bevor das Wort getippt ist")
+	}
+	if !ko.NachAbbruch.DialogZu {
+		t.Error("Escape schließt den Dialog nicht")
+	}
+	if ko.NachAbbruch.Schluessel == 0 {
+		t.Error("nach dem ABBRUCH ist der Schlüssel weg — die Rückfrage hat nicht " +
+			"gefragt, sondern nur gefragt ausgesehen")
+	}
+
+	// Die Maske zum Anlegen: Auswahlfelder statt Freitext.
+	if ko.Anlegen.Auswahlfelder < 2 {
+		t.Errorf("die Maske hat %d Auswahlfelder, erwartet zwei (Schale, Gruppen) — "+
+			"Freitext schlägt Werte vor, die der Server ablehnt", ko.Anlegen.Auswahlfelder)
+	}
+	if !strings.Contains(ko.Anlegen.Hinweis, "Passwort") {
+		t.Errorf("die Maske sagt nicht, dass das Konto kein Passwort bekommt: %q",
+			ko.Anlegen.Hinweis)
+	}
+	if !ko.Anlegen.Schluesselfeld {
+		t.Error("der Schlüssel lässt sich beim Anlegen nicht mitgeben — dann entsteht " +
+			"erst ein Konto, das niemand benutzen kann")
+	}
+
+	if ko.Schmal.FensterBreite == 0 {
+		t.Error("die Kontenseite wurde nicht im Schmalmodus gemessen")
+	} else if ko.Schmal.KoerperBreite > ko.Schmal.FensterBreite+1 {
+		t.Errorf("die Kontenseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			ko.Schmal.KoerperBreite, ko.Schmal.FensterBreite)
 	}
 
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2

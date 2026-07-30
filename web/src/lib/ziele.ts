@@ -136,8 +136,9 @@ export const gruppen: Gruppe[] = [
         id: "benutzer",
         label: t.ziele.benutzer,
         symbol: "personen",
-        href: "/system-users",
+        href: "/v2/benutzer",
         gruppe: t.bereiche.sicherheit,
+        neu: true,
         auch: ["ssh", "schluessel", "key", "authorized_keys", "systembenutzer", "konten"],
       },
       {

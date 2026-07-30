@@ -365,6 +365,67 @@ export const t = {
     spaeter: "Units, Pfade und Pakete sucht man auf ihrer Seite",
   },
 
+  konten: {
+    laedt: "wird geladen …",
+    // Der Satz, der die beiden Kontenarten auseinanderhält. Wer das verwechselt,
+    // legt ein Konto an, das nichts kann — oder eines, das mehr kann als gedacht.
+    wesen:
+      "Konten des Servers, nicht des Panels: Damit kommt man über SSH auf die Maschine. Panel-Zugänge stehen unter Einstellungen.",
+    name: "Name",
+    uid: "UID",
+    gruppen: "Gruppen",
+    schale: "Anmeldeschale",
+    schluesselSpalte: "Schlüssel",
+    zustand: "Zustand",
+    notiz: "Notiz",
+    home: "Home",
+    suchen: "Konto suchen",
+    // Die Zähler sind die Filter — Grundsatz II: jede Zahl ist ein Griff.
+    alle: "alle",
+    menschen: "mit Anmeldung",
+    dienste: "Dienstkonten",
+    gesperrt: "gesperrt",
+    ohneSchluessel: "ohne Schlüssel",
+    nichts: "Kein Konto passt.",
+    entsperrt: "aktiv",
+    // Die Auffälligkeit, die eine Handlung nach sich zieht.
+    ohneSchluesselWarnung:
+      "Dieses Konto hat keinen Schlüssel und kein Passwort — es kommt nicht auf den Server.",
+    dienstkonto:
+      "Dienstkonto ohne Anmeldeschale. Es dient einem Programm, nicht einem Menschen — eine Anmeldung ist nicht vorgesehen.",
+    geschuetzt: "Dieses Konto lässt sich über das Panel nicht sperren und nicht löschen.",
+    nurLesen: "Dieses Konto darf lesen, aber keine Systemkonten ändern.",
+
+    anlegen: "Konto anlegen",
+    anlegenTitel: "Neues Systemkonto",
+    anlegenHinweis:
+      "Das Konto bekommt kein Passwort. Die Anmeldung läuft über den SSH-Schlüssel — ohne Schlüssel kommt niemand herein.",
+    namePlatzhalter: "kontoname",
+    notizPlatzhalter: "wofür ist das Konto",
+    schluesselPlatzhalter: "ssh-ed25519 AAAA… kommentar",
+    schluesselFeld: "Öffentlicher SSH-Schlüssel",
+    schluesselOptional: "kann auch später hinterlegt werden",
+    abbrechen: "abbrechen",
+
+    handgriff: {
+      sperren: "sperren",
+      entsperren: "entsperren",
+      loeschen: "löschen",
+      schluessel: "Schlüssel",
+    },
+    homeEntfernen: "Home-Verzeichnis mit löschen",
+    schluesselTitel: "SSH-Schlüssel",
+    schluesselDatei: (datei: string) => `Hinterlegt in ${datei}`,
+    keineSchluessel: "Kein Schlüssel hinterlegt.",
+    schluesselHinzu: "Schlüssel hinterlegen",
+    schluesselEntfernen: "entfernen",
+    schwach: "schwach",
+    letzterSchluessel:
+      "Das ist der einzige Schlüssel. Ohne ihn hat das Konto keinen Zugang mehr.",
+    fingerprint: "Fingerprint",
+    art: "Art",
+  },
+
   audit: {
     laedt: "wird geladen …",
     zeit: "Zeit",

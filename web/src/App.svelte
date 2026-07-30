@@ -18,6 +18,7 @@
   import LogsSeite from "./seiten/Logs.svelte";
   import FirewallSeite from "./seiten/Firewall.svelte";
   import DateienSeite from "./seiten/Dateien.svelte";
+  import SystembenutzerSeite from "./seiten/Systembenutzer.svelte";
   import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
@@ -118,6 +119,8 @@
         <FirewallSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "dateien"}
         <DateienSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "benutzer"}
+        <SystembenutzerSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "audit"}
         <!-- Das Protokoll braucht die Sitzung nicht: Lesen darf jede Rolle, und
              verändern kann es niemand. -->

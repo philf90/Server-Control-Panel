@@ -700,3 +700,97 @@ export type Audit = {
     suche: string;
   };
 };
+
+// ------------------------------------------------------- Systembenutzer ---
+
+/** Systemkonto ist ein Konto des WIRTSYSTEMS — nicht des Panels. Der Unterschied
+ *  ist wichtig: Ein Systemkonto kommt über SSH auf den Server, ein Panelkonto in
+ *  diese Fläche. */
+export type Systemkonto = {
+  name: string;
+  uid: number;
+  gid: number;
+  comment: string;
+  home: string;
+  shell: string;
+  groups: string[] | null;
+  locked: boolean;
+  system: boolean;
+  /** protected: Das Konto lässt sich über das Panel nicht sperren oder löschen
+   *  (root). Die Prüfung sitzt in privops und greift ohnehin — aber eine
+   *  Oberfläche, die „löschen" anbietet und dann verweigert, ist die schlechteste
+   *  der möglichen Antworten. */
+  protected: boolean;
+  ssh_keys: number;
+  has_shell: boolean;
+  /** art ordnet ein: „mensch" mit Anmeldeschale, „dienst" ohne. */
+  art: "mensch" | "dienst";
+  zustand: "gut" | "warn" | "schlecht";
+  /** ohne_schluessel heißt: Dieses Konto kann sich nicht anmelden. Nur bei
+   *  Menschenkonten gesetzt — bei einem Dienstkonto ist es die Bauart. */
+  ohne_schluessel: boolean;
+  aktionen: Kontohandgriff[];
+};
+
+export type Kontohandgriff = "sperren" | "entsperren" | "loeschen" | "schluessel";
+
+/** Systembenutzer ist die Antwort von GET /api/v1/system-users. */
+export type Systembenutzer = {
+  konten: Systemkonto[];
+  zaehler: {
+    gesamt: number;
+    menschen: number;
+    dienste: number;
+    gesperrt: number;
+    ohne_schluessel: number;
+  };
+  /** schalen und gruppen füllen die Auswahlfelder. Sie kommen aus /etc/shells
+   *  und /etc/group — denselben Quellen, gegen die der Server prüft. Ein
+   *  Auswahlfeld, das etwas vorschlägt, das der Server ablehnt, wäre die
+   *  schlechteste Bedienhilfe. */
+  schalen: string[];
+  gruppen: string[];
+  fehler: string;
+};
+
+/** Schluessel ist ein Eintrag aus authorized_keys. */
+export type Schluessel = {
+  type: string;
+  comment: string;
+  fingerprint: string;
+  bits: number;
+  /** staerke ist eine Einschätzung in Worten — „2048 Bit RSA" ist für die
+   *  meisten keine Aussage, „nach heutigem Maß knapp" schon. */
+  staerke: string;
+  schwach: boolean;
+};
+
+export type Schluesselliste = {
+  konto: string;
+  schluessel: Schluessel[];
+  /** datei ist der Ort, an dem sie stehen. Wer den Zugang verliert, muss wissen,
+   *  wo er von Hand nachsehen kann. */
+  datei: string;
+};
+
+/** Kontoauftrag ist der Körper der verändernden Endpunkte. */
+export type Kontoauftrag = {
+  name: string;
+  notiz: string;
+  schale: string;
+  gruppen: string[];
+  schluessel: string;
+  fingerprint: string;
+  /** gesperrt ist der GEWÜNSCHTE Zustand und kein Umschalter: Bei zwei offenen
+   *  Browserfenstern ist „umschalten" nicht bestimmt. */
+  gesperrt: boolean;
+  home_entfernen: boolean;
+};
+
+export type Kontoantwort = {
+  meldung: string;
+  konto?: Systemkonto;
+  /** hinweis ist eine Anmerkung, die kein Fehler ist — „das Konto hat noch
+   *  keinen Schlüssel und kommt damit nicht auf den Server". */
+  hinweis?: string;
+};

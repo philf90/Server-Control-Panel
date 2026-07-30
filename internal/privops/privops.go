@@ -46,6 +46,14 @@ type Executor interface {
 	SystemUserCreate(ctx context.Context, spec SystemUserSpec) error
 	SystemUserSetLocked(ctx context.Context, name string, locked bool) error
 	SystemUserDelete(ctx context.Context, name string, removeHome bool) error
+	// LoginShells und Groups sind Auskünfte für die Auswahlfelder beim Anlegen
+	// eines Kontos. Sie stehen hier und nicht in der Oberfläche, weil sie
+	// dieselben Quellen lesen, gegen die ValidateShell und ValidateGroupName
+	// prüfen: Angeboten werden soll genau, was die Prüfung annimmt. Eine eigene
+	// Liste daneben wäre die Stelle, an der ein Auswahlfeld etwas vorschlägt, das
+	// der Server dann ablehnt.
+	LoginShells(ctx context.Context) ([]string, error)
+	Groups(ctx context.Context) ([]string, error)
 	AuthorizedKeys(ctx context.Context, user string) ([]SSHKey, error)
 	AuthorizedKeyAdd(ctx context.Context, user, key string) error
 	AuthorizedKeyRemove(ctx context.Context, user, fingerprint string) error

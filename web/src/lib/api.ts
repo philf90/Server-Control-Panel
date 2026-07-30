@@ -23,11 +23,15 @@ import type {
   Pakete,
   Pruefung,
   Regel,
+  Schluesselliste,
   Signale,
   Sitzung,
   Uebersicht,
   Textantwort,
   Textauftrag,
+  Systembenutzer,
+  Kontoantwort,
+  Kontoauftrag,
   Umfang,
   Uploadantwort,
   Verlaeufe,
@@ -383,6 +387,48 @@ export const api = {
    *  Server: Das Protokoll wächst unbegrenzt, und ein Filter über einem
    *  Ausschnitt behauptete „kein Treffer" für einen Eintrag, den es gibt. */
   audit: (suchpfad = "") => anfrage<Audit>(`/audit${suchpfad ? `?${suchpfad}` : ""}`),
+
+  // ------------------------------------------------------- Systembenutzer ---
+
+  systembenutzer: () => anfrage<Systembenutzer>("/system-users"),
+
+  /** schluessel holt die authorized_keys eines Kontos. Eigener Aufruf, weil die
+   *  Liste für dreißig Dienstkonten nichts mitschleppen soll, was nur beim
+   *  Anklicken eines einzelnen interessiert. */
+  schluessel: (konto: string) =>
+    anfrage<Schluesselliste>(`/system-users/${encodeURIComponent(konto)}/keys`),
+
+  /** kontoHandlung ist der eine Aufruf für alle verändernden Endpunkte —
+   *  dieselbe Überlegung wie bei dateiHandlung: Der Rückweg über
+   *  BestaetigungNoetig ist derselbe, und fünf Fassungen wären fünf Stellen, an
+   *  denen die Bestätigung nicht durchgereicht wird.
+   *
+   *  wohin ist der Pfad hinter /system-users: "" zum Anlegen, sonst
+   *  "/{name}/locked", "/{name}/delete", "/{name}/keys" oder
+   *  "/{name}/keys/remove". */
+  kontoHandlung: (
+    wohin: string,
+    felder: Partial<Kontoauftrag>,
+    bestaetigt = false,
+    getippt = "",
+  ) =>
+    anfrage<Kontoantwort>(`/system-users${wohin}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "",
+        notiz: "",
+        schale: "",
+        gruppen: [],
+        schluessel: "",
+        fingerprint: "",
+        gesperrt: false,
+        home_entfernen: false,
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    }),
 
   dienste: () => anfrage<Dienste>("/services"),
   dienst: (unit: string) => anfrage<DienstDetail>(`/services/${encodeURIComponent(unit)}`),

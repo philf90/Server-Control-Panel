@@ -1663,6 +1663,125 @@ async function main() {
   }));
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 12e. Benutzer & SSH. Der Kern ist die Frage beim LETZTEN Schlüssel: Sie ist
+  //      eine andere als „einen von dreien entfernen", weil danach das Konto
+  //      keinen Zugang mehr hat. Und die Gegenprobe an root: Ein geschütztes Konto
+  //      darf keinen Knopf zeigen, der dann verweigert.
+  const konten = {};
+  await seite.goto(`${basis}/v2/benutzer`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  konten.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  konten.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector(".zeile")?.textContent.trim() ?? "",
+      warn: tr.querySelector("td:nth-child(3) .zustand.warn") !== null,
+    })),
+  );
+  // Die Zähler sind Filter.
+  konten.filter = await seite.evaluate(() =>
+    [...document.querySelectorAll(".stufen button")].map((b) =>
+      b.textContent.replace(/\s+/g, " ").trim(),
+    ),
+  );
+
+  // root: geschützt, also keine verändernden Knöpfe.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find(
+      (x) => x.textContent.trim() === "root",
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  konten.rootHandgriffe = await seite.evaluate(() =>
+    [...document.querySelectorAll(".inspektor .aktionen .knopf")].map((b) =>
+      b.textContent.trim(),
+    ),
+  );
+  konten.rootHinweis = await seite.evaluate(() =>
+    [...document.querySelectorAll(".inspektor .detail")].some((p) =>
+      p.textContent.includes("nicht sperren"),
+    ),
+  );
+
+  // philipp: alles da, und die Schlüssel stehen im Inspektor.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find(
+      (x) => x.textContent.trim() === "philipp",
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor .schluesselblock", { timeout: 5000 });
+  konten.philipp = await seite.evaluate(() => ({
+    handgriffe: [...document.querySelectorAll(".inspektor .aktionen .knopf")].map((b) =>
+      b.textContent.trim(),
+    ),
+    schluessel: document.querySelectorAll(".inspektor .schluesselliste li").length,
+    // Der Ort der Datei steht dabei: Wer den Zugang verliert, muss wissen, wo er
+    // von Hand nachsehen kann.
+    datei: [...document.querySelectorAll(".inspektor .schluesselblock .detail")].some((p) =>
+      p.textContent.includes("authorized_keys"),
+    ),
+    // Bei genau einem Schlüssel steht die Anmerkung da, BEVOR jemand klickt.
+    letzterHinweis:
+      document.querySelector(".inspektor .schluesselblock .anmerkung")?.textContent.trim() ?? "",
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-benutzer.png`,
+      fullPage: true,
+    });
+  }
+
+  // Und jetzt der Punkt: Der letzte Schlüssel verlangt den Kontonamen.
+  await seite.click(".inspektor .schluesselliste .knopf");
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  konten.letzterSchluessel = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      tippfeld: d.querySelector(".tippen") !== null,
+      gesperrt: [...d.querySelectorAll(".knopf")].find((b) =>
+        b.textContent.includes("entfernen"),
+      )?.disabled,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  konten.nachAbbruch = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    // Der Schlüssel steht noch da. DAS ist die Prüfung, die zählt.
+    schluessel: document.querySelectorAll(".inspektor .schluesselliste li").length,
+  }));
+
+  // Die Maske zum Anlegen: Auswahlfelder und kein Freitext für Schale und Gruppen.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".werkzeuge .knopf")].find((x) =>
+      x.textContent.includes("Konto anlegen"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector("form.anlegen", { timeout: 5000 });
+  konten.anlegen = await seite.evaluate(() => {
+    const f = document.querySelector("form.anlegen");
+    return {
+      auswahlfelder: f.querySelectorAll("select").length,
+      hinweis: f.querySelector(".detail")?.textContent.trim() ?? "",
+      schluesselfeld: f.querySelector("textarea") !== null,
+    };
+  });
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  konten.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
@@ -1714,6 +1833,7 @@ async function main() {
       schreiben,
       editor,
       audit,
+      konten,
       bald,
       zweige,
       schmal,

@@ -27,6 +27,7 @@ export type Seite =
   | "firewall"
   | "dateien"
   | "audit"
+  | "benutzer"
   | "bald";
 
 /** gebauteSeiten sind die Kennungen, die eine eigene Seite haben. Als Objekt und
@@ -39,6 +40,7 @@ const gebauteSeiten: Record<string, Seite> = {
   firewall: "firewall",
   dateien: "dateien",
   audit: "audit",
+  benutzer: "benutzer",
 };
 
 /** angekuendigt sind die Module, die es noch nicht gibt, die aber im Menü stehen.

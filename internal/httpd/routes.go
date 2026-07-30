@@ -152,6 +152,20 @@ func (s *Server) Handler() http.Handler {
 	// Audit. Nur lesend, und das ist keine Auslassung: Das Protokoll ist nur
 	// additiv, es gibt im Store bewusst keine Lösch- oder Änderungsfunktion.
 	mux.Handle("GET /api/v1/audit", s.protected(http.HandlerFunc(s.handleAPIAudit)))
+	// Systembenutzer und ihre SSH-Schlüssel. Konten des WIRTSYSTEMS, nicht die des
+	// Panels — die stehen unter /api/v1/panel-users.
+	mux.Handle("GET /api/v1/system-users", s.protected(http.HandlerFunc(s.handleAPISystemUsers)))
+	mux.Handle("GET /api/v1/system-users/{name}/keys", s.protected(http.HandlerFunc(s.handleAPISSHKeys)))
+	mux.Handle("POST /api/v1/system-users",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISystemUserCreate))))
+	mux.Handle("POST /api/v1/system-users/{name}/locked",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISystemUserLocked))))
+	mux.Handle("POST /api/v1/system-users/{name}/delete",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISystemUserDelete))))
+	mux.Handle("POST /api/v1/system-users/{name}/keys",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISSHKeyAdd))))
+	mux.Handle("POST /api/v1/system-users/{name}/keys/remove",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISSHKeyRemove))))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

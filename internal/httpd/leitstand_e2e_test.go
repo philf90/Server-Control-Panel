@@ -567,6 +567,54 @@ type ergebnisLeitstand struct {
 			FensterBreite float64 `json:"fensterBreite"`
 		} `json:"schmal"`
 	} `json:"konto"`
+	Plaene struct {
+		Wesen  string `json:"wesen"`
+		Zeilen []struct {
+			Satz   string `json:"satz"`
+			Roh    string `json:"roh"`
+			Befehl string `json:"befehl"`
+			Aus    bool   `json:"aus"`
+		} `json:"zeilen"`
+		Eigener struct {
+			Knoepfe []string `json:"knoepfe"`
+			Satz    string   `json:"satz"`
+			Roh     string   `json:"roh"`
+		} `json:"eigener"`
+		Fremder struct {
+			Knoepfe   int    `json:"knoepfe"`
+			Anmerkung string `json:"anmerkung"`
+		} `json:"fremder"`
+		Formular struct {
+			Vorlagen []struct {
+				Name string `json:"name"`
+				Satz string `json:"satz"`
+			} `json:"vorlagen"`
+			Saetze   int      `json:"saetze"`
+			Benutzer []string `json:"benutzer"`
+		} `json:"formular"`
+		Frage struct {
+			Titel         string `json:"titel"`
+			Text          string `json:"text"`
+			Tippfeld      bool   `json:"tippfeld"`
+			KnopfGesperrt *bool  `json:"knopfGesperrt"`
+		} `json:"frage"`
+		FrageFalsch  *bool `json:"frageFalsch"`
+		FrageRichtig struct {
+			Host          bool  `json:"host"`
+			KnopfGesperrt *bool `json:"knopfGesperrt"`
+		} `json:"frageRichtig"`
+		Abgebrochen bool `json:"abgebrochen"`
+		Timer       []struct {
+			Unit      string `json:"unit"`
+			Naechster string `json:"naechster"`
+			Letzter   string `json:"letzter"`
+		} `json:"timer"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+			Beschriftung  string  `json:"beschriftung"`
+		} `json:"schmal"`
+	} `json:"plaene"`
 	FremdeRolle struct {
 		ImMenue     bool   `json:"imMenue"`
 		InPalette   int    `json:"inPalette"`
@@ -2279,6 +2327,137 @@ func TestLeitstandBrowser(t *testing.T) {
 	} else if ek.Schmal.KoerperBreite > ek.Schmal.FensterBreite+1 {
 		t.Errorf("die Kontoseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
 			ek.Schmal.KoerperBreite, ek.Schmal.FensterBreite)
+	}
+
+	// 6o. Zeitpläne. Der Kern ist die Doppelung: Der Zeitplan steht als Satz UND
+	// als rohes Feld auf dem Schirm. Ein Test auf die JSON-Antwort sieht beide
+	// Werte, aber nicht, dass beide angezeigt werden — und der Satz allein wäre
+	// eine Auslegung ohne Beleg.
+	pl := e.Plaene
+	if !strings.Contains(pl.Wesen, "fremde Crontabs") {
+		t.Errorf("der Satz über der Seite sagt nicht, dass fremde Crontabs unangetastet "+
+			"bleiben: %q", pl.Wesen)
+	}
+	if len(pl.Zeilen) < 4 {
+		t.Fatalf("%d Zeilen in der Zeitplantabelle, erwartet mindestens 4", len(pl.Zeilen))
+	}
+	for _, z := range pl.Zeilen {
+		if z.Satz == "" {
+			t.Errorf("eine Zeile ohne Zeitplan: %+v", z)
+		}
+		// Der Satz UND das rohe Feld. Der Satz ist die Lesehilfe, das Feld die
+		// Wahrheit — wo beides steht, muss niemand dem einen glauben.
+		if z.Roh == "" {
+			t.Errorf("bei %q fehlt der rohe Zeitplan — dann ist der Satz eine "+
+				"Auslegung ohne Beleg", z.Satz)
+		}
+		if z.Befehl == "" {
+			t.Errorf("eine Zeile ohne Befehl: %+v", z)
+		}
+	}
+	// Genau eine Zeile der Vorgabe ist abgeschaltet, und sie ist blasser, aber da.
+	// Ein abgeschalteter Eintrag, der verschwindet, wird ein zweites Mal angelegt.
+	var aus int
+	for _, z := range pl.Zeilen {
+		if z.Aus {
+			aus++
+		}
+	}
+	if aus != 1 {
+		t.Errorf("%d abgeschaltete Zeilen sichtbar, erwartet 1 — ein abgeschalteter "+
+			"Eintrag muss lesbar bleiben", aus)
+	}
+
+	// Der eigene Eintrag trägt die Handgriffe; ändern, schalten und löschen.
+	for _, erwartet := range []string{"ändern", "abschalten", "löschen"} {
+		if !enthaelt(pl.Eigener.Knoepfe, erwartet) {
+			t.Errorf("am eigenen Eintrag fehlt der Handgriff %q: %v", erwartet, pl.Eigener.Knoepfe)
+		}
+	}
+	if pl.Eigener.Roh == "" {
+		t.Error("im Inspektor fehlt der rohe Zeitplan")
+	}
+
+	// Der fremde Eintrag: keine Handgriffe, dafür die Quelle. Der Unterschied
+	// zwischen „geht nicht" und „geht hier nicht" — und das Panel nimmt niemandem
+	// den Weg über die Datei weg.
+	if pl.Fremder.Knoepfe != 0 {
+		t.Errorf("ein fremder Eintrag bietet %d Handgriffe — das Panel fasst Dateien "+
+			"ohne Verwaltungsmarker nicht an", pl.Fremder.Knoepfe)
+	}
+	if !strings.Contains(pl.Fremder.Anmerkung, "nicht dem Panel") {
+		t.Errorf("beim fremden Eintrag fehlt der Grund: %q", pl.Fremder.Anmerkung)
+	}
+
+	// Das Formular: Vorlagen mit Satz, und ein Satz je Feld — Grundsatz V.
+	if len(pl.Formular.Vorlagen) < 5 {
+		t.Errorf("%d Vorlagen — ohne sie heißt Anlegen \u201efünf Felder ausfüllen\u201c",
+			len(pl.Formular.Vorlagen))
+	}
+	for _, v := range pl.Formular.Vorlagen {
+		if v.Satz == "" {
+			t.Errorf("die Vorlage %q trägt ihren Satz nicht — dann muss man ihn raten", v.Name)
+		}
+	}
+	if pl.Formular.Saetze < 5 {
+		t.Errorf("nur %d Felder des Formulars erklären sich — Grundsatz V verlangt "+
+			"die Erklärung dort, wo etwas geschieht", pl.Formular.Saetze)
+	}
+	if len(pl.Formular.Benutzer) == 0 {
+		t.Error("die Benutzerauswahl ist leer — ein Eintrag für ein Konto, das es nicht " +
+			"gibt, läuft nie")
+	}
+
+	// Die Rückfrage für einen root-Eintrag: Stufe 3 mit dem Hostnamen, und der
+	// Knopf bleibt gesperrt, bis das Wort stimmt. Das ist Verhalten des Dialogs
+	// und nicht des Servers — nur der Browser sieht es.
+	if !pl.Frage.Tippfeld {
+		t.Error("ein Eintrag als root fragt ohne Tippfeld — sein Befehl läuft " +
+			"unbeaufsichtigt mit vollen Rechten, das ist Stufe 3")
+	}
+	if pl.Frage.KnopfGesperrt == nil || !*pl.Frage.KnopfGesperrt {
+		t.Error("der Knopf der Rückfrage ist offen, bevor der Hostname getippt ist")
+	}
+	if pl.FrageFalsch == nil || !*pl.FrageFalsch {
+		t.Error("ein falsch getippter Hostname öffnet den Knopf")
+	}
+	if pl.FrageRichtig.KnopfGesperrt == nil || *pl.FrageRichtig.KnopfGesperrt {
+		t.Error("der richtige Hostname öffnet den Knopf nicht — dann ist die Stufe " +
+			"eine Sperre und kein Innehalten")
+	}
+	// Und der Text nennt, worüber innegehalten wird: Zeit, Benutzer, Befehl.
+	for _, teil := range []string{"03:17", "root", "e2e.sh"} {
+		if !strings.Contains(pl.Frage.Text, teil) {
+			t.Errorf("die Rückfrage nennt %q nicht: %q", teil, pl.Frage.Text)
+		}
+	}
+	if !pl.Abgebrochen {
+		t.Error("der Abbruch schließt den Dialog nicht")
+	}
+
+	// Die Timer: „nie" statt eines Datums. Ein fehlender Zeitstempel, der zum
+	// 1. Januar 1970 wird, sieht nach einem echten Lauf aus.
+	if len(pl.Timer) != 2 {
+		t.Fatalf("%d Timer sichtbar, erwartet 2", len(pl.Timer))
+	}
+	for _, tm := range pl.Timer {
+		if strings.Contains(tm.Naechster, "1970") || strings.Contains(tm.Letzter, "1970") {
+			t.Errorf("%s zeigt 1970 — aus einem fehlenden Zeitstempel wurde ein Datum: %+v",
+				tm.Unit, tm)
+		}
+	}
+	if fstrim := pl.Timer[1]; fstrim.Letzter != "nie" {
+		t.Errorf("der nie gelaufene Timer zeigt %q statt \u201enie\u201c", fstrim.Letzter)
+	}
+
+	if pl.Schmal.FensterBreite == 0 {
+		t.Error("die Zeitplanseite wurde nicht im Schmalmodus gemessen")
+	} else if pl.Schmal.KoerperBreite > pl.Schmal.FensterBreite+1 {
+		t.Errorf("die Zeitplanseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie "+
+			"scrollt waagerecht", pl.Schmal.KoerperBreite, pl.Schmal.FensterBreite)
+	}
+	if pl.Schmal.Beschriftung == "" {
+		t.Error("den Karten auf dem Telefon fehlt die Spaltenbeschriftung (data-spalte)")
 	}
 
 	// 6k. Die Gegenprobe mit einer anderen Rolle. Ein Menüpunkt, der zuverlässig

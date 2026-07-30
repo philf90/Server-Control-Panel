@@ -1115,3 +1115,88 @@ export type Updateantwort = {
   update?: Panelupdate;
   hinweis?: string;
 };
+
+// ------------------------------------------------------------- Zeitpläne ---
+
+/** Zeitplaene ist die Antwort von GET /api/v1/schedules — Cron und Timer in
+ *  einem Aufruf, weil sie eine Frage beantworten: Was läuft hier von allein? */
+export type Zeitplaene = {
+  cron: Croneintrag[];
+  timer: Timer[];
+  rahmen: Zeitplanrahmen;
+  /** luecken sind Quellen, die sich nicht lesen ließen. Sie stehen in der
+   *  Antwort, weil eine unvollständige Liste als vollständig ausgegeben Grundsatz
+   *  IV bricht — das Panel versteckt nichts, auch nicht sein eigenes Unwissen. */
+  luecken: string[];
+  /** timer_fehler steht, wenn systemctl nicht antwortete. Auf einem System ohne
+   *  systemd ist das der Normalfall, und die Cron-Hälfte bleibt interessant. */
+  timer_fehler: string;
+};
+
+export type Croneintrag = {
+  quelle: string;
+  zeile: number;
+  schedule: string;
+  /** schedule_text ist derselbe Zeitplan in Worten — vom Server, damit es nur
+   *  eine Auslegung der fünf Felder gibt. */
+  schedule_text: string;
+  user: string;
+  command: string;
+  kommentar: string;
+  /** verwaltet heißt: Diese Datei trägt den Marker des Panels und darf
+   *  geschrieben werden. Alles andere ist Auskunft. */
+  verwaltet: boolean;
+  name: string;
+  /** art ist "zeile" für eine Crontab-Zeile, "skript" für eine Datei in einem
+   *  run-parts-Verzeichnis. */
+  art: string;
+  deaktiviert: boolean;
+  /** stufe ist die Rückfragestufe, die dieser Eintrag verlangt — vom Server
+   *  gerechnet. Zwei Rechnungen derselben Sicherheitsregel laufen auseinander. */
+  stufe: number;
+};
+
+export type Timer = {
+  unit: string;
+  loest: string;
+  beschreibung: string;
+  aktiv: string;
+  enabled: string;
+  /** naechster und letzter sind RFC-3339-Zeitpunkte; leer heißt „nicht bekannt".
+   *  Ein Timer, der noch nie lief, hat keinen letzten Lauf, und einer, der
+   *  abgeschaltet ist, keinen nächsten. */
+  naechster: string;
+  letzter: string;
+  plan: string;
+  persistent: boolean;
+};
+
+export type Zeitplanrahmen = {
+  benutzer: string[];
+  vorlagen: Zeitplanvorlage[];
+  verzeichnis: string;
+  darf_aendern: boolean;
+};
+
+export type Zeitplanvorlage = { name: string; schedule: string; text: string };
+
+export type Cronauftrag = {
+  name: string;
+  schedule: string;
+  user: string;
+  command: string;
+  kommentar: string;
+  aktiv: boolean;
+};
+
+export type Zeitplanantwort = { meldung: string; hinweis?: string };
+
+/** Timerlauf ist das Ergebnis des letzten Laufs der Unit, die ein Timer
+ *  auslöst — nicht des Timers: Der glückt immer, sobald er auslöst. */
+export type Timerlauf = {
+  unit: string;
+  ergebnis: string;
+  exit_code: number;
+  geglueckt: boolean;
+  zeilen: Logzeile[];
+};

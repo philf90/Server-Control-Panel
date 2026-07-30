@@ -49,6 +49,10 @@ import type {
   Zertifikat,
   Zertifikatantwort,
   Zertifikatauftrag,
+  Cronauftrag,
+  Timerlauf,
+  Zeitplaene,
+  Zeitplanantwort,
 } from "./typen";
 
 /** AbgemeldetFehler steht für die eine Antwort, die nicht wie ein Fehler
@@ -688,6 +692,34 @@ export const api = {
         getippt,
       }),
     }),
+
+  // ------------------------------------------------------------- Zeitpläne ---
+
+  zeitplaene: () => anfrage<Zeitplaene>("/schedules"),
+
+  /** cronSpeichern legt einen verwalteten Eintrag an oder ersetzt ihn.
+   *
+   *  Die Rückfragestufe steht nicht hier, sondern im Handler: Ein Eintrag als
+   *  root fragt mit dem Hostnamen zurück, einer als anderer Benutzer mit einem
+   *  zweiten Klick. Eine zweite Liste davon im Browser wäre die Stelle, an der
+   *  eine neue Stufe stillschweigend niedriger ausfällt. */
+  cronSpeichern: (auftrag: Cronauftrag, bestaetigt = false, getippt = "") =>
+    anfrage<Zeitplanantwort>("/schedules/cron", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...auftrag, bestaetigt, getippt }),
+    }),
+
+  cronLoeschen: (name: string, bestaetigt = false, getippt = "") =>
+    anfrage<Zeitplanantwort>(`/schedules/cron/${encodeURIComponent(name)}/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bestaetigt, getippt }),
+    }),
+
+  /** timerLauf fragt nach dem letzten Lauf der Unit, die der Timer auslöst. */
+  timerLauf: (unit: string) =>
+    anfrage<Timerlauf>(`/schedules/timers/${encodeURIComponent(unit)}/run`),
 
   dienste: () => anfrage<Dienste>("/services"),
   dienst: (unit: string) => anfrage<DienstDetail>(`/services/${encodeURIComponent(unit)}`),

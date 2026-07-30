@@ -9,6 +9,57 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Hinzugefügt
+
+- **Modul Cron & systemd-Timer in der neuen Oberfläche** (`/v2/cron`, vier
+  Routen unter `/api/v1/schedules`). Das erste Modul, das keine alte Fläche hat —
+  und damit das erste, für das `privops` um eine neue Familie wächst:
+  `CronList`, `CronWrite`, `CronDelete`, `TimerList`, `TimerRuns`.
+
+  Es ist die einzige Fläche des Panels, an der ein FREIER Befehl entsteht, denn
+  ein Cron-Eintrag *ist* eine Shell-Zeile — cron gibt sie an `/bin/sh`. Das ist
+  keine Aufweichung des Verzichts auf eine Shell, sondern das Wesen von cron, und
+  es steht ausgeschrieben in
+  [docs/16-neukonzeption.md](docs/16-neukonzeption.md) unter 4.2 und 7.2. Was den
+  Weg eng hält:
+
+  - **Geschrieben wird nur in eigene Dateien:** `/etc/cron.d/asylum-<name>`, mit
+    einem Marker in der ersten Zeile, eine Datei je Eintrag. Der Marker und nicht
+    der Dateiname entscheidet — wer von Hand eine Datei `asylum-backup` anlegt,
+    hat sie damit nicht dem Panel überschrieben. Fremde Crontabs
+    (`/etc/crontab`, fremde Dateien in `/etc/cron.d`, die Spool-Crontabs der
+    Benutzer, die `run-parts`-Verzeichnisse) werden gelesen und nie geschrieben.
+  - **Geprüft wird das Dateiformat, nicht der Befehlsinhalt.** Zeilenumbruch (der
+    einzige echte Injektionsweg in eine Crontab: er erzeugt einen zweiten Eintrag
+    mit eigenem Benutzerfeld), Steuerzeichen, ein unmaskiertes Prozentzeichen und
+    der Zeitplan gegen die Wertebereiche. Semikolon, Pipe und Umleitung bleiben
+    erlaubt — sie zu verbieten gäbe eine Sicherheit vor, die es nicht gibt.
+  - **Schreiben verlangt die Owner-Rolle**, Lesen genügt das Leserecht.
+  - **Ein Eintrag als root ist Stufe 3 mit dem Hostnamen** — eine begründete
+    Abweichung von [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md), wo er
+    als löschbar und damit umkehrbar Stufe 2 wäre: Der Eintrag ist umkehrbar,
+    seine Folgen sind es nicht, und er läuft unbeaufsichtigt. Als anderer
+    Benutzer Stufe 2, Abschalten Stufe 1, Löschen Stufe 2.
+  - **Der ganze Befehl steht im Audit-Protokoll.** Er ist die Antwort auf „was
+    lief da".
+
+  Dazu der Zeitplan **in Worten** neben dem rohen Feld („täglich um 03:17", „an
+  Werktagen um 06:30") — aus dem Server, damit es nur eine Auslegung der fünf
+  Felder gibt. Wo die Worte nicht reichen, sagt der Satz das offen statt zu
+  raten, und den Sonderfall benennt er ausdrücklich: Monatstag UND Wochentag
+  verknüpft cron mit ODER.
+
+  Timer sind **lesend**: Liste mit ausgelöster Unit, nächstem und letztem Lauf,
+  `OnCalendar` und `Persistent`, dazu das Ergebnis des letzten Laufs auf Abruf.
+  Gefragt wird dafür nach dem *Dienst*, den der Timer auslöst, nicht nach dem
+  Timer — der glückt immer, sobald er auslöst. Geschaltet werden Timer über die
+  Dienste (ein Timer ist eine Unit); das *Anlegen* eines Timers fehlt bewusst, die
+  Begründung steht in `internal/privops/timer.go`.
+
+- **Abgeschaltete Cron-Einträge bleiben lesbar.** Abschalten schreibt die Zeile
+  auskommentiert, statt sie zu entfernen. Ein Eintrag, der beim Abschalten
+  verschwindet, wird beim nächsten Mal ein zweites Mal angelegt.
+
 ## [0.4.0-rc.4] — 2026-07-30
 
 **Die Funktionsparität der neuen Oberfläche ist erreicht.** Alle zwölf Module der

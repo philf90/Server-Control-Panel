@@ -2461,6 +2461,194 @@ async function main() {
   }));
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 12k. Zeitpläne. Vier Dinge sind hier nur im Browser zu sehen:
+  //
+  //      1. Der Zeitplan steht ZWEIMAL da: als Satz und als rohes Feld. Ein Test
+  //         auf die JSON-Antwort sieht beide Werte, aber nicht, dass beide auf
+  //         dem Schirm landen — und der Satz allein wäre eine Auslegung ohne
+  //         Beleg.
+  //      2. Die Rückfrage für einen root-Eintrag verlangt den HOSTNAMEN, und der
+  //         Knopf bleibt gesperrt, bis er stimmt. Das ist Verhalten des Dialogs
+  //         und nicht des Servers.
+  //      3. Ein fremder Eintrag trägt keine Handgriffe, sondern seine Quelle. Auf
+  //         dem Schirm ist das der Unterschied zwischen „geht nicht" und „geht
+  //         hier nicht".
+  //      4. Die Timer-Tabelle zeigt für einen nie gelaufenen Timer „nie" und
+  //         nicht den 1. Januar 1970 — die Stelle, an der ein fehlender
+  //         Zeitstempel zu einem echt aussehenden Datum wird.
+  const plaene = {};
+  await seite.click('.seitenleiste a[href="/v2/cron"]');
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  plaene.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  // Der Satz UND das rohe Feld, Zeile für Zeile.
+  // Nur die ERSTE Tabelle: Die Timer-Tabelle weiter unten trägt dieselben
+  // Klassen, und ohne die Einschränkung stünden ihre Zeilen als Cron-Einträge in
+  // der Auswertung — eine Zahl, die stimmt, und eine Bedeutung, die nicht stimmt.
+  plaene.zeilen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle")[0].querySelectorAll("tbody tr")]
+      .filter((tr) => tr.querySelector(".zeile"))
+      .map((tr) => ({
+        satz: tr.querySelector(".satz")?.textContent.trim() ?? "",
+        roh: tr.querySelector(".roh")?.textContent.trim() ?? "",
+        befehl: tr.querySelector(".befehl")?.textContent.trim() ?? "",
+        aus: tr.classList.contains("aus"),
+      })),
+  );
+
+  // Ein eigener Eintrag: Handgriffe da. Der erste mit der Marke „vom Panel".
+  await seite.evaluate(() => {
+    const tab = document.querySelectorAll("table.tabelle")[0];
+    const tr = [...tab.querySelectorAll("tbody tr")].find((r) =>
+      [...r.querySelectorAll(".marke")].some((m) => m.textContent.includes("vom Panel")),
+    );
+    tr.querySelector(".zeile").click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  plaene.eigener = await seite.evaluate(() => ({
+    knoepfe: [...document.querySelectorAll(".inspektor .handgriffe .knopf")].map((b) =>
+      b.textContent.trim(),
+    ),
+    // Auch im Inspektor: Satz und rohes Feld.
+    satz: document.querySelector(".inspektor dl.kv dd")?.textContent.trim() ?? "",
+    roh: document.querySelector(".inspektor .roh")?.textContent.trim() ?? "",
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zeitplaene.png`,
+      fullPage: true,
+    });
+  }
+
+  // Ein fremder Eintrag: keine Handgriffe, dafür die Quelle.
+  await seite.evaluate(() => {
+    const tab = document.querySelectorAll("table.tabelle")[0];
+    const tr = [...tab.querySelectorAll("tbody tr")].find((r) => r.querySelector(".pfad"));
+    tr.querySelector(".zeile").click();
+  });
+  await seite.waitForTimeout(300);
+  plaene.fremder = await seite.evaluate(() => ({
+    knoepfe: document.querySelectorAll(".inspektor .handgriffe .knopf").length,
+    anmerkung: document.querySelector(".inspektor .anmerkung")?.textContent.trim() ?? "",
+  }));
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+
+  // Das Formular. Der Zeitplan kommt aus einer Vorlage — der Knopf trägt den
+  // Satz im Titelattribut, damit „jede Nacht" nicht geraten werden muss.
+  await seite.click(".werkzeuge .knopf.leise.klein");
+  await seite.waitForSelector("form.anlegen", { timeout: 5000 });
+  plaene.formular = await seite.evaluate(() => ({
+    vorlagen: [...document.querySelectorAll(".vorlagen .knopf")].map((b) => ({
+      name: b.textContent.trim(),
+      satz: b.getAttribute("title") ?? "",
+    })),
+    // Jedes Feld hat seinen Satz — Grundsatz V: die Oberfläche erklärt sich dort,
+    // wo etwas geschieht.
+    saetze: [...document.querySelectorAll("form.anlegen label small")].length,
+    benutzer: [...document.querySelectorAll("form.anlegen select option")].map((o) =>
+      o.textContent.trim(),
+    ),
+  }));
+
+  // Anlegen als root: Stufe 3. Der Knopf im Dialog bleibt gesperrt, bis der
+  // Hostname stimmt — das ist das eigentlich Prüfenswerte.
+  await seite.fill('form.anlegen label:nth-of-type(1) input', "e2e-nachtlauf");
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".vorlagen .knopf")].find((x) =>
+      x.textContent.includes("jede Nacht"),
+    );
+    b.click();
+  });
+  await seite.fill('form.anlegen label:nth-of-type(4) input', "/usr/local/bin/e2e.sh --nacht");
+  await seite.fill('form.anlegen label:nth-of-type(5) input', "Vom Browsertest angelegt");
+  await seite.click('form.anlegen button[type=submit]');
+  await seite.waitForSelector("dialog[open]", { timeout: 5000 });
+
+  plaene.frage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog[open]");
+    // Der bestätigende Knopf trägt .gefahr. Nach type=submit zu suchen war
+    // falsch: Beide Knöpfe des Dialogs sind type=button, weil ein Enter darin
+    // nichts zerstören soll — die Suche fand nichts und lieferte null, was wie
+    // „nicht gesperrt" gelesen worden wäre.
+    const knopf = d.querySelector(".knopf.gefahr");
+    return {
+      titel: d.querySelector("h2, b, strong")?.textContent.trim() ?? "",
+      text: d.textContent.replace(/\s+/g, " ").trim(),
+      // Ein Feld zum Tippen heißt Stufe 3.
+      tippfeld: d.querySelector("input[type=text]") !== null,
+      knopfGesperrt: knopf?.disabled ?? null,
+    };
+  });
+
+  // Ein falsches Wort lässt den Knopf gesperrt.
+  await seite.fill("dialog[open] input[type=text]", "irgendwas");
+  await seite.waitForTimeout(150);
+  plaene.frageFalsch = await seite.evaluate(() => {
+    const d = document.querySelector("dialog[open]");
+    return d.querySelector(".knopf.gefahr")?.disabled ?? null;
+  });
+
+  // Der richtige Hostname öffnet ihn. Er steht im Statusband und ist abzulesen —
+  // der Test liest ihn dort, wie ein Mensch es täte.
+  const hostname = await seite.evaluate(
+    () => document.querySelector(".statusband .wirt b")?.textContent.trim() ?? "",
+  );
+  await seite.fill("dialog[open] input[type=text]", hostname);
+  await seite.waitForTimeout(150);
+  plaene.frageRichtig = await seite.evaluate(() => {
+    const d = document.querySelector("dialog[open]");
+    return { host: true, knopfGesperrt: d.querySelector(".knopf.gefahr")?.disabled ?? null };
+  });
+  await seite.evaluate(() => {
+    document.querySelector("dialog[open] .knopf.leise")?.click();
+  });
+  await seite.waitForTimeout(300);
+  plaene.abgebrochen = await seite.evaluate(
+    () => document.querySelector("dialog[open]") === null,
+  );
+
+  // Die Timer-Tabelle. „nie" statt eines Datums für den Timer, der noch nie lief.
+  plaene.timer = await seite.evaluate(() => {
+    const kopf = document.querySelector("#timer");
+    if (!kopf) return null;
+    // Die zweite Tabelle der Seite ist die der Timer.
+    const tabellen = [...document.querySelectorAll("table.tabelle")];
+    const tab = tabellen[tabellen.length - 1];
+    return [...tab.querySelectorAll("tbody tr")].map((tr) => {
+      const td = [...tr.querySelectorAll("td")];
+      return {
+        unit: td[0]?.querySelector(".satz")?.textContent.trim() ?? "",
+        naechster: td[2]?.textContent.trim() ?? "",
+        letzter: td[3]?.textContent.trim() ?? "",
+      };
+    });
+  });
+
+  // Und schmal: Tabellen werden unter 600 Pixeln zu Karten, der Körper darf nicht
+  // waagerecht scrollen. Diese Seite hat ZWEI Tabellen — die Lektion aus rc.4
+  // gilt für jede von ihnen, und gemessen wird sie, nicht vermutet.
+  await seite.setViewportSize({ width: 375, height: 900 });
+  await seite.waitForTimeout(250);
+  plaene.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+    // Die Beschriftung der Karten kommt aus data-spalte. Fehlt sie, steht auf dem
+    // Telefon eine Spalte ohne Namen.
+    beschriftung:
+      document.querySelector("table.tabelle tbody td")?.getAttribute("data-spalte") ?? "",
+  }));
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zeitplaene-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
@@ -2517,6 +2705,7 @@ async function main() {
       zert,
       upd,
       konto,
+      plaene,
       fremdeRolle,
       bald,
       zweige,

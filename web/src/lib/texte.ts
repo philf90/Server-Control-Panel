@@ -783,6 +783,86 @@ export const t = {
     gefiltert: (n: number) => (n === 1 ? "1 Eintrag" : `${n} Einträge`),
   },
 
+  zeitplaene: {
+    wesen:
+      "Was auf diesem Server von allein läuft: Cron-Einträge und systemd-Timer. Gelesen wird alles, geschrieben nur, was das Panel selbst angelegt hat — fremde Crontabs bleiben unangetastet.",
+    laedt: "Zeitpläne werden gelesen …",
+    suchen: "Befehl, Benutzer oder Zeitplan",
+    nichts: "Kein Zeitplan passt zur Suche.",
+    // Die Zähler oben sind die Filter — Grundsatz II: jede Zahl ist ein Griff.
+    alle: "alle",
+    eigene: "vom Panel",
+    fremde: "vom System",
+    aus: "abgeschaltet",
+    // Spalten der Cron-Tabelle.
+    wann: "wann",
+    wer: "als",
+    was: "Befehl",
+    herkunft: "Quelle",
+    // Der rohe Zeitplan steht neben dem Satz. Beides, weil der Satz eine
+    // Lesehilfe ist und kein Ersatz: Wer die fünf Felder kennt, liest sie
+    // schneller, und wer sie nicht kennt, braucht den Satz.
+    rohHinweis: "Zeitplan in Cron-Schreibweise",
+    keinSatz: "Dieser Zeitplan lässt sich nicht in einen Satz fassen — es gilt das Feld links.",
+    nurAuskunft: "Dieser Eintrag gehört nicht dem Panel. Er wird gelesen und nicht angefasst; ändern lässt er sich in",
+    skript:
+      "Eine Datei in einem run-parts-Verzeichnis. Was dort liegt und ausführbar ist, läuft — es gibt keine Crontab-Zeile dazu.",
+    abgeschaltet: "abgeschaltet",
+    zeileIn: (zeile: number) => `Zeile ${zeile}`,
+    // Anlegen und Ändern.
+    anlegen: "Zeitplan anlegen",
+    anlegenTitel: "Neuer Zeitplan",
+    aendern: "ändern",
+    speichern: "speichern",
+    abbrechen: "abbrechen",
+    loeschen: "löschen",
+    einschalten: "einschalten",
+    ausschalten: "abschalten",
+    name: "Name",
+    namePlatzhalter: "sicherung",
+    nameHinweis:
+      "Wird zum Dateinamen unter /etc/cron.d. Kleinbuchstaben, Ziffern, Bindestrich, Unterstrich — kein Punkt: cron überspringt Dateien mit Punkt im Namen stillschweigend.",
+    plan: "Zeitplan",
+    planHinweis: "Fünf Felder (Minute Stunde Tag Monat Wochentag) oder ein Sonderwort wie @daily.",
+    vorlagen: "Vorlagen",
+    benutzer: "läuft als",
+    benutzerHinweis:
+      "Der Befehl läuft mit den Rechten dieses Kontos. Als root heißt das: vollen Zugriff auf den Server.",
+    befehl: "Befehl",
+    befehlHinweis:
+      "Die Zeile geht an /bin/sh — Pipes, Umleitungen und Semikolon sind erlaubt. Ein Prozentzeichen muss maskiert werden (\\%), sonst beendet es in einer Crontab den Befehl.",
+    beschreibung: "Beschreibung",
+    beschreibungHinweis:
+      "Steht als Kommentarzeile über dem Eintrag. In sechs Monaten die wichtigste Angabe der Datei.",
+    aktiv: "läuft",
+    aktivHinweis:
+      "Abgeschaltet wird die Zeile auskommentiert geschrieben: Sie bleibt lesbar, statt zu verschwinden.",
+    nurLesen: "Zeitpläne ändern darf nur die Owner-Rolle.",
+    nurOwner:
+      "Ein Cron-Eintrag ist eine Shell-Zeile: Wer einen anlegen darf, führt Code als den eingetragenen Benutzer aus. Deshalb liegt das Schreiben bei derselben Schranke wie die Systemkonten.",
+    schreibtNach: (dir: string) => `Verwaltete Einträge liegen in ${dir}.`,
+    luecken: "Nicht alle Quellen ließen sich lesen",
+    // Timer.
+    timerTitel: "systemd-Timer",
+    timerWesen:
+      "Timer werden gelesen. Starten, stoppen und beim Hochfahren aktivieren geht über die Dienste — ein Timer ist eine Unit. Neue Timer legt das Panel nicht an; wer die Härtung von systemd braucht, schreibt die Units von Hand.",
+    timerNichts: "Es gibt keine Timer auf diesem System.",
+    timerFehler: "systemd antwortet nicht",
+    timerUnit: "Timer",
+    timerLoest: "startet",
+    timerNaechster: "nächster Lauf",
+    timerLetzter: "letzter Lauf",
+    timerNie: "nie",
+    timerUnbekannt: "unbekannt",
+    timerPersistent: "holt versäumte Läufe nach",
+    timerZuDenDiensten: "zu den Diensten",
+    laufTitel: "Letzter Lauf",
+    laufGeglueckt: "ohne Fehler",
+    laufGescheitert: (code: number) => `gescheitert (Rückgabewert ${code})`,
+    laufUnbekannt: "noch nie gelaufen",
+    laufFragen: "Ergebnis des letzten Laufs holen",
+  },
+
   bald: {
     ab: (fassung: string) => `geplant für ${fassung}`,
     satz: (modul: string, fassung: string) =>

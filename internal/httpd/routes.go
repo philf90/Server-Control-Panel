@@ -204,6 +204,19 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIZertifikatSpeichern))))
 	mux.Handle("POST /api/v1/certificate/obtain",
 		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIZertifikatBezug))))
+	// Zeitpläne: Cron-Einträge und systemd-Timer. Lesen genügt das Leserecht — wer
+	// wissen darf, welche Dienste laufen, darf wissen, was nachts läuft. Schreiben
+	// verlangt die Owner-Rolle: Ein Cron-Eintrag IST eine Shell-Zeile, und wer
+	// einen anlegen darf, führt Code als den eingetragenen Benutzer aus. Die
+	// Begründung steht im Kopf von api_v1_zeitplaene.go.
+	mux.Handle("GET /api/v1/schedules", s.protected(http.HandlerFunc(s.handleAPIZeitplaene)))
+	mux.Handle("GET /api/v1/schedules/timers/{unit}/run",
+		s.protected(http.HandlerFunc(s.handleAPITimerLauf)))
+	mux.Handle("POST /api/v1/schedules/cron",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPICronSpeichern)))))
+	mux.Handle("POST /api/v1/schedules/cron/{name}/delete",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPICronLoeschen)))))
+
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst
 	// bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen, mit dem es

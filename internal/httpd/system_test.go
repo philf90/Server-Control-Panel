@@ -55,6 +55,16 @@ type fakeOps struct {
 	// eine Datei ohne Prüfprogramm sagt.
 	configCheck    privops.ConfigCheckResult
 	configCheckErr error
+
+	// Zeitpläne. cronLuecken ist absichtlich befüllbar: Eine Quelle, die sich
+	// nicht lesen ließ, muss die Oberfläche nennen, und das gehört geprüft.
+	cronEntries  []privops.CronEntry
+	cronLuecken  []string
+	cronSpecs    []privops.CronSpec
+	cronWriteErr error
+	timers       []privops.Timer
+	timerLauf    privops.TimerLauf
+	timerErr     error
 }
 
 func newFakeOps() *fakeOps {
@@ -91,6 +101,60 @@ func newFakeOps() *fakeOps {
 		},
 		refreshResult: privops.PackageRefreshResult{Reached: 2},
 		refreshDone:   make(chan struct{}),
+
+		// Die Zeitplan-Vorgabe hält alle vier Fälle bereit, die die Oberfläche
+		// unterschiedlich behandeln muss: ein eigener Eintrag (schaltbar), ein
+		// abgeschalteter eigener, eine fremde Zeile aus /etc/crontab (nur
+		// Auskunft) und ein run-parts-Skript (gar keine Zeile).
+		cronEntries: []privops.CronEntry{
+			{
+				Quelle: "/etc/cron.d/asylum-sicherung", Zeile: 8,
+				Schedule: "17 3 * * *", ScheduleText: privops.ScheduleText("17 3 * * *"),
+				User: "root", Command: "/usr/local/bin/sicherung.sh",
+				Kommentar: "Nachtsicherung", Verwaltet: true, Name: "sicherung", Art: "zeile",
+			},
+			{
+				Quelle: "/etc/cron.d/asylum-bericht", Zeile: 9,
+				Schedule: "0 6 * * 1", ScheduleText: privops.ScheduleText("0 6 * * 1"),
+				User: "philipp", Command: "/usr/local/bin/bericht.sh",
+				Verwaltet: true, Name: "bericht", Art: "zeile", Deaktiviert: true,
+			},
+			{
+				Quelle: "/etc/crontab", Zeile: 4,
+				Schedule: "*/10 * * * *", ScheduleText: privops.ScheduleText("*/10 * * * *"),
+				User: "root", Command: "test -x /usr/sbin/anacron || cd / && run-parts --report /etc/cron.daily",
+				Art: "zeile",
+			},
+			{
+				Quelle:   "/etc/cron.daily/logrotate",
+				Schedule: "@daily", ScheduleText: privops.ScheduleText("@daily"),
+				User: "root", Command: "/etc/cron.daily/logrotate", Art: "skript",
+			},
+		},
+		// Der zweite Timer hat absichtlich keine Zeitpunkte: Ein abgeschalteter
+		// Timer hat keinen nächsten Lauf, und ein nie gelaufener keinen letzten.
+		// Die Oberfläche muss das zeigen können, ohne 1970 zu behaupten.
+		timers: []privops.Timer{
+			{
+				Unit: "apt-daily.timer", Loest: "apt-daily.service",
+				Beschreibung: "Daily apt download activities",
+				Aktiv:        "active", Enabled: "enabled",
+				Naechster:  zeitpunkt(6 * time.Hour),
+				Letzter:    zeitpunkt(-18 * time.Hour),
+				Plan:       "*-*-* 6,18:00:00",
+				Persistent: true,
+			},
+			{
+				Unit: "fstrim.timer", Loest: "fstrim.service",
+				Beschreibung: "Discard unused blocks once a week",
+				Aktiv:        "inactive", Enabled: "disabled",
+				Plan: "Mon *-*-* 00:00:00",
+			},
+		},
+		timerLauf: privops.TimerLauf{
+			Unit: "apt-daily.service", Ergebnis: "success", ExitCode: 0, Geglueckt: true,
+			Zeilen: []privops.LogEntry{},
+		},
 	}
 }
 
@@ -343,6 +407,85 @@ func (f *fakeOps) SelfUpdateStart(_ context.Context, spec privops.SelfUpdateSpec
 	defer f.mu.Unlock()
 	f.selfUpdates = append(f.selfUpdates, spec)
 	return f.selfUpdateErr
+}
+
+// zeitpunkt gibt einen Zeitpunkt relativ zu jetzt als Zeiger. Die Timer-Felder
+// sind Zeiger, weil „kein Zeitpunkt" ein eigener Zustand ist.
+func zeitpunkt(d time.Duration) *time.Time {
+	t := time.Now().Add(d)
+	return &t
+}
+
+// ---------------------------------------------------------- Cron und Timer ---
+//
+// Die Attrappe schreibt keine Crontab und ruft kein systemctl. Was hier geprüft
+// wird, ist die Oberfläche: dass sie die Auskunft weitergibt, die Stufen der
+// Rückfrage einhält und die Vorgabe unverändert an privops übergibt. Dass eine
+// Crontab richtig gelesen und atomar geschrieben wird, steht in
+// internal/privops/cron_test.go — dort mit echten Dateien in einem
+// Wegwerfverzeichnis.
+
+func (f *fakeOps) CronList(context.Context) ([]privops.CronEntry, []string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.cronEntries, f.cronLuecken, nil
+}
+
+func (f *fakeOps) CronWrite(_ context.Context, spec privops.CronSpec) error {
+	f.record("cron:write:" + spec.Name)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.cronWriteErr != nil {
+		return f.cronWriteErr
+	}
+	f.cronSpecs = append(f.cronSpecs, spec)
+	return nil
+}
+
+func (f *fakeOps) CronDelete(_ context.Context, name string) error {
+	f.record("cron:delete:" + name)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	gefiltert := f.cronEntries[:0]
+	for _, e := range f.cronEntries {
+		if e.Verwaltet && e.Name == name {
+			continue
+		}
+		gefiltert = append(gefiltert, e)
+	}
+	f.cronEntries = gefiltert
+	return nil
+}
+
+// letzteCronSpec liefert die zuletzt geschriebene Vorgabe.
+func (f *fakeOps) letzteCronSpec(t *testing.T) privops.CronSpec {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.cronSpecs) == 0 {
+		t.Fatal("es wurde kein Zeitplan geschrieben")
+	}
+	return f.cronSpecs[len(f.cronSpecs)-1]
+}
+
+func (f *fakeOps) TimerList(context.Context) ([]privops.Timer, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.timers, f.timerErr
+}
+
+func (f *fakeOps) TimerRuns(_ context.Context, unit string) (privops.TimerLauf, error) {
+	f.record("timer:runs:" + unit)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.timerErr != nil {
+		return privops.TimerLauf{}, f.timerErr
+	}
+	lauf := f.timerLauf
+	if lauf.Unit == "" {
+		lauf.Unit = unit
+	}
+	return lauf, nil
 }
 
 // newSystemServer baut einen Server mit dem gefälschten Executor.

@@ -49,8 +49,9 @@ export const gruppen: Gruppe[] = [
         id: "dienste",
         label: t.ziele.dienste,
         symbol: "zahnrad",
-        href: "/services",
+        href: "/v2/dienste",
         gruppe: t.bereiche.system,
+        neu: true,
         auch: ["systemd", "units", "service", "neustart"],
       },
       {

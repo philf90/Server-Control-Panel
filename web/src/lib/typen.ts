@@ -140,6 +140,84 @@ export type Signale = {
   signale: Signal[];
 };
 
+/** Zustand ist der eine Wert, den die Liste einfärbt. Gebildet wird er auf dem
+ *  Server aus zwei systemd-Feldern (Active und Sub) — damit die Liste, die
+ *  Zähler und der Handlungsbedarf dieselben Dienste als gescheitert zählen. */
+export type Zustand = "laeuft" | "gescheitert" | "aus";
+
+/** Dienst ist eine Zeile der Dienstliste. */
+export type Dienst = {
+  unit: string;
+  name: string;
+  beschreibung: string;
+  zustand: Zustand;
+  aktiv: string;
+  unterzustand: string;
+  laden: string;
+  autostart: string;
+};
+
+/** Logzeile ist eine Journalzeile im Inspektor. */
+export type Logzeile = {
+  at: string;
+  stufe: string;
+  nachricht: string;
+  ernst: boolean;
+};
+
+/** DienstAktion ist eine der sechs erlaubten Aktionen aus der privops-Liste.
+ *  Mehr gibt es nicht — es existiert kein Weg, eine beliebige
+ *  systemctl-Unteraktion durchzureichen. */
+export type DienstAktion = "start" | "stop" | "restart" | "reload" | "enable" | "disable";
+
+/** DienstDetail ist die Antwort von GET /api/v1/services/{unit}. */
+export type DienstDetail = Dienst & {
+  seit: string;
+  haupt_pid: number;
+  speicher: string;
+  speicher_bytes: number;
+  aufgaben: number;
+  unit_datei: string;
+  logzeilen: Logzeile[];
+  aktionen: DienstAktion[];
+};
+
+/** Dienste ist die Antwort von GET /api/v1/services. */
+export type Dienste = {
+  dienste: Dienst[];
+  zaehler: {
+    gesamt: number;
+    laeuft: number;
+    gescheitert: number;
+    aus: number;
+  };
+};
+
+/** Bestaetigung ist der Text einer Rückfrage, wie der Server sie stellt.
+ *
+ *  Sie kommt vom Server und wird nicht im Browser formuliert: Der Handler führt
+ *  nichts aus, solange `bestaetigt` fehlt, und schickt stattdessen diesen Text.
+ *  Damit steht die Frage einmal — dort, wo sie auch erzwungen wird. Siehe
+ *  docs/14-bestaetigungen.md. */
+export type Bestaetigung = {
+  titel: string;
+  frage: string;
+  punkte: string[];
+  knopf: string;
+  /** Leer heißt Stufe 2: ein zweiter Klick genügt. Gefüllt heißt Stufe 3 — das
+   *  Wort muss getippt werden. */
+  tippen: string;
+  tippen_hinweis: string;
+  fehler?: string;
+};
+
+/** AktionAntwort ist die Antwort auf eine ausgeführte Aktion: die Meldung und
+ *  der neu gelesene Zustand des Ziels. */
+export type AktionAntwort = {
+  meldung: string;
+  detail: DienstDetail;
+};
+
 /** Punkt ist eine Stützstelle eines Verlaufs: Stelle im 100×34-Feld und die
  *  fertigen Texte für die Ablesung. Gerechnet wird auf dem Server. */
 export type Punkt = {

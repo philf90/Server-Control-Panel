@@ -93,6 +93,11 @@ func funcs() template.FuncMap {
 // auseinander.
 func FormatRate(bytesPerSecond float64) string { return formatRate(bytesPerSecond) }
 
+// FormatBytes ist die Größenangabe für denselben Fall — die JSON-Schnittstelle
+// formatiert den Speicherverbrauch eines Dienstes, und die Vorlagen schreiben
+// dieselbe Zahl mit `bytes`.
+func FormatBytes(b uint64) string { return formatBytes(b) }
+
 func formatBytes(b uint64) string {
 	const unit = 1024
 	if b < unit {

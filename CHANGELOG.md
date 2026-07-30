@@ -35,6 +35,52 @@ nicht als Release getaggt.
   anbieten; die Suche ist dafür so geschnitten, dass eine zweite Quelle nur eine
   weitere Liste ist.
 
+- **Modul Dienste in der neuen Oberfläche** — das erste neben der Übersicht, und
+  damit die Form, die die weiteren übernehmen (siehe
+  [docs/16-neukonzeption.md](docs/16-neukonzeption.md) 8.4). Liste links,
+  Inspektor rechts, kein Seitenwechsel: Wer einen Dienst neustartet, sieht danach
+  die Liste mit der neuen Zeile darin und muss die Stelle nicht wiederfinden.
+
+  Die Auswahl steht in der Adresse (`?unit=nginx.service`). Ein Verweis auf einen
+  bestimmten Dienst ist damit teilbar, ein Neuladen zeigt denselben Zustand, und
+  der Zurück-Knopf schließt den Inspektor. Gesucht wird auch in der Beschreibung
+  — wer „web" tippt, sucht nginx, und der Unitname sagt das nicht —, und die
+  Zähler über der Liste sind selbst die Filter.
+
+  Gescheitertes steht oben, weil es der Grund ist, die Seite zu öffnen. Zustand,
+  Zähler, Sortierung und die zum Zustand passenden Aktionen rechnet der Server:
+  `static` und `masked` bekommen keinen Autostart-Knopf, weil `systemctl enable`
+  daran scheitert und ein Knopf, der immer einen Fehler liefert, schlimmer ist als
+  keiner.
+
+- **Rückfragen ohne gerenderte Seite.** `/api/v1` führt eine zerstörende Aktion
+  nicht aus, solange `bestaetigt` fehlt, und antwortet stattdessen mit **409** und
+  dem Text der Rückfrage — Titel, Frage, Folgen, Knopfbeschriftung und bei Stufe 3
+  das zu tippende Wort. Das ist [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md)
+  wortgleich übersetzt: Die Zwischenseite wird ein Objekt, verbindlich bleibt der
+  Handler. Ein selbstgebautes POST ohne das Feld tut weiterhin nichts.
+
+  Der Dialog ist ein echtes `<dialog>` mit `showModal()` — Fokusfang, oberste
+  Ebene und Escape kommen vom Browser. Der gefährliche Knopf bekommt den Fokus
+  nicht, und bei Stufe 3 bleibt er gesperrt, bis das Wort stimmt. Zwei Tests an
+  den Quellen halten fest, dass niemand die Abkürzung über `window.confirm` nimmt:
+  Die würde funktionieren — und wäre eine Rückfrage, an der ein POST vorbeikommt.
+
+- **Wegewahl ohne Neuladen.** Die neue Oberfläche hat einen eigenen Router von
+  etwa achtzig Zeilen statt einer Bibliothek. Beim Seitenwechsel bleiben
+  Statusband und Live-Kanal stehen — in der alten Oberfläche flackerten die Zahlen
+  oben bei jedem Klick, weil jede Seite neu kam. Ziele, deren Modul noch fehlt,
+  zeigen weiter auf die alte Oberfläche und laden ganz normal; Mittelklick und
+  „in neuem Tab öffnen" funktionieren überall, weil die Verweise echte `<a href>`
+  bleiben.
+
+### Behoben
+
+- **Escape schloss zwei Dinge auf einmal.** Ein Escape im Rückfrage-Dialog brach
+  nicht nur die Rückfrage ab, sondern schloss auch den Inspektor darunter — die
+  Auswahl war danach weg. Ein offener Dialog besitzt Escape jetzt allein. Gesehen
+  hat das der Browsertest, kein Nachdenken.
+
 ## [0.4.0-rc.1] — 2026-07-30
 
 ### Hinzugefügt

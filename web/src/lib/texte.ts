@@ -84,6 +84,57 @@ export const t = {
     keineProzesse: "Keine Prozessdaten verfügbar.",
   },
 
+  dienste: {
+    laedt: "wird geladen …",
+    suchen: "Dienst suchen",
+    filtern: "Nach Zustand filtern",
+    alle: "alle",
+    unit: "Unit",
+    zustandSpalte: "Zustand",
+    autostart: "Autostart",
+    beschreibung: "Beschreibung",
+    nichts: "Kein Dienst passt zu dieser Suche.",
+    // Die drei Wörter für den einen Zustand, den der Server bildet. Die
+    // Schlüssel sind die Werte aus der Schnittstelle, damit die Zuordnung ohne
+    // eine zweite Tabelle auskommt.
+    zustand: {
+      laeuft: "läuft",
+      gescheitert: "fehlgeschlagen",
+      aus: "aus",
+    },
+    seit: "Aktiv seit",
+    pid: "PID",
+    speicher: "Speicher",
+    unitDatei: "Unit-Datei",
+    journal: "Letzte Journalzeilen",
+    keineZeilen: "Keine Journalzeilen zu dieser Unit.",
+    laeuft: "läuft …",
+    nurLesen: "Dieses Konto darf lesen, aber nicht schalten.",
+    // Beschriftungen der Aktionen. Die Schlüssel sind die Namen aus der
+    // privops-Allowlist — mehr Aktionen gibt es nicht.
+    aktion: {
+      start: "starten",
+      stop: "stoppen",
+      restart: "neu starten",
+      reload: "neu laden",
+      enable: "Autostart ein",
+      disable: "Autostart aus",
+    },
+    units: (n: number) => (n === 1 ? "1 Unit" : `${n} Units`),
+    gescheiterte: (n: number) =>
+      n === 1 ? "1 fehlgeschlagen" : `${n} fehlgeschlagen`,
+  },
+
+  inspektor: {
+    titel: "Einzelheiten",
+    schliessen: "Einzelheiten schließen",
+  },
+
+  rueckfrage: {
+    abbrechen: "abbrechen",
+    laeuft: "läuft …",
+  },
+
   palette: {
     titel: "Suchen und springen",
     platzhalter: "Suchen oder springen …",

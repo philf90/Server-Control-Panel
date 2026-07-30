@@ -56,6 +56,45 @@ type ergebnisLeitstand struct {
 		KlickInnenHaelt   bool     `json:"klickInnenHaelt"`
 		KlickDaneben      bool     `json:"klickDanebenSchliesst"`
 	} `json:"palette"`
+	Dienste struct {
+		OhneNeuladen bool   `json:"ohneNeuladen"`
+		Pfad         string `json:"pfad"`
+		NavAktiv     string `json:"navAktiv"`
+		Reihen       []struct {
+			Name    string `json:"name"`
+			Zustand string `json:"zustand"`
+		} `json:"reihen"`
+		NachKlick struct {
+			Suche string `json:"suche"`
+			Titel string `json:"titel"`
+			Paare int    `json:"paare"`
+		} `json:"nachKlick"`
+		NachZurueck struct {
+			Inspektor bool   `json:"inspektor"`
+			Pfad      string `json:"pfad"`
+			Suche     string `json:"suche"`
+		} `json:"nachZurueck"`
+		NachNeuladen   string   `json:"nachNeuladen"`
+		Gefiltert      []string `json:"gefiltert"`
+		NurGescheitert []string `json:"nurGescheitert"`
+		Rueckfrage     struct {
+			Frage          string `json:"frage"`
+			Punkte         int    `json:"punkte"`
+			FokusAufGefahr bool   `json:"fokusAufGefahr"`
+			Tippfeld       bool   `json:"tippfeld"`
+		} `json:"rueckfrage"`
+		NachAbbruch      bool `json:"nachAbbruch"`
+		NachBestaetigung struct {
+			DialogZu bool   `json:"dialogZu"`
+			Meldung  string `json:"meldung"`
+		} `json:"nachBestaetigung"`
+		EscapeSchliesst bool `json:"escapeSchliesst"`
+		Schmal          struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+			InspektorOben bool    `json:"inspektorOben"`
+		} `json:"schmal"`
+	} `json:"dienste"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -308,6 +347,106 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if !e.Palette.KlickDaneben {
 		t.Error("ein Klick neben die Palette schließt sie nicht — der einzige Ausweg wäre Escape")
+	}
+
+	// 6b. Das Modul Dienste — die Form, die die weiteren Module übernehmen.
+	d := e.Dienste
+	if !d.OhneNeuladen {
+		t.Error("der Wechsel zu den Diensten hat die Seite neu geladen — dann fällt " +
+			"das Statusband mitsamt Live-Kanal bei jedem Klick weg, und der " +
+			"eigentliche Gewinn gegenüber der alten Oberfläche ist verspielt")
+	}
+	if d.Pfad != "/v2/dienste" {
+		t.Errorf("nach dem Klick steht die Adresse auf %q, erwartet /v2/dienste", d.Pfad)
+	}
+	if !strings.Contains(d.NavAktiv, "Dienste") {
+		t.Errorf("die Seitenleiste hebt %q hervor, erwartet Dienste", d.NavAktiv)
+	}
+	if len(d.Reihen) != 2 {
+		t.Errorf("%d Zeilen in der Liste, erwartet 2 (die Attrappe hat zwei Units)", len(d.Reihen))
+	} else {
+		// Gescheitertes oben — der Grund, warum jemand die Seite öffnet.
+		if d.Reihen[0].Name != "nginx" {
+			t.Errorf("erste Zeile ist %q, erwartet nginx — gescheitert gehört nach oben",
+				d.Reihen[0].Name)
+		}
+		// Farbe trägt Zustand, aber nie allein: Neben dem Punkt steht ein Wort.
+		if d.Reihen[0].Zustand == "" {
+			t.Error("die Zustandsspalte trägt kein Wort — dann trägt die Farbe die Aussage allein")
+		}
+	}
+	if !strings.Contains(d.NachKlick.Suche, "unit=nginx.service") {
+		t.Errorf("nach dem Klick steht die Auswahl nicht in der Adresse: %q", d.NachKlick.Suche)
+	}
+	if !strings.Contains(d.NachKlick.Titel, "nginx.service") {
+		t.Errorf("der Inspektor trägt den Titel %q, erwartet nginx.service", d.NachKlick.Titel)
+	}
+	if d.NachKlick.Paare == 0 {
+		t.Error("im Inspektor stehen keine Wertepaare — das Detail wurde nicht geladen")
+	}
+	// Der Zurück-Knopf schließt den Inspektor. Das ist der Grund, warum die
+	// erste Auswahl ein Schritt im Verlauf ist und der Wechsel zur nächsten
+	// keiner: Sonst müsste man nach zehn angesehenen Diensten zehnmal zurück.
+	if d.NachZurueck.Inspektor {
+		t.Error("der Zurück-Knopf schließt den Inspektor nicht")
+	}
+	if d.NachZurueck.Pfad != "/v2/dienste" || d.NachZurueck.Suche != "" {
+		t.Errorf("der Zurück-Knopf führt nach %q%q, erwartet /v2/dienste ohne Auswahl — "+
+			"er soll den Inspektor schließen und nicht die Seite verlassen",
+			d.NachZurueck.Pfad, d.NachZurueck.Suche)
+	}
+	if !strings.Contains(d.NachNeuladen, "nginx.service") {
+		t.Errorf("nach dem Neuladen der tiefen Adresse steht %q im Inspektor — "+
+			"dann ist der Verweis nicht teilbar", d.NachNeuladen)
+	}
+	// Gesucht wird auch in der Beschreibung: "Webserver" steht nicht im
+	// Unitnamen nginx.service.
+	if len(d.Gefiltert) != 1 || d.Gefiltert[0] != "nginx" {
+		t.Errorf("die Suche nach \"Webserver\" ergibt %v, erwartet nur nginx — "+
+			"gesucht wird auch in der Beschreibung", d.Gefiltert)
+	}
+	if len(d.NurGescheitert) != 1 {
+		t.Errorf("der Filter auf Gescheiterte zeigt %d Zeilen, erwartet 1", len(d.NurGescheitert))
+	}
+
+	// Die Rückfrage vor dem Stoppen. Bis rc.5 waren dreizehn Rückfragen im
+	// Projekt so gebaut, dass keine einzige gefragt hat — dieser Block ist der
+	// Nachweis, dass die neue Fassung das nicht wiederholt.
+	if d.Rueckfrage.Frage == "" {
+		t.Error("der Stopp-Knopf hat keine Rückfrage gestellt")
+	}
+	if d.Rueckfrage.Punkte == 0 {
+		t.Error("die Rückfrage nennt keine Folgen — dann befähigt sie zu keiner Entscheidung")
+	}
+	if d.Rueckfrage.FokusAufGefahr {
+		t.Error("der gefährliche Knopf hat den Fokus — Enter zerstört dann sofort, " +
+			"und der Dialog ist keine Rückfrage mehr")
+	}
+	if d.Rueckfrage.Tippfeld {
+		t.Error("die Rückfrage verlangt ein getipptes Wort — Stoppen ist laut docs/14 Stufe 2")
+	}
+	if !d.NachAbbruch {
+		t.Error("Escape bricht die Rückfrage nicht ab")
+	}
+	if !d.NachBestaetigung.DialogZu {
+		t.Error("nach der Bestätigung bleibt der Dialog stehen")
+	}
+	if d.NachBestaetigung.Meldung == "" {
+		t.Error("nach der Aktion sagt nichts, dass sie gelaufen ist")
+	}
+	if !d.EscapeSchliesst {
+		t.Error("Escape schließt den Inspektor nicht")
+	}
+
+	if d.Schmal.FensterBreite == 0 {
+		t.Error("die Dienstseite wurde nicht im Schmalmodus gemessen")
+	} else if d.Schmal.KoerperBreite > d.Schmal.FensterBreite+1 {
+		t.Errorf("die Dienstseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			d.Schmal.KoerperBreite, d.Schmal.FensterBreite)
+	}
+	if !d.Schmal.InspektorOben {
+		t.Error("schmal steht der Inspektor unter der Liste — wer eine Zeile angeklickt " +
+			"hat, müsste erst scrollen, um zu sehen, was er angeklickt hat")
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

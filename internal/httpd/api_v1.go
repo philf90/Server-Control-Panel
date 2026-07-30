@@ -243,12 +243,34 @@ func (s *Server) handleAPISignals(w http.ResponseWriter, r *http.Request) {
 			Titel:       sig.Title,
 			Detail:      sig.Detail,
 			AktionLabel: sig.ActionLabel,
-			AktionHref:  sig.ActionHref,
+			AktionHref:  neuerPfad(sig.ActionHref),
 			Vorrangig:   sig.Primary,
 		})
 	}
 
 	s.apiJSON(w, http.StatusOK, antwort)
+}
+
+// umzug ordnet Pfaden der alten Oberfläche ihre neue Entsprechung zu.
+//
+// Nötig, solange beide nebeneinander laufen: Der Handlungsbedarf wird für beide
+// Oberflächen an einer Stelle erhoben (dashboardSignals), und seine Verweise
+// zeigen dorthin, wo die alte Oberfläche die Sache zeigt. Ein Signal „Dienst
+// fehlgeschlagen" führte damit aus der neuen Oberfläche heraus — der Weg zurück
+// wäre der Zurück-Knopf, und dabei geht die Auswahl verloren.
+//
+// Die Tabelle schrumpft mit jedem Modul, das umzieht, und ist mit dem
+// Umschalten leer. Bewusst hier und nicht in dashboardSignals: Die alte
+// Oberfläche darf ihre eigenen Verweise behalten, sie ist eingefroren.
+var umzug = map[string]string{
+	"/services": "/v2/dienste",
+}
+
+func neuerPfad(href string) string {
+	if neu, ok := umzug[href]; ok {
+		return neu
+	}
+	return href
 }
 
 // apiVerlauf ist ein Verlauf, wie ihn die Kachel zeichnet: der Pfad im

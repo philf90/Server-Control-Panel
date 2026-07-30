@@ -165,13 +165,4 @@
     background: var(--ok);
     box-shadow: 0 0 8px rgba(76, 195, 138, 0.8);
   }
-
-  .nur-vorlese {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
 </style>

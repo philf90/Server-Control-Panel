@@ -643,6 +643,62 @@ Dazu kommt ein sechster, der die neuen Module bindet:
 |---|---|
 | VI | Was schiefgehen kann, hat einen Rückweg — Probe mit Frist statt bloßer Rückfrage, wo ein Fehler das Panel selbst aussperren kann |
 
+### 8.4 Das Muster eines Moduls
+
+Festgelegt am Modul **Dienste**, das als erstes gebaut wurde — nicht weil es
+das wichtigste ist, sondern weil sieben weitere dieselbe Form brauchen. Wer den
+Inspektor falsch baut, baut ihn achtmal falsch.
+
+**Grundriss: Werkbank.** Liste links, Inspektor rechts, kein Seitenwechsel. Wer
+einen Dienst neustartet, will danach die Liste sehen — mit der neuen Zeile darin
+und nicht als frisch geladene Seite, auf der er die Stelle wiederfinden muss.
+Ohne Auswahl nimmt die Liste die ganze Breite; eine leere Spalte danebenzustellen
+wäre ein Versprechen auf etwas, das nicht da ist. Unter 1100 px stapelt es, und
+der Inspektor steht **oben**: Wer eine Zeile angeklickt hat, will die Einzelheiten
+sehen und nicht erst scrollen.
+
+**Die Auswahl steht in der Adresse** (`?unit=nginx.service`). Damit ist ein
+Verweis auf einen bestimmten Eintrag teilbar, ein Neuladen zeigt denselben
+Zustand, und der Zurück-Knopf schließt den Inspektor. Der Verlauf ist dabei
+überlegt und nicht beiläufig: Die **erste** Auswahl auf einer Seite ist ein
+Schritt (`pushState`), der Wechsel von einer Auswahl zur nächsten **ersetzt**
+(`replaceState`). Sonst müsste man nach zehn angesehenen Einträgen zehnmal
+zurück, um die Seite zu verlassen.
+
+**Zwei Aufrufe, nicht einer.** Die Liste kommt vollständig und wird im Browser
+gefiltert — beim Tippen ist das Ergebnis sofort da, statt einmal pro Buchstabe
+über `systemctl` zu gehen. Die Einzelheiten kommen erst mit der Auswahl, weil
+`systemctl show` je Unit Zeit kostet. Was der Server ausrechnet, rechnet der
+Browser nicht nach: Zustand („läuft/fehlgeschlagen/aus"), Zähler, Sortierung
+(Gescheitertes zuerst) und die sinnvollen Aktionen zum Zustand stehen in der
+Antwort. Zählte der Browser selbst, zählte jedes Modul nach eigener Regel — und
+die Übersicht nach einer dritten.
+
+**Aktionen antworten mit dem neu gelesenen Zustand.** `POST` auf die Ressource,
+Aktion im JSON-Körper, und die Antwort trägt das frische Detail. Ohne das müsste
+die Oberfläche eine zweite Anfrage stellen und zeigte in der Lücke den alten
+Zustand — was nach einem Neustart genauso aussieht wie ein Neustart, der nicht
+geklappt hat.
+
+**Rückfragen kommen vom Server.** [14-bestaetigungen.md](14-bestaetigungen.md)
+wortgleich übersetzt: Der Handler führt nichts aus, solange `bestaetigt` fehlt,
+und antwortet stattdessen mit **409** und dem *Text* der Rückfrage — Titel,
+Frage, Folgen, Knopfbeschriftung, und bei Stufe 3 das zu tippende Wort. Die
+Zwischenseite von damals wird ein Objekt. Drei Eigenschaften fallen dadurch
+wieder von selbst an: Ein selbstgebautes `POST` ohne das Feld tut nichts, der
+Text der Frage steht an genau einer Stelle — dort, wo sie auch erzwungen wird —,
+und der Dialog im Browser darf sich irren, ohne dass es gefährlich wird. Der
+Dialog selbst ist ein echtes `<dialog>` mit `showModal()`: Fokusfang, oberste
+Ebene und Escape kommen vom Browser. Ein `<div>` mit Schleier nachzubauen ist die
+Stelle, an der Tastaturbedienung still verloren geht.
+
+**Rechte am Endpunkt, sichtbar in der Oberfläche.** Schreibrecht und
+Sitzungstoken werden vor jeder verändernden Anfrage geprüft (`X-CSRF-Token` als
+Kopfzeile, nicht als Feld — eine Kopfzeile kann ein Formular von einer fremden
+Seite nicht setzen). Wer nur Leserecht hat, bekommt die Schaltknöpfe gar nicht
+angeboten und dazu den Satz, warum. Sie zu verstecken, ohne es zu sagen, sieht
+wie ein halb gebautes Modul aus.
+
 ## 9. Architekturfolgen im Backend
 
 - **`internal/httpd` teilt sich** in die API-Schicht (`/api/v1`, JSON, Tokens)

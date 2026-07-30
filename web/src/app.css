@@ -117,6 +117,10 @@ html {
   align-items: center;
   gap: 0.8rem;
   margin-bottom: 1.1rem;
+  /* Umbrechen, weil die Marke rechts eine Angabe trägt („2 Units · 1
+   * fehlgeschlagen"). In einer Handbreite drängte sie sonst neben den Titel und
+   * las sich als zweizeiliger Klotz daneben. */
+  flex-wrap: wrap;
 }
 
 .kopfzeile .schub {
@@ -259,6 +263,61 @@ progress.balken.eng::-moz-progress-bar {
   background: var(--err);
 }
 
+/* ── Nur für Vorleseprogramme ─────────────────────────────────────────────
+ * Für das Auge weg, für ein Vorleseprogramm da. Steht hier und nicht in den
+ * drei Komponenten, die es brauchen: Eine Regel, die man beim vierten Mal
+ * abschreibt, wird beim fünften vergessen.
+ */
+.nur-vorlese {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Knöpfe ───────────────────────────────────────────────────────────────
+ * Drei Rollen: die eine Handlung, die gemeint ist (bernstein), die daneben
+ * (leise), und die zerstörende (gefahr). Mehr Abstufungen führen dazu, dass
+ * keine mehr auffällt.
+ */
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font: 600 0.8rem var(--sans);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.35rem 0.8rem;
+  color: #14100a;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.knopf.leise {
+  background: var(--surface3);
+  border-color: var(--line2);
+  color: var(--tx);
+}
+
+.knopf.gefahr {
+  background: transparent;
+  border-color: var(--err);
+  color: var(--err);
+}
+
+.knopf.gefahr:hover:not(:disabled) {
+  background: rgba(229, 72, 77, 0.12);
+}
+
+.knopf:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ── Zustandspunkt ───────────────────────────────────────────────────────
  * Farbe trägt Zustand — aber nie allein. Neben dem Punkt steht immer ein Wort.
  */
@@ -288,6 +347,80 @@ progress.balken.eng::-moz-progress-bar {
 }
 .zustand.info i {
   background: var(--info);
+}
+
+/* ── Werkbank: Liste links, Inspektor rechts ──────────────────────────────
+ * Der Grundriss jedes Moduls mit Einzelheiten pro Eintrag. Ohne Auswahl nimmt
+ * die Liste die ganze Breite — eine leere Spalte danebenzustellen wäre ein
+ * Versprechen auf etwas, das nicht da ist.
+ *
+ * minmax(0, …) und nicht 1.25fr allein: Eine Rasterspalte ist von sich aus
+ * mindestens so breit wie ihr längster unteilbarer Inhalt, und ein langer
+ * Unitname hätte die Tabelle über den Bildschirmrand geschoben.
+ */
+.werkbank {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.werkbank.allein {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Unter 1100 px stapeln, und der Inspektor steht oben: Wer eine Zeile
+ * angeklickt hat, will die Einzelheiten sehen und nicht erst scrollen. */
+@media (max-width: 1100px) {
+  .werkbank {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .werkbank > .inspektor {
+    order: -1;
+    position: static;
+  }
+}
+
+/* ── Wertepaare im Inspektor ──────────────────────────────────────────────
+ * Beschriftung links, Wert rechts. Kein grid-template-columns mit fester
+ * Breite: „Speicherverbrauch" und „PID" sind sehr verschieden lang, und eine
+ * feste Spalte ist für das eine zu schmal und für das andere zu weit.
+ */
+.kv {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 0.8rem;
+  font-size: 0.83rem;
+}
+
+.kv dt {
+  color: var(--tx-faint);
+  white-space: nowrap;
+}
+
+.kv dd {
+  color: var(--tx);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kv dd.pfad {
+  font-family: var(--mono);
+  font-size: 0.79rem;
+}
+
+/* Unter 600 px übereinander — zwei Spalten in einer Handbreite lassen für den
+ * Wert keinen Platz. */
+@media (max-width: 600px) {
+  .kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+  }
+
+  .kv dd {
+    margin-bottom: 0.45rem;
+  }
 }
 
 /* Unter 900 px wird die Seitenleiste zur Symbolschiene. Die untere

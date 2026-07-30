@@ -74,7 +74,11 @@ async function main() {
   // Asset fehlt (schwer) oder der Browser nach einem Favicon fragt (harmlos).
   const fehlend = [];
   seite.on("response", (r) => {
-    if (r.status() >= 400) {
+    // 409 ist keine fehlende Antwort, sondern eine Rückfrage: Der Handler führt
+    // nichts aus, solange die Bestätigung fehlt, und schickt stattdessen deren
+    // Text (siehe api_v1_bestaetigung.go). Sie hier mitzuzählen wäre Rauschen,
+    // das eine echte 404 später verdeckt.
+    if (r.status() >= 400 && r.status() !== 409) {
       fehlend.push(`${r.status()} ${r.url()}`);
       gesammelt.push(`response: ${r.status()} ${r.url()}`);
     }
@@ -323,6 +327,160 @@ async function main() {
     });
   }
 
+  // 8. Das Modul Dienste. Hier hängt mehr am Browser als bei der Übersicht: der
+  //    Wechsel ohne Neuladen, die Auswahl in der Adresse, der Zurück-Knopf und
+  //    die Rückfrage vor dem Stoppen. Nichts davon sieht ein Go-Test.
+  const dienste = {};
+
+  // Eine Marke am Fenster: Sie überlebt einen Wechsel ohne Neuladen und stirbt
+  // mit jedem echten Seitenaufruf. Das ist der Beweis, dass der Router greift —
+  // und dass das Statusband mitsamt Live-Kanal stehen bleibt.
+  await seite.evaluate(() => {
+    window.__marke = "haelt";
+  });
+  await seite.click('.seitenleiste a[href="/v2/dienste"]');
+  await seite.waitForSelector("table.tabelle .zeile", { timeout: 5000 });
+  dienste.ohneNeuladen = await seite.evaluate(() => window.__marke === "haelt");
+  dienste.pfad = await seite.evaluate(() => location.pathname);
+  dienste.navAktiv = await seite.evaluate(
+    () => document.querySelector('.seitenleiste a[aria-current="page"] span')?.textContent ?? "",
+  );
+
+  // Gescheitertes zuerst — der Grund, warum jemand diese Seite öffnet.
+  dienste.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector(".zeile")?.textContent.trim() ?? "",
+      zustand: tr.querySelector(".zustand")?.textContent.trim() ?? "",
+    })),
+  );
+
+  // Auswahl: Klick auf die Zeile öffnet den Inspektor, und die Adresse trägt sie.
+  await seite.click("table.tabelle tbody tr:first-child .zeile");
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  dienste.nachKlick = await seite.evaluate(() => ({
+    suche: location.search,
+    titel: document.querySelector(".inspektor h2")?.textContent.trim() ?? "",
+    // Die Wertepaare im Inspektor — kommen aus dem zweiten Aufruf, nicht aus
+    // der Liste. Steht hier nichts, hat das Detail nicht geladen.
+    paare: document.querySelectorAll(".inspektor .kv dt").length,
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dienste.png`,
+      fullPage: true,
+    });
+  }
+
+  // Der Zurück-Knopf schließt den Inspektor, statt die Seite zu verlassen. Das
+  // hängt daran, dass die ERSTE Auswahl ein Schritt im Verlauf ist.
+  await seite.goBack();
+  await seite.waitForTimeout(200);
+  dienste.nachZurueck = await seite.evaluate(() => ({
+    inspektor: document.querySelector(".inspektor") !== null,
+    pfad: location.pathname,
+    suche: location.search,
+  }));
+
+  // Ein Neuladen auf der tiefen Adresse muss denselben Zustand zeigen — sonst
+  // ist der Verweis nicht teilbar, und genau das war der Zweck der Übung.
+  await seite.goto(`${basis}/v2/dienste?unit=nginx.service`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  dienste.nachNeuladen = await seite.evaluate(
+    () => document.querySelector(".inspektor h2")?.textContent.trim() ?? "",
+  );
+
+  // Die Suche filtert im Browser. Ein Begriff, der nur in der Beschreibung
+  // steht: Wer „Webserver" tippt, sucht nginx, und der Unitname sagt das nicht.
+  await seite.fill(".suche input", "Webserver");
+  await seite.waitForTimeout(150);
+  dienste.gefiltert = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody .zeile")].map((b) =>
+      b.textContent.trim(),
+    ),
+  );
+  await seite.fill(".suche input", "");
+  await seite.waitForTimeout(150);
+
+  // Die Zähler sind Filter — Grundsatz II: jede Zahl ist ein Griff.
+  await seite.click(".stufen button:nth-child(2)");
+  await seite.waitForTimeout(150);
+  dienste.nurGescheitert = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map(
+      (tr) => tr.querySelector(".zustand")?.textContent.trim() ?? "",
+    ),
+  );
+  await seite.click(".stufen button:nth-child(2)");
+  await seite.waitForTimeout(150);
+
+  // Die Rückfrage. Der Kern: Vor der Bestätigung darf NICHTS passieren, und der
+  // gefährliche Knopf darf den Fokus nicht haben — sonst zerstört Enter sofort.
+  const stoppKnopf = ".aktionen .knopf.gefahr";
+  await seite.waitForSelector(stoppKnopf, { timeout: 5000 });
+  await seite.click(stoppKnopf);
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  dienste.rueckfrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d?.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: d?.querySelectorAll(".punkte li").length ?? 0,
+      // Der gefährliche Knopf ist der letzte; den Fokus hat er nicht.
+      fokusAufGefahr: document.activeElement?.classList.contains("gefahr") ?? false,
+      // Stufe 2 hat kein Eingabefeld. Stünde hier eines, wäre die Stufe falsch.
+      tippfeld: d?.querySelector(".tippen") !== null,
+    };
+  });
+
+  // Escape ist ein Abbruch — und der Dialog muss danach wieder zu öffnen sein.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(200);
+  dienste.nachAbbruch = await seite.evaluate(
+    () => document.querySelector("dialog.rueckfrage") === null,
+  );
+  await seite.click(stoppKnopf);
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  await seite.click("dialog.rueckfrage .knopf.gefahr");
+  await seite.waitForTimeout(400);
+  dienste.nachBestaetigung = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    meldung: document.querySelector(".inspektor .meldung")?.textContent.trim() ?? "",
+  }));
+
+  // Escape schließt den Inspektor.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(200);
+  dienste.escapeSchliesst = await seite.evaluate(
+    () => document.querySelector(".inspektor") === null,
+  );
+
+  // Schmal: Auch diese Seite darf nicht waagerecht scrollen, und der Inspektor
+  // steht dann über der Liste statt daneben.
+  await seite.goto(`${basis}/v2/dienste?unit=nginx.service`, {
+    waitUntil: "domcontentloaded",
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  dienste.schmal = await seite.evaluate(() => {
+    const insp = document.querySelector(".inspektor");
+    const tab = document.querySelector(".tabelle-rahmen");
+    return {
+      koerperBreite: document.body.scrollWidth,
+      fensterBreite: window.innerWidth,
+      // Der Inspektor steht oben: kleinerer y-Wert als die Tabelle.
+      inspektorOben: insp.getBoundingClientRect().top < tab.getBoundingClientRect().top,
+    };
+  });
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dienste-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   await browser.close();
 
   console.log(
@@ -335,6 +493,7 @@ async function main() {
       titelSitz,
       rahmenSitz,
       palette,
+      dienste,
       zweige,
       schmal,
       strich,

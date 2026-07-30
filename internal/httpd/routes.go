@@ -65,6 +65,10 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/overview", s.protected(http.HandlerFunc(s.handleAPIOverview)))
 	mux.Handle("GET /api/v1/signals", s.protected(http.HandlerFunc(s.handleAPISignals)))
 	mux.Handle("GET /api/v1/metrics/history", s.protected(http.HandlerFunc(s.handleAPIMetricsHistory)))
+	mux.Handle("GET /api/v1/services", s.protected(http.HandlerFunc(s.handleAPIServices)))
+	mux.Handle("GET /api/v1/services/{unit}", s.protected(http.HandlerFunc(s.handleAPIServiceDetail)))
+	mux.Handle("POST /api/v1/services/{unit}",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIServiceAction))))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

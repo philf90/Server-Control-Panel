@@ -10,6 +10,7 @@
   // geschnitten, dass eine zweite Quelle nur eine weitere Liste ist.
   import { alleZiele, suche, type Ziel } from "../lib/ziele";
   import { palette } from "../lib/palette.svelte";
+  import { weg } from "../lib/weg.svelte";
   import { t } from "../lib/texte";
 
   let begriff = $state("");
@@ -41,11 +42,12 @@
 
   function waehlen(ziel: Ziel | undefined) {
     if (!ziel) return;
-    palette.offen = false;
-    // Ein echter Seitenwechsel und keine Wegewahl im Browser: Die Ziele zeigen
-    // teils auf die neue Oberfläche, teils auf die alte unter /. Ein Router
-    // könnte nur die erste Hälfte bedienen.
-    window.location.href = ziel.href;
+    palette.schliessen();
+    // Erst der Router, dann der Browser: Ziele der neuen Oberfläche wechseln
+    // ohne Neuladen, die noch auf / zeigenden laden ganz normal. weg.gehe sagt,
+    // ob es sein Ziel war — eine zweite Prüfung des Pfades hier wäre dieselbe
+    // Regel an einer zweiten Stelle.
+    if (!weg.gehe(ziel.href)) window.location.href = ziel.href;
   }
 
   function tasteGlobal(e: KeyboardEvent) {

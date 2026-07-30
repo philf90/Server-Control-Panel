@@ -7,8 +7,13 @@
   // Liste braucht. Zwei Listen desselben Menüs laufen auseinander: Ein neues
   // Modul erschiene dann in der Leiste, aber nicht in der Suche.
   import { gruppen } from "../lib/ziele";
+  import { verweis, weg } from "../lib/weg.svelte";
 
-  let { aktiv = "uebersicht" }: { aktiv?: string } = $props();
+  // Der hervorgehobene Punkt kommt aus dem Weg und nicht aus einer Eigenschaft:
+  // Die Kennungen der Ziele in lib/ziele.ts sind dieselben, die der Router
+  // liefert. Eine Eigenschaft müsste jede Seite selbst setzen — und eine davon
+  // wird es vergessen.
+  const aktiv = $derived(weg.seite);
 </script>
 
 <aside class="seitenleiste">
@@ -17,8 +22,13 @@
       <b>{gruppe.titel}</b>
       <nav>
         {#each gruppe.ziele as ziel (ziel.id)}
+          <!-- Ein echtes <a href>, und der Klick wird nur abgefangen, wenn das
+               Ziel zur neuen Oberfläche gehört: Damit bleiben Mittelklick, „in
+               neuem Tab öffnen" und der Verweis in der Statuszeile erhalten,
+               und die Ziele, die noch auf / zeigen, laden ganz normal. -->
           <a
             href={ziel.href}
+            onclick={(e) => verweis(e, ziel.href)}
             class:an={ziel.id === aktiv}
             aria-current={ziel.id === aktiv ? "page" : undefined}
           >

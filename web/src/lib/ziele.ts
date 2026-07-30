@@ -175,8 +175,9 @@ export const gruppen: Gruppe[] = [
         id: "audit",
         label: t.ziele.audit,
         symbol: "buch",
-        href: "/audit",
+        href: "/v2/audit",
         gruppe: t.bereiche.betrieb,
+        neu: true,
         auch: ["revision", "wer", "nachvollziehen", "verlauf"],
       },
       {

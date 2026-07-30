@@ -149,6 +149,9 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("POST /api/v1/files/text",
 			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileTextSave))))
 	}
+	// Audit. Nur lesend, und das ist keine Auslassung: Das Protokoll ist nur
+	// additiv, es gibt im Store bewusst keine Lösch- oder Änderungsfunktion.
+	mux.Handle("GET /api/v1/audit", s.protected(http.HandlerFunc(s.handleAPIAudit)))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

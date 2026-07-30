@@ -338,6 +338,25 @@ type ergebnisLeitstand struct {
 			Bearbeiten string `json:"bearbeiten"`
 		} `json:"nachZurueck"`
 	} `json:"editor"`
+	Audit struct {
+		ZeilenAnfangs int      `json:"zeilenAnfangs"`
+		Wesen         string   `json:"wesen"`
+		Knoepfe       []string `json:"knoepfe"`
+		NachFilter    struct {
+			Adresse    string   `json:"adresse"`
+			Ergebnisse []string `json:"ergebnisse"`
+		} `json:"nachFilter"`
+		NachNeuladen      string `json:"nachNeuladen"`
+		NachZuruecksetzen int    `json:"nachZuruecksetzen"`
+		Einzelheiten      struct {
+			Paare       int  `json:"paare"`
+			Aufgeklappt bool `json:"aufgeklappt"`
+		} `json:"einzelheiten"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"audit"`
 	Bald struct {
 		Pfad     string `json:"pfad"`
 		Titel    string `json:"titel"`
@@ -1387,6 +1406,63 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if !ed.NachZurueck.PfadDa {
 		t.Error("der Zurück-Knopf hat auch den Ort verworfen — er soll nur den Editor schließen")
+	}
+
+	// 6h. Das Modul Audit. Zwei Dinge sind nur im Browser zu sehen: dass der
+	// Filter in der Adresse steht und ein Neuladen ihn vorfindet, und dass es
+	// keinen Knopf gibt, der etwas am Protokoll ändert.
+	au := e.Audit
+	if au.ZeilenAnfangs == 0 {
+		t.Error("das Protokoll ist leer — der Browsertest hat sich vorher angemeldet " +
+			"und Dutzende Aktionen ausgeführt, es müsste voll sein")
+	}
+	if au.Wesen == "" {
+		t.Error("über der Liste steht nicht, dass das Protokoll nur additiv ist")
+	}
+	// Kein Knopf verändert etwas. Das ist die Aussage des Moduls.
+	for _, verboten := range []string{"löschen", "bearbeiten", "leeren", "entfernen"} {
+		if slices.ContainsFunc(au.Knoepfe, func(s string) bool {
+			return strings.Contains(strings.ToLower(s), verboten)
+		}) {
+			t.Errorf("das Auditmodul bietet %q an: %v — das Protokoll ist nur additiv",
+				verboten, au.Knoepfe)
+		}
+	}
+
+	// Der Filter steht in der Adresse und wirkt.
+	if au.NachFilter.Adresse != "denied" {
+		t.Errorf("der Filter steht als %q in der Adresse, erwartet denied — ein "+
+			"Verweis darauf wäre sonst nicht teilbar", au.NachFilter.Adresse)
+	}
+	if len(au.NachFilter.Ergebnisse) == 0 {
+		t.Error("der Filter auf „abgelehnt\" liefert keine Zeile — der Browsertest hat " +
+			"vorher Aktionen abgelehnt bekommen (gesperrte Pfade), es müsste welche geben")
+	}
+	for _, erg := range au.NachFilter.Ergebnisse {
+		if !strings.Contains(erg, "abgelehnt") {
+			t.Errorf("nach dem Filter steht %q in der Liste, erwartet nur abgelehnte", erg)
+		}
+	}
+	if !strings.Contains(au.NachNeuladen, "abgelehnt") {
+		t.Errorf("nach dem Neuladen ist der Filter nicht mehr hervorgehoben (%q) — "+
+			"dann ist er Zustand der Seite und nicht der Adresse", au.NachNeuladen)
+	}
+	if au.NachZuruecksetzen <= len(au.NachFilter.Ergebnisse) {
+		t.Errorf("nach dem Zurücksetzen stehen %d Zeilen da, gefiltert waren es %d — "+
+			"der Filter wurde nicht gelöst", au.NachZuruecksetzen, len(au.NachFilter.Ergebnisse))
+	}
+
+	// Die Einzelheiten klappen auf.
+	if !au.Einzelheiten.Aufgeklappt || au.Einzelheiten.Paare < 3 {
+		t.Errorf("die Einzelheiten einer Zeile klappen nicht auf (%d Angaben, "+
+			"aria-expanded=%v)", au.Einzelheiten.Paare, au.Einzelheiten.Aufgeklappt)
+	}
+
+	if au.Schmal.FensterBreite == 0 {
+		t.Error("die Auditseite wurde nicht im Schmalmodus gemessen")
+	} else if au.Schmal.KoerperBreite > au.Schmal.FensterBreite+1 {
+		t.Errorf("die Auditseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			au.Schmal.KoerperBreite, au.Schmal.FensterBreite)
 	}
 
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2

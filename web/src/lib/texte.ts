@@ -365,6 +365,40 @@ export const t = {
     spaeter: "Units, Pfade und Pakete sucht man auf ihrer Seite",
   },
 
+  audit: {
+    laedt: "wird geladen …",
+    zeit: "Zeit",
+    akteur: "Wer",
+    aktion: "Was",
+    ziel: "Woran",
+    ergebnis: "Ergebnis",
+    ip: "Von",
+    detail: "Einzelheiten",
+    alleAkteure: "alle Konten",
+    alleFamilien: "alle Bereiche",
+    alleErgebnisse: "alle Ergebnisse",
+    suchen: "in Ziel und Einzelheiten suchen",
+    suchenKurz: "suchen",
+    zuruecksetzen: "Filter zurücksetzen",
+    mehr: "weitere 100 laden",
+    laedtMehr: "lädt …",
+    ende: "Das ist der Anfang des Protokolls.",
+    nichts: "Kein Eintrag passt zu diesem Filter.",
+    leer: "Das Protokoll ist leer.",
+    // Die Wörter für die drei Ergebnisse. „denied" ist keine Panne: Es heißt,
+    // dass die Politik gegriffen hat.
+    ergebnisse: {
+      ok: "getan",
+      denied: "abgelehnt",
+      error: "gescheitert",
+    } as Record<string, string>,
+    // Der Satz über der Liste. Er sagt, was das Protokoll ist und was es nicht
+    // ist — es gibt keinen Knopf, der etwas darin ändert, und das ist Absicht.
+    wesen:
+      "Nur additiv: Einträge lassen sich nicht ändern und nicht löschen — auch nicht von der Owner-Rolle.",
+    gefiltert: (n: number) => (n === 1 ? "1 Eintrag" : `${n} Einträge`),
+  },
+
   bald: {
     ab: (fassung: string) => `geplant für ${fassung}`,
     satz: (modul: string, fassung: string) =>

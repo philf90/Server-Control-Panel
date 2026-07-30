@@ -4,6 +4,7 @@
 
 import type {
   AktionAntwort,
+  Audit,
   Bestaetigung,
   Dateiantwort,
   Dateiauftrag,
@@ -377,6 +378,11 @@ export const api = {
     }
     return (await antwort.json()) as Textantwort;
   },
+
+  /** audit holt eine Seite des Revisionsprotokolls. Gefiltert wird auf dem
+   *  Server: Das Protokoll wächst unbegrenzt, und ein Filter über einem
+   *  Ausschnitt behauptete „kein Treffer" für einen Eintrag, den es gibt. */
+  audit: (suchpfad = "") => anfrage<Audit>(`/audit${suchpfad ? `?${suchpfad}` : ""}`),
 
   dienste: () => anfrage<Dienste>("/services"),
   dienst: (unit: string) => anfrage<DienstDetail>(`/services/${encodeURIComponent(unit)}`),

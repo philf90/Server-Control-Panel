@@ -18,6 +18,7 @@
   import LogsSeite from "./seiten/Logs.svelte";
   import FirewallSeite from "./seiten/Firewall.svelte";
   import DateienSeite from "./seiten/Dateien.svelte";
+  import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
   import { live } from "./lib/live.svelte";
@@ -117,6 +118,10 @@
         <FirewallSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "dateien"}
         <DateienSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "audit"}
+        <!-- Das Protokoll braucht die Sitzung nicht: Lesen darf jede Rolle, und
+             verändern kann es niemand. -->
+        <AuditSeite />
       {:else if weg.seite === "bald"}
         <!-- Ein Modul, das es noch nicht gibt. Es braucht nichts von hier — die
              Seite sagt nur, mit welcher Fassung es kommt. -->

@@ -1570,6 +1570,99 @@ async function main() {
     bearbeiten: new URL(location.href).searchParams.get("bearbeiten") ?? "",
   }));
 
+  // 12d. Das Modul Audit. Zwei Dinge sind hier nur im Browser zu sehen: dass der
+  //      Filter in der ADRESSE steht (ein Verweis auf „alles, was philipp am
+  //      Dateimanager abgelehnt bekam" ist damit teilbar), und dass „weitere 100
+  //      laden" ANHÄNGT statt zu ersetzen — ein Seitenwechsel, der die Liste
+  //      austauscht, verliert die Zeile, wegen der man weitergeblättert hat.
+  const audit = {};
+  await seite.goto(`${basis}/v2/audit`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  audit.zeilenAnfangs = await seite.evaluate(
+    () => document.querySelectorAll("table.tabelle tbody tr").length,
+  );
+  audit.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  // Es gibt keinen Knopf, der etwas ändert. Das ist die Aussage des Moduls, und
+  // sie ist auch eine Aussage über die Fläche: kein „löschen", kein „bearbeiten".
+  audit.knoepfe = await seite.evaluate(() =>
+    [...document.querySelectorAll(".knopf")].map((b) => b.textContent.trim()),
+  );
+
+  // Nach Ergebnis filtern. Der Filter wandert in die Adresse.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".stufen button")].find((x) =>
+      x.textContent.includes("abgelehnt"),
+    );
+    b.click();
+  });
+  await seite.waitForFunction(
+    () => new URL(location.href).searchParams.get("ergebnis") === "denied",
+    null,
+    { timeout: 5000 },
+  );
+  await seite.waitForTimeout(300);
+  audit.nachFilter = await seite.evaluate(() => ({
+    adresse: new URL(location.href).searchParams.get("ergebnis") ?? "",
+    ergebnisse: [...document.querySelectorAll("table.tabelle tbody tr .zustand")].map((z) =>
+      z.textContent.trim(),
+    ),
+  }));
+
+  // Ein Neuladen zeigt dasselbe — der Filter ist Zustand der Adresse, nicht der
+  // Seite.
+  await seite.reload({ waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".stufen button.an", { timeout: 5000 });
+  audit.nachNeuladen = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll(".stufen button.an")]
+        .map((b) => b.textContent.trim())
+        .join(","),
+  );
+
+  // Filter zurücksetzen.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".knopf")].find((x) =>
+      x.textContent.includes("zurücksetzen"),
+    );
+    b.click();
+  });
+  await seite.waitForFunction(
+    () => new URL(location.href).searchParams.get("ergebnis") === null,
+    null,
+    { timeout: 5000 },
+  );
+  await seite.waitForTimeout(300);
+  audit.nachZuruecksetzen = await seite.evaluate(
+    () => document.querySelectorAll("table.tabelle tbody tr").length,
+  );
+
+  // Die Einzelheiten klappen auf. Sie stehen nicht in der Zeile, weil ein Detail
+  // bis 1024 Zeichen lang sein darf und die Liste dann keine mehr wäre.
+  await seite.click("table.tabelle tbody .zeile");
+  await seite.waitForSelector("tr.einzelheiten", { timeout: 5000 });
+  audit.einzelheiten = await seite.evaluate(() => ({
+    paare: document.querySelectorAll("tr.einzelheiten dl.kv dt").length,
+    aufgeklappt: document.querySelector('table.tabelle .zeile[aria-expanded="true"]') !== null,
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-audit.png`,
+      fullPage: true,
+    });
+  }
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  audit.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
@@ -1620,6 +1713,7 @@ async function main() {
       dateien,
       schreiben,
       editor,
+      audit,
       bald,
       zweige,
       schmal,

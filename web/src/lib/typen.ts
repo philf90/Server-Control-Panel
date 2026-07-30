@@ -660,3 +660,43 @@ export type Textantwort = {
   text: Dateitext;
   pruefung?: Pruefung;
 };
+
+// -------------------------------------------------------------------- Audit ---
+
+/** Auditzeile ist ein Eintrag des Revisionsprotokolls. */
+export type Auditzeile = {
+  id: number;
+  zeit: string;
+  /** at ist der Tag (2026-07-30) zum Gruppieren; zeit die Anzeige. */
+  at: string;
+  akteur: string;
+  aktion: string;
+  /** familie ist der Teil der Aktion vor dem ersten Punkt — die Zuordnung zum
+   *  Modul. Der Server bildet sie, damit Filterleiste und Zeile dieselbe Regel
+   *  benutzen. */
+  familie: string;
+  ziel: string;
+  ergebnis: "ok" | "denied" | "error";
+  /** stufe ist die Klasse für die Einfärbung. „denied" ist eine Warnung und kein
+   *  Fehler: Es heißt, dass die Politik gegriffen hat. */
+  stufe: "gut" | "warn" | "schlecht";
+  ip: string;
+  detail: string;
+};
+
+/** Audit ist die Antwort von GET /api/v1/audit. */
+export type Audit = {
+  zeilen: Auditzeile[];
+  /** weiter ist die ID für die nächste Seite, 0 am Ende. Geblättert wird über
+   *  eine ID und nicht über einen Versatz: Das Protokoll wächst, während man
+   *  darin liest. */
+  weiter: number;
+  akteure: string[];
+  familien: string[];
+  filter: {
+    akteur: string;
+    familie: string;
+    ergebnis: string;
+    suche: string;
+  };
+};

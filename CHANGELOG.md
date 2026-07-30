@@ -9,6 +9,17 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+**Die Funktionsparität der neuen Oberfläche ist erreicht.** Alle zwölf Module der
+alten Fläche stehen unter `/v2/`; die Liste steht in
+[docs/16-neukonzeption.md](docs/16-neukonzeption.md) unter „Stand der Parität".
+Nicht übertragen und absichtlich server-gerendert bleiben Anmeldung,
+Erstinstallation, erzwungener Passwortwechsel und der Weg für ein vergessenes
+Passwort — sie liegen vor der Anmeldung und müssen ohne JavaScript laufen.
+
+Offen für die 0.4 bleiben die zwei Neuerungen, die keine Parität sind: Cron &
+systemd-Timer sowie API-Tokens. Die alte Oberfläche unter `/` ist unverändert und
+bleibt bis zum Umschalten erreichbar.
+
 ### Hinzugefügt
 
 - **Modul Audit in der neuen Oberfläche.** Das Protokoll mit Filter auf dem

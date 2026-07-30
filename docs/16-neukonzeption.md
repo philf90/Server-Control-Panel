@@ -194,6 +194,38 @@ die Cron/Timer-Familie, alles andere ist Umbau über dem Bestand.
 weitere baut auf API, Job-Modell und neuer Oberfläche auf — in umgekehrter
 Reihenfolge würde jedes Modul zweimal gebaut.*
 
+#### Stand der Parität
+
+Die Parität ist als Liste der heutigen Seiten definiert und abzuhaken — das ist
+die Gegenmaßnahme gegen das Risiko „die 0.4 wird zur Dauerbaustelle" (siehe
+Abschnitt 11). Zur Fassung 0.4.0-rc.4 steht sie vollständig:
+
+| Modul der alten Fläche | Neue Fläche | Anmerkung |
+|---|---|---|
+| Lage (`/`) | `/v2/` | Telemetrie-Kacheln, Urteil, Handlungsbedarf, Dateisysteme, Prozesse |
+| Dienste | `/v2/dienste` | Werkbank mit Inspektor |
+| Pakete | `/v2/pakete` | erstes Modul im Job-Modell |
+| Konten (System) | `/v2/benutzer` | Systemkonten und SSH-Schlüssel |
+| Dateien | `/v2/dateien` | einschließlich Editor (CodeMirror im Bundle) |
+| Firewall | `/v2/firewall` | mit Probe und Rückweg |
+| TLS | `/v2/zertifikate` | Bezug über das Job-Modell statt eigenem Strom |
+| Zugänge (Panel) | `/v2/zugaenge` | nur Owner-Rolle, Menüpunkt entsprechend gefiltert |
+| Audit | `/v2/audit` | Filter auf dem Server, Blätterung über die Kennung |
+| Journal | `/v2/logs` | mit Verfolgen |
+| Updates | `/v2/updates` | Poller statt Strom — der Vorgang startet den Dienst neu |
+| Konto (eigenes) | `/v2/konto` | Passwort, zweiter Faktor, Passkeys, Sitzungen |
+
+**Nicht übertragen, und zwar absichtlich:** Anmeldung, Erstinstallation, der
+erzwungene Passwortwechsel und der Weg für ein vergessenes Passwort bleiben
+server-gerenderte Vorlagen. Sie liegen vor der Anmeldung oder an ihrer Stelle,
+müssen ohne JavaScript laufen und sind der Grund für das Hybrid-Routing aus
+Abschnitt 8.1.
+
+Offen für die 0.4 bleiben damit die zwei Basis-Neuerungen, die keine Parität
+sind, sondern Zuwachs: **Cron & systemd-Timer** (neue privops-Familie) und
+**API-Tokens** (erste Store-Erweiterung). Danach folgt das Umschalten: `/v2` wird
+`/`, die alten Vorlagen fallen in einem Zug, und die Sitzungen werden verworfen.
+
 ### 0.5 — Docker
 
 Container, Images, Volumes, Netzwerke, Compose-Stacks, Container-Logs und

@@ -9,6 +9,8 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0-rc.1] — 2026-07-30
+
 ### Hinzugefügt
 
 - **Die neue Oberfläche „Leitstand" beginnt — vorerst neben der alten.** Sie ist

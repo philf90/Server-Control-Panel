@@ -14,7 +14,9 @@ package httpd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -34,6 +36,27 @@ func (s *Server) apiJSON(w http.ResponseWriter, status int, v any) {
 		// protokollieren geht hier nicht mehr.
 		s.log.Error("api: Antwort nicht geschrieben", "err", err)
 	}
+}
+
+// apiJSONKoerper liest den JSON-Körper einer verändernden Anfrage in ziel.
+//
+// Mit Grenze: Ein Körper ohne Obergrenze ist ein Weg, dem Panel den Speicher zu
+// nehmen, und diese Anfragen sind wenige hundert Bytes groß.
+//
+// Ein leerer Körper ist in Ordnung — er bedeutet „alle Felder auf ihrem
+// Vorgabewert", und bei einer Rückfrage heißt das: nicht bestätigt. Genau so soll
+// es sein: Wer nichts schickt, hat nichts bestätigt.
+func (s *Server) apiJSONKoerper(w http.ResponseWriter, r *http.Request, ziel any) bool {
+	dec := json.NewDecoder(io.LimitReader(r.Body, 64<<10))
+	// Unbekannte Felder abweisen: Ein Tippfehler in "bestaetigt" wäre sonst
+	// stillschweigend ein fehlendes Feld — also eine Rückfrage, die nie
+	// beantwortet wurde, obwohl der Aufrufer meint, sie beantwortet zu haben.
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(ziel); err != nil && !errors.Is(err, io.EOF) {
+		s.apiFehler(w, http.StatusBadRequest, "Der Anfragekörper ist unlesbar: "+err.Error())
+		return false
+	}
+	return true
 }
 
 // apiFehler antwortet mit JSON, nicht mit HTML. Das ist der Grund, warum es
@@ -243,12 +266,36 @@ func (s *Server) handleAPISignals(w http.ResponseWriter, r *http.Request) {
 			Titel:       sig.Title,
 			Detail:      sig.Detail,
 			AktionLabel: sig.ActionLabel,
-			AktionHref:  sig.ActionHref,
+			AktionHref:  neuerPfad(sig.ActionHref),
 			Vorrangig:   sig.Primary,
 		})
 	}
 
 	s.apiJSON(w, http.StatusOK, antwort)
+}
+
+// umzug ordnet Pfaden der alten Oberfläche ihre neue Entsprechung zu.
+//
+// Nötig, solange beide nebeneinander laufen: Der Handlungsbedarf wird für beide
+// Oberflächen an einer Stelle erhoben (dashboardSignals), und seine Verweise
+// zeigen dorthin, wo die alte Oberfläche die Sache zeigt. Ein Signal „Dienst
+// fehlgeschlagen" führte damit aus der neuen Oberfläche heraus — der Weg zurück
+// wäre der Zurück-Knopf, und dabei geht die Auswahl verloren.
+//
+// Die Tabelle schrumpft mit jedem Modul, das umzieht, und ist mit dem
+// Umschalten leer. Bewusst hier und nicht in dashboardSignals: Die alte
+// Oberfläche darf ihre eigenen Verweise behalten, sie ist eingefroren.
+var umzug = map[string]string{
+	"/services": "/v2/dienste",
+	"/packages": "/v2/pakete",
+	"/logs":     "/v2/logs",
+}
+
+func neuerPfad(href string) string {
+	if neu, ok := umzug[href]; ok {
+		return neu
+	}
+	return href
 }
 
 // apiVerlauf ist ein Verlauf, wie ihn die Kachel zeichnet: der Pfad im

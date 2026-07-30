@@ -8,6 +8,7 @@
   // dasselbe schon sagt.
   import type { Signal } from "../lib/typen";
   import { t } from "../lib/texte";
+  import { verweis } from "../lib/weg.svelte";
 
   let { signale = [] }: { signale?: Signal[] } = $props();
 </script>
@@ -25,7 +26,12 @@
           {#if sig.detail}<span class="detail">{sig.detail}</span>{/if}
         </span>
         {#if sig.aktion_href}
-          <a class="griff" href={sig.aktion_href}>{sig.aktion_label} →</a>
+          <!-- Der Verweis wird nur abgefangen, wenn er in die neue Oberfläche
+               führt. Signale zu Modulen, die dort noch fehlen, zeigen weiter
+               nach / und laden ganz normal — siehe umzug in api_v1.go. -->
+          <a class="griff" href={sig.aktion_href} onclick={(e) => verweis(e, sig.aktion_href)}>
+            {sig.aktion_label} →
+          </a>
         {/if}
       </li>
     {/each}

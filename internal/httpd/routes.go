@@ -65,6 +65,28 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/overview", s.protected(http.HandlerFunc(s.handleAPIOverview)))
 	mux.Handle("GET /api/v1/signals", s.protected(http.HandlerFunc(s.handleAPISignals)))
 	mux.Handle("GET /api/v1/metrics/history", s.protected(http.HandlerFunc(s.handleAPIMetricsHistory)))
+	mux.Handle("GET /api/v1/services", s.protected(http.HandlerFunc(s.handleAPIServices)))
+	mux.Handle("GET /api/v1/services/{unit}", s.protected(http.HandlerFunc(s.handleAPIServiceDetail)))
+	mux.Handle("POST /api/v1/services/{unit}",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIServiceAction))))
+	mux.Handle("GET /api/v1/packages", s.protected(http.HandlerFunc(s.handleAPIPackages)))
+	mux.Handle("POST /api/v1/packages/refresh",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIPackageRefresh))))
+	mux.Handle("POST /api/v1/packages/upgrade",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIPackageUpgrade))))
+	// Der Neustart bleibt der Owner-Rolle vorbehalten — dieselbe Grenze wie bei
+	// POST /reboot in der alten Oberfläche. Eine Aktion, die die Verbindung
+	// zerreißt, gehört nicht in die Hand jedes Admin-Kontos.
+	mux.Handle("POST /api/v1/system/reboot",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIReboot)))))
+	// Vorgänge: eine Ressource für alle Module. Der Strom ist ein GET und braucht
+	// deshalb kein Token — er verändert nichts.
+	mux.Handle("GET /api/v1/jobs/{art}", s.protected(http.HandlerFunc(s.handleAPIJob)))
+	mux.Handle("GET /api/v1/jobs/{art}/events", s.protected(http.HandlerFunc(s.handleAPIJobEvents)))
+	// Logs: die Abfrage und daneben der Strom, der weiterläuft. Beides lesend,
+	// also ohne Schreibrecht und ohne Token — dieselbe Grenze wie bei GET /logs.
+	mux.Handle("GET /api/v1/logs", s.protected(http.HandlerFunc(s.handleAPILogs)))
+	mux.Handle("GET /api/v1/logs/follow", s.protected(http.HandlerFunc(s.handleAPILogsFollow)))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

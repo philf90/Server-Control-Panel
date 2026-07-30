@@ -1,54 +1,19 @@
 <script lang="ts">
   // Vier Gruppen statt einer Liste gleichrangiger Punkte: System, Apps,
   // Sicherheit, Betrieb. Der Zuschnitt kommt aus docs/16-neukonzeption.md 8.2
-  // und trägt die Module, die in 0.6 bis 0.9 dazukommen.
+  // und trägt die Module, die in 0.5 bis 0.8 dazukommen.
   //
-  // Solange die neue Oberfläche neben der alten läuft, zeigen die Ziele ohne
-  // eigene Seite auf die alte unter / — kein toter Verweis, und der Weg zurück
-  // ist immer da.
-  import { t } from "../lib/texte";
+  // Die Ziele selbst stehen in lib/ziele.ts, weil die Befehlspalette dieselbe
+  // Liste braucht. Zwei Listen desselben Menüs laufen auseinander: Ein neues
+  // Modul erschiene dann in der Leiste, aber nicht in der Suche.
+  import { gruppen } from "../lib/ziele";
+  import { verweis, weg } from "../lib/weg.svelte";
 
-  let { aktiv = "uebersicht" }: { aktiv?: string } = $props();
-
-  type Ziel = { id: string; label: string; symbol: string; href: string };
-
-  const gruppen: { titel: string; ziele: Ziel[] }[] = [
-    {
-      titel: t.bereiche.system,
-      ziele: [
-        { id: "uebersicht", label: t.ziele.uebersicht, symbol: "messuhr", href: "/v2/" },
-        { id: "dienste", label: t.ziele.dienste, symbol: "zahnrad", href: "/services" },
-        { id: "pakete", label: t.ziele.pakete, symbol: "kiste", href: "/packages" },
-        { id: "cron", label: t.ziele.cron, symbol: "uhr", href: "/v2/" },
-      ],
-    },
-    {
-      titel: t.bereiche.apps,
-      ziele: [
-        { id: "docker", label: t.ziele.docker, symbol: "container", href: "/v2/" },
-        { id: "webserver", label: t.ziele.webserver, symbol: "globus", href: "/v2/" },
-        { id: "datenbanken", label: t.ziele.datenbanken, symbol: "datenbank", href: "/v2/" },
-        { id: "backups", label: t.ziele.backups, symbol: "archiv", href: "/v2/" },
-      ],
-    },
-    {
-      titel: t.bereiche.sicherheit,
-      ziele: [
-        { id: "firewall", label: t.ziele.firewall, symbol: "schild", href: "/firewall" },
-        { id: "benutzer", label: t.ziele.benutzer, symbol: "personen", href: "/system-users" },
-        { id: "zertifikate", label: t.ziele.zertifikate, symbol: "siegel", href: "/certificate" },
-      ],
-    },
-    {
-      titel: t.bereiche.betrieb,
-      ziele: [
-        { id: "dateien", label: t.ziele.dateien, symbol: "ordner", href: "/files" },
-        { id: "logs", label: t.ziele.logs, symbol: "zeilen", href: "/logs" },
-        { id: "audit", label: t.ziele.audit, symbol: "buch", href: "/audit" },
-        { id: "einstellungen", label: t.ziele.einstellungen, symbol: "regler", href: "/settings" },
-      ],
-    },
-  ];
+  // Der hervorgehobene Punkt kommt aus dem Weg und nicht aus einer Eigenschaft:
+  // Die Kennungen der Ziele in lib/ziele.ts sind dieselben, die der Router
+  // liefert. Eine Eigenschaft müsste jede Seite selbst setzen — und eine davon
+  // wird es vergessen.
+  const aktiv = $derived(weg.seite);
 </script>
 
 <aside class="seitenleiste">
@@ -57,8 +22,13 @@
       <b>{gruppe.titel}</b>
       <nav>
         {#each gruppe.ziele as ziel (ziel.id)}
+          <!-- Ein echtes <a href>, und der Klick wird nur abgefangen, wenn das
+               Ziel zur neuen Oberfläche gehört: Damit bleiben Mittelklick, „in
+               neuem Tab öffnen" und der Verweis in der Statuszeile erhalten,
+               und die Ziele, die noch auf / zeigen, laden ganz normal. -->
           <a
             href={ziel.href}
+            onclick={(e) => verweis(e, ziel.href)}
             class:an={ziel.id === aktiv}
             aria-current={ziel.id === aktiv ? "page" : undefined}
           >

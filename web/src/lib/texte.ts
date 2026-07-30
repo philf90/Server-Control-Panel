@@ -84,6 +84,151 @@ export const t = {
     keineProzesse: "Keine Prozessdaten verfügbar.",
   },
 
+  dienste: {
+    laedt: "wird geladen …",
+    suchen: "Dienst suchen",
+    filtern: "Nach Zustand filtern",
+    alle: "alle",
+    unit: "Unit",
+    zustandSpalte: "Zustand",
+    autostart: "Autostart",
+    beschreibung: "Beschreibung",
+    nichts: "Kein Dienst passt zu dieser Suche.",
+    // Die drei Wörter für den einen Zustand, den der Server bildet. Die
+    // Schlüssel sind die Werte aus der Schnittstelle, damit die Zuordnung ohne
+    // eine zweite Tabelle auskommt.
+    zustand: {
+      laeuft: "läuft",
+      gescheitert: "fehlgeschlagen",
+      aus: "aus",
+    },
+    seit: "Aktiv seit",
+    pid: "PID",
+    speicher: "Speicher",
+    unitDatei: "Unit-Datei",
+    journal: "Letzte Journalzeilen",
+    keineZeilen: "Keine Journalzeilen zu dieser Unit.",
+    laeuft: "läuft …",
+    nurLesen: "Dieses Konto darf lesen, aber nicht schalten.",
+    // Beschriftungen der Aktionen. Die Schlüssel sind die Namen aus der
+    // privops-Allowlist — mehr Aktionen gibt es nicht.
+    aktion: {
+      start: "starten",
+      stop: "stoppen",
+      restart: "neu starten",
+      reload: "neu laden",
+      enable: "Autostart ein",
+      disable: "Autostart aus",
+    },
+    units: (n: number) => (n === 1 ? "1 Unit" : `${n} Units`),
+    gescheiterte: (n: number) =>
+      n === 1 ? "1 fehlgeschlagen" : `${n} fehlgeschlagen`,
+  },
+
+  pakete: {
+    laedt: "wird geladen …",
+    suchen: "Paket suchen",
+    keine: "Alles auf dem neuesten Stand.",
+    keineDetail:
+      "Es sind keine Updates verfügbar. Wann die Listen zuletzt geholt wurden, sagt der Auszug unten.",
+    nichts: "Kein Paket passt zu dieser Suche.",
+    alle: "alle",
+    paket: "Paket",
+    version: "Version",
+    quelle: "Quelle",
+    art: "Art",
+    sicherheit: "Sicherheit",
+    normal: "Update",
+    listenHolen: "Listen holen",
+    alleEinspielen: "Alle einspielen",
+    nurSicherheit: "Nur Sicherheitsupdates",
+    einzelnEinspielen: "einspielen",
+    nurLesen: "Dieses Konto darf lesen, aber nicht einspielen.",
+    // Der Neustart wird nur angeboten, wenn er aussteht — ein Knopf, der immer
+    // da ist, wird irgendwann versehentlich gedrückt.
+    neustartTitel: "Ein Neustart steht aus",
+    neustartWegen: "Verlangt von:",
+    neustartKnopf: "Server neu starten",
+    neustartNurOwner: "Den Neustart löst nur die Owner-Rolle aus.",
+    neustartAngestossen:
+      "Der Neustart wurde angestoßen. Die Verbindung bricht gleich ab und kommt nach dem Hochfahren zurück.",
+    updates: (n: number) => (n === 1 ? "1 Update" : `${n} Updates`),
+    sicherheitsupdates: (n: number) =>
+      n === 1 ? "1 Sicherheitsupdate" : `${n} Sicherheitsupdates`,
+  },
+
+  logs: {
+    laedt: "wird geladen …",
+    zeit: "Zeit",
+    stufe: "Stufe",
+    unit: "Unit",
+    nachricht: "Nachricht",
+    suche: "Suche",
+    suchen: "suchen",
+    suchePlatzhalter: "im Text oder in der Unit",
+    alleUnits: "alle Units",
+    alleStufen: "alle Stufen",
+    abFehler: "ab Fehler",
+    abWarnung: "ab Warnung",
+    abInfo: "ab Info",
+    zeitraum: "Zeitraum",
+    ohneGrenze: "ohne Grenze",
+    letzteStunde: "letzte Stunde",
+    letzte6h: "letzte 6 Stunden",
+    letzte24h: "letzte 24 Stunden",
+    heute: "heute",
+    letzte7t: "letzte 7 Tage",
+    verfolgen: "verfolgen",
+    anhalten: "anhalten",
+    keine: "Keine Einträge.",
+    keineDetail:
+      "Zu diesen Filtern hat das Journal nichts. Ein weiterer Zeitraum oder eine niedrigere Stufe hilft.",
+    zuVieleZuschauer:
+      "Es sehen schon zu viele Verbindungen dem Journal zu — ein anderer Tab hält einen Strom offen.",
+    zeilenZahl: (n: number) => (n === 1 ? "1 Zeile" : `${n} Zeilen`),
+    holt: (n: number) => `holt ${n}`,
+    // Verworfene Zeilen ehrlich benennen: Das Journal schrieb schneller, als die
+    // Leitung übertragen konnte.
+    luecke: (n: number) =>
+      n === 1
+        ? "Eine Zeile ist unterwegs verloren gegangen — das Journal schrieb schneller als die Leitung."
+        : `${n} Zeilen sind unterwegs verloren gegangen — das Journal schrieb schneller als die Leitung.`,
+  },
+
+  vorgang: {
+    laeuft: "läuft",
+    fertig: "abgeschlossen",
+    gescheitert: "gescheitert",
+    teils: "teils geglückt",
+    von: "von",
+    auszug: "Ausgabe des Vorgangs",
+    zumEnde: "zum Ende springen",
+    wartetAufAusgabe: "wartet auf die erste Ausgabe …",
+    stromWeg: "Der Live-Auszug ist abgerissen — der Vorgang läuft weiter.",
+  },
+
+  inspektor: {
+    titel: "Einzelheiten",
+    schliessen: "Einzelheiten schließen",
+  },
+
+  rueckfrage: {
+    abbrechen: "abbrechen",
+    laeuft: "läuft …",
+  },
+
+  palette: {
+    titel: "Suchen und springen",
+    platzhalter: "Suchen oder springen …",
+    nichts: "Nichts gefunden.",
+    waehlen: "wählen",
+    oeffnen: "öffnen",
+    neu: "neu",
+    // Ehrlich benannt: Die Palette sucht heute Ziele, keine Dienste. Wer das
+    // erwartet und nichts findet, hält die Suche für kaputt.
+    spaeter: "Dienste und Dateien folgen mit ihren Modulen",
+  },
+
   stufe: {
     kritisch: "kritisch",
     warnung: "Warnung",

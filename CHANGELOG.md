@@ -9,6 +9,149 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0-rc.2] — 2026-07-30
+
+Drei Module der neuen Oberfläche und das Muster, das die weiteren übernehmen.
+Die alte Oberfläche unter `/` ist unverändert — kein Diff in
+`internal/ui/templates`, `internal/ui/static` und `handlers_system.go`.
+
+### Hinzugefügt
+
+- **Befehlspalette in der neuen Oberfläche.** `⌘K` beziehungsweise `Strg+K`
+  öffnet ein Suchfeld über allem und springt von dort an jede Stelle des Panels;
+  der Hinweis im Statusband ist selbst der Knopf, damit das Kürzel kein Wissen
+  voraussetzt, das die Oberfläche verschweigt. Bedienbar allein mit der Tastatur:
+  Pfeile wählen, `Pos1`/`Ende` springen an die Enden, `Enter` öffnet, `Escape`
+  schließt und gibt den Fokus dorthin zurück, wo er war.
+
+  Gesucht wird nicht nur im Namen. Jedes Ziel führt die Wörter mit, unter denen
+  jemand danach sucht — `nginx` findet den Webserver, `ssl` das Zertifikat,
+  `apt` die Pakete —, und Umlaute sind aufgelöst, sodass auch `ubersicht`
+  trifft. Gewichtet wird in vier Stufen, damit das Naheliegende oben steht und
+  die Reihenfolge nicht vom Menüaufbau abhängt.
+
+  Damit ist der offene Punkt aus
+  [docs/15-neuordnung.md](docs/15-neuordnung.md) erledigt: In der alten
+  Oberfläche wäre die Palette ein Skript in der Seite gewesen, das die
+  Inhaltsrichtlinie verwirft. Die Navigationsziele stehen jetzt **einmal** in
+  `web/src/lib/ziele.ts` und werden von Seitenleiste und Palette gemeinsam
+  gelesen — zwei Listen desselben Menüs laufen sonst auseinander, und ein neues
+  Modul wäre in der Leiste zu sehen, aber nicht zu finden. Dienste, Dateien und
+  Regeln als eigene Treffer kommen dazu, sobald die Module sie über `/api/v1`
+  anbieten; die Suche ist dafür so geschnitten, dass eine zweite Quelle nur eine
+  weitere Liste ist.
+
+- **Modul Dienste in der neuen Oberfläche** — das erste neben der Übersicht, und
+  damit die Form, die die weiteren übernehmen (siehe
+  [docs/16-neukonzeption.md](docs/16-neukonzeption.md) 8.4). Liste links,
+  Inspektor rechts, kein Seitenwechsel: Wer einen Dienst neustartet, sieht danach
+  die Liste mit der neuen Zeile darin und muss die Stelle nicht wiederfinden.
+
+  Die Auswahl steht in der Adresse (`?unit=nginx.service`). Ein Verweis auf einen
+  bestimmten Dienst ist damit teilbar, ein Neuladen zeigt denselben Zustand, und
+  der Zurück-Knopf schließt den Inspektor. Gesucht wird auch in der Beschreibung
+  — wer „web" tippt, sucht nginx, und der Unitname sagt das nicht —, und die
+  Zähler über der Liste sind selbst die Filter.
+
+  Gescheitertes steht oben, weil es der Grund ist, die Seite zu öffnen. Zustand,
+  Zähler, Sortierung und die zum Zustand passenden Aktionen rechnet der Server:
+  `static` und `masked` bekommen keinen Autostart-Knopf, weil `systemctl enable`
+  daran scheitert und ein Knopf, der immer einen Fehler liefert, schlimmer ist als
+  keiner.
+
+- **Rückfragen ohne gerenderte Seite.** `/api/v1` führt eine zerstörende Aktion
+  nicht aus, solange `bestaetigt` fehlt, und antwortet stattdessen mit **409** und
+  dem Text der Rückfrage — Titel, Frage, Folgen, Knopfbeschriftung und bei Stufe 3
+  das zu tippende Wort. Das ist [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md)
+  wortgleich übersetzt: Die Zwischenseite wird ein Objekt, verbindlich bleibt der
+  Handler. Ein selbstgebautes POST ohne das Feld tut weiterhin nichts.
+
+  Der Dialog ist ein echtes `<dialog>` mit `showModal()` — Fokusfang, oberste
+  Ebene und Escape kommen vom Browser. Der gefährliche Knopf bekommt den Fokus
+  nicht, und bei Stufe 3 bleibt er gesperrt, bis das Wort stimmt. Zwei Tests an
+  den Quellen halten fest, dass niemand die Abkürzung über `window.confirm` nimmt:
+  Die würde funktionieren — und wäre eine Rückfrage, an der ein POST vorbeikommt.
+
+- **Wegewahl ohne Neuladen.** Die neue Oberfläche hat einen eigenen Router von
+  etwa achtzig Zeilen statt einer Bibliothek. Beim Seitenwechsel bleiben
+  Statusband und Live-Kanal stehen — in der alten Oberfläche flackerten die Zahlen
+  oben bei jedem Klick, weil jede Seite neu kam. Ziele, deren Modul noch fehlt,
+  zeigen weiter auf die alte Oberfläche und laden ganz normal; Mittelklick und
+  „in neuem Tab öffnen" funktionieren überall, weil die Verweise echte `<a href>`
+  bleiben.
+
+- **Modul Pakete in der neuen Oberfläche** — das erste mit einer Handlung, die
+  Minuten dauert, und damit die Stelle, an der Grundsatz III („Handlungen sind
+  quittiert") Form bekommt. Sicherheitsupdates stehen oben, weil sie der Grund
+  sind, die Seite zu öffnen; die Zähler darüber sind selbst die Filter; ein
+  einzelnes Paket lässt sich in seiner Zeile einspielen.
+
+  Ein ausstehender Neustart steht über allem anderen: Er bedeutet, dass
+  eingespielte Updates noch nicht wirken, und nennt das Paket, das ihn verlangt.
+  Der Knopf dazu erscheint nur, wenn er aussteht — ein Knopf, der immer da ist,
+  wird irgendwann versehentlich gedrückt — und nur für die Owner-Rolle. Er ist
+  die einzige Aktion der neuen Oberfläche mit Bestätigungsstufe 3: Getippt wird
+  der Hostname, damit niemand den richtigen Neustart auf dem falschen Server
+  auslöst.
+
+- **Vorgänge als eigene Ressource, mit Live-Auszug.** `/api/v1/jobs/{art}` sagt,
+  was läuft, wer es angestoßen hat, wie lange es dauert und wie es ausging; ein
+  Ereignisstrom daneben liefert die Zeilen, während sie entstehen. Eine Platte in
+  der Oberfläche zeigt das für jeden Vorgang gleich — Docker, Backups und die
+  Firewall-Einrichtung erben sie.
+
+  Der Start antwortet mit **202** und wartet nicht auf apt: Eine Anfrage, die
+  zwanzig Minuten offen bleibt, überlebt keinen Zwischenserver. Der Vorgang läuft
+  auf dem Server weiter, wenn jemand die Seite verlässt — wer zurückkommt, findet
+  ihn samt Auszug vor. Ein zweiter Paketvorgang wird abgewiesen (**409**), statt
+  sich an der dpkg-Sperre zu verklemmen. Ein Teilerfolg von `apt-get update` gilt
+  weiter als Teilerfolg und nennt die klemmende Quelle: verschwiegen wäre er eine
+  Zusage, die niemand halten kann.
+
+- **Modul Logs in der neuen Oberfläche, mit Live-Verfolgung.** Das Journal
+  abgefragt oder verfolgt: Filter für Unit, Stufe, Zeitraum und Freitext stehen in
+  der Adresse, ein Verweis auf „nginx, ab heute, nur Fehler" ist damit teilbar.
+  Die neuesten Zeilen oben, ab Fehler rot, bei Warnung bernstein — und immer mit
+  dem Wort daneben, nie mit der Farbe allein.
+
+  Verfolgen ist ein Schalter und keine Vorgabe. Das hat einen Grund, der über
+  Geschmack hinausgeht: Jeder Zuschauer hat seinen eigenen Filter und braucht
+  deshalb einen eigenen `journalctl --follow` — vier offene Tabs wären vier
+  Prozesse. Es gibt daher eine Obergrenze; wird sie erreicht, sagt die Seite es,
+  statt einen Knopf anzubieten, der abgewiesen wird. Beim Verlassen der Seite wird
+  angehalten. Das ist der Unterschied zu einem Paketvorgang, der weiterläuft:
+  Dessen Abbruch schadet, das Weiterlaufen eines Journals kostet nur.
+
+  Dazu gehört eine neue privops-Operation, `LogsFollow` — die einzige **ohne eigene
+  Frist**: Der Kontext des Betrachters ist die Frist, und sein geschlossener Tab
+  beendet den Prozess. Die Filter baut sie aus derselben Funktion wie die Abfrage;
+  hätte der Strom eigene, könnte er mehr zeigen als die Abfrage vorher hergab.
+
+  Zwei Einzelheiten, die im Betrieb wehtun, wenn sie fehlen: Ein Herzschlag hält
+  die Verbindung offen, weil ein Reverse-Proxy eine stille nach einer Minute
+  schließt und ein ruhiges Journal genau das ist. Und verworfene Zeilen werden
+  gemeldet — schreibt das Journal schneller als die Leitung überträgt, sagt die
+  Seite, wie viele fehlen. Eine Lücke, die niemand sieht, ist schlimmer als eine,
+  die dasteht.
+
+### Behoben
+
+- **Escape schloss zwei Dinge auf einmal.** Ein Escape im Rückfrage-Dialog brach
+  nicht nur die Rückfrage ab, sondern schloss auch den Inspektor darunter — die
+  Auswahl war danach weg. Ein offener Dialog besitzt Escape jetzt allein. Gesehen
+  hat das der Browsertest, kein Nachdenken.
+
+- **Der bestätigende Knopf im Neustart-Dialog blieb für immer gesperrt.** Die
+  Paketseite hielt die Aktion noch für laufend, während der Dialog schon stand —
+  eine Rückfrage, die man nicht bestätigen kann. Auch das hat der Browsertest
+  gefunden; im Code sah die Bedingung richtig aus.
+
+- **Jede Journalzeile stand doppelt da, sobald man auf „verfolgen" drückte.** Der
+  Strom bringt seinen eigenen Rückblick mit — dieselben letzten Einträge, die die
+  Abfrage schon geliefert hatte. Bei 200 geholten Zeilen sah die Seite nach einem
+  Klick wie 400 Ereignisse aus. Gesehen hat das ein Bildschirmfoto; die Tests waren
+  grün, weil sie zählten, dass Zeilen dazukommen, und nicht welche.
+
 ## [0.4.0-rc.1] — 2026-07-30
 
 ### Hinzugefügt

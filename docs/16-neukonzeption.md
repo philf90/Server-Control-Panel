@@ -139,6 +139,17 @@ Auslöser (wer, wann, was), einen Stream aus dem Konsolen-Echo, einen Exit-Code
 und bleibt nach Abschluss abrufbar. Die Oberfläche zeigt jeden Job gleich an,
 egal aus welchem Modul er stammt.
 
+> **Stand nach dem Modul Pakete:** Der *sichtbare* Teil davon steht — eine
+> Ressource `/api/v1/jobs/{art}` mit Zustand, Auslöser, Laufzeit und Auszug, ein
+> Ereignisstrom daneben, und eine Platte in der Oberfläche, die jeder Vorgang
+> gleich benutzt. Der *innere* Teil ist noch der alte: Die Registry liegt in
+> `internal/httpd` und hält je Art den letzten Vorgang im Speicher. Was noch
+> fehlt, ist die Nummer und der Verlauf über einen Neustart des Panels hinaus —
+> beides verlangt eine Tabelle im Store. Das geschieht beim Umschalten, wenn die
+> alte Oberfläche gelöscht ist und nur noch ein Leser übrig ist: Solange beide
+> laufen, wäre eine zweite Registry der schlimmere Fehler — ein Vorgang, der
+> doppelt startet, weil zwei Verwaltungen nichts voneinander wissen.
+
 **Eine JSON-Schnittstelle `/api/v1/*`.** Die neue Oberfläche ist die einzige
 Kundin, aber die Schnittstelle wird von Anfang an so geschnitten, als käme
 später eine zweite (CLI, Automatisierung): Ressourcen statt Seiten, Fehler als
@@ -643,6 +654,125 @@ Dazu kommt ein sechster, der die neuen Module bindet:
 |---|---|
 | VI | Was schiefgehen kann, hat einen Rückweg — Probe mit Frist statt bloßer Rückfrage, wo ein Fehler das Panel selbst aussperren kann |
 
+### 8.4 Das Muster eines Moduls
+
+Festgelegt am Modul **Dienste**, das als erstes gebaut wurde — nicht weil es
+das wichtigste ist, sondern weil sieben weitere dieselbe Form brauchen. Wer den
+Inspektor falsch baut, baut ihn achtmal falsch.
+
+**Grundriss: Werkbank.** Liste links, Inspektor rechts, kein Seitenwechsel. Wer
+einen Dienst neustartet, will danach die Liste sehen — mit der neuen Zeile darin
+und nicht als frisch geladene Seite, auf der er die Stelle wiederfinden muss.
+Ohne Auswahl nimmt die Liste die ganze Breite; eine leere Spalte danebenzustellen
+wäre ein Versprechen auf etwas, das nicht da ist. Unter 1100 px stapelt es, und
+der Inspektor steht **oben**: Wer eine Zeile angeklickt hat, will die Einzelheiten
+sehen und nicht erst scrollen.
+
+**Die Auswahl steht in der Adresse** (`?unit=nginx.service`). Damit ist ein
+Verweis auf einen bestimmten Eintrag teilbar, ein Neuladen zeigt denselben
+Zustand, und der Zurück-Knopf schließt den Inspektor. Der Verlauf ist dabei
+überlegt und nicht beiläufig: Die **erste** Auswahl auf einer Seite ist ein
+Schritt (`pushState`), der Wechsel von einer Auswahl zur nächsten **ersetzt**
+(`replaceState`). Sonst müsste man nach zehn angesehenen Einträgen zehnmal
+zurück, um die Seite zu verlassen.
+
+**Zwei Aufrufe, nicht einer.** Die Liste kommt vollständig und wird im Browser
+gefiltert — beim Tippen ist das Ergebnis sofort da, statt einmal pro Buchstabe
+über `systemctl` zu gehen. Die Einzelheiten kommen erst mit der Auswahl, weil
+`systemctl show` je Unit Zeit kostet. Was der Server ausrechnet, rechnet der
+Browser nicht nach: Zustand („läuft/fehlgeschlagen/aus"), Zähler, Sortierung
+(Gescheitertes zuerst) und die sinnvollen Aktionen zum Zustand stehen in der
+Antwort. Zählte der Browser selbst, zählte jedes Modul nach eigener Regel — und
+die Übersicht nach einer dritten.
+
+**Aktionen antworten mit dem neu gelesenen Zustand.** `POST` auf die Ressource,
+Aktion im JSON-Körper, und die Antwort trägt das frische Detail. Ohne das müsste
+die Oberfläche eine zweite Anfrage stellen und zeigte in der Lücke den alten
+Zustand — was nach einem Neustart genauso aussieht wie ein Neustart, der nicht
+geklappt hat.
+
+**Rückfragen kommen vom Server.** [14-bestaetigungen.md](14-bestaetigungen.md)
+wortgleich übersetzt: Der Handler führt nichts aus, solange `bestaetigt` fehlt,
+und antwortet stattdessen mit **409** und dem *Text* der Rückfrage — Titel,
+Frage, Folgen, Knopfbeschriftung, und bei Stufe 3 das zu tippende Wort. Die
+Zwischenseite von damals wird ein Objekt. Drei Eigenschaften fallen dadurch
+wieder von selbst an: Ein selbstgebautes `POST` ohne das Feld tut nichts, der
+Text der Frage steht an genau einer Stelle — dort, wo sie auch erzwungen wird —,
+und der Dialog im Browser darf sich irren, ohne dass es gefährlich wird. Der
+Dialog selbst ist ein echtes `<dialog>` mit `showModal()`: Fokusfang, oberste
+Ebene und Escape kommen vom Browser. Ein `<div>` mit Schleier nachzubauen ist die
+Stelle, an der Tastaturbedienung still verloren geht.
+
+**Lange Handlungen sind Vorgänge.** Festgelegt am Modul **Pakete**, dem ersten
+mit einer Aktion, die Minuten dauert. Der POST startet und ist sofort zurück
+(**202**) — er wartet nicht auf apt; eine Anfrage, die zwanzig Minuten offen
+bleibt, überlebt keinen Zwischenserver und kein WLAN. Zugesehen wird über
+`/api/v1/jobs/{art}`: die Ressource für den Zustand, der Ereignisstrom daneben
+für die Zeilen, während sie entstehen. Der Strom sagt nur „vorbei" — ob es
+geglückt ist, wie lange es dauerte und ob eine Anmerkung dazugehört, steht in der
+Ressource, und die wird am Ende noch einmal gefragt. Zwei Fassungen dieser
+Auskunft liefen auseinander, und dann sagte die Zeile über dem Auszug etwas
+anderes als der Auszug.
+
+Drei Einzelheiten, die keine Wahl sind:
+
+- **Der Vorgang läuft auf dem Server weiter.** Wer die Seite verlässt und
+  zurückkommt, findet ihn vor, mit Auszug und Laufzeit. Ein abgebrochenes
+  `apt-get` mitten im dpkg-Lauf hinterlässt ein halb konfiguriertes System; das
+  darf nicht davon abhängen, ob ein Tab offen bleibt.
+- **Angehängt wird an die Antwort, nicht an einen späteren Abruf.** Der Server
+  hat den Vorgang gerade angelegt, er läuft also — der Strom kann sofort auf.
+  Erst abzufragen wäre eine Runde später, und bei einem Vorgang, der in der
+  Zwischenzeit fertig wird, käme „läuft nicht" zurück und der Strom ginge nie
+  auf. Bei `apt-get update` über einen schnellen Spiegel ist das der Normalfall.
+- **Höchstens einer je Art.** Zwei apt-Läufe blockieren sich an der dpkg-Sperre.
+  Das soll die Oberfläche verhindern (**409**) und nicht ausprobieren.
+
+**Ein Strom ist nicht wie der andere.** Festgelegt am Modul **Logs**, der zweiten
+Seite mit einem Ereignisstrom — und dem Punkt, an dem sich zeigte, dass die
+Vorgangsplatte dafür *nicht* taugt. Der Unterschied ist nicht die Technik, beide
+hängen an Server-Sent Events; er liegt in der Bedeutung:
+
+| | Vorgang (Pakete) | Journal (Logs) |
+|---|---|---|
+| Ende | bestimmt der Server: apt ist fertig | keines — es endet, wenn niemand zusieht |
+| Warum man zusieht | um zu erfahren, wie es ausgeht | um zu erfahren, was gerade passiert |
+| Beim Verlassen der Seite | läuft weiter (ein Abbruch schadet) | wird beendet (ein Weiterlaufen kostet nur) |
+| Gehalten wird | jede Zeile, bis zum Ende | die letzten 2000 |
+| Zuschauer | teilen sich einen Vorgang | jeder hat einen eigenen Prozess |
+| Anfangen | mit der Aktion, ungefragt | auf Knopfdruck, nie ungefragt |
+
+Die letzten zwei Zeilen sind die wichtigen. Weil jeder Zuschauer seinen eigenen
+Filter hat, braucht er einen eigenen `journalctl --follow` — vier offene Tabs sind
+vier Prozesse. Deshalb gibt es eine Obergrenze (`maxLogFolger`, mit **429** und
+einer Angabe in der Abfrage, damit die Oberfläche den Knopf gleich richtig zeigt),
+und deshalb ist Verfolgen ein Schalter und keine Vorgabe: Wer die Seite öffnet,
+will meist lesen, was war.
+
+Zwei Einzelheiten, die im Betrieb wehtun, wenn sie fehlen:
+
+- **Ein Herzschlag.** Ein Reverse-Proxy schließt eine stille Verbindung nach einer
+  Minute, und ein ruhiges Journal ist genau das: still. Ein Kommentar im
+  Ereignisstrom (`: still`) hält sie offen, ohne beim Client ein Ereignis
+  auszulösen.
+- **Verworfene Zeilen werden gemeldet.** Schreibt das Journal schneller als die
+  Leitung überträgt, verwirft der Server — und sagt, wie viele. Eine Lücke, die
+  niemand sieht, ist schlimmer als eine, die dasteht.
+
+Für privops heißt das eine neue Operation: `LogsFollow`. Sie ist die **einzige
+ohne eigene Frist** — der Kontext des Betrachters ist die Frist, und
+`CommandContext` tötet den Prozess, wenn er abbricht. Die Argumente baut sie aus
+derselben Funktion wie die Abfrage: Hätte der Strom eigene, könnte er mehr zeigen
+als die Abfrage vorher hergab, und eine Stufenbeschränkung wäre beim Umschalten
+ein Leck durch die Hintertür.
+
+**Rechte am Endpunkt, sichtbar in der Oberfläche.** Schreibrecht und
+Sitzungstoken werden vor jeder verändernden Anfrage geprüft (`X-CSRF-Token` als
+Kopfzeile, nicht als Feld — eine Kopfzeile kann ein Formular von einer fremden
+Seite nicht setzen). Wer nur Leserecht hat, bekommt die Schaltknöpfe gar nicht
+angeboten und dazu den Satz, warum. Sie zu verstecken, ohne es zu sagen, sieht
+wie ein halb gebautes Modul aus.
+
 ## 9. Architekturfolgen im Backend
 
 - **`internal/httpd` teilt sich** in die API-Schicht (`/api/v1`, JSON, Tokens)
@@ -651,7 +781,10 @@ Dazu kommt ein sechster, der die neuen Module bindet:
   Umstellung läuft — die alten Seiten gemeinsam nutzen.
 - **Job-Modell** als eigenes Paket (`internal/jobs`): Registry, Verlauf im
   Store, Stream über den SSE-Hub. Pakete/Firewall ziehen um, alles Neue
-  beginnt dort.
+  beginnt dort. **Beim Umschalten und nicht davor:** Die Schnittstelle nach
+  außen steht seit dem Modul Pakete (siehe 4.2 und 8.4), die Verwaltung bleibt
+  vorerst in `internal/httpd`, weil die alte Oberfläche sie mitbenutzt. Eine
+  zweite Registry neben der ersten wäre ein Vorgang, der doppelt startet.
 - **privops wächst um vier Familien** (`Docker*`, `Site*`, `Db*`, `Backup*`
   plus `Cron*/Timer*`) und bleibt die einzige Systemgrenze. Die
   Allowlist wächst um `docker`, `nginx`/`caddy`, `mysql`/`psql`, `restic`,

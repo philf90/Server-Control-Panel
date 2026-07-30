@@ -2,6 +2,7 @@
   // Grundsatz I aus docs/15-neuordnung.md: Der Zustand geht nie weg. Das Band
   // steht auf jeder Seite, und jede Zahl darin ist ein Griff — kein Text.
   import { live } from "../lib/live.svelte";
+  import { palette } from "../lib/palette.svelte";
   import { hauptSchnittstelle, prozentText, rateText } from "../lib/formate";
   import { t } from "../lib/texte";
 
@@ -36,6 +37,14 @@
     <a href="/v2/">RAM <b>{mem}</b></a>
     <a href="/v2/">NETZ <b>{netz}</b></a>
   </span>
+
+  <!-- Ein Tastenkürzel anzuzeigen, das man nicht auch anklicken kann, verlangt
+       Wissen, das die Oberfläche selbst bereitstellen sollte. Der Hinweis ist
+       deshalb der Knopf. -->
+  <button type="button" class="kbd" onclick={() => palette.oeffnen()}>
+    <span aria-hidden="true">⌘K</span>
+    <span class="kbd-text">{t.palette.titel}</span>
+  </button>
 
   <span
     class="live"
@@ -114,6 +123,32 @@
     font-weight: 600;
   }
 
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--line2);
+    border-radius: 6px;
+    padding: 0.15rem 0.55rem;
+    color: var(--tx-mut);
+    background: none;
+    font: inherit;
+    cursor: pointer;
+    flex: none;
+  }
+
+  .kbd:hover {
+    color: var(--tx);
+    border-color: var(--accent-dim);
+  }
+
+  /* Schmal bleibt das Kürzel, der Text geht — der Knopf bleibt bedienbar. */
+  @media (max-width: 900px) {
+    .kbd-text {
+      display: none;
+    }
+  }
+
   .live {
     flex: none;
   }
@@ -129,14 +164,5 @@
   .live.an i {
     background: var(--ok);
     box-shadow: 0 0 8px rgba(76, 195, 138, 0.8);
-  }
-
-  .nur-vorlese {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 </style>

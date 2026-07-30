@@ -29,6 +29,7 @@ type fakeOps struct {
 	sysUsers   []privops.SystemUser
 	keys       []privops.SSHKey
 	logs       []privops.LogEntry
+	folgeLogs  []privops.LogEntry
 	units      []string
 	upgradeErr error
 	rebootErr  error
@@ -262,6 +263,41 @@ func (f *fakeOps) Logs(context.Context, privops.LogQuery) ([]privops.LogEntry, e
 }
 
 func (f *fakeOps) LogUnits(context.Context) ([]string, error) { return f.units, nil }
+
+// LogsFollow verhält sich wie das echte journalctl --follow: Es liefert erst den
+// Rückblick und bleibt dann offen, bis der Kontext abbricht.
+//
+// Das „bleibt offen" ist der Kern der Attrappe. Eine Fassung, die nach dem
+// Rückblick zurückkehrt, würde jeden Test bestehen lassen, der prüft, ob der
+// Strom Zeilen liefert — und keinen, der prüft, ob er offen bleibt. Genau daran
+// entscheidet sich, ob die Seite ein Journal verfolgt oder eine Momentaufnahme
+// zeigt.
+func (f *fakeOps) LogsFollow(ctx context.Context, q privops.LogQuery, sink privops.LogSink) error {
+	f.record("logs:follow:" + q.Unit)
+
+	f.mu.Lock()
+	zeilen := append([]privops.LogEntry(nil), f.logs...)
+	nachschub := f.folgeLogs
+	f.mu.Unlock()
+
+	for _, e := range zeilen {
+		sink(e)
+	}
+
+	// Nachgeschobene Einträge stehen für das, was während des Zusehens
+	// hereinkommt. Ohne sie prüfte ein Test nur den Rückblick.
+	for _, e := range nachschub {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(20 * time.Millisecond):
+			sink(e)
+		}
+	}
+
+	<-ctx.Done()
+	return ctx.Err()
+}
 
 func (f *fakeOps) ConfigCheck(_ context.Context, path string) (privops.ConfigCheckResult, error) {
 	f.record("configcheck:" + path)

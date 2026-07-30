@@ -140,6 +140,171 @@ export type Signale = {
   signale: Signal[];
 };
 
+/** Zustand ist der eine Wert, den die Liste einfärbt. Gebildet wird er auf dem
+ *  Server aus zwei systemd-Feldern (Active und Sub) — damit die Liste, die
+ *  Zähler und der Handlungsbedarf dieselben Dienste als gescheitert zählen. */
+export type Zustand = "laeuft" | "gescheitert" | "aus";
+
+/** Dienst ist eine Zeile der Dienstliste. */
+export type Dienst = {
+  unit: string;
+  name: string;
+  beschreibung: string;
+  zustand: Zustand;
+  aktiv: string;
+  unterzustand: string;
+  laden: string;
+  autostart: string;
+};
+
+/** Logzeile ist eine Journalzeile.
+ *
+ *  Dieselbe Form im Dienst-Inspektor und auf der Logseite. Die Felder `zeit` und
+ *  `at` stehen beide da: `zeit` ist die fertige Anzeige mit fester Breite, `at`
+ *  der rohe Wert. Im Inspektor ist `at` schon die fertige Zeit — dort trug das
+ *  Feld sie von Anfang an, und es umzubenennen hieße, die alte Fassung zu
+ *  ändern. `zeit` ist deshalb optional. */
+export type Logzeile = {
+  at: string;
+  zeit?: string;
+  unit?: string;
+  stufe: string;
+  stufe_nr?: number;
+  nachricht: string;
+  ernst: boolean;
+};
+
+/** Logs ist die Antwort von GET /api/v1/logs. */
+export type Logs = {
+  zeilen: Logzeile[];
+  units: string[];
+  /** abfrage ist, was der Server verstanden hat — nicht, was gefragt wurde. Wer
+   *  eine Grenze überschreitet, deren Deckel er nicht kennt, soll sehen, was
+   *  tatsächlich gefragt wurde. */
+  abfrage: {
+    unit: string;
+    stufe: number;
+    seit: string;
+    suche: string;
+    anzahl: number;
+  };
+  fehler: string;
+  /** folger_frei sagt, ob noch ein Strom offen sein darf. Damit kann die
+   *  Oberfläche den Knopf gleich richtig zeigen, statt ihn anzubieten und
+   *  abgewiesen zu werden. */
+  folger_frei: boolean;
+};
+
+/** DienstAktion ist eine der sechs erlaubten Aktionen aus der privops-Liste.
+ *  Mehr gibt es nicht — es existiert kein Weg, eine beliebige
+ *  systemctl-Unteraktion durchzureichen. */
+export type DienstAktion = "start" | "stop" | "restart" | "reload" | "enable" | "disable";
+
+/** DienstDetail ist die Antwort von GET /api/v1/services/{unit}. */
+export type DienstDetail = Dienst & {
+  seit: string;
+  haupt_pid: number;
+  speicher: string;
+  speicher_bytes: number;
+  aufgaben: number;
+  unit_datei: string;
+  logzeilen: Logzeile[];
+  aktionen: DienstAktion[];
+};
+
+/** Dienste ist die Antwort von GET /api/v1/services. */
+export type Dienste = {
+  dienste: Dienst[];
+  zaehler: {
+    gesamt: number;
+    laeuft: number;
+    gescheitert: number;
+    aus: number;
+  };
+};
+
+/** Job ist ein langlaufender Vorgang: Paketlisten holen, Updates einspielen,
+ *  später ein Abbild ziehen oder ein Backup prüfen.
+ *
+ *  laeuft und gescheitert sind zwei Felder und nicht ein Wort: „läuft noch" und
+ *  „ist gescheitert" schließen sich aus, aber „fertig und geglückt" ist der
+ *  Zustand, in dem beide falsch sind — und den will die Oberfläche ohne
+ *  Fallunterscheidung erkennen. */
+export type Job = {
+  art: string;
+  titel: string;
+  akteur: string;
+  laeuft: boolean;
+  gescheitert: boolean;
+  fehler: string;
+  /** hinweis ist eine Anmerkung zum Ergebnis, die kein Fehler ist — der
+   *  Teilerfolg von apt-get update etwa. */
+  hinweis: string;
+  zeilen: string[];
+  start: string;
+  dauer_text: string;
+};
+
+/** Paket ist eine Zeile der Paketliste. */
+export type Paket = {
+  name: string;
+  von: string;
+  nach: string;
+  quelle: string;
+  architektur: string;
+  sicherheit: boolean;
+};
+
+/** Pakete ist die Antwort von GET /api/v1/packages. */
+export type Pakete = {
+  pakete: Paket[];
+  zaehler: { gesamt: number; sicherheit: number };
+  neustart: { erforderlich: boolean; pakete: string[] };
+  /** job ist der laufende oder letzte Paketvorgang — in dieser Antwort, damit
+   *  die Seite mit einem Aufruf vollständig ist. */
+  job: Job | null;
+  /** rechnername ist das Wort, das beim Neustart getippt werden muss. */
+  rechnername: string;
+  /** fehler ist gesetzt, wenn die Liste nicht zu lesen war. Die
+   *  Neustartmarkierung und ein laufender Vorgang gelten trotzdem. */
+  fehler: string;
+};
+
+/** Umfang eines Updates. Ein Wort statt zweier Wahrheitswerte — „alles und nur
+ *  Sicherheit" wäre ein Zustand, den es nicht gibt. */
+export type Umfang = "alle" | "sicherheit" | "einzeln";
+
+/** VorgangGestartet ist die Antwort auf einen gestarteten Vorgang (202). */
+export type VorgangGestartet = {
+  meldung: string;
+  job: Job;
+};
+
+/** Bestaetigung ist der Text einer Rückfrage, wie der Server sie stellt.
+ *
+ *  Sie kommt vom Server und wird nicht im Browser formuliert: Der Handler führt
+ *  nichts aus, solange `bestaetigt` fehlt, und schickt stattdessen diesen Text.
+ *  Damit steht die Frage einmal — dort, wo sie auch erzwungen wird. Siehe
+ *  docs/14-bestaetigungen.md. */
+export type Bestaetigung = {
+  titel: string;
+  frage: string;
+  punkte: string[];
+  knopf: string;
+  /** Leer heißt Stufe 2: ein zweiter Klick genügt. Gefüllt heißt Stufe 3 — das
+   *  Wort muss getippt werden. */
+  tippen: string;
+  tippen_hinweis: string;
+  fehler?: string;
+};
+
+/** AktionAntwort ist die Antwort auf eine ausgeführte Aktion: die Meldung und
+ *  der neu gelesene Zustand des Ziels. */
+export type AktionAntwort = {
+  meldung: string;
+  detail: DienstDetail;
+};
+
 /** Punkt ist eine Stützstelle eines Verlaufs: Stelle im 100×34-Feld und die
  *  fertigen Texte für die Ablesung. Gerechnet wird auf dem Server. */
 export type Punkt = {

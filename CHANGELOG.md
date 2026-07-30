@@ -81,6 +81,32 @@ nicht als Release getaggt.
   auf, weil die Endpunkte korrekt antworten und nur nie ein gültiger Nachweis
   ankommt.
 
+- **Modul Zertifikate in der neuen Oberfläche.** Zustand des ausgelieferten
+  Zertifikats, Einstellungen für den ACME-Bezug und der Bezug selbst. Oben, was
+  gerade ausgeliefert wird, darunter, wie es bezogen wird — wer die Seite öffnet,
+  will in den meisten Fällen das Erste wissen.
+
+  **Einstellung und Wirklichkeit werden auseinandergehalten.** „acme"
+  eingestellt heißt nicht „acme ausgeliefert": Bis der erste Bezug glückt, bleibt
+  das selbstsignierte Zertifikat aktiv. Beides steht da, und der Zwischenzustand
+  ist benannt — ohne das sucht jemand den Fehler an der falschen Stelle.
+
+  **Das Formular zeigt nur, was zur Wahl passt.** DNS-01 braucht einen Anbieter,
+  Hook zwei Pfade, Cloudflare ein Token; Felder, die zur getroffenen Wahl nichts
+  beitragen, stehen nicht da. Geschickt wird, was zu sehen ist, und nicht der
+  letzte Zustand jedes Feldes — sonst antwortet der Server mit einer Begründung
+  für ein Feld, das gar nicht dasteht.
+
+  **Der Bezug ist ein Vorgang und bekommt keinen eigenen Ereignisstrom.** Er
+  läuft über `/api/v1/jobs/certificate/events` wie der Paketvorgang und das
+  Einspielen von ufw — das einheitliche Job-Modell aus
+  [docs/16-neukonzeption.md](docs/16-neukonzeption.md) statt eines vierten
+  Endpunkts. Die alte Oberfläche behält ihren Strom unter `/certificate/events`.
+
+  **Der Rückschritt auf ein selbstsigniertes Zertifikat fragt zurück** (Stufe 2)
+  — danach warnt jeder Browser beim Aufruf des Panels. Der einzige Unterschied im
+  Verhalten gegenüber der alten Fläche.
+
 - **Rollenabhängige Navigation in der neuen Oberfläche.** Was eine Rolle nicht
   erreicht, steht nicht in der Seitenleiste und nicht in der Befehlspalette —
   wie in der alten Oberfläche (`{{if .IsOwner}}`). Gefiltert wird an einer

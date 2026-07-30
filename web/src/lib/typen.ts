@@ -994,3 +994,79 @@ export type PasskeyBeginn = {
   ticket: string;
   optionen: Record<string, unknown>;
 };
+
+// ------------------------------------------------------------- Zertifikat ---
+
+/** Wahl ist ein wählbarer Wert mit seiner Erklärung. Vom Server, weil dort die
+ *  Bedingungen bekannt sind: HTTP-01 braucht Port 80, DNS-01 einen Anbieter. */
+export type Wahl = { wert: string; name: string; was: string };
+
+/** Zertifikat ist die Antwort von GET /api/v1/certificate. */
+export type Zertifikat = {
+  /** modus ist die EINSTELLUNG ("selfsigned" | "acme"), quelle die Herkunft des
+   *  gerade ausgelieferten Zertifikats. Beides fällt auseinander, solange kein
+   *  Bezug geglückt ist — und genau dieser Zwischenzustand ist der, den jemand
+   *  erklärt bekommen möchte. */
+  modus: string;
+  quelle: string;
+  zustand: "gut" | "warn" | "schlecht";
+  zustand_text: string;
+
+  datei: string;
+  inhaber: string;
+  aussteller: string;
+  namen: string[];
+  fingerprint: string;
+  gueltig_ab: string;
+  gueltig_bis: string;
+  /** tage_uebrig kann negativ sein. */
+  tage_uebrig: number;
+  selbstsigniert: boolean;
+  lesefehler: string;
+
+  email: string;
+  /** namenstext ist die Eingabefassung: ein Name je Zeile. Leer heißt „der
+   *  vollqualifizierte Rechnername". */
+  namenstext: string;
+  geltende_namen: string[];
+  pruefmethode: string;
+  anbieter: string;
+  hook_setzen: string;
+  hook_aufraeumen: string;
+  /** token_hinterlegt: Das Token selbst kommt nie zurück, sein Vorhandensein
+   *  schon — sonst müsste man es bei jedem Speichern neu eingeben. */
+  token_hinterlegt: boolean;
+  testverzeichnis: boolean;
+  /** verwaltete_datei ist die Datei, in der die Einstellungen landen. Sie steht
+   *  in der Oberfläche, weil das Panel nichts versteckt. */
+  verwaltete_datei: string;
+
+  bezug_laeuft: boolean;
+  bezug_zeit: string;
+  bezug_fehler: string;
+  job: Job | null;
+
+  pruefmethoden: Wahl[];
+  anbieter_liste: Wahl[];
+};
+
+/** Zertifikatauftrag ist der Körper von POST /api/v1/certificate. */
+export type Zertifikatauftrag = {
+  modus: string;
+  email: string;
+  namenstext: string;
+  pruefmethode: string;
+  anbieter: string;
+  hook_setzen: string;
+  hook_aufraeumen: string;
+  /** token leer heißt: das hinterlegte behalten. Ein leeres Feld darf keinen
+   *  funktionierenden Zugang löschen. */
+  token: string;
+  testverzeichnis: boolean;
+};
+
+export type Zertifikatantwort = {
+  meldung: string;
+  zertifikat?: Zertifikat;
+  hinweis?: string;
+};

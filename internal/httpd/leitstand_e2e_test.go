@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/philf90/asylum/internal/auth"
+	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 )
@@ -444,6 +445,53 @@ type ergebnisLeitstand struct {
 			FensterBreite float64 `json:"fensterBreite"`
 		} `json:"schmal"`
 	} `json:"zugaenge"`
+	Zert struct {
+		Wesen                string   `json:"wesen"`
+		Kopfzustand          string   `json:"kopfzustand"`
+		Angaben              []string `json:"angaben"`
+		SelbstsigniertSatz   string   `json:"selbstsigniertSatz"`
+		VerwalteteDatei      bool     `json:"verwalteteDatei"`
+		SelbstsigniertFelder struct {
+			Email   bool `json:"email"`
+			Methode bool `json:"methode"`
+		} `json:"selbstsigniertFelder"`
+		AcmeFelder struct {
+			Email    bool `json:"email"`
+			Namen    bool `json:"namen"`
+			Methode  bool `json:"methode"`
+			Anbieter bool `json:"anbieter"`
+			Hook     bool `json:"hook"`
+			Token    bool `json:"token"`
+			Geltend  bool `json:"geltend"`
+		} `json:"acmeFelder"`
+		HTTP01 bool `json:"http01"`
+		Hook   struct {
+			Setzen     bool `json:"setzen"`
+			Aufraeumen bool `json:"aufraeumen"`
+			Token      bool `json:"token"`
+		} `json:"hook"`
+		Cloudflare struct {
+			Token string `json:"token"`
+			Hook  bool   `json:"hook"`
+			Warum bool   `json:"warum"`
+		} `json:"cloudflare"`
+		NachSpeichern struct {
+			Meldung       string `json:"meldung"`
+			Hinweis       string `json:"hinweis"`
+			Zwischen      bool   `json:"zwischen"`
+			BeziehenOffen bool   `json:"beziehenOffen"`
+		} `json:"nachSpeichern"`
+		Rueckschritt struct {
+			Frage    string   `json:"frage"`
+			Punkte   []string `json:"punkte"`
+			Tippfeld bool     `json:"tippfeld"`
+		} `json:"rueckschritt"`
+		NachAbbruch string `json:"nachAbbruch"`
+		Schmal      struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"zert"`
 	Konto struct {
 		Wesen   string   `json:"wesen"`
 		Bloecke []string `json:"bloecke"`
@@ -579,6 +627,15 @@ func TestLeitstandBrowser(t *testing.T) {
 	addUser(t, s, "vertretung", store.RoleAdmin)
 	gehilfe := addUser(t, s, "gehilfe", store.RoleAdmin)
 	gehilfeCookie, _ := login(t, s, gehilfe)
+
+	// Das selbstsignierte TLS-Paar. Im Test entsteht es nicht von selbst —
+	// EnsurePair läuft nur in Run —, und ohne es zeigte die Zertifikatsseite den
+	// Lesefehler statt des Zustands. Ein laufendes Panel hat immer ein Zertifikat;
+	// ein Bildschirmfoto ohne eines wäre eine Lüge über die Fläche.
+	if _, err := certs.EnsurePair(s.cfg.Server.TLS.Cert, s.cfg.Server.TLS.Key,
+		[]string{"panel.example.test"}); err != nil {
+		t.Fatal(err)
+	}
 
 	// Wiederherstellungscodes für das eigene Konto. Ohne sie stünde auf der
 	// Kontoseite „keiner mehr übrig" samt roter Warnung — ein Zustand, den es nach
@@ -1874,6 +1931,105 @@ func TestLeitstandBrowser(t *testing.T) {
 	} else if pz.Schmal.KoerperBreite > pz.Schmal.FensterBreite+1 {
 		t.Errorf("die Zugangsseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
 			pz.Schmal.KoerperBreite, pz.Schmal.FensterBreite)
+	}
+
+	// 6m. Zertifikat und ACME. Der Kern ist das gestaffelte Formular: Es zeigt nur,
+	// was zur getroffenen Wahl passt. Ein Feld, das nichts bewirkt, ist eine
+	// Aufforderung, etwas Wirkungsloses einzutragen.
+	ze := e.Zert
+	if ze.Wesen == "" {
+		t.Error("es fehlt der Satz darüber, was das Zertifikat ist")
+	}
+	if ze.Kopfzustand == "" {
+		t.Error("der Zustand des Zertifikats steht nicht in der Kopfzeile")
+	}
+	for _, feld := range []string{"Herkunft", "Gültig", "Aussteller", "Fingerprint", "Datei"} {
+		if !slices.Contains(ze.Angaben, feld) {
+			t.Errorf("die Angabe %q fehlt: %v", feld, ze.Angaben)
+		}
+	}
+	if !strings.Contains(ze.SelbstsigniertSatz, "warnt") {
+		t.Errorf("bei einem selbstsignierten Zertifikat steht nicht, dass jeder Browser "+
+			"warnt: %q", ze.SelbstsigniertSatz)
+	}
+	if !ze.VerwalteteDatei {
+		t.Error("die Datei, in der die Einstellungen landen, wird nicht genannt — " +
+			"das Panel versteckt nichts")
+	}
+
+	// Gestaffelt: Bei „selbstsigniert" keine ACME-Felder.
+	if ze.SelbstsigniertFelder.Email || ze.SelbstsigniertFelder.Methode {
+		t.Errorf("bei selbstsigniert stehen ACME-Felder da: %+v", ze.SelbstsigniertFelder)
+	}
+	// Bei ACME und „automatisch": Adresse, Namen, Methode — aber weder Hook-Pfade
+	// noch Token, denn welcher Anbieter gemeint ist, steht noch nicht fest.
+	af := ze.AcmeFelder
+	if !af.Email || !af.Namen || !af.Methode {
+		t.Errorf("bei ACME fehlen Grundfelder: %+v", af)
+	}
+	if af.Hook || af.Token {
+		t.Errorf("bei ACME ohne gewählten Anbieter stehen schon Anbieterfelder da: %+v", af)
+	}
+	if !af.Geltend {
+		t.Error("die aufgelösten Namen fehlen — dann muss man raten, was „leer\" bedeutet")
+	}
+	if !ze.HTTP01 {
+		t.Error("bei HTTP-01 steht ein Anbieterfeld da — es bewirkt dort nichts")
+	}
+	if !ze.Hook.Setzen || !ze.Hook.Aufraeumen {
+		t.Errorf("beim Hook fehlen die zwei Pfadfelder: %+v", ze.Hook)
+	}
+	if ze.Hook.Token {
+		t.Error("beim Hook steht ein Tokenfeld da")
+	}
+	// Das Token ist ein Passwortfeld: Es soll nicht offen auf dem Schirm stehen.
+	if ze.Cloudflare.Token != "password" {
+		t.Errorf("das Tokenfeld ist vom Typ %q, erwartet password", ze.Cloudflare.Token)
+	}
+	if ze.Cloudflare.Hook {
+		t.Error("bei Cloudflare stehen die Hook-Pfade da")
+	}
+	if !ze.Cloudflare.Warum {
+		t.Error("es steht nicht dabei, dass das Token in einer eigenen Datei mit 0600 landet")
+	}
+
+	// Nach dem Speichern: der Zwischenzustand ist benannt, und beziehen ist offen.
+	if !strings.Contains(ze.NachSpeichern.Meldung, "gespeichert") {
+		t.Errorf("nach dem Speichern fehlt die Quittung: %q", ze.NachSpeichern.Meldung)
+	}
+	if !ze.NachSpeichern.Zwischen {
+		t.Error("der Zwischenzustand „eingestellt, aber noch nichts bezogen\" ist nicht " +
+			"benannt — dann sucht jemand den Fehler an der falschen Stelle")
+	}
+	if !ze.NachSpeichern.BeziehenOffen {
+		t.Error("nach dem Einschalten ist „jetzt beziehen\" noch gesperrt")
+	}
+
+	// Der Rückschritt fragt zurück, und nach dem ABBRUCH steht die Einstellung noch.
+	if !strings.Contains(ze.Rueckschritt.Frage, "selbstsigniert") {
+		t.Errorf("die Frage benennt den Rückschritt nicht: %q", ze.Rueckschritt.Frage)
+	}
+	warnt := false
+	for _, p := range ze.Rueckschritt.Punkte {
+		if strings.Contains(p, "warnt") {
+			warnt = true
+		}
+	}
+	if !warnt {
+		t.Errorf("die Frage sagt nicht, dass danach jeder Browser warnt: %v", ze.Rueckschritt.Punkte)
+	}
+	if ze.Rueckschritt.Tippfeld {
+		t.Error("der Rückschritt verlangt ein getipptes Wort — er ist umkehrbar")
+	}
+	if !strings.Contains(ze.NachAbbruch, "Let's Encrypt") {
+		t.Errorf("nach dem ABBRUCH steht %q eingestellt — die Rückfrage hat nicht "+
+			"gefragt, sondern nur gefragt ausgesehen", ze.NachAbbruch)
+	}
+	if ze.Schmal.FensterBreite == 0 {
+		t.Error("die Zertifikatsseite wurde nicht im Schmalmodus gemessen")
+	} else if ze.Schmal.KoerperBreite > ze.Schmal.FensterBreite+1 {
+		t.Errorf("die Zertifikatsseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — "+
+			"sie scrollt waagerecht", ze.Schmal.KoerperBreite, ze.Schmal.FensterBreite)
 	}
 
 	// 6l. Das eigene Konto. Die Passkeys haben ihren eigenen Durchlauf mit

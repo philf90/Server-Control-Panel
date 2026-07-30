@@ -2050,6 +2050,149 @@ async function main() {
     await kontext2.close();
   }
 
+  // 12i. Zertifikat und ACME. Drei Dinge sind hier nur im Browser zu sehen:
+  //
+  //      1. Das Formular zeigt NUR, was zur Wahl passt. Ein Anbieterfeld bei
+  //         HTTP-01 oder ein Tokenfeld beim Hook wäre die Aufforderung, etwas
+  //         einzutragen, das nichts bewirkt.
+  //      2. Der Zwischenzustand „eingestellt, aber noch nichts bezogen" ist
+  //         benannt. Ohne das sucht jemand den Fehler an der falschen Stelle.
+  //      3. Der Rückschritt auf selbstsigniert fragt zurück, und nach dem
+  //         ABBRUCH steht die Einstellung noch.
+  const zert = {};
+  await seite.goto(`${basis}/v2/zertifikate`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".wahl label", { timeout: 5000 });
+
+  zert.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  zert.kopfzustand = await seite.evaluate(
+    () => document.querySelector(".kopfzeile .zustand")?.textContent.trim() ?? "",
+  );
+  zert.angaben = await seite.evaluate(() =>
+    [...document.querySelectorAll("dl.kv dt")].map((dt) => dt.textContent.trim()),
+  );
+  // Selbstsigniert ist benannt, nicht bloß eingefärbt.
+  zert.selbstsigniertSatz = await seite.evaluate(
+    () => document.querySelector(".anmerkung")?.textContent.trim() ?? "",
+  );
+  // Und die verwaltete Datei steht dabei: Das Panel versteckt nichts.
+  zert.verwalteteDatei = await seite.evaluate(() =>
+    [...document.querySelectorAll(".detail")].some((p) => p.textContent.includes("Gespeichert wird in")),
+  );
+
+  // Bei „selbstsigniert" stehen keine ACME-Felder da.
+  zert.selbstsigniertFelder = await seite.evaluate(() => ({
+    email: document.querySelector("#zert-email") !== null,
+    methode: document.querySelector("#zert-methode") !== null,
+  }));
+
+  // Auf ACME umstellen: Jetzt kommen die Felder, und zwar gestaffelt.
+  await seite.click('.wahl label:has-text("Let\'s Encrypt") input');
+  await seite.waitForSelector("#zert-email", { timeout: 5000 });
+  zert.acmeFelder = await seite.evaluate(() => ({
+    email: document.querySelector("#zert-email") !== null,
+    namen: document.querySelector("#zert-namen") !== null,
+    methode: document.querySelector("#zert-methode") !== null,
+    // Bei „automatisch" ist der Anbieter zulässig, aber nicht nötig.
+    anbieter: document.querySelector("#zert-anbieter") !== null,
+    hook: document.querySelector("#zert-hook-setzen") !== null,
+    token: document.querySelector("#zert-token") !== null,
+    // Die aufgelösten Namen stehen da, damit niemand raten muss, was „leer" heißt.
+    geltend: [...document.querySelectorAll(".detail")].some((p) =>
+      p.textContent.includes("Verwendet würde"),
+    ),
+  }));
+
+  // HTTP-01: kein Anbieterfeld.
+  await seite.selectOption("#zert-methode", "http-01");
+  await seite.waitForTimeout(200);
+  zert.http01 = await seite.evaluate(
+    () => document.querySelector("#zert-anbieter") === null,
+  );
+
+  // DNS-01 mit Hook: zwei Pfadfelder, kein Token.
+  await seite.selectOption("#zert-methode", "dns-01");
+  await seite.waitForSelector("#zert-anbieter", { timeout: 5000 });
+  await seite.selectOption("#zert-anbieter", "hook");
+  await seite.waitForSelector("#zert-hook-setzen", { timeout: 5000 });
+  zert.hook = await seite.evaluate(() => ({
+    setzen: document.querySelector("#zert-hook-setzen") !== null,
+    aufraeumen: document.querySelector("#zert-hook-aufraeumen") !== null,
+    token: document.querySelector("#zert-token") !== null,
+  }));
+
+  // Cloudflare: Tokenfeld, und es ist ein Passwortfeld.
+  await seite.selectOption("#zert-anbieter", "cloudflare");
+  await seite.waitForSelector("#zert-token", { timeout: 5000 });
+  zert.cloudflare = await seite.evaluate(() => ({
+    token: document.querySelector("#zert-token")?.getAttribute("type") ?? "",
+    hook: document.querySelector("#zert-hook-setzen") !== null,
+    warum: [...document.querySelectorAll(".detail")].some((p) =>
+      p.textContent.includes("0600"),
+    ),
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zertifikat.png`,
+      fullPage: true,
+    });
+  }
+
+  // Jetzt gültig ausfüllen und speichern — HTTP-01, damit kein Anbieter nötig
+  // ist. Der Weg dorthin führt ABSICHTLICH über die Cloudflare-Wahl von oben:
+  // Geschickt werden muss, was zu sehen ist, und nicht der letzte Zustand jedes
+  // Feldes. Ohne das ginge der unsichtbare Anbieter mit, und der Server lehnte
+  // mit einer Begründung für ein Feld ab, das gar nicht dasteht.
+  await seite.selectOption("#zert-methode", "http-01");
+  await seite.fill("#zert-email", "admin@example.test");
+  await seite.fill("#zert-namen", "panel.example.test");
+  await seite.click('form button[type=submit]');
+  await seite.waitForSelector(".band.gut", { timeout: 5000 });
+  zert.nachSpeichern = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+    hinweis: document.querySelector(".band.warn")?.textContent.trim() ?? "",
+    // Der Zwischenzustand: eingestellt, aber noch nichts bezogen.
+    zwischen: [...document.querySelectorAll(".anmerkung")].some((p) =>
+      p.textContent.includes("noch kein Zertifikat bezogen"),
+    ),
+    // Und jetzt ist „jetzt beziehen" offen.
+    beziehenOffen: ![...document.querySelectorAll(".knopf")].find((b) =>
+      b.textContent.includes("jetzt beziehen"),
+    )?.disabled,
+  }));
+
+  // Der Rückschritt fragt zurück.
+  await seite.click('.wahl label:has-text("selbstsigniert") input');
+  await seite.click('form button[type=submit]');
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  zert.rueckschritt = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: [...d.querySelectorAll(".punkte li")].map((li) => li.textContent.trim()),
+      tippfeld: d.querySelector(".tippen") !== null,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(400);
+  // Nach dem ABBRUCH steht die Einstellung noch — das prüft, ob die Rückfrage
+  // gefragt hat oder nur gefragt aussah.
+  await seite.reload({ waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".wahl label", { timeout: 5000 });
+  zert.nachAbbruch = await seite.evaluate(
+    () => document.querySelector('.wahl label.an .name')?.textContent.trim() ?? "",
+  );
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  zert.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   // 12h. Das eigene Konto. Die Passkeys stehen hier NICHT — die brauchen einen
   //      virtuellen Authenticator und haben ihren eigenen Durchlauf
   //      (passkey_e2e.js, Modus „v2"). Was hier geprüft wird, ist der Rest, und
@@ -2252,6 +2395,7 @@ async function main() {
       audit,
       konten,
       zugaenge,
+      zert,
       konto,
       fremdeRolle,
       bald,

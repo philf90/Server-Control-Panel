@@ -431,6 +431,87 @@ export const t = {
     art: "Art",
   },
 
+  zert: {
+    laedt: "wird geladen …",
+    wesen:
+      "Das Zertifikat, mit dem das Panel selbst ausgeliefert wird. Ein selbstsigniertes funktioniert, aber jeder Browser widerspricht; Let's Encrypt beglaubigt es und erneuert es von selbst.",
+    // Der Zustand des ausgelieferten Zertifikats.
+    zustand: "Zustand",
+    quelle: "Herkunft",
+    datei: "Datei",
+    inhaber: "Inhaber",
+    aussteller: "Aussteller",
+    namen: "Namen im Zertifikat",
+    fingerprint: "Fingerprint",
+    gueltig: "Gültig",
+    bis: (ab: string, bis: string) => `${ab} bis ${bis}`,
+    tage: (n: number) =>
+      n < 0
+        ? `seit ${-n} Tagen abgelaufen`
+        : n === 1
+          ? "noch 1 Tag"
+          : `noch ${n} Tage`,
+    lesefehler: "Das Zertifikat ist nicht lesbar:",
+    // Der Zwischenzustand, den man erklärt bekommen möchte.
+    nochNichtBezogen:
+      "Der automatische Bezug ist eingestellt, aber noch kein Zertifikat bezogen. Ausgeliefert wird bis dahin das selbstsignierte.",
+    selbstsigniertWarnung:
+      "Selbstsigniert: Jeder Browser warnt beim Aufruf. Für ein beglaubigtes Zertifikat unten den automatischen Bezug einschalten.",
+
+    // ---------------------------------------------------------- Bezugsart ---
+    // „Bezugsart" und nicht „Bezug": Der Block darunter heißt so, und zwei
+    // Überschriften mit demselben Wort auf einem Schirm liest man als Versehen.
+    modusTitel: "Bezugsart",
+    selbstsigniert: "selbstsigniert",
+    selbstsigniertWas:
+      "Das Panel erzeugt das Paar selbst. Kein Netzzugang nötig, aber jeder Browser warnt.",
+    acme: "Let's Encrypt (ACME)",
+    acmeWas:
+      "Beglaubigt und wird vor Ablauf selbst erneuert. Braucht einen von außen erreichbaren Namen.",
+
+    // ----------------------------------------------------- Einstellungen ---
+    einstellungenTitel: "Einstellungen für den Bezug",
+    email: "Kontaktadresse",
+    emailWarum:
+      "Dorthin schickt Let's Encrypt die Warnung, wenn eine Erneuerung ausbleibt.",
+    namenFeld: "Namen",
+    namenWarum:
+      "Ein Name je Zeile. Leer heißt: der vollqualifizierte Rechnername des Servers.",
+    geltend: "Verwendet würde:",
+    keineNamen:
+      "Kein Name ermittelbar — ohne vollqualifizierten Rechnernamen gibt es nichts zu beantragen.",
+    pruefmethode: "Prüfmethode",
+    anbieter: "DNS-Anbieter",
+    hookSetzen: "Programm zum Setzen",
+    hookAufraeumen: "Programm zum Aufräumen",
+    hookWarum:
+      "Absolute Pfade auf ausführbare Programme. Sie laufen als root und setzen beziehungsweise entfernen den TXT-Eintrag.",
+    token: "Cloudflare-API-Token",
+    tokenHinterlegt:
+      "Ein Token ist hinterlegt. Das Feld leer lassen behält es; ein neuer Wert ersetzt es.",
+    tokenWarum:
+      "Das Token landet in einer eigenen Datei mit Rechten 0600 — nicht in der Konfiguration, die für die Gruppe des Dienstes lesbar ist. Zurückgezeigt wird es nie.",
+    testverzeichnis: "Testverzeichnis von Let's Encrypt verwenden",
+    testverzeichnisWarum:
+      "Stellt Zertifikate aus, denen kein Browser traut — dafür sind die Grenzen weit. Der richtige Ort, um einen DNS-Hook einzurichten, ohne die Produktionsgrenzen zu verbrauchen.",
+    testverzeichnisAktiv:
+      "Es ist das Testverzeichnis eingestellt. Ein damit bezogenes Zertifikat wird von keinem Browser akzeptiert.",
+    verwalteteDatei: (datei: string) => `Gespeichert wird in ${datei}`,
+    speichern: "Einstellungen speichern",
+    nurLesen: "Dieses Konto darf den Zertifikatsbezug nicht ändern.",
+
+    // ----------------------------------------------------------- Bezug ---
+    bezugTitel: "Bezug",
+    beziehen: "jetzt beziehen",
+    bezugLaeuft: "Es läuft ein Bezug.",
+    bezugZuletzt: (zeit: string) => `Letzter Versuch: ${zeit}`,
+    bezugFehler: "Der letzte Versuch ist gescheitert:",
+    bezugWarum:
+      "Ein Bezug nimmt nichts weg: Das bisherige Zertifikat bleibt aktiv, bis ein neues da ist. Über DNS kann er einige Minuten dauern.",
+    bezugNurACME:
+      "Beziehen geht erst, wenn der automatische Bezug eingeschaltet und gespeichert ist.",
+  },
+
   konto: {
     laedt: "wird geladen …",
     wesen:

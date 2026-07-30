@@ -184,6 +184,13 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserReset2FA)))))
 	mux.Handle("POST /api/v1/panel-users/{id}/reset-passkeys",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserResetPasskeys)))))
+	// Zertifikat und ACME. Kein eigener Ereignisstrom: Der Bezug ist ein Vorgang
+	// und läuft über /api/v1/jobs/certificate/events wie die anderen.
+	mux.Handle("GET /api/v1/certificate", s.protected(http.HandlerFunc(s.handleAPIZertifikat)))
+	mux.Handle("POST /api/v1/certificate",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIZertifikatSpeichern))))
+	mux.Handle("POST /api/v1/certificate/obtain",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIZertifikatBezug))))
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst
 	// bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen, mit dem es

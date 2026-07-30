@@ -16,15 +16,15 @@ import type {
   DienstAktion,
   DienstDetail,
   EigenesKonto,
-  Kontoantwort2,
-  Kontoauftrag2,
-  PasskeyBeginn,
   Firewall,
   FirewallAntwort,
   Job,
   Logs,
+  Kontoantwort2,
+  Kontoauftrag2,
   Ordnerauswahl,
   Pakete,
+  PasskeyBeginn,
   Panelantwort,
   Panelauftrag,
   Panelzugaenge,
@@ -43,6 +43,9 @@ import type {
   Uploadantwort,
   Verlaeufe,
   VorgangGestartet,
+  Zertifikat,
+  Zertifikatantwort,
+  Zertifikatauftrag,
 } from "./typen";
 
 /** AbgemeldetFehler steht für die eine Antwort, die nicht wie ein Fehler
@@ -477,6 +480,43 @@ export const api = {
         bestaetigt,
         getippt,
       }),
+    }),
+
+  // ------------------------------------------------------------- Zertifikat ---
+
+  zertifikat: () => anfrage<Zertifikat>("/certificate"),
+
+  /** zertifikatSpeichern übernimmt die Einstellungen. Wirft BestaetigungNoetig
+   *  beim Rückschritt auf ein selbstsigniertes Zertifikat — danach warnt jeder
+   *  Browser, und das ist ein Fall für eine Rückfrage. */
+  zertifikatSpeichern: (felder: Partial<Zertifikatauftrag>, bestaetigt = false, getippt = "") =>
+    anfrage<Zertifikatantwort>("/certificate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modus: "selfsigned",
+        email: "",
+        namenstext: "",
+        pruefmethode: "",
+        anbieter: "",
+        hook_setzen: "",
+        hook_aufraeumen: "",
+        token: "",
+        testverzeichnis: false,
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    }),
+
+  /** zertifikatBeziehen stößt einen sofortigen Bezug an. Der Verlauf kommt über
+   *  den Vorgangsstrom (/api/v1/jobs/certificate/events) — derselbe Weg wie beim
+   *  Paketvorgang. */
+  zertifikatBeziehen: () =>
+    anfrage<Zertifikatantwort>("/certificate/obtain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
     }),
 
   // --------------------------------------------------------- Eigenes Konto ---

@@ -69,6 +69,13 @@
       <rect x="2.8" y="1.8" width="10.4" height="12.4" rx="1.2" />
       <path d="M5.4 5h5.2M5.4 8h5.2M5.4 11h3" />
     </symbol>
+    <!-- Ein Pfeil nach oben aus einem Sockel: die Fassung, die nachrückt. Bewusst
+         anders als die Kiste bei „Pakete" — das eine aktualisiert das Panel, das
+         andere das System, und die Verwechslung wäre folgenreich. -->
+    <symbol id="sym-pfeil-hoch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 10.4V2.6M4.9 5.7L8 2.6l3.1 3.1" />
+      <path d="M2.6 12.2v.6c0 .6.5 1.1 1.1 1.1h8.6c.6 0 1.1-.5 1.1-1.1v-.6" />
+    </symbol>
     <symbol id="sym-regler" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
       <path d="M2 4.4h12M2 8h12M2 11.6h12" />
       <circle cx="10.5" cy="4.4" r="1.6" fill="var(--surface)" />

@@ -33,7 +33,10 @@ import type {
   Schluesselliste,
   Signale,
   Sitzung,
+  Panelupdate,
   Uebersicht,
+  Updateantwort,
+  Updatestand,
   Textantwort,
   Textauftrag,
   Systembenutzer,
@@ -480,6 +483,32 @@ export const api = {
         bestaetigt,
         getippt,
       }),
+    }),
+
+  // ----------------------------------------------------------------- Update ---
+
+  panelupdate: () => anfrage<Panelupdate>("/update"),
+
+  /** updatestand ist der Poller. Er wird auch dann gefragt, wenn der Dienst
+   *  gerade neu startet — dann scheitert der Aufruf, und DAS ist der Normalfall
+   *  dieses Moduls und kein Fehler. Der Aufrufer behandelt es entsprechend. */
+  updatestand: () => anfrage<Updatestand>("/update/status"),
+
+  updatePruefen: () =>
+    anfrage<Updateantwort>("/update/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }),
+
+  /** updateHandlung stößt Einspielen oder Rückweg an. wohin ist "/apply" oder
+   *  "/rollback". Beide antworten 202: angenommen, nicht ausgeführt — der Vorgang
+   *  läuft in einer eigenen Unit weiter und beendet dabei diesen Dienst. */
+  updateHandlung: (wohin: string, bestaetigt = false, getippt = "") =>
+    anfrage<Updateantwort>(`/update${wohin}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bestaetigt, getippt }),
     }),
 
   // ------------------------------------------------------------- Zertifikat ---

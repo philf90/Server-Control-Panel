@@ -445,6 +445,39 @@ type ergebnisLeitstand struct {
 			FensterBreite float64 `json:"fensterBreite"`
 		} `json:"schmal"`
 	} `json:"zugaenge"`
+	Upd struct {
+		Wesen       string   `json:"wesen"`
+		Angaben     []string `json:"angaben"`
+		VorPruefung struct {
+			EinspielenText      string `json:"einspielenText"`
+			EinspielenGesperrt  bool   `json:"einspielenGesperrt"`
+			Satz                bool   `json:"satz"`
+			AbbruchAngekuendigt bool   `json:"abbruchAngekuendigt"`
+			Rueckweg            bool   `json:"rueckweg"`
+			KeineSicherung      bool   `json:"keineSicherung"`
+		} `json:"vorPruefung"`
+		NachPruefung struct {
+			Meldung  string   `json:"meldung"`
+			Marke    []string `json:"marke"`
+			Notizen  string   `json:"notizen"`
+			Knopf    string   `json:"knopf"`
+			Gesperrt bool     `json:"gesperrt"`
+		} `json:"nachPruefung"`
+		Frage struct {
+			Text     string   `json:"text"`
+			Punkte   []string `json:"punkte"`
+			Tippfeld bool     `json:"tippfeld"`
+			Knopf    string   `json:"knopf"`
+		} `json:"frage"`
+		NachAbbruch struct {
+			DialogZu bool `json:"dialogZu"`
+			KeinLauf bool `json:"keinLauf"`
+		} `json:"nachAbbruch"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"upd"`
 	Zert struct {
 		Wesen                string   `json:"wesen"`
 		Kopfzustand          string   `json:"kopfzustand"`
@@ -627,6 +660,16 @@ func TestLeitstandBrowser(t *testing.T) {
 	addUser(t, s, "vertretung", store.RoleAdmin)
 	gehilfe := addUser(t, s, "gehilfe", store.RoleAdmin)
 	gehilfeCookie, _ := login(t, s, gehilfe)
+
+	// Ein Metadatenserver für die Updateseite, und eine echte Fassung: Ein selbst
+	// gebautes Binary meldet „dev" und bekommt bewusst kein Update angeboten — dann
+	// wäre auf der Seite nichts zu prüfen. Der Client des Testservers kennt dessen
+	// Zertifikat, damit die Prüfung im Produktivcode unangetastet bleibt.
+	setVersion(t, "0.1.0")
+	meta := metadataServer(t, testChannelJSON)
+	s.cfg.Updates.BaseURL = meta.URL
+	s.cfg.Updates.Channel = "stable"
+	s.updHTTP = meta.Client()
 
 	// Das selbstsignierte TLS-Paar. Im Test entsteht es nicht von selbst —
 	// EnsurePair läuft nur in Run —, und ohne es zeigte die Zertifikatsseite den
@@ -1931,6 +1974,99 @@ func TestLeitstandBrowser(t *testing.T) {
 	} else if pz.Schmal.KoerperBreite > pz.Schmal.FensterBreite+1 {
 		t.Errorf("die Zugangsseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
 			pz.Schmal.KoerperBreite, pz.Schmal.FensterBreite)
+	}
+
+	// 6n. Updates des Panels. Der Kern ist, dass „noch nicht geprüft" ein eigener
+	// Zustand ist und dass der Verbindungsabbruch VORHER angekündigt wird — er
+	// gehört zum Vorgang und sieht ohne Ankündigung wie ein Fehlschlag aus.
+	up := e.Upd
+	if up.Wesen == "" {
+		t.Error("es fehlt der Satz darüber, was beim Selbstupdate geschieht")
+	}
+	for _, feld := range []string{"Laufende Fassung", "Kanal", "Metadatenquelle", "Zuletzt geprüft"} {
+		if !slices.Contains(up.Angaben, feld) {
+			t.Errorf("die Angabe %q fehlt: %v", feld, up.Angaben)
+		}
+	}
+
+	// Vor der Prüfung.
+	vp := up.VorPruefung
+	if !vp.EinspielenGesperrt {
+		t.Error("vor der Prüfung ist der Knopf zum Einspielen offen — es gibt nichts " +
+			"einzuspielen, und der Server lehnte ab")
+	}
+	if !vp.Satz {
+		t.Error("„noch nicht geprüft\" steht nicht als Satz da — es ist ein anderer " +
+			"Zustand als „kein Update verfügbar\"")
+	}
+	if !vp.AbbruchAngekuendigt {
+		t.Error("der Verbindungsabbruch beim Neustart ist nicht vorher angekündigt — " +
+			"dann sieht er wie ein Fehlschlag aus")
+	}
+	if vp.Rueckweg {
+		t.Error("ohne Sicherung steht ein Rückweg-Knopf da — er liefe zuverlässig ins Leere")
+	}
+	if !vp.KeineSicherung {
+		t.Error("es steht nicht dabei, WARUM der Rückweg fehlt")
+	}
+
+	// Nach der Prüfung.
+	np := up.NachPruefung
+	if !strings.Contains(np.Meldung, "9.9.9") {
+		t.Errorf("die gefundene Fassung steht nicht in der Meldung: %q", np.Meldung)
+	}
+	sicherheit := false
+	for _, m := range np.Marke {
+		if strings.Contains(m, "Sicherheitsupdate") {
+			sicherheit = true
+		}
+	}
+	if !sicherheit {
+		t.Errorf("die Einstufung als Sicherheitsupdate fehlt: %v", np.Marke)
+	}
+	if np.Notizen == "" {
+		t.Error("der Verweis auf die Änderungsnotizen fehlt")
+	}
+	if !strings.Contains(np.Knopf, "9.9.9") {
+		t.Errorf("der Knopf nennt die Zielfassung nicht: %q — „aktualisieren\" allein "+
+			"sagt nicht, worauf", np.Knopf)
+	}
+	if np.Gesperrt {
+		t.Error("nach der Prüfung ist der Knopf zum Einspielen noch gesperrt")
+	}
+
+	// Die Rückfrage nennt beide Folgen.
+	if !strings.Contains(up.Frage.Text, "9.9.9") {
+		t.Errorf("die Frage nennt die Zielfassung nicht: %q", up.Frage.Text)
+	}
+	neustart, rueckweg := false, false
+	for _, p := range up.Frage.Punkte {
+		if strings.Contains(p, "startet dabei neu") {
+			neustart = true
+		}
+		if strings.Contains(p, "Rückweg") {
+			rueckweg = true
+		}
+	}
+	if !neustart {
+		t.Errorf("die Frage nennt den Neustart nicht: %v", up.Frage.Punkte)
+	}
+	if !rueckweg {
+		t.Errorf("die Frage nennt den Rückweg nicht: %v — dass es einen gibt, ist der "+
+			"Grund, warum hier Stufe 2 genügt", up.Frage.Punkte)
+	}
+	if !up.NachAbbruch.DialogZu {
+		t.Error("Escape schließt die Rückfrage nicht")
+	}
+	if !up.NachAbbruch.KeinLauf {
+		t.Error("nach dem ABBRUCH läuft ein Vorgang — die Rückfrage hat nicht gefragt, " +
+			"sondern nur gefragt ausgesehen")
+	}
+	if up.Schmal.FensterBreite == 0 {
+		t.Error("die Updateseite wurde nicht im Schmalmodus gemessen")
+	} else if up.Schmal.KoerperBreite > up.Schmal.FensterBreite+1 {
+		t.Errorf("die Updateseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — "+
+			"sie scrollt waagerecht", up.Schmal.KoerperBreite, up.Schmal.FensterBreite)
 	}
 
 	// 6m. Zertifikat und ACME. Der Kern ist das gestaffelte Formular: Es zeigt nur,

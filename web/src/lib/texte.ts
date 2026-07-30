@@ -34,6 +34,7 @@ export const t = {
     // ein Name, der etwas anderes versprach, als dahinter stand.
     zugaenge: "Panel-Zugänge",
     konto: "Eigenes Konto",
+    update: "Updates",
   },
 
   kacheln: {
@@ -429,6 +430,65 @@ export const t = {
       "Das ist der einzige Schlüssel. Ohne ihn hat das Konto keinen Zugang mehr.",
     fingerprint: "Fingerprint",
     art: "Art",
+  },
+
+  update: {
+    laedt: "wird geladen …",
+    wesen:
+      "Das Panel aktualisiert sich selbst: Es lädt die Fassung aus dem eingestellten Kanal, prüft sie gegen den eingebauten Signaturschlüssel und tauscht das Programm aus. Die vorherige Fassung bleibt als Sicherung liegen.",
+    // Der Block heißt „Stand" und die Zeile darin „Laufende Fassung": Dasselbe
+    // Wort zweimal übereinander liest man als Versehen.
+    standTitel: "Stand",
+    fassung: "Laufende Fassung",
+    kanal: "Kanal",
+    quelle: "Metadatenquelle",
+    geprueftAm: "Zuletzt geprüft",
+    nieGeprueft: "in dieser Laufzeit noch nicht",
+    verfuegbar: "Im Kanal steht",
+    erschienen: "Erschienen",
+    notizen: "Änderungsnotizen",
+    notizenLink: "Notizen zu dieser Fassung",
+    sicherheit: "Sicherheitsupdate",
+    aktuell: "Diese Fassung ist aktuell.",
+    pruefen: "nach Updates suchen",
+    prueffehler: "Die Metadaten sind nicht erreichbar:",
+    // „noch nicht gefragt" ist ein anderer Zustand als „kein Update".
+    nichtGeprueft:
+      "In dieser Laufzeit wurde noch nicht geprüft. Der letzte Befund steht im Speicher und ist nach einem Neustart des Dienstes weg.",
+
+    einspielenTitel: "Aktualisieren",
+    einspielen: (v: string) => `auf ${v} aktualisieren`,
+    // Solange keine Fassung bekannt ist, heißt der Knopf schlicht so — und ist
+    // gesperrt. Ihn stattdessen „nach Updates suchen" zu nennen, wie es eine
+    // frühere Fassung tat, ergab zwei Knöpfe mit demselben Wort, von denen einer
+    // etwas anderes tut.
+    einspielenUnbekannt: "aktualisieren",
+    // Die Sätze, die den Verbindungsabbruch vorher ankündigen. Ohne sie sieht er
+    // wie ein Fehlschlag aus.
+    einspielenWarum:
+      "Der Dienst startet dabei neu. Die Oberfläche verliert für einige Sekunden die Verbindung — das gehört dazu und ist kein Fehler.",
+    nurOwner:
+      "Update und Rückweg löst nur die Owner-Rolle aus: Sie tauschen das Programm aus, das alle anderen Rechte durchsetzt.",
+    erstPruefen: "Zum Aktualisieren zuerst nach Updates suchen.",
+
+    rueckwegTitel: "Rückweg",
+    rueckweg: (v: string) => `zurück auf ${v}`,
+    rueckwegWarum:
+      "Zurückgesetzt wird das Programm, nicht die Datenbank: Was neuere Fassungen an ihr geändert haben, bleibt.",
+    keineSicherung:
+      "Es liegt keine Sicherung einer vorherigen Fassung bereit — ein Rückweg ist erst nach dem ersten Update möglich.",
+    vorher: "Gesicherte Fassung",
+
+    verlaufTitel: "Verlauf",
+    keinVerlauf: "Noch kein Update-Protokoll — vor dem ersten Lauf gibt es nichts zu zeigen.",
+    laeuft: (v: string) => `Der Vorgang läuft — Ziel ist Fassung ${v}.`,
+    // Der Kern der Anzeige während des Laufs: Die Verbindung reißt ab, und das
+    // ist der Normalfall.
+    wartetAufNeustart:
+      "Die Verbindung ist weg. Das Panel startet neu; diese Seite versucht es weiter.",
+    wiederDa: (v: string) => `Fassung ${v} antwortet. Der Vorgang ist durch.`,
+    unveraendert: (v: string) =>
+      `Das Panel antwortet wieder, weiter mit Fassung ${v}. Der Verlauf unten sagt, woran es lag.`,
   },
 
   zert: {

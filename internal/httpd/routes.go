@@ -184,6 +184,19 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserReset2FA)))))
 	mux.Handle("POST /api/v1/panel-users/{id}/reset-passkeys",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserResetPasskeys)))))
+	// Selbstupdate und Rückweg. Der Stand wird im Sekundentakt gefragt — auch
+	// während der Dienst neu startet —, deshalb ein eigener, kleiner Endpunkt und
+	// kein Ereignisstrom: Ein offener Kanal übersteht den Neustart nicht.
+	// Auslösen darf nur die Owner-Rolle; die Prüfung ändert nichts und steht allen
+	// schreibberechtigten Rollen offen.
+	mux.Handle("GET /api/v1/update", s.protected(http.HandlerFunc(s.handleAPIUpdate)))
+	mux.Handle("GET /api/v1/update/status", s.protected(http.HandlerFunc(s.handleAPIUpdateStand)))
+	mux.Handle("POST /api/v1/update/check",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIUpdatePruefen))))
+	mux.Handle("POST /api/v1/update/apply",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIUpdateEinspielen)))))
+	mux.Handle("POST /api/v1/update/rollback",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIUpdateRueckweg)))))
 	// Zertifikat und ACME. Kein eigener Ereignisstrom: Der Bezug ist ein Vorgang
 	// und läuft über /api/v1/jobs/certificate/events wie die anderen.
 	mux.Handle("GET /api/v1/certificate", s.protected(http.HandlerFunc(s.handleAPIZertifikat)))

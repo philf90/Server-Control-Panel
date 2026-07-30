@@ -219,6 +219,19 @@ export const gruppen: Gruppe[] = [
         neu: true,
         auch: ["passwort", "2fa", "totp", "passkey", "sitzungen", "abmelden", "profil"],
       },
+      {
+        // Die Updates des PANELS, nicht die des Systems — die stehen unter
+        // „Pakete". Der Punkt stand bis 0.4.0-rc.3 nur in der Schiene der alten
+        // Oberfläche und hatte in der neuen keinen; die Suchwörter halten die
+        // beiden auseinander.
+        id: "updates",
+        label: t.ziele.update,
+        symbol: "pfeil-hoch",
+        href: "/v2/updates",
+        gruppe: t.bereiche.betrieb,
+        neu: true,
+        auch: ["selbstupdate", "panel", "fassung", "version", "rollback", "rückweg", "signatur"],
+      },
     ],
   },
 ];

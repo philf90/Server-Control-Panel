@@ -22,6 +22,7 @@
   import PanelzugaengeSeite from "./seiten/Panelzugaenge.svelte";
   import KontoSeite from "./seiten/Konto.svelte";
   import ZertifikatSeite from "./seiten/Zertifikat.svelte";
+  import PanelupdateSeite from "./seiten/Panelupdate.svelte";
   import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
@@ -134,6 +135,10 @@
         <PanelzugaengeSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "zertifikate"}
         <ZertifikatSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "panelupdate"}
+        <!-- Die Updateseite holt ihre Rechte aus ihrer eigenen Antwort: Nur die
+             Owner-Rolle darf auslösen, und diese Regel steht auf dem Server. -->
+        <PanelupdateSeite />
       {:else if weg.seite === "konto"}
         <!-- Die Kontoseite bekommt keine Rechte-Eigenschaft: Sein EIGENES Konto
              verwaltet jede Rolle, auch „readonly". Was sie braucht, holt sie

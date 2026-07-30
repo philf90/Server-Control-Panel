@@ -1070,3 +1070,48 @@ export type Zertifikatantwort = {
   zertifikat?: Zertifikat;
   hinweis?: string;
 };
+
+// ----------------------------------------------------------------- Update ---
+
+/** Panelupdate ist die Antwort von GET /api/v1/update. */
+export type Panelupdate = {
+  /** fassung ist die LAUFENDE Fassung. Sie ist die Antwort auf die Frage, ob ein
+   *  Update durch ist: Wer nach dem Neustart eine andere zurückbekommt, weiß es —
+   *  denn sie kommt aus dem neuen Programm. */
+  fassung: string;
+  kanal: string;
+  quelle: string;
+  /** geprueft_am ist leer, solange in dieser Laufzeit nicht geprüft wurde. Das
+   *  heißt „noch nicht gefragt" und nicht „kein Update". */
+  geprueft_am: string;
+  verfuegbar: string;
+  erschienen: string;
+  notizen: string;
+  dringlichkeit: string;
+  update_da: boolean;
+  pruef_fehler: string;
+  laeuft: boolean;
+  ziel: string;
+  zeilen: string[];
+  vorher: string;
+  rueckweg_moeglich: boolean;
+  /** darf_ausloesen kommt vom Server: Nur die Owner-Rolle darf Update und
+   *  Rückweg anstoßen. Die Oberfläche soll die Regel nicht ein zweites Mal
+   *  kennen. */
+  darf_ausloesen: boolean;
+};
+
+/** Updatestand ist die Antwort des Pollers. Absichtlich klein — sie wird im
+ *  Sekundentakt gefragt, auch während der Dienst neu startet. */
+export type Updatestand = {
+  fassung: string;
+  laeuft: boolean;
+  ziel: string;
+  zeilen: string[];
+};
+
+export type Updateantwort = {
+  meldung: string;
+  update?: Panelupdate;
+  hinweis?: string;
+};

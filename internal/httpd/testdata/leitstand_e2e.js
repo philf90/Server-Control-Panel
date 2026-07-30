@@ -2050,6 +2050,125 @@ async function main() {
     await kontext2.close();
   }
 
+  // 12j. Updates des Panels. Drei Dinge sind hier nur im Browser zu sehen:
+  //
+  //      1. „Noch nicht geprüft" ist ein eigener Zustand und nicht „kein
+  //         Update". Der Knopf zum Einspielen ist dann gesperrt.
+  //      2. Nach der Prüfung steht die gefundene Fassung da, samt Einstufung als
+  //         Sicherheitsupdate und Verweis auf die Notizen.
+  //      3. Die Rückfrage nennt BEIDE Folgen: Neustart und Rückweg. Der Satz
+  //         über den Verbindungsabbruch steht schon vorher auf der Seite — ohne
+  //         ihn sieht der Abbruch wie ein Fehlschlag aus.
+  //
+  //      Der Vorgang selbst wird hier NICHT ausgelöst: Er tauscht das Binary des
+  //      laufenden Testservers. Was danach geschieht, prüfen die Go-Tests an der
+  //      Attrappe.
+  const upd = {};
+  await seite.goto(`${basis}/v2/updates`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("section.platte", { timeout: 5000 });
+
+  upd.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  upd.angaben = await seite.evaluate(() =>
+    [...document.querySelectorAll("dl.kv dt")].map((dt) => dt.textContent.trim()),
+  );
+  upd.vorPruefung = await seite.evaluate(() => {
+    const knoepfe = [...document.querySelectorAll(".knopf")];
+    return {
+      // Der Knopf trägt vor der Prüfung nicht „auf X aktualisieren", weil kein X
+      // bekannt ist — er lädt zur Prüfung ein.
+      einspielenText:
+        knoepfe.find((b) => b.textContent.includes("aktualisieren"))?.textContent.trim() ??
+        "",
+      einspielenGesperrt: knoepfe.find((b) =>
+        b.textContent.includes("aktualisieren"),
+      )?.disabled,
+      // „noch nicht geprüft" steht als Satz da.
+      satz: [...document.querySelectorAll(".detail")].some((p) =>
+        p.textContent.includes("noch nicht geprüft"),
+      ),
+      // Und der Verbindungsabbruch ist vorher angekündigt.
+      abbruchAngekuendigt: [...document.querySelectorAll(".detail")].some((p) =>
+        p.textContent.includes("verliert für einige Sekunden die Verbindung"),
+      ),
+      // Ohne Sicherung kein Rückweg.
+      rueckweg: [...document.querySelectorAll(".knopf")].some((b) =>
+        b.textContent.includes("zurück auf"),
+      ),
+      keineSicherung: [...document.querySelectorAll(".detail")].some((p) =>
+        p.textContent.includes("keine Sicherung"),
+      ),
+    };
+  });
+
+  // Prüfen. Die Attrappe liefert Fassung 9.9.9 als Sicherheitsupdate.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".knopf")].find(
+      (x) => x.textContent.trim() === "nach Updates suchen",
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".band.gut", { timeout: 8000 });
+  upd.nachPruefung = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+    marke: [...document.querySelectorAll(".marke")].map((m) => m.textContent.trim()),
+    notizen: document.querySelector(".detail a")?.getAttribute("href") ?? "",
+    knopf:
+      [...document.querySelectorAll(".knopf")]
+        .find((b) => b.textContent.includes("aktualisieren"))
+        ?.textContent.trim() ?? "",
+    gesperrt: [...document.querySelectorAll(".knopf")].find((b) =>
+      b.textContent.includes("aktualisieren"),
+    )?.disabled,
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-updates.png`,
+      fullPage: true,
+    });
+  }
+
+  // Die Rückfrage — und danach ABBRECHEN. Ausgeführt wird hier nichts: Der
+  // Vorgang tauscht das Binary des laufenden Testservers.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".knopf")].find((x) =>
+      x.textContent.includes("aktualisieren"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  upd.frage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      text: d.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: [...d.querySelectorAll(".punkte li")].map((li) => li.textContent.trim()),
+      tippfeld: d.querySelector(".tippen") !== null,
+      knopf:
+        [...d.querySelectorAll(".knopf")]
+          .find((b) => b.textContent.includes("aktualisieren"))
+          ?.textContent.trim() ?? "",
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(400);
+  upd.nachAbbruch = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    // Es läuft nichts: Kein Band über einen laufenden Vorgang.
+    keinLauf: ![...document.querySelectorAll(".band")].some((b) =>
+      b.textContent.includes("Vorgang läuft"),
+    ),
+  }));
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  upd.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   // 12i. Zertifikat und ACME. Drei Dinge sind hier nur im Browser zu sehen:
   //
   //      1. Das Formular zeigt NUR, was zur Wahl passt. Ein Anbieterfeld bei
@@ -2396,6 +2515,7 @@ async function main() {
       konten,
       zugaenge,
       zert,
+      upd,
       konto,
       fremdeRolle,
       bald,

@@ -607,7 +607,8 @@ gehört der Kachelzahl.
    Vier Gruppen: **System** (Übersicht, Dienste, Pakete, Cron & Timer),
    **Apps** (Docker, Webserver, Datenbanken, Backups), **Sicherheit**
    (Firewall, Benutzer & SSH, Panel-Zugänge, Zertifikate), **Betrieb**
-   (Dateien, Logs, Audit, Eigenes Konto). Warnpunkt je Eintrag wie bisher.
+   (Dateien, Logs, Audit, Eigenes Konto, Updates). Warnpunkt je Eintrag wie
+   bisher.
 
    Der Punkt hieß im Entwurf „Einstellungen" und zeigte bis 0.4.0-rc.3 auf
    `/users` — die Kontenliste. Der Name versprach etwas anderes, als dahinter

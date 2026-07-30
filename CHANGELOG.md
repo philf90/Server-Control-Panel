@@ -107,6 +107,29 @@ nicht als Release getaggt.
   — danach warnt jeder Browser beim Aufruf des Panels. Der einzige Unterschied im
   Verhalten gegenüber der alten Fläche.
 
+- **Modul Updates in der neuen Oberfläche.** Fünf Routen: Zustand, Poller,
+  Prüfen, Einspielen, Rückweg. Damit ist die Funktionsparität der 0.4 erreicht —
+  alle Module der alten Oberfläche stehen unter `/v2/`.
+
+  **Kein Ereignisstrom, sondern ein Poller.** Dieses Modul startet seinen eigenen
+  Dienst neu; ein offener Kanal übersteht das nicht, und ein Job im Speicher des
+  Prozesses, den der Vorgang gerade beendet, auch nicht. Der Update-Lauf schreibt
+  in eine Protokolldatei, und `/api/v1/update/status` liest sie — nach dem
+  Neustart genauso wie davor.
+
+  **Der Verbindungsabbruch ist der Normalfall und wird vorher angekündigt.** Die
+  Oberfläche hält drei Zustände auseinander: es läuft und der Dienst antwortet, es
+  läuft und der Dienst antwortet nicht (das ist der Neustart — als Fehlermeldung
+  würde jemand neu laden, während unter ihm das Binary getauscht wird), und der
+  Dienst antwortet wieder. Im dritten Fall entscheidet die FASSUNG, was gemeldet
+  wird: eine andere als zu Beginn heißt „durch", dieselbe heißt „schiefgegangen,
+  der Verlauf sagt was". Sie kommt aus dem neuen Programm und ist damit die
+  verlässlichste Auskunft, die es gibt.
+
+  **Nur die Owner-Rolle löst aus**, Prüfen darf jede schreibberechtigte Rolle
+  (es ändert nichts). Eingespielt wird genau die Fassung, die der Auslöser gesehen
+  hat — nicht eine, die zwischen Anzeige und Klick veröffentlicht wurde.
+
 - **Rollenabhängige Navigation in der neuen Oberfläche.** Was eine Rolle nicht
   erreicht, steht nicht in der Seitenleiste und nicht in der Befehlspalette —
   wie in der alten Oberfläche (`{{if .IsOwner}}`). Gefiltert wird an einer

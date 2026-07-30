@@ -31,6 +31,7 @@ export type Seite =
   | "zugaenge"
   | "konto"
   | "zertifikate"
+  | "panelupdate"
   | "bald";
 
 /** gebauteSeiten sind die Kennungen, die eine eigene Seite haben. Als Objekt und
@@ -47,6 +48,7 @@ const gebauteSeiten: Record<string, Seite> = {
   zugaenge: "zugaenge",
   konto: "konto",
   zertifikate: "zertifikate",
+  updates: "panelupdate",
 };
 
 /** angekuendigt sind die Module, die es noch nicht gibt, die aber im Menü stehen.

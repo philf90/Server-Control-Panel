@@ -1,0 +1,1429 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neukonzept Leitstand — Entwurfsmappe</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   MAPPE — die Dokumentebene.
+
+   Wie in den Bestandsmappen hat das Dokument keine Akzentfarbe: Es ist die
+   Wand, nicht das Bild. Die Screens darunter sind bewusst nur dunkel —
+   der Leitstand ist dark-first, und ein zweites Schema würde die Mappe
+   verdoppeln, ohne eine Entwurfsfrage zu beantworten. Das helle Schema
+   wird als Ableitung im Konzeptdokument definiert, nicht hier gezeichnet.
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --paper:     #f1f1ef;
+  --panel:     #ffffff;
+  --ink:       #191a18;
+  --ink-soft:  #3d403b;
+  --muted:     #5f625e;
+  --rule:      #dcdcd7;
+  --frame:     #cbcbc4;
+
+  --serif: "Bitstream Charter", Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --sans:  system-ui, -apple-system, "Segoe UI", "Liberation Sans", Arial, sans-serif;
+  --mono:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, "DejaVu Sans Mono", "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121312; --panel: #1a1b19; --ink: #e9eae6; --ink-soft: #c3c5bf;
+    --muted: #969a93; --rule: #2c2e2a; --frame: #34362f;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121312; --panel: #1a1b19; --ink: #e9eae6; --ink-soft: #c3c5bf;
+  --muted: #969a93; --rule: #2c2e2a; --frame: #34362f;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: 17px; line-height: 1.62;
+  -webkit-text-size-adjust: 100%;
+}
+:where(a):focus-visible, :where(button):focus-visible {
+  outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px;
+}
+
+.wrap  { max-width: 46rem; margin: 0 auto; padding: 0 1.5rem; }
+.wrap.breit { max-width: 82rem; }
+
+header.mappe { padding: 4rem 0 1rem; }
+header.mappe h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .6rem; letter-spacing: -.01em; }
+header.mappe .untertitel { color: var(--ink-soft); margin: 0 0 1.2rem; }
+.mappe .meta { font-family: var(--sans); font-size: .8rem; color: var(--muted); display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: center; }
+.mappe .meta button {
+  font: inherit; font-family: var(--sans); color: var(--ink); background: none;
+  border: 1px solid var(--rule); border-radius: 999px; padding: .2rem .8rem; cursor: pointer;
+}
+
+nav.sprung { position: sticky; top: 0; z-index: 5; background: var(--paper);
+  border-bottom: 1px solid var(--rule); padding: .55rem 0; margin-top: 1.5rem; }
+nav.sprung .wrap.breit { display: flex; gap: .35rem .6rem; flex-wrap: wrap; align-items: baseline; }
+nav.sprung a { font-family: var(--sans); font-size: .78rem; color: var(--ink-soft);
+  text-decoration: none; padding: .1rem .5rem; border-radius: 999px; }
+nav.sprung a:hover { color: var(--ink); background: var(--panel); }
+nav.sprung .gr { font-family: var(--sans); font-size: .68rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); margin-left: .4rem; }
+
+.abschnitt { margin: 4rem 0; }
+.kopf { display: flex; align-items: baseline; gap: .8rem; border-top: 1px solid var(--rule); padding-top: 1.2rem; }
+.kopf .nr { font-family: var(--mono); font-size: .85rem; color: var(--muted); }
+.kopf h2 { font-size: 1.35rem; margin: 0; letter-spacing: -.01em; }
+.lede { color: var(--ink-soft); max-width: 44rem; }
+.lede code, .hinweisblock code { font-family: var(--mono); font-size: .85em; }
+.hinweisblock { font-size: .92rem; color: var(--muted); max-width: 44rem; }
+
+table.doku { border-collapse: collapse; font-family: var(--sans); font-size: .85rem; width: 100%; }
+table.doku th, table.doku td { text-align: left; padding: .45rem .7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.doku th { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+.swatches { display: flex; flex-wrap: wrap; gap: .7rem; margin: 1rem 0; }
+.sw { width: 128px; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--panel); font-family: var(--sans); }
+.sw i { display: block; height: 46px; }
+.sw b { display: block; font: 600 .74rem var(--mono); padding: .4rem .6rem 0; }
+.sw span { display: block; font-size: .7rem; color: var(--muted); padding: 0 .6rem .45rem; }
+
+footer.mappe { border-top: 1px solid var(--rule); margin-top: 4rem; padding: 1.5rem 0 4rem;
+  font-family: var(--sans); font-size: .8rem; color: var(--muted); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LEITSTAND — die Screens. Feste dunkle Farbwelt, unabhängig vom
+   Dokument-Thema; die Marken hier sind die spätere Vorlage für
+   web/src/app.css. Sparkline-Geometrie exakt wie buildSpark:
+   viewBox 100×34, Rand 2, runde Endkappe, non-scaling-stroke.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.frame { border: 1px solid var(--frame); border-radius: 14px; overflow: hidden;
+  background: #0c0e11; box-shadow: 0 18px 50px rgba(0,0,0,.35); margin: 1.2rem 0 0;
+  --bg:#0c0e11; --surface:#13161b; --surface2:#1a1e25; --surface3:#20252d;
+  --line:#262b33; --line2:#303743;
+  --tx:#e8eaed; --tx-mut:#9aa1ab; --tx-faint:#6b7280;
+  --accent:#e8a33d; --accent-dim:#8a5f1e;
+  --ok:#4cc38a; --err:#e5484d; --info:#5eb1ef;
+  font-family: var(--sans); font-size: 15px; line-height: 1.5; color: var(--tx);
+}
+.frame * { margin: 0; padding: 0; box-sizing: border-box; }
+.panel { display: grid; grid-template-columns: 228px 1fr; grid-template-rows: auto 1fr auto; min-height: 660px; }
+
+/* ── Statusband ── */
+.statusband { grid-column: 1/3; display: flex; align-items: center; gap: 1.1rem;
+  padding: .5rem 1rem; background: var(--surface); border-bottom: 1px solid var(--line);
+  font-family: var(--mono); font-size: .74rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+.brand { display: flex; align-items: center; gap: .5rem; font: 650 .86rem var(--sans); letter-spacing: .02em; }
+.brand i { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 10px rgba(232,163,61,.7); }
+.host { color: var(--tx-mut); } .host b { color: var(--tx); font-weight: 600; }
+.gauges { display: flex; gap: 1rem; margin-left: auto; }
+.gauge { display: flex; align-items: center; gap: .45rem; color: var(--tx-mut); text-decoration: none; }
+.gauge svg { width: 52px; height: 16px; } .gauge b { color: var(--tx); font-weight: 600; }
+.kbd { border: 1px solid var(--line2); border-radius: 6px; padding: .15rem .55rem; color: var(--tx-mut); }
+.livedot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px rgba(76,195,138,.8); flex: none; }
+
+/* ── Seitenleiste ── */
+.side { background: var(--surface); border-right: 1px solid var(--line); padding: .9rem 0 .6rem; }
+.grp { margin-bottom: 1rem; }
+.grp > b { display: block; font-size: .64rem; font-weight: 650; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--tx-faint); padding: 0 1rem .35rem; }
+.nav { display: flex; flex-direction: column; }
+.nav a { display: flex; align-items: center; gap: .65rem; color: var(--tx-mut); text-decoration: none;
+  font-size: .85rem; padding: .4rem 1rem; border-left: 2px solid transparent; }
+.nav a svg { width: 16px; height: 16px; flex: none; opacity: .85; }
+.nav a:hover { color: var(--tx); background: var(--surface2); }
+.nav a.on { color: var(--accent); border-left-color: var(--accent);
+  background: linear-gradient(90deg, rgba(232,163,61,.10), transparent); }
+.pip { margin-left: auto; min-width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+/* ── Inhalt ── */
+.main { padding: 1.3rem 1.4rem; overflow: hidden; min-width: 0; }
+.crumb { font-size: .76rem; color: var(--tx-faint); margin-bottom: .15rem; font-family: var(--mono); }
+.h1 { font-size: 1.22rem; font-weight: 650; letter-spacing: -.01em; }
+.headrow { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.1rem; }
+.headrow .sp { flex: 1; }
+
+.verdict { display: flex; align-items: center; gap: .6rem; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; padding: .6rem .9rem; margin-bottom: 1rem; font-size: .9rem; }
+.verdict .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; }
+.verdict b { font-weight: 600; } .verdict a { color: var(--accent); }
+
+/* ── StatCard: der Keim des Systems ── */
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; margin-bottom: 1.1rem; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .85rem .95rem .7rem; }
+.card .lbl { font-size: .66rem; font-weight: 650; letter-spacing: .14em; text-transform: uppercase; color: var(--tx-mut); }
+.card .val { font: 600 2.3rem/1.15 var(--sans); font-variant-numeric: tabular-nums; letter-spacing: -.02em; margin: .15rem 0 .3rem; }
+.card .val small { font-size: 1rem; font-weight: 500; color: var(--tx-mut); margin-left: .15rem; }
+.card .sub { font-size: .72rem; color: var(--tx-mut); font-family: var(--mono); margin-top: .35rem; }
+.sparkbox { position: relative; }
+.spark { display: block; width: 100%; height: 44px; }
+.spark .line { fill: none; stroke: var(--accent); stroke-width: 1.6;
+  stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.spark .fill { fill: url(#gAmber); stroke: none; opacity: .55; }
+.spark .dot { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.spark .guide { stroke: var(--tx-mut); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.sparktip { position: absolute; top: -6px; left: 56%; transform: translate(-50%, -100%);
+  background: var(--surface3); border: 1px solid var(--line2); border-radius: 7px;
+  font: .68rem var(--mono); padding: .25rem .55rem; white-space: nowrap; color: var(--tx); }
+.sparktip span { color: var(--tx-mut); }
+
+/* ── Tabellen ── */
+.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; color: var(--tx); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.tbl caption { caption-side: top; text-align: left; font-size: .7rem; font-weight: 650;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--tx-mut); padding: 0 .2rem .45rem; }
+.tbl th { font-size: .68rem; font-weight: 650; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--tx-faint); text-align: left; padding: .55rem .8rem; border-bottom: 1px solid var(--line); background: var(--surface2); }
+.tbl td { padding: .5rem .8rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr.sel td { background: rgba(232,163,61,.07); }
+.tbl tr.gesperrt td { color: var(--tx-faint); }
+.tbl .num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.tbl .mono { font-family: var(--mono); font-size: .78rem; }
+.mut { color: var(--tx-mut); }
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; align-items: start; }
+
+.bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface3); overflow: hidden; min-width: 120px; display: inline-block; vertical-align: middle; }
+.bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--accent); }
+.bar.warn i { background: var(--err); }
+
+.st { display: inline-flex; align-items: center; gap: .45rem; white-space: nowrap; }
+.st i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.st.ok i { background: var(--ok); } .st.err i { background: var(--err); }
+.st.off i { background: var(--tx-faint); } .st.warn i { background: var(--accent); } .st.info i { background: var(--info); }
+.badge { display: inline-block; font: 600 .66rem var(--mono); letter-spacing: .04em;
+  border: 1px solid var(--line2); border-radius: 5px; padding: .1rem .45rem; color: var(--tx-mut); }
+.badge.amber { color: var(--accent); border-color: var(--accent-dim); }
+.badge.ok { color: var(--ok); border-color: rgba(76,195,138,.4); }
+.badge.rot { color: var(--err); border-color: rgba(229,72,77,.4); }
+
+.btn { display: inline-flex; align-items: center; gap: .4rem; font: 600 .78rem var(--sans);
+  border: 1px solid var(--line2); border-radius: 8px; padding: .4rem .85rem; color: var(--tx);
+  background: var(--surface2); text-decoration: none; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #14100a; }
+.btn.danger { color: var(--err); border-color: rgba(229,72,77,.45); }
+.btn.ghost { background: transparent; }
+
+/* ── Inspektor ── */
+.drawer { background: var(--surface); border: 1px solid var(--line2); border-radius: 10px;
+  padding: 1rem 1.1rem; box-shadow: -16px 0 40px rgba(0,0,0,.35); }
+.drawer .d-h { display: flex; align-items: center; gap: .6rem; margin-bottom: .7rem; flex-wrap: wrap; }
+.drawer .d-h .h1 { font-size: 1rem; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: .3rem 1.2rem; font-size: .8rem; margin: .7rem 0; }
+.kv dt { color: var(--tx-faint); } .kv dd { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.d-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin: .8rem 0; }
+.loglines { background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  font: .72rem/1.55 var(--mono); padding: .6rem .75rem; color: var(--tx-mut); overflow: hidden; }
+.loglines b { color: var(--tx); font-weight: 500; }
+.loglines .warnzeile { color: var(--accent); } .loglines .fehlzeile { color: var(--err); }
+
+/* ── JobStream ── */
+.job { background: var(--bg); border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; }
+.job .j-h { display: flex; align-items: center; gap: .6rem; padding: .5rem .8rem;
+  background: var(--surface2); border-bottom: 1px solid var(--line); font: .76rem var(--mono); }
+.job .j-h .sp { flex: 1; }
+.job pre { font: .73rem/1.6 var(--mono); padding: .7rem .85rem; color: var(--tx-mut); white-space: pre-wrap; }
+.job pre b { color: var(--tx); font-weight: 500; }
+.job .j-fuss { display: flex; gap: .6rem; align-items: center; padding: .45rem .85rem; font: .76rem var(--mono);
+  color: var(--tx-mut); border-top: 1px solid var(--line); }
+.job .j-fuss.gruen { color: var(--ok); background: rgba(76,195,138,.08); border-top-color: rgba(76,195,138,.25); }
+.spin { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--accent-dim); border-top-color: var(--accent); flex: none; }
+
+/* ── Formulare ── */
+.fld { margin-bottom: .75rem; }
+.fld label { display: block; font-size: .7rem; font-weight: 650; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--tx-faint); margin-bottom: .3rem; }
+.fld .in { display: flex; align-items: center; background: var(--bg); border: 1px solid var(--line2);
+  border-radius: 8px; padding: .45rem .7rem; font: .84rem var(--mono); color: var(--tx); }
+.fld .in.focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,163,61,.18); }
+.seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 8px; overflow: hidden; font-size: .78rem; }
+.seg span { padding: .4rem .8rem; color: var(--tx-mut); }
+.seg .on { background: var(--surface3); color: var(--accent); font-weight: 600; }
+.hint { font-size: .73rem; color: var(--tx-faint); margin-top: .3rem; line-height: 1.5; }
+.hint .mono { font-family: var(--mono); }
+
+/* ── Handlungsbedarf ── */
+.todo { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 1.1rem; }
+.todo li { display: flex; align-items: center; gap: .7rem; list-style: none;
+  padding: .55rem .9rem; border-bottom: 1px solid var(--line); font-size: .85rem; }
+.todo li:last-child { border-bottom: none; }
+.todo .go { margin-left: auto; color: var(--accent); text-decoration: none; font-size: .76rem; white-space: nowrap; }
+
+/* ── Probe-Banner (Firewall, Webserver) ── */
+.probe { display: flex; align-items: center; gap: .8rem; background: rgba(232,163,61,.1);
+  border: 1px solid var(--accent-dim); border-radius: 10px; padding: .65rem .9rem; margin-bottom: 1rem; font-size: .85rem; }
+.probe .uhr { font: 700 1.15rem var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; min-width: 3.2rem; text-align: center; }
+.probe .sp { flex: 1; }
+
+/* ── Einmalgeheimnis ── */
+.einmal { background: rgba(76,195,138,.07); border: 1px solid rgba(76,195,138,.35);
+  border-radius: 10px; padding: .7rem .9rem; font-size: .82rem; margin: .8rem 0; }
+.einmal code { display: block; font: 600 .9rem var(--mono); color: var(--tx); margin: .35rem 0;
+  letter-spacing: .03em; overflow-wrap: anywhere; }
+.einmal small { color: var(--tx-mut); }
+
+/* ── Reiter ── */
+.tabsrow { display: flex; gap: .2rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem; font-size: .84rem; }
+.tabsrow span { padding: .45rem .9rem; color: var(--tx-mut); border-bottom: 2px solid transparent; }
+.tabsrow .on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* ── Logs ── */
+.filterrow { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .9rem; }
+.filterrow .in { display: inline-flex; align-items: center; gap: .4rem; background: var(--surface2);
+  border: 1px solid var(--line2); border-radius: 8px; padding: .35rem .7rem; font: .78rem var(--sans); color: var(--tx-mut); }
+.filterrow .in b { color: var(--tx); font-weight: 600; }
+.logview { background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  font: .74rem/1.7 var(--mono); padding: .7rem .9rem; overflow: hidden; }
+.logview .z { display: flex; gap: .8rem; white-space: nowrap; }
+.logview time { color: var(--tx-faint); flex: none; }
+.logview .u { color: var(--info); flex: none; min-width: 11ch; }
+.logview .warnz { color: var(--accent); } .logview .fehlz { color: var(--err); }
+
+/* ── Dateien ── */
+.pfad { display: flex; align-items: center; gap: .35rem; font: .8rem var(--mono); color: var(--tx-mut); margin-bottom: .8rem; flex-wrap: wrap; }
+.pfad a { color: var(--tx); text-decoration: none; } .pfad a:hover { color: var(--accent); }
+.pfad .tr { color: var(--tx-faint); }
+.dtyp { display: inline-flex; width: 18px; justify-content: center; margin-right: .4rem; color: var(--tx-mut); }
+
+/* ── Backups: Ziele ── */
+.targets { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin-bottom: 1rem; }
+.target { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .8rem .95rem; }
+.target .t-h { display: flex; align-items: center; gap: .5rem; font-weight: 600; font-size: .9rem; margin-bottom: .4rem; }
+.target .kv { margin: .3rem 0 0; }
+
+/* ── Konsole ── */
+.console { grid-column: 1/3; display: flex; align-items: center; gap: .9rem;
+  padding: .42rem 1rem; background: var(--surface); border-top: 1px solid var(--line);
+  font: .73rem var(--mono); color: var(--tx-mut); white-space: nowrap; overflow: hidden; }
+.console .cmd { color: var(--tx); overflow: hidden; text-overflow: ellipsis; }
+.console .exit { color: var(--ok); } .console .lauf { color: var(--accent); }
+.console .more { margin-left: auto; color: var(--tx-faint); text-decoration: none; flex: none; }
+
+/* ── Login ── */
+.login-wrap { min-height: 560px; display: grid; place-items: center;
+  background: radial-gradient(900px 420px at 50% -10%, rgba(232,163,61,.09), transparent 70%), var(--bg); }
+.login { width: 380px; background: var(--surface); border: 1px solid var(--line2); border-radius: 14px; padding: 1.6rem 1.7rem; }
+.login .brand { justify-content: center; margin-bottom: 1.2rem; font-size: 1rem; display: flex; }
+.login .btn { width: 100%; justify-content: center; padding: .55rem; }
+.login .alt { display: flex; align-items: center; gap: .7rem; color: var(--tx-faint); font-size: .7rem; margin: .9rem 0; }
+.login .alt::before, .login .alt::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* ── Telefon-Rahmen ── */
+.frame.mobil { max-width: 375px; margin-left: 0; }
+.panel.mobil { display: grid; grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto; min-height: 720px; }
+.panel.mobil .statusband, .panel.mobil .console { grid-column: 1; }
+.panel.mobil .main { padding: 1rem .9rem; }
+.panel.mobil .cards { grid-template-columns: 1fr; }
+.tabbar { display: flex; background: var(--surface); border-top: 1px solid var(--line); }
+.tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .2rem;
+  padding: .5rem 0 .6rem; color: var(--tx-mut); text-decoration: none; font-size: .62rem; }
+.tabbar a svg { width: 18px; height: 18px; }
+.tabbar a.on { color: var(--accent); }
+
+@media (max-width: 900px) {
+  .panel { grid-template-columns: 64px 1fr; }
+  .nav a span, .grp > b { display: none; }
+  .cards, .twocol, .targets { grid-template-columns: 1fr; }
+  .gauges { display: none; }
+}
+</style>
+<svg style="display:none" aria-hidden="true"><defs>
+<linearGradient id="gAmber" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0" stop-color="#e8a33d" stop-opacity=".28"/><stop offset="1" stop-color="#e8a33d" stop-opacity="0"/>
+</linearGradient>
+<symbol id="i-gauge" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.6 10.5a5.5 5.5 0 1 1 10.8 0"/><path d="M8 10.5l2.6-2.9"/></symbol>
+<symbol id="i-gear" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4"/></symbol>
+<symbol id="i-box" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2.5 5L8 2l5.5 3v6L8 14l-5.5-3z"/><path d="M2.5 5L8 8l5.5-3M8 8v6"/></symbol>
+<symbol id="i-clock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5.6"/><path d="M8 4.8V8l2.2 1.6"/></symbol>
+<symbol id="i-dock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="8.5" width="12" height="4.5" rx="1"/><rect x="4.5" y="5" width="7" height="3.5" rx="1"/><rect x="6.5" y="1.8" width="3" height="3.2" rx="1"/></symbol>
+<symbol id="i-globe" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.6"/><path d="M2.4 8h11.2M8 2.4c-3.6 3.4-3.6 7.8 0 11.2 3.6-3.4 3.6-7.8 0-11.2z"/></symbol>
+<symbol id="i-db" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="8" cy="3.6" rx="5.2" ry="1.9"/><path d="M2.8 3.6v8.8c0 1 2.3 1.9 5.2 1.9s5.2-.9 5.2-1.9V3.6M2.8 8c0 1 2.3 1.9 5.2 1.9S13.2 9 13.2 8"/></symbol>
+<symbol id="i-arch" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="3.4" rx=".8"/><path d="M3.2 5.9v6.6c0 .6.4 1 1 1h7.6c.6 0 1-.4 1-1V5.9M6.4 8.6h3.2"/></symbol>
+<symbol id="i-shield" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 1.8l5 1.9v4c0 3.2-2.1 5.4-5 6.5-2.9-1.1-5-3.3-5-6.5v-4z"/><path d="M5.7 8l1.6 1.6 3-3.2"/></symbol>
+<symbol id="i-users" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="5.5" r="2.4"/><path d="M1.8 13.4c.5-2.4 2.2-3.6 4.2-3.6s3.7 1.2 4.2 3.6M11 3.4a2.4 2.4 0 0 1 0 4.3M11.7 10c1.4.4 2.3 1.5 2.6 3.2"/></symbol>
+<symbol id="i-cert" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="8" cy="6" r="4"/><path d="M6 9.4l-1 4.2 3-1.6 3 1.6-1-4.2"/></symbol>
+<symbol id="i-folder" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M1.8 4c0-.7.5-1.2 1.2-1.2h3l1.6 1.8h5.4c.7 0 1.2.5 1.2 1.2v6.4c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2z"/></symbol>
+<symbol id="i-logs" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 3.2h10M3 6.4h10M3 9.6h6.5M3 12.8h4.5"/></symbol>
+<symbol id="i-audit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.8" y="1.8" width="10.4" height="12.4" rx="1.2"/><path d="M5.4 5h5.2M5.4 8h5.2M5.4 11h3"/></symbol>
+<symbol id="i-slid" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4.4h12M2 8h12M2 11.6h12"/><circle cx="10.5" cy="4.4" r="1.6" fill="#13161b"/><circle cx="5.5" cy="8" r="1.6" fill="#13161b"/><circle cx="9" cy="11.6" r="1.6" fill="#13161b"/></symbol>
+<symbol id="i-mehr" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="3.2" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.8" cy="8" r="1"/></symbol>
+</defs></svg>
+<a id="top"></a>
+<header class="mappe"><div class="wrap">
+  <h1>Neukonzept „Leitstand“ — die Entwurfsmappe</h1>
+  <p class="untertitel">Die neue Oberfläche für den Weg zu 1.0: dreizehn Bildschirme,
+  gebaut aus dem einzigen Bestandteil der Kommandobrücke, der sich bewährt hat —
+  der Telemetrie-Kachel. Konzept und Begründungen stehen in
+  <a href="../16-neukonzeption.md">16-neukonzeption.md</a>.</p>
+  <div class="meta">
+    <span>statisch · keine Schriftdateien · keine externen Aufrufe</span>
+    <button type="button" id="thema">Dokument: hell/dunkel</button>
+    <span>Die Screens sind bewusst nur dunkel — der Leitstand ist dark-first;
+    das helle Schema ist im Konzept als Ableitung definiert.</span>
+  </div>
+</div></header>
+
+<nav class="sprung"><div class="wrap breit">
+  <span class="gr">Entwurf</span>
+  <a href="#system">Gestaltungssystem</a>
+  <span class="gr">System</span>
+  <a href="#s-uebersicht">Übersicht</a><a href="#s-dienste">Dienste</a><a href="#s-cron">Cron &amp; Timer</a>
+  <span class="gr">Apps</span>
+  <a href="#s-docker">Docker</a><a href="#s-webserver">Webserver</a><a href="#s-datenbanken">Datenbanken</a><a href="#s-backups">Backups</a>
+  <span class="gr">Sicherheit &amp; Betrieb</span>
+  <a href="#s-firewall">Firewall</a><a href="#s-dateien">Dateien</a><a href="#s-logs">Logs</a><a href="#s-einstellungen">Einstellungen</a>
+  <span class="gr">Rand</span>
+  <a href="#s-login">Login</a><a href="#s-mobil">Telefon</a><a href="#fehlt">Nicht ausgeführt</a>
+</div></nav>
+
+<section class="abschnitt" id="system">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">0</span><h2>Gestaltungssystem</h2></div>
+    <p class="lede">Der Keim ist die Telemetrie-Kachel der heutigen Übersicht: dunkle
+    Karte, Beschriftung in Kapitälchen, große Zahl mit Tabellenziffern,
+    bernsteinfarbener 24-Stunden-Verlauf, Unterzeile in Mono. Ihre Machart wird zur
+    Regel für alles. Der Name Leitstand ist von Entwurf 3 aus
+    <a href="neuordnung.html">neuordnung.html</a> geerbt, dessen Grundsatz jetzt das
+    ganze System trägt: <b>Farbe trägt ausschließlich Zustand.</b> Bernstein ist kein
+    Zustand, sondern die Handschrift — Verläufe, aktive Navigation, primäre Knöpfe,
+    Fokusring.</p>
+    <div class="swatches">
+      <div class="sw"><i style="background:#0c0e11"></i><b>#0c0e11</b><span>Hintergrund</span></div>
+      <div class="sw"><i style="background:#13161b"></i><b>#13161b</b><span>Fläche / Karte</span></div>
+      <div class="sw"><i style="background:#1a1e25"></i><b>#1a1e25</b><span>Fläche erhöht</span></div>
+      <div class="sw"><i style="background:#e8a33d"></i><b>#e8a33d</b><span>Akzent Bernstein</span></div>
+      <div class="sw"><i style="background:#4cc38a"></i><b>#4cc38a</b><span>Zustand: läuft</span></div>
+      <div class="sw"><i style="background:#e5484d"></i><b>#e5484d</b><span>Zustand: Fehler</span></div>
+      <div class="sw"><i style="background:#5eb1ef"></i><b>#5eb1ef</b><span>Information</span></div>
+      <div class="sw"><i style="background:#9aa1ab"></i><b>#9aa1ab</b><span>Text gedämpft</span></div>
+    </div>
+    <p class="hinweisblock">Vier Teile stehen auf jeder Seite: das <b>Statusband</b>
+    oben (Wirt, Laufzeit, drei Mini-Verläufe als Griffe, Befehlspalette, Live-Punkt),
+    die <b>Seitenleiste</b> links mit den Gruppen System / Apps / Sicherheit / Betrieb
+    und Warnpunkt je Eintrag, der <b>Inhalt</b>, die <b>Protokollzeile</b> unten mit dem
+    zuletzt ausgeführten Befehl samt Exit und Dauer. Die fünf Grundsätze aus
+    15-neuordnung gelten fort; neu ist der sechste: Was schiefgehen kann, hat einen
+    Rückweg — Probe mit Frist statt bloßer Rückfrage. Typografie: System-Sans,
+    Mono mit <code>tabular-nums</code> für alles Zählbare; Skala 13/14/16/20/28/40.
+    Die Seitenleisten in den Rahmen sind echte Verweise — anklicken springt zum
+    jeweiligen Bildschirm dieser Mappe.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ 1 · ÜBERSICHT -->
+<section class="abschnitt" id="s-uebersicht">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">1</span><h2>Übersicht</h2></div>
+    <p class="lede">Erst das Urteil, dann die Zahlen: ein Satz, darunter der Handlungsbedarf mit
+    Griffen, dann die vier Kacheln — der Keim des Systems, auf der CPU-Kachel mit
+    eingefrorenem Mouseover (Wert und Uhrzeit der Messung, gestrichelte Führung).
+    Die Verläufe rechnet weiterhin der Server; gezeichnet wird dieselbe Geometrie
+    wie heute.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a class="on" href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">System / Übersicht</div><div class="h1">Übersicht</div></div>
+        <div class="sp"></div><span class="badge">Debian 13 · Kernel 6.18.5</span></div>
+
+      <div class="verdict"><span class="dot"></span><b>2 Punkte brauchen Aufmerksamkeit.</b>
+        <span class="mut">Sonst läuft der Server ruhig — Last und Speicher unauffällig.</span></div>
+
+      <ul class="todo">
+        <li><span class="st warn"><i></i></span>7 Paketaktualisierungen verfügbar, davon <b>&nbsp;2 sicherheitsrelevant</b><a class="go" href="#fehlt">Pakete öffnen →</a></li>
+        <li><span class="st warn"><i></i></span>Zertifikat <span class="mono">&nbsp;beispiel.de&nbsp;</span> läuft in 12 Tagen ab<a class="go" href="#s-webserver">Erneuern →</a></li>
+      </ul>
+
+      <div class="cards">
+        <div class="card"><div class="lbl">CPU</div><div class="val">0,4<small>%</small></div>
+          <div class="sparkbox">
+            <div class="sparktip">14:32 <span>·</span> 3,1 %</div>
+            <svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+              <path class="fill" d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.6 L50,28.8 L56,22.4 L58,24.8 L66,28.5 L74,28.9 L82,29 L90,28.2 L98,28.8 L98,34 L2,34 Z"/>
+              <path class="line" d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.6 L50,28.8 L56,22.4 L58,24.8 L66,28.5 L74,28.9 L82,29 L90,28.2 L98,28.8"/>
+              <path class="guide" d="M56,2 L56,32"/>
+              <path class="dot" d="M56,22.4 L56,22.4"/>
+            </svg></div>
+          <div class="sub">iowait 0,1 % · steal 0,0 %</div></div>
+        <div class="card"><div class="lbl">Arbeitsspeicher</div><div class="val">4,6<small>%</small></div>
+          <div class="sparkbox"><svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <path class="fill" d="M2,26 L12,25.8 L22,25.9 L32,24.1 L34,24.3 L44,24.2 L54,24.4 L64,22.7 L66,23 L76,22.9 L86,23 L98,22.7 L98,34 L2,34 Z"/>
+            <path class="line" d="M2,26 L12,25.8 L22,25.9 L32,24.1 L34,24.3 L44,24.2 L54,24.4 L64,22.7 L66,23 L76,22.9 L86,23 L98,22.7"/>
+            <path class="dot" d="M98,22.7 L98,22.7"/></svg></div>
+          <div class="sub">553,1 MiB von 11,7 GiB</div></div>
+        <div class="card"><div class="lbl">Last</div><div class="val">0,0</div>
+          <div class="sparkbox"><svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <path class="fill" d="M2,24 L10,30 L20,30.2 L30,30 L36,21.5 L46,21.8 L52,29.8 L60,30 L64,25.6 L70,29.9 L78,30 L84,27 L90,30 L98,30.4 L98,34 L2,34 Z"/>
+            <path class="line" d="M2,24 L10,30 L20,30.2 L30,30 L36,21.5 L46,21.8 L52,29.8 L60,30 L64,25.6 L70,29.9 L78,30 L84,27 L90,30 L98,30.4"/>
+            <path class="dot" d="M98,30.4 L98,30.4"/></svg></div>
+          <div class="sub">6 Kerne · 5 Min 0,0 · 15 Min 0,0</div></div>
+        <div class="card"><div class="lbl">Netzwerk</div><div class="val">1,6<small>KiB/s</small></div>
+          <div class="sparkbox"><svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <path class="fill" d="M2,29 L12,28.5 L22,29 L32,28 L40,28.8 L50,28.4 L58,29 L66,28.6 L74,29 L82,28.7 L92,10.5 L98,25.5 L98,34 L2,34 Z"/>
+            <path class="line" d="M2,29 L12,28.5 L22,29 L32,28 L40,28.8 L50,28.4 L58,29 L66,28.6 L74,29 L82,28.7 L92,10.5 L98,25.5"/>
+            <path class="dot" d="M98,25.5 L98,25.5"/></svg></div>
+          <div class="sub">eth0 · gesendet 99,7 KiB/s</div></div>
+      </div>
+
+      <div class="twocol">
+        <table class="tbl"><caption>Dateisysteme</caption>
+          <tr><th>Einhängepunkt</th><th>Belegt</th><th class="num">Frei</th></tr>
+          <tr><td class="mono">/</td><td><span class="bar"><i style="width:34%"></i></span></td><td class="num">101,2 GiB <span class="mut">von 153,4</span></td></tr>
+          <tr><td class="mono">/var/lib/docker</td><td><span class="bar"><i style="width:61%"></i></span></td><td class="num">37,9 GiB <span class="mut">von 98,3</span></td></tr>
+          <tr><td class="mono">/backup</td><td><span class="bar warn"><i style="width:88%"></i></span></td><td class="num">23,5 GiB <span class="mut">von 196,7</span></td></tr>
+        </table>
+        <table class="tbl"><caption>Prozesse · Spitzenreiter</caption>
+          <tr><th>Prozess</th><th class="num">CPU</th><th class="num">Speicher</th></tr>
+          <tr><td class="mono">mariadbd</td><td class="num">0,3 %</td><td class="num">182,4 MiB</td></tr>
+          <tr><td class="mono">dockerd</td><td class="num">0,2 %</td><td class="num">96,1 MiB</td></tr>
+          <tr><td class="mono">asylumd</td><td class="num">0,1 %</td><td class="num">22,3 MiB</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">systemctl list-units --type=service --output=json</span>
+      <span class="exit">Exit 0</span><span>42 ms</span>
+      <a class="more" href="#s-uebersicht">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 2 · DIENSTE -->
+<section class="abschnitt" id="s-dienste">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">2</span><h2>Dienste</h2></div>
+    <p class="lede">Liste links, Inspektor rechts: Details, Aktionen und die letzten Journalzeilen
+    ohne Seitenwechsel. Die Auswahl steht in der URL, damit Verweise teilbar bleiben
+    — das Erbe der Werkbank aus Entwurf 2. Zerstörende Knöpfe tragen ihre
+    Bestätigungsstufe sichtbar; erzwungen wird sie ohnehin im Handler.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a class="on" href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">System / Dienste</div><div class="h1">Dienste</div></div>
+        <div class="sp"></div><span class="badge">142 Units · 1 fehlgeschlagen</span></div>
+      <div class="twocol" style="grid-template-columns:1.25fr 1fr">
+        <table class="tbl">
+          <tr><th>Unit</th><th>Zustand</th><th class="num">Speicher</th><th class="num">Aktiv seit</th></tr>
+          <tr><td class="mono">mariadb.service</td><td><span class="st ok"><i></i>läuft</span></td><td class="num">182,4 MiB</td><td class="num">41 Tage</td></tr>
+          <tr class="sel"><td class="mono">nginx.service</td><td><span class="st ok"><i></i>läuft</span></td><td class="num">12,8 MiB</td><td class="num">6 Tage</td></tr>
+          <tr><td class="mono">docker.service</td><td><span class="st ok"><i></i>läuft</span></td><td class="num">96,1 MiB</td><td class="num">41 Tage</td></tr>
+          <tr><td class="mono">fail2ban.service</td><td><span class="st err"><i></i>fehlgeschlagen</span></td><td class="num">—</td><td class="num">—</td></tr>
+          <tr><td class="mono">unattended-upgrades.service</td><td><span class="st off"><i></i>inaktiv</span></td><td class="num">—</td><td class="num">—</td></tr>
+        </table>
+        <div class="drawer">
+          <div class="d-h"><span class="st ok"><i></i></span><div class="h1 mono">nginx.service</div>
+            <span class="badge ok">enabled</span></div>
+          <dl class="kv">
+            <dt>Beschreibung</dt><dd>A high performance web server</dd>
+            <dt>PID / Tasks</dt><dd>1042 · 5</dd>
+            <dt>Speicher</dt><dd>12,8 MiB</dd>
+            <dt>Neustarts</dt><dd>0 seit dem Start</dd>
+          </dl>
+          <div class="d-actions">
+            <button class="btn primary">Neu laden</button>
+            <button class="btn">Neu starten</button>
+            <button class="btn danger">Anhalten <span class="badge">Stufe 2</span></button>
+          </div>
+          <div class="loglines">
+            <b>14:31:02</b> GET /gesundheit 200 · 0,4 ms<br>
+            <b>14:29:47</b> Reload: Konfiguration neu gelesen<br>
+            <b>14:29:47</b> signal process started</div>
+        </div>
+      </div>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">systemctl show nginx.service --output=json</span>
+      <span class="exit">Exit 0</span><span>18 ms</span>
+      <a class="more" href="#s-dienste">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 3 · DOCKER — NEU AB 0.5 -->
+<section class="abschnitt" id="s-docker">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">3</span><h2>Docker — neu ab 0.5</h2></div>
+    <p class="lede">Compose-Stacks als führendes Objekt, Container darunter. Rechts der Job-Stream:
+    jede länger laufende Aktion wird live mitgelesen und endet mit einem Exit-Banner —
+    dieselbe Mechanik wie bei Paketen und Backups. Ein freies <code>docker run</code>
+    gibt es nicht; Container entstehen aus geprüften Compose-Dateien, und der Prüfer
+    läuft serverseitig.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>8,2 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>11,3 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a class="on" href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">Apps / Docker</div><div class="h1">Docker</div></div>
+        <div class="sp"></div><button class="btn primary">+ Stack anlegen</button></div>
+      <div class="twocol" style="grid-template-columns:1.15fr 1fr">
+        <div>
+          <table class="tbl" style="margin-bottom:.9rem">
+            <tr><th>Stack</th><th>Container</th><th>Zustand</th></tr>
+            <tr><td class="mono">nextcloud</td><td>3 / 3</td><td><span class="st ok"><i></i>läuft</span></td></tr>
+            <tr class="sel"><td class="mono">umami</td><td>1 / 2</td><td><span class="st warn"><i></i>wird gestartet …</span></td></tr>
+            <tr><td class="mono">uptime-kuma</td><td>1 / 1</td><td><span class="st ok"><i></i>läuft</span></td></tr>
+          </table>
+          <table class="tbl">
+            <tr><th>Container · umami</th><th>Abbild</th><th>Zustand</th></tr>
+            <tr><td class="mono">umami-db</td><td class="mono mut">postgres:17-alpine</td><td><span class="st ok"><i></i>gesund</span></td></tr>
+            <tr><td class="mono">umami-app</td><td class="mono mut">umami:2.15</td><td><span class="st warn"><i></i>startet</span></td></tr>
+          </table>
+        </div>
+        <div class="job">
+          <div class="j-h"><span class="spin"></span> Job #482 · <b>Stack umami aktualisieren</b><span class="sp"></span><span class="mut">läuft seit 14 s</span></div>
+          <pre><b>› docker compose -f /opt/asylum/stacks/umami/compose.yaml pull</b>
+db  Pulling  … <b>fertig</b> (Digest sha256:9f2a…)
+app Pulling  … <b>fertig</b> (Digest sha256:41cc…)
+<b>› docker compose -f /opt/asylum/stacks/umami/compose.yaml up -d</b>
+Container umami-db   <b>Started</b>  0,8 s
+Container umami-app  Starting …</pre>
+          <div class="j-fuss">Compose-Datei geprüft: keine privilegierten Container, keine gesperrten Host-Pfade.</div>
+        </div>
+      </div>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">docker compose -f /opt/asylum/stacks/umami/compose.yaml up -d</span>
+      <span class="lauf">läuft …</span>
+      <a class="more" href="#s-docker">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 4 · WEBSERVER &AMP; DOMAINS — NEU AB 0.6 -->
+<section class="abschnitt" id="s-webserver">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">4</span><h2>Webserver &amp; Domains — neu ab 0.6</h2></div>
+    <p class="lede">Sites sind der Gegenstand, nicht Konfigurationsdateien: Domain → Ziel → TLS in
+    einem Zug. Geschrieben wird nur als verwaltetes Drop-in mit Konflikt-Erkennung;
+    nach dem Neuladen gilt der Stand auf Probe mit selbsttätigem Rückweg — dieselbe
+    Mechanik wie bei der Firewall, aus demselben Grund.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a class="on" href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">Apps / Webserver</div><div class="h1">Webserver &amp; Domains</div></div>
+        <div class="sp"></div><span class="badge">nginx 1.28 · läuft</span>
+        <button class="btn primary">+ Neue Site</button></div>
+      <div class="twocol" style="grid-template-columns:1.15fr 1fr">
+        <table class="tbl">
+          <tr><th>Domain</th><th>Ziel</th><th>TLS</th></tr>
+          <tr><td class="mono">cloud.beispiel.de</td><td class="mono mut">Stack nextcloud : 8080</td><td><span class="st ok"><i></i>Let’s Encrypt · 74 Tage</span></td></tr>
+          <tr><td class="mono">status.beispiel.de</td><td class="mono mut">Stack uptime-kuma : 3001</td><td><span class="st ok"><i></i>Let’s Encrypt · 74 Tage</span></td></tr>
+          <tr><td class="mono">beispiel.de</td><td class="mono mut">statisch · /var/www/beispiel</td><td><span class="st warn"><i></i>läuft in 12 Tagen ab</span></td></tr>
+        </table>
+        <div class="drawer">
+          <div class="d-h"><div class="h1">Neue Site anlegen</div></div>
+          <div class="fld"><label>Domain</label><div class="in focus">stats.beispiel.de</div></div>
+          <div class="fld"><label>Ziel</label>
+            <div class="seg"><span class="on">Reverse-Proxy</span><span>Statisch</span><span>PHP</span></div>
+            <div class="in" style="margin-top:.45rem">Stack umami · Port 3000</div></div>
+          <div class="fld"><label>TLS</label>
+            <div class="seg"><span class="on">Let’s Encrypt</span><span>Eigenes Zertifikat</span><span>Ohne</span></div></div>
+          <p class="hint">Schreibt <span class="mono">/etc/nginx/conf.d/asylum-stats.conf</span> als
+            verwalteten Block, prüft mit <span class="mono">nginx&nbsp;-t</span>, lädt neu — und gilt
+            dann auf Probe: Antwortet der Server nicht mehr, stellt der Rückweg den vorigen
+            Stand wieder her. Fremde vHosts werden angezeigt, nie verändert.</p>
+          <div class="d-actions"><button class="btn primary">Anlegen &amp; prüfen</button><button class="btn ghost">Abbrechen</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">nginx -t</span>
+      <span class="exit">Exit 0</span><span>96 ms</span>
+      <a class="more" href="#s-webserver">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 5 · DATENBANKEN — NEU AB 0.7 -->
+<section class="abschnitt" id="s-datenbanken">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">5</span><h2>Datenbanken — neu ab 0.7</h2></div>
+    <p class="lede">MariaDB/MySQL und PostgreSQL: Datenbanken und Benutzer anlegen, Dumps als Jobs.
+    Der Drawer zeigt den Moment nach dem Anlegen — das erzeugte Passwort erscheint
+    genau einmal, wie bei Panel-Zugängen. Einspielen eines Dumps ist Stufe 3
+    (getippter Datenbankname).</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a class="on" href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">Apps / Datenbanken</div><div class="h1">Datenbanken</div></div>
+        <div class="sp"></div><span class="badge ok">MariaDB 11.4 · läuft</span>
+        <span class="badge">PostgreSQL nicht installiert</span>
+        <button class="btn primary">+ Datenbank anlegen</button></div>
+      <div class="twocol" style="grid-template-columns:1.15fr 1fr">
+        <div>
+          <table class="tbl" style="margin-bottom:.9rem">
+            <tr><th>Datenbank</th><th>Benutzer</th><th class="num">Größe</th><th>Zeichensatz</th></tr>
+            <tr><td class="mono">nextcloud</td><td class="mono mut">nextcloud@localhost</td><td class="num">412,7 MiB</td><td class="mono mut">utf8mb4</td></tr>
+            <tr class="sel"><td class="mono">umami</td><td class="mono mut">umami@localhost</td><td class="num">38,2 MiB</td><td class="mono mut">utf8mb4</td></tr>
+            <tr><td class="mono">testlauf</td><td class="mono mut">—</td><td class="num">2,1 MiB</td><td class="mono mut">utf8mb4</td></tr>
+          </table>
+          <table class="tbl">
+            <tr><th>Letzte Dumps</th><th class="num">Größe</th><th class="num">Dauer</th><th>Ergebnis</th></tr>
+            <tr><td class="mono">umami · Job #479</td><td class="num">31,4 MiB</td><td class="num">4 s</td><td><span class="st ok"><i></i>Exit 0</span></td></tr>
+            <tr><td class="mono">nextcloud · Job #471</td><td class="num">398,0 MiB</td><td class="num">41 s</td><td><span class="st ok"><i></i>Exit 0</span></td></tr>
+          </table>
+        </div>
+        <div class="drawer">
+          <div class="d-h"><div class="h1">Datenbank angelegt</div><span class="badge ok">fertig</span></div>
+          <dl class="kv">
+            <dt>Datenbank</dt><dd>stats</dd>
+            <dt>Benutzer</dt><dd>stats@localhost</dd>
+            <dt>Rechte</dt><dd>ALL auf stats.*</dd>
+          </dl>
+          <div class="einmal">Das Passwort wird <b>genau einmal</b> angezeigt — das Panel
+            hebt es nicht auf, und im Protokoll ist es verdeckt.
+            <code>kK4w-Vr9q-xN2h-Ts7e-Bm3u</code>
+            <small>Jetzt in die Anwendung eintragen. Verloren? Benutzer-Passwort neu setzen —
+            anzeigen geht nicht.</small></div>
+          <p class="hint">Der Verwaltungszugriff läuft über den Unix-Socket als root
+            (Peer-Authentifizierung) — das Panel speichert kein Admin-Passwort, weil es
+            keines braucht.</p>
+          <div class="d-actions"><button class="btn primary">Fertig</button>
+            <button class="btn">Dump erzeugen</button>
+            <button class="btn danger">Löschen <span class="badge">Stufe 3</span></button></div>
+        </div>
+      </div>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">mysql --socket=/run/mysqld/mysqld.sock -e 'CREATE USER …'</span>
+      <span class="exit">Exit 0</span><span>34 ms</span> <span class="mut">· Geheimnis verdeckt</span>
+      <a class="more" href="#s-datenbanken">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 6 · DATEIEN -->
+<section class="abschnitt" id="s-dateien">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">6</span><h2>Dateien</h2></div>
+    <p class="lede">Der Dateimanager aus 0.3, neu gezeichnet: Brotkrume als Griffe, Tabelle mit
+    Karten-Fallback, gesperrte Einträge bleiben sichtbar und nennen den Grund —
+    die Pfadwache entscheidet, nicht die Oberfläche. Der Editor öffnet im
+    Vollbild und behält Konflikt-Erkennung und Konfigurationsprüfung.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a class="on" href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">Betrieb / Dateien</div><div class="h1">Dateien</div></div>
+        <div class="sp"></div><button class="btn">Hochladen</button><button class="btn">Neuer Ordner</button></div>
+      <div class="pfad"><a href="#s-dateien">/</a><span class="tr">›</span><a href="#s-dateien">etc</a><span class="tr">›</span><b>nginx</b>
+        <span class="sp" style="flex:1"></span><span class="badge">tar.gz herunterladen</span></div>
+      <table class="tbl">
+        <tr><th>Name</th><th class="num">Größe</th><th>Rechte</th><th>Eigentümer</th><th class="num">Geändert</th></tr>
+        <tr><td><span class="dtyp">▸</span><span class="mono">conf.d/</span></td><td class="num">—</td><td class="mono mut">drwxr-xr-x</td><td class="mono mut">root:root</td><td class="num">heute 14:29</td></tr>
+        <tr><td><span class="dtyp">▸</span><span class="mono">sites-enabled/</span></td><td class="num">—</td><td class="mono mut">drwxr-xr-x</td><td class="mono mut">root:root</td><td class="num">vor 6 Tagen</td></tr>
+        <tr class="sel"><td><span class="dtyp">·</span><span class="mono">nginx.conf</span> <span class="badge amber">im Editor geöffnet</span></td><td class="num">1,4 KiB</td><td class="mono mut">-rw-r--r--</td><td class="mono mut">root:root</td><td class="num">vor 6 Tagen</td></tr>
+        <tr><td><span class="dtyp">·</span><span class="mono">mime.types</span></td><td class="num">5,3 KiB</td><td class="mono mut">-rw-r--r--</td><td class="mono mut">root:root</td><td class="num">vor 41 Tagen</td></tr>
+        <tr class="gesperrt"><td><span class="dtyp">⨯</span><span class="mono">ssl/privkey.pem</span> <span class="badge rot">gesperrt — privater Schlüssel</span></td><td class="num">3,2 KiB</td><td class="mono mut">-rw-------</td><td class="mono mut">root:root</td><td class="num">vor 12 Tagen</td></tr>
+      </table>
+      <p class="hint" style="margin-top:.7rem">Die Sperrliste gilt für jede Rolle, auch Owner:
+        Passwort-Hashes, private Schlüssel und die Datenbank des Panels bleiben sichtbar,
+        aber unerreichbar — der Eintrag nennt den Grund. Wer die Datei braucht, hat SSH.</p>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">tar -czf - /etc/nginx</span>
+      <span class="exit">Exit 0</span><span>210 ms</span>
+      <a class="more" href="#s-dateien">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 7 · FIREWALL -->
+<section class="abschnitt" id="s-firewall">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">7</span><h2>Firewall</h2></div>
+    <p class="lede">Die 60-Sekunden-Probe bekommt ein Gesicht: Nach jeder Änderung zählt das Banner
+    sichtbar herunter, Übernehmen bestätigt, sonst rollt der Server selbsttätig
+    zurück — serverseitig, unabhängig vom Browser. Ein Dialog schützt vor Versehen;
+    die Probe schützt auch den, der sich ausgesperrt hat.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a class="on" href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">Sicherheit / Firewall</div><div class="h1">Firewall</div></div>
+        <div class="sp"></div><span class="badge ok">ufw aktiv</span><button class="btn primary">+ Regel</button></div>
+
+      <div class="probe"><span class="uhr">0:42</span>
+        <div><b>Der Regelsatz gilt auf Probe.</b><br>
+        <span class="mut">Ohne Bestätigung stellt der Server in 42 Sekunden den vorigen Stand
+        wieder her — auch wenn dieser Browser nicht mehr erreichbar ist.</span></div>
+        <span class="sp"></span>
+        <button class="btn primary">Übernehmen</button><button class="btn ghost">Verwerfen</button></div>
+
+      <table class="tbl">
+        <tr><th>Port</th><th>Protokoll</th><th>Quelle</th><th>Kommentar</th><th></th></tr>
+        <tr><td class="mono">22</td><td class="mono mut">tcp</td><td class="mono mut">0.0.0.0/0</td><td class="mut">SSH</td><td class="num"><span class="badge">Preset</span></td></tr>
+        <tr><td class="mono">80, 443</td><td class="mono mut">tcp</td><td class="mono mut">0.0.0.0/0</td><td class="mut">HTTP/HTTPS</td><td class="num"><span class="badge">Preset</span></td></tr>
+        <tr><td class="mono">8443</td><td class="mono mut">tcp</td><td class="mono mut">203.0.113.0/24</td><td class="mut">Panel, nur Büronetz</td><td class="num"></td></tr>
+        <tr class="sel"><td class="mono">3001</td><td class="mono mut">tcp</td><td class="mono mut">0.0.0.0/0</td><td class="mut">uptime-kuma <span class="badge amber">neu · auf Probe</span></td><td class="num"></td></tr>
+      </table>
+      <p class="hint" style="margin-top:.7rem">Ein fremdes nftables-Regelwerk würde hier
+        angezeigt, aber nicht angefasst. Das Ausschalten von ufw ist Stufe 3 — getippter
+        Hostname.</p>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">ufw allow 3001/tcp comment 'uptime-kuma'</span>
+      <span class="exit">Exit 0</span><span>112 ms</span> <span class="lauf">· Probe läuft</span>
+      <a class="more" href="#s-firewall">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 8 · CRON &AMP; TIMER — NEU AB 0.4 -->
+<section class="abschnitt" id="s-cron">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">8</span><h2>Cron &amp; Timer — neu ab 0.4</h2></div>
+    <p class="lede">Beide Welten in einer Ansicht: systemd-Timer und Cron als Reiter, jeder Eintrag
+    mit letztem Lauf, Exit-Code und Ausgabe — die Frage „lief das Backup heute Nacht?“
+    beantwortet die Liste, nicht das Journal. Ein fehlgeschlagener Lauf erscheint
+    auf der Übersicht als Handlungsbedarf.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a class="on" href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">System / Cron &amp; Timer</div><div class="h1">Cron &amp; Timer</div></div>
+        <div class="sp"></div><button class="btn primary">+ Zeitplan</button></div>
+      <div class="tabsrow"><span class="on">systemd-Timer</span><span>Cron</span></div>
+      <div class="twocol" style="grid-template-columns:1.25fr 1fr">
+        <table class="tbl">
+          <tr><th>Timer</th><th>Zeitplan</th><th>Letzter Lauf</th><th class="num">Nächster</th></tr>
+          <tr><td class="mono">asylum-backup.timer</td><td class="mono mut">täglich 03:00</td><td><span class="st ok"><i></i>Exit 0 · 03:00</span></td><td class="num">in 12 h</td></tr>
+          <tr class="sel"><td class="mono">zertifikat-warnung.timer</td><td class="mono mut">wöchentlich</td><td><span class="st err"><i></i>Exit 1 · Mo 04:12</span></td><td class="num">in 5 Tagen</td></tr>
+          <tr><td class="mono">apt-daily-upgrade.timer</td><td class="mono mut">täglich, versetzt</td><td><span class="st ok"><i></i>Exit 0 · 06:14</span></td><td class="num">in 16 h</td></tr>
+          <tr><td class="mono">logrotate.timer</td><td class="mono mut">täglich</td><td><span class="st ok"><i></i>Exit 0 · 00:00</span></td><td class="num">in 9 h</td></tr>
+        </table>
+        <div class="drawer">
+          <div class="d-h"><span class="st err"><i></i></span><div class="h1 mono">zertifikat-warnung.timer</div></div>
+          <dl class="kv">
+            <dt>Einheit</dt><dd>zertifikat-warnung.service</dd>
+            <dt>Zeitplan</dt><dd>OnCalendar=Mon 04:00</dd>
+            <dt>Letzter Lauf</dt><dd>Montag 04:12 · Exit 1 · 3,2 s</dd>
+          </dl>
+          <div class="loglines">
+            <b>04:12:01</b> Prüfe 3 Domains …<br>
+            <b>04:12:03</b> cloud.beispiel.de: 74 Tage — gut<br>
+            <span class="fehlzeile"><b>04:12:04</b> beispiel.de: Erneuerung fehlgeschlagen (Rate-Limit)</span></div>
+          <div class="d-actions">
+            <button class="btn primary">Jetzt ausführen</button>
+            <button class="btn">Bearbeiten</button>
+            <button class="btn danger">Entfernen <span class="badge">Stufe 2</span></button></div>
+          <p class="hint">Eigene Zeitpläne entstehen als verwaltete Datei unter
+            <span class="mono">/etc/cron.d/</span> bzw. als Timer-Paar — nie durch
+            Editieren fremder Crontabs.</p>
+        </div>
+      </div>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">systemctl list-timers --all --output=json</span>
+      <span class="exit">Exit 0</span><span>28 ms</span>
+      <a class="more" href="#s-cron">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 9 · BACKUPS — NEU AB 0.8 -->
+<section class="abschnitt" id="s-backups">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">9</span><h2>Backups — neu ab 0.8</h2></div>
+    <p class="lede">restic-Ziele als Karten mit dem, was zählt: Wann lief die letzte Sicherung, und —
+    wichtiger — wann der letzte bestandene Prüflauf. Das überfällige Ziel trägt die
+    Warnfarbe, nicht das Panel-Bauchgefühl. Wiederherstellen ist Stufe 3.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a class="on" href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">Apps / Backups</div><div class="h1">Backups</div></div>
+        <div class="sp"></div><button class="btn primary">+ Ziel anlegen</button></div>
+
+      <div class="targets">
+        <div class="target"><div class="t-h"><span class="st ok"><i></i></span>hetzner-storagebox
+            <span class="badge">SFTP</span></div>
+          <dl class="kv"><dt>Repository</dt><dd>restic · 214,8 GiB</dd>
+            <dt>Zeitplan</dt><dd>täglich 03:00 · behalte 7t/4w/6m</dd>
+            <dt>Prüflauf</dt><dd><span class="st ok" style="font-family:var(--sans)"><i></i>vor 2 Tagen bestanden</span></dd></dl></div>
+        <div class="target"><div class="t-h"><span class="st warn"><i></i></span>s3-offsite
+            <span class="badge">S3</span></div>
+          <dl class="kv"><dt>Repository</dt><dd>restic · 198,1 GiB</dd>
+            <dt>Zeitplan</dt><dd>wöchentlich So 04:00</dd>
+            <dt>Prüflauf</dt><dd><span class="st warn" style="font-family:var(--sans)"><i></i>überfällig seit 9 Tagen</span></dd></dl></div>
+      </div>
+
+      <table class="tbl">
+        <tr><th>Letzte Läufe</th><th>Umfang</th><th class="num">Neu</th><th class="num">Dauer</th><th>Ergebnis</th><th></th></tr>
+        <tr><td class="mono">#488 · hetzner-storagebox</td><td class="mono mut">/etc /opt/asylum /var/lib/asylum + 2 Dumps</td><td class="num">312 MiB</td><td class="num">2 m 41 s</td><td><span class="st ok"><i></i>Exit 0</span></td><td class="num"><button class="btn ghost">Wiederherstellen <span class="badge">Stufe 3</span></button></td></tr>
+        <tr><td class="mono">#485 · s3-offsite</td><td class="mono mut">wie oben</td><td class="num">1,2 GiB</td><td class="num">11 m 03 s</td><td><span class="st ok"><i></i>Exit 0</span></td><td class="num"><button class="btn ghost">Wiederherstellen <span class="badge">Stufe 3</span></button></td></tr>
+      </table>
+      <p class="hint" style="margin-top:.7rem">Der Prüflauf (<span class="mono">restic check</span>
+        plus Probe-Restore einer Stichprobe) ist Teil jedes Zeitplans. Bleibt er aus oder
+        scheitert er, steht das als Handlungsbedarf auf der Übersicht — ein Backup, das es
+        gibt, aber nicht zurückspielbar ist, ist schlimmer als keines.</p>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">restic -r sftp:u12345@u12345.your-storagebox.de:asylum backup …</span>
+      <span class="exit">Exit 0</span><span>2 m 41 s</span> <span class="mut">· Job #488</span>
+      <a class="more" href="#s-backups">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 10 · LOGS -->
+<section class="abschnitt" id="s-logs">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">10</span><h2>Logs</h2></div>
+    <p class="lede">journald mit Filtern, Live-Follow und Download des gefilterten Ausschnitts —
+    funktional wie heute, neu gezeichnet: Mono-Zeilen mit fester Zeitspalte, Priorität
+    als Textfarbe, Filter als beschriftete Chips statt Formularzeile.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a class="on" href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">Betrieb / Logs</div><div class="h1">Logs</div></div>
+        <div class="sp"></div><span class="badge ok">Live-Follow an</span><button class="btn">Ausschnitt herunterladen</button></div>
+      <div class="filterrow">
+        <span class="in">Unit <b>nginx.service</b></span>
+        <span class="in">Priorität <b>ab Warnung</b></span>
+        <span class="in">Zeitraum <b>letzte Stunde</b></span>
+        <span class="in">Suche <b>upstream</b></span>
+      </div>
+      <div class="logview">
+        <div class="z"><time>14:31:52</time><span class="u">nginx</span><span>GET /api/heartbeat 200 · 0,8 ms</span></div>
+        <div class="z warnz"><time>14:29:47</time><span class="u">nginx</span><span>upstream response is buffered to a temporary file</span></div>
+        <div class="z"><time>14:29:47</time><span class="u">nginx</span><span>signal process started</span></div>
+        <div class="z fehlz"><time>14:12:03</time><span class="u">nginx</span><span>connect() failed (111: Connection refused) while connecting to upstream 127.0.0.1:3000</span></div>
+        <div class="z"><time>14:12:03</time><span class="u">nginx</span><span>GET /stats 502 · 1,2 ms</span></div>
+        <div class="z"><time>14:02:11</time><span class="u">nginx</span><span>GET / 200 · 2,1 ms</span></div>
+      </div>
+      <p class="hint" style="margin-top:.7rem">Priorität trägt Farbe, Farbe trägt nur
+        Priorität: Warnungen bernstein, Fehler rot, alles andere ruhig. Der Download
+        liefert exakt den gefilterten Ausschnitt.</p>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">journalctl -u nginx.service -p warning --since -1h -o json</span>
+      <span class="exit">Exit 0</span><span>52 ms</span>
+      <a class="more" href="#s-logs">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 11 · EINSTELLUNGEN &AMP; PANEL-BENUTZER -->
+<section class="abschnitt" id="s-einstellungen">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">11</span><h2>Einstellungen &amp; Panel-Benutzer</h2></div>
+    <p class="lede">Konten, Rollen und der neue zweite Anmeldeweg: API-Tokens für die eigene
+    Oberfläche und die CLI — an eine Rolle gebunden, mit Pflicht-Ablauf, serverseitig
+    nur als Hash. Der Drawer zeigt den Moment der Erstellung, das dritte Vorkommen
+    desselben Einmal-Musters (Startpasswort, DB-Passwort, Token).</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="panel">
+    <div class="statusband">
+      <span class="brand"><i></i>asylum</span>
+      <span class="host"><b>hetzner-web01</b> · seit 41 Tagen</span>
+      <span class="gauges">
+        <a class="gauge" href="#s-uebersicht">CPU <b>0,4 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.8 L50,28.8 L58,29.1 L66,26.5 L74,28.9 L82,29 L90,28.2 L98,28.8" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">RAM <b>4,6 %</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,26 L14,25.8 L26,25.9 L38,24.2 L50,24.4 L62,24.1 L74,22.8 L86,23 L98,22.7" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+        <a class="gauge" href="#s-uebersicht">NETZ <b>1,6 KiB/s</b><svg viewBox="0 0 100 34" preserveAspectRatio="none"><path d="M2,29 L14,28.6 L26,29 L38,28.2 L50,28.8 L62,28.5 L74,29 L86,28.7 L94,12 L98,26" fill="none" stroke="#e8a33d" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg></a>
+      </span>
+      <span class="kbd">⌘K Suchen &amp; Springen</span>
+      <span class="livedot" title="Live verbunden"></span>
+    </div>
+    <aside class="side">
+      <div class="grp"><b>System</b><nav class="nav">
+        <a href="#s-uebersicht"><svg><use href="#i-gauge"/></svg><span>Übersicht</span></a>
+        <a href="#s-dienste"><svg><use href="#i-gear"/></svg><span>Dienste</span></a>
+        <a href="#fehlt"><svg><use href="#i-box"/></svg><span>Pakete</span><i class="pip"></i></a>
+        <a href="#s-cron"><svg><use href="#i-clock"/></svg><span>Cron & Timer</span></a>
+      </nav></div>
+      <div class="grp"><b>Apps</b><nav class="nav">
+        <a href="#s-docker"><svg><use href="#i-dock"/></svg><span>Docker</span></a>
+        <a href="#s-webserver"><svg><use href="#i-globe"/></svg><span>Webserver</span></a>
+        <a href="#s-datenbanken"><svg><use href="#i-db"/></svg><span>Datenbanken</span></a>
+        <a href="#s-backups"><svg><use href="#i-arch"/></svg><span>Backups</span></a>
+      </nav></div>
+      <div class="grp"><b>Sicherheit</b><nav class="nav">
+        <a href="#s-firewall"><svg><use href="#i-shield"/></svg><span>Firewall</span></a>
+        <a href="#fehlt"><svg><use href="#i-users"/></svg><span>Benutzer & SSH</span></a>
+        <a href="#fehlt"><svg><use href="#i-cert"/></svg><span>Zertifikate</span><i class="pip"></i></a>
+      </nav></div>
+      <div class="grp"><b>Betrieb</b><nav class="nav">
+        <a href="#s-dateien"><svg><use href="#i-folder"/></svg><span>Dateien</span></a>
+        <a href="#s-logs"><svg><use href="#i-logs"/></svg><span>Logs</span></a>
+        <a href="#fehlt"><svg><use href="#i-audit"/></svg><span>Audit</span></a>
+        <a class="on" href="#s-einstellungen"><svg><use href="#i-slid"/></svg><span>Einstellungen</span></a>
+      </nav></div>
+    </aside>
+    <div class="main">
+      <div class="headrow"><div><div class="crumb">Betrieb / Einstellungen</div><div class="h1">Einstellungen</div></div>
+        <div class="sp"></div><span class="badge">asylumd 0.4.0-rc.1 · Kanal beta</span></div>
+      <div class="tabsrow"><span>Allgemein</span><span class="on">Panel-Benutzer</span><span>API-Tokens</span><span>Zertifikat</span><span>Update</span></div>
+      <div class="twocol" style="grid-template-columns:1.25fr 1fr">
+        <table class="tbl">
+          <tr><th>Konto</th><th>Rolle</th><th>2. Faktor</th><th class="num">Letzte Anmeldung</th></tr>
+          <tr><td class="mono">phil</td><td><span class="badge amber">Owner</span></td><td><span class="st ok"><i></i>Passkey + TOTP</span></td><td class="num">gerade eben</td></tr>
+          <tr><td class="mono">kollege</td><td><span class="badge">Admin</span></td><td><span class="st ok"><i></i>TOTP</span></td><td class="num">vor 3 Tagen</td></tr>
+          <tr><td class="mono">monitoring</td><td><span class="badge">ReadOnly</span></td><td><span class="st info"><i></i>nur API-Token</span></td><td class="num">vor 4 min</td></tr>
+        </table>
+        <div class="drawer">
+          <div class="d-h"><div class="h1">API-Token erstellt</div><span class="badge ok">monitoring</span></div>
+          <dl class="kv">
+            <dt>Rolle</dt><dd>ReadOnly (geerbt, nie mehr)</dd>
+            <dt>Gültig bis</dt><dd>2027-01-31</dd>
+            <dt>Audit</dt><dd>jede Nutzung mit Token-Kennung</dd>
+          </dl>
+          <div class="einmal">Auch hier: <b>genau einmal</b> sichtbar, gespeichert wird nur der Hash.
+            <code>asy1_Qm3v…kT9w</code>
+            <small>Übergabe nur als Header — nie im Query-String, nie in Logs.</small></div>
+          <div class="d-actions"><button class="btn primary">Fertig</button>
+            <button class="btn danger">Widerrufen</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">asylumd token create --user monitoring --expires 2027-01-31</span>
+      <span class="exit">Exit 0</span><span>21 ms</span> <span class="mut">· Geheimnis verdeckt</span>
+      <a class="more" href="#s-einstellungen">Protokoll aufklappen ▴</a></div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 12 · LOGIN -->
+<section class="abschnitt" id="s-login">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">12</span><h2>Login</h2></div>
+    <p class="lede">Bleibt eine server-gerenderte Seite ohne JavaScript-Pflicht —
+    kleinste Angriffsfläche vor der Anmeldung, der bestehende CSRF- und Sitzungsfluss
+    trägt weiter. Passkey zuerst, Passwort und Einmalcode als zweiter Weg.</p>
+  </div>
+  <div class="wrap breit"><div class="frame"><div class="login-wrap">
+    <div class="login">
+      <div class="brand"><i></i>asylum · hetzner-web01</div>
+      <button class="btn primary">Mit Passkey anmelden</button>
+      <div class="alt">oder mit Passwort</div>
+      <div class="fld"><label>Benutzername</label><div class="in">phil</div></div>
+      <div class="fld"><label>Passwort</label><div class="in">••••••••••••••</div></div>
+      <button class="btn" style="width:100%;justify-content:center">Weiter → Einmalcode</button>
+      <p class="hint" style="text-align:center;margin-top:.8rem"><a href="#s-login" style="color:var(--tx-mut)">Zugang verloren?</a></p>
+    </div>
+  </div></div></div>
+</section>
+<!-- ═══════════════════════════════════════ 13 · TELEFON -->
+<section class="abschnitt" id="s-mobil">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">13</span><h2>Telefon · 375 px</h2></div>
+    <p class="lede">Ein Server-Panel wird vom Telefon aus bedient, wenn etwas kaputt ist —
+    die rc.3-Lektion. Die Seitenleiste wird zur Reiterleiste unten (vier Ziele und
+    „Mehr“), die Kacheln stapeln sich, Tabellen werden Karten, die Protokollzeile
+    bleibt eine tippbare Zeile.</p>
+  </div>
+  <div class="wrap breit"><div class="frame mobil"><div class="panel mobil">
+    <div class="statusband">
+      <span class="brand"><i></i></span>
+      <span class="host"><b>hetzner-web01</b></span>
+      <span style="margin-left:auto" class="mut">CPU 0,4 % · RAM 4,6 %</span>
+      <span class="livedot"></span>
+    </div>
+    <div class="main">
+      <div class="verdict"><span class="dot"></span><b>2 Punkte offen.</b></div>
+      <ul class="todo">
+        <li><span class="st warn"><i></i></span>7 Updates, 2 sicherheitsrelevant<a class="go" href="#fehlt">→</a></li>
+        <li><span class="st warn"><i></i></span>Zertifikat läuft in 12 Tagen ab<a class="go" href="#s-webserver">→</a></li>
+      </ul>
+      <div class="cards">
+        <div class="card"><div class="lbl">CPU</div><div class="val">0,4<small>%</small></div>
+          <div class="sparkbox"><svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <path class="fill" d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.6 L50,28.8 L56,22.4 L58,24.8 L66,28.5 L74,28.9 L82,29 L90,28.2 L98,28.8 L98,34 L2,34 Z"/>
+            <path class="line" d="M2,29 L10,28.6 L18,29.2 L26,28.4 L34,29 L42,27.6 L50,28.8 L56,22.4 L58,24.8 L66,28.5 L74,28.9 L82,29 L90,28.2 L98,28.8"/>
+            <path class="dot" d="M98,28.8 L98,28.8"/></svg></div>
+          <div class="sub">iowait 0,1 % · steal 0,0 %</div></div>
+        <div class="card"><div class="lbl">Netzwerk</div><div class="val">1,6<small>KiB/s</small></div>
+          <div class="sparkbox"><svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none">
+            <path class="fill" d="M2,29 L12,28.5 L22,29 L32,28 L40,28.8 L50,28.4 L58,29 L66,28.6 L74,29 L82,28.7 L92,10.5 L98,25.5 L98,34 L2,34 Z"/>
+            <path class="line" d="M2,29 L12,28.5 L22,29 L32,28 L40,28.8 L50,28.4 L58,29 L66,28.6 L74,29 L82,28.7 L92,10.5 L98,25.5"/>
+            <path class="dot" d="M98,25.5 L98,25.5"/></svg></div>
+          <div class="sub">eth0 · gesendet 99,7 KiB/s</div></div>
+      </div>
+    </div>
+    <div class="console"><span class="mut">›</span>
+      <span class="cmd">systemctl list-units …</span>
+      <span class="exit">0</span></div>
+    <div class="tabbar">
+      <a class="on" href="#s-mobil"><svg><use href="#i-gauge"/></svg>Übersicht</a>
+      <a href="#s-dienste"><svg><use href="#i-gear"/></svg>Dienste</a>
+      <a href="#s-docker"><svg><use href="#i-dock"/></svg>Docker</a>
+      <a href="#s-logs"><svg><use href="#i-logs"/></svg>Logs</a>
+      <a href="#fehlt"><svg><use href="#i-mehr"/></svg>Mehr</a>
+    </div>
+  </div></div></div>
+</section>
+<section class="abschnitt" id="fehlt">
+  <div class="wrap">
+    <div class="kopf"><span class="nr">—</span><h2>In dieser Mappe nicht ausgeführt</h2></div>
+    <p class="lede">Vier Bereiche der Seitenleiste haben hier keinen eigenen Rahmen,
+    weil sie keine neue Entwurfsfrage stellen — sie sind aus den gezeigten Mustern
+    zusammengesetzt:</p>
+    <table class="doku">
+      <tr><th>Bereich</th><th>Besteht aus</th></tr>
+      <tr><td>Pakete</td><td>DataTable (Updates, Sicherheitsmarkierung) + Job-Stream wie Docker</td></tr>
+      <tr><td>Benutzer &amp; SSH</td><td>DataTable + Inspektor wie Dienste; Schlüsselliste als KeyValue</td></tr>
+      <tr><td>Zertifikate</td><td>DataTable je Domain (aus dem Webserver-Frame herausgelöst) + ACME-Job-Stream</td></tr>
+      <tr><td>Audit</td><td>Logs-Muster mit anderen Spalten (wer, was, wann, woher)</td></tr>
+    </table>
+    <p class="hinweisblock" style="margin-top:1rem">Ebenfalls bewusst nicht gezeichnet:
+    die Befehlspalette (⌘K) — sie ist ein Overlay über jedem dieser Bildschirme und
+    wird beim Bau der 0.4 als eigene Komponente entworfen — und der Datei-Editor,
+    der wie heute Messwerte und Konsole ablegt, um Höhe zu gewinnen.</p>
+  </div>
+</section>
+
+<footer class="mappe"><div class="wrap">
+  Entwurfsmappe zum Neukonzept „Leitstand“ · gehört zu
+  <a href="../16-neukonzeption.md">16-neukonzeption.md</a> ·
+  statisches HTML, keine Schriftdateien, keine externen Aufrufe —
+  wie die Mappen <a href="neuordnung.html">neuordnung.html</a> und
+  <a href="entwurf1-alle-seiten.html">entwurf1-alle-seiten.html</a>.
+</div></footer>
+
+<script>
+(function () {
+  "use strict";
+  /* Der Schalter stellt nur die Dokumentebene um. Die Screens bleiben dunkel —
+     das ist eine Entwurfsentscheidung, kein fehlendes Feature (siehe Kopf). */
+  var knopf = document.getElementById("thema");
+  if (!knopf) return;
+  knopf.addEventListener("click", function () {
+    var wurzel = document.documentElement;
+    var dunkel = wurzel.getAttribute("data-theme") === "dark" ||
+      (!wurzel.getAttribute("data-theme") &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+    wurzel.setAttribute("data-theme", dunkel ? "light" : "dark");
+  });
+})();
+</script>

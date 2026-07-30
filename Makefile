@@ -45,6 +45,10 @@ run: build ## Lokal starten (Port 8443, Daten unter ./.local)
 	ASYLUM_LOG_LEVEL=debug \
 	./bin/$(BINARY) serve
 
+ui: ## Oberfläche (Svelte) neu bauen
+	@command -v npm >/dev/null 2>&1 || { echo "npm nicht installiert — der eingecheckte Stand bleibt, wie er ist"; exit 0; }
+	cd web && npm ci --no-audit --no-fund && npm run build
+
 editor: ## Editor-Bundle (CodeMirror) neu bauen
 	@command -v npm >/dev/null 2>&1 || { echo "npm nicht installiert — der eingecheckte Bundle bleibt, wie er ist"; exit 0; }
 	cd packaging/editor && npm ci --no-audit --no-fund && node build.mjs

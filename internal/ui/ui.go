@@ -18,6 +18,14 @@ var templateFS embed.FS
 //go:embed static
 var staticFS embed.FS
 
+// dist ist die gebaute Oberfläche aus web/. Sie liegt im Repository, damit ein
+// Go-Build keine Node-Kette braucht — dieselbe Entscheidung wie beim
+// Editor-Bundle. Reproduzierbarkeit sichert ein CI-Job, der sie nachbaut und
+// byteweise vergleicht.
+//
+//go:embed dist
+var distFS embed.FS
+
 // Templates parst alle Templates. Ein Fehler hier ist ein Programmierfehler und
 // wird beim Start gemeldet, nicht erst beim ersten Request.
 func Templates() (*template.Template, error) {
@@ -27,6 +35,11 @@ func Templates() (*template.Template, error) {
 // Static liefert das Dateisystem für /static/.
 func Static() (fs.FS, error) {
 	return fs.Sub(staticFS, "static")
+}
+
+// Dist liefert das Dateisystem der gebauten Oberfläche für /v2/.
+func Dist() (fs.FS, error) {
+	return fs.Sub(distFS, "dist")
 }
 
 func funcs() template.FuncMap {

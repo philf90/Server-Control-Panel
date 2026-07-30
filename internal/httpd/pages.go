@@ -282,6 +282,11 @@ type spark struct {
 	// stehen in einem data-Attribut, aus dem spark.js den Wert unter dem Zeiger
 	// anzeigt — die CSP erlaubt kein Inline-Skript, das sie mitbrächte.
 	Points string
+	// Punkte sind dieselben Stützstellen, nur nicht als Zeichenkette. Die
+	// JSON-Schnittstelle gibt sie so weiter; die Vorlagen der alten Oberfläche
+	// bleiben bei Points. Zwei Felder aus einer Rechnung — nicht zwei
+	// Rechnungen, die auseinanderlaufen könnten.
+	Punkte []sparkPunkt
 	Has    bool
 }
 

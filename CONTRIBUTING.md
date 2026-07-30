@@ -46,6 +46,85 @@ Der ausgegebene Link führt durch die Ersteinrichtung. Ohne systemd und ohne
 root fehlen die Systemmodule — die Oberfläche zeigt dann eine Meldung statt
 Daten, was ein gültiger Zustand ist und getestet wird.
 
+### Oberfläche ändern
+
+Für Go allein ist **kein Node nötig**. Zwei gebaute Bündel liegen im
+Repository, damit das so bleibt:
+
+| Was | Quelle | Ergebnis | Ziel |
+|---|---|---|---|
+| Oberfläche (Svelte 5, Vite) | `web/` | `internal/ui/dist/` | `make ui` |
+| Editor (CodeMirror, esbuild) | `packaging/editor/` | `internal/ui/static/editor/cm.js` | `make editor` |
+
+Wer an einem davon arbeitet, braucht Node 22 und muss **das gebaute Ergebnis
+mit einchecken**: Je ein CI-Job baut es aus dem festgeschriebenen Lockfile nach
+und vergleicht byteweise. Schlägt er an, fehlt der Lauf von `make ui` bzw.
+`make editor` im Commit.
+
+Daraus folgen drei Regeln für `web/`:
+
+- **Fassungen exakt festschreiben**, kein `^` und kein `~`. Eine Nebenfassung
+  mehr, und der Nachbau weicht ab.
+- **Nichts in die Ausgabe, was von der Umgebung abhängt** — keine Zeitstempel,
+  kein `esnext` als Ziel, keine Sourcemap. Die Begründung steht in
+  `web/vite.config.js` an jeder betroffenen Einstellung.
+- **Keine externe Quelle zur Laufzeit** — kein CDN, keine Schriftdatei, kein
+  Bild von woanders. Die Richtlinie des Panels (`default-src 'none'`) ließe es
+  nicht zu, und das ist Absicht.
+
+Die neue Oberfläche liegt unter `/v2/` und die bestehende unverändert unter
+`/`, bis die Parität steht. Der Browsertest dazu hängt hinter einer
+Umgebungsvariablen, weil er Node und Chromium braucht:
+
+```bash
+ASYLUM_LEITSTAND_E2E=1 \
+  ASYLUM_CHROMIUM=/pfad/zu/chrome \
+  ASYLUM_NODE_PATH=/pfad/zu/node_modules \
+  go test ./internal/httpd -run TestLeitstandBrowser -v
+```
+
+### Einen Eigenbau auf einem echten Server ausprobieren
+
+Die Befunde, die zählen, kommen aus dem Betrieb: Fast alle Fehler der
+Freigabekandidaten waren in der Entwicklungsumgebung unsichtbar. Ein Stand ohne
+Release lässt sich deshalb direkt einsetzen — der reguläre Weg trägt ihn nicht,
+und das ist Absicht: `install.sh` lädt immer aus dem Release und prüft die
+Signatur, `asylum update` braucht signierte Metadaten. Beides wird nicht
+umgangen, sondern beiseitegelassen.
+
+```bash
+# lokal bauen — statisch, ohne Laufzeitabhängigkeiten
+make build
+
+# hochladen und tauschen (auf dem Server als root)
+scp bin/asylumd packaging/dev-deploy.sh root@server:/tmp/
+ssh root@server 'chmod +x /tmp/dev-deploy.sh && /tmp/dev-deploy.sh /tmp/asylumd'
+```
+
+`packaging/dev-deploy.sh` liest den Zielpfad **aus der laufenden Unit** statt zu
+raten — die curl-Installation legt das Binary unter `/usr/local/lib/asylum`, das
+`.deb` unter `/usr/lib/asylum`, und wer den falschen Pfad überschreibt, hat
+danach zwei Fassungen und keine Ahnung, welche läuft. Es sichert das alte
+Binary, tauscht, startet und prüft die Bereitschaft; antwortet der neue Stand
+nicht, rollt es von allein zurück. Der Rückweg von Hand:
+
+```bash
+/tmp/dev-deploy.sh --rollback
+```
+
+**Die Datenbank vorher sichern, sobald ein Stand eine Migration mitbringt.**
+Migrationen laufen nur vorwärts; nach einem Rückweg träfe die vorherige Fassung
+ein neueres Schema. Das Skript weist darauf hin, kann es aber nicht für dich
+entscheiden:
+
+```bash
+systemctl stop asylumd
+cp -a /var/lib/asylum/asylum.db{,-wal,-shm} /wohin/auch/immer/
+```
+
+Bis zur Übersicht des Leitstands bringt kein Stand eine Migration mit; die
+ersten kommen mit dem Job-Modell und den API-Tokens.
+
 ## Was ein Pull Request erfüllen muss
 
 Die CI prüft das alles; lokal geht es schneller.

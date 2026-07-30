@@ -13,6 +13,11 @@ vendor/
 # keine Node-Kette brauchen); die Abhängigkeiten dafür nicht.
 packaging/editor/node_modules/
 
+# Dasselbe für die Oberfläche: web/ ist die Quelle, internal/ui/dist/ das
+# eingecheckte Ergebnis. Die Regel /dist/ oben ist auf die Wurzel verankert und
+# trifft internal/ui/dist/ deshalb nicht — was hier Absicht ist.
+web/node_modules/
+
 # Signaturschlüssel — der private Schlüssel gehört niemals ins Repository.
 # Der öffentliche liegt bewusst als packaging/minisign.pub darin.
 *.key

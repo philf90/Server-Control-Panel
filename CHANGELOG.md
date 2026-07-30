@@ -9,6 +9,111 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0-rc.1] — 2026-07-30
+
+### Hinzugefügt
+
+- **Die neue Oberfläche „Leitstand" beginnt — vorerst neben der alten.** Sie ist
+  unter `/v2/` erreichbar, die bestehende bleibt unter `/` unverändert. Damit
+  entsteht der Umbau am laufenden Panel, ohne dass ein Handgriff verloren geht,
+  und der Weg zurück ist bis zum Umschalten immer da. Konzept und Begründungen
+  stehen in [docs/16-neukonzeption.md](docs/16-neukonzeption.md), die Bildschirme
+  in [docs/entwuerfe/neukonzept.html](docs/entwuerfe/neukonzept.html).
+
+  Gebaut ist sie mit Svelte 5 und Vite; die Quellen liegen unter `web/`, das
+  Ergebnis eingecheckt unter `internal/ui/dist/` und von dort im Binary. Ein
+  Go-Build braucht deshalb weiterhin **keine Node-Kette** — dieselbe
+  Entscheidung wie beim Editor-Bundle, und ein CI-Job baut das Ergebnis nach und
+  vergleicht byteweise. Nachgewiesen ist die Reproduzierbarkeit über drei Fälle:
+  zwei Läufe hintereinander, ein Lauf aus einem anderen Verzeichnispfad und ein
+  Lauf nach frischem `npm ci`.
+
+  Die Telemetrie-Kacheln sind der einzige Bestandteil der alten Oberfläche, der
+  bleibt — sie sind der Ausgangspunkt des neuen Gestaltungssystems. Gerechnet
+  werden die Verläufe weiter auf dem Server (dasselbe `buildSpark`), gezeichnet
+  werden sie in einer eigenen Komponente aus inline-SVG. **Keine
+  Diagramm-Bibliothek:** Die Feinheiten dieser Kachel sind in 0.2.0 teuer
+  gelernt und stecken in wenigen Zeilen.
+
+  **Zur Reihenfolge, weil dieselbe Fassung beides enthält:** Die Kommandobrücke
+  weiter unten in diesem Abschnitt ist der Umbau der *alten* Oberfläche — er ist
+  gebaut und ausgeliefert worden, und die Rückmeldung darauf war, dass er nicht
+  trägt. Aus ihr entstand die Neukonzeption. Die alte Oberfläche ist damit
+  **eingefroren**: keine Gestaltung, keine Funktion mehr, weil jede Stunde dort
+  in Arbeit ginge, die mit dem Umschalten gelöscht wird. Sie bleibt lauffähig,
+  bis die neue Parität erreicht hat. Ein sicherheitsrelevanter Fehler wird auch
+  dort behoben, solange sie ausgeliefert wird — eingefroren heißt nicht
+  abgeschaltet.
+
+- **Die Übersicht des Leitstands ist vollständig.** Über den Kacheln stehen
+  Urteilszeile und Handlungsbedarf, darunter Dateisysteme und die größten
+  Prozesse — dieselben Daten wie bisher, in der Reihenfolge von Grundsatz V:
+  erst das Urteil, dann die Zahlen.
+
+  Der Handlungsbedarf kommt aus einem **eigenen Aufruf** (`/api/v1/signals`) und
+  hat einen **eigenen Fehlerweg**. Beides aus demselben Grund: Seine Erhebung
+  ruft `systemctl` und prüft die Neustartmarkierung, sie kostet also echte Zeit
+  und kann scheitern. Die Kacheln stehen längst, während er läuft; scheitert er,
+  sagt die Urteilszeile das ausdrücklich — eine gescheiterte Erhebung ist nicht
+  dasselbe wie „alles in Ordnung", und wer das verwechselt, baut ein Panel, das
+  schweigt, wenn es klemmt.
+
+  Ein Dateisystem, das an mehreren Stellen hängt, bleibt ein Eintrag zum
+  Aufklappen; die weiteren Stellen tragen die Zahlen der Platte, an der sie
+  hängen. Unter 600 Pixeln wird jede Tabellenzeile zu einer Karte mit
+  Spaltenbeschriftung — die Lektion aus `rc.4`, jetzt durch einen Test an den
+  Quellen und eine Messung im Browser abgesichert.
+
+- **`packaging/dev-deploy.sh`** tauscht das Binary einer laufenden Installation
+  gegen einen Eigenbau — für Stände, die man auf einem echten Server sehen will,
+  bevor es ein Release gibt. Der reguläre Weg trägt sie nicht: `install.sh` lädt
+  immer aus dem Release und prüft die Signatur, `asylum update` braucht
+  signierte Metadaten. Beides wird nicht umgangen, sondern beiseitegelassen.
+
+  Das Skript liest den Zielpfad **aus der laufenden Unit** statt zu raten (die
+  curl-Installation legt das Binary unter `/usr/local/lib/asylum`, das `.deb`
+  unter `/usr/lib/asylum`), sichert das alte, tauscht, prüft die Bereitschaft
+  und rollt bei jedem Fehlschlag von allein zurück. Es steht in der
+  shellcheck-Liste der CI.
+
+- **JSON-Schnittstelle `/api/v1`** mit `session`, `overview`, `signals` und
+  `metrics/history` als einzige Datenquelle der neuen Oberfläche. Der
+  Live-Kanal bleibt der bestehende SSE-Hub, den beide Oberflächen gemeinsam
+  lesen. Neu ist `session`: Das CSRF-Token liegt in der Sitzungszeile und ging
+  bisher in jede gerenderte Seite — eine Einzelseiten-Anwendung bekommt kein
+  gerendertes HTML und braucht es über die Schnittstelle.
+
+### Behoben
+
+- **Drei Fehler in der neuen Übersicht, alle von einem Bildschirmfoto gefunden**
+  und nicht von einem Test — die Tests waren grün, weil im DOM alles vorhanden
+  war. Für jeden gibt es jetzt eine Messung im Browser:
+
+  Die Tabellenkomponenten gaben je **zwei Wurzelelemente** aus (Titel und
+  Rahmen). Im Gitter der Übersicht ist jedes Wurzelelement eine eigene Zelle —
+  der Titel stand links, die Tabelle rechts. Gemessen wird jetzt, ob jeder Titel
+  die linke Kante seiner Tabelle hat und über ihr sitzt.
+
+  Der Tabellenrahmen hatte **`overflow: hidden`** und beschnitt die letzte
+  Spalte, ohne einen Balken zu zeigen — die Seite sah heil aus, während die
+  Inode-Werte fehlten. Jetzt `overflow-x: auto`, und ein Test schlägt an, wenn
+  Inhalt in einem Rahmen mit `hidden` breiter ist als der Rahmen.
+
+  Der **Live-Kanal überschrieb vollständige Listen mit dünneren.** Sein erstes
+  Ereignis ist der letzte Ringpuffer-Eintrag, und der Ring hält den Verlauf,
+  nicht zwingend jede Liste. Wer ihn bedingungslos bevorzugt, zeigt „keine
+  Dateisysteme gefunden", während der Server längst geantwortet hat. Entschieden
+  wird jetzt je Liste: Ein Linux-Rechner hat immer Dateisysteme und Prozesse,
+  eine leere Liste heißt also nicht „keine", sondern „nicht in dieser Nachricht".
+
+- **Eine abgelaufene Sitzung antwortete der Schnittstelle mit HTML.**
+  `redirectToLogin` beantwortete nur den SSE-Fall mit einem Statuscode; jede
+  andere Hintergrund-Anfrage bekam eine Weiterleitung auf die Anmeldeseite. Für
+  ein `fetch` heißt das HTML statt JSON, und die Oberfläche meldet dann einen
+  Parserfehler statt der eigentlichen Ursache. Unter `/api/` steht jetzt ein
+  401 mit JSON-Rumpf. Erkannt wird der Fall am Pfad und nicht am Accept-Kopf:
+  Den setzt jede Kundin selbst, den Pfad bestimmt die Anwendung.
+
 ### Geändert
 
 - **Die Oberfläche wird eine Kommandobrücke.** Die Übersicht zeigte zuverlässig,

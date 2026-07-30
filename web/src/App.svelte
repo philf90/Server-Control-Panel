@@ -20,6 +20,7 @@
   import DateienSeite from "./seiten/Dateien.svelte";
   import SystembenutzerSeite from "./seiten/Systembenutzer.svelte";
   import PanelzugaengeSeite from "./seiten/Panelzugaenge.svelte";
+  import KontoSeite from "./seiten/Konto.svelte";
   import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
@@ -130,6 +131,11 @@
              zweite Rollenprüfung an dieser Stelle wäre die Stelle, an der beide
              Listen auseinanderlaufen. -->
         <PanelzugaengeSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "konto"}
+        <!-- Die Kontoseite bekommt keine Rechte-Eigenschaft: Sein EIGENES Konto
+             verwaltet jede Rolle, auch „readonly". Was sie braucht, holt sie
+             selbst; die Schranke ist das aktuelle Passwort und nicht die Rolle. -->
+        <KontoSeite />
       {:else if weg.seite === "audit"}
         <!-- Das Protokoll braucht die Sitzung nicht: Lesen darf jede Rolle, und
              verändern kann es niemand. -->

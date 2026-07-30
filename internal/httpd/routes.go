@@ -184,6 +184,36 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserReset2FA)))))
 	mux.Handle("POST /api/v1/panel-users/{id}/reset-passkeys",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserResetPasskeys)))))
+	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
+	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst
+	// bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen, mit dem es
+	// angelegt wurde. Das CSRF-Token prüft apiEigenerZugriff, die zweite Schranke
+	// ist das aktuelle Passwort.
+	mux.Handle("GET /api/v1/account", s.protected(http.HandlerFunc(s.handleAPIKonto)))
+	mux.Handle("GET /api/v1/account/2fa/qr.png",
+		s.protected(http.HandlerFunc(s.handleAPIKontoZweiterFaktorQR)))
+	mux.Handle("POST /api/v1/account/password",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoPasswort))))
+	mux.Handle("POST /api/v1/account/recovery-codes",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoCodes))))
+	mux.Handle("POST /api/v1/account/2fa",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoZweiterFaktorStart))))
+	mux.Handle("POST /api/v1/account/2fa/confirm",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoZweiterFaktorConfirm))))
+	mux.Handle("POST /api/v1/account/2fa/cancel",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoZweiterFaktorAbbruch))))
+	mux.Handle("POST /api/v1/account/sessions/revoke",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoSitzungBeenden))))
+	mux.Handle("POST /api/v1/account/sessions/revoke-others",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIKontoSitzungenBeenden))))
+	mux.Handle("POST /api/v1/account/passkeys/register/begin",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyBegin))))
+	mux.Handle("POST /api/v1/account/passkeys/register/finish",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyFinish))))
+	mux.Handle("POST /api/v1/account/passkeys/{id}/rename",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyRename))))
+	mux.Handle("POST /api/v1/account/passkeys/{id}/delete",
+		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyDelete))))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

@@ -612,7 +612,10 @@ gehört der Kachelzahl.
    Der Punkt hieß im Entwurf „Einstellungen" und zeigte bis 0.4.0-rc.3 auf
    `/users` — die Kontenliste. Der Name versprach etwas anderes, als dahinter
    stand. Aufgeteilt in „Panel-Zugänge" (Konten dieser Oberfläche, der
-   Owner-Rolle vorbehalten) und „Eigenes Konto"; „Panel-Zugänge" steht
+   Owner-Rolle vorbehalten) und „Eigenes Konto" (jede Rolle, weil jeder sein
+   eigenes Passwort und seinen zweiten Faktor wechseln können muss —
+   `apiEigenerZugriff` prüft dort nur das Sitzungstoken, die Schranke ist das
+   aktuelle Passwort); „Panel-Zugänge" steht
    absichtlich direkt unter „Benutzer & SSH", weil die zwei Kontenarten die
    häufigste Verwechslung im Panel sind und zwei Menüpunkte nebeneinander mehr
    über den Unterschied sagen als jeder Erklärsatz auf einer der beiden Seiten.

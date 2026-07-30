@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 )
@@ -443,6 +444,48 @@ type ergebnisLeitstand struct {
 			FensterBreite float64 `json:"fensterBreite"`
 		} `json:"schmal"`
 	} `json:"zugaenge"`
+	Konto struct {
+		Wesen   string   `json:"wesen"`
+		Bloecke []string `json:"bloecke"`
+		Warum   []struct {
+			Titel string `json:"titel"`
+			Satz  string `json:"satz"`
+		} `json:"warum"`
+		Sitzungen []struct {
+			Diese bool   `json:"diese"`
+			Knopf string `json:"knopf"`
+		} `json:"sitzungen"`
+		PasskeysAus bool `json:"passkeysAus"`
+		Wechsel     struct {
+			Hervorgehoben bool   `json:"hervorgehoben"`
+			Frist         string `json:"frist"`
+			Geheimnis     string `json:"geheimnis"`
+			QRPfad        string `json:"qrPfad"`
+			QRGeladen     bool   `json:"qrGeladen"`
+		} `json:"wechsel"`
+		NachNeuladen bool `json:"nachNeuladen"`
+		FalscherCode struct {
+			Meldung   string `json:"meldung"`
+			NochOffen bool   `json:"nochOffen"`
+		} `json:"falscherCode"`
+		NachAbbruch struct {
+			WechselWeg bool   `json:"wechselWeg"`
+			Meldung    string `json:"meldung"`
+		} `json:"nachAbbruch"`
+		CodesFrage string `json:"codesFrage"`
+		Codes      struct {
+			Anzahl  int     `json:"anzahl"`
+			Warnung string  `json:"warnung"`
+			Links   float64 `json:"links"`
+			Rechts  float64 `json:"rechts"`
+		} `json:"codes"`
+		CodesNachEscape bool   `json:"codesNachEscape"`
+		CodesOffen      string `json:"codesOffen"`
+		Schmal          struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"konto"`
 	FremdeRolle struct {
 		ImMenue     bool   `json:"imMenue"`
 		InPalette   int    `json:"inPalette"`
@@ -536,6 +579,17 @@ func TestLeitstandBrowser(t *testing.T) {
 	addUser(t, s, "vertretung", store.RoleAdmin)
 	gehilfe := addUser(t, s, "gehilfe", store.RoleAdmin)
 	gehilfeCookie, _ := login(t, s, gehilfe)
+
+	// Wiederherstellungscodes für das eigene Konto. Ohne sie stünde auf der
+	// Kontoseite „keiner mehr übrig" samt roter Warnung — ein Zustand, den es nach
+	// der Erstinstallation nicht gibt, weil dort immer Codes vergeben werden. Ein
+	// Bildschirmfoto davon wäre eine Lüge über die Fläche, dieselbe wie bei den
+	// SSH-Schlüsseln der Attrappe.
+	if _, hashes, err := auth.NewRecoveryCodes(); err != nil {
+		t.Fatal(err)
+	} else if err := s.db.ReplaceRecoveryCodes(t.Context(), user.ID, hashes); err != nil {
+		t.Fatal(err)
+	}
 
 	lege(t, filepath.Join(dateiWurzel, "schreibbar", "notizen.txt"), "hallo welt")
 	lege(t, filepath.Join(dateiWurzel, "schreibbar", "server.conf"), "port: 8443\n")
@@ -1820,6 +1874,119 @@ func TestLeitstandBrowser(t *testing.T) {
 	} else if pz.Schmal.KoerperBreite > pz.Schmal.FensterBreite+1 {
 		t.Errorf("die Zugangsseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
 			pz.Schmal.KoerperBreite, pz.Schmal.FensterBreite)
+	}
+
+	// 6l. Das eigene Konto. Die Passkeys haben ihren eigenen Durchlauf mit
+	// virtuellem Authenticator (TestPasskeyBrowserV2); hier steht der Rest.
+	ek := e.Konto
+	if ek.Wesen == "" {
+		t.Error("es fehlt der Satz, der das eigene Konto von den Panel-Zugängen unterscheidet")
+	}
+	// Fünf Blöcke: Überblick (ohne Titel), Passwort, zweiter Faktor, Codes,
+	// Passkeys, Sitzungen.
+	if len(ek.Bloecke) < 5 {
+		t.Errorf("%d benannte Blöcke, erwartet mindestens fünf: %v", len(ek.Bloecke), ek.Bloecke)
+	}
+	if len(ek.Warum) < 5 {
+		t.Errorf("%d benannte Blöcke mit Begründung, erwartet mindestens fünf", len(ek.Warum))
+	}
+	for _, w := range ek.Warum {
+		if w.Satz == "" {
+			t.Errorf("der Block %q hat keinen Satz darüber, warum es ihn gibt — Grundsatz V",
+				w.Titel)
+		}
+	}
+	if !ek.PasskeysAus {
+		t.Error("ohne eingeschaltete Passkeys steht das nicht dabei — dann fehlt der " +
+			"Grund, warum der Block leer ist")
+	}
+	if len(ek.Sitzungen) == 0 {
+		t.Fatal("die Sitzungsliste ist leer")
+	}
+	eigene := 0
+	for _, sz := range ek.Sitzungen {
+		if sz.Diese {
+			eigene++
+			// Die eigene Sitzung zu beenden IST ein Abmelden. „beenden" wäre eine
+			// Untertreibung darüber, was gleich passiert.
+			if sz.Knopf != "abmelden" {
+				t.Errorf("der Knopf der eigenen Sitzung heißt %q, erwartet „abmelden\"", sz.Knopf)
+			}
+		} else if sz.Knopf != "beenden" {
+			t.Errorf("der Knopf einer fremden Sitzung heißt %q", sz.Knopf)
+		}
+	}
+	if eigene != 1 {
+		t.Errorf("%d Sitzungen sind als die eigene markiert, erwartet genau eine — ohne "+
+			"die Markierung beendet man aus Versehen die, in der man sitzt", eigene)
+	}
+
+	// Der Wechsel des zweiten Faktors.
+	if !ek.Wechsel.Hervorgehoben {
+		t.Error("ein offener Wechsel ist nicht hervorgehoben — dann bleibt der halbe " +
+			"Wechsel liegen, ohne dass es auffällt")
+	}
+	if ek.Wechsel.Frist == "" {
+		t.Error("am offenen Wechsel steht nicht, wie lange er gilt")
+	}
+	if ek.Wechsel.Geheimnis == "" {
+		t.Error("das Geheimnis steht nicht als Text da — nicht jeder kann einen " +
+			"QR-Code abfotografieren")
+	}
+	if !strings.HasPrefix(ek.Wechsel.QRPfad, "/api/v1/") {
+		t.Errorf("der QR-Code kommt von %q, erwartet einen Pfad unter /api/v1/ — ein "+
+			"data:-URI hätte das Geheimnis ein zweites Mal in der Antwort", ek.Wechsel.QRPfad)
+	}
+	// Die Lektion aus rc.5 und dem Editor: Ein von der Richtlinie verworfenes Bild
+	// steht als <img> im DOM und ist doch nicht da.
+	if !ek.Wechsel.QRGeladen {
+		t.Error("der QR-Code ist nicht geladen — img-src der Inhaltsrichtlinie verwirft ihn")
+	}
+	if !ek.NachNeuladen {
+		t.Error("nach dem Neuladen ist der begonnene Wechsel verschwunden — der Zustand " +
+			"liegt auf dem Server und soll das überstehen")
+	}
+	if !strings.Contains(ek.FalscherCode.Meldung, "Code") {
+		t.Errorf("ein falscher Code wird nicht als solcher benannt: %q", ek.FalscherCode.Meldung)
+	}
+	if !ek.FalscherCode.NochOffen {
+		t.Error("nach einem falschen Code ist der Wechsel abgebrochen — er müsste " +
+			"offen bleiben, damit man es erneut versuchen kann")
+	}
+	if !ek.NachAbbruch.WechselWeg {
+		t.Error("der Abbruch hat den Wechsel nicht verworfen")
+	}
+	if !strings.Contains(ek.NachAbbruch.Meldung, "gilt weiter") {
+		t.Errorf("nach dem Abbruch steht nicht, dass der bisherige Faktor weiter gilt: %q",
+			ek.NachAbbruch.Meldung)
+	}
+
+	// Die Wiederherstellungscodes.
+	if !strings.Contains(ek.CodesFrage, "nicht mehr") {
+		t.Errorf("die Frage sagt nicht, dass die alten Codes verfallen: %q", ek.CodesFrage)
+	}
+	if ek.Codes.Anzahl == 0 {
+		t.Error("es werden keine Codes angezeigt")
+	}
+	if !strings.Contains(ek.Codes.Warnung, "nur jetzt") {
+		t.Errorf("es steht nicht dabei, dass die Liste nur einmal kommt: %q", ek.Codes.Warnung)
+	}
+	if math.Abs(ek.Codes.Links-ek.Codes.Rechts) > 2 {
+		t.Errorf("der Codes-Dialog sitzt nicht in der Mitte: %.0f links, %.0f rechts",
+			ek.Codes.Links, ek.Codes.Rechts)
+	}
+	if !ek.CodesNachEscape {
+		t.Error("Escape schließt den Codes-Dialog — dann ist die Liste weg, bevor sie " +
+			"jemand abgeschrieben hat, und sie kommt kein zweites Mal")
+	}
+	if ek.CodesOffen == "" {
+		t.Error("nach dem Erzeugen steht die Zahl der offenen Codes nicht da")
+	}
+	if ek.Schmal.FensterBreite == 0 {
+		t.Error("die Kontoseite wurde nicht im Schmalmodus gemessen")
+	} else if ek.Schmal.KoerperBreite > ek.Schmal.FensterBreite+1 {
+		t.Errorf("die Kontoseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			ek.Schmal.KoerperBreite, ek.Schmal.FensterBreite)
 	}
 
 	// 6k. Die Gegenprobe mit einer anderen Rolle. Ein Menüpunkt, der zuverlässig

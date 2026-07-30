@@ -29,6 +29,7 @@ export type Seite =
   | "audit"
   | "benutzer"
   | "zugaenge"
+  | "konto"
   | "bald";
 
 /** gebauteSeiten sind die Kennungen, die eine eigene Seite haben. Als Objekt und
@@ -43,6 +44,7 @@ const gebauteSeiten: Record<string, Seite> = {
   audit: "audit",
   benutzer: "benutzer",
   zugaenge: "zugaenge",
+  konto: "konto",
 };
 
 /** angekuendigt sind die Module, die es noch nicht gibt, die aber im Menü stehen.

@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -109,6 +110,136 @@ func TestPasskeyBrowserFlow(t *testing.T) {
 	}
 	if !found {
 		t.Error("keine Passkey-Anmeldung im Audit-Log")
+	}
+}
+
+// TestPasskeyBrowserV2 fährt dieselbe Zeremonie über die NEUE Oberfläche.
+//
+// Das ist der Nachweis, den kein Go-Test erbringen kann und der bei diesem Modul
+// der eigentliche Punkt ist: Zwischen den zwei Aufrufen spricht der Browser mit
+// dem Gerät, und dazwischen liegt eine Umrechnung base64url ↔ ArrayBuffer in
+// web/src/lib/api.ts. Ein Fehler darin fällt in keinem Go-Test auf — die
+// Endpunkte antworten korrekt, es kommt nur nie ein gültiger Nachweis an.
+//
+// Geprüft wird deshalb nicht, ob ein Eintrag in der Liste erscheint, sondern ob
+// ein über /v2/konto registrierter Passkey eine echte ANMELDUNG trägt. Erst das
+// heißt, dass die ganze Kette stimmt.
+func TestPasskeyBrowserV2(t *testing.T) {
+	out, s, user := runPasskeyBrowser(t, "v2")
+	if !strings.Contains(out, "V2-OK") {
+		t.Fatalf("kein Erfolg gemeldet:\n%s", out)
+	}
+
+	var b struct {
+		Warum   string `json:"warum"`
+		Vorher  int    `json:"vorher"`
+		Nachher struct {
+			Name    string `json:"name"`
+			Marke   string `json:"marke"`
+			Detail  string `json:"detail"`
+			Meldung string `json:"meldung"`
+		} `json:"nachher"`
+		FeldLeer           bool   `json:"feldLeer"`
+		NachUmbenennen     string `json:"nachUmbenennen"`
+		AnmeldungGeglueckt bool   `json:"anmeldungGeglueckt"`
+		Zuletzt            string `json:"zuletzt"`
+		Frage              struct {
+			Text     string   `json:"text"`
+			Punkte   []string `json:"punkte"`
+			Tippfeld bool     `json:"tippfeld"`
+		} `json:"frage"`
+		NachAbbruch   int `json:"nachAbbruch"`
+		NachEntfernen int `json:"nachEntfernen"`
+	}
+	for _, zeile := range strings.Split(out, "\n") {
+		roh, gefunden := strings.CutPrefix(strings.TrimSpace(zeile), "V2-BEOBACHTET ")
+		if !gefunden {
+			continue
+		}
+		if err := json.Unmarshal([]byte(roh), &b); err != nil {
+			t.Fatalf("Beobachtungen sind kein JSON: %v (%s)", err, roh)
+		}
+	}
+	if b.Nachher.Name == "" {
+		t.Fatalf("keine Beobachtungen im Ausgabestrom:\n%s", out)
+	}
+
+	if b.Vorher != 0 {
+		t.Errorf("vor der Registrierung standen %d Passkeys da", b.Vorher)
+	}
+	if b.Nachher.Name != "Neue Oberfläche" {
+		t.Errorf("der Passkey heißt %q, erwartet den eingegebenen Namen", b.Nachher.Name)
+	}
+	// Der Unterschied gerätegebunden/geräteübergreifend gehört in die Anzeige: Ein
+	// gebundener Schlüssel ist mit dem Gerät verloren.
+	if b.Nachher.Marke == "" {
+		t.Error("am Passkey steht nicht, ob er an das Gerät gebunden ist")
+	}
+	if !strings.Contains(b.Nachher.Detail, "noch nie") {
+		t.Errorf("ein frisch hinterlegter Passkey wird nicht als unbenutzt gezeigt: %q — "+
+			"ein Schlüssel, mit dem sich noch niemand angemeldet hat, ist ungeprüft",
+			b.Nachher.Detail)
+	}
+	if !b.FeldLeer {
+		t.Error("das Passwortfeld ist nach der Registrierung noch gefüllt")
+	}
+	if !strings.Contains(b.Warum, "ersetzt das Passwort") {
+		t.Errorf("es steht nicht dabei, was ein Passkey tut: %q", b.Warum)
+	}
+	if b.NachUmbenennen != "Umbenanntes Gerät" {
+		t.Errorf("nach dem Umbenennen heißt der Passkey %q", b.NachUmbenennen)
+	}
+
+	// Die Rückfrage vor dem Entfernen nennt den NAMEN und die Folge. In einer
+	// Liste von drei Geräten ist „Passkey entfernen?" keine Auskunft darüber,
+	// welches gemeint ist.
+	if !strings.Contains(b.Frage.Text, "Umbenanntes Gerät") {
+		t.Errorf("die Frage nennt den Passkey nicht: %q", b.Frage.Text)
+	}
+	if b.Frage.Tippfeld {
+		t.Error("das Entfernen verlangt ein getipptes Wort — es ist umkehrbar " +
+			"(neu hinterlegen), Stufe 2 genügt")
+	}
+	letzter := false
+	for _, p := range b.Frage.Punkte {
+		if strings.Contains(p, "letzte") {
+			letzter = true
+		}
+	}
+	if !letzter {
+		t.Errorf("beim LETZTEN Passkey steht das nicht in der Frage: %v", b.Frage.Punkte)
+	}
+	if b.NachAbbruch != 1 {
+		t.Errorf("nach dem ABBRUCH stehen %d Passkeys da, erwartet 1 — die Rückfrage "+
+			"hat nicht gefragt, sondern nur gefragt ausgesehen", b.NachAbbruch)
+	}
+	if b.NachEntfernen != 0 {
+		t.Errorf("nach dem Entfernen stehen noch %d Passkeys da", b.NachEntfernen)
+	}
+
+	// Und die Anmeldung mit dem über die neue Oberfläche registrierten Passkey
+	// steht im Protokoll. DAS ist der Nachweis, dass die Kette stimmt: Der
+	// Nachweis des Geräts ist durch die Umrechnung im Browser, durch go-webauthn
+	// und durch unsere RP-Konfiguration gekommen.
+	angemeldet := false
+	for _, e := range mustAudit(t, s) {
+		if e.Action == "login.success" && strings.Contains(e.Detail, "Passkey") {
+			angemeldet = true
+		}
+	}
+	if !angemeldet {
+		t.Error("keine Passkey-Anmeldung im Audit-Protokoll — ein über /v2/konto " +
+			"hinterlegter Schlüssel trägt dann keine Anmeldung, und die Umrechnung " +
+			"in lib/api.ts ist die erste Stelle, an der das schiefgeht")
+	}
+	// Der Passkey ist am Ende entfernt: Das prüft die Ablage und nicht nur die
+	// Anzeige.
+	creds, err := s.db.WebAuthnCredentialsByUser(context.Background(), user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(creds) != 0 {
+		t.Errorf("%d Passkeys in der Ablage, erwartet 0 nach dem Entfernen", len(creds))
 	}
 }
 

@@ -431,6 +431,110 @@ export const t = {
     art: "Art",
   },
 
+  konto: {
+    laedt: "wird geladen …",
+    wesen:
+      "Ihr eigenes Konto: Anmeldung, zweiter Faktor, Passkeys und die offenen Sitzungen. Konten anderer stehen unter Panel-Zugänge.",
+    rolle: "Rolle",
+    angelegt: "Angelegt",
+    codesOffen: "Wiederherstellungscodes",
+    codesZahl: (n: number) => (n === 1 ? "1 unbenutzt" : `${n} unbenutzt`),
+    // Bei 0 ist der Weg zurück ins Konto verstellt, wenn das Telefon
+    // abhandenkommt. Das ist der Grund, warum die Zahl überhaupt dasteht.
+    codesKeine: "keiner mehr übrig",
+    codesWarnung:
+      "Es ist kein Wiederherstellungscode mehr übrig. Geht das Telefon verloren, führt der Weg zurück nur noch über die Kommandozeile des Servers.",
+    wechselzwang:
+      "Das aktuelle Passwort ist ein Einmalpasswort aus einer Zurücksetzung. Bitte jetzt ein eigenes wählen.",
+
+    // ---------------------------------------------------------- Passwort ---
+    passwortTitel: "Passwort",
+    aktuell: "Aktuelles Passwort",
+    // Der Satz sagt, WARUM danach gefragt wird. Ohne ihn wirkt es wie eine
+    // Formalität.
+    aktuellWarum:
+      "Jede Änderung an einem Anmeldeweg verlangt Ihr aktuelles Passwort — eine übernommene Sitzung soll Sie nicht aus Ihrem eigenen Konto aussperren können.",
+    neu: "Neues Passwort",
+    neuWiederholt: "Neues Passwort wiederholen",
+    passwortAendern: "Passwort ändern",
+    passwortFolge:
+      "Alle anderen Sitzungen werden dabei beendet. Diese bleibt offen.",
+
+    // --------------------------------------------------- Zweiter Faktor ---
+    faktorTitel: "Zweiter Faktor",
+    faktorGut: "Eingerichtet und bestätigt.",
+    faktorWechseln: "Zweiten Faktor wechseln",
+    faktorWarum:
+      "Für ein neues Telefon: Der bisherige Faktor gilt weiter, bis der neue bestätigt ist.",
+    wechselOffen: "Wechsel begonnen",
+    wechselBis: (zeit: string) => `gültig bis ${zeit}`,
+    wechselScannen:
+      "Den Code in der Authenticator-App einlesen oder das Geheimnis von Hand eintragen, dann den angezeigten Sechsstelligen bestätigen.",
+    geheimnis: "Geheimnis",
+    qrAlt: "QR-Code für die Authenticator-App",
+    code: "Code aus der App",
+    faktorBestaetigen: "Wechsel abschließen",
+    faktorAbbrechen: "Wechsel abbrechen",
+    faktorFolge:
+      "Mit dem Abschluss werden neue Wiederherstellungscodes erzeugt und alle anderen Sitzungen beendet.",
+
+    // ------------------------------------------------------------ Codes ---
+    codesTitel: "Wiederherstellungscodes",
+    codesWarum:
+      "Der Weg zurück, wenn das Telefon mit der Authenticator-App verloren ist. Jeder Code gilt einmal.",
+    codesNeu: "Neue Codes erzeugen",
+    codesEinmal:
+      "Diese Liste erscheint nur jetzt und wird nicht noch einmal angezeigt. Bitte ausdrucken oder in einen Passwortspeicher legen.",
+    kopieren: "kopieren",
+    kopiert: "kopiert",
+    verstanden: "notiert, schließen",
+
+    // --------------------------------------------------------- Passkeys ---
+    passkeysTitel: "Passkeys",
+    passkeysWarum:
+      "Ein Passkey ersetzt das Passwort bei der Anmeldung: Bestätigt wird am Gerät — mit Fingerabdruck, Gesicht oder Geräte-PIN. Der zweite Faktor bleibt davon unberührt.",
+    passkeysAus:
+      "Passkeys sind in dieser Installation abgeschaltet. Eingeschaltet werden sie in der Konfigurationsdatei.",
+    passkeysKeine: "Es ist kein Passkey hinterlegt.",
+    passkeyAnlegen: "Passkey hinterlegen",
+    passkeyName: "Name des Geräts",
+    passkeyNamePlatzhalter: "Telefon, Notebook, Sicherheitsschlüssel",
+    // Der Unterschied gehört in die Anzeige: Ein gerätegebundener Schlüssel ist
+    // mit dem Gerät verloren.
+    synced: "geräteübergreifend",
+    gebunden: "an dieses Gerät gebunden",
+    nieBenutzt: "noch nie benutzt",
+    umbenennen: "umbenennen",
+    entfernen: "entfernen",
+    speichern: "speichern",
+    abbrechen: "abbrechen",
+    // Der Satz während der Zeremonie. Ohne ihn steht der Bediener vor einem
+    // Systemdialog, den er nicht angefordert zu haben glaubt.
+    amGeraet: "Bitte am Gerät bestätigen …",
+    passkeyAbgebrochen: "Am Gerät abgebrochen. Es wurde nichts hinterlegt.",
+    keinWebAuthn:
+      "Dieser Browser kennt keine Passkeys. Die Anmeldung mit Passwort und zweitem Faktor bleibt unverändert.",
+
+    // -------------------------------------------------------- Sitzungen ---
+    sitzungenTitel: "Offene Sitzungen",
+    // Der eigentliche Zweck dieser Liste — sie ist keine Statistik.
+    sitzungenWarum:
+      "Ein entwendetes Sitzungscookie hinterlässt sonst keine Spur. Adresse und letzte Aktivität machen eine fremde Sitzung sichtbar; der Knopf daneben beendet sie.",
+    von: "Von",
+    programm: "Programm",
+    seit: "Angemeldet",
+    zuletzt: "Zuletzt gesehen",
+    laeuftAb: "Läuft ab",
+    diese: "diese Sitzung",
+    beenden: "beenden",
+    abmelden: "abmelden",
+    andereBeenden: (n: number) =>
+      n === 1 ? "eine weitere Sitzung beenden" : `alle ${n} anderen Sitzungen beenden`,
+    keineAnderen: "Keine weitere Sitzung offen.",
+    abgemeldet: "Diese Sitzung ist beendet. Bitte neu anmelden.",
+    zurAnmeldung: "Zur Anmeldung",
+  },
+
   zugaenge: {
     laedt: "wird geladen …",
     // Der Gegensatz zum wesen-Satz bei „Benutzer & SSH". Beide Sätze zusammen

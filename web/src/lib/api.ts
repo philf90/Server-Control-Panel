@@ -15,6 +15,10 @@ import type {
   Dienste,
   DienstAktion,
   DienstDetail,
+  EigenesKonto,
+  Kontoantwort2,
+  Kontoauftrag2,
+  PasskeyBeginn,
   Firewall,
   FirewallAntwort,
   Job,
@@ -122,6 +126,30 @@ let token = "";
 
 export function csrfToken(): string {
   return token;
+}
+
+// WebAuthn arbeitet mit ArrayBuffers, JSON kann keine tragen — an dieser Grenze
+// wird umgerechnet. Dieselben zwei Funktionen stehen in
+// internal/ui/static/passkey-register.js für die alte Oberfläche; sie sind so
+// klein und so festgelegt (RFC 4648 §5), dass eine geteilte Fassung nur eine
+// Abhängigkeit zwischen zwei Flächen wäre, die sonst nichts miteinander teilen.
+
+function b64urlZuPuffer(s: string): ArrayBuffer {
+  const gefuellt = s.replace(/-/g, "+").replace(/_/g, "/").padEnd(
+    s.length + ((4 - (s.length % 4)) % 4),
+    "=",
+  );
+  const roh = atob(gefuellt);
+  const bytes = new Uint8Array(roh.length);
+  for (let i = 0; i < roh.length; i++) bytes[i] = roh.charCodeAt(i);
+  return bytes.buffer;
+}
+
+function pufferZuB64url(puffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(puffer);
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 async function anfrage<T>(pfad: string, init?: RequestInit): Promise<T> {
@@ -450,6 +478,114 @@ export const api = {
         getippt,
       }),
     }),
+
+  // --------------------------------------------------------- Eigenes Konto ---
+
+  konto: () => anfrage<EigenesKonto>("/account"),
+
+  /** kontoHandlung2 ist der eine Aufruf für die verändernden Endpunkte des
+   *  eigenen Kontos.
+   *
+   *  wohin ist der Pfad hinter /account: "/password", "/recovery-codes", "/2fa",
+   *  "/2fa/confirm", "/2fa/cancel", "/sessions/revoke", "/sessions/revoke-others"
+   *  oder "/passkeys/{id}/rename" und "/passkeys/{id}/delete".
+   *
+   *  Erneuert die Handlung die Sitzung — das tut die Passwortänderung, weil sie
+   *  ALLE Sitzungen des Kontos beendet, auch die eigene —, kommt ein frisches
+   *  CSRF-Token in der Antwort. Es wird hier übernommen und nicht vom Aufrufer:
+   *  Wer das vergäße, hätte eine Oberfläche, die nach einer geglückten Änderung
+   *  bei jedem weiteren Aufruf „Sitzungstoken passt nicht" meldet. */
+  async kontoHandlung2(
+    wohin: string,
+    felder: Partial<Kontoauftrag2>,
+    bestaetigt = false,
+    getippt = "",
+  ): Promise<Kontoantwort2> {
+    const antwort = await anfrage<Kontoantwort2>(`/account${wohin}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        passwort: "",
+        neu: "",
+        neu_wiederholt: "",
+        code: "",
+        sitzung: "",
+        name: "",
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    });
+    if (antwort.csrf) token = antwort.csrf;
+    return antwort;
+  },
+
+  /** passkeyAnlegen führt die WebAuthn-Zeremonie durch: Optionen holen, das
+   *  Gerät fragen, den Nachweis einschicken.
+   *
+   *  Die Umrechnung base64url ↔ ArrayBuffer steht hier, weil sie hierher gehört:
+   *  WebAuthn arbeitet mit Puffern, JSON kann keine tragen. Das ist keine
+   *  Eigenheit dieses Panels, sondern der Schnittstelle — und es ist genau die
+   *  Stelle, an der eine eigene Umsetzung schiefgeht.
+   *
+   *  Der Server prüft den Nachweis; dass er das durch die ganze Kette hindurch
+   *  tut, ist mit einem virtuellen Authenticator im Browser nachgewiesen
+   *  (internal/httpd/passkey_e2e_test.go). Hier wird nichts geprüft und nichts
+   *  entschieden. */
+  async passkeyAnlegen(name: string, passwort: string): Promise<Kontoantwort2> {
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      throw new Error(
+        "Dieser Browser kennt keine Passkeys. Die Anmeldung mit Passwort und " +
+          "zweitem Faktor bleibt unverändert.",
+      );
+    }
+    const beginn = await anfrage<PasskeyBeginn>("/account/passkeys/register/begin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passwort, name }),
+    });
+
+    // Die Optionen kommen durchgereicht, wie go-webauthn sie baut: Was hier
+    // umgerechnet wird, sind genau die Felder, die als Puffer verlangt werden.
+    const optionen = beginn.optionen as {
+      challenge: string;
+      user: { id: string };
+      excludeCredentials?: { id: string; type: string; transports?: string[] }[];
+    };
+    const publicKey = {
+      ...optionen,
+      challenge: b64urlZuPuffer(optionen.challenge),
+      user: { ...optionen.user, id: b64urlZuPuffer(optionen.user.id) },
+      excludeCredentials: optionen.excludeCredentials?.map((c) => ({
+        ...c,
+        id: b64urlZuPuffer(c.id),
+      })),
+    } as PublicKeyCredentialCreationOptions;
+
+    const cred = (await navigator.credentials.create({ publicKey })) as PublicKeyCredential | null;
+    if (!cred) throw new Error("Das Gerät hat keinen Passkey geliefert.");
+    const antwortDesGeraets = cred.response as AuthenticatorAttestationResponse;
+
+    const nachweis = {
+      id: cred.id,
+      rawId: pufferZuB64url(cred.rawId),
+      type: cred.type,
+      clientExtensionResults: cred.getClientExtensionResults?.() ?? {},
+      response: {
+        clientDataJSON: pufferZuB64url(antwortDesGeraets.clientDataJSON),
+        attestationObject: pufferZuB64url(antwortDesGeraets.attestationObject),
+        transports: antwortDesGeraets.getTransports?.() ?? [],
+      },
+    };
+
+    const antwort = await anfrage<Kontoantwort2>("/account/passkeys/register/finish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticket: beginn.ticket, name, nachweis }),
+    });
+    if (antwort.csrf) token = antwort.csrf;
+    return antwort;
+  },
 
   // -------------------------------------------------------- Panel-Zugänge ---
 

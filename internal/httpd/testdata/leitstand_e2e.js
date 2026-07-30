@@ -82,6 +82,12 @@ async function main() {
   seite.on("request", (r) => angefragt.push(r.url()));
 
   const fehlend = [];
+  // absichtlich sammelt Pfade, an denen dieser Lauf SELBST eine Ablehnung
+  // provoziert — etwa einen falschen Bestätigungscode. Eine solche Ablehnung ist
+  // das geprüfte Verhalten und keine fehlende Antwort. Ausgenommen wird der Pfad
+  // und nicht der Statuscode: „400 überall in Ordnung" machte den Sammler blind
+  // für die Fehler, um die es ihm geht.
+  const absichtlich = [];
   seite.on("response", (r) => {
     // Zwei Statuscodes sind KEINE fehlende Antwort, sondern eine Auskunft, um die
     // ausdrücklich gebeten wurde:
@@ -92,6 +98,7 @@ async function main() {
     //         Stand statt ihn zu überschreiben (api_v1_dateien_editor.go).
     //
     // Sie hier mitzuzählen wäre Rauschen, das eine echte 404 verdeckt.
+    if (absichtlich.some((p) => r.url().includes(p))) return;
     if (r.status() >= 400 && r.status() !== 409 && r.status() !== 412) {
       fehlend.push(`${r.status()} ${r.url()}`);
       gesammelt.push(`response: ${r.status()} ${r.url()}`);
@@ -2043,6 +2050,155 @@ async function main() {
     await kontext2.close();
   }
 
+  // 12h. Das eigene Konto. Die Passkeys stehen hier NICHT — die brauchen einen
+  //      virtuellen Authenticator und haben ihren eigenen Durchlauf
+  //      (passkey_e2e.js, Modus „v2"). Was hier geprüft wird, ist der Rest, und
+  //      drei Dinge daran sind nur im Browser zu sehen:
+  //
+  //      1. Der begonnene Wechsel des zweiten Faktors übersteht ein NEULADEN.
+  //         Der Zustand liegt auf dem Server; ein halber Wechsel, der beim
+  //         Seitenwechsel verschwindet, wäre eine Falle.
+  //      2. Der QR-Code kommt tatsächlich an. Er ist ein Bild von /api/v1/… und
+  //         die Richtlinie sagt `img-src 'self'` — genau die Stelle, an der das
+  //         Projekt zweimal gescheitert ist.
+  //      3. Die eigene Sitzung ist in der Liste markiert, und ihr Knopf heißt
+  //         „abmelden" und nicht „beenden".
+  const konto = {};
+  await seite.goto(`${basis}/v2/konto`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("#pw-aktuell", { timeout: 5000 });
+
+  konto.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  konto.bloecke = await seite.evaluate(() =>
+    [...document.querySelectorAll("section.platte > b")].map((b) => b.textContent.trim()),
+  );
+  // Jeder BENANNTE Block sagt, warum es ihn gibt — Grundsatz V. Der erste Block
+  // ist ausgenommen und hat deshalb auch keinen Titel: Er zeigt nur Tatsachen
+  // (Rolle, angelegt, offene Codes), und die brauchen keine Begründung.
+  konto.warum = await seite.evaluate(() =>
+    [...document.querySelectorAll("section.platte")]
+      .filter((s) => s.querySelector(":scope > b") !== null)
+      .map((s) => ({
+        titel: s.querySelector(":scope > b").textContent.trim(),
+        satz: s.querySelector(".detail")?.textContent.trim() ?? "",
+      })),
+  );
+  konto.sitzungen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      diese: tr.querySelector(".marke") !== null,
+      knopf: tr.querySelector(".knopf")?.textContent.trim() ?? "",
+    })),
+  );
+  konto.passkeysAus = await seite.evaluate(() =>
+    [...document.querySelectorAll("section.platte .detail")].some((p) =>
+      p.textContent.includes("abgeschaltet"),
+    ),
+  );
+
+  // Der Wechsel des zweiten Faktors: beginnen, neu laden, abbrechen.
+  await seite.fill("#f2-pass", "ein sehr langes Testpasswort");
+  await seite.click('form:has(#f2-pass) button[type=submit]');
+  await seite.waitForSelector("#f2-code", { timeout: 5000 });
+  konto.wechsel = await seite.evaluate(() => {
+    const platte = [...document.querySelectorAll("section.platte")].find((s) =>
+      s.querySelector("#f2-code"),
+    );
+    const bild = platte.querySelector("img");
+    return {
+      hervorgehoben: platte.classList.contains("offen"),
+      frist: platte.querySelector(".anmerkung")?.textContent.trim() ?? "",
+      geheimnis: platte.querySelector(".geheimnis code")?.textContent.trim() ?? "",
+      qrPfad: bild?.getAttribute("src") ?? "",
+      // naturalWidth > 0 heißt: Das Bild ist geladen. Ein von der Richtlinie
+      // verworfenes Bild hätte ein <img> mit 0 — genau der Fall, den ein
+      // DOM-Test nicht sieht.
+      qrGeladen: (bild?.naturalWidth ?? 0) > 0,
+    };
+  });
+
+  // Neu laden: Der halbe Wechsel steht wieder da.
+  await seite.reload({ waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("#f2-code", { timeout: 5000 });
+  konto.nachNeuladen = true;
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-konto.png`,
+      fullPage: true,
+    });
+  }
+
+  // Ein falscher Code stellt nichts um und sagt das. Die Ablehnung ist hier das
+  // geprüfte Verhalten — deshalb steht der Pfad in `absichtlich`.
+  absichtlich.push("/api/v1/account/2fa/confirm");
+  await seite.fill("#f2-code", "000000");
+  await seite.click('form:has(#f2-code) button[type=submit]');
+  await seite.waitForSelector(".band.schlecht", { timeout: 5000 });
+  konto.falscherCode = await seite.evaluate(() => ({
+    meldung: document.querySelector(".band.schlecht")?.textContent.trim() ?? "",
+    nochOffen: document.querySelector("#f2-code") !== null,
+  }));
+
+  // Abbrechen: Der Wechsel ist weg, der bisherige Faktor gilt weiter.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll("section.platte .knopf")].find((x) =>
+      x.textContent.includes("Wechsel abbrechen"),
+    );
+    b.click();
+  });
+  await seite.waitForTimeout(600);
+  konto.nachAbbruch = await seite.evaluate(() => ({
+    wechselWeg: document.querySelector("#f2-code") === null,
+    meldung: document.querySelector(".band.gut")?.textContent.trim() ?? "",
+  }));
+
+  // Neue Wiederherstellungscodes: Stufe 2, dann eine Liste in einem Dialog, den
+  // Escape nicht schließt.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll("section.platte .knopf")].find(
+      (x) => x.textContent.trim() === "Neue Codes erzeugen",
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  konto.codesFrage = await seite.evaluate(
+    () => document.querySelector("dialog.rueckfrage .frage")?.textContent.trim() ?? "",
+  );
+  await seite.click('dialog.rueckfrage button:text("neue Codes erzeugen")');
+  await seite.waitForSelector("dialog.codes[open]", { timeout: 5000 });
+  konto.codes = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.codes");
+    const r = d.getBoundingClientRect();
+    return {
+      anzahl: d.querySelectorAll(".liste li").length,
+      warnung: d.querySelector(".warnung")?.textContent.trim() ?? "",
+      links: r.left,
+      rechts: window.innerWidth - r.right,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  konto.codesNachEscape = await seite.evaluate(
+    () => document.querySelector("dialog.codes[open]") !== null,
+  );
+  await seite.click('dialog.codes button:text("notiert")');
+  await seite.waitForTimeout(250);
+
+  // Und die Zahl unten steht danach richtig da.
+  konto.codesOffen = await seite.evaluate(() => {
+    const dd = [...document.querySelectorAll("dl.kv dd")];
+    return dd.map((d) => d.textContent.trim()).find((x) => x.includes("unbenutzt")) ?? "";
+  });
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  konto.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
@@ -2096,6 +2252,7 @@ async function main() {
       audit,
       konten,
       zugaenge,
+      konto,
       fremdeRolle,
       bald,
       zweige,

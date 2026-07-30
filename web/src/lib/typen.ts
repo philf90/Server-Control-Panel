@@ -884,3 +884,113 @@ export type Panelantwort = {
   neues_konto?: string;
   hinweis?: string;
 };
+
+// --------------------------------------------------------- Eigenes Konto ---
+
+/** EigenesKonto ist die Antwort von GET /api/v1/account. */
+export type EigenesKonto = {
+  name: string;
+  rolle: string;
+  rolle_was: string;
+  angelegt: string;
+  zweiter_faktor: boolean;
+  /** codes_offen ist die Zahl der noch unbenutzten Wiederherstellungscodes. Bei
+   *  0 ist der Weg zurück ins Konto verstellt, wenn das Telefon abhandenkommt —
+   *  deshalb steht die Zahl überhaupt da. */
+  codes_offen: number;
+  wechselzwang: boolean;
+  sitzungen: Sitzungszeile[];
+  andere: number;
+  passkeys_moeglich: boolean;
+  passkeys: Passkey[];
+  /** wechsel steht, wenn ein Wechsel des zweiten Faktors angefangen ist. Der
+   *  Zustand liegt auf dem SERVER, nicht im Browser: Nach einem Neuladen ist das
+   *  die einzige Auskunft darüber, dass noch etwas offen ist. */
+  wechsel?: ZweiterFaktorWechsel;
+};
+
+/** Sitzungszeile ist eine offene Sitzung des eigenen Kontos.
+ *
+ *  Die Liste ist mehr als Bequemlichkeit: Ein entwendetes Sitzungscookie
+ *  hinterlässt sonst keine Spur, die dem Betroffenen auffiele. */
+export type Sitzungszeile = {
+  id: string;
+  kurz: string;
+  ip: string;
+  programm: string;
+  seit: string;
+  zuletzt: string;
+  laeuft_ab: string;
+  /** diese markiert die Sitzung, in der man gerade sitzt. Sie zu beenden ist ein
+   *  Abmelden, und die Oberfläche sagt das auch so. */
+  diese: boolean;
+};
+
+export type ZweiterFaktorWechsel = {
+  geheimnis: string;
+  geheimnis_text: string;
+  uri: string;
+  /** qr ist der PFAD zum Bild, nicht das Bild. Die Richtlinie erlaubt beides
+   *  (img-src 'self' data:), aber ein data:-URI hätte das Geheimnis ein zweites
+   *  Mal in der Antwort stehen lassen. */
+  qr: string;
+  laeuft_ab: string;
+};
+
+export type Passkey = {
+  id: number;
+  name: string;
+  /** synced: geräteübergreifend gesichert (Cloud-Passkey) oder an ein Gerät
+   *  gebunden. Der Unterschied gehört in die Anzeige — ein gerätegebundener
+   *  Schlüssel ist mit dem Gerät verloren. */
+  synced: boolean;
+  angelegt: string;
+  /** zuletzt ist leer, wenn sich mit dem Passkey noch niemand angemeldet hat.
+   *  Ein hinterlegter Schlüssel, der nie benutzt wurde, ist ungeprüft. */
+  zuletzt: string;
+};
+
+/** Kontoauftrag2 ist der Körper der verändernden Endpunkte des eigenen Kontos.
+ *
+ *  Der Name mit der Zwei ist keine Verlegenheit: „Kontoauftrag" ist an die
+ *  Systemkonten vergeben, und dieselbe Verwechslung, die die Oberfläche
+ *  auseinanderhält, soll sich hier nicht durch gleiche Namen wieder einschleichen.
+ *  Gelesen wird der Typ nur an einer Stelle. */
+export type Kontoauftrag2 = {
+  /** passwort ist das AKTUELLE Passwort — die Schranke vor jeder Änderung an
+   *  einem Anmeldeweg. Es wird nicht gespeichert, nicht in die Adresse
+   *  geschrieben und nach dem Aufruf im Feld gelöscht. */
+  passwort: string;
+  neu: string;
+  neu_wiederholt: string;
+  code: string;
+  sitzung: string;
+  name: string;
+};
+
+export type Kontoantwort2 = {
+  meldung: string;
+  konto?: EigenesKonto;
+  /** codes stehen GENAU EINMAL hier. Wer sie verliert, erzeugt neue. */
+  codes?: string[];
+  /** csrf ist ein frisches Sitzungstoken. Gesetzt, wenn die Handlung die eigene
+   *  Sitzung erneuert hat — nach einer Passwortänderung sind alle Sitzungen des
+   *  Kontos beendet, auch die eigene. Ohne dieses Feld schlüge der nächste
+   *  schreibende Aufruf fehl, nach einer Handlung, die geglückt ist. */
+  csrf?: string;
+  /** abgemeldet heißt: Diese Sitzung ist beendet. Die Oberfläche führt dann zur
+   *  Anmeldung. */
+  abgemeldet?: boolean;
+  hinweis?: string;
+};
+
+/** PasskeyBeginn ist die Antwort von …/passkeys/register/begin.
+ *
+ *  optionen sind die Optionen für navigator.credentials.create, durchgereicht wie
+ *  go-webauthn sie baut — bewusst nicht nachgebaut: Eine Nachbildung wäre eine
+ *  zweite Stelle, die bei jeder Erweiterung des Standards nachgezogen werden
+ *  müsste. */
+export type PasskeyBeginn = {
+  ticket: string;
+  optionen: Record<string, unknown>;
+};

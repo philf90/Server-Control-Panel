@@ -65,6 +65,28 @@ func (p *pendingSecrets) get(userID int64) (string, bool) {
 	return entry.secret, true
 }
 
+// mitFrist liefert das Geheimnis samt Ablauf.
+//
+// Die neue Oberfläche braucht die Frist, get allein genügt ihr nicht: Sie zeigt
+// einen begonnenen Wechsel nach einem Neuladen wieder an, und ohne die Angabe,
+// wie lange er noch gilt, sieht ein abgelaufener Wechsel wie ein Fehler des
+// Panels aus. Die gerenderte Seite der alten Oberfläche brauchte das nicht — dort
+// war der halbe Wechsel eine eigene Seite, die man verließ.
+func (p *pendingSecrets) mitFrist(userID int64) (string, time.Time, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	entry, ok := p.byUser[userID]
+	if !ok {
+		return "", time.Time{}, false
+	}
+	if time.Now().After(entry.expires) {
+		delete(p.byUser, userID)
+		return "", time.Time{}, false
+	}
+	return entry.secret, entry.expires, true
+}
+
 func (p *pendingSecrets) drop(userID int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

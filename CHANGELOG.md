@@ -48,6 +48,39 @@ nicht als Release getaggt.
   nicht schließt. Es erscheint nicht im Audit-Protokoll, nicht im Konsolen-Echo
   und in keiner zweiten Antwort; wer es verliert, setzt erneut zurück.
 
+- **Modul Eigenes Konto in der neuen Oberfläche.** Dreizehn Routen: Passwort,
+  zweiter Faktor mit QR-Code, Wiederherstellungscodes, Passkeys (WebAuthn) und
+  die offenen Sitzungen. Keine Werkbank, sondern ein Stapel benannter Blöcke —
+  hier gibt es ein Konto und fünf verschiedene Handgriffe daran, jeder mit dem
+  Satz darüber, warum es ihn gibt.
+
+  **Jede Rolle verwaltet ihr eigenes Konto**, auch „readonly". Der einzige
+  schreibende Bereich der Schnittstelle ohne Rollenprüfung, und das ist kein
+  Versehen: Sonst bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen,
+  mit dem es angelegt wurde. Die Schranke ist stattdessen das aktuelle Passwort
+  bei jeder Änderung an einem Anmeldeweg, und dass diese Endpunkte ausschließlich
+  das Konto der laufenden Sitzung anfassen.
+
+  **Die eigene Sitzung überlebt die eigene Passwortänderung.** Alle Sitzungen des
+  Kontos werden beendet — auch die, in der man sitzt —, die eigene wird sofort neu
+  aufgebaut, und die Antwort trägt das frische Sitzungstoken. Ohne beides wäre die
+  Oberfläche nach einer geglückten Änderung abgemeldet, und die naheliegende
+  Deutung wäre „hat nicht funktioniert".
+
+  **Der halbe Wechsel des zweiten Faktors liegt auf dem Server** und übersteht
+  ein Neuladen, mit der Frist daneben. Neu gegenüber der alten Oberfläche ist ein
+  Knopf zum Abbrechen: Dort verließ man die Seite und wartete die 15 Minuten ab —
+  in einer Einzelseiten-Anwendung ist „die Seite verlassen" kein Vorgang mehr.
+
+  **Passkeys in der neuen Oberfläche.** Die Zeremonie läuft über zwei Aufrufe,
+  weil dazwischen der Browser mit dem Gerät spricht; die Umrechnung base64url ↔
+  ArrayBuffer steht in `web/src/lib/api.ts`. Geprüft ist das mit einem virtuellen
+  Authenticator im Browser, und zwar nicht daran, dass ein Eintrag in der Liste
+  erscheint, sondern daran, dass ein über `/v2/konto` hinterlegter Passkey eine
+  echte Anmeldung trägt — ein Fehler in der Umrechnung fällt in keinem Go-Test
+  auf, weil die Endpunkte korrekt antworten und nur nie ein gültiger Nachweis
+  ankommt.
+
 - **Rollenabhängige Navigation in der neuen Oberfläche.** Was eine Rolle nicht
   erreicht, steht nicht in der Seitenleiste und nicht in der Befehlspalette —
   wie in der alten Oberfläche (`{{if .IsOwner}}`). Gefiltert wird an einer
@@ -59,8 +92,7 @@ nicht als Release getaggt.
 
 - **Der Menüpunkt „Einstellungen" ist aufgeteilt.** Er zeigte auf `/users`, die
   Kontenliste — ein Name, der etwas anderes versprach, als dahinter stand. Jetzt
-  „Panel-Zugänge" (neu gebaut, unter `/v2/zugaenge`) und „Eigenes Konto" (zeigt
-  weiter auf `/account` der alten Oberfläche, bis das Modul übertragen ist).
+  „Panel-Zugänge" (unter `/v2/zugaenge`) und „Eigenes Konto" (unter `/v2/konto`).
   „Panel-Zugänge" steht direkt unter „Benutzer & SSH": Die zwei Kontenarten sind
   die häufigste Verwechslung im Panel.
 

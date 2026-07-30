@@ -208,11 +208,14 @@ export const gruppen: Gruppe[] = [
         // Kontenliste. Der Name versprach etwas anderes, als dahinter stand, und
         // seit es „Panel-Zugänge" gibt, wäre er auch noch doppelt. Was bleibt, ist
         // das eigene Konto: Passwort, zweiter Faktor, Passkeys, Sitzungen.
+        //
+        // Jede Rolle sieht diesen Punkt: Sein eigenes Konto verwaltet jeder.
         id: "konto",
         label: t.ziele.konto,
         symbol: "person",
-        href: "/account",
+        href: "/v2/konto",
         gruppe: t.bereiche.betrieb,
+        neu: true,
         auch: ["passwort", "2fa", "totp", "passkey", "sitzungen", "abmelden", "profil"],
       },
     ],

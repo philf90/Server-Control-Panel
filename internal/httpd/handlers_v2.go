@@ -11,11 +11,13 @@ package httpd
 // Stellen: hier und als `base` in web/vite.config.js.
 
 import (
+	"bytes"
 	"io"
 	"io/fs"
 	"net/http"
 	"strings"
 
+	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/ui"
 )
 
@@ -78,9 +80,57 @@ func (s *Server) serveV2Index(w http.ResponseWriter, r *http.Request, dist fs.FS
 		return
 	}
 
+	// Ein Nonce für Stile, je Antwort neu gezogen.
+	//
+	// Er ist für den Editor da und für nichts anderes: CodeMirror trägt seine
+	// Regeln zur Laufzeit in ein eigenes <style>-Element ein, und unter
+	// `style-src 'self'` verwirft Chromium das — im Browser nachgemessen, der
+	// Editor blieb ungestylt (leitstand_e2e.js, Abschnitt 12c). Die alte
+	// Oberfläche löst es auf ihrer Editorseite genauso; die Begründung gegen
+	// 'unsafe-inline' steht bei cspMitStilNonce in middleware.go und gilt hier
+	// wörtlich.
+	//
+	// Der Nonce steht in der Hülle und nicht am Editor-Element: Die Hülle ist das
+	// einzige, was der Server von dieser Oberfläche ausliefert — alles Weitere
+	// baut der Browser. Deshalb ein <meta>, aus dem die Anwendung ihn liest
+	// (lib/editorkern.ts).
+	//
+	// Er wird IMMER gesetzt und nicht nur, wenn der Editor offen ist. Der Grund
+	// ist die Bauart einer SPA: Die Hülle kommt einmal, der Editor öffnet später
+	// ohne neue Antwort. Ein Nonce, der erst mit dem Editor käme, käme nie. Der
+	// Preis ist klein und benennbar: `style-src` trägt auf dieser Seite dauerhaft
+	// einen Nonce-Wert, den nur diese Antwort kennt. Ein eingeschleuster Stil
+	// ohne den Wert bleibt verworfen — genau das ist der Unterschied zu
+	// 'unsafe-inline'.
+	nonce, err := auth.NewToken()
+	if err != nil {
+		s.log.Error("Nonce für die neue Oberfläche", "err", err)
+		s.renderError(w, r, http.StatusInternalServerError, "interner Fehler")
+		return
+	}
+	w.Header().Set("Content-Security-Policy", cspMitStilNonce(nonce))
+
+	// Eingesetzt wird in den Platzhalter, den index.html mitbringt. Kein
+	// Textersatz auf gut Glück: Fehlt der Platzhalter, ist das ein Fehler im
+	// Build und keine Antwort ohne Nonce — die wäre eine Seite mit ungestyltem
+	// Editor, und niemand wüsste warum.
+	if !bytes.Contains(roh, []byte(nonceMarke)) {
+		s.log.Error("index.html der neuen Oberfläche hat keinen Nonce-Platzhalter",
+			"marke", nonceMarke)
+		s.renderError(w, r, http.StatusInternalServerError,
+			"Die Hülle der neuen Oberfläche ist unvollständig gebaut.")
+		return
+	}
+	roh = bytes.ReplaceAll(roh, []byte(nonceMarke), []byte(nonce))
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	if _, err := w.Write(roh); err != nil {
 		s.log.Debug("v2: Hülle nicht vollständig geschrieben", "err", err)
 	}
 }
+
+// nonceMarke ist der Platzhalter in web/index.html, an dessen Stelle der
+// Stil-Nonce tritt. Er steht hier und dort — und der Handler bricht ab, wenn er
+// ihn nicht findet, damit die beiden nicht auseinanderlaufen können.
+const nonceMarke = "__CSP_NONCE__"

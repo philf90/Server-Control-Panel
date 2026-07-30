@@ -298,6 +298,21 @@ export const t = {
     // hat.
     erledigt: "erledigt",
     nichtsGeaendert: "Es war nichts zu ändern — die Werte stehen schon so.",
+
+    // ------------------------------------------------------------- Editor ---
+    editorSchliessen: "Editor schließen",
+    editorNichtGeladen:
+      "Der Editor ließ sich nicht laden. Er kommt als eigener Brocken nach; bitte die Seite neu laden.",
+    speichern: "speichern",
+    speichertGerade: "speichert …",
+    ungespeichert: "ungespeichert",
+    // Die Zusage VOR dem Speichern. Wer weiß, dass geprüft und im Fehlerfall
+    // zurückgerollt wird, editiert anders.
+    wirdGeprueft: (werkzeug: string) =>
+      `Nach dem Speichern prüft ${werkzeug} die Datei. Lehnt das Programm sie ab, wird der vorherige Stand zurückgeschrieben.`,
+    fremdenStandLaden: "fremden Stand übernehmen (eigene Fassung verwerfen)",
+    fremdUebernommen: "Der Stand von der Platte ist übernommen. Ihre Fassung ist verworfen.",
+    ueberschreiben2: "fremde Änderung überschreiben",
     hochgeladen: (n: number) =>
       n === 1 ? "Eine Datei hochgeladen." : `${n} Dateien hochgeladen.`,
     handgriff: {

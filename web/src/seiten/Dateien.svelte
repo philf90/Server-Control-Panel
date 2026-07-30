@@ -16,6 +16,7 @@
   //  3. Ein Eintrag kann gesperrt sein. Er ist dann sichtbar, sein Inhalt aber
   //     nie: kein Download, kein Editor, kein Kopieren. Das steht an der Zeile
   //     und im Inspektor, nicht in einer Fehlermeldung nach dem Klick.
+  import Editor from "../komponenten/Editor.svelte";
   import Inspektor from "../komponenten/Inspektor.svelte";
   import Rueckfrage from "../komponenten/Rueckfrage.svelte";
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
@@ -57,6 +58,10 @@
   const sortierung = $derived((weg.parameter.sort ?? "name") as Sortierung);
   const absteigend = $derived(weg.parameter.desc === "1");
   const versteckt = $derived(weg.parameter.versteckt === "1");
+  /** bearbeitet ist der Pfad im Editor. Er steht in der Adresse wie jede andere
+   *  Auswahl: Ein Verweis auf eine Datei im Editor ist damit teilbar, und der
+   *  Zurück-Knopf schließt ihn statt die Seite zu verlassen. */
+  const bearbeitet = $derived(weg.parameter.bearbeiten ?? "");
 
   // Die Liste folgt der Adresse, nicht dem Klick — damit ein Neuladen auf
   // ?pfad=/etc/nginx dasselbe zeigt und der Zurück-Knopf wirkt.
@@ -121,7 +126,7 @@
    *  Suchbegriff fallen dabei weg: Beides bezog sich auf den alten Ort. */
   function hinein(ziel: string) {
     meldungenLeeren();
-    weg.setzeAlle({ pfad: ziel, eintrag: "", q: "" }, true);
+    weg.setzeAlle({ pfad: ziel, eintrag: "", q: "", bearbeiten: "" }, true);
   }
 
   function waehlen(e: Eintrag) {
@@ -156,17 +161,28 @@
   function suchen(e: SubmitEvent) {
     e.preventDefault();
     meldungenLeeren();
-    weg.setzeAlle({ q: suchfeld.trim(), eintrag: "" }, true);
+    weg.setzeAlle({ q: suchfeld.trim(), eintrag: "", bearbeiten: "" }, true);
   }
 
   function sucheBeenden() {
     suchfeld = "";
     meldungenLeeren();
-    weg.setzeAlle({ q: "", eintrag: "" }, true);
+    weg.setzeAlle({ q: "", eintrag: "", bearbeiten: "" }, true);
   }
 
   function kann(h: Handgriff): boolean {
     return detail?.aktionen.includes(h) ?? false;
+  }
+
+  /** bearbeiten öffnet den Editor. Ein Schritt im Verlauf, damit der
+   *  Zurück-Knopf ihn schließt — dieselbe Regel wie beim Inspektor. */
+  function bearbeiten(pfadJetzt: string) {
+    meldungenLeeren();
+    weg.setzeAlle({ bearbeiten: pfadJetzt }, !bearbeitet);
+  }
+
+  function editorSchliessen() {
+    weg.setzeAlle({ bearbeiten: "" }, false);
   }
 
   // ------------------------------------------------------------- Verändern ---
@@ -652,6 +668,31 @@
     <Vorgangsplatte {vorgang} />
   {/if}
 
+  <!-- Der Editor steht über der Werkbank und ersetzt sie nicht: Der Krumenpfad
+       bleibt oben, also auch der Weg zurück, und die Liste darunter zeigt weiter,
+       wo man ist. Ein eigener Bildschirm hätte den Ort verloren. -->
+  {#if bearbeitet}
+    <div class="editorplatz">
+      <!-- key auf den Pfad: Wechselt die Datei, wird die Komponente neu gebaut
+           statt in ihrem Effekt umgeschaltet. Ein Editor, der seinen Inhalt
+           tauscht, behält den Verlauf der vorigen Datei — und ein Strg+Z holte
+           dann fremden Text zurück. -->
+      {#key bearbeitet}
+        <Editor
+          pfad={bearbeitet}
+          {darfSchreiben}
+          schliessen={editorSchliessen}
+          gespeichert={() => {
+            void neuLaden();
+            // Das Detail neu holen, wenn es dieselbe Datei zeigt: Größe und
+            // Zeitpunkt darin sind nach dem Speichern andere.
+            if (gewaehlt === bearbeitet) void detailHolen(gewaehlt);
+          }}
+        />
+      {/key}
+    </div>
+  {/if}
+
   {#if fehler}
     <p class="band schlecht" role="alert">{fehler}</p>
   {/if}
@@ -844,6 +885,20 @@
                 <a class="knopf leise" href={api.archiv(detail.eintrag.path)}>
                   {t.dateien.handgriff.archiv}
                 </a>
+              {/if}
+              <!-- „bearbeiten" steht bei den lesenden Handgriffen und nicht bei den
+                   verändernden: Den Editor zu ÖFFNEN verändert nichts. Angeboten
+                   wird er nur, wo er auch speichern könnte und wo die Datei unter
+                   die Größengrenze fällt — das entscheidet der Server. -->
+              {#if kann("bearbeiten")}
+                <button
+                  type="button"
+                  class="knopf"
+                  class:leise={bearbeitet !== detail.eintrag.path}
+                  onclick={() => bearbeiten(detail!.eintrag.path)}
+                >
+                  {t.dateien.handgriff.bearbeiten}
+                </button>
               {/if}
             </div>
 
@@ -1309,6 +1364,11 @@
 
   :global(table.tabelle tr.gewaehlt) {
     background: var(--surface2);
+  }
+
+  .editorplatz {
+    margin-bottom: 0.8rem;
+    min-width: 0;
   }
 
   .namenszelle {

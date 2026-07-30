@@ -10,6 +10,7 @@ import type {
   Dateidetail,
   Dateihandlung,
   Dateiliste,
+  Dateitext,
   Dienste,
   DienstAktion,
   DienstDetail,
@@ -19,10 +20,13 @@ import type {
   Logs,
   Ordnerauswahl,
   Pakete,
+  Pruefung,
   Regel,
   Signale,
   Sitzung,
   Uebersicht,
+  Textantwort,
+  Textauftrag,
   Umfang,
   Uploadantwort,
   Verlaeufe,
@@ -47,6 +51,42 @@ export class BestaetigungNoetig extends Error {
   constructor(public readonly bestaetigung: Bestaetigung) {
     super(bestaetigung.frage);
     this.name = "BestaetigungNoetig";
+  }
+}
+
+/** Textkonflikt steht für die Antwort 412 des Editors: Die Datei wurde
+ *  zwischenzeitlich von außen geändert.
+ *
+ *  Ein eigener Fehlertyp und nicht der Rückweg über BestaetigungNoetig, obwohl
+ *  beides „nicht ausgeführt, entscheide" heißt. Der Grund ist, was danach
+ *  geschieht: Eine Rückfrage bestätigt man und die Aktion läuft wie geplant; ein
+ *  Konflikt hat ZWEI Auswege — die eigene Fassung durchsetzen oder die fremde
+ *  übernehmen. Ein Dialog mit einem Knopf hätte den zweiten verschluckt. */
+export class Textkonflikt extends Error {
+  constructor(
+    public readonly meldung: string,
+    public readonly jetzt: Dateitext,
+  ) {
+    super(meldung);
+    this.name = "Textkonflikt";
+  }
+}
+
+/** Pruefungabgelehnt steht für die Antwort, wenn das Prüfprogramm des Systems die
+ *  Datei ablehnt.
+ *
+ *  Sie ist die wichtigste Antwort dieses Moduls, und deshalb ein eigener Typ: Die
+ *  Datei wurde geschrieben UND wieder zurückgerollt. „Fehler beim Speichern"
+ *  wäre hier die schädlichste Auskunft — der Bediener würde erneut speichern. */
+export class Pruefungabgelehnt extends Error {
+  constructor(
+    public readonly meldung: string,
+    public readonly pruefung: Pruefung,
+    public readonly zurueck: string,
+    public readonly text: Dateitext | null,
+  ) {
+    super(meldung);
+    this.name = "Pruefungabgelehnt";
   }
 }
 
@@ -286,6 +326,56 @@ export const api = {
       throw new Error(rumpf.error || `HTTP ${antwort.status}`);
     }
     return rumpf;
+  },
+
+  /** text holt eine Datei für den Editor. */
+  text: (pfad: string) => anfrage<Dateitext>(`/files/text?${new URLSearchParams({ pfad })}`),
+
+  /** textSpeichern schreibt zurück — mit eigenem Fehlerweg für die beiden
+   *  Antworten, die keine Fehler sind, sondern Entscheidungen.
+   *
+   *  Nicht über anfrage(): Dort trägt 409 schon eine Bedeutung (Rückfrage), und
+   *  ein !ok-Rumpf wird auf `fehler` reduziert. Hier braucht die Oberfläche mehr —
+   *  den fremden Stand beim Konflikt (412) und die Ausgabe des Prüfprogramms samt
+   *  Rückweg bei einer Ablehnung (400). Beides in `fehler` zu quetschen hieße,
+   *  die Auskunft wegzuwerfen, auf die es ankommt. */
+  async textSpeichern(auftrag: Textauftrag): Promise<Textantwort> {
+    const antwort = await fetch("/api/v1/files/text", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-Token": token,
+      },
+      credentials: "same-origin",
+      body: JSON.stringify(auftrag),
+    });
+    if (antwort.status === 401) throw new AbgemeldetFehler();
+
+    if (antwort.status === 412) {
+      const rumpf = (await antwort.json()) as { fehler: string; jetzt: Dateitext };
+      throw new Textkonflikt(rumpf.fehler, rumpf.jetzt);
+    }
+    if (!antwort.ok) {
+      const rumpf = (await antwort.json()) as {
+        fehler?: string;
+        pruefung?: Pruefung;
+        zurueck?: string;
+        text?: Dateitext;
+      };
+      // Nur wenn eine Prüfung dabeisteht, ist es die Ablehnung des
+      // Prüfprogramms. Ein 403 der Pfadwache ist ein gewöhnlicher Fehler.
+      if (rumpf.pruefung) {
+        throw new Pruefungabgelehnt(
+          rumpf.fehler ?? "abgelehnt",
+          rumpf.pruefung,
+          rumpf.zurueck ?? "",
+          rumpf.text ?? null,
+        );
+      }
+      throw new Error(rumpf.fehler ?? `HTTP ${antwort.status}`);
+    }
+    return (await antwort.json()) as Textantwort;
   },
 
   dienste: () => anfrage<Dienste>("/services"),

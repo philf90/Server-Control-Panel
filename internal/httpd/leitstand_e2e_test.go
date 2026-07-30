@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -299,6 +300,44 @@ type ergebnisLeitstand struct {
 		WerkstattDraussen  bool     `json:"werkstattDraussen"`
 		HandgriffeDraussen []string `json:"handgriffeDraussen"`
 	} `json:"schreiben"`
+	Editor struct {
+		KernVorher     int `json:"kernVorher"`
+		KernVorOeffnen int `json:"kernVorOeffnen"`
+		KernNachher    int `json:"kernNachher"`
+		Aufbau         struct {
+			Adresse       string   `json:"adresse"`
+			Zeilennummern int      `json:"zeilennummern"`
+			Inhalt        string   `json:"inhalt"`
+			Sprache       []string `json:"sprache"`
+			Rahmen        string   `json:"rahmen"`
+			Schrift       string   `json:"schrift"`
+			ListeDa       bool     `json:"listeDa"`
+			KrumenDa      bool     `json:"krumenDa"`
+		} `json:"aufbau"`
+		NachTippen    bool `json:"nachTippen"`
+		NachSpeichern struct {
+			Meldung       string `json:"meldung"`
+			Ungespeichert bool   `json:"ungespeichert"`
+		} `json:"nachSpeichern"`
+		GroesseDanach  string `json:"groesseDanach"`
+		FremdSchreiben int    `json:"fremdSchreiben"`
+		Konflikt       struct {
+			Meldung       string `json:"meldung"`
+			FremdKnopf    bool   `json:"fremdKnopf"`
+			EigenerTextDa bool   `json:"eigenerTextDa"`
+			Knopf         string `json:"knopf"`
+		} `json:"konflikt"`
+		NachUebernahme struct {
+			Meldung     string `json:"meldung"`
+			Inhalt      string `json:"inhalt"`
+			KonfliktWeg bool   `json:"konfliktWeg"`
+		} `json:"nachUebernahme"`
+		NachZurueck struct {
+			EditorDa   bool   `json:"editorDa"`
+			PfadDa     bool   `json:"pfadDa"`
+			Bearbeiten string `json:"bearbeiten"`
+		} `json:"nachZurueck"`
+	} `json:"editor"`
 	Bald struct {
 		Pfad     string `json:"pfad"`
 		Titel    string `json:"titel"`
@@ -1230,6 +1269,124 @@ func TestLeitstandBrowser(t *testing.T) {
 		}) {
 			t.Errorf("am gesperrten Eintrag steht %q: %v", verboten, sch.HandgriffeDraussen)
 		}
+	}
+
+	// Fehlende Antworten. Sie werden im Treiber mitgeschrieben, und bis hierher
+	// hat sie niemand ausgewertet — eine Datei, die es nicht gibt, wäre also
+	// unbemerkt geblieben. Bewusst ausgenommen sind 409 und 412: Beide sind eine
+	// Auskunft, um die ausdrücklich gebeten wurde, und keine fehlende Antwort.
+	if len(e.Fehlend) > 0 {
+		t.Errorf("Antworten mit Fehlerstatus, die keine Auskunft sind: %v", e.Fehlend)
+	}
+
+	// 6f3. Der Editor. Er ist der Prüfstein des Moduls, und zwar an der Stelle, an
+	// der dieses Projekt schon zweimal gescheitert ist: Die
+	// Content-Security-Policy erlaubt kein Inline-Skript und kein
+	// Inline-Stylesheet, und CodeMirror trägt seine Stilregeln zur Laufzeit ein.
+	// Ob das durchgeht, sagt kein Go-Test und kein Build — nur der Browser gegen
+	// die UNVERÄNDERTE Richtlinie. Verstöße stünden oben in e.Verstoesse; hier
+	// wird geprüft, dass das Ergebnis auch ankommt.
+	ed := e.Editor
+
+	// Der Brocken kommt NACHGELADEN. Das ist der ganze Zweck der Aufteilung: Ein
+	// Panel, das für die Übersicht 350 KiB Editor mitlädt, ist auf einer
+	// schlechten Leitung eine Zumutung — für alle, nicht nur für die, die
+	// editieren.
+	if ed.KernVorOeffnen != 0 {
+		t.Errorf("der Editor-Brocken wurde %d mal geholt, bevor jemand ihn geöffnet hat — "+
+			"dann ist die Aufteilung wirkungslos", ed.KernVorOeffnen)
+	}
+	if ed.KernNachher == 0 {
+		t.Error("der Editor-Brocken wurde nie geholt — dann läuft CodeMirror aus dem " +
+			"Hauptbündel, und die Aufteilung ist nur eine Datei mehr")
+	}
+
+	// Läuft CodeMirror? Zeilennummern entstehen erst, wenn es läuft.
+	if ed.Aufbau.Zeilennummern == 0 {
+		t.Error("der Editor zeigt keine Zeilennummern — CodeMirror läuft nicht")
+	}
+	if !strings.Contains(ed.Aufbau.Inhalt, "8443") {
+		t.Errorf("der Inhalt der Datei steht nicht im Editor: %q", ed.Aufbau.Inhalt)
+	}
+	// Und der Nachweis, um den es geht: Der Stil ist angekommen. Verwirft die
+	// Richtlinie die Regeln, die CodeMirror zur Laufzeit einträgt, fehlt der
+	// Rahmen und die Schrift ist nicht Mono.
+	if ed.Aufbau.Rahmen == "" || ed.Aufbau.Rahmen == "0px" {
+		t.Errorf("der Editor hat keinen Rahmen (%q) — die zur Laufzeit eingetragenen "+
+			"Stilregeln sind nicht angekommen. Genau daran ist der Editor der alten "+
+			"Oberfläche schon einmal gescheitert.", ed.Aufbau.Rahmen)
+	}
+	if !strings.Contains(strings.ToLower(ed.Aufbau.Schrift), "mono") {
+		t.Errorf("die Schrift des Editors ist %q, erwartet eine Monoschrift — "+
+			"das Thema ist nicht angekommen", ed.Aufbau.Schrift)
+	}
+	// Die Sprache steht als Marke da. server.conf in einem Ordner ohne „nginx" im
+	// Namen ist ini — bestimmt vom Server, weil dort der ganze Pfad bekannt ist.
+	if !slices.ContainsFunc(ed.Aufbau.Sprache, func(s string) bool { return s == "ini" }) {
+		t.Errorf("die Sprache steht nicht am Editor: %v", ed.Aufbau.Sprache)
+	}
+	// Der Ort bleibt: Der Editor ersetzt die Liste nicht.
+	if !ed.Aufbau.ListeDa || !ed.Aufbau.KrumenDa {
+		t.Error("mit offenem Editor fehlt die Liste oder der Krumenpfad — dann ist der " +
+			"Ort verloren, an dem man ist")
+	}
+	if !strings.HasSuffix(ed.Aufbau.Adresse, "server.conf") {
+		t.Errorf("die bearbeitete Datei steht nicht in der Adresse (%q) — ein Verweis "+
+			"darauf wäre nicht teilbar", ed.Aufbau.Adresse)
+	}
+
+	// Tippen kennzeichnet, Speichern hebt das Kennzeichen auf.
+	if !ed.NachTippen {
+		t.Error("nach dem Tippen fehlt das Kennzeichen „ungespeichert\"")
+	}
+	if ed.NachSpeichern.Meldung == "" {
+		t.Error("nach dem Speichern sagt nichts, dass es geklappt hat")
+	}
+	if ed.NachSpeichern.Ungespeichert {
+		t.Error("nach dem Speichern steht weiter „ungespeichert\" — dann weiß niemand, " +
+			"ob die Datei auf der Platte der im Editor entspricht")
+	}
+	if ed.GroesseDanach == "" {
+		t.Error("die Liste unter dem Editor zeigt keine Größe — sie wurde nicht neu geholt")
+	}
+
+	// Und der Fall, um den es beim Editor eines Panels wirklich geht: zwei
+	// Menschen an derselben Datei.
+	if ed.FremdSchreiben != http.StatusOK {
+		t.Fatalf("das Schreiben von außerhalb ergab %d — der Konflikt konnte nicht "+
+			"nachgestellt werden", ed.FremdSchreiben)
+	}
+	if ed.Konflikt.Meldung == "" {
+		t.Error("der Konflikt wird nicht gemeldet — dann wurde die fremde Änderung " +
+			"überschrieben, und niemand hat es erfahren")
+	}
+	if !ed.Konflikt.EigenerTextDa {
+		t.Error("nach dem Konflikt ist der eigene Text weg — das ist der Kern der Sache: " +
+			"Die eigene Arbeit darf nicht verloren gehen, weil jemand anders gespeichert hat")
+	}
+	if !ed.Konflikt.FremdKnopf {
+		t.Error("der Konflikt bietet nur einen Ausweg an — den fremden Stand zu übernehmen " +
+			"ist der zweite, und ohne ihn ist es keine Wahl")
+	}
+	if !strings.Contains(ed.Konflikt.Knopf, "überschreiben") {
+		t.Errorf("der Knopf heißt weiter %q — Überschreiben ist eine andere Handlung als "+
+			"Speichern, und er soll es sagen", ed.Konflikt.Knopf)
+	}
+	if !strings.Contains(ed.NachUebernahme.Inhalt, "von auswaerts") {
+		t.Errorf("nach der Übernahme steht nicht der fremde Stand im Editor: %q",
+			ed.NachUebernahme.Inhalt)
+	}
+	if !ed.NachUebernahme.KonfliktWeg {
+		t.Error("nach der Übernahme steht die Konfliktmeldung noch")
+	}
+
+	// Der Zurück-Knopf schließt den Editor und lässt die Seite stehen.
+	if ed.NachZurueck.EditorDa || ed.NachZurueck.Bearbeiten != "" {
+		t.Errorf("der Zurück-Knopf schließt den Editor nicht (bearbeiten=%q)",
+			ed.NachZurueck.Bearbeiten)
+	}
+	if !ed.NachZurueck.PfadDa {
+		t.Error("der Zurück-Knopf hat auch den Ort verworfen — er soll nur den Editor schließen")
 	}
 
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2

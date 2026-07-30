@@ -143,6 +143,11 @@ func (s *Server) Handler() http.Handler {
 		// verlangt (Accept: application/json) — die neue Oberfläche tut das.
 		mux.Handle("POST /api/v1/files/upload",
 			s.protected(s.requireWrite(http.HandlerFunc(s.handleFileUpload))))
+		// Der Editor. Lesen ist ein GET ohne Token; Schreiben geht durch dieselbe
+		// Kette wie jede andere Veränderung.
+		mux.Handle("GET /api/v1/files/text", s.protected(http.HandlerFunc(s.handleAPIFileText)))
+		mux.Handle("POST /api/v1/files/text",
+			s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFileTextSave))))
 	}
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))

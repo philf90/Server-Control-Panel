@@ -83,11 +83,16 @@ async function main() {
 
   const fehlend = [];
   seite.on("response", (r) => {
-    // 409 ist keine fehlende Antwort, sondern eine Rückfrage: Der Handler führt
-    // nichts aus, solange die Bestätigung fehlt, und schickt stattdessen deren
-    // Text (siehe api_v1_bestaetigung.go). Sie hier mitzuzählen wäre Rauschen,
-    // das eine echte 404 später verdeckt.
-    if (r.status() >= 400 && r.status() !== 409) {
+    // Zwei Statuscodes sind KEINE fehlende Antwort, sondern eine Auskunft, um die
+    // ausdrücklich gebeten wurde:
+    //
+    //   409 — unbestätigt; der Handler führt nichts aus und schickt stattdessen
+    //         den Text der Rückfrage (api_v1_bestaetigung.go).
+    //   412 — die Datei wurde von außen geändert; der Editor bekommt den fremden
+    //         Stand statt ihn zu überschreiben (api_v1_dateien_editor.go).
+    //
+    // Sie hier mitzuzählen wäre Rauschen, das eine echte 404 verdeckt.
+    if (r.status() >= 400 && r.status() !== 409 && r.status() !== 412) {
       fehlend.push(`${r.status()} ${r.url()}`);
       gesammelt.push(`response: ${r.status()} ${r.url()}`);
     }
@@ -1379,6 +1384,192 @@ async function main() {
     ),
   );
 
+  // 12c. Der Editor. Er ist der Prüfstein dieses Moduls, und zwar an einer
+  //      Stelle, an der dieses Projekt schon zweimal gescheitert ist: Die
+  //      Content-Security-Policy des Panels erlaubt kein Inline-Skript und kein
+  //      Inline-Stylesheet, und CodeMirror trägt seine Stilregeln zur Laufzeit
+  //      ein. Ob das durchgeht, sagt kein Go-Test und kein Build — nur der
+  //      Browser gegen die UNVERÄNDERTE Richtlinie.
+  //
+  //      Dazu kommt: Der Editor ist ein NACHGELADENER Brocken (dynamisches
+  //      import()). Dass er über die Richtlinie hinweg geholt wird, ist die
+  //      zweite Frage, die nur hier zu beantworten ist.
+  const editor = {};
+  const editorPfad = `${wurzel}/schreibbar/server.conf`;
+  // Die Zahl der Anfragen vor dem Öffnen: Der Brocken darf VORHER nicht geholt
+  // worden sein. Das ist der ganze Zweck der Aufteilung.
+  editor.kernVorher = angefragt.filter((u) => u.includes("editorkern")).length;
+
+  await seite.goto(
+    `${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}` +
+      `&eintrag=${encodeURIComponent(editorPfad)}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await seite.waitForSelector(".inspektor .aktionen .knopf", { timeout: 5000 });
+  editor.kernVorOeffnen = angefragt.filter((u) => u.includes("editorkern")).length;
+
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
+      (x) => x.textContent.trim() === "bearbeiten",
+    );
+    b.click();
+  });
+  // Auf die Zeilennummern warten: Sie entstehen erst, wenn CodeMirror läuft. Auf
+  // den Kasten zu warten hieße, auf das leere Zuhause zu warten.
+  await seite.waitForSelector(".editor .cm-gutters", { timeout: 10000 });
+  editor.kernNachher = angefragt.filter((u) => u.includes("editorkern")).length;
+
+  editor.aufbau = await seite.evaluate(() => {
+    const e = document.querySelector(".editor");
+    const zeilen = e.querySelectorAll(".cm-gutterElement").length;
+    return {
+      // Die Adresse trägt die bearbeitete Datei: teilbar, und der Zurück-Knopf
+      // schließt den Editor.
+      adresse: new URL(location.href).searchParams.get("bearbeiten") ?? "",
+      zeilennummern: zeilen,
+      inhalt: e.querySelector(".cm-content")?.textContent ?? "",
+      sprache: [...e.querySelectorAll(".marke")].map((m) => m.textContent.trim()),
+      // Und der Nachweis, um den es geht: Ist der Stil angekommen? Kommt die
+      // Regel nicht durch die Richtlinie, ist der Rahmen nicht da und die
+      // Schriftart nicht Mono.
+      rahmen: getComputedStyle(e.querySelector(".cm-editor")).borderTopWidth,
+      schrift: getComputedStyle(e.querySelector(".cm-scroller")).fontFamily,
+      // Die Liste steht weiter darunter: Der Editor ersetzt sie nicht, damit der
+      // Ort nicht verloren geht.
+      listeDa: document.querySelector("table.tabelle") !== null,
+      krumenDa: document.querySelector(".krumen") !== null,
+    };
+  });
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-editor.png`,
+      fullPage: true,
+    });
+  }
+
+  // Tippen und speichern.
+  await seite.click(".editor .cm-content");
+  await seite.keyboard.press("End");
+  await seite.keyboard.type("\n# vom-browser");
+  await seite.waitForTimeout(150);
+  editor.nachTippen = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll(".editor .marke")].some((m) =>
+        m.textContent.includes("ungespeichert"),
+      ),
+  );
+
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".editor .fuss .knopf")].find((x) =>
+      x.textContent.includes("speichern"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector(".editor .band.gut", { timeout: 5000 });
+  editor.nachSpeichern = await seite.evaluate(() => ({
+    meldung: document.querySelector(".editor .band.gut")?.textContent.trim() ?? "",
+    // Das Kennzeichen ist weg: Es gibt nichts Ungespeichertes mehr.
+    ungespeichert: [...document.querySelectorAll(".editor .marke")].some((m) =>
+      m.textContent.includes("ungespeichert"),
+    ),
+  }));
+  // Und die Größe in der Liste ist eine andere — die Liste wurde neu geholt.
+  editor.groesseDanach = await seite.evaluate(() => {
+    const zeile = [...document.querySelectorAll("table.tabelle tbody tr")].find((tr) =>
+      tr.textContent.includes("server.conf"),
+    );
+    return zeile?.children[1]?.textContent.trim() ?? "";
+  });
+
+  // Der Konflikt — der Fall, um den es beim Editor eines Panels wirklich geht:
+  // Zwei Menschen bearbeiten dieselbe Datei. Nachgestellt wird er ehrlich: Die
+  // Datei wird VON AUSSERHALB des Editors geschrieben (eigener Aufruf mit
+  // ueberschreiben), während der Editor seinen alten Hash noch hält. Danach läuft
+  // das Speichern über die Schaltfläche — und muss in den Konflikt laufen statt
+  // die fremde Änderung zu überschreiben.
+  editor.fremdSchreiben = await seite.evaluate(async (pfad) => {
+    const sitzung = await (
+      await fetch("/api/v1/session", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      })
+    ).json();
+    const antwort = await fetch("/api/v1/files/text", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-CSRF-Token": sitzung.csrf,
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        pfad,
+        inhalt: "von auswaerts\n",
+        hash: "",
+        crlf: false,
+        ohne_schlussumbruch: false,
+        ueberschreiben: true,
+      }),
+    });
+    return antwort.status;
+  }, editorPfad);
+
+  // Jetzt im Editor tippen und speichern: Das muss der Konflikt sein.
+  await seite.click(".editor .cm-content");
+  await seite.keyboard.press("End");
+  await seite.keyboard.type("\n# und noch etwas");
+  await seite.evaluate(() => {
+    [...document.querySelectorAll(".editor .fuss .knopf")]
+      .find((x) => x.textContent.includes("speichern"))
+      .click();
+  });
+  await seite.waitForSelector(".editor .band.schlecht", { timeout: 5000 });
+  editor.konflikt = await seite.evaluate(() => {
+    const band = document.querySelector(".editor .band.schlecht");
+    return {
+      meldung: band?.textContent.replace(/\s+/g, " ").trim() ?? "",
+      // Der zweite Ausweg muss angeboten werden: die fremde Fassung übernehmen.
+      // Ein Konflikt mit nur einem Knopf ist keine Wahl.
+      fremdKnopf: [...band.querySelectorAll(".knopf")].some((b) =>
+        b.textContent.includes("übernehmen"),
+      ),
+      // Und der eigene Text steht noch im Editor. DAS ist der Kern: Die eigene
+      // Arbeit geht nicht verloren, weil jemand anders gespeichert hat.
+      eigenerTextDa: (document.querySelector(".editor .cm-content")?.textContent ?? "").includes(
+        "und noch etwas",
+      ),
+      // Der Speicherknopf heißt jetzt anders: Überschreiben ist eine andere
+      // Handlung als Speichern, und der Knopf sagt es.
+      knopf:
+        [...document.querySelectorAll(".editor .fuss .knopf")]
+          .map((b) => b.textContent.trim())
+          .join(" ") ?? "",
+    };
+  });
+
+  // Und der ehrliche zweite Weg: den fremden Stand übernehmen.
+  await seite.evaluate(() => {
+    [...document.querySelectorAll(".editor .band.schlecht .knopf")]
+      .find((b) => b.textContent.includes("übernehmen"))
+      .click();
+  });
+  await seite.waitForSelector(".editor .band.gut", { timeout: 5000 });
+  editor.nachUebernahme = await seite.evaluate(() => ({
+    meldung: document.querySelector(".editor .band.gut")?.textContent.trim() ?? "",
+    inhalt: document.querySelector(".editor .cm-content")?.textContent ?? "",
+    konfliktWeg: document.querySelector(".editor .band.schlecht") === null,
+  }));
+
+  // Der Zurück-Knopf schließt den Editor und lässt die Seite stehen.
+  await seite.goBack();
+  await seite.waitForTimeout(400);
+  editor.nachZurueck = await seite.evaluate(() => ({
+    editorDa: document.querySelector(".editor") !== null,
+    pfadDa: new URL(location.href).searchParams.get("pfad") !== null,
+    bearbeiten: new URL(location.href).searchParams.get("bearbeiten") ?? "",
+  }));
+
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
@@ -1428,6 +1619,7 @@ async function main() {
       firewall,
       dateien,
       schreiben,
+      editor,
       bald,
       zweige,
       schmal,

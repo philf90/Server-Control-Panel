@@ -332,8 +332,13 @@ func (f *FileSystem) ReadText(ctx context.Context, p string, max int64) (TextFil
 	defer func() { _ = leser.Close() }()
 
 	if eintrag.Size > max {
-		return TextFile{}, fmt.Errorf("die Datei ist %s groß; der Editor nimmt bis %s. Herunterladen geht weiterhin",
-			formatSize(eintrag.Size), formatSize(max))
+		// Eingewickelt in ErrTooLarge, damit die Schnittstelle 413 antwortet und
+		// nicht 400. Der Upload macht es seit 0.3.0 so (files_upload.go); hier
+		// fehlte es, und die Folge war ein „Bedienfehler" im Protokoll, wo eine
+		// Größengrenze gemeint war. Der Satz bleibt vorn: Er nennt beide Zahlen
+		// und den Weg, der stattdessen geht.
+		return TextFile{}, fmt.Errorf("die Datei ist %s groß; der Editor nimmt bis %s. Herunterladen geht weiterhin: %w",
+			formatSize(eintrag.Size), formatSize(max), ErrTooLarge)
 	}
 
 	roh, err := io.ReadAll(io.LimitReader(leser, max+1))

@@ -65,8 +65,29 @@ func (s *System) ConfigCheck(ctx context.Context, pfad string) (ConfigCheckResul
 	return ConfigCheckResult{}, nil
 }
 
+// ConfigCheckTool nennt das Prüfprogramm für einen Pfad, ohne es aufzurufen —
+// leer, wenn es für diesen Pfad keines gibt.
+//
+// Die Oberfläche braucht das VOR dem Speichern: „nginx -t prüft die Datei
+// danach, und lehnt sie ab, wird der Vorzustand zurückgeschrieben" ist eine
+// Zusage, die man vorher wissen will. Sie erst aus dem Ergebnis zu erfahren
+// heißt, sie beim Speichern nicht gekannt zu haben.
+//
+// Die Zuordnung steht in konfigArt und damit an einer Stelle. Ohne diese
+// Auskunftsfunktion hätte die Schnittstellenschicht eine zweite Liste der
+// prüfbaren Pfade gebraucht — und die wäre irgendwann eine andere.
+func ConfigCheckTool(pfad string) string {
+	switch konfigArt(pfad) {
+	case "sshd":
+		return "sshd -t"
+	case "nftables":
+		return "nft -c -f"
+	}
+	return ""
+}
+
 // konfigArt ordnet einen Pfad einem Prüfprogramm zu. Feste Liste, keine
-// Heuristik: Ein "sieht aus wie eine sshd-Konfiguration" wäre der Anfang von
+// Heuristik: Ein „sieht aus wie eine sshd-Konfiguration" wäre der Anfang von
 // Prüfungen, die am falschen Ziel laufen.
 func konfigArt(pfad string) string {
 	sauber := filepath.Clean(pfad)

@@ -604,3 +604,59 @@ export type Uploadantwort = {
   error?: string;
   entries?: Eintrag[];
 };
+
+// ------------------------------------------------------------------- Editor ---
+
+/** Dateitext ist eine Textdatei, wie der Editor sie sieht. */
+export type Dateitext = {
+  eintrag: Eintrag;
+  /** inhalt hat Zeilenenden in LF. crlf sagt, wie die Datei aussah — und der
+   *  Wert geht unverändert zurück, damit sie so bleibt. Ein Editor, der aus 4000
+   *  CRLF-Zeilen stillschweigend LF macht, schiebt den Unterschied in ein Diff,
+   *  das niemand lesen kann. */
+  inhalt: string;
+  /** hash ist der SHA-256 des Inhalts auf der Platte. Er geht beim Speichern
+   *  zurück und wird verglichen: Wurde die Datei zwischenzeitlich von außen
+   *  geändert, antwortet der Server 412 statt zu überschreiben. */
+  hash: string;
+  crlf: boolean;
+  ohne_schlussumbruch: boolean;
+  sprache: string;
+  /** pruefbar sagt, ob es für diese Datei ein Prüfprogramm gibt. Die Oberfläche
+   *  nennt es VOR dem Speichern. */
+  pruefbar: boolean;
+  werkzeug?: string;
+  verzeichnis: string;
+  /** max_edit ist die Obergrenze des EDITORS, nicht die Größe dieser Datei. */
+  max_edit: number;
+  max_edit_text: string;
+};
+
+/** Pruefung ist das Ergebnis des Prüfprogramms nach dem Schreiben. */
+export type Pruefung = {
+  geprueft: boolean;
+  ok: boolean;
+  werkzeug: string;
+  /** ausgabe ist die Meldung des Programms, wörtlich. Sie ist die einzige
+   *  Auskunft darüber, WAS falsch ist — zusammenfassen hieße, sie wegzuwerfen. */
+  ausgabe: string;
+};
+
+/** Textauftrag ist der Körper von POST /api/v1/files/text. */
+export type Textauftrag = {
+  pfad: string;
+  inhalt: string;
+  hash: string;
+  crlf: boolean;
+  ohne_schlussumbruch: boolean;
+  /** ueberschreiben löst einen Konflikt bewusst auf. Die Oberfläche setzt es
+   *  erst, nachdem sie ihn gezeigt hat. */
+  ueberschreiben: boolean;
+};
+
+/** Textantwort ist die Antwort auf ein geglücktes Speichern. */
+export type Textantwort = {
+  meldung: string;
+  text: Dateitext;
+  pruefung?: Pruefung;
+};

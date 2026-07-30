@@ -37,10 +37,13 @@ export default defineConfig({
 
     // Der Polyfill für modulepreload wird als INLINE-Skript eingefügt. Die
     // Richtlinie des Panels erlaubt nur `script-src 'self'` — das Skript würde
-    // verworfen. Derzeit fügt Vite es ohnehin nicht ein, weil es keine
-    // dynamischen Importe gibt; ausdrücklich abgeschaltet bleibt es auch dann
-    // aus, wenn später einer dazukommt. Der Fall fällt sonst erst im Browser
-    // auf, und genau daran ist der Editor schon einmal gescheitert.
+    // verworfen.
+    //
+    // Diese Zeile stand hier als Vorsorge, solange es keine dynamischen Importe
+    // gab. Seit dem Editor gibt es einen (lib/editorkern.ts wird von
+    // komponenten/Editor.svelte nachgeladen), und damit ist sie in Betrieb: Ohne
+    // sie wäre die neue Oberfläche an derselben Stelle gescheitert wie der Editor
+    // der alten — und zwar erst im Browser, nicht im Build.
     modulePreload: { polyfill: false },
 
     // Die Größe des gepackten Ergebnisses zu messen kostet Zeit und sagt hier

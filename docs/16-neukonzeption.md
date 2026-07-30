@@ -728,6 +728,44 @@ Drei Einzelheiten, die keine Wahl sind:
 - **Höchstens einer je Art.** Zwei apt-Läufe blockieren sich an der dpkg-Sperre.
   Das soll die Oberfläche verhindern (**409**) und nicht ausprobieren.
 
+**Ein Strom ist nicht wie der andere.** Festgelegt am Modul **Logs**, der zweiten
+Seite mit einem Ereignisstrom — und dem Punkt, an dem sich zeigte, dass die
+Vorgangsplatte dafür *nicht* taugt. Der Unterschied ist nicht die Technik, beide
+hängen an Server-Sent Events; er liegt in der Bedeutung:
+
+| | Vorgang (Pakete) | Journal (Logs) |
+|---|---|---|
+| Ende | bestimmt der Server: apt ist fertig | keines — es endet, wenn niemand zusieht |
+| Warum man zusieht | um zu erfahren, wie es ausgeht | um zu erfahren, was gerade passiert |
+| Beim Verlassen der Seite | läuft weiter (ein Abbruch schadet) | wird beendet (ein Weiterlaufen kostet nur) |
+| Gehalten wird | jede Zeile, bis zum Ende | die letzten 2000 |
+| Zuschauer | teilen sich einen Vorgang | jeder hat einen eigenen Prozess |
+| Anfangen | mit der Aktion, ungefragt | auf Knopfdruck, nie ungefragt |
+
+Die letzten zwei Zeilen sind die wichtigen. Weil jeder Zuschauer seinen eigenen
+Filter hat, braucht er einen eigenen `journalctl --follow` — vier offene Tabs sind
+vier Prozesse. Deshalb gibt es eine Obergrenze (`maxLogFolger`, mit **429** und
+einer Angabe in der Abfrage, damit die Oberfläche den Knopf gleich richtig zeigt),
+und deshalb ist Verfolgen ein Schalter und keine Vorgabe: Wer die Seite öffnet,
+will meist lesen, was war.
+
+Zwei Einzelheiten, die im Betrieb wehtun, wenn sie fehlen:
+
+- **Ein Herzschlag.** Ein Reverse-Proxy schließt eine stille Verbindung nach einer
+  Minute, und ein ruhiges Journal ist genau das: still. Ein Kommentar im
+  Ereignisstrom (`: still`) hält sie offen, ohne beim Client ein Ereignis
+  auszulösen.
+- **Verworfene Zeilen werden gemeldet.** Schreibt das Journal schneller als die
+  Leitung überträgt, verwirft der Server — und sagt, wie viele. Eine Lücke, die
+  niemand sieht, ist schlimmer als eine, die dasteht.
+
+Für privops heißt das eine neue Operation: `LogsFollow`. Sie ist die **einzige
+ohne eigene Frist** — der Kontext des Betrachters ist die Frist, und
+`CommandContext` tötet den Prozess, wenn er abbricht. Die Argumente baut sie aus
+derselben Funktion wie die Abfrage: Hätte der Strom eigene, könnte er mehr zeigen
+als die Abfrage vorher hergab, und eine Stufenbeschränkung wäre beim Umschalten
+ein Leck durch die Hintertür.
+
 **Rechte am Endpunkt, sichtbar in der Oberfläche.** Schreibrecht und
 Sitzungstoken werden vor jeder verändernden Anfrage geprüft (`X-CSRF-Token` als
 Kopfzeile, nicht als Feld — eine Kopfzeile kann ein Formular von einer fremden

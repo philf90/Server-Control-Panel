@@ -83,6 +83,10 @@ func (s *Server) Handler() http.Handler {
 	// deshalb kein Token — er verändert nichts.
 	mux.Handle("GET /api/v1/jobs/{art}", s.protected(http.HandlerFunc(s.handleAPIJob)))
 	mux.Handle("GET /api/v1/jobs/{art}/events", s.protected(http.HandlerFunc(s.handleAPIJobEvents)))
+	// Logs: die Abfrage und daneben der Strom, der weiterläuft. Beides lesend,
+	// also ohne Schreibrecht und ohne Token — dieselbe Grenze wie bei GET /logs.
+	mux.Handle("GET /api/v1/logs", s.protected(http.HandlerFunc(s.handleAPILogs)))
+	mux.Handle("GET /api/v1/logs/follow", s.protected(http.HandlerFunc(s.handleAPILogsFollow)))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

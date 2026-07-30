@@ -15,6 +15,7 @@
   import UebersichtSeite from "./seiten/Uebersicht.svelte";
   import DiensteSeite from "./seiten/Dienste.svelte";
   import PaketeSeite from "./seiten/Pakete.svelte";
+  import LogsSeite from "./seiten/Logs.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
   import { live } from "./lib/live.svelte";
   import { t } from "./lib/texte";
@@ -106,6 +107,9 @@
           darfSchreiben={sitzung?.darf_schreiben ?? false}
           istOwner={sitzung?.ist_owner ?? false}
         />
+      {:else if weg.seite === "logs"}
+        <!-- Die Logseite braucht die Sitzung nicht: Lesen darf jede Rolle. -->
+        <LogsSeite />
       {:else if uebersicht}
         <UebersichtSeite {uebersicht} {verlaeufe} {signale} {signalFehler} erneutErheben={signaleLaden} />
       {:else}

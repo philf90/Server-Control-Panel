@@ -58,6 +58,10 @@ type Executor interface {
 	// Logs
 	Logs(ctx context.Context, q LogQuery) ([]LogEntry, error)
 	LogUnits(ctx context.Context) ([]string, error)
+	// LogsFollow verfolgt das Journal, bis der Kontext abgebrochen wird. Die
+	// einzige Operation ohne eigene Frist: Sie endet, wenn der Aufrufer sie
+	// beendet, und nicht nach einer Zeit, die hier niemand kennen kann.
+	LogsFollow(ctx context.Context, q LogQuery, sink LogSink) error
 
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error
@@ -66,6 +70,14 @@ type Executor interface {
 // LineWriter nimmt zeilenweise Ausgabe entgegen, etwa für die Live-Anzeige
 // eines laufenden Paket-Updates.
 type LineWriter func(line string)
+
+// LogSink nimmt einen Journaleintrag entgegen, sobald er anfällt.
+//
+// Ein eigener Typ neben LineWriter, weil es hier keine Zeile ist, sondern ein
+// zerlegter Eintrag: Wer das Journal verfolgt, will nach Stufe einfärben und
+// nach Unit filtern, und das ginge an einer rohen Zeile nur mit einem zweiten
+// Parser an der falschen Stelle.
+type LogSink func(LogEntry)
 
 // ---------------------------------------------------------------- Dienste ---
 

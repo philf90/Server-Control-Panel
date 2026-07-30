@@ -64,6 +64,13 @@ type Command struct {
 	Env []string
 	// Stream bekommt jede Ausgabezeile, sobald sie anfällt.
 	Stream LineWriter
+	// Ohne Frist heißt: Das Kommando läuft, bis der übergebene Kontext
+	// abgebrochen wird. Genau ein Aufruf braucht das — `journalctl --follow`,
+	// das endet, wenn niemand mehr zusieht, und nicht nach einer Zeit, die hier
+	// niemand kennen kann. Ausdrücklich als Feld und nicht als „Timeout = 0",
+	// weil null heute die Vorgabefrist bedeutet: Ein vergessenes Timeout wäre
+	// sonst plötzlich ein Kommando ohne Ende.
+	OhneFrist bool
 }
 
 // Result ist das Ergebnis eines Aufrufs.
@@ -93,8 +100,16 @@ func (ExecRunner) Run(ctx context.Context, cmd Command) (Result, error) {
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	if cmd.OhneFrist {
+		// Der Kontext des Aufrufers ist die Frist. CommandContext tötet den
+		// Prozess, sobald er abgebrochen wird — bei einem Betrachter, der die
+		// Seite schließt, ist das genau der Zeitpunkt.
+		timeout = 0
+	} else {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
 
 	c := exec.CommandContext(ctx, path, cmd.Args...) //nolint:gosec // Pfad aus Allowlist, Argumente ohne Shell
 	// Minimale, vorhersagbare Umgebung. LC_ALL=C hält die Ausgabe in einer
@@ -150,7 +165,18 @@ func (ExecRunner) Run(ctx context.Context, cmd Command) (Result, error) {
 		// Ein Exit-Code ungleich null ist ein Ergebnis, kein Programmfehler.
 		// Die Auswertung übernimmt der Aufrufer, der weiß, was er erwartet.
 		return res, nil
+	case errors.Is(ctx.Err(), context.Canceled):
+		// Ein abgebrochener Kontext ist bei einem Kommando ohne Frist der
+		// vorgesehene Weg zum Ende: Der Betrachter hat die Seite verlassen. Der
+		// Aufrufer erkennt das an context.Canceled und macht daraus keinen
+		// Fehlerbericht.
+		return res, fmt.Errorf("%s: %w", cmd.Name, context.Canceled)
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		if cmd.OhneFrist {
+			// Die Frist stammt dann vom Aufrufer, nicht von hier — eine Zahl zu
+			// nennen, die wir nicht gesetzt haben, wäre irreführend.
+			return res, fmt.Errorf("%s: Zeitüberschreitung des Aufrufers", cmd.Name)
+		}
 		return res, fmt.Errorf("%s: Zeitüberschreitung nach %s", cmd.Name, timeout)
 	default:
 		return res, fmt.Errorf("%s: %w", cmd.Name, err)

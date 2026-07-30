@@ -102,6 +102,32 @@ nicht als Release getaggt.
   weiter als Teilerfolg und nennt die klemmende Quelle: verschwiegen wäre er eine
   Zusage, die niemand halten kann.
 
+- **Modul Logs in der neuen Oberfläche, mit Live-Verfolgung.** Das Journal
+  abgefragt oder verfolgt: Filter für Unit, Stufe, Zeitraum und Freitext stehen in
+  der Adresse, ein Verweis auf „nginx, ab heute, nur Fehler" ist damit teilbar.
+  Die neuesten Zeilen oben, ab Fehler rot, bei Warnung bernstein — und immer mit
+  dem Wort daneben, nie mit der Farbe allein.
+
+  Verfolgen ist ein Schalter und keine Vorgabe. Das hat einen Grund, der über
+  Geschmack hinausgeht: Jeder Zuschauer hat seinen eigenen Filter und braucht
+  deshalb einen eigenen `journalctl --follow` — vier offene Tabs wären vier
+  Prozesse. Es gibt daher eine Obergrenze; wird sie erreicht, sagt die Seite es,
+  statt einen Knopf anzubieten, der abgewiesen wird. Beim Verlassen der Seite wird
+  angehalten. Das ist der Unterschied zu einem Paketvorgang, der weiterläuft:
+  Dessen Abbruch schadet, das Weiterlaufen eines Journals kostet nur.
+
+  Dazu gehört eine neue privops-Operation, `LogsFollow` — die einzige **ohne eigene
+  Frist**: Der Kontext des Betrachters ist die Frist, und sein geschlossener Tab
+  beendet den Prozess. Die Filter baut sie aus derselben Funktion wie die Abfrage;
+  hätte der Strom eigene, könnte er mehr zeigen als die Abfrage vorher hergab.
+
+  Zwei Einzelheiten, die im Betrieb wehtun, wenn sie fehlen: Ein Herzschlag hält
+  die Verbindung offen, weil ein Reverse-Proxy eine stille nach einer Minute
+  schließt und ein ruhiges Journal genau das ist. Und verworfene Zeilen werden
+  gemeldet — schreibt das Journal schneller als die Leitung überträgt, sagt die
+  Seite, wie viele fehlen. Eine Lücke, die niemand sieht, ist schlimmer als eine,
+  die dasteht.
+
 ### Behoben
 
 - **Escape schloss zwei Dinge auf einmal.** Ein Escape im Rückfrage-Dialog brach
@@ -113,6 +139,12 @@ nicht als Release getaggt.
   Paketseite hielt die Aktion noch für laufend, während der Dialog schon stand —
   eine Rückfrage, die man nicht bestätigen kann. Auch das hat der Browsertest
   gefunden; im Code sah die Bedingung richtig aus.
+
+- **Jede Journalzeile stand doppelt da, sobald man auf „verfolgen" drückte.** Der
+  Strom bringt seinen eigenen Rückblick mit — dieselben letzten Einträge, die die
+  Abfrage schon geliefert hatte. Bei 200 geholten Zeilen sah die Seite nach einem
+  Klick wie 400 Ereignisse aus. Gesehen hat das ein Bildschirmfoto; die Tests waren
+  grün, weil sie zählten, dass Zeilen dazukommen, und nicht welche.
 
 ## [0.4.0-rc.1] — 2026-07-30
 

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/philf90/asylum/internal/auth"
@@ -91,8 +92,12 @@ type Server struct {
 	filesPruefung  []privops.RootStatus
 	jobs           *jobs
 	fwGuard        *firewallGuard
-	upd            *updateState
-	pending        *pendingSecrets
+	// logFolger zählt die offenen Journalströme. Jeder hält einen eigenen
+	// journalctl-Prozess, weil jeder seinen eigenen Filter hat — anders als bei
+	// einem Vorgang, den alle Zuschauer teilen. Siehe maxLogFolger.
+	logFolger atomic.Int32
+	upd       *updateState
+	pending   *pendingSecrets
 	// resets hält die per Passkey bestätigten Nachweise für ein vergessenes
 	// Passwort. Siehe handlers_forgot.go.
 	resets *resetTickets

@@ -629,6 +629,131 @@ async function main() {
   }
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 10. Das Modul Logs. Der zweite Strom des Panels — und ein anderer als beim
+  //     Vorgang: Er hat kein Ende, das der Server bestimmt. Geprüft wird genau
+  //     das: Bleibt er offen, kommen Zeilen nach, gelten die Filter aus der
+  //     Adresse auch für ihn, und wird er beim Verlassen der Seite angehalten?
+  const logs = {};
+  await seite.goto(`${basis}/v2/logs`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  logs.zeilenAnfangs = await seite.evaluate(
+    () => document.querySelectorAll("table.tabelle tbody tr").length,
+  );
+  logs.spalten = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle thead th")].map((th) => th.textContent.trim()),
+  );
+  // Vor dem Umschalten ist kein Strom offen: Wer die Seite öffnet, will meist
+  // lesen, was war. Ein Journal, das ungefragt einen Prozess auf dem Server
+  // aufmacht, ist eine Zumutung an den Betrieb.
+  logs.stromVorherOffen = angefragt.some((u) => u.includes("/api/v1/logs/follow"));
+
+  // Filter setzen: Sie stehen in der Adresse, damit ein Verweis auf „nur Fehler"
+  // teilbar ist.
+  await seite.selectOption(".filter select >> nth=1", "3");
+  await seite.waitForTimeout(250);
+  logs.nachStufenfilter = await seite.evaluate(() => location.search);
+
+  await seite.fill(".suchform input", "publickey");
+  await seite.press(".suchform input", "Enter");
+  await seite.waitForTimeout(250);
+  logs.nachSuche = await seite.evaluate(() => location.search);
+
+  // Zurück-Knopf: Er nimmt den Filter zurück, und das Suchfeld folgt.
+  await seite.goBack();
+  await seite.waitForTimeout(250);
+  logs.nachZurueck = await seite.evaluate(() => ({
+    suche: location.search,
+    feld: document.querySelector(".suchform input")?.value ?? "",
+  }));
+
+  // Verfolgen einschalten. Die Attrappe schiebt eine Zeile nach — die muss
+  // ankommen, ohne dass jemand neu lädt.
+  await seite.goto(`${basis}/v2/logs`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+  await seite.click(".filter .verfolgen");
+  await seite.waitForSelector(".filter .verfolgen .puls", { timeout: 5000 });
+  logs.stromGeoeffnet = angefragt.some((u) => u.includes("/api/v1/logs/follow"));
+
+  // Auf eine bestimmte Zeile warten und nicht auf eine größere Zahl: Der Strom
+  // bringt seinen eigenen Rückblick mit, und eine gewachsene Zeilenzahl könnte
+  // auch der wieder eingespielte Rückblick sein. Diese eine Zeile gibt es nur im
+  // Nachschub der Attrappe — sie kommt herein, während zugesehen wird.
+  try {
+    await seite.waitForFunction(
+      () => document.body.textContent.includes("waehrend-des-verfolgens"),
+      null,
+      { timeout: 5000 },
+    );
+    logs.zeileNachgekommen = true;
+  } catch {
+    logs.zeileNachgekommen = false;
+  }
+  // Und keine Zeile steht doppelt da: Der Rückblick des Stroms ersetzt die
+  // Liste, statt sie zu verdoppeln.
+  logs.doppelt = await seite.evaluate(() => {
+    const zeilen = [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) =>
+      tr.textContent.replace(/\s+/g, " ").trim(),
+    );
+    return zeilen.length - new Set(zeilen).size;
+  });
+  logs.knopfText = await seite.evaluate(
+    () => document.querySelector(".filter .verfolgen")?.textContent.trim() ?? "",
+  );
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-logs.png`,
+      fullPage: true,
+    });
+  }
+
+  // Anhalten schließt den Strom.
+  await seite.click(".filter .verfolgen");
+  await seite.waitForTimeout(300);
+  logs.nachAnhalten = await seite.evaluate(
+    () => document.querySelector(".filter .verfolgen .puls") === null,
+  );
+
+  // Und der Wechsel auf eine andere Seite hält ihn ebenfalls an — sonst läuft auf
+  // dem Server ein journalctl weiter, dem niemand mehr zusieht. Geprüft am
+  // Zähler des Servers, den die Abfrage mitbringt.
+  await seite.click(".filter .verfolgen");
+  await seite.waitForSelector(".filter .verfolgen .puls", { timeout: 5000 });
+  await seite.click('.seitenleiste a[href="/v2/dienste"]');
+  await seite.waitForSelector("table.tabelle .zeile", { timeout: 5000 });
+  await seite.waitForTimeout(400);
+  logs.folgerNachWechsel = await seite.evaluate(async () => {
+    const r = await fetch("/api/v1/logs", {
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+    });
+    const d = await r.json();
+    return d.folger_frei;
+  });
+
+  await seite.goto(`${basis}/v2/logs`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  logs.schmal = await seite.evaluate(() => {
+    const zelle = document.querySelector("table.tabelle td[data-spalte]");
+    return {
+      koerperBreite: document.body.scrollWidth,
+      fensterBreite: window.innerWidth,
+      beschriftung: zelle
+        ? getComputedStyle(zelle, "::before").content.replace(/"/g, "")
+        : "",
+    };
+  });
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-logs-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   await browser.close();
 
   console.log(
@@ -643,6 +768,7 @@ async function main() {
       palette,
       dienste,
       pakete,
+      logs,
       zweige,
       schmal,
       strich,

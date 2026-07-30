@@ -9,6 +9,7 @@ import type {
   DienstAktion,
   DienstDetail,
   Job,
+  Logs,
   Pakete,
   Signale,
   Sitzung,
@@ -128,6 +129,11 @@ export const api = {
    *  gelaufen ist. Der Server antwortet dann mit 204 — die Ressource gibt es,
    *  sie ist nur leer. */
   job: (art: string) => anfrageOderLeer<Job>(`/jobs/${encodeURIComponent(art)}`),
+
+  /** logs fragt das Journal ab. Die Filter stehen als Abfragezeichenkette in
+   *  der Adresse — dieselbe, die der Strom bekommt, damit er nicht mehr zeigt
+   *  als die Liste vorher hergab. */
+  logs: (suchpfad = "") => anfrage<Logs>(`/logs${suchpfad ? `?${suchpfad}` : ""}`),
 
   pakete: () => anfrage<Pakete>("/packages"),
   paketlistenHolen: () =>

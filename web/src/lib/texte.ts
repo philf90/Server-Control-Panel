@@ -157,6 +157,44 @@ export const t = {
       n === 1 ? "1 Sicherheitsupdate" : `${n} Sicherheitsupdates`,
   },
 
+  logs: {
+    laedt: "wird geladen …",
+    zeit: "Zeit",
+    stufe: "Stufe",
+    unit: "Unit",
+    nachricht: "Nachricht",
+    suche: "Suche",
+    suchen: "suchen",
+    suchePlatzhalter: "im Text oder in der Unit",
+    alleUnits: "alle Units",
+    alleStufen: "alle Stufen",
+    abFehler: "ab Fehler",
+    abWarnung: "ab Warnung",
+    abInfo: "ab Info",
+    zeitraum: "Zeitraum",
+    ohneGrenze: "ohne Grenze",
+    letzteStunde: "letzte Stunde",
+    letzte6h: "letzte 6 Stunden",
+    letzte24h: "letzte 24 Stunden",
+    heute: "heute",
+    letzte7t: "letzte 7 Tage",
+    verfolgen: "verfolgen",
+    anhalten: "anhalten",
+    keine: "Keine Einträge.",
+    keineDetail:
+      "Zu diesen Filtern hat das Journal nichts. Ein weiterer Zeitraum oder eine niedrigere Stufe hilft.",
+    zuVieleZuschauer:
+      "Es sehen schon zu viele Verbindungen dem Journal zu — ein anderer Tab hält einen Strom offen.",
+    zeilenZahl: (n: number) => (n === 1 ? "1 Zeile" : `${n} Zeilen`),
+    holt: (n: number) => `holt ${n}`,
+    // Verworfene Zeilen ehrlich benennen: Das Journal schrieb schneller, als die
+    // Leitung übertragen konnte.
+    luecke: (n: number) =>
+      n === 1
+        ? "Eine Zeile ist unterwegs verloren gegangen — das Journal schrieb schneller als die Leitung."
+        : `${n} Zeilen sind unterwegs verloren gegangen — das Journal schrieb schneller als die Leitung.`,
+  },
+
   vorgang: {
     laeuft: "läuft",
     fertig: "abgeschlossen",

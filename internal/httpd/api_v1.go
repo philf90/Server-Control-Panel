@@ -288,6 +288,7 @@ func (s *Server) handleAPISignals(w http.ResponseWriter, r *http.Request) {
 var umzug = map[string]string{
 	"/services": "/v2/dienste",
 	"/packages": "/v2/pakete",
+	"/logs":     "/v2/logs",
 }
 
 func neuerPfad(href string) string {

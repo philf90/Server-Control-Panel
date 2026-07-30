@@ -5,8 +5,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
@@ -138,6 +140,28 @@ type ergebnisLeitstand struct {
 			Beschriftung  string  `json:"beschriftung"`
 		} `json:"schmal"`
 	} `json:"pakete"`
+	Logs struct {
+		ZeilenAnfangs    int      `json:"zeilenAnfangs"`
+		Spalten          []string `json:"spalten"`
+		StromVorherOffen bool     `json:"stromVorherOffen"`
+		NachStufenfilter string   `json:"nachStufenfilter"`
+		NachSuche        string   `json:"nachSuche"`
+		NachZurueck      struct {
+			Suche string `json:"suche"`
+			Feld  string `json:"feld"`
+		} `json:"nachZurueck"`
+		StromGeoeffnet    bool   `json:"stromGeoeffnet"`
+		ZeileNachgekommen bool   `json:"zeileNachgekommen"`
+		Doppelt           int    `json:"doppelt"`
+		KnopfText         string `json:"knopfText"`
+		NachAnhalten      bool   `json:"nachAnhalten"`
+		FolgerNachWechsel bool   `json:"folgerNachWechsel"`
+		Schmal            struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+			Beschriftung  string  `json:"beschriftung"`
+		} `json:"schmal"`
+	} `json:"logs"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -203,8 +227,16 @@ func TestLeitstandBrowser(t *testing.T) {
 	// Ein ausstehender Neustart, damit die Paketseite ihren Handlungsbedarf zeigt
 	// — und damit die dritte Bestätigungsstufe im Browser geprüft werden kann. Es
 	// ist die einzige Aktion der neuen Oberfläche, die sie verlangt.
-	s.ops.(*fakeOps).reboot = privops.RebootState{
+	ops := s.ops.(*fakeOps)
+	ops.reboot = privops.RebootState{
 		Required: true, Packages: []string{"linux-image-generic"},
+	}
+
+	// Ein Eintrag, der erst WÄHREND des Verfolgens hereinkommt. Ohne ihn prüfte
+	// der Browsertest nur, dass der Strom den Rückblick noch einmal liefert — und
+	// das ist keine Verfolgung, sondern eine zweite Momentaufnahme.
+	ops.folgeLogs = []privops.LogEntry{
+		{At: time.Now(), Unit: "cron.service", Priority: 4, Message: "waehrend-des-verfolgens"},
 	}
 
 	ts := httptest.NewServer(s.Handler())
@@ -601,6 +633,83 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if p.Schmal.Beschriftung == "" {
 		t.Error("die Zellen der Paketliste tragen im Schmalmodus keine Spaltenbeschriftung")
+	}
+
+	// 6d. Das Modul Logs — der zweite Strom, und ein anderer.
+	l := e.Logs
+	if l.ZeilenAnfangs == 0 {
+		t.Error("die Logseite zeigt keine Zeilen")
+	}
+	for _, spalte := range []string{"Zeit", "Stufe", "Unit", "Nachricht"} {
+		if !slices.Contains(l.Spalten, spalte) {
+			t.Errorf("die Spalte %q fehlt: %v", spalte, l.Spalten)
+		}
+	}
+	// Ohne Umschalten kein Strom: Wer die Seite öffnet, will meist lesen, was war.
+	// Ein Journal, das ungefragt einen journalctl-Prozess aufmacht, ist eine
+	// Zumutung an den Betrieb — und bei vier Bedienenden mit je zwei Tabs sofort
+	// an der Obergrenze.
+	if l.StromVorherOffen {
+		t.Error("die Seite öffnet den Journalstrom ungefragt — Verfolgen ist ein Schalter")
+	}
+
+	// Die Filter stehen in der Adresse, damit ein Verweis auf „nur Fehler"
+	// teilbar ist.
+	if !strings.Contains(l.NachStufenfilter, "priority=3") {
+		t.Errorf("der Stufenfilter steht nicht in der Adresse: %q", l.NachStufenfilter)
+	}
+	if !strings.Contains(l.NachSuche, "q=publickey") {
+		t.Errorf("die Suche steht nicht in der Adresse: %q", l.NachSuche)
+	}
+	if strings.Contains(l.NachZurueck.Suche, "q=publickey") {
+		t.Errorf("der Zurück-Knopf nimmt die Suche nicht zurück: %q", l.NachZurueck.Suche)
+	}
+	// Das Feld folgt der Adresse. Ohne das stünde nach dem Zurück-Knopf ein
+	// Suchbegriff im Feld, nach dem nicht gesucht wird.
+	if l.NachZurueck.Feld != "" {
+		t.Errorf("das Suchfeld hält %q, obwohl die Adresse die Suche nicht mehr trägt",
+			l.NachZurueck.Feld)
+	}
+
+	// Der Strom: erst auf Knopfdruck, dann kommen Zeilen nach.
+	if !l.StromGeoeffnet {
+		t.Error("der Knopf öffnet den Journalstrom nicht")
+	}
+	if !l.ZeileNachgekommen {
+		t.Error("während des Verfolgens kam keine Zeile nach — dann ist es keine " +
+			"Verfolgung, sondern eine Momentaufnahme mit Puls")
+	}
+	// Keine Zeile steht doppelt: Der Strom bringt seinen eigenen Rückblick mit —
+	// dieselben letzten N Einträge, die die Abfrage schon geliefert hat. Ohne das
+	// Leeren der Liste stand jede Zeile zweimal da, und bei 200 geholten Zeilen sah
+	// die Seite nach einem Klick auf „verfolgen" wie 400 Ereignisse aus.
+	if l.Doppelt > 0 {
+		t.Errorf("%d Zeilen stehen doppelt da — der Rückblick des Stroms wurde an die "+
+			"Liste angehängt statt sie zu ersetzen", l.Doppelt)
+	}
+	if !strings.Contains(l.KnopfText, "anhalten") {
+		t.Errorf("der Knopf heißt %q, erwartet \"anhalten\" — ein Schalter, der beim "+
+			"Einschalten weiter \"verfolgen\" heißt, sagt nicht, was er tut", l.KnopfText)
+	}
+	if !l.NachAnhalten {
+		t.Error("der Knopf hält den Strom nicht an")
+	}
+	// Und der Seitenwechsel hält ihn ebenfalls an. Sonst läuft auf dem Server ein
+	// journalctl weiter, dem niemand mehr zusieht — und nach vier Wechseln ist die
+	// Obergrenze für immer erreicht.
+	if !l.FolgerNachWechsel {
+		t.Error("nach dem Seitenwechsel zählt der Server noch einen Zuschauer — " +
+			"der Strom wurde nicht angehalten")
+	}
+
+	if l.Schmal.FensterBreite == 0 {
+		t.Error("die Logseite wurde nicht im Schmalmodus gemessen")
+	} else if l.Schmal.KoerperBreite > l.Schmal.FensterBreite+1 {
+		t.Errorf("die Logseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			l.Schmal.KoerperBreite, l.Schmal.FensterBreite)
+	}
+	if l.Schmal.Beschriftung == "" {
+		t.Error("die Zellen der Logliste tragen im Schmalmodus keine Spaltenbeschriftung")
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

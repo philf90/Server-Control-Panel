@@ -154,8 +154,9 @@ export const gruppen: Gruppe[] = [
         id: "logs",
         label: t.ziele.logs,
         symbol: "zeilen",
-        href: "/logs",
+        href: "/v2/logs",
         gruppe: t.bereiche.betrieb,
+        neu: true,
         auch: ["journal", "journalctl", "protokoll", "meldungen"],
       },
       {

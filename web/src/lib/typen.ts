@@ -157,12 +157,42 @@ export type Dienst = {
   autostart: string;
 };
 
-/** Logzeile ist eine Journalzeile im Inspektor. */
+/** Logzeile ist eine Journalzeile.
+ *
+ *  Dieselbe Form im Dienst-Inspektor und auf der Logseite. Die Felder `zeit` und
+ *  `at` stehen beide da: `zeit` ist die fertige Anzeige mit fester Breite, `at`
+ *  der rohe Wert. Im Inspektor ist `at` schon die fertige Zeit — dort trug das
+ *  Feld sie von Anfang an, und es umzubenennen hieße, die alte Fassung zu
+ *  ändern. `zeit` ist deshalb optional. */
 export type Logzeile = {
   at: string;
+  zeit?: string;
+  unit?: string;
   stufe: string;
+  stufe_nr?: number;
   nachricht: string;
   ernst: boolean;
+};
+
+/** Logs ist die Antwort von GET /api/v1/logs. */
+export type Logs = {
+  zeilen: Logzeile[];
+  units: string[];
+  /** abfrage ist, was der Server verstanden hat — nicht, was gefragt wurde. Wer
+   *  eine Grenze überschreitet, deren Deckel er nicht kennt, soll sehen, was
+   *  tatsächlich gefragt wurde. */
+  abfrage: {
+    unit: string;
+    stufe: number;
+    seit: string;
+    suche: string;
+    anzahl: number;
+  };
+  fehler: string;
+  /** folger_frei sagt, ob noch ein Strom offen sein darf. Damit kann die
+   *  Oberfläche den Knopf gleich richtig zeigen, statt ihn anzubieten und
+   *  abgewiesen zu werden. */
+  folger_frei: boolean;
 };
 
 /** DienstAktion ist eine der sechs erlaubten Aktionen aus der privops-Liste.

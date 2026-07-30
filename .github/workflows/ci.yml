@@ -180,6 +180,78 @@ jobs:
           [ "$fehler" -eq 0 ] || exit 1
           echo "alle Lizenzen im erlaubten Rahmen"
 
+  ui:
+    name: UI-Bundle reproduzierbar
+    runs-on: ubuntu-latest
+    # internal/ui/dist/ liegt im Repository, aus demselben Grund wie das
+    # Editor-Bundle: Ein Go-Build soll keine Node-Kette brauchen. Damit der
+    # eingecheckte Stand nachprüfbar bleibt, baut dieser Job ihn aus dem
+    # festgeschriebenen Lockfile nach und vergleicht byteweise — samt der
+    # gehashten Dateinamen, die sich bei jeder Inhaltsänderung mit ändern.
+    #
+    # Nachgewiesen ist die Reproduzierbarkeit über drei Fälle: zwei Läufe
+    # hintereinander, ein Lauf aus einem anderen Verzeichnispfad und ein Lauf
+    # nach frischem npm ci.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Nachbauen und vergleichen
+        run: |
+          set -euo pipefail
+          cp -r internal/ui/dist "${RUNNER_TEMP}/dist.eingecheckt"
+          cd web
+          npm ci --no-audit --no-fund
+          npm run build
+          cd ..
+          if ! diff -r "${RUNNER_TEMP}/dist.eingecheckt" internal/ui/dist; then
+            echo "Der eingecheckte UI-Bundle stimmt nicht mit dem Nachbau überein."
+            echo "Bitte 'make ui' laufen lassen und das Ergebnis mit einchecken."
+            exit 1
+          fi
+          echo "Bundle reproduzierbar: $(du -sh internal/ui/dist | cut -f1)"
+
+      - name: Lizenzen des Fremdcodes
+        # Dieselbe Allowlist wie beim Editor-Bundle. Was ins Binary wandert,
+        # muss eine Lizenz haben, die das Projekt weitergeben kann.
+        #
+        # Dazu eine namentliche Ausnahmeliste statt einer weiteren erlaubten
+        # Lizenz: lightningcss ist MPL-2.0 und wandelt Stylesheets während des
+        # Baus um — sein Code landet nicht im Ergebnis, seine dateiweise
+        # Copyleft-Wirkung erreicht das ausgelieferte Bundle also nicht. Als
+        # erlaubte Lizenz eingetragen würde dieselbe Nachsicht aber auch für
+        # eine Abhängigkeit gelten, die tatsächlich mitgeliefert wird. Deshalb
+        # der Name und nicht die Lizenz.
+        run: |
+          set -euo pipefail
+          cd web
+          erlaubt="MIT ISC BSD-2-Clause BSD-3-Clause Apache-2.0 0BSD"
+          nur_bauzeit="lightningcss"
+          fehler=0
+          for pfad in node_modules/*/package.json node_modules/@*/*/package.json; do
+            [ -f "$pfad" ] || continue
+            name="$(node -p "require('./$pfad').name")"
+            lizenz="$(node -p "require('./$pfad').license || ''")"
+            case " $erlaubt " in
+              *" $lizenz "*) continue ;;
+            esac
+            # Plattformbinaries heißen wie das Paket mit Zielsuffix
+            # (lightningcss-linux-x64-gnu) — der Präfixvergleich deckt sie mit.
+            ausgenommen=0
+            for erlaubter in $nur_bauzeit; do
+              case "$name" in "$erlaubter"|"$erlaubter"-*) ausgenommen=1 ;; esac
+            done
+            if [ "$ausgenommen" -eq 1 ]; then
+              echo "nur zur Bauzeit, nicht im Bundle: $name = $lizenz"
+              continue
+            fi
+            echo "unerwartete Lizenz: $name = ${lizenz:-keine}"
+            fehler=1
+          done
+          [ "$fehler" -eq 0 ] || exit 1
+          echo "alle Lizenzen im erlaubten Rahmen"
+
   shell:
     name: Shell-Skripte
     runs-on: ubuntu-latest

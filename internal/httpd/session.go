@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/philf90/asylum/internal/auth"
@@ -255,6 +256,15 @@ func (s *Server) redirectToLogin(w http.ResponseWriter, r *http.Request) {
 	// eine Weiterleitung auf HTML sinnlos — dort zählt der Statuscode.
 	if r.Header.Get("Accept") == "text/event-stream" {
 		http.Error(w, "nicht angemeldet", http.StatusUnauthorized)
+		return
+	}
+	// Dasselbe gilt für die JSON-Schnittstelle, und dort strenger: Ein fetch,
+	// das auf eine Anmeldeseite umgeleitet wird, bekommt HTML und meldet einen
+	// Parserfehler — die eigentliche Ursache wäre damit verdeckt. Erkannt wird
+	// der Fall am Pfad und nicht am Accept-Kopf: Den setzt jede Kundin selbst,
+	// den Pfad bestimmt die Anwendung.
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		s.apiFehler(w, http.StatusUnauthorized, "nicht angemeldet")
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)

@@ -56,6 +56,15 @@ func (s *Server) Handler() http.Handler {
 	// Vollständig angemeldet.
 	mux.Handle("GET /{$}", s.protected(http.HandlerFunc(s.handleDashboard)))
 	mux.Handle("GET /events", s.protected(http.HandlerFunc(s.handleEvents)))
+
+	// Die neue Oberfläche und ihre Schnittstelle. Beide liegen neben dem
+	// Bestand, nicht an seiner Stelle: Solange die Parität nicht steht, ist der
+	// Weg zurück nach / immer da, und kein Handgriff geht verloren, wenn hier
+	// etwas fehlt.
+	mux.Handle("GET /api/v1/session", s.protected(http.HandlerFunc(s.handleAPISession)))
+	mux.Handle("GET /api/v1/overview", s.protected(http.HandlerFunc(s.handleAPIOverview)))
+	mux.Handle("GET /api/v1/metrics/history", s.protected(http.HandlerFunc(s.handleAPIMetricsHistory)))
+	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))
 	mux.Handle("POST /account/password", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasswordChange))))

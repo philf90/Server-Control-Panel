@@ -261,6 +261,7 @@ func buildSpark(at []time.Time, vals []float64, text func(float64) string, minSp
 		// non-scaling-stroke ergibt einen runden Punkt.
 		Dot:    fmt.Sprintf("M%.1f %.1f L%.1f %.1f", letzter.X, letzter.Y, letzter.X, letzter.Y),
 		Points: string(roh),
+		Punkte: punkte,
 		Has:    true,
 	}
 }

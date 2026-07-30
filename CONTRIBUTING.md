@@ -46,6 +46,43 @@ Der ausgegebene Link führt durch die Ersteinrichtung. Ohne systemd und ohne
 root fehlen die Systemmodule — die Oberfläche zeigt dann eine Meldung statt
 Daten, was ein gültiger Zustand ist und getestet wird.
 
+### Oberfläche ändern
+
+Für Go allein ist **kein Node nötig**. Zwei gebaute Bündel liegen im
+Repository, damit das so bleibt:
+
+| Was | Quelle | Ergebnis | Ziel |
+|---|---|---|---|
+| Oberfläche (Svelte 5, Vite) | `web/` | `internal/ui/dist/` | `make ui` |
+| Editor (CodeMirror, esbuild) | `packaging/editor/` | `internal/ui/static/editor/cm.js` | `make editor` |
+
+Wer an einem davon arbeitet, braucht Node 22 und muss **das gebaute Ergebnis
+mit einchecken**: Je ein CI-Job baut es aus dem festgeschriebenen Lockfile nach
+und vergleicht byteweise. Schlägt er an, fehlt der Lauf von `make ui` bzw.
+`make editor` im Commit.
+
+Daraus folgen drei Regeln für `web/`:
+
+- **Fassungen exakt festschreiben**, kein `^` und kein `~`. Eine Nebenfassung
+  mehr, und der Nachbau weicht ab.
+- **Nichts in die Ausgabe, was von der Umgebung abhängt** — keine Zeitstempel,
+  kein `esnext` als Ziel, keine Sourcemap. Die Begründung steht in
+  `web/vite.config.js` an jeder betroffenen Einstellung.
+- **Keine externe Quelle zur Laufzeit** — kein CDN, keine Schriftdatei, kein
+  Bild von woanders. Die Richtlinie des Panels (`default-src 'none'`) ließe es
+  nicht zu, und das ist Absicht.
+
+Die neue Oberfläche liegt unter `/v2/` und die bestehende unverändert unter
+`/`, bis die Parität steht. Der Browsertest dazu hängt hinter einer
+Umgebungsvariablen, weil er Node und Chromium braucht:
+
+```bash
+ASYLUM_LEITSTAND_E2E=1 \
+  ASYLUM_CHROMIUM=/pfad/zu/chrome \
+  ASYLUM_NODE_PATH=/pfad/zu/node_modules \
+  go test ./internal/httpd -run TestLeitstandBrowser -v
+```
+
 ## Was ein Pull Request erfüllen muss
 
 Die CI prüft das alles; lokal geht es schneller.

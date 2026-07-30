@@ -28,7 +28,12 @@ export const t = {
     dateien: "Dateien",
     logs: "Logs",
     audit: "Audit",
-    einstellungen: "Einstellungen",
+    // „Panel-Zugänge" und nicht „Benutzer": Der Unterschied zu „Benutzer & SSH"
+    // muss im Menü stehen, nicht erst auf der Seite. Bis 0.4.0-rc.3 hieß dieser
+    // Punkt „Einstellungen" und führte auf die Kontenliste der alten Oberfläche —
+    // ein Name, der etwas anderes versprach, als dahinter stand.
+    zugaenge: "Panel-Zugänge",
+    konto: "Eigenes Konto",
   },
 
   kacheln: {
@@ -370,7 +375,7 @@ export const t = {
     // Der Satz, der die beiden Kontenarten auseinanderhält. Wer das verwechselt,
     // legt ein Konto an, das nichts kann — oder eines, das mehr kann als gedacht.
     wesen:
-      "Konten des Servers, nicht des Panels: Damit kommt man über SSH auf die Maschine. Panel-Zugänge stehen unter Einstellungen.",
+      "Konten des Servers, nicht des Panels: Damit kommt man über SSH auf die Maschine. Die Zugänge zum Panel selbst stehen unter „Panel-Zugänge“; sie verwaltet die Owner-Rolle.",
     name: "Name",
     uid: "UID",
     gruppen: "Gruppen",
@@ -424,6 +429,79 @@ export const t = {
       "Das ist der einzige Schlüssel. Ohne ihn hat das Konto keinen Zugang mehr.",
     fingerprint: "Fingerprint",
     art: "Art",
+  },
+
+  zugaenge: {
+    laedt: "wird geladen …",
+    // Der Gegensatz zum wesen-Satz bei „Benutzer & SSH". Beide Sätze zusammen
+    // halten die zwei Kontenarten auseinander, und sie stehen absichtlich
+    // nebeneinander im Menü.
+    wesen:
+      "Konten dieser Oberfläche, nicht des Servers: Damit kommt man in das Panel. Systemkonten für SSH stehen unter Benutzer & SSH.",
+    nurOwner:
+      "Diese Fläche ist der Owner-Rolle vorbehalten. Wer Konten verwalten kann, kann jedem Zugang zu allem anderen geben.",
+    name: "Anmeldename",
+    rolle: "Rolle",
+    zustand: "Zustand",
+    passkeysSpalte: "Passkeys",
+    letzteAnmeldung: "Letzte Anmeldung",
+    angelegt: "Angelegt",
+    nie: "noch nie",
+    suchen: "Zugang suchen",
+    alle: "alle",
+    owner: "Owner",
+    gesperrt: "gesperrt",
+    aktiv: "aktiv",
+    offen: "Einrichtung offen",
+    nichts: "Kein Zugang passt.",
+    ich: "das ist Ihr Konto",
+    ichHinweis:
+      "Am eigenen Konto ändert man hier nichts: Passwort, zweiter Faktor und Passkeys stehen auf der Kontoseite, und sperren oder löschen wäre ein Selbstausschluss.",
+    letzterOwner:
+      "Das letzte Owner-Konto. Es lässt sich nicht löschen — danach könnte niemand mehr Konten verwalten.",
+    keinZweiterFaktor:
+      "Der zweite Faktor ist noch nicht eingerichtet. Das geschieht bei der nächsten Anmeldung.",
+    einmalpasswortOffen:
+      "Das Konto hat ein Einmalpasswort aus einer Zurücksetzung. Es wird bei der nächsten Anmeldung ersetzt.",
+    nurLesen: "Dieses Konto darf keine Panel-Zugänge ändern.",
+
+    anlegen: "Zugang anlegen",
+    anlegenTitel: "Neuer Panel-Zugang",
+    // Warum es kein Passwortfeld gibt. Der Satz ist die Antwort auf die Frage,
+    // die jeder stellt, der hier ein solches Feld erwartet.
+    anlegenHinweis:
+      "Das Startpasswort erzeugt das Panel. Es steht genau einmal in der Antwort, gilt als Einmalpasswort und wird bei der ersten Anmeldung ersetzt — zusammen mit der Einrichtung des zweiten Faktors.",
+    namePlatzhalter: "anmeldename",
+    abbrechen: "abbrechen",
+
+    handgriff: {
+      sperren: "sperren",
+      freigeben: "freigeben",
+      loeschen: "löschen",
+      passwort: "Passwort zurücksetzen",
+      "zweiter-faktor": "zweiten Faktor zurücksetzen",
+      passkeys: "Passkeys entfernen",
+    } as Record<string, string>,
+
+    // Die zweite Schranke. Der Satz sagt, WESSEN Passwort gemeint ist — die
+    // häufigste Verwechslung an dieser Stelle.
+    eigenesPasswort: "Ihr eigenes Passwort",
+    eigenesPasswortWarum:
+      "Zum Zurücksetzen eines fremden Kontos ist Ihr eigenes Passwort nötig. Ein übernommenes Fenster allein soll kein anderes Konto übernehmen können.",
+    weiter: "zurücksetzen",
+
+    // Das Einmalpasswort. Es steht genau einmal da, und das muss dabeistehen.
+    einmalpasswortTitel: "Einmalpasswort",
+    einmalpasswortEinmal:
+      "Dieses Passwort steht nur hier und wird nicht noch einmal angezeigt. Wer es verliert, setzt erneut zurück.",
+    kopieren: "kopieren",
+    kopiert: "kopiert",
+    verstanden: "notiert, schließen",
+    fuer: (name: string) => `für ${name}`,
+
+    passkeysAus: "Passkeys sind in dieser Installation abgeschaltet.",
+    passkeysAnzahl: (n: number) => (n === 1 ? "1 Passkey" : `${n} Passkeys`),
+    keinePasskeys: "kein Passkey",
   },
 
   audit: {

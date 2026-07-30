@@ -168,6 +168,21 @@ func (db *DB) SetDisabled(ctx context.Context, userID int64, disabled bool) erro
 	return err
 }
 
+// DeleteUser löscht ein Konto.
+//
+// Sitzungen, Wiederherstellungscodes und Passkeys hängen mit
+// `ON DELETE CASCADE` am Konto und verschwinden mit ihm — deshalb genügt hier
+// eine Anweisung. Das Audit-Protokoll bleibt: es hält den Anmeldenamen als
+// Text, nicht als Fremdschlüssel, weil ein gelöschtes Konto seine Spur nicht
+// mitnehmen darf.
+func (db *DB) DeleteUser(ctx context.Context, userID int64) error {
+	_, err := db.sql.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("benutzer löschen: %w", err)
+	}
+	return nil
+}
+
 // ReplaceRecoveryCodes ersetzt alle Wiederherstellungscodes eines Benutzers.
 func (db *DB) ReplaceRecoveryCodes(ctx context.Context, userID int64, hashes []string) error {
 	tx, err := db.sql.BeginTx(ctx, nil)

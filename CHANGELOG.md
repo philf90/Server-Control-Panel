@@ -9,6 +9,65 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Hinzugefügt
+
+- **Modul Audit in der neuen Oberfläche.** Das Protokoll mit Filter auf dem
+  Server (Akteur, Bereich, Ergebnis, Suche in Ziel und Einzelheiten) und
+  Blätterung über die Kennung statt über `OFFSET` — bei einem Protokoll, das
+  während des Blätterns wächst, verschiebt `OFFSET` die Grenze und überspringt
+  Einträge. Nur lesend, und das ist keine Auslassung: Der Store hat bewusst
+  keine Lösch- oder Änderungsfunktion.
+
+- **Modul Benutzer & SSH in der neuen Oberfläche.** Sechs Routen: Systemkonten
+  des Wirtsystems und ihre Schlüssel. Ein Konto ohne Schlüssel ist eine
+  Auffälligkeit mit eigenem Zähler — aber nur bei Menschenkonten, bei einem
+  Dienstkonto ist es die Bauart. Der letzte Schlüssel eines Kontos verlangt
+  Stufe 3 mit dem Kontonamen: Ihn zu entfernen legt den Zugang still.
+
+- **Modul Panel-Zugänge in der neuen Oberfläche.** Sieben Routen — die Konten
+  DIESER Oberfläche, nicht die des Servers. Vier Schranken aus der alten Fläche
+  bleiben unverändert: nur die Owner-Rolle (auch lesend), jede Zurücksetzung
+  verlangt das eigene Passwort des Owners, das eigene Konto läuft nicht über
+  diesen Weg, und das letzte Owner-Konto lässt sich nicht löschen.
+
+  **`store.User` wird nie serialisiert.** Der Typ trägt `PasswordHash` und
+  `TOTPSecret`. Die Antwort zählt ihre Felder ausdrücklich auf, statt den
+  Store-Typ mit `json:"-"` an den heiklen Stellen einzubetten: Kommt dem Store
+  ein Feld hinzu, wandert es beim Einbetten mit, hier nicht. Ein Test prüft das
+  an den WERTEN im rohen Körper und nicht an Feldnamen — ein umbenanntes Feld
+  rutschte sonst durch.
+
+  **Die Bedingung steht vor dem Handgriff.** Das Feld für das eigene Passwort
+  steht offen im Inspektor, und die drei Zurücksetzungen sind gesperrt, solange
+  es leer ist. Ein Knopf, der erst nach dem Klick mit 403 antwortet, ist selbst
+  der Fehler. Nach jedem Aufruf wird das Feld geleert — auch nach einem
+  gescheiterten, weil ein gefülltes Feld zum zweiten Versuch mit demselben
+  falschen Wort verleitet.
+
+  **Ein Einmalpasswort steht genau einmal da**, in einem Dialog, den Escape
+  nicht schließt. Es erscheint nicht im Audit-Protokoll, nicht im Konsolen-Echo
+  und in keiner zweiten Antwort; wer es verliert, setzt erneut zurück.
+
+- **Rollenabhängige Navigation in der neuen Oberfläche.** Was eine Rolle nicht
+  erreicht, steht nicht in der Seitenleiste und nicht in der Befehlspalette —
+  wie in der alten Oberfläche (`{{if .IsOwner}}`). Gefiltert wird an einer
+  Stelle (`web/src/lib/ziele.ts`): Zwei Filter derselben Regel laufen
+  auseinander, und der übersehene wäre die Palette. Verbindlich bleibt die
+  Route.
+
+### Geändert
+
+- **Der Menüpunkt „Einstellungen" ist aufgeteilt.** Er zeigte auf `/users`, die
+  Kontenliste — ein Name, der etwas anderes versprach, als dahinter stand. Jetzt
+  „Panel-Zugänge" (neu gebaut, unter `/v2/zugaenge`) und „Eigenes Konto" (zeigt
+  weiter auf `/account` der alten Oberfläche, bis das Modul übertragen ist).
+  „Panel-Zugänge" steht direkt unter „Benutzer & SSH": Die zwei Kontenarten sind
+  die häufigste Verwechslung im Panel.
+
+- **Eine abgelehnte Rechtefrage ist kein Ladefehler mehr.** Antwortet die
+  Schnittstelle mit 403, sagt die Seite den Grund und stellt keinen Knopf
+  „Erneut versuchen" daneben — er brächte nie ein anderes Ergebnis.
+
 ## [0.4.0-rc.3] — 2026-07-30
 
 Das größte Modul der neuen Oberfläche und das einzige echte technische Risiko

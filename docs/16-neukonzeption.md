@@ -606,8 +606,23 @@ gehört der Kachelzahl.
 2. **Seitenleiste** links, 240 px, einklappbar auf eine 64-px-Symbolschiene.
    Vier Gruppen: **System** (Übersicht, Dienste, Pakete, Cron & Timer),
    **Apps** (Docker, Webserver, Datenbanken, Backups), **Sicherheit**
-   (Firewall, Benutzer & SSH, Zertifikate), **Betrieb** (Dateien, Logs, Audit,
-   Einstellungen). Warnpunkt je Eintrag wie bisher.
+   (Firewall, Benutzer & SSH, Panel-Zugänge, Zertifikate), **Betrieb**
+   (Dateien, Logs, Audit, Eigenes Konto). Warnpunkt je Eintrag wie bisher.
+
+   Der Punkt hieß im Entwurf „Einstellungen" und zeigte bis 0.4.0-rc.3 auf
+   `/users` — die Kontenliste. Der Name versprach etwas anderes, als dahinter
+   stand. Aufgeteilt in „Panel-Zugänge" (Konten dieser Oberfläche, der
+   Owner-Rolle vorbehalten) und „Eigenes Konto"; „Panel-Zugänge" steht
+   absichtlich direkt unter „Benutzer & SSH", weil die zwei Kontenarten die
+   häufigste Verwechslung im Panel sind und zwei Menüpunkte nebeneinander mehr
+   über den Unterschied sagen als jeder Erklärsatz auf einer der beiden Seiten.
+
+   Was die Rolle nicht erreicht, steht nicht in der Leiste und nicht in der
+   Befehlspalette. Gefiltert wird in `web/src/lib/ziele.ts` und nicht an beiden
+   Stellen: Zwei Filter derselben Regel laufen auseinander, und der übersehene
+   wäre die Palette — dort fällt ein Ziel zu viel niemandem auf, bis es
+   angeklickt wird. Verbindlich bleibt die Route (`apiOwner`), die Leiste ist
+   Bedienhilfe.
 3. **Inhalt** mit Brotkrume, Seitentitel und den Mustern aus dem
    Komponentenvorrat.
 4. **Protokollzeile** unten: der zuletzt ausgeführte Befehl mit Exit-Code und

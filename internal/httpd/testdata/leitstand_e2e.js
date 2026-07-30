@@ -243,6 +243,13 @@ async function main() {
   palette.zieleGesamt = await seite.evaluate(
     () => document.querySelectorAll('[role="option"]').length,
   );
+  // Und dieselbe Zahl aus der Seitenleiste. Verglichen wird gegeneinander und
+  // nicht gegen eine feste Zahl: Ein neues Modul erschien sonst in der Leiste,
+  // aber nicht in der Suche — genau der Fehler, den lib/ziele.ts verhindern
+  // soll —, und eine Zahl im Test nachzuziehen ist kein Nachweis.
+  palette.zieleInLeiste = await seite.evaluate(
+    () => document.querySelectorAll(".seitenleiste nav a").length,
+  );
 
   // Ein Suchwort, das NICHT im Namen steht: "nginx" muss den Webserver finden.
   // Genau daran entscheidet sich, ob die Palette eine Suche ist oder eine Liste.
@@ -1782,6 +1789,260 @@ async function main() {
   }));
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 12f. Panel-Zugänge. Vier Dinge sind hier nur im Browser zu sehen:
+  //
+  //      1. Die eigene Zeile trägt eine Marke und KEINE Handgriffe. Ein Modul,
+  //         das sie einfach weglässt, sieht halb gebaut aus.
+  //      2. Die Schranke vor den Zurücksetzungen steht offen da, und ihre Knöpfe
+  //         sind gesperrt, solange das Feld leer ist. Das ist der Unterschied
+  //         zwischen einer sichtbaren Bedingung und einem 403 nach dem Klick.
+  //      3. Das Einmalpasswort steht in einem Dialog, den Escape NICHT schließt.
+  //         Es kommt kein zweites Mal; ein Band, das beim nächsten Klick
+  //         verschwindet, wäre die falsche Form.
+  //      4. Der Dialog sitzt in der Mitte. Dieselbe Messung wie bei der
+  //         Rückfrage, und aus demselben Grund: `* { margin: 0 }` hat
+  //         margin:auto schon einmal geschlagen, und gesehen hat das erst ein
+  //         Bildschirmfoto.
+  const zugaenge = {};
+  await seite.goto(`${basis}/v2/zugaenge`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  zugaenge.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  zugaenge.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector(".zeile")?.textContent.trim() ?? "",
+      ich: tr.querySelector(".namenszelle .marke") !== null,
+      zustand: tr.querySelector("td:nth-child(5) .zustand")?.textContent.trim() ?? "",
+    })),
+  );
+  // Der Menüpunkt ist da — für die Owner-Rolle. Die Gegenprobe steht in 12g.
+  zugaenge.imMenue = await seite.evaluate(
+    () => document.querySelector('.seitenleiste a[href="/v2/zugaenge"]') !== null,
+  );
+
+  // Das eigene Konto: markiert, ohne Handgriffe, mit dem Satz, der das erklärt.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find(
+      (x) => x.textContent.trim() === "philipp",
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  zugaenge.eigenes = await seite.evaluate(() => ({
+    handgriffe: document.querySelectorAll(".inspektor .aktionen .knopf").length,
+    schranke: document.querySelector(".inspektor .schranke") !== null,
+    hinweis:
+      document.querySelector(".inspektor .anmerkung")?.textContent.trim() ?? "",
+  }));
+
+  // Und das fremde Konto: alles da, und die Schranke davor.
+  await seite.evaluate(() => {
+    const z = [...document.querySelectorAll("table.tabelle .zeile")].find(
+      (x) => x.textContent.trim() === "vertretung",
+    );
+    z.click();
+  });
+  await seite.waitForSelector(".inspektor .schranke", { timeout: 5000 });
+  zugaenge.fremdes = await seite.evaluate(() => {
+    const schranke = document.querySelector(".inspektor .schranke");
+    return {
+      handgriffe: [...document.querySelectorAll(".inspektor .handgriffe .knopf")].map((b) =>
+        b.textContent.trim(),
+      ),
+      // Der Satz sagt, WESSEN Passwort gemeint ist — die häufigste Verwechslung
+      // an dieser Stelle.
+      warum: schranke.querySelector(".detail")?.textContent.trim() ?? "",
+      feldTyp: schranke.querySelector("input")?.getAttribute("type") ?? "",
+      // Gesperrt, solange das Feld leer ist.
+      gesperrt: [...schranke.querySelectorAll(".knopf")].map((b) => b.disabled),
+      knoepfe: [...schranke.querySelectorAll(".knopf")].map((b) => b.textContent.trim()),
+    };
+  });
+
+  // Sperren ist Stufe 2: eine Frage, kein Tippfeld.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .handgriffe .knopf")].find(
+      (x) => x.textContent.trim() === "sperren",
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  zugaenge.sperren = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    const r = d.getBoundingClientRect();
+    return {
+      frage: d.querySelector(".frage")?.textContent.trim() ?? "",
+      tippfeld: d.querySelector(".tippen") !== null,
+      // Die Mitte, gemessen: links und rechts derselbe Abstand.
+      links: r.left,
+      rechts: window.innerWidth - r.right,
+      oben: r.top,
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+
+  // Löschen ist Stufe 3: Der Anmeldename muss getippt werden, und der Knopf
+  // bleibt gesperrt, bis er stimmt.
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .handgriffe .knopf")].find(
+      (x) => x.textContent.trim() === "löschen",
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open] .tippen", { timeout: 5000 });
+  await seite.fill("dialog.rueckfrage .tippen input", "vertretun");
+  await seite.waitForTimeout(120);
+  const gesperrtFalsch = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll("dialog.rueckfrage .knopf")].find((b) =>
+        b.textContent.includes("löschen"),
+      )?.disabled ?? null,
+  );
+  await seite.fill("dialog.rueckfrage .tippen input", "vertretung");
+  await seite.waitForTimeout(120);
+  const gesperrtRichtig = await seite.evaluate(
+    () =>
+      [...document.querySelectorAll("dialog.rueckfrage .knopf")].find((b) =>
+        b.textContent.includes("löschen"),
+      )?.disabled ?? null,
+  );
+  zugaenge.loeschen = { gesperrtFalsch, gesperrtRichtig };
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  // Das Konto steht noch. DAS ist die Prüfung, die zählt.
+  zugaenge.nachAbbruch = await seite.evaluate(() => ({
+    dialogZu: document.querySelector("dialog.rueckfrage") === null,
+    reihen: document.querySelectorAll("table.tabelle tbody tr").length,
+  }));
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zugaenge.png`,
+      fullPage: true,
+    });
+  }
+
+  // Und jetzt die Zurücksetzung mit dem eigenen Passwort. Das Einmalpasswort
+  // landet in einem Dialog, den Escape nicht schließt.
+  await seite.fill(".inspektor .schranke input", "ein sehr langes Testpasswort");
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll(".inspektor .schranke .knopf")].find((x) =>
+      x.textContent.includes("Passwort zurücksetzen"),
+    );
+    b.click();
+  });
+  await seite.waitForSelector("dialog.einmal[open]", { timeout: 5000 });
+  zugaenge.einmal = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.einmal");
+    const r = d.getBoundingClientRect();
+    return {
+      wort: d.querySelector(".wort")?.textContent.trim() ?? "",
+      // „steht nur hier" — der Satz muss dabeistehen, sonst schließt man den
+      // Dialog und hat das Passwort verloren.
+      warnung: d.querySelector(".warnung")?.textContent.trim() ?? "",
+      knoepfe: [...d.querySelectorAll(".knopf")].map((b) => b.textContent.trim()),
+      links: r.left,
+      rechts: window.innerWidth - r.right,
+    };
+  });
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    // Das Einmalpasswort bekommt ein eigenes Bild: Es ist die heikelste Fläche des
+    // Moduls, und ob der Satz „steht nur hier" daneben auch gelesen wird, sieht man
+    // nur an der Anordnung.
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-einmalpasswort.png`,
+    });
+  }
+
+  // Escape darf ihn NICHT schließen.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(250);
+  zugaenge.nachEscape = await seite.evaluate(
+    () => document.querySelector("dialog.einmal[open]") !== null,
+  );
+  // Und das Feld ist danach leer: Ein gefülltes Passwortfeld verleitet zum
+  // nächsten Klick auf ein anderes Ziel.
+  zugaenge.feldLeer = await seite.evaluate(
+    () => (document.querySelector(".inspektor .schranke input")?.value ?? "x") === "",
+  );
+  await seite.evaluate(() => {
+    const b = [...document.querySelectorAll("dialog.einmal .knopf")].find((x) =>
+      x.textContent.includes("notiert"),
+    );
+    b.click();
+  });
+  await seite.waitForTimeout(250);
+  zugaenge.zu = await seite.evaluate(
+    () => document.querySelector("dialog.einmal") === null,
+  );
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  zugaenge.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
+  // 12g. Die Gegenprobe mit einer anderen Rolle. Ein eigener Browserkontext mit
+  //      dem Cookie eines Admin-Kontos: Der Menüpunkt fehlt, die Palette findet
+  //      ihn nicht, und der Pfad von Hand aufgerufen sagt, WARUM er nichts zeigt.
+  //      Das ist Bedienhilfe und keine Sicherheitsmaßnahme — die Route antwortet
+  //      ohnehin 403 —, aber ein Menüpunkt, der zuverlässig „vorbehalten" sagt,
+  //      ist eine Einladung, es trotzdem zu versuchen.
+  const fremdeRolle = {};
+  if (process.env.ASYLUM_E2E_COOKIE2) {
+    const [n2, w2] = process.env.ASYLUM_E2E_COOKIE2.split("=");
+    const kontext2 = await browser.newContext({ ignoreHTTPSErrors: true });
+    await kontext2.addCookies([
+      {
+        name: n2,
+        value: w2,
+        domain: url.hostname,
+        path: "/",
+        httpOnly: true,
+        secure: false,
+        sameSite: "Strict",
+      },
+    ]);
+    const seite2 = await kontext2.newPage();
+    await seite2.goto(`${basis}/v2/`, { waitUntil: "domcontentloaded" });
+    await seite2.waitForSelector(".seitenleiste a", { timeout: 5000 });
+    fremdeRolle.imMenue = await seite2.evaluate(
+      () => document.querySelector('.seitenleiste a[href="/v2/zugaenge"]') !== null,
+    );
+    // Die Palette: Auch dort nicht.
+    await seite2.keyboard.press("Control+k");
+    await seite2.waitForSelector('[role="dialog"]', { timeout: 5000 });
+    await seite2.fill("input.feld", "zugänge");
+    await seite2.waitForTimeout(200);
+    fremdeRolle.inPalette = await seite2.evaluate(
+      () => document.querySelectorAll('[role="option"]').length,
+    );
+    await seite2.keyboard.press("Escape");
+
+    // Der Pfad von Hand: Die Seite sagt, warum sie leer ist.
+    await seite2.goto(`${basis}/v2/zugaenge`, { waitUntil: "domcontentloaded" });
+    await seite2.waitForSelector(".hinweis", { timeout: 5000 });
+    fremdeRolle.satz = await seite2.evaluate(
+      () => document.querySelector(".hinweis .detail")?.textContent.trim() ?? "",
+    );
+    // Und KEIN Knopf „Erneut versuchen": Er brächte nie ein anderes Ergebnis.
+    fremdeRolle.erneutKnopf = await seite2.evaluate(
+      () => document.querySelector(".hinweis .knopf") !== null,
+    );
+    if (process.env.ASYLUM_E2E_SHOTS) {
+      await seite2.screenshot({
+        path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zugaenge-fremde-rolle.png`,
+        fullPage: true,
+      });
+    }
+    await kontext2.close();
+  }
+
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
@@ -1834,6 +2095,8 @@ async function main() {
       editor,
       audit,
       konten,
+      zugaenge,
+      fremdeRolle,
       bald,
       zweige,
       schmal,

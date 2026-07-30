@@ -6,8 +6,16 @@
   // Die Ziele selbst stehen in lib/ziele.ts, weil die Befehlspalette dieselbe
   // Liste braucht. Zwei Listen desselben Menüs laufen auseinander: Ein neues
   // Modul erschiene dann in der Leiste, aber nicht in der Suche.
-  import { gruppen } from "../lib/ziele";
+  //
+  // Was die Rolle nicht erreicht, steht nicht darin: Ein Menüpunkt, der
+  // zuverlässig „der Owner-Rolle vorbehalten" antwortet, ist kein Menüpunkt.
+  // Gefiltert wird in lib/ziele.ts, damit die Palette dieselbe Regel benutzt.
+  import { sichtbareGruppen } from "../lib/ziele";
   import { verweis, weg } from "../lib/weg.svelte";
+
+  let { istOwner = false }: { istOwner?: boolean } = $props();
+
+  const gruppen = $derived(sichtbareGruppen(istOwner));
 
   // Der hervorgehobene Punkt kommt aus dem Weg und nicht aus einer Eigenschaft:
   // Die Kennungen der Ziele in lib/ziele.ts sind dieselben, die der Router

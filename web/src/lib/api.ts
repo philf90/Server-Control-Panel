@@ -21,6 +21,9 @@ import type {
   Logs,
   Ordnerauswahl,
   Pakete,
+  Panelantwort,
+  Panelauftrag,
+  Panelzugaenge,
   Pruefung,
   Regel,
   Schluesselliste,
@@ -45,6 +48,20 @@ export class AbgemeldetFehler extends Error {
   constructor() {
     super("nicht angemeldet");
     this.name = "AbgemeldetFehler";
+  }
+}
+
+/** VerbotenFehler steht für 403: Die Rolle darf das nicht.
+ *
+ *  Ein eigener Typ, weil die Oberfläche daraus etwas anderes machen muss als aus
+ *  einem Ladefehler. „Die Daten konnten nicht geladen werden" mit einem Knopf
+ *  „Erneut versuchen" ist bei einer Rechtefrage die falsche Auskunft in zwei
+ *  Punkten: Der Grund ist nicht ein Fehlschlag, und der Knopf führt nie zu einem
+ *  anderen Ergebnis. Die Meldung des Servers trägt den Grund. */
+export class VerbotenFehler extends Error {
+  constructor(meldung: string) {
+    super(meldung);
+    this.name = "VerbotenFehler";
   }
 }
 
@@ -144,6 +161,10 @@ async function anfrage<T>(pfad: string, init?: RequestInit): Promise<T> {
     } catch {
       /* Statuscode genügt. */
     }
+    // 403 ist kein Fehlschlag, sondern eine Auskunft über die Rolle. Wer sie als
+    // Ladefehler zeigt, stellt einen Knopf daneben, der nie ein anderes Ergebnis
+    // bringt.
+    if (antwort.status === 403) throw new VerbotenFehler(meldung);
     throw new Error(meldung);
   }
   return (await antwort.json()) as T;
@@ -424,6 +445,39 @@ export const api = {
         fingerprint: "",
         gesperrt: false,
         home_entfernen: false,
+        ...felder,
+        bestaetigt,
+        getippt,
+      }),
+    }),
+
+  // -------------------------------------------------------- Panel-Zugänge ---
+
+  panelzugaenge: () => anfrage<Panelzugaenge>("/panel-users"),
+
+  /** panelHandlung ist der eine Aufruf für alle verändernden Endpunkte.
+   *
+   *  wohin ist der Pfad hinter /panel-users: "" zum Anlegen, sonst
+   *  "/{id}/disabled", "/{id}/delete", "/{id}/reset-password", "/{id}/reset-2fa"
+   *  oder "/{id}/reset-passkeys".
+   *
+   *  eigenes_passwort steht im Körper und nirgends sonst: Es wird nicht
+   *  gespeichert, nicht in den Zustand geschrieben und nach dem Aufruf im
+   *  Eingabefeld gelöscht. */
+  panelHandlung: (
+    wohin: string,
+    felder: Partial<Panelauftrag>,
+    bestaetigt = false,
+    getippt = "",
+  ) =>
+    anfrage<Panelantwort>(`/panel-users${wohin}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "",
+        rolle: "",
+        gesperrt: false,
+        eigenes_passwort: "",
         ...felder,
         bestaetigt,
         getippt,

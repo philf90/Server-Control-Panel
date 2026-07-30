@@ -19,6 +19,7 @@
   import FirewallSeite from "./seiten/Firewall.svelte";
   import DateienSeite from "./seiten/Dateien.svelte";
   import SystembenutzerSeite from "./seiten/Systembenutzer.svelte";
+  import PanelzugaengeSeite from "./seiten/Panelzugaenge.svelte";
   import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
@@ -82,7 +83,7 @@
 </script>
 
 <Symbolvorrat />
-<Befehlspalette />
+<Befehlspalette istOwner={sitzung?.ist_owner ?? false} />
 
 {#if abgemeldet}
   <div class="mitte">
@@ -92,7 +93,7 @@
 {:else}
   <div class="schale">
     <Statusband name={uebersicht?.name ?? ""} uptime={uebersicht?.snapshot?.uptime ?? ""} />
-    <Seitenleiste />
+    <Seitenleiste istOwner={sitzung?.ist_owner ?? false} />
 
     <main class="inhalt">
       {#if fehler}
@@ -121,6 +122,14 @@
         <DateienSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "benutzer"}
         <SystembenutzerSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "zugaenge"}
+        <!-- Die Panel-Zugänge liegen hinter der Owner-Rolle, und zwar auf dem
+             Server: Jede der sieben Routen antwortet sonst 403. Der Menüpunkt
+             fehlt für andere Rollen; wer den Pfad trotzdem aufruft, bekommt hier
+             die Ladefehlermeldung der Seite mit dem Satz des Servers darin. Eine
+             zweite Rollenprüfung an dieser Stelle wäre die Stelle, an der beide
+             Listen auseinanderlaufen. -->
+        <PanelzugaengeSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "audit"}
         <!-- Das Protokoll braucht die Sitzung nicht: Lesen darf jede Rolle, und
              verändern kann es niemand. -->

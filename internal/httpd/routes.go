@@ -166,6 +166,24 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISSHKeyAdd))))
 	mux.Handle("POST /api/v1/system-users/{name}/keys/remove",
 		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPISSHKeyRemove))))
+	// Panel-Zugänge. Die Konten DIESER Oberfläche, nicht die des Wirtsystems.
+	// Sämtliche Routen — auch die lesende — liegen hinter apiOwner: Wer keine Konten
+	// verwalten darf, soll die Kontenliste auch nicht einsehen. apiOwner steht vor
+	// apiSchreibend, damit der Grund der richtige ist.
+	mux.Handle("GET /api/v1/panel-users",
+		s.protected(s.apiOwner(http.HandlerFunc(s.handleAPIPanelUsers))))
+	mux.Handle("POST /api/v1/panel-users",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserCreate)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/disabled",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserDisabled)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/delete",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserDelete)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/reset-password",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserResetPassword)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/reset-2fa",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserReset2FA)))))
+	mux.Handle("POST /api/v1/panel-users/{id}/reset-passkeys",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIPanelUserResetPasskeys)))))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

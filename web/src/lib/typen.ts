@@ -794,3 +794,93 @@ export type Kontoantwort = {
    *  keinen Schlüssel und kommt damit nicht auf den Server". */
   hinweis?: string;
 };
+
+// -------------------------------------------------------- Panel-Zugänge ---
+
+/** Panelkonto ist ein Konto DIESER Oberfläche — nicht des Wirtsystems.
+ *
+ *  Was hier NICHT steht, ist die Aussage des Typs: kein Passwort-Hash, kein
+ *  TOTP-Geheimnis. Der Server zählt die Felder ausdrücklich auf, statt store.User
+ *  mit `json:"-"` an den heiklen Stellen einzubetten — kommt dort ein Feld dazu,
+ *  wandert es nicht mit. Diese Seite hier ist die Gegenprobe: Sie kennt nichts
+ *  anderes. */
+export type Panelkonto = {
+  id: number;
+  name: string;
+  rolle: string;
+  /** rolle_was erklärt die Rolle in einem Satzteil. „admin" sagt nicht, was es
+   *  bedeutet. */
+  rolle_was: string;
+  zustand: "gut" | "warn" | "schlecht";
+  zustand_text: string;
+  gesperrt: boolean;
+  zweiter_faktor: boolean;
+  /** einmalpasswort heißt: Das aktuelle Passwort kommt aus einer Zurücksetzung
+   *  und wird bei der nächsten Anmeldung ersetzt. */
+  einmalpasswort: boolean;
+  passkeys: number;
+  angelegt: string;
+  /** letzte_anmeldung ist leer, wenn sich das Konto noch nie angemeldet hat. Das
+   *  ist eine Aussage und kein fehlender Wert. */
+  letzte_anmeldung: string;
+  /** ich markiert das eigene Konto. Es hat hier keine Handgriffe: Wer sein
+   *  eigenes Passwort ändern will, tut das auf der Kontoseite, und sperren oder
+   *  löschen wäre ein Selbstausschluss. */
+  ich: boolean;
+  /** letzter_owner heißt: Dieses Konto darf nicht gelöscht werden, weil danach
+   *  niemand mehr Konten verwalten könnte. */
+  letzter_owner: boolean;
+  aktionen: Panelhandgriff[];
+};
+
+export type Panelhandgriff =
+  | "sperren"
+  | "freigeben"
+  | "loeschen"
+  | "passwort"
+  | "zweiter-faktor"
+  | "passkeys";
+
+/** Panelzugaenge ist die Antwort von GET /api/v1/panel-users. */
+export type Panelzugaenge = {
+  konten: Panelkonto[];
+  /** ich ist die Kennung des eigenen Kontos — damit die eigene Zeile ohne
+   *  Namensvergleich erkennbar ist. */
+  ich: number;
+  zaehler: {
+    gesamt: number;
+    owner: number;
+    gesperrt: number;
+    /** offen zählt Konten, deren Einrichtung noch nicht durch ist. Die Zahl, die
+     *  eine Nachfrage nach sich zieht. */
+    offen: number;
+  };
+  rollen: { wert: string; was: string }[];
+  /** passkeys_moeglich sagt, ob dieses Panel überhaupt Passkeys kennt. Ist es
+   *  abgeschaltet, fehlt der Handgriff — statt eines Knopfes, der nichts
+   *  findet. */
+  passkeys_moeglich: boolean;
+};
+
+/** Panelauftrag ist der Körper der verändernden Endpunkte. */
+export type Panelauftrag = {
+  name: string;
+  rolle: string;
+  /** gesperrt ist der GEWÜNSCHTE Zustand und kein Umschalter. */
+  gesperrt: boolean;
+  /** eigenes_passwort ist das Passwort DES OWNERS, nicht des Zielkontos: die
+   *  zweite Schranke vor jeder Zurücksetzung. Ein übernommenes Cookie allein soll
+   *  keine fremden Konten übernehmen können. */
+  eigenes_passwort: string;
+};
+
+export type Panelantwort = {
+  meldung: string;
+  konto?: Panelkonto;
+  /** einmalpasswort steht GENAU EINMAL hier und nirgends sonst: nicht im
+   *  Protokoll, nicht in einer zweiten Antwort. Wer es verliert, setzt erneut
+   *  zurück. */
+  einmalpasswort?: string;
+  neues_konto?: string;
+  hinweis?: string;
+};

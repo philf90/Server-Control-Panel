@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -53,6 +54,7 @@ type ergebnisLeitstand struct {
 		Schritte          []string `json:"schritte"`
 		FokusImFeld       bool     `json:"fokusImFeld"`
 		ZieleGesamt       int      `json:"zieleGesamt"`
+		ZieleInLeiste     int      `json:"zieleInLeiste"`
 		TrefferNginx      []string `json:"trefferNginx"`
 		TrefferOhneUmlaut []string `json:"trefferOhneUmlaut"`
 		LeerZustand       string   `json:"leerZustand"`
@@ -391,6 +393,62 @@ type ergebnisLeitstand struct {
 			FensterBreite float64 `json:"fensterBreite"`
 		} `json:"schmal"`
 	} `json:"konten"`
+	Zugaenge struct {
+		Wesen  string `json:"wesen"`
+		Reihen []struct {
+			Name    string `json:"name"`
+			Ich     bool   `json:"ich"`
+			Zustand string `json:"zustand"`
+		} `json:"reihen"`
+		ImMenue bool `json:"imMenue"`
+		Eigenes struct {
+			Handgriffe int    `json:"handgriffe"`
+			Schranke   bool   `json:"schranke"`
+			Hinweis    string `json:"hinweis"`
+		} `json:"eigenes"`
+		Fremdes struct {
+			Handgriffe []string `json:"handgriffe"`
+			Warum      string   `json:"warum"`
+			FeldTyp    string   `json:"feldTyp"`
+			Gesperrt   []bool   `json:"gesperrt"`
+			Knoepfe    []string `json:"knoepfe"`
+		} `json:"fremdes"`
+		Sperren struct {
+			Frage    string  `json:"frage"`
+			Tippfeld bool    `json:"tippfeld"`
+			Links    float64 `json:"links"`
+			Rechts   float64 `json:"rechts"`
+			Oben     float64 `json:"oben"`
+		} `json:"sperren"`
+		Loeschen struct {
+			GesperrtFalsch  *bool `json:"gesperrtFalsch"`
+			GesperrtRichtig *bool `json:"gesperrtRichtig"`
+		} `json:"loeschen"`
+		NachAbbruch struct {
+			DialogZu bool `json:"dialogZu"`
+			Reihen   int  `json:"reihen"`
+		} `json:"nachAbbruch"`
+		Einmal struct {
+			Wort    string   `json:"wort"`
+			Warnung string   `json:"warnung"`
+			Knoepfe []string `json:"knoepfe"`
+			Links   float64  `json:"links"`
+			Rechts  float64  `json:"rechts"`
+		} `json:"einmal"`
+		NachEscape bool `json:"nachEscape"`
+		FeldLeer   bool `json:"feldLeer"`
+		Zu         bool `json:"zu"`
+		Schmal     struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"zugaenge"`
+	FremdeRolle struct {
+		ImMenue     bool   `json:"imMenue"`
+		InPalette   int    `json:"inPalette"`
+		Satz        string `json:"satz"`
+		ErneutKnopf bool   `json:"erneutKnopf"`
+	} `json:"fremdeRolle"`
 	Bald struct {
 		Pfad     string `json:"pfad"`
 		Titel    string `json:"titel"`
@@ -466,6 +524,19 @@ func TestLeitstandBrowser(t *testing.T) {
 	cookie, _ := login(t, s, user)
 	fuelleUebersicht(s)
 
+	// Ein ZWEITER Panel-Zugang, und ein zweiter mit einer anderen Rolle. Beide
+	// sind für das Modul Panel-Zugänge nötig, und aus zwei verschiedenen Gründen:
+	//
+	//   * „vertretung" ist das FREMDE Konto. Am eigenen gibt es hier keine
+	//     Handgriffe, und ohne ein zweites liefe der Browsertest nur durch eine
+	//     Liste mit einer Zeile, an der nichts zu prüfen ist.
+	//   * „gehilfe" trägt die Gegenprobe: Der Menüpunkt gehört der Owner-Rolle,
+	//     und dass er für andere fehlt, ist nur mit einer zweiten Sitzung zu
+	//     sehen.
+	addUser(t, s, "vertretung", store.RoleAdmin)
+	gehilfe := addUser(t, s, "gehilfe", store.RoleAdmin)
+	gehilfeCookie, _ := login(t, s, gehilfe)
+
 	lege(t, filepath.Join(dateiWurzel, "schreibbar", "notizen.txt"), "hallo welt")
 	lege(t, filepath.Join(dateiWurzel, "schreibbar", "server.conf"), "port: 8443\n")
 	lege(t, filepath.Join(dateiWurzel, "schreibbar", "tief", "gesucht.conf"), "a: 1")
@@ -534,6 +605,8 @@ func TestLeitstandBrowser(t *testing.T) {
 		"ASYLUM_E2E_DATEIWURZEL="+dateiWurzel,
 		"ASYLUM_E2E_URL="+ts.URL,
 		"ASYLUM_E2E_COOKIE="+cookie.Name+"="+cookie.Value,
+		// Die zweite Sitzung für die Gegenprobe mit einer anderen Rolle.
+		"ASYLUM_E2E_COOKIE2="+gehilfeCookie.Name+"="+gehilfeCookie.Value,
 		"ASYLUM_CHROMIUM="+chromium,
 	)
 	if p := os.Getenv("ASYLUM_NODE_PATH"); p != "" {
@@ -685,9 +758,15 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !e.Palette.FokusImFeld {
 		t.Error("nach dem Öffnen liegt der Fokus nicht im Suchfeld — man müsste erst hinklicken")
 	}
-	if e.Palette.ZieleGesamt != 15 {
-		t.Errorf("%d Ziele in der Palette, erwartet 15 (dieselben wie in der Seitenleiste)",
-			e.Palette.ZieleGesamt)
+	// Gegen die Seitenleiste und nicht gegen eine feste Zahl: Ein neues Modul
+	// erschien sonst in der Leiste, aber nicht in der Suche, und niemandem fiele
+	// auf, warum es sich nicht finden lässt. Eine Zahl im Test nachzuziehen wäre
+	// kein Nachweis dafür.
+	if e.Palette.ZieleInLeiste == 0 {
+		t.Error("die Seitenleiste hat keine Ziele — dann sagt der Vergleich mit der Palette nichts")
+	} else if e.Palette.ZieleGesamt != e.Palette.ZieleInLeiste {
+		t.Errorf("%d Ziele in der Palette, %d in der Seitenleiste — zwei Listen desselben "+
+			"Menüs laufen auseinander", e.Palette.ZieleGesamt, e.Palette.ZieleInLeiste)
 	}
 	// Der Unterschied zwischen einer Suche und einer Liste: ein Wort, das im
 	// Namen nicht vorkommt.
@@ -1611,6 +1690,157 @@ func TestLeitstandBrowser(t *testing.T) {
 	} else if ko.Schmal.KoerperBreite > ko.Schmal.FensterBreite+1 {
 		t.Errorf("die Kontenseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
 			ko.Schmal.KoerperBreite, ko.Schmal.FensterBreite)
+	}
+
+	// 6j. Panel-Zugänge. Vier Dinge, die nur der Browser zeigt: die eigene Zeile
+	// ohne Handgriffe, die offen stehende Schranke vor den Zurücksetzungen, das
+	// Einmalpasswort in einem Dialog, den Escape nicht schließt, und dass beide
+	// Dialoge in der Mitte sitzen.
+	pz := e.Zugaenge
+	if pz.Wesen == "" {
+		t.Error("es fehlt der Satz, der Panel-Zugänge von Systemkonten unterscheidet")
+	}
+	if !pz.ImMenue {
+		t.Error("der Menüpunkt für die Panel-Zugänge fehlt der Owner-Rolle")
+	}
+	if len(pz.Reihen) < 2 {
+		t.Fatalf("die Zugangsliste hat %d Zeilen, erwartet mindestens zwei — mit einer "+
+			"einzigen ist am fremden Konto nichts zu prüfen", len(pz.Reihen))
+	}
+	eigeneMarkiert := false
+	for _, r := range pz.Reihen {
+		if r.Name == "philipp" {
+			eigeneMarkiert = r.Ich
+		}
+		if r.Zustand == "" {
+			t.Errorf("die Zeile %q hat keinen Zustand", r.Name)
+		}
+	}
+	if !eigeneMarkiert {
+		t.Error("die eigene Zeile ist nicht markiert — dann sieht das Fehlen der " +
+			"Handgriffe wie eine Panne aus")
+	}
+
+	// Das eigene Konto: keine Handgriffe, keine Schranke, aber der Satz, der es
+	// erklärt.
+	if pz.Eigenes.Handgriffe != 0 {
+		t.Errorf("das eigene Konto bietet %d Handgriffe — sperren oder löschen wäre "+
+			"ein Selbstausschluss, Passwort und zweiter Faktor stehen auf der Kontoseite",
+			pz.Eigenes.Handgriffe)
+	}
+	if pz.Eigenes.Schranke {
+		t.Error("am eigenen Konto steht die Zurücksetzungsschranke — sie führt hier zu nichts")
+	}
+	if !strings.Contains(pz.Eigenes.Hinweis, "Kontoseite") {
+		t.Errorf("am eigenen Konto fehlt der Verweis auf die Kontoseite: %q", pz.Eigenes.Hinweis)
+	}
+
+	// Das fremde Konto: alles da, und die Schranke davor sichtbar gesperrt.
+	fr := pz.Fremdes
+	for _, erwartet := range []string{"sperren", "löschen"} {
+		if !slices.Contains(fr.Handgriffe, erwartet) {
+			t.Errorf("das fremde Konto bietet %q nicht an: %v", erwartet, fr.Handgriffe)
+		}
+	}
+	if fr.FeldTyp != "password" {
+		t.Errorf("das Feld für das eigene Passwort ist vom Typ %q, erwartet password", fr.FeldTyp)
+	}
+	if !strings.Contains(fr.Warum, "eigenes Passwort") {
+		t.Errorf("es steht nicht, WESSEN Passwort gemeint ist: %q", fr.Warum)
+	}
+	if len(fr.Gesperrt) < 2 {
+		t.Errorf("die Schranke hat %d Knöpfe, erwartet mindestens zwei "+
+			"(Passwort, zweiter Faktor): %v", len(fr.Gesperrt), fr.Knoepfe)
+	}
+	for i, gesperrt := range fr.Gesperrt {
+		if !gesperrt {
+			t.Errorf("der Knopf %q ist offen, obwohl das Passwortfeld leer ist — "+
+				"dann kommt die Bedingung als 403 nach dem Klick statt vor ihm",
+				fr.Knoepfe[i])
+		}
+	}
+
+	// Sperren ist Stufe 2, Löschen Stufe 3.
+	if pz.Sperren.Tippfeld {
+		t.Error("das Sperren verlangt ein getipptes Wort — es ist umkehrbar, Stufe 2 genügt")
+	}
+	if !strings.Contains(pz.Sperren.Frage, "vertretung") {
+		t.Errorf("die Frage nennt das Konto nicht: %q", pz.Sperren.Frage)
+	}
+	// Die Mitte, gemessen: `* { margin: 0 }` hat margin:auto schon einmal
+	// geschlagen, und alle Dialoge klebten oben links. Gesehen hat das erst ein
+	// Bildschirmfoto — jetzt fällt es hier auf.
+	if math.Abs(pz.Sperren.Links-pz.Sperren.Rechts) > 2 {
+		t.Errorf("die Rückfrage sitzt nicht waagerecht in der Mitte: %.0f links, %.0f rechts",
+			pz.Sperren.Links, pz.Sperren.Rechts)
+	}
+	if pz.Sperren.Oben < 10 {
+		t.Errorf("die Rückfrage klebt am oberen Rand (%.0f Pixel)", pz.Sperren.Oben)
+	}
+	if pz.Loeschen.GesperrtFalsch == nil || !*pz.Loeschen.GesperrtFalsch {
+		t.Error("beim Löschen ist der Knopf offen, obwohl der Name falsch getippt ist")
+	}
+	if pz.Loeschen.GesperrtRichtig == nil || *pz.Loeschen.GesperrtRichtig {
+		t.Error("beim Löschen bleibt der Knopf gesperrt, obwohl der Name stimmt — " +
+			"dann ist die Stufe keine Rückfrage, sondern eine Sperre")
+	}
+	if !pz.NachAbbruch.DialogZu {
+		t.Error("Escape schließt die Rückfrage nicht")
+	}
+	if pz.NachAbbruch.Reihen < 2 {
+		t.Errorf("nach dem ABBRUCH sind es %d Zeilen — die Rückfrage hat nicht gefragt, "+
+			"sondern nur gefragt ausgesehen", pz.NachAbbruch.Reihen)
+	}
+
+	// Das Einmalpasswort: sichtbar, mit dem Satz, dass es nur einmal da ist, und
+	// gegen Escape gesichert.
+	if pz.Einmal.Wort == "" {
+		t.Error("nach der Zurücksetzung steht kein Einmalpasswort da")
+	}
+	if !strings.Contains(pz.Einmal.Warnung, "nur hier") {
+		t.Errorf("es steht nicht dabei, dass das Passwort nur einmal kommt: %q", pz.Einmal.Warnung)
+	}
+	if math.Abs(pz.Einmal.Links-pz.Einmal.Rechts) > 2 {
+		t.Errorf("der Passwortdialog sitzt nicht in der Mitte: %.0f links, %.0f rechts",
+			pz.Einmal.Links, pz.Einmal.Rechts)
+	}
+	if !pz.NachEscape {
+		t.Error("Escape schließt den Passwortdialog — dann ist das Einmalpasswort weg, " +
+			"bevor es jemand gelesen hat, und es kommt kein zweites Mal")
+	}
+	if !pz.FeldLeer {
+		t.Error("das Passwortfeld ist nach dem Aufruf noch gefüllt — der nächste Klick " +
+			"träfe ein anderes Ziel als der Tippende im Kopf hatte")
+	}
+	if !pz.Zu {
+		t.Error("der Passwortdialog lässt sich über seinen Knopf nicht schließen")
+	}
+	if pz.Schmal.FensterBreite == 0 {
+		t.Error("die Zugangsseite wurde nicht im Schmalmodus gemessen")
+	} else if pz.Schmal.KoerperBreite > pz.Schmal.FensterBreite+1 {
+		t.Errorf("die Zugangsseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			pz.Schmal.KoerperBreite, pz.Schmal.FensterBreite)
+	}
+
+	// 6k. Die Gegenprobe mit einer anderen Rolle. Ein Menüpunkt, der zuverlässig
+	// „der Owner-Rolle vorbehalten" antwortet, ist kein Menüpunkt.
+	fro := e.FremdeRolle
+	if fro.ImMenue {
+		t.Error("die Admin-Rolle sieht den Menüpunkt für die Panel-Zugänge — er führt " +
+			"für sie nur auf 403")
+	}
+	if fro.InPalette != 0 {
+		t.Errorf("die Befehlspalette findet für die Admin-Rolle %d Treffer zu „zugänge\" — "+
+			"in der Leiste gefiltert und in der Suche nicht ist genau der Fehler, den "+
+			"zwei Filter derselben Regel machen", fro.InPalette)
+	}
+	if !strings.Contains(fro.Satz, "Owner") {
+		t.Errorf("der Pfad von Hand aufgerufen sagt nicht, warum er nichts zeigt: %q", fro.Satz)
+	}
+	if fro.ErneutKnopf {
+		t.Error("bei der Rechtefrage steht ein Knopf „Erneut versuchen" + `" — er brächte ` +
+			"nie ein anderes Ergebnis, und die Meldung wäre damit zweimal falsch: " +
+			"im Grund und im Ausweg")
 	}
 
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2

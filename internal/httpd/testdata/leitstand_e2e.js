@@ -754,6 +754,125 @@ async function main() {
   }
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 11. Das Modul Firewall — Grundsatz VI, „Was schiefgehen kann, hat einen
+  //     Rückweg." Geprüft wird die Probe: Steht sie ganz oben? Zählt der
+  //     Countdown herunter? Und beendet der Knopf sie wirklich?
+  const firewall = {};
+  await seite.goto(`${basis}/v2/firewall`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+
+  firewall.zeilen = await seite.evaluate(() =>
+    [...document.querySelectorAll("table.tabelle tbody tr")].map((tr) => ({
+      text: tr.textContent.replace(/\s+/g, " ").trim(),
+      vorschlag: tr.classList.contains("vorschlag"),
+    })),
+  );
+  // Vor einer Änderung läuft keine Probe.
+  firewall.probeVorher = await seite.evaluate(
+    () => document.querySelector(".probe") !== null,
+  );
+  // „Regeln übernehmen" ist aus, solange nichts bearbeitet wurde: Ein Knopf, der
+  // den unveränderten Stand noch einmal schreibt, stellt ohne Grund auf Probe.
+  firewall.uebernehmenGesperrt = await seite.evaluate(() => {
+    const knoepfe = [...document.querySelectorAll(".aktionen .knopf")];
+    const u = knoepfe.find((b) => b.textContent.includes("übernehmen"));
+    return u ? u.disabled : null;
+  });
+
+  // Eine Regel hinzufügen und übernehmen. Die Rückfrage kommt vom Server.
+  await seite.click(".aktionen .knopf.leise");
+  await seite.waitForTimeout(150);
+  firewall.entwurfHinweis = await seite.evaluate(
+    () => document.querySelector(".hinweis")?.textContent.trim() ?? "",
+  );
+  // Port in die neue (letzte) Zeile tippen.
+  const felder = await seite.$$("table.tabelle input[type=number]");
+  await felder[felder.length - 1].fill("8080");
+  await seite.waitForTimeout(120);
+
+  await seite.evaluate(() => {
+    const u = [...document.querySelectorAll(".aktionen .knopf")].find((b) =>
+      b.textContent.includes("übernehmen"),
+    );
+    u.click();
+  });
+  await seite.waitForSelector("dialog.rueckfrage[open]", { timeout: 5000 });
+  firewall.rueckfrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      frage: d?.querySelector(".frage")?.textContent.trim() ?? "",
+      punkte: d?.querySelectorAll(".punkte li").length ?? 0,
+      tippfeld: d?.querySelector(".tippen") !== null,
+    };
+  });
+  await seite.click("dialog.rueckfrage .knopf.gefahr");
+
+  // Und jetzt der Kern: Die Probe steht oben, und die Uhr läuft.
+  await seite.waitForSelector(".probe .uhr", { timeout: 5000 });
+  const erste = Number(await seite.textContent(".probe .uhr"));
+  firewall.probe = {
+    ersteZahl: erste,
+    // Steht die Probe VOR der Tabelle? Wer hereinkommt, während eine Frist
+    // läuft, muss zuerst den Knopf sehen, der sie beendet.
+    vorDerTabelle: await seite.evaluate(() => {
+      const p = document.querySelector(".probe").getBoundingClientRect();
+      const t = document.querySelector(".tabelle-rahmen").getBoundingClientRect();
+      return p.top < t.top;
+    }),
+    text: await seite.evaluate(
+      () => document.querySelector(".probe b")?.textContent.trim() ?? "",
+    ),
+  };
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-firewall.png`,
+      fullPage: true,
+    });
+  }
+
+  // Die Uhr muss kleiner werden. Auf eine kleinere Zahl warten und nicht auf
+  // eine Dauer: Ein fester Schlaf wäre auf einer langsamen Maschine zu kurz.
+  try {
+    await seite.waitForFunction(
+      (start) => Number(document.querySelector(".probe .uhr")?.textContent) < start,
+      erste,
+      { timeout: 5000 },
+    );
+    firewall.probe.laeuftRunter = true;
+  } catch {
+    firewall.probe.laeuftRunter = false;
+  }
+
+  // Ein Neuladen findet die Probe vor: Sie ist Zustand des Servers, nicht der
+  // Seite. Das ist der Fall, in dem es darauf ankommt — wer neu lädt, weil die
+  // Seite nach einer Regeländerung hängt, muss den Knopf trotzdem finden.
+  await seite.goto(`${basis}/v2/firewall`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector(".probe .uhr", { timeout: 5000 });
+  firewall.probeNachNeuladen = Number(await seite.textContent(".probe .uhr"));
+
+  // Bestätigen beendet sie.
+  await seite.click(".probe .knopf");
+  await seite.waitForTimeout(400);
+  firewall.nachBestaetigen = await seite.evaluate(() => ({
+    probe: document.querySelector(".probe") !== null,
+    meldung: document.querySelector(".meldung")?.textContent.trim() ?? "",
+  }));
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  firewall.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-firewall-schmal.png`,
+      fullPage: true,
+    });
+  }
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   await browser.close();
 
   console.log(
@@ -769,6 +888,7 @@ async function main() {
       dienste,
       pakete,
       logs,
+      firewall,
       zweige,
       schmal,
       strich,

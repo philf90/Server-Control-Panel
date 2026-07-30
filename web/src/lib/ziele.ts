@@ -117,8 +117,9 @@ export const gruppen: Gruppe[] = [
         id: "firewall",
         label: t.ziele.firewall,
         symbol: "schild",
-        href: "/firewall",
+        href: "/v2/firewall",
         gruppe: t.bereiche.sicherheit,
+        neu: true,
         auch: ["ufw", "nftables", "port", "regel", "freigabe"],
       },
       {

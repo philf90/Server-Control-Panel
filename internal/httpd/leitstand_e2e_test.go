@@ -162,6 +162,35 @@ type ergebnisLeitstand struct {
 			Beschriftung  string  `json:"beschriftung"`
 		} `json:"schmal"`
 	} `json:"logs"`
+	Firewall struct {
+		Zeilen []struct {
+			Text      string `json:"text"`
+			Vorschlag bool   `json:"vorschlag"`
+		} `json:"zeilen"`
+		ProbeVorher         bool   `json:"probeVorher"`
+		UebernehmenGesperrt bool   `json:"uebernehmenGesperrt"`
+		EntwurfHinweis      string `json:"entwurfHinweis"`
+		Rueckfrage          struct {
+			Frage    string `json:"frage"`
+			Punkte   int    `json:"punkte"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"rueckfrage"`
+		Probe struct {
+			ErsteZahl     int    `json:"ersteZahl"`
+			VorDerTabelle bool   `json:"vorDerTabelle"`
+			Text          string `json:"text"`
+			LaeuftRunter  bool   `json:"laeuftRunter"`
+		} `json:"probe"`
+		ProbeNachNeuladen int `json:"probeNachNeuladen"`
+		NachBestaetigen   struct {
+			Probe   bool   `json:"probe"`
+			Meldung string `json:"meldung"`
+		} `json:"nachBestaetigen"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"firewall"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -237,6 +266,19 @@ func TestLeitstandBrowser(t *testing.T) {
 	// das ist keine Verfolgung, sondern eine zweite Momentaufnahme.
 	ops.folgeLogs = []privops.LogEntry{
 		{At: time.Now(), Unit: "cron.service", Priority: 4, Message: "waehrend-des-verfolgens"},
+	}
+
+	// ufw als vorhanden und mit einer Regel für den Panel-Port. Die Vorgabe der
+	// Attrappe ist „aktiv, aber nicht installiert" — ein Zustand, den es auf einem
+	// echten System nicht gibt, und die Firewallseite zeigt dann zu Recht nur den
+	// Knopf zum Einspielen. Ohne den Panel-Port stünde außerdem die Sperre gegen
+	// das Aussperren im Weg, und geprüft werden soll hier die Probe.
+	ops.firewall = privops.FirewallState{
+		Backend: privops.BackendUFW, Active: true, Managed: true, Installed: true,
+		Rules: []privops.FirewallRule{
+			{Port: 8443, Protocol: "tcp", Comment: "Asylum-Panel"},
+			{Port: 22, Protocol: "tcp", Comment: "SSH"},
+		},
 	}
 
 	ts := httptest.NewServer(s.Handler())
@@ -710,6 +752,69 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if l.Schmal.Beschriftung == "" {
 		t.Error("die Zellen der Logliste tragen im Schmalmodus keine Spaltenbeschriftung")
+	}
+
+	// 6e. Das Modul Firewall — Grundsatz VI. Der Kern ist die Probe: Sie muss
+	// oben stehen, herunterlaufen und sich beenden lassen.
+	f := e.Firewall
+	if len(f.Zeilen) == 0 {
+		t.Error("die Firewall zeigt keine Regeln")
+	}
+	// Die Attrappe kennt sshd auf Port 22 und hat dafür eine Regel — der
+	// Vorschlag entsteht also nicht. Geprüft wird, dass Vorschläge überhaupt
+	// unterscheidbar sind: Ein Vorschlag gilt nicht, er wird angeboten.
+	if f.ProbeVorher {
+		t.Error("vor jeder Änderung läuft schon eine Probe")
+	}
+	if !f.UebernehmenGesperrt {
+		t.Error("der Knopf zum Übernehmen ist offen, obwohl nichts bearbeitet wurde — " +
+			"ein Klick stellte dann den unveränderten Stand ohne Grund auf Probe")
+	}
+	if f.EntwurfHinweis == "" {
+		t.Error("nach dem Bearbeiten fehlt der Hinweis, dass der Entwurf noch nicht gilt")
+	}
+	if f.Rueckfrage.Punkte == 0 || !strings.Contains(f.Rueckfrage.Frage, "8080") {
+		t.Errorf("die Rückfrage nennt nicht, was gilt: %q (%d Punkte)",
+			f.Rueckfrage.Frage, f.Rueckfrage.Punkte)
+	}
+	if f.Rueckfrage.Tippfeld {
+		t.Error("Regeln übernehmen verlangt ein getipptes Wort — es ist Stufe 2, " +
+			"weil die Probe den Fehler von selbst zurücknimmt")
+	}
+
+	// Die Probe selbst.
+	if f.Probe.ErsteZahl <= 0 || f.Probe.ErsteZahl > 60 {
+		t.Errorf("die Uhr startet bei %d, erwartet zwischen 1 und 60", f.Probe.ErsteZahl)
+	}
+	if !f.Probe.VorDerTabelle {
+		t.Error("die Probe steht nicht über der Tabelle — wer hereinkommt, während " +
+			"eine Frist läuft, muss zuerst den Knopf sehen, der sie beendet")
+	}
+	if f.Probe.Text == "" {
+		t.Error("die Probe sagt nicht, was auf Probe steht")
+	}
+	if !f.Probe.LaeuftRunter {
+		t.Error("die Uhr läuft nicht herunter — dann ist sie eine Zahl und keine Frist")
+	}
+	// Der wichtigste Punkt: Nach einem Neuladen ist die Probe wieder da. Sie ist
+	// Zustand des Servers, nicht der Seite.
+	if f.ProbeNachNeuladen <= 0 {
+		t.Error("nach dem Neuladen ist die Probe verschwunden — dann fände jemand, " +
+			"der die Seite neu lädt, den Bestätigungsknopf nicht mehr und die " +
+			"Änderung fiele weg, ohne dass er weiß, warum")
+	}
+	if f.NachBestaetigen.Probe {
+		t.Error("nach dem Bestätigen läuft die Probe weiter")
+	}
+	if f.NachBestaetigen.Meldung == "" {
+		t.Error("nach dem Bestätigen sagt nichts, dass die Änderung bleibt")
+	}
+
+	if f.Schmal.FensterBreite == 0 {
+		t.Error("die Firewallseite wurde nicht im Schmalmodus gemessen")
+	} else if f.Schmal.KoerperBreite > f.Schmal.FensterBreite+1 {
+		t.Errorf("die Firewallseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie scrollt waagerecht",
+			f.Schmal.KoerperBreite, f.Schmal.FensterBreite)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

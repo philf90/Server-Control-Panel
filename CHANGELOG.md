@@ -9,6 +9,50 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Hinzugefügt
+
+- **Modul Firewall in der neuen Oberfläche, mit sichtbarer Probezeit.** Grundsatz
+  VI aus [docs/16-neukonzeption.md](docs/16-neukonzeption.md): „Was schiefgehen
+  kann, hat einen Rückweg." Jede Änderung gilt zunächst auf Probe — ohne
+  Bestätigung binnen 60 Sekunden stellt der Server den vorherigen Stand wieder
+  her. Neu ist nicht die Sicherung selbst, die gab es schon: neu ist, dass man ihr
+  zusehen kann.
+
+  Die Probe steht über allem anderen auf der Seite, mit einer Uhr, die
+  herunterläuft, und dem Knopf, der sie beendet. Es ist der einzige Ort im Panel,
+  an dem Untätigkeit etwas rückgängig macht — wer hereinkommt, muss zuerst diesen
+  Knopf sehen.
+
+  **Und sie übersteht ein Neuladen.** Das ist der Punkt, auf den es ankommt: Die
+  Frist ist Zustand des Servers und wird über `GET /api/v1/firewall`
+  mitgeliefert, nicht als Ereignis verschickt. Wer die Seite neu lädt — und man
+  lädt neu, *weil* etwas hakt —, findet den Countdown vor, statt eine Änderung zu
+  verlieren, ohne zu wissen warum. Gerechnet wird im Browser aus einem festen
+  Ablaufzeitpunkt und nicht sekundenweise: Ein Zähler, der bei jedem Takt eins
+  abzieht, geht falsch, sobald der Tab in den Hintergrund kommt.
+
+  Die Stufen sind dieselben wie in der alten Oberfläche und aus demselben Grund:
+  Regeln übernehmen und ufw einschalten sind Stufe 2, weil die Probe einen Fehler
+  von selbst zurücknimmt. **Ausschalten ist Stufe 3 mit dem Hostnamen** — es ist
+  die einzige der drei Aktionen ohne Probe, weil sie den Server *öffnet* und
+  dieser Zustand bleibt, bis jemand ihn ändert.
+
+  Dazu die zwei Sicherungen, die keine Rückfrage ersetzen kann: Ohne Regel für den
+  Panel-Port wird das Einschalten verweigert — vor der Rückfrage, nicht danach —,
+  und die Regel für diesen Port wird der Anfrage nicht überlassen, sondern
+  ergänzt. Der Regelsatz wird immer vollständig übergeben, nicht als Einzeländerung:
+  Damit ist der Zustand danach eindeutig, auch wenn zwei Personen gleichzeitig
+  arbeiten. Ein Entwurf, der noch nicht übernommen ist, sagt das; Vorschläge (etwa
+  der Port, auf dem sshd laut Konfiguration lauscht) sind blasser und gelten
+  erst, wenn man sie annimmt.
+
+- **Die 60-Sekunden-Frist ist jetzt prüfbar.** `firewallGuard` trägt sie als Feld
+  statt als Konstante im Code. Damit läuft der Rückbau in Tests in Millisekunden
+  ab — und die wichtigste Sicherung des Panels ist nicht länger die einzige
+  ungeprüfte. Drei Tests decken sie ab: dass ohne Bestätigung zurückgerollt wird,
+  dass eine Bestätigung das verhindert, und dass eine zweite Änderung die erste
+  ersetzt statt einen überholten Stand wiederherzustellen.
+
 ## [0.4.0-rc.2] — 2026-07-30
 
 Drei Module der neuen Oberfläche und das Muster, das die weiteren übernehmen.

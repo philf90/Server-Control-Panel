@@ -19,7 +19,7 @@ export const BASIS = "/v2";
 /** Seite ist die Kennung der stehenden Seite — dieselbe wie die id des Ziels in
  *  lib/ziele.ts, damit die Seitenleiste ohne eine zweite Zuordnung weiß, welcher
  *  Punkt hervorgehoben ist. */
-export type Seite = "uebersicht" | "dienste" | "pakete" | "logs";
+export type Seite = "uebersicht" | "dienste" | "pakete" | "logs" | "firewall";
 
 function seiteAus(pfad: string): Seite {
   const rest = pfad.startsWith(BASIS) ? pfad.slice(BASIS.length) : pfad;
@@ -33,6 +33,8 @@ function seiteAus(pfad: string): Seite {
       return "pakete";
     case "logs":
       return "logs";
+    case "firewall":
+      return "firewall";
     default:
       return "uebersicht";
   }

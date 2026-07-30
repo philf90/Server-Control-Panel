@@ -8,9 +8,12 @@ import type {
   Dienste,
   DienstAktion,
   DienstDetail,
+  Firewall,
+  FirewallAntwort,
   Job,
   Logs,
   Pakete,
+  Regel,
   Signale,
   Sitzung,
   Uebersicht,
@@ -129,6 +132,29 @@ export const api = {
    *  gelaufen ist. Der Server antwortet dann mit 204 — die Ressource gibt es,
    *  sie ist nur leer. */
   job: (art: string) => anfrageOderLeer<Job>(`/jobs/${encodeURIComponent(art)}`),
+
+  firewall: () => anfrage<Firewall>("/firewall"),
+  /** regelnUebernehmen schickt den VOLLSTÄNDIGEN gewünschten Regelsatz, nicht
+   *  eine einzelne Änderung. Damit ist der Zustand danach eindeutig, auch wenn
+   *  zwei Personen gleichzeitig arbeiten. Stufe 2. */
+  regelnUebernehmen: (regeln: Regel[], bestaetigt = false) =>
+    anfrage<FirewallAntwort>("/firewall/rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ regeln, bestaetigt, getippt: "" }),
+    }),
+  /** ufwSchalten: Einschalten ist Stufe 2 (die Probe fängt den Fehler),
+   *  Ausschalten Stufe 3 mit dem Hostnamen (es gibt keine Probe dafür). */
+  ufwSchalten: (aktiv: boolean, bestaetigt = false, getippt = "") =>
+    anfrage<FirewallAntwort>("/firewall/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktiv, bestaetigt, getippt }),
+    }),
+  /** probeBestaetigen beendet die Frist. Ohne Rückfrage: Bestätigen ist die
+   *  Zustimmung zu etwas, das gerade schon gilt. */
+  probeBestaetigen: () => anfrage<FirewallAntwort>("/firewall/confirm", { method: "POST" }),
+  ufwEinspielen: () => anfrage<VorgangGestartet>("/firewall/install", { method: "POST" }),
 
   /** logs fragt das Journal ab. Die Filter stehen als Abfragezeichenkette in
    *  der Adresse — dieselbe, die der Strom bekommt, damit er nicht mehr zeigt

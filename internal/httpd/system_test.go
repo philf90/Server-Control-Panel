@@ -212,6 +212,27 @@ func (f *fakeOps) FirewallApply(_ context.Context, rules []privops.FirewallRule)
 	return nil
 }
 
+// regelSaetze und letzteRegeln lesen die aufgezeichneten Regelsätze unter dem
+// Schloss. Direkt auf f.appliedRules zuzugreifen wäre ein Datenrennen: Der
+// Firewall-Wächter rollt aus einer eigenen Goroutine zurück und schreibt dabei
+// in dasselbe Feld.
+func (f *fakeOps) regelSaetze() [][]privops.FirewallRule {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([][]privops.FirewallRule, len(f.appliedRules))
+	copy(out, f.appliedRules)
+	return out
+}
+
+func (f *fakeOps) letzteRegeln() []privops.FirewallRule {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.appliedRules) == 0 {
+		return nil
+	}
+	return f.appliedRules[len(f.appliedRules)-1]
+}
+
 func (f *fakeOps) SystemUsers(context.Context) ([]privops.SystemUser, error) { return f.sysUsers, nil }
 
 func (f *fakeOps) SystemUserCreate(_ context.Context, spec privops.SystemUserSpec) error {

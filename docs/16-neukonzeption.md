@@ -766,6 +766,50 @@ derselben Funktion wie die Abfrage: Hätte der Strom eigene, könnte er mehr zei
 als die Abfrage vorher hergab, und eine Stufenbeschränkung wäre beim Umschalten
 ein Leck durch die Hintertür.
 
+**Ein Rückweg ist Zustand, keine Meldung.** Festgelegt am Modul **Firewall**, dem
+einzigen, bei dem ein Fehler den Zugang zum Panel kostet — und zwar aus der Seite
+heraus, auf der man ihn zurücknehmen könnte. Grundsatz VI wird dort konkret: Jede
+Änderung gilt zunächst auf Probe, und ohne Bestätigung binnen 60 Sekunden stellt
+der Server den vorherigen Stand wieder her.
+
+Drei Entscheidungen, die daran hängen:
+
+- **Die Probe steht in `GET`, nicht in einem Ereignis.** Ob eine aussteht, was auf
+  Probe steht und wie viele Sekunden übrig sind, ist ein Feld des Zustands. Wer
+  die Seite neu lädt, während die Frist läuft, muss den Countdown vorfinden —
+  sonst bestätigt er nicht, und die Änderung fällt weg, ohne dass er weiß, warum.
+  Genau das ist der Fall, in dem es zählt: Man lädt neu, *weil* etwas hakt.
+- **Die Frist ist die des Servers.** Der Browser zählt nur herunter, damit man sie
+  sieht, und rechnet dabei aus einem festen Ablaufzeitpunkt statt sekundenweise
+  abzuziehen — ein Zähler, der bei jedem Takt eins abzieht, geht falsch, sobald
+  der Tab in den Hintergrund kommt oder der Rechner schläft. Bei null wird der
+  Zustand *einmal* geholt: Was dann gilt, sagt der Server.
+- **Die Probe steht über allem anderen auf der Seite.** Vor dem Zustand, vor der
+  Liste. Es ist der einzige Ort im Panel, an dem Untätigkeit etwas rückgängig
+  macht — wer hereinkommt, muss zuerst den Knopf sehen, der sie beendet.
+
+Die Stufen folgen daraus, und sie sind hier nicht nach Gefühl gewählt:
+
+| Aktion | Stufe | Warum |
+|---|---|---|
+| Regeln übernehmen | 2 | Die Probe nimmt einen Fehler von selbst zurück |
+| ufw einschalten | 2 | ebenso — und die Frage nennt, was erreichbar bleibt |
+| ufw **ausschalten** | **3**, Hostname | Die einzige der drei ohne Probe: Sie *öffnet* den Server, und dieser Zustand bleibt, bis jemand ihn ändert |
+
+Dazu zwei Sicherungen, die keine Rückfrage ersetzen kann: Ohne Regel von überall
+her für den Panel-Port wird das Einschalten **verweigert** (vor der Rückfrage,
+nicht danach — danach wäre sie eine Einladung in eine Minute Ausfall), und die
+Regel für diesen Port wird der Anfrage nicht überlassen, sondern ergänzt. In der
+Oberfläche steht sie unveränderlich da; ein gesperrtes Feld ist aber eine Bitte,
+keine Sperre.
+
+**Was hier fehlt und bewusst offen bleibt:** Verlässt jemand die Seite, während
+eine Frist läuft, warnt nichts. Der Rückbau findet trotzdem statt — das sichere
+Ergebnis also auch —, aber niemand erfährt davon, bis er zurückkommt. Es zu
+schließen hieße, den Probezustand in die Schale zu heben und auf jeder Seite
+abzufragen; das ist eine Abfrage auf jeder Seite für einen Zustand, den es
+selten gibt. Vertagt, nicht vergessen.
+
 **Rechte am Endpunkt, sichtbar in der Oberfläche.** Schreibrecht und
 Sitzungstoken werden vor jeder verändernden Anfrage geprüft (`X-CSRF-Token` als
 Kopfzeile, nicht als Feld — eine Kopfzeile kann ein Formular von einer fremden

@@ -195,6 +195,42 @@ export const t = {
         : `${n} Zeilen sind unterwegs verloren gegangen — das Journal schrieb schneller als die Leitung.`,
   },
 
+  firewall: {
+    laedt: "wird geladen …",
+    ein: "eingeschaltet",
+    aus: "ausgeschaltet",
+    port: "Port",
+    protokoll: "Protokoll",
+    quelle: "Quelle",
+    notiz: "Notiz",
+    ueberall: "überall",
+    fest: "fest",
+    annehmen: "annehmen",
+    entfernen: "entfernen",
+    zeileHinzu: "Regel hinzufügen",
+    uebernehmen: "Regeln übernehmen",
+    einschalten: "ufw einschalten",
+    ausschalten: "ufw ausschalten",
+    einspielen: "ufw einspielen",
+    bestaetigen: "Änderung bestätigen",
+    nurLesen: "Dieses Konto darf lesen, aber die Firewall nicht ändern.",
+    nichtInstalliert: "ufw ist nicht installiert.",
+    nichtInstalliertDetail:
+      "Ohne ufw gibt es keinen Regelsatz, den das Panel verwalten kann. Einspielen läuft als Vorgang; die Ausgabe steht danach oben.",
+    entwurfOffen:
+      "Die Liste ist bearbeitet und gilt noch nicht — erst „Regeln übernehmen“ schreibt sie.",
+    // Der Satz, um den es auf dieser Seite geht. Er nennt beides: dass etwas
+    // gilt, und dass es von selbst wieder weggeht.
+    probeTitel: (gegenstand: string) =>
+      gegenstand === "Aktivierung"
+        ? "ufw ist eingeschaltet — auf Probe"
+        : "Die Regeln gelten — auf Probe",
+    probeDetail:
+      "Ohne Bestätigung wird der vorherige Stand wiederhergestellt. Bestätigen Sie, solange diese Verbindung noch steht.",
+    panelPortFehlt: (port: number) =>
+      `Für Port ${port} gibt es keine Regel von überall her. Ohne sie verweigert der Server das Einschalten — das Panel wäre danach nicht mehr erreichbar, auch nicht zum Bestätigen.`,
+  },
+
   vorgang: {
     laeuft: "läuft",
     fertig: "abgeschlossen",

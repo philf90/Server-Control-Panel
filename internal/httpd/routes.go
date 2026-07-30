@@ -87,6 +87,18 @@ func (s *Server) Handler() http.Handler {
 	// also ohne Schreibrecht und ohne Token — dieselbe Grenze wie bei GET /logs.
 	mux.Handle("GET /api/v1/logs", s.protected(http.HandlerFunc(s.handleAPILogs)))
 	mux.Handle("GET /api/v1/logs/follow", s.protected(http.HandlerFunc(s.handleAPILogsFollow)))
+	// Firewall. Bestätigen ist ausdrücklich schreibend und braucht das Token:
+	// Ein GET, der eine Probe endgültig macht, wäre über einen Bildverweis von
+	// einer fremden Seite auslösbar.
+	mux.Handle("GET /api/v1/firewall", s.protected(http.HandlerFunc(s.handleAPIFirewall)))
+	mux.Handle("POST /api/v1/firewall/rules",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallRules))))
+	mux.Handle("POST /api/v1/firewall/active",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallActive))))
+	mux.Handle("POST /api/v1/firewall/confirm",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallConfirm))))
+	mux.Handle("POST /api/v1/firewall/install",
+		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIFirewallInstall))))
 	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
 	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
 	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))

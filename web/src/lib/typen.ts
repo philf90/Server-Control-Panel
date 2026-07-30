@@ -280,6 +280,59 @@ export type VorgangGestartet = {
   job: Job;
 };
 
+/** Regel ist eine Firewall-Regel für eingehenden Verkehr. */
+export type Regel = {
+  port: number;
+  protokoll: string;
+  quelle: string;
+  notiz: string;
+};
+
+/** RegelZeile ist eine Regel mit dem, was die Oberfläche über sie wissen muss. */
+export type RegelZeile = Regel & {
+  /** fest heißt: Diese Regel darf nicht weg — es ist die des Panels. */
+  fest: boolean;
+  /** vorschlag heißt: Die Regel gibt es noch nicht, sie wäre aber sinnvoll —
+   *  etwa der Port, auf dem sshd laut Konfiguration lauscht. */
+  vorschlag: boolean;
+  hinweis: string;
+};
+
+/** Probe ist die laufende Probezeit — Grundsatz VI.
+ *
+ *  rest_sekunden ist die Frist, wie der SERVER sie sieht. Der Browser zählt
+ *  davon herunter, damit man sie sieht; verbindlich bleibt der Wächter im
+ *  Server, und der läuft weiter, auch wenn niemand zusieht. */
+export type Probe = {
+  offen: boolean;
+  gegenstand: string;
+  rest_sekunden: number;
+};
+
+/** Firewall ist die Antwort von GET /api/v1/firewall. */
+export type Firewall = {
+  regelwerk: string;
+  aktiv: boolean;
+  verwaltet: boolean;
+  installiert: boolean;
+  anmerkung: string;
+  zeilen: RegelZeile[];
+  probe: Probe;
+  panel_port: number;
+  panel_port_offen: boolean;
+  offene_zugaenge: string;
+  rechnername: string;
+  job: Job | null;
+  fehler: string;
+};
+
+/** FirewallAntwort ist die Antwort auf eine Änderung: Meldung und der neu
+ *  gelesene Zustand — dasselbe Muster wie bei den Diensten. */
+export type FirewallAntwort = {
+  meldung: string;
+  zustand: Firewall;
+};
+
 /** Bestaetigung ist der Text einer Rückfrage, wie der Server sie stellt.
  *
  *  Sie kommt vom Server und wird nicht im Browser formuliert: Der Handler führt

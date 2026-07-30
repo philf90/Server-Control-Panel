@@ -289,6 +289,7 @@ var umzug = map[string]string{
 	"/services": "/v2/dienste",
 	"/packages": "/v2/pakete",
 	"/logs":     "/v2/logs",
+	"/firewall": "/v2/firewall",
 }
 
 func neuerPfad(href string) string {

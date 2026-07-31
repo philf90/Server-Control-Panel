@@ -454,9 +454,13 @@ func TestAPIBestaetigtNenntDenGrundBeimZweitenAnlauf(t *testing.T) {
 	}
 }
 
-// Solange beide Oberflächen laufen, müssen Verweise des Handlungsbedarfs in die
-// Oberfläche zeigen, in der man gerade steht. Ein Signal, das aus der neuen
-// hinausführt, kostet die Auswahl und den Weg zurück.
+// Die Verweise des Handlungsbedarfs zeigen in die Oberfläche, in der man steht.
+//
+// Bis zum Abbau der alten Fläche prüfte dieser Test etwas anderes: Damals baute
+// die Erhebung Pfade der alten Oberfläche, und eine Übersetzungstabelle rechnete
+// sie um — geprüft wurde, dass die Umrechnung greift. Die Tabelle ist weg, die
+// Erhebung nennt die Pfade selbst, und geprüft wird jetzt das Ergebnis: ein
+// Verweis auf die neue Fläche, und keiner auf einen Pfad, den es nicht mehr gibt.
 func TestAPISignaleVerweisenAufDieNeueOberflaeche(t *testing.T) {
 	s, cookie, _ := angemeldet(t, store.RoleAdmin)
 
@@ -465,8 +469,11 @@ func TestAPISignaleVerweisenAufDieNeueOberflaeche(t *testing.T) {
 
 	gefunden := false
 	for _, sig := range antwort.Signale {
-		if sig.AktionHref == "/alt/services" {
-			t.Errorf("das Signal %q verweist noch auf die alte Dienstseite", sig.Titel)
+		// Kein Verweis darf auf die abgebaute Fläche zeigen. Ein solcher Verweis
+		// endete mit 404, und das Signal wäre eine Sackgasse.
+		if strings.HasPrefix(sig.AktionHref, "/alt/") {
+			t.Errorf("das Signal %q verweist auf die abgebaute Oberfläche: %q",
+				sig.Titel, sig.AktionHref)
 		}
 		if sig.AktionHref == "/dienste" {
 			gefunden = true
@@ -475,13 +482,6 @@ func TestAPISignaleVerweisenAufDieNeueOberflaeche(t *testing.T) {
 	if !gefunden {
 		t.Error("kein Signal verweist auf /dienste — die Attrappe hat einen " +
 			"gescheiterten Dienst, also muss es eines geben")
-	}
-
-	// Die alte Oberfläche behält ihre eigenen Verweise: Sie ist eingefroren,
-	// und ein Verweis von dort in die neue wäre eine Änderung an ihr.
-	alt := get(t, s, "/", cookie)
-	if alt.Code == http.StatusOK && strings.Contains(alt.Body.String(), "/dienste") {
-		t.Error("die alte Übersicht verweist auf /dienste — sie sollte unberührt bleiben")
 	}
 }
 

@@ -8,8 +8,12 @@ package httpd
 //
 // Seit dem Umschalten (0.4.0) liegt sie an der Wurzel; bis dahin lag sie unter
 // /v2/. Der Pfad steht an genau zwei Stellen: hier und als `base` in
-// web/vite.config.js. Die alte Oberfläche ist eine Fassung lang unter /alt/
-// erreichbar und fällt danach.
+// web/vite.config.js.
+//
+// Die alte Oberfläche lag eine Fassung lang als Rückweg unter /alt/. Mit 0.4.1
+// ist sie abgebaut — server-gerendert sind nur noch die Seiten VOR der Anmeldung
+// (internal/ui/templates), und die brauchen es, weil sie ohne JavaScript
+// funktionieren müssen.
 
 import (
 	"bytes"

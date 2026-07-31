@@ -52,7 +52,7 @@ func (s *Server) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	leser, err := r.MultipartReader()
 	if err != nil {
-		s.uploadFehler(w, r, "", http.StatusBadRequest, "Der Upload ist unlesbar: "+err.Error())
+		s.uploadFehler(w, http.StatusBadRequest, "Der Upload ist unlesbar: "+err.Error())
 		return
 	}
 
@@ -72,7 +72,7 @@ func (s *Server) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if err != nil {
-			s.uploadFehler(w, r, dir, http.StatusBadRequest, "Der Upload brach ab: "+err.Error())
+			s.uploadFehler(w, http.StatusBadRequest, "Der Upload brach ab: "+err.Error())
 			return
 		}
 
@@ -80,7 +80,7 @@ func (s *Server) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 		case teil.FormName() == "_csrf":
 			wert, err := teilText(teil, maxCSRFTeil)
 			if err != nil {
-				s.uploadFehler(w, r, dir, http.StatusBadRequest, err.Error())
+				s.uploadFehler(w, http.StatusBadRequest, err.Error())
 				return
 			}
 			tokenGeprueft = tokenGeprueft || s.csrfPasst(r, wert)
@@ -88,7 +88,7 @@ func (s *Server) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 		case teil.FormName() == "dir":
 			wert, err := teilText(teil, maxFelderTeil)
 			if err != nil {
-				s.uploadFehler(w, r, dir, http.StatusBadRequest, err.Error())
+				s.uploadFehler(w, http.StatusBadRequest, err.Error())
 				return
 			}
 			dir = wert
@@ -96,7 +96,7 @@ func (s *Server) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 		case teil.FormName() == "overwrite":
 			wert, err := teilText(teil, maxFelderTeil)
 			if err != nil {
-				s.uploadFehler(w, r, dir, http.StatusBadRequest, err.Error())
+				s.uploadFehler(w, http.StatusBadRequest, err.Error())
 				return
 			}
 			overwrite = wert == "1"
@@ -106,19 +106,19 @@ func (s *Server) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 			// Zielverzeichnis, Name.
 			if !tokenGeprueft {
 				s.audit(r, "csrf.rejected", r.URL.Path, store.ResultDenied, "Upload ohne gültigen Token")
-				s.uploadFehler(w, r, dir, http.StatusForbidden,
+				s.uploadFehler(w, http.StatusForbidden,
 					"Das Formular ist abgelaufen oder der Token fehlt. Bitte die Seite neu laden.")
 				return
 			}
 			if dir == "" {
-				s.uploadFehler(w, r, dir, http.StatusBadRequest,
+				s.uploadFehler(w, http.StatusBadRequest,
 					"Im Upload fehlt das Zielverzeichnis. Es muss im Formular vor der Datei stehen.")
 				return
 			}
 
 			name, err := privops.UploadName(teil.FileName())
 			if err != nil {
-				s.uploadFehler(w, r, dir, http.StatusBadRequest, err.Error())
+				s.uploadFehler(w, http.StatusBadRequest, err.Error())
 				return
 			}
 
@@ -126,7 +126,7 @@ func (s *Server) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 				privops.ReceiveOptions{Overwrite: overwrite})
 			if err != nil {
 				s.audit(r, "files.upload", filepath.Join(dir, name), ergebnisVon(err), err.Error())
-				s.uploadFehler(w, r, dir, statusVon(err), err.Error())
+				s.uploadFehler(w, statusVon(err), err.Error())
 				return
 			}
 			s.audit(r, "files.upload", eintrag.Path, store.ResultOK, formatBytesKurz(eintrag.Size))
@@ -142,15 +142,11 @@ func (s *Server) handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(aufgenommen) == 0 {
-		s.uploadFehler(w, r, dir, http.StatusBadRequest, "Es war keine Datei im Upload.")
+		s.uploadFehler(w, http.StatusBadRequest, "Es war keine Datei im Upload.")
 		return
 	}
 
-	if willJSON(r) {
-		s.writeJSON(w, http.StatusOK, uploadAntwort{OK: true, Entries: aufgenommen})
-		return
-	}
-	s.renderFiles(w, r, http.StatusOK, dir, uploadMeldung(aufgenommen), "")
+	s.writeJSON(w, http.StatusOK, uploadAntwort{OK: true, Entries: aufgenommen})
 }
 
 type uploadAntwort struct {
@@ -159,35 +155,21 @@ type uploadAntwort struct {
 	Entries []privops.FileEntry `json:"entries,omitempty"`
 }
 
-func uploadMeldung(eintraege []privops.FileEntry) string {
-	if len(eintraege) == 1 {
-		return fmt.Sprintf("%s hochgeladen (%s).", eintraege[0].Name, formatBytesKurz(eintraege[0].Size))
-	}
-	var summe int64
-	for _, e := range eintraege {
-		summe += e.Size
-	}
-	return fmt.Sprintf("%d Dateien hochgeladen (%s).", len(eintraege), formatBytesKurz(summe))
-}
-
-// uploadFehler antwortet je nach Aufrufer als JSON oder als Seite.
-func (s *Server) uploadFehler(w http.ResponseWriter, r *http.Request, dir string, status int, meldung string) {
-	if willJSON(r) {
-		s.writeJSON(w, status, uploadAntwort{Error: meldung})
-		return
-	}
-	if dir == "" {
-		s.renderError(w, r, status, meldung)
-		return
-	}
-	s.renderFiles(w, r, status, dir, "", meldung)
-}
-
-// willJSON unterscheidet den Aufruf aus dem Skript vom Formular ohne
-// JavaScript. Der Rückweg ohne Skript ist ausdrücklich vorgesehen — deshalb
-// darf die Antwort nicht in jedem Fall JSON sein.
-func willJSON(r *http.Request) bool {
-	return strings.Contains(r.Header.Get("Accept"), "application/json")
+// uploadFehler antwortet JSON — auch bei einem Fehler, der vor dem ersten Byte
+// Dateiinhalt auffällt.
+//
+// Bis zum Abbau der alten Oberfläche gab es hier einen zweiten Weg: Ohne
+// „Accept: application/json" kam die Verzeichnisliste mit der Meldung darüber
+// zurück, damit ein Formular ohne JavaScript eine Antwort bekam. Diesen Weg gibt
+// es nicht mehr, weil es die Seite nicht mehr gibt. Der Endpunkt liegt jetzt
+// ausschließlich unter /api/v1, und ein API-Endpunkt, der je nach Kopfzeile
+// einmal JSON und einmal HTML liefert, ist keine Schnittstelle, sondern zwei.
+//
+// Mit dem zweiten Weg fiel auch das Zielverzeichnis aus der Signatur: Es diente
+// allein dazu, die richtige Verzeichnisliste zu rendern. Wohin der Upload sollte,
+// steht im Protokoll (s.audit im Handler) und in der Anfrage der Aufruferin.
+func (s *Server) uploadFehler(w http.ResponseWriter, status int, meldung string) {
+	s.writeJSON(w, status, uploadAntwort{Error: meldung})
 }
 
 // teilText liest ein kurzes Textfeld mit Obergrenze.

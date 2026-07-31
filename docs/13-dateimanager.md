@@ -157,17 +157,20 @@ fehlenden Zielordner umbenennt statt zu verschieben.
 
 Zur Wahl steht deshalb nur, was es gibt:
 
-- **Mit Skript** eine durchsuchbare Auswahl. Sie holt die Struktur von
-  `GET /files/dirs?path=…` — Unterverzeichnisse, übergeordneter Ordner,
-  klickbarer Pfad, die Schreibbereiche als Sprungmarken. Ein Ordner ohne
-  Schreibrecht ist sichtbar, aber nicht wählbar; ein gesperrter Eintrag ist
-  sichtbar und nicht anklickbar.
-- **Ohne Skript** eine serverseitig gefüllte Auswahlliste: die Schreibbereiche
-  und die Ordner auf dem Weg zum Eintrag. Weniger Reichweite, aber auch hier
-  keine freie Eingabe.
+Zur Wahl steht eine durchsuchbare Auswahl (`komponenten/Zielwahl.svelte`). Sie
+holt die Struktur von `GET /api/v1/files/dirs?path=…` — Unterverzeichnisse,
+übergeordneter Ordner, klickbarer Pfad, die Schreibbereiche als Sprungmarken. Ein
+Ordner ohne Schreibrecht ist sichtbar, aber nicht wählbar; ein gesperrter Eintrag
+ist sichtbar und nicht anklickbar.
 
-`/files/dirs` liefert nur Verzeichnisnamen und geht durch dieselbe Pfadwache wie
-die Liste — es gibt also nichts zu sehen, was die Liste nicht ohnehin zeigt.
+Bis 0.4.1 gab es daneben einen zweiten Weg für Seiten ohne JavaScript: eine
+serverseitig gefüllte Auswahlliste mit den Schreibbereichen und den Ordnern auf
+dem Weg zum Eintrag. Er ist mit der alten Oberfläche entfallen — auch er kannte
+keine freie Eingabe, und darauf kam es an.
+
+`/api/v1/files/dirs` liefert nur Verzeichnisnamen und geht durch dieselbe
+Pfadwache wie die Liste — es gibt also nichts zu sehen, was die Liste nicht
+ohnehin zeigt.
 
 **Die Auswahl ist eine Bedienhilfe, keine Sicherheitsgrenze.** Verbindlich bleibt
 die Prüfung beim Ausführen: Ein selbstgebauter POST kommt an der Auswahl vorbei
@@ -193,16 +196,16 @@ die häufigste Verwechslung überhaupt:
 Die Sonderbits stehen mit ihrer Bedeutung dabei und erklären die erste Stelle:
 setuid, setgid und das Sticky-Bit von `/tmp`.
 
-Aufgeschlüsselt wird serverseitig (`privops.DescribeMode`), damit die Beschreibung
-auch ohne Skript stimmt. Die Kästchen kommen gesperrt an; `rechte.js` schaltet sie
-frei und hält sie mit der Ziffer im Gleichschritt — Kästchen ändern die Ziffer,
-eine getippte Ziffer setzt die Kästchen. Ohne Skript bleibt das Raster eine
-Beschreibung des Ist-Zustands, und die Ziffer ist das Eingabefeld, das sie vorher
-war.
+Aufgeschlüsselt wird **serverseitig** (`privops.DescribeMode`) und nicht in der
+Oberfläche: Die Bedeutung eines Bits ist eine Aussage über das System, und die
+gehört an die Stelle, die das System kennt. Kästchen und Ziffer bleiben im
+Gleichschritt — Kästchen ändern die Ziffer, eine getippte Ziffer setzt die
+Kästchen.
 
-Der Abschnitt erscheint auch für die Rolle `readonly` — als Beschreibung ohne
-Formular. Ein `<form>` auf `/files/mode` begegnet einer Rolle, die es nicht
-benutzen darf, gar nicht erst im Markup.
+Für die Rolle `readonly` erscheint der Abschnitt als Beschreibung ohne Bedienung.
+Verbindlich ist auch hier nicht das, was die Oberfläche zeigt: `POST
+/api/v1/files/mode` liegt hinter derselben Schranke wie jede andere Veränderung
+und antwortet dieser Rolle 403.
 
 Unter 900 Pixeln Fensterbreite ist das Raster keine Tabelle mehr, sondern ein
 Block je Rolle: Name, Kästchen mit ihren Worten, darunter der Satz. Als Tabelle
@@ -230,25 +233,14 @@ davon streicht eine Funktion, alle sparen Fläche:
    Die Rückfrage nennt weiter die Zahlen; sie ist die einzige Bremse, denn einen
    Papierkorb gibt es nicht.
 
-Zwei Dinge daran sind Fallen, die ein Bild nicht zeigt:
-
-- **Das Menü ist ein `<details>`, kein Skript.** Die CSP verbietet Inline-Skripte,
-  und die Liste ist der Weg zu jeder Datei — sie muss ohne JavaScript
-  funktionieren. Der Preis: Ein offenes Menü schließt nicht von selbst, wenn man
-  ein zweites öffnet.
-- **Zwei Vorfahren beschneiden das Aufgeklappte.** `.table-wrap` scrollt
-  waagerecht (und ein `overflow-x: auto` macht aus dem senkrechten `visible` ein
-  `auto`), `.card.flush` schneidet ab, damit die Ecken der Tabelle rund bleiben.
-  Vom Menü der letzten Zeile blieb dadurch ein Streifen von zehn Pixeln
-  sichtbar. Solange eines offen ist, beschneidet keiner von beiden
-  (`:has(.zeilenmenu[open])`). Ein Browsertest prüft das mit
-  `elementFromPoint` — und zwar in einem hohen Fenster, weil
-  `scrollIntoViewIfNeeded` ein `overflow: hidden` scrollbar macht und das Menü
-  damit *in* die Beschneidung schieben würde.
-
-Die Karte zum Hochladen ist deshalb *nicht* eingeklappt: `files-upload.js` hängt
-die Ereignisse für Ziehen und Ablegen an sie, und ein zugeklapptes Element nimmt
-keine Datei an.
+Die Verdichtung stammt aus der alten Oberfläche, die Gründe gelten unverändert
+weiter: Ein Eintrag je Zeile, die Handgriffe hinter einem Menü in der Zeile, die
+Warnung als eigene Zeile, das Löschen bei den Aktionen. Übernommen ist sie in
+`seiten/Dateien.svelte`, und die beiden Fallen der alten Umsetzung sind mit ihr
+verschwunden — beide kamen daher, dass ein aufklappbares `<details>` in einem
+waagerecht scrollenden Behälter steckte und von seinen Vorfahren beschnitten
+wurde. Ein Menü, das die Oberfläche selbst öffnet und schließt, hat das Problem
+nicht.
 
 ## Upload
 
@@ -278,14 +270,19 @@ Windows-Trennern.
 ## Editor
 
 Zeilennummern, Hervorhebung für YAML, JSON, INI, Shell, nginx, Dockerfile und
-TOML, `Strg+S` zum Speichern. Grundlage ist CodeMirror 6; der Bundle liegt
-gebaut im Repository (`internal/ui/static/editor/cm.js`), damit ein Go-Build
-ohne Node-Kette auskommt. Reproduzierbarkeit und Lizenzen:
-[packaging/editor/THIRD-PARTY.md](../packaging/editor/THIRD-PARTY.md).
+TOML, `Strg+S` zum Speichern. Grundlage ist CodeMirror 6; es liegt im gebauten
+UI-Bundle (`internal/ui/dist/`, Quelle `web/src/lib/editorkern.ts`), damit ein
+Go-Build ohne Node-Kette auskommt. Reproduzierbarkeit und Lizenzen prüft der
+CI-Job „UI-Bundle reproduzierbar".
 
-Der Editor ersetzt eine `<textarea>`, die im Formular bleibt. **Ohne JavaScript
-funktioniert dieselbe Seite unverändert weiter** — nur ohne Zeilennummern und
-Farben.
+Geladen wird der Editor über ein dynamisches `import()`: Wer nur die Übersicht
+aufruft, holt die rund 350 KiB nicht. Bis 0.4.1 stand daneben eine zweite
+Node-Kette (`packaging/editor/`), die ein eigenes `cm.js` für die Editorseite der
+alten Oberfläche baute; sie ist mit ihr abgebaut.
+
+**Ohne JavaScript gibt es diese Seite nicht.** Die Oberfläche ist eine
+Einzelseiten-Anwendung — was ohne Skript läuft, sind die Wege vor der Anmeldung
+(siehe `docs/16-neukonzeption.md`, Abschnitt 8.1).
 
 Drei Zusagen über „Textfeld mit Speicherknopf" hinaus:
 
@@ -293,10 +290,12 @@ Drei Zusagen über „Textfeld mit Speicherknopf" hinaus:
   fehlend. Ein Editor, der aus 4000 CRLF-Zeilen stillschweigend LF macht, ist
   in einem Panel nicht tragbar: Der Unterschied wandert in ein Diff, das
   niemand mehr lesen kann.
-- **Konflikte werden erkannt.** Der SHA-256 des Inhalts beim Laden steht im
-  Formular. Weicht er beim Speichern ab, zeigt die Seite den Konflikt — mit der
-  eigenen Fassung im Feld und dem neuen Hash, damit ein zweiter Versuch bewusst
-  überschreibt (Regel 6).
+- **Konflikte werden erkannt.** Der SHA-256 des Inhalts beim Laden geht beim
+  Speichern mit zurück. Weicht er ab, antwortet der Server **412** mit dem neuen
+  Hash; die Oberfläche zeigt den Konflikt und behält die eigene Fassung im Feld,
+  damit ein zweiter Versuch bewusst überschreibt (Regel 6). Der Code ist für
+  genau diesen Fall reserviert — „hier fehlt die Zustimmung" ist 409, siehe
+  [14-bestaetigungen.md](14-bestaetigungen.md).
 - **Prüfung mit Rückweg.** Für Dateien, die sich prüfen lassen, läuft nach dem
   Schreiben das Prüfprogramm des Systems. Lehnt es ab, wird der Vorzustand
   zurückgeschrieben; war die Datei neu, wird sie entfernt (Regel 5).
@@ -308,7 +307,7 @@ Drei Zusagen über „Textfeld mit Speicherknopf" hinaus:
 
 Die Zuordnung ist eine feste Liste, keine Heuristik: Ein Prüfprogramm, das
 gegen die falsche Datei läuft, wäre schlimmer als keines. Für alles andere
-meldet die Seite „nicht geprüft" — nicht „in Ordnung".
+meldet die Oberfläche „nicht geprüft" — nicht „in Ordnung".
 
 Nicht bearbeitbar sind Dateien über `files.max_edit_size` (Vorgabe 2 MiB),
 Dateien mit einem NUL-Byte (dann ist es kein Text) und Dateien, die nicht in

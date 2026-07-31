@@ -282,13 +282,13 @@ type apiSignale struct {
 // Endpunkt darf länger brauchen, und die Oberfläche zeigt die Kacheln, während
 // er noch läuft.
 //
-// Wie bei der alten Übersicht wird das Ergebnis für die Warnpunkte der
-// Navigation abgelegt. Ohne das hinge ein Punkt nach einem geglückten Neustart
-// noch bis zum Ablauf der Standzeit am Ziel.
+// Das Ergebnis wurde einmal zusätzlich in einem Cache abgelegt, aus dem die
+// Warnpunkte an der Symbolschiene der alten Oberfläche gespeist wurden. Mit der
+// Schiene ist der Cache gegangen (siehe server.go): Dieser Endpunkt ist jetzt
+// die einzige Erhebung, und was er sagt, ist von jetzt.
 func (s *Server) handleAPISignals(w http.ResponseWriter, r *http.Request) {
 	snap, _ := s.lastSnapshot()
 	signale := s.dashboardSignals(r.Context(), snap)
-	s.lageSetzen(signale)
 
 	urteil := urteilAus(signale)
 	antwort := apiSignale{
@@ -304,47 +304,17 @@ func (s *Server) handleAPISignals(w http.ResponseWriter, r *http.Request) {
 			Titel:       sig.Title,
 			Detail:      sig.Detail,
 			AktionLabel: sig.ActionLabel,
-			AktionHref:  neuerPfad(sig.ActionHref),
-			Vorrangig:   sig.Primary,
+			// Der Verweis kommt unverändert aus der Erhebung. Bis zum Abbau der
+			// alten Oberfläche stand hier eine Übersetzungstabelle: Die Erhebung
+			// baute Pfade der alten Fläche, und diese Schicht rechnete sie in die
+			// der neuen um. Es gibt nur noch eine Fläche, und die Erhebung nennt
+			// deren Pfade selbst.
+			AktionHref: sig.ActionHref,
+			Vorrangig:  sig.Primary,
 		})
 	}
 
 	s.apiJSON(w, http.StatusOK, antwort)
-}
-
-// umzug ordnet Pfaden der alten Oberfläche ihre neue Entsprechung zu.
-//
-// Nötig, solange beide nebeneinander laufen: Der Handlungsbedarf wird für beide
-// Oberflächen an einer Stelle erhoben (dashboardSignals), und seine Verweise
-// zeigen dorthin, wo die alte Oberfläche die Sache zeigt. Ein Signal „Dienst
-// fehlgeschlagen" führte damit aus der neuen Oberfläche heraus — der Weg zurück
-// wäre der Zurück-Knopf, und dabei geht die Auswahl verloren.
-//
-// Seit dem Umschalten (0.4.0) liegt die neue Oberfläche an der Wurzel und die
-// eingefrorene alte unter /alt/. Die Tabelle übersetzt deshalb jetzt in die
-// andere Richtung: Aus dem Verweis, den die alte Erhebung baut, wird der Pfad der
-// neuen Fläche. Sie verschwindet mit dem Abbau der alten Oberfläche — dann
-// erhebt die Schnittstelle ihre Signale selbst und kennt nur noch eigene Pfade.
-//
-// Bewusst hier und nicht in dashboardSignals: Die alte Oberfläche darf ihre
-// eigenen Verweise behalten, sie ist eingefroren.
-var umzug = map[string]string{
-	"/alt/services":     "/dienste",
-	"/alt/packages":     "/pakete",
-	"/alt/logs":         "/logs",
-	"/alt/firewall":     "/firewall",
-	"/alt/files":        "/dateien",
-	"/alt/audit":        "/audit",
-	"/alt/system-users": "/benutzer",
-	"/alt/update":       "/updates",
-	"/alt/certificate":  "/zertifikate",
-}
-
-func neuerPfad(href string) string {
-	if neu, ok := umzug[href]; ok {
-		return neu
-	}
-	return href
 }
 
 // apiVerlauf ist ein Verlauf, wie ihn die Kachel zeichnet: der Pfad im

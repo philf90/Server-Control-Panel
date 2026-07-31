@@ -207,19 +207,6 @@ func (s *Server) requireWrite(next http.Handler) http.Handler {
 	})
 }
 
-// requireOwner lässt nur die Owner-Rolle durch.
-func (s *Server) requireOwner(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, ok := userFrom(r.Context())
-		if !ok || !user.CanManageUsers() {
-			s.audit(r, "access.denied", r.URL.Path, store.ResultDenied, "Owner-Rolle erforderlich")
-			s.renderError(w, r, http.StatusForbidden, "Diese Aktion ist der Owner-Rolle vorbehalten.")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // verifyCSRF prüft bei allen verändernden Anfragen das Double-Submit-Token.
 func (s *Server) verifyCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

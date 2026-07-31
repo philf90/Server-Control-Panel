@@ -185,10 +185,14 @@ egal aus welchem Modul er stammt.
 > gleich benutzt. Der *innere* Teil ist noch der alte: Die Registry liegt in
 > `internal/httpd` und hält je Art den letzten Vorgang im Speicher. Was noch
 > fehlt, ist die Nummer und der Verlauf über einen Neustart des Panels hinaus —
-> beides verlangt eine Tabelle im Store. Das geschieht beim Umschalten, wenn die
-> alte Oberfläche gelöscht ist und nur noch ein Leser übrig ist: Solange beide
-> laufen, wäre eine zweite Registry der schlimmere Fehler — ein Vorgang, der
-> doppelt startet, weil zwei Verwaltungen nichts voneinander wissen.
+> beides verlangt eine Tabelle im Store.
+>
+> **Stand nach dem Abbau (0.4.1):** Die Voraussetzung dafür ist jetzt da. Solange
+> zwei Oberflächen liefen, wäre eine zweite Registry der schlimmere Fehler
+> gewesen — ein Vorgang, der doppelt startet, weil zwei Verwaltungen nichts
+> voneinander wissen. Seit es einen Leser gibt, ist der Umzug nach
+> `internal/jobs` samt Verlauf im Store eine Aufgabe für sich und kein Risiko
+> mehr.
 
 **Eine JSON-Schnittstelle `/api/v1/*`.** Die neue Oberfläche ist die einzige
 Kundin, aber die Schnittstelle wird von Anfang an so geschnitten, als käme
@@ -242,7 +246,7 @@ Abschnitt 11). Zur Fassung 0.4.0-rc.4 steht sie vollständig:
 
 | Modul der alten Fläche | Neue Fläche | Anmerkung |
 |---|---|---|
-| Lage (`/alt/`) | `/` | Telemetrie-Kacheln, Urteil, Handlungsbedarf, Dateisysteme, Prozesse |
+| Lage | `/` | Telemetrie-Kacheln, Urteil, Handlungsbedarf, Dateisysteme, Prozesse |
 | Dienste | `/dienste` | Werkbank mit Inspektor |
 | Pakete | `/pakete` | erstes Modul im Job-Modell |
 | Konten (System) | `/benutzer` | Systemkonten und SSH-Schlüssel |
@@ -256,10 +260,13 @@ Abschnitt 11). Zur Fassung 0.4.0-rc.4 steht sie vollständig:
 | Konto (eigenes) | `/konto` | Passwort, zweiter Faktor, Passkeys, Sitzungen |
 
 **Nicht übertragen, und zwar absichtlich:** Anmeldung, Erstinstallation, der
-erzwungene Passwortwechsel und der Weg für ein vergessenes Passwort bleiben
-server-gerenderte Vorlagen. Sie liegen vor der Anmeldung oder an ihrer Stelle,
-müssen ohne JavaScript laufen und sind der Grund für das Hybrid-Routing aus
-Abschnitt 8.1.
+zweite Faktor, die Wiederherstellungscodes, der erzwungene Passwortwechsel und
+der Weg für ein vergessenes Passwort bleiben server-gerenderte Vorlagen — dazu
+die Fehlerseite, die Download und Archiv brauchen. Sie liegen vor der Anmeldung
+oder an ihrer Stelle, müssen ohne JavaScript laufen und sind der Grund für das
+Hybrid-Routing aus Abschnitt 8.1. Es sind neun Vorlagen, und seit 0.4.1 hält ein
+Test die Zahl fest: Eine zehnte bricht den Lauf mit der Frage, ob die Seite
+wirklich vor die Anmeldung gehört.
 
 Über die Parität hinaus sind **Cron & systemd-Timer** (`/cron`) und **API-Tokens**
 (`/tokens`) gebaut — das erste Modul ohne alte Fläche und die erste
@@ -267,10 +274,11 @@ Store-Erweiterung. Damit ist die 0.4 inhaltlich vollständig.
 
 #### Das Umschalten — in zwei Schritten und nicht in einem
 
-Mit 0.4.0 liegt die neue Oberfläche an der **Wurzel**, die alte unter **`/alt/`**.
-Sie ist eingefroren: keine Gestaltung, keine Funktion, nur erreichbar. Der Abbau —
-27 Vorlagen, 17 statische Dateien, rund 4.500 Zeilen Handler und die daran
-hängenden Tests — folgt als eigener Schritt in 0.4.1.
+Mit 0.4.0 liegt die neue Oberfläche an der **Wurzel**, die alte lag eine Fassung
+lang unter **`/alt/`**: eingefroren, keine Gestaltung, keine Funktion, nur
+erreichbar. **Mit 0.4.1 ist sie abgebaut** — 18 Vorlagen, 12 Skripte, das eigene
+CodeMirror-Bundle samt seiner Node-Kette, 68 Routen und ihre Handler, unterm
+Strich 19.400 Zeilen weniger. `/alt/…` antwortet seither 404.
 
 Das Konzept sah bis hierher vor, beides in einem Zug zu tun. Die Änderung hat
 einen Grund, der in der Bauart dieses Programms liegt: **Es aktualisiert sich
@@ -1062,14 +1070,16 @@ wie ein halb gebautes Modul aus.
 
 - **`internal/httpd` teilt sich** in die API-Schicht (`/api/v1`, JSON, Tokens)
   und die schmale Restmenge server-gerenderter Seiten (vor Auth). Die
-  Handler-Logik zieht in service-artige Funktionen, die API und — solange die
-  Umstellung läuft — die alten Seiten gemeinsam nutzen.
+  Handler-Logik zieht in service-artige Funktionen. (Bis 0.4.1 war das die
+  Voraussetzung dafür, dass API und alte Seiten sich denselben Code teilen
+  konnten; seit dem Abbau ist es eine Frage der Ordnung und nicht mehr der
+  Doppelpflege.)
 - **Job-Modell** als eigenes Paket (`internal/jobs`): Registry, Verlauf im
   Store, Stream über den SSE-Hub. Pakete/Firewall ziehen um, alles Neue
-  beginnt dort. **Beim Umschalten und nicht davor:** Die Schnittstelle nach
-  außen steht seit dem Modul Pakete (siehe 4.2 und 8.4), die Verwaltung bleibt
-  vorerst in `internal/httpd`, weil die alte Oberfläche sie mitbenutzt. Eine
-  zweite Registry neben der ersten wäre ein Vorgang, der doppelt startet.
+  beginnt dort. Die Schnittstelle nach außen steht seit dem Modul Pakete (siehe
+  4.2 und 8.4); die Verwaltung blieb in `internal/httpd`, weil die alte
+  Oberfläche sie mitbenutzte und eine zweite Registry ein Vorgang gewesen wäre,
+  der doppelt startet. **Seit dem Abbau (0.4.1) steht dem nichts entgegen.**
 - **privops wächst um vier Familien** (`Docker*`, `Site*`, `Db*`, `Backup*`
   plus `Cron*/Timer*`) und bleibt die einzige Systemgrenze. Die
   Allowlist wächst um `docker`, `nginx`/`caddy`, `mysql`/`psql`, `restic`,

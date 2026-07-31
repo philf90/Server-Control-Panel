@@ -3,13 +3,10 @@ package httpd
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	wa "github.com/go-webauthn/webauthn/webauthn"
 
-	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/passkeys"
 	"github.com/philf90/asylum/internal/store"
 )
@@ -65,153 +62,6 @@ func passkeyViews(stored []store.WebAuthnCredential) []passkeyView {
 		out = append(out, v)
 	}
 	return out
-}
-
-// handlePasskeyRegisterBegin eröffnet die Registrierung. Das aktuelle Passwort
-// wird verlangt, damit eine übernommene Sitzung nicht unbemerkt einen dauerhaften
-// Schlüssel hinterlegen kann; die Bestätigung am Gerät allein genügt dafür nicht.
-func (s *Server) handlePasskeyRegisterBegin(w http.ResponseWriter, r *http.Request) {
-	if s.passkeys == nil {
-		s.writeJSONError(w, http.StatusNotFound, "Passkeys sind nicht eingeschaltet.")
-		return
-	}
-	user, _ := userFrom(r.Context())
-
-	ok, err := auth.VerifyPassword(r.PostFormValue("password"), user.PasswordHash)
-	if err != nil {
-		s.log.Error("passwort prüfen", "err", err)
-	}
-	if !ok {
-		s.audit(r, "passkey.register", user.Username, store.ResultDenied, "Passwort falsch")
-		s.writeJSONError(w, http.StatusForbidden, "Das aktuelle Passwort stimmt nicht.")
-		return
-	}
-
-	pu, _, err := s.passkeyUser(r, user)
-	if err != nil {
-		s.log.Error("passkeys laden", "err", err)
-		s.writeJSONError(w, http.StatusInternalServerError, "Die Registrierung ließ sich nicht beginnen.")
-		return
-	}
-
-	opts, token, err := s.passkeys.BeginRegistration(pu)
-	if err != nil {
-		s.log.Error("passkey-registrierung beginnen", "err", err)
-		s.writeJSONError(w, http.StatusInternalServerError, "Die Registrierung ließ sich nicht beginnen.")
-		return
-	}
-	s.writeJSON(w, http.StatusOK, map[string]any{
-		"token":     token,
-		"publicKey": opts.Response,
-	})
-}
-
-// handlePasskeyRegisterFinish prüft die Antwort des Authenticators und legt den
-// Passkey an. Antwortet mit JSON; die Seite lädt bei Erfolg selbst neu.
-func (s *Server) handlePasskeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
-	if s.passkeys == nil {
-		s.writeJSONError(w, http.StatusNotFound, "Passkeys sind nicht eingeschaltet.")
-		return
-	}
-	user, _ := userFrom(r.Context())
-
-	token := r.PostFormValue("token")
-	label := strings.TrimSpace(r.PostFormValue("label"))
-	if label == "" {
-		label = "Passkey"
-	}
-	if len(label) > 60 {
-		label = label[:60]
-	}
-
-	pu, _, err := s.passkeyUser(r, user)
-	if err != nil {
-		s.writeJSONError(w, http.StatusInternalServerError, "Die Registrierung ließ sich nicht abschließen.")
-		return
-	}
-
-	cred, err := s.passkeys.FinishRegistration(pu, token, strings.NewReader(r.PostFormValue("credential")))
-	if err != nil {
-		s.audit(r, "passkey.register", user.Username, store.ResultError, err.Error())
-		s.writeJSONError(w, http.StatusBadRequest, "Der Passkey ließ sich nicht bestätigen. Bitte erneut versuchen.")
-		return
-	}
-
-	data, err := json.Marshal(cred)
-	if err != nil {
-		s.writeJSONError(w, http.StatusInternalServerError, "Der Passkey ließ sich nicht speichern.")
-		return
-	}
-	_, err = s.db.AddWebAuthnCredential(r.Context(), store.WebAuthnCredential{
-		UserID:       user.ID,
-		CredentialID: passkeys.CredentialID(*cred),
-		Label:        label,
-		Data:         data,
-	})
-	if err != nil {
-		// Dasselbe Gerät ein zweites Mal — die UNIQUE-Bedingung greift.
-		s.audit(r, "passkey.register", user.Username, store.ResultError, "bereits registriert")
-		s.writeJSONError(w, http.StatusConflict, "Dieser Passkey ist bereits hinterlegt.")
-		return
-	}
-	s.audit(r, "passkey.register", user.Username, store.ResultOK, label)
-	s.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-}
-
-func (s *Server) handlePasskeyRename(w http.ResponseWriter, r *http.Request) {
-	user, _ := userFrom(r.Context())
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		s.renderError(w, r, http.StatusBadRequest, "Ungültige Kennung.")
-		return
-	}
-	label := strings.TrimSpace(r.PostFormValue("label"))
-	if label == "" {
-		label = "Passkey"
-	}
-	if len(label) > 60 {
-		label = label[:60]
-	}
-	if err := s.db.RenameWebAuthnCredential(r.Context(), id, user.ID, label); err != nil {
-		s.renderAccount(w, r, http.StatusBadRequest, "", "Der Passkey ließ sich nicht umbenennen.", nil)
-		return
-	}
-	s.audit(r, "passkey.rename", user.Username, store.ResultOK, label)
-	s.renderAccount(w, r, http.StatusOK, "Der Passkey wurde umbenannt.", "", nil)
-}
-
-func (s *Server) handlePasskeyDelete(w http.ResponseWriter, r *http.Request) {
-	user, _ := userFrom(r.Context())
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		s.renderError(w, r, http.StatusBadRequest, "Ungültige Kennung.")
-		return
-	}
-	// Der Name des Passkeys steht in der Frage, nicht nur seine Kennung: In einer
-	// Liste von drei Geräten ist „Passkey entfernen?" keine Auskunft darüber,
-	// welches Gerät gemeint ist. Wie viele es sonst noch gibt, gehört auch dazu —
-	// beim letzten ist es der letzte Anmeldeweg ohne Passwort.
-	name, uebrig := s.passkeyName(r, user.ID, id)
-	folgen := []string{"Die Anmeldung über dieses Gerät ist danach nicht mehr möglich."}
-	if uebrig == 0 {
-		folgen = append(folgen, "Es ist der letzte hinterlegte Passkey dieses Kontos.")
-	}
-	if !s.bestaetigt(w, r, bestaetigung{
-		Titel:   "Passkey entfernen",
-		Frage:   "Passkey „" + name + "\" entfernen?",
-		Punkte:  folgen,
-		Knopf:   "entfernen",
-		Abbruch: "/alt/account",
-	}) {
-		return
-	}
-
-	if err := s.db.DeleteWebAuthnCredential(r.Context(), id, user.ID); err != nil {
-		s.renderAccount(w, r, http.StatusBadRequest, "", "Der Passkey ließ sich nicht entfernen.", nil)
-		return
-	}
-	s.audit(r, "passkey.remove", user.Username, store.ResultOK, "")
-	s.renderAccount(w, r, http.StatusOK, "Der Passkey wurde entfernt.", "", nil)
 }
 
 // passkeyName liefert die Beschriftung eines Passkeys und die Zahl der übrigen

@@ -8,8 +8,9 @@ package httpd
 // Minuten, schreibt Zeilen und endet mit Erfolg oder Fehler. Er bekommt deshalb
 // keinen eigenen Ereignisstrom, sondern läuft über
 // `/api/v1/jobs/certificate/events` wie der Paketvorgang und das Einspielen von
-// ufw. Die alte Oberfläche behält ihren eigenen Strom unter /certificate/events;
-// sie ist unverändert.
+// ufw. (Die alte Oberfläche hatte für dieselbe Sache einen eigenen Strom unter
+// /certificate/events. Er ist mit ihr gegangen — es gibt jetzt einen Weg für
+// Vorgangszeilen und nicht je Modul einen.)
 //
 // Vier Dinge halten diese Fläche eng:
 //

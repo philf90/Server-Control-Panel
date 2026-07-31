@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -60,23 +59,6 @@ func newTestServer(t *testing.T) *Server {
 }
 
 // addUser legt ein vollständig eingerichtetes Konto an.
-// ja bestätigt ein Formular für einen zerstörenden Endpunkt.
-//
-// Seit die Rückfrage im Handler steht (siehe bestaetigung.go), tut ein solcher
-// Endpunkt ohne "bestaetigt" nichts, sondern antwortet mit der Zwischenseite.
-// Tests, die die Aktion selbst prüfen, bestätigen deshalb mit; wer die Rückfrage
-// prüft, lässt es weg — siehe TestZerstoerendeAktionenFragenZurueck.
-//
-// Das zweite Argument ist das getippte Wort der dritten Stufe (Kontoname,
-// Ordnername, Hostname). Wo keines verlangt ist, bleibt es weg.
-func ja(v url.Values, tippen ...string) url.Values {
-	v.Set("bestaetigt", "1")
-	if len(tippen) > 0 {
-		v.Set("tippen", tippen[0])
-	}
-	return v
-}
-
 func addUser(t *testing.T, s *Server, username, role string) store.User {
 	t.Helper()
 	ctx := context.Background()
@@ -231,7 +213,7 @@ func TestUnknownPathIs404(t *testing.T) {
 
 func TestProtectedPagesRedirectWhenAnonymous(t *testing.T) {
 	s := newTestServer(t)
-	for _, path := range []string{"/", "/alt/audit", "/alt/account", "/alt/users", "/events"} {
+	for _, path := range []string{"/", "/audit", "/konto", "/zugaenge", "/events"} {
 		rec := get(t, s, path, nil)
 		if rec.Code != http.StatusSeeOther {
 			t.Errorf("%s: Status = %d, erwartet 303 auf /login", path, rec.Code)
@@ -243,58 +225,11 @@ func TestProtectedPagesRedirectWhenAnonymous(t *testing.T) {
 	}
 }
 
-func TestDashboardForLoggedInUser(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, _ := login(t, s, user)
-
-	rec := get(t, s, "/alt/", cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200", rec.Code)
-	}
-	body := rec.Body.String()
-	for _, want := range []string{"Übersicht", "philipp", "Dateisysteme"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("Seite enthält %q nicht", want)
-		}
-	}
-}
-
-// TestDashboardZeigtSofortMesswerte hält eine Lücke fest, die beim Anlegen
-// der Bildschirmfotos auffiel: Die Übersicht rendert aus der jüngsten Messung,
-// nicht aus dem Ringpuffer. Der Ring bekommt nur alle 30 Sekunden einen
-// Eintrag — daraus zu rendern hieße, dass eine frische Installation und jeder
-// Neustart nach einem Update eine halbe Minute lang "keine Daten" zeigt.
-func TestDashboardZeigtSofortMesswerte(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, _ := login(t, s, user)
-
-	// Genau der Zustand kurz nach dem Start: eine Messung liegt vor, der
-	// Ringpuffer ist noch leer.
-	if _, ok := s.ring.Last(); ok {
-		t.Fatal("der Ringpuffer sollte zu Beginn leer sein")
-	}
-	s.setLatest(s.sampler.Sample())
-
-	body := get(t, s, "/alt/", cookie).Body.String()
-	if strings.Contains(body, "wird ermittelt") {
-		t.Error("die Übersicht meldet trotz vorliegender Messung keine Daten")
-	}
-	// Die Tabellen entstehen serverseitig; der Live-Kanal füllt sie nicht nach.
-	if !strings.Contains(body, "Dateisysteme") {
-		t.Error("die Dateisystemtabelle fehlt")
-	}
-	if strings.Count(body, "keine Daten") > 1 {
-		t.Errorf("die Übersicht ist weitgehend leer:\n%s", body)
-	}
-}
-
 func TestSessionInvalidCookieIsIgnored(t *testing.T) {
 	s := newTestServer(t)
 	addUser(t, s, "philipp", store.RoleOwner)
 
-	rec := get(t, s, "/alt/", &http.Cookie{Name: sessionCookie, Value: "erfunden"})
+	rec := get(t, s, "/", &http.Cookie{Name: sessionCookie, Value: "erfunden"})
 	if rec.Code != http.StatusSeeOther {
 		t.Errorf("Status = %d, erwartet Weiterleitung auf /login", rec.Code)
 	}
@@ -305,13 +240,13 @@ func TestDisabledUserLosesAccess(t *testing.T) {
 	user := addUser(t, s, "gesperrt", store.RoleAdmin)
 	cookie, _ := login(t, s, user)
 
-	if rec := get(t, s, "/alt/", cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/", cookie); rec.Code != http.StatusOK {
 		t.Fatalf("Vorbedingung: Status = %d", rec.Code)
 	}
 	if err := s.db.SetDisabled(context.Background(), user.ID, true); err != nil {
 		t.Fatal(err)
 	}
-	if rec := get(t, s, "/alt/", cookie); rec.Code != http.StatusSeeOther {
+	if rec := get(t, s, "/", cookie); rec.Code != http.StatusSeeOther {
 		t.Errorf("gesperrtes Konto hat weiterhin Zugriff (Status %d)", rec.Code)
 	}
 }
@@ -334,7 +269,7 @@ func TestUnconfirmedTOTPIsSentToSetup(t *testing.T) {
 	user, _ := s.db.UserByID(ctx, id)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/alt/", cookie)
+	rec := get(t, s, "/", cookie)
 	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/setup/2fa" {
 		t.Errorf("Status = %d, Location = %q — erwartet 303 auf /setup/2fa",
 			rec.Code, rec.Header().Get("Location"))
@@ -347,193 +282,7 @@ func TestUnconfirmedTOTPIsSentToSetup(t *testing.T) {
 
 // ---------------------------------------------------------------------- RBAC ---
 
-func TestOwnerOnlyPages(t *testing.T) {
-	s := newTestServer(t)
-
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	ownerCookie, _ := login(t, s, owner)
-	if rec := get(t, s, "/alt/users", ownerCookie); rec.Code != http.StatusOK {
-		t.Errorf("Owner: Status = %d, erwartet 200", rec.Code)
-	}
-
-	for _, role := range []string{store.RoleAdmin, store.RoleReadOnly} {
-		user := addUser(t, s, "u-"+role, role)
-		cookie, _ := login(t, s, user)
-		rec := get(t, s, "/alt/users", cookie)
-		if rec.Code != http.StatusForbidden {
-			t.Errorf("%s: Status = %d, erwartet 403", role, rec.Code)
-		}
-	}
-}
-
-func TestOwnerCannotDeleteOwnAccount(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	cookie, csrf := login(t, s, owner)
-
-	rec := post(t, s, "/alt/users/"+strconv.FormatInt(owner.ID, 10)+"/delete", url.Values{"_csrf": {csrf}}, cookie)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("Status = %d, erwartet 400", rec.Code)
-	}
-	if _, err := s.db.UserByID(context.Background(), owner.ID); err != nil {
-		t.Error("das eigene Konto wurde trotzdem gelöscht")
-	}
-}
-
-func TestLastOwnerCannotBeDeleted(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	admin := addUser(t, s, "admin", store.RoleAdmin)
-
-	// Der Admin bekommt keine Owner-Rechte; gelöscht wird aus Sicht des Owners.
-	_ = admin
-	cookie, csrf := login(t, s, owner)
-
-	other := addUser(t, s, "zweiter", store.RoleReadOnly)
-	rec := post(t, s, "/alt/users/"+strconv.FormatInt(other.ID, 10)+"/delete",
-		ja(url.Values{"_csrf": {csrf}}, other.Username), cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Löschen eines Nicht-Owners: Status = %d", rec.Code)
-	}
-	if _, err := s.db.UserByID(context.Background(), other.ID); err == nil {
-		t.Error("Konto wurde nicht gelöscht")
-	}
-}
-
 // ---------------------------------------------------------------------- CSRF ---
-
-func TestPostWithoutCSRFTokenIsRejected(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	cookie, _ := login(t, s, owner)
-
-	rec := post(t, s, "/alt/users", url.Values{
-		"username": {"eindringling"}, "password": {testPassword}, "role": {"admin"},
-	}, cookie)
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("Status = %d, erwartet 403", rec.Code)
-	}
-	if _, err := s.db.UserByName(context.Background(), "eindringling"); err == nil {
-		t.Error("das Konto wurde trotz fehlendem CSRF-Token angelegt")
-	}
-}
-
-func TestPostWithWrongCSRFTokenIsRejected(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	cookie, _ := login(t, s, owner)
-
-	rec := post(t, s, "/alt/users", url.Values{
-		"_csrf": {"falsch"}, "username": {"x"}, "password": {testPassword}, "role": {"admin"},
-	}, cookie)
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("Status = %d, erwartet 403", rec.Code)
-	}
-}
-
-// TestUserCreateWithCSRF: Anzugeben sind nur Anmeldename und Rolle. Das
-// Startpasswort erzeugt das Panel, zeigt es einmal und verlangt den Wechsel.
-func TestUserCreateWithCSRF(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	cookie, csrf := login(t, s, owner)
-
-	rec := post(t, s, "/alt/users", url.Values{
-		"_csrf": {csrf}, "username": {"kollege"}, "role": {"readonly"},
-	}, cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200 (Body: %s)", rec.Code, rec.Body.String())
-	}
-
-	user, err := s.db.UserByName(context.Background(), "kollege")
-	if err != nil {
-		t.Fatalf("Konto wurde nicht angelegt: %v", err)
-	}
-	if user.Role != store.RoleReadOnly {
-		t.Errorf("Rolle = %q, erwartet readonly", user.Role)
-	}
-	if user.TOTPConfirmed {
-		t.Error("neues Konto darf nicht mit bestätigtem zweiten Faktor starten")
-	}
-	if !user.MustChangePassword {
-		t.Error("das Startpasswort ist kein Einmalpasswort — der Wechselzwang fehlt")
-	}
-
-	// Die Seite zeigt das Passwort genau einmal. Es muss der Richtlinie
-	// entsprechen: Auf der Wechselseite wird es als aktuelles Passwort geprüft.
-	passwort := einmalpasswortAus(t, rec.Body.String())
-	if err := auth.CheckPasswordPolicy(user.Username, passwort); err != nil {
-		t.Errorf("das erzeugte Passwort verstößt gegen die Richtlinie: %v", err)
-	}
-	ok, err := auth.VerifyPassword(passwort, user.PasswordHash)
-	if err != nil || !ok {
-		t.Error("das angezeigte Passwort gehört nicht zum gespeicherten Hash")
-	}
-}
-
-// Das Startpasswort darf nirgends stehen als auf dieser einen Seite — im
-// Audit-Log steht nur, dass eines vergeben wurde.
-func TestUserCreateSchreibtDasPasswortNichtInsAudit(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	cookie, csrf := login(t, s, owner)
-
-	rec := post(t, s, "/alt/users", url.Values{
-		"_csrf": {csrf}, "username": {"kollege"}, "role": {"admin"},
-	}, cookie)
-	passwort := einmalpasswortAus(t, rec.Body.String())
-
-	entries, err := s.db.ListAudit(context.Background(), 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var vermerkt bool
-	for _, e := range entries {
-		if e.Action != "user.create" {
-			continue
-		}
-		vermerkt = strings.Contains(e.Detail, "Einmalpasswort")
-		if strings.Contains(e.Detail, passwort) || strings.Contains(e.Target, passwort) {
-			t.Fatal("das Startpasswort steht im Audit-Log")
-		}
-	}
-	if !vermerkt {
-		t.Error("im Audit-Log fehlt der Vermerk über das Einmalpasswort")
-	}
-}
-
-// Ein neues Konto kommt nirgendwo hin, bis der zweite Faktor steht und das
-// Startpasswort ersetzt ist — in dieser Reihenfolge.
-func TestNeuesKontoMussPasswortWechseln(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	ownerCookie, csrf := login(t, s, owner)
-
-	post(t, s, "/alt/users", url.Values{
-		"_csrf": {csrf}, "username": {"kollege"}, "role": {"admin"},
-	}, ownerCookie)
-
-	neu, err := s.db.UserByName(context.Background(), "kollege")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cookie, _ := login(t, s, neu)
-
-	// Erst der zweite Faktor.
-	rec := get(t, s, "/alt/", cookie)
-	if loc := rec.Header().Get("Location"); rec.Code != http.StatusSeeOther || loc != "/setup/2fa" {
-		t.Fatalf("Status = %d, Location = %q — erwartet 303 auf /setup/2fa", rec.Code, loc)
-	}
-
-	// Danach der Wechsel des Startpassworts.
-	if err := s.db.SetTOTP(context.Background(), neu.ID, neu.TOTPSecret, true); err != nil {
-		t.Fatal(err)
-	}
-	rec = get(t, s, "/alt/", cookie)
-	if loc := rec.Header().Get("Location"); rec.Code != http.StatusSeeOther || loc != "/account/password-change" {
-		t.Fatalf("Status = %d, Location = %q — erwartet 303 auf /account/password-change", rec.Code, loc)
-	}
-}
 
 // Das Einmalpasswort liest einmalpasswortAus aus der Antwort — der Helfer steht
 // bei den Tests zum Zurücksetzen (reset_test.go), weil dieselbe Seite es zeigt.
@@ -804,8 +553,19 @@ func TestTOTPConfirmationCompletesSetup(t *testing.T) {
 	if n, _ := s.db.CountUnusedRecoveryCodes(ctx, id); n != auth.RecoveryCodeCount {
 		t.Errorf("%d Wiederherstellungscodes, erwartet %d", n, auth.RecoveryCodeCount)
 	}
-	if !strings.Contains(rec.Body.String(), "Wiederherstellungscodes") {
+	koerper := rec.Body.String()
+	if !strings.Contains(koerper, "Wiederherstellungscodes") {
 		t.Error("die Codes wurden nicht angezeigt")
+	}
+	// Der Weg von hier ins Panel. Er zeigte bis zum Abbau der alten Oberfläche
+	// auf /alt/ (und je nach Anlass auf deren Kontoseite) — hier endet die
+	// Ersteinrichtung, und wer sie abschließt, gehört ins Panel und nicht auf
+	// eine 404.
+	if !strings.Contains(koerper, `href="/"`) {
+		t.Errorf("die Codeseite führt nicht weiter nach /:\n%s", koerper)
+	}
+	if strings.Contains(koerper, "/alt/") {
+		t.Error("die Codeseite verweist auf die abgebaute alte Oberfläche")
 	}
 }
 
@@ -835,52 +595,6 @@ func TestQRCodeIsPNG(t *testing.T) {
 }
 
 // ------------------------------------------------------------------- Konto ---
-
-func TestPasswordChange(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, csrf := login(t, s, user)
-
-	const newPassword = "ein anderes langes Passwort"
-	rec := post(t, s, "/alt/account/password", url.Values{
-		"_csrf":                {csrf},
-		"current_password":     {testPassword},
-		"new_password":         {newPassword},
-		"new_password_confirm": {newPassword},
-	}, cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200 (Body: %s)", rec.Code, rec.Body.String())
-	}
-
-	updated, err := s.db.UserByID(context.Background(), user.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ok, err := auth.VerifyPassword(newPassword, updated.PasswordHash)
-	if err != nil || !ok {
-		t.Error("das neue Passwort wurde nicht übernommen")
-	}
-	// Die alte Sitzung muss beendet sein.
-	if _, err := s.db.SessionByID(context.Background(), auth.HashToken(cookie.Value)); err == nil {
-		t.Error("die alte Sitzung besteht nach der Passwortänderung weiter")
-	}
-}
-
-func TestPasswordChangeRejectsWrongCurrent(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, csrf := login(t, s, user)
-
-	rec := post(t, s, "/alt/account/password", url.Values{
-		"_csrf":                {csrf},
-		"current_password":     {"daneben"},
-		"new_password":         {"ein anderes langes Passwort"},
-		"new_password_confirm": {"ein anderes langes Passwort"},
-	}, cookie)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("Status = %d, erwartet 400", rec.Code)
-	}
-}
 
 // ----------------------------------------------------------------- Audit-Log ---
 
@@ -918,30 +632,10 @@ func TestLoginIsAudited(t *testing.T) {
 	}
 }
 
-func TestAuditPageShowsEntries(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, _ := login(t, s, user)
-
-	if err := s.db.AppendAudit(context.Background(), store.AuditEntry{
-		Actor: "philipp", Action: "test.eintrag", Result: store.ResultOK, IP: "127.0.0.1",
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	rec := get(t, s, "/alt/audit", cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200", rec.Code)
-	}
-	if !strings.Contains(rec.Body.String(), "test.eintrag") {
-		t.Error("der Eintrag erscheint nicht auf der Seite")
-	}
-}
-
 // ------------------------------------------------------------------ Hilfen ---
 
 func TestClientIP(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/alt/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "203.0.113.7:54321"
 	if got := clientIP(req); got != "203.0.113.7" {
 		t.Errorf("clientIP = %q, erwartet 203.0.113.7", got)
@@ -983,7 +677,7 @@ func TestRecovererTurnsPanicInto500(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/alt/", nil))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("Status = %d, erwartet 500", rec.Code)
 	}

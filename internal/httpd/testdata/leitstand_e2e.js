@@ -927,7 +927,10 @@ async function main() {
       gesperrt: tr.querySelector(".zustand.warn") !== null,
     })),
   );
-  dateien.alteAnsicht = await seite.evaluate(
+  // Im Fuß stand bis 0.4.0 ein Verweis in die alte Ansicht (/alt/files). Sie ist
+  // abgebaut; hier wird weiter nachgesehen, damit ein zurückkehrender Verweis
+  // auffällt und nicht als 404 beim Nutzer landet.
+  dateien.fussVerweis = await seite.evaluate(
     () => document.querySelector(".fuss a")?.getAttribute("href") ?? "",
   );
 

@@ -71,17 +71,6 @@ type Server struct {
 	// Executor selbst gebaut hat — wer einen eigenen einsetzt (Tests), bekommt
 	// eine leere Konsole statt eines falschen Bildes.
 	journal *privops.Journal
-	// lageCache ist der zuletzt erhobene Handlungsbedarf. Er speist die
-	// Warnpunkte an der Symbolschiene, die auf jeder Seite stehen. Ihn bei
-	// jedem Seitenaufruf frisch zu erheben hieße, jede Seite an ein systemctl
-	// und ein apt zu hängen — dafür ist er zu teuer und zu selten anders.
-	lageMu      sync.RWMutex
-	lageCache   []dashSignal
-	lageErhoben time.Time
-	// lageFrisch stellt sicher, dass immer nur einer erhebt. Wer nicht
-	// drankommt, nimmt den vorherigen Stand: Eine Seite wartet nicht auf ein
-	// hängendes Kommando.
-	lageFrisch sync.Mutex
 	// files ist der Dateimanager. Nil, wenn das Modul abgeschaltet ist oder
 	// seine Politik nicht aufgeht — dann gibt es weder Routen noch Menüpunkt.
 	files privops.Files
@@ -452,61 +441,25 @@ func (s *Server) sampleLoop(ctx context.Context) {
 			tick++
 			if tick%historyEvery == 0 {
 				s.ring.Add(snap)
-				// Im selben Takt den Handlungsbedarf nachziehen. Damit ist der
-				// Cache im laufenden Betrieb praktisch immer warm, und keine
-				// Seite muss ihn selbst erheben.
-				s.lageErheben(ctx)
 			}
 		}
 	}
 }
 
-// lageTTL ist die Standzeit des Handlungsbedarfs. Steht nichts Frischeres zur
-// Verfügung, zeigt die Schiene lieber gar keinen Punkt als einen von gestern.
-// Der Wert liegt über dem Ablagetakt, damit ein einzelner verpasster Tick die
-// Punkte nicht flackern lässt.
-const lageTTL = 5 * time.Minute
-
-// lageStand liefert den zuletzt erhobenen Handlungsbedarf für die Warnpunkte
-// an der Symbolschiene.
+// Hier stand bis zum Abbau der alten Oberfläche ein zweiter Erhebungsweg: Der
+// Messtakt zog alle fünf Minuten den Handlungsbedarf nach und legte ihn in einem
+// Cache ab, damit die Warnpunkte an der Symbolschiene auf JEDER Seite stehen
+// konnten, ohne dass jeder Seitenaufruf an einem systemctl und einem apt hängt.
 //
-// Er erhebt bewusst nichts: Diese Funktion läuft bei jedem Seitenaufbau, und
-// eine beliebige Seite darf nicht an einem systemctl hängen — auch nicht
-// einmal je Standzeit. Gefüllt wird der Stand vom Messtakt und von der
-// Übersicht, die ihre Signale ohnehin frisch erhebt. Ist noch nichts erhoben,
-// bleiben die Punkte weg; das ist die ehrlichere Aussage als ein geratener.
-func (s *Server) lageStand() []dashSignal {
-	s.lageMu.RLock()
-	defer s.lageMu.RUnlock()
-	if s.lageErhoben.IsZero() || time.Since(s.lageErhoben) > lageTTL {
-		return nil
-	}
-	return s.lageCache
-}
-
-// lageErheben zieht den Handlungsbedarf neu und legt ihn ab. Aufgerufen wird
-// es aus dem Messtakt, nicht aus einem Seitenaufbau.
-func (s *Server) lageErheben(ctx context.Context) {
-	// Nur einer erhebt. Läuft schon eine Erhebung, ist die zweite überflüssig.
-	if !s.lageFrisch.TryLock() {
-		return
-	}
-	defer s.lageFrisch.Unlock()
-
-	snap, _ := s.lastSnapshot()
-	s.lageSetzen(s.dashboardSignals(ctx, snap))
-}
-
-// lageSetzen legt einen frisch erhobenen Stand ab. Die Übersicht ruft es auf,
-// weil sie ihre Signale ohnehin frisch erhebt — so ist der Warnpunkt an der
-// Schiene nach einem geglückten Neustart sofort weg und nicht erst mit dem
-// nächsten Messtakt.
-func (s *Server) lageSetzen(signale []dashSignal) {
-	s.lageMu.Lock()
-	defer s.lageMu.Unlock()
-	s.lageCache = signale
-	s.lageErhoben = time.Now()
-}
+// Mit der Schiene ist der einzige Leser des Caches gegangen. Was blieb, wäre eine
+// Erhebung im Hintergrund für niemanden — alle fünf Minuten ein systemctl und ein
+// apt, damit ein Feld beschrieben wird, das keine Antwort mehr liest. Deshalb ist
+// der ganze Weg weg und nicht nur sein Aufruf.
+//
+// Den Handlungsbedarf erhebt jetzt allein /api/v1/signals, und zwar frisch bei
+// jeder Anfrage. Das ist der teurere Weg pro Aufruf und der ehrlichere: Die neue
+// Übersicht fragt danach, wenn sie ihn zeigt, und was sie zeigt, ist dann von
+// jetzt und nicht von vor fünf Minuten.
 
 // setLatest merkt sich die jüngste Messung.
 func (s *Server) setLatest(snap metrics.Snapshot) {

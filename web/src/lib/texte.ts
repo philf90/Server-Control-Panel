@@ -272,8 +272,6 @@ export const t = {
     verweisGebrochen: "Das Ziel des Verweises existiert nicht.",
     inhaltZaehlung: "Inhalt",
     grenzeEditor: (text: string) => `Der Editor öffnet Dateien bis ${text}.`,
-    // Der Weg zurück bleibt sichtbar, solange die alte Fläche mehr kann.
-    alteAnsicht: "dieser Ordner in der alten Ansicht",
 
     // ---------------------------------------------------------- Verändern ---
     neuerOrdner: "Neuer Ordner",
@@ -949,7 +947,4 @@ export const t = {
     abgemeldet: "Die Sitzung ist abgelaufen. Bitte neu anmelden.",
     erneut: "Erneut versuchen",
   },
-
-  vorschau:
-    "Neue Oberfläche im Aufbau — die alte bleibt unter / erreichbar und unverändert.",
 } as const;

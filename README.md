@@ -85,24 +85,31 @@ Einzelheiten in [docs/13-dateimanager.md](docs/13-dateimanager.md).
 
 ![Dateien](docs/bilder/dateien.png)
 
-Auf dem Telefon wird aus der Schiene eine Leiste am unteren Rand — in
-Daumenreichweite, was die Spalte links nie war. Vier Ziele bleiben stehen, der
-Rest klappt über „Mehr" auf; die Kennzahlen werden ein schiebbares Band, und aus
-jeder Tabellenzeile wird eine Karte. Ein Server-Panel wird genau dann gebraucht,
-wenn man nicht am Schreibtisch sitzt.
+Auf dem Telefon schrumpft die Seitenleiste auf ihre Symbole, das Statusband oben
+gibt die Angaben preis, für die kein Platz ist, und aus jeder Tabellenzeile wird
+eine Karte mit ihren Beschriftungen — eine Zahl ohne Angabe, wozu sie gehört, ist
+keine Auskunft. Ein Server-Panel wird genau dann gebraucht, wenn man nicht am
+Schreibtisch sitzt.
 
-<img src="docs/bilder/schmal.png" alt="Systembenutzer auf einem Telefon" width="320">
+<img src="docs/bilder/schmal.png" alt="Die Übersicht auf einem Telefon" width="320">
 
 Weitere Ansichten: [Dienste](docs/bilder/dienste.png) ·
 [Firewall](docs/bilder/firewall.png) · [Audit-Log](docs/bilder/audit.png) ·
 [Datei-Editor](docs/bilder/datei-editor.png) ·
 [Angaben zu einer Datei](docs/bilder/datei-detail.png)
 
-> Die Bilder entstehen reproduzierbar aus der Anwendung selbst
-> (`ASYLUM_DUMP_DIR=… go test ./internal/httpd -run TestDumpSeiten`), mit
-> repräsentativen Beispieldaten: Dienste, Pakete, Firewall und Systembenutzer
-> über den einspeisbaren Runner, die Übersicht aus einem gestellten Snapshot.
-> Bildschirmfotos von einem echten Server unter systemd stehen für 0.1.0 noch aus.
+> Die Bilder entstehen reproduzierbar aus der Anwendung selbst — es sind
+> Bildschirmfotos aus dem Browsertest, der die Oberfläche ohnehin bedient:
+>
+> ```bash
+> ASYLUM_LEITSTAND_E2E=1 ASYLUM_E2E_SHOTS=/tmp/shots \
+>   ASYLUM_CHROMIUM=… go test ./internal/httpd -run Leitstand
+> ```
+>
+> Die Daten sind gestellt, aber nicht gemalt: Dienste, Pakete, Firewall und
+> Systemkonten kommen über den einspeisbaren Runner, die Telemetrie aus einem
+> gesetzten Snapshot. Was auf dem Bild steht, hat die Anwendung selbst gerendert.
+> Bildschirmfotos von einem echten Server unter systemd stehen noch aus.
 
 ## Entwicklung
 

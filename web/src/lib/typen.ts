@@ -51,8 +51,9 @@ export type Process = {
   command: string;
 };
 
-/** Snapshot ist die Nutzlast des Live-Kanals — unverändert dieselbe, die die
- *  alte Oberfläche liest. Der Kanal wird geteilt, nicht ersetzt. */
+/** Snapshot ist die Nutzlast des Live-Kanals (/events). Sie ist unverändert die,
+ *  die auch die alte Oberfläche gelesen hat: Der Kanal wurde bei der Umstellung
+ *  geteilt und nicht ersetzt, und ist deshalb älter als diese Datei. */
 export type Snapshot = {
   at: string;
   cpu: CPU;

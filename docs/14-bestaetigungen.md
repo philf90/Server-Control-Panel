@@ -102,41 +102,62 @@ hat, hat die Rückfrage gelesen — mehr soll die Stufe nicht leisten.
 
 ## Der Dialog
 
-`bestaetigen.js` hängt an jedem Formular mit `data-bestaetigen` und hält das
-Absenden auf, bis bestätigt wurde. Es steht in der Fußzeile jeder Seite und
-nicht in den acht, die einen solchen Knopf tragen: Ein Skript, das man beim
-Hinzufügen eines Löschknopfes vergessen kann, ist keines.
+**Der Text kommt vom Server.** Ein Schreibzugriff, dem die Bestätigung fehlt,
+wird nicht ausgeführt; der Handler antwortet mit **409** und legt bei, was zu
+fragen ist:
 
-```html
-<form method="post" action="/files/delete"
-      data-bestaetigen="baum enthält 12 Dateien und 3 Ordner (4,1 MiB). Alles endgültig löschen?"
-      data-bestaetigen-titel="Löschen"
-      data-bestaetigen-knopf="endgültig löschen"
-      data-bestaetigen-tippen="baum">
+```json
+{ "bestaetigung": {
+    "titel":  "Löschen",
+    "frage":  "baum enthält 12 Dateien und 3 Ordner (4,1 MiB). Alles endgültig löschen?",
+    "punkte": ["Der Ordner ist nicht leer.", "Es gibt keinen Papierkorb."],
+    "knopf":  "endgültig löschen",
+    "tippen": "baum" } }
 ```
 
-Vier Einzelheiten, die nicht offensichtlich sind:
+Die Oberfläche zeigt das in `komponenten/Rueckfrage.svelte` und schickt dieselbe
+Anfrage erneut, diesmal mit `"bestaetigt": true`. Sie **formuliert nichts und
+entscheidet nichts** — auch nicht die Stufe: Ob ein getipptes Wort verlangt wird,
+steht in `tippen`, und ob es stimmt, prüft der Handler noch einmal. Irrt sich
+dieser Dialog, ist das kein Sicherheitsproblem; dieselbe Arbeitsteilung wie bei
+der Pfadwache.
 
-- **Ein `<dialog>`, kein `window.confirm`.** Nur das erste kann ein
-  Eingabefeld tragen, sich gestalten und den Rest der Seite abdecken.
-- **Die Angabe darf am Knopf stehen.** Auf *Panel-Zugänge* teilen drei Knöpfe
-  ein Formular, und `formaction` entscheidet, welche Zurücksetzung gemeint ist.
-  Das Skript liest `event.submitter` und bevorzugt dessen Angaben.
-- **Abgeschickt wird mit `requestSubmit(knopf)`, nicht mit `submit()`.**
-  `submit()` verwirft das `formaction` des Knopfes — statt der Passkeys wäre
-  dann das Passwort zurückgesetzt. Ein Browsertest hält genau das fest.
-- **Escape ist ein Abbruch**, und der gefährliche Knopf bekommt nicht den
-  Fokus. Bei der dritten Stufe liegt er im Eingabefeld und bleibt gesperrt, bis
-  das Wort stimmt.
+Fünf Einzelheiten, die nicht offensichtlich sind:
+
+- **409 und nicht 412.** Der Statuscode für „hier fehlt die Zustimmung" ist im
+  ganzen Panel derselbe. 412 ist reserviert und bedeutet genau eine andere Sache:
+  Im Editor hat sich die Datei seit dem Öffnen geändert (Hash-Konflikt). Zwei
+  Bedeutungen auf einem Code wären zwei Dialoge, die gleich aussehen und
+  Verschiedenes meinen.
+- **Ein echtes `<dialog>` mit `showModal()`, kein `<div>` mit Schleier und kein
+  `window.confirm`.** Der Browser bringt Fokusfang, oberste Ebene und Escape mit.
+  Das nachzubauen ist die Stelle, an der Tastaturbedienung still verloren geht —
+  und `confirm()` kann kein Eingabefeld tragen, das die dritte Stufe braucht.
+- **Escape ist ein Abbruch**, und zwar über `oncancel`: Ohne das schließt der
+  Browser den Dialog, während die Komponente eingehängt bleibt — beim nächsten
+  Versuch stünde ein geschlossener Dialog da, und der Knopf wirkte kaputt.
+- **Der gefährliche Knopf bekommt nicht den Fokus.** Bei der dritten Stufe liegt
+  er im Eingabefeld und bleibt gesperrt, bis das Wort stimmt.
+- **Die Stufe berechnet der Server je Objekt.** Ein leerer Ordner ist Stufe 2,
+  ein Ordner mit Inhalt Stufe 3 — dieselbe Zahl, die den Dialog füllt, entscheidet
+  auch die Prüfung. Eine Hürde ohne Anlass entwertet die Hürde dort, wo sie zählt.
+
+Bis 0.4.0 lief das anders: `bestaetigen.js` hing an jedem Formular mit
+`data-bestaetigen`, hielt das Absenden auf und schickte mit
+`requestSubmit(knopf)` weiter — mit dem Knopf, weil `submit()` das `formaction`
+verwirft und auf *Panel-Zugänge* statt der Passkeys das Passwort zurückgesetzt
+worden wäre. Der Weg über das Formular ist mit der alten Oberfläche entfallen
+(0.4.1); die Fragen selbst und die Stufen sind dieselben, weil sie immer im
+Handler standen.
 
 ## Was ohne Rückfrage bleibt — mit Begründung
 
-- **`/users/reset-password`, `/users/reset-2fa`, `/users/reset-passkeys`:** Das
-  Formular verlangt das eigene Passwort des Owners. Die Bremse steht schon
-  darin, und eine Zwischenseite müsste das Passwort in einem versteckten Feld
-  weitergeben — das wäre schlechter als keine. Der Knopf für die Passkeys zeigt
-  trotzdem einen Dialog.
-- **`/firewall` (Regelsatz speichern):** Eine geleerte Portnummer entfernt eine
+- **Das Zurücksetzen eines fremden Zugangs** (Passwort, zweiter Faktor,
+  Passkeys): Die Anfrage verlangt das eigene Passwort des Owners. Die Bremse
+  steht schon darin, und sie noch einmal abzufragen hieße, das Passwort zweimal
+  entgegenzunehmen. Das Zurücksetzen der Passkeys zeigt trotzdem einen Dialog —
+  es nimmt den letzten Nachweis eines Geräts, das niemand wiederbeschaffen kann.
+- **Der Regelsatz der Firewall:** Eine geleerte Portnummer entfernt eine
   Regel. Der gespeicherte Regelsatz gilt zunächst auf Probe und nimmt sich ohne
   Bestätigung binnen 60 Sekunden von selbst zurück — eine wirksamere Sicherung
   als ein Dialog, weil sie auch den Fall abfängt, in dem man sich selbst
@@ -145,18 +166,18 @@ Vier Einzelheiten, die nicht offensichtlich sind:
 
 ## Was die Tests festhalten
 
-- `internal/ui`: kein `onsubmit`/`onclick` in irgendeiner Vorlage (die CSP
-  verwirft sie), und jedes Formular auf einer zerstörenden Route trägt
-  `data-bestaetigen` — die Liste der Routen steht im Test ausgeschrieben, damit
-  eine neue auffällt.
-- `internal/httpd`: Für jede zerstörende Route führt ein POST **ohne** das Feld
-  nichts aus. Geprüft wird die Wirkung, nicht der Statuscode: Die Zwischenseite
-  antwortet mit 200, und ein Test, der nur darauf schaut, besteht auch dann,
-  wenn nichts geschah. Ein falsches getipptes Wort ergibt 400 und keine Aktion.
-- Browsertest (`ASYLUM_BESTAETIGEN_E2E=1`): Der Dialog erscheint überhaupt —
-  das war der Befund —, ist modal, `abbrechen` und Escape schicken kein POST,
-  der Knopf bleibt bis zum richtigen Wort gesperrt, `window.confirm` kommt nicht
-  vor, und der bestätigte Klick landet beim `formaction` des Knopfes.
+- `internal/ui` (Quellentest über `web/src`): kein `confirm(` in irgendeiner
+  Svelte-Quelle — ein `window.confirm` wäre der bequeme Weg zurück und kann die
+  dritte Stufe nicht tragen —, und die Rückfrage benutzt das `<dialog>`-Element
+  und nicht ein selbstgebautes Overlay.
+- `internal/httpd`: Für jede zerstörende Route führt ein Aufruf **ohne**
+  `bestaetigt` nichts aus. Geprüft wird die Wirkung, nicht der Statuscode: Ein
+  Test, der nur auf 409 schaut, besteht auch dann, wenn zusätzlich etwas geschah.
+  Ein falsches getipptes Wort ergibt 400 und keine Aktion.
+- Browsertest (`ASYLUM_LEITSTAND_E2E=1`): Der Dialog erscheint überhaupt — das
+  war der Befund —, ist modal, `abbrechen` und Escape schicken keine zweite
+  Anfrage (nachgesehen wird danach der Zustand, nicht nur der Dialog), und der
+  Knopf bleibt bis zum richtigen Wort gesperrt.
 
 ## Was bewusst fehlt
 

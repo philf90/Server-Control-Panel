@@ -84,7 +84,13 @@ jobs:
           # httpd besteht zu einem großen Teil aus Anzeigelogik; die
           # sicherheitsrelevanten Pfade darin (Sitzung, CSRF, Rollen) sind
           # eigens getestet.
-          check httpd   63
+          #
+          # Die Grenze stieg mit 0.4.1 von 63 auf 68: Der Abbau der alten
+          # Oberfläche nahm rund 4.500 Zeilen Anzeigelogik mit, die zu einem
+          # großen Teil ungetestet war. Gemessen sind seither 70,0 %. Die Zahl
+          # anzuheben ist die Pflicht des Sperrklinken-Mechanismus — eine Grenze,
+          # die sieben Punkte unter dem Stand liegt, hält nichts.
+          check httpd   68
 
       - name: Build
         run: |
@@ -130,61 +136,13 @@ jobs:
         with:
           version: v2.12.2
 
-  editor:
-    name: Editor-Bundle reproduzierbar
-    runs-on: ubuntu-latest
-    # internal/ui/static/editor/cm.js liegt im Repository, damit ein Go-Build
-    # keine Node-Kette braucht. Ein eingecheckter Bundle, den niemand nachbauen
-    # kann, wäre allerdings Fremdcode ohne Herkunftsnachweis: Niemand könnte
-    # sagen, ob der Inhalt zu den genannten Quellen passt. Dieser Job baut ihn
-    # aus dem festgeschriebenen Lockfile nach und vergleicht byteweise.
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Nachbauen und vergleichen
-        run: |
-          set -euo pipefail
-          cp internal/ui/static/editor/cm.js "${RUNNER_TEMP}/cm.js.eingecheckt"
-          cd packaging/editor
-          npm ci --no-audit --no-fund
-          node build.mjs
-          cd ../..
-          if ! cmp -s "${RUNNER_TEMP}/cm.js.eingecheckt" internal/ui/static/editor/cm.js; then
-            echo "Der eingecheckte Editor-Bundle stimmt nicht mit dem Nachbau überein."
-            echo "Bitte 'make editor' laufen lassen und das Ergebnis mit einchecken."
-            ls -l "${RUNNER_TEMP}/cm.js.eingecheckt" internal/ui/static/editor/cm.js
-            exit 1
-          fi
-          echo "Bundle reproduzierbar: $(stat -c%s internal/ui/static/editor/cm.js) Bytes"
-
-      - name: Lizenzen des Fremdcodes
-        # Im Binary landet nur MIT-Code. Eine Abhängigkeit, die das ändert,
-        # soll hier auffallen und nicht erst bei einer Lizenzprüfung durch
-        # Dritte.
-        run: |
-          set -euo pipefail
-          cd packaging/editor
-          erlaubt="MIT ISC BSD-2-Clause BSD-3-Clause Apache-2.0"
-          fehler=0
-          for pfad in node_modules/*/package.json node_modules/@*/*/package.json; do
-            [ -f "$pfad" ] || continue
-            name="$(node -p "require('./$pfad').name")"
-            lizenz="$(node -p "require('./$pfad').license || ''")"
-            case " $erlaubt " in
-              *" $lizenz "*) ;;
-              *) echo "unerwartete Lizenz: $name = ${lizenz:-keine}"; fehler=1 ;;
-            esac
-          done
-          [ "$fehler" -eq 0 ] || exit 1
-          echo "alle Lizenzen im erlaubten Rahmen"
-
   ui:
     name: UI-Bundle reproduzierbar
     runs-on: ubuntu-latest
-    # internal/ui/dist/ liegt im Repository, aus demselben Grund wie das
-    # Editor-Bundle: Ein Go-Build soll keine Node-Kette brauchen. Damit der
+    # internal/ui/dist/ liegt im Repository, damit ein Go-Build keine Node-Kette
+    # braucht. Ein eingecheckter Bundle, den niemand nachbauen kann, wäre
+    # allerdings Fremdcode ohne Herkunftsnachweis: Niemand könnte sagen, ob der
+    # Inhalt zu den genannten Quellen passt. Damit der
     # eingecheckte Stand nachprüfbar bleibt, baut dieser Job ihn aus dem
     # festgeschriebenen Lockfile nach und vergleicht byteweise — samt der
     # gehashten Dateinamen, die sich bei jeder Inhaltsänderung mit ändern.
@@ -213,8 +171,10 @@ jobs:
           echo "Bundle reproduzierbar: $(du -sh internal/ui/dist | cut -f1)"
 
       - name: Lizenzen des Fremdcodes
-        # Dieselbe Allowlist wie beim Editor-Bundle. Was ins Binary wandert,
-        # muss eine Lizenz haben, die das Projekt weitergeben kann.
+        # Was ins Binary wandert, muss eine Lizenz haben, die das Projekt
+        # weitergeben kann. (Bis 0.4.1 stand dieselbe Allowlist ein zweites Mal
+        # im Job „Editor-Bundle reproduzierbar" — er ist mit der alten
+        # Oberfläche entfallen, und damit gibt es eine Liste und nicht zwei.)
         #
         # Dazu eine namentliche Ausnahmeliste statt einer weiteren erlaubten
         # Lizenz: lightningcss ist MPL-2.0 und wandelt Stylesheets während des

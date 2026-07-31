@@ -9,7 +9,7 @@ LDFLAGS := -s -w \
 	-X $(PKG)/internal/version.Commit=$(COMMIT) \
 	-X $(PKG)/internal/version.Date=$(DATE)
 
-.PHONY: help build test lint fmt vet run dist clean check editor
+.PHONY: help build test lint fmt vet run dist clean check ui
 
 help: ## Diese Übersicht
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -48,10 +48,6 @@ run: build ## Lokal starten (Port 8443, Daten unter ./.local)
 ui: ## Oberfläche (Svelte) neu bauen
 	@command -v npm >/dev/null 2>&1 || { echo "npm nicht installiert — der eingecheckte Stand bleibt, wie er ist"; exit 0; }
 	cd web && npm ci --no-audit --no-fund && npm run build
-
-editor: ## Editor-Bundle (CodeMirror) neu bauen
-	@command -v npm >/dev/null 2>&1 || { echo "npm nicht installiert — der eingecheckte Bundle bleibt, wie er ist"; exit 0; }
-	cd packaging/editor && npm ci --no-audit --no-fund && node build.mjs
 
 dist: ## Release-Artefakte lokal bauen (ohne Veröffentlichung)
 	@command -v goreleaser >/dev/null 2>&1 \

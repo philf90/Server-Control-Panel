@@ -706,7 +706,7 @@ func TestAPIDockerBestandMarkiertBenutztes(t *testing.T) {
 
 	b := bestandLesen(t, s, cookie)
 	if len(b.Images) != 2 || len(b.Volumes) != 2 || len(b.Netze) != 2 {
-		t.Fatalf("Listen unvollständig: %d Abbilder, %d Volumes, %d Netze",
+		t.Fatalf("Listen unvollständig: %d Images, %d Volumes, %d Netze",
 			len(b.Images), len(b.Volumes), len(b.Netze))
 	}
 
@@ -721,13 +721,13 @@ func TestAPIDockerBestandMarkiertBenutztes(t *testing.T) {
 	}
 	// nginx:alpine läuft als web-proxy-1 (aus containerServer).
 	if !nginx.InGebrauch {
-		t.Error("ein Abbild, das ein Container benutzt, muss als in Gebrauch gelten")
+		t.Error("ein Image, das ein Container benutzt, muss als in Gebrauch gelten")
 	}
 	if verwaist.Name != "" {
-		t.Errorf("ein verwaistes Abbild hat keinen Namen, hat aber %q", verwaist.Name)
+		t.Errorf("ein verwaistes Image hat keinen Namen, hat aber %q", verwaist.Name)
 	}
 	if verwaist.InGebrauch {
-		t.Error("ein namenloses Abbild kann nicht in Gebrauch sein")
+		t.Error("ein namenloses Image kann nicht in Gebrauch sein")
 	}
 	if verwaist.Kurz == "" {
 		t.Error("die gekürzte Kennung fehlt — sie ist das Einzige, woran man es erkennt")
@@ -776,7 +776,7 @@ func TestAPIDockerBestandUeberlebtFehlendeContainerliste(t *testing.T) {
 
 	b := bestandLesen(t, s, cookie)
 	if len(b.Images) != 2 {
-		t.Errorf("die Abbilder fehlen, obwohl nur die Containerliste scheiterte: %+v", b.Images)
+		t.Errorf("die Images fehlen, obwohl nur die Containerliste scheiterte: %+v", b.Images)
 	}
 	for _, i := range b.Images {
 		if i.InGebrauch {
@@ -810,7 +810,7 @@ func TestAPIDockerVolumeEntfernenIstStufeDrei(t *testing.T) {
 	}
 }
 
-// Abbild und Netz sind Stufe 2: Beides lässt sich wiederherstellen, das eine
+// Image und Netz sind Stufe 2: Beides lässt sich wiederherstellen, das eine
 // durch Ziehen, das andere durch den nächsten Compose-Start.
 func TestAPIDockerImageUndNetzSindStufeZwei(t *testing.T) {
 	s, ops, cookie, csrf := bestandServer(t, store.RoleOwner)
@@ -848,7 +848,7 @@ func TestAPIDockerPruneFrageTraegtZahlen(t *testing.T) {
 		t.Errorf("die Frage nennt die Zahlen nicht: %v", frage.Bestaetigung.Punkte)
 	}
 	if frage.Bestaetigung.Tippen != "" {
-		t.Error("das Aufräumen von Abbildern ist Stufe 2")
+		t.Error("das Aufräumen von Images ist Stufe 2")
 	}
 }
 

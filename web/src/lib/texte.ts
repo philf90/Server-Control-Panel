@@ -962,8 +962,12 @@ export const t = {
     // Was in dieser Fassung noch nicht da ist, steht als Satz da statt als
     // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
     imBau: "Was hier noch fehlt",
+    // Kein Termin, den niemand zugesagt hat: Bis 0.5.0 stand hier „kommt mit
+    // dem letzten Schritt der Fassung 0.5" — der Schritt wurde zurückgestellt,
+    // der Satz blieb stehen. Dieselbe Sorte Versprechen wie auf der leeren
+    // Stackliste, und dieselbe Berichtigung: sagen, was ist.
     imBauDetail:
-      "Die Container-Shell kommt mit dem letzten Schritt der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+      "Die Container-Shell ist zurückgestellt. Sie bringt die schwierigere Hälfte eines Web-Terminals mit — PTY, bidirektionaler Transport, Terminal im Browser — und wird deshalb zusammen mit dieser Frage entschieden, nicht nebenbei. Die Begründung steht im Repository unter docs/17-docker.md.",
 
     // Container
     container: "Container",
@@ -1029,10 +1033,10 @@ export const t = {
     inGebrauchSpalte: "in Gebrauch",
     groesse: "Größe",
     freigebbar: "freigebbar",
-    images: "Abbilder",
+    images: "Images",
     volumesTitel: "Volumes",
     netzeTitel: "Netze",
-    spalteAbbild: "Abbild",
+    spalteImage: "Image",
     spalteAlter: "Alter",
     spalteOrt: "Ort",
     spalteTreiber: "Treiber",
@@ -1040,14 +1044,14 @@ export const t = {
     inGebrauch: "in Gebrauch",
     eingebaut: "eingebaut",
     entfernen: "entfernen",
-    keineImages: "Keine Abbilder in der lokalen Ablage.",
+    keineImages: "Keine Images in der lokalen Ablage.",
     keineVolumes: "Keine Volumes.",
     keineNetze: "Keine Netze.",
     // Aufräumen. Der Text sagt je Knopf, was er trifft — "aufräumen" allein
     // befähigt zu keiner Entscheidung.
     aufraeumen: "aufräumen",
-    verwaisteWeg: "namenlose Abbilder wegräumen",
-    alleUnbenutztenWeg: "alle unbenutzten Abbilder wegräumen",
+    verwaisteWeg: "namenlose Images wegräumen",
+    alleUnbenutztenWeg: "alle unbenutzten Images wegräumen",
     gestoppteWeg: "gestoppte Container wegräumen",
     volumesWeg: "ungenutzte Volumes wegräumen",
     netzeWeg: "ungenutzte Netze wegräumen",
@@ -1055,8 +1059,15 @@ export const t = {
 
     // Stacks
     stacks: "Stacks",
+    // Der Satz sagt, was jetzt geht, und wo das Ergebnis liegt. Bis 0.5.0 stand
+    // hier „Anlegen kommt mit dem nächsten Schritt" — ein Satz aus der Zeit, in
+    // der die Stackliste nur lesen konnte. Er blieb stehen, nachdem der Schritt
+    // da war, und stand ausgerechnet auf dem frischen Server, auf dem er falsch
+    // war.
     stacksLeer:
-      "Auf diesem Server gibt es kein Compose-Projekt. Anlegen kommt mit dem nächsten Schritt.",
+      "Auf diesem Server gibt es kein Compose-Projekt. „Stack anlegen“ schreibt das erste nach /opt/asylum/stacks.",
+    stacksLeerNurLesen:
+      "Einen Stack anlegen darf nur die Owner-Rolle — ein Compose-Stack ist Codeausführung als root.",
     stacksSuchen: "Stack- oder Dienstname",
     stacksNichts: "Kein Stack passt zur Suche.",
     verwaltet: "verwaltet",
@@ -1082,7 +1093,7 @@ export const t = {
     stackUp: "starten",
     stackDown: "herunterfahren",
     stackDownVolumes: "herunterfahren + Volumes löschen",
-    stackPull: "Abbilder holen",
+    stackPull: "Images holen",
     stackRestart: "neu starten",
     stackLoeschen: "löschen",
     stackAnlegen: "Stack anlegen",
@@ -1134,7 +1145,7 @@ export const t = {
     // Ereignisse
     ereignisse: "Ereignisse",
     ereignisseWesen:
-      "Was Docker gerade tut: Container, die starten und sterben, geholte Abbilder, angelegte Volumes. Beantwortet die Frage, warum ein Container um 3 Uhr neu gestartet ist.",
+      "Was Docker gerade tut: Container, die starten und sterben, geholte Images, angelegte Volumes. Beantwortet die Frage, warum ein Container um 3 Uhr neu gestartet ist.",
     ereignisseZeigen: "Ereignisse ansehen",
     ereignisseWarte: "Warte auf Ereignisse …",
     spalteZeit: "Zeit",
@@ -1146,10 +1157,10 @@ export const t = {
       `${n} Ereignisse verworfen — Docker schreibt schneller als die Leitung überträgt.`,
 
     // Update-Prüfung
-    // „Aktualität der Abbilder" und nicht „Abbilder": Unter Bestand steht schon
+    // „Aktualität der Images" und nicht „Images": Unter Bestand steht schon
     // eine Liste dieses Namens, und zwei gleich benannte Überschriften auf einer
     // Seite lassen sich nicht auseinanderhalten.
-    updates: "Aktualität der Abbilder",
+    updates: "Aktualität der Images",
     updatesWesen:
       "Gibt es zu den Tags, die hier laufen, in den Registries etwas Neueres? Das Panel vergleicht Kennungen und tauscht nichts aus — den Knopf drückt ein Mensch.",
     updatesNieGeprueft:
@@ -1163,8 +1174,8 @@ export const t = {
     // „Nicht geprüft" ist die ehrlichste der drei Zahlen — und der Satz dazu
     // sagt, warum sie keine Beruhigung ist.
     updatesUngeprueftWarum:
-      "Zu diesen Abbildern kam kein belastbarer Vergleich zustande. Das heißt nicht, dass sie aktuell sind.",
-    spalteAbbildRef: "Abbild",
+      "Zu diesen Images kam kein belastbarer Vergleich zustande. Das heißt nicht, dass sie aktuell sind.",
+    spalteImageRef: "Image",
     spalteStand: "Stand",
     spalteGebrauch: "benutzt von",
     updatesAktualisieren: "Stack aktualisieren",

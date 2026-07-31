@@ -1,19 +1,19 @@
 <script lang="ts">
-  // Die Update-Prüfung für Abbilder.
+  // Die Update-Prüfung für Images.
   //
   // Sie ist eine AUSKUNFT und kein Automat (Entscheidung E5 in
   // docs/17-docker.md): Das Panel sagt, dass es etwas Neues gibt, und der
-  // Mensch drückt den Knopf. Ein Panel, das nachts von allein Abbilder tauscht,
+  // Mensch drückt den Knopf. Ein Panel, das nachts von allein Images tauscht,
   // ist ein Panel, das nachts von allein etwas kaputt macht.
   //
   // Drei Zahlen und nicht zwei, und die dritte ist die wichtigste: „nicht
   // geprüft" ist weder „aktuell" noch „veraltet". Wo kein belastbarer Vergleich
-  // zustande kam — Mehrarchitektur ohne buildx, ein selbst gebautes Abbild, die
+  // zustande kam — Mehrarchitektur ohne buildx, ein selbst gebautes Image, die
   // Ratengrenze —, sagt die Fläche das, statt zu raten. Eine Prüfung, die im
-  // Zweifel Alarm schlägt, schlägt ihn bei fast jedem Abbild und wird nach einer
+  // Zweifel Alarm schlägt, schlägt ihn bei fast jedem Image und wird nach einer
   // Woche nicht mehr gelesen.
   //
-  // Der Griff ist der STACK und nicht das Abbild: „docker pull" allein ändert
+  // Der Griff ist der STACK und nicht das Image: „docker pull" allein ändert
   // nichts an dem, was läuft. Deshalb steht neben einer Zeile mit neuer Fassung
   // „Stack aktualisieren" — das ist pull und up in einem Vorgang.
   import Rueckfrage from "./Rueckfrage.svelte";
@@ -21,9 +21,9 @@
   import { AbgemeldetFehler, BestaetigungNoetig, api } from "../lib/api";
   import { t } from "../lib/texte";
   import { Vorgang } from "../lib/vorgang.svelte";
-  import type { Abbildupdates, Bestaetigung } from "../lib/typen";
+  import type { Imageupdates, Bestaetigung } from "../lib/typen";
 
-  let daten = $state<Abbildupdates | null>(null);
+  let daten = $state<Imageupdates | null>(null);
   let fehler = $state("");
   let meldung = $state("");
   let arbeitet = $state("");
@@ -44,7 +44,7 @@
   async function laden() {
     fehler = "";
     try {
-      const frisch = await api.abbildupdates();
+      const frisch = await api.imageupdates();
       daten = frisch;
       pruefung.setzen(frisch.job);
     } catch (e) {
@@ -167,7 +167,7 @@
       <table class="tabelle">
         <thead>
           <tr>
-            <th>{t.docker.spalteAbbildRef}</th>
+            <th>{t.docker.spalteImageRef}</th>
             <th>{t.docker.spalteStand}</th>
             <th>{t.docker.spalteGebrauch}</th>
             <th></th>
@@ -176,7 +176,7 @@
         <tbody>
           {#each daten.zeilen as z (z.ref)}
             <tr>
-              <td data-spalte={t.docker.spalteAbbildRef}>
+              <td data-spalte={t.docker.spalteImageRef}>
                 <span class="mono">{z.ref}</span>
               </td>
               <td data-spalte={t.docker.spalteStand}>

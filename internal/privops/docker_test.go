@@ -408,9 +408,9 @@ func TestParseDockerStats(t *testing.T) {
 	}
 }
 
-// Abbild-Kennungen sind anders gebaut als Containernamen: "sha256:aaa",
+// Image-Kennungen sind anders gebaut als Containernamen: "sha256:aaa",
 // "nginx:alpine", "ghcr.io/o/n:1.2", "nginx@sha256:…". Der erste Anlauf hat für
-// beides dieselbe Prüfung benutzt — und die lehnte jede Abbild-Kennung ab.
+// beides dieselbe Prüfung benutzt — und die lehnte jede Image-Kennung ab.
 func TestValidateImageRef(t *testing.T) {
 	gut := []string{
 		"sha256:aaa111", "nginx", "nginx:alpine", "ghcr.io/betreiber/dienst:1.2",
@@ -596,19 +596,19 @@ Total reclaimed space: 1.234GB
 func TestParseDockerImages(t *testing.T) {
 	liste := parseDockerImages(dockerImagesOut)
 	if len(liste) != 2 {
-		t.Fatalf("erwartet 2 Abbilder, gelesen %d", len(liste))
+		t.Fatalf("erwartet 2 Images, gelesen %d", len(liste))
 	}
 	if liste[0].Repo != "nginx" || liste[0].Tag != "alpine" || liste[0].Groesse != "48.9MB" {
 		t.Errorf("erste Zeile falsch gelesen: %+v", liste[0])
 	}
 	if liste[0].Verwaist {
-		t.Error("ein benanntes Abbild ist nicht verwaist")
+		t.Error("ein benanntes Image ist nicht verwaist")
 	}
 	// Der zweite ist der Rest, der bei jedem Neubau übrig bleibt — und der
 	// übliche Grund, warum eine Platte volläuft. Ihn zu erkennen ist der Zweck
 	// dieses Feldes.
 	if !liste[1].Verwaist {
-		t.Errorf("ein Abbild ohne Namen ist verwaist: %+v", liste[1])
+		t.Errorf("ein Image ohne Namen ist verwaist: %+v", liste[1])
 	}
 }
 
@@ -705,7 +705,7 @@ func TestDockerPruneLehntUnbekannteArtAb(t *testing.T) {
 	}
 }
 
-// Ein Abbild wird OHNE --force entfernt: Ist es in Gebrauch, soll Docker das
+// Ein Image wird OHNE --force entfernt: Ist es in Gebrauch, soll Docker das
 // sagen und nicht der Container mitgerissen werden.
 func TestDockerImageRemoveOhneForce(t *testing.T) {
 	f := newFakeRunner()

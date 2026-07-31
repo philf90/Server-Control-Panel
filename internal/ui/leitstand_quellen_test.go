@@ -310,6 +310,90 @@ func TestSPAPfadeStimmenMitDemRouterZusammen(t *testing.T) {
 	}
 }
 
+// TestAnlegenknopfHaengtNichtAnEinerLeerenListe hält den Fehler fest, mit dem
+// 0.5.0 ausgeliefert wurde.
+//
+// In der Stackliste lag „Stack anlegen" im Zweig für die NICHT leere Liste.
+// Damit fehlte der Knopf genau auf dem Server, auf dem er gebraucht wird: dem
+// frischen ohne ein einziges Compose-Projekt. Einen zweiten Weg in den Editor
+// gibt es nicht — er ist lokaler Zustand der Komponente und steht in keiner
+// Adresse.
+//
+// Kein Go-Test konnte das finden, und der Browsertest ebenso wenig: Der Fake
+// liefert immer mindestens einen Stack. Deshalb prüft dieser Test nicht das
+// Verhalten, sondern die Bedingung — welche {#if} den Knopf umschließen. Er
+// verallgemeinert die Lektion, statt nur diesen einen Fall zu bewachen: Ein
+// Knopf, der etwas ANLEGT, darf nie davon abhängen, dass schon etwas da ist.
+func TestAnlegenknopfHaengtNichtAnEinerLeerenListe(t *testing.T) {
+	dateien := svelteDateien(t)
+
+	// Marke und Datei je Fläche, auf der ein Anlegen-Knopf steht. Wächst eine
+	// dazu, gehört sie hierher — die Liste ist die Erinnerung.
+	faelle := []struct{ datei, marke string }{
+		{"komponenten/Stackliste.svelte", "t.docker.stackAnlegen"},
+	}
+
+	block := regexp.MustCompile(`\{[#:/](if|each|snippet|key|await|then|catch|else)\b[^}]*\}`)
+
+	for _, f := range faelle {
+		quelle, ok := dateien[filepath.Join(webQuellen, f.datei)]
+		if !ok {
+			t.Fatalf("%s nicht gefunden — wurde die Datei umbenannt?", f.datei)
+		}
+		stelle := strings.Index(quelle, f.marke)
+		if stelle < 0 {
+			t.Fatalf("%s: %s steht nicht mehr in der Datei", f.datei, f.marke)
+		}
+
+		// Die offenen Blöcke bis zur Marke sammeln. Je Kette wird ALLES
+		// aufgesammelt, was in ihr geprüft wurde — auch die Bedingungen der
+		// Zweige davor.
+		//
+		// Das ist der Punkt, an dem die erste Fassung dieses Tests danebenlag:
+		// Sie ließ ein {:else} die Bedingung vergessen und ging deshalb auch
+		// gegen den Fehler von 0.5.0 durch. Ein „sonst" hängt genauso an der
+		// Bedingung wie das „wenn" — „{:else if zeilen.length === 0}{:else}"
+		// heißt „es gibt Zeilen", und genau dort stand der Knopf.
+		//
+		// Ein {#each} und Geschwister bekommen einen leeren Eintrag: Sie sagen
+		// nichts darüber aus, wovon der Knopf abhängt, halten aber die Tiefe
+		// richtig.
+		var offen []string
+		for _, m := range block.FindAllStringIndex(quelle, -1) {
+			if m[0] >= stelle {
+				break
+			}
+			tok := quelle[m[0]:m[1]]
+			switch {
+			case strings.HasPrefix(tok, "{#if"):
+				offen = append(offen, strings.TrimSuffix(strings.TrimPrefix(tok, "{#if"), "}"))
+			case strings.HasPrefix(tok, "{#"):
+				offen = append(offen, "")
+			case strings.HasPrefix(tok, "{:else if"):
+				if len(offen) > 0 {
+					offen[len(offen)-1] += " " + strings.TrimSuffix(strings.TrimPrefix(tok, "{:else if"), "}")
+				}
+			case strings.HasPrefix(tok, "{:"):
+				// {:else}, {:then}, {:catch} wechseln den Zweig, nicht die Tiefe
+				// — und nicht das, wovon der Zweig abhängt.
+			case strings.HasPrefix(tok, "{/"):
+				if len(offen) > 0 {
+					offen = offen[:len(offen)-1]
+				}
+			}
+		}
+
+		for _, bedingung := range offen {
+			if strings.Contains(bedingung, "zeilen") {
+				t.Errorf("%s: %s steht unter der Bedingung %q — der Knopf zum Anlegen "+
+					"hängt damit am Inhalt der Liste und fehlt auf einem frischen Server, "+
+					"also genau dort, wo er gebraucht wird",
+					f.datei, f.marke, strings.TrimSpace(bedingung))
+			}
+		}
+	}
+}
+
 // lesen holt eine Quelldatei. Eigene Hilfe, weil svelteDateien nur .svelte
 // einsammelt und hier eine .ts und eine .go gebraucht werden.
 func lesen(t *testing.T, pfad string) string {

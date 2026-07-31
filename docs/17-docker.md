@@ -416,7 +416,7 @@ lehrreich genug für einen Vermerk:
 
 ### Schritt 3 — Stand: umgesetzt
 
-`privops` wächst um acht Operationen (Abbilder, Volumes, Netze je Liste und
+`privops` wächst um acht Operationen (Images, Volumes, Netze je Liste und
 Entfernen, dazu `DockerDiskUsage` und `DockerPrune`), die Seite um den
 Bestandsblock: Platzbedarf oben, darunter die Aufräum-Handgriffe und die drei
 Listen.
@@ -428,26 +428,26 @@ Listen.
   Rückfrage: „12 Einträge, davon 5 in Gebrauch · 1.5GB freigebbar" statt
   „alle". Die Begründung ist die aus `docs/14`: „Alle Updates einspielen?"
   befähigt zu keiner Entscheidung, „alle 42" schon.
-- **„In Gebrauch" rechnet der Server aus.** Ein Abbild, das ein Container
+- **„In Gebrauch" rechnet der Server aus.** Ein Image, das ein Container
   benutzt, und ein Volume, das einer einhängt, bekommen keinen
   Entfernen-Knopf. Docker weigert sich in beiden Fällen, und ein Knopf, der
   zuverlässig in diese Weigerung läuft, ist selbst der Fehler. Dasselbe gilt
   für `bridge`, `host` und `none` — die legt Docker selbst an.
 - **`docker system prune` fehlt in der Allowlist.** Es räumt Container, Netze,
-  Abbilder und Baucache in einem Zug auf; eine Aktion, deren Umfang der
+  Images und Baucache in einem Zug auf; eine Aktion, deren Umfang der
   Bedienende nicht überblickt, kann keine sinnvolle Rückfrage tragen. Es gibt
   fünf benannte Arten statt einer Sammelaktion.
 - **Volumes aufzuräumen ist Stufe 3 mit dem HOSTNAMEN**, nicht mit einem
   Objektnamen: Es trifft jedes ungenutzte Volume des Servers auf einmal, und
   der häufigste Fehler bei einer solchen Aktion ist nicht der falsche Knopf,
   sondern der falsche Server. Ein einzelnes Volume zu entfernen bleibt Stufe 3
-  mit seinem Namen; Abbild und Netz sind Stufe 2, weil sich beides
+  mit seinem Namen; Image und Netz sind Stufe 2, weil sich beides
   wiederherstellen lässt — das eine durch Ziehen, das andere durch den nächsten
   Compose-Start.
 
 **Zwei Befunde aus dem Bau:**
 
-- **Abbild-Kennungen sind anders gebaut als Containernamen.** Der erste Anlauf
+- **Image-Kennungen sind anders gebaut als Containernamen.** Der erste Anlauf
   hat für beides `ValidateContainerID` benutzt — und die lehnte `sha256:aaa`,
   `nginx:alpine` und `ghcr.io/o/n:1.2` ab, weil Doppelpunkt und Schrägstrich
   fehlten. Jetzt gibt es `ValidateImageRef` daneben; Leerzeichen, Semikolon und
@@ -688,7 +688,7 @@ Ein gezogenes `nginx:alpine` trägt lokal die Kennung der **Manifestliste**
 (`RepoDigests`). `docker manifest inspect --verbose` gibt für eine solche Liste
 ein Feld je Plattform zurück, und jedes davon trägt die Kennung des
 **Plattform-Manifests** — eine andere Kennung. Wer beide vergleicht, findet
-immer einen Unterschied und meldet immer ein Update. Bei fast jedem Abbild.
+immer einen Unterschied und meldet immer ein Update. Bei fast jedem Image.
 Jeden Tag.
 
 Eine Update-Prüfung, die so irrt, ist schlimmer als keine: Nach einer Woche
@@ -699,7 +699,7 @@ Moduls lautet deshalb hier schärfer als sonst: **Ohne belastbaren Vergleich wir
 Daraus folgen zwei Wege:
 
 1. **`docker buildx imagetools inspect`** nennt die Kennung der Manifestliste
-   unmittelbar. Damit trägt der Vergleich auch bei Mehrarchitektur-Abbildern.
+   unmittelbar. Damit trägt der Vergleich auch bei Mehrarchitektur-Images.
    buildx ist ein Unterkommando desselben Binaries — kein neuer
    Allowlist-Eintrag, keine neue Abhängigkeit —, aber in Debian ein eigenes
    Paket und nicht überall da.
@@ -708,7 +708,7 @@ Daraus folgen zwei Wege:
    und dem Hinweis auf `docker-buildx`.
 
 **Was das praktisch heißt, und es gehört gesagt:** Auf einem Server ohne buildx
-bleibt die Prüfung für die meisten Abbilder ohne Ergebnis. Das ist die ehrliche
+bleibt die Prüfung für die meisten Images ohne Ergebnis. Das ist die ehrliche
 Fassung des Machbaren mit der Kommandozeile — und sie ist der Grund, warum die
 Fläche drei Zahlen zeigt statt zwei. Die dritte, „nicht geprüft", ist die
 ehrlichste.
@@ -722,16 +722,16 @@ ehrlichste.
   wirkungslos, gerade wenn sie zugeschlagen hat.
 - **Eine Ratengrenze beendet den Lauf.** Weiterzufragen, nachdem die Registry
   abgewiesen hat, ist genau das Verhalten, gegen das die Grenze gerichtet ist.
-- **Gefragt wird nur, was etwas bringt:** die Abbilder laufender Container, je
-  Abbild einmal, ohne die, die über eine Kennung angezogen wurden (`@sha256:…`
-  kann sich nicht ändern). Zehn Container mit demselben Abbild sind eine
+- **Gefragt wird nur, was etwas bringt:** die Images laufender Container, je
+  Image einmal, ohne die, die über eine Kennung angezogen wurden (`@sha256:…`
+  kann sich nicht ändern). Zehn Container mit demselben Image sind eine
   Abfrage, nicht zehn — das ist der Unterschied zwischen innerhalb und
   außerhalb der Grenze.
 - **Das Signal im Handlungsbedarf kommt aus dem Zwischenspeicher.** In der
   Drei-Sekunden-Frist von `dashboardSignals` wird nie eine Registry gefragt: Sie
   antwortet, wann sie will, und sie zählt jede Abfrage.
 
-**Der Griff ist der Stack und nicht das Abbild.** `docker pull` allein ändert
+**Der Griff ist der Stack und nicht das Image.** `docker pull` allein ändert
 nichts an dem, was läuft. „Stack aktualisieren" ist deshalb `pull` **und** `up`
 in einem Vorgang — und in dieser Reihenfolge: Scheitert das Ziehen, wird nicht
 hochgefahren. Ein `up` nach einem gescheiterten `pull` startete die alte Fassung
@@ -739,12 +739,12 @@ neu und sähe aus wie ein geglücktes Update.
 
 **Zwei Befunde aus dem Bau, beide aus derselben Ecke:**
 
-- **Zwei Überschriften „Abbilder" auf einer Seite.** Der Bestand hatte schon
+- **Zwei Überschriften „Images" auf einer Seite.** Der Bestand hatte schon
   eine; die Update-Prüfung brachte eine zweite. Sie heißt jetzt „Aktualität der
-  Abbilder".
-- **Und dieselbe Doppelung als Testbefund:** Die Spalte „Abbild" gibt es nun in
+  Images".
+- **Und dieselbe Doppelung als Testbefund:** Die Spalte „Image" gibt es nun in
   zwei Tabellen, und der Browsertest suchte „die Tabelle mit einer Spalte
-  Abbild" — er nahm die falsche und **bestand weiter**. Ebenso `.hinweis`: Der
+  Image" — er nahm die falsche und **bestand weiter**. Ebenso `.hinweis`: Der
   Selektor meinte die Anmerkung unter den Zustandskarten und traf den
   Ratengrenzen-Hinweis der neuen Fläche. Das ist im Modul Docker jetzt der
   dritte Selektor dieser Art (nach `.aktionen` in Schritt 3 und `.werkbank` in
@@ -793,7 +793,7 @@ Ordnung".
 | `- ../../../../var/run/docker.sock:/…` | Der Vergleich mit der Sperrliste traf nicht, weil dort absolute Pfade stehen — und danach galt „nicht absolut" als „liegt im Stack-Verzeichnis". Relative Quellen werden jetzt zuerst gegen das Verzeichnis aufgelöst, so wie Compose es auch tut. |
 | **Ein benanntes Volume mit `driver_opts.device: /`** | Der schwerwiegendste Fund. Im Dienst steht nur `- hack:/host` — das sieht aus wie ein harmloses benanntes Volume. Der `local`-Treiber nimmt aber dieselben Angaben wie `mount(8)`, und mit `type: none, o: bind, device: /` hängt es das ganze Wirtsdateisystem ein. Der Prüfer liest jetzt die oberste `volumes:`-Ebene und löst solche Einträge in den Wirtspfad auf, den sie in Wahrheit meinen. |
 | `device_cgroup_rules: ["c *:* rwm"]` | „devices" ohne das Wort. Den Geräteknoten legt der Container selbst an — `CAP_MKNOD` hat er von Haus aus —, und damit ist die Platte des Wirts lesbar. |
-| `build: {context: /}` | `docker compose up` **baut**, wenn ein Bauabschnitt dasteht. Ein Kontext auf einem hohen Verzeichnis kopiert fremde Dateien in ein Abbild. Kontext und Dockerfile müssen jetzt im Stack-Verzeichnis liegen. |
+| `build: {context: /}` | `docker compose up` **baut**, wenn ein Bauabschnitt dasteht. Ein Kontext auf einem hohen Verzeichnis kopiert fremde Dateien in ein Image. Kontext und Dockerfile müssen jetzt im Stack-Verzeichnis liegen. |
 | `env_file: [{path: /root/.ssh/id_ed25519}]` | Die neue Langform von `env_file`. Der Leser setzte für eine Abbildung nur einen Platzhalter, und der Pfad ging ungeprüft durch die Vorprüfung. |
 | `volumes_from: ["container:xyz"]` | Ein Dienst *aus dieser Datei* ist selbst geprüft; ein fremder Container nicht — auch nicht der Socket, den er vielleicht eingehängt hat. Der Verweis auf einen fremden Container wird jetzt abgelehnt, der auf einen eigenen Dienst bleibt ein Hinweis. |
 
@@ -876,6 +876,48 @@ die Abnahme aller CLI-Parser auf einer echten Installation. Für den Prüfer hei
 das insbesondere, dass die Gestalt von `docker compose config` bestätigt werden
 muss — die ganze Kette hängt daran, dass die gerenderte Fassung so aussieht, wie
 der Parser sie erwartet.
+
+---
+
+### Nachtrag 0.5.1 — der Befund, den erst eine Frage gefunden hat
+
+Nach der Freigabe von 0.5.0 kam die Frage, wie man über das Panel einen neuen
+Stack anlegt. Die Antwort war: auf einem Server mit mindestens einem
+Compose-Projekt so, und auf einem ohne **gar nicht**.
+
+In `Stackliste.svelte` lag der Knopf „Stack anlegen" im `{:else}`-Zweig einer
+Kette, deren vorheriger Zweig `daten.zeilen.length === 0` prüfte. Er stand damit
+nur bei nicht leerer Liste — also überall außer dort, wo jemand den *ersten*
+Stack anlegen will. Einen zweiten Weg in den Editor gibt es nicht: `editor` ist
+Zustand der Komponente und steht in keiner Adresse. Daneben stand ein Satz aus
+Schritt 4, den Schritt 5 hätte mitnehmen müssen: „Anlegen kommt mit dem nächsten
+Schritt."
+
+**Warum keine Prüfung das gefunden hat**, und das ist die eigentliche Lehre:
+
+| Prüfung | Warum sie vorbeisah |
+|---|---|
+| Go-Tests der Schreibrouten | Sie sprechen die API an. Die Route war in Ordnung — unerreichbar war der Weg dorthin. |
+| Browsertest | Der Fake liefert immer mindestens einen Stack. Der leere Zustand kam in keinem Lauf vor. |
+| Angriffsdurchgang (Schritt 9) | Er fragte, was jemand tun kann, der etwas erreichen will, das er nicht darf. Nicht, was jemand *nicht* tun kann, der darf. |
+
+Das ist dieselbe Sorte Befund wie „Tests gegen einen Fake beweisen die Zusagen
+des Fakes", nur eine Ebene höher: **Ein Zustand, den die Testdaten nie
+annehmen, ist ein ungeprüfter Zustand** — und der leere Anfangszustand ist bei
+einem Modul für den *frischen* Server der wichtigste von allen.
+
+Die Bewachung sitzt deshalb nicht auf diesem einen Knopf.
+`TestAnlegenknopfHaengtNichtAnEinerLeerenListe` (`internal/ui`) sammelt die
+`{#if}`-Bedingungen, unter denen ein Anlegen-Knopf steht, und beanstandet jede,
+die den Listeninhalt liest. Die erste Fassung des Tests ging noch gegen die
+kaputte Datei durch, weil sie ein `{:else}` die Bedingung der Kette vergessen
+ließ — ein Test, der die Lücke nicht nachstellt, bevor er sie bewacht, bewacht
+nichts.
+
+Mit derselben Fassung heißt „Abbild" durchgehend **Image**. Die Übersetzung war
+richtig und im Gebrauch trotzdem falsch: Wer `docker images` tippt, sucht auf
+der Seite nach „Images". An der Schnittstelle ändert das nichts — kein
+JSON-Feld und kein Pfad hieß je „abbild".
 
 ---
 

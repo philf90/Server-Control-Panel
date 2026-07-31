@@ -50,13 +50,13 @@ func TestParseDockerEreignis(t *testing.T) {
 		t.Errorf("der Exit-Code fehlt: %+v", gelesen[2])
 	}
 
-	// Nicht nur Container: Ein angelegtes Volume und ein gezogenes Abbild
+	// Nicht nur Container: Ein angelegtes Volume und ein gezogenes Image
 	// gehören dazu — sonst fehlte die Antwort auf „wann kam das Image".
 	if gelesen[3].Art != "volume" || gelesen[3].Objekt != "web_daten" {
 		t.Errorf("das Volume-Ereignis fehlt: %+v", gelesen[3])
 	}
 	if gelesen[4].Art != "image" || gelesen[4].Aktion != "pull" {
-		t.Errorf("das Abbild-Ereignis fehlt: %+v", gelesen[4])
+		t.Errorf("das Image-Ereignis fehlt: %+v", gelesen[4])
 	}
 }
 

@@ -9,13 +9,52 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.5.1] — 2026-07-31
+
+Eine Berichtigung und eine Umbenennung. Wer 0.5.0 einsetzt und einen Server
+ohne Compose-Projekt hat, sollte aktualisieren — für ihn war das Modul Docker
+bis hierher nicht benutzbar.
+
+### Behoben
+
+- **„Stack anlegen" fehlte auf einem Server ohne Compose-Projekt.** Der Knopf
+  lag im Zweig für die nicht leere Liste und war damit genau dort weg, wo er
+  gebraucht wird: auf dem frischen Server. Einen zweiten Weg in den Editor gibt
+  es nicht — er ist Zustand der Komponente und steht in keiner Adresse. Damit
+  ließ sich über die Oberfläche kein erster Stack anlegen; der Umweg war ein
+  Verzeichnis unter `/opt/asylum/stacks` von Hand.
+- Der Satz auf der leeren Liste versprach „Anlegen kommt mit dem nächsten
+  Schritt". Er stammte aus der Zeit, in der die Stackliste nur lesen konnte,
+  und blieb stehen, nachdem der Schritt da war. Jetzt steht dort, was der Knopf
+  daneben tut und wohin er schreibt.
+- Derselbe Fehler am Fuß der Docker-Seite: „Die Container-Shell kommt mit dem
+  letzten Schritt der Fassung 0.5" — sie wurde zurückgestellt, der Satz blieb.
+  Er nennt jetzt den Grund statt eines Termins, den niemand zugesagt hat.
+
+### Geändert
+
+- **„Abbild" heißt jetzt durchgehend „Image".** Die Übersetzung war korrekt und
+  im Gebrauch trotzdem falsch: Wer `docker images` tippt, sucht auf der Seite
+  nach „Images". Betroffen sind alle Beschriftungen, Meldungen und Begründungen
+  — die Überschrift „Aktualität der Images", die Spalten, die Aufräumknöpfe und
+  die Sätze der Update-Prüfung. An der Schnittstelle ändert sich nichts: Kein
+  JSON-Feld und kein Pfad hieß je „abbild".
+
+### Intern
+
+- Ein Test in `internal/ui` prüft die Bedingungen, unter denen ein Knopf zum
+  Anlegen steht, statt nur diesen einen Fall zu bewachen. Er hat den Fehler
+  nachgestellt, bevor er ihn bewacht — die erste Fassung ging noch gegen die
+  kaputte Datei durch, weil sie ein `{:else}` die Bedingung der Kette vergessen
+  ließ.
+
 ## [0.5.0] — 2026-07-31
 
 **Das Modul Docker.** Compose-Stacks sind das führende Objekt: anlegen, im
 Editor ändern, starten, herunterfahren, aktualisieren, löschen — dazu Container
-mit Protokoll und Auslastung, der Bestand an Abbildern, Volumes und Netzen mit
+mit Protokoll und Auslastung, der Bestand an Images, Volumes und Netzen mit
 dem, was ein Aufräumen brächte, eine Portübersicht mit Firewall-Abgleich, der
-Ereignisstrom von Docker und eine Update-Prüfung für Abbilder.
+Ereignisstrom von Docker und eine Update-Prüfung für Images.
 
 Das Panel spricht mit Docker über die **Kommandozeile** und nie über den Socket.
 Das ist keine Bequemlichkeitsfrage: Wer den Socket hat, hat die Maschine, und
@@ -56,15 +95,15 @@ API-Tokens gibt es die Fläche `docker`.
 **Was Sie NICHT bekommen, und warum:** keine Container-Shell (zurückgestellt —
 sie brächte die schwierigere Hälfte eines Web-Terminals, und das steht aus
 Sicherheitsgründen hinter 1.0), kein automatisches Einspielen von Updates (ein
-Panel, das nachts von allein Abbilder tauscht, macht nachts von allein etwas
+Panel, das nachts von allein Images tauscht, macht nachts von allein etwas
 kaputt), keine Registry-Zugangsdaten (0.5 hält kein Betriebsgeheimnis; die
 verschlüsselte Geheimnisverwaltung kommt mit 0.8), kein `docker run` mit freien
 Flags und kein Vorlagenkatalog.
 
 **Eine Einschränkung, die benannt gehört:** Die Update-Prüfung braucht
 `docker buildx` (in Debian das Paket `docker-buildx`), um bei
-Mehrarchitektur-Abbildern ein Ergebnis zu liefern. Ohne buildx meldet sie für
-die meisten Abbilder „nicht geprüft" samt Grund — und ausdrücklich nicht
+Mehrarchitektur-Images ein Ergebnis zu liefern. Ohne buildx meldet sie für
+die meisten Images „nicht geprüft" samt Grund — und ausdrücklich nicht
 „aktuell". Der Hintergrund steht in [docs/17-docker.md](docs/17-docker.md).
 
 Migration gibt es keine, Sitzungen bleiben gültig, und ohne Docker auf dem
@@ -108,16 +147,16 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
 
 ### Hinzugefügt
 
-- **Modul Docker, Update-Prüfung für Abbilder** (`/docker`, zwei weitere
+- **Modul Docker, Update-Prüfung für Images** (`/docker`, zwei weitere
   Routen). Gibt es zu den Tags, die hier laufen, in den Registries etwas
   Neueres? Das Panel vergleicht Kennungen, sagt Bescheid und tauscht nichts aus
   — den Knopf drückt ein Mensch.
 
   **Drei Zahlen statt zwei, und die dritte ist die wichtigste:** „nicht geprüft"
   ist weder „aktuell" noch „veraltet". Der naheliegende Digest-Vergleich ist
-  nämlich falsch: Lokal liegt bei einem Mehrarchitektur-Abbild die Kennung der
+  nämlich falsch: Lokal liegt bei einem Mehrarchitektur-Image die Kennung der
   Manifestliste, `docker manifest inspect` gibt aber die der einzelnen
-  Plattformen — wer beide vergleicht, meldet bei fast jedem Abbild ein Update,
+  Plattformen — wer beide vergleicht, meldet bei fast jedem Image ein Update,
   jeden Tag. Das Panel meldet in diesem Fall „nicht geprüft" samt Grund. Ist
   `docker buildx` vorhanden, trägt der Vergleich auch dort.
 
@@ -127,7 +166,7 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   statt weiterzufragen. Die Leseroute berührt nie eine Registry — sonst
   verbrauchte ein offener Tab die Grenze im Hintergrund.
 
-  **Der Griff ist der Stack**, nicht das Abbild: „Stack aktualisieren" ist
+  **Der Griff ist der Stack**, nicht das Image: „Stack aktualisieren" ist
   `pull` und `up` in einem Vorgang, und in dieser Reihenfolge — scheitert das
   Ziehen, wird nicht hochgefahren.
 
@@ -154,7 +193,7 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   nur geöffnet hat.
 
 - **Modul Docker, Stacks — schreibend** (`/docker`, drei weitere Routen). Stacks
-  anlegen, im Editor ändern, starten, herunterfahren, Abbilder holen, neu
+  anlegen, im Editor ändern, starten, herunterfahren, Images holen, neu
   starten und löschen. Damit ist die Grundausstattung des Moduls vollständig.
 
   **Der Compose-Prüfer ist die Grenze.** Er läuft serverseitig vor jedem
@@ -215,7 +254,7 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   dem Compose-Prüfer: Ein Editor ohne Prüfer wäre genau die Reihenfolge, die
   dieses Modul sich verboten hat.
 
-- **Modul Docker, Bestand** (`/docker`, fünf weitere Routen). Abbilder, Volumes
+- **Modul Docker, Bestand** (`/docker`, fünf weitere Routen). Images, Volumes
   und Netze mit dem, was Docker auf der Platte belegt — und den Handgriffen, es
   loszuwerden.
 
@@ -224,12 +263,12 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   5 in Gebrauch · 1.5GB freigebbar" statt „alle". Nach dem Lauf steht der
   tatsächlich freigegebene Platz am Vorgang.
 
-  **Was in Gebrauch ist, bekommt keinen Knopf.** Ein Abbild, das ein Container
+  **Was in Gebrauch ist, bekommt keinen Knopf.** Ein Image, das ein Container
   benutzt, ein Volume, das einer einhängt, und die eingebauten Netze `bridge`,
   `host` und `none` — Docker weigert sich in allen Fällen, und ein Knopf, der
   zuverlässig in eine Weigerung läuft, ist selbst der Fehler.
 
-  **`docker system prune` gibt es nicht.** Es räumt Container, Netze, Abbilder
+  **`docker system prune` gibt es nicht.** Es räumt Container, Netze, Images
   und Baucache in einem Zug auf, und eine Aktion, deren Umfang niemand
   überblickt, kann keine sinnvolle Rückfrage tragen. Stattdessen fünf benannte
   Arten, jede mit eigener Frage.
@@ -238,7 +277,7 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   Objektnamen: Es trifft jedes ungenutzte Volume des Servers auf einmal, und der
   häufigste Fehler bei einer solchen Aktion ist nicht der falsche Knopf, sondern
   der falsche Server. Ein einzelnes Volume bleibt Stufe 3 mit seinem Namen,
-  Abbild und Netz sind Stufe 2.
+  Image und Netz sind Stufe 2.
 
 - **Modul Docker, Container** (`/docker`, vier weitere Routen unter
   `/api/v1/docker/containers`). Liste mit Zählern als Filter, Inspektor mit

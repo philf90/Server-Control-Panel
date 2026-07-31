@@ -113,7 +113,7 @@ type fakeOps struct {
 	eventsErr  error
 	eventsHalt chan struct{}
 
-	// Update-Prüfung. staende steht je Abbild-Ref; was nicht darin steht, gilt
+	// Update-Prüfung. staende steht je Image-Ref; was nicht darin steht, gilt
 	// als nicht geprüft — dasselbe, was die echte Fassung ohne belastbaren
 	// Vergleich meldet.
 	staende      map[string]privops.Updatestand

@@ -10,11 +10,11 @@ import (
 //
 // Der Kern dieser Tests ist NICHT, dass ein Update gefunden wird — das ist der
 // leichte Teil. Der Kern ist, dass keines gemeldet wird, wo keines belegt ist:
-// Eine Prüfung, die bei jedem Mehrarchitektur-Abbild „veraltet" meldet, meldet
-// es bei fast jedem Abbild, jeden Tag, und wird nach einer Woche nicht mehr
+// Eine Prüfung, die bei jedem Mehrarchitektur-Image „veraltet" meldet, meldet
+// es bei fast jedem Image, jeden Tag, und wird nach einer Woche nicht mehr
 // gelesen.
 
-// Aufgezeichnete Ausgabe von "docker manifest inspect --verbose" für ein Abbild
+// Aufgezeichnete Ausgabe von "docker manifest inspect --verbose" für ein Image
 // mit EINER Architektur. Descriptor.digest ist hier dieselbe Kennung, die lokal
 // in RepoDigests steht — der Vergleich trägt.
 const manifestEinzeln = `{
@@ -79,7 +79,7 @@ func TestParseManifestInspect(t *testing.T) {
 	}
 }
 
-// Ohne buildx und mit einem Mehrarchitektur-Abbild meldet das Panel „nicht
+// Ohne buildx und mit einem Mehrarchitektur-Image meldet das Panel „nicht
 // geprüft" — nicht „veraltet" und nicht „aktuell".
 func TestUpdatePruefenMeldetMehrarchitekturAlsUngeprueft(t *testing.T) {
 	f := newFakeRunner()
@@ -136,7 +136,7 @@ func TestUpdatePruefenNimmtBuildxWennDa(t *testing.T) {
 	}
 }
 
-// Ein Abbild ohne Registry-Kennung — selbst gebaut oder aus einer Datei
+// Ein Image ohne Registry-Kennung — selbst gebaut oder aus einer Datei
 // geladen — lässt sich nicht vergleichen. Das ist eine Eigenschaft und kein
 // Fehler, und es darf nicht als „aktuell" durchgehen.
 func TestUpdatePruefenOhneRegistryherkunft(t *testing.T) {
@@ -154,7 +154,7 @@ func TestUpdatePruefenOhneRegistryherkunft(t *testing.T) {
 	if stand.Grund == "" {
 		t.Error("der Grund fehlt")
 	}
-	// Und es wurde gar nicht erst gefragt: Ein Registry-Aufruf für ein Abbild,
+	// Und es wurde gar nicht erst gefragt: Ein Registry-Aufruf für ein Image,
 	// das nirgends liegt, ist eine Abfrage gegen die Ratengrenze für nichts.
 	for _, ruf := range aufrufeVon(f) {
 		if strings.Contains(ruf, "manifest") || strings.Contains(ruf, "buildx") {
@@ -163,7 +163,7 @@ func TestUpdatePruefenOhneRegistryherkunft(t *testing.T) {
 	}
 }
 
-// Die Kennung eines gleichnamigen Abbilds aus einer ANDEREN Registry ist der
+// Die Kennung eines gleichnamigen Images aus einer ANDEREN Registry ist der
 // falsche Vergleichswert. Passt nichts, gilt „keine Kennung".
 func TestUpdatePruefenNimmtNurDasPassendeRepository(t *testing.T) {
 	f := newFakeRunner()

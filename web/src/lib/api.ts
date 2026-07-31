@@ -38,7 +38,7 @@ import type {
   Schluesselliste,
   Signale,
   Sitzung,
-  Abbildupdates,
+  Imageupdates,
   Portliste,
   Stackliste,
   StackDetail,
@@ -389,7 +389,7 @@ export const api = {
       body: JSON.stringify({ aktion: "remove", bestaetigt, getippt: "" }),
     }),
   /** aufraeumen läuft als Vorgang: Auf einem Server mit fünfzig Gigabyte
-   *  Abbildern dauert es Minuten. Der freigegebene Platz steht danach als
+   *  Images dauert es Minuten. Der freigegebene Platz steht danach als
    *  Anmerkung am Vorgang. */
   aufraeumen: (art: string, alle = false, bestaetigt = false, getippt = "") =>
     anfrage<VorgangGestartet>("/docker/prune", {
@@ -408,10 +408,10 @@ export const api = {
    *  kennt, ist trotzdem offen, und diese Aussage soll es nur einmal geben. */
   ports: () => anfrage<Portliste>("/docker/ports"),
 
-  /** abbildupdates liefert den ZWISCHENGESPEICHERTEN Stand. Dieser Aufruf
+  /** imageupdates liefert den ZWISCHENGESPEICHERTEN Stand. Dieser Aufruf
    *  fragt keine Registry — sonst verbrauchte ein offener Tab die Ratengrenze
    *  im Hintergrund. */
-  abbildupdates: () => anfrage<Abbildupdates>("/docker/updates"),
+  imageupdates: () => anfrage<Imageupdates>("/docker/updates"),
   /** updatePruefungStarten stößt den Vergleich mit den Registries an. Höchstens
    *  einmal am Tag; danach antwortet der Server mit 429 und dem Zeitpunkt, ab
    *  dem es wieder geht. */

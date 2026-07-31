@@ -106,7 +106,7 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 		}
 	}
 
-	// Abbilder mit einer neueren Fassung. AUSSCHLIESSLICH aus dem
+	// Images mit einer neueren Fassung. AUSSCHLIESSLICH aus dem
 	// Zwischenspeicher: In der Drei-Sekunden-Frist dieser Funktion wird nie eine
 	// Registry gefragt. Eine Registry antwortet, wann sie will, und sie zählt
 	// jede Abfrage — beides hat in einer Übersicht nichts verloren, die bei
@@ -121,7 +121,7 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 		if len(neu) > 0 {
 			titel := neu[0] + ": neuere Fassung verfügbar"
 			if len(neu) > 1 {
-				titel = fmt.Sprintf("%d Abbilder haben eine neuere Fassung", len(neu))
+				titel = fmt.Sprintf("%d Images haben eine neuere Fassung", len(neu))
 			}
 			out = append(out, dashSignal{
 				Level: "warn", Tag: "Docker", Title: titel,

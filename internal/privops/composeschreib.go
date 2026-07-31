@@ -76,7 +76,7 @@ const (
 	StackRestart StackAktion = "restart"
 	// StackUpdate ist „pull und dann up" in einem Vorgang — der Handgriff, den
 	// die Update-Prüfung anbietet. Zwei Klicks wären hier zwei Gelegenheiten,
-	// nach dem ersten aufzuhören: Ein gezogenes Abbild, das niemand startet,
+	// nach dem ersten aufzuhören: Ein gezogenes Image, das niemand startet,
 	// belegt Platte und ändert nichts.
 	StackUpdate StackAktion = "update"
 )
@@ -377,7 +377,7 @@ func (s *System) StackLoeschen(ctx context.Context, name string, stream LineWrit
 	return nil
 }
 
-// StackAusfuehren fährt einen Stack hoch, herunter, zieht seine Abbilder oder
+// StackAusfuehren fährt einen Stack hoch, herunter, zieht seine Images oder
 // startet ihn neu.
 //
 // Der Prüfer läuft vor „up" und vor „restart" — vor allem, was einen Container
@@ -453,7 +453,7 @@ func (s *System) StackAusfuehren(ctx context.Context, name string, aktion StackA
 	return pruefung, nil
 }
 
-// stackUpdate zieht die Abbilder und fährt den Stack damit hoch.
+// stackUpdate zieht die Images und fährt den Stack damit hoch.
 //
 // Zwei Kommandos in einem Vorgang, und die Reihenfolge ist die Zusage:
 // Scheitert das Ziehen — Ratengrenze, kein Zugang, Tag verschwunden —, bleibt

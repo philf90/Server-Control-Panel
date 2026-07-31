@@ -2978,7 +2978,7 @@ async function main() {
   };
 
   // Der Bestand. Zwei Dinge sind hier nur im Browser zu sehen: dass an einem
-  // BENUTZTEN Abbild kein Entfernen-Knopf steht (Docker weigerte sich, und der
+  // BENUTZTEN Image kein Entfernen-Knopf steht (Docker weigerte sich, und der
   // Knopf wäre dann selbst der Fehler), und dass die Zeile „freigebbar" ankommt
   // — sie ist die Frage, mit der jemand diese Seite öffnet.
   dock.bestand = await seite.evaluate(() => {
@@ -2987,17 +2987,17 @@ async function main() {
     const platte = tabellen.find((t) =>
       [...t.querySelectorAll("th")].some((th) => th.textContent.includes("freigebbar")),
     );
-    // Die Abbildtabelle des BESTANDS, erkennbar an „Abbild" UND „Größe": Seit
-    // Schritt 7 hat auch die Update-Prüfung eine Spalte „Abbild", und ein
+    // Die Imagetabelle des BESTANDS, erkennbar an „Image" UND „Größe": Seit
+    // Schritt 7 hat auch die Update-Prüfung eine Spalte „Image", und ein
     // Selektor über die erste passende Tabelle nahm die falsche — er bestand
     // weiter und prüfte etwas anderes.
-    const abbilder = tabellen.find((t) => {
+    const images = tabellen.find((t) => {
       const kopf = [...t.querySelectorAll("th")].map((th) => th.textContent.trim());
-      return kopf.includes("Abbild") && kopf.some((x) => x.startsWith("Gr"));
+      return kopf.includes("Image") && kopf.some((x) => x.startsWith("Gr"));
     });
-    const zeilen = abbilder
-      ? [...abbilder.querySelectorAll("tbody tr")].map((tr) => ({
-          text: tr.querySelector('[data-spalte="Abbild"]')?.textContent.trim() ?? "",
+    const zeilen = images
+      ? [...images.querySelectorAll("tbody tr")].map((tr) => ({
+          text: tr.querySelector('[data-spalte="Image"]')?.textContent.trim() ?? "",
           knopf: !!tr.querySelector(".knopf"),
         }))
       : [];
@@ -3007,7 +3007,7 @@ async function main() {
       freigebbar: platte
         ? (platte.querySelector('tbody [data-spalte="freigebbar"]')?.textContent.trim() ?? "")
         : "",
-      abbilder: zeilen,
+      images: zeilen,
       // Die Aufräumreihe: die .aktionen, deren Knöpfe „wegräumen" oder „leeren"
       // heißen. Ein Selektor über alle .aktionen nähme die Seitenknöpfe mit.
       aufraeumKnoepfe: [...document.querySelectorAll(".aktionen")]
@@ -3044,7 +3044,7 @@ async function main() {
   // Schritt 7: die Update-Prüfung. Zwei Dinge sind hier nur im Browser zu
   // sehen — dass „nicht geprüft" als EIGENE Aussage dasteht und nicht als
   // Abwesenheit, und dass der Knopf zum Aktualisieren am Stack hängt und nicht
-  // am Abbild.
+  // am Image.
   dock.updates = await seite.evaluate(() => {
     const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
       [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Stand"),
@@ -3052,14 +3052,14 @@ async function main() {
     return {
       zeilen: tab
         ? [...tab.querySelectorAll("tbody tr")].map((tr) => ({
-            ref: tr.querySelector('[data-spalte="Abbild"]')?.textContent.trim() ?? "",
+            ref: tr.querySelector('[data-spalte="Image"]')?.textContent.trim() ?? "",
             stand: tr.querySelector('[data-spalte="Stand"]')?.textContent.trim() ?? "",
             stufe: tr.querySelector('[data-spalte="Stand"] .zustand')?.className ?? "",
             gebrauch: tr.querySelector('[data-spalte="benutzt von"]')?.textContent.trim() ?? "",
             knopf: tr.querySelector(".knopf")?.textContent.trim() ?? "",
           }))
         : [],
-      // Der Satz zu den ungeprüften Abbildern: Er sagt, dass sie keine
+      // Der Satz zu den ungeprüften Images: Er sagt, dass sie keine
       // Beruhigung sind. Ohne ihn ist „nicht geprüft" eine leere Zelle.
       ungeprueftSatz: [...document.querySelectorAll(".hinweis")]
         .map((h) => h.textContent.trim())

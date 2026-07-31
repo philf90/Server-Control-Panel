@@ -225,7 +225,7 @@ export type Dienste = {
 };
 
 /** Job ist ein langlaufender Vorgang: Paketlisten holen, Updates einspielen,
- *  später ein Abbild ziehen oder ein Backup prüfen.
+ *  später ein Image ziehen oder ein Backup prüfen.
  *
  *  laeuft und gescheitert sind zwei Felder und nicht ein Wort: „läuft noch" und
  *  „ist gescheitert" schließen sich aus, aber „fertig und geglückt" ist der
@@ -1366,7 +1366,7 @@ export type Containerantwort = { meldung: string; detail?: ContainerDetail };
 export type DockerImage = {
   id: string;
   kurz: string;
-  /** name ist leer bei einem verwaisten Abbild — dann trägt es keinen. */
+  /** name ist leer bei einem verwaisten Image — dann trägt es keinen. */
   name: string;
   groesse: string;
   alter: string;
@@ -1519,11 +1519,11 @@ export type Dockerereignis = {
   ernst: boolean;
 };
 
-/** Updatezeile ist ein Abbild in der Update-Prüfung.
+/** Updatezeile ist ein Image in der Update-Prüfung.
  *
  *  `geprueft` und `neu` stehen getrennt, und das ist der Kern der Fläche:
  *  „nicht geprüft" ist weder „aktuell" noch „veraltet". Eine Prüfung, die im
- *  Zweifel „veraltet" meldete, meldete es bei fast jedem Abbild und würde nach
+ *  Zweifel „veraltet" meldete, meldete es bei fast jedem Image und würde nach
  *  einer Woche nicht mehr gelesen. */
 export type Updatezeile = {
   ref: string;
@@ -1533,12 +1533,12 @@ export type Updatezeile = {
   weg?: string;
   lokal_kurz?: string;
   fern_kurz?: string;
-  /** stacks ist der Griff: Aktualisiert wird ein Projekt, kein Abbild. */
+  /** stacks ist der Griff: Aktualisiert wird ein Projekt, kein Image. */
   stacks: string[];
   container: string[];
 };
 
-export type Abbildupdates = {
+export type Imageupdates = {
   zeilen: Updatezeile[];
   geprueft: string;
   /** naechste_fruehestens ist gesetzt, solange die Ratengrenze greift. Der

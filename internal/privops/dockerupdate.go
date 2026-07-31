@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Update-Prüfung für Abbilder — Schritt 7 aus docs/17-docker.md.
+// Update-Prüfung für Images — Schritt 7 aus docs/17-docker.md.
 //
 // Die Frage lautet: Gibt es zu dem Tag, den ein Container benutzt, in der
 // Registry etwas Neueres als das, was hier liegt? Verglichen werden dazu
@@ -18,7 +18,7 @@ import (
 // **Diese Datei ist vorsichtiger gebaut als der Rest des Moduls, und dafür gibt
 // es einen Grund.** Ein Parser, der einen Container falsch färbt, ist ein
 // Schönheitsfehler. Eine Update-Prüfung, die falsch „veraltet" meldet, ist
-// schlimmer als keine: Sie meldet es bei JEDEM Abbild, sie meldet es jeden Tag,
+// schlimmer als keine: Sie meldet es bei JEDEM Image, sie meldet es jeden Tag,
 // und nach einer Woche liest niemand mehr hin — auch nicht, wenn sie einmal
 // recht hat.
 //
@@ -36,17 +36,17 @@ import (
 //
 //  1. "docker buildx imagetools inspect" nennt die Kennung der Manifestliste
 //     unmittelbar. Damit ist der Vergleich belastbar, auch bei
-//     Mehrarchitektur-Abbildern. buildx ist ein Unterkommando desselben Binaries
+//     Mehrarchitektur-Images. buildx ist ein Unterkommando desselben Binaries
 //     — kein neuer Allowlist-Eintrag, keine neue Abhängigkeit —, aber es ist
 //     nicht überall installiert (in Debian ein eigenes Paket).
-//  2. "docker manifest inspect --verbose" genügt nur, wenn das Abbild EINE
+//  2. "docker manifest inspect --verbose" genügt nur, wenn das Image EINE
 //     Architektur hat: Dann steht dort dieselbe Kennung, die auch lokal liegt.
 //     Bei einer Manifestliste gibt es sie nicht her — und dann sagt das Panel
 //     das, statt zu raten.
 
-// Updatestand ist das Ergebnis der Prüfung für ein Abbild.
+// Updatestand ist das Ergebnis der Prüfung für ein Image.
 type Updatestand struct {
-	// Ref ist das Abbild, wie der Container es nennt: "nginx:alpine".
+	// Ref ist das Image, wie der Container es nennt: "nginx:alpine".
 	Ref string `json:"ref"`
 	// LokalDigest ist die Kennung, die hier liegt; FernDigest die in der
 	// Registry. Beide stehen da, weil ein Vergleich ohne seine Eingangswerte
@@ -60,7 +60,7 @@ type Updatestand struct {
 	// Geprueft stimmt.
 	Neu bool `json:"neu"`
 	// Grund erklärt, warum nicht geprüft wurde: Ratengrenze, kein Zugang,
-	// Mehrarchitektur ohne buildx, ein Abbild ohne Registry-Herkunft.
+	// Mehrarchitektur ohne buildx, ein Image ohne Registry-Herkunft.
 	Grund string `json:"grund,omitempty"`
 	// Weg nennt, womit geprüft wurde ("buildx" oder "manifest"). Er steht da,
 	// damit ein Befund später nachvollziehbar ist — die beiden Wege haben
@@ -68,9 +68,9 @@ type Updatestand struct {
 	Weg string `json:"weg,omitempty"`
 }
 
-// DockerUpdatePruefen vergleicht ein Abbild mit der Registry.
+// DockerUpdatePruefen vergleicht ein Image mit der Registry.
 //
-// Ein Aufruf je Abbild. Das Bündeln übernimmt die Schicht darüber, weil dort
+// Ein Aufruf je Image. Das Bündeln übernimmt die Schicht darüber, weil dort
 // auch die Ratengrenze sitzt: Wie oft überhaupt geprüft werden darf, ist keine
 // Frage der Kommandozeile.
 func (s *System) DockerUpdatePruefen(ctx context.Context, ref string) (Updatestand, error) {
@@ -79,7 +79,7 @@ func (s *System) DockerUpdatePruefen(ctx context.Context, ref string) (Updatesta
 	}
 	stand := Updatestand{Ref: ref}
 
-	// Ein Abbild ohne Registry-Herkunft lässt sich nicht vergleichen: selbst
+	// Ein Image ohne Registry-Herkunft lässt sich nicht vergleichen: selbst
 	// gebaut, oder aus einem tar geladen. Das ist kein Fehler, sondern eine
 	// Eigenschaft — und sie gehört gesagt statt als „aktuell" durchgereicht.
 	lokal, err := s.lokalerDigest(ctx, ref)
@@ -87,14 +87,14 @@ func (s *System) DockerUpdatePruefen(ctx context.Context, ref string) (Updatesta
 		return Updatestand{}, err
 	}
 	if lokal == "" {
-		stand.Grund = "Dieses Abbild trägt keine Registry-Kennung — es wurde hier gebaut " +
+		stand.Grund = "Dieses Image trägt keine Registry-Kennung — es wurde hier gebaut " +
 			"oder aus einer Datei geladen. Ein Vergleich mit einer Registry gibt es dafür nicht."
 		return stand, nil
 	}
 	stand.LokalDigest = lokal
 
 	// Erst buildx: Es nennt die Kennung der Manifestliste und ist damit der
-	// einzige Weg, der auch bei Mehrarchitektur-Abbildern stimmt.
+	// einzige Weg, der auch bei Mehrarchitektur-Images stimmt.
 	if fern, ok, grund := s.digestUeberBuildx(ctx, ref); ok {
 		stand.FernDigest, stand.Geprueft, stand.Weg = fern, true, "buildx"
 		stand.Neu = fern != lokal
@@ -111,7 +111,7 @@ func (s *System) DockerUpdatePruefen(ctx context.Context, ref string) (Updatesta
 	case grund != "":
 		stand.Grund = grund
 	case mehrarchig:
-		stand.Grund = "Mehrarchitektur-Abbild: Lokal liegt die Kennung der Manifestliste, " +
+		stand.Grund = "Mehrarchitektur-Image: Lokal liegt die Kennung der Manifestliste, " +
 			"und die gibt „docker manifest inspect\" nicht her. Für einen belastbaren " +
 			"Vergleich fehlt „docker buildx\" (Paket docker-buildx)."
 	case fern == "":
@@ -123,11 +123,11 @@ func (s *System) DockerUpdatePruefen(ctx context.Context, ref string) (Updatesta
 	return stand, nil
 }
 
-// lokalerDigest liest die Registry-Kennung des lokalen Abbilds.
+// lokalerDigest liest die Registry-Kennung des lokalen Images.
 //
-// RepoDigests ist ein Feld, weil dasselbe Abbild unter mehreren Namen liegen
+// RepoDigests ist ein Feld, weil dasselbe Image unter mehreren Namen liegen
 // kann. Gesucht wird der Eintrag, dessen Repository zum gefragten Ref passt —
-// die Kennung eines gleichnamigen Abbilds aus einer anderen Registry wäre der
+// die Kennung eines gleichnamigen Images aus einer anderen Registry wäre der
 // falsche Vergleichswert.
 func (s *System) lokalerDigest(ctx context.Context, ref string) (string, error) {
 	res, err := s.run(ctx, Command{
@@ -146,7 +146,7 @@ func (s *System) lokalerDigest(ctx context.Context, ref string) (string, error) 
 		// Unlesbare Ausgabe heißt hier „keine Kennung" und nicht „Fehler": Der
 		// Aufrufer macht daraus „nicht geprüft" mit Grund, und das ist die
 		// richtige Antwort. Ein Fehler nach oben brächte die ganze Prüfung zu
-		// Fall, weil ein einzelnes Abbild seltsam antwortet.
+		// Fall, weil ein einzelnes Image seltsam antwortet.
 		return "", nil //nolint:nilerr // die leere Kennung IST die Antwort
 	}
 	repo := repoAus(ref)
@@ -159,7 +159,7 @@ func (s *System) lokalerDigest(ctx context.Context, ref string) (string, error) 
 			return kennung, nil
 		}
 	}
-	// Kein passender Eintrag: Das Abbild liegt unter einem anderen Namen. Als
+	// Kein passender Eintrag: Das Image liegt unter einem anderen Namen. Als
 	// „keine Kennung" behandeln statt eine fremde zu nehmen.
 	return "", nil
 }

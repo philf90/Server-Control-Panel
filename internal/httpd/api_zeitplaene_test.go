@@ -91,7 +91,7 @@ func TestAPIZeitplaeneLesen(t *testing.T) {
 	// zweites Mal rechnen muss — zwei Rechnungen derselben Sicherheitsregel
 	// laufen auseinander.
 	for _, e := range a.Cron {
-		erwartet := 0
+		var erwartet int
 		switch {
 		case !e.Verwaltet:
 			erwartet = 0

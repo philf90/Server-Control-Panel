@@ -254,11 +254,13 @@ func mikrosekundenZeit(v any) *time.Time {
 		return nil
 	}
 	// systemd trägt bei einem Timer ohne bekannten nächsten Lauf den
-	// Höchstwert ein. Als Datum wäre das ein Jahr in ferner Zukunft.
+	// Höchstwert ein. Als Datum wäre das ein Jahr in ferner Zukunft. Diese
+	// Prüfung ist gleichzeitig der Riegel vor dem Überlauf der Wandlung
+	// darunter: Was hier durchkommt, passt in ein int64.
 	if usec >= uint64(1)<<63 {
 		return nil
 	}
-	t := time.UnixMicro(int64(usec))
+	t := time.UnixMicro(int64(usec)) //nolint:gosec // durch die Prüfung darüber begrenzt
 	return &t
 }
 

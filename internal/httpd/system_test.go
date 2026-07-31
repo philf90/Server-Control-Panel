@@ -78,6 +78,13 @@ type fakeOps struct {
 	containerAktionErr error
 	containerLogs      []string
 	containerStats     []privops.ContainerStats
+	containerMounts    []privops.ContainerMount
+
+	images    []privops.Image
+	volumes   []privops.Volume
+	netze     []privops.Netz
+	df        []privops.Bestandsposten
+	pruneDone chan struct{}
 }
 
 func newFakeOps() *fakeOps {
@@ -705,7 +712,13 @@ func (f *fakeOps) DockerContainer(_ context.Context, id string) (privops.Contain
 	defer f.mu.Unlock()
 	for _, c := range f.container {
 		if c.ID == id || c.Name == id {
-			return privops.ContainerDetail{Container: c, ExitCode: -1}, nil
+			// Die Mounts gehören dazu: Aus ihnen leitet der Bestand ab, welche
+			// Volumes in Gebrauch sind — und das ist die Angabe, an der dort der
+			// gefährlichste Handgriff hängt. Ohne sie prüfte der Test die
+			// harmlose Hälfte.
+			return privops.ContainerDetail{
+				Container: c, ExitCode: -1, Mounts: f.containerMounts,
+			}, nil
 		}
 	}
 	return privops.ContainerDetail{}, errors.New("No such container: " + id)
@@ -776,4 +789,61 @@ func (f *fakeOps) DockerStats(context.Context) ([]privops.ContainerStats, error)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.containerStats, nil
+}
+
+func (f *fakeOps) DockerImages(context.Context) ([]privops.Image, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.images, nil
+}
+
+func (f *fakeOps) DockerImageRemove(_ context.Context, id string) error {
+	f.record("docker:image-rm:" + id)
+	return nil
+}
+
+func (f *fakeOps) DockerVolumes(context.Context) ([]privops.Volume, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.volumes, nil
+}
+
+func (f *fakeOps) DockerVolumeRemove(_ context.Context, name string) error {
+	f.record("docker:volume-rm:" + name)
+	return nil
+}
+
+func (f *fakeOps) DockerNetworks(context.Context) ([]privops.Netz, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.netze, nil
+}
+
+func (f *fakeOps) DockerNetworkRemove(_ context.Context, id string) error {
+	f.record("docker:netz-rm:" + id)
+	return nil
+}
+
+func (f *fakeOps) DockerDiskUsage(context.Context) ([]privops.Bestandsposten, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.df, nil
+}
+
+func (f *fakeOps) DockerPrune(_ context.Context, art privops.PruneArt, alle bool, stream privops.LineWriter) (string, error) {
+	vermerk := "docker:prune:" + string(art)
+	if alle {
+		vermerk += ":alle"
+	}
+	f.record(vermerk)
+	if stream != nil {
+		stream("Total reclaimed space: 1.234GB")
+	}
+	f.mu.Lock()
+	done := f.pruneDone
+	f.mu.Unlock()
+	if done != nil {
+		close(done)
+	}
+	return "1.234GB", nil
 }

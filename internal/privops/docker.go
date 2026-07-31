@@ -510,6 +510,31 @@ func (s *System) DockerStats(ctx context.Context) ([]ContainerStats, error) {
 // wäre die, die jemand beim nächsten Endpunkt vergisst.
 var containerIDMuster = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`)
 
+// imageRefMuster ist die Form einer Abbild-Kennung oder -Bezeichnung.
+//
+// Weiter gefasst als containerIDMuster, und der Grund steckt in den echten
+// Werten: Eine Kennung ist "sha256:aaa…", eine Bezeichnung "nginx:alpine" oder
+// "ghcr.io/betreiber/dienst:1.2", ein Digest "nginx@sha256:…". Doppelpunkt,
+// Schrägstrich und Klammeraffe gehören also dazu — und genau das hat der erste
+// Anlauf übersehen: Er hat die Containerprüfung wiederverwendet, und die lehnte
+// jede Abbild-Kennung ab.
+//
+// Was NICHT dazugehört, ist der Punkt: Leerzeichen, Semikolon, Zeilenumbruch und
+// ein führender Bindestrich bleiben draußen. Zusammen mit dem "--" vor dem
+// Operanden sind das zwei Riegel gegen dieselbe Sache.
+var imageRefMuster = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:/@-]{0,255}$`)
+
+// ValidateImageRef prüft eine Abbild-Kennung oder -Bezeichnung.
+func ValidateImageRef(ref string) error {
+	if ref == "" {
+		return errors.New("kein Abbild angegeben")
+	}
+	if !imageRefMuster.MatchString(ref) {
+		return fmt.Errorf("ungültige Abbild-Kennung: %q", ref)
+	}
+	return nil
+}
+
 // ValidateContainerID prüft eine Containerkennung oder einen Containernamen.
 func ValidateContainerID(id string) error {
 	if id == "" {
@@ -769,4 +794,380 @@ func parseDockerStats(out string) []ContainerStats {
 		})
 	}
 	return stats
+}
+
+// ------------------------------------------------------------------ Bestand ---
+
+// Image ist ein Abbild in der lokalen Ablage.
+type Image struct {
+	ID   string `json:"id"`
+	Repo string `json:"repo"`
+	Tag  string `json:"tag"`
+	// Groesse und Erstellt kommen fertig formatiert von Docker. Sie zu zerlegen
+	// und neu zu formatieren hieße, Dockers Rundung nachzubauen — mit dem
+	// einzigen Ergebnis, dass die Zahl im Panel eine andere wäre als die auf der
+	// Kommandozeile.
+	Groesse  string `json:"groesse"`
+	Erstellt string `json:"erstellt"`
+	// Verwaist heißt: ohne Namen (<none>:<none>). Solche Abbilder entstehen bei
+	// jedem Neubau und sind der übliche Grund, warum eine Platte volläuft.
+	Verwaist bool `json:"verwaist"`
+}
+
+// Volume ist ein von Docker verwalteter Datenspeicher.
+type Volume struct {
+	Name    string `json:"name"`
+	Treiber string `json:"treiber"`
+	Ort     string `json:"ort"`
+}
+
+// Netz ist ein Docker-Netzwerk.
+type Netz struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Treiber string `json:"treiber"`
+	Bereich string `json:"bereich"`
+}
+
+// Bestandsposten ist eine Zeile aus "docker system df".
+//
+// Alle Felder sind Zeichenketten, weil Docker sie so ausgibt ("3.2GB",
+// "1.5GB (46%)"). Der Wert, auf den es ankommt, ist Freigebbar: Er beantwortet
+// die Frage, mit der jemand diese Seite öffnet — was bringt das Aufräumen.
+type Bestandsposten struct {
+	Art        string `json:"art"`
+	Anzahl     string `json:"anzahl"`
+	Aktiv      string `json:"aktiv"`
+	Groesse    string `json:"groesse"`
+	Freigebbar string `json:"freigebbar"`
+}
+
+// PruneArt benennt, was aufgeräumt wird.
+//
+// Ein eigener Typ mit Allowlist, weil der Wert bis in die Kommandozeile wandert.
+// "system" fehlt bewusst: "docker system prune" räumt in einem Zug Container,
+// Netze, Abbilder und den Baucache auf, und eine Aktion, deren Umfang der
+// Bedienende nicht überblickt, kann keine sinnvolle Rückfrage tragen.
+type PruneArt string
+
+const (
+	PruneImages    PruneArt = "images"
+	PruneContainer PruneArt = "container"
+	PruneVolumes   PruneArt = "volumes"
+	PruneNetze     PruneArt = "netze"
+	PruneCache     PruneArt = "cache"
+)
+
+// ValidPruneArt sagt, ob die Art erlaubt ist.
+func ValidPruneArt(a PruneArt) bool {
+	switch a {
+	case PruneImages, PruneContainer, PruneVolumes, PruneNetze, PruneCache:
+		return true
+	default:
+		return false
+	}
+}
+
+// DockerImages listet die lokalen Abbilder.
+func (s *System) DockerImages(ctx context.Context) ([]Image, error) {
+	res, err := s.run(ctx, Command{
+		Name: "docker",
+		Args: []string{"image", "ls", "--all", "--no-trunc", "--format", "{{json .}}"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res.ExitCode != 0 {
+		return nil, fmt.Errorf("docker image ls: %s", ersteAusgabezeile(res))
+	}
+	return parseDockerImages(res.Stdout), nil
+}
+
+// DockerImageRemove entfernt ein Abbild.
+func (s *System) DockerImageRemove(ctx context.Context, id string) error {
+	if err := ValidateImageRef(id); err != nil {
+		return err
+	}
+	// Ohne --force: Ist das Abbild in Gebrauch, soll Docker das sagen und nicht
+	// der Container mitgerissen werden. Die Oberfläche bietet den Handgriff bei
+	// einem benutzten Abbild ohnehin nicht an — aber ein selbstgebautes POST
+	// kommt an der Liste vorbei, und hier ist die Stelle, an der es zählt.
+	res, err := s.run(ctx, Command{
+		Name: "docker", Args: []string{"image", "rm", "--", id},
+		Timeout: 2 * defaultTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("docker image rm %s: %s", id, ersteAusgabezeile(res))
+	}
+	return nil
+}
+
+// DockerVolumes listet die Datenspeicher.
+func (s *System) DockerVolumes(ctx context.Context) ([]Volume, error) {
+	res, err := s.run(ctx, Command{
+		Name: "docker",
+		Args: []string{"volume", "ls", "--format", "{{json .}}"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res.ExitCode != 0 {
+		return nil, fmt.Errorf("docker volume ls: %s", ersteAusgabezeile(res))
+	}
+	return parseDockerVolumes(res.Stdout), nil
+}
+
+// DockerVolumeRemove entfernt einen Datenspeicher.
+//
+// Die schärfste Einzelaktion dieses Moduls: Was darin liegt, ist danach weg, und
+// kein Rückweg des Panels holt es zurück. Die Rückfragestufe steht in
+// docs/17-docker.md; hier gibt es keine Abkürzung über --force.
+func (s *System) DockerVolumeRemove(ctx context.Context, name string) error {
+	if err := ValidateContainerID(name); err != nil {
+		return err
+	}
+	res, err := s.run(ctx, Command{
+		Name: "docker", Args: []string{"volume", "rm", "--", name},
+		Timeout: 2 * defaultTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("docker volume rm %s: %s", name, ersteAusgabezeile(res))
+	}
+	return nil
+}
+
+// DockerNetworks listet die Netze.
+func (s *System) DockerNetworks(ctx context.Context) ([]Netz, error) {
+	res, err := s.run(ctx, Command{
+		Name: "docker",
+		Args: []string{"network", "ls", "--no-trunc", "--format", "{{json .}}"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res.ExitCode != 0 {
+		return nil, fmt.Errorf("docker network ls: %s", ersteAusgabezeile(res))
+	}
+	return parseDockerNetze(res.Stdout), nil
+}
+
+// DockerNetworkRemove entfernt ein Netz.
+func (s *System) DockerNetworkRemove(ctx context.Context, id string) error {
+	if err := ValidateContainerID(id); err != nil {
+		return err
+	}
+	res, err := s.run(ctx, Command{
+		Name: "docker", Args: []string{"network", "rm", "--", id},
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("docker network rm %s: %s", id, ersteAusgabezeile(res))
+	}
+	return nil
+}
+
+// DockerDiskUsage liest, was Docker auf der Platte belegt.
+func (s *System) DockerDiskUsage(ctx context.Context) ([]Bestandsposten, error) {
+	res, err := s.run(ctx, Command{
+		Name:    "docker",
+		Args:    []string{"system", "df", "--format", "{{json .}}"},
+		Timeout: 2 * defaultTimeout,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res.ExitCode != 0 {
+		return nil, fmt.Errorf("docker system df: %s", ersteAusgabezeile(res))
+	}
+	return parseDockerDF(res.Stdout), nil
+}
+
+// DockerPrune räumt eine Art auf und meldet, was das gebracht hat.
+//
+// alleUnbenutzten gilt nur für Abbilder und den Baucache und ist der
+// Unterschied zwischen "räum die namenlosen Reste weg" und "wirf alles raus,
+// was gerade kein Container benutzt". Der zweite Fall zieht auch Abbilder, die
+// jemand für morgen bereitgelegt hat — deshalb steht er als eigener Parameter
+// und nicht als stille Vorgabe.
+func (s *System) DockerPrune(ctx context.Context, art PruneArt, alleUnbenutzten bool, stream LineWriter) (string, error) {
+	if !ValidPruneArt(art) {
+		return "", fmt.Errorf("unbekannte Aufräumart: %q", art)
+	}
+
+	var args []string
+	switch art {
+	case PruneImages:
+		args = []string{"image", "prune", "--force"}
+		if alleUnbenutzten {
+			args = append(args, "--all")
+		}
+	case PruneContainer:
+		args = []string{"container", "prune", "--force"}
+	case PruneVolumes:
+		args = []string{"volume", "prune", "--force"}
+	case PruneNetze:
+		args = []string{"network", "prune", "--force"}
+	case PruneCache:
+		args = []string{"builder", "prune", "--force"}
+		if alleUnbenutzten {
+			args = append(args, "--all")
+		}
+	}
+
+	res, err := s.run(ctx, Command{
+		Name: "docker", Args: args, Timeout: longTimeout, Stream: stream,
+	})
+	if err != nil {
+		return "", err
+	}
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("docker %s prune: %s", art, ersteAusgabezeile(res))
+	}
+	return freigegebenAus(res.Stdout), nil
+}
+
+// parseDockerImages liest "docker image ls --format {{json .}}".
+//
+// Beispielzeile (Docker 27):
+//
+//	{"Containers":"N/A","CreatedAt":"2026-07-20 09:00:00 +0000 UTC",
+//	 "CreatedSince":"11 days ago","Digest":"<none>","ID":"sha256:abc…",
+//	 "Repository":"nginx","Size":"48.9MB","Tag":"alpine"}
+//
+// Ein Abbild ohne Namen trägt in beiden Feldern "<none>" — das ist der Rest, der
+// bei jedem Neubau übrig bleibt, und der übliche Grund für eine volle Platte.
+func parseDockerImages(out string) []Image {
+	images := []Image{}
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || !strings.HasPrefix(zeile, "{") {
+			continue
+		}
+		var roh struct {
+			ID           string `json:"ID"`
+			Repository   string `json:"Repository"`
+			Tag          string `json:"Tag"`
+			Size         string `json:"Size"`
+			CreatedSince string `json:"CreatedSince"`
+		}
+		if json.Unmarshal([]byte(zeile), &roh) != nil {
+			continue
+		}
+		images = append(images, Image{
+			ID:       roh.ID,
+			Repo:     roh.Repository,
+			Tag:      roh.Tag,
+			Groesse:  roh.Size,
+			Erstellt: roh.CreatedSince,
+			Verwaist: roh.Repository == "<none>" || roh.Repository == "",
+		})
+	}
+	return images
+}
+
+// parseDockerVolumes liest "docker volume ls --format {{json .}}".
+//
+//	{"Driver":"local","Labels":"","Links":"N/A","Mountpoint":"/var/lib/docker/volumes/web_daten/_data",
+//	 "Name":"web_daten","Scope":"local","Size":"N/A"}
+func parseDockerVolumes(out string) []Volume {
+	volumes := []Volume{}
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || !strings.HasPrefix(zeile, "{") {
+			continue
+		}
+		var roh struct {
+			Name       string `json:"Name"`
+			Driver     string `json:"Driver"`
+			Mountpoint string `json:"Mountpoint"`
+		}
+		if json.Unmarshal([]byte(zeile), &roh) != nil {
+			continue
+		}
+		volumes = append(volumes, Volume{Name: roh.Name, Treiber: roh.Driver, Ort: roh.Mountpoint})
+	}
+	return volumes
+}
+
+// parseDockerNetze liest "docker network ls --format {{json .}}".
+//
+//	{"CreatedAt":"2026-07-30 10:00:00 +0000 UTC","Driver":"bridge","ID":"1a2b…",
+//	 "IPv6":"false","Internal":"false","Labels":"","Name":"web_default","Scope":"local"}
+func parseDockerNetze(out string) []Netz {
+	netze := []Netz{}
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || !strings.HasPrefix(zeile, "{") {
+			continue
+		}
+		var roh struct {
+			ID     string `json:"ID"`
+			Name   string `json:"Name"`
+			Driver string `json:"Driver"`
+			Scope  string `json:"Scope"`
+		}
+		if json.Unmarshal([]byte(zeile), &roh) != nil {
+			continue
+		}
+		netze = append(netze, Netz{ID: roh.ID, Name: roh.Name, Treiber: roh.Driver, Bereich: roh.Scope})
+	}
+	return netze
+}
+
+// parseDockerDF liest "docker system df --format {{json .}}".
+//
+//	{"Active":"5","Reclaimable":"1.5GB (46%)","Size":"3.2GB","TotalCount":"12","Type":"Images"}
+//	{"Active":"4","Reclaimable":"12MB (100%)","Size":"12MB","TotalCount":"7","Type":"Containers"}
+//	{"Active":"2","Reclaimable":"800MB (80%)","Size":"1GB","TotalCount":"5","Type":"Local Volumes"}
+//	{"Active":"0","Reclaimable":"2.1GB","Size":"2.1GB","TotalCount":"31","Type":"Build Cache"}
+func parseDockerDF(out string) []Bestandsposten {
+	posten := []Bestandsposten{}
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || !strings.HasPrefix(zeile, "{") {
+			continue
+		}
+		var roh struct {
+			Type        string `json:"Type"`
+			TotalCount  string `json:"TotalCount"`
+			Active      string `json:"Active"`
+			Size        string `json:"Size"`
+			Reclaimable string `json:"Reclaimable"`
+		}
+		if json.Unmarshal([]byte(zeile), &roh) != nil {
+			continue
+		}
+		posten = append(posten, Bestandsposten{
+			Art: roh.Type, Anzahl: roh.TotalCount, Aktiv: roh.Active,
+			Groesse: roh.Size, Freigebbar: roh.Reclaimable,
+		})
+	}
+	return posten
+}
+
+// freigegebenAus holt den freigegebenen Platz aus der Ausgabe von prune.
+//
+// Docker schließt jeden prune-Lauf mit "Total reclaimed space: 1.234GB" ab. Das
+// ist die Antwort, wegen der jemand aufräumt — sie zu verschweigen und nur
+// "erledigt" zu melden hieße, die einzige interessante Zahl wegzuwerfen.
+//
+// Findet sich die Zeile nicht (andere Sprache, geändertes Format), kommt eine
+// leere Zeichenkette zurück und die Oberfläche sagt nichts dazu. Eine erfundene
+// Null wäre schlechter als keine Angabe.
+func freigegebenAus(out string) string {
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if rest, ok := strings.CutPrefix(zeile, "Total reclaimed space:"); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+	return ""
 }

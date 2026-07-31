@@ -1362,3 +1362,50 @@ export type Containerliste = {
  *  gelesene Zustand. Beim Entfernen fehlt das Detail — den Container gibt es
  *  dann nicht mehr. */
 export type Containerantwort = { meldung: string; detail?: ContainerDetail };
+
+export type DockerImage = {
+  id: string;
+  kurz: string;
+  /** name ist leer bei einem verwaisten Abbild — dann trägt es keinen. */
+  name: string;
+  groesse: string;
+  alter: string;
+  verwaist: boolean;
+  in_gebrauch: boolean;
+};
+
+export type DockerVolume = {
+  name: string;
+  treiber: string;
+  ort: string;
+  in_gebrauch: boolean;
+};
+
+export type DockerNetz = {
+  id: string;
+  kurz: string;
+  name: string;
+  treiber: string;
+  /** eingebaut: bridge, host, none. Docker legt sie selbst an und lässt sie
+   *  nicht entfernen — der Handgriff fehlt deshalb. */
+  eingebaut: boolean;
+};
+
+export type Bestandsposten = {
+  art: string;
+  anzahl: string;
+  aktiv: string;
+  groesse: string;
+  /** freigebbar ist die Zahl, wegen der jemand diese Seite öffnet. */
+  freigebbar: string;
+};
+
+export type Bestand = {
+  platte: Bestandsposten[];
+  images: DockerImage[];
+  volumes: DockerVolume[];
+  netze: DockerNetz[];
+  darf_aendern: boolean;
+  job: Job | null;
+  fehler?: string;
+};

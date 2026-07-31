@@ -255,6 +255,16 @@ func (s *Server) Handler() http.Handler {
 		s.protected(http.HandlerFunc(s.handleAPIDockerContainerLogs)))
 	mux.Handle("POST /api/v1/docker/containers/{id}",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerContainerAktion)))))
+	mux.Handle("GET /api/v1/docker/bestand",
+		s.protected(http.HandlerFunc(s.handleAPIDockerBestand)))
+	mux.Handle("POST /api/v1/docker/images/{id}/remove",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerImageEntfernen)))))
+	mux.Handle("POST /api/v1/docker/volumes/{name}/remove",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerVolumeEntfernen)))))
+	mux.Handle("POST /api/v1/docker/networks/{id}/remove",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerNetzEntfernen)))))
+	mux.Handle("POST /api/v1/docker/prune",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerPrune)))))
 
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst

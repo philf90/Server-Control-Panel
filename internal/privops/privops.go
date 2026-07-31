@@ -110,6 +110,16 @@ type Executor interface {
 	// eigene Frist: Der Kontext des Betrachters ist die Frist.
 	DockerContainerLogsFollow(ctx context.Context, id string, zeilen int, sink LineWriter) error
 	DockerStats(ctx context.Context) ([]ContainerStats, error)
+	DockerImages(ctx context.Context) ([]Image, error)
+	DockerImageRemove(ctx context.Context, id string) error
+	DockerVolumes(ctx context.Context) ([]Volume, error)
+	DockerVolumeRemove(ctx context.Context, name string) error
+	DockerNetworks(ctx context.Context) ([]Netz, error)
+	DockerNetworkRemove(ctx context.Context, id string) error
+	DockerDiskUsage(ctx context.Context) ([]Bestandsposten, error)
+	// DockerPrune gibt zurück, wie viel Platz frei wurde — die Antwort, wegen
+	// der jemand aufräumt.
+	DockerPrune(ctx context.Context, art PruneArt, alleUnbenutzten bool, stream LineWriter) (string, error)
 
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error

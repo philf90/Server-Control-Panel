@@ -11,6 +11,31 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Modul Docker, Bestand** (`/docker`, fünf weitere Routen). Abbilder, Volumes
+  und Netze mit dem, was Docker auf der Platte belegt — und den Handgriffen, es
+  loszuwerden.
+
+  **Oben steht, was ein Aufräumen brächte.** `docker system df` nennt je Art den
+  freigebbaren Platz, und dieselbe Zahl trägt die Rückfrage: „12 Einträge, davon
+  5 in Gebrauch · 1.5GB freigebbar" statt „alle". Nach dem Lauf steht der
+  tatsächlich freigegebene Platz am Vorgang.
+
+  **Was in Gebrauch ist, bekommt keinen Knopf.** Ein Abbild, das ein Container
+  benutzt, ein Volume, das einer einhängt, und die eingebauten Netze `bridge`,
+  `host` und `none` — Docker weigert sich in allen Fällen, und ein Knopf, der
+  zuverlässig in eine Weigerung läuft, ist selbst der Fehler.
+
+  **`docker system prune` gibt es nicht.** Es räumt Container, Netze, Abbilder
+  und Baucache in einem Zug auf, und eine Aktion, deren Umfang niemand
+  überblickt, kann keine sinnvolle Rückfrage tragen. Stattdessen fünf benannte
+  Arten, jede mit eigener Frage.
+
+  **Volumes aufzuräumen ist Stufe 3 mit dem Hostnamen** — nicht mit einem
+  Objektnamen: Es trifft jedes ungenutzte Volume des Servers auf einmal, und der
+  häufigste Fehler bei einer solchen Aktion ist nicht der falsche Knopf, sondern
+  der falsche Server. Ein einzelnes Volume bleibt Stufe 3 mit seinem Namen,
+  Abbild und Netz sind Stufe 2.
+
 - **Modul Docker, Container** (`/docker`, vier weitere Routen unter
   `/api/v1/docker/containers`). Liste mit Zählern als Filter, Inspektor mit
   Konfiguration, Mounts, Netzen, Auslastung und Protokollauszug; starten,

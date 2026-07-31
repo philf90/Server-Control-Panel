@@ -698,6 +698,16 @@ type ergebnisLeitstand struct {
 			Inspektor bool   `json:"inspektor"`
 			Suche     string `json:"suche"`
 		} `json:"nachZurueck"`
+		Bestand struct {
+			Ueberschriften []string `json:"ueberschriften"`
+			PlatteDa       bool     `json:"platteDa"`
+			Freigebbar     string   `json:"freigebbar"`
+			Abbilder       []struct {
+				Text  string `json:"text"`
+				Knopf bool   `json:"knopf"`
+			} `json:"abbilder"`
+			AufraeumKnoepfe []string `json:"aufraeumKnoepfe"`
+		} `json:"bestand"`
 	} `json:"dock"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
@@ -896,6 +906,21 @@ func TestLeitstandBrowser(t *testing.T) {
 			ID: "dddd11112222", Name: "auftrag", Image: "alpine",
 			Zustand: "exited", Status: "Exited (0) 5 minutes ago",
 		},
+	}
+	ops.images = []privops.Image{
+		{ID: "sha256:aaa", Repo: "nginx", Tag: "alpine", Groesse: "48.9MB", Erstellt: "11 days ago"},
+		{ID: "sha256:bbb", Repo: "<none>", Tag: "<none>", Groesse: "1.02GB", Erstellt: "3 days ago", Verwaist: true},
+	}
+	ops.volumes = []privops.Volume{
+		{Name: "web_daten", Treiber: "local", Ort: "/var/lib/docker/volumes/web_daten/_data"},
+	}
+	ops.netze = []privops.Netz{
+		{ID: "1a2b3c", Name: "bridge", Treiber: "bridge", Bereich: "local"},
+		{ID: "4d5e6f", Name: "web_default", Treiber: "bridge", Bereich: "local"},
+	}
+	ops.df = []privops.Bestandsposten{
+		{Art: "Images", Anzahl: "12", Aktiv: "5", Groesse: "3.2GB", Freigebbar: "1.5GB (46%)"},
+		{Art: "Local Volumes", Anzahl: "5", Aktiv: "2", Groesse: "1GB", Freigebbar: "800MB (80%)"},
 	}
 	ops.containerLogs = []string{
 		"2026-07-31T10:00:00.000000000Z Konfiguration geladen",
@@ -2819,6 +2844,46 @@ func TestLeitstandBrowser(t *testing.T) {
 	// ist ein Schritt im Verlauf.
 	if dk.NachZurueck.Inspektor {
 		t.Error("der Zurück-Knopf schließt den Inspektor nicht")
+	}
+
+	// Der Bestand. „freigebbar" ist die Frage, mit der jemand diese Seite
+	// öffnet — steht die Spalte nicht da, fehlt die Antwort.
+	be := dk.Bestand
+	if !be.PlatteDa || be.Freigebbar == "" {
+		t.Errorf("die Platzbedarfstabelle fehlt oder nennt nichts Freigebbares: %+v", be)
+	}
+	if len(be.AufraeumKnoepfe) == 0 {
+		t.Error("es steht kein Aufräum-Knopf da")
+	}
+	// Jeder Knopf sagt, was er trifft. „aufräumen" allein befähigt zu keiner
+	// Entscheidung — und genau das würde man beim Kürzen zuerst wegwerfen.
+	for _, k := range be.AufraeumKnoepfe {
+		if k == "aufräumen" {
+			t.Errorf("ein Knopf heißt nur „aufräumen" + `"` + " — er nennt nicht, was er trifft")
+		}
+	}
+
+	// Der Kern: An einem BENUTZTEN Abbild steht kein Entfernen-Knopf. Docker
+	// weigerte sich, und der Knopf wäre dann selbst der Fehler.
+	if len(be.Abbilder) == 0 {
+		t.Fatal("die Abbildliste ist leer")
+	}
+	var benutzt, frei int
+	for _, a := range be.Abbilder {
+		if strings.Contains(a.Text, "in Gebrauch") {
+			benutzt++
+			if a.Knopf {
+				t.Errorf("an einem benutzten Abbild steht ein Entfernen-Knopf: %q", a.Text)
+			}
+			continue
+		}
+		frei++
+		if !a.Knopf {
+			t.Errorf("an einem freien Abbild fehlt der Entfernen-Knopf: %q", a.Text)
+		}
+	}
+	if benutzt == 0 || frei == 0 {
+		t.Errorf("die Attrappe deckt nicht beide Fälle ab: %d benutzt, %d frei", benutzt, frei)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

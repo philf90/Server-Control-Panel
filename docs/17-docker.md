@@ -318,7 +318,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 |---|---|---|
 | 1 | **Fundament**: Allowlist, `DockerState`, `DockerInstall`, Executor-Methoden, `fakeOps`, `GET /api/v1/docker`, Seitengerüst — **umgesetzt**, siehe unten | Das Modul existiert und kann Docker installieren |
 | 2 | **Container**: Liste, Inspektor, Aktionen, Entfernen, Logs (Auszug und Verfolgen), Statistik — **umgesetzt**, siehe unten | Der Alltagsfall steht |
-| 3 | **Bestand**: Images, Volumes, Netze, `system df`, Aufräumen je Art mit freigegebenem Platz | Die häufigste Wartung |
+| 3 | **Bestand**: Images, Volumes, Netze, `system df`, Aufräumen je Art mit freigegebenem Platz — **umgesetzt**, siehe unten | Die häufigste Wartung |
 | 4 | **Stacks lesend**: `compose ls`, eigenes Verzeichnis, Verschmelzung, Detail | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 | **Stacks schreibend**: Pfadwache, Marker, Editor, **Compose-Prüfer**, `up/down/pull/restart` als Jobs, Gerüstvorlagen | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 | **Ports & Events**: Portübersicht mit Firewall-Abgleich, Ereignisstrom | Die zwei Adaptionen aus Arcane |
@@ -413,6 +413,54 @@ lehrreich genug für einen Vermerk:
 
 **Gemessen:** Binärgröße 17,3 MB (< 30), Abdeckung `privops` 78,3 % (> 72),
 `httpd` 69,8 % (> 68), direkte Go-Abhängigkeiten unverändert 6.
+
+### Schritt 3 — Stand: umgesetzt
+
+`privops` wächst um acht Operationen (Abbilder, Volumes, Netze je Liste und
+Entfernen, dazu `DockerDiskUsage` und `DockerPrune`), die Seite um den
+Bestandsblock: Platzbedarf oben, darunter die Aufräum-Handgriffe und die drei
+Listen.
+
+**Vier Entscheidungen, die beim Bauen fielen:**
+
+- **Der Platzbedarf steht oben, „freigebbar" ist die Antwort.** `docker system
+  df` nennt je Art, was ein Aufräumen brächte — und dieselbe Zahl steht in der
+  Rückfrage: „12 Einträge, davon 5 in Gebrauch · 1.5GB freigebbar" statt
+  „alle". Die Begründung ist die aus `docs/14`: „Alle Updates einspielen?"
+  befähigt zu keiner Entscheidung, „alle 42" schon.
+- **„In Gebrauch" rechnet der Server aus.** Ein Abbild, das ein Container
+  benutzt, und ein Volume, das einer einhängt, bekommen keinen
+  Entfernen-Knopf. Docker weigert sich in beiden Fällen, und ein Knopf, der
+  zuverlässig in diese Weigerung läuft, ist selbst der Fehler. Dasselbe gilt
+  für `bridge`, `host` und `none` — die legt Docker selbst an.
+- **`docker system prune` fehlt in der Allowlist.** Es räumt Container, Netze,
+  Abbilder und Baucache in einem Zug auf; eine Aktion, deren Umfang der
+  Bedienende nicht überblickt, kann keine sinnvolle Rückfrage tragen. Es gibt
+  fünf benannte Arten statt einer Sammelaktion.
+- **Volumes aufzuräumen ist Stufe 3 mit dem HOSTNAMEN**, nicht mit einem
+  Objektnamen: Es trifft jedes ungenutzte Volume des Servers auf einmal, und
+  der häufigste Fehler bei einer solchen Aktion ist nicht der falsche Knopf,
+  sondern der falsche Server. Ein einzelnes Volume zu entfernen bleibt Stufe 3
+  mit seinem Namen; Abbild und Netz sind Stufe 2, weil sich beides
+  wiederherstellen lässt — das eine durch Ziehen, das andere durch den nächsten
+  Compose-Start.
+
+**Zwei Befunde aus dem Bau:**
+
+- **Abbild-Kennungen sind anders gebaut als Containernamen.** Der erste Anlauf
+  hat für beides `ValidateContainerID` benutzt — und die lehnte `sha256:aaa`,
+  `nginx:alpine` und `ghcr.io/o/n:1.2` ab, weil Doppelpunkt und Schrägstrich
+  fehlten. Jetzt gibt es `ValidateImageRef` daneben; Leerzeichen, Semikolon und
+  ein führender Bindestrich bleiben in beiden draußen.
+- **Ein Quellentest nahm an, jede Datei habe genau eine Tabelle.**
+  `TestKolspanDecktAlleSpaltenDerNeuenOberflaeche` maß alle `colspan` einer
+  Datei an der Kopfzeile der ERSTEN Tabelle. Das ging, solange es so war — eine
+  Eigenschaft, die sich ergeben hatte und keine Regel war. Der Bestand hat vier
+  Tabellen, und der Test meldete drei Fehler, von denen keiner einer war.
+  Geprüft wird jetzt je Tabelle; die Absicht ist dieselbe geblieben.
+
+**Gemessen:** Binärgröße 17,3 MB (< 30), Abdeckung `privops` 77,4 % (> 72),
+`httpd` 70,0 % (> 68), direkte Go-Abhängigkeiten unverändert 6.
 
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:

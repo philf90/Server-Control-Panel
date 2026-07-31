@@ -963,7 +963,7 @@ export const t = {
     // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
     imBau: "Was hier noch fehlt",
     imBauDetail:
-      "Stacks, Bestand und Ports kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+      "Stacks, Ports und die Update-Prüfung kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
 
     // Container
     container: "Container",
@@ -1020,6 +1020,38 @@ export const t = {
     folgerVoll:
       "Es sehen schon zu viele Verbindungen Containerprotokollen zu. Bitte einen anderen Tab schließen.",
     verworfen: (n: number) => `${n} Zeilen verworfen — der Container schreibt schneller als die Leitung überträgt.`,
+
+    // Bestand
+    bestand: "Bestand",
+    platte: "Platzbedarf",
+    posten: "Art",
+    anzahl: "Anzahl",
+    inGebrauchSpalte: "in Gebrauch",
+    groesse: "Größe",
+    freigebbar: "freigebbar",
+    images: "Abbilder",
+    volumesTitel: "Volumes",
+    netzeTitel: "Netze",
+    spalteAbbild: "Abbild",
+    spalteAlter: "Alter",
+    spalteOrt: "Ort",
+    spalteTreiber: "Treiber",
+    ohneNamen: "ohne Namen",
+    inGebrauch: "in Gebrauch",
+    eingebaut: "eingebaut",
+    entfernen: "entfernen",
+    keineImages: "Keine Abbilder in der lokalen Ablage.",
+    keineVolumes: "Keine Volumes.",
+    keineNetze: "Keine Netze.",
+    // Aufräumen. Der Text sagt je Knopf, was er trifft — "aufräumen" allein
+    // befähigt zu keiner Entscheidung.
+    aufraeumen: "aufräumen",
+    verwaisteWeg: "namenlose Abbilder wegräumen",
+    alleUnbenutztenWeg: "alle unbenutzten Abbilder wegräumen",
+    gestoppteWeg: "gestoppte Container wegräumen",
+    volumesWeg: "ungenutzte Volumes wegräumen",
+    netzeWeg: "ungenutzte Netze wegräumen",
+    cacheWeg: "Baucache leeren",
   },
 
   stufe: {

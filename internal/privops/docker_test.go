@@ -408,6 +408,27 @@ func TestParseDockerStats(t *testing.T) {
 	}
 }
 
+// Abbild-Kennungen sind anders gebaut als Containernamen: "sha256:aaa",
+// "nginx:alpine", "ghcr.io/o/n:1.2", "nginx@sha256:…". Der erste Anlauf hat für
+// beides dieselbe Prüfung benutzt — und die lehnte jede Abbild-Kennung ab.
+func TestValidateImageRef(t *testing.T) {
+	gut := []string{
+		"sha256:aaa111", "nginx", "nginx:alpine", "ghcr.io/betreiber/dienst:1.2",
+		"nginx@sha256:abcdef", "registry.example.com:5000/img:1",
+	}
+	for _, ref := range gut {
+		if err := ValidateImageRef(ref); err != nil {
+			t.Errorf("%q sollte gültig sein: %v", ref, err)
+		}
+	}
+	schlecht := []string{"", "-rf", "--all", "a b", "a;b", "a|b", "a\nb", "a`b`", strings.Repeat("x", 300)}
+	for _, ref := range schlecht {
+		if err := ValidateImageRef(ref); err == nil {
+			t.Errorf("%q sollte abgelehnt werden", ref)
+		}
+	}
+}
+
 func TestValidateContainerID(t *testing.T) {
 	gut := []string{"3f2b8c1d9a4e", "web-proxy-1", "a", "A_b.c-d"}
 	for _, id := range gut {
@@ -544,5 +565,183 @@ func TestDockerContainerLogsNimmtBeideStroeme(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(zeilen, "\n"), "FEHLER") {
 		t.Error("die Zeile von stderr fehlt")
+	}
+}
+
+// ------------------------------------------------------------------ Bestand ---
+
+const (
+	dockerImagesOut = `{"Containers":"N/A","CreatedSince":"11 days ago","Digest":"<none>","ID":"sha256:aaa","Repository":"nginx","Size":"48.9MB","Tag":"alpine"}
+{"Containers":"N/A","CreatedSince":"3 days ago","Digest":"<none>","ID":"sha256:bbb","Repository":"<none>","Size":"1.02GB","Tag":"<none>"}`
+
+	dockerVolumesOut = `{"Driver":"local","Labels":"","Mountpoint":"/var/lib/docker/volumes/web_daten/_data","Name":"web_daten","Scope":"local"}
+{"Driver":"local","Labels":"","Mountpoint":"/var/lib/docker/volumes/tmp99/_data","Name":"tmp99","Scope":"local"}`
+
+	dockerNetzeOut = `{"CreatedAt":"2026-07-30 10:00:00 +0000 UTC","Driver":"bridge","ID":"1a2b3c","Name":"bridge","Scope":"local"}
+{"CreatedAt":"2026-07-30 10:05:00 +0000 UTC","Driver":"bridge","ID":"4d5e6f","Name":"web_default","Scope":"local"}`
+
+	dockerDFOut = `{"Active":"5","Reclaimable":"1.5GB (46%)","Size":"3.2GB","TotalCount":"12","Type":"Images"}
+{"Active":"4","Reclaimable":"12MB (100%)","Size":"12MB","TotalCount":"7","Type":"Containers"}
+{"Active":"2","Reclaimable":"800MB (80%)","Size":"1GB","TotalCount":"5","Type":"Local Volumes"}
+{"Active":"0","Reclaimable":"2.1GB","Size":"2.1GB","TotalCount":"31","Type":"Build Cache"}`
+
+	dockerPruneOut = `Deleted Images:
+deleted: sha256:bbb
+untagged: alt:1.0
+
+Total reclaimed space: 1.234GB
+`
+)
+
+func TestParseDockerImages(t *testing.T) {
+	liste := parseDockerImages(dockerImagesOut)
+	if len(liste) != 2 {
+		t.Fatalf("erwartet 2 Abbilder, gelesen %d", len(liste))
+	}
+	if liste[0].Repo != "nginx" || liste[0].Tag != "alpine" || liste[0].Groesse != "48.9MB" {
+		t.Errorf("erste Zeile falsch gelesen: %+v", liste[0])
+	}
+	if liste[0].Verwaist {
+		t.Error("ein benanntes Abbild ist nicht verwaist")
+	}
+	// Der zweite ist der Rest, der bei jedem Neubau übrig bleibt — und der
+	// übliche Grund, warum eine Platte volläuft. Ihn zu erkennen ist der Zweck
+	// dieses Feldes.
+	if !liste[1].Verwaist {
+		t.Errorf("ein Abbild ohne Namen ist verwaist: %+v", liste[1])
+	}
+}
+
+func TestParseDockerVolumesUndNetze(t *testing.T) {
+	vols := parseDockerVolumes(dockerVolumesOut)
+	if len(vols) != 2 || vols[0].Name != "web_daten" || vols[0].Treiber != "local" {
+		t.Errorf("Volumes falsch gelesen: %+v", vols)
+	}
+	if vols[0].Ort == "" {
+		t.Error("der Ort gehört dazu: Er ist der Weg, über SSH an die Daten zu kommen")
+	}
+
+	netze := parseDockerNetze(dockerNetzeOut)
+	if len(netze) != 2 || netze[1].Name != "web_default" || netze[1].Treiber != "bridge" {
+		t.Errorf("Netze falsch gelesen: %+v", netze)
+	}
+}
+
+func TestParseDockerDF(t *testing.T) {
+	posten := parseDockerDF(dockerDFOut)
+	if len(posten) != 4 {
+		t.Fatalf("erwartet 4 Posten, gelesen %d", len(posten))
+	}
+	if posten[0].Art != "Images" || posten[0].Freigebbar != "1.5GB (46%)" {
+		t.Errorf("erster Posten falsch gelesen: %+v", posten[0])
+	}
+	// Der Baucache steht bei einem Server, der baut, oft an erster Stelle der
+	// Platzfresser — er darf nicht fehlen.
+	if posten[3].Art != "Build Cache" || posten[3].Groesse != "2.1GB" {
+		t.Errorf("der Baucache fehlt oder ist falsch: %+v", posten[3])
+	}
+}
+
+// Der freigegebene Platz ist die Antwort, wegen der jemand aufräumt. Fehlt die
+// Zeile, kommt LEER zurück und nicht "0 B" — eine erfundene Null wäre schlechter
+// als keine Angabe.
+func TestFreigegebenAus(t *testing.T) {
+	if got := freigegebenAus(dockerPruneOut); got != "1.234GB" {
+		t.Errorf("freigegeben = %q, erwartet 1.234GB", got)
+	}
+	if got := freigegebenAus("nichts zu tun\n"); got != "" {
+		t.Errorf("ohne die Zeile erwartet leer, bekam %q", got)
+	}
+}
+
+func TestDockerPruneBautDieRichtigenArgumente(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["docker"] = Result{Stdout: dockerPruneOut}
+	s := NewSystemWithRunner(f)
+
+	frei, err := s.DockerPrune(context.Background(), PruneImages, false, nil)
+	if err != nil {
+		t.Fatalf("DockerPrune: %v", err)
+	}
+	if frei != "1.234GB" {
+		t.Errorf("freigegeben = %q", frei)
+	}
+	args := strings.Join(f.lastCall().Args, " ")
+	if args != "image prune --force" {
+		t.Errorf("Argumente = %q", args)
+	}
+
+	// --all ist der Unterschied zwischen „räum die Reste weg" und „wirf alles
+	// raus, was gerade kein Container benutzt". Es darf nur auf Wunsch dabei sein.
+	if _, err := s.DockerPrune(context.Background(), PruneImages, true, nil); err != nil {
+		t.Fatalf("DockerPrune(alle): %v", err)
+	}
+	if !strings.Contains(strings.Join(f.lastCall().Args, " "), "--all") {
+		t.Errorf("--all fehlt: %v", f.lastCall().Args)
+	}
+
+	// Für Volumes und Netze gibt es kein --all: Dort räumt prune ohnehin alles
+	// Unbenutzte weg, und ein zusätzliches Flag wäre eine Zusage ohne Wirkung.
+	if _, err := s.DockerPrune(context.Background(), PruneVolumes, true, nil); err != nil {
+		t.Fatalf("DockerPrune(volumes): %v", err)
+	}
+	if strings.Contains(strings.Join(f.lastCall().Args, " "), "--all") {
+		t.Errorf("volume prune kennt kein --all: %v", f.lastCall().Args)
+	}
+}
+
+func TestDockerPruneLehntUnbekannteArtAb(t *testing.T) {
+	f := newFakeRunner()
+	s := NewSystemWithRunner(f)
+
+	// "system" fehlt bewusst in der Allowlist: "docker system prune" räumt in
+	// einem Zug alles auf, und eine Aktion, deren Umfang niemand überblickt,
+	// kann keine sinnvolle Rückfrage tragen.
+	if _, err := s.DockerPrune(context.Background(), "system", false, nil); err == nil {
+		t.Error("eine unbekannte Art muss abgelehnt werden")
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("es darf kein Kommando gelaufen sein, gelaufen sind %d", len(f.calls))
+	}
+}
+
+// Ein Abbild wird OHNE --force entfernt: Ist es in Gebrauch, soll Docker das
+// sagen und nicht der Container mitgerissen werden.
+func TestDockerImageRemoveOhneForce(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["docker image rm"] = Result{}
+	s := NewSystemWithRunner(f)
+
+	if err := s.DockerImageRemove(context.Background(), "sha256:aaa"); err != nil {
+		t.Fatalf("DockerImageRemove: %v", err)
+	}
+	args := strings.Join(f.lastCall().Args, " ")
+	if strings.Contains(args, "--force") {
+		t.Errorf("kein --force erwartet: %q", args)
+	}
+	if !strings.Contains(args, "-- sha256:aaa") {
+		t.Errorf("die Kennung muss hinter -- stehen: %q", args)
+	}
+}
+
+func TestDockerBestandLehntUngueltigeKennungAb(t *testing.T) {
+	f := newFakeRunner()
+	s := NewSystemWithRunner(f)
+	ctx := context.Background()
+
+	if err := s.DockerImageRemove(ctx, "--all"); err == nil {
+		t.Error("eine Kennung, die wie eine Option aussieht, muss abgelehnt werden")
+	}
+	if err := s.DockerImageRemove(ctx, "nginx; rm -rf /"); err == nil {
+		t.Error("eine Kennung mit Shell-Zeichen muss abgelehnt werden")
+	}
+	if err := s.DockerVolumeRemove(ctx, "a b"); err == nil {
+		t.Error("ein Name mit Leerzeichen muss abgelehnt werden")
+	}
+	if err := s.DockerNetworkRemove(ctx, ""); err == nil {
+		t.Error("eine leere Kennung muss abgelehnt werden")
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("es darf kein Kommando gelaufen sein, gelaufen sind %d", len(f.calls))
 	}
 }

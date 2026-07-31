@@ -12,6 +12,7 @@
   // nicht (der Dienst hilft), Compose fehlt (apt hilft wieder). Welche Antwort
   // gilt, entscheidet der Server und schickt sie fertig mit; die Seite legt
   // keine eigene Auslegung daneben.
+  import Bestandsansicht from "../komponenten/Bestand.svelte";
   import Containerwerkbank from "../komponenten/Containerliste.svelte";
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
   import { AbgemeldetFehler, api } from "../lib/api";
@@ -183,6 +184,9 @@
          die Ursache schon nennt. -->
     <h2>{t.docker.container}</h2>
     <Containerwerkbank />
+
+    <h2>{t.docker.bestand}</h2>
+    <Bestandsansicht />
   {/if}
 
   <!-- Was noch fehlt, steht da. Eine Seite, die den Zustand zeigt und sonst

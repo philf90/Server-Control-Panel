@@ -14,6 +14,7 @@ import type {
   Dateitext,
   Dienste,
   DienstAktion,
+  Bestand,
   Containerliste,
   ContainerDetail,
   Containerantwort,
@@ -295,6 +296,36 @@ export const api = {
   /** containerAktion: start, stop, restart, pause, unpause, remove. Die Stufe
    *  der Rückfrage entscheidet der Server — stoppen ist Stufe 2, einen
    *  LAUFENDEN Container zu entfernen Stufe 3 mit seinem Namen. */
+  bestand: () => anfrage<Bestand>("/docker/bestand"),
+  imageEntfernen: (id: string, bestaetigt = false) =>
+    anfrage<AktionAntwort>(`/docker/images/${encodeURIComponent(id)}/remove`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion: "remove", bestaetigt, getippt: "" }),
+    }),
+  /** volumeEntfernen ist Stufe 3 mit dem Volumenamen: Was darin liegt, ist
+   *  danach weg, und kein Rückweg holt es zurück. */
+  volumeEntfernen: (name: string, bestaetigt = false, getippt = "") =>
+    anfrage<AktionAntwort>(`/docker/volumes/${encodeURIComponent(name)}/remove`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion: "remove", bestaetigt, getippt }),
+    }),
+  netzEntfernen: (id: string, bestaetigt = false) =>
+    anfrage<AktionAntwort>(`/docker/networks/${encodeURIComponent(id)}/remove`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion: "remove", bestaetigt, getippt: "" }),
+    }),
+  /** aufraeumen läuft als Vorgang: Auf einem Server mit fünfzig Gigabyte
+   *  Abbildern dauert es Minuten. Der freigegebene Platz steht danach als
+   *  Anmerkung am Vorgang. */
+  aufraeumen: (art: string, alle = false, bestaetigt = false, getippt = "") =>
+    anfrage<VorgangGestartet>("/docker/prune", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ art, alle, bestaetigt, getippt }),
+    }),
   containerAktion: (id: string, aktion: string, bestaetigt = false, getippt = "") =>
     anfrage<Containerantwort>(`/docker/containers/${encodeURIComponent(id)}`, {
       method: "POST",

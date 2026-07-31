@@ -2847,9 +2847,13 @@ async function main() {
   dock.anmerkung = await seite.evaluate(
     () => document.querySelector(".hinweis")?.textContent.trim() ?? "",
   );
-  dock.knoepfe = await seite.evaluate(() =>
-    [...document.querySelectorAll(".aktionen .knopf")].map((k) => k.textContent.trim()),
-  );
+  // Genau die Knopfreihe der SEITE, nicht die der Werkbank oder des Bestands:
+  // Seit Schritt 3 gibt es drei .aktionen-Reihen auf dieser Seite, und ein
+  // Selektor über alle drei prüft etwas anderes als gemeint.
+  dock.knoepfe = await seite.evaluate(() => {
+    const reihe = document.querySelector(".aktionen");
+    return reihe ? [...reihe.querySelectorAll(".knopf")].map((k) => k.textContent.trim()) : [];
+  });
   // Die Seite „bald" darf hier nicht mehr auftauchen: Sie hat einen eigenen
   // Aufbau (.platte .satz), und wenn der stünde, führte der Menüpunkt weiter auf
   // die Vertröstung statt auf das Modul.
@@ -2860,14 +2864,20 @@ async function main() {
   // sie ankommt, sagt nur die gerenderte Tabelle), und dass der Inspektor mit
   // der Auswahl in der Adresse auf- und mit dem Zurück-Knopf wieder zugeht.
   await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
-  dock.reihen = await seite.evaluate(() =>
-    [...document.querySelectorAll(".tabelle tbody tr")].map((tr) => ({
+  // Die Containertabelle heraussuchen und nicht die erste beste nehmen: Der
+  // Bestand bringt drei weitere mit. Erkennbar ist sie an der Spalte „Ports".
+  dock.reihen = await seite.evaluate(() => {
+    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Ports"),
+    );
+    if (!tab) return [];
+    return [...tab.querySelectorAll("tbody tr")].map((tr) => ({
       name: tr.querySelector('[data-spalte="Name"]')?.textContent.trim() ?? "",
       zustand: tr.querySelector('[data-spalte="Zustand"] .zustand')?.className ?? "",
-    })),
-  );
+    }));
+  });
 
-  await seite.click('.tabelle tbody tr:first-child [data-spalte="Name"] button');
+  await seite.click('.werkbank .tabelle tbody tr:first-child [data-spalte="Name"] button');
   await seite.waitForSelector(".inspektor", { timeout: 5000 });
   dock.nachKlick = {
     suche: new URL(seite.url()).search,
@@ -2904,6 +2914,40 @@ async function main() {
     inspektor: await seite.evaluate(() => !!document.querySelector(".inspektor")),
     suche: new URL(seite.url()).search,
   };
+
+  // Der Bestand. Zwei Dinge sind hier nur im Browser zu sehen: dass an einem
+  // BENUTZTEN Abbild kein Entfernen-Knopf steht (Docker weigerte sich, und der
+  // Knopf wäre dann selbst der Fehler), und dass die Zeile „freigebbar" ankommt
+  // — sie ist die Frage, mit der jemand diese Seite öffnet.
+  dock.bestand = await seite.evaluate(() => {
+    const ueberschriften = [...document.querySelectorAll("h2")].map((h) => h.textContent.trim());
+    const tabellen = [...document.querySelectorAll(".tabelle")];
+    const platte = tabellen.find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.includes("freigebbar")),
+    );
+    const abbilder = tabellen.find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Abbild"),
+    );
+    const zeilen = abbilder
+      ? [...abbilder.querySelectorAll("tbody tr")].map((tr) => ({
+          text: tr.querySelector('[data-spalte="Abbild"]')?.textContent.trim() ?? "",
+          knopf: !!tr.querySelector(".knopf"),
+        }))
+      : [];
+    return {
+      ueberschriften,
+      platteDa: !!platte,
+      freigebbar: platte
+        ? (platte.querySelector('tbody [data-spalte="freigebbar"]')?.textContent.trim() ?? "")
+        : "",
+      abbilder: zeilen,
+      // Die Aufräumreihe: die .aktionen, deren Knöpfe „wegräumen" oder „leeren"
+      // heißen. Ein Selektor über alle .aktionen nähme die Seitenknöpfe mit.
+      aufraeumKnoepfe: [...document.querySelectorAll(".aktionen")]
+        .map((reihe) => [...reihe.querySelectorAll(".knopf")].map((k) => k.textContent.trim()))
+        .find((texte) => texte.some((x) => x.includes("wegräumen") || x.includes("leeren"))) ?? [],
+    };
+  });
   dock.navAktiv = await seite.evaluate(
     () =>
       document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",

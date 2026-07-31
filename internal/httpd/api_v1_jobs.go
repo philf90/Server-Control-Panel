@@ -41,6 +41,7 @@ var jobArten = map[string]string{
 	// Dasselbe Muster wie bei ufw: Fehlt das Werkzeug, spielt das Panel es ein,
 	// statt eine Kommandozeile zum Abtippen zu drucken.
 	jobDockerInstall: "Docker einspielen",
+	jobDockerPrune:   "Docker aufräumen",
 }
 
 // apiJob ist der Zustand eines Vorgangs.

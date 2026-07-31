@@ -661,3 +661,290 @@ func TestAPIDockerContainerReichtFehlerAlsFeldDurch(t *testing.T) {
 		t.Error("leeres Feld statt null — sonst muss die Oberfläche zwei Fälle unterscheiden")
 	}
 }
+
+// ------------------------------------------------------------------ Bestand ---
+
+func bestandServer(t *testing.T, rolle string) (*Server, *fakeOps, *http.Cookie, string) {
+	t.Helper()
+	s, ops, cookie, csrf := containerServer(t, rolle)
+	ops.images = []privops.Image{
+		{ID: "sha256:aaa", Repo: "nginx", Tag: "alpine", Groesse: "48.9MB", Erstellt: "11 days ago"},
+		{ID: "sha256:bbb", Repo: "<none>", Tag: "<none>", Groesse: "1.02GB", Erstellt: "3 days ago", Verwaist: true},
+	}
+	ops.volumes = []privops.Volume{
+		{Name: "web_daten", Treiber: "local", Ort: "/var/lib/docker/volumes/web_daten/_data"},
+		{Name: "tmp99", Treiber: "local", Ort: "/var/lib/docker/volumes/tmp99/_data"},
+	}
+	ops.netze = []privops.Netz{
+		{ID: "1a2b3c", Name: "bridge", Treiber: "bridge", Bereich: "local"},
+		{ID: "4d5e6f", Name: "web_default", Treiber: "bridge", Bereich: "local"},
+	}
+	// web_daten hängt in einem Container — tmp99 nicht. Beide Fälle, weil an
+	// dieser Unterscheidung der gefährlichste Handgriff der Seite hängt.
+	ops.containerMounts = []privops.ContainerMount{
+		{Art: "volume", Quelle: "web_daten", Ziel: "/daten", Schreibar: true},
+	}
+	ops.df = []privops.Bestandsposten{
+		{Art: "Images", Anzahl: "12", Aktiv: "5", Groesse: "3.2GB", Freigebbar: "1.5GB (46%)"},
+		{Art: "Local Volumes", Anzahl: "5", Aktiv: "2", Groesse: "1GB", Freigebbar: "800MB (80%)"},
+	}
+	return s, ops, cookie, csrf
+}
+
+func bestandLesen(t *testing.T, s *Server, cookie *http.Cookie) apiBestand {
+	t.Helper()
+	rec := get(t, s, "/api/v1/docker/bestand", cookie)
+	var antwort apiBestand
+	mussJSON(t, rec, &antwort)
+	return antwort
+}
+
+// Der Kern der Bestandsseite: „in Gebrauch" wird ausgerechnet, damit die
+// Oberfläche keinen Knopf zeigt, der zuverlässig in Dockers Weigerung läuft.
+func TestAPIDockerBestandMarkiertBenutztes(t *testing.T) {
+	s, _, cookie, _ := bestandServer(t, store.RoleOwner)
+
+	b := bestandLesen(t, s, cookie)
+	if len(b.Images) != 2 || len(b.Volumes) != 2 || len(b.Netze) != 2 {
+		t.Fatalf("Listen unvollständig: %d Abbilder, %d Volumes, %d Netze",
+			len(b.Images), len(b.Volumes), len(b.Netze))
+	}
+
+	var nginx, verwaist apiImage
+	for _, i := range b.Images {
+		if i.Name == "nginx:alpine" {
+			nginx = i
+		}
+		if i.Verwaist {
+			verwaist = i
+		}
+	}
+	// nginx:alpine läuft als web-proxy-1 (aus containerServer).
+	if !nginx.InGebrauch {
+		t.Error("ein Abbild, das ein Container benutzt, muss als in Gebrauch gelten")
+	}
+	if verwaist.Name != "" {
+		t.Errorf("ein verwaistes Abbild hat keinen Namen, hat aber %q", verwaist.Name)
+	}
+	if verwaist.InGebrauch {
+		t.Error("ein namenloses Abbild kann nicht in Gebrauch sein")
+	}
+	if verwaist.Kurz == "" {
+		t.Error("die gekürzte Kennung fehlt — sie ist das Einzige, woran man es erkennt")
+	}
+
+	// Volumes: der gefährlichere Fall. Ein eingehängtes Volume darf keinen
+	// Entfernen-Knopf bekommen — Docker weigert sich, und was darin liegt, ist
+	// bei einem erfolgreichen Löschen unwiederbringlich weg.
+	var eingehaengt, frei bool
+	for _, v := range b.Volumes {
+		if v.Name == "web_daten" {
+			eingehaengt = v.InGebrauch
+		}
+		if v.Name == "tmp99" {
+			frei = !v.InGebrauch
+		}
+	}
+	if !eingehaengt {
+		t.Error("ein eingehängtes Volume muss als in Gebrauch gelten")
+	}
+	if !frei {
+		t.Error("ein Volume, das kein Container einhängt, ist frei")
+	}
+}
+
+// bridge, host und none legt Docker selbst an. Den Handgriff anzubieten hieße,
+// einen Knopf zu zeigen, der zuverlässig in eine Weigerung läuft.
+func TestAPIDockerBestandMarkiertEingebauteNetze(t *testing.T) {
+	s, _, cookie, _ := bestandServer(t, store.RoleOwner)
+
+	for _, n := range bestandLesen(t, s, cookie).Netze {
+		if n.Name == "bridge" && !n.Eingebaut {
+			t.Error("bridge ist eingebaut")
+		}
+		if n.Name == "web_default" && n.Eingebaut {
+			t.Error("ein Compose-Netz ist nicht eingebaut")
+		}
+	}
+}
+
+// Eine Teilauskunft, die scheitert, verwirft die anderen nicht: Auf einem System
+// ohne Baucache fehlt eben eine Zeile.
+func TestAPIDockerBestandUeberlebtFehlendeContainerliste(t *testing.T) {
+	s, ops, cookie, _ := bestandServer(t, store.RoleOwner)
+	ops.containerErr = errDockerAttrappe
+
+	b := bestandLesen(t, s, cookie)
+	if len(b.Images) != 2 {
+		t.Errorf("die Abbilder fehlen, obwohl nur die Containerliste scheiterte: %+v", b.Images)
+	}
+	for _, i := range b.Images {
+		if i.InGebrauch {
+			t.Error("ohne Containerliste kann nichts als in Gebrauch gelten")
+		}
+	}
+}
+
+// Ein Volume zu entfernen ist Stufe 3 mit seinem Namen — die schärfste
+// Einzelaktion des Moduls: Was darin liegt, ist danach weg.
+func TestAPIDockerVolumeEntfernenIstStufeDrei(t *testing.T) {
+	s, ops, cookie, csrf := bestandServer(t, store.RoleOwner)
+
+	rec := postJSON(t, s, "/api/v1/docker/volumes/tmp99/remove",
+		`{"aktion":"remove","bestaetigt":false,"getippt":""}`, cookie, csrf)
+	frage := rueckfrageAus(t, rec)
+	if frage.Bestaetigung.Tippen != "tmp99" {
+		t.Errorf("Tippen = %q, erwartet den Volumenamen", frage.Bestaetigung.Tippen)
+	}
+	if len(ops.recorded()) != 0 {
+		t.Errorf("ohne Bestätigung darf nichts gelaufen sein: %v", ops.recorded())
+	}
+
+	rec = postJSON(t, s, "/api/v1/docker/volumes/tmp99/remove",
+		`{"aktion":"remove","bestaetigt":true,"getippt":"tmp99"}`, cookie, csrf)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
+	}
+	if !enthaelt(ops.recorded(), "docker:volume-rm:tmp99") {
+		t.Errorf("das Volume wurde nicht entfernt: %v", ops.recorded())
+	}
+}
+
+// Abbild und Netz sind Stufe 2: Beides lässt sich wiederherstellen, das eine
+// durch Ziehen, das andere durch den nächsten Compose-Start.
+func TestAPIDockerImageUndNetzSindStufeZwei(t *testing.T) {
+	s, ops, cookie, csrf := bestandServer(t, store.RoleOwner)
+
+	for _, fall := range []struct{ pfad, vermerk string }{
+		{"/api/v1/docker/images/sha256:aaa/remove", "docker:image-rm:sha256:aaa"},
+		{"/api/v1/docker/networks/4d5e6f/remove", "docker:netz-rm:4d5e6f"},
+	} {
+		rec := postJSON(t, s, fall.pfad, `{"aktion":"remove","bestaetigt":false}`, cookie, csrf)
+		frage := rueckfrageAus(t, rec)
+		if frage.Bestaetigung.Tippen != "" {
+			t.Errorf("%s: kein getipptes Wort erwartet, ist %q", fall.pfad, frage.Bestaetigung.Tippen)
+		}
+
+		rec = postJSON(t, s, fall.pfad, `{"aktion":"remove","bestaetigt":true}`, cookie, csrf)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: Status = %d: %s", fall.pfad, rec.Code, rec.Body.String())
+		}
+		if !enthaelt(ops.recorded(), fall.vermerk) {
+			t.Errorf("%s: nicht gelaufen (%v)", fall.pfad, ops.recorded())
+		}
+	}
+}
+
+// Die Rückfrage trägt die Zahlen aus "docker system df" — „alle 12, davon 5 in
+// Gebrauch, 1.5GB freigebbar" statt „alle". Die Begründung steht in docs/14:
+// „Alle Updates einspielen?" befähigt zu keiner Entscheidung, „alle 42" schon.
+func TestAPIDockerPruneFrageTraegtZahlen(t *testing.T) {
+	s, _, cookie, csrf := bestandServer(t, store.RoleOwner)
+
+	rec := postJSON(t, s, "/api/v1/docker/prune", `{"art":"images","alle":true}`, cookie, csrf)
+	frage := rueckfrageAus(t, rec)
+	verbunden := strings.Join(frage.Bestaetigung.Punkte, " ")
+	if !strings.Contains(verbunden, "1.5GB") || !strings.Contains(verbunden, "12") {
+		t.Errorf("die Frage nennt die Zahlen nicht: %v", frage.Bestaetigung.Punkte)
+	}
+	if frage.Bestaetigung.Tippen != "" {
+		t.Error("das Aufräumen von Abbildern ist Stufe 2")
+	}
+}
+
+// Volumes aufzuräumen trifft JEDES ungenutzte Volume des Servers auf einmal.
+// Deshalb Stufe 3 mit dem HOSTNAMEN: Der häufigste Fehler bei einer solchen
+// Aktion ist nicht der falsche Knopf, sondern der falsche Server.
+func TestAPIDockerPruneVolumesVerlangtHostnamen(t *testing.T) {
+	s, ops, cookie, csrf := bestandServer(t, store.RoleOwner)
+
+	rec := postJSON(t, s, "/api/v1/docker/prune", `{"art":"volumes"}`, cookie, csrf)
+	frage := rueckfrageAus(t, rec)
+	if frage.Bestaetigung.Tippen == "" {
+		t.Fatal("das Aufräumen von Volumes braucht ein getipptes Wort")
+	}
+	if frage.Bestaetigung.Tippen != s.rechnername() {
+		t.Errorf("Tippen = %q, erwartet den Hostnamen %q", frage.Bestaetigung.Tippen, s.rechnername())
+	}
+	if len(ops.recorded()) != 0 {
+		t.Errorf("ohne Bestätigung darf nichts gelaufen sein: %v", ops.recorded())
+	}
+
+	// Ein falsches Wort wirkt nicht.
+	rec = postJSON(t, s, "/api/v1/docker/prune",
+		`{"art":"volumes","bestaetigt":true,"getippt":"falsch"}`, cookie, csrf)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("ein falsches Wort muss die Frage wiederholen, Status = %d", rec.Code)
+	}
+	if len(ops.recorded()) != 0 {
+		t.Errorf("mit falschem Wort darf nichts gelaufen sein: %v", ops.recorded())
+	}
+}
+
+// Der freigegebene Platz ist die Antwort, wegen der jemand aufräumt. Er steht
+// als Anmerkung am Vorgang und nicht irgendwo im Auszug.
+func TestAPIDockerPruneMeldetFreigegebenenPlatz(t *testing.T) {
+	s, ops, cookie, csrf := bestandServer(t, store.RoleOwner)
+	ops.pruneDone = make(chan struct{})
+
+	rec := postJSON(t, s, "/api/v1/docker/prune",
+		`{"art":"images","alle":false,"bestaetigt":true}`, cookie, csrf)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("Status = %d, erwartet 202: %s", rec.Code, rec.Body.String())
+	}
+
+	select {
+	case <-ops.pruneDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("der Vorgang ist nicht gelaufen")
+	}
+	warteBis(t, func() bool {
+		j := bestandLesen(t, s, cookie).Job
+		return j != nil && !j.Laeuft
+	})
+	j := bestandLesen(t, s, cookie).Job
+	if j == nil || !strings.Contains(j.Hinweis, "1.234GB") {
+		t.Errorf("der freigegebene Platz fehlt am Vorgang: %+v", j)
+	}
+	if !enthaelt(ops.recorded(), "docker:prune:images") {
+		t.Errorf("nicht gelaufen: %v", ops.recorded())
+	}
+}
+
+func TestAPIDockerPruneLehntUnbekannteArtAb(t *testing.T) {
+	s, ops, cookie, csrf := bestandServer(t, store.RoleOwner)
+
+	// "system" fehlt bewusst: "docker system prune" räumt alles auf einmal auf,
+	// und eine Aktion, deren Umfang niemand überblickt, kann keine sinnvolle
+	// Rückfrage tragen.
+	rec := postJSON(t, s, "/api/v1/docker/prune",
+		`{"art":"system","bestaetigt":true}`, cookie, csrf)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Status = %d, erwartet 400: %s", rec.Code, rec.Body.String())
+	}
+	if len(ops.recorded()) != 0 {
+		t.Errorf("es darf nichts gelaufen sein: %v", ops.recorded())
+	}
+}
+
+func TestAPIDockerBestandSchreibenVerlangtOwner(t *testing.T) {
+	s, ops, cookie, csrf := bestandServer(t, store.RoleAdmin)
+
+	if bestandLesen(t, s, cookie).DarfAendern {
+		t.Error("ein Admin-Konto darf den Bestand nicht ändern")
+	}
+	for _, pfad := range []string{
+		"/api/v1/docker/images/sha256:aaa/remove",
+		"/api/v1/docker/volumes/tmp99/remove",
+		"/api/v1/docker/networks/4d5e6f/remove",
+		"/api/v1/docker/prune",
+	} {
+		rec := postJSON(t, s, pfad, `{"aktion":"remove","bestaetigt":true,"art":"images"}`, cookie, csrf)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("%s: Status = %d, erwartet 403", pfad, rec.Code)
+		}
+	}
+	if len(ops.recorded()) != 0 {
+		t.Errorf("es darf nichts gelaufen sein: %v", ops.recorded())
+	}
+}

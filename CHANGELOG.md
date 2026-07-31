@@ -9,6 +9,62 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0] — 2026-07-31
+
+**Die neue Oberfläche ist die Oberfläche.** Wer das Panel aufruft, bekommt sie;
+die alte ist eine Fassung lang unter `/alt/` als Rückweg erreichbar und
+eingefroren. Damit ist die Stufe „Neues Fundament" aus
+[docs/16-neukonzeption.md](docs/16-neukonzeption.md) abgeschlossen: Parität zu
+allen zwölf Modulen der alten Fläche, `/api/v1` als einzige Datenquelle, ein
+einheitliches Job-Modell, Cron & systemd-Timer und API-Tokens.
+
+**Nach dem Update ist eine Anmeldung nötig — einmal.** Alle Sitzungen werden
+verworfen (Migration 0006); API-Tokens bleiben gültig.
+
+**Was ein Beta-Tester zuerst wissen sollte:**
+
+- Die Adressen haben sich geändert. `/services` heißt jetzt `/dienste`,
+  `/packages` → `/pakete`, `/system-users` → `/benutzer`, `/users` → `/zugaenge`,
+  `/account` → `/konto`, `/update` → `/updates`, `/certificate` → `/zertifikate`.
+  Ein Lesezeichen auf einen alten Pfad landet unter `/alt/…` — dort steht die
+  eingefrorene Fläche.
+- **Die Kernoberfläche braucht JavaScript.** Anmeldung, Erstinstallation, der
+  erzwungene Passwortwechsel und der Weg für ein vergessenes Passwort laufen
+  weiter ohne — sie sind server-gerendert und bleiben es.
+- **Ein Cron-Eintrag ist eine Shell-Zeile**, und wer einen anlegen darf, führt
+  Code als den eingetragenen Benutzer aus. Die Betrachtung dazu steht in
+  docs/16-neukonzeption.md unter 4.2 und 7.2.
+- **Ein API-Token ist ein Zugang.** Er erbt die Rolle des Kontos, das ihn anlegt,
+  und der Klartext erscheint genau einmal.
+
+### Hinzugefügt
+
+- **API-Tokens als zweiter Anmeldeweg** (`/tokens`, drei Routen unter
+  `/api/v1/tokens`, Migration 0005 — die erste Store-Erweiterung dieses
+  Vorhabens). Gespeichert wird nur der Hash, wie bei den Sitzungen: Ein
+  Datenbankabzug erlaubt keine Anmeldung. Der Klartext steht genau einmal in einer
+  Antwort; es gibt keinen Endpunkt, der ihn zurückgäbe.
+
+  Die tragende Entscheidung steht im Kopf von `internal/httpd/tokenauth.go`: Ein
+  Cookie ist eine UMGEBENDE Berechtigung, ein Token eine mitgebrachte. Einen
+  `Authorization`-Kopf kann eine fremde Seite nicht setzen — darum braucht der
+  Token-Weg keine CSRF-Prüfung, und nur darum. Daraus folgt: **Ist der Kopf da,
+  gilt ausschließlich der Token-Weg; ein ungültiger endet mit 401 und fällt NICHT
+  auf das Cookie zurück.** Der Rückfall wäre der eigentliche Angriff — ein
+  unsinniger Kopf würde die CSRF-Prüfung abschalten, und die mitgeschickte Sitzung
+  täte die Arbeit.
+
+  Weitere Schranken: Drei Familien sind für Tokens gesperrt (`tokens`,
+  `panel-users`, `account`) — die erste, weil ein entwendeter Token sonst einen
+  frischen mintet und seinen eigenen Widerruf überlebt. Ein Token gilt nur unter
+  `/api/`, die Familienliste ist eine Allowlist, die Rolle bleibt die Obergrenze,
+  und `nur_lesen` senkt sie für diesen Zugang. Fehlversuche werden je IP gebremst.
+  Im Audit-Protokoll steht, dass ein Token gehandelt hat — sonst sagt es „philipp
+  hat den Dienst gestoppt", während es ein Skript war.
+
+- **Modul Cron & systemd-Timer** (`/cron`) — mit 0.4.0-rc.5 gebaut; die
+  Einzelheiten stehen dort.
+
 ### Geändert
 
 - **Umgeschaltet: die neue Oberfläche liegt an der Wurzel.** `/v2/` ist

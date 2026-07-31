@@ -15,10 +15,10 @@
   <div class="right">
     <a class="button secondary small" href="{{.ListLink}}">zurück zur Liste</a>
     {{if .Entry.IsDir}}
-      <a class="button small" href="/files/archive?path={{.Entry.Path | urlquery}}">als tar.gz laden</a>
+      <a class="button small" href="/alt/files/archive?path={{.Entry.Path | urlquery}}">als tar.gz laden</a>
     {{else if .Entry.Readable}}
       {{if .Editable}}<a class="button small" href="{{.EditLink}}">bearbeiten</a>{{end}}
-      <a class="button small" href="/files/download?path={{.Entry.Path | urlquery}}">herunterladen</a>
+      <a class="button small" href="/alt/files/download?path={{.Entry.Path | urlquery}}">herunterladen</a>
     {{end}}
     {{if $schreibend}}
     {{/* Löschen stand als eigener Abschnitt unten: Überschrift, Karte, ein
@@ -30,7 +30,7 @@
          ist ohnehin der Handler — er löscht nichts ohne das Feld "bestaetigt".
          Bei einem Ordner mit Inhalt verlangt er zusätzlich den getippten Namen;
          data-bestaetigen-tippen sagt dem Dialog dasselbe. */}}
-    <form method="post" action="/files/delete" class="kopfform"
+    <form method="post" action="/alt/files/delete" class="kopfform"
           data-bestaetigen="{{.LoeschFrage}}"
           data-bestaetigen-titel="Löschen"
           data-bestaetigen-knopf="endgültig löschen"
@@ -44,7 +44,7 @@
 </div>
 
 <nav class="krumen" aria-label="Pfad">
-  {{range .Crumbs}}<a href="/files?path={{.Path | urlquery}}">{{.Name}}</a>{{end}}
+  {{range .Crumbs}}<a href="/alt/files?path={{.Path | urlquery}}">{{.Name}}</a>{{end}}
 </nav>
 
 {{if .Entry.Sensitive}}
@@ -94,7 +94,7 @@
 <div class="section">
   <div class="sechead"><span class="seclabel">Name und Ort</span></div>
   <div class="card">
-    <form method="post" action="/files/rename" class="row-form">
+    <form method="post" action="/alt/files/rename" class="row-form">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="path" value="{{.Entry.Path}}">
       <label>Neuer Name
@@ -106,7 +106,7 @@
     {{/* Das Ziel ist keine freie Eingabe: Auswählbar ist nur, was es gibt. Ohne
          Skript die Liste unten (Schreibbereiche und der Weg hierher), mit Skript
          eine durchsuchbare Auswahl über /files/dirs. */}}
-    <form method="post" action="/files/move" class="row-form zielform">
+    <form method="post" action="/alt/files/move" class="row-form zielform">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="path" value="{{.Entry.Path}}">
       <div class="weit">
@@ -118,8 +118,8 @@
         </div>
       </div>
       <div class="submit button-row">
-        <button type="submit" class="small" formaction="/files/move">verschieben</button>
-        <button type="submit" class="small secondary" formaction="/files/copy">kopieren</button>
+        <button type="submit" class="small" formaction="/alt/files/move">verschieben</button>
+        <button type="submit" class="small secondary" formaction="/alt/files/copy">kopieren</button>
       </div>
     </form>
     <p class="muted klein">
@@ -148,7 +148,7 @@
   </div>
   <div class="card">
     {{if $schreibend}}
-    <form method="post" action="/files/mode">
+    <form method="post" action="/alt/files/mode">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="path" value="{{.Entry.Path}}">
       {{template "rechtegitter" dict "rechte" .Rechte "octal" .Entry.ModeOctal "ordner" .Entry.IsDir "eingabe" true}}

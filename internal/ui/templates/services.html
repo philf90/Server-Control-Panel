@@ -7,7 +7,7 @@
   </div>
 </div>
 
-<form method="get" action="/services" class="filter-form">
+<form method="get" action="/alt/services" class="filter-form">
   <input type="search" name="q" value="{{.Filter.Search}}" placeholder="Unit oder Beschreibung suchen">
   <select name="state">
     <option value="" {{if eq .State ""}}selected{{end}}>alle Zustände</option>
@@ -26,7 +26,7 @@
       <tbody>
         {{range .Services}}
         <tr {{if .Failed}}class="warn"{{end}}>
-          <td data-label="Unit" data-rolle="haupt"><a href="/services/{{.Unit}}"><code>{{.Unit}}</code></a></td>
+          <td data-label="Unit" data-rolle="haupt"><a href="/alt/services/{{.Unit}}"><code>{{.Unit}}</code></a></td>
           <td class="muted" data-label="Beschreibung">{{.Description}}</td>
           <td class="zustand" data-label="Zustand">
             <span class="badge {{if .Failed}}error{{else if .Running}}ok{{end}}">{{.Active}}</span>
@@ -36,12 +36,12 @@
           {{if $.CanWrite}}
           <td class="actions">
             {{if .Running}}
-            <form method="post" action="/services/{{.Unit}}">
+            <form method="post" action="/alt/services/{{.Unit}}">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="action" value="restart">
               <button type="submit" class="small">neu starten</button>
             </form>
-            <form method="post" action="/services/{{.Unit}}"
+            <form method="post" action="/alt/services/{{.Unit}}"
                   data-bestaetigen="{{.Unit}} stoppen? Was der Dienst bereitstellt, ist danach nicht mehr erreichbar."
                   data-bestaetigen-titel="Dienst stoppen"
                   data-bestaetigen-knopf="stoppen">
@@ -50,7 +50,7 @@
               <button type="submit" class="small danger">stoppen</button>
             </form>
             {{else}}
-            <form method="post" action="/services/{{.Unit}}">
+            <form method="post" action="/alt/services/{{.Unit}}">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="action" value="start">
               <button type="submit" class="small{{if .Failed}} primary{{end}}">{{if .Failed}}neu starten{{else}}starten{{end}}</button>

@@ -13,7 +13,7 @@
 
   // Die Quelle steht am Element, nicht hier: Dasselbe Skript liest den
   // Paketvorgang und die ufw-Installation mit.
-  var source = new EventSource(output.dataset.events || "/packages/events");
+  var source = new EventSource(output.dataset.events || "/alt/packages/events");
 
   source.addEventListener("output", function (event) {
     var line;

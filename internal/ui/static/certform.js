@@ -9,7 +9,7 @@
 (function () {
   "use strict";
 
-  var form = document.querySelector('form[action="/certificate"]');
+  var form = document.querySelector('form[action="/alt/certificate"]');
   if (!form) {
     return;
   }

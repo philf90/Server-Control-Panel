@@ -75,13 +75,13 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 			out = append(out, dashSignal{
 				Level: "crit", Tag: "Dienst", Title: failed[0] + " ist ausgefallen",
 				Detail:      "Der Dienst läuft nicht mehr. Auf der Dienste-Seite lässt er sich neu starten.",
-				ActionLabel: "Dienste öffnen", ActionHref: "/services", Primary: true,
+				ActionLabel: "Dienste öffnen", ActionHref: "/alt/services", Primary: true,
 			})
 		case len(failed) > 1:
 			out = append(out, dashSignal{
 				Level: "crit", Tag: "Dienste", Title: fmt.Sprintf("%d Dienste sind ausgefallen", len(failed)),
 				Detail:      strings.Join(failed, " · "),
-				ActionLabel: "Dienste öffnen", ActionHref: "/services", Primary: true,
+				ActionLabel: "Dienste öffnen", ActionHref: "/alt/services", Primary: true,
 			})
 		}
 	}
@@ -92,12 +92,12 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 		case fs.UsedPct >= 95:
 			out = append(out, dashSignal{
 				Level: "crit", Tag: "Speicher", Title: fmt.Sprintf("%s ist zu %.0f %% belegt", fs.Mount, fs.UsedPct),
-				Detail: "Es wird eng — hier drohen Schreibfehler.", ActionLabel: "Pakete öffnen", ActionHref: "/packages",
+				Detail: "Es wird eng — hier drohen Schreibfehler.", ActionLabel: "Pakete öffnen", ActionHref: "/alt/packages",
 			})
 		case fs.UsedPct >= 85:
 			out = append(out, dashSignal{
 				Level: "warn", Tag: "Speicher", Title: fmt.Sprintf("%s ist zu %.0f %% belegt", fs.Mount, fs.UsedPct),
-				Detail: "Bei einem größeren Update könnte der Platz knapp werden.", ActionLabel: "Pakete öffnen", ActionHref: "/packages",
+				Detail: "Bei einem größeren Update könnte der Platz knapp werden.", ActionLabel: "Pakete öffnen", ActionHref: "/alt/packages",
 			})
 		}
 	}
@@ -110,7 +110,7 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 		}
 		out = append(out, dashSignal{
 			Level: "warn", Tag: "System", Title: "Ein Neustart steht aus", Detail: detail,
-			ActionLabel: "Zu den Paketen", ActionHref: "/packages",
+			ActionLabel: "Zu den Paketen", ActionHref: "/alt/packages",
 		})
 	}
 
@@ -442,7 +442,7 @@ func (s *Server) handleRecoveryCodes(w http.ResponseWriter, r *http.Request) {
 			"Eine ausgedruckte oder abgelegte alte Liste ist danach wertlos.",
 		},
 		Knopf:   "neue Codes erzeugen",
-		Abbruch: "/account",
+		Abbruch: "/alt/account",
 	}) {
 		return
 	}
@@ -653,7 +653,7 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 		},
 		Knopf:   "endgültig löschen",
 		Tippen:  target.Username,
-		Abbruch: "/users",
+		Abbruch: "/alt/users",
 	}) {
 		return
 	}

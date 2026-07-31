@@ -30,7 +30,7 @@
 
     {{/* Hier stand nie eine Rückfrage, und der Knopf macht die alte Liste
          ungültig — bemerkt wird das erst, wenn man sie braucht. */}}
-    <form method="post" action="/account/recovery-codes"
+    <form method="post" action="/alt/account/recovery-codes"
           data-bestaetigen="Neue Wiederherstellungscodes erzeugen? Die bisherigen gelten danach nicht mehr, eine ausgedruckte Liste ist wertlos."
           data-bestaetigen-titel="Neue Wiederherstellungscodes"
           data-bestaetigen-knopf="neue Codes erzeugen">
@@ -45,7 +45,7 @@
       Für ein neues Telefon oder eine andere Authenticator-App. Der bisherige
       Faktor gilt weiter, bis der neue bestätigt ist.
     </p>
-    <form method="post" action="/account/2fa" autocomplete="on">
+    <form method="post" action="/alt/account/2fa" autocomplete="on">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
 
       <label for="totp_current_password">Aktuelles Passwort</label>
@@ -62,7 +62,7 @@
 
   <div class="card">
     <div class="seclabel">Passwort ändern</div>
-    <form method="post" action="/account/password" autocomplete="on">
+    <form method="post" action="/alt/account/password" autocomplete="on">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
 
       <label for="current_password">Aktuelles Passwort</label>
@@ -109,12 +109,12 @@
             <td class="muted" data-label="Hinzugefügt" data-rolle="neben">{{date .CreatedAt}}</td>
             <td class="muted" data-label="Zuletzt genutzt" data-rolle="neben">{{if .LastUsedAt}}{{since .LastUsedAt}}{{else}}nie{{end}}</td>
             <td class="actions">
-              <form method="post" action="/account/passkeys/{{.ID}}/rename" class="rename">
+              <form method="post" action="/alt/account/passkeys/{{.ID}}/rename" class="rename">
                 <input type="hidden" name="_csrf" value="{{$.CSRF}}">
                 <input type="text" name="label" value="{{.Label}}" maxlength="60" aria-label="Neuer Name">
                 <button type="submit" class="small">umbenennen</button>
               </form>
-              <form method="post" action="/account/passkeys/{{.ID}}/delete"
+              <form method="post" action="/alt/account/passkeys/{{.ID}}/delete"
                     data-bestaetigen="Passkey „{{.Label}}“ entfernen? Die Anmeldung über dieses Gerät ist danach nicht mehr möglich."
                     data-bestaetigen-titel="Passkey entfernen"
                     data-bestaetigen-knopf="entfernen">
@@ -177,7 +177,7 @@
             <td class="muted" data-label="Angemeldet" data-rolle="neben">{{datetime .CreatedAt}}</td>
             <td class="actions">
               {{if not .Current}}
-              <form method="post" action="/account/sessions/revoke">
+              <form method="post" action="/alt/account/sessions/revoke">
                 <input type="hidden" name="_csrf" value="{{$.CSRF}}">
                 <input type="hidden" name="session" value="{{.ID}}">
                 <button type="submit" class="small">beenden</button>
@@ -194,7 +194,7 @@
   </div>
 
   {{if .OtherSessions}}
-  <form method="post" action="/account/sessions/revoke-others"
+  <form method="post" action="/alt/account/sessions/revoke-others"
         data-bestaetigen="Alle anderen Sitzungen dieses Kontos beenden? Diese bleibt offen, alle übrigen müssen sich neu anmelden."
         data-bestaetigen-titel="Sitzungen beenden"
         data-bestaetigen-knopf="andere Sitzungen beenden">

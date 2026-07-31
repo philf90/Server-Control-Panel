@@ -51,6 +51,14 @@
       <circle cx="5.4" cy="5.4" r="3.1" />
       <path d="M7.7 7.7l5.6 5.6M11.3 10.1l-1.3 1.3M13.3 12.1l-1.3 1.3" />
     </symbol>
+    <!-- Eine Marke mit Loch für die API-Tokens. Absichtlich NICHT derselbe
+         Schlüssel wie bei den Panel-Zugängen: Zwei Menüpunkte mit demselben
+         Zeichen sind zwei Menüpunkte, die man verwechselt — und hier wäre die
+         Verwechslung „Zugang für Menschen" gegen „Zugang für Skripte". -->
+    <symbol id="sym-marke" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+      <path d="M2.4 5.6l3.2-3.2h7.2c.4 0 .8.4.8.8v7.2l-3.2 3.2c-.3.3-.8.3-1.1 0L2.4 6.7a.8.8 0 010-1.1z" />
+      <circle cx="10.8" cy="5.2" r="1.1" />
+    </symbol>
     <!-- Eine Person für das eigene Konto — gegen die zwei bei den Systemkonten. -->
     <symbol id="sym-person" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
       <circle cx="8" cy="5.2" r="2.6" />

@@ -1200,3 +1200,60 @@ export type Timerlauf = {
   geglueckt: boolean;
   zeilen: Logzeile[];
 };
+
+// ----------------------------------------------------------- API-Tokens ---
+
+/** Tokens ist die Antwort von GET /api/v1/tokens. */
+export type Tokens = {
+  tokens: Tokenzeile[];
+  /** familien sind die Flächen, für die ein Token gelten kann — mit einem Satz
+   *  dazu. „schedules" sagt einem Menschen nichts, und wer einen Token
+   *  einschränkt, muss wissen, was er damit abschaltet. */
+  familien: Tokenfamilie[];
+  /** gesperrt sind die Flächen, die kein Token erreicht. Sie stehen in der
+   *  Antwort, damit die Oberfläche sie NENNEN kann statt sie zu verschweigen. */
+  gesperrt: string[];
+  fristen: Tokenfrist[];
+  praefix: string;
+};
+
+export type Tokenfamilie = { wert: string; was: string };
+export type Tokenfrist = { tage: number; name: string };
+
+export type Tokenzeile = {
+  id: number;
+  name: string;
+  /** prefix ist der sichtbare Anfang. Er erlaubt keine Anmeldung und macht die
+   *  Liste benutzbar: Wer drei Tokens in drei Skripten liegen hat, erkennt
+   *  daran, welcher welcher ist. */
+  prefix: string;
+  konto: string;
+  rolle: string;
+  ich: boolean;
+  scopes: string[];
+  nur_lesen: boolean;
+  angelegt: string;
+  /** frist ist leer für „ohne Ablauf" — ein eigener Zustand, kein Datum in
+   *  ferner Zukunft. */
+  frist: string;
+  abgelaufen: boolean;
+  tage_bis_ablauf: number;
+  zuletzt_am: string;
+  zuletzt_von: string;
+  nie_benutzt: boolean;
+  zustand: string;
+  zustand_text: string;
+};
+
+export type Tokenauftrag = {
+  name: string;
+  scopes: string[];
+  nur_lesen: boolean;
+  /** tage ist die Laufzeit; 0 heißt „ohne Ablauf". */
+  tage: number;
+};
+
+/** Tokenantwort trägt den Klartext GENAU EINMAL. Danach gibt es ihn nicht mehr:
+ *  In der Datenbank steht der Hash, und es gibt keinen Endpunkt, der ihn
+ *  zurückgäbe. */
+export type Tokenantwort = { meldung: string; token?: string; hinweis?: string };

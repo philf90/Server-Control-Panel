@@ -242,18 +242,18 @@ Abschnitt 11). Zur Fassung 0.4.0-rc.4 steht sie vollständig:
 
 | Modul der alten Fläche | Neue Fläche | Anmerkung |
 |---|---|---|
-| Lage (`/`) | `/v2/` | Telemetrie-Kacheln, Urteil, Handlungsbedarf, Dateisysteme, Prozesse |
-| Dienste | `/v2/dienste` | Werkbank mit Inspektor |
-| Pakete | `/v2/pakete` | erstes Modul im Job-Modell |
-| Konten (System) | `/v2/benutzer` | Systemkonten und SSH-Schlüssel |
-| Dateien | `/v2/dateien` | einschließlich Editor (CodeMirror im Bundle) |
-| Firewall | `/v2/firewall` | mit Probe und Rückweg |
-| TLS | `/v2/zertifikate` | Bezug über das Job-Modell statt eigenem Strom |
-| Zugänge (Panel) | `/v2/zugaenge` | nur Owner-Rolle, Menüpunkt entsprechend gefiltert |
-| Audit | `/v2/audit` | Filter auf dem Server, Blätterung über die Kennung |
-| Journal | `/v2/logs` | mit Verfolgen |
-| Updates | `/v2/updates` | Poller statt Strom — der Vorgang startet den Dienst neu |
-| Konto (eigenes) | `/v2/konto` | Passwort, zweiter Faktor, Passkeys, Sitzungen |
+| Lage (`/alt/`) | `/` | Telemetrie-Kacheln, Urteil, Handlungsbedarf, Dateisysteme, Prozesse |
+| Dienste | `/dienste` | Werkbank mit Inspektor |
+| Pakete | `/pakete` | erstes Modul im Job-Modell |
+| Konten (System) | `/benutzer` | Systemkonten und SSH-Schlüssel |
+| Dateien | `/dateien` | einschließlich Editor (CodeMirror im Bundle) |
+| Firewall | `/firewall` | mit Probe und Rückweg |
+| TLS | `/zertifikate` | Bezug über das Job-Modell statt eigenem Strom |
+| Zugänge (Panel) | `/zugaenge` | nur Owner-Rolle, Menüpunkt entsprechend gefiltert |
+| Audit | `/audit` | Filter auf dem Server, Blätterung über die Kennung |
+| Journal | `/logs` | mit Verfolgen |
+| Updates | `/updates` | Poller statt Strom — der Vorgang startet den Dienst neu |
+| Konto (eigenes) | `/konto` | Passwort, zweiter Faktor, Passkeys, Sitzungen |
 
 **Nicht übertragen, und zwar absichtlich:** Anmeldung, Erstinstallation, der
 erzwungene Passwortwechsel und der Weg für ein vergessenes Passwort bleiben
@@ -261,11 +261,45 @@ server-gerenderte Vorlagen. Sie liegen vor der Anmeldung oder an ihrer Stelle,
 müssen ohne JavaScript laufen und sind der Grund für das Hybrid-Routing aus
 Abschnitt 8.1.
 
-Über die Parität hinaus ist **Cron & systemd-Timer** (`/v2/cron`) gebaut — das
-erste Modul der neuen Oberfläche, das keine alte Fläche hat und für das `privops`
-um eine neue Familie wächst. Offen für die 0.4 bleiben damit **API-Tokens** (erste
-Store-Erweiterung). Danach folgt das Umschalten: `/v2` wird `/`, die alten
-Vorlagen fallen in einem Zug, und die Sitzungen werden verworfen.
+Über die Parität hinaus sind **Cron & systemd-Timer** (`/cron`) und **API-Tokens**
+(`/tokens`) gebaut — das erste Modul ohne alte Fläche und die erste
+Store-Erweiterung. Damit ist die 0.4 inhaltlich vollständig.
+
+#### Das Umschalten — in zwei Schritten und nicht in einem
+
+Mit 0.4.0 liegt die neue Oberfläche an der **Wurzel**, die alte unter **`/alt/`**.
+Sie ist eingefroren: keine Gestaltung, keine Funktion, nur erreichbar. Der Abbau —
+27 Vorlagen, 17 statische Dateien, rund 4.500 Zeilen Handler und die daran
+hängenden Tests — folgt als eigener Schritt in 0.4.1.
+
+Das Konzept sah bis hierher vor, beides in einem Zug zu tun. Die Änderung hat
+einen Grund, der in der Bauart dieses Programms liegt: **Es aktualisiert sich
+selbst.** Ein Fehler in der neuen Fläche, der jemanden aussperrt, sperrt ihn auch
+aus dem Panel aus, über das der Rückweg einzuspielen wäre. Es bleibt der Rückweg
+des Self-Updates auf der Kommandozeile — aber der setzt SSH-Zugang und einen
+wachen Kopf voraus, und beides ist nicht immer da. Eine Fassung mit Rückweg kostet
+12.000 Zeilen, die eine Fassung länger liegen bleiben; das ist der billigere Preis.
+
+Was beim Umschalten sonst geschieht:
+
+- **Alle Sitzungen werden verworfen** (Migration 0006). Ein Cookie von vor dem
+  Update stammt aus einer Zeit, in der das Panel anders aussah, und das
+  Sitzungstoken der alten Fläche steckt in jeder Seite, die noch im Browser steht.
+  Ein Anmeldevorgang ist der billigste Weg, den ganzen Zustand einmal auf null zu
+  setzen. **API-Tokens bleiben:** Sie hängen an `/api/v1`, und das ist unverändert
+  — sie zu verwerfen hieße, jede Automatisierung mit einem Update stillschweigend
+  abzuschalten.
+- **`min-upgradable-from` bleibt leer.** Keine der Migrationen 0005 und 0006 macht
+  einen Sprung unmöglich: Beide sind vorwärtsgerichtet und ergänzend. Ein Wert
+  gehört dort nur hinein, wenn eine Migration einen Sprung wirklich verhindert;
+  ihn vorsorglich zu setzen hieße, Beta-Testern einen Zwischenschritt
+  abzuverlangen, den es nicht braucht.
+- **Unbekannte Pfade antworten weiter 404.** `GET /` ist der allgemeine Rückfall
+  des Multiplexers; ohne eine Prüfung bekäme jede erdachte Adresse die Hülle mit
+  Status 200, und ein abgeschaltetes Modul wäre von einem vorhandenen nicht zu
+  unterscheiden. Der Server prüft deshalb den ersten Pfadteil gegen die Liste der
+  Seiten (`spaSeiten`). Sie ist die zweite Fassung derselben Liste — die erste
+  steht im Router der Oberfläche —, und ein Test hält die beiden zusammen.
 
 ### 0.5 — Docker
 

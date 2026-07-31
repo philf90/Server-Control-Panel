@@ -87,7 +87,7 @@ func (s *Server) handleServiceAction(w http.ResponseWriter, r *http.Request) {
 				"Der Autostart bleibt unberührt: Nach einem Neustart des Servers läuft er wieder.",
 			},
 			Knopf:   "stoppen",
-			Abbruch: "/services/" + unit,
+			Abbruch: "/alt/services/" + unit,
 			Felder:  []bestaetigungFeld{{Name: "action", Wert: "stop"}},
 		}) {
 			return
@@ -212,7 +212,7 @@ func (s *Server) handlePackageRefresh(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	http.Redirect(w, r, "/packages", http.StatusSeeOther)
+	http.Redirect(w, r, "/alt/packages", http.StatusSeeOther)
 }
 
 // refreshHinweis formuliert den Teilerfolg für die Oberfläche.
@@ -263,7 +263,7 @@ func (s *Server) handleReboot(w http.ResponseWriter, r *http.Request) {
 		Knopf:         "jetzt neu starten",
 		Tippen:        host,
 		TippenHinweis: "Zum Bestätigen den Hostnamen eingeben: " + host,
-		Abbruch:       "/packages",
+		Abbruch:       "/alt/packages",
 	}) {
 		return
 	}
@@ -303,7 +303,7 @@ func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 				"Manche Pakete verlangen danach einen Neustart des Servers.",
 			},
 			Knopf:   "Updates einspielen",
-			Abbruch: "/packages",
+			Abbruch: "/alt/packages",
 			Felder:  []bestaetigungFeld{{Name: "scope", Wert: r.PostFormValue("scope")}},
 		}) {
 			return
@@ -346,7 +346,7 @@ func (s *Server) handlePackageUpgrade(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	http.Redirect(w, r, "/packages", http.StatusSeeOther)
+	http.Redirect(w, r, "/alt/packages", http.StatusSeeOther)
 }
 
 // handlePackageEvents streamt die Ausgabe des laufenden Paketvorgangs.
@@ -575,7 +575,7 @@ func (s *Server) handleFirewallActivate(w http.ResponseWriter, r *http.Request) 
 				"Bestätigen Sie, solange diese Verbindung noch steht.",
 			},
 			Knopf:   "ufw einschalten",
-			Abbruch: "/firewall",
+			Abbruch: "/alt/firewall",
 			Felder:  []bestaetigungFeld{{Name: "active", Wert: "1"}},
 		}) {
 			return
@@ -596,7 +596,7 @@ func (s *Server) handleFirewallActivate(w http.ResponseWriter, r *http.Request) 
 			Knopf:         "ufw ausschalten",
 			Tippen:        host,
 			TippenHinweis: "Zum Bestätigen den Hostnamen eingeben: " + host,
-			Abbruch:       "/firewall",
+			Abbruch:       "/alt/firewall",
 			Felder:        []bestaetigungFeld{{Name: "active", Wert: "0"}},
 		}) {
 			return
@@ -661,7 +661,7 @@ func (s *Server) handleFirewallInstall(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	http.Redirect(w, r, "/firewall", http.StatusSeeOther)
+	http.Redirect(w, r, "/alt/firewall", http.StatusSeeOther)
 }
 
 func (s *Server) handleFirewallConfirm(w http.ResponseWriter, r *http.Request) {
@@ -856,7 +856,7 @@ func (s *Server) handleSystemUserDelete(w http.ResponseWriter, r *http.Request) 
 		Punkte:  folgen,
 		Knopf:   "endgültig löschen",
 		Tippen:  name,
-		Abbruch: "/system-users",
+		Abbruch: "/alt/system-users",
 		Felder:  []bestaetigungFeld{{Name: "remove_home", Wert: r.PostFormValue("remove_home")}},
 	}) {
 		return
@@ -903,7 +903,7 @@ func (s *Server) handleSSHKeyRemove(w http.ResponseWriter, r *http.Request) {
 			"Wer nur diesen Schlüssel hat, kommt danach über SSH nicht mehr auf den Server.",
 		},
 		Knopf:   "entfernen",
-		Abbruch: "/system-users?user=" + url.QueryEscape(name),
+		Abbruch: "/alt/system-users?user=" + url.QueryEscape(name),
 		Felder:  []bestaetigungFeld{{Name: "fingerprint", Wert: fingerprint}},
 	}) {
 		return

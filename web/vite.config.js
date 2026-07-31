@@ -17,9 +17,11 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 export default defineConfig({
   plugins: [svelte()],
 
-  // Die Oberfläche liegt unter /v2/, solange sie neben der alten läuft. Der
-  // Pfad steht auch in den Asset-Verweisen des erzeugten index.html.
-  base: "/v2/",
+  // Die Oberfläche liegt seit dem Umschalten (0.4.0) an der Wurzel. Der Pfad
+  // steht auch in den Asset-Verweisen des erzeugten index.html — und ein zweites
+  // Mal in internal/httpd/handlers_v2.go, wo der Server sie ausliefert. Läufen
+  // die beiden auseinander, kommt eine weiße Seite mit 404 auf das Bundle.
+  base: "/",
 
   build: {
     outDir: "../internal/ui/dist",

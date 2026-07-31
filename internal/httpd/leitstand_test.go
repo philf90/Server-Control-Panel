@@ -49,8 +49,8 @@ func TestNeueOberflaecheOhneInlineSkriptUndStil(t *testing.T) {
 	if strings.Contains(huelle, "style=") {
 		t.Error("die Hülle enthält ein style-Attribut — die CSP würde es verwerfen")
 	}
-	if !strings.Contains(huelle, `src="/v2/assets/`) {
-		t.Error("die Hülle verweist nicht auf /v2/assets/ — base in vite.config.js passt nicht zur Route")
+	if !strings.Contains(huelle, `src="/assets/`) {
+		t.Error("die Hülle verweist nicht auf /assets/ — base in vite.config.js passt nicht zur Route")
 	}
 }
 
@@ -63,9 +63,9 @@ func TestV2HuelleUnzwischenspeicherbarAssetsDauerhaft(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, _ := login(t, s, user)
 
-	huelle := get(t, s, "/v2/", cookie)
+	huelle := get(t, s, "/", cookie)
 	if huelle.Code != http.StatusOK {
-		t.Fatalf("/v2/ antwortet %d", huelle.Code)
+		t.Fatalf("/ antwortet %d", huelle.Code)
 	}
 	if cc := huelle.Header().Get("Cache-Control"); cc != "no-store" {
 		t.Errorf("die Hülle trägt Cache-Control %q, erwartet no-store", cc)
@@ -73,12 +73,12 @@ func TestV2HuelleUnzwischenspeicherbarAssetsDauerhaft(t *testing.T) {
 
 	// Den Namen des Assets aus der Hülle lesen, statt ihn zu erfinden: Er
 	// ändert sich mit jedem Bau.
-	treffer := regexp.MustCompile(`/v2/(assets/[^"]+\.js)`).FindStringSubmatch(huelle.Body.String())
+	treffer := regexp.MustCompile(`/(assets/[^"]+\.js)`).FindStringSubmatch(huelle.Body.String())
 	if treffer == nil {
 		t.Fatal("in der Hülle steht kein Asset-Pfad")
 	}
 
-	asset := get(t, s, "/v2/"+treffer[1], cookie)
+	asset := get(t, s, "/"+treffer[1], cookie)
 	if asset.Code != http.StatusOK {
 		t.Fatalf("%s antwortet %d", treffer[1], asset.Code)
 	}
@@ -88,14 +88,14 @@ func TestV2HuelleUnzwischenspeicherbarAssetsDauerhaft(t *testing.T) {
 }
 
 // Ein Pfad, den die Wegewahl im Browser auflöst, muss dieselbe Hülle bekommen
-// wie /v2/ — sonst zeigt ein neu geladener Unterpfad einen 404 statt der
+// wie / — sonst zeigt ein neu geladener Unterpfad einen 404 statt der
 // Anwendung.
 func TestV2UnbekannterPfadLiefertDieHuelle(t *testing.T) {
 	s := newTestServer(t)
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, _ := login(t, s, user)
 
-	antwort := get(t, s, "/v2/dienste/nginx.service", cookie)
+	antwort := get(t, s, "/dienste", cookie)
 	if antwort.Code != http.StatusOK {
 		t.Fatalf("Unterpfad antwortet %d, erwartet 200", antwort.Code)
 	}
@@ -109,7 +109,7 @@ func TestV2UnbekannterPfadLiefertDieHuelle(t *testing.T) {
 func TestV2UndAPIVerlangenAnmeldung(t *testing.T) {
 	s := newTestServer(t)
 
-	for _, pfad := range []string{"/v2/", "/api/v1/session", "/api/v1/overview", "/api/v1/metrics/history"} {
+	for _, pfad := range []string{"/", "/api/v1/session", "/api/v1/overview", "/api/v1/metrics/history"} {
 		t.Run(pfad, func(t *testing.T) {
 			antwort := get(t, s, pfad, nil)
 			if antwort.Code == http.StatusOK {

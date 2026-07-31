@@ -38,7 +38,7 @@ async function main() {
   });
   seite.on("pageerror", (err) => verstoesse.push("Skriptfehler: " + err.message));
 
-  await seite.goto(basis + "/files/entry?path=" + encodeURIComponent(process.env.ASYLUM_E2E_PATH), {
+  await seite.goto(basis + "/alt/files/entry?path=" + encodeURIComponent(process.env.ASYLUM_E2E_PATH), {
     waitUntil: "load",
   });
 
@@ -117,7 +117,7 @@ async function main() {
   // scrollIntoViewIfNeeded schiebt das Menü dann genau in die Beschneidung
   // hinein, und der Test sähe es frei liegen.
   await seite.setViewportSize({ width: 1280, height: 1500 });
-  await seite.goto(basis + "/files?path=" + encodeURIComponent(process.env.ASYLUM_E2E_DIR), {
+  await seite.goto(basis + "/alt/files?path=" + encodeURIComponent(process.env.ASYLUM_E2E_DIR), {
     waitUntil: "load",
   });
   const letztes = seite.locator("table.dateien .zeilenmenu").last();

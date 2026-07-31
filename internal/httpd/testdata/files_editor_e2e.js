@@ -69,7 +69,7 @@ async function main() {
     verstoesse.push(`pageerror: ${e.message}`);
   });
 
-  const ziel = `${basis}/files/edit?path=${encodeURIComponent(pfad)}`;
+  const ziel = `${basis}/alt/files/edit?path=${encodeURIComponent(pfad)}`;
   const antwort = await seite.goto(ziel, { waitUntil: "networkidle" });
   if (!antwort || antwort.status() !== 200) {
     throw new Error(`Status ${antwort ? antwort.status() : "keine Antwort"} für ${ziel}`);
@@ -104,7 +104,7 @@ async function main() {
     seite.waitForNavigation({ waitUntil: "networkidle" }),
     // Ausdrücklich der Knopf im Speicherformular: Der erste submit-Knopf der
     // Seite steht in der Navigation und heißt "Abmelden".
-    seite.click('form[action="/files/save"] button[type="submit"]'),
+    seite.click('form[action="/alt/files/save"] button[type="submit"]'),
   ]);
   const statusNachher = nachAntwort ? nachAntwort.status() : 0;
   letztesHTML = (await seite.content()).slice(0, 1500);

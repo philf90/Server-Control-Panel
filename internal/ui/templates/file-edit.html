@@ -12,12 +12,12 @@
   <div class="right">
     <a class="button secondary small" href="{{.ListLink}}">zurück zur Liste</a>
     <a class="button secondary small" href="{{.EntryLink}}">Angaben</a>
-    <a class="button small" href="/files/download?path={{.Entry.Path | urlquery}}">herunterladen</a>
+    <a class="button small" href="/alt/files/download?path={{.Entry.Path | urlquery}}">herunterladen</a>
   </div>
 </div>
 
 <nav class="krumen" aria-label="Pfad">
-  {{range .Crumbs}}<a href="/files?path={{.Path | urlquery}}">{{.Name}}</a>{{end}}
+  {{range .Crumbs}}<a href="/alt/files?path={{.Path | urlquery}}">{{.Name}}</a>{{end}}
 </nav>
 
 {{if .Pruefung}}
@@ -30,7 +30,7 @@
 
 {{if $.CanWrite}}
   {{if .Entry.Writable}}
-<form method="post" action="/files/save" class="editform">
+<form method="post" action="/alt/files/save" class="editform">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <input type="hidden" name="path" value="{{.Entry.Path}}">
   <!--
@@ -48,7 +48,7 @@
 
   <div class="editaktionen">
     <button type="submit" class="small primary">speichern</button>
-    <a class="button small secondary" href="/files/edit?path={{.Entry.Path | urlquery}}">verwerfen und neu laden</a>
+    <a class="button small secondary" href="/alt/files/edit?path={{.Entry.Path | urlquery}}">verwerfen und neu laden</a>
     <span class="muted klein">
       Vor dem Überschreiben entsteht eine Sicherung. Rechte und Eigentümer bleiben,
       Zeilenenden ebenso.

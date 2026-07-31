@@ -582,19 +582,41 @@ func (s *Server) handleAPIPanelUserResetPassword(w http.ResponseWriter, r *http.
 	if err := s.db.DeleteUserSessions(ctx, ziel.ID); err != nil {
 		s.log.Warn("sitzungen beenden", "err", err)
 	}
+	// **Und die API-Tokens des Kontos.** Ein Token überlebt jeden Passwortwechsel
+	// — das ist seine Aufgabe, und genau deshalb ist er der Weg, mit dem eine
+	// Übernahme bestehen bleibt: Wer sich Zugang verschafft und einen Token
+	// anlegt, ist nach einer Zurücksetzung weiter drin, während alle glauben, der
+	// Zugang sei geschlossen. Die Sitzungen zu beenden und die Tokens stehen zu
+	// lassen wäre eine halbe Zurücksetzung, und eine halbe ist schlimmer als
+	// keine, weil sie für eine ganze gehalten wird.
+	tokensWeg, err := s.db.DeleteAPITokensByUser(ctx, ziel.ID)
+	if err != nil {
+		s.log.Warn("tokens widerrufen", "err", err)
+	}
 	// Und eine Sperre aufheben: Wer ein neues Passwort bekommt, soll sich damit
 	// auch anmelden können. Dasselbe tut der Rettungsweg auf der Kommandozeile.
 	if err := s.db.SetDisabled(ctx, ziel.ID, false); err != nil {
 		s.log.Warn("sperre aufheben", "err", err)
 	}
 	s.audit(r, "user.reset_password", ziel.Username, store.ResultOK,
-		"Einmalpasswort vergeben, Sitzungen beendet")
+		"Einmalpasswort vergeben, Sitzungen beendet, "+
+			strconv.FormatInt(tokensWeg, 10)+" API-Tokens widerrufen")
+
+	hinweis := "Das Passwort steht nur jetzt hier. Offene Sitzungen des Kontos sind " +
+		"beendet, eine Sperre ist aufgehoben; beim nächsten Anmelden wird das Passwort ersetzt."
+	// Die Zahl wird genannt, wenn es welche waren: Ein widerrufener Token ist eine
+	// abgeschaltete Automatisierung, und wer das nicht erfährt, sucht den Fehler
+	// nächste Woche an der falschen Stelle.
+	if tokensWeg > 0 {
+		hinweis += " Außerdem sind " + strconv.FormatInt(tokensWeg, 10) +
+			" API-Tokens dieses Kontos widerrufen — damit laufende Automatisierungen " +
+			"brauchen einen neuen."
+	}
 
 	s.panelAntwort(w, r, ziel.ID, apiPanelAntwort{
 		Meldung:        "Für " + ziel.Username + " ist ein Einmalpasswort vergeben.",
 		Einmalpasswort: passwort,
-		Hinweis: "Das Passwort steht nur jetzt hier. Offene Sitzungen des Kontos sind " +
-			"beendet, eine Sperre ist aufgehoben; beim nächsten Anmelden wird das Passwort ersetzt.",
+		Hinweis:        hinweis,
 	})
 }
 

@@ -335,7 +335,7 @@ func (s *Server) handleSessionRevokeOthers(w http.ResponseWriter, r *http.Reques
 		Frage:   "Alle anderen Sitzungen dieses Kontos beenden?",
 		Punkte:  []string{"Diese Sitzung bleibt offen. Alle übrigen müssen sich neu anmelden."},
 		Knopf:   "andere Sitzungen beenden",
-		Abbruch: "/account",
+		Abbruch: "/alt/account",
 	}) {
 		return
 	}

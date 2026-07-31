@@ -46,12 +46,12 @@ async function main() {
     await d.dismiss();
   });
 
-  const eintrag = (p) => basis + "/files/entry?path=" + encodeURIComponent(p);
+  const eintrag = (p) => basis + "/alt/files/entry?path=" + encodeURIComponent(p);
 
   // --- 1. Eine Datei: zweite Stufe, ein Knopf genügt ------------------------
   await seite.goto(eintrag(process.env.ASYLUM_E2E_DATEI), { waitUntil: "load" });
   const urlVorher = seite.url();
-  await seite.click('form[action="/files/delete"] button');
+  await seite.click('form[action="/alt/files/delete"] button');
   await seite.waitForTimeout(120);
 
   const datei = await seite.evaluate(() => {
@@ -78,7 +78,7 @@ async function main() {
   nachAbbruch.urlUnveraendert = seite.url() === urlVorher;
 
   // Escape ist derselbe Abbruch.
-  await seite.click('form[action="/files/delete"] button');
+  await seite.click('form[action="/alt/files/delete"] button');
   await seite.waitForTimeout(80);
   await seite.keyboard.press("Escape");
   await seite.waitForTimeout(80);
@@ -96,7 +96,7 @@ async function main() {
   );
 
   // Und jetzt bestätigen: Das POST geht raus, die Seite wechselt in die Liste.
-  await seite.click('form[action="/files/delete"] button');
+  await seite.click('form[action="/alt/files/delete"] button');
   await seite.waitForTimeout(80);
   await Promise.all([
     seite.waitForNavigation({ waitUntil: "load" }),
@@ -106,7 +106,7 @@ async function main() {
 
   // --- 2. Ein Ordner mit Inhalt: dritte Stufe ------------------------------
   await seite.goto(eintrag(process.env.ASYLUM_E2E_ORDNER), { waitUntil: "load" });
-  await seite.click('form[action="/files/delete"] button');
+  await seite.click('form[action="/alt/files/delete"] button');
   await seite.waitForTimeout(120);
 
   const lesen = () =>
@@ -140,9 +140,9 @@ async function main() {
   // muss deshalb den Knopf lesen — und nach dem Bestätigen darf nicht das
   // Formularziel gewinnen. Ein form.submit() täte genau das: Statt der Passkeys
   // wäre das Passwort zurückgesetzt.
-  await seite.goto(basis + "/users", { waitUntil: "load" });
+  await seite.goto(basis + "/alt/users", { waitUntil: "load" });
   await seite.fill("#owner_password", process.env.ASYLUM_E2E_PW);
-  await seite.click('button[formaction="/users/reset-passkeys"]');
+  await seite.click('button[formaction="/alt/users/reset-passkeys"]');
   await seite.waitForTimeout(150);
   const knopf = await seite.evaluate(() => {
     const d = document.querySelector("dialog.frage-dialog");

@@ -8,17 +8,18 @@
 // Solange die neue Oberfläche neben der alten läuft, gibt es drei Arten von
 // Zielen, und der Unterschied gehört in die Adresse:
 //
-//   * gebaut (neu: true) — eigene Seite unter /v2/….
+//   * gebaut (neu: true) — eigene Seite der neuen Oberfläche.
 //   * vorhanden, aber noch nicht übertragen — Verweis auf die alte Oberfläche
 //     unter /. Kein toter Verweis, und der Weg zurück ist immer da.
 //   * angekündigt — ein Modul, das es noch nicht gibt (Cron, Docker,
-//     Webserver, Datenbanken, Backups). Sie zeigten bis 0.4.0-rc.2 auf /v2/ und
+//     Webserver, Datenbanken, Backups). Sie zeigten bis 0.4.0-rc.2 auf / und
 //     landeten stillschweigend auf der Übersicht; das sah wie ein Fehler aus.
 //     Jetzt haben sie einen eigenen Pfad und eine Seite, die sagt, mit welcher
 //     Fassung sie kommen (lib/weg.svelte.ts, `angekuendigt`).
 //
-// Mit dem Umschalten wandern die href-Werte der zweiten Art auf /v2-Pfade —
-// dann steht die Änderung an genau dieser Stelle.
+// Mit dem Umschalten (0.4.0) ist die zweite Art verschwunden: Alle Ziele sind
+// gebaut. Die eingefrorene alte Fläche steht nicht im Menü — sie ist ein Rückweg
+// und kein Ziel, und ein Menüpunkt dorthin wäre eine Einladung, sie zu benutzen.
 
 import { t } from "./texte";
 
@@ -58,7 +59,7 @@ export const gruppen: Gruppe[] = [
         id: "uebersicht",
         label: t.ziele.uebersicht,
         symbol: "messuhr",
-        href: "/v2/",
+        href: "/",
         gruppe: t.bereiche.system,
         neu: true,
         auch: ["dashboard", "start", "telemetrie", "cpu", "speicher", "last", "netz"],
@@ -67,7 +68,7 @@ export const gruppen: Gruppe[] = [
         id: "dienste",
         label: t.ziele.dienste,
         symbol: "zahnrad",
-        href: "/v2/dienste",
+        href: "/dienste",
         gruppe: t.bereiche.system,
         neu: true,
         auch: ["systemd", "units", "service", "neustart"],
@@ -76,7 +77,7 @@ export const gruppen: Gruppe[] = [
         id: "pakete",
         label: t.ziele.pakete,
         symbol: "kiste",
-        href: "/v2/pakete",
+        href: "/pakete",
         gruppe: t.bereiche.system,
         neu: true,
         auch: ["apt", "updates", "aktualisierung", "upgrade", "sicherheitsupdates"],
@@ -85,7 +86,7 @@ export const gruppen: Gruppe[] = [
         id: "cron",
         label: t.ziele.cron,
         symbol: "uhr",
-        href: "/v2/cron",
+        href: "/cron",
         gruppe: t.bereiche.system,
         neu: true,
         auch: ["zeitplan", "crontab", "timer", "geplant", "nachts", "regelmaessig"],
@@ -99,7 +100,7 @@ export const gruppen: Gruppe[] = [
         id: "docker",
         label: t.ziele.docker,
         symbol: "container",
-        href: "/v2/docker",
+        href: "/docker",
         gruppe: t.bereiche.apps,
         auch: ["container", "compose", "stack", "image", "podman"],
       },
@@ -107,7 +108,7 @@ export const gruppen: Gruppe[] = [
         id: "webserver",
         label: t.ziele.webserver,
         symbol: "globus",
-        href: "/v2/webserver",
+        href: "/webserver",
         gruppe: t.bereiche.apps,
         auch: ["nginx", "caddy", "vhost", "site", "domain", "proxy"],
       },
@@ -115,7 +116,7 @@ export const gruppen: Gruppe[] = [
         id: "datenbanken",
         label: t.ziele.datenbanken,
         symbol: "datenbank",
-        href: "/v2/datenbanken",
+        href: "/datenbanken",
         gruppe: t.bereiche.apps,
         auch: ["mysql", "mariadb", "postgres", "postgresql", "dump", "sql"],
       },
@@ -123,7 +124,7 @@ export const gruppen: Gruppe[] = [
         id: "backups",
         label: t.ziele.backups,
         symbol: "archiv",
-        href: "/v2/backups",
+        href: "/backups",
         gruppe: t.bereiche.apps,
         auch: ["restic", "sicherung", "restore", "wiederherstellen"],
       },
@@ -136,7 +137,7 @@ export const gruppen: Gruppe[] = [
         id: "firewall",
         label: t.ziele.firewall,
         symbol: "schild",
-        href: "/v2/firewall",
+        href: "/firewall",
         gruppe: t.bereiche.sicherheit,
         neu: true,
         auch: ["ufw", "nftables", "port", "regel", "freigabe"],
@@ -145,7 +146,7 @@ export const gruppen: Gruppe[] = [
         id: "benutzer",
         label: t.ziele.benutzer,
         symbol: "personen",
-        href: "/v2/benutzer",
+        href: "/benutzer",
         gruppe: t.bereiche.sicherheit,
         neu: true,
         auch: ["ssh", "schluessel", "key", "authorized_keys", "systembenutzer", "konten"],
@@ -158,17 +159,27 @@ export const gruppen: Gruppe[] = [
         id: "zugaenge",
         label: t.ziele.zugaenge,
         symbol: "schluessel",
-        href: "/v2/zugaenge",
+        href: "/zugaenge",
         gruppe: t.bereiche.sicherheit,
         neu: true,
         nurOwner: true,
         auch: ["panel", "rollen", "owner", "admin", "passkey", "2fa", "totp", "sperren"],
       },
       {
+        id: "tokens",
+        label: t.ziele.tokens,
+        symbol: "marke",
+        href: "/tokens",
+        gruppe: t.bereiche.sicherheit,
+        neu: true,
+        nurOwner: true,
+        auch: ["api", "token", "bearer", "skript", "automatisierung", "cli"],
+      },
+      {
         id: "zertifikate",
         label: t.ziele.zertifikate,
         symbol: "siegel",
-        href: "/v2/zertifikate",
+        href: "/zertifikate",
         gruppe: t.bereiche.sicherheit,
         neu: true,
         auch: ["tls", "ssl", "acme", "lets encrypt", "letsencrypt", "https"],
@@ -182,7 +193,7 @@ export const gruppen: Gruppe[] = [
         id: "dateien",
         label: t.ziele.dateien,
         symbol: "ordner",
-        href: "/v2/dateien",
+        href: "/dateien",
         gruppe: t.bereiche.betrieb,
         neu: true,
         auch: ["dateimanager", "editor", "upload", "pfad", "verzeichnis"],
@@ -191,7 +202,7 @@ export const gruppen: Gruppe[] = [
         id: "logs",
         label: t.ziele.logs,
         symbol: "zeilen",
-        href: "/v2/logs",
+        href: "/logs",
         gruppe: t.bereiche.betrieb,
         neu: true,
         auch: ["journal", "journalctl", "protokoll", "meldungen"],
@@ -200,7 +211,7 @@ export const gruppen: Gruppe[] = [
         id: "audit",
         label: t.ziele.audit,
         symbol: "buch",
-        href: "/v2/audit",
+        href: "/audit",
         gruppe: t.bereiche.betrieb,
         neu: true,
         auch: ["revision", "wer", "nachvollziehen", "verlauf"],
@@ -215,7 +226,7 @@ export const gruppen: Gruppe[] = [
         id: "konto",
         label: t.ziele.konto,
         symbol: "person",
-        href: "/v2/konto",
+        href: "/konto",
         gruppe: t.bereiche.betrieb,
         neu: true,
         auch: ["passwort", "2fa", "totp", "passkey", "sitzungen", "abmelden", "profil"],
@@ -228,7 +239,7 @@ export const gruppen: Gruppe[] = [
         id: "updates",
         label: t.ziele.update,
         symbol: "pfeil-hoch",
-        href: "/v2/updates",
+        href: "/updates",
         gruppe: t.bereiche.betrieb,
         neu: true,
         auch: ["selbstupdate", "panel", "fassung", "version", "rollback", "rückweg", "signatur"],

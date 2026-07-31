@@ -23,7 +23,7 @@
   {{if $.CanWrite}}
   <div class="button-row">
     {{range $action := list "start" "stop" "restart" "reload" "enable" "disable"}}
-    <form method="post" action="/services/{{$.Content.Detail.Unit}}">
+    <form method="post" action="/alt/services/{{$.Content.Detail.Unit}}">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="action" value="{{$action}}">
       <button type="submit" class="small">{{$action}}</button>
@@ -43,6 +43,6 @@
   {{end}}
 </div>
 
-<p><a href="/services">← zurück zur Übersicht</a></p>
+<p><a href="/alt/services">← zurück zur Übersicht</a></p>
 {{end}}
 {{template "footer" .}}{{end}}

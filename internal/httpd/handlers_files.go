@@ -280,7 +280,7 @@ func (p filesPage) Link(pfad string) string {
 	if p.Hidden {
 		q.Set("hidden", "1")
 	}
-	return "/files?" + q.Encode()
+	return "/alt/files?" + q.Encode()
 }
 
 // SortLink baut den Verweis einer Spaltenüberschrift. Ein Klick auf die schon
@@ -299,7 +299,7 @@ func (p filesPage) SortLink(feld string) string {
 	if p.Query != "" {
 		q.Set("q", p.Query)
 	}
-	return "/files?" + q.Encode()
+	return "/alt/files?" + q.Encode()
 }
 
 // SortPfeil ist das Zeichen hinter der aktiven Spaltenüberschrift.
@@ -325,7 +325,7 @@ func (p filesPage) HiddenLink() string {
 	if !p.Hidden {
 		q.Set("hidden", "1")
 	}
-	return "/files?" + q.Encode()
+	return "/alt/files?" + q.Encode()
 }
 
 // krumen baut den klickbaren Pfad über der Liste.

@@ -41,7 +41,7 @@ func TestZerstoerendeSystemaktionenFragenZurueck(t *testing.T) {
 	}{
 		{
 			name:     "Dienst stoppen",
-			pfad:     "/services/nginx.service",
+			pfad:     "/alt/services/nginx.service",
 			werte:    url.Values{"action": {"stop"}},
 			erwartet: "service:stop:nginx.service",
 		},
@@ -51,19 +51,19 @@ func TestZerstoerendeSystemaktionenFragenZurueck(t *testing.T) {
 			// TestPackageUpgradeStartsJob; hier zählt, dass er es ohne
 			// Bestätigung nicht tut.
 			name:  "alle Updates einspielen",
-			pfad:  "/packages/upgrade",
+			pfad:  "/alt/packages/upgrade",
 			werte: url.Values{"scope": {"all"}},
 		},
 		{
 			name:     "Systemkonto löschen",
-			pfad:     "/system-users/deploy/delete",
+			pfad:     "/alt/system-users/deploy/delete",
 			werte:    url.Values{},
 			tippen:   "deploy",
 			erwartet: "sysuser:delete:deploy",
 		},
 		{
 			name:     "SSH-Schlüssel entfernen",
-			pfad:     "/system-users/deploy/keys/remove",
+			pfad:     "/alt/system-users/deploy/keys/remove",
 			werte:    url.Values{"fingerprint": {"SHA256:abc"}},
 			erwartet: "sshkey:remove:deploy",
 		},
@@ -134,7 +134,7 @@ func TestGetipptesWortMussStimmen(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	form := url.Values{"_csrf": {csrf}, "bestaetigt": {"1"}, "tippen": {"deplyo"}}
-	rec := post(t, s, "/system-users/deploy/delete", form, cookie)
+	rec := post(t, s, "/alt/system-users/deploy/delete", form, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("Status %d, erwartet 400", rec.Code)
 	}
@@ -148,7 +148,7 @@ func TestGetipptesWortMussStimmen(t *testing.T) {
 	// Groß- und Kleinschreibung ist nicht der Zweck: Auf einem Telefon macht die
 	// Tastatur aus "deploy" gern "Deploy".
 	form.Set("tippen", "Deploy")
-	if rec := post(t, s, "/system-users/deploy/delete", form, cookie); rec.Code >= 400 {
+	if rec := post(t, s, "/alt/system-users/deploy/delete", form, cookie); rec.Code >= 400 {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
 	}
 	if got := ops.recorded(); !slices.Contains(got, "sysuser:delete:deploy") {
@@ -164,7 +164,7 @@ func TestNeustartVerlangtDenHostnamen(t *testing.T) {
 	user := addUser(t, s, "chef", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/system/reboot", url.Values{"_csrf": {csrf}, "bestaetigt": {"1"}}, cookie)
+	rec := post(t, s, "/alt/system/reboot", url.Values{"_csrf": {csrf}, "bestaetigt": {"1"}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("ohne getippten Namen: Status %d, erwartet 400", rec.Code)
 	}
@@ -175,7 +175,7 @@ func TestNeustartVerlangtDenHostnamen(t *testing.T) {
 		t.Error("die Rückfrage nennt den Hostnamen nicht — dann ist er nicht ablesbar")
 	}
 
-	rec = post(t, s, "/system/reboot", ja(url.Values{"_csrf": {csrf}}, s.rechnername()), cookie)
+	rec = post(t, s, "/alt/system/reboot", ja(url.Values{"_csrf": {csrf}}, s.rechnername()), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -198,7 +198,7 @@ func TestFirewallAusschaltenFragtZurueck(t *testing.T) {
 	}
 	ops.mu.Unlock()
 
-	rec := post(t, s, "/firewall/active", url.Values{"_csrf": {csrf}, "active": {"0"}}, cookie)
+	rec := post(t, s, "/alt/firewall/active", url.Values{"_csrf": {csrf}, "active": {"0"}}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
@@ -224,7 +224,7 @@ func TestDateiLoeschenFragtZurueck(t *testing.T) {
 	datei := filepath.Join(arbeit, "wichtig.conf")
 	lege(t, datei, "inhalt")
 
-	rec := post(t, s, "/files/delete", formular(csrf, "path", datei), cookie)
+	rec := post(t, s, "/alt/files/delete", formular(csrf, "path", datei), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -239,7 +239,7 @@ func TestDateiLoeschenFragtZurueck(t *testing.T) {
 	baum := filepath.Join(arbeit, "baum")
 	lege(t, filepath.Join(baum, "tief", "a.txt"), "x")
 
-	rec = post(t, s, "/files/delete", formular(csrf, "path", baum), cookie)
+	rec = post(t, s, "/alt/files/delete", formular(csrf, "path", baum), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
@@ -258,7 +258,7 @@ func TestDateiLoeschenFragtZurueck(t *testing.T) {
 	}
 
 	// Ein falscher Name löscht nichts.
-	rec = post(t, s, "/files/delete", ja(formular(csrf, "path", baum), "bam"), cookie)
+	rec = post(t, s, "/alt/files/delete", ja(formular(csrf, "path", baum), "bam"), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("mit falschem Namen: Status %d, erwartet 400", rec.Code)
 	}
@@ -267,7 +267,7 @@ func TestDateiLoeschenFragtZurueck(t *testing.T) {
 	}
 
 	// Und mit dem richtigen ist er weg.
-	rec = post(t, s, "/files/delete", ja(formular(csrf, "path", baum), "baum"), cookie)
+	rec = post(t, s, "/alt/files/delete", ja(formular(csrf, "path", baum), "baum"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -288,7 +288,7 @@ func TestLoeschenAusserhalbDerSchreibbereicheFragtNicht(t *testing.T) {
 	fremd := filepath.Join(wurzel, "nurlesbar", "da.txt")
 	lege(t, fremd, "unberührt")
 
-	rec := post(t, s, "/files/delete", formular(csrf, "path", fremd), cookie)
+	rec := post(t, s, "/alt/files/delete", formular(csrf, "path", fremd), cookie)
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("Status %d, erwartet 403 — %s", rec.Code, rec.Body.String())
 	}
@@ -305,7 +305,7 @@ func TestPanelZugangLoeschenFragtZurueck(t *testing.T) {
 	owner := addUser(t, s, "chef", store.RoleOwner)
 	andere := addUser(t, s, "kollege", store.RoleAdmin)
 	cookie, csrf := login(t, s, owner)
-	pfad := "/users/" + strconv.FormatInt(andere.ID, 10) + "/delete"
+	pfad := "/alt/users/" + strconv.FormatInt(andere.ID, 10) + "/delete"
 
 	da := func() bool {
 		_, err := s.db.UserByName(context.Background(), "kollege")
@@ -345,7 +345,7 @@ func TestRueckfrageBrauchtDieRolle(t *testing.T) {
 	leser := addUser(t, s, "leser", store.RoleReadOnly)
 	cookie, csrf := login(t, s, leser)
 
-	for _, pfad := range []string{"/system-users/deploy/delete", "/packages/upgrade"} {
+	for _, pfad := range []string{"/alt/system-users/deploy/delete", "/alt/packages/upgrade"} {
 		rec := post(t, s, pfad, url.Values{"_csrf": {csrf}}, cookie)
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("%s: Status %d, erwartet 403", pfad, rec.Code)

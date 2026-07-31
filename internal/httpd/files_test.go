@@ -78,7 +78,7 @@ func TestFilesSeiteZeigtVerzeichnis(t *testing.T) {
 	lege(t, filepath.Join(wurzel, "schreibbar", "unterordner", "tief.conf"), "a: 1")
 	lege(t, filepath.Join(wurzel, "schluessel.geheim"), "privat")
 
-	rec := get(t, s, "/files?path="+wurzel+"/schreibbar", cookie)
+	rec := get(t, s, "/alt/files?path="+wurzel+"/schreibbar", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -86,11 +86,11 @@ func TestFilesSeiteZeigtVerzeichnis(t *testing.T) {
 	for _, erwartet := range []string{
 		"notizen.txt",
 		"unterordner",
-		"0644",             // Rechte in Oktal
-		"5 B",              // Größe
-		"tar.gz",           // Archiv-Aktion für das Verzeichnis
-		"/files/download?", // Download-Aktion für die Datei
-		"krumen",           // klickbarer Pfad
+		"0644",                 // Rechte in Oktal
+		"5 B",                  // Größe
+		"tar.gz",               // Archiv-Aktion für das Verzeichnis
+		"/alt/files/download?", // Download-Aktion für die Datei
+		"krumen",               // klickbarer Pfad
 	} {
 		if !strings.Contains(body, erwartet) {
 			t.Errorf("die Seite enthält %q nicht", erwartet)
@@ -99,7 +99,7 @@ func TestFilesSeiteZeigtVerzeichnis(t *testing.T) {
 
 	// Die Wurzel zeigt den gesperrten Eintrag mit Begründung, aber ohne
 	// Download-Verweis.
-	rec = get(t, s, "/files?path="+wurzel, cookie)
+	rec = get(t, s, "/alt/files?path="+wurzel, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
@@ -124,7 +124,7 @@ func TestFilesSucheFindetUnterhalb(t *testing.T) {
 	lege(t, filepath.Join(wurzel, "b", "tief", "nginx-alt.conf"), "x")
 	lege(t, filepath.Join(wurzel, "b", "anderes.txt"), "x")
 
-	rec := get(t, s, "/files?path="+wurzel+"&q=nginx", cookie)
+	rec := get(t, s, "/alt/files?path="+wurzel+"&q=nginx", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -148,7 +148,7 @@ func TestFilesDownloadLiefertBytes(t *testing.T) {
 	inhalt := "Zeile eins\nZeile zwei\n"
 	lege(t, filepath.Join(wurzel, "schreibbar", "prot okoll.log"), inhalt)
 
-	rec := get(t, s, "/files/download?path="+strings.ReplaceAll(filepath.Join(wurzel, "schreibbar", "prot okoll.log"), " ", "%20"), cookie)
+	rec := get(t, s, "/alt/files/download?path="+strings.ReplaceAll(filepath.Join(wurzel, "schreibbar", "prot okoll.log"), " ", "%20"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -192,7 +192,7 @@ func TestFilesDownloadMitUmlautImNamen(t *testing.T) {
 	name := "Änderungen-Übersicht.txt"
 	lege(t, filepath.Join(wurzel, "schreibbar", name), "x")
 
-	rec := get(t, s, "/files/download?path="+urlWert(filepath.Join(wurzel, "schreibbar", name)), cookie)
+	rec := get(t, s, "/alt/files/download?path="+urlWert(filepath.Join(wurzel, "schreibbar", name)), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -214,7 +214,7 @@ func TestFilesArchiveLiefertTarGz(t *testing.T) {
 	lege(t, filepath.Join(wurzel, "schreibbar", "baum", "a.txt"), "aaa")
 	lege(t, filepath.Join(wurzel, "schreibbar", "baum", "tief", "b.txt"), "bbb")
 
-	rec := get(t, s, "/files/archive?path="+urlWert(filepath.Join(wurzel, "schreibbar", "baum")), cookie)
+	rec := get(t, s, "/alt/files/archive?path="+urlWert(filepath.Join(wurzel, "schreibbar", "baum")), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -255,7 +255,7 @@ func TestFilesDetailAlsJSON(t *testing.T) {
 
 	lege(t, filepath.Join(wurzel, "schreibbar", "baum", "a.txt"), "12345")
 
-	rec := get(t, s, "/files/detail?path="+urlWert(filepath.Join(wurzel, "schreibbar", "baum")), cookie)
+	rec := get(t, s, "/alt/files/detail?path="+urlWert(filepath.Join(wurzel, "schreibbar", "baum")), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -292,12 +292,12 @@ func TestFilesStatuscodesPassenZumGrund(t *testing.T) {
 		route  string
 		status int
 	}{
-		{"außerhalb der Wurzel", "/etc/passwd", "/files", http.StatusForbidden},
-		{"gesperrt", filepath.Join(wurzel, "geheim.geheim"), "/files/download", http.StatusForbidden},
-		{"gibt es nicht", filepath.Join(wurzel, "nichts"), "/files", http.StatusNotFound},
-		{"Verzeichnis als Download", filepath.Join(wurzel, "schreibbar"), "/files/download", http.StatusUnsupportedMediaType},
-		{"Pseudo-Dateisystem", "/proc/self/environ", "/files/download", http.StatusForbidden},
-		{"relativer Pfad", "etc/passwd", "/files", http.StatusBadRequest},
+		{"außerhalb der Wurzel", "/etc/passwd", "/alt/files", http.StatusForbidden},
+		{"gesperrt", filepath.Join(wurzel, "geheim.geheim"), "/alt/files/download", http.StatusForbidden},
+		{"gibt es nicht", filepath.Join(wurzel, "nichts"), "/alt/files", http.StatusNotFound},
+		{"Verzeichnis als Download", filepath.Join(wurzel, "schreibbar"), "/alt/files/download", http.StatusUnsupportedMediaType},
+		{"Pseudo-Dateisystem", "/proc/self/environ", "/alt/files/download", http.StatusForbidden},
+		{"relativer Pfad", "etc/passwd", "/alt/files", http.StatusBadRequest},
 	}
 	for _, f := range faelle {
 		t.Run(f.name, func(t *testing.T) {
@@ -317,7 +317,7 @@ func TestFilesAbgeschaltetHatKeineRoute(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	for _, route := range []string{"/files", "/files/download?path=/etc/passwd", "/files/archive?path=/etc", "/files/detail?path=/etc"} {
+	for _, route := range []string{"/alt/files", "/alt/files/download?path=/etc/passwd", "/alt/files/archive?path=/etc", "/alt/files/detail?path=/etc"} {
 		rec := get(t, s, route, cookie)
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("%s: Status %d, erwartet 404", route, rec.Code)
@@ -325,8 +325,8 @@ func TestFilesAbgeschaltetHatKeineRoute(t *testing.T) {
 	}
 
 	// Und der Menüpunkt fehlt.
-	rec := get(t, s, "/", cookie)
-	if strings.Contains(rec.Body.String(), `href="/files"`) {
+	rec := get(t, s, "/alt/", cookie)
+	if strings.Contains(rec.Body.String(), `href="/alt/files"`) {
 		t.Error("die Navigation zeigt Dateien, obwohl das Modul aus ist")
 	}
 }
@@ -336,8 +336,8 @@ func TestFilesNavigationZeigtDenPunkt(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/", cookie)
-	if !strings.Contains(rec.Body.String(), `href="/files"`) {
+	rec := get(t, s, "/alt/", cookie)
+	if !strings.Contains(rec.Body.String(), `href="/alt/files"`) {
 		t.Error("der Menüpunkt Dateien fehlt")
 	}
 }
@@ -351,10 +351,10 @@ func TestFilesLesenBrauchtKeineSchreibrolle(t *testing.T) {
 
 	lege(t, filepath.Join(wurzel, "schreibbar", "da.txt"), "inhalt")
 
-	if rec := get(t, s, "/files?path="+urlWert(wurzel), cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/files?path="+urlWert(wurzel), cookie); rec.Code != http.StatusOK {
 		t.Errorf("Browsen: Status %d", rec.Code)
 	}
-	rec := get(t, s, "/files/download?path="+urlWert(filepath.Join(wurzel, "schreibbar", "da.txt")), cookie)
+	rec := get(t, s, "/alt/files/download?path="+urlWert(filepath.Join(wurzel, "schreibbar", "da.txt")), cookie)
 	if rec.Code != http.StatusOK {
 		t.Errorf("Download: Status %d", rec.Code)
 	}
@@ -365,10 +365,10 @@ func TestFilesOhneAnmeldungKeinZugriff(t *testing.T) {
 	lege(t, filepath.Join(wurzel, "schreibbar", "da.txt"), "x")
 
 	for _, route := range []string{
-		"/files?path=" + urlWert(wurzel),
-		"/files/download?path=" + urlWert(filepath.Join(wurzel, "schreibbar", "da.txt")),
-		"/files/archive?path=" + urlWert(wurzel),
-		"/files/detail?path=" + urlWert(wurzel),
+		"/alt/files?path=" + urlWert(wurzel),
+		"/alt/files/download?path=" + urlWert(filepath.Join(wurzel, "schreibbar", "da.txt")),
+		"/alt/files/archive?path=" + urlWert(wurzel),
+		"/alt/files/detail?path=" + urlWert(wurzel),
 	} {
 		rec := get(t, s, route, nil)
 		if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
@@ -407,7 +407,7 @@ func TestFilesWarntBeiNichtBeschreibbaremBereich(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/files?path="+urlWert(wurzel), cookie)
+	rec := get(t, s, "/alt/files?path="+urlWert(wurzel), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
@@ -441,7 +441,7 @@ func TestFilesDirsNenntNurOrdner(t *testing.T) {
 	}
 	lege(t, filepath.Join(arbeit, "datei.txt"), "x")
 
-	rec := get(t, s, "/files/dirs?path="+urlWert(arbeit), cookie)
+	rec := get(t, s, "/alt/files/dirs?path="+urlWert(arbeit), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200 (%s)", rec.Code, rec.Body.String())
 	}
@@ -494,7 +494,7 @@ func TestFilesDirsBleibtInDerWache(t *testing.T) {
 		// Angabe — die Wache unterscheidet das, und der Statuscode auch.
 		"../../etc": http.StatusBadRequest,
 	} {
-		rec := get(t, s, "/files/dirs?path="+urlWert(pfad), cookie)
+		rec := get(t, s, "/alt/files/dirs?path="+urlWert(pfad), cookie)
 		if rec.Code != wollen {
 			t.Errorf("%s: Status = %d, erwartet %d", pfad, rec.Code, wollen)
 		}
@@ -513,7 +513,7 @@ func TestFilesDirsKennzeichnetNurLesbare(t *testing.T) {
 	}
 
 	var antwort fileDirs
-	rec := get(t, s, "/files/dirs?path="+urlWert(wurzel), cookie)
+	rec := get(t, s, "/alt/files/dirs?path="+urlWert(wurzel), cookie)
 	if err := json.Unmarshal(rec.Body.Bytes(), &antwort); err != nil {
 		t.Fatal(err)
 	}
@@ -551,7 +551,7 @@ func TestFilesListeZeigtAktionenImMenue(t *testing.T) {
 	owner := addUser(t, s, "philipp", store.RoleOwner)
 	ownerCookie, _ := login(t, s, owner)
 
-	rec := get(t, s, "/files?path="+urlWert(arbeit), ownerCookie)
+	rec := get(t, s, "/alt/files?path="+urlWert(arbeit), ownerCookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -560,14 +560,14 @@ func TestFilesListeZeigtAktionenImMenue(t *testing.T) {
 	if !strings.Contains(seite, `<details class="zeilenmenu">`) {
 		t.Error("die Zeile hat kein Menü — die Aktionsspalte ist wieder eine Knopfreihe")
 	}
-	for _, ziel := range []string{"/files/edit?", "/files/download?", "/files/entry?"} {
+	for _, ziel := range []string{"/alt/files/edit?", "/alt/files/download?", "/alt/files/entry?"} {
 		if !strings.Contains(seite, ziel) {
 			t.Errorf("%s ist aus der Liste verschwunden", ziel)
 		}
 	}
 	// Das Menü braucht keine Knöpfe: Ein <a class="button"> in der Aktionszelle
 	// wäre der alte Zustand.
-	if strings.Contains(seite, `<a class="button small" href="/files/download`) {
+	if strings.Contains(seite, `<a class="button small" href="/alt/files/download`) {
 		t.Error("der Ladeknopf steht wieder frei in der Zeile")
 	}
 
@@ -575,7 +575,7 @@ func TestFilesListeZeigtAktionenImMenue(t *testing.T) {
 	// Editor nicht.
 	leser := addUser(t, s, "leser", store.RoleReadOnly)
 	leserCookie, _ := login(t, s, leser)
-	rec = get(t, s, "/files?path="+urlWert(arbeit), leserCookie)
+	rec = get(t, s, "/alt/files?path="+urlWert(arbeit), leserCookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
@@ -583,7 +583,7 @@ func TestFilesListeZeigtAktionenImMenue(t *testing.T) {
 	if !strings.Contains(seite, `<details class="zeilenmenu">`) {
 		t.Error("die lesende Rolle sieht kein Menü")
 	}
-	if strings.Contains(seite, "/files/edit?") {
+	if strings.Contains(seite, "/alt/files/edit?") {
 		t.Error("die nur lesende Rolle sieht den Weg in den Editor")
 	}
 }
@@ -603,7 +603,7 @@ func TestFilesDetailseiteLoeschtAusDemKopf(t *testing.T) {
 	owner := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, owner)
 
-	rec := get(t, s, "/files/entry?path="+urlWert(filepath.Join(arbeit, "weg.txt")), cookie)
+	rec := get(t, s, "/alt/files/entry?path="+urlWert(filepath.Join(arbeit, "weg.txt")), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -612,7 +612,7 @@ func TestFilesDetailseiteLoeschtAusDemKopf(t *testing.T) {
 	// Der Seitenkopf reicht vom Beginn der Kopfzeile bis zum klickbaren Pfad
 	// darunter — was danach kommt, sind die Abschnitte der Seite.
 	kopf := seite[strings.Index(seite, `<div class="pagehead">`):strings.Index(seite, `<nav class="krumen"`)]
-	if !strings.Contains(kopf, `action="/files/delete"`) {
+	if !strings.Contains(kopf, `action="/alt/files/delete"`) {
 		t.Error("der Knopf zum Löschen steht nicht im Seitenkopf")
 	}
 	// Die Rückfrage ist der Ersatz für den erklärenden Abschnitt: Ohne sie wäre

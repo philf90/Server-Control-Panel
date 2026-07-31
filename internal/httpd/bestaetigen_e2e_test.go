@@ -157,7 +157,7 @@ func TestBestaetigenBrowser(t *testing.T) {
 	}
 
 	// Bestätigen: Der Handler führt aus und schickt in die Liste.
-	if e.NachBestaetigung.GelandetAuf != "/files/delete" {
+	if e.NachBestaetigung.GelandetAuf != "/alt/files/delete" {
 		t.Errorf("nach dem Bestätigen gelandet auf %q", e.NachBestaetigung.GelandetAuf)
 	}
 	if _, err := os.Stat(datei); !os.IsNotExist(err) {
@@ -199,7 +199,7 @@ func TestBestaetigenBrowser(t *testing.T) {
 	if !strings.Contains(e.Knopf.Frage, "Passkeys") {
 		t.Errorf("die Frage passt nicht zum Knopf: %q", e.Knopf.Frage)
 	}
-	if e.Knopf.GelandetAuf != "/users/reset-passkeys" {
+	if e.Knopf.GelandetAuf != "/alt/users/reset-passkeys" {
 		t.Errorf("gelandet auf %q — das formaction des Knopfes ging verloren", e.Knopf.GelandetAuf)
 	}
 	if !strings.Contains(e.Knopf.Meldung, "Passkey") {

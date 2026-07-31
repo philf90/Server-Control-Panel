@@ -220,22 +220,22 @@ func pruefDetail(p privops.ConfigCheckResult) string {
 
 // EditLink führt von der Liste in den Editor.
 func (p filesPage) EditLink(pfad string) string {
-	return "/files/edit?" + url.Values{"path": {pfad}}.Encode()
+	return "/alt/files/edit?" + url.Values{"path": {pfad}}.Encode()
 }
 
 // EditLink desselben Zwecks für die Detailseite.
 func (p fileEntryPage) EditLink() string {
-	return "/files/edit?" + url.Values{"path": {p.Entry.Path}}.Encode()
+	return "/alt/files/edit?" + url.Values{"path": {p.Entry.Path}}.Encode()
 }
 
 // ListLink führt vom Editor zurück in die Liste.
 func (p fileEditPage) ListLink() string {
-	return "/files?" + url.Values{"path": {p.Dir}}.Encode()
+	return "/alt/files?" + url.Values{"path": {p.Dir}}.Encode()
 }
 
 // EntryLink führt vom Editor auf die Detailseite.
 func (p fileEditPage) EntryLink() string {
-	return "/files/entry?" + url.Values{"path": {p.Entry.Path}}.Encode()
+	return "/alt/files/entry?" + url.Values{"path": {p.Entry.Path}}.Encode()
 }
 
 // spracheFuer bestimmt die Hervorhebung im Editor.

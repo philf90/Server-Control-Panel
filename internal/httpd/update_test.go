@@ -78,10 +78,10 @@ func TestUpdateEntwicklungsfassung(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	if rec := post(t, s, "/update/check", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusOK {
+	if rec := post(t, s, "/alt/update/check", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusOK {
 		t.Fatalf("check: %d", rec.Code)
 	}
-	rec := post(t, s, "/update/apply", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/update/apply", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status = %d, erwartet 400", rec.Code)
 	}
@@ -95,7 +95,7 @@ func TestUpdateSeiteZeigtFassung(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/update", cookie)
+	rec := get(t, s, "/alt/update", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}
@@ -112,7 +112,7 @@ func TestUpdateCheckFindetFassung(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/update/check", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/update/check", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d: %s", rec.Code, rec.Body.String())
 	}
@@ -130,7 +130,7 @@ func TestUpdateCheckMeldetUnerreichbareQuelle(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/update/check", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/update/check", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}
@@ -145,7 +145,7 @@ func TestUpdateApplyStoesstVorgangAn(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	// Ohne vorherige Prüfung gibt es nichts einzuspielen.
-	rec := post(t, s, "/update/apply", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/update/apply", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status = %d, erwartet 400", rec.Code)
 	}
@@ -153,10 +153,10 @@ func TestUpdateApplyStoesstVorgangAn(t *testing.T) {
 		t.Fatal("es wurde ohne Prüfung ein Vorgang gestartet")
 	}
 
-	if rec := post(t, s, "/update/check", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusOK {
+	if rec := post(t, s, "/alt/update/check", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusOK {
 		t.Fatalf("check: Status = %d", rec.Code)
 	}
-	rec = post(t, s, "/update/apply", ja(url.Values{"_csrf": {csrf}}), cookie)
+	rec = post(t, s, "/alt/update/apply", ja(url.Values{"_csrf": {csrf}}), cookie)
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("Status = %d, erwartet 202: %s", rec.Code, rec.Body.String())
 	}
@@ -182,7 +182,7 @@ func TestUpdateApplyStoesstVorgangAn(t *testing.T) {
 	}
 
 	// Ein zweiter Anstoß muss abgewiesen werden, solange der erste läuft.
-	rec = post(t, s, "/update/apply", ja(url.Values{"_csrf": {csrf}}), cookie)
+	rec = post(t, s, "/alt/update/apply", ja(url.Values{"_csrf": {csrf}}), cookie)
 	if rec.Code != http.StatusConflict {
 		t.Errorf("zweiter Anstoß: Status = %d, erwartet 409", rec.Code)
 	}
@@ -200,10 +200,10 @@ func TestUpdateApplyLehntAeltereFassungAb(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	if rec := post(t, s, "/update/check", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusOK {
+	if rec := post(t, s, "/alt/update/check", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusOK {
 		t.Fatalf("check: %d", rec.Code)
 	}
-	rec := post(t, s, "/update/apply", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/update/apply", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status = %d, erwartet 400", rec.Code)
 	}
@@ -217,7 +217,7 @@ func TestUpdateRollbackOhneSicherung(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/update/rollback", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/update/rollback", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status = %d, erwartet 400", rec.Code)
 	}
@@ -248,17 +248,17 @@ func TestUpdateRollenTrennung(t *testing.T) {
 			user := addUser(t, s, "konto", tc.role)
 			cookie, csrf := login(t, s, user)
 
-			if rec := get(t, s, "/update", cookie); (rec.Code == http.StatusOK) != tc.sichtbar {
+			if rec := get(t, s, "/alt/update", cookie); (rec.Code == http.StatusOK) != tc.sichtbar {
 				t.Errorf("GET /update: Status = %d", rec.Code)
 			}
 			form := url.Values{"_csrf": {csrf}}
-			if rec := post(t, s, "/update/check", form, cookie); rec.Code != tc.check {
+			if rec := post(t, s, "/alt/update/check", form, cookie); rec.Code != tc.check {
 				t.Errorf("check: Status = %d, erwartet %d", rec.Code, tc.check)
 			}
-			if rec := post(t, s, "/update/apply", form, cookie); rec.Code != tc.apply {
+			if rec := post(t, s, "/alt/update/apply", form, cookie); rec.Code != tc.apply {
 				t.Errorf("apply: Status = %d, erwartet %d", rec.Code, tc.apply)
 			}
-			if rec := post(t, s, "/update/rollback", form, cookie); rec.Code != tc.rollback {
+			if rec := post(t, s, "/alt/update/rollback", form, cookie); rec.Code != tc.rollback {
 				t.Errorf("rollback: Status = %d, erwartet %d", rec.Code, tc.rollback)
 			}
 			if len(ops.selfUpdates) != 0 {
@@ -281,7 +281,7 @@ func TestUpdateStatusLiefertProtokoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rec := get(t, s, "/update/status", cookie)
+	rec := get(t, s, "/alt/update/status", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}
@@ -334,8 +334,8 @@ func TestUpdateSeiteImNavigationsmenue(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/", cookie)
-	if !strings.Contains(rec.Body.String(), `href="/update"`) {
+	rec := get(t, s, "/alt/", cookie)
+	if !strings.Contains(rec.Body.String(), `href="/alt/update"`) {
 		t.Error("die Übersicht verlinkt die Update-Seite nicht")
 	}
 }

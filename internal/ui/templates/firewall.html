@@ -8,7 +8,7 @@
   <div class="right">
     <span class="badge {{if .State.Active}}ok{{else}}warn{{end}}">{{if .State.Active}}aktiv{{else}}inaktiv{{end}}</span>
     {{if and $.CanWrite .State.Active}}
-    <form method="post" action="/firewall/active"
+    <form method="post" action="/alt/firewall/active"
           data-bestaetigen="ufw auf {{$.Rechnername}} ausschalten? Der Server nimmt danach jede eingehende Verbindung an — auf allen Ports, von überall."
         data-bestaetigen-titel="ufw ausschalten"
         data-bestaetigen-knopf="ufw ausschalten"
@@ -36,7 +36,7 @@
     Sekunden der vorherige Stand wiederhergestellt.
     {{end}}
   </div>
-  <form method="post" action="/firewall/confirm" class="inline">
+  <form method="post" action="/alt/firewall/confirm" class="inline">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <button type="submit" class="small">Verbindung besteht — so lassen</button>
   </form>
@@ -67,7 +67,7 @@
     {{if not .State.Installed}}
     {{if ne .State.Backend "nftables"}}
     <div class="button-row">
-      <form method="post" action="/firewall/install">
+      <form method="post" action="/alt/firewall/install">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
         <button type="submit">ufw installieren</button>
       </form>
@@ -80,7 +80,7 @@
     {{else if not .State.Active}}
     {{if .PanelPortOpen}}
     <div class="button-row">
-      <form method="post" action="/firewall/active"
+      <form method="post" action="/alt/firewall/active"
             data-bestaetigen="ufw einschalten? Erreichbar bleibt danach nur: {{.OpenPorts}}. Ohne Bestätigung binnen 60 Sekunden schaltet sich ufw wieder aus."
         data-bestaetigen-titel="ufw einschalten"
         data-bestaetigen-knopf="ufw einschalten">
@@ -125,7 +125,7 @@
       bestätige sie, solange die Verbindung noch steht.
     </p>
 
-    <form method="post" action="/firewall" class="rules-form">
+    <form method="post" action="/alt/firewall" class="rules-form">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
 
       {{range .Rows}}
@@ -234,7 +234,7 @@
     <span id="job-status" class="sub">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
   </div>
   {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
-  <pre class="logs" id="job-output" data-events="/firewall/events">{{range .JobLines}}{{.}}
+  <pre class="logs" id="job-output" data-events="/alt/firewall/events">{{range .JobLines}}{{.}}
 {{end}}</pre>
 </div>
 {{if .JobRunning}}<script src="/static/job.js" defer></script>{{end}}

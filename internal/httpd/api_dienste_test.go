@@ -465,23 +465,23 @@ func TestAPISignaleVerweisenAufDieNeueOberflaeche(t *testing.T) {
 
 	gefunden := false
 	for _, sig := range antwort.Signale {
-		if sig.AktionHref == "/services" {
+		if sig.AktionHref == "/alt/services" {
 			t.Errorf("das Signal %q verweist noch auf die alte Dienstseite", sig.Titel)
 		}
-		if sig.AktionHref == "/v2/dienste" {
+		if sig.AktionHref == "/dienste" {
 			gefunden = true
 		}
 	}
 	if !gefunden {
-		t.Error("kein Signal verweist auf /v2/dienste — die Attrappe hat einen " +
+		t.Error("kein Signal verweist auf /dienste — die Attrappe hat einen " +
 			"gescheiterten Dienst, also muss es eines geben")
 	}
 
 	// Die alte Oberfläche behält ihre eigenen Verweise: Sie ist eingefroren,
 	// und ein Verweis von dort in die neue wäre eine Änderung an ihr.
 	alt := get(t, s, "/", cookie)
-	if alt.Code == http.StatusOK && strings.Contains(alt.Body.String(), "/v2/dienste") {
-		t.Error("die alte Übersicht verweist auf /v2/dienste — sie sollte unberührt bleiben")
+	if alt.Code == http.StatusOK && strings.Contains(alt.Body.String(), "/dienste") {
+		t.Error("die alte Übersicht verweist auf /dienste — sie sollte unberührt bleiben")
 	}
 }
 

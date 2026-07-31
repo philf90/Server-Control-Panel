@@ -201,7 +201,7 @@ func (s *Server) handlePasskeyDelete(w http.ResponseWriter, r *http.Request) {
 		Frage:   "Passkey „" + name + "\" entfernen?",
 		Punkte:  folgen,
 		Knopf:   "entfernen",
-		Abbruch: "/account",
+		Abbruch: "/alt/account",
 	}) {
 		return
 	}

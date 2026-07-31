@@ -74,7 +74,7 @@
 
     function zeige(pfad) {
       stand.textContent = "wird geladen …";
-      fetch("/files/dirs?path=" + encodeURIComponent(pfad), {
+      fetch("/alt/files/dirs?path=" + encodeURIComponent(pfad), {
         headers: { Accept: "application/json" },
       })
         .then(function (antwort) {

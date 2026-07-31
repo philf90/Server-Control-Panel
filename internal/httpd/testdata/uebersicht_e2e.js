@@ -60,7 +60,7 @@ async function main() {
   });
 
   await seite.setViewportSize({ width: 1280, height: 1000 });
-  await seite.goto(basis + "/", { waitUntil: "load" });
+  await seite.goto(basis + "/alt/", { waitUntil: "load" });
 
   // --- 1. Der Strich ---------------------------------------------------------
   const strich = await seite.evaluate(() => {

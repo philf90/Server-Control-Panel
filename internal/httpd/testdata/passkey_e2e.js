@@ -8,7 +8,7 @@
 //   mode = "forgot" — registrieren, abmelden, Passwort über "Passwort
 //                     vergessen" per Passkey neu setzen (positiv)
 //   mode = "v2"     — dieselbe Registrierung über die NEUE Oberfläche
-//                     (/v2/konto), danach Anmeldung mit diesem Passkey, umbenennen
+//                     (/konto), danach Anmeldung mit diesem Passkey, umbenennen
 //                     und entfernen (positiv)
 //   mode = "forgot-nouv" — derselbe Weg mit einem Authenticator, der nichts am
 //                     Gerät prüft; die Zurücksetzung MUSS scheitern (negativ)
@@ -49,7 +49,7 @@ const NEW_PASSWORD = "ein frisches langes Passwort";
   if (mode === "v2") {
     // Dieselbe Zeremonie über die NEUE Oberfläche. Der Nachweis, auf den es
     // ankommt, ist nicht „ein Eintrag erscheint in der Liste", sondern: Ein über
-    // /v2/konto registrierter Passkey trägt eine echte Anmeldung. Alles zwischen
+    // /konto registrierter Passkey trägt eine echte Anmeldung. Alles zwischen
     // Browser und go-webauthn — die Umrechnung base64url ↔ ArrayBuffer in
     // lib/api.ts, die Durchreichung der Optionen, das Ticket — ist genau dann
     // richtig, und nur dann.
@@ -57,7 +57,7 @@ const NEW_PASSWORD = "ein frisches langes Passwort";
     // Ein Laufzeitfehler im Bundle wäre hier sonst unsichtbar: Die Seite bliebe
     // leer, und der Test meldete nur „Selektor nicht gefunden".
     page.on("pageerror", (e) => console.error("BROWSER-FEHLER " + e.message));
-    await page.goto(baseURL + "/v2/konto");
+    await page.goto(baseURL + "/konto");
     await page.waitForSelector("#pk-name", { timeout: 10000 });
 
     beobachtet.warum = await page.evaluate(() => {
@@ -108,7 +108,7 @@ const NEW_PASSWORD = "ein frisches langes Passwort";
 
     // Zurück auf die neue Kontoseite: Der Passkey ist jetzt benutzt, und das
     // Entfernen fragt mit seinem NAMEN zurück.
-    await page.goto(baseURL + "/v2/konto");
+    await page.goto(baseURL + "/konto");
     await page.waitForSelector(".passkeys li", { timeout: 10000 });
     beobachtet.zuletzt = await page.evaluate(
       () => document.querySelector(".passkeys .detail")?.textContent.trim() ?? "",
@@ -145,7 +145,7 @@ const NEW_PASSWORD = "ein frisches langes Passwort";
     return;
   }
 
-  await page.goto(baseURL + "/account");
+  await page.goto(baseURL + "/alt/account");
   await page.fill("#pk-label", "E2E-Key");
   await page.fill("#pk-pass", password);
   await page.click("#passkey-add button");

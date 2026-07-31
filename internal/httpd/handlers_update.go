@@ -215,7 +215,7 @@ func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 			"Die laufende Fassung wird gesichert; ein Rückweg bleibt.",
 		},
 		Knopf:   "auf " + rel.Version + " aktualisieren",
-		Abbruch: "/update",
+		Abbruch: "/alt/update",
 	}) {
 		return
 	}
@@ -248,7 +248,7 @@ func (s *Server) handleUpdateRollback(w http.ResponseWriter, r *http.Request) {
 			"Zurückgesetzt wird das Programm, nicht die Datenbank: Was neuere Fassungen an ihr geändert haben, bleibt.",
 		},
 		Knopf:   "zurück auf " + previous,
-		Abbruch: "/update",
+		Abbruch: "/alt/update",
 	}) {
 		return
 	}

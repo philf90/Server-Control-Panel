@@ -9,6 +9,106 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0] — 2026-07-31
+
+**Die neue Oberfläche ist die Oberfläche.** Wer das Panel aufruft, bekommt sie;
+die alte ist eine Fassung lang unter `/alt/` als Rückweg erreichbar und
+eingefroren. Damit ist die Stufe „Neues Fundament" aus
+[docs/16-neukonzeption.md](docs/16-neukonzeption.md) abgeschlossen: Parität zu
+allen zwölf Modulen der alten Fläche, `/api/v1` als einzige Datenquelle, ein
+einheitliches Job-Modell, Cron & systemd-Timer und API-Tokens.
+
+**Nach dem Update ist eine Anmeldung nötig — einmal.** Alle Sitzungen werden
+verworfen (Migration 0006); API-Tokens bleiben gültig.
+
+**Was ein Beta-Tester zuerst wissen sollte:**
+
+- Die Adressen haben sich geändert. `/services` heißt jetzt `/dienste`,
+  `/packages` → `/pakete`, `/system-users` → `/benutzer`, `/users` → `/zugaenge`,
+  `/account` → `/konto`, `/update` → `/updates`, `/certificate` → `/zertifikate`.
+  Ein Lesezeichen auf einen alten Pfad landet unter `/alt/…` — dort steht die
+  eingefrorene Fläche.
+- **Die Kernoberfläche braucht JavaScript.** Anmeldung, Erstinstallation, der
+  erzwungene Passwortwechsel und der Weg für ein vergessenes Passwort laufen
+  weiter ohne — sie sind server-gerendert und bleiben es.
+- **Ein Cron-Eintrag ist eine Shell-Zeile**, und wer einen anlegen darf, führt
+  Code als den eingetragenen Benutzer aus. Die Betrachtung dazu steht in
+  docs/16-neukonzeption.md unter 4.2 und 7.2.
+- **Ein API-Token ist ein Zugang.** Er erbt die Rolle des Kontos, das ihn anlegt,
+  und der Klartext erscheint genau einmal.
+
+### Hinzugefügt
+
+- **API-Tokens als zweiter Anmeldeweg** (`/tokens`, drei Routen unter
+  `/api/v1/tokens`, Migration 0005 — die erste Store-Erweiterung dieses
+  Vorhabens). Gespeichert wird nur der Hash, wie bei den Sitzungen: Ein
+  Datenbankabzug erlaubt keine Anmeldung. Der Klartext steht genau einmal in einer
+  Antwort; es gibt keinen Endpunkt, der ihn zurückgäbe.
+
+  Die tragende Entscheidung steht im Kopf von `internal/httpd/tokenauth.go`: Ein
+  Cookie ist eine UMGEBENDE Berechtigung, ein Token eine mitgebrachte. Einen
+  `Authorization`-Kopf kann eine fremde Seite nicht setzen — darum braucht der
+  Token-Weg keine CSRF-Prüfung, und nur darum. Daraus folgt: **Ist der Kopf da,
+  gilt ausschließlich der Token-Weg; ein ungültiger endet mit 401 und fällt NICHT
+  auf das Cookie zurück.** Der Rückfall wäre der eigentliche Angriff — ein
+  unsinniger Kopf würde die CSRF-Prüfung abschalten, und die mitgeschickte Sitzung
+  täte die Arbeit.
+
+  Weitere Schranken: Drei Familien sind für Tokens gesperrt (`tokens`,
+  `panel-users`, `account`) — die erste, weil ein entwendeter Token sonst einen
+  frischen mintet und seinen eigenen Widerruf überlebt. Ein Token gilt nur unter
+  `/api/`, die Familienliste ist eine Allowlist, die Rolle bleibt die Obergrenze,
+  und `nur_lesen` senkt sie für diesen Zugang. Fehlversuche werden je IP gebremst.
+  Im Audit-Protokoll steht, dass ein Token gehandelt hat — sonst sagt es „philipp
+  hat den Dienst gestoppt", während es ein Skript war.
+
+- **Modul Cron & systemd-Timer** (`/cron`) — mit 0.4.0-rc.5 gebaut; die
+  Einzelheiten stehen dort.
+
+### Geändert
+
+- **Umgeschaltet: die neue Oberfläche liegt an der Wurzel.** `/v2/` ist
+  verschwunden; wer das Panel aufruft, bekommt die neue Fläche. Die alte ist
+  **eine Fassung lang unter `/alt/` erreichbar** und eingefroren — keine
+  Gestaltung, keine Funktion, nur ein Rückweg.
+
+  Das Konzept sah vor, beides in einem Zug zu tun (umschalten und die alte Fläche
+  entfernen). Der Grund für die zwei Schritte liegt in der Bauart dieses
+  Programms: **Es aktualisiert sich selbst.** Ein Fehler in der neuen Fläche, der
+  jemanden aussperrt, sperrt ihn auch aus dem Panel aus, über das der Rückweg
+  einzuspielen wäre. Der Abbau — 27 Vorlagen, 17 statische Dateien, rund 4.500
+  Zeilen Handler und die daran hängenden Tests — folgt in 0.4.1.
+
+- **Alle Sitzungen werden beim Update einmalig verworfen** (Migration 0006). Ein
+  Cookie von vor dem Update stammt aus einer Zeit, in der das Panel anders aussah,
+  und das Sitzungstoken der alten Fläche steckt in jeder Seite, die noch im
+  Browser steht. Nach dem Update ist eine Anmeldung nötig — einmal.
+
+  **API-Tokens bleiben gültig.** Sie hängen an `/api/v1`, und das ist unverändert;
+  sie zu verwerfen hieße, jede Automatisierung mit einem Update stillschweigend
+  abzuschalten.
+
+- **`min-upgradable-from` bleibt leer.** Keine der Migrationen 0005 und 0006 macht
+  einen direkten Sprung unmöglich — beide sind vorwärtsgerichtet und ergänzend.
+  Ein Wert dort gehört nur hinein, wenn eine Migration einen Sprung wirklich
+  verhindert.
+
+- **Unbekannte Pfade antworten weiter 404.** `GET /` ist seit dem Umschalten der
+  allgemeine Rückfall des Multiplexers; ohne Prüfung bekäme jede erdachte Adresse
+  die Hülle mit Status 200, und ein abgeschaltetes Modul wäre von einem
+  vorhandenen nicht zu unterscheiden. Der Server prüft den ersten Pfadteil gegen
+  die Liste der Seiten; ein Test hält sie mit dem Router der Oberfläche zusammen.
+
+### Behoben
+
+- **Ein Browsertest prüfte den Journalstrom in einem Rennen.** Er sah gleich nach
+  dem Klick in der Liste der Anfragen nach, ob der Strom geöffnet wurde — der
+  Puls erscheint aber, sobald der Zustand umschlägt, und die Verbindung ist dann
+  erst angestoßen. Es ging gut, solange der Aufbau schneller war als die Prüfung.
+  Beim Umschalten fiel es auf, weil sich die Zeitverhältnisse verschoben haben.
+  Jetzt wird auf die Anfrage gewartet.
+
+
 ## [0.4.0-rc.5] — 2026-07-31
 
 **Cron & systemd-Timer** — das erste Modul der neuen Oberfläche, das keine alte

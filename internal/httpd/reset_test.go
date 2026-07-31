@@ -60,7 +60,7 @@ func TestOwnerResetPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rec := post(t, s, "/users/reset-password", resetForm(ziel, csrf, testPassword), cookie)
+	rec := post(t, s, "/alt/users/reset-password", resetForm(ziel, csrf, testPassword), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
 	}
@@ -79,7 +79,7 @@ func TestOwnerResetPassword(t *testing.T) {
 		t.Error("die Sperre wurde nicht aufgehoben")
 	}
 	// Die Sitzung des Zielkontos ist beendet: Der Zugriff führt zur Anmeldung.
-	if rec := get(t, s, "/account", zielCookie); rec.Code != http.StatusSeeOther {
+	if rec := get(t, s, "/alt/account", zielCookie); rec.Code != http.StatusSeeOther {
 		t.Errorf("alte Sitzung des Zielkontos lebt weiter (Status %d)", rec.Code)
 	}
 	// Der zweite Faktor bleibt unberührt — das ist eine eigene Aktion.
@@ -94,7 +94,7 @@ func TestOwnerResetNeedsOwnPassword(t *testing.T) {
 	ziel := addUser(t, s, "kollege", store.RoleAdmin)
 	cookie, csrf := login(t, s, owner)
 
-	rec := post(t, s, "/users/reset-password", resetForm(ziel, csrf, "falsch falsch falsch"), cookie)
+	rec := post(t, s, "/alt/users/reset-password", resetForm(ziel, csrf, "falsch falsch falsch"), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status = %d, erwartet 400", rec.Code)
 	}
@@ -108,7 +108,7 @@ func TestOwnerResetRefusesOwnAccount(t *testing.T) {
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	cookie, csrf := login(t, s, owner)
 
-	rec := post(t, s, "/users/reset-password", resetForm(owner, csrf, testPassword), cookie)
+	rec := post(t, s, "/alt/users/reset-password", resetForm(owner, csrf, testPassword), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status = %d, erwartet 400", rec.Code)
 	}
@@ -123,7 +123,7 @@ func TestOwnerResetDeniedForAdmin(t *testing.T) {
 	ziel := addUser(t, s, "kollege", store.RoleReadOnly)
 	cookie, csrf := login(t, s, admin)
 
-	for _, pfad := range []string{"/users/reset-password", "/users/reset-2fa", "/users/reset-passkeys"} {
+	for _, pfad := range []string{"/alt/users/reset-password", "/alt/users/reset-2fa", "/alt/users/reset-passkeys"} {
 		rec := post(t, s, pfad, resetForm(ziel, csrf, testPassword), cookie)
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("%s: Status = %d, erwartet 403", pfad, rec.Code)
@@ -149,7 +149,7 @@ func TestOwnerReset2FA(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rec := post(t, s, "/users/reset-2fa", resetForm(ziel, csrf, testPassword), cookie)
+	rec := post(t, s, "/alt/users/reset-2fa", resetForm(ziel, csrf, testPassword), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
 	}
@@ -190,7 +190,7 @@ func TestOwnerResetPasskeys(t *testing.T) {
 		}
 	}
 
-	rec := post(t, s, "/users/reset-passkeys", resetForm(ziel, csrf, testPassword), cookie)
+	rec := post(t, s, "/alt/users/reset-passkeys", resetForm(ziel, csrf, testPassword), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
 	}
@@ -212,7 +212,7 @@ func TestResetSectionHidesOwnAccount(t *testing.T) {
 	owner := addUser(t, s, "einzeln", store.RoleOwner)
 	cookie, _ := login(t, s, owner)
 
-	body := get(t, s, "/users", cookie).Body.String()
+	body := get(t, s, "/alt/users", cookie).Body.String()
 	if regexp.MustCompile(`<option value="` + strconv.FormatInt(owner.ID, 10) + `"`).MatchString(body) {
 		t.Error("das eigene Konto steht in der Auswahl zum Zurücksetzen")
 	}
@@ -238,7 +238,7 @@ func TestForcedChangeBlocksPanel(t *testing.T) {
 	}
 
 	// Jede geschützte Seite führt auf die Wechselseite, nicht ins Panel.
-	for _, pfad := range []string{"/", "/services", "/users", "/account"} {
+	for _, pfad := range []string{"/", "/alt/services", "/alt/users", "/alt/account"} {
 		rec := get(t, s, pfad, cookie)
 		if rec.Code != http.StatusSeeOther {
 			t.Errorf("%s: Status = %d, erwartet 303", pfad, rec.Code)
@@ -483,7 +483,7 @@ func TestForgotNewSetsPassword(t *testing.T) {
 		t.Error("nach der Selbstbedienung steht ein Wechselzwang an")
 	}
 	// Alle Sitzungen sind beendet.
-	if rec := get(t, s, "/account", altCookie); rec.Code != http.StatusSeeOther {
+	if rec := get(t, s, "/alt/account", altCookie); rec.Code != http.StatusSeeOther {
 		t.Errorf("alte Sitzung lebt weiter (Status %d)", rec.Code)
 	}
 	// Das Ticket gilt genau einmal.

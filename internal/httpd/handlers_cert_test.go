@@ -26,7 +26,7 @@ func TestCertificatePageSelfSigned(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/certificate", cookie)
+	rec := get(t, s, "/alt/certificate", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200", rec.Code)
 	}
@@ -47,7 +47,7 @@ func TestCertificatePageReadOnly(t *testing.T) {
 	user := addUser(t, s, "leser", store.RoleReadOnly)
 	cookie, _ := login(t, s, user)
 
-	if rec := get(t, s, "/certificate", cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/certificate", cookie); rec.Code != http.StatusOK {
 		t.Errorf("readonly: Status = %d, erwartet 200", rec.Code)
 	}
 }
@@ -59,7 +59,7 @@ func TestCertificatePageMissingFileStillRenders(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/certificate", cookie)
+	rec := get(t, s, "/alt/certificate", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200 (Seite soll trotz fehlender Datei erreichbar bleiben)", rec.Code)
 	}
@@ -86,7 +86,7 @@ func TestZertEinstellungenLandenInDerErgaenzung(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/certificate", zertForm(csrf, map[string]string{
+	rec := post(t, s, "/alt/certificate", zertForm(csrf, map[string]string{
 		"mode":    "acme",
 		"domains": "panel.example.org",
 		"email":   "admin@example.org",
@@ -185,7 +185,7 @@ func TestZertEinstellungenPruefung(t *testing.T) {
 			user := addUser(t, s, "philipp", store.RoleOwner)
 			cookie, csrf := login(t, s, user)
 
-			rec := post(t, s, "/certificate", zertForm(csrf, f.felder), cookie)
+			rec := post(t, s, "/alt/certificate", zertForm(csrf, f.felder), cookie)
 			if rec.Code != http.StatusBadRequest {
 				t.Fatalf("Status = %d, erwartet 400", rec.Code)
 			}
@@ -211,7 +211,7 @@ func TestCloudflareTokenLandetInEigenerDatei(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	const token = "cf-geheim-1234567890"
-	rec := post(t, s, "/certificate", zertForm(csrf, map[string]string{
+	rec := post(t, s, "/alt/certificate", zertForm(csrf, map[string]string{
 		"mode": "acme", "email": "a@example.org", "domains": "panel.example.org",
 		"provider": "cloudflare", "cf_token": token,
 	}), cookie)
@@ -240,7 +240,7 @@ func TestCloudflareTokenLandetInEigenerDatei(t *testing.T) {
 	if strings.Contains(string(ergaenzung), token) {
 		t.Error("das Token steht in der Konfigurationsergänzung")
 	}
-	if strings.Contains(get(t, s, "/certificate", cookie).Body.String(), token) {
+	if strings.Contains(get(t, s, "/alt/certificate", cookie).Body.String(), token) {
 		t.Error("das Token wird auf der Seite zurückgezeigt")
 	}
 }
@@ -256,7 +256,7 @@ func TestLeeresTokenfeldBehaeltDenZugang(t *testing.T) {
 		"mode": "acme", "email": "a@example.org", "domains": "panel.example.org",
 		"provider": "cloudflare", "cf_token": "erstes-token",
 	}
-	if rec := post(t, s, "/certificate", zertForm(csrf, felder), cookie); rec.Code != http.StatusOK {
+	if rec := post(t, s, "/alt/certificate", zertForm(csrf, felder), cookie); rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}
 	pfad := s.tlsSettings().ACME.DNS01.Cloudflare.APITokenFile
@@ -264,7 +264,7 @@ func TestLeeresTokenfeldBehaeltDenZugang(t *testing.T) {
 	// Zweites Speichern ohne Token, aber mit geänderter Domain.
 	felder["cf_token"] = ""
 	felder["domains"] = "anders.example.org"
-	rec := post(t, s, "/certificate", zertForm(csrf, felder), cookie)
+	rec := post(t, s, "/alt/certificate", zertForm(csrf, felder), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("zweites Speichern: Status = %d: %s", rec.Code, rec.Body.String())
 	}
@@ -284,12 +284,12 @@ func TestZurueckAufSelbstsigniert(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	if rec := post(t, s, "/certificate", zertForm(csrf, map[string]string{
+	if rec := post(t, s, "/alt/certificate", zertForm(csrf, map[string]string{
 		"mode": "acme", "email": "a@example.org", "domains": "panel.example.org",
 	}), cookie); rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}
-	rec := post(t, s, "/certificate", zertForm(csrf, map[string]string{"mode": "selfsigned"}), cookie)
+	rec := post(t, s, "/alt/certificate", zertForm(csrf, map[string]string{"mode": "selfsigned"}), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("zurück: Status = %d: %s", rec.Code, rec.Body.String())
 	}
@@ -304,7 +304,7 @@ func TestZertEinstellungenNurMitSchreibrecht(t *testing.T) {
 	user := addUser(t, s, "leser", store.RoleReadOnly)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/certificate", zertForm(csrf, map[string]string{
+	rec := post(t, s, "/alt/certificate", zertForm(csrf, map[string]string{
 		"mode": "acme", "email": "a@example.org",
 	}), cookie)
 	if rec.Code != http.StatusForbidden {
@@ -321,7 +321,7 @@ func TestBeziehenOhneACME(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/certificate/obtain", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/certificate/obtain", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status = %d, erwartet 400", rec.Code)
 	}
@@ -456,10 +456,10 @@ func TestZertVerlaufErscheintAufDerSeite(t *testing.T) {
 	cookie, _ := login(t, s, user)
 
 	// Ohne Vorgang gibt es nichts zu zeigen und nichts zu streamen.
-	if body := get(t, s, "/certificate", cookie).Body.String(); strings.Contains(body, "Verlauf des Bezugs") {
+	if body := get(t, s, "/alt/certificate", cookie).Body.String(); strings.Contains(body, "Verlauf des Bezugs") {
 		t.Error("ein Verlauf wird angezeigt, obwohl nie einer lief")
 	}
-	if rec := get(t, s, "/certificate/events", cookie); rec.Code != http.StatusNotFound {
+	if rec := get(t, s, "/alt/certificate/events", cookie); rec.Code != http.StatusNotFound {
 		t.Errorf("Strom ohne Vorgang: Status = %d, erwartet 404", rec.Code)
 	}
 
@@ -467,12 +467,12 @@ func TestZertVerlaufErscheintAufDerSeite(t *testing.T) {
 	p.Begin([]string{"panel.example.org"})
 	p.Step("_acme-challenge.panel.example.org: TXT-Record gesetzt")
 
-	body := get(t, s, "/certificate", cookie).Body.String()
+	body := get(t, s, "/alt/certificate", cookie).Body.String()
 	for _, will := range []string{
 		"Verlauf des Bezugs",
 		"Bezug für: panel.example.org",
 		"TXT-Record gesetzt",
-		`data-events="/certificate/events"`,
+		`data-events="/alt/certificate/events"`,
 		"/static/job.js", // nur solange er läuft
 		"läuft …",
 	} {
@@ -484,7 +484,7 @@ func TestZertVerlaufErscheintAufDerSeite(t *testing.T) {
 	// Wer später dazukommt, bekommt den ganzen bisherigen Lauf. Der Strom
 	// bleibt danach offen — deshalb mit Frist, sonst wartete der Test bis zum
 	// Ende des Vorgangs, den hier niemand beendet.
-	rec := stream(t, s, "/certificate/events", cookie, 200*time.Millisecond)
+	rec := stream(t, s, "/alt/certificate/events", cookie, 200*time.Millisecond)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Strom: Status = %d", rec.Code)
 	}
@@ -498,13 +498,13 @@ func TestZertVerlaufErscheintAufDerSeite(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 		p.Step("panel.example.org: bestätigt")
 	}()
-	rec = stream(t, s, "/certificate/events", cookie, 300*time.Millisecond)
+	rec = stream(t, s, "/alt/certificate/events", cookie, 300*time.Millisecond)
 	if !strings.Contains(rec.Body.String(), "bestätigt") {
 		t.Errorf("eine später entstandene Zeile kam nicht an: %s", rec.Body.String())
 	}
 
 	p.End(nil)
-	body = get(t, s, "/certificate", cookie).Body.String()
+	body = get(t, s, "/alt/certificate", cookie).Body.String()
 	if !strings.Contains(body, "abgeschlossen") || strings.Contains(body, "läuft …") {
 		t.Error("der abgeschlossene Vorgang steht weiter auf \"läuft\"")
 	}
@@ -525,7 +525,7 @@ func TestZertVerlaufZeigtFehlschlag(t *testing.T) {
 	p.Begin([]string{"panel.example.org"})
 	p.End(errors.New("autorisierung fehlgeschlagen für panel.example.org"))
 
-	body := get(t, s, "/certificate", cookie).Body.String()
+	body := get(t, s, "/alt/certificate", cookie).Body.String()
 	for _, will := range []string{"fehlgeschlagen", "autorisierung fehlgeschlagen"} {
 		if !strings.Contains(body, will) {
 			t.Errorf("auf der Seite fehlt %q", will)

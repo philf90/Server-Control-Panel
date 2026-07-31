@@ -38,7 +38,7 @@ func TestAngriffDateinameImHTML(t *testing.T) {
 		lege(t, filepath.Join(arbeit, name), "x")
 	}
 
-	rec := get(t, s, "/files?path="+urlWert(arbeit), cookie)
+	rec := get(t, s, "/alt/files?path="+urlWert(arbeit), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
@@ -57,7 +57,7 @@ func TestAngriffDateinameImHTML(t *testing.T) {
 
 	// Dasselbe auf der Detailseite und im Editor.
 	pfad := filepath.Join(arbeit, namen[0])
-	for _, route := range []string{"/files/entry?path=", "/files/edit?path="} {
+	for _, route := range []string{"/alt/files/entry?path=", "/alt/files/edit?path="} {
 		rec = get(t, s, route+urlWert(pfad), cookie)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s: Status %d — %s", route, rec.Code, truncate(rec.Body.String(), 200))
@@ -80,7 +80,7 @@ func TestAngriffDateinameImAuditLog(t *testing.T) {
 	// Der Versuch: ein Pfad mit Zeilenumbruch und einem gefälschten zweiten
 	// Eintrag dahinter.
 	boese := arbeit + "/harmlos.txt\n2026-01-01T00:00:00Z\troot\tfiles.delete\t/\tok"
-	rec := post(t, s, "/files/delete", formular(csrf, "path", boese), cookie)
+	rec := post(t, s, "/alt/files/delete", formular(csrf, "path", boese), cookie)
 	if rec.Code == http.StatusOK {
 		t.Fatal("ein Pfad mit Zeilenumbruch wurde angenommen")
 	}
@@ -109,7 +109,7 @@ func TestAngriffQueryMitNullByte(t *testing.T) {
 
 	lege(t, filepath.Join(wurzel, "schreibbar", "da.txt"), "x")
 
-	ziel := "/files/download?path=" + url.QueryEscape(filepath.Join(wurzel, "schreibbar", "da.txt")+"\x00.png")
+	ziel := "/alt/files/download?path=" + url.QueryEscape(filepath.Join(wurzel, "schreibbar", "da.txt")+"\x00.png")
 	rec := get(t, s, ziel, cookie)
 	if rec.Code == http.StatusOK {
 		t.Errorf("ein Pfad mit NUL-Byte wurde ausgeliefert (%d Bytes)", rec.Body.Len())
@@ -124,14 +124,14 @@ func TestAngriffOhneAnmeldungAufSchreibrouten(t *testing.T) {
 	lege(t, filepath.Join(arbeit, "da.txt"), "unberührt")
 
 	routen := map[string]url.Values{
-		"/files/mkdir":  {"dir": {arbeit}, "name": {"x"}},
-		"/files/touch":  {"dir": {arbeit}, "name": {"y.txt"}},
-		"/files/rename": {"path": {filepath.Join(arbeit, "da.txt")}, "name": {"z.txt"}},
-		"/files/copy":   {"path": {filepath.Join(arbeit, "da.txt")}, "target": {arbeit}},
-		"/files/move":   {"path": {filepath.Join(arbeit, "da.txt")}, "target": {arbeit}},
-		"/files/delete": {"path": {filepath.Join(arbeit, "da.txt")}},
-		"/files/mode":   {"path": {filepath.Join(arbeit, "da.txt")}, "mode": {"777"}},
-		"/files/save":   {"path": {filepath.Join(arbeit, "da.txt")}, "content": {"verändert"}},
+		"/alt/files/mkdir":  {"dir": {arbeit}, "name": {"x"}},
+		"/alt/files/touch":  {"dir": {arbeit}, "name": {"y.txt"}},
+		"/alt/files/rename": {"path": {filepath.Join(arbeit, "da.txt")}, "name": {"z.txt"}},
+		"/alt/files/copy":   {"path": {filepath.Join(arbeit, "da.txt")}, "target": {arbeit}},
+		"/alt/files/move":   {"path": {filepath.Join(arbeit, "da.txt")}, "target": {arbeit}},
+		"/alt/files/delete": {"path": {filepath.Join(arbeit, "da.txt")}},
+		"/alt/files/mode":   {"path": {filepath.Join(arbeit, "da.txt")}, "mode": {"777"}},
+		"/alt/files/save":   {"path": {filepath.Join(arbeit, "da.txt")}, "content": {"verändert"}},
 	}
 	for route, werte := range routen {
 		rec := post(t, s, route, werte, nil)
@@ -166,7 +166,7 @@ func TestAngriffDownloadEinerHTMLDatei(t *testing.T) {
 	pfad := filepath.Join(wurzel, "schreibbar", "seite.html")
 	lege(t, pfad, "<html><script>fetch('/users')</script></html>")
 
-	rec := get(t, s, "/files/download?path="+urlWert(pfad), cookie)
+	rec := get(t, s, "/alt/files/download?path="+urlWert(pfad), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
@@ -193,11 +193,11 @@ func TestAngriffEditorSpeichertNichtUeberSperrliste(t *testing.T) {
 	lege(t, geheim, "privater Schlüssel")
 
 	// Lesen im Editor ist schon abgelehnt.
-	if rec := get(t, s, "/files/edit?path="+urlWert(geheim), cookie); rec.Code != http.StatusForbidden {
+	if rec := get(t, s, "/alt/files/edit?path="+urlWert(geheim), cookie); rec.Code != http.StatusForbidden {
 		t.Errorf("Editor auf gesperrte Datei: Status %d, erwartet 403", rec.Code)
 	}
 	// Speichern ohne vorheriges Lesen ebenso.
-	rec := post(t, s, "/files/save", formular(csrf, "path", geheim, "content", "ersetzt"), cookie)
+	rec := post(t, s, "/alt/files/save", formular(csrf, "path", geheim, "content", "ersetzt"), cookie)
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("Speichern auf gesperrte Datei: Status %d, erwartet 403 — %s", rec.Code, truncate(rec.Body.String(), 200))
 	}

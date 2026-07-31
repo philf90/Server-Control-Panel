@@ -122,7 +122,7 @@ func TestPasskeyBrowserFlow(t *testing.T) {
 // Endpunkte antworten korrekt, es kommt nur nie ein gültiger Nachweis an.
 //
 // Geprüft wird deshalb nicht, ob ein Eintrag in der Liste erscheint, sondern ob
-// ein über /v2/konto registrierter Passkey eine echte ANMELDUNG trägt. Erst das
+// ein über /konto registrierter Passkey eine echte ANMELDUNG trägt. Erst das
 // heißt, dass die ganze Kette stimmt.
 func TestPasskeyBrowserV2(t *testing.T) {
 	out, s, user := runPasskeyBrowser(t, "v2")
@@ -228,7 +228,7 @@ func TestPasskeyBrowserV2(t *testing.T) {
 		}
 	}
 	if !angemeldet {
-		t.Error("keine Passkey-Anmeldung im Audit-Protokoll — ein über /v2/konto " +
+		t.Error("keine Passkey-Anmeldung im Audit-Protokoll — ein über /konto " +
 			"hinterlegter Schlüssel trägt dann keine Anmeldung, und die Umrechnung " +
 			"in lib/api.ts ist die erste Stelle, an der das schiefgeht")
 	}

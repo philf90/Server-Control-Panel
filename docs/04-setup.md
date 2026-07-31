@@ -175,7 +175,7 @@ sudo curl -fsSL --proto '=https' --tlsv1.2 \
 sudo tee /etc/apt/sources.list.d/asylum.sources > /dev/null <<'EOF'
 Types: deb
 URIs: https://repo.cloudsrv24.de/apt
-Suites: beta
+Suites: stable
 Components: main
 Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
 EOF
@@ -186,9 +186,12 @@ sudo apt update && sudo apt install asylum-panel
 **`Suites:` muss zu einem Kanal passen, den es schon gibt.** Der Wert ist der
 Kanal aus [05-updates.md](05-updates.md#kanäle): `stable` oder `beta`. Ein Kanal
 entsteht erst, wenn zum ersten Mal eine passende Fassung veröffentlicht wurde —
-`beta` mit der ersten Vorabversion, `stable` mit der ersten Freigabe. Solange es
-nur Vorabversionen gibt (`0.1.0-rc.2` und dergleichen), existiert
-`apt/dists/stable/` schlicht nicht, und apt bricht ab:
+`beta` mit der ersten Vorabversion, `stable` mit der ersten Freigabe. **Beide
+gibt es**: `beta` seit `v0.1.0-rc.1`, `stable` seit `v0.4.0`. Wer
+Vorabversionen mittragen will, trägt `beta` ein; ein Kanalwechsel ist das
+Ändern dieser einen Zeile plus `sudo apt update`.
+
+Fehlte ein Kanal, bräche apt ab — so sah das bis 0.4.0 für `stable` aus:
 
 ```
 Fehl: https://repo.cloudsrv24.de/apt stable Release  404  Not Found
@@ -196,9 +199,7 @@ E: Das Depot »… stable Release« enthält keine Release-Datei.
 ```
 
 Das ist kein Fehler des Repositories, sondern die richtige Antwort auf die
-Frage nach einem Kanal ohne Inhalt. Bis zur ersten Freigabe steht dort also
-`Suites: beta`; danach genügt ein Ändern der Zeile auf `stable` und ein
-`sudo apt update`. Welche Kanäle es aktuell gibt, steht auf
+Frage nach einem Kanal ohne Inhalt. Welche Kanäle es aktuell gibt, steht auf
 [repo.cloudsrv24.de](https://repo.cloudsrv24.de/) und lässt sich direkt prüfen:
 
 ```bash

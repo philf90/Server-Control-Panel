@@ -9,6 +9,34 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Behoben
+
+- **Die angekündigten Module nannten die falsche Fassung.** Docker stand mit
+  „ab 0.6" im Menü, Webserver mit 0.7, Datenbanken mit 0.8, Backups mit 0.9 —
+  jeweils eine Stufe zu hoch. Richtig sind 0.5, 0.6, 0.7 und 0.8
+  (`docs/16-neukonzeption.md` §5); die Verschiebung stammt daher, dass Cron
+  beim Schreiben der Liste noch als eigene Stufe gezählt wurde. Eine Auskunft,
+  die sich um eine Fassung irrt, ist schlimmer als keine: Sie steht an der
+  einzigen Stelle, an der jemand nachsieht, wann ein Modul kommt, und niemand
+  prüft sie nach.
+
+- **Die Seite „bald" trug einen Ersatzweg für Cron**, das seit 0.4.0 gebaut ist.
+  Der Eintrag war unerreichbar — die Seite erscheint nur für angekündigte
+  Module, und Cron steht dort nicht mehr —, aber ein Ersatzweg für ein fertiges
+  Modul ist irreführend, sobald ihn jemand wieder sichtbar macht.
+
+### Geändert
+
+- **Die Planungsdokumente stehen auf dem Stand 0.4.1.** `06-roadmap.md` trennt
+  Rückblick und Ausblick und führt die Meilensteine 0.5 bis 1.0;
+  `03-funktionsumfang.md` löst die überholten Abschnitte v0.2 und v0.3 Punkt für
+  Punkt auf; `15-neuordnung.md` vermerkt, dass die Kommandobrücke abgelöst ist,
+  Befund und fünf Grundsätze aber fortgelten; `02-architektur.md` nennt die
+  Sitzungslaufzeiten und berichtigt Repo-Layout und Heimat der Sitzungen;
+  `04-setup.md` und `05-updates.md` nennen `stable`, den es seit `v0.4.0` gibt;
+  der README beschreibt die neue Oberfläche statt der abgebauten. Damit ist die
+  Liste der Folgearbeiten in `16-neukonzeption.md` §12 abgearbeitet.
+
 ## [0.4.1] — 2026-07-31
 
 **Die alte Oberfläche ist weg.** Was 0.4.0 unter `/alt/` als Rückweg

@@ -1,5 +1,15 @@
 # 14 — Neuordnung der Oberfläche
 
+> **Abgelöst (Stand 0.4.1), aber nicht ungültig.** Umgesetzt wurde Entwurf 1,
+> die **Kommandobrücke**. Sie hat sich im Betrieb nicht bewährt und ist mit der
+> Neukonzeption durch den **Leitstand** ersetzt; die Fläche, die sie trug, ist
+> mit 0.4.1 abgebaut. Was bleibt, ist der wertvollere Teil dieses Dokuments:
+> der **Befund** und die **fünf Grundsätze**. Sie gelten unverändert und sind
+> die Messlatte der neuen Oberfläche —
+> [16-neukonzeption.md](16-neukonzeption.md) §8.2 baut das Gestaltungssystem
+> ausdrücklich auf ihnen auf. Einzelheiten unten unter
+> [Was davon geblieben ist](#was-davon-geblieben-ist).
+
 Drei Entwürfe dafür, wie das Panel angeordnet sein müsste, damit beim Öffnen das
 Gefühl entsteht, an den Reglern zu sitzen statt einen Bericht zu lesen. Die
 Mappe mit allen Mockups in Hell und Dunkel:
@@ -46,6 +56,40 @@ Zwei Entscheidungen, die beim Bauen fielen:
 **Noch nicht umgesetzt:** die Befehlspalette (⌘K). Sie braucht einen eigenen
 Suchindex über Dienste, Dateien und Regeln und bleibt der optionale Teil des
 Entwurfs — die Schale trägt ohne sie.
+
+*Nachtrag: Sie kam mit der neuen Oberfläche
+(`web/src/komponenten/Befehlspalette.svelte`) und liest ihre Ziele aus derselben
+Liste wie die Seitenleiste (`web/src/lib/ziele.ts`) — zwei Fassungen desselben
+Menüs laufen sonst auseinander, und ein Modul, das die Suche nicht kennt, gilt
+als nicht vorhanden.*
+
+## Was davon geblieben ist
+
+Der Text ab hier ist der Stand vor der Neukonzeption und beschreibt eine
+Oberfläche, die es nicht mehr gibt. Er bleibt stehen, weil die Herleitung
+weitergilt — hier die Abrechnung, Punkt für Punkt:
+
+| Teil dieses Dokuments | Stand |
+|---|---|
+| **Befund** (vier Entscheidungen, die zusammen zum Lesen statt Bedienen führten) | gilt unverändert; er ist der Anlass beider Oberflächen |
+| **Fünf Grundsätze** | gelten unverändert, wiedergegeben in [16](16-neukonzeption.md) §8.3, dort um einen sechsten ergänzt (Rückweg mit Frist) |
+| **Entwurf 1 · Kommandobrücke** | gebaut, **abgelöst** — die Schale (Statusband, Konsolen-Echo) ist in den Leitstand übernommen |
+| **Entwurf 2 · Werkbank** | teilweise eingelöst: Liste plus Inspektor ist das Muster jeder Arbeitsseite ([16](16-neukonzeption.md) §8.4); die Änderungsablage kam nicht |
+| **Entwurf 3 · Leitstand** | **gewinnt** und gibt dem neuen Gestaltungssystem den Namen samt Grundsatz „Farbe trägt ausschließlich Zustand" |
+| **Die drei Mappen** | historisch; die gültige Entwurfsmappe ist [entwuerfe/neukonzept.html](entwuerfe/neukonzept.html) |
+| **Dateiverweise** (`internal/ui/templates/*.html`, `app.css`) | hinfällig — diese Vorlagen sind mit 0.4.1 entfernt; die Oberfläche liegt unter `web/src/` |
+
+Warum die Kommandobrücke nicht getragen hat, steht in
+[16-neukonzeption.md](16-neukonzeption.md) §1: Was sich bewährt hat, waren die
+Telemetrie-Kacheln der Übersicht — dunkle Karte, große Zahl, bernsteinfarbener
+Verlauf. Sie sind der Keim des neuen Systems; die Symbolschiene mit elf
+gleichrangigen Zielen ist es nicht geworden.
+
+Auch der Abschnitt [Vorher zu klären](#vorher-zu-klären) ist beantwortet: Die
+**Zahl der Module** ist über zwölf hinausgewachsen (achtzehn Ziele in vier
+Bereichen), womit die Schiene bzw. die gruppierte Seitenleiste gesetzt ist, und
+die **Konsole bleibt reines Echo** — ein Terminal mit Eingabe ist ein eigenes
+Modul und steht hinter 1.0 ([16](16-neukonzeption.md) §6).
 
 ## Befund
 

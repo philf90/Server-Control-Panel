@@ -1130,19 +1130,7 @@ Auslieferbares da; der Update-Kanal `beta` trägt die Zwischenstände wie bisher
 ## 12. Folgearbeiten an bestehenden Dokumenten
 
 Dieses Dokument ändert Entscheidungen, die anderswo dokumentiert sind. Damit
-die Doku nicht lügt, sind anzupassen:
-
-- **[15-neuordnung.md](15-neuordnung.md):** Vermerk, dass die Kommandobrücke
-  durch den Leitstand abgelöst wird; die fünf Grundsätze bleiben in Kraft.
-- **README:** Leitplanke „schlank und ressourcenschonend" umformulieren
-  (Abschnitt 3), Scope-Beschreibung erweitern.
-- **[02-architektur.md](02-architektur.md):** Die Sitzungszeile der
-  Sicherheitstabelle nennt „absolute + idle Expiry" ohne Zahlen — Verweis auf
-  Abschnitt 7.7 ergänzen. Dort steht außerdem `internal/auth` als Heimat der
-  Sitzungen; tatsächlich liegen sie in `internal/store` und
-  `internal/httpd`.
-
-**Erledigt:**
+die Doku nicht lügt, waren anzupassen — **die Liste ist mit 0.4.1 abgearbeitet:**
 
 - **CONTRIBUTING** trägt den Abschnitt zur Frontend-Werkzeugkette (Node 22,
   `make ui`, Reproduzierbarkeit, die drei Regeln für `web/`) seit der ersten
@@ -1156,6 +1144,27 @@ die Doku nicht lügt, sind anzupassen:
   sind als überholt markiert und lösen jeden ihrer Punkte in Abschnitt 5 oder 6
   auf; die Scope-Revision nach A+ und die zwei gefallenen Nicht-Ziele stehen an
   Ort und Stelle.
+- **[15-neuordnung.md](15-neuordnung.md)** (nach 0.4.1): trägt oben den Vermerk,
+  dass die Kommandobrücke abgelöst ist, und darunter eine Abrechnung Teil für
+  Teil — Befund und die fünf Grundsätze gelten fort, die Dateiverweise auf
+  `internal/ui/templates/` sind hinfällig.
+- **README** (nach 0.4.1): Status auf 0.4.1, Scope auf Verwaltung *und* Betrieb,
+  die fünfte Leitplanke auf „sparsam auf dem Server, großzügig in der
+  Werkstatt". Dabei fiel auf, dass die Beschreibung der Oberfläche noch die
+  Kommandobrücke zeigte, die Abhängigkeiten mit fünf statt sechs gezählt waren
+  und das Repo-Layout `web/`, `acme`, `passkeys` und `netinfo` nicht kannte.
+- **[02-architektur.md](02-architektur.md)** (nach 0.4.1): Die Sitzungszeile
+  nennt jetzt die Laufzeiten und verweist auf Abschnitt 7.8; die Heimat der
+  Sitzungen ist berichtigt (`store` und `httpd`, nicht `auth`). Das
+  Repository-Layout stand auf der ursprünglichen Planung mit
+  `internal/modules/` und `internal/audit/` — beides gibt es nicht, und einen
+  Konfigurationsschalter zum Abschalten eines Moduls auch nicht.
 
-Der Rest geschieht mit der Umsetzung der jeweiligen Stufe und nicht vorab —
-sonst beschreibt die Doku einen Zustand, den es noch nicht gibt.
+Zwei Dokumente kamen ungefragt dazu, weil dieselbe Prüfung sie als überholt
+auswies: **[04-setup.md](04-setup.md)** und **[05-updates.md](05-updates.md)**
+beschrieben die Beta-Phase, in der es nur den Kanal `beta` gab. Seit `v0.4.0` —
+dem ersten Tag ohne Bindestrich — gibt es `stable`; die apt-Anleitungen nennen
+ihn jetzt.
+
+Was hier neu hinzukommt, geschieht mit der Umsetzung der jeweiligen Stufe und
+nicht vorab — sonst beschreibt die Doku einen Zustand, den es noch nicht gibt.

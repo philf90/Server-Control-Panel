@@ -70,12 +70,19 @@ const gebauteSeiten: Record<string, Seite> = {
  *  Sie brauchen einen eigenen Zustand, weil die Alternative schlechter ist: Bis
  *  hierher zeigten sie auf / und landeten stillschweigend auf der Übersicht —
  *  ein Klick auf „Docker", der die Startseite bringt, sieht wie ein Fehler aus.
- *  Der Wert ist die Fassung, mit der das Modul kommt; die Seite sagt es. */
+ *  Der Wert ist die Fassung, mit der das Modul kommt; die Seite sagt es.
+ *
+ *  Die Zahlen stehen in docs/16-neukonzeption.md §5 und sind hier ihre zweite
+ *  Fassung — sie standen bis 0.4.1 um eine Stufe zu hoch (Docker „ab 0.6"
+ *  statt 0.5), weil Cron beim Schreiben noch als eigene Stufe gezählt wurde.
+ *  Eine Auskunft, die sich um eine Fassung irrt, ist schlimmer als keine: Sie
+ *  ist genau die Sorte Angabe, die niemand nachprüft. Wer hier etwas ändert,
+ *  ändert es dort mit. */
 export const angekuendigt: Record<string, string> = {
-  docker: "0.6",
-  webserver: "0.7",
-  datenbanken: "0.8",
-  backups: "0.9",
+  docker: "0.5",
+  webserver: "0.6",
+  datenbanken: "0.7",
+  backups: "0.8",
 };
 
 /** modul ist die Kennung hinter / — für die Seite „bald" die Auskunft,

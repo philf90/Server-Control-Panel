@@ -1,7 +1,7 @@
 <script lang="ts">
   // Die Seite für ein Modul, das es noch nicht gibt.
   //
-  // Sie ist der Ersatz für eine Warze: Cron, Docker, Webserver, Datenbanken und
+  // Sie ist der Ersatz für eine Warze: Docker, Webserver, Datenbanken und
   // Backups stehen im Menü, weil sie zum Leitbild gehören — aber sie zeigten bis
   // 0.4.0-rc.2 auf / und landeten stillschweigend auf der Übersicht. Ein
   // Klick auf „Docker", der die Startseite bringt, sieht wie ein Fehler aus, und
@@ -19,12 +19,12 @@
 
   // Was heute an seiner Stelle geht. Nicht für jedes Modul gibt es das, und dann
   // steht hier nichts — ein erfundener Ersatzweg wäre schlimmer als keiner.
+  //
+  // Cron stand hier bis 0.4.1 mit drin. Der Eintrag war seit dem Bau des Moduls
+  // unerreichbar — diese Seite kommt nur, wenn `angekuendigt` die Kennung kennt,
+  // und dort steht Cron nicht mehr. Ein Ersatzweg für ein gebautes Modul ist
+  // nicht bloß tot, er ist irreführend, falls er je wieder erreichbar würde.
   const heute: Record<string, { text: string; href: string; label: string }> = {
-    cron: {
-      text: "Systemd-Timer sind Units: Ihren Zustand und ihre letzte Ausführung zeigt heute schon die Dienstliste.",
-      href: "/dienste",
-      label: t.ziele.dienste,
-    },
     docker: {
       text: "Läuft dockerd als Dienst, sind Zustand und Journal dieses Dienstes schon sichtbar.",
       href: "/dienste",

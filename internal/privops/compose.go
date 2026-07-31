@@ -52,6 +52,8 @@ const (
 	// Compose-Datei. Er ist die einzige Auskunft darüber, ob eine Datei dem
 	// Panel gehört — der Ort allein genügt nicht.
 	stackMarker = "# Vom Panel verwaltet — Modul Docker."
+	// stackSicherung ist der Name der Sicherung neben der compose.yaml.
+	stackSicherung = "compose.yaml.bak"
 	// maxComposeGroesse begrenzt, was gelesen wird. Eine Compose-Datei ist
 	// selten größer als ein paar Kilobyte; alles darüber ist keine, und sie in
 	// den Speicher zu ziehen wäre der falsche Umgang damit.

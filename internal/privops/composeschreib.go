@@ -300,8 +300,21 @@ func (s *System) StackSchreiben(ctx context.Context, name, text string, panelPor
 	// Sicherung vor dem Tausch. Sie ist nicht der Rückweg für den Betreiber —
 	// dafür gibt es den Editor —, sondern der für den Fall, dass zwischen
 	// Schreiben und Neustart etwas dazwischenkommt.
-	if roh, err := os.ReadFile(ziel); err == nil { //nolint:gosec // Pfad aus geprüftem Namen
-		_ = os.WriteFile(ziel+".bak", roh, 0o600)
+	//
+	// Der Pfad der Sicherung wird über filepath.Join zusammengesetzt wie jeder
+	// andere Pfad dieser Datei — nicht über „ziel + \".bak\"".
+	//
+	// Die Taint-Analyse von gosec (G703) beanstandet beides, und sie hat damit
+	// nicht unrecht: Sie sieht, dass der Pfad aus einem Parameter stammt, und
+	// sie kann nicht sehen, dass PruefeStackName ihn oben auf
+	// ^[a-z0-9][a-z0-9_-]{0,62}$ eingeschränkt hat — ein Name, der einen
+	// Schrägstrich oder einen Punkt enthält, kommt hier gar nicht an. Die
+	// Abweisung steht deshalb hier und mit ihrem Grund, statt die Warnung durch
+	// eine Umformung zum Schweigen zu bringen, die nichts sicherer macht.
+	sicherung := filepath.Join(verzeichnis, stackSicherung)
+	if roh, err := os.ReadFile(ziel); err == nil { //nolint:gosec // Pfad aus geprüftem Namen, siehe oben
+		//nolint:gosec // G703: Pfad aus geprüftem Namen, siehe oben
+		_ = os.WriteFile(sicherung, roh, 0o600)
 	}
 	// rename(2) ist atomar: Ein Abbruch hinterlässt die alte oder die neue
 	// Datei, nie eine halbe. Ein „docker compose up", das genau in diesem

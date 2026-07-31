@@ -94,6 +94,31 @@ Sitzungen bleiben gültig.
   `konto`, und er prüft zusätzlich, dass am Passkey nach der Anmeldung nicht mehr
   „noch nie benutzt" steht.
 
+- **Die Bildschirmfotos in README und Doku zeigen die Oberfläche, die es gibt.**
+  Alle zehn stammten aus der alten Fläche. Sie entstehen jetzt aus dem
+  Leitstand-Browsertest (`ASYLUM_E2E_SHOTS`) — dieselbe Anwendung, dieselben
+  gestellten Daten, ein Weg statt eines eigenen Dump-Tests.
+
+- **Doku nachgezogen, wo sie gelöschten Code beschrieb.**
+  [14-bestaetigungen.md](docs/14-bestaetigungen.md) erklärte den Dialog über
+  `bestaetigen.js` und `data-bestaetigen`-Attribute; jetzt steht dort der Vertrag,
+  der tatsächlich gilt: **409** mit der Frage im Rumpf, dieselbe Anfrage erneut
+  mit `bestaetigt`, und **412** ausschließlich für den Hash-Konflikt im Editor.
+  [13-dateimanager.md](docs/13-dateimanager.md) nannte Routen unter `/files/…`
+  und die Skripte `rechte.js`/`files-upload.js`, dazu einen Weg ohne JavaScript,
+  den es nicht mehr gibt. Die Begründungen dahinter — Pfadwache, Rechtesemantik,
+  Zielauswahl ohne freie Eingabe, gestreamter Upload — sind unverändert; nur die
+  Fläche darüber ist eine andere.
+
+### Behoben
+
+- **Die Übersicht behauptete, die alte Oberfläche sei noch da.** Ganz oben stand
+  ein Band: „Neue Oberfläche im Aufbau — die alte bleibt unter `/` erreichbar und
+  unverändert." Während der Umstellung war das richtig und wichtig; nach dem
+  Abbau war es ein Hinweis auf ein Ziel, das 404 antwortet. Gefunden beim
+  Neuerstellen der Bildschirmfotos — kein Test hatte das Band je angesehen, weil
+  keiner nach einem Satz sucht, der stimmen soll.
+
 ## [0.4.0] — 2026-07-31
 
 **Die neue Oberfläche ist die Oberfläche.** Wer das Panel aufruft, bekommt sie;

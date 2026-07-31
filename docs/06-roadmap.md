@@ -273,8 +273,11 @@ erreichbaren Server — häufig vom Telefon aus bedient. Fast alle waren in der
 Entwicklungsumgebung unsichtbar: Am Schreibtisch fällt ein fehlender Breakpoint
 nicht auf, ein Container ohne systemd zeigt statt einer inaktiven Firewall ihre
 Fehlerbehandlung, und ein Auslastungsbalken, den `live.js` nachzieht, sieht
-richtig aus, obwohl sein Wert nie ankam. Für die Messung solcher Fälle schreibt
-`TestDumpSeiten` seit `rc.6` vollständige Seiten mit Beispieldaten heraus.
+richtig aus, obwohl sein Wert nie ankam. Für die Messung solcher Fälle schrieb
+`TestDumpSeiten` ab `rc.6` vollständige Seiten mit Beispieldaten heraus; er hing
+an den Vorlagen der alten Oberfläche und ist mit ihr entfallen (0.4.1). Was er
+leistete, leisten jetzt die Browsersuiten: Sie fahren die echte Fläche und legen
+auf Wunsch Bildschirmfotos ab (`ASYLUM_E2E_SHOTS`).
 
 `rc.7` trägt neben dem Fehler oben einen bewussten Umbau: Die Navigation ist
 jetzt eine nach System, Sicherheit und Betrieb gruppierte Seitenleiste statt
@@ -487,8 +490,8 @@ Zuerst **zusätzlich zu**, nicht anstelle von Passwort und TOTP.
   Klon-Erkennung (vermerkt, sperrt aber nicht), Audit-Einträge, Dokumentation.
 
 Der vollständige Durchlauf ist mit einem echten Browser und virtuellem
-Authenticator geprüft (`TestPasskeyBrowserFlow`): registrieren, abmelden, mit
-Passkey anmelden. Voraussetzung im Betrieb ist ein auflösbarer Hostname als
+Authenticator geprüft (`TestPasskeyBrowserKonto`): registrieren, umbenennen,
+abmelden, mit Passkey anmelden, entfernen. Voraussetzung im Betrieb ist ein auflösbarer Hostname als
 RP-ID — über eine IP funktioniert WebAuthn nicht.
 
 - Reihenfolge: erst als zusätzlicher zweiter Faktor neben TOTP (jetzt), dann —

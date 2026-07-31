@@ -111,7 +111,12 @@
   <span class="marke">{uebersicht.host.distro} · {uebersicht.host.kernel}</span>
 </div>
 
-<p class="vorschau">{t.vorschau}</p>
+<!-- Hier stand ein Band „Neue Oberfläche im Aufbau — die alte bleibt unter /
+     erreichbar und unverändert." Es war während der Umstellung richtig und
+     wichtig: Wer auf einer halb fertigen Fläche stand, sollte wissen, dass es
+     einen Rückweg gibt. Beides gilt nicht mehr — die Fläche ist vollständig, und
+     der Rückweg ist mit 0.4.1 abgebaut. Ein Hinweis auf ein Ziel, das 404
+     antwortet, ist schlimmer als keiner. -->
 
 <Urteil urteil={signale?.urteil ?? null} fehler={signalFehler} erneut={erneutErheben} />
 <Handlungsbedarf signale={signale?.signale ?? []} />
@@ -157,16 +162,6 @@
 {/if}
 
 <style>
-  .vorschau {
-    background: rgba(232, 163, 61, 0.1);
-    border: 1px solid var(--accent-dim);
-    border-radius: var(--r);
-    padding: 0.55rem 0.9rem;
-    font-size: 0.85rem;
-    color: var(--tx);
-    margin-bottom: 1.1rem;
-  }
-
   .kacheln {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

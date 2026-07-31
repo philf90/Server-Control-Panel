@@ -947,7 +947,4 @@ export const t = {
     abgemeldet: "Die Sitzung ist abgelaufen. Bitte neu anmelden.",
     erneut: "Erneut versuchen",
   },
-
-  vorschau:
-    "Neue Oberfläche im Aufbau — die alte bleibt unter / erreichbar und unverändert.",
 } as const;

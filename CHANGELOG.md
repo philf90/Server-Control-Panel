@@ -9,6 +9,27 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.0-rc.5] — 2026-07-31
+
+**Cron & systemd-Timer** — das erste Modul der neuen Oberfläche, das keine alte
+Fläche hat, und damit das erste, für das `privops` um eine neue Familie wächst.
+Von den zwei Neuerungen, die für die 0.4 über der Parität noch offen waren, ist
+damit eine erledigt; offen bleiben **API-Tokens**. Die alte Oberfläche unter `/`
+ist unverändert.
+
+**Was ein Beta-Tester wissen sollte, bevor er die Seite benutzt:** Diese Fläche
+ist die einzige des Panels, an der ein FREIER Befehl entsteht. Wer sie bedienen
+darf (Owner-Rolle), führt Code als den eingetragenen Benutzer aus — als root also
+mit vollen Rechten, unbeaufsichtigt, zur eingetragenen Zeit. Das ist nicht zu
+umgehen und nicht wegzutypisieren, denn genau das ist cron. Was das Panel
+stattdessen tut, steht unten und ausführlich in
+[docs/16-neukonzeption.md](docs/16-neukonzeption.md) unter 4.2 und 7.2.
+
+Die alte Oberfläche ist nachprüfbar unverändert: kein Diff in
+`internal/ui/templates`, `internal/ui/static` und in keiner der Handlerdateien,
+die sie bedienen. Cron gibt es dort nicht und wird es nicht geben — das Modul ist
+neu und steht nur unter `/v2/cron`.
+
 ### Hinzugefügt
 
 - **Modul Cron & systemd-Timer in der neuen Oberfläche** (`/v2/cron`, vier

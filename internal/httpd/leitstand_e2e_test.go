@@ -671,6 +671,97 @@ type ergebnisLeitstand struct {
 		Ersatz   string `json:"ersatz"`
 		NavAktiv string `json:"navAktiv"`
 	} `json:"bald"`
+	Dock struct {
+		Pfad      string   `json:"pfad"`
+		Titel     string   `json:"titel"`
+		Karten    int      `json:"karten"`
+		Anmerkung string   `json:"anmerkung"`
+		Knoepfe   []string `json:"knoepfe"`
+		IstBald   bool     `json:"istBald"`
+		NavAktiv  string   `json:"navAktiv"`
+		Reihen    []struct {
+			Name    string `json:"name"`
+			Zustand string `json:"zustand"`
+		} `json:"reihen"`
+		NachKlick struct {
+			Suche      string   `json:"suche"`
+			Titel      string   `json:"titel"`
+			Auszug     string   `json:"auszug"`
+			Handgriffe []string `json:"handgriffe"`
+		} `json:"nachKlick"`
+		Rueckfrage struct {
+			Offen    bool   `json:"offen"`
+			Frage    string `json:"frage"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"rueckfrage"`
+		NachZurueck struct {
+			Inspektor bool   `json:"inspektor"`
+			Suche     string `json:"suche"`
+		} `json:"nachZurueck"`
+		Stacks struct {
+			Reihen []struct {
+				Name     string `json:"name"`
+				Dienste  string `json:"dienste"`
+				Zustand  string `json:"zustand"`
+				Herkunft string `json:"herkunft"`
+			} `json:"reihen"`
+			Titel string `json:"titel"`
+			Datei string `json:"datei"`
+			Suche string `json:"suche"`
+		} `json:"stacks"`
+		StackAktionen []string `json:"stackAktionen"`
+		StackFrage    struct {
+			Offen    bool   `json:"offen"`
+			Text     string `json:"text"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"stackFrage"`
+		StackEditor struct {
+			Da      bool     `json:"da"`
+			Inhalt  string   `json:"inhalt"`
+			Knoepfe []string `json:"knoepfe"`
+		} `json:"stackEditor"`
+		StackFremd struct {
+			Titel   string   `json:"titel"`
+			Knoepfe []string `json:"knoepfe"`
+		} `json:"stackFremd"`
+		Ports struct {
+			Zeilen []struct {
+				Port    string `json:"port"`
+				Adresse string `json:"adresse"`
+				Urteil  string `json:"urteil"`
+				Stufe   string `json:"stufe"`
+			} `json:"zeilen"`
+			Warnung string `json:"warnung"`
+		} `json:"ports"`
+		Updates struct {
+			Zeilen []struct {
+				Ref      string `json:"ref"`
+				Stand    string `json:"stand"`
+				Stufe    string `json:"stufe"`
+				Gebrauch string `json:"gebrauch"`
+				Knopf    string `json:"knopf"`
+			} `json:"zeilen"`
+			UngeprueftSatz string `json:"ungeprueftSatz"`
+		} `json:"updates"`
+		Ereignisse struct {
+			VorherOffen bool `json:"vorherOffen"`
+			Zeilen      []struct {
+				Aktion string `json:"aktion"`
+				Stufe  string `json:"stufe"`
+				Objekt string `json:"objekt"`
+			} `json:"zeilen"`
+		} `json:"ereignisse"`
+		Bestand struct {
+			Ueberschriften []string `json:"ueberschriften"`
+			PlatteDa       bool     `json:"platteDa"`
+			Freigebbar     string   `json:"freigebbar"`
+			Abbilder       []struct {
+				Text  string `json:"text"`
+				Knopf bool   `json:"knopf"`
+			} `json:"abbilder"`
+			AufraeumKnoepfe []string `json:"aufraeumKnoepfe"`
+		} `json:"bestand"`
+	} `json:"dock"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -838,6 +929,113 @@ func TestLeitstandBrowser(t *testing.T) {
 		Rules: []privops.FirewallRule{
 			{Port: 8443, Protocol: "tcp", Comment: "Asylum-Panel"},
 			{Port: 22, Protocol: "tcp", Comment: "SSH"},
+			// Für die Portübersicht: 8080 ist bewusst geöffnet, 9000 nicht.
+			{Port: 8080, Protocol: "tcp", Comment: "Reverse-Proxy"},
+		},
+	}
+
+	// Docker als laufend, mit vier Containern. Der zweite ist laufend UND
+	// ungesund — der Fall, den man am leichtesten übersieht und der deshalb im
+	// Browser geprüft gehört: Er steht auf „läuft" und muss trotzdem oben stehen.
+	ops.docker = privops.DockerState{
+		Installiert: true, DaemonLaeuft: true, ComposeVerfuegbar: true,
+		ClientVersion: "27.5.1", ServerVersion: "27.5.1", ComposeVersion: "2.32.4",
+		Paket: "docker.io",
+	}
+	ops.container = []privops.Container{
+		// Die Ports dieser beiden decken alle drei Urteile der Portübersicht ab:
+		// 8080 ist offen UND in ufw (gewollt), 9443 nur lokal gebunden, und 9000
+		// ist offen, OHNE dass ufw ihn kennt — der Befund, wegen dessen es die
+		// Seite gibt.
+		{
+			ID: "aaaa11112222", Name: "web-proxy-1", Image: "nginx:alpine",
+			Zustand: "running", Status: "Up 3 hours (healthy)", Gesundheit: "healthy",
+			Ports: "0.0.0.0:8080->80/tcp, 127.0.0.1:9443->9443/tcp",
+			Stack: "web", Dienst: "proxy",
+		},
+		{
+			ID: "bbbb11112222", Name: "web-api-1", Image: "api:1.4",
+			Zustand: "running", Status: "Up 2 hours (unhealthy)", Gesundheit: "unhealthy",
+			Ports: "0.0.0.0:9000->9000/tcp", Stack: "web", Dienst: "api",
+		},
+		{
+			ID: "cccc11112222", Name: "web-db-1", Image: "postgres:16",
+			Zustand: "exited", Status: "Exited (137) 2 days ago", Stack: "web", Dienst: "db",
+		},
+		{
+			ID: "dddd11112222", Name: "auftrag", Image: "alpine",
+			Zustand: "exited", Status: "Exited (0) 5 minutes ago",
+		},
+	}
+	ops.images = []privops.Image{
+		{ID: "sha256:aaa", Repo: "nginx", Tag: "alpine", Groesse: "48.9MB", Erstellt: "11 days ago"},
+		{ID: "sha256:bbb", Repo: "<none>", Tag: "<none>", Groesse: "1.02GB", Erstellt: "3 days ago", Verwaist: true},
+	}
+	ops.volumes = []privops.Volume{
+		{Name: "web_daten", Treiber: "local", Ort: "/var/lib/docker/volumes/web_daten/_data"},
+	}
+	ops.netze = []privops.Netz{
+		{ID: "1a2b3c", Name: "bridge", Treiber: "bridge", Bereich: "local"},
+		{ID: "4d5e6f", Name: "web_default", Treiber: "bridge", Bereich: "local"},
+	}
+	ops.df = []privops.Bestandsposten{
+		{Art: "Images", Anzahl: "12", Aktiv: "5", Groesse: "3.2GB", Freigebbar: "1.5GB (46%)"},
+		{Art: "Local Volumes", Anzahl: "5", Aktiv: "2", Groesse: "1GB", Freigebbar: "800MB (80%)"},
+	}
+	ops.containerLogs = []string{
+		"2026-07-31T10:00:00.000000000Z Konfiguration geladen",
+		"2026-07-31T10:00:01.000000000Z bereit auf :80",
+	}
+	// Zwei Stacks, und der Unterschied zwischen ihnen ist der Grund, warum sie
+	// hier stehen: „web" ist verwaltet und halb oben — der auffällige Fall, der
+	// aussieht wie „läuft". „fremd" hat jemand außerhalb des Panels angelegt und
+	// bleibt deshalb ohne jeden Schreibgriff.
+	ops.stacks = []privops.Stack{
+		{
+			Name: "web", Verwaltet: true, Datei: "/opt/asylum/stacks/web/compose.yaml",
+			Status: "running(2), exited(1)", Laufend: 2, Gesamt: 3, Gestartet: true,
+		},
+		{
+			Name: "fremd", Datei: "/srv/fremd/docker-compose.yml",
+			Status: "running(1)", Laufend: 1, Gesamt: 1, Gestartet: true,
+		},
+	}
+	ops.stackText = map[string]string{
+		"web":   "services:\n  proxy:\n    image: nginx:alpine\n    ports: [\"8080:80\"]\n",
+		"fremd": "services:\n  irgendwas:\n    image: busybox\n",
+	}
+	// Ein Stand der Update-Prüfung im Store — sonst zeigte die Fläche nur „noch
+	// nicht geprüft". Die beiden Zeilen decken die zwei Aussagen ab, auf die es
+	// ankommt: eine neuere Fassung (mit Griff am Stack) und ein Abbild, zu dem
+	// KEIN belastbarer Vergleich zustande kam.
+	if err := s.updatestandSchreiben(t.Context(), gespeicherterUpdatestand{
+		Geprueft: time.Now().UTC(),
+		Staende: []privops.Updatestand{
+			{
+				Ref: "nginx:alpine", Geprueft: true, Neu: true, Weg: "buildx",
+				LokalDigest: "sha256:aaaa111122223333", FernDigest: "sha256:bbbb111122223333",
+			},
+			{
+				Ref: "api:1.4",
+				Grund: "Mehrarchitektur-Abbild: Lokal liegt die Kennung der Manifestliste, " +
+					"und die gibt „docker manifest inspect\" nicht her.",
+			},
+		},
+	}); err != nil {
+		t.Fatalf("Updatestand ablegen: %v", err)
+	}
+
+	// Zwei Ereignisse, und der Unterschied zwischen ihnen ist der Grund, warum
+	// sie hier stehen: Ein Start ist Betriebsgeräusch, ein Exit 137 ist der
+	// Befund, wegen dessen jemand den Strom öffnet.
+	ops.events = []privops.DockerEreignis{
+		{
+			Zeit: time.Now(), Art: "container", Aktion: "start",
+			Objekt: "web-proxy-1", Stack: "web", Dienst: "proxy",
+		},
+		{
+			Zeit: time.Now(), Art: "container", Aktion: "die",
+			Objekt: "web-db-1", Stack: "web", Dienst: "db", Zusatz: "Exit 137",
 		},
 	}
 
@@ -2658,11 +2856,11 @@ func TestLeitstandBrowser(t *testing.T) {
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2
 	// stillschweigend auf der Übersicht; jetzt sagt eine Seite, worum es geht.
 	b := e.Bald
-	if b.Pfad != "/docker" {
-		t.Errorf("der Pfad ist %q, erwartet /docker", b.Pfad)
+	if b.Pfad != "/webserver" {
+		t.Errorf("der Pfad ist %q, erwartet /webserver", b.Pfad)
 	}
-	if b.Titel != "Docker" {
-		t.Errorf("die Überschrift ist %q, erwartet Docker — die Seite nennt nicht, "+
+	if b.Titel != "Webserver" {
+		t.Errorf("die Überschrift ist %q, erwartet Webserver — die Seite nennt nicht, "+
 			"worum es geht", b.Titel)
 	}
 	if !strings.Contains(b.Marke, "0.6") {
@@ -2674,10 +2872,324 @@ func TestLeitstandBrowser(t *testing.T) {
 	if b.Ersatz == "" {
 		t.Error("die Seite nennt keinen Weg, der heute schon geht")
 	}
-	if b.NavAktiv != "/docker" {
+	if b.NavAktiv != "/webserver" {
 		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q) — "+
 			"dann sieht die Seite aus wie eine, auf die man versehentlich geraten ist",
 			b.NavAktiv)
+	}
+
+	// 6h. Das Modul Docker, Schritt 1 der Fassung 0.5. Der Kern ist, dass aus dem
+	// Zustand der richtige Handgriff wird: Die Attrappe meldet ein fehlendes
+	// Docker, und dann gehört genau ein Knopf auf die Seite.
+	dk := e.Dock
+	if dk.Pfad != "/docker" {
+		t.Errorf("der Pfad ist %q, erwartet /docker", dk.Pfad)
+	}
+	if dk.IstBald {
+		t.Error("der Menüpunkt Docker führt weiter auf die Seite „bald" + `"` +
+			" — das Modul ist gebaut, und eine Vertröstung davor wäre eine Unwahrheit")
+	}
+	if dk.Titel != "Docker" {
+		t.Errorf("die Überschrift ist %q, erwartet Docker", dk.Titel)
+	}
+	// Drei Karten: Laufzeit, Daemon, Compose. Sie sind der Grund, warum die Seite
+	// in dieser Fassung schon existiert.
+	if dk.Karten != 3 {
+		t.Errorf("die Seite zeigt %d Karten, erwartet 3 (Laufzeit, Daemon, Compose)", dk.Karten)
+	}
+	// Die Attrappe meldet ein vollständiges Docker. Dann schweigt die Seite: Ein
+	// Satz, der immer dasteht, wird nicht gelesen — und dann wird auch der nicht
+	// gelesen, der zählt. Ebenso der Knopf: Es gibt nichts einzuspielen.
+	if dk.Anmerkung != "" {
+		t.Errorf("bei vollständigem Docker sollte kein Hinweis stehen, steht aber %q", dk.Anmerkung)
+	}
+	if len(dk.Knoepfe) != 0 {
+		t.Errorf("bei vollständigem Docker gehört kein Knopf auf die Seite, gefunden: %v — "+
+			"er würde in dieser Lage nichts bewirken", dk.Knoepfe)
+	}
+	if dk.NavAktiv != "/docker" {
+		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q)", dk.NavAktiv)
+	}
+
+	// Die Stackwerkbank, Schritt 4. Drei Dinge sind hier nur im Browser zu sehen.
+	st := dk.Stacks
+	if len(st.Reihen) != 2 {
+		t.Fatalf("erwartet 2 Stackzeilen, gerendert sind %d", len(st.Reihen))
+	}
+	// Erstens die Reihenfolge: Der halb oben stehende Stack gehört nach oben.
+	// Ein Projekt, von dem zwei von drei Diensten laufen, ist kaputt und sieht
+	// aus wie „läuft".
+	if st.Reihen[0].Name != "web" || !strings.Contains(st.Reihen[0].Zustand, "warn") {
+		t.Errorf("der halb laufende Stack steht nicht oben oder trägt die falsche Stufe: %+v",
+			st.Reihen[0])
+	}
+	// Zweitens die Herkunft als eigene Spalte: Sie ist die Zusage, an welcher
+	// Datei das Panel nie rührt. Als Fußnote sucht später jemand einen Knopf,
+	// den es mit Absicht nicht gibt.
+	if st.Reihen[0].Herkunft != "verwaltet" || st.Reihen[1].Herkunft != "fremd" {
+		t.Errorf("die Spalte Herkunft trennt verwaltet und fremd nicht: %q / %q",
+			st.Reihen[0].Herkunft, st.Reihen[1].Herkunft)
+	}
+	// Die Dienstnamen kommen aus den Compose-Labels der Container. Die Attrappe
+	// hat drei am Stack „web" — stehen sie nicht da, ist die Verschmelzung der
+	// beiden Quellen unterwegs verlorengegangen.
+	if !strings.Contains(st.Reihen[0].Dienste, "proxy") {
+		t.Errorf("die Dienstnamen fehlen in der Zeile: %q", st.Reihen[0].Dienste)
+	}
+	// Drittens der Weg vom NAMEN bis zur Datei: Die Compose-Datei steht im
+	// Inspektor, ohne dass je ein Pfad aus dem Browser kam.
+	if !strings.Contains(st.Datei, "image: nginx:alpine") {
+		t.Errorf("die Compose-Datei fehlt im Inspektor: %q", st.Datei)
+	}
+	if !strings.Contains(st.Suche, "stack=") {
+		t.Errorf("die Stackauswahl steht nicht in der Adresse: %q", st.Suche)
+	}
+	// Schritt 5: die Handgriffe am Stack. Sie sind der Punkt, an dem aus dem
+	// Modul ein bedienbares wird — und an dem der Compose-Prüfer die Grenze
+	// zieht.
+	if len(dk.StackAktionen) == 0 {
+		t.Error("die Stackwerkbank bietet keine Handgriffe an")
+	}
+	for _, muss := range []string{"starten", "herunterfahren", "bearbeiten", "löschen"} {
+		if !enthaelt(dk.StackAktionen, muss) {
+			t.Errorf("der Handgriff %q fehlt: %v", muss, dk.StackAktionen)
+		}
+	}
+	// „herunterfahren" ist Stufe 2: Dialog, aber kein getipptes Wort. Und die
+	// Frage nennt die Zahl — „der Stack" befähigt zu keiner Entscheidung.
+	if !dk.StackFrage.Offen {
+		t.Error("beim Herunterfahren kommt kein Rückfragedialog — die Stufe fällt damit still auf 1")
+	}
+	if dk.StackFrage.Tippfeld {
+		t.Error("Herunterfahren ohne Volumes ist Stufe 2 und braucht kein getipptes Wort")
+	}
+	if !strings.Contains(dk.StackFrage.Text, "3") {
+		t.Errorf("die Frage nennt nicht, wie viele Container sie trifft: %q", dk.StackFrage.Text)
+	}
+
+	// Der Editor lädt CodeMirror dynamisch nach. Genau dieser Weg ist im Projekt
+	// schon zweimal an der Content-Security-Policy gescheitert (Auslastungsbalken
+	// in rc.5, CodeMirror im Dateimanager) — deshalb steht er hier im
+	// Browsertest und nicht in einem Go-Test.
+	if !dk.StackEditor.Da {
+		t.Error("der Compose-Editor ist nicht aufgegangen — CodeMirror wurde nicht geladen")
+	}
+	if !strings.Contains(dk.StackEditor.Inhalt, "nginx") {
+		t.Errorf("die Compose-Datei steht nicht im Editor: %q", dk.StackEditor.Inhalt)
+	}
+	if !enthaelt(dk.StackEditor.Knoepfe, "speichern") {
+		t.Errorf("im Editor fehlt der Speichern-Knopf: %v", dk.StackEditor.Knoepfe)
+	}
+
+	// Das fremde Projekt: lesbar, aber ohne Bearbeiten und ohne Löschen. Das ist
+	// die Zusage des Moduls, und sie muss in der Fläche stehen — ein Knopf, der
+	// erst beim Drücken 400 sagt, ist keine.
+	if dk.StackFremd.Titel != "fremd" {
+		t.Fatalf("das fremde Projekt wurde nicht geöffnet, Inspektor zeigt %q", dk.StackFremd.Titel)
+	}
+	for _, darfNicht := range []string{"bearbeiten", "löschen"} {
+		if enthaelt(dk.StackFremd.Knoepfe, darfNicht) {
+			t.Errorf("am fremden Projekt steht %q — das Panel schreibt es nie: %v",
+				darfNicht, dk.StackFremd.Knoepfe)
+		}
+	}
+	// Starten und Stoppen bleiben: Ein fremdes Projekt lässt sich bedienen, nur
+	// nicht schreiben.
+	if !enthaelt(dk.StackFremd.Knoepfe, "starten") {
+		t.Errorf("ein fremdes Projekt muss sich starten lassen: %v", dk.StackFremd.Knoepfe)
+	}
+
+	// Die Containerwerkbank. Der Kern ist die Reihenfolge: Ein laufender, aber
+	// ungesunder Container ist der Fall, den man am leichtesten übersieht — er
+	// steht auf „läuft" und tut trotzdem nicht, wofür er da ist. Er gehört nach
+	// oben, nicht an seinen alphabetischen Platz.
+	if len(dk.Reihen) != 4 {
+		t.Fatalf("erwartet 4 Containerzeilen, gerendert sind %d", len(dk.Reihen))
+	}
+	obenZwei := []string{dk.Reihen[0].Name, dk.Reihen[1].Name}
+	if !enthaelt(obenZwei, "web-api-1") || !enthaelt(obenZwei, "web-db-1") {
+		t.Errorf("die auffälligen Container stehen nicht oben: %v", obenZwei)
+	}
+	if !strings.Contains(dk.Reihen[0].Zustand, "schlecht") {
+		t.Errorf("die oberste Zeile trägt die Klasse %q — erwartet die Stufe schlecht",
+			dk.Reihen[0].Zustand)
+	}
+
+	// Die Auswahl steht in der Adresse, damit ein Verweis teilbar ist und ein
+	// Neuladen denselben Zustand zeigt.
+	if !strings.Contains(dk.NachKlick.Suche, "container=") {
+		t.Errorf("die Auswahl steht nicht in der Adresse: %q", dk.NachKlick.Suche)
+	}
+	if dk.NachKlick.Titel == "" {
+		t.Error("der Inspektor trägt keinen Titel")
+	}
+	// Das Protokoll kommt MIT dem Detail: Wer einen Container anklickt, will
+	// wissen, was er sagt — und nicht erst einen zweiten Knopf suchen.
+	if !strings.Contains(dk.NachKlick.Auszug, "bereit auf") {
+		t.Errorf("der Protokollauszug fehlt im Inspektor: %q", dk.NachKlick.Auszug)
+	}
+	if len(dk.NachKlick.Handgriffe) == 0 {
+		t.Error("der Inspektor bietet keine Handgriffe an")
+	}
+
+	// Stoppen ist Stufe 2: Dialog, aber kein getipptes Wort.
+	if !dk.Rueckfrage.Offen {
+		t.Error("beim Stoppen kommt kein Rückfragedialog — die Stufe fällt damit still auf 1")
+	}
+	if dk.Rueckfrage.Tippfeld {
+		t.Error("Stoppen ist Stufe 2 und braucht kein getipptes Wort")
+	}
+
+	// Der Zurück-Knopf schließt den Inspektor: Die erste Auswahl auf einer Seite
+	// ist ein Schritt im Verlauf.
+	if dk.NachZurueck.Inspektor {
+		t.Error("der Zurück-Knopf schließt den Inspektor nicht")
+	}
+
+	// Schritt 6, die Portübersicht. Der Kern ist EIN Urteil, und es ist das
+	// unbequeme: Ein Container auf 0.0.0.0 ist aus dem Netz erreichbar, auch wenn
+	// ufw läuft und den Port nicht kennt. Ein Panel, das hier „blockiert"
+	// meldete, wäre schlimmer als eines ohne diese Seite.
+	po := dk.Ports
+	if len(po.Zeilen) != 3 {
+		t.Fatalf("erwartet 3 Portzeilen, gerendert sind %d: %+v", len(po.Zeilen), po.Zeilen)
+	}
+	// Das Auffällige steht oben: 9000 ist offen, ufw kennt ihn nicht.
+	if !strings.Contains(po.Zeilen[0].Port, "9000") {
+		t.Errorf("der unbemerkte Port steht nicht oben: %+v", po.Zeilen[0])
+	}
+	if !strings.Contains(po.Zeilen[0].Stufe, "schlecht") {
+		t.Errorf("der Befund ist nicht als solcher gefärbt: %q", po.Zeilen[0].Stufe)
+	}
+	// In der Spalte steht das KURZE Urteil. Die Begründung stand hier einmal in
+	// voller Länge und wurde am Tabellenrand abgeschnitten — sie steht jetzt
+	// einmal über der Tabelle (siehe po.Warnung weiter unten).
+	if !strings.Contains(po.Zeilen[0].Urteil, "ohne Regel") {
+		t.Errorf("das kurze Urteil fehlt in der Spalte: %q", po.Zeilen[0].Urteil)
+	}
+	// Die anderen beiden sind KEIN Befund — sonst wäre die Farbe wertlos. 8080
+	// ist offen und in ufw eingetragen, 9443 nur lokal gebunden.
+	for _, z := range po.Zeilen[1:] {
+		if strings.Contains(z.Stufe, "schlecht") {
+			t.Errorf("ein gewollter Port ist als Befund gefärbt: %+v", z)
+		}
+	}
+	lokal := false
+	for _, z := range po.Zeilen {
+		if strings.Contains(z.Adresse, "127.0.0.1") {
+			lokal = true
+			if !strings.Contains(z.Stufe, "gut") {
+				t.Errorf("ein lokal gebundener Port ist von außen unerreichbar: %+v", z)
+			}
+		}
+	}
+	if !lokal {
+		t.Errorf("die Übersicht zeigt keinen lokal gebundenen Port: %+v", po.Zeilen)
+	}
+	// Und die Erklärung steht über der Tabelle. Ohne sie ist ein rotes Feld nur
+	// ein rotes Feld.
+	if po.Warnung == "" {
+		t.Error("die Erklärung zur Umgehung von ufw fehlt in der Fläche")
+	}
+
+	// Schritt 7: die Update-Prüfung. Der Kern ist, dass „nicht geprüft" als
+	// eigene Aussage dasteht — eine Prüfung, die im Zweifel „veraltet" meldete,
+	// meldete es bei fast jedem Abbild und würde nach einer Woche nicht mehr
+	// gelesen.
+	abb := dk.Updates
+	if len(abb.Zeilen) != 2 {
+		t.Fatalf("erwartet 2 Abbildzeilen, gerendert sind %d: %+v", len(abb.Zeilen), abb.Zeilen)
+	}
+	// Das Neue steht oben, ist rot, und der Knopf daneben nennt den Stack.
+	if abb.Zeilen[0].Ref != "nginx:alpine" {
+		t.Errorf("das Abbild mit der neuen Fassung steht nicht oben: %+v", abb.Zeilen[0])
+	}
+	if !strings.Contains(abb.Zeilen[0].Stufe, "schlecht") {
+		t.Errorf("die neue Fassung ist nicht als Befund gefärbt: %q", abb.Zeilen[0].Stufe)
+	}
+	if abb.Zeilen[0].Knopf != "Stack aktualisieren" {
+		t.Errorf("der Griff fehlt an der Zeile: %q — aktualisiert wird ein Stack, "+
+			"kein Abbild", abb.Zeilen[0].Knopf)
+	}
+	if !strings.Contains(abb.Zeilen[0].Gebrauch, "web") {
+		t.Errorf("die Zeile nennt den Stack nicht: %q", abb.Zeilen[0].Gebrauch)
+	}
+	// Und das ungeprüfte Abbild trägt WEDER grün NOCH rot: Es ist eine eigene
+	// Aussage, und der Satz darüber sagt, dass sie keine Beruhigung ist.
+	if !strings.Contains(abb.Zeilen[1].Stand, "nicht geprüft") {
+		t.Errorf("„nicht geprüft"+`"`+" steht nicht in der Zeile: %+v", abb.Zeilen[1])
+	}
+	if strings.Contains(abb.Zeilen[1].Stufe, "gut") {
+		t.Errorf("ein ungeprüftes Abbild darf nicht als aktuell erscheinen: %q",
+			abb.Zeilen[1].Stufe)
+	}
+	if abb.UngeprueftSatz == "" {
+		t.Error("der Satz zu den ungeprüften Abbildern fehlt — ohne ihn ist " +
+			"„nicht geprüft" + `"` + " eine leere Zelle")
+	}
+
+	// Der Ereignisstrom: zugeklappt bis zum Klick, danach mit Zeilen. Er hält
+	// einen docker-Prozess auf dem Server — dafür soll niemand zahlen, der die
+	// Seite nur geöffnet hat.
+	if dk.Ereignisse.VorherOffen {
+		t.Error("der Ereignisstrom ist beim Aufbau der Seite schon offen")
+	}
+	if len(dk.Ereignisse.Zeilen) == 0 {
+		t.Fatal("nach dem Aufklappen stehen keine Ereignisse da")
+	}
+	var ernst, ruhig int
+	for _, e := range dk.Ereignisse.Zeilen {
+		if strings.Contains(e.Stufe, "schlecht") {
+			ernst++
+		} else {
+			ruhig++
+		}
+	}
+	// Beide Fälle müssen vorkommen: In einem Strom, in dem jede Zeile gleich
+	// aussieht, findet niemand den Befund.
+	if ernst == 0 || ruhig == 0 {
+		t.Errorf("der Strom unterscheidet Befund und Betriebsgeräusch nicht: "+
+			"%d ernst, %d ruhig", ernst, ruhig)
+	}
+
+	// Der Bestand. „freigebbar" ist die Frage, mit der jemand diese Seite
+	// öffnet — steht die Spalte nicht da, fehlt die Antwort.
+	be := dk.Bestand
+	if !be.PlatteDa || be.Freigebbar == "" {
+		t.Errorf("die Platzbedarfstabelle fehlt oder nennt nichts Freigebbares: %+v", be)
+	}
+	if len(be.AufraeumKnoepfe) == 0 {
+		t.Error("es steht kein Aufräum-Knopf da")
+	}
+	// Jeder Knopf sagt, was er trifft. „aufräumen" allein befähigt zu keiner
+	// Entscheidung — und genau das würde man beim Kürzen zuerst wegwerfen.
+	for _, k := range be.AufraeumKnoepfe {
+		if k == "aufräumen" {
+			t.Errorf("ein Knopf heißt nur „aufräumen" + `"` + " — er nennt nicht, was er trifft")
+		}
+	}
+
+	// Der Kern: An einem BENUTZTEN Abbild steht kein Entfernen-Knopf. Docker
+	// weigerte sich, und der Knopf wäre dann selbst der Fehler.
+	if len(be.Abbilder) == 0 {
+		t.Fatal("die Abbildliste ist leer")
+	}
+	var benutzt, frei int
+	for _, a := range be.Abbilder {
+		if strings.Contains(a.Text, "in Gebrauch") {
+			benutzt++
+			if a.Knopf {
+				t.Errorf("an einem benutzten Abbild steht ein Entfernen-Knopf: %q", a.Text)
+			}
+			continue
+		}
+		frei++
+		if !a.Knopf {
+			t.Errorf("an einem freien Abbild fehlt der Entfernen-Knopf: %q", a.Text)
+		}
+	}
+	if benutzt == 0 || frei == 0 {
+		t.Errorf("die Attrappe deckt nicht beide Fälle ab: %d benutzt, %d frei", benutzt, frei)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

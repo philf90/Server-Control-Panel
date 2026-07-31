@@ -128,6 +128,39 @@ func (s *System) PackageUpgrade(ctx context.Context, opts UpgradeOptions, stream
 	return nil
 }
 
+// aptInstall spielt genau ein benanntes Paket ein.
+//
+// Der Gegenpol zu PackageUpgrade: Dort trägt der Aufruf "--only-upgrade" und
+// kann nichts Neues ins System bringen, weil der Paketname aus der Anfrage
+// kommt. Hier kommt er aus dem Quelltext — die Aufrufer sind FirewallInstall
+// und DockerInstall, und beide kennen ihr Paket namentlich. Deshalb ist diese
+// Funktion privat und nimmt bewusst keine Liste entgegen: Eine Schleife über
+// Paketnamen wäre der erste Schritt zurück zu "installiere Paket X".
+//
+// Die beiden Dpkg-Optionen halten den Lauf unbeaufsichtigt: Sie beantworten
+// eine Rückfrage nach einer geänderten Konfigurationsdatei mit "die vorhandene
+// behalten", statt auf eine Eingabe zu warten, die nie kommt.
+func (s *System) aptInstall(ctx context.Context, stream LineWriter, paket string) error {
+	res, err := s.run(ctx, Command{
+		Name: "apt-get",
+		Args: []string{
+			"install", "--yes",
+			"-o", "Dpkg::Options::=--force-confdef",
+			"-o", "Dpkg::Options::=--force-confold",
+			"--", paket,
+		},
+		Timeout: longTimeout,
+		Stream:  stream,
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("apt-get install %s endete mit Code %d", paket, res.ExitCode)
+	}
+	return nil
+}
+
 // Reboot startet den Rechner über systemd neu. `systemctl reboot` meldet den
 // Wunsch an PID 1 und kehrt zurück; das eigentliche Herunterfahren übernimmt
 // systemd. Anders als beim Selbstupdate ist hier keine eigene Unit nötig — ein

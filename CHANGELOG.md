@@ -9,6 +9,322 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.5.0] — 2026-07-31
+
+**Das Modul Docker.** Compose-Stacks sind das führende Objekt: anlegen, im
+Editor ändern, starten, herunterfahren, aktualisieren, löschen — dazu Container
+mit Protokoll und Auslastung, der Bestand an Abbildern, Volumes und Netzen mit
+dem, was ein Aufräumen brächte, eine Portübersicht mit Firewall-Abgleich, der
+Ereignisstrom von Docker und eine Update-Prüfung für Abbilder.
+
+Das Panel spricht mit Docker über die **Kommandozeile** und nie über den Socket.
+Das ist keine Bequemlichkeitsfrage: Wer den Socket hat, hat die Maschine, und
+jede Aktion bleibt so ein nachvollziehbarer Befehl in der Protokollzeile. Es kam
+dafür **keine neue Abhängigkeit** dazu und **ein** Eintrag in die Allowlist.
+
+**Vier Dinge, die vor der Liste der Änderungen stehen sollten:**
+
+**Erstens: Docker geht an ufw vorbei.** Wer einen Container mit `-p 8080:80`
+veröffentlicht, ist auf 8080 aus dem Internet erreichbar — auch wenn ufw läuft
+und diesen Port nicht kennt. Docker trägt seine Weiterleitungen vor den Ketten
+der Firewall ein. Die neue Portübersicht sagt das ausdrücklich, statt einen
+grünen Haken zu zeigen, weil ufw läuft. Wenn Sie das für Ihren Server noch nicht
+geprüft haben, ist diese Seite der erste Ort, an den Sie nach dem Update sehen
+sollten.
+
+**Zweitens: Es gibt einen Compose-Prüfer, und er lehnt ab.** Vor jedem Speichern
+und vor jedem Start läuft er serverseitig — gegen die von Compose *aufgelöste*
+Fassung, damit YAML-Anker und `.env` nichts vorbeischmuggeln. Privilegierte
+Container, geteilte Namensräume, durchgereichte Geräte, der Docker-Socket im
+Container und Pfade der Sperrliste werden abgelehnt, mit Nennung von Dienst,
+Feld und Grund. **Das gilt auch für Compose-Projekte, die Sie außerhalb des
+Panels angelegt haben:** Ein Bestandsprojekt mit `privileged: true` lässt sich
+über das Panel nicht starten, auch wenn es gerade läuft. Über die Kommandozeile
+geht es weiterhin.
+
+**Drittens: Geschrieben wird nur, was das Panel selbst angelegt hat.** Ein Stack
+gehört dem Panel, wenn seine `compose.yaml` unter `/opt/asylum/stacks/` liegt
+**und** einen Marker in der ersten Zeile trägt. Fremde Projekte erscheinen in der
+Liste, lassen sich lesen, starten und stoppen — aber nicht bearbeiten und nicht
+löschen. Die Knöpfe dafür fehlen, statt beim Drücken abzulehnen.
+
+**Viertens: Das Modul bedient nur die Owner-Rolle.** Lesen darf jede Rolle. Ein
+Compose-Stack ist Codeausführung als root, und ein Admin-Konto, das Dienste neu
+starten darf, soll damit nicht die Rechtetrennung des Servers aufheben. Für
+API-Tokens gibt es die Fläche `docker`.
+
+**Was Sie NICHT bekommen, und warum:** keine Container-Shell (zurückgestellt —
+sie brächte die schwierigere Hälfte eines Web-Terminals, und das steht aus
+Sicherheitsgründen hinter 1.0), kein automatisches Einspielen von Updates (ein
+Panel, das nachts von allein Abbilder tauscht, macht nachts von allein etwas
+kaputt), keine Registry-Zugangsdaten (0.5 hält kein Betriebsgeheimnis; die
+verschlüsselte Geheimnisverwaltung kommt mit 0.8), kein `docker run` mit freien
+Flags und kein Vorlagenkatalog.
+
+**Eine Einschränkung, die benannt gehört:** Die Update-Prüfung braucht
+`docker buildx` (in Debian das Paket `docker-buildx`), um bei
+Mehrarchitektur-Abbildern ein Ergebnis zu liefern. Ohne buildx meldet sie für
+die meisten Abbilder „nicht geprüft" samt Grund — und ausdrücklich nicht
+„aktuell". Der Hintergrund steht in [docs/17-docker.md](docs/17-docker.md).
+
+Migration gibt es keine, Sitzungen bleiben gültig, und ohne Docker auf dem
+Server ändert sich nichts außer einem Menüpunkt, der die Installation anbietet.
+
+### Sicherheit
+
+- **Angriffsdurchgang gegen das Modul Docker.** Acht Wege am eigenen Prüfer und
+  an der eigenen Pfadwache vorbei — gefunden, geschlossen, mit Tests versehen.
+  Sie stehen vollständig in [docs/17-docker.md](docs/17-docker.md); die
+  wichtigsten:
+
+  **Ein „benanntes" Volume kann ein Bind-Mount sein.** Im Dienst steht nur
+  `- hack:/host`, und in der obersten `volumes:`-Ebene macht
+  `driver_opts: {type: none, device: /, o: bind}` daraus das ganze
+  Wirtsdateisystem. Der Prüfer sah ein harmloses Volume. Er löst solche Einträge
+  jetzt auf.
+
+  **Ein relativer Pfad ging an der Sperrliste vorbei:**
+  `- ../../../../var/run/docker.sock:/…` traf sie nicht, weil dort absolute
+  Pfade stehen — und galt danach als „liegt im Stack-Verzeichnis". Relative
+  Quellen werden jetzt zuerst aufgelöst.
+
+  Ebenfalls geschlossen: `device_cgroup_rules` (Gerätezugriff ohne das Wort
+  „devices"), ein `build:`-Kontext außerhalb des Stack-Verzeichnisses
+  (`docker compose up` baut), die neue Langform von `env_file`, `volumes_from`
+  auf einen fremden Container, und Bind-Mounts über symbolische Verweise aus dem
+  Stack-Verzeichnis heraus.
+
+  **Der Stack-Inspektor war ein allgemeines Leseprogramm.** Bei einem fremden
+  Compose-Projekt sagt Docker, wo die Datei liegt; zeigte diese Angabe auf
+  `/etc/shadow`, las das Panel sie und zeigte sie **jedem angemeldeten Konto** —
+  auch einem mit reinem Leserecht. Gelesen wird jetzt nur, was auf `.yaml` oder
+  `.yml` endet.
+
+  **`PUT /api/v1/docker/stacks/{name}` prüfte den Namen nicht** und verließ sich
+  vollständig auf die Schicht darunter. Im Betrieb hätte das nichts bewirkt,
+  weil privops prüft — aber eine Grenze, die nur an einer Stelle steht, kann
+  beim nächsten Umbau verschwinden. Der Name wird jetzt in beiden Schichten
+  geprüft, lesend wie schreibend.
+
+### Hinzugefügt
+
+- **Modul Docker, Update-Prüfung für Abbilder** (`/docker`, zwei weitere
+  Routen). Gibt es zu den Tags, die hier laufen, in den Registries etwas
+  Neueres? Das Panel vergleicht Kennungen, sagt Bescheid und tauscht nichts aus
+  — den Knopf drückt ein Mensch.
+
+  **Drei Zahlen statt zwei, und die dritte ist die wichtigste:** „nicht geprüft"
+  ist weder „aktuell" noch „veraltet". Der naheliegende Digest-Vergleich ist
+  nämlich falsch: Lokal liegt bei einem Mehrarchitektur-Abbild die Kennung der
+  Manifestliste, `docker manifest inspect` gibt aber die der einzelnen
+  Plattformen — wer beide vergleicht, meldet bei fast jedem Abbild ein Update,
+  jeden Tag. Das Panel meldet in diesem Fall „nicht geprüft" samt Grund. Ist
+  `docker buildx` vorhanden, trägt der Vergleich auch dort.
+
+  **Die Ratengrenze ist Teil des Entwurfs, kein Nachgedanke.** Höchstens ein
+  Lauf am Tag, der Zeitpunkt im Store und nicht im Speicher (ein Neustart des
+  Panels setzt ihn sonst zurück), und eine abweisende Registry beendet den Lauf,
+  statt weiterzufragen. Die Leseroute berührt nie eine Registry — sonst
+  verbrauchte ein offener Tab die Grenze im Hintergrund.
+
+  **Der Griff ist der Stack**, nicht das Abbild: „Stack aktualisieren" ist
+  `pull` und `up` in einem Vorgang, und in dieser Reihenfolge — scheitert das
+  Ziehen, wird nicht hochgefahren.
+
+- **Modul Docker, Ports und Ereignisse** (`/docker`, zwei weitere Routen).
+
+  **Die Portübersicht sagt etwas Unbequemes: Docker geht an ufw vorbei.** Wer
+  einen Container mit `-p 8080:80` veröffentlicht, ist auf 8080 aus dem Internet
+  erreichbar — auch wenn ufw läuft und diesen Port nicht kennt. Docker trägt
+  seine Weiterleitungen vor den Ketten der Firewall ein. „Ich habe eine
+  Firewall" und „der Port ist zu" sind zwei verschiedene Aussagen, und nur die
+  erste stimmt.
+
+  Die Seite unterscheidet deshalb vier Fälle statt zwei: nur lokal gebunden, aus
+  dem Netz erreichbar und in ufw eingetragen, aus dem Netz erreichbar **ohne**
+  dass ufw ihn kennt, und aus dem Netz erreichbar ohne laufende Firewall. Der
+  dritte Fall steht oben, ist rot, und die Begründung steht darüber — ein grüner
+  Haken, nur weil ufw läuft, wäre schlimmer als keine Seite.
+
+  **Der Ereignisstrom** beantwortet, was kein Zustand beantwortet: warum ein
+  Container um 3 Uhr neu gestartet ist. Gestorbene Container mit ihrem
+  Exit-Code, getötete Prozesse und ungesunde Prüfungen sind hervorgehoben; der
+  Rest ist Betriebsgeräusch. Er beginnt zugeklappt — er hält einen
+  `docker`-Prozess auf dem Server, und dafür soll niemand zahlen, der die Seite
+  nur geöffnet hat.
+
+- **Modul Docker, Stacks — schreibend** (`/docker`, drei weitere Routen). Stacks
+  anlegen, im Editor ändern, starten, herunterfahren, Abbilder holen, neu
+  starten und löschen. Damit ist die Grundausstattung des Moduls vollständig.
+
+  **Der Compose-Prüfer ist die Grenze.** Er läuft serverseitig vor jedem
+  Speichern und vor jedem Start — und geprüft wird die von Compose **aufgelöste**
+  Fassung, nicht die Rohdatei. Der Grund ist ein Angriff, der sonst durchginge:
+  Ein YAML-Anker bringt ein `privileged: true` an jeder Prüfung der Rohdatei
+  vorbei, weil das Wort unter keinem Dienst steht.
+
+  Abgelehnt werden privilegierte Container, geteilte Namensräume (`pid`, `ipc`,
+  `userns_mode`, `cgroup`, `network_mode: host`), durchgereichte Geräte,
+  Ausbruchs-Capabilities, abgeschaltete seccomp- und AppArmor-Profile, der
+  Docker-Socket im Container und Pfade der Sperrliste (`/etc/shadow`, SSH-
+  Schlüssel, die Panel-Datenbank). Jede Ablehnung nennt **Dienst, Feld, Wert und
+  Grund** — und hat nichts geschrieben.
+
+  **Ein Wirtspfad im Container ist keine Ablehnung, sondern eine Frage.**
+  `/srv/daten:/data` ist der häufigste legitime Fall und zugleich der Weg, über
+  den ein Container an fremde Daten kommt: Stufe 3 mit dem getippten Stack-Namen,
+  und die Frage nennt jeden Pfad einzeln. Ein Stack ohne solchen Mount startet
+  ohne jede Rückfrage.
+
+  **Unbekannte Felder gelten als „nicht geprüft"**, nicht als „in Ordnung" —
+  dieselbe Haltung wie bei der Konfigurationsprüfung des Dateimanagers. Und war
+  Docker beim Speichern nicht erreichbar, sagt die Fläche, dass nur die Rohdatei
+  gelesen wurde.
+
+  **Geschrieben wird nur, was den Marker trägt.** Eine Compose-Datei ohne die
+  Markerzeile des Panels gehört jemand anderem — auch dann, wenn sie unter
+  `/opt/asylum/stacks` liegt. Fremde Projekte lassen sich starten und stoppen,
+  aber nicht bearbeiten und nicht löschen; die Knöpfe dafür fehlen, statt beim
+  Drücken abzulehnen.
+
+  Dazu drei kommentierte Gerüstvorlagen im Editor — kein Katalog fertiger
+  Anwendungen.
+
+- **Modul Docker, Stacks — lesend** (`/docker`, zwei weitere Routen unter
+  `/api/v1/docker/stacks`). Compose-Projekte als führendes Objekt des Moduls:
+  Liste über der Containerwerkbank, Inspektor mit den Diensten des Projekts,
+  seinen Containern und der Compose-Datei.
+
+  **Kein Pfad kommt aus der Anfrage.** Die Oberfläche nennt einen *Namen*; wo
+  dessen Datei liegt, sagt entweder Docker oder das verwaltete Verzeichnis
+  `/opt/asylum/stacks`. Käme der Pfad aus dem Browser, wäre der Endpunkt ein Weg,
+  jede Datei des Servers zu lesen.
+
+  **Verwaltet und fremd stehen nebeneinander.** Was das Panel angelegt hat,
+  trägt einen Marker in der ersten Zeile der `compose.yaml` — der Marker
+  entscheidet, nicht der Ort. Projekte, die jemand außerhalb des Panels angelegt
+  hat, erscheinen in der Liste als *fremd*: lesbar, und sonst nichts. Dieselbe
+  Trennung wie bei nftables und bei fremden Crontabs.
+
+  **Der halbe Stack ist der auffällige Fall.** Ein Projekt, von dem zwei von
+  drei Diensten laufen, ist kaputt und sieht aus wie „läuft" — es steht deshalb
+  oben. Ein ganz gestoppter Stack ist meistens Absicht und bekommt kein
+  Ausrufezeichen.
+
+  Anlegen, Bearbeiten und Starten kommen mit dem nächsten Schritt, zusammen mit
+  dem Compose-Prüfer: Ein Editor ohne Prüfer wäre genau die Reihenfolge, die
+  dieses Modul sich verboten hat.
+
+- **Modul Docker, Bestand** (`/docker`, fünf weitere Routen). Abbilder, Volumes
+  und Netze mit dem, was Docker auf der Platte belegt — und den Handgriffen, es
+  loszuwerden.
+
+  **Oben steht, was ein Aufräumen brächte.** `docker system df` nennt je Art den
+  freigebbaren Platz, und dieselbe Zahl trägt die Rückfrage: „12 Einträge, davon
+  5 in Gebrauch · 1.5GB freigebbar" statt „alle". Nach dem Lauf steht der
+  tatsächlich freigegebene Platz am Vorgang.
+
+  **Was in Gebrauch ist, bekommt keinen Knopf.** Ein Abbild, das ein Container
+  benutzt, ein Volume, das einer einhängt, und die eingebauten Netze `bridge`,
+  `host` und `none` — Docker weigert sich in allen Fällen, und ein Knopf, der
+  zuverlässig in eine Weigerung läuft, ist selbst der Fehler.
+
+  **`docker system prune` gibt es nicht.** Es räumt Container, Netze, Abbilder
+  und Baucache in einem Zug auf, und eine Aktion, deren Umfang niemand
+  überblickt, kann keine sinnvolle Rückfrage tragen. Stattdessen fünf benannte
+  Arten, jede mit eigener Frage.
+
+  **Volumes aufzuräumen ist Stufe 3 mit dem Hostnamen** — nicht mit einem
+  Objektnamen: Es trifft jedes ungenutzte Volume des Servers auf einmal, und der
+  häufigste Fehler bei einer solchen Aktion ist nicht der falsche Knopf, sondern
+  der falsche Server. Ein einzelnes Volume bleibt Stufe 3 mit seinem Namen,
+  Abbild und Netz sind Stufe 2.
+
+- **Modul Docker, Container** (`/docker`, vier weitere Routen unter
+  `/api/v1/docker/containers`). Liste mit Zählern als Filter, Inspektor mit
+  Konfiguration, Mounts, Netzen, Auslastung und Protokollauszug; starten,
+  stoppen, neu starten, anhalten, fortsetzen, entfernen.
+
+  **Umgebungsvariablen zeigt das Panel nicht** — nur ihre Anzahl. Sie tragen auf
+  jedem zweiten Server ein Datenbankpasswort, und eine Seite, die sie beim
+  Aufklappen preisgibt, ist eine Seite, die man nicht mehr vorführen kann. Wer
+  sie braucht, kommt über SSH an sie heran; dasselbe Argument wie bei der
+  Sperrliste des Dateimanagers.
+
+  **Auffälliges steht oben.** Ein laufender, aber ungesunder Container ist der
+  Fall, den man am leichtesten übersieht: Er steht auf „läuft" und tut trotzdem
+  nicht, wofür er da ist. Mit Code 0 beendet ist dagegen kein Befund — ein
+  einmaliger Auftrag soll nicht dauerhaft einen roten Punkt erzeugen. Dieselbe
+  Regel speist den Handlungsbedarf der Übersicht; sie steht an einer Stelle,
+  damit die Übersicht keinen Befund meldet, den die Liste nicht kennt.
+
+  **Einen laufenden Container zu entfernen ist Stufe 3 mit seinem Namen** — eine
+  begründete Abweichung von [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md),
+  wo das Entfernen als umkehrbar Stufe 2 wäre: Derselbe Klick beendet einen
+  Dienst *und* löscht ihn. Ein gestoppter bleibt Stufe 2, stoppen ist Stufe 2,
+  starten Stufe 1.
+
+  Das Protokoll lässt sich verfolgen (eigener Strom mit Herzschlag, höchstens
+  vier gleichzeitig, verworfene Zeilen werden gemeldet). Die Zählung ist von der
+  des Journals getrennt: Ein offenes Containerprotokoll soll nicht den Blick ins
+  Journal versperren.
+
+- **Modul Docker, erster Schritt** (`/docker`, zwei Routen unter
+  `/api/v1/docker`). Die Fassung 0.5 beginnt mit dem Zustand der Laufzeit und
+  ihrer Installation; Container, Stacks und Bestand folgen. Der Bauplan steht in
+  [docs/17-docker.md](docs/17-docker.md).
+
+  **Wer den Docker-Socket hat, hat die Maschine** — ein Container mit
+  `-v /:/host` ist root auf dem Wirt. Daraus folgt der Zuschnitt: Das Panel
+  spricht mit Docker über die **Kommandozeile** und reicht den Socket nie durch,
+  `privops` wächst um typisierte Operationen (`DockerState`, `DockerInstall`),
+  die Allowlist um genau einen Eintrag. Compose v2 ist ein Unterkommando
+  desselben Binaries und braucht keinen zweiten. **Schreiben verlangt die
+  Owner-Rolle**, nicht bloß Schreibrecht — dieselbe Begründung wie bei den
+  Zeitplänen, nur schärfer.
+
+  Fehlt Docker, bietet das Panel die Installation an, statt eine Kommandozeile
+  zum Abtippen zu drucken — dieselbe Antwort, die ufw seit `rc.4` gibt.
+  Eingespielt wird **`docker.io` aus den Quellen der Distribution** und nicht
+  `docker-ce`: Letzteres verlangt Dockers eigenes apt-Repository, und ein
+  fremder Stack neben apt ist ein Nicht-Ziel des Projekts. Erkannt wird Docker
+  am Binary und nicht am Paketnamen — auf Bestandsservern läuft häufig
+  `docker-ce`, und ein Panel, das nur nach `docker.io` fragt, böte an, ein
+  vorhandenes Docker zu installieren.
+
+  Die Seite hält drei Zustände auseinander, weil zu jedem ein anderer Handgriff
+  gehört: Docker fehlt (apt hilft), Docker ist da und antwortet nicht (der
+  Dienst hilft — dort steht deshalb ein Verweis auf die Dienstseite und kein
+  Knopf), Compose fehlt (apt hilft wieder).
+
+### Behoben
+
+- **Die angekündigten Module nannten die falsche Fassung.** Docker stand mit
+  „ab 0.6" im Menü, Webserver mit 0.7, Datenbanken mit 0.8, Backups mit 0.9 —
+  jeweils eine Stufe zu hoch. Richtig sind 0.5, 0.6, 0.7 und 0.8
+  (`docs/16-neukonzeption.md` §5); die Verschiebung stammt daher, dass Cron
+  beim Schreiben der Liste noch als eigene Stufe gezählt wurde. Eine Auskunft,
+  die sich um eine Fassung irrt, ist schlimmer als keine: Sie steht an der
+  einzigen Stelle, an der jemand nachsieht, wann ein Modul kommt, und niemand
+  prüft sie nach.
+
+- **Die Seite „bald" trug einen Ersatzweg für Cron**, das seit 0.4.0 gebaut ist.
+  Der Eintrag war unerreichbar — die Seite erscheint nur für angekündigte
+  Module, und Cron steht dort nicht mehr —, aber ein Ersatzweg für ein fertiges
+  Modul ist irreführend, sobald ihn jemand wieder sichtbar macht.
+
+### Geändert
+
+- **Die Planungsdokumente stehen auf dem Stand 0.4.1.** `06-roadmap.md` trennt
+  Rückblick und Ausblick und führt die Meilensteine 0.5 bis 1.0;
+  `03-funktionsumfang.md` löst die überholten Abschnitte v0.2 und v0.3 Punkt für
+  Punkt auf; `15-neuordnung.md` vermerkt, dass die Kommandobrücke abgelöst ist,
+  Befund und fünf Grundsätze aber fortgelten; `02-architektur.md` nennt die
+  Sitzungslaufzeiten und berichtigt Repo-Layout und Heimat der Sitzungen;
+  `04-setup.md` und `05-updates.md` nennen `stable`, den es seit `v0.4.0` gibt;
+  der README beschreibt die neue Oberfläche statt der abgebauten. Damit ist die
+  Liste der Folgearbeiten in `16-neukonzeption.md` §12 abgearbeitet.
+
 ## [0.4.1] — 2026-07-31
 
 **Die alte Oberfläche ist weg.** Was 0.4.0 unter `/alt/` als Rückweg

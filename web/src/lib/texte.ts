@@ -937,6 +937,241 @@ export const t = {
     zu: (label: string) => `zu ${label}`,
   },
 
+  docker: {
+    wesen:
+      "Container, Images und Compose-Stacks. Das Panel spricht mit Docker über die Kommandozeile und nie über den Socket — jede Aktion steht damit als Befehl in der Protokollzeile.",
+    laedt: "Zustand wird gelesen …",
+    laufzeit: "Laufzeit",
+    daemon: "Daemon",
+    compose: "Compose",
+    paket: "Paket",
+    laeuft: "antwortet",
+    tot: "antwortet nicht",
+    fehlt: "fehlt",
+    da: "vorhanden",
+    // Ohne Docker gibt es zu Daemon und Compose keine Frage. Dort „antwortet
+    // nicht" und „fehlt" zu melden, machte aus einem Befund drei — und zwei
+    // davon wären erfunden.
+    offen: "—",
+    ausApt: "an der Paketverwaltung vorbei installiert",
+    einspielen: "Docker einspielen",
+    composeEinspielen: "docker compose einspielen",
+    zuDiensten: "zu den Diensten",
+    nurOwner:
+      "Dieses Konto darf den Zustand sehen, aber Docker nicht bedienen. Ein Container mit Zugriff auf das Wirtsdateisystem ist root auf dem Server — deshalb liegt dieses Modul bei der Owner-Rolle.",
+    // Was in dieser Fassung noch nicht da ist, steht als Satz da statt als
+    // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
+    imBau: "Was hier noch fehlt",
+    imBauDetail:
+      "Die Container-Shell kommt mit dem letzten Schritt der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+
+    // Container
+    container: "Container",
+    suchen: "Name, Image oder Stack",
+    nichts: "Kein Container passt zur Suche.",
+    keine: "Auf diesem Server läuft kein Container.",
+    alle: "alle",
+    laufend: "laufend",
+    gestoppt: "gestoppt",
+    auffaellig: "auffällig",
+    spalteName: "Name",
+    spalteImage: "Image",
+    spalteStack: "Stack",
+    spalteZustand: "Zustand",
+    spaltePorts: "Ports",
+    ohneGesundheit: "keine Prüfung",
+    // Handgriffe. Die Beschriftung steht hier und der Bezeichner kommt vom
+    // Server — so heißt derselbe Handgriff überall gleich.
+    aktion: {
+      start: "starten",
+      stop: "stoppen",
+      restart: "neu starten",
+      pause: "anhalten",
+      unpause: "fortsetzen",
+      remove: "entfernen",
+    } as Record<string, string>,
+    // Inspektor
+    befehl: "Befehl",
+    neustartregel: "Neustart",
+    exitCode: "Exit-Code",
+    benutzer: "Benutzer",
+    erstellt: "erstellt",
+    umgebung: "Umgebungsvariablen",
+    umgebungWarum:
+      "Nur die Anzahl: Umgebungsvariablen tragen häufig Passwörter und Schlüssel. Wer sie braucht, kommt über SSH an sie heran.",
+    privilegiert: "privilegiert",
+    privilegiertWarum:
+      "Dieser Container läuft privilegiert. Er hat damit auf dem Wirt praktisch die Rechte von root.",
+    mounts: "Eingehängt",
+    netze: "Netze",
+    bind: "Wirtspfad",
+    volume: "Volume",
+    nurLesen: "nur lesen",
+    stats: "Auslastung",
+    cpu: "CPU",
+    speicher: "Speicher",
+    netz: "Netz",
+    platte: "Platte",
+    prozesse: "Prozesse",
+    protokoll: "Protokoll",
+    keinProtokoll: "Der Container hat nichts ausgegeben.",
+    verfolgen: "verfolgen",
+    anhalten: "anhalten",
+    folgerVoll:
+      "Es sehen schon zu viele Verbindungen Containerprotokollen zu. Bitte einen anderen Tab schließen.",
+    verworfen: (n: number) => `${n} Zeilen verworfen — der Container schreibt schneller als die Leitung überträgt.`,
+
+    // Bestand
+    bestand: "Bestand",
+    platte: "Platzbedarf",
+    posten: "Art",
+    anzahl: "Anzahl",
+    inGebrauchSpalte: "in Gebrauch",
+    groesse: "Größe",
+    freigebbar: "freigebbar",
+    images: "Abbilder",
+    volumesTitel: "Volumes",
+    netzeTitel: "Netze",
+    spalteAbbild: "Abbild",
+    spalteAlter: "Alter",
+    spalteOrt: "Ort",
+    spalteTreiber: "Treiber",
+    ohneNamen: "ohne Namen",
+    inGebrauch: "in Gebrauch",
+    eingebaut: "eingebaut",
+    entfernen: "entfernen",
+    keineImages: "Keine Abbilder in der lokalen Ablage.",
+    keineVolumes: "Keine Volumes.",
+    keineNetze: "Keine Netze.",
+    // Aufräumen. Der Text sagt je Knopf, was er trifft — "aufräumen" allein
+    // befähigt zu keiner Entscheidung.
+    aufraeumen: "aufräumen",
+    verwaisteWeg: "namenlose Abbilder wegräumen",
+    alleUnbenutztenWeg: "alle unbenutzten Abbilder wegräumen",
+    gestoppteWeg: "gestoppte Container wegräumen",
+    volumesWeg: "ungenutzte Volumes wegräumen",
+    netzeWeg: "ungenutzte Netze wegräumen",
+    cacheWeg: "Baucache leeren",
+
+    // Stacks
+    stacks: "Stacks",
+    stacksLeer:
+      "Auf diesem Server gibt es kein Compose-Projekt. Anlegen kommt mit dem nächsten Schritt.",
+    stacksSuchen: "Stack- oder Dienstname",
+    stacksNichts: "Kein Stack passt zur Suche.",
+    verwaltet: "verwaltet",
+    fremd: "fremd",
+    // „Fremd" ist kein Vorwurf, sondern eine Zusage: An dieser Datei rührt das
+    // Panel nicht. Wer den Unterschied nicht kennt, sucht sonst einen Knopf,
+    // den es mit Absicht nicht gibt.
+    fremdWarum:
+      "Dieses Projekt hat jemand außerhalb des Panels angelegt. Es ist lesbar; geschrieben wird nur, was unter /opt/asylum/stacks liegt und den Marker des Panels trägt.",
+    spalteDienste: "Dienste",
+    spalteStatus: "Zustand",
+    spalteHerkunft: "Herkunft",
+    nieGestartet: "nie gestartet",
+    vonWieviel: (laufend: number, gesamt: number) => `${laufend} von ${gesamt} laufen`,
+    stackDatei: "Compose-Datei",
+    stackGekuerzt:
+      "Die Datei ist größer als die Anzeigegrenze und steht hier nur zum Teil.",
+    keineDatei: "Zu diesem Projekt ist keine lesbare Compose-Datei da.",
+    stackContainer: "Container dieses Stacks",
+    keineContainer: "Zu diesem Stack läuft kein Container.",
+
+    // Stacks bedienen
+    stackUp: "starten",
+    stackDown: "herunterfahren",
+    stackDownVolumes: "herunterfahren + Volumes löschen",
+    stackPull: "Abbilder holen",
+    stackRestart: "neu starten",
+    stackLoeschen: "löschen",
+    stackAnlegen: "Stack anlegen",
+    stackBearbeiten: "bearbeiten",
+    stackSpeichern: "speichern",
+    stackAbbrechen: "abbrechen",
+    stackNameFeld: "Name",
+    stackNameHinweis:
+      "Kleinbuchstaben, Ziffern, Bindestrich und Unterstrich. So verlangt es Compose selbst — ein anderer Name ließe sich anlegen, aber nie starten.",
+    stackVorlage: "Vorlage",
+    stackNameFehlt: "Ohne Namen lässt sich kein Stack anlegen.",
+    vorlageGesperrt:
+      "Die Vorlage lässt sich nicht mehr wechseln — sie würde den geschriebenen Text ersetzen.",
+    stackNeuTitel: "Neuen Stack anlegen",
+    stackFremdNichtAenderbar:
+      "Dieses Projekt hat jemand außerhalb des Panels angelegt. Das Panel liest seine Datei, schreibt sie aber nicht — auch dann nicht, wenn sie an unserem Platz liegt.",
+
+    // Der Compose-Prüfer
+    prueferTitel: "Compose-Prüfer",
+    prueferAbgelehnt: "Der Compose-Prüfer hat die Datei abgelehnt. Gespeichert wurde nichts.",
+    // „Geprüft" und „in Ordnung" sind zwei verschiedene Fragen. Ein Satz, der
+    // sie zusammenwirft, behauptet mehr, als der Prüfer weiß.
+    prueferNichtGeprueft:
+      "Die Datei ließ sich nicht als Compose lesen. Sie wurde damit nicht geprüft — das heißt nicht, dass sie in Ordnung ist.",
+    prueferNurRoh:
+      "Geprüft wurde nur die Rohdatei, nicht die von Compose aufgelöste Fassung. YAML-Anker, extends und env_file können daran vorbei.",
+    prueferOK: "Keine Beanstandung.",
+    prueferHinweise: "Nicht geprüft und aufgefallen",
+    prueferAussen: "Zugriff auf Serververzeichnisse",
+    prueferAblehnung: "Abgelehnt",
+    prueferDienste: "Dienste",
+
+    // Ports
+    ports: "Ports",
+    portsLeer: "Kein Container veröffentlicht einen Port.",
+    spaltePort: "Port",
+    spalteAdresse: "gebunden an",
+    spalteContainer: "Container",
+    spalteUrteil: "erreichbar",
+    portsUnbemerkt: "offen ohne Firewall-Regel",
+    portsOffen: "offen und erlaubt",
+    portsLokal: "nur lokal",
+    portsPanel: "Panel",
+    portsPanelWarum:
+      "Über diesen Port läuft die Oberfläche. Ihn zu schließen wäre der Selbstausschluss.",
+    portsOhneFirewall:
+      "Auf diesem Server läuft keine Firewall. Zu den offenen Ports gibt es deshalb nichts abzugleichen.",
+
+    // Ereignisse
+    ereignisse: "Ereignisse",
+    ereignisseWesen:
+      "Was Docker gerade tut: Container, die starten und sterben, geholte Abbilder, angelegte Volumes. Beantwortet die Frage, warum ein Container um 3 Uhr neu gestartet ist.",
+    ereignisseZeigen: "Ereignisse ansehen",
+    ereignisseWarte: "Warte auf Ereignisse …",
+    spalteZeit: "Zeit",
+    spalteAktion: "Aktion",
+    spalteObjekt: "Objekt",
+    ereignisFolgerVoll:
+      "Es sehen schon zu viele Verbindungen dem Ereignisstrom zu. Bitte einen anderen Tab schließen.",
+    ereignisVerworfen: (n: number) =>
+      `${n} Ereignisse verworfen — Docker schreibt schneller als die Leitung überträgt.`,
+
+    // Update-Prüfung
+    // „Aktualität der Abbilder" und nicht „Abbilder": Unter Bestand steht schon
+    // eine Liste dieses Namens, und zwei gleich benannte Überschriften auf einer
+    // Seite lassen sich nicht auseinanderhalten.
+    updates: "Aktualität der Abbilder",
+    updatesWesen:
+      "Gibt es zu den Tags, die hier laufen, in den Registries etwas Neueres? Das Panel vergleicht Kennungen und tauscht nichts aus — den Knopf drückt ein Mensch.",
+    updatesNieGeprueft:
+      "Noch nicht geprüft. Der Vergleich läuft höchstens einmal am Tag, weil Docker Hub anonyme Abfragen zählt.",
+    updatesPruefen: "jetzt prüfen",
+    updatesGeprueftAm: "zuletzt geprüft am",
+    updatesWiederAb: "wieder möglich ab",
+    updatesNeu: "neuere Fassung",
+    updatesAktuell: "aktuell",
+    updatesUngeprueft: "nicht geprüft",
+    // „Nicht geprüft" ist die ehrlichste der drei Zahlen — und der Satz dazu
+    // sagt, warum sie keine Beruhigung ist.
+    updatesUngeprueftWarum:
+      "Zu diesen Abbildern kam kein belastbarer Vergleich zustande. Das heißt nicht, dass sie aktuell sind.",
+    spalteAbbildRef: "Abbild",
+    spalteStand: "Stand",
+    spalteGebrauch: "benutzt von",
+    updatesAktualisieren: "Stack aktualisieren",
+    updatesKeinGriff:
+      "Dieser Container gehört zu keinem Compose-Projekt. Das Panel kann ihn hier nicht aktualisieren.",
+  },
+
   stufe: {
     kritisch: "kritisch",
     warnung: "Warnung",

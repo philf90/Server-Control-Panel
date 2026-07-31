@@ -1,5 +1,12 @@
 # 03 — Funktionsumfang
 
+> **Teilweise überholt (Stand 0.4.1).** Der Abschnitt **v0.1** beschreibt den
+> gebauten Bestand und gilt. Die Abschnitte **v0.2** und **v0.3** sind durch
+> [16-neukonzeption.md](16-neukonzeption.md) §5 (Stufen 0.4 bis 1.0) und §6
+> (bewusst Zurückgestelltes) ersetzt; sie stehen hier nur noch als Herkunft der
+> Entscheidungen. Auch die Scope-Wahl unten und zwei Einträge der
+> Nicht-Ziel-Liste sind revidiert — Einzelheiten jeweils an Ort und Stelle.
+
 ## Scope-Entscheidung zuerst
 
 "Control Panel" bedeutet je nach Publikum zwei sehr verschiedene Produkte:
@@ -18,6 +25,16 @@ Hosting-Funktionen (B) später als optionale Module nachziehen. Der Anspruch
 Mailserver-Teil von B ist erfahrungsgemäß die Quelle von 80 % des Supportaufwands.
 
 Die folgenden Stufen gehen von dieser Empfehlung aus.
+
+**Revidiert mit der Neukonzeption: der Scope ist jetzt A+.** Das Panel bleibt
+Serververwaltung, nimmt aber die Betriebsthemen dazu, für die heute doch wieder
+SSH nötig ist — Container, Webserver mit Domains und Zertifikaten, Datenbanken,
+Zeitpläne, Backups. Nicht als Hosting-Panel mit Kunden und Mail, sondern als
+Werkzeug für den einen eigenen Server, auf dem Anwendungen laufen. Mit der
+Erweiterung fiel auch „schlank" als **harte** Vorgabe: Die Grenzen für
+Binärgröße und Grundlast bleiben als Messwerte, entscheiden aber nicht mehr
+gegen eine Funktion. Begründung in
+[16-neukonzeption.md](16-neukonzeption.md) §1 und §2.
 
 ---
 
@@ -97,7 +114,18 @@ der ersten Stunde tut.
 
 ---
 
-## v0.2 — Alltagstauglichkeit
+## v0.2 — Alltagstauglichkeit *(überholt)*
+
+*Diese Stufe gibt es als Stufe nicht mehr. Zwei ihrer Punkte sind gebaut, die
+übrigen drei neu eingeordnet:*
+
+| Punkt | Wo er gelandet ist |
+|---|---|
+| Dateimanager | gebaut in **0.3.0** |
+| Cron & systemd-Timer | gebaut in **0.4.0** |
+| Web-Terminal | **hinter 1.0** verschoben ([16](16-neukonzeption.md) §6) |
+| Benachrichtigungen | **zurückgestellt** ([16](16-neukonzeption.md) §6) |
+| Storage-Details (SMART, Swap) | **nicht eingeplant**; die Dateisystem-Anzeige der Lage deckt den Alltagsfall ab |
 
 - **Dateimanager — umgesetzt in 0.3.0.** Browsen, Umbenennen, Rechte/Owner,
   Upload/Download, Editor mit Syntax-Highlighting für Configs. Dazu Anlegen,
@@ -126,9 +154,26 @@ der ersten Stunde tut.
 
 ---
 
-## v0.3 — Module
+## v0.3 — Module *(überholt)*
 
-Ab hier gilt: Kern bleibt klein, Funktionen kommen als abschaltbare Module.
+*Der Modulgedanke — „Kern bleibt klein, Funktionen kommen als abschaltbare
+Module" — trägt weiter, aber die Liste ist neu geschnitten und auf eigene
+Fassungen verteilt. Maßgeblich ist [16-neukonzeption.md](16-neukonzeption.md)
+§5 und §6:*
+
+| Punkt von damals | Jetzt |
+|---|---|
+| Docker | **Stufe 0.5**, Stacks als führendes Objekt; Podman bleibt zurückgestellt — erst eine Laufzeit richtig |
+| Reverse Proxy | **Stufe 0.6** als „Webserver & Domains", Sites statt Konfigurationsdateien |
+| Backups | **Stufe 0.8** (restic; borg entfällt), Restore-Test als Kern des Moduls |
+| WireGuard | **zurückgestellt** — nützlich, aber unabhängig von allem anderen |
+| Multi-Server | **zurückgestellt** — braucht die Prozesstrennung und ein Trust-Modell |
+
+*Neu hinzugekommen und in der alten Liste nicht enthalten:*
+**Datenbanken** (Stufe 0.7) sowie das Fundament aus **0.4** — neue Oberfläche,
+`/api/v1`, Job-Modell, Cron & Timer, API-Tokens.
+
+Die ursprüngliche Liste, zur Herkunft:
 
 - **Docker/Podman:** Container, Images, Volumes, Compose-Stacks, Logs.
 - **Reverse Proxy:** Caddy oder nginx, vHost anlegen mit automatischem TLS —
@@ -142,7 +187,18 @@ Ab hier gilt: Kern bleibt klein, Funktionen kommen als abschaltbare Module.
 
 ## Bewusste Nicht-Ziele
 
-Diese Liste ist genauso wichtig wie die Feature-Liste:
+Diese Liste ist genauso wichtig wie die Feature-Liste.
+
+**Zwei Einträge sind gefallen** ([16-neukonzeption.md](16-neukonzeption.md) §2):
+
+| Bisher Nicht-Ziel | Jetzt | Begründung |
+|---|---|---|
+| vHosts / Reverse Proxy | **Ziel (0.6)** | Der häufigste Handgriff nach dem Aufsetzen eines Dienstes ist „mach ihn unter einem Namen mit TLS erreichbar". Das ACME-Modul existiert bereits. |
+| Datenbanken (MySQL/PostgreSQL) | **Ziel (0.7)** | Jede zweite Anwendung braucht eine. Datenbank und Benutzer anlegen ist typisierbar und klein — verwaltet wird die Instanz, nicht der Inhalt. |
+
+**Der Rest gilt weiter, und mit größerem Gewicht** — seit „schlank" nicht mehr
+gegen Funktionen entscheidet, ist diese Liste die einzige Bremse gegen den Weg
+zum Hosting-Panel:
 
 - **Kein eigener Mailserver-Stack** (Postfix/Dovecot/Rspamd/DKIM/DMARC-Verwaltung).
   Zu groß, zu supportintensiv, zu risikoreich.
@@ -161,3 +217,9 @@ Diese Liste ist genauso wichtig wie die Feature-Liste:
 | Webmin | Riesiger Funktionsumfang, Perl, gealtertes UI | Fokussiert, modern, sicherer Default |
 | CloudPanel / HestiaCP | Hosting-Fokus, schreibt Systemkonfiguration weitreichend um | Nicht-besitzergreifend, Server bleibt "normal" |
 | Portainer | Nur Container | Der Server selbst, Container optional |
+
+Mit dem Scope A+ verschiebt sich der Vergleichspunkt: Er ist nicht mehr nur
+Cockpit und Webmin, sondern auch **CloudPanel und Coolify**. Der Unterschied
+bleibt derselbe wie oben — Asylum bleibt nicht-besitzergreifend und stellt
+keinen eigenen Stack neben das System; auch Webserver und Datenbank kommen aus
+den Distributionsquellen.

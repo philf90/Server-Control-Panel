@@ -309,20 +309,24 @@ Bindestrich (`v0.1.0-rc.2`) ist nach SemVer eine Vorabversion und geht nach
 `beta`, alles andere nach `stable`.
 
 **Ein Verzeichnis entsteht erst mit der ersten passenden Veröffentlichung.**
-Solange es nur Vorabversionen gibt, liegt unter `apt/dists/` allein `beta/`. Wer
-dann `Suites: stable` einträgt, bekommt von apt:
+**Beide gibt es inzwischen:** `beta/` seit `v0.1.0-rc.1`, `stable/` seit
+**`v0.4.0`** — dem ersten Tag ohne Bindestrich. Bis dahin beantwortete apt ein
+eingetragenes `Suites: stable` mit
 
 ```
 Fehl: https://repo.cloudsrv24.de/apt stable Release  404  Not Found
 E: Das Depot »… stable Release« enthält keine Release-Datei.
 ```
 
-Das ist die korrekte Antwort auf die Frage nach einem leeren Kanal, kein Defekt.
+Das war die korrekte Antwort auf die Frage nach einem leeren Kanal und kein
+Defekt — und es ist weiterhin die Antwort, die ein Kanal ohne
+Veröffentlichung gäbe.
+
 Der Pool ist gemeinsam: Wird eine Version aus `beta` später als Freigabe
 veröffentlicht, taucht dieselbe `.deb` unter `stable` auf, ohne neu hochgeladen
 zu werden.
 
-Einrichten (während der Beta-Phase `beta`, nach der ersten Freigabe `stable`):
+Einrichten — `stable` für den Regelfall, `beta`, wer die Vorabversionen mitträgt:
 
 ```bash
 sudo curl -fsSL --proto '=https' --tlsv1.2 \
@@ -332,7 +336,7 @@ sudo curl -fsSL --proto '=https' --tlsv1.2 \
 sudo tee /etc/apt/sources.list.d/asylum.sources > /dev/null <<'EOF'
 Types: deb
 URIs: https://repo.cloudsrv24.de/apt
-Suites: beta
+Suites: stable
 Components: main
 Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
 EOF

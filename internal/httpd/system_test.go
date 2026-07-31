@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -60,6 +61,65 @@ type fakeOps struct {
 	timers       []privops.Timer
 	timerLauf    privops.TimerLauf
 	timerErr     error
+
+	// Docker. dockerInstallDone sagt dem Test, dass der Vorgang im Hintergrund
+	// gelaufen ist — wie upgradeDone bei den Paketen.
+	docker           privops.DockerState
+	dockerErr        error
+	dockerInstallErr error
+	// dockerInstallHalt hält den Lauf an, bis der Test ihn freigibt. Ohne das
+	// wäre ein Vorgang vorbei, bevor der Test seinen zweiten Aufruf abschickt —
+	// und die Prüfung „höchstens einer je Art" prüfte nichts.
+	dockerInstallHalt chan struct{}
+	dockerInstallDone chan struct{}
+
+	container          []privops.Container
+	containerErr       error
+	containerAktionErr error
+	containerLogs      []string
+	containerStats     []privops.ContainerStats
+	containerMounts    []privops.ContainerMount
+
+	images    []privops.Image
+	volumes   []privops.Volume
+	netze     []privops.Netz
+	df        []privops.Bestandsposten
+	pruneDone chan struct{}
+
+	// Stacks. stackText steht je Stackname, damit ein Test einen Stack ohne
+	// lesbare Datei bauen kann — der Normalfall bei einem fremden Projekt, dessen
+	// Verzeichnis es nicht mehr gibt.
+	stacks    []privops.Stack
+	stackErr  error
+	stackText map[string]string
+	// stackPruefung ist die Antwort des Compose-Prüfers. Die Attrappe RECHNET
+	// sie nicht — sie ist gesetzt oder nicht. Der Prüfer selbst hat seine
+	// eigenen Tests in privops; hier geht es darum, was die Schicht darüber mit
+	// seinem Urteil anfängt.
+	stackPruefung   privops.ComposePruefung
+	stackSchreibErr error
+	// stackDone meldet dem Test das Ende des Hintergrundvorgangs. Er wird nach
+	// dem Bau nicht mehr GESETZT, nur gelesen und über stackFertig genau einmal
+	// geschlossen: Ihn beim Schließen auf nil zu setzen war der erste Anlauf, und
+	// er hat den Test in einen Empfang auf einem nil-Kanal geschickt — der
+	// blockiert für immer. Gefunden hat es der Race-Detektor, nicht der
+	// gewöhnliche Lauf.
+	stackDone   chan struct{}
+	stackFertig sync.Once
+
+	// Ereignisse. eventsHalt hält den Strom offen, bis der Test ihn freigibt —
+	// ein Strom, der sofort endet, prüft die Schranke nicht.
+	events     []privops.DockerEreignis
+	eventsErr  error
+	eventsHalt chan struct{}
+
+	// Update-Prüfung. staende steht je Abbild-Ref; was nicht darin steht, gilt
+	// als nicht geprüft — dasselbe, was die echte Fassung ohne belastbaren
+	// Vergleich meldet.
+	staende      map[string]privops.Updatestand
+	updateErr    error
+	updateDone   chan struct{}
+	updateFertig sync.Once
 }
 
 func newFakeOps() *fakeOps {
@@ -397,6 +457,45 @@ func (f *fakeOps) ConfigCheck(_ context.Context, path string) (privops.ConfigChe
 	return f.configCheck, f.configCheckErr
 }
 
+func (f *fakeOps) DockerState(context.Context) (privops.DockerState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.docker, f.dockerErr
+}
+
+func (f *fakeOps) DockerInstall(_ context.Context, stream privops.LineWriter) error {
+	f.record("docker:install")
+	if stream != nil {
+		stream("Richte docker.io ein …")
+	}
+	f.mu.Lock()
+	halt := f.dockerInstallHalt
+	f.mu.Unlock()
+	if halt != nil {
+		<-halt
+	}
+
+	f.mu.Lock()
+	err := f.dockerInstallErr
+	done := f.dockerInstallDone
+	// Nach dem Lauf ist Docker da. Ohne das zeigte ein Test, der danach den
+	// Zustand abfragt, weiter „nicht installiert" — und prüfte damit etwas
+	// anderes als das, was auf einem echten Server passiert.
+	if err == nil {
+		f.docker = privops.DockerState{
+			Installiert: true, DaemonLaeuft: true, ComposeVerfuegbar: true,
+			ClientVersion: "27.5.1", ServerVersion: "27.5.1", ComposeVersion: "2.32.4",
+			Paket: "docker.io",
+		}
+	}
+	f.mu.Unlock()
+
+	if done != nil {
+		close(done)
+	}
+	return err
+}
+
 func (f *fakeOps) SelfUpdateStart(_ context.Context, spec privops.SelfUpdateSpec) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -635,4 +734,314 @@ func TestFirewallZeilenUebernimmtBestehendePanelRegel(t *testing.T) {
 	if treffer != 1 {
 		t.Errorf("die Panel-Regel steht %d Mal in der Liste", treffer)
 	}
+}
+
+func (f *fakeOps) DockerContainers(context.Context) ([]privops.Container, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.container, f.containerErr
+}
+
+func (f *fakeOps) DockerContainer(_ context.Context, id string) (privops.ContainerDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, c := range f.container {
+		if c.ID == id || c.Name == id {
+			// Die Mounts gehören dazu: Aus ihnen leitet der Bestand ab, welche
+			// Volumes in Gebrauch sind — und das ist die Angabe, an der dort der
+			// gefährlichste Handgriff hängt. Ohne sie prüfte der Test die
+			// harmlose Hälfte.
+			return privops.ContainerDetail{
+				Container: c, ExitCode: -1, Mounts: f.containerMounts,
+			}, nil
+		}
+	}
+	return privops.ContainerDetail{}, errors.New("No such container: " + id)
+}
+
+func (f *fakeOps) DockerContainerAction(_ context.Context, id string, a privops.ContainerAction) error {
+	f.record("docker:" + string(a) + ":" + id)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.containerAktionErr != nil {
+		return f.containerAktionErr
+	}
+	// Den Zustand mitführen: Ein Test, der nach dem Stoppen den frischen Stand
+	// prüft, soll ihn auch sehen.
+	for i, c := range f.container {
+		if c.ID != id && c.Name != id {
+			continue
+		}
+		switch a {
+		case privops.ContainerStart, privops.ContainerRestart, privops.ContainerUnpause:
+			f.container[i].Zustand, f.container[i].Status = "running", "Up 1 second"
+		case privops.ContainerStop:
+			f.container[i].Zustand, f.container[i].Status = "exited", "Exited (0) 1 second ago"
+		case privops.ContainerPause:
+			f.container[i].Zustand, f.container[i].Status = "paused", "Up 1 hour (Paused)"
+		}
+	}
+	return nil
+}
+
+func (f *fakeOps) DockerContainerRemove(_ context.Context, id string, erzwingen bool) error {
+	// Beide Vermerke VOR der Sperre: record nimmt dieselbe Sperre, und sie
+	// darunter ein zweites Mal zu nehmen ist ein Deadlock. Beim ersten Anlauf
+	// stand der zweite Vermerk im gesperrten Abschnitt, und der Testlauf hing —
+	// bis der Zeitgeber von "go test" ihn nach zehn Minuten abbrach.
+	f.record("docker:remove:" + id)
+	if erzwingen {
+		f.record("docker:remove:erzwungen")
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	uebrig := f.container[:0]
+	for _, c := range f.container {
+		if c.ID != id && c.Name != id {
+			uebrig = append(uebrig, c)
+		}
+	}
+	f.container = uebrig
+	return nil
+}
+
+func (f *fakeOps) DockerContainerLogs(_ context.Context, _ string, _ int) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.containerLogs, nil
+}
+
+func (f *fakeOps) DockerContainerLogsFollow(ctx context.Context, _ string, _ int, sink privops.LineWriter) error {
+	for _, l := range f.containerLogs {
+		sink(l)
+	}
+	<-ctx.Done()
+	return nil
+}
+
+func (f *fakeOps) DockerStats(context.Context) ([]privops.ContainerStats, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.containerStats, nil
+}
+
+func (f *fakeOps) DockerImages(context.Context) ([]privops.Image, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.images, nil
+}
+
+func (f *fakeOps) DockerImageRemove(_ context.Context, id string) error {
+	f.record("docker:image-rm:" + id)
+	return nil
+}
+
+func (f *fakeOps) DockerVolumes(context.Context) ([]privops.Volume, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.volumes, nil
+}
+
+func (f *fakeOps) DockerVolumeRemove(_ context.Context, name string) error {
+	f.record("docker:volume-rm:" + name)
+	return nil
+}
+
+func (f *fakeOps) DockerNetworks(context.Context) ([]privops.Netz, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.netze, nil
+}
+
+func (f *fakeOps) DockerNetworkRemove(_ context.Context, id string) error {
+	f.record("docker:netz-rm:" + id)
+	return nil
+}
+
+func (f *fakeOps) DockerDiskUsage(context.Context) ([]privops.Bestandsposten, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.df, nil
+}
+
+func (f *fakeOps) DockerPrune(_ context.Context, art privops.PruneArt, alle bool, stream privops.LineWriter) (string, error) {
+	vermerk := "docker:prune:" + string(art)
+	if alle {
+		vermerk += ":alle"
+	}
+	f.record(vermerk)
+	if stream != nil {
+		stream("Total reclaimed space: 1.234GB")
+	}
+	f.mu.Lock()
+	done := f.pruneDone
+	f.mu.Unlock()
+	if done != nil {
+		close(done)
+	}
+	return "1.234GB", nil
+}
+
+func (f *fakeOps) StackList(context.Context) ([]privops.Stack, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.stacks, f.stackErr
+}
+
+// StackDatei bildet die Zusage der echten Fassung nach: Ein Name, den die Liste
+// nicht kennt, führt nirgendwohin. Der Fake, der jeden Namen bediente, prüfte
+// genau die Eigenschaft nicht, um derer willen der Umweg über die Liste da ist.
+// StackSchreiben bildet die Zusage der echten Fassung nach: Ein Stack, dessen
+// Prüfung nicht OK ist, wird NICHT geschrieben. Eine Attrappe, die trotzdem
+// schriebe, ließe genau den Test bestehen, der prüft, dass sie es nicht tut.
+func (f *fakeOps) StackSchreiben(_ context.Context, name, text string, _ int) (privops.ComposePruefung, error) {
+	f.record("docker:stack-write:" + name)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.stackSchreibErr != nil {
+		return privops.ComposePruefung{}, f.stackSchreibErr
+	}
+	if f.stackPruefung.Geprueft && !f.stackPruefung.OK {
+		return f.stackPruefung, nil
+	}
+	if f.stackText == nil {
+		f.stackText = map[string]string{}
+	}
+	f.stackText[name] = text
+	vorhanden := false
+	for _, st := range f.stacks {
+		if st.Name == name {
+			vorhanden = true
+		}
+	}
+	if !vorhanden {
+		f.stacks = append(f.stacks, privops.Stack{
+			Name: name, Verwaltet: true, Status: "nicht gestartet",
+			Datei: "/opt/asylum/stacks/" + name + "/compose.yaml",
+		})
+	}
+	return f.stackPruefung, nil
+}
+
+func (f *fakeOps) StackPruefen(_ context.Context, name string, _ int) (privops.ComposePruefung, error) {
+	f.record("docker:stack-pruefen:" + name)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.stackPruefung, nil
+}
+
+func (f *fakeOps) StackAusfuehren(_ context.Context, name string, aktion privops.StackAktion, mitVolumes bool, _ int, stream privops.LineWriter) (privops.ComposePruefung, error) {
+	vermerk := "docker:stack-" + string(aktion) + ":" + name
+	if mitVolumes {
+		vermerk += ":volumes"
+	}
+	f.record(vermerk)
+	f.mu.Lock()
+	pruefung := f.stackPruefung
+	f.mu.Unlock()
+
+	// Wie in der echten Fassung: Der Prüfer läuft vor allem, was startet — und
+	// nicht vor „down".
+	if (aktion == privops.StackUp || aktion == privops.StackRestart) &&
+		pruefung.Geprueft && !pruefung.OK {
+		f.stackFertigMelden()
+		return pruefung, nil
+	}
+	if stream != nil {
+		stream("Container " + name + "-web-1  Started")
+	}
+	f.stackFertigMelden()
+	return pruefung, nil
+}
+
+// stackFertigMelden schließt den Meldekanal genau einmal. Ein Test, der zwei
+// Vorgänge auslöst, brächte die Attrappe sonst mit „close of closed channel" zum
+// Absturz — und der Bericht zeigte auf die Attrappe statt auf den Test.
+func (f *fakeOps) stackFertigMelden() {
+	if f.stackDone == nil {
+		return
+	}
+	f.stackFertig.Do(func() { close(f.stackDone) })
+}
+
+func (f *fakeOps) StackLoeschen(_ context.Context, name string, stream privops.LineWriter) error {
+	f.record("docker:stack-loeschen:" + name)
+	if stream != nil {
+		stream("Verzeichnis entfernt: /opt/asylum/stacks/" + name)
+	}
+	f.mu.Lock()
+	uebrig := f.stacks[:0]
+	for _, st := range f.stacks {
+		if st.Name != name {
+			uebrig = append(uebrig, st)
+		}
+	}
+	f.stacks = uebrig
+	f.mu.Unlock()
+	f.stackFertigMelden()
+	return nil
+}
+
+func (f *fakeOps) DockerEventsFollow(ctx context.Context, sink func(privops.DockerEreignis)) error {
+	f.record("docker:events")
+	f.mu.Lock()
+	events, err, halt := f.events, f.eventsErr, f.eventsHalt
+	f.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	for _, e := range events {
+		sink(e)
+	}
+	if halt != nil {
+		// Wie die echte Fassung: Der Kontext des Betrachters ist die Frist.
+		select {
+		case <-halt:
+		case <-ctx.Done():
+		}
+	}
+	return nil
+}
+
+func (f *fakeOps) DockerUpdatePruefen(_ context.Context, ref string) (privops.Updatestand, error) {
+	f.record("docker:update-pruefen:" + ref)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.updateDone != nil {
+		f.updateFertig.Do(func() { close(f.updateDone) })
+	}
+	if f.updateErr != nil {
+		return privops.Updatestand{}, f.updateErr
+	}
+	if st, da := f.staende[ref]; da {
+		return st, nil
+	}
+	// Der Vorgabefall ist bewusst „nicht geprüft" und nicht „aktuell": So
+	// verhält sich auch die echte Fassung, wenn ihr der belastbare Vergleich
+	// fehlt.
+	return privops.Updatestand{
+		Ref: ref, Grund: "in der Attrappe nicht hinterlegt",
+	}, nil
+}
+
+func (f *fakeOps) StackDatei(_ context.Context, name string) (privops.StackInhalt, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := privops.PruefeName(name); err != nil {
+		return privops.StackInhalt{}, err
+	}
+	for _, st := range f.stacks {
+		if st.Name != name {
+			continue
+		}
+		text, ok := f.stackText[name]
+		if !ok {
+			return privops.StackInhalt{}, errors.New("keine Compose-Datei zu " + name)
+		}
+		return privops.StackInhalt{
+			Name: name, Datei: st.Datei, Verwaltet: st.Verwaltet, Text: text,
+		}, nil
+	}
+	return privops.StackInhalt{}, errors.New("kein Stack mit dem Namen " + name)
 }

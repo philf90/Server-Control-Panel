@@ -100,6 +100,7 @@ export const gruppen: Gruppe[] = [
         symbol: "container",
         href: "/docker",
         gruppe: t.bereiche.apps,
+        neu: true,
         auch: ["container", "compose", "stack", "image", "podman"],
       },
       {

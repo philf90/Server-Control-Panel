@@ -204,7 +204,10 @@ Drei Entscheidungen lösen das, ohne die Passwortsicherheit anzutasten:
    taugt das nicht: Die Argon2-Berechnung selbst kostet ein Vielfaches eines
    Sammellaufs, und die Ratenbegrenzung deckelt die Versuche zusätzlich.
 
-Ergebnis: 16 MB Grundlast, die auch nach Anmeldungen dort bleibt.
+Ergebnis: eine Grundlast, die auch nach Anmeldungen dort bleibt, wo sie vorher
+war. Die Zahl selbst ist seither gewachsen — 16 MB bei der Messung (M1),
+20,5 MB mit 0.4.1 —, aber sie wächst mit dem Funktionsumfang und nicht mit der
+Zahl der Anmeldungen. Genau das war der Punkt.
 
 ## Sicherheitsgrundlagen
 
@@ -212,7 +215,7 @@ Ergebnis: 16 MB Grundlast, die auch nach Anmeldungen dort bleibt.
 |---|---|
 | Passwörter | Argon2id (`m=32MiB, t=3, p=2`), serialisiert, kein SHA-basierter Fallback |
 | 2FA | TOTP, beim ersten Login erzwungen; Recovery-Codes einmalig anzeigbar |
-| Sessions | HttpOnly, Secure, SameSite=Strict, serverseitig in SQLite, absolute + idle Expiry |
+| Sessions | HttpOnly, Secure, SameSite=Strict, serverseitig in SQLite (gespeichert wird nur der SHA-256 des Cookie-Werts), absolut 12 h ab Anmeldung, gleitendes Leerlauf-Fenster 2 h — alle Laufzeiten in [16-neukonzeption.md](16-neukonzeption.md#78-sitzungen-und-zugangsdauer) §7.8 |
 | CSRF | Double-Submit-Token für alle mutierenden Requests |
 | Brute Force | Rate-Limit pro IP und pro Account, exponentielles Lockout |
 | Transport | TLS erzwungen; self-signed beim Setup, ACME/Let's Encrypt per Klick |
@@ -224,27 +227,51 @@ Ergebnis: 16 MB Grundlast, die auch nach Anmeldungen dort bleibt.
 
 ## Repository-Layout
 
+Gewachsen ist es anders als hier zuerst geplant: Es gibt **kein
+`internal/modules/`** und kein eigenes `internal/audit/`. Die Systemmodule sind
+keine eigenen Pakete geworden, sondern typisierte Operationen in `privops` mit
+je einem Handler-Satz in `httpd` — der Grund steht unten. Der Stand:
+
 ```
 .
 ├── cmd/asylumd/              main(): serve | migrate | setup-token | reset-password
-│                             | update | rollback | version
+│                             | update | rollback | cert | passkey | version
+├── web/                      Oberfläche (Svelte, Vite) — gebaut nach internal/ui,
+│                             auf dem Zielserver läuft kein Node
 ├── internal/
-│   ├── httpd/                Router, Middleware, Handler
-│   ├── ui/                   Templates + statische Assets (embed.FS)
-│   ├── auth/                 Passwörter, Sessions, TOTP, RBAC
-│   ├── privops/              privilegierte Operationen (einziger Systemzugriff)
-│   ├── modules/
-│   │   ├── metrics/  services/  packages/  firewall/
-│   │   ├── users/    logs/      cron/
-│   ├── privops/files*.go pfadwache.go   Dateimanager (Pfadwache = die Grenze)
-│   ├── store/                SQLite, Migrationen (embedded)
-│   ├── audit/
-│   └── update/               Selbstupdate, Signaturprüfung, Rollback
-├── packaging/
-│   ├── systemd/  nfpm/  install.sh
+│   ├── httpd/                Router, Middleware, /api/v1, Jobs, SSE, die
+│   │                         verbliebenen server-gerenderten Seiten (vor Auth)
+│   ├── ui/                   Vorlagen + gebaute Assets (embed.FS)
+│   ├── auth/                 Argon2id, TOTP, Tokens, Ratenbegrenzung
+│   ├── passkeys/             WebAuthn-Adapter, Challenge-Speicher
+│   ├── privops/              privilegierte Operationen (einziger Systemzugriff):
+│   │                         Dienste, Pakete, Firewall, Benutzer, Journal,
+│   │                         Cron/Timer, Dateien samt pfadwache.go
+│   ├── store/                SQLite, Migrationen (embedded), Sitzungen, Audit
+│   ├── metrics/              /proc-Sampler und Ringpuffer
+│   ├── certs/  acme/         selbstsigniertes Material, Let's Encrypt
+│   ├── netinfo/              FQDN, Standardroute, Schnittstellen
+│   ├── config/  systemd/  version/  update/
+├── packaging/                install.sh, systemd/, nfpm/, Signaturmaterial
 ├── docs/
 └── .github/workflows/
 ```
 
-Jedes Modul registriert seine Routen und Navigationseinträge selbst. Ein Modul
-abzuschalten (Config-Flag) entfernt Routen *und* Rechte — nicht nur den Menüpunkt.
+**Sitzungen liegen nicht in `auth`.** Die Tabelle und ihre Abfragen stehen in
+`internal/store`, das Cookie samt Ablauf- und Erneuerungslogik in
+`internal/httpd/session.go`. `auth` hält Passwörter, TOTP, Tokens und die
+Ratenbegrenzung. Die frühere Zeile „auth/ — Passwörter, Sessions, TOTP, RBAC"
+hat drei Pakete in eines gefasst.
+
+**Warum keine Modulpakete.** Die Trennung, die trägt, verläuft zwischen
+*privilegiert* und *nicht privilegiert* — nicht zwischen Fachthemen. Ein
+eigenes Paket je Modul hätte die Systemgrenze vervielfacht, ohne etwas zu
+gewinnen: Jedes hätte doch wieder durch `privops` gemusst.
+
+Mit dieser Entscheidung fällt auch der Satz, der hier stand: *„Jedes Modul
+registriert seine Routen und Navigationseinträge selbst. Ein Modul abzuschalten
+(Config-Flag) entfernt Routen und Rechte."* **Ein solches Flag gibt es nicht.**
+Alle Module sind registriert, und die Sichtbarkeit im Menü hängt allein an der
+Rolle. Ein Abschalter bliebe möglich — er müsste Routen *und* Rollenprüfung
+weglassen, nicht bloß den Menüpunkt —, ist aber nicht gebaut und für keine
+Stufe eingeplant.

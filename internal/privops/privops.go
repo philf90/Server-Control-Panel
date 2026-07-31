@@ -91,6 +91,68 @@ type Executor interface {
 	TimerList(ctx context.Context) ([]Timer, error)
 	TimerRuns(ctx context.Context, unit string) (TimerLauf, error)
 
+	// Docker.
+	//
+	// Der Zugriff läuft über die Kommandozeile und nie über den Socket. Das ist
+	// keine Bequemlichkeitsfrage: Wer den Docker-Socket hat, hat die Maschine,
+	// und dieses Interface ist die Stelle, an der das Panel entscheidet, was es
+	// überhaupt anbieten kann. Ein durchgereichter Socket wäre eine Operation
+	// „tu irgendwas" — das Gegenteil dessen, wofür es dieses Interface gibt.
+	// Ausführlich in docs/17-docker.md.
+	DockerState(ctx context.Context) (DockerState, error)
+	DockerInstall(ctx context.Context, stream LineWriter) error
+	DockerContainers(ctx context.Context) ([]Container, error)
+	DockerContainer(ctx context.Context, id string) (ContainerDetail, error)
+	DockerContainerAction(ctx context.Context, id string, a ContainerAction) error
+	DockerContainerRemove(ctx context.Context, id string, erzwingen bool) error
+	DockerContainerLogs(ctx context.Context, id string, zeilen int) ([]string, error)
+	// DockerContainerLogsFollow ist nach LogsFollow die zweite Operation ohne
+	// eigene Frist: Der Kontext des Betrachters ist die Frist.
+	DockerContainerLogsFollow(ctx context.Context, id string, zeilen int, sink LineWriter) error
+	DockerStats(ctx context.Context) ([]ContainerStats, error)
+	DockerImages(ctx context.Context) ([]Image, error)
+	DockerImageRemove(ctx context.Context, id string) error
+	DockerVolumes(ctx context.Context) ([]Volume, error)
+	DockerVolumeRemove(ctx context.Context, name string) error
+	DockerNetworks(ctx context.Context) ([]Netz, error)
+	DockerNetworkRemove(ctx context.Context, id string) error
+	DockerDiskUsage(ctx context.Context) ([]Bestandsposten, error)
+	// DockerPrune gibt zurück, wie viel Platz frei wurde — die Antwort, wegen
+	// der jemand aufräumt.
+	DockerPrune(ctx context.Context, art PruneArt, alleUnbenutzten bool, stream LineWriter) (string, error)
+	// Compose-Stacks.
+	//
+	// StackDatei nimmt einen NAMEN und keinen Pfad: Wo die Datei liegt, sagt
+	// Docker oder das verwaltete Verzeichnis. Käme der Pfad aus der Anfrage,
+	// wäre das ein Weg, jede Datei des Servers zu lesen.
+	StackList(ctx context.Context) ([]Stack, error)
+	StackDatei(ctx context.Context, name string) (StackInhalt, error)
+	// Schreiben und Bedienen. Jede dieser Methoden gibt die ComposePruefung mit
+	// zurück, und das ist kein Beiwerk: Ein Stack, dessen Prüfung nicht OK ist,
+	// wurde weder geschrieben noch gestartet. Der Aufrufer erfährt aus dem
+	// Ergebnis, WAS der Prüfer gefunden hat — ein blankes „abgelehnt" wäre
+	// keine Antwort, mit der jemand die Datei reparieren kann.
+	//
+	// panelPort geht durch, weil privops den Port des Panels nicht kennt und
+	// nicht kennen soll. Er dient nur dem Hinweis auf eine Kollision.
+	StackSchreiben(ctx context.Context, name, text string, panelPort int) (ComposePruefung, error)
+	StackPruefen(ctx context.Context, name string, panelPort int) (ComposePruefung, error)
+	StackAusfuehren(ctx context.Context, name string, aktion StackAktion, mitVolumes bool, panelPort int, stream LineWriter) (ComposePruefung, error)
+	StackLoeschen(ctx context.Context, name string, stream LineWriter) error
+	// DockerEventsFollow verfolgt den Ereignisstrom. Ohne eigene Frist: Der
+	// Kontext des Betrachters ist die Frist, derselbe Vertrag wie bei
+	// LogsFollow. Er beantwortet „warum ist der Container um 3 Uhr neu
+	// gestartet" — eine Frage, auf die der Zustand allein keine Antwort hat.
+	DockerEventsFollow(ctx context.Context, sink func(DockerEreignis)) error
+	// DockerUpdatePruefen vergleicht ein Abbild mit der Registry. Das Ergebnis
+	// trennt „geprüft" von „neu": Ohne belastbaren Vergleich meldet es „nicht
+	// geprüft" und nie „veraltet" — eine Update-Prüfung, die falsch Alarm
+	// schlägt, wird nach einer Woche nicht mehr gelesen.
+	//
+	// Ein Aufruf je Abbild. Die Ratengrenze sitzt eine Schicht darüber: Wie oft
+	// überhaupt geprüft werden darf, ist keine Frage der Kommandozeile.
+	DockerUpdatePruefen(ctx context.Context, ref string) (Updatestand, error)
+
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error
 }

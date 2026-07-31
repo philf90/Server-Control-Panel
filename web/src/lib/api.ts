@@ -14,7 +14,12 @@ import type {
   Dateitext,
   Dienste,
   DienstAktion,
+  Bestand,
+  Containerliste,
+  ContainerDetail,
+  Containerantwort,
   DienstDetail,
+  Docker,
   EigenesKonto,
   Firewall,
   FirewallAntwort,
@@ -33,6 +38,13 @@ import type {
   Schluesselliste,
   Signale,
   Sitzung,
+  Abbildupdates,
+  Portliste,
+  Stackliste,
+  StackDetail,
+  Stackschreibantwort,
+  Composebefund,
+  Composepruefung,
   Panelupdate,
   Uebersicht,
   Updateantwort,
@@ -108,6 +120,27 @@ export class Textkonflikt extends Error {
   ) {
     super(meldung);
     this.name = "Textkonflikt";
+  }
+}
+
+/** Composeabgelehnt steht für die Antwort, wenn der Compose-Prüfer einen Stack
+ *  ablehnt.
+ *
+ *  Ein eigener Typ und nicht ein Fehlertext, weil die Auskunft strukturiert ist
+ *  und genau darin ihren Wert hat: Dienst, Feld, Wert und Grund je Fund. „Der
+ *  Stack wurde abgelehnt" schickte jemanden auf die Suche in einer Datei, die er
+ *  gerade geschrieben hat.
+ *
+ *  Der Unterschied zu Pruefungabgelehnt (Dateimanager) ist die Wirkung: Dort
+ *  wurde geschrieben UND zurückgerollt, hier wurde NICHT geschrieben. */
+export class Composeabgelehnt extends Error {
+  constructor(
+    public readonly meldung: string,
+    public readonly pruefung: Composepruefung,
+    public readonly befunde: Composebefund[],
+  ) {
+    super(meldung);
+    this.name = "Composeabgelehnt";
   }
 }
 
@@ -232,6 +265,49 @@ async function anfrageOderLeer<T>(pfad: string, init?: RequestInit): Promise<T |
   return (await antwort.json()) as T;
 }
 
+/** stackSchreiben ist der Schreibweg der Stacks — mit eigenem Fehlerpfad für die
+ *  eine Antwort, die kein Fehler ist, sondern ein Urteil.
+ *
+ *  Nicht über anfrage(): Dort wird ein !ok-Rumpf auf `fehler` reduziert, und
+ *  genau die Befunde gingen dabei verloren, auf die es ankommt. 409 bleibt der
+ *  Rückfrageweg — den nimmt anfrage() ebenso, und hier steht er noch einmal,
+ *  weil dieser Weg an anfrage() vorbeigeht.
+ *
+ *  Dasselbe Muster wie bei textSpeichern und aus demselben Grund. */
+async function stackSchreiben(
+  methode: "POST" | "PUT",
+  pfad: string,
+  koerper: Record<string, unknown>,
+): Promise<Stackschreibantwort> {
+  const antwort = await fetch(`/api/v1${pfad}`, {
+    method: methode,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-CSRF-Token": token,
+    },
+    credentials: "same-origin",
+    body: JSON.stringify(koerper),
+  });
+  if (antwort.status === 401) throw new AbgemeldetFehler();
+  if (antwort.status === 409) {
+    const rumpf = (await antwort.json()) as { bestaetigung?: Bestaetigung; fehler?: string };
+    if (rumpf.bestaetigung) throw new BestaetigungNoetig(rumpf.bestaetigung);
+    throw new Error(rumpf.fehler ?? `HTTP ${antwort.status}`);
+  }
+  if (!antwort.ok) {
+    const rumpf = (await antwort.json()) as Stackschreibantwort;
+    // Nur wenn Befunde dabeistehen, ist es das Urteil des Prüfers. Ein 403 der
+    // Rollenprüfung ist ein gewöhnlicher Fehler.
+    if (rumpf.befunde && rumpf.befunde.length > 0) {
+      throw new Composeabgelehnt(rumpf.fehler ?? "abgelehnt", rumpf.pruefung, rumpf.befunde);
+    }
+    if (antwort.status === 403) throw new VerbotenFehler(rumpf.fehler ?? "verboten");
+    throw new Error(rumpf.fehler ?? `HTTP ${antwort.status}`);
+  }
+  return (await antwort.json()) as Stackschreibantwort;
+}
+
 export const api = {
   /** sitzung holt Konto, Rolle und CSRF-Token und merkt sich das Token für
    *  alle schreibenden Aufrufe. Muss vor dem ersten davon gelaufen sein. */
@@ -273,6 +349,111 @@ export const api = {
    *  Zustimmung zu etwas, das gerade schon gilt. */
   probeBestaetigen: () => anfrage<FirewallAntwort>("/firewall/confirm", { method: "POST" }),
   ufwEinspielen: () => anfrage<VorgangGestartet>("/firewall/install", { method: "POST" }),
+
+  /** docker liefert den Zustand der Container-Laufzeit — einschließlich eines
+   *  laufenden Vorgangs, damit die Seite nach einem Neuladen den Auszug
+   *  vorfindet und nicht behauptet, es sei nichts los. */
+  docker: () => anfrage<Docker>("/docker"),
+  /** dockerEinspielen ist Stufe 1: Ein Paket aus den Quellen der Distribution
+   *  zu installieren nimmt nichts weg und sperrt niemanden aus. Die Route liegt
+   *  hinter der Owner-Rolle. */
+  dockerEinspielen: () => anfrage<VorgangGestartet>("/docker/install", { method: "POST" }),
+  /** container liefert die vollständige Liste. Gefiltert wird im Browser: Ein
+   *  Server hat selten mehr als ein paar Dutzend Container, und beim Tippen ist
+   *  das Ergebnis dann sofort da. */
+  container: () => anfrage<Containerliste>("/docker/containers"),
+  containerDetail: (id: string) =>
+    anfrage<ContainerDetail>(`/docker/containers/${encodeURIComponent(id)}`),
+  /** containerAktion: start, stop, restart, pause, unpause, remove. Die Stufe
+   *  der Rückfrage entscheidet der Server — stoppen ist Stufe 2, einen
+   *  LAUFENDEN Container zu entfernen Stufe 3 mit seinem Namen. */
+  bestand: () => anfrage<Bestand>("/docker/bestand"),
+  imageEntfernen: (id: string, bestaetigt = false) =>
+    anfrage<AktionAntwort>(`/docker/images/${encodeURIComponent(id)}/remove`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion: "remove", bestaetigt, getippt: "" }),
+    }),
+  /** volumeEntfernen ist Stufe 3 mit dem Volumenamen: Was darin liegt, ist
+   *  danach weg, und kein Rückweg holt es zurück. */
+  volumeEntfernen: (name: string, bestaetigt = false, getippt = "") =>
+    anfrage<AktionAntwort>(`/docker/volumes/${encodeURIComponent(name)}/remove`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion: "remove", bestaetigt, getippt }),
+    }),
+  netzEntfernen: (id: string, bestaetigt = false) =>
+    anfrage<AktionAntwort>(`/docker/networks/${encodeURIComponent(id)}/remove`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion: "remove", bestaetigt, getippt: "" }),
+    }),
+  /** aufraeumen läuft als Vorgang: Auf einem Server mit fünfzig Gigabyte
+   *  Abbildern dauert es Minuten. Der freigegebene Platz steht danach als
+   *  Anmerkung am Vorgang. */
+  aufraeumen: (art: string, alle = false, bestaetigt = false, getippt = "") =>
+    anfrage<VorgangGestartet>("/docker/prune", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ art, alle, bestaetigt, getippt }),
+    }),
+  containerAktion: (id: string, aktion: string, bestaetigt = false, getippt = "") =>
+    anfrage<Containerantwort>(`/docker/containers/${encodeURIComponent(id)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion, bestaetigt, getippt }),
+    }),
+  /** ports listet alle veröffentlichten Ports mit ihrem Urteil — abgeglichen
+   *  mit der Firewall. Das Urteil rechnet der Server: Ein Port, den ufw nicht
+   *  kennt, ist trotzdem offen, und diese Aussage soll es nur einmal geben. */
+  ports: () => anfrage<Portliste>("/docker/ports"),
+
+  /** abbildupdates liefert den ZWISCHENGESPEICHERTEN Stand. Dieser Aufruf
+   *  fragt keine Registry — sonst verbrauchte ein offener Tab die Ratengrenze
+   *  im Hintergrund. */
+  abbildupdates: () => anfrage<Abbildupdates>("/docker/updates"),
+  /** updatePruefungStarten stößt den Vergleich mit den Registries an. Höchstens
+   *  einmal am Tag; danach antwortet der Server mit 429 und dem Zeitpunkt, ab
+   *  dem es wieder geht. */
+  updatePruefungStarten: () =>
+    anfrage<VorgangGestartet>("/docker/updates/check", { method: "POST" }),
+
+  /** stacks liefert die Compose-Projekte, verwaltete wie fremde. */
+  stacks: () => anfrage<Stackliste>("/docker/stacks"),
+  /** stackDetail nimmt einen NAMEN und keinen Pfad. Wo die Compose-Datei liegt,
+   *  sagt Docker oder das verwaltete Verzeichnis — käme der Pfad von hier, wäre
+   *  der Endpunkt ein Weg, jede Datei des Servers zu lesen. */
+  stackDetail: (name: string) =>
+    anfrage<StackDetail>(`/docker/stacks/${encodeURIComponent(name)}`),
+  /** stackAnlegen legt einen neuen Stack an. Ein schon vergebener Name ist 409
+   *  und kein Überschreiben — wer „anlegen" drückt, erwartet das nicht. */
+  stackAnlegen: (name: string, text: string, bestaetigt = false, getippt = "") =>
+    stackSchreiben("POST", "/docker/stacks", { name, text, bestaetigt, getippt }),
+  /** stackSpeichern schreibt die Compose-Datei.
+   *
+   *  Lehnt der Compose-Prüfer ab, antwortet der Server mit 400 UND den Befunden
+   *  — Dienst, Feld, Wert, Grund. Geschrieben wurde dann nichts. */
+  stackSpeichern: (name: string, text: string, bestaetigt = false, getippt = "") =>
+    stackSchreiben("PUT", `/docker/stacks/${encodeURIComponent(name)}`, {
+      text,
+      bestaetigt,
+      getippt,
+    }),
+  /** stackAktion: up, down, pull, restart, loeschen. Die Stufe der Rückfrage
+   *  entscheidet der Server — „up" ist Stufe 1, außer der Prüfer meldet einen
+   *  Bind-Mount nach draußen; dann Stufe 3 mit dem Stack-Namen. */
+  stackAktion: (
+    name: string,
+    aktion: string,
+    mitVolumes = false,
+    bestaetigt = false,
+    getippt = "",
+  ) =>
+    anfrage<VorgangGestartet>(`/docker/stacks/${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion, mit_volumes: mitVolumes, bestaetigt, getippt }),
+    }),
 
   /** logs fragt das Journal ab. Die Filter stehen als Abfragezeichenkette in
    *  der Adresse — dieselbe, die der Strom bekommt, damit er nicht mehr zeigt

@@ -74,6 +74,64 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 		})
 	}
 
+	// Auffällige Container. Der Aufruf kostet ein "docker ps" — auf einem Server
+	// ohne Docker scheitert er sofort und kostet nichts, auf einem mit Docker
+	// liegt er im zweistelligen Millisekundenbereich. Beides bleibt in der
+	// Drei-Sekunden-Frist dieser Funktion.
+	//
+	// Die Regel, was auffällig ist, kommt aus containerStufe — derselben
+	// Funktion, die auch die Containerliste färbt. Zwei Fassungen liefen
+	// auseinander, und dann meldete die Übersicht einen Befund, den die Liste
+	// nicht kennt.
+	if cs, err := s.ops.DockerContainers(ctx); err == nil {
+		var auffaellig []string
+		for _, c := range cs {
+			if _, warn := containerStufe(c); warn {
+				auffaellig = append(auffaellig, c.Name)
+			}
+		}
+		switch {
+		case len(auffaellig) == 1:
+			out = append(out, dashSignal{
+				Level: "warn", Tag: "Container", Title: auffaellig[0] + " braucht Aufmerksamkeit",
+				Detail:      "Der Container ist ungesund, unsauber beendet oder startet in einer Schleife neu.",
+				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+			})
+		case len(auffaellig) > 1:
+			out = append(out, dashSignal{
+				Level: "warn", Tag: "Container", Title: fmt.Sprintf("%d Container brauchen Aufmerksamkeit", len(auffaellig)),
+				Detail:      strings.Join(auffaellig, " · "),
+				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+			})
+		}
+	}
+
+	// Abbilder mit einer neueren Fassung. AUSSCHLIESSLICH aus dem
+	// Zwischenspeicher: In der Drei-Sekunden-Frist dieser Funktion wird nie eine
+	// Registry gefragt. Eine Registry antwortet, wann sie will, und sie zählt
+	// jede Abfrage — beides hat in einer Übersicht nichts verloren, die bei
+	// jedem Seitenaufbau entsteht.
+	if stand := s.updatestandLesen(ctx); !stand.Geprueft.IsZero() {
+		var neu []string
+		for _, st := range stand.Staende {
+			if st.Geprueft && st.Neu {
+				neu = append(neu, st.Ref)
+			}
+		}
+		if len(neu) > 0 {
+			titel := neu[0] + ": neuere Fassung verfügbar"
+			if len(neu) > 1 {
+				titel = fmt.Sprintf("%d Abbilder haben eine neuere Fassung", len(neu))
+			}
+			out = append(out, dashSignal{
+				Level: "warn", Tag: "Docker", Title: titel,
+				Detail: strings.Join(neu, " · ") + " — geprüft am " +
+					stand.Geprueft.Local().Format("02.01.2006"),
+				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+			})
+		}
+	}
+
 	return out
 }
 

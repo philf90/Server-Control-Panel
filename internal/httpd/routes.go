@@ -235,6 +235,68 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/v1/schedules/cron/{name}/delete",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPICronLoeschen)))))
 
+	// Docker. Lesen genügt das Leserecht — wer sehen darf, welche Dienste laufen,
+	// darf sehen, welche Container laufen. Schreiben verlangt die Owner-Rolle,
+	// und zwar schärfer begründet als bei den Zeitplänen: Wer den Docker-Socket
+	// hat, hat die Maschine. Ein Container mit „-v /:/host" ist root auf dem
+	// Wirt, ohne Umweg über eine Lücke. Die Begründung steht im Kopf von
+	// api_v1_docker.go und ausführlich in docs/17-docker.md.
+	mux.Handle("GET /api/v1/docker", s.protected(http.HandlerFunc(s.handleAPIDocker)))
+	mux.Handle("POST /api/v1/docker/install",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerInstall)))))
+	mux.Handle("GET /api/v1/docker/containers",
+		s.protected(http.HandlerFunc(s.handleAPIDockerContainers)))
+	mux.Handle("GET /api/v1/docker/containers/{id}",
+		s.protected(http.HandlerFunc(s.handleAPIDockerContainer)))
+	// Der Strom ist lesend und liegt deshalb nicht hinter apiSchreibend. Seine
+	// Schranke ist eine andere: höchstens vier gleichzeitig, weil jeder einen
+	// eigenen docker-Prozess hält (maxDockerLogFolger).
+	mux.Handle("GET /api/v1/docker/containers/{id}/logs",
+		s.protected(http.HandlerFunc(s.handleAPIDockerContainerLogs)))
+	mux.Handle("POST /api/v1/docker/containers/{id}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerContainerAktion)))))
+	mux.Handle("GET /api/v1/docker/bestand",
+		s.protected(http.HandlerFunc(s.handleAPIDockerBestand)))
+	mux.Handle("POST /api/v1/docker/images/{id}/remove",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerImageEntfernen)))))
+	mux.Handle("POST /api/v1/docker/volumes/{name}/remove",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerVolumeEntfernen)))))
+	mux.Handle("POST /api/v1/docker/networks/{id}/remove",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerNetzEntfernen)))))
+	mux.Handle("POST /api/v1/docker/prune",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerPrune)))))
+	// Stacks, lesend. Der Name im Pfad wird nie zu einem Pfad auf der Platte —
+	// wo die Compose-Datei liegt, sagt Docker oder das verwaltete Verzeichnis.
+	// Die Begründung steht im Kopf von internal/privops/compose.go.
+	mux.Handle("GET /api/v1/docker/stacks",
+		s.protected(http.HandlerFunc(s.handleAPIDockerStacks)))
+	mux.Handle("GET /api/v1/docker/stacks/{name}",
+		s.protected(http.HandlerFunc(s.handleAPIDockerStack)))
+	// Schreibend. Anlegen und Speichern stehen getrennt, weil sie verschiedene
+	// Fehler haben: Anlegen kann an einem schon vergebenen Namen scheitern,
+	// Speichern an einer Datei, die dem Panel nicht gehört. Ein Endpunkt für
+	// beides beantwortete beide Fälle mit derselben Meldung.
+	mux.Handle("POST /api/v1/docker/stacks",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerStackAnlegen)))))
+	mux.Handle("PUT /api/v1/docker/stacks/{name}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerStackSpeichern)))))
+	mux.Handle("POST /api/v1/docker/stacks/{name}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerStackAktion)))))
+	// Ports und Ereignisse. Beides lesend — der Ereignisstrom hat dieselbe
+	// Schranke wie das Containerprotokoll: höchstens vier gleichzeitig, weil
+	// jeder einen eigenen docker-Prozess hält.
+	mux.Handle("GET /api/v1/docker/ports",
+		s.protected(http.HandlerFunc(s.handleAPIDockerPorts)))
+	mux.Handle("GET /api/v1/docker/events",
+		s.protected(http.HandlerFunc(s.handleAPIDockerEvents)))
+	// Update-Prüfung. Lesen liefert den Zwischenspeicher und fragt NIE eine
+	// Registry; der Prüflauf ist schreibend, weil er eine Ratengrenze verbraucht
+	// und einen Zustand hinterlässt.
+	mux.Handle("GET /api/v1/docker/updates",
+		s.protected(http.HandlerFunc(s.handleAPIDockerUpdates)))
+	mux.Handle("POST /api/v1/docker/updates/check",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerUpdatePruefung)))))
+
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst
 	// bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen, mit dem es

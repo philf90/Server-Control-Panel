@@ -96,6 +96,33 @@ Fläche diese Tabelle verlassen will, gehört die Begründung genauso hierhin �
 stillschweigende Abweichung wäre der Anfang davon, dass die Stufen nichts mehr
 bedeuten.
 
+**Zweite Abweichung, ebenfalls begründet: einen laufenden Container entfernen.**
+Nach der Tabelle wäre das Entfernen eines Containers Stufe 2 — der Container ist
+weg, das Image bleibt, ein neuer ist ein Handgriff. Läuft er aber, tut derselbe
+Klick zwei Dinge auf einmal: Er beendet einen Dienst *und* löscht ihn. Deshalb
+Stufe 3 mit dem **Containernamen** (objektbezogen, nicht systemweit — es trifft
+einen Container und nicht den Server). Ein gestoppter Container bleibt Stufe 2,
+ihn zu starten Stufe 1, ihn zu stoppen Stufe 2. Die vollständige Tabelle des
+Moduls steht in [17-docker.md](17-docker.md).
+
+**Dritte Abweichung, ebenfalls begründet: einen Stack mit Bind-Mount nach außen
+starten.** Nach der Tabelle wäre „Stack starten" Stufe 1 — es ist umkehrbar, ein
+`down` nimmt es zurück. Hängt der Stack aber ein Verzeichnis des Servers in einen
+seiner Container (`/srv/daten:/data`), dann startet derselbe Klick einen Prozess
+mit Zugriff auf Daten, die nicht ihm gehören. Deshalb **Stufe 3 mit dem
+Stack-Namen**, und die Frage nennt jeden dieser Pfade einzeln.
+
+Die Stufe hängt hier also nicht an der Aktion, sondern am **Ergebnis des
+Compose-Prüfers** — und das ist der eigentliche Punkt: Ein Stack ohne solchen
+Mount startet ohne jede Rückfrage. Eine Frage, die immer kommt, wird weggeklickt,
+und dann wird auch die weggeklickt, die zählt. Dasselbe gilt beim Speichern im
+Editor: dieselbe Frage, dieselbe Stufe, ausgelöst von demselben Befund.
+
+Was der Prüfer **ablehnt** (privilegierte Container, geteilte Namensräume, der
+Docker-Socket im Container, Pfade der Sperrliste), ist dagegen gar keine Frage,
+sondern eine Ablehnung mit **400** — es gibt Handgriffe, zu denen keine sinnvolle
+Rückfrage existiert, weil niemand sie mit Kenntnis der Folgen bejahen würde.
+
 Verglichen wird ohne Rücksicht auf Groß- und Kleinschreibung (`EqualFold`): Auf
 einem Telefon macht die Tastatur aus `vm` gern `Vm`. Wer den Namen abgeschrieben
 hat, hat die Rückfrage gelesen — mehr soll die Stufe nicht leisten.

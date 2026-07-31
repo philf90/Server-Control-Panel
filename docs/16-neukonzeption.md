@@ -311,6 +311,13 @@ Was beim Umschalten sonst geschieht:
 
 ### 0.5 — Docker
 
+> **Stand: umgesetzt.** Der Bauplan und sein Verlauf stehen in
+> [17-docker.md](17-docker.md) — dort auch das Angriffsmodell, die Regeln des
+> Compose-Prüfers und die Grenzen des Moduls. Der Zuschnitt ist gegenüber dem
+> Folgenden **erweitert** worden: Portübersicht mit Firewall-Abgleich,
+> Ereignisstrom und Update-Prüfung kamen dazu. Die Container-Shell aus dem
+> ursprünglichen Zuschnitt ist **zurückgestellt** — siehe unten und §6.
+
 Container, Images, Volumes, Netzwerke, Compose-Stacks, Container-Logs und
 -Statistiken. Podman bleibt Roadmap — erst eine Laufzeit richtig.
 
@@ -414,6 +421,17 @@ Das **Web-Terminal** stand in 03 noch unter v0.2. Es wandert bewusst hinter
 Webserver-Schreibpfad, und ein Terminal zusätzlich vor dem externen Review wäre
 die falsche Reihenfolge.
 
+**Nachtrag zur Stufe 0.5.** Der Bauplan des Moduls Docker
+([17-docker.md](17-docker.md), Entscheidung E8) sah eine Container-Shell vor und
+hat ausdrücklich benannt, was daran hängt: Mit ihr entstünde die schwierigere
+Hälfte des Web-Terminals — PTY-Anbindung, bidirektionaler Transport,
+Terminal-Emulation im Browser —, und das *technische* Argument dieser Zeile
+verlöre danach seine Grundlage. Die Shell ist **zurückgestellt** und mit ihr
+diese Folge: Das Terminal steht weiterhin aus beiden Gründen hinter 1.0, dem
+technischen wie dem sicherheitspolitischen. Wird die Shell später nachgezogen,
+gilt der Nachtrag wieder — und der externe Review vor 1.0 muss diesen Pfad dann
+mitprüfen.
+
 ## 7. Sicherheitsfundament ab Tag eins
 
 ### 7.1 Der Bestand bleibt Gesetz
@@ -491,6 +509,32 @@ folgen die Regeln des Moduls:
   Formular.
 - Images nur per Digest oder Tag aus konfigurierbaren Registries; `docker login`
   -Geheimnisse gehören in die Geheimnisverwaltung (7.5), nicht in die Compose-Datei.
+
+**Die endgültige Liste des Prüfers**, nach dem Angriffsdurchgang aus Schritt 9
+(Einzelheiten und Begründungen in [17-docker.md](17-docker.md)):
+
+Abgelehnt werden `privileged`, geteilte Namensräume (`pid`, `ipc`,
+`userns_mode`, `cgroup` auf `host`), `network_mode: host`, `devices`,
+**`device_cgroup_rules`**, Ausbruchs-Capabilities in `cap_add`, abgeschaltete
+seccomp-/AppArmor-Profile, Bind-Mounts auf den Docker-Socket oder einen Pfad der
+Sperrliste, ein **Bauabschnitt** mit Kontext außerhalb des Stack-Verzeichnisses,
+`volumes_from` auf einen fremden Container, und `extends`/`env_file` auf eine
+Datei außerhalb des Stack-Verzeichnisses.
+
+Vier Dinge daran sind erst im Angriffsdurchgang dazugekommen, weil sie vorher
+durchgingen — und drei davon sahen für den Prüfer nach etwas Harmlosem aus:
+
+- **Ein benanntes Volume mit `driver_opts.device`** ist in Wahrheit ein
+  Bind-Mount. Im Dienst steht nur `- hack:/host`.
+- **`device_cgroup_rules`** ist `devices` ohne das Wort; den Geräteknoten legt
+  der Container mit `CAP_MKNOD` selbst an.
+- **Ein relativer Pfad** (`../../../../var/run/docker.sock`) traf die Sperrliste
+  nicht, weil dort absolute Pfade stehen.
+- **`docker compose up` baut**, wenn ein `build:`-Abschnitt dasteht.
+
+Geprüft wird die von Compose **gerenderte** Fassung, damit YAML-Anker, `extends`
+und `.env` nichts vorbeischmuggeln; die Rohdatei wird davor auf Verweise nach
+draußen geprüft, damit das Rendern nicht selbst zum Leseweg wird.
 
 ### 7.4 Neu: Schreibpfade, die das Panel selbst treffen können
 
@@ -1130,27 +1174,41 @@ Auslieferbares da; der Update-Kanal `beta` trägt die Zwischenstände wie bisher
 ## 12. Folgearbeiten an bestehenden Dokumenten
 
 Dieses Dokument ändert Entscheidungen, die anderswo dokumentiert sind. Damit
-die Doku nicht lügt, sind anzupassen:
+die Doku nicht lügt, waren anzupassen — **die Liste ist mit 0.4.1 abgearbeitet:**
 
-- **[03-funktionsumfang.md](03-funktionsumfang.md):** Verweis auf die Revision
-  der Nicht-Ziele (Abschnitt 2) und den neuen Stufenschnitt (Abschnitt 5);
-  v0.2/v0.3-Abschnitte als überholt markieren.
-- **[06-roadmap.md](06-roadmap.md):** Meilensteine ab 0.4 aus Abschnitt 10
-  übernehmen; Qualitätsziele-Tabelle an Abschnitt 9 angleichen; festhalten,
-  dass die bestehende Oberfläche eingefroren ist.
-- **[15-neuordnung.md](15-neuordnung.md):** Vermerk, dass die Kommandobrücke
-  durch den Leitstand abgelöst wird; die fünf Grundsätze bleiben in Kraft.
-- **README:** Leitplanke „schlank und ressourcenschonend" umformulieren
-  (Abschnitt 3), Scope-Beschreibung erweitern.
-- **[02-architektur.md](02-architektur.md):** Die Sitzungszeile der
-  Sicherheitstabelle nennt „absolute + idle Expiry" ohne Zahlen — Verweis auf
-  Abschnitt 7.7 ergänzen. Dort steht außerdem `internal/auth` als Heimat der
-  Sitzungen; tatsächlich liegen sie in `internal/store` und
-  `internal/httpd`.
+- **CONTRIBUTING** trägt den Abschnitt zur Frontend-Werkzeugkette (Node 22,
+  `make ui`, Reproduzierbarkeit, die drei Regeln für `web/`) seit der ersten
+  Stufe.
+- **[06-roadmap.md](06-roadmap.md)** (nach 0.4.1): Das Dokument nennt seinen
+  Stand im Kopf und trennt Rückblick von Ausblick; der Abschnitt „Meilensteine
+  ab 0.4" gibt Abschnitt 10 wieder; die Qualitätsziele sind an Abschnitt 9
+  angeglichen und nennen jetzt, wo eine Grenze tatsächlich geprüft wird; das
+  Einfrieren und der Abbau der alten Oberfläche stehen fest.
+- **[03-funktionsumfang.md](03-funktionsumfang.md)** (nach 0.4.1): v0.2 und v0.3
+  sind als überholt markiert und lösen jeden ihrer Punkte in Abschnitt 5 oder 6
+  auf; die Scope-Revision nach A+ und die zwei gefallenen Nicht-Ziele stehen an
+  Ort und Stelle.
+- **[15-neuordnung.md](15-neuordnung.md)** (nach 0.4.1): trägt oben den Vermerk,
+  dass die Kommandobrücke abgelöst ist, und darunter eine Abrechnung Teil für
+  Teil — Befund und die fünf Grundsätze gelten fort, die Dateiverweise auf
+  `internal/ui/templates/` sind hinfällig.
+- **README** (nach 0.4.1): Status auf 0.4.1, Scope auf Verwaltung *und* Betrieb,
+  die fünfte Leitplanke auf „sparsam auf dem Server, großzügig in der
+  Werkstatt". Dabei fiel auf, dass die Beschreibung der Oberfläche noch die
+  Kommandobrücke zeigte, die Abhängigkeiten mit fünf statt sechs gezählt waren
+  und das Repo-Layout `web/`, `acme`, `passkeys` und `netinfo` nicht kannte.
+- **[02-architektur.md](02-architektur.md)** (nach 0.4.1): Die Sitzungszeile
+  nennt jetzt die Laufzeiten und verweist auf Abschnitt 7.8; die Heimat der
+  Sitzungen ist berichtigt (`store` und `httpd`, nicht `auth`). Das
+  Repository-Layout stand auf der ursprünglichen Planung mit
+  `internal/modules/` und `internal/audit/` — beides gibt es nicht, und einen
+  Konfigurationsschalter zum Abschalten eines Moduls auch nicht.
 
-**Erledigt:** CONTRIBUTING trägt den Abschnitt zur Frontend-Werkzeugkette
-(Node 22, `make ui`, Reproduzierbarkeit, die drei Regeln für `web/`) seit der
-ersten Stufe.
+Zwei Dokumente kamen ungefragt dazu, weil dieselbe Prüfung sie als überholt
+auswies: **[04-setup.md](04-setup.md)** und **[05-updates.md](05-updates.md)**
+beschrieben die Beta-Phase, in der es nur den Kanal `beta` gab. Seit `v0.4.0` —
+dem ersten Tag ohne Bindestrich — gibt es `stable`; die apt-Anleitungen nennen
+ihn jetzt.
 
-Der Rest geschieht mit der Umsetzung der jeweiligen Stufe und nicht vorab —
-sonst beschreibt die Doku einen Zustand, den es noch nicht gibt.
+Was hier neu hinzukommt, geschieht mit der Umsetzung der jeweiligen Stufe und
+nicht vorab — sonst beschreibt die Doku einen Zustand, den es noch nicht gibt.

@@ -1258,3 +1258,339 @@ export type Tokenauftrag = {
  *  In der Datenbank steht der Hash, und es gibt keinen Endpunkt, der ihn
  *  zurückgäbe. */
 export type Tokenantwort = { meldung: string; token?: string; hinweis?: string };
+
+/** Docker ist der Zustand der Container-Laufzeit.
+ *
+ *  Vier Fragen, die auseinandergehalten gehören, weil zu jeder ein anderer
+ *  Handgriff passt: Ist Docker da? Antwortet es? Gibt es Compose? Und was hilft,
+ *  wenn etwas fehlt? Die Antwort auf die letzte kommt fertig vom Server
+ *  (anmerkung, einspielbar) — eine zweite Auslegung im Browser wäre die Stelle,
+ *  an der beide auseinanderlaufen. */
+export type Docker = {
+  installiert: boolean;
+  /** paket ist "docker.io", "docker-ce" oder leer bei einer Installation an apt
+   *  vorbei. Reine Auskunft; sie entscheidet nichts. */
+  paket: string;
+  daemon_laeuft: boolean;
+  client_version: string;
+  server_version: string;
+  compose_verfuegbar: boolean;
+  compose_version: string;
+  anmerkung: string;
+  /** einspielbar heißt: Ein apt-Lauf richtet hier etwas aus. Nicht dasselbe wie
+   *  „nicht installiert" — bei totem Daemon hilft ein Dienststart. */
+  einspielbar: boolean;
+  /** darf_aendern kommt aus der Antwort des Moduls und nicht aus der Sitzung:
+   *  Docker bedienen darf nur der Owner, nicht jedes Konto mit Schreibrecht. */
+  darf_aendern: boolean;
+  job: Job | null;
+  fehler?: string;
+};
+
+/** Container ist eine Zeile der Containerliste.
+ *
+ *  Zustandsstufe, Auffälligkeit und die passenden Handgriffe kommen fertig vom
+ *  Server. Der Browser rechnet sie nicht nach — sonst gäbe es zwei Auslegungen
+ *  davon, was „auffällig" heißt, und die Übersicht nähme die andere. */
+export type Container = {
+  id: string;
+  kurz: string;
+  name: string;
+  image: string;
+  zustand: string;
+  status: string;
+  zustand_stufe: string;
+  gesundheit: string;
+  ports: string;
+  stack: string;
+  dienst: string;
+  auffaellig: boolean;
+  aktionen: string[];
+};
+
+export type ContainerMount = {
+  art: string;
+  quelle: string;
+  ziel: string;
+  schreibbar: boolean;
+  bind: boolean;
+};
+
+export type ContainerStat = {
+  cpu: string;
+  speicher: string;
+  speicher_prozent: string;
+  netz: string;
+  platte: string;
+  pids: string;
+};
+
+/** ContainerDetail kommt mit der Auswahl. `umgebung` ist die ANZAHL der
+ *  Umgebungsvariablen — ihre Werte gibt es an keiner Stelle dieser
+ *  Schnittstelle, weil dort auf jedem zweiten Server ein Passwort steht. */
+export type ContainerDetail = Container & {
+  befehl: string;
+  neustartregel: string;
+  exit_code: number;
+  privilegiert: boolean;
+  benutzer: string;
+  erstellt: string;
+  umgebung: number;
+  mounts: ContainerMount[];
+  netze: string[];
+  stats: ContainerStat | null;
+  zeilen: string[];
+  folger_frei: boolean;
+  fehler?: string;
+};
+
+export type Containerzaehler = {
+  alle: number;
+  laufend: number;
+  gestoppt: number;
+  auffaellig: number;
+};
+
+export type Containerliste = {
+  zeilen: Container[];
+  zaehler: Containerzaehler;
+  darf_aendern: boolean;
+  fehler?: string;
+};
+
+/** Containerantwort ist die Antwort auf eine Aktion: Meldung und der neu
+ *  gelesene Zustand. Beim Entfernen fehlt das Detail — den Container gibt es
+ *  dann nicht mehr. */
+export type Containerantwort = { meldung: string; detail?: ContainerDetail };
+
+export type DockerImage = {
+  id: string;
+  kurz: string;
+  /** name ist leer bei einem verwaisten Abbild — dann trägt es keinen. */
+  name: string;
+  groesse: string;
+  alter: string;
+  verwaist: boolean;
+  in_gebrauch: boolean;
+};
+
+export type DockerVolume = {
+  name: string;
+  treiber: string;
+  ort: string;
+  in_gebrauch: boolean;
+};
+
+export type DockerNetz = {
+  id: string;
+  kurz: string;
+  name: string;
+  treiber: string;
+  /** eingebaut: bridge, host, none. Docker legt sie selbst an und lässt sie
+   *  nicht entfernen — der Handgriff fehlt deshalb. */
+  eingebaut: boolean;
+};
+
+export type Bestandsposten = {
+  art: string;
+  anzahl: string;
+  aktiv: string;
+  groesse: string;
+  /** freigebbar ist die Zahl, wegen der jemand diese Seite öffnet. */
+  freigebbar: string;
+};
+
+export type Bestand = {
+  platte: Bestandsposten[];
+  images: DockerImage[];
+  volumes: DockerVolume[];
+  netze: DockerNetz[];
+  darf_aendern: boolean;
+  job: Job | null;
+  fehler?: string;
+};
+
+/** Stack ist ein Compose-Projekt.
+ *
+ *  `verwaltet` ist die Angabe, die dieses Modul prägt: Nur was das Panel selbst
+ *  angelegt hat — Datei unter /opt/asylum/stacks mit Marker —, wird es je
+ *  schreiben. Fremde Projekte sind lesbar und sonst nichts.
+ *
+ *  `dienste` kommt aus den Compose-Labels der laufenden Container und nicht aus
+ *  der Datei. Bei einem nie gestarteten Stack ist die Liste deshalb leer. */
+export type Stack = {
+  name: string;
+  verwaltet: boolean;
+  datei: string;
+  status: string;
+  laufend: number;
+  gesamt: number;
+  gestartet: boolean;
+  zustand_stufe: string;
+  auffaellig: boolean;
+  dienste: string[];
+};
+
+/** StackDetail kommt mit der Auswahl: die Compose-Datei und die Container des
+ *  Projekts. `gekuerzt` sagt, ob die Datei vollständig dasteht — eine halbe, die
+ *  wie eine ganze aussieht, ist die schlechteste Auskunft. */
+export type StackDetail = Stack & {
+  text: string;
+  gekuerzt: boolean;
+  container: Container[];
+  fehler?: string;
+};
+
+export type Stackzaehler = {
+  alle: number;
+  verwaltet: number;
+  fremd: number;
+  auffaellig: number;
+};
+
+export type Stackliste = {
+  zeilen: Stack[];
+  zaehler: Stackzaehler;
+  darf_aendern: boolean;
+  vorlagen: Stackvorlage[];
+  job: Job | null;
+  fehler?: string;
+};
+
+/** Stackvorlage ist ein Gerüst für eine neue compose.yaml — kein Katalog
+ *  fertiger Anwendungen. Der Wert steckt in den Kommentaren im Text: Sie sagen,
+ *  warum eine Zeile so dasteht. */
+export type Stackvorlage = {
+  kennung: string;
+  titel: string;
+  beschreibung: string;
+  text: string;
+};
+
+/** Port ist eine Zeile der Portübersicht.
+ *
+ *  `urteil` ist "lokal", "offen", "unbemerkt" oder "ohnewache". Der dritte Wert
+ *  ist der Grund für diese Seite: Ein Container, der auf 0.0.0.0 veröffentlicht,
+ *  ist aus dem Netz erreichbar — auch wenn ufw läuft und den Port nicht kennt.
+ *  Docker trägt seine Weiterleitungen vor den Ketten der Firewall ein. */
+export type Port = {
+  wirt_port: number;
+  container_port: number;
+  protokoll: string;
+  adresse: string;
+  container: string;
+  stack: string;
+  dienst: string;
+  image: string;
+  urteil: string;
+  stufe: string;
+  /** kurz steht in der Spalte, satz erklärt es. Beide kommen vom Server, damit
+   *  es nicht zwei Auslegungen desselben Befundes gibt. */
+  kurz: string;
+  satz: string;
+  panel_port: boolean;
+};
+
+export type Portliste = {
+  zeilen: Port[];
+  unbemerkt: number;
+  offen: number;
+  lokal: number;
+  firewall_aktiv: boolean;
+  /** warnung steht nur da, wenn sie zutrifft — ein Satz, der immer dasteht,
+   *  wird nicht gelesen. */
+  warnung?: string;
+  fehler?: string;
+};
+
+/** Dockerereignis ist eine Zeile des Ereignisstroms.
+ *
+ *  `ernst` markiert, was man sucht: gestorbene Container, getötete Prozesse,
+ *  ungesunde Prüfungen. Der Rest ist Betriebsgeräusch, und in einem Strom, in
+ *  dem jede Zeile gleich aussieht, findet niemand den Befund. */
+export type Dockerereignis = {
+  zeit: string;
+  art: string;
+  aktion: string;
+  objekt: string;
+  stack: string;
+  dienst: string;
+  zusatz: string;
+  ernst: boolean;
+};
+
+/** Updatezeile ist ein Abbild in der Update-Prüfung.
+ *
+ *  `geprueft` und `neu` stehen getrennt, und das ist der Kern der Fläche:
+ *  „nicht geprüft" ist weder „aktuell" noch „veraltet". Eine Prüfung, die im
+ *  Zweifel „veraltet" meldete, meldete es bei fast jedem Abbild und würde nach
+ *  einer Woche nicht mehr gelesen. */
+export type Updatezeile = {
+  ref: string;
+  geprueft: boolean;
+  neu: boolean;
+  grund?: string;
+  weg?: string;
+  lokal_kurz?: string;
+  fern_kurz?: string;
+  /** stacks ist der Griff: Aktualisiert wird ein Projekt, kein Abbild. */
+  stacks: string[];
+  container: string[];
+};
+
+export type Abbildupdates = {
+  zeilen: Updatezeile[];
+  geprueft: string;
+  /** naechste_fruehestens ist gesetzt, solange die Ratengrenze greift. Der
+   *  Knopf bleibt sichtbar und gesperrt — versteckt wäre er ein Rätsel. */
+  naechste_fruehestens?: string;
+  darf_pruefen: boolean;
+  neu: number;
+  aktuell: number;
+  ungeprueft: number;
+  darf_aendern: boolean;
+  job: Job | null;
+  fehler?: string;
+};
+
+/** Composebefund ist ein einzelner Fund des Compose-Prüfers.
+ *
+ *  `art` ist "ablehnung" (der Vorgang wurde angehalten), "aussen" (ein
+ *  Bind-Mount aus dem Stack-Verzeichnis heraus — eine Rückfrage, keine
+ *  Ablehnung) oder "hinweis" (fällt auf, sperrt nicht).
+ *
+ *  Dienst und Feld stehen getrennt, weil eine Meldung ohne sie unbrauchbar ist:
+ *  „Der Stack wurde abgelehnt" schickt jemanden auf die Suche, „web:
+ *  privileged" zeigt auf die Zeile. */
+export type Composebefund = {
+  art: string;
+  dienst: string;
+  feld: string;
+  wert: string;
+  grund: string;
+};
+
+/** Composepruefung ist das Urteil des Prüfers.
+ *
+ *  `geprueft` und `ok` sind zwei verschiedene Fragen: Eine Datei ohne lesbares
+ *  YAML ist „nicht geprüft" — nicht „in Ordnung" und nicht „abgelehnt".
+ *  `gerendert` sagt, ob gegen die von Compose aufgelöste Fassung geprüft wurde;
+ *  ohne das können Anker, extends und env_file an der Prüfung vorbei. */
+export type Composepruefung = {
+  geprueft: boolean;
+  gerendert: boolean;
+  ok: boolean;
+  meldung?: string;
+  dienste: string[];
+  befunde: Composebefund[];
+};
+
+/** Stackschreibantwort kommt beim Anlegen und Speichern zurück — bei Erfolg mit
+ *  dem frisch gelesenen Zustand, bei einer Ablehnung mit den Befunden. */
+export type Stackschreibantwort = {
+  meldung: string;
+  pruefung: Composepruefung;
+  detail?: StackDetail;
+  befunde?: Composebefund[];
+  fehler?: string;
+};

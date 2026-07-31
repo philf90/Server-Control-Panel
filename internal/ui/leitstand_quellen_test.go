@@ -100,29 +100,40 @@ func TestJedeZelleTraegtIhreSpaltenbeschriftung(t *testing.T) {
 // Leerzeile in die erste Spalte und die Tabelle sieht kaputt aus; steht er zu
 // hoch, zieht er die Tabelle auf. Die alte Oberfläche hat dafür einen eigenen
 // Test, weil es dort schon einmal falsch war.
+// Geprüft wird je TABELLE und nicht je Datei.
+//
+// Der erste Anlauf nahm die Kopfzeile der ersten Tabelle einer Datei und maß
+// alle colspans darin daran. Das ging, solange jede Datei genau eine Tabelle
+// hatte — eine Eigenschaft, die sich so ergeben hatte und keine Regel war. Mit
+// der Bestandsansicht (vier Tabellen mit fünf, vier, vier und drei Spalten)
+// meldete der Test drei Fehler, von denen keiner einer war. Die Absicht bleibt
+// dieselbe, nur der Zuschnitt ist genauer.
 func TestKolspanDecktAlleSpaltenDerNeuenOberflaeche(t *testing.T) {
+	tabelle := regexp.MustCompile(`(?s)<table\b.*?</table>`)
 	kopfzeile := regexp.MustCompile(`(?s)<thead>.*?</thead>`)
 	spalte := regexp.MustCompile(`<th\b`)
 	kolspan := regexp.MustCompile(`colspan="(\d+)"`)
 
 	for pfad, quelle := range svelteDateien(t) {
 		markup := ohneStilblock(quelle)
-		kopf := kopfzeile.FindString(markup)
-		if kopf == "" {
-			continue
-		}
-		spalten := len(spalte.FindAllString(kopf, -1))
-		if spalten == 0 {
-			continue
-		}
-		for _, treffer := range kolspan.FindAllStringSubmatch(markup, -1) {
-			n, err := strconv.Atoi(treffer[1])
-			if err != nil {
-				t.Errorf("%s: colspan %q ist keine Zahl", pfad, treffer[1])
+		for _, tab := range tabelle.FindAllString(markup, -1) {
+			kopf := kopfzeile.FindString(tab)
+			if kopf == "" {
 				continue
 			}
-			if n != spalten {
-				t.Errorf("%s: colspan=%d, die Tabelle hat aber %d Spalten", pfad, n, spalten)
+			spalten := len(spalte.FindAllString(kopf, -1))
+			if spalten == 0 {
+				continue
+			}
+			for _, treffer := range kolspan.FindAllStringSubmatch(tab, -1) {
+				n, err := strconv.Atoi(treffer[1])
+				if err != nil {
+					t.Errorf("%s: colspan %q ist keine Zahl", pfad, treffer[1])
+					continue
+				}
+				if n != spalten {
+					t.Errorf("%s: colspan=%d, die Tabelle hat aber %d Spalten", pfad, n, spalten)
+				}
 			}
 		}
 	}

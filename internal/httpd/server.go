@@ -85,8 +85,12 @@ type Server struct {
 	// journalctl-Prozess, weil jeder seinen eigenen Filter hat — anders als bei
 	// einem Vorgang, den alle Zuschauer teilen. Siehe maxLogFolger.
 	logFolger atomic.Int32
-	upd       *updateState
-	pending   *pendingSecrets
+	// dockerFolger zählt die offenen Containerprotokolle. Eigene Zählung neben
+	// logFolger, weil beide verschiedene Prozesse halten: Ein offenes
+	// Containerprotokoll soll nicht den Blick ins Journal versperren.
+	dockerFolger atomic.Int32
+	upd          *updateState
+	pending      *pendingSecrets
 	// resets hält die per Passkey bestätigten Nachweise für ein vergessenes
 	// Passwort. Siehe handlers_forgot.go.
 	resets *resetTickets

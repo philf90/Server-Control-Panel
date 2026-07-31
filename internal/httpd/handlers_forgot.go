@@ -124,7 +124,11 @@ func (t *resetTickets) gcLocked() {
 // Seite den Weg über die Kommandozeile — das ist der Anker, der immer bleibt.
 func (s *Server) handleForgotForm(w http.ResponseWriter, r *http.Request) {
 	if _, ok := userFrom(r.Context()); ok {
-		http.Redirect(w, r, "/account", http.StatusSeeOther)
+		// Auf die KONTOSEITE der neuen Oberfläche. Wer über diesen Weg
+		// hereinkommt, hat gerade sein Passwort neu gesetzt und soll dort landen,
+		// wo der zweite Faktor und die Passkeys stehen — nicht auf der
+		// eingefrorenen alten Fläche.
+		http.Redirect(w, r, "/konto", http.StatusSeeOther)
 		return
 	}
 	s.renderPage(w, r, http.StatusOK, "forgot",

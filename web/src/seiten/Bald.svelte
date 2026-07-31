@@ -3,7 +3,7 @@
   //
   // Sie ist der Ersatz für eine Warze: Cron, Docker, Webserver, Datenbanken und
   // Backups stehen im Menü, weil sie zum Leitbild gehören — aber sie zeigten bis
-  // 0.4.0-rc.2 auf /v2/ und landeten stillschweigend auf der Übersicht. Ein
+  // 0.4.0-rc.2 auf / und landeten stillschweigend auf der Übersicht. Ein
   // Klick auf „Docker", der die Startseite bringt, sieht wie ein Fehler aus, und
   // in einem Panel ist „sieht wie ein Fehler aus" nicht harmlos: Es ist die
   // Stelle, an der man anfängt, der Oberfläche nicht mehr zu glauben.
@@ -22,27 +22,27 @@
   const heute: Record<string, { text: string; href: string; label: string }> = {
     cron: {
       text: "Systemd-Timer sind Units: Ihren Zustand und ihre letzte Ausführung zeigt heute schon die Dienstliste.",
-      href: "/v2/dienste",
+      href: "/dienste",
       label: t.ziele.dienste,
     },
     docker: {
       text: "Läuft dockerd als Dienst, sind Zustand und Journal dieses Dienstes schon sichtbar.",
-      href: "/v2/dienste",
+      href: "/dienste",
       label: t.ziele.dienste,
     },
     webserver: {
       text: "Konfigurationsdateien lassen sich heute über die Dateien bearbeiten, und der Dienst darüber neu laden.",
-      href: "/v2/dateien",
+      href: "/dateien",
       label: t.ziele.dateien,
     },
     datenbanken: {
       text: "Der Datenbankdienst selbst — Zustand, Speicher, Journal — steht in der Dienstliste.",
-      href: "/v2/dienste",
+      href: "/dienste",
       label: t.ziele.dienste,
     },
     backups: {
       text: "Bis dahin ist eine Sicherung Handarbeit. Was das Panel selbst sichert, steht in der Ausrollanleitung im Repository.",
-      href: "/v2/dateien",
+      href: "/dateien",
       label: t.ziele.dateien,
     },
   };

@@ -23,7 +23,7 @@
   // wird es vergessen.
   //
   // Die Kennung aus der Adresse hat Vorrang vor der Seite, und das ist mehr als
-  // eine Feinheit: Ein angekündigtes Modul (/v2/docker) rendert die Seite „bald",
+  // eine Feinheit: Ein angekündigtes Modul (/docker) rendert die Seite „bald",
   // heißt aber weiter „docker". Ohne den Vorrang wäre bei ihm kein Punkt
   // hervorgehoben, und die Seite sähe aus wie eine, auf die man versehentlich
   // geraten ist. Bei einem Pfad, den es gar nicht gibt, bleibt bewusst nichts

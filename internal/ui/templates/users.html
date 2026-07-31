@@ -22,17 +22,17 @@
           <td class="muted" data-label="Letzte Anmeldung" data-rolle="neben">{{if .LastLoginAt}}{{since .LastLoginAt}}{{else}}nie{{end}}</td>
           <td class="actions">
             {{if ne .ID $.User.ID}}
-            <form method="post" action="/users/{{.ID}}/disabled">
+            <form method="post" action="/alt/users/{{.ID}}/disabled">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="disabled" value="{{if .Disabled}}0{{else}}1{{end}}">
               <button type="submit" class="small">{{if .Disabled}}freigeben{{else}}sperren{{end}}</button>
             </form>
-            <a class="button small" href="/users?reset={{.ID}}#zuruecksetzen">zurücksetzen</a>
+            <a class="button small" href="/alt/users?reset={{.ID}}#zuruecksetzen">zurücksetzen</a>
             {{/* data-bestaetigen statt onsubmit: Der Inline-Handler wurde von
                  der CSP verworfen und hat nie einen Dialog gezeigt. Verbindlich
                  ist der Handler — er löscht nichts ohne "bestaetigt" und
                  verlangt hier zusätzlich den getippten Anmeldenamen. */}}
-            <form method="post" action="/users/{{.ID}}/delete"
+            <form method="post" action="/alt/users/{{.ID}}/delete"
                   data-bestaetigen="Konto {{.Username}} ({{.Role}}) endgültig löschen? Offene Sitzungen, Passkeys und Wiederherstellungscodes gehen mit."
                   data-bestaetigen-titel="Panel-Zugang löschen"
                   data-bestaetigen-knopf="endgültig löschen"
@@ -57,14 +57,14 @@
       Für den Fall, dass jemand sein Passwort vergessen oder sein Telefon
       verloren hat. Bis hierher führte dieser Weg über <code>sudo asylum
       reset-password</code> auf dem Server. Das eigene Konto steht nicht zur
-      Wahl — dafür gibt es <a href="/account">Mein Konto</a>.
+      Wahl — dafür gibt es <a href="/alt/account">Mein Konto</a>.
     </p>
 
     <!-- Drei Ziele, ein Formular: Der Knopf bestimmt über formaction, welche
          Zurücksetzung gemeint ist. So genügt eine einzige Eingabe des eigenen
          Passworts, und die Seite braucht kein Skript — die CSP lässt keines
          inline zu. -->
-    <form method="post" action="/users/reset-password" class="row-form" autocomplete="off">
+    <form method="post" action="/alt/users/reset-password" class="row-form" autocomplete="off">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
 
       <div>
@@ -82,12 +82,12 @@
       </div>
       <div class="submit reset-actions">
         <button type="submit" class="small">Passwort zurücksetzen</button>
-        <button type="submit" class="small" formaction="/users/reset-2fa">Zweiten Faktor zurücksetzen</button>
+        <button type="submit" class="small" formaction="/alt/users/reset-2fa">Zweiten Faktor zurücksetzen</button>
         {{/* Die Angabe steht am Knopf und nicht am Formular: Drei Knöpfe, drei
              formactions, drei verschiedene Fragen. Eine Zwischenseite gibt es
              hier nicht — das eigene Passwort im Formular ist die Bremse, und es
              gehörte nicht in ein verstecktes Feld einer gerenderten Seite. */}}
-        <button type="submit" class="small danger" formaction="/users/reset-passkeys"
+        <button type="submit" class="small danger" formaction="/alt/users/reset-passkeys"
                 data-bestaetigen="Alle Passkeys des gewählten Kontos entfernen? Die Anmeldung über die hinterlegten Geräte ist danach nicht mehr möglich."
                 data-bestaetigen-titel="Passkeys entfernen"
                 data-bestaetigen-knopf="Passkeys entfernen">Passkeys entfernen</button>
@@ -126,7 +126,7 @@
       ersten Anmelden richtet das Konto seinen zweiten Faktor ein und legt
       danach ein eigenes Passwort fest; vorher ist nichts anderes erreichbar.
     </p>
-    <form method="post" action="/users" class="row-form" autocomplete="off">
+    <form method="post" action="/alt/users" class="row-form" autocomplete="off">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
 
       <div>

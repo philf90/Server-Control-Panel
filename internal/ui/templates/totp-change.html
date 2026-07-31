@@ -15,7 +15,7 @@
     <code class="secret">{{.Content.SecretFormatted}}</code>
   </p>
 
-  <form method="post" action="/account/2fa/confirm">
+  <form method="post" action="/alt/account/2fa/confirm">
     <input type="hidden" name="_csrf" value="{{.CSRF}}">
     <label for="code">Aktueller Code aus der neuen App</label>
     <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
@@ -27,6 +27,6 @@
     Danach werden neue Wiederherstellungscodes ausgegeben und alle anderen
     Sitzungen beendet.
   </p>
-  <p><a href="/account">Abbrechen</a></p>
+  <p><a href="/alt/account">Abbrechen</a></p>
 </div>
 {{template "footer" .}}{{end}}

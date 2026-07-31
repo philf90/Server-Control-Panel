@@ -36,7 +36,7 @@ func TestFilesEditorZeigtUndSpeichert(t *testing.T) {
 	pfad := filepath.Join(wurzel, "schreibbar", "config.yaml")
 	lege(t, pfad, "server:\n  port: 8443\n")
 
-	rec := get(t, s, "/files/edit?path="+urlWert(pfad), cookie)
+	rec := get(t, s, "/alt/files/edit?path="+urlWert(pfad), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -67,7 +67,7 @@ func TestFilesEditorZeigtUndSpeichert(t *testing.T) {
 	}
 
 	hash := hashVon(t, body)
-	rec = post(t, s, "/files/save", formular(csrf,
+	rec = post(t, s, "/alt/files/save", formular(csrf,
 		"path", pfad, "hash", hash, "content", "server:\n  port: 9443\n"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("speichern: Status %d — %s", rec.Code, rec.Body.String())
@@ -91,13 +91,13 @@ func TestFilesEditorErkenntFremdeAenderung(t *testing.T) {
 	pfad := filepath.Join(wurzel, "schreibbar", "config.yaml")
 	lege(t, pfad, "a: 1\n")
 
-	rec := get(t, s, "/files/edit?path="+urlWert(pfad), cookie)
+	rec := get(t, s, "/alt/files/edit?path="+urlWert(pfad), cookie)
 	hash := hashVon(t, rec.Body.String())
 
 	// Jemand anders ändert die Datei, während der Editor offen ist.
 	lege(t, pfad, "a: 2\n")
 
-	rec = post(t, s, "/files/save", formular(csrf,
+	rec = post(t, s, "/alt/files/save", formular(csrf,
 		"path", pfad, "hash", hash, "content", "a: 3\n"), cookie)
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("Status %d, erwartet 409 — %s", rec.Code, rec.Body.String())
@@ -117,7 +117,7 @@ func TestFilesEditorErkenntFremdeAenderung(t *testing.T) {
 
 	// Mit dem neuen Hash aus der Konfliktseite geht es bewusst weiter.
 	neuerHash := hashVon(t, rec.Body.String())
-	rec = post(t, s, "/files/save", formular(csrf,
+	rec = post(t, s, "/alt/files/save", formular(csrf,
 		"path", pfad, "hash", neuerHash, "content", "a: 3\n"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("zweiter Versuch: Status %d — %s", rec.Code, rec.Body.String())
@@ -140,7 +140,7 @@ func TestFilesEditorRolltNachAbgelehnterPruefungZurueck(t *testing.T) {
 	pfad := filepath.Join(wurzel, "schreibbar", "sshd_config")
 	lege(t, pfad, "Port 22\n")
 
-	rec := get(t, s, "/files/edit?path="+urlWert(pfad), cookie)
+	rec := get(t, s, "/alt/files/edit?path="+urlWert(pfad), cookie)
 	hash := hashVon(t, rec.Body.String())
 
 	// Das Prüfprogramm lehnt ab.
@@ -151,7 +151,7 @@ func TestFilesEditorRolltNachAbgelehnterPruefungZurueck(t *testing.T) {
 	}
 	ops.mu.Unlock()
 
-	rec = post(t, s, "/files/save", formular(csrf,
+	rec = post(t, s, "/alt/files/save", formular(csrf,
 		"path", pfad, "hash", hash, "content", "Prt 22\n"), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status %d, erwartet 400 — %s", rec.Code, rec.Body.String())
@@ -208,7 +208,7 @@ func TestFilesEditorEntferntNeueDateiNachAbgelehnterPruefung(t *testing.T) {
 	arbeit := filepath.Join(wurzel, "schreibbar")
 
 	// Eine neue Datei über den Editor anlegen.
-	if rec := post(t, s, "/files/touch", formular(csrf, "dir", arbeit, "name", "neu.conf"), cookie); rec.Code != http.StatusOK {
+	if rec := post(t, s, "/alt/files/touch", formular(csrf, "dir", arbeit, "name", "neu.conf"), cookie); rec.Code != http.StatusOK {
 		t.Fatalf("touch: Status %d", rec.Code)
 	}
 	pfad := filepath.Join(arbeit, "neu.conf")
@@ -220,7 +220,7 @@ func TestFilesEditorEntferntNeueDateiNachAbgelehnterPruefung(t *testing.T) {
 	ops.configCheck = privops.ConfigCheckResult{Checked: true, OK: false, Tool: "nft -c -f", Output: "syntax error"}
 	ops.mu.Unlock()
 
-	rec := post(t, s, "/files/save", formular(csrf, "path", pfad, "content", "kaputt\n"), cookie)
+	rec := post(t, s, "/alt/files/save", formular(csrf, "path", pfad, "content", "kaputt\n"), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status %d, erwartet 400 — %s", rec.Code, rec.Body.String())
 	}
@@ -242,9 +242,9 @@ func TestFilesEditorMeldetAngenommenePruefung(t *testing.T) {
 
 	pfad := filepath.Join(wurzel, "schreibbar", "sshd_config")
 	lege(t, pfad, "Port 22\n")
-	rec := get(t, s, "/files/edit?path="+urlWert(pfad), cookie)
+	rec := get(t, s, "/alt/files/edit?path="+urlWert(pfad), cookie)
 
-	rec = post(t, s, "/files/save", formular(csrf,
+	rec = post(t, s, "/alt/files/save", formular(csrf,
 		"path", pfad, "hash", hashVon(t, rec.Body.String()), "content", "Port 2222\n"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
@@ -269,25 +269,25 @@ func TestFilesEditorBrauchtSchreibrechte(t *testing.T) {
 	ownerCookie, _ := login(t, s, owner)
 
 	// Lesen darf die lesende Rolle, speichern nicht.
-	rec := get(t, s, "/files/edit?path="+urlWert(filepath.Join(arbeit, "da.conf")), leserCookie)
+	rec := get(t, s, "/alt/files/edit?path="+urlWert(filepath.Join(arbeit, "da.conf")), leserCookie)
 	if rec.Code != http.StatusOK {
 		t.Errorf("Lesen: Status %d", rec.Code)
 	}
-	if strings.Contains(rec.Body.String(), `action="/files/save"`) {
+	if strings.Contains(rec.Body.String(), `action="/alt/files/save"`) {
 		t.Error("die lesende Rolle sieht das Speicherformular")
 	}
-	rec = post(t, s, "/files/save", formular(leserCSRF,
+	rec = post(t, s, "/alt/files/save", formular(leserCSRF,
 		"path", filepath.Join(arbeit, "da.conf"), "content", "verändert"), leserCookie)
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("Speichern als lesende Rolle: Status %d, erwartet 403", rec.Code)
 	}
 
 	// Außerhalb der Schreibbereiche bleibt der Editor eine Anzeige.
-	rec = get(t, s, "/files/edit?path="+urlWert(filepath.Join(wurzel, "nurlesbar", "fremd.conf")), ownerCookie)
+	rec = get(t, s, "/alt/files/edit?path="+urlWert(filepath.Join(wurzel, "nurlesbar", "fremd.conf")), ownerCookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
-	if strings.Contains(rec.Body.String(), `action="/files/save"`) {
+	if strings.Contains(rec.Body.String(), `action="/alt/files/save"`) {
 		t.Error("außerhalb der Schreibbereiche wird ein Speicherformular angeboten")
 	}
 	if !strings.Contains(rec.Body.String(), "außerhalb der Bereiche") {

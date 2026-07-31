@@ -320,17 +320,24 @@ func (s *Server) handleAPISignals(w http.ResponseWriter, r *http.Request) {
 // fehlgeschlagen" führte damit aus der neuen Oberfläche heraus — der Weg zurück
 // wäre der Zurück-Knopf, und dabei geht die Auswahl verloren.
 //
-// Die Tabelle schrumpft mit jedem Modul, das umzieht, und ist mit dem
-// Umschalten leer. Bewusst hier und nicht in dashboardSignals: Die alte
-// Oberfläche darf ihre eigenen Verweise behalten, sie ist eingefroren.
+// Seit dem Umschalten (0.4.0) liegt die neue Oberfläche an der Wurzel und die
+// eingefrorene alte unter /alt/. Die Tabelle übersetzt deshalb jetzt in die
+// andere Richtung: Aus dem Verweis, den die alte Erhebung baut, wird der Pfad der
+// neuen Fläche. Sie verschwindet mit dem Abbau der alten Oberfläche — dann
+// erhebt die Schnittstelle ihre Signale selbst und kennt nur noch eigene Pfade.
+//
+// Bewusst hier und nicht in dashboardSignals: Die alte Oberfläche darf ihre
+// eigenen Verweise behalten, sie ist eingefroren.
 var umzug = map[string]string{
-	"/services":     "/v2/dienste",
-	"/packages":     "/v2/pakete",
-	"/logs":         "/v2/logs",
-	"/firewall":     "/v2/firewall",
-	"/files":        "/v2/dateien",
-	"/audit":        "/v2/audit",
-	"/system-users": "/v2/benutzer",
+	"/alt/services":     "/dienste",
+	"/alt/packages":     "/pakete",
+	"/alt/logs":         "/logs",
+	"/alt/firewall":     "/firewall",
+	"/alt/files":        "/dateien",
+	"/alt/audit":        "/audit",
+	"/alt/system-users": "/benutzer",
+	"/alt/update":       "/updates",
+	"/alt/certificate":  "/zertifikate",
 }
 
 func neuerPfad(href string) string {

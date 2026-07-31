@@ -17,7 +17,7 @@
 </div>
 <p class="hint">
   Das sind die Konten des Betriebssystems, nicht die des Panels — die stehen
-  unter <a href="/users">Panel-Zugänge</a>. Neue Konten bekommen kein Passwort;
+  unter <a href="/alt/users">Panel-Zugänge</a>. Neue Konten bekommen kein Passwort;
   die Anmeldung läuft über SSH-Schlüssel. Ein Klick auf die Spalte
   <strong>Schlüssel</strong> öffnet die Verwaltung der hinterlegten
   <code>authorized_keys</code> eines Kontos.
@@ -32,23 +32,23 @@
       <tbody>
         {{range .Users}}
         <tr {{if .System}}class="muted-row"{{end}}>
-          <td data-label="Name" data-rolle="haupt"><a href="/system-users?user={{.Name}}#schluessel">{{.Name}}</a>{{if .Comment}} <span class="muted">{{.Comment}}</span>{{end}}</td>
+          <td data-label="Name" data-rolle="haupt"><a href="/alt/system-users?user={{.Name}}#schluessel">{{.Name}}</a>{{if .Comment}} <span class="muted">{{.Comment}}</span>{{end}}</td>
           <td class="muted" data-label="UID" data-rolle="neben">{{.UID}}</td>
           <td class="muted" data-label="Gruppen" data-rolle="neben">{{range $i, $g := .Groups}}{{if $i}}, {{end}}{{$g}}{{end}}</td>
           <td class="muted" data-label="Shell" data-rolle="neben"><code>{{.Shell}}</code></td>
-          <td data-label="Schlüssel"><a href="/system-users?user={{.Name}}#schluessel">{{if .SSHKeys}}{{.SSHKeys}}{{else}}keine{{end}}</a></td>
+          <td data-label="Schlüssel"><a href="/alt/system-users?user={{.Name}}#schluessel">{{if .SSHKeys}}{{.SSHKeys}}{{else}}keine{{end}}</a></td>
           <td data-label="Status">{{if .Locked}}<span class="badge warn">gesperrt</span>{{else if .HasShell}}<span class="badge ok">aktiv</span>{{else}}<span class="badge">kein Login</span>{{end}}</td>
           {{if $.CanWrite}}
           <td class="actions">
             {{if .Protected}}
             <span class="muted" title="Ohne dieses Konto ist das System nicht mehr bedienbar.">geschützt</span>
             {{else if not .System}}
-            <form method="post" action="/system-users/{{.Name}}/locked">
+            <form method="post" action="/alt/system-users/{{.Name}}/locked">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="locked" value="{{if .Locked}}0{{else}}1{{end}}">
               <button type="submit" class="small">{{if .Locked}}entsperren{{else}}sperren{{end}}</button>
             </form>
-            <form method="post" action="/system-users/{{.Name}}/delete"
+            <form method="post" action="/alt/system-users/{{.Name}}/delete"
                   data-bestaetigen="Das Systemkonto {{.Name}} endgültig löschen? Das Home-Verzeichnis bleibt erhalten, der Zugang über SSH nicht."
                   data-bestaetigen-titel="Systemkonto löschen"
                   data-bestaetigen-knopf="endgültig löschen"
@@ -70,7 +70,7 @@
 <div class="section" id="schluessel">
   <div class="sechead">
     <span class="seclabel">SSH-Schlüssel von <code>{{.Selected}}</code></span>
-    <a href="/system-users" class="button small">schließen</a>
+    <a href="/alt/system-users" class="button small">schließen</a>
   </div>
   <div class="card flush">
     <div class="table-wrap">
@@ -84,7 +84,7 @@
             <td class="muted" data-label="Kommentar" data-rolle="neben">{{.Comment}}</td>
             {{if $.CanWrite}}
             <td class="actions">
-              <form method="post" action="/system-users/{{$.Content.Selected}}/keys/remove"
+              <form method="post" action="/alt/system-users/{{$.Content.Selected}}/keys/remove"
                     data-bestaetigen="Diesen Schlüssel von {{$.Content.Selected}} entfernen? Wer nur ihn hat, kommt danach über SSH nicht mehr auf den Server."
                     data-bestaetigen-titel="SSH-Schlüssel entfernen"
                     data-bestaetigen-knopf="entfernen">
@@ -105,7 +105,7 @@
 
   {{if $.CanWrite}}
   <div class="card">
-    <form method="post" action="/system-users/{{.Selected}}/keys">
+    <form method="post" action="/alt/system-users/{{.Selected}}/keys">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <label for="key">Öffentlichen Schlüssel hinzufügen</label>
       <input type="text" id="key" name="key" required
@@ -128,7 +128,7 @@
          Screenreader hinter dem </form>. Damit war die Angabe unerreichbar, und
          der Hinweis darunter („Ohne Schlüssel …") beschrieb eine Eingabe, die
          niemand machen konnte. */}}
-    <form method="post" action="/system-users" class="row-form">
+    <form method="post" action="/alt/system-users" class="row-form">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <div>
         <label for="name">Name</label>

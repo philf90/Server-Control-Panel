@@ -251,22 +251,22 @@ func TestDumpSeiten(t *testing.T) {
 
 	seiten := []struct{ pfad, name string }{
 		{"/", "uebersicht.html"},
-		{"/files?path=" + dateiWurzel, "dateien.html"},
-		{"/files/entry?path=" + dateiWurzel + "/nginx", "datei-detail.html"},
-		{"/files/edit?path=" + dateiWurzel + "/nginx/nginx.conf", "datei-editor.html"},
-		{"/services", "dienste.html"},
-		{"/firewall", "firewall.html"},
-		{"/system-users", "system-users.html"},
-		{"/packages", "packages.html"},
-		{"/logs", "logs.html"},
-		{"/update", "updates.html"},
-		{"/audit", "audit.html"},
+		{"/alt/files?path=" + dateiWurzel, "dateien.html"},
+		{"/alt/files/entry?path=" + dateiWurzel + "/nginx", "datei-detail.html"},
+		{"/alt/files/edit?path=" + dateiWurzel + "/nginx/nginx.conf", "datei-editor.html"},
+		{"/alt/services", "dienste.html"},
+		{"/alt/firewall", "firewall.html"},
+		{"/alt/system-users", "system-users.html"},
+		{"/alt/packages", "packages.html"},
+		{"/alt/logs", "logs.html"},
+		{"/alt/update", "updates.html"},
+		{"/alt/audit", "audit.html"},
 		// Panel-Zugänge fehlte in dieser Liste. Die Seite trägt zwei Formulare
 		// (Konto anlegen, Zugang zurücksetzen) — genau die Art Inhalt, deren
 		// Umbruch man im Browser nachmessen will.
-		{"/users", "panel-zugaenge.html"},
-		{"/account", "konto.html"},
-		{"/certificate", "zertifikat.html"},
+		{"/alt/users", "panel-zugaenge.html"},
+		{"/alt/account", "konto.html"},
+		{"/alt/certificate", "zertifikat.html"},
 	}
 	for _, seite := range seiten {
 		rec := get(t, s, seite.pfad, cookie)

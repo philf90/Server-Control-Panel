@@ -9,6 +9,50 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Geändert
+
+- **Umgeschaltet: die neue Oberfläche liegt an der Wurzel.** `/v2/` ist
+  verschwunden; wer das Panel aufruft, bekommt die neue Fläche. Die alte ist
+  **eine Fassung lang unter `/alt/` erreichbar** und eingefroren — keine
+  Gestaltung, keine Funktion, nur ein Rückweg.
+
+  Das Konzept sah vor, beides in einem Zug zu tun (umschalten und die alte Fläche
+  entfernen). Der Grund für die zwei Schritte liegt in der Bauart dieses
+  Programms: **Es aktualisiert sich selbst.** Ein Fehler in der neuen Fläche, der
+  jemanden aussperrt, sperrt ihn auch aus dem Panel aus, über das der Rückweg
+  einzuspielen wäre. Der Abbau — 27 Vorlagen, 17 statische Dateien, rund 4.500
+  Zeilen Handler und die daran hängenden Tests — folgt in 0.4.1.
+
+- **Alle Sitzungen werden beim Update einmalig verworfen** (Migration 0006). Ein
+  Cookie von vor dem Update stammt aus einer Zeit, in der das Panel anders aussah,
+  und das Sitzungstoken der alten Fläche steckt in jeder Seite, die noch im
+  Browser steht. Nach dem Update ist eine Anmeldung nötig — einmal.
+
+  **API-Tokens bleiben gültig.** Sie hängen an `/api/v1`, und das ist unverändert;
+  sie zu verwerfen hieße, jede Automatisierung mit einem Update stillschweigend
+  abzuschalten.
+
+- **`min-upgradable-from` bleibt leer.** Keine der Migrationen 0005 und 0006 macht
+  einen direkten Sprung unmöglich — beide sind vorwärtsgerichtet und ergänzend.
+  Ein Wert dort gehört nur hinein, wenn eine Migration einen Sprung wirklich
+  verhindert.
+
+- **Unbekannte Pfade antworten weiter 404.** `GET /` ist seit dem Umschalten der
+  allgemeine Rückfall des Multiplexers; ohne Prüfung bekäme jede erdachte Adresse
+  die Hülle mit Status 200, und ein abgeschaltetes Modul wäre von einem
+  vorhandenen nicht zu unterscheiden. Der Server prüft den ersten Pfadteil gegen
+  die Liste der Seiten; ein Test hält sie mit dem Router der Oberfläche zusammen.
+
+### Behoben
+
+- **Ein Browsertest prüfte den Journalstrom in einem Rennen.** Er sah gleich nach
+  dem Klick in der Liste der Anfragen nach, ob der Strom geöffnet wurde — der
+  Puls erscheint aber, sobald der Zustand umschlägt, und die Verbindung ist dann
+  erst angestoßen. Es ging gut, solange der Aufbau schneller war als die Prüfung.
+  Beim Umschalten fiel es auf, weil sich die Zeitverhältnisse verschoben haben.
+  Jetzt wird auf die Anfrage gewartet.
+
+
 ## [0.4.0-rc.5] — 2026-07-31
 
 **Cron & systemd-Timer** — das erste Modul der neuen Oberfläche, das keine alte

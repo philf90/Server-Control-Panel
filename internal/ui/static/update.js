@@ -46,7 +46,7 @@
       return;
     }
 
-    fetch("/update/status", { cache: "no-store", credentials: "same-origin" })
+    fetch("/alt/update/status", { cache: "no-store", credentials: "same-origin" })
       .then(function (resp) {
         if (!resp.ok) {
           throw new Error("HTTP " + resp.status);

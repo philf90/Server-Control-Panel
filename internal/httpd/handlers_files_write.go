@@ -177,7 +177,7 @@ func (s *Server) handleFileDelete(w http.ResponseWriter, r *http.Request) {
 			Punkte:  append(folgen, pfad),
 			Knopf:   "endgültig löschen",
 			Tippen:  tippen,
-			Abbruch: "/files/entry?" + url.Values{"path": {pfad}}.Encode(),
+			Abbruch: "/alt/files/entry?" + url.Values{"path": {pfad}}.Encode(),
 			Felder:  []bestaetigungFeld{{Name: "path", Wert: pfad}},
 		}) {
 			return
@@ -484,12 +484,12 @@ func (s *Server) handleFileEvents(w http.ResponseWriter, r *http.Request) {
 
 // EntryLink baut den Verweis auf die Detailseite eines Eintrags.
 func (p filesPage) EntryLink(pfad string) string {
-	return "/files/entry?" + url.Values{"path": {pfad}}.Encode()
+	return "/alt/files/entry?" + url.Values{"path": {pfad}}.Encode()
 }
 
 // ListLink führt von der Detailseite zurück in die Liste.
 func (p fileEntryPage) ListLink() string {
-	return "/files?" + url.Values{"path": {p.Dir}}.Encode()
+	return "/alt/files?" + url.Values{"path": {p.Dir}}.Encode()
 }
 
 // LoeschFrage ist der Text der Rückfrage vor dem Löschen.

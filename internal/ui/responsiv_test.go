@@ -535,17 +535,17 @@ func TestKeineInlineHandler(t *testing.T) {
 func TestZerstoerendeFormulareFragenZurueck(t *testing.T) {
 	// Route → braucht ein getipptes Wort?
 	zerstoerend := map[string]bool{
-		"/users/{{.ID}}/delete":                            true,
-		"/system-users/{{.Name}}/delete":                   true,
-		"/system-users/{{$.Content.Selected}}/keys/remove": false,
-		"/account/passkeys/{{.ID}}/delete":                 false,
-		"/account/sessions/revoke-others":                  false,
-		"/account/recovery-codes":                          false,
-		"/files/delete":                                    false, // Ordner mit Inhalt: LoeschTippen
-		"/system/reboot":                                   true,
-		"/packages/upgrade":                                false,
-		"/update/apply":                                    false,
-		"/update/rollback":                                 false,
+		"/alt/users/{{.ID}}/delete":                            true,
+		"/alt/system-users/{{.Name}}/delete":                   true,
+		"/alt/system-users/{{$.Content.Selected}}/keys/remove": false,
+		"/alt/account/passkeys/{{.ID}}/delete":                 false,
+		"/alt/account/sessions/revoke-others":                  false,
+		"/alt/account/recovery-codes":                          false,
+		"/alt/files/delete":                                    false, // Ordner mit Inhalt: LoeschTippen
+		"/alt/system/reboot":                                   true,
+		"/alt/packages/upgrade":                                false,
+		"/alt/update/apply":                                    false,
+		"/alt/update/rollback":                                 false,
 	}
 	// Begründete Ausnahmen: Formulare auf zerstörende Routen ohne Dialog.
 	//

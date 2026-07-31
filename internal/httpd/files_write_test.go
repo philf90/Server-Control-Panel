@@ -29,7 +29,7 @@ func TestFilesMkdirUndTouch(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 	arbeit := filepath.Join(wurzel, "schreibbar")
 
-	rec := post(t, s, "/files/mkdir", formular(csrf, "dir", arbeit, "name", "neuer ordner"), cookie)
+	rec := post(t, s, "/alt/files/mkdir", formular(csrf, "dir", arbeit, "name", "neuer ordner"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("mkdir: Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -37,7 +37,7 @@ func TestFilesMkdirUndTouch(t *testing.T) {
 		t.Fatalf("der Ordner fehlt: %v", err)
 	}
 
-	rec = post(t, s, "/files/touch", formular(csrf, "dir", arbeit, "name", "leer.conf"), cookie)
+	rec = post(t, s, "/alt/files/touch", formular(csrf, "dir", arbeit, "name", "leer.conf"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("touch: Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -46,7 +46,7 @@ func TestFilesMkdirUndTouch(t *testing.T) {
 	}
 
 	// Zweimal derselbe Name ist ein Fehler, keine stille Übernahme.
-	rec = post(t, s, "/files/mkdir", formular(csrf, "dir", arbeit, "name", "neuer ordner"), cookie)
+	rec = post(t, s, "/alt/files/mkdir", formular(csrf, "dir", arbeit, "name", "neuer ordner"), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("zweites mkdir: Status %d, erwartet 400", rec.Code)
 	}
@@ -54,7 +54,7 @@ func TestFilesMkdirUndTouch(t *testing.T) {
 	// Ein Name mit Schrägstrich ist ein Pfad und käme an der Prüfung des
 	// Elternverzeichnisses vorbei.
 	for _, name := range []string{"../raus", "unter/strich", "..", ""} {
-		rec = post(t, s, "/files/mkdir", formular(csrf, "dir", arbeit, "name", name), cookie)
+		rec = post(t, s, "/alt/files/mkdir", formular(csrf, "dir", arbeit, "name", name), cookie)
 		if rec.Code == http.StatusOK {
 			t.Errorf("der Name %q wurde angenommen", name)
 		}
@@ -75,7 +75,7 @@ func TestFilesUmbenennenVerschiebenKopieren(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rec := post(t, s, "/files/rename", formular(csrf, "path", filepath.Join(arbeit, "alt.txt"), "name", "neu.txt"), cookie)
+	rec := post(t, s, "/alt/files/rename", formular(csrf, "path", filepath.Join(arbeit, "alt.txt"), "name", "neu.txt"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("rename: Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -83,7 +83,7 @@ func TestFilesUmbenennenVerschiebenKopieren(t *testing.T) {
 		t.Fatalf("nach dem Umbenennen: %v", err)
 	}
 
-	rec = post(t, s, "/files/copy", formular(csrf,
+	rec = post(t, s, "/alt/files/copy", formular(csrf,
 		"path", filepath.Join(arbeit, "neu.txt"), "target", filepath.Join(arbeit, "ziel")), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("copy: Status %d — %s", rec.Code, rec.Body.String())
@@ -93,7 +93,7 @@ func TestFilesUmbenennenVerschiebenKopieren(t *testing.T) {
 		t.Fatalf("die Kopie: %q, %v", roh, err)
 	}
 
-	rec = post(t, s, "/files/move", formular(csrf,
+	rec = post(t, s, "/alt/files/move", formular(csrf,
 		"path", filepath.Join(arbeit, "neu.txt"), "target", filepath.Join(arbeit, "ziel", "unterordner")), cookie)
 	if rec.Code == http.StatusOK {
 		t.Error("das Verschieben in ein nicht vorhandenes Verzeichnis wurde angenommen")
@@ -103,7 +103,7 @@ func TestFilesUmbenennenVerschiebenKopieren(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(arbeit, "zwei"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	rec = post(t, s, "/files/move", formular(csrf,
+	rec = post(t, s, "/alt/files/move", formular(csrf,
 		"path", filepath.Join(arbeit, "neu.txt"), "target", filepath.Join(arbeit, "zwei")), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("move: Status %d — %s", rec.Code, rec.Body.String())
@@ -123,7 +123,7 @@ func TestFilesLoeschen(t *testing.T) {
 	arbeit := filepath.Join(wurzel, "schreibbar")
 
 	lege(t, filepath.Join(arbeit, "weg.txt"), "x")
-	rec := post(t, s, "/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "weg.txt"))), cookie)
+	rec := post(t, s, "/alt/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "weg.txt"))), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete: Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -133,7 +133,7 @@ func TestFilesLoeschen(t *testing.T) {
 
 	// Ein Verzeichnis samt Inhalt.
 	lege(t, filepath.Join(arbeit, "baum", "tief", "a.txt"), "x")
-	rec = post(t, s, "/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "baum")), "baum"), cookie)
+	rec = post(t, s, "/alt/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "baum")), "baum"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete Ordner: Status %d — %s", rec.Code, rec.Body.String())
 	}
@@ -178,7 +178,7 @@ func TestFilesLoeschenSchuetztGesperrtes(t *testing.T) {
 	lege(t, filepath.Join(arbeit, "baum", "harmlos.txt"), "x")
 	lege(t, filepath.Join(arbeit, "baum", "schluessel.geheim"), "privat")
 
-	rec := post(t, s, "/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "baum")), "baum"), cookie)
+	rec := post(t, s, "/alt/files/delete", ja(formular(csrf, "path", filepath.Join(arbeit, "baum")), "baum"), cookie)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("Status %d, erwartet 403 — %s", rec.Code, rec.Body.String())
 	}
@@ -215,7 +215,7 @@ func TestFilesRechteUndEigentuemer(t *testing.T) {
 
 	lege(t, filepath.Join(arbeit, "baum", "a.txt"), "x")
 
-	rec := post(t, s, "/files/mode", formular(csrf,
+	rec := post(t, s, "/alt/files/mode", formular(csrf,
 		"path", filepath.Join(arbeit, "baum", "a.txt"), "mode", "600"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("chmod: Status %d — %s", rec.Code, rec.Body.String())
@@ -229,7 +229,7 @@ func TestFilesRechteUndEigentuemer(t *testing.T) {
 	}
 
 	// Rekursiv über das Verzeichnis.
-	rec = post(t, s, "/files/mode", formular(csrf,
+	rec = post(t, s, "/alt/files/mode", formular(csrf,
 		"path", filepath.Join(arbeit, "baum"), "mode", "700", "recursive", "1"), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("chmod rekursiv: Status %d — %s", rec.Code, rec.Body.String())
@@ -244,7 +244,7 @@ func TestFilesRechteUndEigentuemer(t *testing.T) {
 
 	// Unsinnige Angaben werden abgewiesen, nicht geraten.
 	for _, mode := range []string{"999", "abc", "77777"} {
-		rec = post(t, s, "/files/mode", formular(csrf,
+		rec = post(t, s, "/alt/files/mode", formular(csrf,
 			"path", filepath.Join(arbeit, "baum", "a.txt"), "mode", mode), cookie)
 		if rec.Code == http.StatusOK {
 			t.Errorf("die Rechteangabe %q wurde angenommen", mode)
@@ -252,7 +252,7 @@ func TestFilesRechteUndEigentuemer(t *testing.T) {
 	}
 
 	// Ohne jede Angabe passiert nichts, und das sagt die Seite auch.
-	rec = post(t, s, "/files/mode", formular(csrf, "path", filepath.Join(arbeit, "baum", "a.txt")), cookie)
+	rec = post(t, s, "/alt/files/mode", formular(csrf, "path", filepath.Join(arbeit, "baum", "a.txt")), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("leeres Formular: Status %d, erwartet 400", rec.Code)
 	}
@@ -275,13 +275,13 @@ func TestFilesSchreibenBrauchtRolleUndToken(t *testing.T) {
 	leserCookie, leserCSRF := login(t, s, leser)
 
 	routen := map[string]url.Values{
-		"/files/mkdir":  formular("", "dir", arbeit, "name", "x"),
-		"/files/touch":  formular("", "dir", arbeit, "name", "y.txt"),
-		"/files/rename": formular("", "path", filepath.Join(arbeit, "da.txt"), "name", "z.txt"),
-		"/files/copy":   formular("", "path", filepath.Join(arbeit, "da.txt"), "target", arbeit),
-		"/files/move":   formular("", "path", filepath.Join(arbeit, "da.txt"), "target", arbeit),
-		"/files/delete": formular("", "path", filepath.Join(arbeit, "da.txt")),
-		"/files/mode":   formular("", "path", filepath.Join(arbeit, "da.txt"), "mode", "600"),
+		"/alt/files/mkdir":  formular("", "dir", arbeit, "name", "x"),
+		"/alt/files/touch":  formular("", "dir", arbeit, "name", "y.txt"),
+		"/alt/files/rename": formular("", "path", filepath.Join(arbeit, "da.txt"), "name", "z.txt"),
+		"/alt/files/copy":   formular("", "path", filepath.Join(arbeit, "da.txt"), "target", arbeit),
+		"/alt/files/move":   formular("", "path", filepath.Join(arbeit, "da.txt"), "target", arbeit),
+		"/alt/files/delete": formular("", "path", filepath.Join(arbeit, "da.txt")),
+		"/alt/files/mode":   formular("", "path", filepath.Join(arbeit, "da.txt"), "mode", "600"),
 	}
 
 	for route, werte := range routen {
@@ -325,10 +325,10 @@ func TestFilesSchreibenNurInSchreibwurzeln(t *testing.T) {
 	lege(t, filepath.Join(nurlesbar, "da.txt"), "unberührt")
 
 	faelle := map[string]url.Values{
-		"/files/mkdir":  formular(csrf, "dir", nurlesbar, "name", "neu"),
-		"/files/delete": formular(csrf, "path", filepath.Join(nurlesbar, "da.txt")),
-		"/files/mode":   formular(csrf, "path", filepath.Join(nurlesbar, "da.txt"), "mode", "600"),
-		"/files/rename": formular(csrf, "path", filepath.Join(nurlesbar, "da.txt"), "name", "anders.txt"),
+		"/alt/files/mkdir":  formular(csrf, "dir", nurlesbar, "name", "neu"),
+		"/alt/files/delete": formular(csrf, "path", filepath.Join(nurlesbar, "da.txt")),
+		"/alt/files/mode":   formular(csrf, "path", filepath.Join(nurlesbar, "da.txt"), "mode", "600"),
+		"/alt/files/rename": formular(csrf, "path", filepath.Join(nurlesbar, "da.txt"), "name", "anders.txt"),
 	}
 	for route, werte := range faelle {
 		rec := post(t, s, route, werte, cookie)
@@ -355,22 +355,22 @@ func TestFilesDetailseiteZeigtNurErlaubteAktionen(t *testing.T) {
 	leserCookie, _ := login(t, s, leser)
 
 	// Owner auf einem beschreibbaren Pfad: alle Formulare.
-	rec := get(t, s, "/files/entry?path="+urlWert(filepath.Join(arbeit, "da.txt")), ownerCookie)
+	rec := get(t, s, "/alt/files/entry?path="+urlWert(filepath.Join(arbeit, "da.txt")), ownerCookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d — %s", rec.Code, rec.Body.String())
 	}
-	for _, erwartet := range []string{"/files/rename", "/files/move", "/files/copy", "/files/mode", "/files/delete"} {
+	for _, erwartet := range []string{"/alt/files/rename", "/alt/files/move", "/alt/files/copy", "/alt/files/mode", "/alt/files/delete"} {
 		if !strings.Contains(rec.Body.String(), erwartet) {
 			t.Errorf("das Formular %s fehlt", erwartet)
 		}
 	}
 
 	// Dieselbe Seite für eine nur lesende Rolle: kein einziges Formular.
-	rec = get(t, s, "/files/entry?path="+urlWert(filepath.Join(arbeit, "da.txt")), leserCookie)
+	rec = get(t, s, "/alt/files/entry?path="+urlWert(filepath.Join(arbeit, "da.txt")), leserCookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
-	for _, verboten := range []string{"/files/rename", "/files/delete", "/files/mode"} {
+	for _, verboten := range []string{"/alt/files/rename", "/alt/files/delete", "/alt/files/mode"} {
 		if strings.Contains(rec.Body.String(), verboten) {
 			t.Errorf("die nur lesende Rolle sieht %s", verboten)
 		}
@@ -381,11 +381,11 @@ func TestFilesDetailseiteZeigtNurErlaubteAktionen(t *testing.T) {
 
 	// Owner auf einem Pfad außerhalb der Schreibbereiche: ebenfalls keine
 	// Formulare, aber mit anderer Begründung.
-	rec = get(t, s, "/files/entry?path="+urlWert(filepath.Join(wurzel, "nurlesbar", "fremd.txt")), ownerCookie)
+	rec = get(t, s, "/alt/files/entry?path="+urlWert(filepath.Join(wurzel, "nurlesbar", "fremd.txt")), ownerCookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status %d", rec.Code)
 	}
-	if strings.Contains(rec.Body.String(), "/files/delete") {
+	if strings.Contains(rec.Body.String(), "/alt/files/delete") {
 		t.Error("außerhalb der Schreibbereiche wird das Löschen angeboten")
 	}
 	if !strings.Contains(rec.Body.String(), "außerhalb der Bereiche") {
@@ -410,7 +410,7 @@ func TestFilesGrosserVorgangLaeuftAlsJob(t *testing.T) {
 		lege(t, filepath.Join(gross, fmt.Sprintf("d%04d.txt", i)), "x")
 	}
 
-	rec := post(t, s, "/files/delete", ja(formular(csrf, "path", gross), "viele"), cookie)
+	rec := post(t, s, "/alt/files/delete", ja(formular(csrf, "path", gross), "viele"), cookie)
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("Status %d, erwartet 202 — %s", rec.Code, rec.Body.String())
 	}
@@ -432,7 +432,7 @@ func TestFilesGrosserVorgangLaeuftAlsJob(t *testing.T) {
 	}
 
 	// Und sein Verlauf ist über den Ereigniskanal abrufbar.
-	events := stream(t, s, "/files/events", cookie, 2*time.Second)
+	events := stream(t, s, "/alt/files/events", cookie, 2*time.Second)
 	if events.Code != http.StatusOK {
 		t.Fatalf("Ereigniskanal: Status %d", events.Code)
 	}

@@ -1080,7 +1080,13 @@
     <!-- Der Weg in die alte Oberfläche bleibt sichtbar, solange der Editor und
          die Schreibvorgänge dort noch mehr können. Ihn zu verschweigen hieße,
          jemanden mit einer halben Fläche allein zu lassen. -->
-    · <a href={`/files?path=${encodeURIComponent(daten.pfad)}`}>{t.dateien.alteAnsicht}</a>
+    ·
+    <!-- Der Weg in die eingefrorene alte Ansicht. Sie liegt seit dem Umschalten
+         unter /alt/ und ist ein FREMDES Ziel: Der eigene Router hat für sie keine
+         Ansicht, deshalb steht /alt/ in der Liste in weg.svelte.ts und der
+         Browser navigiert dorthin. Der Verweis fällt mit dem Abbau der alten
+         Oberfläche. -->
+    <a href={`/alt/files?path=${encodeURIComponent(daten.pfad)}`}>{t.dateien.alteAnsicht}</a>
   </p>
 {/if}
 

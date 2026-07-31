@@ -7,7 +7,7 @@
   </div>
 </div>
 
-<form method="get" action="/logs" class="filter-form">
+<form method="get" action="/alt/logs" class="filter-form">
   <select name="unit">
     <option value="">alle Units</option>
     {{range .Units}}<option value="{{.}}" {{if eq . $.Content.Query.Unit}}selected{{end}}>{{.}}</option>{{end}}

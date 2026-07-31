@@ -229,7 +229,7 @@ func TestTokenNurUnterAPI(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	token := legeToken(t, s, user, nil)
 
-	for _, pfad := range []string{"/", "/services", "/users", "/account", "/v2/", "/files"} {
+	for _, pfad := range []string{"/", "/alt/services", "/alt/users", "/alt/account", "/", "/alt/files"} {
 		rec := mitToken(t, s, http.MethodGet, pfad, "", token)
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("%s: Status = %d, erwartet 403", pfad, rec.Code)
@@ -539,9 +539,9 @@ func TestApiFamilie(t *testing.T) {
 		"/api/v1/tokens":                  "tokens",
 		"/api/v1/":                        "",
 		"/api/v1":                         "",
-		"/services":                       "",
+		"/alt/services":                   "",
 		"/":                               "",
-		"/api/v2/services":                "",
+		"/api/services":                   "",
 	}
 	for pfad, erwartet := range faelle {
 		if got := apiFamilie(pfad); got != erwartet {

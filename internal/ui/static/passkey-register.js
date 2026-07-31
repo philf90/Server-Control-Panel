@@ -69,7 +69,7 @@
     var password = document.getElementById("pk-pass").value;
     say("Bestätige den Passkey auf deinem Gerät …");
 
-    post("/account/passkeys/register/begin", { _csrf: csrf, label: label, password: password })
+    post("/alt/account/passkeys/register/begin", { _csrf: csrf, label: label, password: password })
       .then(function (r) {
         return r.json().then(function (body) {
           if (!r.ok) {
@@ -100,7 +100,7 @@
               transports: cred.response.getTransports ? cred.response.getTransports() : [],
             },
           };
-          return post("/account/passkeys/register/finish", {
+          return post("/alt/account/passkeys/register/finish", {
             _csrf: csrf,
             token: token,
             label: label,

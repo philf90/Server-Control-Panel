@@ -32,7 +32,7 @@ func TestStatusleisteStehtAufJederSeite(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, _ := login(t, s, user)
 
-	for _, pfad := range []string{"/", "/services", "/packages", "/firewall", "/audit", "/logs", "/account"} {
+	for _, pfad := range []string{"/alt/", "/alt/services", "/alt/packages", "/alt/firewall", "/alt/audit", "/alt/logs", "/alt/account"} {
 		t.Run(pfad, func(t *testing.T) {
 			body := get(t, s, pfad, cookie).Body.String()
 
@@ -97,7 +97,7 @@ func TestKonsoleZeigtAusgefuehrteBefehle(t *testing.T) {
 
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, _ := login(t, s, user)
-	body := get(t, s, "/services", cookie).Body.String()
+	body := get(t, s, "/alt/services", cookie).Body.String()
 
 	if !strings.Contains(body, "systemctl restart postgresql.service") {
 		t.Error("der zuletzt ausgeführte Befehl steht nicht in der Konsole")
@@ -125,13 +125,13 @@ func TestWarnpunktFolgtDemHandlungsbedarf(t *testing.T) {
 	cookie, _ := login(t, s, user)
 
 	// Ohne erhobenen Stand kein Punkt: geraten wird nicht.
-	if body := get(t, s, "/audit", cookie).Body.String(); strings.Contains(body, `class="pip`) {
+	if body := get(t, s, "/alt/audit", cookie).Body.String(); strings.Contains(body, `class="pip`) {
 		t.Error("ohne erhobenen Stand steht ein Warnpunkt an der Schiene")
 	}
 
 	s.lageSetzen([]dashSignal{{Level: "crit", Tag: "Dienst", Title: "x.service ist ausgefallen"}})
 
-	body := get(t, s, "/audit", cookie).Body.String()
+	body := get(t, s, "/alt/audit", cookie).Body.String()
 	if !strings.Contains(body, `class="pip crit"`) {
 		t.Error("der Warnpunkt fehlt, obwohl ein Dienst ausgefallen ist")
 	}
@@ -152,7 +152,7 @@ func TestVeralteterLagestandZeigtKeinePunkte(t *testing.T) {
 	s.lageErhoben = time.Now().Add(-2 * lageTTL)
 	s.lageMu.Unlock()
 
-	if body := get(t, s, "/audit", cookie).Body.String(); strings.Contains(body, `class="pip`) {
+	if body := get(t, s, "/alt/audit", cookie).Body.String(); strings.Contains(body, `class="pip`) {
 		t.Error("ein veralteter Stand färbt noch einen Warnpunkt")
 	}
 }

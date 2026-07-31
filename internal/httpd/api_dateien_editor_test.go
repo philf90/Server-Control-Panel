@@ -293,7 +293,7 @@ func TestAPIDateienEditorGesperrt(t *testing.T) {
 func TestV2HuelleTraegtStilNonce(t *testing.T) {
 	s, cookie, _ := angemeldet(t, store.RoleAdmin)
 
-	rec := get(t, s, "/v2/dateien", cookie)
+	rec := get(t, s, "/dateien", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d: %s", rec.Code, rec.Body.String())
 	}
@@ -323,7 +323,7 @@ func TestV2HuelleTraegtStilNonce(t *testing.T) {
 
 	// Je Antwort ein neuer: Ein gleichbleibender Wert wäre über mehrere Aufrufe
 	// erratbar und damit wirkungslos.
-	zweite := get(t, s, "/v2/dateien", cookie)
+	zweite := get(t, s, "/dateien", cookie)
 	if zweite.Header().Get("Content-Security-Policy") == csp {
 		t.Error("zwei Antworten tragen denselben Nonce")
 	}

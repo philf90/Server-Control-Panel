@@ -108,7 +108,7 @@ async function main() {
   // Bewusst nicht "networkidle": Die Anwendung hält den Live-Kanal dauerhaft
   // offen, das Netz wird also nie ruhig. Gewartet wird stattdessen unten auf
   // die Kachel — auf das Ergebnis, nicht auf einen Zustand des Netzes.
-  await seite.goto(`${basis}/v2/`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/`, { waitUntil: "domcontentloaded" });
 
   // 1. Montiert die Anwendung? Gewartet wird auf die Kachel und nicht auf einen
   //    Zeitraum: Ein fester Schlaf wäre auf einer langsamen Maschine zu kurz
@@ -366,7 +366,7 @@ async function main() {
   await seite.evaluate(() => {
     window.__marke = "haelt";
   });
-  await seite.click('.seitenleiste a[href="/v2/dienste"]');
+  await seite.click('.seitenleiste a[href="/dienste"]');
   await seite.waitForSelector("table.tabelle .zeile", { timeout: 5000 });
   dienste.ohneNeuladen = await seite.evaluate(() => window.__marke === "haelt");
   dienste.pfad = await seite.evaluate(() => location.pathname);
@@ -412,7 +412,7 @@ async function main() {
 
   // Ein Neuladen auf der tiefen Adresse muss denselben Zustand zeigen — sonst
   // ist der Verweis nicht teilbar, und genau das war der Zweck der Übung.
-  await seite.goto(`${basis}/v2/dienste?unit=nginx.service`, {
+  await seite.goto(`${basis}/dienste?unit=nginx.service`, {
     waitUntil: "domcontentloaded",
   });
   await seite.waitForSelector(".inspektor", { timeout: 5000 });
@@ -485,7 +485,7 @@ async function main() {
 
   // Schmal: Auch diese Seite darf nicht waagerecht scrollen, und der Inspektor
   // steht dann über der Liste statt daneben.
-  await seite.goto(`${basis}/v2/dienste?unit=nginx.service`, {
+  await seite.goto(`${basis}/dienste?unit=nginx.service`, {
     waitUntil: "domcontentloaded",
   });
   await seite.waitForSelector(".inspektor", { timeout: 5000 });
@@ -513,7 +513,7 @@ async function main() {
   //    Go-Test sehen kann: Kommen die Zeilen über den Ereignisstrom an, und
   //    findet jemand, der die Seite neu lädt, den Vorgang vor?
   const pakete = {};
-  await seite.goto(`${basis}/v2/pakete`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/pakete`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle .pfad", { timeout: 5000 });
 
   pakete.reihen = await seite.evaluate(() =>
@@ -566,7 +566,7 @@ async function main() {
 
   // Neu laden: Der Vorgang ist auf dem Server, nicht in der Seite. Wer
   // zurückkommt, findet ihn vor — mit denselben Zeilen.
-  await seite.goto(`${basis}/v2/pakete`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/pakete`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector(".vorgang", { timeout: 5000 });
   pakete.nachNeuladen = await seite.evaluate(() => ({
     zeilen: document.querySelectorAll(".vorgang .auszug .zeile").length,
@@ -653,7 +653,7 @@ async function main() {
   //     das: Bleibt er offen, kommen Zeilen nach, gelten die Filter aus der
   //     Adresse auch für ihn, und wird er beim Verlassen der Seite angehalten?
   const logs = {};
-  await seite.goto(`${basis}/v2/logs`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/logs`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
 
   logs.zeilenAnfangs = await seite.evaluate(
@@ -688,11 +688,21 @@ async function main() {
 
   // Verfolgen einschalten. Die Attrappe schiebt eine Zeile nach — die muss
   // ankommen, ohne dass jemand neu lädt.
-  await seite.goto(`${basis}/v2/logs`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/logs`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
+  // Auf die ANFRAGE warten und nicht auf den Puls. Der Puls erscheint, sobald der
+  // Zustand umschlägt — die Verbindung ist dann erst angestoßen. Bis hierher wurde
+  // gleich danach in der Liste der Anfragen nachgesehen, und das war ein Rennen:
+  // Es ging gut, solange der Aufbau schneller war als die Prüfung. Beim
+  // Umschalten fiel es auf, weil die Zeitverhältnisse sich verschoben haben —
+  // der Strom lief weiter, nur die Anfrage war noch nicht verbucht.
+  const stromAnfrage = seite
+    .waitForRequest((r) => r.url().includes("/api/v1/logs/follow"), { timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
   await seite.click(".filter .verfolgen");
   await seite.waitForSelector(".filter .verfolgen .puls", { timeout: 5000 });
-  logs.stromGeoeffnet = angefragt.some((u) => u.includes("/api/v1/logs/follow"));
+  logs.stromGeoeffnet = await stromAnfrage;
 
   // Auf eine bestimmte Zeile warten und nicht auf eine größere Zahl: Der Strom
   // bringt seinen eigenen Rückblick mit, und eine gewachsene Zeilenzahl könnte
@@ -739,7 +749,7 @@ async function main() {
   // Zähler des Servers, den die Abfrage mitbringt.
   await seite.click(".filter .verfolgen");
   await seite.waitForSelector(".filter .verfolgen .puls", { timeout: 5000 });
-  await seite.click('.seitenleiste a[href="/v2/dienste"]');
+  await seite.click('.seitenleiste a[href="/dienste"]');
   await seite.waitForSelector("table.tabelle .zeile", { timeout: 5000 });
   await seite.waitForTimeout(400);
   logs.folgerNachWechsel = await seite.evaluate(async () => {
@@ -751,7 +761,7 @@ async function main() {
     return d.folger_frei;
   });
 
-  await seite.goto(`${basis}/v2/logs`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/logs`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
   await seite.setViewportSize({ width: 375, height: 800 });
   await seite.waitForTimeout(250);
@@ -777,7 +787,7 @@ async function main() {
   //     Rückweg." Geprüft wird die Probe: Steht sie ganz oben? Zählt der
   //     Countdown herunter? Und beendet der Knopf sie wirklich?
   const firewall = {};
-  await seite.goto(`${basis}/v2/firewall`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/firewall`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
 
   firewall.zeilen = await seite.evaluate(() =>
@@ -866,7 +876,7 @@ async function main() {
   // Ein Neuladen findet die Probe vor: Sie ist Zustand des Servers, nicht der
   // Seite. Das ist der Fall, in dem es darauf ankommt — wer neu lädt, weil die
   // Seite nach einer Regeländerung hängt, muss den Knopf trotzdem finden.
-  await seite.goto(`${basis}/v2/firewall`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/firewall`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector(".probe .uhr", { timeout: 5000 });
   firewall.probeNachNeuladen = Number(await seite.textContent(".probe .uhr"));
 
@@ -898,7 +908,7 @@ async function main() {
   //     Aussage über history.pushState und nicht über die Antwort des Servers.
   const wurzel = process.env.ASYLUM_E2E_DATEIWURZEL ?? "";
   const dateien = {};
-  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+  await seite.goto(`${basis}/dateien?pfad=${encodeURIComponent(wurzel)}`, {
     waitUntil: "domcontentloaded",
   });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
@@ -966,7 +976,7 @@ async function main() {
   // echter Verweis ist. Wäre es ein Knopf mit fetch, zöge er die Datei in den
   // Speicher des Tabs.
   await seite.goto(
-    `${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel + "/schreibbar")}` +
+    `${basis}/dateien?pfad=${encodeURIComponent(wurzel + "/schreibbar")}` +
       `&eintrag=${encodeURIComponent(wurzel + "/schreibbar/notizen.txt")}`,
     { waitUntil: "domcontentloaded" },
   );
@@ -1004,7 +1014,7 @@ async function main() {
   // seinen Inhalt anfassen würde. Der Knopf wäre bereits der Fehler, auch wenn
   // der Endpunkt danach 403 antwortet.
   await seite.goto(
-    `${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}` +
+    `${basis}/dateien?pfad=${encodeURIComponent(wurzel)}` +
       `&eintrag=${encodeURIComponent(wurzel + "/schluessel.geheim")}`,
     { waitUntil: "domcontentloaded" },
   );
@@ -1022,7 +1032,7 @@ async function main() {
   // Die Suche geht an den Server und findet unterhalb. Ein Browserfilter könnte
   // das nicht — und behauptete bei einer gekürzten Liste „kein Treffer" für eine
   // Datei, die es gibt.
-  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+  await seite.goto(`${basis}/dateien?pfad=${encodeURIComponent(wurzel)}`, {
     waitUntil: "domcontentloaded",
   });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
@@ -1097,7 +1107,7 @@ async function main() {
   //      Eintrag noch in der Liste steht.
   const schreiben = {};
   const schreibbar = `${wurzel}/schreibbar`;
-  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}`, {
+  await seite.goto(`${basis}/dateien?pfad=${encodeURIComponent(schreibbar)}`, {
     waitUntil: "domcontentloaded",
   });
   await seite.waitForSelector(".werkstatt", { timeout: 5000 });
@@ -1203,7 +1213,7 @@ async function main() {
 
   // Löschen eines Ordners MIT Inhalt: Stufe 3.
   await seite.goto(
-    `${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}` +
+    `${basis}/dateien?pfad=${encodeURIComponent(schreibbar)}` +
       `&eintrag=${encodeURIComponent(schreibbar + "/tief")}`,
     { waitUntil: "domcontentloaded" },
   );
@@ -1377,7 +1387,7 @@ async function main() {
   }
 
   // Und die Gegenprobe: In der Leseworzel gibt es keine Werkstatt.
-  await seite.goto(`${basis}/v2/dateien?pfad=${encodeURIComponent(wurzel)}`, {
+  await seite.goto(`${basis}/dateien?pfad=${encodeURIComponent(wurzel)}`, {
     waitUntil: "domcontentloaded",
   });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
@@ -1415,7 +1425,7 @@ async function main() {
   editor.kernVorher = angefragt.filter((u) => u.includes("editorkern")).length;
 
   await seite.goto(
-    `${basis}/v2/dateien?pfad=${encodeURIComponent(schreibbar)}` +
+    `${basis}/dateien?pfad=${encodeURIComponent(schreibbar)}` +
       `&eintrag=${encodeURIComponent(editorPfad)}`,
     { waitUntil: "domcontentloaded" },
   );
@@ -1590,7 +1600,7 @@ async function main() {
   //      laden" ANHÄNGT statt zu ersetzen — ein Seitenwechsel, der die Liste
   //      austauscht, verliert die Zeile, wegen der man weitergeblättert hat.
   const audit = {};
-  await seite.goto(`${basis}/v2/audit`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/audit`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
 
   audit.zeilenAnfangs = await seite.evaluate(
@@ -1682,7 +1692,7 @@ async function main() {
   //      keinen Zugang mehr hat. Und die Gegenprobe an root: Ein geschütztes Konto
   //      darf keinen Knopf zeigen, der dann verweigert.
   const konten = {};
-  await seite.goto(`${basis}/v2/benutzer`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/benutzer`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
 
   konten.wesen = await seite.evaluate(
@@ -1811,7 +1821,7 @@ async function main() {
   //         margin:auto schon einmal geschlagen, und gesehen hat das erst ein
   //         Bildschirmfoto.
   const zugaenge = {};
-  await seite.goto(`${basis}/v2/zugaenge`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/zugaenge`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
 
   zugaenge.wesen = await seite.evaluate(
@@ -1826,7 +1836,7 @@ async function main() {
   );
   // Der Menüpunkt ist da — für die Owner-Rolle. Die Gegenprobe steht in 12g.
   zugaenge.imMenue = await seite.evaluate(
-    () => document.querySelector('.seitenleiste a[href="/v2/zugaenge"]') !== null,
+    () => document.querySelector('.seitenleiste a[href="/zugaenge"]') !== null,
   );
 
   // Das eigene Konto: markiert, ohne Handgriffe, mit dem Satz, der das erklärt.
@@ -2016,10 +2026,10 @@ async function main() {
       },
     ]);
     const seite2 = await kontext2.newPage();
-    await seite2.goto(`${basis}/v2/`, { waitUntil: "domcontentloaded" });
+    await seite2.goto(`${basis}/`, { waitUntil: "domcontentloaded" });
     await seite2.waitForSelector(".seitenleiste a", { timeout: 5000 });
     fremdeRolle.imMenue = await seite2.evaluate(
-      () => document.querySelector('.seitenleiste a[href="/v2/zugaenge"]') !== null,
+      () => document.querySelector('.seitenleiste a[href="/zugaenge"]') !== null,
     );
     // Die Palette: Auch dort nicht.
     await seite2.keyboard.press("Control+k");
@@ -2032,7 +2042,7 @@ async function main() {
     await seite2.keyboard.press("Escape");
 
     // Der Pfad von Hand: Die Seite sagt, warum sie leer ist.
-    await seite2.goto(`${basis}/v2/zugaenge`, { waitUntil: "domcontentloaded" });
+    await seite2.goto(`${basis}/zugaenge`, { waitUntil: "domcontentloaded" });
     await seite2.waitForSelector(".hinweis", { timeout: 5000 });
     fremdeRolle.satz = await seite2.evaluate(
       () => document.querySelector(".hinweis .detail")?.textContent.trim() ?? "",
@@ -2064,7 +2074,7 @@ async function main() {
   //      laufenden Testservers. Was danach geschieht, prüfen die Go-Tests an der
   //      Attrappe.
   const upd = {};
-  await seite.goto(`${basis}/v2/updates`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/updates`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("section.platte", { timeout: 5000 });
 
   upd.wesen = await seite.evaluate(
@@ -2179,7 +2189,7 @@ async function main() {
   //      3. Der Rückschritt auf selbstsigniert fragt zurück, und nach dem
   //         ABBRUCH steht die Einstellung noch.
   const zert = {};
-  await seite.goto(`${basis}/v2/zertifikate`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/zertifikate`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector(".wahl label", { timeout: 5000 });
 
   zert.wesen = await seite.evaluate(
@@ -2326,7 +2336,7 @@ async function main() {
   //      3. Die eigene Sitzung ist in der Liste markiert, und ihr Knopf heißt
   //         „abmelden" und nicht „beenden".
   const konto = {};
-  await seite.goto(`${basis}/v2/konto`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/konto`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("#pw-aktuell", { timeout: 5000 });
 
   konto.wesen = await seite.evaluate(
@@ -2474,7 +2484,7 @@ async function main() {
   //      4. Die gesperrten Flächen stehen als eigener Block da und fehlen in der
   //         Auswahl — genannt, nicht verschwiegen.
   const tk = {};
-  await seite.goto(`${basis}/v2/tokens`, { waitUntil: "domcontentloaded" });
+  await seite.goto(`${basis}/tokens`, { waitUntil: "domcontentloaded" });
   await seite.waitForSelector("table.tabelle", { timeout: 5000 });
 
   tk.wesen = await seite.evaluate(
@@ -2609,7 +2619,7 @@ async function main() {
   //         nicht den 1. Januar 1970 — die Stelle, an der ein fehlender
   //         Zeitstempel zu einem echt aussehenden Datum wird.
   const plaene = {};
-  await seite.click('.seitenleiste a[href="/v2/cron"]');
+  await seite.click('.seitenleiste a[href="/cron"]');
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
 
   plaene.wesen = await seite.evaluate(
@@ -2785,7 +2795,7 @@ async function main() {
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
   const bald = {};
-  await seite.click('.seitenleiste a[href="/v2/docker"]');
+  await seite.click('.seitenleiste a[href="/docker"]');
   await seite.waitForSelector(".platte .satz", { timeout: 5000 });
   bald.pfad = new URL(seite.url()).pathname;
   bald.titel = await seite.evaluate(

@@ -91,7 +91,7 @@
   <p class="hint">Zum Ändern fehlen Ihnen die Rechte.</p>
   {{end}}
 
-  <form method="post" action="/certificate" class="rules-form">
+  <form method="post" action="/alt/certificate" class="rules-form">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
 
     <fieldset class="rule">
@@ -217,7 +217,7 @@
   </form>
 
   {{if and $.CanWrite (eq .Mode "acme")}}
-  <form method="post" action="/certificate/obtain" class="button-row">
+  <form method="post" action="/alt/certificate/obtain" class="button-row">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <button type="submit" class="secondary" {{if .Attempt.Running}}disabled{{end}}>Jetzt beziehen</button>
     <p class="hint">
@@ -236,7 +236,7 @@
     <span id="job-status" class="sub">{{if .JobRunning}}läuft …{{else if .JobError}}fehlgeschlagen{{else}}abgeschlossen{{end}}</span>
   </div>
   {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
-  <pre class="logs" id="job-output" data-events="/certificate/events">{{range .JobLines}}{{.}}
+  <pre class="logs" id="job-output" data-events="/alt/certificate/events">{{range .JobLines}}{{.}}
 {{end}}</pre>
   <p class="hint">
     Angestoßen: {{.JobActor}}. Der Verlauf steht auch für die Erneuerung, die

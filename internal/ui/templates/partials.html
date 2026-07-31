@@ -22,17 +22,17 @@
   -->
   <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Weitere Ziele anzeigen">
   <nav class="rail" aria-label="Bereiche">
-    {{template "railziel" dict "href" "/" "nav" "dashboard" "hier" .Nav "sym" "lage" "text" "Lage" "tab" true "pip" ""}}
-    {{template "railziel" dict "href" "/services" "nav" "services" "hier" .Nav "sym" "dienst" "text" "Dienste" "tab" true "pip" .Lage.DienstePip}}
-    {{template "railziel" dict "href" "/packages" "nav" "packages" "hier" .Nav "sym" "paket" "text" "Pakete" "tab" false "pip" .Lage.PaketePip}}
-    {{template "railziel" dict "href" "/system-users" "nav" "sysusers" "hier" .Nav "sym" "user" "text" "Konten" "tab" false "pip" ""}}
-    {{if .FilesOn}}{{template "railziel" dict "href" "/files" "nav" "files" "hier" .Nav "sym" "datei" "text" "Dateien" "tab" false "pip" ""}}{{end}}
-    {{template "railziel" dict "href" "/firewall" "nav" "firewall" "hier" .Nav "sym" "firewall" "text" "Firewall" "tab" true "pip" ""}}
-    {{template "railziel" dict "href" "/certificate" "nav" "certificate" "hier" .Nav "sym" "tls" "text" "TLS" "tab" false "pip" ""}}
-    {{if .IsOwner}}{{template "railziel" dict "href" "/users" "nav" "users" "hier" .Nav "sym" "zugang" "text" "Zugänge" "tab" false "pip" ""}}{{end}}
-    {{template "railziel" dict "href" "/audit" "nav" "audit" "hier" .Nav "sym" "audit" "text" "Audit" "tab" false "pip" ""}}
-    {{template "railziel" dict "href" "/logs" "nav" "logs" "hier" .Nav "sym" "logs" "text" "Journal" "tab" true "pip" ""}}
-    {{template "railziel" dict "href" "/update" "nav" "update" "hier" .Nav "sym" "update" "text" "Updates" "tab" false "pip" ""}}
+    {{template "railziel" dict "href" "/alt/" "nav" "dashboard" "hier" .Nav "sym" "lage" "text" "Lage" "tab" true "pip" ""}}
+    {{template "railziel" dict "href" "/alt/services" "nav" "services" "hier" .Nav "sym" "dienst" "text" "Dienste" "tab" true "pip" .Lage.DienstePip}}
+    {{template "railziel" dict "href" "/alt/packages" "nav" "packages" "hier" .Nav "sym" "paket" "text" "Pakete" "tab" false "pip" .Lage.PaketePip}}
+    {{template "railziel" dict "href" "/alt/system-users" "nav" "sysusers" "hier" .Nav "sym" "user" "text" "Konten" "tab" false "pip" ""}}
+    {{if .FilesOn}}{{template "railziel" dict "href" "/alt/files" "nav" "files" "hier" .Nav "sym" "datei" "text" "Dateien" "tab" false "pip" ""}}{{end}}
+    {{template "railziel" dict "href" "/alt/firewall" "nav" "firewall" "hier" .Nav "sym" "firewall" "text" "Firewall" "tab" true "pip" ""}}
+    {{template "railziel" dict "href" "/alt/certificate" "nav" "certificate" "hier" .Nav "sym" "tls" "text" "TLS" "tab" false "pip" ""}}
+    {{if .IsOwner}}{{template "railziel" dict "href" "/alt/users" "nav" "users" "hier" .Nav "sym" "zugang" "text" "Zugänge" "tab" false "pip" ""}}{{end}}
+    {{template "railziel" dict "href" "/alt/audit" "nav" "audit" "hier" .Nav "sym" "audit" "text" "Audit" "tab" false "pip" ""}}
+    {{template "railziel" dict "href" "/alt/logs" "nav" "logs" "hier" .Nav "sym" "logs" "text" "Journal" "tab" true "pip" ""}}
+    {{template "railziel" dict "href" "/alt/update" "nav" "update" "hier" .Nav "sym" "update" "text" "Updates" "tab" false "pip" ""}}
     {{/* Schmal ist die Schiene eine Leiste am unteren Rand mit vier Zielen und
          diesem Knopf; alles Weitere klappt darüber auf. Breit ist er unsichtbar
          — dort steht die Schiene ohnehin vollständig da. */}}
@@ -41,7 +41,7 @@
       <span class="rail-text">Mehr</span>
     </label>
     <span class="rail-space"></span>
-    {{template "railziel" dict "href" "/account" "nav" "account" "hier" .Nav "sym" "user" "text" .User.Username "tab" false "pip" ""}}
+    {{template "railziel" dict "href" "/alt/account" "nav" "account" "hier" .Nav "sym" "user" "text" .User.Username "tab" false "pip" ""}}
     <button type="button" class="themebtn" id="theme-toggle" hidden aria-live="polite">◐ Design</button>
     <form method="post" action="/logout" class="rail-logout">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
@@ -66,29 +66,29 @@
      vor einer Sekunde. */}}
 {{define "statusleiste"}}
 <header class="status">
-  <a class="status-host" href="/" aria-label="Zur Übersicht">
+  <a class="status-host" href="/alt/" aria-label="Zur Übersicht">
     <span class="lamp {{with .Lage.Stufe}}{{.}}{{else}}ok{{end}}" aria-hidden="true"></span>
     <strong>{{.Host.Name}}</strong>
     <small>{{.Host.Distro}}{{if .Lage.Uptime}} · seit {{.Lage.Uptime}}{{end}}</small>
   </a>
 
   <div class="gauges">
-    <a class="gauge" href="/" title="Prozessorlast — zur Übersicht">
+    <a class="gauge" href="/alt/" title="Prozessorlast — zur Übersicht">
       <span class="g-k">CPU</span><span class="g-v"><span data-live="cpu.total">{{pct .Lage.CPU}}</span><small>%</small></span>
     </a>
-    <a class="gauge" href="/" title="Arbeitsspeicher — zur Übersicht">
+    <a class="gauge" href="/alt/" title="Arbeitsspeicher — zur Übersicht">
       <span class="g-k">MEM</span><span class="g-v"><span data-live="memory.used_pct">{{pct .Lage.Mem}}</span><small>%</small></span>
     </a>
     {{if .Lage.HatDisk}}
-    <a class="gauge" href="/" title="Am engsten belegtes Dateisystem">
+    <a class="gauge" href="/alt/" title="Am engsten belegtes Dateisystem">
       <span class="g-k">DISK</span><span class="g-v">{{pct .Lage.Disk}}<small>%</small></span><span class="g-n">{{.Lage.DiskMount}}</span>
     </a>
     {{end}}
-    <a class="gauge" href="/" title="Systemlast im Mittel der letzten Minute">
+    <a class="gauge" href="/alt/" title="Systemlast im Mittel der letzten Minute">
       <span class="g-k">LAST</span><span class="g-v"><span data-live="load.0">{{pct .Lage.Load}}</span></span><span class="g-n">{{.Host.Cores}}&nbsp;Kerne</span>
     </a>
     {{if .Lage.HatNetz}}
-    <a class="gauge" href="/" title="Empfangen über die Standardroute">
+    <a class="gauge" href="/alt/" title="Empfangen über die Standardroute">
       <span class="g-k">NETZ</span><span class="g-v">{{.Lage.Netz}}</span><span class="g-n">{{.Lage.NetzName}}</span>
     </a>
     {{end}}
@@ -100,12 +100,12 @@
        Er steht auch dann, wenn nichts offen ist — ein Feld, das nur bei
        Problemen erscheint, lässt einen im Normalfall raten. */}}
   {{if .Lage.Offen}}
-  <a class="status-flag {{.Lage.Stufe}}" href="/">
+  <a class="status-flag {{.Lage.Stufe}}" href="/alt/">
     <span class="lamp {{.Lage.Stufe}}" aria-hidden="true"></span>
     {{.Lage.Offen}} offen
   </a>
   {{else}}
-  <a class="status-flag ok" href="/"><span class="lamp ok" aria-hidden="true"></span>nichts offen</a>
+  <a class="status-flag ok" href="/alt/"><span class="lamp ok" aria-hidden="true"></span>nichts offen</a>
   {{end}}
 
   {{/* Der Live-Punkt sitzt hier, weil live.js an ihm hängt: Ohne #live-status

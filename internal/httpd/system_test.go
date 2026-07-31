@@ -505,11 +505,11 @@ func TestSystemPagesRender(t *testing.T) {
 	cookie, _ := login(t, s, user)
 
 	pages := map[string][]string{
-		"/services":     {"ssh.service", "nginx.service", "Webserver"},
-		"/packages":     {"libssl3", "Sicherheit", "coreutils"},
-		"/firewall":     {"ufw", "22"},
-		"/system-users": {"philipp", "www-data"},
-		"/logs":         {"Accepted publickey"},
+		"/alt/services":     {"ssh.service", "nginx.service", "Webserver"},
+		"/alt/packages":     {"libssl3", "Sicherheit", "coreutils"},
+		"/alt/firewall":     {"ufw", "22"},
+		"/alt/system-users": {"philipp", "www-data"},
+		"/alt/logs":         {"Accepted publickey"},
 	}
 
 	for path, wants := range pages {
@@ -533,7 +533,7 @@ func TestServiceDetailRenders(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/services/ssh.service", cookie)
+	rec := get(t, s, "/alt/services/ssh.service", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200", rec.Code)
 	}
@@ -552,14 +552,14 @@ func TestReadOnlyCannotChangeAnything(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	writes := map[string]url.Values{
-		"/services/ssh.service":        {"_csrf": {csrf}, "action": {"restart"}},
-		"/packages/refresh":            {"_csrf": {csrf}},
-		"/packages/upgrade":            {"_csrf": {csrf}, "scope": {"all"}},
-		"/firewall":                    {"_csrf": {csrf}, "port": {"443"}, "protocol": {"tcp"}},
-		"/system-users":                {"_csrf": {csrf}, "name": {"neu"}},
-		"/system-users/philipp/locked": {"_csrf": {csrf}, "locked": {"1"}},
-		"/system-users/philipp/delete": {"_csrf": {csrf}},
-		"/system-users/philipp/keys":   {"_csrf": {csrf}, "key": {"ssh-ed25519 AAAA x"}},
+		"/alt/services/ssh.service":        {"_csrf": {csrf}, "action": {"restart"}},
+		"/alt/packages/refresh":            {"_csrf": {csrf}},
+		"/alt/packages/upgrade":            {"_csrf": {csrf}, "scope": {"all"}},
+		"/alt/firewall":                    {"_csrf": {csrf}, "port": {"443"}, "protocol": {"tcp"}},
+		"/alt/system-users":                {"_csrf": {csrf}, "name": {"neu"}},
+		"/alt/system-users/philipp/locked": {"_csrf": {csrf}, "locked": {"1"}},
+		"/alt/system-users/philipp/delete": {"_csrf": {csrf}},
+		"/alt/system-users/philipp/keys":   {"_csrf": {csrf}, "key": {"ssh-ed25519 AAAA x"}},
 	}
 
 	for path, form := range writes {
@@ -576,7 +576,7 @@ func TestReadOnlyCannotChangeAnything(t *testing.T) {
 	}
 
 	// Lesen bleibt erlaubt.
-	if rec := get(t, s, "/services", cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/services", cookie); rec.Code != http.StatusOK {
 		t.Errorf("ReadOnly darf lesen, Status = %d", rec.Code)
 	}
 }
@@ -586,7 +586,7 @@ func TestServiceActionRunsAndAudits(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/services/nginx.service", url.Values{
+	rec := post(t, s, "/alt/services/nginx.service", url.Values{
 		"_csrf": {csrf}, "action": {"restart"},
 	}, cookie)
 	if rec.Code != http.StatusOK {
@@ -621,7 +621,7 @@ func TestRebootOwnerOnly(t *testing.T) {
 	admin := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, admin)
 
-	rec := post(t, s, "/system/reboot", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/system/reboot", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("Status = %d, erwartet 403", rec.Code)
 	}
@@ -635,7 +635,7 @@ func TestRebootRunsAndAudits(t *testing.T) {
 	owner := addUser(t, s, "chef", store.RoleOwner)
 	cookie, csrf := login(t, s, owner)
 
-	rec := post(t, s, "/system/reboot", ja(url.Values{"_csrf": {csrf}}, s.rechnername()), cookie)
+	rec := post(t, s, "/alt/system/reboot", ja(url.Values{"_csrf": {csrf}}, s.rechnername()), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200 — %s", rec.Code, rec.Body.String())
 	}
@@ -663,7 +663,7 @@ func TestPackageUpgradeStartsJob(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/packages/upgrade", ja(url.Values{"_csrf": {csrf}, "scope": {"security"}}), cookie)
+	rec := post(t, s, "/alt/packages/upgrade", ja(url.Values{"_csrf": {csrf}, "scope": {"security"}}), cookie)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("Status = %d, erwartet 303", rec.Code)
 	}
@@ -705,7 +705,7 @@ func TestPackageRefreshZeigtKonsolenauszug(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/packages/refresh", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/packages/refresh", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("Status = %d, erwartet 303", rec.Code)
 	}
@@ -716,7 +716,7 @@ func TestPackageRefreshZeigtKonsolenauszug(t *testing.T) {
 	}
 	warteAufJob(t, s)
 
-	body := get(t, s, "/packages", cookie).Body.String()
+	body := get(t, s, "/alt/packages", cookie).Body.String()
 	for _, want := range []string{
 		"Vorgang",
 		`id="job-output"`,
@@ -780,7 +780,7 @@ func TestPackageRefreshTeilerfolgIstWarnung(t *testing.T) {
 	}
 	ops.mu.Unlock()
 
-	if rec := post(t, s, "/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
+	if rec := post(t, s, "/alt/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
 		t.Fatalf("Status = %d, erwartet 303", rec.Code)
 	}
 	select {
@@ -790,7 +790,7 @@ func TestPackageRefreshTeilerfolgIstWarnung(t *testing.T) {
 	}
 	warteAufJob(t, s)
 
-	body := get(t, s, "/packages", cookie).Body.String()
+	body := get(t, s, "/alt/packages", cookie).Body.String()
 	if !strings.Contains(body, "warn-box") {
 		t.Error("der Teilerfolg erscheint nicht als Warnung")
 	}
@@ -838,7 +838,7 @@ func TestPackageRefreshFehlschlag(t *testing.T) {
 	ops.refreshErr = errors.New("apt-get update: E: Failed to fetch")
 	ops.mu.Unlock()
 
-	if rec := post(t, s, "/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
+	if rec := post(t, s, "/alt/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
 		t.Fatalf("Status = %d, erwartet 303", rec.Code)
 	}
 	select {
@@ -848,7 +848,7 @@ func TestPackageRefreshFehlschlag(t *testing.T) {
 	}
 	warteAufJob(t, s)
 
-	body := get(t, s, "/packages", cookie).Body.String()
+	body := get(t, s, "/alt/packages", cookie).Body.String()
 	for _, want := range []string{"fehlgeschlagen", "Failed to fetch", "Temporary failure resolving"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("die Seite enthält %q nicht", want)
@@ -868,11 +868,11 @@ func TestPackageEventsLiefertDenAuszug(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	// Ohne Vorgang gibt es nichts zu streamen.
-	if rec := get(t, s, "/packages/events", cookie); rec.Code != http.StatusNotFound {
+	if rec := get(t, s, "/alt/packages/events", cookie); rec.Code != http.StatusNotFound {
 		t.Errorf("ohne Vorgang: Status = %d, erwartet 404", rec.Code)
 	}
 
-	if rec := post(t, s, "/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
+	if rec := post(t, s, "/alt/packages/refresh", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusSeeOther {
 		t.Fatalf("Status = %d, erwartet 303", rec.Code)
 	}
 	select {
@@ -883,7 +883,7 @@ func TestPackageEventsLiefertDenAuszug(t *testing.T) {
 	warteAufJob(t, s)
 
 	// Wer später dazukommt, bekommt den ganzen Lauf und danach das Ende.
-	body := stream(t, s, "/packages/events", cookie, 2*time.Second).Body.String()
+	body := stream(t, s, "/alt/packages/events", cookie, 2*time.Second).Body.String()
 	for _, want := range []string{
 		"event: output",
 		`"Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease"`,
@@ -922,7 +922,7 @@ func TestFirewallApplyArmsRollback(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/firewall", url.Values{
+	rec := post(t, s, "/alt/firewall", url.Values{
 		"_csrf":    {csrf},
 		"port":     {"22", "443"},
 		"protocol": {"tcp", "tcp"},
@@ -957,11 +957,11 @@ func TestFirewallConfirmStopsRollback(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	post(t, s, "/firewall", url.Values{
+	post(t, s, "/alt/firewall", url.Values{
 		"_csrf": {csrf}, "port": {"443"}, "protocol": {"tcp"},
 	}, cookie)
 
-	rec := post(t, s, "/firewall/confirm", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/firewall/confirm", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200", rec.Code)
 	}
@@ -970,7 +970,7 @@ func TestFirewallConfirmStopsRollback(t *testing.T) {
 	}
 
 	// Ein zweiter Aufruf hat nichts zu bestätigen.
-	if rec := post(t, s, "/firewall/confirm", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusBadRequest {
+	if rec := post(t, s, "/alt/firewall/confirm", url.Values{"_csrf": {csrf}}, cookie); rec.Code != http.StatusBadRequest {
 		t.Errorf("zweite Bestätigung: Status = %d, erwartet 400", rec.Code)
 	}
 }
@@ -1013,7 +1013,7 @@ func TestFirewallApplyRejectsInvalidRule(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/firewall", url.Values{
+	rec := post(t, s, "/alt/firewall", url.Values{
 		"_csrf": {csrf}, "port": {"99999"}, "protocol": {"tcp"},
 	}, cookie)
 	if rec.Code != http.StatusBadRequest {
@@ -1038,14 +1038,14 @@ func TestSystemUserActions(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	post(t, s, "/system-users", url.Values{
+	post(t, s, "/alt/system-users", url.Values{
 		"_csrf": {csrf}, "name": {"deploy"}, "shell": {"/bin/bash"},
 	}, cookie)
-	post(t, s, "/system-users/deploy/locked", url.Values{"_csrf": {csrf}, "locked": {"1"}}, cookie)
-	post(t, s, "/system-users/deploy/keys", url.Values{
+	post(t, s, "/alt/system-users/deploy/locked", url.Values{"_csrf": {csrf}, "locked": {"1"}}, cookie)
+	post(t, s, "/alt/system-users/deploy/keys", url.Values{
 		"_csrf": {csrf}, "key": {"ssh-ed25519 AAAA deploy@ci"},
 	}, cookie)
-	post(t, s, "/system-users/deploy/delete", ja(url.Values{"_csrf": {csrf}}, "deploy"), cookie)
+	post(t, s, "/alt/system-users/deploy/delete", ja(url.Values{"_csrf": {csrf}}, "deploy"), cookie)
 
 	want := []string{
 		"sysuser:create:deploy",
@@ -1077,7 +1077,7 @@ func TestSystemUserCreateLegtHomeAn(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	const schluessel = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIexample deploy@ci"
-	rec := post(t, s, "/system-users", url.Values{
+	rec := post(t, s, "/alt/system-users", url.Values{
 		"_csrf": {csrf}, "name": {"deploy"}, "shell": {"/bin/bash"},
 		"groups": {"sudo, docker"}, "ssh_key": {schluessel},
 	}, cookie)
@@ -1108,7 +1108,7 @@ func TestSystemUserPathIsPassedThroughValidation(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/system-users/root/delete", ja(url.Values{"_csrf": {csrf}}, "root"), cookie)
+	rec := post(t, s, "/alt/system-users/root/delete", ja(url.Values{"_csrf": {csrf}}, "root"), cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("Status = %d, erwartet 400 — root ist geschützt", rec.Code)
 	}
@@ -1141,7 +1141,7 @@ func TestFirewallAktivierungOhnePanelPortWirdVerweigert(t *testing.T) {
 	}
 	ops.mu.Unlock()
 
-	rec := post(t, s, "/firewall/active", url.Values{
+	rec := post(t, s, "/alt/firewall/active", url.Values{
 		"_csrf": {csrf}, "active": {"1"},
 	}, cookie)
 
@@ -1176,7 +1176,7 @@ func TestFirewallAktivierungStehtAufProbe(t *testing.T) {
 	}
 	ops.mu.Unlock()
 
-	rec := post(t, s, "/firewall/active", ja(url.Values{
+	rec := post(t, s, "/alt/firewall/active", ja(url.Values{
 		"_csrf": {csrf}, "active": {"1"},
 	}), cookie)
 	if rec.Code != http.StatusOK {
@@ -1208,7 +1208,7 @@ func TestFirewallAusschaltenOhneProbe(t *testing.T) {
 	ops.mu.Unlock()
 
 	// Ausschalten ist die dritte Stufe: Der Hostname muss getippt werden.
-	rec := post(t, s, "/firewall/active", ja(url.Values{
+	rec := post(t, s, "/alt/firewall/active", ja(url.Values{
 		"_csrf": {csrf}, "active": {"0"},
 	}, s.rechnername()), cookie)
 	if rec.Code != http.StatusOK {
@@ -1325,7 +1325,7 @@ func TestFirewallSeiteRendertAlleZustaende(t *testing.T) {
 			ops.firewall = f.state
 			ops.mu.Unlock()
 
-			rec := get(t, s, "/firewall", cookie)
+			rec := get(t, s, "/alt/firewall", cookie)
 			if rec.Code != http.StatusOK {
 				t.Fatalf("Status = %d", rec.Code)
 			}
@@ -1350,7 +1350,7 @@ func TestPanelRegelWirdErzwungen(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	// Absichtlich nur eine SSH-Regel senden — der Panel-Port fehlt.
-	rec := post(t, s, "/firewall", url.Values{
+	rec := post(t, s, "/alt/firewall", url.Values{
 		"_csrf": {csrf}, "port": {"22"}, "protocol": {"tcp"},
 		"source": {""}, "comment": {"SSH"},
 	}, cookie)
@@ -1452,20 +1452,20 @@ func TestGeschuetzteKontenOhneAktionen(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/system-users", cookie)
+	rec := get(t, s, "/alt/system-users", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}
 	body := rec.Body.String()
 
-	if strings.Contains(body, "/system-users/root/delete") {
+	if strings.Contains(body, "/alt/system-users/root/delete") {
 		t.Error("für root wird ein Löschen-Formular ausgegeben")
 	}
-	if strings.Contains(body, "/system-users/root/locked") {
+	if strings.Contains(body, "/alt/system-users/root/locked") {
 		t.Error("für root wird ein Sperren-Formular ausgegeben")
 	}
 	// Ein regulärer Benutzer behält seine Aktionen.
-	if !strings.Contains(body, "/system-users/philipp/delete") {
+	if !strings.Contains(body, "/alt/system-users/philipp/delete") {
 		t.Error("dem regulären Konto fehlen die Aktionen")
 	}
 	if !strings.Contains(body, "geschützt") {
@@ -1479,12 +1479,12 @@ func TestSchluesselLinkSpringtZurKarte(t *testing.T) {
 	user := addUser(t, s, "admin", store.RoleAdmin)
 	cookie, _ := login(t, s, user)
 
-	body := get(t, s, "/system-users", cookie).Body.String()
-	if !strings.Contains(body, `href="/system-users?user=philipp#schluessel"`) {
+	body := get(t, s, "/alt/system-users", cookie).Body.String()
+	if !strings.Contains(body, `href="/alt/system-users?user=philipp#schluessel"`) {
 		t.Error("der Link zur Schlüsselverwaltung trägt keine Sprungmarke")
 	}
 
-	body = get(t, s, "/system-users?user=philipp", cookie).Body.String()
+	body = get(t, s, "/alt/system-users?user=philipp", cookie).Body.String()
 	if !strings.Contains(body, `id="schluessel"`) {
 		t.Error("die Schlüsselkarte trägt keine Sprungmarke")
 	}
@@ -1498,8 +1498,8 @@ func TestKeineAktionsLinksMehr(t *testing.T) {
 	user := addUser(t, s, "owner", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	for _, pfad := range []string{"/", "/services", "/packages", "/firewall",
-		"/system-users", "/users", "/account", "/update", "/audit", "/logs"} {
+	for _, pfad := range []string{"/", "/alt/services", "/alt/packages", "/alt/firewall",
+		"/alt/system-users", "/alt/users", "/alt/account", "/alt/update", "/alt/audit", "/alt/logs"} {
 		body := get(t, s, pfad, cookie).Body.String()
 		if strings.Contains(body, `class="link`) {
 			t.Errorf("%s enthält noch eine als Link gestaltete Aktion", pfad)

@@ -55,7 +55,7 @@ func uploadKoerper(t *testing.T, csrf, dir string, overwrite bool, dateien map[s
 // upload schickt einen Multipart-Upload.
 func upload(t *testing.T, s *Server, koerperTyp string, koerper io.Reader, cookie *http.Cookie, kopfzeilen map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/files/upload", koerper)
+	req := httptest.NewRequest(http.MethodPost, "/alt/files/upload", koerper)
 	req.Header.Set("Content-Type", koerperTyp)
 	for k, v := range kopfzeilen {
 		req.Header.Set(k, v)

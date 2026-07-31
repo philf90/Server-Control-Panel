@@ -21,7 +21,7 @@ func TestTOTPWechselVollstaendig(t *testing.T) {
 
 	altesGeheimnis := user.TOTPSecret
 
-	rec := post(t, s, "/account/2fa", url.Values{
+	rec := post(t, s, "/alt/account/2fa", url.Values{
 		"_csrf":            {csrf},
 		"current_password": {testPassword},
 	}, cookie)
@@ -50,12 +50,12 @@ func TestTOTPWechselVollstaendig(t *testing.T) {
 	}
 
 	// Der QR-Code zum begonnenen Wechsel muss abrufbar sein.
-	if rec := get(t, s, "/account/2fa/qr.png", cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/account/2fa/qr.png", cookie); rec.Code != http.StatusOK {
 		t.Errorf("QR-Code: Status = %d", rec.Code)
 	}
 
 	// Ein falscher Code darf nichts umstellen.
-	rec = post(t, s, "/account/2fa/confirm", url.Values{"_csrf": {csrf}, "code": {"000000"}}, cookie)
+	rec = post(t, s, "/alt/account/2fa/confirm", url.Values{"_csrf": {csrf}, "code": {"000000"}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("falscher Code: Status = %d, erwartet 400", rec.Code)
 	}
@@ -69,7 +69,7 @@ func TestTOTPWechselVollstaendig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec = post(t, s, "/account/2fa/confirm", url.Values{"_csrf": {csrf}, "code": {code}}, cookie)
+	rec = post(t, s, "/alt/account/2fa/confirm", url.Values{"_csrf": {csrf}, "code": {code}}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Bestätigung: Status = %d: %s", rec.Code, rec.Body.String())
 	}
@@ -106,7 +106,7 @@ func TestTOTPWechselBrauchtPasswort(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/account/2fa", url.Values{
+	rec := post(t, s, "/alt/account/2fa", url.Values{
 		"_csrf":            {csrf},
 		"current_password": {"das ist nicht das passwort"},
 	}, cookie)
@@ -123,10 +123,10 @@ func TestTOTPWechselOhneBegonnenenVorgang(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	if rec := get(t, s, "/account/2fa/qr.png", cookie); rec.Code != http.StatusForbidden {
+	if rec := get(t, s, "/alt/account/2fa/qr.png", cookie); rec.Code != http.StatusForbidden {
 		t.Errorf("QR ohne Vorgang: Status = %d, erwartet 403", rec.Code)
 	}
-	rec := post(t, s, "/account/2fa/confirm", url.Values{"_csrf": {csrf}, "code": {"123456"}}, cookie)
+	rec := post(t, s, "/alt/account/2fa/confirm", url.Values{"_csrf": {csrf}, "code": {"123456"}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("Bestätigung ohne Vorgang: Status = %d, erwartet 400", rec.Code)
 	}
@@ -162,7 +162,7 @@ func TestSitzungslisteZeigtDieEigene(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/account", cookie)
+	rec := get(t, s, "/alt/account", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}
@@ -195,7 +195,7 @@ func TestFremdeSitzungBeenden(t *testing.T) {
 		t.Fatalf("%d Sitzungen, erwartet 2", len(sessions))
 	}
 
-	body := get(t, s, "/account", cookie).Body.String()
+	body := get(t, s, "/alt/account", cookie).Body.String()
 	if !strings.Contains(body, "revoke-others") {
 		t.Error("bei zwei Sitzungen fehlt die Sammelaktion")
 	}
@@ -213,7 +213,7 @@ func TestFremdeSitzungBeenden(t *testing.T) {
 		t.Fatal("die zweite Sitzung wurde nicht wiedergefunden")
 	}
 
-	rec := post(t, s, "/account/sessions/revoke", url.Values{
+	rec := post(t, s, "/alt/account/sessions/revoke", url.Values{
 		"_csrf": {csrf}, "session": {target},
 	}, cookie)
 	if rec.Code != http.StatusOK {
@@ -221,10 +221,10 @@ func TestFremdeSitzungBeenden(t *testing.T) {
 	}
 
 	// Die eigene Sitzung lebt weiter, die andere ist tot.
-	if rec := get(t, s, "/account", cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/account", cookie); rec.Code != http.StatusOK {
 		t.Errorf("die eigene Sitzung wurde mitbeendet: %d", rec.Code)
 	}
-	if rec := get(t, s, "/account", zweite); rec.Code == http.StatusOK {
+	if rec := get(t, s, "/alt/account", zweite); rec.Code == http.StatusOK {
 		t.Error("die beendete Sitzung ist weiterhin gültig")
 	}
 }
@@ -244,13 +244,13 @@ func TestFremdesKontoSitzungNichtBeendbar(t *testing.T) {
 		t.Fatalf("Sitzungen des Opfers: %v, %d", err, len(opferSessions))
 	}
 
-	rec := post(t, s, "/account/sessions/revoke", url.Values{
+	rec := post(t, s, "/alt/account/sessions/revoke", url.Values{
 		"_csrf": {csrf}, "session": {opferSessions[0].ID},
 	}, cookieAngreifer)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("Status = %d, erwartet 404", rec.Code)
 	}
-	if rec := get(t, s, "/account", cookieOpfer); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/account", cookieOpfer); rec.Code != http.StatusOK {
 		t.Error("die fremde Sitzung wurde trotzdem beendet")
 	}
 }
@@ -262,7 +262,7 @@ func TestAlleAnderenSitzungenBeenden(t *testing.T) {
 	zweite, _ := login(t, s, user)
 	dritte, _ := login(t, s, user)
 
-	rec := post(t, s, "/account/sessions/revoke-others", ja(url.Values{"_csrf": {csrf}}), cookie)
+	rec := post(t, s, "/alt/account/sessions/revoke-others", ja(url.Values{"_csrf": {csrf}}), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d", rec.Code)
 	}
@@ -275,11 +275,11 @@ func TestAlleAnderenSitzungenBeenden(t *testing.T) {
 		t.Fatalf("%d Sitzungen übrig, erwartet 1", len(sessions))
 	}
 	for _, c := range []*http.Cookie{zweite, dritte} {
-		if rec := get(t, s, "/account", c); rec.Code == http.StatusOK {
+		if rec := get(t, s, "/alt/account", c); rec.Code == http.StatusOK {
 			t.Error("eine beendete Sitzung ist weiterhin gültig")
 		}
 	}
-	if rec := get(t, s, "/account", cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/account", cookie); rec.Code != http.StatusOK {
 		t.Error("die eigene Sitzung wurde mitbeendet")
 	}
 }
@@ -290,7 +290,7 @@ func TestTOTPWechselBeendetAndereSitzungen(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 	zweite, _ := login(t, s, user)
 
-	if rec := post(t, s, "/account/2fa", url.Values{
+	if rec := post(t, s, "/alt/account/2fa", url.Values{
 		"_csrf": {csrf}, "current_password": {testPassword},
 	}, cookie); rec.Code != http.StatusOK {
 		t.Fatalf("Start: %d", rec.Code)
@@ -300,17 +300,17 @@ func TestTOTPWechselBeendetAndereSitzungen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rec := post(t, s, "/account/2fa/confirm", url.Values{
+	if rec := post(t, s, "/alt/account/2fa/confirm", url.Values{
 		"_csrf": {csrf}, "code": {code},
 	}, cookie); rec.Code != http.StatusOK {
 		t.Fatalf("Bestätigung: %d", rec.Code)
 	}
 
 	// Das verlorene Gerät ist damit abgemeldet.
-	if rec := get(t, s, "/account", zweite); rec.Code == http.StatusOK {
+	if rec := get(t, s, "/alt/account", zweite); rec.Code == http.StatusOK {
 		t.Error("die andere Sitzung besteht nach dem Wechsel weiter")
 	}
-	if rec := get(t, s, "/account", cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/account", cookie); rec.Code != http.StatusOK {
 		t.Error("die eigene Sitzung wurde mitbeendet")
 	}
 }

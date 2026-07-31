@@ -10,7 +10,7 @@
   </div>
   <div class="right">
     {{if and .Dir.IsDir (not .Suche)}}
-    <a class="button secondary small" href="/files/archive?path={{.Path | urlquery}}">als tar.gz laden</a>
+    <a class="button secondary small" href="/alt/files/archive?path={{.Path | urlquery}}">als tar.gz laden</a>
     {{end}}
   </div>
 </div>
@@ -19,7 +19,7 @@
   {{range .Crumbs}}<a href="{{$.Content.Link .Path}}">{{.Name}}</a>{{end}}
 </nav>
 
-<form method="get" action="/files" class="filter-form">
+<form method="get" action="/alt/files" class="filter-form">
   <input type="hidden" name="path" value="{{.Path}}">
   {{if .Hidden}}<input type="hidden" name="hidden" value="1">{{end}}
   <input type="search" name="q" value="{{.Query}}" placeholder="Namen unterhalb dieses Ordners suchen">
@@ -64,7 +64,7 @@ sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
      Datei an. Deshalb schmaler, nicht versteckt. */}}
 <div class="card neu hochladen" id="ablage">
   <div class="neuzeile">
-    <form method="post" action="/files/mkdir" class="row-form">
+    <form method="post" action="/alt/files/mkdir" class="row-form">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="dir" value="{{.Path}}">
       <label>Neuer Ordner
@@ -72,7 +72,7 @@ sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
       </label>
       <div class="submit"><button type="submit" class="small">anlegen</button></div>
     </form>
-    <form method="post" action="/files/touch" class="row-form">
+    <form method="post" action="/alt/files/touch" class="row-form">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="dir" value="{{.Path}}">
       <label>Neue leere Datei
@@ -87,7 +87,7 @@ sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
     Dateiinhalt kommt. _csrf und dir müssen deshalb vor dem Dateifeld stehen.
     Siehe handlers_files_upload.go.
   -->
-  <form method="post" action="/files/upload" enctype="multipart/form-data" id="upload-form">
+  <form method="post" action="/alt/files/upload" enctype="multipart/form-data" id="upload-form">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <input type="hidden" name="dir" value="{{.Path}}">
     <div class="row-form">
@@ -176,10 +176,10 @@ sudo systemctl daemon-reload && sudo systemctl restart asylumd</pre>
               <div class="menuliste">
                 {{if .IsDir}}
                   <a href="{{$.Content.Link .Path}}">öffnen</a>
-                  <a href="/files/archive?path={{.Path | urlquery}}">als tar.gz laden</a>
+                  <a href="/alt/files/archive?path={{.Path | urlquery}}">als tar.gz laden</a>
                 {{else if eq .Kind "datei"}}
                   {{if and $.CanWrite .Writable}}<a href="{{$.Content.EditLink .Path}}">bearbeiten</a>{{end}}
-                  <a href="/files/download?path={{.Path | urlquery}}">herunterladen</a>
+                  <a href="/alt/files/download?path={{.Path | urlquery}}">herunterladen</a>
                 {{end}}
                 <a href="{{$.Content.EntryLink .Path}}">Details, Rechte, Löschen</a>
               </div>

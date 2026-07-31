@@ -782,7 +782,7 @@
                      start/stop/enable/disable stehen bei den Diensten — dieselbe
                      Allowlist, dieselbe Rückfrage. Ein zweiter Weg dafür wäre
                      eine zweite Stelle, an der die Rückfrage stimmen muss. -->
-                <a class="knopf leise" href="/v2/dienste?unit={timer.unit}">
+                <a class="knopf leise" href="/dienste?unit={timer.unit}">
                   {t.zeitplaene.timerZuDenDiensten}
                 </a>
               </div>

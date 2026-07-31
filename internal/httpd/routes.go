@@ -54,7 +54,20 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /account/password-change", s.requireSetupDone(s.verifyCSRF(http.HandlerFunc(s.handlePasswordChangeForced))))
 
 	// Vollständig angemeldet.
-	mux.Handle("GET /{$}", s.protected(http.HandlerFunc(s.handleDashboard)))
+	// Die Wurzel und alles darunter liefern die HÜLLE der neuen Oberfläche.
+	//
+	// Ein Muster ohne {$} ist in Go der allgemeine Rückfall: Auch /dienste und
+	// /gibtsnicht landen hier. Für eine Einzelseiten-Anwendung ist das richtig —
+	// die Wegewahl passiert im Browser. Damit nicht JEDE erdachte Adresse mit 200
+	// beantwortet wird, prüft spaOderNichtGefunden den ersten Pfadteil gegen die
+	// Liste der Seiten und antwortet sonst 404 — ein abgeschaltetes Modul wäre
+	// sonst von einem vorhandenen nicht zu unterscheiden. Spezifischere Muster
+	// (/api/, /static/, /alt/, /login) gewinnen nach den Vorrangregeln des
+	// Multiplexers und werden davon nicht berührt.
+	mux.Handle("GET /", s.spaOderNichtGefunden(s.protected(http.HandlerFunc(s.handleV2))))
+	// Der Live-Kanal bleibt an der Wurzel: Ihn benutzt die NEUE Oberfläche
+	// (lib/live.svelte.ts), und die alte liest denselben Strom. Ein zweiter
+	// Kanal unter /alt/ wäre eine zweite Quelle derselben Zahlen.
 	mux.Handle("GET /events", s.protected(http.HandlerFunc(s.handleEvents)))
 
 	// Die neue Oberfläche und ihre Schnittstelle. Beide liegen neben dem
@@ -259,109 +272,115 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyRename))))
 	mux.Handle("POST /api/v1/account/passkeys/{id}/delete",
 		s.protected(s.apiEigenerZugriff(http.HandlerFunc(s.handleAPIPasskeyDelete))))
-	mux.Handle("GET /v2/", s.protected(http.HandlerFunc(s.handleV2)))
-	mux.Handle("GET /audit", s.protected(http.HandlerFunc(s.handleAudit)))
-	mux.Handle("GET /account", s.protected(http.HandlerFunc(s.handleAccount)))
-	mux.Handle("POST /account/password", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasswordChange))))
-	mux.Handle("POST /account/recovery-codes", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleRecoveryCodes))))
+	mux.Handle("GET /alt/audit", s.protected(http.HandlerFunc(s.handleAudit)))
+	mux.Handle("GET /alt/account", s.protected(http.HandlerFunc(s.handleAccount)))
+	mux.Handle("POST /alt/account/password", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasswordChange))))
+	mux.Handle("POST /alt/account/recovery-codes", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleRecoveryCodes))))
 	// Wechsel des zweiten Faktors im laufenden Betrieb — bis hierher ging das
 	// nur über "asylum reset-password" auf der Kommandozeile des Servers.
-	mux.Handle("POST /account/2fa", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleTOTPChangeStart))))
-	mux.Handle("GET /account/2fa/qr.png", s.protected(http.HandlerFunc(s.handleTOTPChangeQR)))
-	mux.Handle("POST /account/2fa/confirm", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleTOTPChangeConfirm))))
-	mux.Handle("POST /account/sessions/revoke", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleSessionRevoke))))
-	mux.Handle("POST /account/sessions/revoke-others", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleSessionRevokeOthers))))
+	mux.Handle("POST /alt/account/2fa", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleTOTPChangeStart))))
+	mux.Handle("GET /alt/account/2fa/qr.png", s.protected(http.HandlerFunc(s.handleTOTPChangeQR)))
+	mux.Handle("POST /alt/account/2fa/confirm", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleTOTPChangeConfirm))))
+	mux.Handle("POST /alt/account/sessions/revoke", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleSessionRevoke))))
+	mux.Handle("POST /alt/account/sessions/revoke-others", s.protected(s.verifyCSRF(http.HandlerFunc(s.handleSessionRevokeOthers))))
 	// Passkeys (WebAuthn) als zusätzlicher zweiter Faktor. Registrierung läuft
 	// über zwei JSON-Schritte, Umbenennen und Entfernen als gewöhnliche POSTs.
-	mux.Handle("POST /account/passkeys/register/begin", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRegisterBegin))))
-	mux.Handle("POST /account/passkeys/register/finish", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRegisterFinish))))
-	mux.Handle("POST /account/passkeys/{id}/rename", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRename))))
-	mux.Handle("POST /account/passkeys/{id}/delete", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyDelete))))
+	mux.Handle("POST /alt/account/passkeys/register/begin", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRegisterBegin))))
+	mux.Handle("POST /alt/account/passkeys/register/finish", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRegisterFinish))))
+	mux.Handle("POST /alt/account/passkeys/{id}/rename", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyRename))))
+	mux.Handle("POST /alt/account/passkeys/{id}/delete", s.protected(s.verifyCSRF(http.HandlerFunc(s.handlePasskeyDelete))))
 
 	// Systemverwaltung: lesen darf jede Rolle, ändern nur Admin und Owner.
-	mux.Handle("GET /services", s.protected(http.HandlerFunc(s.handleServices)))
-	mux.Handle("GET /services/{unit}", s.protected(http.HandlerFunc(s.handleServiceDetail)))
-	mux.Handle("POST /services/{unit}", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleServiceAction)))))
+	// Die alte Oberfläche, eine Fassung lang als Rückweg. Sie ist eingefroren:
+	// keine Gestaltung, keine Funktion, nur erreichbar. Der Grund, sie nicht
+	// gleich mit dem Umschalten zu entfernen, ist die Bauart dieses Programms —
+	// es aktualisiert sich selbst. Ein Fehler in der neuen Fläche wäre ohne
+	// Rückweg ein ausgeschlossener Administrator, und der kommt an das Panel,
+	// das den Rückweg einspielen müsste, nicht mehr heran.
+	mux.Handle("GET /alt/{$}", s.protected(http.HandlerFunc(s.handleDashboard)))
+	mux.Handle("GET /alt/services", s.protected(http.HandlerFunc(s.handleServices)))
+	mux.Handle("GET /alt/services/{unit}", s.protected(http.HandlerFunc(s.handleServiceDetail)))
+	mux.Handle("POST /alt/services/{unit}", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleServiceAction)))))
 
-	mux.Handle("GET /packages", s.protected(http.HandlerFunc(s.handlePackages)))
-	mux.Handle("GET /packages/events", s.protected(http.HandlerFunc(s.handlePackageEvents)))
-	mux.Handle("POST /packages/refresh", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handlePackageRefresh)))))
-	mux.Handle("POST /packages/upgrade", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handlePackageUpgrade)))))
+	mux.Handle("GET /alt/packages", s.protected(http.HandlerFunc(s.handlePackages)))
+	mux.Handle("GET /alt/packages/events", s.protected(http.HandlerFunc(s.handlePackageEvents)))
+	mux.Handle("POST /alt/packages/refresh", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handlePackageRefresh)))))
+	mux.Handle("POST /alt/packages/upgrade", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handlePackageUpgrade)))))
 	// Neustart ist die einschneidendste Aktion — nur Owner, wie beim Update.
-	mux.Handle("POST /system/reboot", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleReboot)))))
+	mux.Handle("POST /alt/system/reboot", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleReboot)))))
 
-	mux.Handle("GET /firewall", s.protected(http.HandlerFunc(s.handleFirewall)))
-	mux.Handle("POST /firewall", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallApply)))))
-	mux.Handle("POST /firewall/confirm", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallConfirm)))))
-	mux.Handle("POST /firewall/active", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallActivate)))))
-	mux.Handle("POST /firewall/install", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallInstall)))))
-	mux.Handle("GET /firewall/events", s.protected(http.HandlerFunc(s.handleFirewallEvents)))
+	mux.Handle("GET /alt/firewall", s.protected(http.HandlerFunc(s.handleFirewall)))
+	mux.Handle("POST /alt/firewall", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallApply)))))
+	mux.Handle("POST /alt/firewall/confirm", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallConfirm)))))
+	mux.Handle("POST /alt/firewall/active", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallActivate)))))
+	mux.Handle("POST /alt/firewall/install", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFirewallInstall)))))
+	mux.Handle("GET /alt/firewall/events", s.protected(http.HandlerFunc(s.handleFirewallEvents)))
 
-	mux.Handle("GET /certificate", s.protected(http.HandlerFunc(s.handleCertificate)))
-	mux.Handle("POST /certificate", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleCertificateSettings)))))
-	mux.Handle("POST /certificate/obtain", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleCertificateObtain)))))
-	mux.Handle("GET /certificate/events", s.protected(http.HandlerFunc(s.handleCertificateEvents)))
+	mux.Handle("GET /alt/certificate", s.protected(http.HandlerFunc(s.handleCertificate)))
+	mux.Handle("POST /alt/certificate", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleCertificateSettings)))))
+	mux.Handle("POST /alt/certificate/obtain", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleCertificateObtain)))))
+	mux.Handle("GET /alt/certificate/events", s.protected(http.HandlerFunc(s.handleCertificateEvents)))
 
-	mux.Handle("GET /system-users", s.protected(http.HandlerFunc(s.handleSystemUsers)))
-	mux.Handle("POST /system-users", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserCreate)))))
-	mux.Handle("POST /system-users/{name}/locked", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserLock)))))
-	mux.Handle("POST /system-users/{name}/delete", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserDelete)))))
-	mux.Handle("POST /system-users/{name}/keys", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyAdd)))))
-	mux.Handle("POST /system-users/{name}/keys/remove", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyRemove)))))
+	mux.Handle("GET /alt/system-users", s.protected(http.HandlerFunc(s.handleSystemUsers)))
+	mux.Handle("POST /alt/system-users", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserCreate)))))
+	mux.Handle("POST /alt/system-users/{name}/locked", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserLock)))))
+	mux.Handle("POST /alt/system-users/{name}/delete", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSystemUserDelete)))))
+	mux.Handle("POST /alt/system-users/{name}/keys", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyAdd)))))
+	mux.Handle("POST /alt/system-users/{name}/keys/remove", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleSSHKeyRemove)))))
 
 	// Dateimanager. Ist das Modul abgeschaltet, entstehen die Routen nicht —
 	// abschalten entfernt Rechte, nicht nur den Menüpunkt.
 	if s.files != nil {
-		mux.Handle("GET /files", s.protected(http.HandlerFunc(s.handleFiles)))
-		mux.Handle("GET /files/entry", s.protected(http.HandlerFunc(s.handleFileEntry)))
-		mux.Handle("GET /files/detail", s.protected(http.HandlerFunc(s.handleFileDetail)))
-		mux.Handle("GET /files/dirs", s.protected(http.HandlerFunc(s.handleFileDirs)))
-		mux.Handle("GET /files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
-		mux.Handle("GET /files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
-		mux.Handle("GET /files/events", s.protected(http.HandlerFunc(s.handleFileEvents)))
-		mux.Handle("GET /files/edit", s.protected(http.HandlerFunc(s.handleFileEdit)))
-		mux.Handle("POST /files/save", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileSave)))))
+		mux.Handle("GET /alt/files", s.protected(http.HandlerFunc(s.handleFiles)))
+		mux.Handle("GET /alt/files/entry", s.protected(http.HandlerFunc(s.handleFileEntry)))
+		mux.Handle("GET /alt/files/detail", s.protected(http.HandlerFunc(s.handleFileDetail)))
+		mux.Handle("GET /alt/files/dirs", s.protected(http.HandlerFunc(s.handleFileDirs)))
+		mux.Handle("GET /alt/files/download", s.protected(http.HandlerFunc(s.handleFileDownload)))
+		mux.Handle("GET /alt/files/archive", s.protected(http.HandlerFunc(s.handleFileArchive)))
+		mux.Handle("GET /alt/files/events", s.protected(http.HandlerFunc(s.handleFileEvents)))
+		mux.Handle("GET /alt/files/edit", s.protected(http.HandlerFunc(s.handleFileEdit)))
+		mux.Handle("POST /alt/files/save", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileSave)))))
 		// Verändern: Schreibrolle und CSRF, wie in jedem anderen Modul. Die
 		// Prüfung des Pfads selbst liegt in der Pfadwache, nicht hier.
-		mux.Handle("POST /files/mkdir", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMkdir)))))
-		mux.Handle("POST /files/touch", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileTouch)))))
-		mux.Handle("POST /files/rename", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileRename)))))
-		mux.Handle("POST /files/copy", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileCopy)))))
-		mux.Handle("POST /files/move", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMove)))))
-		mux.Handle("POST /files/delete", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileDelete)))))
-		mux.Handle("POST /files/mode", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMode)))))
+		mux.Handle("POST /alt/files/mkdir", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMkdir)))))
+		mux.Handle("POST /alt/files/touch", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileTouch)))))
+		mux.Handle("POST /alt/files/rename", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileRename)))))
+		mux.Handle("POST /alt/files/copy", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileCopy)))))
+		mux.Handle("POST /alt/files/move", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMove)))))
+		mux.Handle("POST /alt/files/delete", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileDelete)))))
+		mux.Handle("POST /alt/files/mode", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleFileMode)))))
 		// Der Upload steht bewusst nicht hinter verifyCSRF: Die Middleware holt
 		// den Token über r.PostFormValue, und das zöge den gesamten Körper in
 		// Speicher und Temp-Dateien, bevor der Handler ihn streamen könnte. Er
 		// prüft den Token selbst — aus der Kopfzeile oder aus dem ersten
 		// Multipart-Teil, in jedem Fall vor dem ersten Byte Dateiinhalt.
 		// Begründung und Ablauf in handlers_files_upload.go.
-		mux.Handle("POST /files/upload", s.protected(s.requireWrite(http.HandlerFunc(s.handleFileUpload))))
+		mux.Handle("POST /alt/files/upload", s.protected(s.requireWrite(http.HandlerFunc(s.handleFileUpload))))
 	}
 
-	mux.Handle("GET /logs", s.protected(http.HandlerFunc(s.handleLogs)))
+	mux.Handle("GET /alt/logs", s.protected(http.HandlerFunc(s.handleLogs)))
 
-	mux.Handle("GET /update", s.protected(http.HandlerFunc(s.handleUpdate)))
-	mux.Handle("GET /update/status", s.protected(http.HandlerFunc(s.handleUpdateStatus)))
-	mux.Handle("POST /update/check", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleUpdateCheck)))))
+	mux.Handle("GET /alt/update", s.protected(http.HandlerFunc(s.handleUpdate)))
+	mux.Handle("GET /alt/update/status", s.protected(http.HandlerFunc(s.handleUpdateStatus)))
+	mux.Handle("POST /alt/update/check", s.protected(s.requireWrite(s.verifyCSRF(http.HandlerFunc(s.handleUpdateCheck)))))
 	// Das Einspielen tauscht das Programm aus, das alle übrigen Rechte
 	// durchsetzt — deshalb nur Owner.
-	mux.Handle("POST /update/apply", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUpdateApply)))))
-	mux.Handle("POST /update/rollback", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUpdateRollback)))))
+	mux.Handle("POST /alt/update/apply", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUpdateApply)))))
+	mux.Handle("POST /alt/update/rollback", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUpdateRollback)))))
 
 	// Nur Owner.
-	mux.Handle("GET /users", s.protected(s.requireOwner(http.HandlerFunc(s.handleUsers))))
-	mux.Handle("POST /users", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserCreate)))))
-	mux.Handle("POST /users/{id}/disabled", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserDisable)))))
-	mux.Handle("POST /users/{id}/delete", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserDelete)))))
+	mux.Handle("GET /alt/users", s.protected(s.requireOwner(http.HandlerFunc(s.handleUsers))))
+	mux.Handle("POST /alt/users", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserCreate)))))
+	mux.Handle("POST /alt/users/{id}/disabled", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserDisable)))))
+	mux.Handle("POST /alt/users/{id}/delete", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserDelete)))))
 	// Zurücksetzen eines fremden Zugangs. Das Konto steht im Formularfeld
 	// "target", nicht im Pfad: Alle drei Aktionen teilen ein Formular, und der
 	// Knopf wählt über formaction das Ziel — ohne Skript, das die CSP ohnehin
 	// nicht inline zuließe. Jede verlangt zusätzlich das eigene Passwort des
 	// Owners; siehe handlers_reset.go.
-	mux.Handle("POST /users/reset-password", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserResetPassword)))))
-	mux.Handle("POST /users/reset-2fa", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserReset2FA)))))
-	mux.Handle("POST /users/reset-passkeys", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserResetPasskeys)))))
+	mux.Handle("POST /alt/users/reset-password", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserResetPassword)))))
+	mux.Handle("POST /alt/users/reset-2fa", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserReset2FA)))))
+	mux.Handle("POST /alt/users/reset-passkeys", s.protected(s.requireOwner(s.verifyCSRF(http.HandlerFunc(s.handleUserResetPasskeys)))))
 
 	if static, err := ui.Static(); err == nil {
 		fileServer := http.FileServer(http.FS(static))

@@ -6,15 +6,27 @@
 // braucht hier niemand, und sie wäre die zweite Stelle, an der die Liste der
 // Seiten steht (die erste ist lib/ziele.ts).
 //
-// Alles unter /v2/ liefert derselbe Handler dieselbe Hülle aus
-// (internal/httpd/handlers_v2.go). Ein Neuladen auf /v2/dienste?unit=nginx
+// Alles unter / liefert derselbe Handler dieselbe Hülle aus
+// (internal/httpd/handlers_v2.go). Ein Neuladen auf /dienste?unit=nginx
 // funktioniert deshalb — die Auswahl in der Adresse ist teilbar und kein
 // Zustand, der beim ersten Aufruf fehlt.
 
-/** BASIS ist der Pfad, unter dem die neue Oberfläche liegt. Sie steht neben der
- *  alten und nicht an ihrer Stelle; mit dem Umschalten wird daraus "" und diese
- *  Datei ist die einzige, die es merkt. */
-export const BASIS = "/v2";
+/** BASIS ist der Pfad, unter dem die neue Oberfläche liegt.
+ *
+ *  Seit dem Umschalten (0.4.0) ist er leer: Die Oberfläche liegt an der Wurzel.
+ *  Bis dahin war er "/v2" — und dass diese Datei die einzige war, die es merken
+ *  musste, war der Zweck der Konstante.
+ *
+ *  Ein leerer Wert heißt für gehe(): Jeder Pfad, der mit "/" beginnt und nicht
+ *  ausdrücklich fremd ist, gehört dieser Anwendung. Die eine Ausnahme ist die
+ *  eingefrorene alte Fläche unter /alt/ — dorthin navigiert der Browser, nicht
+ *  der eigene Router. */
+export const BASIS = "";
+
+/** ALT ist der Pfad der eingefrorenen alten Oberfläche. Sie ist eine Fassung
+ *  lang als Rückweg erreichbar; Verweise dorthin sind FREMDE Ziele und dürfen
+ *  nicht im eigenen Router landen — sonst zeigte er eine leere Seite. */
+export const ALT = "/alt/";
 
 /** Seite ist die Kennung der stehenden Seite — dieselbe wie die id des Ziels in
  *  lib/ziele.ts, damit die Seitenleiste ohne eine zweite Zuordnung weiß, welcher
@@ -58,7 +70,7 @@ const gebauteSeiten: Record<string, Seite> = {
 /** angekuendigt sind die Module, die es noch nicht gibt, die aber im Menü stehen.
  *
  *  Sie brauchen einen eigenen Zustand, weil die Alternative schlechter ist: Bis
- *  hierher zeigten sie auf /v2/ und landeten stillschweigend auf der Übersicht —
+ *  hierher zeigten sie auf / und landeten stillschweigend auf der Übersicht —
  *  ein Klick auf „Docker", der die Startseite bringt, sieht wie ein Fehler aus.
  *  Der Wert ist die Fassung, mit der das Modul kommt; die Seite sagt es. */
 export const angekuendigt: Record<string, string> = {
@@ -68,7 +80,7 @@ export const angekuendigt: Record<string, string> = {
   backups: "0.9",
 };
 
-/** modul ist die Kennung hinter /v2/… — für die Seite „bald" die Auskunft,
+/** modul ist die Kennung hinter / — für die Seite „bald" die Auskunft,
  *  welches Modul gemeint war. */
 export function modulAus(pfad: string): string {
   const rest = pfad.startsWith(BASIS) ? pfad.slice(BASIS.length) : pfad;
@@ -76,7 +88,7 @@ export function modulAus(pfad: string): string {
 }
 
 function seiteAus(pfad: string): Seite {
-  // Ohne Schrägstriche vergleichen: /v2/dienste und /v2/dienste/ sind dieselbe
+  // Ohne Schrägstriche vergleichen: /dienste und /dienste/ sind dieselbe
   // Seite, und ein Verweis mit oder ohne den letzten Strich soll nicht der
   // Unterschied zwischen einer Seite und dem leeren Zustand sein.
   const rest = modulAus(pfad);
@@ -110,7 +122,7 @@ class Weg {
    *  unter / — gibt es an den Browser weiter; ein Router, der sie abfängt, würde
    *  eine leere Seite zeigen. Die Antwort sagt, ob übernommen wurde. */
   gehe(href: string): boolean {
-    if (!href.startsWith(BASIS + "/") && href !== BASIS) return false;
+    if (!eigenesZiel(href)) return false;
     const ziel = new URL(href, location.origin);
     history.pushState(null, "", ziel.pathname + ziel.search);
     this.seite = seiteAus(ziel.pathname);
@@ -190,6 +202,22 @@ class Weg {
   zurueck(): void {
     history.back();
   }
+}
+
+/** eigenesZiel sagt, ob dieser Pfad von der eigenen Anwendung bedient wird.
+ *
+ *  Mit leerem BASIS ist die Frage umgekehrt zu vorher: Nicht „liegt er unter
+ *  /v2?", sondern „ist er ausdrücklich fremd?". Fremd sind die
+ *  server-gerenderten Dauerseiten (Anmeldung, Erstinstallation, Abmelden,
+ *  erzwungener Wechsel), die eingefrorene alte Fläche und alles unter /api/ und
+ *  /static/. Sie abzufangen hieße, eine leere Seite zu zeigen — der eigene
+ *  Router hat für sie keine Ansicht. */
+const fremd = ["/login", "/logout", "/setup", "/account/password-change", ALT,
+  "/api/", "/static/", "/healthz", "/events"];
+
+function eigenesZiel(href: string): boolean {
+  if (!href.startsWith("/")) return false;
+  return !fremd.some((f) => href === f || href.startsWith(f));
 }
 
 function paramAus(suche: string): Record<string, string> {

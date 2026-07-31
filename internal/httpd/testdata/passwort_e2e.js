@@ -35,7 +35,7 @@ async function main() {
   });
   seite.on("pageerror", (err) => verstoesse.push("Skriptfehler: " + err.message));
 
-  await seite.goto(basis + "/account", { waitUntil: "load" });
+  await seite.goto(basis + "/alt/account", { waitUntil: "load" });
 
   // Vor der ersten Eingabe darf keine Regel rot sein: Ein leeres Feld mit
   // Kreuzen sieht aus wie eine Ablehnung.

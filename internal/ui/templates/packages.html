@@ -7,12 +7,12 @@
   </div>
   {{if $.CanWrite}}
   <div class="right">
-    <form method="post" action="/packages/refresh">
+    <form method="post" action="/alt/packages/refresh">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <button type="submit" class="secondary" {{if .JobRunning}}disabled{{end}}>Paketlisten aktualisieren</button>
     </form>
     {{if .Security}}
-    <form method="post" action="/packages/upgrade">
+    <form method="post" action="/alt/packages/upgrade">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <input type="hidden" name="scope" value="security">
       <button type="submit" {{if .JobRunning}}disabled{{end}}>Nur Sicherheitsupdates einspielen</button>
@@ -32,7 +32,7 @@
   {{/* Der getippte Hostname ist die dritte Stufe: Wer zwei Server im Browser
        offen hat, startet so nicht den falschen neu. Er steht in der
        Seitenleiste — abzulesen, nicht zu erraten. */}}
-  <form method="post" action="/system/reboot" class="inline"
+  <form method="post" action="/alt/system/reboot" class="inline"
         data-bestaetigen="Den Server {{$.Rechnername}} jetzt neu starten? Alle Dienste werden beendet, und diese Sitzung bricht dabei ab."
         data-bestaetigen-titel="Server neu starten"
         data-bestaetigen-knopf="jetzt neu starten"
@@ -46,7 +46,7 @@
 {{end}}
 
 {{if $.CanWrite}}{{if .Packages}}
-<form method="post" action="/packages/upgrade" class="button-row"
+<form method="post" action="/alt/packages/upgrade" class="button-row"
       data-bestaetigen="Alle {{len .Packages}} verfügbaren Updates einspielen? Betroffene Dienste werden dabei neu gestartet."
       data-bestaetigen-titel="Updates einspielen"
       data-bestaetigen-knopf="Updates einspielen">
@@ -74,7 +74,7 @@
           <td class="muted" data-label="Quelle" data-rolle="neben">{{.Origin}}</td>
           {{if $.CanWrite}}
           <td class="actions">
-            <form method="post" action="/packages/upgrade">
+            <form method="post" action="/alt/packages/upgrade">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
               <input type="hidden" name="package" value="{{.Name}}">
               <button type="submit" class="small" {{if $.Content.JobRunning}}disabled{{end}}>einspielen</button>
@@ -102,7 +102,7 @@
   </div>
   {{if .JobError}}<div class="alert error">{{.JobError}}</div>{{end}}
   {{if .JobNote}}<div class="alert warn-box">{{.JobNote}}</div>{{end}}
-  <pre class="logs" id="job-output" data-events="/packages/events">{{range .JobLines}}{{.}}
+  <pre class="logs" id="job-output" data-events="/alt/packages/events">{{range .JobLines}}{{.}}
 {{end}}</pre>
 </div>
 {{if .JobRunning}}<script src="/static/job.js" defer></script>{{end}}

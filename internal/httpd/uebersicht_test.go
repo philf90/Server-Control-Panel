@@ -189,7 +189,7 @@ func TestNetzkachelZeigtDieEchteSchnittstelle(t *testing.T) {
 		},
 	})
 
-	body := get(t, s, "/", cookie).Body.String()
+	body := get(t, s, "/alt/", cookie).Body.String()
 	kachel := netzkachel(t, body)
 	if !strings.Contains(kachel, "enp1s0") {
 		t.Errorf("die Netzwerkkachel nennt enp1s0 nicht:\n%s", kachel)
@@ -207,7 +207,7 @@ func TestNetzkachelOhneSchnittstelle(t *testing.T) {
 
 	s.setLatest(metrics.Snapshot{At: time.Now(), UptimeText: "1 Std 0 Min"})
 
-	if kachel := netzkachel(t, get(t, s, "/", cookie).Body.String()); !strings.Contains(kachel, "keine Schnittstelle") {
+	if kachel := netzkachel(t, get(t, s, "/alt/", cookie).Body.String()); !strings.Contains(kachel, "keine Schnittstelle") {
 		t.Errorf("erwartet wurde der Hinweis auf die fehlende Schnittstelle:\n%s", kachel)
 	}
 }
@@ -252,7 +252,7 @@ func TestDateisystemeKlappenAuf(t *testing.T) {
 		},
 	})
 
-	body := get(t, s, "/", cookie).Body.String()
+	body := get(t, s, "/alt/", cookie).Body.String()
 
 	// Der Umschalter ist eine Checkbox mit Beschriftung — ohne JavaScript
 	// bedienbar, wie das Menü.
@@ -298,7 +298,7 @@ func TestUebersichtOhneDaten(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/", cookie)
+	rec := get(t, s, "/alt/", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200", rec.Code)
 	}
@@ -319,7 +319,7 @@ func TestKontoseiteZeigtDieRichtlinie(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	body := get(t, s, "/account", cookie).Body.String()
+	body := get(t, s, "/alt/account", cookie).Body.String()
 
 	if !strings.Contains(body, `class="pwcheck"`) {
 		t.Fatal("die Passwortprüfung fehlt auf der Kontoseite")

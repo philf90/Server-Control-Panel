@@ -35,12 +35,12 @@ func TestPasskeySectionOnlyWhenEnabled(t *testing.T) {
 	cookie, _ := login(t, s, user)
 
 	// Vorgabe: aus — der Abschnitt fehlt.
-	if body := get(t, s, "/account", cookie).Body.String(); strings.Contains(body, "Passkey hinzufügen") {
+	if body := get(t, s, "/alt/account", cookie).Body.String(); strings.Contains(body, "Passkey hinzufügen") {
 		t.Error("der Passkey-Abschnitt erscheint, obwohl die Funktion aus ist")
 	}
 
 	enablePasskeys(t, s)
-	body := get(t, s, "/account", cookie).Body.String()
+	body := get(t, s, "/alt/account", cookie).Body.String()
 	for _, want := range []string{"Passkeys", "Passkey hinzufügen", "passkey-register.js"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("die Kontoseite enthält %q nicht", want)
@@ -54,7 +54,7 @@ func TestPasskeyRegisterBeginNeedsFeatureAndPassword(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	// Funktion aus → 404.
-	rec := post(t, s, "/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {testPassword}}, cookie)
+	rec := post(t, s, "/alt/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {testPassword}}, cookie)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("bei ausgeschalteter Funktion Status = %d, erwartet 404", rec.Code)
 	}
@@ -62,13 +62,13 @@ func TestPasskeyRegisterBeginNeedsFeatureAndPassword(t *testing.T) {
 	enablePasskeys(t, s)
 
 	// Falsches Passwort → 403, kein Token.
-	rec = post(t, s, "/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {"falsch"}}, cookie)
+	rec = post(t, s, "/alt/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {"falsch"}}, cookie)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("bei falschem Passwort Status = %d, erwartet 403", rec.Code)
 	}
 
 	// Richtiges Passwort → 200 mit Token und Optionen, die die RP-ID tragen.
-	rec = post(t, s, "/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {testPassword}}, cookie)
+	rec = post(t, s, "/alt/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {testPassword}}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200; Body: %s", rec.Code, rec.Body.String())
 	}
@@ -109,7 +109,7 @@ func TestPasskeyRenameAndDelete(t *testing.T) {
 	}
 
 	// Umbenennen.
-	rec := post(t, s, "/account/passkeys/"+strconv.FormatInt(id, 10)+"/rename",
+	rec := post(t, s, "/alt/account/passkeys/"+strconv.FormatInt(id, 10)+"/rename",
 		url.Values{"_csrf": {csrf}, "label": {"Titan-Stick"}}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("rename Status = %d", rec.Code)
@@ -120,7 +120,7 @@ func TestPasskeyRenameAndDelete(t *testing.T) {
 	}
 
 	// Entfernen.
-	rec = post(t, s, "/account/passkeys/"+strconv.FormatInt(id, 10)+"/delete",
+	rec = post(t, s, "/alt/account/passkeys/"+strconv.FormatInt(id, 10)+"/delete",
 		ja(url.Values{"_csrf": {csrf}}), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete Status = %d", rec.Code)
@@ -259,7 +259,7 @@ func TestPasskeyRegisterRejectsGarbage(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	// Gültiges Token holen.
-	rec := post(t, s, "/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {testPassword}}, cookie)
+	rec := post(t, s, "/alt/account/passkeys/register/begin", url.Values{"_csrf": {csrf}, "password": {testPassword}}, cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("begin: %d", rec.Code)
 	}
@@ -268,7 +268,7 @@ func TestPasskeyRegisterRejectsGarbage(t *testing.T) {
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 
-	rec = post(t, s, "/account/passkeys/register/finish",
+	rec = post(t, s, "/alt/account/passkeys/register/finish",
 		url.Values{"_csrf": {csrf}, "token": {body.Token}, "label": {"X"}, "credential": {`{"kaputt":true}`}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("finish: Status = %d, erwartet 400", rec.Code)
@@ -392,7 +392,7 @@ func TestPasskeyRegisterBeginRejectsBadCSRF(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := post(t, s, "/account/passkeys/register/begin",
+	rec := post(t, s, "/alt/account/passkeys/register/begin",
 		url.Values{"_csrf": {"falsch"}, "password": {testPassword}}, cookie)
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("Status = %d, erwartet 403 bei falschem CSRF", rec.Code)

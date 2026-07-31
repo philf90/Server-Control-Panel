@@ -234,3 +234,78 @@ func TestRueckfrageBenutztDasDialogElement(t *testing.T) {
 			"geschlossen, die Komponente aber noch da", pfad)
 	}
 }
+
+// TestSPAPfadeStimmenMitDemRouterZusammen hält zwei Listen zusammen.
+//
+// Seit dem Umschalten ist `GET /` der allgemeine Rückfall des Multiplexers. Damit
+// nicht jede erdachte Adresse mit 200 beantwortet wird, prüft der Server den
+// ersten Pfadteil gegen `spaSeiten` (internal/httpd/handlers_v2.go). Dieselbe
+// Liste steht im Router der Oberfläche (web/src/lib/weg.svelte.ts) — als
+// `gebauteSeiten` und `angekuendigt`.
+//
+// Zwei Listen laufen auseinander, und die Folge wäre unangenehm asymmetrisch: Ein
+// neues Modul, das nur im Browser steht, bekommt beim Neuladen einen 404 — die
+// Seite funktioniert, solange man sie anklickt, und ist nach F5 weg. Genau die
+// Sorte Fehler, die niemand beim Bauen bemerkt.
+func TestSPAPfadeStimmenMitDemRouterZusammen(t *testing.T) {
+	router := lesen(t, "../../web/src/lib/weg.svelte.ts")
+	server := lesen(t, "../httpd/handlers_v2.go")
+
+	// Die Kennungen aus den beiden Abbildungen des Routers.
+	kennungen := map[string]bool{}
+	for _, block := range []string{"gebauteSeiten", "angekuendigt"} {
+		i := strings.Index(router, block+": Record<string, string> = {")
+		if i < 0 {
+			i = strings.Index(router, block+": Record<string, Seite> = {")
+		}
+		if i < 0 {
+			t.Fatalf("die Abbildung %s steht nicht in weg.svelte.ts", block)
+		}
+		// Hinter die öffnende Klammer: Sonst wäre die Deklarationszeile selbst der
+		// erste „Eintrag", und der Test prüfte den Namen der Abbildung.
+		auf := strings.Index(router[i:], "{")
+		if auf < 0 {
+			t.Fatalf("die Abbildung %s hat keine öffnende Klammer", block)
+		}
+		rest := router[i+auf+1:]
+		ende := strings.Index(rest, "}")
+		if ende < 0 {
+			t.Fatalf("die Abbildung %s ist nicht geschlossen", block)
+		}
+		for _, zeile := range strings.Split(rest[:ende], "\n") {
+			zeile = strings.TrimSpace(zeile)
+			schluessel, _, gefunden := strings.Cut(zeile, ":")
+			if !gefunden || strings.HasPrefix(zeile, "//") || schluessel == "" {
+				continue
+			}
+			if strings.Contains(schluessel, " ") || strings.Contains(schluessel, "=") {
+				continue
+			}
+			kennungen[strings.Trim(schluessel, `"'`)] = true
+		}
+	}
+	if len(kennungen) < 10 {
+		t.Fatalf("nur %d Kennungen aus dem Router gelesen — die Zerlegung passt nicht "+
+			"mehr zur Datei", len(kennungen))
+	}
+
+	// Jede davon muss der Server kennen, sonst ist die Seite nach einem Neuladen
+	// weg.
+	for kennung := range kennungen {
+		if !strings.Contains(server, `"`+kennung+`":`) {
+			t.Errorf("der Router kennt die Seite %q, spaSeiten in handlers_v2.go nicht — "+
+				"ein Neuladen dieser Seite endet mit 404", kennung)
+		}
+	}
+}
+
+// lesen holt eine Quelldatei. Eigene Hilfe, weil svelteDateien nur .svelte
+// einsammelt und hier eine .ts und eine .go gebraucht werden.
+func lesen(t *testing.T, pfad string) string {
+	t.Helper()
+	roh, err := os.ReadFile(pfad)
+	if err != nil {
+		t.Fatalf("%s: %v", pfad, err)
+	}
+	return string(roh)
+}

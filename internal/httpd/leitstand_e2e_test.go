@@ -1049,8 +1049,8 @@ func TestLeitstandBrowser(t *testing.T) {
 			"das Statusband mitsamt Live-Kanal bei jedem Klick weg, und der " +
 			"eigentliche Gewinn gegenüber der alten Oberfläche ist verspielt")
 	}
-	if d.Pfad != "/v2/dienste" {
-		t.Errorf("nach dem Klick steht die Adresse auf %q, erwartet /v2/dienste", d.Pfad)
+	if d.Pfad != "/dienste" {
+		t.Errorf("nach dem Klick steht die Adresse auf %q, erwartet /dienste", d.Pfad)
 	}
 	if !strings.Contains(d.NavAktiv, "Dienste") {
 		t.Errorf("die Seitenleiste hebt %q hervor, erwartet Dienste", d.NavAktiv)
@@ -1083,8 +1083,8 @@ func TestLeitstandBrowser(t *testing.T) {
 	if d.NachZurueck.Inspektor {
 		t.Error("der Zurück-Knopf schließt den Inspektor nicht")
 	}
-	if d.NachZurueck.Pfad != "/v2/dienste" || d.NachZurueck.Suche != "" {
-		t.Errorf("der Zurück-Knopf führt nach %q%q, erwartet /v2/dienste ohne Auswahl — "+
+	if d.NachZurueck.Pfad != "/dienste" || d.NachZurueck.Suche != "" {
+		t.Errorf("der Zurück-Knopf führt nach %q%q, erwartet /dienste ohne Auswahl — "+
 			"er soll den Inspektor schließen und nicht die Seite verlassen",
 			d.NachZurueck.Pfad, d.NachZurueck.Suche)
 	}
@@ -1415,7 +1415,7 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !gesperrtGefunden {
 		t.Error("der gesperrte Eintrag fehlt in der Liste — er soll sichtbar sein")
 	}
-	if dat.AlteAnsicht == "" || !strings.HasPrefix(dat.AlteAnsicht, "/files?") {
+	if dat.AlteAnsicht == "" || !strings.HasPrefix(dat.AlteAnsicht, "/alt/files?") {
 		t.Errorf("der Weg in die alte Ansicht fehlt oder zeigt woandershin: %q", dat.AlteAnsicht)
 	}
 
@@ -2653,8 +2653,8 @@ func TestLeitstandBrowser(t *testing.T) {
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2
 	// stillschweigend auf der Übersicht; jetzt sagt eine Seite, worum es geht.
 	b := e.Bald
-	if b.Pfad != "/v2/docker" {
-		t.Errorf("der Pfad ist %q, erwartet /v2/docker", b.Pfad)
+	if b.Pfad != "/docker" {
+		t.Errorf("der Pfad ist %q, erwartet /docker", b.Pfad)
 	}
 	if b.Titel != "Docker" {
 		t.Errorf("die Überschrift ist %q, erwartet Docker — die Seite nennt nicht, "+
@@ -2669,7 +2669,7 @@ func TestLeitstandBrowser(t *testing.T) {
 	if b.Ersatz == "" {
 		t.Error("die Seite nennt keinen Weg, der heute schon geht")
 	}
-	if b.NavAktiv != "/v2/docker" {
+	if b.NavAktiv != "/docker" {
 		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q) — "+
 			"dann sieht die Seite aus wie eine, auf die man versehentlich geraten ist",
 			b.NavAktiv)

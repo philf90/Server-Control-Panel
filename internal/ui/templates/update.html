@@ -7,7 +7,7 @@
   </div>
   {{if $.CanWrite}}
   <div class="right">
-    <form method="post" action="/update/check">
+    <form method="post" action="/alt/update/check">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
       <button type="submit" class="secondary" {{if .Running}}disabled{{end}}>Nach Updates suchen</button>
     </form>
@@ -45,7 +45,7 @@
     {{if and $.CanWrite $.IsOwner}}
     <div class="button-row">
       {{if and .HasUpdate (not .Running)}}
-      <form method="post" action="/update/apply"
+      <form method="post" action="/alt/update/apply"
             data-bestaetigen="Das Panel auf {{.Available}} aktualisieren? Der Dienst startet dabei neu, diese Seite ist einen Moment nicht erreichbar."
             data-bestaetigen-titel="Panel aktualisieren"
             data-bestaetigen-knopf="auf {{.Available}} aktualisieren">
@@ -54,7 +54,7 @@
       </form>
       {{end}}
       {{if and .CanRollback (not .Running)}}
-      <form method="post" action="/update/rollback"
+      <form method="post" action="/alt/update/rollback"
             data-bestaetigen="Das Panel zurück auf {{.Previous}} setzen? Der Dienst startet dabei neu; die Datenbank wird nicht zurückgesetzt."
             data-bestaetigen-titel="Zurück auf die vorherige Fassung"
             data-bestaetigen-knopf="zurück auf {{.Previous}}">

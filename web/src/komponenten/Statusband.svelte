@@ -33,9 +33,9 @@
   </span>
 
   <span class="messwerte zahl">
-    <a href="/v2/">CPU <b>{cpu}</b></a>
-    <a href="/v2/">RAM <b>{mem}</b></a>
-    <a href="/v2/">NETZ <b>{netz}</b></a>
+    <a href="/">CPU <b>{cpu}</b></a>
+    <a href="/">RAM <b>{mem}</b></a>
+    <a href="/">NETZ <b>{netz}</b></a>
   </span>
 
   <!-- Ein Tastenkürzel anzuzeigen, das man nicht auch anklicken kann, verlangt

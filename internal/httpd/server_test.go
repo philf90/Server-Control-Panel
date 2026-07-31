@@ -231,7 +231,7 @@ func TestUnknownPathIs404(t *testing.T) {
 
 func TestProtectedPagesRedirectWhenAnonymous(t *testing.T) {
 	s := newTestServer(t)
-	for _, path := range []string{"/", "/audit", "/account", "/users", "/events"} {
+	for _, path := range []string{"/", "/alt/audit", "/alt/account", "/alt/users", "/events"} {
 		rec := get(t, s, path, nil)
 		if rec.Code != http.StatusSeeOther {
 			t.Errorf("%s: Status = %d, erwartet 303 auf /login", path, rec.Code)
@@ -248,7 +248,7 @@ func TestDashboardForLoggedInUser(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/", cookie)
+	rec := get(t, s, "/alt/", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200", rec.Code)
 	}
@@ -277,7 +277,7 @@ func TestDashboardZeigtSofortMesswerte(t *testing.T) {
 	}
 	s.setLatest(s.sampler.Sample())
 
-	body := get(t, s, "/", cookie).Body.String()
+	body := get(t, s, "/alt/", cookie).Body.String()
 	if strings.Contains(body, "wird ermittelt") {
 		t.Error("die Übersicht meldet trotz vorliegender Messung keine Daten")
 	}
@@ -294,7 +294,7 @@ func TestSessionInvalidCookieIsIgnored(t *testing.T) {
 	s := newTestServer(t)
 	addUser(t, s, "philipp", store.RoleOwner)
 
-	rec := get(t, s, "/", &http.Cookie{Name: sessionCookie, Value: "erfunden"})
+	rec := get(t, s, "/alt/", &http.Cookie{Name: sessionCookie, Value: "erfunden"})
 	if rec.Code != http.StatusSeeOther {
 		t.Errorf("Status = %d, erwartet Weiterleitung auf /login", rec.Code)
 	}
@@ -305,13 +305,13 @@ func TestDisabledUserLosesAccess(t *testing.T) {
 	user := addUser(t, s, "gesperrt", store.RoleAdmin)
 	cookie, _ := login(t, s, user)
 
-	if rec := get(t, s, "/", cookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/", cookie); rec.Code != http.StatusOK {
 		t.Fatalf("Vorbedingung: Status = %d", rec.Code)
 	}
 	if err := s.db.SetDisabled(context.Background(), user.ID, true); err != nil {
 		t.Fatal(err)
 	}
-	if rec := get(t, s, "/", cookie); rec.Code != http.StatusSeeOther {
+	if rec := get(t, s, "/alt/", cookie); rec.Code != http.StatusSeeOther {
 		t.Errorf("gesperrtes Konto hat weiterhin Zugriff (Status %d)", rec.Code)
 	}
 }
@@ -334,7 +334,7 @@ func TestUnconfirmedTOTPIsSentToSetup(t *testing.T) {
 	user, _ := s.db.UserByID(ctx, id)
 	cookie, _ := login(t, s, user)
 
-	rec := get(t, s, "/", cookie)
+	rec := get(t, s, "/alt/", cookie)
 	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/setup/2fa" {
 		t.Errorf("Status = %d, Location = %q — erwartet 303 auf /setup/2fa",
 			rec.Code, rec.Header().Get("Location"))
@@ -352,14 +352,14 @@ func TestOwnerOnlyPages(t *testing.T) {
 
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	ownerCookie, _ := login(t, s, owner)
-	if rec := get(t, s, "/users", ownerCookie); rec.Code != http.StatusOK {
+	if rec := get(t, s, "/alt/users", ownerCookie); rec.Code != http.StatusOK {
 		t.Errorf("Owner: Status = %d, erwartet 200", rec.Code)
 	}
 
 	for _, role := range []string{store.RoleAdmin, store.RoleReadOnly} {
 		user := addUser(t, s, "u-"+role, role)
 		cookie, _ := login(t, s, user)
-		rec := get(t, s, "/users", cookie)
+		rec := get(t, s, "/alt/users", cookie)
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("%s: Status = %d, erwartet 403", role, rec.Code)
 		}
@@ -371,7 +371,7 @@ func TestOwnerCannotDeleteOwnAccount(t *testing.T) {
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	cookie, csrf := login(t, s, owner)
 
-	rec := post(t, s, "/users/"+strconv.FormatInt(owner.ID, 10)+"/delete", url.Values{"_csrf": {csrf}}, cookie)
+	rec := post(t, s, "/alt/users/"+strconv.FormatInt(owner.ID, 10)+"/delete", url.Values{"_csrf": {csrf}}, cookie)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("Status = %d, erwartet 400", rec.Code)
 	}
@@ -390,7 +390,7 @@ func TestLastOwnerCannotBeDeleted(t *testing.T) {
 	cookie, csrf := login(t, s, owner)
 
 	other := addUser(t, s, "zweiter", store.RoleReadOnly)
-	rec := post(t, s, "/users/"+strconv.FormatInt(other.ID, 10)+"/delete",
+	rec := post(t, s, "/alt/users/"+strconv.FormatInt(other.ID, 10)+"/delete",
 		ja(url.Values{"_csrf": {csrf}}, other.Username), cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Löschen eines Nicht-Owners: Status = %d", rec.Code)
@@ -407,7 +407,7 @@ func TestPostWithoutCSRFTokenIsRejected(t *testing.T) {
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	cookie, _ := login(t, s, owner)
 
-	rec := post(t, s, "/users", url.Values{
+	rec := post(t, s, "/alt/users", url.Values{
 		"username": {"eindringling"}, "password": {testPassword}, "role": {"admin"},
 	}, cookie)
 	if rec.Code != http.StatusForbidden {
@@ -423,7 +423,7 @@ func TestPostWithWrongCSRFTokenIsRejected(t *testing.T) {
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	cookie, _ := login(t, s, owner)
 
-	rec := post(t, s, "/users", url.Values{
+	rec := post(t, s, "/alt/users", url.Values{
 		"_csrf": {"falsch"}, "username": {"x"}, "password": {testPassword}, "role": {"admin"},
 	}, cookie)
 	if rec.Code != http.StatusForbidden {
@@ -438,7 +438,7 @@ func TestUserCreateWithCSRF(t *testing.T) {
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	cookie, csrf := login(t, s, owner)
 
-	rec := post(t, s, "/users", url.Values{
+	rec := post(t, s, "/alt/users", url.Values{
 		"_csrf": {csrf}, "username": {"kollege"}, "role": {"readonly"},
 	}, cookie)
 	if rec.Code != http.StatusOK {
@@ -478,7 +478,7 @@ func TestUserCreateSchreibtDasPasswortNichtInsAudit(t *testing.T) {
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	cookie, csrf := login(t, s, owner)
 
-	rec := post(t, s, "/users", url.Values{
+	rec := post(t, s, "/alt/users", url.Values{
 		"_csrf": {csrf}, "username": {"kollege"}, "role": {"admin"},
 	}, cookie)
 	passwort := einmalpasswortAus(t, rec.Body.String())
@@ -509,7 +509,7 @@ func TestNeuesKontoMussPasswortWechseln(t *testing.T) {
 	owner := addUser(t, s, "owner", store.RoleOwner)
 	ownerCookie, csrf := login(t, s, owner)
 
-	post(t, s, "/users", url.Values{
+	post(t, s, "/alt/users", url.Values{
 		"_csrf": {csrf}, "username": {"kollege"}, "role": {"admin"},
 	}, ownerCookie)
 
@@ -520,7 +520,7 @@ func TestNeuesKontoMussPasswortWechseln(t *testing.T) {
 	cookie, _ := login(t, s, neu)
 
 	// Erst der zweite Faktor.
-	rec := get(t, s, "/", cookie)
+	rec := get(t, s, "/alt/", cookie)
 	if loc := rec.Header().Get("Location"); rec.Code != http.StatusSeeOther || loc != "/setup/2fa" {
 		t.Fatalf("Status = %d, Location = %q — erwartet 303 auf /setup/2fa", rec.Code, loc)
 	}
@@ -529,7 +529,7 @@ func TestNeuesKontoMussPasswortWechseln(t *testing.T) {
 	if err := s.db.SetTOTP(context.Background(), neu.ID, neu.TOTPSecret, true); err != nil {
 		t.Fatal(err)
 	}
-	rec = get(t, s, "/", cookie)
+	rec = get(t, s, "/alt/", cookie)
 	if loc := rec.Header().Get("Location"); rec.Code != http.StatusSeeOther || loc != "/account/password-change" {
 		t.Fatalf("Status = %d, Location = %q — erwartet 303 auf /account/password-change", rec.Code, loc)
 	}
@@ -842,7 +842,7 @@ func TestPasswordChange(t *testing.T) {
 	cookie, csrf := login(t, s, user)
 
 	const newPassword = "ein anderes langes Passwort"
-	rec := post(t, s, "/account/password", url.Values{
+	rec := post(t, s, "/alt/account/password", url.Values{
 		"_csrf":                {csrf},
 		"current_password":     {testPassword},
 		"new_password":         {newPassword},
@@ -871,7 +871,7 @@ func TestPasswordChangeRejectsWrongCurrent(t *testing.T) {
 	user := addUser(t, s, "philipp", store.RoleOwner)
 	cookie, csrf := login(t, s, user)
 
-	rec := post(t, s, "/account/password", url.Values{
+	rec := post(t, s, "/alt/account/password", url.Values{
 		"_csrf":                {csrf},
 		"current_password":     {"daneben"},
 		"new_password":         {"ein anderes langes Passwort"},
@@ -929,7 +929,7 @@ func TestAuditPageShowsEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rec := get(t, s, "/audit", cookie)
+	rec := get(t, s, "/alt/audit", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Status = %d, erwartet 200", rec.Code)
 	}
@@ -941,7 +941,7 @@ func TestAuditPageShowsEntries(t *testing.T) {
 // ------------------------------------------------------------------ Hilfen ---
 
 func TestClientIP(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/alt/", nil)
 	req.RemoteAddr = "203.0.113.7:54321"
 	if got := clientIP(req); got != "203.0.113.7" {
 		t.Errorf("clientIP = %q, erwartet 203.0.113.7", got)
@@ -983,7 +983,7 @@ func TestRecovererTurnsPanicInto500(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/alt/", nil))
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("Status = %d, erwartet 500", rec.Code)
 	}

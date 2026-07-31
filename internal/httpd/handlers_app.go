@@ -106,6 +106,32 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 		}
 	}
 
+	// Abbilder mit einer neueren Fassung. AUSSCHLIESSLICH aus dem
+	// Zwischenspeicher: In der Drei-Sekunden-Frist dieser Funktion wird nie eine
+	// Registry gefragt. Eine Registry antwortet, wann sie will, und sie zählt
+	// jede Abfrage — beides hat in einer Übersicht nichts verloren, die bei
+	// jedem Seitenaufbau entsteht.
+	if stand := s.updatestandLesen(ctx); !stand.Geprueft.IsZero() {
+		var neu []string
+		for _, st := range stand.Staende {
+			if st.Geprueft && st.Neu {
+				neu = append(neu, st.Ref)
+			}
+		}
+		if len(neu) > 0 {
+			titel := neu[0] + ": neuere Fassung verfügbar"
+			if len(neu) > 1 {
+				titel = fmt.Sprintf("%d Abbilder haben eine neuere Fassung", len(neu))
+			}
+			out = append(out, dashSignal{
+				Level: "warn", Tag: "Docker", Title: titel,
+				Detail: strings.Join(neu, " · ") + " — geprüft am " +
+					stand.Geprueft.Local().Format("02.01.2006"),
+				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+			})
+		}
+	}
+
 	return out
 }
 

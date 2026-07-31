@@ -322,7 +322,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 4 | **Stacks lesend**: `compose ls`, eigenes Verzeichnis, Verschmelzung, Detail — **umgesetzt**, siehe unten | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 | **Stacks schreibend**: Pfadwache, Marker, Editor, **Compose-Prüfer**, `up/down/pull/restart` als Jobs, Gerüstvorlagen — **umgesetzt**, siehe unten | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 | **Ports & Events**: Portübersicht mit Firewall-Abgleich, Ereignisstrom — **umgesetzt**, siehe unten | Die zwei Adaptionen aus Arcane |
-| 7 | **Update-Prüfung**: Digest-Abgleich, Zwischenspeicher, Ratengrenzen, Signal, „Stack aktualisieren" | Auskunft, kein Automat |
+| 7 | **Update-Prüfung**: Digest-Abgleich, Zwischenspeicher, Ratengrenzen, Signal, „Stack aktualisieren" — **umgesetzt**, siehe unten | Auskunft, kein Automat |
 | 8 | **Container-Shell**: Schalter in der Konfiguration, Transport, Terminal, Audit je Sitzung | Siehe unten |
 | 9 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch, Socket-Weitergabe; Messung von Binärgröße und Grundlast; Doku | Wie Phase 7 des Dateimanagers |
 
@@ -674,6 +674,85 @@ offene Ports ohne Regel. Es wäre naheliegend und billig — beide Aufrufe macht
 `dashboardSignals` ohnehin —, steht aber nicht in der Signalliste aus §7. Es
 gehört in dieselbe Runde wie das Update-Signal aus Schritt 7, damit die Liste
 einmal und begründet wächst statt nebenbei.
+
+### Schritt 7 — Stand: umgesetzt
+
+`internal/privops/dockerupdate.go` (der Vergleich), `api_v1_docker_updates.go`
+(Zwischenspeicher, Ratengrenze, Vorgang), ein Signal im Handlungsbedarf und der
+Handgriff „Stack aktualisieren" (`compose pull` **und** `up` in einem Vorgang).
+
+**Der wichtigste Befund dieses Schritts steht am Anfang, weil er den ganzen
+Entwurf bestimmt hat: Der naheliegende Digest-Vergleich ist falsch.**
+
+Ein gezogenes `nginx:alpine` trägt lokal die Kennung der **Manifestliste**
+(`RepoDigests`). `docker manifest inspect --verbose` gibt für eine solche Liste
+ein Feld je Plattform zurück, und jedes davon trägt die Kennung des
+**Plattform-Manifests** — eine andere Kennung. Wer beide vergleicht, findet
+immer einen Unterschied und meldet immer ein Update. Bei fast jedem Abbild.
+Jeden Tag.
+
+Eine Update-Prüfung, die so irrt, ist schlimmer als keine: Nach einer Woche
+liest niemand mehr hin, auch nicht, wenn sie einmal recht hat. Die Regel des
+Moduls lautet deshalb hier schärfer als sonst: **Ohne belastbaren Vergleich wird
+„nicht geprüft" gemeldet, nie „veraltet".**
+
+Daraus folgen zwei Wege:
+
+1. **`docker buildx imagetools inspect`** nennt die Kennung der Manifestliste
+   unmittelbar. Damit trägt der Vergleich auch bei Mehrarchitektur-Abbildern.
+   buildx ist ein Unterkommando desselben Binaries — kein neuer
+   Allowlist-Eintrag, keine neue Abhängigkeit —, aber in Debian ein eigenes
+   Paket und nicht überall da.
+2. **`docker manifest inspect --verbose`** genügt nur bei einer Architektur.
+   Kommt eine Manifestliste zurück, sagt das Panel „nicht geprüft" samt Grund
+   und dem Hinweis auf `docker-buildx`.
+
+**Was das praktisch heißt, und es gehört gesagt:** Auf einem Server ohne buildx
+bleibt die Prüfung für die meisten Abbilder ohne Ergebnis. Das ist die ehrliche
+Fassung des Machbaren mit der Kommandozeile — und sie ist der Grund, warum die
+Fläche drei Zahlen zeigt statt zwei. Die dritte, „nicht geprüft", ist die
+ehrlichste.
+
+**Vier weitere Entscheidungen:**
+
+- **Die Ratengrenze liegt im Store, nicht im Speicher.** Höchstens ein Lauf je
+  Tag; läge der Zeitpunkt im Speicher, setzte jeder Neustart des Panels ihn
+  zurück, und ein Dienst, der oft neu startet, fragte dauernd. Der Zeitpunkt
+  wird **auch bei einem Abbruch** gespeichert — sonst wäre die Grenze
+  wirkungslos, gerade wenn sie zugeschlagen hat.
+- **Eine Ratengrenze beendet den Lauf.** Weiterzufragen, nachdem die Registry
+  abgewiesen hat, ist genau das Verhalten, gegen das die Grenze gerichtet ist.
+- **Gefragt wird nur, was etwas bringt:** die Abbilder laufender Container, je
+  Abbild einmal, ohne die, die über eine Kennung angezogen wurden (`@sha256:…`
+  kann sich nicht ändern). Zehn Container mit demselben Abbild sind eine
+  Abfrage, nicht zehn — das ist der Unterschied zwischen innerhalb und
+  außerhalb der Grenze.
+- **Das Signal im Handlungsbedarf kommt aus dem Zwischenspeicher.** In der
+  Drei-Sekunden-Frist von `dashboardSignals` wird nie eine Registry gefragt: Sie
+  antwortet, wann sie will, und sie zählt jede Abfrage.
+
+**Der Griff ist der Stack und nicht das Abbild.** `docker pull` allein ändert
+nichts an dem, was läuft. „Stack aktualisieren" ist deshalb `pull` **und** `up`
+in einem Vorgang — und in dieser Reihenfolge: Scheitert das Ziehen, wird nicht
+hochgefahren. Ein `up` nach einem gescheiterten `pull` startete die alte Fassung
+neu und sähe aus wie ein geglücktes Update.
+
+**Zwei Befunde aus dem Bau, beide aus derselben Ecke:**
+
+- **Zwei Überschriften „Abbilder" auf einer Seite.** Der Bestand hatte schon
+  eine; die Update-Prüfung brachte eine zweite. Sie heißt jetzt „Aktualität der
+  Abbilder".
+- **Und dieselbe Doppelung als Testbefund:** Die Spalte „Abbild" gibt es nun in
+  zwei Tabellen, und der Browsertest suchte „die Tabelle mit einer Spalte
+  Abbild" — er nahm die falsche und **bestand weiter**. Ebenso `.hinweis`: Der
+  Selektor meinte die Anmerkung unter den Zustandskarten und traf den
+  Ratengrenzen-Hinweis der neuen Fläche. Das ist im Modul Docker jetzt der
+  dritte Selektor dieser Art (nach `.aktionen` in Schritt 3 und `.werkbank` in
+  Schritt 4) — **eine Fläche, die wächst, macht aus jedem allgemeinen Selektor
+  eine stille Falschprüfung.**
+
+**Gemessen:** Binärgröße 17,5 MB (< 30), Abdeckung `privops` 78,1 % (> 72),
+`httpd` 72,0 % (> 68), direkte Go-Abhängigkeiten unverändert 6.
 
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:

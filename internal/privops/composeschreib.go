@@ -74,6 +74,11 @@ const (
 	StackDown    StackAktion = "down"
 	StackPull    StackAktion = "pull"
 	StackRestart StackAktion = "restart"
+	// StackUpdate ist „pull und dann up" in einem Vorgang — der Handgriff, den
+	// die Update-Prüfung anbietet. Zwei Klicks wären hier zwei Gelegenheiten,
+	// nach dem ersten aufzuhören: Ein gezogenes Abbild, das niemand startet,
+	// belegt Platte und ändert nichts.
+	StackUpdate StackAktion = "update"
 )
 
 // ValidStackAktion hält die Menge klein und benannt — dasselbe Muster wie
@@ -81,7 +86,7 @@ const (
 // zu einem Argument, ohne hier durchzugehen.
 func ValidStackAktion(a StackAktion) bool {
 	switch a {
-	case StackUp, StackDown, StackPull, StackRestart:
+	case StackUp, StackDown, StackPull, StackRestart, StackUpdate:
 		return true
 	default:
 		return false
@@ -342,11 +347,19 @@ func (s *System) StackAusfuehren(ctx context.Context, name string, aktion StackA
 	}
 
 	var pruefung ComposePruefung
-	if aktion == StackUp || aktion == StackRestart {
+	if aktion == StackUp || aktion == StackRestart || aktion == StackUpdate {
 		pruefung = s.pruefeDatei(ctx, inhalt.Datei, inhalt.Text, panelPort)
 		if !pruefung.OK {
 			return pruefung, nil
 		}
+	}
+
+	// „update" ist zwei Kommandos und deshalb ein eigener Zweig: erst ziehen,
+	// dann hochfahren. Scheitert das Ziehen, wird NICHT hochgefahren — ein
+	// halbes Update, das die alte Fassung neu startet, sieht aus wie ein
+	// geglücktes.
+	if aktion == StackUpdate {
+		return pruefung, s.stackUpdate(ctx, name, inhalt.Datei, stream)
 	}
 
 	args := []string{"compose", "--project-name", name, "--file", inhalt.Datei}
@@ -365,6 +378,9 @@ func (s *System) StackAusfuehren(ctx context.Context, name string, aktion StackA
 		args = append(args, "pull")
 	case StackRestart:
 		args = append(args, "restart")
+	case StackUpdate:
+		// Oben abgefangen; der Zweig steht hier, damit der Schalter vollständig
+		// ist und ein neuer Wert auffällt.
 	}
 
 	res, err := s.run(ctx, Command{
@@ -377,6 +393,39 @@ func (s *System) StackAusfuehren(ctx context.Context, name string, aktion StackA
 		return pruefung, fmt.Errorf("docker compose %s: %s", aktion, ersteAusgabezeile(res))
 	}
 	return pruefung, nil
+}
+
+// stackUpdate zieht die Abbilder und fährt den Stack damit hoch.
+//
+// Zwei Kommandos in einem Vorgang, und die Reihenfolge ist die Zusage:
+// Scheitert das Ziehen — Ratengrenze, kein Zugang, Tag verschwunden —, bleibt
+// der Stack so, wie er war. Ein „up" nach einem gescheiterten „pull" startete
+// die alte Fassung neu und sähe aus wie ein geglücktes Update.
+func (s *System) stackUpdate(ctx context.Context, name, datei string, stream LineWriter) error {
+	basis := []string{"compose", "--project-name", name, "--file", datei}
+
+	res, err := s.run(ctx, Command{
+		Name: "docker", Args: append(append([]string{}, basis...), "pull"),
+		Timeout: longTimeout, Stream: stream,
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("docker compose pull: %s", ersteAusgabezeile(res))
+	}
+
+	res, err = s.run(ctx, Command{
+		Name: "docker", Args: append(append([]string{}, basis...), "up", "--detach", "--remove-orphans"),
+		Timeout: longTimeout, Stream: stream,
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("docker compose up: %s", ersteAusgabezeile(res))
+	}
+	return nil
 }
 
 // ------------------------------------------------------------- Vorlagen ---

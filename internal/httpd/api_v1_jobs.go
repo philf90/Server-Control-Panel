@@ -46,6 +46,9 @@ var jobArten = map[string]string{
 	// einer gleichzeitig. Zwei „compose up" nebeneinander streiten um dieselben
 	// Netze und Volumes.
 	jobDockerStack: "Stack-Vorgang",
+	// Die Update-Prüfung ist ein Vorgang, weil dreißig Registry-Abfragen länger
+	// dauern als jede vernünftige Anfragefrist.
+	jobDockerUpdatePruefung: "Abbilder prüfen",
 }
 
 // apiJob ist der Zustand eines Vorgangs.

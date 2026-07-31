@@ -2759,9 +2759,23 @@ async function main() {
   // schon in dieser Fassung existiert — sie halten drei Zustände auseinander,
   // zu denen drei verschiedene Handgriffe gehören.
   dock.karten = await seite.evaluate(() => document.querySelectorAll(".karten .karte").length);
-  dock.anmerkung = await seite.evaluate(
-    () => document.querySelector(".hinweis")?.textContent.trim() ?? "",
-  );
+  // Die Anmerkung der SEITE, nicht irgendein Hinweis: Seit Schritt 7 bringt
+  // auch die Update-Prüfung einen mit („wieder möglich ab …"), und ein Selektor
+  // über alle .hinweis nahm den. Gemeint ist der über der ersten Überschrift —
+  // dort steht, was die drei Zustandskarten zu sagen haben.
+  dock.anmerkung = await seite.evaluate(() => {
+    const ersteUeberschrift = document.querySelector("h2");
+    for (const h of document.querySelectorAll(".hinweis")) {
+      if (
+        ersteUeberschrift &&
+        h.compareDocumentPosition(ersteUeberschrift) & Node.DOCUMENT_POSITION_FOLLOWING
+      ) {
+        return h.textContent.trim();
+      }
+      if (!ersteUeberschrift) return h.textContent.trim();
+    }
+    return "";
+  });
   // Genau die Knopfreihe der SEITE, nicht die der Werkbank oder des Bestands:
   // Seit Schritt 3 gibt es drei .aktionen-Reihen auf dieser Seite, und ein
   // Selektor über alle drei prüft etwas anderes als gemeint.
@@ -2956,9 +2970,14 @@ async function main() {
     const platte = tabellen.find((t) =>
       [...t.querySelectorAll("th")].some((th) => th.textContent.includes("freigebbar")),
     );
-    const abbilder = tabellen.find((t) =>
-      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Abbild"),
-    );
+    // Die Abbildtabelle des BESTANDS, erkennbar an „Abbild" UND „Größe": Seit
+    // Schritt 7 hat auch die Update-Prüfung eine Spalte „Abbild", und ein
+    // Selektor über die erste passende Tabelle nahm die falsche — er bestand
+    // weiter und prüfte etwas anderes.
+    const abbilder = tabellen.find((t) => {
+      const kopf = [...t.querySelectorAll("th")].map((th) => th.textContent.trim());
+      return kopf.includes("Abbild") && kopf.some((x) => x.startsWith("Gr"));
+    });
     const zeilen = abbilder
       ? [...abbilder.querySelectorAll("tbody tr")].map((tr) => ({
           text: tr.querySelector('[data-spalte="Abbild"]')?.textContent.trim() ?? "",
@@ -3002,6 +3021,32 @@ async function main() {
       warnung: [...document.querySelectorAll(".warnung")]
         .map((w) => w.textContent.trim())
         .find((x) => x.includes("Docker trägt seine Weiterleitungen")) ?? "",
+    };
+  });
+
+  // Schritt 7: die Update-Prüfung. Zwei Dinge sind hier nur im Browser zu
+  // sehen — dass „nicht geprüft" als EIGENE Aussage dasteht und nicht als
+  // Abwesenheit, und dass der Knopf zum Aktualisieren am Stack hängt und nicht
+  // am Abbild.
+  dock.updates = await seite.evaluate(() => {
+    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Stand"),
+    );
+    return {
+      zeilen: tab
+        ? [...tab.querySelectorAll("tbody tr")].map((tr) => ({
+            ref: tr.querySelector('[data-spalte="Abbild"]')?.textContent.trim() ?? "",
+            stand: tr.querySelector('[data-spalte="Stand"]')?.textContent.trim() ?? "",
+            stufe: tr.querySelector('[data-spalte="Stand"] .zustand')?.className ?? "",
+            gebrauch: tr.querySelector('[data-spalte="benutzt von"]')?.textContent.trim() ?? "",
+            knopf: tr.querySelector(".knopf")?.textContent.trim() ?? "",
+          }))
+        : [],
+      // Der Satz zu den ungeprüften Abbildern: Er sagt, dass sie keine
+      // Beruhigung sind. Ohne ihn ist „nicht geprüft" eine leere Zelle.
+      ungeprueftSatz: [...document.querySelectorAll(".hinweis")]
+        .map((h) => h.textContent.trim())
+        .find((x) => x.includes("Das heißt nicht, dass sie aktuell sind")) ?? "",
     };
   });
 

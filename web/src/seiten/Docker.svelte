@@ -13,6 +13,7 @@
   // ist da und antwortet nicht (der Dienst hilft), Compose fehlt (apt hilft
   // wieder). Welche Antwort gilt, entscheidet der Server und schickt sie fertig
   // mit; die Seite legt keine eigene Auslegung daneben.
+  import Abbildpruefung from "../komponenten/Abbildupdates.svelte";
   import Bestandsansicht from "../komponenten/Bestand.svelte";
   import Containerwerkbank from "../komponenten/Containerliste.svelte";
   import Ereignisstrom from "../komponenten/Ereignisse.svelte";
@@ -201,6 +202,11 @@
          liegt. -->
     <h2>{t.docker.ports}</h2>
     <Portuebersicht />
+
+    <!-- Die Update-Prüfung steht vor dem Bestand: Sie ist eine Frage an das,
+         was läuft, und der Griff dazu ist ein Stack weiter oben. -->
+    <h2>{t.docker.updates}</h2>
+    <Abbildpruefung />
 
     <h2>{t.docker.bestand}</h2>
     <Bestandsansicht />

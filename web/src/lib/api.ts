@@ -38,6 +38,7 @@ import type {
   Schluesselliste,
   Signale,
   Sitzung,
+  Abbildupdates,
   Portliste,
   Stackliste,
   StackDetail,
@@ -406,6 +407,16 @@ export const api = {
    *  mit der Firewall. Das Urteil rechnet der Server: Ein Port, den ufw nicht
    *  kennt, ist trotzdem offen, und diese Aussage soll es nur einmal geben. */
   ports: () => anfrage<Portliste>("/docker/ports"),
+
+  /** abbildupdates liefert den ZWISCHENGESPEICHERTEN Stand. Dieser Aufruf
+   *  fragt keine Registry — sonst verbrauchte ein offener Tab die Ratengrenze
+   *  im Hintergrund. */
+  abbildupdates: () => anfrage<Abbildupdates>("/docker/updates"),
+  /** updatePruefungStarten stößt den Vergleich mit den Registries an. Höchstens
+   *  einmal am Tag; danach antwortet der Server mit 429 und dem Zeitpunkt, ab
+   *  dem es wieder geht. */
+  updatePruefungStarten: () =>
+    anfrage<VorgangGestartet>("/docker/updates/check", { method: "POST" }),
 
   /** stacks liefert die Compose-Projekte, verwaltete wie fremde. */
   stacks: () => anfrage<Stackliste>("/docker/stacks"),

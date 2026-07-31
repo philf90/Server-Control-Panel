@@ -733,6 +733,16 @@ type ergebnisLeitstand struct {
 			} `json:"zeilen"`
 			Warnung string `json:"warnung"`
 		} `json:"ports"`
+		Updates struct {
+			Zeilen []struct {
+				Ref      string `json:"ref"`
+				Stand    string `json:"stand"`
+				Stufe    string `json:"stufe"`
+				Gebrauch string `json:"gebrauch"`
+				Knopf    string `json:"knopf"`
+			} `json:"zeilen"`
+			UngeprueftSatz string `json:"ungeprueftSatz"`
+		} `json:"updates"`
 		Ereignisse struct {
 			VorherOffen bool `json:"vorherOffen"`
 			Zeilen      []struct {
@@ -994,6 +1004,27 @@ func TestLeitstandBrowser(t *testing.T) {
 		"web":   "services:\n  proxy:\n    image: nginx:alpine\n    ports: [\"8080:80\"]\n",
 		"fremd": "services:\n  irgendwas:\n    image: busybox\n",
 	}
+	// Ein Stand der Update-Prüfung im Store — sonst zeigte die Fläche nur „noch
+	// nicht geprüft". Die beiden Zeilen decken die zwei Aussagen ab, auf die es
+	// ankommt: eine neuere Fassung (mit Griff am Stack) und ein Abbild, zu dem
+	// KEIN belastbarer Vergleich zustande kam.
+	if err := s.updatestandSchreiben(t.Context(), gespeicherterUpdatestand{
+		Geprueft: time.Now().UTC(),
+		Staende: []privops.Updatestand{
+			{
+				Ref: "nginx:alpine", Geprueft: true, Neu: true, Weg: "buildx",
+				LokalDigest: "sha256:aaaa111122223333", FernDigest: "sha256:bbbb111122223333",
+			},
+			{
+				Ref: "api:1.4",
+				Grund: "Mehrarchitektur-Abbild: Lokal liegt die Kennung der Manifestliste, " +
+					"und die gibt „docker manifest inspect\" nicht her.",
+			},
+		},
+	}); err != nil {
+		t.Fatalf("Updatestand ablegen: %v", err)
+	}
+
 	// Zwei Ereignisse, und der Unterschied zwischen ihnen ist der Grund, warum
 	// sie hier stehen: Ein Start ist Betriebsgeräusch, ein Exit 137 ist der
 	// Befund, wegen dessen jemand den Strom öffnet.
@@ -3059,6 +3090,42 @@ func TestLeitstandBrowser(t *testing.T) {
 	// ein rotes Feld.
 	if po.Warnung == "" {
 		t.Error("die Erklärung zur Umgehung von ufw fehlt in der Fläche")
+	}
+
+	// Schritt 7: die Update-Prüfung. Der Kern ist, dass „nicht geprüft" als
+	// eigene Aussage dasteht — eine Prüfung, die im Zweifel „veraltet" meldete,
+	// meldete es bei fast jedem Abbild und würde nach einer Woche nicht mehr
+	// gelesen.
+	abb := dk.Updates
+	if len(abb.Zeilen) != 2 {
+		t.Fatalf("erwartet 2 Abbildzeilen, gerendert sind %d: %+v", len(abb.Zeilen), abb.Zeilen)
+	}
+	// Das Neue steht oben, ist rot, und der Knopf daneben nennt den Stack.
+	if abb.Zeilen[0].Ref != "nginx:alpine" {
+		t.Errorf("das Abbild mit der neuen Fassung steht nicht oben: %+v", abb.Zeilen[0])
+	}
+	if !strings.Contains(abb.Zeilen[0].Stufe, "schlecht") {
+		t.Errorf("die neue Fassung ist nicht als Befund gefärbt: %q", abb.Zeilen[0].Stufe)
+	}
+	if abb.Zeilen[0].Knopf != "Stack aktualisieren" {
+		t.Errorf("der Griff fehlt an der Zeile: %q — aktualisiert wird ein Stack, "+
+			"kein Abbild", abb.Zeilen[0].Knopf)
+	}
+	if !strings.Contains(abb.Zeilen[0].Gebrauch, "web") {
+		t.Errorf("die Zeile nennt den Stack nicht: %q", abb.Zeilen[0].Gebrauch)
+	}
+	// Und das ungeprüfte Abbild trägt WEDER grün NOCH rot: Es ist eine eigene
+	// Aussage, und der Satz darüber sagt, dass sie keine Beruhigung ist.
+	if !strings.Contains(abb.Zeilen[1].Stand, "nicht geprüft") {
+		t.Errorf("„nicht geprüft"+`"`+" steht nicht in der Zeile: %+v", abb.Zeilen[1])
+	}
+	if strings.Contains(abb.Zeilen[1].Stufe, "gut") {
+		t.Errorf("ein ungeprüftes Abbild darf nicht als aktuell erscheinen: %q",
+			abb.Zeilen[1].Stufe)
+	}
+	if abb.UngeprueftSatz == "" {
+		t.Error("der Satz zu den ungeprüften Abbildern fehlt — ohne ihn ist " +
+			"„nicht geprüft" + `"` + " eine leere Zelle")
 	}
 
 	// Der Ereignisstrom: zugeklappt bis zum Klick, danach mit Zeilen. Er hält

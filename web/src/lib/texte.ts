@@ -963,7 +963,7 @@ export const t = {
     // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
     imBau: "Was hier noch fehlt",
     imBauDetail:
-      "Die Update-Prüfung und die Container-Shell kommen mit den letzten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+      "Die Container-Shell kommt mit dem letzten Schritt der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
 
     // Container
     container: "Container",
@@ -1144,6 +1144,32 @@ export const t = {
       "Es sehen schon zu viele Verbindungen dem Ereignisstrom zu. Bitte einen anderen Tab schließen.",
     ereignisVerworfen: (n: number) =>
       `${n} Ereignisse verworfen — Docker schreibt schneller als die Leitung überträgt.`,
+
+    // Update-Prüfung
+    // „Aktualität der Abbilder" und nicht „Abbilder": Unter Bestand steht schon
+    // eine Liste dieses Namens, und zwei gleich benannte Überschriften auf einer
+    // Seite lassen sich nicht auseinanderhalten.
+    updates: "Aktualität der Abbilder",
+    updatesWesen:
+      "Gibt es zu den Tags, die hier laufen, in den Registries etwas Neueres? Das Panel vergleicht Kennungen und tauscht nichts aus — den Knopf drückt ein Mensch.",
+    updatesNieGeprueft:
+      "Noch nicht geprüft. Der Vergleich läuft höchstens einmal am Tag, weil Docker Hub anonyme Abfragen zählt.",
+    updatesPruefen: "jetzt prüfen",
+    updatesGeprueftAm: "zuletzt geprüft am",
+    updatesWiederAb: "wieder möglich ab",
+    updatesNeu: "neuere Fassung",
+    updatesAktuell: "aktuell",
+    updatesUngeprueft: "nicht geprüft",
+    // „Nicht geprüft" ist die ehrlichste der drei Zahlen — und der Satz dazu
+    // sagt, warum sie keine Beruhigung ist.
+    updatesUngeprueftWarum:
+      "Zu diesen Abbildern kam kein belastbarer Vergleich zustande. Das heißt nicht, dass sie aktuell sind.",
+    spalteAbbildRef: "Abbild",
+    spalteStand: "Stand",
+    spalteGebrauch: "benutzt von",
+    updatesAktualisieren: "Stack aktualisieren",
+    updatesKeinGriff:
+      "Dieser Container gehört zu keinem Compose-Projekt. Das Panel kann ihn hier nicht aktualisieren.",
   },
 
   stufe: {

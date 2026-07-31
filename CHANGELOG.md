@@ -11,6 +11,29 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Modul Docker, Update-Prüfung für Abbilder** (`/docker`, zwei weitere
+  Routen). Gibt es zu den Tags, die hier laufen, in den Registries etwas
+  Neueres? Das Panel vergleicht Kennungen, sagt Bescheid und tauscht nichts aus
+  — den Knopf drückt ein Mensch.
+
+  **Drei Zahlen statt zwei, und die dritte ist die wichtigste:** „nicht geprüft"
+  ist weder „aktuell" noch „veraltet". Der naheliegende Digest-Vergleich ist
+  nämlich falsch: Lokal liegt bei einem Mehrarchitektur-Abbild die Kennung der
+  Manifestliste, `docker manifest inspect` gibt aber die der einzelnen
+  Plattformen — wer beide vergleicht, meldet bei fast jedem Abbild ein Update,
+  jeden Tag. Das Panel meldet in diesem Fall „nicht geprüft" samt Grund. Ist
+  `docker buildx` vorhanden, trägt der Vergleich auch dort.
+
+  **Die Ratengrenze ist Teil des Entwurfs, kein Nachgedanke.** Höchstens ein
+  Lauf am Tag, der Zeitpunkt im Store und nicht im Speicher (ein Neustart des
+  Panels setzt ihn sonst zurück), und eine abweisende Registry beendet den Lauf,
+  statt weiterzufragen. Die Leseroute berührt nie eine Registry — sonst
+  verbrauchte ein offener Tab die Grenze im Hintergrund.
+
+  **Der Griff ist der Stack**, nicht das Abbild: „Stack aktualisieren" ist
+  `pull` und `up` in einem Vorgang, und in dieser Reihenfolge — scheitert das
+  Ziehen, wird nicht hochgefahren.
+
 - **Modul Docker, Ports und Ereignisse** (`/docker`, zwei weitere Routen).
 
   **Die Portübersicht sagt etwas Unbequemes: Docker geht an ufw vorbei.** Wer

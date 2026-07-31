@@ -289,6 +289,13 @@ func (s *Server) Handler() http.Handler {
 		s.protected(http.HandlerFunc(s.handleAPIDockerPorts)))
 	mux.Handle("GET /api/v1/docker/events",
 		s.protected(http.HandlerFunc(s.handleAPIDockerEvents)))
+	// Update-Prüfung. Lesen liefert den Zwischenspeicher und fragt NIE eine
+	// Registry; der Prüflauf ist schreibend, weil er eine Ratengrenze verbraucht
+	// und einen Zustand hinterlässt.
+	mux.Handle("GET /api/v1/docker/updates",
+		s.protected(http.HandlerFunc(s.handleAPIDockerUpdates)))
+	mux.Handle("POST /api/v1/docker/updates/check",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerUpdatePruefung)))))
 
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst

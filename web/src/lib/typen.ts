@@ -1519,6 +1519,40 @@ export type Dockerereignis = {
   ernst: boolean;
 };
 
+/** Updatezeile ist ein Abbild in der Update-Prüfung.
+ *
+ *  `geprueft` und `neu` stehen getrennt, und das ist der Kern der Fläche:
+ *  „nicht geprüft" ist weder „aktuell" noch „veraltet". Eine Prüfung, die im
+ *  Zweifel „veraltet" meldete, meldete es bei fast jedem Abbild und würde nach
+ *  einer Woche nicht mehr gelesen. */
+export type Updatezeile = {
+  ref: string;
+  geprueft: boolean;
+  neu: boolean;
+  grund?: string;
+  weg?: string;
+  lokal_kurz?: string;
+  fern_kurz?: string;
+  /** stacks ist der Griff: Aktualisiert wird ein Projekt, kein Abbild. */
+  stacks: string[];
+  container: string[];
+};
+
+export type Abbildupdates = {
+  zeilen: Updatezeile[];
+  geprueft: string;
+  /** naechste_fruehestens ist gesetzt, solange die Ratengrenze greift. Der
+   *  Knopf bleibt sichtbar und gesperrt — versteckt wäre er ein Rätsel. */
+  naechste_fruehestens?: string;
+  darf_pruefen: boolean;
+  neu: number;
+  aktuell: number;
+  ungeprueft: number;
+  darf_aendern: boolean;
+  job: Job | null;
+  fehler?: string;
+};
+
 /** Composebefund ist ein einzelner Fund des Compose-Prüfers.
  *
  *  `art` ist "ablehnung" (der Vorgang wurde angehalten), "aussen" (ein

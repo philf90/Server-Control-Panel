@@ -112,6 +112,14 @@ type fakeOps struct {
 	events     []privops.DockerEreignis
 	eventsErr  error
 	eventsHalt chan struct{}
+
+	// Update-Prüfung. staende steht je Abbild-Ref; was nicht darin steht, gilt
+	// als nicht geprüft — dasselbe, was die echte Fassung ohne belastbaren
+	// Vergleich meldet.
+	staende      map[string]privops.Updatestand
+	updateErr    error
+	updateDone   chan struct{}
+	updateFertig sync.Once
 }
 
 func newFakeOps() *fakeOps {
@@ -994,6 +1002,27 @@ func (f *fakeOps) DockerEventsFollow(ctx context.Context, sink func(privops.Dock
 		}
 	}
 	return nil
+}
+
+func (f *fakeOps) DockerUpdatePruefen(_ context.Context, ref string) (privops.Updatestand, error) {
+	f.record("docker:update-pruefen:" + ref)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.updateDone != nil {
+		f.updateFertig.Do(func() { close(f.updateDone) })
+	}
+	if f.updateErr != nil {
+		return privops.Updatestand{}, f.updateErr
+	}
+	if st, da := f.staende[ref]; da {
+		return st, nil
+	}
+	// Der Vorgabefall ist bewusst „nicht geprüft" und nicht „aktuell": So
+	// verhält sich auch die echte Fassung, wenn ihr der belastbare Vergleich
+	// fehlt.
+	return privops.Updatestand{
+		Ref: ref, Grund: "in der Attrappe nicht hinterlegt",
+	}, nil
 }
 
 func (f *fakeOps) StackDatei(_ context.Context, name string) (privops.StackInhalt, error) {

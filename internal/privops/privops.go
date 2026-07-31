@@ -144,6 +144,14 @@ type Executor interface {
 	// LogsFollow. Er beantwortet „warum ist der Container um 3 Uhr neu
 	// gestartet" — eine Frage, auf die der Zustand allein keine Antwort hat.
 	DockerEventsFollow(ctx context.Context, sink func(DockerEreignis)) error
+	// DockerUpdatePruefen vergleicht ein Abbild mit der Registry. Das Ergebnis
+	// trennt „geprüft" von „neu": Ohne belastbaren Vergleich meldet es „nicht
+	// geprüft" und nie „veraltet" — eine Update-Prüfung, die falsch Alarm
+	// schlägt, wird nach einer Woche nicht mehr gelesen.
+	//
+	// Ein Aufruf je Abbild. Die Ratengrenze sitzt eine Schicht darüber: Wie oft
+	// überhaupt geprüft werden darf, ist keine Frage der Kommandozeile.
+	DockerUpdatePruefen(ctx context.Context, ref string) (Updatestand, error)
 
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error

@@ -3,6 +3,7 @@ package privops
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -254,5 +255,294 @@ func TestParseDockerVersionVertraegtBeiwerk(t *testing.T) {
 
 	if c, s := parseDockerVersion("kein JSON"); c != "" || s != "" {
 		t.Errorf("unlesbare Ausgabe sollte leere Fassungen ergeben, ergab %q/%q", c, s)
+	}
+}
+
+// ---------------------------------------------------------------- Container ---
+
+// Aufgezeichnete Ausgaben. NDJSON — eine Zeile je Container, kein Feld.
+const (
+	dockerPSOut = `{"Command":"\"/docker-entrypoint.sh\"","CreatedAt":"2026-07-30 10:11:12 +0000 UTC","ID":"3f2b8c1d9a4e","Image":"nginx:alpine","Labels":"com.docker.compose.project=web,com.docker.compose.service=proxy","Names":"web-proxy-1","Ports":"0.0.0.0:8080-\u003e80/tcp","State":"running","Status":"Up 3 hours (healthy)"}
+{"Command":"\"postgres\"","CreatedAt":"2026-07-28 08:00:00 +0000 UTC","ID":"aa11bb22cc33","Image":"postgres:16","Labels":"com.docker.compose.project=web,com.docker.compose.service=db","Names":"web-db-1","Ports":"","State":"exited","Status":"Exited (137) 2 days ago"}
+{"Command":"\"/bin/sh\"","CreatedAt":"2026-07-31 09:00:00 +0000 UTC","ID":"ff99ee88dd77","Image":"alpine","Labels":"","Names":"handarbeit,alt-name","Ports":"","State":"running","Status":"Up 20 minutes"}`
+
+	// Docker schreibt bei einer Warnung gelegentlich eine Textzeile dazwischen.
+	dockerPSMitWarnungOut = `WARNING: bridge network not found
+{"ID":"3f2b8c1d9a4e","Image":"nginx:alpine","Names":"web-proxy-1","State":"running","Status":"Up 3 hours","Labels":""}`
+
+	dockerInspectOut = `{"Id":"3f2b8c1d9a4e","Name":"/web-proxy-1","Created":"2026-07-30T10:11:12.5Z",
+	 "State":{"Status":"exited","ExitCode":137,"Health":{"Status":"unhealthy"}},
+	 "Config":{"Image":"nginx:alpine","Cmd":["nginx","-g","daemon off;"],
+	           "Env":["PATH=/usr/local/sbin","DB_PASSWORD=geheim","TZ=Europe/Berlin"],
+	           "User":"nginx","Labels":{"com.docker.compose.project":"web","com.docker.compose.service":"proxy"}},
+	 "HostConfig":{"Privileged":true,"RestartPolicy":{"Name":"unless-stopped"}},
+	 "Mounts":[{"Type":"bind","Source":"/srv/web","Destination":"/usr/share/nginx/html","RW":false},
+	           {"Type":"volume","Name":"web_daten","Source":"/var/lib/docker/volumes/web_daten/_data","Destination":"/daten","RW":true}],
+	 "NetworkSettings":{"Networks":{"web_default":{},"bridge":{}}}}`
+
+	dockerStatsOut = `{"BlockIO":"0B / 0B","CPUPerc":"0.02%","Container":"3f2b8c1d9a4e","ID":"3f2b8c1d9a4e","MemPerc":"1.31%","MemUsage":"20.5MiB / 1.5GiB","Name":"web-proxy-1","NetIO":"1.2kB / 830B","PIDs":"5"}
+{"BlockIO":"1.2MB / 0B","CPUPerc":"0.00%","Container":"ff99ee88dd77","ID":"ff99ee88dd77","MemPerc":"0.10%","MemUsage":"1.5MiB / 1.5GiB","Name":"handarbeit","NetIO":"0B / 0B","PIDs":"1"}`
+)
+
+func TestParseDockerPS(t *testing.T) {
+	liste := parseDockerPS(dockerPSOut)
+	if len(liste) != 3 {
+		t.Fatalf("erwartet 3 Container, gelesen %d", len(liste))
+	}
+
+	erst := liste[0]
+	if erst.Name != "web-proxy-1" || erst.Image != "nginx:alpine" || erst.Zustand != "running" {
+		t.Errorf("erste Zeile falsch gelesen: %+v", erst)
+	}
+	// Die Gesundheit steht in Klammern im Statussatz und in keinem eigenen Feld.
+	if erst.Gesundheit != "healthy" {
+		t.Errorf("Gesundheit = %q, erwartet healthy", erst.Gesundheit)
+	}
+	if erst.Stack != "web" || erst.Dienst != "proxy" {
+		t.Errorf("Compose-Labels falsch gelesen: Stack %q, Dienst %q", erst.Stack, erst.Dienst)
+	}
+	// Dockers {{json}} benutzt Gos Kodierer, und der maskiert <, > und & als
+	// \u003c und dergleichen. Die Aufzeichnung trägt die Maskierung deshalb so,
+	// wie Docker sie schreibt; json.Unmarshal löst sie auf. Stünde hier ein
+	// rohes ">", prüfte der Test einen Fall, den es nicht gibt.
+	if erst.Ports != "0.0.0.0:8080->80/tcp" {
+		t.Errorf("Ports = %q — die Maskierung aus Dockers JSON ist nicht aufgelöst", erst.Ports)
+	}
+
+	// Ein beendeter Container ist die interessanteste Zeile der Liste. Ohne
+	// --all wäre er gar nicht da.
+	if liste[1].Zustand != "exited" || !strings.Contains(liste[1].Status, "137") {
+		t.Errorf("beendeter Container falsch gelesen: %+v", liste[1])
+	}
+	// Ohne Health-Check bleibt die Gesundheit LEER und ist nicht "gesund":
+	// Es heißt, dass niemand nachsieht.
+	if liste[2].Gesundheit != "" {
+		t.Errorf("ohne Prüfung sollte die Gesundheit leer sein, ist %q", liste[2].Gesundheit)
+	}
+	// Mehrere Namen: der erste zählt.
+	if liste[2].Name != "handarbeit" {
+		t.Errorf("Name = %q, erwartet den ersten von mehreren", liste[2].Name)
+	}
+	if liste[2].Stack != "" {
+		t.Errorf("ein Container ohne Compose-Labels hat keinen Stack, hat aber %q", liste[2].Stack)
+	}
+}
+
+// Eine Zeile, die kein JSON ist, darf die übrigen nicht mitnehmen: Docker
+// schreibt Warnungen zwischen die Ausgabe, und daran soll die Anzeige aller
+// anderen Container nicht scheitern.
+func TestParseDockerPSUeberspringtFremdeZeilen(t *testing.T) {
+	liste := parseDockerPS(dockerPSMitWarnungOut)
+	if len(liste) != 1 {
+		t.Fatalf("erwartet 1 Container, gelesen %d", len(liste))
+	}
+	if liste[0].Name != "web-proxy-1" {
+		t.Errorf("falsche Zeile gelesen: %+v", liste[0])
+	}
+}
+
+func TestParseDockerInspect(t *testing.T) {
+	d, err := parseDockerInspect(dockerInspectOut)
+	if err != nil {
+		t.Fatalf("parseDockerInspect: %v", err)
+	}
+	if d.Name != "web-proxy-1" {
+		t.Errorf("Name = %q — der führende Schrägstrich gehört weg", d.Name)
+	}
+	if d.Neustartregel != "unless-stopped" {
+		t.Errorf("Neustartregel = %q", d.Neustartregel)
+	}
+	// Der Exit-Code gilt nur für einen beendeten Container.
+	if d.ExitCode != 137 {
+		t.Errorf("ExitCode = %d, erwartet 137", d.ExitCode)
+	}
+	if !d.Privilegiert {
+		t.Error("privileged: true muss durchkommen — es ist die Angabe, die auf dieser Seite am meisten zählt")
+	}
+	if d.Befehl != "nginx -g daemon off;" {
+		t.Errorf("Befehl = %q", d.Befehl)
+	}
+
+	// Der Kern: die Umgebung wird GEZÄHLT und nicht ausgeliefert. In der
+	// Beispielausgabe steht ein Datenbankpasswort — es darf nirgends im
+	// Ergebnis auftauchen.
+	if d.Umgebung != 3 {
+		t.Errorf("Umgebung = %d, erwartet die Anzahl 3", d.Umgebung)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", d), "geheim") {
+		t.Error("der Wert einer Umgebungsvariablen steht im Ergebnis — genau das darf nicht passieren")
+	}
+
+	if len(d.Mounts) != 2 {
+		t.Fatalf("erwartet 2 Mounts, gelesen %d", len(d.Mounts))
+	}
+	if d.Mounts[0].Art != "bind" || d.Mounts[0].Quelle != "/srv/web" || d.Mounts[0].Schreibar {
+		t.Errorf("Bind-Mount falsch gelesen: %+v", d.Mounts[0])
+	}
+	// Bei einem Volume ist der Name die brauchbare Angabe, nicht der Pfad unter
+	// /var/lib/docker — den kennt niemand auswendig, und er ändert sich.
+	if d.Mounts[1].Quelle != "web_daten" {
+		t.Errorf("Volume sollte unter seinem Namen stehen, steht als %q", d.Mounts[1].Quelle)
+	}
+	if len(d.Netze) != 2 || d.Netze[0] != "bridge" {
+		t.Errorf("Netze falsch gelesen (und sortiert): %v", d.Netze)
+	}
+}
+
+func TestParseDockerInspectMeldetUnlesbares(t *testing.T) {
+	if _, err := parseDockerInspect("kein JSON"); err == nil {
+		t.Error("eine unlesbare Ausgabe muss einen Fehler ergeben und keinen leeren Container")
+	}
+}
+
+func TestParseDockerStats(t *testing.T) {
+	stats := parseDockerStats(dockerStatsOut)
+	if len(stats) != 2 {
+		t.Fatalf("erwartet 2 Zeilen, gelesen %d", len(stats))
+	}
+	if stats[0].CPU != "0.02%" || stats[0].Speiche != "20.5MiB / 1.5GiB" {
+		t.Errorf("Werte falsch gelesen: %+v", stats[0])
+	}
+	if stats[0].Name != "web-proxy-1" {
+		t.Errorf("Name = %q", stats[0].Name)
+	}
+}
+
+func TestValidateContainerID(t *testing.T) {
+	gut := []string{"3f2b8c1d9a4e", "web-proxy-1", "a", "A_b.c-d"}
+	for _, id := range gut {
+		if err := ValidateContainerID(id); err != nil {
+			t.Errorf("%q sollte gültig sein: %v", id, err)
+		}
+	}
+	// Der Grund für die Prüfung: Ein Wert, der wie eine Option aussieht oder
+	// Steuerzeichen trägt, darf nicht bis zur Kommandozeile kommen — auch wenn
+	// das "--" davor ihn ohnehin als Operanden festnagelt. Zwei Riegel.
+	schlecht := []string{"", "-rf", "--all", "a b", "a;b", "a/b", "a\nb", "../etc", strings.Repeat("x", 200)}
+	for _, id := range schlecht {
+		if err := ValidateContainerID(id); err == nil {
+			t.Errorf("%q sollte abgelehnt werden", id)
+		}
+	}
+}
+
+// Die Aktion ist ein eigener Typ mit Allowlist. Der Test hält fest, dass ein
+// erfundener Wert nicht bis zum Kommando kommt — und dass dann NICHTS gelaufen
+// ist, nicht bloß ein Fehler zurückkam.
+func TestDockerContainerActionLehntUnbekanntesAb(t *testing.T) {
+	f := newFakeRunner()
+	s := NewSystemWithRunner(f)
+
+	if err := s.DockerContainerAction(context.Background(), "web-proxy-1", "exec"); err == nil {
+		t.Error("eine unbekannte Aktion muss abgelehnt werden")
+	}
+	if err := s.DockerContainerAction(context.Background(), "-rf", ContainerStop); err == nil {
+		t.Error("eine ungültige Kennung muss abgelehnt werden")
+	}
+	if len(f.calls) != 0 {
+		t.Errorf("es darf kein Kommando gelaufen sein, gelaufen sind %d", len(f.calls))
+	}
+}
+
+func TestDockerContainerActionRuftDockerAuf(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["docker stop"] = Result{}
+	s := NewSystemWithRunner(f)
+
+	if err := s.DockerContainerAction(context.Background(), "web-proxy-1", ContainerStop); err != nil {
+		t.Fatalf("DockerContainerAction: %v", err)
+	}
+	args := f.lastCall().Args
+	if len(args) < 3 || args[0] != "stop" || args[len(args)-2] != "--" || args[len(args)-1] != "web-proxy-1" {
+		t.Errorf("Argumente = %v — der Name muss hinter -- stehen", args)
+	}
+	// Stoppen darf länger dauern als eine Statusabfrage: Docker wartet nach
+	// SIGTERM zehn Sekunden, bevor es SIGKILL nachschiebt.
+	if f.lastCall().Timeout <= defaultTimeout {
+		t.Errorf("Frist = %s, erwartet mehr als die Vorgabe", f.lastCall().Timeout)
+	}
+}
+
+func TestDockerContainerRemoveErzwingtNurAufWunsch(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["docker rm"] = Result{}
+	s := NewSystemWithRunner(f)
+
+	if err := s.DockerContainerRemove(context.Background(), "web-db-1", false); err != nil {
+		t.Fatalf("DockerContainerRemove: %v", err)
+	}
+	if strings.Contains(strings.Join(f.lastCall().Args, " "), "--force") {
+		t.Error("ohne erzwingen darf kein --force gesetzt sein — sonst beendet ein Aufräumen einen laufenden Dienst")
+	}
+
+	if err := s.DockerContainerRemove(context.Background(), "web-db-1", true); err != nil {
+		t.Fatalf("DockerContainerRemove(erzwingen): %v", err)
+	}
+	if !strings.Contains(strings.Join(f.lastCall().Args, " "), "--force") {
+		t.Error("mit erzwingen fehlt --force")
+	}
+}
+
+// Ein Fehlschlag muss die Meldung von Docker tragen und nicht nur einen Code.
+// "endete mit Code 1" ist die Auskunft, nach der man sucht, wenn die Ursache
+// danebenstand.
+func TestDockerContainerActionReichtDockersMeldungDurch(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["docker start"] = Result{
+		ExitCode: 1,
+		Stderr:   "Error response from daemon: No such container: weg\n",
+	}
+	s := NewSystemWithRunner(f)
+
+	err := s.DockerContainerAction(context.Background(), "weg", ContainerStart)
+	if err == nil {
+		t.Fatal("ein Exit-Code ungleich null muss einen Fehler ergeben")
+	}
+	if !strings.Contains(err.Error(), "No such container") {
+		t.Errorf("die Meldung von Docker fehlt: %v", err)
+	}
+}
+
+func TestDockerContainerLogsBegrenztDieZeilen(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["docker logs"] = Result{Stdout: "2026-07-31T10:00:00Z start\n2026-07-31T10:00:01Z bereit\n"}
+	s := NewSystemWithRunner(f)
+
+	zeilen, err := s.DockerContainerLogs(context.Background(), "web-proxy-1", 1_000_000)
+	if err != nil {
+		t.Fatalf("DockerContainerLogs: %v", err)
+	}
+	if len(zeilen) != 2 {
+		t.Errorf("erwartet 2 Zeilen, bekam %d: %v", len(zeilen), zeilen)
+	}
+	args := strings.Join(f.lastCall().Args, " ")
+	if !strings.Contains(args, "--tail 200") {
+		t.Errorf("eine unsinnige Zeilenzahl muss auf die Vorgabe fallen: %q", args)
+	}
+	if !strings.Contains(args, "--timestamps") {
+		t.Error("ohne Zeitstempel beantwortet ein Protokoll die Frage nicht, mit der man es öffnet")
+	}
+}
+
+// Container schreiben auf stdout UND stderr, je nachdem, wohin das Programm im
+// Container schrieb. Ein Panel, das stderr unterschlägt, verschweigt genau das,
+// wonach jemand sucht.
+func TestDockerContainerLogsNimmtBeideStroeme(t *testing.T) {
+	f := newFakeRunner()
+	f.responses["docker logs"] = Result{
+		Stdout: "2026-07-31T10:00:00Z bereit\n",
+		Stderr: "2026-07-31T10:00:02Z FEHLER: keine Verbindung\n",
+	}
+	s := NewSystemWithRunner(f)
+
+	zeilen, err := s.DockerContainerLogs(context.Background(), "web-proxy-1", 100)
+	if err != nil {
+		t.Fatalf("DockerContainerLogs: %v", err)
+	}
+	if len(zeilen) != 2 {
+		t.Fatalf("erwartet 2 Zeilen, bekam %v", zeilen)
+	}
+	if !strings.Contains(strings.Join(zeilen, "\n"), "FEHLER") {
+		t.Error("die Zeile von stderr fehlt")
 	}
 }

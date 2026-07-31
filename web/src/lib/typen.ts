@@ -1286,3 +1286,79 @@ export type Docker = {
   job: Job | null;
   fehler?: string;
 };
+
+/** Container ist eine Zeile der Containerliste.
+ *
+ *  Zustandsstufe, Auffälligkeit und die passenden Handgriffe kommen fertig vom
+ *  Server. Der Browser rechnet sie nicht nach — sonst gäbe es zwei Auslegungen
+ *  davon, was „auffällig" heißt, und die Übersicht nähme die andere. */
+export type Container = {
+  id: string;
+  kurz: string;
+  name: string;
+  image: string;
+  zustand: string;
+  status: string;
+  zustand_stufe: string;
+  gesundheit: string;
+  ports: string;
+  stack: string;
+  dienst: string;
+  auffaellig: boolean;
+  aktionen: string[];
+};
+
+export type ContainerMount = {
+  art: string;
+  quelle: string;
+  ziel: string;
+  schreibbar: boolean;
+  bind: boolean;
+};
+
+export type ContainerStat = {
+  cpu: string;
+  speicher: string;
+  speicher_prozent: string;
+  netz: string;
+  platte: string;
+  pids: string;
+};
+
+/** ContainerDetail kommt mit der Auswahl. `umgebung` ist die ANZAHL der
+ *  Umgebungsvariablen — ihre Werte gibt es an keiner Stelle dieser
+ *  Schnittstelle, weil dort auf jedem zweiten Server ein Passwort steht. */
+export type ContainerDetail = Container & {
+  befehl: string;
+  neustartregel: string;
+  exit_code: number;
+  privilegiert: boolean;
+  benutzer: string;
+  erstellt: string;
+  umgebung: number;
+  mounts: ContainerMount[];
+  netze: string[];
+  stats: ContainerStat | null;
+  zeilen: string[];
+  folger_frei: boolean;
+  fehler?: string;
+};
+
+export type Containerzaehler = {
+  alle: number;
+  laufend: number;
+  gestoppt: number;
+  auffaellig: number;
+};
+
+export type Containerliste = {
+  zeilen: Container[];
+  zaehler: Containerzaehler;
+  darf_aendern: boolean;
+  fehler?: string;
+};
+
+/** Containerantwort ist die Antwort auf eine Aktion: Meldung und der neu
+ *  gelesene Zustand. Beim Entfernen fehlt das Detail — den Container gibt es
+ *  dann nicht mehr. */
+export type Containerantwort = { meldung: string; detail?: ContainerDetail };

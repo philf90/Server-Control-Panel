@@ -12,6 +12,7 @@
   // nicht (der Dienst hilft), Compose fehlt (apt hilft wieder). Welche Antwort
   // gilt, entscheidet der Server und schickt sie fertig mit; die Seite legt
   // keine eigene Auslegung daneben.
+  import Containerwerkbank from "../komponenten/Containerliste.svelte";
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
   import { AbgemeldetFehler, api } from "../lib/api";
   import { t } from "../lib/texte";
@@ -98,7 +99,7 @@
       <div class="kopf">{t.docker.laufzeit}</div>
       <div class="wert">
         <span class="zustand {daten.installiert ? 'gut' : 'warn'}">
-          {daten.installiert ? daten.client_version || t.docker.da : t.docker.fehlt}
+          <i></i>{daten.installiert ? daten.client_version || t.docker.da : t.docker.fehlt}
         </span>
       </div>
       <div class="unter">
@@ -116,10 +117,10 @@
       <div class="kopf">{t.docker.daemon}</div>
       <div class="wert">
         {#if !daten.installiert}
-          <span class="zustand info">{t.docker.offen}</span>
+          <span class="zustand info"><i></i>{t.docker.offen}</span>
         {:else}
           <span class="zustand {daten.daemon_laeuft ? 'gut' : 'schlecht'}">
-            {daten.daemon_laeuft ? t.docker.laeuft : t.docker.tot}
+            <i></i>{daten.daemon_laeuft ? t.docker.laeuft : t.docker.tot}
           </span>
         {/if}
       </div>
@@ -134,10 +135,10 @@
       <div class="kopf">{t.docker.compose}</div>
       <div class="wert">
         {#if !daten.installiert}
-          <span class="zustand info">{t.docker.offen}</span>
+          <span class="zustand info"><i></i>{t.docker.offen}</span>
         {:else}
           <span class="zustand {daten.compose_verfuegbar ? 'gut' : 'warn'}">
-            {daten.compose_verfuegbar ? daten.compose_version || t.docker.da : t.docker.fehlt}
+            <i></i>{daten.compose_verfuegbar ? daten.compose_version || t.docker.da : t.docker.fehlt}
           </span>
         {/if}
       </div>
@@ -174,6 +175,14 @@
 
   {#if !daten.darf_aendern}
     <p class="hinweis">{t.docker.nurOwner}</p>
+  {/if}
+
+  {#if daten.daemon_laeuft}
+    <!-- Container gibt es nur, wenn der Daemon antwortet. Die Liste zu laden,
+         während er tot ist, brächte eine Fehlermeldung unter einer Karte, die
+         die Ursache schon nennt. -->
+    <h2>{t.docker.container}</h2>
+    <Containerwerkbank />
   {/if}
 
   <!-- Was noch fehlt, steht da. Eine Seite, die den Zustand zeigt und sonst
@@ -242,6 +251,12 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     margin: 1rem 0;
+  }
+
+  h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.75rem;
   }
 
   .platte {

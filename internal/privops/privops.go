@@ -101,6 +101,15 @@ type Executor interface {
 	// Ausführlich in docs/17-docker.md.
 	DockerState(ctx context.Context) (DockerState, error)
 	DockerInstall(ctx context.Context, stream LineWriter) error
+	DockerContainers(ctx context.Context) ([]Container, error)
+	DockerContainer(ctx context.Context, id string) (ContainerDetail, error)
+	DockerContainerAction(ctx context.Context, id string, a ContainerAction) error
+	DockerContainerRemove(ctx context.Context, id string, erzwingen bool) error
+	DockerContainerLogs(ctx context.Context, id string, zeilen int) ([]string, error)
+	// DockerContainerLogsFollow ist nach LogsFollow die zweite Operation ohne
+	// eigene Frist: Der Kontext des Betrachters ist die Frist.
+	DockerContainerLogsFollow(ctx context.Context, id string, zeilen int, sink LineWriter) error
+	DockerStats(ctx context.Context) ([]ContainerStats, error)
 
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error

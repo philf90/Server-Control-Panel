@@ -963,7 +963,63 @@ export const t = {
     // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
     imBau: "Was hier noch fehlt",
     imBauDetail:
-      "Container, Stacks, Bestand und Ports kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+      "Stacks, Bestand und Ports kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+
+    // Container
+    container: "Container",
+    suchen: "Name, Image oder Stack",
+    nichts: "Kein Container passt zur Suche.",
+    keine: "Auf diesem Server läuft kein Container.",
+    alle: "alle",
+    laufend: "laufend",
+    gestoppt: "gestoppt",
+    auffaellig: "auffällig",
+    spalteName: "Name",
+    spalteImage: "Image",
+    spalteStack: "Stack",
+    spalteZustand: "Zustand",
+    spaltePorts: "Ports",
+    ohneGesundheit: "keine Prüfung",
+    // Handgriffe. Die Beschriftung steht hier und der Bezeichner kommt vom
+    // Server — so heißt derselbe Handgriff überall gleich.
+    aktion: {
+      start: "starten",
+      stop: "stoppen",
+      restart: "neu starten",
+      pause: "anhalten",
+      unpause: "fortsetzen",
+      remove: "entfernen",
+    } as Record<string, string>,
+    // Inspektor
+    befehl: "Befehl",
+    neustartregel: "Neustart",
+    exitCode: "Exit-Code",
+    benutzer: "Benutzer",
+    erstellt: "erstellt",
+    umgebung: "Umgebungsvariablen",
+    umgebungWarum:
+      "Nur die Anzahl: Umgebungsvariablen tragen häufig Passwörter und Schlüssel. Wer sie braucht, kommt über SSH an sie heran.",
+    privilegiert: "privilegiert",
+    privilegiertWarum:
+      "Dieser Container läuft privilegiert. Er hat damit auf dem Wirt praktisch die Rechte von root.",
+    mounts: "Eingehängt",
+    netze: "Netze",
+    bind: "Wirtspfad",
+    volume: "Volume",
+    nurLesen: "nur lesen",
+    stats: "Auslastung",
+    cpu: "CPU",
+    speicher: "Speicher",
+    netz: "Netz",
+    platte: "Platte",
+    prozesse: "Prozesse",
+    protokoll: "Protokoll",
+    keinProtokoll: "Der Container hat nichts ausgegeben.",
+    verfolgen: "verfolgen",
+    anhalten: "anhalten",
+    folgerVoll:
+      "Es sehen schon zu viele Verbindungen Containerprotokollen zu. Bitte einen anderen Tab schließen.",
+    verworfen: (n: number) => `${n} Zeilen verworfen — der Container schreibt schneller als die Leitung überträgt.`,
   },
 
   stufe: {

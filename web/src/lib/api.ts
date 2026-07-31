@@ -14,6 +14,9 @@ import type {
   Dateitext,
   Dienste,
   DienstAktion,
+  Containerliste,
+  ContainerDetail,
+  Containerantwort,
   DienstDetail,
   Docker,
   EigenesKonto,
@@ -283,6 +286,21 @@ export const api = {
    *  zu installieren nimmt nichts weg und sperrt niemanden aus. Die Route liegt
    *  hinter der Owner-Rolle. */
   dockerEinspielen: () => anfrage<VorgangGestartet>("/docker/install", { method: "POST" }),
+  /** container liefert die vollständige Liste. Gefiltert wird im Browser: Ein
+   *  Server hat selten mehr als ein paar Dutzend Container, und beim Tippen ist
+   *  das Ergebnis dann sofort da. */
+  container: () => anfrage<Containerliste>("/docker/containers"),
+  containerDetail: (id: string) =>
+    anfrage<ContainerDetail>(`/docker/containers/${encodeURIComponent(id)}`),
+  /** containerAktion: start, stop, restart, pause, unpause, remove. Die Stufe
+   *  der Rückfrage entscheidet der Server — stoppen ist Stufe 2, einen
+   *  LAUFENDEN Container zu entfernen Stufe 3 mit seinem Namen. */
+  containerAktion: (id: string, aktion: string, bestaetigt = false, getippt = "") =>
+    anfrage<Containerantwort>(`/docker/containers/${encodeURIComponent(id)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aktion, bestaetigt, getippt }),
+    }),
 
   /** logs fragt das Journal ab. Die Filter stehen als Abfragezeichenkette in
    *  der Adresse — dieselbe, die der Strom bekommt, damit er nicht mehr zeigt

@@ -679,6 +679,25 @@ type ergebnisLeitstand struct {
 		Knoepfe   []string `json:"knoepfe"`
 		IstBald   bool     `json:"istBald"`
 		NavAktiv  string   `json:"navAktiv"`
+		Reihen    []struct {
+			Name    string `json:"name"`
+			Zustand string `json:"zustand"`
+		} `json:"reihen"`
+		NachKlick struct {
+			Suche      string   `json:"suche"`
+			Titel      string   `json:"titel"`
+			Auszug     string   `json:"auszug"`
+			Handgriffe []string `json:"handgriffe"`
+		} `json:"nachKlick"`
+		Rueckfrage struct {
+			Offen    bool   `json:"offen"`
+			Frage    string `json:"frage"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"rueckfrage"`
+		NachZurueck struct {
+			Inspektor bool   `json:"inspektor"`
+			Suche     string `json:"suche"`
+		} `json:"nachZurueck"`
 	} `json:"dock"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
@@ -848,6 +867,39 @@ func TestLeitstandBrowser(t *testing.T) {
 			{Port: 8443, Protocol: "tcp", Comment: "Asylum-Panel"},
 			{Port: 22, Protocol: "tcp", Comment: "SSH"},
 		},
+	}
+
+	// Docker als laufend, mit vier Containern. Der zweite ist laufend UND
+	// ungesund — der Fall, den man am leichtesten übersieht und der deshalb im
+	// Browser geprüft gehört: Er steht auf „läuft" und muss trotzdem oben stehen.
+	ops.docker = privops.DockerState{
+		Installiert: true, DaemonLaeuft: true, ComposeVerfuegbar: true,
+		ClientVersion: "27.5.1", ServerVersion: "27.5.1", ComposeVersion: "2.32.4",
+		Paket: "docker.io",
+	}
+	ops.container = []privops.Container{
+		{
+			ID: "aaaa11112222", Name: "web-proxy-1", Image: "nginx:alpine",
+			Zustand: "running", Status: "Up 3 hours (healthy)", Gesundheit: "healthy",
+			Ports: "0.0.0.0:8080->80/tcp", Stack: "web", Dienst: "proxy",
+		},
+		{
+			ID: "bbbb11112222", Name: "web-api-1", Image: "api:1.4",
+			Zustand: "running", Status: "Up 2 hours (unhealthy)", Gesundheit: "unhealthy",
+			Stack: "web", Dienst: "api",
+		},
+		{
+			ID: "cccc11112222", Name: "web-db-1", Image: "postgres:16",
+			Zustand: "exited", Status: "Exited (137) 2 days ago", Stack: "web", Dienst: "db",
+		},
+		{
+			ID: "dddd11112222", Name: "auftrag", Image: "alpine",
+			Zustand: "exited", Status: "Exited (0) 5 minutes ago",
+		},
+	}
+	ops.containerLogs = []string{
+		"2026-07-31T10:00:00.000000000Z Konfiguration geladen",
+		"2026-07-31T10:00:01.000000000Z bereit auf :80",
 	}
 
 	ts := httptest.NewServer(s.Handler())
@@ -2708,16 +2760,65 @@ func TestLeitstandBrowser(t *testing.T) {
 	if dk.Karten != 3 {
 		t.Errorf("die Seite zeigt %d Karten, erwartet 3 (Laufzeit, Daemon, Compose)", dk.Karten)
 	}
-	if dk.Anmerkung == "" {
-		t.Error("ohne Docker steht kein erklärender Satz da — dann sieht die Seite aus, " +
-			"als sei sie kaputt, statt zu sagen, was fehlt")
+	// Die Attrappe meldet ein vollständiges Docker. Dann schweigt die Seite: Ein
+	// Satz, der immer dasteht, wird nicht gelesen — und dann wird auch der nicht
+	// gelesen, der zählt. Ebenso der Knopf: Es gibt nichts einzuspielen.
+	if dk.Anmerkung != "" {
+		t.Errorf("bei vollständigem Docker sollte kein Hinweis stehen, steht aber %q", dk.Anmerkung)
 	}
-	if len(dk.Knoepfe) != 1 || !strings.Contains(dk.Knoepfe[0], "einspielen") {
-		t.Errorf("erwartet genau einen Knopf zum Einspielen, gefunden: %v — ein Knopf "+
-			"mehr wäre einer, der in dieser Lage nichts bewirkt", dk.Knoepfe)
+	if len(dk.Knoepfe) != 0 {
+		t.Errorf("bei vollständigem Docker gehört kein Knopf auf die Seite, gefunden: %v — "+
+			"er würde in dieser Lage nichts bewirken", dk.Knoepfe)
 	}
 	if dk.NavAktiv != "/docker" {
 		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q)", dk.NavAktiv)
+	}
+
+	// Die Containerwerkbank. Der Kern ist die Reihenfolge: Ein laufender, aber
+	// ungesunder Container ist der Fall, den man am leichtesten übersieht — er
+	// steht auf „läuft" und tut trotzdem nicht, wofür er da ist. Er gehört nach
+	// oben, nicht an seinen alphabetischen Platz.
+	if len(dk.Reihen) != 4 {
+		t.Fatalf("erwartet 4 Containerzeilen, gerendert sind %d", len(dk.Reihen))
+	}
+	obenZwei := []string{dk.Reihen[0].Name, dk.Reihen[1].Name}
+	if !enthaelt(obenZwei, "web-api-1") || !enthaelt(obenZwei, "web-db-1") {
+		t.Errorf("die auffälligen Container stehen nicht oben: %v", obenZwei)
+	}
+	if !strings.Contains(dk.Reihen[0].Zustand, "schlecht") {
+		t.Errorf("die oberste Zeile trägt die Klasse %q — erwartet die Stufe schlecht",
+			dk.Reihen[0].Zustand)
+	}
+
+	// Die Auswahl steht in der Adresse, damit ein Verweis teilbar ist und ein
+	// Neuladen denselben Zustand zeigt.
+	if !strings.Contains(dk.NachKlick.Suche, "container=") {
+		t.Errorf("die Auswahl steht nicht in der Adresse: %q", dk.NachKlick.Suche)
+	}
+	if dk.NachKlick.Titel == "" {
+		t.Error("der Inspektor trägt keinen Titel")
+	}
+	// Das Protokoll kommt MIT dem Detail: Wer einen Container anklickt, will
+	// wissen, was er sagt — und nicht erst einen zweiten Knopf suchen.
+	if !strings.Contains(dk.NachKlick.Auszug, "bereit auf") {
+		t.Errorf("der Protokollauszug fehlt im Inspektor: %q", dk.NachKlick.Auszug)
+	}
+	if len(dk.NachKlick.Handgriffe) == 0 {
+		t.Error("der Inspektor bietet keine Handgriffe an")
+	}
+
+	// Stoppen ist Stufe 2: Dialog, aber kein getipptes Wort.
+	if !dk.Rueckfrage.Offen {
+		t.Error("beim Stoppen kommt kein Rückfragedialog — die Stufe fällt damit still auf 1")
+	}
+	if dk.Rueckfrage.Tippfeld {
+		t.Error("Stoppen ist Stufe 2 und braucht kein getipptes Wort")
+	}
+
+	// Der Zurück-Knopf schließt den Inspektor: Die erste Auswahl auf einer Seite
+	// ist ein Schritt im Verlauf.
+	if dk.NachZurueck.Inspektor {
+		t.Error("der Zurück-Knopf schließt den Inspektor nicht")
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

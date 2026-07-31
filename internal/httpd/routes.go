@@ -244,6 +244,17 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/docker", s.protected(http.HandlerFunc(s.handleAPIDocker)))
 	mux.Handle("POST /api/v1/docker/install",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerInstall)))))
+	mux.Handle("GET /api/v1/docker/containers",
+		s.protected(http.HandlerFunc(s.handleAPIDockerContainers)))
+	mux.Handle("GET /api/v1/docker/containers/{id}",
+		s.protected(http.HandlerFunc(s.handleAPIDockerContainer)))
+	// Der Strom ist lesend und liegt deshalb nicht hinter apiSchreibend. Seine
+	// Schranke ist eine andere: höchstens vier gleichzeitig, weil jeder einen
+	// eigenen docker-Prozess hält (maxDockerLogFolger).
+	mux.Handle("GET /api/v1/docker/containers/{id}/logs",
+		s.protected(http.HandlerFunc(s.handleAPIDockerContainerLogs)))
+	mux.Handle("POST /api/v1/docker/containers/{id}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerContainerAktion)))))
 
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst

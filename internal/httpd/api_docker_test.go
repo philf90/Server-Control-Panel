@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -309,4 +310,354 @@ func zaehleInstalls(ops *fakeOps) int {
 		}
 	}
 	return n
+}
+
+// ---------------------------------------------------------------- Container ---
+
+// beispielContainer deckt die vier Lagen ab, die die Liste unterschiedlich
+// behandeln muss: laufend und gesund, laufend und UNGESUND (der Fall, den man
+// am leichtesten übersieht), mit Fehlercode beendet, sauber beendet.
+func beispielContainer() []privops.Container {
+	return []privops.Container{
+		{
+			ID: "aaaa11112222", Name: "web-proxy-1", Image: "nginx:alpine",
+			Zustand: "running", Status: "Up 3 hours (healthy)", Gesundheit: "healthy",
+			Ports: "0.0.0.0:8080->80/tcp", Stack: "web", Dienst: "proxy",
+		},
+		{
+			ID: "bbbb11112222", Name: "web-api-1", Image: "api:1.4",
+			Zustand: "running", Status: "Up 2 hours (unhealthy)", Gesundheit: "unhealthy",
+			Stack: "web", Dienst: "api",
+		},
+		{
+			ID: "cccc11112222", Name: "web-db-1", Image: "postgres:16",
+			Zustand: "exited", Status: "Exited (137) 2 days ago", Stack: "web", Dienst: "db",
+		},
+		{
+			ID: "dddd11112222", Name: "auftrag", Image: "alpine",
+			Zustand: "exited", Status: "Exited (0) 5 minutes ago",
+		},
+	}
+}
+
+func containerServer(t *testing.T, rolle string) (*Server, *fakeOps, *http.Cookie, string) {
+	t.Helper()
+	s, ops, cookie, csrf := dockerServer(t, rolle, privops.DockerState{
+		Installiert: true, DaemonLaeuft: true, ComposeVerfuegbar: true,
+	})
+	ops.container = beispielContainer()
+	ops.containerLogs = []string{"2026-07-31T10:00:00Z bereit", "2026-07-31T10:00:02Z Anfrage"}
+	return s, ops, cookie, csrf
+}
+
+// rueckfrageAus liest die Rückfrage aus einer 409-Antwort.
+//
+// Eigene Hilfe statt mussJSON: Das verlangt Status 200 und ist damit für genau
+// die Antwort ungeeignet, um die es hier geht. Beim ersten Anlauf stand hier
+// mussJSON, und der Test scheiterte mit „erwartet 200" an einer Stelle, an der
+// 409 richtig war — die Meldung zeigte auf den Handler statt auf den Test.
+func rueckfrageAus(t *testing.T, rec *httptest.ResponseRecorder) apiBestaetigungAntwort {
+	t.Helper()
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("Status = %d, erwartet 409: %s", rec.Code, rec.Body.String())
+	}
+	var frage apiBestaetigungAntwort
+	if err := json.Unmarshal(rec.Body.Bytes(), &frage); err != nil {
+		t.Fatalf("Rückfrage nicht lesbar: %v — %s", err, rec.Body.String())
+	}
+	return frage
+}
+
+func containerListe(t *testing.T, s *Server, cookie *http.Cookie) apiContainerListe {
+	t.Helper()
+	rec := get(t, s, "/api/v1/docker/containers", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
+	}
+	var antwort apiContainerListe
+	if err := json.Unmarshal(rec.Body.Bytes(), &antwort); err != nil {
+		t.Fatalf("Antwort nicht lesbar: %v", err)
+	}
+	return antwort
+}
+
+// Auffälliges zuerst. Wer die Seite öffnet, sucht das, was nicht stimmt —
+// alphabetisch sortiert stünde es irgendwo in der Mitte.
+func TestAPIDockerContainerSortiertAuffaelligesZuerst(t *testing.T) {
+	s, _, cookie, _ := containerServer(t, store.RoleOwner)
+
+	liste := containerListe(t, s, cookie)
+	if len(liste.Zeilen) != 4 {
+		t.Fatalf("erwartet 4 Zeilen, bekam %d", len(liste.Zeilen))
+	}
+	namen := []string{liste.Zeilen[0].Name, liste.Zeilen[1].Name}
+	if !enthaelt(namen, "web-api-1") || !enthaelt(namen, "web-db-1") {
+		t.Errorf("die auffälligen Container stehen nicht oben: %v", namen)
+	}
+	// Ein laufender, aber ungesunder Container ist der schlimmere Fall: Er steht
+	// auf „läuft" und tut trotzdem nicht, wofür er da ist.
+	if liste.Zeilen[0].ZustandStufe != "schlecht" {
+		t.Errorf("die oberste Zeile ist %q/%q, erwartet die Stufe schlecht",
+			liste.Zeilen[0].Name, liste.Zeilen[0].ZustandStufe)
+	}
+}
+
+// Mit Code 0 beendet ist ein aufgeräumter Container und kein Befund — ein
+// einmaliger Auftrag etwa. Ihn als Problem zu zählen hieße, auf jedem Server mit
+// Wartungsjobs dauerhaft einen roten Punkt zu zeigen.
+func TestAPIDockerContainerZaehltSauberBeendeteNichtAlsBefund(t *testing.T) {
+	s, _, cookie, _ := containerServer(t, store.RoleOwner)
+
+	liste := containerListe(t, s, cookie)
+	if liste.Zaehler.Alle != 4 || liste.Zaehler.Laufend != 2 || liste.Zaehler.Gestoppt != 2 {
+		t.Errorf("Zähler falsch: %+v", liste.Zaehler)
+	}
+	if liste.Zaehler.Auffaellig != 2 {
+		t.Errorf("Auffällig = %d, erwartet 2 (ungesund und Code 137)", liste.Zaehler.Auffaellig)
+	}
+	for _, z := range liste.Zeilen {
+		if z.Name == "auftrag" && z.Auffaellig {
+			t.Error("ein mit Code 0 beendeter Container ist kein Befund")
+		}
+	}
+}
+
+// Die Handgriffe kommen vom Server und passen zum Zustand. Ein Knopf „starten"
+// an einem laufenden Container läuft in einen Fehler — und dann ist der Knopf
+// schon der Fehler.
+func TestAPIDockerContainerNenntPassendeHandgriffe(t *testing.T) {
+	s, _, cookie, _ := containerServer(t, store.RoleOwner)
+
+	for _, z := range containerListe(t, s, cookie).Zeilen {
+		switch z.Zustand {
+		case "running":
+			if enthaelt(z.Aktionen, "start") {
+				t.Errorf("%s läuft und bekommt trotzdem „starten"+`"`, z.Name)
+			}
+			if !enthaelt(z.Aktionen, "stop") {
+				t.Errorf("%s läuft, „stoppen"+`" fehlt aber`, z.Name)
+			}
+		case "exited":
+			if enthaelt(z.Aktionen, "stop") {
+				t.Errorf("%s ist beendet und bekommt trotzdem „stoppen"+`"`, z.Name)
+			}
+			if !enthaelt(z.Aktionen, "start") {
+				t.Errorf("%s ist beendet, „starten"+`" fehlt aber`, z.Name)
+			}
+		}
+		if !enthaelt(z.Aktionen, "remove") {
+			t.Errorf("%s: „entfernen"+`" sollte immer gehen`, z.Name)
+		}
+	}
+}
+
+// Der Kern des Detailtyps: Die Umgebungsvariablen werden GEZÄHLT und nicht
+// ausgeliefert. Sie tragen auf jedem zweiten Server ein Datenbankpasswort.
+func TestAPIDockerContainerDetailLiefertKeineUmgebungswerte(t *testing.T) {
+	s, ops, cookie, _ := containerServer(t, store.RoleOwner)
+	_ = ops
+
+	rec := get(t, s, "/api/v1/docker/containers/aaaa11112222", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
+	}
+	rumpf := rec.Body.String()
+	if strings.Contains(rumpf, "\"env\"") || strings.Contains(rumpf, "PASSWORD") {
+		t.Error("die Antwort trägt Umgebungswerte — sie darf es nie")
+	}
+
+	var d apiContainerDetail
+	mussJSON(t, rec, &d)
+	if len(d.Zeilen) == 0 {
+		t.Error("der Protokollauszug sollte mit dem Detail kommen: Wer klickt, will wissen, was der Container sagt")
+	}
+	if d.Kurz != "aaaa11112222"[:12] {
+		t.Errorf("Kurz = %q — der Server kürzt, damit Liste und Inspektor dieselbe Zahl zeigen", d.Kurz)
+	}
+}
+
+func TestAPIDockerContainerDetailMeldetUnbekannten(t *testing.T) {
+	s, _, cookie, _ := containerServer(t, store.RoleOwner)
+
+	rec := get(t, s, "/api/v1/docker/containers/gibtesnicht", cookie)
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("Status = %d, erwartet 502: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// Stoppen ist Stufe 2: Ohne Bestätigung passiert NICHTS. Geprüft wird die
+// Wirkung und nicht der Statuscode — ein 409, nach dem der Container trotzdem
+// steht, wäre die gefährlichste Art, diesen Test zu bestehen.
+func TestAPIDockerContainerStopFragtUndTutNichts(t *testing.T) {
+	s, ops, cookie, csrf := containerServer(t, store.RoleOwner)
+
+	rec := postJSON(t, s, "/api/v1/docker/containers/aaaa11112222",
+		`{"aktion":"stop","bestaetigt":false,"getippt":""}`, cookie, csrf)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("Status = %d, erwartet 409: %s", rec.Code, rec.Body.String())
+	}
+	frage := rueckfrageAus(t, rec)
+	if frage.Bestaetigung.Frage == "" || frage.Bestaetigung.Tippen != "" {
+		t.Errorf("erwartet Stufe 2 mit Frage und ohne Tippfeld: %+v", frage.Bestaetigung)
+	}
+	for _, a := range ops.recorded() {
+		if strings.HasPrefix(a, "docker:stop") {
+			t.Error("ohne Bestätigung darf nichts gelaufen sein")
+		}
+	}
+
+	rec = postJSON(t, s, "/api/v1/docker/containers/aaaa11112222",
+		`{"aktion":"stop","bestaetigt":true,"getippt":""}`, cookie, csrf)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
+	}
+	// Die Antwort trägt den NEU gelesenen Zustand. Ohne das zeigte die
+	// Oberfläche in der Lücke den alten — was nach einem Stopp genauso aussieht
+	// wie ein Stopp, der nicht geklappt hat.
+	var antwort struct {
+		Meldung string             `json:"meldung"`
+		Detail  apiContainerDetail `json:"detail"`
+	}
+	mussJSON(t, rec, &antwort)
+	if antwort.Detail.Zustand != "exited" {
+		t.Errorf("der frische Zustand fehlt in der Antwort: %+v", antwort.Detail)
+	}
+}
+
+// Starten ist Stufe 1: kein Dialog. Eine Rückfrage vor jedem Handgriff
+// entwertet die Rückfragen, auf die es ankommt.
+func TestAPIDockerContainerStartOhneRueckfrage(t *testing.T) {
+	s, ops, cookie, csrf := containerServer(t, store.RoleOwner)
+
+	rec := postJSON(t, s, "/api/v1/docker/containers/cccc11112222",
+		`{"aktion":"start","bestaetigt":false,"getippt":""}`, cookie, csrf)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
+	}
+	if !enthaelt(ops.recorded(), "docker:start:cccc11112222") {
+		t.Errorf("der Container wurde nicht gestartet: %v", ops.recorded())
+	}
+}
+
+// Einen LAUFENDEN Container zu entfernen ist Stufe 3 mit dem Namen: Es beendet
+// einen Dienst UND löscht ihn in einem Zug.
+func TestAPIDockerContainerEntfernenLaufendIstStufeDrei(t *testing.T) {
+	s, ops, cookie, csrf := containerServer(t, store.RoleOwner)
+
+	rec := postJSON(t, s, "/api/v1/docker/containers/aaaa11112222",
+		`{"aktion":"remove","bestaetigt":false,"getippt":""}`, cookie, csrf)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("Status = %d, erwartet 409: %s", rec.Code, rec.Body.String())
+	}
+	frage := rueckfrageAus(t, rec)
+	if frage.Bestaetigung.Tippen != "web-proxy-1" {
+		t.Errorf("Tippen = %q, erwartet den Containernamen", frage.Bestaetigung.Tippen)
+	}
+
+	// Ein falsches Wort wirkt nicht.
+	rec = postJSON(t, s, "/api/v1/docker/containers/aaaa11112222",
+		`{"aktion":"remove","bestaetigt":true,"getippt":"web-proxy"}`, cookie, csrf)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("ein falsches Wort muss die Frage wiederholen, Status = %d", rec.Code)
+	}
+	if enthaelt(ops.recorded(), "docker:remove:aaaa11112222") {
+		t.Fatal("mit falschem Wort darf nichts gelaufen sein")
+	}
+
+	rec = postJSON(t, s, "/api/v1/docker/containers/aaaa11112222",
+		`{"aktion":"remove","bestaetigt":true,"getippt":"web-proxy-1"}`, cookie, csrf)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
+	}
+	// Ein laufender Container wird vorher gestoppt — das ist der Unterschied,
+	// wegen dem diese Aktion die schärfere Stufe hat.
+	if !enthaelt(ops.recorded(), "docker:remove:erzwungen") {
+		t.Errorf("ein laufender Container muss mit --force entfernt werden: %v", ops.recorded())
+	}
+}
+
+// Einen gestoppten Container zu entfernen ist Stufe 2: Es räumt auf.
+func TestAPIDockerContainerEntfernenGestopptIstStufeZwei(t *testing.T) {
+	s, ops, cookie, csrf := containerServer(t, store.RoleOwner)
+
+	rec := postJSON(t, s, "/api/v1/docker/containers/cccc11112222",
+		`{"aktion":"remove","bestaetigt":false,"getippt":""}`, cookie, csrf)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("Status = %d, erwartet 409: %s", rec.Code, rec.Body.String())
+	}
+	frage := rueckfrageAus(t, rec)
+	if frage.Bestaetigung.Tippen != "" {
+		t.Errorf("ein gestoppter Container braucht kein getipptes Wort: %+v", frage.Bestaetigung)
+	}
+
+	rec = postJSON(t, s, "/api/v1/docker/containers/cccc11112222",
+		`{"aktion":"remove","bestaetigt":true,"getippt":""}`, cookie, csrf)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
+	}
+	if enthaelt(ops.recorded(), "docker:remove:erzwungen") {
+		t.Error("ein gestoppter Container braucht kein --force")
+	}
+}
+
+func TestAPIDockerContainerAktionLehntUnbekanntesAb(t *testing.T) {
+	s, ops, cookie, csrf := containerServer(t, store.RoleOwner)
+
+	rec := postJSON(t, s, "/api/v1/docker/containers/aaaa11112222",
+		`{"aktion":"exec","bestaetigt":true,"getippt":""}`, cookie, csrf)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Status = %d, erwartet 400: %s", rec.Code, rec.Body.String())
+	}
+	for _, a := range ops.recorded() {
+		if strings.HasPrefix(a, "docker:exec") {
+			t.Error("eine unbekannte Aktion darf nichts auslösen")
+		}
+	}
+}
+
+// Ein Admin-Konto darf sehen, aber nicht schalten. Die Schranke steht auf dem
+// Server; die Liste sagt es zusätzlich, damit die Oberfläche keine Knöpfe zeigt,
+// die zuverlässig 403 ergeben.
+func TestAPIDockerContainerAktionVerlangtOwner(t *testing.T) {
+	s, ops, cookie, csrf := containerServer(t, store.RoleAdmin)
+
+	if containerListe(t, s, cookie).DarfAendern {
+		t.Error("ein Admin-Konto darf Container nicht schalten")
+	}
+	rec := postJSON(t, s, "/api/v1/docker/containers/aaaa11112222",
+		`{"aktion":"stop","bestaetigt":true,"getippt":""}`, cookie, csrf)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("Status = %d, erwartet 403: %s", rec.Code, rec.Body.String())
+	}
+	if len(ops.recorded()) != 0 {
+		t.Errorf("es darf nichts gelaufen sein: %v", ops.recorded())
+	}
+}
+
+// Lesen darf jede Rolle — wer sehen darf, welche Dienste laufen, darf sehen,
+// welche Container laufen.
+func TestAPIDockerContainerListeFuerLeserecht(t *testing.T) {
+	s, _, cookie, _ := containerServer(t, store.RoleReadOnly)
+
+	liste := containerListe(t, s, cookie)
+	if len(liste.Zeilen) == 0 {
+		t.Error("ein Konto mit Leserecht muss die Liste sehen")
+	}
+	if liste.DarfAendern {
+		t.Error("ein Konto mit Leserecht darf nicht schalten")
+	}
+}
+
+// Ein Fehler der Systemgrenze leert die Seite nicht.
+func TestAPIDockerContainerReichtFehlerAlsFeldDurch(t *testing.T) {
+	s, ops, cookie, _ := containerServer(t, store.RoleOwner)
+	ops.containerErr = errDockerAttrappe
+
+	liste := containerListe(t, s, cookie)
+	if liste.Fehler == "" {
+		t.Error("der Fehler sollte in der Antwort stehen")
+	}
+	if liste.Zeilen == nil {
+		t.Error("leeres Feld statt null — sonst muss die Oberfläche zwei Fälle unterscheiden")
+	}
 }

@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -210,4 +214,559 @@ func parseDockerVersion(out string) (client, server string) {
 		return "", ""
 	}
 	return v.Client.Version, v.Server.Version
+}
+
+// ---------------------------------------------------------------- Container ---
+
+// Container ist eine Zeile der Containerliste.
+//
+// Bewusst NICHT enthalten: die Umgebungsvariablen. Sie tragen auf jedem zweiten
+// Server ein Datenbankpasswort oder einen API-Schlüssel, und eine Liste, die
+// beim Aufklappen Geheimnisse zeigt, ist eine Liste, die man nicht mehr
+// vorführen kann. Der Detailtyp nennt nur ihre Anzahl.
+type Container struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Image ist der Name, unter dem der Container gestartet wurde.
+	Image string `json:"image"`
+	// Zustand ist das Wort von Docker: created, running, paused, restarting,
+	// exited, dead, removing. Roh übernommen — eine Übersetzung an dieser Stelle
+	// verlöre den Unterschied zwischen "exited" und "dead".
+	Zustand string `json:"zustand"`
+	// Status ist Dockers Satz dazu ("Up 3 hours", "Exited (137) 2 days ago"). Er
+	// trägt die Angabe, die kein Zustandswort hat: seit wann, und mit welchem
+	// Code beendet.
+	Status string `json:"status"`
+	// Gesundheit ist healthy, unhealthy, starting — oder leer, wenn das Image
+	// keine Prüfung mitbringt. Leer ist NICHT gesund: Es heißt, dass niemand
+	// nachsieht.
+	Gesundheit string `json:"gesundheit"`
+	Erstellt   string `json:"erstellt"`
+	Ports      string `json:"ports"`
+	// Stack und Dienst kommen aus den Compose-Labels. Sie sind der Grund, warum
+	// die Liste schon in diesem Schritt danach gruppieren kann, obwohl das
+	// Stack-Modul erst später kommt: Die Angabe steht am Container.
+	Stack  string `json:"stack"`
+	Dienst string `json:"dienst"`
+}
+
+// ContainerDetail ist ein Container mit dem, was ein Aufruf von docker inspect
+// zusätzlich hergibt.
+type ContainerDetail struct {
+	Container
+	Befehl string `json:"befehl"`
+	// Neustartregel ist die RestartPolicy: no, always, unless-stopped,
+	// on-failure. Sie beantwortet "kommt der nach einem Neustart wieder".
+	Neustartregel string `json:"neustartregel"`
+	// ExitCode gilt nur für beendete Container; -1 heißt "läuft noch".
+	ExitCode int `json:"exit_code"`
+	// Privilegiert ist die Angabe, die auf dieser Seite am meisten zählt: Ein
+	// privilegierter Container ist root auf dem Wirt. Er wird angezeigt, auch
+	// wenn das Panel ihn nie selbst angelegt hätte — Grundsatz IV.
+	Privilegiert bool             `json:"privilegiert"`
+	Benutzer     string           `json:"benutzer"`
+	Mounts       []ContainerMount `json:"mounts"`
+	Netze        []string         `json:"netze"`
+	// Umgebung ist die ANZAHL der Umgebungsvariablen, nicht ihr Inhalt. Siehe
+	// den Kopf von Container.
+	Umgebung int `json:"umgebung"`
+}
+
+// ContainerMount ist ein eingehängter Pfad.
+type ContainerMount struct {
+	// Art ist "bind" oder "volume". Der Unterschied ist der zwischen "ein Pfad
+	// des Wirts liegt im Container" und "Docker verwaltet den Speicher".
+	Art       string `json:"art"`
+	Quelle    string `json:"quelle"`
+	Ziel      string `json:"ziel"`
+	Schreibar bool   `json:"schreibbar"`
+}
+
+// ContainerStats sind die Laufzeitwerte eines Containers.
+type ContainerStats struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	CPU     string `json:"cpu"`
+	Speiche string `json:"speicher"`
+	SpeiPro string `json:"speicher_prozent"`
+	Netz    string `json:"netz"`
+	Platte  string `json:"platte"`
+	PIDs    string `json:"pids"`
+}
+
+// ContainerAction ist eine erlaubte Handlung an einem Container.
+//
+// Ein eigener Typ und keine Zeichenkette: Der Wert wandert bis in eine
+// Kommandozeile, und die Allowlist gehört an die Stelle, an der er entsteht —
+// nicht in eine Prüfung, die jemand beim nächsten Endpunkt vergisst.
+type ContainerAction string
+
+const (
+	ContainerStart   ContainerAction = "start"
+	ContainerStop    ContainerAction = "stop"
+	ContainerRestart ContainerAction = "restart"
+	ContainerPause   ContainerAction = "pause"
+	ContainerUnpause ContainerAction = "unpause"
+)
+
+// ValidContainerAction sagt, ob die Handlung erlaubt ist.
+func ValidContainerAction(a ContainerAction) bool {
+	switch a {
+	case ContainerStart, ContainerStop, ContainerRestart, ContainerPause, ContainerUnpause:
+		return true
+	default:
+		return false
+	}
+}
+
+// DockerContainers listet alle Container, laufende wie beendete.
+//
+// Mit --all, und das ist keine Bequemlichkeit: Ein Container, der heute Nacht
+// mit Code 137 gestorben ist, ist die interessanteste Zeile der Liste. Ohne
+// --all wäre er unsichtbar, und die Seite behauptete, alles sei in Ordnung.
+func (s *System) DockerContainers(ctx context.Context) ([]Container, error) {
+	res, err := s.run(ctx, Command{
+		Name: "docker",
+		Args: []string{"ps", "--all", "--no-trunc", "--format", "{{json .}}"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res.ExitCode != 0 {
+		return nil, fmt.Errorf("docker ps: %s", ersteAusgabezeile(res))
+	}
+	return parseDockerPS(res.Stdout), nil
+}
+
+// DockerContainer liest die Einzelheiten eines Containers.
+func (s *System) DockerContainer(ctx context.Context, id string) (ContainerDetail, error) {
+	if err := ValidateContainerID(id); err != nil {
+		return ContainerDetail{}, err
+	}
+	res, err := s.run(ctx, Command{
+		Name: "docker",
+		Args: []string{"inspect", "--format", "{{json .}}", "--", id},
+	})
+	if err != nil {
+		return ContainerDetail{}, err
+	}
+	if res.ExitCode != 0 {
+		return ContainerDetail{}, fmt.Errorf("docker inspect %s: %s", id, ersteAusgabezeile(res))
+	}
+	return parseDockerInspect(res.Stdout)
+}
+
+// DockerContainerAction schaltet einen Container.
+func (s *System) DockerContainerAction(ctx context.Context, id string, a ContainerAction) error {
+	if err := ValidateContainerID(id); err != nil {
+		return err
+	}
+	if !ValidContainerAction(a) {
+		return fmt.Errorf("unbekannte Containeraktion: %q", a)
+	}
+	// Stoppen darf länger dauern: Docker schickt SIGTERM und wartet zehn
+	// Sekunden, bevor es SIGKILL nachschiebt. Mit der Vorgabefrist von dreißig
+	// Sekunden wäre ein Container mit langem Herunterfahren ein Fehlschlag, der
+	// keiner ist.
+	frist := defaultTimeout
+	if a == ContainerStop || a == ContainerRestart {
+		frist = 2 * defaultTimeout
+	}
+	res, err := s.run(ctx, Command{
+		Name:    "docker",
+		Args:    []string{string(a), "--", id},
+		Timeout: frist,
+	})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("docker %s %s: %s", a, id, ersteAusgabezeile(res))
+	}
+	return nil
+}
+
+// DockerContainerRemove entfernt einen Container.
+//
+// erzwingen stoppt einen laufenden Container vorher. Es steht als eigener
+// Parameter und nicht als stiller Vorgabewert, weil der Unterschied für den
+// Bedienenden zählt: Das eine räumt auf, das andere beendet einen laufenden
+// Dienst. Die Rückfragestufe hängt daran.
+func (s *System) DockerContainerRemove(ctx context.Context, id string, erzwingen bool) error {
+	if err := ValidateContainerID(id); err != nil {
+		return err
+	}
+	args := []string{"rm"}
+	if erzwingen {
+		args = append(args, "--force")
+	}
+	args = append(args, "--", id)
+
+	res, err := s.run(ctx, Command{Name: "docker", Args: args, Timeout: 2 * defaultTimeout})
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("docker rm %s: %s", id, ersteAusgabezeile(res))
+	}
+	return nil
+}
+
+// DockerContainerLogs liest die letzten Zeilen eines Containers.
+//
+// Mit Zeitstempeln, weil eine Logzeile ohne Zeit auf die Frage "seit wann"
+// nicht antwortet — und das ist die Frage, mit der man ein Log öffnet.
+func (s *System) DockerContainerLogs(ctx context.Context, id string, zeilen int) ([]string, error) {
+	if err := ValidateContainerID(id); err != nil {
+		return nil, err
+	}
+	if zeilen <= 0 || zeilen > 2000 {
+		zeilen = 200
+	}
+	res, err := s.run(ctx, Command{
+		Name: "docker",
+		Args: []string{"logs", "--timestamps", "--tail", strconv.Itoa(zeilen), "--", id},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res.ExitCode != 0 {
+		return nil, fmt.Errorf("docker logs %s: %s", id, ersteAusgabezeile(res))
+	}
+	// Docker schreibt die Ausgabe des Containers auf stdout UND stderr, je
+	// nachdem, wohin das Programm im Container schrieb. Beide gehören dazu: Ein
+	// Fehlerprotokoll, das die Seite unterschlägt, ist genau das, was jemand
+	// sucht, der diese Seite öffnet.
+	return zeilenAus(res.Stdout, res.Stderr), nil
+}
+
+// DockerContainerLogsFollow verfolgt das Protokoll eines Containers.
+//
+// Wie LogsFollow ohne eigene Frist: Der Kontext des Betrachters ist die Frist.
+// Die Argumente entstehen NICHT aus einer zweiten Quelle — dieselbe Zeilenzahl
+// wie bei der Abfrage, damit der Strom nicht mehr zeigen kann als die Abfrage
+// vorher hergab.
+func (s *System) DockerContainerLogsFollow(ctx context.Context, id string, zeilen int, sink LineWriter) error {
+	if sink == nil {
+		return errors.New("DockerContainerLogsFollow ohne Empfänger")
+	}
+	if err := ValidateContainerID(id); err != nil {
+		return err
+	}
+	if zeilen <= 0 || zeilen > 2000 {
+		zeilen = 200
+	}
+
+	res, err := s.run(ctx, Command{
+		Name:      "docker",
+		Args:      []string{"logs", "--timestamps", "--follow", "--tail", strconv.Itoa(zeilen), "--", id},
+		OhneFrist: true,
+		Stream:    sink,
+	})
+	// Der Abbruch des Kontexts ist das vorgesehene Ende — derselbe Fall wie beim
+	// Journal: Der Betrachter hat die Seite verlassen. Er wird zuerst geprüft,
+	// weil ein getöteter Prozess beides hinterlässt, Exit-Code und Fehler.
+	if ctx.Err() != nil {
+		return nil //nolint:nilerr // der Abbruch IST das Ende
+	}
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("docker logs --follow %s: %s", id, ersteAusgabezeile(res))
+	}
+	return nil
+}
+
+// DockerStats liest die Laufzeitwerte aller laufenden Container.
+//
+// Mit --no-stream und nicht als Dauerstrom: Ein laufendes "docker stats" hält
+// einen Prozess und liest im Sekundentakt aus dem Kernel. Die Seite fragt
+// stattdessen nach, wenn jemand hinsieht — dieselbe Entscheidung wie beim
+// Updatestand, und aus demselben Grund: Ein Panel soll den Server nicht
+// beschäftigen, weil ein Tab offen steht.
+func (s *System) DockerStats(ctx context.Context) ([]ContainerStats, error) {
+	res, err := s.run(ctx, Command{
+		Name:    "docker",
+		Args:    []string{"stats", "--no-stream", "--format", "{{json .}}"},
+		Timeout: 2 * defaultTimeout,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if res.ExitCode != 0 {
+		return nil, fmt.Errorf("docker stats: %s", ersteAusgabezeile(res))
+	}
+	return parseDockerStats(res.Stdout), nil
+}
+
+// ------------------------------------------------------- Prüfung und Parser ---
+
+// containerIDMuster ist die Form einer Containerkennung oder eines Namens.
+//
+// Docker erlaubt für Namen [a-zA-Z0-9][a-zA-Z0-9_.-]+, Kennungen sind
+// Hexadezimalzahlen. Beides deckt dasselbe Muster ab. Die Prüfung steht hier
+// und nicht im Handler, weil sie sonst zweimal stünde — und die zweite Fassung
+// wäre die, die jemand beim nächsten Endpunkt vergisst.
+var containerIDMuster = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`)
+
+// ValidateContainerID prüft eine Containerkennung oder einen Containernamen.
+func ValidateContainerID(id string) error {
+	if id == "" {
+		return errors.New("kein Container angegeben")
+	}
+	if !containerIDMuster.MatchString(id) {
+		return fmt.Errorf("ungültige Containerkennung: %q", id)
+	}
+	return nil
+}
+
+// ersteAusgabezeile holt die sprechendste Zeile aus einem Fehlschlag.
+//
+// Docker schreibt seine Fehler auf stderr ("Error response from daemon: No such
+// container: x"), gelegentlich aber auch auf stdout. Beides ansehen, damit die
+// Meldung nicht "endete mit Code 1" lautet, während die Ursache danebensteht.
+func ersteAusgabezeile(res Result) string {
+	for _, s := range []string{res.Stderr, res.Stdout} {
+		for _, zeile := range strings.Split(s, "\n") {
+			if z := strings.TrimSpace(zeile); z != "" {
+				return z
+			}
+		}
+	}
+	return "kein Hinweis in der Ausgabe"
+}
+
+// zeilenAus fügt stdout und stderr zu einer Liste zusammen.
+func zeilenAus(teile ...string) []string {
+	// Leeres Feld statt null: Ein Container ohne Ausgabe soll in der Antwort eine
+	// leere Liste sein und nicht "keine Auskunft".
+	out := []string{}
+	for _, t := range teile {
+		for _, zeile := range strings.Split(t, "\n") {
+			if strings.TrimRight(zeile, "\r") != "" {
+				out = append(out, strings.TrimRight(zeile, "\r"))
+			}
+		}
+	}
+	return out
+}
+
+// parseDockerPS liest die Ausgabe von "docker ps --format {{json .}}".
+//
+// Beispielzeile (Docker 27, gekürzt — eine Zeile je Container, KEIN Feld):
+//
+//	{"Command":"\"/entrypoint.sh\"","CreatedAt":"2026-07-30 10:11:12 +0000 UTC",
+//	 "ID":"3f2b…","Image":"nginx:alpine",
+//	 "Labels":"com.docker.compose.project=web,com.docker.compose.service=proxy",
+//	 "Names":"web-proxy-1","Ports":"0.0.0.0:8080->80/tcp",
+//	 "State":"running","Status":"Up 3 hours (healthy)"}
+//
+// Das Format ist NDJSON und kein Feld — eine Zeile je Container. Eine Zeile, die
+// sich nicht zerlegen lässt, wird übersprungen statt die Liste zu verwerfen:
+// Docker schreibt bei Warnungen gelegentlich eine Textzeile dazwischen, und
+// daran soll die Anzeige aller übrigen Container nicht scheitern.
+func parseDockerPS(out string) []Container {
+	container := []Container{}
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || !strings.HasPrefix(zeile, "{") {
+			continue
+		}
+		var roh struct {
+			ID        string `json:"ID"`
+			Names     string `json:"Names"`
+			Image     string `json:"Image"`
+			State     string `json:"State"`
+			Status    string `json:"Status"`
+			Ports     string `json:"Ports"`
+			CreatedAt string `json:"CreatedAt"`
+			Labels    string `json:"Labels"`
+		}
+		if json.Unmarshal([]byte(zeile), &roh) != nil {
+			continue
+		}
+		c := Container{
+			ID:         roh.ID,
+			Name:       ersterName(roh.Names),
+			Image:      roh.Image,
+			Zustand:    roh.State,
+			Status:     roh.Status,
+			Ports:      roh.Ports,
+			Erstellt:   roh.CreatedAt,
+			Gesundheit: gesundheitAus(roh.Status),
+		}
+		labels := labelsAus(roh.Labels)
+		c.Stack = labels["com.docker.compose.project"]
+		c.Dienst = labels["com.docker.compose.service"]
+		container = append(container, c)
+	}
+	return container
+}
+
+// ersterName nimmt den ersten von mehreren Namen.
+//
+// Ein Container kann mehrere Aliase tragen; docker ps gibt sie durch Komma
+// getrennt aus. Für die Liste zählt der erste — alle anzuzeigen machte die
+// Spalte unlesbar, und der erste ist der, unter dem er angelegt wurde.
+func ersterName(names string) string {
+	if i := strings.IndexByte(names, ','); i >= 0 {
+		return names[:i]
+	}
+	return names
+}
+
+// gesundheitAus liest den Gesundheitszustand aus Dockers Statussatz.
+//
+// Er steht dort in Klammern ("Up 3 hours (healthy)") und in keinem eigenen Feld
+// von "docker ps". Fehlt die Klammer, bringt das Image keine Prüfung mit — und
+// das ist NICHT dasselbe wie gesund: Es heißt, dass niemand nachsieht.
+func gesundheitAus(status string) string {
+	for _, wort := range []string{"healthy", "unhealthy", "health: starting", "starting"} {
+		if strings.Contains(status, "("+wort+")") {
+			if wort == "health: starting" {
+				return "starting"
+			}
+			return wort
+		}
+	}
+	return ""
+}
+
+// labelsAus zerlegt Dockers Label-Zeichenkette ("a=1,b=2").
+func labelsAus(s string) map[string]string {
+	out := map[string]string{}
+	for _, paar := range strings.Split(s, ",") {
+		if k, v, ok := strings.Cut(paar, "="); ok {
+			out[strings.TrimSpace(k)] = v
+		}
+	}
+	return out
+}
+
+// parseDockerInspect liest die Ausgabe von "docker inspect --format {{json .}}".
+//
+// Mit --format kommt EIN Objekt heraus und kein Feld — ohne das Format setzt
+// docker inspect seine Antwort in ein Feld, und der Parser müsste beide Formen
+// kennen. Eine Form ist besser als zwei.
+func parseDockerInspect(out string) (ContainerDetail, error) {
+	var roh struct {
+		ID      string `json:"Id"`
+		Name    string `json:"Name"`
+		Created string `json:"Created"`
+		State   struct {
+			Status   string `json:"Status"`
+			ExitCode int    `json:"ExitCode"`
+			Health   struct {
+				Status string `json:"Status"`
+			} `json:"Health"`
+		} `json:"State"`
+		Config struct {
+			Image  string            `json:"Image"`
+			Cmd    []string          `json:"Cmd"`
+			Env    []string          `json:"Env"`
+			User   string            `json:"User"`
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+		HostConfig struct {
+			Privileged    bool `json:"Privileged"`
+			RestartPolicy struct {
+				Name string `json:"Name"`
+			} `json:"RestartPolicy"`
+		} `json:"HostConfig"`
+		Mounts []struct {
+			Type        string `json:"Type"`
+			Source      string `json:"Source"`
+			Name        string `json:"Name"`
+			Destination string `json:"Destination"`
+			RW          bool   `json:"RW"`
+		} `json:"Mounts"`
+		NetworkSettings struct {
+			Networks map[string]struct{} `json:"Networks"`
+		} `json:"NetworkSettings"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &roh); err != nil {
+		return ContainerDetail{}, fmt.Errorf("docker inspect: Ausgabe nicht lesbar: %w", err)
+	}
+
+	d := ContainerDetail{
+		Container: Container{
+			ID:         roh.ID,
+			Name:       strings.TrimPrefix(roh.Name, "/"),
+			Image:      roh.Config.Image,
+			Zustand:    roh.State.Status,
+			Gesundheit: roh.State.Health.Status,
+			Erstellt:   roh.Created,
+			Stack:      roh.Config.Labels["com.docker.compose.project"],
+			Dienst:     roh.Config.Labels["com.docker.compose.service"],
+		},
+		Befehl:        strings.Join(roh.Config.Cmd, " "),
+		Neustartregel: roh.HostConfig.RestartPolicy.Name,
+		Privilegiert:  roh.HostConfig.Privileged,
+		Benutzer:      roh.Config.User,
+		Umgebung:      len(roh.Config.Env),
+		ExitCode:      -1,
+		Mounts:        []ContainerMount{},
+		Netze:         []string{},
+	}
+	// Der Exit-Code gilt nur für einen beendeten Container. Bei einem laufenden
+	// steht dort 0, und "0" wäre die Behauptung, er sei sauber beendet worden.
+	if roh.State.Status != "running" && roh.State.Status != "paused" {
+		d.ExitCode = roh.State.ExitCode
+	}
+	for _, m := range roh.Mounts {
+		quelle := m.Source
+		if m.Type == "volume" && m.Name != "" {
+			quelle = m.Name
+		}
+		d.Mounts = append(d.Mounts, ContainerMount{
+			Art: m.Type, Quelle: quelle, Ziel: m.Destination, Schreibar: m.RW,
+		})
+	}
+	for name := range roh.NetworkSettings.Networks {
+		d.Netze = append(d.Netze, name)
+	}
+	sort.Strings(d.Netze)
+	return d, nil
+}
+
+// parseDockerStats liest die Ausgabe von "docker stats --no-stream".
+//
+// Beispielzeile (Docker 27):
+//
+//	{"BlockIO":"0B / 0B","CPUPerc":"0.02%","Container":"3f2b…","ID":"3f2b…",
+//	 "MemPerc":"1.31%","MemUsage":"20.5MiB / 1.5GiB","Name":"web-proxy-1",
+//	 "NetIO":"1.2kB / 830B","PIDs":"5"}
+//
+// Die Werte kommen als fertig formatierte Zeichenketten und werden so
+// übernommen. Sie zu zerlegen und neu zu formatieren hieße, Dockers Rundung
+// nachzubauen — mit dem einzigen Ergebnis, dass die Zahl im Panel eine andere
+// wäre als die auf der Kommandozeile.
+func parseDockerStats(out string) []ContainerStats {
+	stats := []ContainerStats{}
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || !strings.HasPrefix(zeile, "{") {
+			continue
+		}
+		var roh struct {
+			ID       string `json:"ID"`
+			Name     string `json:"Name"`
+			CPUPerc  string `json:"CPUPerc"`
+			MemUsage string `json:"MemUsage"`
+			MemPerc  string `json:"MemPerc"`
+			NetIO    string `json:"NetIO"`
+			BlockIO  string `json:"BlockIO"`
+			PIDs     string `json:"PIDs"`
+		}
+		if json.Unmarshal([]byte(zeile), &roh) != nil {
+			continue
+		}
+		stats = append(stats, ContainerStats{
+			ID: roh.ID, Name: roh.Name, CPU: roh.CPUPerc,
+			Speiche: roh.MemUsage, SpeiPro: roh.MemPerc,
+			Netz: roh.NetIO, Platte: roh.BlockIO, PIDs: roh.PIDs,
+		})
+	}
+	return stats
 }

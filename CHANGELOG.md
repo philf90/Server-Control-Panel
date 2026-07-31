@@ -11,6 +11,35 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Modul Docker, Container** (`/docker`, vier weitere Routen unter
+  `/api/v1/docker/containers`). Liste mit Zählern als Filter, Inspektor mit
+  Konfiguration, Mounts, Netzen, Auslastung und Protokollauszug; starten,
+  stoppen, neu starten, anhalten, fortsetzen, entfernen.
+
+  **Umgebungsvariablen zeigt das Panel nicht** — nur ihre Anzahl. Sie tragen auf
+  jedem zweiten Server ein Datenbankpasswort, und eine Seite, die sie beim
+  Aufklappen preisgibt, ist eine Seite, die man nicht mehr vorführen kann. Wer
+  sie braucht, kommt über SSH an sie heran; dasselbe Argument wie bei der
+  Sperrliste des Dateimanagers.
+
+  **Auffälliges steht oben.** Ein laufender, aber ungesunder Container ist der
+  Fall, den man am leichtesten übersieht: Er steht auf „läuft" und tut trotzdem
+  nicht, wofür er da ist. Mit Code 0 beendet ist dagegen kein Befund — ein
+  einmaliger Auftrag soll nicht dauerhaft einen roten Punkt erzeugen. Dieselbe
+  Regel speist den Handlungsbedarf der Übersicht; sie steht an einer Stelle,
+  damit die Übersicht keinen Befund meldet, den die Liste nicht kennt.
+
+  **Einen laufenden Container zu entfernen ist Stufe 3 mit seinem Namen** — eine
+  begründete Abweichung von [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md),
+  wo das Entfernen als umkehrbar Stufe 2 wäre: Derselbe Klick beendet einen
+  Dienst *und* löscht ihn. Ein gestoppter bleibt Stufe 2, stoppen ist Stufe 2,
+  starten Stufe 1.
+
+  Das Protokoll lässt sich verfolgen (eigener Strom mit Herzschlag, höchstens
+  vier gleichzeitig, verworfene Zeilen werden gemeldet). Die Zählung ist von der
+  des Journals getrennt: Ein offenes Containerprotokoll soll nicht den Blick ins
+  Journal versperren.
+
 - **Modul Docker, erster Schritt** (`/docker`, zwei Routen unter
   `/api/v1/docker`). Die Fassung 0.5 beginnt mit dem Zustand der Laufzeit und
   ihrer Installation; Container, Stacks und Bestand folgen. Der Bauplan steht in

@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -71,6 +72,12 @@ type fakeOps struct {
 	// und die Prüfung „höchstens einer je Art" prüfte nichts.
 	dockerInstallHalt chan struct{}
 	dockerInstallDone chan struct{}
+
+	container          []privops.Container
+	containerErr       error
+	containerAktionErr error
+	containerLogs      []string
+	containerStats     []privops.ContainerStats
 }
 
 func newFakeOps() *fakeOps {
@@ -685,4 +692,88 @@ func TestFirewallZeilenUebernimmtBestehendePanelRegel(t *testing.T) {
 	if treffer != 1 {
 		t.Errorf("die Panel-Regel steht %d Mal in der Liste", treffer)
 	}
+}
+
+func (f *fakeOps) DockerContainers(context.Context) ([]privops.Container, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.container, f.containerErr
+}
+
+func (f *fakeOps) DockerContainer(_ context.Context, id string) (privops.ContainerDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, c := range f.container {
+		if c.ID == id || c.Name == id {
+			return privops.ContainerDetail{Container: c, ExitCode: -1}, nil
+		}
+	}
+	return privops.ContainerDetail{}, errors.New("No such container: " + id)
+}
+
+func (f *fakeOps) DockerContainerAction(_ context.Context, id string, a privops.ContainerAction) error {
+	f.record("docker:" + string(a) + ":" + id)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.containerAktionErr != nil {
+		return f.containerAktionErr
+	}
+	// Den Zustand mitführen: Ein Test, der nach dem Stoppen den frischen Stand
+	// prüft, soll ihn auch sehen.
+	for i, c := range f.container {
+		if c.ID != id && c.Name != id {
+			continue
+		}
+		switch a {
+		case privops.ContainerStart, privops.ContainerRestart, privops.ContainerUnpause:
+			f.container[i].Zustand, f.container[i].Status = "running", "Up 1 second"
+		case privops.ContainerStop:
+			f.container[i].Zustand, f.container[i].Status = "exited", "Exited (0) 1 second ago"
+		case privops.ContainerPause:
+			f.container[i].Zustand, f.container[i].Status = "paused", "Up 1 hour (Paused)"
+		}
+	}
+	return nil
+}
+
+func (f *fakeOps) DockerContainerRemove(_ context.Context, id string, erzwingen bool) error {
+	// Beide Vermerke VOR der Sperre: record nimmt dieselbe Sperre, und sie
+	// darunter ein zweites Mal zu nehmen ist ein Deadlock. Beim ersten Anlauf
+	// stand der zweite Vermerk im gesperrten Abschnitt, und der Testlauf hing —
+	// bis der Zeitgeber von "go test" ihn nach zehn Minuten abbrach.
+	f.record("docker:remove:" + id)
+	if erzwingen {
+		f.record("docker:remove:erzwungen")
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	uebrig := f.container[:0]
+	for _, c := range f.container {
+		if c.ID != id && c.Name != id {
+			uebrig = append(uebrig, c)
+		}
+	}
+	f.container = uebrig
+	return nil
+}
+
+func (f *fakeOps) DockerContainerLogs(_ context.Context, _ string, _ int) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.containerLogs, nil
+}
+
+func (f *fakeOps) DockerContainerLogsFollow(ctx context.Context, _ string, _ int, sink privops.LineWriter) error {
+	for _, l := range f.containerLogs {
+		sink(l)
+	}
+	<-ctx.Done()
+	return nil
+}
+
+func (f *fakeOps) DockerStats(context.Context) ([]privops.ContainerStats, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.containerStats, nil
 }

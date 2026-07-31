@@ -317,7 +317,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | # | Schritt | Ergebnis |
 |---|---|---|
 | 1 | **Fundament**: Allowlist, `DockerState`, `DockerInstall`, Executor-Methoden, `fakeOps`, `GET /api/v1/docker`, Seitengerüst — **umgesetzt**, siehe unten | Das Modul existiert und kann Docker installieren |
-| 2 | **Container**: Liste, Inspektor, Aktionen, Entfernen, Logs (Auszug und Verfolgen), Statistik | Der Alltagsfall steht |
+| 2 | **Container**: Liste, Inspektor, Aktionen, Entfernen, Logs (Auszug und Verfolgen), Statistik — **umgesetzt**, siehe unten | Der Alltagsfall steht |
 | 3 | **Bestand**: Images, Volumes, Netze, `system df`, Aufräumen je Art mit freigegebenem Platz | Die häufigste Wartung |
 | 4 | **Stacks lesend**: `compose ls`, eigenes Verzeichnis, Verschmelzung, Detail | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 | **Stacks schreibend**: Pfadwache, Marker, Editor, **Compose-Prüfer**, `up/down/pull/restart` als Jobs, Gerüstvorlagen | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
@@ -365,6 +365,54 @@ einem echten Docker stammen. `docker version --format {{json .}}`,
 Docker gegengelesen und die `const`-Blöcke in
 `internal/privops/docker_test.go` durch echte Ausgaben ersetzt werden. Solange
 das aussteht, ist die Fassungserkennung eine begründete Annahme.
+
+### Schritt 2 — Stand: umgesetzt
+
+`privops` wächst um sieben Operationen (`DockerContainers`, `DockerContainer`,
+`DockerContainerAction`, `DockerContainerRemove`, `DockerContainerLogs`,
+`DockerContainerLogsFollow`, `DockerStats`), die Seite um die Werkbank nach
+§8.4: Liste links, Inspektor rechts, Auswahl in der Adresse.
+
+**Vier Entscheidungen, die beim Bauen fielen:**
+
+- **Umgebungsvariablen werden gezählt, nicht ausgeliefert.** Sie tragen auf
+  jedem zweiten Server ein Datenbankpasswort. Der Detailtyp nennt ihre Anzahl,
+  und es gibt keinen Endpunkt, der die Werte hergäbe — dasselbe Argument wie
+  bei der Sperrliste des Dateimanagers: Wer sie braucht, hat SSH. Ein Test
+  prüft, dass der Wert aus der aufgezeichneten Beispielausgabe nirgends in der
+  Antwort auftaucht.
+- **„Auffällig" wird an einer Stelle entschieden** (`containerStufe`), und die
+  Übersicht speist ihren Handlungsbedarf aus derselben Funktion. Zwei Fassungen
+  liefen auseinander, und dann meldete die Übersicht einen Befund, den die
+  Containerliste nicht kennt. Ein laufender, aber **ungesunder** Container ist
+  dabei der schärfste Fall — er steht auf „läuft" und tut trotzdem nicht, wofür
+  er da ist. Mit Code 0 beendet ist dagegen kein Befund: Ein einmaliger Auftrag
+  darf nicht dauerhaft einen roten Punkt erzeugen.
+- **Zustandswort und Statussatz bleiben roh.** „exited" und „dead" sind nicht
+  dasselbe, und Dockers Satz („Exited (137) 2 days ago") trägt die Angabe, für
+  die es kein Zustandswort gibt. Die Gesundheit steht bei `docker ps` nur in
+  Klammern im Statussatz und wird von dort gelesen; fehlt sie, ist der Container
+  **nicht gesund, sondern ungeprüft** — das Image bringt keine Prüfung mit.
+- **Der Protokollauszug kommt mit dem Detail**, nicht als zweiter Aufruf. Wer
+  einen Container anklickt, will wissen, was er sagt. Das Verfolgen ist ein
+  eigener Strom nach dem Muster des Journals, mit Herzschlag, Folgerbegrenzung
+  (vier) und gemeldeten verworfenen Zeilen — und mit eigener Zählung neben dem
+  Journal, damit ein offenes Containerprotokoll nicht den Blick ins Journal
+  versperrt.
+
+**Zwei Fehler, die der Bau zutage gebracht hat**, beide in Testcode und beide
+lehrreich genug für einen Vermerk:
+
+- **`mussJSON` verlangt Status 200.** Auf eine 409-Antwort angewendet meldete es
+  „erwartet 200" — die Fehlermeldung zeigte damit auf den Handler, während der
+  Fehler im Test stand. Jetzt liest `rueckfrageAus` die Rückfrage, und der
+  Statuscode gehört zur Erwartung.
+- **Ein Deadlock in der Attrappe.** `record` nimmt dieselbe Sperre wie die
+  Methode, in der es steht; ein zweiter Vermerk im gesperrten Abschnitt ließ den
+  ganzen Testlauf hängen, bis `go test` ihn nach zehn Minuten abbrach.
+
+**Gemessen:** Binärgröße 17,3 MB (< 30), Abdeckung `privops` 78,3 % (> 72),
+`httpd` 69,8 % (> 68), direkte Go-Abhängigkeiten unverändert 6.
 
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:

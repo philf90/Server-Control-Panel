@@ -96,6 +96,15 @@ Fläche diese Tabelle verlassen will, gehört die Begründung genauso hierhin �
 stillschweigende Abweichung wäre der Anfang davon, dass die Stufen nichts mehr
 bedeuten.
 
+**Zweite Abweichung, ebenfalls begründet: einen laufenden Container entfernen.**
+Nach der Tabelle wäre das Entfernen eines Containers Stufe 2 — der Container ist
+weg, das Image bleibt, ein neuer ist ein Handgriff. Läuft er aber, tut derselbe
+Klick zwei Dinge auf einmal: Er beendet einen Dienst *und* löscht ihn. Deshalb
+Stufe 3 mit dem **Containernamen** (objektbezogen, nicht systemweit — es trifft
+einen Container und nicht den Server). Ein gestoppter Container bleibt Stufe 2,
+ihn zu starten Stufe 1, ihn zu stoppen Stufe 2. Die vollständige Tabelle des
+Moduls steht in [17-docker.md](17-docker.md).
+
 Verglichen wird ohne Rücksicht auf Groß- und Kleinschreibung (`EqualFold`): Auf
 einem Telefon macht die Tastatur aus `vm` gern `Vm`. Wer den Namen abgeschrieben
 hat, hat die Rückfrage gelesen — mehr soll die Stufe nicht leisten.

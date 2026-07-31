@@ -2854,6 +2854,56 @@ async function main() {
   // Aufbau (.platte .satz), und wenn der stünde, führte der Menüpunkt weiter auf
   // die Vertröstung statt auf das Modul.
   dock.istBald = await seite.evaluate(() => !!document.querySelector(".platte .satz"));
+
+  // Die Containerwerkbank. Zwei Dinge sind hier nur im Browser zu sehen: dass
+  // die auffälligen Zeilen oben stehen (die Sortierung kommt vom Server, aber ob
+  // sie ankommt, sagt nur die gerenderte Tabelle), und dass der Inspektor mit
+  // der Auswahl in der Adresse auf- und mit dem Zurück-Knopf wieder zugeht.
+  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
+  dock.reihen = await seite.evaluate(() =>
+    [...document.querySelectorAll(".tabelle tbody tr")].map((tr) => ({
+      name: tr.querySelector('[data-spalte="Name"]')?.textContent.trim() ?? "",
+      zustand: tr.querySelector('[data-spalte="Zustand"] .zustand')?.className ?? "",
+    })),
+  );
+
+  await seite.click('.tabelle tbody tr:first-child [data-spalte="Name"] button');
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  dock.nachKlick = {
+    suche: new URL(seite.url()).search,
+    titel: await seite.evaluate(
+      () => document.querySelector(".inspektor .pfad")?.textContent.trim() ?? "",
+    ),
+    // Das Protokoll kommt MIT dem Detail und nicht als zweiter Aufruf.
+    auszug: await seite.evaluate(
+      () => document.querySelector(".inspektor pre")?.textContent.trim() ?? "",
+    ),
+    handgriffe: await seite.evaluate(() =>
+      [...document.querySelectorAll(".inspektor .aktionen .knopf")].map((k) => k.textContent.trim()),
+    ),
+  };
+
+  // Die Rückfrage beim Stoppen: Stufe 2, also Dialog ohne Tippfeld.
+  const stopKnopf = await seite.$(".inspektor .aktionen .knopf");
+  if (stopKnopf) await stopKnopf.click();
+  await seite.waitForSelector("dialog[open]", { timeout: 5000 }).catch(() => {});
+  dock.rueckfrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog[open]");
+    if (!d) return { offen: false };
+    return {
+      offen: true,
+      frage: d.querySelector("h2, .frage")?.textContent.trim() ?? d.textContent.trim().slice(0, 80),
+      tippfeld: !!d.querySelector('input[type="text"]'),
+    };
+  });
+  await seite.keyboard.press("Escape");
+
+  await seite.goBack();
+  await seite.waitForTimeout(200);
+  dock.nachZurueck = {
+    inspektor: await seite.evaluate(() => !!document.querySelector(".inspektor")),
+    suche: new URL(seite.url()).search,
+  };
   dock.navAktiv = await seite.evaluate(
     () =>
       document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",

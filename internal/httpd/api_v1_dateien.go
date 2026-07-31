@@ -383,9 +383,11 @@ func (s *Server) handleAPIFileEntry(w http.ResponseWriter, r *http.Request) {
 //     wieder loswerden wollte, musste seinen Namen abschreiben. Eine Hürde ohne
 //     Anlass entwertet die Hürde dort, wo sie zählt (docs/14-bestaetigungen.md).
 //
-// Die alte Oberfläche trägt diesen Fehler noch; sie ist eingefroren und behält
-// ihn. Die Regel steht deshalb hier und nicht in privops: Measure zählt richtig,
-// was es zu zählen behauptet — die Frage ist, was die Oberfläche daraus macht.
+// Die Regel steht hier und nicht in privops: Measure zählt richtig, was es zu
+// zählen behauptet — die Frage ist, was die Oberfläche daraus macht. Die alte
+// Oberfläche machte es falsch und trug den Fehler bis zu ihrem Abbau; sie war
+// eingefroren, und eine Korrektur an einer Fläche, die verschwindet, wäre
+// Arbeit für niemanden gewesen.
 func unterhalb(m privops.Measurement, istOrdner bool) privops.Measurement {
 	if istOrdner && m.Dirs > 0 {
 		m.Dirs--

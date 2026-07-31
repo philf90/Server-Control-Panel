@@ -5,21 +5,19 @@
 // Ein neues Modul erscheint dann in der Leiste, aber nicht in der Suche, und
 // niemandem fällt auf, warum es sich nicht finden lässt.
 //
-// Solange die neue Oberfläche neben der alten läuft, gibt es drei Arten von
-// Zielen, und der Unterschied gehört in die Adresse:
+// Es gibt zwei Arten von Zielen, und der Unterschied gehört in die Adresse:
 //
-//   * gebaut (neu: true) — eigene Seite der neuen Oberfläche.
-//   * vorhanden, aber noch nicht übertragen — Verweis auf die alte Oberfläche
-//     unter /. Kein toter Verweis, und der Weg zurück ist immer da.
-//   * angekündigt — ein Modul, das es noch nicht gibt (Cron, Docker,
-//     Webserver, Datenbanken, Backups). Sie zeigten bis 0.4.0-rc.2 auf / und
-//     landeten stillschweigend auf der Übersicht; das sah wie ein Fehler aus.
-//     Jetzt haben sie einen eigenen Pfad und eine Seite, die sagt, mit welcher
-//     Fassung sie kommen (lib/weg.svelte.ts, `angekuendigt`).
+//   * gebaut (neu: true) — eine eigene Seite.
+//   * angekündigt — ein Modul, das es noch nicht gibt (Docker, Webserver,
+//     Datenbanken, Backups). Sie zeigten bis 0.4.0-rc.2 auf / und landeten
+//     stillschweigend auf der Übersicht; das sah wie ein Fehler aus. Jetzt haben
+//     sie einen eigenen Pfad und eine Seite, die sagt, mit welcher Fassung sie
+//     kommen (lib/weg.svelte.ts, `angekuendigt`).
 //
-// Mit dem Umschalten (0.4.0) ist die zweite Art verschwunden: Alle Ziele sind
-// gebaut. Die eingefrorene alte Fläche steht nicht im Menü — sie ist ein Rückweg
-// und kein Ziel, und ein Menüpunkt dorthin wäre eine Einladung, sie zu benutzen.
+// Es war einmal eine dritte Art: „vorhanden, aber noch nicht übertragen" —
+// Verweise in die alte Oberfläche für Module, die es hier noch nicht gab. Mit dem
+// Umschalten (0.4.0) fiel sie weg, weil alle Ziele gebaut waren; mit dem Abbau
+// (0.4.1) gibt es das Ziel nicht mehr, auf das sie gezeigt hätte.
 
 import { t } from "./texte";
 
@@ -39,7 +37,7 @@ export type Ziel = {
    *  hinter apiOwner und antwortet 403, egal was hier steht. Aber ein Menüpunkt,
    *  der zuverlässig „vorbehalten" sagt, ist kein Menüpunkt — er ist eine
    *  Einladung, es trotzdem zu versuchen. Die alte Oberfläche hielt es genauso
-   *  ({{if .IsOwner}} in partials.html). */
+   *  ({{if .IsOwner}} in ihrer Symbolschiene). */
   nurOwner?: boolean;
   /** Wörter, unter denen jemand sucht, die aber nicht im Namen stehen.
    *

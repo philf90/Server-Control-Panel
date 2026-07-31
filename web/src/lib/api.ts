@@ -142,10 +142,14 @@ export function csrfToken(): string {
 }
 
 // WebAuthn arbeitet mit ArrayBuffers, JSON kann keine tragen — an dieser Grenze
-// wird umgerechnet. Dieselben zwei Funktionen stehen in
-// internal/ui/static/passkey-register.js für die alte Oberfläche; sie sind so
-// klein und so festgelegt (RFC 4648 §5), dass eine geteilte Fassung nur eine
-// Abhängigkeit zwischen zwei Flächen wäre, die sonst nichts miteinander teilen.
+// wird umgerechnet.
+//
+// Dieselben zwei Funktionen stehen in internal/ui/static/passkey-login.js und
+// passkey-reset.js: Die Anmeldung und der Weg über ein vergessenes Passwort sind
+// server-gerenderte Seiten und laden dieses Bundle nicht. Sie sind so klein und
+// so festgelegt (RFC 4648 §5), dass eine geteilte Fassung nur eine Abhängigkeit
+// zwischen zwei Flächen wäre, die sonst nichts miteinander teilen — und die
+// Anmeldeseite darf von der Fläche dahinter nichts brauchen.
 
 function b64urlZuPuffer(s: string): ArrayBuffer {
   const gefuellt = s.replace(/-/g, "+").replace(/_/g, "/").padEnd(

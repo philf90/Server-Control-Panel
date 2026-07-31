@@ -7,24 +7,25 @@
 // Übersicht 350 KiB Editor mitlädt, wäre auf einer schlechten Leitung eine
 // Zumutung — und zwar für alle, nicht nur für die, die editieren.
 //
-// Warum CodeMirror ins Vite-Bundle wandert und nicht als eigenständiges Skript
-// bleibt (packaging/editor/cm.js, für die alte Oberfläche):
+// Warum CodeMirror hier im Vite-Bundle liegt und nicht als eigenständiges Skript
+// daneben. Es lag einmal daneben: packaging/editor/ baute ein eigenes cm.js für
+// die Editorseite der alten Oberfläche, mit eigenem Lockfile und eigenem
+// Reproduzierbarkeits-Job. Diese Kette ist mit ihr abgebaut, und zwar aus drei
+// Gründen, die auch gegen ihre Rückkehr sprechen:
 //
-//   * Es ist getippt. Die alte Fassung ist eine IIFE, die eine <textarea>
-//     ersetzt und über data-Attribute gesteuert wird — in einer SPA hieße das,
-//     einen Zustand außerhalb von Svelte zu halten und ihn beim Wechsel des
-//     Eintrags von Hand aufzuräumen.
-//   * Es ist EIN Bauweg. Zwei Node-Ketten mit zwei Lockfiles und zwei
+//   * Getippt statt data-Attribute. Die alte Fassung war eine IIFE, die eine
+//     <textarea> ersetzte und über data-Attribute gesteuert wurde — in einer SPA
+//     hieße das, einen Zustand außerhalb von Svelte zu halten und ihn beim
+//     Wechsel des Eintrags von Hand aufzuräumen.
+//   * EIN Bauweg. Zwei Node-Ketten mit zwei Lockfiles und zwei
 //     Reproduzierbarkeits-Jobs sind zwei Gelegenheiten, dass eine davon
 //     veraltet.
-//   * Die Fassungen sind dieselben, exakt festgeschrieben wie dort. Mit dem
-//     Wegfall der alten Oberfläche fällt packaging/editor/ weg, nicht dies.
+//   * Eine Auswahl an Modulen, nicht zwei, die auseinanderlaufen können.
 //
 // Bewusst NICHT "basic-setup": Das Paket zieht Autovervollständigung, Linter,
 // Suchleiste und Faltung mit hinein — Funktionen, die ein Panel zum Bearbeiten
 // einer Konfigurationsdatei nicht braucht und die den Brocken verdoppeln. Was
-// hier steht, ist die Auswahl, die tatsächlich benutzt wird. Dieselbe Auswahl wie
-// in packaging/editor/editor.mjs.
+// hier steht, ist die Auswahl, die tatsächlich benutzt wird.
 //
 // Zur Content-Security-Policy — die Stelle, an der dieses Projekt schon zweimal
 // gescheitert ist, und an der es beim ersten Anlauf dieses Moduls wieder

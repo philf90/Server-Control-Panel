@@ -2,16 +2,19 @@
 // durch den Passkey-Durchlauf. Aufgerufen aus den E2E-Tests.
 //
 // argv: mode baseURL username password sessionCookieValue chromiumPath
-//   mode = "flow"   — registrieren, abmelden, mit Passkey anmelden (positiv)
-//   mode = "tamper" — wie flow, aber die Assertion beim Anmelden verfälschen;
-//                     die Anmeldung MUSS scheitern (negativ)
+//   mode = "konto"  — auf der Kontoseite registrieren, umbenennen, abmelden, mit
+//                     dem Passkey anmelden, entfernen (positiv)
+//   mode = "tamper" — registrieren, dann die Assertion beim Anmelden
+//                     verfälschen; die Anmeldung MUSS scheitern (negativ)
 //   mode = "forgot" — registrieren, abmelden, Passwort über "Passwort
 //                     vergessen" per Passkey neu setzen (positiv)
-//   mode = "v2"     — dieselbe Registrierung über die NEUE Oberfläche
-//                     (/konto), danach Anmeldung mit diesem Passkey, umbenennen
-//                     und entfernen (positiv)
 //   mode = "forgot-nouv" — derselbe Weg mit einem Authenticator, der nichts am
 //                     Gerät prüft; die Zurücksetzung MUSS scheitern (negativ)
+//
+// Es gab einen fünften Modus "flow": registrieren über /alt/account, abmelden,
+// anmelden. Er ist mit dem Abbau der alten Oberfläche entfallen; was er belegte,
+// belegt "konto" auf demselben Weg, den auch ein Mensch geht. Damit registrieren
+// alle Modi über /konto — es gibt nur noch eine Kontoseite.
 const { chromium } = require("playwright");
 
 const [, , mode, baseURL, username, password, sessionCookie, chromiumPath] = process.argv;
@@ -46,7 +49,7 @@ const NEW_PASSWORD = "ein frisches langes Passwort";
     { name: "asylum_session", value: sessionCookie, domain: "localhost", path: "/", secure: true, httpOnly: true, sameSite: "Strict" },
   ]);
 
-  if (mode === "v2") {
+  if (mode === "konto") {
     // Dieselbe Zeremonie über die NEUE Oberfläche. Der Nachweis, auf den es
     // ankommt, ist nicht „ein Eintrag erscheint in der Liste", sondern: Ein über
     // /konto registrierter Passkey trägt eine echte Anmeldung. Alles zwischen
@@ -139,17 +142,22 @@ const NEW_PASSWORD = "ein frisches langes Passwort";
       () => document.querySelectorAll(".passkeys li").length,
     );
 
-    console.log("V2-BEOBACHTET " + JSON.stringify(beobachtet));
-    console.log("V2-OK");
+    console.log("KONTO-BEOBACHTET " + JSON.stringify(beobachtet));
+    console.log("KONTO-OK");
     await browser.close();
     return;
   }
 
-  await page.goto(baseURL + "/alt/account");
-  await page.fill("#pk-label", "E2E-Key");
+  // Die übrigen Modi brauchen einen hinterlegten Passkey, prüfen aber etwas
+  // anderes als die Kontoseite. Registriert wird deshalb auf demselben Weg wie
+  // oben — es gibt nur eine Kontoseite —, nur ohne die Beobachtungen.
+  page.on("pageerror", (e) => console.error("BROWSER-FEHLER " + e.message));
+  await page.goto(baseURL + "/konto");
+  await page.waitForSelector("#pk-name", { timeout: 10000 });
+  await page.fill("#pk-name", "E2E-Key");
   await page.fill("#pk-pass", password);
-  await page.click("#passkey-add button");
-  await page.waitForSelector("text=E2E-Key", { timeout: 10000 });
+  await page.click('form:has(#pk-name) button[type=submit]');
+  await page.waitForSelector(".passkeys li", { timeout: 15000 });
 
   // Abmelden.
   await ctx.clearCookies();
@@ -213,14 +221,8 @@ const NEW_PASSWORD = "ein frisches langes Passwort";
     return;
   }
 
-  // Positiver Fall: mit Passkey anmelden.
-  await page.goto(baseURL + "/login");
-  await page.fill("#username", username);
-  await page.fill("#password", password);
-  await page.click("#passkey-login");
-  await page.waitForURL(baseURL + "/", { timeout: 10000 });
-  console.log("E2E-OK");
-  await browser.close();
+  console.error("unbekannter Modus: " + mode);
+  process.exit(1);
 })().catch((e) => {
   console.error("E2E-ERR " + (e && e.message ? e.message : e));
   process.exit(1);

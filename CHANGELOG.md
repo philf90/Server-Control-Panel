@@ -9,6 +9,91 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.4.1] — 2026-07-31
+
+**Die alte Oberfläche ist weg.** Was 0.4.0 unter `/alt/` als Rückweg
+stehengelassen hat, ist entfernt: 18 Vorlagen, 12 statische Skripte, das
+eingecheckte CodeMirror-Bundle samt seiner Node-Kette, 68 Routen und die Handler
+dahinter. Unterm Strich **19.400 Zeilen weniger** bei 773 neuen.
+
+Damit gibt es einen Weg an die Systemfunktionen und nicht zwei. Solange es zwei
+gab, war jede Frage nach dem Verhalten des Panels zweimal zu beantworten — und
+eine Bestätigungsstufe, eine Rollenprüfung oder eine Pfadwache, die man an einer
+von zwei Stellen korrigiert, ist nicht korrigiert.
+
+**Für Sie ändert sich, wenn Sie 0.4.0 laufen haben, sichtbar nur eines:** Ein
+Lesezeichen auf `/alt/…` antwortet jetzt 404 statt der eingefrorenen Fläche. Die
+Adressen der neuen Oberfläche sind unverändert, es gibt keine Migration, und die
+Sitzungen bleiben gültig.
+
+### Entfernt
+
+- **Die server-gerenderte Panel-Oberfläche** unter `/alt/`: 68 Routen, 18
+  Vorlagen (`dashboard`, `services`, `service`, `packages`, `firewall`, `files`,
+  `file-entry`, `file-edit`, `logs`, `audit`, `account`, `users`, `sysusers`,
+  `reset`, `certificate`, `update`, `totp-change`, `bestaetigung`), 12 Skripte
+  (`live.js`, `bestaetigen.js`, `spark.js`, `job.js`, `update.js`, `certform.js`,
+  `zielwahl.js`, `rechte.js`, `countdown.js`, `files-upload.js`,
+  `passkey-register.js`, `theme.js`) und die Handler dazu. Der `unused`-Linter
+  war dabei das Werkzeug: Er hat 124 tote Deklarationen gefunden, von denen ein
+  Teil erst nach dem Löschen der vorigen sichtbar wurde.
+
+- **Die zweite Node-Kette.** `packaging/editor/` baute mit esbuild ein eigenes
+  CodeMirror-Bundle nach `internal/ui/static/editor/cm.js` für die alte
+  Editorseite — mit eigenem Lockfile, eigenem Reproduzierbarkeits-Job und eigener
+  Lizenzprüfung in der CI. CodeMirror kommt jetzt allein aus `web/`. Zwei
+  Lockfiles sind zwei Gelegenheiten, dass eines veraltet; `make editor` und der
+  CI-Job „Editor-Bundle reproduzierbar" sind entfallen.
+
+- **Die Hintergrunderhebung des Handlungsbedarfs.** Der Messtakt zog alle fünf
+  Minuten `systemctl list-units --failed` und den apt-Stand nach und legte das
+  Ergebnis in einem Cache ab, aus dem die Warnpunkte an der Symbolschiene
+  gespeist wurden — sie standen auf *jeder* gerenderten Seite, und sie bei jedem
+  Seitenaufbau frisch zu erheben hätte jede Seite an ein `systemctl` gehängt. Mit
+  der Schiene ist der einzige Leser des Caches gegangen. Was geblieben wäre, ist
+  eine Erhebung für niemanden. `/api/v1/signals` erhebt frisch bei jeder Anfrage:
+  teurer pro Aufruf, ehrlicher im Ergebnis.
+
+- **Der zweite Antwortweg des Uploads.** `POST /api/v1/files/upload` lieferte
+  ohne `Accept: application/json` die gerenderte Verzeichnisliste zurück, damit
+  ein Formular ohne JavaScript eine Antwort bekam. Die Seite gibt es nicht mehr;
+  ein API-Endpunkt, der je nach Kopfzeile einmal JSON und einmal HTML liefert,
+  ist keine Schnittstelle, sondern zwei.
+
+- **Der Umschalter für Hell/Dunkel** auf den Seiten vor der Anmeldung. Der Knopf
+  saß im Fuß der Symbolschiene. Ein bestehendes `asylum_theme`-Cookie gilt
+  weiter — wer hell gewählt hat, behält es —, und die Systemeinstellung
+  (`prefers-color-scheme`) wirkt wie bisher. Einen neuen Umschalter bringt die
+  neue Oberfläche mit, sobald sie ein helles Schema hat.
+
+### Geändert
+
+- **`internal/ui` trägt nur noch die neun Seiten vor der Anmeldung.** Anmeldung,
+  Ersteinrichtung, zweiter Faktor, Wiederherstellungscodes, „Passwort
+  vergessen", das neue Passwort danach, der erzwungene Wechsel und die
+  Fehlerseite — dazu die Teilvorlage mit Rahmen und Passwortprüfung. Sie bleiben
+  server-gerendert, und der Grund ist immer derselbe: **Wer sich nicht anmelden
+  kann, kann auch kein Bundle laden.** `app.css` schrumpfte dabei von 2.259 auf
+  343 Zeilen; die Statusleiste, die Schiene, die Konsole, die Tabellen, die
+  Aufklapper und das Rechtegitter sind mit ihrem Markup gegangen.
+
+- **Zwei neue Wächter halten den Abbau fest** (`internal/ui/vorseiten_test.go`,
+  vormals `responsiv_test.go`): Eine zehnte Vorlage unter `templates/` oder eine
+  fünfte Datei unter `static/` bricht den Testlauf mit der Frage, ob die Seite
+  wirklich vor die Anmeldung gehört. Ohne das wäre ein server-gerendertes
+  Formular auf Dauer der bequemere Weg — und damit der Anfang einer zweiten
+  Oberfläche, diesmal versehentlich.
+
+- **Die Deckungsgrenze für `internal/httpd` steigt von 63 auf 68 %** (gemessen
+  70,0 %). Der Abbau nahm überwiegend ungetestete Anzeigelogik mit; eine Grenze,
+  die danach sieben Punkte unter dem Stand liegt, hält nichts.
+
+- **Ein Browserdurchlauf weniger, derselbe Nachweis.** Der Passkey-Test fuhr die
+  Registrierung zweimal: einmal über `/alt/account` (Modus `flow`), einmal über
+  `/konto` (Modus `v2`). Es gibt eine Kontoseite, also einen Durchlauf — jetzt
+  `konto`, und er prüft zusätzlich, dass am Passkey nach der Anmeldung nicht mehr
+  „noch nie benutzt" steht.
+
 ## [0.4.0] — 2026-07-31
 
 **Die neue Oberfläche ist die Oberfläche.** Wer das Panel aufruft, bekommt sie;
@@ -77,7 +162,8 @@ verworfen (Migration 0006); API-Tokens bleiben gültig.
   Programms: **Es aktualisiert sich selbst.** Ein Fehler in der neuen Fläche, der
   jemanden aussperrt, sperrt ihn auch aus dem Panel aus, über das der Rückweg
   einzuspielen wäre. Der Abbau — 27 Vorlagen, 17 statische Dateien, rund 4.500
-  Zeilen Handler und die daran hängenden Tests — folgt in 0.4.1.
+  Zeilen Handler und die daran hängenden Tests — folgt in 0.4.1. *(Nachtrag: Er
+  ist mit 0.4.1 erfolgt und fiel größer aus — siehe oben.)*
 
 - **Alle Sitzungen werden beim Update einmalig verworfen** (Migration 0006). Ein
   Cookie von vor dem Update stammt aus einer Zeit, in der das Panel anders aussah,

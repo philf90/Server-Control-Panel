@@ -131,11 +131,12 @@ func (s *Server) handleAPIJob(w http.ResponseWriter, r *http.Request) {
 
 // handleAPIJobEvents streamt die Ausgabe eines Vorgangs.
 //
-// Dieselbe Funktion, die die alte Oberfläche bedient: streamJob. Die Ereignisse
-// heißen weiter `output` und `end`, und `end` trägt weiter nur „ok" oder den
-// Fehlertext. Die neue Oberfläche verlässt sich darauf ausdrücklich NICHT — sie
-// fragt beim Ende die Ressource oben. Damit bleibt der Strom, was er ist: der
-// Weg für die Zeilen, während sie entstehen.
+// Der Strom selbst ist streamJob (handlers_system.go) — dieselbe Funktion, die
+// vor der Umstellung die alte Oberfläche bediente. Die Ereignisse heißen deshalb
+// weiter `output` und `end`, und `end` trägt weiter nur „ok" oder den Fehlertext.
+// Die Oberfläche verlässt sich darauf ausdrücklich NICHT — sie fragt beim Ende
+// die Ressource oben. Damit bleibt der Strom, was er ist: der Weg für die Zeilen,
+// während sie entstehen.
 func (s *Server) handleAPIJobEvents(w http.ResponseWriter, r *http.Request) {
 	art := r.PathValue("art")
 	if _, ok := jobArten[art]; !ok {

@@ -278,14 +278,19 @@ Windows-Trennern.
 ## Editor
 
 Zeilennummern, Hervorhebung für YAML, JSON, INI, Shell, nginx, Dockerfile und
-TOML, `Strg+S` zum Speichern. Grundlage ist CodeMirror 6; der Bundle liegt
-gebaut im Repository (`internal/ui/static/editor/cm.js`), damit ein Go-Build
-ohne Node-Kette auskommt. Reproduzierbarkeit und Lizenzen:
-[packaging/editor/THIRD-PARTY.md](../packaging/editor/THIRD-PARTY.md).
+TOML, `Strg+S` zum Speichern. Grundlage ist CodeMirror 6; es liegt im gebauten
+UI-Bundle (`internal/ui/dist/`, Quelle `web/src/lib/editorkern.ts`), damit ein
+Go-Build ohne Node-Kette auskommt. Reproduzierbarkeit und Lizenzen prüft der
+CI-Job „UI-Bundle reproduzierbar".
 
-Der Editor ersetzt eine `<textarea>`, die im Formular bleibt. **Ohne JavaScript
-funktioniert dieselbe Seite unverändert weiter** — nur ohne Zeilennummern und
-Farben.
+Geladen wird der Editor über ein dynamisches `import()`: Wer nur die Übersicht
+aufruft, holt die rund 350 KiB nicht. Bis 0.4.1 stand daneben eine zweite
+Node-Kette (`packaging/editor/`), die ein eigenes `cm.js` für die Editorseite der
+alten Oberfläche baute; sie ist mit ihr abgebaut.
+
+**Ohne JavaScript gibt es diese Seite nicht.** Die Oberfläche ist eine
+Einzelseiten-Anwendung — was ohne Skript läuft, sind die Wege vor der Anmeldung
+(siehe `docs/16-neukonzeption.md`, Abschnitt 8.1).
 
 Drei Zusagen über „Textfeld mit Speicherknopf" hinaus:
 

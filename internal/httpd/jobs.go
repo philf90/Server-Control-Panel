@@ -84,12 +84,6 @@ func (j *job) setNote(note string) {
 	j.note = note
 }
 
-func (j *job) noteOf() string {
-	j.mu.RLock()
-	defer j.mu.RUnlock()
-	return j.note
-}
-
 // jobStand ist der vollständige Zustand eines Vorgangs.
 //
 // snapshot liefert drei Werte, weil die alten Seiten nur drei brauchen. Die

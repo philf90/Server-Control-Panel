@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,27 +12,6 @@ import (
 	"github.com/philf90/asylum/internal/auth"
 	"github.com/philf90/asylum/internal/store"
 )
-
-// resetForm baut die Formulardaten des Abschnitts „Zugang zurücksetzen".
-func resetForm(target store.User, csrf, ownerPassword string) url.Values {
-	return url.Values{
-		"_csrf":          {csrf},
-		"target":         {strconv.FormatInt(target.ID, 10)},
-		"owner_password": {ownerPassword},
-	}
-}
-
-// einmalpasswortAus liest das genau einmal angezeigte Passwort aus der Antwort.
-var codeInHTML = regexp.MustCompile(`<code>([a-z0-9-]{19})</code>`)
-
-func einmalpasswortAus(t *testing.T, body string) string {
-	t.Helper()
-	m := codeInHTML.FindStringSubmatch(body)
-	if m == nil {
-		t.Fatalf("kein Einmalpasswort in der Antwort:\n%s", body)
-	}
-	return m[1]
-}
 
 func mustUser(t *testing.T, s *Server, id int64) store.User {
 	t.Helper()
@@ -46,181 +23,6 @@ func mustUser(t *testing.T, s *Server, id int64) store.User {
 }
 
 // ------------------------------------------------ Zurücksetzen durch Owner ---
-
-func TestOwnerResetPassword(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	ziel := addUser(t, s, "kollege", store.RoleAdmin)
-	cookie, csrf := login(t, s, owner)
-
-	// Das Zielkonto hat eine offene Sitzung und ist gesperrt — beides soll die
-	// Zurücksetzung aufräumen.
-	zielCookie, _ := login(t, s, ziel)
-	if err := s.db.SetDisabled(context.Background(), ziel.ID, true); err != nil {
-		t.Fatal(err)
-	}
-
-	rec := post(t, s, "/alt/users/reset-password", resetForm(ziel, csrf, testPassword), cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
-	}
-
-	password := einmalpasswortAus(t, rec.Body.String())
-	nach := mustUser(t, s, ziel.ID)
-
-	ok, err := auth.VerifyPassword(password, nach.PasswordHash)
-	if err != nil || !ok {
-		t.Errorf("das angezeigte Passwort passt nicht zum gespeicherten Hash (ok=%v, err=%v)", ok, err)
-	}
-	if !nach.MustChangePassword {
-		t.Error("der Wechselzwang wurde nicht gesetzt")
-	}
-	if nach.Disabled {
-		t.Error("die Sperre wurde nicht aufgehoben")
-	}
-	// Die Sitzung des Zielkontos ist beendet: Der Zugriff führt zur Anmeldung.
-	if rec := get(t, s, "/alt/account", zielCookie); rec.Code != http.StatusSeeOther {
-		t.Errorf("alte Sitzung des Zielkontos lebt weiter (Status %d)", rec.Code)
-	}
-	// Der zweite Faktor bleibt unberührt — das ist eine eigene Aktion.
-	if !nach.TOTPConfirmed {
-		t.Error("der zweite Faktor wurde mit zurückgesetzt")
-	}
-}
-
-func TestOwnerResetNeedsOwnPassword(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	ziel := addUser(t, s, "kollege", store.RoleAdmin)
-	cookie, csrf := login(t, s, owner)
-
-	rec := post(t, s, "/alt/users/reset-password", resetForm(ziel, csrf, "falsch falsch falsch"), cookie)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("Status = %d, erwartet 400", rec.Code)
-	}
-	if nach := mustUser(t, s, ziel.ID); nach.PasswordHash != ziel.PasswordHash || nach.MustChangePassword {
-		t.Error("das Zielkonto wurde trotz falschem Owner-Passwort verändert")
-	}
-}
-
-func TestOwnerResetRefusesOwnAccount(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	cookie, csrf := login(t, s, owner)
-
-	rec := post(t, s, "/alt/users/reset-password", resetForm(owner, csrf, testPassword), cookie)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("Status = %d, erwartet 400", rec.Code)
-	}
-	if mustUser(t, s, owner.ID).MustChangePassword {
-		t.Error("der Owner hat sich selbst zurückgesetzt")
-	}
-}
-
-func TestOwnerResetDeniedForAdmin(t *testing.T) {
-	s := newTestServer(t)
-	admin := addUser(t, s, "admin", store.RoleAdmin)
-	ziel := addUser(t, s, "kollege", store.RoleReadOnly)
-	cookie, csrf := login(t, s, admin)
-
-	for _, pfad := range []string{"/alt/users/reset-password", "/alt/users/reset-2fa", "/alt/users/reset-passkeys"} {
-		rec := post(t, s, pfad, resetForm(ziel, csrf, testPassword), cookie)
-		if rec.Code != http.StatusForbidden {
-			t.Errorf("%s: Status = %d, erwartet 403", pfad, rec.Code)
-		}
-	}
-	if mustUser(t, s, ziel.ID).MustChangePassword {
-		t.Error("ein Admin konnte ein fremdes Konto zurücksetzen")
-	}
-}
-
-func TestOwnerReset2FA(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	ziel := addUser(t, s, "kollege", store.RoleAdmin)
-	cookie, csrf := login(t, s, owner)
-
-	ctx := context.Background()
-	_, hashes, err := auth.NewRecoveryCodes()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.db.ReplaceRecoveryCodes(ctx, ziel.ID, hashes); err != nil {
-		t.Fatal(err)
-	}
-
-	rec := post(t, s, "/alt/users/reset-2fa", resetForm(ziel, csrf, testPassword), cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
-	}
-
-	nach := mustUser(t, s, ziel.ID)
-	if nach.TOTPConfirmed {
-		t.Error("der zweite Faktor gilt weiterhin als bestätigt")
-	}
-	if nach.TOTPSecret == ziel.TOTPSecret {
-		t.Error("das TOTP-Geheimnis wurde nicht ersetzt")
-	}
-	// Das Passwort bleibt: Wer sein Telefon verliert, hat sein Passwort nicht
-	// vergessen.
-	if nach.PasswordHash != ziel.PasswordHash || nach.MustChangePassword {
-		t.Error("das Passwort wurde mit angetastet")
-	}
-	left, err := s.db.CountUnusedRecoveryCodes(ctx, ziel.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if left != 0 {
-		t.Errorf("es blieben %d Wiederherstellungscodes übrig", left)
-	}
-}
-
-func TestOwnerResetPasskeys(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "owner", store.RoleOwner)
-	ziel := addUser(t, s, "kollege", store.RoleAdmin)
-	cookie, csrf := login(t, s, owner)
-
-	ctx := context.Background()
-	for _, id := range []string{"aaa", "bbb"} {
-		if _, err := s.db.AddWebAuthnCredential(ctx, store.WebAuthnCredential{
-			UserID: ziel.ID, CredentialID: id, Label: id, Data: []byte(`{}`),
-		}); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	rec := post(t, s, "/alt/users/reset-passkeys", resetForm(ziel, csrf, testPassword), cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200: %s", rec.Code, rec.Body.String())
-	}
-
-	n, err := s.db.CountWebAuthnCredentials(ctx, ziel.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n != 0 {
-		t.Errorf("es blieben %d Passkeys übrig", n)
-	}
-}
-
-// TestResetSectionHidesOwnAccount stellt sicher, dass das eigene Konto nicht in
-// der Auswahl steht — die Ablehnung im Handler ist der zweite Riegel, nicht der
-// erste.
-func TestResetSectionHidesOwnAccount(t *testing.T) {
-	s := newTestServer(t)
-	owner := addUser(t, s, "einzeln", store.RoleOwner)
-	cookie, _ := login(t, s, owner)
-
-	body := get(t, s, "/alt/users", cookie).Body.String()
-	if regexp.MustCompile(`<option value="` + strconv.FormatInt(owner.ID, 10) + `"`).MatchString(body) {
-		t.Error("das eigene Konto steht in der Auswahl zum Zurücksetzen")
-	}
-	// Ohne weiteres Konto entfällt der Abschnitt ganz.
-	if regexp.MustCompile(`id="zuruecksetzen"`).MatchString(body) {
-		t.Error("der Abschnitt erscheint, obwohl es kein anderes Konto gibt")
-	}
-}
 
 // ------------------------------------------------------ Erzwungener Wechsel ---
 
@@ -238,7 +40,7 @@ func TestForcedChangeBlocksPanel(t *testing.T) {
 	}
 
 	// Jede geschützte Seite führt auf die Wechselseite, nicht ins Panel.
-	for _, pfad := range []string{"/", "/alt/services", "/alt/users", "/alt/account"} {
+	for _, pfad := range []string{"/", "/dienste", "/zugaenge", "/konto"} {
 		rec := get(t, s, pfad, cookie)
 		if rec.Code != http.StatusSeeOther {
 			t.Errorf("%s: Status = %d, erwartet 303", pfad, rec.Code)
@@ -483,7 +285,7 @@ func TestForgotNewSetsPassword(t *testing.T) {
 		t.Error("nach der Selbstbedienung steht ein Wechselzwang an")
 	}
 	// Alle Sitzungen sind beendet.
-	if rec := get(t, s, "/alt/account", altCookie); rec.Code != http.StatusSeeOther {
+	if rec := get(t, s, "/konto", altCookie); rec.Code != http.StatusSeeOther {
 		t.Errorf("alte Sitzung lebt weiter (Status %d)", rec.Code)
 	}
 	// Das Ticket gilt genau einmal.

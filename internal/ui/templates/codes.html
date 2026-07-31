@@ -1,5 +1,5 @@
 {{define "codes"}}{{template "header" .}}
-<div class="card auth">
+<div class="card">
   <h1>Wiederherstellungscodes</h1>
   <p>
     Diese Codes werden <strong>jetzt einmalig</strong> angezeigt. Sie ersetzen
@@ -16,10 +16,6 @@
     Server ablegen, den sie absichern.
   </p>
 
-  {{if .Content.AfterChange}}
-  <a class="button" href="/alt/account">Zurück zum Konto</a>
-  {{else}}
-  <a class="button" href="/alt/">Weiter zur Übersicht</a>
-  {{end}}
+  <a class="button" href="/">Weiter zur Übersicht</a>
 </div>
 {{template "footer" .}}{{end}}

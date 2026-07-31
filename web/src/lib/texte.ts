@@ -272,8 +272,6 @@ export const t = {
     verweisGebrochen: "Das Ziel des Verweises existiert nicht.",
     inhaltZaehlung: "Inhalt",
     grenzeEditor: (text: string) => `Der Editor öffnet Dateien bis ${text}.`,
-    // Der Weg zurück bleibt sichtbar, solange die alte Fläche mehr kann.
-    alteAnsicht: "dieser Ordner in der alten Ansicht",
 
     // ---------------------------------------------------------- Verändern ---
     neuerOrdner: "Neuer Ordner",

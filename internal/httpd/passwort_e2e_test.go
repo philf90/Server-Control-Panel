@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"os"
@@ -45,6 +46,17 @@ func TestPasswortpruefungBrowser(t *testing.T) {
 	s := newTestServer(t)
 	user := addUser(t, s, name, store.RoleOwner)
 	cookie, _ := login(t, s, user)
+
+	// Der Treiber sieht die Prüfliste auf der Seite des erzwungenen Wechsels an.
+	// Sie steht nur einem Konto offen, dem ein Passwort vergeben wurde — sonst
+	// leitet requireAuth ins Panel weiter, und der Treiber fände keine .pwcheck.
+	hash, err := auth.HashPassword("Einmalpasswort xyz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.db.SetTemporaryPassword(context.Background(), user.ID, hash); err != nil {
+		t.Fatal(err)
+	}
 
 	proben := []string{
 		"kurz",                    // zu kurz

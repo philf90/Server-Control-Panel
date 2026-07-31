@@ -1,4 +1,5 @@
-// Tippt Passwörter in die Kontoseite und gibt zurück, was die Prüfliste sagt.
+// Tippt Passwörter in die Seite des erzwungenen Wechsels und gibt zurück, was die
+// Prüfliste sagt.
 //
 // Der Grund: Die Regeln stehen zweimal — in Go (auth.CheckPasswordPolicy, die
 // verbindliche Prüfung) und in passwort.js (die Anzeige beim Tippen). Zwei
@@ -35,7 +36,12 @@ async function main() {
   });
   seite.on("pageerror", (err) => verstoesse.push("Skriptfehler: " + err.message));
 
-  await seite.goto(basis + "/alt/account", { waitUntil: "load" });
+  // Bis 0.4.1 lief das über die Kontoseite der alten Oberfläche. Die
+  // Prüfliste steht jetzt auf drei server-gerenderten Seiten; genommen wird der
+  // erzwungene Wechsel, weil er die einzige davon ist, die den ANMELDENAMEN im
+  // Markup trägt (data-pw-name) — und die Regel „das Passwort enthält den
+  // Anmeldenamen" ist die, an der Anzeige und Server am ehesten auseinanderlaufen.
+  await seite.goto(basis + "/account/password-change", { waitUntil: "load" });
 
   // Vor der ersten Eingabe darf keine Regel rot sein: Ein leeres Feld mit
   // Kreuzen sieht aus wie eine Ablehnung.

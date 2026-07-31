@@ -48,18 +48,21 @@ Daten, was ein gültiger Zustand ist und getestet wird.
 
 ### Oberfläche ändern
 
-Für Go allein ist **kein Node nötig**. Zwei gebaute Bündel liegen im
-Repository, damit das so bleibt:
+Für Go allein ist **kein Node nötig**. Das gebaute Bündel liegt im Repository,
+damit das so bleibt:
 
 | Was | Quelle | Ergebnis | Ziel |
 |---|---|---|---|
 | Oberfläche (Svelte 5, Vite) | `web/` | `internal/ui/dist/` | `make ui` |
-| Editor (CodeMirror, esbuild) | `packaging/editor/` | `internal/ui/static/editor/cm.js` | `make editor` |
 
-Wer an einem davon arbeitet, braucht Node 22 und muss **das gebaute Ergebnis
-mit einchecken**: Je ein CI-Job baut es aus dem festgeschriebenen Lockfile nach
-und vergleicht byteweise. Schlägt er an, fehlt der Lauf von `make ui` bzw.
-`make editor` im Commit.
+Wer daran arbeitet, braucht Node 22 und muss **das gebaute Ergebnis mit
+einchecken**: Ein CI-Job baut es aus dem festgeschriebenen Lockfile nach und
+vergleicht byteweise. Schlägt er an, fehlt der Lauf von `make ui` im Commit.
+
+(Bis 0.4.1 stand hier eine zweite Kette: `packaging/editor/` baute mit esbuild
+ein eigenes CodeMirror-Bundle nach `internal/ui/static/editor/cm.js` für die
+Editorseite der alten Oberfläche. Mit ihr ist sie abgebaut — CodeMirror kommt
+jetzt aus `web/`, aus einem Lockfile und mit einem Reproduzierbarkeits-Job.)
 
 Daraus folgen drei Regeln für `web/`:
 

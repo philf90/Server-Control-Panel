@@ -132,7 +132,7 @@ func (s *Server) handleForgotForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.renderPage(w, r, http.StatusOK, "forgot",
-		s.base(r, "Passwort vergessen", "").with(forgotPage{WebAuthnOn: s.passkeys != nil}))
+		s.base(r, "Passwort vergessen").with(forgotPage{WebAuthnOn: s.passkeys != nil}))
 }
 
 // handleForgotBegin liefert die Optionen für die Zeremonie. Kein Konto, kein
@@ -237,7 +237,7 @@ func (s *Server) handleForgotNewForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		s.clearResetCookie(w)
 		s.renderPage(w, r, http.StatusForbidden, "forgot",
-			s.base(r, "Passwort vergessen", "").
+			s.base(r, "Passwort vergessen").
 				withError("Der Vorgang ist abgelaufen. Bitte erneut beginnen.").
 				with(forgotPage{WebAuthnOn: s.passkeys != nil}))
 		return
@@ -246,7 +246,7 @@ func (s *Server) handleForgotNewForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderForgotNew(w http.ResponseWriter, r *http.Request, status int, username, errMsg string) {
-	page := s.base(r, "Neues Passwort", "").with(forgotNewPage{Username: username})
+	page := s.base(r, "Neues Passwort").with(forgotNewPage{Username: username})
 	if errMsg != "" {
 		page = page.withError(errMsg)
 	}
@@ -261,7 +261,7 @@ func (s *Server) handleForgotNew(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		s.clearResetCookie(w)
 		s.renderPage(w, r, http.StatusForbidden, "forgot",
-			s.base(r, "Passwort vergessen", "").
+			s.base(r, "Passwort vergessen").
 				withError("Der Vorgang ist abgelaufen. Bitte erneut beginnen.").
 				with(forgotPage{WebAuthnOn: s.passkeys != nil}))
 		return
@@ -320,7 +320,7 @@ func (s *Server) handleForgotNew(w http.ResponseWriter, r *http.Request) {
 		"neues Passwort gesetzt, alle Sitzungen beendet")
 
 	s.renderPage(w, r, http.StatusOK, "login",
-		s.base(r, "Anmeldung", "").
+		s.base(r, "Anmeldung").
 			withFlash("Das Passwort wurde geändert. Alle Sitzungen sind beendet — bitte neu anmelden.").
 			with(loginPage{Username: ticket.username, WebAuthnOn: s.passkeys != nil}))
 }

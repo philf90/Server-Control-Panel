@@ -18,15 +18,13 @@
  *  musste, war der Zweck der Konstante.
  *
  *  Ein leerer Wert heißt für gehe(): Jeder Pfad, der mit "/" beginnt und nicht
- *  ausdrücklich fremd ist, gehört dieser Anwendung. Die eine Ausnahme ist die
- *  eingefrorene alte Fläche unter /alt/ — dorthin navigiert der Browser, nicht
- *  der eigene Router. */
+ *  ausdrücklich fremd ist, gehört dieser Anwendung. Fremd sind nur noch die
+ *  server-gerenderten Seiten vor der Anmeldung — siehe die Liste weiter unten.
+ *
+ *  Hier stand daneben eine Konstante ALT = "/alt/" für die eingefrorene alte
+ *  Fläche. Sie war eine Fassung lang als Rückweg erreichbar (0.4.0) und ist mit
+ *  0.4.1 abgebaut. */
 export const BASIS = "";
-
-/** ALT ist der Pfad der eingefrorenen alten Oberfläche. Sie ist eine Fassung
- *  lang als Rückweg erreichbar; Verweise dorthin sind FREMDE Ziele und dürfen
- *  nicht im eigenen Router landen — sonst zeigte er eine leere Seite. */
-export const ALT = "/alt/";
 
 /** Seite ist die Kennung der stehenden Seite — dieselbe wie die id des Ziels in
  *  lib/ziele.ts, damit die Seitenleiste ohne eine zweite Zuordnung weiß, welcher
@@ -209,10 +207,12 @@ class Weg {
  *  Mit leerem BASIS ist die Frage umgekehrt zu vorher: Nicht „liegt er unter
  *  /v2?", sondern „ist er ausdrücklich fremd?". Fremd sind die
  *  server-gerenderten Dauerseiten (Anmeldung, Erstinstallation, Abmelden,
- *  erzwungener Wechsel), die eingefrorene alte Fläche und alles unter /api/ und
- *  /static/. Sie abzufangen hieße, eine leere Seite zu zeigen — der eigene
- *  Router hat für sie keine Ansicht. */
-const fremd = ["/login", "/logout", "/setup", "/account/password-change", ALT,
+ *  erzwungener Wechsel) und alles unter /api/ und /static/. Sie abzufangen hieße,
+ *  eine leere Seite zu zeigen — der eigene Router hat für sie keine Ansicht.
+ *
+ *  Bis 0.4.1 stand hier zusätzlich /alt/, die eingefrorene alte Fläche. Sie ist
+ *  abgebaut; ihre Pfade sind jetzt gewöhnliche 404. */
+const fremd = ["/login", "/logout", "/setup", "/account/password-change",
   "/api/", "/static/", "/healthz", "/events"];
 
 function eigenesZiel(href: string): boolean {

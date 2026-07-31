@@ -2,7 +2,6 @@ package httpd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/philf90/asylum/internal/auth"
-	"github.com/philf90/asylum/internal/metrics"
 	"github.com/philf90/asylum/internal/store"
 )
 
@@ -40,10 +38,7 @@ func TestBuildSparkVerdichtetDenRingpuffer(t *testing.T) {
 		t.Errorf("%d Stützstellen im Pfad, erwartet %d", got, sparkPunkte)
 	}
 
-	var punkte []sparkPunkt
-	if err := json.Unmarshal([]byte(s.Points), &punkte); err != nil {
-		t.Fatalf("Messpunkte sind kein JSON: %v", err)
-	}
+	punkte := s.Punkte
 	if len(punkte) != sparkPunkte {
 		t.Fatalf("%d Messpunkte, erwartet %d", len(punkte), sparkPunkte)
 	}
@@ -99,11 +94,7 @@ func TestBuildSparkLaesstFlachesFlach(t *testing.T) {
 		}
 	}
 
-	var punkte []sparkPunkt
-	s := buildSpark(at, vals, prozentText, 5)
-	if err := json.Unmarshal([]byte(s.Points), &punkte); err != nil {
-		t.Fatal(err)
-	}
+	punkte := buildSpark(at, vals, prozentText, 5).Punkte
 
 	hoch, tief := punkte[0].Y, punkte[0].Y
 	for _, p := range punkte {
@@ -170,183 +161,8 @@ func TestVerdichtenMitteltUndBehaeltDieZeit(t *testing.T) {
 	}
 }
 
-// -------------------------------------------------------- Netzwerkkachel ---
-
-// TestNetzkachelZeigtDieEchteSchnittstelle ist der Regressionstest zum Befund:
-// Auf der Übersicht stand docker0 mit 0 B/s, während enp1s0 den Verkehr trug.
-func TestNetzkachelZeigtDieEchteSchnittstelle(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, _ := login(t, s, user)
-
-	s.setLatest(metrics.Snapshot{
-		At:         time.Now(),
-		UptimeText: "1 Std 0 Min",
-		Interfaces: []metrics.Interface{
-			{Name: "docker0", Addrs: []string{"172.17.0.1/16"}},
-			{Name: "enp1s0", Addrs: []string{"203.0.113.10/24"}, Physical: true, Primary: true,
-				RXRate: 12480, TXRate: 3620},
-		},
-	})
-
-	body := get(t, s, "/alt/", cookie).Body.String()
-	kachel := netzkachel(t, body)
-	if !strings.Contains(kachel, "enp1s0") {
-		t.Errorf("die Netzwerkkachel nennt enp1s0 nicht:\n%s", kachel)
-	}
-	if strings.Contains(kachel, "docker0") {
-		t.Errorf("die Netzwerkkachel nennt docker0:\n%s", kachel)
-	}
-}
-
-// Ohne Schnittstelle bleibt die Kachel eine Kachel und keine Fehlermeldung.
-func TestNetzkachelOhneSchnittstelle(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, _ := login(t, s, user)
-
-	s.setLatest(metrics.Snapshot{At: time.Now(), UptimeText: "1 Std 0 Min"})
-
-	if kachel := netzkachel(t, get(t, s, "/alt/", cookie).Body.String()); !strings.Contains(kachel, "keine Schnittstelle") {
-		t.Errorf("erwartet wurde der Hinweis auf die fehlende Schnittstelle:\n%s", kachel)
-	}
-}
-
-// netzkachel schneidet die Netzwerkkachel aus der Seite. Der Test darf nicht die
-// ganze Seite durchsuchen: docker0 steht möglicherweise berechtigt in einer
-// vollständigen Liste, nur eben nicht in dieser Kachel.
-func netzkachel(t *testing.T, body string) string {
-	t.Helper()
-	_, rest, found := strings.Cut(body, ">Netzwerk<")
-	if !found {
-		t.Fatalf("keine Netzwerkkachel in der Seite:\n%s", body)
-	}
-	kachel, _, _ := strings.Cut(rest, "</div>\n  </div>")
-	return kachel
-}
-
-// ------------------------------------------------------ Dateisystemliste ---
-
-// TestDateisystemeKlappenAuf: Die weiteren Einhängepunkte einer Platte stehen
-// als eigene Zeilen mit ihren Zahlen in der Liste — eingeklappt, aber im
-// Markup. Vorher gab es sie nur als title-Attribut: ein Kasten, der nach einer
-// Sekunde erscheint, keine Zahlen tragen kann und auf einem Telefon gar nicht.
-func TestDateisystemeKlappenAuf(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, _ := login(t, s, user)
-
-	const giB = 1 << 30
-	s.setLatest(metrics.Snapshot{
-		At:         time.Now(),
-		UptimeText: "1 Std 0 Min",
-		Filesystems: []metrics.Filesystem{
-			{
-				Mount: "/", Device: "/dev/vda3", Type: "ext4",
-				AlsoAt:  []string{"/etc", "/tmp", "/var/lib/asylum"},
-				Total:   40 * giB,
-				Used:    6 * giB,
-				UsedPct: 15.0, InodesPct: 3.2,
-			},
-			{Mount: "/boot", Device: "/dev/vda2", Type: "ext3", Total: giB, Used: giB / 5, UsedPct: 21.8},
-		},
-	})
-
-	body := get(t, s, "/alt/", cookie).Body.String()
-
-	// Der Umschalter ist eine Checkbox mit Beschriftung — ohne JavaScript
-	// bedienbar, wie das Menü.
-	for _, want := range []string{
-		`<input type="checkbox" id="fs-0" class="fs-switch">`,
-		`<label for="fs-0" class="fs-mehr">auch an 3 weiteren Stellen</label>`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("die Liste enthält %q nicht", want)
-		}
-	}
-	// Jede weitere Stelle ist eine eigene Zeile.
-	if got := strings.Count(body, `<tr class="fs-sub`); got != 3 {
-		t.Errorf("%d aufklappbare Zeilen, erwartet 3", got)
-	}
-	for _, mount := range []string{"/etc", "/tmp", "/var/lib/asylum"} {
-		if !strings.Contains(body, "<code>"+mount+"</code>") {
-			t.Errorf("der Einhängepunkt %s steht nicht in der Liste", mount)
-		}
-	}
-	// Das title-Attribut mit der Aufzählung ist ersetzt, nicht ergänzt.
-	if strings.Contains(body, `title="/etc, /tmp, /var/lib/asylum"`) {
-		t.Error("die weiteren Stellen stehen weiterhin in einem title-Attribut")
-	}
-	// Jede Platte bekommt ihr eigenes <tbody>: Nur so greift der Selektor zum
-	// Aufklappen (:has auf dem gemeinsamen Vorfahren).
-	_, tabelle, _ := strings.Cut(body, "Dateisysteme")
-	tabelle, _, _ = strings.Cut(tabelle, "Top-Prozesse")
-	if got := strings.Count(tabelle, "<tbody>"); got != 2 {
-		t.Errorf("%d <tbody> in der Dateisystemliste, erwartet 2 (eines je Platte)", got)
-	}
-
-	// Eine Platte ohne weitere Stellen bekommt keinen Umschalter.
-	if strings.Contains(body, `id="fs-1"`) {
-		t.Error("/boot hat einen Aufklapper, obwohl es nur an einer Stelle hängt")
-	}
-}
-
-// Die Übersicht muss ohne jede Messung stehen bleiben — der Zustand direkt nach
-// dem Start.
-func TestUebersichtOhneDaten(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, _ := login(t, s, user)
-
-	rec := get(t, s, "/alt/", cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("Status = %d, erwartet 200", rec.Code)
-	}
-	if !strings.Contains(rec.Body.String(), "Dateisysteme") {
-		t.Error("die Dateisystemliste fehlt")
-	}
-}
-
 // formatEins schreibt eine Zahl so, wie sie im Pfad steht: eine Nachkommastelle.
 func formatEins(v float64) string { return fmt.Sprintf("%.1f", v) }
-
-// ------------------------------------------------------ Passwortrichtlinie ---
-
-// TestKontoseiteZeigtDieRichtlinie: Beim Ändern des eigenen Passworts stehen die
-// Bedingungen dabei — mit den Zahlen aus internal/auth, nicht abgeschrieben.
-func TestKontoseiteZeigtDieRichtlinie(t *testing.T) {
-	s := newTestServer(t)
-	user := addUser(t, s, "philipp", store.RoleOwner)
-	cookie, _ := login(t, s, user)
-
-	body := get(t, s, "/alt/account", cookie).Body.String()
-
-	if !strings.Contains(body, `class="pwcheck"`) {
-		t.Fatal("die Passwortprüfung fehlt auf der Kontoseite")
-	}
-	for _, want := range []string{
-		`data-pw-feld="new_password"`,
-		fmt.Sprintf(`data-pw-min="%d"`, auth.MinPasswordLength),
-		fmt.Sprintf(`data-pw-max="%d"`, auth.MaxPasswordBytes),
-		// Der Anmeldename kommt vom Server: Nur so kann das Skript die Regel
-		// „nicht der Anmeldename" beantworten.
-		`data-pw-name="philipp"`,
-		`src="/static/passwort.js"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("die Seite enthält %q nicht", want)
-		}
-	}
-	// Jede Regel der Richtlinie steht mit Schlüssel und Satz in der Liste.
-	for _, regel := range auth.Policy().Rules {
-		if !strings.Contains(body, fmt.Sprintf(`data-pw-regel="%s"`, regel.Key)) {
-			t.Errorf("die Regel %q fehlt in der Liste", regel.Key)
-		}
-		if !strings.Contains(body, regel.Text) {
-			t.Errorf("der Satz zur Regel %q fehlt: %q", regel.Key, regel.Text)
-		}
-	}
-}
 
 // Dieselbe Anzeige auf der Seite des erzwungenen Wechsels: Genau dort landet ein
 // neues Konto mit seinem Startpasswort, und dort braucht es die Bedingungen am

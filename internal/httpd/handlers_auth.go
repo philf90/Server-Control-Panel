@@ -25,13 +25,13 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 	// Ohne Konto führt der Weg über das Setup, nicht über die Anmeldung.
 	if n, err := s.db.CountUsers(r.Context()); err == nil && n == 0 {
 		s.renderPage(w, r, http.StatusOK, "login",
-			s.base(r, "Anmeldung", "").
+			s.base(r, "Anmeldung").
 				withError("Es ist noch kein Konto eingerichtet. Auf dem Server ausführen: sudo asylum setup-token").
 				with(loginPage{}))
 		return
 	}
 	s.renderPage(w, r, http.StatusOK, "login",
-		s.base(r, "Anmeldung", "").with(loginPage{WebAuthnOn: s.passkeys != nil}))
+		s.base(r, "Anmeldung").with(loginPage{WebAuthnOn: s.passkeys != nil}))
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -197,7 +197,7 @@ func (s *Server) failLogin(w http.ResponseWriter, r *http.Request, username, mes
 		message = "Anmeldung fehlgeschlagen."
 	}
 	s.renderPage(w, r, http.StatusUnauthorized, "login",
-		s.base(r, "Anmeldung", "").withError(message).with(loginPage{Username: username, WebAuthnOn: s.passkeys != nil}))
+		s.base(r, "Anmeldung").withError(message).with(loginPage{Username: username, WebAuthnOn: s.passkeys != nil}))
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +216,7 @@ func (s *Server) handleSetupForm(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusForbidden, err.Error())
 		return
 	}
-	s.renderPage(w, r, http.StatusOK, "setup", s.base(r, "Ersteinrichtung", "").with(setupPage{Token: token}))
+	s.renderPage(w, r, http.StatusOK, "setup", s.base(r, "Ersteinrichtung").with(setupPage{Token: token}))
 }
 
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
@@ -240,7 +240,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 
 	fail := func(msg string) {
 		s.renderPage(w, r, http.StatusBadRequest, "setup",
-			s.base(r, "Ersteinrichtung", "").withError(msg).with(setupPage{Token: token}))
+			s.base(r, "Ersteinrichtung").withError(msg).with(setupPage{Token: token}))
 	}
 
 	if !validUsername(username) {
@@ -334,7 +334,7 @@ func (s *Server) handleTOTPForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	s.renderPage(w, r, http.StatusOK, "totp", s.base(r, "Zwei-Faktor einrichten", "").with(totpPage{
+	s.renderPage(w, r, http.StatusOK, "totp", s.base(r, "Zwei-Faktor einrichten").with(totpPage{
 		Secret:          user.TOTPSecret,
 		SecretFormatted: auth.FormatSecret(user.TOTPSecret),
 		URI:             auth.TOTPProvisioningURI(user.TOTPSecret, user.Username, totpIssuer),
@@ -375,7 +375,7 @@ func (s *Server) handleTOTPConfirm(w http.ResponseWriter, r *http.Request) {
 	if !auth.VerifyTOTP(user.TOTPSecret, code, time.Now()) {
 		s.audit(r, "2fa.failed", user.Username, store.ResultDenied, "Bestätigungscode falsch")
 		s.renderPage(w, r, http.StatusBadRequest, "totp",
-			s.base(r, "Zwei-Faktor einrichten", "").
+			s.base(r, "Zwei-Faktor einrichten").
 				withError("Der Code stimmt nicht. Bitte die Uhrzeit des Servers prüfen und den aktuellen Code eingeben.").
 				with(totpPage{
 					Secret:          user.TOTPSecret,
@@ -407,7 +407,7 @@ func (s *Server) handleTOTPConfirm(w http.ResponseWriter, r *http.Request) {
 
 	// Die Codes werden genau hier ein einziges Mal im Klartext gezeigt.
 	s.renderPage(w, r, http.StatusOK, "codes",
-		s.base(r, "Wiederherstellungscodes", "").with(codesPage{Codes: codes}))
+		s.base(r, "Wiederherstellungscodes").with(codesPage{Codes: codes}))
 }
 
 // auditAs schreibt einen Eintrag für einen Benutzer, der noch nicht im Kontext

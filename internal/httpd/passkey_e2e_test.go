@@ -80,40 +80,7 @@ func runPasskeyBrowser(t *testing.T, mode string) (string, *Server, store.User) 
 	return string(out), s, user
 }
 
-// TestPasskeyBrowserFlow: der vollständige positive Durchlauf — Passkey im Konto
-// registrieren, abmelden, mit dem Passkey anmelden. Belegt, dass die im Browser
-// erzeugten Zeremonie-Antworten richtig serialisiert und von go-webauthn samt
-// unserer RP-Konfiguration akzeptiert werden.
-func TestPasskeyBrowserFlow(t *testing.T) {
-	out, s, user := runPasskeyBrowser(t, "flow")
-	if !strings.Contains(out, "E2E-OK") {
-		t.Fatalf("kein Erfolg gemeldet:\n%s", out)
-	}
-
-	creds, err := s.db.WebAuthnCredentialsByUser(context.Background(), user.ID)
-	if err != nil || len(creds) != 1 {
-		t.Fatalf("Passkeys nach Durchlauf = %d (%v), erwartet 1", len(creds), err)
-	}
-	if creds[0].LastUsedAt == nil {
-		t.Error("der Passkey wurde bei der Anmeldung nicht als genutzt vermerkt")
-	}
-
-	entries, err := s.db.ListAudit(context.Background(), 50)
-	if err != nil {
-		t.Fatal(err)
-	}
-	found := false
-	for _, e := range entries {
-		if e.Action == "login.success" && strings.Contains(e.Detail, "Passkey") {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("keine Passkey-Anmeldung im Audit-Log")
-	}
-}
-
-// TestPasskeyBrowserV2 fährt dieselbe Zeremonie über die NEUE Oberfläche.
+// TestPasskeyBrowserKonto fährt die Passkey-Zeremonie über die Kontoseite.
 //
 // Das ist der Nachweis, den kein Go-Test erbringen kann und der bei diesem Modul
 // der eigentliche Punkt ist: Zwischen den zwei Aufrufen spricht der Browser mit
@@ -124,9 +91,9 @@ func TestPasskeyBrowserFlow(t *testing.T) {
 // Geprüft wird deshalb nicht, ob ein Eintrag in der Liste erscheint, sondern ob
 // ein über /konto registrierter Passkey eine echte ANMELDUNG trägt. Erst das
 // heißt, dass die ganze Kette stimmt.
-func TestPasskeyBrowserV2(t *testing.T) {
-	out, s, user := runPasskeyBrowser(t, "v2")
-	if !strings.Contains(out, "V2-OK") {
+func TestPasskeyBrowserKonto(t *testing.T) {
+	out, s, user := runPasskeyBrowser(t, "konto")
+	if !strings.Contains(out, "KONTO-OK") {
 		t.Fatalf("kein Erfolg gemeldet:\n%s", out)
 	}
 
@@ -152,7 +119,7 @@ func TestPasskeyBrowserV2(t *testing.T) {
 		NachEntfernen int `json:"nachEntfernen"`
 	}
 	for _, zeile := range strings.Split(out, "\n") {
-		roh, gefunden := strings.CutPrefix(strings.TrimSpace(zeile), "V2-BEOBACHTET ")
+		roh, gefunden := strings.CutPrefix(strings.TrimSpace(zeile), "KONTO-BEOBACHTET ")
 		if !gefunden {
 			continue
 		}
@@ -217,10 +184,23 @@ func TestPasskeyBrowserV2(t *testing.T) {
 		t.Errorf("nach dem Entfernen stehen noch %d Passkeys da", b.NachEntfernen)
 	}
 
-	// Und die Anmeldung mit dem über die neue Oberfläche registrierten Passkey
-	// steht im Protokoll. DAS ist der Nachweis, dass die Kette stimmt: Der
-	// Nachweis des Geräts ist durch die Umrechnung im Browser, durch go-webauthn
-	// und durch unsere RP-Konfiguration gekommen.
+	// Nach der Anmeldung steht auf der Kontoseite, WANN der Passkey zuletzt
+	// getragen hat. Vorher war die Zeile „noch nie" — steht sie danach immer noch
+	// da, wurde die Nutzung nicht vermerkt, und in einer Liste von drei Geräten
+	// wäre nicht zu erkennen, welches noch gilt und welches vergessen wurde.
+	//
+	// Das prüfte bis zum Abbau der alten Oberfläche ein eigener Browserdurchlauf
+	// (Modus "flow", registriert über /alt/account) am Feld LastUsedAt in der
+	// Ablage. Hier steht es an der Stelle, an der es jemand liest.
+	if b.Zuletzt == "" || strings.Contains(b.Zuletzt, "noch nie") {
+		t.Errorf("nach der Anmeldung steht am Passkey %q — die Nutzung wurde nicht vermerkt",
+			b.Zuletzt)
+	}
+
+	// Und die Anmeldung mit dem über die Kontoseite registrierten Passkey steht im
+	// Protokoll. DAS ist der Nachweis, dass die Kette stimmt: Der Nachweis des
+	// Geräts ist durch die Umrechnung im Browser, durch go-webauthn und durch
+	// unsere RP-Konfiguration gekommen.
 	angemeldet := false
 	for _, e := range mustAudit(t, s) {
 		if e.Action == "login.success" && strings.Contains(e.Detail, "Passkey") {

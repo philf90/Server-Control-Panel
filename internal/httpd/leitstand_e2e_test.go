@@ -234,7 +234,7 @@ type ergebnisLeitstand struct {
 		NachSuchende int    `json:"nachSuchende"`
 		SortiertNach string `json:"sortiertNach"`
 		NachNeuladen string `json:"nachNeuladen"`
-		AlteAnsicht  string `json:"alteAnsicht"`
+		FussVerweis  string `json:"fussVerweis"`
 		Schmal       struct {
 			KoerperBreite float64 `json:"koerperBreite"`
 			FensterBreite float64 `json:"fensterBreite"`
@@ -1415,8 +1415,13 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !gesperrtGefunden {
 		t.Error("der gesperrte Eintrag fehlt in der Liste — er soll sichtbar sein")
 	}
-	if dat.AlteAnsicht == "" || !strings.HasPrefix(dat.AlteAnsicht, "/alt/files?") {
-		t.Errorf("der Weg in die alte Ansicht fehlt oder zeigt woandershin: %q", dat.AlteAnsicht)
+	// Im Fuß der Dateiliste stand bis 0.4.0 ein Verweis in die alte Ansicht, weil
+	// deren Editor und Schreibvorgänge damals mehr konnten. Die Fläche ist
+	// abgebaut — ein Verweis dorthin wäre jetzt eine 404 mitten in einem Modul,
+	// das sonst vollständig ist.
+	if dat.FussVerweis != "" {
+		t.Errorf("im Fuß der Dateiliste steht ein Verweis auf %q — dorthin führt "+
+			"kein Weg mehr", dat.FussVerweis)
 	}
 
 	// Ein Klick auf einen Ordner geht hinein.

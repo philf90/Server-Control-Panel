@@ -139,6 +139,11 @@ type Executor interface {
 	StackPruefen(ctx context.Context, name string, panelPort int) (ComposePruefung, error)
 	StackAusfuehren(ctx context.Context, name string, aktion StackAktion, mitVolumes bool, panelPort int, stream LineWriter) (ComposePruefung, error)
 	StackLoeschen(ctx context.Context, name string, stream LineWriter) error
+	// DockerEventsFollow verfolgt den Ereignisstrom. Ohne eigene Frist: Der
+	// Kontext des Betrachters ist die Frist, derselbe Vertrag wie bei
+	// LogsFollow. Er beantwortet „warum ist der Container um 3 Uhr neu
+	// gestartet" — eine Frage, auf die der Zustand allein keine Antwort hat.
+	DockerEventsFollow(ctx context.Context, sink func(DockerEreignis)) error
 
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error

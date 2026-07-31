@@ -38,6 +38,7 @@ import type {
   Schluesselliste,
   Signale,
   Sitzung,
+  Portliste,
   Stackliste,
   StackDetail,
   Stackschreibantwort,
@@ -401,6 +402,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ aktion, bestaetigt, getippt }),
     }),
+  /** ports listet alle veröffentlichten Ports mit ihrem Urteil — abgeglichen
+   *  mit der Firewall. Das Urteil rechnet der Server: Ein Port, den ufw nicht
+   *  kennt, ist trotzdem offen, und diese Aussage soll es nur einmal geben. */
+  ports: () => anfrage<Portliste>("/docker/ports"),
+
   /** stacks liefert die Compose-Projekte, verwaltete wie fremde. */
   stacks: () => anfrage<Stackliste>("/docker/stacks"),
   /** stackDetail nimmt einen NAMEN und keinen Pfad. Wo die Compose-Datei liegt,

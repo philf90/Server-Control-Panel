@@ -963,7 +963,7 @@ export const t = {
     // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
     imBau: "Was hier noch fehlt",
     imBauDetail:
-      "Die Portübersicht, der Ereignisstrom und die Update-Prüfung kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+      "Die Update-Prüfung und die Container-Shell kommen mit den letzten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
 
     // Container
     container: "Container",
@@ -1114,6 +1114,36 @@ export const t = {
     prueferAussen: "Zugriff auf Serververzeichnisse",
     prueferAblehnung: "Abgelehnt",
     prueferDienste: "Dienste",
+
+    // Ports
+    ports: "Ports",
+    portsLeer: "Kein Container veröffentlicht einen Port.",
+    spaltePort: "Port",
+    spalteAdresse: "gebunden an",
+    spalteContainer: "Container",
+    spalteUrteil: "erreichbar",
+    portsUnbemerkt: "offen ohne Firewall-Regel",
+    portsOffen: "offen und erlaubt",
+    portsLokal: "nur lokal",
+    portsPanel: "Panel",
+    portsPanelWarum:
+      "Über diesen Port läuft die Oberfläche. Ihn zu schließen wäre der Selbstausschluss.",
+    portsOhneFirewall:
+      "Auf diesem Server läuft keine Firewall. Zu den offenen Ports gibt es deshalb nichts abzugleichen.",
+
+    // Ereignisse
+    ereignisse: "Ereignisse",
+    ereignisseWesen:
+      "Was Docker gerade tut: Container, die starten und sterben, geholte Abbilder, angelegte Volumes. Beantwortet die Frage, warum ein Container um 3 Uhr neu gestartet ist.",
+    ereignisseZeigen: "Ereignisse ansehen",
+    ereignisseWarte: "Warte auf Ereignisse …",
+    spalteZeit: "Zeit",
+    spalteAktion: "Aktion",
+    spalteObjekt: "Objekt",
+    ereignisFolgerVoll:
+      "Es sehen schon zu viele Verbindungen dem Ereignisstrom zu. Bitte einen anderen Tab schließen.",
+    ereignisVerworfen: (n: number) =>
+      `${n} Ereignisse verworfen — Docker schreibt schneller als die Leitung überträgt.`,
   },
 
   stufe: {

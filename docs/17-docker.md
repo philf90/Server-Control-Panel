@@ -321,7 +321,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 3 | **Bestand**: Images, Volumes, Netze, `system df`, Aufräumen je Art mit freigegebenem Platz — **umgesetzt**, siehe unten | Die häufigste Wartung |
 | 4 | **Stacks lesend**: `compose ls`, eigenes Verzeichnis, Verschmelzung, Detail — **umgesetzt**, siehe unten | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 | **Stacks schreibend**: Pfadwache, Marker, Editor, **Compose-Prüfer**, `up/down/pull/restart` als Jobs, Gerüstvorlagen — **umgesetzt**, siehe unten | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
-| 6 | **Ports & Events**: Portübersicht mit Firewall-Abgleich, Ereignisstrom | Die zwei Adaptionen aus Arcane |
+| 6 | **Ports & Events**: Portübersicht mit Firewall-Abgleich, Ereignisstrom — **umgesetzt**, siehe unten | Die zwei Adaptionen aus Arcane |
 | 7 | **Update-Prüfung**: Digest-Abgleich, Zwischenspeicher, Ratengrenzen, Signal, „Stack aktualisieren" | Auskunft, kein Automat |
 | 8 | **Container-Shell**: Schalter in der Konfiguration, Transport, Terminal, Audit je Sitzung | Siehe unten |
 | 9 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch, Socket-Weitergabe; Messung von Binärgröße und Grundlast; Doku | Wie Phase 7 des Dateimanagers |
@@ -612,6 +612,68 @@ Stack nicht läuft; das ist die schlechteste Auskunft von allen.
 Registry-Zugangsdaten (E6 — 0.5 hält kein Betriebsgeheimnis) und ein Adoptionsweg
 für fremde Verzeichnisse (E3 — er hieße, die Pfadwache für beliebige Pfade zu
 öffnen).
+
+### Schritt 6 — Stand: umgesetzt
+
+Zwei Flächen, zwei Adaptionen aus Arcane: die Portübersicht mit
+Firewall-Abgleich und der Ereignisstrom. `internal/privops/dockerevents.go`
+(Parser für beide), `internal/httpd/api_v1_docker_ports.go` (Urteil und Strom),
+`Ports.svelte` und `Ereignisse.svelte`.
+
+**Die Portseite sagt etwas Unbequemes, und das ist ihr ganzer Zweck: Docker geht
+an ufw vorbei.** Wer einen Container mit `-p 8080:80` veröffentlicht, ist auf
+8080 aus dem Internet erreichbar — auch wenn ufw läuft und diesen Port nicht
+kennt. Der Grund ist die Reihenfolge der iptables-Ketten: Docker trägt seine
+Weiterleitung in FORWARD ein, bevor die Kette von ufw drankommt. Auf einem VPS
+ist das die häufigste Fehlvorstellung überhaupt — „ich habe eine Firewall" und
+„der Port ist zu" sind zwei verschiedene Aussagen, und nur die erste stimmt.
+
+Ein Panel, das hier einen grünen Haken zeigte, weil ufw läuft, wäre schlimmer
+als eines ohne diese Seite. Es gibt deshalb vier Urteile und nicht zwei:
+
+| Urteil | Bedeutung |
+|---|---|
+| `lokal` | auf 127.0.0.1 gebunden — von außen kommt niemand heran, unabhängig von jeder Firewall |
+| `offen` | von überall erreichbar, und ufw hat eine Regel dafür: bewusst geöffnet |
+| `unbemerkt` | von überall erreichbar, OHNE dass ufw ihn kennt — **der Befund dieser Seite** |
+| `ohnewache` | von überall erreichbar, und es läuft keine Firewall: nichts zu vergleichen |
+
+Der Unterschied zwischen den letzten beiden ist kein Detail: Im einen Fall irrt
+sich jemand über seine Firewall, im anderen hat er keine.
+
+**Vier weitere Entscheidungen, die beim Bauen fielen:**
+
+- **Nur laufende Container.** Die Ports-Spalte von `docker ps --all` trägt bei
+  einem gestoppten Container noch die alte Angabe. Sie als offenen Port zu
+  zeigen wäre eine Unwahrheit — und zwar eine beunruhigende.
+- **Ein Eintrag ohne `->` ist nicht veröffentlicht.** `80/tcp` sagt nur, worauf
+  der Container selbst hört; vom Wirt aus ist er nicht erreichbar. Eine
+  Portübersicht, in der Ports stehen, die keiner erreicht, ist keine.
+- **IPv4 und IPv6 sind EINE Veröffentlichung.** Docker schreibt
+  `0.0.0.0:8080->80/tcp, :::8080->80/tcp` — zwei Zeilen dafür wären eine
+  Verdopplung, die niemand erklären kann. Zusammengefasst gewinnt die offenere
+  Bindung: Ist eine der beiden Familien von überall erreichbar, ist der Port von
+  überall erreichbar.
+- **Der Ereignisstrom beginnt zugeklappt.** Er hält einen `docker`-Prozess auf
+  dem Server, und dafür soll niemand zahlen, der die Seite nur geöffnet hat.
+  Gefiltert wird auf dem Wirt und nicht im Browser: Ein ungefilterter Strom
+  schreibt auf einem Server mit vierzig Containern bei jedem Gesundheitscheck
+  eine Zeile.
+
+**Der Befund aus dem Bau — und er kam wieder aus dem Bildschirmfoto:** Die
+Begründung des Urteils stand als ganzer Satz in der Tabellenzelle und wurde am
+rechten Rand **abgeschnitten** — ausgerechnet bei dem Befund, wegen dessen es
+die Seite gibt. Dazu wiederholte sie sich in jeder Zeile derselben Art. Es gibt
+jetzt zwei Felder: ein kurzes Urteil für die Spalte („aus dem Netz, ohne Regel")
+und die Begründung, die einmal über der Tabelle steht und am Feld als Titel
+hängt. Kein Go-Test hätte das gefunden — sie prüfen den Text, nicht seine
+Breite.
+
+**Was hier bewusst NICHT entstanden ist:** ein Signal im Handlungsbedarf für
+offene Ports ohne Regel. Es wäre naheliegend und billig — beide Aufrufe macht
+`dashboardSignals` ohnehin —, steht aber nicht in der Signalliste aus §7. Es
+gehört in dieselbe Runde wie das Update-Signal aus Schritt 7, damit die Liste
+einmal und begründet wächst statt nebenbei.
 
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:

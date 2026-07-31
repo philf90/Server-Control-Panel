@@ -1467,6 +1467,58 @@ export type Stackvorlage = {
   text: string;
 };
 
+/** Port ist eine Zeile der Portübersicht.
+ *
+ *  `urteil` ist "lokal", "offen", "unbemerkt" oder "ohnewache". Der dritte Wert
+ *  ist der Grund für diese Seite: Ein Container, der auf 0.0.0.0 veröffentlicht,
+ *  ist aus dem Netz erreichbar — auch wenn ufw läuft und den Port nicht kennt.
+ *  Docker trägt seine Weiterleitungen vor den Ketten der Firewall ein. */
+export type Port = {
+  wirt_port: number;
+  container_port: number;
+  protokoll: string;
+  adresse: string;
+  container: string;
+  stack: string;
+  dienst: string;
+  image: string;
+  urteil: string;
+  stufe: string;
+  /** kurz steht in der Spalte, satz erklärt es. Beide kommen vom Server, damit
+   *  es nicht zwei Auslegungen desselben Befundes gibt. */
+  kurz: string;
+  satz: string;
+  panel_port: boolean;
+};
+
+export type Portliste = {
+  zeilen: Port[];
+  unbemerkt: number;
+  offen: number;
+  lokal: number;
+  firewall_aktiv: boolean;
+  /** warnung steht nur da, wenn sie zutrifft — ein Satz, der immer dasteht,
+   *  wird nicht gelesen. */
+  warnung?: string;
+  fehler?: string;
+};
+
+/** Dockerereignis ist eine Zeile des Ereignisstroms.
+ *
+ *  `ernst` markiert, was man sucht: gestorbene Container, getötete Prozesse,
+ *  ungesunde Prüfungen. Der Rest ist Betriebsgeräusch, und in einem Strom, in
+ *  dem jede Zeile gleich aussieht, findet niemand den Befund. */
+export type Dockerereignis = {
+  zeit: string;
+  art: string;
+  aktion: string;
+  objekt: string;
+  stack: string;
+  dienst: string;
+  zusatz: string;
+  ernst: boolean;
+};
+
 /** Composebefund ist ein einzelner Fund des Compose-Prüfers.
  *
  *  `art` ist "ablehnung" (der Vorgang wurde angehalten), "aussen" (ein

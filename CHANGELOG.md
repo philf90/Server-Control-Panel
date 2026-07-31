@@ -11,6 +11,28 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Modul Docker, Ports und Ereignisse** (`/docker`, zwei weitere Routen).
+
+  **Die Portübersicht sagt etwas Unbequemes: Docker geht an ufw vorbei.** Wer
+  einen Container mit `-p 8080:80` veröffentlicht, ist auf 8080 aus dem Internet
+  erreichbar — auch wenn ufw läuft und diesen Port nicht kennt. Docker trägt
+  seine Weiterleitungen vor den Ketten der Firewall ein. „Ich habe eine
+  Firewall" und „der Port ist zu" sind zwei verschiedene Aussagen, und nur die
+  erste stimmt.
+
+  Die Seite unterscheidet deshalb vier Fälle statt zwei: nur lokal gebunden, aus
+  dem Netz erreichbar und in ufw eingetragen, aus dem Netz erreichbar **ohne**
+  dass ufw ihn kennt, und aus dem Netz erreichbar ohne laufende Firewall. Der
+  dritte Fall steht oben, ist rot, und die Begründung steht darüber — ein grüner
+  Haken, nur weil ufw läuft, wäre schlimmer als keine Seite.
+
+  **Der Ereignisstrom** beantwortet, was kein Zustand beantwortet: warum ein
+  Container um 3 Uhr neu gestartet ist. Gestorbene Container mit ihrem
+  Exit-Code, getötete Prozesse und ungesunde Prüfungen sind hervorgehoben; der
+  Rest ist Betriebsgeräusch. Er beginnt zugeklappt — er hält einen
+  `docker`-Prozess auf dem Server, und dafür soll niemand zahlen, der die Seite
+  nur geöffnet hat.
+
 - **Modul Docker, Stacks — schreibend** (`/docker`, drei weitere Routen). Stacks
   anlegen, im Editor ändern, starten, herunterfahren, Abbilder holen, neu
   starten und löschen. Damit ist die Grundausstattung des Moduls vollständig.

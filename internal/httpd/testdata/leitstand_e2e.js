@@ -2979,6 +2979,52 @@ async function main() {
         .find((texte) => texte.some((x) => x.includes("wegräumen") || x.includes("leeren"))) ?? [],
     };
   });
+  // Schritt 6: die Portübersicht. Der Kern ist EIN Urteil — ein Container, der
+  // auf 0.0.0.0 veröffentlicht, ist aus dem Netz erreichbar, auch wenn ufw läuft
+  // und den Port nicht kennt. Ob dieser Satz ankommt, sagt nur die gerenderte
+  // Seite: Der Server kann ihn schicken, und die Fläche kann ihn trotzdem
+  // verschlucken.
+  dock.ports = await seite.evaluate(() => {
+    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "gebunden an"),
+    );
+    return {
+      zeilen: tab
+        ? [...tab.querySelectorAll("tbody tr")].map((tr) => ({
+            port: tr.querySelector('[data-spalte="Port"]')?.textContent.trim() ?? "",
+            adresse: tr.querySelector('[data-spalte="gebunden an"]')?.textContent.trim() ?? "",
+            urteil: tr.querySelector('[data-spalte="erreichbar"]')?.textContent.trim() ?? "",
+            stufe: tr.querySelector('[data-spalte="erreichbar"] .zustand')?.className ?? "",
+          }))
+        : [],
+      // Der erklärende Satz steht ÜBER der Tabelle. Er ist die eigentliche
+      // Auskunft der Seite; ohne ihn ist ein rotes Feld nur ein rotes Feld.
+      warnung: [...document.querySelectorAll(".warnung")]
+        .map((w) => w.textContent.trim())
+        .find((x) => x.includes("Docker trägt seine Weiterleitungen")) ?? "",
+    };
+  });
+
+  // Der Ereignisstrom. Er beginnt ZUGEKLAPPT — er hält einen docker-Prozess auf
+  // dem Server, und dafür soll niemand zahlen, der die Seite nur geöffnet hat.
+  dock.ereignisse = { vorherOffen: await seite.evaluate(() => !!document.querySelector(".ereignisse .tabelle")) };
+  await seite.evaluate(() => {
+    const knopf = [...document.querySelectorAll(".ereignisse .kopf")].at(0);
+    knopf?.click();
+  });
+  await seite
+    .waitForFunction(() => !!document.querySelector(".ereignisse table tbody tr"), null, {
+      timeout: 5000,
+    })
+    .catch(() => {});
+  dock.ereignisse.zeilen = await seite.evaluate(() =>
+    [...document.querySelectorAll(".ereignisse table tbody tr")].map((tr) => ({
+      aktion: tr.querySelector('[data-spalte="Aktion"]')?.textContent.trim() ?? "",
+      stufe: tr.querySelector('[data-spalte="Aktion"] .zustand')?.className ?? "",
+      objekt: tr.querySelector('[data-spalte="Objekt"]')?.textContent.trim() ?? "",
+    })),
+  );
+
   dock.navAktiv = await seite.evaluate(
     () =>
       document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",

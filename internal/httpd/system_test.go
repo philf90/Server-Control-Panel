@@ -106,6 +106,12 @@ type fakeOps struct {
 	// gewöhnliche Lauf.
 	stackDone   chan struct{}
 	stackFertig sync.Once
+
+	// Ereignisse. eventsHalt hält den Strom offen, bis der Test ihn freigibt —
+	// ein Strom, der sofort endet, prüft die Schranke nicht.
+	events     []privops.DockerEreignis
+	eventsErr  error
+	eventsHalt chan struct{}
 }
 
 func newFakeOps() *fakeOps {
@@ -966,6 +972,27 @@ func (f *fakeOps) StackLoeschen(_ context.Context, name string, stream privops.L
 	f.stacks = uebrig
 	f.mu.Unlock()
 	f.stackFertigMelden()
+	return nil
+}
+
+func (f *fakeOps) DockerEventsFollow(ctx context.Context, sink func(privops.DockerEreignis)) error {
+	f.record("docker:events")
+	f.mu.Lock()
+	events, err, halt := f.events, f.eventsErr, f.eventsHalt
+	f.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	for _, e := range events {
+		sink(e)
+	}
+	if halt != nil {
+		// Wie die echte Fassung: Der Kontext des Betrachters ist die Frist.
+		select {
+		case <-halt:
+		case <-ctx.Done():
+		}
+	}
 	return nil
 }
 

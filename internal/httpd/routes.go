@@ -282,6 +282,13 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerStackSpeichern)))))
 	mux.Handle("POST /api/v1/docker/stacks/{name}",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerStackAktion)))))
+	// Ports und Ereignisse. Beides lesend — der Ereignisstrom hat dieselbe
+	// Schranke wie das Containerprotokoll: höchstens vier gleichzeitig, weil
+	// jeder einen eigenen docker-Prozess hält.
+	mux.Handle("GET /api/v1/docker/ports",
+		s.protected(http.HandlerFunc(s.handleAPIDockerPorts)))
+	mux.Handle("GET /api/v1/docker/events",
+		s.protected(http.HandlerFunc(s.handleAPIDockerEvents)))
 
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst

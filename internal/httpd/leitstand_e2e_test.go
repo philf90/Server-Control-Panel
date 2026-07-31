@@ -724,6 +724,23 @@ type ergebnisLeitstand struct {
 			Titel   string   `json:"titel"`
 			Knoepfe []string `json:"knoepfe"`
 		} `json:"stackFremd"`
+		Ports struct {
+			Zeilen []struct {
+				Port    string `json:"port"`
+				Adresse string `json:"adresse"`
+				Urteil  string `json:"urteil"`
+				Stufe   string `json:"stufe"`
+			} `json:"zeilen"`
+			Warnung string `json:"warnung"`
+		} `json:"ports"`
+		Ereignisse struct {
+			VorherOffen bool `json:"vorherOffen"`
+			Zeilen      []struct {
+				Aktion string `json:"aktion"`
+				Stufe  string `json:"stufe"`
+				Objekt string `json:"objekt"`
+			} `json:"zeilen"`
+		} `json:"ereignisse"`
 		Bestand struct {
 			Ueberschriften []string `json:"ueberschriften"`
 			PlatteDa       bool     `json:"platteDa"`
@@ -902,6 +919,8 @@ func TestLeitstandBrowser(t *testing.T) {
 		Rules: []privops.FirewallRule{
 			{Port: 8443, Protocol: "tcp", Comment: "Asylum-Panel"},
 			{Port: 22, Protocol: "tcp", Comment: "SSH"},
+			// Für die Portübersicht: 8080 ist bewusst geöffnet, 9000 nicht.
+			{Port: 8080, Protocol: "tcp", Comment: "Reverse-Proxy"},
 		},
 	}
 
@@ -914,15 +933,20 @@ func TestLeitstandBrowser(t *testing.T) {
 		Paket: "docker.io",
 	}
 	ops.container = []privops.Container{
+		// Die Ports dieser beiden decken alle drei Urteile der Portübersicht ab:
+		// 8080 ist offen UND in ufw (gewollt), 9443 nur lokal gebunden, und 9000
+		// ist offen, OHNE dass ufw ihn kennt — der Befund, wegen dessen es die
+		// Seite gibt.
 		{
 			ID: "aaaa11112222", Name: "web-proxy-1", Image: "nginx:alpine",
 			Zustand: "running", Status: "Up 3 hours (healthy)", Gesundheit: "healthy",
-			Ports: "0.0.0.0:8080->80/tcp", Stack: "web", Dienst: "proxy",
+			Ports: "0.0.0.0:8080->80/tcp, 127.0.0.1:9443->9443/tcp",
+			Stack: "web", Dienst: "proxy",
 		},
 		{
 			ID: "bbbb11112222", Name: "web-api-1", Image: "api:1.4",
 			Zustand: "running", Status: "Up 2 hours (unhealthy)", Gesundheit: "unhealthy",
-			Stack: "web", Dienst: "api",
+			Ports: "0.0.0.0:9000->9000/tcp", Stack: "web", Dienst: "api",
 		},
 		{
 			ID: "cccc11112222", Name: "web-db-1", Image: "postgres:16",
@@ -969,6 +993,19 @@ func TestLeitstandBrowser(t *testing.T) {
 	ops.stackText = map[string]string{
 		"web":   "services:\n  proxy:\n    image: nginx:alpine\n    ports: [\"8080:80\"]\n",
 		"fremd": "services:\n  irgendwas:\n    image: busybox\n",
+	}
+	// Zwei Ereignisse, und der Unterschied zwischen ihnen ist der Grund, warum
+	// sie hier stehen: Ein Start ist Betriebsgeräusch, ein Exit 137 ist der
+	// Befund, wegen dessen jemand den Strom öffnet.
+	ops.events = []privops.DockerEreignis{
+		{
+			Zeit: time.Now(), Art: "container", Aktion: "start",
+			Objekt: "web-proxy-1", Stack: "web", Dienst: "proxy",
+		},
+		{
+			Zeit: time.Now(), Art: "container", Aktion: "die",
+			Objekt: "web-db-1", Stack: "web", Dienst: "db", Zusatz: "Exit 137",
+		},
 	}
 
 	ts := httptest.NewServer(s.Handler())
@@ -2976,6 +3013,76 @@ func TestLeitstandBrowser(t *testing.T) {
 	// ist ein Schritt im Verlauf.
 	if dk.NachZurueck.Inspektor {
 		t.Error("der Zurück-Knopf schließt den Inspektor nicht")
+	}
+
+	// Schritt 6, die Portübersicht. Der Kern ist EIN Urteil, und es ist das
+	// unbequeme: Ein Container auf 0.0.0.0 ist aus dem Netz erreichbar, auch wenn
+	// ufw läuft und den Port nicht kennt. Ein Panel, das hier „blockiert"
+	// meldete, wäre schlimmer als eines ohne diese Seite.
+	po := dk.Ports
+	if len(po.Zeilen) != 3 {
+		t.Fatalf("erwartet 3 Portzeilen, gerendert sind %d: %+v", len(po.Zeilen), po.Zeilen)
+	}
+	// Das Auffällige steht oben: 9000 ist offen, ufw kennt ihn nicht.
+	if !strings.Contains(po.Zeilen[0].Port, "9000") {
+		t.Errorf("der unbemerkte Port steht nicht oben: %+v", po.Zeilen[0])
+	}
+	if !strings.Contains(po.Zeilen[0].Stufe, "schlecht") {
+		t.Errorf("der Befund ist nicht als solcher gefärbt: %q", po.Zeilen[0].Stufe)
+	}
+	// In der Spalte steht das KURZE Urteil. Die Begründung stand hier einmal in
+	// voller Länge und wurde am Tabellenrand abgeschnitten — sie steht jetzt
+	// einmal über der Tabelle (siehe po.Warnung weiter unten).
+	if !strings.Contains(po.Zeilen[0].Urteil, "ohne Regel") {
+		t.Errorf("das kurze Urteil fehlt in der Spalte: %q", po.Zeilen[0].Urteil)
+	}
+	// Die anderen beiden sind KEIN Befund — sonst wäre die Farbe wertlos. 8080
+	// ist offen und in ufw eingetragen, 9443 nur lokal gebunden.
+	for _, z := range po.Zeilen[1:] {
+		if strings.Contains(z.Stufe, "schlecht") {
+			t.Errorf("ein gewollter Port ist als Befund gefärbt: %+v", z)
+		}
+	}
+	lokal := false
+	for _, z := range po.Zeilen {
+		if strings.Contains(z.Adresse, "127.0.0.1") {
+			lokal = true
+			if !strings.Contains(z.Stufe, "gut") {
+				t.Errorf("ein lokal gebundener Port ist von außen unerreichbar: %+v", z)
+			}
+		}
+	}
+	if !lokal {
+		t.Errorf("die Übersicht zeigt keinen lokal gebundenen Port: %+v", po.Zeilen)
+	}
+	// Und die Erklärung steht über der Tabelle. Ohne sie ist ein rotes Feld nur
+	// ein rotes Feld.
+	if po.Warnung == "" {
+		t.Error("die Erklärung zur Umgehung von ufw fehlt in der Fläche")
+	}
+
+	// Der Ereignisstrom: zugeklappt bis zum Klick, danach mit Zeilen. Er hält
+	// einen docker-Prozess auf dem Server — dafür soll niemand zahlen, der die
+	// Seite nur geöffnet hat.
+	if dk.Ereignisse.VorherOffen {
+		t.Error("der Ereignisstrom ist beim Aufbau der Seite schon offen")
+	}
+	if len(dk.Ereignisse.Zeilen) == 0 {
+		t.Fatal("nach dem Aufklappen stehen keine Ereignisse da")
+	}
+	var ernst, ruhig int
+	for _, e := range dk.Ereignisse.Zeilen {
+		if strings.Contains(e.Stufe, "schlecht") {
+			ernst++
+		} else {
+			ruhig++
+		}
+	}
+	// Beide Fälle müssen vorkommen: In einem Strom, in dem jede Zeile gleich
+	// aussieht, findet niemand den Befund.
+	if ernst == 0 || ruhig == 0 {
+		t.Errorf("der Strom unterscheidet Befund und Betriebsgeräusch nicht: "+
+			"%d ernst, %d ruhig", ernst, ruhig)
 	}
 
 	// Der Bestand. „freigebbar" ist die Frage, mit der jemand diese Seite

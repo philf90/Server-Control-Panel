@@ -1,19 +1,22 @@
 <script lang="ts">
-  // Docker — Schritt 1 der Fassung 0.5: der Zustand der Laufzeit und ihre
-  // Installation.
+  // Docker — eine Seite statt fünf Menüpunkten.
   //
-  // Die Seite hat in dieser Fassung genau eine Aufgabe, und die ist der Grund,
-  // warum sie schon jetzt existiert: Fehlt Docker, bietet das Panel es an,
-  // statt eine Kommandozeile zum Abtippen zu drucken. Dieselbe Antwort, die die
-  // Firewall seit rc.4 gibt.
+  // Der Zuschnitt steht in docs/17-docker.md §6 und hat einen einfachen Grund:
+  // Die Seitenleiste hat schon achtzehn Ziele. Was zusammengehört, steht
+  // untereinander — Stacks (das führende Objekt), Container, Ports, Bestand,
+  // Ereignisse.
   //
-  // Drei Zustände, drei verschiedene Antworten — und keine zwei davon dürfen
-  // gleich aussehen: Docker fehlt (apt hilft), Docker ist da und antwortet
-  // nicht (der Dienst hilft), Compose fehlt (apt hilft wieder). Welche Antwort
-  // gilt, entscheidet der Server und schickt sie fertig mit; die Seite legt
-  // keine eigene Auslegung daneben.
+  // Oben bleibt die Aufgabe, wegen der die Seite schon vor allem anderen
+  // existierte: Fehlt Docker, bietet das Panel es an, statt eine Kommandozeile
+  // zum Abtippen zu drucken. Drei Zustände, drei verschiedene Antworten — und
+  // keine zwei davon dürfen gleich aussehen: Docker fehlt (apt hilft), Docker
+  // ist da und antwortet nicht (der Dienst hilft), Compose fehlt (apt hilft
+  // wieder). Welche Antwort gilt, entscheidet der Server und schickt sie fertig
+  // mit; die Seite legt keine eigene Auslegung daneben.
   import Bestandsansicht from "../komponenten/Bestand.svelte";
   import Containerwerkbank from "../komponenten/Containerliste.svelte";
+  import Ereignisstrom from "../komponenten/Ereignisse.svelte";
+  import Portuebersicht from "../komponenten/Ports.svelte";
   import Stackwerkbank from "../komponenten/Stackliste.svelte";
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
   import { AbgemeldetFehler, api } from "../lib/api";
@@ -193,8 +196,20 @@
     <h2>{t.docker.container}</h2>
     <Containerwerkbank />
 
+    <!-- Die Ports stehen zwischen Containern und Bestand: Sie sind eine
+         Auskunft über das, was läuft, und keine über das, was auf der Platte
+         liegt. -->
+    <h2>{t.docker.ports}</h2>
+    <Portuebersicht />
+
     <h2>{t.docker.bestand}</h2>
     <Bestandsansicht />
+
+    <!-- Der Ereignisstrom ganz unten und zugeklappt: Er hält einen
+         docker-Prozess auf dem Server, und dafür soll niemand zahlen, der die
+         Seite nur geöffnet hat. -->
+    <h2>{t.docker.ereignisse}</h2>
+    <Ereignisstrom />
   {/if}
 
   <!-- Was noch fehlt, steht da. Eine Seite, die den Zustand zeigt und sonst

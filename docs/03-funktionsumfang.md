@@ -107,8 +107,16 @@ der ersten Stunde tut.
   bessere Weg), kein Cloud-Sync, kein Papierkorb. Manche Pfade sind für das
   Panel tabu, auch für die Rolle Owner: Passwort-Hashes, private Schlüssel, die
   eigene Datenbank. Einzelheiten in [13-dateimanager.md](13-dateimanager.md).
-- **Cron & systemd-Timer:** Anzeigen, anlegen, bearbeiten, letzte Ausführung mit
-  Exit-Code und Ausgabe.
+- **Cron & systemd-Timer — umgesetzt in 0.4.0 (neue Oberfläche).** Anzeigen,
+  anlegen, bearbeiten, abschalten, löschen; Zeitplan zusätzlich in Worten. Timer
+  nur lesend, mit dem Ergebnis des letzten Laufs; geschaltet werden sie über die
+  Dienste, denn ein Timer ist eine Unit. Verwaltete Einträge sind eigene Dateien
+  unter `/etc/cron.d/` mit Marker — fremde Crontabs werden gelesen und nie
+  geschrieben. Das **Anlegen eines Timers** fehlt bewusst: Eine `.service`-Datei
+  trägt `ExecStart` samt der Härtungsoptionen von systemd, und ein halbes Formular
+  dafür sähe aus, als könnte man damit alles einstellen. Die
+  Sicherheitsbetrachtung — ein Cron-Eintrag *ist* eine Shell-Zeile — steht in
+  [16-neukonzeption.md](16-neukonzeption.md) unter 4.2 und 7.2.
 - **Web-Terminal:** PTY über WebSocket. Nur für Owner-Rolle, per Default
   deaktiviert, jede Sitzung im Audit-Log. Sehr nützlich und gleichzeitig die
   gefährlichste Funktion des Panels — deshalb explizit opt-in.

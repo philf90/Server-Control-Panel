@@ -127,9 +127,49 @@ späteres Modul.
 **Cron & systemd-Timer.** Anzeigen, anlegen, bearbeiten, letzte Ausführung mit
 Exit-Code und Ausgabe. War schon in 03 für v0.2 vorgesehen; mit Backups (0.8)
 werden Timer außerdem zur internen Infrastruktur. privops wächst um
-`CronList`, `CronWrite`, `TimerList`, `TimerRuns` — Cron-Einträge entstehen als
-eigene Datei unter `/etc/cron.d/` mit verwaltetem Marker, nie durch Editieren
-fremder Crontabs.
+`CronList`, `CronWrite`, `CronDelete`, `TimerList`, `TimerRuns` — Cron-Einträge
+entstehen als eigene Datei unter `/etc/cron.d/` mit verwaltetem Marker, nie durch
+Editieren fremder Crontabs.
+
+Diese Familie ist anders als alle übrigen in `privops`, und der Unterschied
+gehört ausgeschrieben: **Ein Cron-Eintrag IST ein Shell-Kommando.** cron gibt die
+Zeile an `/bin/sh`, und wer einen Eintrag anlegen darf, führt Code als den
+eingetragenen Benutzer aus. Das ist keine Aufweichung des Verzichts auf eine
+Shell (Abschnitt 7), sondern das Wesen von cron, und es lässt sich nicht
+wegtypisieren. Was den Weg trotzdem eng hält, sind vier Dinge:
+
+1. **Geschrieben wird nur in eigene Dateien.** Ein verwalteter Eintrag ist eine
+   Datei `/etc/cron.d/asylum-<name>` mit einem Marker in der ersten Zeile. Fremde
+   Crontabs — `/etc/crontab`, fremde Dateien in `/etc/cron.d`, die
+   Spool-Crontabs der Benutzer, die `run-parts`-Verzeichnisse — werden gelesen
+   und nie geschrieben. Der Marker und nicht der Dateiname entscheidet: Wer von
+   Hand eine Datei `asylum-backup` anlegt, hat sie damit nicht dem Panel
+   überschrieben.
+2. **Eine Datei, ein Eintrag.** Kein Anfügen, kein Editieren einer Zeile in einer
+   Datei mit mehreren. Damit ist Löschen ein Entfernen der Datei und kann keine
+   fremde Zeile mitnehmen.
+3. **Geprüft wird das Dateiformat, nicht der Befehlsinhalt.** In einer Crontab
+   ist der Zeilenumbruch der Injektionsweg — er erzeugt einen zweiten Eintrag mit
+   eigenem Benutzerfeld. Semikolon, Pipe und Backtick sind gewöhnliche
+   Shell-Zeichen; sie zu verbieten gäbe eine Sicherheit vor, die es nicht gibt.
+   Geprüft werden Zeilenumbruch, Steuerzeichen, ein unmaskiertes Prozentzeichen
+   (es beendet in einer Crontab den Befehl) und der Zeitplan gegen die
+   Wertebereiche — ein Feld außerhalb bringt cron dazu, die Datei
+   stillschweigend zu überspringen.
+4. **Rolle und Rückfrage sind die Schranke.** Lesen genügt das Leserecht;
+   Schreiben verlangt die **Owner-Rolle**, dieselbe wie die Systemkonten. Die
+   Rückfragestufen stehen in Abschnitt 7 unter „Abweichung von docs/14".
+
+**Was das Modul absichtlich nicht kann: einen systemd-Timer anlegen.** Ein Timer
+besteht aus zwei Unit-Dateien, die zusammenpassen müssen, und die `.service`-Datei
+trägt `ExecStart` — also wieder einen freien Befehl, diesmal mit den Optionen von
+systemd (`User=`, `CapabilityBoundingSet=`, `ProtectSystem=`). Wer regelmäßig
+etwas laufen lassen will, bekommt das über den Cron-Teil; wer die Härtung von
+systemd braucht, schreibt die Units von Hand. Ein halbes Formular für
+systemd-Optionen wäre die schlechteste der drei Möglichkeiten — es sähe aus, als
+könnte man damit alles einstellen, und könnte es nicht. Timer werden deshalb
+gelesen; **geschaltet** werden sie über die Dienste, denn ein Timer ist eine Unit
+und `start`/`stop`/`enable`/`disable` gehen dort durch dieselbe Allowlist.
 
 **Ein einheitliches Job-Modell.** Heute löst jedes Modul lange Vorgänge selbst:
 Pakete streamen über einen eigenen Kanal, die Firewall-Probe hält ihren eigenen
@@ -221,10 +261,11 @@ server-gerenderte Vorlagen. Sie liegen vor der Anmeldung oder an ihrer Stelle,
 müssen ohne JavaScript laufen und sind der Grund für das Hybrid-Routing aus
 Abschnitt 8.1.
 
-Offen für die 0.4 bleiben damit die zwei Basis-Neuerungen, die keine Parität
-sind, sondern Zuwachs: **Cron & systemd-Timer** (neue privops-Familie) und
-**API-Tokens** (erste Store-Erweiterung). Danach folgt das Umschalten: `/v2` wird
-`/`, die alten Vorlagen fallen in einem Zug, und die Sitzungen werden verworfen.
+Über die Parität hinaus ist **Cron & systemd-Timer** (`/v2/cron`) gebaut — das
+erste Modul der neuen Oberfläche, das keine alte Fläche hat und für das `privops`
+um eine neue Familie wächst. Offen für die 0.4 bleiben damit **API-Tokens** (erste
+Store-Erweiterung). Danach folgt das Umschalten: `/v2` wird `/`, die alten
+Vorlagen fallen in einem Zug, und die Sitzungen werden verworfen.
 
 ### 0.5 — Docker
 
@@ -294,7 +335,7 @@ systemd-Timer (das Modul aus 0.4), Aufbewahrungsregeln, Wiederherstellung.
   Ergebnis auf der Übersicht als Handlungsbedarf erscheint, wenn er scheitert
   oder ausbleibt.
 - Das Repository-Passwort ist das erste echte Betriebsgeheimnis, das das Panel
-  dauerhaft halten muss (siehe 7.4).
+  dauerhaft halten muss (siehe 7.5).
 - Bewusst die letzte Stufe: Sie braucht Timer (0.4), sichert sinnvollerweise
   Stacks (0.5) und Datenbanken (0.7) — und sie ist die Funktion, bei der ein
   Konstruktionsfehler am teuersten ist.
@@ -348,7 +389,52 @@ Nichts an der Neukonzeption lockert eine bestehende Regel:
 - Rückfragen in drei Stufen, serverseitig erzwungen.
 - Audit-Log und Konsolen-Echo — das Panel verschweigt nichts.
 
-### 7.2 Neu: Docker ist root-Äquivalenz
+### 7.2 Neu: Cron ist ein freier Befehl — und eine Abweichung von docs/14
+
+Ein Cron-Eintrag ist eine Shell-Zeile (Abschnitt 4.2). Damit hat das Panel zum
+ersten Mal eine Fläche, an der ein Mensch einen freien Befehl hinterlegt, und die
+Frage ist nicht, ob das geht — es geht, sonst wäre cron nicht cron —, sondern was
+davor steht.
+
+**Die Rolle.** Lesen genügt das Leserecht: Wer wissen darf, welche Dienste laufen,
+darf wissen, was nachts läuft. Schreiben verlangt die **Owner-Rolle**. Das ist
+dieselbe Schranke wie bei den Systemkonten, und die Begründung ist dieselbe: Wer
+ein Konto mit Shell und `sudo`-Gruppe anlegen kann, kann ohnehin Code als root
+ausführen. Ein Cron-Eintrag eröffnet keinen neuen Weg, er ist ein bequemerer.
+
+**Die Rückfrage — hier weicht das Modul von `docs/14-bestaetigungen.md` ab, und
+das ist Absicht.** Nach der Tabelle dort wäre das Anlegen Stufe 2: Der Eintrag ist
+löschbar, also umkehrbar. Für einen Eintrag **als root** ist das zu wenig. Der
+Eintrag ist umkehrbar, seine *Folgen* sind es nicht, und er läuft unbeaufsichtigt:
+Ein `rm -rf` um 3:17 ist genauso endgültig wie eines von Hand, nur merkt es
+niemand, bis es dreimal gelaufen ist. Deshalb:
+
+| Handlung | Stufe | Getippt wird | Grund |
+|---|---|---|---|
+| Eintrag **als root** anlegen oder ändern | 3 | **Hostname** | vollen Rechten, unbeaufsichtigt, Folgen nicht umkehrbar; wie beim Neustart schützt der Hostname gegen „richtige Aktion, falscher Server" |
+| Eintrag als **anderer Benutzer** anlegen oder ändern | 2 | — | die Folgen bleiben in dem, was dieses Konto erreicht |
+| Eintrag **abschalten** | 1 | — | danach läuft nichts mehr, und die Zeile bleibt lesbar |
+| Eintrag **löschen** | 2 | — | macht das System nicht unsicherer und schließt niemanden aus; verloren geht der *Text*, deshalb nennt der Dialog das Abschalten |
+
+Der Text der Rückfrage nennt **Zeit, Benutzer und Befehl** — alle drei, weil alle
+drei Fehler vorkommen: der Zeitplan falsch gelesen, der Benutzer falsch gewählt,
+der Befehl mit einem Tippfehler. Ein Dialog, der nur „wirklich anlegen?" fragt,
+verhindert keinen davon.
+
+**Das Protokoll.** Im Audit-Log steht der *ganze* Befehl, nicht nur der Name des
+Eintrags. Das ist Absicht: Er ist die Antwort auf „was lief da", und ein
+Protokoll, das den Zeitplan nennt und den Befehl weglässt, beantwortet genau die
+Frage nicht, für die man es aufschlägt.
+
+**Der Zeitplan in Worten.** Neben jedem rohen Feld steht ein Satz („täglich um
+03:17", „an Werktagen um 06:30"). Er kommt aus dem Server und nicht aus der
+Oberfläche, weil zwei Auslegungen derselben fünf Felder auseinanderlaufen — und
+weil das dieselbe Funktion ist, die auch die *gelesenen* Einträge beschreibt. Wo
+die Worte nicht reichen (verschachtelte Listen mit Schrittweiten), sagt der Satz
+das offen, statt zu raten. Der Sonderfall, den er ausdrücklich benennt: Monatstag
+UND Wochentag zusammen verknüpft cron mit ODER, nicht mit UND.
+
+### 7.3 Neu: Docker ist root-Äquivalenz
 
 Wer den Docker-Socket hat, hat die Maschine (`-v /:/host` genügt). Daraus
 folgen die Regeln des Moduls:
@@ -362,9 +448,9 @@ folgen die Regeln des Moduls:
   eine Bedienhilfe **und** eine Grenze — er läuft serverseitig, nicht im
   Formular.
 - Images nur per Digest oder Tag aus konfigurierbaren Registries; `docker login`
-  -Geheimnisse gehören in die Geheimnisverwaltung (7.4), nicht in die Compose-Datei.
+  -Geheimnisse gehören in die Geheimnisverwaltung (7.5), nicht in die Compose-Datei.
 
-### 7.3 Neu: Schreibpfade, die das Panel selbst treffen können
+### 7.4 Neu: Schreibpfade, die das Panel selbst treffen können
 
 Der Webserver-Schreibpfad hat dieselbe Eigenschaft wie die Firewall: Ein
 Fehler kann die Erreichbarkeit des Panels selbst kosten (Panel hinter dem
@@ -373,7 +459,7 @@ für Regeln — validieren, neu laden, Probe, selbsttätiger Rückweg — und ni
 nur ein Bestätigungsdialog. Ein Dialog schützt vor Versehen; die Probe schützt
 auch dann, wenn man nicht mehr klicken kann.
 
-### 7.4 Neu: Geheimnisse, die das Panel halten muss
+### 7.5 Neu: Geheimnisse, die das Panel halten muss
 
 Bis 0.3 speichert das Panel keine fremden Geheimnisse (das Cloudflare-Token
 liegt als Datei beim Betreiber). Mit den Ausbaustufen kommen drei dazu:
@@ -389,7 +475,7 @@ SMTP/Webhook-Token. Grundsätze:
 - Das privops-Journal maskiert die zugehörigen Argumentformen; die Liste
   maskierter Muster wächst mit jedem Modul und ist getestet.
 
-### 7.5 Neu: API-Tokens
+### 7.6 Neu: API-Tokens
 
 - Nur der Hash liegt im Store (Muster der Sitzungen), Anzeige genau einmal.
 - Tokens sind an eine Rolle gebunden und können sie nur unterschreiten, nie
@@ -397,7 +483,7 @@ SMTP/Webhook-Token. Grundsätze:
   Audit-Log mit Token-Kennung.
 - Kein Token im Query-String (Logs), nur als Header.
 
-### 7.6 Neu: die Node-Lieferkette
+### 7.7 Neu: die Node-Lieferkette
 
 Mit dem Frontend-Build betritt npm die Werkzeugkette — nicht den Server. Die
 Regeln folgen dem Muster des Editor-Bundles, das dieses Problem bereits gelöst
@@ -412,7 +498,7 @@ hat (`.github/workflows/ci.yml`, Job „Editor-Bundle reproduzierbar"):
   CSP beweist das strukturell weiter: `default-src 'none'` lässt gar keinen
   fremden Host zu.
 
-### 7.7 Sitzungen und Zugangsdauer
+### 7.8 Sitzungen und Zugangsdauer
 
 Die Mechanik bleibt unverändert — sie ist erprobt und wird übernommen. Was
 fehlte, ist ihre Beschreibung: Die Laufzeiten standen bisher **nirgends in der

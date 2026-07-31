@@ -86,6 +86,16 @@ schützt gegen einen Fehler, den kein Klick abfängt: die richtige Aktion auf de
 falschen Server. Er steht in der Seitenleiste und in der Fußzeile — abzulesen,
 nicht zu erraten; Geheimhaltung ist nicht der Zweck.
 
+**Eine Abweichung von dieser Tabelle, und zwar begründet:** Ein Cron-Eintrag **als
+root** ist Stufe 3 mit dem Hostnamen, obwohl er löschbar — also nach dieser
+Tabelle umkehrbar — ist. Der Grund steht in
+[docs/16-neukonzeption.md](16-neukonzeption.md) unter 7.2: Der *Eintrag* ist
+umkehrbar, seine *Folgen* sind es nicht, und er läuft unbeaufsichtigt. Ein Eintrag
+als anderer Benutzer bleibt Stufe 2, ihn abzuschalten Stufe 1. Wenn eine weitere
+Fläche diese Tabelle verlassen will, gehört die Begründung genauso hierhin — eine
+stillschweigende Abweichung wäre der Anfang davon, dass die Stufen nichts mehr
+bedeuten.
+
 Verglichen wird ohne Rücksicht auf Groß- und Kleinschreibung (`EqualFold`): Auf
 einem Telefon macht die Tastatur aus `vm` gern `Vm`. Wer den Namen abgeschrieben
 hat, hat die Rückfrage gelesen — mehr soll die Stufe nicht leisten.

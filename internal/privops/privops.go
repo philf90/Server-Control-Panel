@@ -71,6 +71,26 @@ type Executor interface {
 	// beendet, und nicht nach einer Zeit, die hier niemand kennen kann.
 	LogsFollow(ctx context.Context, q LogQuery, sink LogSink) error
 
+	// Cron und systemd-Timer.
+	//
+	// CronWrite ist die einzige Operation dieses Interfaces, die einen FREIEN
+	// Befehl entgegennimmt — ein Cron-Eintrag ist eine Shell-Zeile, cron gibt sie
+	// an /bin/sh. Das ist keine Aufweichung des Verzichts auf eine Shell, sondern
+	// das Wesen von cron, und es steht hier ausdrücklich, damit niemand es für ein
+	// Versehen hält. Was den Weg eng hält, steht im Kopf von cron.go: geschrieben
+	// werden nur eigene Dateien mit Marker, eine Datei je Eintrag, und das
+	// Dateiformat ist geprüft (der Zeilenumbruch ist der Injektionsweg, nicht das
+	// Semikolon).
+	//
+	// Für Timer gibt es bewusst nur Lesendes: Ein Timer ist eine Unit, und
+	// start/stop/enable/disable laufen über ServiceAction. Anlegen fehlt, weil
+	// dazu zwei Unit-Dateien samt ExecStart gehören — siehe timer.go.
+	CronList(ctx context.Context) ([]CronEntry, []string, error)
+	CronWrite(ctx context.Context, spec CronSpec) error
+	CronDelete(ctx context.Context, name string) error
+	TimerList(ctx context.Context) ([]Timer, error)
+	TimerRuns(ctx context.Context, unit string) (TimerLauf, error)
+
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error
 }

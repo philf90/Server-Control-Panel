@@ -1132,12 +1132,6 @@ Auslieferbares da; der Update-Kanal `beta` trägt die Zwischenstände wie bisher
 Dieses Dokument ändert Entscheidungen, die anderswo dokumentiert sind. Damit
 die Doku nicht lügt, sind anzupassen:
 
-- **[03-funktionsumfang.md](03-funktionsumfang.md):** Verweis auf die Revision
-  der Nicht-Ziele (Abschnitt 2) und den neuen Stufenschnitt (Abschnitt 5);
-  v0.2/v0.3-Abschnitte als überholt markieren.
-- **[06-roadmap.md](06-roadmap.md):** Meilensteine ab 0.4 aus Abschnitt 10
-  übernehmen; Qualitätsziele-Tabelle an Abschnitt 9 angleichen; festhalten,
-  dass die bestehende Oberfläche eingefroren ist.
 - **[15-neuordnung.md](15-neuordnung.md):** Vermerk, dass die Kommandobrücke
   durch den Leitstand abgelöst wird; die fünf Grundsätze bleiben in Kraft.
 - **README:** Leitplanke „schlank und ressourcenschonend" umformulieren
@@ -1148,9 +1142,20 @@ die Doku nicht lügt, sind anzupassen:
   Sitzungen; tatsächlich liegen sie in `internal/store` und
   `internal/httpd`.
 
-**Erledigt:** CONTRIBUTING trägt den Abschnitt zur Frontend-Werkzeugkette
-(Node 22, `make ui`, Reproduzierbarkeit, die drei Regeln für `web/`) seit der
-ersten Stufe.
+**Erledigt:**
+
+- **CONTRIBUTING** trägt den Abschnitt zur Frontend-Werkzeugkette (Node 22,
+  `make ui`, Reproduzierbarkeit, die drei Regeln für `web/`) seit der ersten
+  Stufe.
+- **[06-roadmap.md](06-roadmap.md)** (nach 0.4.1): Das Dokument nennt seinen
+  Stand im Kopf und trennt Rückblick von Ausblick; der Abschnitt „Meilensteine
+  ab 0.4" gibt Abschnitt 10 wieder; die Qualitätsziele sind an Abschnitt 9
+  angeglichen und nennen jetzt, wo eine Grenze tatsächlich geprüft wird; das
+  Einfrieren und der Abbau der alten Oberfläche stehen fest.
+- **[03-funktionsumfang.md](03-funktionsumfang.md)** (nach 0.4.1): v0.2 und v0.3
+  sind als überholt markiert und lösen jeden ihrer Punkte in Abschnitt 5 oder 6
+  auf; die Scope-Revision nach A+ und die zwei gefallenen Nicht-Ziele stehen an
+  Ort und Stelle.
 
 Der Rest geschieht mit der Umsetzung der jeweiligen Stufe und nicht vorab —
 sonst beschreibt die Doku einen Zustand, den es noch nicht gibt.

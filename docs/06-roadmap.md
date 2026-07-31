@@ -1,5 +1,34 @@
 # 06 — Roadmap & offene Entscheidungen
 
+## Stand: 0.4.1
+
+Dieses Dokument hat zwei Teile, und sie sind verschieden alt.
+
+**Rückblick (M0–M4, die Fassungen bis 0.3).** Der untere Teil ist das
+Bau- und Befundprotokoll des ersten Vorhabens — was gebaut wurde, was der
+Betrieb auf einem echten Server gefunden hat, welche Grenze wo gemessen wurde.
+Er wird nicht fortgeschrieben, sondern bleibt als Beleg stehen.
+
+**Ausblick (ab 0.4).** Die Planung ab 0.4 kommt aus
+[16-neukonzeption.md](16-neukonzeption.md) — sie revidiert Scope und
+Fassungsschnitt und ist dort maßgeblich. Der Abschnitt
+[Meilensteine ab 0.4](#meilensteine-ab-04) unten gibt sie wieder, damit dieses
+Dokument nicht auf einem Stand stehenbleibt, den es nicht mehr gibt.
+
+Zwei Dinge, die den Rückblick lesbar halten:
+
+- **Die Fassungen 0.1.0, 0.2.0 und 0.3.0 sind nie erschienen.** Sie existieren
+  ausschließlich als Vorabversionen (`v0.1.0-rc.1` bis `v0.3.0-rc.6`). Der erste
+  Tag ohne Bindestrich war **`v0.4.0`**; damit ist auch der Kanal `stable`
+  entstanden. Wo unten „für 0.1.0 offen" steht, ist das Wortlaut von damals —
+  erledigt hat es sich dadurch, dass die Neukonzeption den Freigabepunkt auf 1.0
+  verschoben hat.
+- **Die alte, server-gerenderte Oberfläche gibt es nicht mehr.** Sie war ab dem
+  Beschluss der Neukonzeption eingefroren (keine Gestaltung, keine Funktion, nur
+  Sicherheitsfehler), lag mit 0.4.0 eine Fassung lang unter `/alt/` als Rückweg
+  und ist mit **0.4.1** entfernt. Bildschirmfotos, Seitenzahlen und
+  Vorlagennamen im Rückblick beziehen sich auf sie.
+
 ## Getroffene Entscheidungen
 
 | Punkt | Entscheidung | Detail |
@@ -44,9 +73,12 @@ Offen, keiner davon blockiert die Weiterentwicklung:
 - **Bildschirmfotos auf einem echten Server** neu aufnehmen. Seit rc.2 gibt es
   eine echte Installation, an der das möglich ist.
 - **TTL der DNS-Einträge** von 10 auf 3600 anheben, sobald alles steht.
-- **Kanal `stable` existiert noch nicht.** Er entsteht mit dem ersten Tag ohne
-  Bindestrich. Bis dahin führt `Suites: stable` in ein 404; die Anleitungen
-  nennen deshalb `beta`. Siehe [05-updates.md](05-updates.md#apt-repository).
+
+Erledigt seit `v0.4.0`: **Der Kanal `stable` existiert.** Er entsteht mit dem
+ersten Tag ohne Bindestrich, und das war 0.4.0 — `Suites: stable` führt seither
+nicht mehr in ein 404. Die Anleitungen in
+[05-updates.md](05-updates.md#apt-repository) beschreiben stellenweise noch die
+Beta-Phase, in der es nur `beta` gab.
 
 ---
 
@@ -285,13 +317,20 @@ einer waagerechten Leiste mit zehn gleichrangigen Punkten. Kein Betriebsbefund,
 sondern Vorsorge — zehn Punkte in einer Zeile waren schon knapp, die für v0.2
 geplanten Module würden sie sprengen.
 
-**Für 0.1.0 offen:** ein Freigabekandidat, der bei einem unbeteiligten Tester
-von der Installation bis zur Anmeldung ohne Eingriff durchläuft. Erst der Tag
-ohne Bindestrich legt den Kanal `stable` an.
+**Wie es weiterging.** Die Freigabe 0.1.0 kam nie: Die Reihe lief über 0.2.0
+und 0.3.0 als Vorabversionen weiter, und mit der Neukonzeption wurde der
+Freigabepunkt auf **1.0** verschoben. Der erste Tag ohne Bindestrich war
+`v0.4.0` — die Fassung, mit der die neue Oberfläche an die Wurzel kam. Was hier
+als offen stand, gilt unverändert, nur für eine andere Zahl: ein
+Freigabekandidat, der bei einem unbeteiligten Tester von der Installation bis
+zur Anmeldung ohne Eingriff durchläuft.
 
 ---
 
 ## Umsetzungsplan bis 0.3.0
+
+*Abgeschlossen. Alles unter dieser Überschrift ist gebaut und ausgeliefert; die
+Planung ab 0.4 steht weiter unten unter [Meilensteine ab 0.4](#meilensteine-ab-04).*
 
 ### rc.4 — Befunde aus der echten Installation
 
@@ -589,6 +628,12 @@ Externer Sicherheits-Review (sinnvollerweise **nach** 0.2.0, weil Let's Encrypt
 und Passkeys die Anmeldepfade nochmals anfassen — sonst wird zweimal geprüft),
 Marken in Klasse 9/42, Paket-Namensräume, GitHub-Organisation.
 
+*Nachtrag zum Review: Dieselbe Überlegung, eine Stufe weiter gedacht, hat ihn
+inzwischen auf **1.0** geschoben. Docker, der Webserver-Schreibpfad, die
+Datenbanken und die API-Tokens fassen die Angriffsfläche noch einmal an; ein
+Review davor wäre genau der zweite Durchgang, den dieser Absatz vermeiden
+wollte.*
+
 ### Aufwand
 
 | Phase | Inhalt | Aufwand |
@@ -611,37 +656,97 @@ vorzuziehen verschöbe die Freigabe um zwei Wochen und vergrößerte die Fläche
 die noch niemand von außen geprüft hat.
 
 **Summe bis zur nutzbaren Beta: ~8 Wochen** für eine Vollzeit-Person, entsprechend
-länger nebenberuflich. Danach v0.2 (Dateimanager, Cron, Terminal,
-Benachrichtigungen) und v0.3 (Module).
+länger nebenberuflich.
+
+*Nachtrag: Der Satz „danach v0.2 (Dateimanager, Cron, Terminal,
+Benachrichtigungen) und v0.3 (Module)" stand hier bis zur Neukonzeption. Er gilt
+nicht mehr — der Dateimanager kam in 0.3.0, Cron in 0.4.0, das Web-Terminal ist
+hinter 1.0 verschoben, und der Modulschnitt ist neu gefasst. Maßgeblich sind
+[16-neukonzeption.md](16-neukonzeption.md) §5 und §6, wiedergegeben im nächsten
+Abschnitt.*
+
+---
+
+## Meilensteine ab 0.4
+
+Übernommen aus [16-neukonzeption.md](16-neukonzeption.md) §10; der
+Funktionsschnitt jeder Stufe steht dort in §5, die bewusst zurückgestellten
+Themen in §6. Die Aufwände sind für eine Vollzeit-Person geschätzt.
+
+| Stufe | Inhalt | Aufwand | Stand |
+|---|---|---|---|
+| Vorbau | Entwurfsmappe, `web/`-Gerüst, Vite-Reproduzierbarkeit, API-Skelett | ~1 Woche | **umgesetzt** |
+| **0.4** | Neue Oberfläche mit Parität, `/api/v1`, Job-Modell, Cron & Timer, API-Tokens | ~6–8 Wochen | **umgesetzt** (0.4.0), alte Fläche abgebaut (0.4.1) |
+| **0.5** | Docker — Stacks, Container, Images, Volumes, Netze, Logs | ~3 Wochen | offen, **als Nächstes** |
+| **0.6** | Webserver & Domains — nginx/Caddy, Sites als Domain → Ziel → TLS | ~3 Wochen | offen |
+| **0.7** | Datenbanken — MariaDB/MySQL und PostgreSQL | ~2 Wochen | offen |
+| **0.8** | Backups — restic, Ziele, Zeitpläne, Restore-Test | ~3 Wochen | offen |
+| **1.0** | Externer Review, Befundbehebung, Doku, Screenshots | ~2 Wochen + Wartezeit | offen |
+
+**Summe: rund ein halbes Jahr Vollzeit.** Nach jeder Stufe ist etwas
+Auslieferbares da; der Kanal `beta` trägt die Zwischenstände wie bisher.
+
+Der Kostentreiber jeder Stufe ist nicht die Oberfläche, sondern das, was
+`privops` dazulernt: Eine neue Seite ist ein Nachmittag, eine neue Systemfläche
+eine Sicherheitsbetrachtung. Es kommen vier Familien hinzu — `Docker*`, `Site*`,
+`Db*`, `Backup*` — zu der in 0.4 gebauten `Cron*`/`Timer*`-Familie.
+
+**Zurückgestellt und mit Begründung versehen** (§6): Multi-Server, Web-Terminal,
+Plugins Dritter, Benachrichtigungen, Metriken-Langzeitspeicher, öffentliche API
+mit Fernzugriff, WireGuard, Podman, PWA. Das **Web-Terminal** stand früher unter
+v0.2 und wandert bewusst hinter 1.0 — der neue Scope vergrößert die
+Angriffsfläche bereits um Docker und den Webserver-Schreibpfad.
+
+**Der externe Sicherheits-Review** ist damit auf 1.0 gezogen. Er wird einmal
+beauftragt und deckt dann den Endstand ab (Docker, Webserver-Schreibpfad,
+Datenbanken, API-Tokens) statt zweimal einen Zwischenstand.
 
 ## Qualitätsziele als harte Grenzen
 
-Diese Werte gehören in die CI, nicht in ein Wiki:
+Diese Werte gehören in die CI, nicht in ein Wiki. Mit der Neukonzeption hat sich
+ihr Rang geändert: **„schlank" ist Messwert, nicht Vetorecht** — die Grenzen
+entscheiden nicht mehr gegen eine Funktion, bleiben aber als Sperrklinke gegen
+Wildwuchs stehen ([16](16-neukonzeption.md) §9).
 
-| Metrik | Grenze |
-|---|---|
-| RSS im Leerlauf | < 40 MB |
-| CPU im Leerlauf | < 0,5 % auf 1 vCPU |
-| Binärgröße | < 30 MB |
-| Kaltstart bis Ready | < 1 s |
-| Installationsdauer | < 30 s auf einem 1-vCPU-VPS |
-| Direkte Go-Abhängigkeiten | < 25 |
-| Testabdeckung `auth` | > 85 % |
-| Testabdeckung `update` | > 85 % |
-| Testabdeckung `privops`, `store`, `certs`, `config` | > 72–82 %, je Paket |
-| Testabdeckung `httpd` | > 63 % |
+| Metrik | Grenze | Wo geprüft |
+|---|---|---|
+| Binärgröße | < 30 MB (Richtwert neu: < 40 MB) | CI, jeder Lauf |
+| RSS im Leerlauf | < 40 MB (Richtwert neu: < 64 MB) | von Hand je Release, im CHANGELOG genannt |
+| CPU im Leerlauf | < 0,5 % auf 1 vCPU | von Hand |
+| Kaltstart bis Ready | < 1 s | von Hand |
+| Installationsdauer | < 30 s auf einem 1-vCPU-VPS | von Hand |
+| Direkte Go-Abhängigkeiten | < 25 | Durchsicht von `go.mod` |
+| Testabdeckung `auth` | > 85 % | CI, jeder Lauf |
+| Testabdeckung `update` | > 85 % | CI, jeder Lauf |
+| Testabdeckung `config` | > 88 % | CI, jeder Lauf |
+| Testabdeckung `store`, `certs` | > 78 % | CI, jeder Lauf |
+| Testabdeckung `privops` | > 72 % | CI, jeder Lauf |
+| Testabdeckung `httpd` | > 68 % | CI, jeder Lauf |
+| Testabdeckung `acme` | > 55 % | CI, jeder Lauf |
 
-Ein Benchmark-Job misst RSS und Binärgröße bei jedem Release und lässt den Build
-fehlschlagen, wenn eine Grenze gerissen wird. Ohne diesen Zwang wird aus "schlank"
-innerhalb eines Jahres ein Marketingbegriff.
+Zwei Dinge, die diese Tabelle ehrlich halten sollen:
+
+- **Die neuen Richtwerte sind noch nicht in der CI.** `.github/workflows/ci.yml`
+  prüft weiterhin gegen 30 MB. Die Anhebung auf 40 MB gehört in die Stufe, in
+  der sie zum ersten Mal gebraucht wird — vorher wäre sie ein Vorschuss auf
+  Wachstum, das noch niemand gebaut hat.
+- **RSS misst kein Job.** Der Wert wird je Release von Hand erhoben und steht im
+  CHANGELOG; automatisiert ist allein die Binärgröße. Der frühere Satz, ein
+  Benchmark-Job messe beides, war eine Absicht und keine Beschreibung.
+
+Ohne diesen Zwang wird aus „schlank" innerhalb eines Jahres ein Marketingbegriff.
 
 Zur Abdeckung: Gemessen wird die **Statement-Abdeckung** aus dem Testlauf, nicht
 der Mittelwert über Funktionen — letzterer gewichtet eine dreizeilige Funktion so
 stark wie eine dreißigzeilige und ist damit leicht zu schönen. Die Schwellen liegen
 bewusst knapp unter dem jeweils erreichten Stand: Sie sind eine Sperrklinke gegen
-Rückschritt, keine runden Wunschzahlen. `httpd` liegt niedriger, weil das Paket zu
-großen Teilen aus Anzeigelogik besteht; die sicherheitsrelevanten Pfade darin
-(Sitzung, CSRF, Rollen) sind eigens getestet.
+Rückschritt, keine runden Wunschzahlen — und sie steigen mit, wenn der gemessene
+Stand steigt. Die `httpd`-Grenze ging mit 0.4.1 von 63 auf 68, weil der Abbau der
+alten Oberfläche rund 4.500 Zeilen überwiegend ungetestete Anzeigelogik
+mitgenommen hat; eine Grenze sieben Punkte unter dem Stand hält nichts. `httpd`
+liegt trotzdem niedriger als die übrigen, weil das Paket zu großen Teilen aus
+Anzeigelogik besteht; die sicherheitsrelevanten Pfade darin (Sitzung, CSRF,
+Rollen) sind eigens getestet.
 
 ## Risiken
 
@@ -652,3 +757,17 @@ großen Teilen aus Anzeigelogik besteht; die sicherheitsrelevanten Pfade darin
 | Feature-Creep Richtung Hosting-Panel | Nicht-Ziele dokumentiert, Modulgrenze, harte Ressourcenbudgets in der CI |
 | Konflikt mit manueller Serverkonfiguration | Managed-Marker, Drop-in-Dateien, Konflikterkennung per Hash, Backups vor jedem Schreibvorgang |
 | Ein-Personen-Projekt versandet | Früh Beta veröffentlichen, kleiner Kern, saubere Modulschnittstelle für Beiträge |
+
+Zwei Zeilen dieser Tabelle sind mit der Neukonzeption nachzuschärfen. **Der
+Feature-Creep** ist nicht mehr durch das Ressourcenbudget begrenzt — es
+entscheidet nicht mehr gegen Funktionen —, sondern allein durch die
+Nicht-Ziel-Liste: kein Mailserver, kein autoritatives DNS, keine Kunden- oder
+Abrechnungsverwaltung, kein Stack neben apt. Sie gilt verschärft weiter, weil
+sie jetzt die einzige Bremse ist. Und **das Versanden** wird nicht mehr über
+„früh Beta veröffentlichen" abgefangen, sondern über den Stufenschnitt: Jede
+Fassung ab 0.4 ist für sich nützlich und auslieferbar.
+
+Die Risiken der Stufen ab 0.5 — Docker als Sicherheitslücke, ein
+Webserver-Schreibpfad, der das Panel aussperrt, die npm-Lieferkette,
+Vite-Reproduzierbarkeit — stehen mit ihren Gegenmaßnahmen in
+[16-neukonzeption.md](16-neukonzeption.md) §11.

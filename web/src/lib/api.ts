@@ -38,6 +38,8 @@ import type {
   Schluesselliste,
   Signale,
   Sitzung,
+  Stackliste,
+  StackDetail,
   Panelupdate,
   Uebersicht,
   Updateantwort,
@@ -332,6 +334,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ aktion, bestaetigt, getippt }),
     }),
+  /** stacks liefert die Compose-Projekte, verwaltete wie fremde. */
+  stacks: () => anfrage<Stackliste>("/docker/stacks"),
+  /** stackDetail nimmt einen NAMEN und keinen Pfad. Wo die Compose-Datei liegt,
+   *  sagt Docker oder das verwaltete Verzeichnis — käme der Pfad von hier, wäre
+   *  der Endpunkt ein Weg, jede Datei des Servers zu lesen. */
+  stackDetail: (name: string) =>
+    anfrage<StackDetail>(`/docker/stacks/${encodeURIComponent(name)}`),
 
   /** logs fragt das Journal ab. Die Filter stehen als Abfragezeichenkette in
    *  der Adresse — dieselbe, die der Strom bekommt, damit er nicht mehr zeigt

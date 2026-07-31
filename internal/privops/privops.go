@@ -120,6 +120,14 @@ type Executor interface {
 	// DockerPrune gibt zurück, wie viel Platz frei wurde — die Antwort, wegen
 	// der jemand aufräumt.
 	DockerPrune(ctx context.Context, art PruneArt, alleUnbenutzten bool, stream LineWriter) (string, error)
+	// Compose-Stacks. In dieser Fassung nur lesend — Anlegen, Ändern und
+	// Starten kommen mit dem Compose-Prüfer zusammen, nicht davor.
+	//
+	// StackDatei nimmt einen NAMEN und keinen Pfad: Wo die Datei liegt, sagt
+	// Docker oder das verwaltete Verzeichnis. Käme der Pfad aus der Anfrage,
+	// wäre das ein Weg, jede Datei des Servers zu lesen.
+	StackList(ctx context.Context) ([]Stack, error)
+	StackDatei(ctx context.Context, name string) (StackInhalt, error)
 
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error

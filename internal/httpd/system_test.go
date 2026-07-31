@@ -85,6 +85,13 @@ type fakeOps struct {
 	netze     []privops.Netz
 	df        []privops.Bestandsposten
 	pruneDone chan struct{}
+
+	// Stacks. stackText steht je Stackname, damit ein Test einen Stack ohne
+	// lesbare Datei bauen kann — der Normalfall bei einem fremden Projekt, dessen
+	// Verzeichnis es nicht mehr gibt.
+	stacks    []privops.Stack
+	stackErr  error
+	stackText map[string]string
 }
 
 func newFakeOps() *fakeOps {
@@ -846,4 +853,34 @@ func (f *fakeOps) DockerPrune(_ context.Context, art privops.PruneArt, alle bool
 		close(done)
 	}
 	return "1.234GB", nil
+}
+
+func (f *fakeOps) StackList(context.Context) ([]privops.Stack, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.stacks, f.stackErr
+}
+
+// StackDatei bildet die Zusage der echten Fassung nach: Ein Name, den die Liste
+// nicht kennt, führt nirgendwohin. Der Fake, der jeden Namen bediente, prüfte
+// genau die Eigenschaft nicht, um derer willen der Umweg über die Liste da ist.
+func (f *fakeOps) StackDatei(_ context.Context, name string) (privops.StackInhalt, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := privops.PruefeName(name); err != nil {
+		return privops.StackInhalt{}, err
+	}
+	for _, st := range f.stacks {
+		if st.Name != name {
+			continue
+		}
+		text, ok := f.stackText[name]
+		if !ok {
+			return privops.StackInhalt{}, errors.New("keine Compose-Datei zu " + name)
+		}
+		return privops.StackInhalt{
+			Name: name, Datei: st.Datei, Verwaltet: st.Verwaltet, Text: text,
+		}, nil
+	}
+	return privops.StackInhalt{}, errors.New("kein Stack mit dem Namen " + name)
 }

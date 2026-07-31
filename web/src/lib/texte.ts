@@ -963,7 +963,7 @@ export const t = {
     // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
     imBau: "Was hier noch fehlt",
     imBauDetail:
-      "Stacks, Ports und die Update-Prüfung kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+      "Stacks anzulegen und zu starten, die Portübersicht und die Update-Prüfung kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
 
     // Container
     container: "Container",
@@ -1052,6 +1052,31 @@ export const t = {
     volumesWeg: "ungenutzte Volumes wegräumen",
     netzeWeg: "ungenutzte Netze wegräumen",
     cacheWeg: "Baucache leeren",
+
+    // Stacks
+    stacks: "Stacks",
+    stacksLeer:
+      "Auf diesem Server gibt es kein Compose-Projekt. Anlegen kommt mit dem nächsten Schritt.",
+    stacksSuchen: "Stack- oder Dienstname",
+    stacksNichts: "Kein Stack passt zur Suche.",
+    verwaltet: "verwaltet",
+    fremd: "fremd",
+    // „Fremd" ist kein Vorwurf, sondern eine Zusage: An dieser Datei rührt das
+    // Panel nicht. Wer den Unterschied nicht kennt, sucht sonst einen Knopf,
+    // den es mit Absicht nicht gibt.
+    fremdWarum:
+      "Dieses Projekt hat jemand außerhalb des Panels angelegt. Es ist lesbar; geschrieben wird nur, was unter /opt/asylum/stacks liegt und den Marker des Panels trägt.",
+    spalteDienste: "Dienste",
+    spalteStatus: "Zustand",
+    spalteHerkunft: "Herkunft",
+    nieGestartet: "nie gestartet",
+    vonWieviel: (laufend: number, gesamt: number) => `${laufend} von ${gesamt} laufen`,
+    stackDatei: "Compose-Datei",
+    stackGekuerzt:
+      "Die Datei ist größer als die Anzeigegrenze und steht hier nur zum Teil.",
+    keineDatei: "Zu diesem Projekt ist keine lesbare Compose-Datei da.",
+    stackContainer: "Container dieses Stacks",
+    keineContainer: "Zu diesem Stack läuft kein Container.",
   },
 
   stufe: {

@@ -319,7 +319,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 1 | **Fundament**: Allowlist, `DockerState`, `DockerInstall`, Executor-Methoden, `fakeOps`, `GET /api/v1/docker`, Seitengerüst — **umgesetzt**, siehe unten | Das Modul existiert und kann Docker installieren |
 | 2 | **Container**: Liste, Inspektor, Aktionen, Entfernen, Logs (Auszug und Verfolgen), Statistik — **umgesetzt**, siehe unten | Der Alltagsfall steht |
 | 3 | **Bestand**: Images, Volumes, Netze, `system df`, Aufräumen je Art mit freigegebenem Platz — **umgesetzt**, siehe unten | Die häufigste Wartung |
-| 4 | **Stacks lesend**: `compose ls`, eigenes Verzeichnis, Verschmelzung, Detail | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
+| 4 | **Stacks lesend**: `compose ls`, eigenes Verzeichnis, Verschmelzung, Detail — **umgesetzt**, siehe unten | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 | **Stacks schreibend**: Pfadwache, Marker, Editor, **Compose-Prüfer**, `up/down/pull/restart` als Jobs, Gerüstvorlagen | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 | **Ports & Events**: Portübersicht mit Firewall-Abgleich, Ereignisstrom | Die zwei Adaptionen aus Arcane |
 | 7 | **Update-Prüfung**: Digest-Abgleich, Zwischenspeicher, Ratengrenzen, Signal, „Stack aktualisieren" | Auskunft, kein Automat |
@@ -460,6 +460,63 @@ Listen.
   Geprüft wird jetzt je Tabelle; die Absicht ist dieselbe geblieben.
 
 **Gemessen:** Binärgröße 17,3 MB (< 30), Abdeckung `privops` 77,4 % (> 72),
+`httpd` 70,0 % (> 68), direkte Go-Abhängigkeiten unverändert 6.
+
+### Schritt 4 — Stand: umgesetzt
+
+`internal/privops/compose.go` mit `StackList` und `StackDatei`, zwei lesende
+Routen (`GET /api/v1/docker/stacks`, `GET /api/v1/docker/stacks/{name}`) und die
+Stackwerkbank über der Containerwerkbank. Rein lesend: Es gibt keinen Knopf, der
+etwas ändert, und der Browsertest prüft ausdrücklich, dass keiner dasteht — ein
+Editor ohne Compose-Prüfer wäre genau die Reihenfolge, die dieses Modul sich in
+E4 verboten hat.
+
+**Die Entscheidung, die alles andere trägt: Kein Pfad kommt je aus der
+Anfrage.** Die Oberfläche nennt einen *Namen*; wo dessen Compose-Datei liegt,
+sagt entweder Docker (`compose ls --all --format json`) oder das verwaltete
+Verzeichnis. `StackDatei` schlägt den Namen deshalb erst in `StackList` nach und
+liest dann den Pfad, den die Liste nennt. Käme der Pfad aus der Anfrage, wäre
+dieser Endpunkt ein Weg, jede Datei des Servers zu lesen — und die Pfadwache des
+Dateimanagers stünde daneben, ohne dass ihn jemand fragt. Die Frage stellt sich
+so gar nicht erst.
+
+**Vier weitere Entscheidungen, die beim Bauen fielen:**
+
+- **Der Marker entscheidet über „verwaltet", nicht der Ort.** Wer von Hand ein
+  Verzeichnis unter `/opt/asylum/stacks/` anlegt, hat es damit nicht dem Panel
+  überschrieben — es fehlt die erste Zeile `# Vom Panel verwaltet — Modul
+  Docker.` Dasselbe Muster wie bei den Crontabs (`cron.go`), und aus demselben
+  Grund: Der Ort allein ist eine Vermutung, der Marker eine Aussage.
+- **Zwei Quellen, eine Liste, und ein Ausfall an einer Quelle beendet die
+  Auskunft nicht.** Ohne Compose gibt es keine Projekte von Docker, aber
+  vielleicht Verzeichnisse; umgekehrt kennt Docker Projekte, die nirgends
+  liegen. Ein Stack, den das Panel angelegt hat und der noch nie lief, ist ein
+  Zustand („nicht gestartet") und kein Fehler.
+- **Die Dienstnamen kommen aus den Compose-Labels der Container, nicht aus der
+  Datei.** Ein YAML zu zerlegen, nur um Namen anzuzeigen, hieße einen zweiten
+  Compose-Parser neben dem Prüfer aus Schritt 5 zu halten — und zwei Parser
+  desselben Formats laufen auseinander. Ein nie gestarteter Stack hat deshalb
+  keine Dienstnamen; seine Datei steht im Inspektor daneben.
+- **Der auffällige Fall ist der HALBE Stack.** `stackStufe` meldet nur „warn"
+  für ein Projekt, von dem ein Teil läuft: Das ist der Zustand, der aussieht wie
+  „läuft" und keiner ist. Ein ganz gestoppter Stack ist meistens Absicht — wer
+  ihn heruntergefahren hat, weiß das, und ein Ausrufezeichen dafür wäre Lärm.
+
+**Ein Befund aus dem Bau:** Der Browsertest hatte die Containerwerkbank über
+`.werkbank .tabelle` angesteuert — „die erste Werkbank der Seite". Das stimmte,
+solange es nur eine gab. Mit der Stackwerkbank darüber hätte derselbe Selektor
+weiterhin *bestanden* und dabei etwas anderes geprüft als gemeint, weil eine
+falsche Tabelle immer noch eine Tabelle ist. Es gibt jetzt `klickeInTabelle`,
+das die Tabelle über eine ihrer Spalten heraussucht; dieselbe Falle war in
+Schritt 3 schon einmal zugeschnappt.
+
+**Was in diesem Schritt bewusst offen bleibt:** Der Zustand eines fremden
+Projekts lässt sich nicht bedienen — auch Starten und Stoppen nicht, obwohl E3
+das vorsieht. Es kommt mit Schritt 5, zusammen mit den Vorgängen: `up` und
+`down` sind Jobs mit Strom, und die Vorgangsplatte für Stacks gehört in
+denselben Schritt wie der Prüfer, der vor jedem `up` läuft.
+
+**Gemessen:** Binärgröße 17,3 MB (< 30), Abdeckung `privops` 77,6 % (> 72),
 `httpd` 70,0 % (> 68), direkte Go-Abhängigkeiten unverändert 6.
 
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das

@@ -14,6 +14,7 @@
   // keine eigene Auslegung daneben.
   import Bestandsansicht from "../komponenten/Bestand.svelte";
   import Containerwerkbank from "../komponenten/Containerliste.svelte";
+  import Stackwerkbank from "../komponenten/Stackliste.svelte";
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
   import { AbgemeldetFehler, api } from "../lib/api";
   import { t } from "../lib/texte";
@@ -182,6 +183,13 @@
     <!-- Container gibt es nur, wenn der Daemon antwortet. Die Liste zu laden,
          während er tot ist, brächte eine Fehlermeldung unter einer Karte, die
          die Ursache schon nennt. -->
+    <!-- Stacks zuerst: Sie sind das führende Objekt dieses Moduls
+         (docs/16-neukonzeption.md §5). Wer einen Server mit Compose betreibt,
+         denkt in Projekten und nicht in einzelnen Containern — die stehen
+         darunter, für die Fälle, in denen doch der einzelne zählt. -->
+    <h2>{t.docker.stacks}</h2>
+    <Stackwerkbank />
+
     <h2>{t.docker.container}</h2>
     <Containerwerkbank />
 

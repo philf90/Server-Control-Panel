@@ -11,6 +11,31 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Modul Docker, Stacks — lesend** (`/docker`, zwei weitere Routen unter
+  `/api/v1/docker/stacks`). Compose-Projekte als führendes Objekt des Moduls:
+  Liste über der Containerwerkbank, Inspektor mit den Diensten des Projekts,
+  seinen Containern und der Compose-Datei.
+
+  **Kein Pfad kommt aus der Anfrage.** Die Oberfläche nennt einen *Namen*; wo
+  dessen Datei liegt, sagt entweder Docker oder das verwaltete Verzeichnis
+  `/opt/asylum/stacks`. Käme der Pfad aus dem Browser, wäre der Endpunkt ein Weg,
+  jede Datei des Servers zu lesen.
+
+  **Verwaltet und fremd stehen nebeneinander.** Was das Panel angelegt hat,
+  trägt einen Marker in der ersten Zeile der `compose.yaml` — der Marker
+  entscheidet, nicht der Ort. Projekte, die jemand außerhalb des Panels angelegt
+  hat, erscheinen in der Liste als *fremd*: lesbar, und sonst nichts. Dieselbe
+  Trennung wie bei nftables und bei fremden Crontabs.
+
+  **Der halbe Stack ist der auffällige Fall.** Ein Projekt, von dem zwei von
+  drei Diensten laufen, ist kaputt und sieht aus wie „läuft" — es steht deshalb
+  oben. Ein ganz gestoppter Stack ist meistens Absicht und bekommt kein
+  Ausrufezeichen.
+
+  Anlegen, Bearbeiten und Starten kommen mit dem nächsten Schritt, zusammen mit
+  dem Compose-Prüfer: Ein Editor ohne Prüfer wäre genau die Reihenfolge, die
+  dieses Modul sich verboten hat.
+
 - **Modul Docker, Bestand** (`/docker`, fünf weitere Routen). Abbilder, Volumes
   und Netze mit dem, was Docker auf der Platte belegt — und den Handgriffen, es
   loszuwerden.

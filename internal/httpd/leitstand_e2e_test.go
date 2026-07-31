@@ -698,6 +698,18 @@ type ergebnisLeitstand struct {
 			Inspektor bool   `json:"inspektor"`
 			Suche     string `json:"suche"`
 		} `json:"nachZurueck"`
+		Stacks struct {
+			Reihen []struct {
+				Name     string `json:"name"`
+				Dienste  string `json:"dienste"`
+				Zustand  string `json:"zustand"`
+				Herkunft string `json:"herkunft"`
+			} `json:"reihen"`
+			Titel   string   `json:"titel"`
+			Datei   string   `json:"datei"`
+			Knoepfe []string `json:"knoepfe"`
+			Suche   string   `json:"suche"`
+		} `json:"stacks"`
 		Bestand struct {
 			Ueberschriften []string `json:"ueberschriften"`
 			PlatteDa       bool     `json:"platteDa"`
@@ -925,6 +937,24 @@ func TestLeitstandBrowser(t *testing.T) {
 	ops.containerLogs = []string{
 		"2026-07-31T10:00:00.000000000Z Konfiguration geladen",
 		"2026-07-31T10:00:01.000000000Z bereit auf :80",
+	}
+	// Zwei Stacks, und der Unterschied zwischen ihnen ist der Grund, warum sie
+	// hier stehen: „web" ist verwaltet und halb oben — der auffällige Fall, der
+	// aussieht wie „läuft". „fremd" hat jemand außerhalb des Panels angelegt und
+	// bleibt deshalb ohne jeden Schreibgriff.
+	ops.stacks = []privops.Stack{
+		{
+			Name: "web", Verwaltet: true, Datei: "/opt/asylum/stacks/web/compose.yaml",
+			Status: "running(2), exited(1)", Laufend: 2, Gesamt: 3, Gestartet: true,
+		},
+		{
+			Name: "fremd", Datei: "/srv/fremd/docker-compose.yml",
+			Status: "running(1)", Laufend: 1, Gesamt: 1, Gestartet: true,
+		},
+	}
+	ops.stackText = map[string]string{
+		"web":   "services:\n  proxy:\n    image: nginx:alpine\n    ports: [\"8080:80\"]\n",
+		"fremd": "services:\n  irgendwas:\n    image: busybox\n",
 	}
 
 	ts := httptest.NewServer(s.Handler())
@@ -2797,6 +2827,47 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if dk.NavAktiv != "/docker" {
 		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q)", dk.NavAktiv)
+	}
+
+	// Die Stackwerkbank, Schritt 4. Drei Dinge sind hier nur im Browser zu sehen.
+	st := dk.Stacks
+	if len(st.Reihen) != 2 {
+		t.Fatalf("erwartet 2 Stackzeilen, gerendert sind %d", len(st.Reihen))
+	}
+	// Erstens die Reihenfolge: Der halb oben stehende Stack gehört nach oben.
+	// Ein Projekt, von dem zwei von drei Diensten laufen, ist kaputt und sieht
+	// aus wie „läuft".
+	if st.Reihen[0].Name != "web" || !strings.Contains(st.Reihen[0].Zustand, "warn") {
+		t.Errorf("der halb laufende Stack steht nicht oben oder trägt die falsche Stufe: %+v",
+			st.Reihen[0])
+	}
+	// Zweitens die Herkunft als eigene Spalte: Sie ist die Zusage, an welcher
+	// Datei das Panel nie rührt. Als Fußnote sucht später jemand einen Knopf,
+	// den es mit Absicht nicht gibt.
+	if st.Reihen[0].Herkunft != "verwaltet" || st.Reihen[1].Herkunft != "fremd" {
+		t.Errorf("die Spalte Herkunft trennt verwaltet und fremd nicht: %q / %q",
+			st.Reihen[0].Herkunft, st.Reihen[1].Herkunft)
+	}
+	// Die Dienstnamen kommen aus den Compose-Labels der Container. Die Attrappe
+	// hat drei am Stack „web" — stehen sie nicht da, ist die Verschmelzung der
+	// beiden Quellen unterwegs verlorengegangen.
+	if !strings.Contains(st.Reihen[0].Dienste, "proxy") {
+		t.Errorf("die Dienstnamen fehlen in der Zeile: %q", st.Reihen[0].Dienste)
+	}
+	// Drittens der Weg vom NAMEN bis zur Datei: Die Compose-Datei steht im
+	// Inspektor, ohne dass je ein Pfad aus dem Browser kam.
+	if !strings.Contains(st.Datei, "image: nginx:alpine") {
+		t.Errorf("die Compose-Datei fehlt im Inspektor: %q", st.Datei)
+	}
+	if !strings.Contains(st.Suche, "stack=") {
+		t.Errorf("die Stackauswahl steht nicht in der Adresse: %q", st.Suche)
+	}
+	// In dieser Fassung ist die Werkbank rein lesend. Ein Knopf, der etwas
+	// ändert, wäre hier ein Befund und kein fehlendes Merkmal: Ein Editor ohne
+	// Compose-Prüfer ist genau die Reihenfolge, die dieses Modul sich verboten
+	// hat.
+	if len(st.Knoepfe) != 0 {
+		t.Errorf("die Stackwerkbank ist in Schritt 4 lesend, zeigt aber Knöpfe: %v", st.Knoepfe)
 	}
 
 	// Die Containerwerkbank. Der Kern ist die Reihenfolge: Ein laufender, aber

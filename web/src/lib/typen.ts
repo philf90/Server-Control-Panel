@@ -1409,3 +1409,48 @@ export type Bestand = {
   job: Job | null;
   fehler?: string;
 };
+
+/** Stack ist ein Compose-Projekt.
+ *
+ *  `verwaltet` ist die Angabe, die dieses Modul prägt: Nur was das Panel selbst
+ *  angelegt hat — Datei unter /opt/asylum/stacks mit Marker —, wird es je
+ *  schreiben. Fremde Projekte sind lesbar und sonst nichts.
+ *
+ *  `dienste` kommt aus den Compose-Labels der laufenden Container und nicht aus
+ *  der Datei. Bei einem nie gestarteten Stack ist die Liste deshalb leer. */
+export type Stack = {
+  name: string;
+  verwaltet: boolean;
+  datei: string;
+  status: string;
+  laufend: number;
+  gesamt: number;
+  gestartet: boolean;
+  zustand_stufe: string;
+  auffaellig: boolean;
+  dienste: string[];
+};
+
+/** StackDetail kommt mit der Auswahl: die Compose-Datei und die Container des
+ *  Projekts. `gekuerzt` sagt, ob die Datei vollständig dasteht — eine halbe, die
+ *  wie eine ganze aussieht, ist die schlechteste Auskunft. */
+export type StackDetail = Stack & {
+  text: string;
+  gekuerzt: boolean;
+  container: Container[];
+  fehler?: string;
+};
+
+export type Stackzaehler = {
+  alle: number;
+  verwaltet: number;
+  fremd: number;
+  auffaellig: number;
+};
+
+export type Stackliste = {
+  zeilen: Stack[];
+  zaehler: Stackzaehler;
+  darf_aendern: boolean;
+  fehler?: string;
+};

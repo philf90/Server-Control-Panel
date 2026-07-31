@@ -265,6 +265,13 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerNetzEntfernen)))))
 	mux.Handle("POST /api/v1/docker/prune",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerPrune)))))
+	// Stacks, lesend. Der Name im Pfad wird nie zu einem Pfad auf der Platte —
+	// wo die Compose-Datei liegt, sagt Docker oder das verwaltete Verzeichnis.
+	// Die Begründung steht im Kopf von internal/privops/compose.go.
+	mux.Handle("GET /api/v1/docker/stacks",
+		s.protected(http.HandlerFunc(s.handleAPIDockerStacks)))
+	mux.Handle("GET /api/v1/docker/stacks/{name}",
+		s.protected(http.HandlerFunc(s.handleAPIDockerStack)))
 
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst

@@ -29,6 +29,26 @@ const { chromium } = require("playwright");
 
 const gesammelt = [];
 
+// klickeInTabelle wählt die erste Zeile DER Tabelle, die eine bestimmte Spalte
+// hat — und nicht der ersten Tabelle auf der Seite.
+//
+// Der Anlass steht in der Fassung 0.5: Die Docker-Seite trug erst eine Tabelle,
+// dann vier, dann fünf. Jeder Selektor der Form „.werkbank .tabelle" prüfte ab
+// dem nächsten Schritt etwas anderes als beim Schreiben gemeint — und tat es
+// still, weil eine falsche Tabelle immer noch eine Tabelle ist.
+async function klickeInTabelle(seite, spalte) {
+  const getroffen = await seite.evaluate((spalte) => {
+    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === spalte),
+    );
+    const knopf = tab?.querySelector('tbody tr [data-spalte="Name"] button');
+    if (!knopf) return false;
+    knopf.click();
+    return true;
+  }, spalte);
+  if (!getroffen) throw new Error(`keine Tabelle mit der Spalte ${spalte}`);
+}
+
 async function main() {
   const basis = process.env.ASYLUM_E2E_URL;
   const cookie = process.env.ASYLUM_E2E_COOKIE;
@@ -2859,11 +2879,49 @@ async function main() {
   // die Vertröstung statt auf das Modul.
   dock.istBald = await seite.evaluate(() => !!document.querySelector(".platte .satz"));
 
+  // Die Stackwerkbank steht seit Schritt 4 ÜBER der Containerwerkbank — Stacks
+  // sind das führende Objekt des Moduls. Genau deshalb wird sie hier zuerst
+  // geprüft: Wäre die Reihenfolge anders herum, führe jeder Selektor, der „die
+  // erste Werkbank" meint, auf die falsche Tabelle.
+  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
+  await klickeInTabelle(seite, "Dienste");
+  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  dock.stacks = await seite.evaluate(() => {
+    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Dienste"),
+    );
+    const insp = document.querySelector(".inspektor");
+    return {
+      reihen: tab
+        ? [...tab.querySelectorAll("tbody tr")].map((tr) => ({
+            name: tr.querySelector('[data-spalte="Name"]')?.textContent.trim() ?? "",
+            dienste: tr.querySelector('[data-spalte="Dienste"]')?.textContent.trim() ?? "",
+            zustand: tr.querySelector('[data-spalte="Zustand"] .zustand')?.className ?? "",
+            herkunft: tr.querySelector('[data-spalte="Herkunft"]')?.textContent.trim() ?? "",
+          }))
+        : [],
+      titel: insp?.querySelector(".pfad")?.textContent.trim() ?? "",
+      // Die Compose-Datei steht im Inspektor. Sie ist der Beleg dafür, dass der
+      // Weg über den NAMEN bis zum Text durchgeht — ohne dass je ein Pfad aus
+      // dem Browser kam.
+      datei: insp?.querySelector("pre")?.textContent.trim() ?? "",
+      // In dieser Fassung ist die Werkbank rein lesend: Ein Knopf, der etwas
+      // ändert, wäre hier ein Fehler und kein fehlendes Merkmal.
+      knoepfe: insp
+        ? [...insp.querySelectorAll(".knopf")].map((k) => k.textContent.trim())
+        : [],
+      suche: new URL(location.href).search,
+    };
+  });
+  // Zumachen, bevor die Containerwerkbank drankommt: Sonst stünden zwei
+  // Inspektoren nebeneinander, und jeder Selektor darauf nähme den oberen.
+  await seite.click(".inspektor .zu");
+  await seite.waitForTimeout(200);
+
   // Die Containerwerkbank. Zwei Dinge sind hier nur im Browser zu sehen: dass
   // die auffälligen Zeilen oben stehen (die Sortierung kommt vom Server, aber ob
   // sie ankommt, sagt nur die gerenderte Tabelle), und dass der Inspektor mit
   // der Auswahl in der Adresse auf- und mit dem Zurück-Knopf wieder zugeht.
-  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
   // Die Containertabelle heraussuchen und nicht die erste beste nehmen: Der
   // Bestand bringt drei weitere mit. Erkennbar ist sie an der Spalte „Ports".
   dock.reihen = await seite.evaluate(() => {
@@ -2877,7 +2935,7 @@ async function main() {
     }));
   });
 
-  await seite.click('.werkbank .tabelle tbody tr:first-child [data-spalte="Name"] button');
+  await klickeInTabelle(seite, "Ports");
   await seite.waitForSelector(".inspektor", { timeout: 5000 });
   dock.nachKlick = {
     suche: new URL(seite.url()).search,

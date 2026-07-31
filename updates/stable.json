@@ -1,0 +1,19 @@
+{
+  "version": "0.4.0",
+  "released_at": "2026-07-31T08:11:09Z",
+  "min_upgradable_from": "",
+  "notes_url": "https://github.com/philf90/Server-Control-Panel/releases/tag/v0.4.0",
+  "severity": "normal",
+  "checksums_url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.4.0/SHA256SUMS",
+  "signature_url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.4.0/SHA256SUMS.minisig",
+  "artifacts": {
+    "linux_amd64": {
+      "url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.4.0/asylumd_0.4.0_linux_amd64.tar.gz",
+      "sha256": "96356d4acddb2d3fbbe9beeb2b5d14fc11785bdf29f008c52249e4a6cf27557a"
+    },
+    "linux_arm64": {
+      "url": "https://github.com/philf90/Server-Control-Panel/releases/download/v0.4.0/asylumd_0.4.0_linux_arm64.tar.gz",
+      "sha256": "4565cfc37168dafee665a981f573e772ce852ad54f416446829358659df2871d"
+    }
+  }
+}

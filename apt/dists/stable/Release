@@ -1,0 +1,28 @@
+Architectures: amd64 arm64
+Codename: stable
+Components: main
+Date: Fri, 31 Jul 2026 08:11:16 +0000
+Description: Project Asylum stable
+Label: Project Asylum
+Origin: Project Asylum
+Suite: stable
+MD5Sum:
+ f9b7b76d2fb287d809a24f8d9c9c64da            47028 main/binary-amd64/Packages
+ 60168e79618ab22615d80f5a9d03a1d8            10908 main/binary-amd64/Packages.gz
+ 6ad732b971f1ec4cc0f34145b73c5afb            46188 main/binary-arm64/Packages
+ a3a7f86a9a860bc4bacede6054cfb261            10830 main/binary-arm64/Packages.gz
+SHA1:
+ 3901be0577c157102517983993346d6440863933            47028 main/binary-amd64/Packages
+ e584e9cd965f30718a27794c4da3e1764160d3fd            10908 main/binary-amd64/Packages.gz
+ db457050f971a5cf344bcee5379d996e23bb2f59            46188 main/binary-arm64/Packages
+ 5ed1a3dcaaa40670d8d17c1f38080cf080477c48            10830 main/binary-arm64/Packages.gz
+SHA256:
+ b812f681ae094ed235fd0324a9d8abd5d5744d7cc775e5835aaa53ba86741c42            47028 main/binary-amd64/Packages
+ 00ac5c3ae47e24dda3e118a97f7a5b5b5a706489d02c45f506f067926bc534c3            10908 main/binary-amd64/Packages.gz
+ f68765410eacf33ed3b86a52a20b4511ea481c038e19547830a36bafbb5649ca            46188 main/binary-arm64/Packages
+ ee108c5e87bf3b5f87be03417d659ed164ab47374daba8bbf9db9898c610df4c            10830 main/binary-arm64/Packages.gz
+SHA512:
+ 7c61a227b35a2348178cf7fb25b452b990eeb08051143befa48fddc80fa08524efcfe0d8009b3baec33e5c9f16967e5059ed35a91b4727e1dde86b34d08faaae            47028 main/binary-amd64/Packages
+ 91a8cf89dcde6bfc04f1bd810615e53a5e6390883616b12b907c30904e752fc9bfe8ee170aea85f223213e864a29d761cd56b87b4c746933829a37e88e36dadd            10908 main/binary-amd64/Packages.gz
+ 362b02fff780988627ac0cf70dccc9622398abc3bc2e64eae270f8a213cdab4ad1baf8802657ca209d8adc5659d9923e9cb8c692c683ca0bc56cb0e94818623f            46188 main/binary-arm64/Packages
+ 7e9d0bb2f2d04e6c0f1fc06ff0592c2b4ece60ee12df6e718728d31c55d1234c965a203431d9461d5c8e72e96c9db374f0012dab7a3a89234568f8ef45433330            10830 main/binary-arm64/Packages.gz

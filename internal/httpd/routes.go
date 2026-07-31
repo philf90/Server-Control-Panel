@@ -235,6 +235,16 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/v1/schedules/cron/{name}/delete",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPICronLoeschen)))))
 
+	// Docker. Lesen genügt das Leserecht — wer sehen darf, welche Dienste laufen,
+	// darf sehen, welche Container laufen. Schreiben verlangt die Owner-Rolle,
+	// und zwar schärfer begründet als bei den Zeitplänen: Wer den Docker-Socket
+	// hat, hat die Maschine. Ein Container mit „-v /:/host" ist root auf dem
+	// Wirt, ohne Umweg über eine Lücke. Die Begründung steht im Kopf von
+	// api_v1_docker.go und ausführlich in docs/17-docker.md.
+	mux.Handle("GET /api/v1/docker", s.protected(http.HandlerFunc(s.handleAPIDocker)))
+	mux.Handle("POST /api/v1/docker/install",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerInstall)))))
+
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst
 	// bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen, mit dem es

@@ -126,24 +126,7 @@ func (s *System) ufwState(ctx context.Context) (FirewallState, bool, error) {
 // System bringen. Diese Operation kennt genau ein Paket, und der Name steht
 // hier im Quelltext statt im Formular.
 func (s *System) FirewallInstall(ctx context.Context, stream LineWriter) error {
-	res, err := s.run(ctx, Command{
-		Name: "apt-get",
-		Args: []string{
-			"install", "--yes",
-			"-o", "Dpkg::Options::=--force-confdef",
-			"-o", "Dpkg::Options::=--force-confold",
-			"--", "ufw",
-		},
-		Timeout: longTimeout,
-		Stream:  stream,
-	})
-	if err != nil {
-		return err
-	}
-	if res.ExitCode != 0 {
-		return fmt.Errorf("apt-get install ufw endete mit Code %d", res.ExitCode)
-	}
-	return nil
+	return s.aptInstall(ctx, stream, "ufw")
 }
 
 // FirewallSetActive schaltet ufw ein oder aus.

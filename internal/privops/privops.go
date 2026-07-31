@@ -91,6 +91,17 @@ type Executor interface {
 	TimerList(ctx context.Context) ([]Timer, error)
 	TimerRuns(ctx context.Context, unit string) (TimerLauf, error)
 
+	// Docker.
+	//
+	// Der Zugriff läuft über die Kommandozeile und nie über den Socket. Das ist
+	// keine Bequemlichkeitsfrage: Wer den Docker-Socket hat, hat die Maschine,
+	// und dieses Interface ist die Stelle, an der das Panel entscheidet, was es
+	// überhaupt anbieten kann. Ein durchgereichter Socket wäre eine Operation
+	// „tu irgendwas" — das Gegenteil dessen, wofür es dieses Interface gibt.
+	// Ausführlich in docs/17-docker.md.
+	DockerState(ctx context.Context) (DockerState, error)
+	DockerInstall(ctx context.Context, stream LineWriter) error
+
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error
 }

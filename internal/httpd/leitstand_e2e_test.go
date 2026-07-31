@@ -671,6 +671,15 @@ type ergebnisLeitstand struct {
 		Ersatz   string `json:"ersatz"`
 		NavAktiv string `json:"navAktiv"`
 	} `json:"bald"`
+	Dock struct {
+		Pfad      string   `json:"pfad"`
+		Titel     string   `json:"titel"`
+		Karten    int      `json:"karten"`
+		Anmerkung string   `json:"anmerkung"`
+		Knoepfe   []string `json:"knoepfe"`
+		IstBald   bool     `json:"istBald"`
+		NavAktiv  string   `json:"navAktiv"`
+	} `json:"dock"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -2658,11 +2667,11 @@ func TestLeitstandBrowser(t *testing.T) {
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2
 	// stillschweigend auf der Übersicht; jetzt sagt eine Seite, worum es geht.
 	b := e.Bald
-	if b.Pfad != "/docker" {
-		t.Errorf("der Pfad ist %q, erwartet /docker", b.Pfad)
+	if b.Pfad != "/webserver" {
+		t.Errorf("der Pfad ist %q, erwartet /webserver", b.Pfad)
 	}
-	if b.Titel != "Docker" {
-		t.Errorf("die Überschrift ist %q, erwartet Docker — die Seite nennt nicht, "+
+	if b.Titel != "Webserver" {
+		t.Errorf("die Überschrift ist %q, erwartet Webserver — die Seite nennt nicht, "+
 			"worum es geht", b.Titel)
 	}
 	if !strings.Contains(b.Marke, "0.6") {
@@ -2674,10 +2683,41 @@ func TestLeitstandBrowser(t *testing.T) {
 	if b.Ersatz == "" {
 		t.Error("die Seite nennt keinen Weg, der heute schon geht")
 	}
-	if b.NavAktiv != "/docker" {
+	if b.NavAktiv != "/webserver" {
 		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q) — "+
 			"dann sieht die Seite aus wie eine, auf die man versehentlich geraten ist",
 			b.NavAktiv)
+	}
+
+	// 6h. Das Modul Docker, Schritt 1 der Fassung 0.5. Der Kern ist, dass aus dem
+	// Zustand der richtige Handgriff wird: Die Attrappe meldet ein fehlendes
+	// Docker, und dann gehört genau ein Knopf auf die Seite.
+	dk := e.Dock
+	if dk.Pfad != "/docker" {
+		t.Errorf("der Pfad ist %q, erwartet /docker", dk.Pfad)
+	}
+	if dk.IstBald {
+		t.Error("der Menüpunkt Docker führt weiter auf die Seite „bald" + `"` +
+			" — das Modul ist gebaut, und eine Vertröstung davor wäre eine Unwahrheit")
+	}
+	if dk.Titel != "Docker" {
+		t.Errorf("die Überschrift ist %q, erwartet Docker", dk.Titel)
+	}
+	// Drei Karten: Laufzeit, Daemon, Compose. Sie sind der Grund, warum die Seite
+	// in dieser Fassung schon existiert.
+	if dk.Karten != 3 {
+		t.Errorf("die Seite zeigt %d Karten, erwartet 3 (Laufzeit, Daemon, Compose)", dk.Karten)
+	}
+	if dk.Anmerkung == "" {
+		t.Error("ohne Docker steht kein erklärender Satz da — dann sieht die Seite aus, " +
+			"als sei sie kaputt, statt zu sagen, was fehlt")
+	}
+	if len(dk.Knoepfe) != 1 || !strings.Contains(dk.Knoepfe[0], "einspielen") {
+		t.Errorf("erwartet genau einen Knopf zum Einspielen, gefunden: %v — ein Knopf "+
+			"mehr wäre einer, der in dieser Lage nichts bewirkt", dk.Knoepfe)
+	}
+	if dk.NavAktiv != "/docker" {
+		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q)", dk.NavAktiv)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

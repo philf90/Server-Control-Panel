@@ -38,6 +38,9 @@ var jobArten = map[string]string{
 	// Oberflaeche hat dafuer einen eigenen Strom unter /certificate/events; die
 	// neue braucht keinen zweiten.
 	jobCertificate: "Zertifikatsbezug",
+	// Dasselbe Muster wie bei ufw: Fehlt das Werkzeug, spielt das Panel es ein,
+	// statt eine Kommandozeile zum Abtippen zu drucken.
+	jobDockerInstall: "Docker einspielen",
 }
 
 // apiJob ist der Zustand eines Vorgangs.

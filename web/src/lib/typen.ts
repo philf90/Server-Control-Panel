@@ -1258,3 +1258,31 @@ export type Tokenauftrag = {
  *  In der Datenbank steht der Hash, und es gibt keinen Endpunkt, der ihn
  *  zurückgäbe. */
 export type Tokenantwort = { meldung: string; token?: string; hinweis?: string };
+
+/** Docker ist der Zustand der Container-Laufzeit.
+ *
+ *  Vier Fragen, die auseinandergehalten gehören, weil zu jeder ein anderer
+ *  Handgriff passt: Ist Docker da? Antwortet es? Gibt es Compose? Und was hilft,
+ *  wenn etwas fehlt? Die Antwort auf die letzte kommt fertig vom Server
+ *  (anmerkung, einspielbar) — eine zweite Auslegung im Browser wäre die Stelle,
+ *  an der beide auseinanderlaufen. */
+export type Docker = {
+  installiert: boolean;
+  /** paket ist "docker.io", "docker-ce" oder leer bei einer Installation an apt
+   *  vorbei. Reine Auskunft; sie entscheidet nichts. */
+  paket: string;
+  daemon_laeuft: boolean;
+  client_version: string;
+  server_version: string;
+  compose_verfuegbar: boolean;
+  compose_version: string;
+  anmerkung: string;
+  /** einspielbar heißt: Ein apt-Lauf richtet hier etwas aus. Nicht dasselbe wie
+   *  „nicht installiert" — bei totem Daemon hilft ein Dienststart. */
+  einspielbar: boolean;
+  /** darf_aendern kommt aus der Antwort des Moduls und nicht aus der Sitzung:
+   *  Docker bedienen darf nur der Owner, nicht jedes Konto mit Schreibrecht. */
+  darf_aendern: boolean;
+  job: Job | null;
+  fehler?: string;
+};

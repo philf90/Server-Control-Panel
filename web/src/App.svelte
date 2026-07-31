@@ -25,6 +25,7 @@
   import PanelupdateSeite from "./seiten/Panelupdate.svelte";
   import ZeitplaeneSeite from "./seiten/Zeitplaene.svelte";
   import TokensSeite from "./seiten/Tokens.svelte";
+  import DockerSeite from "./seiten/Docker.svelte";
   import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
@@ -148,6 +149,12 @@
              der Sitzung: Ein Cron-Eintrag ist eine Shell-Zeile, und wer einen
              anlegen darf, ist eine engere Frage als „darf schreiben". -->
         <ZeitplaeneSeite />
+      {:else if weg.seite === "docker"}
+        <!-- Docker: Lesen darf jede Rolle, bedienen nur der Owner. Die Seite
+             holt das aus ihrer eigenen Antwort (darf_aendern) und nicht aus der
+             Sitzung — „darf schreiben" ist hier die falsche Frage: Ein Container
+             mit Zugriff auf das Wirtsdateisystem ist root auf dem Server. -->
+        <DockerSeite />
       {:else if weg.seite === "zertifikate"}
         <ZertifikatSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "panelupdate"}

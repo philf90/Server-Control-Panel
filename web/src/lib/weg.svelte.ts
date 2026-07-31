@@ -44,6 +44,7 @@ export type Seite =
   | "panelupdate"
   | "zeitplaene"
   | "tokens"
+  | "docker"
   | "bald";
 
 /** gebauteSeiten sind die Kennungen, die eine eigene Seite haben. Als Objekt und
@@ -63,6 +64,7 @@ const gebauteSeiten: Record<string, Seite> = {
   updates: "panelupdate",
   cron: "zeitplaene",
   tokens: "tokens",
+  docker: "docker",
 };
 
 /** angekuendigt sind die Module, die es noch nicht gibt, die aber im Menü stehen.
@@ -79,7 +81,6 @@ const gebauteSeiten: Record<string, Seite> = {
  *  ist genau die Sorte Angabe, die niemand nachprüft. Wer hier etwas ändert,
  *  ändert es dort mit. */
 export const angekuendigt: Record<string, string> = {
-  docker: "0.5",
   webserver: "0.6",
   datenbanken: "0.7",
   backups: "0.8",

@@ -316,7 +316,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 
 | # | Schritt | Ergebnis |
 |---|---|---|
-| 1 | **Fundament**: Allowlist, `DockerState`, `DockerInstall`, Executor-Methoden, `fakeOps`, `GET /api/v1/docker`, Seitengerüst | Das Modul existiert und kann Docker installieren |
+| 1 | **Fundament**: Allowlist, `DockerState`, `DockerInstall`, Executor-Methoden, `fakeOps`, `GET /api/v1/docker`, Seitengerüst — **umgesetzt**, siehe unten | Das Modul existiert und kann Docker installieren |
 | 2 | **Container**: Liste, Inspektor, Aktionen, Entfernen, Logs (Auszug und Verfolgen), Statistik | Der Alltagsfall steht |
 | 3 | **Bestand**: Images, Volumes, Netze, `system df`, Aufräumen je Art mit freigegebenem Platz | Die häufigste Wartung |
 | 4 | **Stacks lesend**: `compose ls`, eigenes Verzeichnis, Verschmelzung, Detail | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
@@ -325,6 +325,46 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 7 | **Update-Prüfung**: Digest-Abgleich, Zwischenspeicher, Ratengrenzen, Signal, „Stack aktualisieren" | Auskunft, kein Automat |
 | 8 | **Container-Shell**: Schalter in der Konfiguration, Transport, Terminal, Audit je Sitzung | Siehe unten |
 | 9 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch, Socket-Weitergabe; Messung von Binärgröße und Grundlast; Doku | Wie Phase 7 des Dateimanagers |
+
+### Schritt 1 — Stand: umgesetzt
+
+`privops` wächst um `DockerState` und `DockerInstall`, die Allowlist um genau
+einen Eintrag (`docker`), und `/docker` ist ein gebautes Ziel statt eines
+angekündigten. Die Seite zeigt drei Karten — Laufzeit, Daemon, Compose —, dazu
+den Satz, was zu tun ist, und den Knopf, der es tut.
+
+**Drei Entscheidungen, die beim Bauen fielen:**
+
+- **Der Rat steht in `httpd`, nicht in `privops`.** Ursprünglich trug
+  `DockerState` ein Feld `Notiz` mit dem Satz „Docker fehlt, das Panel kann es
+  einspielen" — dem Vorbild `FirewallState.Notice` folgend. Der Browsertest hat
+  gezeigt, warum das falsch war: Die Attrappe füllte das Feld nicht, und die
+  Seite zeigte im Zustand „nicht installiert" drei Karten ohne ein einziges Wort
+  dazu. Ein Go-Test konnte das nicht finden — er prüfte das Feld, das er selbst
+  gesetzt hatte. Jetzt leitet `dockerAnmerkung` den Satz aus dem Zustand ab,
+  in derselben Schicht, die auch über den Knopf entscheidet. Die Trennung
+  dahinter: **privops meldet Tatsachen, httpd macht daraus eine Empfehlung.**
+- **Einspielbar ist nicht dasselbe wie „fehlt".** Bei totem Daemon hilft kein
+  apt-Lauf, sondern ein Dienststart — dort steht deshalb kein Knopf, sondern
+  ein Verweis auf die Dienstseite. Ein Knopf, der zuverlässig nichts bewirkt,
+  verschiebt die Suche nach der Ursache um einen Fehlversuch.
+- **Ohne Docker stehen Daemon und Compose auf „—".** Der erste Entwurf meldete
+  dort „antwortet nicht" und „fehlt", beides farbig. Aus einem Befund wurden
+  drei, zwei davon erfunden: Zu einem Programm, das es nicht gibt, ist keine der
+  beiden Fragen gestellt.
+
+**Gemessen** (gegen die CI-Grenzen): Binärgröße 17,2 MB (< 30), Abdeckung
+`privops` 78,9 % (> 72), `httpd` 70,3 % (> 68), direkte Go-Abhängigkeiten
+unverändert 6. Der Schritt kostet keine neue Abhängigkeit — `encoding/json` und
+`strings` reichen.
+
+**Noch nicht geprüft, und das ist die wichtigste offene Zeile:** Die Parser
+laufen gegen aufgezeichnete Ausgaben, die aus der Dokumentation und nicht von
+einem echten Docker stammen. `docker version --format {{json .}}`,
+`docker compose version --short` und `dpkg-query` müssen auf einem Server mit
+Docker gegengelesen und die `const`-Blöcke in
+`internal/privops/docker_test.go` durch echte Ausgaben ersetzt werden. Solange
+das aussteht, ist die Fassungserkennung eine begründete Annahme.
 
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:

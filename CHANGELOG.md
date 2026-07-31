@@ -9,6 +9,36 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Hinzugefügt
+
+- **Modul Docker, erster Schritt** (`/docker`, zwei Routen unter
+  `/api/v1/docker`). Die Fassung 0.5 beginnt mit dem Zustand der Laufzeit und
+  ihrer Installation; Container, Stacks und Bestand folgen. Der Bauplan steht in
+  [docs/17-docker.md](docs/17-docker.md).
+
+  **Wer den Docker-Socket hat, hat die Maschine** — ein Container mit
+  `-v /:/host` ist root auf dem Wirt. Daraus folgt der Zuschnitt: Das Panel
+  spricht mit Docker über die **Kommandozeile** und reicht den Socket nie durch,
+  `privops` wächst um typisierte Operationen (`DockerState`, `DockerInstall`),
+  die Allowlist um genau einen Eintrag. Compose v2 ist ein Unterkommando
+  desselben Binaries und braucht keinen zweiten. **Schreiben verlangt die
+  Owner-Rolle**, nicht bloß Schreibrecht — dieselbe Begründung wie bei den
+  Zeitplänen, nur schärfer.
+
+  Fehlt Docker, bietet das Panel die Installation an, statt eine Kommandozeile
+  zum Abtippen zu drucken — dieselbe Antwort, die ufw seit `rc.4` gibt.
+  Eingespielt wird **`docker.io` aus den Quellen der Distribution** und nicht
+  `docker-ce`: Letzteres verlangt Dockers eigenes apt-Repository, und ein
+  fremder Stack neben apt ist ein Nicht-Ziel des Projekts. Erkannt wird Docker
+  am Binary und nicht am Paketnamen — auf Bestandsservern läuft häufig
+  `docker-ce`, und ein Panel, das nur nach `docker.io` fragt, böte an, ein
+  vorhandenes Docker zu installieren.
+
+  Die Seite hält drei Zustände auseinander, weil zu jedem ein anderer Handgriff
+  gehört: Docker fehlt (apt hilft), Docker ist da und antwortet nicht (der
+  Dienst hilft — dort steht deshalb ein Verweis auf die Dienstseite und kein
+  Knopf), Compose fehlt (apt hilft wieder).
+
 ### Behoben
 
 - **Die angekündigten Module nannten die falsche Fassung.** Docker stand mit

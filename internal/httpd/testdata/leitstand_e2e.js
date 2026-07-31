@@ -2797,8 +2797,11 @@ async function main() {
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
+  //
+  //     Geprüft wird das am Webserver: Docker ist mit dem ersten Schritt der 0.5
+  //     ein gebautes Modul und hat eine eigene Seite (Abschnitt 14).
   const bald = {};
-  await seite.click('.seitenleiste a[href="/docker"]');
+  await seite.click('.seitenleiste a[href="/webserver"]');
   await seite.waitForSelector(".platte .satz", { timeout: 5000 });
   bald.pfad = new URL(seite.url()).pathname;
   bald.titel = await seite.evaluate(
@@ -2821,6 +2824,43 @@ async function main() {
   if (process.env.ASYLUM_E2E_SHOTS) {
     await seite.screenshot({
       path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-bald.png`,
+      fullPage: true,
+    });
+  }
+
+  // 14. Das Modul Docker, Schritt 1 der Fassung 0.5. Zwei Dinge sind hier nur im
+  //     Browser zu sehen: dass der Menüpunkt nicht mehr auf die Seite „bald"
+  //     führt, und dass aus dem Zustand der richtige Handgriff wird. Die
+  //     Attrappe meldet ein fehlendes Docker — dann muss genau ein Knopf da
+  //     sein, und zwar der, der es einspielt.
+  const dock = {};
+  await seite.click('.seitenleiste a[href="/docker"]');
+  await seite.waitForSelector(".karten .karte", { timeout: 5000 });
+  dock.pfad = new URL(seite.url()).pathname;
+  dock.titel = await seite.evaluate(
+    () => document.querySelector(".h1")?.textContent.trim() ?? "",
+  );
+  // Drei Karten: Laufzeit, Daemon, Compose. Sie sind der Grund, warum die Seite
+  // schon in dieser Fassung existiert — sie halten drei Zustände auseinander,
+  // zu denen drei verschiedene Handgriffe gehören.
+  dock.karten = await seite.evaluate(() => document.querySelectorAll(".karten .karte").length);
+  dock.anmerkung = await seite.evaluate(
+    () => document.querySelector(".hinweis")?.textContent.trim() ?? "",
+  );
+  dock.knoepfe = await seite.evaluate(() =>
+    [...document.querySelectorAll(".aktionen .knopf")].map((k) => k.textContent.trim()),
+  );
+  // Die Seite „bald" darf hier nicht mehr auftauchen: Sie hat einen eigenen
+  // Aufbau (.platte .satz), und wenn der stünde, führte der Menüpunkt weiter auf
+  // die Vertröstung statt auf das Modul.
+  dock.istBald = await seite.evaluate(() => !!document.querySelector(".platte .satz"));
+  dock.navAktiv = await seite.evaluate(
+    () =>
+      document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",
+  );
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-docker.png`,
       fullPage: true,
     });
   }
@@ -2854,6 +2894,7 @@ async function main() {
       tk,
       fremdeRolle,
       bald,
+      dock,
       zweige,
       schmal,
       strich,

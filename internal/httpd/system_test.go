@@ -60,6 +60,17 @@ type fakeOps struct {
 	timers       []privops.Timer
 	timerLauf    privops.TimerLauf
 	timerErr     error
+
+	// Docker. dockerInstallDone sagt dem Test, dass der Vorgang im Hintergrund
+	// gelaufen ist — wie upgradeDone bei den Paketen.
+	docker           privops.DockerState
+	dockerErr        error
+	dockerInstallErr error
+	// dockerInstallHalt hält den Lauf an, bis der Test ihn freigibt. Ohne das
+	// wäre ein Vorgang vorbei, bevor der Test seinen zweiten Aufruf abschickt —
+	// und die Prüfung „höchstens einer je Art" prüfte nichts.
+	dockerInstallHalt chan struct{}
+	dockerInstallDone chan struct{}
 }
 
 func newFakeOps() *fakeOps {
@@ -395,6 +406,45 @@ func (f *fakeOps) ConfigCheck(_ context.Context, path string) (privops.ConfigChe
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.configCheck, f.configCheckErr
+}
+
+func (f *fakeOps) DockerState(context.Context) (privops.DockerState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.docker, f.dockerErr
+}
+
+func (f *fakeOps) DockerInstall(_ context.Context, stream privops.LineWriter) error {
+	f.record("docker:install")
+	if stream != nil {
+		stream("Richte docker.io ein …")
+	}
+	f.mu.Lock()
+	halt := f.dockerInstallHalt
+	f.mu.Unlock()
+	if halt != nil {
+		<-halt
+	}
+
+	f.mu.Lock()
+	err := f.dockerInstallErr
+	done := f.dockerInstallDone
+	// Nach dem Lauf ist Docker da. Ohne das zeigte ein Test, der danach den
+	// Zustand abfragt, weiter „nicht installiert" — und prüfte damit etwas
+	// anderes als das, was auf einem echten Server passiert.
+	if err == nil {
+		f.docker = privops.DockerState{
+			Installiert: true, DaemonLaeuft: true, ComposeVerfuegbar: true,
+			ClientVersion: "27.5.1", ServerVersion: "27.5.1", ComposeVersion: "2.32.4",
+			Paket: "docker.io",
+		}
+	}
+	f.mu.Unlock()
+
+	if done != nil {
+		close(done)
+	}
+	return err
 }
 
 func (f *fakeOps) SelfUpdateStart(_ context.Context, spec privops.SelfUpdateSpec) error {

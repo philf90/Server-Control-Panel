@@ -39,6 +39,12 @@ var allowedCommands = map[string][]string{
 	"apt-cache":   {"/usr/bin/apt-cache"},
 	"dpkg-query":  {"/usr/bin/dpkg-query"},
 	"nft":         {"/usr/sbin/nft", "/sbin/nft"},
+	// Genau ein Eintrag für Docker, und keiner für Compose: Compose v2 ist ein
+	// Unterkommando desselben Binaries ("docker compose"). Das alte
+	// docker-compose v1 ist bewusst nicht aufgenommen — es ist abgekündigt, und
+	// ein zweiter erlaubter Pfad wäre eine zweite Angriffsfläche für eine
+	// Fassung, die niemand mehr pflegt.
+	"docker": {"/usr/bin/docker"},
 	// sshd wird ausschließlich mit -t aufgerufen: Konfiguration prüfen, nichts
 	// starten. Der Editor kann sshd_config ändern, und ein Tippfehler darin
 	// kostet den Zugang zum Server — siehe configcheck.go.

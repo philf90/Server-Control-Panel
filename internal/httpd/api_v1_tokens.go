@@ -215,6 +215,7 @@ func tokenFamilienListe() []apiTokenFamilie {
 		"system-users": "Systemkonten und SSH-Schlüssel",
 		"jobs":         "laufende Vorgänge verfolgen",
 		"session":      "Auskunft über den eigenen Zugang",
+		"docker":       "Container-Laufzeit lesen; bedienen darf nur die Owner-Rolle",
 	}
 	out := make([]apiTokenFamilie, 0, len(tokenFamilien))
 	for _, f := range tokenFamilien {

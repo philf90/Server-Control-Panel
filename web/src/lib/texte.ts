@@ -937,6 +937,35 @@ export const t = {
     zu: (label: string) => `zu ${label}`,
   },
 
+  docker: {
+    wesen:
+      "Container, Images und Compose-Stacks. Das Panel spricht mit Docker über die Kommandozeile und nie über den Socket — jede Aktion steht damit als Befehl in der Protokollzeile.",
+    laedt: "Zustand wird gelesen …",
+    laufzeit: "Laufzeit",
+    daemon: "Daemon",
+    compose: "Compose",
+    paket: "Paket",
+    laeuft: "antwortet",
+    tot: "antwortet nicht",
+    fehlt: "fehlt",
+    da: "vorhanden",
+    // Ohne Docker gibt es zu Daemon und Compose keine Frage. Dort „antwortet
+    // nicht" und „fehlt" zu melden, machte aus einem Befund drei — und zwei
+    // davon wären erfunden.
+    offen: "—",
+    ausApt: "an der Paketverwaltung vorbei installiert",
+    einspielen: "Docker einspielen",
+    composeEinspielen: "docker compose einspielen",
+    zuDiensten: "zu den Diensten",
+    nurOwner:
+      "Dieses Konto darf den Zustand sehen, aber Docker nicht bedienen. Ein Container mit Zugriff auf das Wirtsdateisystem ist root auf dem Server — deshalb liegt dieses Modul bei der Owner-Rolle.",
+    // Was in dieser Fassung noch nicht da ist, steht als Satz da statt als
+    // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
+    imBau: "Was hier noch fehlt",
+    imBauDetail:
+      "Container, Stacks, Bestand und Ports kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+  },
+
   stufe: {
     kritisch: "kritisch",
     warnung: "Warnung",

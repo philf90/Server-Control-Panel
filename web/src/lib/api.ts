@@ -15,6 +15,7 @@ import type {
   Dienste,
   DienstAktion,
   DienstDetail,
+  Docker,
   EigenesKonto,
   Firewall,
   FirewallAntwort,
@@ -273,6 +274,15 @@ export const api = {
    *  Zustimmung zu etwas, das gerade schon gilt. */
   probeBestaetigen: () => anfrage<FirewallAntwort>("/firewall/confirm", { method: "POST" }),
   ufwEinspielen: () => anfrage<VorgangGestartet>("/firewall/install", { method: "POST" }),
+
+  /** docker liefert den Zustand der Container-Laufzeit — einschließlich eines
+   *  laufenden Vorgangs, damit die Seite nach einem Neuladen den Auszug
+   *  vorfindet und nicht behauptet, es sei nichts los. */
+  docker: () => anfrage<Docker>("/docker"),
+  /** dockerEinspielen ist Stufe 1: Ein Paket aus den Quellen der Distribution
+   *  zu installieren nimmt nichts weg und sperrt niemanden aus. Die Route liegt
+   *  hinter der Owner-Rolle. */
+  dockerEinspielen: () => anfrage<VorgangGestartet>("/docker/install", { method: "POST" }),
 
   /** logs fragt das Journal ab. Die Filter stehen als Abfragezeichenkette in
    *  der Adresse — dieselbe, die der Strom bekommt, damit er nicht mehr zeigt

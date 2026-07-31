@@ -74,6 +74,11 @@ var tokenFamilien = []string{
 	"overview", "signals", "metrics", "services", "packages", "system",
 	"firewall", "logs", "audit", "files", "schedules", "certificate", "update",
 	"system-users", "jobs", "session",
+	// docker ist offen, weil eine Automatisierung wissen können soll, ob die
+	// Laufzeit steht. Was ein Token damit AUSLÖSEN kann, ist davon unberührt:
+	// Die schreibenden Routen liegen hinter der Owner-Rolle, und ein Token kann
+	// die Rolle seines Kontos nur unterschreiten, nie überschreiten.
+	"docker",
 }
 
 // tokenGesperrt sind die Familien, die ein Token NIE erreicht — auch nicht, wenn

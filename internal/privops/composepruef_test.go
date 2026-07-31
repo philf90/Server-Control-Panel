@@ -3,6 +3,7 @@ package privops
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -620,5 +621,257 @@ func TestVorlagenGehenDurchDenEigenenPruefer(t *testing.T) {
 				t.Error("die Vorlage erklärt nichts")
 			}
 		})
+	}
+}
+
+// ------------------------------------------------- Angriffsdurchgang (Schritt 9) ---
+//
+// Diese Fälle sind KEINE erdachten Randfälle. Jeder einzelne ist beim
+// Angriffsdurchgang gegen den eigenen Prüfer durch ihn hindurchgegangen, und
+// jeder steht hier, damit er es nicht wieder tut.
+//
+// Sie stehen zusammen und nicht verstreut, weil das ihre Gemeinsamkeit ist: Sie
+// alle sahen für den Prüfer nach etwas Harmlosem aus. Ein Wirtspfad, der wie ein
+// benanntes Volume aussieht. Ein Geräteschalter, der nicht „devices" heißt. Ein
+// Pfad, der nicht absolut ist und deshalb für „innen" gehalten wurde.
+
+func TestPrueferSchliesstDieAusbruecheDesAngriffsdurchgangs(t *testing.T) {
+	faelle := []struct {
+		name string
+		yaml string
+		feld string
+	}{
+		{
+			// Der Vergleich mit der Sperrliste traf nicht, weil dort absolute
+			// Pfade stehen — und danach galt „nicht absolut" als „liegt innen".
+			"relativer Ausbruch zum Socket",
+			"services:\n  web:\n    image: nginx\n    volumes:\n      - ../../../../var/run/docker.sock:/var/run/docker.sock\n",
+			"volumes",
+		},
+		{
+			// Der schwerwiegendste Fund: Im Dienst steht nur „- hack:/host",
+			// also etwas, das wie ein harmloses benanntes Volume aussieht.
+			"benanntes Volume, das in Wahrheit / einhängt",
+			`services:
+  web:
+    image: nginx
+    volumes:
+      - hack:/host
+volumes:
+  hack:
+    driver: local
+    driver_opts:
+      type: none
+      device: /
+      o: bind
+`,
+			"volumes",
+		},
+		{
+			// „devices" ohne das Wort: Den Geräteknoten legt der Container
+			// selbst an, MKNOD hat er von Haus aus.
+			"device_cgroup_rules statt devices",
+			"services:\n  web:\n    image: nginx\n    device_cgroup_rules:\n      - \"c *:* rwm\"\n",
+			"device_cgroup_rules",
+		},
+		{
+			// „docker compose up" baut, wenn ein Bauabschnitt dasteht.
+			"Bauabschnitt mit Kontext auf der Wurzel",
+			"services:\n  web:\n    build:\n      context: /\n      dockerfile: Dockerfile\n",
+			"build.context",
+		},
+		{
+			// Was ein fremder Container mitbringt, steht nirgends.
+			"volumes_from auf einen fremden Container",
+			"services:\n  web:\n    image: nginx\n    volumes_from:\n      - container:privilegiert\n",
+			"volumes_from",
+		},
+	}
+
+	for _, f := range faelle {
+		t.Run(f.name, func(t *testing.T) {
+			p := pruefe(f.yaml)
+			if p.OK {
+				t.Fatalf("der Ausbruch ging durch: %+v", p.Befunde)
+			}
+			if !abgelehntWegen(p, f.feld) {
+				t.Errorf("die Ablehnung nennt nicht das Feld %q: %+v", f.feld, p.Ablehnungen())
+			}
+		})
+	}
+}
+
+// Der Bauabschnitt IM eigenen Verzeichnis ist der Normalfall und kein Befund.
+// Ohne diesen Fall wüsste niemand, ob die Prüfung bloß jeden Bau ablehnt.
+func TestPrueferLaesstEigenenBauabschnittDurch(t *testing.T) {
+	for _, yaml := range []string{
+		"services:\n  web:\n    build: .\n",
+		"services:\n  web:\n    build:\n      context: ./app\n      dockerfile: Dockerfile\n",
+	} {
+		if p := pruefe(yaml); !p.OK {
+			t.Errorf("ein eigener Bauabschnitt ist kein Befund: %+v", p.Ablehnungen())
+		}
+	}
+}
+
+// Ein gewöhnliches benanntes Volume bleibt eines. Der neue Blick auf die
+// oberste volumes-Ebene darf nicht dazu führen, dass jedes Volume verdächtig
+// ist — sonst wäre die Prüfung wertlos.
+func TestPrueferLaesstEchteBenannteVolumesDurch(t *testing.T) {
+	p := pruefe(`services:
+  db:
+    image: postgres:16
+    volumes:
+      - db_daten:/var/lib/postgresql/data
+volumes:
+  db_daten:
+`)
+	if !p.OK || len(p.Befunde) != 0 {
+		t.Errorf("ein gewöhnliches Volume ist kein Befund: %+v", p.Befunde)
+	}
+}
+
+// Ein symbolischer Verweis IM Stack-Verzeichnis, der hinausführt, ist ein
+// Ausbruch: Eingehängt wird das Ziel, nicht der Verweis.
+func TestPrueferFolgtSymbolischenVerweisen(t *testing.T) {
+	wurzel := t.TempDir()
+	draussen := t.TempDir()
+	if err := os.Symlink(draussen, filepath.Join(wurzel, "raus")); err != nil {
+		t.Skipf("symbolische Verweise nicht möglich: %v", err)
+	}
+
+	p := PruefeComposeText(
+		"services:\n  web:\n    image: nginx\n    volumes:\n      - "+
+			filepath.Join(wurzel, "raus")+":/daten\n", wurzel, 0, true)
+	if p.OK {
+		t.Errorf("ein Verweis aus dem Verzeichnis heraus ging durch: %+v", p.Befunde)
+	}
+
+	// Ein gewöhnliches Verzeichnis daneben bleibt harmlos.
+	if err := os.Mkdir(filepath.Join(wurzel, "daten"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p = PruefeComposeText(
+		"services:\n  web:\n    image: nginx\n    volumes:\n      - "+
+			filepath.Join(wurzel, "daten")+":/daten\n", wurzel, 0, true)
+	if !p.OK || len(p.Aussenmounts()) != 0 {
+		t.Errorf("das eigene Verzeichnis ist kein Befund: %+v", p.Befunde)
+	}
+}
+
+// ------------------------------------------------ Pfadwache im Angriffsdurchgang ---
+
+// Ein fremdes Projekt sagt selbst, wo seine Datei liegt — und diese Angabe hat
+// nicht das Panel gesetzt. Zeigt sie auf eine Systemdatei, läse dieser Endpunkt
+// sie und zeigte sie JEDEM angemeldeten Konto, auch einem mit reinem Leserecht.
+// Genau das ging im Angriffsdurchgang durch.
+func TestStackDateiLiestNurComposeDateien(t *testing.T) {
+	stacksIn(t)
+
+	f := newFakeRunner()
+	f.responses["docker compose ls"] = Result{
+		Stdout: `[{"Name":"boese","Status":"running(1)","ConfigFiles":"/etc/shadow"}]`,
+	}
+	s := NewSystemWithRunner(f)
+
+	if _, err := s.StackDatei(context.Background(), "boese"); err == nil {
+		t.Error("eine Datei ohne YAML-Endung darf nicht gelesen werden")
+	}
+
+	// Und eine echte Compose-Datei geht weiterhin durch.
+	echt := t.TempDir() + "/docker-compose.yml"
+	if err := os.WriteFile(echt, []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.responses["docker compose ls"] = Result{
+		Stdout: `[{"Name":"gut","Status":"running(1)","ConfigFiles":"` + echt + `"}]`,
+	}
+	if _, err := s.StackDatei(context.Background(), "gut"); err != nil {
+		t.Errorf("eine echte Compose-Datei muss lesbar bleiben: %v", err)
+	}
+}
+
+// Das Stack-Verzeichnis darf kein symbolischer Verweis sein: MkdirAll folgt
+// einem vorhandenen Verweis wortlos, und dann läge die Datei woanders.
+func TestStackSchreibenFolgtKeinemVerweis(t *testing.T) {
+	wurzel := stacksIn(t)
+	draussen := t.TempDir()
+	if err := os.Symlink(draussen, filepath.Join(wurzel, "verweis")); err != nil {
+		t.Skipf("symbolische Verweise nicht möglich: %v", err)
+	}
+
+	f := newFakeRunner()
+	f.responses["docker compose --file"] = Result{ExitCode: 127}
+	s := NewSystemWithRunner(f)
+
+	if _, err := s.StackSchreiben(context.Background(), "verweis",
+		"services:\n  a:\n    image: nginx\n", 0); err == nil {
+		t.Error("in ein Verweis-Verzeichnis darf nicht geschrieben werden")
+	}
+	if _, err := os.Stat(filepath.Join(draussen, stackDatei)); err == nil {
+		t.Error("die Datei wurde außerhalb der Wurzel angelegt")
+	}
+}
+
+// Und Löschen nimmt das Ziel eines Verweises nicht mit: RemoveAll entfernt den
+// Verweis, nicht das, worauf er zeigt — geprüft, weil das die Zusage ist, auf
+// die es hier ankommt.
+func TestStackLoeschenNimmtVerweisZielNichtMit(t *testing.T) {
+	wurzel := stacksIn(t)
+	draussen := t.TempDir()
+	opfer := filepath.Join(draussen, stackDatei)
+	if err := os.WriteFile(opfer, []byte(stackMarker+"\nservices: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(draussen, filepath.Join(wurzel, "weg")); err != nil {
+		t.Skipf("symbolische Verweise nicht möglich: %v", err)
+	}
+
+	f := newFakeRunner()
+	s := NewSystemWithRunner(f)
+	_ = s.StackLoeschen(context.Background(), "weg", nil)
+
+	if _, err := os.Stat(opfer); err != nil {
+		t.Errorf("das Ziel des Verweises wurde mitgelöscht: %v", err)
+	}
+}
+
+// Die Namensprüfungen des Moduls gegen alles, was in einer Kommandozeile
+// gefährlich wäre. Sie stehen hier zusammen, weil der Angriffsdurchgang sie
+// zusammen prüft: Es gibt kein Argument aus einer Anfrage, das ohne eine dieser
+// Prüfungen zu docker geht.
+//
+// Eine Shell gibt es nicht — die Argumente gehen als Feld an exec, und deshalb
+// ist ein Semikolon kein Ausbruch. Gefährlich ist etwas anderes: ein Wert, der
+// mit „-" beginnt, wird von docker als OPTION gelesen. Genau dagegen steht
+// überall „--" vor dem Argument, und die Prüfungen sind der zweite Riegel.
+func TestNamenspruefungenWeisenGefaehrlichesAb(t *testing.T) {
+	boese := []string{
+		"", " ", "-rf", "--force", "-", "a b", "a;b", "a|b", "a&b",
+		"a\nb", "a\tb", "a`b`", "a$(b)", "a'b", "a\"b", "a\x00b",
+	}
+
+	for _, n := range boese {
+		if err := ValidateContainerID(n); err == nil {
+			t.Errorf("ValidateContainerID(%q) hat angenommen", n)
+		}
+		if err := ValidateImageRef(n); err == nil {
+			t.Errorf("ValidateImageRef(%q) hat angenommen", n)
+		}
+		if err := PruefeStackName(n); err == nil {
+			t.Errorf("PruefeStackName(%q) hat angenommen", n)
+		}
+	}
+
+	// Und der Regelfall geht durch — sonst wäre die Prüfung nur streng.
+	for _, gut := range []string{"aaaa11112222", "web-proxy-1", "web_daten"} {
+		if err := ValidateContainerID(gut); err != nil {
+			t.Errorf("ValidateContainerID(%q): %v", gut, err)
+		}
+	}
+	for _, gut := range []string{"nginx:alpine", "sha256:aaa", "ghcr.io/o/n:1.2", "reg:5000/a/b:1"} {
+		if err := ValidateImageRef(gut); err != nil {
+			t.Errorf("ValidateImageRef(%q): %v", gut, err)
+		}
 	}
 }

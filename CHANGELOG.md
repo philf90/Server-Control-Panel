@@ -9,6 +9,42 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Sicherheit
+
+- **Angriffsdurchgang gegen das Modul Docker.** Acht Wege am eigenen Prüfer und
+  an der eigenen Pfadwache vorbei — gefunden, geschlossen, mit Tests versehen.
+  Sie stehen vollständig in [docs/17-docker.md](docs/17-docker.md); die
+  wichtigsten:
+
+  **Ein „benanntes" Volume kann ein Bind-Mount sein.** Im Dienst steht nur
+  `- hack:/host`, und in der obersten `volumes:`-Ebene macht
+  `driver_opts: {type: none, device: /, o: bind}` daraus das ganze
+  Wirtsdateisystem. Der Prüfer sah ein harmloses Volume. Er löst solche Einträge
+  jetzt auf.
+
+  **Ein relativer Pfad ging an der Sperrliste vorbei:**
+  `- ../../../../var/run/docker.sock:/…` traf sie nicht, weil dort absolute
+  Pfade stehen — und galt danach als „liegt im Stack-Verzeichnis". Relative
+  Quellen werden jetzt zuerst aufgelöst.
+
+  Ebenfalls geschlossen: `device_cgroup_rules` (Gerätezugriff ohne das Wort
+  „devices"), ein `build:`-Kontext außerhalb des Stack-Verzeichnisses
+  (`docker compose up` baut), die neue Langform von `env_file`, `volumes_from`
+  auf einen fremden Container, und Bind-Mounts über symbolische Verweise aus dem
+  Stack-Verzeichnis heraus.
+
+  **Der Stack-Inspektor war ein allgemeines Leseprogramm.** Bei einem fremden
+  Compose-Projekt sagt Docker, wo die Datei liegt; zeigte diese Angabe auf
+  `/etc/shadow`, las das Panel sie und zeigte sie **jedem angemeldeten Konto** —
+  auch einem mit reinem Leserecht. Gelesen wird jetzt nur, was auf `.yaml` oder
+  `.yml` endet.
+
+  **`PUT /api/v1/docker/stacks/{name}` prüfte den Namen nicht** und verließ sich
+  vollständig auf die Schicht darunter. Im Betrieb hätte das nichts bewirkt,
+  weil privops prüft — aber eine Grenze, die nur an einer Stelle steht, kann
+  beim nächsten Umbau verschwinden. Der Name wird jetzt in beiden Schichten
+  geprüft, lesend wie schreibend.
+
 ### Hinzugefügt
 
 - **Modul Docker, Update-Prüfung für Abbilder** (`/docker`, zwei weitere

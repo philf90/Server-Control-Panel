@@ -117,6 +117,19 @@ func (s *Server) handleAPIDockerStackSpeichern(w http.ResponseWriter, r *http.Re
 // Unterschied liegt allein davor — beim Anlegen wird der Name auf Doppelung
 // geprüft.
 func (s *Server) stackSpeichern(w http.ResponseWriter, r *http.Request, name string, anfrage apiStackSchreiben) {
+	// Den Namen HIER prüfen und nicht erst in privops.
+	//
+	// privops prüft ihn ebenfalls, und im Betrieb hätte ein Pfad als Name
+	// deshalb nichts bewirkt. Trotzdem ist das ein Befund aus dem
+	// Angriffsdurchgang (Schritt 9): Diese Schicht reichte „../../etc" ungeprüft
+	// weiter und verließ sich vollständig auf die darunter. Eine Grenze, die nur
+	// an einer Stelle steht, ist eine Grenze, die beim nächsten Umbau
+	// verschwinden kann — und die Attrappe im Test hatte sie nicht, was den
+	// Befund überhaupt sichtbar gemacht hat.
+	if err := privops.PruefeStackName(name); err != nil {
+		s.apiFehler(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	if anfrage.Text == "" {
 		s.apiFehler(w, http.StatusBadRequest, "Die Compose-Datei ist leer.")
 		return

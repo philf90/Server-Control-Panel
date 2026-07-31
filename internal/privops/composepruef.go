@@ -191,6 +191,28 @@ var bekannteDienstfelder = map[string]bool{
 // Mount, den er nicht gesehen hat.
 type composeDatei struct {
 	Services map[string]map[string]yaml.Node `yaml:"services"`
+	// Volumes ist die OBERSTE Ebene, und sie steht hier wegen eines Ausbruchs,
+	// den der Prüfer zuerst nicht gesehen hat: Ein „benanntes" Volume mit
+	// driver_opts.device ist in Wahrheit ein Bind-Mount.
+	Volumes map[string]composeVolume `yaml:"volumes"`
+}
+
+// composeVolume ist ein Eintrag der obersten volumes-Ebene.
+//
+// Der local-Treiber nimmt dieselben Angaben wie mount(8): Mit „type: none",
+// „o: bind" und „device: /" entsteht ein Volume, das das ganze
+// Wirtsdateisystem einhängt — und im Dienst steht dann nur „- hack:/host",
+// also etwas, das wie ein harmloses benanntes Volume aussieht.
+//
+//	volumes:
+//	  hack:
+//	    driver: local
+//	    driver_opts: {type: none, device: /, o: bind}
+//
+// Genau dieser Fall ging beim Angriffsdurchgang (Schritt 9) durch den Prüfer.
+type composeVolume struct {
+	Driver     string            `yaml:"driver"`
+	DriverOpts map[string]string `yaml:"driver_opts"`
 }
 
 // PruefeComposeText prüft einen Compose-Text.
@@ -229,8 +251,12 @@ func PruefeComposeText(text, stackVerzeichnis string, panelPort int, gerendert b
 	}
 	sort.Strings(p.Dienste)
 
+	// Die benannten Volumes zuerst auflösen: Was sie in Wahrheit einhängen,
+	// entscheidet später über jeden Dienst, der sie benutzt.
+	bindVolumes := bindVolumesAus(datei.Volumes)
+
 	for _, dienst := range p.Dienste {
-		pruefeDienst(&p, dienst, datei.Services[dienst], stackVerzeichnis, panelPort)
+		pruefeDienst(&p, dienst, datei.Services[dienst], stackVerzeichnis, panelPort, bindVolumes)
 	}
 
 	// Die Reihenfolge ist die der Dringlichkeit und nicht die des Auftretens:
@@ -245,7 +271,7 @@ func PruefeComposeText(text, stackVerzeichnis string, panelPort int, gerendert b
 }
 
 // pruefeDienst prüft einen einzelnen Dienst.
-func pruefeDienst(p *ComposePruefung, dienst string, felder map[string]yaml.Node, wurzel string, panelPort int) {
+func pruefeDienst(p *ComposePruefung, dienst string, felder map[string]yaml.Node, wurzel string, panelPort int, bindVolumes map[string]string) {
 	fuege := func(art, feld, wert, grund string) {
 		p.Befunde = append(p.Befunde, ComposeBefund{
 			Art: art, Dienst: dienst, Feld: feld, Wert: wert, Grund: grund,
@@ -288,9 +314,44 @@ func pruefeDienst(p *ComposePruefung, dienst string, felder map[string]yaml.Node
 		fuege(BefundAblehnung, "devices", strings.Join(listeAus(felder["devices"]), ", "),
 			"Ein durchgereichtes Gerät ist roher Zugriff auf die Hardware des Wirts. Eine Platte als Gerät im Container heißt: jede Datei des Servers, ohne Rechteprüfung.")
 	}
-	if len(listeAus(felder["volumes_from"])) > 0 {
-		fuege(BefundHinweis, "volumes_from", strings.Join(listeAus(felder["volumes_from"]), ", "),
-			"Der Container übernimmt die Einhängungen eines anderen. Was dabei hereinkommt, steht nicht in dieser Datei.")
+	// device_cgroup_rules ist „devices" ohne das Wort. Es erlaubt den Zugriff
+	// auf Gerätenummern, und die Fähigkeit MKNOD hat ein Container von Haus aus
+	// — er legt sich den Geräteknoten also selbst an. „c *:* rwm" ist damit die
+	// Platte des Wirts. Ging beim Angriffsdurchgang durch.
+	if len(listeAus(felder["device_cgroup_rules"])) > 0 {
+		fuege(BefundAblehnung, "device_cgroup_rules", strings.Join(listeAus(felder["device_cgroup_rules"]), ", "),
+			"Diese Regeln erlauben den Zugriff auf Geräte des Wirts. Den Geräteknoten dazu legt der Container selbst an — die Fähigkeit MKNOD hat er von Haus aus. Damit ist die Platte des Servers lesbar.")
+	}
+	for _, quelle := range listeAus(felder["volumes_from"]) {
+		// Ein Dienst AUS DIESER DATEI ist selbst geprüft; ein fremder Container
+		// nicht. Was der mitbringt, steht nirgends — auch nicht der Socket, den
+		// er vielleicht eingehängt hat.
+		if strings.HasPrefix(quelle, "container:") {
+			fuege(BefundAblehnung, "volumes_from", quelle,
+				"Der Container übernimmt die Einhängungen eines FREMDEN Containers. Was dabei hereinkommt, steht nicht in dieser Datei und ist damit nicht geprüft.")
+			continue
+		}
+		fuege(BefundHinweis, "volumes_from", quelle,
+			"Der Container übernimmt die Einhängungen eines anderen Dienstes dieser Datei.")
+	}
+
+	// build: „docker compose up" baut, wenn ein Bauabschnitt dasteht. Ein
+	// Kontext außerhalb des Stack-Verzeichnisses kopiert fremde Dateien in ein
+	// Abbild — bei „context: /" das halbe Dateisystem.
+	if bau := felder["build"]; bau.Kind != 0 {
+		for feld, wert := range bauPfade(bau) {
+			if wert == "" {
+				continue
+			}
+			ziel := wert
+			if !filepath.IsAbs(ziel) {
+				ziel = filepath.Join(wurzel, ziel)
+			}
+			if wurzel != "" && !innerhalb(ziel, wurzel) {
+				fuege(BefundAblehnung, "build."+feld, wert,
+					"Der Bauabschnitt zeigt aus dem Stack-Verzeichnis heraus. Alles darin landet im Abbild — bei einem Kontext auf einem hohen Verzeichnis ist das ein Abzug fremder Dateien.")
+			}
+		}
 	}
 
 	for _, faehigkeit := range listeAus(felder["cap_add"]) {
@@ -316,6 +377,16 @@ func pruefeDienst(p *ComposePruefung, dienst string, felder map[string]yaml.Node
 	}
 
 	for _, mount := range mountsAus(felder["volumes"]) {
+		// Ein „benanntes" Volume, das in Wahrheit ein Bind ist, wird hier zu
+		// dem, was es ist. Ohne diesen Schritt geht das ganze
+		// Wirtsdateisystem als harmloser Name durch.
+		if !mount.bind {
+			if wirtspfad, ist := bindVolumes[mount.quelle]; ist {
+				mount.roh += " — das Volume " + mount.quelle + " hängt " + wirtspfad + " ein"
+				mount.bind = true
+				mount.quelle = wirtspfad
+			}
+		}
 		pruefeMount(p, dienst, mount, wurzel)
 	}
 
@@ -337,7 +408,15 @@ func pruefeMount(p *ComposePruefung, dienst string, m mountAngabe, wurzel string
 	if !m.bind {
 		return
 	}
+	// Relative Quellen ZUERST auflösen, und zwar gegen das Stack-Verzeichnis.
+	// Ohne diesen Schritt ging „- ../../../../var/run/docker.sock:/…" durch:
+	// Der Vergleich mit der Sperrliste traf nicht, weil dort absolute Pfade
+	// stehen, und danach galt „nicht absolut" als „liegt innen". Compose löst
+	// solche Pfade genauso auf — das hier ist dieselbe Rechnung, nur früher.
 	quelle := filepath.Clean(m.quelle)
+	if !filepath.IsAbs(quelle) && wurzel != "" {
+		quelle = filepath.Clean(filepath.Join(wurzel, quelle))
+	}
 
 	for _, sperre := range sperrpfade {
 		if quelle == sperre.pfad || strings.HasPrefix(quelle, sperre.pfad+"/") {
@@ -360,10 +439,20 @@ func pruefeMount(p *ComposePruefung, dienst string, m mountAngabe, wurzel string
 	}
 
 	if wurzel != "" && innerhalb(quelle, wurzel) {
+		// Ein Pfad im eigenen Verzeichnis, der über einen symbolischen Verweis
+		// hinausführt, liegt nicht darin. Ein Verweis wird erst beim Einhängen
+		// aufgelöst, und dann hängt der Container am Ziel — nicht am Verweis.
+		if echt, err := filepath.EvalSymlinks(quelle); err == nil && !innerhalb(echt, wurzel) {
+			p.Befunde = append(p.Befunde, ComposeBefund{
+				Art: BefundAblehnung, Dienst: dienst, Feld: "volumes", Wert: m.roh,
+				Grund: "Dieser Pfad liegt zwar im Stack-Verzeichnis, ist aber ein symbolischer " +
+					"Verweis auf " + echt + ". Eingehängt wird das Ziel.",
+			})
+		}
 		return
 	}
-	// Relative Pfade zeigen ins Stack-Verzeichnis. In der gerenderten Fassung
-	// löst Compose sie ohnehin auf; kommt doch einer durch, ist er innen.
+	// Ohne bekannte Wurzel lässt sich „innen" nicht bestimmen. Dann gilt jeder
+	// absolute Pfad als außen — die vorsichtigere der beiden Auslegungen.
 	if !filepath.IsAbs(quelle) {
 		return
 	}
@@ -393,6 +482,52 @@ func innerhalb(pfad, wurzel string) bool {
 		return false
 	}
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// bindVolumesAus löst die oberste volumes-Ebene in Wirtspfade auf.
+//
+// Nur der local-Treiber mit „o: bind" (oder „type: none") ist gemeint: Das ist
+// die Schreibweise, mit der ein benanntes Volume in Wahrheit ein Bind-Mount
+// wird. Andere Treiber (nfs, cifs) hängen etwas ein, das nicht auf dieser
+// Platte liegt — sie sind eine andere Frage und hier nicht die.
+func bindVolumesAus(volumes map[string]composeVolume) map[string]string {
+	out := map[string]string{}
+	for name, v := range volumes {
+		if v.Driver != "" && v.Driver != "local" {
+			continue
+		}
+		geraet := v.DriverOpts["device"]
+		if geraet == "" || !strings.HasPrefix(geraet, "/") {
+			continue
+		}
+		opt := strings.ToLower(v.DriverOpts["o"])
+		art := strings.ToLower(v.DriverOpts["type"])
+		if strings.Contains(opt, "bind") || art == "none" || art == "bind" {
+			out[name] = geraet
+		}
+	}
+	return out
+}
+
+// bauPfade liest die Pfadangaben eines build-Abschnitts.
+//
+// Beide Schreibweisen: „build: ." und „build: {context: ., dockerfile: X}".
+func bauPfade(k yaml.Node) map[string]string {
+	switch k.Kind {
+	case yaml.ScalarNode:
+		return map[string]string{"context": k.Value}
+	case yaml.MappingNode:
+		var lang struct {
+			Context    string `yaml:"context"`
+			Dockerfile string `yaml:"dockerfile"`
+		}
+		if k.Decode(&lang) != nil {
+			return nil
+		}
+		return map[string]string{"context": lang.Context, "dockerfile": lang.Dockerfile}
+	default:
+		return nil
+	}
 }
 
 // ---------------------------------------------------------------- Formen ---

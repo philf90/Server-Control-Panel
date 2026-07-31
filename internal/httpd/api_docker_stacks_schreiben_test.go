@@ -72,8 +72,14 @@ func stackPost(t *testing.T, s *Server, methode, pfad string, cookie *http.Cooki
 	}
 	req := httptest.NewRequest(methode, pfad, bytes.NewReader(roh))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-CSRF-Token", csrf)
-	req.AddCookie(cookie)
+	if csrf != "" {
+		req.Header.Set("X-CSRF-Token", csrf)
+	}
+	// Ohne Cookie: Der Angriffsdurchgang schickt Anfragen ausdrücklich ohne
+	// Sitzung, und AddCookie(nil) stürzt ab.
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	return rec

@@ -235,7 +235,16 @@ func (s *Server) handleAPIDockerStacks(w http.ResponseWriter, r *http.Request) {
 // ist deshalb 404 und nicht 502: Er ist keine gescheiterte Auskunft, sondern
 // eine Anfrage nach etwas, das es nicht gibt.
 func (s *Server) handleAPIDockerStack(w http.ResponseWriter, r *http.Request) {
-	detail, err := s.stackDetailLesen(r.Context(), r.PathValue("name"))
+	// Auch lesend wird der Name geprüft, bevor er irgendwohin geht — dieselbe
+	// Begründung wie beim Schreiben: Die Grenze steht an jeder Schicht und nicht
+	// nur an der untersten.
+	name := r.PathValue("name")
+	if err := privops.PruefeStackName(name); err != nil {
+		s.apiFehler(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	detail, err := s.stackDetailLesen(r.Context(), name)
 	if err != nil {
 		status := http.StatusBadGateway
 		if errors.Is(err, errStackUnbekannt) {

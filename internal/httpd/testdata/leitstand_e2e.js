@@ -1277,7 +1277,24 @@ async function main() {
     );
     z.click();
   });
-  await seite.waitForSelector(".inspektor", { timeout: 5000 });
+  // Auf den INHALT des Inspektors warten, nicht auf den Inspektor: Er bleibt
+  // zwischen zwei Auswahlen stehen, und dann trägt er noch die Handgriffe der
+  // vorigen Datei. Der Lauf war sporadisch rot, weil „kopieren" in genau diesem
+  // Augenblick noch nicht dastand — dieselbe Art Flackern wie beim Beenden der
+  // Dateisuche.
+  await seite.waitForFunction(
+    () => document.querySelector(".inspektor .pfad")?.textContent.trim() === "notizen.txt",
+    null,
+    { timeout: 5000 },
+  );
+  await seite.waitForFunction(
+    () =>
+      [...document.querySelectorAll(".inspektor .aktionen .knopf")].some(
+        (x) => x.textContent.trim() === "kopieren",
+      ),
+    null,
+    { timeout: 5000 },
+  );
   await seite.evaluate(() => {
     const b = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
       (x) => x.textContent.trim() === "kopieren",

@@ -311,6 +311,13 @@ Was beim Umschalten sonst geschieht:
 
 ### 0.5 — Docker
 
+> **Stand: umgesetzt.** Der Bauplan und sein Verlauf stehen in
+> [17-docker.md](17-docker.md) — dort auch das Angriffsmodell, die Regeln des
+> Compose-Prüfers und die Grenzen des Moduls. Der Zuschnitt ist gegenüber dem
+> Folgenden **erweitert** worden: Portübersicht mit Firewall-Abgleich,
+> Ereignisstrom und Update-Prüfung kamen dazu. Die Container-Shell aus dem
+> ursprünglichen Zuschnitt ist **zurückgestellt** — siehe unten und §6.
+
 Container, Images, Volumes, Netzwerke, Compose-Stacks, Container-Logs und
 -Statistiken. Podman bleibt Roadmap — erst eine Laufzeit richtig.
 
@@ -414,6 +421,17 @@ Das **Web-Terminal** stand in 03 noch unter v0.2. Es wandert bewusst hinter
 Webserver-Schreibpfad, und ein Terminal zusätzlich vor dem externen Review wäre
 die falsche Reihenfolge.
 
+**Nachtrag zur Stufe 0.5.** Der Bauplan des Moduls Docker
+([17-docker.md](17-docker.md), Entscheidung E8) sah eine Container-Shell vor und
+hat ausdrücklich benannt, was daran hängt: Mit ihr entstünde die schwierigere
+Hälfte des Web-Terminals — PTY-Anbindung, bidirektionaler Transport,
+Terminal-Emulation im Browser —, und das *technische* Argument dieser Zeile
+verlöre danach seine Grundlage. Die Shell ist **zurückgestellt** und mit ihr
+diese Folge: Das Terminal steht weiterhin aus beiden Gründen hinter 1.0, dem
+technischen wie dem sicherheitspolitischen. Wird die Shell später nachgezogen,
+gilt der Nachtrag wieder — und der externe Review vor 1.0 muss diesen Pfad dann
+mitprüfen.
+
 ## 7. Sicherheitsfundament ab Tag eins
 
 ### 7.1 Der Bestand bleibt Gesetz
@@ -491,6 +509,32 @@ folgen die Regeln des Moduls:
   Formular.
 - Images nur per Digest oder Tag aus konfigurierbaren Registries; `docker login`
   -Geheimnisse gehören in die Geheimnisverwaltung (7.5), nicht in die Compose-Datei.
+
+**Die endgültige Liste des Prüfers**, nach dem Angriffsdurchgang aus Schritt 9
+(Einzelheiten und Begründungen in [17-docker.md](17-docker.md)):
+
+Abgelehnt werden `privileged`, geteilte Namensräume (`pid`, `ipc`,
+`userns_mode`, `cgroup` auf `host`), `network_mode: host`, `devices`,
+**`device_cgroup_rules`**, Ausbruchs-Capabilities in `cap_add`, abgeschaltete
+seccomp-/AppArmor-Profile, Bind-Mounts auf den Docker-Socket oder einen Pfad der
+Sperrliste, ein **Bauabschnitt** mit Kontext außerhalb des Stack-Verzeichnisses,
+`volumes_from` auf einen fremden Container, und `extends`/`env_file` auf eine
+Datei außerhalb des Stack-Verzeichnisses.
+
+Vier Dinge daran sind erst im Angriffsdurchgang dazugekommen, weil sie vorher
+durchgingen — und drei davon sahen für den Prüfer nach etwas Harmlosem aus:
+
+- **Ein benanntes Volume mit `driver_opts.device`** ist in Wahrheit ein
+  Bind-Mount. Im Dienst steht nur `- hack:/host`.
+- **`device_cgroup_rules`** ist `devices` ohne das Wort; den Geräteknoten legt
+  der Container mit `CAP_MKNOD` selbst an.
+- **Ein relativer Pfad** (`../../../../var/run/docker.sock`) traf die Sperrliste
+  nicht, weil dort absolute Pfade stehen.
+- **`docker compose up` baut**, wenn ein `build:`-Abschnitt dasteht.
+
+Geprüft wird die von Compose **gerenderte** Fassung, damit YAML-Anker, `extends`
+und `.env` nichts vorbeischmuggeln; die Rohdatei wird davor auf Verweise nach
+draußen geprüft, damit das Rendern nicht selbst zum Leseweg wird.
 
 ### 7.4 Neu: Schreibpfade, die das Panel selbst treffen können
 

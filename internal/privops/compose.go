@@ -176,6 +176,20 @@ func (s *System) StackDatei(ctx context.Context, name string) (StackInhalt, erro
 	if stack.Datei == "" {
 		return StackInhalt{}, fmt.Errorf("zu %q ist keine Compose-Datei bekannt", name)
 	}
+	// Bei einem FREMDEN Projekt sagt Docker, wo die Datei liegt — und das ist
+	// eine Angabe, die das Panel nicht gesetzt hat. Zeigt sie auf /etc/shadow,
+	// läse dieser Endpunkt /etc/shadow und zeigte es jedem angemeldeten Konto,
+	// auch einem mit reinem Leserecht. Genau das ist im Angriffsdurchgang
+	// (Schritt 9) passiert.
+	//
+	// Gelesen wird deshalb nur, was auch eine Compose-Datei sein KANN. Die
+	// Einschränkung kostet nichts — Compose-Dateien heißen .yaml oder .yml —
+	// und nimmt diesem Endpunkt die Eigenschaft, ein allgemeines Leseprogramm
+	// zu sein.
+	if !istComposeName(stack.Datei) {
+		return StackInhalt{}, fmt.Errorf("%s sieht nicht wie eine Compose-Datei aus und "+
+			"wird nicht gelesen", stack.Datei)
+	}
 
 	text, gekuerzt, err := composeLesen(stack.Datei)
 	if err != nil {
@@ -185,6 +199,16 @@ func (s *System) StackDatei(ctx context.Context, name string) (StackInhalt, erro
 		Name: name, Datei: stack.Datei, Verwaltet: stack.Verwaltet,
 		Text: text, Gekuerzt: gekuerzt,
 	}, nil
+}
+
+// istComposeName sagt, ob ein Pfad eine Compose-Datei sein kann.
+//
+// Nur die Endung, und das genügt: Compose selbst liest ausschließlich YAML, und
+// jede Datei, die Docker als ConfigFiles nennt, hat deshalb eine dieser
+// Endungen. Was sie nicht hat, ist keine — und wird nicht angezeigt.
+func istComposeName(pfad string) bool {
+	nach := strings.ToLower(filepath.Ext(pfad))
+	return nach == ".yaml" || nach == ".yml"
 }
 
 // eigeneStacks sammelt die verwalteten Stacks aus dem Verzeichnis.

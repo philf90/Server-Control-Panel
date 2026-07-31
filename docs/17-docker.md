@@ -323,8 +323,8 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 5 | **Stacks schreibend**: Pfadwache, Marker, Editor, **Compose-Prüfer**, `up/down/pull/restart` als Jobs, Gerüstvorlagen — **umgesetzt**, siehe unten | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 | **Ports & Events**: Portübersicht mit Firewall-Abgleich, Ereignisstrom — **umgesetzt**, siehe unten | Die zwei Adaptionen aus Arcane |
 | 7 | **Update-Prüfung**: Digest-Abgleich, Zwischenspeicher, Ratengrenzen, Signal, „Stack aktualisieren" — **umgesetzt**, siehe unten | Auskunft, kein Automat |
-| 8 | **Container-Shell**: Schalter in der Konfiguration, Transport, Terminal, Audit je Sitzung | Siehe unten |
-| 9 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch, Socket-Weitergabe; Messung von Binärgröße und Grundlast; Doku | Wie Phase 7 des Dateimanagers |
+| 8 | **Container-Shell**: Schalter in der Konfiguration, Transport, Terminal, Audit je Sitzung — **zurückgestellt**, siehe unten | Siehe unten |
+| 9 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch, Socket-Weitergabe; Messung von Binärgröße und Grundlast; Doku — **umgesetzt**, siehe unten | Wie Phase 7 des Dateimanagers |
 
 ### Schritt 1 — Stand: umgesetzt
 
@@ -753,6 +753,131 @@ neu und sähe aus wie ein geglücktes Update.
 
 **Gemessen:** Binärgröße 17,5 MB (< 30), Abdeckung `privops` 78,1 % (> 72),
 `httpd` 72,0 % (> 68), direkte Go-Abhängigkeiten unverändert 6.
+
+### Schritt 8 — Stand: zurückgestellt
+
+Die Container-Shell wird vorerst nicht gebaut und gegebenenfalls später
+nachgezogen. Die Stufe 0.5 ist damit ohne sie abgeschlossen.
+
+**Was das für §6 bedeutet, gehört hierhin:** Entscheidung E8 hatte eine Folge
+angekündigt — mit der Container-Shell entstünde die schwierigere Hälfte des
+Web-Terminals (PTY-Anbindung, bidirektionaler Transport, Terminal-Emulation),
+und das Argument aus §6, das Terminal hinter 1.0 zu stellen, verlöre danach
+seine technische Begründung. **Diese Folge tritt nicht ein.** Das Terminal steht
+weiterhin aus beiden Gründen hinter 1.0, dem technischen wie dem
+sicherheitspolitischen, und der externe Review vor 1.0 muss diesen Pfad nicht
+mitprüfen, weil es ihn nicht gibt.
+
+**Was beim Nachziehen wieder aufgeschlagen werden muss:** die offene
+Transportfrage (WebSocket mit `github.com/coder/websocket` und xterm.js gegen
+die nicht-interaktive Variante), die Auflagen aus E8 — nur Owner, Schalter in
+der Konfigurationsdatei und nicht in der Oberfläche, Audit je Sitzung mit
+Container, Dauer und Befehl — und der Nachtrag in §6.
+
+---
+
+### Schritt 9 — Stand: umgesetzt
+
+Der Angriffsdurchgang gegen die eigene Arbeit, nach dem Vorbild von Phase 7 des
+Dateimanagers. Er hat **acht** Befunde gebracht, und alle acht sind geschlossen.
+Sie stehen hier vollständig, weil ein Angriffsdurchgang ohne seine Funde nur
+eine Behauptung ist.
+
+#### Sechs Wege am Compose-Prüfer vorbei
+
+Jeder davon ist beim ersten Anlauf **durchgegangen** — der Prüfer meldete „in
+Ordnung".
+
+| Fund | Warum er durchging |
+|---|---|
+| `- ../../../../var/run/docker.sock:/…` | Der Vergleich mit der Sperrliste traf nicht, weil dort absolute Pfade stehen — und danach galt „nicht absolut" als „liegt im Stack-Verzeichnis". Relative Quellen werden jetzt zuerst gegen das Verzeichnis aufgelöst, so wie Compose es auch tut. |
+| **Ein benanntes Volume mit `driver_opts.device: /`** | Der schwerwiegendste Fund. Im Dienst steht nur `- hack:/host` — das sieht aus wie ein harmloses benanntes Volume. Der `local`-Treiber nimmt aber dieselben Angaben wie `mount(8)`, und mit `type: none, o: bind, device: /` hängt es das ganze Wirtsdateisystem ein. Der Prüfer liest jetzt die oberste `volumes:`-Ebene und löst solche Einträge in den Wirtspfad auf, den sie in Wahrheit meinen. |
+| `device_cgroup_rules: ["c *:* rwm"]` | „devices" ohne das Wort. Den Geräteknoten legt der Container selbst an — `CAP_MKNOD` hat er von Haus aus —, und damit ist die Platte des Wirts lesbar. |
+| `build: {context: /}` | `docker compose up` **baut**, wenn ein Bauabschnitt dasteht. Ein Kontext auf einem hohen Verzeichnis kopiert fremde Dateien in ein Abbild. Kontext und Dockerfile müssen jetzt im Stack-Verzeichnis liegen. |
+| `env_file: [{path: /root/.ssh/id_ed25519}]` | Die neue Langform von `env_file`. Der Leser setzte für eine Abbildung nur einen Platzhalter, und der Pfad ging ungeprüft durch die Vorprüfung. |
+| `volumes_from: ["container:xyz"]` | Ein Dienst *aus dieser Datei* ist selbst geprüft; ein fremder Container nicht — auch nicht der Socket, den er vielleicht eingehängt hat. Der Verweis auf einen fremden Container wird jetzt abgelehnt, der auf einen eigenen Dienst bleibt ein Hinweis. |
+
+Dazu eine Härtung ohne vorherigen Fund: Ein Bind-Mount, der im
+Stack-Verzeichnis liegt und über einen **symbolischen Verweis** hinausführt,
+wird abgelehnt — eingehängt wird das Ziel, nicht der Verweis.
+
+#### Zwei Wege an der Pfadwache vorbei
+
+| Fund | Warum er durchging |
+|---|---|
+| **Ein fremdes Projekt mit `ConfigFiles: /etc/shadow`** | Bei einem fremden Projekt sagt *Docker*, wo die Datei liegt — eine Angabe, die das Panel nicht gesetzt hat. Der Endpunkt las sie und zeigte sie **jedem angemeldeten Konto**, auch einem mit reinem Leserecht. Damit war der Stack-Inspektor ein allgemeines Leseprogramm. Gelesen wird jetzt nur, was auf `.yaml` oder `.yml` endet: Das kostet nichts — Compose liest ausschließlich YAML — und nimmt dem Endpunkt diese Eigenschaft. |
+| **`PUT /api/v1/docker/stacks/{name}` prüfte den Namen nicht** | Im Betrieb hätte ein Pfad als Name nichts bewirkt, weil `privops.StackSchreiben` ihn prüft. Diese Schicht reichte ihn aber ungeprüft weiter und verließ sich vollständig auf die darunter. Sichtbar wurde es überhaupt nur, weil die Attrappe im Test die Prüfung nicht hat — **dieselbe Lehre wie beim `DockerState.Notiz` in Schritt 1: Ein Test, der gegen eine Attrappe prüft, prüft die Zusagen der Attrappe.** Der Name wird jetzt in beiden Schichten geprüft, lesend wie schreibend. |
+
+Zusätzlich gehärtet: Das Stack-Verzeichnis darf kein symbolischer Verweis sein
+(`MkdirAll` folgt einem vorhandenen Verweis wortlos), und beim Löschen wurde
+nachgewiesen, dass `RemoveAll` das Ziel eines Verweises stehen lässt.
+
+#### Was der Durchgang NICHT gefunden hat
+
+Das gehört genauso dazu, damit die Liste oben nicht wie eine Vollständigkeit
+aussieht, die sie nicht ist:
+
+- **Keine Argument-Einschleusung.** Es gibt keine Shell; die Argumente gehen als
+  Feld an `exec`. Ein Semikolon ist damit kein Ausbruch. Gefährlich wäre ein
+  Wert, der mit `-` beginnt und von docker als Option gelesen wird — davor steht
+  überall `--`, und die Namensprüfungen sind der zweite Riegel. Beides ist jetzt
+  in einem Test zusammengefasst.
+- **Keine Lücke in den Rollen.** Alle zehn schreibenden Routen des Moduls
+  verlangen Owner, CSRF-Token und Sitzung; alle sechs lesenden stehen jeder
+  Rolle offen. Geprüft wird das jetzt in einer Schleife über eine Liste, die von
+  Hand gepflegt wird — eine aus dem Router abgeleitete Liste fände immer genau
+  das, was da ist, und könnte nie sagen, dass etwas fehlt.
+- **Keine wirkungslose Rückfrage.** Bei allen vier Handgriffen der Stufe 3
+  wurde geprüft, dass ein falsches getipptes Wort nicht wirkt — geprüft an der
+  Wirkung und nicht am Statuscode.
+
+#### Grenzen, die bleiben, und zwar bewusst
+
+- **Wer den Docker-Socket hat, hat die Maschine.** Der Prüfer ist kein
+  Rechtefilter gegen die Owner-Rolle: Wer dieses Modul bedienen darf, darf auch
+  Pakete installieren und Dateien als root schreiben. Er ist ein Geländer gegen
+  den häufigsten Fall — die aus einem Forum kopierte `compose.yaml`, in der eine
+  solche Zeile steht, ohne dass jemand sie liest.
+- **Ohne Rendern ist die Prüfung schwächer.** Ist Docker nicht erreichbar, wird
+  nur die Rohdatei gelesen; YAML-Anker, `extends` und `.env` können dann an ihr
+  vorbei. Die Antwort sagt das (`gerendert: false`), und `up` läuft ohne Docker
+  ohnehin nicht.
+- **Ein fremdes Compose-Projekt kann auf jede `.yaml` des Servers zeigen.** Wer
+  ein solches Projekt anlegt, hat Docker-Zugriff und ist damit ohnehin
+  root-nah. Die Einschränkung auf YAML-Endungen begrenzt den Schaden, hebt ihn
+  aber nicht auf.
+- **`pid: "container:xyz"` wird nicht abgelehnt**, nur `pid: host`. Das ist ein
+  Weg in einen fremden *Container*-Namensraum und keiner auf den Wirt.
+
+#### Messung, gegen 0.4.1 auf derselben Maschine
+
+| Größe | 0.4.1 | mit Modul Docker | Grenze |
+|---|---|---|---|
+| Binär (`-s -w`, trimpath) | 17,2 MiB | 17,6 MiB (+464 KiB, +2 %) | 30 MB (CI) |
+| Bündel `index.js` | 298 KiB | 358 KiB | — |
+| Bündel CSS | 60 KiB | 67 KiB | — |
+| Direkte Go-Abhängigkeiten | 6 | **6** | 25 |
+| Allowlist-Einträge für Docker | — | **1** (`/usr/bin/docker`) | — |
+| Abdeckung `privops` | — | 78,2 % | 72 % |
+| Abdeckung `httpd` | — | 72,1 % | 68 % |
+
+Der Zuwachs von 464 KiB für sieben Schritte ist der Preis dafür, dass alles über
+die Kommandozeile läuft: Es kam **keine** Bibliothek dazu. `gopkg.in/yaml.v3`
+war schon direkte Abhängigkeit (`internal/config`), und `docker buildx` ist ein
+Unterkommando desselben Binaries. Die Grundlast im Leerlauf ist unverändert —
+das Modul hält keinen Hintergrundprozess: Der Ereignisstrom läuft nur, solange
+jemand zusieht, und die Update-Prüfung nur auf Knopfdruck.
+
+#### Von Hand, auf einem echten Server — weiterhin offen
+
+Der Angriffsdurchgang lief gegen aufgezeichnete Ausgaben, nicht gegen Docker.
+**Was ein Test hier nicht leisten kann, bleibt offen** und steht in Abschnitt 10:
+die Abnahme aller CLI-Parser auf einer echten Installation. Für den Prüfer heißt
+das insbesondere, dass die Gestalt von `docker compose config` bestätigt werden
+muss — die ganze Kette hängt daran, dass die gerenderte Fassung so aussieht, wie
+der Parser sie erwartet.
+
+---
 
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:

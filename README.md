@@ -17,9 +17,12 @@ beherrschbar bleibt.
 > Zertifikate, Cron & Timer, API-Tokens, Panel-Zugänge und das eigene Konto.
 >
 > Mit **0.4.0** ist die Oberfläche neu gebaut (Svelte über `/api/v1`), mit
-> **0.4.1** die alte server-gerenderte Fläche abgebaut. Als Nächstes kommen die
-> Anwendungsmodule: **Docker (0.5)**, **Webserver & Domains (0.6)**,
-> **Datenbanken (0.7)**, **Backups (0.8)**; 1.0 ist der externe
+> **0.4.1** die alte server-gerenderte Fläche abgebaut. Seither ist das Modul
+> **Docker (0.5)** dazugekommen: Compose-Stacks als führendes Objekt samt
+> Compose-Prüfer, Container, Bestand, Portübersicht mit Firewall-Abgleich,
+> Ereignisstrom und Update-Prüfung. Die Container-Shell aus dem ursprünglichen
+> Zuschnitt ist zurückgestellt. Als Nächstes kommen **Webserver & Domains
+> (0.6)**, **Datenbanken (0.7)**, **Backups (0.8)**; 1.0 ist der externe
 > Sicherheits-Review, kein neues Feature. Der Plan steht in
 > [docs/16-neukonzeption.md](docs/16-neukonzeption.md), die Meilensteine in
 > [docs/06-roadmap.md](docs/06-roadmap.md).
@@ -66,7 +69,7 @@ verliert die Kennzahlen nicht aus dem Blick — und beim Seitenwechsel bleibt di
 Schale stehen, statt mit jedem Klick neu zu laden. Im Fuß der Leiste ein
 Umschalter für hellen und dunklen Modus; ohne Wahl gilt die Systemeinstellung.
 
-Module, die noch nicht gebaut sind — Docker, Webserver, Datenbanken, Backups —
+Module, die noch nicht gebaut sind — Webserver, Datenbanken, Backups —
 stehen bereits im Menü und führen auf eine Seite, die sagt, mit welcher Fassung
 sie kommen und was heute an ihrer Stelle geht. Ein Menüpunkt, der stillschweigend
 auf der Startseite landet, sieht wie ein Fehler aus.
@@ -218,7 +221,7 @@ Binärgröße. Begründung in
 | [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md) | Rückfragen vor zerstörenden Aktionen: drei Stufen, und warum sie im Handler stehen |
 | [docs/15-neuordnung.md](docs/15-neuordnung.md) | Drei Entwürfe für die Neuordnung der Oberfläche (abgelöst; Befund und fünf Grundsätze gelten fort) |
 | [docs/16-neukonzeption.md](docs/16-neukonzeption.md) | **Der aktuelle Bauplan:** Scope A+, die Stufen 0.4 bis 1.0, das Gestaltungssystem der neuen Oberfläche |
-| [docs/17-docker.md](docs/17-docker.md) | Modul Docker (Stufe 0.5): Zuschnitt, Compose-Prüfer, Bestätigungsstufen, Vergleich mit Arcane |
+| [docs/17-docker.md](docs/17-docker.md) | Modul Docker (Stufe 0.5): Zuschnitt, Compose-Prüfer, Bestätigungsstufen, Vergleich mit Arcane, Angriffsdurchgang mit seinen Funden |
 
 Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
 [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und

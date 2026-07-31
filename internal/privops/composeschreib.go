@@ -190,11 +190,48 @@ func verweiseNachDraussen(roh, wurzel string) []ComposeBefund {
 	}
 	for dienst, d := range datei.Services {
 		pruefe(dienst, "extends.file", d.Extends.File)
-		for _, ef := range listeAus(d.EnvFile) {
+		for _, ef := range envDateien(d.EnvFile) {
 			pruefe(dienst, "env_file", ef)
 		}
 	}
 	return out
+}
+
+// envDateien liest „env_file" in allen drei Schreibweisen.
+//
+//	env_file: ./eigen.env
+//	env_file: [./a.env, ./b.env]
+//	env_file: [{path: ./a.env, required: false}]
+//
+// Die dritte ist neu in Compose und war der Grund für einen Befund im
+// Angriffsdurchgang: listeAus setzte für eine Abbildung nur einen Platzhalter,
+// und ein „path: /root/.ssh/id_ed25519" ging damit ungeprüft durch.
+func envDateien(k yaml.Node) []string {
+	switch k.Kind {
+	case yaml.ScalarNode:
+		if k.Value == "" {
+			return nil
+		}
+		return []string{k.Value}
+	case yaml.SequenceNode:
+		out := make([]string, 0, len(k.Content))
+		for _, e := range k.Content {
+			switch e.Kind {
+			case yaml.ScalarNode:
+				out = append(out, e.Value)
+			case yaml.MappingNode:
+				var lang struct {
+					Path string `yaml:"path"`
+				}
+				if e.Decode(&lang) == nil && lang.Path != "" {
+					out = append(out, lang.Path)
+				}
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }
 
 // StackSchreiben legt einen Stack an oder ändert ihn.
@@ -230,6 +267,14 @@ func (s *System) StackSchreiben(ctx context.Context, name, text string, panelPor
 		return ComposePruefung{}, fmt.Errorf("%s: %w", ziel, err)
 	}
 
+	// Das Stack-Verzeichnis darf kein symbolischer Verweis sein. Sonst schriebe
+	// ein Verweis von /opt/asylum/stacks/web nach /etc die Datei dorthin —
+	// MkdirAll folgt einem vorhandenen Verweis wortlos. Befund aus dem
+	// Angriffsdurchgang (Schritt 9).
+	if info, err := os.Lstat(verzeichnis); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return ComposePruefung{}, fmt.Errorf("%s ist ein symbolischer Verweis und wird "+
+			"nicht beschrieben", verzeichnis)
+	}
 	if err := os.MkdirAll(verzeichnis, 0o750); err != nil {
 		return ComposePruefung{}, fmt.Errorf("%s: %w", verzeichnis, err)
 	}

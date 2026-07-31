@@ -9,7 +9,7 @@ ohne SSH und ohne dass das Panel die Maschine übernimmt.
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: 0.4.1 im Kanal `stable`, die Freigabe 1.0 steht aus.**
+> **Status: 0.5.0 im Kanal `stable`, die Freigabe 1.0 steht aus.**
 > Gebaut sind Installation, TLS mit Let's Encrypt, der signierte Release- und
 > Selbstupdate-Pfad mit Bereitschaftsprüfung und selbsttätigem Rollback, die
 > Anmeldung mit zweitem Faktor und Passkeys, Rollen, Audit-Log sowie die Module
@@ -38,9 +38,11 @@ Der Installer gibt am Ende einen einmaligen Setup-Link aus. Dort werden
 Administrator-Konto und Zwei-Faktor-Anmeldung eingerichtet — es wird bewusst kein
 Passwort vergeben, das im Terminal oder in der Shell-History stünde.
 
-Gemessen am aktuellen Stand (0.4.1): 17,2 MB Binary, 20,5 MB RSS im Leerlauf,
+Gemessen am aktuellen Stand (0.5.0): 17,6 MB Binary, 20,5 MB RSS im Leerlauf,
 39 ms für eine Anmeldung, TLS 1.3 mit selbstsigniertem Zertifikat beim ersten
-Start.
+Start. Das Modul Docker hat davon 464 KiB Binärgröße gekostet und keine einzige
+neue Abhängigkeit — es spricht über die Kommandozeile mit Docker, nicht über
+eine Bibliothek.
 
 Aktualisiert wird über das Panel oder mit `sudo asylum update`: Signatur gegen den
 im Binary eingebauten Schlüssel, atomarer Tausch, Neustart, Bereitschaftsprüfung —

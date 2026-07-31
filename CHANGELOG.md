@@ -9,6 +9,67 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.5.0] — 2026-07-31
+
+**Das Modul Docker.** Compose-Stacks sind das führende Objekt: anlegen, im
+Editor ändern, starten, herunterfahren, aktualisieren, löschen — dazu Container
+mit Protokoll und Auslastung, der Bestand an Abbildern, Volumes und Netzen mit
+dem, was ein Aufräumen brächte, eine Portübersicht mit Firewall-Abgleich, der
+Ereignisstrom von Docker und eine Update-Prüfung für Abbilder.
+
+Das Panel spricht mit Docker über die **Kommandozeile** und nie über den Socket.
+Das ist keine Bequemlichkeitsfrage: Wer den Socket hat, hat die Maschine, und
+jede Aktion bleibt so ein nachvollziehbarer Befehl in der Protokollzeile. Es kam
+dafür **keine neue Abhängigkeit** dazu und **ein** Eintrag in die Allowlist.
+
+**Vier Dinge, die vor der Liste der Änderungen stehen sollten:**
+
+**Erstens: Docker geht an ufw vorbei.** Wer einen Container mit `-p 8080:80`
+veröffentlicht, ist auf 8080 aus dem Internet erreichbar — auch wenn ufw läuft
+und diesen Port nicht kennt. Docker trägt seine Weiterleitungen vor den Ketten
+der Firewall ein. Die neue Portübersicht sagt das ausdrücklich, statt einen
+grünen Haken zu zeigen, weil ufw läuft. Wenn Sie das für Ihren Server noch nicht
+geprüft haben, ist diese Seite der erste Ort, an den Sie nach dem Update sehen
+sollten.
+
+**Zweitens: Es gibt einen Compose-Prüfer, und er lehnt ab.** Vor jedem Speichern
+und vor jedem Start läuft er serverseitig — gegen die von Compose *aufgelöste*
+Fassung, damit YAML-Anker und `.env` nichts vorbeischmuggeln. Privilegierte
+Container, geteilte Namensräume, durchgereichte Geräte, der Docker-Socket im
+Container und Pfade der Sperrliste werden abgelehnt, mit Nennung von Dienst,
+Feld und Grund. **Das gilt auch für Compose-Projekte, die Sie außerhalb des
+Panels angelegt haben:** Ein Bestandsprojekt mit `privileged: true` lässt sich
+über das Panel nicht starten, auch wenn es gerade läuft. Über die Kommandozeile
+geht es weiterhin.
+
+**Drittens: Geschrieben wird nur, was das Panel selbst angelegt hat.** Ein Stack
+gehört dem Panel, wenn seine `compose.yaml` unter `/opt/asylum/stacks/` liegt
+**und** einen Marker in der ersten Zeile trägt. Fremde Projekte erscheinen in der
+Liste, lassen sich lesen, starten und stoppen — aber nicht bearbeiten und nicht
+löschen. Die Knöpfe dafür fehlen, statt beim Drücken abzulehnen.
+
+**Viertens: Das Modul bedient nur die Owner-Rolle.** Lesen darf jede Rolle. Ein
+Compose-Stack ist Codeausführung als root, und ein Admin-Konto, das Dienste neu
+starten darf, soll damit nicht die Rechtetrennung des Servers aufheben. Für
+API-Tokens gibt es die Fläche `docker`.
+
+**Was Sie NICHT bekommen, und warum:** keine Container-Shell (zurückgestellt —
+sie brächte die schwierigere Hälfte eines Web-Terminals, und das steht aus
+Sicherheitsgründen hinter 1.0), kein automatisches Einspielen von Updates (ein
+Panel, das nachts von allein Abbilder tauscht, macht nachts von allein etwas
+kaputt), keine Registry-Zugangsdaten (0.5 hält kein Betriebsgeheimnis; die
+verschlüsselte Geheimnisverwaltung kommt mit 0.8), kein `docker run` mit freien
+Flags und kein Vorlagenkatalog.
+
+**Eine Einschränkung, die benannt gehört:** Die Update-Prüfung braucht
+`docker buildx` (in Debian das Paket `docker-buildx`), um bei
+Mehrarchitektur-Abbildern ein Ergebnis zu liefern. Ohne buildx meldet sie für
+die meisten Abbilder „nicht geprüft" samt Grund — und ausdrücklich nicht
+„aktuell". Der Hintergrund steht in [docs/17-docker.md](docs/17-docker.md).
+
+Migration gibt es keine, Sitzungen bleiben gültig, und ohne Docker auf dem
+Server ändert sich nichts außer einem Menüpunkt, der die Installation anbietet.
+
 ### Sicherheit
 
 - **Angriffsdurchgang gegen das Modul Docker.** Acht Wege am eigenen Prüfer und

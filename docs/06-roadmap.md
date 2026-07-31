@@ -1,6 +1,6 @@
 # 06 — Roadmap & offene Entscheidungen
 
-## Stand: 0.4.1
+## Stand: 0.5.0
 
 Dieses Dokument hat zwei Teile, und sie sind verschieden alt.
 

@@ -18,6 +18,7 @@ export const t = {
     dienste: "Dienste",
     pakete: "Pakete",
     cron: "Cron & Timer",
+    tokens: "API-Tokens",
     docker: "Docker",
     webserver: "Webserver",
     datenbanken: "Datenbanken",
@@ -781,6 +782,69 @@ export const t = {
     wesen:
       "Nur additiv: Einträge lassen sich nicht ändern und nicht löschen — auch nicht von der Owner-Rolle.",
     gefiltert: (n: number) => (n === 1 ? "1 Eintrag" : `${n} Einträge`),
+  },
+
+  tokens: {
+    wesen:
+      "Zugänge für Skripte und Automatisierung: Ein Token ist ein zweiter Anmeldeweg neben Passwort und zweitem Faktor. Er erbt die Rolle des Kontos, das ihn anlegt, und kann nie mehr als dieses Konto.",
+    laedt: "Tokens werden gelesen …",
+    suchen: "Name, Konto oder Anfang",
+    nichts: "Es gibt noch keinen Token.",
+    nichtsGefiltert: "Kein Token passt zur Suche.",
+    // Spalten.
+    name: "Name",
+    anfang: "Anfang",
+    konto: "Konto",
+    umfang: "Umfang",
+    frist: "Frist",
+    zuletzt: "zuletzt benutzt",
+    zustandSpalte: "Zustand",
+    // Die Spalte der Handgriffe braucht eine Beschriftung, weil unter 600 Pixeln
+    // jede Zelle zu einer Karte mit Namen wird — ein Knopf ohne Namen daneben
+    // sähe nach einem Fehler aus.
+    handgriff: "Handgriff",
+    // Werte.
+    alleFlaechen: "alle offenen Flächen",
+    nurLesen: "nur lesen",
+    lesenUndSchreiben: "lesen und schreiben",
+    ohneAblauf: "ohne Ablauf",
+    nieBenutzt: "noch nie",
+    von: "von",
+    angelegtAm: "angelegt",
+    // Anlegen.
+    anlegen: "Token anlegen",
+    anlegenTitel: "Neuer Token",
+    abbrechen: "abbrechen",
+    widerrufen: "widerrufen",
+    namePlatzhalter: "Sicherungsskript",
+    nameHinweis:
+      "In sechs Monaten ist der Name die einzige Auskunft darüber, wozu dieser Token da war.",
+    rechte: "Rechte",
+    rechteHinweis:
+      "Nur lesen beschneidet den Token auf Abfragen. Die Rolle des Kontos bleibt die Obergrenze — mehr als Sie selbst kann er nie.",
+    flaechen: "Flächen",
+    flaechenHinweis:
+      "Keine Auswahl heißt: alle für Tokens offenen Flächen. Eine Auswahl ist eine Einschränkung — der Token gilt dann nur dort.",
+    fristFeld: "Laufzeit",
+    fristHinweis:
+      "Ohne Ablauf gilt der Token, bis ihn jemand widerruft. Das ist erlaubt und bleibt eine offene Rechnung; die Liste markiert solche Tokens dauerhaft.",
+    gesperrtTitel: "Für Tokens gesperrt",
+    gesperrtHinweis:
+      "Diese Flächen erreicht kein Token, unabhängig von Rolle und Auswahl: Er soll weder Tokens noch Panel-Zugänge anlegen und nicht den eigenen Anmeldeweg ändern können — sonst überlebt ein entwendeter Token seinen eigenen Widerruf.",
+    nurOwner: "Tokens verwaltet die Owner-Rolle. Wer Tokens vergeben kann, vergibt Zugänge.",
+    // Die Einmal-Anzeige.
+    einmalTitel: "Der Token",
+    einmalWarnung:
+      "Dieser Token steht nur hier und wird nicht noch einmal angezeigt. Wer ihn verliert, widerruft ihn und legt einen neuen an.",
+    kopieren: "kopieren",
+    kopiert: "kopiert",
+    einmalSchliessen: "notiert, schließen",
+    // Wie man ihn benutzt — Grundsatz V: die Oberfläche erklärt sich dort, wo
+    // etwas geschieht. Ohne dieses Beispiel muss man die Dokumentation suchen.
+    benutzung: "So wird er benutzt",
+    benutzungBefehl: (host: string, token: string) =>
+      `curl -H "Authorization: Bearer ${token}" \\
+  https://${host}/api/v1/overview`,
   },
 
   zeitplaene: {

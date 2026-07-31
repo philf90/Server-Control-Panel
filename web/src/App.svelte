@@ -24,6 +24,7 @@
   import ZertifikatSeite from "./seiten/Zertifikat.svelte";
   import PanelupdateSeite from "./seiten/Panelupdate.svelte";
   import ZeitplaeneSeite from "./seiten/Zeitplaene.svelte";
+  import TokensSeite from "./seiten/Tokens.svelte";
   import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
@@ -134,6 +135,13 @@
              zweite Rollenprüfung an dieser Stelle wäre die Stelle, an der beide
              Listen auseinanderlaufen. -->
         <PanelzugaengeSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
+      {:else if weg.seite === "tokens"}
+        <!-- Die Tokenseite liegt hinter der Owner-Rolle, und zwar auf dem Server:
+             Alle drei Routen antworten sonst 403. Der Hostname geht mit, weil der
+             Dialog mit dem frischen Token gleich den fertigen curl-Aufruf zeigt —
+             an genau dem Punkt, an dem man das Geheimnis in der Hand hält, soll
+             niemand eine Dokumentation suchen müssen. -->
+        <TokensSeite host={uebersicht?.host?.fqdn || uebersicht?.host?.hostname || ""} />
       {:else if weg.seite === "zeitplaene"}
         <!-- Zeitpläne: Lesen darf jede Rolle, Schreiben nur der Owner. Die Seite
              holt das aus ihrer eigenen Antwort (rahmen.darf_aendern) und nicht aus

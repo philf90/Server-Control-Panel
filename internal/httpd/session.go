@@ -103,6 +103,16 @@ func (s *Server) endSession(w http.ResponseWriter, r *http.Request) {
 // übernimmt requireAuth.
 func (s *Server) loadSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Hat loadToken schon einen Token aufgelöst, wird das Cookie NICHT
+		// gelesen. Eine Anfrage hat einen Anmeldeweg und nicht zwei: Sonst stünde
+		// hier der Benutzer des Cookies im Kontext, während die Grenzen des
+		// Tokens gelten — zwei Identitäten in einer Anfrage, und die Rechte der
+		// einen mit den Schranken der anderen.
+		if _, ok := tokenFrom(r.Context()); ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		cookie, err := r.Cookie(sessionCookie)
 		if err != nil {
 			next.ServeHTTP(w, r)

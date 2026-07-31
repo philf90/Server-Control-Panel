@@ -204,6 +204,18 @@ func (s *Server) Handler() http.Handler {
 		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIZertifikatSpeichern))))
 	mux.Handle("POST /api/v1/certificate/obtain",
 		s.protected(s.apiSchreibend(http.HandlerFunc(s.handleAPIZertifikatBezug))))
+	// API-Tokens. Owner-Rolle, und zwar auch lesend: Die Liste sagt, welche
+	// Zugänge zu diesem Server bestehen, und wer Tokens vergeben kann, vergibt
+	// Zugänge. Diese Fläche ist außerdem für Tokens selbst gesperrt — ein
+	// entwendeter Token darf keinen frischen minten und so seinen eigenen
+	// Widerruf überleben (tokenGesperrt in tokenauth.go).
+	mux.Handle("GET /api/v1/tokens",
+		s.protected(s.apiOwner(http.HandlerFunc(s.handleAPITokens))))
+	mux.Handle("POST /api/v1/tokens",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPITokenAnlegen)))))
+	mux.Handle("POST /api/v1/tokens/{id}/revoke",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPITokenWiderrufen)))))
+
 	// Zeitpläne: Cron-Einträge und systemd-Timer. Lesen genügt das Leserecht — wer
 	// wissen darf, welche Dienste laufen, darf wissen, was nachts läuft. Schreiben
 	// verlangt die Owner-Rolle: Ein Cron-Eintrag IST eine Shell-Zeile, und wer
@@ -358,7 +370,12 @@ func (s *Server) Handler() http.Handler {
 		s.log.Error("statische Dateien nicht verfügbar", "err", err)
 	}
 
-	return s.recoverer(securityHeaders(s.requestLog(s.loadSession(mux))))
+	// loadToken steht VOR loadSession: Trägt die Anfrage einen Bearer-Token, wird
+	// das Cookie gar nicht erst gelesen — eine Anfrage hat einen Anmeldeweg und
+	// nicht zwei. Ein unbrauchbarer Authorization-Kopf endet dort mit 401 und
+	// fällt nicht auf das Cookie zurück; die Begründung steht im Kopf von
+	// tokenauth.go und ist die tragende Stelle des ganzen Token-Wegs.
+	return s.recoverer(securityHeaders(s.requestLog(s.loadToken(s.loadSession(mux)))))
 }
 
 // loggedIn verlangt eine Sitzung, aber noch kein abgeschlossenes 2FA-Setup.
@@ -505,6 +522,20 @@ func (s *Server) audit(r *http.Request, action, target, result, detail string) {
 	actor := "anonym"
 	if u, ok := userFrom(r.Context()); ok {
 		actor = u.Username
+	}
+	// Kam die Anfrage über einen API-Token, steht das im Eintrag. Sonst sagt das
+	// Protokoll „philipp hat den Dienst gestoppt", während es ein Skript war —
+	// und wer nach dem Grund sucht, fragt den falschen Menschen.
+	//
+	// Der Token wandert in die Einzelheiten und NICHT in das Akteursfeld: Daran
+	// hängen die Filter der Protokollseite, und „philipp" und
+	// „philipp (Token: Sicherung)" wären dort zwei Akteure für ein Konto.
+	if tok, ok := tokenFrom(r.Context()); ok {
+		if detail != "" {
+			detail = "token=" + tok.Name + " " + detail
+		} else {
+			detail = "token=" + tok.Name
+		}
 	}
 	entry := store.AuditEntry{
 		At: time.Now(), Actor: actor, Action: action,

@@ -165,6 +165,16 @@ export const gruppen: Gruppe[] = [
         auch: ["panel", "rollen", "owner", "admin", "passkey", "2fa", "totp", "sperren"],
       },
       {
+        id: "tokens",
+        label: t.ziele.tokens,
+        symbol: "marke",
+        href: "/v2/tokens",
+        gruppe: t.bereiche.sicherheit,
+        neu: true,
+        nurOwner: true,
+        auch: ["api", "token", "bearer", "skript", "automatisierung", "cli"],
+      },
+      {
         id: "zertifikate",
         label: t.ziele.zertifikate,
         symbol: "siegel",

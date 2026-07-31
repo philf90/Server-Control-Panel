@@ -76,7 +76,18 @@ type apiSitzung struct {
 	// gerenderte Seite; eine SPA bekommt kein gerendertes HTML und holt es
 	// hier. Es steht bewusst nicht in einem Cookie — dann wäre es kein zweiter
 	// Nachweis mehr, sondern derselbe, den ein Angreifer schon mitschickt.
+	//
+	// Bei einer Anfrage über einen API-Token ist das Feld leer: Es gibt keine
+	// Sitzung, und ein Token braucht kein Sitzungstoken.
 	CSRF string `json:"csrf"`
+
+	// Token, NurLesen und Scopes stehen nur bei einer Anfrage über einen
+	// API-Token. Sie sind die Antwort auf „womit bin ich hier unterwegs und was
+	// darf ich damit" — ein Skript soll seine eigenen Grenzen erfragen können,
+	// statt sie durch einen 403 zu erfahren.
+	Token    string   `json:"token,omitempty"`
+	NurLesen bool     `json:"nur_lesen,omitempty"`
+	Scopes   []string `json:"scopes,omitempty"`
 }
 
 func (s *Server) handleAPISession(w http.ResponseWriter, r *http.Request) {
@@ -85,19 +96,46 @@ func (s *Server) handleAPISession(w http.ResponseWriter, r *http.Request) {
 		s.apiFehler(w, http.StatusUnauthorized, "nicht angemeldet")
 		return
 	}
+	antwort := apiSitzung{
+		Benutzer:      user.Username,
+		Rolle:         user.Role,
+		DarfSchreiben: user.CanWrite(),
+		IstOwner:      user.CanManageUsers(),
+	}
+
+	// Kam die Anfrage über einen API-Token, gibt es keine Sitzung und damit kein
+	// Sitzungstoken. Das ist kein Fehler, sondern die Auskunft: Ein Skript fragt
+	// hier, als wer es unterwegs ist und was es darf — und es braucht kein
+	// CSRF-Token, weil es keinen Cookie mitschickt (siehe tokenauth.go).
+	//
+	// Bis hierher antwortete dieser Endpunkt in dem Fall mit 401 „nicht
+	// angemeldet", weil er die Sitzung verlangte. Für ein Skript war das die
+	// falscheste aller Auskünfte: Der Token war gültig, und die Meldung sagte das
+	// Gegenteil.
+	if tok, mitToken := tokenFrom(r.Context()); mitToken {
+		antwort.Token = tok.Name
+		antwort.NurLesen = tok.ReadOnly
+		antwort.Scopes = tok.Scopes
+		if antwort.Scopes == nil {
+			antwort.Scopes = []string{}
+		}
+		// Ein Nur-Lese-Token darf nicht schreiben, egal was die Rolle sagt. Die
+		// Auskunft muss das abbilden, sonst baut ein Skript einen Knopf, den der
+		// Server gleich darauf verweigert.
+		if tok.ReadOnly {
+			antwort.DarfSchreiben = false
+		}
+		s.apiJSON(w, http.StatusOK, antwort)
+		return
+	}
+
 	sess, ok := sessionFrom(r.Context())
 	if !ok {
 		s.apiFehler(w, http.StatusUnauthorized, "nicht angemeldet")
 		return
 	}
-
-	s.apiJSON(w, http.StatusOK, apiSitzung{
-		Benutzer:      user.Username,
-		Rolle:         user.Role,
-		DarfSchreiben: user.CanWrite(),
-		IstOwner:      user.CanManageUsers(),
-		CSRF:          sess.CSRFToken,
-	})
+	antwort.CSRF = sess.CSRFToken
+	s.apiJSON(w, http.StatusOK, antwort)
 }
 
 // apiBefehl ist ein Eintrag des privops-Journals für die Protokollzeile.

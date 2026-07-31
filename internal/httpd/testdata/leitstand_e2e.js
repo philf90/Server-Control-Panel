@@ -2461,6 +2461,138 @@ async function main() {
   }));
   await seite.setViewportSize({ width: 1280, height: 720 });
 
+  // 12l. API-Tokens. Der Kern ist die EINMAL-Anzeige, und die ist nur im Browser
+  //      zu prüfen: Ein Go-Test sieht den Klartext in der Antwort, aber nicht,
+  //      dass er in einem Dialog landet, den Escape nicht schließt, und dass er
+  //      nach dem Schließen fort ist.
+  //
+  //      1. Der Dialog widersteht Escape. Der Token kommt kein zweites Mal, und
+  //         ein Dialog, der sich versehentlich schließt, nimmt ihn mit.
+  //      2. Er zeigt den fertigen curl-Aufruf. An dem Punkt, an dem man das
+  //         Geheimnis in der Hand hält, soll niemand eine Dokumentation suchen.
+  //      3. Nach dem Schließen steht der Klartext NIRGENDS mehr auf der Seite.
+  //      4. Die gesperrten Flächen stehen als eigener Block da und fehlen in der
+  //         Auswahl — genannt, nicht verschwiegen.
+  const tk = {};
+  await seite.goto(`${basis}/v2/tokens`, { waitUntil: "domcontentloaded" });
+  await seite.waitForSelector("table.tabelle", { timeout: 5000 });
+
+  tk.wesen = await seite.evaluate(
+    () => document.querySelector(".wesen")?.textContent.trim() ?? "",
+  );
+  // Der Block „für Tokens gesperrt" mit seinen Marken.
+  tk.gesperrt = await seite.evaluate(() => {
+    const p = document.querySelector(".platte.gesperrt");
+    if (!p) return null;
+    return {
+      marken: [...p.querySelectorAll(".marke")].map((m) => m.textContent.trim()),
+      warum: p.querySelector(".detail")?.textContent.trim() ?? "",
+    };
+  });
+
+  // Das Formular. Die gesperrten Flächen dürfen darin NICHT auftauchen.
+  await seite.click(".werkzeuge .knopf.leise.klein");
+  await seite.waitForSelector("form.anlegen", { timeout: 5000 });
+  tk.formular = await seite.evaluate(() => ({
+    flaechen: [...document.querySelectorAll("form.anlegen .flaechen span")].map((s) =>
+      s.textContent.trim(),
+    ),
+    // Jede Fläche trägt ihre Erklärung im Titelattribut: „schedules" sagt einem
+    // Menschen nichts.
+    erklaert: [...document.querySelectorAll("form.anlegen .kaestchen")].every(
+      (l) => (l.getAttribute("title") ?? "") !== "",
+    ),
+    // Nur-Lesen ist vorbelegt: Wer die Auswahl übersieht, bekommt den engeren
+    // Token.
+    nurLesenVorbelegt:
+      document.querySelector('form.anlegen input[type=radio]')?.checked ?? null,
+    fristen: [...document.querySelectorAll("form.anlegen select option")].map((o) =>
+      o.textContent.trim(),
+    ),
+    saetze: document.querySelectorAll("form.anlegen small").length,
+  }));
+
+  // Anlegen: Stufe 2, und die Rückfrage sagt den Umfang.
+  await seite.fill("form.anlegen input[type=text]", "e2e-sicherung");
+  await seite.evaluate(() => {
+    const l = [...document.querySelectorAll("form.anlegen .kaestchen")].find((x) =>
+      x.textContent.includes("files"),
+    );
+    l.querySelector("input").click();
+  });
+  await seite.click('form.anlegen button[type=submit]');
+  await seite.waitForSelector("dialog[open]", { timeout: 5000 });
+  tk.frage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog[open]");
+    return {
+      text: d.textContent.replace(/\s+/g, " ").trim(),
+      tippfeld: d.querySelector("input[type=text]") !== null,
+    };
+  });
+  await seite.evaluate(() => document.querySelector("dialog[open] .knopf.gefahr").click());
+
+  // Und jetzt die Einmal-Anzeige.
+  await seite.waitForSelector("dialog.einmal[open]", { timeout: 5000 });
+  tk.einmal = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.einmal[open]");
+    return {
+      token: d.querySelector(".geheimnis code")?.textContent.trim() ?? "",
+      warnung: d.querySelector(".warnung")?.textContent.trim() ?? "",
+      beispiel: d.querySelector(".beispiel")?.textContent.trim() ?? "",
+      knoepfe: [...d.querySelectorAll(".knopf")].map((b) => b.textContent.trim()),
+    };
+  });
+
+  if (process.env.ASYLUM_E2E_SHOTS) {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-tokens-einmal.png`,
+      fullPage: true,
+    });
+  }
+
+  // Escape schließt ihn NICHT: Der Token kommt kein zweites Mal.
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(300);
+  tk.nachEscape = await seite.evaluate(
+    () => document.querySelector("dialog.einmal[open]") !== null,
+  );
+
+  // Erst der Knopf schließt ihn — und danach steht der Klartext nirgends mehr.
+  await seite.evaluate(() => {
+    const d = document.querySelector("dialog.einmal[open]");
+    [...d.querySelectorAll(".knopf")].find((b) => b.textContent.includes("notiert")).click();
+  });
+  await seite.waitForTimeout(300);
+  tk.nachSchliessen = await seite.evaluate((token) => ({
+    dialogZu: document.querySelector("dialog.einmal[open]") === null,
+    // Der Klartext darf nirgends im Dokument mehr stehen.
+    imDokument: document.body.textContent.includes(token),
+    zeilen: document.querySelectorAll("table.tabelle tbody tr").length,
+  }), tk.einmal.token);
+
+  // Die Zeile in der Liste: Name, sichtbarer Anfang, Umfang, Zustand — und NICHT
+  // der Token.
+  tk.zeile = await seite.evaluate(() => {
+    const tr = document.querySelector("table.tabelle tbody tr");
+    const td = [...tr.querySelectorAll("td")];
+    return {
+      name: td[0]?.querySelector("b")?.textContent.trim() ?? "",
+      anfang: td[0]?.querySelector(".anfang")?.textContent.trim() ?? "",
+      umfang: td[2]?.textContent.replace(/\s+/g, " ").trim() ?? "",
+      zuletzt: td[4]?.textContent.trim() ?? "",
+      zustand: tr.querySelector(".zustand")?.className ?? "",
+      handgriff: td[6]?.textContent.trim() ?? "",
+    };
+  });
+
+  await seite.setViewportSize({ width: 375, height: 900 });
+  await seite.waitForTimeout(250);
+  tk.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await seite.setViewportSize({ width: 1280, height: 720 });
+
   // 12k. Zeitpläne. Vier Dinge sind hier nur im Browser zu sehen:
   //
   //      1. Der Zeitplan steht ZWEIMAL da: als Satz und als rohes Feld. Ein Test
@@ -2706,6 +2838,7 @@ async function main() {
       upd,
       konto,
       plaene,
+      tk,
       fremdeRolle,
       bald,
       zweige,

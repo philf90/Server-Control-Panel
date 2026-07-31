@@ -35,6 +35,24 @@ func (s *Server) apiSchreibend(next http.Handler) http.Handler {
 			return
 		}
 
+		// Eine Anfrage mit API-Token braucht kein Sitzungstoken, und das ist keine
+		// Ausnahme, sondern die Folge davon, was CSRF überhaupt ist: Die Prüfung
+		// schützt gegen eine UMGEBENDE Berechtigung — ein Cookie, das der Browser
+		// bei jeder Anfrage mitschickt, auch bei einer, die eine fremde Seite
+		// ausgelöst hat. Ein Token wird mitgebracht, nicht mitgeschickt, und den
+		// Authorization-Kopf kann eine fremde Seite nicht setzen (siehe den Kopf
+		// von tokenauth.go). Es gibt hier auch nichts zu prüfen: Eine
+		// Token-Anfrage hat keine Sitzung und damit kein Sitzungstoken.
+		//
+		// Die Bedingung, auf der das steht, ist die Regel aus loadToken: Ein
+		// Authorization-Kopf schaltet den Cookie-Weg AB, statt neben ihm zu
+		// stehen. Ohne sie wäre dieser Zweig genau der Weg, die CSRF-Prüfung mit
+		// einem unsinnigen Kopf abzuschalten und sich auf das Cookie zu verlassen.
+		if _, mitToken := tokenFrom(r.Context()); mitToken {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Das Token kommt aus der Kopfzeile und nicht aus dem Körper. Zwei
 		// Gründe: Der Körper ist JSON und wird von den Handlern gelesen, nicht
 		// von einer Middleware — und eine Kopfzeile kann ein Formular von einer

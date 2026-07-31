@@ -615,6 +615,48 @@ type ergebnisLeitstand struct {
 			Beschriftung  string  `json:"beschriftung"`
 		} `json:"schmal"`
 	} `json:"plaene"`
+	Tokens struct {
+		Wesen    string `json:"wesen"`
+		Gesperrt *struct {
+			Marken []string `json:"marken"`
+			Warum  string   `json:"warum"`
+		} `json:"gesperrt"`
+		Formular struct {
+			Flaechen          []string `json:"flaechen"`
+			Erklaert          bool     `json:"erklaert"`
+			NurLesenVorbelegt *bool    `json:"nurLesenVorbelegt"`
+			Fristen           []string `json:"fristen"`
+			Saetze            int      `json:"saetze"`
+		} `json:"formular"`
+		Frage struct {
+			Text     string `json:"text"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"frage"`
+		Einmal struct {
+			Token    string   `json:"token"`
+			Warnung  string   `json:"warnung"`
+			Beispiel string   `json:"beispiel"`
+			Knoepfe  []string `json:"knoepfe"`
+		} `json:"einmal"`
+		NachEscape     bool `json:"nachEscape"`
+		NachSchliessen struct {
+			DialogZu   bool `json:"dialogZu"`
+			ImDokument bool `json:"imDokument"`
+			Zeilen     int  `json:"zeilen"`
+		} `json:"nachSchliessen"`
+		Zeile struct {
+			Name      string `json:"name"`
+			Anfang    string `json:"anfang"`
+			Umfang    string `json:"umfang"`
+			Zuletzt   string `json:"zuletzt"`
+			Zustand   string `json:"zustand"`
+			Handgriff string `json:"handgriff"`
+		} `json:"zeile"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"tk"`
 	FremdeRolle struct {
 		ImMenue     bool   `json:"imMenue"`
 		InPalette   int    `json:"inPalette"`
@@ -2458,6 +2500,133 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if pl.Schmal.Beschriftung == "" {
 		t.Error("den Karten auf dem Telefon fehlt die Spaltenbeschriftung (data-spalte)")
+	}
+
+	// 6p. API-Tokens. Der Kern ist die EINMAL-Anzeige: Ein Go-Test sieht den
+	// Klartext in der Antwort, aber nicht, dass er in einem Dialog landet, den
+	// Escape nicht schließt, und dass er danach fort ist.
+	tk := e.Tokens
+	if !strings.Contains(tk.Wesen, "Rolle") {
+		t.Errorf("der Satz über der Seite sagt nicht, dass ein Token die Rolle erbt: %q", tk.Wesen)
+	}
+
+	// Was ein Token NICHT kann, steht als eigener Block da — genannt, nicht
+	// verschwiegen. Wer einen Token für die Kontoverwaltung sucht, soll es hier
+	// erfahren und nicht durch einen 403 in einer Woche.
+	if tk.Gesperrt == nil {
+		t.Fatal("der Block mit den gesperrten Flächen fehlt")
+	}
+	for _, f := range []string{"tokens", "panel-users", "account"} {
+		if !enthaelt(tk.Gesperrt.Marken, f) {
+			t.Errorf("die gesperrte Fläche %q wird nicht genannt: %v", f, tk.Gesperrt.Marken)
+		}
+	}
+	if !strings.Contains(tk.Gesperrt.Warum, "Widerruf") {
+		t.Errorf("der Grund für die Sperre fehlt: %q", tk.Gesperrt.Warum)
+	}
+
+	// Und sie tauchen in der AUSWAHL nicht auf: Eine Fläche anzubieten, die der
+	// Server gleich abweist, ist ein Knopf, der zuverlässig scheitert.
+	for _, f := range []string{"tokens", "panel-users", "account"} {
+		if enthaelt(tk.Formular.Flaechen, f) {
+			t.Errorf("die gesperrte Fläche %q steht in der Auswahl", f)
+		}
+	}
+	if len(tk.Formular.Flaechen) < 10 {
+		t.Errorf("%d wählbare Flächen — erwartet die volle Familienliste",
+			len(tk.Formular.Flaechen))
+	}
+	if !tk.Formular.Erklaert {
+		t.Error("nicht jede Fläche trägt ihre Erklärung — \u201eschedules\u201c sagt einem " +
+			"Menschen nichts")
+	}
+	// Nur-Lesen ist vorbelegt: Wer die Auswahl übersieht, bekommt den engeren
+	// Token und nicht den weiteren.
+	if tk.Formular.NurLesenVorbelegt == nil || !*tk.Formular.NurLesenVorbelegt {
+		t.Error("\u201enur lesen\u201c ist nicht vorbelegt")
+	}
+	if len(tk.Formular.Fristen) == 0 || tk.Formular.Fristen[0] != "30 Tage" {
+		t.Errorf("Fristen = %v — die kürzeste gehört nach oben", tk.Formular.Fristen)
+	}
+	if tk.Formular.Saetze < 4 {
+		t.Errorf("nur %d Felder erklären sich — Grundsatz V", tk.Formular.Saetze)
+	}
+
+	// Die Rückfrage sagt, was der Token DARF. Der gefährliche Fall ist nicht der
+	// Klick, sondern der Token, den jemand in falscher Annahme anlegt.
+	if tk.Frage.Tippfeld {
+		t.Error("das Anlegen verlangt ein getipptes Wort — es ist Stufe 2")
+	}
+	for _, teil := range []string{"e2e-sicherung", "nur lesen", "files", "gesperrt"} {
+		if !strings.Contains(tk.Frage.Text, teil) {
+			t.Errorf("die Rückfrage nennt %q nicht: %q", teil, tk.Frage.Text)
+		}
+	}
+
+	// Die Einmal-Anzeige.
+	if !strings.HasPrefix(tk.Einmal.Token, "asy_") {
+		t.Errorf("der gezeigte Token trägt kein erkennbares Präfix: %q", tk.Einmal.Token)
+	}
+	if !strings.Contains(tk.Einmal.Warnung, "nicht noch einmal") {
+		t.Errorf("die Warnung sagt nicht, dass der Token nur einmal erscheint: %q",
+			tk.Einmal.Warnung)
+	}
+	// Der fertige Aufruf: An dem Punkt, an dem man das Geheimnis in der Hand hält,
+	// soll niemand eine Dokumentation suchen.
+	if !strings.Contains(tk.Einmal.Beispiel, "Authorization: Bearer") {
+		t.Errorf("das Beispiel zeigt nicht, wie der Token benutzt wird: %q", tk.Einmal.Beispiel)
+	}
+	if !strings.Contains(tk.Einmal.Beispiel, tk.Einmal.Token) {
+		t.Error("das Beispiel enthält den Token nicht — dann muss man ihn hineinkopieren")
+	}
+
+	// Escape schließt den Dialog NICHT. Der Token kommt kein zweites Mal, und ein
+	// Dialog, der sich versehentlich schließt, nimmt ihn mit.
+	if !tk.NachEscape {
+		t.Error("Escape hat die Einmal-Anzeige geschlossen — der Token ist damit weg, " +
+			"ohne dass ihn jemand notiert hat")
+	}
+	if !tk.NachSchliessen.DialogZu {
+		t.Error("der Knopf schließt den Dialog nicht")
+	}
+	// Und danach steht der Klartext NIRGENDS mehr auf der Seite.
+	if tk.NachSchliessen.ImDokument {
+		t.Error("der Klartext des Tokens steht nach dem Schließen noch im Dokument")
+	}
+	if tk.NachSchliessen.Zeilen != 1 {
+		t.Errorf("%d Zeilen in der Liste, erwartet 1", tk.NachSchliessen.Zeilen)
+	}
+
+	// Die Zeile zeigt den sichtbaren Anfang und nicht den Token.
+	if tk.Zeile.Name != "e2e-sicherung" {
+		t.Errorf("Name in der Liste = %q", tk.Zeile.Name)
+	}
+	if !strings.HasPrefix(tk.Zeile.Anfang, "asy_") || !strings.HasSuffix(tk.Zeile.Anfang, "…") {
+		t.Errorf("der sichtbare Anfang fehlt oder ist nicht abgeschnitten: %q", tk.Zeile.Anfang)
+	}
+	if tk.Zeile.Anfang == tk.Einmal.Token {
+		t.Error("die Liste zeigt den ganzen Token")
+	}
+	if !strings.Contains(tk.Zeile.Umfang, "files") {
+		t.Errorf("der Umfang fehlt in der Zeile: %q", tk.Zeile.Umfang)
+	}
+	// Noch nie benutzt — der Token ist gerade entstanden.
+	if !strings.Contains(tk.Zeile.Zuletzt, "nie") {
+		t.Errorf("\u201ezuletzt benutzt\u201c = %q bei einem frischen Token", tk.Zeile.Zuletzt)
+	}
+	if !strings.Contains(tk.Zeile.Zustand, "warn") {
+		t.Errorf("Zustand = %q — ein nie benutzter Token ist eine offene Rechnung",
+			tk.Zeile.Zustand)
+	}
+	if tk.Zeile.Handgriff == "" {
+		t.Error("der Handgriff zum Widerrufen fehlt")
+	}
+
+	if tk.Schmal.FensterBreite == 0 {
+		t.Error("die Tokenseite wurde nicht im Schmalmodus gemessen")
+	} else if tk.Schmal.KoerperBreite > tk.Schmal.FensterBreite+1 {
+		t.Errorf("die Tokenseite ist %.0f Pixel breit bei %.0f Pixeln Fenster — sie "+
+			"scrollt waagerecht", tk.Schmal.KoerperBreite, tk.Schmal.FensterBreite)
 	}
 
 	// 6k. Die Gegenprobe mit einer anderen Rolle. Ein Menüpunkt, der zuverlässig

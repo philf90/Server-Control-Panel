@@ -53,6 +53,9 @@ import type {
   Timerlauf,
   Zeitplaene,
   Zeitplanantwort,
+  Tokens,
+  Tokenantwort,
+  Tokenauftrag,
 } from "./typen";
 
 /** AbgemeldetFehler steht für die eine Antwort, die nicht wie ein Fehler
@@ -691,6 +694,27 @@ export const api = {
         bestaetigt,
         getippt,
       }),
+    }),
+
+  // ------------------------------------------------------------ API-Tokens ---
+
+  tokens: () => anfrage<Tokens>("/tokens"),
+
+  /** tokenAnlegen legt einen Token an. Die Antwort trägt den Klartext GENAU
+   *  EINMAL — die Seite zeigt ihn in einem Dialog, der geschlossen werden muss,
+   *  und schreibt ihn nirgends hin. */
+  tokenAnlegen: (auftrag: Tokenauftrag, bestaetigt = false, getippt = "") =>
+    anfrage<Tokenantwort>("/tokens", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...auftrag, bestaetigt, getippt }),
+    }),
+
+  tokenWiderrufen: (id: number, bestaetigt = false, getippt = "") =>
+    anfrage<Tokenantwort>(`/tokens/${id}/revoke`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bestaetigt, getippt }),
     }),
 
   // ------------------------------------------------------------- Zeitpläne ---

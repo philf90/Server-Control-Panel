@@ -720,6 +720,22 @@ type ergebnisLeitstand struct {
 			Inhalt  string   `json:"inhalt"`
 			Knoepfe []string `json:"knoepfe"`
 		} `json:"stackEditor"`
+		Formular struct {
+			Ansichten []string `json:"ansichten"`
+			// Nach dem Setzen einer bekannten Datei im Texteditor: was das
+			// Formular daraus gelesen hat.
+			Dienste     []string `json:"dienste"`
+			Image       string   `json:"image"`
+			PortAdresse string   `json:"portAdresse"`
+			PortWirt    string   `json:"portWirt"`
+			// Nach dem Ändern des Feldes: was im Texteditor steht.
+			TextNachher     string `json:"textNachher"`
+			KommentarBleibt bool   `json:"kommentarBleibt"`
+			// Mit einer Datei voller Anker beziehungsweise mit kaputtem YAML.
+			AnkerHinweis  string `json:"ankerHinweis"`
+			AnkerGesperrt bool   `json:"ankerGesperrt"`
+			KaputtWarnung string `json:"kaputtWarnung"`
+		} `json:"formular"`
 		StackFremd struct {
 			Titel   string   `json:"titel"`
 			Knoepfe []string `json:"knoepfe"`
@@ -2979,6 +2995,51 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if !enthaelt(dk.StackEditor.Knoepfe, "speichern") {
 		t.Errorf("im Editor fehlt der Speichern-Knopf: %v", dk.StackEditor.Knoepfe)
+	}
+
+	// Das Compose-Formular (Stufe C). Was hier geprüft wird, ist nicht, dass
+	// Felder da sind, sondern dass beide Richtungen dieselbe Datei meinen — und
+	// vor allem, was mit dem geschieht, was das Formular NICHT zeigt.
+	fm := dk.Formular
+	if len(fm.Ansichten) != 3 {
+		t.Errorf("die Ansichtswahl hat %d Knöpfe statt drei: %v", len(fm.Ansichten), fm.Ansichten)
+	}
+	// Richtung Datei → Formular.
+	if !enthaelt(fm.Dienste, "web") {
+		t.Errorf("das Formular hat den Dienst aus der Datei nicht gelesen: %v", fm.Dienste)
+	}
+	if fm.Image != "nginx:alpine" {
+		t.Errorf("das Feld „Image\" zeigt %q statt des Werts aus der Datei", fm.Image)
+	}
+	// Der Port ist der Fall, an dem ein Zerlegen von links scheitert: In
+	// „127.0.0.1:8080:80" steht der Wirtsport in der MITTE.
+	if fm.PortAdresse != "127.0.0.1" || fm.PortWirt != "8080" {
+		t.Errorf("die Portzeile wurde falsch zerlegt: Adresse %q, Wirtsport %q",
+			fm.PortAdresse, fm.PortWirt)
+	}
+	// Richtung Formular → Datei.
+	if !strings.Contains(fm.TextNachher, "nginx:1.27-alpine") {
+		t.Errorf("die Änderung im Feld steht nicht in der Datei: %q", fm.TextNachher)
+	}
+	// Die Zusage, wegen der das Formular chirurgisch schreibt und nicht neu
+	// ausgibt. Ohne sie hätte die erste Änderung an einer Vorlage deren
+	// Kommentare gefressen — und die Kommentare SIND bei den Vorlagen der Inhalt
+	// (Entscheidung E7).
+	if !fm.KommentarBleibt {
+		t.Errorf("der Kommentar hat die Änderung über das Formular nicht überlebt: %q",
+			fm.TextNachher)
+	}
+	// Anker: anzeigen ja, anfassen nein — und den Grund nennen.
+	if !strings.Contains(fm.AnkerHinweis, "Anker") {
+		t.Errorf("bei einer Datei mit Ankern fehlt der Hinweis: %q", fm.AnkerHinweis)
+	}
+	if !fm.AnkerGesperrt {
+		t.Error("bei einer Datei mit Ankern sind die Felder nicht gesperrt — das Formular " +
+			"würde an einer Datei schreiben, deren Bedeutung es nicht kennt")
+	}
+	// Kaputtes YAML: einfrieren statt aus einem halben Dokument schreiben.
+	if !strings.Contains(fm.KaputtWarnung, "YAML") {
+		t.Errorf("bei unlesbarem YAML fehlt die Warnung: %q", fm.KaputtWarnung)
 	}
 
 	// Das fremde Projekt: lesbar, aber ohne Bearbeiten und ohne Löschen. Das ist

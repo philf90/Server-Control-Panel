@@ -111,6 +111,16 @@ async function main() {
       verstoesse.push(text);
     }
   });
+  // Die Konsolenmeldung zu einem CSP-Verstoß sagt NICHT, wer ihn ausgelöst hat.
+  // Das Ereignis sagt es: Datei und Zeile der Stelle, die den Stil setzen
+  // wollte. Ohne das sucht man einen Verstoß in einem Bundle von 380 KiB.
+  await seite.addInitScript(() => {
+    document.addEventListener("securitypolicyviolation", (e) => {
+      console.log(
+        `Content Security Policy — Herkunft: ${e.violatedDirective} an <${e.target?.tagName}> ${JSON.stringify((e.target?.outerHTML ?? "").slice(0, 120))}`,
+      );
+    });
+  });
   // Ein Laufzeitfehler im Bundle erscheint nicht als Konsolenmeldung, sondern
   // als pageerror. Ohne diesen Mitleser wäre eine leere Seite ein grüner Test.
   seite.on("pageerror", (e) => {
@@ -2882,6 +2892,129 @@ async function main() {
       k.textContent.trim(),
     ),
   }));
+  // ─────────────────────────────── Das Formular und die Datei (Stufe C) ───
+  //
+  // Geprüft wird der Weg in BEIDE Richtungen an einer Datei, die der Test
+  // selbst setzt — nicht an der der Attrappe. Nur so lässt sich fragen, was
+  // eigentlich zählt: Was passiert mit dem, was das Formular NICHT zeigt?
+  //
+  // insertText statt Tastendrücken: CodeMirror rückt bei Enter selbsttätig
+  // ein, und eine zeichenweise getippte YAML-Datei stünde nach vier Zeilen in
+  // einer Treppe.
+  const formularDatei = [
+    "services:",
+    "  web:",
+    "    # Bewusst mit Tag und nicht latest.",
+    "    image: nginx:alpine",
+    "    restart: unless-stopped",
+    "    ports:",
+    '      - "127.0.0.1:8080:80"',
+    "",
+  ].join("\n");
+
+  // Der Text kommt als Einfügen und nicht als Tastendrücke — und das ist ein
+  // Befund und keine Geschmacksfrage:
+  //
+  //   * Zeichenweise getippt rückt CodeMirror bei jedem Enter selbsttätig ein,
+  //     und eine YAML-Datei stünde nach vier Zeilen in einer Treppe.
+  //   * keyboard.insertText schreibt in das contenteditable, und Chromiums
+  //     Editierlogik hängt dabei ein style-Attribut an eine cm-line. Das ist ein
+  //     CSP-Verstoß — vom TEST erzeugt, nicht von der Fläche, aber der Wächter
+  //     unterscheidet das zu Recht nicht.
+  //
+  // Ein paste-Ereignis fängt CodeMirror selbst ab und schreibt über seine eigene
+  // Schnittstelle. Der Browser fasst das Dokument dabei nicht an.
+  async function editorSetzen(text) {
+    await seite.click(".editor .cm-content");
+    await seite.keyboard.press("ControlOrMeta+a");
+    await seite.evaluate((inhalt) => {
+      const ziel = document.querySelector(".editor .cm-content");
+      const daten = new DataTransfer();
+      daten.setData("text/plain", inhalt);
+      ziel?.dispatchEvent(
+        new ClipboardEvent("paste", { clipboardData: daten, bubbles: true, cancelable: true }),
+      );
+    }, text);
+    // Der Spiegel wird verzögert nachgezogen (200 ms im Editor).
+    await seite.waitForTimeout(400);
+  }
+
+  /** feldWert liest ein Formularfeld über seine Beschriftung. Über die
+   *  Beschriftung und nicht über die Stellung: Eine Reihenfolge ändert sich,
+   *  ein Feldname nicht. */
+  function feldSucher(beschriftung) {
+    return (b) => {
+      const zeile = [...document.querySelectorAll(".dienst .feldzeile")].find(
+        (l) => l.querySelector("span")?.textContent.trim() === b,
+      );
+      return zeile?.querySelector("input, select") ?? null;
+    };
+  }
+
+  await editorSetzen(formularDatei);
+
+  dock.formular = await seite.evaluate((b) => {
+    const zeile = [...document.querySelectorAll(".dienst .feldzeile")].find(
+      (l) => l.querySelector("span")?.textContent.trim() === b,
+    );
+    const portzeile = document.querySelector(".zeile.ports");
+    const felder = portzeile ? [...portzeile.querySelectorAll("input")] : [];
+    return {
+      ansichten: [...document.querySelectorAll(".ansichtswahl .knopf")].map((k) =>
+        k.textContent.trim(),
+      ),
+      dienste: [...document.querySelectorAll(".dienst header b")].map((e) =>
+        e.textContent.trim(),
+      ),
+      image: zeile?.querySelector("input")?.value ?? "",
+      portAdresse: felder[0]?.value ?? "",
+      portWirt: felder[1]?.value ?? "",
+      textNachher: "",
+      kommentarBleibt: false,
+      ankerHinweis: "",
+      ankerGesperrt: false,
+      kaputtWarnung: "",
+    };
+  }, "Image");
+
+  // Richtung Formular → Datei. Das Feld ändern und nachsehen, was aus der Datei
+  // geworden ist — samt dem Kommentar, den niemand angefasst hat.
+  const bildfeld = await seite.evaluateHandle(feldSucher("Image"), "Image");
+  const bildelement = bildfeld.asElement();
+  if (bildelement) {
+    await bildelement.fill("nginx:1.27-alpine");
+    await bildelement.dispatchEvent("change");
+    await seite.waitForTimeout(300);
+  }
+  const nachher = await seite.evaluate(
+    () => document.querySelector(".editor .cm-content")?.textContent ?? "",
+  );
+  dock.formular.textNachher = nachher.slice(0, 400);
+  dock.formular.kommentarBleibt = nachher.includes("# Bewusst mit Tag und nicht latest.");
+
+  // Eine Datei mit Ankern: Das Formular sagt, dass es sie nicht anfasst, und
+  // sperrt die Felder — statt sie halb darzustellen.
+  await editorSetzen(
+    ["services:", "  basis: &basis", "    image: alpine", "  web:", "    <<: *basis", ""].join("\n"),
+  );
+  const ankerstand = await seite.evaluate(() => ({
+    hinweis:
+      document.querySelector(".formularseite .hinweis")?.textContent?.trim().slice(0, 200) ?? "",
+    gesperrt: [...document.querySelectorAll(".dienst input")].every((i) => i.disabled),
+  }));
+  dock.formular.ankerHinweis = ankerstand.hinweis;
+  dock.formular.ankerGesperrt = ankerstand.gesperrt;
+
+  // Kaputtes YAML: einfrieren statt aus einem halben Dokument schreiben.
+  await editorSetzen("services:\n  web:\n   image: [unvollstaendig\n");
+  dock.formular.kaputtWarnung = await seite.evaluate(
+    () => document.querySelector(".formularseite .warnung")?.textContent?.trim().slice(0, 160) ?? "",
+  );
+
+  // Zurück auf die bekannte Datei, damit das Bildschirmfoto die Fläche im
+  // Normalfall zeigt und nicht im Fehlerfall.
+  await editorSetzen(formularDatei);
+
   // Der sichtbare Ausschnitt genügt: Die Docker-Seite ist mit Editor, Werkbank,
   // Containertabelle und Bestand mehrere tausend Pixel hoch, und zu sehen ist
   // hier nur, ob der Editor aufgegangen ist.

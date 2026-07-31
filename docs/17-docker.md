@@ -921,6 +921,128 @@ JSON-Feld und kein Pfad hieß je „abbild".
 
 ---
 
+### Nachtrag 0.5.1 — das Compose-Formular
+
+Angeregt durch [Dockge](https://github.com/louislam/dockge), das neben dem
+Texteditor Felder für die üblichen Compose-Angaben führt und beide Richtungen
+synchron hält. Gebaut ist dieselbe Zweiwegsynchronisation, mit drei
+Zusätzen, die aus dem Zuschnitt dieses Panels folgen.
+
+#### E9 — Der Text ist die Wahrheit, das Formular ist abgeleitet
+
+`web/src/lib/composeform.ts` hält **keinen Zustand**. Jede Änderung aus dem
+Formular ist derselbe Dreischritt: Text parsen, einen Knoten anfassen, Text
+zurückgeben. Es gibt kein Dokumentobjekt, das zwischen zwei Klicks veralten
+kann, und keine Lage, in der Formular und Editor auseinanderlaufen — sie können
+es nicht, weil nur einer von beiden etwas hält.
+
+Der Preis ist ein Parserlauf je Änderung. Bei einer Compose-Datei von dreißig
+bis dreihundert Zeilen ist das nicht messbar; die Alternative wäre ein zweiter
+Zustand mit eigener Lebensdauer gewesen, und den hat dieses Projekt an anderer
+Stelle schon teuer bezahlt.
+
+#### E10 — Chirurgisch ändern, nie neu ausgeben
+
+Der naheliegende Weg — YAML nach JavaScript-Objekt, Objekt ändern, Objekt nach
+YAML — ist der falsche. Er verliert Kommentare, Einrückung, Anführungszeichen
+und die Reihenfolge der Felder. Für dieses Panel ist das kein Schönheitsfehler:
+Entscheidung **E7** sagt über die mitgelieferten Vorlagen, die Kommentare seien
+„der eigentliche Inhalt". Ein Formular, das sie beim ersten Klick auffrisst,
+hätte die Vorlagen entwertet.
+
+Geschrieben wird deshalb über die Document-API von `yaml`, und zwar am
+vorhandenen Knoten:
+
+| Fall | Weg | Was dadurch bleibt |
+|---|---|---|
+| Skalar ändern | vorhandenen `Scalar` weiterbenutzen, nur `value` setzen | Kommentar am Feld, Anführungszeichenstil, Stellung in der Abbildung |
+| Liste ändern | zeilenweise abgleichen, nur geänderte Zeilen anfassen | Kommentare an den Zeilen, die niemand angerührt hat |
+| Ausgabe | `lineWidth: 0`, `indent` aus der Quelldatei geraten | keine umgebrochenen langen Zeilen, keine umformatierte Einrückung |
+
+Zwei Kleinigkeiten mit Folgen, beide beim Schreiben der Prüfungen gefunden:
+`yaml` faltet ohne `lineWidth: 0` lange Zeichenketten bei 80 Zeichen um — ein
+`command`, das niemand angefasst hat, stünde nach dem ersten Klick woanders. Und
+es schreibt ohne `indent` immer zwei Leerzeichen, formatierte eine mit vier
+eingerückte Datei also vollständig um.
+
+#### E11 — Der zweite Leser sagt, was er nicht kann
+
+Das Formular ist der **zweite** Leser der Datei. Der erste ist der Prüfer auf
+dem Server, und nur er entscheidet, was gespeichert und gestartet wird. Das
+Formular kann irren; es kann nichts durchlassen.
+
+Genau deshalb darf es nichts verstecken, was es nicht versteht:
+
+| Fund | Verhalten |
+|---|---|
+| YAML-Anker, Aliasse | ganzes Dokument nur Anzeige — was ein Anker hineinzieht, sieht der Leser nicht |
+| Mehrere Dokumente in einer Datei | ganzes Dokument nur Anzeige |
+| `extends`, Merge-Key `<<` | dieser Dienst nur Anzeige — er erbt, und das Formular sieht nur die eine Hälfte |
+| `command` als Liste, `depends_on` mit Bedingungen, Port in der langen Form | Feld wird als *unbedienbar* benannt und bleibt gesperrt |
+| Felder, die das Formular gar nicht kennt (`deploy`, `healthcheck`, `labels` …) | werden aufgezählt und bleiben unangetastet |
+| Text ist gerade kein gültiges YAML | Felder eingefroren, mit Grund |
+
+**Der wichtigste dieser Fälle ist der vierte, und er ist beim Testen
+aufgefallen.** Ein `depends_on` in der Abbildungsform mit `condition:
+service_healthy` lieferte dem Formular eine leere Liste. Angezeigt hätte es ein
+leeres Feld — und die erste Änderung an irgendetwas anderem im Dienst hätte die
+Bedingungen weggeschrieben. Das ist der Grund, warum `unbedienbar` getrennt von
+`weitereFelder` steht: „kenne ich nicht" und „kenne ich, aber nicht in dieser
+Gestalt" sind zwei verschiedene Aussagen, und nur die zweite ist gefährlich.
+
+#### Zur Bedienung
+
+Beim Tippen wird nur Nichtleeres übernommen; das Leeren wirkt beim Verlassen des
+Feldes. Ein leerer Wert heißt „Feld weg" — würde das schon beim Tippen gelten,
+verschwände `image` in dem Augenblick, in dem man es zum Ändern leert, und
+stünde danach an anderer Stelle in der Datei wieder da. „Zeile hinzufügen"
+schreibt zunächst gar nichts: Eine leere Portzeile wäre in der Datei ein Fehler.
+
+#### Prüfung
+
+Ein JavaScript-Testrahmen kam dafür nicht ins Haus. Geprüft wird in Node,
+angestoßen aus Go (`internal/httpd/composeform_test.go`): rolldown — der
+Bündler, der ohnehin die Oberfläche baut — bündelt das Modell, ein Skript stellt
+rund dreißig Behauptungen über den Rückweg. Der Test überspringt sich, wo
+`node_modules` fehlt, und läuft in der CI im Job „UI-Bundle reproduzierbar".
+
+Dazu ein Abschnitt im Browsertest, der beide Richtungen an einer Datei prüft,
+die der Test selbst setzt: Feld ändern → steht in der Datei und der Kommentar
+lebt noch; Datei ändern → steht in den Feldern, samt `127.0.0.1:8080:80`, an dem
+ein Zerlegen von links scheitert; Anker → gesperrt mit Grund; kaputtes YAML →
+eingefroren.
+
+**Ein Befund aus dem Testbau, der die Fläche nicht betrifft und trotzdem
+hierher gehört:** Der erste Anlauf legte die Datei mit
+`keyboard.insertText` in den Editor. Chromium hängt beim Schreiben in ein
+`contenteditable` ein `style`-Attribut an die Editorzeile — ein Verstoß gegen
+die Content-Security-Policy, erzeugt vom Test und nicht von der Anwendung. Der
+Wächter im Browsertest unterscheidet das zu Recht nicht. Der Test schreibt
+seither über ein `paste`-Ereignis, das CodeMirror selbst abfängt und über seine
+eigene Schnittstelle einfügt. Der Browsertest sagt seit diesem Fall auch, **wer**
+einen Verstoß ausgelöst hat — vorher stand nur da, dass einer vorlag.
+
+#### Messung gegen 0.5.0
+
+| | 0.5.0 | 0.5.1 | Bemerkung |
+|---|---|---|---|
+| Binary | 18 032 KiB | 18 152 KiB | +120 KiB, das eingebettete Bündel |
+| Erstladung (`index.js` + CSS) | 433,8 KiB | 452,8 KiB | +19,0 KiB |
+| davon nachgeladen | — | 103,1 KiB | `composeform`-Brocken samt `yaml`, nur beim Öffnen des Editors |
+| direkte Go-Abhängigkeiten | 6 | 6 | unverändert |
+| direkte npm-Abhängigkeiten | 8 | 9 | `yaml` 2.9.0, ISC |
+
+#### Was bleibt
+
+Das Formular deckt die Felder ab, die eine gewöhnliche Compose-Datei ausmachen.
+Es deckt **nicht** ab: `healthcheck`, `deploy`, `labels`, `configs`, `secrets`,
+`build` und alles Weitere — sie bleiben dem Texteditor vorbehalten und werden
+namentlich genannt, statt stillschweigend zu fehlen. Ob das zu wenig ist, sagt
+der Betrieb; die Liste zu verlängern ist Arbeit an einer Stelle
+(`dargestellteFelder` in `composeform.ts`) und kein Umbau.
+
+---
+
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:
 `github.com/coder/websocket` (klein, ohne eigene Abhängigkeiten) — damit stiege

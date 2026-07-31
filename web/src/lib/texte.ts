@@ -1126,6 +1126,71 @@ export const t = {
     prueferAblehnung: "Abgelehnt",
     prueferDienste: "Dienste",
 
+    // Das Compose-Formular (Stufe C)
+    //
+    // Die Texte tragen die Last dieser Fläche: Ein Formular über einer
+    // Konfigurationsdatei ist nur so gut wie das, was es über sich selbst sagt.
+    // Deshalb steht hier für jede Sperre ein eigener Satz und nicht ein
+    // allgemeines „nicht unterstützt".
+    formTitel: "Felder",
+    formText: "Datei",
+    formBeides: "Felder und Datei",
+    formAnsicht: "Ansicht",
+    formDienstAnlegen: "Dienst hinzufügen",
+    formDienstEntfernen: "Dienst entfernen",
+    formDienstName: "Name des Dienstes",
+    formDienstNameFalsch:
+      "Ein Dienstname beginnt mit einem Buchstaben oder einer Ziffer; danach sind Buchstaben, Ziffern, Punkt, Bindestrich und Unterstrich erlaubt.",
+    formDienstDa: "Einen Dienst dieses Namens gibt es schon.",
+    formKeineDienste:
+      "In dieser Datei steht noch kein Dienst. „Dienst hinzufügen“ legt den ersten an.",
+    formImage: "Image",
+    formRestart: "Neustartregel",
+    formCommand: "Befehl",
+    formPorts: "Ports",
+    formVolumes: "Volumes",
+    formUmgebung: "Umgebung",
+    formAbhaengig: "Abhängig von",
+    formNetze: "Netze",
+    formZeileHinzu: "Zeile hinzufügen",
+    formZeileWeg: "entfernen",
+    // Beschriftung und Platzhalter getrennt: In der Spalte neben dem Texteditor
+    // ist ein Feld rund hundert Pixel breit, und „Port auf dem Server" wäre
+    // dort abgeschnitten. Die lange Fassung bleibt als aria-label stehen —
+    // sichtbar kurz, vorgelesen vollständig.
+    formAdresse: "Adresse",
+    formWirtPort: "Port auf dem Server",
+    formContainerPort: "Port im Container",
+    formProtokoll: "Protokoll",
+    formAdresseKurz: "Adresse",
+    formWirtPortKurz: "Server",
+    formContainerPortKurz: "Container",
+    formProtokollKurz: "Proto",
+    formQuelle: "Quelle",
+    formZiel: "Ziel im Container",
+    formModus: "Modus",
+    formSchluessel: "Name",
+    formWert: "Wert",
+    formDienstname: "Dienst",
+    formNetzname: "Netz",
+    // Die drei Zustände, in denen das Formular NICHT schreibt. Jeder bekommt
+    // seinen eigenen Satz, weil sie verschiedene Ursachen haben und
+    // verschiedene Auswege.
+    formNichtLesbar:
+      "Die Datei ist gerade kein gültiges YAML. Die Felder sind bis dahin gesperrt — sie würden sonst aus einem halben Dokument schreiben.",
+    formNurAnzeige: "Nur Anzeige",
+    formRohzeile: "Diese Zeile steht in der langen Form und wird nicht angefasst.",
+    formWeitere: (felder: string[]) =>
+      `Dieses Formular zeigt nicht: ${felder.join(", ")}. Diese Felder bleiben unangetastet — sie stehen weiter in der Datei.`,
+    formUnbedienbar: (felder: string[]) =>
+      `Nicht bearbeitbar, weil sie hier in einer anderen Gestalt stehen: ${felder.join(", ")}. Im Texteditor lassen sie sich ändern.`,
+    // Der Satz, der die ganze Fläche einordnet. Er steht einmal oben und nicht
+    // an jedem Feld.
+    formWesen:
+      "Die Felder und die Datei sind dasselbe: Was hier steht, steht dort, und geändert wird immer die Datei. Kommentare, Einrückung und alles, was das Formular nicht zeigt, bleiben, wo sie sind.",
+    formZweiterLeser:
+      "Ob der Stack zulässig ist, entscheidet weiter der Prüfer auf dem Server — nicht dieses Formular.",
+
     // Ports
     ports: "Ports",
     portsLeer: "Kein Container veröffentlicht einen Port.",

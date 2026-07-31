@@ -11,9 +11,36 @@ nicht als Release getaggt.
 
 ## [0.5.1] — 2026-07-31
 
-Eine Berichtigung und eine Umbenennung. Wer 0.5.0 einsetzt und einen Server
-ohne Compose-Projekt hat, sollte aktualisieren — für ihn war das Modul Docker
-bis hierher nicht benutzbar.
+Ein Formular zur Compose-Datei, eine Berichtigung und eine Umbenennung. Wer
+0.5.0 einsetzt und einen Server ohne Compose-Projekt hat, sollte aktualisieren
+— für ihn war das Modul Docker bis hierher nicht benutzbar.
+
+### Neu
+
+- **Der Compose-Editor hat jetzt Felder neben der Datei.** Image, Neustartregel,
+  Befehl, Ports, Volumes, Umgebungsvariablen, Abhängigkeiten und Netze — je
+  Dienst, und in beide Richtungen: Wer ein Feld ändert, ändert die Datei; wer
+  die Datei ändert, sieht es in den Feldern. Drei Ansichten: nur Felder, nur
+  Datei, beides nebeneinander.
+
+  **Was dabei mit dem Rest der Datei geschieht, ist die eigentliche Zusage.**
+  Geschrieben wird chirurgisch: Ein vorhandener Wert wird ersetzt, nicht der
+  Knoten; eine Liste wird zeilenweise abgeglichen, nicht neu ausgegeben. Damit
+  überleben Kommentare, Einrückung, Anführungszeichenstil und die Reihenfolge
+  der Felder. Für die mitgelieferten Vorlagen ist das keine Feinheit — sie
+  bestehen zum großen Teil aus Kommentaren, die erklären, warum eine Zeile so
+  dasteht.
+
+  **Und was das Formular nicht kann, sagt es.** YAML-Anker, Aliasse,
+  Merge-Keys, `extends` und Dateien mit mehreren Dokumenten sperren es: Es zeigt
+  sie an und fasst sie nicht an. Ein bekanntes Feld in ungewohnter Gestalt —
+  `command` als Liste, `depends_on` mit Bedingungen, ein Port in der langen
+  Form — wird benannt statt als leeres Feld dargestellt. Solange die Datei
+  gerade kein gültiges YAML ist, sind die Felder gesperrt, damit sie nicht aus
+  einem halben Dokument schreiben.
+
+  Ob ein Stack zulässig ist, entscheidet weiterhin allein der Compose-Prüfer
+  auf dem Server. Das Formular ist eine Bedienhilfe und keine zweite Instanz.
 
 ### Behoben
 
@@ -47,6 +74,21 @@ bis hierher nicht benutzbar.
   nachgestellt, bevor er ihn bewacht — die erste Fassung ging noch gegen die
   kaputte Datei durch, weil sie ein `{:else}` die Bedingung der Kette vergessen
   ließ.
+- Erste Abhängigkeit der Oberfläche neben CodeMirror und Svelte: `yaml` 2.9.0
+  (ISC). Sie wird nachgeladen wie CodeMirror und liegt in einem eigenen Brocken
+  von 103 KiB — wer die Docker-Seite nur ansieht, lädt sie nie. Die
+  Erstladung wächst um 19 KiB.
+- Das Modell hinter dem Formular wird in Node geprüft, angestoßen aus Go:
+  rolldown bündelt die Datei, ein Skript stellt rund dreißig Behauptungen über
+  den Rückweg. Kein JavaScript-Testrahmen und keine weitere Abhängigkeit — der
+  Bündler ist der, der ohnehin die Oberfläche baut. Der Test überspringt sich,
+  wo `node_modules` fehlt, und läuft in der CI im Job, der sie hat.
+- Der Browsertest nennt bei einem Verstoß gegen die Content-Security-Policy
+  jetzt auch die Herkunft — Richtlinie und auslösendes Element. Ohne das sucht
+  man einen Verstoß in einem Bündel von 380 KiB. Gebraucht wurde es sofort: Der
+  erste Anlauf, eine Datei über `keyboard.insertText` in den Editor zu legen,
+  ließ Chromium ein `style`-Attribut an eine Editorzeile hängen. Der Test
+  schreibt jetzt über ein `paste`-Ereignis, das CodeMirror selbst abfängt.
 
 ## [0.5.0] — 2026-07-31
 

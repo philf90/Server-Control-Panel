@@ -677,14 +677,21 @@ Themen in §6. Die Aufwände sind für eine Vollzeit-Person geschätzt.
 |---|---|---|---|
 | Vorbau | Entwurfsmappe, `web/`-Gerüst, Vite-Reproduzierbarkeit, API-Skelett | ~1 Woche | **umgesetzt** |
 | **0.4** | Neue Oberfläche mit Parität, `/api/v1`, Job-Modell, Cron & Timer, API-Tokens | ~6–8 Wochen | **umgesetzt** (0.4.0), alte Fläche abgebaut (0.4.1) |
-| **0.5** | Docker — Stacks, Container, Images, Volumes, Netze, Logs | ~3 Wochen | offen, **als Nächstes** |
+| **0.5** | Docker — Stacks, Container, Images, Volumes, Netze, Logs; dazu Ports, Events, Update-Prüfung, Container-Shell | ~5–6 Wochen | offen, **als Nächstes** — Bauplan in [17-docker.md](17-docker.md) |
 | **0.6** | Webserver & Domains — nginx/Caddy, Sites als Domain → Ziel → TLS | ~3 Wochen | offen |
 | **0.7** | Datenbanken — MariaDB/MySQL und PostgreSQL | ~2 Wochen | offen |
 | **0.8** | Backups — restic, Ziele, Zeitpläne, Restore-Test | ~3 Wochen | offen |
 | **1.0** | Externer Review, Befundbehebung, Doku, Screenshots | ~2 Wochen + Wartezeit | offen |
 
-**Summe: rund ein halbes Jahr Vollzeit.** Nach jeder Stufe ist etwas
-Auslieferbares da; der Kanal `beta` trägt die Zwischenstände wie bisher.
+**Summe: gut ein halbes Jahr Vollzeit**, davon 0.4 erledigt — verbleibend rund
+vier Monate. Nach jeder Stufe ist etwas Auslieferbares da; der Kanal `beta`
+trägt die Zwischenstände wie bisher.
+
+Die 0.5 steht mit ~5–6 statt der in §10 geschätzten 3 Wochen, weil ihr Zuschnitt
+erweitert wurde: Ports, Ereignisstrom, Update-Prüfung und eine Container-Shell
+kommen über §5 hinaus dazu. Die Begründung je Zugabe — und was aus dem
+Vergleichsprodukt Arcane bewusst *nicht* übernommen wird — steht in
+[17-docker.md](17-docker.md).
 
 Der Kostentreiber jeder Stufe ist nicht die Oberfläche, sondern das, was
 `privops` dazulernt: Eine neue Seite ist ein Nachmittag, eine neue Systemfläche

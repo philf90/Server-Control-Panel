@@ -218,6 +218,7 @@ Binärgröße. Begründung in
 | [docs/14-bestaetigungen.md](docs/14-bestaetigungen.md) | Rückfragen vor zerstörenden Aktionen: drei Stufen, und warum sie im Handler stehen |
 | [docs/15-neuordnung.md](docs/15-neuordnung.md) | Drei Entwürfe für die Neuordnung der Oberfläche (abgelöst; Befund und fünf Grundsätze gelten fort) |
 | [docs/16-neukonzeption.md](docs/16-neukonzeption.md) | **Der aktuelle Bauplan:** Scope A+, die Stufen 0.4 bis 1.0, das Gestaltungssystem der neuen Oberfläche |
+| [docs/17-docker.md](docs/17-docker.md) | Modul Docker (Stufe 0.5): Zuschnitt, Compose-Prüfer, Bestätigungsstufen, Vergleich mit Arcane |
 
 Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
 [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und

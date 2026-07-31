@@ -170,6 +170,16 @@ jobs:
           fi
           echo "Bundle reproduzierbar: $(du -sh internal/ui/dist | cut -f1)"
 
+      # Das Modell hinter dem Compose-Formular ist TypeScript und wird deshalb
+      # hier geprüft und nicht im Testjob: Es braucht node_modules, und die gibt
+      # es nur in diesem Job. Der Test überspringt sich selbst, wo sie fehlen —
+      # ohne diesen Schritt liefe er in der CI also nie.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Modell des Compose-Formulars
+        run: go test ./internal/httpd -run TestComposeformModell -count=1 -v
+
       - name: Lizenzen des Fremdcodes
         # Was ins Binary wandert, muss eine Lizenz haben, die das Projekt
         # weitergeben kann. (Bis 0.4.1 stand dieselbe Allowlist ein zweites Mal

@@ -2,26 +2,57 @@
   // Die Stackwerkbank: Liste links, Inspektor rechts — dasselbe Muster wie bei
   // den Containern (docs/16-neukonzeption.md §8.4).
   //
-  // In dieser Fassung ist sie rein lesend. Der Inspektor zeigt die
-  // Compose-Datei als Text und nicht im Editor, und es gibt keinen Knopf, der
-  // etwas ändert: Anlegen, Bearbeiten und Starten kommen mit dem nächsten
-  // Schritt, zusammen mit dem Compose-Prüfer. Ein Editor ohne Prüfer wäre genau
-  // die Reihenfolge, die dieses Modul sich verboten hat.
+  // Seit Schritt 5 ist sie auch schreibend: anlegen, bearbeiten, starten,
+  // herunterfahren, Abbilder holen, neu starten, löschen. Die Grenze zieht der
+  // Compose-Prüfer auf dem Server — diese Fläche zeigt sein Urteil, sie fällt
+  // es nicht. Eine Prüfung im Browser wäre eine Bequemlichkeit; die Bedingung
+  // steht in privops.
   //
   // Der Unterschied, der die Seite prägt, ist „verwaltet" gegen „fremd": Nur was
   // unter /opt/asylum/stacks liegt und den Marker trägt, wird das Panel je
   // schreiben. Das steht als Spalte da und nicht als Fußnote — sonst sucht
   // jemand später einen Knopf, den es mit Absicht nicht gibt.
+  import Composeeditor from "./Composeeditor.svelte";
   import Inspektor from "./Inspektor.svelte";
-  import { AbgemeldetFehler, api } from "../lib/api";
+  import Rueckfrage from "./Rueckfrage.svelte";
+  import Vorgangsplatte from "./Vorgangsplatte.svelte";
+  import { AbgemeldetFehler, BestaetigungNoetig, api } from "../lib/api";
   import { t } from "../lib/texte";
   import { weg } from "../lib/weg.svelte";
-  import type { Stackliste, StackDetail } from "../lib/typen";
+  import { Vorgang } from "../lib/vorgang.svelte";
+  import type { Bestaetigung, Stackliste, StackDetail } from "../lib/typen";
 
   let daten = $state<Stackliste | null>(null);
   let detail = $state<StackDetail | null>(null);
   let fehler = $state("");
+  let meldung = $state("");
   let suche = $state("");
+  let laufendeAktion = $state("");
+  /** editor ist "" (zu), "neu" (anlegen) oder der Name eines Stacks. */
+  let editor = $state("");
+
+  let offeneFrage = $state<{
+    frage: Bestaetigung;
+    tun: (getippt: string) => Promise<void>;
+  } | null>(null);
+
+  const vorgang = new Vorgang("docker-stack");
+
+  $effect(() => () => vorgang.loesen());
+
+  // Nach dem Ende eines Vorgangs alles neu holen: Was danach gilt, sagt der
+  // Server. Die Seite weiß nicht, ob „up" geglückt ist — sie weiß nur, dass
+  // der Lauf vorbei ist.
+  let liefZuvor = $state(false);
+  $effect(() => {
+    const laeuft = vorgang.job?.laeuft ?? false;
+    if (liefZuvor && !laeuft) {
+      void laden();
+      const name = gewaehlt;
+      if (name) void detailHolen(name, true);
+    }
+    liefZuvor = laeuft;
+  });
 
   // Die Auswahl steht in der Adresse: teilbar, überlebt ein Neuladen, und der
   // Zurück-Knopf schließt den Inspektor.
@@ -30,7 +61,19 @@
   async function laden() {
     fehler = "";
     try {
-      daten = await api.stacks();
+      const frisch = await api.stacks();
+      daten = frisch;
+      vorgang.setzen(frisch.job);
+    } catch (e) {
+      if (e instanceof AbgemeldetFehler) throw e;
+      fehler = e instanceof Error ? e.message : t.fehler.laden;
+    }
+  }
+
+  async function detailHolen(name: string, erzwingen = false) {
+    if (!erzwingen && detail?.name === name) return;
+    try {
+      detail = await api.stackDetail(name);
     } catch (e) {
       if (e instanceof AbgemeldetFehler) throw e;
       fehler = e instanceof Error ? e.message : t.fehler.laden;
@@ -43,17 +86,10 @@
     const name = gewaehlt;
     if (!name) {
       detail = null;
+      editor = editor === "neu" ? editor : "";
       return;
     }
-    if (detail?.name === name) return;
-    void (async () => {
-      try {
-        detail = await api.stackDetail(name);
-      } catch (e) {
-        if (e instanceof AbgemeldetFehler) throw e;
-        fehler = e instanceof Error ? e.message : t.fehler.laden;
-      }
-    })();
+    void detailHolen(name);
   });
 
   function waehlen(name: string) {
@@ -75,6 +111,56 @@
     }),
   );
 
+  // ausfuehren schickt einen Handgriff ab.
+  //
+  // Die Rückfrage kommt vom Server und ihre Stufe ebenso: „up" ist Stufe 1,
+  // außer der Prüfer meldet einen Bind-Mount nach draußen — dann Stufe 3 mit
+  // dem Stack-Namen. Diese Fläche kennt die Regel nicht und soll sie nicht
+  // kennen; sie zeigt die Frage, die kommt.
+  async function ausfuehren(
+    name: string,
+    aktion: string,
+    mitVolumes = false,
+    bestaetigt = false,
+    getippt = "",
+  ) {
+    laufendeAktion = aktion;
+    fehler = "";
+    meldung = "";
+    try {
+      const { job, meldung: satz } = await api.stackAktion(
+        name,
+        aktion,
+        mitVolumes,
+        bestaetigt,
+        getippt,
+      );
+      offeneFrage = null;
+      meldung = satz;
+      // An die Antwort anhängen und nicht später abfragen: Der Vorgang läuft
+      // bereits, und eine Runde später wäre er bei einem schnellen „pull" schon
+      // vorbei — der Strom ginge nie auf.
+      vorgang.setzen(job);
+      if (aktion === "loeschen") schliessen();
+    } catch (e) {
+      if (e instanceof AbgemeldetFehler) throw e;
+      if (e instanceof BestaetigungNoetig) {
+        offeneFrage = {
+          frage: e.bestaetigung,
+          tun: (wort: string) => ausfuehren(name, aktion, mitVolumes, true, wort),
+        };
+        return;
+      }
+      offeneFrage = null;
+      fehler = e instanceof Error ? e.message : t.fehler.laden;
+    } finally {
+      laufendeAktion = "";
+    }
+  }
+
+  const darfAendern = $derived(daten?.darf_aendern ?? false);
+  const laeuftVorgang = $derived(vorgang.job?.laeuft ?? false);
+
   // Der Satz zum Zustand steht an einer Stelle, weil er zweimal gebraucht wird:
   // in der Zeile und über dem Inspektor.
   function zustandssatz(s: { gestartet: boolean; laufend: number; gesamt: number; status: string }) {
@@ -86,6 +172,25 @@
 
 {#if fehler}<p class="warnung" role="alert">{fehler}</p>{/if}
 {#if daten?.fehler}<p class="warnung">{daten.fehler}</p>{/if}
+{#if meldung}<p class="meldung" role="status">{meldung}</p>{/if}
+
+<Vorgangsplatte {vorgang} />
+
+{#if editor}
+  <Composeeditor
+    neu={editor === "neu"}
+    name={editor === "neu" ? "" : editor}
+    text={editor === "neu" ? "" : (detail?.text ?? "")}
+    vorlagen={daten?.vorlagen ?? []}
+    schliessen={() => (editor = "")}
+    gespeichert={(name) => {
+      editor = "";
+      void laden();
+      weg.setze("stack", name);
+      void detailHolen(name, true);
+    }}
+  />
+{/if}
 
 {#if !daten}
   <p class="detail">{t.docker.laedt}</p>
@@ -107,6 +212,12 @@
       <span>{t.docker.fremd} <b>{daten.zaehler.fremd}</b></span>
       <span>{t.docker.auffaellig} <b>{daten.zaehler.auffaellig}</b></span>
     </div>
+    <div class="schub"></div>
+    {#if darfAendern}
+      <button type="button" class="knopf klein" onclick={() => (editor = "neu")}>
+        {t.docker.stackAnlegen}
+      </button>
+    {/if}
   </div>
 
   <div class="werkbank" class:allein={!gewaehlt}>
@@ -170,6 +281,77 @@
             {/if}
           </dl>
 
+          {#if darfAendern}
+            <div class="aktionen">
+              <button
+                type="button"
+                class="knopf leise klein"
+                disabled={laufendeAktion !== "" || laeuftVorgang}
+                onclick={() => ausfuehren(detail.name, "up")}
+              >
+                {t.docker.stackUp}
+              </button>
+              <button
+                type="button"
+                class="knopf leise klein"
+                disabled={laufendeAktion !== "" || laeuftVorgang || !detail.gestartet}
+                onclick={() => ausfuehren(detail.name, "restart")}
+              >
+                {t.docker.stackRestart}
+              </button>
+              <button
+                type="button"
+                class="knopf leise klein"
+                disabled={laufendeAktion !== "" || laeuftVorgang}
+                onclick={() => ausfuehren(detail.name, "pull")}
+              >
+                {t.docker.stackPull}
+              </button>
+              <button
+                type="button"
+                class="knopf leise klein"
+                disabled={laufendeAktion !== "" || laeuftVorgang || !detail.gestartet}
+                onclick={() => ausfuehren(detail.name, "down")}
+              >
+                {t.docker.stackDown}
+              </button>
+              <!-- Mit Volumes ist ein eigener Knopf und keine Ankreuzbox: Was
+                   Daten löscht, soll man drücken müssen und nicht nebenbei
+                   angehakt haben. -->
+              <button
+                type="button"
+                class="knopf gefahr klein"
+                disabled={laufendeAktion !== "" || laeuftVorgang || !detail.gestartet}
+                onclick={() => ausfuehren(detail.name, "down", true)}
+              >
+                {t.docker.stackDownVolumes}
+              </button>
+              {#if detail.verwaltet}
+                <button
+                  type="button"
+                  class="knopf leise klein"
+                  disabled={laufendeAktion !== "" || laeuftVorgang}
+                  onclick={() => (editor = detail.name)}
+                >
+                  {t.docker.stackBearbeiten}
+                </button>
+                <button
+                  type="button"
+                  class="knopf gefahr klein"
+                  disabled={laufendeAktion !== "" || laeuftVorgang}
+                  onclick={() => ausfuehren(detail.name, "loeschen")}
+                >
+                  {t.docker.stackLoeschen}
+                </button>
+              {/if}
+            </div>
+            {#if !detail.verwaltet}
+              <p class="hinweis">{t.docker.stackFremdNichtAenderbar}</p>
+            {/if}
+          {:else}
+            <p class="hinweis">{t.docker.nurOwner}</p>
+          {/if}
+
           <h3>{t.docker.stackContainer}</h3>
           {#if detail.container.length === 0}
             <p class="detail">{t.docker.keineContainer}</p>
@@ -200,7 +382,23 @@
   </div>
 {/if}
 
+{#if offeneFrage}
+  <Rueckfrage
+    frage={offeneFrage.frage}
+    laeuft={laufendeAktion !== ""}
+    bestaetigen={(getippt) => offeneFrage?.tun(getippt) ?? Promise.resolve()}
+    abbrechen={() => (offeneFrage = null)}
+  />
+{/if}
+
 <style>
+  .aktionen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 1rem;
+  }
+
   .werkzeuge {
     display: flex;
     flex-wrap: wrap;

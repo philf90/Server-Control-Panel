@@ -963,7 +963,7 @@ export const t = {
     // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
     imBau: "Was hier noch fehlt",
     imBauDetail:
-      "Stacks anzulegen und zu starten, die Portübersicht und die Update-Prüfung kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
+      "Die Portübersicht, der Ereignisstrom und die Update-Prüfung kommen mit den nächsten Schritten der Fassung 0.5. Der Bauplan steht im Repository unter docs/17-docker.md.",
 
     // Container
     container: "Container",
@@ -1077,6 +1077,43 @@ export const t = {
     keineDatei: "Zu diesem Projekt ist keine lesbare Compose-Datei da.",
     stackContainer: "Container dieses Stacks",
     keineContainer: "Zu diesem Stack läuft kein Container.",
+
+    // Stacks bedienen
+    stackUp: "starten",
+    stackDown: "herunterfahren",
+    stackDownVolumes: "herunterfahren + Volumes löschen",
+    stackPull: "Abbilder holen",
+    stackRestart: "neu starten",
+    stackLoeschen: "löschen",
+    stackAnlegen: "Stack anlegen",
+    stackBearbeiten: "bearbeiten",
+    stackSpeichern: "speichern",
+    stackAbbrechen: "abbrechen",
+    stackNameFeld: "Name",
+    stackNameHinweis:
+      "Kleinbuchstaben, Ziffern, Bindestrich und Unterstrich. So verlangt es Compose selbst — ein anderer Name ließe sich anlegen, aber nie starten.",
+    stackVorlage: "Vorlage",
+    stackNameFehlt: "Ohne Namen lässt sich kein Stack anlegen.",
+    vorlageGesperrt:
+      "Die Vorlage lässt sich nicht mehr wechseln — sie würde den geschriebenen Text ersetzen.",
+    stackNeuTitel: "Neuen Stack anlegen",
+    stackFremdNichtAenderbar:
+      "Dieses Projekt hat jemand außerhalb des Panels angelegt. Das Panel liest seine Datei, schreibt sie aber nicht — auch dann nicht, wenn sie an unserem Platz liegt.",
+
+    // Der Compose-Prüfer
+    prueferTitel: "Compose-Prüfer",
+    prueferAbgelehnt: "Der Compose-Prüfer hat die Datei abgelehnt. Gespeichert wurde nichts.",
+    // „Geprüft" und „in Ordnung" sind zwei verschiedene Fragen. Ein Satz, der
+    // sie zusammenwirft, behauptet mehr, als der Prüfer weiß.
+    prueferNichtGeprueft:
+      "Die Datei ließ sich nicht als Compose lesen. Sie wurde damit nicht geprüft — das heißt nicht, dass sie in Ordnung ist.",
+    prueferNurRoh:
+      "Geprüft wurde nur die Rohdatei, nicht die von Compose aufgelöste Fassung. YAML-Anker, extends und env_file können daran vorbei.",
+    prueferOK: "Keine Beanstandung.",
+    prueferHinweise: "Nicht geprüft und aufgefallen",
+    prueferAussen: "Zugriff auf Serververzeichnisse",
+    prueferAblehnung: "Abgelehnt",
+    prueferDienste: "Dienste",
   },
 
   stufe: {

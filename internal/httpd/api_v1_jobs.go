@@ -42,6 +42,10 @@ var jobArten = map[string]string{
 	// statt eine Kommandozeile zum Abtippen zu drucken.
 	jobDockerInstall: "Docker einspielen",
 	jobDockerPrune:   "Docker aufräumen",
+	// EINE Art für up, down, pull, restart und Löschen — und damit höchstens
+	// einer gleichzeitig. Zwei „compose up" nebeneinander streiten um dieselben
+	// Netze und Volumes.
+	jobDockerStack: "Stack-Vorgang",
 }
 
 // apiJob ist der Zustand eines Vorgangs.

@@ -272,6 +272,16 @@ func (s *Server) Handler() http.Handler {
 		s.protected(http.HandlerFunc(s.handleAPIDockerStacks)))
 	mux.Handle("GET /api/v1/docker/stacks/{name}",
 		s.protected(http.HandlerFunc(s.handleAPIDockerStack)))
+	// Schreibend. Anlegen und Speichern stehen getrennt, weil sie verschiedene
+	// Fehler haben: Anlegen kann an einem schon vergebenen Namen scheitern,
+	// Speichern an einer Datei, die dem Panel nicht gehört. Ein Endpunkt für
+	// beides beantwortete beide Fälle mit derselben Meldung.
+	mux.Handle("POST /api/v1/docker/stacks",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerStackAnlegen)))))
+	mux.Handle("PUT /api/v1/docker/stacks/{name}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerStackSpeichern)))))
+	mux.Handle("POST /api/v1/docker/stacks/{name}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerStackAktion)))))
 
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst

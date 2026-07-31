@@ -20,6 +20,9 @@ package httpd
 //     die im Inspektor ohnehin danebensteht.
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 
@@ -64,10 +67,19 @@ type apiStackZaehler struct {
 type apiStackListe struct {
 	Zeilen  []apiStack      `json:"zeilen"`
 	Zaehler apiStackZaehler `json:"zaehler"`
-	// DarfAendern: Owner-Rolle. Der Wert ist in diesem Schritt noch ohne Wirkung
-	// — er steht schon da, damit die Oberfläche ihn nicht später nachrüsten muss.
-	DarfAendern bool   `json:"darf_aendern"`
-	Fehler      string `json:"fehler,omitempty"`
+	// DarfAendern: Owner-Rolle. Ein Compose-Stack ist Codeausführung als root —
+	// dafür genügt Schreibrecht nicht.
+	DarfAendern bool `json:"darf_aendern"`
+	// Vorlagen sind die Gerüste für einen neuen Stack. Sie stehen in der Liste
+	// und nicht hinter einem eigenen Endpunkt: Wer „anlegen" drückt, soll nicht
+	// auf eine zweite Anfrage warten, und ein paar Kilobyte statischer Text
+	// wiegen weniger als der Ladezustand dafür.
+	Vorlagen []privops.StackVorlage `json:"vorlagen"`
+	// Job ist ein laufender Stack-Vorgang. Er gehört in die Liste, damit ein
+	// Neuladen mitten im Start den Auszug vorfindet und nicht behauptet, es sei
+	// nichts los.
+	Job    *apiJob `json:"job"`
+	Fehler string  `json:"fehler,omitempty"`
 }
 
 // apiStackDetail ist die Antwort von GET /api/v1/docker/stacks/{name}.
@@ -169,6 +181,8 @@ func (s *Server) handleAPIDockerStacks(w http.ResponseWriter, r *http.Request) {
 	antwort := apiStackListe{
 		Zeilen:      []apiStack{},
 		DarfAendern: user.CanManageUsers(),
+		Vorlagen:    privops.StackVorlagen(),
+		Job:         s.jobAus(jobDockerStack),
 	}
 
 	liste, err := s.ops.StackList(r.Context())
@@ -221,12 +235,35 @@ func (s *Server) handleAPIDockerStacks(w http.ResponseWriter, r *http.Request) {
 // ist deshalb 404 und nicht 502: Er ist keine gescheiterte Auskunft, sondern
 // eine Anfrage nach etwas, das es nicht gibt.
 func (s *Server) handleAPIDockerStack(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
-
-	liste, err := s.ops.StackList(r.Context())
+	detail, err := s.stackDetailLesen(r.Context(), r.PathValue("name"))
 	if err != nil {
-		s.apiFehler(w, http.StatusBadGateway, err.Error())
+		status := http.StatusBadGateway
+		if errors.Is(err, errStackUnbekannt) {
+			// Ein unbekannter Stack ist keine gescheiterte Auskunft, sondern
+			// eine Anfrage nach etwas, das es nicht gibt.
+			status = http.StatusNotFound
+		}
+		s.apiFehler(w, status, err.Error())
 		return
+	}
+	s.apiJSON(w, http.StatusOK, detail)
+}
+
+// errStackUnbekannt trennt „gibt es nicht" von „ging schief". Ohne die
+// Unterscheidung stünde auf beides derselbe Statuscode, und die Oberfläche
+// zeigte für einen alten Verweis dieselbe Meldung wie für ein totes Docker.
+var errStackUnbekannt = errors.New("kein Stack mit diesem Namen")
+
+// stackDetailLesen baut den Inspektorzustand eines Stacks.
+//
+// Eigene Funktion, weil zwei Wege sie brauchen: der Lesepfad und die Antwort
+// auf ein Speichern. Nach dem Speichern den frisch gelesenen Zustand
+// mitzuschicken erspart der Oberfläche eine zweite Anfrage — und die Lücke, in
+// der sie den alten zeigt.
+func (s *Server) stackDetailLesen(ctx context.Context, name string) (apiStackDetail, error) {
+	liste, err := s.ops.StackList(ctx)
+	if err != nil {
+		return apiStackDetail{}, err
 	}
 	var gefunden *privops.Stack
 	for i := range liste {
@@ -236,14 +273,13 @@ func (s *Server) handleAPIDockerStack(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if gefunden == nil {
-		s.apiFehler(w, http.StatusNotFound, "kein Stack mit dem Namen "+name)
-		return
+		return apiStackDetail{}, fmt.Errorf("%w: %s", errStackUnbekannt, name)
 	}
 
 	antwort := apiStackDetail{Container: []apiContainer{}}
 
 	var dienste []string
-	if cs, err := s.ops.DockerContainers(r.Context()); err == nil {
+	if cs, err := s.ops.DockerContainers(ctx); err == nil {
 		for _, c := range cs {
 			if c.Stack != name {
 				continue
@@ -267,12 +303,12 @@ func (s *Server) handleAPIDockerStack(w http.ResponseWriter, r *http.Request) {
 	// Die Datei ist die zweite Auskunft und darf fehlen. Bei einem fremden
 	// Projekt zeigt Docker gelegentlich auf ein Verzeichnis, das es nicht mehr
 	// gibt — dann steht der Stack trotzdem da, mit seinen Containern.
-	if inhalt, err := s.ops.StackDatei(r.Context(), name); err == nil {
+	if inhalt, err := s.ops.StackDatei(ctx, name); err == nil {
 		antwort.Text = inhalt.Text
 		antwort.Gekuerzt = inhalt.Gekuerzt
 	} else {
 		antwort.Fehler = err.Error()
 	}
 
-	s.apiJSON(w, http.StatusOK, antwort)
+	return antwort, nil
 }

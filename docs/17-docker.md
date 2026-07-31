@@ -320,7 +320,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 2 | **Container**: Liste, Inspektor, Aktionen, Entfernen, Logs (Auszug und Verfolgen), Statistik — **umgesetzt**, siehe unten | Der Alltagsfall steht |
 | 3 | **Bestand**: Images, Volumes, Netze, `system df`, Aufräumen je Art mit freigegebenem Platz — **umgesetzt**, siehe unten | Die häufigste Wartung |
 | 4 | **Stacks lesend**: `compose ls`, eigenes Verzeichnis, Verschmelzung, Detail — **umgesetzt**, siehe unten | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
-| 5 | **Stacks schreibend**: Pfadwache, Marker, Editor, **Compose-Prüfer**, `up/down/pull/restart` als Jobs, Gerüstvorlagen | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
+| 5 | **Stacks schreibend**: Pfadwache, Marker, Editor, **Compose-Prüfer**, `up/down/pull/restart` als Jobs, Gerüstvorlagen — **umgesetzt**, siehe unten | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 | **Ports & Events**: Portübersicht mit Firewall-Abgleich, Ereignisstrom | Die zwei Adaptionen aus Arcane |
 | 7 | **Update-Prüfung**: Digest-Abgleich, Zwischenspeicher, Ratengrenzen, Signal, „Stack aktualisieren" | Auskunft, kein Automat |
 | 8 | **Container-Shell**: Schalter in der Konfiguration, Transport, Terminal, Audit je Sitzung | Siehe unten |
@@ -518,6 +518,100 @@ denselben Schritt wie der Prüfer, der vor jedem `up` läuft.
 
 **Gemessen:** Binärgröße 17,3 MB (< 30), Abdeckung `privops` 77,6 % (> 72),
 `httpd` 70,0 % (> 68), direkte Go-Abhängigkeiten unverändert 6.
+
+### Schritt 5 — Stand: umgesetzt
+
+Der gefährlichste Schritt, und damit ist die Stufe inhaltlich vollständig:
+`internal/privops/composepruef.go` (der Prüfer), `internal/privops/composeschreib.go`
+(Pfadwache, Marker, Vorgänge, Vorlagen), drei schreibende Routen und der
+Compose-Editor über der Werkbank.
+
+**Der Prüfer ist die Grenze, und er läuft davor.** Jeder Weg, der eine Datei
+schreibt oder einen Container startet, geht durch `StackSchreiben`
+beziehungsweise `StackAusfuehren` — und beide rufen dieselbe Funktion. Ein
+abgelehnter Stack landet nie auf der Platte, auch nicht kurz und auch nicht als
+Sicherung: Der Text liegt während der Prüfung als temporäre Datei im
+Stack-Verzeichnis (dort lösen sich `.env` und relative Pfade wie im Betrieb auf)
+und wird bei einer Ablehnung entfernt, statt umbenannt zu werden.
+
+**Sieben Entscheidungen, die beim Bauen fielen:**
+
+- **Geprüft wird die gerenderte Fassung** — Entscheidung E4, und der Grund dafür
+  steht jetzt als Testfall da: Ein YAML-Anker mit `<<: *basis` bringt ein
+  `privileged: true` an jeder Prüfung der Rohdatei vorbei, weil das Wort unter
+  keinem Dienst steht. Compose löst das beim Rendern auf; `yaml.v3` tut beim
+  Einlesen dasselbe.
+- **Die Rohprüfung bleibt trotzdem, und zwar davor.** Rendern liest fremde
+  Dateien: `extends: {file: …}` und `env_file:` ziehen eine beliebige YAML in die
+  Ausgabe, und die Ausgabe zeigt das Panel an. Ohne Vorprüfung wäre der Prüfer
+  selbst der Weg, `/etc/asylum/config.yaml` zu lesen. Beide Felder sind deshalb
+  auf das Stack-Verzeichnis beschränkt. **Das ist der Befund, den dieser Schritt
+  gebracht hat** — er stand in keiner Planungszeile.
+- **Ein Befund erklärt sich.** Eine Ablehnung antwortet mit 400 UND mit Dienst,
+  Feld, Wert und Grund je Fund. „Der Stack wurde abgelehnt" schickte jemanden auf
+  die Suche in einer Datei, die er gerade geschrieben hat.
+- **Ein Bind-Mount nach draußen ist kein Fehler, sondern eine Frage** — Stufe 3
+  mit dem getippten Stack-Namen, und die Frage nennt jeden Pfad einzeln. Ein
+  Stack ohne solchen Mount startet ohne jede Rückfrage: Eine Frage, die immer
+  kommt, wird weggeklickt, und dann wird auch die weggeklickt, die zählt.
+- **`uts: host` wird NICHT abgelehnt**, obwohl es ein geteilter Namensraum ist.
+  Es teilt den Hostnamen und öffnet keinen Weg nach draußen. Eine Prüfung, die
+  auch Harmloses ablehnt, wird umgangen statt gelesen. `pid`, `ipc`,
+  `userns_mode` und `cgroup` bleiben drin — über die Cgroup-Hierarchie lässt sich
+  auf dem Wirt Code ausführen.
+- **Für fremde Projekte gilt derselbe Prüfer.** Das ist eine bewusste Härte: Ein
+  Bestandsprojekt mit `privileged: true` lässt sich über das Panel nicht starten,
+  auch wenn es gerade läuft. Die Alternative wäre schlimmer — ein Prüfer, der bei
+  fremden Dateien nachgibt, prüft genau die nicht, die niemand geschrieben hat,
+  der die Regeln kennt. Was das Panel nicht tut, sagt es: Der Befund steht mit
+  Dienst, Feld und Grund im Vorgangsauszug.
+- **`down` läuft ohne Prüfung.** Etwas anzuhalten war nie das Problem, und ein
+  Stack, den man wegen eines Befundes nicht mehr stoppen könnte, wäre die Falle,
+  in die eine zu eifrige Prüfung führt.
+
+**Ein Vorgang, der abgelehnt wird, endet gescheitert.** `StackAusfuehren` gibt
+eine Ablehnung als *Ergebnis* zurück und nicht als Go-Fehler — die Schicht
+darüber macht daraus einen Fehler am Vorgang und schreibt die Befunde in den
+Auszug. Ohne diesen Schritt endete der Vorgang als „erfolgreich", während der
+Stack nicht läuft; das ist die schlechteste Auskunft von allen.
+
+**Fünf Befunde aus dem Bau:**
+
+- **Die Attrappe schloss ihren Kanal zweimal — und der erste Anlauf zur Reparatur
+  war schlimmer als der Fehler.** `stackDone` wurde bei jedem Aufruf geschlossen;
+  ein Test mit zwei Vorgängen brachte den Lauf mit „close of closed channel" zum
+  Absturz. Der Kanal wurde daraufhin beim Schließen auf nil gesetzt — womit der
+  Test in einen Empfang auf einem **nil-Kanal** lief, und der blockiert für
+  immer. Im gewöhnlichen Lauf fiel das nicht auf, weil das Zeitfenster klein war;
+  gefunden hat es `go test -race`, das die Reihenfolge verschiebt. Jetzt schließt
+  ein `sync.Once`, und der Kanal bleibt stehen.
+- **Der Browsertest blieb beim Schließen des Editors stehen — ohne Meldung.**
+  Der Effekt, der CodeMirror aufbaut, las `griff` und setzte ihn, und seine
+  Aufräumfunktion setzte ihn zurück auf null: eine Schleife, die sich selbst
+  nährt. Weil das Setzen aus einem asynchronen Rückruf kam, griff Sveltes
+  Tiefenerkennung nicht — es gab keinen Fehler, die Seite drehte sich einfach
+  weiter, bis die Testuhr ablief. Der Editor hat jetzt zwei Effekte statt einem,
+  wie der des Dateimanagers.
+- **Ein Bildschirmfoto konnte den ganzen Lauf anhalten.** Die Aufnahme der
+  Docker-Seite mit offenem Editor kehrte nie zurück: Playwright versteckt vor
+  jeder Aufnahme den Textcursor und wartet dafür auf ein ruhiges Bild, und ein
+  blinkender Cursor ist eine endlose CSS-Animation. Alle 31 Aufnahmen des
+  Browsertests laufen jetzt über eine Hilfe mit `animations: "disabled"`, einer
+  Frist und einem Fang — ein Diagnosebild darf keine Prüfung kippen können.
+- **Ein Test änderte den Text zwischen Frage und Antwort.** Die Prüfung „ein
+  falsches getipptes Wort wirkt nicht" schickte beim zweiten Anlauf eine Datei
+  ohne den Bind-Mount — dann kam die Frage zu Recht nicht mehr, und der Test
+  bestand, ohne etwas zu prüfen. Er schickt jetzt denselben Text.
+- **Ein Zustandsname verdeckte einen Parameter.** Im Editor hieß sowohl das
+  „schon getippt"-Kennzeichen als auch das bestätigende Wort einer Rückfrage
+  `getippt`. In `speichern()` hätte das eine still verschluckte Bestätigung
+  ergeben. Das Kennzeichen heißt jetzt `bearbeitet`.
+
+**Was in diesem Schritt bewusst NICHT entstanden ist:** ein Vorlagenkatalog
+(E7 — drei kommentierte Gerüste im Binary, kein gepflegtes Inhaltsprojekt),
+Registry-Zugangsdaten (E6 — 0.5 hält kein Betriebsgeheimnis) und ein Adoptionsweg
+für fremde Verzeichnisse (E3 — er hieße, die Pfadwache für beliebige Pfade zu
+öffnen).
 
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:

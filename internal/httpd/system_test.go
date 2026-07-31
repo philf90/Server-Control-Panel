@@ -92,6 +92,20 @@ type fakeOps struct {
 	stacks    []privops.Stack
 	stackErr  error
 	stackText map[string]string
+	// stackPruefung ist die Antwort des Compose-Prüfers. Die Attrappe RECHNET
+	// sie nicht — sie ist gesetzt oder nicht. Der Prüfer selbst hat seine
+	// eigenen Tests in privops; hier geht es darum, was die Schicht darüber mit
+	// seinem Urteil anfängt.
+	stackPruefung   privops.ComposePruefung
+	stackSchreibErr error
+	// stackDone meldet dem Test das Ende des Hintergrundvorgangs. Er wird nach
+	// dem Bau nicht mehr GESETZT, nur gelesen und über stackFertig genau einmal
+	// geschlossen: Ihn beim Schließen auf nil zu setzen war der erste Anlauf, und
+	// er hat den Test in einen Empfang auf einem nil-Kanal geschickt — der
+	// blockiert für immer. Gefunden hat es der Race-Detektor, nicht der
+	// gewöhnliche Lauf.
+	stackDone   chan struct{}
+	stackFertig sync.Once
 }
 
 func newFakeOps() *fakeOps {
@@ -864,6 +878,97 @@ func (f *fakeOps) StackList(context.Context) ([]privops.Stack, error) {
 // StackDatei bildet die Zusage der echten Fassung nach: Ein Name, den die Liste
 // nicht kennt, führt nirgendwohin. Der Fake, der jeden Namen bediente, prüfte
 // genau die Eigenschaft nicht, um derer willen der Umweg über die Liste da ist.
+// StackSchreiben bildet die Zusage der echten Fassung nach: Ein Stack, dessen
+// Prüfung nicht OK ist, wird NICHT geschrieben. Eine Attrappe, die trotzdem
+// schriebe, ließe genau den Test bestehen, der prüft, dass sie es nicht tut.
+func (f *fakeOps) StackSchreiben(_ context.Context, name, text string, _ int) (privops.ComposePruefung, error) {
+	f.record("docker:stack-write:" + name)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.stackSchreibErr != nil {
+		return privops.ComposePruefung{}, f.stackSchreibErr
+	}
+	if f.stackPruefung.Geprueft && !f.stackPruefung.OK {
+		return f.stackPruefung, nil
+	}
+	if f.stackText == nil {
+		f.stackText = map[string]string{}
+	}
+	f.stackText[name] = text
+	vorhanden := false
+	for _, st := range f.stacks {
+		if st.Name == name {
+			vorhanden = true
+		}
+	}
+	if !vorhanden {
+		f.stacks = append(f.stacks, privops.Stack{
+			Name: name, Verwaltet: true, Status: "nicht gestartet",
+			Datei: "/opt/asylum/stacks/" + name + "/compose.yaml",
+		})
+	}
+	return f.stackPruefung, nil
+}
+
+func (f *fakeOps) StackPruefen(_ context.Context, name string, _ int) (privops.ComposePruefung, error) {
+	f.record("docker:stack-pruefen:" + name)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.stackPruefung, nil
+}
+
+func (f *fakeOps) StackAusfuehren(_ context.Context, name string, aktion privops.StackAktion, mitVolumes bool, _ int, stream privops.LineWriter) (privops.ComposePruefung, error) {
+	vermerk := "docker:stack-" + string(aktion) + ":" + name
+	if mitVolumes {
+		vermerk += ":volumes"
+	}
+	f.record(vermerk)
+	f.mu.Lock()
+	pruefung := f.stackPruefung
+	f.mu.Unlock()
+
+	// Wie in der echten Fassung: Der Prüfer läuft vor allem, was startet — und
+	// nicht vor „down".
+	if (aktion == privops.StackUp || aktion == privops.StackRestart) &&
+		pruefung.Geprueft && !pruefung.OK {
+		f.stackFertigMelden()
+		return pruefung, nil
+	}
+	if stream != nil {
+		stream("Container " + name + "-web-1  Started")
+	}
+	f.stackFertigMelden()
+	return pruefung, nil
+}
+
+// stackFertigMelden schließt den Meldekanal genau einmal. Ein Test, der zwei
+// Vorgänge auslöst, brächte die Attrappe sonst mit „close of closed channel" zum
+// Absturz — und der Bericht zeigte auf die Attrappe statt auf den Test.
+func (f *fakeOps) stackFertigMelden() {
+	if f.stackDone == nil {
+		return
+	}
+	f.stackFertig.Do(func() { close(f.stackDone) })
+}
+
+func (f *fakeOps) StackLoeschen(_ context.Context, name string, stream privops.LineWriter) error {
+	f.record("docker:stack-loeschen:" + name)
+	if stream != nil {
+		stream("Verzeichnis entfernt: /opt/asylum/stacks/" + name)
+	}
+	f.mu.Lock()
+	uebrig := f.stacks[:0]
+	for _, st := range f.stacks {
+		if st.Name != name {
+			uebrig = append(uebrig, st)
+		}
+	}
+	f.stacks = uebrig
+	f.mu.Unlock()
+	f.stackFertigMelden()
+	return nil
+}
+
 func (f *fakeOps) StackDatei(_ context.Context, name string) (privops.StackInhalt, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

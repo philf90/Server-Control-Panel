@@ -120,14 +120,25 @@ type Executor interface {
 	// DockerPrune gibt zurück, wie viel Platz frei wurde — die Antwort, wegen
 	// der jemand aufräumt.
 	DockerPrune(ctx context.Context, art PruneArt, alleUnbenutzten bool, stream LineWriter) (string, error)
-	// Compose-Stacks. In dieser Fassung nur lesend — Anlegen, Ändern und
-	// Starten kommen mit dem Compose-Prüfer zusammen, nicht davor.
+	// Compose-Stacks.
 	//
 	// StackDatei nimmt einen NAMEN und keinen Pfad: Wo die Datei liegt, sagt
 	// Docker oder das verwaltete Verzeichnis. Käme der Pfad aus der Anfrage,
 	// wäre das ein Weg, jede Datei des Servers zu lesen.
 	StackList(ctx context.Context) ([]Stack, error)
 	StackDatei(ctx context.Context, name string) (StackInhalt, error)
+	// Schreiben und Bedienen. Jede dieser Methoden gibt die ComposePruefung mit
+	// zurück, und das ist kein Beiwerk: Ein Stack, dessen Prüfung nicht OK ist,
+	// wurde weder geschrieben noch gestartet. Der Aufrufer erfährt aus dem
+	// Ergebnis, WAS der Prüfer gefunden hat — ein blankes „abgelehnt" wäre
+	// keine Antwort, mit der jemand die Datei reparieren kann.
+	//
+	// panelPort geht durch, weil privops den Port des Panels nicht kennt und
+	// nicht kennen soll. Er dient nur dem Hinweis auf eine Kollision.
+	StackSchreiben(ctx context.Context, name, text string, panelPort int) (ComposePruefung, error)
+	StackPruefen(ctx context.Context, name string, panelPort int) (ComposePruefung, error)
+	StackAusfuehren(ctx context.Context, name string, aktion StackAktion, mitVolumes bool, panelPort int, stream LineWriter) (ComposePruefung, error)
+	StackLoeschen(ctx context.Context, name string, stream LineWriter) error
 
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error

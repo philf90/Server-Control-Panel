@@ -1452,5 +1452,59 @@ export type Stackliste = {
   zeilen: Stack[];
   zaehler: Stackzaehler;
   darf_aendern: boolean;
+  vorlagen: Stackvorlage[];
+  job: Job | null;
+  fehler?: string;
+};
+
+/** Stackvorlage ist ein Gerüst für eine neue compose.yaml — kein Katalog
+ *  fertiger Anwendungen. Der Wert steckt in den Kommentaren im Text: Sie sagen,
+ *  warum eine Zeile so dasteht. */
+export type Stackvorlage = {
+  kennung: string;
+  titel: string;
+  beschreibung: string;
+  text: string;
+};
+
+/** Composebefund ist ein einzelner Fund des Compose-Prüfers.
+ *
+ *  `art` ist "ablehnung" (der Vorgang wurde angehalten), "aussen" (ein
+ *  Bind-Mount aus dem Stack-Verzeichnis heraus — eine Rückfrage, keine
+ *  Ablehnung) oder "hinweis" (fällt auf, sperrt nicht).
+ *
+ *  Dienst und Feld stehen getrennt, weil eine Meldung ohne sie unbrauchbar ist:
+ *  „Der Stack wurde abgelehnt" schickt jemanden auf die Suche, „web:
+ *  privileged" zeigt auf die Zeile. */
+export type Composebefund = {
+  art: string;
+  dienst: string;
+  feld: string;
+  wert: string;
+  grund: string;
+};
+
+/** Composepruefung ist das Urteil des Prüfers.
+ *
+ *  `geprueft` und `ok` sind zwei verschiedene Fragen: Eine Datei ohne lesbares
+ *  YAML ist „nicht geprüft" — nicht „in Ordnung" und nicht „abgelehnt".
+ *  `gerendert` sagt, ob gegen die von Compose aufgelöste Fassung geprüft wurde;
+ *  ohne das können Anker, extends und env_file an der Prüfung vorbei. */
+export type Composepruefung = {
+  geprueft: boolean;
+  gerendert: boolean;
+  ok: boolean;
+  meldung?: string;
+  dienste: string[];
+  befunde: Composebefund[];
+};
+
+/** Stackschreibantwort kommt beim Anlegen und Speichern zurück — bei Erfolg mit
+ *  dem frisch gelesenen Zustand, bei einer Ablehnung mit den Befunden. */
+export type Stackschreibantwort = {
+  meldung: string;
+  pruefung: Composepruefung;
+  detail?: StackDetail;
+  befunde?: Composebefund[];
   fehler?: string;
 };

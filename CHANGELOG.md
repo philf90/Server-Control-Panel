@@ -11,6 +11,43 @@ nicht als Release getaggt.
 
 ### Hinzugefügt
 
+- **Modul Docker, Stacks — schreibend** (`/docker`, drei weitere Routen). Stacks
+  anlegen, im Editor ändern, starten, herunterfahren, Abbilder holen, neu
+  starten und löschen. Damit ist die Grundausstattung des Moduls vollständig.
+
+  **Der Compose-Prüfer ist die Grenze.** Er läuft serverseitig vor jedem
+  Speichern und vor jedem Start — und geprüft wird die von Compose **aufgelöste**
+  Fassung, nicht die Rohdatei. Der Grund ist ein Angriff, der sonst durchginge:
+  Ein YAML-Anker bringt ein `privileged: true` an jeder Prüfung der Rohdatei
+  vorbei, weil das Wort unter keinem Dienst steht.
+
+  Abgelehnt werden privilegierte Container, geteilte Namensräume (`pid`, `ipc`,
+  `userns_mode`, `cgroup`, `network_mode: host`), durchgereichte Geräte,
+  Ausbruchs-Capabilities, abgeschaltete seccomp- und AppArmor-Profile, der
+  Docker-Socket im Container und Pfade der Sperrliste (`/etc/shadow`, SSH-
+  Schlüssel, die Panel-Datenbank). Jede Ablehnung nennt **Dienst, Feld, Wert und
+  Grund** — und hat nichts geschrieben.
+
+  **Ein Wirtspfad im Container ist keine Ablehnung, sondern eine Frage.**
+  `/srv/daten:/data` ist der häufigste legitime Fall und zugleich der Weg, über
+  den ein Container an fremde Daten kommt: Stufe 3 mit dem getippten Stack-Namen,
+  und die Frage nennt jeden Pfad einzeln. Ein Stack ohne solchen Mount startet
+  ohne jede Rückfrage.
+
+  **Unbekannte Felder gelten als „nicht geprüft"**, nicht als „in Ordnung" —
+  dieselbe Haltung wie bei der Konfigurationsprüfung des Dateimanagers. Und war
+  Docker beim Speichern nicht erreichbar, sagt die Fläche, dass nur die Rohdatei
+  gelesen wurde.
+
+  **Geschrieben wird nur, was den Marker trägt.** Eine Compose-Datei ohne die
+  Markerzeile des Panels gehört jemand anderem — auch dann, wenn sie unter
+  `/opt/asylum/stacks` liegt. Fremde Projekte lassen sich starten und stoppen,
+  aber nicht bearbeiten und nicht löschen; die Knöpfe dafür fehlen, statt beim
+  Drücken abzulehnen.
+
+  Dazu drei kommentierte Gerüstvorlagen im Editor — kein Katalog fertiger
+  Anwendungen.
+
 - **Modul Docker, Stacks — lesend** (`/docker`, zwei weitere Routen unter
   `/api/v1/docker/stacks`). Compose-Projekte als führendes Objekt des Moduls:
   Liste über der Containerwerkbank, Inspektor mit den Diensten des Projekts,

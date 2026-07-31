@@ -49,6 +49,33 @@ async function klickeInTabelle(seite, spalte) {
   if (!getroffen) throw new Error(`keine Tabelle mit der Spalte ${spalte}`);
 }
 
+// bildschirmfoto nimmt eine Aufnahme — mit Frist, mit angehaltenen Animationen
+// und ohne den Lauf scheitern zu lassen.
+//
+// Alle drei Eigenschaften stammen aus einem Befund: Eine Aufnahme der
+// Docker-Seite mit offenem CodeMirror-Editor kehrte NIE zurück. Playwright
+// versteckt vor jeder Aufnahme den Textcursor und wartet dafür auf ein ruhiges
+// Bild; ein blinkender Cursor ist eine endlose CSS-Animation, und die beiden
+// zusammen ergaben einen Lauf, der ohne Fehler und ohne Frist stand, bis die
+// Testuhr ablief. „animations: disabled" hält die Animation an, die Frist macht
+// aus einem Hänger einen Fehler, und der Fang sorgt dafür, dass ein
+// Diagnosebild nie eine Prüfung kippt: Bildschirmfotos sind eine Hilfe beim
+// Nachsehen, keine Zusicherung.
+async function bildschirmfoto(seite, name, opt = {}) {
+  if (!process.env.ASYLUM_E2E_SHOTS) return;
+  try {
+    await seite.screenshot({
+      path: `${process.env.ASYLUM_E2E_SHOTS}/${name}.png`,
+      animations: "disabled",
+      caret: "initial",
+      timeout: 15000,
+      ...opt,
+    });
+  } catch (e) {
+    gesammelt.push(`Bildschirmfoto ${name} nicht möglich: ${e.message}`);
+  }
+}
+
 async function main() {
   const basis = process.env.ASYLUM_E2E_URL;
   const cookie = process.env.ASYLUM_E2E_COOKIE;
@@ -322,11 +349,7 @@ async function main() {
     return gewaehlt[1]?.getAttribute("aria-selected") === "true";
   });
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-palette.png`,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-palette");
 
   // Ein Klick in die Palette darf sie nicht schließen, ein Klick daneben schon.
   // Das hängt am Ziel des Klicks: Der Schleier horcht, die Palette liegt darin.
@@ -358,22 +381,16 @@ async function main() {
         : "",
     };
   });
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-schmal.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-schmal", { fullPage: true });
   await seite.setViewportSize({ width: 1280, height: 720 });
   await seite.waitForTimeout(200);
 
   if (process.env.ASYLUM_E2E_SHOTS) {
+    // Zeiger aus dem Bild nehmen: Ein Hover-Zustand auf einer Kachel wäre auf
+    // dem Bild ein Unterschied, den niemand erklären kann.
     await seite.mouse.move(0, 0);
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-uebersicht.png`,
-      fullPage: true,
-    });
   }
+  await bildschirmfoto(seite, "leitstand-uebersicht", { fullPage: true });
 
   // 8. Das Modul Dienste. Hier hängt mehr am Browser als bei der Übersicht: der
   //    Wechsel ohne Neuladen, die Auswahl in der Adresse, der Zurück-Knopf und
@@ -413,12 +430,7 @@ async function main() {
     paare: document.querySelectorAll(".inspektor .kv dt").length,
   }));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dienste.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dienste", { fullPage: true });
 
   // Der Zurück-Knopf schließt den Inspektor, statt die Seite zu verlassen. Das
   // hängt daran, dass die ERSTE Auswahl ein Schritt im Verlauf ist.
@@ -521,12 +533,7 @@ async function main() {
       inspektorOben: insp.getBoundingClientRect().top < tab.getBoundingClientRect().top,
     };
   });
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dienste-schmal.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dienste-schmal", { fullPage: true });
   await seite.setViewportSize({ width: 1280, height: 720 });
 
   // 9. Das Modul Pakete und die Vorgangsplatte. Hier hängt am Browser, was kein
@@ -577,12 +584,7 @@ async function main() {
 
   pakete.stromGeoeffnet = angefragt.some((u) => u.includes("/api/v1/jobs/packages/events"));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-pakete.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-pakete", { fullPage: true });
 
   // Neu laden: Der Vorgang ist auf dem Server, nicht in der Seite. Wer
   // zurückkommt, findet ihn vor — mit denselben Zeilen.
@@ -660,12 +662,7 @@ async function main() {
         : "";
     })(),
   }));
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-pakete-schmal.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-pakete-schmal", { fullPage: true });
   await seite.setViewportSize({ width: 1280, height: 720 });
 
   // 10. Das Modul Logs. Der zweite Strom des Panels — und ein anderer als beim
@@ -750,12 +747,7 @@ async function main() {
     () => document.querySelector(".filter .verfolgen")?.textContent.trim() ?? "",
   );
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-logs.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-logs", { fullPage: true });
 
   // Anhalten schließt den Strom.
   await seite.click(".filter .verfolgen");
@@ -795,12 +787,7 @@ async function main() {
         : "",
     };
   });
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-logs-schmal.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-logs-schmal", { fullPage: true });
   await seite.setViewportSize({ width: 1280, height: 720 });
 
   // 11. Das Modul Firewall — Grundsatz VI, „Was schiefgehen kann, hat einen
@@ -873,12 +860,7 @@ async function main() {
     ),
   };
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-firewall.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-firewall", { fullPage: true });
 
   // Die Uhr muss kleiner werden. Auf eine kleinere Zahl warten und nicht auf
   // eine Dauer: Ein fester Schlaf wäre auf einer langsamen Maschine zu kurz.
@@ -914,12 +896,7 @@ async function main() {
     koerperBreite: document.body.scrollWidth,
     fensterBreite: window.innerWidth,
   }));
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-firewall-schmal.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-firewall-schmal", { fullPage: true });
   await seite.setViewportSize({ width: 1280, height: 720 });
 
   // 12. Das Modul Dateien. Es ist das erste, dessen Ort in der Adresse steht und
@@ -954,12 +931,7 @@ async function main() {
     () => document.querySelector(".fuss a")?.getAttribute("href") ?? "",
   );
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dateien", { fullPage: true });
 
   // Ein Klick auf einen Ordner geht hinein — nicht in den Inspektor. Ein
   // Doppelklick als Unterschied wäre auf einem Telefon nicht bedienbar.
@@ -1026,12 +998,7 @@ async function main() {
     };
   });
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-inspektor.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dateien-inspektor", { fullPage: true });
 
   // Der gesperrte Eintrag: sichtbar, benannt — und ohne einen Handgriff, der
   // seinen Inhalt anfassen würde. Der Knopf wäre bereits der Fehler, auch wenn
@@ -1079,8 +1046,14 @@ async function main() {
     );
     b.click();
   });
+  // Auf die LISTE warten und nicht bloß auf das Verschwinden des Bandes: Das
+  // Band geht sofort, die Liste kommt über einen zweiten Aufruf. Wer nur auf das
+  // Band wartet, misst mit etwas Pech noch die eine Trefferzeile — der Test war
+  // genau deshalb sporadisch rot.
   await seite.waitForFunction(
-    () => document.querySelector(".band.info") === null,
+    () =>
+      document.querySelector(".band.info") === null &&
+      document.querySelectorAll("table.tabelle tbody tr").length > 1,
     null,
     { timeout: 5000 },
   );
@@ -1114,12 +1087,7 @@ async function main() {
     koerperBreite: document.body.scrollWidth,
     fensterBreite: window.innerWidth,
   }));
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-schmal.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dateien-schmal", { fullPage: true });
   await seite.setViewportSize({ width: 1280, height: 720 });
 
   // 12b. Die Schreibvorgänge. Der Kern ist die Rückfrage: Ohne Bestätigung darf
@@ -1271,11 +1239,7 @@ async function main() {
       mittig: Math.abs(d.left - (window.innerWidth - d.width) / 2) <= 2,
     };
   });
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-loeschfrage.png`,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dateien-loeschfrage");
 
   // Abbrechen, und der Ordner steht noch da. DAS ist die Prüfung, die zählt.
   await seite.keyboard.press("Escape");
@@ -1336,12 +1300,7 @@ async function main() {
     };
   });
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-zielwahl.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dateien-zielwahl", { fullPage: true });
 
   // In einen Unterordner wechseln und dorthin kopieren. Der Ordner heißt
   // „umbenannt" — er wurde weiter oben angelegt und umbenannt. Ins EIGENE
@@ -1402,12 +1361,7 @@ async function main() {
     })(),
   }));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-schreiben.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dateien-schreiben", { fullPage: true });
 
   // Und die Gegenprobe: In der Leseworzel gibt es keine Werkstatt.
   await seite.goto(`${basis}/dateien?pfad=${encodeURIComponent(wurzel)}`, {
@@ -1488,12 +1442,7 @@ async function main() {
     };
   });
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-dateien-editor.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-dateien-editor", { fullPage: true });
 
   // Tippen und speichern.
   await seite.click(".editor .cm-content");
@@ -1695,12 +1644,7 @@ async function main() {
     aufgeklappt: document.querySelector('table.tabelle .zeile[aria-expanded="true"]') !== null,
   }));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-audit.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-audit", { fullPage: true });
 
   await seite.setViewportSize({ width: 375, height: 800 });
   await seite.waitForTimeout(250);
@@ -1776,12 +1720,7 @@ async function main() {
       document.querySelector(".inspektor .schluesselblock .anmerkung")?.textContent.trim() ?? "",
   }));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-benutzer.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-benutzer", { fullPage: true });
 
   // Und jetzt der Punkt: Der letzte Schlüssel verlangt den Kontonamen.
   await seite.click(".inspektor .schluesselliste .knopf");
@@ -1958,12 +1897,7 @@ async function main() {
     reihen: document.querySelectorAll("table.tabelle tbody tr").length,
   }));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zugaenge.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-zugaenge", { fullPage: true });
 
   // Und jetzt die Zurücksetzung mit dem eigenen Passwort. Das Einmalpasswort
   // landet in einem Dialog, den Escape nicht schließt.
@@ -1988,14 +1922,10 @@ async function main() {
       rechts: window.innerWidth - r.right,
     };
   });
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    // Das Einmalpasswort bekommt ein eigenes Bild: Es ist die heikelste Fläche des
-    // Moduls, und ob der Satz „steht nur hier" daneben auch gelesen wird, sieht man
-    // nur an der Anordnung.
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-einmalpasswort.png`,
-    });
-  }
+  // Das Einmalpasswort bekommt ein eigenes Bild: Es ist die heikelste Fläche des
+  // Moduls, und ob der Satz „steht nur hier" daneben auch gelesen wird, sieht man
+  // nur an der Anordnung.
+  await bildschirmfoto(seite, "leitstand-einmalpasswort");
 
   // Escape darf ihn NICHT schließen.
   await seite.keyboard.press("Escape");
@@ -2156,12 +2086,7 @@ async function main() {
     )?.disabled,
   }));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-updates.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-updates", { fullPage: true });
 
   // Die Rückfrage — und danach ABBRECHEN. Ausgeführt wird hier nichts: Der
   // Vorgang tauscht das Binary des laufenden Testservers.
@@ -2285,12 +2210,7 @@ async function main() {
     ),
   }));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zertifikat.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-zertifikat", { fullPage: true });
 
   // Jetzt gültig ausfüllen und speichern — HTTP-01, damit kein Anbieter nötig
   // ist. Der Weg dorthin führt ABSICHTLICH über die Cloudflare-Wahl von oben:
@@ -2417,12 +2337,7 @@ async function main() {
   await seite.waitForSelector("#f2-code", { timeout: 5000 });
   konto.nachNeuladen = true;
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-konto.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-konto", { fullPage: true });
 
   // Ein falscher Code stellt nichts um und sagt das. Die Ablehnung ist hier das
   // geprüfte Verhalten — deshalb steht der Pfad in `absichtlich`.
@@ -2576,12 +2491,7 @@ async function main() {
     };
   });
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-tokens-einmal.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-tokens-einmal", { fullPage: true });
 
   // Escape schließt ihn NICHT: Der Token kommt kein zweites Mal.
   await seite.keyboard.press("Escape");
@@ -2681,12 +2591,7 @@ async function main() {
     roh: document.querySelector(".inspektor .roh")?.textContent.trim() ?? "",
   }));
 
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zeitplaene.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-zeitplaene", { fullPage: true });
 
   // Ein fremder Eintrag: keine Handgriffe, dafür die Quelle.
   await seite.evaluate(() => {
@@ -2806,12 +2711,7 @@ async function main() {
     beschriftung:
       document.querySelector("table.tabelle tbody td")?.getAttribute("data-spalte") ?? "",
   }));
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-zeitplaene-schmal.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-zeitplaene-schmal", { fullPage: true });
   await seite.setViewportSize({ width: 1280, height: 720 });
 
   // 13. Ein angekündigtes Modul. Bis 0.4.0-rc.2 landete „Docker" stillschweigend
@@ -2841,12 +2741,7 @@ async function main() {
     () =>
       document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",
   );
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-bald.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-bald", { fullPage: true });
 
   // 14. Das Modul Docker, Schritt 1 der Fassung 0.5. Zwei Dinge sind hier nur im
   //     Browser zu sehen: dass der Menüpunkt nicht mehr auf die Seite „bald"
@@ -2905,14 +2800,92 @@ async function main() {
       // Weg über den NAMEN bis zum Text durchgeht — ohne dass je ein Pfad aus
       // dem Browser kam.
       datei: insp?.querySelector("pre")?.textContent.trim() ?? "",
-      // In dieser Fassung ist die Werkbank rein lesend: Ein Knopf, der etwas
-      // ändert, wäre hier ein Fehler und kein fehlendes Merkmal.
-      knoepfe: insp
-        ? [...insp.querySelectorAll(".knopf")].map((k) => k.textContent.trim())
-        : [],
       suche: new URL(location.href).search,
     };
   });
+  // Schritt 5: die Handgriffe. Zwei Dinge sind hier nur im Browser zu sehen —
+  // dass ein FREMDES Projekt keinen Bearbeiten- und keinen Löschen-Knopf
+  // bekommt, und dass „herunterfahren" eine Rückfrage bringt, „starten" bei
+  // einem sauberen Stack dagegen nicht.
+  dock.stackAktionen = await seite.evaluate(() =>
+    [...(document.querySelector(".inspektor")?.querySelectorAll(".aktionen .knopf") ?? [])].map(
+      (k) => k.textContent.trim(),
+    ),
+  );
+
+  // „herunterfahren" ist Stufe 2: Dialog ohne Tippfeld.
+  await seite.evaluate(() => {
+    const knopf = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
+      (k) => k.textContent.trim() === "herunterfahren",
+    );
+    knopf?.click();
+  });
+  await seite.waitForSelector("dialog[open]", { timeout: 5000 }).catch(() => {});
+  dock.stackFrage = await seite.evaluate(() => {
+    const d = document.querySelector("dialog[open]");
+    if (!d) return { offen: false };
+    return {
+      offen: true,
+      text: d.textContent.trim().slice(0, 400),
+      tippfeld: !!d.querySelector('input[type="text"]'),
+    };
+  });
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(100);
+
+  // Der Editor. Er lädt CodeMirror dynamisch nach — genau der Weg, an dem das
+  // Projekt schon zweimal an der Content-Security-Policy gescheitert ist.
+  await seite.evaluate(() => {
+    const knopf = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
+      (k) => k.textContent.trim() === "bearbeiten",
+    );
+    knopf?.click();
+  });
+  await seite.waitForSelector(".cm-editor", { timeout: 8000 }).catch(() => {});
+  dock.stackEditor = await seite.evaluate(() => ({
+    da: !!document.querySelector(".cm-editor"),
+    // Der Inhalt der Compose-Datei muss im Editor stehen und nicht bloß im
+    // Inspektor daneben.
+    inhalt: document.querySelector(".cm-editor")?.textContent?.slice(0, 200) ?? "",
+    knoepfe: [...document.querySelectorAll(".editor .kopf .knopf")].map((k) =>
+      k.textContent.trim(),
+    ),
+  }));
+  // Der sichtbare Ausschnitt genügt: Die Docker-Seite ist mit Editor, Werkbank,
+  // Containertabelle und Bestand mehrere tausend Pixel hoch, und zu sehen ist
+  // hier nur, ob der Editor aufgegangen ist.
+  await bildschirmfoto(seite, "leitstand-docker-editor");
+  // Editor zu.
+  await seite.evaluate(() => {
+    const knopf = [...document.querySelectorAll(".editor .kopf .knopf")].find(
+      (k) => k.textContent.trim() === "abbrechen",
+    );
+    knopf?.click();
+  });
+  await seite.waitForTimeout(150);
+
+  // Das FREMDE Projekt: lesbar, aber ohne Bearbeiten und ohne Löschen.
+  await seite.evaluate(() => {
+    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Dienste"),
+    );
+    const zeilen = [...(tab?.querySelectorAll("tbody tr") ?? [])];
+    const fremd = zeilen.find(
+      (tr) => tr.querySelector('[data-spalte="Herkunft"]')?.textContent.trim() === "fremd",
+    );
+    fremd?.querySelector('[data-spalte="Name"] button')?.click();
+  });
+  await seite.waitForTimeout(300);
+  dock.stackFremd = await seite.evaluate(() => {
+    const insp = document.querySelector(".inspektor");
+    return {
+      titel: insp?.querySelector(".pfad")?.textContent.trim() ?? "",
+      knoepfe: [...(insp?.querySelectorAll(".aktionen .knopf") ?? [])].map((k) =>
+        k.textContent.trim(),
+      ),
+    };
+  });
+
   // Zumachen, bevor die Containerwerkbank drankommt: Sonst stünden zwei
   // Inspektoren nebeneinander, und jeder Selektor darauf nähme den oberen.
   await seite.click(".inspektor .zu");
@@ -3010,12 +2983,7 @@ async function main() {
     () =>
       document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",
   );
-  if (process.env.ASYLUM_E2E_SHOTS) {
-    await seite.screenshot({
-      path: `${process.env.ASYLUM_E2E_SHOTS}/leitstand-docker.png`,
-      fullPage: true,
-    });
-  }
+  await bildschirmfoto(seite, "leitstand-docker", { fullPage: true });
 
   await browser.close();
 

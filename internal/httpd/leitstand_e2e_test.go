@@ -705,11 +705,25 @@ type ergebnisLeitstand struct {
 				Zustand  string `json:"zustand"`
 				Herkunft string `json:"herkunft"`
 			} `json:"reihen"`
-			Titel   string   `json:"titel"`
-			Datei   string   `json:"datei"`
-			Knoepfe []string `json:"knoepfe"`
-			Suche   string   `json:"suche"`
+			Titel string `json:"titel"`
+			Datei string `json:"datei"`
+			Suche string `json:"suche"`
 		} `json:"stacks"`
+		StackAktionen []string `json:"stackAktionen"`
+		StackFrage    struct {
+			Offen    bool   `json:"offen"`
+			Text     string `json:"text"`
+			Tippfeld bool   `json:"tippfeld"`
+		} `json:"stackFrage"`
+		StackEditor struct {
+			Da      bool     `json:"da"`
+			Inhalt  string   `json:"inhalt"`
+			Knoepfe []string `json:"knoepfe"`
+		} `json:"stackEditor"`
+		StackFremd struct {
+			Titel   string   `json:"titel"`
+			Knoepfe []string `json:"knoepfe"`
+		} `json:"stackFremd"`
 		Bestand struct {
 			Ueberschriften []string `json:"ueberschriften"`
 			PlatteDa       bool     `json:"platteDa"`
@@ -2862,12 +2876,59 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !strings.Contains(st.Suche, "stack=") {
 		t.Errorf("die Stackauswahl steht nicht in der Adresse: %q", st.Suche)
 	}
-	// In dieser Fassung ist die Werkbank rein lesend. Ein Knopf, der etwas
-	// ändert, wäre hier ein Befund und kein fehlendes Merkmal: Ein Editor ohne
-	// Compose-Prüfer ist genau die Reihenfolge, die dieses Modul sich verboten
-	// hat.
-	if len(st.Knoepfe) != 0 {
-		t.Errorf("die Stackwerkbank ist in Schritt 4 lesend, zeigt aber Knöpfe: %v", st.Knoepfe)
+	// Schritt 5: die Handgriffe am Stack. Sie sind der Punkt, an dem aus dem
+	// Modul ein bedienbares wird — und an dem der Compose-Prüfer die Grenze
+	// zieht.
+	if len(dk.StackAktionen) == 0 {
+		t.Error("die Stackwerkbank bietet keine Handgriffe an")
+	}
+	for _, muss := range []string{"starten", "herunterfahren", "bearbeiten", "löschen"} {
+		if !enthaelt(dk.StackAktionen, muss) {
+			t.Errorf("der Handgriff %q fehlt: %v", muss, dk.StackAktionen)
+		}
+	}
+	// „herunterfahren" ist Stufe 2: Dialog, aber kein getipptes Wort. Und die
+	// Frage nennt die Zahl — „der Stack" befähigt zu keiner Entscheidung.
+	if !dk.StackFrage.Offen {
+		t.Error("beim Herunterfahren kommt kein Rückfragedialog — die Stufe fällt damit still auf 1")
+	}
+	if dk.StackFrage.Tippfeld {
+		t.Error("Herunterfahren ohne Volumes ist Stufe 2 und braucht kein getipptes Wort")
+	}
+	if !strings.Contains(dk.StackFrage.Text, "3") {
+		t.Errorf("die Frage nennt nicht, wie viele Container sie trifft: %q", dk.StackFrage.Text)
+	}
+
+	// Der Editor lädt CodeMirror dynamisch nach. Genau dieser Weg ist im Projekt
+	// schon zweimal an der Content-Security-Policy gescheitert (Auslastungsbalken
+	// in rc.5, CodeMirror im Dateimanager) — deshalb steht er hier im
+	// Browsertest und nicht in einem Go-Test.
+	if !dk.StackEditor.Da {
+		t.Error("der Compose-Editor ist nicht aufgegangen — CodeMirror wurde nicht geladen")
+	}
+	if !strings.Contains(dk.StackEditor.Inhalt, "nginx") {
+		t.Errorf("die Compose-Datei steht nicht im Editor: %q", dk.StackEditor.Inhalt)
+	}
+	if !enthaelt(dk.StackEditor.Knoepfe, "speichern") {
+		t.Errorf("im Editor fehlt der Speichern-Knopf: %v", dk.StackEditor.Knoepfe)
+	}
+
+	// Das fremde Projekt: lesbar, aber ohne Bearbeiten und ohne Löschen. Das ist
+	// die Zusage des Moduls, und sie muss in der Fläche stehen — ein Knopf, der
+	// erst beim Drücken 400 sagt, ist keine.
+	if dk.StackFremd.Titel != "fremd" {
+		t.Fatalf("das fremde Projekt wurde nicht geöffnet, Inspektor zeigt %q", dk.StackFremd.Titel)
+	}
+	for _, darfNicht := range []string{"bearbeiten", "löschen"} {
+		if enthaelt(dk.StackFremd.Knoepfe, darfNicht) {
+			t.Errorf("am fremden Projekt steht %q — das Panel schreibt es nie: %v",
+				darfNicht, dk.StackFremd.Knoepfe)
+		}
+	}
+	// Starten und Stoppen bleiben: Ein fremdes Projekt lässt sich bedienen, nur
+	// nicht schreiben.
+	if !enthaelt(dk.StackFremd.Knoepfe, "starten") {
+		t.Errorf("ein fremdes Projekt muss sich starten lassen: %v", dk.StackFremd.Knoepfe)
 	}
 
 	// Die Containerwerkbank. Der Kern ist die Reihenfolge: Ein laufender, aber

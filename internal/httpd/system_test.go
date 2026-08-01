@@ -43,6 +43,15 @@ type fakeOps struct {
 	refreshErr    error
 	refreshDone   chan struct{}
 
+	// Webserver. web ist der Zustand, den WebServerState liefert; webInstallHalt
+	// hält den Lauf an wie bei Docker, damit die Prüfung „höchstens einer je
+	// Art" etwas zu prüfen hat.
+	web            privops.WebServerState
+	webErr         error
+	webInstallErr  error
+	webInstallHalt chan struct{}
+	webInstallDone chan struct{}
+
 	selfUpdates   []privops.SelfUpdateSpec
 	selfUpdateErr error
 
@@ -489,6 +498,48 @@ func (f *fakeOps) DockerInstall(_ context.Context, stream privops.LineWriter) er
 			Installiert: true, DaemonLaeuft: true, ComposeVerfuegbar: true,
 			ClientVersion: "27.5.1", ServerVersion: "27.5.1", ComposeVersion: "2.32.4",
 			Paket: "docker.io",
+		}
+	}
+	f.mu.Unlock()
+
+	if done != nil {
+		close(done)
+	}
+	return err
+}
+
+func (f *fakeOps) WebServerState(context.Context) (privops.WebServerState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.web, f.webErr
+}
+
+func (f *fakeOps) WebServerInstall(_ context.Context, stream privops.LineWriter) error {
+	f.record("webserver:install")
+	if stream != nil {
+		stream("Richte nginx ein …")
+	}
+	f.mu.Lock()
+	halt := f.webInstallHalt
+	f.mu.Unlock()
+	if halt != nil {
+		<-halt
+	}
+
+	f.mu.Lock()
+	err := f.webInstallErr
+	done := f.webInstallDone
+	// Nach dem Lauf ist nginx da — und hält die Ports. Ohne diesen zweiten Teil
+	// zeigte ein Test, der danach den Zustand abfragt, weiter einen freien Port
+	// und damit einen Installationsknopf, den es auf einem echten Server nach
+	// dem Lauf nicht mehr gibt.
+	if err == nil {
+		f.web = privops.WebServerState{
+			Installiert: true, Version: "1.24.0", Paket: "nginx-core", DienstAktiv: true,
+			LauscherGeprueft: true,
+			Lauscher: []privops.Lauscher{
+				{Port: 80, Adresse: "0.0.0.0", Prozess: "nginx", PID: 4711},
+			},
 		}
 	}
 	f.mu.Unlock()

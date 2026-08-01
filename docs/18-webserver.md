@@ -1,6 +1,7 @@
 # 18 — Webserver & Domains (Stufe 0.6)
 
-> **Stand:** Plan. Nichts davon ist gebaut.
+> **Stand:** Schritt 1 von 8 ist gebaut (Fundament: Zustand, Portbelegung,
+> Installation). Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
 > §7.4 und der Meilensteintabelle in [06-roadmap.md](06-roadmap.md).
 
@@ -50,8 +51,14 @@ Vor dem ersten Handgriff nachgesehen, weil es den Zuschnitt ändert:
 | **Vorgänge mit Strom, Rückfragen, Audit, Signale** | `internal/httpd` | unverändert nutzbar |
 | **Warnpunkte im Menü** | seit 0.5.1 | ein neues Signal ergibt automatisch einen Punkt |
 
-Und was **fehlt**: ein Eintrag `nginx` in der Allowlist (`internal/privops/exec.go`),
-mehr nicht. Ein Programm, ein Eintrag — wie bei Docker.
+Und was **fehlte**: ein Eintrag `nginx` in der Allowlist
+(`internal/privops/exec.go`). Beim Bau von Schritt 1 kam ein zweiter dazu, den
+dieser Plan nicht vorgesehen hatte: **`ss`**. Er beantwortet die Frage, an der
+der Installationsknopf hängt — wer hört auf 80 und 443. Ohne ihn müsste das
+Modul nach Paketnamen fragen, und eine Liste bekannter Konkurrenten ist immer
+unvollständig: Sie hätte Caddy gekannt und den Apache übersehen, und ein Traefik
+im Container heißt auf dem Wirt `docker-proxy` und in keiner Paketliste
+irgendwas.
 
 ---
 
@@ -286,6 +293,13 @@ Umschaltstreifen unter 900 px).
 Der Zustandskopf (Server, Fassung, läuft/läuft nicht) steht über allen Flächen —
 wie bei Docker, und aus demselben Grund.
 
+> **Abweichung aus Schritt 1:** Gebaut ist zunächst **eine** Fläche, nicht drei.
+> Die Unterpunkte entstehen mit ihrem Inhalt (Schritt 4 und 7) und nicht vorher.
+> Der Grund ist derselbe, aus dem Docker in seinem ersten Schritt eine Seite
+> bekam: Zwei Menüeinträge, die auf „kommt noch" führen, sind schlechter als
+> keine — sie versprechen eine Fläche und liefern eine Vertröstung. Was fehlt,
+> sagt stattdessen ein Absatz auf der einen Fläche.
+
 **Fehlt ein Webserver**, zeigt die Seite genau eine Karte mit dem Zustand und dem
 Knopf „nginx installieren" — die Antwort, die ufw seit `rc.4` und Docker seit
 0.5.0 geben.
@@ -303,7 +317,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 
 | # | Schritt | Ergebnis |
 |---|---|---|
-| 1 | **Fundament**: Allowlist-Eintrag, `WebServerState` (nginx verwaltet / fremd mit Name und Fassung / keiner, dazu **wer 80 und 443 hält**), Installation als Job und nur bei freiem Port, `GET /api/v1/webserver`, Seitengerüst mit den drei Flächen | Das Modul existiert, kann nginx installieren — und tut es nicht, wenn dort schon etwas läuft |
+| 1 ✅ | **Fundament**: Allowlist-Einträge `nginx` und `ss`, `WebServerState` (nginx verwaltet / fremd mit Name / keiner, dazu **wer 80 und 443 hält**), Installation als Job und nur bei freiem Port, `GET /api/v1/webserver`, eine Fläche | Das Modul existiert, kann nginx installieren — und tut es nicht, wenn dort schon etwas läuft |
 | 2 | **Der Challenge-Weg** (Abschnitt 3): `webrootSolver`, verwaltetes Drop-in für `/.well-known/acme-challenge/`, Auswahl nach Zustand | Das Panel erneuert sein eigenes Zertifikat weiter, **nachdem** nginx da ist. Der Schreibpfad samt Probe ist damit in Betrieb, bevor die erste Benutzersite existiert |
 | 3 | **Der Halter wird mehrfähig** (Abschnitt 4): Karte Name → Zertifikat, Auswahl über SNI, Rückfall auf das Panel-Zertifikat; Manager je Zertifikat | Bestandscode im TLS-Pfad, eigener Schritt, eigener Test |
 | 4 | **Sites lesend**: `SiteList` (verwaltete Drop-ins + fremde vHosts aus `sites-enabled`), Detail, Werkbank | Auf einem Bestandsserver ist die Seite ab hier nicht leer |

@@ -954,6 +954,42 @@ export const t = {
     zu: (label: string) => `zu ${label}`,
   },
 
+  webserver: {
+    wesen:
+      "Domains, Ziele und TLS. Verwaltet wird nginx; jeder andere Webserver wird erkannt und nicht angefasst — das Panel schreibt nur in eigene Dateien.",
+    laedt: "Zustand wird gelesen …",
+    server: "Webserver",
+    dienst: "Dienst",
+    ports: "Ports 80 und 443",
+    paket: "Paket",
+    laeuft: "läuft",
+    tot: "läuft nicht",
+    fehlt: "fehlt",
+    frei: "frei",
+    // „Unbekannt" ist ein eigener Zustand und nicht „frei". Er ist der Grund,
+    // warum an dieser Stelle kein Knopf steht, und muss deshalb lesbar sein.
+    unbekannt: "unbekannt",
+    offen: "—",
+    ausApt: "an der Paketverwaltung vorbei installiert",
+    einspielen: "nginx einspielen",
+    zuDiensten: "zu den Diensten",
+    zuDateien: "zu den Dateien",
+    belegung: "Wer hört auf den Webports",
+    spaltePort: "Port",
+    spalteAdresse: "Adresse",
+    spalteProzess: "Programm",
+    unbenannt: "nicht ermittelt",
+    eigen: "nginx",
+    fremd: "fremd",
+    nurOwner:
+      "Dieses Konto darf den Zustand sehen, den Webserver aber nicht einspielen. Eine Site ist eine Konfiguration, die als root gelesen wird und einen Dienst aus dem Netz erreichbar macht — deshalb liegt dieses Modul bei der Owner-Rolle.",
+    imBau: "Was hier noch fehlt",
+    // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
+    // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
+    imBauDetail:
+      "Dies ist der erste Schritt: der Zustand und die Installation. Sites als Domain → Ziel → TLS, der Prüfer und der Schreibpfad mit Probe folgen. Zwei Schritte gehen ihnen voraus, weil sie Bestandscode betreffen — der Weg für die ACME-Prüfung durch den Webserver hindurch und ein Zertifikatshalter, der mehr als ein Zertifikat kennt. Die Begründung steht im Repository unter docs/18-webserver.md.",
+  },
+
   docker: {
     wesen:
       "Container, Images und Compose-Stacks. Das Panel spricht mit Docker über die Kommandozeile und nie über den Socket — jede Aktion steht damit als Befehl in der Protokollzeile.",

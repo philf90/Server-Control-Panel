@@ -297,6 +297,20 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/v1/docker/updates/check",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerUpdatePruefung)))))
 
+	// Webserver. Lesen genügt das Leserecht; einspielen verlangt die
+	// Owner-Rolle, dieselbe Begründung wie bei Docker — eine Site ist eine
+	// Konfiguration, die als root gelesen wird und einen Dienst aus dem Netz
+	// erreichbar macht.
+	//
+	// Der Installationshandler prüft vor dem apt-Lauf, ob auf Port 80 oder 443
+	// schon jemand hört, und lehnt sonst ab. Das steht im Handler und nicht in
+	// einer Middleware, weil es keine Rechtefrage ist, sondern eine über den
+	// Zustand des Servers — ausführlich im Kopf von api_v1_webserver.go und in
+	// docs/18-webserver.md E1.
+	mux.Handle("GET /api/v1/webserver", s.protected(http.HandlerFunc(s.handleAPIWebserver)))
+	mux.Handle("POST /api/v1/webserver/install",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverInstall)))))
+
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst
 	// bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen, mit dem es

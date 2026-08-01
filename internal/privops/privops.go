@@ -157,6 +157,19 @@ type Executor interface {
 	// überhaupt geprüft werden darf, ist keine Frage der Kommandozeile.
 	DockerUpdatePruefen(ctx context.Context, ref string) (Updatestand, error)
 
+	// Webserver.
+	//
+	// Verwaltet wird nginx, und nur nginx. Jeder andere Webserver wird erkannt
+	// und nicht angefasst — die Begründung steht in docs/18-webserver.md E1 und
+	// im Kopf von webserver.go.
+	//
+	// WebServerState liefert deshalb nicht nur „ist nginx da", sondern vor allem
+	// WER PORT 80 UND 443 HÄLT. Daran hängt die einzige Aktion dieses Moduls,
+	// die einen laufenden Server umbringen kann: Ein apt-Lauf für nginx startet
+	// nginx, nginx bindet 80, und was dort lief, ist weg.
+	WebServerState(ctx context.Context) (WebServerState, error)
+	WebServerInstall(ctx context.Context, stream LineWriter) error
+
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error
 }

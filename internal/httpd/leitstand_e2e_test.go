@@ -828,6 +828,24 @@ type ergebnisLeitstand struct {
 			AufraeumKnoepfe []string `json:"aufraeumKnoepfe"`
 		} `json:"bestand"`
 	} `json:"dock"`
+	Web struct {
+		Pfad    string `json:"pfad"`
+		Zustand struct {
+			Karten []struct {
+				Kopf string `json:"kopf"`
+				Wert string `json:"wert"`
+			} `json:"karten"`
+			Zeilen     [][]string `json:"zeilen"`
+			Anmerkung  string     `json:"anmerkung"`
+			Knoepfe    []string   `json:"knoepfe"`
+			Verweise   []string   `json:"verweise"`
+			BaldPlatte bool       `json:"baldPlatte"`
+		} `json:"zustand"`
+		Schmal struct {
+			KoerperBreite float64 `json:"koerperBreite"`
+			FensterBreite float64 `json:"fensterBreite"`
+		} `json:"schmal"`
+	} `json:"web"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -1094,6 +1112,19 @@ func TestLeitstandBrowser(t *testing.T) {
 	// Zwei Ereignisse, und der Unterschied zwischen ihnen ist der Grund, warum
 	// sie hier stehen: Ein Start ist Betriebsgeräusch, ein Exit 137 ist der
 	// Befund, wegen dessen jemand den Strom öffnet.
+	// Der Webserver. Absichtlich die unbequeme Lage: kein nginx, aber ein Caddy
+	// auf 80 und 443. Der bequeme Fall — leerer Server, ein Knopf — ist der, den
+	// die Go-Tests vollständig abdecken; hier steht der, bei dem die Fläche
+	// etwas VERSCHWEIGEN muss, nämlich den Knopf. Die Lehre aus 0.5.1: Ein
+	// Zustand, den die Testdaten nie annehmen, ist ein ungeprüfter Zustand.
+	ops.web = privops.WebServerState{
+		LauscherGeprueft: true,
+		Lauscher: []privops.Lauscher{
+			{Port: 80, Adresse: "0.0.0.0", Prozess: "caddy", PID: 651},
+			{Port: 443, Adresse: "[::]", Prozess: "caddy", PID: 651},
+		},
+	}
+
 	ops.events = []privops.DockerEreignis{
 		{
 			Zeit: time.Now(), Art: "container", Aktion: "start",
@@ -2999,15 +3030,15 @@ func TestLeitstandBrowser(t *testing.T) {
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2
 	// stillschweigend auf der Übersicht; jetzt sagt eine Seite, worum es geht.
 	b := e.Bald
-	if b.Pfad != "/webserver" {
-		t.Errorf("der Pfad ist %q, erwartet /webserver", b.Pfad)
+	if b.Pfad != "/datenbanken" {
+		t.Errorf("der Pfad ist %q, erwartet /datenbanken", b.Pfad)
 	}
-	if b.Titel != "Webserver" {
-		t.Errorf("die Überschrift ist %q, erwartet Webserver — die Seite nennt nicht, "+
+	if b.Titel != "Datenbanken" {
+		t.Errorf("die Überschrift ist %q, erwartet Datenbanken — die Seite nennt nicht, "+
 			"worum es geht", b.Titel)
 	}
-	if !strings.Contains(b.Marke, "0.6") {
-		t.Errorf("die Marke ist %q, erwartet die geplante Fassung 0.6", b.Marke)
+	if !strings.Contains(b.Marke, "0.7") {
+		t.Errorf("die Marke ist %q, erwartet die geplante Fassung 0.7", b.Marke)
 	}
 	if b.Satz == "" {
 		t.Error("die Seite sagt nicht, dass es das Modul noch nicht gibt")
@@ -3015,7 +3046,7 @@ func TestLeitstandBrowser(t *testing.T) {
 	if b.Ersatz == "" {
 		t.Error("die Seite nennt keinen Weg, der heute schon geht")
 	}
-	if b.NavAktiv != "/webserver" {
+	if b.NavAktiv != "/datenbanken" {
 		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q) — "+
 			"dann sieht die Seite aus wie eine, auf die man versehentlich geraten ist",
 			b.NavAktiv)
@@ -3474,6 +3505,65 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if benutzt == 0 || frei == 0 {
 		t.Errorf("die Attrappe deckt nicht beide Fälle ab: %d benutzt, %d frei", benutzt, frei)
+	}
+
+	// 6i. Das Modul Webserver, Schritt 1 der Fassung 0.6.
+	//
+	// Die Attrappe meldet die Lage aus docs/18-webserver.md E1: kein nginx, aber
+	// ein Caddy auf 80 und 443. Geprüft wird deshalb vor allem, was die Seite
+	// NICHT zeigt — den Installationsknopf. Er ist die einzige Aktion dieses
+	// Moduls, die einen Server im Betrieb umbringen kann: `apt-get install
+	// nginx` startet nginx, nginx bindet Port 80, und der Caddy ist weg.
+	wb := e.Web
+	if wb.Pfad != "/webserver" {
+		t.Errorf("der Pfad ist %q, erwartet /webserver", wb.Pfad)
+	}
+	if wb.Zustand.BaldPlatte {
+		t.Error("der Menüpunkt Webserver führt weiter auf die Seite „bald" + `"` +
+			" — das Modul ist gebaut, und eine Vertröstung davor wäre eine Unwahrheit")
+	}
+	if len(wb.Zustand.Karten) != 3 {
+		t.Errorf("die Seite zeigt %d Karten, erwartet 3 (Webserver, Dienst, Ports)",
+			len(wb.Zustand.Karten))
+	}
+	// Der Kern. Ein Knopf hier wäre nicht bloß nutzlos, sondern schädlich.
+	if len(wb.Zustand.Knoepfe) != 0 {
+		t.Errorf("bei einem laufenden fremden Webserver gehört kein Knopf auf die Seite, "+
+			"gefunden: %v — er würde den laufenden Server vom Netz nehmen",
+			wb.Zustand.Knoepfe)
+	}
+	// Und an seiner Stelle steht der Grund. Grundsatz IV: Wer keinen Knopf
+	// bekommt, muss lesen können, warum — sonst sieht die Fläche kaputt aus.
+	if !strings.Contains(wb.Zustand.Anmerkung, "caddy") {
+		t.Errorf("die Anmerkung nennt den fremden Server nicht: %q", wb.Zustand.Anmerkung)
+	}
+	if !strings.Contains(wb.Zustand.Anmerkung, "80") {
+		t.Errorf("die Anmerkung nennt den belegten Port nicht: %q", wb.Zustand.Anmerkung)
+	}
+	// Das Modul nimmt nichts weg: Die Konfiguration des fremden Servers bleibt
+	// über den Dateimanager erreichbar, und der Weg dorthin steht da.
+	if !enthaelt(wb.Zustand.Verweise, "/dateien") {
+		t.Errorf("der Weg zur fremden Konfiguration fehlt: %v", wb.Zustand.Verweise)
+	}
+	// Die Belegung als Tabelle: zwei Zeilen, beide als fremd gekennzeichnet.
+	// Ohne sie stünde die Behauptung ohne ihren Beleg da.
+	if len(wb.Zustand.Zeilen) != 2 {
+		t.Fatalf("erwartet 2 Portzeilen, gerendert sind %d: %+v",
+			len(wb.Zustand.Zeilen), wb.Zustand.Zeilen)
+	}
+	for _, z := range wb.Zustand.Zeilen {
+		if len(z) < 3 {
+			t.Fatalf("eine Portzeile hat zu wenige Spalten: %+v", z)
+		}
+		if !strings.Contains(z[2], "caddy") || !strings.Contains(z[2], "fremd") {
+			t.Errorf("die Zeile nennt Programm und Herkunft nicht: %+v", z)
+		}
+	}
+	// Schmal: keine waagerechte Scrollerei. Dieselbe Regel wie überall, und die
+	// Tabelle ist die Stelle, an der sie zuerst bricht.
+	if wb.Schmal.KoerperBreite > wb.Schmal.FensterBreite+1 {
+		t.Errorf("bei 375 px scrollt die Webserverseite waagerecht: %.0f > %.0f",
+			wb.Schmal.KoerperBreite, wb.Schmal.FensterBreite)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

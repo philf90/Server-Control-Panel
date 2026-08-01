@@ -9,6 +9,43 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Hinzugefügt
+
+- **Modul Webserver, Schritt 1 von 8** (Stufe 0.6, Plan in
+  [docs/18-webserver.md](docs/18-webserver.md)). Der Menüpunkt „Webserver"
+  führt nicht mehr auf die Ankündigung, sondern auf eine Fläche mit dem
+  Zustand: welcher Webserver läuft, in welcher Fassung, ob sein Dienst aktiv
+  ist — und **wer die Ports 80 und 443 hält**.
+
+  Verwaltet wird **nginx, und nur nginx**. Caddy, Apache, lighttpd und ein
+  Traefik im Container werden erkannt, benannt und nicht angefasst; ihre
+  Konfiguration bleibt über die Dateien erreichbar. Der Plan sah zunächst
+  „nginx schreibend, Caddy lesend" vor — auch die lesende Hälfte wäre ein
+  Caddyfile-Parser für eine Liste gewesen, mit der man nichts tun darf.
+
+  Die Portabfrage ist keine Zugabe, sondern der Grund für die Reihenfolge:
+  `apt-get install nginx` startet nginx, nginx bindet Port 80, und ein
+  Webserver, der dort lief, ist weg. Das ist die einzige Aktion dieses Moduls,
+  die einen Server im Betrieb umbringen kann. Der Installationsknopf steht
+  deshalb nur bei nachweislich freiem Port, und der Server prüft es beim Klick
+  noch einmal — zwischen dem Laden der Seite und dem Klick liegt beliebig viel
+  Zeit.
+
+  Gefragt wird nach dem **Port** und nicht nach einem Paketnamen. Eine Liste
+  bekannter Konkurrenten wäre immer unvollständig: Sie hätte Caddy gekannt und
+  den Apache übersehen, und ein Traefik im Container heißt auf dem Wirt
+  „docker-proxy" und in keiner Paketliste irgendwas.
+
+  „Nicht ermittelt" ist dabei ein eigener Zustand und **kein „frei"**. Ließ
+  sich die Belegung nicht lesen, sagt die Fläche das und bietet nichts an —
+  dieselbe Haltung, mit der das Panel eine ungeprüfte Konfiguration nicht als
+  in Ordnung meldet.
+
+  Neu in `privops`: `WebServerState` und `WebServerInstall`, dazu die
+  Allowlist-Einträge `nginx` und `ss`. Neu in der API: `GET /api/v1/webserver`
+  und `POST /api/v1/webserver/install` (Owner-Rolle), Audit unter
+  `webserver.install`, Tokenfamilie `webserver`.
+
 ### Behoben
 
 - **Eingabefelder waren auf „Cron & Timer" und „API-Tokens" nicht gestaltet** —

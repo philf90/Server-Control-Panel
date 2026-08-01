@@ -20,17 +20,13 @@
   // Was heute an seiner Stelle geht. Nicht für jedes Modul gibt es das, und dann
   // steht hier nichts — ein erfundener Ersatzweg wäre schlimmer als keiner.
   //
-  // Cron stand hier bis 0.4.1 mit drin, Docker bis zum ersten Schritt der 0.5.
-  // Beide Einträge waren mit dem Bau des Moduls unerreichbar — diese Seite kommt
+  // Cron stand hier bis 0.4.1 mit drin, Docker bis zum ersten Schritt der 0.5,
+  // Webserver bis zum ersten Schritt der 0.6. Alle drei Einträge waren mit dem
+  // Bau des jeweiligen Moduls unerreichbar — diese Seite kommt
   // nur, wenn `angekuendigt` die Kennung kennt, und dort stehen sie nicht mehr.
   // Ein Ersatzweg für ein gebautes Modul ist nicht bloß tot, er ist irreführend,
   // falls er je wieder erreichbar würde.
   const heute: Record<string, { text: string; href: string; label: string }> = {
-    webserver: {
-      text: "Konfigurationsdateien lassen sich heute über die Dateien bearbeiten, und der Dienst darüber neu laden.",
-      href: "/dateien",
-      label: t.ziele.dateien,
-    },
     datenbanken: {
       text: "Der Datenbankdienst selbst — Zustand, Speicher, Journal — steht in der Dienstliste.",
       href: "/dienste",

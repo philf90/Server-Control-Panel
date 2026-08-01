@@ -1266,6 +1266,43 @@ export type Tokenantwort = { meldung: string; token?: string; hinweis?: string }
  *  wenn etwas fehlt? Die Antwort auf die letzte kommt fertig vom Server
  *  (anmerkung, einspielbar) — eine zweite Auslegung im Browser wäre die Stelle,
  *  an der beide auseinanderlaufen. */
+/** Lauscher ist ein Prozess auf Port 80 oder 443. */
+export type Lauscher = {
+  port: number;
+  adresse: string;
+  /** prozess ist der Programmname, wie ss ihn nennt. Leer heißt: ss konnte
+   *  keinen nennen — die Belegung gilt trotzdem. */
+  prozess: string;
+  /** eigen heißt: Das ist nginx selbst. */
+  eigen: boolean;
+};
+
+export type Webserver = {
+  installiert: boolean;
+  version: string;
+  /** paket ist "nginx", "nginx-core" oder leer bei einer Installation an apt
+   *  vorbei. Reine Auskunft; sie entscheidet nichts. */
+  paket: string;
+  dienst_aktiv: boolean;
+  lauscher: Lauscher[] | null;
+  /** ports_geprueft sagt, ob die Belegung ermittelt werden konnte. FALSE heißt
+   *  „unbekannt" und NICHT „frei" — der Unterschied entscheidet über den
+   *  Installationsknopf. */
+  ports_geprueft: boolean;
+  /** fremd sind die Programme auf den Webports, die nicht nginx sind. Fertig
+   *  zusammengefasst vom Server, damit die Oberfläche keine zweite Auslegung
+   *  derselben Frage baut. */
+  fremd: string[] | null;
+  anmerkung: string;
+  /** einspielbar heißt: nginx fehlt, die Ports sind bekannt und frei. */
+  einspielbar: boolean;
+  /** darf_aendern kommt aus der Antwort des Moduls und nicht aus der Sitzung:
+   *  Den Webserver einspielen darf nur der Owner. */
+  darf_aendern: boolean;
+  job: Job | null;
+  fehler?: string;
+};
+
 export type Docker = {
   installiert: boolean;
   /** paket ist "docker.io", "docker-ce" oder leer bei einer Installation an apt

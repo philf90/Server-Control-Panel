@@ -79,6 +79,10 @@ var tokenFamilien = []string{
 	// Die schreibenden Routen liegen hinter der Owner-Rolle, und ein Token kann
 	// die Rolle seines Kontos nur unterschreiten, nie überschreiten.
 	"docker",
+	// webserver aus demselben Grund: Eine Automatisierung soll fragen können,
+	// ob der Webserver steht und wer die Ports hält. Auslösen kann ein Token
+	// damit nichts — die Installation liegt hinter der Owner-Rolle.
+	"webserver",
 }
 
 // tokenGesperrt sind die Familien, die ein Token NIE erreicht — auch nicht, wenn

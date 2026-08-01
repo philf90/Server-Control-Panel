@@ -169,9 +169,9 @@ var spaSeiten = map[string]bool{
 	"cron":        true,
 	"tokens":      true,
 	"docker":      true,
+	"webserver":   true,
 	// Angekündigte Module. Sie haben eine Seite, die sagt, mit welcher Fassung
 	// sie kommen — ein Klick darauf soll nicht auf einem 404 landen.
-	"webserver":   true,
 	"datenbanken": true,
 	"backups":     true,
 }

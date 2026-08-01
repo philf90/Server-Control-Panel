@@ -2811,10 +2811,12 @@ async function main() {
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
   //
-  //     Geprüft wird das am Webserver: Docker ist mit dem ersten Schritt der 0.5
-  //     ein gebautes Modul und hat eine eigene Seite (Abschnitt 14).
+  //     Geprüft wird das an den Datenbanken. Vorher stand hier der Webserver,
+  //     davor Docker — beide sind inzwischen gebaut, und ein Test, der an einem
+  //     gebauten Modul prüft, ob die Vertröstung steht, prüft nichts mehr. Wer
+  //     0.7 baut, zieht diese Zeile auf die Backups weiter.
   const bald = {};
-  await seite.click('.seitenleiste a[href="/webserver"]');
+  await seite.click('.seitenleiste a[href="/datenbanken"]');
   await seite.waitForSelector(".platte .satz", { timeout: 5000 });
   bald.pfad = new URL(seite.url()).pathname;
   bald.titel = await seite.evaluate(
@@ -3419,6 +3421,58 @@ async function main() {
   await seite.setViewportSize({ width: 1280, height: 720 });
   await seite.waitForTimeout(200);
 
+  // 15. Das Modul Webserver, Schritt 1 der Fassung 0.6.
+  //
+  //     Die Attrappe meldet die Lage, um die es in docs/18-webserver.md E1 geht:
+  //     kein nginx, aber ein Caddy auf den Ports 80 und 443. Das ist absichtlich
+  //     nicht der bequeme Fall — der bequeme Fall (leerer Server, ein Knopf) ist
+  //     der, den Go-Tests vollständig abdecken, und die Lehre aus 0.5.1 lautet:
+  //     Ein Zustand, den die Testdaten nie annehmen, ist ein ungeprüfter Zustand.
+  //
+  //     Geprüft wird die Zusage, die dieses Modul im Browser einlösen muss:
+  //     KEIN Installationsknopf, und an seiner Stelle ein Satz, der den fremden
+  //     Server nennt. Ein Knopf, der einen laufenden Webserver vom Netz nimmt,
+  //     ist der eine Fehler, den diese Fläche nicht machen darf.
+  const web = {};
+  await seite.click('.seitenleiste a[href="/webserver"]');
+  await seite.waitForSelector(".karten .karte", { timeout: 5000 });
+  web.pfad = new URL(seite.url()).pathname;
+  web.zustand = await seite.evaluate(() => {
+    const karten = [...document.querySelectorAll(".karten .karte")].map((k) => ({
+      kopf: k.querySelector(".kopf")?.textContent.trim() ?? "",
+      wert: k.querySelector(".wert")?.textContent.trim() ?? "",
+    }));
+    const zeilen = [...document.querySelectorAll("table tbody tr")].map((tr) =>
+      [...tr.querySelectorAll("td")].map((td) => td.textContent.trim()),
+    );
+    return {
+      karten,
+      zeilen,
+      anmerkung: document.querySelector(".hinweis")?.textContent.trim() ?? "",
+      // Knöpfe, die etwas AUSLÖSEN. Verweise (<a class="knopf">) zählen nicht
+      // mit: Der Weg zum Dateimanager ist genau das, was hier stehen soll.
+      knoepfe: [...document.querySelectorAll(".aktionen button")].map((b) =>
+        b.textContent.trim(),
+      ),
+      verweise: [...document.querySelectorAll(".aktionen a")].map((a) =>
+        a.getAttribute("href"),
+      ),
+      // Der Menüpunkt darf nicht mehr auf die Seite „bald" führen.
+      baldPlatte: !!document.querySelector(".platte .satz"),
+    };
+  });
+  await bildschirmfoto(seite, "leitstand-webserver", { fullPage: true });
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  web.schmal = await seite.evaluate(() => ({
+    koerperBreite: document.body.scrollWidth,
+    fensterBreite: window.innerWidth,
+  }));
+  await bildschirmfoto(seite, "leitstand-webserver-schmal");
+  await seite.setViewportSize({ width: 1280, height: 720 });
+  await seite.waitForTimeout(200);
+
   await browser.close();
 
   console.log(
@@ -3450,6 +3504,7 @@ async function main() {
       fremdeRolle,
       bald,
       dock,
+      web,
       zweige,
       schmal,
       strich,

@@ -20,6 +20,7 @@ import type {
   Containerantwort,
   DienstDetail,
   Docker,
+  Webserver,
   EigenesKonto,
   Firewall,
   FirewallAntwort,
@@ -358,6 +359,14 @@ export const api = {
    *  zu installieren nimmt nichts weg und sperrt niemanden aus. Die Route liegt
    *  hinter der Owner-Rolle. */
   dockerEinspielen: () => anfrage<VorgangGestartet>("/docker/install", { method: "POST" }),
+
+  /** webserver liefert den Zustand des Webservers samt Portbelegung. */
+  webserver: () => anfrage<Webserver>("/webserver"),
+  /** nginxEinspielen darf der Server ablehnen, und zwar nicht nur wegen der
+   *  Rolle: Hört auf Port 80 oder 443 schon jemand, kommt 409 zurück. Der
+   *  Knopf verschwindet zwar vorher — aber zwischen dem Laden der Seite und dem
+   *  Klick liegt beliebig viel Zeit, und die Sperre sitzt deshalb im Server. */
+  nginxEinspielen: () => anfrage<VorgangGestartet>("/webserver/install", { method: "POST" }),
   /** container liefert die vollständige Liste. Gefiltert wird im Browser: Ein
    *  Server hat selten mehr als ein paar Dutzend Container, und beim Tippen ist
    *  das Ergebnis dann sofort da. */

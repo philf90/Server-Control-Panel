@@ -27,7 +27,7 @@ zweiten Texteditor bekommt, hat nichts gewonnen.
 
 | Vorgabe | Bemerkung |
 |---|---|
-| nginx **oder** Caddy, erkannt wird was läuft; fehlt beides, Installation über das Paketmodul (Vorgabe nginx) | siehe E1 |
+| nginx **oder** Caddy, erkannt wird was läuft; fehlt beides, Installation über das Paketmodul (Vorgabe nginx) | **Abweichung, siehe E1:** verwaltet wird nginx; jeder andere Webserver — Caddy, Apache, Traefik — gilt als fremd. In `docs/16` §5 nachgetragen |
 | Eine Site ist **Domain → Ziel → TLS**. Ziele: Reverse-Proxy auf Container oder Port, statisches Verzeichnis, PHP-FPM (optional) | |
 | Geschrieben wird ausschließlich als verwaltetes Drop-in `/etc/nginx/conf.d/asylum-<site>.conf` mit Marker; fremde vHosts werden **angezeigt, nie verändert** | dieselbe Trennung wie bei nftables und bei fremden Compose-Projekten |
 | Jeder Schreibvorgang als Kette: Backup → schreiben → `nginx -t` → neu laden → **Probe** mit selbsttätigem Rückweg | §7.4 |
@@ -138,14 +138,42 @@ das ist die bessere der beiden Antworten.
 
 ## 5. Grundentscheidungen
 
-**E1 — nginx schreibend, Caddy nur lesend.**
+**E1 — nginx wird verwaltet, alles andere ist ein fremder Webserver.**
 §5 sagt „nginx oder Caddy — erkannt wird, was läuft". Zwei Backends schreibend
 heißt: zwei Syntaxen, zwei Prüfprogramme, zwei Schreibpfade, zwei
-Angriffsdurchgänge, doppelte Tests. Für 0.6 gilt deshalb: **nginx wird
-verwaltet, Caddy wird erkannt und angezeigt** — mit demselben Satz, den fremde
-vHosts bekommen. Das ist keine Lücke, sondern dieselbe Trennung
-„verwaltet/fremd", die das Modul ohnehin braucht. Caddy schreibend ist eine
-eigene Stufe, wenn der Bedarf da ist.
+Angriffsdurchgänge, doppelte Tests. Aber auch „Caddy nur lesend" ist teurer als
+es klingt: Caddy-Sites *anzeigen* heißt Caddyfile parsen (eigene Grammatik) oder
+die Admin-API auf `localhost:2019` befragen, und `caddy adapt` steht zwischen
+beiden Fassungen — fünf Tage für eine Liste, mit der man nichts tun darf.
+
+Für 0.6 gilt deshalb nicht „nginx oder Caddy", sondern:
+
+| Zustand | Antwort des Panels |
+|---|---|
+| nginx läuft | **verwaltet** — Sites, Schreibpfad, Probe, TLS |
+| ein anderer Webserver hält 80/443 | Name und Fassung nennen, **kein Installationsknopf**, Verweis auf den Dateimanager |
+| nichts hält 80/443 | Knopf „nginx installieren" |
+
+Caddy ist damit kein zweites Backend, sondern **dieselbe Kategorie wie Apache,
+lighttpd oder ein Traefik im Container** — und das deckt mehr ab als ein
+eigens modellierter Caddy-Zweig, der Apache übersehen hätte.
+
+Die mittlere Zeile ist keine Höflichkeit, sondern eine Sicherung: Bietet das
+Panel „nginx installieren" an, während schon etwas auf 80 hört, macht ein Klick
+den Server kaputt — `apt-get install nginx` startet nginx, nginx bindet 80, der
+laufende Server ist weg. **Das Modul muss deshalb den Port prüfen, nicht den
+Paketnamen.**
+
+Ein Nebenbefund, der dazugehört: **Caddy macht TLS selbst.** Auf einem
+Caddy-Host wäre §5s Zusage „TLS je Domain über das ACME-Modul des Panels"
+ohnehin gegenstandslos — die Zertifikate gehören dort Caddy. Ein halb
+unterstütztes Caddy wäre auch ein halb eingelöstes Versprechen.
+
+**Die Vorsorge für später** kostet fast nichts und gehört von Anfang an rein:
+Die Site bleibt **Daten** (Domain, Ziel, TLS, Optionen); nur die *Erzeugung des
+Textes* ist nginx-spezifisch — eine Funktion, kein Interface. Und weil der
+Prüfer die Felder prüft und nicht den erzeugten Text (Abschnitt 6), ist er
+backend-neutral und bliebe bei einem zweiten Backend unverändert.
 
 **E2 — Sites sind Felder, kein Text.**
 Der Compose-Editor bekam mit 0.5.1 ein Formular *neben* der Datei. Hier gibt es
@@ -262,6 +290,11 @@ wie bei Docker, und aus demselben Grund.
 Knopf „nginx installieren" — die Antwort, die ufw seit `rc.4` und Docker seit
 0.5.0 geben.
 
+**Läuft ein fremder Webserver**, zeigt dieselbe Karte, welcher es ist und auf
+welchen Ports er hört — und **keinen Installationsknopf** (E1). Dazu der Satz,
+der ihn ersetzt: dass seine Konfiguration über den Dateimanager erreichbar
+bleibt und das Panel sie nicht anfasst.
+
 ---
 
 ## 9. Umsetzung in acht Schritten
@@ -270,7 +303,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 
 | # | Schritt | Ergebnis |
 |---|---|---|
-| 1 | **Fundament**: Allowlist-Eintrag, `WebServerState` (nginx/Caddy/keins, Fassung, läuft), Installation als Job, `GET /api/v1/webserver`, Seitengerüst mit den drei Flächen | Das Modul existiert und kann nginx installieren |
+| 1 | **Fundament**: Allowlist-Eintrag, `WebServerState` (nginx verwaltet / fremd mit Name und Fassung / keiner, dazu **wer 80 und 443 hält**), Installation als Job und nur bei freiem Port, `GET /api/v1/webserver`, Seitengerüst mit den drei Flächen | Das Modul existiert, kann nginx installieren — und tut es nicht, wenn dort schon etwas läuft |
 | 2 | **Der Challenge-Weg** (Abschnitt 3): `webrootSolver`, verwaltetes Drop-in für `/.well-known/acme-challenge/`, Auswahl nach Zustand | Das Panel erneuert sein eigenes Zertifikat weiter, **nachdem** nginx da ist. Der Schreibpfad samt Probe ist damit in Betrieb, bevor die erste Benutzersite existiert |
 | 3 | **Der Halter wird mehrfähig** (Abschnitt 4): Karte Name → Zertifikat, Auswahl über SNI, Rückfall auf das Panel-Zertifikat; Manager je Zertifikat | Bestandscode im TLS-Pfad, eigener Schritt, eigener Test |
 | 4 | **Sites lesend**: `SiteList` (verwaltete Drop-ins + fremde vHosts aus `sites-enabled`), Detail, Werkbank | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
@@ -336,7 +369,9 @@ gehört hinter einen Zwischenspeicher.
   vergisst: **ein Name, für den es kein Zertifikat gibt.**
 - `internal/httpd/api_webserver_test.go` — Rückfrage kommt *und* führt nichts
   aus, falsches getipptes Wort wirkt nicht, Admin bekommt 403 auf
-  Schreibrouten, Probe läuft ab und nimmt zurück.
+  Schreibrouten, Probe läuft ab und nimmt zurück. Dazu der Fall aus E1:
+  **hält ein fremder Prozess Port 80, führt die Installationsroute nichts aus**
+  — geprüft über `len(f.calls) != 0`, nicht über den Statuscode.
 
 **Browsertest**: neuer Abschnitt in `leitstand_e2e.js`. Geprüft: Flächenwechsel
 über die Unterpunkte, Site anlegen mit allen drei Zieltypen, Prüferbefund steht
@@ -357,7 +392,9 @@ anlegen und ablehnen lassen; eine mit `root: /srv/daten` und die
 Stufe-3-Rückfrage sehen; ein kaputtes Drop-in von Hand hinlegen und den
 Hash-Konflikt sehen; das Panel hinter den Proxy legen, eine kaputte Site
 schreiben und **den Rückweg zusehen lassen**; einen fremden vHost danebenlegen
-und prüfen, dass er lesbar, aber nicht schreibbar ist.
+und prüfen, dass er lesbar, aber nicht schreibbar ist; und auf einer zweiten
+Maschine **Caddy oder Apache laufen lassen** und prüfen, dass die Seite den
+Server benennt und keinen Installationsknopf zeigt (E1).
 
 **Messung** wie bei jeder Stufe: Binärgröße, RSS im Leerlauf, Abdeckung, direkte
 Abhängigkeiten. Erwartung: **keine neue direkte Abhängigkeit** — nginx spricht
@@ -373,7 +410,8 @@ man über die Kommandozeile an, und der Rest ist Textbau.
 | **Der mehrfähige Halter nimmt dem Panel die eigene Oberfläche** | Eigener Schritt, eigene Tests, Rückfall auf das Panel-Zertifikat bei unbekanntem Namen |
 | **Ein Schreibpfad sperrt das Panel aus** (Panel hinter dem Proxy) | Probe mit Frist **und** Bereitschaftsprüfung (E4, E5); `asylum` über SSH bleibt der Rettungsanker |
 | **Der Site-Prüfer lässt sich umgehen** | Kein Rohtext (E2), geprüft werden die Felder, Angriffsdurchgang in Schritt 8 |
-| **Zwei Backends verdoppeln alles** | nginx schreibend, Caddy lesend (E1) |
+| **Zwei Backends verdoppeln alles** | Nur nginx wird verwaltet; alles andere ist fremd (E1) |
+| **Der Installationsknopf killt einen laufenden Webserver** — die einzige Aktion dieses Moduls, die einen Server im Betrieb umbringen kann | `WebServerState` prüft die Portbelegung, nicht den Paketnamen; kein Knopf, solange 80 oder 443 belegt sind (E1, Schritt 1) |
 | **Rate Limits von Let's Encrypt** beim Ausprobieren | Das Staging-Verzeichnis ist in der Zertifikatskonfiguration schon vorgesehen (`stagingDirectory`) — für Sites sichtbar machen |
 | **Die Stufe wird zur Dauerbaustelle** | Acht Schritte, jeder auslieferbar; nach Schritt 5 ist das Modul inhaltlich vollständig, 6 bis 8 sind Ausbau |
 
@@ -381,7 +419,11 @@ man über die Kommandozeile an, und der Rest ist Textbau.
 
 1. **Ein Zertifikat je Site oder eines mit allen Namen** (Abschnitt 4).
    Empfehlung: je Site.
-2. **Caddy schreibend in 0.6 oder später** (E1). Empfehlung: später.
+2. ~~**Caddy schreibend in 0.6 oder später**~~ — **entschieden:** gar nicht.
+   Verwaltet wird nginx, jeder andere Webserver gilt als fremd (E1). Der
+   Entwurf ist damit nicht schmaler, sondern breiter: Apache und Traefik sind
+   mit abgedeckt, und der Installationsknopf hängt an der Portbelegung statt an
+   einer Liste bekannter Namen.
 3. **Rohtext-Editor für Sites** (E2). Empfehlung: nicht in 0.6 — und wenn doch,
    dann nur für *nicht* verwaltete Dateien, also im Dateimanager, wo er schon
    ist.

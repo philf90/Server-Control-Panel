@@ -336,9 +336,22 @@ Container, Images, Volumes, Netzwerke, Compose-Stacks, Container-Logs und
 
 ### 0.6 — Webserver & Domains
 
-nginx oder Caddy — erkannt wird, was läuft; fehlt beides, wird eines über das
-Paketmodul installiert (Voreinstellung nginx, weil auf Bestandsservern häufiger
-vorhanden). Sites sind der Gegenstand, nicht Konfigurationsdateien:
+Erkannt wird, was auf 80 und 443 hört; ist dort nichts, wird nginx über das
+Paketmodul installiert. Sites sind der Gegenstand, nicht Konfigurationsdateien:
+
+> **Nachtrag aus der Planung ([18-webserver.md](18-webserver.md) E1):** Hier
+> stand „nginx oder Caddy". Verwaltet wird jetzt **nur nginx**; jeder andere
+> Webserver — Caddy, Apache, Traefik — wird erkannt, benannt und nicht
+> angefasst. Zwei Gründe. Erstens ist auch „Caddy nur lesend" teuer: Sites
+> anzeigen hieße Caddyfile parsen oder die Admin-API befragen, für eine Liste,
+> mit der man nichts tun darf — und Caddy macht TLS selbst, womit die Zusage
+> „TLS je Domain über das ACME-Modul" dort ohnehin ins Leere geht. Zweitens
+> deckt die Fassung ohne Caddy-Zweig **mehr** ab als die mit: Der
+> Installationsknopf hängt jetzt an der **Portbelegung** statt an einer Liste
+> bekannter Namen, und damit ist auch der Apache mit abgesichert, den ein
+> Caddy-Zweig übersehen hätte. Läuft dort etwas, gibt es keinen Knopf — sonst
+> installiert ein Klick nginx, nginx bindet 80, und der laufende Server ist
+> weg.
 
 - Eine Site ist Domain → Ziel → TLS. Ziele: Reverse-Proxy auf einen Container
   oder Port, statisches Verzeichnis, PHP-FPM (optional, über das Paketmodul).
@@ -346,8 +359,8 @@ vorhanden). Sites sind der Gegenstand, nicht Konfigurationsdateien:
   (`/etc/nginx/conf.d/asylum-<site>.conf` mit Marker und Hash-Konflikterkennung
   wie bei `internal/config`); fremde vHosts werden angezeigt, nie verändert —
   dieselbe Trennung wie bei nftables.
-- Jeder Schreibvorgang läuft als Kette: Backup → schreiben → `nginx -t` bzw.
-  `caddy validate` → neu laden → **Probe**. Antwortet der Server nach dem
+- Jeder Schreibvorgang läuft als Kette: Backup → schreiben → `nginx -t` → neu
+  laden → **Probe**. Antwortet der Server nach dem
   Neuladen nicht mehr (das Panel kann selbst hinter dem Proxy liegen), stellt
   der Rückweg den vorigen Stand wieder her — dieselbe 60-Sekunden-Mechanik wie
   bei der Firewall, und aus demselben Grund.
@@ -1126,7 +1139,7 @@ wie ein halb gebautes Modul aus.
   der doppelt startet. **Seit dem Abbau (0.4.1) steht dem nichts entgegen.**
 - **privops wächst um vier Familien** (`Docker*`, `Site*`, `Db*`, `Backup*`
   plus `Cron*/Timer*`) und bleibt die einzige Systemgrenze. Die
-  Allowlist wächst um `docker`, `nginx`/`caddy`, `mysql`/`psql`, `restic`,
+  Allowlist wächst um `docker`, `nginx`, `mysql`/`psql`, `restic`,
   `crontab` — jeweils absolute Pfade, `--format json` wo möglich.
 - **Die Prozesstrennung** (unprivilegierter Webprozess, root-Agent über
   Unix-Socket), im privops-Interface seit jeher als Fluchtlinie vermerkt, wird

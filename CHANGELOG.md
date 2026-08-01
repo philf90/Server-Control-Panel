@@ -122,6 +122,36 @@ nicht als Release getaggt.
   ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
   da ist.
 
+- **Modul Webserver, Schritt 6 von 8: die Ziele.** Das Formular schlägt vor,
+  worauf eine Site zeigen kann — die laufenden Container mit ihren
+  veröffentlichten Ports und die vorhandenen PHP-FPM-Sockets. Das ist die
+  Zugabe, die es ohne Stufe 0.5 nicht gäbe, und sie ist mehr als
+  Bequemlichkeit: Ein abgetippter Port ist der häufigste Grund für eine Site,
+  die 502 antwortet.
+
+  **Die interessantere Auskunft ist die unbequeme.** Ein Container, der auf
+  `0.0.0.0` veröffentlicht, ist schon jetzt aus dem Netz erreichbar — direkt,
+  unter der IP des Servers und der Portnummer. Ein Reverse-Proxy davor ändert
+  das nicht. Wer glaubt, er habe den Dienst damit „hinter nginx gelegt", hat ihn
+  zweimal veröffentlicht: einmal unter seiner Domain mit TLS und einmal nackt
+  auf dem Port. Der Satz steht einmal über der Liste, und an der betroffenen
+  Zeile steht nur, dass sie es ist.
+
+  **PHP-FPM ist eine eigene Zielart** und braucht zwei Angaben: ein Verzeichnis
+  und einen Socket. Fehlt der Socket, lieferte nginx die `.php`-Dateien im
+  Klartext aus, mit allem, was an Zugangsdaten darin steht. Der Socketpfad steht
+  unter einer Allowlist (`/run/php` und Geschwister) und nicht bloß unter einer
+  Formprüfung: Er landet hinter `fastcgi_pass unix:` und sagt nginx, an wen es
+  die Anfrage samt Kopfzeilen weiterreicht — ein beliebiger Pfad wäre die
+  Erlaubnis, jeden Unix-Socket des Servers mit FastCGI-Verkehr zu beschicken,
+  und `/run/docker.sock` liegt daneben.
+
+  Die erzeugte Konfiguration setzt `try_files $uri =404;` vor `fastcgi_pass`.
+  Ohne diese Zeile beantwortet nginx auch `/bild.jpg/x.php` und lässt PHP die
+  hochgeladene Datei ausführen — die klassische Lücke „nginx + php-fpm Remote
+  Code Execution", die nicht aus einem Fehler in nginx stammt, sondern aus einer
+  Konfiguration ohne diese Zeile.
+
 - **Modul Webserver, Schritt 5 von 8: Sites schreibend.** Sites lassen sich
   anlegen, ändern, abschalten und löschen — als Domain → Ziel → TLS und nicht
   als Textdatei. Der Weg „Benutzer tippt nginx-Konfiguration" existiert schon;

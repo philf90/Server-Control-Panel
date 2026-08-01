@@ -440,3 +440,84 @@ func TestErzeugeSiteSchreibtNamenKlein(t *testing.T) {
 		t.Errorf("die Namenszeile stimmt nicht:\n%s", aus)
 	}
 }
+
+// -------------------------------------------------------------- PHP-FPM ---
+
+// PHP braucht ZWEI Angaben: ein Verzeichnis und einen Prozess. Fehlt der
+// Socket, liefert nginx die .php-Dateien als Klartext aus — mit allem, was an
+// Zugangsdaten darin steht.
+func TestPruefeSiteEntwurfPHPBrauchtBeides(t *testing.T) {
+	e := gueltig()
+	e.Zielart, e.Ziel = "php", "/var/www/shop"
+	if PruefeSiteEntwurf(e, lageOhneBesonderheit()).OK() {
+		t.Error("php ohne Socket wurde angenommen — nginx lieferte die Quelltexte aus")
+	}
+
+	e.PHPSocket = "/run/php/php8.2-fpm.sock"
+	if p := PruefeSiteEntwurf(e, lageOhneBesonderheit()); !p.OK() {
+		t.Errorf("der gerade PHP-Fall wurde abgelehnt: %+v", p.Ablehnungen)
+	}
+
+	// Das Verzeichnis gilt bei php genauso wie bei statisch.
+	e.Ziel = "/etc"
+	if PruefeSiteEntwurf(e, lageOhneBesonderheit()).OK() {
+		t.Error("php mit root /etc wurde angenommen")
+	}
+}
+
+// Der Socket liegt unter /run — ein Pfad daneben wäre die Erlaubnis, einen
+// beliebigen Unix-Socket des Servers mit FastCGI-Verkehr zu beschicken.
+func TestPruefeSiteEntwurfSocketAllowlist(t *testing.T) {
+	faelle := map[string]bool{
+		"/run/php/php8.2-fpm.sock":     true,
+		"/var/run/php/php8.1-fpm.sock": true,
+		"/run/php-fpm/www.sock":        true,
+		"/tmp/beliebig.sock":           false,
+		"/run/docker.sock":             false,
+		"/run/php/php8.2-fpm":          false, // ohne .sock
+		"run/php/x.sock":               false, // relativ
+		"/run/php/x.sock; root /":      false,
+		"":                             false,
+	}
+	for pfad, gut := range faelle {
+		e := gueltig()
+		e.Zielart, e.Ziel, e.PHPSocket = "php", "/var/www/shop", pfad
+		if got := PruefeSiteEntwurf(e, lageOhneBesonderheit()).OK(); got != gut {
+			t.Errorf("%q: angenommen = %v, erwartet %v", pfad, got, gut)
+		}
+	}
+}
+
+// Die Zeile, wegen der es die klassische Lücke „nginx + php-fpm Remote Code
+// Execution" gibt: Ohne try_files beantwortet nginx auch /bild.jpg/x.php und
+// lässt PHP die hochgeladene Datei ausführen.
+func TestErzeugeSitePHPSchliesstDiePathInfoLuecke(t *testing.T) {
+	e := gueltig()
+	e.Zielart, e.Ziel = "php", "/var/www/shop"
+	e.PHPSocket = "/run/php/php8.2-fpm.sock"
+	aus := erzeugeSite(e)
+
+	php := strings.Index(aus, "location ~ \\.php$")
+	if php < 0 {
+		t.Fatalf("der PHP-Block fehlt:\n%s", aus)
+	}
+	pruef := strings.Index(aus[php:], "try_files $uri =404;")
+	pass := strings.Index(aus[php:], "fastcgi_pass")
+	if pruef < 0 {
+		t.Fatal("try_files $uri =404 fehlt im PHP-Block — damit führte nginx " +
+			"/bild.jpg/x.php an PHP weiter, und PHP führte die hochgeladene Datei aus")
+	}
+	if pruef > pass {
+		t.Error("try_files steht hinter fastcgi_pass — die Prüfung käme zu spät")
+	}
+	for _, muss := range []string{
+		"fastcgi_pass unix:/run/php/php8.2-fpm.sock;",
+		"fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;",
+		"root /var/www/shop;",
+		"location ~ /\\.ht {",
+	} {
+		if !strings.Contains(aus, muss) {
+			t.Errorf("%q fehlt:\n%s", muss, aus)
+		}
+	}
+}

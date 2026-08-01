@@ -1,8 +1,8 @@
 # 18 — Webserver & Domains (Stufe 0.6)
 
-> **Stand:** Schritte 1 bis 5 von 8 sind gebaut (Fundament; der Challenge-Weg
+> **Stand:** Schritte 1 bis 6 von 8 sind gebaut (Fundament; der Challenge-Weg
 > durch nginx hindurch; der mehrfähige Zertifikatshalter; Sites lesend und
-> **schreibend**).
+> schreibend; **die Ziele**).
 > Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
 > Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
@@ -308,6 +308,54 @@ deshalb hat jeder Bereich seinen eigenen, mit eigener Frist.
 
 ---
 
+## 4c. Nachtrag aus dem Bau (Schritt 6 ist umgesetzt)
+
+**Die Zielauswahl warnt, statt nur zu füllen.** Der Plan sah eine Liste statt
+eines Textfeldes vor. Beim Bau kam heraus, dass die interessantere Auskunft die
+unbequeme ist: Ein Container, der auf `0.0.0.0` veröffentlicht, ist **schon
+jetzt** aus dem Netz erreichbar, und ein Reverse-Proxy davor ändert daran
+nichts. Wer glaubt, er habe den Dienst damit „hinter nginx gelegt", hat ihn
+zweimal veröffentlicht — einmal unter seiner Domain mit TLS und einmal nackt auf
+dem Port.
+
+Dieselbe Auskunft steht auf der Portübersicht aus 0.5, dort mit dem
+Firewall-Abgleich. Hier steht sie an der Stelle, an der jemand gerade den Fehler
+macht, und das ist der bessere Ort. Der ganze Satz steht **einmal** über der
+Liste; an der betroffenen Zeile steht nur, dass sie es ist. Zweimal derselbe
+Satz unter zwei Zeilen macht ihn nicht deutlicher, sondern zu Rauschen.
+
+**`proxy_pass` auf `0.0.0.0` gibt es nicht.** Die Adresse einer
+Veröffentlichung ist eine Bindungsangabe und keine Zieladresse; der Vorschlag
+setzt deshalb `127.0.0.1` ein. Wer auf allen Adressen hört, hört auch dort, und
+der Weg über die Loopback-Adresse verlässt den Rechner nicht.
+
+**PHP-FPM ist eine eigene Zielart und braucht ZWEI Angaben** — ein Verzeichnis
+und einen Socket. Deshalb ein zweites Feld statt einer zweiten Bedeutung von
+`Ziel`: Fehlt der Socket, liefert nginx die `.php`-Dateien im Klartext aus, mit
+allem, was an Zugangsdaten darin steht.
+
+Der Socket steht unter einer **Allowlist** (`/run/php`, `/var/run/php`,
+`/run/php-fpm`) und nicht bloß unter einer Formprüfung. Der Pfad landet hinter
+`fastcgi_pass unix:` und sagt nginx, an wen es die Anfrage samt Kopfzeilen
+weiterreicht — ein beliebiger Pfad wäre die Erlaubnis, jeden Unix-Socket des
+Servers mit FastCGI-Verkehr zu beschicken, und `/run/docker.sock` liegt
+daneben.
+
+**Die erzeugte PHP-Konfiguration schließt die Path-Info-Lücke.** `try_files $uri
+=404;` steht vor `fastcgi_pass`, und das ist keine Feinheit: Ohne diese Zeile
+beantwortet nginx auch `/bild.jpg/x.php`, reicht die Datei an PHP weiter, und
+PHP führt sie aus. Das ist die klassische „nginx + php-fpm Remote Code
+Execution" — sie kommt nicht aus einem Fehler in nginx, sondern aus einer
+Konfiguration ohne diese Zeile. Ein eigener Test steht dafür, samt der Prüfung,
+dass sie VOR `fastcgi_pass` steht.
+
+**Gesucht wird auf der Platte, nicht in einer Paketliste.** Ein Socket, den es
+gibt, ist der Beleg dafür, dass ein FPM-Prozess läuft; ein installiertes Paket
+ist es nicht. Umgekehrt findet die Suche auch eine Installation, die an apt
+vorbeigegangen ist.
+
+---
+
 ## 5. Grundentscheidungen
 
 **E1 — nginx wird verwaltet, alles andere ist ein fremder Webserver.**
@@ -497,7 +545,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 3 ✅ | **Der Halter wird mehrfähig** (Abschnitt 4): Index Name → Zertifikat aus den SANs, Auswahl über SNI, Rückfall auf das Panel-Zertifikat; Manager je Zertifikat über `Options.Kennung` | Bestandscode im TLS-Pfad, eigener Schritt, eigener Test |
 | 4 ✅ | **Sites lesend**: `SiteList` über `nginx -T` (die **gerenderte** Konfiguration, nicht die Dateien), Trennung verwaltet/fremd, `SiteDatei` nur für verwaltete, Fläche `/webserver` mit Portbelegung daneben | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 ✅ | **Sites schreibend**: Felder → Drop-in, **Site-Prüfer**, `nginx -t`, reload, **Probe mit Rückweg**, Fassungskonflikt; dazu Abschalten über die Dateiendung und ein eigener `probenWaechter` neben dem der Firewall | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
-| 6 | **Ziele**: Reverse-Proxy (Container aus dem Docker-Modul zur Auswahl!), statisches Verzeichnis, PHP-FPM über das Paketmodul | Der Alltagsfall |
+| 6 ✅ | **Ziele**: Reverse-Proxy mit den laufenden Containern zur Auswahl, statisches Verzeichnis, **PHP-FPM** als eigene Zielart samt Socket-Allowlist | Der Alltagsfall |
 | 7 | **TLS je Site**: Bezug über ACME, Erneuerung, Zustand je Site, Signale + Warnpunkte | Der Satz aus §2 wird eingelöst |
 | 8 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch über `alias`, Selbstausschluss provozieren; Messung; Doku | Wie Schritt 9 des Docker-Moduls |
 

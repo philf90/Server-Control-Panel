@@ -53,6 +53,7 @@ type apiSiteAnfrage struct {
 	Domains       []string `json:"domains"`
 	Zielart       string   `json:"zielart"`
 	Ziel          string   `json:"ziel"`
+	PHPSocket     string   `json:"php_socket"`
 	TLS           bool     `json:"tls"`
 	HTTPUmleitung bool     `json:"http_umleitung"`
 	// Fassung ist der Hash der Datei, die der Browser gelesen hat. Leer heißt
@@ -99,6 +100,7 @@ func (s *Server) handleAPIWebserverSiteSchreiben(w http.ResponseWriter, r *http.
 		Domains:       anfrage.Domains,
 		Zielart:       anfrage.Zielart,
 		Ziel:          strings.TrimSpace(anfrage.Ziel),
+		PHPSocket:     strings.TrimSpace(anfrage.PHPSocket),
 		TLS:           anfrage.TLS,
 		HTTPUmleitung: anfrage.HTTPUmleitung,
 	}

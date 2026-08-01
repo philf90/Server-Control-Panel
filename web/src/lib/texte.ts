@@ -1012,7 +1012,7 @@ export const t = {
     // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
     // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
     imBauDetail:
-      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Was noch fehlt: das Zertifikat je Site — der Schalter „TLS“ legt den 443-Block erst an, wenn eines vorliegt, und der Bezug über Let's Encrypt kommt mit dem nächsten Schritt. Ebenso die Zielauswahl aus den laufenden Containern, statt die Adresse zu tippen. Die Begründung steht im Repository unter docs/18-webserver.md.",
+      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Was noch fehlt: das Zertifikat je Site — der Schalter „TLS“ legt den 443-Block erst an, wenn eines vorliegt, und der Bezug über Let's Encrypt kommt mit dem nächsten Schritt. Die Begründung steht im Repository unter docs/18-webserver.md.",
 
     // Die Fläche „Sites".
     sites: "Sites",
@@ -1056,11 +1056,25 @@ export const t = {
     zielartProxy: "Reverse-Proxy",
     zielartStatisch: "Verzeichnis",
     zielartUmleitung: "Umleitung",
+    zielartPHP: "PHP-Anwendung",
     feldZiel: "Ziel",
     zielHinweisProxy: "Die Gegenstelle, etwa http://127.0.0.1:3000.",
     zielHinweisStatisch:
       "Das Verzeichnis, aus dem ausgeliefert wird. Außerhalb von /var/www und /srv fragt das Panel nach.",
     zielHinweisUmleitung: "Die vollständige Adresse, auf die umgeleitet wird.",
+    zielHinweisPHP:
+      "Das Verzeichnis der Anwendung. Die .php-Dateien führt der FPM-Prozess aus; nginx liefert nur, was daneben liegt.",
+    feldSocket: "PHP-FPM-Socket",
+    feldSocketHinweis:
+      "Der Socket des FPM-Prozesses, üblicherweise unter /run/php. Ohne ihn lieferte nginx die .php-Dateien im Klartext aus.",
+
+    // Die Zielvorschläge.
+    vorschlaege: "Aus dem Bestand übernehmen",
+    vorschlaegeLeer:
+      "Es gibt nichts vorzuschlagen: kein laufender Container mit veröffentlichtem Port und kein PHP-FPM.",
+    vorschlaegeOhneDocker:
+      "Ohne Docker gibt es keine Containerliste. Die Adresse lässt sich von Hand eintragen.",
+    uebernehmen: "übernehmen",
     feldTLS: "TLS (Port 443)",
     feldTLSHinweis:
       "Der 443-Block entsteht erst, wenn für diese Site ein Zertifikat vorliegt. Der Bezug kommt mit einem späteren Schritt.",

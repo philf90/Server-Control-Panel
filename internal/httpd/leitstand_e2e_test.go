@@ -863,7 +863,15 @@ type ergebnisLeitstand struct {
 			Pfad   string     `json:"pfad"`
 			Zeilen [][]string `json:"zeilen"`
 		} `json:"ports"`
-		StufeDrei struct {
+		Ziele struct {
+			Zeilen []struct {
+				Text    string `json:"text"`
+				Warnung string `json:"warnung"`
+			} `json:"zeilen"`
+			Anmerkung string `json:"anmerkung"`
+		} `json:"ziele"`
+		NachUebernehmen string `json:"nachUebernehmen"`
+		StufeDrei       struct {
 			Tippfeld    bool   `json:"tippfeld"`
 			Hinweis     string `json:"hinweis"`
 			ErsterPunkt string `json:"ersterPunkt"`
@@ -3745,6 +3753,38 @@ func TestLeitstandBrowser(t *testing.T) {
 	if eigen != 2 || fremdePorts != 1 {
 		t.Errorf("Belegung falsch gelesen: %d eigen, %d fremd — erwartet 2 und 1",
 			eigen, fremdePorts)
+	}
+
+	// Die Zielvorschläge aus dem Bestand — die Zugabe aus Stufe 0.5.
+	if len(wb.Ziele.Zeilen) == 0 {
+		t.Fatal("das Formular schlägt keine Ziele vor, obwohl Container laufen — " +
+			"dann tippt jemand eine Portnummer ab, und ein vertippter Port ist " +
+			"der häufigste Grund für eine Site, die 502 antwortet")
+	}
+	// Der unbequeme Satz muss dastehen, und zwar an dem Vorschlag, der ihn
+	// betrifft: Der Container auf 0.0.0.0:8080 ist schon jetzt aus dem Netz
+	// erreichbar.
+	var mitWarnung int
+	for _, z := range wb.Ziele.Zeilen {
+		if z.Warnung == "" {
+			continue
+		}
+		mitWarnung++
+		if !strings.Contains(z.Warnung, "allen Adressen") {
+			t.Errorf("die Warnung benennt den Fall nicht: %q", z.Warnung)
+		}
+	}
+	if mitWarnung == 0 {
+		t.Error("kein Vorschlag trägt die Warnung — die Attrappe hat einen Container " +
+			"auf 0.0.0.0, und genau dessen Fall ist der Grund für diese Liste")
+	}
+	// Und die Begründung steht einmal über der Liste — nicht an jeder Zeile.
+	if !strings.Contains(wb.Ziele.Anmerkung, "ändert das nicht") {
+		t.Errorf("über der Liste fehlt der Satz, warum das zählt: %q", wb.Ziele.Anmerkung)
+	}
+	if !strings.Contains(wb.NachUebernehmen, "http://") {
+		t.Errorf("nach dem Übernehmen steht im Zielfeld %q, erwartet eine Adresse",
+			wb.NachUebernehmen)
 	}
 
 	// Der Schreibpfad. Zuerst die Stufe 3: Ein Verzeichnis außerhalb der

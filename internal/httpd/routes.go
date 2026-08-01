@@ -318,6 +318,11 @@ func (s *Server) Handler() http.Handler {
 		s.protected(http.HandlerFunc(s.handleAPIWebserverSites)))
 	mux.Handle("GET /api/v1/webserver/sites/{name}",
 		s.protected(http.HandlerFunc(s.handleAPIWebserverSite)))
+	// Die Zielvorschläge sind eine Auskunft und liegen deshalb nicht hinter
+	// apiOwner: Sie nennen laufende Container und FPM-Sockets — dasselbe, was
+	// die Docker- und die Dienstseite ohnehin jeder Rolle zeigen.
+	mux.Handle("GET /api/v1/webserver/ziele",
+		s.protected(http.HandlerFunc(s.handleAPIWebserverZiele)))
 	// Sites, schreibend. Owner und nicht Admin — dieselbe Begründung wie bei
 	// Docker und den Zeitplänen: Eine Site ist eine Konfiguration, die als root
 	// gelesen wird und einen Dienst aus dem Netz erreichbar macht.

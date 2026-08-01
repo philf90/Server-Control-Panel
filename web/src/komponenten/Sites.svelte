@@ -29,7 +29,14 @@
   import { Probelauf } from "../lib/probe.svelte";
   import { t } from "../lib/texte";
   import { verweis, weg } from "../lib/weg.svelte";
-  import type { Bestaetigung, Site, Siteantwort, Sitebefund, Siteliste } from "../lib/typen";
+  import type {
+    Bestaetigung,
+    Site,
+    Siteantwort,
+    Sitebefund,
+    Siteliste,
+    Ziele,
+  } from "../lib/typen";
 
   let daten = $state<Siteliste | null>(null);
   let fehler = $state("");
@@ -39,6 +46,11 @@
   /** befunde sind die Ablehnungen des Prüfers zur zuletzt versuchten Fassung. */
   let befunde = $state<Sitebefund[]>([]);
   let ungeprueft = $state<string[]>([]);
+  /** ziele sind die Vorschläge aus dem Bestand — laufende Container und
+   *  FPM-Sockets. Sie werden EINMAL beim Öffnen des Formulars geholt und nicht
+   *  bei jedem Laden der Liste: Sie kosten einen docker-Aufruf, und wer nur
+   *  hinsieht, soll ihn nicht bezahlen. */
+  let ziele = $state<Ziele | null>(null);
 
   // Die Probe: Anzeige hier, Wahrheit im Server. Läuft die Frist ab, wird der
   // Zustand einmal neu geholt — was dann gilt, sagt der Server.
@@ -78,6 +90,7 @@
     domains: "",
     zielart: "proxy",
     ziel: "",
+    php_socket: "",
     tls: false,
     http_umleitung: false,
     fassung: "",
@@ -98,6 +111,7 @@
         domains: "",
         zielart: "proxy",
         ziel: "",
+        php_socket: "",
         tls: false,
         http_umleitung: false,
         fassung: "",
@@ -111,6 +125,10 @@
       domains: (s.domains ?? []).join("\n"),
       zielart: s.zielart || "proxy",
       ziel: s.ziel,
+      // Der Socket steht nicht in der Liste — der Parser liest ihn nicht aus
+      // dem location-Block. Er bleibt leer und wird beim Speichern neu
+      // gefordert; das ist ehrlicher als ein geratener Pfad.
+      php_socket: "",
       tls: s.tls,
       // Ob http auf https umgeleitet wird, lässt sich aus der Liste nicht
       // ablesen — sie zeigt das Ziel des 443-Blocks. Beim Speichern entscheidet
@@ -122,6 +140,36 @@
 
   function waehle(name: string) {
     weg.setze("site", name);
+  }
+
+  // Die Vorschläge erst holen, wenn ein Formular offen ist: Sie kosten einen
+  // docker-Aufruf, und die Liste allein braucht ihn nicht.
+  $effect(() => {
+    if ((legtAn || gewaehlt) && ziele === null) void zieleLaden();
+  });
+
+  async function zieleLaden() {
+    try {
+      ziele = await api.webserverZiele();
+    } catch (e) {
+      if (e instanceof AbgemeldetFehler) throw e;
+      // Kein Fehler an der Fläche: Ohne Vorschläge tippt man die Adresse, und
+      // eine rote Zeile über einem funktionierenden Formular wäre die falsche
+      // Auskunft.
+      ziele = { vorschlaege: [], anmerkung: "", fehler: t.webserver.vorschlaegeOhneDocker };
+    }
+  }
+
+  /** uebernimm setzt Zielart und Ziel aus einem Vorschlag. Bei PHP wandert der
+   *  Wert in das Socketfeld — dort steht er, und das Verzeichnis bleibt, wie es
+   *  ist: Welches ausgeliefert wird, weiß nur der Betreiber. */
+  function uebernimm(v: { zielart: string; ziel: string }) {
+    entwurf.zielart = v.zielart;
+    if (v.zielart === "php") {
+      entwurf.php_socket = v.ziel;
+      return;
+    }
+    entwurf.ziel = v.ziel;
   }
 
   /** zustandVon ist das Wort in der Zustandsspalte. Drei Werte, weil es drei
@@ -198,6 +246,7 @@
             .filter(Boolean),
           zielart: entwurf.zielart,
           ziel: entwurf.ziel.trim(),
+          php_socket: entwurf.php_socket.trim(),
           tls: entwurf.tls,
           http_umleitung: entwurf.http_umleitung,
           fassung: entwurf.fassung,
@@ -383,6 +432,7 @@
             <select bind:value={entwurf.zielart} disabled={!darfAendern}>
               <option value="proxy">{t.webserver.zielartProxy}</option>
               <option value="statisch">{t.webserver.zielartStatisch}</option>
+              <option value="php">{t.webserver.zielartPHP}</option>
               <option value="umleitung">{t.webserver.zielartUmleitung}</option>
             </select>
           </label>
@@ -393,11 +443,59 @@
             <small>
               {entwurf.zielart === "statisch"
                 ? t.webserver.zielHinweisStatisch
-                : entwurf.zielart === "umleitung"
-                  ? t.webserver.zielHinweisUmleitung
-                  : t.webserver.zielHinweisProxy}
+                : entwurf.zielart === "php"
+                  ? t.webserver.zielHinweisPHP
+                  : entwurf.zielart === "umleitung"
+                    ? t.webserver.zielHinweisUmleitung
+                    : t.webserver.zielHinweisProxy}
             </small>
           </label>
+
+          {#if entwurf.zielart === "php"}
+            <label>
+              <span>{t.webserver.feldSocket}</span>
+              <input
+                type="text"
+                bind:value={entwurf.php_socket}
+                disabled={!darfAendern}
+                autocomplete="off"
+              />
+              <small>{t.webserver.feldSocketHinweis}</small>
+            </label>
+          {/if}
+
+          <!-- Die Vorschläge aus dem Bestand. Sie sind mehr als Bequemlichkeit:
+               Wer die Adresse abtippt, vertippt sich, und ein vertippter Port
+               ist der häufigste Grund für eine Site, die 502 antwortet.
+
+               Der unbequeme Teil steht daneben: Ein Container auf 0.0.0.0 ist
+               schon jetzt aus dem Netz erreichbar, und ein Proxy davor ändert
+               das nicht. -->
+          {#if darfAendern && ziele}
+            <div class="vorschlaege">
+              <b>{t.webserver.vorschlaege}</b>
+              {#if ziele.fehler}
+                <small>{ziele.fehler}</small>
+              {:else if !ziele.vorschlaege?.length}
+                <small>{t.webserver.vorschlaegeLeer}</small>
+              {:else}
+                {#if ziele.anmerkung}<small>{ziele.anmerkung}</small>{/if}
+                <ul>
+                  {#each ziele.vorschlaege as v (v.zielart + v.ziel)}
+                    <li>
+                      <button type="button" class="knopf leise" onclick={() => uebernimm(v)}>
+                        {t.webserver.uebernehmen}
+                      </button>
+                      <span class="titel">{v.titel}</span>
+                      <span class="mono">{v.ziel}</span>
+                      <span class="leise">{v.detail}</span>
+                      {#if v.warnung}<span class="warn">{v.warnung}</span>{/if}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
+          {/if}
 
           <label class="schalter">
             <input type="checkbox" bind:checked={entwurf.tls} disabled={!darfAendern} />
@@ -641,6 +739,50 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     margin-top: 0.3rem;
+  }
+
+  .vorschlaege {
+    display: grid;
+    gap: 0.35rem;
+    border-top: 1px solid var(--line);
+    padding-top: 0.7rem;
+  }
+
+  .vorschlaege b {
+    font-size: 0.68rem;
+    font-weight: 650;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tx-faint);
+  }
+
+  .vorschlaege ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .vorschlaege li {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .vorschlaege .titel {
+    font-weight: 650;
+  }
+
+  /* Die Warnung bricht auf eine eigene Zeile: Sie ist der Satz, wegen dessen es
+     diese Liste gibt, und am Rand abgeschnitten wäre sie wertlos. */
+  .vorschlaege .warn {
+    flex-basis: 100%;
+    color: var(--warn, var(--accent));
+    font-size: 0.76rem;
+    line-height: 1.5;
   }
 
   /* Die Befunde des Prüfers: rot umrandet, aber mit Feld und Grund je Zeile.

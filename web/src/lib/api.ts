@@ -25,6 +25,7 @@ import type {
   Siteentwurf,
   Siteantwort,
   Sitebefund,
+  Ziele,
   EigenesKonto,
   Firewall,
   FirewallAntwort,
@@ -472,6 +473,10 @@ export const api = {
       bestaetigt,
       getippt,
     }),
+  /** webserverZiele sammelt, worauf eine Site zeigen kann: laufende Container
+   *  mit veröffentlichten Ports und vorhandene PHP-FPM-Sockets. Eine Auskunft,
+   *  keine Pflicht — ohne Docker ist die Liste leer und man tippt. */
+  webserverZiele: () => anfrage<Ziele>("/webserver/ziele"),
   /** siteProbeBestaetigen beendet die Frist. Ohne Rückfrage: Bestätigen ist die
    *  Zustimmung zu etwas, das gerade schon gilt. */
   siteProbeBestaetigen: () =>

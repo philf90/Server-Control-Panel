@@ -1349,6 +1349,10 @@ export type Siteentwurf = {
   domains: string[];
   zielart: string;
   ziel: string;
+  /** php_socket ist der FPM-Socket bei zielart "php". Ein zweites Feld und keine
+   *  zweite Bedeutung von ziel: PHP braucht beides — ein Verzeichnis und einen
+   *  Prozess, der die .php-Dateien ausführt. */
+  php_socket: string;
   tls: boolean;
   http_umleitung: boolean;
   /** fassung ist der Hash der Datei, von der dieses Formular ausging. Leer heißt
@@ -1368,6 +1372,25 @@ export type Siteantwort = {
     ungeprueft: string[] | null;
   };
   fassung?: string;
+};
+
+/** Zielvorschlag ist ein anklickbares Ziel aus dem Bestand des Servers —
+ *  laufende Container und FPM-Sockets. */
+export type Zielvorschlag = {
+  zielart: string;
+  ziel: string;
+  titel: string;
+  detail: string;
+  /** warnung nennt, was an diesem Ziel unangenehm ist. Vor allem: auf 0.0.0.0
+   *  veröffentlicht, also schon jetzt aus dem Netz erreichbar — ein Proxy davor
+   *  ändert das nicht. */
+  warnung: string;
+};
+
+export type Ziele = {
+  vorschlaege: Zielvorschlag[] | null;
+  anmerkung: string;
+  fehler?: string;
 };
 
 /** Probestand ist die laufende Frist. Er steht sowohl an der Antwort auf eine

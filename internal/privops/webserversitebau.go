@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -47,10 +49,14 @@ type SiteEntwurf struct {
 	Name string `json:"name"`
 	// Domains sind die Namen für server_name. Der erste ist der führende.
 	Domains []string `json:"domains"`
-	// Zielart ist "proxy", "statisch" oder "umleitung".
+	// Zielart ist "proxy", "statisch", "php" oder "umleitung".
 	Zielart string `json:"zielart"`
 	// Ziel ist die Gegenstelle, das Verzeichnis oder das Umleitungsziel.
 	Ziel string `json:"ziel"`
+	// PHPSocket ist der FPM-Socket bei Zielart "php". Ein zweites Feld und nicht
+	// eine zweite Bedeutung von Ziel: PHP braucht BEIDES — ein Verzeichnis, aus
+	// dem ausgeliefert wird, und einen Prozess, der die .php-Dateien ausführt.
+	PHPSocket string `json:"php_socket"`
 	// TLS heißt: zusätzlich auf 443 mit Zertifikat.
 	TLS bool `json:"tls"`
 	// Zertifikat und Schluessel sind die Pfade. Leer bei TLS heißt: Das
@@ -235,6 +241,11 @@ func (p *SitePruefung) pruefeZiel(e SiteEntwurf, lage SiteLage) {
 		p.pruefeProxyziel(e.Ziel, lage)
 	case "statisch":
 		p.pruefeVerzeichnis(e.Ziel, lage)
+	case "php":
+		// Beides prüfen: Das Verzeichnis nach denselben Regeln wie eine
+		// statische Site — es ist eine —, und dazu der Socket.
+		p.pruefeVerzeichnis(e.Ziel, lage)
+		p.pruefeSocket(e.PHPSocket)
 	case "umleitung":
 		p.pruefeUmleitung(e.Ziel)
 	default:
@@ -356,6 +367,53 @@ func (p *SitePruefung) pruefeVerzeichnis(ziel string, lage SiteLage) {
 		Feld: "ziel", Wert: sauber,
 		Grund: "Dieses Verzeichnis liegt außerhalb von " + strings.Join(UeblicheWurzeln, " und ") +
 			". Alles darin wird im Netz ausgeliefert.",
+	})
+}
+
+// phpSocketWurzeln sind die Verzeichnisse, in denen ein FPM-Socket liegen darf.
+//
+// Eine Allowlist und keine Formprüfung: Der Pfad landet hinter `fastcgi_pass
+// unix:` und sagt nginx, an wen es die Anfrage samt Kopfzeilen weiterreicht. Ein
+// beliebiger Pfad wäre die Erlaubnis, jeden Unix-Socket des Servers mit
+// FastCGI-Verkehr zu beschicken — und FastCGI ist ein Protokoll, das
+// Umgebungsvariablen setzt. Unter /run liegen die Sockets der Dienste, und dort
+// gehört diese Erlaubnis hin.
+var phpSocketWurzeln = []string{"/run/php", "/var/run/php", "/run/php-fpm"}
+
+// pruefeSocket prüft den FPM-Socket.
+func (p *SitePruefung) pruefeSocket(pfad string) {
+	pfad = strings.TrimSpace(pfad)
+	if pfad == "" {
+		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
+			Feld:  "php_socket",
+			Grund: "Ohne FPM-Socket führt niemand die PHP-Dateien aus; nginx lieferte sie im Klartext aus.",
+		})
+		return
+	}
+	if strings.ContainsAny(pfad, ";{}\n\r \t\"'\\") || !filepath.IsAbs(pfad) {
+		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
+			Feld: "php_socket", Wert: kuerzen(pfad),
+			Grund: "Das muss ein absoluter Pfad ohne Sonderzeichen sein.",
+		})
+		return
+	}
+	sauber := filepath.Clean(pfad)
+	if !strings.HasSuffix(sauber, ".sock") {
+		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
+			Feld: "php_socket", Wert: sauber,
+			Grund: "Ein FPM-Socket endet auf .sock.",
+		})
+		return
+	}
+	for _, wurzel := range phpSocketWurzeln {
+		if liegtUnter(sauber, wurzel) {
+			return
+		}
+	}
+	p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
+		Feld: "php_socket", Wert: sauber,
+		Grund: "Ein FPM-Socket liegt unter " + strings.Join(phpSocketWurzeln, ", ") +
+			". Ein Pfad daneben wäre die Erlaubnis, einen beliebigen Socket des Servers mit FastCGI-Verkehr zu beschicken.",
 	})
 }
 
@@ -582,6 +640,34 @@ func schreibeZiel(b *strings.Builder, e SiteEntwurf) {
 		b.WriteString("    location / {\n")
 		b.WriteString("        try_files $uri $uri/ =404;\n")
 		b.WriteString("    }\n")
+	case "php":
+		b.WriteString("    root " + filepath.Clean(strings.TrimSpace(e.Ziel)) + ";\n")
+		b.WriteString("    index index.php index.html;\n")
+		b.WriteString("\n")
+		b.WriteString("    location / {\n")
+		b.WriteString("        try_files $uri $uri/ /index.php?$query_string;\n")
+		b.WriteString("    }\n")
+		b.WriteString("\n")
+		b.WriteString("    location ~ \\.php$ {\n")
+		// try_files ZUERST, und das ist keine Feinheit: Ohne diese Zeile
+		// beantwortet nginx auch /bild.jpg/x.php, reicht die Datei an PHP
+		// weiter, und PHP führt sie mit cgi.fix_pathinfo aus. Das ist die
+		// klassische Lücke „nginx + php-fpm Remote Code Execution" — sie kommt
+		// nicht von einem Fehler in nginx, sondern von einer Konfiguration ohne
+		// diese Zeile.
+		b.WriteString("        try_files $uri =404;\n")
+		b.WriteString("        include fastcgi_params;\n")
+		b.WriteString("        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;\n")
+		b.WriteString("        fastcgi_pass unix:" +
+			filepath.Clean(strings.TrimSpace(e.PHPSocket)) + ";\n")
+		b.WriteString("    }\n")
+		b.WriteString("\n")
+		// .htaccess und Geschwister gehören nicht ins Netz. Bei einer Anwendung,
+		// die von Apache kommt, liegen sie im Verzeichnis — und stehen sonst
+		// als Klartext zum Abruf bereit.
+		b.WriteString("    location ~ /\\.ht {\n")
+		b.WriteString("        deny all;\n")
+		b.WriteString("    }\n")
 	case "umleitung":
 		b.WriteString("    location / {\n")
 		// 308 und nicht 301: Ein 301 darf ein POST in ein GET verwandeln, und
@@ -590,6 +676,42 @@ func schreibeZiel(b *strings.Builder, e SiteEntwurf) {
 		b.WriteString("        return 308 " + strings.TrimSpace(e.Ziel) + "$request_uri;\n")
 		b.WriteString("    }\n")
 	}
+}
+
+// PHPSockets sucht die vorhandenen FPM-Sockets.
+//
+// Gesucht wird auf der PLATTE und nicht in einer Paketliste: Ein Socket, den es
+// gibt, ist der Beleg dafür, dass ein FPM-Prozess läuft — ein installiertes
+// Paket ist es nicht. Umgekehrt findet diese Suche auch eine Installation, die
+// an apt vorbeigegangen ist.
+//
+// Sortiert, damit die Reihenfolge nicht am Dateisystem hängt: Bei zwei
+// PHP-Fassungen nebeneinander soll die Auswahl zweimal gleich aussehen.
+func PHPSockets() []string {
+	var aus []string
+	gesehen := map[string]bool{}
+	for _, wurzel := range phpSocketWurzeln {
+		treffer, err := filepath.Glob(filepath.Join(wurzel, "*.sock"))
+		if err != nil {
+			continue
+		}
+		for _, pfad := range treffer {
+			sauber := filepath.Clean(pfad)
+			if gesehen[sauber] {
+				continue
+			}
+			// Ein Socket und keine gewöhnliche Datei: Wer eine Datei namens
+			// x.sock dorthin legt, soll sie nicht in der Auswahl finden.
+			fi, err := os.Stat(sauber)
+			if err != nil || fi.Mode()&os.ModeSocket == 0 {
+				continue
+			}
+			gesehen[sauber] = true
+			aus = append(aus, sauber)
+		}
+	}
+	sort.Strings(aus)
+	return aus
 }
 
 // pruefeSiteDomain prüft einen Namen für server_name.

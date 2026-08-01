@@ -3532,6 +3532,27 @@ async function main() {
   await seite.click('button:has-text("Site anlegen")');
   await seite.waitForSelector(".form", { timeout: 5000 });
 
+  //     Die Zielvorschläge aus dem Bestand — die Zugabe aus Stufe 0.5. Geprüft
+  //     wird vor allem der unbequeme Satz: Ein Container auf 0.0.0.0 ist schon
+  //     jetzt aus dem Netz erreichbar, und ein Proxy davor ändert das nicht.
+  await seite.waitForSelector(".vorschlaege li", { timeout: 5000 });
+  web.ziele = await seite.evaluate(() => ({
+    zeilen: [...document.querySelectorAll(".vorschlaege li")].map((li) => ({
+      text: li.textContent.replace(/\s+/g, " ").trim(),
+      warnung: li.querySelector(".warn")?.textContent.trim() ?? "",
+    })),
+    anmerkung: [...document.querySelectorAll(".vorschlaege small")]
+      .map((s) => s.textContent.trim())
+      .join(" "),
+  }));
+  //     Übernehmen füllt das Zielfeld — niemand tippt eine Portnummer ab.
+  await seite.click(".vorschlaege li button");
+  await seite.waitForTimeout(150);
+  web.nachUebernehmen = await seite.evaluate(
+    () => document.querySelectorAll('.form input[type="text"]')[1]?.value ?? "",
+  );
+  await bildschirmfoto(seite, "leitstand-webserver-formular", { fullPage: true });
+
   const formular = async (name, art, ziel) => {
     await seite.fill('.form input[type="text"] >> nth=0', name);
     await seite.fill(".form textarea", "neu.example.com");

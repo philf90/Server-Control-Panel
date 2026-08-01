@@ -1,8 +1,8 @@
 # 18 — Webserver & Domains (Stufe 0.6)
 
-> **Stand:** Schritte 1 und 2 von 8 sind gebaut (Fundament: Zustand,
-> Portbelegung, Installation; und der Challenge-Weg durch nginx hindurch).
-> Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
+> **Stand:** Schritte 1 bis 3 von 8 sind gebaut (Fundament; der Challenge-Weg
+> durch nginx hindurch; der mehrfähige Zertifikatshalter). Dazu
+> **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
 > Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
 > §7.4 und der Meilensteintabelle in [06-roadmap.md](06-roadmap.md).
@@ -175,6 +175,35 @@ Der Halter bekommt dafür eine Karte und einen Rückfall: Kein Eintrag für den
 angefragten Namen → das Zertifikat des Panels. Ein Browser, der eine unbekannte
 Domain anfragt, bekommt dann eine Warnung statt eines Verbindungsabbruchs, und
 das ist die bessere der beiden Antworten.
+
+### Nachtrag aus dem Bau (Schritt 3 ist umgesetzt)
+
+**Die Vorrangregel ist die eigentliche Sicherung.** Sie stand oben noch nicht:
+Deckt das PANELZERTIFIKAT den angefragten Namen ab, gewinnt es — vor jeder
+Site. Ohne diese Reihenfolge ließe sich eine Site auf den Namen des Panels
+anlegen und dessen TLS übernehmen; wer das versehentlich tut, sperrt sich aus
+der Oberfläche aus, mit der er es zurücknehmen müsste.
+
+**Der Index kommt aus den SANs, nicht aus einer mitgelieferten Namensliste.**
+Wer ein Zertifikat hinterlegt, muss nicht zusätzlich sagen, wofür es gilt — das
+steht darin. Damit entfällt eine ganze Fehlerklasse („unter dem falschen Namen
+eingetragen"), und die Wildcard-Auffindung hat genau eine Auslegung. Bei zwei
+Zertifikaten für denselben Namen gewinnt die alphabetisch erste Kennung: Eine
+Regel muss es geben, und diese ist vorhersagbar — sonst hinge das Ergebnis an
+der Reihenfolge einer Map und damit am Zufall.
+
+**Der Manager je Zertifikat kostete weniger als gedacht.** `Options.Kennung`
+genügt: Leer heißt Panel (Ablage im Wurzelverzeichnis, Halter über `Set`),
+gesetzt heißt Site (Ablage in `sites/<kennung>`, Halter über `SetzeSite`). Der
+**Kontoschlüssel bleibt geteilt** — ein eigener je Site wäre ein eigenes
+ACME-Konto, und zwanzig Sites wären zwanzig Konten.
+
+**Ein Fund aus dem eigenen Test.** `filepath.Base("..")` ist `".."`, und
+`filepath.Join(wurzel, "sites", "..")` kürzt sich auf das **Wurzelverzeichnis**
+— eine Site mit der Kennung `..` hätte das Zertifikat des Panels überschrieben.
+Genau der Fehler, gegen den der Halter seine Vorrangregel hat, nur eine Ebene
+tiefer. Jetzt gibt es `PruefeKennung` als Allowlist (a–z, 0–9, `-`, `_`) und
+`zertVerzeichnis` als zweite Linie.
 
 ---
 
@@ -354,7 +383,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 |---|---|---|
 | 1 ✅ | **Fundament**: Allowlist-Einträge `nginx` und `ss`, `WebServerState` (nginx verwaltet / fremd mit Name / keiner, dazu **wer 80 und 443 hält**), Installation als Job und nur bei freiem Port, `GET /api/v1/webserver`, eine Fläche | Das Modul existiert, kann nginx installieren — und tut es nicht, wenn dort schon etwas läuft |
 | 2 ✅ | **Der Challenge-Weg** (Abschnitt 3): `webrootSolver`, verwaltetes Drop-in für `/.well-known/acme-challenge/`, Auswahl nach Zustand, `nginx -t` in `ConfigCheck` | Das Panel erneuert sein eigenes Zertifikat weiter, **nachdem** nginx da ist. Der Schreibpfad ist damit in Betrieb, bevor die erste Benutzersite existiert |
-| 3 | **Der Halter wird mehrfähig** (Abschnitt 4): Karte Name → Zertifikat, Auswahl über SNI, Rückfall auf das Panel-Zertifikat; Manager je Zertifikat | Bestandscode im TLS-Pfad, eigener Schritt, eigener Test |
+| 3 ✅ | **Der Halter wird mehrfähig** (Abschnitt 4): Index Name → Zertifikat aus den SANs, Auswahl über SNI, Rückfall auf das Panel-Zertifikat; Manager je Zertifikat über `Options.Kennung` | Bestandscode im TLS-Pfad, eigener Schritt, eigener Test |
 | 4 | **Sites lesend**: `SiteList` (verwaltete Drop-ins + fremde vHosts aus `sites-enabled`), Detail, Werkbank | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 | **Sites schreibend**: Felder → Drop-in, **Site-Prüfer**, `nginx -t`, reload, **Probe mit Rückweg**, Hash-Konflikt | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 | **Ziele**: Reverse-Proxy (Container aus dem Docker-Modul zur Auswahl!), statisches Verzeichnis, PHP-FPM über das Paketmodul | Der Alltagsfall |

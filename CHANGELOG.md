@@ -113,6 +113,36 @@ nicht als Release getaggt.
   ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
   da ist.
 
+- **Modul Webserver, Schritt 3 von 8: der Zertifikatshalter kann mehr als
+  eines.** Bis 0.5 hielt er genau eines — das des Panels — und ignorierte den
+  ClientHello. Jetzt wählt er über SNI aus, mit einem Index, der aus den SANs
+  der Zertifikate entsteht: Wer eines hinterlegt, muss nicht zusätzlich sagen,
+  wofür es gilt.
+
+  **Die Vorrangregel ist die eigentliche Sicherung: Das Panel verliert seinen
+  eigenen Namen nie an eine Site.** Ohne sie ließe sich eine Site auf den Namen
+  des Panels anlegen und dessen TLS übernehmen — wer das versehentlich tut,
+  sperrt sich aus der Oberfläche aus, mit der er es zurücknehmen müsste. Ein
+  unbekannter Name bekommt das Panelzertifikat statt eines
+  Verbindungsabbruchs: Eine Browserwarnung kann man lesen, ein Abbruch sieht
+  aus wie ein toter Server.
+
+  Ein Platzhalter deckt **genau eine Ebene** ab (`*.example.com` gilt für
+  `a.example.com`, nicht für `a.b.example.com` und nicht für `example.com`) —
+  die Regel aus RFC 6125, an die sich jeder Browser hält. Der genaue Name
+  gewinnt gegen den Platzhalter.
+
+  Der ACME-Manager arbeitet dafür je Zertifikat: `Kennung` leer heißt Panel
+  (Ablage wie bisher), gesetzt heißt Site (Ablage in `sites/<kennung>`). Der
+  **Kontoschlüssel bleibt geteilt** — ein eigener je Site wäre ein eigenes
+  ACME-Konto, und zwanzig Sites wären zwanzig Konten.
+
+  Ein Fund aus dem eigenen Test, der es versucht hat: `filepath.Base("..")` ist
+  `".."`, und `filepath.Join(wurzel, "sites", "..")` kürzt sich auf das
+  Wurzelverzeichnis — eine Site mit der Kennung `..` hätte das Zertifikat des
+  Panels überschrieben. Es gibt jetzt `PruefeKennung` als Allowlist und eine
+  zweite Linie im Pfadbau.
+
 - **Ein Zugangsdatenfeld, das zum Anbieter passt.** Das Feld auf der
   Zertifikatsseite hieß „Cloudflare-API-Token" und war einzeilig. Mit sieben
   Anbietern stimmt beides nicht mehr: netcup braucht drei Zeilen, OVH vier.

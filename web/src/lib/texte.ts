@@ -1012,7 +1012,7 @@ export const t = {
     // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
     // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
     imBauDetail:
-      "Sites sind bis hierher LESBAR: Was nginx ausliefert, steht in der Liste — auch das, was das Panel nie geschrieben hat. Was fehlt, ist der Schreibpfad: Sites anlegen und ändern als Domain → Ziel → TLS, der Prüfer davor, `nginx -t` und die Probe danach. Ein Zertifikat je Site folgt danach. Die Begründung steht im Repository unter docs/18-webserver.md.",
+      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Was noch fehlt: das Zertifikat je Site — der Schalter „TLS“ legt den 443-Block erst an, wenn eines vorliegt, und der Bezug über Let's Encrypt kommt mit dem nächsten Schritt. Ebenso die Zielauswahl aus den laufenden Containern, statt die Adresse zu tippen. Die Begründung steht im Repository unter docs/18-webserver.md.",
 
     // Die Fläche „Sites".
     sites: "Sites",
@@ -1033,7 +1033,52 @@ export const t = {
     // Der Satz über der Liste. Er sagt, was diese Fläche IST und was sie noch
     // nicht ist — sonst sucht man den Knopf zum Anlegen, den es noch nicht gibt.
     sitesNurLesend:
-      "Diese Liste zeigt, was nginx gerade ausliefert. Ändern lässt sich hier noch nichts — der Schreibpfad kommt im nächsten Schritt.",
+      "Diese Liste zeigt, was nginx gerade ausliefert. Verwaltete Sites lassen sich hier ändern; fremde Serverblöcke zeigt das Panel an und fasst sie nicht an.",
+
+    // Die Probe. Wortgleich zur Firewall gehalten, weil es dieselbe Zusage ist —
+    // wer sie dort einmal gelesen hat, soll sie hier wiedererkennen.
+    probeTitel: (gegenstand: string) =>
+      gegenstand ? `${gegenstand} gilt auf Probe` : "Die Änderung gilt auf Probe",
+    probeDetail:
+      "Ohne Bestätigung wird der vorherige Stand wiederhergestellt. Bestätigen Sie, solange die Seite noch antwortet — und prüfen Sie am besten vorher, ob die Domain erreichbar ist.",
+    probeBestaetigen: "Änderung bestätigen",
+
+    // Das Formular.
+    anlegen: "Site anlegen",
+    neueSite: "Neue Site",
+    feldName: "Kennung",
+    feldNameHinweis:
+      "Bestimmt den Dateinamen und das Verzeichnis des Zertifikats. Kleinbuchstaben, Ziffern, - und _. Nachträglich nicht änderbar.",
+    feldDomains: "Domains",
+    feldDomainsHinweis:
+      "Eine je Zeile. Ein Platzhalter ist als erster Bestandteil erlaubt: *.example.com.",
+    feldZielart: "Art",
+    zielartProxy: "Reverse-Proxy",
+    zielartStatisch: "Verzeichnis",
+    zielartUmleitung: "Umleitung",
+    feldZiel: "Ziel",
+    zielHinweisProxy: "Die Gegenstelle, etwa http://127.0.0.1:3000.",
+    zielHinweisStatisch:
+      "Das Verzeichnis, aus dem ausgeliefert wird. Außerhalb von /var/www und /srv fragt das Panel nach.",
+    zielHinweisUmleitung: "Die vollständige Adresse, auf die umgeleitet wird.",
+    feldTLS: "TLS (Port 443)",
+    feldTLSHinweis:
+      "Der 443-Block entsteht erst, wenn für diese Site ein Zertifikat vorliegt. Der Bezug kommt mit einem späteren Schritt.",
+    feldUmleitung: "http auf https umleiten",
+    speichern: "speichern",
+    abbrechen: "abbrechen",
+    abschalten: "abschalten",
+    einschalten: "einschalten",
+    loeschen: "löschen",
+    // Der Zustand einer Site in der Liste.
+    zustandAus: "abgeschaltet",
+    zustandStill: "nicht ausgeliefert",
+    zustandAktiv: "aktiv",
+    fremdNichtAenderbar:
+      "Dieser Serverblock gehört nicht dem Panel. Er wird gelesen und nicht angefasst; ändern lässt er sich über die Dateien.",
+    abgelehnt: "Der Prüfer hat den Entwurf abgelehnt:",
+    ungeprueft:
+      "Diese Angaben konnte der Prüfer nicht auslegen. Das heißt nicht, dass sie in Ordnung sind.",
     // Ohne nginx wird `nginx -T` gar nicht erst aufgerufen. Ein Fehler „command
     // not found" wäre die Antwort auf eine Frage, die niemand gestellt hat —
     // die Karten oben sagen bereits, was fehlt.

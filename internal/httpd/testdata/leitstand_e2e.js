@@ -1103,7 +1103,19 @@ async function main() {
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
   await seite.fill(".suche input", "gesucht");
   await seite.press(".suche input", "Enter");
-  await seite.waitForSelector(".band.info", { timeout: 5000 });
+  // Auf das ERGEBNIS warten und nicht auf das Band: Das Band erscheint, sobald
+  // ein Suchbegriff gesetzt ist — also eine Runde bevor die Antwort da ist —,
+  // und zeigt in dieser Runde die Zahl der noch stehenden Verzeichnisliste. Wer
+  // nur auf das Band wartet, misst mit etwas Pech die alte Liste; genau
+  // deshalb war dieser Abschnitt sporadisch rot. Dieselbe Lehre wie beim
+  // Beenden der Suche ein paar Zeilen weiter unten.
+  await seite.waitForFunction(
+    () => {
+      const zeilen = [...document.querySelectorAll("table.tabelle .zeile")];
+      return zeilen.length === 1 && zeilen[0].textContent.includes("gesucht.conf");
+    },
+    { timeout: 5000 },
+  );
   dateien.suche = await seite.evaluate(() => ({
     band: document.querySelector(".band.info")?.textContent.replace(/\s+/g, " ").trim() ?? "",
     reihen: [...document.querySelectorAll("table.tabelle .zeile")].map((b) =>
@@ -3511,6 +3523,86 @@ async function main() {
     zaehler: document.querySelector(".zaehler")?.textContent.trim() ?? "",
   }));
   await bildschirmfoto(seite, "leitstand-webserver", { fullPage: true });
+
+  //     Der Schreibpfad. Geprüft wird die Kette, die kein Go-Test abdeckt:
+  //     Formular ausfüllen → Rückfrage erscheint → bestätigen → das Probeband
+  //     steht mit laufender Uhr da. Und danach der Fall, der die Fläche
+  //     rechtfertigt: Ein Verzeichnis außerhalb der üblichen Wurzeln verlangt
+  //     den getippten Domainnamen, und der Knopf bleibt bis dahin gesperrt.
+  await seite.click('button:has-text("Site anlegen")');
+  await seite.waitForSelector(".form", { timeout: 5000 });
+
+  const formular = async (name, art, ziel) => {
+    await seite.fill('.form input[type="text"] >> nth=0', name);
+    await seite.fill(".form textarea", "neu.example.com");
+    await seite.selectOption(".form select", art);
+    await seite.fill('.form input[type="text"] >> nth=1', ziel);
+  };
+
+  await formular("neu", "statisch", "/opt/aussen");
+  await seite.click('.form button:has-text("speichern")');
+  await seite.waitForSelector("dialog.rueckfrage", { timeout: 5000 });
+  web.stufeDrei = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    const feld = d?.querySelector('input[type="text"]');
+    const knopf = [...(d?.querySelectorAll("button") ?? [])].at(-1);
+    return {
+      tippfeld: !!feld,
+      hinweis: d?.querySelector("label")?.textContent.trim() ?? "",
+      // Die Begründung, warum hier getippt werden muss, gehört an die erste
+      // Stelle der Aufzählung — unter drei anderen Zeilen liest sie niemand.
+      ersterPunkt: d?.querySelector("li")?.textContent.trim() ?? "",
+      gesperrt: knopf?.disabled ?? false,
+    };
+  });
+  await bildschirmfoto(seite, "leitstand-webserver-stufe3");
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(200);
+
+  //     Jetzt der gerade Fall: ein Reverse-Proxy, Stufe 2 ohne getipptes Wort.
+  await formular("neu", "proxy", "http://127.0.0.1:3000");
+  await seite.click('.form button:has-text("speichern")');
+  await seite.waitForSelector("dialog.rueckfrage", { timeout: 5000 });
+  web.stufeZwei = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      tippfeld: !!d?.querySelector('input[type="text"]'),
+      punkte: [...(d?.querySelectorAll("li") ?? [])].map((li) => li.textContent.trim()),
+    };
+  });
+  await seite.click('dialog.rueckfrage button:has-text("speichern")');
+
+  //     Das Probeband. Es ist die einzige Stelle dieser Fläche, an der
+  //     Untätigkeit etwas rückgängig macht — es muss ganz oben stehen und eine
+  //     laufende Uhr tragen.
+  await seite.waitForSelector(".probe", { timeout: 5000 });
+  web.probe = await seite.evaluate(() => {
+    const p = document.querySelector(".probe");
+    const tabelle = document.querySelector("table.tabelle");
+    return {
+      da: !!p,
+      ersteZahl: Number(p?.querySelector(".uhr")?.textContent.trim() ?? "0"),
+      text: p?.querySelector("b")?.textContent.trim() ?? "",
+      knopf: p?.querySelector("button")?.textContent.trim() ?? "",
+      // Über der Liste und nicht darunter: Wer hereinkommt, während die Frist
+      // läuft, muss zuerst den Knopf sehen, der sie beendet. Verglichen wird
+      // die Lage auf dem Bildschirm und nicht die im Baum — sichtbar ist, was
+      // zählt.
+      vorDerTabelle:
+        !!p &&
+        !!tabelle &&
+        p.getBoundingClientRect().top < tabelle.getBoundingClientRect().top,
+    };
+  });
+  await bildschirmfoto(seite, "leitstand-webserver-probe", { fullPage: true });
+
+  //     Und das Bestätigen beendet sie.
+  await seite.click('.probe button:has-text("bestätigen")');
+  await seite.waitForTimeout(400);
+  web.nachBestaetigen = await seite.evaluate(() => ({
+    probe: !!document.querySelector(".probe"),
+    meldung: document.querySelector('[role="status"]')?.textContent.trim() ?? "",
+  }));
 
   //     Die zweite Fläche: die Portbelegung. Sie hat eine eigene Adresse, und
   //     der Wechsel darf die Seite nicht neu laden — sonst wäre der Unterschied

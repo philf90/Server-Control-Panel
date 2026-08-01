@@ -9,6 +9,15 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Geändert
+
+- **Die Probe mit Rückweg ist aus der Firewall herausgelöst**
+  (`internal/httpd/probe.go`, `probenWaechter`) und trägt jetzt zwei Bereiche.
+  Reine Umbenennung und Verschiebung — die Methoden sind gegenüber der
+  bisherigen Fassung zeichengleich. Ein Wächter je Bereich und nicht einer für
+  alles: Zwei Bereiche, die sich eine Frist teilen, hießen, dass eine
+  bestätigte Firewalländerung eine unbestätigte Site mitbestätigt.
+
 ### Hinzugefügt
 
 - **Modul Webserver, Schritt 1 von 8** (Stufe 0.6, Plan in
@@ -112,6 +121,55 @@ nicht als Release getaggt.
   Prüfung gehört. Bei DigitalOcean kommt dazu, dass die Domainliste seitenweise
   ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
   da ist.
+
+- **Modul Webserver, Schritt 5 von 8: Sites schreibend.** Sites lassen sich
+  anlegen, ändern, abschalten und löschen — als Domain → Ziel → TLS und nicht
+  als Textdatei. Der Weg „Benutzer tippt nginx-Konfiguration" existiert schon;
+  er heißt Dateimanager.
+
+  **Drei Linien übereinander, und jede fängt etwas anderes.** Der Prüfer lehnt
+  ab, was nie richtig sein kann: einen `server_name`, aus dem eine zweite
+  nginx-Anweisung würde; einen Namen, den bereits ein fremder Serverblock
+  führt; ein Verzeichnis aus der Sperrliste; einen `proxy_pass` auf das Panel
+  selbst; eine Site auf dem Port des Panels. `nginx -t` findet danach, was der
+  Prüfer nicht sehen kann — eine Kollision mit einer anderen Datei, einen
+  Syntaxfehler —, und nimmt bei Ablehnung den vorherigen Stand wieder her. Die
+  **Probe** fängt zuletzt, was beide nicht sehen können: die Wirkung. Ohne
+  Bestätigung binnen 60 Sekunden stellt das Panel den vorherigen Stand
+  wieder her.
+
+  Geprüft werden dabei die **Felder** und nicht der erzeugte Text. Das ist der
+  Unterschied zum Compose-Prüfer: Dort kommt die Datei vom Benutzer, hier vom
+  Panel — und ein Prüfer, der sein eigenes Erzeugnis liest, prüft die eigene
+  Vorlage.
+
+  Ein `root` außerhalb von `/var/www` und `/srv` wird **nicht abgelehnt**,
+  sondern verlangt den getippten Domainnamen. Er ist der legitime und häufige
+  Fall und zugleich der Weg, über den eine Site fremde Daten ausliefert — eine
+  Allowlist hieße, dass die Hälfte der Betreiber das Modul nicht benutzen kann.
+
+  **Löschen läuft ohne Probe**, und der Dialog sagt es: Ein Rückweg, der die
+  Datei zurückholt und das Zertifikat verwaisen lässt, ist schlechter als
+  keiner — er lässt jemanden glauben, er könne es sich noch überlegen.
+
+  Abschalten benennt die Datei um (`.conf` → `.conf.aus`); nginx zieht aus
+  `conf.d` nur `*.conf` ein. Damit liest die Sitesliste jetzt zwei Quellen —
+  was nginx ausliefert und was dem Panel gehört —, denn was in keiner Liste
+  steht, lässt sich auch nicht wieder einschalten. Was davon wirklich
+  ausgeliefert wird, sagt weiterhin nur `nginx -T`: „liegt vor, wird aber nicht
+  ausgeliefert" ist ein eigener, benannter Zustand.
+
+  Beim Bau ist dabei ein Fehler aus Schritt 4 aufgefallen: Eine Site mit TLS
+  besteht aus zwei Serverblöcken in einer Datei und stand deshalb zweimal in
+  der Liste — mit zwei Löschknöpfen für dieselbe Sache.
+
+  Die Zertifikatspfade kommen nicht aus der Anfrage, sondern aus dem
+  Datenverzeichnis — und nur, wenn die Dateien existieren: Ein
+  `ssl_certificate` ins Leere lässt nginx gar nicht erst starten, und dann ist
+  nicht diese eine Site weg, sondern jede. Der Schalter „TLS" merkt sich
+  deshalb zunächst nur den Wunsch. Ebenso lässt eine aktive https-Umleitung
+  `/.well-known/acme-challenge/` ausdrücklich durch; ohne die Ausnahme fiele
+  die gescheiterte Erneuerung erst in sechzig Tagen auf.
 
 - **Modul Webserver, Schritt 4 von 8: Sites lesend.** Auf einem Bestandsserver
   ist die Fläche `/webserver` ab hier nicht mehr leer — sie zeigt die

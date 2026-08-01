@@ -863,6 +863,27 @@ type ergebnisLeitstand struct {
 			Pfad   string     `json:"pfad"`
 			Zeilen [][]string `json:"zeilen"`
 		} `json:"ports"`
+		StufeDrei struct {
+			Tippfeld    bool   `json:"tippfeld"`
+			Hinweis     string `json:"hinweis"`
+			ErsterPunkt string `json:"ersterPunkt"`
+			Gesperrt    bool   `json:"gesperrt"`
+		} `json:"stufeDrei"`
+		StufeZwei struct {
+			Tippfeld bool     `json:"tippfeld"`
+			Punkte   []string `json:"punkte"`
+		} `json:"stufeZwei"`
+		Probe struct {
+			Da            bool   `json:"da"`
+			ErsteZahl     int    `json:"ersteZahl"`
+			Text          string `json:"text"`
+			Knopf         string `json:"knopf"`
+			VorDerTabelle bool   `json:"vorDerTabelle"`
+		} `json:"probe"`
+		NachBestaetigen struct {
+			Probe   bool   `json:"probe"`
+			Meldung string `json:"meldung"`
+		} `json:"nachBestaetigen"`
 		Zurueck string `json:"zurueck"`
 		Schmal  struct {
 			KoerperBreite  float64  `json:"koerperBreite"`
@@ -1175,17 +1196,18 @@ func TestLeitstandBrowser(t *testing.T) {
 				Domains: []string{"shop.example.com", "www.shop.example.com"},
 				Zielart: "proxy", Ziel: "http://127.0.0.1:3000",
 				Ports: []int{80, 443}, TLS: true, Verwaltet: true,
+				Ausgeliefert: true,
 			},
 			{
 				Name: "alt.example.com", Datei: "/etc/nginx/sites-enabled/alt",
 				Domains: []string{"alt.example.com"},
 				Zielart: "statisch", Ziel: "/var/www/alt",
-				Ports: []int{80},
+				Ports: []int{80}, Ausgeliefert: true,
 			},
 			{
 				Name: "default", Datei: "/etc/nginx/sites-enabled/default",
 				Zielart: "statisch", Ziel: "/var/www/html",
-				Ports: []int{80},
+				Ports: []int{80}, Ausgeliefert: true,
 			},
 		},
 	}
@@ -3723,6 +3745,56 @@ func TestLeitstandBrowser(t *testing.T) {
 	if eigen != 2 || fremdePorts != 1 {
 		t.Errorf("Belegung falsch gelesen: %d eigen, %d fremd — erwartet 2 und 1",
 			eigen, fremdePorts)
+	}
+
+	// Der Schreibpfad. Zuerst die Stufe 3: Ein Verzeichnis außerhalb der
+	// üblichen Wurzeln ist der legitime und häufige Fall — und zugleich der Weg,
+	// über den eine Site fremde Daten ausliefert.
+	if !wb.StufeDrei.Tippfeld {
+		t.Error("ein root außerhalb von /var/www und /srv kam ohne getipptes Wort durch")
+	}
+	if !wb.StufeDrei.Gesperrt {
+		t.Error("der Knopf war offen, bevor der Domainname getippt war")
+	}
+	if !strings.Contains(wb.StufeDrei.Hinweis, "neu.example.com") {
+		t.Errorf("der Hinweis nennt nicht, was zu tippen ist: %q", wb.StufeDrei.Hinweis)
+	}
+	// Die Begründung an erster Stelle: Sie ist der Grund für die Stufe, und
+	// unter drei anderen Zeilen liest sie niemand.
+	if !strings.Contains(wb.StufeDrei.ErsterPunkt, "außerhalb") {
+		t.Errorf("die Begründung steht nicht an erster Stelle: %q", wb.StufeDrei.ErsterPunkt)
+	}
+
+	// Der gerade Fall ist Stufe 2 — die Probe fängt den Fehler, und ein
+	// getipptes Wort wäre eine Hürde ohne Zuwachs an Sicherheit.
+	if wb.StufeZwei.Tippfeld {
+		t.Error("ein gewöhnlicher Reverse-Proxy verlangt ein getipptes Wort")
+	}
+	if !strings.Contains(strings.Join(wb.StufeZwei.Punkte, " "), "Probe") {
+		t.Errorf("die Rückfrage erwähnt die Probe nicht: %v", wb.StufeZwei.Punkte)
+	}
+
+	// Das Probeband. Es ist die einzige Stelle dieser Fläche, an der
+	// Untätigkeit etwas rückgängig macht.
+	if !wb.Probe.Da {
+		t.Fatal("nach dem Speichern steht kein Probeband da — eine Änderung, die " +
+			"niemand bestätigen muss, hat keinen Rückweg")
+	}
+	if wb.Probe.ErsteZahl < 30 || wb.Probe.ErsteZahl > 60 {
+		t.Errorf("die Uhr steht auf %d, erwartet zwischen 30 und 60", wb.Probe.ErsteZahl)
+	}
+	if !wb.Probe.VorDerTabelle {
+		t.Error("das Probeband steht unter der Liste — wer hereinkommt, während " +
+			"die Frist läuft, muss zuerst den Knopf sehen, der sie beendet")
+	}
+	if wb.Probe.Knopf == "" {
+		t.Error("im Probeband fehlt der Knopf zum Bestätigen")
+	}
+	if wb.NachBestaetigen.Probe {
+		t.Error("nach dem Bestätigen läuft die Probe weiter")
+	}
+	if !strings.Contains(wb.NachBestaetigen.Meldung, "bestätigt") {
+		t.Errorf("nach dem Bestätigen fehlt die Rückmeldung: %q", wb.NachBestaetigen.Meldung)
 	}
 
 	// Der Zurück-Knopf des Browsers führt auf die Sites zurück.

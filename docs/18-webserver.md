@@ -1,7 +1,8 @@
 # 18 — Webserver & Domains (Stufe 0.6)
 
-> **Stand:** Schritte 1 bis 4 von 8 sind gebaut (Fundament; der Challenge-Weg
-> durch nginx hindurch; der mehrfähige Zertifikatshalter; Sites **lesend**).
+> **Stand:** Schritte 1 bis 5 von 8 sind gebaut (Fundament; der Challenge-Weg
+> durch nginx hindurch; der mehrfähige Zertifikatshalter; Sites lesend und
+> **schreibend**).
 > Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
 > Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
@@ -258,6 +259,55 @@ einer Zusage: Ein Editor an einer fremden Site verspricht, sie ändern zu könne
 
 ---
 
+## 4b. Nachtrag aus dem Bau (Schritt 5 ist umgesetzt)
+
+**Der Prüfer prüft die FELDER, nicht sein Erzeugnis.** Das stand in §6 schon als
+dritte Eigenschaft und ist beim Bau die tragende geworden: Bei Compose kommt die
+Datei vom Benutzer, hier vom Panel. Ein Prüfer, der den erzeugten Text liest,
+prüft die eigene Vorlage — und was die Vorlage falsch macht, macht sie in jeder
+Zeile gleich falsch.
+
+**„Abschalten" ist ein Umbenennen, und das macht `SiteList` zu einer
+Verschmelzung.** nginx zieht aus `conf.d` nur `*.conf` ein, also genügt
+`asylum-<name>.conf.aus`. Nur: `nginx -T` zeigt eine abgeschaltete Site dann
+nicht mehr, und was in keiner Liste steht, lässt sich auch nicht wieder
+einschalten. `SiteList` liest deshalb zwei Quellen — was nginx ausliefert und
+was dem Panel gehört —, wie `StackList` bei Docker.
+
+Das ist **keine Rücknahme** von §4a. Abgelehnt wurde dort, die
+`include`-Auflösung von nginx für fremde Konfigurationen nachzubauen. Die
+eigenen Dateien hat das Panel geschrieben, es weiß, wo sie liegen, und es gibt
+darin kein `include` aufzulösen. Was von ihnen wirklich ausgeliefert wird, sagt
+weiterhin nur Quelle 1 — dafür trägt jede Site das Feld `Ausgeliefert`, und
+„liegt vor, wird aber nicht ausgeliefert" ist ein eigener, benannter Zustand.
+
+**Eine Site mit TLS sind ZWEI Serverblöcke in einer Datei.** Das hat einen
+Fehler in Schritt 4 sichtbar gemacht: `SiteList` gab pro Block eine Zeile
+zurück, also stünde die Site zweimal in der Liste — mit zwei Löschknöpfen für
+dieselbe Sache. Gefaltet wird jetzt je verwalteter Datei, und nur dort: Eine
+fremde Datei kann ein Dutzend unabhängiger Blöcke enthalten.
+
+**Ohne bezogenes Zertifikat entsteht kein 443-Block.** Ein `ssl_certificate`,
+das ins Leere zeigt, lässt nginx gar nicht erst starten — dann ist nicht diese
+eine Site weg, sondern jede. Der Schalter „TLS" merkt sich deshalb den Wunsch;
+der Block kommt mit dem Zertifikat (Schritt 7).
+
+**Die https-Umleitung lässt `/.well-known/acme-challenge/` ausdrücklich durch.**
+Ohne die Ausnahme leitete Port 80 auch die ACME-Prüfung um, und der Fehler fiele
+erst beim nächsten Erneuerungslauf auf — in sechzig Tagen.
+
+**Löschen läuft ohne Probe.** Sie stünde in §7 nicht, und das ist Absicht: Ein
+Rückweg, der die Datei zurückholt und das Zertifikat verwaisen lässt, ist
+schlechter als keiner — er lässt jemanden glauben, er könne es sich noch
+überlegen. Der Dialog sagt das ausdrücklich.
+
+**Der Wächter der Probe ist herausgelöst** (`internal/httpd/probe.go`,
+`probenWaechter`) und trägt jetzt zwei Bereiche. Ein GETEILTER Wächter hieße,
+dass eine bestätigte Firewalländerung eine unbestätigte Site mitbestätigt;
+deshalb hat jeder Bereich seinen eigenen, mit eigener Frist.
+
+---
+
 ## 5. Grundentscheidungen
 
 **E1 — nginx wird verwaltet, alles andere ist ein fremder Webserver.**
@@ -403,6 +453,7 @@ Umschaltstreifen unter 900 px).
 |---|---|---|
 | **Sites** (Vorgabe) ✅ | `/webserver` | Werkbank: Liste (verwaltet/fremd, Domain, Ziel, TLS-Zustand) + Inspektor mit Feldern, Vorgangsplatte |
 | **Portbelegung** ✅ | `/webserver/ports` | wer auf 80 und 443 hört, eigen und fremd nebeneinander |
+
 | **Zertifikate** | `/webserver/zertifikate` | je Site: Aussteller, Restlaufzeit, letzter Bezugsversuch, Knopf „jetzt erneuern" |
 
 Der Zustandskopf (Server, Fassung, läuft/läuft nicht) steht über allen Flächen —
@@ -445,7 +496,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 2 ✅ | **Der Challenge-Weg** (Abschnitt 3): `webrootSolver`, verwaltetes Drop-in für `/.well-known/acme-challenge/`, Auswahl nach Zustand, `nginx -t` in `ConfigCheck` | Das Panel erneuert sein eigenes Zertifikat weiter, **nachdem** nginx da ist. Der Schreibpfad ist damit in Betrieb, bevor die erste Benutzersite existiert |
 | 3 ✅ | **Der Halter wird mehrfähig** (Abschnitt 4): Index Name → Zertifikat aus den SANs, Auswahl über SNI, Rückfall auf das Panel-Zertifikat; Manager je Zertifikat über `Options.Kennung` | Bestandscode im TLS-Pfad, eigener Schritt, eigener Test |
 | 4 ✅ | **Sites lesend**: `SiteList` über `nginx -T` (die **gerenderte** Konfiguration, nicht die Dateien), Trennung verwaltet/fremd, `SiteDatei` nur für verwaltete, Fläche `/webserver` mit Portbelegung daneben | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
-| 5 | **Sites schreibend**: Felder → Drop-in, **Site-Prüfer**, `nginx -t`, reload, **Probe mit Rückweg**, Hash-Konflikt | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
+| 5 ✅ | **Sites schreibend**: Felder → Drop-in, **Site-Prüfer**, `nginx -t`, reload, **Probe mit Rückweg**, Fassungskonflikt; dazu Abschalten über die Dateiendung und ein eigener `probenWaechter` neben dem der Firewall | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 | **Ziele**: Reverse-Proxy (Container aus dem Docker-Modul zur Auswahl!), statisches Verzeichnis, PHP-FPM über das Paketmodul | Der Alltagsfall |
 | 7 | **TLS je Site**: Bezug über ACME, Erneuerung, Zustand je Site, Signale + Warnpunkte | Der Satz aus §2 wird eingelöst |
 | 8 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch über `alias`, Selbstausschluss provozieren; Messung; Doku | Wie Schritt 9 des Docker-Moduls |

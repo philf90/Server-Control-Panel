@@ -187,7 +187,7 @@ func (s *Server) handleAPIWebserverSiteSchalten(w http.ResponseWriter, r *http.R
 	if !anfrage.An {
 		if !s.apiBestaetigt(w, anfrage.apiAktionAnfrage, apiBestaetigung{
 			Titel: "Site abschalten",
-			Frage: fmt.Sprintf("Die Site %s abschalten?", name),
+			Frage: fmt.Sprintf("Die Site „%s“ abschalten?", name),
 			Punkte: []string{
 				"Die Domains dieser Site werden danach nicht mehr beantwortet.",
 				"Die Konfiguration bleibt liegen und lässt sich wieder einschalten.",
@@ -240,7 +240,7 @@ func (s *Server) handleAPIWebserverSiteLoeschen(w http.ResponseWriter, r *http.R
 	}
 	if !s.apiBestaetigt(w, anfrage, apiBestaetigung{
 		Titel: "Site löschen",
-		Frage: fmt.Sprintf("Die Site %s endgültig löschen?", name),
+		Frage: fmt.Sprintf("Die Site „%s“ endgültig löschen?", name),
 		Punkte: []string{
 			"Die Konfigurationsdatei wird entfernt; die Domains werden danach nicht mehr beantwortet.",
 			"Ein bezogenes Zertifikat bleibt auf der Platte liegen und wird nicht mehr erneuert.",
@@ -259,7 +259,7 @@ func (s *Server) handleAPIWebserverSiteLoeschen(w http.ResponseWriter, r *http.R
 	}
 	s.audit(r, "webserver.site.remove", name, store.ResultOK, "")
 
-	antwort := apiSiteAntwort{Meldung: "Die Site " + name + " ist gelöscht."}
+	antwort := apiSiteAntwort{Meldung: "Die Site „" + name + "“ ist gelöscht."}
 	s.fuelleProbe(&antwort)
 	s.apiJSON(w, http.StatusOK, antwort)
 }
@@ -291,7 +291,9 @@ func (s *Server) handleAPIWebserverSiteBestaetigen(w http.ResponseWriter, r *htt
 // wenn diese Anfrage längst beendet ist — im schlimmsten Fall gerade deshalb,
 // weil das Panel nicht mehr erreichbar ist.
 func (s *Server) armSiteProbe(name string, ruecknahme privops.SiteRuecknahme) {
-	s.siteGuard.arm("Site "+name, func(ctx context.Context) error {
+	// Der Name in Anführungszeichen: „Site neu gilt auf Probe" liest sich
+	// sonst, als wäre „neu" ein Adverb — und Sites heißen oft so.
+	s.siteGuard.arm("Site „"+name+"“", func(ctx context.Context) error {
 		s.log.Warn("Site-Änderung nicht bestätigt — Rückbau läuft", "site", name)
 		err := s.ops.SiteRestore(ctx, ruecknahme)
 		ergebnis, detail := store.ResultOK, "zurückgenommen"
@@ -385,7 +387,7 @@ func siteFrage(e privops.SiteEntwurf, p privops.SitePruefung) apiBestaetigung {
 	}
 	b := apiBestaetigung{
 		Titel:  "Site speichern",
-		Frage:  fmt.Sprintf("Die Site %s so speichern?", e.Name),
+		Frage:  fmt.Sprintf("Die Site „%s“ so speichern?", e.Name),
 		Punkte: punkte,
 		Knopf:  "speichern",
 	}

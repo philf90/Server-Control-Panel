@@ -1327,11 +1327,56 @@ export type Site = {
   ziel: string;
   ports: number[] | null;
   tls: boolean;
+  /** ausgeliefert sagt, ob nginx diesen Block kennt; aus, ob das Panel ihn
+   *  abgeschaltet hat. Zwei Felder und nicht eines: Eine Site, die weder
+   *  abgeschaltet noch ausgeliefert ist, gibt es — und das ist eine eigene
+   *  Auskunft, die der Server als anmerkung mitschickt. */
+  ausgeliefert: boolean;
+  aus: boolean;
   /** herkunft ist "verwaltet" oder "fremd" — das Wort kommt vom Server, damit es
    *  eine Auslegung gibt und nicht zwei. */
   herkunft: string;
   zielsatz: string;
   anmerkung: string;
+};
+
+/** Siteentwurf ist der Körper, den das Formular schickt.
+ *
+ *  Ohne Zertifikatspfade: Die bestimmt der Server aus dem Datenverzeichnis. Wer
+ *  sie setzen dürfte, könnte nginx eine beliebige Datei als Schlüssel
+ *  unterschieben. */
+export type Siteentwurf = {
+  domains: string[];
+  zielart: string;
+  ziel: string;
+  tls: boolean;
+  http_umleitung: boolean;
+  /** fassung ist der Hash der Datei, von der dieses Formular ausging. Leer heißt
+   *  „neu anlegen". */
+  fassung: string;
+};
+
+/** Sitebefund ist ein Fund des Prüfers — Feld, Wert und Grund. */
+export type Sitebefund = { feld: string; wert: string; grund: string };
+
+export type Siteantwort = {
+  meldung: string;
+  probe: Probestand;
+  pruefung?: {
+    ablehnungen: Sitebefund[] | null;
+    warnungen: Sitebefund[] | null;
+    ungeprueft: string[] | null;
+  };
+  fassung?: string;
+};
+
+/** Probestand ist die laufende Frist. Er steht sowohl an der Antwort auf eine
+ *  Änderung als auch an der Liste: Wer neu lädt, während die Frist läuft, muss
+ *  den Countdown vorfinden. */
+export type Probestand = {
+  offen: boolean;
+  sekunden: number;
+  gegenstand: string;
 };
 
 export type Siteliste = {
@@ -1343,6 +1388,7 @@ export type Siteliste = {
   zaehler: { alle: number; verwaltet: number; fremd: number };
   anmerkung: string;
   darf_aendern: boolean;
+  probe: Probestand;
   fehler?: string;
 };
 

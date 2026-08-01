@@ -1,8 +1,8 @@
 # 18 — Webserver & Domains (Stufe 0.6)
 
-> **Stand:** Schritte 1 bis 3 von 8 sind gebaut (Fundament; der Challenge-Weg
-> durch nginx hindurch; der mehrfähige Zertifikatshalter). Dazu
-> **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
+> **Stand:** Schritte 1 bis 4 von 8 sind gebaut (Fundament; der Challenge-Weg
+> durch nginx hindurch; der mehrfähige Zertifikatshalter; Sites **lesend**).
+> Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
 > Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
 > §7.4 und der Meilensteintabelle in [06-roadmap.md](06-roadmap.md).
@@ -207,6 +207,57 @@ tiefer. Jetzt gibt es `PruefeKennung` als Allowlist (a–z, 0–9, `-`, `_`) und
 
 ---
 
+## 4a. Der dritte Befund: gelesen wird die gerenderte Konfiguration
+
+*(Nachtrag aus dem Bau — Schritt 4 ist umgesetzt.)*
+
+Der Plan sagte in §9: „`SiteList` (verwaltete Drop-ins + fremde vHosts aus
+`sites-enabled`)". Das ist beim Bau gefallen, und der Grund ist derselbe, aus
+dem der Compose-Prüfer gegen `docker compose config` läuft und nicht gegen die
+Rohdatei ([17-docker.md](17-docker.md) E4):
+
+**Die Dateien sind nicht die Konfiguration.** nginx zieht mit `include` beliebige
+Pfade herein — `conf.d/*.conf`, `sites-enabled/*`, alles, was in der
+`nginx.conf` steht. Wer `sites-enabled` liest, sieht nicht, was der Server
+daraus macht: nicht den Serverblock aus einem Verzeichnis, das niemand auf dem
+Zettel hatte, nicht den, der über einen zweiten `include` doppelt hereinkommt,
+und nicht den, der in `sites-available` liegt und dessen Verweis fehlt. Und ein
+Serverblock, den niemand sieht, ist genau der, der einer Domain die Antwort
+wegnimmt.
+
+Gelesen wird deshalb **`nginx -T`** — die vollständige, aufgelöste
+Konfiguration, mit `# configuration file <pfad>:` vor jedem Abschnitt, sodass
+die Herkunft erhalten bleibt.
+
+**Der Preis steht im Feld `Gelesen`.** `nginx -T` läuft nur, wenn die
+Konfiguration **gültig** ist. Ist sie kaputt, kommt keine Teilmenge zurück,
+sondern nichts — und eine leere Liste sieht aus wie ein Server ohne Sites. Die
+beiden verlangen entgegengesetzte Handgriffe (reparieren gegen anlegen), deshalb
+trägt `SiteBestand` neben den Sites ein `Gelesen bool` und die Meldung von
+nginx. Dieselbe Haltung wie bei `ConfigCheckResult.Checked` und
+`WebServerState.LauscherGeprueft`: **„nicht geprüft" ist kein „in Ordnung".**
+
+Ein zweiter, dateilesender Parser für den kaputten Fall wurde bewusst **nicht**
+gebaut. Er wäre eine zweite Auslegung derselben Konfiguration, die genau dann
+liefe, wenn die erste sie für ungültig hält — und was er zeigte, wäre nicht das,
+was der Server ausliefert, weil der Server in diesem Zustand gar nichts
+ausliefert. Der Weg aus dem kaputten Zustand führt über die Meldung von nginx
+und den Dateimanager; beides steht auf der Fläche.
+
+**Verwaltet ist eine Site nur, wenn Pfad UND Marker stimmen.** Ein Drop-in unter
+`/etc/nginx/conf.d/asylum-*.conf` ohne den Marker gilt als fremd, und ein Marker
+in einer fremden Datei macht sie nicht zu einer eigenen. Beides einzeln wäre
+fälschbar: Wer eine Datei unter dem passenden Namen anlegt, bekäme sonst
+Schreibzugriff auf sie — über eine Fläche, deren Zusage lautet, nur eigene
+Dateien anzufassen.
+
+`SiteDatei` liefert deshalb auch **nur verwaltete** Sites aus und antwortet für
+alles andere mit 404. Das ist kein Geheimnisschutz — der Dateimanager kann jede
+dieser Dateien, und die Rechte dort sind dieselben —, sondern die Vermeidung
+einer Zusage: Ein Editor an einer fremden Site verspricht, sie ändern zu können.
+
+---
+
 ## 5. Grundentscheidungen
 
 **E1 — nginx wird verwaltet, alles andere ist ein fremder Webserver.**
@@ -350,19 +401,28 @@ Umschaltstreifen unter 900 px).
 
 | Fläche | Adresse | Inhalt |
 |---|---|---|
-| **Sites** (Vorgabe) | `/webserver` | Werkbank: Liste (verwaltet/fremd, Domain, Ziel, TLS-Zustand) + Inspektor mit Feldern, Vorgangsplatte |
+| **Sites** (Vorgabe) ✅ | `/webserver` | Werkbank: Liste (verwaltet/fremd, Domain, Ziel, TLS-Zustand) + Inspektor mit Feldern, Vorgangsplatte |
+| **Portbelegung** ✅ | `/webserver/ports` | wer auf 80 und 443 hört, eigen und fremd nebeneinander |
 | **Zertifikate** | `/webserver/zertifikate` | je Site: Aussteller, Restlaufzeit, letzter Bezugsversuch, Knopf „jetzt erneuern" |
-| **Zustand** | `/webserver/zustand` | welcher Server läuft, `nginx -t` auf Knopfdruck, die letzten Zeilen des Fehlerprotokolls |
 
 Der Zustandskopf (Server, Fassung, läuft/läuft nicht) steht über allen Flächen —
 wie bei Docker, und aus demselben Grund.
 
-> **Abweichung aus Schritt 1:** Gebaut ist zunächst **eine** Fläche, nicht drei.
+> **Abweichung aus Schritt 1:** Gebaut war zunächst **eine** Fläche, nicht drei.
 > Die Unterpunkte entstehen mit ihrem Inhalt (Schritt 4 und 7) und nicht vorher.
 > Der Grund ist derselbe, aus dem Docker in seinem ersten Schritt eine Seite
 > bekam: Zwei Menüeinträge, die auf „kommt noch" führen, sind schlechter als
 > keine — sie versprechen eine Fläche und liefern eine Vertröstung. Was fehlt,
 > sagt stattdessen ein Absatz auf der einen Fläche.
+
+> **Nachtrag aus Schritt 4:** Statt der geplanten Fläche „Zustand" gibt es
+> **Portbelegung**. Der Grund ist, dass von „Zustand" nach dem Bau von Schritt 1
+> nichts mehr übrig war: Server, Fassung und Dienstzustand stehen im Kopf über
+> allen Flächen, und was eine eigene Adresse verdient, ist die Lauschertabelle —
+> die Antwort auf „warum steht hier kein Installationsknopf" und die Stelle, an
+> der eigene und fremde Bindungen nebeneinander sichtbar werden. `nginx -t` auf
+> Knopfdruck und die letzten Zeilen des Fehlerprotokolls kommen mit Schritt 5
+> dorthin, wo sie hingehören: neben den Schreibpfad, der sie auslöst.
 
 **Fehlt ein Webserver**, zeigt die Seite genau eine Karte mit dem Zustand und dem
 Knopf „nginx installieren" — die Antwort, die ufw seit `rc.4` und Docker seit
@@ -384,7 +444,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 1 ✅ | **Fundament**: Allowlist-Einträge `nginx` und `ss`, `WebServerState` (nginx verwaltet / fremd mit Name / keiner, dazu **wer 80 und 443 hält**), Installation als Job und nur bei freiem Port, `GET /api/v1/webserver`, eine Fläche | Das Modul existiert, kann nginx installieren — und tut es nicht, wenn dort schon etwas läuft |
 | 2 ✅ | **Der Challenge-Weg** (Abschnitt 3): `webrootSolver`, verwaltetes Drop-in für `/.well-known/acme-challenge/`, Auswahl nach Zustand, `nginx -t` in `ConfigCheck` | Das Panel erneuert sein eigenes Zertifikat weiter, **nachdem** nginx da ist. Der Schreibpfad ist damit in Betrieb, bevor die erste Benutzersite existiert |
 | 3 ✅ | **Der Halter wird mehrfähig** (Abschnitt 4): Index Name → Zertifikat aus den SANs, Auswahl über SNI, Rückfall auf das Panel-Zertifikat; Manager je Zertifikat über `Options.Kennung` | Bestandscode im TLS-Pfad, eigener Schritt, eigener Test |
-| 4 | **Sites lesend**: `SiteList` (verwaltete Drop-ins + fremde vHosts aus `sites-enabled`), Detail, Werkbank | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
+| 4 ✅ | **Sites lesend**: `SiteList` über `nginx -T` (die **gerenderte** Konfiguration, nicht die Dateien), Trennung verwaltet/fremd, `SiteDatei` nur für verwaltete, Fläche `/webserver` mit Portbelegung daneben | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 | **Sites schreibend**: Felder → Drop-in, **Site-Prüfer**, `nginx -t`, reload, **Probe mit Rückweg**, Hash-Konflikt | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 | **Ziele**: Reverse-Proxy (Container aus dem Docker-Modul zur Auswahl!), statisches Verzeichnis, PHP-FPM über das Paketmodul | Der Alltagsfall |
 | 7 | **TLS je Site**: Bezug über ACME, Erneuerung, Zustand je Site, Signale + Warnpunkte | Der Satz aus §2 wird eingelöst |

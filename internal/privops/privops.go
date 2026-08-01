@@ -169,6 +169,16 @@ type Executor interface {
 	// nginx, nginx bindet 80, und was dort lief, ist weg.
 	WebServerState(ctx context.Context) (WebServerState, error)
 	WebServerInstall(ctx context.Context, stream LineWriter) error
+	// SiteList liest die Serverblöcke aus der GERENDERTEN Konfiguration
+	// (`nginx -T`), nicht aus den Dateien. `include` ist bei nginx die Regel;
+	// wer die Dateien selbst zusammensucht, baut den Auflöser nach.
+	//
+	// SiteBestand.Gelesen trennt „keine Sites" von „nicht nachsehen können" —
+	// nginx -T läuft nur bei gültiger Konfiguration.
+	SiteList(ctx context.Context) (SiteBestand, error)
+	// SiteDatei liefert den Inhalt einer VERWALTETEN Site. Nimmt einen Namen und
+	// keinen Pfad — derselbe Vertrag wie bei StackDatei.
+	SiteDatei(ctx context.Context, name string) (string, error)
 	// AcmeWebroot legt den Weg für die HTTP-01-Prüfung DURCH nginx hindurch und
 	// gibt das Verzeichnis zurück, in das die Token gehören.
 	//

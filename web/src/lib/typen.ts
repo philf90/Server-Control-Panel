@@ -1315,6 +1315,37 @@ export type Webserver = {
   fehler?: string;
 };
 
+/** Site ist ein Serverblock, den nginx ausliefert. */
+export type Site = {
+  name: string;
+  datei: string;
+  domains: string[] | null;
+  /** zielart ist "proxy", "statisch", "umleitung" oder leer. Sie steuert nichts
+   *  in der Oberfläche — der fertige Satz steht in zielsatz. Das Feld bleibt für
+   *  das Sortieren und für den Fall, dass eine Fläche einmal danach filtert. */
+  zielart: string;
+  ziel: string;
+  ports: number[] | null;
+  tls: boolean;
+  /** herkunft ist "verwaltet" oder "fremd" — das Wort kommt vom Server, damit es
+   *  eine Auslegung gibt und nicht zwei. */
+  herkunft: string;
+  zielsatz: string;
+  anmerkung: string;
+};
+
+export type Siteliste = {
+  sites: Site[] | null;
+  /** gelesen sagt, ob `nginx -T` überhaupt lief. FALSE heißt „unbekannt" und
+   *  NICHT „keine Sites": Eine leere Liste aus einem Fehler verlangt Reparieren,
+   *  eine leere Liste aus einem leeren Server verlangt Anlegen. */
+  gelesen: boolean;
+  zaehler: { alle: number; verwaltet: number; fremd: number };
+  anmerkung: string;
+  darf_aendern: boolean;
+  fehler?: string;
+};
+
 export type Docker = {
   installiert: boolean;
   /** paket ist "docker.io", "docker-ce" oder leer bei einer Installation an apt

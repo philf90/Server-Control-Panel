@@ -31,6 +31,10 @@ export const t = {
     dockerUpdates: "Image-Updates",
     dockerBestand: "Bestand",
     webserver: "Webserver",
+    // Die Flächen unter Webserver. „Sites" ist die Vorgabe und steht deshalb
+    // ausdrücklich da — „Webserver ohne Zusatz" wäre kein Name.
+    webserverSites: "Sites",
+    webserverPorts: "Portbelegung",
     datenbanken: "Datenbanken",
     backups: "Backups",
     firewall: "Firewall",
@@ -998,13 +1002,47 @@ export const t = {
     unbenannt: "nicht ermittelt",
     eigen: "nginx",
     fremd: "fremd",
+    // Die Marke in der Portspalte. „verwaltet" und nicht „nginx": In der Zeile
+    // steht der Programmname schon davor, und „nginx nginx" ist keine Auskunft.
+    // Dasselbe Wort wie in der Sitesliste — dieselbe Frage, dieselbe Antwort.
+    markeVerwaltet: "verwaltet",
     nurOwner:
       "Dieses Konto darf den Zustand sehen, den Webserver aber nicht einspielen. Eine Site ist eine Konfiguration, die als root gelesen wird und einen Dienst aus dem Netz erreichbar macht — deshalb liegt dieses Modul bei der Owner-Rolle.",
     imBau: "Was hier noch fehlt",
     // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
     // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
     imBauDetail:
-      "Dies ist der erste Schritt: der Zustand und die Installation. Sites als Domain → Ziel → TLS, der Prüfer und der Schreibpfad mit Probe folgen. Zwei Schritte gehen ihnen voraus, weil sie Bestandscode betreffen — der Weg für die ACME-Prüfung durch den Webserver hindurch und ein Zertifikatshalter, der mehr als ein Zertifikat kennt. Die Begründung steht im Repository unter docs/18-webserver.md.",
+      "Sites sind bis hierher LESBAR: Was nginx ausliefert, steht in der Liste — auch das, was das Panel nie geschrieben hat. Was fehlt, ist der Schreibpfad: Sites anlegen und ändern als Domain → Ziel → TLS, der Prüfer davor, `nginx -t` und die Probe danach. Ein Zertifikat je Site folgt danach. Die Begründung steht im Repository unter docs/18-webserver.md.",
+
+    // Die Fläche „Sites".
+    sites: "Sites",
+    sitesLaedt: "Konfiguration wird gelesen …",
+    // Der leere Fall braucht keinen eigenen Satz: Ob die Liste leer ist, weil
+    // der Server leer ist, oder weil sie sich nicht lesen ließ, entscheidet der
+    // Server — und schickt den passenden Satz als anmerkung mit. Zwei Sätze
+    // hier wären eine zweite Auslegung derselben Frage.
+    spalteSite: "Site",
+    spalteDomains: "Domains",
+    spalteZiel: "Ziel",
+    spaltePorts: "Ports",
+    spalteHerkunft: "Herkunft",
+    ohneDomain: "ohne server_name",
+    tls: "TLS",
+    zaehlerVerwaltet: "verwaltet",
+    zaehlerFremd: "fremd",
+    // Der Satz über der Liste. Er sagt, was diese Fläche IST und was sie noch
+    // nicht ist — sonst sucht man den Knopf zum Anlegen, den es noch nicht gibt.
+    sitesNurLesend:
+      "Diese Liste zeigt, was nginx gerade ausliefert. Ändern lässt sich hier noch nichts — der Schreibpfad kommt im nächsten Schritt.",
+    // Ohne nginx wird `nginx -T` gar nicht erst aufgerufen. Ein Fehler „command
+    // not found" wäre die Antwort auf eine Frage, die niemand gestellt hat —
+    // die Karten oben sagen bereits, was fehlt.
+    sitesOhneNginx:
+      "Ohne nginx gibt es keine Serverblöcke zu lesen. Was zu tun ist, steht oben.",
+    portsUngeprueft:
+      "Die Belegung der Webports ließ sich nicht ermitteln — `ss` fehlt oder antwortete nicht. Solange das so ist, bietet das Panel die Installation nicht an: Unbekannt ist kein Frei.",
+    portsFrei: "Auf Port 80 und 443 hört derzeit niemand.",
+    flaecheUnbekannt: "Diese Fläche gibt es in diesem Modul nicht.",
   },
 
   docker: {

@@ -310,6 +310,14 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/webserver", s.protected(http.HandlerFunc(s.handleAPIWebserver)))
 	mux.Handle("POST /api/v1/webserver/install",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverInstall)))))
+	// Sites, lesend. Der Name im Pfad wird nie zu einem Pfad auf der Platte —
+	// wo die Datei liegt, bestimmt das verwaltete Verzeichnis. Käme der Pfad
+	// aus der Anfrage, wäre das ein Weg, jede Datei des Servers zu lesen;
+	// dieselbe Regel wie bei den Compose-Stacks.
+	mux.Handle("GET /api/v1/webserver/sites",
+		s.protected(http.HandlerFunc(s.handleAPIWebserverSites)))
+	mux.Handle("GET /api/v1/webserver/sites/{name}",
+		s.protected(http.HandlerFunc(s.handleAPIWebserverSite)))
 
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst

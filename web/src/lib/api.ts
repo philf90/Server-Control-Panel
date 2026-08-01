@@ -21,6 +21,7 @@ import type {
   DienstDetail,
   Docker,
   Webserver,
+  Siteliste,
   EigenesKonto,
   Firewall,
   FirewallAntwort,
@@ -367,6 +368,17 @@ export const api = {
    *  Knopf verschwindet zwar vorher — aber zwischen dem Laden der Seite und dem
    *  Klick liegt beliebig viel Zeit, und die Sperre sitzt deshalb im Server. */
   nginxEinspielen: () => anfrage<VorgangGestartet>("/webserver/install", { method: "POST" }),
+  /** webserverSites liefert die Serverblöcke, die nginx wirklich ausliefert —
+   *  aus `nginx -T` und nicht aus den Dateien. Verwaltete und fremde in einer
+   *  Liste, unterschieden im Feld herkunft. */
+  webserverSites: () => anfrage<Siteliste>("/webserver/sites"),
+  /** webserverSite liefert den Inhalt EINER verwalteten Site. Für eine fremde
+   *  antwortet der Server 404: Das Panel schreibt sie nicht, und ein Editor
+   *  wäre die Zusage, es doch zu tun. */
+  webserverSite: (name: string) =>
+    anfrage<{ name: string; inhalt: string }>(
+      `/webserver/sites/${encodeURIComponent(name)}`,
+    ),
   /** container liefert die vollständige Liste. Gefiltert wird im Browser: Ein
    *  Server hat selten mehr als ein paar Dutzend Container, und beim Tippen ist
    *  das Ergebnis dann sofort da. */

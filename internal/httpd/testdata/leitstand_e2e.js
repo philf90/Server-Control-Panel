@@ -3455,18 +3455,17 @@ async function main() {
   await seite.setViewportSize({ width: 1280, height: 720 });
   await seite.waitForTimeout(200);
 
-  // 15. Das Modul Webserver, Schritt 1 der Fassung 0.6.
+  // 15. Das Modul Webserver, Schritte 1 bis 4 der Fassung 0.6.
   //
-  //     Die Attrappe meldet die Lage, um die es in docs/18-webserver.md E1 geht:
-  //     kein nginx, aber ein Caddy auf den Ports 80 und 443. Das ist absichtlich
-  //     nicht der bequeme Fall — der bequeme Fall (leerer Server, ein Knopf) ist
-  //     der, den Go-Tests vollständig abdecken, und die Lehre aus 0.5.1 lautet:
-  //     Ein Zustand, den die Testdaten nie annehmen, ist ein ungeprüfter Zustand.
+  //     Die Attrappe meldet eine Lage, die zwei Dinge auf einmal prüft: nginx
+  //     läuft und liefert drei Serverblöcke aus — UND daneben hält ein Caddy die
+  //     443 auf IPv6. Das ist absichtlich nicht der bequeme Fall; die Lehre aus
+  //     0.5.1 lautet, dass ein Zustand, den die Testdaten nie annehmen, ein
+  //     ungeprüfter Zustand ist.
   //
   //     Geprüft wird die Zusage, die dieses Modul im Browser einlösen muss:
-  //     KEIN Installationsknopf, und an seiner Stelle ein Satz, der den fremden
-  //     Server nennt. Ein Knopf, der einen laufenden Webserver vom Netz nimmt,
-  //     ist der eine Fehler, den diese Fläche nicht machen darf.
+  //     KEIN Installationsknopf, an seiner Stelle ein Satz, der den fremden
+  //     Server nennt — und eine Sitesliste, die verwaltet von fremd trennt.
   const web = {};
   await seite.click('.seitenleiste a[href="/webserver"]');
   await seite.waitForSelector(".karten .karte", { timeout: 5000 });
@@ -3476,12 +3475,8 @@ async function main() {
       kopf: k.querySelector(".kopf")?.textContent.trim() ?? "",
       wert: k.querySelector(".wert")?.textContent.trim() ?? "",
     }));
-    const zeilen = [...document.querySelectorAll("table tbody tr")].map((tr) =>
-      [...tr.querySelectorAll("td")].map((td) => td.textContent.trim()),
-    );
     return {
       karten,
-      zeilen,
       anmerkung: document.querySelector(".hinweis")?.textContent.trim() ?? "",
       // Knöpfe, die etwas AUSLÖSEN. Verweise (<a class="knopf">) zählen nicht
       // mit: Der Weg zum Dateimanager ist genau das, was hier stehen soll.
@@ -3493,16 +3488,62 @@ async function main() {
       ),
       // Der Menüpunkt darf nicht mehr auf die Seite „bald" führen.
       baldPlatte: !!document.querySelector(".platte .satz"),
+      // Die Flächen des Moduls, so wie die Seitenleiste sie zeigt. Sie kommen
+      // aus lib/ziele.ts — steht hier nichts, ist die Navigation zerrissen.
+      kinderInLeiste: [...document.querySelectorAll(".seitenleiste .kinder a")].map((a) =>
+        a.getAttribute("href"),
+      ),
     };
   });
+
+  //     Die Sitesliste ist die Vorgabe des Moduls und steht deshalb schon da.
+  //     Gelesen wird sie mit denselben Spaltenköpfen, mit denen sie gerendert
+  //     ist: data-spalte trägt schmal die Beschriftung, und eine Zelle ohne ihn
+  //     ist auf einem Telefon eine Zahl ohne Bedeutung.
+  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
+  web.sites = await seite.evaluate(() => ({
+    zeilen: [...document.querySelectorAll(".tabelle tbody tr")].map((tr) =>
+      [...tr.querySelectorAll("td")].map((td) => ({
+        text: td.textContent.trim(),
+        spalte: td.getAttribute("data-spalte") ?? "",
+      })),
+    ),
+    zaehler: document.querySelector(".zaehler")?.textContent.trim() ?? "",
+  }));
   await bildschirmfoto(seite, "leitstand-webserver", { fullPage: true });
+
+  //     Die zweite Fläche: die Portbelegung. Sie hat eine eigene Adresse, und
+  //     der Wechsel darf die Seite nicht neu laden — sonst wäre der Unterschied
+  //     zwischen einer Fläche und einem Verweis nach draußen keiner.
+  await seite.click('.seitenleiste .kinder a[href="/webserver/ports"]');
+  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
+  web.ports = await seite.evaluate(() => ({
+    pfad: location.pathname,
+    zeilen: [...document.querySelectorAll(".tabelle tbody tr")].map((tr) =>
+      [...tr.querySelectorAll("td")].map((td) => td.textContent.trim()),
+    ),
+  }));
+  await bildschirmfoto(seite, "leitstand-webserver-ports", { fullPage: true });
+
+  //     Zurück auf die Sites — der Zurück-Knopf des Browsers ist Teil der
+  //     Bedienung und nicht ein Fall, der nebenbei auch noch funktionieren soll.
+  await seite.goBack();
+  await seite.waitForTimeout(300);
+  web.zurueck = await seite.evaluate(() => location.pathname);
 
   await seite.setViewportSize({ width: 375, height: 800 });
   await seite.waitForTimeout(250);
-  web.schmal = await seite.evaluate(() => ({
-    koerperBreite: document.body.scrollWidth,
-    fensterBreite: window.innerWidth,
-  }));
+  web.schmal = await seite.evaluate(() => {
+    const streifen = document.querySelector(".streifen");
+    return {
+      koerperBreite: document.body.scrollWidth,
+      fensterBreite: window.innerWidth,
+      streifenDa: !!streifen && streifen.getBoundingClientRect().width > 0,
+      streifenPunkte: streifen
+        ? [...streifen.querySelectorAll("a")].map((a) => a.textContent.trim())
+        : [],
+    };
+  });
   await bildschirmfoto(seite, "leitstand-webserver-schmal");
   await seite.setViewportSize({ width: 1280, height: 720 });
   await seite.waitForTimeout(200);

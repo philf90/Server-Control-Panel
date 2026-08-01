@@ -113,6 +113,39 @@ nicht als Release getaggt.
   ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
   da ist.
 
+- **Modul Webserver, Schritt 4 von 8: Sites lesend.** Auf einem Bestandsserver
+  ist die Fläche `/webserver` ab hier nicht mehr leer — sie zeigt die
+  Serverblöcke, die nginx ausliefert, mit Domains, Ziel, Ports und TLS. Dazu
+  eine zweite Fläche `/webserver/ports` mit der Portbelegung; die
+  Zustandskarten stehen über beiden.
+
+  **Gelesen wird die gerenderte Konfiguration (`nginx -T`), nicht das
+  Verzeichnis `sites-enabled`.** Dieselbe Entscheidung wie beim Compose-Prüfer,
+  und aus demselben Grund: nginx zieht mit `include` beliebige Pfade herein.
+  Wer die Dateien liest, sieht nicht, was der Server daraus macht — und ein
+  Serverblock, den niemand sieht, ist genau der, der einer Domain die Antwort
+  wegnimmt.
+
+  Der Preis dafür steht auf der Fläche: `nginx -T` läuft nur bei **gültiger**
+  Konfiguration. Ist sie kaputt, ist die Liste nicht kurz, sondern leer — und
+  das sieht aus wie ein Server ohne Sites. Die beiden verlangen entgegengesetzte
+  Handgriffe, deshalb sagt die Antwort ausdrücklich, welcher der beiden Fälle
+  vorliegt, und zeigt im Fehlerfall die Meldung von nginx samt Datei und Zeile.
+  „Nicht gelesen" ist kein „nichts da" — dieselbe Haltung wie bei der
+  Portbelegung und bei `ConfigCheck`.
+
+  **Verwaltet ist eine Site nur, wenn Pfad und Marker beide stimmen.** Ein
+  Drop-in unter `/etc/nginx/conf.d/asylum-*.conf` ohne Marker gilt als fremd,
+  und ein Marker in einer fremden Datei macht sie nicht zu einer eigenen —
+  jedes der beiden Merkmale allein wäre fälschbar. Der Inhalt einer Site
+  liefert das Panel nur für verwaltete aus; für fremde antwortet es 404. Das
+  ist kein Geheimnisschutz (der Dateimanager kann sie ohnehin), sondern die
+  Vermeidung einer Zusage: Ein Editor an einer fremden Site verspricht, sie
+  ändern zu können.
+
+  Ändern lässt sich hier noch nichts — der Schreibpfad mit Prüfer, `nginx -t`
+  und Probe ist Schritt 5.
+
 - **Modul Webserver, Schritt 3 von 8: der Zertifikatshalter kann mehr als
   eines.** Bis 0.5 hielt er genau eines — das des Panels — und ignorierte den
   ClientHello. Jetzt wählt er über SNI aus, mit einem Index, der aus den SANs

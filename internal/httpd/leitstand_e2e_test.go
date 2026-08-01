@@ -846,15 +846,29 @@ type ergebnisLeitstand struct {
 				Kopf string `json:"kopf"`
 				Wert string `json:"wert"`
 			} `json:"karten"`
-			Zeilen     [][]string `json:"zeilen"`
-			Anmerkung  string     `json:"anmerkung"`
-			Knoepfe    []string   `json:"knoepfe"`
-			Verweise   []string   `json:"verweise"`
-			BaldPlatte bool       `json:"baldPlatte"`
+			Anmerkung      string   `json:"anmerkung"`
+			Knoepfe        []string `json:"knoepfe"`
+			Verweise       []string `json:"verweise"`
+			BaldPlatte     bool     `json:"baldPlatte"`
+			KinderInLeiste []string `json:"kinderInLeiste"`
 		} `json:"zustand"`
-		Schmal struct {
-			KoerperBreite float64 `json:"koerperBreite"`
-			FensterBreite float64 `json:"fensterBreite"`
+		Sites struct {
+			Zeilen [][]struct {
+				Text   string `json:"text"`
+				Spalte string `json:"spalte"`
+			} `json:"zeilen"`
+			Zaehler string `json:"zaehler"`
+		} `json:"sites"`
+		Ports struct {
+			Pfad   string     `json:"pfad"`
+			Zeilen [][]string `json:"zeilen"`
+		} `json:"ports"`
+		Zurueck string `json:"zurueck"`
+		Schmal  struct {
+			KoerperBreite  float64  `json:"koerperBreite"`
+			FensterBreite  float64  `json:"fensterBreite"`
+			StreifenDa     bool     `json:"streifenDa"`
+			StreifenPunkte []string `json:"streifenPunkte"`
 		} `json:"schmal"`
 	} `json:"web"`
 	Zweige struct {
@@ -1123,16 +1137,56 @@ func TestLeitstandBrowser(t *testing.T) {
 	// Zwei Ereignisse, und der Unterschied zwischen ihnen ist der Grund, warum
 	// sie hier stehen: Ein Start ist Betriebsgeräusch, ein Exit 137 ist der
 	// Befund, wegen dessen jemand den Strom öffnet.
-	// Der Webserver. Absichtlich die unbequeme Lage: kein nginx, aber ein Caddy
-	// auf 80 und 443. Der bequeme Fall — leerer Server, ein Knopf — ist der, den
-	// die Go-Tests vollständig abdecken; hier steht der, bei dem die Fläche
-	// etwas VERSCHWEIGEN muss, nämlich den Knopf. Die Lehre aus 0.5.1: Ein
-	// Zustand, den die Testdaten nie annehmen, ist ein ungeprüfter Zustand.
+	// Der Webserver. Absichtlich die unbequeme Lage — und mit Schritt 4 eine
+	// andere als bis 0.6: nginx läuft, UND daneben hält ein Caddy die 443 auf
+	// IPv6. Die beiden vertragen sich nur, weil sie auf verschiedenen
+	// Adressfamilien binden; wer das nicht sieht, sucht den Fehler an der
+	// falschen Stelle.
+	//
+	// Warum nicht mehr „kein nginx, Caddy auf 80": Ohne nginx gibt es keine
+	// Sitesliste zu rendern, und die ist das Neue an diesem Schritt — ihre
+	// Tabelle hat fünf Spalten und bricht bei 375 px als erste. Die Zusage
+	// „kein Installationsknopf bei fremdem Server" prüft diese Lage weiter mit
+	// (installiert heißt ebenfalls: kein Knopf), und die Wortwahl der Anmerkung
+	// für den alten Fall hängt an einer reinen Go-Funktion, die
+	// api_webserver_test.go vollständig abdeckt.
 	ops.web = privops.WebServerState{
+		Installiert:      true,
+		Version:          "nginx/1.22.1",
+		Paket:            "nginx-core",
+		DienstAktiv:      true,
 		LauscherGeprueft: true,
 		Lauscher: []privops.Lauscher{
-			{Port: 80, Adresse: "0.0.0.0", Prozess: "caddy", PID: 651},
+			{Port: 80, Adresse: "0.0.0.0", Prozess: "nginx", PID: 1204},
+			{Port: 443, Adresse: "0.0.0.0", Prozess: "nginx", PID: 1204},
 			{Port: 443, Adresse: "[::]", Prozess: "caddy", PID: 651},
+		},
+	}
+
+	// Die Sites: eine verwaltete und zwei fremde. Die dritte ist der Block ohne
+	// server_name — der Vorgabeblock, den jede Debian-Installation mitbringt.
+	// Er ist kein Lesefehler, sondern ein Zustand, und die Fläche muss ihn als
+	// solchen zeigen statt eine leere Zelle zu lassen.
+	ops.sites = privops.SiteBestand{
+		Gelesen: true,
+		Sites: []privops.Site{
+			{
+				Name: "shop", Datei: "/etc/nginx/conf.d/asylum-shop.conf",
+				Domains: []string{"shop.example.com", "www.shop.example.com"},
+				Zielart: "proxy", Ziel: "http://127.0.0.1:3000",
+				Ports: []int{80, 443}, TLS: true, Verwaltet: true,
+			},
+			{
+				Name: "alt.example.com", Datei: "/etc/nginx/sites-enabled/alt",
+				Domains: []string{"alt.example.com"},
+				Zielart: "statisch", Ziel: "/var/www/alt",
+				Ports: []int{80},
+			},
+			{
+				Name: "default", Datei: "/etc/nginx/sites-enabled/default",
+				Zielart: "statisch", Ziel: "/var/www/html",
+				Ports: []int{80},
+			},
 		},
 	}
 
@@ -3555,13 +3609,11 @@ func TestLeitstandBrowser(t *testing.T) {
 		t.Errorf("die Attrappe deckt nicht beide Fälle ab: %d benutzt, %d frei", benutzt, frei)
 	}
 
-	// 6i. Das Modul Webserver, Schritt 1 der Fassung 0.6.
+	// 6i. Das Modul Webserver, Schritte 1 bis 4 der Fassung 0.6.
 	//
-	// Die Attrappe meldet die Lage aus docs/18-webserver.md E1: kein nginx, aber
-	// ein Caddy auf 80 und 443. Geprüft wird deshalb vor allem, was die Seite
-	// NICHT zeigt — den Installationsknopf. Er ist die einzige Aktion dieses
-	// Moduls, die einen Server im Betrieb umbringen kann: `apt-get install
-	// nginx` startet nginx, nginx bindet Port 80, und der Caddy ist weg.
+	// Die Attrappe meldet: nginx läuft mit drei Serverblöcken, und daneben hält
+	// ein Caddy die 443 auf IPv6. Geprüft wird vor allem, was die Seite NICHT
+	// zeigt — den Installationsknopf — und was sie an seiner Stelle sagt.
 	wb := e.Web
 	if wb.Pfad != "/webserver" {
 		t.Errorf("der Pfad ist %q, erwartet /webserver", wb.Pfad)
@@ -3585,7 +3637,7 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !strings.Contains(wb.Zustand.Anmerkung, "caddy") {
 		t.Errorf("die Anmerkung nennt den fremden Server nicht: %q", wb.Zustand.Anmerkung)
 	}
-	if !strings.Contains(wb.Zustand.Anmerkung, "80") {
+	if !strings.Contains(wb.Zustand.Anmerkung, "443") {
 		t.Errorf("die Anmerkung nennt den belegten Port nicht: %q", wb.Zustand.Anmerkung)
 	}
 	// Das Modul nimmt nichts weg: Die Konfiguration des fremden Servers bleibt
@@ -3593,25 +3645,108 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !enthaelt(wb.Zustand.Verweise, "/dateien") {
 		t.Errorf("der Weg zur fremden Konfiguration fehlt: %v", wb.Zustand.Verweise)
 	}
-	// Die Belegung als Tabelle: zwei Zeilen, beide als fremd gekennzeichnet.
-	// Ohne sie stünde die Behauptung ohne ihren Beleg da.
-	if len(wb.Zustand.Zeilen) != 2 {
-		t.Fatalf("erwartet 2 Portzeilen, gerendert sind %d: %+v",
-			len(wb.Zustand.Zeilen), wb.Zustand.Zeilen)
+	// Die Flächen des Moduls stehen in der Seitenleiste. Ohne sie gäbe es die
+	// Portbelegung nur noch für den, der die Adresse auswendig kennt.
+	for _, pfad := range []string{"/webserver", "/webserver/ports"} {
+		if !enthaelt(wb.Zustand.KinderInLeiste, pfad) {
+			t.Errorf("die Fläche %s fehlt in der Seitenleiste: %v",
+				pfad, wb.Zustand.KinderInLeiste)
+		}
 	}
-	for _, z := range wb.Zustand.Zeilen {
+
+	// Die Sitesliste — das Neue an Schritt 4. Drei Zeilen, und die interessante
+	// ist die dritte: der Vorgabeblock ohne server_name. Eine leere Zelle wäre
+	// dort ein Lesefehler, den es nicht gibt.
+	if len(wb.Sites.Zeilen) != 3 {
+		t.Fatalf("erwartet 3 Sitezeilen, gerendert sind %d: %+v",
+			len(wb.Sites.Zeilen), wb.Sites.Zeilen)
+	}
+	var verwaltet, fremd int
+	for _, z := range wb.Sites.Zeilen {
+		if len(z) != 5 {
+			t.Fatalf("eine Sitezeile hat %d Spalten, erwartet 5: %+v", len(z), z)
+		}
+		// data-spalte an jeder Zelle: Schmal trägt er die Beschriftung, und
+		// ohne ihn ist „443" auf einem Telefon eine Zahl ohne Bedeutung.
+		for _, zelle := range z {
+			if zelle.Spalte == "" {
+				t.Errorf("einer Zelle fehlt data-spalte: %+v", z)
+			}
+		}
+		switch {
+		case strings.Contains(z[4].Text, "verwaltet"):
+			verwaltet++
+		case strings.Contains(z[4].Text, "fremd"):
+			fremd++
+		default:
+			t.Errorf("die Herkunft der Zeile ist unlesbar: %q", z[4].Text)
+		}
+	}
+	if verwaltet != 1 || fremd != 2 {
+		t.Errorf("die Trennung stimmt nicht: %d verwaltet, %d fremd — erwartet 1 und 2",
+			verwaltet, fremd)
+	}
+	// Der Vorgabeblock: keine Domain, und das muss dastehen statt einer Lücke.
+	if !strings.Contains(wb.Sites.Zeilen[2][1].Text, "server_name") {
+		t.Errorf("der Block ohne server_name zeigt keine Erklärung: %q",
+			wb.Sites.Zeilen[2][1].Text)
+	}
+	if !strings.Contains(wb.Sites.Zaehler, "1") || !strings.Contains(wb.Sites.Zaehler, "2") {
+		t.Errorf("die Zähler über der Liste fehlen: %q", wb.Sites.Zaehler)
+	}
+
+	// Die zweite Fläche: Portbelegung unter eigener Adresse, ohne Neuladen.
+	if wb.Ports.Pfad != "/webserver/ports" {
+		t.Errorf("die Portfläche steht unter %q, erwartet /webserver/ports", wb.Ports.Pfad)
+	}
+	if len(wb.Ports.Zeilen) != 3 {
+		t.Fatalf("erwartet 3 Portzeilen, gerendert sind %d: %+v",
+			len(wb.Ports.Zeilen), wb.Ports.Zeilen)
+	}
+	// Eigen und fremd nebeneinander in derselben Tabelle: Genau diese Mischung
+	// ist die Lage, in der jemand die Seite aufschlägt, und bis 0.6 nahmen die
+	// Testdaten sie nie an.
+	var eigen, fremdePorts int
+	for _, z := range wb.Ports.Zeilen {
 		if len(z) < 3 {
 			t.Fatalf("eine Portzeile hat zu wenige Spalten: %+v", z)
 		}
-		if !strings.Contains(z[2], "caddy") || !strings.Contains(z[2], "fremd") {
+		switch {
+		case strings.Contains(z[2], "caddy") && strings.Contains(z[2], "fremd"):
+			fremdePorts++
+		case strings.Contains(z[2], "nginx"):
+			eigen++
+		default:
 			t.Errorf("die Zeile nennt Programm und Herkunft nicht: %+v", z)
 		}
 	}
+	if eigen != 2 || fremdePorts != 1 {
+		t.Errorf("Belegung falsch gelesen: %d eigen, %d fremd — erwartet 2 und 1",
+			eigen, fremdePorts)
+	}
+
+	// Der Zurück-Knopf des Browsers führt auf die Sites zurück.
+	if wb.Zurueck != "/webserver" {
+		t.Errorf("nach dem Zurückgehen steht %q, erwartet /webserver", wb.Zurueck)
+	}
+
 	// Schmal: keine waagerechte Scrollerei. Dieselbe Regel wie überall, und die
-	// Tabelle ist die Stelle, an der sie zuerst bricht.
+	// Sitestabelle mit ihren fünf Spalten ist die Stelle, an der sie zuerst
+	// bricht.
 	if wb.Schmal.KoerperBreite > wb.Schmal.FensterBreite+1 {
 		t.Errorf("bei 375 px scrollt die Webserverseite waagerecht: %.0f > %.0f",
 			wb.Schmal.KoerperBreite, wb.Schmal.FensterBreite)
+	}
+	// Schmal ist die Seitenleiste eine Symbolschiene ohne Beschriftungen —
+	// dort tritt der Umschaltstreifen an ihre Stelle. Fehlt er, ist die zweite
+	// Fläche auf einem Telefon unerreichbar.
+	if !wb.Schmal.StreifenDa {
+		t.Error("bei 375 px fehlt der Umschaltstreifen — die Portbelegung wäre " +
+			"auf einem Telefon nur über die getippte Adresse zu erreichen")
+	}
+	if len(wb.Schmal.StreifenPunkte) != 2 {
+		t.Errorf("der Streifen zeigt %d Punkte, erwartet 2: %v",
+			len(wb.Schmal.StreifenPunkte), wb.Schmal.StreifenPunkte)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

@@ -185,6 +185,26 @@ export const gruppen: Gruppe[] = [
         // Panel ihn nicht anfasst. Ein Suchwort, das ins Leere führt, wäre die
         // schlechtere der beiden Auskünfte. Dasselbe gilt für apache.
         auch: ["nginx", "caddy", "apache", "vhost", "site", "domain", "proxy", "port 80"],
+        kinder: [
+          {
+            id: "webserver/",
+            label: t.ziele.webserverSites,
+            symbol: "globus",
+            href: "/webserver",
+            gruppe: t.ziele.webserver,
+            neu: true,
+            auch: ["vhost", "serverblock", "domain", "proxy", "server_name"],
+          },
+          {
+            id: "webserver/ports",
+            label: t.ziele.webserverPorts,
+            symbol: "globus",
+            href: "/webserver/ports",
+            gruppe: t.ziele.webserver,
+            neu: true,
+            auch: ["port 80", "port 443", "belegt", "lauscher", "ss", "listen"],
+          },
+        ],
       },
       {
         id: "datenbanken",

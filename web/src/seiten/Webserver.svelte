@@ -21,10 +21,20 @@
   // Was ein fremder Webserver NICHT bedeutet: dass hier nichts mehr geht. Seine
   // Konfiguration bleibt über den Dateimanager erreichbar — das Modul nimmt
   // nichts weg, es fasst nur nichts an, was ihm nicht gehört.
+  //
+  // Seit Schritt 4 hat das Modul Flächen mit eigenen Adressen — Sites und
+  // Portbelegung —, gebaut wie bei Docker: Die Liste steht in lib/ziele.ts,
+  // damit Seitenleiste und Befehlspalette dieselbe kennen. Die drei
+  // Zustandskarten bleiben auf JEDER Fläche oben stehen. Das ist Absicht: Ihre
+  // Auskunft ist die Voraussetzung für alles darunter — eine leere Sitesliste
+  // erklärt sich nur zusammen mit „nginx fehlt" oder „ein fremder Webserver
+  // hält Port 80". Sie kosten drei Prozessaufrufe und keinen `nginx -T`.
+  import Sitesliste from "../komponenten/Sites.svelte";
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
   import { AbgemeldetFehler, api } from "../lib/api";
   import { t } from "../lib/texte";
-  import { verweis } from "../lib/weg.svelte";
+  import { verweis, weg } from "../lib/weg.svelte";
+  import { alleZiele } from "../lib/ziele";
   import { Vorgang } from "../lib/vorgang.svelte";
   import type { Webserver } from "../lib/typen";
 
@@ -85,6 +95,13 @@
   const laeuftVorgang = $derived(vorgang.job?.laeuft ?? false);
   const lauscher = $derived(daten?.lauscher ?? []);
   const fremde = $derived(daten?.fremd ?? []);
+  /** adressen sind die Bindungsadressen ohne Wiederholungen — siehe die dritte
+   *  Karte. */
+  const adressen = $derived([...new Set(lauscher.map((l) => l.adresse))]);
+
+  /** flaechen sind die Unterseiten dieses Moduls — dieselbe Liste, aus der die
+   *  Seitenleiste ihre eingerückten Punkte baut. */
+  const flaechen = $derived(alleZiele.find((z) => z.id === "webserver")?.kinder ?? []);
 
   /** portzustand ist die Beschriftung der dritten Karte. Drei Werte, weil es
    *  drei Lagen gibt — „unbekannt" ist kein „frei". */
@@ -156,9 +173,13 @@
            beantwortet keine Frage, und die Zahl steht ohnehin in der Tabelle
            darunter. Was hier hilft, ist, ob die Bindung von außen erreichbar
            ist. -->
+      <!-- Ohne Wiederholungen: Ein Server hört meist auf beiden Webports und
+           dort noch je einmal auf IPv4 und IPv6. „0.0.0.0 · 0.0.0.0 · [::]" ist
+           keine bessere Auskunft als „0.0.0.0 · [::]" — die Zuordnung Adresse zu
+           Port steht in der Tabelle unter „Portbelegung". -->
       <div class="unter">
-        {#if daten.ports_geprueft && lauscher.length}
-          {lauscher.map((l) => l.adresse).join(" · ")}
+        {#if daten.ports_geprueft && adressen.length}
+          {adressen.join(" · ")}
         {/if}
       </div>
     </div>
@@ -201,42 +222,90 @@
     <p class="hinweis">{t.webserver.nurOwner}</p>
   {/if}
 
-  <!-- Die Belegung als Tabelle, nicht nur als Kartentext. Grundsatz IV: Was das
-       Panel weiß, sagt es — und wer wissen will, warum hier kein Knopf steht,
-       soll die Zeile sehen, aus der das folgt. -->
-  {#if daten.ports_geprueft && lauscher.length}
-    <h2>{t.webserver.belegung}</h2>
-    <div class="tabelle-rahmen">
-      <table class="tabelle">
-        <thead>
-          <tr>
-            <th>{t.webserver.spaltePort}</th>
-            <th>{t.webserver.spalteAdresse}</th>
-            <th>{t.webserver.spalteProzess}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each lauscher as l (l.port + l.adresse + l.prozess)}
-            <tr>
-              <td data-spalte={t.webserver.spaltePort}>{l.port}</td>
-              <td data-spalte={t.webserver.spalteAdresse}>{l.adresse}</td>
-              <td data-spalte={t.webserver.spalteProzess}>
-                {l.prozess || t.webserver.unbenannt}
-                <span class="marke klein">
-                  {l.eigen ? t.webserver.eigen : t.webserver.fremd}
-                </span>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+  <!-- Der Umschaltstreifen. Er steht NUR in der schmalen Ansicht: Breit
+       übernehmen die Unterpunkte der Seitenleiste diese Aufgabe, und zwei
+       sichtbare Navigationen für dieselbe Sache wären eine zu viel. Die Liste
+       kommt aus lib/ziele.ts — es soll eine Stelle geben, an der steht, welche
+       Flächen dieses Modul hat. -->
+  {#if flaechen.length}
+    <nav class="streifen" aria-label={t.ziele.webserver}>
+      {#each flaechen as f (f.id)}
+        <a
+          href={f.href}
+          onclick={(e) => verweis(e, f.href)}
+          class:an={f.id === "webserver/" + weg.unterseite}
+          aria-current={f.id === "webserver/" + weg.unterseite ? "page" : undefined}
+        >
+          {f.label}
+        </a>
+      {/each}
+    </nav>
   {/if}
 
-  <div class="platte">
-    <b>{t.webserver.imBau}</b>
-    <p>{t.webserver.imBauDetail}</p>
-  </div>
+  {#if weg.unterseite === ""}
+    <h2>{t.webserver.sites}</h2>
+    <!-- Ohne nginx wird die Liste gar nicht erst geholt: `nginx -T` gibt es
+         dann nicht, und ein „command not found" wäre die Antwort auf eine
+         Frage, die niemand gestellt hat. -->
+    {#if daten.installiert}
+      <Sitesliste />
+    {:else}
+      <p class="detail">{t.webserver.sitesOhneNginx}</p>
+    {/if}
+
+    <div class="platte">
+      <b>{t.webserver.imBau}</b>
+      <p>{t.webserver.imBauDetail}</p>
+    </div>
+  {:else if weg.unterseite === "ports"}
+    <!-- Die Belegung als Tabelle, nicht nur als Kartentext. Grundsatz IV: Was
+         das Panel weiß, sagt es — und wer wissen will, warum oben kein Knopf
+         steht, soll die Zeile sehen, aus der das folgt.
+
+         Die drei Fälle sind hier ausgeschrieben und fallen nicht auf eine leere
+         Fläche zusammen: „ungeprüft" und „frei" sehen sonst beide wie eine
+         Tabelle aus, die es nicht gibt — und genau der Unterschied entscheidet
+         über den Installationsknopf. -->
+    <h2>{t.webserver.belegung}</h2>
+    {#if !daten.ports_geprueft}
+      <p class="hinweis">{t.webserver.portsUngeprueft}</p>
+    {:else if lauscher.length === 0}
+      <p class="detail">{t.webserver.portsFrei}</p>
+    {:else}
+      <div class="tabelle-rahmen">
+        <table class="tabelle">
+          <thead>
+            <tr>
+              <th>{t.webserver.spaltePort}</th>
+              <th>{t.webserver.spalteAdresse}</th>
+              <th>{t.webserver.spalteProzess}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each lauscher as l (l.port + l.adresse + l.prozess)}
+              <tr>
+                <td data-spalte={t.webserver.spaltePort}>{l.port}</td>
+                <td data-spalte={t.webserver.spalteAdresse}>{l.adresse}</td>
+                <td data-spalte={t.webserver.spalteProzess}>
+                  {l.prozess || t.webserver.unbenannt}
+                  <span class="marke klein">
+                    {l.eigen ? t.webserver.markeVerwaltet : t.webserver.fremd}
+                  </span>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  {:else}
+    <!-- Ein zweites Segment, das es nicht gibt. Nicht stillschweigend auf die
+         Sites fallen: Das sähe aus, als hätte der Verweis gestimmt. -->
+    <p class="detail">{t.webserver.flaecheUnbekannt}</p>
+    <a class="knopf leise" href="/webserver" onclick={(e) => verweis(e, "/webserver")}>
+      {t.ziele.webserverSites}
+    </a>
+  {/if}
 {/if}
 
 <style>
@@ -262,6 +331,41 @@
   @media (min-width: 700px) {
     .karten {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  /* Der Umschaltstreifen: nur schmal. Breit steht dieselbe Navigation in der
+     Seitenleiste, und zwei sichtbare Wege zur selben Fläche sind einer zu viel.
+     overflow-x am Streifen selbst und nicht am Körper — die Regel „kein
+     waagerechtes Scrollen bei 375 px" gilt für die Seite, nicht für ein Band,
+     das ausdrücklich zum Schieben da ist. */
+  .streifen {
+    display: none;
+  }
+
+  @media (max-width: 900px) {
+    .streifen {
+      display: flex;
+      gap: 0.3rem;
+      overflow-x: auto;
+      margin-bottom: 0.9rem;
+      padding-bottom: 0.3rem;
+    }
+
+    .streifen a {
+      flex: none;
+      color: var(--tx-mut);
+      text-decoration: none;
+      font-size: 0.8rem;
+      padding: 0.3rem 0.7rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .streifen a.an {
+      color: var(--tx);
+      border-color: var(--accent-dim);
     }
   }
 

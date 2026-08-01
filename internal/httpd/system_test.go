@@ -58,6 +58,12 @@ type fakeOps struct {
 	webrootErr     error
 	webrootDomains [][]string
 
+	// Sites. sitesErr ist absichtlich befüllbar, aber der wichtigere Fall ist
+	// SiteBestand.Gelesen = false: „nicht lesbar" ist ein Zustand, kein Fehler.
+	sites       privops.SiteBestand
+	sitesErr    error
+	siteDateien map[string]string
+
 	selfUpdates   []privops.SelfUpdateSpec
 	selfUpdateErr error
 
@@ -554,6 +560,22 @@ func (f *fakeOps) WebServerInstall(_ context.Context, stream privops.LineWriter)
 		close(done)
 	}
 	return err
+}
+
+func (f *fakeOps) SiteList(context.Context) (privops.SiteBestand, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.sites, f.sitesErr
+}
+
+func (f *fakeOps) SiteDatei(_ context.Context, name string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	inhalt, da := f.siteDateien[name]
+	if !da {
+		return "", errors.New("keine verwaltete Site " + name)
+	}
+	return inhalt, nil
 }
 
 func (f *fakeOps) AcmeWebroot(_ context.Context, domains []string) (string, error) {

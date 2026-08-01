@@ -28,6 +28,13 @@ type apiSite struct {
 	Ziel    string   `json:"ziel"`
 	Ports   []int    `json:"ports"`
 	TLS     bool     `json:"tls"`
+	// Ausgeliefert sagt, ob nginx diesen Block kennt. Aus sagt, ob das Panel ihn
+	// abgeschaltet hat. Zwei Felder und nicht eines: Eine Site, die weder
+	// abgeschaltet noch ausgeliefert ist, gibt es — dann liest nginx die Datei
+	// aus einem Grund nicht, den das Panel nicht kennt, und das ist eine eigene
+	// Auskunft.
+	Ausgeliefert bool `json:"ausgeliefert"`
+	Aus          bool `json:"aus"`
 	// Herkunft ist "verwaltet" oder "fremd" — das Wort, das die Liste zeigt.
 	// Es kommt vom Server, damit es eine Auslegung gibt.
 	Herkunft string `json:"herkunft"`
@@ -53,13 +60,27 @@ type apiSites struct {
 	// Anmerkung ist der Satz zur Lage, vom Server formuliert.
 	Anmerkung   string `json:"anmerkung"`
 	DarfAendern bool   `json:"darf_aendern"`
-	Fehler      string `json:"fehler,omitempty"`
+	// Probe ist die laufende Frist, falls eine läuft. Sie steht in der LISTE und
+	// nicht nur in der Antwort auf die Änderung: Wer die Seite neu lädt, während
+	// die Frist läuft, muss den Countdown vorfinden — sonst bestätigt er nicht,
+	// die Änderung fällt weg, und er weiß nicht, warum. Derselbe Grund wie bei
+	// der Firewall.
+	Probe struct {
+		Offen      bool   `json:"offen"`
+		Sekunden   int    `json:"sekunden"`
+		Gegenstand string `json:"gegenstand"`
+	} `json:"probe"`
+	Fehler string `json:"fehler,omitempty"`
 }
 
 // handleAPIWebserverSites liefert die Serverblöcke des Webservers.
 func (s *Server) handleAPIWebserverSites(w http.ResponseWriter, r *http.Request) {
 	user, _ := userFrom(r.Context())
 	antwort := apiSites{DarfAendern: user.CanManageUsers()}
+	offen, rest := s.siteGuard.state()
+	antwort.Probe.Offen = offen
+	antwort.Probe.Sekunden = int(rest.Seconds())
+	antwort.Probe.Gegenstand = s.siteGuard.subjectOf()
 
 	bestand, err := s.ops.SiteList(r.Context())
 	if err != nil {
@@ -72,16 +93,18 @@ func (s *Server) handleAPIWebserverSites(w http.ResponseWriter, r *http.Request)
 	antwort.Fehler = bestand.Fehler
 	for _, si := range bestand.Sites {
 		antwort.Sites = append(antwort.Sites, apiSite{
-			Name:      si.Name,
-			Datei:     si.Datei,
-			Domains:   si.Domains,
-			Zielart:   si.Zielart,
-			Ziel:      si.Ziel,
-			Ports:     si.Ports,
-			TLS:       si.TLS,
-			Herkunft:  herkunftWort(si.Verwaltet),
-			Zielsatz:  zielsatz(si),
-			Anmerkung: si.Anmerkung,
+			Name:         si.Name,
+			Datei:        si.Datei,
+			Domains:      si.Domains,
+			Zielart:      si.Zielart,
+			Ziel:         si.Ziel,
+			Ports:        si.Ports,
+			TLS:          si.TLS,
+			Ausgeliefert: si.Ausgeliefert,
+			Aus:          si.Aus,
+			Herkunft:     herkunftWort(si.Verwaltet),
+			Zielsatz:     zielsatz(si),
+			Anmerkung:    siteAnmerkung(si),
 		})
 		antwort.Zaehler.Alle++
 		if si.Verwaltet {
@@ -93,6 +116,25 @@ func (s *Server) handleAPIWebserverSites(w http.ResponseWriter, r *http.Request)
 	antwort.Anmerkung = sitesAnmerkung(bestand)
 
 	s.apiJSON(w, http.StatusOK, antwort)
+}
+
+// siteAnmerkung ergänzt die Anmerkung des Parsers um den Fall, den nur diese
+// Schicht kennt: Die Datei liegt da, ist nicht abgeschaltet — und nginx liefert
+// sie trotzdem nicht aus.
+//
+// Das ist selten und wichtig. Es heißt, dass der `include` für conf.d fehlt oder
+// ein Reload ausblieb, und ohne diesen Satz stünde die Site in der Liste, als
+// wäre sie in Betrieb. Eine Site, die aussieht wie eine laufende und keine ist,
+// ist der unangenehmste Zustand dieser Fläche.
+func siteAnmerkung(si privops.Site) string {
+	if si.Anmerkung != "" {
+		return si.Anmerkung
+	}
+	if si.Verwaltet && !si.Aus && !si.Ausgeliefert {
+		return "Diese Datei liegt vor, aber nginx liefert sie nicht aus. Meist fehlt " +
+			"der include für conf.d in der nginx.conf."
+	}
+	return ""
 }
 
 func herkunftWort(verwaltet bool) string {

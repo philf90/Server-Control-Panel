@@ -318,6 +318,24 @@ func (s *Server) Handler() http.Handler {
 		s.protected(http.HandlerFunc(s.handleAPIWebserverSites)))
 	mux.Handle("GET /api/v1/webserver/sites/{name}",
 		s.protected(http.HandlerFunc(s.handleAPIWebserverSite)))
+	// Sites, schreibend. Owner und nicht Admin — dieselbe Begründung wie bei
+	// Docker und den Zeitplänen: Eine Site ist eine Konfiguration, die als root
+	// gelesen wird und einen Dienst aus dem Netz erreichbar macht.
+	//
+	// PUT und nicht POST: Der Name steht im Pfad, und derselbe Aufruf legt an
+	// oder ändert. Was davon geschieht, entscheidet nicht der Aufrufer, sondern
+	// der Zustand auf der Platte — und der Hash in „fassung" sagt, von welchem
+	// Stand der Aufrufer ausging.
+	mux.Handle("PUT /api/v1/webserver/sites/{name}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverSiteSchreiben)))))
+	mux.Handle("POST /api/v1/webserver/sites/{name}/schalten",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverSiteSchalten)))))
+	mux.Handle("DELETE /api/v1/webserver/sites/{name}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverSiteLoeschen)))))
+	// Die Bestätigung der Probe. Ebenfalls hinter apiSchreibend: Sie ist die
+	// zweite Hälfte einer Änderung und keine Auskunft.
+	mux.Handle("POST /api/v1/webserver/sites/bestaetigen",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverSiteBestaetigen)))))
 
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst

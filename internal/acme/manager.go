@@ -427,6 +427,22 @@ func zertVerzeichnis(wurzel, kennung string) string {
 	return filepath.Join(wurzel, "sites", name)
 }
 
+// Zertifikatspfade nennt die Dateien, in denen das Zertifikat einer Site liegt.
+//
+// Sie stehen hier und nicht in httpd, obwohl nur httpd sie braucht: Der
+// Ablageort ist eine Entscheidung dieses Pakets, und die Dateinamen sind
+// unexportiert. Sie dort noch einmal hinzuschreiben hieße, dass ein Umzug der
+// Ablage zwei Stellen ändern müsste — und die zweite fiele erst auf, wenn nginx
+// ein Zertifikat nicht findet, das es gibt.
+//
+// Ob die Dateien EXISTIEREN, sagt diese Funktion nicht. Das entscheidet der
+// Aufrufer, und er muss es entscheiden: Ein ssl_certificate, das ins Leere
+// zeigt, lässt nginx gar nicht erst starten.
+func Zertifikatspfade(wurzel, kennung string) (zertifikat, schluessel string) {
+	dir := zertVerzeichnis(wurzel, kennung)
+	return filepath.Join(dir, certFile), filepath.Join(dir, keyFile)
+}
+
 // einsetzen legt das Zertifikat in den Halter — als Panelzertifikat oder unter
 // seiner Kennung.
 //

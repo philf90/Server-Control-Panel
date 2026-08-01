@@ -1191,12 +1191,39 @@ Fläche:
 | Neustart steht aus | warn | `/pakete` |
 | Container auffällig | warn | `/docker/container` |
 | neuere Image-Fassung | warn | `/docker/updates` |
+| **Firewall-Änderung auf Probe** | **crit** | `/firewall` |
+| **Zertifikat abgelaufen / < 14 Tage** | **crit / warn** | `/zertifikate` |
+| **API-Token abgelaufen / < 7 Tage** | **warn** | `/tokens` |
 
-Das sind **drei von achtzehn** Menüpunkten. Firewall, Zertifikate, Cron,
-Panel-Zugänge und Audit haben kein Signal und können nie leuchten — die
-Abwesenheit eines Punktes heißt dort also nicht „alles in Ordnung". Ein
-ablaufendes Zertifikat wäre das erste Signal, das zu ergänzen wäre; es ist der
-Fall, den man am ehesten verpasst.
+Die letzten drei kamen unmittelbar nach den Punkten dazu, weil ihre Daten
+ohnehin im Speicher lagen: die Probe im Wächter, das Zertifikat als Datei, die
+Tokens als eine Abfrage. **Sieben von achtzehn** Menüpunkten können damit
+leuchten. Cron, Panel-Zugänge, Benutzer & SSH, Audit und die Dateien haben
+weiterhin kein Signal — die Abwesenheit eines Punktes heißt dort also nicht
+„alles in Ordnung".
+
+Drei Entscheidungen, die dabei fielen und die für jedes weitere Signal gelten:
+
+1. **Ein Punkt bedeutet „tu etwas", nicht „so ist es".** Deshalb löst ein
+   *selbstsigniertes* Zertifikat kein Signal aus, obwohl die Zertifikatsseite es
+   als Warnung führt: Auf einem bewusst selbstsignierten Server ginge der Punkt
+   nie aus, und ein Punkt, der immer an ist, nimmt den anderen ihre Wirkung.
+   Dasselbe Argument spricht gegen „ufw ist aus" und gegen „Fehler im Journal".
+2. **Ein Signal, das die Rolle nicht erreicht, gibt es nicht.** Die Tokenseite
+   ist der Owner-Rolle vorbehalten; das Tokensignal entsteht deshalb nur für
+   sie. Ein Griff, der für den Leser mit 403 endet, ist schlimmer als keiner —
+   dieselbe Überlegung, aus der ein Menüpunkt gar nicht erst erscheint.
+3. **Was einen Prozess startet, gehört hinter einen Zwischenspeicher.** Der
+   Minutentakt macht jeden Aufruf sechzigmal je Stunde teuer. Deshalb sind die
+   drei neuen Signale genau die, die nichts kosten.
+
+**Ein Befund als Zugabe:** Die Prüfung der Zertifikatsschwellen brachte einen
+Fehler ans Licht, der seit 0.3.0 auf der Zertifikatsseite stand.
+`int(time.Until(…).Hours() / 24)` schneidet zur Null hin ab — ein Zertifikat,
+das vor zwei Stunden abgelaufen war, ergab 0 statt -1, und die Seite meldete
+„läuft bald ab" statt „abgelaufen". Das galt für das gesamte erste Tag nach dem
+Ablauf, also genau dann, wenn die Auskunft am meisten zählt. Jetzt rundet
+`zertifikatTage` mit `math.Floor` in beide Richtungen ab.
 
 Beim Aufschreiben nebenbei aufgefallen: Eine volle Platte verweist auf
 `/pakete`. Das stammt aus der Zeit vor dem Dateimanager, als `apt clean` der

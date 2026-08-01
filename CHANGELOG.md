@@ -79,6 +79,22 @@ Ein Formular zur Compose-Datei, eine Berichtigung und eine Umbenennung. Wer
   Zertifikate, Cron und die übrigen Ziele gibt es noch keine Signale — die
   Abwesenheit eines Punktes heißt dort also nicht „alles in Ordnung".
 
+- **Drei neue Signale, und damit drei weitere Menüpunkte, die leuchten können:**
+  eine **Firewall-Änderung auf Probe** (kritisch — ohne Bestätigung wird sie
+  binnen einer Minute zurückgenommen, und das ist das einzige zeitkritische
+  Signal des Panels), ein **Zertifikat**, das abgelaufen ist oder in weniger als
+  vierzehn Tagen abläuft, und ein **API-Token**, der abgelaufen ist oder in
+  weniger als sieben Tagen abläuft. Alle drei lesen nur, was ohnehin im Speicher
+  oder in einer Datei liegt — kein zusätzlicher Prozessaufruf im Minutentakt.
+
+  Bewusst **kein** Signal löst ein selbstsigniertes Zertifikat aus, obwohl die
+  Zertifikatsseite es als Warnung führt: Auf einem bewusst selbstsignierten
+  Server ginge der Punkt nie aus. Ein Punkt, der immer an ist, nimmt den anderen
+  ihre Wirkung.
+
+  Das Tokensignal entsteht nur für die Owner-Rolle, weil nur sie die Tokenseite
+  erreicht. Ein Griff, der für den Leser mit 403 endet, ist schlimmer als keiner.
+
 - Die beiden Docker-Signale verweisen auf ihre Fläche statt auf das Modul:
   auffällige Container auf `/docker/container`, neuere Images auf
   `/docker/updates`. Solange Docker eine lange Seite war, hieß „/docker" ohnehin
@@ -96,6 +112,11 @@ Ein Formular zur Compose-Datei, eine Berichtigung und eine Umbenennung. Wer
   Schritt". Er stammte aus der Zeit, in der die Stackliste nur lesen konnte,
   und blieb stehen, nachdem der Schritt da war. Jetzt steht dort, was der Knopf
   daneben tut und wohin er schreibt.
+- **Ein abgelaufenes Zertifikat hieß den ganzen ersten Tag lang „läuft bald
+  ab".** `int(time.Until(…).Hours() / 24)` schneidet zur Null hin ab, ein vor
+  zwei Stunden abgelaufenes Zertifikat ergab also 0 Tage statt -1. Aufgefallen
+  beim Schreiben der Prüfung für das neue Signal; die Zertifikatsseite hat den
+  Fehler seit 0.3.0 getragen.
 - Derselbe Fehler am Fuß der Docker-Seite: „Die Container-Shell kommt mit dem
   letzten Schritt der Fassung 0.5" — sie wurde zurückgestellt, der Satz blieb.
   Er nennt jetzt den Grund statt eines Termins, den niemand zugesagt hat.

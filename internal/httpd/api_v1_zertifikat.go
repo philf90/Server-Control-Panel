@@ -31,6 +31,7 @@ package httpd
 //     docs/14-bestaetigungen.md.
 
 import (
+	"math"
 	"net/http"
 	"net/mail"
 	"os"
@@ -121,22 +122,31 @@ func (s *Server) handleAPIZertifikat(w http.ResponseWriter, r *http.Request) {
 	s.apiJSON(w, http.StatusOK, s.zertifikatAntwort(r))
 }
 
-func (s *Server) zertifikatAntwort(r *http.Request) apiZertifikat {
+// zertifikatPfad nennt das Zertifikat, das gerade AUSGELIEFERT wird, und woher
+// es kommt.
+//
+// Eigene Funktion, seit auch der Handlungsbedarf danach fragt
+// (dashboardSignals): Zwei Fassungen von „welches Zertifikat gilt gerade" liefen
+// auseinander, und die Antwort ist nicht trivial — bei eingestelltem ACME, aber
+// noch ohne bezogenes Zertifikat ist es weiter das selbstsignierte, und genau
+// dieser Zwischenzustand ist der, den jemand erklärt haben möchte.
+func (s *Server) zertifikatPfad() (pfad, quelle string) {
 	set := s.tlsSettings()
-
-	// Der Pfad des Zertifikats, das gerade AUSGELIEFERT wird. Bei eingestelltem
-	// ACME, aber noch ohne bezogenes Zertifikat ist das weiter das selbstsignierte
-	// — und genau dieser Zwischenzustand ist der, den jemand erklären möchte.
-	pfad := s.cfg.Server.TLS.Cert
-	quelle := "selbstsigniert"
+	pfad = s.cfg.Server.TLS.Cert
+	quelle = "selbstsigniert"
 	if set.Mode == config.TLSModeACME {
 		acmePfad := acme.CertPath(s.cfg.Paths.Data)
 		if _, err := os.Stat(acmePfad); err == nil {
-			pfad, quelle = acmePfad, "ACME (Let's Encrypt)"
-		} else {
-			quelle = "selbstsigniert (Rückfall — noch kein Zertifikat bezogen)"
+			return acmePfad, "ACME (Let's Encrypt)"
 		}
+		quelle = "selbstsigniert (Rückfall — noch kein Zertifikat bezogen)"
 	}
+	return pfad, quelle
+}
+
+func (s *Server) zertifikatAntwort(r *http.Request) apiZertifikat {
+	set := s.tlsSettings()
+	pfad, quelle := s.zertifikatPfad()
 
 	versuch := s.tls.attempt()
 	antwort := apiZertifikat{
@@ -167,7 +177,7 @@ func (s *Server) zertifikatAntwort(r *http.Request) apiZertifikat {
 		antwort.Lesefehler = err.Error()
 		antwort.Zustand, antwort.ZustandText = "schlecht", "nicht lesbar"
 	} else {
-		tage := int(time.Until(info.NotAfter).Hours() / 24)
+		tage := zertifikatTage(info.NotAfter)
 		antwort.Inhaber = info.Subject
 		antwort.Aussteller = info.Issuer
 		antwort.Namen = info.DNSNames
@@ -185,6 +195,22 @@ func (s *Server) zertifikatAntwort(r *http.Request) apiZertifikat {
 		antwort.GeltendeNamen = []string{}
 	}
 	return antwort
+}
+
+// zertifikatTage ist die Restlaufzeit in ganzen Tagen, abgerundet — auch ins
+// Negative.
+//
+// Der Grund für die eigene Funktion ist ein Fehler, den die Warnpunkte ans Licht
+// gebracht haben: Hier stand `int(time.Until(…).Hours() / 24)`, und int()
+// schneidet zur Null hin ab. Ein Zertifikat, das vor zwei Stunden abgelaufen
+// war, ergab damit 0 statt -1 — und die Seite meldete „läuft bald ab" statt
+// „abgelaufen". Das galt für das ganze erste Tag nach dem Ablauf, also genau in
+// dem Zeitraum, in dem die Auskunft am meisten zählt.
+//
+// math.Floor rundet in beide Richtungen ab; für positive Werte ändert sich
+// nichts, denn dort tut int() dasselbe.
+func zertifikatTage(notAfter time.Time) int {
+	return int(math.Floor(time.Until(notAfter).Hours() / 24))
 }
 
 // zertifikatZustand fasst Beglaubigung und Restlaufzeit in einem Wort zusammen.

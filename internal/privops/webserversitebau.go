@@ -1,6 +1,7 @@
 package privops
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -831,6 +832,20 @@ func schreibeZiel(b *strings.Builder, e SiteEntwurf) {
 		b.WriteString("    }\n")
 	}
 }
+
+// PHPSockets am System — der Weg über den Executor.
+//
+// Die Paketfunktion darunter gibt es weiter, aber httpd darf sie nicht direkt
+// aufrufen: privops ist die EINZIGE Systemgrenze, und sie wird über das
+// Interface erreicht, damit fakeOps in den Tests an ihre Stelle treten kann.
+//
+// Genau daran ist diese Familie beim ersten CI-Lauf gescheitert: Der Handler
+// rief privops.PHPSockets() unmittelbar auf, die Funktion las das echte
+// Dateisystem, und der Runner hatte php-fpm installiert. Auf der Entwicklermaschine
+// war der Test grün, auf dem Runner rot — der Unterschied war die Maschine und
+// nicht der Code. Ein Test, der von der Maschine abhängt, auf der er läuft, ist
+// kein Test.
+func (s *System) PHPSockets(_ context.Context) []string { return PHPSockets() }
 
 // PHPSockets sucht die vorhandenen FPM-Sockets.
 //

@@ -73,6 +73,11 @@ type fakeOps struct {
 	siteGeschaltet []string
 	siteGeloescht  []string
 	siteRestore    []privops.SiteRuecknahme
+	// phpSockets sind die FPM-Sockets, die die Attrappe meldet. Als Feld und
+	// nicht als Blick auf die Platte: Sonst hinge die Zielliste daran, ob auf
+	// der Maschine, die den Test ausführt, php-fpm installiert ist — und genau
+	// das war der erste rote CI-Lauf dieser Stufe.
+	phpSockets []string
 
 	selfUpdates   []privops.SelfUpdateSpec
 	selfUpdateErr error
@@ -626,6 +631,12 @@ func (f *fakeOps) SiteRemove(_ context.Context, name string) (privops.SiteRueckn
 	return privops.SiteRuecknahme{
 		Datei: "/etc/nginx/conf.d/asylum-" + name + ".conf", Inhalt: "alt", Hatte: true,
 	}, f.siteSchreibErr
+}
+
+func (f *fakeOps) PHPSockets(context.Context) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.phpSockets
 }
 
 func (f *fakeOps) SiteRestore(_ context.Context, r privops.SiteRuecknahme) error {

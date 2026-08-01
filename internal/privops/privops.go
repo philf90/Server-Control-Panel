@@ -192,6 +192,11 @@ type Executor interface {
 	SiteRemove(ctx context.Context, name string) (SiteRuecknahme, error)
 	// SiteRestore nimmt eine Änderung zurück — der Rückweg der Probe.
 	SiteRestore(ctx context.Context, r SiteRuecknahme) error
+	// PHPSockets nennt die vorhandenen FPM-Sockets. Über das Interface und nicht
+	// als Paketfunktion: Sie liest das Dateisystem, und jede Systemlesung gehört
+	// hinter dieselbe Grenze — sonst hängt ein Test daran, was auf der Maschine
+	// installiert ist, die ihn ausführt.
+	PHPSockets(ctx context.Context) []string
 	// AcmeWebroot legt den Weg für die HTTP-01-Prüfung DURCH nginx hindurch und
 	// gibt das Verzeichnis zurück, in das die Token gehören.
 	//

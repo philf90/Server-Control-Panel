@@ -23,6 +23,25 @@ func zieleLesen(t *testing.T, s *Server, cookie *http.Cookie) apiZiele {
 	return a
 }
 
+// Die FPM-Sockets kommen aus der Attrappe und nicht von der Platte. Auf der
+// Entwicklermaschine gab es kein php-fpm, auf dem CI-Runner schon — und die
+// erste Fassung dieser Tests war deshalb auf der einen grün und auf der anderen
+// rot. Der Unterschied war die Maschine und nicht der Code.
+func TestAPIZieleNenntVorhandeneFPMSockets(t *testing.T) {
+	s, ops := newSystemServer(t)
+	ops.phpSockets = []string{"/run/php/php8.2-fpm.sock"}
+	cookie, _ := login(t, s, addUser(t, s, "chef", store.RoleOwner))
+
+	a := zieleLesen(t, s, cookie)
+	if len(a.Vorschlaege) != 1 {
+		t.Fatalf("%d Vorschläge, erwartet 1: %+v", len(a.Vorschlaege), a.Vorschlaege)
+	}
+	v := a.Vorschlaege[0]
+	if v.Zielart != "php" || v.Ziel != "/run/php/php8.2-fpm.sock" {
+		t.Errorf("Vorschlag = %+v", v)
+	}
+}
+
 // Die Zugabe aus 0.5: Wer eine Site anlegt, tippt die Adresse nicht ab. Ein
 // abgetippter Port ist der häufigste Grund für eine Site, die 502 antwortet.
 func TestAPIZieleSchlaegtLaufendeContainerVor(t *testing.T) {

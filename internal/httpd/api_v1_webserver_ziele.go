@@ -57,7 +57,7 @@ func (s *Server) handleAPIWebserverZiele(w http.ResponseWriter, r *http.Request)
 	// PHP zuerst und ohne Docker: Ein FPM-Socket auf der Platte ist der Beleg
 	// dafür, dass ein Prozess läuft. Er kostet keinen Aufruf und fehlt auf einem
 	// Server ohne PHP einfach.
-	for _, sock := range privops.PHPSockets() {
+	for _, sock := range s.ops.PHPSockets(r.Context()) {
 		antwort.Vorschlaege = append(antwort.Vorschlaege, apiZielvorschlag{
 			Zielart: "php",
 			// Das Ziel eines PHP-Vorschlags ist der SOCKET und nicht das

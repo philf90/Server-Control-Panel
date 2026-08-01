@@ -1,6 +1,7 @@
 package privops
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -277,4 +278,41 @@ func itoaTest(n int) string {
 		n /= 10
 	}
 	return string(b)
+}
+
+// PHPSockets liest das Dateisystem — deshalb gehört der Test auf ein
+// Wegwerfverzeichnis und nicht auf das der Maschine.
+//
+// Der Befund, der dazu geführt hat, kam aus dem ersten CI-Lauf dieser Stufe:
+// Auf der Entwicklermaschine gab es kein php-fpm, auf dem Runner schon, und die
+// Zielliste in httpd bekam vier Sockets, die kein Test vorgesehen hatte. Ein
+// Test, der von der Maschine abhängt, auf der er läuft, ist kein Test — und die
+// eigentliche Ursache war, dass httpd die Paketfunktion direkt aufrief, statt
+// über den Executor zu gehen.
+func TestPHPSocketsLiestNurSockets(t *testing.T) {
+	wurzel := t.TempDir()
+	alt := phpSocketWurzeln
+	phpSocketWurzeln = []string{wurzel}
+	t.Cleanup(func() { phpSocketWurzeln = alt })
+
+	// Ein echter Socket, eine gewöhnliche Datei mit demselben Namensmuster und
+	// eine Datei mit falscher Endung.
+	ln, err := net.Listen("unix", filepath.Join(wurzel, "php8.2-fpm.sock"))
+	if err != nil {
+		t.Skipf("Unix-Sockets nicht möglich: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	for _, name := range []string{"gefaelscht.sock", "php8.2-fpm.conf"} {
+		if err := os.WriteFile(filepath.Join(wurzel, name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	aus := PHPSockets()
+	if len(aus) != 1 {
+		t.Fatalf("PHPSockets = %v, erwartet genau den echten Socket", aus)
+	}
+	if !strings.HasSuffix(aus[0], "php8.2-fpm.sock") {
+		t.Errorf("PHPSockets = %v", aus)
+	}
 }

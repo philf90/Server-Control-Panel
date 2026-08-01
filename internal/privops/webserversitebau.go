@@ -130,9 +130,81 @@ var gesperrteWurzeln = []string{
 	"/var/lib", "/var/log", "/var/backups", "/home",
 }
 
+// maxSiteDomains begrenzt die Zahl der Namen je Site — dieselbe Grenze, die
+// Let's Encrypt für die SANs eines Zertifikats zieht.
+const maxSiteDomains = 100
+
 // UeblicheWurzeln sind die Orte, an denen Webinhalte üblicherweise liegen. Was
 // darunter liegt, geht ohne Rückfrage durch.
 var UeblicheWurzeln = []string{"/var/www", "/srv"}
+
+// nginxSonderzeichen sind die Zeichen, die im Wert einer nginx-Anweisung eine
+// eigene Bedeutung haben.
+//
+// Die Liste ist kurz und vollständig, und das ist der Grund, warum hier eine
+// Sperrliste steht, wo das Modul sonst Allowlists benutzt: Geprüft wird nicht
+// das Alphabet eines Dateipfads — der darf fast alles enthalten, Umlaute
+// eingeschlossen —, sondern die GRAMMATIK von nginx. Deren Sonderzeichen sind
+// abzählbar:
+//
+//	;    beendet die Anweisung
+//	{ }  öffnen und schließen einen Block
+//	" '  beginnen eine Zeichenkette
+//	\    maskiert das nächste Zeichen
+//	#    beginnt einen Kommentar (am Tokenanfang; mitten im Wert harmlos, aber
+//	     ein Pfad mit # ist so selten, dass die Ablehnung billiger ist als der
+//	     Beweis, dass er hier nie am Anfang steht)
+//
+// Dazu kommen alle WEISSRAUM- und STEUERZEICHEN, und die sind der eigentliche
+// Fund dieses Schritts: Bis zur Härtung prüfte diese Familie nur gegen eine
+// Handvoll Zeichen — Tabulator, Leerzeichen, NUL und die übrigen C0-Zeichen
+// kamen durch. Ein `root /var/www/x #` beendet die Anweisung nicht, aber es
+// verschluckt das Semikolon und zieht die nächste Zeile hinein; ein NUL in einer
+// Konfigurationsdatei ist etwas, wovon niemand weiß, wie es gelesen wird. Beides
+// endet in `nginx -t` und im Rückweg — aber ein Prüfer, der sich darauf
+// verlässt, hat seine Aufgabe an die zweite Linie abgegeben.
+const nginxSonderzeichen = ";{}\"'\\#"
+
+// pruefeWert prüft einen Wert, der in eine nginx-Anweisung geschrieben wird.
+func pruefeWert(feld, wert string) *SiteBefund {
+	for i, r := range wert {
+		switch {
+		case r < 0x20 || r == 0x7f:
+			return &SiteBefund{
+				Feld: feld, Wert: kuerzen(wert),
+				Grund: fmt.Sprintf("Steuerzeichen an Stelle %d. In einer "+
+					"Konfigurationsdatei hat es nichts zu suchen.", i+1),
+			}
+		case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069:
+			// Die Schreibrichtungs-Umschalter. Sie sind keine Steuerzeichen im
+			// Sinne von C0 und stehen trotzdem hier: Sie sind der klassische
+			// Weg, einen Pfad in einer Liste anders aussehen zu lassen, als er
+			// ist: U+202E dreht die Anzeigerichtung um, sodass der Rest des
+			// Pfades rückwärts erscheint. Hier steht er ausdrücklich NICHT
+			// wörtlich — ein Quelltext, der ihn enthält, ist derselbe Angriff
+			// eine Ebene höher (gosec G116, „Trojan Source").
+			// Dieselbe Ablehnung wie in der Pfadwache (istSteuerzeichen).
+			return &SiteBefund{
+				Feld: feld, Wert: kuerzen(wert),
+				Grund: fmt.Sprintf("Schreibrichtungs-Umschalter an Stelle %d. Er "+
+					"ließe den Wert anders aussehen, als er ist.", i+1),
+			}
+		case r == ' ' || r == '\t':
+			return &SiteBefund{
+				Feld: feld, Wert: kuerzen(wert),
+				Grund: "Leerzeichen und Tabulatoren trennen in nginx die Bestandteile " +
+					"einer Anweisung — der Wert wäre danach ein anderer.",
+			}
+		case strings.ContainsRune(nginxSonderzeichen, r):
+			return &SiteBefund{
+				Feld: feld, Wert: kuerzen(wert),
+				Grund: fmt.Sprintf("Das Zeichen %q hat in der Konfiguration eine "+
+					"eigene Bedeutung.", string(r)),
+			}
+		}
+	}
+	return nil
+}
 
 // PruefeSiteName prüft die Kennung einer Site.
 //
@@ -192,6 +264,20 @@ func (p *SitePruefung) pruefeDomainfeld(e SiteEntwurf, lage SiteLage) {
 		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
 			Feld:  "domains",
 			Grund: "Ohne Domainnamen gäbe es keinen server_name, und die Site würde alles beantworten, was sonst niemand beantwortet.",
+		})
+		return
+	}
+
+	// Hundert Namen sind die Grenze von Let's Encrypt für SANs in einem
+	// Zertifikat. Sie steht hier und nicht erst beim Bezug: Eine Site mit
+	// tausend server_name-Einträgen ließe sich anlegen, und erst der erste
+	// Zertifikatsbezug würde sie ablehnen — nach dem Schreiben, nach dem Reload
+	// und mit einer Meldung von der Prüfstelle statt einer aus dem Formular.
+	if len(e.Domains) > maxSiteDomains {
+		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
+			Feld: "domains", Wert: strconv.Itoa(len(e.Domains)),
+			Grund: fmt.Sprintf("Höchstens %d Namen je Site — mehr nimmt auch die "+
+				"Zertifizierungsstelle nicht in ein Zertifikat.", maxSiteDomains),
 		})
 		return
 	}
@@ -298,13 +384,11 @@ func (p *SitePruefung) pruefeProxyziel(ziel string, lage SiteLage) {
 		})
 		return
 	}
-	// Zeichen, die bei nginx eine Anweisung beenden würden. url.Parse nimmt sie
-	// klaglos an — die Prüfung darauf ist deshalb keine Wiederholung.
-	if strings.ContainsAny(ziel, ";{}\n\r \t\"'\\") {
-		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
-			Feld: "ziel", Wert: kuerzen(ziel),
-			Grund: "Die Adresse enthält ein Zeichen, das in der Konfiguration eine eigene Anweisung beginnen würde.",
-		})
+	// Zeichen, die bei nginx eine Anweisung beenden würden. url.Parse weist
+	// Steuerzeichen zwar selbst ab, aber Semikolon und geschweifte Klammern
+	// nimmt es klaglos an — die Prüfung darauf ist deshalb keine Wiederholung.
+	if b := pruefeWert("ziel", ziel); b != nil {
+		p.Ablehnungen = append(p.Ablehnungen, *b)
 		return
 	}
 
@@ -335,23 +419,42 @@ func (p *SitePruefung) pruefeVerzeichnis(ziel string, lage SiteLage) {
 		})
 		return
 	}
-	if strings.ContainsAny(ziel, ";{}\n\r\"'\\") {
-		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
-			Feld: "ziel", Wert: kuerzen(ziel),
-			Grund: "Der Pfad enthält ein Zeichen, das in der Konfiguration eine eigene Anweisung beginnen würde.",
-		})
+	if b := pruefeWert("ziel", ziel); b != nil {
+		p.Ablehnungen = append(p.Ablehnungen, *b)
 		return
 	}
 
 	sauber := filepath.Clean(ziel)
+	// Symlinks auflösen, SOWEIT das Verzeichnis schon da ist. Ohne diesen
+	// Schritt genügt ein `ln -s /etc /var/www/x`, um die Sperrliste zu umgehen:
+	// Der Prüfer sähe /var/www/x, nginx läse /etc, und die Site veröffentlichte
+	// die Konfiguration des Servers.
+	//
+	// Was das NICHT löst, gehört dazu: Wer den Symlink erst NACH der Prüfung
+	// legt, kommt weiter durch — die Prüfung ist ein Zeitpunkt, das Ausliefern
+	// ein Zustand. Dagegen hälfe nur `disable_symlinks` in der erzeugten
+	// Konfiguration, und das bräche jede Anwendung, die ihre Releases
+	// symbolisch verlinkt (also die meisten). Der Zielkonflikt ist benannt, die
+	// Entscheidung gefallen: Wer auf dem Server Symlinks legen kann, hat ihn
+	// ohnehin.
+	if aufgeloest, err := filepath.EvalSymlinks(sauber); err == nil {
+		sauber = aufgeloest
+	}
+
 	gesperrt := append(append([]string{}, gesperrteWurzeln...), lage.GesperrtePfade...)
 	for _, wurzel := range gesperrt {
 		if !liegtUnter(sauber, wurzel) {
 			continue
 		}
+		grund := "Aus " + wurzel + " liefert das Panel nichts aus. Eine Site auf " +
+			"diesem Pfad veröffentlichte Teile des Servers im Netz."
+		if sauber != filepath.Clean(ziel) {
+			// Der aufgelöste Pfad gehört in die Meldung: Sonst steht dort ein
+			// Verzeichnis, dem man nicht ansieht, warum es abgelehnt wurde.
+			grund += " Der angegebene Pfad zeigt über einen Symlink dorthin."
+		}
 		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
-			Feld: "ziel", Wert: sauber,
-			Grund: "Aus " + wurzel + " liefert das Panel nichts aus. Eine Site auf diesem Pfad veröffentlichte Teile des Servers im Netz.",
+			Feld: "ziel", Wert: sauber, Grund: grund,
 		})
 		return
 	}
@@ -390,10 +493,14 @@ func (p *SitePruefung) pruefeSocket(pfad string) {
 		})
 		return
 	}
-	if strings.ContainsAny(pfad, ";{}\n\r \t\"'\\") || !filepath.IsAbs(pfad) {
+	if b := pruefeWert("php_socket", pfad); b != nil {
+		p.Ablehnungen = append(p.Ablehnungen, *b)
+		return
+	}
+	if !filepath.IsAbs(pfad) {
 		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
 			Feld: "php_socket", Wert: kuerzen(pfad),
-			Grund: "Das muss ein absoluter Pfad ohne Sonderzeichen sein.",
+			Grund: "Das muss ein absoluter Pfad sein.",
 		})
 		return
 	}
@@ -434,11 +541,8 @@ func (p *SitePruefung) pruefeUmleitung(ziel string) {
 		})
 		return
 	}
-	if strings.ContainsAny(ziel, ";{}\n\r \t\"'\\") {
-		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
-			Feld: "ziel", Wert: kuerzen(ziel),
-			Grund: "Die Adresse enthält ein Zeichen, das in der Konfiguration eine eigene Anweisung beginnen würde.",
-		})
+	if b := pruefeWert("ziel", ziel); b != nil {
+		p.Ablehnungen = append(p.Ablehnungen, *b)
 	}
 }
 
@@ -476,10 +580,14 @@ func (p *SitePruefung) pruefeTLS(e SiteEntwurf, lage SiteLage) {
 		if pfad == "" {
 			continue
 		}
-		if !filepath.IsAbs(pfad) || strings.ContainsAny(pfad, ";{}\n\r \t\"'\\") {
+		if b := pruefeWert(feld, pfad); b != nil {
+			p.Ablehnungen = append(p.Ablehnungen, *b)
+			continue
+		}
+		if !filepath.IsAbs(pfad) {
 			p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
 				Feld: feld, Wert: kuerzen(pfad),
-				Grund: "Das muss ein absoluter Pfad ohne Sonderzeichen sein.",
+				Grund: "Das muss ein absoluter Pfad sein.",
 			})
 		}
 	}
@@ -510,7 +618,6 @@ func zeigtAufDasPanel(u *url.URL, panelPort int) bool {
 	if panelPort == 0 {
 		return false
 	}
-	host := u.Hostname()
 	port := u.Port()
 	if port == "" {
 		if u.Scheme == "https" {
@@ -522,11 +629,58 @@ func zeigtAufDasPanel(u *url.URL, panelPort int) bool {
 	if port != strconv.Itoa(panelPort) {
 		return false
 	}
+
+	// Kleingeschrieben und ohne den abschließenden Punkt: „LOCALHOST." ist
+	// derselbe Name, und ein Vergleich, der das nicht sieht, ist keiner.
+	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
 	if host == "localhost" {
 		return true
 	}
-	ip := net.ParseIP(host)
-	return ip != nil && (ip.IsLoopback() || ip.IsUnspecified())
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback() || ip.IsUnspecified()
+	}
+	// Kein gültiger Name, aber auch keine Adresse, die Go erkennt: Dann ist es
+	// eine der Kurzformen, und die zählen als Treffer. Siehe zahlenadresse.
+	return zahlenadresse(host)
+}
+
+// zahlenadresse erkennt, ob dieser Wirtsname eine ZAHLENADRESSE sein soll, die
+// net.ParseIP nicht annimmt.
+//
+// Der Fund aus dem Angriffsdurchgang (Schritt 8): `http://127.1:8443` erreicht
+// das Panel. Go liest `127.1` nicht als IP-Adresse — dafür verlangt ParseIP vier
+// Bestandteile —, aber nginx tut es auch nicht: Es hält den Wert für einen
+// Namen und gibt ihn an den Auflöser weiter, und getaddrinfo("127.1") ergibt
+// 127.0.0.1. Über diesen Umweg zeigte ein Proxy auf das Panel, ohne dass die
+// Prüfung es sah.
+//
+// Dieselbe Familie: `127.0.1`, `2130706433` (dezimal), `0x7f000001` (hex),
+// `017700000001` (oktal). Sie einzeln nachzubauen hieße, den Auflöser von glibc
+// nachzuprogrammieren — eine Übung, bei der man immer eine Schreibweise
+// vergisst.
+//
+// Deshalb die umgekehrte Regel, und sie ist eine Allowlist: Ein Wirtsname ist
+// ENTWEDER eine gültige IP-Adresse ODER ein Name aus Buchstaben. Was dazwischen
+// liegt — nur Ziffern, Punkte und ein etwaiges 0x davor —, ist eine
+// Zahlenadresse in einer Schreibweise, die niemand freiwillig tippt, und wird
+// als Treffer gewertet. Ein echter Rechnername enthält mindestens einen
+// Buchstaben.
+func zahlenadresse(host string) bool {
+	if host == "" {
+		return false
+	}
+	rest := strings.TrimPrefix(strings.TrimPrefix(host, "0x"), "0X")
+	for _, r := range rest {
+		switch {
+		case r >= '0' && r <= '9', r == '.':
+			continue
+		case (r >= 'a' && r <= 'f') && host != rest:
+			// Hexziffern zählen nur, wenn ein 0x davorstand.
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // liegtUnter sagt, ob pfad das Verzeichnis wurzel ist oder darunter liegt.

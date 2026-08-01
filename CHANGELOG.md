@@ -122,6 +122,42 @@ nicht als Release getaggt.
   ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
   da ist.
 
+- **Modul Webserver, Schritt 8 von 8: Härtung und Angriffsdurchgang.** Der
+  Prüfer wurde angegriffen, statt nur geprüft. **Fünf Lücken kamen durch**, zwei
+  davon über ein Formularfeld erreichbar; alle sind behoben, und jeder Test dazu
+  war zuerst rot.
+
+  **`127.1` erreichte das Panel** — der teuerste der fünf. Go liest die Kurzform
+  nicht als IP-Adresse, und nginx tut es auch nicht: Es hält sie für einen Namen
+  und lässt sie auflösen, und `getaddrinfo("127.1")` ergibt `127.0.0.1`. Damit
+  stand ein Reverse-Proxy vor dem Panel, ohne dass die Prüfung es sah — und ein
+  Proxy davor umgeht dessen Herkunftsprüfung. Dieselbe Familie: `127.0.1`,
+  `2130706433`, `0x7f000001`, `017700000001`. Die neue Regel baut den Auflöser
+  nicht nach: Ein Wirtsname ist entweder eine gültige IP-Adresse oder ein Name
+  mit mindestens einem Buchstaben; was nur aus Ziffern und Punkten besteht,
+  zählt als Treffer. Dass `api.example.com` und `192.168.1.5` weiter zulässig
+  sind, steht als eigener Test daneben.
+
+  **Ein Symlink umging die Sperrliste vollständig.** `ln -s /etc /var/www/x`,
+  dann `root /var/www/x`: Der Prüfer sah `/var/www/x`, nginx las `/etc`. Der Pfad
+  wird jetzt aufgelöst, soweit er existiert. Was das nicht löst, steht in der
+  Doku: Wer den Symlink erst nach der Prüfung legt, kommt durch — dagegen hälfe
+  nur `disable_symlinks`, und das bräche jede Anwendung, die ihre Releases
+  symbolisch verlinkt.
+
+  **Die Pfadprüfung war eine Sperrliste aus sieben Zeichen** — NUL, Tabulator,
+  Leerzeichen und die übrigen Steuerzeichen kamen durch, und jedes Feld hatte
+  seine eigene Liste. Jetzt läuft jeder Wert, der in eine nginx-Anweisung
+  geschrieben wird, durch dieselbe Prüfung; dazu abgewiesen werden die
+  Schreibrichtungs-Umschalter, die einen Pfad anders aussehen lassen, als er ist.
+
+  Dazu: eine Obergrenze von hundert Domains je Site (die Grenze, die Let's
+  Encrypt für die SANs eines Zertifikats zieht) und eine einheitliche
+  Namensregel für die Kennung — bis dahin prüften Schreiben und Lesen sie
+  verschieden.
+
+  Damit ist **Stufe 0.6 vollständig gebaut**.
+
 - **Modul Webserver, Schritt 7 von 8: TLS je Site.** Der Satz aus
   `docs/16-neukonzeption.md` §2, um dessentwillen es diese Stufe gibt — „mach
   ihn unter einem Namen mit TLS erreichbar" —, ist damit eingelöst: Jede Site

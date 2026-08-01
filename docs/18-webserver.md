@@ -1,9 +1,9 @@
 # 18 — Webserver & Domains (Stufe 0.6)
 
-> **Stand:** Schritte 1 bis 7 von 8 sind gebaut (Fundament; der Challenge-Weg
-> durch nginx hindurch; der mehrfähige Zertifikatshalter; Sites lesend und
-> schreibend; die Ziele; **TLS je Site**). Offen ist nur noch Schritt 8, die
-> Härtung.
+> **Stand:** Die Stufe ist **gebaut** — alle acht Schritte. Fundament; der
+> Challenge-Weg durch nginx hindurch; der mehrfähige Zertifikatshalter; Sites
+> lesend und schreibend; die Ziele; TLS je Site; Härtung und
+> Angriffsdurchgang (§11a).
 > Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
 > Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
@@ -597,7 +597,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 5 ✅ | **Sites schreibend**: Felder → Drop-in, **Site-Prüfer**, `nginx -t`, reload, **Probe mit Rückweg**, Fassungskonflikt; dazu Abschalten über die Dateiendung und ein eigener `probenWaechter` neben dem der Firewall | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 ✅ | **Ziele**: Reverse-Proxy mit den laufenden Containern zur Auswahl, statisches Verzeichnis, **PHP-FPM** als eigene Zielart samt Socket-Allowlist | Der Alltagsfall |
 | 7 ✅ | **TLS je Site**: ein acme.Manager je Site auf dem gemeinsamen Konto, Erneuerung, Zustand je Site samt GRUND für ein fehlendes Zertifikat, Bezug auf Knopfdruck | Der Satz aus §2 wird eingelöst |
-| 8 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch über `alias`, Selbstausschluss provozieren; Messung; Doku | Wie Schritt 9 des Docker-Moduls |
+| 8 ✅ | **Härtung und Angriffsdurchgang**: fünf Befunde, alle behoben — siehe §11a | Wie Schritt 9 des Docker-Moduls |
 
 Schritt 6 hat eine Zugabe, die es ohne 0.5 nicht gäbe: **Die Zielauswahl kennt
 die laufenden Container.** „Reverse-Proxy auf" wird damit eine Liste statt eines
@@ -798,6 +798,103 @@ Server benennt und keinen Installationsknopf zeigt (E1).
 **Messung** wie bei jeder Stufe: Binärgröße, RSS im Leerlauf, Abdeckung, direkte
 Abhängigkeiten. Erwartung: **keine neue direkte Abhängigkeit** — nginx spricht
 man über die Kommandozeile an, und der Rest ist Textbau.
+
+---
+
+## 11a. Der Angriffsdurchgang (Schritt 8)
+
+Der Prüfer wurde angegriffen, statt nur geprüft. Die Tests dazu stehen in
+`internal/privops/webserversiteangriff_test.go` und waren alle zuerst rot — sie
+sind der Befund und nicht seine Beschreibung. **Fünf Lücken kamen durch**, zwei
+davon in einer Form, die ein Angreifer über ein Formularfeld erreicht hätte.
+
+**1. Die Pfadprüfung war eine Sperrliste aus sieben Zeichen.** NUL, Tabulator,
+Leerzeichen, die übrigen C0-Zeichen und `#` kamen durch. Keines davon reicht
+allein für eine eingeschmuggelte Anweisung — dafür bräuchte es ein Semikolon,
+und das war gesperrt —, aber ein Prüfer, der sich darauf verlässt, dass
+`nginx -t` den Rest fängt, hat seine Aufgabe an die zweite Linie abgegeben.
+
+Behoben mit einer gemeinsamen Funktion `pruefeWert`, durch die jetzt **jeder**
+Wert läuft, der in eine Anweisung geschrieben wird — Verzeichnis, Gegenstelle,
+Umleitungsziel, FPM-Socket, Zertifikatspfade. Vorher hatte jeder von ihnen seine
+eigene Sperrliste, und drei Sperrlisten für dasselbe Problem laufen auseinander.
+
+Geprüft wird dabei die **Grammatik von nginx** und nicht das Alphabet eines
+Pfades: Ein Verzeichnis darf Umlaute enthalten, und eine Allowlist über die
+zulässigen Zeichen eines Pfades wäre hier die falsche Antwort. Was nginx
+besonders behandelt, ist abzählbar — Weißraum, `;`, `{`, `}`, Anführungszeichen,
+Backslash, `#` —, und dazu kommen die Steuerzeichen und die
+**Schreibrichtungs-Umschalter**: Sie lassen einen Pfad in einer Liste anders
+aussehen, als er ist. Dieselbe Ablehnung wie in der Pfadwache.
+
+**2. Ein Symlink umging die Sperrliste vollständig.** `ln -s /etc /var/www/x`,
+dann `root /var/www/x`: Der Prüfer sah `/var/www/x`, nginx las `/etc`, und die
+Site veröffentlichte die Konfiguration des Servers im Netz.
+
+Behoben, indem der Pfad mit `filepath.EvalSymlinks` aufgelöst wird, soweit er
+existiert — und die Ablehnung sagt, dass ein Symlink im Spiel war, sonst steht
+dort ein Verzeichnis, dem man nicht ansieht, warum es abgelehnt wurde.
+
+**Was das nicht löst, gehört dazu:** Wer den Symlink erst NACH der Prüfung legt,
+kommt weiter durch. Die Prüfung ist ein Zeitpunkt, das Ausliefern ein Zustand.
+Dagegen hälfe nur `disable_symlinks` in der erzeugten Konfiguration, und das
+bräche jede Anwendung, die ihre Releases symbolisch verlinkt — also die meisten.
+Der Zielkonflikt ist benannt, die Entscheidung gefallen: Wer auf dem Server
+Symlinks legen darf, hat ihn ohnehin.
+
+**3. `127.1` erreichte das Panel.** Der teuerste der fünf. Go liest `127.1` nicht
+als IP-Adresse — `net.ParseIP` verlangt vier Bestandteile —, und nginx tut es
+auch nicht: Es hält den Wert für einen Namen und gibt ihn an den Auflöser
+weiter. `getaddrinfo("127.1")` ergibt `127.0.0.1`. Damit stand ein Reverse-Proxy
+vor dem Panel, ohne dass die Prüfung es sah — und ein Proxy davor umgeht dessen
+Herkunftsprüfung. Dieselbe Familie: `127.0.1`, `2130706433`, `0x7f000001`,
+`017700000001`.
+
+Behoben mit einer Regel, die kein Nachbau des Auflösers ist: Ein Wirtsname ist
+**entweder** eine gültige IP-Adresse **oder** ein Name, der mindestens einen
+Buchstaben enthält. Was nur aus Ziffern und Punkten besteht, ist eine
+Zahlenadresse in einer Schreibweise, die niemand freiwillig tippt, und zählt als
+Treffer. Die Gegenprobe steht als eigener Test: `api.example.com`, `backend`,
+`192.168.1.5` auf demselben Port bleiben zulässig — eine Regel, die sie
+mitnähme, machte den Reverse-Proxy unbenutzbar.
+
+**4. Die Zahl der Domains war unbegrenzt.** Tausend `server_name`-Einträge
+ließen sich anlegen; abgelehnt hätte sie erst der erste Zertifikatsbezug — nach
+dem Schreiben, nach dem Reload, und mit einer Meldung von der Prüfstelle statt
+einer aus dem Formular. Jetzt gilt die Grenze, die Let's Encrypt für die SANs
+eines Zertifikats zieht: hundert.
+
+**5. Zwei Namensregeln für dasselbe Ding.** `SiteApply` prüfte die Kennung gegen
+die Allowlist, `SiteDatei` gegen `pruefeName` aus der Pfadwache — die
+Leerzeichen, Großbuchstaben und Umlaute zulässt. Kein Ausbruch (ein Schrägstrich
+war beiden verboten), aber genau die Sorte Unterschied, die irgendwann auffällt,
+weil eine der beiden etwas durchlässt.
+
+### Messung (gegen den Stand vor 0.6)
+
+| Größe | Wert | Grenze / Richtwert |
+|---|---|---|
+| Binärgröße | 18,1 MB | 30 MB (CI) |
+| Direkte Abhängigkeiten | 6 | 25 |
+| Abdeckung `privops` | 79,9 % | ≥ 72 % (CI) |
+| Abdeckung `httpd` | 72,1 % | ≥ 68 % (CI) |
+| Abdeckung `certs` | 85,0 % | — |
+| Abdeckung `acme` | 77,3 % | — |
+
+Keine neue Abhängigkeit für die ganze Stufe: Die sieben DNS-Anbieter, der
+nginx-Parser, der Site-Prüfer und der Erzeuger kommen mit der Standardbibliothek
+aus. Das war keine Vorgabe, sondern hat sich so ergeben — und es ist der Grund,
+warum die Binärgröße trotz sieben zusätzlicher Anbieter unter dem Stand von 0.5
+liegt (Vergleich mit gleicher Toolchain).
+
+### Was ausdrücklich NICHT geprüft wurde
+
+Der Durchgang lief gegen den Prüfer, nicht gegen nginx. **Kein Teil dieses
+Moduls ist bisher gegen eine echte nginx-Installation oder eine echte
+Prüfstelle gelaufen** — alle Vorlagen stammen aus Dokumentation, alle Ausgaben
+aus aufgezeichneten Beispielen, und der `fakeRunner` sagt immer, was der Test
+ihm vorgibt. Das ist die größte offene Frage dieser Stufe und steht deshalb in
+§12.
 
 ---
 

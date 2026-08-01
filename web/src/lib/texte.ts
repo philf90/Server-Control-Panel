@@ -1013,7 +1013,7 @@ export const t = {
     // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
     // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
     imBauDetail:
-      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Jede Site mit TLS bezieht ihr eigenes Zertifikat — der Stand dazu steht unter „Zertifikate je Site“. Der 443-Block entsteht dabei erst, wenn ein Zertifikat vorliegt; nach dem ersten Bezug genügt einmal speichern. Was noch aussteht, ist der Angriffsdurchgang gegen den Prüfer. Die Begründung steht im Repository unter docs/18-webserver.md.",
+      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Jede Site mit TLS bezieht ihr eigenes Zertifikat — der Stand dazu steht unter „Zertifikate je Site“. Der 443-Block entsteht dabei erst, wenn ein Zertifikat vorliegt; nach dem ersten Bezug genügt einmal speichern. Was aussteht, ist die Erprobung gegen einen echten Server: Bis hierher lief nichts davon gegen ein laufendes nginx oder eine echte Zertifizierungsstelle. Die Begründung steht im Repository unter docs/18-webserver.md.",
 
     // Die Fläche „Sites".
     sites: "Sites",

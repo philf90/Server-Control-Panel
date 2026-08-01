@@ -639,7 +639,12 @@ func listenPort(felder []string) (int, bool) {
 // (der Dateimanager kann sie ohnehin), aber es wäre die Zusage, sie auch
 // bearbeiten zu können — und die gibt dieses Modul nicht.
 func (s *System) SiteDatei(_ context.Context, name string) (string, error) {
-	if err := PruefeName(name); err != nil {
+	// PruefeSiteName und nicht PruefeName aus der Pfadwache: Diese Familie
+	// benutzt überall dieselbe Allowlist, und zwei verschiedene Namensregeln für
+	// dasselbe Ding sind die Sorte Unterschied, die irgendwann auffällt, weil
+	// eine der beiden etwas durchlässt. Aufgefallen ist es beim
+	// Angriffsdurchgang (Schritt 8).
+	if err := PruefeSiteName(name); err != nil {
 		return "", err
 	}
 	pfad := filepath.Join(filepath.Dir(acmeDropinPfad), sitePraefix+name+".conf")

@@ -9,11 +9,19 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
-## [0.5.1] — 2026-07-31
+## [0.5.1] — 2026-08-01
 
-Ein Formular zur Compose-Datei, eine Berichtigung und eine Umbenennung. Wer
-0.5.0 einsetzt und einen Server ohne Compose-Projekt hat, sollte aktualisieren
-— für ihn war das Modul Docker bis hierher nicht benutzbar.
+**Die Fassung, die 0.5.0 benutzbar macht.** Wer 0.5.0 einsetzt und einen Server
+ohne Compose-Projekt hat, sollte aktualisieren: Für ihn fehlte der Knopf, mit
+dem sich der erste Stack anlegen lässt — das Modul Docker war damit nicht
+benutzbar.
+
+Dazu vier Dinge, die aus Fragen beim Betrieb entstanden sind: ein **Formular
+neben der Compose-Datei**, das die Datei nicht umschreibt; **fünf Flächen mit
+eigener Adresse** statt einer Seite, die auf einem betriebsüblichen Server
+dreizehn Bildschirme lang wurde; **Warnpunkte an den Menüpunkten**, die es bis
+0.4.0 schon einmal gab; und ein **N+1**, das die Bestandsfläche bei vierzig
+Containern einundvierzig Prozesse kostete.
 
 ### Neu
 

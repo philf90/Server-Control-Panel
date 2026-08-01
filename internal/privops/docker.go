@@ -356,6 +356,60 @@ func (s *System) DockerContainer(ctx context.Context, id string) (ContainerDetai
 	return parseDockerInspect(res.Stdout)
 }
 
+// DockerContainerDetails holt die Einzelheiten MEHRERER Container in EINEM
+// Aufruf.
+//
+// Der Anlass ist ein N+1: Die Bestandsfläche brauchte je Container ein eigenes
+// „docker inspect", nur um festzustellen, welche Volumes in Gebrauch sind — ein
+// Prozess je Container für ein Häkchen je Volume. Bei vierzig Containern waren
+// das vierzig Prozesse, nacheinander, für eine Auskunft, die in einen einzigen
+// Aufruf passt.
+//
+// „docker inspect" nimmt beliebig viele Kennungen und schreibt mit
+// "--format {{json .}}" eine Zeile je Container. Der Leser ist deshalb derselbe
+// wie für einen einzelnen — zeilenweise angewandt. Zwei Fassungen desselben
+// Parsers wären zwei Gelegenheiten, dass eine davon ein Feld verpasst.
+//
+// Eine leere Liste startet KEINEN Prozess. Das ist kein Sonderfall aus
+// Sparsamkeit: „docker inspect" ohne Argumente ist ein Fehler, und ein Server
+// ohne Container ist ein völlig gewöhnlicher Zustand.
+func (s *System) DockerContainerDetails(ctx context.Context, ids []string) ([]ContainerDetail, error) {
+	if len(ids) == 0 {
+		return []ContainerDetail{}, nil
+	}
+	for _, id := range ids {
+		if err := ValidateContainerID(id); err != nil {
+			return nil, err
+		}
+	}
+
+	args := append([]string{"inspect", "--format", "{{json .}}", "--"}, ids...)
+	res, err := s.run(ctx, Command{
+		Name: "docker",
+		Args: args,
+		// Mehr Frist als bei einem einzelnen: Der Aufruf trägt jetzt die Arbeit
+		// von N Aufrufen, auch wenn er nur einen Prozess kostet.
+		Timeout: 2 * defaultTimeout,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	aus := parseDockerInspectMehrere(res.Stdout)
+
+	// Ein Fehlschlag ist nur dann einer, wenn NICHTS herauskam.
+	//
+	// „docker inspect" endet mit einem Fehlercode, sobald eine einzige Kennung
+	// unbekannt ist — die übrigen schreibt es trotzdem. Und genau das ist hier
+	// der Normalfall und keine Ausnahme: Zwischen „docker ps" und diesem Aufruf
+	// kann ein Container verschwunden sein. Den ganzen Bestand deswegen zu
+	// verwerfen hieße, ein Rennen zum Fehler zu erklären.
+	if res.ExitCode != 0 && len(aus) == 0 {
+		return nil, fmt.Errorf("docker inspect: %s", ersteAusgabezeile(res))
+	}
+	return aus, nil
+}
+
 // DockerContainerAction schaltet einen Container.
 func (s *System) DockerContainerAction(ctx context.Context, id string, a ContainerAction) error {
 	if err := ValidateContainerID(id); err != nil {
@@ -753,6 +807,29 @@ func parseDockerInspect(out string) (ContainerDetail, error) {
 	}
 	sort.Strings(d.Netze)
 	return d, nil
+}
+
+// parseDockerInspectMehrere liest die Ausgabe von "docker inspect" über mehrere
+// Kennungen: eine JSON-Zeile je Container.
+//
+// Unlesbare Zeilen werden übersprungen und nicht zum Fehler gemacht — dieselbe
+// Nachsicht wie bei parseDockerPS, und aus demselben Grund: Docker schreibt
+// gelegentlich eine Warnung dazwischen, und eine Warnung darf keine Liste
+// kosten.
+func parseDockerInspectMehrere(out string) []ContainerDetail {
+	aus := []ContainerDetail{}
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || !strings.HasPrefix(zeile, "{") {
+			continue
+		}
+		d, err := parseDockerInspect(zeile)
+		if err != nil {
+			continue
+		}
+		aus = append(aus, d)
+	}
+	return aus
 }
 
 // parseDockerStats liest die Ausgabe von "docker stats --no-stream".

@@ -79,6 +79,9 @@ type fakeOps struct {
 	containerLogs      []string
 	containerStats     []privops.ContainerStats
 	containerMounts    []privops.ContainerMount
+	// inspectAufrufe zählt die Fragen nach Container-Einzelheiten. Siehe
+	// zaehleInspect.
+	inspectAufrufe int
 
 	images    []privops.Image
 	volumes   []privops.Volume
@@ -742,7 +745,49 @@ func (f *fakeOps) DockerContainers(context.Context) ([]privops.Container, error)
 	return f.container, f.containerErr
 }
 
-func (f *fakeOps) DockerContainer(_ context.Context, id string) (privops.ContainerDetail, error) {
+// inspectAufrufe zählt, wie oft nach Container-Einzelheiten gefragt wurde —
+// unabhängig davon, für wie viele Container auf einmal.
+//
+// Ein eigener Zähler und nicht die Aufzeichnung: In diese schreiben nur
+// Kommandos, die etwas ÄNDERN, und mehrere Tests prüfen, dass sie nach einem
+// abgelehnten Handgriff leer ist. Ein Leseaufruf darin wäre ein falsches
+// Positiv.
+func (f *fakeOps) zaehleInspect() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.inspectAufrufe++
+}
+
+func (f *fakeOps) inspectZaehler() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.inspectAufrufe
+}
+
+// DockerContainerDetails ist die Attrappe für den Sammelaufruf. Ein Aufruf
+// zählt einmal, egal wie viele Kennungen kommen — genau das ist die
+// Eigenschaft, die der Test prüft.
+func (f *fakeOps) DockerContainerDetails(ctx context.Context, ids []string) ([]privops.ContainerDetail, error) {
+	f.zaehleInspect()
+	aus := []privops.ContainerDetail{}
+	for _, id := range ids {
+		d, err := f.dockerContainerOhneAufzeichnung(ctx, id)
+		if err != nil {
+			// Ein verschwundener Container ist kein Fehlschlag des Ganzen —
+			// dieselbe Regel wie in privops.
+			continue
+		}
+		aus = append(aus, d)
+	}
+	return aus, nil
+}
+
+func (f *fakeOps) DockerContainer(ctx context.Context, id string) (privops.ContainerDetail, error) {
+	f.zaehleInspect()
+	return f.dockerContainerOhneAufzeichnung(ctx, id)
+}
+
+func (f *fakeOps) dockerContainerOhneAufzeichnung(_ context.Context, id string) (privops.ContainerDetail, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, c := range f.container {

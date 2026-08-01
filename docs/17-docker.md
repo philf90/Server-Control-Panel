@@ -1130,10 +1130,8 @@ Telefon unerreichbar.
 
 ~~Warnpunkte an den Menüpunkten gibt es nicht.~~ **Nachgetragen, siehe unten.**
 
-Offen bleibt: Der Bestand holt je Container ein `docker inspect`
-(`api_v1_docker.go`), nur um „Volume in Gebrauch" zu markieren. `docker system
-df -v` liefert dasselbe in einem Aufruf. Durch die eigene Fläche wird das
-seltener ausgelöst, aber nicht besser.
+~~Offen bleibt: Der Bestand holt je Container ein `docker inspect`.~~
+**Behoben — siehe den Nachtrag weiter unten.**
 
 ---
 
@@ -1231,6 +1229,59 @@ einzige Handgriff war. Heute wäre `/dateien` mindestens ebenso richtig.
 
 ---
 
+#### Nachtrag — das N+1 im Bestand
+
+Die Bestandsfläche holte die Containerliste (`docker ps`) und danach **je
+Container ein eigenes `docker inspect`**. Bei vierzig Containern waren das
+einundvierzig Prozesse, nacheinander, ohne Gesamtfrist — und zwar für **ein
+Häkchen je Volume**: `InGebrauch` entscheidet, ob neben einem Volume ein
+„entfernen"-Knopf steht.
+
+Der Kontrast stand eine Zeile darüber: `benutzteImages` kommt aus `c.Image`,
+also aus der Liste, die ohnehin da ist. Dieselbe Art Auskunft, ein Aufruf.
+
+`docker inspect` nimmt beliebig viele Kennungen und schreibt mit
+`--format {{json .}}` eine Zeile je Container. Neu ist deshalb
+`DockerContainerDetails(ctx, ids)`; der Leser ist **derselbe** wie für einen
+einzelnen, nur zeilenweise angewandt — zwei Fassungen desselben Parsers wären
+zwei Gelegenheiten, dass eine ein Feld verpasst.
+
+Zwei Feinheiten, die den Unterschied zwischen „läuft" und „läuft auch im
+Betrieb" ausmachen:
+
+- **Eine leere Liste startet keinen Prozess.** `docker inspect` ohne Argumente
+  ist ein Fehler, und ein Server ohne Container ist ein gewöhnlicher Zustand.
+- **Ein Fehlercode ist nur dann einer, wenn nichts herauskam.** `docker inspect`
+  endet mit Fehler, sobald eine Kennung unbekannt ist, schreibt die übrigen aber
+  trotzdem — und genau das ist der Normalfall: Zwischen `docker ps` und
+  `inspect` kann ein Container verschwinden. Den ganzen Bestand deswegen zu
+  verwerfen hieße, ein Rennen zum Fehler zu erklären.
+
+Der Aufruf der Bestandsfläche fällt damit von rund 45 Prozessen auf 6, und die
+Zahl hängt nicht mehr an der Zahl der Container.
+
+**Der Test zählt Aufrufe, nicht Container** — er soll auch dann noch etwas
+sagen, wenn die Attrappe eines Tages mehr Container bekommt. Genau daran ist
+der Befund so lange vorbeigegangen: Bei vier Containern ist der Unterschied
+zwischen fünf und zwei Aufrufen nicht zu spüren. Nachgestellt wurde er, bevor er
+bewacht wurde; gegen die alte Schleife meldet er „4 mal nach Einzelheiten
+gefragt, erwartet einmal".
+
+Die Zählung läuft über einen eigenen Zähler in der Attrappe und nicht über die
+vorhandene Aufzeichnung: In die schreiben nur Kommandos, die etwas **ändern**,
+und mehrere Tests prüfen, dass sie nach einem abgelehnten Handgriff leer ist.
+Ein Leseaufruf darin wäre ein falsches Positiv — was er beim ersten Anlauf auch
+prompt war.
+
+**Nicht gebaut, weil unbestätigt:** Dockers Formatvorlage für `ps` kennt einen
+Platzhalter `.Mounts`. Träfe das zu, käme die Auskunft ganz ohne `inspect` aus —
+ein Aufruf statt zwei. Die aufgezeichnete Ausgabe in `docker_test.go` enthält
+dieses Feld jedoch nicht, und sie stammt aus der Dokumentation und nicht von
+einer echten Installation. Die Frage gehört auf die Handprüfliste in Abschnitt
+10: *Enthält `docker ps --format '{{json .}}'` ein Feld `Mounts`?*
+
+---
+
 #### Was bleibt
 
 Das Formular deckt die Felder ab, die eine gewöhnliche Compose-Datei ausmachen.
@@ -1322,6 +1373,15 @@ ablehnen lassen; einen mit `-v /var/run/docker.sock` ebenso; einen mit
 danebenlegen und prüfen, dass es lesbar, aber nicht schreibbar ist;
 `volume prune` mit Hostname bestätigen; Container-Logs verfolgen; die
 Portübersicht gegen `ufw status` halten.
+
+**Zwei Fragen an die Ausgaben selbst**, die kein Test beantworten kann, solange
+die Aufzeichnungen aus der Dokumentation stammen:
+
+1. Sieht die gerenderte Fassung aus `docker compose config` so aus, wie der
+   Prüfer sie erwartet? An dieser Antwort hängt die ganze Prüferkette.
+2. Enthält `docker ps --format '{{json .}}'` ein Feld `Mounts`? Wenn ja, kommt
+   die Bestandsfläche ohne den Sammelaufruf `docker inspect` aus — ein Aufruf
+   statt zwei (siehe den Nachtrag zum N+1 in Abschnitt 8).
 
 **Messung** wie bei jeder Stufe, gegen den Stand ohne diesen Zweig auf
 derselben Maschine: Binärgröße, RSS im Leerlauf, Abdeckung `privops`/`httpd`,

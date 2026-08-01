@@ -948,3 +948,50 @@ func TestAPIDockerBestandSchreibenVerlangtOwner(t *testing.T) {
 		t.Errorf("es darf nichts gelaufen sein: %v", ops.recorded())
 	}
 }
+
+// TestAPIDockerBestandFragtEinmalNachEinzelheiten hält den behobenen N+1 fest.
+//
+// Bis 0.5.1 holte die Bestandsfläche je Container ein eigenes „docker inspect" —
+// ein Prozess je Container, nacheinander, für ein Häkchen je Volume. Bei vierzig
+// Containern waren das vierzig Prozesse für eine Auskunft, die in einen Aufruf
+// passt.
+//
+// Der Test zählt Aufrufe und nicht Container: Er soll auch dann noch etwas
+// sagen, wenn die Attrappe eines Tages mehr Container bekommt. Genau daran ist
+// der Befund so lange vorbeigegangen — mit vier Containern ist der Unterschied
+// zwischen fünf und zwei Aufrufen nicht zu spüren.
+func TestAPIDockerBestandFragtEinmalNachEinzelheiten(t *testing.T) {
+	s, ops, cookie, _ := bestandServer(t, store.RoleOwner)
+
+	if len(ops.container) < 2 {
+		t.Fatalf("die Attrappe hat %d Container — mit weniger als zwei sagt dieser Test nichts",
+			len(ops.container))
+	}
+
+	vorher := ops.inspectZaehler()
+	antwort := bestandLesen(t, s, cookie)
+	gefragt := ops.inspectZaehler() - vorher
+
+	if gefragt != 1 {
+		t.Errorf("die Bestandsfläche hat %d mal nach Einzelheiten gefragt, erwartet einmal "+
+			"— bei %d Containern", gefragt, len(ops.container))
+	}
+
+	// Und das Ergebnis stimmt weiterhin: Genau das Volume, das in einem
+	// Container hängt, ist als in Gebrauch markiert. Ohne diese Hälfte wäre der
+	// Test mit einem Aufruf zufrieden, der nichts liefert.
+	var inGebrauch, frei []string
+	for _, v := range antwort.Volumes {
+		if v.InGebrauch {
+			inGebrauch = append(inGebrauch, v.Name)
+		} else {
+			frei = append(frei, v.Name)
+		}
+	}
+	if len(inGebrauch) != 1 || inGebrauch[0] != "web_daten" {
+		t.Errorf("in Gebrauch: %v, erwartet nur web_daten", inGebrauch)
+	}
+	if len(frei) != 1 || frei[0] != "tmp99" {
+		t.Errorf("frei: %v, erwartet nur tmp99", frei)
+	}
+}

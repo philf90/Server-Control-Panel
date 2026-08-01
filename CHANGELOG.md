@@ -112,6 +112,13 @@ Ein Formular zur Compose-Datei, eine Berichtigung und eine Umbenennung. Wer
   Schritt". Er stammte aus der Zeit, in der die Stackliste nur lesen konnte,
   und blieb stehen, nachdem der Schritt da war. Jetzt steht dort, was der Knopf
   daneben tut und wohin er schreibt.
+- **Die Bestandsfläche startete einen `docker inspect` je Container.** Bei
+  vierzig Containern waren das einundvierzig Prozesse, nacheinander — für ein
+  Häkchen je Volume („in Gebrauch"). `docker inspect` nimmt beliebig viele
+  Kennungen; der Aufruf der Fläche fällt damit von rund 45 Prozessen auf 6, und
+  die Zahl hängt nicht mehr an der Zahl der Container. Ein Container, der
+  zwischen `docker ps` und `inspect` verschwindet, kostet dabei nicht mehr die
+  ganze Liste.
 - **Ein abgelaufenes Zertifikat hieß den ganzen ersten Tag lang „läuft bald
   ab".** `int(time.Until(…).Hours() / 24)` schneidet zur Null hin ab, ein vor
   zwei Stunden abgelaufenes Zertifikat ergab also 0 Tage statt -1. Aufgefallen

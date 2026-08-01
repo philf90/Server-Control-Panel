@@ -103,6 +103,10 @@ type Executor interface {
 	DockerInstall(ctx context.Context, stream LineWriter) error
 	DockerContainers(ctx context.Context) ([]Container, error)
 	DockerContainer(ctx context.Context, id string) (ContainerDetail, error)
+	// DockerContainerDetails ist dasselbe für viele — in einem Prozess statt in
+	// N. Siehe den Kommentar an der Umsetzung: Die Bestandsfläche hatte hier ein
+	// N+1.
+	DockerContainerDetails(ctx context.Context, ids []string) ([]ContainerDetail, error)
 	DockerContainerAction(ctx context.Context, id string, a ContainerAction) error
 	DockerContainerRemove(ctx context.Context, id string, erzwingen bool) error
 	DockerContainerLogs(ctx context.Context, id string, zeilen int) ([]string, error)

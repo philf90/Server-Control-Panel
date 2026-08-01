@@ -774,12 +774,25 @@ func (s *Server) handleAPIDockerBestand(w http.ResponseWriter, r *http.Request) 
 
 	// Die Containerliste zuerst: Aus ihr kommt, was in Gebrauch ist. Scheitert
 	// sie, fehlt nur diese Markierung — die Listen selbst stehen trotzdem.
+	//
+	// Die Einzelheiten kommen in EINEM Aufruf. Hier stand bis 0.5.1 ein N+1:
+	// „docker ps" für die Liste und danach je Container ein eigenes
+	// „docker inspect" — vierzig Prozesse auf einem Server mit vierzig
+	// Containern, nacheinander, für ein Häkchen je Volume. Aufgefallen ist es
+	// nicht, weil die Attrappe des Browsertests vier Container hat.
+	//
+	// Der Kontrast steht eine Zeile weiter oben: benutzteImages kommt aus der
+	// Liste selbst und kostete nie etwas. Dieselbe Art Auskunft, ein Aufruf.
 	benutzteImages := map[string]bool{}
 	benutzteVolumes := map[string]bool{}
 	if cs, err := s.ops.DockerContainers(r.Context()); err == nil {
+		ids := make([]string, 0, len(cs))
 		for _, c := range cs {
 			benutzteImages[c.Image] = true
-			if d, err := s.ops.DockerContainer(r.Context(), c.ID); err == nil {
+			ids = append(ids, c.ID)
+		}
+		if details, err := s.ops.DockerContainerDetails(r.Context(), ids); err == nil {
+			for _, d := range details {
 				for _, m := range d.Mounts {
 					if m.Art == "volume" {
 						benutzteVolumes[m.Quelle] = true

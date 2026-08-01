@@ -115,6 +115,78 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+// Die Namen unter acme.domains wurden bis 0.6 GAR NICHT geprüft. Ein
+// Tippfehler fiel erst beim CA-Server auf — und der zählt Fehlversuche gegen
+// die Ratengrenze.
+func TestValidateACMEDomains(t *testing.T) {
+	// Die Grundlage: ein gültiger ACME-Block, den die einzelnen Fälle abwandeln.
+	basis := func() Config {
+		c := Default()
+		c.Server.TLS.Mode = TLSModeACME
+		c.ACME.Email = "admin@example.com"
+		c.ACME.Domains = []string{"panel.example.com"}
+		return c
+	}
+	if err := basis().Validate(); err != nil {
+		t.Fatalf("die Grundlage muss gültig sein: %v", err)
+	}
+
+	tests := map[string]struct {
+		mutate  func(*ACME)
+		wantErr string
+	}{
+		"Tippfehler im Namen": {
+			func(a *ACME) { a.Domains = []string{"panel..example.com"} },
+			"acme.domains",
+		},
+		"nginx-Anweisung im Namen": {
+			func(a *ACME) { a.Domains = []string{"example.com; root /"} },
+			"acme.domains",
+		},
+		"Platzhalter mitten im Namen": {
+			func(a *ACME) { a.Domains = []string{"*.*.example.com"} },
+			"acme.domains",
+		},
+		// Ein Platzhalter verlangt DNS-01. Eine Konfiguration, die im Betrieb
+		// nie funktionieren kann, soll den Start nicht überstehen.
+		"Platzhalter ohne DNS-Anbieter": {
+			func(a *ACME) { a.Domains = []string{"*.example.com"} },
+			"Platzhalter",
+		},
+		"Platzhalter mit http-01": {
+			func(a *ACME) {
+				a.Domains = []string{"*.example.com"}
+				a.Challenge = "http-01"
+				a.DNS01.Provider = DNS01ProviderCloudflare
+				a.DNS01.Cloudflare.APITokenFile = "/etc/asylum/cf.token"
+			},
+			"Platzhalter",
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cfg := basis()
+			tc.mutate(&cfg.ACME)
+			err := cfg.Validate()
+			if err == nil {
+				t.Fatalf("erwarteter Fehler zu %s blieb aus", tc.wantErr)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("Fehlermeldung %q nennt %q nicht", err, tc.wantErr)
+			}
+		})
+	}
+
+	// Und der Regelfall: Platzhalter mit einem DNS-Anbieter geht durch.
+	cfg := basis()
+	cfg.ACME.Domains = []string{"*.example.com", "example.com"}
+	cfg.ACME.DNS01.Provider = DNS01ProviderCloudflare
+	cfg.ACME.DNS01.Cloudflare.APITokenFile = "/etc/asylum/cf.token"
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("Platzhalter mit DNS-Anbieter muss zulässig sein: %v", err)
+	}
+}
+
 func TestDefaultIsValid(t *testing.T) {
 	if err := Default().Validate(); err != nil {
 		t.Fatalf("Vorgabekonfiguration muss gültig sein: %v", err)

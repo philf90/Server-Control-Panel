@@ -17,6 +17,14 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	// Die Abhängigkeit geht bewusst in DIESE Richtung. internal/acme kennt
+	// internal/config nicht und soll es nicht kennen — deshalb stehen die
+	// Anbieternamen dort als eigene Konstanten (siehe dns01.go). Umgekehrt darf
+	// config das acme-Paket kennen: Es prüft ohnehin schon ACME-Semantik
+	// (Anbieternamen, Challenge-Typen), und die Namensprüfung zweimal zu
+	// schreiben wäre die schlechtere der beiden Antworten.
+	"github.com/philf90/asylum/internal/acme"
 )
 
 // DefaultPath ist der Ort, an dem der Installer die Konfiguration ablegt.
@@ -468,6 +476,30 @@ func (a ACME) validate() error {
 			return fmt.Errorf("acme.directory_url: %q ist keine https-Adresse", a.DirectoryURL)
 		}
 	}
+	// Die Namen. Bis 0.6 wurden sie hier GAR NICHT geprüft — ein Tippfehler
+	// fiel erst beim CA-Server auf, und der zählt Fehlversuche gegen die
+	// Ratengrenze. Geprüft wird die Form, nicht die Erreichbarkeit: Ob der Name
+	// auf diesen Server zeigt, kann nur die Prüfung selbst beantworten.
+	for _, d := range a.Domains {
+		if err := acme.PruefeZertifikatsname(strings.ToLower(strings.TrimSpace(d))); err != nil {
+			return fmt.Errorf("acme.domains: %w", err)
+		}
+	}
+	// Ein Platzhalter verlangt DNS-01 — Let's Encrypt prüft ihn nur über das
+	// DNS. Das hier abzufangen ist besser als es im Manager zu tun: Eine
+	// Konfiguration, die im Betrieb nie funktionieren kann, soll den Start
+	// nicht überstehen.
+	if acme.EnthaeltWildcard(a.Domains) {
+		if a.Challenge == "http-01" {
+			return errors.New("acme.challenge ist http-01, aber unter acme.domains " +
+				"steht ein Platzhalter — Let's Encrypt prüft Platzhalter nur über DNS-01")
+		}
+		if a.DNS01.Provider == "" {
+			return errors.New("unter acme.domains steht ein Platzhalter, aber " +
+				"acme.dns01.provider ist leer — Platzhalter verlangen DNS-01")
+		}
+	}
+
 	switch a.Challenge {
 	case "", "http-01", "dns-01":
 	default:

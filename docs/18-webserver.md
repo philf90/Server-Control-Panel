@@ -372,6 +372,66 @@ der Grund war derselbe: Was im Plan ein Halbsatz ist, ist im Bestand ein Schritt
 
 ---
 
+## 9a. DNS-01-Anbieter (entschieden)
+
+Wildcards verlangen DNS-01. Der Bestand kennt zwei Wege: `hook` (beliebiges
+Skript, der universelle Ausweg) und `cloudflare`. Ausgewählt wurden fünf
+weitere; sie kommen zusammen mit den Wildcards in 0.6.
+
+Zur Einordnung: **lego**, die Referenzimplementierung hinter Traefik und Caddy,
+unterstützt rund 150 Anbieter. Ein nativer Anbieter kostet hier grob 200–300
+Zeilen plus Konfigurationsfeld, Formularfeld und Tests. Deshalb eine Auswahl und
+kein Katalog — und deshalb bleibt `hook` als Weg für alles Übrige.
+
+| Anbieter | Warum | Anmerkung |
+|---|---|---|
+| **acme-dns** | Deckt **jeden** Anbieter ab: `_acme-challenge` wird per CNAME an einen Mini-Dienst delegiert | Das Panel hält **nie** einen Token für die echte Zone. Sicherheitstechnisch der beste Weg der Liste und zugleich der kleinste — eine HTTP-Anfrage |
+| **Hetzner DNS** | Größte Trefferquote bei deutschen VPS | REST mit Token |
+| **netcup (CCP)** | Verbreitet bei günstigen deutschen VPS | JSON-API mit Sitzung (login → Sitzungsschlüssel → Aufruf → logout); sperriger als die übrigen |
+| **IPv64.net** | Ausdrücklich gewünscht; im DACH-Raum als DynDNS verbreitet | Siehe unten — hier gibt es einen Befund |
+| **OVH** | Größter europäischer Hoster | Signierte Aufrufe (Anwendungsschlüssel + Zeitstempel + SHA1); der aufwendigste Eintrag |
+| **DigitalOcean** | Sehr verbreitet bei VPS-Betreibern | Schlanke REST-API |
+
+**Für alle gilt das Muster, das Cloudflare schon hat:** Zugangsdaten stehen in
+einer **Datei mit 0600**, referenziert über einen Pfad — nie in der Datenbank,
+nie in einer API-Antwort, nie im Konsolen-Echo. Das hält §7.5 („0.6 hält kein
+Betriebsgeheimnis") ein, ohne die Anbieter auszuschließen.
+
+### Der Befund zu IPv64
+
+Die API ist bestätigt (`https://apidoc.ipv64.net/`):
+
+    GET    /api.php?get_domains        Authorization: Bearer <key>
+    POST   /api.php   add_record=<zone>&praefix=<präfix>&type=TXT&content=<wert>
+    DELETE /api.php   del_record=<zone>&praefix=<präfix>&type=TXT&content=<wert>
+
+**Der bekannte Fehler ist ein Zonenfehler.** In Zoraxy #351 schlägt IPv64 bei
+*eigenen* Domains fehl, während IPv64-Subdomains funktionieren. Der Grund steht
+in legos Quelltext: `splitDomain` verlangt **mindestens drei Labels** und rät die
+Zone über die Labelanzahl. `meins.ipv64.net` hat drei, `example.com` hat zwei und
+fällt durch. Das certbot-Plugin macht denselben Fehler andersherum (letzte zwei
+Labels → aus `meins.ipv64.net` würde `ipv64.net`, was dem Konto nicht gehört).
+
+**Wir raten nicht, wir fragen.** `get_domains` liefert die Zonen des Kontos; die
+Zone wird von spezifisch nach allgemein dagegen abgeglichen — dieselbe Methode,
+die der Cloudflare-Setter schon benutzt. Damit sind beide Fälle richtig.
+
+**Die Ratengrenze ist die eigentliche Auflage:** 64 Anfragen je 24 Stunden in der
+Standardklasse, höchstens 5 in 10 Sekunden. Ein Wildcard-Bezug hat zwei
+Autorisierungen und käme ohne Sorgfalt auf sechs Anfragen. Daraus folgt
+verbindlich:
+
+  - `get_domains` wird **einmal je Bezug** zwischengespeichert, nicht je Record.
+  - Zwischen den Aufrufen ein Abstand, der die 5-in-10-Sekunden-Grenze hält.
+  - **Nach einem Fehlschlag wird nicht sofort erneut versucht.** Bei 64 Anfragen
+    am Tag ist eine Wiederholschleife kein Schönheitsfehler, sondern ein
+    gesperrter Zugang.
+
+Das Warten auf Sichtbarkeit kostet nichts: Der Löser fragt dafür das DNS und
+nicht die API.
+
+---
+
 ## 10. Rollen, Audit, Signale
 
 **Rollen.** Lesen: jede Rolle. Schreiben: **Owner**. Begründung wie bei Docker
@@ -465,8 +525,32 @@ man über die Kommandozeile an, und der Rest ist Textbau.
 
 **Vor dem Bau zu entscheiden:**
 
-1. **Ein Zertifikat je Site oder eines mit allen Namen** (Abschnitt 4).
-   Empfehlung: je Site.
+1. ~~**Ein Zertifikat je Site oder eines mit allen Namen**~~ — **entschieden:**
+   je Site. **Mit einer Erweiterung, die den Entwurf ändert: Wildcards.**
+
+   Ein Zertifikat für `*.example.com` bedient `shop.example.com`,
+   `blog.example.com` und jede weitere Site darunter — es gehört keiner
+   einzelnen. Das Modell wird deshalb:
+
+   > Zertifikate sind **eigene Objekte**; eine Site **verweist** auf eines.
+   > Beim Anlegen schlägt das Panel vor: ein vorhandenes Wildcard, das den
+   > Namen deckt, sonst ein neues Zertifikat für genau diese Site.
+
+   Das macht die Fläche `/webserver/zertifikate` zur führenden Liste statt zu
+   einer Ableitung — und es entschärft die Rate-Limits von Let's Encrypt
+   erheblich (ein Zertifikat für fünfzig Subdomains statt fünfzig
+   Zertifikate). E6 ist entsprechend zu lesen.
+
+   **Was Wildcards im Bestand kosten** (nachgesehen, nicht angenommen):
+
+   | Stelle | Befund |
+   |---|---|
+   | `covers()` in `manager.go` | **keine Änderung.** Empirisch geprüft: `VerifyHostname("*.example.com")` trifft über den Exakt-Vergleich in `crypto/x509`. Ebenso geprüft: `*.example.com` deckt `a.b.example.com` **nicht** ab und `example.com` **auch nicht** |
+   | `dns01Solver.present()` | **keine Änderung.** `issuer.go` übergibt `authz.Identifier.Value`; nach RFC 8555 trägt eine Wildcard-Autorisierung den Basisnamen samt Flag `wildcard: true`. Gegen Staging zu bestätigen |
+   | `solverFactory` | **dritte Regel:** Ist ein Name ein Wildcard, ist DNS-01 Pflicht — Let's Encrypt bietet dafür keine HTTP-01-Challenge an. Ohne Anbieter ein klarer Fehler statt eines Versuchs |
+   | `pruefeDomain` (privops) | **bleibt.** Sie prüft die Namen fürs HTTP-01-Drop-in, dort ist ein Wildcard sinnlos. Die Namensliste eines **Zertifikats** bekommt einen eigenen Prüfer, der `*.` in genau der ersten Ebene erlaubt. Zwei Fragen, zwei Antworten |
+   | `config.ACME.validate()` | prüft die Domains heute **gar nicht** — weder Form noch Wildcard |
+   | `certs.Holder` (Schritt 3) | Suche: erst exakt, dann `*.` + Elternname, **genau eine Ebene** |
 2. ~~**Caddy schreibend in 0.6 oder später**~~ — **entschieden:** gar nicht.
    Verwaltet wird nginx, jeder andere Webserver gilt als fremd (E1). Der
    Entwurf ist damit nicht schmaler, sondern breiter: Apache und Traefik sind

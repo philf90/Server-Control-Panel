@@ -356,6 +356,60 @@ func (s *System) DockerContainer(ctx context.Context, id string) (ContainerDetai
 	return parseDockerInspect(res.Stdout)
 }
 
+// DockerContainerDetails holt die Einzelheiten MEHRERER Container in EINEM
+// Aufruf.
+//
+// Der Anlass ist ein N+1: Die Bestandsfläche brauchte je Container ein eigenes
+// „docker inspect", nur um festzustellen, welche Volumes in Gebrauch sind — ein
+// Prozess je Container für ein Häkchen je Volume. Bei vierzig Containern waren
+// das vierzig Prozesse, nacheinander, für eine Auskunft, die in einen einzigen
+// Aufruf passt.
+//
+// „docker inspect" nimmt beliebig viele Kennungen und schreibt mit
+// "--format {{json .}}" eine Zeile je Container. Der Leser ist deshalb derselbe
+// wie für einen einzelnen — zeilenweise angewandt. Zwei Fassungen desselben
+// Parsers wären zwei Gelegenheiten, dass eine davon ein Feld verpasst.
+//
+// Eine leere Liste startet KEINEN Prozess. Das ist kein Sonderfall aus
+// Sparsamkeit: „docker inspect" ohne Argumente ist ein Fehler, und ein Server
+// ohne Container ist ein völlig gewöhnlicher Zustand.
+func (s *System) DockerContainerDetails(ctx context.Context, ids []string) ([]ContainerDetail, error) {
+	if len(ids) == 0 {
+		return []ContainerDetail{}, nil
+	}
+	for _, id := range ids {
+		if err := ValidateContainerID(id); err != nil {
+			return nil, err
+		}
+	}
+
+	args := append([]string{"inspect", "--format", "{{json .}}", "--"}, ids...)
+	res, err := s.run(ctx, Command{
+		Name: "docker",
+		Args: args,
+		// Mehr Frist als bei einem einzelnen: Der Aufruf trägt jetzt die Arbeit
+		// von N Aufrufen, auch wenn er nur einen Prozess kostet.
+		Timeout: 2 * defaultTimeout,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	aus := parseDockerInspectMehrere(res.Stdout)
+
+	// Ein Fehlschlag ist nur dann einer, wenn NICHTS herauskam.
+	//
+	// „docker inspect" endet mit einem Fehlercode, sobald eine einzige Kennung
+	// unbekannt ist — die übrigen schreibt es trotzdem. Und genau das ist hier
+	// der Normalfall und keine Ausnahme: Zwischen „docker ps" und diesem Aufruf
+	// kann ein Container verschwunden sein. Den ganzen Bestand deswegen zu
+	// verwerfen hieße, ein Rennen zum Fehler zu erklären.
+	if res.ExitCode != 0 && len(aus) == 0 {
+		return nil, fmt.Errorf("docker inspect: %s", ersteAusgabezeile(res))
+	}
+	return aus, nil
+}
+
 // DockerContainerAction schaltet einen Container.
 func (s *System) DockerContainerAction(ctx context.Context, id string, a ContainerAction) error {
 	if err := ValidateContainerID(id); err != nil {
@@ -510,27 +564,27 @@ func (s *System) DockerStats(ctx context.Context) ([]ContainerStats, error) {
 // wäre die, die jemand beim nächsten Endpunkt vergisst.
 var containerIDMuster = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`)
 
-// imageRefMuster ist die Form einer Abbild-Kennung oder -Bezeichnung.
+// imageRefMuster ist die Form einer Image-Kennung oder -Bezeichnung.
 //
 // Weiter gefasst als containerIDMuster, und der Grund steckt in den echten
 // Werten: Eine Kennung ist "sha256:aaa…", eine Bezeichnung "nginx:alpine" oder
 // "ghcr.io/betreiber/dienst:1.2", ein Digest "nginx@sha256:…". Doppelpunkt,
 // Schrägstrich und Klammeraffe gehören also dazu — und genau das hat der erste
 // Anlauf übersehen: Er hat die Containerprüfung wiederverwendet, und die lehnte
-// jede Abbild-Kennung ab.
+// jede Image-Kennung ab.
 //
 // Was NICHT dazugehört, ist der Punkt: Leerzeichen, Semikolon, Zeilenumbruch und
 // ein führender Bindestrich bleiben draußen. Zusammen mit dem "--" vor dem
 // Operanden sind das zwei Riegel gegen dieselbe Sache.
 var imageRefMuster = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:/@-]{0,255}$`)
 
-// ValidateImageRef prüft eine Abbild-Kennung oder -Bezeichnung.
+// ValidateImageRef prüft eine Image-Kennung oder -Bezeichnung.
 func ValidateImageRef(ref string) error {
 	if ref == "" {
-		return errors.New("kein Abbild angegeben")
+		return errors.New("kein Image angegeben")
 	}
 	if !imageRefMuster.MatchString(ref) {
-		return fmt.Errorf("ungültige Abbild-Kennung: %q", ref)
+		return fmt.Errorf("ungültige Image-Kennung: %q", ref)
 	}
 	return nil
 }
@@ -755,6 +809,29 @@ func parseDockerInspect(out string) (ContainerDetail, error) {
 	return d, nil
 }
 
+// parseDockerInspectMehrere liest die Ausgabe von "docker inspect" über mehrere
+// Kennungen: eine JSON-Zeile je Container.
+//
+// Unlesbare Zeilen werden übersprungen und nicht zum Fehler gemacht — dieselbe
+// Nachsicht wie bei parseDockerPS, und aus demselben Grund: Docker schreibt
+// gelegentlich eine Warnung dazwischen, und eine Warnung darf keine Liste
+// kosten.
+func parseDockerInspectMehrere(out string) []ContainerDetail {
+	aus := []ContainerDetail{}
+	for _, zeile := range strings.Split(out, "\n") {
+		zeile = strings.TrimSpace(zeile)
+		if zeile == "" || !strings.HasPrefix(zeile, "{") {
+			continue
+		}
+		d, err := parseDockerInspect(zeile)
+		if err != nil {
+			continue
+		}
+		aus = append(aus, d)
+	}
+	return aus
+}
+
 // parseDockerStats liest die Ausgabe von "docker stats --no-stream".
 //
 // Beispielzeile (Docker 27):
@@ -798,7 +875,7 @@ func parseDockerStats(out string) []ContainerStats {
 
 // ------------------------------------------------------------------ Bestand ---
 
-// Image ist ein Abbild in der lokalen Ablage.
+// Image ist ein Image in der lokalen Ablage.
 type Image struct {
 	ID   string `json:"id"`
 	Repo string `json:"repo"`
@@ -809,7 +886,7 @@ type Image struct {
 	// Kommandozeile.
 	Groesse  string `json:"groesse"`
 	Erstellt string `json:"erstellt"`
-	// Verwaist heißt: ohne Namen (<none>:<none>). Solche Abbilder entstehen bei
+	// Verwaist heißt: ohne Namen (<none>:<none>). Solche Images entstehen bei
 	// jedem Neubau und sind der übliche Grund, warum eine Platte volläuft.
 	Verwaist bool `json:"verwaist"`
 }
@@ -846,7 +923,7 @@ type Bestandsposten struct {
 //
 // Ein eigener Typ mit Allowlist, weil der Wert bis in die Kommandozeile wandert.
 // "system" fehlt bewusst: "docker system prune" räumt in einem Zug Container,
-// Netze, Abbilder und den Baucache auf, und eine Aktion, deren Umfang der
+// Netze, Images und den Baucache auf, und eine Aktion, deren Umfang der
 // Bedienende nicht überblickt, kann keine sinnvolle Rückfrage tragen.
 type PruneArt string
 
@@ -868,7 +945,7 @@ func ValidPruneArt(a PruneArt) bool {
 	}
 }
 
-// DockerImages listet die lokalen Abbilder.
+// DockerImages listet die lokalen Images.
 func (s *System) DockerImages(ctx context.Context) ([]Image, error) {
 	res, err := s.run(ctx, Command{
 		Name: "docker",
@@ -883,14 +960,14 @@ func (s *System) DockerImages(ctx context.Context) ([]Image, error) {
 	return parseDockerImages(res.Stdout), nil
 }
 
-// DockerImageRemove entfernt ein Abbild.
+// DockerImageRemove entfernt ein Image.
 func (s *System) DockerImageRemove(ctx context.Context, id string) error {
 	if err := ValidateImageRef(id); err != nil {
 		return err
 	}
-	// Ohne --force: Ist das Abbild in Gebrauch, soll Docker das sagen und nicht
+	// Ohne --force: Ist das Image in Gebrauch, soll Docker das sagen und nicht
 	// der Container mitgerissen werden. Die Oberfläche bietet den Handgriff bei
-	// einem benutzten Abbild ohnehin nicht an — aber ein selbstgebautes POST
+	// einem benutzten Image ohnehin nicht an — aber ein selbstgebautes POST
 	// kommt an der Liste vorbei, und hier ist die Stelle, an der es zählt.
 	res, err := s.run(ctx, Command{
 		Name: "docker", Args: []string{"image", "rm", "--", id},
@@ -992,9 +1069,9 @@ func (s *System) DockerDiskUsage(ctx context.Context) ([]Bestandsposten, error) 
 
 // DockerPrune räumt eine Art auf und meldet, was das gebracht hat.
 //
-// alleUnbenutzten gilt nur für Abbilder und den Baucache und ist der
+// alleUnbenutzten gilt nur für Images und den Baucache und ist der
 // Unterschied zwischen "räum die namenlosen Reste weg" und "wirf alles raus,
-// was gerade kein Container benutzt". Der zweite Fall zieht auch Abbilder, die
+// was gerade kein Container benutzt". Der zweite Fall zieht auch Images, die
 // jemand für morgen bereitgelegt hat — deshalb steht er als eigener Parameter
 // und nicht als stille Vorgabe.
 func (s *System) DockerPrune(ctx context.Context, art PruneArt, alleUnbenutzten bool, stream LineWriter) (string, error) {
@@ -1042,7 +1119,7 @@ func (s *System) DockerPrune(ctx context.Context, art PruneArt, alleUnbenutzten 
 //	 "CreatedSince":"11 days ago","Digest":"<none>","ID":"sha256:abc…",
 //	 "Repository":"nginx","Size":"48.9MB","Tag":"alpine"}
 //
-// Ein Abbild ohne Namen trägt in beiden Feldern "<none>" — das ist der Rest, der
+// Ein Image ohne Namen trägt in beiden Feldern "<none>" — das ist der Rest, der
 // bei jedem Neubau übrig bleibt, und der übliche Grund für eine volle Platte.
 func parseDockerImages(out string) []Image {
 	images := []Image{}

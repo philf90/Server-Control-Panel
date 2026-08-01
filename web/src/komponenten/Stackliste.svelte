@@ -3,7 +3,7 @@
   // den Containern (docs/16-neukonzeption.md §8.4).
   //
   // Seit Schritt 5 ist sie auch schreibend: anlegen, bearbeiten, starten,
-  // herunterfahren, Abbilder holen, neu starten, löschen. Die Grenze zieht der
+  // herunterfahren, Images holen, neu starten, löschen. Die Grenze zieht der
   // Compose-Prüfer auf dem Server — diese Fläche zeigt sein Urteil, sie fällt
   // es nicht. Eine Prüfung im Browser wäre eine Bequemlichkeit; die Bedingung
   // steht in privops.
@@ -194,24 +194,33 @@
 
 {#if !daten}
   <p class="detail">{t.docker.laedt}</p>
-{:else if daten.zeilen.length === 0}
-  <p class="detail">{t.docker.stacksLeer}</p>
 {:else}
+  <!-- Der Werkzeugblock steht VOR der Frage, ob es Stacks gibt — und das ist
+       die Berichtigung eines Fehlers aus 0.5.0: Dort lag „Stack anlegen" im
+       Zweig für die nicht leere Liste. Auf einem frischen Server, also genau
+       dort, wo jemand den ersten Stack anlegen will, gab es den Knopf deshalb
+       nicht, und einen zweiten Weg in den Editor gibt es nicht.
+
+       Suchfeld und Zähler bleiben an die Liste gebunden: Ein Suchfeld über
+       null Zeilen ist ein Griff ins Leere, und drei Nullen sind keine
+       Auskunft. -->
   <div class="werkzeuge">
-    <input
-      type="search"
-      class="feld"
-      placeholder={t.docker.stacksSuchen}
-      aria-label={t.docker.stacksSuchen}
-      bind:value={suche}
-    />
-    <!-- Die Zähler sind hier Auskunft und kein Filter: Bei einer Handvoll
-         Stacks wäre ein Filter über vier Zeilen ein Griff, der nichts spart. -->
-    <div class="zaehler">
-      <span>{t.docker.verwaltet} <b>{daten.zaehler.verwaltet}</b></span>
-      <span>{t.docker.fremd} <b>{daten.zaehler.fremd}</b></span>
-      <span>{t.docker.auffaellig} <b>{daten.zaehler.auffaellig}</b></span>
-    </div>
+    {#if daten.zeilen.length > 0}
+      <input
+        type="search"
+        class="feld"
+        placeholder={t.docker.stacksSuchen}
+        aria-label={t.docker.stacksSuchen}
+        bind:value={suche}
+      />
+      <!-- Die Zähler sind hier Auskunft und kein Filter: Bei einer Handvoll
+           Stacks wäre ein Filter über vier Zeilen ein Griff, der nichts spart. -->
+      <div class="zaehler">
+        <span>{t.docker.verwaltet} <b>{daten.zaehler.verwaltet}</b></span>
+        <span>{t.docker.fremd} <b>{daten.zaehler.fremd}</b></span>
+        <span>{t.docker.auffaellig} <b>{daten.zaehler.auffaellig}</b></span>
+      </div>
+    {/if}
     <div class="schub"></div>
     {#if darfAendern}
       <button type="button" class="knopf klein" onclick={() => (editor = "neu")}>
@@ -219,7 +228,14 @@
       </button>
     {/if}
   </div>
+{/if}
 
+{#if daten && daten.zeilen.length === 0}
+  <p class="detail">{t.docker.stacksLeer}</p>
+  {#if !darfAendern}
+    <p class="hinweis">{t.docker.stacksLeerNurLesen}</p>
+  {/if}
+{:else if daten}
   <div class="werkbank" class:allein={!gewaehlt}>
     <div class="tabelle-rahmen">
       <table class="tabelle">

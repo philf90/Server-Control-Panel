@@ -408,9 +408,9 @@ func TestParseDockerStats(t *testing.T) {
 	}
 }
 
-// Abbild-Kennungen sind anders gebaut als Containernamen: "sha256:aaa",
+// Image-Kennungen sind anders gebaut als Containernamen: "sha256:aaa",
 // "nginx:alpine", "ghcr.io/o/n:1.2", "nginx@sha256:…". Der erste Anlauf hat für
-// beides dieselbe Prüfung benutzt — und die lehnte jede Abbild-Kennung ab.
+// beides dieselbe Prüfung benutzt — und die lehnte jede Image-Kennung ab.
 func TestValidateImageRef(t *testing.T) {
 	gut := []string{
 		"sha256:aaa111", "nginx", "nginx:alpine", "ghcr.io/betreiber/dienst:1.2",
@@ -577,6 +577,17 @@ const (
 	dockerVolumesOut = `{"Driver":"local","Labels":"","Mountpoint":"/var/lib/docker/volumes/web_daten/_data","Name":"web_daten","Scope":"local"}
 {"Driver":"local","Labels":"","Mountpoint":"/var/lib/docker/volumes/tmp99/_data","Name":"tmp99","Scope":"local"}`
 
+	// Zwei Container in einem Aufruf: „docker inspect --format {{json .}} a b"
+	// schreibt eine Zeile je Container. Die erste Zeile ist dieselbe wie bei
+	// einem einzelnen (dockerInspectOut), die zweite gekürzt — geprüft wird die
+	// Zerlegung in Zeilen, nicht ein zweites Mal das Lesen der Felder.
+	dockerInspectMehrereOut = `{"Id":"3f2b8c1d9a4e","Name":"/web-proxy-1","State":{"Status":"running"},"Config":{"Image":"nginx:alpine"},"Mounts":[{"Type":"volume","Name":"web_daten","Source":"/var/lib/docker/volumes/web_daten/_data","Destination":"/data","RW":true}]}
+{"Id":"aa11bb22cc33","Name":"/web-db-1","State":{"Status":"exited","ExitCode":137},"Config":{"Image":"postgres:16"},"Mounts":[{"Type":"bind","Source":"/srv/pg","Destination":"/var/lib/postgresql/data","RW":true}]}`
+
+	// Docker schreibt auch hier gelegentlich eine Warnung dazwischen.
+	dockerInspectMehrereMitWarnungOut = `Error: No such object: verschwunden
+{"Id":"3f2b8c1d9a4e","Name":"/web-proxy-1","State":{"Status":"running"},"Config":{"Image":"nginx:alpine"}}`
+
 	dockerNetzeOut = `{"CreatedAt":"2026-07-30 10:00:00 +0000 UTC","Driver":"bridge","ID":"1a2b3c","Name":"bridge","Scope":"local"}
 {"CreatedAt":"2026-07-30 10:05:00 +0000 UTC","Driver":"bridge","ID":"4d5e6f","Name":"web_default","Scope":"local"}`
 
@@ -596,19 +607,19 @@ Total reclaimed space: 1.234GB
 func TestParseDockerImages(t *testing.T) {
 	liste := parseDockerImages(dockerImagesOut)
 	if len(liste) != 2 {
-		t.Fatalf("erwartet 2 Abbilder, gelesen %d", len(liste))
+		t.Fatalf("erwartet 2 Images, gelesen %d", len(liste))
 	}
 	if liste[0].Repo != "nginx" || liste[0].Tag != "alpine" || liste[0].Groesse != "48.9MB" {
 		t.Errorf("erste Zeile falsch gelesen: %+v", liste[0])
 	}
 	if liste[0].Verwaist {
-		t.Error("ein benanntes Abbild ist nicht verwaist")
+		t.Error("ein benanntes Image ist nicht verwaist")
 	}
 	// Der zweite ist der Rest, der bei jedem Neubau übrig bleibt — und der
 	// übliche Grund, warum eine Platte volläuft. Ihn zu erkennen ist der Zweck
 	// dieses Feldes.
 	if !liste[1].Verwaist {
-		t.Errorf("ein Abbild ohne Namen ist verwaist: %+v", liste[1])
+		t.Errorf("ein Image ohne Namen ist verwaist: %+v", liste[1])
 	}
 }
 
@@ -705,7 +716,7 @@ func TestDockerPruneLehntUnbekannteArtAb(t *testing.T) {
 	}
 }
 
-// Ein Abbild wird OHNE --force entfernt: Ist es in Gebrauch, soll Docker das
+// Ein Image wird OHNE --force entfernt: Ist es in Gebrauch, soll Docker das
 // sagen und nicht der Container mitgerissen werden.
 func TestDockerImageRemoveOhneForce(t *testing.T) {
 	f := newFakeRunner()
@@ -743,5 +754,55 @@ func TestDockerBestandLehntUngueltigeKennungAb(t *testing.T) {
 	}
 	if len(f.calls) != 0 {
 		t.Errorf("es darf kein Kommando gelaufen sein, gelaufen sind %d", len(f.calls))
+	}
+}
+
+// TestParseDockerInspectMehrere prüft den Sammelaufruf, mit dem das N+1 der
+// Bestandsfläche verschwunden ist.
+//
+// Der Leser ist derselbe wie für einen einzelnen Container, nur zeilenweise
+// angewandt — geprüft wird deshalb die Zerlegung und der Umgang mit dem, was
+// keine JSON-Zeile ist.
+func TestParseDockerInspectMehrere(t *testing.T) {
+	liste := parseDockerInspectMehrere(dockerInspectMehrereOut)
+	if len(liste) != 2 {
+		t.Fatalf("erwartet 2 Container, gelesen %d", len(liste))
+	}
+	if liste[0].Name != "web-proxy-1" || liste[1].Name != "web-db-1" {
+		t.Errorf("Namen falsch gelesen: %q, %q", liste[0].Name, liste[1].Name)
+	}
+	// Die Mounts sind der Grund für den ganzen Aufruf: Aus ihnen leitet der
+	// Bestand ab, welche Volumes in Gebrauch sind.
+	if len(liste[0].Mounts) != 1 || liste[0].Mounts[0].Art != "volume" ||
+		liste[0].Mounts[0].Quelle != "web_daten" {
+		t.Errorf("Volume-Mount falsch gelesen: %+v", liste[0].Mounts)
+	}
+	// Und der Exit-Code gilt weiter nur für den beendeten.
+	if liste[0].ExitCode != -1 || liste[1].ExitCode != 137 {
+		t.Errorf("Exit-Codes falsch: %d, %d", liste[0].ExitCode, liste[1].ExitCode)
+	}
+}
+
+// TestParseDockerInspectMehrereUeberspringtFremdes hält fest, dass eine
+// Fehlerzeile die Liste nicht kostet.
+//
+// Zwischen „docker ps" und „docker inspect" kann ein Container verschwinden.
+// Docker meldet das als Fehlerzeile und schreibt die übrigen trotzdem — den
+// ganzen Bestand deswegen zu verwerfen hieße, ein Rennen zum Fehler zu erklären.
+func TestParseDockerInspectMehrereUeberspringtFremdes(t *testing.T) {
+	liste := parseDockerInspectMehrere(dockerInspectMehrereMitWarnungOut)
+	if len(liste) != 1 {
+		t.Fatalf("erwartet 1 Container, gelesen %d", len(liste))
+	}
+	if liste[0].Name != "web-proxy-1" {
+		t.Errorf("falscher Container gelesen: %q", liste[0].Name)
+	}
+}
+
+// TestParseDockerInspectMehrereLeer: Eine leere Ausgabe ist eine leere Liste und
+// kein nil — dieselbe Regel wie überall in diesem Paket.
+func TestParseDockerInspectMehrereLeer(t *testing.T) {
+	if got := parseDockerInspectMehrere(""); len(got) != 0 {
+		t.Errorf("erwartet leer, gelesen %+v", got)
 	}
 }

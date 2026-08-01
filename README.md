@@ -9,7 +9,7 @@ ohne SSH und ohne dass das Panel die Maschine übernimmt.
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: 0.5.0 im Kanal `stable`, die Freigabe 1.0 steht aus.**
+> **Status: 0.5.1 im Kanal `stable`, die Freigabe 1.0 steht aus.**
 > Gebaut sind Installation, TLS mit Let's Encrypt, der signierte Release- und
 > Selbstupdate-Pfad mit Bereitschaftsprüfung und selbsttätigem Rollback, die
 > Anmeldung mit zweitem Faktor und Passkeys, Rollen, Audit-Log sowie die Module
@@ -20,7 +20,9 @@ beherrschbar bleibt.
 > **0.4.1** die alte server-gerenderte Fläche abgebaut. Seither ist das Modul
 > **Docker (0.5)** dazugekommen: Compose-Stacks als führendes Objekt samt
 > Compose-Prüfer, Container, Bestand, Portübersicht mit Firewall-Abgleich,
-> Ereignisstrom und Update-Prüfung. Die Container-Shell aus dem ursprünglichen
+> Ereignisstrom und Update-Prüfung. Der Compose-Editor führt seit **0.5.1**
+> Felder neben der Datei, in beide Richtungen und ohne Kommentare oder
+> Formatierung anzutasten. Die Container-Shell aus dem ursprünglichen
 > Zuschnitt ist zurückgestellt. Als Nächstes kommen **Webserver & Domains
 > (0.6)**, **Datenbanken (0.7)**, **Backups (0.8)**; 1.0 ist der externe
 > Sicherheits-Review, kein neues Feature. Der Plan steht in
@@ -38,11 +40,13 @@ Der Installer gibt am Ende einen einmaligen Setup-Link aus. Dort werden
 Administrator-Konto und Zwei-Faktor-Anmeldung eingerichtet — es wird bewusst kein
 Passwort vergeben, das im Terminal oder in der Shell-History stünde.
 
-Gemessen am aktuellen Stand (0.5.0): 17,6 MB Binary, 20,5 MB RSS im Leerlauf,
+Gemessen am aktuellen Stand (0.5.1): 17,7 MB Binary, 20,5 MB RSS im Leerlauf,
 39 ms für eine Anmeldung, TLS 1.3 mit selbstsigniertem Zertifikat beim ersten
-Start. Das Modul Docker hat davon 464 KiB Binärgröße gekostet und keine einzige
-neue Abhängigkeit — es spricht über die Kommandozeile mit Docker, nicht über
-eine Bibliothek.
+Start. Das Modul Docker hat davon 584 KiB Binärgröße gekostet und keine einzige
+neue Abhängigkeit auf der Go-Seite — es spricht über die Kommandozeile mit
+Docker, nicht über eine Bibliothek. Auf der Browserseite kam mit dem
+Compose-Formular eine dazu (`yaml`, ISC); sie wird nachgeladen, wenn jemand eine
+Compose-Datei öffnet, und liegt sonst still.
 
 Aktualisiert wird über das Panel oder mit `sudo asylum update`: Signatur gegen den
 im Binary eingebauten Schlüssel, atomarer Tausch, Neustart, Bereitschaftsprüfung —
@@ -58,13 +62,16 @@ im Binary.
 Vier Teile, auf jeder Seite dieselben. Oben ein **Statusband** mit Wirt,
 Laufzeit, CPU, Speicher, Platte, Last und Netz — jede Anzeige darin ist ein
 Link, und ein Live-Kanal schreibt die Zahlen fort. Links eine **Seitenleiste**,
-nach System, Apps, Sicherheit und Betrieb gruppiert, jedes Ziel mit einem
-Warnpunkt, wenn dort etwas offen ist: Das Menü verrät damit, wo etwas zu tun
-ist, ohne dass man jede Seite besuchen muss. Unten eine **Protokollzeile**, die
-den zuletzt auf der Maschine ausgeführten Befehl mit Rückgabewert und Laufzeit
-zeigt; aufgeklappt die letzten vierundzwanzig. Dazwischen der Inhalt. Dazu eine
-**Befehlspalette** auf ⌘K bzw. Strg+K, die dieselben Ziele durchsucht wie die
-Leiste.
+nach System, Apps, Sicherheit und Betrieb gruppiert, mit einem Warnpunkt an den
+Zielen, zu denen etwas offen ist: Das Menü verrät damit, wo etwas zu tun ist,
+ohne dass man jede Seite besuchen muss. Ein Modul mit mehreren Flächen klappt
+seine Unterpunkte auf, solange man darin steht — Docker führt so Stacks,
+Container, Ports, Image-Updates und Bestand, jede mit eigener Adresse, und der
+Punkt sitzt an der Fläche statt am Modul.
+Unten eine **Protokollzeile**, die den zuletzt auf der Maschine ausgeführten
+Befehl mit Rückgabewert und Laufzeit zeigt; aufgeklappt die letzten
+vierundzwanzig. Dazwischen der Inhalt. Dazu eine **Befehlspalette** auf ⌘K bzw.
+Strg+K, die dieselben Ziele durchsucht wie die Leiste.
 
 Der Sinn der Anordnung: Wer auf „Dienste" wechselt, um einen Ausfall zu beheben,
 verliert die Kennzahlen nicht aus dem Blick — und beim Seitenwechsel bleibt die

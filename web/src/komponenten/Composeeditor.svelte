@@ -20,10 +20,12 @@
   // nachgeladen aus lib/editorkern, mit demselben Nonce-Pfad. Der Brocken liegt
   // ohnehin im Bündel; ihn hier ein zweites Mal einzubinden hieße, ihn zweimal
   // auszuliefern.
+  import Composeformular from "./Composeformular.svelte";
   import Rueckfrage from "./Rueckfrage.svelte";
   import { AbgemeldetFehler, BestaetigungNoetig, Composeabgelehnt, api } from "../lib/api";
   import { t } from "../lib/texte";
   import type { Griff } from "../lib/editorkern";
+  import type { Umgebungsform, Umgebungszeile } from "../lib/composeform";
   import type {
     Bestaetigung,
     Composebefund,
@@ -123,12 +125,116 @@
             // über ungespeicherten Änderungen anzuzeigen.
             meldung = "";
             bearbeitet = true;
+            spiegelNachziehen();
           },
         });
+        spiegel = inhalt;
       } catch (e) {
         kernFehler = e instanceof Error ? e.message : t.dateien.editorNichtGeladen;
       }
     })();
+  });
+
+  // ────────────────────────────────── Das Formular und seine Verdrahtung ───
+  //
+  // Die Richtung, in die man das lesen muss: Es gibt EINE Wahrheit, und das ist
+  // der Text im Editor. „spiegel" ist nur eine Kopie davon für das Formular,
+  // und er wird verzögert nachgezogen — ein Parser je Tastendruck wäre Arbeit
+  // für ein Ergebnis, das im nächsten Anschlag schon wieder gilt.
+  //
+  // In die andere Richtung schreibt das Formular nie in den Spiegel allein: Es
+  // erzeugt einen neuen Text und legt ihn in den Editor. Dass der daraufhin
+  // seinerseits den Spiegel nachzieht, ist kein Kreis, sondern die Bestätigung
+  // — er zieht denselben Text nach, und dabei bleibt es.
+
+  type Modell = typeof import("../lib/composeform");
+
+  let ansicht = $state<"beides" | "felder" | "text">("beides");
+  /** spiegel ist der Text, wie das Formular ihn sieht. Nicht „text": So heißt
+   *  die Eigenschaft mit dem Ausgangsinhalt, und die ändert sich nie. */
+  let spiegel = $state("");
+  let modell = $state<Modell | null>(null);
+  let modellFehler = $state("");
+  let stift: ReturnType<typeof setTimeout> | null = null;
+
+  function spiegelNachziehen() {
+    if (stift) clearTimeout(stift);
+    stift = setTimeout(() => {
+      stift = null;
+      spiegel = griff?.inhalt() ?? "";
+    }, 200);
+  }
+
+  /** modellLaden holt den Brocken mit der yaml-Bibliothek nach — wie
+   *  editorkern und aus demselben Grund. Wer nur die Datei bearbeitet, lädt ihn
+   *  nie.
+   *
+   *  Kein $effect: Ein Effekt, der „modell" liest und asynchron setzt, ist genau
+   *  die Bauart, mit der diese Datei schon einmal in eine Schleife gelaufen ist
+   *  (siehe die beiden Effekte oben). Ein Aufruf an den zwei Stellen, an denen
+   *  er gebraucht wird, kann das nicht. */
+  async function modellLaden() {
+    if (modell || modellFehler) return;
+    try {
+      modell = await import("../lib/composeform");
+    } catch (e) {
+      modellFehler = e instanceof Error ? e.message : t.dateien.editorNichtGeladen;
+    }
+  }
+
+  if (ansicht !== "text") void modellLaden();
+
+  /** ansichtWaehlen schaltet um. Der Parameter heißt „wahl" und nicht „neu":
+   *  So heißt schon die Eigenschaft, die „Stack anlegen" von „Stack ändern"
+   *  unterscheidet, und eine verdeckte Eigenschaft ist in dieser Datei schon
+   *  einmal teuer geworden. */
+  function ansichtWaehlen(wahl: "beides" | "felder" | "text") {
+    ansicht = wahl;
+    if (wahl !== "text") void modellLaden();
+  }
+
+  const aufbau = $derived(modell ? modell.lies(spiegel) : null);
+
+  /** anwenden legt einen vom Formular erzeugten Text in den Editor.
+   *
+   *  Die Gleichheitsprüfung ist die Bremse: Das Modell gibt bei jeder Änderung,
+   *  die es nicht ausführen kann, den EINGABETEXT zurück — und ein
+   *  „ersetzen" mit demselben Inhalt würde die Schreibmarke im Texteditor
+   *  trotzdem an den Anfang setzen. */
+  function anwenden(neu: string) {
+    if (neu === spiegel) return;
+    spiegel = neu;
+    griff?.ersetzen(neu);
+    bearbeitet = true;
+    meldung = "";
+  }
+
+  function feldAendern(dienst: string, feld: "image" | "restart" | "command", wert: string) {
+    if (modell) anwenden(modell.setzeFeld(spiegel, dienst, feld, wert));
+  }
+
+  function listeAendern(
+    dienst: string,
+    feld: "ports" | "volumes" | "depends_on" | "networks",
+    werte: string[],
+  ) {
+    if (modell) anwenden(modell.setzeListe(spiegel, dienst, feld, werte));
+  }
+
+  function umgebungAendern(dienst: string, zeilen: Umgebungszeile[], form: Umgebungsform) {
+    if (modell) anwenden(modell.setzeUmgebung(spiegel, dienst, zeilen, form));
+  }
+
+  function dienstAnlegen(name: string) {
+    if (modell) anwenden(modell.dienstAnlegen(spiegel, name));
+  }
+
+  function dienstEntfernen(name: string) {
+    if (modell) anwenden(modell.dienstEntfernen(spiegel, name));
+  }
+
+  $effect(() => () => {
+    if (stift) clearTimeout(stift);
   });
 
   // Ein Vorlagenwechsel baut den Editor neu auf — und geht nur, solange nichts
@@ -262,7 +368,45 @@
     </div>
   {/if}
 
-  <div class="kasten" bind:this={kasten}></div>
+  <!-- Die Ansichtswahl. „beides" ist die Vorgabe, weil die Fläche genau davon
+       lebt: Wer ein Feld ändert, soll sehen, was in der Datei geschieht — und
+       wer die Datei ändert, soll sehen, wie das Formular es liest. -->
+  <div class="ansichtswahl" role="group" aria-label={t.docker.formAnsicht}>
+    {#each [{ k: "felder" as const, b: t.docker.formTitel }, { k: "beides" as const, b: t.docker.formBeides }, { k: "text" as const, b: t.docker.formText }] as w (w.k)}
+      <button
+        type="button"
+        class="knopf leise klein"
+        class:gewaehlt={ansicht === w.k}
+        aria-pressed={ansicht === w.k}
+        onclick={() => ansichtWaehlen(w.k)}
+      >
+        {w.b}
+      </button>
+    {/each}
+  </div>
+
+  {#if modellFehler}<p class="warnung">{modellFehler}</p>{/if}
+
+  <!-- Beide Flächen bleiben im Baum und werden nur verborgen. Den Texteditor
+       aus dem Baum zu nehmen hieße, ihn zu zerstören und beim Zurückschalten
+       neu zu bauen — samt Verlust der Rücknahmegeschichte. -->
+  <div class="flaechen" class:zwei={ansicht === "beides"}>
+    <div class="formularseite" class:versteckt={ansicht === "text"}>
+      {#if aufbau}
+        <Composeformular
+          {aufbau}
+          {feldAendern}
+          {listeAendern}
+          {umgebungAendern}
+          {dienstAnlegen}
+          {dienstEntfernen}
+        />
+      {:else if !modellFehler}
+        <p class="detail">{t.docker.laedt}</p>
+      {/if}
+    </div>
+    <div class="kasten" bind:this={kasten} class:versteckt={ansicht === "felder"}></div>
+  </div>
 
   {#if pruefung}
     <div class="pruefung">
@@ -370,6 +514,42 @@
     border-radius: 8px;
     overflow: hidden;
     min-height: 18rem;
+  }
+
+  .ansichtswahl {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .ansichtswahl .gewaehlt {
+    border-color: var(--accent-dim);
+    color: var(--tx);
+  }
+
+  .flaechen {
+    display: grid;
+    gap: 0.6rem;
+    align-items: start;
+  }
+
+  /* Nebeneinander erst, wenn es dafür reicht. Zwei Spalten auf einem Telefon
+     wären zwei zu schmale Spalten. */
+  @media (min-width: 1100px) {
+    .flaechen.zwei {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+  }
+
+  /* Der Bezugsrahmen für die Rasterabfragen im Formular: Es soll sich nach
+     dieser Spalte richten und nicht nach dem Fenster. */
+  .formularseite {
+    min-width: 0;
+    container-type: inline-size;
+  }
+
+  .versteckt {
+    display: none;
   }
 
   .pruefung {

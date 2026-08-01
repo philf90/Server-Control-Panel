@@ -1,16 +1,16 @@
 package httpd
 
-// Update-Prüfung für Container-Abbilder — Schritt 7 aus docs/17-docker.md.
+// Update-Prüfung für Container-Images — Schritt 7 aus docs/17-docker.md.
 //
 // Vier Festlegungen bestimmen diese Datei, und drei davon handeln davon, was
 // NICHT geschieht:
 //
 //  1. **Die Prüfung ist eine Auskunft, kein Vorgang** (Entscheidung E5). Sie
 //     tauscht nichts aus. Sie sagt, dass es etwas Neues gibt, und der Mensch
-//     drückt den Knopf. Ein Panel, das nachts von allein Abbilder tauscht, ist
+//     drückt den Knopf. Ein Panel, das nachts von allein Images tauscht, ist
 //     ein Panel, das nachts von allein etwas kaputt macht.
 //  2. **Höchstens ein Lauf je Tag.** Docker Hub zählt anonyme Abfragen, und ein
-//     Server mit dreißig Abbildern verbraucht bei jedem Lauf dreißig davon. Die
+//     Server mit dreißig Images verbraucht bei jedem Lauf dreißig davon. Die
 //     Grenze liegt im Store und nicht im Speicher: Sonst setzte ein Neustart des
 //     Panels sie zurück, und ein Dienst, der oft neu startet, fragte dauernd.
 //  3. **Eine Ratengrenze wird angezeigt und nicht wiederholt.** Wer bei
@@ -57,7 +57,7 @@ type gespeicherterUpdatestand struct {
 	Fehler   string                `json:"fehler,omitempty"`
 }
 
-// apiUpdatezeile ist ein Abbild in der Antwort.
+// apiUpdatezeile ist ein Image in der Antwort.
 type apiUpdatezeile struct {
 	Ref string `json:"ref"`
 	// Geprueft und Neu stehen getrennt, und das ist der Kern der ganzen Fläche:
@@ -70,8 +70,8 @@ type apiUpdatezeile struct {
 	// in einer Tabelle unlesbar.
 	LokalKurz string `json:"lokal_kurz,omitempty"`
 	FernKurz  string `json:"fern_kurz,omitempty"`
-	// Stacks nennt die Compose-Projekte, die dieses Abbild benutzen. Sie sind
-	// der Griff: Aktualisiert wird ein Stack, nicht ein Abbild.
+	// Stacks nennt die Compose-Projekte, die dieses Image benutzen. Sie sind
+	// der Griff: Aktualisiert wird ein Stack, nicht ein Image.
 	Stacks []string `json:"stacks"`
 	// Container nennt die Container ohne Stack — für sie gibt es hier keinen
 	// Handgriff, und das gehört gesagt statt einen Knopf anzubieten, der nichts
@@ -122,8 +122,8 @@ func (s *Server) handleAPIDockerUpdates(w http.ResponseWriter, r *http.Request) 
 	antwort.DarfPruefen = antwort.NaechsteFruehestens == ""
 	antwort.Fehler = stand.Fehler
 
-	// Wer welches Abbild benutzt, kommt aus der Containerliste und nicht aus dem
-	// Zwischenspeicher: Container kommen und gehen, der Stand des Abbilds nicht.
+	// Wer welches Image benutzt, kommt aus der Containerliste und nicht aus dem
+	// Zwischenspeicher: Container kommen und gehen, der Stand des Images nicht.
 	stacks, container := map[string][]string{}, map[string][]string{}
 	if cs, err := s.ops.DockerContainers(r.Context()); err == nil {
 		for _, c := range cs {
@@ -192,17 +192,17 @@ func (s *Server) handleAPIDockerUpdatePruefung(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Welche Abbilder überhaupt in Frage kommen: die der laufenden Container.
-	// Nicht alle lokalen — ein Abbild, das niemand benutzt, ist keine Frage
+	// Welche Images überhaupt in Frage kommen: die der laufenden Container.
+	// Nicht alle lokalen — ein Image, das niemand benutzt, ist keine Frage
 	// wert, und jede Abfrage kostet an der Ratengrenze.
-	refs, err := s.gefragteAbbilder(r.Context())
+	refs, err := s.gefragteImages(r.Context())
 	if err != nil {
 		s.apiFehler(w, http.StatusBadGateway, err.Error())
 		return
 	}
 	if len(refs) == 0 {
 		s.apiFehler(w, http.StatusBadRequest,
-			"Es läuft kein Container, dessen Abbild sich prüfen ließe.")
+			"Es läuft kein Container, dessen Image sich prüfen ließe.")
 		return
 	}
 
@@ -259,15 +259,15 @@ func (s *Server) handleAPIDockerUpdatePruefung(w http.ResponseWriter, r *http.Re
 		s.auditNachtraeglich(user.Username, "docker.updates.check", "", art, ergebnisText)
 	}()
 
-	s.gestartet(w, jobDockerUpdatePruefung, "Die Abbilder werden mit den Registries verglichen.")
+	s.gestartet(w, jobDockerUpdatePruefung, "Die Images werden mit den Registries verglichen.")
 }
 
-// gefragteAbbilder sammelt die Abbilder der laufenden Container.
+// gefragteImages sammelt die Images der laufenden Container.
 //
-// Eindeutig und sortiert: Zehn Container mit demselben Abbild sind eine
+// Eindeutig und sortiert: Zehn Container mit demselben Image sind eine
 // Abfrage, nicht zehn. Das ist kein Feinschliff — es ist der Unterschied
 // zwischen innerhalb und außerhalb der Ratengrenze.
-func (s *Server) gefragteAbbilder(ctx context.Context) ([]string, error) {
+func (s *Server) gefragteImages(ctx context.Context) ([]string, error) {
 	cs, err := s.ops.DockerContainers(ctx)
 	if err != nil {
 		return nil, err
@@ -278,7 +278,7 @@ func (s *Server) gefragteAbbilder(ctx context.Context) ([]string, error) {
 		if c.Zustand != "running" || c.Image == "" || gesehen[c.Image] {
 			continue
 		}
-		// Ein Abbild, das über seine Kennung angezogen wurde, kann sich nicht
+		// Ein Image, das über seine Kennung angezogen wurde, kann sich nicht
 		// ändern: Die Kennung IST der Inhalt. Es zu prüfen wäre eine Abfrage
 		// gegen die Ratengrenze mit garantiert derselben Antwort.
 		if strings.Contains(c.Image, "@sha256:") {
@@ -331,15 +331,15 @@ func updatenotiz(stand gespeicherterUpdatestand) string {
 			neu++
 		}
 	}
-	satz := zahlwort(neu, "Abbild", "Abbilder") + " mit einer neueren Fassung"
+	satz := zahlwort(neu, "Image", "Images") + " mit einer neueren Fassung"
 	if ungeprueft > 0 {
-		satz += ", " + zahlwort(ungeprueft, "Abbild", "Abbilder") + " nicht geprüft"
+		satz += ", " + zahlwort(ungeprueft, "Image", "Images") + " nicht geprüft"
 	}
 	return satz
 }
 
 // zahlwort setzt Zahl und Wort zusammen. Eine Zahl im Text braucht beide
-// Formen — „1 Abbilder" fällt im Betrieb auf.
+// Formen — „1 Images" fällt im Betrieb auf.
 func zahlwort(n int, einzahl, mehrzahl string) string {
 	wort := mehrzahl
 	if n == 1 {

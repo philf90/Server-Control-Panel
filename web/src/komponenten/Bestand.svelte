@@ -8,7 +8,7 @@
   // Gebrauch, 1.5 GB freigebbar" statt „alle".
   //
   // Was in Gebrauch ist, rechnet der Server aus der Containerliste aus. Das
-  // erspart den Fehlversuch: Docker weigert sich, ein benutztes Abbild oder ein
+  // erspart den Fehlversuch: Docker weigert sich, ein benutztes Image oder ein
   // eingehängtes Volume zu löschen, und ein Knopf, der zuverlässig in diese
   // Weigerung läuft, ist selbst der Fehler.
   import Rueckfrage from "./Rueckfrage.svelte";
@@ -182,7 +182,7 @@
     <table class="tabelle">
       <thead>
         <tr>
-          <th>{t.docker.spalteAbbild}</th>
+          <th>{t.docker.spalteImage}</th>
           <th>{t.docker.groesse}</th>
           <th>{t.docker.spalteAlter}</th>
           <th></th>
@@ -191,7 +191,7 @@
       <tbody>
         {#each daten.images as i (i.id)}
           <tr>
-            <td data-spalte={t.docker.spalteAbbild}>
+            <td data-spalte={t.docker.spalteImage}>
               {#if i.verwaist}
                 <span class="mono">{i.kurz}</span>
                 <span class="leise-marke">{t.docker.ohneNamen}</span>
@@ -203,7 +203,7 @@
             <td data-spalte={t.docker.groesse}><span class="mono">{i.groesse}</span></td>
             <td data-spalte={t.docker.spalteAlter}>{i.alter}</td>
             <td data-spalte="">
-              <!-- Kein Knopf an einem benutzten Abbild: Docker weigert sich,
+              <!-- Kein Knopf an einem benutzten Image: Docker weigert sich,
                    und der Knopf wäre dann selbst der Fehler. -->
               {#if darfAendern && !i.in_gebrauch}
                 <button type="button" class="knopf leise klein" disabled={gesperrt}

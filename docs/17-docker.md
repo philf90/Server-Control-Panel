@@ -252,18 +252,29 @@ Nach `docs/14-bestaetigungen.md`; Abweichungen sind dort einzutragen.
 
 ## 6. Die Oberfläche
 
-Eine Seite `/docker` mit vier Reitern, statt fünf Menüpunkten — die
-Seitenleiste hat schon achtzehn Ziele:
+> **Stand 0.5.1.** Dieser Abschnitt sah ursprünglich vier **Reiter** unter einer
+> Seite vor. Gebaut wurde bis 0.5.0 eine einzige lange Seite mit sechs
+> Abschnitten untereinander; mit 0.5.1 sind es fünf **Flächen mit eigener
+> Adresse**, die als eingerückte Punkte unter „Docker" in der Seitenleiste
+> stehen. Die Begründung für die dritte Fassung steht im Nachtrag am Ende von
+> Abschnitt 8.
 
-| Reiter | Inhalt |
-|---|---|
-| **Stacks** (Vorgabe) | Werkbank: Liste (verwaltet/fremd, Dienste, Zustand) + Inspektor mit Diensten, Editor, Vorgangsplatte |
-| **Container** | Werkbank: Liste + Inspektor mit Logs, Statistik, Konfiguration, Mounts, Netzen, Ports |
-| **Bestand** | Images, Volumes, Netze; `system df` oben; Aufräumen je Art |
-| **Ports** | Alle veröffentlichten Ports quer über Container, abgeglichen mit der Firewall |
+| Fläche | Adresse | Inhalt |
+|---|---|---|
+| **Stacks** (Vorgabe) | `/docker` | Werkbank: Liste (verwaltet/fremd, Dienste, Zustand) + Inspektor mit Diensten, Editor samt Formular, Vorgangsplatte |
+| **Container** | `/docker/container` | Werkbank: Liste + Inspektor mit Logs, Statistik, Konfiguration, Mounts, Netzen, Ports — dazu der Ereignisstrom |
+| **Ports** | `/docker/ports` | Alle veröffentlichten Ports quer über Container, abgeglichen mit der Firewall |
+| **Image-Updates** | `/docker/updates` | Digest-Abgleich gegen die Registries, Zwischenspeicher, Ratengrenze |
+| **Bestand** | `/docker/bestand` | Images, Volumes, Netze; `system df` oben; Aufräumen je Art |
 
-Dazu die Ereignisansicht als aufklappbarer Bereich (Muster: Verfolgen in
-`Logs.svelte`), nicht als eigener Reiter.
+Der Zustandskopf (Laufzeit, Daemon, Compose) steht über **allen** Flächen: Er
+ist die Voraussetzung für alles darunter, und „der Daemon antwortet nicht" darf
+man nicht durch einen Flächenwechsel verpassen.
+
+Die Ereignisansicht bleibt ein aufklappbarer Bereich (Muster: Verfolgen in
+`Logs.svelte`) und keine eigene Fläche — sie steht bei den **Containern**. Sie
+beantwortet „warum ist der Container um 3 Uhr neu gestartet", und diese Frage
+stellt man, während man den Container ansieht.
 
 **Neue Dateien:** `web/src/seiten/Docker.svelte` und
 `web/src/komponenten/Composeeditor.svelte`. Wiederverwendet werden
@@ -416,7 +427,7 @@ lehrreich genug für einen Vermerk:
 
 ### Schritt 3 — Stand: umgesetzt
 
-`privops` wächst um acht Operationen (Abbilder, Volumes, Netze je Liste und
+`privops` wächst um acht Operationen (Images, Volumes, Netze je Liste und
 Entfernen, dazu `DockerDiskUsage` und `DockerPrune`), die Seite um den
 Bestandsblock: Platzbedarf oben, darunter die Aufräum-Handgriffe und die drei
 Listen.
@@ -428,26 +439,26 @@ Listen.
   Rückfrage: „12 Einträge, davon 5 in Gebrauch · 1.5GB freigebbar" statt
   „alle". Die Begründung ist die aus `docs/14`: „Alle Updates einspielen?"
   befähigt zu keiner Entscheidung, „alle 42" schon.
-- **„In Gebrauch" rechnet der Server aus.** Ein Abbild, das ein Container
+- **„In Gebrauch" rechnet der Server aus.** Ein Image, das ein Container
   benutzt, und ein Volume, das einer einhängt, bekommen keinen
   Entfernen-Knopf. Docker weigert sich in beiden Fällen, und ein Knopf, der
   zuverlässig in diese Weigerung läuft, ist selbst der Fehler. Dasselbe gilt
   für `bridge`, `host` und `none` — die legt Docker selbst an.
 - **`docker system prune` fehlt in der Allowlist.** Es räumt Container, Netze,
-  Abbilder und Baucache in einem Zug auf; eine Aktion, deren Umfang der
+  Images und Baucache in einem Zug auf; eine Aktion, deren Umfang der
   Bedienende nicht überblickt, kann keine sinnvolle Rückfrage tragen. Es gibt
   fünf benannte Arten statt einer Sammelaktion.
 - **Volumes aufzuräumen ist Stufe 3 mit dem HOSTNAMEN**, nicht mit einem
   Objektnamen: Es trifft jedes ungenutzte Volume des Servers auf einmal, und
   der häufigste Fehler bei einer solchen Aktion ist nicht der falsche Knopf,
   sondern der falsche Server. Ein einzelnes Volume zu entfernen bleibt Stufe 3
-  mit seinem Namen; Abbild und Netz sind Stufe 2, weil sich beides
+  mit seinem Namen; Image und Netz sind Stufe 2, weil sich beides
   wiederherstellen lässt — das eine durch Ziehen, das andere durch den nächsten
   Compose-Start.
 
 **Zwei Befunde aus dem Bau:**
 
-- **Abbild-Kennungen sind anders gebaut als Containernamen.** Der erste Anlauf
+- **Image-Kennungen sind anders gebaut als Containernamen.** Der erste Anlauf
   hat für beides `ValidateContainerID` benutzt — und die lehnte `sha256:aaa`,
   `nginx:alpine` und `ghcr.io/o/n:1.2` ab, weil Doppelpunkt und Schrägstrich
   fehlten. Jetzt gibt es `ValidateImageRef` daneben; Leerzeichen, Semikolon und
@@ -688,7 +699,7 @@ Ein gezogenes `nginx:alpine` trägt lokal die Kennung der **Manifestliste**
 (`RepoDigests`). `docker manifest inspect --verbose` gibt für eine solche Liste
 ein Feld je Plattform zurück, und jedes davon trägt die Kennung des
 **Plattform-Manifests** — eine andere Kennung. Wer beide vergleicht, findet
-immer einen Unterschied und meldet immer ein Update. Bei fast jedem Abbild.
+immer einen Unterschied und meldet immer ein Update. Bei fast jedem Image.
 Jeden Tag.
 
 Eine Update-Prüfung, die so irrt, ist schlimmer als keine: Nach einer Woche
@@ -699,7 +710,7 @@ Moduls lautet deshalb hier schärfer als sonst: **Ohne belastbaren Vergleich wir
 Daraus folgen zwei Wege:
 
 1. **`docker buildx imagetools inspect`** nennt die Kennung der Manifestliste
-   unmittelbar. Damit trägt der Vergleich auch bei Mehrarchitektur-Abbildern.
+   unmittelbar. Damit trägt der Vergleich auch bei Mehrarchitektur-Images.
    buildx ist ein Unterkommando desselben Binaries — kein neuer
    Allowlist-Eintrag, keine neue Abhängigkeit —, aber in Debian ein eigenes
    Paket und nicht überall da.
@@ -708,7 +719,7 @@ Daraus folgen zwei Wege:
    und dem Hinweis auf `docker-buildx`.
 
 **Was das praktisch heißt, und es gehört gesagt:** Auf einem Server ohne buildx
-bleibt die Prüfung für die meisten Abbilder ohne Ergebnis. Das ist die ehrliche
+bleibt die Prüfung für die meisten Images ohne Ergebnis. Das ist die ehrliche
 Fassung des Machbaren mit der Kommandozeile — und sie ist der Grund, warum die
 Fläche drei Zahlen zeigt statt zwei. Die dritte, „nicht geprüft", ist die
 ehrlichste.
@@ -722,16 +733,16 @@ ehrlichste.
   wirkungslos, gerade wenn sie zugeschlagen hat.
 - **Eine Ratengrenze beendet den Lauf.** Weiterzufragen, nachdem die Registry
   abgewiesen hat, ist genau das Verhalten, gegen das die Grenze gerichtet ist.
-- **Gefragt wird nur, was etwas bringt:** die Abbilder laufender Container, je
-  Abbild einmal, ohne die, die über eine Kennung angezogen wurden (`@sha256:…`
-  kann sich nicht ändern). Zehn Container mit demselben Abbild sind eine
+- **Gefragt wird nur, was etwas bringt:** die Images laufender Container, je
+  Image einmal, ohne die, die über eine Kennung angezogen wurden (`@sha256:…`
+  kann sich nicht ändern). Zehn Container mit demselben Image sind eine
   Abfrage, nicht zehn — das ist der Unterschied zwischen innerhalb und
   außerhalb der Grenze.
 - **Das Signal im Handlungsbedarf kommt aus dem Zwischenspeicher.** In der
   Drei-Sekunden-Frist von `dashboardSignals` wird nie eine Registry gefragt: Sie
   antwortet, wann sie will, und sie zählt jede Abfrage.
 
-**Der Griff ist der Stack und nicht das Abbild.** `docker pull` allein ändert
+**Der Griff ist der Stack und nicht das Image.** `docker pull` allein ändert
 nichts an dem, was läuft. „Stack aktualisieren" ist deshalb `pull` **und** `up`
 in einem Vorgang — und in dieser Reihenfolge: Scheitert das Ziehen, wird nicht
 hochgefahren. Ein `up` nach einem gescheiterten `pull` startete die alte Fassung
@@ -739,12 +750,12 @@ neu und sähe aus wie ein geglücktes Update.
 
 **Zwei Befunde aus dem Bau, beide aus derselben Ecke:**
 
-- **Zwei Überschriften „Abbilder" auf einer Seite.** Der Bestand hatte schon
+- **Zwei Überschriften „Images" auf einer Seite.** Der Bestand hatte schon
   eine; die Update-Prüfung brachte eine zweite. Sie heißt jetzt „Aktualität der
-  Abbilder".
-- **Und dieselbe Doppelung als Testbefund:** Die Spalte „Abbild" gibt es nun in
+  Images".
+- **Und dieselbe Doppelung als Testbefund:** Die Spalte „Image" gibt es nun in
   zwei Tabellen, und der Browsertest suchte „die Tabelle mit einer Spalte
-  Abbild" — er nahm die falsche und **bestand weiter**. Ebenso `.hinweis`: Der
+  Image" — er nahm die falsche und **bestand weiter**. Ebenso `.hinweis`: Der
   Selektor meinte die Anmerkung unter den Zustandskarten und traf den
   Ratengrenzen-Hinweis der neuen Fläche. Das ist im Modul Docker jetzt der
   dritte Selektor dieser Art (nach `.aktionen` in Schritt 3 und `.werkbank` in
@@ -793,7 +804,7 @@ Ordnung".
 | `- ../../../../var/run/docker.sock:/…` | Der Vergleich mit der Sperrliste traf nicht, weil dort absolute Pfade stehen — und danach galt „nicht absolut" als „liegt im Stack-Verzeichnis". Relative Quellen werden jetzt zuerst gegen das Verzeichnis aufgelöst, so wie Compose es auch tut. |
 | **Ein benanntes Volume mit `driver_opts.device: /`** | Der schwerwiegendste Fund. Im Dienst steht nur `- hack:/host` — das sieht aus wie ein harmloses benanntes Volume. Der `local`-Treiber nimmt aber dieselben Angaben wie `mount(8)`, und mit `type: none, o: bind, device: /` hängt es das ganze Wirtsdateisystem ein. Der Prüfer liest jetzt die oberste `volumes:`-Ebene und löst solche Einträge in den Wirtspfad auf, den sie in Wahrheit meinen. |
 | `device_cgroup_rules: ["c *:* rwm"]` | „devices" ohne das Wort. Den Geräteknoten legt der Container selbst an — `CAP_MKNOD` hat er von Haus aus —, und damit ist die Platte des Wirts lesbar. |
-| `build: {context: /}` | `docker compose up` **baut**, wenn ein Bauabschnitt dasteht. Ein Kontext auf einem hohen Verzeichnis kopiert fremde Dateien in ein Abbild. Kontext und Dockerfile müssen jetzt im Stack-Verzeichnis liegen. |
+| `build: {context: /}` | `docker compose up` **baut**, wenn ein Bauabschnitt dasteht. Ein Kontext auf einem hohen Verzeichnis kopiert fremde Dateien in ein Image. Kontext und Dockerfile müssen jetzt im Stack-Verzeichnis liegen. |
 | `env_file: [{path: /root/.ssh/id_ed25519}]` | Die neue Langform von `env_file`. Der Leser setzte für eine Abbildung nur einen Platzhalter, und der Pfad ging ungeprüft durch die Vorprüfung. |
 | `volumes_from: ["container:xyz"]` | Ein Dienst *aus dieser Datei* ist selbst geprüft; ein fremder Container nicht — auch nicht der Socket, den er vielleicht eingehängt hat. Der Verweis auf einen fremden Container wird jetzt abgelehnt, der auf einen eigenen Dienst bleibt ein Hinweis. |
 
@@ -879,6 +890,409 @@ der Parser sie erwartet.
 
 ---
 
+### Nachtrag 0.5.1 — der Befund, den erst eine Frage gefunden hat
+
+Nach der Freigabe von 0.5.0 kam die Frage, wie man über das Panel einen neuen
+Stack anlegt. Die Antwort war: auf einem Server mit mindestens einem
+Compose-Projekt so, und auf einem ohne **gar nicht**.
+
+In `Stackliste.svelte` lag der Knopf „Stack anlegen" im `{:else}`-Zweig einer
+Kette, deren vorheriger Zweig `daten.zeilen.length === 0` prüfte. Er stand damit
+nur bei nicht leerer Liste — also überall außer dort, wo jemand den *ersten*
+Stack anlegen will. Einen zweiten Weg in den Editor gibt es nicht: `editor` ist
+Zustand der Komponente und steht in keiner Adresse. Daneben stand ein Satz aus
+Schritt 4, den Schritt 5 hätte mitnehmen müssen: „Anlegen kommt mit dem nächsten
+Schritt."
+
+**Warum keine Prüfung das gefunden hat**, und das ist die eigentliche Lehre:
+
+| Prüfung | Warum sie vorbeisah |
+|---|---|
+| Go-Tests der Schreibrouten | Sie sprechen die API an. Die Route war in Ordnung — unerreichbar war der Weg dorthin. |
+| Browsertest | Der Fake liefert immer mindestens einen Stack. Der leere Zustand kam in keinem Lauf vor. |
+| Angriffsdurchgang (Schritt 9) | Er fragte, was jemand tun kann, der etwas erreichen will, das er nicht darf. Nicht, was jemand *nicht* tun kann, der darf. |
+
+Das ist dieselbe Sorte Befund wie „Tests gegen einen Fake beweisen die Zusagen
+des Fakes", nur eine Ebene höher: **Ein Zustand, den die Testdaten nie
+annehmen, ist ein ungeprüfter Zustand** — und der leere Anfangszustand ist bei
+einem Modul für den *frischen* Server der wichtigste von allen.
+
+Die Bewachung sitzt deshalb nicht auf diesem einen Knopf.
+`TestAnlegenknopfHaengtNichtAnEinerLeerenListe` (`internal/ui`) sammelt die
+`{#if}`-Bedingungen, unter denen ein Anlegen-Knopf steht, und beanstandet jede,
+die den Listeninhalt liest. Die erste Fassung des Tests ging noch gegen die
+kaputte Datei durch, weil sie ein `{:else}` die Bedingung der Kette vergessen
+ließ — ein Test, der die Lücke nicht nachstellt, bevor er sie bewacht, bewacht
+nichts.
+
+Mit derselben Fassung heißt „Abbild" durchgehend **Image**. Die Übersetzung war
+richtig und im Gebrauch trotzdem falsch: Wer `docker images` tippt, sucht auf
+der Seite nach „Images". An der Schnittstelle ändert das nichts — kein
+JSON-Feld und kein Pfad hieß je „abbild".
+
+---
+
+### Nachtrag 0.5.1 — das Compose-Formular
+
+Angeregt durch [Dockge](https://github.com/louislam/dockge), das neben dem
+Texteditor Felder für die üblichen Compose-Angaben führt und beide Richtungen
+synchron hält. Gebaut ist dieselbe Zweiwegsynchronisation, mit drei
+Zusätzen, die aus dem Zuschnitt dieses Panels folgen.
+
+#### E9 — Der Text ist die Wahrheit, das Formular ist abgeleitet
+
+`web/src/lib/composeform.ts` hält **keinen Zustand**. Jede Änderung aus dem
+Formular ist derselbe Dreischritt: Text parsen, einen Knoten anfassen, Text
+zurückgeben. Es gibt kein Dokumentobjekt, das zwischen zwei Klicks veralten
+kann, und keine Lage, in der Formular und Editor auseinanderlaufen — sie können
+es nicht, weil nur einer von beiden etwas hält.
+
+Der Preis ist ein Parserlauf je Änderung. Bei einer Compose-Datei von dreißig
+bis dreihundert Zeilen ist das nicht messbar; die Alternative wäre ein zweiter
+Zustand mit eigener Lebensdauer gewesen, und den hat dieses Projekt an anderer
+Stelle schon teuer bezahlt.
+
+#### E10 — Chirurgisch ändern, nie neu ausgeben
+
+Der naheliegende Weg — YAML nach JavaScript-Objekt, Objekt ändern, Objekt nach
+YAML — ist der falsche. Er verliert Kommentare, Einrückung, Anführungszeichen
+und die Reihenfolge der Felder. Für dieses Panel ist das kein Schönheitsfehler:
+Entscheidung **E7** sagt über die mitgelieferten Vorlagen, die Kommentare seien
+„der eigentliche Inhalt". Ein Formular, das sie beim ersten Klick auffrisst,
+hätte die Vorlagen entwertet.
+
+Geschrieben wird deshalb über die Document-API von `yaml`, und zwar am
+vorhandenen Knoten:
+
+| Fall | Weg | Was dadurch bleibt |
+|---|---|---|
+| Skalar ändern | vorhandenen `Scalar` weiterbenutzen, nur `value` setzen | Kommentar am Feld, Anführungszeichenstil, Stellung in der Abbildung |
+| Liste ändern | zeilenweise abgleichen, nur geänderte Zeilen anfassen | Kommentare an den Zeilen, die niemand angerührt hat |
+| Ausgabe | `lineWidth: 0`, `indent` aus der Quelldatei geraten | keine umgebrochenen langen Zeilen, keine umformatierte Einrückung |
+
+Zwei Kleinigkeiten mit Folgen, beide beim Schreiben der Prüfungen gefunden:
+`yaml` faltet ohne `lineWidth: 0` lange Zeichenketten bei 80 Zeichen um — ein
+`command`, das niemand angefasst hat, stünde nach dem ersten Klick woanders. Und
+es schreibt ohne `indent` immer zwei Leerzeichen, formatierte eine mit vier
+eingerückte Datei also vollständig um.
+
+#### E11 — Der zweite Leser sagt, was er nicht kann
+
+Das Formular ist der **zweite** Leser der Datei. Der erste ist der Prüfer auf
+dem Server, und nur er entscheidet, was gespeichert und gestartet wird. Das
+Formular kann irren; es kann nichts durchlassen.
+
+Genau deshalb darf es nichts verstecken, was es nicht versteht:
+
+| Fund | Verhalten |
+|---|---|
+| YAML-Anker, Aliasse | ganzes Dokument nur Anzeige — was ein Anker hineinzieht, sieht der Leser nicht |
+| Mehrere Dokumente in einer Datei | ganzes Dokument nur Anzeige |
+| `extends`, Merge-Key `<<` | dieser Dienst nur Anzeige — er erbt, und das Formular sieht nur die eine Hälfte |
+| `command` als Liste, `depends_on` mit Bedingungen, Port in der langen Form | Feld wird als *unbedienbar* benannt und bleibt gesperrt |
+| Felder, die das Formular gar nicht kennt (`deploy`, `healthcheck`, `labels` …) | werden aufgezählt und bleiben unangetastet |
+| Text ist gerade kein gültiges YAML | Felder eingefroren, mit Grund |
+
+**Der wichtigste dieser Fälle ist der vierte, und er ist beim Testen
+aufgefallen.** Ein `depends_on` in der Abbildungsform mit `condition:
+service_healthy` lieferte dem Formular eine leere Liste. Angezeigt hätte es ein
+leeres Feld — und die erste Änderung an irgendetwas anderem im Dienst hätte die
+Bedingungen weggeschrieben. Das ist der Grund, warum `unbedienbar` getrennt von
+`weitereFelder` steht: „kenne ich nicht" und „kenne ich, aber nicht in dieser
+Gestalt" sind zwei verschiedene Aussagen, und nur die zweite ist gefährlich.
+
+#### Zur Bedienung
+
+Beim Tippen wird nur Nichtleeres übernommen; das Leeren wirkt beim Verlassen des
+Feldes. Ein leerer Wert heißt „Feld weg" — würde das schon beim Tippen gelten,
+verschwände `image` in dem Augenblick, in dem man es zum Ändern leert, und
+stünde danach an anderer Stelle in der Datei wieder da. „Zeile hinzufügen"
+schreibt zunächst gar nichts: Eine leere Portzeile wäre in der Datei ein Fehler.
+
+#### Prüfung
+
+Ein JavaScript-Testrahmen kam dafür nicht ins Haus. Geprüft wird in Node,
+angestoßen aus Go (`internal/httpd/composeform_test.go`): rolldown — der
+Bündler, der ohnehin die Oberfläche baut — bündelt das Modell, ein Skript stellt
+rund dreißig Behauptungen über den Rückweg. Der Test überspringt sich, wo
+`node_modules` fehlt, und läuft in der CI im Job „UI-Bundle reproduzierbar".
+
+Dazu ein Abschnitt im Browsertest, der beide Richtungen an einer Datei prüft,
+die der Test selbst setzt: Feld ändern → steht in der Datei und der Kommentar
+lebt noch; Datei ändern → steht in den Feldern, samt `127.0.0.1:8080:80`, an dem
+ein Zerlegen von links scheitert; Anker → gesperrt mit Grund; kaputtes YAML →
+eingefroren.
+
+**Ein Befund aus dem Testbau, der die Fläche nicht betrifft und trotzdem
+hierher gehört:** Der erste Anlauf legte die Datei mit
+`keyboard.insertText` in den Editor. Chromium hängt beim Schreiben in ein
+`contenteditable` ein `style`-Attribut an die Editorzeile — ein Verstoß gegen
+die Content-Security-Policy, erzeugt vom Test und nicht von der Anwendung. Der
+Wächter im Browsertest unterscheidet das zu Recht nicht. Der Test schreibt
+seither über ein `paste`-Ereignis, das CodeMirror selbst abfängt und über seine
+eigene Schnittstelle einfügt. Der Browsertest sagt seit diesem Fall auch, **wer**
+einen Verstoß ausgelöst hat — vorher stand nur da, dass einer vorlag.
+
+#### Messung gegen 0.5.0
+
+| | 0.5.0 | 0.5.1 | Bemerkung |
+|---|---|---|---|
+| Binary | 18 032 KiB | 18 152 KiB | +120 KiB, das eingebettete Bündel |
+| Erstladung (`index.js` + CSS) | 433,8 KiB | 452,8 KiB | +19,0 KiB |
+| davon nachgeladen | — | 103,1 KiB | `composeform`-Brocken samt `yaml`, nur beim Öffnen des Editors |
+| direkte Go-Abhängigkeiten | 6 | 6 | unverändert |
+| direkte npm-Abhängigkeiten | 8 | 9 | `yaml` 2.9.0, ISC |
+
+---
+
+### Nachtrag 0.5.1 — die Seite wird ein Modul mit fünf Flächen
+
+Die Frage kam aus dem Betrieb: Bei vielen Containern wird die Seite lang.
+
+**Sie wird nicht nur lang, sie wird teuer.** Gemessen mit der Attrappe des
+Browsertests (2 Stacks, 4 Container, 2 Images) sind es 2 337 px. Hochgerechnet
+auf einen betriebsüblichen Server — 12 Stacks, 40 Container, 30 veröffentlichte
+Ports, 45 Image-Referenzen, 60 Images, 25 Volumes, 8 Netze — sind das rund 204
+zusätzliche Tabellenzeilen und **etwa 9 300 px, also dreizehn Bildschirme**.
+
+Das schwerere Argument steht daneben: Jeder Abschnitt holt beim Einhängen seine
+eigenen Daten, und die meisten davon sind `docker`-Prozesse.
+
+| Abschnitt | Prozesse beim Öffnen (40 Container) |
+|---|---|
+| Zustandskopf | 4 |
+| Stacks | 2 |
+| Container | 1 |
+| Ports | 2 |
+| Image-Updates | 0 (nur Zwischenspeicher) |
+| **Bestand** | **45** — `ps`, je Container ein `docker inspect`, dazu `system df`, `image ls`, `volume ls`, `network ls` |
+
+Rund **54 Prozessaufrufe je Seitenaufruf**, davon 45 aus dem Abschnitt mit dem
+seltensten Anlass. Wer einen Container neu starten wollte, bezahlte den ganzen
+Bestand mit — samt `system df`, das den Image- und Volume-Speicher durchläuft.
+
+#### E12 — Unterpunkte in der Seitenleiste, keine Reiter
+
+Erwogen und verworfen wurde eine Reiterleiste im Inhalt. Der Unterschied ist
+nicht Geschmack:
+
+| | Reiter | Unterpunkt in der Leiste |
+|---|---|---|
+| eigene Adresse | ginge auch | ja |
+| von einer anderen Seite aus erreichbar | nein, erst über das Modul | ja |
+| in der Befehlspalette | nein | ja |
+| zweite Navigation im Inhalt | ja | nein |
+
+Der dritte Punkt gibt den Ausschlag. `lib/ziele.ts` ist ausdrücklich die *eine*
+Liste des Menüs, weil die Palette sonst eine zweite, unvollständige Fassung
+wäre. Eine Reiterleiste hätte genau das wieder eingeführt — fünf Flächen, die
+das Menü nicht kennt.
+
+**Aufgeklappt heißt „ich bin drin".** Es gibt keinen Umschalter: Die Punkte
+erscheinen, solange man im Modul steht, und verschwinden beim Verlassen. Ein
+Umschalter wäre ein zweiter Zustand, und sein schlechter Fall wäre ein
+zugeklapptes Modul, in dem man gerade steht — nichts hervorgehoben, nichts zu
+sehen. Die Hervorhebung trägt in diesem Fall das Kind und nicht der Elternteil;
+zwei markierte Punkte sagten nicht mehr, sondern weniger.
+
+#### Der Fall, an dem der Entwurf beinahe gescheitert wäre
+
+Unter 900 px ist die Seitenleiste eine **Symbolschiene**: Beschriftungen sind
+für das Auge ausgeblendet (`clip-path`), Gruppenüberschriften weg, Symbole
+zentriert. Ein eingerückter Unterpunkt hat dort keine sichtbare Einrückung — er
+wäre ein weiteres Symbol in derselben Spalte, nicht von einem Modul zu
+unterscheiden, und für fünf Flächen gibt es keine fünf sinnvollen Symbole.
+
+Die Antwort ist ein **Umschaltstreifen auf der Seite, der nur schmal
+erscheint**. Damit gibt es zwei Navigationen für dieselbe Sache — aber nie
+beide gleichzeitig sichtbar, und jede an der Breite, an der sie funktioniert.
+Der Browsertest prüft beides: dass schmal keine Kinder in der Schiene stehen und
+dass der Streifen da ist. Ohne die zweite Hälfte wären die Flächen auf einem
+Telefon unerreichbar.
+
+#### Was das an Prüfungen gekostet hat
+
+- Der Browsertest wechselt jetzt über die Punkte der Leiste und nicht über die
+  Adresszeile — nur so ist geprüft, dass der Weg dorthin existiert. Je Wechsel
+  wird Pfad, Hervorhebung und „ohne Neuladen" festgehalten.
+- Der Vergleich Palette gegen Leiste war eine Gleichheit von **Anzahlen**. Das
+  ging nicht mehr: Die Palette kennt 23 Ziele, die Leiste zeigt 18 plus die
+  Flächen des Moduls, in dem man gerade steht. Er vergleicht jetzt
+  **Benennungen** und sagt damit genauer, was er meint: Was in der Leiste steht,
+  findet die Palette.
+- Neu ist `TestJedeFlaecheEinesModulsWirdGerendert` (`internal/ui`). Es gibt
+  jetzt drei Leser der Flächenliste: die Leiste (allgemein), die Palette
+  (allgemein) und die Seite selbst (eine Kette von Vergleichen). Nur die dritte
+  kann vergessen werden — der Punkt stünde dann im Menü und führte auf „Diese
+  Fläche gibt es nicht".
+
+#### Offen geblieben
+
+~~Warnpunkte an den Menüpunkten gibt es nicht.~~ **Nachgetragen, siehe unten.**
+
+~~Offen bleibt: Der Bestand holt je Container ein `docker inspect`.~~
+**Behoben — siehe den Nachtrag weiter unten.**
+
+---
+
+#### E13 — Die Warnpunkte, und warum der Verweis sie zuordnet
+
+Sie sind kein neuer Einfall: Die alte, server-gerenderte Oberfläche hatte sie
+bis 0.4.0 (`DienstePip`, `PaketePip` in `pages.go`), und
+`docs/16-neukonzeption.md` §8.2 schrieb für die neue Leiste „Warnpunkt je
+Eintrag **wie bisher**". Beim Umbau auf Svelte sind sie nicht mitgekommen — ein
+Rückschritt, den niemand bemerkt hat, weil der README die Zusage der alten
+Fläche weitertrug.
+
+Ihr Zweck steht wörtlich in `docs/15-neuordnung.md` als Mangel Nummer vier:
+
+> **Alle Bereiche wiegen gleich viel.** Das Menü verrät nicht, ob irgendwo etwas
+> offen ist. Man muss jede Seite besuchen, um zu wissen, dass nichts zu tun ist.
+
+Sie beantworten **eine** Frage, von jeder Seite aus: *Muss ich woanders
+hinsehen?* Sie ersetzen den Handlungsbedarf auf der Übersicht nicht — der sagt,
+*was* los ist, in einem Satz mit einem Griff daneben. Der Punkt sagt nur *dass*
+und *wo*.
+
+**Die Zuordnung ist der Unterschied zur alten Fassung.** Die ordnete über
+`sig.Tag` in einem Schalter zu — eine Zuordnung von Hand, die jedes neue Signal
+hätte ergänzen müssen. Hier entscheidet der Verweis, den das Signal ohnehin
+trägt: Wohin es führt, dort sitzt sein Punkt. Damit gibt es keine zweite Liste,
+die auseinanderlaufen kann — dieselbe Regel, aus der `lib/ziele.ts` entstanden
+ist. Dass die beiden Docker-Signale dafür auf ihre Fläche umgelenkt wurden, ist
+kein Zusatz, sondern die Bedingung: Ein Punkt an „Docker" meinte fünf Flächen.
+
+Drei Entscheidungen dazu:
+
+| Frage | Antwort | Warum |
+|---|---|---|
+| Punkt oder Zahl | Punkt | Eine Zahl am Eintrag liest sich wie eine Menge und ist fast immer 1 |
+| Stufen | zwei (`crit`, `warn`), kein „alles gut" | Ein grüner Punkt an achtzehn Einträgen ist Rauschen |
+| Aktualität | Minutentakt, nur bei sichtbarem Fenster, beim Zurückkommen sofort | Ein Punkt vom Seitenaufbau vor einer Stunde antwortet falsch — und zwar in die gefährliche Richtung, weil eine Abwesenheit wie „nichts zu tun" aussieht. Schneller wäre keine Auskunft und beschäftigte den Server: Die Erhebung ruft `systemctl` und `docker` |
+
+Ein Modul fasst die Punkte seiner Flächen zusammen. Das ist der Kern und keine
+Bequemlichkeit: Die Punkte der Flächen sieht man nur, während man im Modul
+steht — ohne die Zusammenfassung am Modul wäre der Punkt genau dann unsichtbar,
+wenn er gebraucht wird, nämlich von woanders aus.
+
+Auf dem Telefon bleibt er. Dort ist die Leiste eine Symbolschiene ohne
+Beschriftungen, und der Punkt ist das Einzige, was ein Eintrag noch sagen kann.
+Dazu ein Text für Vorleseprogramme: Eine Farbe allein ist keine Auskunft.
+
+**Was heute überhaupt leuchten kann**, und das gehört zur Ehrlichkeit dieser
+Fläche:
+
+| Signal | Stufe | Ziel |
+|---|---|---|
+| Dienst(e) ausgefallen | crit | `/dienste` |
+| Dateisystem ≥ 90 % / ≥ 80 % | crit / warn | `/pakete` |
+| Neustart steht aus | warn | `/pakete` |
+| Container auffällig | warn | `/docker/container` |
+| neuere Image-Fassung | warn | `/docker/updates` |
+| **Firewall-Änderung auf Probe** | **crit** | `/firewall` |
+| **Zertifikat abgelaufen / < 14 Tage** | **crit / warn** | `/zertifikate` |
+| **API-Token abgelaufen / < 7 Tage** | **warn** | `/tokens` |
+
+Die letzten drei kamen unmittelbar nach den Punkten dazu, weil ihre Daten
+ohnehin im Speicher lagen: die Probe im Wächter, das Zertifikat als Datei, die
+Tokens als eine Abfrage. **Sieben von achtzehn** Menüpunkten können damit
+leuchten. Cron, Panel-Zugänge, Benutzer & SSH, Audit und die Dateien haben
+weiterhin kein Signal — die Abwesenheit eines Punktes heißt dort also nicht
+„alles in Ordnung".
+
+Drei Entscheidungen, die dabei fielen und die für jedes weitere Signal gelten:
+
+1. **Ein Punkt bedeutet „tu etwas", nicht „so ist es".** Deshalb löst ein
+   *selbstsigniertes* Zertifikat kein Signal aus, obwohl die Zertifikatsseite es
+   als Warnung führt: Auf einem bewusst selbstsignierten Server ginge der Punkt
+   nie aus, und ein Punkt, der immer an ist, nimmt den anderen ihre Wirkung.
+   Dasselbe Argument spricht gegen „ufw ist aus" und gegen „Fehler im Journal".
+2. **Ein Signal, das die Rolle nicht erreicht, gibt es nicht.** Die Tokenseite
+   ist der Owner-Rolle vorbehalten; das Tokensignal entsteht deshalb nur für
+   sie. Ein Griff, der für den Leser mit 403 endet, ist schlimmer als keiner —
+   dieselbe Überlegung, aus der ein Menüpunkt gar nicht erst erscheint.
+3. **Was einen Prozess startet, gehört hinter einen Zwischenspeicher.** Der
+   Minutentakt macht jeden Aufruf sechzigmal je Stunde teuer. Deshalb sind die
+   drei neuen Signale genau die, die nichts kosten.
+
+**Ein Befund als Zugabe:** Die Prüfung der Zertifikatsschwellen brachte einen
+Fehler ans Licht, der seit 0.3.0 auf der Zertifikatsseite stand.
+`int(time.Until(…).Hours() / 24)` schneidet zur Null hin ab — ein Zertifikat,
+das vor zwei Stunden abgelaufen war, ergab 0 statt -1, und die Seite meldete
+„läuft bald ab" statt „abgelaufen". Das galt für das gesamte erste Tag nach dem
+Ablauf, also genau dann, wenn die Auskunft am meisten zählt. Jetzt rundet
+`zertifikatTage` mit `math.Floor` in beide Richtungen ab.
+
+Beim Aufschreiben nebenbei aufgefallen: Eine volle Platte verweist auf
+`/pakete`. Das stammt aus der Zeit vor dem Dateimanager, als `apt clean` der
+einzige Handgriff war. Heute wäre `/dateien` mindestens ebenso richtig.
+
+---
+
+#### Nachtrag — das N+1 im Bestand
+
+Die Bestandsfläche holte die Containerliste (`docker ps`) und danach **je
+Container ein eigenes `docker inspect`**. Bei vierzig Containern waren das
+einundvierzig Prozesse, nacheinander, ohne Gesamtfrist — und zwar für **ein
+Häkchen je Volume**: `InGebrauch` entscheidet, ob neben einem Volume ein
+„entfernen"-Knopf steht.
+
+Der Kontrast stand eine Zeile darüber: `benutzteImages` kommt aus `c.Image`,
+also aus der Liste, die ohnehin da ist. Dieselbe Art Auskunft, ein Aufruf.
+
+`docker inspect` nimmt beliebig viele Kennungen und schreibt mit
+`--format {{json .}}` eine Zeile je Container. Neu ist deshalb
+`DockerContainerDetails(ctx, ids)`; der Leser ist **derselbe** wie für einen
+einzelnen, nur zeilenweise angewandt — zwei Fassungen desselben Parsers wären
+zwei Gelegenheiten, dass eine ein Feld verpasst.
+
+Zwei Feinheiten, die den Unterschied zwischen „läuft" und „läuft auch im
+Betrieb" ausmachen:
+
+- **Eine leere Liste startet keinen Prozess.** `docker inspect` ohne Argumente
+  ist ein Fehler, und ein Server ohne Container ist ein gewöhnlicher Zustand.
+- **Ein Fehlercode ist nur dann einer, wenn nichts herauskam.** `docker inspect`
+  endet mit Fehler, sobald eine Kennung unbekannt ist, schreibt die übrigen aber
+  trotzdem — und genau das ist der Normalfall: Zwischen `docker ps` und
+  `inspect` kann ein Container verschwinden. Den ganzen Bestand deswegen zu
+  verwerfen hieße, ein Rennen zum Fehler zu erklären.
+
+Der Aufruf der Bestandsfläche fällt damit von rund 45 Prozessen auf 6, und die
+Zahl hängt nicht mehr an der Zahl der Container.
+
+**Der Test zählt Aufrufe, nicht Container** — er soll auch dann noch etwas
+sagen, wenn die Attrappe eines Tages mehr Container bekommt. Genau daran ist
+der Befund so lange vorbeigegangen: Bei vier Containern ist der Unterschied
+zwischen fünf und zwei Aufrufen nicht zu spüren. Nachgestellt wurde er, bevor er
+bewacht wurde; gegen die alte Schleife meldet er „4 mal nach Einzelheiten
+gefragt, erwartet einmal".
+
+Die Zählung läuft über einen eigenen Zähler in der Attrappe und nicht über die
+vorhandene Aufzeichnung: In die schreiben nur Kommandos, die etwas **ändern**,
+und mehrere Tests prüfen, dass sie nach einem abgelehnten Handgriff leer ist.
+Ein Leseaufruf darin wäre ein falsches Positiv — was er beim ersten Anlauf auch
+prompt war.
+
+**Nicht gebaut, weil unbestätigt:** Dockers Formatvorlage für `ps` kennt einen
+Platzhalter `.Mounts`. Träfe das zu, käme die Auskunft ganz ohne `inspect` aus —
+ein Aufruf statt zwei. Die aufgezeichnete Ausgabe in `docker_test.go` enthält
+dieses Feld jedoch nicht, und sie stammt aus der Dokumentation und nicht von
+einer echten Installation. Die Frage gehört auf die Handprüfliste in Abschnitt
+10: *Enthält `docker ps --format '{{json .}}'` ein Feld `Mounts`?*
+
+---
+
+#### Was bleibt
+
+Das Formular deckt die Felder ab, die eine gewöhnliche Compose-Datei ausmachen.
+Es deckt **nicht** ab: `healthcheck`, `deploy`, `labels`, `configs`, `secrets`,
+`build` und alles Weitere — sie bleiben dem Texteditor vorbehalten und werden
+namentlich genannt, statt stillschweigend zu fehlen. Ob das zu wenig ist, sagt
+der Betrieb; die Liste zu verlängern ist Arbeit an einer Stelle
+(`dargestellteFelder` in `composeform.ts`) und kein Umbau.
+
+---
+
 **Zu Schritt 8, offen und vor dem Bau zu entscheiden:** Der Transport. Das
 Panel hat heute nur SSE. Ein PTY braucht bidirektional. Empfehlung:
 `github.com/coder/websocket` (klein, ohne eigene Abhängigkeiten) — damit stiege
@@ -959,6 +1373,15 @@ ablehnen lassen; einen mit `-v /var/run/docker.sock` ebenso; einen mit
 danebenlegen und prüfen, dass es lesbar, aber nicht schreibbar ist;
 `volume prune` mit Hostname bestätigen; Container-Logs verfolgen; die
 Portübersicht gegen `ufw status` halten.
+
+**Zwei Fragen an die Ausgaben selbst**, die kein Test beantworten kann, solange
+die Aufzeichnungen aus der Dokumentation stammen:
+
+1. Sieht die gerenderte Fassung aus `docker compose config` so aus, wie der
+   Prüfer sie erwartet? An dieser Antwort hängt die ganze Prüferkette.
+2. Enthält `docker ps --format '{{json .}}'` ein Feld `Mounts`? Wenn ja, kommt
+   die Bestandsfläche ohne den Sammelaufruf `docker inspect` aus — ein Aufruf
+   statt zwei (siehe den Nachtrag zum N+1 in Abschnitt 8).
 
 **Messung** wie bei jeder Stufe, gegen den Stand ohne diesen Zweig auf
 derselben Maschine: Binärgröße, RSS im Leerlauf, Abdeckung `privops`/`httpd`,

@@ -19,12 +19,24 @@ import (
 	"github.com/philf90/asylum/internal/store"
 )
 
+// wechsel ist das Ergebnis eines Klicks auf eine Fläche innerhalb eines Moduls.
+type wechsel struct {
+	Pfad         string `json:"pfad"`
+	OhneNeuladen bool   `json:"ohneNeuladen"`
+	Aktiv        string `json:"aktiv"`
+}
+
 // ergebnisLeitstand ist die Ausgabe des Browsertreibers.
 type ergebnisLeitstand struct {
 	Verstoesse []string `json:"verstoesse"`
-	Fehler     []string `json:"fehler"`
-	Fehlend    []string `json:"fehlend"`
-	Montiert   struct {
+	Punkte     []struct {
+		Href       string `json:"href"`
+		Stufe      string `json:"stufe"`
+		Vorgelesen string `json:"vorgelesen"`
+	} `json:"punkte"`
+	Fehler   []string `json:"fehler"`
+	Fehlend  []string `json:"fehlend"`
+	Montiert struct {
 		Kinder       int    `json:"kinder"`
 		Kacheln      int    `json:"kacheln"`
 		Schale       int    `json:"schale"`
@@ -57,6 +69,8 @@ type ergebnisLeitstand struct {
 		FokusImFeld       bool     `json:"fokusImFeld"`
 		ZieleGesamt       int      `json:"zieleGesamt"`
 		ZieleInLeiste     int      `json:"zieleInLeiste"`
+		TitelPalette      []string `json:"titelPalette"`
+		TitelLeiste       []string `json:"titelLeiste"`
 		TrefferNginx      []string `json:"trefferNginx"`
 		TrefferOhneUmlaut []string `json:"trefferOhneUmlaut"`
 		LeerZustand       string   `json:"leerZustand"`
@@ -720,6 +734,48 @@ type ergebnisLeitstand struct {
 			Inhalt  string   `json:"inhalt"`
 			Knoepfe []string `json:"knoepfe"`
 		} `json:"stackEditor"`
+		Formular struct {
+			Ansichten []string `json:"ansichten"`
+			// Nach dem Setzen einer bekannten Datei im Texteditor: was das
+			// Formular daraus gelesen hat.
+			Dienste     []string `json:"dienste"`
+			Image       string   `json:"image"`
+			PortAdresse string   `json:"portAdresse"`
+			PortWirt    string   `json:"portWirt"`
+			// Nach dem Ändern des Feldes: was im Texteditor steht.
+			TextNachher     string `json:"textNachher"`
+			KommentarBleibt bool   `json:"kommentarBleibt"`
+			// Mit einer Datei voller Anker beziehungsweise mit kaputtem YAML.
+			AnkerHinweis  string `json:"ankerHinweis"`
+			AnkerGesperrt bool   `json:"ankerGesperrt"`
+			KaputtWarnung string `json:"kaputtWarnung"`
+		} `json:"formular"`
+		Flaechen struct {
+			Punkte []struct {
+				Label string `json:"label"`
+				Href  string `json:"href"`
+			} `json:"punkte"`
+			ElternOffen bool `json:"elternOffen"`
+			// Stufen sind die Warnpunkte AN den Flächen — nicht zu verwechseln
+			// mit Punkte oben, das die Flächen selbst aufzählt.
+			Stufen []struct {
+				Href  string `json:"href"`
+				Stufe string `json:"stufe"`
+			} `json:"stufen"`
+		} `json:"flaechen"`
+		WechselContainer wechsel `json:"wechselContainer"`
+		WechselPorts     wechsel `json:"wechselPorts"`
+		WechselUpdates   wechsel `json:"wechselUpdates"`
+		WechselBestand   wechsel `json:"wechselBestand"`
+		WechselStacks    wechsel `json:"wechselStacks"`
+		KinderDraussen   int     `json:"kinderDraussen"`
+		Schmal           struct {
+			KoerperBreite  float64  `json:"koerperBreite"`
+			FensterBreite  float64  `json:"fensterBreite"`
+			KinderInLeiste int      `json:"kinderInLeiste"`
+			StreifenDa     bool     `json:"streifenDa"`
+			StreifenPunkte []string `json:"streifenPunkte"`
+		} `json:"schmal"`
 		StackFremd struct {
 			Titel   string   `json:"titel"`
 			Knoepfe []string `json:"knoepfe"`
@@ -755,10 +811,10 @@ type ergebnisLeitstand struct {
 			Ueberschriften []string `json:"ueberschriften"`
 			PlatteDa       bool     `json:"platteDa"`
 			Freigebbar     string   `json:"freigebbar"`
-			Abbilder       []struct {
+			Images         []struct {
 				Text  string `json:"text"`
 				Knopf bool   `json:"knopf"`
-			} `json:"abbilder"`
+			} `json:"images"`
 			AufraeumKnoepfe []string `json:"aufraeumKnoepfe"`
 		} `json:"bestand"`
 	} `json:"dock"`
@@ -1006,7 +1062,7 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	// Ein Stand der Update-Prüfung im Store — sonst zeigte die Fläche nur „noch
 	// nicht geprüft". Die beiden Zeilen decken die zwei Aussagen ab, auf die es
-	// ankommt: eine neuere Fassung (mit Griff am Stack) und ein Abbild, zu dem
+	// ankommt: eine neuere Fassung (mit Griff am Stack) und ein Image, zu dem
 	// KEIN belastbarer Vergleich zustande kam.
 	if err := s.updatestandSchreiben(t.Context(), gespeicherterUpdatestand{
 		Geprueft: time.Now().UTC(),
@@ -1017,7 +1073,7 @@ func TestLeitstandBrowser(t *testing.T) {
 			},
 			{
 				Ref: "api:1.4",
-				Grund: "Mehrarchitektur-Abbild: Lokal liegt die Kennung der Manifestliste, " +
+				Grund: "Mehrarchitektur-Image: Lokal liegt die Kennung der Manifestliste, " +
 					"und die gibt „docker manifest inspect\" nicht her.",
 			},
 		},
@@ -1206,10 +1262,54 @@ func TestLeitstandBrowser(t *testing.T) {
 	// kein Nachweis dafür.
 	if e.Palette.ZieleInLeiste == 0 {
 		t.Error("die Seitenleiste hat keine Ziele — dann sagt der Vergleich mit der Palette nichts")
-	} else if e.Palette.ZieleGesamt != e.Palette.ZieleInLeiste {
-		t.Errorf("%d Ziele in der Palette, %d in der Seitenleiste — zwei Listen desselben "+
-			"Menüs laufen auseinander", e.Palette.ZieleGesamt, e.Palette.ZieleInLeiste)
 	}
+	// Jedes Ziel der Leiste muss die Palette kennen. Nicht mehr die Anzahlen
+	// vergleichen: Die Palette kennt seit 0.5.1 zusätzlich die Flächen innerhalb
+	// eines Moduls, die Leiste zeigt sie nur, während man darin steht.
+	for _, titel := range e.Palette.TitelLeiste {
+		if !enthaelt(e.Palette.TitelPalette, titel) {
+			t.Errorf("%q steht in der Seitenleiste, die Palette kennt es nicht — zwei Listen "+
+				"desselben Menüs laufen auseinander", titel)
+		}
+	}
+	// Und die Gegenprobe zur neuen Hälfte: Was nur eine Fläche innerhalb eines
+	// Moduls ist, muss die Palette trotzdem finden. Sonst wäre sie für diese
+	// Ziele der Umweg über das Modul.
+	for _, titel := range []string{"Bestand", "Image-Updates", "Ports"} {
+		if !enthaelt(e.Palette.TitelPalette, titel) {
+			t.Errorf("die Palette findet die Fläche %q nicht: %v", titel, e.Palette.TitelPalette)
+		}
+	}
+	// ── Die Warnpunkte an der Seitenleiste ───────────────────────────────────
+	//
+	// Sie beantworten von jeder Seite aus, ob woanders etwas offen ist — genau
+	// der Mangel, den docs/15-neuordnung.md als Nummer vier notiert und den die
+	// alte Fläche bis 0.4.0 mit zwei fest verdrahteten Punkten behob. Diese
+	// Fassung ordnet über den Verweis zu, den das Signal ohnehin trägt.
+	//
+	// Geprüft wird gegen die Attrappe: ein gescheiterter Dienst (crit), ein
+	// ausstehender Neustart (warn), auffällige Container und ein neueres Image.
+	// Und die Gegenprobe — kein Punkt an einem Ziel, zu dem es kein Signal gibt.
+	erwartetePunkte := map[string]string{
+		"/dienste": "crit",
+		"/pakete":  "warn",
+		"/docker":  "warn", // zusammengefasst aus den Flächen
+	}
+	if len(e.Punkte) == 0 {
+		t.Fatal("die Seitenleiste liefert keine Einträge — der Punktetest sagt dann nichts")
+	}
+	for _, p := range e.Punkte {
+		erwartet := erwartetePunkte[p.Href]
+		if p.Stufe != erwartet {
+			t.Errorf("am Ziel %q steht die Stufe %q, erwartet %q", p.Href, p.Stufe, erwartet)
+		}
+		// Eine Farbe allein ist keine Auskunft: Wo ein Punkt steht, muss ein
+		// Text für Vorleseprogramme daneben stehen.
+		if p.Stufe != "" && p.Vorgelesen == "" {
+			t.Errorf("der Punkt an %q hat keinen vorlesbaren Text", p.Href)
+		}
+	}
+
 	// Der Unterschied zwischen einer Suche und einer Liste: ein Wort, das im
 	// Namen nicht vorkommt.
 	if len(e.Palette.TrefferNginx) == 0 || !strings.Contains(e.Palette.TrefferNginx[0], "Webserver") {
@@ -2907,8 +3007,104 @@ func TestLeitstandBrowser(t *testing.T) {
 		t.Errorf("bei vollständigem Docker gehört kein Knopf auf die Seite, gefunden: %v — "+
 			"er würde in dieser Lage nichts bewirken", dk.Knoepfe)
 	}
-	if dk.NavAktiv != "/docker" {
-		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q)", dk.NavAktiv)
+	// Der hervorgehobene Punkt ist seit 0.5.1 die FLÄCHE und nicht das Modul:
+	// Zuletzt stand der Test auf /docker/bestand. Zwei gleichzeitig markierte
+	// Punkte wären die schlechtere Antwort — keiner davon sagte, wo man ist.
+	if dk.NavAktiv != "/docker/bestand" {
+		t.Errorf("hervorgehoben ist %q, erwartet war die zuletzt geöffnete Fläche "+
+			"/docker/bestand", dk.NavAktiv)
+	}
+
+	// ── Die Flächen des Moduls (0.5.1) ──────────────────────────────────────
+	//
+	// Der Entwurf steht und fällt mit einer Eigenschaft: Die Punkte hängen am
+	// ORT und nicht an einem Umschalter. Sie erscheinen, solange man im Modul
+	// steht, und verschwinden beim Verlassen. Deshalb wird beides geprüft.
+	fl := dk.Flaechen
+	erwarteteFlaechen := []struct{ label, href string }{
+		{"Stacks", "/docker"},
+		{"Container", "/docker/container"},
+		{"Ports", "/docker/ports"},
+		{"Image-Updates", "/docker/updates"},
+		{"Bestand", "/docker/bestand"},
+	}
+	if len(fl.Punkte) != len(erwarteteFlaechen) {
+		t.Errorf("unter Docker stehen %d Punkte, erwartet %d: %+v",
+			len(fl.Punkte), len(erwarteteFlaechen), fl.Punkte)
+	} else {
+		for i, e := range erwarteteFlaechen {
+			if fl.Punkte[i].Label != e.label || fl.Punkte[i].Href != e.href {
+				t.Errorf("Punkt %d ist %q → %q, erwartet %q → %q",
+					i, fl.Punkte[i].Label, fl.Punkte[i].Href, e.label, e.href)
+			}
+		}
+	}
+	if !fl.ElternOffen {
+		t.Error("das Modul trägt keine eigene Kennzeichnung, während seine Flächen offen sind — " +
+			"der Kopf über der eingerückten Liste wäre dann von einem gewöhnlichen Punkt " +
+			"nicht zu unterscheiden")
+	}
+	// Und der Punkt sitzt an der FLÄCHE, nicht pauschal am Modul. Das ist die
+	// Hälfte, wegen der die beiden Docker-Signale mit umgelenkt wurden: Ein Punkt
+	// an „Docker" meinte fünf Flächen und sagte damit nur die Hälfte.
+	erwarteteFlaechenpunkte := map[string]string{
+		"/docker/container": "warn",
+		"/docker/updates":   "warn",
+	}
+	for _, p := range fl.Stufen {
+		if p.Stufe != erwarteteFlaechenpunkte[p.Href] {
+			t.Errorf("an der Fläche %q steht die Stufe %q, erwartet %q",
+				p.Href, p.Stufe, erwarteteFlaechenpunkte[p.Href])
+		}
+	}
+
+	if dk.KinderDraussen != 0 {
+		t.Errorf("nach dem Verlassen des Moduls stehen noch %d Flächen in der Leiste — "+
+			"sie sollen am Ort hängen und nicht an einem Umschalter", dk.KinderDraussen)
+	}
+
+	// Und der schmale Fall, an dem dieser Entwurf sonst gescheitert wäre.
+	sm := dk.Schmal
+	if sm.KinderInLeiste != 0 {
+		t.Errorf("in der Symbolschiene stehen %d Flächen — ohne Beschriftung gibt es keine "+
+			"sichtbare Einrückung, sie wären von Modulen nicht zu unterscheiden",
+			sm.KinderInLeiste)
+	}
+	if !sm.StreifenDa {
+		t.Error("schmal fehlt der Umschaltstreifen — damit wären die Flächen des Moduls " +
+			"auf einem Telefon unerreichbar")
+	}
+	if len(sm.StreifenPunkte) != len(erwarteteFlaechen) {
+		t.Errorf("der Streifen führt %d Flächen, die Leiste %d: %v",
+			len(sm.StreifenPunkte), len(erwarteteFlaechen), sm.StreifenPunkte)
+	}
+	if sm.KoerperBreite > sm.FensterBreite {
+		t.Errorf("die Docker-Seite scrollt schmal waagerecht: Körper %.0f, Fenster %.0f",
+			sm.KoerperBreite, sm.FensterBreite)
+	}
+
+	for _, w := range []struct {
+		name string
+		got  wechsel
+		pfad string
+	}{
+		{"Container", dk.WechselContainer, "/docker/container"},
+		{"Ports", dk.WechselPorts, "/docker/ports"},
+		{"Image-Updates", dk.WechselUpdates, "/docker/updates"},
+		{"Bestand", dk.WechselBestand, "/docker/bestand"},
+		{"Stacks", dk.WechselStacks, "/docker"},
+	} {
+		if w.got.Pfad != w.pfad {
+			t.Errorf("der Punkt %q führt auf %q statt auf %q", w.name, w.got.Pfad, w.pfad)
+		}
+		// Ein Flächenwechsel ist ein Seitenwechsel ohne Neuladen — sonst wäre
+		// die Schale weg und mit ihr der Live-Kanal.
+		if !w.got.OhneNeuladen {
+			t.Errorf("der Wechsel auf %q hat die Seite neu geladen", w.name)
+		}
+		if w.got.Aktiv != w.name {
+			t.Errorf("nach dem Wechsel auf %q ist %q hervorgehoben", w.name, w.got.Aktiv)
+		}
 	}
 
 	// Die Stackwerkbank, Schritt 4. Drei Dinge sind hier nur im Browser zu sehen.
@@ -2979,6 +3175,51 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if !enthaelt(dk.StackEditor.Knoepfe, "speichern") {
 		t.Errorf("im Editor fehlt der Speichern-Knopf: %v", dk.StackEditor.Knoepfe)
+	}
+
+	// Das Compose-Formular (Stufe C). Was hier geprüft wird, ist nicht, dass
+	// Felder da sind, sondern dass beide Richtungen dieselbe Datei meinen — und
+	// vor allem, was mit dem geschieht, was das Formular NICHT zeigt.
+	fm := dk.Formular
+	if len(fm.Ansichten) != 3 {
+		t.Errorf("die Ansichtswahl hat %d Knöpfe statt drei: %v", len(fm.Ansichten), fm.Ansichten)
+	}
+	// Richtung Datei → Formular.
+	if !enthaelt(fm.Dienste, "web") {
+		t.Errorf("das Formular hat den Dienst aus der Datei nicht gelesen: %v", fm.Dienste)
+	}
+	if fm.Image != "nginx:alpine" {
+		t.Errorf("das Feld „Image\" zeigt %q statt des Werts aus der Datei", fm.Image)
+	}
+	// Der Port ist der Fall, an dem ein Zerlegen von links scheitert: In
+	// „127.0.0.1:8080:80" steht der Wirtsport in der MITTE.
+	if fm.PortAdresse != "127.0.0.1" || fm.PortWirt != "8080" {
+		t.Errorf("die Portzeile wurde falsch zerlegt: Adresse %q, Wirtsport %q",
+			fm.PortAdresse, fm.PortWirt)
+	}
+	// Richtung Formular → Datei.
+	if !strings.Contains(fm.TextNachher, "nginx:1.27-alpine") {
+		t.Errorf("die Änderung im Feld steht nicht in der Datei: %q", fm.TextNachher)
+	}
+	// Die Zusage, wegen der das Formular chirurgisch schreibt und nicht neu
+	// ausgibt. Ohne sie hätte die erste Änderung an einer Vorlage deren
+	// Kommentare gefressen — und die Kommentare SIND bei den Vorlagen der Inhalt
+	// (Entscheidung E7).
+	if !fm.KommentarBleibt {
+		t.Errorf("der Kommentar hat die Änderung über das Formular nicht überlebt: %q",
+			fm.TextNachher)
+	}
+	// Anker: anzeigen ja, anfassen nein — und den Grund nennen.
+	if !strings.Contains(fm.AnkerHinweis, "Anker") {
+		t.Errorf("bei einer Datei mit Ankern fehlt der Hinweis: %q", fm.AnkerHinweis)
+	}
+	if !fm.AnkerGesperrt {
+		t.Error("bei einer Datei mit Ankern sind die Felder nicht gesperrt — das Formular " +
+			"würde an einer Datei schreiben, deren Bedeutung es nicht kennt")
+	}
+	// Kaputtes YAML: einfrieren statt aus einem halben Dokument schreiben.
+	if !strings.Contains(fm.KaputtWarnung, "YAML") {
+		t.Errorf("bei unlesbarem YAML fehlt die Warnung: %q", fm.KaputtWarnung)
 	}
 
 	// Das fremde Projekt: lesbar, aber ohne Bearbeiten und ohne Löschen. Das ist
@@ -3094,37 +3335,37 @@ func TestLeitstandBrowser(t *testing.T) {
 
 	// Schritt 7: die Update-Prüfung. Der Kern ist, dass „nicht geprüft" als
 	// eigene Aussage dasteht — eine Prüfung, die im Zweifel „veraltet" meldete,
-	// meldete es bei fast jedem Abbild und würde nach einer Woche nicht mehr
+	// meldete es bei fast jedem Image und würde nach einer Woche nicht mehr
 	// gelesen.
 	abb := dk.Updates
 	if len(abb.Zeilen) != 2 {
-		t.Fatalf("erwartet 2 Abbildzeilen, gerendert sind %d: %+v", len(abb.Zeilen), abb.Zeilen)
+		t.Fatalf("erwartet 2 Imagezeilen, gerendert sind %d: %+v", len(abb.Zeilen), abb.Zeilen)
 	}
 	// Das Neue steht oben, ist rot, und der Knopf daneben nennt den Stack.
 	if abb.Zeilen[0].Ref != "nginx:alpine" {
-		t.Errorf("das Abbild mit der neuen Fassung steht nicht oben: %+v", abb.Zeilen[0])
+		t.Errorf("das Image mit der neuen Fassung steht nicht oben: %+v", abb.Zeilen[0])
 	}
 	if !strings.Contains(abb.Zeilen[0].Stufe, "schlecht") {
 		t.Errorf("die neue Fassung ist nicht als Befund gefärbt: %q", abb.Zeilen[0].Stufe)
 	}
 	if abb.Zeilen[0].Knopf != "Stack aktualisieren" {
 		t.Errorf("der Griff fehlt an der Zeile: %q — aktualisiert wird ein Stack, "+
-			"kein Abbild", abb.Zeilen[0].Knopf)
+			"kein Image", abb.Zeilen[0].Knopf)
 	}
 	if !strings.Contains(abb.Zeilen[0].Gebrauch, "web") {
 		t.Errorf("die Zeile nennt den Stack nicht: %q", abb.Zeilen[0].Gebrauch)
 	}
-	// Und das ungeprüfte Abbild trägt WEDER grün NOCH rot: Es ist eine eigene
+	// Und das ungeprüfte Image trägt WEDER grün NOCH rot: Es ist eine eigene
 	// Aussage, und der Satz darüber sagt, dass sie keine Beruhigung ist.
 	if !strings.Contains(abb.Zeilen[1].Stand, "nicht geprüft") {
 		t.Errorf("„nicht geprüft"+`"`+" steht nicht in der Zeile: %+v", abb.Zeilen[1])
 	}
 	if strings.Contains(abb.Zeilen[1].Stufe, "gut") {
-		t.Errorf("ein ungeprüftes Abbild darf nicht als aktuell erscheinen: %q",
+		t.Errorf("ein ungeprüftes Image darf nicht als aktuell erscheinen: %q",
 			abb.Zeilen[1].Stufe)
 	}
 	if abb.UngeprueftSatz == "" {
-		t.Error("der Satz zu den ungeprüften Abbildern fehlt — ohne ihn ist " +
+		t.Error("der Satz zu den ungeprüften Images fehlt — ohne ihn ist " +
 			"„nicht geprüft" + `"` + " eine leere Zelle")
 	}
 
@@ -3169,23 +3410,23 @@ func TestLeitstandBrowser(t *testing.T) {
 		}
 	}
 
-	// Der Kern: An einem BENUTZTEN Abbild steht kein Entfernen-Knopf. Docker
+	// Der Kern: An einem BENUTZTEN Image steht kein Entfernen-Knopf. Docker
 	// weigerte sich, und der Knopf wäre dann selbst der Fehler.
-	if len(be.Abbilder) == 0 {
-		t.Fatal("die Abbildliste ist leer")
+	if len(be.Images) == 0 {
+		t.Fatal("die Imageliste ist leer")
 	}
 	var benutzt, frei int
-	for _, a := range be.Abbilder {
+	for _, a := range be.Images {
 		if strings.Contains(a.Text, "in Gebrauch") {
 			benutzt++
 			if a.Knopf {
-				t.Errorf("an einem benutzten Abbild steht ein Entfernen-Knopf: %q", a.Text)
+				t.Errorf("an einem benutzten Image steht ein Entfernen-Knopf: %q", a.Text)
 			}
 			continue
 		}
 		frei++
 		if !a.Knopf {
-			t.Errorf("an einem freien Abbild fehlt der Entfernen-Knopf: %q", a.Text)
+			t.Errorf("an einem freien Image fehlt der Entfernen-Knopf: %q", a.Text)
 		}
 	}
 	if benutzt == 0 || frei == 0 {

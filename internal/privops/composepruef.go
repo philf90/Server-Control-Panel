@@ -337,7 +337,7 @@ func pruefeDienst(p *ComposePruefung, dienst string, felder map[string]yaml.Node
 
 	// build: „docker compose up" baut, wenn ein Bauabschnitt dasteht. Ein
 	// Kontext außerhalb des Stack-Verzeichnisses kopiert fremde Dateien in ein
-	// Abbild — bei „context: /" das halbe Dateisystem.
+	// Image — bei „context: /" das halbe Dateisystem.
 	if bau := felder["build"]; bau.Kind != 0 {
 		for feld, wert := range bauPfade(bau) {
 			if wert == "" {
@@ -349,7 +349,7 @@ func pruefeDienst(p *ComposePruefung, dienst string, felder map[string]yaml.Node
 			}
 			if wurzel != "" && !innerhalb(ziel, wurzel) {
 				fuege(BefundAblehnung, "build."+feld, wert,
-					"Der Bauabschnitt zeigt aus dem Stack-Verzeichnis heraus. Alles darin landet im Abbild — bei einem Kontext auf einem hohen Verzeichnis ist das ein Abzug fremder Dateien.")
+					"Der Bauabschnitt zeigt aus dem Stack-Verzeichnis heraus. Alles darin landet im Image — bei einem Kontext auf einem hohen Verzeichnis ist das ein Abzug fremder Dateien.")
 			}
 		}
 	}

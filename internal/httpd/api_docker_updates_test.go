@@ -18,7 +18,7 @@ import (
 // sondern das Verhalten drumherum: die Ratengrenze, der Zwischenspeicher, und
 // die Zusage, dass eine Leseanfrage NIE eine Registry berührt.
 
-func abbildServer(t *testing.T, rolle string) (*Server, *fakeOps, *http.Cookie, string) {
+func imageServer(t *testing.T, rolle string) (*Server, *fakeOps, *http.Cookie, string) {
 	t.Helper()
 	s, ops, cookie, csrf := dockerServer(t, rolle, privops.DockerState{
 		Installiert: true, DaemonLaeuft: true, ComposeVerfuegbar: true,
@@ -26,7 +26,7 @@ func abbildServer(t *testing.T, rolle string) (*Server, *fakeOps, *http.Cookie, 
 	ops.container = []privops.Container{
 		{ID: "a", Name: "web-proxy-1", Image: "nginx:alpine", Zustand: "running", Stack: "web", Dienst: "proxy"},
 		{ID: "b", Name: "web-api-1", Image: "api:1.4", Zustand: "running", Stack: "web", Dienst: "api"},
-		// Zweiter Container mit DEMSELBEN Abbild: eine Abfrage, nicht zwei.
+		// Zweiter Container mit DEMSELBEN Image: eine Abfrage, nicht zwei.
 		{ID: "c", Name: "web-proxy-2", Image: "nginx:alpine", Zustand: "running", Stack: "web", Dienst: "proxy"},
 		// Gestoppt: kein Grund, dafür die Ratengrenze zu verbrauchen.
 		{ID: "d", Name: "alt", Image: "alpine:3.19", Zustand: "exited"},
@@ -53,7 +53,7 @@ func updateliste(t *testing.T, s *Server, cookie *http.Cookie) apiUpdates {
 // Die wichtigste Zusage der Leseroute: Sie fragt keine Registry. Wäre es
 // anders, verbrauchte ein offener Tab die Ratengrenze im Hintergrund.
 func TestAPIUpdatesLesenFragtKeineRegistry(t *testing.T) {
-	s, ops, cookie, _ := abbildServer(t, store.RoleOwner)
+	s, ops, cookie, _ := imageServer(t, store.RoleOwner)
 
 	antwort := updateliste(t, s, cookie)
 	if len(antwort.Zeilen) != 0 {
@@ -72,10 +72,10 @@ func TestAPIUpdatesLesenFragtKeineRegistry(t *testing.T) {
 	}
 }
 
-// Der Prüflauf fragt jedes Abbild EINMAL — und nur die, bei denen es etwas zu
+// Der Prüflauf fragt jedes Image EINMAL — und nur die, bei denen es etwas zu
 // fragen gibt. Jede Abfrage kostet an der Ratengrenze.
-func TestAPIUpdatePruefungFragtJedesAbbildEinmal(t *testing.T) {
-	s, ops, cookie, csrf := abbildServer(t, store.RoleOwner)
+func TestAPIUpdatePruefungFragtJedesImageEinmal(t *testing.T) {
+	s, ops, cookie, csrf := imageServer(t, store.RoleOwner)
 	ops.staende = map[string]privops.Updatestand{
 		"nginx:alpine": {Ref: "nginx:alpine", Geprueft: true, Neu: true,
 			LokalDigest: "sha256:aaaa11112222", FernDigest: "sha256:bbbb11112222", Weg: "buildx"},
@@ -101,9 +101,9 @@ func TestAPIUpdatePruefungFragtJedesAbbildEinmal(t *testing.T) {
 	if len(gefragt) != 2 {
 		t.Fatalf("erwartet 2 Abfragen, gestellt %d: %v", len(gefragt), gefragt)
 	}
-	// Zwei Container mit demselben Abbild sind EINE Abfrage.
+	// Zwei Container mit demselben Image sind EINE Abfrage.
 	if gefragt[0] != "api:1.4" || gefragt[1] != "nginx:alpine" {
-		t.Errorf("falsche Abbilder gefragt: %v", gefragt)
+		t.Errorf("falsche Images gefragt: %v", gefragt)
 	}
 
 	antwort := updateliste(t, s, cookie)
@@ -113,9 +113,9 @@ func TestAPIUpdatePruefungFragtJedesAbbildEinmal(t *testing.T) {
 	}
 	// Das Neue steht oben — es ist das, was es zu tun gibt.
 	if antwort.Zeilen[0].Ref != "nginx:alpine" || !antwort.Zeilen[0].Neu {
-		t.Errorf("das neue Abbild steht nicht oben: %+v", antwort.Zeilen[0])
+		t.Errorf("das neue Image steht nicht oben: %+v", antwort.Zeilen[0])
 	}
-	// Der Griff ist der Stack: Aktualisiert wird ein Projekt, kein Abbild.
+	// Der Griff ist der Stack: Aktualisiert wird ein Projekt, kein Image.
 	if len(antwort.Zeilen[0].Stacks) != 1 || antwort.Zeilen[0].Stacks[0] != "web" {
 		t.Errorf("der Stack fehlt an der Zeile: %+v", antwort.Zeilen[0])
 	}
@@ -124,7 +124,7 @@ func TestAPIUpdatePruefungFragtJedesAbbildEinmal(t *testing.T) {
 // Die Ratengrenze: höchstens ein Lauf je Tag, und sie überlebt einen Neustart,
 // weil sie im Store liegt.
 func TestAPIUpdatePruefungHaeltDieRatengrenze(t *testing.T) {
-	s, ops, cookie, csrf := abbildServer(t, store.RoleOwner)
+	s, ops, cookie, csrf := imageServer(t, store.RoleOwner)
 
 	if rec := postJSON(t, s, "/api/v1/docker/updates/check", "{}", cookie, csrf); rec.Code != http.StatusAccepted {
 		t.Fatalf("erster Lauf: Status = %d", rec.Code)
@@ -158,7 +158,7 @@ func TestAPIUpdatePruefungHaeltDieRatengrenze(t *testing.T) {
 // Sonst dürfte gleich wieder gefragt werden — und die Grenze wäre wirkungslos,
 // gerade wenn sie zugeschlagen hat.
 func TestAPIUpdatePruefungBrichtBeiRatengrenzeAb(t *testing.T) {
-	s, ops, cookie, csrf := abbildServer(t, store.RoleOwner)
+	s, ops, cookie, csrf := imageServer(t, store.RoleOwner)
 	ops.staende = map[string]privops.Updatestand{
 		"api:1.4":      {Ref: "api:1.4", Grund: "Die Registry hat die Abfrage wegen ihrer Ratengrenze abgewiesen."},
 		"nginx:alpine": {Ref: "nginx:alpine", Geprueft: true, Neu: true},
@@ -197,9 +197,9 @@ func TestAPIUpdatePruefungBrichtBeiRatengrenzeAb(t *testing.T) {
 // „Nicht geprüft" ist weder „aktuell" noch „veraltet" — und die Zahl dafür
 // steht eigens da. Sie ist die ehrlichste der drei.
 func TestAPIUpdatesTrenntUngeprueftVonAktuell(t *testing.T) {
-	s, ops, cookie, csrf := abbildServer(t, store.RoleOwner)
+	s, ops, cookie, csrf := imageServer(t, store.RoleOwner)
 	ops.staende = map[string]privops.Updatestand{
-		"nginx:alpine": {Ref: "nginx:alpine", Grund: "Mehrarchitektur-Abbild: …"},
+		"nginx:alpine": {Ref: "nginx:alpine", Grund: "Mehrarchitektur-Image: …"},
 		"api:1.4":      {Ref: "api:1.4", Geprueft: true, Neu: false},
 	}
 
@@ -220,7 +220,7 @@ func TestAPIUpdatesTrenntUngeprueftVonAktuell(t *testing.T) {
 	for _, z := range antwort.Zeilen {
 		if z.Ref == "nginx:alpine" {
 			if z.Neu {
-				t.Error("ein ungeprüftes Abbild darf nicht als neu gelten")
+				t.Error("ein ungeprüftes Image darf nicht als neu gelten")
 			}
 			if z.Grund == "" {
 				t.Error("der Grund fehlt an der Zeile")
@@ -233,7 +233,7 @@ func TestAPIUpdatesTrenntUngeprueftVonAktuell(t *testing.T) {
 // einer Registry-Abfrage: In der Drei-Sekunden-Frist von dashboardSignals hat
 // eine Registry nichts verloren.
 func TestUpdateSignalKommtAusDemZwischenspeicher(t *testing.T) {
-	s, ops, cookie, csrf := abbildServer(t, store.RoleOwner)
+	s, ops, cookie, csrf := imageServer(t, store.RoleOwner)
 	ops.staende = map[string]privops.Updatestand{
 		"nginx:alpine": {Ref: "nginx:alpine", Geprueft: true, Neu: true},
 		"api:1.4":      {Ref: "api:1.4", Geprueft: true, Neu: false},
@@ -261,7 +261,10 @@ func TestUpdateSignalKommtAusDemZwischenspeicher(t *testing.T) {
 	for _, sig := range signale {
 		if strings.Contains(sig.Title, "neuere Fassung") {
 			gefunden = true
-			if sig.ActionHref != "/docker" {
+			// Auf die FLÄCHE und nicht auf das Modul: Den Verweis liest seit
+			// 0.5.1 auch der Warnpunkt in der Seitenleiste, und ein Punkt an
+			// „Docker" meinte fünf Flächen.
+			if sig.ActionHref != "/docker/updates" {
 				t.Errorf("der Verweis führt nach %q", sig.ActionHref)
 			}
 		}
@@ -282,7 +285,7 @@ func TestUpdateSignalKommtAusDemZwischenspeicher(t *testing.T) {
 // Prüfen verlangt die Owner-Rolle: Der Lauf verbraucht eine Ratengrenze für den
 // ganzen Server.
 func TestAPIUpdatePruefungVerlangtOwner(t *testing.T) {
-	s, ops, cookie, csrf := abbildServer(t, store.RoleAdmin)
+	s, ops, cookie, csrf := imageServer(t, store.RoleAdmin)
 
 	rec := postJSON(t, s, "/api/v1/docker/updates/check", "{}", cookie, csrf)
 	if rec.Code != http.StatusForbidden {
@@ -301,8 +304,8 @@ func TestAPIUpdatePruefungVerlangtOwner(t *testing.T) {
 
 // Ohne laufenden Container gibt es nichts zu prüfen — und dann wird kein
 // Vorgang gestartet, der sofort mit „nichts gefunden" endet.
-func TestAPIUpdatePruefungOhneAbbilder(t *testing.T) {
-	s, ops, cookie, csrf := abbildServer(t, store.RoleOwner)
+func TestAPIUpdatePruefungOhneImages(t *testing.T) {
+	s, ops, cookie, csrf := imageServer(t, store.RoleOwner)
 	ops.container = nil
 
 	rec := postJSON(t, s, "/api/v1/docker/updates/check", "{}", cookie, csrf)
@@ -317,7 +320,7 @@ func TestAPIUpdatePruefungOhneAbbilder(t *testing.T) {
 // Der Zwischenspeicher liegt im Store und überlebt damit einen Neustart des
 // Panels. Läge er im Speicher, setzte jeder Neustart die Ratengrenze zurück.
 func TestUpdatestandUeberlebtImStore(t *testing.T) {
-	s, _, _, _ := abbildServer(t, store.RoleOwner)
+	s, _, _, _ := imageServer(t, store.RoleOwner)
 	ctx := t.Context()
 
 	stand := gespeicherterUpdatestand{

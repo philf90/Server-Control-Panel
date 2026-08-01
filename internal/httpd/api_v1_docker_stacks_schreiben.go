@@ -18,7 +18,7 @@ package httpd
 //     über den ein Container an fremde Daten kommt. Deshalb Stufe 3 mit dem
 //     getippten Stack-Namen statt einer Ablehnung.
 //  4. **Was Minuten läuft, ist ein Vorgang.** up, down, pull, restart und
-//     Löschen ziehen Abbilder und starten Container; sie laufen als Job mit
+//     Löschen ziehen Images und starten Container; sie laufen als Job mit
 //     Strom. Speichern ist eine Anfrage — es schreibt eine Datei.
 
 import (
@@ -202,7 +202,7 @@ func (s *Server) stackVorschau(ctx context.Context, name, text string) privops.C
 }
 
 // handleAPIDockerStackAktion fährt einen Stack hoch, herunter, zieht seine
-// Abbilder, startet ihn neu oder löscht ihn.
+// Images, startet ihn neu oder löscht ihn.
 func (s *Server) handleAPIDockerStackAktion(w http.ResponseWriter, r *http.Request) {
 	user, _ := userFrom(r.Context())
 	name := r.PathValue("name")
@@ -377,7 +377,7 @@ func (s *Server) stackAktionBestaetigt(w http.ResponseWriter, r *http.Request, n
 			Frage: name + " herunterfahren?",
 			Punkte: []string{
 				dienstesatz(stack) + " werden gestoppt und entfernt.",
-				"Benannte Volumes und Abbilder bleiben erhalten — der Stack lässt sich wieder starten.",
+				"Benannte Volumes und Images bleiben erhalten — der Stack lässt sich wieder starten.",
 			},
 			Knopf: "herunterfahren",
 		}
@@ -476,7 +476,7 @@ func stackMeldung(aktion privops.StackAktion, name string) string {
 	case privops.StackDown:
 		return name + " wird heruntergefahren."
 	case privops.StackPull:
-		return "Abbilder für " + name + " werden geholt."
+		return "Images für " + name + " werden geholt."
 	case privops.StackRestart:
 		return name + " wird neu gestartet."
 	default:

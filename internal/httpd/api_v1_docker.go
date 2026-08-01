@@ -688,7 +688,7 @@ func (s *Server) handleAPIDockerContainerLogs(w http.ResponseWriter, r *http.Req
 // jobDockerPrune ist die Vorgangsart des Aufräumens.
 //
 // Ein Vorgang und keine Anfrage: "docker image prune --all" läuft auf einem
-// Server mit fünfzig Gigabyte Abbildern Minuten und schreibt dabei jede
+// Server mit fünfzig Gigabyte Images Minuten und schreibt dabei jede
 // gelöschte Kennung. Eine Anfrage, die so lange offen bleibt, überlebt keinen
 // Zwischenserver.
 const jobDockerPrune = "docker-prune"
@@ -701,9 +701,9 @@ type apiImage struct {
 	Alter   string `json:"alter"`
 	// Verwaist heißt: ohne Namen. Der Rest, der bei jedem Neubau übrig bleibt.
 	Verwaist bool `json:"verwaist"`
-	// InGebrauch heißt: Mindestens ein Container benutzt dieses Abbild. Die
+	// InGebrauch heißt: Mindestens ein Container benutzt dieses Image. Die
 	// Angabe kostet nichts — die Containerliste liegt ohnehin vor — und erspart
-	// den Fehlversuch: Docker weigert sich, ein benutztes Abbild zu löschen, und
+	// den Fehlversuch: Docker weigert sich, ein benutztes Image zu löschen, und
 	// ein Knopf, der zuverlässig in diese Weigerung läuft, ist selbst der Fehler.
 	InGebrauch bool `json:"in_gebrauch"`
 }
@@ -712,7 +712,7 @@ type apiVolume struct {
 	Name    string `json:"name"`
 	Treiber string `json:"treiber"`
 	Ort     string `json:"ort"`
-	// InGebrauch: von einem Container eingehängt. Anders als beim Abbild ist das
+	// InGebrauch: von einem Container eingehängt. Anders als beim Image ist das
 	// hier die WICHTIGE Angabe — ein Volume zu löschen nimmt Daten mit, und ob
 	// gerade etwas darauf schreibt, entscheidet, wie schlimm das ist.
 	InGebrauch bool `json:"in_gebrauch"`
@@ -755,7 +755,7 @@ type apiPruneAnfrage struct {
 	Getippt    string `json:"getippt"`
 }
 
-// handleAPIDockerBestand liefert Abbilder, Volumes, Netze und den Platzbedarf.
+// handleAPIDockerBestand liefert Images, Volumes, Netze und den Platzbedarf.
 //
 // Vier Aufrufe in einem Endpunkt, und das ist hier richtig: Sie gehören zu einer
 // Seite, keiner davon ist teuer, und getrennt hätte die Oberfläche vier
@@ -774,12 +774,25 @@ func (s *Server) handleAPIDockerBestand(w http.ResponseWriter, r *http.Request) 
 
 	// Die Containerliste zuerst: Aus ihr kommt, was in Gebrauch ist. Scheitert
 	// sie, fehlt nur diese Markierung — die Listen selbst stehen trotzdem.
+	//
+	// Die Einzelheiten kommen in EINEM Aufruf. Hier stand bis 0.5.1 ein N+1:
+	// „docker ps" für die Liste und danach je Container ein eigenes
+	// „docker inspect" — vierzig Prozesse auf einem Server mit vierzig
+	// Containern, nacheinander, für ein Häkchen je Volume. Aufgefallen ist es
+	// nicht, weil die Attrappe des Browsertests vier Container hat.
+	//
+	// Der Kontrast steht eine Zeile weiter oben: benutzteImages kommt aus der
+	// Liste selbst und kostete nie etwas. Dieselbe Art Auskunft, ein Aufruf.
 	benutzteImages := map[string]bool{}
 	benutzteVolumes := map[string]bool{}
 	if cs, err := s.ops.DockerContainers(r.Context()); err == nil {
+		ids := make([]string, 0, len(cs))
 		for _, c := range cs {
 			benutzteImages[c.Image] = true
-			if d, err := s.ops.DockerContainer(r.Context(), c.ID); err == nil {
+			ids = append(ids, c.ID)
+		}
+		if details, err := s.ops.DockerContainerDetails(r.Context(), ids); err == nil {
+			for _, d := range details {
 				for _, m := range d.Mounts {
 					if m.Art == "volume" {
 						benutzteVolumes[m.Quelle] = true
@@ -855,7 +868,7 @@ func eingebautesNetz(name string) bool {
 	}
 }
 
-// handleAPIDockerImageEntfernen entfernt ein Abbild. Stufe 2: Das Abbild lässt
+// handleAPIDockerImageEntfernen entfernt ein Image. Stufe 2: Das Image lässt
 // sich erneut ziehen, und was es kostet, ist Zeit und Bandbreite.
 func (s *Server) handleAPIDockerImageEntfernen(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -865,10 +878,10 @@ func (s *Server) handleAPIDockerImageEntfernen(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if !s.apiBestaetigt(w, anfrage, apiBestaetigung{
-		Titel: "Abbild entfernen",
+		Titel: "Image entfernen",
 		Frage: kurzeKennung(strings.TrimPrefix(id, "sha256:")) + " entfernen?",
 		Punkte: []string{
-			"Das Abbild wird aus der lokalen Ablage gelöscht.",
+			"Das Image wird aus der lokalen Ablage gelöscht.",
 			"Es lässt sich erneut ziehen — das kostet Zeit und Bandbreite, keine Daten.",
 			"Benutzt es noch ein Container, weigert sich Docker.",
 		},
@@ -883,14 +896,14 @@ func (s *Server) handleAPIDockerImageEntfernen(w http.ResponseWriter, r *http.Re
 		return
 	}
 	s.audit(r, "docker.image.remove", id, store.ResultOK, "")
-	s.apiJSON(w, http.StatusOK, apiAktionAntwort{Meldung: "Abbild entfernt."})
+	s.apiJSON(w, http.StatusOK, apiAktionAntwort{Meldung: "Image entfernt."})
 }
 
 // handleAPIDockerVolumeEntfernen entfernt einen Datenspeicher.
 //
 // Stufe 3 mit dem Volumenamen — die schärfste Einzelaktion dieses Moduls. Was
 // darin liegt, ist danach weg, und kein Rückweg des Panels holt es zurück. Das
-// unterscheidet ein Volume von allem anderen auf dieser Seite: Ein Abbild lässt
+// unterscheidet ein Volume von allem anderen auf dieser Seite: Ein Image lässt
 // sich ziehen, ein Netz neu anlegen, ein Container neu starten — Daten nicht.
 func (s *Server) handleAPIDockerVolumeEntfernen(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
@@ -955,7 +968,7 @@ func (s *Server) handleAPIDockerNetzEntfernen(w http.ResponseWriter, r *http.Req
 
 // handleAPIDockerPrune räumt eine Art auf.
 //
-// Die Rückfrage trägt die Zahlen aus "docker system df" — „alle 34 Abbilder,
+// Die Rückfrage trägt die Zahlen aus "docker system df" — „alle 34 Images,
 // 12,4 GB" statt „alle". Die Begründung steht in docs/14-bestaetigungen.md:
 // „Alle Updates einspielen?" befähigt zu keiner Entscheidung, „alle 42" schon.
 //
@@ -1054,18 +1067,18 @@ func pruneFrage(art privops.PruneArt, alle bool, posten string) apiBestaetigung 
 	b := apiBestaetigung{Knopf: "aufräumen"}
 	switch art {
 	case privops.PruneImages:
-		b.Titel = "Abbilder aufräumen"
+		b.Titel = "Images aufräumen"
 		if alle {
-			b.Frage = "Alle Abbilder entfernen, die kein Container benutzt?"
+			b.Frage = "Alle Images entfernen, die kein Container benutzt?"
 			b.Punkte = []string{
-				"Betroffen sind auch Abbilder, die Sie für später bereitgelegt haben.",
+				"Betroffen sind auch Images, die Sie für später bereitgelegt haben.",
 				"Sie lassen sich erneut ziehen — das kostet Zeit und Bandbreite, keine Daten.",
 			}
 		} else {
-			b.Frage = "Namenlose Abbilder entfernen?"
+			b.Frage = "Namenlose Images entfernen?"
 			b.Punkte = []string{
 				"Betroffen sind nur Reste ohne Namen, wie sie bei jedem Neubau anfallen.",
-				"Abbilder mit Namen bleiben liegen.",
+				"Images mit Namen bleiben liegen.",
 			}
 		}
 	case privops.PruneContainer:

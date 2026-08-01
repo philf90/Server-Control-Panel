@@ -1,10 +1,17 @@
 <script lang="ts">
-  // Docker — eine Seite statt fünf Menüpunkten.
+  // Docker — ein Modul mit fünf Flächen, jede mit eigener Adresse.
   //
-  // Der Zuschnitt steht in docs/17-docker.md §6 und hat einen einfachen Grund:
-  // Die Seitenleiste hat schon achtzehn Ziele. Was zusammengehört, steht
-  // untereinander — Stacks (das führende Objekt), Container, Ports, Bestand,
-  // Ereignisse.
+  // Bis 0.5.1 war es eine Seite mit sechs Abschnitten untereinander. Der
+  // Bauplan (docs/17-docker.md §6) hatte Reiter vorgesehen; gebaut wurde eine
+  // lange Seite, und aufgefallen ist es nicht, weil die Attrappe des
+  // Browsertests zwei Stacks und vier Container hat. Auf einem betriebsüblichen
+  // Server sind es rund dreizehn Bildschirme — und schwerer wiegt, dass jeder
+  // Abschnitt beim Öffnen seine eigenen docker-Aufrufe macht.
+  //
+  // Die Flächen stehen als eingerückte Punkte unter „Docker" in der
+  // Seitenleiste; ihre Liste steht in lib/ziele.ts, damit die Befehlspalette
+  // dieselbe kennt. Schmal, wo die Leiste eine Symbolschiene ist, tritt der
+  // Umschaltstreifen weiter unten an ihre Stelle.
   //
   // Oben bleibt die Aufgabe, wegen der die Seite schon vor allem anderen
   // existierte: Fehlt Docker, bietet das Panel es an, statt eine Kommandozeile
@@ -13,7 +20,7 @@
   // ist da und antwortet nicht (der Dienst hilft), Compose fehlt (apt hilft
   // wieder). Welche Antwort gilt, entscheidet der Server und schickt sie fertig
   // mit; die Seite legt keine eigene Auslegung daneben.
-  import Abbildpruefung from "../komponenten/Abbildupdates.svelte";
+  import Imagepruefung from "../komponenten/Imageupdates.svelte";
   import Bestandsansicht from "../komponenten/Bestand.svelte";
   import Containerwerkbank from "../komponenten/Containerliste.svelte";
   import Ereignisstrom from "../komponenten/Ereignisse.svelte";
@@ -22,7 +29,8 @@
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
   import { AbgemeldetFehler, api } from "../lib/api";
   import { t } from "../lib/texte";
-  import { verweis } from "../lib/weg.svelte";
+  import { verweis, weg } from "../lib/weg.svelte";
+  import { alleZiele } from "../lib/ziele";
   import { Vorgang } from "../lib/vorgang.svelte";
   import type { Docker } from "../lib/typen";
 
@@ -74,6 +82,10 @@
       arbeitet = false;
     }
   }
+
+  /** flaechen sind die Unterseiten dieses Moduls — dieselbe Liste, aus der die
+   *  Seitenleiste ihre eingerückten Punkte baut. */
+  const flaechen = $derived(alleZiele.find((z) => z.id === "docker")?.kinder ?? []);
 
   const laeuftVorgang = $derived(vorgang.job?.laeuft ?? false);
   const knopftext = $derived(
@@ -184,46 +196,76 @@
   {/if}
 
   {#if daten.daemon_laeuft}
-    <!-- Container gibt es nur, wenn der Daemon antwortet. Die Liste zu laden,
-         während er tot ist, brächte eine Fehlermeldung unter einer Karte, die
-         die Ursache schon nennt. -->
-    <!-- Stacks zuerst: Sie sind das führende Objekt dieses Moduls
-         (docs/16-neukonzeption.md §5). Wer einen Server mit Compose betreibt,
-         denkt in Projekten und nicht in einzelnen Containern — die stehen
-         darunter, für die Fälle, in denen doch der einzelne zählt. -->
-    <h2>{t.docker.stacks}</h2>
-    <Stackwerkbank />
+    <!-- Der Umschaltstreifen. Er steht NUR in der schmalen Ansicht: Breit
+         übernehmen die Unterpunkte der Seitenleiste diese Aufgabe, und zwei
+         sichtbare Navigationen für dieselbe Sache wären eine zu viel. Schmal
+         ist die Leiste eine Symbolschiene ohne Beschriftungen — dort hätten
+         eingerückte Unterpunkte keine sichtbare Einrückung.
 
-    <h2>{t.docker.container}</h2>
-    <Containerwerkbank />
+         Die Liste kommt aus lib/ziele.ts und nicht aus dieser Datei: Es soll
+         eine Stelle geben, an der steht, welche Flächen dieses Modul hat. -->
+    {#if flaechen.length}
+      <nav class="streifen" aria-label={t.ziele.docker}>
+        {#each flaechen as f (f.id)}
+          <a
+            href={f.href}
+            onclick={(e) => verweis(e, f.href)}
+            class:an={f.id === "docker/" + weg.unterseite}
+            aria-current={f.id === "docker/" + weg.unterseite ? "page" : undefined}
+          >
+            {f.label}
+          </a>
+        {/each}
+      </nav>
+    {/if}
 
-    <!-- Die Ports stehen zwischen Containern und Bestand: Sie sind eine
-         Auskunft über das, was läuft, und keine über das, was auf der Platte
-         liegt. -->
-    <h2>{t.docker.ports}</h2>
-    <Portuebersicht />
+    <!-- Eine Fläche je Adresse, und nur sie wird eingehängt. Das ist nicht bloß
+         Ordnung: Jeder dieser Abschnitte holt beim Einhängen seine eigenen
+         Daten, und die meisten davon sind docker-Prozesse. Bis 0.5.1 standen
+         alle sechs untereinander auf einer Seite — ein Aufruf kostete auf einem
+         Server mit vierzig Containern rund fünfzig Prozessaufrufe, davon
+         fünfundvierzig für den Bestand, den man selten sehen will. -->
+    {#if weg.unterseite === ""}
+      <!-- Stacks sind die Vorgabe: Sie sind das führende Objekt dieses Moduls
+           (docs/16-neukonzeption.md §5). Wer einen Server mit Compose betreibt,
+           denkt in Projekten und nicht in einzelnen Containern. -->
+      <h2>{t.docker.stacks}</h2>
+      <Stackwerkbank />
+    {:else if weg.unterseite === "container"}
+      <h2>{t.docker.container}</h2>
+      <Containerwerkbank />
 
-    <!-- Die Update-Prüfung steht vor dem Bestand: Sie ist eine Frage an das,
-         was läuft, und der Griff dazu ist ein Stack weiter oben. -->
-    <h2>{t.docker.updates}</h2>
-    <Abbildpruefung />
+      <!-- Der Ereignisstrom steht bei den Containern und nicht auf einer
+           eigenen Fläche: Er beantwortet „warum ist der Container um 3 Uhr neu
+           gestartet", und diese Frage stellt man, während man den Container
+           ansieht. Zugeklappt, weil er einen docker-Prozess hält. -->
+      <h2>{t.docker.ereignisse}</h2>
+      <Ereignisstrom />
 
-    <h2>{t.docker.bestand}</h2>
-    <Bestandsansicht />
-
-    <!-- Der Ereignisstrom ganz unten und zugeklappt: Er hält einen
-         docker-Prozess auf dem Server, und dafür soll niemand zahlen, der die
-         Seite nur geöffnet hat. -->
-    <h2>{t.docker.ereignisse}</h2>
-    <Ereignisstrom />
+      <!-- Die zurückgestellte Container-Shell gehört hierher und nicht unter
+           jede Fläche des Moduls. -->
+      <div class="platte">
+        <b>{t.docker.imBau}</b>
+        <p>{t.docker.imBauDetail}</p>
+      </div>
+    {:else if weg.unterseite === "ports"}
+      <h2>{t.docker.ports}</h2>
+      <Portuebersicht />
+    {:else if weg.unterseite === "updates"}
+      <h2>{t.docker.updates}</h2>
+      <Imagepruefung />
+    {:else if weg.unterseite === "bestand"}
+      <h2>{t.docker.bestand}</h2>
+      <Bestandsansicht />
+    {:else}
+      <!-- Ein zweites Segment, das es nicht gibt. Nicht stillschweigend auf die
+           Stacks fallen: Das sähe aus, als hätte der Verweis gestimmt. -->
+      <p class="detail">{t.docker.flaecheUnbekannt}</p>
+      <a class="knopf leise" href="/docker" onclick={(e) => verweis(e, "/docker")}>
+        {t.ziele.dockerStacks}
+      </a>
+    {/if}
   {/if}
-
-  <!-- Was noch fehlt, steht da. Eine Seite, die den Zustand zeigt und sonst
-       nichts, sieht sonst aus wie ein Modul, das kaputt ist. -->
-  <div class="platte">
-    <b>{t.docker.imBau}</b>
-    <p>{t.docker.imBauDetail}</p>
-  </div>
 {/if}
 
 <style>
@@ -249,6 +291,41 @@
   @media (min-width: 700px) {
     .karten {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  /* Der Umschaltstreifen: nur schmal. Breit steht dieselbe Navigation in der
+     Seitenleiste, und zwei sichtbare Wege zur selben Fläche sind einer zu viel.
+     overflow-x am Streifen selbst und nicht am Körper — die Regel „kein
+     waagerechtes Scrollen bei 375 px" gilt für die Seite, nicht für ein Band,
+     das ausdrücklich zum Schieben da ist. */
+  .streifen {
+    display: none;
+  }
+
+  @media (max-width: 900px) {
+    .streifen {
+      display: flex;
+      gap: 0.3rem;
+      overflow-x: auto;
+      margin-bottom: 0.9rem;
+      padding-bottom: 0.3rem;
+    }
+
+    .streifen a {
+      flex: none;
+      color: var(--tx-mut);
+      text-decoration: none;
+      font-size: 0.8rem;
+      padding: 0.3rem 0.7rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .streifen a.an {
+      color: var(--tx);
+      border-color: var(--accent-dim);
     }
   }
 

@@ -9,13 +9,178 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.5.1] — 2026-08-01
+
+**Die Fassung, die 0.5.0 benutzbar macht.** Wer 0.5.0 einsetzt und einen Server
+ohne Compose-Projekt hat, sollte aktualisieren: Für ihn fehlte der Knopf, mit
+dem sich der erste Stack anlegen lässt — das Modul Docker war damit nicht
+benutzbar.
+
+Dazu vier Dinge, die aus Fragen beim Betrieb entstanden sind: ein **Formular
+neben der Compose-Datei**, das die Datei nicht umschreibt; **fünf Flächen mit
+eigener Adresse** statt einer Seite, die auf einem betriebsüblichen Server
+dreizehn Bildschirme lang wurde; **Warnpunkte an den Menüpunkten**, die es bis
+0.4.0 schon einmal gab; und ein **N+1**, das die Bestandsfläche bei vierzig
+Containern einundvierzig Prozesse kostete.
+
+### Neu
+
+- **Der Compose-Editor hat jetzt Felder neben der Datei.** Image, Neustartregel,
+  Befehl, Ports, Volumes, Umgebungsvariablen, Abhängigkeiten und Netze — je
+  Dienst, und in beide Richtungen: Wer ein Feld ändert, ändert die Datei; wer
+  die Datei ändert, sieht es in den Feldern. Drei Ansichten: nur Felder, nur
+  Datei, beides nebeneinander.
+
+  **Was dabei mit dem Rest der Datei geschieht, ist die eigentliche Zusage.**
+  Geschrieben wird chirurgisch: Ein vorhandener Wert wird ersetzt, nicht der
+  Knoten; eine Liste wird zeilenweise abgeglichen, nicht neu ausgegeben. Damit
+  überleben Kommentare, Einrückung, Anführungszeichenstil und die Reihenfolge
+  der Felder. Für die mitgelieferten Vorlagen ist das keine Feinheit — sie
+  bestehen zum großen Teil aus Kommentaren, die erklären, warum eine Zeile so
+  dasteht.
+
+  **Und was das Formular nicht kann, sagt es.** YAML-Anker, Aliasse,
+  Merge-Keys, `extends` und Dateien mit mehreren Dokumenten sperren es: Es zeigt
+  sie an und fasst sie nicht an. Ein bekanntes Feld in ungewohnter Gestalt —
+  `command` als Liste, `depends_on` mit Bedingungen, ein Port in der langen
+  Form — wird benannt statt als leeres Feld dargestellt. Solange die Datei
+  gerade kein gültiges YAML ist, sind die Felder gesperrt, damit sie nicht aus
+  einem halben Dokument schreiben.
+
+  Ob ein Stack zulässig ist, entscheidet weiterhin allein der Compose-Prüfer
+  auf dem Server. Das Formular ist eine Bedienhilfe und keine zweite Instanz.
+
+- **Docker ist ein Modul mit fünf Flächen statt einer langen Seite.** Stacks,
+  Container, Ports, Image-Updates und Bestand haben je eine eigene Adresse und
+  stehen als eingerückte Punkte unter „Docker" in der Seitenleiste — aufgeklappt,
+  solange man im Modul ist. Die Befehlspalette findet sie einzeln.
+
+  Der Grund ist nicht die Länge allein: Jeder Abschnitt holte beim Öffnen seine
+  eigenen Daten. Ein Aufruf der Seite kostete auf einem Server mit vierzig
+  Containern rund fünfzig `docker`-Prozesse, davon fünfundvierzig für den
+  Bestand — den Abschnitt mit dem seltensten Anlass. Wer einen Container neu
+  starten wollte, bezahlte ihn mit.
+
+  Schmal, wo die Seitenleiste eine Symbolschiene ohne Beschriftungen ist,
+  übernimmt ein Umschaltstreifen auf der Seite. Der Zustandskopf (Laufzeit,
+  Daemon, Compose) steht über allen Flächen.
+
+- **Warnpunkte an den Menüpunkten — zurück nach anderthalb Fassungen.** Die alte,
+  server-gerenderte Oberfläche hatte sie bis 0.4.0; beim Umbau auf Svelte sind
+  sie nicht mitgekommen, obwohl der Plan sie ausdrücklich vorsah. Sie
+  beantworten von jeder Seite aus eine Frage, die sonst nur die Übersicht
+  beantwortet: Ist woanders etwas offen?
+
+  Zwei Stufen, kein „alles gut". Zugeordnet über den Verweis, den das Signal
+  ohnehin trägt — dort, wohin es führt, sitzt sein Punkt; damit gibt es keine
+  zweite Liste, die auseinanderlaufen kann. Ein Modul fasst die Punkte seiner
+  Flächen zusammen, solange man nicht darin steht. Auf dem Telefon, wo die
+  Leiste nur noch Symbole zeigt, ist der Punkt das Einzige, was ein Eintrag noch
+  sagen kann — dort bleibt er.
+
+  Aufgefrischt wird im **Minutentakt** und nur, während das Fenster sichtbar
+  ist; beim Zurückkommen sofort. Ein Punkt vom Seitenaufbau vor einer Stunde
+  antwortet falsch, und zwar in die gefährliche Richtung.
+
+  **Was heute leuchten kann:** ausgefallene Dienste, knapper Plattenplatz,
+  ausstehender Neustart, auffällige Container, neuere Images. Für Firewall,
+  Zertifikate, Cron und die übrigen Ziele gibt es noch keine Signale — die
+  Abwesenheit eines Punktes heißt dort also nicht „alles in Ordnung".
+
+- **Drei neue Signale, und damit drei weitere Menüpunkte, die leuchten können:**
+  eine **Firewall-Änderung auf Probe** (kritisch — ohne Bestätigung wird sie
+  binnen einer Minute zurückgenommen, und das ist das einzige zeitkritische
+  Signal des Panels), ein **Zertifikat**, das abgelaufen ist oder in weniger als
+  vierzehn Tagen abläuft, und ein **API-Token**, der abgelaufen ist oder in
+  weniger als sieben Tagen abläuft. Alle drei lesen nur, was ohnehin im Speicher
+  oder in einer Datei liegt — kein zusätzlicher Prozessaufruf im Minutentakt.
+
+  Bewusst **kein** Signal löst ein selbstsigniertes Zertifikat aus, obwohl die
+  Zertifikatsseite es als Warnung führt: Auf einem bewusst selbstsignierten
+  Server ginge der Punkt nie aus. Ein Punkt, der immer an ist, nimmt den anderen
+  ihre Wirkung.
+
+  Das Tokensignal entsteht nur für die Owner-Rolle, weil nur sie die Tokenseite
+  erreicht. Ein Griff, der für den Leser mit 403 endet, ist schlimmer als keiner.
+
+- Die beiden Docker-Signale verweisen auf ihre Fläche statt auf das Modul:
+  auffällige Container auf `/docker/container`, neuere Images auf
+  `/docker/updates`. Solange Docker eine lange Seite war, hieß „/docker" ohnehin
+  „sieh selbst nach".
+
+### Behoben
+
+- **„Stack anlegen" fehlte auf einem Server ohne Compose-Projekt.** Der Knopf
+  lag im Zweig für die nicht leere Liste und war damit genau dort weg, wo er
+  gebraucht wird: auf dem frischen Server. Einen zweiten Weg in den Editor gibt
+  es nicht — er ist Zustand der Komponente und steht in keiner Adresse. Damit
+  ließ sich über die Oberfläche kein erster Stack anlegen; der Umweg war ein
+  Verzeichnis unter `/opt/asylum/stacks` von Hand.
+- Der Satz auf der leeren Liste versprach „Anlegen kommt mit dem nächsten
+  Schritt". Er stammte aus der Zeit, in der die Stackliste nur lesen konnte,
+  und blieb stehen, nachdem der Schritt da war. Jetzt steht dort, was der Knopf
+  daneben tut und wohin er schreibt.
+- **Die Bestandsfläche startete einen `docker inspect` je Container.** Bei
+  vierzig Containern waren das einundvierzig Prozesse, nacheinander — für ein
+  Häkchen je Volume („in Gebrauch"). `docker inspect` nimmt beliebig viele
+  Kennungen; der Aufruf der Fläche fällt damit von rund 45 Prozessen auf 6, und
+  die Zahl hängt nicht mehr an der Zahl der Container. Ein Container, der
+  zwischen `docker ps` und `inspect` verschwindet, kostet dabei nicht mehr die
+  ganze Liste.
+- **Ein abgelaufenes Zertifikat hieß den ganzen ersten Tag lang „läuft bald
+  ab".** `int(time.Until(…).Hours() / 24)` schneidet zur Null hin ab, ein vor
+  zwei Stunden abgelaufenes Zertifikat ergab also 0 Tage statt -1. Aufgefallen
+  beim Schreiben der Prüfung für das neue Signal; die Zertifikatsseite hat den
+  Fehler seit 0.3.0 getragen.
+- Derselbe Fehler am Fuß der Docker-Seite: „Die Container-Shell kommt mit dem
+  letzten Schritt der Fassung 0.5" — sie wurde zurückgestellt, der Satz blieb.
+  Er nennt jetzt den Grund statt eines Termins, den niemand zugesagt hat.
+
+### Geändert
+
+- **„Abbild" heißt jetzt durchgehend „Image".** Die Übersetzung war korrekt und
+  im Gebrauch trotzdem falsch: Wer `docker images` tippt, sucht auf der Seite
+  nach „Images". Betroffen sind alle Beschriftungen, Meldungen und Begründungen
+  — die Überschrift „Aktualität der Images", die Spalten, die Aufräumknöpfe und
+  die Sätze der Update-Prüfung. An der Schnittstelle ändert sich nichts: Kein
+  JSON-Feld und kein Pfad hieß je „abbild".
+
+### Intern
+
+- Ein Test in `internal/ui` prüft die Bedingungen, unter denen ein Knopf zum
+  Anlegen steht, statt nur diesen einen Fall zu bewachen. Er hat den Fehler
+  nachgestellt, bevor er ihn bewacht — die erste Fassung ging noch gegen die
+  kaputte Datei durch, weil sie ein `{:else}` die Bedingung der Kette vergessen
+  ließ.
+- Erste Abhängigkeit der Oberfläche neben CodeMirror und Svelte: `yaml` 2.9.0
+  (ISC). Sie wird nachgeladen wie CodeMirror und liegt in einem eigenen Brocken
+  von 103 KiB — wer die Docker-Seite nur ansieht, lädt sie nie. Die
+  Erstladung wächst um 19 KiB.
+- Das Modell hinter dem Formular wird in Node geprüft, angestoßen aus Go:
+  rolldown bündelt die Datei, ein Skript stellt rund dreißig Behauptungen über
+  den Rückweg. Kein JavaScript-Testrahmen und keine weitere Abhängigkeit — der
+  Bündler ist der, der ohnehin die Oberfläche baut. Der Test überspringt sich,
+  wo `node_modules` fehlt, und läuft in der CI im Job, der sie hat.
+- Der Vergleich „Befehlspalette gegen Seitenleiste" im Browsertest war eine
+  Gleichheit von Anzahlen und ist jetzt einer von Benennungen: Die Palette kennt
+  auch die Flächen innerhalb eines Moduls, die Leiste zeigt sie nur, während man
+  darin steht. Dazu prüft `TestJedeFlaecheEinesModulsWirdGerendert`, dass jede
+  Fläche aus `ziele.ts` in ihrer Seite auch einen Zweig hat — sonst stünde ein
+  Punkt im Menü, der ins Leere führt.
+- Der Browsertest nennt bei einem Verstoß gegen die Content-Security-Policy
+  jetzt auch die Herkunft — Richtlinie und auslösendes Element. Ohne das sucht
+  man einen Verstoß in einem Bündel von 380 KiB. Gebraucht wurde es sofort: Der
+  erste Anlauf, eine Datei über `keyboard.insertText` in den Editor zu legen,
+  ließ Chromium ein `style`-Attribut an eine Editorzeile hängen. Der Test
+  schreibt jetzt über ein `paste`-Ereignis, das CodeMirror selbst abfängt.
+
 ## [0.5.0] — 2026-07-31
 
 **Das Modul Docker.** Compose-Stacks sind das führende Objekt: anlegen, im
 Editor ändern, starten, herunterfahren, aktualisieren, löschen — dazu Container
-mit Protokoll und Auslastung, der Bestand an Abbildern, Volumes und Netzen mit
+mit Protokoll und Auslastung, der Bestand an Images, Volumes und Netzen mit
 dem, was ein Aufräumen brächte, eine Portübersicht mit Firewall-Abgleich, der
-Ereignisstrom von Docker und eine Update-Prüfung für Abbilder.
+Ereignisstrom von Docker und eine Update-Prüfung für Images.
 
 Das Panel spricht mit Docker über die **Kommandozeile** und nie über den Socket.
 Das ist keine Bequemlichkeitsfrage: Wer den Socket hat, hat die Maschine, und
@@ -56,15 +221,15 @@ API-Tokens gibt es die Fläche `docker`.
 **Was Sie NICHT bekommen, und warum:** keine Container-Shell (zurückgestellt —
 sie brächte die schwierigere Hälfte eines Web-Terminals, und das steht aus
 Sicherheitsgründen hinter 1.0), kein automatisches Einspielen von Updates (ein
-Panel, das nachts von allein Abbilder tauscht, macht nachts von allein etwas
+Panel, das nachts von allein Images tauscht, macht nachts von allein etwas
 kaputt), keine Registry-Zugangsdaten (0.5 hält kein Betriebsgeheimnis; die
 verschlüsselte Geheimnisverwaltung kommt mit 0.8), kein `docker run` mit freien
 Flags und kein Vorlagenkatalog.
 
 **Eine Einschränkung, die benannt gehört:** Die Update-Prüfung braucht
 `docker buildx` (in Debian das Paket `docker-buildx`), um bei
-Mehrarchitektur-Abbildern ein Ergebnis zu liefern. Ohne buildx meldet sie für
-die meisten Abbilder „nicht geprüft" samt Grund — und ausdrücklich nicht
+Mehrarchitektur-Images ein Ergebnis zu liefern. Ohne buildx meldet sie für
+die meisten Images „nicht geprüft" samt Grund — und ausdrücklich nicht
 „aktuell". Der Hintergrund steht in [docs/17-docker.md](docs/17-docker.md).
 
 Migration gibt es keine, Sitzungen bleiben gültig, und ohne Docker auf dem
@@ -108,16 +273,16 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
 
 ### Hinzugefügt
 
-- **Modul Docker, Update-Prüfung für Abbilder** (`/docker`, zwei weitere
+- **Modul Docker, Update-Prüfung für Images** (`/docker`, zwei weitere
   Routen). Gibt es zu den Tags, die hier laufen, in den Registries etwas
   Neueres? Das Panel vergleicht Kennungen, sagt Bescheid und tauscht nichts aus
   — den Knopf drückt ein Mensch.
 
   **Drei Zahlen statt zwei, und die dritte ist die wichtigste:** „nicht geprüft"
   ist weder „aktuell" noch „veraltet". Der naheliegende Digest-Vergleich ist
-  nämlich falsch: Lokal liegt bei einem Mehrarchitektur-Abbild die Kennung der
+  nämlich falsch: Lokal liegt bei einem Mehrarchitektur-Image die Kennung der
   Manifestliste, `docker manifest inspect` gibt aber die der einzelnen
-  Plattformen — wer beide vergleicht, meldet bei fast jedem Abbild ein Update,
+  Plattformen — wer beide vergleicht, meldet bei fast jedem Image ein Update,
   jeden Tag. Das Panel meldet in diesem Fall „nicht geprüft" samt Grund. Ist
   `docker buildx` vorhanden, trägt der Vergleich auch dort.
 
@@ -127,7 +292,7 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   statt weiterzufragen. Die Leseroute berührt nie eine Registry — sonst
   verbrauchte ein offener Tab die Grenze im Hintergrund.
 
-  **Der Griff ist der Stack**, nicht das Abbild: „Stack aktualisieren" ist
+  **Der Griff ist der Stack**, nicht das Image: „Stack aktualisieren" ist
   `pull` und `up` in einem Vorgang, und in dieser Reihenfolge — scheitert das
   Ziehen, wird nicht hochgefahren.
 
@@ -154,7 +319,7 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   nur geöffnet hat.
 
 - **Modul Docker, Stacks — schreibend** (`/docker`, drei weitere Routen). Stacks
-  anlegen, im Editor ändern, starten, herunterfahren, Abbilder holen, neu
+  anlegen, im Editor ändern, starten, herunterfahren, Images holen, neu
   starten und löschen. Damit ist die Grundausstattung des Moduls vollständig.
 
   **Der Compose-Prüfer ist die Grenze.** Er läuft serverseitig vor jedem
@@ -215,7 +380,7 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   dem Compose-Prüfer: Ein Editor ohne Prüfer wäre genau die Reihenfolge, die
   dieses Modul sich verboten hat.
 
-- **Modul Docker, Bestand** (`/docker`, fünf weitere Routen). Abbilder, Volumes
+- **Modul Docker, Bestand** (`/docker`, fünf weitere Routen). Images, Volumes
   und Netze mit dem, was Docker auf der Platte belegt — und den Handgriffen, es
   loszuwerden.
 
@@ -224,12 +389,12 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   5 in Gebrauch · 1.5GB freigebbar" statt „alle". Nach dem Lauf steht der
   tatsächlich freigegebene Platz am Vorgang.
 
-  **Was in Gebrauch ist, bekommt keinen Knopf.** Ein Abbild, das ein Container
+  **Was in Gebrauch ist, bekommt keinen Knopf.** Ein Image, das ein Container
   benutzt, ein Volume, das einer einhängt, und die eingebauten Netze `bridge`,
   `host` und `none` — Docker weigert sich in allen Fällen, und ein Knopf, der
   zuverlässig in eine Weigerung läuft, ist selbst der Fehler.
 
-  **`docker system prune` gibt es nicht.** Es räumt Container, Netze, Abbilder
+  **`docker system prune` gibt es nicht.** Es räumt Container, Netze, Images
   und Baucache in einem Zug auf, und eine Aktion, deren Umfang niemand
   überblickt, kann keine sinnvolle Rückfrage tragen. Stattdessen fünf benannte
   Arten, jede mit eigener Frage.
@@ -238,7 +403,7 @@ Server ändert sich nichts außer einem Menüpunkt, der die Installation anbiete
   Objektnamen: Es trifft jedes ungenutzte Volume des Servers auf einmal, und der
   häufigste Fehler bei einer solchen Aktion ist nicht der falsche Knopf, sondern
   der falsche Server. Ein einzelnes Volume bleibt Stufe 3 mit seinem Namen,
-  Abbild und Netz sind Stufe 2.
+  Image und Netz sind Stufe 2.
 
 - **Modul Docker, Container** (`/docker`, vier weitere Routen unter
   `/api/v1/docker/containers`). Liste mit Zählern als Filter, Inspektor mit

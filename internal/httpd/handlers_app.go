@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/philf90/asylum/internal/certs"
 	"github.com/philf90/asylum/internal/metrics"
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/ui"
@@ -83,6 +84,12 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 	// Funktion, die auch die Containerliste färbt. Zwei Fassungen liefen
 	// auseinander, und dann meldete die Übersicht einen Befund, den die Liste
 	// nicht kennt.
+	//
+	// Der Verweis zeigt seit 0.5.1 auf die FLÄCHE und nicht auf das Modul.
+	// Solange Docker eine lange Seite war, hieß "/docker" ohnehin "sieh selbst
+	// nach"; mit fünf Flächen ist es eine halbe Auskunft. Der Warnpunkt in der
+	// Seitenleiste liest denselben Verweis — er sitzt damit von selbst am
+	// richtigen Punkt, ohne eine zweite Zuordnung.
 	if cs, err := s.ops.DockerContainers(ctx); err == nil {
 		var auffaellig []string
 		for _, c := range cs {
@@ -95,18 +102,18 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 			out = append(out, dashSignal{
 				Level: "warn", Tag: "Container", Title: auffaellig[0] + " braucht Aufmerksamkeit",
 				Detail:      "Der Container ist ungesund, unsauber beendet oder startet in einer Schleife neu.",
-				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+				ActionLabel: "Container öffnen", ActionHref: "/docker/container",
 			})
 		case len(auffaellig) > 1:
 			out = append(out, dashSignal{
 				Level: "warn", Tag: "Container", Title: fmt.Sprintf("%d Container brauchen Aufmerksamkeit", len(auffaellig)),
 				Detail:      strings.Join(auffaellig, " · "),
-				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+				ActionLabel: "Container öffnen", ActionHref: "/docker/container",
 			})
 		}
 	}
 
-	// Abbilder mit einer neueren Fassung. AUSSCHLIESSLICH aus dem
+	// Images mit einer neueren Fassung. AUSSCHLIESSLICH aus dem
 	// Zwischenspeicher: In der Drei-Sekunden-Frist dieser Funktion wird nie eine
 	// Registry gefragt. Eine Registry antwortet, wann sie will, und sie zählt
 	// jede Abfrage — beides hat in einer Übersicht nichts verloren, die bei
@@ -121,18 +128,147 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 		if len(neu) > 0 {
 			titel := neu[0] + ": neuere Fassung verfügbar"
 			if len(neu) > 1 {
-				titel = fmt.Sprintf("%d Abbilder haben eine neuere Fassung", len(neu))
+				titel = fmt.Sprintf("%d Images haben eine neuere Fassung", len(neu))
 			}
 			out = append(out, dashSignal{
 				Level: "warn", Tag: "Docker", Title: titel,
 				Detail: strings.Join(neu, " · ") + " — geprüft am " +
 					stand.Geprueft.Local().Format("02.01.2006"),
-				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+				ActionLabel: "Image-Updates öffnen", ActionHref: "/docker/updates",
 			})
 		}
 	}
 
+	// ── Die Firewall auf Probe ──────────────────────────────────────────────
+	//
+	// Das einzige zeitkritische Signal des Panels: Ohne Bestätigung binnen einer
+	// Minute nimmt der Wächter die Änderung zurück. Wer den Tab gewechselt hat,
+	// während die Uhr läuft, verliert sie — und genau dafür ist ein Punkt im
+	// Menü da, den man von jeder Seite aus sieht.
+	//
+	// Deshalb crit und nicht warn: Es ist nichts kaputt, aber es läuft etwas ab.
+	//
+	// Ohne Restsekunden im Text. Die Auskunft wird im Minutentakt aufgefrischt,
+	// die Frist ist selbst eine Minute — eine Zahl darin wäre in dem Augenblick
+	// falsch, in dem jemand sie liest.
+	if offen, _ := s.fwGuard.state(); offen {
+		gegenstand := s.fwGuard.subjectOf()
+		if gegenstand == "" {
+			gegenstand = "Eine Änderung"
+		}
+		out = append(out, dashSignal{
+			Level: "crit", Tag: "Firewall",
+			Title: gegenstand + " an der Firewall wartet auf Bestätigung",
+			Detail: "Ohne Bestätigung wird der vorherige Stand wiederhergestellt. " +
+				"Bestätigen Sie, solange diese Verbindung noch steht.",
+			ActionLabel: "Firewall öffnen", ActionHref: "/firewall", Primary: true,
+		})
+	}
+
+	// ── Das Zertifikat ──────────────────────────────────────────────────────
+	//
+	// Nur der ABLAUF, nicht „selbstsigniert". Die Zertifikatsseite stuft auch
+	// selbstsigniert als Warnung ein, und das ist dort richtig — als Punkt im
+	// Menü wäre es eine Markierung, die auf einem bewusst selbstsignierten Server
+	// nie ausgeht. Ein Punkt, der immer an ist, wird nach einer Woche nicht mehr
+	// gesehen, und mit ihm die anderen.
+	//
+	// Die Schwelle ist dieselbe wie auf der Seite: Let's Encrypt erneuert ab 30
+	// Tagen vor Ablauf; wer bei 14 noch nicht erneuert hat, hat ein Problem mit
+	// der Erneuerung und nicht mit dem Datum.
+	if pfad, _ := s.zertifikatPfad(); pfad != "" {
+		if info, err := certs.Describe(pfad); err == nil {
+			tage := zertifikatTage(info.NotAfter)
+			switch {
+			case tage < 0:
+				out = append(out, dashSignal{
+					Level: "crit", Tag: "Zertifikat", Title: "Das TLS-Zertifikat ist abgelaufen",
+					Detail:      "Jeder Browser verweigert den Zugang oder warnt deutlich.",
+					ActionLabel: "Zertifikat öffnen", ActionHref: "/zertifikate", Primary: true,
+				})
+			case tage < 14:
+				out = append(out, dashSignal{
+					Level: "warn", Tag: "Zertifikat",
+					Title: fmt.Sprintf("Das TLS-Zertifikat läuft in %s ab", tageWort(tage)),
+					Detail: "Wenn die Erneuerung läuft, geschieht das von selbst. Wenn nicht, " +
+						"ist jetzt der Zeitpunkt nachzusehen.",
+					ActionLabel: "Zertifikat öffnen", ActionHref: "/zertifikate",
+				})
+			}
+		}
+	}
+
+	// ── API-Tokens, die ablaufen ────────────────────────────────────────────
+	//
+	// Ein abgelaufener Token bricht eine Automatisierung LAUTLOS: Das Skript
+	// bekommt 401, und niemand sieht die Tokenseite freiwillig an.
+	//
+	// NUR für die Owner-Rolle, und das ist keine Feinheit: Die Tokenseite ist
+	// der Owner-Rolle vorbehalten (lib/ziele.ts, nurOwner). Ein Signal mit einem
+	// Griff, der für den Leser mit 403 endet, ist schlimmer als keines — es ist
+	// dieselbe Überlegung, aus der ein Menüpunkt gar nicht erst erscheint, den
+	// die Rolle nicht erreicht.
+	if user, ok := userFrom(ctx); ok && user.CanManageUsers() {
+		if tokens, err := s.db.ListAPITokens(ctx); err == nil {
+			jetzt := time.Now()
+			var abgelaufen, bald []string
+			for _, tok := range tokens {
+				// Ohne Frist gibt es nichts zu melden. Widerrufene Tokens stehen
+				// gar nicht mehr in der Liste — sie werden gelöscht, nicht
+				// markiert.
+				if tok.ExpiresAt == nil {
+					continue
+				}
+				switch tage := int(tok.ExpiresAt.Sub(jetzt).Hours() / 24); {
+				case tok.Abgelaufen(jetzt):
+					abgelaufen = append(abgelaufen, tok.Name)
+				case tage < 7:
+					bald = append(bald, tok.Name)
+				}
+			}
+			if len(abgelaufen) > 0 {
+				out = append(out, dashSignal{
+					Level: "warn", Tag: "Tokens",
+					Title: tokenTitel(abgelaufen, "ist abgelaufen", "sind abgelaufen"),
+					Detail: strings.Join(abgelaufen, " · ") +
+						" — was damit läuft, bekommt seit dem Ablauf 401.",
+					ActionLabel: "Tokens öffnen", ActionHref: "/tokens",
+				})
+			}
+			if len(bald) > 0 {
+				out = append(out, dashSignal{
+					Level: "warn", Tag: "Tokens",
+					Title:       tokenTitel(bald, "läuft bald ab", "laufen bald ab"),
+					Detail:      strings.Join(bald, " · ") + " — in weniger als sieben Tagen.",
+					ActionLabel: "Tokens öffnen", ActionHref: "/tokens",
+				})
+			}
+		}
+	}
+
 	return out
+}
+
+// tageWort schreibt eine Anzahl Tage aus. „1 Tagen" fällt im Betrieb auf, und
+// „0 Tagen" heißt heute.
+func tageWort(tage int) string {
+	switch tage {
+	case 0:
+		return "weniger als einem Tag"
+	case 1:
+		return "einem Tag"
+	default:
+		return fmt.Sprintf("%d Tagen", tage)
+	}
+}
+
+// tokenTitel nennt bei einem Token seinen Namen und bei mehreren die Anzahl.
+// Ein Name sagt mehr als eine Eins.
+func tokenTitel(namen []string, einzahl, mehrzahl string) string {
+	if len(namen) == 1 {
+		return "Der API-Token " + namen[0] + " " + einzahl
+	}
+	return fmt.Sprintf("%d API-Tokens %s", len(namen), mehrzahl)
 }
 
 // urteilAus fasst den Handlungsbedarf in einen Satz.

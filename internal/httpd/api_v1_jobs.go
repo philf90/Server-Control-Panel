@@ -4,7 +4,7 @@ package httpd
 //
 // Grundsatz III aus docs/15-neuordnung.md: Handlungen sind quittiert. Eine
 // Aktion, die Minuten dauert — Paketlisten holen, Updates einspielen, später ein
-// Container-Abbild ziehen oder ein Backup prüfen —, ist kein Klick mit
+// Container-Image ziehen oder ein Backup prüfen —, ist kein Klick mit
 // Rückmeldung am Ende, sondern ein Vorgang mit Ausgabe, Dauer und Ergebnis.
 //
 // Als eigene Ressource und nicht als Teil des jeweiligen Moduls: Es gibt genau
@@ -48,7 +48,7 @@ var jobArten = map[string]string{
 	jobDockerStack: "Stack-Vorgang",
 	// Die Update-Prüfung ist ein Vorgang, weil dreißig Registry-Abfragen länger
 	// dauern als jede vernünftige Anfragefrist.
-	jobDockerUpdatePruefung: "Abbilder prüfen",
+	jobDockerUpdatePruefung: "Images prüfen",
 }
 
 // apiJob ist der Zustand eines Vorgangs.

@@ -156,6 +156,7 @@ func (s *Server) handleAPIWebserverSiteSchreiben(w http.ResponseWriter, r *http.
 	s.audit(r, "webserver.site.apply", name, store.ResultOK,
 		fmt.Sprintf("%s, Bestätigung ausstehend", strings.Join(entwurf.Domains, " ")))
 	s.armSiteProbe(name, ergebnis.Ruecknahme)
+	s.siteZertsNachziehen()
 
 	antwort := apiSiteAntwort{
 		Meldung: "Die Site gilt auf Probe. Ohne Bestätigung innerhalb von 60 Sekunden " +
@@ -214,6 +215,7 @@ func (s *Server) handleAPIWebserverSiteSchalten(w http.ResponseWriter, r *http.R
 	}
 	s.audit(r, "webserver.site.schalten", name, store.ResultOK, zustand+", Bestätigung ausstehend")
 	s.armSiteProbe(name, ruecknahme)
+	s.siteZertsNachziehen()
 
 	antwort := apiSiteAntwort{
 		Meldung: "Die Site ist " + zustand + " und gilt auf Probe. Ohne Bestätigung " +
@@ -260,6 +262,16 @@ func (s *Server) handleAPIWebserverSiteLoeschen(w http.ResponseWriter, r *http.R
 		return
 	}
 	s.audit(r, "webserver.site.remove", name, store.ResultOK, "")
+	// Das Zertifikat der gelöschten Site bleibt auf der Platte liegen (die
+	// Rückfrage sagt es), aber sein Manager hat nichts mehr zu erneuern. Ihn
+	// weiterlaufen zu lassen hieße, alle sechzig Tage eine Prüfung für eine
+	// Domain anzustoßen, die dieser Server nicht mehr beantwortet.
+	// Der Halter entsteht erst in Run: Vor dem Start des Listeners gibt es
+	// keinen, und ein Aufruf darauf wäre ein Absturz beim Löschen einer Site.
+	if s.certHolder != nil {
+		s.certHolder.EntferneSite(name)
+	}
+	s.siteZertsNachziehen()
 
 	antwort := apiSiteAntwort{Meldung: "Die Site „" + name + "“ ist gelöscht."}
 	s.fuelleProbe(&antwort)
@@ -285,6 +297,23 @@ func (s *Server) handleAPIWebserverSiteBestaetigen(w http.ResponseWriter, r *htt
 	antwort := apiSiteAntwort{Meldung: "Die Änderung ist bestätigt und bleibt bestehen."}
 	s.fuelleProbe(&antwort)
 	s.apiJSON(w, http.StatusOK, antwort)
+}
+
+// siteZertsNachziehen bringt die Zertifikatsmanager mit den Sites in Einklang.
+//
+// Im Hintergrund und nicht im Weg der Antwort: Der Abgleich ruft `nginx -T` auf
+// und baut gegebenenfalls Manager, die mit einer Prüfstelle sprechen. Beides
+// hat in einer Anfrage nichts zu suchen, die gerade sagen soll, dass die Site
+// geschrieben ist.
+//
+// Eigener Kontext aus demselben Grund wie bei jedem Vorgang: Ein abgebrochener
+// Seitenaufruf darf keinen halb aufgebauten Manager hinterlassen.
+func (s *Server) siteZertsNachziehen() {
+	go func() { //nolint:gosec // eigener Kontext ist hier Absicht
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		s.siteZertsAbgleichen(ctx)
+	}()
 }
 
 // armSiteProbe stellt die Frist scharf.

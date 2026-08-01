@@ -3625,6 +3625,30 @@ async function main() {
     meldung: document.querySelector('[role="status"]')?.textContent.trim() ?? "",
   }));
 
+  //     Die Fläche „Zertifikate je Site" — der Satz aus docs/16 §2, eingelöst.
+  //     Geprüft wird die dritte Frage, wegen der es sie gibt: Wenn kein
+  //     Zertifikat da ist, muss der GRUND dastehen. Die Attrappe hat kein ACME
+  //     fürs Panel, also gilt hier genau der Fall „ohne Konto kein Bezug".
+  await seite.click('.seitenleiste .kinder a[href="/webserver/zertifikate"]');
+  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
+  web.zerts = await seite.evaluate(() => ({
+    pfad: location.pathname,
+    zeilen: [...document.querySelectorAll(".tabelle tbody tr")].map((tr) => ({
+      site: tr.querySelector("td")?.textContent.trim() ?? "",
+      satz: tr.querySelector(".satz")?.textContent.trim() ?? "",
+    })),
+    anmerkung: [...document.querySelectorAll(".hinweis")]
+      .map((p) => p.textContent.trim())
+      .join(" "),
+    // Ohne ACME fürs Panel: kein Bezugsknopf, sondern der Weg dorthin, wo es
+    // einzuschalten ist.
+    knoepfe: [...document.querySelectorAll(".tabelle button")].length,
+    // Der Verweis ALS KNOPF, nicht der Menüpunkt in der Seitenleiste: Der steht
+    // immer da und wäre hier eine Zählung, die nie null wird.
+    weg: [...document.querySelectorAll('a.knopf[href="/zertifikate"]')].length,
+  }));
+  await bildschirmfoto(seite, "leitstand-webserver-zertifikate", { fullPage: true });
+
   //     Die zweite Fläche: die Portbelegung. Sie hat eine eigene Adresse, und
   //     der Wechsel darf die Seite nicht neu laden — sonst wäre der Unterschied
   //     zwischen einer Fläche und einem Verweis nach draußen keiner.

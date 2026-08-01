@@ -323,6 +323,13 @@ func (s *Server) Handler() http.Handler {
 	// die Docker- und die Dienstseite ohnehin jeder Rolle zeigen.
 	mux.Handle("GET /api/v1/webserver/ziele",
 		s.protected(http.HandlerFunc(s.handleAPIWebserverZiele)))
+	// Zertifikate je Site. Lesen darf jede Rolle — dieselbe Auskunft wie auf der
+	// Zertifikatsseite des Panels. Beziehen ist Stufe 1, aber schreibend: Es
+	// legt eine Datei ab und spricht mit einer Prüfstelle.
+	mux.Handle("GET /api/v1/webserver/zertifikate",
+		s.protected(http.HandlerFunc(s.handleAPIWebserverZertifikate)))
+	mux.Handle("POST /api/v1/webserver/sites/{name}/zertifikat",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverZertifikatBeziehen)))))
 	// Sites, schreibend. Owner und nicht Admin — dieselbe Begründung wie bei
 	// Docker und den Zeitplänen: Eine Site ist eine Konfiguration, die als root
 	// gelesen wird und einen Dienst aus dem Netz erreichbar macht.

@@ -1393,6 +1393,36 @@ export type Ziele = {
   fehler?: string;
 };
 
+/** Sitezertifikat ist eine Zeile der Zertifikatsliste je Site. */
+export type Sitezertifikat = {
+  site: string;
+  domains: string[] | null;
+  vorhanden: boolean;
+  aussteller: string;
+  namen: string[] | null;
+  ablauf?: string;
+  resttage: number;
+  /** stufe und satz kommen fertig vom Server — dasselbe Muster wie bei der
+   *  Portübersicht: Der Browser färbt danach und rechnet nichts nach. */
+  stufe: string;
+  satz: string;
+  letzter_versuch?: string;
+  fehler?: string;
+  laeuft: boolean;
+  bezugsbereit: boolean;
+};
+
+export type Sitezertifikate = {
+  zertifikate: Sitezertifikat[] | null;
+  /** acme_aktiv sagt, ob das Panel überhaupt ein ACME-Konto hat. FALSE heißt:
+   *  für Sites gibt es keinen Bezug — und die Fläche sagt, wo das umzustellen
+   *  ist, statt einen Knopf anzubieten, der zuverlässig scheitert. */
+  acme_aktiv: boolean;
+  anmerkung: string;
+  darf_aendern: boolean;
+  fehler?: string;
+};
+
 /** Probestand ist die laufende Frist. Er steht sowohl an der Antwort auf eine
  *  Änderung als auch an der Liste: Wer neu lädt, während die Frist läuft, muss
  *  den Countdown vorfinden. */

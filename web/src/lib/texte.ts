@@ -34,6 +34,7 @@ export const t = {
     // Die Flächen unter Webserver. „Sites" ist die Vorgabe und steht deshalb
     // ausdrücklich da — „Webserver ohne Zusatz" wäre kein Name.
     webserverSites: "Sites",
+    webserverZertifikate: "Zertifikate je Site",
     webserverPorts: "Portbelegung",
     datenbanken: "Datenbanken",
     backups: "Backups",
@@ -1012,7 +1013,7 @@ export const t = {
     // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
     // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
     imBauDetail:
-      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Was noch fehlt: das Zertifikat je Site — der Schalter „TLS“ legt den 443-Block erst an, wenn eines vorliegt, und der Bezug über Let's Encrypt kommt mit dem nächsten Schritt. Die Begründung steht im Repository unter docs/18-webserver.md.",
+      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Jede Site mit TLS bezieht ihr eigenes Zertifikat — der Stand dazu steht unter „Zertifikate je Site“. Der 443-Block entsteht dabei erst, wenn ein Zertifikat vorliegt; nach dem ersten Bezug genügt einmal speichern. Was noch aussteht, ist der Angriffsdurchgang gegen den Prüfer. Die Begründung steht im Repository unter docs/18-webserver.md.",
 
     // Die Fläche „Sites".
     sites: "Sites",
@@ -1102,6 +1103,22 @@ export const t = {
       "Die Belegung der Webports ließ sich nicht ermitteln — `ss` fehlt oder antwortete nicht. Solange das so ist, bietet das Panel die Installation nicht an: Unbekannt ist kein Frei.",
     portsFrei: "Auf Port 80 und 443 hört derzeit niemand.",
     flaecheUnbekannt: "Diese Fläche gibt es in diesem Modul nicht.",
+
+    // Die Fläche „Zertifikate je Site".
+    zertifikate: "Zertifikate je Site",
+    zertLaedt: "Zertifikatsstand wird gelesen …",
+    zertWesen:
+      "Jede Site mit TLS bezieht ihr eigenes Zertifikat. Das Konto ist dasselbe wie das des Panels — deshalb setzt ein Bezug hier voraus, dass das Panel selbst über Let's Encrypt bezieht.",
+    zertLeer: "Keine Site verlangt bisher TLS.",
+    spalteZertSite: "Site",
+    spalteZertNamen: "Namen",
+    spalteZertZustand: "Zustand",
+    spalteZertAussteller: "Aussteller",
+    spalteZertBezug: "Bezug",
+    zertBeziehen: "jetzt beziehen",
+    zertLaeuft: "Bezug läuft …",
+    zertKeins: "kein Zertifikat",
+    zuZertifikaten: "zu den Zertifikaten",
   },
 
   docker: {

@@ -859,6 +859,16 @@ type ergebnisLeitstand struct {
 			} `json:"zeilen"`
 			Zaehler string `json:"zaehler"`
 		} `json:"sites"`
+		Zerts struct {
+			Pfad   string `json:"pfad"`
+			Zeilen []struct {
+				Site string `json:"site"`
+				Satz string `json:"satz"`
+			} `json:"zeilen"`
+			Anmerkung string `json:"anmerkung"`
+			Knoepfe   int    `json:"knoepfe"`
+			Weg       int    `json:"weg"`
+		} `json:"zerts"`
 		Ports struct {
 			Pfad   string     `json:"pfad"`
 			Zeilen [][]string `json:"zeilen"`
@@ -3677,7 +3687,7 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	// Die Flächen des Moduls stehen in der Seitenleiste. Ohne sie gäbe es die
 	// Portbelegung nur noch für den, der die Adresse auswendig kennt.
-	for _, pfad := range []string{"/webserver", "/webserver/ports"} {
+	for _, pfad := range []string{"/webserver", "/webserver/zertifikate", "/webserver/ports"} {
 		if !enthaelt(wb.Zustand.KinderInLeiste, pfad) {
 			t.Errorf("die Fläche %s fehlt in der Seitenleiste: %v",
 				pfad, wb.Zustand.KinderInLeiste)
@@ -3723,6 +3733,35 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if !strings.Contains(wb.Sites.Zaehler, "1") || !strings.Contains(wb.Sites.Zaehler, "2") {
 		t.Errorf("die Zähler über der Liste fehlen: %q", wb.Sites.Zaehler)
+	}
+
+	// Zertifikate je Site. Der Durchgang hat ein paar Abschnitte vorher den
+	// automatischen Bezug fürs Panel eingeschaltet — also gilt hier der Fall
+	// „Konto da, Zertifikat noch nicht": eine frisch angelegte Site.
+	if wb.Zerts.Pfad != "/webserver/zertifikate" {
+		t.Errorf("die Zertifikatsfläche steht unter %q", wb.Zerts.Pfad)
+	}
+	if len(wb.Zerts.Zeilen) != 1 || wb.Zerts.Zeilen[0].Site != "shop" {
+		t.Fatalf("erwartet genau die TLS-Site: %+v", wb.Zerts.Zeilen)
+	}
+	// Der Satz ist die eigentliche Auskunft dieser Fläche; der farbige Punkt
+	// daneben ist nur seine Zusammenfassung. Eine Farbe ohne Satz wäre eine
+	// Behauptung.
+	if !strings.Contains(wb.Zerts.Zeilen[0].Satz, "Noch kein Zertifikat") {
+		t.Errorf("der Satz nennt die Lage nicht: %q", wb.Zerts.Zeilen[0].Satz)
+	}
+	// Mit Konto gibt es den Knopf — und nicht den Verweis auf die Stelle, an der
+	// man es einschaltet.
+	if wb.Zerts.Knoepfe != 1 {
+		t.Errorf("%d Bezugsknöpfe, erwartet einen", wb.Zerts.Knoepfe)
+	}
+	if wb.Zerts.Weg != 0 {
+		t.Error("der Verweis auf die Zertifikatsseite steht da, obwohl ACME läuft")
+	}
+	// Und die Anmerkung nennt die zwei Wege, auf denen eine Prüfung überhaupt
+	// laufen kann — der Satz, den man beim ersten gescheiterten Bezug braucht.
+	if !strings.Contains(wb.Zerts.Anmerkung, "DNS-01") {
+		t.Errorf("über der Liste fehlen die Prüfwege: %q", wb.Zerts.Anmerkung)
 	}
 
 	// Die zweite Fläche: Portbelegung unter eigener Adresse, ohne Neuladen.
@@ -3837,9 +3876,11 @@ func TestLeitstandBrowser(t *testing.T) {
 		t.Errorf("nach dem Bestätigen fehlt die Rückmeldung: %q", wb.NachBestaetigen.Meldung)
 	}
 
-	// Der Zurück-Knopf des Browsers führt auf die Sites zurück.
-	if wb.Zurueck != "/webserver" {
-		t.Errorf("nach dem Zurückgehen steht %q, erwartet /webserver", wb.Zurueck)
+	// Der Zurück-Knopf des Browsers geht EINE Fläche zurück und nicht aus dem
+	// Modul heraus: Der Weg führte über die Zertifikate auf die Portbelegung.
+	if wb.Zurueck != "/webserver/zertifikate" {
+		t.Errorf("nach dem Zurückgehen steht %q, erwartet /webserver/zertifikate",
+			wb.Zurueck)
 	}
 
 	// Schmal: keine waagerechte Scrollerei. Dieselbe Regel wie überall, und die
@@ -3856,8 +3897,8 @@ func TestLeitstandBrowser(t *testing.T) {
 		t.Error("bei 375 px fehlt der Umschaltstreifen — die Portbelegung wäre " +
 			"auf einem Telefon nur über die getippte Adresse zu erreichen")
 	}
-	if len(wb.Schmal.StreifenPunkte) != 2 {
-		t.Errorf("der Streifen zeigt %d Punkte, erwartet 2: %v",
+	if len(wb.Schmal.StreifenPunkte) != 3 {
+		t.Errorf("der Streifen zeigt %d Punkte, erwartet 3: %v",
 			len(wb.Schmal.StreifenPunkte), wb.Schmal.StreifenPunkte)
 	}
 

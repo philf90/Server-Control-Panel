@@ -25,6 +25,7 @@ import type {
   Siteentwurf,
   Siteantwort,
   Sitebefund,
+  Sitezertifikate,
   Ziele,
   EigenesKonto,
   Firewall,
@@ -477,6 +478,17 @@ export const api = {
    *  mit veröffentlichten Ports und vorhandene PHP-FPM-Sockets. Eine Auskunft,
    *  keine Pflicht — ohne Docker ist die Liste leer und man tippt. */
   webserverZiele: () => anfrage<Ziele>("/webserver/ziele"),
+  /** webserverZertifikate liefert den Zertifikatsstand je Site — samt dem
+   *  Grund, wenn keins da ist. „Kein Zertifikat" ohne Grund ist die Auskunft,
+   *  mit der niemand etwas anfangen kann. */
+  webserverZertifikate: () => anfrage<Sitezertifikate>("/webserver/zertifikate"),
+  /** siteZertBeziehen stößt den Bezug an. Stufe 1: Er ändert nichts an der
+   *  Konfiguration — er legt ein Zertifikat ab oder scheitert. */
+  siteZertBeziehen: (name: string) =>
+    anfrage<{ meldung: string }>(
+      `/webserver/sites/${encodeURIComponent(name)}/zertifikat`,
+      { method: "POST" },
+    ),
   /** siteProbeBestaetigen beendet die Frist. Ohne Rückfrage: Bestätigen ist die
    *  Zustimmung zu etwas, das gerade schon gilt. */
   siteProbeBestaetigen: () =>

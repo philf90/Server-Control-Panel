@@ -1,8 +1,9 @@
 # 18 — Webserver & Domains (Stufe 0.6)
 
-> **Stand:** Schritte 1 bis 6 von 8 sind gebaut (Fundament; der Challenge-Weg
+> **Stand:** Schritte 1 bis 7 von 8 sind gebaut (Fundament; der Challenge-Weg
 > durch nginx hindurch; der mehrfähige Zertifikatshalter; Sites lesend und
-> schreibend; **die Ziele**).
+> schreibend; die Ziele; **TLS je Site**). Offen ist nur noch Schritt 8, die
+> Härtung.
 > Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
 > Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
@@ -356,6 +357,55 @@ vorbeigegangen ist.
 
 ---
 
+## 4d. Nachtrag aus dem Bau (Schritt 7 ist umgesetzt)
+
+**Ein Manager je Site, ein Konto für alle.** Jede Site mit TLS bekommt einen
+eigenen `acme.Manager` mit eigenen Domains, eigener Kennung und eigener
+Erneuerungsschleife. Geteilt ist der Kontoschlüssel — ein eigener je Site wäre
+ein eigenes ACME-Konto, und zwanzig Sites wären zwanzig Konten bei Let's
+Encrypt. Geteilt sind auch E-Mail, Verzeichnis-URL, Prüfmethode und
+DNS-Anbieter: Sie kommen aus der TLS-Konfiguration des Panels, und das ist keine
+Sparsamkeit, sondern die einzige ehrliche Antwort auf die Frage, woher eine Site
+ihr Konto nehmen soll.
+
+**Daraus folgt: ohne ACME fürs Panel kein ACME für Sites.** Steht das Panel auf
+„selbstsigniert", gibt es kein Konto, keine Prüfmethode und keine E-Mail. Die
+Fläche sagt das und verweist auf die Stelle, an der es einzuschalten ist —
+statt einen Knopf anzubieten, der zuverlässig scheitert.
+
+**Eine Site bekommt KEINEN eigenen Listener auf Port 80.** Dort hört nginx. Für
+sie gibt es nur den Weg durch nginx hindurch (§3) oder DNS-01; `HTTP01Addr`
+bleibt deshalb leer. Bleibt beides aus, scheitert der Bezug mit genau dieser
+Meldung, und das ist die richtige — ein eigener Listener nähme dem Webserver den
+Port weg.
+
+**Die dritte Frage der Fläche ist die, wegen der es sie gibt: WARUM ist kein
+Zertifikat da?** Vier Gründe kommen in Frage, und sie liegen an vier
+verschiedenen Stellen: die Site ist frisch, die DNS-Zone antwortet nicht, der
+Anbieter lehnt die Zugangsdaten ab, oder für das Panel läuft kein ACME. „Kein
+Zertifikat" allein schickt jemanden auf eine Suche über alle vier. Deshalb führt
+das Modul neben dem Zertifikat einen eigenen **Stand** je Site — letzter
+Versuch, Meldung, läuft gerade — und formuliert daraus Stufe und Satz auf dem
+Server.
+
+**Der Abgleich läuft auf Änderungen, nicht auf einem Takt.** Welche Sites TLS
+wollen, steht in ihren Dateien; der Abgleich läuft deshalb nach jeder Änderung
+an einer Site und beim Start. Die ERNEUERUNG dagegen läuft in jedem Manager für
+sich weiter — sie ist der Grund, warum die Manager stehen bleiben und nicht je
+Bezug entstehen.
+
+**Der Bezug schreibt die Site nicht neu.** Eine frisch angelegte Site steht ohne
+443-Block da, weil es beim Anlegen kein Zertifikat gab. Nach dem ersten Bezug
+muss sie einmal gespeichert werden, und die Antwort sagt das. Es nebenbei zu tun
+wäre eine Aktion mit zwei Wirkungen und einer Beschriftung.
+
+**Beim Löschen einer Site fällt ihr Manager weg.** Das Zertifikat bleibt auf der
+Platte liegen (die Rückfrage sagt es), aber ein Manager ohne Site stieße alle
+sechzig Tage eine Prüfung für eine Domain an, die dieser Server nicht mehr
+beantwortet.
+
+---
+
 ## 5. Grundentscheidungen
 
 **E1 — nginx wird verwaltet, alles andere ist ein fremder Webserver.**
@@ -502,7 +552,7 @@ Umschaltstreifen unter 900 px).
 | **Sites** (Vorgabe) ✅ | `/webserver` | Werkbank: Liste (verwaltet/fremd, Domain, Ziel, TLS-Zustand) + Inspektor mit Feldern, Vorgangsplatte |
 | **Portbelegung** ✅ | `/webserver/ports` | wer auf 80 und 443 hört, eigen und fremd nebeneinander |
 
-| **Zertifikate** | `/webserver/zertifikate` | je Site: Aussteller, Restlaufzeit, letzter Bezugsversuch, Knopf „jetzt erneuern" |
+| **Zertifikate je Site** ✅ | `/webserver/zertifikate` | je Site: Aussteller, Restlaufzeit, letzter Bezugsversuch samt Grund, Knopf „jetzt beziehen" |
 
 Der Zustandskopf (Server, Fassung, läuft/läuft nicht) steht über allen Flächen —
 wie bei Docker, und aus demselben Grund.
@@ -546,7 +596,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | 4 ✅ | **Sites lesend**: `SiteList` über `nginx -T` (die **gerenderte** Konfiguration, nicht die Dateien), Trennung verwaltet/fremd, `SiteDatei` nur für verwaltete, Fläche `/webserver` mit Portbelegung daneben | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 ✅ | **Sites schreibend**: Felder → Drop-in, **Site-Prüfer**, `nginx -t`, reload, **Probe mit Rückweg**, Fassungskonflikt; dazu Abschalten über die Dateiendung und ein eigener `probenWaechter` neben dem der Firewall | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |
 | 6 ✅ | **Ziele**: Reverse-Proxy mit den laufenden Containern zur Auswahl, statisches Verzeichnis, **PHP-FPM** als eigene Zielart samt Socket-Allowlist | Der Alltagsfall |
-| 7 | **TLS je Site**: Bezug über ACME, Erneuerung, Zustand je Site, Signale + Warnpunkte | Der Satz aus §2 wird eingelöst |
+| 7 ✅ | **TLS je Site**: ein acme.Manager je Site auf dem gemeinsamen Konto, Erneuerung, Zustand je Site samt GRUND für ein fehlendes Zertifikat, Bezug auf Knopfdruck | Der Satz aus §2 wird eingelöst |
 | 8 | **Härtung und Angriffsdurchgang**: Prüfer aushebeln versuchen, Pfadausbruch über `alias`, Selbstausschluss provozieren; Messung; Doku | Wie Schritt 9 des Docker-Moduls |
 
 Schritt 6 hat eine Zugabe, die es ohne 0.5 nicht gäbe: **Die Zielauswahl kennt

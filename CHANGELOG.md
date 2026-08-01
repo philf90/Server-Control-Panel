@@ -122,6 +122,40 @@ nicht als Release getaggt.
   ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
   da ist.
 
+- **Modul Webserver, Schritt 7 von 8: TLS je Site.** Der Satz aus
+  `docs/16-neukonzeption.md` §2, um dessentwillen es diese Stufe gibt — „mach
+  ihn unter einem Namen mit TLS erreichbar" —, ist damit eingelöst: Jede Site
+  mit TLS bezieht ihr eigenes Zertifikat und erneuert es von selbst.
+
+  **Ein Manager je Site, ein Konto für alle.** Jede Site bekommt einen eigenen
+  ACME-Manager mit eigenen Domains und eigener Erneuerungsschleife; geteilt ist
+  der Kontoschlüssel. Ein eigener je Site wäre ein eigenes Konto, und zwanzig
+  Sites wären zwanzig Konten bei Let's Encrypt. Geteilt sind auch E-Mail,
+  Prüfmethode und DNS-Anbieter — sie kommen aus der TLS-Konfiguration des
+  Panels.
+
+  Daraus folgt eine Voraussetzung, die die Fläche ausspricht: **Ohne
+  automatischen Bezug fürs Panel gibt es keinen für Sites.** Dann steht dort
+  der Weg zu der Stelle, an der es einzuschalten ist — und kein Knopf, der
+  zuverlässig scheitert.
+
+  **Die dritte Frage ist die, wegen der es die Fläche gibt: warum ist kein
+  Zertifikat da?** Vier Gründe kommen in Frage und liegen an vier verschiedenen
+  Stellen — die Site ist frisch, die DNS-Zone antwortet nicht, der Anbieter
+  lehnt die Zugangsdaten ab, oder für das Panel läuft kein ACME. „Kein
+  Zertifikat" allein schickt jemanden auf eine Suche über alle vier. Neben dem
+  Zertifikat führt das Modul deshalb einen eigenen Stand je Site: letzter
+  Versuch, Meldung, läuft gerade.
+
+  Eine Site bekommt **keinen eigenen Listener auf Port 80** — dort hört nginx.
+  Für sie gibt es den Weg durch nginx hindurch oder DNS-01; bleibt beides aus,
+  scheitert der Bezug mit genau dieser Meldung.
+
+  Der Bezug schreibt die Site **nicht** neu. Eine frisch angelegte steht ohne
+  443-Block da, weil es damals kein Zertifikat gab; nach dem ersten Bezug
+  genügt einmal speichern, und die Antwort sagt das. Es nebenbei zu tun wäre
+  eine Aktion mit zwei Wirkungen und einer Beschriftung.
+
 - **Modul Webserver, Schritt 6 von 8: die Ziele.** Das Formular schlägt vor,
   worauf eine Site zeigen kann — die laufenden Container mit ihren
   veröffentlichten Ports und die vorhandenen PHP-FPM-Sockets. Das ist die

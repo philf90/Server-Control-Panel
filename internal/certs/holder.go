@@ -119,6 +119,22 @@ func (h *Holder) Kennungen() []string {
 	return aus
 }
 
+// SiteZertifikat liefert das Blatt des Zertifikats einer Site — Aussteller,
+// Laufzeit und Namen für die Oberfläche. Nil heißt: für diese Site liegt keins.
+//
+// Nur das Blatt und nicht das ganze tls.Certificate: Was die Oberfläche zeigt,
+// steht darin, und der private Schlüssel hat in einer Auskunftsfunktion nichts
+// zu suchen. Wer ihn braucht, geht über GetCertificate.
+func (h *Holder) SiteZertifikat(kennung string) *x509.Certificate {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	cert := h.sites[kennung]
+	if cert == nil {
+		return nil
+	}
+	return cert.Leaf
+}
+
 // GetCertificate passt auf die Signatur von tls.Config.GetCertificate.
 //
 // Die Reihenfolge ist die Sicherung dieses Typs und steht deshalb hier noch

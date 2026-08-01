@@ -86,6 +86,9 @@ type Server struct {
 	// probe.go.
 	fwGuard   *probenWaechter
 	siteGuard *probenWaechter
+	// siteZerts hält die ACME-Manager der Sites — einen je Site mit TLS, alle
+	// auf demselben Konto. Siehe tlssites.go.
+	siteZerts *siteZerts
 	// logFolger zählt die offenen Journalströme. Jeder hält einen eigenen
 	// journalctl-Prozess, weil jeder seinen eigenen Filter hat — anders als bei
 	// einem Vorgang, den alle Zuschauer teilen. Siehe maxLogFolger.
@@ -158,6 +161,7 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 		jobs:      newJobs(),
 		fwGuard:   neuerProbenWaechter(firewallConfirmWindow),
 		siteGuard: neuerProbenWaechter(siteProbeFenster),
+		siteZerts: neueSiteZerts(),
 		upd:       newUpdateState(),
 		pending:   newPendingSecrets(),
 		resets:    newResetTickets(),

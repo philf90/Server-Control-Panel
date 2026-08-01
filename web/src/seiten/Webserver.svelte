@@ -30,6 +30,7 @@
   // erklärt sich nur zusammen mit „nginx fehlt" oder „ein fremder Webserver
   // hält Port 80". Sie kosten drei Prozessaufrufe und keinen `nginx -T`.
   import Sitesliste from "../komponenten/Sites.svelte";
+  import Sitezertifikate from "../komponenten/Sitezertifikate.svelte";
   import Vorgangsplatte from "../komponenten/Vorgangsplatte.svelte";
   import { AbgemeldetFehler, api } from "../lib/api";
   import { t } from "../lib/texte";
@@ -257,6 +258,13 @@
       <b>{t.webserver.imBau}</b>
       <p>{t.webserver.imBauDetail}</p>
     </div>
+  {:else if weg.unterseite === "zertifikate"}
+    <h2>{t.webserver.zertifikate}</h2>
+    {#if daten.installiert}
+      <Sitezertifikate />
+    {:else}
+      <p class="detail">{t.webserver.sitesOhneNginx}</p>
+    {/if}
   {:else if weg.unterseite === "ports"}
     <!-- Die Belegung als Tabelle, nicht nur als Kartentext. Grundsatz IV: Was
          das Panel weiß, sagt es — und wer wissen will, warum oben kein Knopf

@@ -243,6 +243,9 @@ func (s *Server) startACME(baseCtx context.Context) {
 	s.tls.mu.Lock()
 	s.tls.baseCtx = baseCtx
 	s.tls.mu.Unlock()
+	s.siteZerts.mu.Lock()
+	s.siteZerts.baseCtx = baseCtx
+	s.siteZerts.mu.Unlock()
 	s.restartACME()
 }
 
@@ -285,10 +288,22 @@ func (s *Server) restartACME() {
 		mgr.Start(ctx)
 	}()
 	s.log.Info("ACME aktiv", "domains", mgr.Domains())
+
+	// Die Sites hängen an denselben Einstellungen: Sie teilen sich Konto,
+	// Prüfmethode und DNS-Anbieter mit dem Panel. Ändert sich dort etwas, muss
+	// der Abgleich mitlaufen — sonst zögen zwanzig Site-Manager weiter mit einem
+	// Anbieter los, den niemand mehr benutzt.
+	//
+	// In einer eigenen Goroutine, weil der Abgleich `nginx -T` aufruft: Ein
+	// Prozessaufruf im Weg des Dienststarts hielte den Listener auf.
+	go s.siteZertsAbgleichen(ctx)
 }
 
-// stopACME beendet den Vorgang und wartet auf sein Ende.
+// stopACME beendet den Vorgang und wartet auf sein Ende — den des Panels und
+// die der Sites.
 func (s *Server) stopACME() {
+	s.siteZertsAnhalten()
+
 	s.tls.mu.Lock()
 	cancel, done := s.tls.cancel, s.tls.done
 	s.tls.cancel, s.tls.done, s.tls.mgr = nil, nil, nil

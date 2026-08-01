@@ -196,6 +196,15 @@ export const gruppen: Gruppe[] = [
             auch: ["vhost", "serverblock", "domain", "proxy", "server_name"],
           },
           {
+            id: "webserver/zertifikate",
+            label: t.ziele.webserverZertifikate,
+            symbol: "globus",
+            href: "/webserver/zertifikate",
+            gruppe: t.ziele.webserver,
+            neu: true,
+            auch: ["tls", "ssl", "https", "lets encrypt", "acme", "ablauf", "erneuern"],
+          },
+          {
             id: "webserver/ports",
             label: t.ziele.webserverPorts,
             symbol: "globus",

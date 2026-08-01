@@ -2291,10 +2291,11 @@ async function main() {
     token: document.querySelector("#zert-token") !== null,
   }));
 
-  // Cloudflare: Tokenfeld, und es ist ein Passwortfeld.
+  // Cloudflare: EIN Geheimnis, also ein einzeiliges Passwortfeld.
   await seite.selectOption("#zert-anbieter", "cloudflare");
   await seite.waitForSelector("#zert-token", { timeout: 5000 });
   zert.cloudflare = await seite.evaluate(() => ({
+    marke: document.querySelector("#zert-token")?.tagName ?? "",
     token: document.querySelector("#zert-token")?.getAttribute("type") ?? "",
     hook: document.querySelector("#zert-hook-setzen") !== null,
     warum: [...document.querySelectorAll(".detail")].some((p) =>
@@ -2303,6 +2304,39 @@ async function main() {
   }));
 
   await bildschirmfoto(seite, "leitstand-zertifikat", { fullPage: true });
+
+  // Und ein Anbieter mit MEHREREN Feldern: OVH will vier Zeilen. Ein
+  // einzeiliges Feld wäre hier auf eine Weise falsch, die erst der Server beim
+  // Speichern bemerkt — und dann mit einer Meldung über ein Feld, das gar nicht
+  // dasteht. Geprüft wird deshalb, dass die Fläche selbst umschaltet.
+  await seite.selectOption("#zert-anbieter", "ovh");
+  await seite.waitForSelector("#zert-token", { timeout: 5000 });
+  zert.mehrzeilig = await seite.evaluate(() => {
+    const feld = document.querySelector("#zert-token");
+    return {
+      marke: feld?.tagName ?? "",
+      // Die Vorlage steht schon drin: Die Namen der Zeilen muss niemand aus
+      // dem erklärenden Satz abschreiben.
+      vorlage: feld?.value ?? "",
+      zeilen: Number(feld?.getAttribute("rows") ?? 0),
+      // Der erklärende Satz nennt die erwarteten Zeilen — er kommt aus dem
+      // Register des Servers und nicht aus einer zweiten Liste im Browser.
+      felderSatz: [...document.querySelectorAll(".detail")].some((p) =>
+        p.textContent.includes("consumer_key"),
+      ),
+    };
+  });
+
+  await bildschirmfoto(seite, "leitstand-zertifikat-zugang", { fullPage: true });
+
+  // Zurück auf einen einzeiligen Anbieter: Die OVH-Vorlage darf nicht
+  // stehenbleiben, sonst ginge sie beim Speichern als Hetzner-Token mit.
+  await seite.selectOption("#zert-anbieter", "hetzner");
+  await seite.waitForSelector("#zert-token", { timeout: 5000 });
+  zert.zurueckEinzeilig = await seite.evaluate(() => {
+    const feld = document.querySelector("#zert-token");
+    return { marke: feld?.tagName ?? "", wert: feld?.value ?? "" };
+  });
 
   // Jetzt gültig ausfüllen und speichern — HTTP-01, damit kein Anbieter nötig
   // ist. Der Weg dorthin führt ABSICHTLICH über die Cloudflare-Wahl von oben:

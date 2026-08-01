@@ -62,6 +62,11 @@ func init() {
 		Name:   providerOVH,
 		Titel:  "OVH",
 		Felder: []string{"application_key", "application_secret", "consumer_key"},
+		// endpoint ist nicht pflicht — ohne ihn gilt ovh-eu, und das haben die
+		// meisten. In der Vorlage steht er trotzdem: Wer ein kanadisches Konto
+		// hat, soll die Zeile vorfinden statt sie aus dem Hinweistext
+		// abzuschreiben.
+		Vorlage: []string{"endpoint", "application_key", "application_secret", "consumer_key"},
 		Hinweis: "Schlüssel aus der OVH-API-Konsole (api.ovh.com/createToken) mit Recht auf " +
 			"GET/POST/DELETE unter /domain/zone/*. Vier Zeilen: »endpoint = ovh-eu«, " +
 			"»application_key = …«, »application_secret = …«, »consumer_key = …«.",

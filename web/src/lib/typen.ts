@@ -1000,7 +1000,19 @@ export type PasskeyBeginn = {
 
 /** Wahl ist ein wählbarer Wert mit seiner Erklärung. Vom Server, weil dort die
  *  Bedingungen bekannt sind: HTTP-01 braucht Port 80, DNS-01 einen Anbieter. */
-export type Wahl = { wert: string; name: string; was: string };
+export type Wahl = {
+  wert: string;
+  name: string;
+  was: string;
+  /** felder sind bei DNS-Anbietern die Einträge, die die Zugangsdatei tragen
+   *  MUSS. Fehlt die Angabe, hat der Anbieter genau ein Geheimnis — dann
+   *  genügt ein einzeiliges Feld. */
+  felder?: string[];
+  /** vorlage sind die Zeilen, mit denen das Feld vorgefüllt wird. Sie darf
+   *  mehr enthalten als felder: OVHs `endpoint` ist optional und gehört
+   *  trotzdem ins Feld. */
+  vorlage?: string[];
+};
 
 /** Zertifikat ist die Antwort von GET /api/v1/certificate. */
 export type Zertifikat = {

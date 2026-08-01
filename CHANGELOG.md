@@ -113,6 +113,29 @@ nicht als Release getaggt.
   ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
   da ist.
 
+- **Ein Zugangsdatenfeld, das zum Anbieter passt.** Das Feld auf der
+  Zertifikatsseite hieß „Cloudflare-API-Token" und war einzeilig. Mit sieben
+  Anbietern stimmt beides nicht mehr: netcup braucht drei Zeilen, OVH vier.
+
+  Es heißt jetzt „Zugangsdaten" und schaltet um — einzeilig und verdeckt,
+  solange genau ein Geheimnis gebraucht wird; mehrzeilig, sobald der Anbieter
+  mehrere Einträge verlangt. **Welcher Fall gilt, sagt der Server**, aus
+  demselben Register, aus dem auch das Auswahlfeld entsteht; die Oberfläche
+  führt keine zweite Liste. Das mehrzeilige Feld kommt mit der Vorlage schon
+  ausgefüllt — die Namen der Zeilen muss niemand abschreiben.
+
+  Pflichtfelder und Vorlage sind getrennt, weil sie sich unterscheiden dürfen:
+  OVHs `endpoint` ist optional (ohne ihn gilt ovh-eu), gehört aber ins Feld —
+  wer ein kanadisches Konto hat, soll die Zeile vorfinden. Ein Test hält fest,
+  dass umgekehrt nie ein Pflichtfeld aus der Vorlage fehlt.
+
+  Zwei Mängel hat erst das Bildschirmfoto gezeigt: Der Satz nannte drei
+  erwartete Zeilen über einem Feld mit vieren (jetzt getrennt in „Pflicht sind
+  …" und „… darf leer bleiben"), und das Auswahlfeld der Anbieter schnitt ab —
+  es trug Name **und** Erklärung, was bei zwei kurzen Einträgen ging und bei
+  sieben zu „OVH — Schlüssel aus der OVH-API-Kor…" wurde. Es zeigt jetzt nur
+  den Namen; die Erklärung stand ohnehin schon darunter.
+
 - **netcup und OVH als DNS-01-Anbieter** — damit sind alle sieben da: `hook`,
   `cloudflare`, `acme-dns`, `ipv64`, `hetzner`, `digitalocean`, `netcup`, `ovh`.
 

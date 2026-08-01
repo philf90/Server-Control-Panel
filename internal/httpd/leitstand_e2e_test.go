@@ -527,10 +527,21 @@ type ergebnisLeitstand struct {
 			Token      bool `json:"token"`
 		} `json:"hook"`
 		Cloudflare struct {
+			Marke string `json:"marke"`
 			Token string `json:"token"`
 			Hook  bool   `json:"hook"`
 			Warum bool   `json:"warum"`
 		} `json:"cloudflare"`
+		Mehrzeilig struct {
+			Marke      string `json:"marke"`
+			Vorlage    string `json:"vorlage"`
+			Zeilen     int    `json:"zeilen"`
+			FelderSatz bool   `json:"felderSatz"`
+		} `json:"mehrzeilig"`
+		ZurueckEinzeilig struct {
+			Marke string `json:"marke"`
+			Wert  string `json:"wert"`
+		} `json:"zurueckEinzeilig"`
 		NachSpeichern struct {
 			Meldung       string `json:"meldung"`
 			Hinweis       string `json:"hinweis"`
@@ -2594,6 +2605,43 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if !ze.Cloudflare.Warum {
 		t.Error("es steht nicht dabei, dass das Token in einer eigenen Datei mit 0600 landet")
+	}
+	if ze.Cloudflare.Marke != "INPUT" {
+		t.Errorf("bei einem Anbieter mit genau einem Geheimnis steht ein %s statt eines "+
+			"einzeiligen Feldes", ze.Cloudflare.Marke)
+	}
+
+	// Ein Anbieter mit MEHREREN Feldern (OVH will vier Zeilen). Ein einzeiliges
+	// Feld wäre hier auf eine Weise falsch, die erst der Server beim Speichern
+	// bemerkt — und dann mit einer Meldung über ein Feld, das gar nicht dasteht.
+	mz := ze.Mehrzeilig
+	if mz.Marke != "TEXTAREA" {
+		t.Errorf("bei OVH steht ein %s — vier Zeilen passen nicht in ein einzeiliges "+
+			"Feld", mz.Marke)
+	}
+	if mz.Zeilen < 4 {
+		t.Errorf("das Feld zeigt %d Zeilen, OVH braucht vier", mz.Zeilen)
+	}
+	// Die Vorlage steht schon drin. Ohne sie müsste man die Namen der Zeilen aus
+	// dem erklärenden Satz abschreiben — vier Gelegenheiten, sich zu vertippen.
+	for _, feld := range []string{"application_key", "application_secret", "consumer_key"} {
+		if !strings.Contains(mz.Vorlage, feld) {
+			t.Errorf("in der Vorlage fehlt %q: %q", feld, mz.Vorlage)
+		}
+	}
+	if !mz.FelderSatz {
+		t.Error("die erwarteten Zeilen werden nicht genannt — sie kommen aus dem " +
+			"Register des Servers, und wenn sie hier fehlen, ist der Weg unterbrochen")
+	}
+
+	// Und zurück auf einen einzeiligen Anbieter: Die OVH-Vorlage darf nicht
+	// stehenbleiben, sonst ginge sie beim Speichern als Hetzner-Token mit.
+	if ze.ZurueckEinzeilig.Marke != "INPUT" {
+		t.Errorf("nach dem Wechsel auf Hetzner steht noch ein %s", ze.ZurueckEinzeilig.Marke)
+	}
+	if ze.ZurueckEinzeilig.Wert != "" {
+		t.Errorf("nach dem Anbieterwechsel steht die alte Vorlage noch im Feld: %q",
+			ze.ZurueckEinzeilig.Wert)
 	}
 
 	// Nach dem Speichern: der Zwischenzustand ist benannt, und beziehen ist offen.

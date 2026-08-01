@@ -26,9 +26,18 @@ type Anbieter struct {
 	Name string
 	// Titel ist der Name für Menschen.
 	Titel string
-	// Felder sind die Einträge, die die Zugangsdatei tragen muss. Leer heißt:
+	// Felder sind die Einträge, die die Zugangsdatei tragen MUSS. Leer heißt:
 	// Die Datei enthält genau ein Geheimnis und darf auch nur daraus bestehen.
 	Felder []string
+	// Vorlage sind die Zeilen, mit denen die Oberfläche das Eingabefeld
+	// vorfüllt. Leer heißt: dieselben wie Felder.
+	//
+	// Getrennt von Felder, weil sich die beiden Listen unterscheiden dürfen:
+	// OVHs `endpoint` ist NICHT pflicht (ohne ihn gilt ovh-eu), gehört aber in
+	// die Vorlage — wer ein kanadisches Konto hat, soll die Zeile vorfinden
+	// und nicht im Hinweistext danach suchen. Umgekehrt darf ein Pflichtfeld
+	// nie aus der Vorlage fehlen.
+	Vorlage []string
 	// Hinweis erklärt in einem Satz, woher die Zugangsdaten kommen. Er steht
 	// hier und nicht in der Oberfläche, damit es eine Auslegung gibt.
 	Hinweis string
@@ -60,6 +69,15 @@ func Anbieterliste() []Anbieter {
 	}
 	sort.Slice(aus, func(i, j int) bool { return aus[i].Name < aus[j].Name })
 	return aus
+}
+
+// Eingabevorlage sind die Zeilen, mit denen die Oberfläche das Eingabefeld
+// vorfüllt — die Vorlage, wenn es eine gibt, sonst die Pflichtfelder.
+func (a Anbieter) Eingabevorlage() []string {
+	if len(a.Vorlage) > 0 {
+		return a.Vorlage
+	}
+	return a.Felder
 }
 
 // AnbieterBekannt sagt, ob ein Name im Register steht. `hook` zählt mit — er

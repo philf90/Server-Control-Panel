@@ -562,11 +562,28 @@ export const t = {
     hookAufraeumen: "Programm zum Aufräumen",
     hookWarum:
       "Absolute Pfade auf ausführbare Programme. Sie laufen als root und setzen beziehungsweise entfernen den TXT-Eintrag.",
-    token: "Cloudflare-API-Token",
+    // „Token" hieß dieses Feld, solange es Cloudflare war. Mit sieben Anbietern
+    // trägt es je nach Anbieter einen Schlüssel, drei Zeilen oder vier — der
+    // Name muss deshalb allgemein sein.
+    token: "Zugangsdaten",
     tokenHinterlegt:
-      "Ein Token ist hinterlegt. Das Feld leer lassen behält es; ein neuer Wert ersetzt es.",
+      "Es sind Zugangsdaten hinterlegt. Das Feld leer lassen behält sie; ein neuer Wert ersetzt sie.",
     tokenWarum:
-      "Das Token landet in einer eigenen Datei mit Rechten 0600 — nicht in der Konfiguration, die für die Gruppe des Dienstes lesbar ist. Zurückgezeigt wird es nie.",
+      "Die Zugangsdaten landen in einer eigenen Datei mit Rechten 0600 — nicht in der Konfiguration, die für die Gruppe des Dienstes lesbar ist. Zurückgezeigt werden sie nie.",
+    /** zugangFelder nennt die Zeilen, die der gewählte Anbieter braucht. Der
+     *  Server sagt, welche das sind (Wahl.felder); die Oberfläche führt keine
+     *  zweite Liste. */
+    zugangFelder: (felder: string[]) =>
+      `Pflicht sind ${felder.length} Zeilen: ${felder.map((f) => `${f} = …`).join(", ")}`,
+    /** zugangKuer nennt die Zeilen, die in der Vorlage stehen, aber leer
+     *  bleiben dürfen — OVHs `endpoint` etwa. Ohne diesen Satz stünde
+     *  „Pflicht sind 3 Zeilen" über einem Feld mit vier. */
+    zugangKuer: (felder: string[]) =>
+      felder.length === 1
+        ? `${felder[0]} darf leer bleiben.`
+        : `Leer bleiben dürfen: ${felder.join(", ")}.`,
+    zugangEinzeilig:
+      "Dieser Anbieter braucht genau ein Geheimnis. Es genügt, den Schlüssel einzutragen.",
     testverzeichnis: "Testverzeichnis von Let's Encrypt verwenden",
     testverzeichnisWarum:
       "Stellt Zertifikate aus, denen kein Browser traut — dafür sind die Grenzen weit. Der richtige Ort, um einen DNS-Hook einzurichten, ohne die Produktionsgrenzen zu verbrauchen.",

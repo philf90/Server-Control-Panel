@@ -116,6 +116,18 @@ type apiWahl struct {
 	Wert string `json:"wert"`
 	Name string `json:"name"`
 	Was  string `json:"was"`
+	// Felder sind bei DNS-Anbietern die Einträge, die die Zugangsdatei tragen
+	// muss. Leer heißt: genau ein Geheimnis, also ein einzeiliges Feld.
+	//
+	// Sie stehen in der Antwort, damit die Oberfläche die Eingabe daran
+	// ausrichten kann, statt eine zweite Liste zu führen. netcup braucht drei
+	// Zeilen und OVH vier — ein einzeiliges Tokenfeld wäre für beide falsch,
+	// und zwar auf eine Weise, die erst der Server beim Speichern bemerkt.
+	Felder []string `json:"felder,omitempty"`
+	// Vorlage sind die Zeilen, mit denen das Eingabefeld vorgefüllt wird. Sie
+	// darf mehr enthalten als Felder — optionale Einträge wie OVHs `endpoint`
+	// gehören ins Feld, aber nicht in die Pflichtprüfung.
+	Vorlage []string `json:"vorlage,omitempty"`
 }
 
 func (s *Server) handleAPIZertifikat(w http.ResponseWriter, r *http.Request) {
@@ -260,7 +272,10 @@ func anbieterliste() []apiWahl {
 			Was: "Zwei eigene Programme setzen und entfernen den TXT-Eintrag. Absolute Pfade, ausführbar."},
 	}
 	for _, a := range acme.Anbieterliste() {
-		aus = append(aus, apiWahl{Wert: a.Name, Name: a.Titel, Was: a.Hinweis})
+		aus = append(aus, apiWahl{
+			Wert: a.Name, Name: a.Titel, Was: a.Hinweis,
+			Felder: a.Felder, Vorlage: a.Eingabevorlage(),
+		})
 	}
 	return aus
 }

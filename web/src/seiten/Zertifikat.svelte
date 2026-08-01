@@ -55,6 +55,12 @@
   let hookSetzen = $state("");
   let hookAufraeumen = $state("");
   let token = $state("");
+  /** zuletztAnbieter merkt, für welchen Anbieter das Zugangsfeld gerade steht.
+   *
+   *  Beim Wechsel wird es geleert und mit der Vorlage des neuen Anbieters
+   *  gefüllt. Ohne das stünden nach einem Wechsel von OVH zu Hetzner noch vier
+   *  OVH-Zeilen im Feld — und die gingen beim Speichern mit. */
+  let zuletztAnbieter = $state("");
   let testverzeichnis = $state(false);
   let gefuellt = false;
 
@@ -63,6 +69,51 @@
   // nötig — dann entscheidet der Server nach dem, was eingerichtet ist.
   const brauchtAnbieter = $derived(istACME && pruefmethode === "dns-01");
   const zeigtAnbieter = $derived(istACME && pruefmethode !== "http-01");
+
+  /** gewaehlt ist der Eintrag des Anbieters aus der Antwort des Servers.
+   *
+   *  Aus ihm kommt beides: der erklärende Satz und die Liste der Felder, die
+   *  seine Zugangsdatei tragen muss. Die Oberfläche führt darüber keine eigene
+   *  Liste — sonst stünde jeder neue Anbieter an zwei Stellen, und eine davon
+   *  fehlte irgendwann. */
+  const gewaehlt = $derived(daten?.anbieter_liste.find((a) => a.wert === anbieter));
+
+  /** zeigtZugang: alles außer „keiner" und dem Hook braucht Zugangsdaten. Der
+   *  Hook hat stattdessen zwei Programmpfade — er ist der einzige Anbieter, der
+   *  kein Geheimnis des Panels hält. */
+  const zeigtZugang = $derived(zeigtAnbieter && anbieter !== "" && anbieter !== "hook");
+
+  /** zugangFelder sind die Zeilen, die der Anbieter erwartet. Leer heißt: genau
+   *  ein Geheimnis, und dann genügt eine Zeile. */
+  const zugangFelder = $derived(gewaehlt?.felder ?? []);
+  const mehrzeilig = $derived(zugangFelder.length > 0);
+
+  /** zugangVorlage füllt das mehrzeilige Feld vor.
+   *
+   *  Nicht bloß Bequemlichkeit: netcup will drei Zeilen und OVH vier, und die
+   *  Namen muss man sonst aus dem erklärenden Satz abschreiben. Ein Feld, in
+   *  dem das Gerüst schon steht, hat genau einen falsch tippbaren Teil — den
+   *  Wert. */
+  const zugangVorlage = $derived(
+    (gewaehlt?.vorlage ?? zugangFelder).map((f) => `${f} = `).join("\n"),
+  );
+
+  /** zugangKuer sind die Zeilen der Vorlage, die NICHT pflicht sind.
+   *
+   *  Sie brauchen einen eigenen Satz. Ohne ihn steht „Erwartet werden 3 Zeilen"
+   *  über einem Feld mit vier — und wer das liest, sucht den Fehler bei sich.
+   *  Gefunden hat das ein Bildschirmfoto, kein Test. */
+  const zugangKuer = $derived(
+    (gewaehlt?.vorlage ?? []).filter((f) => !zugangFelder.includes(f)),
+  );
+
+  $effect(() => {
+    if (anbieter === zuletztAnbieter) return;
+    zuletztAnbieter = anbieter;
+    // Nur die Vorlage setzen, nicht überschreiben, was jemand schon getippt
+    // hat: Der Effekt läuft auch beim ersten Aufbau der Seite.
+    token = mehrzeilig ? zugangVorlage : "";
+  });
 
   async function laden() {
     fehler = "";
@@ -115,7 +166,9 @@
           anbieter: gewaehlterAnbieter,
           hook_setzen: gewaehlterAnbieter === "hook" ? hookSetzen : "",
           hook_aufraeumen: gewaehlterAnbieter === "hook" ? hookAufraeumen : "",
-          token: gewaehlterAnbieter === "cloudflare" ? token : "",
+          // Für JEDEN Anbieter mit Zugangsdatei, nicht mehr nur für Cloudflare.
+          // Der Hook hat keine — er bekommt zwei Programmpfade.
+          token: gewaehlterAnbieter !== "" && gewaehlterAnbieter !== "hook" ? token : "",
           testverzeichnis,
         },
         bestaetigt,
@@ -124,10 +177,11 @@
       offeneFrage = null;
       meldung = antwort.meldung;
       hinweis = antwort.hinweis ?? "";
-      // Das Token nach dem Speichern aus dem Zustand nehmen: Es steht jetzt in
-      // seiner Datei, und im Feld hätte es nur noch die Wirkung, beim nächsten
-      // Speichern erneut geschrieben zu werden.
-      token = "";
+      // Die Zugangsdaten nach dem Speichern aus dem Zustand nehmen: Sie stehen
+      // jetzt in ihrer Datei, und im Feld hätten sie nur noch die Wirkung, beim
+      // nächsten Speichern erneut geschrieben zu werden. Zurück bleibt die
+      // Vorlage — ein leeres Feld sähe aus, als sei nichts hinterlegt.
+      token = mehrzeilig ? zugangVorlage : "";
       if (antwort.zertifikat) daten = antwort.zertifikat;
     };
 
@@ -344,9 +398,15 @@
             {#if zeigtAnbieter}
               <label class="feld">
                 <span>{t.zert.anbieter}</span>
+                <!-- Nur der Name. Bis 0.5 stand die Erklärung mit im Eintrag,
+                     und bei zwei kurzen Sätzen ging das; mit sieben Anbietern
+                     und ihren Hinweisen ist ein Auswahlfeld daraus, das nach
+                     dreißig Zeichen abschneidet — „OVH — Schlüssel aus der
+                     OVH-API-Kor…". Die Erklärung steht darunter, wo sie
+                     vollständig hinpasst und ohnehin schon stand. -->
                 <select id="zert-anbieter" bind:value={anbieter}>
                   {#each daten.anbieter_liste as a (a.wert)}
-                    <option value={a.wert}>{a.name} — {a.was}</option>
+                    <option value={a.wert}>{a.name}</option>
                   {/each}
                 </select>
               </label>
@@ -376,11 +436,45 @@
               <p class="detail eingerueckt">{t.zert.hookWarum}</p>
             {/if}
 
-            {#if zeigtAnbieter && anbieter === "cloudflare"}
+            <!-- Ein Feld für alle Anbieter mit Zugangsdatei. Einzeilig, solange
+                 genau ein Geheimnis gebraucht wird (Cloudflare, Hetzner,
+                 DigitalOcean, IPv64); mehrzeilig, sobald der Anbieter mehrere
+                 Einträge verlangt (acme-dns, netcup, OVH).
+
+                 Welcher Fall gilt, sagt der Server über Wahl.felder. Ein
+                 einzeiliges Feld für netcup wäre auf eine Weise falsch, die
+                 erst beim Speichern auffiele — und dann mit einer Meldung über
+                 ein Feld, das gar nicht dasteht. -->
+            {#if zeigtZugang}
               <label class="feld">
                 <span>{t.zert.token}</span>
-                <input id="zert-token" bind:value={token} type="password" autocomplete="off" />
+                {#if mehrzeilig}
+                  <!-- Kein type="password": Bei mehreren Zeilen wären Punkte
+                       nicht zu lesen und nicht zu korrigieren. Der Schutz
+                       liegt darin, dass der Wert nie zurückkommt — nicht
+                       darin, ihn beim Tippen zu verbergen. -->
+                  <textarea
+                    id="zert-token"
+                    bind:value={token}
+                    rows={Math.max(3, (gewaehlt?.vorlage ?? zugangFelder).length)}
+                    spellcheck="false"
+                    autocomplete="off"
+                  ></textarea>
+                {:else}
+                  <input id="zert-token" bind:value={token} type="password" autocomplete="off" />
+                {/if}
               </label>
+              {#if mehrzeilig}
+                <p class="detail eingerueckt">{t.zert.zugangFelder(zugangFelder)}</p>
+                {#if zugangKuer.length}
+                  <p class="detail eingerueckt">{t.zert.zugangKuer(zugangKuer)}</p>
+                {/if}
+              {:else}
+                <p class="detail eingerueckt">{t.zert.zugangEinzeilig}</p>
+              {/if}
+              {#if gewaehlt?.was}
+                <p class="detail eingerueckt">{gewaehlt.was}</p>
+              {/if}
               {#if daten.token_hinterlegt}
                 <p class="detail eingerueckt">{t.zert.tokenHinterlegt}</p>
               {/if}

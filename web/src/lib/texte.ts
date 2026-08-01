@@ -48,6 +48,13 @@ export const t = {
     update: "Updates",
   },
 
+  leiste: {
+    // Der Text zum Warnpunkt, den nur Vorleseprogramme hören. Zwei Fassungen,
+    // weil der Punkt zwei Stufen hat und „offen" beide Male zu wenig wäre.
+    offen: (kritisch: boolean) =>
+      kritisch ? "Hier ist etwas kritisch offen" : "Hier ist etwas offen",
+  },
+
   kacheln: {
     cpu: "CPU",
     memory: "Arbeitsspeicher",

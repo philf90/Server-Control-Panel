@@ -72,8 +72,8 @@
   // und damit genau den Fehler wiederholt, den die alte Übersicht schon einmal
   // hatte, als sie den Handlungsbedarf beim Rendern erhob. Fehlt das Signal,
   // fehlt eben das Signal; die Zahlen bleiben.
-  async function signaleLaden() {
-    signalFehler = false;
+  async function signaleLaden(leise = false) {
+    if (!leise) signalFehler = false;
     try {
       signale = await api.signale();
     } catch (e) {
@@ -81,9 +81,44 @@
         abgemeldet = true;
         return;
       }
-      signalFehler = true;
+      // Ein gescheiterter Takt ist kein Fehler der Seite: Die vorherigen
+      // Signale gelten weiter, und eine Fehlermeldung über Daten, die dastehen,
+      // wäre eine Behauptung über etwas, das noch stimmt.
+      if (!leise) signalFehler = true;
     }
   }
+
+  /** signaltakt hält die Warnpunkte der Seitenleiste frisch.
+   *
+   *  Warum überhaupt ein Takt: Die Punkte beantworten „muss ich woanders
+   *  hinsehen". Ein Punkt, der vom Seitenaufbau vor einer Stunde stammt,
+   *  beantwortet sie falsch — und zwar in die gefährliche Richtung, weil eine
+   *  Abwesenheit dann wie „nichts zu tun" aussieht.
+   *
+   *  Warum eine Minute und nicht schneller: Die Erhebung ruft systemctl und
+   *  docker. Das ist nichts, was man einem Server alle paar Sekunden zumutet,
+   *  und schneller wäre auch keine Auskunft — Handlungsbedarf entsteht nicht im
+   *  Sekundentakt. Der Live-Kanal für die Kennzahlen ist etwas anderes; der
+   *  liest einen Schnappschuss, der ohnehin fortgeschrieben wird.
+   *
+   *  Und nicht, während niemand hinsieht: Ein Tab im Hintergrund soll den
+   *  Server nicht beschäftigen. Beim Zurückkommen wird sofort nachgezogen,
+   *  damit der erste Blick nicht auf einen alten Stand fällt. */
+  const signaltakt = 60_000;
+
+  $effect(() => {
+    const uhr = setInterval(() => {
+      if (document.visibilityState === "visible") void signaleLaden(true);
+    }, signaltakt);
+    const beiSichtbar = () => {
+      if (document.visibilityState === "visible") void signaleLaden(true);
+    };
+    document.addEventListener("visibilitychange", beiSichtbar);
+    return () => {
+      clearInterval(uhr);
+      document.removeEventListener("visibilitychange", beiSichtbar);
+    };
+  });
 
   laden();
 </script>
@@ -99,7 +134,7 @@
 {:else}
   <div class="schale">
     <Statusband name={uebersicht?.name ?? ""} uptime={uebersicht?.snapshot?.uptime ?? ""} />
-    <Seitenleiste istOwner={sitzung?.ist_owner ?? false} />
+    <Seitenleiste istOwner={sitzung?.ist_owner ?? false} {signale} />
 
     <main class="inhalt">
       {#if fehler}

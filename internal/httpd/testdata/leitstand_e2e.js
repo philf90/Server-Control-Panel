@@ -327,7 +327,9 @@ async function main() {
     ),
   );
   palette.titelLeiste = await seite.evaluate(() =>
-    [...document.querySelectorAll(".seitenleiste nav a")].map((a) => a.textContent.trim()),
+    [...document.querySelectorAll(".seitenleiste nav a")].map(
+      (a) => a.querySelector("span")?.textContent.trim() ?? "",
+    ),
   );
 
   // Ein Suchwort, das NICHT im Namen steht: "nginx" muss den Webserver finden.
@@ -420,6 +422,28 @@ async function main() {
   // 8. Das Modul Dienste. Hier hängt mehr am Browser als bei der Übersicht: der
   //    Wechsel ohne Neuladen, die Auswahl in der Adresse, der Zurück-Knopf und
   //    die Rückfrage vor dem Stoppen. Nichts davon sieht ein Go-Test.
+  // Die Warnpunkte an der Seitenleiste. Sie beantworten von JEDER Seite aus die
+  // Frage, ob woanders etwas offen ist — hier von der Übersicht aus abgelesen,
+  // bevor irgendwohin gewechselt wird.
+  //
+  // Geprüft wird die Zuordnung: Der Punkt sitzt dort, wohin das Signal verweist.
+  // Eine Attrappe mit einem gescheiterten Dienst, einem ausstehenden Neustart,
+  // auffälligen Containern und einem neueren Image muss also genau diese
+  // Einträge markieren — und keine anderen.
+  const punkte = await seite.evaluate(() =>
+    [...document.querySelectorAll(".seitenleiste nav > a")].map((a) => ({
+      href: a.getAttribute("href"),
+      stufe: a.querySelector(".punkt")?.classList.contains("crit")
+        ? "crit"
+        : a.querySelector(".punkt")
+          ? "warn"
+          : "",
+      // Der Text, den nur Vorleseprogramme hören: Eine Farbe allein ist keine
+      // Auskunft.
+      vorgelesen: a.querySelector(".nurVorlesen")?.textContent.trim() ?? "",
+    })),
+  );
+
   const dienste = {};
 
   // Eine Marke am Fenster: Sie überlebt einen Wechsel ohne Neuladen und stirbt
@@ -2804,12 +2828,28 @@ async function main() {
   dock.flaechen = {
     punkte: await seite.evaluate(() =>
       [...document.querySelectorAll(".seitenleiste .kinder a")].map((a) => ({
-        label: a.textContent.trim(),
+        // Die ERSTE <span>: Die zweite trägt den Text, den nur
+        // Vorleseprogramme hören, und gehört in keinen Namensvergleich.
+        label: a.querySelector("span")?.textContent.trim() ?? "",
         href: a.getAttribute("href"),
       })),
     ),
     elternOffen: await seite.evaluate(
       () => !!document.querySelector('.seitenleiste a.offen[href="/docker"]'),
+    ),
+    // Die Warnpunkte an den Flächen. Der Punkt am Modul fasst sie zusammen —
+    // das steht oben in „punkte"; hier steht, ob er auch an der richtigen
+    // Fläche sitzt. Eigener Name, weil „punkte" hier schon die Flächen selbst
+    // aufzählt.
+    stufen: await seite.evaluate(() =>
+      [...document.querySelectorAll(".seitenleiste .kinder a")].map((a) => ({
+        href: a.getAttribute("href"),
+        stufe: a.querySelector(".punkt")?.classList.contains("crit")
+          ? "crit"
+          : a.querySelector(".punkt")
+            ? "warn"
+            : "",
+      })),
     ),
   };
 
@@ -2821,7 +2861,7 @@ async function main() {
     });
     await seite.evaluate((l) => {
       const punkt = [...document.querySelectorAll(".seitenleiste .kinder a")].find(
-        (a) => a.textContent.trim() === l,
+        (a) => a.querySelector("span")?.textContent.trim() === l,
       );
       punkt?.click();
     }, label);
@@ -2833,7 +2873,10 @@ async function main() {
       pfad: new URL(seite.url()).pathname,
       ohneNeuladen: await seite.evaluate(() => window.__marke === "haelt"),
       aktiv: await seite.evaluate(
-        () => document.querySelector('.seitenleiste .kinder a[aria-current="page"]')?.textContent.trim() ?? "",
+        () =>
+          document
+            .querySelector('.seitenleiste .kinder a[aria-current="page"] span')
+            ?.textContent.trim() ?? "",
       ),
     };
   }
@@ -3354,6 +3397,7 @@ async function main() {
   console.log(
     JSON.stringify({
       verstoesse,
+      punkte,
       fehler,
       fehlend,
       montiert,

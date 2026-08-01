@@ -29,9 +29,14 @@ type wechsel struct {
 // ergebnisLeitstand ist die Ausgabe des Browsertreibers.
 type ergebnisLeitstand struct {
 	Verstoesse []string `json:"verstoesse"`
-	Fehler     []string `json:"fehler"`
-	Fehlend    []string `json:"fehlend"`
-	Montiert   struct {
+	Punkte     []struct {
+		Href       string `json:"href"`
+		Stufe      string `json:"stufe"`
+		Vorgelesen string `json:"vorgelesen"`
+	} `json:"punkte"`
+	Fehler   []string `json:"fehler"`
+	Fehlend  []string `json:"fehlend"`
+	Montiert struct {
 		Kinder       int    `json:"kinder"`
 		Kacheln      int    `json:"kacheln"`
 		Schale       int    `json:"schale"`
@@ -751,6 +756,12 @@ type ergebnisLeitstand struct {
 				Href  string `json:"href"`
 			} `json:"punkte"`
 			ElternOffen bool `json:"elternOffen"`
+			// Stufen sind die Warnpunkte AN den Flächen — nicht zu verwechseln
+			// mit Punkte oben, das die Flächen selbst aufzählt.
+			Stufen []struct {
+				Href  string `json:"href"`
+				Stufe string `json:"stufe"`
+			} `json:"stufen"`
 		} `json:"flaechen"`
 		WechselContainer wechsel `json:"wechselContainer"`
 		WechselPorts     wechsel `json:"wechselPorts"`
@@ -1269,6 +1280,36 @@ func TestLeitstandBrowser(t *testing.T) {
 			t.Errorf("die Palette findet die Fläche %q nicht: %v", titel, e.Palette.TitelPalette)
 		}
 	}
+	// ── Die Warnpunkte an der Seitenleiste ───────────────────────────────────
+	//
+	// Sie beantworten von jeder Seite aus, ob woanders etwas offen ist — genau
+	// der Mangel, den docs/15-neuordnung.md als Nummer vier notiert und den die
+	// alte Fläche bis 0.4.0 mit zwei fest verdrahteten Punkten behob. Diese
+	// Fassung ordnet über den Verweis zu, den das Signal ohnehin trägt.
+	//
+	// Geprüft wird gegen die Attrappe: ein gescheiterter Dienst (crit), ein
+	// ausstehender Neustart (warn), auffällige Container und ein neueres Image.
+	// Und die Gegenprobe — kein Punkt an einem Ziel, zu dem es kein Signal gibt.
+	erwartetePunkte := map[string]string{
+		"/dienste": "crit",
+		"/pakete":  "warn",
+		"/docker":  "warn", // zusammengefasst aus den Flächen
+	}
+	if len(e.Punkte) == 0 {
+		t.Fatal("die Seitenleiste liefert keine Einträge — der Punktetest sagt dann nichts")
+	}
+	for _, p := range e.Punkte {
+		erwartet := erwartetePunkte[p.Href]
+		if p.Stufe != erwartet {
+			t.Errorf("am Ziel %q steht die Stufe %q, erwartet %q", p.Href, p.Stufe, erwartet)
+		}
+		// Eine Farbe allein ist keine Auskunft: Wo ein Punkt steht, muss ein
+		// Text für Vorleseprogramme daneben stehen.
+		if p.Stufe != "" && p.Vorgelesen == "" {
+			t.Errorf("der Punkt an %q hat keinen vorlesbaren Text", p.Href)
+		}
+	}
+
 	// Der Unterschied zwischen einer Suche und einer Liste: ein Wort, das im
 	// Namen nicht vorkommt.
 	if len(e.Palette.TrefferNginx) == 0 || !strings.Contains(e.Palette.TrefferNginx[0], "Webserver") {
@@ -3003,6 +3044,20 @@ func TestLeitstandBrowser(t *testing.T) {
 			"der Kopf über der eingerückten Liste wäre dann von einem gewöhnlichen Punkt " +
 			"nicht zu unterscheiden")
 	}
+	// Und der Punkt sitzt an der FLÄCHE, nicht pauschal am Modul. Das ist die
+	// Hälfte, wegen der die beiden Docker-Signale mit umgelenkt wurden: Ein Punkt
+	// an „Docker" meinte fünf Flächen und sagte damit nur die Hälfte.
+	erwarteteFlaechenpunkte := map[string]string{
+		"/docker/container": "warn",
+		"/docker/updates":   "warn",
+	}
+	for _, p := range fl.Stufen {
+		if p.Stufe != erwarteteFlaechenpunkte[p.Href] {
+			t.Errorf("an der Fläche %q steht die Stufe %q, erwartet %q",
+				p.Href, p.Stufe, erwarteteFlaechenpunkte[p.Href])
+		}
+	}
+
 	if dk.KinderDraussen != 0 {
 		t.Errorf("nach dem Verlassen des Moduls stehen noch %d Flächen in der Leiste — "+
 			"sie sollen am Ort hängen und nicht an einem Umschalter", dk.KinderDraussen)

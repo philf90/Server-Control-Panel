@@ -261,7 +261,10 @@ func TestUpdateSignalKommtAusDemZwischenspeicher(t *testing.T) {
 	for _, sig := range signale {
 		if strings.Contains(sig.Title, "neuere Fassung") {
 			gefunden = true
-			if sig.ActionHref != "/docker" {
+			// Auf die FLÄCHE und nicht auf das Modul: Den Verweis liest seit
+			// 0.5.1 auch der Warnpunkt in der Seitenleiste, und ein Punkt an
+			// „Docker" meinte fünf Flächen.
+			if sig.ActionHref != "/docker/updates" {
 				t.Errorf("der Verweis führt nach %q", sig.ActionHref)
 			}
 		}

@@ -62,13 +62,16 @@ im Binary.
 Vier Teile, auf jeder Seite dieselben. Oben ein **Statusband** mit Wirt,
 Laufzeit, CPU, Speicher, Platte, Last und Netz — jede Anzeige darin ist ein
 Link, und ein Live-Kanal schreibt die Zahlen fort. Links eine **Seitenleiste**,
-nach System, Apps, Sicherheit und Betrieb gruppiert. Ein Modul mit mehreren
-Flächen klappt seine Unterpunkte auf, solange man darin steht — Docker führt so
-Stacks, Container, Ports, Image-Updates und Bestand, jede mit eigener Adresse.
+nach System, Apps, Sicherheit und Betrieb gruppiert, mit einem Warnpunkt an den
+Zielen, zu denen etwas offen ist: Das Menü verrät damit, wo etwas zu tun ist,
+ohne dass man jede Seite besuchen muss. Ein Modul mit mehreren Flächen klappt
+seine Unterpunkte auf, solange man darin steht — Docker führt so Stacks,
+Container, Ports, Image-Updates und Bestand, jede mit eigener Adresse, und der
+Punkt sitzt an der Fläche statt am Modul.
 Unten eine **Protokollzeile**, die den zuletzt auf der Maschine ausgeführten
 Befehl mit Rückgabewert und Laufzeit zeigt; aufgeklappt die letzten
-vierundzwanzig. Dazwischen der Inhalt. Dazu eine **Befehlspalette** auf ⌘K bzw. Strg+K, die dieselben Ziele durchsucht wie die
-Leiste.
+vierundzwanzig. Dazwischen der Inhalt. Dazu eine **Befehlspalette** auf ⌘K bzw.
+Strg+K, die dieselben Ziele durchsucht wie die Leiste.
 
 Der Sinn der Anordnung: Wer auf „Dienste" wechselt, um einen Ausfall zu beheben,
 verliert die Kennzahlen nicht aus dem Blick — und beim Seitenwechsel bleibt die

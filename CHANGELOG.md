@@ -57,6 +57,33 @@ Ein Formular zur Compose-Datei, eine Berichtigung und eine Umbenennung. Wer
   übernimmt ein Umschaltstreifen auf der Seite. Der Zustandskopf (Laufzeit,
   Daemon, Compose) steht über allen Flächen.
 
+- **Warnpunkte an den Menüpunkten — zurück nach anderthalb Fassungen.** Die alte,
+  server-gerenderte Oberfläche hatte sie bis 0.4.0; beim Umbau auf Svelte sind
+  sie nicht mitgekommen, obwohl der Plan sie ausdrücklich vorsah. Sie
+  beantworten von jeder Seite aus eine Frage, die sonst nur die Übersicht
+  beantwortet: Ist woanders etwas offen?
+
+  Zwei Stufen, kein „alles gut". Zugeordnet über den Verweis, den das Signal
+  ohnehin trägt — dort, wohin es führt, sitzt sein Punkt; damit gibt es keine
+  zweite Liste, die auseinanderlaufen kann. Ein Modul fasst die Punkte seiner
+  Flächen zusammen, solange man nicht darin steht. Auf dem Telefon, wo die
+  Leiste nur noch Symbole zeigt, ist der Punkt das Einzige, was ein Eintrag noch
+  sagen kann — dort bleibt er.
+
+  Aufgefrischt wird im **Minutentakt** und nur, während das Fenster sichtbar
+  ist; beim Zurückkommen sofort. Ein Punkt vom Seitenaufbau vor einer Stunde
+  antwortet falsch, und zwar in die gefährliche Richtung.
+
+  **Was heute leuchten kann:** ausgefallene Dienste, knapper Plattenplatz,
+  ausstehender Neustart, auffällige Container, neuere Images. Für Firewall,
+  Zertifikate, Cron und die übrigen Ziele gibt es noch keine Signale — die
+  Abwesenheit eines Punktes heißt dort also nicht „alles in Ordnung".
+
+- Die beiden Docker-Signale verweisen auf ihre Fläche statt auf das Modul:
+  auffällige Container auf `/docker/container`, neuere Images auf
+  `/docker/updates`. Solange Docker eine lange Seite war, hieß „/docker" ohnehin
+  „sieh selbst nach".
+
 ### Behoben
 
 - **„Stack anlegen" fehlte auf einem Server ohne Compose-Projekt.** Der Knopf

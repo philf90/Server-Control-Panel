@@ -1128,19 +1128,79 @@ Telefon unerreichbar.
 
 #### Offen geblieben
 
-**Warnpunkte an den Menüpunkten gibt es nicht.** Der README behauptet sie seit
-0.4.0 („jedes Ziel mit einem Warnpunkt, wenn dort etwas offen ist"); gebaut sind
-sie nie worden — `Seitenleiste.svelte` rendert Symbol und Beschriftung, `Ziel`
-hat kein Signalfeld, und die Signale erreichen nur die Übersicht. Mit den
-Flächen wären sie deutlich nützlicher als vorher: ein Punkt an
-„Image-Updates" statt einer an „Docker", der sechs Abschnitte meint. Das ist ein
-eigenes Stück Arbeit und steht aus; der falsche Satz im README ist mit dieser
-Fassung berichtigt.
+~~Warnpunkte an den Menüpunkten gibt es nicht.~~ **Nachgetragen, siehe unten.**
 
-Ebenfalls offen: Der Bestand holt je Container ein `docker inspect`
+Offen bleibt: Der Bestand holt je Container ein `docker inspect`
 (`api_v1_docker.go`), nur um „Volume in Gebrauch" zu markieren. `docker system
 df -v` liefert dasselbe in einem Aufruf. Durch die eigene Fläche wird das
 seltener ausgelöst, aber nicht besser.
+
+---
+
+#### E13 — Die Warnpunkte, und warum der Verweis sie zuordnet
+
+Sie sind kein neuer Einfall: Die alte, server-gerenderte Oberfläche hatte sie
+bis 0.4.0 (`DienstePip`, `PaketePip` in `pages.go`), und
+`docs/16-neukonzeption.md` §8.2 schrieb für die neue Leiste „Warnpunkt je
+Eintrag **wie bisher**". Beim Umbau auf Svelte sind sie nicht mitgekommen — ein
+Rückschritt, den niemand bemerkt hat, weil der README die Zusage der alten
+Fläche weitertrug.
+
+Ihr Zweck steht wörtlich in `docs/15-neuordnung.md` als Mangel Nummer vier:
+
+> **Alle Bereiche wiegen gleich viel.** Das Menü verrät nicht, ob irgendwo etwas
+> offen ist. Man muss jede Seite besuchen, um zu wissen, dass nichts zu tun ist.
+
+Sie beantworten **eine** Frage, von jeder Seite aus: *Muss ich woanders
+hinsehen?* Sie ersetzen den Handlungsbedarf auf der Übersicht nicht — der sagt,
+*was* los ist, in einem Satz mit einem Griff daneben. Der Punkt sagt nur *dass*
+und *wo*.
+
+**Die Zuordnung ist der Unterschied zur alten Fassung.** Die ordnete über
+`sig.Tag` in einem Schalter zu — eine Zuordnung von Hand, die jedes neue Signal
+hätte ergänzen müssen. Hier entscheidet der Verweis, den das Signal ohnehin
+trägt: Wohin es führt, dort sitzt sein Punkt. Damit gibt es keine zweite Liste,
+die auseinanderlaufen kann — dieselbe Regel, aus der `lib/ziele.ts` entstanden
+ist. Dass die beiden Docker-Signale dafür auf ihre Fläche umgelenkt wurden, ist
+kein Zusatz, sondern die Bedingung: Ein Punkt an „Docker" meinte fünf Flächen.
+
+Drei Entscheidungen dazu:
+
+| Frage | Antwort | Warum |
+|---|---|---|
+| Punkt oder Zahl | Punkt | Eine Zahl am Eintrag liest sich wie eine Menge und ist fast immer 1 |
+| Stufen | zwei (`crit`, `warn`), kein „alles gut" | Ein grüner Punkt an achtzehn Einträgen ist Rauschen |
+| Aktualität | Minutentakt, nur bei sichtbarem Fenster, beim Zurückkommen sofort | Ein Punkt vom Seitenaufbau vor einer Stunde antwortet falsch — und zwar in die gefährliche Richtung, weil eine Abwesenheit wie „nichts zu tun" aussieht. Schneller wäre keine Auskunft und beschäftigte den Server: Die Erhebung ruft `systemctl` und `docker` |
+
+Ein Modul fasst die Punkte seiner Flächen zusammen. Das ist der Kern und keine
+Bequemlichkeit: Die Punkte der Flächen sieht man nur, während man im Modul
+steht — ohne die Zusammenfassung am Modul wäre der Punkt genau dann unsichtbar,
+wenn er gebraucht wird, nämlich von woanders aus.
+
+Auf dem Telefon bleibt er. Dort ist die Leiste eine Symbolschiene ohne
+Beschriftungen, und der Punkt ist das Einzige, was ein Eintrag noch sagen kann.
+Dazu ein Text für Vorleseprogramme: Eine Farbe allein ist keine Auskunft.
+
+**Was heute überhaupt leuchten kann**, und das gehört zur Ehrlichkeit dieser
+Fläche:
+
+| Signal | Stufe | Ziel |
+|---|---|---|
+| Dienst(e) ausgefallen | crit | `/dienste` |
+| Dateisystem ≥ 90 % / ≥ 80 % | crit / warn | `/pakete` |
+| Neustart steht aus | warn | `/pakete` |
+| Container auffällig | warn | `/docker/container` |
+| neuere Image-Fassung | warn | `/docker/updates` |
+
+Das sind **drei von achtzehn** Menüpunkten. Firewall, Zertifikate, Cron,
+Panel-Zugänge und Audit haben kein Signal und können nie leuchten — die
+Abwesenheit eines Punktes heißt dort also nicht „alles in Ordnung". Ein
+ablaufendes Zertifikat wäre das erste Signal, das zu ergänzen wäre; es ist der
+Fall, den man am ehesten verpasst.
+
+Beim Aufschreiben nebenbei aufgefallen: Eine volle Platte verweist auf
+`/pakete`. Das stammt aus der Zeit vor dem Dateimanager, als `apt clean` der
+einzige Handgriff war. Heute wäre `/dateien` mindestens ebenso richtig.
 
 ---
 

@@ -83,6 +83,12 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 	// Funktion, die auch die Containerliste färbt. Zwei Fassungen liefen
 	// auseinander, und dann meldete die Übersicht einen Befund, den die Liste
 	// nicht kennt.
+	//
+	// Der Verweis zeigt seit 0.5.1 auf die FLÄCHE und nicht auf das Modul.
+	// Solange Docker eine lange Seite war, hieß "/docker" ohnehin "sieh selbst
+	// nach"; mit fünf Flächen ist es eine halbe Auskunft. Der Warnpunkt in der
+	// Seitenleiste liest denselben Verweis — er sitzt damit von selbst am
+	// richtigen Punkt, ohne eine zweite Zuordnung.
 	if cs, err := s.ops.DockerContainers(ctx); err == nil {
 		var auffaellig []string
 		for _, c := range cs {
@@ -95,13 +101,13 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 			out = append(out, dashSignal{
 				Level: "warn", Tag: "Container", Title: auffaellig[0] + " braucht Aufmerksamkeit",
 				Detail:      "Der Container ist ungesund, unsauber beendet oder startet in einer Schleife neu.",
-				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+				ActionLabel: "Container öffnen", ActionHref: "/docker/container",
 			})
 		case len(auffaellig) > 1:
 			out = append(out, dashSignal{
 				Level: "warn", Tag: "Container", Title: fmt.Sprintf("%d Container brauchen Aufmerksamkeit", len(auffaellig)),
 				Detail:      strings.Join(auffaellig, " · "),
-				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+				ActionLabel: "Container öffnen", ActionHref: "/docker/container",
 			})
 		}
 	}
@@ -127,7 +133,7 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 				Level: "warn", Tag: "Docker", Title: titel,
 				Detail: strings.Join(neu, " · ") + " — geprüft am " +
 					stand.Geprueft.Local().Format("02.01.2006"),
-				ActionLabel: "Docker öffnen", ActionHref: "/docker",
+				ActionLabel: "Image-Updates öffnen", ActionHref: "/docker/updates",
 			})
 		}
 	}

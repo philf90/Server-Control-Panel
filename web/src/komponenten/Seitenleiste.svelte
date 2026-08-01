@@ -11,9 +11,13 @@
   // zuverlässig „der Owner-Rolle vorbehalten" antwortet, ist kein Menüpunkt.
   // Gefiltert wird in lib/ziele.ts, damit die Palette dieselbe Regel benutzt.
   import { sichtbareGruppen } from "../lib/ziele";
+  import { t } from "../lib/texte";
   import { verweis, weg } from "../lib/weg.svelte";
+  import type { Ziel } from "../lib/ziele";
+  import type { Signale } from "../lib/typen";
 
-  let { istOwner = false }: { istOwner?: boolean } = $props();
+  let { istOwner = false, signale = null }: { istOwner?: boolean; signale?: Signale | null } =
+    $props();
 
   const gruppen = $derived(sichtbareGruppen(istOwner));
 
@@ -34,6 +38,55 @@
   // Vorgabe des Moduls. Ein leeres zweites Segment ist keine fehlende Auskunft,
   // sondern die erste Fläche; deshalb der Schrägstrich auch dann.
   const aktivesKind = $derived(aktiv + "/" + weg.unterseite);
+
+  // ─────────────────────────────────────────────── Die Warnpunkte ─────────
+  //
+  // Sie beantworten EINE Frage, und zwar von jeder Seite aus: Muss ich woanders
+  // hinsehen? Ohne sie ist die Antwort nur auf der Übersicht zu haben, und wer
+  // gerade in den Logs sucht, sieht die Übersicht nicht. Das ist Mangel Nummer
+  // vier aus docs/15-neuordnung.md, wörtlich: „Das Menü verrät nicht, ob
+  // irgendwo etwas offen ist. Man muss jede Seite besuchen, um zu wissen, dass
+  // nichts zu tun ist."
+  //
+  // Sie sind KEIN Ersatz für den Handlungsbedarf auf der Übersicht. Der sagt,
+  // was los ist, in einem Satz mit einem Griff daneben; der Punkt sagt nur, dass
+  // und wo.
+  //
+  // Die alte, server-gerenderte Fläche hatte sie bis 0.4.0 (DienstePip,
+  // PaketePip in pages.go) und ordnete sie über sig.Tag zu — eine Zuordnung von
+  // Hand, die für jedes neue Signal ergänzt werden musste. Hier entscheidet
+  // stattdessen der Verweis, den das Signal ohnehin trägt: Wohin es führt, dort
+  // sitzt sein Punkt. Damit gibt es keine zweite Liste, die auseinanderlaufen
+  // kann — dieselbe Regel, aus der lib/ziele.ts entstanden ist.
+  //
+  // Zwei Stufen und kein „alles gut": Ein grüner Punkt an achtzehn Einträgen ist
+  // Rauschen und keine Auskunft.
+  const stufen = $derived.by(() => {
+    const aus: Record<string, "crit" | "warn"> = {};
+    for (const sig of signale?.signale ?? []) {
+      const ziel = sig.aktion_href;
+      if (!ziel) continue;
+      if (aus[ziel] !== "crit") aus[ziel] = sig.level;
+    }
+    return aus;
+  });
+
+  /** stufeVon nennt die Stufe eines Ziels — bei einem Modul einschließlich
+   *  seiner Flächen.
+   *
+   *  Die Zusammenfassung am Elternteil ist der Kern der Sache und keine
+   *  Bequemlichkeit: Die Punkte der Flächen sieht man nur, während man im Modul
+   *  steht. Ohne sie am Modul wäre der Punkt genau dann unsichtbar, wenn er
+   *  gebraucht wird — von woanders aus. */
+  function stufeVon(ziel: Ziel): "crit" | "warn" | "" {
+    let hoechste: "crit" | "warn" | "" = stufen[ziel.href] ?? "";
+    for (const kind of ziel.kinder ?? []) {
+      const k = stufen[kind.href] ?? "";
+      if (k === "crit") return "crit";
+      if (k === "warn" && hoechste === "") hoechste = "warn";
+    }
+    return hoechste;
+  }
 </script>
 
 <aside class="seitenleiste">
@@ -55,6 +108,13 @@
           >
             <svg aria-hidden="true"><use href="#sym-{ziel.symbol}" /></svg>
             <span>{ziel.label}</span>
+            <!-- Der Punkt trägt einen Text, den nur Vorleseprogramme hören:
+                 Eine Farbe allein ist keine Auskunft, und schmal ist der Punkt
+                 das Einzige, was von diesem Eintrag noch etwas sagt. -->
+            {#if stufeVon(ziel)}
+              <i class="punkt {stufeVon(ziel)}" aria-hidden="true"></i>
+              <span class="nurVorlesen">{t.leiste.offen(stufeVon(ziel) === "crit")}</span>
+            {/if}
           </a>
 
           <!-- Die Flächen des Moduls, sichtbar solange man darin steht.
@@ -75,6 +135,12 @@
                   aria-current={kind.id === aktivesKind ? "page" : undefined}
                 >
                   <span>{kind.label}</span>
+                  {#if stufen[kind.href]}
+                    <i class="punkt {stufen[kind.href]}" aria-hidden="true"></i>
+                    <span class="nurVorlesen">
+                      {t.leiste.offen(stufen[kind.href] === "crit")}
+                    </span>
+                  {/if}
                 </a>
               {/each}
             </div>
@@ -147,6 +213,37 @@
     color: var(--tx);
   }
 
+  /* Der Punkt sitzt am rechten Rand des Eintrags. Rechts und nicht am Symbol:
+     Am Symbol säße er auf dem, was den Eintrag benennt; rechts steht er in einer
+     Spalte, die man mit einem Blick von oben nach unten liest — und genau so
+     liest man die Frage „ist irgendwo etwas offen". */
+  .punkt {
+    margin-left: auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    /* Dieselben Marken wie .zustand: „warn" ist überall im Panel der Akzent,
+       „crit" überall die Fehlerfarbe. Ein zweites Farbenpaar für dieselbe
+       Aussage wäre eine zweite Sprache. */
+    background: var(--accent);
+  }
+
+  .punkt.crit {
+    background: var(--err);
+  }
+
+  /* Sichtbar nur für Vorleseprogramme — dieselbe Machart wie die Beschriftungen
+     in der Symbolschiene. */
+  .nurVorlesen {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .kinder {
     display: flex;
     flex-direction: column;
@@ -191,6 +288,13 @@
     a {
       justify-content: center;
       padding: 0.5rem 0;
+    }
+
+    /* Schmal ist der Punkt das Einzige, was ein Eintrag noch sagen kann — er
+       bleibt also, rückt aber neben das Symbol statt an den rechten Rand einer
+       Zeile, die es nicht mehr gibt. */
+    .punkt {
+      margin-left: 0.2rem;
     }
   }
 </style>

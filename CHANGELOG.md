@@ -81,6 +81,38 @@ nicht als Release getaggt.
   Panel, das nach einem Update stillschweigend keine Zertifikate mehr erneuert,
   merkt niemand, bis sechzig Tage später der Browser warnt.
 
+- **Drei weitere DNS-01-Anbieter: IPv64.net, Hetzner DNS, DigitalOcean.**
+
+  Bei **IPv64** steckt die Arbeit an zwei Stellen, die man von außen nicht
+  sieht. Die erste ist die Zone: Die vorhandenen Umsetzungen raten sie aus der
+  Labelanzahl, und deshalb funktioniert lego bei IPv64-Subdomains
+  (`meins.ipv64.net`, drei Labels) und scheitert bei eigenen Domains
+  (`example.com`, zwei) — der Befund aus Zoraxy #351. Das certbot-Plugin macht
+  den Fehler andersherum und nähme aus `meins.ipv64.net` die Zone `ipv64.net`,
+  die dem Konto nicht gehört. Hier wird nicht geraten: `get_domains` liefert
+  die Zonen des Kontos, und gesucht wird die längste passende.
+
+  Die zweite ist die Ratengrenze — 64 Anfragen je 24 Stunden in der
+  Standardklasse, höchstens 5 in 10 Sekunden. Die Domainliste wird deshalb
+  zwischengespeichert, zwischen den Aufrufen liegt ein Mindestabstand, und es
+  gibt ein **eigenes Tagesbudget**. Letzteres verhindert einen Fall, der sonst
+  sicher eingetreten wäre: Das Panel wiederholt einen gescheiterten Bezug
+  stündlich, ein Bezug kostet fünf bis sechs Anfragen — ein falsch
+  eingerichtetes Konto wäre nach einem halben Tag für einen ganzen gesperrt,
+  und danach ist auch der richtig eingerichtete Zustand nicht mehr erreichbar.
+
+  **Hetzner DNS** und **DigitalOcean** sind gewöhnliche REST-APIs. Auch hier
+  wird die Zone abgefragt statt geraten. Zwei Kleinigkeiten, die beide
+  betreffen und die man je einmal falsch macht: Der Recordname geht **relativ
+  zur Zone** hinaus (`_acme-challenge`, nicht `_acme-challenge.example.com` —
+  sonst entsteht klaglos ein Record namens
+  `_acme-challenge.example.com.example.com`, den die Prüfung nie findet), und
+  gelöscht wird nach Name **und Wert**, weil bei einem Wildcard-Zertifikat zwei
+  TXT-Records unter demselben Namen stehen und der zweite noch zur laufenden
+  Prüfung gehört. Bei DigitalOcean kommt dazu, dass die Domainliste seitenweise
+  ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
+  da ist.
+
 - **Modul Webserver, Schritt 2 von 8: der Weg für die ACME-Prüfung durch nginx
   hindurch.** Er behebt einen Fehler, den Schritt 1 erst erzeugt, und steht
   deshalb vor der ersten Benutzersite.

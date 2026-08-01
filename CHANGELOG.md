@@ -46,6 +46,51 @@ nicht als Release getaggt.
   und `POST /api/v1/webserver/install` (Owner-Rolle), Audit unter
   `webserver.install`, Tokenfamilie `webserver`.
 
+- **Modul Webserver, Schritt 2 von 8: der Weg für die ACME-Prüfung durch nginx
+  hindurch.** Er behebt einen Fehler, den Schritt 1 erst erzeugt, und steht
+  deshalb vor der ersten Benutzersite.
+
+  Das Panel bindet für HTTP-01 selbst Port 80. Sobald es nginx einspielt,
+  gehört der Port nginx — und das Panel kann sein eigenes Zertifikat nicht mehr
+  erneuern. Nicht sofort und nicht sichtbar, sondern beim nächsten
+  Erneuerungslauf, sechzig Tage später. Die Fehlermeldung im Quelltext nahm den
+  Fall seit jeher vorweg: „HTTP-01 braucht Port 80, das Binden schlug fehl
+  (läuft dort ein Webserver?)".
+
+  Der Ausweg ist der, den certbot seit jeher geht: nicht neben dem Webserver
+  lauschen, sondern **durch ihn hindurch** antworten. Das Panel legt die Token
+  als Dateien ab, und ein verwaltetes Drop-in
+  `/etc/nginx/conf.d/asylum-acme.conf` sagt nginx, dass es
+  `/.well-known/acme-challenge/` von dort ausliefern soll. Kein Port, kein
+  Wettlauf.
+
+  Die Wahl trifft **nicht der Betreiber, sondern der Zustand des Servers**: Ein
+  Schalter dafür wäre eine Einstellung, die jemand falsch setzen kann und deren
+  richtiger Wert aus dem System ablesbar ist. Verwaltet das Panel ein laufendes
+  nginx, legt es den Weg. Läuft ein *fremder* Webserver, schreibt es nichts —
+  Token in ein Verzeichnis zu legen, das niemand ausliefert, wäre schlechter
+  als der heutige Zustand: Die Prüfung schlüge mit einer unverständlichen
+  Meldung fehl statt mit der klaren „Port 80 ist belegt". Wer einen fremden
+  Webserver betreibt, nimmt DNS-01.
+
+  Geschrieben wird als Kette: schreiben → `nginx -t` → **bei Ablehnung
+  zurücknehmen** → neu laden. Eine abgelehnte Datei liegen zu lassen hieße,
+  dass der nächste Reload — von wem auch immer angestoßen — an unserer Datei
+  scheitert; der Fehler wäre dann unserer und sähe nach einem fremden aus. Eine
+  Datei ohne Marker wird nie überschrieben, auch nicht an unserem eigenen
+  Platz.
+
+  Zwei Allowlists sichern die beiden Wege nach innen ab: Der Challenge-Token
+  wird zu einem Dateinamen (`../../etc/nginx/conf.d/boes.conf` wäre der
+  Angriff) und die Domain zu einer Zeile in einer nginx-Konfiguration
+  (`beispiel.de; root /;` wäre er). Beide werden gegen die **zulässige Form**
+  geprüft und nicht gegen eine Sperrliste gefährlicher Zeichen — eine
+  Sperrliste vergisst immer ein Zeichen.
+
+  Mitgekommen: `nginx -t` ist als dritter Fall in `privops.ConfigCheck`
+  eingetragen. Der Editor prüft nginx-Konfigurationen jetzt wie sshd- und
+  nftables-Dateien.
+
 ### Behoben
 
 - **Eingabefelder waren auf „Cron & Timer" und „API-Tokens" nicht gestaltet** —

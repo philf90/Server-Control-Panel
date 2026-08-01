@@ -1,7 +1,8 @@
 # 18 — Webserver & Domains (Stufe 0.6)
 
-> **Stand:** Schritt 1 von 8 ist gebaut (Fundament: Zustand, Portbelegung,
-> Installation). Alles Weitere ist Plan.
+> **Stand:** Schritte 1 und 2 von 8 sind gebaut (Fundament: Zustand,
+> Portbelegung, Installation; und der Challenge-Weg durch nginx hindurch).
+> Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
 > §7.4 und der Meilensteintabelle in [06-roadmap.md](06-roadmap.md).
 
@@ -45,7 +46,7 @@ Vor dem ersten Handgriff nachgesehen, weil es den Zuschnitt ändert:
 | Vorhanden | Wo | Passt wie |
 |---|---|---|
 | **Probe mit Frist und Rückweg** | `firewallGuard` in `internal/httpd/jobs.go` | `arm(subject, revert)`, `confirm()`, `state()` — generisch geschrieben, heute an ein Feld `s.fwGuard` gebunden |
-| **Konfigurationsprüfung** | `privops.ConfigCheck` (`sshd -t`, `nft -c -f`) | `nginx -t` fügt sich als dritter Fall ein, `ConfigCheckResult` passt unverändert |
+| **Konfigurationsprüfung** | `privops.ConfigCheck` (`sshd -t`, `nft -c -f`) | ✅ `nginx -t` ist als dritter Fall eingetragen, `ConfigCheckResult` blieb unverändert |
 | **Verwaltetes Drop-in mit Marker** | `internal/config/dropin.go`, `managedHeader` | Vorbild für `asylum-<site>.conf` |
 | **ACME mit HTTP-01 und DNS-01** | `internal/acme` | vollständig — aber einfach, siehe Abschnitt 3 |
 | **Vorgänge mit Strom, Rückfragen, Audit, Signale** | `internal/httpd` | unverändert nutzbar |
@@ -102,8 +103,41 @@ Zwei Folgen, die benannt gehören:
    ist wenig Code. Die Wahl trifft nicht der Betreiber, sondern der Zustand:
    Webserver da → Webroot, sonst → eigener Listener.
 2. **Das Drop-in für die Challenge ist die erste Site, die das Panel schreibt** —
-   und es schreibt sie für sich selbst. Damit ist der Schreibpfad samt Probe
-   schon im Fundamentschritt in Betrieb, bevor die erste Benutzersite entsteht.
+   und es schreibt sie für sich selbst. Damit ist der Schreibpfad schon im
+   Fundamentschritt in Betrieb, bevor die erste Benutzersite entsteht.
+
+### Nachtrag aus dem Bau (Schritt 2 ist umgesetzt)
+
+Drei Dinge sind beim Bau schärfer geworden, als sie hier standen:
+
+**Der Webroot gilt nur für das vom Panel verwaltete nginx.** Oben stand
+„Webserver da → Webroot". Richtig ist: **eigenes nginx** da → Webroot. Für einen
+fremden Webserver schreibt das Panel nichts (E1) — und Token in ein Verzeichnis
+zu legen, das niemand ausliefert, wäre schlechter als der heutige Zustand: Die
+Prüfung schlüge mit einer unverständlichen Meldung fehl statt mit der klaren
+„Port 80 ist belegt". Wer einen fremden Webserver betreibt, nimmt DNS-01.
+Dasselbe gilt, wenn neben nginx noch etwas anderes auf 80 hört: Wer den Port
+hält, entscheidet, wer antwortet, und das ist dann nicht unser Drop-in.
+
+**Kein `default_server`.** Ein zweiter default_server auf Port 80 lässt
+`nginx -t` scheitern, sobald ein anderer schon einen führt — und auf einem
+frisch eingespielten nginx tut das die Debian-Vorgabe. Ein exakter `server_name`
+gewinnt bei nginx ohnehin gegen den default_server; das Drop-in braucht ihn also
+nicht und tritt niemandem auf die Füße.
+
+**Zwei Allowlists, nicht eine.** Der Token wird zu einem Dateinamen und die
+Domain zu einer Zeile in einer nginx-Konfiguration. Beides kommt von außen — der
+Token vom ACME-Server, die Domain aus einem Formularfeld —, und beides wird
+gegen eine **Allowlist der zulässigen Form** geprüft, nicht gegen eine
+Sperrliste gefährlicher Zeichen. `beispiel.de; root /;` ist der ganze Angriff
+auf der einen Seite, `../../etc/nginx/conf.d/boes.conf` der auf der anderen.
+
+**Die Probe fehlt hier bewusst.** Der Plan wollte „den Schreibpfad samt Probe"
+in Betrieb nehmen. Gebaut ist die Kette schreiben → `nginx -t` → bei Fehler
+zurücknehmen → neu laden. Die Probe mit Frist und selbsttätigem Rückweg (E4)
+kommt mit Schritt 5: Dieses Drop-in legt keinen Weg zum Panel, es beantwortet
+einen einzigen Pfad. Fehlt es, schlägt eine Zertifikatserneuerung fehl — aber
+niemand ist ausgesperrt, und genau dafür ist die Probe da.
 
 ---
 
@@ -318,7 +352,7 @@ Jeder Schritt endet mit etwas, das läuft, und mit Tests.
 | # | Schritt | Ergebnis |
 |---|---|---|
 | 1 ✅ | **Fundament**: Allowlist-Einträge `nginx` und `ss`, `WebServerState` (nginx verwaltet / fremd mit Name / keiner, dazu **wer 80 und 443 hält**), Installation als Job und nur bei freiem Port, `GET /api/v1/webserver`, eine Fläche | Das Modul existiert, kann nginx installieren — und tut es nicht, wenn dort schon etwas läuft |
-| 2 | **Der Challenge-Weg** (Abschnitt 3): `webrootSolver`, verwaltetes Drop-in für `/.well-known/acme-challenge/`, Auswahl nach Zustand | Das Panel erneuert sein eigenes Zertifikat weiter, **nachdem** nginx da ist. Der Schreibpfad samt Probe ist damit in Betrieb, bevor die erste Benutzersite existiert |
+| 2 ✅ | **Der Challenge-Weg** (Abschnitt 3): `webrootSolver`, verwaltetes Drop-in für `/.well-known/acme-challenge/`, Auswahl nach Zustand, `nginx -t` in `ConfigCheck` | Das Panel erneuert sein eigenes Zertifikat weiter, **nachdem** nginx da ist. Der Schreibpfad ist damit in Betrieb, bevor die erste Benutzersite existiert |
 | 3 | **Der Halter wird mehrfähig** (Abschnitt 4): Karte Name → Zertifikat, Auswahl über SNI, Rückfall auf das Panel-Zertifikat; Manager je Zertifikat | Bestandscode im TLS-Pfad, eigener Schritt, eigener Test |
 | 4 | **Sites lesend**: `SiteList` (verwaltete Drop-ins + fremde vHosts aus `sites-enabled`), Detail, Werkbank | Auf einem Bestandsserver ist die Seite ab hier nicht leer |
 | 5 | **Sites schreibend**: Felder → Drop-in, **Site-Prüfer**, `nginx -t`, reload, **Probe mit Rückweg**, Hash-Konflikt | Der gefährlichste Schritt — deshalb erst, wenn alles Lesende steht |

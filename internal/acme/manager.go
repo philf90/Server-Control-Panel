@@ -38,6 +38,17 @@ type Options struct {
 	Challenge    string   // "" (automatisch) | http-01 | dns-01
 	HTTP01Addr   string   // Bindeadresse für HTTP-01, Vorgabe ":80"
 
+	// Webroot ist ein Verzeichnis, aus dem ein Webserver
+	// /.well-known/acme-challenge/ ausliefert. Ist es gesetzt, legt HTTP-01 die
+	// Token dort als Dateien ab, statt selbst auf Port 80 zu lauschen —
+	// HTTP01Addr bleibt dann ungenutzt.
+	//
+	// Der Wert kommt nicht aus der Konfiguration des Betreibers, sondern aus
+	// dem Zustand des Servers: Verwaltet das Panel ein laufendes nginx, hat es
+	// den Weg dorthin selbst gelegt und trägt ihn hier ein. Steht hier nichts,
+	// lauscht das Panel wie bisher selbst. Siehe docs/18-webserver.md §3.
+	Webroot string
+
 	// DNS-01: Anbieter und dessen Zugang. Ist ein Anbieter gesetzt, wählt die
 	// automatische Challenge-Bestimmung DNS-01 statt HTTP-01.
 	DNS01Provider       string // "" | hook | cloudflare
@@ -113,6 +124,16 @@ func solverFactory(opts Options, log *slog.Logger, report reporter) (func(contex
 	}
 	switch challenge {
 	case "http-01":
+		// Der Weg durch den Webserver hindurch geht vor. Er belegt keinen Port
+		// und ist damit der einzige, der neben einem laufenden nginx noch
+		// funktioniert — und genau dieses nginx kann das Panel seit 0.6 selbst
+		// eingespielt haben.
+		if opts.Webroot != "" {
+			solver := newWebrootSolver(opts.Webroot)
+			return func(context.Context) (challengeSolver, error) {
+				return solver, nil
+			}, nil
+		}
 		addr := opts.HTTP01Addr
 		if addr == "" {
 			addr = ":80"

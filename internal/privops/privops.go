@@ -169,6 +169,14 @@ type Executor interface {
 	// nginx, nginx bindet 80, und was dort lief, ist weg.
 	WebServerState(ctx context.Context) (WebServerState, error)
 	WebServerInstall(ctx context.Context, stream LineWriter) error
+	// AcmeWebroot legt den Weg für die HTTP-01-Prüfung DURCH nginx hindurch und
+	// gibt das Verzeichnis zurück, in das die Token gehören.
+	//
+	// Er behebt einen Fehler, den die Installation erst erzeugt: Das Panel
+	// bindet für HTTP-01 selbst Port 80 — sobald nginx läuft, gehört der Port
+	// nginx, und das Panel kann sein eigenes Zertifikat nicht mehr erneuern.
+	// Ausführlich in webserveracme.go und docs/18-webserver.md §3.
+	AcmeWebroot(ctx context.Context, domains []string) (string, error)
 
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error

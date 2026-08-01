@@ -51,6 +51,12 @@ type fakeOps struct {
 	webInstallErr  error
 	webInstallHalt chan struct{}
 	webInstallDone chan struct{}
+	// webroot ist das Verzeichnis, das AcmeWebroot zurückgibt, webrootDomains
+	// zeichnet auf, für welche Namen es angefordert wurde. Beides braucht der
+	// Test, der prüft, dass der Weg nur bei eigenem nginx gelegt wird.
+	webroot        string
+	webrootErr     error
+	webrootDomains [][]string
 
 	selfUpdates   []privops.SelfUpdateSpec
 	selfUpdateErr error
@@ -548,6 +554,14 @@ func (f *fakeOps) WebServerInstall(_ context.Context, stream privops.LineWriter)
 		close(done)
 	}
 	return err
+}
+
+func (f *fakeOps) AcmeWebroot(_ context.Context, domains []string) (string, error) {
+	f.record("webserver:acme-webroot")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.webrootDomains = append(f.webrootDomains, domains)
+	return f.webroot, f.webrootErr
 }
 
 func (f *fakeOps) SelfUpdateStart(_ context.Context, spec privops.SelfUpdateSpec) error {

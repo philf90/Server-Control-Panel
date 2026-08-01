@@ -678,21 +678,29 @@ Themen in §6. Die Aufwände sind für eine Vollzeit-Person geschätzt.
 | Vorbau | Entwurfsmappe, `web/`-Gerüst, Vite-Reproduzierbarkeit, API-Skelett | ~1 Woche | **umgesetzt** |
 | **0.4** | Neue Oberfläche mit Parität, `/api/v1`, Job-Modell, Cron & Timer, API-Tokens | ~6–8 Wochen | **umgesetzt** (0.4.0), alte Fläche abgebaut (0.4.1) |
 | **0.5** | Docker — Stacks, Container, Images, Volumes, Netze, Logs; dazu Ports, Events, Update-Prüfung | ~5–6 Wochen | **umgesetzt** (Schritte 1–7 und 9); die Container-Shell ist zurückgestellt — [17-docker.md](17-docker.md) |
-| **0.6** | Webserver & Domains — nginx, Sites als Domain → Ziel → TLS | ~4–5 Wochen | offen, geplant — [18-webserver.md](18-webserver.md) |
+| **0.6** | Webserver & Domains — nginx, Sites als Domain → Ziel → TLS; dazu Wildcards und sieben DNS-01-Anbieter | ~4–5 Wochen | **umgesetzt** (alle acht Schritte) — [18-webserver.md](18-webserver.md) |
 | **0.7** | Datenbanken — MariaDB/MySQL und PostgreSQL | ~2 Wochen | offen |
 | **0.8** | Backups — restic, Ziele, Zeitpläne, Restore-Test | ~3 Wochen | offen |
 | **1.0** | Externer Review, Befundbehebung, Doku, Screenshots | ~2 Wochen + Wartezeit | offen |
 
-**Summe: gut ein halbes Jahr Vollzeit**, davon 0.4 und 0.5 erledigt —
-verbleibend knapp drei Monate. Nach jeder Stufe ist etwas Auslieferbares da; der Kanal `beta`
+**Summe: gut ein halbes Jahr Vollzeit**, davon 0.4, 0.5 und 0.6 erledigt —
+verbleibend gut zwei Monate. Nach jeder Stufe ist etwas Auslieferbares da; der Kanal `beta`
 trägt die Zwischenstände wie bisher.
 
-Die 0.6 steht mit 4–5 statt der ursprünglichen 3 Wochen, und der Grund ist
+Die 0.6 stand mit 4–5 statt der ursprünglichen 3 Wochen, und der Grund war
 derselbe wie bei 0.5, nur an anderer Stelle: Zwei Halbsätze aus §5 sind im
 Bestand eigene Schritte. Das Panel bindet Port 80 selbst — sobald es nginx
 installiert, kann es sein eigenes Zertifikat nicht mehr über HTTP-01 erneuern —,
-und der Zertifikatshalter kennt genau ein Zertifikat. Beides steht mit
+und der Zertifikatshalter kannte genau ein Zertifikat. Beides steht mit
 Fundstelle und Ausweg in [18-webserver.md](18-webserver.md).
+
+Dazugekommen ist über den Zuschnitt hinaus die **Ausweitung der
+DNS-01-Anbieter** auf sieben samt Wildcard-Zertifikaten. Sie stand nicht im
+Plan; sie kam aus der Frage, wie eine Site ohne erreichbaren Port 80 zu einem
+Zertifikat kommt, und beantwortet sie für die üblichen Anbieter im
+deutschsprachigen Raum. Kosten: keine neue Abhängigkeit, aber ein Vorbehalt, der
+in [18-webserver.md](18-webserver.md) §9a steht — **kein Anbieter ist gegen
+seine echte Schnittstelle geprüft**, alle Vorlagen stammen aus Dokumentation.
 
 Die 0.5 stand mit ~5–6 statt der in §10 geschätzten 3 Wochen, weil ihr Zuschnitt
 erweitert wurde: Ports, Ereignisstrom, Update-Prüfung und eine Container-Shell

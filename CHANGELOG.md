@@ -9,6 +9,46 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.6.0] — 2026-08-01
+
+**Webserver & Domains.** Der Menüpunkt „Webserver" führt nicht mehr auf eine
+Ankündigung, sondern auf ein Modul mit drei Flächen: Sites, Zertifikate je Site
+und Portbelegung. Eine Site ist **Domain → Ziel → TLS** — Felder und keine
+Textdatei; der Weg „Benutzer tippt nginx-Konfiguration" existiert schon und
+heißt Dateimanager.
+
+Damit ist der Satz eingelöst, um dessentwillen es diese Stufe gibt: „Der
+häufigste Handgriff nach dem Aufsetzen eines Dienstes ist ‚mach ihn unter einem
+Namen mit TLS erreichbar'." Jede Site mit TLS bezieht ihr eigenes Zertifikat und
+erneuert es von selbst.
+
+**Verwaltet wird nginx, und nur nginx.** Caddy, Apache, lighttpd und ein Traefik
+im Container werden erkannt, benannt und nicht angefasst — dieselbe Trennung wie
+bei nftables, fremden Crontabs und fremden Compose-Projekten. Der ursprüngliche
+Zuschnitt sah „nginx schreibend, Caddy lesend" vor; auch die lesende Hälfte wäre
+ein Caddyfile-Parser für eine Liste gewesen, mit der man nichts tun darf.
+
+**Drei Linien sichern jede Änderung ab**, und jede fängt etwas anderes: Der
+Prüfer lehnt ab, was nie richtig sein kann. `nginx -t` findet, was der Prüfer
+nicht sehen kann. Und die **Probe mit Rückweg** fängt, was beide nicht sehen
+können — die Wirkung: Ohne Bestätigung binnen 60 Sekunden stellt das Panel den
+vorherigen Stand wieder her.
+
+Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** (acme-dns, Hetzner
+DNS, netcup, IPv64.net, OVH, DigitalOcean, Cloudflare) — ohne eine einzige neue
+Abhängigkeit.
+
+Die Einzelheiten stehen unten je Schritt; die Begründungen in
+[docs/18-webserver.md](docs/18-webserver.md).
+
+> **Vor dem Einsatz zu wissen:** Dieses Modul ist bis zur Freigabe **nicht gegen
+> ein laufendes nginx und nicht gegen eine echte Zertifizierungsstelle**
+> gelaufen. Parser, Erzeuger und Schreibkette sind gegen aufgezeichnete Ausgaben
+> geprüft, nicht gegen ein System. Der erste Lauf gehört auf eine Testmaschine,
+> und der erste Zertifikatsbezug gegen das **Staging**-Verzeichnis von Let's
+> Encrypt: Die Produktion erlaubt fünf Fehlversuche je Konto und Hostname pro
+> Stunde.
+
 ### Geändert
 
 - **Die Probe mit Rückweg ist aus der Firewall herausgelöst**

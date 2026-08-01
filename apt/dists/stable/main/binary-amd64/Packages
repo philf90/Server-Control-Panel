@@ -556,6 +556,24 @@ Description: Schlüsselbund des Project-Asylum-APT-Repositories.
  Enthält den öffentlichen OpenPGP-Schlüssel, mit dem die Release-Dateien
  unter https://repo.cloudsrv24.de/apt signiert sind.
 
+Package: asylum-archive-keyring
+Architecture: all
+Version: 0.6.0
+Priority: optional
+Section: admin
+Maintainer: Project Asylum <noreply@users.noreply.github.com>
+Installed-Size: 0
+Filename: pool/main/a/asylum-archive-keyring/asylum-archive-keyring_0.6.0_linux_all.deb
+Size: 1590
+MD5sum: 728b0924166f1b3505ae0072c034d325
+SHA1: 905cf83be3384b305631ef7ded1b7f685f98e459
+SHA256: f4e1caa85d38d0d04dbb486d6b353a309908a293f6b82d648d195af6aeefa9fb
+SHA512: 6c97b68e6635e9606e0ac8014491a201e7c47cf90a628f261ead62e7f08662b6955035fa7964aeccbda80307025668b16a6b5568529bb22758faae1fbef9951f
+Homepage: https://repo.cloudsrv24.de/
+Description: Schlüsselbund des Project-Asylum-APT-Repositories.
+ Enthält den öffentlichen OpenPGP-Schlüssel, mit dem die Release-Dateien
+ unter https://repo.cloudsrv24.de/apt signiert sind.
+
 Package: asylum-panel
 Architecture: amd64
 Version: 0.1.0~rc.2
@@ -1201,6 +1219,27 @@ MD5sum: 26c3de1e995d0d3319ac663dec321198
 SHA1: aa3528aebf3de10784a52b3a9dc661b2ebf01733
 SHA256: a41dcad33b0c3ba5b7550ee26330a6f50ae0f61c8015477dc1424c778ea94d32
 SHA512: 4b2ad29091493880b67fd371d8aafd68c17ee982683da0700356c3b01213c850e7fafada1ec62c7298c684a6ec198f1d21cd5c555bcf533260f1a67ddf7b9e29
+Homepage: https://repo.cloudsrv24.de/
+Description: Schlankes Control Panel für Linux-Server.
+ Administration, Security, YAML, Logs, Updates, Monitoring — ein Binary,
+ keine Runtime-Abhängigkeiten.
+Architecture-Variant: amd64v1
+
+Package: asylum-panel
+Architecture: amd64
+Version: 0.6.0
+Priority: optional
+Section: admin
+Maintainer: Project Asylum <noreply@users.noreply.github.com>
+Installed-Size: 18989
+Depends: systemd
+Recommends: minisign, asylum-archive-keyring
+Filename: pool/main/a/asylum-panel/asylum-panel_0.6.0_linux_amd64.deb
+Size: 7865862
+MD5sum: 0e030009537fb047a341f417e012cd71
+SHA1: f88ee75fed104443d347fdc995936f46eec24ed7
+SHA256: bc33c56f4745258251eb28ad10c1ad26edc4a475b73128b8e840f6000504ecf1
+SHA512: 9391d6adfb972c05ed47da892772b0bfe414a6cba956d90490eea8c440f8dab1d80efcbd77cdb7cbefc9943b0f43359fbb9d2968fd70a941667c243b58fa4003
 Homepage: https://repo.cloudsrv24.de/
 Description: Schlankes Control Panel für Linux-Server.
  Administration, Security, YAML, Logs, Updates, Monitoring — ein Binary,

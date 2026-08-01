@@ -61,6 +61,23 @@ func (s *System) ConfigCheck(ctx context.Context, pfad string) (ConfigCheckResul
 			Tool:    "nft -c -f",
 			Output:  kurzeAusgabe(res),
 		}, nil
+
+	case "nginx":
+		// Wie sshd -t: nginx prüft die GESAMTE Konfiguration und nicht die eine
+		// Datei. Das ist hier nicht bloß eine Eigenheit des Programms, sondern
+		// die interessantere Frage — eine vHost-Datei kann für sich richtig sein
+		// und trotzdem mit einer anderen kollidieren (zwei default_server, zwei
+		// gleiche server_name).
+		res, err := s.run(ctx, Command{Name: "nginx", Args: []string{"-t"}})
+		if err != nil {
+			return ConfigCheckResult{}, err
+		}
+		return ConfigCheckResult{
+			Checked: true,
+			OK:      res.ExitCode == 0,
+			Tool:    "nginx -t",
+			Output:  kurzeAusgabe(res),
+		}, nil
 	}
 	return ConfigCheckResult{}, nil
 }
@@ -82,6 +99,8 @@ func ConfigCheckTool(pfad string) string {
 		return "sshd -t"
 	case "nftables":
 		return "nft -c -f"
+	case "nginx":
+		return "nginx -t"
 	}
 	return ""
 }
@@ -98,6 +117,15 @@ func konfigArt(pfad string) string {
 	case sauber == "/etc/nftables.conf",
 		strings.HasPrefix(sauber, "/etc/nftables.d/"):
 		return "nftables"
+	// Alle vier Orte, an denen nginx-Konfiguration steht. sites-available ist
+	// mit dabei, obwohl nur sites-enabled gelesen wird: Bearbeitet wird per
+	// Gewohnheit die eine, verlinkt ist die andere, und ein Tippfehler ist in
+	// beiden derselbe.
+	case sauber == "/etc/nginx/nginx.conf",
+		strings.HasPrefix(sauber, "/etc/nginx/conf.d/"),
+		strings.HasPrefix(sauber, "/etc/nginx/sites-available/"),
+		strings.HasPrefix(sauber, "/etc/nginx/sites-enabled/"):
+		return "nginx"
 	}
 	return ""
 }

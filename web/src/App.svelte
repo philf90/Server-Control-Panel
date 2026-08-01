@@ -26,6 +26,7 @@
   import ZeitplaeneSeite from "./seiten/Zeitplaene.svelte";
   import TokensSeite from "./seiten/Tokens.svelte";
   import DockerSeite from "./seiten/Docker.svelte";
+  import WebserverSeite from "./seiten/Webserver.svelte";
   import AuditSeite from "./seiten/Audit.svelte";
   import BaldSeite from "./seiten/Bald.svelte";
   import { AbgemeldetFehler, api } from "./lib/api";
@@ -190,6 +191,13 @@
              Sitzung — „darf schreiben" ist hier die falsche Frage: Ein Container
              mit Zugriff auf das Wirtsdateisystem ist root auf dem Server. -->
         <DockerSeite />
+      {:else if weg.seite === "webserver"}
+        <!-- Webserver: Lesen darf jede Rolle, einspielen nur der Owner —
+             dieselbe Trennung wie bei Docker, und die Seite holt sie aus ihrer
+             eigenen Antwort. Die zweite Schranke des Moduls steht gar nicht in
+             der Rolle: Läuft schon ein Webserver, gibt es keinen Knopf, für
+             niemanden. -->
+        <WebserverSeite />
       {:else if weg.seite === "zertifikate"}
         <ZertifikatSeite darfSchreiben={sitzung?.darf_schreiben ?? false} />
       {:else if weg.seite === "panelupdate"}

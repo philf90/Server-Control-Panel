@@ -444,6 +444,31 @@ async function main() {
     })),
   );
 
+  /** feldstil liest die Gestalt des Suchfeldes der stehenden Seite.
+   *
+   *  Gebraucht wird das für einen Vergleich zwischen Seiten, nicht für eine
+   *  feste Erwartung: Welche Farbe richtig ist, entscheidet das
+   *  Gestaltungssystem und nicht dieser Test. Was er sagen kann, ist, dass
+   *  dieselbe Sache überall gleich aussieht.
+   *
+   *  Der Anlass ist ein Befund aus dem Betrieb: Es gab keine gemeinsame Regel
+   *  für Eingabefelder, jede Seite schrieb sie selbst — und auf „Cron & Timer"
+   *  und „API-Tokens" fehlte sie. Die Felder standen dort als weiße Kästen des
+   *  Browsers in einer dunklen Fläche. Im Markup sah alles richtig aus. */
+  async function feldstil(seite) {
+    return seite.evaluate(() => {
+      const feld = document.querySelector('input[type="search"]');
+      if (!feld) return null;
+      const s = getComputedStyle(feld);
+      return {
+        hintergrund: s.backgroundColor,
+        rahmen: s.borderTopColor + " " + s.borderTopWidth,
+        radius: s.borderTopLeftRadius,
+        farbe: s.color,
+      };
+    });
+  }
+
   const dienste = {};
 
   // Eine Marke am Fenster: Sie überlebt einen Wechsel ohne Neuladen und stirbt
@@ -456,6 +481,7 @@ async function main() {
   await seite.waitForSelector("table.tabelle .zeile", { timeout: 5000 });
   dienste.ohneNeuladen = await seite.evaluate(() => window.__marke === "haelt");
   dienste.pfad = await seite.evaluate(() => location.pathname);
+  dienste.feldstil = await feldstil(seite);
   dienste.navAktiv = await seite.evaluate(
     () => document.querySelector('.seitenleiste a[aria-current="page"] span')?.textContent ?? "",
   );
@@ -1077,7 +1103,19 @@ async function main() {
   await seite.waitForSelector("table.tabelle tbody tr", { timeout: 5000 });
   await seite.fill(".suche input", "gesucht");
   await seite.press(".suche input", "Enter");
-  await seite.waitForSelector(".band.info", { timeout: 5000 });
+  // Auf das ERGEBNIS warten und nicht auf das Band: Das Band erscheint, sobald
+  // ein Suchbegriff gesetzt ist — also eine Runde bevor die Antwort da ist —,
+  // und zeigt in dieser Runde die Zahl der noch stehenden Verzeichnisliste. Wer
+  // nur auf das Band wartet, misst mit etwas Pech die alte Liste; genau
+  // deshalb war dieser Abschnitt sporadisch rot. Dieselbe Lehre wie beim
+  // Beenden der Suche ein paar Zeilen weiter unten.
+  await seite.waitForFunction(
+    () => {
+      const zeilen = [...document.querySelectorAll("table.tabelle .zeile")];
+      return zeilen.length === 1 && zeilen[0].textContent.includes("gesucht.conf");
+    },
+    { timeout: 5000 },
+  );
   dateien.suche = await seite.evaluate(() => ({
     band: document.querySelector(".band.info")?.textContent.replace(/\s+/g, " ").trim() ?? "",
     reihen: [...document.querySelectorAll("table.tabelle .zeile")].map((b) =>
@@ -2265,10 +2303,11 @@ async function main() {
     token: document.querySelector("#zert-token") !== null,
   }));
 
-  // Cloudflare: Tokenfeld, und es ist ein Passwortfeld.
+  // Cloudflare: EIN Geheimnis, also ein einzeiliges Passwortfeld.
   await seite.selectOption("#zert-anbieter", "cloudflare");
   await seite.waitForSelector("#zert-token", { timeout: 5000 });
   zert.cloudflare = await seite.evaluate(() => ({
+    marke: document.querySelector("#zert-token")?.tagName ?? "",
     token: document.querySelector("#zert-token")?.getAttribute("type") ?? "",
     hook: document.querySelector("#zert-hook-setzen") !== null,
     warum: [...document.querySelectorAll(".detail")].some((p) =>
@@ -2277,6 +2316,39 @@ async function main() {
   }));
 
   await bildschirmfoto(seite, "leitstand-zertifikat", { fullPage: true });
+
+  // Und ein Anbieter mit MEHREREN Feldern: OVH will vier Zeilen. Ein
+  // einzeiliges Feld wäre hier auf eine Weise falsch, die erst der Server beim
+  // Speichern bemerkt — und dann mit einer Meldung über ein Feld, das gar nicht
+  // dasteht. Geprüft wird deshalb, dass die Fläche selbst umschaltet.
+  await seite.selectOption("#zert-anbieter", "ovh");
+  await seite.waitForSelector("#zert-token", { timeout: 5000 });
+  zert.mehrzeilig = await seite.evaluate(() => {
+    const feld = document.querySelector("#zert-token");
+    return {
+      marke: feld?.tagName ?? "",
+      // Die Vorlage steht schon drin: Die Namen der Zeilen muss niemand aus
+      // dem erklärenden Satz abschreiben.
+      vorlage: feld?.value ?? "",
+      zeilen: Number(feld?.getAttribute("rows") ?? 0),
+      // Der erklärende Satz nennt die erwarteten Zeilen — er kommt aus dem
+      // Register des Servers und nicht aus einer zweiten Liste im Browser.
+      felderSatz: [...document.querySelectorAll(".detail")].some((p) =>
+        p.textContent.includes("consumer_key"),
+      ),
+    };
+  });
+
+  await bildschirmfoto(seite, "leitstand-zertifikat-zugang", { fullPage: true });
+
+  // Zurück auf einen einzeiligen Anbieter: Die OVH-Vorlage darf nicht
+  // stehenbleiben, sonst ginge sie beim Speichern als Hetzner-Token mit.
+  await seite.selectOption("#zert-anbieter", "hetzner");
+  await seite.waitForSelector("#zert-token", { timeout: 5000 });
+  zert.zurueckEinzeilig = await seite.evaluate(() => {
+    const feld = document.querySelector("#zert-token");
+    return { marke: feld?.tagName ?? "", wert: feld?.value ?? "" };
+  });
 
   // Jetzt gültig ausfüllen und speichern — HTTP-01, damit kein Anbieter nötig
   // ist. Der Weg dorthin führt ABSICHTLICH über die Cloudflare-Wahl von oben:
@@ -2628,6 +2700,7 @@ async function main() {
   // Nur die ERSTE Tabelle: Die Timer-Tabelle weiter unten trägt dieselben
   // Klassen, und ohne die Einschränkung stünden ihre Zeilen als Cron-Einträge in
   // der Auswertung — eine Zahl, die stimmt, und eine Bedeutung, die nicht stimmt.
+  plaene.feldstil = await feldstil(seite);
   plaene.zeilen = await seite.evaluate(() =>
     [...document.querySelectorAll("table.tabelle")[0].querySelectorAll("tbody tr")]
       .filter((tr) => tr.querySelector(".zeile"))
@@ -2784,10 +2857,12 @@ async function main() {
   //     auf der Übersicht — ein Klick, der woanders herauskommt, sieht wie ein
   //     Fehler aus. Geprüft wird, dass die Seite sagt, worum es geht.
   //
-  //     Geprüft wird das am Webserver: Docker ist mit dem ersten Schritt der 0.5
-  //     ein gebautes Modul und hat eine eigene Seite (Abschnitt 14).
+  //     Geprüft wird das an den Datenbanken. Vorher stand hier der Webserver,
+  //     davor Docker — beide sind inzwischen gebaut, und ein Test, der an einem
+  //     gebauten Modul prüft, ob die Vertröstung steht, prüft nichts mehr. Wer
+  //     0.7 baut, zieht diese Zeile auf die Backups weiter.
   const bald = {};
-  await seite.click('.seitenleiste a[href="/webserver"]');
+  await seite.click('.seitenleiste a[href="/datenbanken"]');
   await seite.waitForSelector(".platte .satz", { timeout: 5000 });
   bald.pfad = new URL(seite.url()).pathname;
   bald.titel = await seite.evaluate(
@@ -3392,6 +3467,224 @@ async function main() {
   await seite.setViewportSize({ width: 1280, height: 720 });
   await seite.waitForTimeout(200);
 
+  // 15. Das Modul Webserver, Schritte 1 bis 4 der Fassung 0.6.
+  //
+  //     Die Attrappe meldet eine Lage, die zwei Dinge auf einmal prüft: nginx
+  //     läuft und liefert drei Serverblöcke aus — UND daneben hält ein Caddy die
+  //     443 auf IPv6. Das ist absichtlich nicht der bequeme Fall; die Lehre aus
+  //     0.5.1 lautet, dass ein Zustand, den die Testdaten nie annehmen, ein
+  //     ungeprüfter Zustand ist.
+  //
+  //     Geprüft wird die Zusage, die dieses Modul im Browser einlösen muss:
+  //     KEIN Installationsknopf, an seiner Stelle ein Satz, der den fremden
+  //     Server nennt — und eine Sitesliste, die verwaltet von fremd trennt.
+  const web = {};
+  await seite.click('.seitenleiste a[href="/webserver"]');
+  await seite.waitForSelector(".karten .karte", { timeout: 5000 });
+  web.pfad = new URL(seite.url()).pathname;
+  web.zustand = await seite.evaluate(() => {
+    const karten = [...document.querySelectorAll(".karten .karte")].map((k) => ({
+      kopf: k.querySelector(".kopf")?.textContent.trim() ?? "",
+      wert: k.querySelector(".wert")?.textContent.trim() ?? "",
+    }));
+    return {
+      karten,
+      anmerkung: document.querySelector(".hinweis")?.textContent.trim() ?? "",
+      // Knöpfe, die etwas AUSLÖSEN. Verweise (<a class="knopf">) zählen nicht
+      // mit: Der Weg zum Dateimanager ist genau das, was hier stehen soll.
+      knoepfe: [...document.querySelectorAll(".aktionen button")].map((b) =>
+        b.textContent.trim(),
+      ),
+      verweise: [...document.querySelectorAll(".aktionen a")].map((a) =>
+        a.getAttribute("href"),
+      ),
+      // Der Menüpunkt darf nicht mehr auf die Seite „bald" führen.
+      baldPlatte: !!document.querySelector(".platte .satz"),
+      // Die Flächen des Moduls, so wie die Seitenleiste sie zeigt. Sie kommen
+      // aus lib/ziele.ts — steht hier nichts, ist die Navigation zerrissen.
+      kinderInLeiste: [...document.querySelectorAll(".seitenleiste .kinder a")].map((a) =>
+        a.getAttribute("href"),
+      ),
+    };
+  });
+
+  //     Die Sitesliste ist die Vorgabe des Moduls und steht deshalb schon da.
+  //     Gelesen wird sie mit denselben Spaltenköpfen, mit denen sie gerendert
+  //     ist: data-spalte trägt schmal die Beschriftung, und eine Zelle ohne ihn
+  //     ist auf einem Telefon eine Zahl ohne Bedeutung.
+  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
+  web.sites = await seite.evaluate(() => ({
+    zeilen: [...document.querySelectorAll(".tabelle tbody tr")].map((tr) =>
+      [...tr.querySelectorAll("td")].map((td) => ({
+        text: td.textContent.trim(),
+        spalte: td.getAttribute("data-spalte") ?? "",
+      })),
+    ),
+    zaehler: document.querySelector(".zaehler")?.textContent.trim() ?? "",
+  }));
+  await bildschirmfoto(seite, "leitstand-webserver", { fullPage: true });
+
+  //     Der Schreibpfad. Geprüft wird die Kette, die kein Go-Test abdeckt:
+  //     Formular ausfüllen → Rückfrage erscheint → bestätigen → das Probeband
+  //     steht mit laufender Uhr da. Und danach der Fall, der die Fläche
+  //     rechtfertigt: Ein Verzeichnis außerhalb der üblichen Wurzeln verlangt
+  //     den getippten Domainnamen, und der Knopf bleibt bis dahin gesperrt.
+  await seite.click('button:has-text("Site anlegen")');
+  await seite.waitForSelector(".form", { timeout: 5000 });
+
+  //     Die Zielvorschläge aus dem Bestand — die Zugabe aus Stufe 0.5. Geprüft
+  //     wird vor allem der unbequeme Satz: Ein Container auf 0.0.0.0 ist schon
+  //     jetzt aus dem Netz erreichbar, und ein Proxy davor ändert das nicht.
+  await seite.waitForSelector(".vorschlaege li", { timeout: 5000 });
+  web.ziele = await seite.evaluate(() => ({
+    zeilen: [...document.querySelectorAll(".vorschlaege li")].map((li) => ({
+      text: li.textContent.replace(/\s+/g, " ").trim(),
+      warnung: li.querySelector(".warn")?.textContent.trim() ?? "",
+    })),
+    anmerkung: [...document.querySelectorAll(".vorschlaege small")]
+      .map((s) => s.textContent.trim())
+      .join(" "),
+  }));
+  //     Übernehmen füllt das Zielfeld — niemand tippt eine Portnummer ab.
+  await seite.click(".vorschlaege li button");
+  await seite.waitForTimeout(150);
+  web.nachUebernehmen = await seite.evaluate(
+    () => document.querySelectorAll('.form input[type="text"]')[1]?.value ?? "",
+  );
+  await bildschirmfoto(seite, "leitstand-webserver-formular", { fullPage: true });
+
+  const formular = async (name, art, ziel) => {
+    await seite.fill('.form input[type="text"] >> nth=0', name);
+    await seite.fill(".form textarea", "neu.example.com");
+    await seite.selectOption(".form select", art);
+    await seite.fill('.form input[type="text"] >> nth=1', ziel);
+  };
+
+  await formular("neu", "statisch", "/opt/aussen");
+  await seite.click('.form button:has-text("speichern")');
+  await seite.waitForSelector("dialog.rueckfrage", { timeout: 5000 });
+  web.stufeDrei = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    const feld = d?.querySelector('input[type="text"]');
+    const knopf = [...(d?.querySelectorAll("button") ?? [])].at(-1);
+    return {
+      tippfeld: !!feld,
+      hinweis: d?.querySelector("label")?.textContent.trim() ?? "",
+      // Die Begründung, warum hier getippt werden muss, gehört an die erste
+      // Stelle der Aufzählung — unter drei anderen Zeilen liest sie niemand.
+      ersterPunkt: d?.querySelector("li")?.textContent.trim() ?? "",
+      gesperrt: knopf?.disabled ?? false,
+    };
+  });
+  await bildschirmfoto(seite, "leitstand-webserver-stufe3");
+  await seite.keyboard.press("Escape");
+  await seite.waitForTimeout(200);
+
+  //     Jetzt der gerade Fall: ein Reverse-Proxy, Stufe 2 ohne getipptes Wort.
+  await formular("neu", "proxy", "http://127.0.0.1:3000");
+  await seite.click('.form button:has-text("speichern")');
+  await seite.waitForSelector("dialog.rueckfrage", { timeout: 5000 });
+  web.stufeZwei = await seite.evaluate(() => {
+    const d = document.querySelector("dialog.rueckfrage");
+    return {
+      tippfeld: !!d?.querySelector('input[type="text"]'),
+      punkte: [...(d?.querySelectorAll("li") ?? [])].map((li) => li.textContent.trim()),
+    };
+  });
+  await seite.click('dialog.rueckfrage button:has-text("speichern")');
+
+  //     Das Probeband. Es ist die einzige Stelle dieser Fläche, an der
+  //     Untätigkeit etwas rückgängig macht — es muss ganz oben stehen und eine
+  //     laufende Uhr tragen.
+  await seite.waitForSelector(".probe", { timeout: 5000 });
+  web.probe = await seite.evaluate(() => {
+    const p = document.querySelector(".probe");
+    const tabelle = document.querySelector("table.tabelle");
+    return {
+      da: !!p,
+      ersteZahl: Number(p?.querySelector(".uhr")?.textContent.trim() ?? "0"),
+      text: p?.querySelector("b")?.textContent.trim() ?? "",
+      knopf: p?.querySelector("button")?.textContent.trim() ?? "",
+      // Über der Liste und nicht darunter: Wer hereinkommt, während die Frist
+      // läuft, muss zuerst den Knopf sehen, der sie beendet. Verglichen wird
+      // die Lage auf dem Bildschirm und nicht die im Baum — sichtbar ist, was
+      // zählt.
+      vorDerTabelle:
+        !!p &&
+        !!tabelle &&
+        p.getBoundingClientRect().top < tabelle.getBoundingClientRect().top,
+    };
+  });
+  await bildschirmfoto(seite, "leitstand-webserver-probe", { fullPage: true });
+
+  //     Und das Bestätigen beendet sie.
+  await seite.click('.probe button:has-text("bestätigen")');
+  await seite.waitForTimeout(400);
+  web.nachBestaetigen = await seite.evaluate(() => ({
+    probe: !!document.querySelector(".probe"),
+    meldung: document.querySelector('[role="status"]')?.textContent.trim() ?? "",
+  }));
+
+  //     Die Fläche „Zertifikate je Site" — der Satz aus docs/16 §2, eingelöst.
+  //     Geprüft wird die dritte Frage, wegen der es sie gibt: Wenn kein
+  //     Zertifikat da ist, muss der GRUND dastehen. Die Attrappe hat kein ACME
+  //     fürs Panel, also gilt hier genau der Fall „ohne Konto kein Bezug".
+  await seite.click('.seitenleiste .kinder a[href="/webserver/zertifikate"]');
+  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
+  web.zerts = await seite.evaluate(() => ({
+    pfad: location.pathname,
+    zeilen: [...document.querySelectorAll(".tabelle tbody tr")].map((tr) => ({
+      site: tr.querySelector("td")?.textContent.trim() ?? "",
+      satz: tr.querySelector(".satz")?.textContent.trim() ?? "",
+    })),
+    anmerkung: [...document.querySelectorAll(".hinweis")]
+      .map((p) => p.textContent.trim())
+      .join(" "),
+    // Ohne ACME fürs Panel: kein Bezugsknopf, sondern der Weg dorthin, wo es
+    // einzuschalten ist.
+    knoepfe: [...document.querySelectorAll(".tabelle button")].length,
+    // Der Verweis ALS KNOPF, nicht der Menüpunkt in der Seitenleiste: Der steht
+    // immer da und wäre hier eine Zählung, die nie null wird.
+    weg: [...document.querySelectorAll('a.knopf[href="/zertifikate"]')].length,
+  }));
+  await bildschirmfoto(seite, "leitstand-webserver-zertifikate", { fullPage: true });
+
+  //     Die zweite Fläche: die Portbelegung. Sie hat eine eigene Adresse, und
+  //     der Wechsel darf die Seite nicht neu laden — sonst wäre der Unterschied
+  //     zwischen einer Fläche und einem Verweis nach draußen keiner.
+  await seite.click('.seitenleiste .kinder a[href="/webserver/ports"]');
+  await seite.waitForSelector(".tabelle tbody tr", { timeout: 5000 });
+  web.ports = await seite.evaluate(() => ({
+    pfad: location.pathname,
+    zeilen: [...document.querySelectorAll(".tabelle tbody tr")].map((tr) =>
+      [...tr.querySelectorAll("td")].map((td) => td.textContent.trim()),
+    ),
+  }));
+  await bildschirmfoto(seite, "leitstand-webserver-ports", { fullPage: true });
+
+  //     Zurück auf die Sites — der Zurück-Knopf des Browsers ist Teil der
+  //     Bedienung und nicht ein Fall, der nebenbei auch noch funktionieren soll.
+  await seite.goBack();
+  await seite.waitForTimeout(300);
+  web.zurueck = await seite.evaluate(() => location.pathname);
+
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  web.schmal = await seite.evaluate(() => {
+    const streifen = document.querySelector(".streifen");
+    return {
+      koerperBreite: document.body.scrollWidth,
+      fensterBreite: window.innerWidth,
+      streifenDa: !!streifen && streifen.getBoundingClientRect().width > 0,
+      streifenPunkte: streifen
+        ? [...streifen.querySelectorAll("a")].map((a) => a.textContent.trim())
+        : [],
+    };
+  });
+  await bildschirmfoto(seite, "leitstand-webserver-schmal");
+  await seite.setViewportSize({ width: 1280, height: 720 });
+  await seite.waitForTimeout(200);
+
   await browser.close();
 
   console.log(
@@ -3423,6 +3716,7 @@ async function main() {
       fremdeRolle,
       bald,
       dock,
+      web,
       zweige,
       schmal,
       strich,

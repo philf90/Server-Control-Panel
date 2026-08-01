@@ -157,6 +157,55 @@ type Executor interface {
 	// überhaupt geprüft werden darf, ist keine Frage der Kommandozeile.
 	DockerUpdatePruefen(ctx context.Context, ref string) (Updatestand, error)
 
+	// Webserver.
+	//
+	// Verwaltet wird nginx, und nur nginx. Jeder andere Webserver wird erkannt
+	// und nicht angefasst — die Begründung steht in docs/18-webserver.md E1 und
+	// im Kopf von webserver.go.
+	//
+	// WebServerState liefert deshalb nicht nur „ist nginx da", sondern vor allem
+	// WER PORT 80 UND 443 HÄLT. Daran hängt die einzige Aktion dieses Moduls,
+	// die einen laufenden Server umbringen kann: Ein apt-Lauf für nginx startet
+	// nginx, nginx bindet 80, und was dort lief, ist weg.
+	WebServerState(ctx context.Context) (WebServerState, error)
+	WebServerInstall(ctx context.Context, stream LineWriter) error
+	// SiteList liest die Serverblöcke aus der GERENDERTEN Konfiguration
+	// (`nginx -T`), nicht aus den Dateien. `include` ist bei nginx die Regel;
+	// wer die Dateien selbst zusammensucht, baut den Auflöser nach.
+	//
+	// SiteBestand.Gelesen trennt „keine Sites" von „nicht nachsehen können" —
+	// nginx -T läuft nur bei gültiger Konfiguration.
+	SiteList(ctx context.Context) (SiteBestand, error)
+	// SiteDatei liefert den Inhalt einer VERWALTETEN Site. Nimmt einen Namen und
+	// keinen Pfad — derselbe Vertrag wie bei StackDatei.
+	SiteDatei(ctx context.Context, name string) (string, error)
+	// SiteApply schreibt eine Site: prüfen, schreiben, `nginx -t`, bei Fehler
+	// zurücknehmen, neu laden. Die Frist der Probe hält der Aufrufer; was er
+	// dafür braucht, steht in SiteErgebnis.Ruecknahme.
+	//
+	// fassung ist der Hash der Datei, die der Aufrufer gelesen hat. Stimmt er
+	// nicht mehr, wird nicht geschrieben (ErrSiteFassung). Leer heißt „neu".
+	SiteApply(ctx context.Context, e SiteEntwurf, lage SiteLage, fassung string) (SiteErgebnis, error)
+	// SiteSchalten schaltet eine Site an oder ab (Umbenennen der Endung).
+	SiteSchalten(ctx context.Context, name string, an bool) (SiteRuecknahme, error)
+	// SiteRemove löscht eine Site samt ihrer abgeschalteten Fassung.
+	SiteRemove(ctx context.Context, name string) (SiteRuecknahme, error)
+	// SiteRestore nimmt eine Änderung zurück — der Rückweg der Probe.
+	SiteRestore(ctx context.Context, r SiteRuecknahme) error
+	// PHPSockets nennt die vorhandenen FPM-Sockets. Über das Interface und nicht
+	// als Paketfunktion: Sie liest das Dateisystem, und jede Systemlesung gehört
+	// hinter dieselbe Grenze — sonst hängt ein Test daran, was auf der Maschine
+	// installiert ist, die ihn ausführt.
+	PHPSockets(ctx context.Context) []string
+	// AcmeWebroot legt den Weg für die HTTP-01-Prüfung DURCH nginx hindurch und
+	// gibt das Verzeichnis zurück, in das die Token gehören.
+	//
+	// Er behebt einen Fehler, den die Installation erst erzeugt: Das Panel
+	// bindet für HTTP-01 selbst Port 80 — sobald nginx läuft, gehört der Port
+	// nginx, und das Panel kann sein eigenes Zertifikat nicht mehr erneuern.
+	// Ausführlich in webserveracme.go und docs/18-webserver.md §3.
+	AcmeWebroot(ctx context.Context, domains []string) (string, error)
+
 	// Selbstupdate
 	SelfUpdateStart(ctx context.Context, spec SelfUpdateSpec) error
 }

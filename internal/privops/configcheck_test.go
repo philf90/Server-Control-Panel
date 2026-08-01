@@ -18,8 +18,16 @@ func TestKonfigArt(t *testing.T) {
 		"/etc/ssh/ssh_config":                  "",
 		"/home/max/sshd_config":                "",
 		"/etc/ssh/../ssh/sshd_config":          "sshd",
-		"/etc/nginx/nginx.conf":                "",
-		"/srv/kopie/etc/ssh/sshd_config":       "",
+		// nginx kam mit Stufe 0.6 dazu. Bis dahin stand hier "" — und das war
+		// richtig: Ein Prüfprogramm einzutragen, das niemand aufruft, wäre eine
+		// Zusage ohne Einlösung gewesen.
+		"/etc/nginx/nginx.conf":              "nginx",
+		"/etc/nginx/conf.d/asylum-acme.conf": "nginx",
+		"/etc/nginx/sites-enabled/default":   "nginx",
+		// Aber nichts daneben: Ein Verzeichnis, das nur so ähnlich heißt, ist
+		// keine nginx-Konfiguration.
+		"/etc/nginx-fremd/datei.conf":    "",
+		"/srv/kopie/etc/ssh/sshd_config": "",
 	}
 	for pfad, erwartet := range faelle {
 		if got := konfigArt(pfad); got != erwartet {

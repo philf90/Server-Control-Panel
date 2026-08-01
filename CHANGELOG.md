@@ -9,6 +9,494 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.6.0] — 2026-08-01
+
+**Webserver & Domains.** Der Menüpunkt „Webserver" führt nicht mehr auf eine
+Ankündigung, sondern auf ein Modul mit drei Flächen: Sites, Zertifikate je Site
+und Portbelegung. Eine Site ist **Domain → Ziel → TLS** — Felder und keine
+Textdatei; der Weg „Benutzer tippt nginx-Konfiguration" existiert schon und
+heißt Dateimanager.
+
+Damit ist der Satz eingelöst, um dessentwillen es diese Stufe gibt: „Der
+häufigste Handgriff nach dem Aufsetzen eines Dienstes ist ‚mach ihn unter einem
+Namen mit TLS erreichbar'." Jede Site mit TLS bezieht ihr eigenes Zertifikat und
+erneuert es von selbst.
+
+**Verwaltet wird nginx, und nur nginx.** Caddy, Apache, lighttpd und ein Traefik
+im Container werden erkannt, benannt und nicht angefasst — dieselbe Trennung wie
+bei nftables, fremden Crontabs und fremden Compose-Projekten. Der ursprüngliche
+Zuschnitt sah „nginx schreibend, Caddy lesend" vor; auch die lesende Hälfte wäre
+ein Caddyfile-Parser für eine Liste gewesen, mit der man nichts tun darf.
+
+**Drei Linien sichern jede Änderung ab**, und jede fängt etwas anderes: Der
+Prüfer lehnt ab, was nie richtig sein kann. `nginx -t` findet, was der Prüfer
+nicht sehen kann. Und die **Probe mit Rückweg** fängt, was beide nicht sehen
+können — die Wirkung: Ohne Bestätigung binnen 60 Sekunden stellt das Panel den
+vorherigen Stand wieder her.
+
+Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** (acme-dns, Hetzner
+DNS, netcup, IPv64.net, OVH, DigitalOcean, Cloudflare) — ohne eine einzige neue
+Abhängigkeit.
+
+Die Einzelheiten stehen unten je Schritt; die Begründungen in
+[docs/18-webserver.md](docs/18-webserver.md).
+
+> **Vor dem Einsatz zu wissen:** Dieses Modul ist bis zur Freigabe **nicht gegen
+> ein laufendes nginx und nicht gegen eine echte Zertifizierungsstelle**
+> gelaufen. Parser, Erzeuger und Schreibkette sind gegen aufgezeichnete Ausgaben
+> geprüft, nicht gegen ein System. Der erste Lauf gehört auf eine Testmaschine,
+> und der erste Zertifikatsbezug gegen das **Staging**-Verzeichnis von Let's
+> Encrypt: Die Produktion erlaubt fünf Fehlversuche je Konto und Hostname pro
+> Stunde.
+
+### Geändert
+
+- **Die Probe mit Rückweg ist aus der Firewall herausgelöst**
+  (`internal/httpd/probe.go`, `probenWaechter`) und trägt jetzt zwei Bereiche.
+  Reine Umbenennung und Verschiebung — die Methoden sind gegenüber der
+  bisherigen Fassung zeichengleich. Ein Wächter je Bereich und nicht einer für
+  alles: Zwei Bereiche, die sich eine Frist teilen, hießen, dass eine
+  bestätigte Firewalländerung eine unbestätigte Site mitbestätigt.
+
+### Hinzugefügt
+
+- **Modul Webserver, Schritt 1 von 8** (Stufe 0.6, Plan in
+  [docs/18-webserver.md](docs/18-webserver.md)). Der Menüpunkt „Webserver"
+  führt nicht mehr auf die Ankündigung, sondern auf eine Fläche mit dem
+  Zustand: welcher Webserver läuft, in welcher Fassung, ob sein Dienst aktiv
+  ist — und **wer die Ports 80 und 443 hält**.
+
+  Verwaltet wird **nginx, und nur nginx**. Caddy, Apache, lighttpd und ein
+  Traefik im Container werden erkannt, benannt und nicht angefasst; ihre
+  Konfiguration bleibt über die Dateien erreichbar. Der Plan sah zunächst
+  „nginx schreibend, Caddy lesend" vor — auch die lesende Hälfte wäre ein
+  Caddyfile-Parser für eine Liste gewesen, mit der man nichts tun darf.
+
+  Die Portabfrage ist keine Zugabe, sondern der Grund für die Reihenfolge:
+  `apt-get install nginx` startet nginx, nginx bindet Port 80, und ein
+  Webserver, der dort lief, ist weg. Das ist die einzige Aktion dieses Moduls,
+  die einen Server im Betrieb umbringen kann. Der Installationsknopf steht
+  deshalb nur bei nachweislich freiem Port, und der Server prüft es beim Klick
+  noch einmal — zwischen dem Laden der Seite und dem Klick liegt beliebig viel
+  Zeit.
+
+  Gefragt wird nach dem **Port** und nicht nach einem Paketnamen. Eine Liste
+  bekannter Konkurrenten wäre immer unvollständig: Sie hätte Caddy gekannt und
+  den Apache übersehen, und ein Traefik im Container heißt auf dem Wirt
+  „docker-proxy" und in keiner Paketliste irgendwas.
+
+  „Nicht ermittelt" ist dabei ein eigener Zustand und **kein „frei"**. Ließ
+  sich die Belegung nicht lesen, sagt die Fläche das und bietet nichts an —
+  dieselbe Haltung, mit der das Panel eine ungeprüfte Konfiguration nicht als
+  in Ordnung meldet.
+
+  Neu in `privops`: `WebServerState` und `WebServerInstall`, dazu die
+  Allowlist-Einträge `nginx` und `ss`. Neu in der API: `GET /api/v1/webserver`
+  und `POST /api/v1/webserver/install` (Owner-Rolle), Audit unter
+  `webserver.install`, Tokenfamilie `webserver`.
+
+- **DNS-01 bekommt ein Anbieterregister — und acme-dns als ersten neuen
+  Anbieter.** Bis 0.5 war die Anbieterwahl ein `switch` mit zwei Fällen; mit
+  sieben wird daraus ein Register. Ein Anbieter besteht jetzt aus drei Angaben:
+  Name, was seine Zugangsdatei enthalten muss, und wie er daraus einen Setzer
+  baut. **Das Auswahlfeld auf der Zertifikatsseite entsteht daraus** — ein
+  neuer Anbieter erscheint dort ohne weiteres Zutun, statt an zwei Stellen
+  eingetragen werden zu müssen, von denen eine irgendwann fehlt.
+
+  **Ein Konfigurationsfeld für alle:** `acme.dns01.credentials_file`. Sieben
+  Anbieter hätten sonst sieben Blöcke mit zusammen zwanzig Feldern, davon die
+  Hälfte Geheimnisse — und `config.yaml` liegt in /etc, wird gesichert und in
+  Fehlerberichte kopiert. Das Format der Datei ist anspruchslos
+  (`schlüssel = wert` je Zeile); Anbieter mit genau einem Geheimnis nehmen auch
+  eine Datei, die nur den Token enthält.
+
+  **`acme-dns`** ist der erste neue Anbieter und der einzige, der jeden
+  DNS-Anbieter abdeckt: `_acme-challenge` wird per CNAME einmal von Hand an
+  eine acme-dns-Instanz delegiert, und das Panel hält danach Zugangsdaten für
+  **diese eine Wegwerf-Subdomain** — keine für die eigentliche Zone. Jeder
+  andere Anbieter verlangt einen Token, mit dem sich Mail umleiten und
+  Zertifikate für jeden Namen der Zone ausstellen lassen. Auf einem Panel, das
+  als root läuft und aus dem Netz erreichbar ist, ist das der Unterschied
+  zwischen einem Einbruch und einem Einbruch samt Domain.
+
+  **Verhaltensänderung:** Eine **für alle lesbare** Zugangsdatei wird jetzt
+  abgelehnt, mit dem Handgriff in der Meldung (`chmod 600 …`). Für die Gruppe
+  lesbar bleibt zulässig und wird nur angemerkt — eine Gruppe für die Betreiber
+  ist eine übliche und bewusste Einrichtung. Die Dokumentation nannte 0600 seit
+  jeher.
+
+  Der Weg von 0.5 läuft unverändert weiter: `acme.dns01.cloudflare.api_token_file`
+  wird weiter gelesen und dient als Rückfall. Ein Test hält das fest — ein
+  Panel, das nach einem Update stillschweigend keine Zertifikate mehr erneuert,
+  merkt niemand, bis sechzig Tage später der Browser warnt.
+
+- **Drei weitere DNS-01-Anbieter: IPv64.net, Hetzner DNS, DigitalOcean.**
+
+  Bei **IPv64** steckt die Arbeit an zwei Stellen, die man von außen nicht
+  sieht. Die erste ist die Zone: Die vorhandenen Umsetzungen raten sie aus der
+  Labelanzahl, und deshalb funktioniert lego bei IPv64-Subdomains
+  (`meins.ipv64.net`, drei Labels) und scheitert bei eigenen Domains
+  (`example.com`, zwei) — der Befund aus Zoraxy #351. Das certbot-Plugin macht
+  den Fehler andersherum und nähme aus `meins.ipv64.net` die Zone `ipv64.net`,
+  die dem Konto nicht gehört. Hier wird nicht geraten: `get_domains` liefert
+  die Zonen des Kontos, und gesucht wird die längste passende.
+
+  Die zweite ist die Ratengrenze — 64 Anfragen je 24 Stunden in der
+  Standardklasse, höchstens 5 in 10 Sekunden. Die Domainliste wird deshalb
+  zwischengespeichert, zwischen den Aufrufen liegt ein Mindestabstand, und es
+  gibt ein **eigenes Tagesbudget**. Letzteres verhindert einen Fall, der sonst
+  sicher eingetreten wäre: Das Panel wiederholt einen gescheiterten Bezug
+  stündlich, ein Bezug kostet fünf bis sechs Anfragen — ein falsch
+  eingerichtetes Konto wäre nach einem halben Tag für einen ganzen gesperrt,
+  und danach ist auch der richtig eingerichtete Zustand nicht mehr erreichbar.
+
+  **Hetzner DNS** und **DigitalOcean** sind gewöhnliche REST-APIs. Auch hier
+  wird die Zone abgefragt statt geraten. Zwei Kleinigkeiten, die beide
+  betreffen und die man je einmal falsch macht: Der Recordname geht **relativ
+  zur Zone** hinaus (`_acme-challenge`, nicht `_acme-challenge.example.com` —
+  sonst entsteht klaglos ein Record namens
+  `_acme-challenge.example.com.example.com`, den die Prüfung nie findet), und
+  gelöscht wird nach Name **und Wert**, weil bei einem Wildcard-Zertifikat zwei
+  TXT-Records unter demselben Namen stehen und der zweite noch zur laufenden
+  Prüfung gehört. Bei DigitalOcean kommt dazu, dass die Domainliste seitenweise
+  ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
+  da ist.
+
+- **Modul Webserver, Schritt 8 von 8: Härtung und Angriffsdurchgang.** Der
+  Prüfer wurde angegriffen, statt nur geprüft. **Fünf Lücken kamen durch**, zwei
+  davon über ein Formularfeld erreichbar; alle sind behoben, und jeder Test dazu
+  war zuerst rot.
+
+  **`127.1` erreichte das Panel** — der teuerste der fünf. Go liest die Kurzform
+  nicht als IP-Adresse, und nginx tut es auch nicht: Es hält sie für einen Namen
+  und lässt sie auflösen, und `getaddrinfo("127.1")` ergibt `127.0.0.1`. Damit
+  stand ein Reverse-Proxy vor dem Panel, ohne dass die Prüfung es sah — und ein
+  Proxy davor umgeht dessen Herkunftsprüfung. Dieselbe Familie: `127.0.1`,
+  `2130706433`, `0x7f000001`, `017700000001`. Die neue Regel baut den Auflöser
+  nicht nach: Ein Wirtsname ist entweder eine gültige IP-Adresse oder ein Name
+  mit mindestens einem Buchstaben; was nur aus Ziffern und Punkten besteht,
+  zählt als Treffer. Dass `api.example.com` und `192.168.1.5` weiter zulässig
+  sind, steht als eigener Test daneben.
+
+  **Ein Symlink umging die Sperrliste vollständig.** `ln -s /etc /var/www/x`,
+  dann `root /var/www/x`: Der Prüfer sah `/var/www/x`, nginx las `/etc`. Der Pfad
+  wird jetzt aufgelöst, soweit er existiert. Was das nicht löst, steht in der
+  Doku: Wer den Symlink erst nach der Prüfung legt, kommt durch — dagegen hälfe
+  nur `disable_symlinks`, und das bräche jede Anwendung, die ihre Releases
+  symbolisch verlinkt.
+
+  **Die Pfadprüfung war eine Sperrliste aus sieben Zeichen** — NUL, Tabulator,
+  Leerzeichen und die übrigen Steuerzeichen kamen durch, und jedes Feld hatte
+  seine eigene Liste. Jetzt läuft jeder Wert, der in eine nginx-Anweisung
+  geschrieben wird, durch dieselbe Prüfung; dazu abgewiesen werden die
+  Schreibrichtungs-Umschalter, die einen Pfad anders aussehen lassen, als er ist.
+
+  Dazu: eine Obergrenze von hundert Domains je Site (die Grenze, die Let's
+  Encrypt für die SANs eines Zertifikats zieht) und eine einheitliche
+  Namensregel für die Kennung — bis dahin prüften Schreiben und Lesen sie
+  verschieden.
+
+  Damit ist **Stufe 0.6 vollständig gebaut**.
+
+- **Modul Webserver, Schritt 7 von 8: TLS je Site.** Der Satz aus
+  `docs/16-neukonzeption.md` §2, um dessentwillen es diese Stufe gibt — „mach
+  ihn unter einem Namen mit TLS erreichbar" —, ist damit eingelöst: Jede Site
+  mit TLS bezieht ihr eigenes Zertifikat und erneuert es von selbst.
+
+  **Ein Manager je Site, ein Konto für alle.** Jede Site bekommt einen eigenen
+  ACME-Manager mit eigenen Domains und eigener Erneuerungsschleife; geteilt ist
+  der Kontoschlüssel. Ein eigener je Site wäre ein eigenes Konto, und zwanzig
+  Sites wären zwanzig Konten bei Let's Encrypt. Geteilt sind auch E-Mail,
+  Prüfmethode und DNS-Anbieter — sie kommen aus der TLS-Konfiguration des
+  Panels.
+
+  Daraus folgt eine Voraussetzung, die die Fläche ausspricht: **Ohne
+  automatischen Bezug fürs Panel gibt es keinen für Sites.** Dann steht dort
+  der Weg zu der Stelle, an der es einzuschalten ist — und kein Knopf, der
+  zuverlässig scheitert.
+
+  **Die dritte Frage ist die, wegen der es die Fläche gibt: warum ist kein
+  Zertifikat da?** Vier Gründe kommen in Frage und liegen an vier verschiedenen
+  Stellen — die Site ist frisch, die DNS-Zone antwortet nicht, der Anbieter
+  lehnt die Zugangsdaten ab, oder für das Panel läuft kein ACME. „Kein
+  Zertifikat" allein schickt jemanden auf eine Suche über alle vier. Neben dem
+  Zertifikat führt das Modul deshalb einen eigenen Stand je Site: letzter
+  Versuch, Meldung, läuft gerade.
+
+  Eine Site bekommt **keinen eigenen Listener auf Port 80** — dort hört nginx.
+  Für sie gibt es den Weg durch nginx hindurch oder DNS-01; bleibt beides aus,
+  scheitert der Bezug mit genau dieser Meldung.
+
+  Der Bezug schreibt die Site **nicht** neu. Eine frisch angelegte steht ohne
+  443-Block da, weil es damals kein Zertifikat gab; nach dem ersten Bezug
+  genügt einmal speichern, und die Antwort sagt das. Es nebenbei zu tun wäre
+  eine Aktion mit zwei Wirkungen und einer Beschriftung.
+
+- **Modul Webserver, Schritt 6 von 8: die Ziele.** Das Formular schlägt vor,
+  worauf eine Site zeigen kann — die laufenden Container mit ihren
+  veröffentlichten Ports und die vorhandenen PHP-FPM-Sockets. Das ist die
+  Zugabe, die es ohne Stufe 0.5 nicht gäbe, und sie ist mehr als
+  Bequemlichkeit: Ein abgetippter Port ist der häufigste Grund für eine Site,
+  die 502 antwortet.
+
+  **Die interessantere Auskunft ist die unbequeme.** Ein Container, der auf
+  `0.0.0.0` veröffentlicht, ist schon jetzt aus dem Netz erreichbar — direkt,
+  unter der IP des Servers und der Portnummer. Ein Reverse-Proxy davor ändert
+  das nicht. Wer glaubt, er habe den Dienst damit „hinter nginx gelegt", hat ihn
+  zweimal veröffentlicht: einmal unter seiner Domain mit TLS und einmal nackt
+  auf dem Port. Der Satz steht einmal über der Liste, und an der betroffenen
+  Zeile steht nur, dass sie es ist.
+
+  **PHP-FPM ist eine eigene Zielart** und braucht zwei Angaben: ein Verzeichnis
+  und einen Socket. Fehlt der Socket, lieferte nginx die `.php`-Dateien im
+  Klartext aus, mit allem, was an Zugangsdaten darin steht. Der Socketpfad steht
+  unter einer Allowlist (`/run/php` und Geschwister) und nicht bloß unter einer
+  Formprüfung: Er landet hinter `fastcgi_pass unix:` und sagt nginx, an wen es
+  die Anfrage samt Kopfzeilen weiterreicht — ein beliebiger Pfad wäre die
+  Erlaubnis, jeden Unix-Socket des Servers mit FastCGI-Verkehr zu beschicken,
+  und `/run/docker.sock` liegt daneben.
+
+  Die erzeugte Konfiguration setzt `try_files $uri =404;` vor `fastcgi_pass`.
+  Ohne diese Zeile beantwortet nginx auch `/bild.jpg/x.php` und lässt PHP die
+  hochgeladene Datei ausführen — die klassische Lücke „nginx + php-fpm Remote
+  Code Execution", die nicht aus einem Fehler in nginx stammt, sondern aus einer
+  Konfiguration ohne diese Zeile.
+
+- **Modul Webserver, Schritt 5 von 8: Sites schreibend.** Sites lassen sich
+  anlegen, ändern, abschalten und löschen — als Domain → Ziel → TLS und nicht
+  als Textdatei. Der Weg „Benutzer tippt nginx-Konfiguration" existiert schon;
+  er heißt Dateimanager.
+
+  **Drei Linien übereinander, und jede fängt etwas anderes.** Der Prüfer lehnt
+  ab, was nie richtig sein kann: einen `server_name`, aus dem eine zweite
+  nginx-Anweisung würde; einen Namen, den bereits ein fremder Serverblock
+  führt; ein Verzeichnis aus der Sperrliste; einen `proxy_pass` auf das Panel
+  selbst; eine Site auf dem Port des Panels. `nginx -t` findet danach, was der
+  Prüfer nicht sehen kann — eine Kollision mit einer anderen Datei, einen
+  Syntaxfehler —, und nimmt bei Ablehnung den vorherigen Stand wieder her. Die
+  **Probe** fängt zuletzt, was beide nicht sehen können: die Wirkung. Ohne
+  Bestätigung binnen 60 Sekunden stellt das Panel den vorherigen Stand
+  wieder her.
+
+  Geprüft werden dabei die **Felder** und nicht der erzeugte Text. Das ist der
+  Unterschied zum Compose-Prüfer: Dort kommt die Datei vom Benutzer, hier vom
+  Panel — und ein Prüfer, der sein eigenes Erzeugnis liest, prüft die eigene
+  Vorlage.
+
+  Ein `root` außerhalb von `/var/www` und `/srv` wird **nicht abgelehnt**,
+  sondern verlangt den getippten Domainnamen. Er ist der legitime und häufige
+  Fall und zugleich der Weg, über den eine Site fremde Daten ausliefert — eine
+  Allowlist hieße, dass die Hälfte der Betreiber das Modul nicht benutzen kann.
+
+  **Löschen läuft ohne Probe**, und der Dialog sagt es: Ein Rückweg, der die
+  Datei zurückholt und das Zertifikat verwaisen lässt, ist schlechter als
+  keiner — er lässt jemanden glauben, er könne es sich noch überlegen.
+
+  Abschalten benennt die Datei um (`.conf` → `.conf.aus`); nginx zieht aus
+  `conf.d` nur `*.conf` ein. Damit liest die Sitesliste jetzt zwei Quellen —
+  was nginx ausliefert und was dem Panel gehört —, denn was in keiner Liste
+  steht, lässt sich auch nicht wieder einschalten. Was davon wirklich
+  ausgeliefert wird, sagt weiterhin nur `nginx -T`: „liegt vor, wird aber nicht
+  ausgeliefert" ist ein eigener, benannter Zustand.
+
+  Beim Bau ist dabei ein Fehler aus Schritt 4 aufgefallen: Eine Site mit TLS
+  besteht aus zwei Serverblöcken in einer Datei und stand deshalb zweimal in
+  der Liste — mit zwei Löschknöpfen für dieselbe Sache.
+
+  Die Zertifikatspfade kommen nicht aus der Anfrage, sondern aus dem
+  Datenverzeichnis — und nur, wenn die Dateien existieren: Ein
+  `ssl_certificate` ins Leere lässt nginx gar nicht erst starten, und dann ist
+  nicht diese eine Site weg, sondern jede. Der Schalter „TLS" merkt sich
+  deshalb zunächst nur den Wunsch. Ebenso lässt eine aktive https-Umleitung
+  `/.well-known/acme-challenge/` ausdrücklich durch; ohne die Ausnahme fiele
+  die gescheiterte Erneuerung erst in sechzig Tagen auf.
+
+- **Modul Webserver, Schritt 4 von 8: Sites lesend.** Auf einem Bestandsserver
+  ist die Fläche `/webserver` ab hier nicht mehr leer — sie zeigt die
+  Serverblöcke, die nginx ausliefert, mit Domains, Ziel, Ports und TLS. Dazu
+  eine zweite Fläche `/webserver/ports` mit der Portbelegung; die
+  Zustandskarten stehen über beiden.
+
+  **Gelesen wird die gerenderte Konfiguration (`nginx -T`), nicht das
+  Verzeichnis `sites-enabled`.** Dieselbe Entscheidung wie beim Compose-Prüfer,
+  und aus demselben Grund: nginx zieht mit `include` beliebige Pfade herein.
+  Wer die Dateien liest, sieht nicht, was der Server daraus macht — und ein
+  Serverblock, den niemand sieht, ist genau der, der einer Domain die Antwort
+  wegnimmt.
+
+  Der Preis dafür steht auf der Fläche: `nginx -T` läuft nur bei **gültiger**
+  Konfiguration. Ist sie kaputt, ist die Liste nicht kurz, sondern leer — und
+  das sieht aus wie ein Server ohne Sites. Die beiden verlangen entgegengesetzte
+  Handgriffe, deshalb sagt die Antwort ausdrücklich, welcher der beiden Fälle
+  vorliegt, und zeigt im Fehlerfall die Meldung von nginx samt Datei und Zeile.
+  „Nicht gelesen" ist kein „nichts da" — dieselbe Haltung wie bei der
+  Portbelegung und bei `ConfigCheck`.
+
+  **Verwaltet ist eine Site nur, wenn Pfad und Marker beide stimmen.** Ein
+  Drop-in unter `/etc/nginx/conf.d/asylum-*.conf` ohne Marker gilt als fremd,
+  und ein Marker in einer fremden Datei macht sie nicht zu einer eigenen —
+  jedes der beiden Merkmale allein wäre fälschbar. Der Inhalt einer Site
+  liefert das Panel nur für verwaltete aus; für fremde antwortet es 404. Das
+  ist kein Geheimnisschutz (der Dateimanager kann sie ohnehin), sondern die
+  Vermeidung einer Zusage: Ein Editor an einer fremden Site verspricht, sie
+  ändern zu können.
+
+  Ändern lässt sich hier noch nichts — der Schreibpfad mit Prüfer, `nginx -t`
+  und Probe ist Schritt 5.
+
+- **Modul Webserver, Schritt 3 von 8: der Zertifikatshalter kann mehr als
+  eines.** Bis 0.5 hielt er genau eines — das des Panels — und ignorierte den
+  ClientHello. Jetzt wählt er über SNI aus, mit einem Index, der aus den SANs
+  der Zertifikate entsteht: Wer eines hinterlegt, muss nicht zusätzlich sagen,
+  wofür es gilt.
+
+  **Die Vorrangregel ist die eigentliche Sicherung: Das Panel verliert seinen
+  eigenen Namen nie an eine Site.** Ohne sie ließe sich eine Site auf den Namen
+  des Panels anlegen und dessen TLS übernehmen — wer das versehentlich tut,
+  sperrt sich aus der Oberfläche aus, mit der er es zurücknehmen müsste. Ein
+  unbekannter Name bekommt das Panelzertifikat statt eines
+  Verbindungsabbruchs: Eine Browserwarnung kann man lesen, ein Abbruch sieht
+  aus wie ein toter Server.
+
+  Ein Platzhalter deckt **genau eine Ebene** ab (`*.example.com` gilt für
+  `a.example.com`, nicht für `a.b.example.com` und nicht für `example.com`) —
+  die Regel aus RFC 6125, an die sich jeder Browser hält. Der genaue Name
+  gewinnt gegen den Platzhalter.
+
+  Der ACME-Manager arbeitet dafür je Zertifikat: `Kennung` leer heißt Panel
+  (Ablage wie bisher), gesetzt heißt Site (Ablage in `sites/<kennung>`). Der
+  **Kontoschlüssel bleibt geteilt** — ein eigener je Site wäre ein eigenes
+  ACME-Konto, und zwanzig Sites wären zwanzig Konten.
+
+  Ein Fund aus dem eigenen Test, der es versucht hat: `filepath.Base("..")` ist
+  `".."`, und `filepath.Join(wurzel, "sites", "..")` kürzt sich auf das
+  Wurzelverzeichnis — eine Site mit der Kennung `..` hätte das Zertifikat des
+  Panels überschrieben. Es gibt jetzt `PruefeKennung` als Allowlist und eine
+  zweite Linie im Pfadbau.
+
+- **Ein Zugangsdatenfeld, das zum Anbieter passt.** Das Feld auf der
+  Zertifikatsseite hieß „Cloudflare-API-Token" und war einzeilig. Mit sieben
+  Anbietern stimmt beides nicht mehr: netcup braucht drei Zeilen, OVH vier.
+
+  Es heißt jetzt „Zugangsdaten" und schaltet um — einzeilig und verdeckt,
+  solange genau ein Geheimnis gebraucht wird; mehrzeilig, sobald der Anbieter
+  mehrere Einträge verlangt. **Welcher Fall gilt, sagt der Server**, aus
+  demselben Register, aus dem auch das Auswahlfeld entsteht; die Oberfläche
+  führt keine zweite Liste. Das mehrzeilige Feld kommt mit der Vorlage schon
+  ausgefüllt — die Namen der Zeilen muss niemand abschreiben.
+
+  Pflichtfelder und Vorlage sind getrennt, weil sie sich unterscheiden dürfen:
+  OVHs `endpoint` ist optional (ohne ihn gilt ovh-eu), gehört aber ins Feld —
+  wer ein kanadisches Konto hat, soll die Zeile vorfinden. Ein Test hält fest,
+  dass umgekehrt nie ein Pflichtfeld aus der Vorlage fehlt.
+
+  Zwei Mängel hat erst das Bildschirmfoto gezeigt: Der Satz nannte drei
+  erwartete Zeilen über einem Feld mit vieren (jetzt getrennt in „Pflicht sind
+  …" und „… darf leer bleiben"), und das Auswahlfeld der Anbieter schnitt ab —
+  es trug Name **und** Erklärung, was bei zwei kurzen Einträgen ging und bei
+  sieben zu „OVH — Schlüssel aus der OVH-API-Kor…" wurde. Es zeigt jetzt nur
+  den Namen; die Erklärung stand ohnehin schon darunter.
+
+- **netcup und OVH als DNS-01-Anbieter** — damit sind alle sieben da: `hook`,
+  `cloudflare`, `acme-dns`, `ipv64`, `hetzner`, `digitalocean`, `netcup`, `ovh`.
+
+  Beide sind die aufwendigsten der Liste, und beide aus einem Grund, der sich
+  prüfen lässt. **netcup** hat als einziges eine Sitzung (login → Aufrufe →
+  Sitzungsschlüssel wiederverwenden) und antwortet auf Fehler mit **HTTP 200** —
+  der Zustand steht im Körper. Wer nur den Statuscode prüft, hält jeden
+  Fehlschlag für einen Erfolg. Außerdem schreibt netcup Records als *Liste*;
+  hier geht deshalb immer genau einer hinaus, nie ein „alle holen, ändern,
+  zurückschreiben" — das wäre der kürzere Weg und der, bei dem ein Fehler die
+  Zone kostet.
+
+  **OVH** signiert jeden Aufruf, und der Zeitstempel dafür kommt vom **Server**,
+  nicht von der eigenen Uhr: Die eines frisch aufgesetzten VPS geht gerne
+  daneben, und OVH meldet dann „invalid signature", was in die falsche Richtung
+  zeigt. Dazu braucht jedes Schreiben ein `refresh` — ohne das steht der Record
+  in der API und in der Oberfläche und geht nie ins DNS. Der Endpunkt (ovh-eu,
+  ovh-ca, kimsufi …) steht in der Zugangsdatei und wird gegen eine feste Liste
+  geprüft; ein freies Feld wäre die Stelle, an der die Zugangsdaten des Kontos
+  an einen fremden Server gingen.
+
+  **Kein Anbieter ist gegen seine echte API geprüft.** Die Tests laufen gegen
+  `httptest`-Server; die Antwortformen stammen aus der Dokumentation und aus
+  fremden Umsetzungen. Belastbar geprüft ist, *was das Panel schickt* —
+  Signatur, Feldnamen, Sitzungsführung, Löschen nach Wert. Der erste Bezug
+  gehört gegen das **Staging-Verzeichnis** von Let's Encrypt.
+
+- **Modul Webserver, Schritt 2 von 8: der Weg für die ACME-Prüfung durch nginx
+  hindurch.** Er behebt einen Fehler, den Schritt 1 erst erzeugt, und steht
+  deshalb vor der ersten Benutzersite.
+
+  Das Panel bindet für HTTP-01 selbst Port 80. Sobald es nginx einspielt,
+  gehört der Port nginx — und das Panel kann sein eigenes Zertifikat nicht mehr
+  erneuern. Nicht sofort und nicht sichtbar, sondern beim nächsten
+  Erneuerungslauf, sechzig Tage später. Die Fehlermeldung im Quelltext nahm den
+  Fall seit jeher vorweg: „HTTP-01 braucht Port 80, das Binden schlug fehl
+  (läuft dort ein Webserver?)".
+
+  Der Ausweg ist der, den certbot seit jeher geht: nicht neben dem Webserver
+  lauschen, sondern **durch ihn hindurch** antworten. Das Panel legt die Token
+  als Dateien ab, und ein verwaltetes Drop-in
+  `/etc/nginx/conf.d/asylum-acme.conf` sagt nginx, dass es
+  `/.well-known/acme-challenge/` von dort ausliefern soll. Kein Port, kein
+  Wettlauf.
+
+  Die Wahl trifft **nicht der Betreiber, sondern der Zustand des Servers**: Ein
+  Schalter dafür wäre eine Einstellung, die jemand falsch setzen kann und deren
+  richtiger Wert aus dem System ablesbar ist. Verwaltet das Panel ein laufendes
+  nginx, legt es den Weg. Läuft ein *fremder* Webserver, schreibt es nichts —
+  Token in ein Verzeichnis zu legen, das niemand ausliefert, wäre schlechter
+  als der heutige Zustand: Die Prüfung schlüge mit einer unverständlichen
+  Meldung fehl statt mit der klaren „Port 80 ist belegt". Wer einen fremden
+  Webserver betreibt, nimmt DNS-01.
+
+  Geschrieben wird als Kette: schreiben → `nginx -t` → **bei Ablehnung
+  zurücknehmen** → neu laden. Eine abgelehnte Datei liegen zu lassen hieße,
+  dass der nächste Reload — von wem auch immer angestoßen — an unserer Datei
+  scheitert; der Fehler wäre dann unserer und sähe nach einem fremden aus. Eine
+  Datei ohne Marker wird nie überschrieben, auch nicht an unserem eigenen
+  Platz.
+
+  Zwei Allowlists sichern die beiden Wege nach innen ab: Der Challenge-Token
+  wird zu einem Dateinamen (`../../etc/nginx/conf.d/boes.conf` wäre der
+  Angriff) und die Domain zu einer Zeile in einer nginx-Konfiguration
+  (`beispiel.de; root /;` wäre er). Beide werden gegen die **zulässige Form**
+  geprüft und nicht gegen eine Sperrliste gefährlicher Zeichen — eine
+  Sperrliste vergisst immer ein Zeichen.
+
+  Mitgekommen: `nginx -t` ist als dritter Fall in `privops.ConfigCheck`
+  eingetragen. Der Editor prüft nginx-Konfigurationen jetzt wie sshd- und
+  nftables-Dateien.
+
+### Behoben
+
+- **Eingabefelder waren auf „Cron & Timer" und „API-Tokens" nicht gestaltet** —
+  weiße Kästen des Browsers in einer dunklen Fläche. Dasselbe galt für die
+  Suchfelder der Docker-Seite und für jedes Feld in einem Anlegen-Formular.
+
+  Die Ursache war, dass es **keine gemeinsame Regel für Eingabefelder gab**:
+  Jede Seite schrieb die vier Zeilen für Hintergrund, Rahmen, Radius und
+  Polsterung selbst in ihren Stilblock — acht wortgleiche Kopien. Auf den beiden
+  zuletzt gebauten Seiten fehlte die neunte, weil beim Schreiben eine Grundlage
+  angenommen wurde, die es nicht gab.
+
+  `app.css` trägt sie jetzt. Sie steht in `:where(…)` und hat damit die
+  Spezifität null: Jede vorhandene Seitenregel gewinnt weiterhin, und für die
+  Berichtigung musste keine einzige Seite angefasst werden. Ankreuzfelder,
+  Schalter und die Dateiauswahl sind ausgenommen — ein Rahmen samt Polsterung
+  macht aus einem Häkchen ein Rätsel.
+
+  Mitgekommen sind zwei Dinge, die vorher niemand hatte: ein Fokusring für
+  Felder (die globale Regel galt nur für `a`, `button` und `[tabindex]`) und
+  eine Mindestbreite für Suchfelder, deren Platzhalter ein ganzer Satz ist.
+
+  Der Browsertest vergleicht jetzt die Gestalt des Suchfeldes auf zwei Seiten
+  miteinander — nicht gegen feste Farben, denn welche richtig ist, entscheidet
+  das Gestaltungssystem. Was er sagen kann, ist, dass dieselbe Sache überall
+  dieselbe ist.
+
+
 ## [0.5.1] — 2026-08-01
 
 **Die Fassung, die 0.5.0 benutzbar macht.** Wer 0.5.0 einsetzt und einen Server

@@ -164,7 +164,7 @@ Fassungen verteilt. Maßgeblich ist [16-neukonzeption.md](16-neukonzeption.md)
 | Punkt von damals | Jetzt |
 |---|---|
 | Docker | **Stufe 0.5**, Stacks als führendes Objekt; Podman bleibt zurückgestellt — erst eine Laufzeit richtig |
-| Reverse Proxy | **Stufe 0.6** als „Webserver & Domains", Sites statt Konfigurationsdateien |
+| Reverse Proxy | **Stufe 0.6** als „Webserver & Domains", Sites statt Konfigurationsdateien; verwaltet wird **nginx**, jeder andere Webserver wird erkannt und nicht angefasst ([18-webserver.md](18-webserver.md) E1) |
 | Backups | **Stufe 0.8** (restic; borg entfällt), Restore-Test als Kern des Moduls |
 | WireGuard | **zurückgestellt** — nützlich, aber unabhängig von allem anderen |
 | Multi-Server | **zurückgestellt** — braucht die Prozesstrennung und ein Trust-Modell |

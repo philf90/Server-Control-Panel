@@ -19,6 +19,14 @@ import (
 	"github.com/philf90/asylum/internal/store"
 )
 
+// feldstil ist die gemessene Gestalt eines Suchfeldes.
+type feldstil struct {
+	Hintergrund string `json:"hintergrund"`
+	Rahmen      string `json:"rahmen"`
+	Radius      string `json:"radius"`
+	Farbe       string `json:"farbe"`
+}
+
 // wechsel ist das Ergebnis eines Klicks auf eine Fläche innerhalb eines Moduls.
 type wechsel struct {
 	Pfad         string `json:"pfad"`
@@ -80,9 +88,10 @@ type ergebnisLeitstand struct {
 		KlickDaneben      bool     `json:"klickDanebenSchliesst"`
 	} `json:"palette"`
 	Dienste struct {
-		OhneNeuladen bool   `json:"ohneNeuladen"`
-		Pfad         string `json:"pfad"`
-		NavAktiv     string `json:"navAktiv"`
+		OhneNeuladen bool      `json:"ohneNeuladen"`
+		Pfad         string    `json:"pfad"`
+		Feldstil     *feldstil `json:"feldstil"`
+		NavAktiv     string    `json:"navAktiv"`
 		Reihen       []struct {
 			Name    string `json:"name"`
 			Zustand string `json:"zustand"`
@@ -518,10 +527,21 @@ type ergebnisLeitstand struct {
 			Token      bool `json:"token"`
 		} `json:"hook"`
 		Cloudflare struct {
+			Marke string `json:"marke"`
 			Token string `json:"token"`
 			Hook  bool   `json:"hook"`
 			Warum bool   `json:"warum"`
 		} `json:"cloudflare"`
+		Mehrzeilig struct {
+			Marke      string `json:"marke"`
+			Vorlage    string `json:"vorlage"`
+			Zeilen     int    `json:"zeilen"`
+			FelderSatz bool   `json:"felderSatz"`
+		} `json:"mehrzeilig"`
+		ZurueckEinzeilig struct {
+			Marke string `json:"marke"`
+			Wert  string `json:"wert"`
+		} `json:"zurueckEinzeilig"`
 		NachSpeichern struct {
 			Meldung       string `json:"meldung"`
 			Hinweis       string `json:"hinweis"`
@@ -582,8 +602,9 @@ type ergebnisLeitstand struct {
 		} `json:"schmal"`
 	} `json:"konto"`
 	Plaene struct {
-		Wesen  string `json:"wesen"`
-		Zeilen []struct {
+		Feldstil *feldstil `json:"feldstil"`
+		Wesen    string    `json:"wesen"`
+		Zeilen   []struct {
 			Satz   string `json:"satz"`
 			Roh    string `json:"roh"`
 			Befehl string `json:"befehl"`
@@ -818,6 +839,77 @@ type ergebnisLeitstand struct {
 			AufraeumKnoepfe []string `json:"aufraeumKnoepfe"`
 		} `json:"bestand"`
 	} `json:"dock"`
+	Web struct {
+		Pfad    string `json:"pfad"`
+		Zustand struct {
+			Karten []struct {
+				Kopf string `json:"kopf"`
+				Wert string `json:"wert"`
+			} `json:"karten"`
+			Anmerkung      string   `json:"anmerkung"`
+			Knoepfe        []string `json:"knoepfe"`
+			Verweise       []string `json:"verweise"`
+			BaldPlatte     bool     `json:"baldPlatte"`
+			KinderInLeiste []string `json:"kinderInLeiste"`
+		} `json:"zustand"`
+		Sites struct {
+			Zeilen [][]struct {
+				Text   string `json:"text"`
+				Spalte string `json:"spalte"`
+			} `json:"zeilen"`
+			Zaehler string `json:"zaehler"`
+		} `json:"sites"`
+		Zerts struct {
+			Pfad   string `json:"pfad"`
+			Zeilen []struct {
+				Site string `json:"site"`
+				Satz string `json:"satz"`
+			} `json:"zeilen"`
+			Anmerkung string `json:"anmerkung"`
+			Knoepfe   int    `json:"knoepfe"`
+			Weg       int    `json:"weg"`
+		} `json:"zerts"`
+		Ports struct {
+			Pfad   string     `json:"pfad"`
+			Zeilen [][]string `json:"zeilen"`
+		} `json:"ports"`
+		Ziele struct {
+			Zeilen []struct {
+				Text    string `json:"text"`
+				Warnung string `json:"warnung"`
+			} `json:"zeilen"`
+			Anmerkung string `json:"anmerkung"`
+		} `json:"ziele"`
+		NachUebernehmen string `json:"nachUebernehmen"`
+		StufeDrei       struct {
+			Tippfeld    bool   `json:"tippfeld"`
+			Hinweis     string `json:"hinweis"`
+			ErsterPunkt string `json:"ersterPunkt"`
+			Gesperrt    bool   `json:"gesperrt"`
+		} `json:"stufeDrei"`
+		StufeZwei struct {
+			Tippfeld bool     `json:"tippfeld"`
+			Punkte   []string `json:"punkte"`
+		} `json:"stufeZwei"`
+		Probe struct {
+			Da            bool   `json:"da"`
+			ErsteZahl     int    `json:"ersteZahl"`
+			Text          string `json:"text"`
+			Knopf         string `json:"knopf"`
+			VorDerTabelle bool   `json:"vorDerTabelle"`
+		} `json:"probe"`
+		NachBestaetigen struct {
+			Probe   bool   `json:"probe"`
+			Meldung string `json:"meldung"`
+		} `json:"nachBestaetigen"`
+		Zurueck string `json:"zurueck"`
+		Schmal  struct {
+			KoerperBreite  float64  `json:"koerperBreite"`
+			FensterBreite  float64  `json:"fensterBreite"`
+			StreifenDa     bool     `json:"streifenDa"`
+			StreifenPunkte []string `json:"streifenPunkte"`
+		} `json:"schmal"`
+	} `json:"web"`
 	Zweige struct {
 		Vorher  int `json:"vorher"`
 		Nachher int `json:"nachher"`
@@ -1084,6 +1176,60 @@ func TestLeitstandBrowser(t *testing.T) {
 	// Zwei Ereignisse, und der Unterschied zwischen ihnen ist der Grund, warum
 	// sie hier stehen: Ein Start ist Betriebsgeräusch, ein Exit 137 ist der
 	// Befund, wegen dessen jemand den Strom öffnet.
+	// Der Webserver. Absichtlich die unbequeme Lage — und mit Schritt 4 eine
+	// andere als bis 0.6: nginx läuft, UND daneben hält ein Caddy die 443 auf
+	// IPv6. Die beiden vertragen sich nur, weil sie auf verschiedenen
+	// Adressfamilien binden; wer das nicht sieht, sucht den Fehler an der
+	// falschen Stelle.
+	//
+	// Warum nicht mehr „kein nginx, Caddy auf 80": Ohne nginx gibt es keine
+	// Sitesliste zu rendern, und die ist das Neue an diesem Schritt — ihre
+	// Tabelle hat fünf Spalten und bricht bei 375 px als erste. Die Zusage
+	// „kein Installationsknopf bei fremdem Server" prüft diese Lage weiter mit
+	// (installiert heißt ebenfalls: kein Knopf), und die Wortwahl der Anmerkung
+	// für den alten Fall hängt an einer reinen Go-Funktion, die
+	// api_webserver_test.go vollständig abdeckt.
+	ops.web = privops.WebServerState{
+		Installiert:      true,
+		Version:          "nginx/1.22.1",
+		Paket:            "nginx-core",
+		DienstAktiv:      true,
+		LauscherGeprueft: true,
+		Lauscher: []privops.Lauscher{
+			{Port: 80, Adresse: "0.0.0.0", Prozess: "nginx", PID: 1204},
+			{Port: 443, Adresse: "0.0.0.0", Prozess: "nginx", PID: 1204},
+			{Port: 443, Adresse: "[::]", Prozess: "caddy", PID: 651},
+		},
+	}
+
+	// Die Sites: eine verwaltete und zwei fremde. Die dritte ist der Block ohne
+	// server_name — der Vorgabeblock, den jede Debian-Installation mitbringt.
+	// Er ist kein Lesefehler, sondern ein Zustand, und die Fläche muss ihn als
+	// solchen zeigen statt eine leere Zelle zu lassen.
+	ops.sites = privops.SiteBestand{
+		Gelesen: true,
+		Sites: []privops.Site{
+			{
+				Name: "shop", Datei: "/etc/nginx/conf.d/asylum-shop.conf",
+				Domains: []string{"shop.example.com", "www.shop.example.com"},
+				Zielart: "proxy", Ziel: "http://127.0.0.1:3000",
+				Ports: []int{80, 443}, TLS: true, Verwaltet: true,
+				Ausgeliefert: true,
+			},
+			{
+				Name: "alt.example.com", Datei: "/etc/nginx/sites-enabled/alt",
+				Domains: []string{"alt.example.com"},
+				Zielart: "statisch", Ziel: "/var/www/alt",
+				Ports: []int{80}, Ausgeliefert: true,
+			},
+			{
+				Name: "default", Datei: "/etc/nginx/sites-enabled/default",
+				Zielart: "statisch", Ziel: "/var/www/html",
+				Ports: []int{80}, Ausgeliefert: true,
+			},
+		},
+	}
+
 	ops.events = []privops.DockerEreignis{
 		{
 			Zeit: time.Now(), Art: "container", Aktion: "start",
@@ -1307,6 +1453,39 @@ func TestLeitstandBrowser(t *testing.T) {
 		// Text für Vorleseprogramme daneben stehen.
 		if p.Stufe != "" && p.Vorgelesen == "" {
 			t.Errorf("der Punkt an %q hat keinen vorlesbaren Text", p.Href)
+		}
+	}
+
+	// ── Eingabefelder sehen überall gleich aus ──────────────────────────────
+	//
+	// Verglichen werden zwei Seiten miteinander und nicht gegen feste Farben:
+	// Welche Gestalt richtig ist, entscheidet das Gestaltungssystem und nicht
+	// dieser Test. Was er sagen kann, ist, dass dieselbe Sache überall dieselbe
+	// ist.
+	//
+	// Der Anlass: Es gab keine gemeinsame Regel für Eingabefelder — jede Seite
+	// schrieb die vier Zeilen selbst in ihren Stilblock, acht wortgleiche
+	// Kopien. Auf „Cron & Timer" und „API-Tokens" fehlte die neunte, und die
+	// Felder standen dort als weiße Kästen des Browsers in einer dunklen Fläche.
+	// Im Markup sah alles richtig aus; gefunden hat es ein Mensch, der die Seite
+	// angesehen hat.
+	if e.Dienste.Feldstil == nil || e.Plaene.Feldstil == nil {
+		t.Error("das Suchfeld einer der beiden Seiten wurde nicht gefunden — " +
+			"der Vergleich sagt dann nichts")
+	} else {
+		a, b := *e.Dienste.Feldstil, *e.Plaene.Feldstil
+		if a != b {
+			t.Errorf("die Suchfelder sehen verschieden aus:\n  Dienste:      %+v\n  Cron & Timer: %+v",
+				a, b)
+		}
+		// Und die Gegenprobe gegen den Fall, dass BEIDE ungestylt sind: Ein Feld
+		// ohne eigenen Hintergrund ist das des Browsers.
+		if a.Hintergrund == "rgba(0, 0, 0, 0)" || a.Hintergrund == "" {
+			t.Errorf("die Suchfelder haben keinen eigenen Hintergrund (%q) — sie tragen "+
+				"die Gestalt des Browsers", a.Hintergrund)
+		}
+		if a.Radius == "0px" {
+			t.Errorf("die Suchfelder haben keinen abgerundeten Rahmen (%q)", a.Radius)
 		}
 	}
 
@@ -2521,6 +2700,43 @@ func TestLeitstandBrowser(t *testing.T) {
 	if !ze.Cloudflare.Warum {
 		t.Error("es steht nicht dabei, dass das Token in einer eigenen Datei mit 0600 landet")
 	}
+	if ze.Cloudflare.Marke != "INPUT" {
+		t.Errorf("bei einem Anbieter mit genau einem Geheimnis steht ein %s statt eines "+
+			"einzeiligen Feldes", ze.Cloudflare.Marke)
+	}
+
+	// Ein Anbieter mit MEHREREN Feldern (OVH will vier Zeilen). Ein einzeiliges
+	// Feld wäre hier auf eine Weise falsch, die erst der Server beim Speichern
+	// bemerkt — und dann mit einer Meldung über ein Feld, das gar nicht dasteht.
+	mz := ze.Mehrzeilig
+	if mz.Marke != "TEXTAREA" {
+		t.Errorf("bei OVH steht ein %s — vier Zeilen passen nicht in ein einzeiliges "+
+			"Feld", mz.Marke)
+	}
+	if mz.Zeilen < 4 {
+		t.Errorf("das Feld zeigt %d Zeilen, OVH braucht vier", mz.Zeilen)
+	}
+	// Die Vorlage steht schon drin. Ohne sie müsste man die Namen der Zeilen aus
+	// dem erklärenden Satz abschreiben — vier Gelegenheiten, sich zu vertippen.
+	for _, feld := range []string{"application_key", "application_secret", "consumer_key"} {
+		if !strings.Contains(mz.Vorlage, feld) {
+			t.Errorf("in der Vorlage fehlt %q: %q", feld, mz.Vorlage)
+		}
+	}
+	if !mz.FelderSatz {
+		t.Error("die erwarteten Zeilen werden nicht genannt — sie kommen aus dem " +
+			"Register des Servers, und wenn sie hier fehlen, ist der Weg unterbrochen")
+	}
+
+	// Und zurück auf einen einzeiligen Anbieter: Die OVH-Vorlage darf nicht
+	// stehenbleiben, sonst ginge sie beim Speichern als Hetzner-Token mit.
+	if ze.ZurueckEinzeilig.Marke != "INPUT" {
+		t.Errorf("nach dem Wechsel auf Hetzner steht noch ein %s", ze.ZurueckEinzeilig.Marke)
+	}
+	if ze.ZurueckEinzeilig.Wert != "" {
+		t.Errorf("nach dem Anbieterwechsel steht die alte Vorlage noch im Feld: %q",
+			ze.ZurueckEinzeilig.Wert)
+	}
 
 	// Nach dem Speichern: der Zwischenzustand ist benannt, und beziehen ist offen.
 	if !strings.Contains(ze.NachSpeichern.Meldung, "gespeichert") {
@@ -2956,15 +3172,15 @@ func TestLeitstandBrowser(t *testing.T) {
 	// 6g. Ein angekündigtes Modul. Der Menüpunkt landete bis 0.4.0-rc.2
 	// stillschweigend auf der Übersicht; jetzt sagt eine Seite, worum es geht.
 	b := e.Bald
-	if b.Pfad != "/webserver" {
-		t.Errorf("der Pfad ist %q, erwartet /webserver", b.Pfad)
+	if b.Pfad != "/datenbanken" {
+		t.Errorf("der Pfad ist %q, erwartet /datenbanken", b.Pfad)
 	}
-	if b.Titel != "Webserver" {
-		t.Errorf("die Überschrift ist %q, erwartet Webserver — die Seite nennt nicht, "+
+	if b.Titel != "Datenbanken" {
+		t.Errorf("die Überschrift ist %q, erwartet Datenbanken — die Seite nennt nicht, "+
 			"worum es geht", b.Titel)
 	}
-	if !strings.Contains(b.Marke, "0.6") {
-		t.Errorf("die Marke ist %q, erwartet die geplante Fassung 0.6", b.Marke)
+	if !strings.Contains(b.Marke, "0.7") {
+		t.Errorf("die Marke ist %q, erwartet die geplante Fassung 0.7", b.Marke)
 	}
 	if b.Satz == "" {
 		t.Error("die Seite sagt nicht, dass es das Modul noch nicht gibt")
@@ -2972,7 +3188,7 @@ func TestLeitstandBrowser(t *testing.T) {
 	if b.Ersatz == "" {
 		t.Error("die Seite nennt keinen Weg, der heute schon geht")
 	}
-	if b.NavAktiv != "/webserver" {
+	if b.NavAktiv != "/datenbanken" {
 		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q) — "+
 			"dann sieht die Seite aus wie eine, auf die man versehentlich geraten ist",
 			b.NavAktiv)
@@ -3431,6 +3647,259 @@ func TestLeitstandBrowser(t *testing.T) {
 	}
 	if benutzt == 0 || frei == 0 {
 		t.Errorf("die Attrappe deckt nicht beide Fälle ab: %d benutzt, %d frei", benutzt, frei)
+	}
+
+	// 6i. Das Modul Webserver, Schritte 1 bis 4 der Fassung 0.6.
+	//
+	// Die Attrappe meldet: nginx läuft mit drei Serverblöcken, und daneben hält
+	// ein Caddy die 443 auf IPv6. Geprüft wird vor allem, was die Seite NICHT
+	// zeigt — den Installationsknopf — und was sie an seiner Stelle sagt.
+	wb := e.Web
+	if wb.Pfad != "/webserver" {
+		t.Errorf("der Pfad ist %q, erwartet /webserver", wb.Pfad)
+	}
+	if wb.Zustand.BaldPlatte {
+		t.Error("der Menüpunkt Webserver führt weiter auf die Seite „bald" + `"` +
+			" — das Modul ist gebaut, und eine Vertröstung davor wäre eine Unwahrheit")
+	}
+	if len(wb.Zustand.Karten) != 3 {
+		t.Errorf("die Seite zeigt %d Karten, erwartet 3 (Webserver, Dienst, Ports)",
+			len(wb.Zustand.Karten))
+	}
+	// Der Kern. Ein Knopf hier wäre nicht bloß nutzlos, sondern schädlich.
+	if len(wb.Zustand.Knoepfe) != 0 {
+		t.Errorf("bei einem laufenden fremden Webserver gehört kein Knopf auf die Seite, "+
+			"gefunden: %v — er würde den laufenden Server vom Netz nehmen",
+			wb.Zustand.Knoepfe)
+	}
+	// Und an seiner Stelle steht der Grund. Grundsatz IV: Wer keinen Knopf
+	// bekommt, muss lesen können, warum — sonst sieht die Fläche kaputt aus.
+	if !strings.Contains(wb.Zustand.Anmerkung, "caddy") {
+		t.Errorf("die Anmerkung nennt den fremden Server nicht: %q", wb.Zustand.Anmerkung)
+	}
+	if !strings.Contains(wb.Zustand.Anmerkung, "443") {
+		t.Errorf("die Anmerkung nennt den belegten Port nicht: %q", wb.Zustand.Anmerkung)
+	}
+	// Das Modul nimmt nichts weg: Die Konfiguration des fremden Servers bleibt
+	// über den Dateimanager erreichbar, und der Weg dorthin steht da.
+	if !enthaelt(wb.Zustand.Verweise, "/dateien") {
+		t.Errorf("der Weg zur fremden Konfiguration fehlt: %v", wb.Zustand.Verweise)
+	}
+	// Die Flächen des Moduls stehen in der Seitenleiste. Ohne sie gäbe es die
+	// Portbelegung nur noch für den, der die Adresse auswendig kennt.
+	for _, pfad := range []string{"/webserver", "/webserver/zertifikate", "/webserver/ports"} {
+		if !enthaelt(wb.Zustand.KinderInLeiste, pfad) {
+			t.Errorf("die Fläche %s fehlt in der Seitenleiste: %v",
+				pfad, wb.Zustand.KinderInLeiste)
+		}
+	}
+
+	// Die Sitesliste — das Neue an Schritt 4. Drei Zeilen, und die interessante
+	// ist die dritte: der Vorgabeblock ohne server_name. Eine leere Zelle wäre
+	// dort ein Lesefehler, den es nicht gibt.
+	if len(wb.Sites.Zeilen) != 3 {
+		t.Fatalf("erwartet 3 Sitezeilen, gerendert sind %d: %+v",
+			len(wb.Sites.Zeilen), wb.Sites.Zeilen)
+	}
+	var verwaltet, fremd int
+	for _, z := range wb.Sites.Zeilen {
+		if len(z) != 5 {
+			t.Fatalf("eine Sitezeile hat %d Spalten, erwartet 5: %+v", len(z), z)
+		}
+		// data-spalte an jeder Zelle: Schmal trägt er die Beschriftung, und
+		// ohne ihn ist „443" auf einem Telefon eine Zahl ohne Bedeutung.
+		for _, zelle := range z {
+			if zelle.Spalte == "" {
+				t.Errorf("einer Zelle fehlt data-spalte: %+v", z)
+			}
+		}
+		switch {
+		case strings.Contains(z[4].Text, "verwaltet"):
+			verwaltet++
+		case strings.Contains(z[4].Text, "fremd"):
+			fremd++
+		default:
+			t.Errorf("die Herkunft der Zeile ist unlesbar: %q", z[4].Text)
+		}
+	}
+	if verwaltet != 1 || fremd != 2 {
+		t.Errorf("die Trennung stimmt nicht: %d verwaltet, %d fremd — erwartet 1 und 2",
+			verwaltet, fremd)
+	}
+	// Der Vorgabeblock: keine Domain, und das muss dastehen statt einer Lücke.
+	if !strings.Contains(wb.Sites.Zeilen[2][1].Text, "server_name") {
+		t.Errorf("der Block ohne server_name zeigt keine Erklärung: %q",
+			wb.Sites.Zeilen[2][1].Text)
+	}
+	if !strings.Contains(wb.Sites.Zaehler, "1") || !strings.Contains(wb.Sites.Zaehler, "2") {
+		t.Errorf("die Zähler über der Liste fehlen: %q", wb.Sites.Zaehler)
+	}
+
+	// Zertifikate je Site. Der Durchgang hat ein paar Abschnitte vorher den
+	// automatischen Bezug fürs Panel eingeschaltet — also gilt hier der Fall
+	// „Konto da, Zertifikat noch nicht": eine frisch angelegte Site.
+	if wb.Zerts.Pfad != "/webserver/zertifikate" {
+		t.Errorf("die Zertifikatsfläche steht unter %q", wb.Zerts.Pfad)
+	}
+	if len(wb.Zerts.Zeilen) != 1 || wb.Zerts.Zeilen[0].Site != "shop" {
+		t.Fatalf("erwartet genau die TLS-Site: %+v", wb.Zerts.Zeilen)
+	}
+	// Der Satz ist die eigentliche Auskunft dieser Fläche; der farbige Punkt
+	// daneben ist nur seine Zusammenfassung. Eine Farbe ohne Satz wäre eine
+	// Behauptung.
+	if !strings.Contains(wb.Zerts.Zeilen[0].Satz, "Noch kein Zertifikat") {
+		t.Errorf("der Satz nennt die Lage nicht: %q", wb.Zerts.Zeilen[0].Satz)
+	}
+	// Mit Konto gibt es den Knopf — und nicht den Verweis auf die Stelle, an der
+	// man es einschaltet.
+	if wb.Zerts.Knoepfe != 1 {
+		t.Errorf("%d Bezugsknöpfe, erwartet einen", wb.Zerts.Knoepfe)
+	}
+	if wb.Zerts.Weg != 0 {
+		t.Error("der Verweis auf die Zertifikatsseite steht da, obwohl ACME läuft")
+	}
+	// Und die Anmerkung nennt die zwei Wege, auf denen eine Prüfung überhaupt
+	// laufen kann — der Satz, den man beim ersten gescheiterten Bezug braucht.
+	if !strings.Contains(wb.Zerts.Anmerkung, "DNS-01") {
+		t.Errorf("über der Liste fehlen die Prüfwege: %q", wb.Zerts.Anmerkung)
+	}
+
+	// Die zweite Fläche: Portbelegung unter eigener Adresse, ohne Neuladen.
+	if wb.Ports.Pfad != "/webserver/ports" {
+		t.Errorf("die Portfläche steht unter %q, erwartet /webserver/ports", wb.Ports.Pfad)
+	}
+	if len(wb.Ports.Zeilen) != 3 {
+		t.Fatalf("erwartet 3 Portzeilen, gerendert sind %d: %+v",
+			len(wb.Ports.Zeilen), wb.Ports.Zeilen)
+	}
+	// Eigen und fremd nebeneinander in derselben Tabelle: Genau diese Mischung
+	// ist die Lage, in der jemand die Seite aufschlägt, und bis 0.6 nahmen die
+	// Testdaten sie nie an.
+	var eigen, fremdePorts int
+	for _, z := range wb.Ports.Zeilen {
+		if len(z) < 3 {
+			t.Fatalf("eine Portzeile hat zu wenige Spalten: %+v", z)
+		}
+		switch {
+		case strings.Contains(z[2], "caddy") && strings.Contains(z[2], "fremd"):
+			fremdePorts++
+		case strings.Contains(z[2], "nginx"):
+			eigen++
+		default:
+			t.Errorf("die Zeile nennt Programm und Herkunft nicht: %+v", z)
+		}
+	}
+	if eigen != 2 || fremdePorts != 1 {
+		t.Errorf("Belegung falsch gelesen: %d eigen, %d fremd — erwartet 2 und 1",
+			eigen, fremdePorts)
+	}
+
+	// Die Zielvorschläge aus dem Bestand — die Zugabe aus Stufe 0.5.
+	if len(wb.Ziele.Zeilen) == 0 {
+		t.Fatal("das Formular schlägt keine Ziele vor, obwohl Container laufen — " +
+			"dann tippt jemand eine Portnummer ab, und ein vertippter Port ist " +
+			"der häufigste Grund für eine Site, die 502 antwortet")
+	}
+	// Der unbequeme Satz muss dastehen, und zwar an dem Vorschlag, der ihn
+	// betrifft: Der Container auf 0.0.0.0:8080 ist schon jetzt aus dem Netz
+	// erreichbar.
+	var mitWarnung int
+	for _, z := range wb.Ziele.Zeilen {
+		if z.Warnung == "" {
+			continue
+		}
+		mitWarnung++
+		if !strings.Contains(z.Warnung, "allen Adressen") {
+			t.Errorf("die Warnung benennt den Fall nicht: %q", z.Warnung)
+		}
+	}
+	if mitWarnung == 0 {
+		t.Error("kein Vorschlag trägt die Warnung — die Attrappe hat einen Container " +
+			"auf 0.0.0.0, und genau dessen Fall ist der Grund für diese Liste")
+	}
+	// Und die Begründung steht einmal über der Liste — nicht an jeder Zeile.
+	if !strings.Contains(wb.Ziele.Anmerkung, "ändert das nicht") {
+		t.Errorf("über der Liste fehlt der Satz, warum das zählt: %q", wb.Ziele.Anmerkung)
+	}
+	if !strings.Contains(wb.NachUebernehmen, "http://") {
+		t.Errorf("nach dem Übernehmen steht im Zielfeld %q, erwartet eine Adresse",
+			wb.NachUebernehmen)
+	}
+
+	// Der Schreibpfad. Zuerst die Stufe 3: Ein Verzeichnis außerhalb der
+	// üblichen Wurzeln ist der legitime und häufige Fall — und zugleich der Weg,
+	// über den eine Site fremde Daten ausliefert.
+	if !wb.StufeDrei.Tippfeld {
+		t.Error("ein root außerhalb von /var/www und /srv kam ohne getipptes Wort durch")
+	}
+	if !wb.StufeDrei.Gesperrt {
+		t.Error("der Knopf war offen, bevor der Domainname getippt war")
+	}
+	if !strings.Contains(wb.StufeDrei.Hinweis, "neu.example.com") {
+		t.Errorf("der Hinweis nennt nicht, was zu tippen ist: %q", wb.StufeDrei.Hinweis)
+	}
+	// Die Begründung an erster Stelle: Sie ist der Grund für die Stufe, und
+	// unter drei anderen Zeilen liest sie niemand.
+	if !strings.Contains(wb.StufeDrei.ErsterPunkt, "außerhalb") {
+		t.Errorf("die Begründung steht nicht an erster Stelle: %q", wb.StufeDrei.ErsterPunkt)
+	}
+
+	// Der gerade Fall ist Stufe 2 — die Probe fängt den Fehler, und ein
+	// getipptes Wort wäre eine Hürde ohne Zuwachs an Sicherheit.
+	if wb.StufeZwei.Tippfeld {
+		t.Error("ein gewöhnlicher Reverse-Proxy verlangt ein getipptes Wort")
+	}
+	if !strings.Contains(strings.Join(wb.StufeZwei.Punkte, " "), "Probe") {
+		t.Errorf("die Rückfrage erwähnt die Probe nicht: %v", wb.StufeZwei.Punkte)
+	}
+
+	// Das Probeband. Es ist die einzige Stelle dieser Fläche, an der
+	// Untätigkeit etwas rückgängig macht.
+	if !wb.Probe.Da {
+		t.Fatal("nach dem Speichern steht kein Probeband da — eine Änderung, die " +
+			"niemand bestätigen muss, hat keinen Rückweg")
+	}
+	if wb.Probe.ErsteZahl < 30 || wb.Probe.ErsteZahl > 60 {
+		t.Errorf("die Uhr steht auf %d, erwartet zwischen 30 und 60", wb.Probe.ErsteZahl)
+	}
+	if !wb.Probe.VorDerTabelle {
+		t.Error("das Probeband steht unter der Liste — wer hereinkommt, während " +
+			"die Frist läuft, muss zuerst den Knopf sehen, der sie beendet")
+	}
+	if wb.Probe.Knopf == "" {
+		t.Error("im Probeband fehlt der Knopf zum Bestätigen")
+	}
+	if wb.NachBestaetigen.Probe {
+		t.Error("nach dem Bestätigen läuft die Probe weiter")
+	}
+	if !strings.Contains(wb.NachBestaetigen.Meldung, "bestätigt") {
+		t.Errorf("nach dem Bestätigen fehlt die Rückmeldung: %q", wb.NachBestaetigen.Meldung)
+	}
+
+	// Der Zurück-Knopf des Browsers geht EINE Fläche zurück und nicht aus dem
+	// Modul heraus: Der Weg führte über die Zertifikate auf die Portbelegung.
+	if wb.Zurueck != "/webserver/zertifikate" {
+		t.Errorf("nach dem Zurückgehen steht %q, erwartet /webserver/zertifikate",
+			wb.Zurueck)
+	}
+
+	// Schmal: keine waagerechte Scrollerei. Dieselbe Regel wie überall, und die
+	// Sitestabelle mit ihren fünf Spalten ist die Stelle, an der sie zuerst
+	// bricht.
+	if wb.Schmal.KoerperBreite > wb.Schmal.FensterBreite+1 {
+		t.Errorf("bei 375 px scrollt die Webserverseite waagerecht: %.0f > %.0f",
+			wb.Schmal.KoerperBreite, wb.Schmal.FensterBreite)
+	}
+	// Schmal ist die Seitenleiste eine Symbolschiene ohne Beschriftungen —
+	// dort tritt der Umschaltstreifen an ihre Stelle. Fehlt er, ist die zweite
+	// Fläche auf einem Telefon unerreichbar.
+	if !wb.Schmal.StreifenDa {
+		t.Error("bei 375 px fehlt der Umschaltstreifen — die Portbelegung wäre " +
+			"auf einem Telefon nur über die getippte Adresse zu erreichen")
+	}
+	if len(wb.Schmal.StreifenPunkte) != 3 {
+		t.Errorf("der Streifen zeigt %d Punkte, erwartet 3: %v",
+			len(wb.Schmal.StreifenPunkte), wb.Schmal.StreifenPunkte)
 	}
 
 	// 7. Schmal: keine waagerechte Scrollerei, Beschriftung sichtbar.

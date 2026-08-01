@@ -85,8 +85,23 @@ func TestAPIZertifikatSelbstsigniert(t *testing.T) {
 		t.Error("die verwaltete Datei wird nicht genannt")
 	}
 	// Die Wahlmöglichkeiten kommen mit ihrer Erklärung.
-	if len(a.Pruefmethoden) != 3 || len(a.Anbieters) != 3 {
-		t.Errorf("%d Prüfmethoden, %d Anbieter", len(a.Pruefmethoden), len(a.Anbieters))
+	//
+	// Die Anbieter werden NICHT gezählt, sondern benannt: Ihre Liste kommt seit
+	// 0.6 aus dem Register des acme-Pakets und wächst mit jedem neuen. Eine
+	// feste Zahl hier wäre ein Test, der bei jeder Erweiterung fehlschlägt,
+	// ohne dass etwas kaputt wäre — und der deshalb irgendwann nur noch
+	// hochgezählt statt gelesen wird.
+	if len(a.Pruefmethoden) != 3 {
+		t.Errorf("%d Prüfmethoden, erwartet 3", len(a.Pruefmethoden))
+	}
+	gefunden := map[string]bool{}
+	for _, w := range a.Anbieters {
+		gefunden[w.Wert] = true
+	}
+	for _, muss := range []string{"", "hook", "cloudflare", "acme-dns"} {
+		if !gefunden[muss] {
+			t.Errorf("der Anbieter %q fehlt in der Auswahl: %+v", muss, a.Anbieters)
+		}
 	}
 	for _, w := range append(a.Pruefmethoden, a.Anbieters...) {
 		if w.Name == "" || w.Was == "" {
@@ -194,8 +209,10 @@ func TestAPIZertifikatPruefung(t *testing.T) {
 		{"Hook mit relativem Pfad", `{"modus":"acme","email":"a@example.test",
 			"pruefmethode":"dns-01","anbieter":"hook",
 			"hook_setzen":"skript.sh","hook_aufraeumen":"/bin/true"}`, "absoluter Pfad"},
-		{"Cloudflare ohne Token", `{"modus":"acme","email":"a@example.test",
-			"pruefmethode":"dns-01","anbieter":"cloudflare"}`, "Token"},
+		{"Cloudflare ohne Zugang", `{"modus":"acme","email":"a@example.test",
+			"pruefmethode":"dns-01","anbieter":"cloudflare"}`, "Zugangsdaten"},
+		{"acme-dns ohne Zugang", `{"modus":"acme","email":"a@example.test",
+			"pruefmethode":"dns-01","anbieter":"acme-dns"}`, "Zugangsdaten"},
 		{"unbekannter Anbieter", `{"modus":"acme","email":"a@example.test",
 			"anbieter":"route53"}`, "Anbieter"},
 	}
@@ -242,7 +259,9 @@ func TestAPIZertifikatTokenBleibtGeheim(t *testing.T) {
 
 	// In einer eigenen Datei mit 0600 — die Konfiguration ist für die Gruppe des
 	// Dienstes lesbar, ein API-Schlüssel hat dort nichts zu suchen.
-	pfad := filepath.Join(s.cfg.Paths.Data, "acme", "cloudflare.token")
+	// Eine Datei je Anbieter, benannt nach ihm: Ein Wechsel zu einem anderen
+	// überschreibt den vorhandenen Zugang damit nicht.
+	pfad := filepath.Join(s.cfg.Paths.Data, "acme", "cloudflare.zugang")
 	info, err := os.Stat(pfad)
 	if err != nil {
 		t.Fatalf("die Tokendatei fehlt: %v", err)

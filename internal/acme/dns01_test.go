@@ -130,7 +130,10 @@ func TestNewDNSSetter(t *testing.T) {
 	if _, err := newDNSSetter(Options{DNS01Provider: "route53"}); err == nil {
 		t.Error("unbekannter Anbieter sollte scheitern")
 	}
-	if _, err := newDNSSetter(Options{DNS01Provider: providerCloudflare, CloudflareTokenFile: "/gibt/es/nicht"}); err == nil {
-		t.Error("fehlende Token-Datei sollte scheitern")
+	if _, err := newDNSSetter(Options{DNS01Provider: providerCloudflare, ZugangsDatei: "/gibt/es/nicht"}); err == nil {
+		t.Error("fehlende Zugangsdatei sollte scheitern")
+	}
+	if _, err := newDNSSetter(Options{DNS01Provider: providerCloudflare}); err == nil {
+		t.Error("Anbieter ohne Zugangsdatei sollte scheitern")
 	}
 }

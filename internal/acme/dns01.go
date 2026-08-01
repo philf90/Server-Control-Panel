@@ -2,11 +2,9 @@ package acme
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"strings"
 	"time"
 )
@@ -134,29 +132,4 @@ func (d *dns01Solver) waitForPropagation(ctx context.Context, record, value stri
 // Rauschen.
 func seit(start, jetzt time.Time) time.Duration {
 	return jetzt.Sub(start).Round(time.Second)
-}
-
-// newDNSSetter baut den anbieterspezifischen Setzer aus der Konfiguration.
-func newDNSSetter(opts Options) (dnsSetter, error) {
-	switch opts.DNS01Provider {
-	case providerHook:
-		if opts.HookSet == "" || opts.HookClean == "" {
-			return nil, errors.New("dns-01 hook: set und clean müssen gesetzt sein")
-		}
-		return &hookSetter{set: opts.HookSet, clean: opts.HookClean}, nil
-	case providerCloudflare:
-		raw, err := os.ReadFile(opts.CloudflareTokenFile) //nolint:gosec // Pfad aus der Konfiguration
-		if err != nil {
-			return nil, fmt.Errorf("cloudflare-token lesen: %w", err)
-		}
-		token := strings.TrimSpace(string(raw))
-		if token == "" {
-			return nil, errors.New("cloudflare-token-datei ist leer")
-		}
-		return newCloudflareSetter(token), nil
-	case "":
-		return nil, errors.New("dns-01 verlangt einen Anbieter (hook|cloudflare)")
-	default:
-		return nil, fmt.Errorf("unbekannter dns-01-anbieter %q", opts.DNS01Provider)
-	}
 }

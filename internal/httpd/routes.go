@@ -297,6 +297,58 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/v1/docker/updates/check",
 		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIDockerUpdatePruefung)))))
 
+	// Webserver. Lesen genügt das Leserecht; einspielen verlangt die
+	// Owner-Rolle, dieselbe Begründung wie bei Docker — eine Site ist eine
+	// Konfiguration, die als root gelesen wird und einen Dienst aus dem Netz
+	// erreichbar macht.
+	//
+	// Der Installationshandler prüft vor dem apt-Lauf, ob auf Port 80 oder 443
+	// schon jemand hört, und lehnt sonst ab. Das steht im Handler und nicht in
+	// einer Middleware, weil es keine Rechtefrage ist, sondern eine über den
+	// Zustand des Servers — ausführlich im Kopf von api_v1_webserver.go und in
+	// docs/18-webserver.md E1.
+	mux.Handle("GET /api/v1/webserver", s.protected(http.HandlerFunc(s.handleAPIWebserver)))
+	mux.Handle("POST /api/v1/webserver/install",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverInstall)))))
+	// Sites, lesend. Der Name im Pfad wird nie zu einem Pfad auf der Platte —
+	// wo die Datei liegt, bestimmt das verwaltete Verzeichnis. Käme der Pfad
+	// aus der Anfrage, wäre das ein Weg, jede Datei des Servers zu lesen;
+	// dieselbe Regel wie bei den Compose-Stacks.
+	mux.Handle("GET /api/v1/webserver/sites",
+		s.protected(http.HandlerFunc(s.handleAPIWebserverSites)))
+	mux.Handle("GET /api/v1/webserver/sites/{name}",
+		s.protected(http.HandlerFunc(s.handleAPIWebserverSite)))
+	// Die Zielvorschläge sind eine Auskunft und liegen deshalb nicht hinter
+	// apiOwner: Sie nennen laufende Container und FPM-Sockets — dasselbe, was
+	// die Docker- und die Dienstseite ohnehin jeder Rolle zeigen.
+	mux.Handle("GET /api/v1/webserver/ziele",
+		s.protected(http.HandlerFunc(s.handleAPIWebserverZiele)))
+	// Zertifikate je Site. Lesen darf jede Rolle — dieselbe Auskunft wie auf der
+	// Zertifikatsseite des Panels. Beziehen ist Stufe 1, aber schreibend: Es
+	// legt eine Datei ab und spricht mit einer Prüfstelle.
+	mux.Handle("GET /api/v1/webserver/zertifikate",
+		s.protected(http.HandlerFunc(s.handleAPIWebserverZertifikate)))
+	mux.Handle("POST /api/v1/webserver/sites/{name}/zertifikat",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverZertifikatBeziehen)))))
+	// Sites, schreibend. Owner und nicht Admin — dieselbe Begründung wie bei
+	// Docker und den Zeitplänen: Eine Site ist eine Konfiguration, die als root
+	// gelesen wird und einen Dienst aus dem Netz erreichbar macht.
+	//
+	// PUT und nicht POST: Der Name steht im Pfad, und derselbe Aufruf legt an
+	// oder ändert. Was davon geschieht, entscheidet nicht der Aufrufer, sondern
+	// der Zustand auf der Platte — und der Hash in „fassung" sagt, von welchem
+	// Stand der Aufrufer ausging.
+	mux.Handle("PUT /api/v1/webserver/sites/{name}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverSiteSchreiben)))))
+	mux.Handle("POST /api/v1/webserver/sites/{name}/schalten",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverSiteSchalten)))))
+	mux.Handle("DELETE /api/v1/webserver/sites/{name}",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverSiteLoeschen)))))
+	// Die Bestätigung der Probe. Ebenfalls hinter apiSchreibend: Sie ist die
+	// zweite Hälfte einer Änderung und keine Auskunft.
+	mux.Handle("POST /api/v1/webserver/sites/bestaetigen",
+		s.protected(s.apiOwner(s.apiSchreibend(http.HandlerFunc(s.handleAPIWebserverSiteBestaetigen)))))
+
 	// Das eigene Konto. KEIN apiSchreibend: Die Rolle „readonly" darf keine
 	// Systemzustände ändern, aber jeder darf sein eigenes Passwort wechseln — sonst
 	// bliebe ein Konto mit Leserecht auf dem Einmalpasswort sitzen, mit dem es

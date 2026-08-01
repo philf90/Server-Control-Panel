@@ -43,6 +43,42 @@ type fakeOps struct {
 	refreshErr    error
 	refreshDone   chan struct{}
 
+	// Webserver. web ist der Zustand, den WebServerState liefert; webInstallHalt
+	// hält den Lauf an wie bei Docker, damit die Prüfung „höchstens einer je
+	// Art" etwas zu prüfen hat.
+	web            privops.WebServerState
+	webErr         error
+	webInstallErr  error
+	webInstallHalt chan struct{}
+	webInstallDone chan struct{}
+	// webroot ist das Verzeichnis, das AcmeWebroot zurückgibt, webrootDomains
+	// zeichnet auf, für welche Namen es angefordert wurde. Beides braucht der
+	// Test, der prüft, dass der Weg nur bei eigenem nginx gelegt wird.
+	webroot        string
+	webrootErr     error
+	webrootDomains [][]string
+
+	// Sites. sitesErr ist absichtlich befüllbar, aber der wichtigere Fall ist
+	// SiteBestand.Gelesen = false: „nicht lesbar" ist ein Zustand, kein Fehler.
+	sites       privops.SiteBestand
+	sitesErr    error
+	siteDateien map[string]string
+	// siteSchreibErr lässt SiteApply scheitern — der Fall „nginx hat abgelehnt".
+	siteSchreibErr error
+	// sitePruefung ist das Ergebnis, das SiteApply zurückgibt. Die Attrappe
+	// prüft NICHT selbst: Der Prüfer ist in privops getestet, und ihn hier
+	// nachzubauen hieße, zwei Auslegungen zu haben.
+	sitePruefung   privops.SitePruefung
+	siteEntwuerfe  []privops.SiteEntwurf
+	siteGeschaltet []string
+	siteGeloescht  []string
+	siteRestore    []privops.SiteRuecknahme
+	// phpSockets sind die FPM-Sockets, die die Attrappe meldet. Als Feld und
+	// nicht als Blick auf die Platte: Sonst hinge die Zielliste daran, ob auf
+	// der Maschine, die den Test ausführt, php-fpm installiert ist — und genau
+	// das war der erste rote CI-Lauf dieser Stufe.
+	phpSockets []string
+
 	selfUpdates   []privops.SelfUpdateSpec
 	selfUpdateErr error
 
@@ -499,6 +535,126 @@ func (f *fakeOps) DockerInstall(_ context.Context, stream privops.LineWriter) er
 	return err
 }
 
+func (f *fakeOps) WebServerState(context.Context) (privops.WebServerState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.web, f.webErr
+}
+
+func (f *fakeOps) WebServerInstall(_ context.Context, stream privops.LineWriter) error {
+	f.record("webserver:install")
+	if stream != nil {
+		stream("Richte nginx ein …")
+	}
+	f.mu.Lock()
+	halt := f.webInstallHalt
+	f.mu.Unlock()
+	if halt != nil {
+		<-halt
+	}
+
+	f.mu.Lock()
+	err := f.webInstallErr
+	done := f.webInstallDone
+	// Nach dem Lauf ist nginx da — und hält die Ports. Ohne diesen zweiten Teil
+	// zeigte ein Test, der danach den Zustand abfragt, weiter einen freien Port
+	// und damit einen Installationsknopf, den es auf einem echten Server nach
+	// dem Lauf nicht mehr gibt.
+	if err == nil {
+		f.web = privops.WebServerState{
+			Installiert: true, Version: "1.24.0", Paket: "nginx-core", DienstAktiv: true,
+			LauscherGeprueft: true,
+			Lauscher: []privops.Lauscher{
+				{Port: 80, Adresse: "0.0.0.0", Prozess: "nginx", PID: 4711},
+			},
+		}
+	}
+	f.mu.Unlock()
+
+	if done != nil {
+		close(done)
+	}
+	return err
+}
+
+func (f *fakeOps) SiteList(context.Context) (privops.SiteBestand, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.sites, f.sitesErr
+}
+
+func (f *fakeOps) SiteDatei(_ context.Context, name string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	inhalt, da := f.siteDateien[name]
+	if !da {
+		return "", errors.New("keine verwaltete Site " + name)
+	}
+	return inhalt, nil
+}
+
+func (f *fakeOps) SiteApply(_ context.Context, e privops.SiteEntwurf, _ privops.SiteLage, _ string) (privops.SiteErgebnis, error) {
+	f.record("webserver:site-apply")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.siteEntwuerfe = append(f.siteEntwuerfe, e)
+	erg := privops.SiteErgebnis{
+		Pruefung: f.sitePruefung,
+		Datei:    "/etc/nginx/conf.d/asylum-" + e.Name + ".conf",
+		Fassung:  "neu-" + e.Name,
+		Ruecknahme: privops.SiteRuecknahme{
+			Datei: "/etc/nginx/conf.d/asylum-" + e.Name + ".conf",
+		},
+	}
+	return erg, f.siteSchreibErr
+}
+
+func (f *fakeOps) SiteSchalten(_ context.Context, name string, an bool) (privops.SiteRuecknahme, error) {
+	f.record("webserver:site-schalten")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	zustand := "aus"
+	if an {
+		zustand = "an"
+	}
+	f.siteGeschaltet = append(f.siteGeschaltet, name+"="+zustand)
+	return privops.SiteRuecknahme{
+		Datei: "/etc/nginx/conf.d/asylum-" + name + ".conf", Hatte: true,
+	}, f.siteSchreibErr
+}
+
+func (f *fakeOps) SiteRemove(_ context.Context, name string) (privops.SiteRuecknahme, error) {
+	f.record("webserver:site-remove")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.siteGeloescht = append(f.siteGeloescht, name)
+	return privops.SiteRuecknahme{
+		Datei: "/etc/nginx/conf.d/asylum-" + name + ".conf", Inhalt: "alt", Hatte: true,
+	}, f.siteSchreibErr
+}
+
+func (f *fakeOps) PHPSockets(context.Context) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.phpSockets
+}
+
+func (f *fakeOps) SiteRestore(_ context.Context, r privops.SiteRuecknahme) error {
+	f.record("webserver:site-restore")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.siteRestore = append(f.siteRestore, r)
+	return nil
+}
+
+func (f *fakeOps) AcmeWebroot(_ context.Context, domains []string) (string, error) {
+	f.record("webserver:acme-webroot")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.webrootDomains = append(f.webrootDomains, domains)
+	return f.webroot, f.webrootErr
+}
+
 func (f *fakeOps) SelfUpdateStart(_ context.Context, spec privops.SelfUpdateSpec) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -600,7 +756,7 @@ func newSystemServer(t *testing.T) (*Server, *fakeOps) {
 // Frist herunter, statt eine Minute zu warten.
 func TestFirewallRollbackAfterTimeout(t *testing.T) {
 	ops := newFakeOps()
-	guard := newFirewallGuard()
+	guard := neuerProbenWaechter(firewallConfirmWindow)
 
 	previous := []privops.FirewallRule{{Port: 22, Protocol: "tcp"}}
 	reverted := make(chan []privops.FirewallRule, 1)

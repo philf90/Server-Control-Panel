@@ -80,7 +80,15 @@ type Server struct {
 	filesPruefOnce sync.Once
 	filesPruefung  []privops.RootStatus
 	jobs           *jobs
-	fwGuard        *firewallGuard
+	// fwGuard hält die Firewalländerung auf Probe, siteGuard die Änderung an
+	// einer Site. Ein eigener Wächter je Bereich: Ein geteilter hieße, dass eine
+	// bestätigte Firewalländerung eine unbestätigte Site mitbestätigt. Siehe
+	// probe.go.
+	fwGuard   *probenWaechter
+	siteGuard *probenWaechter
+	// siteZerts hält die ACME-Manager der Sites — einen je Site mit TLS, alle
+	// auf demselben Konto. Siehe tlssites.go.
+	siteZerts *siteZerts
 	// logFolger zählt die offenen Journalströme. Jeder hält einen eigenen
 	// journalctl-Prozess, weil jeder seinen eigenen Filter hat — anders als bei
 	// einem Vorgang, den alle Zuschauer teilen. Siehe maxLogFolger.
@@ -137,26 +145,28 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 	pk := buildPasskeys(cfg, logger)
 	dateien := buildFiles(cfg, logger)
 	return &Server{
-		cfg:      cfg,
-		cfgPath:  cfg.SourcePath,
-		tls:      newTLSControl(config.TLSSettingsOf(cfg)),
-		log:      logger,
-		db:       db,
-		tmpl:     tmpl,
-		started:  time.Now(),
-		sampler:  metrics.NewSampler(),
-		ring:     metrics.NewRing(historyEntries),
-		limiter:  auth.NewLimiter(),
-		hub:      newHub(),
-		ops:      ops,
-		journal:  journal,
-		jobs:     newJobs(),
-		fwGuard:  newFirewallGuard(),
-		upd:      newUpdateState(),
-		pending:  newPendingSecrets(),
-		resets:   newResetTickets(),
-		passkeys: pk,
-		files:    dateien,
+		cfg:       cfg,
+		cfgPath:   cfg.SourcePath,
+		tls:       newTLSControl(config.TLSSettingsOf(cfg)),
+		log:       logger,
+		db:        db,
+		tmpl:      tmpl,
+		started:   time.Now(),
+		sampler:   metrics.NewSampler(),
+		ring:      metrics.NewRing(historyEntries),
+		limiter:   auth.NewLimiter(),
+		hub:       newHub(),
+		ops:       ops,
+		journal:   journal,
+		jobs:      newJobs(),
+		fwGuard:   neuerProbenWaechter(firewallConfirmWindow),
+		siteGuard: neuerProbenWaechter(siteProbeFenster),
+		siteZerts: neueSiteZerts(),
+		upd:       newUpdateState(),
+		pending:   newPendingSecrets(),
+		resets:    newResetTickets(),
+		passkeys:  pk,
+		files:     dateien,
 	}, nil
 }
 

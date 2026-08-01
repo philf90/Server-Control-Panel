@@ -178,7 +178,42 @@ export const gruppen: Gruppe[] = [
         symbol: "globus",
         href: "/webserver",
         gruppe: t.bereiche.apps,
-        auch: ["nginx", "caddy", "vhost", "site", "domain", "proxy"],
+        neu: true,
+        // "caddy" bleibt als Suchwort stehen, obwohl das Panel Caddy nicht
+        // verwaltet: Wer danach sucht, soll die Seite finden — dort steht dann
+        // die ehrliche Antwort, nämlich welcher Webserver läuft und dass das
+        // Panel ihn nicht anfasst. Ein Suchwort, das ins Leere führt, wäre die
+        // schlechtere der beiden Auskünfte. Dasselbe gilt für apache.
+        auch: ["nginx", "caddy", "apache", "vhost", "site", "domain", "proxy", "port 80"],
+        kinder: [
+          {
+            id: "webserver/",
+            label: t.ziele.webserverSites,
+            symbol: "globus",
+            href: "/webserver",
+            gruppe: t.ziele.webserver,
+            neu: true,
+            auch: ["vhost", "serverblock", "domain", "proxy", "server_name"],
+          },
+          {
+            id: "webserver/zertifikate",
+            label: t.ziele.webserverZertifikate,
+            symbol: "globus",
+            href: "/webserver/zertifikate",
+            gruppe: t.ziele.webserver,
+            neu: true,
+            auch: ["tls", "ssl", "https", "lets encrypt", "acme", "ablauf", "erneuern"],
+          },
+          {
+            id: "webserver/ports",
+            label: t.ziele.webserverPorts,
+            symbol: "globus",
+            href: "/webserver/ports",
+            gruppe: t.ziele.webserver,
+            neu: true,
+            auch: ["port 80", "port 443", "belegt", "lauscher", "ss", "listen"],
+          },
+        ],
       },
       {
         id: "datenbanken",

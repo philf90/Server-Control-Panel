@@ -17,6 +17,14 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	// Die Abhängigkeit geht bewusst in DIESE Richtung. internal/acme kennt
+	// internal/config nicht und soll es nicht kennen — deshalb stehen die
+	// Anbieternamen dort als eigene Konstanten (siehe dns01.go). Umgekehrt darf
+	// config das acme-Paket kennen: Es prüft ohnehin schon ACME-Semantik
+	// (Anbieternamen, Challenge-Typen), und die Namensprüfung zweimal zu
+	// schreiben wäre die schlechtere der beiden Antworten.
+	"github.com/philf90/asylum/internal/acme"
 )
 
 // DefaultPath ist der Ort, an dem der Installer die Konfiguration ablegt.
@@ -90,10 +98,39 @@ type ACMEHTTP01 struct {
 
 // ACMEDNS01 steuert die DNS-01-Prüfung.
 type ACMEDNS01 struct {
-	// Provider: hook (Betreiber-Skript) oder cloudflare (eingebaute HTTP-API).
-	Provider   string         `yaml:"provider"`
-	Hook       ACMEHook       `yaml:"hook"`
+	// Provider ist der Name des Anbieters: `hook` (Betreiber-Skript) oder einer
+	// der eingebauten. Welche das sind, sagt acme.AnbieterNamen() — die Liste
+	// steht im Register des acme-Pakets und nicht ein zweites Mal hier.
+	Provider string   `yaml:"provider"`
+	Hook     ACMEHook `yaml:"hook"`
+
+	// CredentialsFile ist der Pfad zur Zugangsdatei des Anbieters (0600).
+	//
+	// EIN Feld für alle eingebauten Anbieter, und das ist eine Entscheidung mit
+	// Grund: Sieben Anbieter hätten sonst sieben Blöcke mit zusammen zwanzig
+	// Feldern, davon die Hälfte Geheimnisse. So steht in der Konfiguration nie
+	// eines — sie liegt in /etc, wird gesichert und in Fehlerberichte kopiert.
+	// Was in der Datei stehen muss, sagt der Anbieter (acme.Anbieterliste()).
+	CredentialsFile string `yaml:"credentials_file"`
+
+	// Cloudflare ist der Weg von 0.5 und bleibt lesbar, damit eine vorhandene
+	// Konfiguration weiterläuft. Neu geschrieben wird credentials_file; steht
+	// beides da, gewinnt das neue Feld.
+	//
+	// Deprecated: acme.dns01.credentials_file benutzen.
 	Cloudflare ACMECloudflare `yaml:"cloudflare"`
+}
+
+// ZugangsDatei liefert den Pfad zur Zugangsdatei — mit dem alten
+// Cloudflare-Feld als Rückfall.
+//
+// Der Rückfall steht hier und nicht beim Aufrufer: Sonst müsste jede Stelle,
+// die den Pfad braucht, an den Übergang denken, und eine davon vergäße ihn.
+func (d ACMEDNS01) ZugangsDatei() string {
+	if d.CredentialsFile != "" {
+		return d.CredentialsFile
+	}
+	return d.Cloudflare.APITokenFile
 }
 
 // ACMEHook ruft ein vom Betreiber gestelltes Programm, das den TXT-Record
@@ -468,29 +505,56 @@ func (a ACME) validate() error {
 			return fmt.Errorf("acme.directory_url: %q ist keine https-Adresse", a.DirectoryURL)
 		}
 	}
+	// Die Namen. Bis 0.6 wurden sie hier GAR NICHT geprüft — ein Tippfehler
+	// fiel erst beim CA-Server auf, und der zählt Fehlversuche gegen die
+	// Ratengrenze. Geprüft wird die Form, nicht die Erreichbarkeit: Ob der Name
+	// auf diesen Server zeigt, kann nur die Prüfung selbst beantworten.
+	for _, d := range a.Domains {
+		if err := acme.PruefeZertifikatsname(strings.ToLower(strings.TrimSpace(d))); err != nil {
+			return fmt.Errorf("acme.domains: %w", err)
+		}
+	}
+	// Ein Platzhalter verlangt DNS-01 — Let's Encrypt prüft ihn nur über das
+	// DNS. Das hier abzufangen ist besser als es im Manager zu tun: Eine
+	// Konfiguration, die im Betrieb nie funktionieren kann, soll den Start
+	// nicht überstehen.
+	if acme.EnthaeltWildcard(a.Domains) {
+		if a.Challenge == "http-01" {
+			return errors.New("acme.challenge ist http-01, aber unter acme.domains " +
+				"steht ein Platzhalter — Let's Encrypt prüft Platzhalter nur über DNS-01")
+		}
+		if a.DNS01.Provider == "" {
+			return errors.New("unter acme.domains steht ein Platzhalter, aber " +
+				"acme.dns01.provider ist leer — Platzhalter verlangen DNS-01")
+		}
+	}
+
 	switch a.Challenge {
 	case "", "http-01", "dns-01":
 	default:
 		return fmt.Errorf("acme.challenge: %q ist unbekannt (leer=automatisch|http-01|dns-01)", a.Challenge)
 	}
 
-	switch a.DNS01.Provider {
-	case "":
+	switch {
+	case a.DNS01.Provider == "":
 		// Kein DNS-Anbieter konfiguriert. Nur ein Widerspruch, wenn dns-01
 		// ausdrücklich verlangt ist — bei automatischer Wahl bleibt HTTP-01.
 		if a.Challenge == "dns-01" {
 			return errors.New("acme.challenge ist dns-01, aber acme.dns01.provider ist leer")
 		}
-	case DNS01ProviderHook:
+	case a.DNS01.Provider == DNS01ProviderHook:
 		if a.DNS01.Hook.Set == "" || a.DNS01.Hook.Clean == "" {
 			return errors.New("acme.dns01.hook: set und clean müssen gesetzt sein")
 		}
-	case DNS01ProviderCloudflare:
-		if a.DNS01.Cloudflare.APITokenFile == "" {
-			return errors.New("acme.dns01.cloudflare.api_token_file darf nicht leer sein")
-		}
-	default:
-		return fmt.Errorf("acme.dns01.provider: %q ist unbekannt (hook|cloudflare)", a.DNS01.Provider)
+	case !acme.AnbieterBekannt(a.DNS01.Provider):
+		// Die Liste kommt aus dem Register und steht nicht zweimal. Sie ist Teil
+		// der Meldung, weil „unbekannt" ohne die Alternativen zu keiner
+		// Entscheidung befähigt.
+		return fmt.Errorf("acme.dns01.provider: %q ist unbekannt (%s)",
+			a.DNS01.Provider, strings.Join(acme.AnbieterNamen(), "|"))
+	case a.DNS01.ZugangsDatei() == "":
+		return fmt.Errorf("acme.dns01.credentials_file darf für den Anbieter %q nicht leer sein",
+			a.DNS01.Provider)
 	}
 	return nil
 }

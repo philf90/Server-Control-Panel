@@ -45,6 +45,19 @@ var allowedCommands = map[string][]string{
 	// ein zweiter erlaubter Pfad wäre eine zweite Angriffsfläche für eine
 	// Fassung, die niemand mehr pflegt.
 	"docker": {"/usr/bin/docker"},
+	// Genau ein Eintrag für den Webserver, und der heißt nginx. Caddy, Apache
+	// und lighttpd stehen bewusst NICHT hier: Verwaltet wird nginx, jeder andere
+	// Webserver wird erkannt und nicht angefasst. Ein zweiter Eintrag wäre die
+	// Zusage, auch dessen Konfiguration schreiben zu können — mit zweiter
+	// Syntax, zweitem Prüfprogramm und zweitem Angriffsdurchgang.
+	// Begründung in docs/18-webserver.md E1.
+	"nginx": {"/usr/sbin/nginx", "/sbin/nginx"},
+	// ss beantwortet die einzige Frage, an der die Installation eines Webservers
+	// hängt: Hört auf Port 80 oder 443 schon jemand? Gefragt wird nach dem Port
+	// und nicht nach einem Paketnamen — sonst übersieht die Prüfung genau die
+	// Fälle, die sie abfangen soll (Apache, ein Traefik im Container, ein
+	// selbstgebautes Binary). Rein lesend; ss ändert nichts.
+	"ss": {"/usr/bin/ss", "/bin/ss", "/usr/sbin/ss"},
 	// sshd wird ausschließlich mit -t aufgerufen: Konfiguration prüfen, nichts
 	// starten. Der Editor kann sshd_config ändern, und ein Tippfehler darin
 	// kostet den Zugang zum Server — siehe configcheck.go.

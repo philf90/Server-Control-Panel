@@ -163,24 +163,74 @@ func acmeDomains(set config.TLSSettings) []string {
 // newACMEManager baut den Manager aus den geltenden Einstellungen. Fehlt eine
 // auflösbare Domain, gibt es keinen sinnvollen Namen für ein Zertifikat — dann
 // bleibt es beim selbstsignierten Paar.
-func (s *Server) newACMEManager(set config.TLSSettings) (*acme.Manager, error) {
+func (s *Server) newACMEManager(ctx context.Context, set config.TLSSettings) (*acme.Manager, error) {
 	domains := acmeDomains(set)
 	if len(domains) == 0 {
 		return nil, errors.New("keine Domain ermittelbar (Feld leer und Rechnername nicht auflösbar)")
 	}
 	return acme.New(acme.Options{
-		Dir:                 filepath.Join(s.cfg.Paths.Data, "acme"),
-		Email:               set.ACME.Email,
-		Domains:             domains,
-		DirectoryURL:        set.ACME.DirectoryURL,
-		Challenge:           set.ACME.Challenge,
-		HTTP01Addr:          ":80",
-		DNS01Provider:       set.ACME.DNS01.Provider,
-		HookSet:             set.ACME.DNS01.Hook.Set,
-		HookClean:           set.ACME.DNS01.Hook.Clean,
-		CloudflareTokenFile: set.ACME.DNS01.Cloudflare.APITokenFile,
-		Progress:            certProgress{s: s},
+		Dir:           filepath.Join(s.cfg.Paths.Data, "acme"),
+		Email:         set.ACME.Email,
+		Domains:       domains,
+		DirectoryURL:  set.ACME.DirectoryURL,
+		Challenge:     set.ACME.Challenge,
+		HTTP01Addr:    ":80",
+		Webroot:       s.acmeWebroot(ctx, domains),
+		DNS01Provider: set.ACME.DNS01.Provider,
+		HookSet:       set.ACME.DNS01.Hook.Set,
+		HookClean:     set.ACME.DNS01.Hook.Clean,
+		ZugangsDatei:  set.ACME.DNS01.ZugangsDatei(),
+		Progress:      certProgress{s: s},
 	}, s.certHolder, s.log)
+}
+
+// acmeWebroot legt bei Bedarf den Weg für die HTTP-01-Prüfung DURCH nginx
+// hindurch und gibt das Verzeichnis zurück. Leer heißt: Das Panel lauscht wie
+// bisher selbst auf Port 80.
+//
+// Hier steht die Auswahl aus docs/18-webserver.md §3, und sie trifft nicht der
+// Betreiber, sondern der Zustand des Servers. Drei Lagen:
+//
+//  1. **Das Panel verwaltet ein laufendes nginx.** Dann legt es den Weg und
+//     nutzt ihn. Ohne diesen Zweig verlöre das Panel mit dem ersten Klick auf
+//     „nginx einspielen" die Fähigkeit, sein eigenes Zertifikat zu erneuern —
+//     nicht sofort, sondern beim nächsten Lauf sechzig Tage später.
+//  2. **Es läuft ein FREMDER Webserver.** Dann wird nichts geschrieben. Das
+//     Panel verwaltet dessen Konfiguration nicht (E1), und Token in ein
+//     Verzeichnis zu legen, das niemand ausliefert, wäre schlechter als der
+//     heutige Zustand: Die Prüfung schlüge mit einer unverständlichen Meldung
+//     fehl statt mit der klaren „Port 80 ist belegt". Wer einen fremden
+//     Webserver betreibt, nimmt DNS-01.
+//  3. **Kein Webserver.** Der eigene Listener, wie bisher.
+//
+// Schlägt das Legen fehl, ist das kein Abbruch: Der Bezug läuft dann über den
+// eigenen Listener weiter und scheitert dort mit der Meldung, die den Grund
+// nennt. Ein Manager, der wegen eines nicht schreibbaren Drop-ins gar nicht
+// erst entsteht, nähme auch DNS-01 mit — und das hätte funktioniert.
+func (s *Server) acmeWebroot(ctx context.Context, domains []string) string {
+	st, err := s.ops.WebServerState(ctx)
+	if err != nil {
+		s.log.Warn("ACME: Zustand des Webservers nicht lesbar, eigener Listener bleibt", "err", err)
+		return ""
+	}
+	if !st.Installiert || !st.DienstAktiv {
+		return ""
+	}
+	// Ein fremder Webserver neben nginx: Wer Port 80 hält, entscheidet, wer die
+	// Challenge beantwortet — und das ist dann nicht unser Drop-in.
+	if len(st.Belegt()) > 0 {
+		s.log.Warn("ACME: neben nginx hört ein fremder Webserver, kein Webroot",
+			"belegt", len(st.Belegt()))
+		return ""
+	}
+
+	dir, err := s.ops.AcmeWebroot(ctx, domains)
+	if err != nil {
+		s.log.Warn("ACME: Weg durch nginx ließ sich nicht legen", "err", err)
+		return ""
+	}
+	s.log.Info("ACME: HTTP-01 läuft über nginx", "webroot", dir)
+	return dir
 }
 
 // startACME hält den Hintergrundvorgang am Leben. Ein laufender wird zuerst
@@ -193,6 +243,9 @@ func (s *Server) startACME(baseCtx context.Context) {
 	s.tls.mu.Lock()
 	s.tls.baseCtx = baseCtx
 	s.tls.mu.Unlock()
+	s.siteZerts.mu.Lock()
+	s.siteZerts.baseCtx = baseCtx
+	s.siteZerts.mu.Unlock()
 	s.restartACME()
 }
 
@@ -216,7 +269,7 @@ func (s *Server) restartACME() {
 		return
 	}
 
-	mgr, err := s.newACMEManager(set)
+	mgr, err := s.newACMEManager(base, set)
 	if err != nil {
 		s.log.Warn("ACME nicht aktiv, selbstsigniertes Zertifikat bleibt", "err", err)
 		s.tls.setAttempt(tlsAttempt{At: time.Now(), Err: err.Error()})
@@ -235,10 +288,22 @@ func (s *Server) restartACME() {
 		mgr.Start(ctx)
 	}()
 	s.log.Info("ACME aktiv", "domains", mgr.Domains())
+
+	// Die Sites hängen an denselben Einstellungen: Sie teilen sich Konto,
+	// Prüfmethode und DNS-Anbieter mit dem Panel. Ändert sich dort etwas, muss
+	// der Abgleich mitlaufen — sonst zögen zwanzig Site-Manager weiter mit einem
+	// Anbieter los, den niemand mehr benutzt.
+	//
+	// In einer eigenen Goroutine, weil der Abgleich `nginx -T` aufruft: Ein
+	// Prozessaufruf im Weg des Dienststarts hielte den Listener auf.
+	go s.siteZertsAbgleichen(ctx)
 }
 
-// stopACME beendet den Vorgang und wartet auf sein Ende.
+// stopACME beendet den Vorgang und wartet auf sein Ende — den des Panels und
+// die der Sites.
 func (s *Server) stopACME() {
+	s.siteZertsAnhalten()
+
 	s.tls.mu.Lock()
 	cancel, done := s.tls.cancel, s.tls.done
 	s.tls.cancel, s.tls.done, s.tls.mgr = nil, nil, nil

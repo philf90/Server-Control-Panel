@@ -1000,7 +1000,19 @@ export type PasskeyBeginn = {
 
 /** Wahl ist ein wählbarer Wert mit seiner Erklärung. Vom Server, weil dort die
  *  Bedingungen bekannt sind: HTTP-01 braucht Port 80, DNS-01 einen Anbieter. */
-export type Wahl = { wert: string; name: string; was: string };
+export type Wahl = {
+  wert: string;
+  name: string;
+  was: string;
+  /** felder sind bei DNS-Anbietern die Einträge, die die Zugangsdatei tragen
+   *  MUSS. Fehlt die Angabe, hat der Anbieter genau ein Geheimnis — dann
+   *  genügt ein einzeiliges Feld. */
+  felder?: string[];
+  /** vorlage sind die Zeilen, mit denen das Feld vorgefüllt wird. Sie darf
+   *  mehr enthalten als felder: OVHs `endpoint` ist optional und gehört
+   *  trotzdem ins Feld. */
+  vorlage?: string[];
+};
 
 /** Zertifikat ist die Antwort von GET /api/v1/certificate. */
 export type Zertifikat = {
@@ -1266,6 +1278,173 @@ export type Tokenantwort = { meldung: string; token?: string; hinweis?: string }
  *  wenn etwas fehlt? Die Antwort auf die letzte kommt fertig vom Server
  *  (anmerkung, einspielbar) — eine zweite Auslegung im Browser wäre die Stelle,
  *  an der beide auseinanderlaufen. */
+/** Lauscher ist ein Prozess auf Port 80 oder 443. */
+export type Lauscher = {
+  port: number;
+  adresse: string;
+  /** prozess ist der Programmname, wie ss ihn nennt. Leer heißt: ss konnte
+   *  keinen nennen — die Belegung gilt trotzdem. */
+  prozess: string;
+  /** eigen heißt: Das ist nginx selbst. */
+  eigen: boolean;
+};
+
+export type Webserver = {
+  installiert: boolean;
+  version: string;
+  /** paket ist "nginx", "nginx-core" oder leer bei einer Installation an apt
+   *  vorbei. Reine Auskunft; sie entscheidet nichts. */
+  paket: string;
+  dienst_aktiv: boolean;
+  lauscher: Lauscher[] | null;
+  /** ports_geprueft sagt, ob die Belegung ermittelt werden konnte. FALSE heißt
+   *  „unbekannt" und NICHT „frei" — der Unterschied entscheidet über den
+   *  Installationsknopf. */
+  ports_geprueft: boolean;
+  /** fremd sind die Programme auf den Webports, die nicht nginx sind. Fertig
+   *  zusammengefasst vom Server, damit die Oberfläche keine zweite Auslegung
+   *  derselben Frage baut. */
+  fremd: string[] | null;
+  anmerkung: string;
+  /** einspielbar heißt: nginx fehlt, die Ports sind bekannt und frei. */
+  einspielbar: boolean;
+  /** darf_aendern kommt aus der Antwort des Moduls und nicht aus der Sitzung:
+   *  Den Webserver einspielen darf nur der Owner. */
+  darf_aendern: boolean;
+  job: Job | null;
+  fehler?: string;
+};
+
+/** Site ist ein Serverblock, den nginx ausliefert. */
+export type Site = {
+  name: string;
+  datei: string;
+  domains: string[] | null;
+  /** zielart ist "proxy", "statisch", "umleitung" oder leer. Sie steuert nichts
+   *  in der Oberfläche — der fertige Satz steht in zielsatz. Das Feld bleibt für
+   *  das Sortieren und für den Fall, dass eine Fläche einmal danach filtert. */
+  zielart: string;
+  ziel: string;
+  ports: number[] | null;
+  tls: boolean;
+  /** ausgeliefert sagt, ob nginx diesen Block kennt; aus, ob das Panel ihn
+   *  abgeschaltet hat. Zwei Felder und nicht eines: Eine Site, die weder
+   *  abgeschaltet noch ausgeliefert ist, gibt es — und das ist eine eigene
+   *  Auskunft, die der Server als anmerkung mitschickt. */
+  ausgeliefert: boolean;
+  aus: boolean;
+  /** herkunft ist "verwaltet" oder "fremd" — das Wort kommt vom Server, damit es
+   *  eine Auslegung gibt und nicht zwei. */
+  herkunft: string;
+  zielsatz: string;
+  anmerkung: string;
+};
+
+/** Siteentwurf ist der Körper, den das Formular schickt.
+ *
+ *  Ohne Zertifikatspfade: Die bestimmt der Server aus dem Datenverzeichnis. Wer
+ *  sie setzen dürfte, könnte nginx eine beliebige Datei als Schlüssel
+ *  unterschieben. */
+export type Siteentwurf = {
+  domains: string[];
+  zielart: string;
+  ziel: string;
+  /** php_socket ist der FPM-Socket bei zielart "php". Ein zweites Feld und keine
+   *  zweite Bedeutung von ziel: PHP braucht beides — ein Verzeichnis und einen
+   *  Prozess, der die .php-Dateien ausführt. */
+  php_socket: string;
+  tls: boolean;
+  http_umleitung: boolean;
+  /** fassung ist der Hash der Datei, von der dieses Formular ausging. Leer heißt
+   *  „neu anlegen". */
+  fassung: string;
+};
+
+/** Sitebefund ist ein Fund des Prüfers — Feld, Wert und Grund. */
+export type Sitebefund = { feld: string; wert: string; grund: string };
+
+export type Siteantwort = {
+  meldung: string;
+  probe: Probestand;
+  pruefung?: {
+    ablehnungen: Sitebefund[] | null;
+    warnungen: Sitebefund[] | null;
+    ungeprueft: string[] | null;
+  };
+  fassung?: string;
+};
+
+/** Zielvorschlag ist ein anklickbares Ziel aus dem Bestand des Servers —
+ *  laufende Container und FPM-Sockets. */
+export type Zielvorschlag = {
+  zielart: string;
+  ziel: string;
+  titel: string;
+  detail: string;
+  /** warnung nennt, was an diesem Ziel unangenehm ist. Vor allem: auf 0.0.0.0
+   *  veröffentlicht, also schon jetzt aus dem Netz erreichbar — ein Proxy davor
+   *  ändert das nicht. */
+  warnung: string;
+};
+
+export type Ziele = {
+  vorschlaege: Zielvorschlag[] | null;
+  anmerkung: string;
+  fehler?: string;
+};
+
+/** Sitezertifikat ist eine Zeile der Zertifikatsliste je Site. */
+export type Sitezertifikat = {
+  site: string;
+  domains: string[] | null;
+  vorhanden: boolean;
+  aussteller: string;
+  namen: string[] | null;
+  ablauf?: string;
+  resttage: number;
+  /** stufe und satz kommen fertig vom Server — dasselbe Muster wie bei der
+   *  Portübersicht: Der Browser färbt danach und rechnet nichts nach. */
+  stufe: string;
+  satz: string;
+  letzter_versuch?: string;
+  fehler?: string;
+  laeuft: boolean;
+  bezugsbereit: boolean;
+};
+
+export type Sitezertifikate = {
+  zertifikate: Sitezertifikat[] | null;
+  /** acme_aktiv sagt, ob das Panel überhaupt ein ACME-Konto hat. FALSE heißt:
+   *  für Sites gibt es keinen Bezug — und die Fläche sagt, wo das umzustellen
+   *  ist, statt einen Knopf anzubieten, der zuverlässig scheitert. */
+  acme_aktiv: boolean;
+  anmerkung: string;
+  darf_aendern: boolean;
+  fehler?: string;
+};
+
+/** Probestand ist die laufende Frist. Er steht sowohl an der Antwort auf eine
+ *  Änderung als auch an der Liste: Wer neu lädt, während die Frist läuft, muss
+ *  den Countdown vorfinden. */
+export type Probestand = {
+  offen: boolean;
+  sekunden: number;
+  gegenstand: string;
+};
+
+export type Siteliste = {
+  sites: Site[] | null;
+  /** gelesen sagt, ob `nginx -T` überhaupt lief. FALSE heißt „unbekannt" und
+   *  NICHT „keine Sites": Eine leere Liste aus einem Fehler verlangt Reparieren,
+   *  eine leere Liste aus einem leeren Server verlangt Anlegen. */
+  gelesen: boolean;
+  zaehler: { alle: number; verwaltet: number; fremd: number };
+  anmerkung: string;
+  darf_aendern: boolean;
+  probe: Probestand;
+  fehler?: string;
+};
+
 export type Docker = {
   installiert: boolean;
   /** paket ist "docker.io", "docker-ce" oder leer bei einer Installation an apt

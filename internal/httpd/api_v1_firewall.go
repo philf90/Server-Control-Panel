@@ -16,7 +16,7 @@ package httpd
 //     Countdown vorfinden — sonst bestätigt er nicht und die Änderung fällt weg,
 //     ohne dass er weiß, warum.
 //  2. **Die Frist ist die des Servers.** Der Browser zählt nur herunter, damit man
-//     sie sieht. Verbindlich ist der Wächter (firewallGuard), und er läuft weiter,
+//     sie sieht. Verbindlich ist der Wächter (probenWaechter, probe.go), und er läuft weiter,
 //     auch wenn niemand mehr zusieht. Eine Uhr, die im Browser stimmt, aber auf
 //     dem Server anders läuft, wäre die schlechteste Fassung von beidem.
 //  3. **Der Panel-Port wird nicht der Anfrage überlassen.** In der Oberfläche
@@ -43,6 +43,14 @@ import (
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
 )
+
+// firewallConfirmWindow ist die Frist zur Bestätigung einer Firewalländerung.
+//
+// Sie steht hier und nicht beim Wächter: Wie lange eine Probe läuft, ist eine
+// Entscheidung des Bereichs, der sie stellt. Sechzig Sekunden sind lang genug,
+// um zu merken, dass die Verbindung noch steht, und kurz genug, dass niemand
+// eine Minute lang glaubt, die Änderung sei schon fest.
+const firewallConfirmWindow = 60 * time.Second
 
 // apiRegel ist eine Regel für eingehenden Verkehr.
 type apiRegel struct {

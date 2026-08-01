@@ -116,6 +116,18 @@ type apiWahl struct {
 	Wert string `json:"wert"`
 	Name string `json:"name"`
 	Was  string `json:"was"`
+	// Felder sind bei DNS-Anbietern die Einträge, die die Zugangsdatei tragen
+	// muss. Leer heißt: genau ein Geheimnis, also ein einzeiliges Feld.
+	//
+	// Sie stehen in der Antwort, damit die Oberfläche die Eingabe daran
+	// ausrichten kann, statt eine zweite Liste zu führen. netcup braucht drei
+	// Zeilen und OVH vier — ein einzeiliges Tokenfeld wäre für beide falsch,
+	// und zwar auf eine Weise, die erst der Server beim Speichern bemerkt.
+	Felder []string `json:"felder,omitempty"`
+	// Vorlage sind die Zeilen, mit denen das Eingabefeld vorgefüllt wird. Sie
+	// darf mehr enthalten als Felder — optionale Einträge wie OVHs `endpoint`
+	// gehören ins Feld, aber nicht in die Pflichtprüfung.
+	Vorlage []string `json:"vorlage,omitempty"`
 }
 
 func (s *Server) handleAPIZertifikat(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +172,7 @@ func (s *Server) zertifikatAntwort(r *http.Request) apiZertifikat {
 		Anbieter:        set.ACME.DNS01.Provider,
 		HookSetzen:      set.ACME.DNS01.Hook.Set,
 		HookAufraeumen:  set.ACME.DNS01.Hook.Clean,
-		TokenHinterlegt: fileExists(set.ACME.DNS01.Cloudflare.APITokenFile),
+		TokenHinterlegt: fileExists(set.ACME.DNS01.ZugangsDatei()),
 		Testverzeichnis: set.ACME.DirectoryURL == stagingDirectory,
 		VerwalteteDatei: config.ManagedTLSPath(s.cfgPath),
 		BezugLaeuft:     versuch.Running,
@@ -246,14 +258,26 @@ func pruefmethoden() []apiWahl {
 	}
 }
 
+// anbieterliste ist die Auswahl für die Oberfläche.
+//
+// Die eingebauten Anbieter kommen aus dem Register des acme-Pakets und stehen
+// nicht ein zweites Mal hier. Das ist der Zweck des Registers: Ein neuer
+// Anbieter trägt sich dort ein und erscheint damit ohne weiteres Zutun im
+// Auswahlfeld — vorher wäre er an zwei Stellen einzutragen gewesen, und eine
+// davon hätte irgendwann gefehlt.
 func anbieterliste() []apiWahl {
-	return []apiWahl{
+	aus := []apiWahl{
 		{Wert: "", Name: "keiner", Was: "nur mit HTTP-01 möglich"},
 		{Wert: config.DNS01ProviderHook, Name: "Hook",
 			Was: "Zwei eigene Programme setzen und entfernen den TXT-Eintrag. Absolute Pfade, ausführbar."},
-		{Wert: config.DNS01ProviderCloudflare, Name: "Cloudflare",
-			Was: "Eingebaut über die Cloudflare-API. Das Token landet in einer eigenen Datei mit 0600."},
 	}
+	for _, a := range acme.Anbieterliste() {
+		aus = append(aus, apiWahl{
+			Wert: a.Name, Name: a.Titel, Was: a.Hinweis,
+			Felder: a.Felder, Vorlage: a.Eingabevorlage(),
+		})
+	}
+	return aus
 }
 
 // ------------------------------------------------------------- Verändern ---
@@ -436,14 +460,19 @@ func (s *Server) zertifikatEinstellungen(auftrag apiZertifikatAuftrag, alt confi
 		}
 		set.ACME.DNS01.Hook.Set = setzen
 		set.ACME.DNS01.Hook.Clean = aufraeumen
-	case config.DNS01ProviderCloudflare:
-		datei, err := s.cloudflareToken(strings.TrimSpace(auftrag.Token), alt)
+	default:
+		// Jeder registrierte Anbieter, ohne eigenen Zweig. Was seine
+		// Zugangsdatei enthalten muss, weiß der Anbieter selbst — geprüft wird
+		// es beim Bau des Setzers, mit einer Meldung, die alle fehlenden Felder
+		// auf einmal nennt.
+		if !acme.AnbieterBekannt(auftrag.Anbieter) {
+			return set, errText("unbekannter DNS-Anbieter " + auftrag.Anbieter)
+		}
+		datei, err := s.zugangAblegen(auftrag.Anbieter, strings.TrimSpace(auftrag.Token), alt)
 		if err != nil {
 			return set, err
 		}
-		set.ACME.DNS01.Cloudflare.APITokenFile = datei
-	default:
-		return set, errText("unbekannter DNS-Anbieter " + auftrag.Anbieter)
+		set.ACME.DNS01.CredentialsFile = datei
 	}
 	set.ACME.DNS01.Provider = auftrag.Anbieter
 

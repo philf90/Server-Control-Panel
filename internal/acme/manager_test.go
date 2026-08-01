@@ -29,7 +29,10 @@ func (f *fakeIssuer) obtain(context.Context, []string) ([]byte, []byte, error) {
 
 func newTestManager(dir string, holder *certs.Holder, iss issuer, now time.Time) *Manager {
 	return &Manager{
-		dir:         dir,
+		dir: dir,
+		// Ohne Kennung ist das Zertifikatsverzeichnis das Wurzelverzeichnis —
+		// so, wie New() es für das Panel baut.
+		zertDir:     zertVerzeichnis(dir, ""),
 		domains:     []string{"panel.example.test"},
 		holder:      holder,
 		issuer:      iss,

@@ -20,6 +20,13 @@ import type {
   Containerantwort,
   DienstDetail,
   Docker,
+  Webserver,
+  Siteliste,
+  Siteentwurf,
+  Siteantwort,
+  Sitebefund,
+  Sitezertifikate,
+  Ziele,
   EigenesKonto,
   Firewall,
   FirewallAntwort,
@@ -141,6 +148,26 @@ export class Composeabgelehnt extends Error {
   ) {
     super(meldung);
     this.name = "Composeabgelehnt";
+  }
+}
+
+/** Siteabgelehnt steht für die Antwort, wenn der Site-Prüfer einen Entwurf
+ *  ablehnt.
+ *
+ *  Wie Composeabgelehnt ein eigener Typ und kein Fehlertext: Die Auskunft ist
+ *  strukturiert — Feld, Wert und Grund je Fund —, und die Oberfläche kann sie
+ *  neben das Feld stellen, in dem der Fehler steckt.
+ *
+ *  ungeprueft steht daneben und ist nicht dasselbe: „Das kennt der Prüfer nicht"
+ *  ist keine Ablehnung, aber auch kein „in Ordnung". */
+export class Siteabgelehnt extends Error {
+  constructor(
+    public readonly meldung: string,
+    public readonly befunde: Sitebefund[],
+    public readonly ungeprueft: string[],
+  ) {
+    super(meldung);
+    this.name = "Siteabgelehnt";
   }
 }
 
@@ -308,6 +335,50 @@ async function stackSchreiben(
   return (await antwort.json()) as Stackschreibantwort;
 }
 
+/** siteSchreiben ist der Anfrageweg der Schreibrouten des Webservers.
+ *
+ *  Ein eigener statt anfrage(), aus demselben Grund wie bei den Stacks: Die
+ *  Ablehnung des Prüfers steht STRUKTURIERT im Körper der 400 — Feld und Grund
+ *  je Fund —, und genau darin liegt ihr Wert. „Der Entwurf wurde abgelehnt"
+ *  schickte jemanden auf die Suche in einem Formular, das er gerade ausgefüllt
+ *  hat. */
+async function siteSchreiben(
+  pfad: string,
+  methode: string,
+  koerper: unknown,
+): Promise<Siteantwort> {
+  const antwort = await fetch(`/api/v1${pfad}`, {
+    method: methode,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-CSRF-Token": token,
+    },
+    credentials: "same-origin",
+    body: JSON.stringify(koerper),
+  });
+  if (antwort.status === 401) throw new AbgemeldetFehler();
+  if (antwort.status === 409) {
+    const rumpf = (await antwort.json()) as { bestaetigung?: Bestaetigung; fehler?: string };
+    if (rumpf.bestaetigung) throw new BestaetigungNoetig(rumpf.bestaetigung);
+    // Ein 409 ohne Rückfrage ist der Fassungskonflikt: Die Site wurde
+    // zwischenzeitlich geändert. Der Text sagt, was zu tun ist.
+    throw new Error(rumpf.fehler ?? `HTTP ${antwort.status}`);
+  }
+  if (!antwort.ok) {
+    const rumpf = (await antwort.json()) as Siteantwort & { fehler?: string };
+    // Nur wenn Ablehnungen dabeistehen, ist es das Urteil des Prüfers. Ein 403
+    // der Rollenprüfung ist ein gewöhnlicher Fehler.
+    const ablehnungen = rumpf.pruefung?.ablehnungen ?? [];
+    if (ablehnungen.length > 0) {
+      throw new Siteabgelehnt(rumpf.meldung || "abgelehnt", ablehnungen, rumpf.pruefung?.ungeprueft ?? []);
+    }
+    if (antwort.status === 403) throw new VerbotenFehler(rumpf.fehler ?? "verboten");
+    throw new Error(rumpf.fehler ?? `HTTP ${antwort.status}`);
+  }
+  return (await antwort.json()) as Siteantwort;
+}
+
 export const api = {
   /** sitzung holt Konto, Rolle und CSRF-Token und merkt sich das Token für
    *  alle schreibenden Aufrufe. Muss vor dem ersten davon gelaufen sein. */
@@ -358,6 +429,70 @@ export const api = {
    *  zu installieren nimmt nichts weg und sperrt niemanden aus. Die Route liegt
    *  hinter der Owner-Rolle. */
   dockerEinspielen: () => anfrage<VorgangGestartet>("/docker/install", { method: "POST" }),
+
+  /** webserver liefert den Zustand des Webservers samt Portbelegung. */
+  webserver: () => anfrage<Webserver>("/webserver"),
+  /** nginxEinspielen darf der Server ablehnen, und zwar nicht nur wegen der
+   *  Rolle: Hört auf Port 80 oder 443 schon jemand, kommt 409 zurück. Der
+   *  Knopf verschwindet zwar vorher — aber zwischen dem Laden der Seite und dem
+   *  Klick liegt beliebig viel Zeit, und die Sperre sitzt deshalb im Server. */
+  nginxEinspielen: () => anfrage<VorgangGestartet>("/webserver/install", { method: "POST" }),
+  /** webserverSites liefert die Serverblöcke, die nginx wirklich ausliefert —
+   *  aus `nginx -T` und nicht aus den Dateien. Verwaltete und fremde in einer
+   *  Liste, unterschieden im Feld herkunft. */
+  webserverSites: () => anfrage<Siteliste>("/webserver/sites"),
+  /** webserverSite liefert den Inhalt EINER verwalteten Site. Für eine fremde
+   *  antwortet der Server 404: Das Panel schreibt sie nicht, und ein Editor
+   *  wäre die Zusage, es doch zu tun. */
+  webserverSite: (name: string) =>
+    anfrage<{ name: string; inhalt: string }>(
+      `/webserver/sites/${encodeURIComponent(name)}`,
+    ),
+  /** siteSpeichern legt an oder ändert — was davon, entscheidet der Server aus
+   *  dem Zustand auf der Platte. `fassung` ist der Hash der Datei, von der der
+   *  Browser ausging; leer heißt „neu". Stimmt er nicht mehr, antwortet der
+   *  Server 409, statt eine fremde Änderung zu überschreiben. */
+  siteSpeichern: (name: string, entwurf: Siteentwurf, bestaetigt = false, getippt = "") =>
+    siteSchreiben(`/webserver/sites/${encodeURIComponent(name)}`, "PUT", {
+      ...entwurf,
+      bestaetigt,
+      getippt,
+    }),
+  /** siteSchalten: Einschalten ist Stufe 1, Abschalten Stufe 2 — danach
+   *  antwortet die Domain nicht mehr. */
+  siteSchalten: (name: string, an: boolean, bestaetigt = false, getippt = "") =>
+    siteSchreiben(`/webserver/sites/${encodeURIComponent(name)}/schalten`, "POST", {
+      an,
+      bestaetigt,
+      getippt,
+    }),
+  /** siteLoeschen ist Stufe 3 mit dem Namen der Site und läuft OHNE Probe: Ein
+   *  Rückweg, der die Datei zurückholt und das Zertifikat verwaisen lässt, wäre
+   *  schlechter als keiner. */
+  siteLoeschen: (name: string, bestaetigt = false, getippt = "") =>
+    siteSchreiben(`/webserver/sites/${encodeURIComponent(name)}`, "DELETE", {
+      bestaetigt,
+      getippt,
+    }),
+  /** webserverZiele sammelt, worauf eine Site zeigen kann: laufende Container
+   *  mit veröffentlichten Ports und vorhandene PHP-FPM-Sockets. Eine Auskunft,
+   *  keine Pflicht — ohne Docker ist die Liste leer und man tippt. */
+  webserverZiele: () => anfrage<Ziele>("/webserver/ziele"),
+  /** webserverZertifikate liefert den Zertifikatsstand je Site — samt dem
+   *  Grund, wenn keins da ist. „Kein Zertifikat" ohne Grund ist die Auskunft,
+   *  mit der niemand etwas anfangen kann. */
+  webserverZertifikate: () => anfrage<Sitezertifikate>("/webserver/zertifikate"),
+  /** siteZertBeziehen stößt den Bezug an. Stufe 1: Er ändert nichts an der
+   *  Konfiguration — er legt ein Zertifikat ab oder scheitert. */
+  siteZertBeziehen: (name: string) =>
+    anfrage<{ meldung: string }>(
+      `/webserver/sites/${encodeURIComponent(name)}/zertifikat`,
+      { method: "POST" },
+    ),
+  /** siteProbeBestaetigen beendet die Frist. Ohne Rückfrage: Bestätigen ist die
+   *  Zustimmung zu etwas, das gerade schon gilt. */
+  siteProbeBestaetigen: () =>
+    siteSchreiben("/webserver/sites/bestaetigen", "POST", {}),
   /** container liefert die vollständige Liste. Gefiltert wird im Browser: Ein
    *  Server hat selten mehr als ein paar Dutzend Container, und beim Tippen ist
    *  das Ergebnis dann sofort da. */

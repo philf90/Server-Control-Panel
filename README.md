@@ -23,8 +23,12 @@ beherrschbar bleibt.
 > Ereignisstrom und Update-Prüfung. Der Compose-Editor führt seit **0.5.1**
 > Felder neben der Datei, in beide Richtungen und ohne Kommentare oder
 > Formatierung anzutasten. Die Container-Shell aus dem ursprünglichen
-> Zuschnitt ist zurückgestellt. Als Nächstes kommen **Webserver & Domains
-> (0.6)**, **Datenbanken (0.7)**, **Backups (0.8)**; 1.0 ist der externe
+> Zuschnitt ist zurückgestellt. Mit **0.6** kommt **Webserver & Domains**: Sites
+> als Domain → Ziel → TLS mit Site-Prüfer und Probe mit Rückweg, ein Zertifikat
+> je Site, Wildcards und sieben DNS-01-Anbieter. Verwaltet wird nginx; jeder
+> andere Webserver wird erkannt und nicht angefasst. Danach **Datenbanken
+> (0.7)**, **Backups (0.8)**;
+> 1.0 ist der externe
 > Sicherheits-Review, kein neues Feature. Der Plan steht in
 > [docs/16-neukonzeption.md](docs/16-neukonzeption.md), die Meilensteine in
 > [docs/06-roadmap.md](docs/06-roadmap.md).
@@ -231,6 +235,7 @@ Binärgröße. Begründung in
 | [docs/15-neuordnung.md](docs/15-neuordnung.md) | Drei Entwürfe für die Neuordnung der Oberfläche (abgelöst; Befund und fünf Grundsätze gelten fort) |
 | [docs/16-neukonzeption.md](docs/16-neukonzeption.md) | **Der aktuelle Bauplan:** Scope A+, die Stufen 0.4 bis 1.0, das Gestaltungssystem der neuen Oberfläche |
 | [docs/17-docker.md](docs/17-docker.md) | Modul Docker (Stufe 0.5): Zuschnitt, Compose-Prüfer, Bestätigungsstufen, Vergleich mit Arcane, Angriffsdurchgang mit seinen Funden |
+| [docs/18-webserver.md](docs/18-webserver.md) | Modul Webserver (Stufe 0.6): warum nur nginx verwaltet wird, Sites als Felder, Site-Prüfer, der Port-80-Befund, der mehrfähige Zertifikatshalter und der Angriffsdurchgang mit seinen fünf Befunden |
 
 Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
 [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und

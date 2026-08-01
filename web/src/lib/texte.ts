@@ -31,6 +31,11 @@ export const t = {
     dockerUpdates: "Image-Updates",
     dockerBestand: "Bestand",
     webserver: "Webserver",
+    // Die Flächen unter Webserver. „Sites" ist die Vorgabe und steht deshalb
+    // ausdrücklich da — „Webserver ohne Zusatz" wäre kein Name.
+    webserverSites: "Sites",
+    webserverZertifikate: "Zertifikate je Site",
+    webserverPorts: "Portbelegung",
     datenbanken: "Datenbanken",
     backups: "Backups",
     firewall: "Firewall",
@@ -562,11 +567,28 @@ export const t = {
     hookAufraeumen: "Programm zum Aufräumen",
     hookWarum:
       "Absolute Pfade auf ausführbare Programme. Sie laufen als root und setzen beziehungsweise entfernen den TXT-Eintrag.",
-    token: "Cloudflare-API-Token",
+    // „Token" hieß dieses Feld, solange es Cloudflare war. Mit sieben Anbietern
+    // trägt es je nach Anbieter einen Schlüssel, drei Zeilen oder vier — der
+    // Name muss deshalb allgemein sein.
+    token: "Zugangsdaten",
     tokenHinterlegt:
-      "Ein Token ist hinterlegt. Das Feld leer lassen behält es; ein neuer Wert ersetzt es.",
+      "Es sind Zugangsdaten hinterlegt. Das Feld leer lassen behält sie; ein neuer Wert ersetzt sie.",
     tokenWarum:
-      "Das Token landet in einer eigenen Datei mit Rechten 0600 — nicht in der Konfiguration, die für die Gruppe des Dienstes lesbar ist. Zurückgezeigt wird es nie.",
+      "Die Zugangsdaten landen in einer eigenen Datei mit Rechten 0600 — nicht in der Konfiguration, die für die Gruppe des Dienstes lesbar ist. Zurückgezeigt werden sie nie.",
+    /** zugangFelder nennt die Zeilen, die der gewählte Anbieter braucht. Der
+     *  Server sagt, welche das sind (Wahl.felder); die Oberfläche führt keine
+     *  zweite Liste. */
+    zugangFelder: (felder: string[]) =>
+      `Pflicht sind ${felder.length} Zeilen: ${felder.map((f) => `${f} = …`).join(", ")}`,
+    /** zugangKuer nennt die Zeilen, die in der Vorlage stehen, aber leer
+     *  bleiben dürfen — OVHs `endpoint` etwa. Ohne diesen Satz stünde
+     *  „Pflicht sind 3 Zeilen" über einem Feld mit vier. */
+    zugangKuer: (felder: string[]) =>
+      felder.length === 1
+        ? `${felder[0]} darf leer bleiben.`
+        : `Leer bleiben dürfen: ${felder.join(", ")}.`,
+    zugangEinzeilig:
+      "Dieser Anbieter braucht genau ein Geheimnis. Es genügt, den Schlüssel einzutragen.",
     testverzeichnis: "Testverzeichnis von Let's Encrypt verwenden",
     testverzeichnisWarum:
       "Stellt Zertifikate aus, denen kein Browser traut — dafür sind die Grenzen weit. Der richtige Ort, um einen DNS-Hook einzurichten, ohne die Produktionsgrenzen zu verbrauchen.",
@@ -952,6 +974,151 @@ export const t = {
       "Der Menüpunkt steht trotzdem hier, weil er zum Leitbild gehört und die Reihenfolge der Module absehbar sein soll. Er führt auf diese Auskunft und nicht auf die Startseite — ein Klick, der stillschweigend woanders landet, sieht wie ein Fehler aus.",
     heute: "Was heute an seiner Stelle geht",
     zu: (label: string) => `zu ${label}`,
+  },
+
+  webserver: {
+    wesen:
+      "Domains, Ziele und TLS. Verwaltet wird nginx; jeder andere Webserver wird erkannt und nicht angefasst — das Panel schreibt nur in eigene Dateien.",
+    laedt: "Zustand wird gelesen …",
+    server: "Webserver",
+    dienst: "Dienst",
+    ports: "Ports 80 und 443",
+    paket: "Paket",
+    laeuft: "läuft",
+    tot: "läuft nicht",
+    fehlt: "fehlt",
+    frei: "frei",
+    // „Unbekannt" ist ein eigener Zustand und nicht „frei". Er ist der Grund,
+    // warum an dieser Stelle kein Knopf steht, und muss deshalb lesbar sein.
+    unbekannt: "unbekannt",
+    offen: "—",
+    ausApt: "an der Paketverwaltung vorbei installiert",
+    einspielen: "nginx einspielen",
+    zuDiensten: "zu den Diensten",
+    zuDateien: "zu den Dateien",
+    belegung: "Wer hört auf den Webports",
+    spaltePort: "Port",
+    spalteAdresse: "Adresse",
+    spalteProzess: "Programm",
+    unbenannt: "nicht ermittelt",
+    eigen: "nginx",
+    fremd: "fremd",
+    // Die Marke in der Portspalte. „verwaltet" und nicht „nginx": In der Zeile
+    // steht der Programmname schon davor, und „nginx nginx" ist keine Auskunft.
+    // Dasselbe Wort wie in der Sitesliste — dieselbe Frage, dieselbe Antwort.
+    markeVerwaltet: "verwaltet",
+    nurOwner:
+      "Dieses Konto darf den Zustand sehen, den Webserver aber nicht einspielen. Eine Site ist eine Konfiguration, die als root gelesen wird und einen Dienst aus dem Netz erreichbar macht — deshalb liegt dieses Modul bei der Owner-Rolle.",
+    imBau: "Was hier noch fehlt",
+    // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
+    // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
+    imBauDetail:
+      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Jede Site mit TLS bezieht ihr eigenes Zertifikat — der Stand dazu steht unter „Zertifikate je Site“. Der 443-Block entsteht dabei erst, wenn ein Zertifikat vorliegt; nach dem ersten Bezug genügt einmal speichern. Was aussteht, ist die Erprobung gegen einen echten Server: Bis hierher lief nichts davon gegen ein laufendes nginx oder eine echte Zertifizierungsstelle. Die Begründung steht im Repository unter docs/18-webserver.md.",
+
+    // Die Fläche „Sites".
+    sites: "Sites",
+    sitesLaedt: "Konfiguration wird gelesen …",
+    // Der leere Fall braucht keinen eigenen Satz: Ob die Liste leer ist, weil
+    // der Server leer ist, oder weil sie sich nicht lesen ließ, entscheidet der
+    // Server — und schickt den passenden Satz als anmerkung mit. Zwei Sätze
+    // hier wären eine zweite Auslegung derselben Frage.
+    spalteSite: "Site",
+    spalteDomains: "Domains",
+    spalteZiel: "Ziel",
+    spaltePorts: "Ports",
+    spalteHerkunft: "Herkunft",
+    ohneDomain: "ohne server_name",
+    tls: "TLS",
+    zaehlerVerwaltet: "verwaltet",
+    zaehlerFremd: "fremd",
+    // Der Satz über der Liste. Er sagt, was diese Fläche IST und was sie noch
+    // nicht ist — sonst sucht man den Knopf zum Anlegen, den es noch nicht gibt.
+    sitesNurLesend:
+      "Diese Liste zeigt, was nginx gerade ausliefert. Verwaltete Sites lassen sich hier ändern; fremde Serverblöcke zeigt das Panel an und fasst sie nicht an.",
+
+    // Die Probe. Wortgleich zur Firewall gehalten, weil es dieselbe Zusage ist —
+    // wer sie dort einmal gelesen hat, soll sie hier wiedererkennen.
+    probeTitel: (gegenstand: string) =>
+      gegenstand ? `${gegenstand} gilt auf Probe` : "Die Änderung gilt auf Probe",
+    probeDetail:
+      "Ohne Bestätigung wird der vorherige Stand wiederhergestellt. Bestätigen Sie, solange die Seite noch antwortet — und prüfen Sie am besten vorher, ob die Domain erreichbar ist.",
+    probeBestaetigen: "Änderung bestätigen",
+
+    // Das Formular.
+    anlegen: "Site anlegen",
+    neueSite: "Neue Site",
+    feldName: "Kennung",
+    feldNameHinweis:
+      "Bestimmt den Dateinamen und das Verzeichnis des Zertifikats. Kleinbuchstaben, Ziffern, - und _. Nachträglich nicht änderbar.",
+    feldDomains: "Domains",
+    feldDomainsHinweis:
+      "Eine je Zeile. Ein Platzhalter ist als erster Bestandteil erlaubt: *.example.com.",
+    feldZielart: "Art",
+    zielartProxy: "Reverse-Proxy",
+    zielartStatisch: "Verzeichnis",
+    zielartUmleitung: "Umleitung",
+    zielartPHP: "PHP-Anwendung",
+    feldZiel: "Ziel",
+    zielHinweisProxy: "Die Gegenstelle, etwa http://127.0.0.1:3000.",
+    zielHinweisStatisch:
+      "Das Verzeichnis, aus dem ausgeliefert wird. Außerhalb von /var/www und /srv fragt das Panel nach.",
+    zielHinweisUmleitung: "Die vollständige Adresse, auf die umgeleitet wird.",
+    zielHinweisPHP:
+      "Das Verzeichnis der Anwendung. Die .php-Dateien führt der FPM-Prozess aus; nginx liefert nur, was daneben liegt.",
+    feldSocket: "PHP-FPM-Socket",
+    feldSocketHinweis:
+      "Der Socket des FPM-Prozesses, üblicherweise unter /run/php. Ohne ihn lieferte nginx die .php-Dateien im Klartext aus.",
+
+    // Die Zielvorschläge.
+    vorschlaege: "Aus dem Bestand übernehmen",
+    vorschlaegeLeer:
+      "Es gibt nichts vorzuschlagen: kein laufender Container mit veröffentlichtem Port und kein PHP-FPM.",
+    vorschlaegeOhneDocker:
+      "Ohne Docker gibt es keine Containerliste. Die Adresse lässt sich von Hand eintragen.",
+    uebernehmen: "übernehmen",
+    feldTLS: "TLS (Port 443)",
+    feldTLSHinweis:
+      "Der 443-Block entsteht erst, wenn für diese Site ein Zertifikat vorliegt. Der Bezug kommt mit einem späteren Schritt.",
+    feldUmleitung: "http auf https umleiten",
+    speichern: "speichern",
+    abbrechen: "abbrechen",
+    abschalten: "abschalten",
+    einschalten: "einschalten",
+    loeschen: "löschen",
+    // Der Zustand einer Site in der Liste.
+    zustandAus: "abgeschaltet",
+    zustandStill: "nicht ausgeliefert",
+    zustandAktiv: "aktiv",
+    fremdNichtAenderbar:
+      "Dieser Serverblock gehört nicht dem Panel. Er wird gelesen und nicht angefasst; ändern lässt er sich über die Dateien.",
+    abgelehnt: "Der Prüfer hat den Entwurf abgelehnt:",
+    ungeprueft:
+      "Diese Angaben konnte der Prüfer nicht auslegen. Das heißt nicht, dass sie in Ordnung sind.",
+    // Ohne nginx wird `nginx -T` gar nicht erst aufgerufen. Ein Fehler „command
+    // not found" wäre die Antwort auf eine Frage, die niemand gestellt hat —
+    // die Karten oben sagen bereits, was fehlt.
+    sitesOhneNginx:
+      "Ohne nginx gibt es keine Serverblöcke zu lesen. Was zu tun ist, steht oben.",
+    portsUngeprueft:
+      "Die Belegung der Webports ließ sich nicht ermitteln — `ss` fehlt oder antwortete nicht. Solange das so ist, bietet das Panel die Installation nicht an: Unbekannt ist kein Frei.",
+    portsFrei: "Auf Port 80 und 443 hört derzeit niemand.",
+    flaecheUnbekannt: "Diese Fläche gibt es in diesem Modul nicht.",
+
+    // Die Fläche „Zertifikate je Site".
+    zertifikate: "Zertifikate je Site",
+    zertLaedt: "Zertifikatsstand wird gelesen …",
+    zertWesen:
+      "Jede Site mit TLS bezieht ihr eigenes Zertifikat. Das Konto ist dasselbe wie das des Panels — deshalb setzt ein Bezug hier voraus, dass das Panel selbst über Let's Encrypt bezieht.",
+    zertLeer: "Keine Site verlangt bisher TLS.",
+    spalteZertSite: "Site",
+    spalteZertNamen: "Namen",
+    spalteZertZustand: "Zustand",
+    spalteZertAussteller: "Aussteller",
+    spalteZertBezug: "Bezug",
+    zertBeziehen: "jetzt beziehen",
+    zertLaeuft: "Bezug läuft …",
+    zertKeins: "kein Zertifikat",
+    zuZertifikaten: "zu den Zertifikaten",
   },
 
   docker: {

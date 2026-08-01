@@ -394,6 +394,54 @@ func TestAnlegenknopfHaengtNichtAnEinerLeerenListe(t *testing.T) {
 	}
 }
 
+// TestJedeFlaecheEinesModulsWirdGerendert hält die dritte Liste zusammen.
+//
+// Die Flächen innerhalb eines Moduls stehen in lib/ziele.ts (Feld „kinder") und
+// werden an zwei Stellen gelesen: von der Seitenleiste, die daraus die
+// eingerückten Punkte baut, und von der Seite selbst, die anhand der Unterseite
+// entscheidet, was sie zeigt. Die erste Stelle ist allgemein und geht von
+// selbst; die zweite ist eine Kette von Vergleichen und geht nicht von selbst.
+//
+// Der Fehler, den das verhindert, ist leise: Wer einen Punkt hinzufügt und den
+// Zweig vergisst, bekommt einen Menüeintrag, der auf „Diese Fläche gibt es
+// nicht" führt. Das sieht nach einem kaputten Verweis aus und ist ein
+// vergessener Zweig — dieselbe Sorte Befund wie der Knopf, der auf dem leeren
+// Server fehlte.
+func TestJedeFlaecheEinesModulsWirdGerendert(t *testing.T) {
+	quellen := svelteDateien(t)
+	ziele := lesen(t, filepath.Join(webQuellen, "lib/ziele.ts"))
+
+	// Die Kinder-Kennungen aus ziele.ts: id: "docker/ports" und so fort. Die
+	// Kennung des Elternteils selbst („docker") hat keinen Schrägstrich und
+	// fällt damit heraus.
+	kennung := regexp.MustCompile(`id:\s*"([a-z0-9-]+)/([a-z0-9-]*)"`)
+	treffer := kennung.FindAllStringSubmatch(ziele, -1)
+	if len(treffer) == 0 {
+		t.Skip("kein Modul mit Flächen in ziele.ts — nichts zu prüfen")
+	}
+
+	for _, tr := range treffer {
+		modul, flaeche := tr[1], tr[2]
+
+		// Die Seite des Moduls suchen — nach Kennung, nicht nach Dateiname:
+		// Die Zuordnung steht in App.svelte und nicht in einer Namensregel.
+		var seite string
+		for pfad, quelle := range quellen {
+			if strings.EqualFold(filepath.Base(pfad), modul+".svelte") {
+				seite = quelle
+			}
+		}
+		if seite == "" {
+			t.Errorf("zu den Flächen von %q gibt es keine Seite %s.svelte", modul, modul)
+			continue
+		}
+		if !strings.Contains(seite, `weg.unterseite === "`+flaeche+`"`) {
+			t.Errorf("%s.svelte hat keinen Zweig für die Fläche %q — der Punkt steht im "+
+				"Menü und führt ins Leere", modul, flaeche)
+		}
+	}
+}
+
 // lesen holt eine Quelldatei. Eigene Hilfe, weil svelteDateien nur .svelte
 // einsammelt und hier eine .ts und eine .go gebraucht werden.
 func lesen(t *testing.T, pfad string) string {

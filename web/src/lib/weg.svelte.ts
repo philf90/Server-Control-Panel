@@ -86,11 +86,31 @@ export const angekuendigt: Record<string, string> = {
   backups: "0.8",
 };
 
-/** modul ist die Kennung hinter / — für die Seite „bald" die Auskunft,
- *  welches Modul gemeint war. */
-export function modulAus(pfad: string): string {
+/** ohneBasis schneidet das Präfix und die Schrägstriche an den Rändern ab. */
+function ohneBasis(pfad: string): string {
   const rest = pfad.startsWith(BASIS) ? pfad.slice(BASIS.length) : pfad;
   return rest.replace(/^\/+|\/+$/g, "");
+}
+
+/** modul ist das ERSTE Segment hinter / — für die Seite „bald" die Auskunft,
+ *  welches Modul gemeint war.
+ *
+ *  Bis 0.5.1 gab diese Funktion den ganzen Rest zurück. Das ging, solange kein
+ *  Modul eine Unterseite hatte: „/dateien/irgendwas" gab es nicht, die Auswahl
+ *  stand immer in der Abfrage. Mit den Unterseiten von Docker gäbe „docker/ports"
+ *  weder ein Ziel in der Seitenleiste noch einen Treffer in gebauteSeiten — der
+ *  Menüpunkt verlöre seine Hervorhebung und die Seite fiele auf den Rückfall. */
+export function modulAus(pfad: string): string {
+  const erstes = ohneBasis(pfad).split("/")[0];
+  return erstes ?? "";
+}
+
+/** unterAus ist der Rest hinter dem Modul: „ports" bei /docker/ports, leer bei
+ *  /docker. Leer heißt „die Vorgabe des Moduls" und nicht „unbekannt" — deshalb
+ *  eine Zeichenkette und kein null. */
+export function unterAus(pfad: string): string {
+  const teile = ohneBasis(pfad).split("/");
+  return teile.slice(1).join("/");
 }
 
 function seiteAus(pfad: string): Seite {
@@ -108,6 +128,9 @@ class Weg {
   /** modul ist die Kennung aus der Adresse. Für die gebauten Seiten dasselbe wie
    *  seite; für „bald" die einzige Auskunft darüber, welches Modul gemeint war. */
   modul = $state<string>(modulAus(location.pathname));
+  /** unterseite ist das zweite Segment der Adresse — die Fläche innerhalb eines
+   *  Moduls. Leer heißt: die Vorgabe des Moduls. */
+  unterseite = $state<string>(unterAus(location.pathname));
   /** parameter ist die Abfrage der Adresse als einfaches Objekt. Als Objekt und
    *  nicht als URLSearchParams, weil Svelte Änderungen an einem Objekt
    *  beobachtet und an einer Instanz mit interner Liste nicht. */
@@ -120,6 +143,7 @@ class Weg {
     window.addEventListener("popstate", () => {
       this.seite = seiteAus(location.pathname);
       this.modul = modulAus(location.pathname);
+      this.unterseite = unterAus(location.pathname);
       this.parameter = paramAus(location.search);
     });
   }
@@ -133,6 +157,7 @@ class Weg {
     history.pushState(null, "", ziel.pathname + ziel.search);
     this.seite = seiteAus(ziel.pathname);
     this.modul = modulAus(ziel.pathname);
+    this.unterseite = unterAus(ziel.pathname);
     this.parameter = paramAus(ziel.search);
     // Nach einem Seitenwechsel steht der Blick sonst dort, wo er auf der
     // vorigen Seite war — in der Mitte einer Liste, die es nicht mehr gibt.

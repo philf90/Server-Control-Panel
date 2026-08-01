@@ -307,12 +307,27 @@ async function main() {
   palette.zieleGesamt = await seite.evaluate(
     () => document.querySelectorAll('[role="option"]').length,
   );
-  // Und dieselbe Zahl aus der Seitenleiste. Verglichen wird gegeneinander und
-  // nicht gegen eine feste Zahl: Ein neues Modul erschien sonst in der Leiste,
-  // aber nicht in der Suche — genau der Fehler, den lib/ziele.ts verhindern
-  // soll —, und eine Zahl im Test nachzuziehen ist kein Nachweis.
+  // Und dasselbe aus der Seitenleiste. Verglichen wird gegeneinander und nicht
+  // gegen eine feste Zahl: Ein neues Modul erschien sonst in der Leiste, aber
+  // nicht in der Suche — genau der Fehler, den lib/ziele.ts verhindern soll —,
+  // und eine Zahl im Test nachzuziehen ist kein Nachweis.
+  //
+  // Verglichen werden BENENNUNGEN und nicht Anzahlen, und das ist seit 0.5.1
+  // nötig: Die Palette kennt auch die Flächen innerhalb eines Moduls
+  // („Docker · Bestand"), die Leiste zeigt sie nur, während man in dem Modul
+  // steht. Zwei Zahlen wären damit zu Recht verschieden, und der Test hätte
+  // seine Aussage verloren. Die Aussage lautet jetzt genauer: Was in der Leiste
+  // steht, findet die Palette.
   palette.zieleInLeiste = await seite.evaluate(
     () => document.querySelectorAll(".seitenleiste nav a").length,
+  );
+  palette.titelPalette = await seite.evaluate(() =>
+    [...document.querySelectorAll('[role="option"]')].map((o) =>
+      (o.querySelector(".label") ?? o).textContent.trim(),
+    ),
+  );
+  palette.titelLeiste = await seite.evaluate(() =>
+    [...document.querySelectorAll(".seitenleiste nav a")].map((a) => a.textContent.trim()),
   );
 
   // Ein Suchwort, das NICHT im Namen steht: "nginx" muss den Webserver finden.
@@ -2779,6 +2794,49 @@ async function main() {
   await seite.click('.seitenleiste a[href="/docker"]');
   await seite.waitForSelector(".karten .karte", { timeout: 5000 });
   dock.pfad = new URL(seite.url()).pathname;
+
+  // Die Flächen des Moduls als eingerückte Punkte unter „Docker".
+  //
+  // Geprüft wird nicht, dass sie da sind, sondern dass sie AN DEN ORT gebunden
+  // sind: Sie erscheinen, solange man im Modul steht, und verschwinden, wenn
+  // man es verlässt. Ein Umschalter, den man von Hand zuklappt, hätte einen
+  // Zustand, der dem Ort widersprechen kann.
+  dock.flaechen = {
+    punkte: await seite.evaluate(() =>
+      [...document.querySelectorAll(".seitenleiste .kinder a")].map((a) => ({
+        label: a.textContent.trim(),
+        href: a.getAttribute("href"),
+      })),
+    ),
+    elternOffen: await seite.evaluate(
+      () => !!document.querySelector('.seitenleiste a.offen[href="/docker"]'),
+    ),
+  };
+
+  /** zuFlaeche wechselt über den Punkt in der Seitenleiste — nicht über die
+   *  Adresszeile. Nur so ist geprüft, dass der Weg dorthin auch existiert. */
+  async function zuFlaeche(label, warteAuf) {
+    await seite.evaluate(() => {
+      window.__marke = "haelt";
+    });
+    await seite.evaluate((l) => {
+      const punkt = [...document.querySelectorAll(".seitenleiste .kinder a")].find(
+        (a) => a.textContent.trim() === l,
+      );
+      punkt?.click();
+    }, label);
+    if (warteAuf) {
+      await seite.waitForFunction(warteAuf, null, { timeout: 6000 }).catch(() => {});
+    }
+    await seite.waitForTimeout(150);
+    return {
+      pfad: new URL(seite.url()).pathname,
+      ohneNeuladen: await seite.evaluate(() => window.__marke === "haelt"),
+      aktiv: await seite.evaluate(
+        () => document.querySelector('.seitenleiste .kinder a[aria-current="page"]')?.textContent.trim() ?? "",
+      ),
+    };
+  }
   dock.titel = await seite.evaluate(
     () => document.querySelector(".h1")?.textContent.trim() ?? "",
   );
@@ -3055,6 +3113,12 @@ async function main() {
   await seite.click(".inspektor .zu");
   await seite.waitForTimeout(200);
 
+  // Ab hier die anderen Flächen des Moduls, jede über ihren Punkt in der
+  // Seitenleiste. Bis 0.5.1 stand alles untereinander auf einer Seite.
+  dock.wechselContainer = await zuFlaeche("Container", () =>
+    [...document.querySelectorAll(".tabelle th")].some((th) => th.textContent.trim() === "Ports"),
+  );
+
   // Die Containerwerkbank. Zwei Dinge sind hier nur im Browser zu sehen: dass
   // die auffälligen Zeilen oben stehen (die Sortierung kommt vom Server, aber ob
   // sie ankommt, sagt nur die gerenderte Tabelle), und dass der Inspektor mit
@@ -3110,6 +3174,98 @@ async function main() {
     suche: new URL(seite.url()).search,
   };
 
+  // Der Ereignisstrom steht seit 0.5.1 auf der Fläche „Container": Er
+  // beantwortet „warum ist der Container um 3 Uhr neu gestartet", und diese
+  // Frage stellt man, während man den Container ansieht. Er beginnt ZUGEKLAPPT
+  // — er hält einen docker-Prozess auf dem Server.
+  dock.ereignisse = {
+    vorherOffen: await seite.evaluate(() => !!document.querySelector(".ereignisse .tabelle")),
+  };
+  await seite.evaluate(() => {
+    const knopf = [...document.querySelectorAll(".ereignisse .kopf")].at(0);
+    knopf?.click();
+  });
+  await seite
+    .waitForFunction(() => !!document.querySelector(".ereignisse table tbody tr"), null, {
+      timeout: 5000,
+    })
+    .catch(() => {});
+  dock.ereignisse.zeilen = await seite.evaluate(() =>
+    [...document.querySelectorAll(".ereignisse table tbody tr")].map((tr) => ({
+      aktion: tr.querySelector('[data-spalte="Aktion"]')?.textContent.trim() ?? "",
+      stufe: tr.querySelector('[data-spalte="Aktion"] .zustand')?.className ?? "",
+      objekt: tr.querySelector('[data-spalte="Objekt"]')?.textContent.trim() ?? "",
+    })),
+  );
+
+  dock.wechselPorts = await zuFlaeche("Ports", () =>
+    [...document.querySelectorAll(".tabelle th")].some(
+      (th) => th.textContent.trim() === "gebunden an",
+    ),
+  );
+
+  // Schritt 6: die Portübersicht. Der Kern ist EIN Urteil — ein Container, der
+  // auf 0.0.0.0 veröffentlicht, ist aus dem Netz erreichbar, auch wenn ufw läuft
+  // und den Port nicht kennt. Ob dieser Satz ankommt, sagt nur die gerenderte
+  // Seite: Der Server kann ihn schicken, und die Fläche kann ihn trotzdem
+  // verschlucken.
+  dock.ports = await seite.evaluate(() => {
+    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "gebunden an"),
+    );
+    return {
+      zeilen: tab
+        ? [...tab.querySelectorAll("tbody tr")].map((tr) => ({
+            port: tr.querySelector('[data-spalte="Port"]')?.textContent.trim() ?? "",
+            adresse: tr.querySelector('[data-spalte="gebunden an"]')?.textContent.trim() ?? "",
+            urteil: tr.querySelector('[data-spalte="erreichbar"]')?.textContent.trim() ?? "",
+            stufe: tr.querySelector('[data-spalte="erreichbar"] .zustand')?.className ?? "",
+          }))
+        : [],
+      // Der erklärende Satz steht ÜBER der Tabelle. Er ist die eigentliche
+      // Auskunft der Seite; ohne ihn ist ein rotes Feld nur ein rotes Feld.
+      warnung: [...document.querySelectorAll(".warnung")]
+        .map((w) => w.textContent.trim())
+        .find((x) => x.includes("Docker trägt seine Weiterleitungen")) ?? "",
+    };
+  });
+
+  dock.wechselUpdates = await zuFlaeche("Image-Updates", () =>
+    [...document.querySelectorAll(".tabelle th")].some((th) => th.textContent.trim() === "Stand"),
+  );
+
+  // Schritt 7: die Update-Prüfung. Zwei Dinge sind hier nur im Browser zu
+  // sehen — dass „nicht geprüft" als EIGENE Aussage dasteht und nicht als
+  // Abwesenheit, und dass der Knopf zum Aktualisieren am Stack hängt und nicht
+  // am Image.
+  dock.updates = await seite.evaluate(() => {
+    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
+      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Stand"),
+    );
+    return {
+      zeilen: tab
+        ? [...tab.querySelectorAll("tbody tr")].map((tr) => ({
+            ref: tr.querySelector('[data-spalte="Image"]')?.textContent.trim() ?? "",
+            stand: tr.querySelector('[data-spalte="Stand"]')?.textContent.trim() ?? "",
+            stufe: tr.querySelector('[data-spalte="Stand"] .zustand')?.className ?? "",
+            gebrauch: tr.querySelector('[data-spalte="benutzt von"]')?.textContent.trim() ?? "",
+            knopf: tr.querySelector(".knopf")?.textContent.trim() ?? "",
+          }))
+        : [],
+      // Der Satz zu den ungeprüften Images: Er sagt, dass sie keine
+      // Beruhigung sind. Ohne ihn ist „nicht geprüft" eine leere Zelle.
+      ungeprueftSatz: [...document.querySelectorAll(".hinweis")]
+        .map((h) => h.textContent.trim())
+        .find((x) => x.includes("Das heißt nicht, dass sie aktuell sind")) ?? "",
+    };
+  });
+
+  dock.wechselBestand = await zuFlaeche("Bestand", () =>
+    [...document.querySelectorAll(".tabelle th")].some((th) =>
+      th.textContent.includes("freigebbar"),
+    ),
+  );
+
   // Der Bestand. Zwei Dinge sind hier nur im Browser zu sehen: dass an einem
   // BENUTZTEN Image kein Entfernen-Knopf steht (Docker weigerte sich, und der
   // Knopf wäre dann selbst der Fehler), und dass die Zeile „freigebbar" ankommt
@@ -3148,83 +3304,50 @@ async function main() {
         .find((texte) => texte.some((x) => x.includes("wegräumen") || x.includes("leeren"))) ?? [],
     };
   });
-  // Schritt 6: die Portübersicht. Der Kern ist EIN Urteil — ein Container, der
-  // auf 0.0.0.0 veröffentlicht, ist aus dem Netz erreichbar, auch wenn ufw läuft
-  // und den Port nicht kennt. Ob dieser Satz ankommt, sagt nur die gerenderte
-  // Seite: Der Server kann ihn schicken, und die Fläche kann ihn trotzdem
-  // verschlucken.
-  dock.ports = await seite.evaluate(() => {
-    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
-      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "gebunden an"),
-    );
-    return {
-      zeilen: tab
-        ? [...tab.querySelectorAll("tbody tr")].map((tr) => ({
-            port: tr.querySelector('[data-spalte="Port"]')?.textContent.trim() ?? "",
-            adresse: tr.querySelector('[data-spalte="gebunden an"]')?.textContent.trim() ?? "",
-            urteil: tr.querySelector('[data-spalte="erreichbar"]')?.textContent.trim() ?? "",
-            stufe: tr.querySelector('[data-spalte="erreichbar"] .zustand')?.className ?? "",
-          }))
-        : [],
-      // Der erklärende Satz steht ÜBER der Tabelle. Er ist die eigentliche
-      // Auskunft der Seite; ohne ihn ist ein rotes Feld nur ein rotes Feld.
-      warnung: [...document.querySelectorAll(".warnung")]
-        .map((w) => w.textContent.trim())
-        .find((x) => x.includes("Docker trägt seine Weiterleitungen")) ?? "",
-    };
-  });
-
-  // Schritt 7: die Update-Prüfung. Zwei Dinge sind hier nur im Browser zu
-  // sehen — dass „nicht geprüft" als EIGENE Aussage dasteht und nicht als
-  // Abwesenheit, und dass der Knopf zum Aktualisieren am Stack hängt und nicht
-  // am Image.
-  dock.updates = await seite.evaluate(() => {
-    const tab = [...document.querySelectorAll(".tabelle")].find((t) =>
-      [...t.querySelectorAll("th")].some((th) => th.textContent.trim() === "Stand"),
-    );
-    return {
-      zeilen: tab
-        ? [...tab.querySelectorAll("tbody tr")].map((tr) => ({
-            ref: tr.querySelector('[data-spalte="Image"]')?.textContent.trim() ?? "",
-            stand: tr.querySelector('[data-spalte="Stand"]')?.textContent.trim() ?? "",
-            stufe: tr.querySelector('[data-spalte="Stand"] .zustand')?.className ?? "",
-            gebrauch: tr.querySelector('[data-spalte="benutzt von"]')?.textContent.trim() ?? "",
-            knopf: tr.querySelector(".knopf")?.textContent.trim() ?? "",
-          }))
-        : [],
-      // Der Satz zu den ungeprüften Images: Er sagt, dass sie keine
-      // Beruhigung sind. Ohne ihn ist „nicht geprüft" eine leere Zelle.
-      ungeprueftSatz: [...document.querySelectorAll(".hinweis")]
-        .map((h) => h.textContent.trim())
-        .find((x) => x.includes("Das heißt nicht, dass sie aktuell sind")) ?? "",
-    };
-  });
-
-  // Der Ereignisstrom. Er beginnt ZUGEKLAPPT — er hält einen docker-Prozess auf
-  // dem Server, und dafür soll niemand zahlen, der die Seite nur geöffnet hat.
-  dock.ereignisse = { vorherOffen: await seite.evaluate(() => !!document.querySelector(".ereignisse .tabelle")) };
-  await seite.evaluate(() => {
-    const knopf = [...document.querySelectorAll(".ereignisse .kopf")].at(0);
-    knopf?.click();
-  });
-  await seite
-    .waitForFunction(() => !!document.querySelector(".ereignisse table tbody tr"), null, {
-      timeout: 5000,
-    })
-    .catch(() => {});
-  dock.ereignisse.zeilen = await seite.evaluate(() =>
-    [...document.querySelectorAll(".ereignisse table tbody tr")].map((tr) => ({
-      aktion: tr.querySelector('[data-spalte="Aktion"]')?.textContent.trim() ?? "",
-      stufe: tr.querySelector('[data-spalte="Aktion"] .zustand')?.className ?? "",
-      objekt: tr.querySelector('[data-spalte="Objekt"]')?.textContent.trim() ?? "",
-    })),
-  );
-
   dock.navAktiv = await seite.evaluate(
     () =>
       document.querySelector('.seitenleiste a[aria-current="page"]')?.getAttribute("href") ?? "",
   );
+
+  // Zurück auf die Vorgabe — und dabei die andere Hälfte der Zusage prüfen: Die
+  // Punkte hängen am Ort. Wer das Modul verlässt, sieht sie nicht mehr.
+  dock.wechselStacks = await zuFlaeche("Stacks", () =>
+    [...document.querySelectorAll(".tabelle th")].some((th) => th.textContent.trim() === "Herkunft"),
+  );
+  await seite.click('.seitenleiste a[href="/dienste"]');
+  await seite.waitForTimeout(250);
+  dock.kinderDraussen = await seite.evaluate(
+    () => document.querySelectorAll(".seitenleiste .kinder a").length,
+  );
+  await seite.click('.seitenleiste a[href="/docker"]');
+  await seite.waitForTimeout(400);
+
   await bildschirmfoto(seite, "leitstand-docker", { fullPage: true });
+
+  // Schmal: Hier hängt der ganze Entwurf. Die Leiste ist eine Symbolschiene
+  // ohne Beschriftungen, eingerückte Punkte wären dort nicht als solche zu
+  // erkennen — also verschwinden sie, und der Umschaltstreifen der Seite tritt
+  // an ihre Stelle. Geprüft wird beides zusammen: Ohne den Streifen wären die
+  // Flächen auf einem Telefon unerreichbar.
+  await seite.setViewportSize({ width: 375, height: 800 });
+  await seite.waitForTimeout(250);
+  dock.schmal = await seite.evaluate(() => {
+    const streifen = document.querySelector(".streifen");
+    return {
+      koerperBreite: document.body.scrollWidth,
+      fensterBreite: window.innerWidth,
+      kinderInLeiste: [...document.querySelectorAll(".seitenleiste .kinder a")].filter(
+        (a) => a.getBoundingClientRect().width > 0,
+      ).length,
+      streifenDa: !!streifen && streifen.getBoundingClientRect().width > 0,
+      streifenPunkte: streifen
+        ? [...streifen.querySelectorAll("a")].map((a) => a.textContent.trim())
+        : [],
+    };
+  });
+  await bildschirmfoto(seite, "leitstand-docker-schmal");
+  await seite.setViewportSize({ width: 1280, height: 720 });
+  await seite.waitForTimeout(200);
 
   await browser.close();
 

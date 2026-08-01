@@ -29,6 +29,11 @@
   // geraten ist. Bei einem Pfad, den es gar nicht gibt, bleibt bewusst nichts
   // markiert — die Übersicht hervorzuheben wäre eine Behauptung über den Ort.
   const aktiv = $derived(weg.modul || weg.seite);
+
+  // Die Kennung der stehenden FLÄCHE — „docker/ports", oder „docker/" für die
+  // Vorgabe des Moduls. Ein leeres zweites Segment ist keine fehlende Auskunft,
+  // sondern die erste Fläche; deshalb der Schrägstrich auch dann.
+  const aktivesKind = $derived(aktiv + "/" + weg.unterseite);
 </script>
 
 <aside class="seitenleiste">
@@ -44,12 +49,36 @@
           <a
             href={ziel.href}
             onclick={(e) => verweis(e, ziel.href)}
-            class:an={ziel.id === aktiv}
-            aria-current={ziel.id === aktiv ? "page" : undefined}
+            class:an={ziel.id === aktiv && !ziel.kinder}
+            class:offen={ziel.id === aktiv && !!ziel.kinder}
+            aria-current={ziel.id === aktiv && !ziel.kinder ? "page" : undefined}
           >
             <svg aria-hidden="true"><use href="#sym-{ziel.symbol}" /></svg>
             <span>{ziel.label}</span>
           </a>
+
+          <!-- Die Flächen des Moduls, sichtbar solange man darin steht.
+               Aufgeklappt heißt hier „ich bin drin" und nicht „ich habe darauf
+               geklickt": Es gibt keinen Umschalter und damit keinen Zustand, der
+               dem Ort widersprechen könnte.
+
+               Der Elternteil trägt in diesem Fall NICHT die Hervorhebung — sie
+               steht am Kind. Sonst wären zwei Punkte gleichzeitig markiert und
+               keiner davon sagte, wo man ist. -->
+          {#if ziel.kinder && ziel.id === aktiv}
+            <div class="kinder">
+              {#each ziel.kinder as kind (kind.id)}
+                <a
+                  href={kind.href}
+                  onclick={(e) => verweis(e, kind.href)}
+                  class:an={kind.id === aktivesKind}
+                  aria-current={kind.id === aktivesKind ? "page" : undefined}
+                >
+                  <span>{kind.label}</span>
+                </a>
+              {/each}
+            </div>
+          {/if}
         {/each}
       </nav>
     </div>
@@ -112,10 +141,41 @@
     background: linear-gradient(90deg, rgba(232, 163, 61, 0.1), transparent);
   }
 
+  /* Das Modul mit offenen Kindern trägt selbst keine Hervorhebung, bleibt aber
+     erkennbar: Es ist der Kopf über der eingerückten Liste. */
+  a.offen {
+    color: var(--tx);
+  }
+
+  .kinder {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Eingerückt bis unter das Symbol des Moduls: Die Kinder hängen sichtbar an
+     ihm, statt als weitere gleichrangige Punkte zu erscheinen. */
+  .kinder a {
+    padding-left: 2.65rem;
+    font-size: 0.8rem;
+  }
+
   /* Schmal wird aus der Leiste eine Symbolschiene. Die Beschriftung verschwindet
    * für das Auge, bleibt aber für Vorleseprogramme stehen. */
   @media (max-width: 900px) {
     .gruppe > b {
+      display: none;
+    }
+
+    /* Die Kinder verschwinden aus der Schiene, und das ist der Punkt, an dem
+       dieser Entwurf sonst gescheitert wäre: Ohne Beschriftung gibt es keine
+       Einrückung, die man sähe — fünf Unterpunkte wären fünf weitere Symbole in
+       derselben Spalte, nicht unterscheidbar von einem Modul, und für die es
+       keine fünf sinnvollen Symbole gibt.
+
+       Die Fläche wechselt man hier über den Umschaltstreifen der Seite selbst
+       (seiten/Docker.svelte). Zwei Navigationen also — aber nie beide
+       gleichzeitig sichtbar. */
+    .kinder {
       display: none;
     }
 

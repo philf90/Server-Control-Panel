@@ -252,18 +252,29 @@ Nach `docs/14-bestaetigungen.md`; Abweichungen sind dort einzutragen.
 
 ## 6. Die Oberfläche
 
-Eine Seite `/docker` mit vier Reitern, statt fünf Menüpunkten — die
-Seitenleiste hat schon achtzehn Ziele:
+> **Stand 0.5.1.** Dieser Abschnitt sah ursprünglich vier **Reiter** unter einer
+> Seite vor. Gebaut wurde bis 0.5.0 eine einzige lange Seite mit sechs
+> Abschnitten untereinander; mit 0.5.1 sind es fünf **Flächen mit eigener
+> Adresse**, die als eingerückte Punkte unter „Docker" in der Seitenleiste
+> stehen. Die Begründung für die dritte Fassung steht im Nachtrag am Ende von
+> Abschnitt 8.
 
-| Reiter | Inhalt |
-|---|---|
-| **Stacks** (Vorgabe) | Werkbank: Liste (verwaltet/fremd, Dienste, Zustand) + Inspektor mit Diensten, Editor, Vorgangsplatte |
-| **Container** | Werkbank: Liste + Inspektor mit Logs, Statistik, Konfiguration, Mounts, Netzen, Ports |
-| **Bestand** | Images, Volumes, Netze; `system df` oben; Aufräumen je Art |
-| **Ports** | Alle veröffentlichten Ports quer über Container, abgeglichen mit der Firewall |
+| Fläche | Adresse | Inhalt |
+|---|---|---|
+| **Stacks** (Vorgabe) | `/docker` | Werkbank: Liste (verwaltet/fremd, Dienste, Zustand) + Inspektor mit Diensten, Editor samt Formular, Vorgangsplatte |
+| **Container** | `/docker/container` | Werkbank: Liste + Inspektor mit Logs, Statistik, Konfiguration, Mounts, Netzen, Ports — dazu der Ereignisstrom |
+| **Ports** | `/docker/ports` | Alle veröffentlichten Ports quer über Container, abgeglichen mit der Firewall |
+| **Image-Updates** | `/docker/updates` | Digest-Abgleich gegen die Registries, Zwischenspeicher, Ratengrenze |
+| **Bestand** | `/docker/bestand` | Images, Volumes, Netze; `system df` oben; Aufräumen je Art |
 
-Dazu die Ereignisansicht als aufklappbarer Bereich (Muster: Verfolgen in
-`Logs.svelte`), nicht als eigener Reiter.
+Der Zustandskopf (Laufzeit, Daemon, Compose) steht über **allen** Flächen: Er
+ist die Voraussetzung für alles darunter, und „der Daemon antwortet nicht" darf
+man nicht durch einen Flächenwechsel verpassen.
+
+Die Ereignisansicht bleibt ein aufklappbarer Bereich (Muster: Verfolgen in
+`Logs.svelte`) und keine eigene Fläche — sie steht bei den **Containern**. Sie
+beantwortet „warum ist der Container um 3 Uhr neu gestartet", und diese Frage
+stellt man, während man den Container ansieht.
 
 **Neue Dateien:** `web/src/seiten/Docker.svelte` und
 `web/src/komponenten/Composeeditor.svelte`. Wiederverwendet werden
@@ -1031,6 +1042,107 @@ einen Verstoß ausgelöst hat — vorher stand nur da, dass einer vorlag.
 | davon nachgeladen | — | 103,1 KiB | `composeform`-Brocken samt `yaml`, nur beim Öffnen des Editors |
 | direkte Go-Abhängigkeiten | 6 | 6 | unverändert |
 | direkte npm-Abhängigkeiten | 8 | 9 | `yaml` 2.9.0, ISC |
+
+---
+
+### Nachtrag 0.5.1 — die Seite wird ein Modul mit fünf Flächen
+
+Die Frage kam aus dem Betrieb: Bei vielen Containern wird die Seite lang.
+
+**Sie wird nicht nur lang, sie wird teuer.** Gemessen mit der Attrappe des
+Browsertests (2 Stacks, 4 Container, 2 Images) sind es 2 337 px. Hochgerechnet
+auf einen betriebsüblichen Server — 12 Stacks, 40 Container, 30 veröffentlichte
+Ports, 45 Image-Referenzen, 60 Images, 25 Volumes, 8 Netze — sind das rund 204
+zusätzliche Tabellenzeilen und **etwa 9 300 px, also dreizehn Bildschirme**.
+
+Das schwerere Argument steht daneben: Jeder Abschnitt holt beim Einhängen seine
+eigenen Daten, und die meisten davon sind `docker`-Prozesse.
+
+| Abschnitt | Prozesse beim Öffnen (40 Container) |
+|---|---|
+| Zustandskopf | 4 |
+| Stacks | 2 |
+| Container | 1 |
+| Ports | 2 |
+| Image-Updates | 0 (nur Zwischenspeicher) |
+| **Bestand** | **45** — `ps`, je Container ein `docker inspect`, dazu `system df`, `image ls`, `volume ls`, `network ls` |
+
+Rund **54 Prozessaufrufe je Seitenaufruf**, davon 45 aus dem Abschnitt mit dem
+seltensten Anlass. Wer einen Container neu starten wollte, bezahlte den ganzen
+Bestand mit — samt `system df`, das den Image- und Volume-Speicher durchläuft.
+
+#### E12 — Unterpunkte in der Seitenleiste, keine Reiter
+
+Erwogen und verworfen wurde eine Reiterleiste im Inhalt. Der Unterschied ist
+nicht Geschmack:
+
+| | Reiter | Unterpunkt in der Leiste |
+|---|---|---|
+| eigene Adresse | ginge auch | ja |
+| von einer anderen Seite aus erreichbar | nein, erst über das Modul | ja |
+| in der Befehlspalette | nein | ja |
+| zweite Navigation im Inhalt | ja | nein |
+
+Der dritte Punkt gibt den Ausschlag. `lib/ziele.ts` ist ausdrücklich die *eine*
+Liste des Menüs, weil die Palette sonst eine zweite, unvollständige Fassung
+wäre. Eine Reiterleiste hätte genau das wieder eingeführt — fünf Flächen, die
+das Menü nicht kennt.
+
+**Aufgeklappt heißt „ich bin drin".** Es gibt keinen Umschalter: Die Punkte
+erscheinen, solange man im Modul steht, und verschwinden beim Verlassen. Ein
+Umschalter wäre ein zweiter Zustand, und sein schlechter Fall wäre ein
+zugeklapptes Modul, in dem man gerade steht — nichts hervorgehoben, nichts zu
+sehen. Die Hervorhebung trägt in diesem Fall das Kind und nicht der Elternteil;
+zwei markierte Punkte sagten nicht mehr, sondern weniger.
+
+#### Der Fall, an dem der Entwurf beinahe gescheitert wäre
+
+Unter 900 px ist die Seitenleiste eine **Symbolschiene**: Beschriftungen sind
+für das Auge ausgeblendet (`clip-path`), Gruppenüberschriften weg, Symbole
+zentriert. Ein eingerückter Unterpunkt hat dort keine sichtbare Einrückung — er
+wäre ein weiteres Symbol in derselben Spalte, nicht von einem Modul zu
+unterscheiden, und für fünf Flächen gibt es keine fünf sinnvollen Symbole.
+
+Die Antwort ist ein **Umschaltstreifen auf der Seite, der nur schmal
+erscheint**. Damit gibt es zwei Navigationen für dieselbe Sache — aber nie
+beide gleichzeitig sichtbar, und jede an der Breite, an der sie funktioniert.
+Der Browsertest prüft beides: dass schmal keine Kinder in der Schiene stehen und
+dass der Streifen da ist. Ohne die zweite Hälfte wären die Flächen auf einem
+Telefon unerreichbar.
+
+#### Was das an Prüfungen gekostet hat
+
+- Der Browsertest wechselt jetzt über die Punkte der Leiste und nicht über die
+  Adresszeile — nur so ist geprüft, dass der Weg dorthin existiert. Je Wechsel
+  wird Pfad, Hervorhebung und „ohne Neuladen" festgehalten.
+- Der Vergleich Palette gegen Leiste war eine Gleichheit von **Anzahlen**. Das
+  ging nicht mehr: Die Palette kennt 23 Ziele, die Leiste zeigt 18 plus die
+  Flächen des Moduls, in dem man gerade steht. Er vergleicht jetzt
+  **Benennungen** und sagt damit genauer, was er meint: Was in der Leiste steht,
+  findet die Palette.
+- Neu ist `TestJedeFlaecheEinesModulsWirdGerendert` (`internal/ui`). Es gibt
+  jetzt drei Leser der Flächenliste: die Leiste (allgemein), die Palette
+  (allgemein) und die Seite selbst (eine Kette von Vergleichen). Nur die dritte
+  kann vergessen werden — der Punkt stünde dann im Menü und führte auf „Diese
+  Fläche gibt es nicht".
+
+#### Offen geblieben
+
+**Warnpunkte an den Menüpunkten gibt es nicht.** Der README behauptet sie seit
+0.4.0 („jedes Ziel mit einem Warnpunkt, wenn dort etwas offen ist"); gebaut sind
+sie nie worden — `Seitenleiste.svelte` rendert Symbol und Beschriftung, `Ziel`
+hat kein Signalfeld, und die Signale erreichen nur die Übersicht. Mit den
+Flächen wären sie deutlich nützlicher als vorher: ein Punkt an
+„Image-Updates" statt einer an „Docker", der sechs Abschnitte meint. Das ist ein
+eigenes Stück Arbeit und steht aus; der falsche Satz im README ist mit dieser
+Fassung berichtigt.
+
+Ebenfalls offen: Der Bestand holt je Container ein `docker inspect`
+(`api_v1_docker.go`), nur um „Volume in Gebrauch" zu markieren. `docker system
+df -v` liefert dasselbe in einem Aufruf. Durch die eigene Fläche wird das
+seltener ausgelöst, aber nicht besser.
+
+---
 
 #### Was bleibt
 

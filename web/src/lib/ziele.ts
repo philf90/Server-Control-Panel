@@ -45,6 +45,28 @@ export type Ziel = {
    *  „nginx" tippt, denkt an den Webserver, und wer „ssl" tippt, sucht das
    *  Zertifikat. Ohne diese Wörter findet die Suche nur, was man schon weiß. */
   auch?: string[];
+  /** kinder sind die Flächen innerhalb eines Moduls, jede mit eigenem Pfad.
+   *
+   *  Warum überhaupt: Die Docker-Seite trug bis 0.5.1 sechs Abschnitte
+   *  untereinander. Auf einem betriebsüblichen Server sind das rund dreizehn
+   *  Bildschirme — und schlimmer als die Länge ist, dass jeder Abschnitt beim
+   *  Öffnen seine eigenen docker-Aufrufe macht. Wer einen Container neu starten
+   *  will, bezahlt sonst den ganzen Bestand mit.
+   *
+   *  Warum in dieser Datei und nicht als Reiterleiste in der Seite: Ein Kind ist
+   *  ein Ziel wie jedes andere — es hat eine Adresse, es steht in der
+   *  Seitenleiste, und die Befehlspalette findet es. Eine Reiterleiste wäre eine
+   *  zweite Navigation, die keine der drei Eigenschaften hätte.
+   *
+   *  Aufgeklappt wird NICHT von Hand: Die Kinder erscheinen, solange man im
+   *  Modul ist, und verschwinden danach. Ein Umschalter wäre ein zweiter
+   *  Zustand, und sein schlechter Fall wäre ein zugeklapptes Modul, in dem man
+   *  gerade steht — nichts hervorgehoben, nichts zu sehen.
+   *
+   *  Das Kind mit dem Pfad des Elternteils ist die Vorgabe des Moduls. Es steht
+   *  ausdrücklich da, statt sich aus der Abwesenheit zu ergeben: „Stacks" ist
+   *  eine Fläche mit einem Namen und nicht „Docker ohne Zusatz". */
+  kinder?: Ziel[];
 };
 
 export type Gruppe = { titel: string; ziele: Ziel[] };
@@ -102,6 +124,53 @@ export const gruppen: Gruppe[] = [
         gruppe: t.bereiche.apps,
         neu: true,
         auch: ["container", "compose", "stack", "image", "podman"],
+        kinder: [
+          {
+            id: "docker/",
+            label: t.ziele.dockerStacks,
+            symbol: "container",
+            href: "/docker",
+            gruppe: t.ziele.docker,
+            neu: true,
+            auch: ["compose", "projekt", "yaml"],
+          },
+          {
+            id: "docker/container",
+            label: t.ziele.dockerContainer,
+            symbol: "container",
+            href: "/docker/container",
+            gruppe: t.ziele.docker,
+            neu: true,
+            auch: ["logs", "statistik", "neustart"],
+          },
+          {
+            id: "docker/ports",
+            label: t.ziele.dockerPorts,
+            symbol: "container",
+            href: "/docker/ports",
+            gruppe: t.ziele.docker,
+            neu: true,
+            auch: ["veroeffentlicht", "firewall", "erreichbar", "ufw"],
+          },
+          {
+            id: "docker/updates",
+            label: t.ziele.dockerUpdates,
+            symbol: "container",
+            href: "/docker/updates",
+            gruppe: t.ziele.docker,
+            neu: true,
+            auch: ["aktualitaet", "registry", "digest", "neuere fassung"],
+          },
+          {
+            id: "docker/bestand",
+            label: t.ziele.dockerBestand,
+            symbol: "container",
+            href: "/docker/bestand",
+            gruppe: t.ziele.docker,
+            neu: true,
+            auch: ["images", "volumes", "netze", "platte", "aufraeumen", "prune"],
+          },
+        ],
       },
       {
         id: "webserver",
@@ -247,8 +316,26 @@ export const gruppen: Gruppe[] = [
   },
 ];
 
-/** alleZiele ist die flache Liste für die Suche. */
-export const alleZiele: Ziel[] = gruppen.flatMap((g) => g.ziele);
+/** alleZiele ist die flache Liste für die Suche — Module UND ihre Flächen.
+ *
+ *  Die Kinder gehören hier hinein und nicht nur in die Seitenleiste: Sonst
+ *  fände ⌘K „Bestand" nicht, und die Palette wäre wieder das, was sie nicht sein
+ *  soll — eine zweite, unvollständige Fassung des Menüs. Genau das begründet der
+ *  Kopf dieser Datei. */
+export const alleZiele: Ziel[] = gruppen.flatMap((g) =>
+  g.ziele.flatMap((z) => [z, ...(z.kinder ?? [])]),
+);
+
+/** kindZu findet die Fläche zu einem Modul und einer Unterseite.
+ *
+ *  Leere Unterseite heißt: das Kind mit dem Pfad des Moduls, also die Vorgabe.
+ *  Gibt es zu dem Segment kein Kind, kommt undefined zurück — die Seite
+ *  entscheidet dann, ob sie auf die Vorgabe fällt oder etwas anderes sagt. */
+export function kindZu(modul: string, unterseite: string): Ziel | undefined {
+  const eltern = alleZiele.find((z) => z.id === modul);
+  if (!eltern?.kinder) return undefined;
+  return eltern.kinder.find((k) => k.id === modul + "/" + unterseite);
+}
 
 /** sichtbareZiele lässt weg, was die Rolle nicht erreicht.
  *
@@ -264,7 +351,16 @@ export function sichtbareZiele(istOwner: boolean, ziele: Ziel[] = alleZiele): Zi
  *  Fehler aus. */
 export function sichtbareGruppen(istOwner: boolean): Gruppe[] {
   return gruppen
-    .map((g) => ({ titel: g.titel, ziele: sichtbareZiele(istOwner, g.ziele) }))
+    .map((g) => ({
+      titel: g.titel,
+      // Die Kinder mitfiltern und nicht nur die Module: Ein Modul, das jede
+      // Rolle sieht, kann eine Fläche haben, die nur der Owner erreicht. Heute
+      // gibt es den Fall nicht — die Regel steht hier, damit der erste, der ihn
+      // baut, ihn nicht erfinden muss.
+      ziele: sichtbareZiele(istOwner, g.ziele).map((z) =>
+        z.kinder ? { ...z, kinder: sichtbareZiele(istOwner, z.kinder) } : z,
+      ),
+    }))
     .filter((g) => g.ziele.length > 0);
 }
 

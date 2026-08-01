@@ -42,6 +42,21 @@ Ein Formular zur Compose-Datei, eine Berichtigung und eine Umbenennung. Wer
   Ob ein Stack zulässig ist, entscheidet weiterhin allein der Compose-Prüfer
   auf dem Server. Das Formular ist eine Bedienhilfe und keine zweite Instanz.
 
+- **Docker ist ein Modul mit fünf Flächen statt einer langen Seite.** Stacks,
+  Container, Ports, Image-Updates und Bestand haben je eine eigene Adresse und
+  stehen als eingerückte Punkte unter „Docker" in der Seitenleiste — aufgeklappt,
+  solange man im Modul ist. Die Befehlspalette findet sie einzeln.
+
+  Der Grund ist nicht die Länge allein: Jeder Abschnitt holte beim Öffnen seine
+  eigenen Daten. Ein Aufruf der Seite kostete auf einem Server mit vierzig
+  Containern rund fünfzig `docker`-Prozesse, davon fünfundvierzig für den
+  Bestand — den Abschnitt mit dem seltensten Anlass. Wer einen Container neu
+  starten wollte, bezahlte ihn mit.
+
+  Schmal, wo die Seitenleiste eine Symbolschiene ohne Beschriftungen ist,
+  übernimmt ein Umschaltstreifen auf der Seite. Der Zustandskopf (Laufzeit,
+  Daemon, Compose) steht über allen Flächen.
+
 ### Behoben
 
 - **„Stack anlegen" fehlte auf einem Server ohne Compose-Projekt.** Der Knopf
@@ -83,6 +98,12 @@ Ein Formular zur Compose-Datei, eine Berichtigung und eine Umbenennung. Wer
   den Rückweg. Kein JavaScript-Testrahmen und keine weitere Abhängigkeit — der
   Bündler ist der, der ohnehin die Oberfläche baut. Der Test überspringt sich,
   wo `node_modules` fehlt, und läuft in der CI im Job, der sie hat.
+- Der Vergleich „Befehlspalette gegen Seitenleiste" im Browsertest war eine
+  Gleichheit von Anzahlen und ist jetzt einer von Benennungen: Die Palette kennt
+  auch die Flächen innerhalb eines Moduls, die Leiste zeigt sie nur, während man
+  darin steht. Dazu prüft `TestJedeFlaecheEinesModulsWirdGerendert`, dass jede
+  Fläche aus `ziele.ts` in ihrer Seite auch einen Zweig hat — sonst stünde ein
+  Punkt im Menü, der ins Leere führt.
 - Der Browsertest nennt bei einem Verstoß gegen die Content-Security-Policy
   jetzt auch die Herkunft — Richtlinie und auslösendes Element. Ohne das sucht
   man einen Verstoß in einem Bündel von 380 KiB. Gebraucht wurde es sofort: Der

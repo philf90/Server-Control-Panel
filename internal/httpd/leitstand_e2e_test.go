@@ -19,6 +19,13 @@ import (
 	"github.com/philf90/asylum/internal/store"
 )
 
+// wechsel ist das Ergebnis eines Klicks auf eine Fläche innerhalb eines Moduls.
+type wechsel struct {
+	Pfad         string `json:"pfad"`
+	OhneNeuladen bool   `json:"ohneNeuladen"`
+	Aktiv        string `json:"aktiv"`
+}
+
 // ergebnisLeitstand ist die Ausgabe des Browsertreibers.
 type ergebnisLeitstand struct {
 	Verstoesse []string `json:"verstoesse"`
@@ -57,6 +64,8 @@ type ergebnisLeitstand struct {
 		FokusImFeld       bool     `json:"fokusImFeld"`
 		ZieleGesamt       int      `json:"zieleGesamt"`
 		ZieleInLeiste     int      `json:"zieleInLeiste"`
+		TitelPalette      []string `json:"titelPalette"`
+		TitelLeiste       []string `json:"titelLeiste"`
 		TrefferNginx      []string `json:"trefferNginx"`
 		TrefferOhneUmlaut []string `json:"trefferOhneUmlaut"`
 		LeerZustand       string   `json:"leerZustand"`
@@ -736,6 +745,26 @@ type ergebnisLeitstand struct {
 			AnkerGesperrt bool   `json:"ankerGesperrt"`
 			KaputtWarnung string `json:"kaputtWarnung"`
 		} `json:"formular"`
+		Flaechen struct {
+			Punkte []struct {
+				Label string `json:"label"`
+				Href  string `json:"href"`
+			} `json:"punkte"`
+			ElternOffen bool `json:"elternOffen"`
+		} `json:"flaechen"`
+		WechselContainer wechsel `json:"wechselContainer"`
+		WechselPorts     wechsel `json:"wechselPorts"`
+		WechselUpdates   wechsel `json:"wechselUpdates"`
+		WechselBestand   wechsel `json:"wechselBestand"`
+		WechselStacks    wechsel `json:"wechselStacks"`
+		KinderDraussen   int     `json:"kinderDraussen"`
+		Schmal           struct {
+			KoerperBreite  float64  `json:"koerperBreite"`
+			FensterBreite  float64  `json:"fensterBreite"`
+			KinderInLeiste int      `json:"kinderInLeiste"`
+			StreifenDa     bool     `json:"streifenDa"`
+			StreifenPunkte []string `json:"streifenPunkte"`
+		} `json:"schmal"`
 		StackFremd struct {
 			Titel   string   `json:"titel"`
 			Knoepfe []string `json:"knoepfe"`
@@ -1222,9 +1251,23 @@ func TestLeitstandBrowser(t *testing.T) {
 	// kein Nachweis dafür.
 	if e.Palette.ZieleInLeiste == 0 {
 		t.Error("die Seitenleiste hat keine Ziele — dann sagt der Vergleich mit der Palette nichts")
-	} else if e.Palette.ZieleGesamt != e.Palette.ZieleInLeiste {
-		t.Errorf("%d Ziele in der Palette, %d in der Seitenleiste — zwei Listen desselben "+
-			"Menüs laufen auseinander", e.Palette.ZieleGesamt, e.Palette.ZieleInLeiste)
+	}
+	// Jedes Ziel der Leiste muss die Palette kennen. Nicht mehr die Anzahlen
+	// vergleichen: Die Palette kennt seit 0.5.1 zusätzlich die Flächen innerhalb
+	// eines Moduls, die Leiste zeigt sie nur, während man darin steht.
+	for _, titel := range e.Palette.TitelLeiste {
+		if !enthaelt(e.Palette.TitelPalette, titel) {
+			t.Errorf("%q steht in der Seitenleiste, die Palette kennt es nicht — zwei Listen "+
+				"desselben Menüs laufen auseinander", titel)
+		}
+	}
+	// Und die Gegenprobe zur neuen Hälfte: Was nur eine Fläche innerhalb eines
+	// Moduls ist, muss die Palette trotzdem finden. Sonst wäre sie für diese
+	// Ziele der Umweg über das Modul.
+	for _, titel := range []string{"Bestand", "Image-Updates", "Ports"} {
+		if !enthaelt(e.Palette.TitelPalette, titel) {
+			t.Errorf("die Palette findet die Fläche %q nicht: %v", titel, e.Palette.TitelPalette)
+		}
 	}
 	// Der Unterschied zwischen einer Suche und einer Liste: ein Wort, das im
 	// Namen nicht vorkommt.
@@ -2923,8 +2966,90 @@ func TestLeitstandBrowser(t *testing.T) {
 		t.Errorf("bei vollständigem Docker gehört kein Knopf auf die Seite, gefunden: %v — "+
 			"er würde in dieser Lage nichts bewirken", dk.Knoepfe)
 	}
-	if dk.NavAktiv != "/docker" {
-		t.Errorf("der Menüpunkt ist nicht hervorgehoben (aria-current auf %q)", dk.NavAktiv)
+	// Der hervorgehobene Punkt ist seit 0.5.1 die FLÄCHE und nicht das Modul:
+	// Zuletzt stand der Test auf /docker/bestand. Zwei gleichzeitig markierte
+	// Punkte wären die schlechtere Antwort — keiner davon sagte, wo man ist.
+	if dk.NavAktiv != "/docker/bestand" {
+		t.Errorf("hervorgehoben ist %q, erwartet war die zuletzt geöffnete Fläche "+
+			"/docker/bestand", dk.NavAktiv)
+	}
+
+	// ── Die Flächen des Moduls (0.5.1) ──────────────────────────────────────
+	//
+	// Der Entwurf steht und fällt mit einer Eigenschaft: Die Punkte hängen am
+	// ORT und nicht an einem Umschalter. Sie erscheinen, solange man im Modul
+	// steht, und verschwinden beim Verlassen. Deshalb wird beides geprüft.
+	fl := dk.Flaechen
+	erwarteteFlaechen := []struct{ label, href string }{
+		{"Stacks", "/docker"},
+		{"Container", "/docker/container"},
+		{"Ports", "/docker/ports"},
+		{"Image-Updates", "/docker/updates"},
+		{"Bestand", "/docker/bestand"},
+	}
+	if len(fl.Punkte) != len(erwarteteFlaechen) {
+		t.Errorf("unter Docker stehen %d Punkte, erwartet %d: %+v",
+			len(fl.Punkte), len(erwarteteFlaechen), fl.Punkte)
+	} else {
+		for i, e := range erwarteteFlaechen {
+			if fl.Punkte[i].Label != e.label || fl.Punkte[i].Href != e.href {
+				t.Errorf("Punkt %d ist %q → %q, erwartet %q → %q",
+					i, fl.Punkte[i].Label, fl.Punkte[i].Href, e.label, e.href)
+			}
+		}
+	}
+	if !fl.ElternOffen {
+		t.Error("das Modul trägt keine eigene Kennzeichnung, während seine Flächen offen sind — " +
+			"der Kopf über der eingerückten Liste wäre dann von einem gewöhnlichen Punkt " +
+			"nicht zu unterscheiden")
+	}
+	if dk.KinderDraussen != 0 {
+		t.Errorf("nach dem Verlassen des Moduls stehen noch %d Flächen in der Leiste — "+
+			"sie sollen am Ort hängen und nicht an einem Umschalter", dk.KinderDraussen)
+	}
+
+	// Und der schmale Fall, an dem dieser Entwurf sonst gescheitert wäre.
+	sm := dk.Schmal
+	if sm.KinderInLeiste != 0 {
+		t.Errorf("in der Symbolschiene stehen %d Flächen — ohne Beschriftung gibt es keine "+
+			"sichtbare Einrückung, sie wären von Modulen nicht zu unterscheiden",
+			sm.KinderInLeiste)
+	}
+	if !sm.StreifenDa {
+		t.Error("schmal fehlt der Umschaltstreifen — damit wären die Flächen des Moduls " +
+			"auf einem Telefon unerreichbar")
+	}
+	if len(sm.StreifenPunkte) != len(erwarteteFlaechen) {
+		t.Errorf("der Streifen führt %d Flächen, die Leiste %d: %v",
+			len(sm.StreifenPunkte), len(erwarteteFlaechen), sm.StreifenPunkte)
+	}
+	if sm.KoerperBreite > sm.FensterBreite {
+		t.Errorf("die Docker-Seite scrollt schmal waagerecht: Körper %.0f, Fenster %.0f",
+			sm.KoerperBreite, sm.FensterBreite)
+	}
+
+	for _, w := range []struct {
+		name string
+		got  wechsel
+		pfad string
+	}{
+		{"Container", dk.WechselContainer, "/docker/container"},
+		{"Ports", dk.WechselPorts, "/docker/ports"},
+		{"Image-Updates", dk.WechselUpdates, "/docker/updates"},
+		{"Bestand", dk.WechselBestand, "/docker/bestand"},
+		{"Stacks", dk.WechselStacks, "/docker"},
+	} {
+		if w.got.Pfad != w.pfad {
+			t.Errorf("der Punkt %q führt auf %q statt auf %q", w.name, w.got.Pfad, w.pfad)
+		}
+		// Ein Flächenwechsel ist ein Seitenwechsel ohne Neuladen — sonst wäre
+		// die Schale weg und mit ihr der Live-Kanal.
+		if !w.got.OhneNeuladen {
+			t.Errorf("der Wechsel auf %q hat die Seite neu geladen", w.name)
+		}
+		if w.got.Aktiv != w.name {
+			t.Errorf("nach dem Wechsel auf %q ist %q hervorgehoben", w.name, w.got.Aktiv)
+		}
 	}
 
 	// Die Stackwerkbank, Schritt 4. Drei Dinge sind hier nur im Browser zu sehen.

@@ -20,6 +20,16 @@ export const t = {
     cron: "Cron & Timer",
     tokens: "API-Tokens",
     docker: "Docker",
+    // Die Flächen unter Docker. Kurze Namen, weil sie eingerückt unter dem
+    // Modul stehen — „Aktualität der Images" wäre dort eine Zeile, die umbricht.
+    // „Image-Updates" und nicht „Updates": So heißt schon die Seite, auf der
+    // sich das Panel selbst aktualisiert, und zwei gleich benannte Ziele in der
+    // Befehlspalette sind ein Rätsel.
+    dockerStacks: "Stacks",
+    dockerContainer: "Container",
+    dockerPorts: "Ports",
+    dockerUpdates: "Image-Updates",
+    dockerBestand: "Bestand",
     webserver: "Webserver",
     datenbanken: "Datenbanken",
     backups: "Backups",
@@ -1190,6 +1200,9 @@ export const t = {
       "Die Felder und die Datei sind dasselbe: Was hier steht, steht dort, und geändert wird immer die Datei. Kommentare, Einrückung und alles, was das Formular nicht zeigt, bleiben, wo sie sind.",
     formZweiterLeser:
       "Ob der Stack zulässig ist, entscheidet weiter der Prüfer auf dem Server — nicht dieses Formular.",
+
+    flaecheUnbekannt:
+      "Diese Fläche gibt es unter Docker nicht. Vielleicht ist der Verweis alt oder verschrieben.",
 
     // Ports
     ports: "Ports",

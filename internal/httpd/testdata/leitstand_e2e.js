@@ -444,6 +444,31 @@ async function main() {
     })),
   );
 
+  /** feldstil liest die Gestalt des Suchfeldes der stehenden Seite.
+   *
+   *  Gebraucht wird das für einen Vergleich zwischen Seiten, nicht für eine
+   *  feste Erwartung: Welche Farbe richtig ist, entscheidet das
+   *  Gestaltungssystem und nicht dieser Test. Was er sagen kann, ist, dass
+   *  dieselbe Sache überall gleich aussieht.
+   *
+   *  Der Anlass ist ein Befund aus dem Betrieb: Es gab keine gemeinsame Regel
+   *  für Eingabefelder, jede Seite schrieb sie selbst — und auf „Cron & Timer"
+   *  und „API-Tokens" fehlte sie. Die Felder standen dort als weiße Kästen des
+   *  Browsers in einer dunklen Fläche. Im Markup sah alles richtig aus. */
+  async function feldstil(seite) {
+    return seite.evaluate(() => {
+      const feld = document.querySelector('input[type="search"]');
+      if (!feld) return null;
+      const s = getComputedStyle(feld);
+      return {
+        hintergrund: s.backgroundColor,
+        rahmen: s.borderTopColor + " " + s.borderTopWidth,
+        radius: s.borderTopLeftRadius,
+        farbe: s.color,
+      };
+    });
+  }
+
   const dienste = {};
 
   // Eine Marke am Fenster: Sie überlebt einen Wechsel ohne Neuladen und stirbt
@@ -456,6 +481,7 @@ async function main() {
   await seite.waitForSelector("table.tabelle .zeile", { timeout: 5000 });
   dienste.ohneNeuladen = await seite.evaluate(() => window.__marke === "haelt");
   dienste.pfad = await seite.evaluate(() => location.pathname);
+  dienste.feldstil = await feldstil(seite);
   dienste.navAktiv = await seite.evaluate(
     () => document.querySelector('.seitenleiste a[aria-current="page"] span')?.textContent ?? "",
   );
@@ -2628,6 +2654,7 @@ async function main() {
   // Nur die ERSTE Tabelle: Die Timer-Tabelle weiter unten trägt dieselben
   // Klassen, und ohne die Einschränkung stünden ihre Zeilen als Cron-Einträge in
   // der Auswertung — eine Zahl, die stimmt, und eine Bedeutung, die nicht stimmt.
+  plaene.feldstil = await feldstil(seite);
   plaene.zeilen = await seite.evaluate(() =>
     [...document.querySelectorAll("table.tabelle")[0].querySelectorAll("tbody tr")]
       .filter((tr) => tr.querySelector(".zeile"))

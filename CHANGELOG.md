@@ -9,6 +9,34 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Behoben
+
+- **Eingabefelder waren auf „Cron & Timer" und „API-Tokens" nicht gestaltet** —
+  weiße Kästen des Browsers in einer dunklen Fläche. Dasselbe galt für die
+  Suchfelder der Docker-Seite und für jedes Feld in einem Anlegen-Formular.
+
+  Die Ursache war, dass es **keine gemeinsame Regel für Eingabefelder gab**:
+  Jede Seite schrieb die vier Zeilen für Hintergrund, Rahmen, Radius und
+  Polsterung selbst in ihren Stilblock — acht wortgleiche Kopien. Auf den beiden
+  zuletzt gebauten Seiten fehlte die neunte, weil beim Schreiben eine Grundlage
+  angenommen wurde, die es nicht gab.
+
+  `app.css` trägt sie jetzt. Sie steht in `:where(…)` und hat damit die
+  Spezifität null: Jede vorhandene Seitenregel gewinnt weiterhin, und für die
+  Berichtigung musste keine einzige Seite angefasst werden. Ankreuzfelder,
+  Schalter und die Dateiauswahl sind ausgenommen — ein Rahmen samt Polsterung
+  macht aus einem Häkchen ein Rätsel.
+
+  Mitgekommen sind zwei Dinge, die vorher niemand hatte: ein Fokusring für
+  Felder (die globale Regel galt nur für `a`, `button` und `[tabindex]`) und
+  eine Mindestbreite für Suchfelder, deren Platzhalter ein ganzer Satz ist.
+
+  Der Browsertest vergleicht jetzt die Gestalt des Suchfeldes auf zwei Seiten
+  miteinander — nicht gegen feste Farben, denn welche richtig ist, entscheidet
+  das Gestaltungssystem. Was er sagen kann, ist, dass dieselbe Sache überall
+  dieselbe ist.
+
+
 ## [0.5.1] — 2026-08-01
 
 **Die Fassung, die 0.5.0 benutzbar macht.** Wer 0.5.0 einsetzt und einen Server

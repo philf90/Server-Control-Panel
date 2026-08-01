@@ -83,6 +83,74 @@ html {
   border-radius: 4px;
 }
 
+/* ── Eingabefelder ────────────────────────────────────────────────────────
+ *
+ * Hier stand bis 0.5.2 nichts, und genau das war der Fehler. Jede Seite schrieb
+ * die vier Zeilen für Hintergrund, Rahmen, Radius und Polsterung selbst in
+ * ihren Stilblock — acht wortgleiche Kopien. Auf „Cron & Timer" und
+ * „API-Tokens" fehlte die neunte: Dort setzte `.suche input` nur eine
+ * Mindestbreite, weil beim Schreiben eine gemeinsame Grundlage angenommen
+ * wurde, die es nicht gab. Die Felder standen als weiße Kästen des Browsers in
+ * einer dunklen Fläche, und dasselbe galt für die Suchfelder auf der
+ * Docker-Seite und für jedes Feld in einem Anlegen-Formular.
+ *
+ * :where() hat die Spezifität NULL. Jede vorhandene Seitenregel gewinnt damit
+ * weiterhin — die Grundlage schiebt sich unter das Bestehende und nicht
+ * darüber. Deshalb musste für diese Berichtigung keine einzige Seite angefasst
+ * werden, und deshalb bleibt zum Beispiel die engere Polsterung der Felder in
+ * der Firewall-Tabelle unangetastet.
+ *
+ * Ankreuzfelder, Schalter und die Dateiauswahl sind ausgenommen: Sie sind keine
+ * Kästen mit Text, und ein Rahmen samt Polsterung macht aus einem Häkchen ein
+ * Rätsel.
+ */
+:where(
+    input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+    select,
+    textarea
+  ) {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  color: var(--tx);
+  font: 0.84rem var(--sans);
+  /* Ohne das sprengt ein Feld mit langer Eigenbreite seine Spalte — bei
+   * <select> kommt sie von der längsten Option. */
+  max-width: 100%;
+}
+
+:where(input, select, textarea)::placeholder {
+  color: var(--tx-faint);
+}
+
+/* Suchfelder sind über die Seiten hinweg dieselbe Sache: eine Zeile in einer
+ * Werkzeugleiste, deren Platzhalter ein ganzer Satz ist („Befehl, Benutzer oder
+ * Zeitplan"). Ohne Mindestbreite schrumpft das Feld im Flex-Verbund auf seinen
+ * Inhalt, und der Platzhalter steht abgeschnitten da — auf der Docker-Seite war
+ * aus „Stack- oder Dienstname" ein „Stack- oder Dienstnam" geworden, kaum dass
+ * die Felder überhaupt eine Gestalt hatten.
+ *
+ * min() statt eines festen Wertes: Auf einem Telefon ist die volle Breite
+ * weniger als 16rem, und ein Feld, das breiter als sein Platz ist, schiebt die
+ * ganze Zeile hinaus. */
+:where(input[type="search"]) {
+  min-width: min(16rem, 100%);
+}
+
+/* Der Fokusring der Seite gilt für a, button und [tabindex]. Felder standen
+ * nicht in dieser Liste und trugen deshalb den Ring des Browsers — auf dunklem
+ * Grund oft gar keinen sichtbaren. */
+:where(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+:where(input, select, textarea):disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

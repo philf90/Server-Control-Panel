@@ -19,6 +19,14 @@ import (
 	"github.com/philf90/asylum/internal/store"
 )
 
+// feldstil ist die gemessene Gestalt eines Suchfeldes.
+type feldstil struct {
+	Hintergrund string `json:"hintergrund"`
+	Rahmen      string `json:"rahmen"`
+	Radius      string `json:"radius"`
+	Farbe       string `json:"farbe"`
+}
+
 // wechsel ist das Ergebnis eines Klicks auf eine Fläche innerhalb eines Moduls.
 type wechsel struct {
 	Pfad         string `json:"pfad"`
@@ -80,9 +88,10 @@ type ergebnisLeitstand struct {
 		KlickDaneben      bool     `json:"klickDanebenSchliesst"`
 	} `json:"palette"`
 	Dienste struct {
-		OhneNeuladen bool   `json:"ohneNeuladen"`
-		Pfad         string `json:"pfad"`
-		NavAktiv     string `json:"navAktiv"`
+		OhneNeuladen bool      `json:"ohneNeuladen"`
+		Pfad         string    `json:"pfad"`
+		Feldstil     *feldstil `json:"feldstil"`
+		NavAktiv     string    `json:"navAktiv"`
 		Reihen       []struct {
 			Name    string `json:"name"`
 			Zustand string `json:"zustand"`
@@ -582,8 +591,9 @@ type ergebnisLeitstand struct {
 		} `json:"schmal"`
 	} `json:"konto"`
 	Plaene struct {
-		Wesen  string `json:"wesen"`
-		Zeilen []struct {
+		Feldstil *feldstil `json:"feldstil"`
+		Wesen    string    `json:"wesen"`
+		Zeilen   []struct {
 			Satz   string `json:"satz"`
 			Roh    string `json:"roh"`
 			Befehl string `json:"befehl"`
@@ -1307,6 +1317,39 @@ func TestLeitstandBrowser(t *testing.T) {
 		// Text für Vorleseprogramme daneben stehen.
 		if p.Stufe != "" && p.Vorgelesen == "" {
 			t.Errorf("der Punkt an %q hat keinen vorlesbaren Text", p.Href)
+		}
+	}
+
+	// ── Eingabefelder sehen überall gleich aus ──────────────────────────────
+	//
+	// Verglichen werden zwei Seiten miteinander und nicht gegen feste Farben:
+	// Welche Gestalt richtig ist, entscheidet das Gestaltungssystem und nicht
+	// dieser Test. Was er sagen kann, ist, dass dieselbe Sache überall dieselbe
+	// ist.
+	//
+	// Der Anlass: Es gab keine gemeinsame Regel für Eingabefelder — jede Seite
+	// schrieb die vier Zeilen selbst in ihren Stilblock, acht wortgleiche
+	// Kopien. Auf „Cron & Timer" und „API-Tokens" fehlte die neunte, und die
+	// Felder standen dort als weiße Kästen des Browsers in einer dunklen Fläche.
+	// Im Markup sah alles richtig aus; gefunden hat es ein Mensch, der die Seite
+	// angesehen hat.
+	if e.Dienste.Feldstil == nil || e.Plaene.Feldstil == nil {
+		t.Error("das Suchfeld einer der beiden Seiten wurde nicht gefunden — " +
+			"der Vergleich sagt dann nichts")
+	} else {
+		a, b := *e.Dienste.Feldstil, *e.Plaene.Feldstil
+		if a != b {
+			t.Errorf("die Suchfelder sehen verschieden aus:\n  Dienste:      %+v\n  Cron & Timer: %+v",
+				a, b)
+		}
+		// Und die Gegenprobe gegen den Fall, dass BEIDE ungestylt sind: Ein Feld
+		// ohne eigenen Hintergrund ist das des Browsers.
+		if a.Hintergrund == "rgba(0, 0, 0, 0)" || a.Hintergrund == "" {
+			t.Errorf("die Suchfelder haben keinen eigenen Hintergrund (%q) — sie tragen "+
+				"die Gestalt des Browsers", a.Hintergrund)
+		}
+		if a.Radius == "0px" {
+			t.Errorf("die Suchfelder haben keinen abgerundeten Rahmen (%q)", a.Radius)
 		}
 	}
 

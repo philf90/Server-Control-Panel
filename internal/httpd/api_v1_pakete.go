@@ -245,27 +245,27 @@ func (s *Server) handleAPIPackageUpgrade(w http.ResponseWriter, r *http.Request)
 			}
 		}
 
-		frage := "Alle verfügbaren Updates einspielen?"
+		frage := "Alle verfügbaren Updates installieren?"
 		if opts.OnlySecurity {
-			frage = "Alle Sicherheitsupdates einspielen?"
+			frage = "Alle Sicherheitsupdates installieren?"
 			if anzahl > 0 {
-				frage = fmt.Sprintf("Alle %d Sicherheitsupdates einspielen?", anzahl)
+				frage = fmt.Sprintf("Alle %d Sicherheitsupdates installieren?", anzahl)
 			}
 		} else if anzahl > 0 {
-			frage = fmt.Sprintf("Alle %d verfügbaren Updates einspielen?", anzahl)
+			frage = fmt.Sprintf("Alle %d verfügbaren Updates installieren?", anzahl)
 		}
 
 		if !s.apiBestaetigt(w, apiAktionAnfrage{
 			Bestaetigt: anfrage.Bestaetigt, Getippt: anfrage.Getippt,
 		}, apiBestaetigung{
-			Titel: "Updates einspielen",
+			Titel: "Updates installieren",
 			Frage: frage,
 			Punkte: []string{
 				"Betroffene Dienste werden dabei neu gestartet.",
 				"Der Vorgang läuft im Hintergrund weiter, auch wenn Sie die Seite verlassen.",
 				"Manche Pakete verlangen danach einen Neustart des Servers.",
 			},
-			Knopf: "Updates einspielen",
+			Knopf: "Updates installieren",
 		}) {
 			return
 		}
@@ -302,7 +302,7 @@ func (s *Server) handleAPIPackageUpgrade(w http.ResponseWriter, r *http.Request)
 		s.auditNachtraeglich(user.Username, "package.upgrade", ziel, result, detail)
 	}()
 
-	s.gestartet(w, jobPackages, "Die Updates werden eingespielt.")
+	s.gestartet(w, jobPackages, "Die Updates werden installiert.")
 }
 
 // handleAPIReboot startet den Server neu — Stufe 3 mit dem Hostnamen.

@@ -125,7 +125,7 @@ func dockerAnmerkung(st privops.DockerState) string {
 	switch {
 	case !st.Installiert:
 		return "Docker ist auf diesem Server nicht installiert. Das Panel kann es aus " +
-			"den Paketquellen der Distribution einspielen."
+			"den Paketquellen der Distribution installieren."
 	case !st.DaemonLaeuft:
 		return "Docker ist installiert, aber der Daemon antwortet nicht. Unter Dienste " +
 			"lässt sich docker.service starten — ein apt-Lauf hilft hier nicht."
@@ -169,7 +169,7 @@ func (s *Server) handleAPIDockerInstall(w http.ResponseWriter, r *http.Request) 
 		s.auditNachtraeglich(user.Username, "docker.install", "docker", result, detail)
 	}()
 
-	s.gestartet(w, jobDockerInstall, "Docker wird eingespielt.")
+	s.gestartet(w, jobDockerInstall, "Docker wird installiert.")
 }
 
 // ---------------------------------------------------------------- Container ---

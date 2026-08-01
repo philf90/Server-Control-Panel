@@ -182,12 +182,12 @@ func webserverAnmerkung(st privops.WebServerState) string {
 			"Start Port 80 übernehmen, und ein Webserver, der dort schon läuft, wäre weg."
 	case !st.Installiert && len(fremde) > 0:
 		return fmt.Sprintf("Auf %s hört bereits %s. nginx würde den Port beim Start "+
-			"übernehmen, deshalb spielt das Panel hier nichts ein. Die Konfiguration "+
+			"übernehmen, deshalb installiert das Panel hier nichts. Die Konfiguration "+
 			"bleibt über die Dateien erreichbar — das Panel fasst sie nicht an.",
 			portWort(st), nennung(fremde))
 	case !st.Installiert:
 		return "nginx ist auf diesem Server nicht installiert. Das Panel kann es aus " +
-			"den Paketquellen der Distribution einspielen."
+			"den Paketquellen der Distribution installieren."
 	case !st.DienstAktiv:
 		return "nginx ist installiert, aber der Dienst läuft nicht. Unter Dienste lässt " +
 			"sich nginx.service starten — ein apt-Lauf hilft hier nicht."
@@ -265,7 +265,7 @@ func (s *Server) handleAPIWebserverInstall(w http.ResponseWriter, r *http.Reques
 	case !st.LauscherGeprueft:
 		s.apiFehler(w, http.StatusConflict,
 			"Das Panel konnte nicht feststellen, wer auf den Ports 80 und 443 hört, "+
-				"und spielt deshalb nichts ein.")
+				"und installiert deshalb nichts.")
 		return
 	case len(st.Belegt()) > 0:
 		s.apiFehler(w, http.StatusConflict, fmt.Sprintf(
@@ -297,5 +297,5 @@ func (s *Server) handleAPIWebserverInstall(w http.ResponseWriter, r *http.Reques
 		s.auditNachtraeglich(user.Username, "webserver.install", "nginx", result, detail)
 	}()
 
-	s.gestartet(w, jobWebserverInstall, "nginx wird eingespielt.")
+	s.gestartet(w, jobWebserverInstall, "nginx wird installiert.")
 }

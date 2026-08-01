@@ -9,6 +9,27 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Geändert
+
+- **„einspielen" heißt jetzt überall „installieren".** Die Oberfläche sagte
+  „nginx einspielen", „Docker einspielen", „ufw einspielen", „Alle einspielen"
+  und „Das Panel kann es aus den Paketquellen der Distribution einspielen" —
+  ein Wort aus der Welt der Tonbänder und Schallplatten, das in einem
+  Server-Control-Panel nichts zu suchen hat. Betroffen sind die Knöpfe, die
+  Rückfragen zu Paket-Updates, die Titel der Vorgänge, die Beschreibungen der
+  Token-Flächen und die Zustandssätze der Module Webserver und Docker.
+
+### Behoben
+
+- **Die Vorgangsplatte der nginx-Installation blieb leer.**
+  `webserver-install` fehlte in `jobArten`, der Allowlist der Vorgangsarten.
+  Der Vorgang lief — apt arbeitete, die Zeilen liefen in den Puffer —, aber
+  `/api/v1/jobs/webserver-install` und sein Ereignisstrom antworteten mit 404.
+  Wer den Knopf drückte, sah eine leere Platte und hatte keinen Anhaltspunkt,
+  ob überhaupt etwas geschieht. Kein Go-Test konnte das finden: Sie prüften den
+  Vorgang über die Antwort des Moduls, und die trägt ihn direkt. Der Weg über
+  `/api/v1/jobs` ist der, den die Oberfläche geht — und der ist jetzt mitgeprüft.
+
 ## [0.6.0] — 2026-08-01
 
 **Webserver & Domains.** Der Menüpunkt „Webserver" führt nicht mehr auf eine

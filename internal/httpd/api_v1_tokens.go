@@ -203,7 +203,7 @@ func tokenFamilienListe() []apiTokenFamilie {
 		"signals":      "Handlungsbedarf",
 		"metrics":      "Messwerte und ihre Verläufe",
 		"services":     "Dienste lesen und schalten",
-		"packages":     "Paketstand und Updates einspielen",
+		"packages":     "Paketstand und Updates installieren",
 		"system":       "Neustart des Servers",
 		"firewall":     "Firewall lesen und Regeln setzen",
 		"logs":         "Journal lesen",
@@ -216,7 +216,7 @@ func tokenFamilienListe() []apiTokenFamilie {
 		"jobs":         "laufende Vorgänge verfolgen",
 		"session":      "Auskunft über den eigenen Zugang",
 		"docker":       "Container-Laufzeit lesen; bedienen darf nur die Owner-Rolle",
-		"webserver":    "Webserver und Portbelegung lesen; einspielen darf nur die Owner-Rolle",
+		"webserver":    "Webserver und Portbelegung lesen; installieren darf nur die Owner-Rolle",
 	}
 	out := make([]apiTokenFamilie, 0, len(tokenFamilien))
 	for _, f := range tokenFamilien {

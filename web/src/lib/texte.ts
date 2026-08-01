@@ -169,10 +169,10 @@ export const t = {
     sicherheit: "Sicherheit",
     normal: "Update",
     listenHolen: "Listen holen",
-    alleEinspielen: "Alle einspielen",
+    alleEinspielen: "Alle installieren",
     nurSicherheit: "Nur Sicherheitsupdates",
-    einzelnEinspielen: "einspielen",
-    nurLesen: "Dieses Konto darf lesen, aber nicht einspielen.",
+    einzelnEinspielen: "installieren",
+    nurLesen: "Dieses Konto darf lesen, aber nicht installieren.",
     // Der Neustart wird nur angeboten, wenn er aussteht — ein Knopf, der immer
     // da ist, wird irgendwann versehentlich gedrückt.
     neustartTitel: "Ein Neustart steht aus",
@@ -240,12 +240,12 @@ export const t = {
     uebernehmen: "Regeln übernehmen",
     einschalten: "ufw einschalten",
     ausschalten: "ufw ausschalten",
-    einspielen: "ufw einspielen",
+    einspielen: "ufw installieren",
     bestaetigen: "Änderung bestätigen",
     nurLesen: "Dieses Konto darf lesen, aber die Firewall nicht ändern.",
     nichtInstalliert: "ufw ist nicht installiert.",
     nichtInstalliertDetail:
-      "Ohne ufw gibt es keinen Regelsatz, den das Panel verwalten kann. Einspielen läuft als Vorgang; die Ausgabe steht danach oben.",
+      "Ohne ufw gibt es keinen Regelsatz, den das Panel verwalten kann. Die Installation läuft als Vorgang; die Ausgabe steht danach oben.",
     entwurfOffen:
       "Die Liste ist bearbeitet und gilt noch nicht — erst „Regeln übernehmen“ schreibt sie.",
     // Der Satz, um den es auf dieser Seite geht. Er nennt beides: dass etwas
@@ -993,7 +993,7 @@ export const t = {
     unbekannt: "unbekannt",
     offen: "—",
     ausApt: "an der Paketverwaltung vorbei installiert",
-    einspielen: "nginx einspielen",
+    einspielen: "nginx installieren",
     zuDiensten: "zu den Diensten",
     zuDateien: "zu den Dateien",
     belegung: "Wer hört auf den Webports",
@@ -1008,7 +1008,7 @@ export const t = {
     // Dasselbe Wort wie in der Sitesliste — dieselbe Frage, dieselbe Antwort.
     markeVerwaltet: "verwaltet",
     nurOwner:
-      "Dieses Konto darf den Zustand sehen, den Webserver aber nicht einspielen. Eine Site ist eine Konfiguration, die als root gelesen wird und einen Dienst aus dem Netz erreichbar macht — deshalb liegt dieses Modul bei der Owner-Rolle.",
+      "Dieses Konto darf den Zustand sehen, den Webserver aber nicht installieren. Eine Site ist eine Konfiguration, die als root gelesen wird und einen Dienst aus dem Netz erreichbar macht — deshalb liegt dieses Modul bei der Owner-Rolle.",
     imBau: "Was hier noch fehlt",
     // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
     // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
@@ -1138,8 +1138,8 @@ export const t = {
     // davon wären erfunden.
     offen: "—",
     ausApt: "an der Paketverwaltung vorbei installiert",
-    einspielen: "Docker einspielen",
-    composeEinspielen: "docker compose einspielen",
+    einspielen: "Docker installieren",
+    composeEinspielen: "docker compose installieren",
     zuDiensten: "zu den Diensten",
     nurOwner:
       "Dieses Konto darf den Zustand sehen, aber Docker nicht bedienen. Ein Container mit Zugriff auf das Wirtsdateisystem ist root auf dem Server — deshalb liegt dieses Modul bei der Owner-Rolle.",

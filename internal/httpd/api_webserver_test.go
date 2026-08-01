@@ -341,3 +341,28 @@ func TestAPIWebserverZaehltUnbenanntenLauscherAlsFremd(t *testing.T) {
 	}
 	nichtsGelaufen(t, ops)
 }
+
+// Die Installation ist eine bekannte Vorgangsart.
+//
+// Der Test steht hier, weil genau das bis 0.6.0 fehlte: `jobWebserverInstall`
+// war in `jobArten` nicht eingetragen. Der Vorgang lief — apt arbeitete, die
+// Zeilen liefen in den Puffer —, aber `/api/v1/jobs/webserver-install` und sein
+// Ereignisstrom antworteten mit 404. Wer „nginx installieren" drückte, sah eine
+// leere Platte und keinen Anhaltspunkt, ob überhaupt etwas geschieht.
+//
+// Kein Go-Test konnte das finden: Sie prüften den Vorgang über die Antwort des
+// Moduls, und die trägt ihn direkt. Der Weg über /api/v1/jobs ist der, den die
+// Oberfläche geht.
+func TestAPIWebserverVorgangsartIstBekannt(t *testing.T) {
+	if _, ok := jobArten[jobWebserverInstall]; !ok {
+		t.Fatal("jobWebserverInstall fehlt in jobArten — die Vorgangsplatte bekäme ein 404")
+	}
+	s, _, cookie, _ := webserverServer(t, store.RoleOwner, privops.WebServerState{
+		LauscherGeprueft: true,
+	})
+	// Noch kein Vorgang gelaufen: 204, nicht 404. Die Ressource gibt es, sie ist
+	// nur leer.
+	if rec := get(t, s, "/api/v1/jobs/webserver-install", cookie); rec.Code != http.StatusNoContent {
+		t.Errorf("Status = %d, erwartet 204 ohne gelaufenen Vorgang", rec.Code)
+	}
+}

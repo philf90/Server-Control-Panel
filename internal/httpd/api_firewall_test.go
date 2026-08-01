@@ -14,12 +14,10 @@ package httpd
 //     weggelassen hat.
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/philf90/asylum/internal/privops"
 	"github.com/philf90/asylum/internal/store"
@@ -345,113 +343,6 @@ func TestAPIFirewallBestaetigen(t *testing.T) {
 	}
 	if antwort.Zustand.Probe.Offen {
 		t.Error("nach dem Bestätigen läuft die Probe weiter")
-	}
-}
-
-// Der Wächter rollt ohne Bestätigung zurück. Das ist der Kern von Grundsatz VI
-// und die wichtigste Sicherung des Panels — deshalb wird sie nicht umschrieben,
-// sondern ausgeführt: mit einer kurzen Frist, damit der Test in Millisekunden
-// läuft statt in einer Minute.
-func TestFirewallGuardRolltOhneBestaetigungZurueck(t *testing.T) {
-	g := newFirewallGuard()
-	g.fenster = 80 * time.Millisecond
-
-	zurueck := make(chan struct{}, 1)
-	g.arm("Test", func(_ context.Context) error {
-		zurueck <- struct{}{}
-		return nil
-	})
-
-	offen, rest := g.state()
-	if !offen {
-		t.Fatal("nach arm steht keine Probe aus")
-	}
-	if rest < 0 {
-		t.Errorf("Restfrist = %v, erwartet nicht negativ", rest)
-	}
-	if g.subjectOf() != "Test" {
-		t.Errorf("Gegenstand = %q, erwartet Test", g.subjectOf())
-	}
-
-	select {
-	case <-zurueck:
-	case <-time.After(3 * time.Second):
-		t.Fatal("der Rückbau lief nicht — eine unbestätigte Änderung bliebe dauerhaft " +
-			"stehen, und genau das soll die Probe verhindern")
-	}
-
-	// Danach steht keine Probe mehr aus: Der Wächter hat sich selbst aufgeräumt.
-	if offen, _ := g.state(); offen {
-		t.Error("nach dem Rückbau steht weiter eine Probe aus")
-	}
-	if g.confirm() {
-		t.Error("confirm bestätigt eine Probe, die es nicht mehr gibt")
-	}
-}
-
-// Bestätigen verhindert den Rückbau. Die andere Hälfte derselben Sicherung: Wäre
-// sie kaputt, würde eine bestätigte Änderung nach einer Minute doch zurückgerollt.
-func TestFirewallGuardBestaetigenVerhindertDenRueckbau(t *testing.T) {
-	g := newFirewallGuard()
-	g.fenster = 80 * time.Millisecond
-
-	zurueck := make(chan struct{}, 1)
-	g.arm("Test", func(_ context.Context) error {
-		zurueck <- struct{}{}
-		return nil
-	})
-
-	if !g.confirm() {
-		t.Fatal("confirm hat die ausstehende Probe nicht gefunden")
-	}
-	if g.confirm() {
-		t.Error("confirm hat zweimal bestätigt — die zweite Zustimmung gilt für nichts")
-	}
-	if offen, _ := g.state(); offen {
-		t.Error("nach dem Bestätigen steht weiter eine Probe aus")
-	}
-
-	// Deutlich über der Frist warten: Der Rückbau darf auch später nicht kommen.
-	select {
-	case <-zurueck:
-		t.Error("der Rückbau lief, obwohl bestätigt wurde")
-	case <-time.After(400 * time.Millisecond):
-	}
-}
-
-// Eine zweite Änderung während einer laufenden Probe ersetzt die erste. Ohne das
-// liefen zwei Wächter mit zwei Rücknahmefunktionen, und der ältere würde eine
-// Änderung zurückrollen, die inzwischen von einer neueren überholt ist.
-func TestFirewallGuardZweitesArmErsetztDasErste(t *testing.T) {
-	g := newFirewallGuard()
-	g.fenster = 80 * time.Millisecond
-
-	ersterLief := make(chan struct{}, 1)
-	zweiterLief := make(chan struct{}, 1)
-
-	g.arm("erster", func(_ context.Context) error {
-		ersterLief <- struct{}{}
-		return nil
-	})
-	g.arm("zweiter", func(_ context.Context) error {
-		zweiterLief <- struct{}{}
-		return nil
-	})
-
-	if g.subjectOf() != "zweiter" {
-		t.Errorf("Gegenstand = %q, erwartet zweiter", g.subjectOf())
-	}
-
-	select {
-	case <-zweiterLief:
-	case <-time.After(3 * time.Second):
-		t.Fatal("der Rückbau der zweiten Änderung lief nicht")
-	}
-	select {
-	case <-ersterLief:
-		t.Error("der Rückbau der ERSTEN Änderung lief ebenfalls — er hätte einen " +
-			"Stand wiederhergestellt, den die zweite Änderung längst überholt hat")
-	case <-time.After(200 * time.Millisecond):
 	}
 }
 

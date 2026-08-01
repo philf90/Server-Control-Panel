@@ -80,7 +80,10 @@ type Server struct {
 	filesPruefOnce sync.Once
 	filesPruefung  []privops.RootStatus
 	jobs           *jobs
-	fwGuard        *firewallGuard
+	// fwGuard hält die Firewalländerung auf Probe. Ein eigener Wächter je
+	// Bereich: Ein geteilter hieße, dass eine bestätigte Firewalländerung eine
+	// unbestätigte Änderung anderswo mitbestätigt. Siehe probe.go.
+	fwGuard *probenWaechter
 	// logFolger zählt die offenen Journalströme. Jeder hält einen eigenen
 	// journalctl-Prozess, weil jeder seinen eigenen Filter hat — anders als bei
 	// einem Vorgang, den alle Zuschauer teilen. Siehe maxLogFolger.
@@ -151,7 +154,7 @@ func New(cfg config.Config, logger *slog.Logger, db *store.DB, ops privops.Execu
 		ops:      ops,
 		journal:  journal,
 		jobs:     newJobs(),
-		fwGuard:  newFirewallGuard(),
+		fwGuard:  neuerProbenWaechter(firewallConfirmWindow),
 		upd:      newUpdateState(),
 		pending:  newPendingSecrets(),
 		resets:   newResetTickets(),

@@ -687,7 +687,7 @@ func newSystemServer(t *testing.T) (*Server, *fakeOps) {
 // Frist herunter, statt eine Minute zu warten.
 func TestFirewallRollbackAfterTimeout(t *testing.T) {
 	ops := newFakeOps()
-	guard := newFirewallGuard()
+	guard := neuerProbenWaechter(firewallConfirmWindow)
 
 	previous := []privops.FirewallRule{{Port: 22, Protocol: "tcp"}}
 	reverted := make(chan []privops.FirewallRule, 1)

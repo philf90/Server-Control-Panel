@@ -9,6 +9,22 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.6.1] — 2026-08-01
+
+**Die Sprache der Oberfläche.** Ein Bildschirmfoto vom Knopf „nginx einspielen"
+war der Anlass, die Durchsicht danach der eigentliche Befund: Das Panel sprach an
+rund neunzig Stellen ein Deutsch, das seine Zielgruppe erst zurückübersetzen
+muss. *Anmeldeschale* für die Login-Shell, *Baucache* für den Build-Cache,
+*Krumen* für die Pfadleiste, *Wirtspfad* für den Host-Pfad, *Gegenstelle* für die
+Upstream-Adresse, *Fassung* für Version, *Rückweg* für Rollback. Wer einen Server
+administriert, hat `docker volume rm` getippt, bevor er dieses Panel geöffnet
+hat.
+
+Diese Fassung zieht die Texte auf technische Begriffe, schreibt die Vorgabe dazu
+auf und stellt eine Prüfung daneben, die sie hält. Und sie behebt einen Fehler,
+den dieselbe Durchsicht gefunden hat: Die Vorgangsanzeige der nginx-Installation
+blieb leer.
+
 ### Hinzugefügt
 
 - **Eine Vorgabe für die Sprache der Oberfläche**

@@ -9,7 +9,7 @@ ohne SSH und ohne dass das Panel die Maschine übernimmt.
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: 0.5.1 im Kanal `stable`, die Freigabe 1.0 steht aus.**
+> **Status: 0.6.1 im Kanal `stable`, die Freigabe 1.0 steht aus.**
 > Gebaut sind Installation, TLS mit Let's Encrypt, der signierte Release- und
 > Selbstupdate-Pfad mit Bereitschaftsprüfung und selbsttätigem Rollback, die
 > Anmeldung mit zweitem Faktor und Passkeys, Rollen, Audit-Log sowie die Module
@@ -23,12 +23,14 @@ beherrschbar bleibt.
 > Ereignisstrom und Update-Prüfung. Der Compose-Editor führt seit **0.5.1**
 > Felder neben der Datei, in beide Richtungen und ohne Kommentare oder
 > Formatierung anzutasten. Die Container-Shell aus dem ursprünglichen
-> Zuschnitt ist zurückgestellt. Mit **0.6** kommt **Webserver & Domains**: Sites
-> als Domain → Ziel → TLS mit Site-Prüfer und Probe mit Rückweg, ein Zertifikat
-> je Site, Wildcards und sieben DNS-01-Anbieter. Verwaltet wird nginx; jeder
-> andere Webserver wird erkannt und nicht angefasst. Danach **Datenbanken
-> (0.7)**, **Backups (0.8)**;
-> 1.0 ist der externe
+> Zuschnitt ist zurückgestellt. Mit **0.6** ist **Webserver & Domains**
+> dazugekommen: Sites als Domain → Ziel → TLS mit Site-Prüfer und Probe mit
+> automatischem Rollback, ein Zertifikat je Site, Wildcards und sieben
+> DNS-01-Anbieter. Verwaltet wird nginx; jeder andere Webserver wird erkannt und
+> nicht angefasst. **0.6.1** zieht die Texte der Oberfläche auf technische
+> Begriffe — die Vorgabe dazu steht in
+> [docs/19-sprache-der-oberflaeche.md](docs/19-sprache-der-oberflaeche.md).
+> Danach **Datenbanken (0.7)**, **Backups (0.8)**; 1.0 ist der externe
 > Sicherheits-Review, kein neues Feature. Der Plan steht in
 > [docs/16-neukonzeption.md](docs/16-neukonzeption.md), die Meilensteine in
 > [docs/06-roadmap.md](docs/06-roadmap.md).

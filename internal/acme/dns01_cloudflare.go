@@ -14,6 +14,21 @@ import (
 
 const cloudflareAPI = "https://api.cloudflare.com/client/v4"
 
+func init() {
+	registriere(Anbieter{
+		Name:  providerCloudflare,
+		Titel: "Cloudflare",
+		// Keine Pflichtfelder: Die Zugangsdatei enthält genau ein Geheimnis und
+		// darf deshalb auch nur daraus bestehen. Genau so sah sie bis 0.5 aus —
+		// wer von dort kommt, ändert nichts.
+		Hinweis: "API-Token mit der Berechtigung »Zone:DNS:Edit« für die betroffene Zone. " +
+			"Die Datei enthält nur den Token, oder eine Zeile »api_token = …«.",
+		baue: func(z *Zugang) (dnsSetter, error) {
+			return newCloudflareSetter(z.Geheimnis("api_token", "token")), nil
+		},
+	})
+}
+
 // cloudflareSetter setzt den TXT-Record über die Cloudflare-API — mit reinem
 // net/http, ohne SDK. Der Token kommt aus einer Datei und steht nicht im Klartext
 // in der Konfiguration.

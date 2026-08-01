@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/philf90/asylum/internal/acme"
 	"github.com/philf90/asylum/internal/config"
 )
 
@@ -23,21 +24,29 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// cloudflareToken legt ein neu eingegebenes Token ab und liefert den Pfad.
+// zugangAblegen legt neu eingegebene Zugangsdaten ab und liefert den Pfad.
 //
-// Das Token steht bewusst nicht in der Konfigurationsdatei, sondern in einer
-// eigenen Datei mit 0600 — die Konfiguration ist für die Gruppe des Dienstes
-// lesbar, ein API-Schlüssel hat dort nichts zu suchen. Wird nichts eingegeben,
-// bleibt das bereits hinterlegte Token bestehen: Ein leeres Feld darf einen
-// funktionierenden Zugang nicht löschen.
-func (s *Server) cloudflareToken(token string, alt config.TLSSettings) (string, error) {
-	pfad := filepath.Join(s.cfg.Paths.Data, "acme", "cloudflare.token")
+// Sie stehen bewusst nicht in der Konfigurationsdatei, sondern in einer eigenen
+// Datei mit 0600 — die Konfiguration ist für die Gruppe des Dienstes lesbar,
+// und ein DNS-Zugang stellt Zertifikate für die ganze Zone aus. Wird nichts
+// eingegeben, bleibt der bereits hinterlegte Zugang bestehen: Ein leeres Feld
+// darf einen funktionierenden Zugang nicht löschen.
+//
+// Eine Datei je Anbieter, benannt nach ihm. Damit überschreibt ein Wechsel von
+// Cloudflare zu Hetzner den Cloudflare-Zugang nicht — wer zurückwechselt, muss
+// ihn nicht neu eintippen. Der NAME kommt aus dem Register und nie aus der
+// Anfrage; sonst wäre das Feld ein Weg, jede Datei des Servers zu überschreiben.
+func (s *Server) zugangAblegen(anbieter, eingabe string, alt config.TLSSettings) (string, error) {
+	if !acme.AnbieterBekannt(anbieter) {
+		return "", fmt.Errorf("unbekannter DNS-Anbieter %q", anbieter)
+	}
+	pfad := filepath.Join(s.cfg.Paths.Data, "acme", anbieter+".zugang")
 
-	if token == "" {
-		if fileExists(alt.ACME.DNS01.Cloudflare.APITokenFile) {
-			return alt.ACME.DNS01.Cloudflare.APITokenFile, nil
+	if eingabe == "" {
+		if vorhanden := alt.ACME.DNS01.ZugangsDatei(); fileExists(vorhanden) {
+			return vorhanden, nil
 		}
-		return "", fmt.Errorf("für Cloudflare wird ein API-Token gebraucht")
+		return "", fmt.Errorf("für %s werden Zugangsdaten gebraucht", anbieter)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(pfad), 0o700); err != nil {
@@ -48,7 +57,7 @@ func (s *Server) cloudflareToken(token string, alt config.TLSSettings) (string, 
 	// aus drei festen Bestandteilen und enthält nichts Eingegebenes. Genau
 	// darum steht das Token in einer eigenen Datei — den Namen bestimmt das
 	// Panel, nicht der Eingebende.
-	if err := os.WriteFile(pfad, []byte(token+"\n"), 0o600); err != nil { //nolint:gosec // siehe oben: eingegeben ist der Inhalt, nicht der Pfad
+	if err := os.WriteFile(pfad, []byte(eingabe+"\n"), 0o600); err != nil { //nolint:gosec // siehe oben: eingegeben ist der Inhalt, nicht der Pfad
 		return "", err
 	}
 	return pfad, nil

@@ -51,11 +51,17 @@ type Options struct {
 	Webroot string
 
 	// DNS-01: Anbieter und dessen Zugang. Ist ein Anbieter gesetzt, wählt die
-	// automatische Challenge-Bestimmung DNS-01 statt HTTP-01.
-	DNS01Provider       string // "" | hook | cloudflare
-	HookSet             string
-	HookClean           string
-	CloudflareTokenFile string
+	// automatische Challenge-Bestimmung DNS-01 statt HTTP-01; ein Platzhalter
+	// im Namen macht sie zur Pflicht.
+	DNS01Provider string // "" | hook | einer aus dem Register (register.go)
+	// HookSet und HookClean gehören zum Anbieter „hook" — zwei Programmpfade
+	// statt einer Zugangsdatei, weil ein Hook kein Geheimnis des Panels ist.
+	HookSet   string
+	HookClean string
+	// ZugangsDatei ist der Pfad zur Datei mit den Zugangsdaten des Anbieters.
+	// Ein Feld für alle: In der Konfiguration steht damit nie ein Geheimnis,
+	// und die Rechte der Datei lassen sich prüfen. Siehe zugang.go.
+	ZugangsDatei string
 
 	// Progress bekommt den Verlauf jedes Bezugs gemeldet — auch den der
 	// nächtlichen Erneuerung, nicht nur den eines angestoßenen. Darf nil sein.

@@ -169,18 +169,18 @@ func (s *Server) newACMEManager(ctx context.Context, set config.TLSSettings) (*a
 		return nil, errors.New("keine Domain ermittelbar (Feld leer und Rechnername nicht auflösbar)")
 	}
 	return acme.New(acme.Options{
-		Dir:                 filepath.Join(s.cfg.Paths.Data, "acme"),
-		Email:               set.ACME.Email,
-		Domains:             domains,
-		DirectoryURL:        set.ACME.DirectoryURL,
-		Challenge:           set.ACME.Challenge,
-		HTTP01Addr:          ":80",
-		Webroot:             s.acmeWebroot(ctx, domains),
-		DNS01Provider:       set.ACME.DNS01.Provider,
-		HookSet:             set.ACME.DNS01.Hook.Set,
-		HookClean:           set.ACME.DNS01.Hook.Clean,
-		CloudflareTokenFile: set.ACME.DNS01.Cloudflare.APITokenFile,
-		Progress:            certProgress{s: s},
+		Dir:           filepath.Join(s.cfg.Paths.Data, "acme"),
+		Email:         set.ACME.Email,
+		Domains:       domains,
+		DirectoryURL:  set.ACME.DirectoryURL,
+		Challenge:     set.ACME.Challenge,
+		HTTP01Addr:    ":80",
+		Webroot:       s.acmeWebroot(ctx, domains),
+		DNS01Provider: set.ACME.DNS01.Provider,
+		HookSet:       set.ACME.DNS01.Hook.Set,
+		HookClean:     set.ACME.DNS01.Hook.Clean,
+		ZugangsDatei:  set.ACME.DNS01.ZugangsDatei(),
+		Progress:      certProgress{s: s},
 	}, s.certHolder, s.log)
 }
 

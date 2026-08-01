@@ -46,6 +46,41 @@ nicht als Release getaggt.
   und `POST /api/v1/webserver/install` (Owner-Rolle), Audit unter
   `webserver.install`, Tokenfamilie `webserver`.
 
+- **DNS-01 bekommt ein Anbieterregister — und acme-dns als ersten neuen
+  Anbieter.** Bis 0.5 war die Anbieterwahl ein `switch` mit zwei Fällen; mit
+  sieben wird daraus ein Register. Ein Anbieter besteht jetzt aus drei Angaben:
+  Name, was seine Zugangsdatei enthalten muss, und wie er daraus einen Setzer
+  baut. **Das Auswahlfeld auf der Zertifikatsseite entsteht daraus** — ein
+  neuer Anbieter erscheint dort ohne weiteres Zutun, statt an zwei Stellen
+  eingetragen werden zu müssen, von denen eine irgendwann fehlt.
+
+  **Ein Konfigurationsfeld für alle:** `acme.dns01.credentials_file`. Sieben
+  Anbieter hätten sonst sieben Blöcke mit zusammen zwanzig Feldern, davon die
+  Hälfte Geheimnisse — und `config.yaml` liegt in /etc, wird gesichert und in
+  Fehlerberichte kopiert. Das Format der Datei ist anspruchslos
+  (`schlüssel = wert` je Zeile); Anbieter mit genau einem Geheimnis nehmen auch
+  eine Datei, die nur den Token enthält.
+
+  **`acme-dns`** ist der erste neue Anbieter und der einzige, der jeden
+  DNS-Anbieter abdeckt: `_acme-challenge` wird per CNAME einmal von Hand an
+  eine acme-dns-Instanz delegiert, und das Panel hält danach Zugangsdaten für
+  **diese eine Wegwerf-Subdomain** — keine für die eigentliche Zone. Jeder
+  andere Anbieter verlangt einen Token, mit dem sich Mail umleiten und
+  Zertifikate für jeden Namen der Zone ausstellen lassen. Auf einem Panel, das
+  als root läuft und aus dem Netz erreichbar ist, ist das der Unterschied
+  zwischen einem Einbruch und einem Einbruch samt Domain.
+
+  **Verhaltensänderung:** Eine **für alle lesbare** Zugangsdatei wird jetzt
+  abgelehnt, mit dem Handgriff in der Meldung (`chmod 600 …`). Für die Gruppe
+  lesbar bleibt zulässig und wird nur angemerkt — eine Gruppe für die Betreiber
+  ist eine übliche und bewusste Einrichtung. Die Dokumentation nannte 0600 seit
+  jeher.
+
+  Der Weg von 0.5 läuft unverändert weiter: `acme.dns01.cloudflare.api_token_file`
+  wird weiter gelesen und dient als Rückfall. Ein Test hält das fest — ein
+  Panel, das nach einem Update stillschweigend keine Zertifikate mehr erneuert,
+  merkt niemand, bis sechzig Tage später der Browser warnt.
+
 - **Modul Webserver, Schritt 2 von 8: der Weg für die ACME-Prüfung durch nginx
   hindurch.** Er behebt einen Fehler, den Schritt 1 erst erzeugt, und steht
   deshalb vor der ersten Benutzersite.

@@ -231,6 +231,7 @@ Binärgröße. Begründung in
 | [docs/15-neuordnung.md](docs/15-neuordnung.md) | Drei Entwürfe für die Neuordnung der Oberfläche (abgelöst; Befund und fünf Grundsätze gelten fort) |
 | [docs/16-neukonzeption.md](docs/16-neukonzeption.md) | **Der aktuelle Bauplan:** Scope A+, die Stufen 0.4 bis 1.0, das Gestaltungssystem der neuen Oberfläche |
 | [docs/17-docker.md](docs/17-docker.md) | Modul Docker (Stufe 0.5): Zuschnitt, Compose-Prüfer, Bestätigungsstufen, Vergleich mit Arcane, Angriffsdurchgang mit seinen Funden |
+| [docs/18-webserver.md](docs/18-webserver.md) | **Plan** für Stufe 0.6 (Webserver & Domains): Sites als Felder, Site-Prüfer, der Port-80-Befund und der mehrfähige Zertifikatshalter |
 
 Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
 [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und

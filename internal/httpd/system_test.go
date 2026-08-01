@@ -63,6 +63,16 @@ type fakeOps struct {
 	sites       privops.SiteBestand
 	sitesErr    error
 	siteDateien map[string]string
+	// siteSchreibErr lässt SiteApply scheitern — der Fall „nginx hat abgelehnt".
+	siteSchreibErr error
+	// sitePruefung ist das Ergebnis, das SiteApply zurückgibt. Die Attrappe
+	// prüft NICHT selbst: Der Prüfer ist in privops getestet, und ihn hier
+	// nachzubauen hieße, zwei Auslegungen zu haben.
+	sitePruefung   privops.SitePruefung
+	siteEntwuerfe  []privops.SiteEntwurf
+	siteGeschaltet []string
+	siteGeloescht  []string
+	siteRestore    []privops.SiteRuecknahme
 
 	selfUpdates   []privops.SelfUpdateSpec
 	selfUpdateErr error
@@ -576,6 +586,54 @@ func (f *fakeOps) SiteDatei(_ context.Context, name string) (string, error) {
 		return "", errors.New("keine verwaltete Site " + name)
 	}
 	return inhalt, nil
+}
+
+func (f *fakeOps) SiteApply(_ context.Context, e privops.SiteEntwurf, _ privops.SiteLage, _ string) (privops.SiteErgebnis, error) {
+	f.record("webserver:site-apply")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.siteEntwuerfe = append(f.siteEntwuerfe, e)
+	erg := privops.SiteErgebnis{
+		Pruefung: f.sitePruefung,
+		Datei:    "/etc/nginx/conf.d/asylum-" + e.Name + ".conf",
+		Fassung:  "neu-" + e.Name,
+		Ruecknahme: privops.SiteRuecknahme{
+			Datei: "/etc/nginx/conf.d/asylum-" + e.Name + ".conf",
+		},
+	}
+	return erg, f.siteSchreibErr
+}
+
+func (f *fakeOps) SiteSchalten(_ context.Context, name string, an bool) (privops.SiteRuecknahme, error) {
+	f.record("webserver:site-schalten")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	zustand := "aus"
+	if an {
+		zustand = "an"
+	}
+	f.siteGeschaltet = append(f.siteGeschaltet, name+"="+zustand)
+	return privops.SiteRuecknahme{
+		Datei: "/etc/nginx/conf.d/asylum-" + name + ".conf", Hatte: true,
+	}, f.siteSchreibErr
+}
+
+func (f *fakeOps) SiteRemove(_ context.Context, name string) (privops.SiteRuecknahme, error) {
+	f.record("webserver:site-remove")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.siteGeloescht = append(f.siteGeloescht, name)
+	return privops.SiteRuecknahme{
+		Datei: "/etc/nginx/conf.d/asylum-" + name + ".conf", Inhalt: "alt", Hatte: true,
+	}, f.siteSchreibErr
+}
+
+func (f *fakeOps) SiteRestore(_ context.Context, r privops.SiteRuecknahme) error {
+	f.record("webserver:site-restore")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.siteRestore = append(f.siteRestore, r)
+	return nil
 }
 
 func (f *fakeOps) AcmeWebroot(_ context.Context, domains []string) (string, error) {

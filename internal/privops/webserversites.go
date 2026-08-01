@@ -60,6 +60,14 @@ type Site struct {
 	Ziel string `json:"ziel"`
 	// Ports sind die Ports aus den listen-Anweisungen.
 	Ports []int `json:"ports"`
+	// Ausgeliefert heißt: Dieser Block stand in der Ausgabe von `nginx -T`, der
+	// Webserver kennt ihn also. FALSE bei einer abgeschalteten Site — und bei
+	// einer eigenen Datei, die nginx aus einem anderen Grund nicht liest.
+	Ausgeliefert bool `json:"ausgeliefert"`
+	// Aus heißt: Die Site ist abgeschaltet. Die Datei liegt als
+	// asylum-<name>.conf.aus daneben und wird von nginx nicht gelesen — conf.d
+	// zieht nur *.conf ein.
+	Aus bool `json:"aus"`
 	// TLS heißt: Der Block hat mindestens ein listen mit ssl.
 	TLS bool `json:"tls"`
 	// Zertifikat ist der Pfad aus ssl_certificate, soweit gesetzt.
@@ -85,23 +93,50 @@ type SiteBestand struct {
 }
 
 // SiteList liest die Serverblöcke aus der Konfiguration des Webservers.
+//
+// Zwei Quellen, verschmolzen — dasselbe Muster wie StackList bei Docker:
+//
+//  1. Was nginx AUSLIEFERT (`nginx -T`). Die führende Quelle, und die einzige,
+//     die über fremde Blöcke etwas sagen kann.
+//  2. Was dem PANEL GEHÖRT (das eigene Verzeichnis). Ohne sie wäre eine
+//     abgeschaltete Site unsichtbar: Sie heißt asylum-<name>.conf.aus, nginx
+//     liest sie deshalb nicht, und was in keiner Liste steht, lässt sich auch
+//     nicht wieder einschalten.
+//
+// Das ist KEINE Rücknahme der Entscheidung aus Schritt 4 („gelesen wird die
+// gerenderte Konfiguration"). Abgelehnt wurde dort, die include-Auflösung von
+// nginx für fremde Konfigurationen nachzubauen. Die eigenen Dateien sind ein
+// anderer Fall: Das Panel hat sie geschrieben, es weiß, wo sie liegen, und es
+// gibt darin kein include aufzulösen. Was von ihnen tatsächlich ausgeliefert
+// wird, sagt weiterhin nur Quelle 1 — dafür steht Ausgeliefert an jeder Site.
 func (s *System) SiteList(ctx context.Context) (SiteBestand, error) {
 	dump, meldung := s.nginxDump(ctx)
-	if meldung != "" {
-		return SiteBestand{Gelesen: false, Fehler: meldung}, nil
-	}
+	bestand := SiteBestand{Gelesen: meldung == "", Fehler: meldung}
 
-	bestand := SiteBestand{Gelesen: true, Sites: parseNginxDump(dump)}
-	// Der Marker steht in unseren eigenen Dateien und wird von der Platte
-	// gelesen, nicht aus dem Dump: Ob `nginx -T` Kommentare mit ausgibt, ist
-	// von der Fassung abhängig — und die Frage „gehört diese Datei dem Panel"
-	// darf davon nicht abhängen.
-	for i := range bestand.Sites {
-		bestand.Sites[i].Verwaltet = istVerwalteteSite(bestand.Sites[i].Datei)
-		if bestand.Sites[i].Verwaltet {
-			bestand.Sites[i].Name = siteNameAusDatei(bestand.Sites[i].Datei)
+	if bestand.Gelesen {
+		bestand.Sites = parseNginxDump(dump)
+		// Der Marker steht in unseren eigenen Dateien und wird von der Platte
+		// gelesen, nicht aus dem Dump: Ob `nginx -T` Kommentare mit ausgibt, ist
+		// von der Fassung abhängig — und die Frage „gehört diese Datei dem Panel"
+		// darf davon nicht abhängen.
+		for i := range bestand.Sites {
+			bestand.Sites[i].Ausgeliefert = true
+			bestand.Sites[i].Verwaltet = istVerwalteteSite(bestand.Sites[i].Datei)
+			if bestand.Sites[i].Verwaltet {
+				bestand.Sites[i].Name = siteNameAusDatei(bestand.Sites[i].Datei)
+			}
 		}
 	}
+
+	// Die eigenen Dateien dazu — auch bei unlesbarer Konfiguration. Gerade
+	// dann: Wer eine kaputte Konfiguration reparieren will, muss sehen, was das
+	// Panel dort abgelegt hat.
+	eigene, err := eigeneSites()
+	if err != nil {
+		return bestand, err
+	}
+	bestand.Sites = verschmelzeSites(bestand.Sites, eigene)
+
 	sort.Slice(bestand.Sites, func(i, j int) bool {
 		if bestand.Sites[i].Name != bestand.Sites[j].Name {
 			return bestand.Sites[i].Name < bestand.Sites[j].Name
@@ -109,6 +144,149 @@ func (s *System) SiteList(ctx context.Context) (SiteBestand, error) {
 		return bestand.Sites[i].Datei < bestand.Sites[j].Datei
 	})
 	return bestand, nil
+}
+
+// eigeneSites liest die Dateien, die dem Panel gehören.
+//
+// Gelesen werden asylum-*.conf und asylum-*.conf.aus, beide nur mit Marker. Das
+// ACME-Drop-in bleibt draußen: Es ist keine Site, sondern der Weg für die
+// Zertifikatsprüfung, und es in der Liste zu zeigen hieße, jemandem einen
+// Löschknopf für die eigene Erneuerung hinzustellen.
+func eigeneSites() ([]Site, error) {
+	dir := filepath.Dir(acmeDropinPfad)
+	eintraege, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		// Kein conf.d — dann gibt es kein nginx, und das sagt WebServerState.
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", dir, err)
+	}
+
+	var aus []Site
+	for _, e := range eintraege {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		abgeschaltet := strings.HasSuffix(name, ".conf.aus")
+		if !strings.HasPrefix(name, sitePraefix) ||
+			(!strings.HasSuffix(name, ".conf") && !abgeschaltet) {
+			continue
+		}
+		pfad := filepath.Join(dir, name)
+		if pfad == acmeDropinPfad {
+			continue
+		}
+
+		inhalt, err := os.ReadFile(pfad) //nolint:gosec // Pfad aus festen Bestandteilen und einem geprüften Namensmuster
+		if err != nil || !strings.HasPrefix(string(inhalt), nginxMarker) {
+			// Ohne Marker gehört die Datei dem Panel nicht, auch wenn sie so
+			// heißt. Ein Name allein ist fälschbar.
+			continue
+		}
+
+		// Durch denselben Parser wie der Dump — mit dem Kopf, den `nginx -T`
+		// davorschriebe. Ein zweiter Parser für dasselbe Format wäre eine
+		// zweite Auslegung, und die zweite ist die, die niemand pflegt.
+		bloecke := parseNginxDump(dateiKopf + pfad + ":\n" + string(inhalt))
+		for i := range bloecke {
+			bloecke[i].Verwaltet = true
+			bloecke[i].Aus = abgeschaltet
+			bloecke[i].Name = siteNameAusDatei(pfad)
+		}
+		aus = append(aus, bloecke...)
+	}
+	return aus, nil
+}
+
+// verschmelzeSites legt beide Quellen zusammen — und faltet die Blöcke einer
+// verwalteten Datei zu EINER Zeile.
+//
+// Das Falten ist kein Schönheitsdienst. Eine Site mit TLS besteht aus zwei
+// Serverblöcken (80 und 443) in einer Datei; ohne das Falten stünde sie zweimal
+// in der Liste, mit zwei Knöpfen zum Löschen für dieselbe Sache. Bis Schritt 4
+// fiel das nicht auf, weil das Panel noch keine Site mit zwei Blöcken schrieb.
+//
+// Gefaltet wird NUR bei verwalteten Dateien. Eine fremde Datei kann ein Dutzend
+// unabhängiger Blöcke enthalten — sie zu einer Zeile zusammenzuziehen wäre
+// keine Übersicht, sondern eine Behauptung.
+func verschmelzeSites(ausDump, eigene []Site) []Site {
+	var aus []Site
+	nachDatei := map[string]int{}
+
+	dazu := func(si Site) {
+		if !si.Verwaltet {
+			aus = append(aus, si)
+			return
+		}
+		i, schon := nachDatei[si.Datei]
+		if !schon {
+			nachDatei[si.Datei] = len(aus)
+			aus = append(aus, si)
+			return
+		}
+		aus[i] = falteSite(aus[i], si)
+	}
+
+	for _, si := range ausDump {
+		dazu(si)
+	}
+	// Die eigenen Dateien danach und nicht davor: Kam eine Datei schon aus dem
+	// Dump, ist der Eintrag von dort der führende — er trägt Ausgeliefert.
+	for _, si := range eigene {
+		dazu(si)
+	}
+	return aus
+}
+
+// falteSite legt zwei Blöcke derselben verwalteten Datei zusammen.
+func falteSite(a, b Site) Site {
+	for _, d := range b.Domains {
+		if !enthaeltWort(a.Domains, d) {
+			a.Domains = append(a.Domains, d)
+		}
+	}
+	for _, p := range b.Ports {
+		if !enthaeltZahl(a.Ports, p) {
+			a.Ports = append(a.Ports, p)
+		}
+	}
+	sort.Ints(a.Ports)
+	// TLS und Ausgeliefert gelten, sobald EIN Block sie trägt: Eine Site mit
+	// einem 443-Block hat TLS, auch wenn ihr 80er-Block keines hat.
+	a.TLS = a.TLS || b.TLS
+	a.Ausgeliefert = a.Ausgeliefert || b.Ausgeliefert
+	if a.Zertifikat == "" {
+		a.Zertifikat = b.Zertifikat
+	}
+	// Das Ziel aus dem Block, der eines hat. Bei aktiver https-Umleitung trägt
+	// der 80er-Block nur die Umleitung; das eigentliche Ziel steht im 443er.
+	if a.Zielart == "" || a.Zielart == "umleitung" && b.Zielart != "" {
+		a.Zielart, a.Ziel = b.Zielart, b.Ziel
+	}
+	if a.Anmerkung == "" {
+		a.Anmerkung = b.Anmerkung
+	}
+	return a
+}
+
+func enthaeltWort(liste []string, wort string) bool {
+	for _, w := range liste {
+		if w == wort {
+			return true
+		}
+	}
+	return false
+}
+
+func enthaeltZahl(liste []int, zahl int) bool {
+	for _, z := range liste {
+		if z == zahl {
+			return true
+		}
+	}
+	return false
 }
 
 // nginxDump holt die gerenderte Konfiguration. Zweiter Rückgabewert ist die
@@ -156,10 +334,14 @@ func istVerwalteteSite(datei string) bool {
 	return strings.HasPrefix(string(b), nginxMarker)
 }
 
-// siteNameAusDatei zieht die Kennung aus asylum-<name>.conf.
+// siteNameAusDatei zieht die Kennung aus asylum-<name>.conf — und aus
+// asylum-<name>.conf.aus, dem Namen einer abgeschalteten Site. Ohne den
+// zweiten Fall hieße eine abgeschaltete Site „<name>.conf.aus", und das
+// Einschalten fände ihre Datei nicht wieder.
 func siteNameAusDatei(datei string) string {
 	name := filepath.Base(filepath.Clean(datei))
 	name = strings.TrimPrefix(name, sitePraefix)
+	name = strings.TrimSuffix(name, siteAusEndung)
 	return strings.TrimSuffix(name, ".conf")
 }
 

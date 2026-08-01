@@ -179,6 +179,19 @@ type Executor interface {
 	// SiteDatei liefert den Inhalt einer VERWALTETEN Site. Nimmt einen Namen und
 	// keinen Pfad — derselbe Vertrag wie bei StackDatei.
 	SiteDatei(ctx context.Context, name string) (string, error)
+	// SiteApply schreibt eine Site: prüfen, schreiben, `nginx -t`, bei Fehler
+	// zurücknehmen, neu laden. Die Frist der Probe hält der Aufrufer; was er
+	// dafür braucht, steht in SiteErgebnis.Ruecknahme.
+	//
+	// fassung ist der Hash der Datei, die der Aufrufer gelesen hat. Stimmt er
+	// nicht mehr, wird nicht geschrieben (ErrSiteFassung). Leer heißt „neu".
+	SiteApply(ctx context.Context, e SiteEntwurf, lage SiteLage, fassung string) (SiteErgebnis, error)
+	// SiteSchalten schaltet eine Site an oder ab (Umbenennen der Endung).
+	SiteSchalten(ctx context.Context, name string, an bool) (SiteRuecknahme, error)
+	// SiteRemove löscht eine Site samt ihrer abgeschalteten Fassung.
+	SiteRemove(ctx context.Context, name string) (SiteRuecknahme, error)
+	// SiteRestore nimmt eine Änderung zurück — der Rückweg der Probe.
+	SiteRestore(ctx context.Context, r SiteRuecknahme) error
 	// AcmeWebroot legt den Weg für die HTTP-01-Prüfung DURCH nginx hindurch und
 	// gibt das Verzeichnis zurück, in das die Token gehören.
 	//

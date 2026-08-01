@@ -113,6 +113,33 @@ nicht als Release getaggt.
   ist — wer nur die erste Seite liest, meldet „nicht gefunden" für etwas, das
   da ist.
 
+- **netcup und OVH als DNS-01-Anbieter** — damit sind alle sieben da: `hook`,
+  `cloudflare`, `acme-dns`, `ipv64`, `hetzner`, `digitalocean`, `netcup`, `ovh`.
+
+  Beide sind die aufwendigsten der Liste, und beide aus einem Grund, der sich
+  prüfen lässt. **netcup** hat als einziges eine Sitzung (login → Aufrufe →
+  Sitzungsschlüssel wiederverwenden) und antwortet auf Fehler mit **HTTP 200** —
+  der Zustand steht im Körper. Wer nur den Statuscode prüft, hält jeden
+  Fehlschlag für einen Erfolg. Außerdem schreibt netcup Records als *Liste*;
+  hier geht deshalb immer genau einer hinaus, nie ein „alle holen, ändern,
+  zurückschreiben" — das wäre der kürzere Weg und der, bei dem ein Fehler die
+  Zone kostet.
+
+  **OVH** signiert jeden Aufruf, und der Zeitstempel dafür kommt vom **Server**,
+  nicht von der eigenen Uhr: Die eines frisch aufgesetzten VPS geht gerne
+  daneben, und OVH meldet dann „invalid signature", was in die falsche Richtung
+  zeigt. Dazu braucht jedes Schreiben ein `refresh` — ohne das steht der Record
+  in der API und in der Oberfläche und geht nie ins DNS. Der Endpunkt (ovh-eu,
+  ovh-ca, kimsufi …) steht in der Zugangsdatei und wird gegen eine feste Liste
+  geprüft; ein freies Feld wäre die Stelle, an der die Zugangsdaten des Kontos
+  an einen fremden Server gingen.
+
+  **Kein Anbieter ist gegen seine echte API geprüft.** Die Tests laufen gegen
+  `httptest`-Server; die Antwortformen stammen aus der Dokumentation und aus
+  fremden Umsetzungen. Belastbar geprüft ist, *was das Panel schickt* —
+  Signatur, Feldnamen, Sitzungsführung, Löschen nach Wert. Der erste Bezug
+  gehört gegen das **Staging-Verzeichnis** von Let's Encrypt.
+
 - **Modul Webserver, Schritt 2 von 8: der Weg für die ACME-Prüfung durch nginx
   hindurch.** Er behebt einen Fehler, den Schritt 1 erst erzeugt, und steht
   deshalb vor der ersten Benutzersite.

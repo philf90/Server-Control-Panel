@@ -2,6 +2,7 @@
 
 > **Stand:** Schritte 1 und 2 von 8 sind gebaut (Fundament: Zustand,
 > Portbelegung, Installation; und der Challenge-Weg durch nginx hindurch).
+> Dazu **Wildcard-Zertifikate** und **sieben DNS-01-Anbieter** — siehe §9a.
 > Alles Weitere ist Plan.
 > Die Vorgaben kommen aus [16-neukonzeption.md](16-neukonzeption.md) §5 (0.6),
 > §7.4 und der Meilensteintabelle in [06-roadmap.md](06-roadmap.md).
@@ -385,12 +386,12 @@ kein Katalog — und deshalb bleibt `hook` als Weg für alles Übrige.
 
 | Anbieter | Warum | Anmerkung |
 |---|---|---|
-| **acme-dns** | Deckt **jeden** Anbieter ab: `_acme-challenge` wird per CNAME an einen Mini-Dienst delegiert | Das Panel hält **nie** einen Token für die echte Zone. Sicherheitstechnisch der beste Weg der Liste und zugleich der kleinste — eine HTTP-Anfrage |
-| **Hetzner DNS** | Größte Trefferquote bei deutschen VPS | REST mit Token |
-| **netcup (CCP)** | Verbreitet bei günstigen deutschen VPS | JSON-API mit Sitzung (login → Sitzungsschlüssel → Aufruf → logout); sperriger als die übrigen |
-| **IPv64.net** | Ausdrücklich gewünscht; im DACH-Raum als DynDNS verbreitet | Siehe unten — hier gibt es einen Befund |
-| **OVH** | Größter europäischer Hoster | Signierte Aufrufe (Anwendungsschlüssel + Zeitstempel + SHA1); der aufwendigste Eintrag |
-| **DigitalOcean** | Sehr verbreitet bei VPS-Betreibern | Schlanke REST-API |
+| **acme-dns** ✅ | Deckt **jeden** Anbieter ab: `_acme-challenge` wird per CNAME an einen Mini-Dienst delegiert | Das Panel hält **nie** einen Token für die echte Zone. Sicherheitstechnisch der beste Weg der Liste und zugleich der kleinste — eine HTTP-Anfrage |
+| **Hetzner DNS** ✅ | Größte Trefferquote bei deutschen VPS | REST mit Token |
+| **netcup (CCP)** ✅ | Verbreitet bei günstigen deutschen VPS | JSON-API mit Sitzung (login → Sitzungsschlüssel → Aufruf → logout); sperriger als die übrigen |
+| **IPv64.net** ✅ | Ausdrücklich gewünscht; im DACH-Raum als DynDNS verbreitet | Siehe unten — hier gibt es einen Befund |
+| **OVH** ✅ | Größter europäischer Hoster | Signierte Aufrufe (Anwendungsschlüssel + Zeitstempel + SHA1); der aufwendigste Eintrag |
+| **DigitalOcean** ✅ | Sehr verbreitet bei VPS-Betreibern | Schlanke REST-API |
 
 **Für alle gilt das Muster, das Cloudflare schon hat:** Zugangsdaten stehen in
 einer **Datei mit 0600**, referenziert über einen Pfad — nie in der Datenbank,
@@ -429,6 +430,51 @@ verbindlich:
 
 Das Warten auf Sichtbarkeit kostet nichts: Der Löser fragt dafür das DNS und
 nicht die API.
+
+### Was der Bau an den übrigen Anbietern gezeigt hat
+
+Vier Eigenheiten, die man je einmal falsch macht und dann nicht wiederfindet.
+Sie stehen hier, weil sie beim nächsten Anbieter wieder auftreten:
+
+**Der Recordname geht relativ zur Zone hinaus.** `_acme-challenge`, nicht
+`_acme-challenge.example.com`. Ein absoluter Name ergibt bei den meisten APIs
+klaglos einen Record namens `_acme-challenge.example.com.example.com` — er
+entsteht ohne Fehlermeldung, und die Prüfung findet ihn nie. Gemeinsame
+Funktion `relativZu`.
+
+**Gelöscht wird nach Name UND Wert.** Bei einem Wildcard-Zertifikat stehen zwei
+TXT-Records unter demselben Namen; der zweite gehört noch zur laufenden
+Prüfung. Wer ihn mitlöscht, bringt den eigenen Bezug zum Scheitern. Dazu:
+Manche APIs geben den Wert mit Anführungszeichen zurück (`"abc"`), so wie er in
+der Zonendatei steht — gemeinsame Funktion `gleicherTXTWert`.
+
+**netcup antwortet auf Fehler mit HTTP 200.** Der Zustand steht im Körper unter
+`status`. Wer nur den HTTP-Code prüft, hält jeden Fehlschlag für einen Erfolg,
+und der Bezug scheitert später an einer Stelle, die nichts damit zu tun hat.
+Zweitens schreibt netcup Records als *Liste*: Hier geht deshalb immer genau
+einer hinaus, nie ein „alle holen, ändern, zurückschreiben" — das wäre der
+kürzere Weg und der, bei dem ein Fehler die Zone kostet.
+
+**OVH braucht zwei Dinge, die nirgends sonst vorkommen.** Der Zeitstempel der
+Signatur kommt vom SERVER, nicht von der eigenen Uhr — die eines frisch
+aufgesetzten VPS geht gerne daneben, und OVH meldet dann „invalid signature",
+was in die falsche Richtung zeigt. Und nach jedem Schreiben braucht es ein
+`refresh`: Ohne das steht der Record in der API und in der Oberfläche, geht aber
+nie ins DNS. Das ist die Eigenheit, die bei OVH am meisten Zeit kostet.
+
+### Der Vorbehalt, der für alle sieben gilt
+
+**Kein Anbieter ist gegen seine echte API geprüft.** Die Tests laufen gegen
+`httptest`-Server; die Antwortformen stammen aus der Dokumentation der Anbieter
+und aus fremden Umsetzungen, nicht aus Mitschnitten. Belastbar geprüft ist,
+**was das Panel schickt** — Signatur, Feldnamen, Reihenfolge, Sitzungsführung,
+Löschen nach Wert. Was ein Anbieter tatsächlich antwortet, zeigt erst der erste
+Bezug.
+
+Der gehört deshalb **gegen das Staging-Verzeichnis von Let's Encrypt**
+(`stagingDirectory`, in der Zertifikatskonfiguration vorgesehen) und nicht gegen
+die Produktion. Bei IPv64 kommt hinzu, dass jeder Fehlversuch gegen 64 Anfragen
+am Tag zählt.
 
 ---
 
@@ -492,6 +538,13 @@ waagerechtes Scrollen bei 375 px.
 make check && make ui && make build
 sudo ./packaging/dev-deploy.sh
 ```
+
+**Je Anbieter einmal gegen Staging**, und in dieser Reihenfolge: Zugangsdatei
+anlegen (0600), Anbieter in der Oberfläche wählen, `directory_url` auf Staging,
+Bezug auslösen, Vorgangsplatte lesen. Geglückt heißt: Der TXT-Record erscheint
+im DNS (`dig TXT _acme-challenge.<domain>`), die Prüfung geht durch, und der
+Record ist danach **wieder weg**. Der letzte Teil wird am leichtesten
+übersehen und ist der, der beim nächsten Bezug Ärger macht.
 
 Durchzuspielen: nginx über das Panel installieren und danach prüfen, **ob die
 Erneuerung des Panel-Zertifikats weiter läuft** (Schritt 2 — der Befund aus

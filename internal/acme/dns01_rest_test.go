@@ -54,12 +54,9 @@ func (a *restAttrappe) server(t *testing.T) *httptest.Server {
 			_, _ = io.WriteString(w, `{"message":"kaputt"}`)
 			return
 		}
-		for wegweiser, koerper := range a.antworten {
-			methode, pfad, _ := strings.Cut(wegweiser, " ")
-			if r.Method == methode && strings.HasPrefix(r.URL.Path, pfad) {
-				_, _ = io.WriteString(w, koerper)
-				return
-			}
+		if koerper, ok := laengsterTreffer(a.antworten, r.Method, r.URL.Path); ok {
+			_, _ = io.WriteString(w, koerper)
+			return
 		}
 		_, _ = io.WriteString(w, `{}`)
 	}))
@@ -342,4 +339,26 @@ func TestRestAnbieterImRegister(t *testing.T) {
 			t.Errorf("%q lieferte keinen Setzer", name)
 		}
 	}
+}
+
+// laengsterTreffer wählt aus einer Wegweisertabelle den Eintrag mit dem
+// LÄNGSTEN passenden Pfad.
+//
+// Ohne das entscheidet die Reihenfolge einer Map — also der Zufall —, ob
+// "GET /domains" oder "GET /domains/example.com/records" antwortet. Ein Test,
+// der mal grün und mal rot ist, prüft nichts; und einer, der zufällig grün
+// bleibt, prüft etwas anderes als gedacht. Gefunden hat das der OVH-Test, dem
+// die Zonenliste als Record-Antwort untergeschoben wurde.
+func laengsterTreffer(antworten map[string]string, methode, pfad string) (string, bool) {
+	beste, gefunden := "", ""
+	for wegweiser, koerper := range antworten {
+		m, p, _ := strings.Cut(wegweiser, " ")
+		if m != methode || !strings.HasPrefix(pfad, p) {
+			continue
+		}
+		if len(p) > len(beste) {
+			beste, gefunden = p, koerper
+		}
+	}
+	return gefunden, beste != ""
 }

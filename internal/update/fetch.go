@@ -78,7 +78,7 @@ func (c *Client) Fetch(ctx context.Context, rel Release, platform string, key Pu
 	// *älteren*, echten Fassung vorlegen und so ein Downgrade erzwingen.
 	if got := versionFromComment(comment); got != rel.Version {
 		return Package{}, fmt.Errorf(
-			"%w: die Signatur beglaubigt Fassung %q, die Metadaten nennen %q",
+			"%w: die Signatur beglaubigt Version %q, die Metadaten nennen %q",
 			ErrBadSignature, got, rel.Version)
 	}
 

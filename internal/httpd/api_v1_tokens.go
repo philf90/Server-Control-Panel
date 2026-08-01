@@ -345,7 +345,7 @@ func (s *Server) handleAPITokenAnlegen(w http.ResponseWriter, r *http.Request) {
 // tokenFrage baut die Rückfrage. Sie ist eine ZUSAMMENFASSUNG und keine Warnung:
 // Was sie leisten muss, ist zu sagen, was dieser Token darf, bevor er da ist.
 func (s *Server) tokenFrage(user store.User, auftrag apiTokenAuftrag, scopes []string) apiBestaetigung {
-	umfang := "alle für Tokens offenen Flächen"
+	umfang := "alle für Tokens offenen Bereiche"
 	if len(scopes) > 0 {
 		umfang = strings.Join(scopes, ", ")
 	}
@@ -481,12 +481,12 @@ func pruefeScopes(roh []string) ([]string, error) {
 			continue
 		}
 		if tokenGesperrt[s] {
-			return nil, errText("Die Fläche " + s + " ist für Tokens gesperrt: Ein " +
+			return nil, errText("Der Bereich " + s + " ist für Tokens gesperrt: Ein " +
 				"Token soll weder Tokens noch Zugänge anlegen und nicht den eigenen " +
 				"Anmeldeweg ändern können.")
 		}
 		if !enthaeltText(tokenFamilien, s) {
-			return nil, errText("Die Fläche " + s + " gibt es nicht.")
+			return nil, errText("Den Bereich " + s + " gibt es nicht.")
 		}
 		if gesehen[s] {
 			continue

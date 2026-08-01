@@ -151,7 +151,7 @@ func (s *Server) zertifikatPfad() (pfad, quelle string) {
 		if _, err := os.Stat(acmePfad); err == nil {
 			return acmePfad, "ACME (Let's Encrypt)"
 		}
-		quelle = "selbstsigniert (Rückfall — noch kein Zertifikat bezogen)"
+		quelle = "selbstsigniert (Rückfall — noch kein Zertifikat angefordert)"
 	}
 	return pfad, quelle
 }
@@ -340,10 +340,10 @@ func (s *Server) handleAPIZertifikatSpeichern(w http.ResponseWriter, r *http.Req
 			Bestaetigt: auftrag.Bestaetigt, Getippt: auftrag.Getippt,
 		}, apiBestaetigung{
 			Titel: "Zurück auf ein selbstsigniertes Zertifikat",
-			Frage: "Den automatischen Bezug abschalten und wieder selbstsigniert ausliefern?",
+			Frage: "Die automatische Ausstellung abschalten und wieder selbstsigniert ausliefern?",
 			Punkte: []string{
 				"Jeder Browser warnt danach beim Aufruf des Panels.",
-				"Ein bereits bezogenes Zertifikat bleibt auf der Platte liegen und wird nur nicht mehr benutzt.",
+				"Ein bereits ausgestelltes Zertifikat bleibt auf dem Datenträger liegen und wird nur nicht mehr benutzt.",
 				"Die Erneuerung im Hintergrund hört auf.",
 			},
 			Knopf: "abschalten",
@@ -380,7 +380,7 @@ func (s *Server) handleAPIZertifikatSpeichern(w http.ResponseWriter, r *http.Req
 
 	hinweis := ""
 	if set.Mode == config.TLSModeACME {
-		hinweis = "Der Bezug läuft im Hintergrund; bis dahin bleibt das bisherige " +
+		hinweis = "Die Anforderung läuft im Hintergrund; bis dahin bleibt das bisherige " +
 			"Zertifikat aktiv. Die Einstellungen stehen in " + config.ManagedTLSPath(s.cfgPath) + "."
 	}
 	s.zertifikatFertig(w, r, apiZertifikatAntwort{
@@ -502,7 +502,7 @@ func (s *Server) handleAPIZertifikatBezug(w http.ResponseWriter, r *http.Request
 	s.audit(r, "tls.obtain", strings.Join(namen, ","), store.ResultOK, "gestartet")
 
 	s.zertifikatFertig(w, r, apiZertifikatAntwort{
-		Meldung: "Der Bezug läuft.",
+		Meldung: "Die Anforderung läuft.",
 		Hinweis: "Der Verlauf kommt fortlaufend herein. Über DNS kann das einige Minuten " +
 			"dauern; das bisherige Zertifikat bleibt bis zum Erfolg aktiv.",
 	})

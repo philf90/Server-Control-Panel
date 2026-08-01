@@ -247,8 +247,8 @@ func (s *Server) handleAPIWebserverSiteLoeschen(w http.ResponseWriter, r *http.R
 		Frage: fmt.Sprintf("Die Site „%s“ endgültig löschen?", name),
 		Punkte: []string{
 			"Die Konfigurationsdatei wird entfernt; die Domains werden danach nicht mehr beantwortet.",
-			"Ein bezogenes Zertifikat bleibt auf der Platte liegen und wird nicht mehr erneuert.",
-			"Diese Aktion läuft ohne Probe — es gibt keinen selbsttätigen Rückweg.",
+			"Ein bereits ausgestelltes Zertifikat bleibt auf dem Datenträger liegen und wird nicht mehr erneuert.",
+			"Diese Aktion läuft ohne Probe — es gibt kein selbsttätiges Rollback.",
 		},
 		Knopf:  "löschen",
 		Tippen: name,

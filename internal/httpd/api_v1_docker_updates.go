@@ -331,7 +331,7 @@ func updatenotiz(stand gespeicherterUpdatestand) string {
 			neu++
 		}
 	}
-	satz := zahlwort(neu, "Image", "Images") + " mit einer neueren Fassung"
+	satz := zahlwort(neu, "Image", "Images") + " mit einer neueren Version"
 	if ungeprueft > 0 {
 		satz += ", " + zahlwort(ungeprueft, "Image", "Images") + " nicht geprüft"
 	}

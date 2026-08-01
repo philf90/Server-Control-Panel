@@ -2159,17 +2159,17 @@ async function main() {
       abbruchAngekuendigt: [...document.querySelectorAll(".detail")].some((p) =>
         p.textContent.includes("verliert für einige Sekunden die Verbindung"),
       ),
-      // Ohne Sicherung kein Rückweg.
+      // Ohne Backup kein Rollback.
       rueckweg: [...document.querySelectorAll(".knopf")].some((b) =>
         b.textContent.includes("zurück auf"),
       ),
       keineSicherung: [...document.querySelectorAll(".detail")].some((p) =>
-        p.textContent.includes("keine Sicherung"),
+        p.textContent.includes("kein Backup"),
       ),
     };
   });
 
-  // Prüfen. Die Attrappe liefert Fassung 9.9.9 als Sicherheitsupdate.
+  // Prüfen. Die Attrappe liefert Version 9.9.9 als Sicherheitsupdate.
   await seite.evaluate(() => {
     const b = [...document.querySelectorAll(".knopf")].find(
       (x) => x.textContent.trim() === "nach Updates suchen",
@@ -2365,11 +2365,11 @@ async function main() {
     hinweis: document.querySelector(".band.warn")?.textContent.trim() ?? "",
     // Der Zwischenzustand: eingestellt, aber noch nichts bezogen.
     zwischen: [...document.querySelectorAll(".anmerkung")].some((p) =>
-      p.textContent.includes("noch kein Zertifikat bezogen"),
+      p.textContent.includes("noch kein Zertifikat angefordert"),
     ),
-    // Und jetzt ist „jetzt beziehen" offen.
+    // Und jetzt ist „jetzt anfordern" offen.
     beziehenOffen: ![...document.querySelectorAll(".knopf")].find((b) =>
-      b.textContent.includes("jetzt beziehen"),
+      b.textContent.includes("jetzt anfordern"),
     )?.disabled,
   }));
 
@@ -3022,7 +3022,7 @@ async function main() {
   });
   // Schritt 5: die Handgriffe. Zwei Dinge sind hier nur im Browser zu sehen —
   // dass ein FREMDES Projekt keinen Bearbeiten- und keinen Löschen-Knopf
-  // bekommt, und dass „herunterfahren" eine Rückfrage bringt, „starten" bei
+  // bekommt, und dass „stoppen und entfernen" eine Rückfrage bringt, „starten" bei
   // einem sauberen Stack dagegen nicht.
   dock.stackAktionen = await seite.evaluate(() =>
     [...(document.querySelector(".inspektor")?.querySelectorAll(".aktionen .knopf") ?? [])].map(
@@ -3030,10 +3030,10 @@ async function main() {
     ),
   );
 
-  // „herunterfahren" ist Stufe 2: Dialog ohne Tippfeld.
+  // „stoppen und entfernen" ist Stufe 2: Dialog ohne Tippfeld.
   await seite.evaluate(() => {
     const knopf = [...document.querySelectorAll(".inspektor .aktionen .knopf")].find(
-      (k) => k.textContent.trim() === "herunterfahren",
+      (k) => k.textContent.trim() === "stoppen und entfernen",
     );
     knopf?.click();
   });
@@ -3415,11 +3415,13 @@ async function main() {
         ? (platte.querySelector('tbody [data-spalte="freigebbar"]')?.textContent.trim() ?? "")
         : "",
       images: zeilen,
-      // Die Aufräumreihe: die .aktionen, deren Knöpfe „wegräumen" oder „leeren"
-      // heißen. Ein Selektor über alle .aktionen nähme die Seitenknöpfe mit.
-      aufraeumKnoepfe: [...document.querySelectorAll(".aktionen")]
-        .map((reihe) => [...reihe.querySelectorAll(".knopf")].map((k) => k.textContent.trim()))
-        .find((texte) => texte.some((x) => x.includes("wegräumen") || x.includes("leeren"))) ?? [],
+      // Die Aufräumreihe, erkannt an ihrer Klasse und nicht an den Wörtern auf
+      // den Knöpfen. Bis 0.6.1 stand hier eine Suche nach „wegräumen" oder
+      // „leeren" — ein Test, den jede Umbenennung eines Knopfes still auf die
+      // falsche Knopfreihe schickt.
+      aufraeumKnoepfe: [
+        ...(document.querySelector(".aktionen.aufraeumen")?.querySelectorAll(".knopf") ?? []),
+      ].map((k) => k.textContent.trim()),
     };
   });
   dock.navAktiv = await seite.evaluate(

@@ -90,7 +90,7 @@ export const t = {
     urteilLaeuft: "Der Zustand wird erhoben …",
     urteilUnbekannt: "Der Zustand konnte nicht erhoben werden.",
     urteilUnbekanntDetail:
-      "Die Messwerte unten stimmen — nur die Prüfung auf Dienste, Platte und Neustart ist ausgefallen.",
+      "Die Messwerte unten stimmen — nur die Prüfung auf Dienste, Datenträger und Neustart ist ausgefallen.",
     handlungsbedarf: "Handlungsbedarf",
 
     dateisysteme: "Dateisysteme",
@@ -99,14 +99,14 @@ export const t = {
     auslastung: "Auslastung",
     belegt: "Belegt",
     inodes: "Inodes",
-    dieselbePlatte: "dieselbe Platte",
+    dieselbePlatte: "derselbe Datenträger",
     keineDateisysteme: "Keine Dateisysteme gefunden.",
     // Eine Zahl im Text braucht beide Formen — „auch an 1 weiteren Stellen"
     // liest sich falsch, und genau solche Stellen fallen im Betrieb auf.
     weitereStellen: (n: number) =>
       n === 1 ? "auch an einer weiteren Stelle" : `auch an ${n} weiteren Stellen`,
 
-    prozesse: "Prozesse · Spitzenreiter",
+    prozesse: "Prozesse nach Auslastung",
     prozess: "Prozess",
     benutzer: "Benutzer",
     speicher: "Speicher",
@@ -213,15 +213,15 @@ export const t = {
     keineDetail:
       "Zu diesen Filtern hat das Journal nichts. Ein weiterer Zeitraum oder eine niedrigere Stufe hilft.",
     zuVieleZuschauer:
-      "Es sehen schon zu viele Verbindungen dem Journal zu — ein anderer Tab hält einen Strom offen.",
+      "Es sind bereits zu viele Verbindungen zum Journal offen — ein anderer Tab hält einen Stream offen.",
     zeilenZahl: (n: number) => (n === 1 ? "1 Zeile" : `${n} Zeilen`),
     holt: (n: number) => `holt ${n}`,
     // Verworfene Zeilen ehrlich benennen: Das Journal schrieb schneller, als die
     // Leitung übertragen konnte.
     luecke: (n: number) =>
       n === 1
-        ? "Eine Zeile ist unterwegs verloren gegangen — das Journal schrieb schneller als die Leitung."
-        : `${n} Zeilen sind unterwegs verloren gegangen — das Journal schrieb schneller als die Leitung.`,
+        ? "Eine Zeile ist unterwegs verloren gegangen — das Journal schrieb schneller, als die Verbindung übertragen konnte."
+        : `${n} Zeilen sind unterwegs verloren gegangen — das Journal schrieb schneller, als die Verbindung übertragen konnte.`,
   },
 
   firewall: {
@@ -289,7 +289,7 @@ export const t = {
       "Der Pfad steht auf der Sperrliste. Der Eintrag ist sichtbar, sein Inhalt wird nie gelesen, geschrieben oder ausgeliefert.",
     nurLesen: "Dieses Konto darf lesen, aber nichts verändern.",
     nichtBeschreibbar:
-      "Dieser Bereich ist nicht beschreibbar — verändernde Handgriffe fehlen deshalb.",
+      "Dieser Bereich ist nicht beschreibbar — verändernde Aktionen fehlen deshalb.",
     verweisAuf: "zeigt auf",
     verweisGebrochen: "Das Ziel des Verweises existiert nicht.",
     inhaltZaehlung: "Inhalt",
@@ -311,7 +311,7 @@ export const t = {
     zielIst: "Ziel",
     zielNichtBeschreibbar:
       "In diesen Ordner darf nicht geschrieben werden — wählen Sie einen anderen.",
-    zielGekuerzt: "Die Liste ist gekürzt; tieferliegende Ordner erreicht man über die Krumen.",
+    zielGekuerzt: "Die Liste ist gekürzt; tieferliegende Ordner erreicht man über die Pfadleiste oben.",
     keineUnterordner: "Hier gibt es keine Unterordner.",
     nurDurchsehen: "nur durchsehen",
     rechteTitel: "Rechte und Eigentümer",
@@ -329,7 +329,7 @@ export const t = {
     // ------------------------------------------------------------- Editor ---
     editorSchliessen: "Editor schließen",
     editorNichtGeladen:
-      "Der Editor ließ sich nicht laden. Er kommt als eigener Brocken nach; bitte die Seite neu laden.",
+      "Der Editor ließ sich nicht laden. Er wird als eigenes Bundle nachgeladen; bitte die Seite neu laden.",
     speichern: "speichern",
     speichertGerade: "speichert …",
     ungespeichert: "ungespeichert",
@@ -337,8 +337,8 @@ export const t = {
     // zurückgerollt wird, editiert anders.
     wirdGeprueft: (werkzeug: string) =>
       `Nach dem Speichern prüft ${werkzeug} die Datei. Lehnt das Programm sie ab, wird der vorherige Stand zurückgeschrieben.`,
-    fremdenStandLaden: "fremden Stand übernehmen (eigene Fassung verwerfen)",
-    fremdUebernommen: "Der Stand von der Platte ist übernommen. Ihre Fassung ist verworfen.",
+    fremdenStandLaden: "fremden Stand übernehmen (eigene Version verwerfen)",
+    fremdUebernommen: "Der Stand vom Datenträger ist übernommen. Ihre Version ist verworfen.",
     ueberschreiben2: "fremde Änderung überschreiben",
     hochgeladen: (n: number) =>
       n === 1 ? "Eine Datei hochgeladen." : `${n} Dateien hochgeladen.`,
@@ -361,12 +361,12 @@ export const t = {
     laeuft: "läuft",
     fertig: "abgeschlossen",
     gescheitert: "gescheitert",
-    teils: "teils geglückt",
+    teils: "teilweise erfolgreich",
     von: "von",
     auszug: "Ausgabe des Vorgangs",
     zumEnde: "zum Ende springen",
     wartetAufAusgabe: "wartet auf die erste Ausgabe …",
-    stromWeg: "Der Live-Auszug ist abgerissen — der Vorgang läuft weiter.",
+    stromWeg: "Die Live-Ausgabe ist abgebrochen — der Vorgang läuft weiter.",
   },
 
   inspektor: {
@@ -401,7 +401,7 @@ export const t = {
     name: "Name",
     uid: "UID",
     gruppen: "Gruppen",
-    schale: "Anmeldeschale",
+    schale: "Login-Shell",
     schluesselSpalte: "Schlüssel",
     zustand: "Zustand",
     notiz: "Notiz",
@@ -419,7 +419,7 @@ export const t = {
     ohneSchluesselWarnung:
       "Dieses Konto hat keinen Schlüssel und kein Passwort — es kommt nicht auf den Server.",
     dienstkonto:
-      "Dienstkonto ohne Anmeldeschale. Es dient einem Programm, nicht einem Menschen — eine Anmeldung ist nicht vorgesehen.",
+      "Dienstkonto ohne Login-Shell. Es dient einem Programm, nicht einem Menschen — eine Anmeldung ist nicht vorgesehen.",
     geschuetzt: "Dieses Konto lässt sich über das Panel nicht sperren und nicht löschen.",
     nurLesen: "Dieses Konto darf lesen, aber keine Systemkonten ändern.",
 
@@ -456,11 +456,11 @@ export const t = {
   update: {
     laedt: "wird geladen …",
     wesen:
-      "Das Panel aktualisiert sich selbst: Es lädt die Fassung aus dem eingestellten Kanal, prüft sie gegen den eingebauten Signaturschlüssel und tauscht das Programm aus. Die vorherige Fassung bleibt als Sicherung liegen.",
-    // Der Block heißt „Stand" und die Zeile darin „Laufende Fassung": Dasselbe
+      "Das Panel aktualisiert sich selbst: Es lädt die Version aus dem eingestellten Kanal, prüft sie gegen den eingebauten Signaturschlüssel und tauscht das Programm aus. Die vorherige Version bleibt als Backup liegen.",
+    // Der Block heißt „Stand" und die Zeile darin „Laufende Version": Dasselbe
     // Wort zweimal übereinander liest man als Versehen.
     standTitel: "Stand",
-    fassung: "Laufende Fassung",
+    fassung: "Laufende Version",
     kanal: "Kanal",
     quelle: "Metadatenquelle",
     geprueftAm: "Zuletzt geprüft",
@@ -468,9 +468,9 @@ export const t = {
     verfuegbar: "Im Kanal steht",
     erschienen: "Erschienen",
     notizen: "Änderungsnotizen",
-    notizenLink: "Notizen zu dieser Fassung",
+    notizenLink: "Notizen zu dieser Version",
     sicherheit: "Sicherheitsupdate",
-    aktuell: "Diese Fassung ist aktuell.",
+    aktuell: "Diese Version ist aktuell.",
     pruefen: "nach Updates suchen",
     prueffehler: "Die Metadaten sind nicht erreichbar:",
     // „noch nicht gefragt" ist ein anderer Zustand als „kein Update".
@@ -489,27 +489,27 @@ export const t = {
     einspielenWarum:
       "Der Dienst startet dabei neu. Die Oberfläche verliert für einige Sekunden die Verbindung — das gehört dazu und ist kein Fehler.",
     nurOwner:
-      "Update und Rückweg löst nur die Owner-Rolle aus: Sie tauschen das Programm aus, das alle anderen Rechte durchsetzt.",
+      "Update und Rollback löst nur die Owner-Rolle aus: Sie tauschen das Programm aus, das alle anderen Rechte durchsetzt.",
     erstPruefen: "Zum Aktualisieren zuerst nach Updates suchen.",
 
-    rueckwegTitel: "Rückweg",
+    rueckwegTitel: "Rollback",
     rueckweg: (v: string) => `zurück auf ${v}`,
     rueckwegWarum:
-      "Zurückgesetzt wird das Programm, nicht die Datenbank: Was neuere Fassungen an ihr geändert haben, bleibt.",
+      "Zurückgesetzt wird das Programm, nicht die Datenbank: Was neuere Versionen an ihr geändert haben, bleibt.",
     keineSicherung:
-      "Es liegt keine Sicherung einer vorherigen Fassung bereit — ein Rückweg ist erst nach dem ersten Update möglich.",
-    vorher: "Gesicherte Fassung",
+      "Es liegt kein Backup einer vorherigen Version bereit — ein Rollback ist erst nach dem ersten Update möglich.",
+    vorher: "Gesicherte Version",
 
     verlaufTitel: "Verlauf",
     keinVerlauf: "Noch kein Update-Protokoll — vor dem ersten Lauf gibt es nichts zu zeigen.",
-    laeuft: (v: string) => `Der Vorgang läuft — Ziel ist Fassung ${v}.`,
+    laeuft: (v: string) => `Der Vorgang läuft — Ziel ist Version ${v}.`,
     // Der Kern der Anzeige während des Laufs: Die Verbindung reißt ab, und das
     // ist der Normalfall.
     wartetAufNeustart:
       "Die Verbindung ist weg. Das Panel startet neu; diese Seite versucht es weiter.",
-    wiederDa: (v: string) => `Fassung ${v} antwortet. Der Vorgang ist durch.`,
+    wiederDa: (v: string) => `Version ${v} antwortet. Der Vorgang ist abgeschlossen.`,
     unveraendert: (v: string) =>
-      `Das Panel antwortet wieder, weiter mit Fassung ${v}. Der Verlauf unten sagt, woran es lag.`,
+      `Das Panel antwortet wieder, weiter mit Version ${v}. Der Verlauf unten sagt, woran es lag.`,
   },
 
   zert: {
@@ -535,14 +535,15 @@ export const t = {
     lesefehler: "Das Zertifikat ist nicht lesbar:",
     // Der Zwischenzustand, den man erklärt bekommen möchte.
     nochNichtBezogen:
-      "Der automatische Bezug ist eingestellt, aber noch kein Zertifikat bezogen. Ausgeliefert wird bis dahin das selbstsignierte.",
+      "Die automatische Ausstellung ist eingestellt, aber noch kein Zertifikat angefordert. Ausgeliefert wird bis dahin das selbstsignierte.",
     selbstsigniertWarnung:
-      "Selbstsigniert: Jeder Browser warnt beim Aufruf. Für ein beglaubigtes Zertifikat unten den automatischen Bezug einschalten.",
+      "Selbstsigniert: Jeder Browser warnt beim Aufruf. Für ein beglaubigtes Zertifikat unten die automatische Ausstellung einschalten.",
 
-    // ---------------------------------------------------------- Bezugsart ---
-    // „Bezugsart" und nicht „Bezug": Der Block darunter heißt so, und zwei
-    // Überschriften mit demselben Wort auf einem Schirm liest man als Versehen.
-    modusTitel: "Bezugsart",
+    // ------------------------------------------------- Art der Ausstellung ---
+    // „Art der Ausstellung" und nicht „Ausstellung": Der Block darunter heißt
+    // „Zertifikat anfordern", und zwei Überschriften mit demselben Wort auf
+    // einem Schirm liest man als Versehen.
+    modusTitel: "Art der Ausstellung",
     selbstsigniert: "selbstsigniert",
     selbstsigniertWas:
       "Das Panel erzeugt das Paar selbst. Kein Netzzugang nötig, aber jeder Browser warnt.",
@@ -551,7 +552,7 @@ export const t = {
       "Beglaubigt und wird vor Ablauf selbst erneuert. Braucht einen von außen erreichbaren Namen.",
 
     // ----------------------------------------------------- Einstellungen ---
-    einstellungenTitel: "Einstellungen für den Bezug",
+    einstellungenTitel: "Einstellungen für die Ausstellung",
     email: "Kontaktadresse",
     emailWarum:
       "Dorthin schickt Let's Encrypt die Warnung, wenn eine Erneuerung ausbleibt.",
@@ -593,21 +594,21 @@ export const t = {
     testverzeichnisWarum:
       "Stellt Zertifikate aus, denen kein Browser traut — dafür sind die Grenzen weit. Der richtige Ort, um einen DNS-Hook einzurichten, ohne die Produktionsgrenzen zu verbrauchen.",
     testverzeichnisAktiv:
-      "Es ist das Testverzeichnis eingestellt. Ein damit bezogenes Zertifikat wird von keinem Browser akzeptiert.",
+      "Es ist das Testverzeichnis eingestellt. Ein damit ausgestelltes Zertifikat wird von keinem Browser akzeptiert.",
     verwalteteDatei: (datei: string) => `Gespeichert wird in ${datei}`,
     speichern: "Einstellungen speichern",
-    nurLesen: "Dieses Konto darf den Zertifikatsbezug nicht ändern.",
+    nurLesen: "Dieses Konto darf die Zertifikatsausstellung nicht ändern.",
 
-    // ----------------------------------------------------------- Bezug ---
-    bezugTitel: "Bezug",
-    beziehen: "jetzt beziehen",
-    bezugLaeuft: "Es läuft ein Bezug.",
+    // ------------------------------------------- Zertifikat anfordern ---
+    bezugTitel: "Zertifikat anfordern",
+    beziehen: "jetzt anfordern",
+    bezugLaeuft: "Es läuft eine Anforderung.",
     bezugZuletzt: (zeit: string) => `Letzter Versuch: ${zeit}`,
     bezugFehler: "Der letzte Versuch ist gescheitert:",
     bezugWarum:
-      "Ein Bezug nimmt nichts weg: Das bisherige Zertifikat bleibt aktiv, bis ein neues da ist. Über DNS kann er einige Minuten dauern.",
+      "Eine Anforderung nimmt nichts weg: Das bisherige Zertifikat bleibt aktiv, bis ein neues da ist. Über DNS kann sie einige Minuten dauern.",
     bezugNurACME:
-      "Beziehen geht erst, wenn der automatische Bezug eingeschaltet und gespeichert ist.",
+      "Anfordern geht erst, wenn die automatische Ausstellung eingeschaltet und gespeichert ist.",
   },
 
   konto: {
@@ -722,7 +723,7 @@ export const t = {
     wesen:
       "Konten dieser Oberfläche, nicht des Servers: Damit kommt man in das Panel. Systemkonten für SSH stehen unter Benutzer & SSH.",
     nurOwner:
-      "Diese Fläche ist der Owner-Rolle vorbehalten. Wer Konten verwalten kann, kann jedem Zugang zu allem anderen geben.",
+      "Dieser Bereich ist der Owner-Rolle vorbehalten. Wer Konten verwalten kann, kann jedem Zugang zu allem anderen geben.",
     name: "Anmeldename",
     rolle: "Rolle",
     zustand: "Zustand",
@@ -839,9 +840,9 @@ export const t = {
     // Die Spalte der Handgriffe braucht eine Beschriftung, weil unter 600 Pixeln
     // jede Zelle zu einer Karte mit Namen wird — ein Knopf ohne Namen daneben
     // sähe nach einem Fehler aus.
-    handgriff: "Handgriff",
+    handgriff: "Aktion",
     // Werte.
-    alleFlaechen: "alle offenen Flächen",
+    alleFlaechen: "alle offenen Bereiche",
     nurLesen: "nur lesen",
     lesenUndSchreiben: "lesen und schreiben",
     ohneAblauf: "ohne Ablauf",
@@ -859,15 +860,15 @@ export const t = {
     rechte: "Rechte",
     rechteHinweis:
       "Nur lesen beschneidet den Token auf Abfragen. Die Rolle des Kontos bleibt die Obergrenze — mehr als Sie selbst kann er nie.",
-    flaechen: "Flächen",
+    flaechen: "Bereiche",
     flaechenHinweis:
-      "Keine Auswahl heißt: alle für Tokens offenen Flächen. Eine Auswahl ist eine Einschränkung — der Token gilt dann nur dort.",
+      "Keine Auswahl heißt: alle für Tokens offenen Bereiche. Eine Auswahl ist eine Einschränkung — der Token gilt dann nur dort.",
     fristFeld: "Laufzeit",
     fristHinweis:
       "Ohne Ablauf gilt der Token, bis ihn jemand widerruft. Das ist erlaubt und bleibt eine offene Rechnung; die Liste markiert solche Tokens dauerhaft.",
     gesperrtTitel: "Für Tokens gesperrt",
     gesperrtHinweis:
-      "Diese Flächen erreicht kein Token, unabhängig von Rolle und Auswahl: Er soll weder Tokens noch Panel-Zugänge anlegen und nicht den eigenen Anmeldeweg ändern können — sonst überlebt ein entwendeter Token seinen eigenen Widerruf.",
+      "Diese Bereiche erreicht kein Token, unabhängig von Rolle und Auswahl: Er soll weder Tokens noch Panel-Zugänge anlegen und nicht den eigenen Anmeldeweg ändern können — sonst überlebt ein entwendeter Token seinen eigenen Widerruf.",
     nurOwner: "Tokens verwaltet die Owner-Rolle. Wer Tokens vergeben kann, vergibt Zugänge.",
     // Die Einmal-Anzeige.
     einmalTitel: "Der Token",
@@ -968,7 +969,7 @@ export const t = {
     ab: (fassung: string) => `geplant für ${fassung}`,
     satz: (modul: string, fassung: string) =>
       fassung
-        ? `${modul} gibt es noch nicht. Das Modul ist für Fassung ${fassung} vorgesehen.`
+        ? `${modul} gibt es noch nicht. Das Modul ist für Version ${fassung} vorgesehen.`
         : `${modul} gibt es noch nicht.`,
     warum:
       "Der Menüpunkt steht trotzdem hier, weil er zum Leitbild gehört und die Reihenfolge der Module absehbar sein soll. Er führt auf diese Auskunft und nicht auf die Startseite — ein Klick, der stillschweigend woanders landet, sieht wie ein Fehler aus.",
@@ -1013,7 +1014,7 @@ export const t = {
     // Kein Termin, den niemand zugesagt hat — dieselbe Berichtigung wie bei
     // Docker. Was steht, ist die Reihenfolge, nicht das Datum.
     imBauDetail:
-      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit Rückweg. Jede Site mit TLS bezieht ihr eigenes Zertifikat — der Stand dazu steht unter „Zertifikate je Site“. Der 443-Block entsteht dabei erst, wenn ein Zertifikat vorliegt; nach dem ersten Bezug genügt einmal speichern. Was aussteht, ist die Erprobung gegen einen echten Server: Bis hierher lief nichts davon gegen ein laufendes nginx oder eine echte Zertifizierungsstelle. Die Begründung steht im Repository unter docs/18-webserver.md.",
+      "Sites lassen sich anlegen, ändern, abschalten und löschen; jede Änderung läuft über den Prüfer, `nginx -t` und eine Probe mit automatischem Rollback. Jede Site mit TLS bekommt ihr eigenes Zertifikat — der Stand dazu steht unter „Zertifikate je Site“. Der 443-Block entsteht dabei erst, wenn ein Zertifikat vorliegt; nach der ersten Ausstellung genügt einmal speichern. Was aussteht, ist die Erprobung gegen einen echten Server: Bis hierher lief nichts davon gegen ein laufendes nginx oder eine echte Zertifizierungsstelle. Die Begründung steht im Repository unter docs/18-webserver.md.",
 
     // Die Fläche „Sites".
     sites: "Sites",
@@ -1059,7 +1060,7 @@ export const t = {
     zielartUmleitung: "Umleitung",
     zielartPHP: "PHP-Anwendung",
     feldZiel: "Ziel",
-    zielHinweisProxy: "Die Gegenstelle, etwa http://127.0.0.1:3000.",
+    zielHinweisProxy: "Die Upstream-Adresse, etwa http://127.0.0.1:3000.",
     zielHinweisStatisch:
       "Das Verzeichnis, aus dem ausgeliefert wird. Außerhalb von /var/www und /srv fragt das Panel nach.",
     zielHinweisUmleitung: "Die vollständige Adresse, auf die umgeleitet wird.",
@@ -1078,7 +1079,7 @@ export const t = {
     uebernehmen: "übernehmen",
     feldTLS: "TLS (Port 443)",
     feldTLSHinweis:
-      "Der 443-Block entsteht erst, wenn für diese Site ein Zertifikat vorliegt. Der Bezug kommt mit einem späteren Schritt.",
+      "Der 443-Block entsteht erst, wenn für diese Site ein Zertifikat vorliegt. Angefordert wird es unter „Zertifikate je Site“; danach genügt einmal speichern.",
     feldUmleitung: "http auf https umleiten",
     speichern: "speichern",
     abbrechen: "abbrechen",
@@ -1102,21 +1103,21 @@ export const t = {
     portsUngeprueft:
       "Die Belegung der Webports ließ sich nicht ermitteln — `ss` fehlt oder antwortete nicht. Solange das so ist, bietet das Panel die Installation nicht an: Unbekannt ist kein Frei.",
     portsFrei: "Auf Port 80 und 443 hört derzeit niemand.",
-    flaecheUnbekannt: "Diese Fläche gibt es in diesem Modul nicht.",
+    flaecheUnbekannt: "Diesen Bereich gibt es in diesem Modul nicht.",
 
     // Die Fläche „Zertifikate je Site".
     zertifikate: "Zertifikate je Site",
     zertLaedt: "Zertifikatsstand wird gelesen …",
     zertWesen:
-      "Jede Site mit TLS bezieht ihr eigenes Zertifikat. Das Konto ist dasselbe wie das des Panels — deshalb setzt ein Bezug hier voraus, dass das Panel selbst über Let's Encrypt bezieht.",
+      "Jede Site mit TLS bekommt ihr eigenes Zertifikat. Das Konto ist dasselbe wie das des Panels — deshalb setzt eine Anforderung hier voraus, dass auch das Panel selbst über Let's Encrypt ausstellen lässt.",
     zertLeer: "Keine Site verlangt bisher TLS.",
     spalteZertSite: "Site",
     spalteZertNamen: "Namen",
     spalteZertZustand: "Zustand",
     spalteZertAussteller: "Aussteller",
-    spalteZertBezug: "Bezug",
-    zertBeziehen: "jetzt beziehen",
-    zertLaeuft: "Bezug läuft …",
+    spalteZertBezug: "Ausstellung",
+    zertBeziehen: "jetzt anfordern",
+    zertLaeuft: "Anforderung läuft …",
     zertKeins: "kein Zertifikat",
     zuZertifikaten: "zu den Zertifikaten",
   },
@@ -1142,7 +1143,7 @@ export const t = {
     composeEinspielen: "docker compose installieren",
     zuDiensten: "zu den Diensten",
     nurOwner:
-      "Dieses Konto darf den Zustand sehen, aber Docker nicht bedienen. Ein Container mit Zugriff auf das Wirtsdateisystem ist root auf dem Server — deshalb liegt dieses Modul bei der Owner-Rolle.",
+      "Dieses Konto darf den Zustand sehen, aber Docker nicht bedienen. Ein Container mit Zugriff auf das Dateisystem des Hosts ist root auf dem Server — deshalb liegt dieses Modul bei der Owner-Rolle.",
     // Was in dieser Fassung noch nicht da ist, steht als Satz da statt als
     // leerer Bereich. Eine Fläche, die nichts sagt, sieht aus wie ein Fehler.
     imBau: "Was hier noch fehlt",
@@ -1192,22 +1193,22 @@ export const t = {
       "Dieser Container läuft privilegiert. Er hat damit auf dem Wirt praktisch die Rechte von root.",
     mounts: "Eingehängt",
     netze: "Netze",
-    bind: "Wirtspfad",
+    bind: "Host-Pfad",
     volume: "Volume",
     nurLesen: "nur lesen",
     stats: "Auslastung",
     cpu: "CPU",
     speicher: "Speicher",
     netz: "Netz",
-    platte: "Platte",
+    platte: "Datenträger",
     prozesse: "Prozesse",
-    protokoll: "Protokoll",
+    protokoll: "Logs",
     keinProtokoll: "Der Container hat nichts ausgegeben.",
     verfolgen: "verfolgen",
     anhalten: "anhalten",
     folgerVoll:
-      "Es sehen schon zu viele Verbindungen Containerprotokollen zu. Bitte einen anderen Tab schließen.",
-    verworfen: (n: number) => `${n} Zeilen verworfen — der Container schreibt schneller als die Leitung überträgt.`,
+      "Es sind bereits zu viele Container-Logs offen. Bitte einen anderen Tab schließen.",
+    verworfen: (n: number) => `${n} Zeilen verworfen — der Container schreibt schneller, als die Verbindung überträgt.`,
 
     // Bestand
     bestand: "Bestand",
@@ -1228,18 +1229,18 @@ export const t = {
     inGebrauch: "in Gebrauch",
     eingebaut: "eingebaut",
     entfernen: "entfernen",
-    keineImages: "Keine Images in der lokalen Ablage.",
+    keineImages: "Keine Images lokal vorhanden.",
     keineVolumes: "Keine Volumes.",
     keineNetze: "Keine Netze.",
     // Aufräumen. Der Text sagt je Knopf, was er trifft — "aufräumen" allein
     // befähigt zu keiner Entscheidung.
     aufraeumen: "aufräumen",
-    verwaisteWeg: "namenlose Images wegräumen",
-    alleUnbenutztenWeg: "alle unbenutzten Images wegräumen",
-    gestoppteWeg: "gestoppte Container wegräumen",
-    volumesWeg: "ungenutzte Volumes wegräumen",
-    netzeWeg: "ungenutzte Netze wegräumen",
-    cacheWeg: "Baucache leeren",
+    verwaisteWeg: "namenlose Images entfernen",
+    alleUnbenutztenWeg: "alle unbenutzten Images entfernen",
+    gestoppteWeg: "gestoppte Container entfernen",
+    volumesWeg: "ungenutzte Volumes entfernen",
+    netzeWeg: "ungenutzte Netze entfernen",
+    cacheWeg: "Build-Cache leeren",
 
     // Stacks
     stacks: "Stacks",
@@ -1275,8 +1276,8 @@ export const t = {
 
     // Stacks bedienen
     stackUp: "starten",
-    stackDown: "herunterfahren",
-    stackDownVolumes: "herunterfahren + Volumes löschen",
+    stackDown: "stoppen und entfernen",
+    stackDownVolumes: "stoppen, entfernen + Volumes löschen",
     stackPull: "Images holen",
     stackRestart: "neu starten",
     stackLoeschen: "löschen",
@@ -1303,7 +1304,7 @@ export const t = {
     prueferNichtGeprueft:
       "Die Datei ließ sich nicht als Compose lesen. Sie wurde damit nicht geprüft — das heißt nicht, dass sie in Ordnung ist.",
     prueferNurRoh:
-      "Geprüft wurde nur die Rohdatei, nicht die von Compose aufgelöste Fassung. YAML-Anker, extends und env_file können daran vorbei.",
+      "Geprüft wurde nur die Rohdatei, nicht die von Compose aufgelöste Konfiguration. YAML-Anker, extends und env_file können daran vorbei.",
     prueferOK: "Keine Beanstandung.",
     prueferHinweise: "Nicht geprüft und aufgefallen",
     prueferAussen: "Zugriff auf Serververzeichnisse",
@@ -1376,7 +1377,7 @@ export const t = {
       "Ob der Stack zulässig ist, entscheidet weiter der Prüfer auf dem Server — nicht dieses Formular.",
 
     flaecheUnbekannt:
-      "Diese Fläche gibt es unter Docker nicht. Vielleicht ist der Verweis alt oder verschrieben.",
+      "Diesen Bereich gibt es unter Docker nicht. Vielleicht ist der Verweis alt oder verschrieben.",
 
     // Ports
     ports: "Ports",
@@ -1404,9 +1405,9 @@ export const t = {
     spalteAktion: "Aktion",
     spalteObjekt: "Objekt",
     ereignisFolgerVoll:
-      "Es sehen schon zu viele Verbindungen dem Ereignisstrom zu. Bitte einen anderen Tab schließen.",
+      "Es sind bereits zu viele Verbindungen zum Event-Stream offen. Bitte einen anderen Tab schließen.",
     ereignisVerworfen: (n: number) =>
-      `${n} Ereignisse verworfen — Docker schreibt schneller als die Leitung überträgt.`,
+      `${n} Ereignisse verworfen — Docker schreibt schneller, als die Verbindung überträgt.`,
 
     // Update-Prüfung
     // „Aktualität der Images" und nicht „Images": Unter Bestand steht schon
@@ -1420,7 +1421,7 @@ export const t = {
     updatesPruefen: "jetzt prüfen",
     updatesGeprueftAm: "zuletzt geprüft am",
     updatesWiederAb: "wieder möglich ab",
-    updatesNeu: "neuere Fassung",
+    updatesNeu: "neuere Version",
     updatesAktuell: "aktuell",
     updatesUngeprueft: "nicht geprüft",
     // „Nicht geprüft" ist die ehrlichste der drei Zahlen — und der Satz dazu

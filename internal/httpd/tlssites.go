@@ -140,7 +140,7 @@ func (s *Server) siteZertsAbgleichen(ctx context.Context) {
 					s.siteZerts.setzeStand(si.Name, siteZertStand{
 						Versuch: time.Now(),
 						Fehler: "Diese Site hat keinen Domainnamen, für den sich ein " +
-							"Zertifikat beziehen ließe.",
+							"Zertifikat anfordern ließe.",
 					})
 					continue
 				}

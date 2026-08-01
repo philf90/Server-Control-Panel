@@ -183,12 +183,12 @@ func TestAPIUpdateEinspielen(t *testing.T) {
 		if strings.Contains(p, "startet dabei neu") {
 			neustart = true
 		}
-		if strings.Contains(p, "Rückweg") {
+		if strings.Contains(p, "Rollback") {
 			rueckweg = true
 		}
 	}
 	if !neustart || !rueckweg {
-		t.Errorf("die Frage nennt Neustart und Rückweg nicht beide: %v", frage.Punkte)
+		t.Errorf("die Frage nennt Neustart und Rollback nicht beide: %v", frage.Punkte)
 	}
 	if len(ops.selfUpdates) != 0 {
 		t.Fatal("ohne Bestätigung wurde ein Vorgang gestartet")
@@ -330,11 +330,11 @@ func TestAPIUpdateRueckwegOhneSicherung(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("Status = %d, erwartet 400: %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "Sicherung") {
+	if !strings.Contains(rec.Body.String(), "Backup") {
 		t.Errorf("der Grund fehlt: %s", rec.Body.String())
 	}
 	if len(ops.selfUpdates) != 0 {
-		t.Error("es wurde ein Rückweg ohne Sicherung gestartet")
+		t.Error("es wurde ein Rollback ohne Backup gestartet")
 	}
 }
 

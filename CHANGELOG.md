@@ -9,8 +9,35 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Hinzugefügt
+
+- **Eine Vorgabe für die Sprache der Oberfläche**
+  ([docs/19-sprache-der-oberflaeche.md](docs/19-sprache-der-oberflaeche.md)):
+  Sichtbare Texte sind technisch, nicht literarisch, und wo im deutschen
+  Fachgebrauch das englische Wort gilt — Container, Volume, Stack, Rollback,
+  Backup, Build-Cache, Upstream, Login-Shell, Stream, Logs, Host —, benutzt das
+  Panel das englische Wort. Eine gesuchte deutsche Entsprechung ist keine
+  Verbesserung, sondern eine Übersetzungsleistung, die der Lesende erbringen
+  muss, bevor er handeln kann.
+- **`internal/ui/wortwahl_test.go` als Sperrklinke dazu.** Die Liste der
+  verbrauchten Wörter wird mechanisch geprüft: in `web/src/lib/texte.ts` die
+  Werte, im Server über `go/ast` nur die Zeichenkettenliterale. Kommentare
+  bleiben ausgenommen — sie tragen die Begründungen und dürfen die alten Wörter
+  nennen. Die Prüfung fand beim ersten Lauf sechs Stellen, die der Durchsicht
+  von Hand entgangen waren.
+
 ### Geändert
 
+- **Die Wortwahl der ganzen Oberfläche ist auf technische Begriffe gezogen.**
+  Betroffen sind rund neunzig sichtbare Texte in der Oberfläche und im Server:
+  *Fassung* → **Version**, *Rückweg* → **Rollback**, *Fläche* → **Bereich**,
+  *Handgriff* → **Aktion**, *Anmeldeschale* → **Login-Shell**, *Baucache* →
+  **Build-Cache**, *Krumen* → **Pfadleiste**, *Wirtspfad* → **Host-Pfad**,
+  *Gegenstelle* → **Upstream-Adresse**, *Platte* → **Datenträger**, *Bezug* →
+  **Ausstellung / anfordern**, *Container-Protokoll* → **Logs**, *Leitung* →
+  **Verbindung**, *herunterfahren* (für `compose down`) → **stoppen und
+  entfernen** — das war nicht nur altmodisch, sondern falsch: `down` entfernt
+  die Container, es fährt nichts herunter.
 - **„einspielen" heißt jetzt überall „installieren".** Die Oberfläche sagte
   „nginx einspielen", „Docker einspielen", „ufw einspielen", „Alle einspielen"
   und „Das Panel kann es aus den Paketquellen der Distribution einspielen" —

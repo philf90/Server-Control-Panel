@@ -236,6 +236,7 @@ Binärgröße. Begründung in
 | [docs/16-neukonzeption.md](docs/16-neukonzeption.md) | **Der aktuelle Bauplan:** Scope A+, die Stufen 0.4 bis 1.0, das Gestaltungssystem der neuen Oberfläche |
 | [docs/17-docker.md](docs/17-docker.md) | Modul Docker (Stufe 0.5): Zuschnitt, Compose-Prüfer, Bestätigungsstufen, Vergleich mit Arcane, Angriffsdurchgang mit seinen Funden |
 | [docs/18-webserver.md](docs/18-webserver.md) | Modul Webserver (Stufe 0.6): warum nur nginx verwaltet wird, Sites als Felder, Site-Prüfer, der Port-80-Befund, der mehrfähige Zertifikatshalter und der Angriffsdurchgang mit seinen fünf Befunden |
+| [docs/19-sprache-der-oberflaeche.md](docs/19-sprache-der-oberflaeche.md) | Wortwahl der sichtbaren Texte: technisch statt literarisch, wann das englische Fachwort gilt, und die geprüfte Liste der verbrauchten Wörter |
 
 Dazu im Wurzelverzeichnis: [SECURITY.md](SECURITY.md) (Schwachstellen melden),
 [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) und

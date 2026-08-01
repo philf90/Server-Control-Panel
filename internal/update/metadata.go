@@ -62,7 +62,7 @@ func Platform() string { return runtime.GOOS + "_" + runtime.GOARCH }
 func (r Release) ArtifactFor(platform string) (Artifact, error) {
 	a, ok := r.Artifacts[platform]
 	if !ok {
-		return Artifact{}, fmt.Errorf("für %s gibt es in Fassung %s kein Archiv", platform, r.Version)
+		return Artifact{}, fmt.Errorf("für %s gibt es in Version %s kein Archiv", platform, r.Version)
 	}
 	if err := a.validate(); err != nil {
 		return Artifact{}, fmt.Errorf("archiv für %s: %w", platform, err)

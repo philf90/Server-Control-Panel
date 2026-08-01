@@ -363,7 +363,7 @@ var builtinDeniedPaths = []deniedPath{
 	{"/etc/asylum/tls/*.key", "privater TLS-Schlüssel des Panels"},
 	{"/var/lib/asylum/asylum.db*", "Datenbank des Panels: Passwort-Hashes, Sitzungen, Passkeys"},
 	{"/var/lib/asylum/acme", "ACME-Kontoschlüssel und Zertifikatsmaterial"},
-	{"/var/lib/asylum/releases", "Programmfassungen für den Rückweg eines Updates"},
+	{"/var/lib/asylum/releases", "Programmversionen für das Rollback eines Updates"},
 	{"/root/.ssh/id_*", "privater SSH-Schlüssel"},
 	{"/home/*/.ssh/id_*", "privater SSH-Schlüssel"},
 }

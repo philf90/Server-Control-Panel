@@ -47,7 +47,7 @@ func (s *Server) rolleZurueck(r *http.Request, pfad string, vorher privops.TextF
 	}); err != nil {
 		s.audit(r, "files.edit.rollback", pfad, store.ResultError, err.Error())
 		return "Der vorherige Stand ließ sich nicht wiederherstellen: " + err.Error() +
-			" — die Datei liegt jetzt in der abgelehnten Fassung da."
+			" — die Datei liegt jetzt in der abgelehnten Version da."
 	}
 	s.audit(r, "files.edit.rollback", pfad, store.ResultOK, "vorheriger Stand wiederhergestellt")
 	return "Der vorherige Stand ist wiederhergestellt."

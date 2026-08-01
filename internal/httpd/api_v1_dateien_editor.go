@@ -197,7 +197,7 @@ func (s *Server) handleAPIFileTextSave(w http.ResponseWriter, r *http.Request) {
 			}
 			s.apiJSON(w, http.StatusPreconditionFailed, apiTextKonflikt{
 				Fehler: "Die Datei wurde zwischenzeitlich außerhalb des Editors geändert. " +
-					"Ihre Fassung ist nicht verloren — sie steht weiter im Editor. " +
+					"Ihre Version ist nicht verloren — sie steht weiter im Editor. " +
 					"Ein erneutes Speichern überschreibt die fremde Änderung.",
 				Jetzt: s.textAus(jetzt),
 			})

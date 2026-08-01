@@ -126,9 +126,9 @@ func (s *Server) dashboardSignals(ctx context.Context, snap metrics.Snapshot) []
 			}
 		}
 		if len(neu) > 0 {
-			titel := neu[0] + ": neuere Fassung verfügbar"
+			titel := neu[0] + ": neuere Version verfügbar"
 			if len(neu) > 1 {
-				titel = fmt.Sprintf("%d Images haben eine neuere Fassung", len(neu))
+				titel = fmt.Sprintf("%d Images haben eine neuere Version", len(neu))
 			}
 			out = append(out, dashSignal{
 				Level: "warn", Tag: "Docker", Title: titel,

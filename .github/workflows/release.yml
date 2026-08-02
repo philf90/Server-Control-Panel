@@ -143,6 +143,41 @@ jobs:
           cp ../src/packaging/srvpanel-archive-keyring.gpg apt/srvpanel-archive-keyring.gpg
           cp ../src/packaging/srvpanel-archive-keyring.asc apt/KEY.asc
 
+      # Die Startseite kommt aus dem Repository, nicht aus diesem Branch.
+      #
+      # Vorher lag sie ausschließlich hier auf gh-pages und wurde von keinem
+      # Lauf angefasst. Sie hat deshalb den ganzen Namenswechsel überlebt und
+      # noch „Project Asylum" angezeigt, während das Repository längst
+      # SrvPanel auslieferte. Was nur an einer Stelle steht, die niemand
+      # baut, veraltet unbemerkt.
+      #
+      # Version, Kanal und beide Schlüssel werden beim Kopieren eingesetzt,
+      # damit die Seite nicht ein zweites Mal von der Wirklichkeit abweichen
+      # kann.
+      - name: Startseite veröffentlichen
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+          CHANNEL: ${{ steps.channel.outputs.name }}
+        run: |
+          set -euo pipefail
+
+          fingerprint="$(gpg --show-keys --with-colons src/packaging/srvpanel-archive-keyring.gpg \
+                         | awk -F: '/^fpr/{print $10; exit}')"
+          minisign_pub="$(tail -n1 src/packaging/minisign.pub)"
+
+          sed -e "s|__VERSION__|${VERSION}|g" \
+              -e "s|__CHANNEL__|${CHANNEL}|g" \
+              -e "s|__GPG_FINGERPRINT__|${fingerprint}|g" \
+              -e "s|__MINISIGN_PUB__|${minisign_pub}|g" \
+              src/packaging/pages/index.html > pages/index.html
+
+          # Keine Platzhalter dürfen stehenbleiben — eine Seite mit
+          # __VERSION__ darauf ist schlimmer als eine veraltete.
+          if grep -n '__[A-Z_]*__' pages/index.html; then
+            echo "::error::In der Startseite sind Platzhalter übriggeblieben."
+            exit 1
+          fi
+
       - name: APT-Repository aktualisieren
         env:
           VERSION: ${{ needs.package.outputs.version }}
@@ -167,14 +202,23 @@ jobs:
           mkdir -p "apt/dists/${CHANNEL}/main/binary-amd64" "apt/dists/${CHANNEL}/main/binary-arm64"
 
           # Jedes Paket unter seinem eigenen Namen in den Pool — Debian-Konvention
-          # pool/main/<anfangsbuchstabe>/<paket>/. Das Paket des Vorgängers liegt
-          # dort weiter und wird nicht angefasst: Bestehende Installationen sollen
-          # beim nächsten „apt update" nicht ins Leere laufen.
+          # pool/main/<anfangsbuchstabe>/<paket>/.
+          #
+          # Das Paket des Vorgängers liegt daneben und wird von hier an nicht
+          # mehr angefasst. „Von hier an": Der erste Lauf unter dem neuen Namen
+          # hat seine älteren Fassungen aus dem Pool geräumt, weil das
+          # Zurückschneiden weiter unten über alle Verzeichnisse lief. Das ist
+          # behoben, aber nicht rückgängig gemacht — die Entscheidung war,
+          # die 404 MiB nicht zurückzuholen. Geblieben sind asylum-panel 0.6.1
+          # und 0.6.2; bestehende Installationen können damit weiter
+          # aktualisieren, ältere Fassungen sind nicht mehr installierbar.
+          published=""
           for deb in ../dist/*.deb; do
             name="$(dpkg-deb -f "$deb" Package)"
             dir="apt/pool/main/${name:0:1}/${name}"
             mkdir -p "$dir"
             cp "$deb" "$dir/"
+            published="${published} ${name}"
           done
 
           # Pages fasst rund 1 GB. Ein .deb dieses Panels liegt bei 30–80 MB,
@@ -182,8 +226,18 @@ jobs:
           # sind weiter über die GitHub-Releases erreichbar. Ohne diese Regel ist
           # die Grenze nach etwa einem Jahr erreicht — und dann bricht nicht der
           # Upload, sondern die Auslieferung an alle.
-          for package_dir in apt/pool/main/*/*/; do
-            ls -1t "${package_dir}"*.deb 2>/dev/null | tail -n +6 | xargs -r rm -f
+          #
+          # **Nur die Pakete dieses Laufs.** Vorher lief die Schleife über
+          # jedes Verzeichnis unter pool/main. Der erste Lauf unter dem neuen
+          # Namen hat damit 92 Dateien des Vorgängers gelöscht — 404 MiB, auf
+          # die der stable-Index weiter verweist. Zwanzig Zeilen weiter oben
+          # stand zur selben Zeit, das Paket des Vorgängers werde „nicht
+          # angefasst". Eine Regel, die über alles läuft, kennt den
+          # Unterschied zwischen eigenen und fremden Paketen nicht; sie muss
+          # ihn übergeben bekommen.
+          for name in $(echo "${published}" | tr ' ' '\n' | grep -v '^$' | sort -u); do
+            package_dir="apt/pool/main/${name:0:1}/${name}"
+            ls -1t "${package_dir}"/*.deb 2>/dev/null | tail -n +6 | xargs -r rm -f
           done
 
           # Aus apt heraus, nicht darüber: apt-ftparchive schreibt den übergebenen

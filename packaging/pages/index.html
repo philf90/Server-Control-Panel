@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SrvPanel</title>
+<style>
+:root{color-scheme:light dark}
+body{margin:0;padding:3rem 1.25rem;font:16px/1.6 system-ui,sans-serif;
+     max-width:44rem;margin-inline:auto}
+h1{margin:0;font-size:1.6rem}
+.claim{margin:.35rem 0 2rem;color:#2f6f4f;font-size:.85rem;font-weight:600}
+pre{padding:1rem;border-radius:8px;overflow-x:auto;
+    background:rgba(127,127,127,.12)}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.9em}
+h2{margin:2rem 0 .5rem;font-size:1.05rem}
+.hint{font-size:.85rem;opacity:.75}
+.status{padding:.9rem 1rem;border-radius:8px;font-size:.9rem;
+        background:rgba(180,120,20,.14);border:1px solid rgba(180,120,20,.35)}
+footer{margin-top:2.5rem;font-size:.8rem;opacity:.7}
+</style>
+</head>
+<body>
+<h1>SrvPanel</h1>
+<p class="claim">Kunden · Abonnements · Web · PHP · Datenbanken · DNS · Dateien · Sicherungen</p>
+<p>Hosting-Panel für einen einzelnen Linux-Server, vergleichbar mit Plesk:
+Der Betreiber verwaltet Kunden, Kunden verwalten ihre Abonnements — ohne SSH
+und ohne Zugriff auf fremde Daten. Ein Systembenutzer je Abonnement.</p>
+
+<p class="status"><strong>Vorabversion __VERSION__.</strong> Installierbar,
+einrichtbar, aktualisierbar — aber noch ohne Anmeldung und ohne
+Fachfunktionen. Gebaut sind das Fundament und das Werkzeug: der Agent mit
+seiner Trennlinie zwischen Anwendung und Systemrechten, die Adminübersicht,
+Paket, Ersteinrichtung und Update mit Rückweg. Für den Betrieb echter Kunden
+ist das noch nichts.</p>
+
+<h2>Installieren</h2>
+<pre><code>curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
+sudo sh install.sh</code></pre>
+<p>Danach einmal <code>sudo srvpanel setup</code>: Das legt Datenbank,
+Anwendungsschlüssel und ein selbstsigniertes Zertifikat an, schreibt den
+nginx-Server-Block und startet die Dienste. Der Lauf ist wiederholbar und
+wechselt dabei keinen Schlüssel.</p>
+
+<h2>Über apt</h2>
+<pre><code>sudo curl -fsSL --proto '=https' --tlsv1.2 \
+  https://repo.cloudsrv24.de/apt/srvpanel-archive-keyring.gpg \
+  -o /usr/share/keyrings/srvpanel-archive-keyring.gpg
+sudo tee /etc/apt/sources.list.d/srvpanel.sources &gt;/dev/null &lt;&lt;'EOF'
+Types: deb
+URIs: https://repo.cloudsrv24.de/apt
+Suites: __CHANNEL__
+Components: main
+Signed-By: /usr/share/keyrings/srvpanel-archive-keyring.gpg
+EOF
+sudo apt update &amp;&amp; sudo apt install srvpanel</code></pre>
+<p class="hint">Solange nur Vorabversionen erschienen sind, liegt das Paket
+ausschließlich im Kanal <code>beta</code>. Der Kanal <code>stable</code>
+bekommt es mit der ersten Fassung ohne Bindestrich in der Version.</p>
+
+<h2>Signaturschlüssel</h2>
+<p>Artefakte, minisign (<a href="/minisign.pub">minisign.pub</a>):</p>
+<pre><code>__MINISIGN_PUB__</code></pre>
+<p>APT-Repository, OpenPGP (<a href="/apt/KEY.asc">KEY.asc</a>):</p>
+<pre><code>__GPG_FINGERPRINT__</code></pre>
+
+<h2>Der Vorgänger</h2>
+<p class="hint">Bis 0.6.2 hieß dieses Repository <em>Project Asylum</em> — ein
+schlankes Control Panel als einzelnes Go-Binary. SrvPanel ist ein Neubau, kein
+Nachfolger im Sinne eines Updates: andere Sprache, anderes Datenmodell, kein
+Migrationspfad. Bestehende Installationen laufen unter dem Paketnamen
+<code>asylum-panel</code> im Kanal <code>stable</code> weiter; ihr Quellstand
+liegt im Branch <code>legacy/asylum</code>.</p>
+
+<footer>
+Version __VERSION__ ·
+<a href="https://github.com/philf90/Server-Control-Panel">Quellcode</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/releases/tag/v__VERSION__">Release-Notizen</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/blob/main/SECURITY.md">Sicherheit</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/blob/main/CHANGELOG.md">Changelog</a> ·
+AGPL-3.0-only
+</footer>
+</body>
+</html>

@@ -6,21 +6,21 @@ namespace App\Providers;
 
 use App\Support\Metrics\Collector;
 use App\Support\Metrics\Store;
-use CloudSrv\Agent\Client;
 use Illuminate\Support\ServiceProvider;
+use SrvPanel\Agent\Client;
 
-final class CloudSrvServiceProvider extends ServiceProvider
+final class SrvPanelServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->app->singleton(Client::class, static fn (): Client => new Client(
-            (string) config('cloudsrv.agent.socket'),
-            (int) config('cloudsrv.agent.timeout'),
+            (string) config('srvpanel.agent.socket'),
+            (int) config('srvpanel.agent.timeout'),
         ));
 
         $this->app->singleton(Store::class, static fn (): Store => new Store(
-            (string) config('cloudsrv.metrics.directory'),
-            (int) config('cloudsrv.metrics.retention'),
+            (string) config('srvpanel.metrics.directory'),
+            (int) config('srvpanel.metrics.retention'),
         ));
 
         $this->app->bind(Collector::class, static fn ($app): Collector => new Collector(

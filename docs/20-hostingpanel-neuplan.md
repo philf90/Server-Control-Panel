@@ -30,13 +30,13 @@ Diese neun Punkte sind entschieden und der Rahmen für alles Weitere.
 | Rollenmodell | Admin → Kunde → Zusatzbenutzer | Keine Reseller-Ebene in der 1.0, aber im Modell vorbereitet (§5.4) |
 | Funktionsumfang 1.0 | Web + PHP + Datenbanken, DNS autoritativ, FTP/SFTP, Cron, Backups | Mail ist **nicht** in der 1.0 |
 | Mail | spätere Ausbaustufe | Datenmodell, DNS-Zonen, Backups und Rechte werden so geschnitten, dass Postfix/Dovecot ohne Umbau andocken (§5.5) |
-| Name | **CloudSrv** | Schließt an die bestehende Infrastruktur an: `repo.cloudsrv24.de`, Keyring, Landingpage. Begründung und der verworfene Vorschlag in §12.1 |
+| Name | **SrvPanel** | Beschreibend, kurz, kollisionsarm. Die beiden verworfenen Vorschläge und die Markenrecherche in §12.1 |
 | Lizenz | **AGPL-3.0-only**, Copyright beim Projektinhaber | Quelle offen, Zweitlizenz jederzeit möglich; eine Auflage schlägt in die Oberfläche durch (§12.2) |
 
-**Bezeichner.** Systembenutzer `cloudsrv`, Pfade `/etc/cloudsrv`,
-`/var/lib/cloudsrv`, `/opt/cloudsrv`, `/var/log/cloudsrv`, Units
-`cloudsrv-web`, `cloudsrv-worker`, `cloudsrv-agentd`, `cloudsrv-metrics`,
-Paket `cloudsrv-panel`, Kommandozeile `cloudsrv`. Im Fließtext dieses
+**Bezeichner.** Systembenutzer `srvpanel`, Pfade `/etc/srvpanel`,
+`/var/lib/srvpanel`, `/opt/srvpanel`, `/var/log/srvpanel`, Units
+`srvpanel-web`, `srvpanel-worker`, `srvpanel-agentd`, `srvpanel-metrics`,
+Paket `srvpanel`, Kommandozeile `srvpanel`. Im Fließtext dieses
 Dokuments steht weiter „das Panel".
 
 ## 2. Leitbild
@@ -77,7 +77,7 @@ Dokuments steht weiter „das Panel".
    schreiben würde.
 
    Ausgenommen ist genau eines: Produkt- und Systembezeichner, die außen
-   sichtbar sind (`cloudsrv`, `cloudsrv-agentd`, `repo.cloudsrv24.de`).
+   sichtbar sind (`srvpanel`, `srvpanel-agentd`, `repo.cloudsrv24.de`).
 
 ## 3. Nicht-Ziele der 1.0
 
@@ -108,17 +108,17 @@ gab:
 ```
    Browser ──TLS──▶ nginx (Panel-vhost, Port 8443)
                       │
-                      ├─▶ php-fpm Pool „cloudsrv"        (Benutzer cloudsrv, kein root)
+                      ├─▶ php-fpm Pool „srvpanel"        (Benutzer srvpanel, kein root)
                       │      Laravel: HTTP, Inertia, API v1, Policies
                       │
-                      ├─▶ cloudsrv-worker (Benutzer cloudsrv)
+                      ├─▶ srvpanel-worker (Benutzer srvpanel)
                       │      Warteschlange, lang laufende Vorgänge
                       │
-                      └──unix socket──▶ cloudsrv-agentd   (root, minimal)
-                                          /run/cloudsrv/agent.sock  0660 root:cloudsrv
+                      └──unix socket──▶ srvpanel-agentd   (root, minimal)
+                                          /run/srvpanel/agent.sock  0660 root:srvpanel
 ```
 
-**`cloudsrv-agentd`** ist der einzige Prozess mit Systemrechten. Er ist ein
+**`srvpanel-agentd`** ist der einzige Prozess mit Systemrechten. Er ist ein
 eigenständiges PHP-CLI-Programm **ohne Framework und ohne Composer-Abhängigkeiten**
 (nur `json`, `posix`, `sockets`, `pcntl`) — die Menge Code, die als root läuft,
 soll klein genug bleiben, um sie ganz zu lesen. Das Protokoll ist bewusst so
@@ -150,7 +150,7 @@ werden kann, ohne dass sich für die Anwendung etwas ändert.
   keine Shell, Argumente als Array, feste Umgebung (`LC_ALL=C`), Zeitlimit je
   Operation, Ausgabe bei 4 MiB gekappt.
 - **Doppeltes Protokoll.** Jeder Auftrag wird auf beiden Seiten protokolliert —
-  in der Panel-Datenbank (mit Person) und in `/var/log/cloudsrv/agent.log` (mit
+  in der Panel-Datenbank (mit Person) und in `/var/log/srvpanel/agent.log` (mit
   ausgeführter Kommandozeile). Wer beides vergleicht, sieht, ob am Panel vorbei
   gearbeitet wurde.
 
@@ -169,7 +169,7 @@ Distributionspakete liefern je Release genau eine (Debian 12: 8.2, Ubuntu
 24.04: 8.3, Debian 13: 8.4).
 
 - Das Panel bringt **seine eigene PHP-Version** mit, gebaut ins eigene Paket
-  und installiert nach `/opt/cloudsrv/php/`. Es hängt nicht an der
+  und installiert nach `/opt/srvpanel/php/`. Es hängt nicht an der
   PHP-Version des Systems und ändert sie nicht.
 - Für Kundenwebseiten kommen **mehrere PHP-Versionen** (7.4 bis 8.4, je mit
   `-fpm`) aus **`deb.sury.org`**, eingebunden als zusätzliche apt-Quelle mit
@@ -205,13 +205,13 @@ Sicherheitsbetrachtung als solche benannt, nicht verschwiegen.
 
 | Ort | Inhalt |
 |---|---|
-| `/opt/cloudsrv/releases/<version>/` | Anwendung, `root:root`, für `cloudsrv` nur lesbar |
-| `/opt/cloudsrv/current` | Symlink auf die aktive Version |
-| `/etc/cloudsrv/cloudsrv.conf` | Konfiguration, Schlüsselmaterial (`root:cloudsrv 0640`) |
-| `/var/lib/cloudsrv/` | Zustand, Zertifikate, Vorlagen-Overrides, Sicherungen |
-| `/var/log/cloudsrv/` | `cloudsrv.log`, `agent.log`, `audit.log` (append-only, logrotate) |
+| `/opt/srvpanel/releases/<version>/` | Anwendung, `root:root`, für `srvpanel` nur lesbar |
+| `/opt/srvpanel/current` | Symlink auf die aktive Version |
+| `/etc/srvpanel/srvpanel.conf` | Konfiguration, Schlüsselmaterial (`root:srvpanel 0640`) |
+| `/var/lib/srvpanel/` | Zustand, Zertifikate, Vorlagen-Overrides, Sicherungen |
+| `/var/log/srvpanel/` | `srvpanel.log`, `agent.log`, `audit.log` (append-only, logrotate) |
 | `/var/www/vhosts/<abo>/` | Abo-Wurzel = Home des Systembenutzers |
-| MariaDB `cloudsrv` | Panel-Datenbank, eigener DB-Benutzer, nur über Socket |
+| MariaDB `srvpanel` | Panel-Datenbank, eigener DB-Benutzer, nur über Socket |
 
 **Panel-Datenbank ist MariaDB**, nicht SQLite: Das Panel verwaltet ohnehin
 einen MariaDB-Server, mehrere Prozesse (Web, Worker, Zeitpläne) schreiben
@@ -253,9 +253,9 @@ stehen hier, damit sie nicht beim Neubau verlorengehen:
    und Wert; sonst ist die Linie Dekoration.
 
 **Die Erfassung muss neu gebaut werden**, denn PHP-FPM hält zwischen zwei
-Anfragen nichts im Speicher: `cloudsrv-metrics` ist ein Dauerlauf unter
+Anfragen nichts im Speicher: `srvpanel-metrics` ist ein Dauerlauf unter
 systemd, der alle 10 Sekunden aus `/proc` liest und in **Ringpuffer-Dateien
-fester Größe** unter `/var/lib/cloudsrv/metrics/` schreibt (24 Stunden je
+fester Größe** unter `/var/lib/srvpanel/metrics/` schreibt (24 Stunden je
 Kennzahl, wenige MB, kein Wachstum). Kein Redis, keine Zeitreihendatenbank,
 keine wachsende Tabelle. Für die Langzeitsicht verdichtet ein Tageslauf die
 abo-bezogenen Werte in eine schmale Tabelle.
@@ -518,17 +518,17 @@ noch Fachfunktion.
 - Repo neu geschnitten: `app/` (Laravel), `agent/` (PHP-CLI, framework-frei),
   `resources/js/` (Vue), `packaging/`, `docs/`, `tests/`
 - Bauweg: Composer ohne Dev-Abhängigkeiten, Vite-Build, alles in ein `.deb`
-  mit `/opt/cloudsrv/releases/<version>` und Symlink-Umschaltung
+  mit `/opt/srvpanel/releases/<version>` und Symlink-Umschaltung
 - Installer `install.sh`: Vorbedingungen prüfen (Distribution, Speicher,
   Quota-fähiger Mount, belegte Ports), Pakete installieren, Panel-PHP,
   MariaDB, nginx, Datenbank anlegen, systemd-Units, Einmal-Link für die
   Ersteinrichtung
 - Bestehende apt-Quelle weiterverwendet (Branch `gh-pages`,
   `repo.cloudsrv24.de`), neues Paket neben dem eingefrorenen alten (§13)
-- **Ersteinrichtung `cloudsrv setup`**: Datenbank, Anwendungsschlüssel,
+- **Ersteinrichtung `srvpanel setup`**: Datenbank, Anwendungsschlüssel,
   selbstsigniertes Zertifikat, nginx-Server-Block, Dienste — wiederholbar,
   ohne dass ein Schlüssel wechselt
-- **Update mit Rückweg**: angestoßen über `cloudsrv update` als transiente
+- **Update mit Rückweg**: angestoßen über `srvpanel update` als transiente
   systemd-Unit (der Lauf überlebt den Neustart des Panels), Migrationen und
   Umschalten im Paketskript, danach Bereitschaftsprüfung über HTTP — antwortet
   sie nicht, zeigt der Symlink wieder auf die vorige Fassung
@@ -557,13 +557,13 @@ Administratorkonto.
 - Policies, Mandantenklammer, mechanische Vollständigkeitsprüfung der Routen
 - Protokoll mit Filter und Export
 - Vorgangssystem: Warteschlange, Zustände, Live-Ausgabe über SSE
-- **Agent-Protokoll und `cloudsrv-agentd`**, zunächst mit drei echten Operationen
+- **Agent-Protokoll und `srvpanel-agentd`**, zunächst mit drei echten Operationen
   (Dienstzustand lesen, Datei prüfen, Reload) und einer vollständigen Attrappe
   für die Tests
 - Oberflächengerüst: Navigation, Gestaltung, Bestätigungsstufen, Sprachen,
   Fehlerbilder, „Anmelden als", Quellenlink in der Fußzeile (Auflage der AGPL, Abschnitt 13)
 - Gestaltungssystem „Leitstand" (§7.2) in beiden Dichtestufen und beiden Themes
-- **`cloudsrv-metrics` und die Adminübersicht mit Spikelines** (§4.6): CPU,
+- **`srvpanel-metrics` und die Adminübersicht mit Spikelines** (§4.6): CPU,
   RAM, Load, Netz, IO, Datenträger, dazu Prozessliste, Dateisysteme, Uptime
 
 **Fertig, wenn** ein Admin einen Kunden anlegt, dieser sich anmeldet, seine
@@ -741,24 +741,55 @@ In dieser Reihenfolge, ohne Zusage:
 
 ## 12. Name und Lizenz
 
-### 12.1 CloudSrv
+### 12.1 SrvPanel
 
-Der ursprüngliche Vorschlag war **CloudPanel** und ist verworfen: Unter diesem
-Namen gibt es bereits ein verbreitetes kostenloses Hosting-Panel
-(cloudpanel.io, MGT-COMMERCE GmbH) — dieselbe Produktkategorie, derselbe
-Markt, derselbe Sprachraum. Das ist doppelt ungünstig: markenrechtlich
-angreifbar, sobald das Produkt an Dritte geht, und praktisch unauffindbar,
-weil jede Suche beim anderen landet.
+Zwei Vorschläge sind vorher gescheitert, und beide Male am selben Prüfschritt:
+Vor dem ersten Tag geht der Name in ein öffentliches apt-Repository und danach
+in die `sources.list` fremder Server. Bis dahin kostet ein Wechsel Stunden,
+danach eine Migration.
 
-**CloudSrv** schließt statt dessen an das an, was bereits steht:
-`repo.cloudsrv24.de` bedient das apt-Repository, die Landingpage liegt dort,
-der Archiv-Keyring trägt den Namen. Kein Umzug, keine neue Domain, keine
-Kollision im Panel-Markt.
+**CloudPanel** — verworfen, weil es unter diesem Namen bereits ein
+verbreitetes kostenloses Hosting-Panel gibt (cloudpanel.io, MGT-COMMERCE
+GmbH): dieselbe Produktkategorie, derselbe Markt, derselbe Sprachraum.
+Markenrechtlich angreifbar, sobald das Produkt an Dritte geht, und praktisch
+unauffindbar, weil jede Suche beim anderen landet.
 
-Vor dem ersten öffentlichen Paket gehören dazu: Recherche bei DPMA und EUIPO,
-Prüfung der Domains, Sicherung von GitHub-Organisation und Paketnamen. Wenn
-das Produkt verkauft werden soll, ist eine Wortmarke die einzige Handhabe
-gegen Weiterverkauf unter demselben Namen — die Lizenz leistet das nicht.
+**CloudSrv** — verworfen nach der Recherche über offene Quellen. Gefunden
+wurden: ein aktiv benutzter Firmenname unter cloudsrv.org (IT-Dienstleistung,
+Softwareentwicklung); die britische CLOUDSRV LIMITED (Companies House
+10085676, SIC 63110 „data processing, hosting and related activities",
+inzwischen aufgelöst) — also genau dieses Feld; ein belegter
+GitHub-Namensraum; und keine einzige freie Domain unter `.de/.com/.org/.net/`
+`.io/.eu`. Eine identische eingetragene Marke war nicht auffindbar, wohl aber
+im Umfeld CLOUDSURF (US #6872202) und CLOUDSERVE (US #4157170), beide
+eingetragen und in derselben Warenklasse. Die Erweiterung auf **CloudSrv24**
+— die Domain steht zur Verfügung — löst das nicht: Der prägende Bestandteil
+bliebe „cloudsrv", eine angehängte Zahl ist kennzeichnungsschwach.
+
+**SrvPanel** ist eine Zusammensetzung aus zwei beschreibenden Bestandteilen.
+Als Marke ist das schwach — und genau das ist hier der Vorteil, weil es
+umgekehrt auch von niemandem gut monopolisierbar ist. `srv` ist die
+kanonische Abkürzung im Unix-Umfeld (`/srv` steht so im FHS), der Name ist
+acht Zeichen lang und liest sich ohne Erklärung. Frei sind zum Zeitpunkt der
+Prüfung: Packagist-Vendor, npm, Docker Hub, GitHub-Namensraum sowie
+`srvpanel.com/.io/.net/.org/.dev` (`.de` ist belegt). Kein Hosting-Panel
+dieses Namens ist auffindbar.
+
+**Der Name der Software und die Adresse des Projekts bleiben getrennt.**
+`cloudsrv24.de` gehört dem Projektinhaber und bedient weiter Landingpage und
+apt-Repository (`repo.cloudsrv24.de`); das Paket heißt `srvpanel`. Das ist
+üblich und hier zusätzlich sinnvoll: Unter AGPL darf jeder forken und
+weiterverbreiten — trüge das Projekt den Namen der Vertriebsmarke, täten das
+die Forks auch.
+
+**Was diese Recherche nicht ist.** DPMAregister, EUIPO eSearch und TMview
+waren aus der Arbeitsumgebung nicht abfragbar (403). Es ist eine
+Plausibilitätsprüfung über offene Quellen, keine Identitäts- oder
+Ähnlichkeitsrecherche. Für ein AGPL-Projekt unter eigener Domain ist das
+vertretbar; **soll das Produkt verkauft werden, bleibt eine Recherche in den
+Klassen 9 und 42 nachzuholen** — und eine Wortmarke ist dann die einzige
+Handhabe gegen Weiterverkauf unter demselben Namen. Die Lizenz leistet das
+nicht.
 
 ### 12.2 AGPL-3.0-only
 
@@ -812,7 +843,7 @@ Der Übergang:
    bleiben im Tag.
 3. **Das alte Paket bleibt im apt-Repository stehen**, eingefroren unter
    seinem Namen. Bestehende Installationen liefen sonst beim nächsten
-   `apt update` ins Leere. Das neue Paket `cloudsrv-panel` kommt daneben —
+   `apt update` ins Leere. Das neue Paket `srvpanel` kommt daneben —
    dieselbe Site, zwei Pakete, getrennte Kanäle.
 4. **`main` bleibt geschützt**, Entwicklung auf Branches, Freigaben über Tags —
    wie bisher.
@@ -865,7 +896,7 @@ Offen bleibt:
 
 | # | Frage | Spätestens vor |
 |---|---|---|
-| 1 | **Markenanmeldung** für CloudSrv — nötig, sobald das Panel an Dritte verkauft wird; Recherche DPMA/EUIPO vorher | vor dem ersten Verkauf |
+| 1 | **Markenanmeldung** für SrvPanel — nötig, sobald das Panel an Dritte verkauft wird; Recherche DPMA/EUIPO vorher | vor dem ersten Verkauf |
 | 2 | **Beitragsregelung**: DCO reicht, oder CLA, damit die Zweitlizenz belastbar bleibt? | erster Fremdbeitrag |
 | 3 | **Wie lange wird `deb.sury.org` als PHP-Bezug getragen**, und ab welcher Kundenzahl kommt der eigene Spiegel auf Objektspeicher (§4.3)? | P3 |
 | 4 | **Apache** zusätzlich unterstützen oder dauerhaft nur nginx? | P3 |

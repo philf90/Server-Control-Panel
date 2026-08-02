@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\OverviewController;
-use CloudSrv\Agent\Client;
-use CloudSrv\Agent\Version;
 use Illuminate\Support\Facades\Route;
+use SrvPanel\Agent\Client;
+use SrvPanel\Agent\Version;
 
 Route::get('/', OverviewController::class)->name('uebersicht');
 

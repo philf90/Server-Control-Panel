@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use CloudSrv\Agent\EnvFile;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\EnvFile;
 
 final class EnvFileTest extends TestCase
 {
@@ -13,7 +13,7 @@ final class EnvFileTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->path = sys_get_temp_dir().'/cloudsrv-env-'.bin2hex(random_bytes(6)).'.env';
+        $this->path = sys_get_temp_dir().'/srvpanel-env-'.bin2hex(random_bytes(6)).'.env';
     }
 
     protected function tearDown(): void
@@ -23,12 +23,12 @@ final class EnvFileTest extends TestCase
 
     public function test_writes_and_reads_back(): void
     {
-        (new EnvFile($this->path))->write(['APP_KEY' => 'base64:abc', 'DB_DATABASE' => 'cloudsrv']);
+        (new EnvFile($this->path))->write(['APP_KEY' => 'base64:abc', 'DB_DATABASE' => 'srvpanel']);
 
         $values = (new EnvFile($this->path))->read();
 
         $this->assertSame('base64:abc', $values['APP_KEY']);
-        $this->assertSame('cloudsrv', $values['DB_DATABASE']);
+        $this->assertSame('srvpanel', $values['DB_DATABASE']);
     }
 
     public function test_is_not_readable_for_everyone(): void
@@ -50,13 +50,13 @@ final class EnvFileTest extends TestCase
         // So läuft der zweite Durchgang von panel.provision: Bestehendes wird
         // gelesen und mit den Vorgaben zusammengelegt, nicht ersetzt. Wechselte
         // der Schlüssel, wäre die Datenbank danach unlesbar.
-        $file->write(array_merge($existing, ['APP_NAME' => 'CloudSrv']));
+        $file->write(array_merge($existing, ['APP_NAME' => 'SrvPanel']));
 
         $after = $file->read();
 
         $this->assertSame('erster-schluessel', $after['APP_KEY']);
         $this->assertSame('erstes-passwort', $after['DB_PASSWORD']);
-        $this->assertSame('CloudSrv', $after['APP_NAME']);
+        $this->assertSame('SrvPanel', $after['APP_NAME']);
     }
 
     public function test_ignores_comments_and_blank_lines(): void

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 use Socket;
 
@@ -17,7 +17,7 @@ use Socket;
 final class Client
 {
     public function __construct(
-        private readonly string $socket = '/run/cloudsrv/agent.sock',
+        private readonly string $socket = '/run/srvpanel/agent.sock',
         private readonly int $timeout = 300,
     ) {}
 

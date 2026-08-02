@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# CloudSrv installieren.
+# SrvPanel installieren.
 #
 #   curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
 #   sudo sh install.sh
@@ -11,16 +11,16 @@
 # Skript.
 set -eu
 
-CHANNEL="${CLOUDSRV_CHANNEL:-stable}"
+CHANNEL="${SRVPANEL_CHANNEL:-stable}"
 REPO_URL="https://repo.cloudsrv24.de/apt"
-KEYRING="/usr/share/keyrings/cloudsrv-archive-keyring.gpg"
+KEYRING="/usr/share/keyrings/srvpanel-archive-keyring.gpg"
 
 note() { printf '\033[1m==>\033[0m %s\n' "$1"; }
 fail() { printf '\033[31mFehler:\033[0m %s\n' "$1" >&2; exit 1; }
 
 [ "$(id -u)" = "0" ] || fail "Bitte mit sudo ausführen."
-[ -d /run/systemd/system ] || fail "CloudSrv braucht systemd."
-command -v apt-get >/dev/null || fail "CloudSrv braucht apt (Debian oder Ubuntu)."
+[ -d /run/systemd/system ] || fail "SrvPanel braucht systemd."
+command -v apt-get >/dev/null || fail "SrvPanel braucht apt (Debian oder Ubuntu)."
 
 if [ -r /etc/os-release ]; then
     . /etc/os-release
@@ -33,7 +33,7 @@ fi
 note "Belegte Ports prüfen"
 for port in 80 443; do
     if command -v ss >/dev/null && ss -ltn "sport = :${port}" 2>/dev/null | grep -q LISTEN; then
-        printf 'Hinweis: Port %s ist belegt. CloudSrv verwaltet nginx — ein anderer\n' "${port}" >&2
+        printf 'Hinweis: Port %s ist belegt. SrvPanel verwaltet nginx — ein anderer\n' "${port}" >&2
         printf 'Webserver auf diesem Port wird nicht angefasst und blockiert die Einrichtung.\n' >&2
     fi
 done
@@ -56,7 +56,7 @@ apt-get install -y -qq curl ca-certificates gnupg >/dev/null
 curl -fsSL --proto '=https' --tlsv1.2 "${REPO_URL}/KEY.asc" | gpg --dearmor -o "${KEYRING}"
 chmod 0644 "${KEYRING}"
 
-cat > /etc/apt/sources.list.d/cloudsrv.sources <<EOF
+cat > /etc/apt/sources.list.d/srvpanel.sources <<EOF
 Types: deb
 URIs: ${REPO_URL}
 Suites: ${CHANNEL}
@@ -72,12 +72,12 @@ sh "$(dirname "$0")/php-source.sh" 2>/dev/null || curl -fsSL --proto '=https' --
     "${REPO_URL%/apt}/php-source.sh" | sh
 apt-get install -y -qq php8.4-cli php8.4-fpm php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql
 
-note "CloudSrv installieren"
+note "SrvPanel installieren"
 apt-get update -qq
-apt-get install -y cloudsrv-panel
+apt-get install -y srvpanel
 
 note "Ersteinrichtung"
-cloudsrv setup
+srvpanel setup
 
 printf '\n'
 note "Fertig."

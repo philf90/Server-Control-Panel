@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Guard;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Guard;
 
 /**
  * Der Angriffsdurchgang für die Prüfungen des Agenten.
@@ -46,14 +46,14 @@ final class GuardTest extends TestCase
 
     public function test_allows_ordinary_unit_names(): void
     {
-        foreach (['nginx.service', 'php8.3-fpm.service', 'cloudsrv-agentd.service', 'getty@tty1.service'] as $name) {
+        foreach (['nginx.service', 'php8.3-fpm.service', 'srvpanel-agentd.service', 'getty@tty1.service'] as $name) {
             $this->assertSame($name, Guard::unitName($name));
         }
     }
 
     public function test_rejects_path_outside_root(): void
     {
-        $root = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
+        $root = sys_get_temp_dir().'/srvpanel-wurzel-'.bin2hex(random_bytes(4));
         mkdir($root);
 
         try {
@@ -66,7 +66,7 @@ final class GuardTest extends TestCase
 
     public function test_rejects_symlink_escaping_root(): void
     {
-        $root = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
+        $root = sys_get_temp_dir().'/srvpanel-wurzel-'.bin2hex(random_bytes(4));
         mkdir($root);
         $link = $root.'/raus';
         symlink('/etc/passwd', $link);
@@ -85,7 +85,7 @@ final class GuardTest extends TestCase
 
     public function test_returns_resolved_path_inside_root(): void
     {
-        $root = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
+        $root = sys_get_temp_dir().'/srvpanel-wurzel-'.bin2hex(random_bytes(4));
         mkdir($root.'/tief', 0o755, true);
         file_put_contents($root.'/tief/datei.conf', "test\n");
 

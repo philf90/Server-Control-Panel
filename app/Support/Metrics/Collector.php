@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Metrics;
 
-use CloudSrv\Agent\Client;
+use SrvPanel\Agent\Client;
 
 /**
  * Der Collector: fragt den Agenten nach Rohwerten und legt sie in die RingBuffer.

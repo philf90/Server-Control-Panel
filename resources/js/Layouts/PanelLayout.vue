@@ -30,7 +30,7 @@ const navigation = [
     <aside class="nav">
       <div class="badge">
         <span class="glyph">C</span>
-        <b>CloudSrv</b>
+        <b>SrvPanel</b>
       </div>
 
       <nav>

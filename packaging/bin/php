@@ -3,18 +3,18 @@
 # gemeint ist.
 #
 # Zielbild (§4.3 des Plans) ist eine mitgelieferte Fassung unter
-# /opt/cloudsrv/php. Solange die nicht gebaut ist, nimmt das Panel die
-# Fassung, die die Installation ausgewählt und in /etc/cloudsrv/php.path
+# /opt/srvpanel/php. Solange die nicht gebaut ist, nimmt das Panel die
+# Fassung, die die Installation ausgewählt und in /etc/srvpanel/php.path
 # hinterlegt hat. Der Wechsel später ändert eine Datei und keine Unit.
 set -eu
 
-if [ -x /opt/cloudsrv/php/bin/php ]; then
-    exec /opt/cloudsrv/php/bin/php "$@"
+if [ -x /opt/srvpanel/php/bin/php ]; then
+    exec /opt/srvpanel/php/bin/php "$@"
 fi
 
-if [ -r /etc/cloudsrv/php.path ]; then
+if [ -r /etc/srvpanel/php.path ]; then
     # shellcheck disable=SC1091
-    . /etc/cloudsrv/php.path
+    . /etc/srvpanel/php.path
 fi
 
-exec "${CLOUDSRV_PHP:-/usr/bin/php}" "$@"
+exec "${SRVPANEL_PHP:-/usr/bin/php}" "$@"

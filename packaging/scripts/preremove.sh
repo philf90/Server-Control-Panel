@@ -4,12 +4,12 @@
 # Schluss.
 set -eu
 
-for service in cloudsrv-metrics cloudsrv-worker cloudsrv-web cloudsrv-agentd; do
+for service in srvpanel-metrics srvpanel-worker srvpanel-web srvpanel-agentd; do
     systemctl stop "${service}.service" >/dev/null 2>&1 || true
     systemctl disable "${service}.service" >/dev/null 2>&1 || true
 done
 
-# Daten bleiben liegen: /var/lib/cloudsrv, /var/log/cloudsrv und
+# Daten bleiben liegen: /var/lib/srvpanel, /var/log/srvpanel und
 # /var/www/vhosts fasst das Paket nicht an. Wer Kundendaten beim Entfernen
 # eines Pakets verliert, verliert sie genau einmal.
 

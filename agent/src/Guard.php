@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 /**
  * Prüfungen für alles, was von außen kommt.

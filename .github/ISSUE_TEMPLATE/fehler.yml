@@ -31,7 +31,7 @@ body:
     id: version
     attributes:
       label: Fassung
-      description: Ausgabe von `cloudsrv --version` und `cloudsrv-agentd version`
+      description: Ausgabe von `srvpanel --version` und `srvpanel-agentd version`
       placeholder: "0.1.0 (a1b2c3d)"
     validations:
       required: true
@@ -58,7 +58,7 @@ body:
     attributes:
       label: Protokoll
       description: >-
-        `journalctl -u cloudsrv-agentd -u cloudsrv-web -n 100 --no-pager`. Wird als Code formatiert,
+        `journalctl -u srvpanel-agentd -u srvpanel-web -n 100 --no-pager`. Wird als Code formatiert,
         Backticks sind nicht nötig.
       render: text
 

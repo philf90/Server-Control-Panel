@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 use Socket;
 use Throwable;

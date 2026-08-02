@@ -10,7 +10,7 @@
 set -eu
 
 VERSION="__VERSION__"
-PREVIOUS_FILE="/var/lib/cloudsrv/previous-release"
+PREVIOUS_FILE="/var/lib/srvpanel/previous-release"
 READY_TIMEOUT=60
 
 # Das Verzeichnis der neuen Fassung wird nicht aus der Version zusammengesetzt,
@@ -22,32 +22,32 @@ READY_TIMEOUT=60
 # Verzeichnis im Paket heißt dann anders als die Zeichenkette, die hier
 # eingesetzt wird — und das Skript fasste ein Verzeichnis an, das es nicht gibt.
 # Der Symlink weiß es besser als jede Umrechnung von Versionsschreibweisen.
-RELEASE_DIR="$(readlink -f /opt/cloudsrv/current 2>/dev/null || true)"
+RELEASE_DIR="$(readlink -f /opt/srvpanel/current 2>/dev/null || true)"
 
 if [ -z "${RELEASE_DIR}" ] || [ ! -d "${RELEASE_DIR}" ]; then
-    echo "CloudSrv: /opt/cloudsrv/current zeigt auf kein Verzeichnis — das Paket ist unvollständig." >&2
+    echo "SrvPanel: /opt/srvpanel/current zeigt auf kein Verzeichnis — das Paket ist unvollständig." >&2
     exit 1
 fi
 
 create_user() {
-    if ! getent group cloudsrv >/dev/null; then
-        addgroup --system cloudsrv
+    if ! getent group srvpanel >/dev/null; then
+        addgroup --system srvpanel
     fi
 
-    if ! getent passwd cloudsrv >/dev/null; then
-        adduser --system --ingroup cloudsrv --home /var/lib/cloudsrv \
-            --no-create-home --shell /usr/sbin/nologin cloudsrv
+    if ! getent passwd srvpanel >/dev/null; then
+        adduser --system --ingroup srvpanel --home /var/lib/srvpanel \
+            --no-create-home --shell /usr/sbin/nologin srvpanel
     fi
 
     # nginx spricht über den FPM-Socket mit dem Panel; der steht auf
-    # 0660 cloudsrv:www-data.
+    # 0660 srvpanel:www-data.
     if getent group www-data >/dev/null; then
-        adduser cloudsrv www-data >/dev/null 2>&1 || true
+        adduser srvpanel www-data >/dev/null 2>&1 || true
     fi
 }
 
 select_php() {
-    if [ -x /opt/cloudsrv/php/bin/php ]; then
+    if [ -x /opt/srvpanel/php/bin/php ]; then
         return 0
     fi
 
@@ -55,13 +55,13 @@ select_php() {
     # Fassung zu nehmen hieße, ein Panel zu starten, das beim ersten Aufruf
     # mit einer Meldung über nicht erfüllte Plattformanforderungen abbricht.
     if [ -x /usr/bin/php8.4 ]; then
-        printf 'CLOUDSRV_PHP=/usr/bin/php8.4\nCLOUDSRV_PHP_FPM=/usr/sbin/php-fpm8.4\n' \
-            > /etc/cloudsrv/php.path
-        chmod 0644 /etc/cloudsrv/php.path
+        printf 'SRVPANEL_PHP=/usr/bin/php8.4\nSRVPANEL_PHP_FPM=/usr/sbin/php-fpm8.4\n' \
+            > /etc/srvpanel/php.path
+        chmod 0644 /etc/srvpanel/php.path
         return 0
     fi
 
-    echo "CloudSrv: PHP 8.4 fehlt." >&2
+    echo "SrvPanel: PHP 8.4 fehlt." >&2
     echo "Erwartet werden php8.4-cli und php8.4-fpm; die Quelle richtet" >&2
     echo "packaging/php-source.sh ein (bei der Installation über install.sh geschieht das)." >&2
     return 1
@@ -72,19 +72,19 @@ set_permissions() {
     # Nur was geschrieben werden muss, gehört dem Dienst. Der Rest ist für ihn
     # lesbar und nicht mehr — ein Panel, das sein eigenes Programm überschreiben
     # kann, hat eine Schwachstelle mehr, als es haben müsste.
-    chown -R cloudsrv:cloudsrv "${RELEASE_DIR}/storage" "${RELEASE_DIR}/bootstrap/cache"
+    chown -R srvpanel:srvpanel "${RELEASE_DIR}/storage" "${RELEASE_DIR}/bootstrap/cache"
     chmod -R u+rwX,go-rwx "${RELEASE_DIR}/storage"
-    chown root:cloudsrv /etc/cloudsrv/agent.json
-    chmod 0640 /etc/cloudsrv/agent.json
-    install -d -o cloudsrv -g cloudsrv -m 0750 /var/lib/cloudsrv/metrics
-    install -d -o cloudsrv -g cloudsrv -m 0700 /var/lib/cloudsrv/tmp
-    install -d -o cloudsrv -g cloudsrv -m 0750 /var/log/cloudsrv
-    install -d -o root -g root -m 0755 /etc/cloudsrv/tls
+    chown root:srvpanel /etc/srvpanel/agent.json
+    chmod 0640 /etc/srvpanel/agent.json
+    install -d -o srvpanel -g srvpanel -m 0750 /var/lib/srvpanel/metrics
+    install -d -o srvpanel -g srvpanel -m 0700 /var/lib/srvpanel/tmp
+    install -d -o srvpanel -g srvpanel -m 0750 /var/log/srvpanel
+    install -d -o root -g root -m 0755 /etc/srvpanel/tls
 }
 
 panel_port() {
-    if [ -r /etc/cloudsrv/panel.env ]; then
-        awk -F= '/^PANEL_PORT=/ {print $2; exit}' /etc/cloudsrv/panel.env
+    if [ -r /etc/srvpanel/panel.env ]; then
+        awk -F= '/^PANEL_PORT=/ {print $2; exit}' /etc/srvpanel/panel.env
     fi
 }
 
@@ -115,7 +115,7 @@ panel_ready() {
 }
 
 restart_services() {
-    for service in cloudsrv-agentd cloudsrv-web cloudsrv-worker cloudsrv-metrics; do
+    for service in srvpanel-agentd srvpanel-web srvpanel-worker srvpanel-metrics; do
         systemctl enable "${service}.service" >/dev/null 2>&1 || true
         systemctl restart "${service}.service" >/dev/null 2>&1 || true
     done
@@ -129,27 +129,27 @@ restart_services() {
 # Rückweg nur die Hälfte wert.
 roll_back() {
     if [ ! -r "${PREVIOUS_FILE}" ]; then
-        echo "CloudSrv: keine vorige Fassung hinterlegt — es bleibt bei ${VERSION}." >&2
+        echo "SrvPanel: keine vorige Fassung hinterlegt — es bleibt bei ${VERSION}." >&2
         return 1
     fi
 
     previous="$(cat "${PREVIOUS_FILE}")"
 
     if [ ! -d "${previous}" ] || [ "${previous}" = "${RELEASE_DIR}" ]; then
-        echo "CloudSrv: vorige Fassung ${previous} ist nicht verfügbar." >&2
+        echo "SrvPanel: vorige Fassung ${previous} ist nicht verfügbar." >&2
         return 1
     fi
 
-    echo "CloudSrv: Bereitschaftsprüfung fehlgeschlagen — zurück auf ${previous}." >&2
-    ln -sfn "${previous}" /opt/cloudsrv/current
+    echo "SrvPanel: Bereitschaftsprüfung fehlgeschlagen — zurück auf ${previous}." >&2
+    ln -sfn "${previous}" /opt/srvpanel/current
     restart_services
 
     if panel_ready; then
-        echo "CloudSrv: die vorige Fassung antwortet wieder." >&2
+        echo "SrvPanel: die vorige Fassung antwortet wieder." >&2
         return 0
     fi
 
-    echo "CloudSrv: auch die vorige Fassung antwortet nicht. systemctl status cloudsrv-web" >&2
+    echo "SrvPanel: auch die vorige Fassung antwortet nicht. systemctl status srvpanel-web" >&2
     return 1
 }
 
@@ -161,20 +161,20 @@ systemctl daemon-reload
 
 # Der Agent zuerst: Ohne ihn kommt die Anwendung nicht ins System, und alles
 # Weitere würde scheitern, ohne dass etwas kaputt wäre.
-systemctl enable --now cloudsrv-agentd.service >/dev/null 2>&1 || true
+systemctl enable --now srvpanel-agentd.service >/dev/null 2>&1 || true
 
-if [ ! -r /etc/cloudsrv/panel.env ]; then
+if [ ! -r /etc/srvpanel/panel.env ]; then
     echo ""
-    echo "CloudSrv ist installiert. Die Ersteinrichtung steht aus:"
+    echo "SrvPanel ist installiert. Die Ersteinrichtung steht aus:"
     echo ""
-    echo "    sudo cloudsrv setup"
+    echo "    sudo srvpanel setup"
     echo ""
     exit 0
 fi
 
 # Ab hier ist es das Update einer eingerichteten Installation.
-if ! /usr/local/bin/cloudsrv migrate --force --no-interaction; then
-    echo "CloudSrv: Migration fehlgeschlagen." >&2
+if ! /usr/local/bin/srvpanel migrate --force --no-interaction; then
+    echo "SrvPanel: Migration fehlgeschlagen." >&2
     roll_back || true
     exit 1
 fi
@@ -187,6 +187,6 @@ if ! panel_ready; then
 fi
 
 rm -f "${PREVIOUS_FILE}"
-echo "CloudSrv ${VERSION} läuft."
+echo "SrvPanel ${VERSION} läuft."
 
 exit 0

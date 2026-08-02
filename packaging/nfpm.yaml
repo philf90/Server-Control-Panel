@@ -1,4 +1,4 @@
-name: cloudsrv-panel
+name: srvpanel
 arch: ${ARCH}
 platform: linux
 version: ${VERSION}
@@ -6,10 +6,10 @@ section: admin
 priority: optional
 maintainer: philf90 <philipp@netzhost24.de>
 description: |
-  CloudSrv — Hosting-Panel für einen einzelnen Linux-Server.
+  SrvPanel — Hosting-Panel für einen einzelnen Linux-Server.
   Kunden, Abonnements, Domains, PHP, Datenbanken, DNS, Dateien und Sicherungen
   über eine Oberfläche, mit einem Systembenutzer je Abonnement.
-vendor: CloudSrv
+vendor: SrvPanel
 homepage: https://repo.cloudsrv24.de/
 license: AGPL-3.0-only
 
@@ -33,69 +33,69 @@ suggests:
 
 contents:
   - src: ./build/release
-    dst: /opt/cloudsrv/releases/${VERSION}
+    dst: /opt/srvpanel/releases/${VERSION}
     type: tree
 
-  - src: /opt/cloudsrv/releases/${VERSION}
-    dst: /opt/cloudsrv/current
+  - src: /opt/srvpanel/releases/${VERSION}
+    dst: /opt/srvpanel/current
     type: symlink
 
-  - src: ./packaging/systemd/cloudsrv-agentd.service
-    dst: /lib/systemd/system/cloudsrv-agentd.service
-  - src: ./packaging/systemd/cloudsrv-web.service
-    dst: /lib/systemd/system/cloudsrv-web.service
-  - src: ./packaging/systemd/cloudsrv-worker.service
-    dst: /lib/systemd/system/cloudsrv-worker.service
-  - src: ./packaging/systemd/cloudsrv-metrics.service
-    dst: /lib/systemd/system/cloudsrv-metrics.service
+  - src: ./packaging/systemd/srvpanel-agentd.service
+    dst: /lib/systemd/system/srvpanel-agentd.service
+  - src: ./packaging/systemd/srvpanel-web.service
+    dst: /lib/systemd/system/srvpanel-web.service
+  - src: ./packaging/systemd/srvpanel-worker.service
+    dst: /lib/systemd/system/srvpanel-worker.service
+  - src: ./packaging/systemd/srvpanel-metrics.service
+    dst: /lib/systemd/system/srvpanel-metrics.service
 
   - src: ./packaging/bin/php
-    dst: /opt/cloudsrv/bin/php
+    dst: /opt/srvpanel/bin/php
     file_info:
       mode: 0755
   - src: ./packaging/bin/php-fpm
-    dst: /opt/cloudsrv/bin/php-fpm
+    dst: /opt/srvpanel/bin/php-fpm
     file_info:
       mode: 0755
-  - src: ./packaging/bin/cloudsrv
-    dst: /usr/local/bin/cloudsrv
+  - src: ./packaging/bin/srvpanel
+    dst: /usr/local/bin/srvpanel
     file_info:
       mode: 0755
 
   - src: ./packaging/etc/fpm.conf
-    dst: /etc/cloudsrv/fpm.conf
+    dst: /etc/srvpanel/fpm.conf
     type: config|noreplace
   - src: ./packaging/etc/nginx-extra.conf
-    dst: /etc/cloudsrv/nginx-extra.conf
+    dst: /etc/srvpanel/nginx-extra.conf
     type: config|noreplace
 
   - src: ./packaging/etc/agent.json
-    dst: /etc/cloudsrv/agent.json
+    dst: /etc/srvpanel/agent.json
     type: config|noreplace
     file_info:
       mode: 0640
       owner: root
-      group: cloudsrv
+      group: srvpanel
   - src: ./packaging/etc/logrotate
-    dst: /etc/logrotate.d/cloudsrv
+    dst: /etc/logrotate.d/srvpanel
     type: config|noreplace
 
-  - dst: /etc/cloudsrv/tls
+  - dst: /etc/srvpanel/tls
     type: dir
     file_info:
       mode: 0755
-  - dst: /var/lib/cloudsrv
+  - dst: /var/lib/srvpanel
     type: dir
     file_info:
       mode: 0750
-      owner: cloudsrv
-      group: cloudsrv
-  - dst: /var/log/cloudsrv
+      owner: srvpanel
+      group: srvpanel
+  - dst: /var/log/srvpanel
     type: dir
     file_info:
       mode: 0750
-      owner: cloudsrv
-      group: cloudsrv
+      owner: srvpanel
+      group: srvpanel
   - dst: /var/www/vhosts
     type: dir
     file_info:

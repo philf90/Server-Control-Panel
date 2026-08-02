@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 /**
  * Die einzige Stelle, an der der Agent ein Programm startet.

@@ -1,9 +1,9 @@
 <?php
 
 use App\Providers\AppServiceProvider;
-use App\Providers\CloudSrvServiceProvider;
+use App\Providers\SrvPanelServiceProvider;
 
 return [
     AppServiceProvider::class,
-    CloudSrvServiceProvider::class,
+    SrvPanelServiceProvider::class,
 ];

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\Journal;
-use CloudSrv\Agent\Ops\PanelTls;
-use CloudSrv\Agent\Runner;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Journal;
+use SrvPanel\Agent\Ops\PanelTls;
+use SrvPanel\Agent\Runner;
 
 final class PanelTlsTest extends TestCase
 {
@@ -20,7 +20,7 @@ final class PanelTlsTest extends TestCase
             $this->markTestSkipped('Der Test braucht die openssl-Erweiterung.');
         }
 
-        $this->directory = sys_get_temp_dir().'/cloudsrv-tls-'.bin2hex(random_bytes(6));
+        $this->directory = sys_get_temp_dir().'/srvpanel-tls-'.bin2hex(random_bytes(6));
     }
 
     protected function tearDown(): void

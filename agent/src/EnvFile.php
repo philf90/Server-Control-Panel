@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 /**
  * Die Umgebungsdatei des Panels — lesen und schreiben.
@@ -53,7 +53,7 @@ final class EnvFile
     }
 
     /** @param array<string,string> $values */
-    public function write(array $values, string $group = 'cloudsrv'): void
+    public function write(array $values, string $group = 'srvpanel'): void
     {
         $directory = dirname($this->path);
 
@@ -61,7 +61,7 @@ final class EnvFile
             throw AgentException::execFailed(sprintf('Verzeichnis %s ließ sich nicht anlegen.', $directory));
         }
 
-        $text = "# Von 'cloudsrv setup' geschrieben. Enthält Schlüssel und Passwörter.\n"
+        $text = "# Von 'srvpanel setup' geschrieben. Enthält Schlüssel und Passwörter.\n"
             ."# Diese Datei überlebt jedes Update — das Auslieferungsverzeichnis nicht.\n\n";
 
         foreach ($values as $name => $value) {

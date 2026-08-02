@@ -8,8 +8,8 @@ return [
      * Anwendung kennt keinen zweiten Weg ins System.
      */
     'agent' => [
-        'socket' => env('CLOUDSRV_AGENT_SOCKET', '/run/cloudsrv/agent.sock'),
-        'timeout' => (int) env('CLOUDSRV_AGENT_TIMEOUT', 300),
+        'socket' => env('SRVPANEL_AGENT_SOCKET', '/run/srvpanel/agent.sock'),
+        'timeout' => (int) env('SRVPANEL_AGENT_TIMEOUT', 300),
     ],
 
     /*
@@ -18,7 +18,7 @@ return [
      * sie dreht sich.
      */
     'metrics' => [
-        'directory' => env('CLOUDSRV_METRICS_DIR', storage_path('cloudsrv/metrics')),
+        'directory' => env('SRVPANEL_METRICS_DIR', storage_path('srvpanel/metrics')),
         'interval_s' => 10,
         'retention' => 8640,
     ],
@@ -28,7 +28,7 @@ return [
      * Kundenfläche setzt die Dichte selbst auf „kunde".
      */
     'ui' => [
-        'theme' => env('CLOUDSRV_THEME', 'dark'),
+        'theme' => env('SRVPANEL_THEME', 'dark'),
         'density' => 'admin',
     ],
 
@@ -40,6 +40,6 @@ return [
      */
     'source' => [
         'repository' => 'https://github.com/philf90/Server-Control-Panel',
-        'commit' => env('CLOUDSRV_COMMIT', ''),
+        'commit' => env('SRVPANEL_COMMIT', ''),
     ],
 ];

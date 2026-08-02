@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
-use CloudSrv\Agent\Ops\AgentPing;
-use CloudSrv\Agent\Ops\ConfigValidate;
-use CloudSrv\Agent\Ops\PanelProvision;
-use CloudSrv\Agent\Ops\PanelTls;
-use CloudSrv\Agent\Ops\PanelUpdate;
-use CloudSrv\Agent\Ops\PanelVhost;
-use CloudSrv\Agent\Ops\ServiceAction;
-use CloudSrv\Agent\Ops\ServiceStatus;
-use CloudSrv\Agent\Ops\SystemInfo;
+use SrvPanel\Agent\Ops\AgentPing;
+use SrvPanel\Agent\Ops\ConfigValidate;
+use SrvPanel\Agent\Ops\PanelProvision;
+use SrvPanel\Agent\Ops\PanelTls;
+use SrvPanel\Agent\Ops\PanelUpdate;
+use SrvPanel\Agent\Ops\PanelVhost;
+use SrvPanel\Agent\Ops\ServiceAction;
+use SrvPanel\Agent\Ops\ServiceStatus;
+use SrvPanel\Agent\Ops\SystemInfo;
 
 /**
  * Das Verzeichnis der Operationen.

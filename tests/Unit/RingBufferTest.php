@@ -13,7 +13,7 @@ final class RingBufferTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->file = sys_get_temp_dir().'/cloudsrv-test-'.bin2hex(random_bytes(6)).'.ring';
+        $this->file = sys_get_temp_dir().'/srvpanel-test-'.bin2hex(random_bytes(6)).'.ring';
     }
 
     protected function tearDown(): void

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent\Ops;
+namespace SrvPanel\Agent\Ops;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\Guard;
-use CloudSrv\Agent\Op;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Guard;
+use SrvPanel\Agent\Op;
 
 /**
  * Prüft eine Konfigurationsdatei mit dem Prüfer des jeweiligen Dienstes.

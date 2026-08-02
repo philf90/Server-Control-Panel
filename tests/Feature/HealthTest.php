@@ -16,7 +16,7 @@ final class HealthTest extends TestCase
 {
     public function test_reports_not_ready_when_the_agent_is_unreachable(): void
     {
-        config(['cloudsrv.agent.socket' => '/nicht/vorhanden/agent.sock']);
+        config(['srvpanel.agent.socket' => '/nicht/vorhanden/agent.sock']);
 
         $response = $this->getJson('/gesundheit');
 
@@ -26,7 +26,7 @@ final class HealthTest extends TestCase
 
     public function test_the_overview_renders_without_an_agent(): void
     {
-        config(['cloudsrv.agent.socket' => '/nicht/vorhanden/agent.sock']);
+        config(['srvpanel.agent.socket' => '/nicht/vorhanden/agent.sock']);
 
         // Ohne Agent bleibt die Übersicht bedienbar und sagt, dass er schweigt.
         // Eine weiße Seite mit Stacktrace wäre die schlechtere Auskunft über

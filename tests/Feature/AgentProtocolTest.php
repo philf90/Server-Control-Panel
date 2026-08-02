@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Client;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Client;
 
 /**
  * Der Agent gegen einen echten Socket — kein Ersatzobjekt.
@@ -41,7 +41,7 @@ final class AgentProtocolTest extends TestCase
 
         $command = [
             PHP_BINARY,
-            dirname(__DIR__, 2).'/agent/bin/cloudsrv-agentd',
+            dirname(__DIR__, 2).'/agent/bin/srvpanel-agentd',
             'serve',
             '--socket='.$this->socket,
             '--log='.$this->directory.'/a.log',

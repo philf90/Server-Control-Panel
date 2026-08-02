@@ -12,7 +12,7 @@ declare(strict_types=1);
  */
 
 spl_autoload_register(static function (string $class): void {
-    $prefix = 'CloudSrv\\Agent\\';
+    $prefix = 'SrvPanel\\Agent\\';
     if (! str_starts_with($class, $prefix)) {
         return;
     }

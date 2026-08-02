@@ -1,15 +1,15 @@
 [Unit]
-Description=CloudSrv — Kennzahlen im Zehnsekundentakt
+Description=SrvPanel — Kennzahlen im Zehnsekundentakt
 Documentation=https://repo.cloudsrv24.de/
-After=cloudsrv-agentd.service
-Requires=cloudsrv-agentd.service
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
 
 [Service]
 Type=simple
-User=cloudsrv
-Group=cloudsrv
-WorkingDirectory=/opt/cloudsrv/current
-ExecStart=/opt/cloudsrv/bin/php artisan cloudsrv:kennzahlen
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:kennzahlen
 Restart=always
 RestartSec=5s
 
@@ -28,7 +28,7 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-ReadWritePaths=/var/lib/cloudsrv /var/log/cloudsrv
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
 
 MemoryMax=192M
 TasksMax=32

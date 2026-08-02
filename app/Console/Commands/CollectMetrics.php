@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Support\Metrics\Collector;
-use CloudSrv\Agent\AgentException;
 use Illuminate\Console\Command;
+use SrvPanel\Agent\AgentException;
 
 /**
  * Der Dauerlauf hinter den Verlaufskacheln (§4.6 des Plans).
@@ -18,7 +18,7 @@ use Illuminate\Console\Command;
  */
 final class CollectMetrics extends Command
 {
-    protected $signature = 'cloudsrv:metrics
+    protected $signature = 'srvpanel:metrics
                             {--once : Nur eine Messung, dann beenden}
                             {--interval= : Sekunden zwischen zwei Messungen}';
 
@@ -26,7 +26,7 @@ final class CollectMetrics extends Command
 
     public function handle(Collector $collector): int
     {
-        $interval = (int) ($this->option('interval') ?: config('cloudsrv.metrics.interval_s'));
+        $interval = (int) ($this->option('interval') ?: config('srvpanel.metrics.interval_s'));
         $once = (bool) $this->option('once');
         $running = true;
 

@@ -1,10 +1,10 @@
-/var/log/cloudsrv/*.log {
+/var/log/srvpanel/*.log {
     daily
     rotate 30
     compress
     delaycompress
     missingok
     notifempty
-    create 0640 cloudsrv cloudsrv
-    su cloudsrv cloudsrv
+    create 0640 srvpanel srvpanel
+    su srvpanel srvpanel
 }

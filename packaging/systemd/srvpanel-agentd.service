@@ -1,12 +1,12 @@
 [Unit]
-Description=CloudSrv — privilegierter Agent
+Description=SrvPanel — privilegierter Agent
 Documentation=https://repo.cloudsrv24.de/
 After=network.target
-Before=cloudsrv-worker.service cloudsrv-metrics.service
+Before=srvpanel-worker.service srvpanel-metrics.service
 
 [Service]
 Type=simple
-ExecStart=/opt/cloudsrv/current/agent/bin/cloudsrv-agentd serve --config=/etc/cloudsrv/agent.json
+ExecStart=/opt/srvpanel/current/agent/bin/srvpanel-agentd serve --config=/etc/srvpanel/agent.json
 Restart=on-failure
 RestartSec=2s
 TimeoutStopSec=30s
@@ -35,10 +35,10 @@ MemoryDenyWriteExecute=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
 
-RuntimeDirectory=cloudsrv
+RuntimeDirectory=srvpanel
 RuntimeDirectoryMode=0755
-LogsDirectory=cloudsrv
-StateDirectory=cloudsrv
+LogsDirectory=srvpanel
+StateDirectory=srvpanel
 
 MemoryMax=512M
 TasksMax=128

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Journal;
-use CloudSrv\Agent\Runner;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Journal;
+use SrvPanel\Agent\Runner;
 
 /**
  * Der Regressionstest zu einem Fehler, der jede Operation des Agenten betraf

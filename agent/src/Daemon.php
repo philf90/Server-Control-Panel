@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 use Socket;
 
@@ -35,7 +35,7 @@ final class Daemon
     public function start(): int
     {
         if (posix_getuid() !== 0 && ! $this->config->allowUnprivileged) {
-            fwrite(STDERR, "cloudsrv-agentd muss als root laufen.\n");
+            fwrite(STDERR, "srvpanel-agentd muss als root laufen.\n");
 
             return 1;
         }

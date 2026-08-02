@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 use Socket;
 
@@ -17,7 +17,7 @@ use Socket;
  * wird sie beim Senden vom Kernel und nicht vom Programm.
  *
  * Diese Prüfung ist die zweite Schranke. Die erste sind die Rechte am Socket
- * selbst (0660 root:cloudsrv); sie hält alles ab, was nicht in der Gruppe ist.
+ * selbst (0660 root:srvpanel); sie hält alles ab, was nicht in der Gruppe ist.
  * Beide zusammen: Auch wenn jemand die Rechte am Socket verstellt, kommt er
  * nicht durch — und wenn diese Prüfung ausfiele, hielten die Rechte.
  */

@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Client;
-use CloudSrv\Agent\EnvFile;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Client;
+use SrvPanel\Agent\EnvFile;
 
 /**
- * Die Ersteinrichtung: `cloudsrv setup`.
+ * Die Ersteinrichtung: `srvpanel setup`.
  *
  * Sie ist wiederholbar. Ein zweiter Lauf legt nichts doppelt an, wechselt
  * keinen Schlüssel und wirft keine bestehende Datenbank weg — das ist die
@@ -21,11 +21,11 @@ use Illuminate\Support\Facades\DB;
  * benutzt.
  *
  * Alles Privilegierte geht über den Agenten. Dieses Kommando läuft als
- * Benutzer `cloudsrv` und legt selbst weder Datenbank noch Zertifikat an.
+ * Benutzer `srvpanel` und legt selbst weder Datenbank noch Zertifikat an.
  */
 final class Setup extends Command
 {
-    protected $signature = 'cloudsrv:setup
+    protected $signature = 'srvpanel:setup
                             {--port=8443 : Port der Panel-Oberfläche}
                             {--skip-migrations : Migrationen nicht ausführen}';
 
@@ -43,7 +43,7 @@ final class Setup extends Command
 
         if (! $agent->reachable()) {
             $this->error('Der Agent ist nicht erreichbar.');
-            $this->line('  systemctl status cloudsrv-agentd');
+            $this->line('  systemctl status srvpanel-agentd');
 
             return self::FAILURE;
         }
@@ -94,7 +94,7 @@ final class Setup extends Command
 
         try {
             $this->step('Dienste');
-            foreach (['cloudsrv-web', 'cloudsrv-worker', 'cloudsrv-metrics'] as $unit) {
+            foreach (['srvpanel-web', 'srvpanel-worker', 'srvpanel-metrics'] as $unit) {
                 $agent->call('service.action', ['unit' => $unit.'.service', 'action' => 'enable'], $this->actor());
                 $agent->call('service.action', ['unit' => $unit.'.service', 'action' => 'restart'], $this->actor());
             }
@@ -141,8 +141,8 @@ final class Setup extends Command
             'database.default' => $connection,
             "database.connections.{$connection}.host" => $values['DB_HOST'] ?? '127.0.0.1',
             "database.connections.{$connection}.port" => $values['DB_PORT'] ?? '3306',
-            "database.connections.{$connection}.database" => $values['DB_DATABASE'] ?? 'cloudsrv',
-            "database.connections.{$connection}.username" => $values['DB_USERNAME'] ?? 'cloudsrv',
+            "database.connections.{$connection}.database" => $values['DB_DATABASE'] ?? 'srvpanel',
+            "database.connections.{$connection}.username" => $values['DB_USERNAME'] ?? 'srvpanel',
             "database.connections.{$connection}.password" => $values['DB_PASSWORD'] ?? '',
         ]);
 
@@ -155,7 +155,7 @@ final class Setup extends Command
     /** @return array<string,mixed> */
     private function actor(): array
     {
-        return ['source' => 'cli', 'command' => 'cloudsrv:setup', 'uid' => function_exists('posix_getuid') ? posix_getuid() : null];
+        return ['source' => 'cli', 'command' => 'srvpanel:setup', 'uid' => function_exists('posix_getuid') ? posix_getuid() : null];
     }
 
     private function step(string $text): void

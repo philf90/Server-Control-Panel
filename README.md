@@ -1,4 +1,4 @@
-# CloudSrv
+# SrvPanel
 
 Ein Hosting-Panel für einen einzelnen Linux-Server, vergleichbar mit Plesk: Der
 Betreiber verwaltet Kunden, Kunden verwalten ihre Abonnements — Domains,
@@ -24,7 +24,7 @@ sudo sh install.sh
 Danach einmal:
 
 ```bash
-sudo cloudsrv setup
+sudo srvpanel setup
 ```
 
 Das legt Datenbank, Anwendungsschlüssel und ein selbstsigniertes Zertifikat an,
@@ -35,7 +35,7 @@ unter `https://<host>:8443/`.
 Zielplattformen sind Debian 12 und 13 sowie Ubuntu 22.04 und 24.04. Andere
 Systeme werden nicht geprüft und nicht zugesagt.
 
-**Aktualisieren** geht über `apt` oder über `cloudsrv update`. Beide Wege
+**Aktualisieren** geht über `apt` oder über `srvpanel update`. Beide Wege
 führen durch dieselbe Bereitschaftsprüfung: Antwortet das Panel nach dem
 Umschalten nicht, zeigt der Symlink wieder auf die vorige Fassung.
 
@@ -45,13 +45,13 @@ Eine PHP-Anwendung mit großer Angriffsfläche darf nicht als root laufen, muss
 aber Systembenutzer anlegen und nginx neu laden. Daraus folgt die Aufteilung:
 
 ```
-Browser ─TLS─▶ nginx ─▶ php-fpm „cloudsrv"   (Benutzer cloudsrv, kein root)
-                     └▶ cloudsrv-worker       (Warteschlange)
+Browser ─TLS─▶ nginx ─▶ php-fpm „srvpanel"   (Benutzer srvpanel, kein root)
+                     └▶ srvpanel-worker       (Warteschlange)
                               │
-                              └─unix socket─▶ cloudsrv-agentd (root, minimal)
+                              └─unix socket─▶ srvpanel-agentd (root, minimal)
 ```
 
-`cloudsrv-agentd` ist der einzige Prozess mit Systemrechten. Er kommt **ohne
+`srvpanel-agentd` ist der einzige Prozess mit Systemrechten. Er kommt **ohne
 Framework und ohne Composer-Abhängigkeiten** aus — die Menge Code, die als root
 läuft, soll klein genug bleiben, um sie ganz zu lesen. Die CI prüft das.
 
@@ -71,7 +71,7 @@ cp .env.example .env && php artisan key:generate
 
 # Agent unprivilegiert, für die Entwicklung
 mkdir -p /tmp/cs
-agent/bin/cloudsrv-agentd serve --socket=/tmp/cs/a.sock --log=/tmp/cs/a.log \
+agent/bin/srvpanel-agentd serve --socket=/tmp/cs/a.sock --log=/tmp/cs/a.log \
     --unprivileged --user="$(id -un)" --group="$(id -gn)" &
 
 php artisan serve & npm run dev

@@ -1,0 +1,10 @@
+/var/log/cloudsrv/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 cloudsrv cloudsrv
+    su cloudsrv cloudsrv
+}

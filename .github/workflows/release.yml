@@ -2,107 +2,107 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Fassung ohne führendes v, z. B. 0.1.0'
+        required: true
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
-  release:
-    name: Bauen, signieren, veröffentlichen
+  package:
+    name: Paket bauen und signieren
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.meta.outputs.version }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: release
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sockets, pcntl, posix, mbstring, intl, zip
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: nfpm bereitstellen
+        run: |
+          curl -fsSL https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin nfpm
+
+      - name: Bauen
+        run: |
+          packaging/build.sh "${{ steps.release.outputs.version }}" amd64
+          packaging/build.sh "${{ steps.release.outputs.version }}" arm64
+
+      - name: Prüfsummen
+        run: |
+          cd dist
+          sha256sum ./*.deb > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Signieren
+        env:
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq minisign
+
+          if [ -z "${MINISIGN_KEY:-}" ]; then
+            echo "::error::Secret MINISIGN_KEY fehlt — ohne Signatur wird nicht veröffentlicht."
+            exit 1
+          fi
+
+          printf '%s\n' "$MINISIGN_KEY" > "${RUNNER_TEMP}/minisign.key"
+          printf '%s\n' "${MINISIGN_PASSWORD:-}" \
+            | minisign -s "${RUNNER_TEMP}/minisign.key" -Sm dist/SHA256SUMS >/dev/null
+
+          # Passt der hinterlegte Schlüssel zum veröffentlichten? Ein
+          # vertauschter fällt sonst erst bei den Nutzern auf.
+          minisign -Vm dist/SHA256SUMS -P "$(tail -n1 packaging/minisign.pub)"
+          rm -f "${RUNNER_TEMP}/minisign.key"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: GitHub-Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "CloudSrv ${{ steps.release.outputs.version }}" \
+            --notes "Siehe CHANGELOG.md." \
+            $(case "${{ steps.release.outputs.version }}" in *-*) echo --prerelease ;; esac)
+
+  repository:
+    name: repo.cloudsrv24.de aktualisieren
+    needs: package
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - uses: actions/setup-go@v5
-        with:
-          # Siehe ci.yml: die aktuelle stabile Fassung, nicht die Untergrenze
-          # aus go.mod — sonst wird gegen eine Standardbibliothek mit bekannten
-          # Lücken gebaut und ausgeliefert.
-          go-version: stable
-
-      - name: Tests vor dem Release
-        env:
-          # Damit TestMinUpgradableFrom die eigentliche Frage beantworten kann:
-          # Ist die Untergrenze für direkte Updates älter als das, was gerade
-          # veröffentlicht wird? Ein zu neuer Wert sperrt jeden Nutzer aus.
-          ASYLUM_RELEASE_VERSION: ${{ github.ref_name }}
-        run: go test ./...
-
-      - name: minisign bereitstellen
-        env:
-          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
-        run: |
-          if [ -z "$MINISIGN_KEY" ]; then
-            echo "Secret MINISIGN_KEY fehlt — ohne Signatur wird nicht veröffentlicht."
-            exit 1
-          fi
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq minisign
-          umask 077
-          # Der Schlüssel ist zweizeilig; printf ohne abschließenden Zeilenumbruch
-          # würde ihn unbrauchbar machen.
-          printf '%s\n' "$MINISIGN_KEY" > "${RUNNER_TEMP}/minisign.key"
-
-      - name: Signaturschlüssel gegen den veröffentlichten Public Key prüfen
-        # Ein vertauschtes Secret fällt sonst erst auf, wenn der Installer bei
-        # den Nutzern die Signatur ablehnt.
-        env:
-          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
-        run: |
-          umask 077
-          echo "probe" > "${RUNNER_TEMP}/probe.txt"
-          # Bei einem Schlüssel ohne Passwort ist die Eingabe leer und wird
-          # ignoriert; mit Passwort liest minisign sie von stdin.
-          printf '%s\n' "${MINISIGN_PASSWORD:-}" \
-            | minisign -s "${RUNNER_TEMP}/minisign.key" -Sm "${RUNNER_TEMP}/probe.txt" > /dev/null
-          minisign -Vm "${RUNNER_TEMP}/probe.txt" -P "$(tail -n1 packaging/minisign.pub)" \
-            > /dev/null
-          echo "Der hinterlegte Schlüssel passt zu packaging/minisign.pub."
-
-      - uses: anchore/sbom-action/download-syft@v0
-
-      - name: Version bestimmen
-        id: meta
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - uses: goreleaser/goreleaser-action@v6
-        with:
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MINISIGN_KEY_FILE: ${{ runner.temp }}/minisign.key
-          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
-
-      - name: Artefakte für den Pages-Job sichern
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: |
-            dist/SHA256SUMS
-            dist/SHA256SUMS.minisig
-            dist/*.deb
-          retention-days: 1
-
-  publish:
-    name: repo.cloudsrv24.de aktualisieren
-    needs: release
-    runs-on: ubuntu-latest
-    # Vorabversionen landen nicht im Stable-Kanal.
-    steps:
-      - name: Quellstand des Tags auschecken
-        uses: actions/checkout@v4
-        with:
           path: src
 
-      - name: Pages-Branch auschecken
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: pages
@@ -115,203 +115,44 @@ jobs:
       - name: Kanal bestimmen
         id: channel
         env:
-          VERSION: ${{ needs.release.outputs.version }}
+          VERSION: ${{ needs.package.outputs.version }}
         run: |
           case "$VERSION" in
             *-*) echo "name=beta"   >> "$GITHUB_OUTPUT" ;;
             *)   echo "name=stable" >> "$GITHUB_OUTPUT" ;;
           esac
 
-      - name: Installer und Update-Metadaten schreiben
-        env:
-          VERSION: ${{ needs.release.outputs.version }}
-          CHANNEL: ${{ steps.channel.outputs.name }}
-          REPO: ${{ github.repository }}
+      - name: Installer und Schlüssel veröffentlichen
         run: |
           set -euo pipefail
           cd pages
 
           # CNAME und .nojekyll gehören der Pages-Konfiguration und werden hier
-          # niemals angefasst.
+          # nie angefasst.
           test -f CNAME || echo "WARNUNG: CNAME fehlt im Pages-Branch"
           touch .nojekyll
 
           cp ../src/packaging/install.sh install.sh
           chmod 0644 install.sh
-          # Der Public Key liegt zum Nachprüfen daneben — wer dem Skript nicht
-          # traut, vergleicht ihn mit dem Repository.
           cp ../src/packaging/minisign.pub minisign.pub
-          mkdir -p updates
-
-          # Landingpage. Sobald .nojekyll gesetzt ist, rendert GitHub Pages
-          # keine Markdown-Dateien mehr — ohne index.html liefe die Wurzel der
-          # Domain in einen 404.
-          pubkey="$(tail -n1 minisign.pub)"
-          # gpg ist auf dem Runner vorhanden, aber der apt-Schritt kommt erst
-          # später — deshalb hier ohne Annahme darüber.
-          aptfpr="$(gpg --show-keys --with-colons ../src/packaging/asylum-archive-keyring.gpg 2>/dev/null \
-                    | awk -F: '/^fpr/{print $10; exit}')"
-          aptfpr="${aptfpr:-siehe /apt/KEY.asc}"
-
-          # Welche Suite die Seite empfehlen darf, hängt daran, was es gibt.
-          # Ein Kanalverzeichnis entsteht erst mit der ersten passenden
-          # Veröffentlichung; stünde hier fest "stable", liefe jeder Leser
-          # während der Beta-Phase in ein 404 beim ersten "apt update".
-          # Sobald es Stable einmal gibt, bleibt es die Empfehlung — auch wenn
-          # gerade eine Vorabversion veröffentlicht wird.
-          if [ -f apt/dists/stable/Release ] || [ "${CHANNEL}" = "stable" ]; then
-            suite="stable"
-            suitehint="Es gibt zusätzlich den Kanal <code>beta</code> mit Vorabversionen."
-          else
-            suite="beta"
-            suitehint="Bis zur ersten Freigabe gibt es nur <code>beta</code>. <code>Suites: stable</code> beantwortet apt bis dahin mit einem 404 — der Kanal ist noch leer."
-          fi
-
-          cat > index.html <<HTML
-          <!doctype html>
-          <html lang="de">
-          <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Project Asylum</title>
-          <style>
-          :root{color-scheme:light dark}
-          body{margin:0;padding:3rem 1.25rem;font:16px/1.6 system-ui,sans-serif;
-               max-width:44rem;margin-inline:auto}
-          h1{margin:0;font-size:1.6rem}
-          .claim{margin:.35rem 0 2rem;color:#2f6f4f;font-size:.85rem;font-weight:600}
-          pre{padding:1rem;border-radius:8px;overflow-x:auto;
-              background:rgba(127,127,127,.12)}
-          code{font-family:ui-monospace,Menlo,monospace;font-size:.9em}
-          h2{margin:2rem 0 .5rem;font-size:1.05rem}
-          .hint{font-size:.85rem;opacity:.75}
-          footer{margin-top:2.5rem;font-size:.8rem;opacity:.7}
-          </style>
-          </head>
-          <body>
-          <h1>Project Asylum</h1>
-          <p class="claim">Administration · Security · YAML · Logs · Updates · Monitoring</p>
-          <p>Schlankes Control Panel für Ubuntu- und Debian-Server. Ein Binary,
-          keine Runtime-Abhängigkeiten.</p>
-
-          <h2>Installieren</h2>
-          <pre><code>curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
-          sudo bash install.sh</code></pre>
-          <p>Der Installer gibt am Ende einen einmaligen Link zur Ersteinrichtung
-          aus. Signatur und Prüfsumme jedes Artefakts prüft er selbst — gegen den
-          Schlüssel, der in ihm steht.</p>
-
-          <h2>Über apt</h2>
-          <pre><code>sudo curl -fsSL --proto '=https' --tlsv1.2 \
-            https://repo.cloudsrv24.de/apt/asylum-archive-keyring.gpg \
-            -o /usr/share/keyrings/asylum-archive-keyring.gpg
-          sudo tee /etc/apt/sources.list.d/asylum.sources &gt;/dev/null &lt;&lt;'EOF'
-          Types: deb
-          URIs: https://repo.cloudsrv24.de/apt
-          Suites: ${suite}
-          Components: main
-          Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
-          EOF
-          sudo apt update &amp;&amp; sudo apt install asylum-panel</code></pre>
-          <p class="hint">${suitehint}</p>
-          <p class="hint">Das Paket heißt <code>asylum-panel</code> — <code>asylum</code>
-          ist in Debian an ein Spiel vergeben. Der Befehl heißt weiterhin
-          <code>asylum</code>. Über apt entfällt die Bereitschaftsprüfung mit
-          selbsttätigem Rückweg; die gibt es nur bei <code>asylum update</code>.</p>
-
-          <h2>Signaturschlüssel</h2>
-          <p>Artefakte, minisign (<a href="/minisign.pub">minisign.pub</a>):</p>
-          <pre><code>${pubkey}</code></pre>
-          <p>APT-Repository, OpenPGP (<a href="/apt/KEY.asc">KEY.asc</a>):</p>
-          <pre><code>${aptfpr}</code></pre>
-
-          <footer>
-          Version ${VERSION} ·
-          <a href="https://github.com/${REPO}">Quellcode</a> ·
-          <a href="https://github.com/${REPO}/releases/tag/v${VERSION}">Release-Notizen</a> ·
-          <a href="https://github.com/${REPO}/blob/main/SECURITY.md">Sicherheit</a> ·
-          <a href="https://github.com/${REPO}/blob/main/CHANGELOG.md">Changelog</a> ·
-          Apache-2.0
-          </footer>
-          </body>
-          </html>
-          HTML
-
-          # Untergrenze für direkte Updates. Sie steht in einer eigenen Datei und
-          # nicht hier, weil sie zum Stand des Codes gehört und nicht zur
-          # Pipeline: Sie ändert sich, wenn eine Migration einen Sprung
-          # unmöglich macht. Leer heißt "keine Grenze" und ist der Regelfall.
-          # "|| true" ist nicht dekorativ: Die Datei besteht im Regelfall nur
-          # aus Kommentarzeilen, grep findet dann nichts und endet mit 1 —
-          # unter "set -e" bräche der ganze Schritt genau dann ab, wenn alles
-          # in Ordnung ist.
-          MIN_UPGRADABLE="$(grep -v '^[[:space:]]*#' ../src/packaging/min-upgradable-from \
-                            | tr -d '[:space:]' || true)"
-          echo "min_upgradable_from: [${MIN_UPGRADABLE}]"
-
-          sha_for() {
-            grep " asylumd_${VERSION}_linux_${1}.tar.gz\$" ../dist/SHA256SUMS | awk '{print $1}'
-          }
-          base="https://github.com/${REPO}/releases/download/v${VERSION}"
-
-          # checksums_url und signature_url stehen ausdrücklich in der Datei:
-          # Der Daemon prüft das Archiv gegen genau diese signierte Liste. Ohne
-          # die Angaben leitet er sie aus der Archivadresse ab — das bleibt als
-          # Rückfallweg für ältere Metadaten bestehen.
-          cat > "updates/${CHANNEL}.json" <<JSON
-          {
-            "version": "${VERSION}",
-            "released_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "min_upgradable_from": "${MIN_UPGRADABLE}",
-            "notes_url": "https://github.com/${REPO}/releases/tag/v${VERSION}",
-            "severity": "normal",
-            "checksums_url": "${base}/SHA256SUMS",
-            "signature_url": "${base}/SHA256SUMS.minisig",
-            "artifacts": {
-              "linux_amd64": {
-                "url": "${base}/asylumd_${VERSION}_linux_amd64.tar.gz",
-                "sha256": "$(sha_for amd64)"
-              },
-              "linux_arm64": {
-                "url": "${base}/asylumd_${VERSION}_linux_arm64.tar.gz",
-                "sha256": "$(sha_for arm64)"
-              }
-            }
-          }
-          JSON
-
-          python3 -m json.tool "updates/${CHANNEL}.json" >/dev/null
-
-          # Die Prüfsummen dürfen nicht leer bleiben: Ein leeres Feld würde
-          # erst beim Nutzer auffallen, und zwar als abgelehntes Update.
-          for arch in amd64 arm64; do
-            if [ -z "$(sha_for "$arch")" ]; then
-              echo "Für $arch fehlt die Prüfsumme in SHA256SUMS."
-              exit 1
-            fi
-          done
+          mkdir -p apt
+          cp ../src/packaging/cloudsrv-archive-keyring.gpg apt/cloudsrv-archive-keyring.gpg
+          cp ../src/packaging/cloudsrv-archive-keyring.asc apt/KEY.asc
 
       - name: APT-Repository aktualisieren
         env:
-          VERSION: ${{ needs.release.outputs.version }}
+          VERSION: ${{ needs.package.outputs.version }}
           CHANNEL: ${{ steps.channel.outputs.name }}
           APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
           APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
         run: |
           set -euo pipefail
 
-          # Das APT-Repository ist ein Zusatzangebot für Administratoren, die
-          # ihre Server ohnehin über apt fahren. Der empfohlene Weg bleibt das
-          # eingebaute Update: nur dieses prüft nach dem Neustart, ob das Panel
-          # wieder antwortet, und nimmt ein fehlgeschlagenes Update selbsttätig
-          # zurück. apt kann das nicht — es kennt keinen Healthcheck.
-          #
-          # Ohne hinterlegten GPG-Schlüssel wird der Schritt übersprungen statt
-          # ein unsigniertes Repository zu veröffentlichen. Ein unsigniertes
+          # Ohne hinterlegten Schlüssel wird der Schritt übersprungen, statt ein
+          # unsigniertes Repository zu veröffentlichen. Ein unsigniertes
           # apt-Repository ist schlimmer als gar keines.
           if [ -z "${APT_GPG_KEY:-}" ]; then
             echo "::warning::Secret APT_GPG_KEY fehlt — das APT-Repository wird nicht aktualisiert."
-            echo "Anleitung: docs/05-updates.md, Abschnitt \"APT-Repository\"."
             exit 0
           fi
 
@@ -319,15 +160,12 @@ jobs:
           sudo apt-get install -y -qq apt-utils gnupg
 
           cd pages
-          mkdir -p "apt/dists/${CHANNEL}/main/binary-amd64" \
-                   "apt/dists/${CHANNEL}/main/binary-arm64"
+          mkdir -p "apt/dists/${CHANNEL}/main/binary-amd64" "apt/dists/${CHANNEL}/main/binary-arm64"
 
-          # Neue Pakete in den Pool, jedes unter seinem eigenen Namen — das ist
-          # die Debian-Konvention pool/main/<anfangsbuchstabe>/<paket>/. Ein
-          # pauschales Kopieren legte das Schlüsselbund-Paket in das
-          # Verzeichnis des Panels; apt stört das nicht, ein Mensch schon.
-          # Ältere Fassungen bleiben liegen, damit ein gezieltes Downgrade
-          # über apt möglich bleibt.
+          # Jedes Paket unter seinem eigenen Namen in den Pool — Debian-Konvention
+          # pool/main/<anfangsbuchstabe>/<paket>/. Das Paket des Vorgängers liegt
+          # dort weiter und wird nicht angefasst: Bestehende Installationen sollen
+          # beim nächsten „apt update" nicht ins Leere laufen.
           for deb in ../dist/*.deb; do
             name="$(dpkg-deb -f "$deb" Package)"
             dir="apt/pool/main/${name:0:1}/${name}"
@@ -335,30 +173,37 @@ jobs:
             cp "$deb" "$dir/"
           done
 
-          # Aus apt heraus, nicht darüber: apt-ftparchive schreibt den
-          # übergebenen Pfad wörtlich in das Feld "Filename". Von außen
-          # aufgerufen stünde dort "apt/pool/…", und apt suchte das Paket
-          # unter …/apt/apt/pool/….
+          # Pages fasst rund 1 GB. Ein .deb dieses Panels liegt bei 30–80 MB,
+          # also bleiben im Pool nur die letzten fünf Fassungen je Paket; ältere
+          # sind weiter über die GitHub-Releases erreichbar. Ohne diese Regel ist
+          # die Grenze nach etwa einem Jahr erreicht — und dann bricht nicht der
+          # Upload, sondern die Auslieferung an alle.
+          for package_dir in apt/pool/main/*/*/; do
+            ls -1t "${package_dir}"*.deb 2>/dev/null | tail -n +6 | xargs -r rm -f
+          done
+
+          # Aus apt heraus, nicht darüber: apt-ftparchive schreibt den übergebenen
+          # Pfad wörtlich ins Feld „Filename". Von außen aufgerufen stünde dort
+          # „apt/pool/…", und apt suchte unter …/apt/apt/pool/….
           (
             cd apt
             for arch in amd64 arm64; do
-              apt-ftparchive --arch "$arch" packages pool \
-                > "dists/${CHANNEL}/main/binary-${arch}/Packages"
+              apt-ftparchive --arch "$arch" packages pool > "dists/${CHANNEL}/main/binary-${arch}/Packages"
               gzip -9kf "dists/${CHANNEL}/main/binary-${arch}/Packages"
             done
 
-            # Über eine Zwischendatei: Die Umleitung legt die Zieldatei an,
-            # bevor apt-ftparchive das Verzeichnis liest — Release stünde
-            # sonst mit einer Prüfsumme über sich selbst in der eigenen Liste.
+            # Über eine Zwischendatei: Die Umleitung legt die Zieldatei an, bevor
+            # apt-ftparchive das Verzeichnis liest — Release stünde sonst mit
+            # einer Prüfsumme über sich selbst in der eigenen Liste.
             rm -f "dists/${CHANNEL}/Release"
             apt-ftparchive \
-              -o APT::FTPArchive::Release::Origin="Project Asylum" \
-              -o APT::FTPArchive::Release::Label="Project Asylum" \
+              -o APT::FTPArchive::Release::Origin="CloudSrv" \
+              -o APT::FTPArchive::Release::Label="CloudSrv" \
               -o APT::FTPArchive::Release::Suite="${CHANNEL}" \
               -o APT::FTPArchive::Release::Codename="${CHANNEL}" \
               -o APT::FTPArchive::Release::Architectures="amd64 arm64" \
               -o APT::FTPArchive::Release::Components="main" \
-              -o APT::FTPArchive::Release::Description="Project Asylum ${CHANNEL}" \
+              -o APT::FTPArchive::Release::Description="CloudSrv ${CHANNEL}" \
               release "dists/${CHANNEL}" > "${RUNNER_TEMP}/Release"
             mv "${RUNNER_TEMP}/Release" "dists/${CHANNEL}/Release"
           )
@@ -366,79 +211,29 @@ jobs:
           export GNUPGHOME="${RUNNER_TEMP}/gnupg"
           mkdir -p "$GNUPGHOME"; chmod 700 "$GNUPGHOME"
           printf '%s\n' "$APT_GPG_KEY" | gpg --batch --import
-          keyid="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/{print $5; exit}')"
 
-          # Passt das Secret zum veröffentlichten Schlüsselbund? Ein vertauschter
-          # Schlüssel fällt sonst erst bei den Nutzern auf — als "NO_PUBKEY", und
-          # zwar bei allen gleichzeitig. Verglichen wird der Fingerprint, nicht
-          # die Datei: Schlüsselbunde können sich in Signaturen und
-          # Zeitstempeln unterscheiden und trotzdem denselben Schlüssel meinen.
+          # Verglichen wird der Fingerprint, nicht die Datei: Schlüsselbunde
+          # können sich in Signaturen und Zeitstempeln unterscheiden und trotzdem
+          # denselben Schlüssel meinen.
           fpr_secret="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')"
-          fpr_public="$(gpg --show-keys --with-colons ../src/packaging/asylum-archive-keyring.gpg \
+          fpr_public="$(gpg --show-keys --with-colons ../src/packaging/cloudsrv-archive-keyring.gpg \
                         | awk -F: '/^fpr/{print $10; exit}')"
           if [ "$fpr_secret" != "$fpr_public" ]; then
-            echo "Der hinterlegte Schlüssel ($fpr_secret) ist nicht der veröffentlichte ($fpr_public)."
+            echo "::error::Der hinterlegte Schlüssel ($fpr_secret) ist nicht der veröffentlichte ($fpr_public)."
             exit 1
           fi
-          echo "Signaturschlüssel passt zu packaging/asylum-archive-keyring.gpg: $fpr_secret"
 
-          sign() {
-            gpg --batch --yes --pinentry-mode loopback \
-                --passphrase "${APT_GPG_PASSPHRASE:-}" \
-                --local-user "$keyid" "$@"
-          }
-          rm -f "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/InRelease"
-          sign --armor --detach-sign -o "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
-          sign --clearsign          -o "apt/dists/${CHANNEL}/InRelease"    "apt/dists/${CHANNEL}/Release"
-
-          # Ausgeliefert wird der Schlüsselbund aus dem Repository, nicht ein
-          # frisch aus dem Secret exportierter: So ist die Datei, der die Nutzer
-          # vertrauen, dieselbe, die im Quelltext nachlesbar ist.
-          cp ../src/packaging/asylum-archive-keyring.gpg apt/asylum-archive-keyring.gpg
-          cp ../src/packaging/asylum-archive-keyring.asc apt/KEY.asc
-
-          # Gegenprobe: Ein Repository, dessen Signatur nicht zur eigenen
-          # Release-Datei passt, würde bei jedem Nutzer "NO_PUBKEY" oder
-          # "BADSIG" auslösen — das muss hier auffallen, nicht dort.
-          gpg --verify "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
-          gpg --verify "apt/dists/${CHANNEL}/InRelease"
-
-          # Und die Gegenprobe aus Sicht eines Nutzers: Prüft der ausgelieferte
-          # Schlüsselbund allein — ohne den privaten Schlüssel im Ring — die
-          # Signatur? Genau das macht apt.
-          verify_home="${RUNNER_TEMP}/gnupg-verify"
-          rm -rf "$verify_home"; mkdir -p "$verify_home"; chmod 700 "$verify_home"
-          GNUPGHOME="$verify_home" gpg --import apt/asylum-archive-keyring.gpg
-          GNUPGHOME="$verify_home" gpg --verify \
-            "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
-
-          # nfpm ersetzt den ersten Bindestrich einer Vorabversion durch eine
-          # Tilde: aus 0.1.0-rc.1 wird 0.1.0~rc.1. Das ist Absicht und richtig —
-          # in Debian sortiert "~" vor der Freigabe, eine Vorabversion überholt
-          # sie also nicht. Gesucht werden muss folglich die Debian-Schreibweise.
-          deb_version="${VERSION/-/\~}"
-          echo "Version im Tag: ${VERSION}, im Paket: ${deb_version}"
-
-          for arch in amd64 arm64; do
-            pkgs="apt/dists/${CHANNEL}/main/binary-${arch}/Packages"
-            grep -q "^Version: ${deb_version}\$" "$pkgs"
-            # Der Pfad muss ohne führendes "apt/" dastehen, sonst lädt apt ins Leere.
-            grep -q "^Filename: pool/main/a/asylum-panel/" "$pkgs"
-            grep -qv "^Filename: apt/" "$pkgs"
-            # Und der Schlüsselbund muss dabei sein — asylum-panel empfiehlt ihn.
-            grep -q "^Package: asylum-archive-keyring$" "$pkgs"
-          done
-          echo "APT-Repository für ${CHANNEL} steht."
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${APT_GPG_PASSPHRASE:-}" \
+              --clearsign -o "apt/dists/${CHANNEL}/InRelease" "apt/dists/${CHANNEL}/Release"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${APT_GPG_PASSPHRASE:-}" \
+              -abs -o "apt/dists/${CHANNEL}/Release.gpg" "apt/dists/${CHANNEL}/Release"
 
       - name: Veröffentlichen
         run: |
           cd pages
-          git config user.name  "github-actions[bot]"
+          git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          if git diff --cached --quiet; then
-            echo "Keine Änderungen."
-            exit 0
-          fi
-          git commit -m "chore(pages): Release ${{ needs.release.outputs.version }}"
+          git diff --cached --quiet && { echo "Nichts zu veröffentlichen."; exit 0; }
+          git commit -m "repo: CloudSrv ${{ needs.package.outputs.version }} (${{ steps.channel.outputs.name }})"
           git push

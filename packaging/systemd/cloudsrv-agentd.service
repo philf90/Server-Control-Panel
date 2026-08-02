@@ -1,0 +1,47 @@
+[Unit]
+Description=CloudSrv — privilegierter Agent
+Documentation=https://repo.cloudsrv24.de/
+After=network.target
+Before=cloudsrv-worker.service cloudsrv-metrics.service
+
+[Service]
+Type=simple
+ExecStart=/opt/cloudsrv/current/agent/bin/cloudsrv-agentd serve --config=/etc/cloudsrv/agent.json
+Restart=on-failure
+RestartSec=2s
+TimeoutStopSec=30s
+
+# Der Agent legt Systembenutzer an, lädt nginx neu und installiert Pakete. Er
+# braucht root, und die Härtung kann deshalb nur begrenzen, was er sonst noch
+# könnte — nicht, was seine Aufgabe ist.
+#
+# Was hier NICHT steht, ist so wichtig wie das, was steht:
+#   ProtectSystem=  bleibt aus. Beim Vorgänger stand hier „true", also /usr
+#                   read-only. Jede Paketinstallation brach daraufhin beim
+#                   Auspacken ab, weil die Einschränkung für jeden Kindprozess
+#                   gilt und dpkg einer ist. Gefunden hat das kein Test,
+#                   sondern der erste Lauf auf einem echten Server.
+#   ProtectHome=    bleibt aus. Die Abo-Verzeichnisse liegen unter
+#                   /var/www/vhosts, der Dateimanager arbeitet dort.
+#   NoNewPrivileges bleibt aus. useradd und apt rufen setuid-Programme auf.
+ReadOnlyPaths=-/boot -/efi
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+
+RuntimeDirectory=cloudsrv
+RuntimeDirectoryMode=0755
+LogsDirectory=cloudsrv
+StateDirectory=cloudsrv
+
+MemoryMax=512M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

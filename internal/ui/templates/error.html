@@ -1,7 +1,0 @@
-{{define "error"}}{{template "header" .}}
-<div class="card">
-  <h1>Das hat nicht geklappt</h1>
-  <p>{{.Content.Message}}</p>
-  <a class="button" href="{{if .LoggedIn}}/{{else}}/login{{end}}">Zurück</a>
-</div>
-{{template "footer" .}}{{end}}

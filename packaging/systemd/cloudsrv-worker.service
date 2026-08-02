@@ -1,0 +1,39 @@
+[Unit]
+Description=CloudSrv — Warteschlange für lang laufende Vorgänge
+Documentation=https://repo.cloudsrv24.de/
+After=cloudsrv-agentd.service mariadb.service
+Requires=cloudsrv-agentd.service
+
+[Service]
+Type=simple
+User=cloudsrv
+Group=cloudsrv
+WorkingDirectory=/opt/cloudsrv/current
+ExecStart=/opt/cloudsrv/bin/php artisan queue:work --queue=vorgaenge,standard --sleep=1 --tries=1 --max-time=3600
+Restart=always
+RestartSec=5s
+
+# --tries=1 ist Absicht: Ein Vorgang, der ein Systemobjekt anlegt, darf nach
+# einem Abbruch nicht blind wiederholt werden. Was wiederholbar ist,
+# entscheidet der Vorgang selbst und nicht die Warteschlange.
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/cloudsrv /var/log/cloudsrv /opt/cloudsrv/current/storage
+
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

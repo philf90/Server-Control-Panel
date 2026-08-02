@@ -7,6 +7,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,18 +16,32 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Die Reihenfolge trägt Bedeutung.
+        // Die Reihenfolge trägt Bedeutung, und eine davon ist nicht
+        // offensichtlich.
         //
         // EnforceSessionLifetime steht vorn: Eine abgelaufene Sitzung soll
         // beendet sein, bevor irgendetwas anderes sie als angemeldet ansieht.
-        // ApplyTenancy folgt, weil es ein angemeldetes Konto braucht — und
-        // steht vor HandleInertiaRequests, damit auch die Daten, die dieses
-        // an jede Seite anhängt, schon unter der Mandantenklammer entstehen.
-        $middleware->web(append: [
-            EnforceSessionLifetime::class,
-            ApplyTenancy::class,
-            HandleInertiaRequests::class,
-        ]);
+        //
+        // **ApplyTenancy muss vor SubstituteBindings stehen.** In der
+        // Standardgruppe steht SubstituteBindings weiter vorn, und angehängte
+        // Middleware liefe danach — die Modellbindung suchte dann ohne
+        // Mandantenklammer. Ein Kunde, der eine fremde ID in die Adresse
+        // schreibt, bekäme das Objekt gebunden; erst die Policy wiese ihn ab.
+        // Das ist eine Schicht zu spät: Aus „nicht gefunden" würde
+        // „verboten", und damit ließe sich abzählen, welche IDs es gibt.
+        //
+        // Deshalb wird SubstituteBindings aus seiner Position genommen und
+        // hinter ApplyTenancy wieder eingesetzt. Ein Test hält die Reihenfolge
+        // fest, damit sie nicht beim nächsten Umbau still zurückfällt.
+        $middleware->web(
+            remove: [SubstituteBindings::class],
+            append: [
+                EnforceSessionLifetime::class,
+                ApplyTenancy::class,
+                SubstituteBindings::class,
+                HandleInertiaRequests::class,
+            ],
+        );
 
         $middleware->redirectGuestsTo(fn () => route('login'));
     })

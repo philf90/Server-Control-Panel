@@ -24,6 +24,20 @@ return [
     ],
 
     /*
+     * Vorgänge und ihre Live-Ausgabe (§5.3).
+     *
+     * `stream_seconds` ist keine Schönheitsgrenze: Jede offene SSE-Verbindung
+     * belegt einen PHP-FPM-Arbeiter, und der Pool hat eine feste Größe. Nach
+     * dieser Zeit endet der Strom von selbst und der Browser baut ihn neu auf
+     * — der Platz ist zwischendurch frei. Ohne die Grenze könnten ein paar
+     * vergessene Browserreiter das Panel für alle unerreichbar machen.
+     */
+    'operations' => [
+        'poll_ms' => (int) env('SRVPANEL_OPERATION_POLL_MS', 500),
+        'stream_seconds' => (int) env('SRVPANEL_OPERATION_STREAM_SECONDS', 300),
+    ],
+
+    /*
      * Sitzungen (§6.4).
      *
      * Zwei Grenzen, und sie tun Verschiedenes: Die gleitende steht in

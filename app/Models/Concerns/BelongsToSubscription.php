@@ -60,7 +60,16 @@ trait BelongsToSubscription
         // genau einer aktiv ist. Bei mehreren wäre die Wahl geraten — dann
         // muss der Aufrufer sie treffen.
         static::creating(function (Model $model): void {
-            if ($model->getAttribute('subscription_id') !== null) {
+            // `array_key_exists` statt `!== null`, und das ist der Unterschied
+            // zwischen „nicht erwähnt" und „ausdrücklich auf null gesetzt".
+            //
+            // Ein Vorgang des Betreibers — Paketinstallation, Dienstneustart —
+            // trägt kein Abonnement, und zwar auch dann nicht, wenn er zufällig
+            // aus einer Anfrage heraus entsteht, in der genau ein Mandant aktiv
+            // ist. Mit einer Prüfung auf `null` hätte er sich das Abonnement
+            // des gerade angemeldeten Kunden eingefangen und wäre in dessen
+            // Vorgangsliste aufgetaucht.
+            if (array_key_exists('subscription_id', $model->getAttributes())) {
                 return;
             }
 

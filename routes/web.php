@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
 use Illuminate\Support\Facades\Route;
 use SrvPanel\Agent\Client;
@@ -33,6 +34,20 @@ Route::post('/logout', [LoginController::class, 'destroy'])
  */
 Route::middleware('auth')->group(function (): void {
     Route::get('/', OverviewController::class)->name('overview');
+
+    /*
+     * Die Live-Ausgabe eines Vorgangs.
+     *
+     * Die erste Route mit einer Policy an der Aktion statt einer Eintragung
+     * in der Registratur — `can:view,operation`. Die Modellbindung läuft
+     * bereits unter der Mandantenklammer (siehe bootstrap/app.php), ein
+     * fremder Vorgang ist deshalb schon „nicht gefunden" und erreicht die
+     * Policy gar nicht erst. Sie steht trotzdem da: zwei Schichten, und
+     * wenn eine ausfällt, hält die andere.
+     */
+    Route::get('/operations/{operation}/stream', OperationStreamController::class)
+        ->middleware('can:view,operation')
+        ->name('operations.stream');
 });
 
 /*

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent\Ops;
+namespace SrvPanel\Agent\Ops;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\Op;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Op;
 
 /**
  * Selbstsigniertes Zertifikat für die Panel-Oberfläche.
@@ -24,7 +24,7 @@ use CloudSrv\Agent\Op;
  */
 final class PanelTls implements Op
 {
-    public function __construct(private readonly string $directory = '/etc/cloudsrv/tls') {}
+    public function __construct(private readonly string $directory = '/etc/srvpanel/tls') {}
 
     public static function name(): string
     {
@@ -65,7 +65,7 @@ final class PanelTls implements Op
 
         $csr = openssl_csr_new([
             'commonName' => substr($name, 0, 64),
-            'organizationName' => 'CloudSrv',
+            'organizationName' => 'SrvPanel',
         ], $pair, ['digest_alg' => 'sha256']);
 
         if ($csr === false) {

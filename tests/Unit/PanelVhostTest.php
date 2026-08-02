@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use CloudSrv\Agent\Ops\PanelVhost;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\Ops\PanelVhost;
 
 /**
  * Der Server-Block muss auf allen vier Zielplattformen von nginx angenommen
@@ -21,7 +21,7 @@ final class PanelVhostTest extends TestCase
 {
     public function test_modern_nginx_gets_the_standalone_directive(): void
     {
-        $config = (new PanelVhost)->template(8443, '/etc/cloudsrv/tls/panel.crt', '/etc/cloudsrv/tls/panel.key', true);
+        $config = (new PanelVhost)->template(8443, '/etc/srvpanel/tls/panel.crt', '/etc/srvpanel/tls/panel.key', true);
 
         $this->assertStringContainsString('listen 8443 ssl;', $config);
         $this->assertStringContainsString('http2 on;', $config);
@@ -30,7 +30,7 @@ final class PanelVhostTest extends TestCase
 
     public function test_older_nginx_gets_the_listen_parameter(): void
     {
-        $config = (new PanelVhost)->template(8443, '/etc/cloudsrv/tls/panel.crt', '/etc/cloudsrv/tls/panel.key', false);
+        $config = (new PanelVhost)->template(8443, '/etc/srvpanel/tls/panel.crt', '/etc/srvpanel/tls/panel.key', false);
 
         $this->assertStringContainsString('listen 8443 ssl http2;', $config);
         $this->assertStringContainsString('listen [::]:8443 ssl http2;', $config);
@@ -55,7 +55,7 @@ final class PanelVhostTest extends TestCase
             $this->assertStringContainsString('fastcgi_buffering off;', $config);
 
             // Die Include-Datei für Handarbeit bleibt eingebunden.
-            $this->assertStringContainsString('/etc/cloudsrv/nginx-extra.conf', $config);
+            $this->assertStringContainsString('/etc/srvpanel/nginx-extra.conf', $config);
         }
     }
 

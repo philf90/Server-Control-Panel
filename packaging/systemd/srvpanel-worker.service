@@ -1,15 +1,15 @@
 [Unit]
-Description=CloudSrv — Warteschlange für lang laufende Vorgänge
+Description=SrvPanel — Warteschlange für lang laufende Vorgänge
 Documentation=https://repo.cloudsrv24.de/
-After=cloudsrv-agentd.service mariadb.service
-Requires=cloudsrv-agentd.service
+After=srvpanel-agentd.service mariadb.service
+Requires=srvpanel-agentd.service
 
 [Service]
 Type=simple
-User=cloudsrv
-Group=cloudsrv
-WorkingDirectory=/opt/cloudsrv/current
-ExecStart=/opt/cloudsrv/bin/php artisan queue:work --queue=vorgaenge,standard --sleep=1 --tries=1 --max-time=3600
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan queue:work --queue=vorgaenge,standard --sleep=1 --tries=1 --max-time=3600
 Restart=always
 RestartSec=5s
 
@@ -30,7 +30,7 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-ReadWritePaths=/var/lib/cloudsrv /var/log/cloudsrv /opt/cloudsrv/current/storage
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel /opt/srvpanel/current/storage
 
 MemoryMax=512M
 TasksMax=64

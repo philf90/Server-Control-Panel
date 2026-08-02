@@ -1,14 +1,14 @@
 #!/bin/sh
-# Siehe /opt/cloudsrv/bin/php — dieselbe Auswahl, anderes Programm.
+# Siehe /opt/srvpanel/bin/php — dieselbe Auswahl, anderes Programm.
 set -eu
 
-if [ -x /opt/cloudsrv/php/sbin/php-fpm ]; then
-    exec /opt/cloudsrv/php/sbin/php-fpm "$@"
+if [ -x /opt/srvpanel/php/sbin/php-fpm ]; then
+    exec /opt/srvpanel/php/sbin/php-fpm "$@"
 fi
 
-if [ -r /etc/cloudsrv/php.path ]; then
+if [ -r /etc/srvpanel/php.path ]; then
     # shellcheck disable=SC1091
-    . /etc/cloudsrv/php.path
+    . /etc/srvpanel/php.path
 fi
 
-exec "${CLOUDSRV_PHP_FPM:-/usr/sbin/php-fpm}" "$@"
+exec "${SRVPANEL_PHP_FPM:-/usr/sbin/php-fpm}" "$@"

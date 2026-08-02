@@ -3,7 +3,7 @@ import { createInertiaApp } from '@inertiajs/vue3'
 import '../css/app.css'
 
 createInertiaApp({
-  title: (titel) => (titel ? `${titel} · CloudSrv` : 'CloudSrv'),
+  title: (titel) => (titel ? `${titel} · SrvPanel` : 'SrvPanel'),
   resolve: (name) => {
     const seiten = import.meta.glob<{ default: DefineComponent }>('./Seiten/**/*.vue', { eager: true })
     const seite = seiten[`./Seiten/${name}.vue`]

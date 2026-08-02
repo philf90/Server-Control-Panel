@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'version' => env('CLOUDSRV_VERSION', '0.1.0-dev'),
+    'version' => env('SRVPANEL_VERSION', '0.1.0-dev'),
 
     'name' => env('APP_NAME', 'Laravel'),
 

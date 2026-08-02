@@ -24,17 +24,17 @@ $app = Application::configure(basePath: dirname(__DIR__))
     })->create();
 
 /*
- * Schlüssel und Zugangsdaten liegen unter /etc/cloudsrv/panel.env und nicht
+ * Schlüssel und Zugangsdaten liegen unter /etc/srvpanel/panel.env und nicht
  * im Auslieferungsverzeichnis.
  *
- * Der Grund ist das Update: /opt/cloudsrv/releases/<version>/ wird dabei
+ * Der Grund ist das Update: /opt/srvpanel/releases/<version>/ wird dabei
  * ersetzt. Eine .env darin wäre nach dem ersten Update weg — samt APP_KEY,
  * mit dem alle verschlüsselten Werte in der Datenbank lesbar sind. Für die
  * Entwicklung bleibt die .env im Projektverzeichnis; die Datei unter /etc
  * gibt es dort nicht.
  */
-if (is_readable('/etc/cloudsrv/panel.env')) {
-    $app->useEnvironmentPath('/etc/cloudsrv')->loadEnvironmentFrom('panel.env');
+if (is_readable('/etc/srvpanel/panel.env')) {
+    $app->useEnvironmentPath('/etc/srvpanel')->loadEnvironmentFrom('panel.env');
 }
 
 return $app;

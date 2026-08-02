@@ -1,14 +1,14 @@
 {
-  "socket": "/run/cloudsrv/agent.sock",
-  "user": "cloudsrv",
-  "group": "cloudsrv",
-  "log": "/var/log/cloudsrv/agent.log",
+  "socket": "/run/srvpanel/agent.sock",
+  "user": "srvpanel",
+  "group": "srvpanel",
+  "log": "/var/log/srvpanel/agent.log",
   "config_roots": [
     "/etc/nginx",
     "/etc/php",
     "/etc/ssh",
-    "/etc/cloudsrv",
-    "/var/lib/cloudsrv"
+    "/etc/srvpanel",
+    "/var/lib/srvpanel"
   ],
   "max_children": 8
 }

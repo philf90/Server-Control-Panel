@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Support\Metrics\Store;
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Client;
 use Inertia\Inertia;
 use Inertia\Response;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Client;
 
 /**
  * Die Adminübersicht — die erste Fläche, die es gibt, und der Nachweis, dass
@@ -101,7 +101,7 @@ final class OverviewController extends Controller
     /** @return list<array<string,mixed>> */
     private function services(Client $agent): array
     {
-        $units = ['cloudsrv-agentd.service', 'nginx.service', 'mariadb.service'];
+        $units = ['srvpanel-agentd.service', 'nginx.service', 'mariadb.service'];
         $rows = [];
 
         foreach ($units as $unit) {

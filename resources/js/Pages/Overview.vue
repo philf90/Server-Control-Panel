@@ -58,7 +58,7 @@ const headline = props.server.reachable
     <div v-if="!server.reachable" class="alert">
       <b>Der Agent antwortet nicht.</b>
       <span>{{ server.error }}</span>
-      <code>systemctl status cloudsrv-agentd</code>
+      <code>systemctl status srvpanel-agentd</code>
     </div>
 
     <div class="tiles">

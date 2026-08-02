@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 /**
  * Die Einstellungen des Agenten.
@@ -15,11 +15,11 @@ final class Config
 {
     /** @param list<string> $configRoots */
     public function __construct(
-        public readonly string $socket = '/run/cloudsrv/agent.sock',
-        public readonly string $group = 'cloudsrv',
-        public readonly string $user = 'cloudsrv',
-        public readonly string $logFile = '/var/log/cloudsrv/agent.log',
-        public readonly array $configRoots = ['/etc/nginx', '/etc/php', '/etc/ssh', '/var/lib/cloudsrv'],
+        public readonly string $socket = '/run/srvpanel/agent.sock',
+        public readonly string $group = 'srvpanel',
+        public readonly string $user = 'srvpanel',
+        public readonly string $logFile = '/var/log/srvpanel/agent.log',
+        public readonly array $configRoots = ['/etc/nginx', '/etc/php', '/etc/ssh', '/var/lib/srvpanel'],
         public readonly int $maxChildren = 8,
         public readonly bool $allowUnprivileged = false,
     ) {}

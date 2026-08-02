@@ -1,8 +1,8 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "cloudsrv/panel",
+    "name": "srvpanel/panel",
     "type": "project",
-    "description": "CloudSrv — Hosting-Panel für einen einzelnen Linux-Server",
+    "description": "SrvPanel — Hosting-Panel für einen einzelnen Linux-Server",
     "keywords": [
         "hosting",
         "panel",
@@ -30,7 +30,7 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
-            "CloudSrv\\Agent\\": "agent/src/"
+            "SrvPanel\\Agent\\": "agent/src/"
         }
     },
     "autoload-dev": {

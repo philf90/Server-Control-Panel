@@ -52,7 +52,7 @@ jobs:
             exit 1
           fi
           php -r 'require "agent/src/autoload.php";
-                  new CloudSrv\Agent\Registry(new CloudSrv\Agent\Config());
+                  new SrvPanel\Agent\Registry(new SrvPanel\Agent\Config());
                   if (class_exists("Composer\Autoload\ClassLoader", false)) { fwrite(STDERR, "vendor/ war geladen.\n"); exit(1); }
                   echo "Der Agent lädt ohne vendor/.\n";'
 
@@ -172,24 +172,24 @@ jobs:
 
       - name: Der Agent läuft und antwortet
         run: |
-          docker exec target systemctl is-active cloudsrv-agentd.service
-          docker exec target /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call agent.ping
-          docker exec target /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call system.info | head -5
+          docker exec target systemctl is-active srvpanel-agentd.service
+          docker exec target /opt/srvpanel/current/agent/bin/srvpanel-agentd call agent.ping
+          docker exec target /opt/srvpanel/current/agent/bin/srvpanel-agentd call system.info | head -5
 
       - name: Der Socket ist nicht für alle offen
         run: |
-          mode="$(docker exec target stat -c '%a %U:%G' /run/cloudsrv/agent.sock)"
+          mode="$(docker exec target stat -c '%a %U:%G' /run/srvpanel/agent.sock)"
           echo "Socket: ${mode}"
           case "${mode}" in
-            "660 root:cloudsrv") ;;
-            *) echo "::error::Socket steht auf ${mode}, erwartet ist 660 root:cloudsrv"; exit 1 ;;
+            "660 root:srvpanel") ;;
+            *) echo "::error::Socket steht auf ${mode}, erwartet ist 660 root:srvpanel"; exit 1 ;;
           esac
 
       - name: Ersteinrichtung und Oberfläche
         run: |
           docker exec target sh -c 'systemctl start mariadb || service mariadb start' || true
           sleep 5
-          docker exec target cloudsrv setup --port=8443
+          docker exec target srvpanel setup --port=8443
           docker exec target curl -fsS -k https://127.0.0.1:8443/gesundheit
           echo
 
@@ -198,17 +198,17 @@ jobs:
         # einrichtet, darf dabei nicht den Schlüssel wechseln — sonst ist die
         # Datenbank danach unlesbar.
         run: |
-          vorher="$(docker exec target grep '^APP_KEY=' /etc/cloudsrv/panel.env)"
-          docker exec target cloudsrv setup --port=8443 >/dev/null
-          nachher="$(docker exec target grep '^APP_KEY=' /etc/cloudsrv/panel.env)"
+          vorher="$(docker exec target grep '^APP_KEY=' /etc/srvpanel/panel.env)"
+          docker exec target srvpanel setup --port=8443 >/dev/null
+          nachher="$(docker exec target grep '^APP_KEY=' /etc/srvpanel/panel.env)"
           [ "$vorher" = "$nachher" ] || { echo "::error::Der APP_KEY hat sich beim zweiten Lauf geändert."; exit 1; }
           echo "Der Schlüssel ist geblieben."
 
       - name: Entfernen hinterlässt keine Dienste, aber die Daten
         run: |
-          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y cloudsrv-panel'
-          ! docker exec target systemctl is-active cloudsrv-agentd.service
-          docker exec target test -d /var/lib/cloudsrv
+          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y srvpanel'
+          ! docker exec target systemctl is-active srvpanel-agentd.service
+          docker exec target test -d /var/lib/srvpanel
 
       - name: Aufräumen
         if: always()
@@ -222,12 +222,12 @@ jobs:
       - name: shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
-          # SC1091 ist ausgenommen: /etc/os-release und /etc/cloudsrv/php.path
+          # SC1091 ist ausgenommen: /etc/os-release und /etc/srvpanel/php.path
           # gibt es auf dem Prüfrechner nicht, und beide sind keine Quelldateien
           # dieses Projekts. SC1090 desgleichen für den Pfad aus einer Variablen.
           shellcheck -e SC1091 packaging/install.sh packaging/php-source.sh packaging/scripts/*.sh
-          shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/cloudsrv
-          shellcheck -e SC1090,SC1091 packaging/build.sh packaging/testbed.sh
+          shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/srvpanel
+          shellcheck -e SC1090,SC1091 packaging/build.sh packaging/testbed.sh packaging/rotate-signing-keys.sh
 
   supply-chain:
     name: Schwachstellen und Lizenzen

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent\Ops;
+namespace SrvPanel\Agent\Ops;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\Op;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Op;
 
 /**
  * Das Update des Panels — außerhalb der eigenen Kontrollgruppe.
@@ -27,7 +27,7 @@ use CloudSrv\Agent\Op;
  */
 final class PanelUpdate implements Op
 {
-    public const LOG = '/var/log/cloudsrv/update.log';
+    public const LOG = '/var/log/srvpanel/update.log';
 
     public static function name(): string
     {
@@ -41,11 +41,11 @@ final class PanelUpdate implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $unit = 'cloudsrv-update-'.bin2hex(random_bytes(4));
+        $unit = 'srvpanel-update-'.bin2hex(random_bytes(4));
 
         // Läuft bereits eines? Zwei apt-Läufe gleichzeitig enden in der
         // dpkg-Sperre, und die Meldung darüber versteht niemand.
-        $running = $context->runner->run('systemctl', ['list-units', '--plain', '--no-legend', 'cloudsrv-update-*'], 15);
+        $running = $context->runner->run('systemctl', ['list-units', '--plain', '--no-legend', 'srvpanel-update-*'], 15);
 
         foreach ($running->lines() as $line) {
             if (str_contains($line, 'running')) {
@@ -65,7 +65,7 @@ final class PanelUpdate implements Op
             '--setenv=DEBIAN_FRONTEND=noninteractive',
             '/bin/sh',
             '-c',
-            'apt-get update -qq && apt-get install -y --only-upgrade cloudsrv-panel',
+            'apt-get update -qq && apt-get install -y --only-upgrade srvpanel',
         ], 30);
 
         if (! $result->successful()) {

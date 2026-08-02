@@ -29,9 +29,13 @@ jobs:
             echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           fi
 
+      # 8.4, nicht weniger: composer.json verlangt ^8.4 (Laravel 13 setzt
+      # Symfony 8 voraus). Mit 8.3 bricht schon das composer install in
+      # build.sh ab — und zwar erst in der Freigabe, weil die CI hier nicht
+      # hinsieht.
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           extensions: sockets, pcntl, posix, mbstring, intl, zip
           tools: composer:v2
 
@@ -89,7 +93,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" dist/* \
-            --title "CloudSrv ${{ steps.release.outputs.version }}" \
+            --title "SrvPanel ${{ steps.release.outputs.version }}" \
             --notes "Siehe CHANGELOG.md." \
             $(case "${{ steps.release.outputs.version }}" in *-*) echo --prerelease ;; esac)
 
@@ -136,8 +140,8 @@ jobs:
           chmod 0644 install.sh
           cp ../src/packaging/minisign.pub minisign.pub
           mkdir -p apt
-          cp ../src/packaging/cloudsrv-archive-keyring.gpg apt/cloudsrv-archive-keyring.gpg
-          cp ../src/packaging/cloudsrv-archive-keyring.asc apt/KEY.asc
+          cp ../src/packaging/srvpanel-archive-keyring.gpg apt/srvpanel-archive-keyring.gpg
+          cp ../src/packaging/srvpanel-archive-keyring.asc apt/KEY.asc
 
       - name: APT-Repository aktualisieren
         env:
@@ -197,13 +201,13 @@ jobs:
             # einer Prüfsumme über sich selbst in der eigenen Liste.
             rm -f "dists/${CHANNEL}/Release"
             apt-ftparchive \
-              -o APT::FTPArchive::Release::Origin="CloudSrv" \
-              -o APT::FTPArchive::Release::Label="CloudSrv" \
+              -o APT::FTPArchive::Release::Origin="SrvPanel" \
+              -o APT::FTPArchive::Release::Label="SrvPanel" \
               -o APT::FTPArchive::Release::Suite="${CHANNEL}" \
               -o APT::FTPArchive::Release::Codename="${CHANNEL}" \
               -o APT::FTPArchive::Release::Architectures="amd64 arm64" \
               -o APT::FTPArchive::Release::Components="main" \
-              -o APT::FTPArchive::Release::Description="CloudSrv ${CHANNEL}" \
+              -o APT::FTPArchive::Release::Description="SrvPanel ${CHANNEL}" \
               release "dists/${CHANNEL}" > "${RUNNER_TEMP}/Release"
             mv "${RUNNER_TEMP}/Release" "dists/${CHANNEL}/Release"
           )
@@ -216,7 +220,7 @@ jobs:
           # können sich in Signaturen und Zeitstempeln unterscheiden und trotzdem
           # denselben Schlüssel meinen.
           fpr_secret="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/{print $10; exit}')"
-          fpr_public="$(gpg --show-keys --with-colons ../src/packaging/cloudsrv-archive-keyring.gpg \
+          fpr_public="$(gpg --show-keys --with-colons ../src/packaging/srvpanel-archive-keyring.gpg \
                         | awk -F: '/^fpr/{print $10; exit}')"
           if [ "$fpr_secret" != "$fpr_public" ]; then
             echo "::error::Der hinterlegte Schlüssel ($fpr_secret) ist nicht der veröffentlichte ($fpr_public)."
@@ -235,5 +239,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && { echo "Nichts zu veröffentlichen."; exit 0; }
-          git commit -m "repo: CloudSrv ${{ needs.package.outputs.version }} (${{ steps.channel.outputs.name }})"
+          git commit -m "repo: SrvPanel ${{ needs.package.outputs.version }} (${{ steps.channel.outputs.name }})"
           git push

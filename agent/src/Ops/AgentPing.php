@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent\Ops;
+namespace SrvPanel\Agent\Ops;
 
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\Op;
-use CloudSrv\Agent\Version;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Op;
+use SrvPanel\Agent\Version;
 
 /**
  * Lebenszeichen. Beantwortet die einzige Frage, die vor allen anderen kommt:

@@ -1,7 +1,7 @@
 # Changelog
 
 Die Vorgeschichte dieses Repositorys — das Server-Panel „Asylum" bis 0.6.2 —
-steht unter dem Tag `v0.6.2` und im Branch `legacy/asylum`. CloudSrv ist ein
+steht unter dem Tag `v0.6.2` und im Branch `legacy/asylum`. SrvPanel ist ein
 anderes Produkt und zählt neu.
 
 ## [Unbereinigt]
@@ -12,7 +12,7 @@ anderes Produkt und zählt neu.
   Vorgängers sind entfernt; erhalten bleiben die Sprachvorgabe (`docs/19`), der
   Plan (`docs/20`) und das Signaturmaterial. Die Lizenz ist von Apache-2.0 auf
   **AGPL-3.0-only** gewechselt.
-- **Agent (`cloudsrv-agentd`).** Framework- und abhängigkeitsfreies PHP-CLI als
+- **Agent (`srvpanel-agentd`).** Framework- und abhängigkeitsfreies PHP-CLI als
   einziger Prozess mit Systemrechten. Unix-Socket mit 0660, Aufruferprüfung
   über SCM_CREDENTIALS, NDJSON-Protokoll, typisierte Operationen,
   Programm-Positivliste mit absoluten Pfaden, feste Umgebung, Zeitlimit,
@@ -24,7 +24,7 @@ anderes Produkt und zählt neu.
   Verlaufskacheln, Gesundheitsendpunkt für die Bereitschaftsprüfung.
 - **Kennzahlen.** Ringpuffer fester Größe je Kennzahl, Sammler im
   Zehnsekundentakt als eigene Unit.
-- **Paketierung.** `.deb` über nfpm mit `/opt/cloudsrv/releases/<version>` und
+- **Paketierung.** `.deb` über nfpm mit `/opt/srvpanel/releases/<version>` und
   Symlink-Umschaltung, vier systemd-Units, Installer mit
   Vorbedingungsprüfung, Instandhaltungsskripte.
 - **CI.** Statische Prüfung, Tests, Oberfläche, Shellcheck, Lieferkette — und
@@ -33,17 +33,17 @@ anderes Produkt und zählt neu.
 
 ### P0 abgeschlossen
 
-- **Ersteinrichtung `cloudsrv setup`** — legt über den Agenten Datenbank,
+- **Ersteinrichtung `srvpanel setup`** — legt über den Agenten Datenbank,
   Datenbankbenutzer, Anwendungsschlüssel, selbstsigniertes Zertifikat und den
   nginx-Server-Block an und startet die Dienste. Wiederholbar: Ein zweiter Lauf
   wechselt keinen Schlüssel und wirft keine Datenbank weg.
 - **Geheimnisse überqueren den Socket nie.** Datenbankpasswort und `APP_KEY`
-  entstehen im Agenten und werden von dort nach `/etc/cloudsrv/panel.env`
-  geschrieben (0640 root:cloudsrv). Die Datei liegt bewusst außerhalb des
+  entstehen im Agenten und werden von dort nach `/etc/srvpanel/panel.env`
+  geschrieben (0640 root:srvpanel). Die Datei liegt bewusst außerhalb des
   Auslieferungsverzeichnisses — dieses wird bei jedem Update ersetzt, und mit
   einer `.env` darin wäre nach dem ersten Update der Schlüssel weg, mit dem
   alle verschlüsselten Werte in der Datenbank lesbar sind.
-- **Update mit Rückweg.** `cloudsrv update` setzt den Lauf als transiente
+- **Update mit Rückweg.** `srvpanel update` setzt den Lauf als transiente
   systemd-Unit ab, damit er den Neustart des Panels überlebt. Das
   postinstall-Skript prüft danach über HTTPS, ob das Panel antwortet — sonst
   zeigt der Symlink wieder auf die vorige Fassung und die Dienste laufen mit
@@ -54,7 +54,7 @@ anderes Produkt und zählt neu.
   `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im
   Agenten, `nginx -t` vor der Übernahme, Rückweg bei Ablehnung) und
   `panel.update`.
-- **`/etc/cloudsrv/fpm.conf`** — eigener PHP-FPM-Pool für die Oberfläche, mit
+- **`/etc/srvpanel/fpm.conf`** — eigener PHP-FPM-Pool für die Oberfläche, mit
   `open_basedir` auf die Verzeichnisse des Panels und ohne `exec`, `system`
   und Verwandte: Die Anwendung kann keinen Prozess starten, sie hat dafür den
   Agenten.
@@ -80,9 +80,9 @@ Betroffen war die Schnittstelle mit: `Ergebnis`→`Result`, `Kontext`→`Context
 `Verbindung`→`Connection`, `Ringpuffer`→`RingBuffer`, `Sammler`→`Collector`,
 `Speicher`→`Store`; die Nutzdaten des Agenten (`vorhanden`→`present`,
 `speicher`→`memory`, `pfad`→`path`, `art`→`kind`); die Schlüssel in
-`/etc/cloudsrv/agent.json` (`benutzer`→`user`, `pruefbare_wurzeln`→
-`config_roots`); die Konfiguration (`cloudsrv.kennzahlen.*`→`cloudsrv.metrics.*`);
-das Kommando `cloudsrv:kennzahlen`→`cloudsrv:metrics`; die CSS-Marken
+`/etc/srvpanel/agent.json` (`benutzer`→`user`, `pruefbare_wurzeln`→
+`config_roots`); die Konfiguration (`srvpanel.kennzahlen.*`→`srvpanel.metrics.*`);
+das Kommando `srvpanel:kennzahlen`→`srvpanel:metrics`; die CSS-Marken
 (`--grund`→`--bg`, `--akzent`→`--accent`, …) und die Werte von `data-theme`
 (`dunkel`/`hell`→`dark`/`light`) und `data-density` (`kunde`→`customer`).
 

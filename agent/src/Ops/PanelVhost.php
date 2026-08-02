@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent\Ops;
+namespace SrvPanel\Agent\Ops;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\Op;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Op;
 
 /**
  * Der nginx-Server-Block der Panel-Oberfläche.
@@ -24,7 +24,7 @@ use CloudSrv\Agent\Op;
  */
 final class PanelVhost implements Op
 {
-    public function __construct(private readonly string $target = '/etc/nginx/conf.d/cloudsrv-panel.conf') {}
+    public function __construct(private readonly string $target = '/etc/nginx/conf.d/srvpanel.conf') {}
 
     public static function name(): string
     {
@@ -44,8 +44,8 @@ final class PanelVhost implements Op
             throw AgentException::badRequest('Unzulässiger Port.', ['port' => $port]);
         }
 
-        $certificate = '/etc/cloudsrv/tls/panel.crt';
-        $key = '/etc/cloudsrv/tls/panel.key';
+        $certificate = '/etc/srvpanel/tls/panel.crt';
+        $key = '/etc/srvpanel/tls/panel.key';
 
         if (! is_file($certificate) || ! is_file($key)) {
             throw new AgentException(
@@ -145,15 +145,15 @@ final class PanelVhost implements Op
             : "listen {$port} ssl http2;\n    listen [::]:{$port} ssl http2;";
 
         return <<<CONF
-        # Von cloudsrv-agentd erzeugt. Änderungen von Hand werden beim nächsten
+        # Von srvpanel-agentd erzeugt. Änderungen von Hand werden beim nächsten
         # Lauf überschrieben — für eigene Direktiven ist die Include-Datei
-        # /etc/cloudsrv/nginx-extra.conf da, die hier eingebunden wird.
+        # /etc/srvpanel/nginx-extra.conf da, die hier eingebunden wird.
 
         server {
             {$listen}
 
             server_name _;
-            root /opt/cloudsrv/current/public;
+            root /opt/srvpanel/current/public;
             index index.php;
 
             ssl_certificate     {$certificate};
@@ -161,7 +161,7 @@ final class PanelVhost implements Op
             ssl_protocols       TLSv1.2 TLSv1.3;
             ssl_prefer_server_ciphers off;
             ssl_session_timeout 1d;
-            ssl_session_cache   shared:CloudSrvTLS:10m;
+            ssl_session_cache   shared:SrvPanelTLS:10m;
 
             # Das Panel ist keine öffentliche Seite. Es wird nicht indiziert,
             # nicht in einen fremden Rahmen gestellt und gibt keine Adresse
@@ -179,7 +179,7 @@ final class PanelVhost implements Op
             }
 
             location ~ ^/index\.php(/|\$) {
-                fastcgi_pass unix:/run/cloudsrv/fpm.sock;
+                fastcgi_pass unix:/run/srvpanel/fpm.sock;
                 fastcgi_split_path_info ^(.+\.php)(/.*)\$;
                 include fastcgi_params;
                 fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
@@ -203,10 +203,10 @@ final class PanelVhost implements Op
                 deny all;
             }
 
-            include /etc/cloudsrv/nginx-extra.conf*;
+            include /etc/srvpanel/nginx-extra.conf*;
 
-            access_log /var/log/cloudsrv/panel-access.log;
-            error_log  /var/log/cloudsrv/panel-error.log;
+            access_log /var/log/srvpanel/panel-access.log;
+            error_log  /var/log/srvpanel/panel-error.log;
         }
 
         CONF;

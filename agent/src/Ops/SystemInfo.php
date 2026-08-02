@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent\Ops;
+namespace SrvPanel\Agent\Ops;
 
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\Op;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Op;
 
 /**
  * Systemkennzahlen aus /proc.

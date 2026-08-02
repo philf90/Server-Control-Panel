@@ -4,12 +4,12 @@
 declare(strict_types=1);
 
 /*
- * cloudsrv-agentd — der einzige Prozess des Panels mit Systemrechten.
+ * srvpanel-agentd — der einzige Prozess des Panels mit Systemrechten.
  *
  * Aufrufe:
- *   cloudsrv-agentd serve [--config=DATEI] [--socket=PFAD] [--unprivileged]
- *   cloudsrv-agentd call OP [JSON-ARGUMENTE] [--socket=PFAD]
- *   cloudsrv-agentd ops
+ *   srvpanel-agentd serve [--config=DATEI] [--socket=PFAD] [--unprivileged]
+ *   srvpanel-agentd call OP [JSON-ARGUMENTE] [--socket=PFAD]
+ *   srvpanel-agentd ops
  *
  * `call` ist kein Verwaltungsweg, sondern das Werkzeug für die
  * Bereitschaftsprüfung nach einem Update und für den Rauchtest der CI. Es
@@ -17,7 +17,7 @@ declare(strict_types=1);
  * Abkürzung am Protokoll vorbei gibt es nicht.
  */
 
-namespace CloudSrv\Agent;
+namespace SrvPanel\Agent;
 
 require __DIR__ . '/../src/autoload.php';
 
@@ -36,7 +36,7 @@ foreach (array_slice($args, 1) as $chunk) {
     }
 }
 
-$configFile = is_string($options['config'] ?? null) ? $options['config'] : '/etc/cloudsrv/agent.json';
+$configFile = is_string($options['config'] ?? null) ? $options['config'] : '/etc/srvpanel/agent.json';
 $config = Config::fromFile($configFile);
 
 $overrides = [];
@@ -73,7 +73,7 @@ switch ($command) {
         $op = $positional[0] ?? null;
 
         if ($op === null) {
-            fwrite(STDERR, "Aufruf: cloudsrv-agentd call OP [JSON-ARGUMENTE]\n");
+            fwrite(STDERR, "Aufruf: srvpanel-agentd call OP [JSON-ARGUMENTE]\n");
             exit(2);
         }
 

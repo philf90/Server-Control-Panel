@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\Journal;
-use CloudSrv\Agent\Ops\ConfigValidate;
-use CloudSrv\Agent\Runner;
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Journal;
+use SrvPanel\Agent\Ops\ConfigValidate;
+use SrvPanel\Agent\Runner;
 
 /**
  * Der Regressionstest zu einem Fehler, den erst PHPStan gefunden hat.
@@ -28,7 +28,7 @@ final class ConfigValidateTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->root = sys_get_temp_dir().'/cloudsrv-zone-'.bin2hex(random_bytes(6));
+        $this->root = sys_get_temp_dir().'/srvpanel-zone-'.bin2hex(random_bytes(6));
         mkdir($this->root, 0o755, true);
         $this->file = $this->root.'/beispiel.de.zone';
         file_put_contents($this->file, "\$TTL 3600\n@ IN SOA ns1.beispiel.de. hostmaster.beispiel.de. 1 3600 600 86400 3600\n");

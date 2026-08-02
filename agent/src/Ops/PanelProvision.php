@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace CloudSrv\Agent\Ops;
+namespace SrvPanel\Agent\Ops;
 
-use CloudSrv\Agent\AgentException;
-use CloudSrv\Agent\Context;
-use CloudSrv\Agent\EnvFile;
-use CloudSrv\Agent\Op;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\EnvFile;
+use SrvPanel\Agent\Op;
 
 /**
  * Richtet die Grundlage des Panels ein: Datenbank, Datenbankbenutzer,
@@ -21,13 +21,13 @@ use CloudSrv\Agent\Op;
  * Anwendung auftauchen.
  *
  * **Warum die Umgebungsdatei nicht im Auslieferungsverzeichnis liegt.**
- * `/opt/cloudsrv/releases/<version>/` wird bei jedem Update ersetzt. Eine
+ * `/opt/srvpanel/releases/<version>/` wird bei jedem Update ersetzt. Eine
  * `.env` darin wäre nach dem ersten Update weg — samt Schlüssel, mit dem alle
  * verschlüsselten Werte in der Datenbank lesbar sind. Sie liegt deshalb unter
- * `/etc/cloudsrv/panel.env`, und die Anwendung liest sie von dort.
+ * `/etc/srvpanel/panel.env`, und die Anwendung liest sie von dort.
  *
  * Der Lauf ist wiederholbar: Bestehende Werte bleiben stehen. Ein zweites
- * `cloudsrv setup` darf keinen Schlüssel wechseln — sonst ist die Datenbank
+ * `srvpanel setup` darf keinen Schlüssel wechseln — sonst ist die Datenbank
  * danach unlesbar.
  */
 final class PanelProvision implements Op
@@ -36,7 +36,7 @@ final class PanelProvision implements Op
 
     public function __construct(?EnvFile $env = null)
     {
-        $this->env = $env ?? new EnvFile('/etc/cloudsrv/panel.env');
+        $this->env = $env ?? new EnvFile('/etc/srvpanel/panel.env');
     }
 
     public static function name(): string
@@ -54,8 +54,8 @@ final class PanelProvision implements Op
         $existing = $this->env->read();
         $isNew = $existing === [];
 
-        $database = $existing['DB_DATABASE'] ?? 'cloudsrv';
-        $user = $existing['DB_USERNAME'] ?? 'cloudsrv';
+        $database = $existing['DB_DATABASE'] ?? 'srvpanel';
+        $user = $existing['DB_USERNAME'] ?? 'srvpanel';
         $password = $existing['DB_PASSWORD'] ?? $this->secret(24);
         $key = $existing['APP_KEY'] ?? 'base64:'.base64_encode(random_bytes(32));
         $port = $existing['PANEL_PORT'] ?? (string) (is_int($args['port'] ?? null) ? $args['port'] : 8443);
@@ -65,7 +65,7 @@ final class PanelProvision implements Op
 
         $context->progress(60, 'Umgebungsdatei schreiben');
         $this->env->write(array_merge($existing, [
-            'APP_NAME' => 'CloudSrv',
+            'APP_NAME' => 'SrvPanel',
             'APP_ENV' => 'production',
             'APP_KEY' => $key,
             'APP_DEBUG' => 'false',
@@ -81,8 +81,8 @@ final class PanelProvision implements Op
             'SESSION_DRIVER' => 'database',
             'QUEUE_CONNECTION' => 'database',
             'CACHE_STORE' => 'database',
-            'CLOUDSRV_AGENT_SOCKET' => '/run/cloudsrv/agent.sock',
-            'CLOUDSRV_METRICS_DIR' => '/var/lib/cloudsrv/metrics',
+            'SRVPANEL_AGENT_SOCKET' => '/run/srvpanel/agent.sock',
+            'SRVPANEL_METRICS_DIR' => '/var/lib/srvpanel/metrics',
         ]));
 
         $context->progress(100, 'fertig');

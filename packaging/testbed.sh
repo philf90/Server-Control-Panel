@@ -14,7 +14,7 @@ set -euo pipefail
 
 IMAGE="${1:-debian:13}"
 KEEP="${2:-}"
-NAME="cloudsrv-testbed"
+NAME="srvpanel-testbed"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 note() { printf '\033[1m==>\033[0m %s\n' "$1"; }
@@ -65,26 +65,26 @@ note "Paket installieren"
 docker exec "${NAME}" sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y /packages/*.deb'
 
 note "Agent"
-docker exec "${NAME}" systemctl is-active cloudsrv-agentd.service
-docker exec "${NAME}" /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call agent.ping
+docker exec "${NAME}" systemctl is-active srvpanel-agentd.service
+docker exec "${NAME}" /opt/srvpanel/current/agent/bin/srvpanel-agentd call agent.ping
 
 note "Rechte am Socket"
-mode="$(docker exec "${NAME}" stat -c '%a %U:%G' /run/cloudsrv/agent.sock)"
-[ "${mode}" = "660 root:cloudsrv" ] || fail "Socket steht auf ${mode}, erwartet 660 root:cloudsrv"
+mode="$(docker exec "${NAME}" stat -c '%a %U:%G' /run/srvpanel/agent.sock)"
+[ "${mode}" = "660 root:srvpanel" ] || fail "Socket steht auf ${mode}, erwartet 660 root:srvpanel"
 echo "  ${mode}"
 
 note "Ersteinrichtung"
 docker exec "${NAME}" sh -c 'service mariadb start >/dev/null 2>&1 || systemctl start mariadb || true'
 sleep 4
-docker exec "${NAME}" cloudsrv setup --port=8443
+docker exec "${NAME}" srvpanel setup --port=8443
 
 note "Oberfläche antwortet"
 docker exec "${NAME}" curl -fsS -k https://127.0.0.1:8443/gesundheit
 echo
 
 note "Entfernen hinterlässt keine Dienste, aber die Daten"
-docker exec "${NAME}" sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y -qq cloudsrv-panel >/dev/null'
-docker exec "${NAME}" sh -c '! systemctl is-active --quiet cloudsrv-agentd.service'
-docker exec "${NAME}" test -d /var/lib/cloudsrv
+docker exec "${NAME}" sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y -qq srvpanel >/dev/null'
+docker exec "${NAME}" sh -c '! systemctl is-active --quiet srvpanel-agentd.service'
+docker exec "${NAME}" test -d /var/lib/srvpanel
 
 note "Durchgelaufen."

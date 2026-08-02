@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 {{--
-    Theme und Dichte stehen am Wurzelelement — beide Achsen aus §7.2 des
-    Plans. Wer die Kundenfläche baut, setzt hier „customer"; sonst ändert sich
-    nichts, weil alle Werte in app.css daran hängen.
+    Theme und Dichte stehen am Wurzelelement — beide Achsen aus §7.2 des Plans.
+
+    Die Dichte hängt am Kontotyp: Die Adminfläche ist dicht, die Kundenfläche
+    ruhig. Alle Werte hängen in app.css an diesem Attribut, deshalb genügt
+    hier ein Wort — und deshalb steht es hier und nicht an dreißig Stellen.
 --}}
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"
       data-theme="{{ config('srvpanel.ui.theme') }}"
-      data-density="{{ config('srvpanel.ui.density') }}">
+      data-density="{{ auth()->user()?->isAdmin() === false ? 'customer' : config('srvpanel.ui.density') }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

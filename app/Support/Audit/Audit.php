@@ -35,11 +35,18 @@ final class Audit
         ?int $subscriptionId = null,
         array $context = [],
     ): AuditEvent {
-        $actor = $account ?? $this->actor();
+        // Wer wirklich handelt — und in wessen Kontext.
+        //
+        // Während „Anmelden als" ist der angemeldete Benutzer das Kundenkonto;
+        // die handelnde Person ist der Admin, der den Wechsel begonnen hat.
+        // Genau in dieser Reihenfolge steht es im Eintrag, sonst verschweigt
+        // das Protokoll den Fall, für den man es liest.
+        $impersonator = $this->impersonatorId();
+        $signedIn = $account ?? $this->actor();
 
         return AuditEvent::query()->create([
-            'account_id' => $actor?->id,
-            'acting_as_account_id' => $this->actingAsId(),
+            'account_id' => $impersonator ?? $signedIn?->id,
+            'acting_as_account_id' => $impersonator !== null ? $signedIn?->id : null,
             'subscription_id' => $subscriptionId,
             'action' => $action,
             'target_type' => $target !== null ? $target::class : null,
@@ -81,13 +88,21 @@ final class Audit
      * „Anmelden als" benutzt. Der Sitzungsschlüssel wird von der
      * Impersonation gesetzt (§6.3) und ist hier nur zu lesen.
      */
-    private function actingAsId(): ?int
+    /**
+     * Der Admin, der „Anmelden als" begonnen hat — falls gerade eines läuft.
+     *
+     * Der Schlüssel heißt nach dem, was darin steht: die Kennung des
+     * Handelnden, nicht die des Kontos, in dessen Sicht er ist. Das klingt
+     * nach Wortklauberei und ist es nicht — mit dem umgekehrten Namen landet
+     * beim Schreiben des Eintrags zuverlässig das Falsche im falschen Feld.
+     */
+    private function impersonatorId(): ?int
     {
         if (! $this->request->hasSession()) {
             return null;
         }
 
-        $id = $this->request->session()->get('impersonating_account_id');
+        $id = $this->request->session()->get(Impersonation::SESSION_KEY);
 
         return is_numeric($id) ? (int) $id : null;
     }

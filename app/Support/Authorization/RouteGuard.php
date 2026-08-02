@@ -65,6 +65,10 @@ final class RouteGuard
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Die Übersicht zeigt jedem Konto seine eigene Lage. Was darauf sichtbar ist, entscheidet die Mandantenklammer, nicht eine Policy an der Route.',
             ],
+            'POST impersonation/stop' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Der Rückweg aus „Anmelden als". Bewusst ohne Policy: Wer in fremder Sicht ist, ist in diesem Moment ein Kundenkonto und hätte die Fähigkeit impersonate nicht mehr — die Prüfung stünde ihm ausgerechnet beim Zurückkommen im Weg. Ohne laufenden Wechsel tut die Route nichts.',
+            ],
             'GET health' => [
                 'kind' => self::OPEN,
                 'reason' => 'Die Bereitschaftsprüfung läuft, während das Paket umschaltet — da ist niemand angemeldet. Sie gibt Fassungsnummern und einen Bereitschaftszustand heraus, sonst nichts.',

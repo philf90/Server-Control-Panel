@@ -4,29 +4,64 @@
  * ist die Dichte, nicht die Gestaltung — umgeschaltet wird über ein Attribut
  * am Wurzelelement, das die Werte aus app.css umstellt (§7.2 des Plans).
  */
-import { Link, usePage } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
 defineProps<{ title: string; subline?: string }>()
 
 const page = usePage()
 const source = computed(() => page.props.source as { repository: string; version: string; commit: string })
+const account = computed(() => page.props.account as { name: string; is_admin: boolean } | null)
+const impersonation = computed(() => page.props.impersonation as { active: boolean; admin: string } | null)
 
-const navigation = [
-  { group: null, items: [{ name: 'Übersicht', href: '/', active: true }] },
-  {
-    group: 'Server',
-    items: [
-      { name: 'Dienste', href: '#', active: false },
-      { name: 'Pakete', href: '#', active: false },
-      { name: 'Protokoll', href: '#', active: false },
-    ],
-  },
-]
+/*
+ * Die Navigation kommt aus dem Kontotyp, nicht aus einer Rechteprüfung im
+ * Menü. Das ist ausdrücklich keine Autorisierung — die sitzt an der Aktion
+ * (§6.2.2). Ein Kunde, der eine Adminadresse von Hand einträgt, wird von der
+ * Policy abgewiesen; hier geht es nur darum, ihm keinen Weg zu zeigen, der
+ * ohnehin nicht seiner ist.
+ */
+const current = computed(() => page.url.split('?')[0])
+
+const navigation = computed(() => {
+  if (account.value?.is_admin === false) {
+    return [
+      { group: null, items: [{ name: 'Übersicht', href: '/' }] },
+      { group: 'Konto', items: [{ name: 'Protokoll', href: '/audit' }] },
+    ]
+  }
+
+  return [
+    { group: null, items: [{ name: 'Übersicht', href: '/' }] },
+    { group: 'Verwaltung', items: [{ name: 'Kunden', href: '/customers' }] },
+    { group: 'Server', items: [{ name: 'Protokoll', href: '/audit' }] },
+  ]
+})
+
+function signOut(): void {
+  router.post('/logout')
+}
+
+function stopImpersonation(): void {
+  router.post('/impersonation/stop')
+}
 </script>
 
 <template>
   <div class="frame">
+    <!--
+      Das Band aus §6.3. Es steht über allem, ist nicht wegklickbar und trägt
+      den Rückweg bei sich — ein Wechsel, aus dem man suchen muss, ist einer,
+      den jemand vergisst.
+    -->
+    <div v-if="impersonation?.active" class="band">
+      <span>
+        Sie arbeiten in der Sicht dieses Kunden.
+        Angemeldet als <b>{{ account?.name }}</b>, gewechselt von <b>{{ impersonation.admin }}</b>.
+      </span>
+      <button type="button" @click="stopImpersonation">Zurück zur Verwaltung</button>
+    </div>
+
     <aside class="nav">
       <div class="badge">
         <span class="glyph">C</span>
@@ -40,7 +75,7 @@ const navigation = [
             v-for="item in block.items"
             :key="item.name"
             :href="item.href"
-            :class="['item', { active: item.active }]"
+            :class="['item', { active: current === item.href }]"
           >
             {{ item.name }}
           </Link>
@@ -52,6 +87,11 @@ const navigation = [
         den Quelltext der laufenden Fassung kommen. Deshalb Version und Commit
         im Link und nicht bloß die Adresse des Repositorys.
       -->
+      <div v-if="account" class="account">
+        <span class="name">{{ account.name }}</span>
+        <button type="button" class="signout" @click="signOut">Abmelden</button>
+      </div>
+
       <footer class="source">
         <a :href="source.commit ? `${source.repository}/tree/${source.commit}` : source.repository">
           Quelltext · {{ source.version }}
@@ -74,8 +114,56 @@ const navigation = [
 .frame {
   display: grid;
   grid-template-columns: 186px 1fr;
+  grid-template-rows: auto 1fr;
   min-height: 100vh;
 }
+
+.band {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .5rem var(--padding);
+  font-size: .85rem;
+  color: var(--warn);
+  background: var(--warn-surface);
+  border-bottom: 1px solid var(--warn);
+}
+
+.band button {
+  padding: .25rem .6rem;
+  font: inherit;
+  font-size: .8rem;
+  color: var(--warn);
+  background: transparent;
+  border: 1px solid var(--warn);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .5rem 0;
+  font-size: .78rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--nav-border);
+}
+
+.account .signout {
+  padding: 0;
+  font: inherit;
+  font-size: .78rem;
+  color: var(--text-faint);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.account .signout:hover { color: var(--text); }
 
 .nav {
   background: var(--nav-bg);

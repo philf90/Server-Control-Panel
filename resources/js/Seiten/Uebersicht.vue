@@ -34,9 +34,16 @@ const props = defineProps<{
 function laufzeit(sekunden: number): string {
   const tage = Math.floor(sekunden / 86400)
   const stunden = Math.floor((sekunden % 86400) / 3600)
-  if (tage > 0) return `seit ${tage} Tagen`
-  if (stunden > 0) return `seit ${stunden} Stunden`
-  return `seit ${Math.floor(sekunden / 60)} Minuten`
+
+  // Die Einzahl ist kein Schönheitsfehler: „seit 1 Stunden" auf der ersten
+  // Seite nach der Anmeldung liest sich wie ein Panel, das seine eigenen
+  // Zahlen nicht anschaut.
+  if (tage > 0) return tage === 1 ? 'seit 1 Tag' : `seit ${tage} Tagen`
+  if (stunden > 0) return stunden === 1 ? 'seit 1 Stunde' : `seit ${stunden} Stunden`
+
+  const minuten = Math.floor(sekunden / 60)
+
+  return minuten === 1 ? 'seit 1 Minute' : `seit ${minuten} Minuten`
 }
 
 const kopfzeile = props.server.erreichbar

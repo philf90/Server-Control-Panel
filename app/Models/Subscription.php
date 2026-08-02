@@ -6,10 +6,13 @@ namespace App\Models;
 
 use App\Enums\SubscriptionStatus;
 use App\Models\Concerns\BelongsToSubscription;
+use Database\Factories\SubscriptionFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Die tragende Einheit — und der Anker der Mandantentrennung.
@@ -20,19 +23,36 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * nichts darunter.
  *
  * Dieses Modell trägt selbst **keine** Mandantenklammer über
- * {@see BelongsToSubscription} — es wäre eine Klammer um
- * sich selbst. Die Sichtbarkeit von Abonnements regelt die Policy; die Klammer
- * regelt alles, was daran hängt.
+ * {@see BelongsToSubscription} — es wäre eine Klammer um sich selbst. Die
+ * Sichtbarkeit von Abonnements regelt die Policy; die Klammer regelt alles,
+ * was daran hängt.
+ *
+ * @property int $id
+ * @property int $customer_id
+ * @property int $plan_id
+ * @property string $name
+ * @property string|null $system_user
+ * @property string|null $main_domain
+ * @property SubscriptionStatus $status
+ * @property array<string, mixed>|null $quota_overrides
+ * @property Carbon|null $suspended_at
+ * @property Carbon|null $cancelled_at
+ * @property-read Customer|null $customer
+ * @property-read Plan|null $plan
+ * @property-read Collection<int, Account> $additionalAccounts
  */
 class Subscription extends Model
 {
+    /** @use HasFactory<SubscriptionFactory> */
     use HasFactory;
 
+    /** @var list<string> */
     protected $fillable = [
         'customer_id', 'plan_id', 'name', 'system_user', 'main_domain',
         'status', 'quota_overrides',
     ];
 
+    /** @return array<string, string> */
     protected function casts(): array
     {
         return [
@@ -43,16 +63,19 @@ class Subscription extends Model
         ];
     }
 
+    /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
+    /** @return BelongsTo<Plan, $this> */
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
     }
 
+    /** @return BelongsToMany<Account, $this> */
     public function additionalAccounts(): BelongsToMany
     {
         return $this->belongsToMany(Account::class)

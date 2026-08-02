@@ -26,6 +26,7 @@ final class Audit
 {
     public function __construct(private readonly Request $request) {}
 
+    /** @param array<string, mixed> $context */
     public function record(
         string $action,
         AuditResult $result = AuditResult::Success,
@@ -50,16 +51,19 @@ final class Audit
         ]);
     }
 
+    /** @param array<string, mixed> $context */
     public function success(string $action, ?Model $target = null, array $context = []): AuditEvent
     {
         return $this->record($action, AuditResult::Success, target: $target, context: $context);
     }
 
+    /** @param array<string, mixed> $context */
     public function failure(string $action, array $context = []): AuditEvent
     {
         return $this->record($action, AuditResult::Failure, context: $context);
     }
 
+    /** @param array<string, mixed> $context */
     public function denied(string $action, ?Model $target = null, array $context = []): AuditEvent
     {
         return $this->record($action, AuditResult::Denied, target: $target, context: $context);

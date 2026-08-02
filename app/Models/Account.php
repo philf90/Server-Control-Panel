@@ -7,10 +7,13 @@ namespace App\Models;
 use App\Enums\AccountStatus;
 use App\Enums\AccountType;
 use App\Support\Tenancy\Tenancy;
+use Database\Factories\AccountFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Carbon;
 
 /**
  * Ein Anmeldekonto.
@@ -19,19 +22,44 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
  * Vertragspartner, ein Konto ist ein Mensch, der sich anmeldet. Zu einem
  * Kunden gehören ein Kundenkonto und beliebig viele Zusatzbenutzer — und der
  * Vertragspartner kann eine Firma sein, die sich nicht anmeldet.
+ *
+ * Die @property-Zeilen sind kein Beiwerk für die Entwicklungsumgebung: Ohne
+ * sie sieht die statische Prüfung hinter `$account->type` nur die Spalte und
+ * damit eine Zeichenkette — jeder Aufruf einer Enum-Methode darauf wäre ein
+ * Fehler, den sie melden muss und nicht melden sollte.
+ *
+ * @property int $id
+ * @property AccountType $type
+ * @property int|null $customer_id
+ * @property string $name
+ * @property string $email
+ * @property string $password
+ * @property string $locale
+ * @property AccountStatus $status
+ * @property string|null $two_factor_secret
+ * @property list<string>|null $two_factor_recovery_codes
+ * @property Carbon|null $two_factor_confirmed_at
+ * @property Carbon|null $last_login_at
+ * @property string|null $last_login_ip
+ * @property-read Customer|null $customer
+ * @property-read Collection<int, Subscription> $assignedSubscriptions
  */
 class Account extends Authenticatable
 {
+    /** @use HasFactory<AccountFactory> */
     use HasFactory;
 
+    /** @var list<string> */
     protected $fillable = [
         'type', 'customer_id', 'name', 'email', 'password', 'locale', 'status',
     ];
 
+    /** @var list<string> */
     protected $hidden = [
         'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes',
     ];
 
+    /** @return array<string, string> */
     protected function casts(): array
     {
         return [
@@ -45,6 +73,7 @@ class Account extends Authenticatable
         ];
     }
 
+    /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
@@ -55,6 +84,8 @@ class Account extends Authenticatable
      *
      * Für Kundenkonten ist diese Beziehung leer — die kommen über ihren
      * Kunden an ihre Abonnements, nicht über eine Zuweisung.
+     *
+     * @return BelongsToMany<Subscription, $this>
      */
     public function assignedSubscriptions(): BelongsToMany
     {
@@ -82,13 +113,15 @@ class Account extends Authenticatable
     {
         if ($this->type->isAdmin()) {
             return app(Tenancy::class)->withoutRestriction(
-                static fn (): array => Subscription::query()->pluck('id')->all()
+                static fn (): array => Subscription::query()
+                    ->pluck('id')->map(intval(...))->values()->all()
             );
         }
 
         if ($this->type === AccountType::Additional) {
             return app(Tenancy::class)->withoutRestriction(
-                fn (): array => $this->assignedSubscriptions()->pluck('subscriptions.id')->all()
+                fn (): array => $this->assignedSubscriptions()
+                    ->pluck('subscriptions.id')->map(intval(...))->values()->all()
             );
         }
 
@@ -106,6 +139,8 @@ class Account extends Authenticatable
             return Subscription::query()
                 ->whereIn('customer_id', $customerIds)
                 ->pluck('id')
+                ->map(intval(...))
+                ->values()
                 ->all();
         });
     }

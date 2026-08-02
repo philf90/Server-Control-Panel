@@ -12,6 +12,7 @@ use App\Models\Subscription;
 use App\Support\Auth\LoginThrottle;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Testing\TestResponse;
@@ -31,9 +32,10 @@ final class LoginTest extends TestCase
      * mit der Sperre leert die Sitzung zwischen den Versuchen, der zur
      * Kontoauskunft nicht.
      */
+    /** @param TestResponse<Response> $response */
     private function emailError(TestResponse $response): string
     {
-        $errors = $response->getSession()->get('errors');
+        $errors = session()->get('errors');
 
         if ($errors instanceof ViewErrorBag) {
             return (string) $errors->first('email');
@@ -42,6 +44,7 @@ final class LoginTest extends TestCase
         return (string) ($errors['default']['messages']['email'][0] ?? '');
     }
 
+    /** @param array<string, mixed> $attributes */
     private function account(array $attributes = []): Account
     {
         return Account::factory()->admin()->create(array_merge([
@@ -232,7 +235,7 @@ final class LoginTest extends TestCase
         $this->assertNotNull($failure);
         $this->assertSame(AuditResult::Failure, $failure->result);
         // Der Grund steht im Protokoll, nur nicht in der Antwort.
-        $this->assertSame('falsches Passwort', $failure->context['reason']);
+        $this->assertSame('falsches Passwort', ($failure->context ?? [])['reason'] ?? null);
 
         $this->assertNotNull($success);
         $this->assertSame(AuditResult::Success, $success->result);

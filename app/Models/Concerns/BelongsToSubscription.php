@@ -72,6 +72,7 @@ trait BelongsToSubscription
         });
     }
 
+    /** @return BelongsTo<Subscription, $this> */
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);

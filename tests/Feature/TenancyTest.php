@@ -50,8 +50,11 @@ final class TenancyTest extends TestCase
         $this->tenancy()->restrictTo([(int) $mine->id]);
 
         $this->assertSame(2, Operation::query()->count());
-        $this->assertEmpty(
-            Operation::query()->pluck('subscription_id')->diff([$mine->id])
+
+        // Kein Datensatz zeigt auf ein fremdes Abonnement.
+        $this->assertSame(
+            0,
+            Operation::query()->where('subscription_id', '!=', $mine->id)->count(),
         );
     }
 

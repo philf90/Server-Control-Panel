@@ -15,6 +15,7 @@ class OperationFactory extends Factory
 {
     protected $model = Operation::class;
 
+    /** @return array<string, mixed> */
     public function definition(): array
     {
         return [

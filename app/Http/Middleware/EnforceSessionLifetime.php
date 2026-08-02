@@ -65,7 +65,7 @@ final class EnforceSessionLifetime
         $request->session()->regenerateToken();
 
         return redirect()
-            ->route('anmeldung')
-            ->with('hinweis', 'Die Sitzung hat ihre Höchstdauer erreicht. Bitte erneut anmelden.');
+            ->route('login')
+            ->with('notice', 'Die Sitzung hat ihre Höchstdauer erreicht. Bitte erneut anmelden.');
     }
 }

@@ -52,14 +52,14 @@ final class LoginTest extends TestCase
 
     public function test_the_login_page_is_reachable_without_an_account(): void
     {
-        $this->get('/anmeldung')->assertOk();
+        $this->get('/login')->assertOk();
     }
 
     public function test_a_correct_password_signs_in(): void
     {
         $account = $this->account();
 
-        $this->post('/anmeldung', [
+        $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'ein-langes-passwort',
         ])->assertRedirect('/');
@@ -71,7 +71,7 @@ final class LoginTest extends TestCase
     {
         $this->account();
 
-        $this->post('/anmeldung', [
+        $this->post('/login', [
             'email' => 'Betreiber@Example.Test',
             'password' => 'ein-langes-passwort',
         ])->assertRedirect('/');
@@ -83,7 +83,7 @@ final class LoginTest extends TestCase
     {
         $this->account();
 
-        $this->post('/anmeldung', [
+        $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'falsch',
         ])->assertSessionHasErrors('email');
@@ -95,7 +95,7 @@ final class LoginTest extends TestCase
     {
         $this->account();
 
-        $known = $this->post('/anmeldung', [
+        $known = $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'falsch',
         ]);
@@ -103,7 +103,7 @@ final class LoginTest extends TestCase
 
         $this->flushSession();
 
-        $unknown = $this->post('/anmeldung', [
+        $unknown = $this->post('/login', [
             'email' => 'niemand@example.test',
             'password' => 'falsch',
         ]);
@@ -120,7 +120,7 @@ final class LoginTest extends TestCase
         $this->account();
         Account::query()->where('email', 'betreiber@example.test')->update(['status' => 'disabled']);
 
-        $this->post('/anmeldung', [
+        $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'ein-langes-passwort',
         ])->assertSessionHasErrors('email');
@@ -132,10 +132,10 @@ final class LoginTest extends TestCase
     {
         $this->account();
 
-        $this->get('/anmeldung');
+        $this->get('/login');
         $before = session()->getId();
 
-        $this->post('/anmeldung', [
+        $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'ein-langes-passwort',
         ]);
@@ -159,7 +159,7 @@ final class LoginTest extends TestCase
         $this->account();
 
         for ($i = 0; $i < 6; $i++) {
-            $this->post('/anmeldung', [
+            $this->post('/login', [
                 'email' => 'betreiber@example.test',
                 'password' => 'falsch',
             ]);
@@ -167,7 +167,7 @@ final class LoginTest extends TestCase
         }
 
         // Ab jetzt hilft auch das richtige Passwort nicht mehr.
-        $response = $this->post('/anmeldung', [
+        $response = $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'ein-langes-passwort',
         ]);
@@ -185,7 +185,7 @@ final class LoginTest extends TestCase
         $throttle->recordFailure('127.0.0.1', 'betreiber@example.test');
         $throttle->recordFailure('127.0.0.1', 'betreiber@example.test');
 
-        $this->post('/anmeldung', [
+        $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'ein-langes-passwort',
         ])->assertRedirect('/');
@@ -215,13 +215,13 @@ final class LoginTest extends TestCase
     {
         $this->account();
 
-        $this->post('/anmeldung', [
+        $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'falsch',
         ]);
         $this->flushSession();
 
-        $this->post('/anmeldung', [
+        $this->post('/login', [
             'email' => 'betreiber@example.test',
             'password' => 'ein-langes-passwort',
         ]);
@@ -242,19 +242,19 @@ final class LoginTest extends TestCase
     {
         $account = $this->account();
 
-        $this->actingAs($account)->post('/abmelden')->assertRedirect('/anmeldung');
+        $this->actingAs($account)->post('/logout')->assertRedirect('/login');
         $this->assertGuest();
     }
 
     public function test_the_overview_requires_an_account(): void
     {
-        $this->get('/')->assertRedirect('/anmeldung');
+        $this->get('/')->assertRedirect('/login');
     }
 
     public function test_the_health_check_stays_open(): void
     {
         // Sie läuft, während das Paket umschaltet — da ist niemand angemeldet.
-        $this->get('/gesundheit')->assertStatus(503);
+        $this->get('/health')->assertStatus(503);
     }
 
     public function test_the_tenancy_is_set_from_the_signed_in_account(): void
@@ -265,7 +265,7 @@ final class LoginTest extends TestCase
 
         $account = Account::factory()->customer($customer)->create();
 
-        $this->actingAs($account)->get('/anmeldung');
+        $this->actingAs($account)->get('/login');
 
         $this->assertFalse(app(Tenancy::class)->unrestricted());
         $this->assertSame([(int) $own->id], app(Tenancy::class)->subscriptionIds());
@@ -276,7 +276,7 @@ final class LoginTest extends TestCase
         Subscription::factory()->count(2)->create();
         $admin = Account::factory()->admin()->create();
 
-        $this->actingAs($admin)->get('/anmeldung');
+        $this->actingAs($admin)->get('/login');
 
         $this->assertTrue(app(Tenancy::class)->unrestricted());
     }

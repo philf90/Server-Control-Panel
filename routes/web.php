@@ -15,13 +15,13 @@ use SrvPanel\Agent\Version;
  * Bereitschaftsprüfung, die das Paket beim Update braucht.
  */
 Route::middleware('guest')->group(function (): void {
-    Route::get('/anmeldung', [LoginController::class, 'show'])->name('anmeldung');
-    Route::post('/anmeldung', [LoginController::class, 'store']);
+    Route::get('/login', [LoginController::class, 'show'])->name('login');
+    Route::post('/login', [LoginController::class, 'store']);
 });
 
-Route::post('/abmelden', [LoginController::class, 'destroy'])
+Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
-    ->name('abmelden');
+    ->name('logout');
 
 /*
  * Alles Weitere setzt ein Konto voraus.
@@ -32,7 +32,7 @@ Route::post('/abmelden', [LoginController::class, 'destroy'])
  * und das fällt beim Lesen auf.
  */
 Route::middleware('auth')->group(function (): void {
-    Route::get('/', OverviewController::class)->name('uebersicht');
+    Route::get('/', OverviewController::class)->name('overview');
 });
 
 /*
@@ -47,7 +47,7 @@ Route::middleware('auth')->group(function (): void {
  * Paket umschaltet, und es gibt in diesem Moment niemanden, der angemeldet
  * wäre. Sie gibt nur Fassungsnummern und einen Bereitschaftszustand heraus.
  */
-Route::get('/gesundheit', function (Client $agent) {
+Route::get('/health', function (Client $agent) {
     $agentUp = $agent->reachable();
 
     return response()->json([
@@ -56,4 +56,4 @@ Route::get('/gesundheit', function (Client $agent) {
         'protocol' => Version::PROTOCOL,
         'agent' => $agentUp ? 'reachable' : 'nicht erreichbar',
     ], $agentUp ? 200 : 503);
-})->name('gesundheit');
+})->name('health');

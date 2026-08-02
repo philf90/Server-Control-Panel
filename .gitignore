@@ -36,3 +36,7 @@ Thumbs.db
 *.pem
 APT_GPG_KEY*
 MINISIGN_KEY*
+
+# Aufzeichnungen der Inertia-Devtools. Entstehen beim Entwickeln,
+# gehoeren niemandem und veralten sofort.
+/storage/inertia-devtools

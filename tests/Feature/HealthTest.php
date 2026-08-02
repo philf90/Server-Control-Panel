@@ -22,7 +22,7 @@ final class HealthTest extends TestCase
     {
         config(['srvpanel.agent.socket' => '/nicht/vorhanden/agent.sock']);
 
-        $response = $this->getJson('/gesundheit');
+        $response = $this->getJson('/health');
 
         $response->assertStatus(503);
         $response->assertJson(['ready' => false, 'agent' => 'nicht erreichbar']);

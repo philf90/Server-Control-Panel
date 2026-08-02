@@ -17,10 +17,10 @@ const form = useForm({
 })
 
 const page = usePage()
-const hinweis = computed(() => (page.props.flash as Record<string, string> | undefined)?.hinweis)
+const notice = computed(() => (page.props.flash as Record<string, string> | undefined)?.notice)
 
 function submit(): void {
-  form.post('/anmeldung', {
+  form.post('/login', {
     onFinish: () => form.reset('password'),
   })
 }
@@ -33,7 +33,7 @@ function submit(): void {
     <form class="maske" @submit.prevent="submit">
       <h1>SrvPanel</h1>
 
-      <p v-if="hinweis" class="hinweis">{{ hinweis }}</p>
+      <p v-if="notice" class="hinweis">{{ notice }}</p>
 
       <label for="email">Adresse</label>
       <input

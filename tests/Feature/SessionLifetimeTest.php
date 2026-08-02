@@ -39,7 +39,7 @@ final class SessionLifetimeTest extends TestCase
         $this->actingAs($account)
             ->withSession(['authenticated_at' => time() - $maximum - 1])
             ->get('/')
-            ->assertRedirect('/anmeldung');
+            ->assertRedirect('/login');
 
         $this->assertGuest();
     }

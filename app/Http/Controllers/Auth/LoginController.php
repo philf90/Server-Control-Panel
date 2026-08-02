@@ -117,7 +117,7 @@ final class LoginController extends Controller
 
         $audit->success('auth.login');
 
-        return redirect()->intended(route('uebersicht'));
+        return redirect()->intended(route('overview'));
     }
 
     public function destroy(Request $request, Audit $audit): RedirectResponse
@@ -128,7 +128,7 @@ final class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('anmeldung');
+        return redirect()->route('login');
     }
 
     private function waitMessage(int $seconds): string

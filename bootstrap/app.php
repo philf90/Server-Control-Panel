@@ -3,6 +3,7 @@
 use App\Http\Middleware\ApplyTenancy;
 use App\Http\Middleware\EnforceSessionLifetime;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireTwoFactor;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -39,6 +40,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
                 EnforceSessionLifetime::class,
                 ApplyTenancy::class,
                 SubstituteBindings::class,
+                RequireTwoFactor::class,
                 HandleInertiaRequests::class,
             ],
         );

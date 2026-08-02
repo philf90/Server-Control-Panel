@@ -41,6 +41,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $two_factor_secret
  * @property list<string>|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
+ * @property int|null $two_factor_last_step
  * @property Carbon|null $last_login_at
  * @property string|null $last_login_ip
  * @property-read Customer|null $customer
@@ -145,6 +146,12 @@ class Account extends Authenticatable
                 ->values()
                 ->all();
         });
+    }
+
+    /** Ist der zweite Faktor eingerichtet und bestätigt? */
+    public function hasTwoFactor(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
     }
 
     public function isAdmin(): bool

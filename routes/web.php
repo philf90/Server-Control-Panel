@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
+use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\OperationStreamController;
@@ -23,6 +25,18 @@ use SrvPanel\Agent\Version;
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'store']);
+});
+
+/*
+ * Der zweite Schritt der Anmeldung.
+ *
+ * Ohne `auth`: Zwischen Passwort und zweitem Faktor ist niemand angemeldet —
+ * das wartende Konto steht in der Sitzung. Wäre hier `auth` verlangt, käme
+ * niemand je an diese Seite.
+ */
+Route::middleware('guest')->group(function (): void {
+    Route::get('/two-factor', [TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
+    Route::post('/two-factor', [TwoFactorChallengeController::class, 'store']);
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])
@@ -103,6 +117,16 @@ Route::middleware('auth')->group(function (): void {
 
     Route::post('/impersonation/stop', [ImpersonationController::class, 'stop'])
         ->name('impersonation.stop');
+
+    /*
+     * Den zweiten Faktor einrichten oder abschalten.
+     */
+    Route::get('/settings/two-factor', [TwoFactorSetupController::class, 'show'])
+        ->name('two-factor.setup');
+    Route::post('/settings/two-factor', [TwoFactorSetupController::class, 'store'])
+        ->name('two-factor.setup.store');
+    Route::delete('/settings/two-factor', [TwoFactorSetupController::class, 'destroy'])
+        ->name('two-factor.setup.destroy');
 });
 
 /*

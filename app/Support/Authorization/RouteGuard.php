@@ -69,6 +69,26 @@ final class RouteGuard
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Der Rückweg aus „Anmelden als". Bewusst ohne Policy: Wer in fremder Sicht ist, ist in diesem Moment ein Kundenkonto und hätte die Fähigkeit impersonate nicht mehr — die Prüfung stünde ihm ausgerechnet beim Zurückkommen im Weg. Ohne laufenden Wechsel tut die Route nichts.',
             ],
+            'GET two-factor' => [
+                'kind' => self::OPEN,
+                'reason' => 'Der zweite Schritt der Anmeldung. Ohne Konto erreichbar, weil zwischen Passwort und zweitem Faktor niemand angemeldet ist; das wartende Konto steht in der Sitzung, und ohne einen solchen Eintrag tut die Seite nichts.',
+            ],
+            'POST two-factor' => [
+                'kind' => self::OPEN,
+                'reason' => 'Die Prüfung des Codes. Geschützt durch dieselbe Ratenbegrenzung wie das Passwort — sechs Stellen liessen sich sonst in Ruhe durchprobieren.',
+            ],
+            'GET settings/two-factor' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Der eigene zweite Faktor. Jedes Konto richtet nur seinen eigenen ein; es gibt kein fremdes Objekt, an dem eine Policy ansetzen könnte.',
+            ],
+            'POST settings/two-factor' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Bestätigung des eigenen zweiten Faktors, siehe oben.',
+            ],
+            'DELETE settings/two-factor' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Abschalten des eigenen zweiten Faktors — nur mit gültigem Code und für Administratoren gar nicht.',
+            ],
             'GET health' => [
                 'kind' => self::OPEN,
                 'reason' => 'Die Bereitschaftsprüfung läuft, während das Paket umschaltet — da ist niemand angemeldet. Sie gibt Fassungsnummern und einen Bereitschaftszustand heraus, sonst nichts.',

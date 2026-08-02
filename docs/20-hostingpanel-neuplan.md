@@ -552,7 +552,8 @@ Administratorkonto.
 
 ### P1 — Kern: Konten, Mandanten, Rechte, Vorgänge, Agent · 4–6 Wochen · (0.2)
 
-- Anmeldung, 2FA, Passkeys, Wiederherstellung, Ratenbegrenzung, Sitzungen
+- Anmeldung, 2FA, ~~Passkeys~~, Wiederherstellung, Ratenbegrenzung, Sitzungen
+  (*beim Bauen verschoben:* Passkeys nach P2, Begründung in §15 Punkt 9)
 - Accounts/Customers/Subscriptions/Plans als Modell — noch ohne Systemwirkung
 - Policies, Mandantenklammer, mechanische Vollständigkeitsprüfung der Routen
 - Protokoll mit Filter und Export
@@ -915,3 +916,4 @@ Offen bleibt:
 | 6 | **FTP** (unverschlüsselt/FTPS über vsftpd oder ProFTPD) neben SFTP wirklich nötig, oder reicht SFTP? | P6 |
 | 7 | **Testserver**: gibt es Hardware/VM für Integrationsläufe und Lasttests, oder muss die CI das leisten? | P1 |
 | 8 | **Datenschutz**: Auftragsverarbeitung, Aufbewahrungsfristen für Protokoll und Zugriffs-Logs, Löschkonzept für Kundendaten | P9 |
+| 9 | **Passkeys** (§6.4) sind in P1 **nicht** gebaut worden. Gebaut sind TOTP und Wiederherstellungscodes. Passkeys brauchen WebAuthn — eine echte Abhängigkeit, einen Ablauf im Browser und eine eigene Verwaltung registrierter Schlüssel; das ist ein eigenes Stück Arbeit und nicht der Rest eines anderen. Sie bleiben geplant, aber als zweiter Weg **neben** TOTP, nicht als Ersatz | P2 |

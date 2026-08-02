@@ -49,12 +49,20 @@ KEYRING="${REPO}/packaging/srvpanel-archive-keyring.gpg"
 KEYRING_ASC="${REPO}/packaging/srvpanel-archive-keyring.asc"
 MINISIGN_PUB="${REPO}/packaging/minisign.pub"
 
+missing=""
 for tool in gpg minisign; do
-    command -v "$tool" >/dev/null 2>&1 || {
-        echo "Fehlt: ${tool}. Unter Debian/Ubuntu: apt-get install gnupg minisign" >&2
-        exit 1
-    }
+    command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
 done
+
+if [ -n "$missing" ]; then
+    echo "Fehlt:${missing}" >&2
+    case "$(uname -s)" in
+        Darwin) echo "  brew install gnupg minisign" >&2 ;;
+        Linux)  echo "  apt-get install gnupg minisign   (Debian/Ubuntu)" >&2 ;;
+        *)      echo "  Es werden gnupg und minisign gebraucht." >&2 ;;
+    esac
+    exit 1
+fi
 
 # Der Schlüsseltausch ist nicht rückgängig zu machen, sobald etwas damit
 # veröffentlicht wurde: Bestehende Installationen kennen nur den alten
@@ -106,7 +114,11 @@ echo "==> OpenPGP-Schlüssel erzeugen (ed25519, nur Signatur, ohne Ablauf)"
 # jedem installierten Server an einem Stichtag, ohne Zutun und ohne Vorwarnung.
 # Der Preis dafür ist, dass ein verlorener Schlüssel nur durch einen Tausch
 # aus der Welt kommt — dokumentiert in docs/21-signaturschluessel.md.
-if ! gpg --batch --quiet --gen-key >"${WORK}/gen-gpg.log" 2>&1 <<EOF
+# --pinentry-mode loopback, obwohl die Passphrase im Batch steht: Ohne das
+# will gpg-agent sie in einem Pinentry-Fenster abfragen und scheitert dort, wo
+# keines aufgeht — auf einem frisch per Homebrew installierten GnuPG ist das
+# der Normalfall, und die Meldung („No pinentry") sagt nicht, was zu tun ist.
+if ! gpg --batch --quiet --pinentry-mode loopback --gen-key >"${WORK}/gen-gpg.log" 2>&1 <<EOF
 Key-Type: eddsa
 Key-Curve: Ed25519
 Key-Usage: sign

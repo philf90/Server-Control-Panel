@@ -9,7 +9,7 @@ ohne SSH und ohne dass das Panel die Maschine übernimmt.
 *Asylum* im Sinne von Zuflucht: der Ort, an dem ein Server sicher, überschaubar und
 beherrschbar bleibt.
 
-> **Status: 0.6.1 im Kanal `stable`, die Freigabe 1.0 steht aus.**
+> **Status: 0.6.2 im Kanal `stable`, die Freigabe 1.0 steht aus.**
 > Gebaut sind Installation, TLS mit Let's Encrypt, der signierte Release- und
 > Selbstupdate-Pfad mit Bereitschaftsprüfung und selbsttätigem Rollback, die
 > Anmeldung mit zweitem Faktor und Passkeys, Rollen, Audit-Log sowie die Module
@@ -30,6 +30,10 @@ beherrschbar bleibt.
 > nicht angefasst. **0.6.1** zieht die Texte der Oberfläche auf technische
 > Begriffe — die Vorgabe dazu steht in
 > [docs/19-sprache-der-oberflaeche.md](docs/19-sprache-der-oberflaeche.md).
+> **0.6.2** behebt eine Härtung in der systemd-Unit, die jede
+> Paketinstallation über das Panel unmöglich machte; bestehende
+> Installationen brauchen einen Handgriff aus
+> [UPGRADING.md](UPGRADING.md).
 > Danach **Datenbanken (0.7)**, **Backups (0.8)**; 1.0 ist der externe
 > Sicherheits-Review, kein neues Feature. Der Plan steht in
 > [docs/16-neukonzeption.md](docs/16-neukonzeption.md), die Meilensteine in

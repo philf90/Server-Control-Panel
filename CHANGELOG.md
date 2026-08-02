@@ -9,6 +9,18 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+## [0.6.2] — 2026-08-02
+
+**Ein Fehler, der das halbe Panel lahmlegte, und niemandem auffiel.** Die
+mitgelieferte systemd-Unit stellte `/usr` für den Dienst schreibgeschützt — und
+damit auch für apt, das als Kindprozess läuft. Jede Paketinstallation und jedes
+Paket-Update über das Panel scheiterte, seit es die Unit gibt.
+
+Gefunden hat das kein Test, sondern der erste Druck auf „nginx installieren" auf
+einem echten Server. Kein Test **konnte** es finden, und das ist der eigentliche
+Befund dieser Fassung: Die Attrappe führt kein apt aus, und in keiner
+Testumgebung dieses Projekts steht ein apt-Lauf unter dieser Unit.
+
 ### Behoben
 
 - **Das Panel konnte keine Pakete installieren — auf keinem Server.** Die

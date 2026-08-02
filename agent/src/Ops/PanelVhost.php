@@ -55,7 +55,7 @@ final class PanelVhost implements Op
         }
 
         $context->progress(20, 'Server-Block erzeugen');
-        $text = $this->template($port, $certificate, $key);
+        $text = $this->template($port, $certificate, $key, $this->modernHttp2($context));
 
         $before = is_file($this->target) ? (string) file_get_contents($this->target) : null;
 
@@ -102,17 +102,55 @@ final class PanelVhost implements Op
         file_put_contents($this->target, $before);
     }
 
-    private function template(int $port, string $certificate, string $key): string
+    /**
+     * Kennt dieses nginx die eigenständige http2-Direktive?
+     *
+     * Sie gibt es erst seit 1.25.1. Davor wird HTTP/2 als Parameter an listen
+     * angehängt. Von den vier Zielplattformen bringen drei eine ältere Fassung
+     * mit — Debian 12 hat 1.22, Ubuntu 22.04 sogar 1.18. Ein Panel, das die
+     * neue Schreibweise blind hinschreibt, ist auf dreien davon nicht
+     * einrichtbar.
+     *
+     * Bei unlesbarer Auskunft gilt die alte Schreibweise: Sie wird von neuen
+     * Fassungen noch angenommen (mit Hinweis), die neue von alten gar nicht.
+     */
+    private function modernHttp2(Context $context): bool
     {
+        try {
+            $result = $context->runner->run('nginx', ['-v'], 10);
+        } catch (AgentException) {
+            return false;
+        }
+
+        // nginx schreibt die Version nach stderr, nicht nach stdout.
+        if (! preg_match('#nginx/(\d+)\.(\d+)\.(\d+)#', $result->stderr.$result->stdout, $match)) {
+            return false;
+        }
+
+        $version = [(int) $match[1], (int) $match[2], (int) $match[3]];
+
+        return $version >= [1, 25, 1];
+    }
+
+    /**
+     * Die Vorlage. Öffentlich, damit beide Schreibweisen prüfbar sind, ohne
+     * nginx zu installieren — der Unterschied zwischen ihnen ist genau der
+     * Fehler, der eine Einrichtung auf drei von vier Plattformen verhindert
+     * hätte.
+     */
+    public function template(int $port, string $certificate, string $key, bool $modernHttp2): string
+    {
+        $listen = $modernHttp2
+            ? "listen {$port} ssl;\n    listen [::]:{$port} ssl;\n    http2 on;"
+            : "listen {$port} ssl http2;\n    listen [::]:{$port} ssl http2;";
+
         return <<<CONF
         # Von cloudsrv-agentd erzeugt. Änderungen von Hand werden beim nächsten
         # Lauf überschrieben — für eigene Direktiven ist die Include-Datei
         # /etc/cloudsrv/nginx-extra.conf da, die hier eingebunden wird.
 
         server {
-            listen {$port} ssl;
-            listen [::]:{$port} ssl;
-            http2 on;
+            {$listen}
 
             server_name _;
             root /opt/cloudsrv/current/public;

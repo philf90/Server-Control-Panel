@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Project Asylum</title>
+<title>SrvPanel</title>
 <style>
 :root{color-scheme:light dark}
 body{margin:0;padding:3rem 1.25rem;font:16px/1.6 system-ui,sans-serif;
@@ -15,51 +15,70 @@ pre{padding:1rem;border-radius:8px;overflow-x:auto;
 code{font-family:ui-monospace,Menlo,monospace;font-size:.9em}
 h2{margin:2rem 0 .5rem;font-size:1.05rem}
 .hint{font-size:.85rem;opacity:.75}
+.status{padding:.9rem 1rem;border-radius:8px;font-size:.9rem;
+        background:rgba(180,120,20,.14);border:1px solid rgba(180,120,20,.35)}
 footer{margin-top:2.5rem;font-size:.8rem;opacity:.7}
 </style>
 </head>
 <body>
-<h1>Project Asylum</h1>
-<p class="claim">Administration · Security · YAML · Logs · Updates · Monitoring</p>
-<p>Schlankes Control Panel für Ubuntu- und Debian-Server. Ein Binary,
-keine Runtime-Abhängigkeiten.</p>
+<h1>SrvPanel</h1>
+<p class="claim">Kunden · Abonnements · Web · PHP · Datenbanken · DNS · Dateien · Sicherungen</p>
+<p>Hosting-Panel für einen einzelnen Linux-Server, vergleichbar mit Plesk:
+Der Betreiber verwaltet Kunden, Kunden verwalten ihre Abonnements — ohne SSH
+und ohne Zugriff auf fremde Daten. Ein Systembenutzer je Abonnement.</p>
+
+<p class="status"><strong>Vorabversion 0.1.0-rc.1.</strong> Installierbar,
+einrichtbar, aktualisierbar — aber noch ohne Anmeldung und ohne
+Fachfunktionen. Gebaut sind das Fundament und das Werkzeug: der Agent mit
+seiner Trennlinie zwischen Anwendung und Systemrechten, die Adminübersicht,
+Paket, Ersteinrichtung und Update mit Rückweg. Für den Betrieb echter Kunden
+ist das noch nichts.</p>
 
 <h2>Installieren</h2>
 <pre><code>curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
-sudo bash install.sh</code></pre>
-<p>Der Installer gibt am Ende einen einmaligen Link zur Ersteinrichtung
-aus. Signatur und Prüfsumme jedes Artefakts prüft er selbst — gegen den
-Schlüssel, der in ihm steht.</p>
+sudo sh install.sh</code></pre>
+<p>Danach einmal <code>sudo srvpanel setup</code>: Das legt Datenbank,
+Anwendungsschlüssel und ein selbstsigniertes Zertifikat an, schreibt den
+nginx-Server-Block und startet die Dienste. Der Lauf ist wiederholbar und
+wechselt dabei keinen Schlüssel.</p>
 
 <h2>Über apt</h2>
-<pre><code>sudo curl -fsSL --proto '=https' --tlsv1.2   https://repo.cloudsrv24.de/apt/asylum-archive-keyring.gpg   -o /usr/share/keyrings/asylum-archive-keyring.gpg
-sudo tee /etc/apt/sources.list.d/asylum.sources &gt;/dev/null &lt;&lt;'EOF'
+<pre><code>sudo curl -fsSL --proto '=https' --tlsv1.2 \
+  https://repo.cloudsrv24.de/apt/srvpanel-archive-keyring.gpg \
+  -o /usr/share/keyrings/srvpanel-archive-keyring.gpg
+sudo tee /etc/apt/sources.list.d/srvpanel.sources &gt;/dev/null &lt;&lt;'EOF'
 Types: deb
 URIs: https://repo.cloudsrv24.de/apt
-Suites: stable
+Suites: beta
 Components: main
-Signed-By: /usr/share/keyrings/asylum-archive-keyring.gpg
+Signed-By: /usr/share/keyrings/srvpanel-archive-keyring.gpg
 EOF
-sudo apt update &amp;&amp; sudo apt install asylum-panel</code></pre>
-<p class="hint">Es gibt zusätzlich den Kanal <code>beta</code> mit Vorabversionen.</p>
-<p class="hint">Das Paket heißt <code>asylum-panel</code> — <code>asylum</code>
-ist in Debian an ein Spiel vergeben. Der Befehl heißt weiterhin
-<code>asylum</code>. Über apt entfällt die Bereitschaftsprüfung mit
-selbsttätigem Rückweg; die gibt es nur bei <code>asylum update</code>.</p>
+sudo apt update &amp;&amp; sudo apt install srvpanel</code></pre>
+<p class="hint">Solange nur Vorabversionen erschienen sind, liegt das Paket
+ausschließlich im Kanal <code>beta</code>. Der Kanal <code>stable</code>
+bekommt es mit der ersten Fassung ohne Bindestrich in der Version.</p>
 
 <h2>Signaturschlüssel</h2>
 <p>Artefakte, minisign (<a href="/minisign.pub">minisign.pub</a>):</p>
-<pre><code>RWQj/sAQQiq7Aa8sPaBSb21Wcbp9n165J+s6z8qqq0GUmB2ZXzDNoNXf</code></pre>
+<pre><code>RWTP+PxCEAfDsQ4m4+rATArHldk7sh+yWQI1NiO4r4CRI7fiFk42pSiN</code></pre>
 <p>APT-Repository, OpenPGP (<a href="/apt/KEY.asc">KEY.asc</a>):</p>
-<pre><code>FC79D6FB2CA8321BBA071E05AC66AF2CEEB9AA1A</code></pre>
+<pre><code>58EE46444E2BC8ABD471FD1E7122B7C9C4393E86</code></pre>
+
+<h2>Der Vorgänger</h2>
+<p class="hint">Bis 0.6.2 hieß dieses Repository <em>Project Asylum</em> — ein
+schlankes Control Panel als einzelnes Go-Binary. SrvPanel ist ein Neubau, kein
+Nachfolger im Sinne eines Updates: andere Sprache, anderes Datenmodell, kein
+Migrationspfad. Bestehende Installationen laufen unter dem Paketnamen
+<code>asylum-panel</code> im Kanal <code>stable</code> weiter; ihr Quellstand
+liegt im Branch <code>legacy/asylum</code>.</p>
 
 <footer>
-Version 0.6.2 ·
+Version 0.1.0-rc.1 ·
 <a href="https://github.com/philf90/Server-Control-Panel">Quellcode</a> ·
-<a href="https://github.com/philf90/Server-Control-Panel/releases/tag/v0.6.2">Release-Notizen</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/releases/tag/v0.1.0-rc.1">Release-Notizen</a> ·
 <a href="https://github.com/philf90/Server-Control-Panel/blob/main/SECURITY.md">Sicherheit</a> ·
 <a href="https://github.com/philf90/Server-Control-Panel/blob/main/CHANGELOG.md">Changelog</a> ·
-Apache-2.0
+AGPL-3.0-only
 </footer>
 </body>
 </html>

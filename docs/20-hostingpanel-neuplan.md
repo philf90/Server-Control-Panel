@@ -898,6 +898,7 @@ Offen bleibt:
 |---|---|---|
 | 1 | **Markenanmeldung** für SrvPanel — nötig, sobald das Panel an Dritte verkauft wird; Recherche DPMA/EUIPO vorher | vor dem ersten Verkauf |
 | 2 | **Beitragsregelung**: DCO reicht, oder CLA, damit die Zweitlizenz belastbar bleibt? | erster Fremdbeitrag |
+| 2a | **Archiv-Keyring im Paket ausliefern?** Heute kommt er nur über `install.sh` auf den Server und wird danach von nichts aktualisiert — ein Schlüsseltausch wäre Handarbeit bei jedem Nutzer. Ihn ins Paket zu legen (wie `debian-archive-keyring`) löst das, nimmt ihn aber bei `apt remove` mit und hinterlässt eine unprüfbare Paketquelle. Braucht einen entfernungsfesten Entwurf (§ [21](21-signaturschluessel.md)) | vor 1.0 |
 | 3 | **Wie lange wird `deb.sury.org` als PHP-Bezug getragen**, und ab welcher Kundenzahl kommt der eigene Spiegel auf Objektspeicher (§4.3)? | P3 |
 | 4 | **Apache** zusätzlich unterstützen oder dauerhaft nur nginx? | P3 |
 | 5 | **PostgreSQL** wirklich in der 1.0 oder nach hinten? | P5 |

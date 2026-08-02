@@ -27,3 +27,12 @@ Homestead.yaml
 Thumbs.db
 /build
 /dist
+
+# Privates Signaturmaterial gehört nie in den Baum. rotate-signing-keys.sh
+# legt es außerhalb ab; diese Zeilen sind der zweite Riegel für den Fall,
+# dass jemand eine Datei zum Einfügen hierher kopiert.
+*.key
+*.sec
+*.pem
+APT_GPG_KEY*
+MINISIGN_KEY*

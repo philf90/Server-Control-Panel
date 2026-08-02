@@ -29,9 +29,13 @@ jobs:
             echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           fi
 
+      # 8.4, nicht weniger: composer.json verlangt ^8.4 (Laravel 13 setzt
+      # Symfony 8 voraus). Mit 8.3 bricht schon das composer install in
+      # build.sh ab — und zwar erst in der Freigabe, weil die CI hier nicht
+      # hinsieht.
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           extensions: sockets, pcntl, posix, mbstring, intl, zip
           tools: composer:v2
 

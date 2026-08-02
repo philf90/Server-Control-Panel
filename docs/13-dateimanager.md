@@ -345,7 +345,7 @@ liegen. Die Unit hat sich dafür geändert:
 
 | Vorher | Jetzt | Folge |
 |---|---|---|
-| `ProtectSystem=full` | `ProtectSystem=true` | `/etc` wird schreibbar; `/usr`, `/boot`, `/efi` bleiben nur lesbar |
+| `ProtectSystem=full` | `ProtectSystem=true` | `/etc` wird schreibbar; `/usr`, `/boot`, `/efi` bleiben nur lesbar (seit 0.6.1 `ProtectSystem=no` mit `ReadOnlyPaths=-/boot -/efi` — siehe [02-architektur.md](02-architektur.md#systemd-hardening-für-den-mvp)) |
 | `ProtectHome=read-only` | `ProtectHome=false` | `/home` und `/root` werden schreibbar |
 
 `/usr` und `/boot` bleiben bewusst geschützt: Dort hat ein Panel nichts von Hand

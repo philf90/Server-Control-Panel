@@ -123,7 +123,7 @@ func (s *System) PackageUpgrade(ctx context.Context, opts UpgradeOptions, stream
 		return err
 	}
 	if res.ExitCode != 0 {
-		return fmt.Errorf("apt-get upgrade endete mit Code %d", res.ExitCode)
+		return aptFehler(fmt.Sprintf("apt-get upgrade endete mit Code %d", res.ExitCode), res)
 	}
 	return nil
 }
@@ -156,7 +156,7 @@ func (s *System) aptInstall(ctx context.Context, stream LineWriter, paket string
 		return err
 	}
 	if res.ExitCode != 0 {
-		return fmt.Errorf("apt-get install %s endete mit Code %d", paket, res.ExitCode)
+		return aptFehler(fmt.Sprintf("apt-get install %s endete mit Code %d", paket, res.ExitCode), res)
 	}
 	return nil
 }

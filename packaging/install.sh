@@ -308,11 +308,15 @@ WatchdogSec=30s
 TimeoutStartSec=60s
 TimeoutStopSec=30s
 
-# ProtectSystem=true und ProtectHome=false: Der Dateimanager bearbeitet
-# Konfigurationsdateien unter /etc und Daten unter /home. /usr, /boot und /efi
-# bleiben schreibgeschützt. Siehe packaging/systemd/asylumd.service.
+# ProtectSystem=no und ProtectHome=false: Der Dateimanager bearbeitet
+# Konfigurationsdateien unter /etc und Daten unter /home — und apt schreibt nach
+# /usr. Die Einschränkung gälte für jeden Kindprozess des Dienstes, und damit
+# scheiterte bis 0.6.1 jede Paketinstallation über das Panel an einem
+# read-only /usr. /boot und /efi bleiben geschützt; dort rührt das Panel nie
+# etwas an. Siehe packaging/systemd/asylumd.service.
 NoNewPrivileges=no
-ProtectSystem=true
+ProtectSystem=no
+ReadOnlyPaths=-/boot -/efi
 ProtectHome=false
 PrivateTmp=yes
 ProtectKernelTunables=yes
@@ -325,7 +329,9 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
 
-MemoryMax=256M
+# 768M und nicht 256M: Das Limit gilt für die Kontrollgruppe der Unit, und apt
+# und dpkg laufen darin. Das Panel selbst braucht rund 20 MB.
+MemoryMax=768M
 TasksMax=256
 
 ReadWritePaths=${CONFIG_DIR} ${DATA_DIR} ${LOG_DIR}

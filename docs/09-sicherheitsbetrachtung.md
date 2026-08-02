@@ -316,11 +316,22 @@ Pfadanteilen im Upload.
   die letzte Komponente hilft `O_NOFOLLOW`, gegen die mittleren wäre ein Öffnen
   Komponente für Komponente nötig. Wer lokal schreiben kann, braucht das Panel
   dafür allerdings nicht — das Risiko ist bewusst getragen.
-- **Die gelockerte Härtung.** `ProtectHome=false` und `ProtectSystem=true` statt
-  `full` sind eine echte Abschwächung: Ein Codeausführungsfehler im Panel kann
-  jetzt mehr anrichten. `/usr` und `/boot` bleiben schreibgeschützt, damit ein
-  untergeschobenes Binary nicht der nächste Schritt ist. Wer den Dateimanager
-  nicht braucht, verschärft beides und setzt `files.enabled: false`.
+- **Die gelockerte Härtung.** `ProtectHome=false` (seit 0.3.0) und
+  `ProtectSystem=no` (seit 0.6.1) sind eine echte Abschwächung: Ein
+  Codeausführungsfehler im Panel kann damit mehr anrichten, und seit 0.6.1
+  ausdrücklich auch ein Binary unter `/usr` austauschen.
+
+  Das ist getragen und nicht übersehen. `ProtectSystem=true` hätte den
+  Schreibschutz auf `/usr` gehalten — **und dabei jede Paketinstallation über
+  das Panel unmöglich gemacht**, weil die Einschränkung für jeden Kindprozess
+  gilt und apt einer ist. Zwischen „das Panel kann keine Pakete installieren"
+  und „ein bereits kompromittiertes Panel kann auch nach /usr schreiben" ist
+  die zweite Wahl die richtige: Wer im Panel Code ausführen kann, ist root und
+  braucht den Umweg über `/usr` nicht — er hat Cron, Docker und systemd.
+
+  Was bleibt, ist echt: `/boot` und `/efi` sind über `ReadOnlyPaths`
+  schreibgeschützt, und das Panel rührt sie nie an. Wer den Dateimanager nicht
+  braucht, verschärft `ProtectHome` und setzt `files.enabled: false`.
 - **Der Editor-Nonce lockert `style-src`** für genau eine Seite auf ein
   nonce-gebundenes Element. Das ist deutlich enger als `'unsafe-inline'`, aber
   nicht so eng wie `'self'` allein.

@@ -9,6 +9,53 @@ nicht als Release getaggt.
 
 ## [Unveröffentlicht]
 
+### Behoben
+
+- **Das Panel konnte keine Pakete installieren — auf keinem Server.** Die
+  mitgelieferte systemd-Unit trug `ProtectSystem=true`, was `/usr` für den
+  Dienst read-only stellt. Die Begründung im Kommentar — dort habe ein Panel
+  nichts von Hand zu ändern — stimmte und übersah das Entscheidende: **Die
+  Einschränkung gilt für jeden Kindprozess, und apt ist einer.** Jede
+  Installation brach beim Auspacken ab:
+
+  ```
+  dpkg: error processing archive …/nginx_…_amd64.deb (--unpack):
+   unable to create '/usr/sbin/nginx.dpkg-new': Read-only file system
+  ```
+
+  Betroffen waren „Updates installieren" auf der Paketseite sowie die
+  Installation von nginx, Docker und ufw. Nicht betroffen war das Selbstupdate:
+  Es läuft seit jeher über `systemd-run` in einer eigenen Transient-Unit — die
+  Vorlage für die richtige Lösung stand also die ganze Zeit im selben
+  Repository, eine Datei weiter.
+
+  Beide mitgelieferten Units stehen jetzt auf `ProtectSystem=no` mit
+  `ReadOnlyPaths=-/boot -/efi`: Was von der Zusage zu halten war, bleibt —
+  `/boot` und `/efi` rührt das Panel nie an. Die Einordnung dieser Abschwächung
+  steht in `docs/09-sicherheitsbetrachtung.md`.
+
+  Gefunden hat das kein Test, sondern der erste Lauf auf einem echten Server.
+  Kein Test **konnte** es finden: Die Attrappe führt kein apt aus, und in keiner
+  Testumgebung dieses Projekts steht ein apt-Lauf unter dieser Unit. Das ist
+  derselbe blinde Fleck, den `docs/18-webserver.md` §12 für das Webserver-Modul
+  benennt — er trifft nur nicht nur das Webserver-Modul.
+
+- **`MemoryMax` von 256M auf 768M**, aus demselben Grund: Das Limit gilt für die
+  Kontrollgruppe der Unit, und apt und dpkg laufen darin. 256M reichen dem Panel
+  (gemessen rund 20 MB RSS), aber ein `apt-get upgrade` über zweihundert Pakete
+  kann sie allein aufbrauchen. Ein OOM-Kill mitten in einer dpkg-Transaktion ist
+  der schlechteste Ausgang von allen: Er hinterlässt ein halb ausgepacktes Paket.
+
+- **Bestehende Installationen bekommen den Grund gesagt, statt eines
+  dpkg-Dumps.** Das Selbstupdate tauscht das Programm, nie die Unit — über den
+  curl-Installer aufgesetzte Installationen laufen also weiter in den Fehler.
+  `privops` erkennt die Signatur (`Read-only file system` **und** ein Pfad unter
+  `/usr`) in der apt-Ausgabe und schreibt Ursache und Handgriff in die
+  Vorgangsanzeige. Die Erkennung verlangt beide Merkmale: Eine wirklich
+  read-only eingehängte Platte außerhalb von `/usr` ist ein anderer Fall, und
+  der Hinweis auf die Unit wäre dort falsch. Der Weg von Hand steht in
+  `UPGRADING.md`.
+
 ## [0.6.1] — 2026-08-01
 
 **Die Sprache der Oberfläche.** Ein Bildschirmfoto vom Knopf „nginx einspielen"

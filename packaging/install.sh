@@ -65,27 +65,19 @@ Architectures: $(dpkg --print-architecture)
 Signed-By: ${KEYRING}
 EOF
 
-note "PHP-Quelle einrichten"
-# Die Distributionen liefern je eine PHP-Fassung; ein Hosting-Panel braucht
-# mehrere. Warum das Panel sie nicht selbst spiegelt, steht in §4.3 des Plans.
-if [ ! -f /etc/apt/sources.list.d/php-sury.sources ]; then
-    curl -fsSL --proto '=https' https://packages.sury.org/php/apt.gpg \
-        -o /usr/share/keyrings/php-sury-keyring.gpg
-    cat > /etc/apt/sources.list.d/php-sury.sources <<EOF
-Types: deb
-URIs: https://packages.sury.org/php/
-Suites: $(. /etc/os-release && echo "${VERSION_CODENAME}")
-Components: main
-Signed-By: /usr/share/keyrings/php-sury-keyring.gpg
-EOF
-fi
+note "PHP-Quelle und PHP 8.4"
+# Das Panel braucht PHP 8.4 (Laravel 13). Woher es kommt, entscheidet
+# php-source.sh — dasselbe Skript benutzt die CI.
+sh "$(dirname "$0")/php-source.sh" 2>/dev/null || curl -fsSL --proto '=https' --tlsv1.2 \
+    "${REPO_URL%/apt}/php-source.sh" | sh
+apt-get install -y -qq php8.4-cli php8.4-fpm php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql
 
 note "CloudSrv installieren"
 apt-get update -qq
 apt-get install -y cloudsrv-panel
 
 note "Ersteinrichtung"
-cloudsrv einrichten --link
+cloudsrv setup
 
 printf '\n'
-note "Fertig. Der Link oben führt zur Ersteinrichtung und gilt einmal."
+note "Fertig."

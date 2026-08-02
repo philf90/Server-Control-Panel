@@ -21,6 +21,8 @@ license: AGPL-3.0-only
 depends:
   - nginx
   - curl
+  - php8.4-cli
+  - php8.4-fpm
   - mariadb-server
   - quota
   - ca-certificates

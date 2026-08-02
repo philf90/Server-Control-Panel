@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  PHP_VERSION: '8.3'
+  PHP_VERSION: '8.4'
 
 jobs:
   static:
@@ -154,9 +154,18 @@ jobs:
           done
           docker exec target systemctl --version | head -1
 
+      - name: PHP-Quelle und PHP 8.4
+        # Denselben Weg geht install.sh. Von den vier Zielplattformen liefert nur
+        # Debian 13 PHP 8.4 aus eigenen Quellen — Laravel 13 verlangt es.
+        run: |
+          docker cp packaging/php-source.sh target:/tmp/php-source.sh
+          docker exec target sh /tmp/php-source.sh
+          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            php8.4-cli php8.4-fpm php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql curl'
+          docker exec target php8.4 --version
+
       - name: Paket installieren
         run: |
-          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq php-cli php-fpm php-sockets php-mbstring php-xml php-curl php-mysql curl >/dev/null 2>&1 || true'
           docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y /packages/*.deb'
 
       - name: Der Agent läuft und antwortet
@@ -211,9 +220,12 @@ jobs:
       - name: shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
-          shellcheck packaging/install.sh packaging/scripts/*.sh
+          # SC1091 ist ausgenommen: /etc/os-release und /etc/cloudsrv/php.path
+          # gibt es auf dem Prüfrechner nicht, und beide sind keine Quelldateien
+          # dieses Projekts. SC1090 desgleichen für den Pfad aus einer Variablen.
+          shellcheck -e SC1091 packaging/install.sh packaging/php-source.sh packaging/scripts/*.sh
           shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/cloudsrv
-          shellcheck -e SC1090 packaging/build.sh packaging/testbed.sh
+          shellcheck -e SC1090,SC1091 packaging/build.sh packaging/testbed.sh
 
   supply-chain:
     name: Schwachstellen und Lizenzen

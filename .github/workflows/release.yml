@@ -202,9 +202,16 @@ jobs:
           mkdir -p "apt/dists/${CHANNEL}/main/binary-amd64" "apt/dists/${CHANNEL}/main/binary-arm64"
 
           # Jedes Paket unter seinem eigenen Namen in den Pool — Debian-Konvention
-          # pool/main/<anfangsbuchstabe>/<paket>/. Das Paket des Vorgängers liegt
-          # dort weiter und wird nicht angefasst: Bestehende Installationen sollen
-          # beim nächsten „apt update" nicht ins Leere laufen.
+          # pool/main/<anfangsbuchstabe>/<paket>/.
+          #
+          # Das Paket des Vorgängers liegt daneben und wird von hier an nicht
+          # mehr angefasst. „Von hier an": Der erste Lauf unter dem neuen Namen
+          # hat seine älteren Fassungen aus dem Pool geräumt, weil das
+          # Zurückschneiden weiter unten über alle Verzeichnisse lief. Das ist
+          # behoben, aber nicht rückgängig gemacht — die Entscheidung war,
+          # die 404 MiB nicht zurückzuholen. Geblieben sind asylum-panel 0.6.1
+          # und 0.6.2; bestehende Installationen können damit weiter
+          # aktualisieren, ältere Fassungen sind nicht mehr installierbar.
           published=""
           for deb in ../dist/*.deb; do
             name="$(dpkg-deb -f "$deb" Package)"

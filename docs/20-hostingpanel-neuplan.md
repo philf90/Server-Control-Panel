@@ -845,6 +845,16 @@ Der Übergang:
    seinem Namen. Bestehende Installationen liefen sonst beim nächsten
    `apt update` ins Leere. Das neue Paket `srvpanel` kommt daneben —
    dieselbe Site, zwei Pakete, getrennte Kanäle.
+
+   Eingelöst wurde das nur zur Hälfte, und das gehört hier hin statt in eine
+   Fußnote: Der erste Freigabelauf unter dem neuen Namen hat 92 ältere
+   Fassungen des Vorgängers aus dem Pool geräumt (404 MiB), weil die Regel
+   „je Paket nur die letzten fünf" über alle Paketverzeichnisse lief statt
+   nur über die eigenen. Die Ursache ist behoben. Die Dateien sind bewusst
+   **nicht** zurückgeholt worden: `asylum-panel` 0.6.1 und 0.6.2 liegen noch
+   im Pool, ein bestehender Server kann also weiter aktualisieren — ältere
+   Fassungen sind nicht mehr installierbar, und der `stable`-Index verweist
+   für sie ins Leere.
 4. **`main` bleibt geschützt**, Entwicklung auf Branches, Freigaben über Tags —
    wie bisher.
 

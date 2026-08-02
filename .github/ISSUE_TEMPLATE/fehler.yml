@@ -58,7 +58,7 @@ body:
     attributes:
       label: Protokoll
       description: >-
-        `journalctl -u cloudsrvd -n 100 --no-pager`. Wird als Code formatiert,
+        `journalctl -u cloudsrv-agentd -u cloudsrv-web -n 100 --no-pager`. Wird als Code formatiert,
         Backticks sind nicht nötig.
       render: text
 

@@ -22,7 +22,7 @@ import (
 // Dateinamen neben dem laufenden Binary.
 const (
 	stagedSuffix = ".neu"    // während des Downloads
-	backupSuffix = ".vorher" // die Fassung, zu der zurückgekehrt wird
+	backupSuffix = ".vorher" // die Version, zu der zurückgekehrt wird
 )
 
 // Zeitgrenzen des Neustarts.
@@ -125,7 +125,7 @@ func (i *Installer) Apply(ctx context.Context, pkg Package) error {
 	}
 	defer func() { _ = os.Remove(i.stagedPath()) }()
 
-	i.logf("geladene Fassung wird geprüft")
+	i.logf("geladene Version wird geprüft")
 	if err := probeVersion(ctx, i.stagedPath(), pkg.Version); err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (i *Installer) Apply(ctx context.Context, pkg Package) error {
 		return i.rollbackAfter(ctx, err)
 	}
 
-	i.logf("Fassung %s läuft", pkg.Version)
+	i.logf("Version %s läuft", pkg.Version)
 	return nil
 }
 
@@ -257,19 +257,19 @@ func (i *Installer) Rollback(ctx context.Context) error {
 		return err
 	}
 	if err := os.Rename(tmp, i.BinaryPath); err != nil {
-		return fmt.Errorf("vorherige Fassung zurückspielen: %w", err)
+		return fmt.Errorf("vorherige Version zurückspielen: %w", err)
 	}
 	if err := syncDir(filepath.Dir(i.BinaryPath)); err != nil {
 		return err
 	}
-	i.logf("vorherige Fassung liegt wieder an ihrem Platz")
+	i.logf("vorherige Version liegt wieder an ihrem Platz")
 	return i.restart(ctx)
 }
 
 // rollbackAfter macht den Tausch rückgängig und meldet beide Fehler.
 func (i *Installer) rollbackAfter(ctx context.Context, cause error) error {
 	i.logf("Update fehlgeschlagen: %v", cause)
-	i.logf("die vorherige Fassung wird zurückgespielt")
+	i.logf("die vorherige Version wird zurückgespielt")
 
 	// Eigener Kontext: Wenn der Aufrufer abgebrochen hat, ist der Rückweg
 	// trotzdem zu Ende zu gehen. Ein abgebrochenes Rollback wäre das
@@ -285,7 +285,7 @@ func (i *Installer) rollbackAfter(ctx context.Context, cause error) error {
 	if err := i.Rollback(rbCtx); err != nil {
 		return fmt.Errorf("%w — und das Zurückspielen scheiterte ebenfalls: %w", cause, err)
 	}
-	return fmt.Errorf("%w — die vorherige Fassung läuft wieder", cause)
+	return fmt.Errorf("%w — die vorherige Version läuft wieder", cause)
 }
 
 // restart startet den Dienst über systemd neu.
@@ -334,7 +334,7 @@ func (i *Installer) waitHealthy(ctx context.Context, wantVersion string) error {
 		case got == wantVersion:
 			return nil
 		default:
-			last = fmt.Errorf("es antwortet Fassung %q, erwartet %q", got, wantVersion)
+			last = fmt.Errorf("es antwortet Version %q, erwartet %q", got, wantVersion)
 		}
 
 		if time.Now().After(deadline) {
@@ -474,7 +474,7 @@ func VersionOfBinary(ctx context.Context, path string) (string, error) {
 	}
 	fields := strings.Fields(firstLine(out))
 	if len(fields) == 0 {
-		return "", fmt.Errorf("%s meldet keine Fassung", filepath.Base(path))
+		return "", fmt.Errorf("%s meldet keine Version", filepath.Base(path))
 	}
 	return fields[len(fields)-1], nil
 }
@@ -487,7 +487,7 @@ func probeVersion(ctx context.Context, path, want string) error {
 		return fmt.Errorf("das geladene Programm ließ sich nicht prüfen: %w", err)
 	}
 	if got != want {
-		return fmt.Errorf("das geladene Programm meldet Fassung %q, erwartet %q", got, want)
+		return fmt.Errorf("das geladene Programm meldet Version %q, erwartet %q", got, want)
 	}
 	return nil
 }

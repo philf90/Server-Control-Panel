@@ -121,17 +121,17 @@ func (s *Server) handleAPIWebserverZertifikate(w http.ResponseWriter, r *http.Re
 func zertUrteil(z apiSiteZert, acmeAktiv bool) (stufe, satz string) {
 	switch {
 	case !acmeAktiv:
-		return "info", "Für das Panel selbst ist der automatische Bezug abgeschaltet. " +
+		return "info", "Für das Panel selbst ist die automatische Ausstellung abgeschaltet. " +
 			"Ohne ihn gibt es kein ACME-Konto, aus dem eine Site ihr Zertifikat " +
 			"beziehen könnte — umstellen lässt sich das unter Zertifikate."
 	case z.Laeuft:
-		return "info", "Der Bezug läuft."
+		return "info", "Die Anforderung läuft."
 	case !z.Vorhanden && z.Fehler != "":
 		// Der Fehler zuerst und im Klartext: Er ist die einzige Auskunft, mit
 		// der sich der Grund finden lässt.
 		return "schlecht", "Kein Zertifikat. Der letzte Versuch scheiterte: " + z.Fehler
 	case !z.Vorhanden:
-		return "warn", "Noch kein Zertifikat. Der erste Bezug läuft im Hintergrund; " +
+		return "warn", "Noch kein Zertifikat. Die erste Anforderung läuft im Hintergrund; " +
 			"er lässt sich auch von Hand anstoßen."
 	// tageWort steht in handlers_app.go und wird hier mitbenutzt: Dieselbe
 	// Zahl soll auf jeder Fläche gleich klingen. Negative Werte erreichen es
@@ -167,7 +167,7 @@ func zertAnmerkung(a apiSiteZerts) string {
 	// dann, wenn eine Site nichts bekommen hat.
 	for _, z := range a.Zertifikate {
 		if !z.Vorhanden {
-			return "Ein Bezug braucht einen Weg, auf dem die Prüfstelle die Domain " +
+			return "Eine Anforderung braucht einen Weg, auf dem die Prüfstelle die Domain " +
 				"erreicht: entweder über nginx (dann muss die Domain auf diesen " +
 				"Server zeigen und Port 80 offen sein) oder über DNS-01 mit einem " +
 				"eingerichteten Anbieter."
@@ -200,7 +200,7 @@ func (s *Server) handleAPIWebserverZertifikatBeziehen(w http.ResponseWriter, r *
 	}
 	s.audit(r, "webserver.site.zertifikat", name, store.ResultOK, "bezogen")
 
-	meldung := "Das Zertifikat für " + name + " ist bezogen."
+	meldung := "Das Zertifikat für " + name + " ist ausgestellt."
 	if s.siteOhneTLSBlock(r.Context(), name) {
 		meldung += " Die Site liefert es noch nicht aus: Sie wurde ohne 443-Block " +
 			"angelegt, weil es damals kein Zertifikat gab. Einmal speichern genügt."

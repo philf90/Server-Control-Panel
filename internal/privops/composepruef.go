@@ -126,7 +126,7 @@ var sperrpfade = []struct {
 	pfad  string
 	grund string
 }{
-	{"/var/run/docker.sock", "Der Docker-Socket im Container heißt: Der Container darf jeden anderen Container starten, auch einen mit dem ganzen Wirtsdateisystem. Wer den Socket hat, hat die Maschine."},
+	{"/var/run/docker.sock", "Der Docker-Socket im Container heißt: Der Container darf jeden anderen Container starten, auch einen mit dem ganzen Dateisystem des Hosts. Wer den Socket hat, hat die Maschine."},
 	{"/run/docker.sock", "Der Docker-Socket im Container heißt: Der Container darf jeden anderen Container starten. Wer den Socket hat, hat die Maschine."},
 	{"/etc/shadow", "Die Datei mit den Passwort-Hashes des Servers."},
 	{"/etc/sudoers", "Wer sie schreiben kann, macht sich zu root."},
@@ -145,7 +145,7 @@ var gefaehrlicheFaehigkeiten = map[string]string{
 	"SYS_ADMIN":       "Die Sammelfähigkeit schlechthin: mount, pivot_root, Cgroup-Schreibzugriff. Der klassische Ausbruchsweg.",
 	"SYS_PTRACE":      "Erlaubt, sich in fremde Prozesse zu hängen — auch in die des Wirts, wenn der PID-Namensraum geteilt wird.",
 	"SYS_MODULE":      "Erlaubt, Kernelmodule zu laden. Danach gibt es keine Grenze mehr.",
-	"DAC_READ_SEARCH": "Hebt die Rechteprüfung beim Lesen auf und erlaubt zusammen mit open_by_handle_at den Zugriff auf das ganze Wirtsdateisystem.",
+	"DAC_READ_SEARCH": "Hebt die Rechteprüfung beim Lesen auf und erlaubt zusammen mit open_by_handle_at den Zugriff auf das ganze Dateisystem des Hosts.",
 	"SYS_BOOT":        "Erlaubt, den Wirt neu zu starten.",
 	"SYS_RAWIO":       "Roher Zugriff auf Ein-/Ausgabeports und Speicher.",
 }
@@ -312,7 +312,7 @@ func pruefeDienst(p *ComposePruefung, dienst string, felder map[string]yaml.Node
 
 	if len(listeAus(felder["devices"])) > 0 {
 		fuege(BefundAblehnung, "devices", strings.Join(listeAus(felder["devices"]), ", "),
-			"Ein durchgereichtes Gerät ist roher Zugriff auf die Hardware des Wirts. Eine Platte als Gerät im Container heißt: jede Datei des Servers, ohne Rechteprüfung.")
+			"Ein durchgereichtes Gerät ist roher Zugriff auf die Hardware des Hosts. Ein Datenträger als Gerät im Container heißt: jede Datei des Servers, ohne Rechteprüfung.")
 	}
 	// device_cgroup_rules ist „devices" ohne das Wort. Es erlaubt den Zugriff
 	// auf Gerätenummern, und die Fähigkeit MKNOD hat ein Container von Haus aus
@@ -320,7 +320,7 @@ func pruefeDienst(p *ComposePruefung, dienst string, felder map[string]yaml.Node
 	// Platte des Wirts. Ging beim Angriffsdurchgang durch.
 	if len(listeAus(felder["device_cgroup_rules"])) > 0 {
 		fuege(BefundAblehnung, "device_cgroup_rules", strings.Join(listeAus(felder["device_cgroup_rules"]), ", "),
-			"Diese Regeln erlauben den Zugriff auf Geräte des Wirts. Den Geräteknoten dazu legt der Container selbst an — die Fähigkeit MKNOD hat er von Haus aus. Damit ist die Platte des Servers lesbar.")
+			"Diese Regeln erlauben den Zugriff auf Geräte des Hosts. Den Geräteknoten dazu legt der Container selbst an — die Fähigkeit MKNOD hat er von Haus aus. Damit ist der Datenträger des Servers lesbar.")
 	}
 	for _, quelle := range listeAus(felder["volumes_from"]) {
 		// Ein Dienst AUS DIESER DATEI ist selbst geprüft; ein fremder Container
@@ -433,7 +433,7 @@ func pruefeMount(p *ComposePruefung, dienst string, m mountAngabe, wurzel string
 	if quelle == "/" {
 		p.Befunde = append(p.Befunde, ComposeBefund{
 			Art: BefundAblehnung, Dienst: dienst, Feld: "volumes", Wert: m.roh,
-			Grund: "Das gesamte Wirtsdateisystem im Container. Damit ist jede Datei des Servers erreichbar, einschließlich aller Schlüssel und der Panel-Datenbank.",
+			Grund: "Das gesamte Dateisystem des Hosts im Container. Damit ist jede Datei des Servers erreichbar, einschließlich aller Schlüssel und der Panel-Datenbank.",
 		})
 		return
 	}

@@ -114,7 +114,7 @@ func (p certProgress) Begin(domains []string) {
 	// dann weitergeschrieben statt ersetzt. Bei der selbsttätigen Erneuerung
 	// gibt es keinen, und start legt ihn an.
 	j, _ := p.s.jobs.start(jobCertificate, p.s.tls.takeActor())
-	j.append("Bezug für: " + strings.Join(domains, ", "))
+	j.append("Anforderung für: " + strings.Join(domains, ", "))
 	p.s.tls.setAttempt(tlsAttempt{Running: true, At: time.Now()})
 }
 
@@ -344,10 +344,10 @@ func (s *Server) obtainNow(actor string) error {
 	s.tls.mu.RUnlock()
 
 	if laeuft {
-		return errors.New("es läuft bereits ein Bezug")
+		return errors.New("es läuft bereits eine Anforderung")
 	}
 	if mgr == nil {
-		return errors.New("der automatische Bezug ist nicht eingeschaltet")
+		return errors.New("die automatische Ausstellung ist nicht eingeschaltet")
 	}
 
 	// Auslöser, Zustand und Job noch vor dem Start der Goroutine: Der Handler

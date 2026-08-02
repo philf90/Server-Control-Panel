@@ -241,7 +241,7 @@ func TestUpdateSignalKommtAusDemZwischenspeicher(t *testing.T) {
 
 	// Vor dem Lauf: kein Signal.
 	for _, sig := range s.dashboardSignals(t.Context(), metrics.Snapshot{}) {
-		if strings.Contains(sig.Title, "neuere Fassung") {
+		if strings.Contains(sig.Title, "neuere Version") {
 			t.Errorf("ohne Lauf gibt es kein Update-Signal: %+v", sig)
 		}
 	}
@@ -259,7 +259,7 @@ func TestUpdateSignalKommtAusDemZwischenspeicher(t *testing.T) {
 	signale := s.dashboardSignals(t.Context(), metrics.Snapshot{})
 	gefunden := false
 	for _, sig := range signale {
-		if strings.Contains(sig.Title, "neuere Fassung") {
+		if strings.Contains(sig.Title, "neuere Version") {
 			gefunden = true
 			// Auf die FLÄCHE und nicht auf das Modul: Den Verweis liest seit
 			// 0.5.1 auch der Warnpunkt in der Seitenleiste, und ein Punkt an

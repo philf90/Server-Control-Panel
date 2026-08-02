@@ -2555,7 +2555,7 @@ func TestLeitstandBrowser(t *testing.T) {
 	if up.Wesen == "" {
 		t.Error("es fehlt der Satz darüber, was beim Selbstupdate geschieht")
 	}
-	for _, feld := range []string{"Laufende Fassung", "Kanal", "Metadatenquelle", "Zuletzt geprüft"} {
+	for _, feld := range []string{"Laufende Version", "Kanal", "Metadatenquelle", "Zuletzt geprüft"} {
 		if !slices.Contains(up.Angaben, feld) {
 			t.Errorf("die Angabe %q fehlt: %v", feld, up.Angaben)
 		}
@@ -2576,10 +2576,10 @@ func TestLeitstandBrowser(t *testing.T) {
 			"dann sieht er wie ein Fehlschlag aus")
 	}
 	if vp.Rueckweg {
-		t.Error("ohne Sicherung steht ein Rückweg-Knopf da — er liefe zuverlässig ins Leere")
+		t.Error("ohne Backup steht ein Rollback-Knopf da — er liefe zuverlässig ins Leere")
 	}
 	if !vp.KeineSicherung {
-		t.Error("es steht nicht dabei, WARUM der Rückweg fehlt")
+		t.Error("es steht nicht dabei, WARUM das Rollback fehlt")
 	}
 
 	// Nach der Prüfung.
@@ -2616,7 +2616,7 @@ func TestLeitstandBrowser(t *testing.T) {
 		if strings.Contains(p, "startet dabei neu") {
 			neustart = true
 		}
-		if strings.Contains(p, "Rückweg") {
+		if strings.Contains(p, "Rollback") {
 			rueckweg = true
 		}
 	}
@@ -2624,7 +2624,7 @@ func TestLeitstandBrowser(t *testing.T) {
 		t.Errorf("die Frage nennt den Neustart nicht: %v", up.Frage.Punkte)
 	}
 	if !rueckweg {
-		t.Errorf("die Frage nennt den Rückweg nicht: %v — dass es einen gibt, ist der "+
+		t.Errorf("die Frage nennt das Rollback nicht: %v — dass es eines gibt, ist der "+
 			"Grund, warum hier Stufe 2 genügt", up.Frage.Punkte)
 	}
 	if !up.NachAbbruch.DialogZu {
@@ -3362,12 +3362,12 @@ func TestLeitstandBrowser(t *testing.T) {
 	if len(dk.StackAktionen) == 0 {
 		t.Error("die Stackwerkbank bietet keine Handgriffe an")
 	}
-	for _, muss := range []string{"starten", "herunterfahren", "bearbeiten", "löschen"} {
+	for _, muss := range []string{"starten", "stoppen und entfernen", "bearbeiten", "löschen"} {
 		if !enthaelt(dk.StackAktionen, muss) {
 			t.Errorf("der Handgriff %q fehlt: %v", muss, dk.StackAktionen)
 		}
 	}
-	// „herunterfahren" ist Stufe 2: Dialog, aber kein getipptes Wort. Und die
+	// „stoppen und entfernen" ist Stufe 2: Dialog, aber kein getipptes Wort. Und die
 	// Frage nennt die Zahl — „der Stack" befähigt zu keiner Entscheidung.
 	if !dk.StackFrage.Offen {
 		t.Error("beim Herunterfahren kommt kein Rückfragedialog — die Stufe fällt damit still auf 1")

@@ -518,7 +518,7 @@ func StackVorlagen() []StackVorlage {
     image: nginx:alpine
     restart: unless-stopped
     volumes:
-      # Ein BENANNTES Volume: Docker verwaltet den Ort. Ein Wirtspfad wäre
+      # Ein BENANNTES Volume: Docker verwaltet den Ort. Ein Host-Pfad wäre
       # ebenso möglich, verlangt aber eine Rückfrage — er reicht Daten des
       # Servers in den Container.
       - app_daten:/usr/share/nginx/html

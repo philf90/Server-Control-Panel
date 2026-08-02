@@ -149,7 +149,7 @@
   {#if darfAendern}
     <!-- Jeder Knopf sagt, was er trifft. „aufräumen" allein befähigt zu keiner
          Entscheidung — und die gefährlichste Zeile steht als solche da. -->
-    <div class="aktionen">
+    <div class="aktionen aufraeumen">
       <button type="button" class="knopf leise klein" disabled={gesperrt}
         onclick={() => starten((b, g) => api.aufraeumen("images", false, b, g))}>
         {t.docker.verwaisteWeg}

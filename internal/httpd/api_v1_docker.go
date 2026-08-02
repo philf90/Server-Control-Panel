@@ -125,13 +125,13 @@ func dockerAnmerkung(st privops.DockerState) string {
 	switch {
 	case !st.Installiert:
 		return "Docker ist auf diesem Server nicht installiert. Das Panel kann es aus " +
-			"den Paketquellen der Distribution einspielen."
+			"den Paketquellen der Distribution installieren."
 	case !st.DaemonLaeuft:
 		return "Docker ist installiert, aber der Daemon antwortet nicht. Unter Dienste " +
 			"lässt sich docker.service starten — ein apt-Lauf hilft hier nicht."
 	case !st.ComposeVerfuegbar:
 		return "Docker läuft, aber \"docker compose\" fehlt. Stacks brauchen es; " +
-			"das Panel kann es nachziehen."
+			"das Panel kann es nachinstallieren."
 	default:
 		return ""
 	}
@@ -169,7 +169,7 @@ func (s *Server) handleAPIDockerInstall(w http.ResponseWriter, r *http.Request) 
 		s.auditNachtraeglich(user.Username, "docker.install", "docker", result, detail)
 	}()
 
-	s.gestartet(w, jobDockerInstall, "Docker wird eingespielt.")
+	s.gestartet(w, jobDockerInstall, "Docker wird installiert.")
 }
 
 // ---------------------------------------------------------------- Container ---
@@ -917,7 +917,7 @@ func (s *Server) handleAPIDockerVolumeEntfernen(w http.ResponseWriter, r *http.R
 		Frage: name + " endgültig entfernen?",
 		Punkte: []string{
 			"Alle Daten in diesem Volume werden gelöscht.",
-			"Es gibt keinen Rückweg — weder im Panel noch über Docker.",
+			"Es gibt kein Zurück — weder im Panel noch über Docker.",
 			"Hängt ein Container es ein, weigert sich Docker.",
 		},
 		Knopf:         "endgültig entfernen",
@@ -1093,7 +1093,7 @@ func pruneFrage(art privops.PruneArt, alle bool, posten string) apiBestaetigung 
 		b.Frage = "Alle Volumes entfernen, die kein Container einhängt?"
 		b.Punkte = []string{
 			"ALLE Daten in diesen Volumes werden gelöscht.",
-			"Es gibt keinen Rückweg — weder im Panel noch über Docker.",
+			"Es gibt kein Zurück — weder im Panel noch über Docker.",
 			"Ein Volume eines gestoppten Stacks gilt als ungenutzt und ist mit betroffen.",
 		}
 		b.Knopf = "endgültig aufräumen"
@@ -1102,8 +1102,8 @@ func pruneFrage(art privops.PruneArt, alle bool, posten string) apiBestaetigung 
 		b.Frage = "Alle Netze entfernen, an denen kein Container hängt?"
 		b.Punkte = []string{"Ein Compose-Stack legt sein Netz beim nächsten Start neu an."}
 	case privops.PruneCache:
-		b.Titel = "Baucache aufräumen"
-		b.Frage = "Den Baucache leeren?"
+		b.Titel = "Build-Cache aufräumen"
+		b.Frage = "Den Build-Cache leeren?"
 		b.Punkte = []string{"Der nächste Bau dauert länger, weil er von vorn beginnt."}
 	}
 	if posten != "" {

@@ -385,7 +385,7 @@ func (s *Server) stackAktionBestaetigt(w http.ResponseWriter, r *http.Request, n
 			b.Frage = name + " herunterfahren und seine Volumes löschen?"
 			b.Punkte = []string{
 				dienstesatz(stack) + " werden gestoppt und entfernt.",
-				"Die benannten Volumes dieses Projekts werden GELÖSCHT. Was darin liegt, ist danach weg, und kein Rückweg holt es zurück.",
+				"Die benannten Volumes dieses Projekts werden GELÖSCHT. Was darin liegt, ist danach weg, und nichts holt es zurück.",
 			}
 			b.Knopf = "herunterfahren und Volumes löschen"
 			b.Tippen = name

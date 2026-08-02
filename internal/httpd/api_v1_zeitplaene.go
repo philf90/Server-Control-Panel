@@ -370,7 +370,7 @@ func (s *Server) cronFrage(auftrag apiCronAuftrag) apiBestaetigung {
 		Punkte: []string{
 			auftrag.Command,
 			"Er läuft unbeaufsichtigt und ohne Rückfrage — auch wenn niemand angemeldet ist.",
-			"Was er anrichtet, nimmt kein Rückweg des Panels zurück; der Eintrag selbst ist löschbar.",
+			"Was er anrichtet, nimmt das Panel nicht zurück; der Eintrag selbst ist löschbar.",
 		},
 		Knopf: "anlegen",
 	}

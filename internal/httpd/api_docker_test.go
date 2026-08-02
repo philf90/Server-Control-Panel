@@ -150,7 +150,7 @@ func TestDockerAnmerkungNenntJeLageDenHandgriff(t *testing.T) {
 		wort string
 		leer bool
 	}{
-		{name: "fehlt", st: privops.DockerState{}, wort: "einspielen"},
+		{name: "fehlt", st: privops.DockerState{}, wort: "installieren"},
 		{
 			name: "daemon tot",
 			st:   privops.DockerState{Installiert: true},

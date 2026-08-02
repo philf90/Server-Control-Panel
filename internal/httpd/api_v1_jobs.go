@@ -31,17 +31,22 @@ import (
 // die Liste auch — und sie ist ohnehin die Stelle, an der die Beschriftung steht.
 var jobArten = map[string]string{
 	jobPackages:        "Paketvorgang",
-	jobFirewallInstall: "ufw einspielen",
+	jobFirewallInstall: "ufw installieren",
 	jobFiles:           "Dateivorgang",
 	// Der Bezug eines Zertifikats ist ein Vorgang wie die anderen: Er laeuft
 	// Minuten, schreibt Zeilen und endet mit Erfolg oder Fehler. Die alte
 	// Oberflaeche hat dafuer einen eigenen Strom unter /certificate/events; die
 	// neue braucht keinen zweiten.
 	jobCertificate: "Zertifikatsbezug",
-	// Dasselbe Muster wie bei ufw: Fehlt das Werkzeug, spielt das Panel es ein,
+	// Dasselbe Muster wie bei ufw: Fehlt das Werkzeug, installiert das Panel es,
 	// statt eine Kommandozeile zum Abtippen zu drucken.
-	jobDockerInstall: "Docker einspielen",
+	jobDockerInstall: "Docker installieren",
 	jobDockerPrune:   "Docker aufräumen",
+	// Und dasselbe noch einmal für nginx. Der Eintrag fehlte bis 0.6.0: Der
+	// Vorgang lief, aber `/api/v1/jobs/webserver-install` und sein Ereignisstrom
+	// antworteten mit 404 — wer den Knopf drückte, sah eine leere Vorgangsplatte
+	// und hatte keinen Anhaltspunkt, ob apt überhaupt etwas tut.
+	jobWebserverInstall: "nginx installieren",
 	// EINE Art für up, down, pull, restart und Löschen — und damit höchstens
 	// einer gleichzeitig. Zwei „compose up" nebeneinander streiten um dieselben
 	// Netze und Volumes.

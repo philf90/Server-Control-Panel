@@ -201,9 +201,9 @@ func (s *Server) handleAPIUpdatePruefen(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	meldung := "Fassung " + version.Version + " ist aktuell."
+	meldung := "Version " + version.Version + " ist aktuell."
 	if update.Newer(version.Version, rel.Version) {
-		meldung = "Im Kanal " + s.cfg.Updates.Channel + " steht Fassung " + rel.Version + "."
+		meldung = "Im Kanal " + s.cfg.Updates.Channel + " steht Version " + rel.Version + "."
 	}
 	s.updateFertig(w, r, http.StatusOK, apiUpdateAntwort{Meldung: meldung})
 }
@@ -225,7 +225,7 @@ func (s *Server) handleAPIUpdateEinspielen(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if !update.Newer(version.Version, rel.Version) {
-		s.apiFehler(w, http.StatusBadRequest, "Es liegt keine neuere Fassung vor.")
+		s.apiFehler(w, http.StatusBadRequest, "Es liegt keine neuere Version vor.")
 		return
 	}
 
@@ -240,7 +240,7 @@ func (s *Server) handleAPIUpdateEinspielen(w http.ResponseWriter, r *http.Reques
 		Frage: "Das Panel von " + version.Version + " auf " + rel.Version + " aktualisieren?",
 		Punkte: []string{
 			"Der Dienst startet dabei neu — die Oberfläche ist einen Moment nicht erreichbar.",
-			"Die laufende Fassung wird gesichert; ein Rückweg bleibt.",
+			"Die laufende Version wird gesichert; ein Rollback bleibt möglich.",
 			"Das Programm wird vor dem Austauschen gegen den eingebauten Signaturschlüssel geprüft.",
 		},
 		Knopf: "auf " + rel.Version + " aktualisieren",
@@ -270,18 +270,18 @@ func (s *Server) handleAPIUpdateRueckweg(w http.ResponseWriter, r *http.Request)
 	vorher, err := s.previousVersion(r.Context())
 	if err != nil {
 		s.apiFehler(w, http.StatusBadRequest,
-			"Es liegt keine Sicherung einer vorherigen Fassung bereit.")
+			"Es liegt kein Backup einer vorherigen Version bereit.")
 		return
 	}
 
 	if !s.apiBestaetigt(w, apiAktionAnfrage{
 		Bestaetigt: auftrag.Bestaetigt, Getippt: auftrag.Getippt,
 	}, apiBestaetigung{
-		Titel: "Zurück auf die vorherige Fassung",
+		Titel: "Zurück auf die vorherige Version",
 		Frage: "Das Panel von " + version.Version + " zurück auf " + vorher + " setzen?",
 		Punkte: []string{
 			"Der Dienst startet dabei neu — die Oberfläche ist einen Moment nicht erreichbar.",
-			"Zurückgesetzt wird das Programm, nicht die Datenbank: Was neuere Fassungen " +
+			"Zurückgesetzt wird das Programm, nicht die Datenbank: Was neuere Versionen " +
 				"an ihr geändert haben, bleibt.",
 		},
 		Knopf: "zurück auf " + vorher,
@@ -324,7 +324,7 @@ func (s *Server) apiSelbstupdate(w http.ResponseWriter, r *http.Request, spec pr
 	s.updateFertig(w, r, http.StatusAccepted, apiUpdateAntwort{
 		Meldung: "Der Vorgang läuft.",
 		Hinweis: "Das Panel startet dabei neu. Die Verbindung reißt für einige Sekunden " +
-			"ab — das gehört dazu. Die Oberfläche merkt selbst, wenn Fassung " + ziel +
+			"ab — das gehört dazu. Die Oberfläche merkt selbst, wenn Version " + ziel +
 			" antwortet.",
 	})
 }

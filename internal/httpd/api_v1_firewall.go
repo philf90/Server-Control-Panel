@@ -424,5 +424,5 @@ func (s *Server) handleAPIFirewallInstall(w http.ResponseWriter, r *http.Request
 		s.auditNachtraeglich(user.Username, "firewall.install", "ufw", result, detail)
 	}()
 
-	s.gestartet(w, jobFirewallInstall, "ufw wird eingespielt.")
+	s.gestartet(w, jobFirewallInstall, "ufw wird installiert.")
 }

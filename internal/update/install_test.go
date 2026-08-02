@@ -194,7 +194,7 @@ func TestApplyRollbackWennDienstNichtBereit(t *testing.T) {
 	if err == nil {
 		t.Fatal("Fehler erwartet")
 	}
-	if !strings.Contains(err.Error(), "vorherige Fassung läuft wieder") {
+	if !strings.Contains(err.Error(), "vorherige Version läuft wieder") {
 		t.Errorf("Fehlermeldung nennt das Zurückspielen nicht: %v", err)
 	}
 	if got := installedVersion(t, i.BinaryPath); got != "0.1.0" {
@@ -233,7 +233,7 @@ func TestApplyBrichtVorDemTauschAb(t *testing.T) {
 	if err == nil {
 		t.Fatal("Fehler erwartet")
 	}
-	if !strings.Contains(err.Error(), "meldet Fassung") {
+	if !strings.Contains(err.Error(), "meldet Version") {
 		t.Errorf("Fehlermeldung: %v", err)
 	}
 	if got := installedVersion(t, i.BinaryPath); got != "0.1.0" {

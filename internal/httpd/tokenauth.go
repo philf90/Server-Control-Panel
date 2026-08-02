@@ -281,12 +281,12 @@ func tokenGrenzen(r *http.Request, tok store.APIToken) string {
 	familie := apiFamilie(r.URL.Path)
 
 	if tokenGesperrt[familie] {
-		return "Diese Fläche ist für API-Tokens gesperrt und nur mit einer " +
+		return "Dieser Bereich ist für API-Tokens gesperrt und nur mit einer " +
 			"Anmeldung erreichbar: Ein Token soll weder Tokens noch Zugänge " +
 			"anlegen und nicht den eigenen Anmeldeweg ändern können."
 	}
 	if !enthaeltText(tokenFamilien, familie) {
-		return "Für diese Fläche gibt es keinen Token-Zugang."
+		return "Für diesen Bereich gibt es keinen Token-Zugang."
 	}
 	// Nur lesend heißt: nur lesende Verfahren. GET und HEAD verändern nichts;
 	// alles andere kann es.

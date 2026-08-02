@@ -233,7 +233,7 @@ func TestFetchAbweisungen(t *testing.T) {
 			other.pub.KeyID = f.signer.pub.KeyID
 			f.sig = other.sign([]byte(f.sums), "Project Asylum "+f.version)
 		}},
-		"Signatur einer anderen Fassung": {want: "beglaubigt Fassung", breakIt: func(f *releaseFixture) {
+		"Signatur einer anderen Fassung": {want: "beglaubigt Version", breakIt: func(f *releaseFixture) {
 			// Der klassische Downgrade-Versuch: eine echte, aber ältere
 			// Signatur unter neuen Metadaten.
 			f.sig = f.signer.sign([]byte(f.sums), "Project Asylum 0.1.0")
@@ -272,7 +272,7 @@ func TestFetchAbweisungen(t *testing.T) {
 			c := f.start()
 			pkg, err := f.fetch(c)
 			if err == nil {
-				t.Fatalf("Fehler erwartet, bekam Fassung %q", pkg.Version)
+				t.Fatalf("Fehler erwartet, bekam Version %q", pkg.Version)
 			}
 			if !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("abgewiesen mit %q, erwartet wurde ein Grund mit %q", err, tc.want)

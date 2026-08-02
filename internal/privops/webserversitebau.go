@@ -355,7 +355,7 @@ func (p *SitePruefung) pruefeProxyziel(ziel string, lage SiteLage) {
 	switch {
 	case ziel == "":
 		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
-			Feld: "ziel", Grund: "Ohne Gegenstelle gibt es nichts weiterzureichen.",
+			Feld: "ziel", Grund: "Ohne Upstream-Adresse gibt es nichts weiterzureichen.",
 		})
 		return
 	case err != nil:
@@ -366,7 +366,7 @@ func (p *SitePruefung) pruefeProxyziel(ziel string, lage SiteLage) {
 	case u.Scheme != "http" && u.Scheme != "https":
 		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
 			Feld: "ziel", Wert: kuerzen(ziel),
-			Grund: "Die Gegenstelle muss mit http:// oder https:// beginnen.",
+			Grund: "Die Upstream-Adresse muss mit http:// oder https:// beginnen.",
 		})
 		return
 	case u.Host == "":
@@ -381,7 +381,7 @@ func (p *SitePruefung) pruefeProxyziel(ziel string, lage SiteLage) {
 	if u.RawQuery != "" || u.Fragment != "" || u.User != nil {
 		p.Ablehnungen = append(p.Ablehnungen, SiteBefund{
 			Feld: "ziel", Wert: kuerzen(ziel),
-			Grund: "Die Gegenstelle darf keine Abfrage, kein Fragment und keine Zugangsdaten enthalten.",
+			Grund: "Die Upstream-Adresse darf keine Abfrage, kein Fragment und keine Zugangsdaten enthalten.",
 		})
 		return
 	}

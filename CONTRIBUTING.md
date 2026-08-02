@@ -161,6 +161,24 @@ welcher Fehler dahintersteckt, welche Annahme gilt.
 Fehlermeldungen richten sich an jemanden, der gerade ein Problem hat: Was ist
 passiert, womit, und was hilft weiter. `fehler beim verarbeiten` hilft niemandem.
 
+**Sichtbare Texte sind technisch, nicht literarisch.** Beschriftungen,
+Erklärsätze, Rückfragen, Fehlermeldungen und Vorgangszeilen benennen die Sache
+so, wie eine Fachperson sie benennt. Wo im deutschen Fachgebrauch das englische
+Wort gilt — Container, Volume, Stack, Image, Rollback, Backup, Build-Cache,
+Upstream, Login-Shell, Stream, Logs, Host —, **benutzt das Panel das englische
+Wort**. Eine gesuchte deutsche Entsprechung ist keine Verbesserung, sondern eine
+Übersetzungsleistung, die der Lesende erbringen muss, bevor er handeln kann. Wo
+umgekehrt ein gebräuchliches deutsches Wort dasselbe leistet, gewinnt es:
+*Datei*, *Verzeichnis*, *Neustart*, *Vorgang*.
+
+Für Wörter, die im Panel schon einmal falsch standen — *einspielen*, *Fassung*,
+*Rückweg*, *Fläche*, *Handgriff*, *Anmeldeschale*, *Gegenstelle* und ein Dutzend
+weitere — gibt es eine verbindliche Liste samt Ersatz in
+[docs/19-sprache-der-oberflaeche.md](docs/19-sprache-der-oberflaeche.md). Sie
+wird von `internal/ui/wortwahl_test.go` geprüft, das die Texte der Oberfläche
+und die Zeichenkettenliterale des Servers durchsieht. **Kommentare sind
+ausgenommen** — sie dürfen erzählen und die alten Wörter nennen.
+
 ## Tests
 
 Ein Test soll den Fehler finden, gegen den er geschrieben ist — nicht bloß

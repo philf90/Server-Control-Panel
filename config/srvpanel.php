@@ -38,6 +38,19 @@ return [
     ],
 
     /*
+     * Protokoll (§5.3).
+     *
+     * Der Export ist gedeckelt, weil er sonst einen PHP-FPM-Arbeiter beliebig
+     * lange belegt — dieselbe Überlegung wie bei der Live-Ausgabe. Wird die
+     * Grenze erreicht, sagt die letzte Zeile der Datei das; eine Datei, die
+     * aussieht wie das ganze Protokoll und es nicht ist, wäre die schlechtere
+     * Antwort auf dieselbe Grenze.
+     */
+    'audit' => [
+        'export_max' => (int) env('SRVPANEL_AUDIT_EXPORT_MAX', 50000),
+    ],
+
+    /*
      * Sitzungen (§6.4).
      *
      * Zwei Grenzen, und sie tun Verschiedenes: Die gleitende steht in

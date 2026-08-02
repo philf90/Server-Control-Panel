@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
+use App\Models\AuditEvent;
 use Illuminate\Support\Facades\Route;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Version;
@@ -48,6 +50,22 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/operations/{operation}/stream', OperationStreamController::class)
         ->middleware('can:view,operation')
         ->name('operations.stream');
+
+    /*
+     * Das Protokoll.
+     *
+     * `viewAny` gibt jedem angemeldeten Konto Zugang — was es dann sieht,
+     * entscheidet AuditQuery::visibleTo. Die Policy an der Route ersetzt
+     * diese Prüfung nicht, sie steht davor: Ohne Konto gar nichts, mit Konto
+     * genau das Eigene.
+     */
+    Route::get('/audit', [AuditController::class, 'index'])
+        ->middleware('can:viewAny,'.AuditEvent::class)
+        ->name('audit');
+
+    Route::get('/audit/export', [AuditController::class, 'export'])
+        ->middleware('can:viewAny,'.AuditEvent::class)
+        ->name('audit.export');
 });
 
 /*

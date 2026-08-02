@@ -183,6 +183,20 @@ final class Runner
         $code = proc_close($process);
         $duration = microtime(true) - $startedAt;
 
+        // -1 ist kein Rückgabecode, den ein Programm liefern kann: Er heißt,
+        // dass jemand anderes den Kindprozess vor proc_close geerntet hat —
+        // ein SIGCHLD-Handler im selben Prozess etwa. Das als „Programm
+        // fehlgeschlagen" durchzureichen, hat einmal eine halbe Stunde
+        // gekostet; es ist ein Fehler im Agenten und sagt das jetzt auch.
+        if ($code === -1 && ! $timedOut) {
+            $this->journal->write('statusverlust', ['command' => $command]);
+
+            throw AgentException::execFailed(sprintf(
+                'Der Rückgabecode von %s ging verloren — ein Signalbehandler hat den Kindprozess geerntet.',
+                $program,
+            ));
+        }
+
         $this->journal->command($command, $timedOut ? null : $code, $duration);
 
         if ($timedOut) {

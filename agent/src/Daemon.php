@@ -100,6 +100,21 @@ final class Daemon
                 // Im Kind: der Serversocket wird nicht gebraucht und darf beim
                 // Ende des Kindes nicht mit abgeräumt werden.
                 socket_close($this->server);
+
+                // Und die Signalbehandlung des Daemons gilt hier nicht mehr.
+                //
+                // Der SIGCHLD-Handler erntet mit pcntl_waitpid(-1) jedes
+                // beendete Kind — auch die Programme, die der Runner über
+                // proc_open startet. Danach findet proc_close keinen Status
+                // mehr vor und gibt -1 zurück: Der Rückgabecode jedes Aufrufs
+                // ginge verloren und jede Operation sähe aus wie
+                // fehlgeschlagen. Gefunden hat das kein Test, sondern die
+                // erste Ersteinrichtung gegen ein echtes MariaDB — vorher
+                // hatte keine Operation, die ein Programm startet, ihren
+                // Rückgabecode auch ausgewertet.
+                pcntl_signal(SIGCHLD, SIG_DFL);
+                pcntl_signal(SIGTERM, SIG_DFL);
+                pcntl_signal(SIGINT, SIG_DFL);
                 $connection = new Connection($connection, $this->registry, $this->journal, $appUid);
                 $connection->serve();
                 exit(0);

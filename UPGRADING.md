@@ -43,6 +43,58 @@ macht das von allein — dort liegen Sekunden dazwischen, keine Tage.
 
 ## Von 0.x auf 0.x+1
 
+### Auf 0.6.1: `ProtectSystem=no` — sonst kann das Panel keine Pakete installieren
+
+**Betrifft jede Installation, die vor 0.6.1 aufgesetzt wurde.** Die
+mitgelieferte Unit trug bis dahin `ProtectSystem=true`. Das stellt `/usr` für
+den Dienst read-only — und **für jeden seiner Kindprozesse**. apt ist ein
+Kindprozess. Damit scheitert jede Paketinstallation und jedes Paket-Update über
+das Panel, und zwar erst beim Auspacken:
+
+```
+dpkg: error processing archive …/nginx_1.24.0-2ubuntu7.15_amd64.deb (--unpack):
+ unable to create '/usr/sbin/nginx.dpkg-new'
+   (while processing './usr/sbin/nginx'): Read-only file system
+```
+
+Betroffen sind „Updates installieren" auf der Paketseite, „nginx installieren",
+„Docker installieren" und „ufw installieren". Nicht betroffen ist das
+Selbstupdate des Panels: Es läuft seit jeher über `systemd-run` in einer eigenen
+Transient-Unit und damit außerhalb dieser Einschränkung.
+
+Ab 0.6.1 erkennt das Panel den Fall an der apt-Ausgabe und schreibt den Grund
+statt nur des dpkg-Dumps in die Vorgangsanzeige. Behoben ist er damit nicht —
+das geht nur an der Unit:
+
+```bash
+sudo systemctl edit asylumd
+# im Drop-in eintragen:
+#   [Service]
+#   ProtectSystem=no
+sudo systemctl restart asylumd
+
+# den abgebrochenen dpkg-Lauf aufräumen, falls schon einer scheiterte:
+sudo apt-get --fix-broken install
+```
+
+Beim Debian-Paket geht es auch ohne Bearbeiten: Ein `apt upgrade` bringt die
+neue Unit mit. Haben Sie sie von Hand geändert, fragt `dpkg` nach — dann ist
+„die Fassung aus dem Paket übernehmen" die richtige Antwort. Über den
+curl-Installer aufgesetzte Installationen brauchen den Handgriff oben: Das
+Selbstupdate tauscht das Programm, nie die Unit.
+
+**Was dabei nicht verloren geht:** `/boot` und `/efi` bleiben über
+`ReadOnlyPaths` geschützt — dort rührt das Panel nie etwas an. Aufgegeben ist
+der Schreibschutz auf `/usr`, und das ist unvermeidbar: Ein Panel, dessen
+Aufgabe unter anderem das Installieren von Paketen ist, kann ihn nicht halten.
+Die Einordnung steht in
+[docs/09-sicherheitsbetrachtung.md](docs/09-sicherheitsbetrachtung.md).
+
+Dieselbe Fassung hebt `MemoryMax` von 256M auf 768M — aus demselben Grund: Das
+Limit gilt für die Kontrollgruppe der Unit, und apt und dpkg laufen darin. Ein
+OOM-Kill mitten in einer dpkg-Transaktion hinterlässt ein halb ausgepacktes
+Paket.
+
 ### Auf 0.3.0: die systemd-Unit anpassen, wenn Sie den Dateimanager nutzen wollen
 
 0.3.0 bringt einen Dateimanager. Er braucht Schreibzugriff dort, wo

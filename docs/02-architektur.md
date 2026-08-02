@@ -107,7 +107,8 @@ nichts.
 Type=notify
 ExecStart=/usr/local/lib/asylum/asylumd serve
 NoNewPrivileges=no          # apt/useradd brauchen setuid-Aufrufe
-ProtectSystem=true          # /usr, /boot, /efi read-only; /etc schreibbar
+ProtectSystem=no            # apt schreibt nach /usr — siehe unten
+ReadOnlyPaths=-/boot -/efi  # was davon übrig bleibt und wirklich gilt
 ProtectHome=false           # der Dateimanager arbeitet in /home und /root
 PrivateTmp=yes
 ProtectKernelTunables=yes
@@ -119,24 +120,45 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-MemoryMax=256M
+MemoryMax=768M
 TasksMax=256
 Restart=on-failure
 WatchdogSec=30s
 ```
 
 `MemoryMax` ist Absicherung *und* Selbstverpflichtung: das Panel darf nicht
-unbemerkt fett werden.
+unbemerkt fett werden — gemessen liegt es bei rund 20 MB RSS. Die Zahl steht
+trotzdem auf 768M, weil das Limit für die ganze Kontrollgruppe gilt und apt und
+dpkg darin laufen (seit 0.6.1, siehe unten).
 
 **Warum `ProtectSystem` nicht auf `full` steht (seit 0.3.0).** `full` stellt
 neben `/usr` und `/boot` auch `/etc` auf read-only, `ProtectHome=read-only`
 zusätzlich `/home` und `/root`. Ein Dateimanager, der Konfigurationsdateien
 bearbeiten soll, scheitert damit an jedem Schreibversuch — und zwar mit `EROFS`,
-was am Verzeichnis selbst nicht zu erkennen ist. `true` lässt `/usr`, `/boot`
-und `/efi` geschützt: Dort hat ein Panel nichts von Hand zu ändern, und der
-Schutz gegen ein untergeschobenes Binary bleibt damit erhalten. Wer den
-Dateimanager nicht braucht, verschärft beides wieder und setzt
-`files.enabled: false`.
+was am Verzeichnis selbst nicht zu erkennen ist.
+
+**Warum `ProtectSystem` seit 0.6.1 ganz aus ist.** Bis dahin stand hier `true`,
+also `/usr` read-only, mit der Begründung: Dort habe ein Panel nichts von Hand
+zu ändern. Der Satz stimmt und übersieht das Entscheidende — **die
+Einschränkung gilt für jeden Kindprozess des Dienstes, und apt ist einer.**
+Jede Paketinstallation über das Panel brach beim Auspacken ab:
+
+```
+dpkg: error processing archive …/nginx_…_amd64.deb (--unpack):
+ unable to create '/usr/sbin/nginx.dpkg-new': Read-only file system
+```
+
+Gefunden hat das kein Test, sondern der erste Lauf auf einem echten Server unter
+systemd. Die Attrappe führt kein apt aus, und in keiner Testumgebung dieses
+Projekts steht ein apt-Lauf unter dieser Unit — der Fehler war für die
+vorhandene Prüfmechanik unsichtbar.
+
+Ein Panel, dessen Aufgabe unter anderem das Installieren von Paketen ist, kann
+`/usr` nicht schreibgeschützt halten. Was von der Zusage bleibt, steht in
+`ReadOnlyPaths`: `/boot` und `/efi` rührt das Panel nie an. Wer den
+Dateimanager nicht braucht, kann `ProtectHome` wieder verschärfen und
+`files.enabled: false` setzen; `ProtectSystem` lässt sich nicht verschärfen,
+ohne die Paketverwaltung mit abzuschalten.
 
 Das Selbstupdate tauscht das Programm, nie die Unit. Eine Installation, die von
 einer älteren Fassung kommt, trägt deshalb weiter die alte Härtung; das Panel

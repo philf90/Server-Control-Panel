@@ -22,19 +22,31 @@ TimeoutStopSec=30s
 # begrenzen den Schaden, ohne die Verwaltungsaufgaben zu blockieren.
 # NoNewPrivileges bleibt aus: apt, useradd und passwd rufen setuid-Programme auf.
 #
-# ProtectSystem=true statt full, ProtectHome=false statt read-only: Der
-# Dateimanager (ab 0.3.0) bearbeitet Konfigurationsdateien unter /etc und Daten
-# unter /home und /root. Mit "full" wäre /etc nur lesbar, mit
-# ProtectHome=read-only auch /home — jeder Schreibversuch dort scheiterte mit
-# EROFS, und zwar ohne dass die Rechtebits der Verzeichnisse etwas davon
-# verraten. /usr, /boot und /efi bleiben über "true" schreibgeschützt: Dort hat
-# ein Panel nichts von Hand zu ändern, und der Schutz gegen ein untergeschobenes
-# Binary bleibt damit erhalten.
+# ProtectHome=false statt read-only: Der Dateimanager (ab 0.3.0) bearbeitet
+# Konfigurationsdateien unter /etc und Daten unter /home und /root. Mit
+# ProtectHome=read-only scheiterte jeder Schreibversuch dort mit EROFS, und zwar
+# ohne dass die Rechtebits der Verzeichnisse etwas davon verraten.
 #
-# Wer den Dateimanager nicht braucht, kann beides wieder verschärfen und
-# `files.enabled: false` setzen.
+# ProtectSystem=no seit 0.6.1, und das ist eine Berichtigung. Bis dahin stand
+# hier "true", also /usr read-only — mit der Begründung, dort habe ein Panel
+# nichts von Hand zu ändern. Der Satz stimmt und übersieht das Entscheidende:
+# Die Einschränkung gilt für den Dienst UND JEDEN SEINER KINDPROZESSE, und apt
+# ist ein Kindprozess. Damit war jede Paketinstallation und jedes Paket-Update
+# über das Panel unmöglich — dpkg brach beim Auspacken ab:
+#
+#   unable to create '/usr/sbin/nginx.dpkg-new'
+#     (while processing './usr/sbin/nginx'): Read-only file system
+#
+# Ein Panel, dessen Aufgabe unter anderem das Einspielen von Paketen ist, kann
+# /usr nicht schreibgeschützt halten. Was von der Zusage bleibt, steht eine
+# Zeile tiefer: /boot und /efi rührt das Panel nie an, und dabei bleibt es.
+#
+# Wer den Dateimanager nicht braucht, kann ProtectHome wieder verschärfen und
+# `files.enabled: false` setzen. ProtectSystem lässt sich NICHT verschärfen,
+# ohne die Paketverwaltung mit abzuschalten.
 NoNewPrivileges=no
-ProtectSystem=true
+ProtectSystem=no
+ReadOnlyPaths=-/boot -/efi
 ProtectHome=false
 PrivateTmp=yes
 ProtectKernelTunables=yes
@@ -47,9 +59,17 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
 
-# Selbstverpflichtung: Das Panel darf nicht unbemerkt fett werden.
-# Wird das Limit erreicht, ist das ein Bug, kein Anlass zum Hochsetzen.
-MemoryMax=256M
+# Selbstverpflichtung: Das Panel darf nicht unbemerkt fett werden. Gemessen
+# liegt es bei rund 20 MB RSS im Leerlauf, und dabei soll es bleiben — wird das
+# von ihm selbst erreicht, ist das ein Bug und kein Anlass zum Hochsetzen.
+#
+# Die Zahl steht seit 0.6.1 trotzdem auf 768M, aus demselben Grund wie
+# ProtectSystem eine Zeile weiter oben: Das Limit gilt für die Kontrollgruppe
+# der Unit, und apt und dpkg laufen darin. 256M reichen dem Panel, aber ein
+# `apt-get upgrade` über zweihundert Pakete kann sie allein aufbrauchen. Ein
+# OOM-Kill mitten in einer dpkg-Transaktion ist der schlechteste Ausgang von
+# allen: Er hinterlässt ein halb ausgepacktes Paket.
+MemoryMax=768M
 TasksMax=256
 
 # Die eigenen Verzeichnisse ausdrücklich, auch wenn ProtectSystem=true sie schon

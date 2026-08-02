@@ -18,15 +18,18 @@ wurde — echtes systemd, Container, aufgezeichnete Ausgabe. -->
 
 ## Abhaken
 
-- [ ] `make test` und `make lint` laufen durch
+- [ ] `vendor/bin/pint --test`, `vendor/bin/phpstan analyse`, `php artisan test`
+      und `npm run types` laufen durch
 - [ ] Neue oder geänderte Logik hat Tests, auch für die Abweisungsfälle
 - [ ] Tests laufen auch als unprivilegiertes Konto (als root scheitern
       Dateirechte nicht)
 - [ ] Kommentare und Fehlermeldungen sind deutsch, Bezeichner englisch
 - [ ] Commits sind mit `git commit -s` signiert (DCO)
 - [ ] Keine neue direkte Abhängigkeit — oder im Text begründet
-- [ ] Berührt `internal/auth`, `internal/privops` oder `internal/update`:
+- [ ] Berührt `agent/` — den Code, der als root läuft:
       <!-- ja/nein — falls ja, rechnen Sie mit einer genaueren Durchsicht -->
+- [ ] Neue Farbe? Dann als Marke in `resources/css/app.css`, nicht als Hexwert
+      in einer Komponente
 
 <!-- Eine Sicherheitslücke gehört nicht in einen Pull Request, sondern in
 einen privaten Kanal: siehe SECURITY.md. -->

@@ -30,6 +30,7 @@ final class Runner
     /** @var array<string,string> logischer Name => absoluter Pfad */
     private const PROGRAMS = [
         'systemctl' => '/usr/bin/systemctl',
+        'systemd-run' => '/usr/bin/systemd-run',
         'journalctl' => '/usr/bin/journalctl',
         'nginx' => '/usr/sbin/nginx',
         'sshd' => '/usr/sbin/sshd',

@@ -20,6 +20,7 @@ license: AGPL-3.0-only
 
 depends:
   - nginx
+  - curl
   - mariadb-server
   - quota
   - ca-certificates
@@ -59,6 +60,13 @@ contents:
     file_info:
       mode: 0755
 
+  - src: ./packaging/etc/fpm.conf
+    dst: /etc/cloudsrv/fpm.conf
+    type: config|noreplace
+  - src: ./packaging/etc/nginx-extra.conf
+    dst: /etc/cloudsrv/nginx-extra.conf
+    type: config|noreplace
+
   - src: ./packaging/etc/agent.json
     dst: /etc/cloudsrv/agent.json
     type: config|noreplace
@@ -70,6 +78,10 @@ contents:
     dst: /etc/logrotate.d/cloudsrv
     type: config|noreplace
 
+  - dst: /etc/cloudsrv/tls
+    type: dir
+    file_info:
+      mode: 0755
   - dst: /var/lib/cloudsrv
     type: dir
     file_info:

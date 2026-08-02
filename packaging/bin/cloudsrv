@@ -1,8 +1,24 @@
 #!/bin/sh
-# Die Kommandozeile des Panels. Sie ruft artisan im Verzeichnis der aktiven
-# Fassung auf — als Benutzer cloudsrv, damit ein Lauf von Hand keine Dateien
-# hinterlässt, die der Dienst danach nicht mehr schreiben kann.
+# Die Kommandozeile des Panels.
+#
+# Sie ruft artisan im Verzeichnis der aktiven Fassung auf — als Benutzer
+# cloudsrv, damit ein Lauf von Hand keine Dateien hinterlässt, die der Dienst
+# danach nicht mehr schreiben kann.
+#
+# Die eigenen Kommandos liegen in artisan unter dem Namensraum "cloudsrv:";
+# hier vorne darf man sie ohne schreiben. So heißt es "cloudsrv setup" und
+# nicht "cloudsrv cloudsrv:setup", ohne dass in artisan unbenannte Kommandos
+# neben denen des Frameworks stehen.
 set -eu
+
+COMMAND="${1:-list}"
+
+case "${COMMAND}" in
+    setup|update|metrics)
+        shift
+        set -- "cloudsrv:${COMMAND}" "$@"
+        ;;
+esac
 
 if [ "$(id -u)" = "0" ]; then
     exec setpriv --reuid=cloudsrv --regid=cloudsrv --init-groups \

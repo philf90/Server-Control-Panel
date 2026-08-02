@@ -31,6 +31,44 @@ anderes Produkt und zählt neu.
   neu ein Integrationslauf, der das gebaute Paket unter echtem systemd auf
   Debian 12/13 und Ubuntu 22.04/24.04 installiert.
 
+### P0 abgeschlossen
+
+- **Ersteinrichtung `cloudsrv setup`** — legt über den Agenten Datenbank,
+  Datenbankbenutzer, Anwendungsschlüssel, selbstsigniertes Zertifikat und den
+  nginx-Server-Block an und startet die Dienste. Wiederholbar: Ein zweiter Lauf
+  wechselt keinen Schlüssel und wirft keine Datenbank weg.
+- **Geheimnisse überqueren den Socket nie.** Datenbankpasswort und `APP_KEY`
+  entstehen im Agenten und werden von dort nach `/etc/cloudsrv/panel.env`
+  geschrieben (0640 root:cloudsrv). Die Datei liegt bewusst außerhalb des
+  Auslieferungsverzeichnisses — dieses wird bei jedem Update ersetzt, und mit
+  einer `.env` darin wäre nach dem ersten Update der Schlüssel weg, mit dem
+  alle verschlüsselten Werte in der Datenbank lesbar sind.
+- **Update mit Rückweg.** `cloudsrv update` setzt den Lauf als transiente
+  systemd-Unit ab, damit er den Neustart des Panels überlebt. Das
+  postinstall-Skript prüft danach über HTTPS, ob das Panel antwortet — sonst
+  zeigt der Symlink wieder auf die vorige Fassung und die Dienste laufen mit
+  ihr weiter. Bis dahin war das ein Kommentar, der eine Zusage machte, die der
+  Code nicht einlöste.
+- **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
+  Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
+  `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im
+  Agenten, `nginx -t` vor der Übernahme, Rückweg bei Ablehnung) und
+  `panel.update`.
+- **`/etc/cloudsrv/fpm.conf`** — eigener PHP-FPM-Pool für die Oberfläche, mit
+  `open_basedir` auf die Verzeichnisse des Panels und ohne `exec`, `system`
+  und Verwandte: Die Anwendung kann keinen Prozess starten, sie hat dafür den
+  Agenten.
+- **`packaging/testbed.sh`** — dieselbe Wegwerf-Maschine wie in der CI, aber
+  von Hand in zwei Minuten statt in Zwanzig-Minuten-Schritten.
+
+### Berichtigt
+
+Das Abnahmekriterium für P0 verlangte, dass man sich anmelden kann — Konten
+gibt es aber erst in P1. Es war von Anfang an nicht erfüllbar. An seine Stelle
+tritt, dass die Oberfläche nach der Einrichtung über HTTPS antwortet. Aus
+demselben Grund gibt es in P0 keinen Einmal-Link: Er führte zu einem Raum ohne
+Inhalt.
+
 ### Bezeichner auf Englisch
 
 Dateien, Klassen, Methoden, Variablen, Konfigurations- und

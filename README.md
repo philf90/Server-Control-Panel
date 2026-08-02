@@ -5,10 +5,11 @@ Betreiber verwaltet Kunden, Kunden verwalten ihre Abonnements — Domains,
 Webseiten, PHP, Datenbanken, DNS, Dateien, Zugänge, Cronjobs und Sicherungen —
 ohne SSH und ohne Zugriff auf fremde Daten.
 
-> **Status: P0, Fundament.** Installierbar, aber noch ohne Konten und ohne
-> Fachfunktionen. Was gebaut ist: der Agent mit seiner Trennlinie, die
-> Adminübersicht mit den Verlaufskacheln, das Paket, die CI. Was als nächstes
-> kommt, steht als P1 im Plan.
+> **Status: P0 abgeschlossen.** Installierbar, einrichtbar, aktualisierbar —
+> aber noch ohne Konten und ohne Fachfunktionen. Gebaut sind der Agent mit
+> seiner Trennlinie, die Adminübersicht mit den Verlaufskacheln, Paket,
+> Ersteinrichtung, Update mit Rückweg und die CI mitsamt Integrationslauf auf
+> allen vier Zielplattformen. Anmeldung, Mandanten und Rechte kommen mit P1.
 
 Der vollständige Plan mit allen elf Ausbaustufen:
 **[docs/20-hostingpanel-neuplan.md](docs/20-hostingpanel-neuplan.md)**.
@@ -20,8 +21,23 @@ curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o i
 sudo sh install.sh
 ```
 
+Danach einmal:
+
+```bash
+sudo cloudsrv setup
+```
+
+Das legt Datenbank, Anwendungsschlüssel und ein selbstsigniertes Zertifikat an,
+schreibt den nginx-Server-Block und startet die Dienste. Der Lauf ist
+wiederholbar und wechselt dabei keinen Schlüssel. Danach antwortet das Panel
+unter `https://<host>:8443/`.
+
 Zielplattformen sind Debian 12 und 13 sowie Ubuntu 22.04 und 24.04. Andere
 Systeme werden nicht geprüft und nicht zugesagt.
+
+**Aktualisieren** geht über `apt` oder über `cloudsrv update`. Beide Wege
+führen durch dieselbe Bereitschaftsprüfung: Antwortet das Panel nach dem
+Umschalten nicht, zeigt der Symlink wieder auf die vorige Fassung.
 
 ## Wie es gebaut ist
 

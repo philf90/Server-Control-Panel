@@ -6,6 +6,11 @@ namespace CloudSrv\Agent;
 
 use CloudSrv\Agent\Ops\AgentPing;
 use CloudSrv\Agent\Ops\ConfigValidate;
+use CloudSrv\Agent\Ops\PanelProvision;
+use CloudSrv\Agent\Ops\PanelTls;
+use CloudSrv\Agent\Ops\PanelUpdate;
+use CloudSrv\Agent\Ops\PanelVhost;
+use CloudSrv\Agent\Ops\ServiceAction;
 use CloudSrv\Agent\Ops\ServiceStatus;
 use CloudSrv\Agent\Ops\SystemInfo;
 
@@ -27,6 +32,11 @@ final class Registry
         $this->register(new SystemInfo);
         $this->register(new ServiceStatus);
         $this->register(new ConfigValidate($config->configRoots));
+        $this->register(new ServiceAction);
+        $this->register(new PanelProvision);
+        $this->register(new PanelTls);
+        $this->register(new PanelVhost);
+        $this->register(new PanelUpdate);
     }
 
     public function register(Op $op): void

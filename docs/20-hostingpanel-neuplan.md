@@ -489,7 +489,10 @@ Erklärsatz und Fehlerbild · leerer Zustand · Ladezustand.
 
 Eine Stufe ist **nicht fertig**, solange nicht alles davon steht:
 
-1. Datenmodell samt Migration und Rückmigration
+1. Datenmodell samt Migration und Rückmigration. Eine Migration muss mit der
+   **vorigen** Fassung verträglich bleiben: Der Rückweg beim Update legt den
+   Symlink um, nimmt aber keine Migration zurück — eine durchgelaufene
+   Migration gilt.
 2. Dienstschicht mit Kontingent- und Planprüfung
 3. Agent-Operationen, typisiert, mit Vorlagen im Agent
 4. Policies für alle drei Ebenen, mechanisch geprüft auf Vollständigkeit
@@ -521,9 +524,14 @@ noch Fachfunktion.
   MariaDB, nginx, Datenbank anlegen, systemd-Units, Einmal-Link für die
   Ersteinrichtung
 - Bestehende apt-Quelle weiterverwendet (Branch `gh-pages`,
-  `repo.cloudsrv24.de`), neues Paket neben dem eingefrorenen alten (§13);
-  Update aus dem Panel: prüfen, entpacken, migrieren, umschalten,
-  Bereitschaftsprüfung, Rollback bei Fehlschlag
+  `repo.cloudsrv24.de`), neues Paket neben dem eingefrorenen alten (§13)
+- **Ersteinrichtung `cloudsrv setup`**: Datenbank, Anwendungsschlüssel,
+  selbstsigniertes Zertifikat, nginx-Server-Block, Dienste — wiederholbar,
+  ohne dass ein Schlüssel wechselt
+- **Update mit Rückweg**: angestoßen über `cloudsrv update` als transiente
+  systemd-Unit (der Lauf überlebt den Neustart des Panels), Migrationen und
+  Umschalten im Paketskript, danach Bereitschaftsprüfung über HTTP — antwortet
+  sie nicht, zeigt der Symlink wieder auf die vorige Fassung
 - CI umgebaut (§14): statische Prüfung (PHPStan max, Pint, ESLint, `vue-tsc`),
   Unit- und Feature-Tests, **neu:** Integrationslauf in systemd-Containern für
   Debian 12/13 und Ubuntu 22.04/24.04
@@ -533,7 +541,14 @@ noch Fachfunktion.
   gebaute Paket installiert
 
 **Fertig, wenn** auf allen vier Zielplattformen aus dem Nichts installiert,
-angemeldet, aktualisiert und zurückgerollt werden kann.
+eingerichtet, aufgerufen, aktualisiert und zurückgerollt werden kann.
+
+*Berichtigt beim Bauen:* Hier stand „angemeldet". Anmeldung gibt es erst mit
+den Konten, und die kommen in P1 — das Kriterium war von Anfang an nicht
+erfüllbar. An seine Stelle tritt, dass die Oberfläche nach der Einrichtung
+über HTTPS antwortet. Aus demselben Grund gibt es in P0 **keinen Einmal-Link**:
+Er führte zu einem Raum ohne Inhalt. Er entsteht in P1 zusammen mit dem
+Administratorkonto.
 
 ### P1 — Kern: Konten, Mandanten, Rechte, Vorgänge, Agent · 4–6 Wochen · (0.2)
 

@@ -163,6 +163,28 @@ final class AgentProtocolTest extends TestCase
         $this->assertFalse($response['ok']);
     }
 
+    public function test_rejects_a_service_action_on_a_foreign_unit(): void
+    {
+        // Den Zustand einer beliebigen Unit zu lesen ist harmlos. Eine
+        // beliebige Unit zu stoppen ist es nicht — sshd zum Beispiel.
+        try {
+            (new Client($this->socket))->call('service.action', ['unit' => 'ssh.service', 'action' => 'stop']);
+            $this->fail('Die Unit hätte abgewiesen werden müssen.');
+        } catch (AgentException $error) {
+            $this->assertSame(AgentException::DENIED, $error->errorCode);
+        }
+    }
+
+    public function test_rejects_an_unknown_service_action(): void
+    {
+        try {
+            (new Client($this->socket))->call('service.action', ['unit' => 'nginx.service', 'action' => 'mask']);
+            $this->fail('Die Aktion hätte abgewiesen werden müssen.');
+        } catch (AgentException $error) {
+            $this->assertSame(AgentException::BAD_REQUEST, $error->errorCode);
+        }
+    }
+
     public function test_secrets_are_not_written_to_the_log(): void
     {
         try {

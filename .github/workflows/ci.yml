@@ -156,7 +156,7 @@ jobs:
 
       - name: Paket installieren
         run: |
-          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq php-cli php-fpm php-sockets php-mbstring php-xml php-curl >/dev/null 2>&1 || true'
+          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq php-cli php-fpm php-sockets php-mbstring php-xml php-curl php-mysql curl >/dev/null 2>&1 || true'
           docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y /packages/*.deb'
 
       - name: Der Agent läuft und antwortet
@@ -173,6 +173,25 @@ jobs:
             "660 root:cloudsrv") ;;
             *) echo "::error::Socket steht auf ${mode}, erwartet ist 660 root:cloudsrv"; exit 1 ;;
           esac
+
+      - name: Ersteinrichtung und Oberfläche
+        run: |
+          docker exec target sh -c 'systemctl start mariadb || service mariadb start' || true
+          sleep 5
+          docker exec target cloudsrv setup --port=8443
+          docker exec target curl -fsS -k https://127.0.0.1:8443/gesundheit
+          echo
+
+      - name: Ein zweiter Lauf der Ersteinrichtung ändert nichts
+        # Wiederholbarkeit ist keine Kür: Wer nach einem Fehlschlag noch einmal
+        # einrichtet, darf dabei nicht den Schlüssel wechseln — sonst ist die
+        # Datenbank danach unlesbar.
+        run: |
+          vorher="$(docker exec target grep '^APP_KEY=' /etc/cloudsrv/panel.env)"
+          docker exec target cloudsrv setup --port=8443 >/dev/null
+          nachher="$(docker exec target grep '^APP_KEY=' /etc/cloudsrv/panel.env)"
+          [ "$vorher" = "$nachher" ] || { echo "::error::Der APP_KEY hat sich beim zweiten Lauf geändert."; exit 1; }
+          echo "Der Schlüssel ist geblieben."
 
       - name: Entfernen hinterlässt keine Dienste, aber die Daten
         run: |
@@ -194,7 +213,7 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
           shellcheck packaging/install.sh packaging/scripts/*.sh
           shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/cloudsrv
-          shellcheck -e SC1090 packaging/build.sh
+          shellcheck -e SC1090 packaging/build.sh packaging/testbed.sh
 
   supply-chain:
     name: Schwachstellen und Lizenzen

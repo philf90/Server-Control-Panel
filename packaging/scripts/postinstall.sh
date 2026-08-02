@@ -10,9 +10,24 @@
 set -eu
 
 VERSION="__VERSION__"
-RELEASE_DIR="/opt/cloudsrv/releases/${VERSION}"
 PREVIOUS_FILE="/var/lib/cloudsrv/previous-release"
 READY_TIMEOUT=60
+
+# Das Verzeichnis der neuen Fassung wird nicht aus der Version zusammengesetzt,
+# sondern beim Symlink erfragt, den dpkg gerade gelegt hat.
+#
+# Der Grund ist eine Falle, die beim ersten Vorabtag zugeschlagen hätte: Eine
+# Debian-Version darf den Bindestrich nicht als Trenner für eine Vorabfassung
+# führen, und nfpm schreibt deshalb aus „0.1.0-rc.1" ein „0.1.0~rc.1". Das
+# Verzeichnis im Paket heißt dann anders als die Zeichenkette, die hier
+# eingesetzt wird — und das Skript fasste ein Verzeichnis an, das es nicht gibt.
+# Der Symlink weiß es besser als jede Umrechnung von Versionsschreibweisen.
+RELEASE_DIR="$(readlink -f /opt/cloudsrv/current 2>/dev/null || true)"
+
+if [ -z "${RELEASE_DIR}" ] || [ ! -d "${RELEASE_DIR}" ]; then
+    echo "CloudSrv: /opt/cloudsrv/current zeigt auf kein Verzeichnis — das Paket ist unvollständig." >&2
+    exit 1
+fi
 
 create_user() {
     if ! getent group cloudsrv >/dev/null; then

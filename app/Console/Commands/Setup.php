@@ -6,8 +6,10 @@ namespace App\Console\Commands;
 
 use CloudSrv\Agent\AgentException;
 use CloudSrv\Agent\Client;
+use CloudSrv\Agent\EnvFile;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Die Ersteinrichtung: `cloudsrv setup`.
@@ -73,8 +75,13 @@ final class Setup extends Command
         if (! $this->option('skip-migrations')) {
             $this->step('Migrationen');
 
-            // Die Umgebungsdatei ist gerade erst entstanden; dieser Prozess
-            // kennt sie noch nicht. Ein eigener Lauf liest sie neu ein.
+            // Die Umgebungsdatei ist gerade erst entstanden — dieser Prozess
+            // hat sie beim Start noch nicht gesehen, und Artisan::call läuft
+            // im selben Prozess. Ohne diese Zeilen liefe die Migration gegen
+            // die Vorgabewerte statt gegen die eben angelegte Datenbank, und
+            // zwar mit einer Fehlermeldung, die auf alles Mögliche deutet.
+            $this->applyDatabaseConfig((string) $provision['env']);
+
             $code = Artisan::call('migrate', ['--force' => true]);
             $this->done($code === 0 ? 'ausgeführt' : 'fehlgeschlagen');
 
@@ -114,6 +121,35 @@ final class Setup extends Command
         $this->comment('  Anmeldung und Konten kommen mit der Ausbaustufe P1.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Die frisch geschriebenen Zugangsdaten in die laufende Konfiguration
+     * heben, damit die Migration die neue Datenbank trifft.
+     */
+    private function applyDatabaseConfig(string $envPath): void
+    {
+        $values = (new EnvFile($envPath))->read();
+
+        if ($values === []) {
+            return;
+        }
+
+        $connection = $values['DB_CONNECTION'] ?? 'mariadb';
+
+        config([
+            'database.default' => $connection,
+            "database.connections.{$connection}.host" => $values['DB_HOST'] ?? '127.0.0.1',
+            "database.connections.{$connection}.port" => $values['DB_PORT'] ?? '3306',
+            "database.connections.{$connection}.database" => $values['DB_DATABASE'] ?? 'cloudsrv',
+            "database.connections.{$connection}.username" => $values['DB_USERNAME'] ?? 'cloudsrv',
+            "database.connections.{$connection}.password" => $values['DB_PASSWORD'] ?? '',
+        ]);
+
+        // Die Verbindung kann bereits mit den alten Werten aufgebaut worden
+        // sein; ohne das Trennen bleibt sie bestehen und die Migration liefe
+        // weiter ins Leere.
+        DB::purge($connection);
     }
 
     /** @return array<string,mixed> */

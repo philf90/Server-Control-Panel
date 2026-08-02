@@ -19,7 +19,7 @@ Mandanten sowohl in der Anwendung als auch im Betriebssystem durchgesetzt wird.
 
 ## 1. Getroffene Entscheidungen
 
-Diese sieben Punkte sind entschieden und der Rahmen für alles Weitere.
+Diese neun Punkte sind entschieden und der Rahmen für alles Weitere.
 
 | Entscheidung | Gewählt | Folge |
 |---|---|---|
@@ -30,10 +30,14 @@ Diese sieben Punkte sind entschieden und der Rahmen für alles Weitere.
 | Rollenmodell | Admin → Kunde → Zusatzbenutzer | Keine Reseller-Ebene in der 1.0, aber im Modell vorbereitet (§5.4) |
 | Funktionsumfang 1.0 | Web + PHP + Datenbanken, DNS autoritativ, FTP/SFTP, Cron, Backups | Mail ist **nicht** in der 1.0 |
 | Mail | spätere Ausbaustufe | Datenmodell, DNS-Zonen, Backups und Rechte werden so geschnitten, dass Postfix/Dovecot ohne Umbau andocken (§5.5) |
+| Name | **CloudSrv** | Schließt an die bestehende Infrastruktur an: `repo.cloudsrv24.de`, Keyring, Landingpage. Begründung und der verworfene Vorschlag in §12.1 |
+| Lizenz | **AGPL-3.0-only**, Copyright beim Projektinhaber | Quelle offen, Zweitlizenz jederzeit möglich; eine Auflage schlägt in die Oberfläche durch (§12.2) |
 
-**Arbeitsname.** Das Produkt heißt in diesem Dokument „das Panel", die
-Systembezeichner lauten `panel` (Benutzer, Pfade, Unit-Namen). Der endgültige
-Name ist offen (§12).
+**Bezeichner.** Systembenutzer `cloudsrv`, Pfade `/etc/cloudsrv`,
+`/var/lib/cloudsrv`, `/opt/cloudsrv`, `/var/log/cloudsrv`, Units
+`cloudsrv-web`, `cloudsrv-worker`, `cloudsrv-agentd`, `cloudsrv-metrics`,
+Paket `cloudsrv-panel`, Kommandozeile `cloudsrv`. Im Fließtext dieses
+Dokuments steht weiter „das Panel".
 
 ## 2. Leitbild
 
@@ -89,17 +93,17 @@ gab:
 ```
    Browser ──TLS──▶ nginx (Panel-vhost, Port 8443)
                       │
-                      ├─▶ php-fpm Pool „panel"        (Benutzer panel, kein root)
+                      ├─▶ php-fpm Pool „cloudsrv"        (Benutzer cloudsrv, kein root)
                       │      Laravel: HTTP, Inertia, API v1, Policies
                       │
-                      ├─▶ panel-worker (Benutzer panel)
+                      ├─▶ cloudsrv-worker (Benutzer cloudsrv)
                       │      Warteschlange, lang laufende Vorgänge
                       │
-                      └──unix socket──▶ panel-agentd   (root, minimal)
-                                          /run/panel/agent.sock  0660 root:panel
+                      └──unix socket──▶ cloudsrv-agentd   (root, minimal)
+                                          /run/cloudsrv/agent.sock  0660 root:cloudsrv
 ```
 
-**`panel-agentd`** ist der einzige Prozess mit Systemrechten. Er ist ein
+**`cloudsrv-agentd`** ist der einzige Prozess mit Systemrechten. Er ist ein
 eigenständiges PHP-CLI-Programm **ohne Framework und ohne Composer-Abhängigkeiten**
 (nur `json`, `posix`, `sockets`, `pcntl`) — die Menge Code, die als root läuft,
 soll klein genug bleiben, um sie ganz zu lesen. Das Protokoll ist bewusst so
@@ -126,7 +130,7 @@ werden kann, ohne dass sich für die Anwendung etwas ändert.
   keine Shell, Argumente als Array, feste Umgebung (`LC_ALL=C`), Zeitlimit je
   Operation, Ausgabe bei 4 MiB gekappt.
 - **Doppeltes Protokoll.** Jeder Auftrag wird auf beiden Seiten protokolliert —
-  in der Panel-Datenbank (mit Person) und in `/var/log/panel/agent.log` (mit
+  in der Panel-Datenbank (mit Person) und in `/var/log/cloudsrv/agent.log` (mit
   ausgeführter Kommandozeile). Wer beides vergleicht, sieht, ob am Panel vorbei
   gearbeitet wurde.
 
@@ -138,37 +142,56 @@ laufenden Codes prüfbar klein. Sie ist **kein** Schutz gegen eine vollständig
 Aufträge stellen. Das ist die Grenze, und sie wird in der Sicherheitsbetrachtung
 so benannt, nicht kaschiert.
 
-### 4.3 Die PHP-Frage
+### 4.3 Die PHP-Frage und die Grenzen von GitHub Pages
 
 Das Panel braucht eine feste PHP-Version, die Kunden brauchen mehrere.
 Distributionspakete liefern je Release genau eine (Debian 12: 8.2, Ubuntu
-24.04: 8.3, Debian 13: 8.4). Deshalb:
+24.04: 8.3, Debian 13: 8.4).
 
-- Das Panel bringt **seine eigene PHP-Version** mit, aus einer vom Projekt
-  betriebenen apt-Quelle, installiert nach `/opt/panel/php/` und nur vom
-  Panel benutzt. Es hängt nicht an der PHP-Version des Systems und ändert sie
-  nicht.
-- Für Kundenwebseiten werden **mehrere PHP-Versionen** als eigene Pakete
-  angeboten (7.4 bis 8.4, je mit `-fpm`), installierbar aus dem Panel.
-  Basis ist `deb.sury.org`; das Panel spiegelt die benötigten Pakete in der
-  eigenen, signierten Quelle, damit die Lieferkette einen Betreiber hat und
-  Versionen einfrierbar sind.
+- Das Panel bringt **seine eigene PHP-Version** mit, gebaut ins eigene Paket
+  und installiert nach `/opt/cloudsrv/php/`. Es hängt nicht an der
+  PHP-Version des Systems und ändert sie nicht.
+- Für Kundenwebseiten kommen **mehrere PHP-Versionen** (7.4 bis 8.4, je mit
+  `-fpm`) aus **`deb.sury.org`**, eingebunden als zusätzliche apt-Quelle mit
+  fest hinterlegtem Schlüssel und Pinning auf die Pakete, die das Panel
+  wirklich braucht. Das Panel installiert sie auf Anforderung; es ändert die
+  Quelle nicht und zieht nichts anderes daraus.
 
-Das ist eine laufende Betriebslast (Spiegel pflegen, Sicherheitsupdates
-nachziehen) und der Preis dafür, dass ein Hosting-Panel nicht an dem hängt, was
-die Distribution gerade mitbringt.
+**Warum kein eigener Spiegel — Korrektur einer früheren Annahme.** Der Gedanke,
+die PHP-Pakete in die eigene signierte Quelle zu spiegeln, scheitert an der
+Infrastruktur: Das apt-Repository liegt auf GitHub Pages (Branch `gh-pages`,
+ausgeliefert als `repo.cloudsrv24.de`), und Pages ist auf rund 1 GB je Site und
+100 GB Datenverkehr im Monat ausgelegt. Sechs PHP-Versionen mal vier
+Distributionen mal Extensions sind ein Mehrfaches davon. Den Pool auszulagern
+geht nicht: Im `Packages`-Index stehen relative Pfade, apt folgt keiner
+absoluten URL — GitHub Releases als Pool scheidet damit aus.
+
+Daraus folgt für die eigene Quelle: **im Pool nur die letzten Freigaben je
+Kanal**, ältere ausschließlich unter GitHub Releases. Ein `.deb` mit
+Abhängigkeiten und gebauten Assets liegt bei 30–80 MB; ohne diese Regel ist die
+Grenze nach etwa einem Jahr erreicht.
+
+**Der Ausbau, wenn zahlende Kunden dranhängen:** eigener Spiegel auf
+Objektspeicher (Hetzner Storage, S3, R2) unter einer Subdomain, Pages behält
+Landingpage und Schlüssel. Größenordnung zehn bis zwanzig Euro im Monat, dafür
+volle Kontrolle über die Lieferkette. Eigene PHP-Pakete zu bauen — sechs
+Versionen, vier Distributionen, Extensions, Sicherheitsupdates — ist für eine
+Person keine tragfähige Dauerlast und bleibt draußen.
+
+Die Abhängigkeit von `deb.sury.org` ist damit eine bewusste und wird in der
+Sicherheitsbetrachtung als solche benannt, nicht verschwiegen.
 
 ### 4.4 Datenhaltung
 
 | Ort | Inhalt |
 |---|---|
-| `/opt/panel/releases/<version>/` | Anwendung, `root:root`, für `panel` nur lesbar |
-| `/opt/panel/current` | Symlink auf die aktive Version |
-| `/etc/panel/panel.conf` | Konfiguration, Schlüsselmaterial (`root:panel 0640`) |
-| `/var/lib/panel/` | Zustand, Zertifikate, Vorlagen-Overrides, Sicherungen |
-| `/var/log/panel/` | `panel.log`, `agent.log`, `audit.log` (append-only, logrotate) |
+| `/opt/cloudsrv/releases/<version>/` | Anwendung, `root:root`, für `cloudsrv` nur lesbar |
+| `/opt/cloudsrv/current` | Symlink auf die aktive Version |
+| `/etc/cloudsrv/cloudsrv.conf` | Konfiguration, Schlüsselmaterial (`root:cloudsrv 0640`) |
+| `/var/lib/cloudsrv/` | Zustand, Zertifikate, Vorlagen-Overrides, Sicherungen |
+| `/var/log/cloudsrv/` | `cloudsrv.log`, `agent.log`, `audit.log` (append-only, logrotate) |
 | `/var/www/vhosts/<abo>/` | Abo-Wurzel = Home des Systembenutzers |
-| MariaDB `panel` | Panel-Datenbank, eigener DB-Benutzer, nur über Socket |
+| MariaDB `cloudsrv` | Panel-Datenbank, eigener DB-Benutzer, nur über Socket |
 
 **Panel-Datenbank ist MariaDB**, nicht SQLite: Das Panel verwaltet ohnehin
 einen MariaDB-Server, mehrere Prozesse (Web, Worker, Zeitpläne) schreiben
@@ -193,6 +216,42 @@ Die Chroot-Wurzel muss `root` gehören und darf für andere nicht schreibbar sei
 — das ist eine Vorgabe von OpenSSH und der Grund für die Zweiteilung: Wurzel
 root, Inhalt Kunde. `www-data` erhält Lesezugriff über die Gruppe, andere
 Abonnements haben keinen: `0750` schließt sie aus.
+
+### 4.6 Kennzahlen und Spikelines
+
+Die Telemetrie-Kachel mit Verlaufslinie ist der eine Bestandteil des
+Vorgängers, der als **Gestaltungsprinzip** übernommen wird — der Code nicht,
+der ist Svelte und Go. Die Regeln, die ihren Wert ausmachen, gelten weiter und
+stehen hier, damit sie nicht beim Neubau verlorengehen:
+
+1. **Keine Diagramm-Bibliothek.** Ein SVG mit fester `viewBox`, ein Pfad, eine
+   Ablesung. Eine Bibliothek würde das nachbauen und dabei schwerer machen.
+2. **Der Server liefert fertige Stützstellen** samt Beschriftung und Einheit.
+   Das Skript im Browser rechnet nicht, es sucht nur den Punkt unter dem
+   Zeiger.
+3. **Kein Diagramm ohne Ablesung.** Wer auf die Linie zeigt, bekommt Zeitpunkt
+   und Wert; sonst ist die Linie Dekoration.
+
+**Die Erfassung muss neu gebaut werden**, denn PHP-FPM hält zwischen zwei
+Anfragen nichts im Speicher: `cloudsrv-metrics` ist ein Dauerlauf unter
+systemd, der alle 10 Sekunden aus `/proc` liest und in **Ringpuffer-Dateien
+fester Größe** unter `/var/lib/cloudsrv/metrics/` schreibt (24 Stunden je
+Kennzahl, wenige MB, kein Wachstum). Kein Redis, keine Zeitreihendatenbank,
+keine wachsende Tabelle. Für die Langzeitsicht verdichtet ein Tageslauf die
+abo-bezogenen Werte in eine schmale Tabelle.
+
+Wo Spikelines auftauchen:
+
+| Fläche | Kennzahlen | Auflösung | Stufe |
+|---|---|---|---|
+| Adminübersicht | CPU, RAM, Load, Netz, IO, Datenträger | 10 s, 24 h | P1 |
+| Adminübersicht | dazu Prozessliste, Dateisysteme, Uptime, Dienstzustände | live | P1 |
+| Abo-Übersicht (Admin und Kunde) | Speicherplatz, Traffic, Datenbankgröße, FPM-Prozesse | 1 Tag, 30 Tage | P9 |
+| Domain | Zugriffe, Traffic, Fehlerraten | 1 Tag, 30 Tage | P9 |
+
+Die Adminübersicht kommt bewusst schon in P1: Sie ist das Erste, was nach der
+Anmeldung zu sehen ist, und sie prüft den Live-Weg (SSE, Vorgänge, Ringpuffer)
+an einem Gegenstand, der noch nichts kaputtmachen kann.
 
 ## 5. Datenmodell
 
@@ -350,16 +409,20 @@ noch Fachfunktion.
 - Repo neu geschnitten: `app/` (Laravel), `agent/` (PHP-CLI, framework-frei),
   `resources/js/` (Vue), `packaging/`, `docs/`, `tests/`
 - Bauweg: Composer ohne Dev-Abhängigkeiten, Vite-Build, alles in ein `.deb`
-  mit `/opt/panel/releases/<version>` und Symlink-Umschaltung
+  mit `/opt/cloudsrv/releases/<version>` und Symlink-Umschaltung
 - Installer `install.sh`: Vorbedingungen prüfen (Distribution, Speicher,
   Quota-fähiger Mount, belegte Ports), Pakete installieren, Panel-PHP,
   MariaDB, nginx, Datenbank anlegen, systemd-Units, Einmal-Link für die
   Ersteinrichtung
-- Eigene apt-Quelle, signiert; Update aus dem Panel: prüfen, entpacken,
-  migrieren, umschalten, Bereitschaftsprüfung, Rollback bei Fehlschlag
-- CI: statische Prüfung (PHPStan max, Pint, ESLint, TS), Unit- und
-  Feature-Tests, Integrationslauf in systemd-Containern für Debian 12/13 und
-  Ubuntu 22.04/24.04
+- Bestehende apt-Quelle weiterverwendet (Branch `gh-pages`,
+  `repo.cloudsrv24.de`), neues Paket neben dem eingefrorenen alten (§13);
+  Update aus dem Panel: prüfen, entpacken, migrieren, umschalten,
+  Bereitschaftsprüfung, Rollback bei Fehlschlag
+- CI umgebaut (§14): statische Prüfung (PHPStan max, Pint, ESLint, `vue-tsc`),
+  Unit- und Feature-Tests, **neu:** Integrationslauf in systemd-Containern für
+  Debian 12/13 und Ubuntu 22.04/24.04
+- Repo-Übergang vollzogen: `legacy/asylum`, Neuanfang auf `main`, Lizenzwechsel
+  auf AGPL-3.0-only samt Kopfzeilen und Quellenlink-Auflage (§12.2)
 - Testumgebung: ein Skript, das eine Wegwerf-VM/Container aufsetzt und das
   gebaute Paket installiert
 
@@ -373,14 +436,17 @@ angemeldet, aktualisiert und zurückgerollt werden kann.
 - Policies, Mandantenklammer, mechanische Vollständigkeitsprüfung der Routen
 - Protokoll mit Filter und Export
 - Vorgangssystem: Warteschlange, Zustände, Live-Ausgabe über SSE
-- **Agent-Protokoll und `panel-agentd`**, zunächst mit drei echten Operationen
+- **Agent-Protokoll und `cloudsrv-agentd`**, zunächst mit drei echten Operationen
   (Dienstzustand lesen, Datei prüfen, Reload) und einer vollständigen Attrappe
   für die Tests
 - Oberflächengerüst: Navigation, Gestaltung, Bestätigungsstufen, Sprachen,
-  Fehlerbilder, „Anmelden als"
+  Fehlerbilder, „Anmelden als", Quellenlink in der Fußzeile (Auflage der AGPL, Abschnitt 13)
+- **`cloudsrv-metrics` und die Adminübersicht mit Spikelines** (§4.6): CPU,
+  RAM, Load, Netz, IO, Datenträger, dazu Prozessliste, Dateisysteme, Uptime
 
 **Fertig, wenn** ein Admin einen Kunden anlegt, dieser sich anmeldet, seine
-(leere) Übersicht sieht, und kein Kunde durch Manipulation von IDs an fremde
+(leere) Übersicht sieht, der Admin auf seiner Übersicht die Verläufe des
+Servers ablesen kann, und kein Kunde durch Manipulation von IDs an fremde
 Objekte kommt — belegt durch den Angriffsdurchgang.
 
 ### P2 — Abonnements und Systembenutzer · 3–4 Wochen · (0.3)
@@ -490,7 +556,10 @@ funktionieren — geprüft durch einen automatisierten Lauf, nicht von Hand.
 
 ### P9 — Kundenfähigkeit und Betrieb · 3–4 Wochen · (0.10)
 
-- Statistik: Traffic je Domain, Zugriffe, Speicher, Datenbankgrößen, Verlauf
+- Statistik mit Spikelines auf Abo- und Domain-Ebene (§4.6): Speicherplatz,
+  Traffic, Zugriffe, Datenbankgrößen, FPM-Prozesse — Tagesauflösung über
+  30 Tage, aus der verdichteten Tabelle statt aus dem Ringpuffer
+- Auswertung der Zugriffs-Logs je Domain als Nachtlauf, mit Aufbewahrungsfrist
 - Ressourcenüberwachung des Servers, Schwellen, Benachrichtigungen (E-Mail,
   Webhook)
 - Benachrichtigungen an Kunden: Kontingent erreicht, Zertifikat läuft ab,
@@ -548,16 +617,135 @@ In dieser Reihenfolge, ohne Zusage:
 6. **RHEL-Familie**
 7. **Mehrere Server aus einem Panel**
 
-## 12. Offene Punkte
+## 12. Name und Lizenz
+
+### 12.1 CloudSrv
+
+Der ursprüngliche Vorschlag war **CloudPanel** und ist verworfen: Unter diesem
+Namen gibt es bereits ein verbreitetes kostenloses Hosting-Panel
+(cloudpanel.io, MGT-COMMERCE GmbH) — dieselbe Produktkategorie, derselbe
+Markt, derselbe Sprachraum. Das ist doppelt ungünstig: markenrechtlich
+angreifbar, sobald das Produkt an Dritte geht, und praktisch unauffindbar,
+weil jede Suche beim anderen landet.
+
+**CloudSrv** schließt statt dessen an das an, was bereits steht:
+`repo.cloudsrv24.de` bedient das apt-Repository, die Landingpage liegt dort,
+der Archiv-Keyring trägt den Namen. Kein Umzug, keine neue Domain, keine
+Kollision im Panel-Markt.
+
+Vor dem ersten öffentlichen Paket gehören dazu: Recherche bei DPMA und EUIPO,
+Prüfung der Domains, Sicherung von GitHub-Organisation und Paketnamen. Wenn
+das Produkt verkauft werden soll, ist eine Wortmarke die einzige Handhabe
+gegen Weiterverkauf unter demselben Namen — die Lizenz leistet das nicht.
+
+### 12.2 AGPL-3.0-only
+
+Der Wechsel weg von Apache-2.0 ist jetzt kostenlos: neue Codebasis, ein
+Rechteinhaber. Später wäre er es nicht mehr.
+
+**Warum Copyleft.** Apache-2.0 erlaubt jedem — auch einem konkurrierenden
+Hoster —, das Panel zu nehmen, zu schließen und als eigenes Produkt zu
+verkaufen. Das ist genau das eine Szenario, das wehtut. Die AGPL schließt es
+aus, ohne die Quelle zu verstecken, und offene Quelle ist bei Software, die
+als root auf fremden Servern läuft, ein Argument und kein Verlust.
+
+**Warum das die Kommerzialisierung nicht verbaut.** Solange der Copyright
+beim Projektinhaber bleibt — Beiträge Dritter nur mit DCO, bei größeren
+Beiträgen mit CLA —, ist eine kommerzielle Zweitlizenz für alle möglich, die
+nicht unter AGPL arbeiten wollen. Das Modell ist erprobt (Grafana, Nextcloud,
+Mattermost).
+
+**Drei Folgen für die Umsetzung**, alle in P0:
+
+1. **Quellenlink in der Oberfläche.** Abschnitt 13 der AGPL verlangt, dass wer die Software
+   über das Netz benutzt, an den Quelltext kommt. Kunden benutzen das Panel
+   über das Netz. Also: ein Link in der Fußzeile beider Flächen, der auf die
+   **exakt laufende Fassung** zeigt (Version und Commit), nicht bloß auf das
+   Repository. Der Link bleibt auch bei eingeschaltetem Branding stehen.
+2. **Lizenzprüfung der Abhängigkeiten in der CI.** Laravel und Vue sind MIT
+   und damit unproblematisch; eine Abhängigkeit unter einer mit AGPL
+   unvereinbaren Lizenz muss auffallen, bevor sie im Paket landet.
+3. **Der Vorgänger bleibt Apache-2.0.** Das gilt für alles, was unter dem Tag
+   `v0.6.2` steht, und ist nicht rückwirkend zu ändern — es ist auch nicht
+   nötig.
+
+## 13. Repo-Übergang
+
+**Kein Wipe und kein neues Repository.** Der Grund liegt nicht in der
+Historie, sondern im Branch `gh-pages`: Dort liegt das apt-Repository, das
+`repo.cloudsrv24.de` ausliefert, samt CNAME, Archiv-Keyring, minisign-Schlüssel
+und Landingpage. Ein neues Repository hieße, das komplett neu aufzusetzen; ein
+Wipe der Historie brächte dafür nichts — der alte Code stört nicht mehr, sobald
+er aus dem Arbeitsbaum verschwunden ist, und eine ausradierte Vorgeschichte ist
+schlechter belegt als eine sichtbar abgebrochene.
+
+Der Übergang:
+
+1. **Der Vorgänger bleibt erreichbar.** Der Tag `v0.6.2` zeigt bereits auf den
+   aktuellen `main`. Dazu ein Branch `legacy/asylum` als lesbarer Einstieg.
+2. **Ein Commit auf `main`** entfernt alles bis auf `.github/` (wird umgebaut,
+   nicht neu geschrieben — §14), `docs/19-sprache-der-oberflaeche.md` und
+   dieses Dokument, und legt den neuen Baum an. `LICENSE` wird gegen die
+   AGPL-3.0 getauscht. `CHANGELOG.md` beginnt neu; die 157 kB Vorgeschichte
+   bleiben im Tag.
+3. **Das alte Paket bleibt im apt-Repository stehen**, eingefroren unter
+   seinem Namen. Bestehende Installationen liefen sonst beim nächsten
+   `apt update` ins Leere. Das neue Paket `cloudsrv-panel` kommt daneben —
+   dieselbe Site, zwei Pakete, getrennte Kanäle.
+4. **`main` bleibt geschützt**, Entwicklung auf Branches, Freigaben über Tags —
+   wie bisher.
+
+Die Versionszählung beginnt neu bei 0.1. Dass es schon einmal eine 0.6.2 gab,
+steht in der Vorgeschichte und ist kein Grund, bei 0.7 anzufangen: Es ist ein
+anderes Produkt.
+
+## 14. Was aus der CI wird
+
+Die drei Workflows umfassen 890 Zeilen und sind fast durchgehend Go-spezifisch.
+Umgebaut, nicht weggeworfen:
+
+**Bleibt nahezu unverändert** — und ist das Wertvollste am Bestand:
+
+- der Pages-/apt-Job aus `release.yml`: Pool, Kanäle, `Release`-Datei,
+  Keyring, Landingpage. Nur Namen ändern sich.
+- `secrets.yml`, die Prüfung der Signaturschlüssel.
+- die Signatur der Artefakte mit minisign und die OpenPGP-Signatur des
+  Repositories. **Die Schlüssel bleiben, wie sie sind.**
+- der Shellcheck-Job für `install.sh` und die Paketierungsskripte.
+
+**Wird ersetzt:** `setup-go`, golangci-lint, goreleaser und der
+Reproduzierbarkeitsnachweis des Svelte-Bundles gegen `embed.FS` weichen
+`setup-php` mit Composer, PHPStan, Pint, Pest, Node/Vite, ESLint, `vue-tsc`
+und Playwright für die Kundenfläche. Das `.deb` baut nfpm statt goreleaser.
+Die Schwachstellen- und Lizenzprüfung wechselt von `govulncheck` auf
+`composer audit`, `npm audit` und eine Lizenzprüfung gegen die AGPL-Auflage
+(§12.2).
+
+**Kommt neu dazu, und das ist der eigentliche Gewinn:** eine Integrationsmatrix
+über Debian 12/13 und Ubuntu 22.04/24.04 in systemd-fähigen Containern, die
+das gebaute Paket installiert, den Dienst startet, den Agenten anspricht und
+einen Rauchtest fährt. So etwas gibt es heute nicht — und genau diese Lücke hat
+die `ProtectSystem`-Härtung durchgehen lassen, die in 0.6.2 jede
+Paketinstallation über das Panel unmöglich machte. Gefunden hat sie kein Test,
+sondern der erste Lauf auf einem echten Server. Ein Panel, das fremde Kunden
+bedient, darf sich das nicht zweimal leisten.
+
+Der Aufwand steckt in P0 und ist dort eingerechnet.
+
+## 15. Offene Punkte
 
 Diese Fragen blockieren P0 nicht, brauchen aber eine Antwort, bevor die
 jeweilige Stufe beginnt:
 
+Name (§12.1), Lizenz (§12.2), Repo-Übergang (§13), apt-Quelle und PHP-Bezug
+(§4.3) und der Umbau der CI (§14) sind entschieden und stehen nicht mehr hier.
+Offen bleibt:
+
 | # | Frage | Spätestens vor |
 |---|---|---|
-| 1 | **Name und Marke** des Produkts; Domain, Repo-Name, Paketnamen, Systembezeichner | P0 |
-| 2 | **Lizenz** — Apache-2.0 wie beim Vorgänger, oder für ein kundenfähiges Produkt etwas anderes (AGPL, Quelle offen mit kommerzieller Lizenz, geschlossen)? | P0 |
-| 3 | **Wer betreibt die apt-Quelle und den PHP-Spiegel**, und mit welcher Zusage zu Sicherheitsupdates? | P0 |
+| 1 | **Markenanmeldung** für CloudSrv — nötig, sobald das Panel an Dritte verkauft wird; Recherche DPMA/EUIPO vorher | vor dem ersten Verkauf |
+| 2 | **Beitragsregelung**: DCO reicht, oder CLA, damit die Zweitlizenz belastbar bleibt? | erster Fremdbeitrag |
+| 3 | **Wie lange wird `deb.sury.org` als PHP-Bezug getragen**, und ab welcher Kundenzahl kommt der eigene Spiegel auf Objektspeicher (§4.3)? | P3 |
 | 4 | **Apache** zusätzlich unterstützen oder dauerhaft nur nginx? | P3 |
 | 5 | **PostgreSQL** wirklich in der 1.0 oder nach hinten? | P5 |
 | 6 | **FTP** (unverschlüsselt/FTPS über vsftpd oder ProFTPD) neben SFTP wirklich nötig, oder reicht SFTP? | P6 |

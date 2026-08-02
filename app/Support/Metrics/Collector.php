@@ -60,7 +60,7 @@ final class Collector
      * eine geschätzte erste Messung wäre eine Zahl, die nichts misst.
      *
      * @param  array<string,int>  $raw
-     * @return array{gesamt:float,iowait:float}|null
+     * @return array{total:float,iowait:float}|null
      */
     private function utilization(array $raw): ?array
     {

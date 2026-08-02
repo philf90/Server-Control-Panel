@@ -22,12 +22,12 @@ use CloudSrv\Agent\Op;
  */
 final class ConfigValidate implements Op
 {
-    /** @var array<string,array{programm:string,argumente:list<string>}> */
+    /** @var array<string,array{program:string,arguments:list<string>}> */
     private const VALIDATORS = [
-        'nginx' => ['program' => 'nginx', 'argumente' => ['-t', '-c']],
-        'sshd' => ['program' => 'sshd', 'argumente' => ['-t', '-f']],
-        'php-fpm' => ['program' => 'php-fpm', 'argumente' => ['-t', '-y']],
-        'zone' => ['program' => 'named-checkzone', 'argumente' => []],
+        'nginx' => ['program' => 'nginx', 'arguments' => ['-t', '-c']],
+        'sshd' => ['program' => 'sshd', 'arguments' => ['-t', '-f']],
+        'php-fpm' => ['program' => 'php-fpm', 'arguments' => ['-t', '-y']],
+        'zone' => ['program' => 'named-checkzone', 'arguments' => []],
     ];
 
     /** @param list<string> $allowedRoots */
@@ -49,19 +49,23 @@ final class ConfigValidate implements Op
         $path = Guard::pathInside($args['path'] ?? null, $this->allowedRoots);
         $validator = self::VALIDATORS[$kind];
 
-        $args = $validator['argumente'];
+        // Nicht $args: Das ist der Parameter mit der Anfrage. Beim Umbenennen
+        // auf englische Bezeichner hatte die lokale Liste denselben Namen
+        // bekommen und ihn überschrieben — der Zonenname wurde danach aus der
+        // Argumentliste gelesen statt aus der Anfrage.
+        $arguments = $validator['arguments'];
 
         if ($kind === 'zone') {
             $zone = Guard::string($args['zone'] ?? null, 'zone');
             if (! preg_match('/^[a-zA-Z0-9.\-]{1,253}$/', $zone)) {
                 throw AgentException::badRequest('Unzulässiger Zonenname.', ['zone' => $zone]);
             }
-            $args[] = $zone;
+            $arguments[] = $zone;
         }
 
-        $args[] = $path;
+        $arguments[] = $path;
 
-        $result = $context->runner->run($validator['program'], $args, 30);
+        $result = $context->runner->run($validator['program'], $arguments, 30);
 
         return [
             'kind' => $kind,

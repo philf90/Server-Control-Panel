@@ -46,7 +46,7 @@ final class Config
             user: is_string($raw['user'] ?? null) ? $raw['user'] : $defaults->user,
             logFile: is_string($raw['log'] ?? null) ? $raw['log'] : $defaults->logFile,
             configRoots: self::roots($raw['config_roots'] ?? null) ?? $defaults->configRoots,
-            maxChildren: is_int($raw['max_children'] ?? null) ? $raw['max_children'] : $defaults->maxKinder,
+            maxChildren: is_int($raw['max_children'] ?? null) ? $raw['max_children'] : $defaults->maxChildren,
         );
     }
 

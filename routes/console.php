@@ -1,8 +1,11 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+declare(strict_types=1);
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+/*
+ * Zeitpläne und Kommandos ohne eigene Klasse.
+ *
+ * Noch leer: Die Kommandos des Panels stehen in app/Console/Commands, und der
+ * Beispielbefehl des Gerüsts ist weg — ein Panel, das „inspire" kann, aber
+ * keine Konten, wirkt wie ein Baukasten.
+ */

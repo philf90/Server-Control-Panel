@@ -1,0 +1,95 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use CloudSrv\Agent\AgentException;
+use CloudSrv\Agent\Context;
+use CloudSrv\Agent\Journal;
+use CloudSrv\Agent\Ops\ConfigValidate;
+use CloudSrv\Agent\Runner;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Der Regressionstest zu einem Fehler, den erst PHPStan gefunden hat.
+ *
+ * Beim Umbenennen auf englische Bezeichner bekam die lokale Argumentliste
+ * denselben Namen wie der Parameter mit der Anfrage — `$args`. Danach las die
+ * Operation den Zonennamen aus der Argumentliste des Prüfprogramms statt aus
+ * der Anfrage und wies jede Zone als „leer" ab. Kein Test hat das gemerkt: Die
+ * vorhandenen benutzten nur `kind=nginx`, und dort gibt es keinen Zonennamen.
+ */
+final class ConfigValidateTest extends TestCase
+{
+    private string $root;
+
+    private string $file;
+
+    protected function setUp(): void
+    {
+        $this->root = sys_get_temp_dir().'/cloudsrv-zone-'.bin2hex(random_bytes(6));
+        mkdir($this->root, 0o755, true);
+        $this->file = $this->root.'/beispiel.de.zone';
+        file_put_contents($this->file, "\$TTL 3600\n@ IN SOA ns1.beispiel.de. hostmaster.beispiel.de. 1 3600 600 86400 3600\n");
+    }
+
+    protected function tearDown(): void
+    {
+        @unlink($this->file);
+        @rmdir($this->root);
+    }
+
+    private function context(): Context
+    {
+        $journal = new Journal('/dev/null');
+
+        return new Context(new Runner($journal), $journal, static function (array $line): void {});
+    }
+
+    public function test_the_zone_name_is_read_from_the_request(): void
+    {
+        $op = new ConfigValidate([$this->root]);
+
+        try {
+            $op->execute(['kind' => 'zone', 'path' => $this->file, 'zone' => 'beispiel.de'], $this->context());
+            // Läuft named-checkzone auf diesem Rechner, ist das Ergebnis egal —
+            // geprüft wird, dass der Zonenname überhaupt ankommt.
+            $this->assertTrue(true);
+        } catch (AgentException $error) {
+            // Zulässig ist nur: das Prüfprogramm fehlt. Unzulässig ist jede
+            // Beschwerde über den Zonennamen — der stand in der Anfrage.
+            $this->assertSame(
+                AgentException::NOT_FOUND,
+                $error->errorCode,
+                'Der Zonenname aus der Anfrage kam nicht an: '.$error->getMessage(),
+            );
+            // Auf „zone" zu prüfen ginge hier daneben: Das Wort steckt auch in
+            // „named-checkzone". Der Beleg ist der Programmname selbst — wer
+            // bis dorthin kommt, hat den Zonennamen angenommen.
+            $this->assertStringContainsString('named-checkzone', $error->getMessage());
+        }
+    }
+
+    public function test_a_missing_zone_name_is_still_rejected(): void
+    {
+        $op = new ConfigValidate([$this->root]);
+
+        try {
+            $op->execute(['kind' => 'zone', 'path' => $this->file], $this->context());
+            $this->fail('Ohne Zonennamen hätte die Prüfung abgewiesen werden müssen.');
+        } catch (AgentException $error) {
+            $this->assertSame(AgentException::BAD_REQUEST, $error->errorCode);
+        }
+    }
+
+    public function test_an_unknown_kind_is_rejected(): void
+    {
+        $this->expectException(AgentException::class);
+
+        (new ConfigValidate([$this->root]))->execute(
+            ['kind' => 'bash', 'path' => $this->file],
+            $this->context(),
+        );
+    }
+}

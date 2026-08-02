@@ -100,7 +100,7 @@ final class Daemon
                 // Im Kind: der Serversocket wird nicht gebraucht und darf beim
                 // Ende des Kindes nicht mit abgeräumt werden.
                 socket_close($this->server);
-                $connection = new Connection($connection, $this->registry, $this->journal, $this->config, $appUid);
+                $connection = new Connection($connection, $this->registry, $this->journal, $appUid);
                 $connection->serve();
                 exit(0);
             }

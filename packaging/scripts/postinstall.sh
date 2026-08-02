@@ -39,14 +39,12 @@ select_php() {
     # Nur 8.4: Laravel 13 und Symfony 8 verlangen >= 8.4.1. Eine ältere
     # Fassung zu nehmen hieße, ein Panel zu starten, das beim ersten Aufruf
     # mit einer Meldung über nicht erfüllte Plattformanforderungen abbricht.
-    for release in 8.4; do
-        if [ -x "/usr/bin/php${release}" ]; then
-            printf 'CLOUDSRV_PHP=/usr/bin/php%s\nCLOUDSRV_PHP_FPM=/usr/sbin/php-fpm%s\n' \
-                "${release}" "${release}" > /etc/cloudsrv/php.path
-            chmod 0644 /etc/cloudsrv/php.path
-            return 0
-        fi
-    done
+    if [ -x /usr/bin/php8.4 ]; then
+        printf 'CLOUDSRV_PHP=/usr/bin/php8.4\nCLOUDSRV_PHP_FPM=/usr/sbin/php-fpm8.4\n' \
+            > /etc/cloudsrv/php.path
+        chmod 0644 /etc/cloudsrv/php.path
+        return 0
+    fi
 
     echo "CloudSrv: PHP 8.4 fehlt." >&2
     echo "Erwartet werden php8.4-cli und php8.4-fpm; die Quelle richtet" >&2

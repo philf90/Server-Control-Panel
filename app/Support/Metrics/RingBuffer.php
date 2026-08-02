@@ -45,7 +45,7 @@ final class RingBuffer
     }
 
     /** @param list<float> $values */
-    public function write(array $values, ?float $zeit = null): void
+    public function write(array $values, ?float $time = null): void
     {
         if (count($values) !== $this->columns) {
             throw new RuntimeException(sprintf(
@@ -61,7 +61,7 @@ final class RingBuffer
             flock($handle, LOCK_EX);
             $cursor = $this->readCursor($handle);
 
-            $record = pack('e', $zeit ?? microtime(true));
+            $record = pack('e', $time ?? microtime(true));
             foreach ($values as $value) {
                 $record .= pack('e', $value);
             }
@@ -80,7 +80,7 @@ final class RingBuffer
     /**
      * Die Stützstellen in zeitlicher Reihenfolge, älteste zuerst.
      *
-     * @return list<array{zeit:float,werte:list<float>}>
+     * @return list<array{time:float,values:list<float>}>
      */
     public function read(?int $limit = null): array
     {

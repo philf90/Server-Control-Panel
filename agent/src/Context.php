@@ -40,7 +40,11 @@ final class Context
         ]);
     }
 
-    /** Ein Runner, dessen Ausgabe unterwegs an die Anwendung geht. */
+    /**
+     * Ein Runner, dessen Ausgabe unterwegs an die Anwendung geht.
+     *
+     * @param  list<string>  $args
+     */
     public function stream(string $program, array $args, int $timeout = 60): Result
     {
         return $this->runner->run(

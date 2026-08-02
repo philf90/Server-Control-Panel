@@ -34,10 +34,10 @@ final class Store
     }
 
     /**
-     * Ein Verlauf für die Kachel: höchstens `punkte` Stützstellen, auf 0…100
+     * Ein Verlauf für die Kachel: höchstens `$points` Stützstellen, auf 0…100
      * in x normiert, mit fertiger Beschriftung.
      *
-     * @return array{hat:bool,punkte:list<array{x:float,y:float,t:string,v:string}>}
+     * @return array{has:bool,points:list<array{x:float,y:float,t:string,v:string}>}
      */
     public function series(
         string $name,
@@ -85,8 +85,8 @@ final class Store
      * Jede n-te Stützstelle zu nehmen wäre billiger und würde Spitzen
      * verschlucken — genau die, wegen derer jemand auf die Kurve schaut.
      *
-     * @param  list<array{zeit:float,werte:list<float>}>  $records
-     * @return list<array{zeit:float,werte:list<float>}>
+     * @param  list<array{time:float,values:list<float>}>  $records
+     * @return list<array{time:float,values:list<float>}>
      */
     private function downsample(array $records, int $target): array
     {

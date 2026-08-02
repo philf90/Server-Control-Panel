@@ -86,7 +86,7 @@ final class OverviewController extends Controller
         ];
     }
 
-    /** @param array{hat:bool,punkte:list<array{x:float,y:float,t:string,v:string}>} $series */
+    /** @param array{has:bool,points:list<array{x:float,y:float,t:string,v:string}>} $series */
     private function latest(array $series, string $fallback): string
     {
         if (! $series['has'] || $series['points'] === []) {

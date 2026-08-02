@@ -24,7 +24,6 @@ final class Connection
         private readonly Socket $socket,
         private readonly Registry $registry,
         private readonly Journal $journal,
-        private readonly Config $config,
         private readonly int $appUid,
     ) {}
 

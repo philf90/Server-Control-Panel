@@ -50,7 +50,7 @@ KEYRING_ASC="${REPO}/packaging/srvpanel-archive-keyring.asc"
 MINISIGN_PUB="${REPO}/packaging/minisign.pub"
 
 missing=""
-for tool in gpg minisign; do
+for tool in gpg gpgv minisign; do
     command -v "$tool" >/dev/null 2>&1 || missing="${missing} ${tool}"
 done
 
@@ -92,6 +92,12 @@ umask 077
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/srvpanel-keys.XXXXXXXX")"
 chmod 700 "$WORK"
 
+# Bricht der Lauf vorzeitig ab, ist das erzeugte private Material wertlos —
+# aber es ist privates Material und hat nichts herumliegen zu lassen. Erst der
+# vollständige Durchlauf setzt KEEP und übergibt das Verzeichnis dem Aufrufer.
+KEEP=0
+trap '[ "$KEEP" = 1 ] || rm -rf "$WORK"' EXIT
+
 export GNUPGHOME="${WORK}/gnupg"
 mkdir -p "$GNUPGHOME"
 chmod 700 "$GNUPGHOME"
@@ -114,6 +120,7 @@ echo "==> OpenPGP-Schlüssel erzeugen (ed25519, nur Signatur, ohne Ablauf)"
 # jedem installierten Server an einem Stichtag, ohne Zutun und ohne Vorwarnung.
 # Der Preis dafür ist, dass ein verlorener Schlüssel nur durch einen Tausch
 # aus der Welt kommt — dokumentiert in docs/21-signaturschluessel.md.
+#
 # --pinentry-mode loopback, obwohl die Passphrase im Batch steht: Ohne das
 # will gpg-agent sie in einem Pinentry-Fenster abfragen und scheitert dort, wo
 # keines aufgeht — auf einem frisch per Homebrew installierten GnuPG ist das
@@ -155,10 +162,18 @@ printf '%s\n%s\n' "$MINISIGN_PASSPHRASE" "$MINISIGN_PASSPHRASE" \
 
 # Gegenprobe, bevor irgendetwas kopiert oder eingefügt wird.
 #
-# Geprüft wird aus der Sicht eines Nutzers: leerer Schlüsselring, nur der
-# exportierte öffentliche Schlüssel darin. Ein Exportfehler fiele sonst erst
-# beim ersten Release auf — nach dem Bauen, kurz vor dem Punkt, an dem die
-# Artefakte sichtbar werden.
+# Geprüft wird mit gpgv gegen die exportierte Keyring-Datei — kein Import,
+# kein Schlüsselring, kein Vertrauensmodell. Das ist zweimal richtig:
+#
+# Erstens ist es genau das, was auf der anderen Seite passiert. apt ruft für
+# die Release-Signatur gpgv mit der Datei aus /usr/share/keyrings auf. Wer mit
+# gpg --import prüft, prüft einen anderen Vorgang als den, der zählt.
+#
+# Zweitens braucht gpgv keinen gpg-agent. Der Vorgänger dieser Zeilen legte
+# einen zweiten, leeren GNUPGHOME an und ließ gpg dort importieren — dafür muss
+# ein zweiter Agent starten, und das scheitert auf macOS mit „can't connect to
+# the gpg-agent: IPC connect call failed". Die Prüfung fiel damit auf einem
+# Rechner aus, auf dem der Schlüssel selbst völlig in Ordnung war.
 echo "==> Beide Schlüssel gegen ihren öffentlichen Teil prüfen"
 echo "probe" > "${WORK}/probe.txt"
 
@@ -166,23 +181,22 @@ gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
     --local-user "$FINGERPRINT" --armor --detach-sign \
     -o "${WORK}/probe.sig" "${WORK}/probe.txt"
 
-VERIFY_HOME="${WORK}/gnupg-verify"
-mkdir -p "$VERIFY_HOME"
-chmod 700 "$VERIFY_HOME"
+# --homedir auf ein leeres Verzeichnis: --keyring ergänzt die Liste der
+# Schlüsselringe, es ersetzt sie nicht. Ohne diese Zeile zählte auch der
+# trustedkeys-Ring des angemeldeten Benutzers mit, und die Probe könnte
+# von einem Schlüssel angenommen werden, der gar nicht ausgeliefert wird.
+mkdir -p "${WORK}/gpgv-home"
+chmod 700 "${WORK}/gpgv-home"
 
-# Still bei Erfolg, vollständig bei Fehlschlag. gpg schreibt beim Prüfen eines
-# frischen Schlüssels immer „not certified with a trusted signature" — das ist
-# hier richtig so (ihn hat noch niemand beglaubigt) und nur dann eine Meldung
-# wert, wenn ohnehin etwas schiefging.
-{
-    GNUPGHOME="$VERIFY_HOME" gpg --quiet --import "${WORK}/archive-keyring.gpg" &&
-    GNUPGHOME="$VERIFY_HOME" gpg --quiet --verify "${WORK}/probe.sig" "${WORK}/probe.txt"
-} >"${WORK}/verify-gpg.log" 2>&1 || {
+if ! gpgv --homedir "${WORK}/gpgv-home" \
+          --keyring "${WORK}/archive-keyring.gpg" \
+          "${WORK}/probe.sig" "${WORK}/probe.txt" \
+          >"${WORK}/verify-gpg.log" 2>&1; then
     cat "${WORK}/verify-gpg.log" >&2
     echo "OpenPGP: Die Probe wurde nicht angenommen — der Export taugt nicht." >&2
     exit 1
-}
-echo "    OpenPGP: Signatur wird vom exportierten Schlüssel angenommen."
+fi
+echo "    OpenPGP: Signatur wird vom exportierten Schlüssel angenommen (gpgv, wie apt)."
 
 {
     printf '%s\n' "$MINISIGN_PASSPHRASE" \
@@ -200,6 +214,8 @@ cp "${WORK}/archive-keyring.gpg" "$KEYRING"
 cp "${WORK}/archive-keyring.asc" "$KEYRING_ASC"
 cp "${WORK}/minisign.pub"        "$MINISIGN_PUB"
 chmod 0644 "$KEYRING" "$KEYRING_ASC" "$MINISIGN_PUB"
+
+KEEP=1
 
 cat <<REPORT
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Account;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -14,6 +16,8 @@ use Tests\TestCase;
  */
 final class HealthTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_reports_not_ready_when_the_agent_is_unreachable(): void
     {
         config(['srvpanel.agent.socket' => '/nicht/vorhanden/agent.sock']);
@@ -31,6 +35,11 @@ final class HealthTest extends TestCase
         // Ohne Agent bleibt die Übersicht bedienbar und sagt, dass er schweigt.
         // Eine weiße Seite mit Stacktrace wäre die schlechtere Auskunft über
         // denselben Zustand.
-        $this->get('/')->assertOk();
+        //
+        // Seit P1 hinter der Anmeldung — der Zustand, den dieser Test prüft,
+        // ist derselbe geblieben.
+        $this->actingAs(Account::factory()->admin()->create())
+            ->get('/')
+            ->assertOk();
     }
 }

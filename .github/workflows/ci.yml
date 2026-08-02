@@ -176,6 +176,21 @@ jobs:
           docker exec target /opt/srvpanel/current/agent/bin/srvpanel-agentd call agent.ping
           docker exec target /opt/srvpanel/current/agent/bin/srvpanel-agentd call system.info | head -5
 
+      # Die Anmeldung hängt daran (§6.4). Ob das ausgelieferte PHP Argon2id
+      # kann, ist keine Frage der Konfiguration, sondern des Übersetzens —
+      # und damit eine Eigenschaft der Plattform, nicht des Projekts. Fehlt
+      # es, scheitert nicht die Anmeldung, sondern schon das Anlegen des
+      # ersten Adminkontos; das soll hier auffallen und nicht dort.
+      - name: PHP kann Argon2id
+        run: |
+          docker exec target /opt/srvpanel/bin/php -r '
+            if (! defined("PASSWORD_ARGON2ID")) { fwrite(STDERR, "PASSWORD_ARGON2ID fehlt\n"); exit(1); }
+            $h = password_hash("probe", PASSWORD_ARGON2ID, ["memory_cost" => 65536, "time_cost" => 4, "threads" => 1]);
+            if (! is_string($h) || ! str_starts_with($h, "$argon2id$")) { fwrite(STDERR, "kein argon2id-Hash\n"); exit(1); }
+            if (! password_verify("probe", $h)) { fwrite(STDERR, "Prüfung schlug fehl\n"); exit(1); }
+            echo "argon2id: ", substr($h, 0, 30), "\n";
+          '
+
       - name: Der Socket ist nicht für alle offen
         run: |
           mode="$(docker exec target stat -c '%a %U:%G' /run/srvpanel/agent.sock)"

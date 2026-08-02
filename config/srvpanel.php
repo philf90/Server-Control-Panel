@@ -24,6 +24,23 @@ return [
     ],
 
     /*
+     * Sitzungen (§6.4).
+     *
+     * Zwei Grenzen, und sie tun Verschiedenes: Die gleitende steht in
+     * config/session.php („wer nichts tut, fliegt raus"), die absolute hier
+     * („auch wer etwas tut, muss sich irgendwann neu anmelden"). Ohne die
+     * zweite läuft eine Sitzung, in der jemand alle zehn Minuten klickt,
+     * wochenlang weiter — bei einem Panel, das als root arbeitet, ist das der
+     * Unterschied zwischen einem vergessenen Browser bis Feierabend und einem
+     * bis auf Weiteres.
+     *
+     * 12 Stunden ist ein Arbeitstag. 0 schaltet die Grenze ab.
+     */
+    'session' => [
+        'absolute_lifetime' => (int) env('SRVPANEL_SESSION_ABSOLUTE_LIFETIME', 43200),
+    ],
+
+    /*
      * Vorgaben der Oberfläche. Beide Achsen aus §7.2 des Plans; die
      * Kundenfläche setzt die Dichte selbst auf „kunde".
      */

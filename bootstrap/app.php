@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\ApplyTenancy;
+use App\Http\Middleware\EnforceSessionLifetime;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,9 +15,20 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Die Reihenfolge trägt Bedeutung.
+        //
+        // EnforceSessionLifetime steht vorn: Eine abgelaufene Sitzung soll
+        // beendet sein, bevor irgendetwas anderes sie als angemeldet ansieht.
+        // ApplyTenancy folgt, weil es ein angemeldetes Konto braucht — und
+        // steht vor HandleInertiaRequests, damit auch die Daten, die dieses
+        // an jede Seite anhängt, schon unter der Mandantenklammer entstehen.
         $middleware->web(append: [
+            EnforceSessionLifetime::class,
+            ApplyTenancy::class,
             HandleInertiaRequests::class,
         ]);
+
+        $middleware->redirectGuestsTo(fn () => route('anmeldung'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

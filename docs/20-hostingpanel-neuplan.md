@@ -364,6 +364,8 @@ die Adminfläche, API-Tokens mit Bereichen und Ablauf.
 
 ## 7. Oberfläche
 
+### 7.1 Grundlagen
+
 - **Zwei Flächen, ein Bau.** Adminfläche (`/admin`) und Kundenfläche (`/`)
   teilen Komponenten und Gestaltung, unterscheiden sich in Navigation und
   Rechten.
@@ -378,6 +380,86 @@ die Adminfläche, API-Tokens mit Bereichen und Ablauf.
 - **Mehrsprachig von Anfang an** (DE/EN), Sprache je Konto.
 - **Bestätigungsstufen** für riskante Aktionen: lesen → tippen → Sicherung
   anbieten. Löschen eines Abonnements verlangt den Namen.
+
+### 7.2 Gestaltungssystem „Leitstand"
+
+Entschieden aus drei Vorschlägen; die verworfenen sind mitsamt ihren Vor- und
+Nachteilen in [entwuerfe/20-stilvorschlaege.html](entwuerfe/20-stilvorschlaege.html)
+festgehalten und nicht gelöscht — eine Entscheidung ohne ihre Alternativen ist
+in einem halben Jahr nicht mehr nachvollziehbar.
+
+**Die Richtung in einem Satz:** dunkel, dicht, instrumentenhaft — Zahlen stehen
+in Monospace und damit spaltengenau untereinander, und Farbe bedeutet etwas
+oder wird nicht benutzt.
+
+#### Marken (Token)
+
+| Rolle | Wert |
+|---|---|
+| Grund | `#0B0F13` |
+| Bereich | `#111922`, Rand `#1C2733` |
+| Navigation | `#080C10`, Rand `#1A232D` |
+| Text | `#EAF1F8` stark · `#B9C7D4` normal · `#6F8090` ruhig |
+| Akzent | `#E0A340` (Amber) — Signal, Zustand, aktive Navigation, primäre Aktion |
+| Zustände | ok `#4FB286` · Warnung `#E0A340` · kritisch `#D8604A` |
+| Radius | 3 px. Kein größerer Wert, nirgends |
+| Trennung | 1 px Rand, keine Schatten |
+
+Die Zustandsfarben sind vom Akzent getrennt zu denken, auch wo sie denselben
+Farbwert haben: Amber als Warnung heißt etwas anderes als Amber am aktiven
+Menüpunkt. Wo beides in einer Zeile stünde, gewinnt der Zustand.
+
+#### Schrift
+
+- **Ziffern, Kennungen, Pfade, Zeitstempel: Monospace.** Das ist keine Zierde —
+  es ist der Grund, warum sich Werte in einer Tabelle vergleichen lassen, ohne
+  sie zu lesen. Überall `font-variant-numeric: tabular-nums`.
+- **Fließtext, Beschriftungen, Überschriften: Grotesk** (System-Stack, keine
+  nachgeladene Schrift — eine Schrift, die nicht ankommt, ist eine Oberfläche,
+  die anders aussieht als geplant).
+- Kleine Beschriftungen in Versalien mit Sperrung (`.09em`), sonst keine
+  Versalien.
+
+#### Dichte in zwei Stufen
+
+Die Kritik am dunkelen, dichten Zuschnitt trifft die Kundenfläche, nicht die
+Adminfläche. Sie wird nicht durch eine zweite Gestaltung aufgefangen, sondern
+durch eine zweite Dichtestufe im selben System:
+
+| | Adminfläche | Kundenfläche |
+|---|---|---|
+| Zeilenhöhe Tabelle | 34 px | 42 px |
+| Abstand der Bereiche | 10 px | 16 px |
+| Erklärsatz unter der Überschrift | nur wo nötig | immer |
+| Kacheln je Reihe | 4 | 3 |
+
+Gleiche Marken, gleiche Bausteine, gleicher Code — ein Attribut am
+Wurzelelement schaltet um.
+
+#### Das helle Theme ist Pflicht, nicht Nacharbeit
+
+Die dunkle Fassung ist die, in der diese Richtung ihren Charakter hat. Sie ist
+trotzdem nicht die einzige: Ein Kunde, der sein Abonnement am hellen
+Bürobildschirm ansieht, hat ein Recht auf eine Fläche, die dort lesbar ist.
+Beide Themes entstehen in **P1 zusammen** über dieselben Marken; das helle
+nachträglich aufzusetzen, hieße jede Farbentscheidung zweimal zu treffen.
+
+#### Bausteine, die in P1 fertig werden
+
+Kachel mit Verlauf (§4.6) · Tabelle mit Zustandsmarke und Balken ·
+Vorgangszeile mit Fortschritt und Ausgabe · Rückfrage in drei Stufen ·
+Bereichsrahmen · Navigation mit Gruppen · Meldungsband · Formularzeile mit
+Erklärsatz und Fehlerbild · leerer Zustand · Ladezustand.
+
+#### Zwei Prüfungen, die mitlaufen
+
+1. **Kontrast.** Jede Text-auf-Grund-Kombination erreicht mindestens AA
+   (4,5:1 für Fließtext, 3:1 für große Schrift). Bei dunklen Oberflächen
+   scheitert das regelmäßig an den ruhigen Grautönen — deshalb geprüft und
+   nicht geschätzt.
+2. **Farbe ist nie der einzige Träger.** Jeder Zustand hat neben der Farbe ein
+   Wort oder eine Form. Ein rotes Feld ohne Beschriftung ist für rund acht
+   Prozent der männlichen Nutzer kein Signal.
 
 ## 8. Querschnittsregeln für jede Ausbaustufe
 
@@ -441,6 +523,7 @@ angemeldet, aktualisiert und zurückgerollt werden kann.
   für die Tests
 - Oberflächengerüst: Navigation, Gestaltung, Bestätigungsstufen, Sprachen,
   Fehlerbilder, „Anmelden als", Quellenlink in der Fußzeile (Auflage der AGPL, Abschnitt 13)
+- Gestaltungssystem „Leitstand" (§7.2) in beiden Dichtestufen und beiden Themes
 - **`cloudsrv-metrics` und die Adminübersicht mit Spikelines** (§4.6): CPU,
   RAM, Load, Netz, IO, Datenträger, dazu Prozessliste, Dateisysteme, Uptime
 

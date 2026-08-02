@@ -79,7 +79,7 @@ sleep 4
 docker exec "${NAME}" srvpanel setup --port=8443
 
 note "Oberfläche antwortet"
-docker exec "${NAME}" curl -fsS -k https://127.0.0.1:8443/gesundheit
+docker exec "${NAME}" curl -fsS -k https://127.0.0.1:8443/health
 echo
 
 note "Entfernen hinterlässt keine Dienste, aber die Daten"

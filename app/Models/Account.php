@@ -1,0 +1,152 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use App\Enums\AccountStatus;
+use App\Enums\AccountType;
+use App\Support\Tenancy\Tenancy;
+use Database\Factories\AccountFactory;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Carbon;
+
+/**
+ * Ein Anmeldekonto.
+ *
+ * Konto und Kunde sind absichtlich getrennt: Ein Kunde ist der
+ * Vertragspartner, ein Konto ist ein Mensch, der sich anmeldet. Zu einem
+ * Kunden gehören ein Kundenkonto und beliebig viele Zusatzbenutzer — und der
+ * Vertragspartner kann eine Firma sein, die sich nicht anmeldet.
+ *
+ * Die @property-Zeilen sind kein Beiwerk für die Entwicklungsumgebung: Ohne
+ * sie sieht die statische Prüfung hinter `$account->type` nur die Spalte und
+ * damit eine Zeichenkette — jeder Aufruf einer Enum-Methode darauf wäre ein
+ * Fehler, den sie melden muss und nicht melden sollte.
+ *
+ * @property int $id
+ * @property AccountType $type
+ * @property int|null $customer_id
+ * @property string $name
+ * @property string $email
+ * @property string $password
+ * @property string $locale
+ * @property AccountStatus $status
+ * @property string|null $two_factor_secret
+ * @property list<string>|null $two_factor_recovery_codes
+ * @property Carbon|null $two_factor_confirmed_at
+ * @property Carbon|null $last_login_at
+ * @property string|null $last_login_ip
+ * @property-read Customer|null $customer
+ * @property-read Collection<int, Subscription> $assignedSubscriptions
+ */
+class Account extends Authenticatable
+{
+    /** @use HasFactory<AccountFactory> */
+    use HasFactory;
+
+    /** @var list<string> */
+    protected $fillable = [
+        'type', 'customer_id', 'name', 'email', 'password', 'locale', 'status',
+    ];
+
+    /** @var list<string> */
+    protected $hidden = [
+        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes',
+    ];
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return [
+            'type' => AccountType::class,
+            'status' => AccountStatus::class,
+            'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
+            'last_login_at' => 'datetime',
+        ];
+    }
+
+    /** @return BelongsTo<Customer, $this> */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Die ausdrücklich zugewiesenen Abonnements eines Zusatzbenutzers.
+     *
+     * Für Kundenkonten ist diese Beziehung leer — die kommen über ihren
+     * Kunden an ihre Abonnements, nicht über eine Zuweisung.
+     *
+     * @return BelongsToMany<Subscription, $this>
+     */
+    public function assignedSubscriptions(): BelongsToMany
+    {
+        return $this->belongsToMany(Subscription::class)
+            ->withPivot(['permissions', 'domain_ids'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Welche Abonnements dieses Konto sehen darf.
+     *
+     * **Über die Zugehörigkeitskette, nicht über einen festen Vergleich.**
+     * Heute ist die Kette einen Schritt lang: Konto → Kunde → Abonnements.
+     * Sobald ein Kunde Unterkunden hat (§5.4), wird sie länger, und dann ist
+     * genau diese Methode die einzige Stelle, die sich ändert. Ein
+     * `where customer_id = $this->customer_id` an dreißig Stellen wäre
+     * derselbe Code — nur nicht mehr zu finden.
+     *
+     * Die Abfrage läuft ohne Mandantenklammer, denn sie stellt sie ja gerade
+     * erst her.
+     *
+     * @return list<int>
+     */
+    public function accessibleSubscriptionIds(): array
+    {
+        if ($this->type->isAdmin()) {
+            return app(Tenancy::class)->withoutRestriction(
+                static fn (): array => Subscription::query()
+                    ->pluck('id')->map(intval(...))->values()->all()
+            );
+        }
+
+        if ($this->type === AccountType::Additional) {
+            return app(Tenancy::class)->withoutRestriction(
+                fn (): array => $this->assignedSubscriptions()
+                    ->pluck('subscriptions.id')->map(intval(...))->values()->all()
+            );
+        }
+
+        if ($this->customer_id === null) {
+            return [];
+        }
+
+        return app(Tenancy::class)->withoutRestriction(function (): array {
+            $customerIds = $this->customer?->descendantIdsIncludingSelf() ?? [];
+
+            if ($customerIds === []) {
+                return [];
+            }
+
+            return Subscription::query()
+                ->whereIn('customer_id', $customerIds)
+                ->pluck('id')
+                ->map(intval(...))
+                ->values()
+                ->all();
+        });
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->type->isAdmin();
+    }
+}

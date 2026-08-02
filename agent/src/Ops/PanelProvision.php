@@ -79,6 +79,20 @@ final class PanelProvision implements Op
             'DB_USERNAME' => $user,
             'DB_PASSWORD' => $password,
             'SESSION_DRIVER' => 'database',
+
+            // Das Panel spricht ausschließlich HTTPS — der Server-Block hört
+            // auf keinem Klartext-Port. Damit kann das Sitzungs-Cookie fest
+            // auf „secure" stehen, und „strict" beim SameSite ist möglich,
+            // weil es keine Anmeldung über eine fremde Seite gibt.
+            //
+            // In der Entwicklung bleibt beides ungesetzt: Dort läuft die
+            // Anwendung über http://localhost, und ein secure-Cookie käme
+            // dort nie an — mit dem Ergebnis, dass die Anmeldung wortlos
+            // scheitert.
+            'SESSION_SECURE_COOKIE' => 'true',
+            'SESSION_SAME_SITE' => 'strict',
+            'SESSION_ENCRYPT' => 'true',
+
             'QUEUE_CONNECTION' => 'database',
             'CACHE_STORE' => 'database',
             'SRVPANEL_AGENT_SOCKET' => '/run/srvpanel/agent.sock',

@@ -102,8 +102,23 @@ panel_ready() {
         return 0
     fi
 
+    # Zwei Pfade, und das ist kein Schmuck.
+    #
+    # Die Bereitschaftsprüfung hieß bis 0.1.0-rc.1 /gesundheit und heißt seit
+    # rc.2 /health. Für das Update nach vorn reicht der neue Pfad — geprüft
+    # wird ja die neue Fassung. Der Rückweg prüft aber die *vorige*, und die
+    # kennt nur den alten. Ohne diese zweite Zeile meldete ein Rückweg auf
+    # rc.1 „auch die vorige Fassung antwortet nicht", obwohl sie längst
+    # wieder läuft — und zwar genau in dem Moment, in dem man sich auf die
+    # Meldung verlassen muss.
+    #
+    # Die zweite Zeile darf weg, sobald keine Installation mehr von rc.1
+    # kommen kann.
     i=0
     while [ "${i}" -lt "${READY_TIMEOUT}" ]; do
+        if curl -fsS -k --max-time 3 "https://127.0.0.1:${port}/health" >/dev/null 2>&1; then
+            return 0
+        fi
         if curl -fsS -k --max-time 3 "https://127.0.0.1:${port}/gesundheit" >/dev/null 2>&1; then
             return 0
         fi

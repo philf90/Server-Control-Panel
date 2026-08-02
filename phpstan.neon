@@ -1,3 +1,19 @@
+includes:
+    # Larastan lehrt PHPStan Eloquent.
+    #
+    # Ohne diese Zeile sind `$model->id`, `Account::factory()->admin()` und
+    # jede Beziehung eine „undefined property" — PHPStan sieht dort nur
+    # Model::__get(). In P0 fiel das nicht auf, weil es keine Modelle gab; mit
+    # dem Datenmodell aus P1 waren es auf einen Schlag hundert Meldungen, alle
+    # vom selben Muster und keine davon ein echter Fehler.
+    #
+    # Die Alternative wäre gewesen, die Stufe zu senken oder überall
+    # Anmerkungen zu streuen. Beides hätte die Prüfung entwertet: Eine Stufe
+    # tiefer sieht auch echte Fehler nicht mehr, und Anmerkungen, die man
+    # schreibt, um ein Werkzeug ruhigzustellen, liest später niemand als
+    # Aussage.
+    - vendor/larastan/larastan/extension.neon
+
 parameters:
     level: 6
     paths:

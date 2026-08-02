@@ -101,7 +101,12 @@ class Customer extends Model
         $ids = [(int) $this->id];
         $frontier = [(int) $this->id];
 
-        for ($depth = 0; $depth < $maxDepth && $frontier !== []; $depth++) {
+        // Die Abbruchbedingung steht unten am `break`, nicht hier: `$frontier`
+        // ist beim Eintritt immer nicht leer — entweder mit der eigenen ID
+        // gefüllt oder mit den zuletzt gefundenen Kindern, und ein leeres
+        // Ergebnis hat die Schleife schon verlassen. Eine zweite Prüfung an
+        // dieser Stelle sähe nach Sorgfalt aus und wäre toter Code.
+        for ($depth = 0; $depth < $maxDepth; $depth++) {
             /** @var list<int> $children */
             $children = self::query()
                 ->whereIn('parent_customer_id', $frontier)

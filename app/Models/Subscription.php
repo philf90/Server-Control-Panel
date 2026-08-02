@@ -98,7 +98,9 @@ class Subscription extends Model
             return $overrides[$key];
         }
 
-        return ($this->plan?->quotas ?? [])[$key] ?? null;
+        // Kein `?->` vor `??`: Der Null-Zusammenführungsoperator hat
+        // isset-Semantik und fängt einen fehlenden Plan schon selbst ab.
+        return ($this->plan->quotas ?? [])[$key] ?? null;
     }
 
     /** Weicht dieses Kontingent vom Plan ab? Die Oberfläche markiert das. */
@@ -109,7 +111,7 @@ class Subscription extends Model
 
     public function feature(string $key): bool
     {
-        return (bool) (($this->plan?->features ?? [])[$key] ?? false);
+        return (bool) (($this->plan->features ?? [])[$key] ?? false);
     }
 
     public function usable(): bool

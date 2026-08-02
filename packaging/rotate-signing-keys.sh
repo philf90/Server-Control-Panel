@@ -210,16 +210,26 @@ Actions. Die Werte stehen in den genannten Dateien:
   MINISIGN_KEY         <  ${WORK}/MINISIGN_KEY.key  (beide Zeilen)
   MINISIGN_PASSWORD       ${MINISIGN_PASSPHRASE}
 
-Danach in dieser Reihenfolge:
+Danach in dieser Reihenfolge — die Reihenfolge ist nicht beliebig:
 
   1. Passphrasen und beide privaten Dateien in den Passwortspeicher.
-  2. Actions → „Signatur-Secrets prüfen" von Hand auslösen. Der Lauf
-     signiert wirklich und prüft gegen die öffentlichen Teile aus dem
-     Repository. Erst wenn er grün ist, passt alles zusammen.
-  3. rm -rf ${WORK}
-  4. Die drei geänderten Dateien committen.
+  2. Die drei geänderten Dateien committen und pushen. **Vor der Prüfung**:
+     Sie checkt den Keyring aus dem Repository aus. Läge dort noch der
+     alte, meldete sie einen Fingerprint-Fehler — der wie ein falsch
+     eingefügtes Secret aussieht und keiner ist.
+  3. Die vier Secrets setzen.
+  4. Actions → „Signatur-Secrets prüfen" von Hand auslösen, auf dem
+     Branch, auf dem die neuen Schlüssel liegen. Der Lauf signiert
+     wirklich und veröffentlicht nichts. Erst wenn er grün ist, passt
+     alles zusammen.
+  5. rm -rf ${WORK}
 
-Vorher nichts taggen: Ein Release mit einem Secret, das nicht zum
-veröffentlichten Schlüssel passt, bricht mitten im Veröffentlichen ab.
+Ein Pull Request ist dafür nicht nötig; die Prüfung läuft auf jedem Branch.
+Vor dem ersten Tag müssen die neuen Schlüssel aber auf main liegen — die
+Freigabe wird vom Tag ausgelöst und liest sie von dort.
+
+Nichts taggen, solange die Prüfung nicht grün war: Ein Release mit einem
+Secret, das nicht zum veröffentlichten Schlüssel passt, bricht mitten im
+Veröffentlichen ab.
 ────────────────────────────────────────────────────────────────────────
 REPORT

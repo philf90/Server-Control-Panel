@@ -51,21 +51,33 @@ Was es tut:
    **außerhalb** des Arbeitsbaums — damit es nicht versehentlich in einen
    Commit gerät — und nennt den Pfad.
 
-Danach, in dieser Reihenfolge:
+Danach, und die Reihenfolge ist nicht beliebig:
 
 1. Passphrasen und beide privaten Dateien in den Passwortspeicher.
-2. Die vier Secrets setzen (Settings → Secrets and variables → Actions).
-3. Actions → **„Signatur-Secrets prüfen"** von Hand auslösen. Der Lauf
-   signiert wirklich und verifiziert gegen die öffentlichen Teile aus dem
-   Repository, veröffentlicht aber nichts. Erst wenn er grün ist, passt alles
-   zusammen.
-4. Das temporäre Verzeichnis löschen.
-5. Die drei geänderten Dateien committen.
+2. **Die drei geänderten Dateien committen und pushen.** Das muss vor die
+   Prüfung, weil die den Keyring aus dem Repository auscheckt und den
+   Fingerprint des Secrets damit vergleicht. Läge dort noch der alte, meldete
+   sie eine Abweichung — die wie ein falsch eingefügtes Secret aussieht und
+   keins ist.
+3. Die vier Secrets setzen (Settings → Secrets and variables → Actions).
+   Repository-Secrets gelten für alle Branches.
+4. Actions → **„Signatur-Secrets prüfen"** von Hand auslösen, auf dem Branch,
+   auf dem die neuen Schlüssel liegen. Der Lauf signiert wirklich und
+   verifiziert gegen die öffentlichen Teile aus dem Repository, veröffentlicht
+   aber nichts. Erst wenn er grün ist, passt alles zusammen.
+5. Das temporäre Verzeichnis löschen.
 
-**Erst danach taggen.** Passt das Secret nicht zum veröffentlichten Schlüssel,
-bricht die Freigabe mitten im Veröffentlichen ab — nach dem Bauen, nach dem
-Anlegen des GitHub-Release. Die Freigabe prüft den Fingerprint an genau dieser
-Stelle und verweigert lieber, als falsch zu signieren.
+**Ein Pull Request ist dafür nicht nötig.** Die Prüfung läuft auf jedem
+Branch. Vor dem ersten Tag müssen die neuen Schlüssel aber auf `main` liegen:
+Die Freigabe wird vom Tag ausgelöst und liest den Keyring von dort — ein Tag
+auf einem Stand ohne die neuen Schlüssel signiert mit einem Secret, das nicht
+dazu passt.
+
+**Erst nach grüner Prüfung taggen.** Passt das Secret nicht zum
+veröffentlichten Schlüssel, bricht die Freigabe mitten im Veröffentlichen ab —
+nach dem Bauen, nach dem Anlegen des GitHub-Release. Die Freigabe prüft den
+Fingerprint an genau dieser Stelle und verweigert lieber, als falsch zu
+signieren.
 
 ## Kein Ablaufdatum, und warum
 

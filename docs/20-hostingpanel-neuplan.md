@@ -124,8 +124,13 @@ werden kann, ohne dass sich für die Anwendung etwas ändert.
   PHP-Version, Zertifikatspfade), nicht Text. Freitextfelder („eigene
   Direktiven") sind auf wenige Stellen begrenzt und werden gegen eine
   Positivliste erlaubter Direktiven geprüft.
-- **Aufruferprüfung.** `SO_PEERCRED`: nur die UID des Panel-Benutzers wird
-  bedient.
+- **Aufruferprüfung.** `SO_PASSCRED` und `SCM_CREDENTIALS`: Der Kernel legt
+  pid, uid und gid des Senders an die erste Nachricht; bedient wird nur die UID
+  des Panel-Benutzers (und root, für Bereitschaftsprüfung und Rauchtest).
+  *Nachgezogen in P0:* Hier stand `SO_PEERCRED`. Die Konstante gibt es in PHPs
+  Socket-Extension nicht (geprüft mit 8.4). Die Auskunft ist dieselbe und
+  kommt aus derselben Quelle — ausgefüllt wird sie beim Senden vom Kernel und
+  nicht vom Programm, also vom Absender nicht zu fälschen.
 - **Ausführung.** Absolute Pfade aus einer Programm-Positivliste, kein `$PATH`,
   keine Shell, Argumente als Array, feste Umgebung (`LC_ALL=C`), Zeitlimit je
   Operation, Ausgabe bei 4 MiB gekappt.

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CloudSrv\Agent\Ops;
 
-use CloudSrv\Agent\Kontext;
+use CloudSrv\Agent\Context;
 use CloudSrv\Agent\Op;
 use CloudSrv\Agent\Version;
 
@@ -22,16 +22,16 @@ final class AgentPing implements Op
         return 'agent.ping';
     }
 
-    public static function veraendernd(): bool
+    public static function mutating(): bool
     {
         return false;
     }
 
-    public function fuehreAus(array $args, Kontext $kontext): array
+    public function execute(array $args, Context $context): array
     {
         return [
             'agent' => Version::AGENT,
-            'protokoll' => Version::PROTOKOLL,
+            'protocol' => Version::PROTOCOL,
             'php' => PHP_VERSION,
             'pid' => getmypid(),
             'uid' => posix_getuid(),

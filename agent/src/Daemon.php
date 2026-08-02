@@ -22,9 +22,9 @@ final class Daemon
 {
     private ?Socket $server = null;
 
-    private bool $laeuft = true;
+    private bool $running = true;
 
-    private int $kinder = 0;
+    private int $children = 0;
 
     public function __construct(
         private readonly Config $config,
@@ -32,28 +32,28 @@ final class Daemon
         private readonly Journal $journal,
     ) {}
 
-    public function starte(): int
+    public function start(): int
     {
-        if (posix_getuid() !== 0 && ! $this->config->erlaubeUnprivilegiert) {
+        if (posix_getuid() !== 0 && ! $this->config->allowUnprivileged) {
             fwrite(STDERR, "cloudsrv-agentd muss als root laufen.\n");
 
             return 1;
         }
 
-        $anwendungsUid = $this->anwendungsUid();
+        $appUid = $this->appUid();
 
-        $this->oeffneSocket();
-        $this->signale();
+        $this->openSocket();
+        $this->installSignals();
 
-        $this->journal->schreibe('start', [
+        $this->journal->write('start', [
             'agent' => Version::AGENT,
-            'protokoll' => Version::PROTOKOLL,
+            'protocol' => Version::PROTOCOL,
             'socket' => $this->config->socket,
-            'anwendung_uid' => $anwendungsUid,
-            'ops' => $this->registry->namen(),
+            'app_uid' => $appUid,
+            'ops' => $this->registry->names(),
         ]);
 
-        while ($this->laeuft) {
+        while ($this->running) {
             // Warten mit Frist statt blockierendem accept().
             //
             // Der erste Anlauf hier war ein blockierendes socket_accept() in
@@ -68,54 +68,54 @@ final class Daemon
             // Mit select und Frist ist das Beenden nicht mehr davon abhängig,
             // wie ein Signal einen Systemaufruf trifft: Spätestens nach einer
             // Sekunde sieht die Schleife das Flag.
-            $lesen = [$this->server];
-            $schreiben = null;
-            $sonst = null;
+            $read = [$this->server];
+            $write = null;
+            $except = null;
 
-            if (@socket_select($lesen, $schreiben, $sonst, 1) < 1) {
+            if (@socket_select($read, $write, $except, 1) < 1) {
                 continue;
             }
 
-            $verbindung = @socket_accept($this->server);
+            $connection = @socket_accept($this->server);
 
-            if ($verbindung === false) {
+            if ($connection === false) {
                 continue;
             }
 
-            if ($this->kinder >= $this->config->maxKinder) {
-                $this->weiseAb($verbindung);
-
-                continue;
-            }
-
-            $kind = pcntl_fork();
-
-            if ($kind === -1) {
-                $this->weiseAb($verbindung);
+            if ($this->children >= $this->config->maxChildren) {
+                $this->reject($connection);
 
                 continue;
             }
 
-            if ($kind === 0) {
+            $child = pcntl_fork();
+
+            if ($child === -1) {
+                $this->reject($connection);
+
+                continue;
+            }
+
+            if ($child === 0) {
                 // Im Kind: der Serversocket wird nicht gebraucht und darf beim
                 // Ende des Kindes nicht mit abgeräumt werden.
                 socket_close($this->server);
-                $bediener = new Verbindung($verbindung, $this->registry, $this->journal, $this->config, $anwendungsUid);
-                $bediener->bediene();
+                $connection = new Connection($connection, $this->registry, $this->journal, $this->config, $appUid);
+                $connection->serve();
                 exit(0);
             }
 
-            $this->kinder++;
-            socket_close($verbindung);
-            $this->ernteKinder();
+            $this->children++;
+            socket_close($connection);
+            $this->reapChildren();
         }
 
-        $this->raeumeAuf();
+        $this->cleanUp();
 
         return 0;
     }
 
-    private function oeffneSocket(): void
+    private function openSocket(): void
     {
         // Ein Unix-Socket-Pfad ist im Kernel auf 108 Zeichen begrenzt
         // (sun_path in struct sockaddr_un). PHP wirft darüber eine
@@ -130,10 +130,10 @@ final class Daemon
             exit(1);
         }
 
-        $verzeichnis = dirname($this->config->socket);
+        $directory = dirname($this->config->socket);
 
-        if (! is_dir($verzeichnis) && ! @mkdir($verzeichnis, 0o755, true) && ! is_dir($verzeichnis)) {
-            fwrite(STDERR, "Verzeichnis {$verzeichnis} ließ sich nicht anlegen.\n");
+        if (! is_dir($directory) && ! @mkdir($directory, 0o755, true) && ! is_dir($directory)) {
+            fwrite(STDERR, "Verzeichnis {$directory} ließ sich nicht anlegen.\n");
             exit(1);
         }
 
@@ -163,43 +163,43 @@ final class Daemon
         // Erst die Rechte, dann die Gruppe: Zwischen bind und chmod steht der
         // Socket sonst kurz mit den Rechten aus der umask da.
         @chmod($this->config->socket, 0o660);
-        @chgrp($this->config->socket, $this->config->gruppe);
+        @chgrp($this->config->socket, $this->config->group);
 
         $this->server = $server;
     }
 
-    private function anwendungsUid(): int
+    private function appUid(): int
     {
-        $eintrag = posix_getpwnam($this->config->benutzer);
+        $entry = posix_getpwnam($this->config->user);
 
-        if ($eintrag === false) {
-            if ($this->config->erlaubeUnprivilegiert) {
+        if ($entry === false) {
+            if ($this->config->allowUnprivileged) {
                 return posix_getuid();
             }
 
-            fwrite(STDERR, "Benutzer {$this->config->benutzer} existiert nicht.\n");
+            fwrite(STDERR, "Benutzer {$this->config->user} existiert nicht.\n");
             exit(1);
         }
 
-        return (int) $eintrag['uid'];
+        return (int) $entry['uid'];
     }
 
-    private function weiseAb(Socket $verbindung): void
+    private function reject(Socket $connection): void
     {
-        @socket_write($verbindung, json_encode([
+        @socket_write($connection, json_encode([
             'type' => 'result',
             'ok' => false,
             'error' => [
                 'code' => 'busy',
                 'message' => 'Der Agent bedient bereits die höchstzulässige Zahl gleichzeitiger Aufträge.',
-                'details' => ['max' => $this->config->maxKinder],
+                'details' => ['max' => $this->config->maxChildren],
             ],
         ], JSON_UNESCAPED_UNICODE)."\n");
-        @socket_close($verbindung);
-        $this->journal->schreibe('ueberlast', ['kinder' => $this->kinder]);
+        @socket_close($connection);
+        $this->journal->write('overload', ['kinder' => $this->children]);
     }
 
-    private function signale(): void
+    private function installSignals(): void
     {
         pcntl_async_signals(true);
 
@@ -207,31 +207,31 @@ final class Daemon
         // Das select dort trägt die Beendigung; dass der Systemaufruf zusätzlich
         // abbricht, macht sie nur schneller.
         pcntl_signal(SIGTERM, function (): void {
-            $this->laeuft = false;
+            $this->running = false;
         }, false);
         pcntl_signal(SIGINT, function (): void {
-            $this->laeuft = false;
+            $this->running = false;
         }, false);
         pcntl_signal(SIGCHLD, function (): void {
-            $this->ernteKinder();
+            $this->reapChildren();
         });
         pcntl_signal(SIGPIPE, SIG_IGN);
     }
 
-    private function ernteKinder(): void
+    private function reapChildren(): void
     {
-        while (($pid = pcntl_waitpid(-1, $stand, WNOHANG)) > 0) {
-            $this->kinder = max(0, $this->kinder - 1);
+        while (($pid = pcntl_waitpid(-1, $status, WNOHANG)) > 0) {
+            $this->children = max(0, $this->children - 1);
         }
     }
 
-    private function raeumeAuf(): void
+    private function cleanUp(): void
     {
         if ($this->server !== null) {
             socket_close($this->server);
         }
 
         @unlink($this->config->socket);
-        $this->journal->schreibe('ende', []);
+        $this->journal->write('stop', []);
     }
 }

@@ -18,64 +18,64 @@ namespace CloudSrv\Agent;
  */
 final class Journal
 {
-    private ?string $vorgang = null;
+    private ?string $request = null;
 
     /** @var array<string,mixed>|null */
-    private ?array $urheber = null;
+    private ?array $origin = null;
 
-    public function __construct(private readonly string $datei) {}
+    public function __construct(private readonly string $file) {}
 
-    /** @param array<string,mixed>|null $urheber */
-    public function vorgangBeginnt(string $id, ?array $urheber): void
+    /** @param array<string,mixed>|null $origin */
+    public function requestStarted(string $id, ?array $origin): void
     {
-        $this->vorgang = $id;
-        $this->urheber = $urheber;
+        $this->request = $id;
+        $this->origin = $origin;
     }
 
-    public function vorgangEndet(): void
+    public function requestEnded(): void
     {
-        $this->vorgang = null;
-        $this->urheber = null;
+        $this->request = null;
+        $this->origin = null;
     }
 
-    /** @param array<string,mixed> $felder */
-    public function schreibe(string $art, array $felder = []): void
+    /** @param array<string,mixed> $fields */
+    public function write(string $kind, array $fields = []): void
     {
-        $zeile = array_merge([
+        $line = array_merge([
             'ts' => gmdate('Y-m-d\TH:i:s\Z'),
-            'art' => $art,
-            'vorgang' => $this->vorgang,
-            'urheber' => $this->urheber,
-        ], $felder);
+            'kind' => $kind,
+            'request' => $this->request,
+            'origin' => $this->origin,
+        ], $fields);
 
-        $json = json_encode($zeile, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $json = json_encode($line, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         if ($json === false) {
             return;
         }
 
-        $griff = @fopen($this->datei, 'a');
-        if ($griff === false) {
+        $handle = @fopen($this->file, 'a');
+        if ($handle === false) {
             // Ein Agent, der nicht protokollieren kann, soll trotzdem laufen —
             // aber sichtbar: die Meldung geht an den Journald-Kanal von systemd.
-            fwrite(STDERR, "Protokoll nicht schreibbar: {$this->datei}\n");
+            fwrite(STDERR, "Protokoll nicht schreibbar: {$this->file}\n");
 
             return;
         }
 
-        flock($griff, LOCK_EX);
-        fwrite($griff, $json."\n");
-        flock($griff, LOCK_UN);
-        fclose($griff);
+        flock($handle, LOCK_EX);
+        fwrite($handle, $json."\n");
+        flock($handle, LOCK_UN);
+        fclose($handle);
     }
 
-    /** @param list<string> $befehl */
-    public function befehl(array $befehl, ?int $code, float $dauer): void
+    /** @param list<string> $command */
+    public function command(array $command, ?int $code, float $duration): void
     {
-        $this->schreibe('befehl', [
-            'befehl' => $befehl,
+        $this->write('command', [
+            'command' => $command,
             'code' => $code,
-            'dauer_ms' => (int) round($dauer * 1000),
+            'duration_ms' => (int) round($duration * 1000),
         ]);
     }
 }

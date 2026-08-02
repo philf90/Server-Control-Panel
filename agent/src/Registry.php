@@ -23,24 +23,24 @@ final class Registry
 
     public function __construct(Config $config)
     {
-        $this->registriere(new AgentPing);
-        $this->registriere(new SystemInfo);
-        $this->registriere(new ServiceStatus);
-        $this->registriere(new ConfigValidate($config->pruefbareWurzeln));
+        $this->register(new AgentPing);
+        $this->register(new SystemInfo);
+        $this->register(new ServiceStatus);
+        $this->register(new ConfigValidate($config->configRoots));
     }
 
-    public function registriere(Op $op): void
+    public function register(Op $op): void
     {
         $this->ops[$op::name()] = $op;
     }
 
-    public function hole(string $name): Op
+    public function get(string $name): Op
     {
         if (! isset($this->ops[$name])) {
             throw new AgentException(
                 AgentException::UNKNOWN_OP,
                 sprintf('Unbekannte Operation %s.', $name),
-                ['bekannt' => $this->namen()],
+                ['known' => $this->names()],
             );
         }
 
@@ -48,11 +48,11 @@ final class Registry
     }
 
     /** @return list<string> */
-    public function namen(): array
+    public function names(): array
     {
-        $namen = array_keys($this->ops);
-        sort($namen);
+        $names = array_keys($this->ops);
+        sort($names);
 
-        return $namen;
+        return $names;
     }
 }

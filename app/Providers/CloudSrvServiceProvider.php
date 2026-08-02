@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Support\Kennzahlen\Sammler;
-use App\Support\Kennzahlen\Speicher;
+use App\Support\Metrics\Collector;
+use App\Support\Metrics\Store;
 use CloudSrv\Agent\Client;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,17 +15,17 @@ final class CloudSrvServiceProvider extends ServiceProvider
     {
         $this->app->singleton(Client::class, static fn (): Client => new Client(
             (string) config('cloudsrv.agent.socket'),
-            (int) config('cloudsrv.agent.zeitlimit'),
+            (int) config('cloudsrv.agent.timeout'),
         ));
 
-        $this->app->singleton(Speicher::class, static fn (): Speicher => new Speicher(
-            (string) config('cloudsrv.kennzahlen.verzeichnis'),
-            (int) config('cloudsrv.kennzahlen.vorhalt'),
+        $this->app->singleton(Store::class, static fn (): Store => new Store(
+            (string) config('cloudsrv.metrics.directory'),
+            (int) config('cloudsrv.metrics.retention'),
         ));
 
-        $this->app->bind(Sammler::class, static fn ($app): Sammler => new Sammler(
+        $this->app->bind(Collector::class, static fn ($app): Collector => new Collector(
             $app->make(Client::class),
-            $app->make(Speicher::class),
+            $app->make(Store::class),
         ));
     }
 }

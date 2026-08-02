@@ -10,9 +10,9 @@
 set -eu
 
 VERSION="__VERSION__"
-NEU="/opt/cloudsrv/releases/${VERSION}"
+RELEASE_DIR="/opt/cloudsrv/releases/${VERSION}"
 
-benutzer_anlegen() {
+create_user() {
     if ! getent group cloudsrv >/dev/null; then
         addgroup --system cloudsrv
     fi
@@ -23,15 +23,15 @@ benutzer_anlegen() {
     fi
 }
 
-php_festlegen() {
+select_php() {
     if [ -x /opt/cloudsrv/php/bin/php ]; then
         return 0
     fi
 
-    for fassung in 8.4 8.3 8.2; do
-        if [ -x "/usr/bin/php${fassung}" ]; then
+    for release in 8.4 8.3 8.2; do
+        if [ -x "/usr/bin/php${release}" ]; then
             printf 'CLOUDSRV_PHP=/usr/bin/php%s\nCLOUDSRV_PHP_FPM=/usr/sbin/php-fpm%s\n' \
-                "${fassung}" "${fassung}" > /etc/cloudsrv/php.path
+                "${release}" "${release}" > /etc/cloudsrv/php.path
             chmod 0644 /etc/cloudsrv/php.path
             return 0
         fi
@@ -42,22 +42,22 @@ php_festlegen() {
     return 1
 }
 
-rechte_setzen() {
-    chown -R root:root "${NEU}"
+set_permissions() {
+    chown -R root:root "${RELEASE_DIR}"
     # Nur was geschrieben werden muss, gehört dem Dienst. Der Rest ist für ihn
     # lesbar und nicht mehr — ein Panel, das sein eigenes Programm überschreiben
     # kann, hat eine Schwachstelle mehr, als es haben müsste.
-    chown -R cloudsrv:cloudsrv "${NEU}/storage" "${NEU}/bootstrap/cache"
-    chmod -R u+rwX,go-rwx "${NEU}/storage"
+    chown -R cloudsrv:cloudsrv "${RELEASE_DIR}/storage" "${RELEASE_DIR}/bootstrap/cache"
+    chmod -R u+rwX,go-rwx "${RELEASE_DIR}/storage"
     chown root:cloudsrv /etc/cloudsrv/agent.json
     chmod 0640 /etc/cloudsrv/agent.json
     install -d -o cloudsrv -g cloudsrv -m 0750 /var/lib/cloudsrv/metrics
     install -d -o cloudsrv -g cloudsrv -m 0750 /var/log/cloudsrv
 }
 
-benutzer_anlegen
-php_festlegen
-rechte_setzen
+create_user
+select_php
+set_permissions
 
 systemctl daemon-reload
 
@@ -74,9 +74,9 @@ else
     }
 fi
 
-for dienst in cloudsrv-web cloudsrv-worker cloudsrv-metrics; do
-    systemctl enable "${dienst}.service" >/dev/null 2>&1 || true
-    systemctl restart "${dienst}.service" || true
+for service in cloudsrv-web cloudsrv-worker cloudsrv-metrics; do
+    systemctl enable "${service}.service" >/dev/null 2>&1 || true
+    systemctl restart "${service}.service" || true
 done
 
 exit 0

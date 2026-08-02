@@ -15,9 +15,9 @@ namespace CloudSrv\Agent;
 final class Guard
 {
     /** systemd-Unit: Buchstaben, Ziffern, Punkt, Bindestrich, Unterstrich, @ — sonst nichts. */
-    public static function unitName(mixed $wert): string
+    public static function unitName(mixed $value): string
     {
-        $name = self::string($wert, 'unit');
+        $name = self::string($value, 'unit');
 
         if (! preg_match('/^[a-zA-Z0-9@._\-]{1,128}$/', $name)) {
             throw AgentException::badRequest('Unzulässiger Unit-Name.', ['unit' => $name]);
@@ -39,65 +39,65 @@ final class Guard
      * erlaubten Bereich herauszeigt, ist sonst genau der Ausbruch, den diese
      * Methode verhindern soll.
      *
-     * @param  list<string>  $erlaubteWurzeln
+     * @param  list<string>  $allowedRoots
      */
-    public static function pathInside(mixed $wert, array $erlaubteWurzeln): string
+    public static function pathInside(mixed $value, array $allowedRoots): string
     {
-        $pfad = self::string($wert, 'path');
+        $path = self::string($value, 'path');
 
-        if (! str_starts_with($pfad, '/')) {
-            throw AgentException::badRequest('Pfad muss absolut sein.', ['path' => $pfad]);
+        if (! str_starts_with($path, '/')) {
+            throw AgentException::badRequest('Pfad muss absolut sein.', ['path' => $path]);
         }
 
-        $echt = realpath($pfad);
-        if ($echt === false) {
-            throw new AgentException(AgentException::NOT_FOUND, 'Pfad existiert nicht.', ['path' => $pfad]);
+        $real = realpath($path);
+        if ($real === false) {
+            throw new AgentException(AgentException::NOT_FOUND, 'Pfad existiert nicht.', ['path' => $path]);
         }
 
-        foreach ($erlaubteWurzeln as $wurzel) {
-            $wurzelEcht = realpath($wurzel);
-            if ($wurzelEcht === false) {
+        foreach ($allowedRoots as $root) {
+            $rootReal = realpath($root);
+            if ($rootReal === false) {
                 continue;
             }
-            if ($echt === $wurzelEcht || str_starts_with($echt, rtrim($wurzelEcht, '/').'/')) {
-                return $echt;
+            if ($real === $rootReal || str_starts_with($real, rtrim($rootReal, '/').'/')) {
+                return $real;
             }
         }
 
         throw AgentException::denied('Pfad liegt außerhalb der erlaubten Verzeichnisse.');
     }
 
-    /** @param list<string> $erlaubt */
-    public static function enum(mixed $wert, array $erlaubt, string $feld): string
+    /** @param list<string> $allowed */
+    public static function enum(mixed $value, array $allowed, string $field): string
     {
-        $s = self::string($wert, $feld);
+        $s = self::string($value, $field);
 
-        if (! in_array($s, $erlaubt, true)) {
+        if (! in_array($s, $allowed, true)) {
             throw AgentException::badRequest(
-                sprintf('Unzulässiger Wert für %s.', $feld),
-                [$feld => $s, 'erlaubt' => $erlaubt],
+                sprintf('Unzulässiger Wert für %s.', $field),
+                [$field => $s, 'allowed' => $allowed],
             );
         }
 
         return $s;
     }
 
-    public static function string(mixed $wert, string $feld): string
+    public static function string(mixed $value, string $field): string
     {
-        if (! is_string($wert)) {
-            throw AgentException::badRequest(sprintf('%s muss eine Zeichenkette sein.', $feld));
+        if (! is_string($value)) {
+            throw AgentException::badRequest(sprintf('%s muss eine Zeichenkette sein.', $field));
         }
 
-        if ($wert === '' || strlen($wert) > 4096) {
-            throw AgentException::badRequest(sprintf('%s ist leer oder zu lang.', $feld));
+        if ($value === '' || strlen($value) > 4096) {
+            throw AgentException::badRequest(sprintf('%s ist leer oder zu lang.', $field));
         }
 
         // Ein Nullbyte trennt in C-Bibliotheken die Zeichenkette. Was danach
         // steht, sähe PHP noch und der Kernel nicht mehr.
-        if (str_contains($wert, "\0")) {
-            throw AgentException::badRequest(sprintf('%s enthält ein Nullbyte.', $feld));
+        if (str_contains($value, "\0")) {
+            throw AgentException::badRequest(sprintf('%s enthält ein Nullbyte.', $field));
         }
 
-        return $wert;
+        return $value;
     }
 }

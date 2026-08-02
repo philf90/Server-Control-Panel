@@ -13,41 +13,41 @@ namespace CloudSrv\Agent;
  * kein Rückgabewert: Eine Operation, die zehn Minuten läuft, soll nach zehn
  * Sekunden etwas gesagt haben.
  */
-final class Kontext
+final class Context
 {
-    /** @param callable(array<string,mixed>):void $senden */
+    /** @param callable(array<string,mixed>):void $send */
     public function __construct(
         public readonly Runner $runner,
         public readonly Journal $journal,
-        private $senden,
+        private $send,
     ) {}
 
-    public function fortschritt(int $prozent, string $text): void
+    public function progress(int $percent, string $text): void
     {
-        ($this->senden)([
+        ($this->send)([
             'type' => 'progress',
-            'pct' => max(0, min(100, $prozent)),
+            'pct' => max(0, min(100, $percent)),
             'text' => $text,
         ]);
     }
 
-    public function ausgabe(string $kanal, string $zeile): void
+    public function output(string $channel, string $line): void
     {
-        ($this->senden)([
+        ($this->send)([
             'type' => 'log',
-            'stream' => $kanal === 'stderr' ? 'stderr' : 'stdout',
-            'line' => $zeile,
+            'stream' => $channel === 'stderr' ? 'stderr' : 'stdout',
+            'line' => $line,
         ]);
     }
 
     /** Ein Runner, dessen Ausgabe unterwegs an die Anwendung geht. */
-    public function laufend(string $programm, array $argumente, int $zeitlimit = 60): Ergebnis
+    public function stream(string $program, array $args, int $timeout = 60): Result
     {
         return $this->runner->run(
-            $programm,
-            $argumente,
-            $zeitlimit,
-            fn (string $kanal, string $zeile) => $this->ausgabe($kanal, $zeile),
+            $program,
+            $args,
+            $timeout,
+            fn (string $channel, string $line) => $this->output($channel, $line),
         );
     }
 }

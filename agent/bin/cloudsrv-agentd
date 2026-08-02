@@ -21,64 +21,64 @@ namespace CloudSrv\Agent;
 
 require __DIR__ . '/../src/autoload.php';
 
-$argumente = $argv;
-array_shift($argumente);
-$befehl = $argumente[0] ?? 'serve';
-$optionen = [];
-$stellungen = [];
+$args = $argv;
+array_shift($args);
+$command = $args[0] ?? 'serve';
+$options = [];
+$positional = [];
 
-foreach (array_slice($argumente, 1) as $stueck) {
-    if (str_starts_with($stueck, '--')) {
-        $paar = explode('=', substr($stueck, 2), 2);
-        $optionen[$paar[0]] = $paar[1] ?? true;
+foreach (array_slice($args, 1) as $chunk) {
+    if (str_starts_with($chunk, '--')) {
+        $pair = explode('=', substr($chunk, 2), 2);
+        $options[$pair[0]] = $pair[1] ?? true;
     } else {
-        $stellungen[] = $stueck;
+        $positional[] = $chunk;
     }
 }
 
-$configDatei = is_string($optionen['config'] ?? null) ? $optionen['config'] : '/etc/cloudsrv/agent.json';
-$config = Config::ausDatei($configDatei);
+$configFile = is_string($options['config'] ?? null) ? $options['config'] : '/etc/cloudsrv/agent.json';
+$config = Config::fromFile($configFile);
 
-$ueberschreibungen = [];
-if (is_string($optionen['socket'] ?? null)) {
-    $ueberschreibungen['socket'] = $optionen['socket'];
+$overrides = [];
+if (is_string($options['socket'] ?? null)) {
+    $overrides['socket'] = $options['socket'];
 }
-if (is_string($optionen['log'] ?? null)) {
-    $ueberschreibungen['protokoll'] = $optionen['log'];
+if (is_string($options['log'] ?? null)) {
+    $overrides['protocol'] = $options['log'];
 }
-if (is_string($optionen['user'] ?? null)) {
-    $ueberschreibungen['benutzer'] = $optionen['user'];
+if (is_string($options['user'] ?? null)) {
+    $overrides['user'] = $options['user'];
 }
-if (is_string($optionen['group'] ?? null)) {
-    $ueberschreibungen['gruppe'] = $optionen['group'];
+if (is_string($options['group'] ?? null)) {
+    $overrides['group'] = $options['group'];
 }
-if (isset($optionen['unprivileged'])) {
-    $ueberschreibungen['erlaubeUnprivilegiert'] = true;
+if (isset($options['unprivileged'])) {
+    $overrides['allowUnprivileged'] = true;
 }
 
-$config = $config->mit($ueberschreibungen);
+$config = $config->with($overrides);
 
-switch ($befehl) {
+switch ($command) {
     case 'serve':
-        $journal = new Journal($config->protokoll);
-        exit((new Daemon($config, new Registry($config), $journal))->starte());
+        $journal = new Journal($config->logFile);
+        exit((new Daemon($config, new Registry($config), $journal))->start());
 
     case 'ops':
-        foreach ((new Registry($config))->namen() as $name) {
+        foreach ((new Registry($config))->names() as $name) {
             echo $name, "\n";
         }
         exit(0);
 
     case 'call':
-        $op = $stellungen[0] ?? null;
+        $op = $positional[0] ?? null;
 
         if ($op === null) {
             fwrite(STDERR, "Aufruf: cloudsrv-agentd call OP [JSON-ARGUMENTE]\n");
             exit(2);
         }
 
-        $roh = $stellungen[1] ?? '{}';
-        $args = json_decode($roh, true);
+        $raw = $positional[1] ?? '{}';
+        $args = json_decode($raw, true);
 
         if (!is_array($args)) {
             fwrite(STDERR, "Die Argumente sind kein gültiges JSON-Objekt.\n");
@@ -87,27 +87,27 @@ switch ($befehl) {
 
         try {
             $client = new Client($config->socket);
-            $daten = $client->ruf($op, $args, ['quelle' => 'cli', 'uid' => posix_getuid()], static function (array $satz): void {
-                if (($satz['type'] ?? '') === 'progress') {
-                    fwrite(STDERR, sprintf("… %3d %% %s\n", $satz['pct'] ?? 0, $satz['text'] ?? ''));
+            $data = $client->call($op, $args, ['source' => 'cli', 'uid' => posix_getuid()], static function (array $frame): void {
+                if (($frame['type'] ?? '') === 'progress') {
+                    fwrite(STDERR, sprintf("… %3d %% %s\n", $frame['pct'] ?? 0, $frame['text'] ?? ''));
                 }
-                if (($satz['type'] ?? '') === 'log') {
-                    fwrite(STDERR, ($satz['line'] ?? '') . "\n");
+                if (($frame['type'] ?? '') === 'log') {
+                    fwrite(STDERR, ($frame['line'] ?? '') . "\n");
                 }
             });
 
-            echo json_encode($daten, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), "\n";
+            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), "\n";
             exit(0);
-        } catch (AgentException $fehler) {
-            fwrite(STDERR, sprintf("%s: %s\n", $fehler->fehlercode, $fehler->getMessage()));
+        } catch (AgentException $error) {
+            fwrite(STDERR, sprintf("%s: %s\n", $error->errorCode, $error->getMessage()));
             exit(1);
         }
 
     case 'version':
-        echo Version::AGENT, ' (Protokoll ', Version::PROTOKOLL, ")\n";
+        echo Version::AGENT, ' (Protokoll ', Version::PROTOCOL, ")\n";
         exit(0);
 
     default:
-        fwrite(STDERR, "Unbekannter Befehl {$befehl}. Bekannt: serve, call, ops, version.\n");
+        fwrite(STDERR, "Unbekannter Befehl {$command}. Bekannt: serve, call, ops, version.\n");
         exit(2);
 }

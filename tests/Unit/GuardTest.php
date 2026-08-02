@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 final class GuardTest extends TestCase
 {
     /** @return list<array{0:string}> */
-    public static function boeseUnitNamen(): array
+    public static function maliciousUnitNames(): array
     {
         return [
             ['../../etc/shadow'],
@@ -36,39 +36,39 @@ final class GuardTest extends TestCase
         ];
     }
 
-    #[DataProvider('boeseUnitNamen')]
-    public function test_weist_unzulaessige_unit_namen_ab(string $name): void
+    #[DataProvider('maliciousUnitNames')]
+    public function test_rejects_invalid_unit_names(string $name): void
     {
         $this->expectException(AgentException::class);
 
         Guard::unitName($name);
     }
 
-    public function test_laesst_uebliche_unit_namen_durch(): void
+    public function test_allows_ordinary_unit_names(): void
     {
         foreach (['nginx.service', 'php8.3-fpm.service', 'cloudsrv-agentd.service', 'getty@tty1.service'] as $name) {
             $this->assertSame($name, Guard::unitName($name));
         }
     }
 
-    public function test_pfad_ausserhalb_der_wurzel_wird_abgewiesen(): void
+    public function test_rejects_path_outside_root(): void
     {
-        $wurzel = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
-        mkdir($wurzel);
+        $root = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
+        mkdir($root);
 
         try {
             $this->expectException(AgentException::class);
-            Guard::pathInside('/etc/passwd', [$wurzel]);
+            Guard::pathInside('/etc/passwd', [$root]);
         } finally {
-            rmdir($wurzel);
+            rmdir($root);
         }
     }
 
-    public function test_symlink_aus_der_wurzel_heraus_wird_abgewiesen(): void
+    public function test_rejects_symlink_escaping_root(): void
     {
-        $wurzel = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
-        mkdir($wurzel);
-        $link = $wurzel.'/raus';
+        $root = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
+        mkdir($root);
+        $link = $root.'/raus';
         symlink('/etc/passwd', $link);
 
         try {
@@ -76,34 +76,34 @@ final class GuardTest extends TestCase
             // zeigt, dass er woanders hinzeigt — und genau deshalb wird vor
             // der Prüfung aufgelöst und nicht danach.
             $this->expectException(AgentException::class);
-            Guard::pathInside($link, [$wurzel]);
+            Guard::pathInside($link, [$root]);
         } finally {
             @unlink($link);
-            @rmdir($wurzel);
+            @rmdir($root);
         }
     }
 
-    public function test_pfad_in_der_wurzel_wird_aufgeloest_zurueckgegeben(): void
+    public function test_returns_resolved_path_inside_root(): void
     {
-        $wurzel = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
-        mkdir($wurzel.'/tief', 0o755, true);
-        file_put_contents($wurzel.'/tief/datei.conf', "test\n");
+        $root = sys_get_temp_dir().'/cloudsrv-wurzel-'.bin2hex(random_bytes(4));
+        mkdir($root.'/tief', 0o755, true);
+        file_put_contents($root.'/tief/datei.conf', "test\n");
 
         try {
-            $ergebnis = Guard::pathInside($wurzel.'/tief/../tief/datei.conf', [$wurzel]);
-            $this->assertSame(realpath($wurzel.'/tief/datei.conf'), $ergebnis);
+            $result = Guard::pathInside($root.'/tief/../tief/datei.conf', [$root]);
+            $this->assertSame(realpath($root.'/tief/datei.conf'), $result);
         } finally {
-            @unlink($wurzel.'/tief/datei.conf');
-            @rmdir($wurzel.'/tief');
-            @rmdir($wurzel);
+            @unlink($root.'/tief/datei.conf');
+            @rmdir($root.'/tief');
+            @rmdir($root);
         }
     }
 
-    public function test_enum_nimmt_nur_bekannte_werte(): void
+    public function test_enum_accepts_only_known_values(): void
     {
-        $this->assertSame('nginx', Guard::enum('nginx', ['nginx', 'sshd'], 'art'));
+        $this->assertSame('nginx', Guard::enum('nginx', ['nginx', 'sshd'], 'kind'));
 
         $this->expectException(AgentException::class);
-        Guard::enum('bash', ['nginx', 'sshd'], 'art');
+        Guard::enum('bash', ['nginx', 'sshd'], 'kind');
     }
 }

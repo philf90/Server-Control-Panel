@@ -65,13 +65,15 @@ php artisan serve & npm run dev
 vendor/bin/pint --test        # Stil
 vendor/bin/phpstan analyse    # Typen
 php artisan test              # Tests, inklusive Agent gegen echten Socket
-npm run typen && npm run build
+npm run types && npm run build
 ```
 
-Die Texte der Oberfläche folgen
+**Sprache im Quelltext:** Bezeichner sind englisch — Dateien, Klassen,
+Methoden, Variablen, Konfigurations- und Protokollschlüssel, CSS-Marken,
+Job-Namen in der CI. Kommentare, Dokumentation und die Texte der Oberfläche
+sind deutsch; für letztere gilt
 [docs/19-sprache-der-oberflaeche.md](docs/19-sprache-der-oberflaeche.md).
-Bezeichner im Quelltext sind davon unberührt und englisch, Kommentare und
-Dokumentation sind deutsch.
+Die Begründung steht in §2 des Plans.
 
 ## Lizenz
 

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace CloudSrv\Agent\Ops;
 
 use CloudSrv\Agent\AgentException;
+use CloudSrv\Agent\Context;
 use CloudSrv\Agent\Guard;
-use CloudSrv\Agent\Kontext;
 use CloudSrv\Agent\Op;
 
 /**
@@ -23,52 +23,52 @@ use CloudSrv\Agent\Op;
 final class ConfigValidate implements Op
 {
     /** @var array<string,array{programm:string,argumente:list<string>}> */
-    private const PRUEFER = [
-        'nginx' => ['programm' => 'nginx', 'argumente' => ['-t', '-c']],
-        'sshd' => ['programm' => 'sshd', 'argumente' => ['-t', '-f']],
-        'php-fpm' => ['programm' => 'php-fpm', 'argumente' => ['-t', '-y']],
-        'zone' => ['programm' => 'named-checkzone', 'argumente' => []],
+    private const VALIDATORS = [
+        'nginx' => ['program' => 'nginx', 'argumente' => ['-t', '-c']],
+        'sshd' => ['program' => 'sshd', 'argumente' => ['-t', '-f']],
+        'php-fpm' => ['program' => 'php-fpm', 'argumente' => ['-t', '-y']],
+        'zone' => ['program' => 'named-checkzone', 'argumente' => []],
     ];
 
-    /** @param list<string> $erlaubteWurzeln */
-    public function __construct(private readonly array $erlaubteWurzeln) {}
+    /** @param list<string> $allowedRoots */
+    public function __construct(private readonly array $allowedRoots) {}
 
     public static function name(): string
     {
         return 'config.validate';
     }
 
-    public static function veraendernd(): bool
+    public static function mutating(): bool
     {
         return false;
     }
 
-    public function fuehreAus(array $args, Kontext $kontext): array
+    public function execute(array $args, Context $context): array
     {
-        $art = Guard::enum($args['art'] ?? null, array_keys(self::PRUEFER), 'art');
-        $pfad = Guard::pathInside($args['pfad'] ?? null, $this->erlaubteWurzeln);
-        $pruefer = self::PRUEFER[$art];
+        $kind = Guard::enum($args['kind'] ?? null, array_keys(self::VALIDATORS), 'kind');
+        $path = Guard::pathInside($args['path'] ?? null, $this->allowedRoots);
+        $validator = self::VALIDATORS[$kind];
 
-        $argumente = $pruefer['argumente'];
+        $args = $validator['argumente'];
 
-        if ($art === 'zone') {
+        if ($kind === 'zone') {
             $zone = Guard::string($args['zone'] ?? null, 'zone');
             if (! preg_match('/^[a-zA-Z0-9.\-]{1,253}$/', $zone)) {
                 throw AgentException::badRequest('Unzulässiger Zonenname.', ['zone' => $zone]);
             }
-            $argumente[] = $zone;
+            $args[] = $zone;
         }
 
-        $argumente[] = $pfad;
+        $args[] = $path;
 
-        $ergebnis = $kontext->runner->run($pruefer['programm'], $argumente, 30);
+        $result = $context->runner->run($validator['program'], $args, 30);
 
         return [
-            'art' => $art,
-            'pfad' => $pfad,
-            'gueltig' => $ergebnis->erfolgreich(),
-            'meldung' => $ergebnis->meldung(),
-            'code' => $ergebnis->code,
+            'kind' => $kind,
+            'path' => $path,
+            'valid' => $result->successful(),
+            'message' => $result->message(),
+            'code' => $result->code,
         ];
     }
 }

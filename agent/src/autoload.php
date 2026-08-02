@@ -11,16 +11,16 @@ declare(strict_types=1);
  * die einzige Stelle, an der entschieden wird, welcher Code als root läuft.
  */
 
-spl_autoload_register(static function (string $klasse): void {
-    $praefix = 'CloudSrv\\Agent\\';
-    if (! str_starts_with($klasse, $praefix)) {
+spl_autoload_register(static function (string $class): void {
+    $prefix = 'CloudSrv\\Agent\\';
+    if (! str_starts_with($class, $prefix)) {
         return;
     }
 
-    $rest = substr($klasse, strlen($praefix));
-    $datei = __DIR__.'/'.str_replace('\\', '/', $rest).'.php';
+    $rest = substr($class, strlen($prefix));
+    $file = __DIR__.'/'.str_replace('\\', '/', $rest).'.php';
 
-    if (is_file($datei)) {
-        require $datei;
+    if (is_file($file)) {
+        require $file;
     }
 });

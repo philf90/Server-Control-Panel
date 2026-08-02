@@ -16,135 +16,135 @@ use Throwable;
  * zuließe, müsste Zustand führen — und Zustand in einem Prozess als root ist
  * eine Verabredung, die man später bereut.
  */
-final class Verbindung
+final class Connection
 {
-    private const ANFRAGE_MAX = 1048576; // 1 MiB
+    private const REQUEST_MAX = 1048576; // 1 MiB
 
     public function __construct(
         private readonly Socket $socket,
         private readonly Registry $registry,
         private readonly Journal $journal,
         private readonly Config $config,
-        private readonly int $anwendungsUid,
+        private readonly int $appUid,
     ) {}
 
-    public function bediene(): void
+    public function serve(): void
     {
         $id = null;
 
         try {
-            ['peer' => $peer, 'daten' => $erste] = Peer::empfange($this->socket);
+            ['peer' => $peer, 'daten' => $first] = Peer::receive($this->socket);
 
-            if (! $peer->darf($this->anwendungsUid)) {
-                $this->journal->schreibe('abgewiesen', ['peer' => $peer->toArray()]);
+            if (! $peer->mayCall($this->appUid)) {
+                $this->journal->write('rejected', ['peer' => $peer->toArray()]);
                 throw AgentException::denied('Dieser Benutzer darf den Agenten nicht aufrufen.');
             }
 
-            $zeile = $this->leseRest($erste);
-            $anfrage = $this->deute($zeile);
-            $id = $anfrage['id'];
+            $line = $this->readRest($first);
+            $request = $this->parse($line);
+            $id = $request['id'];
 
-            $this->journal->vorgangBeginnt($id, [
+            $this->journal->requestStarted($id, [
                 'peer' => $peer->toArray(),
-                'actor' => $anfrage['actor'],
+                'actor' => $request['actor'],
             ]);
 
-            $op = $this->registry->hole($anfrage['op']);
+            $op = $this->registry->get($request['op']);
 
-            $this->journal->schreibe('auftrag', [
-                'op' => $anfrage['op'],
-                'veraendernd' => $op::veraendernd(),
-                'args' => (object) $this->gekuerzteArgumente($anfrage['args']),
+            $this->journal->write('request', [
+                'op' => $request['op'],
+                'mutating' => $op::mutating(),
+                'args' => (object) $this->redactArgs($request['args']),
             ]);
 
-            $kontext = new Kontext(
+            $context = new Context(
                 new Runner($this->journal),
                 $this->journal,
-                fn (array $zeile) => $this->sende($zeile),
+                fn (array $line) => $this->send($line),
             );
 
-            $daten = $op->fuehreAus($anfrage['args'], $kontext);
+            $data = $op->execute($request['args'], $context);
 
-            $this->sende(['type' => 'result', 'ok' => true, 'id' => $id, 'data' => $daten]);
-            $this->journal->schreibe('ergebnis', ['ok' => true, 'op' => $anfrage['op']]);
-        } catch (AgentException $fehler) {
-            $this->sende(['type' => 'result', 'ok' => false, 'id' => $id, 'error' => $fehler->toArray()]);
-            $this->journal->schreibe('ergebnis', ['ok' => false, 'fehler' => $fehler->toArray()]);
-        } catch (Throwable $fehler) {
+            $this->send(['type' => 'result', 'ok' => true, 'id' => $id, 'data' => $data]);
+            $this->journal->write('result', ['ok' => true, 'op' => $request['op']]);
+        } catch (AgentException $error) {
+            $this->send(['type' => 'result', 'ok' => false, 'id' => $id, 'error' => $error->toArray()]);
+            $this->journal->write('result', ['ok' => false, 'error' => $error->toArray()]);
+        } catch (Throwable $error) {
             // Was hier ankommt, ist ein Fehler im Agenten selbst. Nach außen
             // geht nur, dass etwas schiefging — die Einzelheiten stehen im
             // Protokoll, nicht in der Antwort. Ein Stacktrace über die
             // Schnittstelle wäre eine Landkarte des Dateisystems.
-            $this->sende([
+            $this->send([
                 'type' => 'result',
                 'ok' => false,
                 'id' => $id,
                 'error' => ['code' => AgentException::INTERNAL, 'message' => 'Interner Fehler im Agenten.', 'details' => []],
             ]);
-            $this->journal->schreibe('panne', [
-                'klasse' => $fehler::class,
-                'meldung' => $fehler->getMessage(),
-                'datei' => $fehler->getFile(),
-                'zeile' => $fehler->getLine(),
+            $this->journal->write('crash', [
+                'class' => $error::class,
+                'message' => $error->getMessage(),
+                'file' => $error->getFile(),
+                'line' => $error->getLine(),
             ]);
         } finally {
-            $this->journal->vorgangEndet();
+            $this->journal->requestEnded();
             @socket_close($this->socket);
         }
     }
 
-    private function leseRest(string $bisher): string
+    private function readRest(string $sofar): string
     {
-        while (! str_contains($bisher, "\n")) {
-            if (strlen($bisher) > self::ANFRAGE_MAX) {
+        while (! str_contains($sofar, "\n")) {
+            if (strlen($sofar) > self::REQUEST_MAX) {
                 throw AgentException::badRequest('Anfrage überschreitet 1 MiB.');
             }
 
-            $stueck = @socket_read($this->socket, 65536, PHP_BINARY_READ);
+            $chunk = @socket_read($this->socket, 65536, PHP_BINARY_READ);
 
-            if ($stueck === false || $stueck === '') {
+            if ($chunk === false || $chunk === '') {
                 break;
             }
 
-            $bisher .= $stueck;
+            $sofar .= $chunk;
         }
 
-        return trim($bisher);
+        return trim($sofar);
     }
 
     /** @return array{id:string,op:string,args:array<string,mixed>,actor:array<string,mixed>|null} */
-    private function deute(string $zeile): array
+    private function parse(string $line): array
     {
-        $roh = json_decode($zeile, true);
+        $raw = json_decode($line, true);
 
-        if (! is_array($roh)) {
+        if (! is_array($raw)) {
             throw AgentException::badRequest('Anfrage ist kein gültiges JSON.');
         }
 
-        $version = $roh['v'] ?? null;
-        if ($version !== Version::PROTOKOLL) {
+        $version = $raw['v'] ?? null;
+        if ($version !== Version::PROTOCOL) {
             throw AgentException::badRequest(
                 sprintf('Protokollversion %s wird nicht bedient.', var_export($version, true)),
-                ['erwartet' => Version::PROTOKOLL],
+                ['expected' => Version::PROTOCOL],
             );
         }
 
-        $op = $roh['op'] ?? null;
+        $op = $raw['op'] ?? null;
         if (! is_string($op) || ! preg_match('/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/', $op)) {
             throw AgentException::badRequest('Feld op fehlt oder ist unzulässig.');
         }
 
-        $args = $roh['args'] ?? [];
+        $args = $raw['args'] ?? [];
         if (! is_array($args)) {
             throw AgentException::badRequest('Feld args muss ein Objekt sein.');
         }
 
-        $id = $roh['id'] ?? null;
+        $id = $raw['id'] ?? null;
         if (! is_string($id) || ! preg_match('/^[A-Za-z0-9_\-]{1,64}$/', $id)) {
             throw AgentException::badRequest('Feld id fehlt oder ist unzulässig.');
         }
 
-        $actor = $roh['actor'] ?? null;
+        $actor = $raw['actor'] ?? null;
 
         return [
             'id' => $id,
@@ -165,32 +165,32 @@ final class Verbindung
      * @param  array<string,mixed>  $args
      * @return array<string,mixed>
      */
-    private function gekuerzteArgumente(array $args): array
+    private function redactArgs(array $args): array
     {
-        $geheim = ['passwort', 'password', 'schluessel', 'key', 'secret', 'token', 'pem'];
-        $sauber = [];
+        $secretish = ['passwort', 'password', 'schluessel', 'key', 'secret', 'token', 'pem'];
+        $clean = [];
 
-        foreach ($args as $name => $wert) {
-            $schluessel = strtolower((string) $name);
+        foreach ($args as $name => $value) {
+            $key = strtolower((string) $name);
 
-            foreach ($geheim as $muster) {
-                if (str_contains($schluessel, $muster)) {
-                    $sauber[$name] = '···';
+            foreach ($secretish as $needle) {
+                if (str_contains($key, $needle)) {
+                    $clean[$name] = '···';
 
                     continue 2;
                 }
             }
 
-            $sauber[$name] = is_scalar($wert) || $wert === null ? $wert : '…';
+            $clean[$name] = is_scalar($value) || $value === null ? $value : '…';
         }
 
-        return $sauber;
+        return $clean;
     }
 
-    /** @param array<string,mixed> $zeile */
-    private function sende(array $zeile): void
+    /** @param array<string,mixed> $line */
+    private function send(array $line): void
     {
-        $json = json_encode($zeile, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $json = json_encode($line, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         if ($json === false) {
             $json = '{"type":"result","ok":false,"error":{"code":"internal","message":"Antwort nicht kodierbar.","details":{}}}';

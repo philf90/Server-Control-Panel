@@ -13,7 +13,7 @@
  *
  * Zwei Achsen, unabhängig voneinander:
  *   Theme  — dunkel (Vorgabe) und hell, über [data-theme]
- *   Dichte — admin (dicht) und kunde (ruhig), über [data-dichte]
+ *   Dichte — admin (dicht) und kunde (ruhig), über [data-density]
  */
 
 @theme {
@@ -22,31 +22,31 @@
 }
 
 :root,
-:root[data-theme='dunkel'] {
-  --grund: #0b0f13;
-  --bereich: #111922;
-  --bereich-rand: #1c2733;
-  --navigation: #080c10;
-  --navigation-rand: #1a232d;
-  --linie: #141d26;
+:root[data-theme='dark'] {
+  --bg: #0b0f13;
+  --surface: #111922;
+  --surface-border: #1c2733;
+  --nav-bg: #080c10;
+  --nav-border: #1a232d;
+  --line: #141d26;
 
-  --text-stark: #eaf1f8;
+  --text-strong: #eaf1f8;
   --text: #b9c7d4;
-  --text-ruhig: #91a2b1;
-  --text-schwach: #7b8c9b;
+  --text-muted: #91a2b1;
+  --text-faint: #7b8c9b;
 
-  --akzent: #e0a340;
-  --akzent-auf: #0b0f13;
-  --akzent-flaeche: rgb(224 163 64 / 0.13);
+  --accent: #e0a340;
+  --accent-on: #0b0f13;
+  --accent-surface: rgb(224 163 64 / 0.13);
 
   --ok: #5cc294;
-  --ok-flaeche: rgb(79 178 134 / 0.14);
-  --warnung: #e0a340;
-  --warnung-flaeche: rgb(224 163 64 / 0.14);
-  --kritisch: #e87761;
-  --kritisch-flaeche: rgb(216 96 74 / 0.14);
+  --ok-surface: rgb(79 178 134 / 0.14);
+  --warn: #e0a340;
+  --warn-surface: rgb(224 163 64 / 0.14);
+  --critical: #e87761;
+  --critical-surface: rgb(216 96 74 / 0.14);
 
-  --fokus: #7fc4ff;
+  --focus: #7fc4ff;
 }
 
 /*
@@ -57,47 +57,47 @@
  * Fläche die helle Fassung behält. Wer hier bloß invertiert, bekommt eine
  * Oberfläche, die messbar unlesbar ist.
  */
-:root[data-theme='hell'] {
-  --grund: #f4f6f7;
-  --bereich: #ffffff;
-  --bereich-rand: #dbe2e8;
-  --navigation: #ffffff;
-  --navigation-rand: #dbe2e8;
-  --linie: #e9edf1;
+:root[data-theme='light'] {
+  --bg: #f4f6f7;
+  --surface: #ffffff;
+  --surface-border: #dbe2e8;
+  --nav-bg: #ffffff;
+  --nav-border: #dbe2e8;
+  --line: #e9edf1;
 
-  --text-stark: #101820;
+  --text-strong: #101820;
   --text: #33414e;
-  --text-ruhig: #55636f;
-  --text-schwach: #64727e;
+  --text-muted: #55636f;
+  --text-faint: #64727e;
 
-  --akzent: #8a5a06;
-  --akzent-auf: #ffffff;
-  --akzent-flaeche: rgb(224 163 64 / 0.2);
+  --accent: #8a5a06;
+  --accent-on: #ffffff;
+  --accent-surface: rgb(224 163 64 / 0.2);
 
   --ok: #1c6d4c;
-  --ok-flaeche: rgb(79 178 134 / 0.18);
-  --warnung: #8a5a06;
-  --warnung-flaeche: rgb(224 163 64 / 0.2);
-  --kritisch: #a5311e;
-  --kritisch-flaeche: rgb(216 96 74 / 0.12);
+  --ok-surface: rgb(79 178 134 / 0.18);
+  --warn: #8a5a06;
+  --warn-surface: rgb(224 163 64 / 0.2);
+  --critical: #a5311e;
+  --critical-surface: rgb(216 96 74 / 0.12);
 
-  --fokus: #005ea8;
+  --focus: #005ea8;
 }
 
 /* Dichte. Die Werte sind die Tabelle aus §7.2 und stehen sonst nirgends. */
 :root,
-:root[data-dichte='admin'] {
-  --zeile: 34px;
-  --abstand: 10px;
-  --polster: 12px 13px 10px;
-  --kacheln: 4;
+:root[data-density='admin'] {
+  --row-height: 34px;
+  --gap: 10px;
+  --padding: 12px 13px 10px;
+  --tile-columns: 4;
 }
 
-:root[data-dichte='kunde'] {
-  --zeile: 42px;
-  --abstand: 16px;
-  --polster: 16px 17px 14px;
-  --kacheln: 3;
+:root[data-density='customer'] {
+  --row-height: 42px;
+  --gap: 16px;
+  --padding: 16px 17px 14px;
+  --tile-columns: 3;
 }
 
 * {
@@ -106,7 +106,7 @@
 
 body {
   margin: 0;
-  background: var(--grund);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -122,7 +122,7 @@ th {
 }
 
 :where(a, button, [tabindex]):focus-visible {
-  outline: 2px solid var(--fokus);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 

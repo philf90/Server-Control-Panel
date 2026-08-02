@@ -31,6 +31,26 @@ anderes Produkt und zählt neu.
   neu ein Integrationslauf, der das gebaute Paket unter echtem systemd auf
   Debian 12/13 und Ubuntu 22.04/24.04 installiert.
 
+### Bezeichner auf Englisch
+
+Dateien, Klassen, Methoden, Variablen, Konfigurations- und
+Protokollschlüssel, CSS-Marken, Datenattribute und Job-Namen in der CI sind
+englisch; Kommentare, Dokumentation und die Texte der Oberfläche bleiben
+deutsch. Die Vorgabe steht in §2 des Plans.
+
+Betroffen war die Schnittstelle mit: `Ergebnis`→`Result`, `Kontext`→`Context`,
+`Verbindung`→`Connection`, `Ringpuffer`→`RingBuffer`, `Sammler`→`Collector`,
+`Speicher`→`Store`; die Nutzdaten des Agenten (`vorhanden`→`present`,
+`speicher`→`memory`, `pfad`→`path`, `art`→`kind`); die Schlüssel in
+`/etc/cloudsrv/agent.json` (`benutzer`→`user`, `pruefbare_wurzeln`→
+`config_roots`); die Konfiguration (`cloudsrv.kennzahlen.*`→`cloudsrv.metrics.*`);
+das Kommando `cloudsrv:kennzahlen`→`cloudsrv:metrics`; die CSS-Marken
+(`--grund`→`--bg`, `--akzent`→`--accent`, …) und die Werte von `data-theme`
+(`dunkel`/`hell`→`dark`/`light`) und `data-density` (`kunde`→`customer`).
+
+Da noch nichts ausgeliefert ist, gibt es dafür keinen Migrationspfad — und
+genau deshalb war jetzt der Zeitpunkt.
+
 ### Gefunden und behoben
 
 - `SO_PEERCRED` gibt es in PHPs Socket-Extension nicht (geprüft mit 8.4). Die
@@ -44,6 +64,10 @@ anderes Produkt und zählt neu.
   Prozess hing weiter. systemd hätte ihn nach der Frist mit SIGKILL beendet —
   mitten in einem laufenden Auftrag. Die Schleife wartet jetzt mit `select`
   und Frist.
+- Die Bereitschaftsprüfung antwortete mit 500 statt 503: Beim Umbenennen blieb
+  eine Konstante stehen, die kein Test berührte. Die Lücke ist geschlossen —
+  `HealthTest` prüft jetzt beides, den Gesundheitsendpunkt ohne Agenten und
+  die Übersicht ohne Agenten.
 - Ein Unix-Socket-Pfad ist im Kernel auf 108 Zeichen begrenzt. Darüber warf PHP
   eine `ValueError` mitten im Start; jetzt steht dort eine Meldung, aus der
   hervorgeht, was zu ändern ist.

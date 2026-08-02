@@ -19,11 +19,11 @@ interface Op
     public static function name(): string;
 
     /** Verändert die Operation den Zustand des Systems? Steuert die Protokollierung. */
-    public static function veraendernd(): bool;
+    public static function mutating(): bool;
 
     /**
      * @param  array<string,mixed>  $args
      * @return array<string,mixed> Nutzdaten für das Ergebnis
      */
-    public function fuehreAus(array $args, Kontext $kontext): array;
+    public function execute(array $args, Context $context): array;
 }

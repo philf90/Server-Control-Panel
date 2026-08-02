@@ -17,5 +17,5 @@ final class Version
      * Agent werden gemeinsam ausgeliefert; die Zahl ist trotzdem da, weil ein
      * Update genau zwischen dem Tausch der beiden abbrechen kann.
      */
-    public const PROTOKOLL = 1;
+    public const PROTOCOL = 1;
 }

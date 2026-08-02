@@ -13,72 +13,72 @@ namespace CloudSrv\Agent;
  */
 final class Config
 {
-    /** @param list<string> $pruefbareWurzeln */
+    /** @param list<string> $configRoots */
     public function __construct(
         public readonly string $socket = '/run/cloudsrv/agent.sock',
-        public readonly string $gruppe = 'cloudsrv',
-        public readonly string $benutzer = 'cloudsrv',
-        public readonly string $protokoll = '/var/log/cloudsrv/agent.log',
-        public readonly array $pruefbareWurzeln = ['/etc/nginx', '/etc/php', '/etc/ssh', '/var/lib/cloudsrv'],
-        public readonly int $maxKinder = 8,
-        public readonly bool $erlaubeUnprivilegiert = false,
+        public readonly string $group = 'cloudsrv',
+        public readonly string $user = 'cloudsrv',
+        public readonly string $logFile = '/var/log/cloudsrv/agent.log',
+        public readonly array $configRoots = ['/etc/nginx', '/etc/php', '/etc/ssh', '/var/lib/cloudsrv'],
+        public readonly int $maxChildren = 8,
+        public readonly bool $allowUnprivileged = false,
     ) {}
 
-    public static function ausDatei(string $datei): self
+    public static function fromFile(string $file): self
     {
-        $vorgabe = new self;
+        $defaults = new self;
 
-        if (! is_readable($datei)) {
-            return $vorgabe;
+        if (! is_readable($file)) {
+            return $defaults;
         }
 
-        $roh = json_decode((string) file_get_contents($datei), true);
+        $raw = json_decode((string) file_get_contents($file), true);
 
-        if (! is_array($roh)) {
-            fwrite(STDERR, "Konfiguration {$datei} ist kein gültiges JSON — Vorgaben gelten.\n");
+        if (! is_array($raw)) {
+            fwrite(STDERR, "Konfiguration {$file} ist kein gültiges JSON — Vorgaben gelten.\n");
 
-            return $vorgabe;
+            return $defaults;
         }
 
         return new self(
-            socket: is_string($roh['socket'] ?? null) ? $roh['socket'] : $vorgabe->socket,
-            gruppe: is_string($roh['gruppe'] ?? null) ? $roh['gruppe'] : $vorgabe->gruppe,
-            benutzer: is_string($roh['benutzer'] ?? null) ? $roh['benutzer'] : $vorgabe->benutzer,
-            protokoll: is_string($roh['protokoll'] ?? null) ? $roh['protokoll'] : $vorgabe->protokoll,
-            pruefbareWurzeln: self::wurzeln($roh['pruefbare_wurzeln'] ?? null) ?? $vorgabe->pruefbareWurzeln,
-            maxKinder: is_int($roh['max_kinder'] ?? null) ? $roh['max_kinder'] : $vorgabe->maxKinder,
+            socket: is_string($raw['socket'] ?? null) ? $raw['socket'] : $defaults->socket,
+            group: is_string($raw['group'] ?? null) ? $raw['group'] : $defaults->group,
+            user: is_string($raw['user'] ?? null) ? $raw['user'] : $defaults->user,
+            logFile: is_string($raw['log'] ?? null) ? $raw['log'] : $defaults->logFile,
+            configRoots: self::roots($raw['config_roots'] ?? null) ?? $defaults->configRoots,
+            maxChildren: is_int($raw['max_children'] ?? null) ? $raw['max_children'] : $defaults->maxKinder,
         );
     }
 
     /** @return list<string>|null */
-    private static function wurzeln(mixed $roh): ?array
+    private static function roots(mixed $raw): ?array
     {
-        if (! is_array($roh)) {
+        if (! is_array($raw)) {
             return null;
         }
 
-        $sauber = [];
+        $clean = [];
 
-        foreach ($roh as $eintrag) {
-            if (is_string($eintrag) && str_starts_with($eintrag, '/')) {
-                $sauber[] = $eintrag;
+        foreach ($raw as $entry) {
+            if (is_string($entry) && str_starts_with($entry, '/')) {
+                $clean[] = $entry;
             }
         }
 
-        return $sauber === [] ? null : $sauber;
+        return $clean === [] ? null : $clean;
     }
 
-    /** @param array<string,mixed> $ueberschreibungen */
-    public function mit(array $ueberschreibungen): self
+    /** @param array<string,mixed> $overrides */
+    public function with(array $overrides): self
     {
         return new self(
-            socket: $ueberschreibungen['socket'] ?? $this->socket,
-            gruppe: $ueberschreibungen['gruppe'] ?? $this->gruppe,
-            benutzer: $ueberschreibungen['benutzer'] ?? $this->benutzer,
-            protokoll: $ueberschreibungen['protokoll'] ?? $this->protokoll,
-            pruefbareWurzeln: $ueberschreibungen['pruefbareWurzeln'] ?? $this->pruefbareWurzeln,
-            maxKinder: $ueberschreibungen['maxKinder'] ?? $this->maxKinder,
-            erlaubeUnprivilegiert: $ueberschreibungen['erlaubeUnprivilegiert'] ?? $this->erlaubeUnprivilegiert,
+            socket: $overrides['socket'] ?? $this->socket,
+            group: $overrides['group'] ?? $this->group,
+            user: $overrides['user'] ?? $this->user,
+            logFile: $overrides['protocol'] ?? $this->logFile,
+            configRoots: $overrides['configRoots'] ?? $this->configRoots,
+            maxChildren: $overrides['maxKinder'] ?? $this->maxChildren,
+            allowUnprivileged: $overrides['allowUnprivileged'] ?? $this->allowUnprivileged,
         );
     }
 }

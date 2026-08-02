@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CloudSrv\Agent\Ops;
 
+use CloudSrv\Agent\Context;
 use CloudSrv\Agent\Guard;
-use CloudSrv\Agent\Kontext;
 use CloudSrv\Agent\Op;
 
 /**
@@ -18,7 +18,7 @@ use CloudSrv\Agent\Op;
  */
 final class ServiceStatus implements Op
 {
-    private const FELDER = [
+    private const FIELDS = [
         'Id',
         'Description',
         'LoadState',
@@ -35,45 +35,45 @@ final class ServiceStatus implements Op
         return 'service.status';
     }
 
-    public static function veraendernd(): bool
+    public static function mutating(): bool
     {
         return false;
     }
 
-    public function fuehreAus(array $args, Kontext $kontext): array
+    public function execute(array $args, Context $context): array
     {
         $unit = Guard::unitName($args['unit'] ?? null);
 
-        $ergebnis = $kontext->runner->run('systemctl', [
+        $result = $context->runner->run('systemctl', [
             'show',
             $unit,
-            '--property='.implode(',', self::FELDER),
+            '--property='.implode(',', self::FIELDS),
             '--no-pager',
         ], 15);
 
         // `systemctl show` beantwortet auch eine unbekannte Unit mit Code 0 und
         // LoadState=not-found. Der Rückgabecode taugt hier also nicht als
         // Prüfung — der LoadState schon.
-        $werte = [];
+        $values = [];
 
-        foreach ($ergebnis->zeilen() as $zeile) {
-            if (! str_contains($zeile, '=')) {
+        foreach ($result->lines() as $line) {
+            if (! str_contains($line, '=')) {
                 continue;
             }
-            [$schluessel, $wert] = explode('=', $zeile, 2);
-            $werte[$schluessel] = $wert;
+            [$key, $value] = explode('=', $line, 2);
+            $values[$key] = $value;
         }
 
         return [
             'unit' => $unit,
-            'vorhanden' => ($werte['LoadState'] ?? 'not-found') !== 'not-found',
-            'beschreibung' => $werte['Description'] ?? '',
-            'aktiv' => $werte['ActiveState'] ?? 'unknown',
-            'unterzustand' => $werte['SubState'] ?? 'unknown',
-            'autostart' => $werte['UnitFileState'] ?? 'unknown',
-            'pid' => (int) ($werte['MainPID'] ?? 0),
-            'neustarts' => (int) ($werte['NRestarts'] ?? 0),
-            'seit' => $werte['ExecMainStartTimestamp'] ?? '',
+            'present' => ($values['LoadState'] ?? 'not-found') !== 'not-found',
+            'description' => $values['Description'] ?? '',
+            'active_state' => $values['ActiveState'] ?? 'unknown',
+            'sub_state' => $values['SubState'] ?? 'unknown',
+            'unit_file_state' => $values['UnitFileState'] ?? 'unknown',
+            'pid' => (int) ($values['MainPID'] ?? 0),
+            'restarts' => (int) ($values['NRestarts'] ?? 0),
+            'since' => $values['ExecMainStartTimestamp'] ?? '',
         ];
     }
 }

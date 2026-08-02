@@ -13,15 +13,15 @@ permissions:
   contents: write
 
 jobs:
-  paket:
+  package:
     name: Paket bauen und signieren
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.fassung.outputs.version }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
-      - id: fassung
+      - id: release
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
             echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
@@ -47,8 +47,8 @@ jobs:
 
       - name: Bauen
         run: |
-          packaging/build.sh "${{ steps.fassung.outputs.version }}" amd64
-          packaging/build.sh "${{ steps.fassung.outputs.version }}" arm64
+          packaging/build.sh "${{ steps.release.outputs.version }}" amd64
+          packaging/build.sh "${{ steps.release.outputs.version }}" arm64
 
       - name: Prüfsummen
         run: |
@@ -89,13 +89,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" dist/* \
-            --title "CloudSrv ${{ steps.fassung.outputs.version }}" \
+            --title "CloudSrv ${{ steps.release.outputs.version }}" \
             --notes "Siehe CHANGELOG.md." \
-            $(case "${{ steps.fassung.outputs.version }}" in *-*) echo --prerelease ;; esac)
+            $(case "${{ steps.release.outputs.version }}" in *-*) echo --prerelease ;; esac)
 
   repository:
     name: repo.cloudsrv24.de aktualisieren
-    needs: paket
+    needs: package
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -113,9 +113,9 @@ jobs:
           path: dist
 
       - name: Kanal bestimmen
-        id: kanal
+        id: channel
         env:
-          VERSION: ${{ needs.paket.outputs.version }}
+          VERSION: ${{ needs.package.outputs.version }}
         run: |
           case "$VERSION" in
             *-*) echo "name=beta"   >> "$GITHUB_OUTPUT" ;;
@@ -141,8 +141,8 @@ jobs:
 
       - name: APT-Repository aktualisieren
         env:
-          VERSION: ${{ needs.paket.outputs.version }}
-          CHANNEL: ${{ steps.kanal.outputs.name }}
+          VERSION: ${{ needs.package.outputs.version }}
+          CHANNEL: ${{ steps.channel.outputs.name }}
           APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
           APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
         run: |
@@ -178,8 +178,8 @@ jobs:
           # sind weiter über die GitHub-Releases erreichbar. Ohne diese Regel ist
           # die Grenze nach etwa einem Jahr erreicht — und dann bricht nicht der
           # Upload, sondern die Auslieferung an alle.
-          for paketdir in apt/pool/main/*/*/; do
-            ls -1t "${paketdir}"*.deb 2>/dev/null | tail -n +6 | xargs -r rm -f
+          for package_dir in apt/pool/main/*/*/; do
+            ls -1t "${package_dir}"*.deb 2>/dev/null | tail -n +6 | xargs -r rm -f
           done
 
           # Aus apt heraus, nicht darüber: apt-ftparchive schreibt den übergebenen
@@ -235,5 +235,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && { echo "Nichts zu veröffentlichen."; exit 0; }
-          git commit -m "repo: CloudSrv ${{ needs.paket.outputs.version }} (${{ steps.kanal.outputs.name }})"
+          git commit -m "repo: CloudSrv ${{ needs.package.outputs.version }} (${{ steps.channel.outputs.name }})"
           git push

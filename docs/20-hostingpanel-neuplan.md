@@ -63,6 +63,21 @@ Dokuments steht weiter „das Panel".
    sie ist das einzige Dokument des Vorgängers, das übernommen wird. Neu
    dazu: die Oberfläche ist von Anfang an mehrsprachig angelegt (DE/EN), weil
    Kundenflächen es sein müssen.
+7. **Bezeichner sind englisch, Erklärungen deutsch.** Dateinamen, Klassen,
+   Methoden, Variablen, Konfigurations- und Protokollschlüssel, CSS-Marken,
+   Datenattribute, Job-Namen in der CI — alles englisch und damit neutral.
+   Kommentare, Dokumentation und die Texte der Oberfläche bleiben deutsch.
+
+   Der Grund ist nicht Geschmack. Eine Schnittstelle mit Feldern wie
+   `pruefbare_wurzeln` schließt jeden aus, der kein Deutsch kann — und ein
+   Panel unter AGPL rechnet mit Beiträgen von außen. Dazu kommt das
+   Praktische: Wer `$vorhalt` liest, muss raten, ob Kapazität oder Aufbewahrung
+   gemeint ist; `$capacity` sagt es. Umgekehrt trägt eine deutsche Begründung
+   im Kommentar mehr als eine englische, die niemand mit dieser Genauigkeit
+   schreiben würde.
+
+   Ausgenommen ist genau eines: Produkt- und Systembezeichner, die außen
+   sichtbar sind (`cloudsrv`, `cloudsrv-agentd`, `repo.cloudsrv24.de`).
 
 ## 3. Nicht-Ziele der 1.0
 
@@ -399,16 +414,20 @@ oder wird nicht benutzt.
 
 #### Marken (Token)
 
-| Rolle | Wert |
-|---|---|
-| Grund | `#0B0F13` |
-| Bereich | `#111922`, Rand `#1C2733` |
-| Navigation | `#080C10`, Rand `#1A232D` |
-| Text | `#EAF1F8` stark · `#B9C7D4` normal · `#6F8090` ruhig |
-| Akzent | `#E0A340` (Amber) — Signal, Zustand, aktive Navigation, primäre Aktion |
-| Zustände | ok `#4FB286` · Warnung `#E0A340` · kritisch `#D8604A` |
-| Radius | 3 px. Kein größerer Wert, nirgends |
-| Trennung | 1 px Rand, keine Schatten |
+| Rolle | Marke | Wert |
+|---|---|---|
+| Grund | `--bg` | `#0B0F13` |
+| Bereich | `--surface`, `--surface-border` | `#111922`, Rand `#1C2733` |
+| Navigation | `--nav-bg`, `--nav-border` | `#080C10`, Rand `#1A232D` |
+| Text | `--text-strong`, `--text`, `--text-muted`, `--text-faint` | `#EAF1F8` … `#7B8C9B` |
+| Akzent | `--accent`, `--accent-on`, `--accent-surface` | `#E0A340` (Amber) — Signal, Zustand, aktive Navigation, primäre Aktion |
+| Zustände | `--ok`, `--warn`, `--critical` (je mit `-surface`) | `#5CC294` · `#E0A340` · `#E87761` |
+| Radius | — | 3 px. Kein größerer Wert, nirgends |
+| Trennung | `--line` | 1 px Rand, keine Schatten |
+
+Umgeschaltet wird über `data-theme` (`dark`/`light`) und `data-density`
+(`admin`/`customer`) am Wurzelelement. Die CI prüft, dass außerhalb von
+`resources/css/app.css` kein Farbwert steht.
 
 Die Zustandsfarben sind vom Akzent getrennt zu denken, auch wo sie denselben
 Farbwert haben: Amber als Warnung heißt etwas anderes als Amber am aktiven

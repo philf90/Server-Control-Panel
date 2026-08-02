@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\UebersichtController;
+use App\Http\Controllers\OverviewController;
 use CloudSrv\Agent\Client;
 use CloudSrv\Agent\Version;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', UebersichtController::class)->name('uebersicht');
+Route::get('/', OverviewController::class)->name('uebersicht');
 
 /*
  * Bereitschaftsprüfung.
@@ -18,12 +18,12 @@ Route::get('/', UebersichtController::class)->name('uebersicht');
  * läuft, aber nicht ins System kommt, ist kein brauchbarer Zustand.
  */
 Route::get('/gesundheit', function (Client $agent) {
-    $agentLaeuft = $agent->erreichbar();
+    $agentUp = $agent->reachable();
 
     return response()->json([
-        'bereit' => $agentLaeuft,
-        'anwendung' => config('app.version'),
-        'protokoll' => Version::PROTOKOLL,
-        'agent' => $agentLaeuft ? 'erreichbar' : 'nicht erreichbar',
-    ], $agentLaeuft ? 200 : 503);
+        'ready' => $agentUp,
+        'app' => config('app.version'),
+        'protocol' => Version::PROTOCOL,
+        'agent' => $agentUp ? 'reachable' : 'nicht erreichbar',
+    ], $agentUp ? 200 : 503);
 })->name('gesundheit');

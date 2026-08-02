@@ -7,42 +7,42 @@
 import { Link, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
-defineProps<{ titel: string; unterzeile?: string }>()
+defineProps<{ title: string; subline?: string }>()
 
-const seite = usePage()
-const quelle = computed(() => seite.props.quelle as { repository: string; version: string; commit: string })
+const page = usePage()
+const source = computed(() => page.props.source as { repository: string; version: string; commit: string })
 
 const navigation = [
-  { gruppe: null, punkte: [{ name: 'Übersicht', ziel: '/', aktiv: true }] },
+  { group: null, items: [{ name: 'Übersicht', href: '/', active: true }] },
   {
-    gruppe: 'Server',
-    punkte: [
-      { name: 'Dienste', ziel: '#', aktiv: false },
-      { name: 'Pakete', ziel: '#', aktiv: false },
-      { name: 'Protokoll', ziel: '#', aktiv: false },
+    group: 'Server',
+    items: [
+      { name: 'Dienste', href: '#', active: false },
+      { name: 'Pakete', href: '#', active: false },
+      { name: 'Protokoll', href: '#', active: false },
     ],
   },
 ]
 </script>
 
 <template>
-  <div class="rahmen">
-    <aside class="navigation">
-      <div class="marke">
-        <span class="zeichen">C</span>
+  <div class="frame">
+    <aside class="nav">
+      <div class="badge">
+        <span class="glyph">C</span>
         <b>CloudSrv</b>
       </div>
 
       <nav>
-        <template v-for="block in navigation" :key="block.gruppe ?? 'oben'">
-          <p v-if="block.gruppe" class="gruppe">{{ block.gruppe }}</p>
+        <template v-for="block in navigation" :key="block.group ?? 'oben'">
+          <p v-if="block.group" class="group">{{ block.group }}</p>
           <Link
-            v-for="punkt in block.punkte"
-            :key="punkt.name"
-            :href="punkt.ziel"
-            :class="['punkt', { an: punkt.aktiv }]"
+            v-for="item in block.items"
+            :key="item.name"
+            :href="item.href"
+            :class="['item', { active: item.active }]"
           >
-            {{ punkt.name }}
+            {{ item.name }}
           </Link>
         </template>
       </nav>
@@ -52,17 +52,17 @@ const navigation = [
         den Quelltext der laufenden Fassung kommen. Deshalb Version und Commit
         im Link und nicht bloß die Adresse des Repositorys.
       -->
-      <footer class="quelle">
-        <a :href="quelle.commit ? `${quelle.repository}/tree/${quelle.commit}` : quelle.repository">
-          Quelltext · {{ quelle.version }}
+      <footer class="source">
+        <a :href="source.commit ? `${source.repository}/tree/${source.commit}` : source.repository">
+          Quelltext · {{ source.version }}
         </a>
       </footer>
     </aside>
 
-    <main class="inhalt">
-      <header class="kopf">
-        <h1>{{ titel }}</h1>
-        <span v-if="unterzeile" class="meta">{{ unterzeile }}</span>
+    <main class="content">
+      <header class="header">
+        <h1>{{ title }}</h1>
+        <span v-if="subline" class="meta">{{ subline }}</span>
       </header>
 
       <slot />
@@ -71,41 +71,41 @@ const navigation = [
 </template>
 
 <style scoped>
-.rahmen {
+.frame {
   display: grid;
   grid-template-columns: 186px 1fr;
   min-height: 100vh;
 }
 
-.navigation {
-  background: var(--navigation);
-  border-right: 1px solid var(--navigation-rand);
+.nav {
+  background: var(--nav-bg);
+  border-right: 1px solid var(--nav-border);
   padding: 16px 12px;
   display: flex;
   flex-direction: column;
 }
 
-.marke {
+.badge {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 20px;
 }
 
-.marke b {
+.badge b {
   font-size: 13px;
   letter-spacing: -0.01em;
-  color: var(--text-stark);
+  color: var(--text-strong);
 }
 
-.zeichen {
+.glyph {
   width: 22px;
   height: 22px;
   border-radius: 3px;
   display: grid;
   place-items: center;
-  background: var(--akzent);
-  color: var(--akzent-auf);
+  background: var(--accent);
+  color: var(--accent-on);
   font-size: 11px;
   font-weight: 700;
 }
@@ -116,55 +116,55 @@ nav {
   gap: 1px;
 }
 
-.gruppe {
+.group {
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-schwach);
+  color: var(--text-faint);
   margin: 16px 0 6px 9px;
 }
 
-.punkt {
+.item {
   padding: 6px 9px;
   border-radius: 3px;
   text-decoration: none;
-  color: var(--text-ruhig);
+  color: var(--text-muted);
   font-size: 12.5px;
 }
 
-.punkt:hover {
+.item:hover {
   color: var(--text);
 }
 
-.punkt.an {
-  background: var(--bereich);
-  color: var(--akzent);
-  box-shadow: inset 2px 0 0 var(--akzent);
+.item.an {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent);
   border-radius: 0 3px 3px 0;
 }
 
-.quelle {
+.source {
   margin-top: auto;
   padding-top: 20px;
   font-size: 11px;
 }
 
-.quelle a {
-  color: var(--text-schwach);
+.source a {
+  color: var(--text-faint);
   text-decoration: none;
 }
 
-.quelle a:hover {
-  color: var(--text-ruhig);
+.source a:hover {
+  color: var(--text-muted);
   text-decoration: underline;
 }
 
-.inhalt {
+.content {
   padding: 18px 22px 28px;
   min-width: 0;
 }
 
-.kopf {
+.header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -178,12 +178,12 @@ h1 {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--text-stark);
+  color: var(--text-strong);
 }
 
 .meta {
   font-family: var(--font-mono);
   font-size: 11.5px;
-  color: var(--text-ruhig);
+  color: var(--text-muted);
 }
 </style>

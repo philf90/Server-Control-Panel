@@ -11,10 +11,10 @@ set -euo pipefail
 
 VERSION="${1:?Aufruf: packaging/build.sh VERSION [ARCH]}"
 ARCH="${2:-amd64}"
-WURZEL="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ZIEL="${WURZEL}/build/release"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STAGE="${ROOT}/build/release"
 
-cd "${WURZEL}"
+cd "${ROOT}"
 
 echo "==> Abhängigkeiten"
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --classmap-authoritative
@@ -22,38 +22,38 @@ npm ci
 npm run build
 
 echo "==> Auslieferungsbaum"
-rm -rf "${WURZEL}/build"
-mkdir -p "${ZIEL}"
+rm -rf "${ROOT}/build"
+mkdir -p "${STAGE}"
 
 # Positivliste: alles, was das Panel zum Laufen braucht — und nichts sonst.
-for teil in \
+for part in \
     agent app bootstrap config database public resources/views routes storage vendor artisan composer.json composer.lock
 do
-    if [ -e "${teil}" ]; then
-        mkdir -p "${ZIEL}/$(dirname "${teil}")"
-        cp -a "${teil}" "${ZIEL}/${teil}"
+    if [ -e "${part}" ]; then
+        mkdir -p "${STAGE}/$(dirname "${part}")"
+        cp -a "${part}" "${STAGE}/${part}"
     fi
 done
 
 # Zustand aus der Entwicklung gehört nicht ins Paket.
-rm -rf "${ZIEL}/storage/logs/"* "${ZIEL}/storage/framework/cache/data/"* \
-       "${ZIEL}/storage/framework/sessions/"* "${ZIEL}/storage/framework/views/"*
-find "${ZIEL}/storage" -type d -exec touch {}/.gitkeep \; 2>/dev/null || true
+rm -rf "${STAGE}/storage/logs/"* "${STAGE}/storage/framework/cache/data/"* \
+       "${STAGE}/storage/framework/sessions/"* "${STAGE}/storage/framework/views/"*
+find "${STAGE}/storage" -type d -exec touch {}/.gitkeep \; 2>/dev/null || true
 
 # Die Fassung steht im Paket, nicht in der Umgebung: Wer später fragt, welche
 # Fassung läuft, soll die Antwort im Dateisystem finden.
-sed -i "s/'0\.1\.0-dev'/'${VERSION}'/" "${ZIEL}/config/app.php"
-sed -i "s/const AGENT = '[^']*'/const AGENT = '${VERSION}'/" "${ZIEL}/agent/src/Version.php"
+sed -i "s/'0\.1\.0-dev'/'${VERSION}'/" "${STAGE}/config/app.php"
+sed -i "s/const AGENT = '[^']*'/const AGENT = '${VERSION}'/" "${STAGE}/agent/src/Version.php"
 
 echo "==> Paket"
-mkdir -p "${WURZEL}/dist"
-sed "s/__VERSION__/${VERSION}/g" packaging/scripts/postinstall.sh > "${WURZEL}/build/postinstall.sh"
-chmod +x "${WURZEL}/build/postinstall.sh"
+mkdir -p "${ROOT}/dist"
+sed "s/__VERSION__/${VERSION}/g" packaging/scripts/postinstall.sh > "${ROOT}/build/postinstall.sh"
+chmod +x "${ROOT}/build/postinstall.sh"
 
 VERSION="${VERSION}" ARCH="${ARCH}" nfpm package \
-    --config <(sed "s#./packaging/scripts/postinstall.sh#${WURZEL}/build/postinstall.sh#" packaging/nfpm.yaml) \
+    --config <(sed "s#./packaging/scripts/postinstall.sh#${ROOT}/build/postinstall.sh#" packaging/nfpm.yaml) \
     --packager deb \
-    --target "${WURZEL}/dist"
+    --target "${ROOT}/dist"
 
 echo "==> Fertig"
-ls -lh "${WURZEL}/dist"
+ls -lh "${ROOT}/dist"

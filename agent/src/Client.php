@@ -18,7 +18,7 @@ final class Client
 {
     public function __construct(
         private readonly string $socket = '/run/cloudsrv/agent.sock',
-        private readonly int $zeitlimit = 300,
+        private readonly int $timeout = 300,
     ) {}
 
     /**
@@ -26,92 +26,92 @@ final class Client
      *
      * @param  array<string,mixed>  $args
      * @param  array<string,mixed>|null  $actor
-     * @param  null|callable(array<string,mixed>):void  $mitlesen  Fortschritt und Ausgabe, sobald sie anfallen
+     * @param  null|callable(array<string,mixed>):void  $onOutput  Fortschritt und Ausgabe, sobald sie anfallen
      * @return array<string,mixed>
      */
-    public function ruf(string $op, array $args = [], ?array $actor = null, ?callable $mitlesen = null): array
+    public function call(string $op, array $args = [], ?array $actor = null, ?callable $onOutput = null): array
     {
-        $verbindung = $this->verbinde();
+        $connection = $this->connect();
 
-        $anfrage = [
-            'v' => Version::PROTOKOLL,
+        $request = [
+            'v' => Version::PROTOCOL,
             'id' => bin2hex(random_bytes(8)),
             'op' => $op,
             'actor' => $actor,
             'args' => (object) $args,
         ];
 
-        $json = json_encode($anfrage, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $json = json_encode($request, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         if ($json === false) {
             throw AgentException::badRequest('Anfrage ließ sich nicht kodieren.');
         }
 
-        socket_write($verbindung, $json."\n");
+        socket_write($connection, $json."\n");
 
-        $puffer = '';
-        $ergebnis = null;
+        $buffer = '';
+        $result = null;
 
         while (true) {
-            $stueck = @socket_read($verbindung, 65536, PHP_BINARY_READ);
+            $chunk = @socket_read($connection, 65536, PHP_BINARY_READ);
 
-            if ($stueck === false || $stueck === '') {
+            if ($chunk === false || $chunk === '') {
                 break;
             }
 
-            $puffer .= $stueck;
+            $buffer .= $chunk;
 
-            while (($bruch = strpos($puffer, "\n")) !== false) {
-                $zeile = substr($puffer, 0, $bruch);
-                $puffer = substr($puffer, $bruch + 1);
+            while (($break = strpos($buffer, "\n")) !== false) {
+                $line = substr($buffer, 0, $break);
+                $buffer = substr($buffer, $break + 1);
 
-                if (trim($zeile) === '') {
+                if (trim($line) === '') {
                     continue;
                 }
 
-                $satz = json_decode($zeile, true);
+                $frame = json_decode($line, true);
 
-                if (! is_array($satz)) {
+                if (! is_array($frame)) {
                     continue;
                 }
 
-                if (($satz['type'] ?? null) === 'result') {
-                    $ergebnis = $satz;
+                if (($frame['type'] ?? null) === 'result') {
+                    $result = $frame;
                     break 2;
                 }
 
-                if ($mitlesen !== null) {
-                    $mitlesen($satz);
+                if ($onOutput !== null) {
+                    $onOutput($frame);
                 }
             }
         }
 
-        socket_close($verbindung);
+        socket_close($connection);
 
-        if ($ergebnis === null) {
+        if ($result === null) {
             throw AgentException::execFailed('Der Agent hat die Verbindung ohne Ergebnis geschlossen.');
         }
 
-        if (($ergebnis['ok'] ?? false) !== true) {
-            $fehler = $ergebnis['error'] ?? [];
+        if (($result['ok'] ?? false) !== true) {
+            $error = $result['error'] ?? [];
 
             throw new AgentException(
-                is_string($fehler['code'] ?? null) ? $fehler['code'] : AgentException::INTERNAL,
-                is_string($fehler['message'] ?? null) ? $fehler['message'] : 'Der Agent meldete einen Fehler.',
-                is_array($fehler['details'] ?? null) ? $fehler['details'] : [],
+                is_string($error['code'] ?? null) ? $error['code'] : AgentException::INTERNAL,
+                is_string($error['message'] ?? null) ? $error['message'] : 'Der Agent meldete einen Fehler.',
+                is_array($error['details'] ?? null) ? $error['details'] : [],
             );
         }
 
-        $daten = $ergebnis['data'] ?? [];
+        $data = $result['data'] ?? [];
 
-        return is_array($daten) ? $daten : [];
+        return is_array($data) ? $data : [];
     }
 
     /** Erreichbarkeit ohne Ausnahme — für Gesundheitsendpunkt und Bereitschaftsprüfung. */
-    public function erreichbar(): bool
+    public function reachable(): bool
     {
         try {
-            $this->ruf('agent.ping');
+            $this->call('agent.ping');
 
             return true;
         } catch (AgentException) {
@@ -119,7 +119,7 @@ final class Client
         }
     }
 
-    private function verbinde(): Socket
+    private function connect(): Socket
     {
         if (! file_exists($this->socket)) {
             throw new AgentException(
@@ -129,21 +129,21 @@ final class Client
             );
         }
 
-        $verbindung = socket_create(AF_UNIX, SOCK_STREAM, 0);
+        $connection = socket_create(AF_UNIX, SOCK_STREAM, 0);
 
-        if ($verbindung === false) {
+        if ($connection === false) {
             throw AgentException::execFailed('Socket ließ sich nicht anlegen.');
         }
 
-        socket_set_option($verbindung, SOL_SOCKET, SO_RCVTIMEO, ['sec' => $this->zeitlimit, 'usec' => 0]);
-        socket_set_option($verbindung, SOL_SOCKET, SO_SNDTIMEO, ['sec' => 10, 'usec' => 0]);
+        socket_set_option($connection, SOL_SOCKET, SO_RCVTIMEO, ['sec' => $this->timeout, 'usec' => 0]);
+        socket_set_option($connection, SOL_SOCKET, SO_SNDTIMEO, ['sec' => 10, 'usec' => 0]);
 
-        if (! @socket_connect($verbindung, $this->socket)) {
-            $grund = socket_strerror(socket_last_error($verbindung));
+        if (! @socket_connect($connection, $this->socket)) {
+            $reason = socket_strerror(socket_last_error($connection));
 
-            throw AgentException::execFailed('Verbindung zum Agenten scheiterte: '.$grund);
+            throw AgentException::execFailed('Verbindung zum Agenten scheiterte: '.$reason);
         }
 
-        return $verbindung;
+        return $connection;
     }
 }

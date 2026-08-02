@@ -11,16 +11,16 @@
 # Skript.
 set -eu
 
-KANAL="${CLOUDSRV_KANAL:-stable}"
-QUELLE="https://repo.cloudsrv24.de/apt"
+CHANNEL="${CLOUDSRV_CHANNEL:-stable}"
+REPO_URL="https://repo.cloudsrv24.de/apt"
 KEYRING="/usr/share/keyrings/cloudsrv-archive-keyring.gpg"
 
-melde() { printf '\033[1m==>\033[0m %s\n' "$1"; }
-fehler() { printf '\033[31mFehler:\033[0m %s\n' "$1" >&2; exit 1; }
+note() { printf '\033[1m==>\033[0m %s\n' "$1"; }
+fail() { printf '\033[31mFehler:\033[0m %s\n' "$1" >&2; exit 1; }
 
-[ "$(id -u)" = "0" ] || fehler "Bitte mit sudo ausführen."
-[ -d /run/systemd/system ] || fehler "CloudSrv braucht systemd."
-command -v apt-get >/dev/null || fehler "CloudSrv braucht apt (Debian oder Ubuntu)."
+[ "$(id -u)" = "0" ] || fail "Bitte mit sudo ausführen."
+[ -d /run/systemd/system ] || fail "CloudSrv braucht systemd."
+command -v apt-get >/dev/null || fail "CloudSrv braucht apt (Debian oder Ubuntu)."
 
 if [ -r /etc/os-release ]; then
     . /etc/os-release
@@ -30,7 +30,7 @@ if [ -r /etc/os-release ]; then
     esac
 fi
 
-melde "Belegte Ports prüfen"
+note "Belegte Ports prüfen"
 for port in 80 443; do
     if command -v ss >/dev/null && ss -ltn "sport = :${port}" 2>/dev/null | grep -q LISTEN; then
         printf 'Hinweis: Port %s ist belegt. CloudSrv verwaltet nginx — ein anderer\n' "${port}" >&2
@@ -38,34 +38,34 @@ for port in 80 443; do
     fi
 done
 
-melde "Speicherplatz prüfen"
-frei_mb="$(df -Pm /opt | awk 'NR==2 {print $4}')"
-[ "${frei_mb:-0}" -ge 2048 ] || fehler "Unter /opt sind ${frei_mb} MB frei, gebraucht werden 2048 MB."
+note "Speicherplatz prüfen"
+free_mb="$(df -Pm /opt | awk 'NR==2 {print $4}')"
+[ "${free_mb:-0}" -ge 2048 ] || fail "Unter /opt sind ${free_mb} MB frei, gebraucht werden 2048 MB."
 
-melde "Kontingente prüfen"
+note "Kontingente prüfen"
 if ! grep -qE '(usrquota|grpquota|prjquota)' /etc/fstab 2>/dev/null; then
     printf 'Hinweis: In /etc/fstab ist kein Dateisystem-Kontingent eingerichtet.\n' >&2
     printf 'Ohne usrquota auf dem Dateisystem von /var/www lässt sich der Speicher\n' >&2
     printf 'je Abonnement nicht begrenzen. Nachzurüsten ist das jederzeit.\n' >&2
 fi
 
-melde "Paketquelle einrichten"
+note "Paketquelle einrichten"
 apt-get update -qq
 apt-get install -y -qq curl ca-certificates gnupg >/dev/null
 
-curl -fsSL --proto '=https' --tlsv1.2 "${QUELLE}/KEY.asc" | gpg --dearmor -o "${KEYRING}"
+curl -fsSL --proto '=https' --tlsv1.2 "${REPO_URL}/KEY.asc" | gpg --dearmor -o "${KEYRING}"
 chmod 0644 "${KEYRING}"
 
 cat > /etc/apt/sources.list.d/cloudsrv.sources <<EOF
 Types: deb
-URIs: ${QUELLE}
-Suites: ${KANAL}
+URIs: ${REPO_URL}
+Suites: ${CHANNEL}
 Components: main
 Architectures: $(dpkg --print-architecture)
 Signed-By: ${KEYRING}
 EOF
 
-melde "PHP-Quelle einrichten"
+note "PHP-Quelle einrichten"
 # Die Distributionen liefern je eine PHP-Fassung; ein Hosting-Panel braucht
 # mehrere. Warum das Panel sie nicht selbst spiegelt, steht in §4.3 des Plans.
 if [ ! -f /etc/apt/sources.list.d/php-sury.sources ]; then
@@ -80,12 +80,12 @@ Signed-By: /usr/share/keyrings/php-sury-keyring.gpg
 EOF
 fi
 
-melde "CloudSrv installieren"
+note "CloudSrv installieren"
 apt-get update -qq
 apt-get install -y cloudsrv-panel
 
-melde "Ersteinrichtung"
+note "Ersteinrichtung"
 cloudsrv einrichten --link
 
 printf '\n'
-melde "Fertig. Der Link oben führt zur Ersteinrichtung und gilt einmal."
+note "Fertig. Der Link oben führt zur Ersteinrichtung und gilt einmal."

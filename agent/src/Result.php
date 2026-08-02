@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace CloudSrv\Agent;
 
 /** Das Ergebnis eines Programmlaufs. */
-final class Ergebnis
+final class Result
 {
     public function __construct(
         public readonly int $code,
         public readonly string $stdout,
         public readonly string $stderr,
-        public readonly bool $gekuerzt = false,
-        public readonly float $dauer = 0.0,
+        public readonly bool $truncated = false,
+        public readonly float $duration = 0.0,
     ) {}
 
-    public function erfolgreich(): bool
+    public function successful(): bool
     {
         return $this->code === 0;
     }
 
     /** Die Ausgabe, die einem Menschen gezeigt wird — stderr zuerst, weil dort der Fehler steht. */
-    public function meldung(): string
+    public function message(): string
     {
         $text = trim($this->stderr) !== '' ? trim($this->stderr) : trim($this->stdout);
 
@@ -29,10 +29,10 @@ final class Ergebnis
     }
 
     /** @return list<string> */
-    public function zeilen(): array
+    public function lines(): array
     {
-        $roh = explode("\n", trim($this->stdout));
+        $raw = explode("\n", trim($this->stdout));
 
-        return array_values(array_filter($roh, static fn (string $z): bool => trim($z) !== ''));
+        return array_values(array_filter($raw, static fn (string $l): bool => trim($l) !== ''));
     }
 }

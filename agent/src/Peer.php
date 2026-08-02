@@ -34,27 +34,27 @@ final class Peer
      *
      * @return array{peer:self,daten:string}
      */
-    public static function empfange(Socket $verbindung, int $puffer = 65536): array
+    public static function receive(Socket $connection, int $buffer = 65536): array
     {
-        $nachricht = [
-            'buffer_size' => $puffer,
+        $message = [
+            'buffer_size' => $buffer,
             'controllen' => socket_cmsg_space(SOL_SOCKET, SCM_CREDENTIALS),
         ];
 
-        $gelesen = @socket_recvmsg($verbindung, $nachricht, 0);
+        $received = @socket_recvmsg($connection, $message, 0);
 
-        if ($gelesen === false) {
+        if ($received === false) {
             throw AgentException::badRequest('Verbindung lieferte keine Daten.');
         }
 
         $peer = null;
 
-        foreach ($nachricht['control'] ?? [] as $zusatz) {
-            if (($zusatz['level'] ?? null) === SOL_SOCKET && ($zusatz['type'] ?? null) === SCM_CREDENTIALS) {
+        foreach ($message['control'] ?? [] as $ancillary) {
+            if (($ancillary['level'] ?? null) === SOL_SOCKET && ($ancillary['type'] ?? null) === SCM_CREDENTIALS) {
                 $peer = new self(
-                    (int) ($zusatz['data']['pid'] ?? 0),
-                    (int) ($zusatz['data']['uid'] ?? -1),
-                    (int) ($zusatz['data']['gid'] ?? -1),
+                    (int) ($ancillary['data']['pid'] ?? 0),
+                    (int) ($ancillary['data']['uid'] ?? -1),
+                    (int) ($ancillary['data']['gid'] ?? -1),
                 );
             }
         }
@@ -63,7 +63,7 @@ final class Peer
             throw AgentException::denied('Der Kernel hat keine Identität des Aufrufers geliefert.');
         }
 
-        return ['peer' => $peer, 'daten' => implode('', $nachricht['iov'] ?? [])];
+        return ['peer' => $peer, 'daten' => implode('', $message['iov'] ?? [])];
     }
 
     /**
@@ -74,9 +74,9 @@ final class Peer
      * Rauchtest der CI von dort kommen — nicht, weil root eine Abkürzung
      * bräuchte.
      */
-    public function darf(int $anwendungsUid): bool
+    public function mayCall(int $appUid): bool
     {
-        return $this->uid === $anwendungsUid || $this->uid === 0;
+        return $this->uid === $appUid || $this->uid === 0;
     }
 
     /** @return array{pid:int,uid:int,gid:int} */

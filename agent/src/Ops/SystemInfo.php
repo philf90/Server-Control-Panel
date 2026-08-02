@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace CloudSrv\Agent\Ops;
 
-use CloudSrv\Agent\Kontext;
+use CloudSrv\Agent\Context;
 use CloudSrv\Agent\Op;
 
 /**
@@ -18,19 +18,19 @@ use CloudSrv\Agent\Op;
  */
 final class SystemInfo implements Op
 {
-    public function __construct(private readonly string $procWurzel = '/proc') {}
+    public function __construct(private readonly string $procRoot = '/proc') {}
 
     public static function name(): string
     {
         return 'system.info';
     }
 
-    public static function veraendernd(): bool
+    public static function mutating(): bool
     {
         return false;
     }
 
-    public function fuehreAus(array $args, Kontext $kontext): array
+    public function execute(array $args, Context $context): array
     {
         return [
             'hostname' => php_uname('n'),
@@ -38,8 +38,8 @@ final class SystemInfo implements Op
             'distribution' => $this->distribution(),
             'uptime_s' => $this->uptime(),
             'load' => $this->load(),
-            'speicher' => $this->speicher(),
-            'cpu' => $this->cpuRoh(),
+            'memory' => $this->memory(),
+            'cpu' => $this->cpuRaw(),
         ];
     }
 
@@ -49,23 +49,23 @@ final class SystemInfo implements Op
         $name = 'unbekannt';
         $version = '';
 
-        foreach (['/etc/os-release', '/usr/lib/os-release'] as $datei) {
-            if (! is_readable($datei)) {
+        foreach (['/etc/os-release', '/usr/lib/os-release'] as $file) {
+            if (! is_readable($file)) {
                 continue;
             }
 
-            foreach (file($datei, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $zeile) {
-                if (! str_contains($zeile, '=')) {
+            foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+                if (! str_contains($line, '=')) {
                     continue;
                 }
-                [$schluessel, $wert] = explode('=', $zeile, 2);
-                $wert = trim($wert, "\"'");
+                [$key, $value] = explode('=', $line, 2);
+                $value = trim($value, "\"'");
 
-                if ($schluessel === 'NAME') {
-                    $name = $wert;
+                if ($key === 'NAME') {
+                    $name = $value;
                 }
-                if ($schluessel === 'VERSION_ID') {
-                    $version = $wert;
+                if ($key === 'VERSION_ID') {
+                    $version = $value;
                 }
             }
             break;
@@ -76,56 +76,56 @@ final class SystemInfo implements Op
 
     private function uptime(): int
     {
-        $roh = @file_get_contents($this->procWurzel.'/uptime');
+        $raw = @file_get_contents($this->procRoot.'/uptime');
 
-        return $roh === false ? 0 : (int) (float) strtok($roh, ' ');
+        return $raw === false ? 0 : (int) (float) strtok($raw, ' ');
     }
 
     /** @return array{0:float,1:float,2:float} */
     private function load(): array
     {
-        $roh = @file_get_contents($this->procWurzel.'/loadavg');
+        $raw = @file_get_contents($this->procRoot.'/loadavg');
 
-        if ($roh === false) {
+        if ($raw === false) {
             return [0.0, 0.0, 0.0];
         }
 
-        $teile = preg_split('/\s+/', trim($roh)) ?: [];
+        $parts = preg_split('/\s+/', trim($raw)) ?: [];
 
-        return [(float) ($teile[0] ?? 0), (float) ($teile[1] ?? 0), (float) ($teile[2] ?? 0)];
+        return [(float) ($parts[0] ?? 0), (float) ($parts[1] ?? 0), (float) ($parts[2] ?? 0)];
     }
 
     /** @return array<string,int> Werte in Bytes */
-    private function speicher(): array
+    private function memory(): array
     {
-        $roh = @file_get_contents($this->procWurzel.'/meminfo');
+        $raw = @file_get_contents($this->procRoot.'/meminfo');
 
-        if ($roh === false) {
+        if ($raw === false) {
             return [];
         }
 
-        $gesucht = [
-            'MemTotal' => 'gesamt',
-            'MemAvailable' => 'verfuegbar',
-            'MemFree' => 'frei',
-            'Buffers' => 'puffer',
+        $wanted = [
+            'MemTotal' => 'total',
+            'MemAvailable' => 'available',
+            'MemFree' => 'free',
+            'Buffers' => 'buffers',
             'Cached' => 'cache',
-            'SwapTotal' => 'swap_gesamt',
-            'SwapFree' => 'swap_frei',
+            'SwapTotal' => 'swap_total',
+            'SwapFree' => 'swap_free',
         ];
 
-        $werte = [];
+        $values = [];
 
-        foreach (explode("\n", $roh) as $zeile) {
-            if (! preg_match('/^([A-Za-z()_]+):\s+(\d+)\s*kB$/', trim($zeile), $treffer)) {
+        foreach (explode("\n", $raw) as $line) {
+            if (! preg_match('/^([A-Za-z()_]+):\s+(\d+)\s*kB$/', trim($line), $match)) {
                 continue;
             }
-            if (isset($gesucht[$treffer[1]])) {
-                $werte[$gesucht[$treffer[1]]] = (int) $treffer[2] * 1024;
+            if (isset($wanted[$match[1]])) {
+                $values[$wanted[$match[1]]] = (int) $match[2] * 1024;
             }
         }
 
-        return $werte;
+        return $values;
     }
 
     /**
@@ -137,31 +137,31 @@ final class SystemInfo implements Op
      *
      * @return array<string,int>
      */
-    private function cpuRoh(): array
+    private function cpuRaw(): array
     {
-        $roh = @file_get_contents($this->procWurzel.'/stat');
+        $raw = @file_get_contents($this->procRoot.'/stat');
 
-        if ($roh === false) {
+        if ($raw === false) {
             return [];
         }
 
-        foreach (explode("\n", $roh) as $zeile) {
-            if (! str_starts_with($zeile, 'cpu ')) {
+        foreach (explode("\n", $raw) as $line) {
+            if (! str_starts_with($line, 'cpu ')) {
                 continue;
             }
 
-            $teile = preg_split('/\s+/', trim($zeile)) ?: [];
-            array_shift($teile);
-            $namen = ['user', 'nice', 'system', 'idle', 'iowait', 'irq', 'softirq', 'steal'];
-            $werte = [];
+            $parts = preg_split('/\s+/', trim($line)) ?: [];
+            array_shift($parts);
+            $names = ['user', 'nice', 'system', 'idle', 'iowait', 'irq', 'softirq', 'steal'];
+            $values = [];
 
-            foreach ($namen as $i => $name) {
-                $werte[$name] = (int) ($teile[$i] ?? 0);
+            foreach ($names as $i => $name) {
+                $values[$name] = (int) ($parts[$i] ?? 0);
             }
 
-            $werte['kerne'] = (int) substr_count($roh, "\ncpu");
+            $values['cores'] = (int) substr_count($raw, "\ncpu");
 
-            return $werte;
+            return $values;
         }
 
         return [];

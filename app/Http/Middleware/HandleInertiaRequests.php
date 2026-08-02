@@ -23,9 +23,9 @@ final class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         return array_merge(parent::share($request), [
-            'quelle' => [
-                'repository' => config('cloudsrv.quelle.repository'),
-                'commit' => config('cloudsrv.quelle.commit'),
+            'source' => [
+                'repository' => config('cloudsrv.source.repository'),
+                'commit' => config('cloudsrv.source.commit'),
                 'version' => config('app.version'),
             ],
         ]);

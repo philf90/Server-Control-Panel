@@ -25,10 +25,10 @@ namespace CloudSrv\Agent;
  */
 final class Runner
 {
-    public const AUSGABE_MAX = 4 * 1024 * 1024;
+    public const OUTPUT_MAX = 4 * 1024 * 1024;
 
     /** @var array<string,string> logischer Name => absoluter Pfad */
-    private const PROGRAMME = [
+    private const PROGRAMS = [
         'systemctl' => '/usr/bin/systemctl',
         'journalctl' => '/usr/bin/journalctl',
         'nginx' => '/usr/sbin/nginx',
@@ -47,7 +47,7 @@ final class Runner
         'certbot' => '/usr/bin/certbot',
     ];
 
-    private const UMGEBUNG = [
+    private const ENVIRONMENT = [
         'PATH' => '/usr/sbin:/usr/bin:/sbin:/bin',
         'LC_ALL' => 'C',
         'LANG' => 'C',
@@ -60,144 +60,144 @@ final class Runner
     /**
      * Führt ein Programm aus der Positivliste aus.
      *
-     * @param  list<string>  $argumente
-     * @param  null|callable(string,string):void  $mitlesen  Erhält Ausgabezeilen, sobald sie anfallen
+     * @param  list<string>  $args
+     * @param  null|callable(string,string):void  $onOutput  Erhält Ausgabezeilen, sobald sie anfallen
      */
     public function run(
-        string $programm,
-        array $argumente,
-        int $zeitlimit = 60,
-        ?callable $mitlesen = null,
-        ?string $eingabe = null,
-    ): Ergebnis {
-        $pfad = self::PROGRAMME[$programm] ?? null;
+        string $program,
+        array $args,
+        int $timeout = 60,
+        ?callable $onOutput = null,
+        ?string $input = null,
+    ): Result {
+        $path = self::PROGRAMS[$program] ?? null;
 
-        if ($pfad === null) {
-            throw AgentException::denied(sprintf('Programm %s steht nicht auf der Positivliste.', $programm));
+        if ($path === null) {
+            throw AgentException::denied(sprintf('Programm %s steht nicht auf der Positivliste.', $program));
         }
 
-        if (! is_executable($pfad)) {
+        if (! is_executable($path)) {
             throw new AgentException(
                 AgentException::NOT_FOUND,
-                sprintf('%s ist auf diesem System nicht installiert.', $programm),
-                ['pfad' => $pfad],
+                sprintf('%s ist auf diesem System nicht installiert.', $program),
+                ['path' => $path],
             );
         }
 
-        foreach ($argumente as $i => $argument) {
-            if (! is_string($argument) || str_contains($argument, "\0")) {
+        foreach ($args as $i => $arg) {
+            if (! is_string($arg) || str_contains($arg, "\0")) {
                 throw AgentException::badRequest(sprintf('Argument %d ist keine gültige Zeichenkette.', $i));
             }
         }
 
-        $befehl = array_merge([$pfad], array_values($argumente));
-        $beschreibung = [
-            0 => $eingabe === null ? ['file', '/dev/null', 'r'] : ['pipe', 'r'],
+        $command = array_merge([$path], array_values($args));
+        $descriptors = [
+            0 => $input === null ? ['file', '/dev/null', 'r'] : ['pipe', 'r'],
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
         ];
 
-        $begonnen = microtime(true);
-        $rohre = [];
-        $prozess = proc_open($befehl, $beschreibung, $rohre, '/', self::UMGEBUNG);
+        $startedAt = microtime(true);
+        $pipes = [];
+        $process = proc_open($command, $descriptors, $pipes, '/', self::ENVIRONMENT);
 
-        if (! is_resource($prozess)) {
-            throw AgentException::execFailed(sprintf('%s ließ sich nicht starten.', $programm));
+        if (! is_resource($process)) {
+            throw AgentException::execFailed(sprintf('%s ließ sich nicht starten.', $program));
         }
 
-        if ($eingabe !== null) {
-            fwrite($rohre[0], $eingabe);
-            fclose($rohre[0]);
+        if ($input !== null) {
+            fwrite($pipes[0], $input);
+            fclose($pipes[0]);
         }
 
-        stream_set_blocking($rohre[1], false);
-        stream_set_blocking($rohre[2], false);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
 
-        $ausgabe = ['stdout' => '', 'stderr' => ''];
-        $gekuerzt = false;
-        $frist = $begonnen + $zeitlimit;
-        $abgelaufen = false;
+        $output = ['stdout' => '', 'stderr' => ''];
+        $truncated = false;
+        $deadline = $startedAt + $timeout;
+        $timedOut = false;
 
         while (true) {
-            $lesen = array_filter([1 => $rohre[1], 2 => $rohre[2]], static fn ($r) => is_resource($r) && ! feof($r));
+            $read = array_filter([1 => $pipes[1], 2 => $pipes[2]], static fn ($r) => is_resource($r) && ! feof($r));
 
-            if ($lesen === []) {
+            if ($read === []) {
                 break;
             }
 
-            if (microtime(true) >= $frist) {
-                $abgelaufen = true;
+            if (microtime(true) >= $deadline) {
+                $timedOut = true;
                 break;
             }
 
-            $schreiben = null;
-            $sonst = null;
-            $bereit = @stream_select($lesen, $schreiben, $sonst, 0, 200000);
+            $write = null;
+            $except = null;
+            $ready = @stream_select($read, $write, $except, 0, 200000);
 
-            if ($bereit === false) {
+            if ($ready === false) {
                 break;
             }
 
-            foreach ($lesen as $nummer => $rohr) {
-                $stueck = fread($rohr, 65536);
-                if ($stueck === false || $stueck === '') {
+            foreach ($read as $number => $pipe) {
+                $chunk = fread($pipe, 65536);
+                if ($chunk === false || $chunk === '') {
                     continue;
                 }
 
-                $kanal = $nummer === 1 ? 'stdout' : 'stderr';
+                $channel = $number === 1 ? 'stdout' : 'stderr';
 
-                if (strlen($ausgabe[$kanal]) < self::AUSGABE_MAX) {
-                    $ausgabe[$kanal] .= $stueck;
-                    if (strlen($ausgabe[$kanal]) > self::AUSGABE_MAX) {
-                        $ausgabe[$kanal] = substr($ausgabe[$kanal], 0, self::AUSGABE_MAX);
-                        $gekuerzt = true;
+                if (strlen($output[$channel]) < self::OUTPUT_MAX) {
+                    $output[$channel] .= $chunk;
+                    if (strlen($output[$channel]) > self::OUTPUT_MAX) {
+                        $output[$channel] = substr($output[$channel], 0, self::OUTPUT_MAX);
+                        $truncated = true;
                     }
                 } else {
-                    $gekuerzt = true;
+                    $truncated = true;
                 }
 
-                if ($mitlesen !== null) {
-                    foreach (explode("\n", rtrim($stueck, "\n")) as $zeile) {
-                        $mitlesen($kanal, $zeile);
+                if ($onOutput !== null) {
+                    foreach (explode("\n", rtrim($chunk, "\n")) as $line) {
+                        $onOutput($channel, $line);
                     }
                 }
             }
         }
 
-        if ($abgelaufen) {
-            proc_terminate($prozess, SIGTERM);
+        if ($timedOut) {
+            proc_terminate($process, SIGTERM);
             usleep(300000);
-            $stand = proc_get_status($prozess);
-            if ($stand['running']) {
-                proc_terminate($prozess, SIGKILL);
+            $status = proc_get_status($process);
+            if ($status['running']) {
+                proc_terminate($process, SIGKILL);
             }
         }
 
-        foreach ([$rohre[1], $rohre[2]] as $rohr) {
-            if (is_resource($rohr)) {
-                fclose($rohr);
+        foreach ([$pipes[1], $pipes[2]] as $pipe) {
+            if (is_resource($pipe)) {
+                fclose($pipe);
             }
         }
 
-        $code = proc_close($prozess);
-        $dauer = microtime(true) - $begonnen;
+        $code = proc_close($process);
+        $duration = microtime(true) - $startedAt;
 
-        $this->journal->befehl($befehl, $abgelaufen ? null : $code, $dauer);
+        $this->journal->command($command, $timedOut ? null : $code, $duration);
 
-        if ($abgelaufen) {
+        if ($timedOut) {
             throw new AgentException(
                 AgentException::TIMEOUT,
-                sprintf('%s hat das Zeitlimit von %d s überschritten.', $programm, $zeitlimit),
-                ['programm' => $programm],
+                sprintf('%s hat das Zeitlimit von %d s überschritten.', $program, $timeout),
+                ['program' => $program],
             );
         }
 
-        return new Ergebnis($code, $ausgabe['stdout'], $ausgabe['stderr'], $gekuerzt, $dauer);
+        return new Result($code, $output['stdout'], $output['stderr'], $truncated, $duration);
     }
 
     /** @return array<string,string> */
-    public static function programme(): array
+    public static function programs(): array
     {
-        return self::PROGRAMME;
+        return self::PROGRAMS;
     }
 }

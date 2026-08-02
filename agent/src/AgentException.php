@@ -31,7 +31,7 @@ final class AgentException extends RuntimeException
 
     /** @param array<string,mixed> $details */
     public function __construct(
-        public readonly string $fehlercode,
+        public readonly string $errorCode,
         string $message,
         public readonly array $details = [],
     ) {
@@ -59,7 +59,7 @@ final class AgentException extends RuntimeException
     public function toArray(): array
     {
         return [
-            'code' => $this->fehlercode,
+            'code' => $this->errorCode,
             'message' => $this->getMessage(),
             'details' => $this->details,
         ];

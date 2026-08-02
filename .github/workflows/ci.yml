@@ -13,7 +13,7 @@ env:
   PHP_VERSION: '8.3'
 
 jobs:
-  statisch:
+  static:
     name: Statische Prüfung
     runs-on: ubuntu-latest
     steps:
@@ -73,7 +73,7 @@ jobs:
       - run: cp .env.example .env && php artisan key:generate
       - run: php artisan test
 
-  oberflaeche:
+  ui:
     name: Oberfläche
     runs-on: ubuntu-latest
     steps:
@@ -86,7 +86,7 @@ jobs:
 
       - run: npm ci
       - name: Typen
-        run: npm run typen
+        run: npm run types
       - name: Bundle
         run: npm run build
 
@@ -143,48 +143,48 @@ jobs:
 
       - name: Container mit systemd starten
         run: |
-          docker run -d --name ziel --privileged \
+          docker run -d --name target --privileged \
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
-            -v "${PWD}/dist:/pakete:ro" \
+            -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
             'apt-get update -qq && apt-get install -y -qq systemd systemd-sysv >/dev/null && exec /sbin/init'
           for i in $(seq 1 60); do
-            if docker exec ziel systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then break; fi
+            if docker exec target systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then break; fi
             sleep 2
           done
-          docker exec ziel systemctl --version | head -1
+          docker exec target systemctl --version | head -1
 
       - name: Paket installieren
         run: |
-          docker exec ziel sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq php-cli php-fpm php-sockets php-mbstring php-xml php-curl >/dev/null 2>&1 || true'
-          docker exec ziel sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y /pakete/*.deb'
+          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq php-cli php-fpm php-sockets php-mbstring php-xml php-curl >/dev/null 2>&1 || true'
+          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y /packages/*.deb'
 
       - name: Der Agent läuft und antwortet
         run: |
-          docker exec ziel systemctl is-active cloudsrv-agentd.service
-          docker exec ziel /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call agent.ping
-          docker exec ziel /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call system.info | head -5
+          docker exec target systemctl is-active cloudsrv-agentd.service
+          docker exec target /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call agent.ping
+          docker exec target /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call system.info | head -5
 
       - name: Der Socket ist nicht für alle offen
         run: |
-          rechte="$(docker exec ziel stat -c '%a %U:%G' /run/cloudsrv/agent.sock)"
-          echo "Socket: ${rechte}"
-          case "${rechte}" in
+          mode="$(docker exec target stat -c '%a %U:%G' /run/cloudsrv/agent.sock)"
+          echo "Socket: ${mode}"
+          case "${mode}" in
             "660 root:cloudsrv") ;;
-            *) echo "::error::Socket steht auf ${rechte}, erwartet ist 660 root:cloudsrv"; exit 1 ;;
+            *) echo "::error::Socket steht auf ${mode}, erwartet ist 660 root:cloudsrv"; exit 1 ;;
           esac
 
       - name: Entfernen hinterlässt keine Dienste, aber die Daten
         run: |
-          docker exec ziel sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y cloudsrv-panel'
-          ! docker exec ziel systemctl is-active cloudsrv-agentd.service
-          docker exec ziel test -d /var/lib/cloudsrv
+          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y cloudsrv-panel'
+          ! docker exec target systemctl is-active cloudsrv-agentd.service
+          docker exec target test -d /var/lib/cloudsrv
 
       - name: Aufräumen
         if: always()
-        run: docker rm -f ziel || true
+        run: docker rm -f target || true
 
-  skripte:
+  scripts:
     name: Shell-Skripte
     runs-on: ubuntu-latest
     steps:
@@ -196,7 +196,7 @@ jobs:
           shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/cloudsrv
           shellcheck -e SC1090 packaging/build.sh
 
-  lieferkette:
+  supply-chain:
     name: Schwachstellen und Lizenzen
     runs-on: ubuntu-latest
     steps:

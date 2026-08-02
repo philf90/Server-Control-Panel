@@ -53,9 +53,15 @@ done
 
 docker exec "${NAME}" systemctl --version | head -1
 
-note "Abhängigkeiten und Paket installieren"
+note "PHP-Quelle und PHP 8.4"
+# Über die Standardeingabe statt über docker cp: systemd hängt beim Booten ein
+# tmpfs über /tmp, und docker cp schreibt in den darunter liegenden Baum.
+docker exec -i "${NAME}" sh -s < "${ROOT}/packaging/php-source.sh"
 docker exec "${NAME}" sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    php-cli php-fpm php-sockets php-mbstring php-xml php-curl php-mysql curl >/dev/null 2>&1 || true'
+    php8.4-cli php8.4-fpm php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql curl'
+docker exec "${NAME}" php8.4 --version
+
+note "Paket installieren"
 docker exec "${NAME}" sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y /packages/*.deb'
 
 note "Agent"

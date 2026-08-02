@@ -158,8 +158,10 @@ jobs:
         # Denselben Weg geht install.sh. Von den vier Zielplattformen liefert nur
         # Debian 13 PHP 8.4 aus eigenen Quellen — Laravel 13 verlangt es.
         run: |
-          docker cp packaging/php-source.sh target:/tmp/php-source.sh
-          docker exec target sh /tmp/php-source.sh
+          # Über die Standardeingabe statt über docker cp: systemd hängt beim
+          # Booten ein tmpfs über /tmp, und docker cp schreibt in den darunter
+          # liegenden Baum — die Datei ist im Container dann unsichtbar.
+          docker exec -i target sh -s < packaging/php-source.sh
           docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
             php8.4-cli php8.4-fpm php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql curl'
           docker exec target php8.4 --version
@@ -257,13 +259,19 @@ jobs:
         run: |
           composer licenses --format=json > /tmp/lizenzen.json
           php -r '
+            // Mehrere Lizenzen sind bei composer ein ODER: Das Paket steht
+            // unter einer davon, und wir wählen. nette/utils etwa bietet
+            // BSD-3-Clause, GPL-2.0-only und GPL-3.0-only an — die BSD-Fassung
+            // ist mit der AGPL vereinbar, also ist das Paket es auch. Ein
+            // Befund ist es erst, wenn KEINE der angebotenen Lizenzen passt.
             $verboten = ["proprietary", "GPL-2.0-only", "GPL-2.0", "SSPL-1.0", "BUSL-1.1", "Elastic-2.0"];
             $daten = json_decode(file_get_contents("/tmp/lizenzen.json"), true);
             $treffer = [];
             foreach ($daten["dependencies"] ?? [] as $name => $paket) {
-                foreach ((array) ($paket["license"] ?? []) as $lizenz) {
-                    if (in_array($lizenz, $verboten, true)) { $treffer[] = $name . " (" . $lizenz . ")"; }
-                }
+                $lizenzen = (array) ($paket["license"] ?? []);
+                if ($lizenzen === []) { $treffer[] = $name . " (keine Lizenzangabe)"; continue; }
+                $offen = array_diff($lizenzen, $verboten);
+                if ($offen === []) { $treffer[] = $name . " (" . implode(" oder ", $lizenzen) . ")"; }
             }
             if ($treffer) { fwrite(STDERR, "Unvereinbare Lizenzen: " . implode(", ", $treffer) . "\n"); exit(1); }
             echo "Alle Lizenzen sind mit AGPL-3.0-only vereinbar.\n";'

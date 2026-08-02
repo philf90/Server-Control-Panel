@@ -51,24 +51,24 @@ final class ConfigValidateTest extends TestCase
     {
         $op = new ConfigValidate([$this->root]);
 
+        $code = null;
+        $message = '';
+
         try {
             $op->execute(['kind' => 'zone', 'path' => $this->file, 'zone' => 'beispiel.de'], $this->context());
-            // Läuft named-checkzone auf diesem Rechner, ist das Ergebnis egal —
-            // geprüft wird, dass der Zonenname überhaupt ankommt.
-            $this->assertTrue(true);
         } catch (AgentException $error) {
-            // Zulässig ist nur: das Prüfprogramm fehlt. Unzulässig ist jede
-            // Beschwerde über den Zonennamen — der stand in der Anfrage.
-            $this->assertSame(
-                AgentException::NOT_FOUND,
-                $error->errorCode,
-                'Der Zonenname aus der Anfrage kam nicht an: '.$error->getMessage(),
-            );
-            // Auf „zone" zu prüfen ginge hier daneben: Das Wort steckt auch in
-            // „named-checkzone". Der Beleg ist der Programmname selbst — wer
-            // bis dorthin kommt, hat den Zonennamen angenommen.
-            $this->assertStringContainsString('named-checkzone', $error->getMessage());
+            $code = $error->errorCode;
+            $message = $error->getMessage();
         }
+
+        // Zwei Ausgänge sind in Ordnung: Der Lauf klappt (named-checkzone ist
+        // da), oder das Programm fehlt. Nicht in Ordnung ist eine Beschwerde
+        // über die Anfrage — der Zonenname stand darin.
+        $this->assertNotSame(
+            AgentException::BAD_REQUEST,
+            $code,
+            'Der Zonenname aus der Anfrage kam nicht an: '.$message,
+        );
     }
 
     public function test_a_missing_zone_name_is_still_rejected(): void

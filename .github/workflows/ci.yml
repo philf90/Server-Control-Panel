@@ -2,311 +2,237 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  PHP_VERSION: '8.3'
+
 jobs:
-  build:
-    name: Build und Tests
+  statisch:
+    name: Statische Prüfung
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - uses: shivammathur/setup-php@v2
         with:
-          # "stable" statt einer festen Nummer oder go-version-file:
-          #
-          # go.mod nennt mit "go 1.25.0" eine Untergrenze, keine Wunschversion.
-          # Würde die CI genau diese Version installieren, liefe der Build gegen
-          # eine Standardbibliothek mit allen seither behobenen Lücken — genau
-          # das meldete govulncheck (25 Funde, behoben in 1.25.1 bis 1.25.3).
-          #
-          # Eine ältere Version als go.mod verlangt ist ebenfalls falsch: Go lädt
-          # dann zur Laufzeit eine Toolchain nach, und in dieser fehlte "covdata",
-          # woran der Testlauf scheiterte, obwohl alle Tests grün waren.
-          #
-          # "stable" ist immer mindestens so neu wie die Untergrenze und enthält
-          # die aktuellen Sicherheitskorrekturen.
-          go-version: stable
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: sockets, pcntl, posix, mbstring, intl, zip, pdo_mysql
+          coverage: none
+          tools: composer:v2
 
-      - name: Formatierung
+      - name: composer.json prüfen
+        run: composer validate --strict
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('composer.lock') }}
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Pint
+        run: vendor/bin/pint --test
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
+      - name: Der Agent hängt an nichts
+        # Die Zusage aus §4.1: Was als root läuft, kommt ohne Composer aus.
+        # Ein use-Statement auf einen vendor-Namensraum bricht sie — und weil
+        # so etwas beim Lesen eines Diffs durchgeht, prüft es die CI.
         run: |
-          unformatted="$(gofmt -l .)"
-          if [ -n "$unformatted" ]; then
-            echo "Nicht formatiert:"; echo "$unformatted"
+          if grep -rnE '^use (Illuminate|Symfony|Laravel|Inertia|Composer)\\' agent/src agent/bin; then
+            echo "::error::Der Agent verweist auf eine Bibliothek der Anwendung."
             exit 1
           fi
+          php -r 'require "agent/src/autoload.php";
+                  new CloudSrv\Agent\Registry(new CloudSrv\Agent\Config());
+                  if (class_exists("Composer\Autoload\ClassLoader", false)) { fwrite(STDERR, "vendor/ war geladen.\n"); exit(1); }
+                  echo "Der Agent lädt ohne vendor/.\n";'
 
-      - name: go vet
-        run: go vet ./...
-
-      - name: Tests
-        run: go test -race -coverprofile=coverage.out ./...
-
-      - name: Abdeckung der sicherheitsrelevanten Pakete
-        # Die Schwellen sind ein Sperrklinken-Mechanismus gegen Rückschritt,
-        # keine runden Wunschzahlen: Sie liegen knapp unter dem heutigen Stand.
-        # Gemessen wird die Statement-Abdeckung aus dem Testlauf — der
-        # Mittelwert über Funktionen wäre irreführend, weil er eine
-        # dreizeilige Funktion so stark gewichtet wie eine dreißigzeilige.
-        run: |
-          set -euo pipefail
-          go test -coverprofile=/dev/null ./... > coverage.txt
-          cat coverage.txt
-
-          check() {
-            pkg="$1"; floor="$2"
-            pct="$(grep -E "internal/${pkg}\s" coverage.txt \
-                   | grep -oE 'coverage: [0-9.]+%' | grep -oE '[0-9.]+' || echo 0)"
-            printf 'internal/%-10s %5s %% (Grenze %s %%)\n' "$pkg" "$pct" "$floor"
-            if [ "$(printf '%.0f' "$pct")" -lt "$floor" ]; then
-              echo "Abdeckung von internal/${pkg} liegt unter ${floor} %."
-              exit 1
-            fi
-          }
-
-          # Pakete, die die Angriffsfläche tragen.
-          check auth    85
-          check privops 72
-          check store   78
-          check certs   78
-          check config  88
-          # acme besorgt das Zertifikat, mit dem alles andere geschützt wird.
-          # Der Anteil ist niedriger als bei den übrigen, weil der Weg gegen
-          # einen echten CA nur auf einem Server mit öffentlichem Namen läuft;
-          # geprüft ist, was ohne ihn prüfbar ist.
-          check acme    55
-          # update trägt die Signaturprüfung und den Austausch des Binaries.
-          check update  85
-          # httpd besteht zu einem großen Teil aus Anzeigelogik; die
-          # sicherheitsrelevanten Pfade darin (Sitzung, CSRF, Rollen) sind
-          # eigens getestet.
-          #
-          # Die Grenze stieg mit 0.4.1 von 63 auf 68: Der Abbau der alten
-          # Oberfläche nahm rund 4.500 Zeilen Anzeigelogik mit, die zu einem
-          # großen Teil ungetestet war. Gemessen sind seither 70,0 %. Die Zahl
-          # anzuheben ist die Pflicht des Sperrklinken-Mechanismus — eine Grenze,
-          # die sieben Punkte unter dem Stand liegt, hält nichts.
-          check httpd   68
-
-      - name: Build
-        run: |
-          for arch in amd64 arm64; do
-            CGO_ENABLED=0 GOOS=linux GOARCH="$arch" \
-              go build -trimpath -ldflags "-s -w" -o "/tmp/asylumd_${arch}" ./cmd/asylumd
-          done
-          ls -l /tmp/asylumd_*
-
-      - name: Binärgröße prüfen
-        # Grenze aus docs/06-roadmap.md. Sie steht hier, damit "schlank" eine
-        # Zusage bleibt und kein Marketingbegriff wird.
-        run: |
-          max=$((30 * 1024 * 1024))
-          for f in /tmp/asylumd_amd64 /tmp/asylumd_arm64; do
-            size="$(stat -c%s "$f")"
-            echo "$(basename "$f"): $((size / 1024 / 1024)) MB"
-            if [ "$size" -gt "$max" ]; then
-              echo "Binärgröße überschreitet 30 MB."
-              exit 1
-            fi
-          done
-
-  lint:
-    name: Linter
+  tests:
+    name: Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-      # v8 ist die erste Fassung, die golangci-lint v2 und dessen
-      # Konfigurationsformat versteht. Mit v6 brach der Job nach 95 ms mit
-      # Code 3 ab: unlesbare Konfiguration.
-      #
-      # Die Fassung des Linters steht vollständig da, nicht als "v2.12": Eine
-      # Minor-Angabe löst der Job auf den jeweils neuesten Patch auf, und ein
-      # neuer Patch bringt neue Regeln mit. Genau das hat einen grünen Stand rot
-      # werden lassen, ohne dass sich eine Zeile Code geändert hätte (v2.12.2
-      # ergänzte QF1012). Ein Linter-Sprung soll ein Commit sein, den jemand
-      # bewusst macht — mit der Gelegenheit, die neuen Befunde zu lesen.
-      - uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.12.2
 
-  ui:
-    name: UI-Bundle reproduzierbar
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: sockets, pcntl, posix, mbstring, intl, zip, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test
+
+  oberflaeche:
+    name: Oberfläche
     runs-on: ubuntu-latest
-    # internal/ui/dist/ liegt im Repository, damit ein Go-Build keine Node-Kette
-    # braucht. Ein eingecheckter Bundle, den niemand nachbauen kann, wäre
-    # allerdings Fremdcode ohne Herkunftsnachweis: Niemand könnte sagen, ob der
-    # Inhalt zu den genannten Quellen passt. Damit der
-    # eingecheckte Stand nachprüfbar bleibt, baut dieser Job ihn aus dem
-    # festgeschriebenen Lockfile nach und vergleicht byteweise — samt der
-    # gehashten Dateinamen, die sich bei jeder Inhaltsänderung mit ändern.
-    #
-    # Nachgewiesen ist die Reproduzierbarkeit über drei Fälle: zwei Läufe
-    # hintereinander, ein Lauf aus einem anderen Verzeichnispfad und ein Lauf
-    # nach frischem npm ci.
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-      - name: Nachbauen und vergleichen
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+      - name: Typen
+        run: npm run typen
+      - name: Bundle
+        run: npm run build
+
+      - name: Farbwerte stehen nur in app.css
+        # Vorgabe aus §7.2: Jede Farbe kommt aus den Marken. Ein Hexwert in
+        # einer Komponente ist der Anfang vom Ende des zweiten Themes.
         run: |
-          set -euo pipefail
-          cp -r internal/ui/dist "${RUNNER_TEMP}/dist.eingecheckt"
-          cd web
-          npm ci --no-audit --no-fund
-          npm run build
-          cd ..
-          if ! diff -r "${RUNNER_TEMP}/dist.eingecheckt" internal/ui/dist; then
-            echo "Der eingecheckte UI-Bundle stimmt nicht mit dem Nachbau überein."
-            echo "Bitte 'make ui' laufen lassen und das Ergebnis mit einchecken."
+          if grep -rnE '#[0-9a-fA-F]{3,8}\b' resources/js --include='*.vue' --include='*.ts'; then
+            echo "::error::Farbwert außerhalb von app.css. Marke aus resources/css/app.css benutzen."
             exit 1
           fi
-          echo "Bundle reproduzierbar: $(du -sh internal/ui/dist | cut -f1)"
+          echo "Keine Farbwerte außerhalb der Marken."
 
-      # Das Modell hinter dem Compose-Formular ist TypeScript und wird deshalb
-      # hier geprüft und nicht im Testjob: Es braucht node_modules, und die gibt
-      # es nur in diesem Job. Der Test überspringt sich selbst, wo sie fehlen —
-      # ohne diesen Schritt liefe er in der CI also nie.
-      - uses: actions/setup-go@v5
+  integration:
+    name: Installation auf ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    # Der Zweig, den es beim Vorgänger nicht gab — und der Grund, warum dort
+    # eine systemd-Härtung jede Paketinstallation unmöglich machen konnte,
+    # ohne dass ein Test es merkte. Hier läuft das gebaute Paket unter echtem
+    # systemd auf jeder zugesagten Plattform.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debian 12
+            image: debian:12
+          - name: Debian 13
+            image: debian:13
+          - name: Ubuntu 22.04
+            image: ubuntu:22.04
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
         with:
-          go-version: stable
-      - name: Modell des Compose-Formulars
-        run: go test ./internal/httpd -run TestComposeformModell -count=1 -v
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: sockets, pcntl, posix, mbstring, intl, zip
+          tools: composer:v2
 
-      - name: Lizenzen des Fremdcodes
-        # Was ins Binary wandert, muss eine Lizenz haben, die das Projekt
-        # weitergeben kann. (Bis 0.4.1 stand dieselbe Allowlist ein zweites Mal
-        # im Job „Editor-Bundle reproduzierbar" — er ist mit der alten
-        # Oberfläche entfallen, und damit gibt es eine Liste und nicht zwei.)
-        #
-        # Dazu eine namentliche Ausnahmeliste statt einer weiteren erlaubten
-        # Lizenz: lightningcss ist MPL-2.0 und wandelt Stylesheets während des
-        # Baus um — sein Code landet nicht im Ergebnis, seine dateiweise
-        # Copyleft-Wirkung erreicht das ausgelieferte Bundle also nicht. Als
-        # erlaubte Lizenz eingetragen würde dieselbe Nachsicht aber auch für
-        # eine Abhängigkeit gelten, die tatsächlich mitgeliefert wird. Deshalb
-        # der Name und nicht die Lizenz.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: nfpm bereitstellen
         run: |
-          set -euo pipefail
-          cd web
-          erlaubt="MIT ISC BSD-2-Clause BSD-3-Clause Apache-2.0 0BSD"
-          nur_bauzeit="lightningcss"
-          fehler=0
-          for pfad in node_modules/*/package.json node_modules/@*/*/package.json; do
-            [ -f "$pfad" ] || continue
-            name="$(node -p "require('./$pfad').name")"
-            lizenz="$(node -p "require('./$pfad').license || ''")"
-            case " $erlaubt " in
-              *" $lizenz "*) continue ;;
-            esac
-            # Plattformbinaries heißen wie das Paket mit Zielsuffix
-            # (lightningcss-linux-x64-gnu) — der Präfixvergleich deckt sie mit.
-            ausgenommen=0
-            for erlaubter in $nur_bauzeit; do
-              case "$name" in "$erlaubter"|"$erlaubter"-*) ausgenommen=1 ;; esac
-            done
-            if [ "$ausgenommen" -eq 1 ]; then
-              echo "nur zur Bauzeit, nicht im Bundle: $name = $lizenz"
-              continue
-            fi
-            echo "unerwartete Lizenz: $name = ${lizenz:-keine}"
-            fehler=1
-          done
-          [ "$fehler" -eq 0 ] || exit 1
-          echo "alle Lizenzen im erlaubten Rahmen"
+          curl -fsSL https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin nfpm
 
-  shell:
+      - name: Paket bauen
+        run: packaging/build.sh 0.0.0-ci amd64
+
+      - name: Container mit systemd starten
+        run: |
+          docker run -d --name ziel --privileged \
+            --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
+            -v "${PWD}/dist:/pakete:ro" \
+            ${{ matrix.image }} /bin/sh -c \
+            'apt-get update -qq && apt-get install -y -qq systemd systemd-sysv >/dev/null && exec /sbin/init'
+          for i in $(seq 1 60); do
+            if docker exec ziel systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then break; fi
+            sleep 2
+          done
+          docker exec ziel systemctl --version | head -1
+
+      - name: Paket installieren
+        run: |
+          docker exec ziel sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq php-cli php-fpm php-sockets php-mbstring php-xml php-curl >/dev/null 2>&1 || true'
+          docker exec ziel sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y /pakete/*.deb'
+
+      - name: Der Agent läuft und antwortet
+        run: |
+          docker exec ziel systemctl is-active cloudsrv-agentd.service
+          docker exec ziel /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call agent.ping
+          docker exec ziel /opt/cloudsrv/current/agent/bin/cloudsrv-agentd call system.info | head -5
+
+      - name: Der Socket ist nicht für alle offen
+        run: |
+          rechte="$(docker exec ziel stat -c '%a %U:%G' /run/cloudsrv/agent.sock)"
+          echo "Socket: ${rechte}"
+          case "${rechte}" in
+            "660 root:cloudsrv") ;;
+            *) echo "::error::Socket steht auf ${rechte}, erwartet ist 660 root:cloudsrv"; exit 1 ;;
+          esac
+
+      - name: Entfernen hinterlässt keine Dienste, aber die Daten
+        run: |
+          docker exec ziel sh -c 'DEBIAN_FRONTEND=noninteractive apt-get remove -y cloudsrv-panel'
+          ! docker exec ziel systemctl is-active cloudsrv-agentd.service
+          docker exec ziel test -d /var/lib/cloudsrv
+
+      - name: Aufräumen
+        if: always()
+        run: docker rm -f ziel || true
+
+  skripte:
     name: Shell-Skripte
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck
-          shellcheck packaging/install.sh packaging/nfpm/*.sh packaging/release-dry-run.sh \
-            packaging/dev-deploy.sh
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck packaging/install.sh packaging/scripts/*.sh
+          shellcheck -e SC1091 packaging/bin/php packaging/bin/php-fpm packaging/bin/cloudsrv
+          shellcheck -e SC1090 packaging/build.sh
 
-  release-probe:
-    name: Freigabepipeline probeweise
-    runs-on: ubuntu-latest
-    # Der Schritt, der Landingpage und Update-Metadaten schreibt, lief bisher
-    # erstmals dann, wenn ein Tag gesetzt war — also genau dann, wenn ein
-    # Fehler teuer ist. Zwei Freigaben sind daran gescheitert. Hier läuft er
-    # unverändert gegen eine Attrappe, bevor jemand taggt.
-    steps:
-      - uses: actions/checkout@v4
-      - name: Probelauf
-        run: |
-          python3 -m pip install --quiet pyyaml
-          ./packaging/release-dry-run.sh
-
-  keys:
-    name: Signaturschlüssel
-    runs-on: ubuntu-latest
-    # Der eingebaute minisign-Schlüssel wird von einem Test in internal/update
-    # geprüft. Hier geht es um den zweiten Schlüssel: den des APT-Repositories.
-    # Er taucht an drei Stellen auf — als Schlüsselbund, als Textfassung und
-    # als Fingerprint in der Dokumentation. Laufen die auseinander, merkt es
-    # sonst zuerst ein Nutzer, dessen apt-update mit NO_PUBKEY abbricht.
-    steps:
-      - uses: actions/checkout@v4
-      - name: Schlüsselbund, Textfassung und Dokumentation vergleichen
-        run: |
-          set -euo pipefail
-          export GNUPGHOME="$(mktemp -d)"
-          chmod 700 "$GNUPGHOME"
-
-          fpr() { gpg --show-keys --with-colons "$1" | awk -F: '/^fpr/{print $10; exit}'; }
-          binary="$(fpr packaging/asylum-archive-keyring.gpg)"
-          armored="$(fpr packaging/asylum-archive-keyring.asc)"
-
-          if [ -z "$binary" ]; then
-            echo "packaging/asylum-archive-keyring.gpg enthält keinen lesbaren Schlüssel."
-            exit 1
-          fi
-          if [ "$binary" != "$armored" ]; then
-            echo "Schlüsselbund ($binary) und Textfassung ($armored) sind verschiedene Schlüssel."
-            exit 1
-          fi
-          if ! grep -qF "$binary" docs/05-updates.md; then
-            echo "Der Fingerprint $binary steht nicht in docs/05-updates.md."
-            exit 1
-          fi
-
-          # Ein privater Schlüssel gehört niemals ins Repository.
-          if gpg --list-packets packaging/asylum-archive-keyring.gpg 2>/dev/null \
-             | grep -qi "secret key"; then
-            echo "Die Datei enthält privates Schlüsselmaterial."
-            exit 1
-          fi
-          echo "APT-Signaturschlüssel stimmig: $binary"
-
-  security:
+  lieferkette:
     name: Schwachstellen und Lizenzen
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+
+      - uses: shivammathur/setup-php@v2
         with:
-          go-version: stable
+          php-version: ${{ env.PHP_VERSION }}
+          tools: composer:v2
 
-      - name: govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
 
-      - name: Lizenzen der Abhängigkeiten
-        # Kein GPL-/AGPL-Code im statisch gelinkten Binary — siehe
-        # docs/07-name-lizenz-domain.md.
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: composer audit
+        run: composer audit --no-interaction
+
+      - run: npm ci
+      - name: npm audit
+        run: npm audit --audit-level=high
+
+      - name: Lizenzen sind mit der AGPL vereinbar
+        # §12.2 des Plans: Eine Abhängigkeit unter einer unvereinbaren Lizenz
+        # muss auffallen, bevor sie im Paket landet — nicht danach.
         run: |
-          go install github.com/google/go-licenses@latest
-          go-licenses check ./... \
-            --disallowed_types=forbidden,restricted,reciprocal
+          composer licenses --format=json > /tmp/lizenzen.json
+          php -r '
+            $verboten = ["proprietary", "GPL-2.0-only", "GPL-2.0", "SSPL-1.0", "BUSL-1.1", "Elastic-2.0"];
+            $daten = json_decode(file_get_contents("/tmp/lizenzen.json"), true);
+            $treffer = [];
+            foreach ($daten["dependencies"] ?? [] as $name => $paket) {
+                foreach ((array) ($paket["license"] ?? []) as $lizenz) {
+                    if (in_array($lizenz, $verboten, true)) { $treffer[] = $name . " (" . $lizenz . ")"; }
+                }
+            }
+            if ($treffer) { fwrite(STDERR, "Unvereinbare Lizenzen: " . implode(", ", $treffer) . "\n"); exit(1); }
+            echo "Alle Lizenzen sind mit AGPL-3.0-only vereinbar.\n";'

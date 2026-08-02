@@ -1,0 +1,35 @@
+[Unit]
+Description=CloudSrv — PHP-FPM-Pool der Panel-Oberfläche
+Documentation=https://repo.cloudsrv24.de/
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/opt/cloudsrv/bin/php-fpm --nodaemonize --fpm-config /etc/cloudsrv/fpm.conf
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=on-failure
+RestartSec=2s
+
+# Der Pool läuft als cloudsrv und kommt ohne root aus. Alles Privilegierte
+# geht über den Socket des Agenten — das ist die Trennlinie aus §4.1 des
+# Plans, und sie steht hier in der Unit und nicht nur im Dokument.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/cloudsrv /var/log/cloudsrv /opt/cloudsrv/current/storage /run/cloudsrv
+
+MemoryMax=768M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target

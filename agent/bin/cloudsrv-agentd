@@ -1,0 +1,113 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * cloudsrv-agentd — der einzige Prozess des Panels mit Systemrechten.
+ *
+ * Aufrufe:
+ *   cloudsrv-agentd serve [--config=DATEI] [--socket=PFAD] [--unprivileged]
+ *   cloudsrv-agentd call OP [JSON-ARGUMENTE] [--socket=PFAD]
+ *   cloudsrv-agentd ops
+ *
+ * `call` ist kein Verwaltungsweg, sondern das Werkzeug für die
+ * Bereitschaftsprüfung nach einem Update und für den Rauchtest der CI. Es
+ * spricht über denselben Socket und dieselbe Prüfung wie die Anwendung — eine
+ * Abkürzung am Protokoll vorbei gibt es nicht.
+ */
+
+namespace CloudSrv\Agent;
+
+require __DIR__ . '/../src/autoload.php';
+
+$argumente = $argv;
+array_shift($argumente);
+$befehl = $argumente[0] ?? 'serve';
+$optionen = [];
+$stellungen = [];
+
+foreach (array_slice($argumente, 1) as $stueck) {
+    if (str_starts_with($stueck, '--')) {
+        $paar = explode('=', substr($stueck, 2), 2);
+        $optionen[$paar[0]] = $paar[1] ?? true;
+    } else {
+        $stellungen[] = $stueck;
+    }
+}
+
+$configDatei = is_string($optionen['config'] ?? null) ? $optionen['config'] : '/etc/cloudsrv/agent.json';
+$config = Config::ausDatei($configDatei);
+
+$ueberschreibungen = [];
+if (is_string($optionen['socket'] ?? null)) {
+    $ueberschreibungen['socket'] = $optionen['socket'];
+}
+if (is_string($optionen['log'] ?? null)) {
+    $ueberschreibungen['protokoll'] = $optionen['log'];
+}
+if (is_string($optionen['user'] ?? null)) {
+    $ueberschreibungen['benutzer'] = $optionen['user'];
+}
+if (is_string($optionen['group'] ?? null)) {
+    $ueberschreibungen['gruppe'] = $optionen['group'];
+}
+if (isset($optionen['unprivileged'])) {
+    $ueberschreibungen['erlaubeUnprivilegiert'] = true;
+}
+
+$config = $config->mit($ueberschreibungen);
+
+switch ($befehl) {
+    case 'serve':
+        $journal = new Journal($config->protokoll);
+        exit((new Daemon($config, new Registry($config), $journal))->starte());
+
+    case 'ops':
+        foreach ((new Registry($config))->namen() as $name) {
+            echo $name, "\n";
+        }
+        exit(0);
+
+    case 'call':
+        $op = $stellungen[0] ?? null;
+
+        if ($op === null) {
+            fwrite(STDERR, "Aufruf: cloudsrv-agentd call OP [JSON-ARGUMENTE]\n");
+            exit(2);
+        }
+
+        $roh = $stellungen[1] ?? '{}';
+        $args = json_decode($roh, true);
+
+        if (!is_array($args)) {
+            fwrite(STDERR, "Die Argumente sind kein gültiges JSON-Objekt.\n");
+            exit(2);
+        }
+
+        try {
+            $client = new Client($config->socket);
+            $daten = $client->ruf($op, $args, ['quelle' => 'cli', 'uid' => posix_getuid()], static function (array $satz): void {
+                if (($satz['type'] ?? '') === 'progress') {
+                    fwrite(STDERR, sprintf("… %3d %% %s\n", $satz['pct'] ?? 0, $satz['text'] ?? ''));
+                }
+                if (($satz['type'] ?? '') === 'log') {
+                    fwrite(STDERR, ($satz['line'] ?? '') . "\n");
+                }
+            });
+
+            echo json_encode($daten, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), "\n";
+            exit(0);
+        } catch (AgentException $fehler) {
+            fwrite(STDERR, sprintf("%s: %s\n", $fehler->fehlercode, $fehler->getMessage()));
+            exit(1);
+        }
+
+    case 'version':
+        echo Version::AGENT, ' (Protokoll ', Version::PROTOKOLL, ")\n";
+        exit(0);
+
+    default:
+        fwrite(STDERR, "Unbekannter Befehl {$befehl}. Bekannt: serve, call, ops, version.\n");
+        exit(2);
+}

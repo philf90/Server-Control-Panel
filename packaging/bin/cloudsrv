@@ -1,0 +1,12 @@
+#!/bin/sh
+# Die Kommandozeile des Panels. Sie ruft artisan im Verzeichnis der aktiven
+# Fassung auf — als Benutzer cloudsrv, damit ein Lauf von Hand keine Dateien
+# hinterlässt, die der Dienst danach nicht mehr schreiben kann.
+set -eu
+
+if [ "$(id -u)" = "0" ]; then
+    exec setpriv --reuid=cloudsrv --regid=cloudsrv --init-groups \
+        /opt/cloudsrv/bin/php /opt/cloudsrv/current/artisan "$@"
+fi
+
+exec /opt/cloudsrv/bin/php /opt/cloudsrv/current/artisan "$@"

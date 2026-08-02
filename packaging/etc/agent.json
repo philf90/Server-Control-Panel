@@ -1,0 +1,14 @@
+{
+  "socket": "/run/cloudsrv/agent.sock",
+  "benutzer": "cloudsrv",
+  "gruppe": "cloudsrv",
+  "protokoll": "/var/log/cloudsrv/agent.log",
+  "pruefbare_wurzeln": [
+    "/etc/nginx",
+    "/etc/php",
+    "/etc/ssh",
+    "/etc/cloudsrv",
+    "/var/lib/cloudsrv"
+  ],
+  "max_kinder": 8
+}

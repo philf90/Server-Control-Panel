@@ -1,0 +1,11 @@
+parameters:
+    level: 6
+    paths:
+        - app
+        - agent/src
+        - config
+        - routes
+        - tests
+    excludePaths:
+        - agent/src/autoload.php
+    treatPhpDocTypesAsCertain: false

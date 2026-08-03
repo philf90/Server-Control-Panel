@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Models\Account;
+use App\Support\Audit\Impersonation;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -46,10 +47,41 @@ final class HandleInertiaRequests extends Middleware
                 'is_admin' => $account->isAdmin(),
             ] : null,
 
+            // „Anmelden als" muss auf jeder Seite sichtbar sein (§6.3). Ein
+            // Admin, der vergisst, in wessen Sicht er ist, tut sonst im Namen
+            // eines Kunden Dinge, die er für seine eigenen hält.
+            'impersonation' => $this->impersonation($request),
+
             'flash' => [
                 'notice' => fn () => $request->session()->get('notice'),
                 'success' => fn () => $request->session()->get('success'),
+                'recoveryCodes' => fn () => $request->session()->get('recoveryCodes'),
             ],
         ]);
+    }
+
+    /**
+     * Läuft gerade ein „Anmelden als"? Und wenn ja, wer hat es begonnen?
+     *
+     * @return array<string, mixed>|null
+     */
+    private function impersonation(Request $request): ?array
+    {
+        if (! $request->hasSession()) {
+            return null;
+        }
+
+        $adminId = $request->session()->get(Impersonation::SESSION_KEY);
+
+        if (! is_numeric($adminId)) {
+            return null;
+        }
+
+        $admin = Account::query()->find((int) $adminId);
+
+        return [
+            'active' => true,
+            'admin' => $admin->name ?? 'unbekannt',
+        ];
     }
 }

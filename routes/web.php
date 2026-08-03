@@ -2,8 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AuditController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
+use App\Http\Controllers\Auth\TwoFactorSetupController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
+use App\Models\AuditEvent;
+use App\Models\Customer;
 use Illuminate\Support\Facades\Route;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Version;
@@ -17,6 +25,18 @@ use SrvPanel\Agent\Version;
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'store']);
+});
+
+/*
+ * Der zweite Schritt der Anmeldung.
+ *
+ * Ohne `auth`: Zwischen Passwort und zweitem Faktor ist niemand angemeldet —
+ * das wartende Konto steht in der Sitzung. Wäre hier `auth` verlangt, käme
+ * niemand je an diese Seite.
+ */
+Route::middleware('guest')->group(function (): void {
+    Route::get('/two-factor', [TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
+    Route::post('/two-factor', [TwoFactorChallengeController::class, 'store']);
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])
@@ -33,6 +53,80 @@ Route::post('/logout', [LoginController::class, 'destroy'])
  */
 Route::middleware('auth')->group(function (): void {
     Route::get('/', OverviewController::class)->name('overview');
+
+    /*
+     * Die Live-Ausgabe eines Vorgangs.
+     *
+     * Die erste Route mit einer Policy an der Aktion statt einer Eintragung
+     * in der Registratur — `can:view,operation`. Die Modellbindung läuft
+     * bereits unter der Mandantenklammer (siehe bootstrap/app.php), ein
+     * fremder Vorgang ist deshalb schon „nicht gefunden" und erreicht die
+     * Policy gar nicht erst. Sie steht trotzdem da: zwei Schichten, und
+     * wenn eine ausfällt, hält die andere.
+     */
+    Route::get('/operations/{operation}/stream', OperationStreamController::class)
+        ->middleware('can:view,operation')
+        ->name('operations.stream');
+
+    /*
+     * Das Protokoll.
+     *
+     * `viewAny` gibt jedem angemeldeten Konto Zugang — was es dann sieht,
+     * entscheidet AuditQuery::visibleTo. Die Policy an der Route ersetzt
+     * diese Prüfung nicht, sie steht davor: Ohne Konto gar nichts, mit Konto
+     * genau das Eigene.
+     */
+    Route::get('/audit', [AuditController::class, 'index'])
+        ->middleware('can:viewAny,'.AuditEvent::class)
+        ->name('audit');
+
+    Route::get('/audit/export', [AuditController::class, 'export'])
+        ->middleware('can:viewAny,'.AuditEvent::class)
+        ->name('audit.export');
+
+    /*
+     * Kunden — die Betreiberseite.
+     */
+    Route::get('/customers', [CustomerController::class, 'index'])
+        ->middleware('can:viewAny,'.Customer::class)
+        ->name('customers.index');
+
+    Route::get('/customers/create', [CustomerController::class, 'create'])
+        ->middleware('can:create,'.Customer::class)
+        ->name('customers.create');
+
+    Route::post('/customers', [CustomerController::class, 'store'])
+        ->middleware('can:create,'.Customer::class)
+        ->name('customers.store');
+
+    Route::get('/customers/{customer}', [CustomerController::class, 'show'])
+        ->middleware('can:view,customer')
+        ->name('customers.show');
+
+    /*
+     * „Anmelden als" (§6.3).
+     *
+     * Der Beginn braucht die Fähigkeit `impersonate` am Kunden. Der Rückweg
+     * nicht: Wer schon in fremder Sicht ist, ist in diesem Moment ein
+     * Kundenkonto und hätte sie nicht mehr — die Prüfung stünde ihm dann
+     * ausgerechnet beim Zurückkommen im Weg.
+     */
+    Route::post('/customers/{customer}/impersonate', [ImpersonationController::class, 'start'])
+        ->middleware('can:impersonate,customer')
+        ->name('impersonation.start');
+
+    Route::post('/impersonation/stop', [ImpersonationController::class, 'stop'])
+        ->name('impersonation.stop');
+
+    /*
+     * Den zweiten Faktor einrichten oder abschalten.
+     */
+    Route::get('/settings/two-factor', [TwoFactorSetupController::class, 'show'])
+        ->name('two-factor.setup');
+    Route::post('/settings/two-factor', [TwoFactorSetupController::class, 'store'])
+        ->name('two-factor.setup.store');
+    Route::delete('/settings/two-factor', [TwoFactorSetupController::class, 'destroy'])
+        ->name('two-factor.setup.destroy');
 });
 
 /*

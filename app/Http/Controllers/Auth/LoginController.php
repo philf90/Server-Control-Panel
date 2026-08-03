@@ -103,6 +103,19 @@ final class LoginController extends Controller
 
         $throttle->clear($ip, $email);
 
+        // Zweiter Faktor: Ab hier ist das Passwort richtig — angemeldet ist
+        // trotzdem noch niemand. Das wartende Konto steht in der Sitzung, und
+        // erst der zweite Schritt meldet an. Wer hier schon `Auth::login`
+        // aufruft und danach umleitet, hat den zweiten Faktor zu einer Seite
+        // gemacht, die man durch Eintippen einer anderen Adresse überspringt.
+        if ($account->hasTwoFactor()) {
+            TwoFactorChallengeController::await($request, $account, (bool) ($credentials['remember'] ?? false));
+
+            $audit->record('auth.two_factor.required', account: $account);
+
+            return redirect()->route('two-factor.challenge');
+        }
+
         Auth::login($account, (bool) ($credentials['remember'] ?? false));
         $request->session()->regenerate();
 

@@ -8,6 +8,8 @@ use App\Enums\AccountStatus;
 use App\Enums\AccountType;
 use App\Models\Account;
 use App\Models\Customer;
+use App\Support\Auth\RecoveryCodes;
+use App\Support\Auth\Totp;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 
@@ -32,11 +34,32 @@ class AccountFactory extends Factory
         ];
     }
 
+    /**
+     * Ein Adminkonto, wie es im Betrieb aussieht: mit zweitem Faktor.
+     *
+     * §6.4 macht ihn für Betreiber verpflichtend, und die Middleware setzt das
+     * durch — ein Admin ohne zweiten Faktor kommt nicht über die
+     * Einrichtungsseite hinaus. Ein Testkonto ohne ihn wäre deshalb kein
+     * Adminkonto, sondern ein halb eingerichtetes.
+     */
     public function admin(): static
     {
         return $this->state(fn (): array => [
             'type' => AccountType::Admin,
             'customer_id' => null,
+            'two_factor_secret' => Totp::generateSecret(),
+            'two_factor_recovery_codes' => RecoveryCodes::hashAll(RecoveryCodes::generate()),
+            'two_factor_confirmed_at' => now(),
+        ]);
+    }
+
+    /** Für die Tests, die genau diesen Zustand prüfen. */
+    public function withoutTwoFactor(): static
+    {
+        return $this->state(fn (): array => [
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
         ]);
     }
 

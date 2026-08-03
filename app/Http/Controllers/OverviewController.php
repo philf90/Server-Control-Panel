@@ -4,27 +4,69 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Account;
+use App\Models\Subscription;
 use App\Support\Metrics\Store;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 
 /**
- * Die Adminübersicht — die erste Fläche, die es gibt, und der Nachweis, dass
- * der Weg Browser → Anwendung → Agent → System steht.
+ * Die Übersicht — zwei verschiedene Seiten unter einer Adresse.
  *
- * Sie hat in P0 noch keine Rechteprüfung, weil es noch keine Konten gibt; das
- * kommt in P1 und bringt Policies für jede Route mit.
+ * **Die Verzweigung steht hier, nicht in der Vorlage.** Eine gemeinsame Seite
+ * mit `v-if="istAdmin"` sähe kürzer aus und wäre die schlechtere Lösung: Die
+ * Serverwerte — Rechnername, Kernel, Auslastung, Dienstzustände — würden dann
+ * an jeden Browser geschickt und dort nur nicht angezeigt. Wer die Antwort
+ * ansieht, läse sie trotzdem.
+ *
+ * Deshalb entscheidet der Server, was er überhaupt erhebt. Ein Kunde bekommt
+ * die Daten nicht ausgeblendet, sondern gar nicht erst.
  */
 final class OverviewController extends Controller
 {
-    public function __invoke(Client $agent, Store $store): Response
+    public function __invoke(Request $request, Client $agent, Store $store): Response
     {
+        $account = $request->user();
+
+        if ($account instanceof Account && ! $account->isAdmin()) {
+            return $this->forCustomer($account);
+        }
+
         return Inertia::render('Overview', [
             'server' => $this->server($agent),
             'tiles' => $this->tiles($store),
             'services' => $this->services($agent),
+        ]);
+    }
+
+    /**
+     * Die Kundenübersicht.
+     *
+     * In P1 zeigt sie die Abonnements — und die Liste ist leer, solange keine
+     * angelegt sind. Genau das steht in der Abnahmebedingung: Der Kunde meldet
+     * sich an und sieht seine (leere) Übersicht. Eine leere Liste mit einem
+     * Satz dazu ist eine Auskunft; eine weiße Fläche wäre keine.
+     */
+    private function forCustomer(Account $account): Response
+    {
+        $subscriptions = Subscription::query()
+            ->whereIn('id', $account->accessibleSubscriptionIds())
+            ->orderBy('name')
+            ->get()
+            ->map(static fn (Subscription $subscription): array => [
+                'id' => (int) $subscription->id,
+                'name' => $subscription->name,
+                'main_domain' => $subscription->main_domain,
+                'status' => $subscription->status->value,
+                'status_label' => $subscription->status->label(),
+            ])
+            ->all();
+
+        return Inertia::render('CustomerOverview', [
+            'subscriptions' => $subscriptions,
         ]);
     }
 

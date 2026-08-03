@@ -44,10 +44,19 @@ final class LoginTest extends TestCase
         return (string) ($errors['default']['messages']['email'][0] ?? '');
     }
 
-    /** @param array<string, mixed> $attributes */
+    /**
+     * Das Konto für diese Datei — bewusst ohne zweiten Faktor.
+     *
+     * Gegenstand hier ist der erste Schritt: Passwort, Sperre, Protokoll,
+     * Sitzungskennung. Mit zweitem Faktor endete jede erfolgreiche Anmeldung
+     * auf `/two-factor` statt auf der Übersicht, und die Tests prüften
+     * nebenbei etwas, wofür es tests/Feature/TwoFactorTest.php gibt.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
     private function account(array $attributes = []): Account
     {
-        return Account::factory()->admin()->create(array_merge([
+        return Account::factory()->admin()->withoutTwoFactor()->create(array_merge([
             'email' => 'betreiber@example.test',
             'password' => Hash::make('ein-langes-passwort'),
         ], $attributes));

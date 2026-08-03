@@ -6,12 +6,14 @@ namespace App\Models;
 
 use App\Enums\AccountStatus;
 use App\Enums\AccountType;
+use App\Enums\Permission;
 use App\Support\Tenancy\Tenancy;
 use Database\Factories\AccountFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Carbon;
 
@@ -39,6 +41,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $two_factor_secret
  * @property list<string>|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
+ * @property int|null $two_factor_last_step
  * @property Carbon|null $last_login_at
  * @property string|null $last_login_ip
  * @property-read Customer|null $customer
@@ -145,8 +148,75 @@ class Account extends Authenticatable
         });
     }
 
+    /** Ist der zweite Faktor eingerichtet und bestätigt? */
+    public function hasTwoFactor(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
+    }
+
     public function isAdmin(): bool
     {
         return $this->type->isAdmin();
+    }
+
+    /**
+     * Darf dieses Konto dieses Abonnement überhaupt sehen?
+     *
+     * Die Frage vor allen anderen: Ohne sie ist jede Rechteprüfung eine
+     * Prüfung am falschen Objekt.
+     */
+    public function mayAccessSubscription(Subscription|int $subscription): bool
+    {
+        $id = $subscription instanceof Subscription ? (int) $subscription->id : $subscription;
+
+        return in_array($id, $this->accessibleSubscriptionIds(), true);
+    }
+
+    /**
+     * Welche Rechte dieses Konto in einem Abonnement hat.
+     *
+     * Für Admins und Kunden ist die Frage gegenstandslos — sie haben im
+     * Rahmen ihres Abonnements alle. Der Katalog beschreibt nur, was ein Kunde
+     * an einen Zusatzbenutzer weitergegeben hat.
+     *
+     * @return list<Permission>
+     */
+    public function permissionsFor(Subscription|int $subscription): array
+    {
+        if (! $this->mayAccessSubscription($subscription)) {
+            return [];
+        }
+
+        if ($this->type !== AccountType::Additional) {
+            return Permission::cases();
+        }
+
+        $id = $subscription instanceof Subscription ? (int) $subscription->id : $subscription;
+
+        return app(Tenancy::class)->withoutRestriction(function () use ($id): array {
+            $assignment = $this->assignedSubscriptions()
+                ->wherePivot('subscription_id', $id)
+                ->first();
+
+            if ($assignment === null) {
+                return [];
+            }
+
+            $pivot = $assignment->getAttribute('pivot');
+            $stored = $pivot instanceof Pivot ? $pivot->getAttribute('permissions') : null;
+
+            // Der Wert kann als JSON-Zeichenkette ankommen, weil die
+            // Verknüpfungstabelle kein Modell mit Casts hat.
+            if (is_string($stored)) {
+                $stored = json_decode($stored, true);
+            }
+
+            return Permission::fromStored($stored);
+        });
+    }
+
+    public function hasPermission(Subscription|int $subscription, Permission $permission): bool
+    {
+        return in_array($permission, $this->permissionsFor($subscription), true);
     }
 }

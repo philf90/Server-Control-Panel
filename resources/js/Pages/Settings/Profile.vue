@@ -162,7 +162,7 @@ function savePassword(): void {
 
 .maske { display: flex; flex-direction: column; gap: 10px; max-width: 448px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
 label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-input { padding: 6px 8px; font: inherit; font-size: var(--text-body); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
+input { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
 .fehler { font-size: var(--text-small); color: var(--critical); }
 .hinweis { margin: 0; font-size: var(--text-label); color: var(--text-faint); }
 

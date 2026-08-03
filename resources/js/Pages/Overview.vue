@@ -103,56 +103,59 @@ const headline = props.server.reachable
     -->
     <section class="block">
       <h2 class="section">Dienste</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Unit</th>
-            <th>Zustand</th>
-            <th>Beschreibung</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="service in services" :key="service.unit">
-            <td class="name">{{ service.unit }}</td>
-            <td>
-              <span :class="['badge', service.active_state === 'active' ? 'ok' : service.present ? 'stopped' : 'missing']">
-                {{ service.present ? service.active_state : 'nicht installiert' }}
-              </span>
-            </td>
-            <td class="quiet">{{ service.description }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="rollt">
+        <table>
+          <thead>
+            <tr>
+              <th>Unit</th>
+              <th>Zustand</th>
+              <th>Beschreibung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="service in services" :key="service.unit">
+              <td class="name">{{ service.unit }}</td>
+              <td>
+                <span :class="['badge', service.active_state === 'active' ? 'ok' : service.present ? 'stopped' : 'missing']">
+                  {{ service.present ? service.active_state : 'nicht installiert' }}
+                </span>
+              </td>
+              <td class="quiet">{{ service.description }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="block">
       <h2 class="section">Dateisysteme</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Einhängepunkt</th>
-            <th>Gerät</th>
-            <th>Art</th>
-            <th>Größe</th>
-            <th>Frei</th>
-            <th>Belegt</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="filesystem in filesystems" :key="filesystem.mount">
-            <td class="name">{{ filesystem.mount }}</td>
-            <td class="quiet">{{ filesystem.device }}</td>
-            <td class="quiet">{{ filesystem.type }}</td>
-            <td>{{ filesystem.total }}</td>
-            <td>{{ filesystem.free }}</td>
-            <td>
-              <!--
-                Der Balken statt nur der Zahl: „87 %" liest man, ein voller
-                Balken sieht man. Die Schwelle, ab der er warnt, kommt vom
-                Server — sie ist eine Aussage über den Betrieb.
-              -->
-              <div class="bar" :class="{ tight: filesystem.tight }">
-                <span :style="{ width: `${Math.min(100, filesystem.percent)}%` }" />
+      <div class="rollt">
+        <table>
+          <thead>
+            <tr>
+              <th>Einhängepunkt</th>
+              <th>Gerät</th>
+              <th>Art</th>
+              <th>Größe</th>
+              <th>Frei</th>
+              <th>Belegt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="filesystem in filesystems" :key="filesystem.mount">
+              <td class="name">{{ filesystem.mount }}</td>
+              <td class="quiet">{{ filesystem.device }}</td>
+              <td class="quiet">{{ filesystem.type }}</td>
+              <td>{{ filesystem.total }}</td>
+              <td>{{ filesystem.free }}</td>
+              <td>
+                <!--
+                  Der Balken statt nur der Zahl: „87 %" liest man, ein voller
+                  Balken sieht man. Die Schwelle, ab der er warnt, kommt vom
+                  Server — sie ist eine Aussage über den Betrieb.
+                -->
+                <div class="bar" :class="{ tight: filesystem.tight }">
+                  <span :style="{ width: `${Math.min(100, filesystem.percent)}%` }" />
               </div>
               <span class="percent">{{ filesystem.percent }} %</span>
             </td>
@@ -161,34 +164,37 @@ const headline = props.server.reachable
             <td colspan="6" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </section>
 
     <section class="block">
       <h2 class="section">Prozesse nach Speicher</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>PID</th>
-            <th>Name</th>
-            <th>Zustand</th>
-            <th>UID</th>
-            <th>Speicher</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="process in processes" :key="process.pid">
-            <td>{{ process.pid }}</td>
-            <td class="name">{{ process.name }}</td>
-            <td class="quiet">{{ process.state }}</td>
-            <td>{{ process.user }}</td>
-            <td>{{ process.rss }}</td>
-          </tr>
-          <tr v-if="processes.length === 0">
-            <td colspan="5" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="rollt">
+        <table>
+          <thead>
+            <tr>
+              <th>PID</th>
+              <th>Name</th>
+              <th>Zustand</th>
+              <th>UID</th>
+              <th>Speicher</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="process in processes" :key="process.pid">
+              <td>{{ process.pid }}</td>
+              <td class="name">{{ process.name }}</td>
+              <td class="quiet">{{ process.state }}</td>
+              <td>{{ process.user }}</td>
+              <td>{{ process.rss }}</td>
+            </tr>
+            <tr v-if="processes.length === 0">
+              <td colspan="5" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </PanelLayout>
 </template>

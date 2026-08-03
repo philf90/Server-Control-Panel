@@ -37,17 +37,17 @@ function impersonate(row: Row): void {
       <Link href="/customers/create" class="anlegen">Kunde anlegen</Link>
     </header>
 
-    <table>
+    <table class="stapelt">
       <thead>
         <tr><th>Nummer</th><th>Name</th><th>E-Mail</th><th>Abos</th><th>Zustand</th><th></th></tr>
       </thead>
       <tbody>
         <tr v-for="row in props.customers.data" :key="row.id">
-          <td><Link :href="`/customers/${row.id}`">{{ row.number }}</Link></td>
-          <td>{{ row.name }}</td>
-          <td>{{ row.email }}</td>
-          <td>{{ row.subscriptions }}</td>
-          <td :data-status="row.status">{{ row.status_label }}</td>
+          <td data-spalte="Nummer"><Link :href="`/customers/${row.id}`">{{ row.number }}</Link></td>
+          <td data-spalte="Name">{{ row.name }}</td>
+          <td data-spalte="E-Mail">{{ row.email }}</td>
+          <td data-spalte="Abos">{{ row.subscriptions }}</td>
+          <td data-spalte="Zustand" :data-status="row.status">{{ row.status_label }}</td>
           <td>
             <button v-if="row.accounts > 0" type="button" @click="impersonate(row)">Anmelden als</button>
           </td>

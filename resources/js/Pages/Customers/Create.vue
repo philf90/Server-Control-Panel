@@ -102,7 +102,7 @@ function submit(): void {
 fieldset { display: flex; flex-direction: column; gap: 8px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
 legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
 label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-input { padding: 6px 8px; font: inherit; font-size: var(--text-body); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
+input { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
 input[readonly] { color: var(--text-muted); background: var(--surface-border); border-color: transparent; cursor: default; }
 .fehler { font-size: var(--text-small); color: var(--critical); }
 .hinweis { font-size: var(--text-label); color: var(--text-faint); }

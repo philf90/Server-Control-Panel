@@ -18,11 +18,36 @@ license: AGPL-3.0-only
 # werden. Es gibt keinen Migrationspfad, und ein Conflicts/Replaces würde
 # einen vortäuschen.
 
+# **Vollständig, nicht ungefähr.** Hier standen `php8.4-cli` und
+# `php8.4-fpm`, und das reichte nur deshalb, weil install.sh die übrigen
+# Erweiterungen vorher von Hand nachinstallierte. Wer `apt install srvpanel`
+# tippte, bekam ein Panel ohne Datenbanktreiber: Die Ersteinrichtung lief bis
+# zu den Migrationen und starb dort mit „could not find driver" — einer
+# Meldung, die nicht sagt, welches Paket fehlt.
+#
+# Die CI hat das nicht gefunden, weil ihre Installationsläufe denselben Weg
+# gehen wie install.sh und die Erweiterungen vor dem Paket einspielen. Die
+# Abhängigkeiten eines Pakets kann man nur prüfen, indem man es allein
+# installiert; genau das tut der Job „Nur das Paket, sonst nichts".
+#
+# Nicht aufgeführt, weil Debian sie in php8.4-cli bzw. php8.4-common
+# mitbringt: ctype, filter, hash, openssl, session, tokenizer, json,
+# fileinfo, iconv, phar, pcre — dazu sockets, posix und pcntl, die der Agent
+# braucht.
 depends:
   - nginx
   - curl
   - php8.4-cli
   - php8.4-fpm
+  # pdo_mysql — ohne das keine Migration und keine Anmeldung.
+  - php8.4-mysql
+  # Laravel verlangt ext-mbstring ausdrücklich.
+  - php8.4-mbstring
+  # ext-dom, ext-libxml, ext-xmlwriter, ext-xml — von sechs Paketen im
+  # Abhängigkeitsbaum verlangt.
+  - php8.4-xml
+  # Der HTTP-Client des Frameworks.
+  - php8.4-curl
   - mariadb-server
   - quota
   - ca-certificates

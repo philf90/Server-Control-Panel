@@ -256,6 +256,120 @@ jobs:
         if: always()
         run: docker rm -f target || true
 
+  # Die Abhängigkeiten eines Pakets kann man nur prüfen, indem man es allein
+  # installiert.
+  #
+  # Der Job oben spielt PHP samt Erweiterungen vorher ein — denselben Weg geht
+  # install.sh, und deshalb war dort nie zu sehen, dass das Paket `php8.4-mysql`
+  # nicht als Abhängigkeit führte. Wer `apt install srvpanel` tippte, bekam ein
+  # Panel ohne Datenbanktreiber; die Ersteinrichtung starb bei den Migrationen
+  # mit „could not find driver". Gefunden hat das kein Test, sondern der erste
+  # Mensch, der es auf einem eigenen Server versucht hat.
+  #
+  # Hier wird deshalb ausschließlich das Paket installiert, und apt muss alles
+  # Weitere selbst herbeischaffen.
+  bare-install:
+    name: Nur das Paket auf ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Debian 13 hat PHP 8.4 im Bestand: hier genügt `apt install srvpanel`
+          # tatsächlich allein.
+          - name: Debian 13
+            image: debian:13
+            needs_php_source: 'nein'
+          # Debian 12 braucht vorher srvpanel-php-source — das ist die
+          # dokumentierte Voraussetzung, und mehr darf es nicht sein.
+          - name: Debian 12
+            image: debian:12
+            needs_php_source: 'ja'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: sockets, pcntl, posix, mbstring, intl, zip
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: nfpm bereitstellen
+        run: |
+          curl -fsSL https://github.com/goreleaser/nfpm/releases/download/v2.43.0/nfpm_2.43.0_Linux_x86_64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin nfpm
+
+      - name: Paket bauen
+        run: packaging/build.sh 0.0.0-ci amd64
+
+      - name: Container mit systemd starten
+        run: |
+          docker run -d --name bare --privileged \
+            --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
+            -v "${PWD}/dist:/packages:ro" \
+            ${{ matrix.image }} /bin/sh -c \
+            'apt-get update -qq && apt-get install -y -qq systemd systemd-sysv >/dev/null && exec /sbin/init'
+          for i in $(seq 1 60); do
+            if docker exec bare systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then break; fi
+            sleep 2
+          done
+
+      - name: PHP-Quelle — nur wo sie Voraussetzung ist
+        if: matrix.needs_php_source == 'ja'
+        run: |
+          docker exec bare sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y -qq /packages/srvpanel-php-source_*.deb'
+          docker exec bare sh -c 'apt-get update -qq'
+
+      - name: Nur das Paket, sonst nichts
+        run: |
+          # Kein php8.4-* auf der Kommandozeile, keine Erweiterungen von Hand:
+          # Was fehlt, muss apt aus den Abhängigkeiten des Pakets ableiten.
+          docker exec bare sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install -y /packages/srvpanel_*.deb'
+
+      - name: Der Datenbanktreiber ist da
+        run: |
+          # Die eine Zeile, die im Juli gefehlt hat.
+          docker exec bare /opt/srvpanel/bin/php -r '
+            if (! extension_loaded("pdo_mysql")) { fwrite(STDERR, "pdo_mysql fehlt\n"); exit(1); }
+            echo "pdo_mysql: da\n";
+          '
+          for ext in mbstring dom curl openssl tokenizer sockets posix pcntl; do
+            docker exec bare /opt/srvpanel/bin/php -r "
+              if (! extension_loaded('$ext')) { fwrite(STDERR, \"$ext fehlt\n\"); exit(1); }
+            " || exit 1
+            echo "$ext: da"
+          done
+
+      - name: Die Ersteinrichtung läuft durch
+        run: |
+          docker exec bare sh -c 'systemctl start mariadb || service mariadb start' || true
+          sleep 5
+          docker exec bare srvpanel setup --port=8443
+          docker exec bare curl -fsS -k https://127.0.0.1:8443/health
+          echo
+
+      - name: Der Agent schreibt keine Warnungen ins Journal
+        run: |
+          # MemoryDenyWriteExecute verbietet den PCRE-JIT; ohne `-d pcre.jit=0`
+          # in der Unit schreibt PHP das bei jedem Fork ins Journal.
+          docker exec bare /opt/srvpanel/current/agent/bin/srvpanel-agentd call agent.ping >/dev/null || true
+          log="$(docker exec bare journalctl -u srvpanel-agentd --no-pager 2>/dev/null || true)"
+          if echo "$log" | grep -q 'PHP Warning'; then
+            echo "::error::Der Agent schreibt PHP-Warnungen ins Journal:"
+            echo "$log" | grep 'PHP Warning' | head -5
+            exit 1
+          fi
+          echo "Journal ohne PHP-Warnungen."
+
+      - name: Aufräumen
+        if: always()
+        run: docker rm -f bare || true
+
   scripts:
     name: Shell-Skripte
     runs-on: ubuntu-latest

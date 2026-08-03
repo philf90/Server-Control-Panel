@@ -84,11 +84,6 @@ final class Audit
     }
 
     /**
-     * Das Konto, in dessen Sicht gerade gehandelt wird — falls jemand
-     * „Anmelden als" benutzt. Der Sitzungsschlüssel wird von der
-     * Impersonation gesetzt (§6.3) und ist hier nur zu lesen.
-     */
-    /**
      * Der Admin, der „Anmelden als" begonnen hat — falls gerade eines läuft.
      *
      * Der Schlüssel heißt nach dem, was darin steht: die Kennung des

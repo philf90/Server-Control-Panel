@@ -156,7 +156,6 @@ final class Setup extends Command
         DB::purge($connection);
     }
 
-    /** @return array<string,mixed> */
     /**
      * Erweiterungen, die fehlen — geprüft, bevor irgendetwas angefasst wird.
      *
@@ -214,6 +213,7 @@ final class Setup extends Command
         return self::FAILURE;
     }
 
+    /** @return array<string,mixed> */
     private function actor(): array
     {
         return ['source' => 'cli', 'command' => 'srvpanel:setup', 'uid' => function_exists('posix_getuid') ? posix_getuid() : null];

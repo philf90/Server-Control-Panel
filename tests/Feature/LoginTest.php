@@ -31,8 +31,9 @@ final class LoginTest extends TestCase
      * geschrieben wurde. Beide Fälle kommen in dieser Datei vor — der Test
      * mit der Sperre leert die Sitzung zwischen den Versuchen, der zur
      * Kontoauskunft nicht.
+     *
+     * @param  TestResponse<Response>  $response
      */
-    /** @param TestResponse<Response> $response */
     private function emailError(TestResponse $response): string
     {
         $errors = session()->get('errors');

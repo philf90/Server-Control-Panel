@@ -171,3 +171,26 @@ Description: SrvPanel — Hosting-Panel für einen einzelnen Linux-Server.
  über eine Oberfläche, mit einem Systembenutzer je Abonnement.
 License: AGPL-3.0-only
 
+Package: srvpanel
+Architecture: arm64
+Version: 0.2.0~rc.1
+Priority: optional
+Section: admin
+Maintainer: philf90 <philipp@netzhost24.de>
+Bugs: https://github.com/philf90/Server-Control-Panel/issues
+Installed-Size: 27161
+Depends: nginx, curl, php8.4-cli, php8.4-fpm, mariadb-server, quota, ca-certificates
+Recommends: fail2ban
+Suggests: postgresql
+Filename: pool/main/s/srvpanel/srvpanel_0.2.0~rc.1_arm64.deb
+Size: 5269858
+MD5sum: 6c2644f57e22256bf08c3e51e429ceb5
+SHA1: ae1622004b3ecb7f10ab89f37b2b445d9da61ab3
+SHA256: db944611063901c0583963ce01f1a1ad725942384766f2a150c437fbb5e80f3f
+SHA512: 3cfaa87da523feab266f1f54c68f64291b04764bd879f5d4c9466128de15ee36c019f110ecdb1f0367dadfc27a74482cc0d4f43ddb10ab0da376d20344ce996d
+Homepage: https://repo.cloudsrv24.de/
+Description: SrvPanel — Hosting-Panel für einen einzelnen Linux-Server.
+ Kunden, Abonnements, Domains, PHP, Datenbanken, DNS, Dateien und Sicherungen
+ über eine Oberfläche, mit einem Systembenutzer je Abonnement.
+License: AGPL-3.0-only
+

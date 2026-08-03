@@ -64,6 +64,19 @@ final class CustomerPolicy
      * Kunden übernehmen darf, ist eine andere Frage als wer ihn bearbeiten
      * darf, auch wenn heute dieselbe Antwort herauskommt.
      */
+    /**
+     * Sperren und freigeben.
+     *
+     * Getrennt von `update`, weil es etwas anderes ist: Das Bearbeiten ändert
+     * einen Datensatz, das Sperren nimmt einem Kunden seine Abonnements vom
+     * Netz. Beides in einer Fähigkeit hiesse, dass jemand, der eine Anschrift
+     * korrigieren darf, auch abschalten darf.
+     */
+    public function suspend(Account $account, Customer $customer): bool
+    {
+        return $account->isAdmin();
+    }
+
     public function impersonate(Account $account, Customer $customer): bool
     {
         return $account->isAdmin();

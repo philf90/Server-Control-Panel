@@ -48,6 +48,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $disk_used_mb
  * @property Carbon|null $disk_usage_measured_at
  * @property Carbon|null $suspended_at
+ * @property bool $suspended_with_customer
  * @property Carbon|null $cancelled_at
  * @property Carbon|null $deleted_at
  * @property-read Customer|null $customer
@@ -88,6 +89,7 @@ class Subscription extends Model
             'status' => SubscriptionStatus::class,
             'quota_overrides' => 'array',
             'suspended_at' => 'datetime',
+            'suspended_with_customer' => 'boolean',
             'cancelled_at' => 'datetime',
             'disk_usage_measured_at' => 'datetime',
         ];

@@ -72,7 +72,6 @@ function test(): void {
   <Head title="Mailversand" />
 
   <PanelLayout title="Mailversand" subline="SMTP-Relay für Nachrichten des Panels">
-    <p v-if="flash?.success" class="erfolg">{{ flash.success }}</p>
     <p v-if="flash?.error" class="fehler-block">{{ flash.error }}</p>
 
     <p v-if="!props.usable" class="hinweis-block">
@@ -162,7 +161,6 @@ function test(): void {
 </template>
 
 <style scoped>
-.erfolg { max-width: 544px; padding: 8px 11px; font-size: var(--text-table); color: var(--ok); background: var(--ok-surface); border-radius: 6px; }
 .fehler-block { max-width: 544px; padding: 8px 11px; font-size: var(--text-table); color: var(--critical); background: var(--critical-surface); border-radius: 6px; word-break: break-word; }
 .hinweis-block { max-width: 544px; padding: 8px 11px; font-size: var(--text-table); color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
 .maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 544px; }

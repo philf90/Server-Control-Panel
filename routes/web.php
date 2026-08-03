@@ -148,6 +148,20 @@ Route::middleware('auth')->group(function (): void {
         ->name('customers.update');
 
     /*
+     * Sperren und freigeben — mit den Abonnements.
+     *
+     * `can:suspend` und nicht `can:update`: Das Bearbeiten ändert einen
+     * Datensatz, das Sperren nimmt einem Kunden seine Abonnements vom Netz.
+     */
+    Route::post('/customers/{customer}/suspend', [CustomerController::class, 'suspend'])
+        ->middleware('can:suspend,customer')
+        ->name('customers.suspend');
+
+    Route::post('/customers/{customer}/resume', [CustomerController::class, 'resume'])
+        ->middleware('can:suspend,customer')
+        ->name('customers.resume');
+
+    /*
      * Zurückziehen, nicht löschen.
      *
      * `DELETE` als Methode, weil das die Absicht des Aufrufers ist; was

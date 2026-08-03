@@ -209,10 +209,59 @@ an: Eine Kundennummer ist auf Dauer verbraucht, auch nach dem Zurückziehen.
 überspringt die Rückfrage. Angefasst wird ausschliesslich, was der Lauf selbst
 angelegt hat.
 
-## 10. Was noch fehlt
+## 10. Die Kundensperre
+
+Einen Kunden zu sperren heisst, seine Abonnements zu sperren. Ein Kunde, der
+„gesperrt" heisst und dessen Webseiten weiterlaufen, ist nicht gesperrt,
+sondern anders beschriftet.
+
+**Je Abonnement ein Vorgang.** Ein Sammelvorgang wäre bequemer und
+beantwortete die Frage nicht, die man nachher stellt: welches Abonnement es
+erwischt hat und welches nicht. Bei zehn Abonnements und einem Fehlschlag ist
+„teilweise erfolgreich" keine Auskunft.
+
+**Der Kundenzustand wird sofort gesetzt, der der Abonnements nicht.** Das ist
+kein Widerspruch zu §2: Der Kundenzustand ist eine Angabe im Panel und keine
+Behauptung über das System — für ihn gibt es nichts auszuführen. Ob ein
+Abonnement wirklich aus ist, entscheidet weiterhin der Agent.
+
+**Die Freigabe ist die schwierigere Hälfte.** „Alle gesperrten wieder an" wäre
+die naheliegende Umkehrung und wäre falsch: Ein Abonnement, das der Betreiber
+vorher einzeln gesperrt hat — wegen Missbrauch, wegen eines Umzugs —, war nie
+Teil der Kundensperre. Käme es mit der Freigabe zurück, hätte die Kundensperre
+eine Entscheidung aufgehoben, mit der sie nichts zu tun hatte. Am Zustand ist
+das nicht zu erkennen: „gesperrt" sieht in beiden Fällen gleich aus.
+
+Deshalb trägt das Abonnement `suspended_with_customer`. Das ist keine zweite
+Zustandsspalte — *ob* es gesperrt ist, steht weiterhin in `status`; hier steht
+nur, ob es das **wegen des Kunden** ist. Gesetzt wird die Spalte beim Auslösen
+und nicht nach dem Vorgang: Sie ist kein Zustand, sondern die Zugehörigkeit
+einer Absicht, und die steht fest, bevor der erste Vorgang läuft. Wer ein
+Abonnement einzeln sperrt, löscht die Kennzeichnung damit — es gehört ab dann
+zu seiner eigenen Sperre.
+
+**Ein einzelnes Abonnement lässt sich nicht entsperren, solange der Kunde
+gesperrt ist.** Sonst liesse sich die Kundensperre von unten aushebeln, und
+die spätere Freigabe wüsste nicht mehr, was zu ihr gehört. Wer eines
+herausnehmen will, gibt den Kunden frei und sperrt danach dieses eine.
+
+**Die Anmeldung bleibt offen.** Ein gesperrter Kunde kommt weiterhin in das
+Panel und sieht, dass seine Abonnements gesperrt sind — er kann darin nichts
+mehr tun, weil `SubscriptionPolicy::useFeature` einen unbenutzbaren Zustand
+abweist. Ihn auszusperren wäre die härtere Auslegung; sie nähme ihm die
+Auskunft darüber, warum nichts mehr geht. Ein zurückgezogener Kunde kommt
+dagegen nicht mehr herein — das ist keine Sperre, sondern das Ende.
+
+## 11. Was noch fehlt
 
 - **Sicherung vor dem Rückbau.** Der Plan verlangt sie; solange es keine
   Sicherungen gibt (P8), ist der Rückbau endgültig, und die Rückfrage sagt das.
+- **Ein Abonnement, das während der Kundensperre angelegt wird**, bleibt aktiv:
+  Die Kaskade sperrt, was es beim Klick gab, und ein Abonnement im Zustand
+  „wird angelegt" hat noch keinen Systembenutzer, den man sperren könnte. Es
+  kommt aktiv aus dem Anlegen heraus, während der Kunde gesperrt ist. Die
+  saubere Antwort ist, das Anlegen für gesperrte Kunden zu verweigern; dafür
+  fehlt die Entscheidung, ob das auch für den Betreiber gilt.
 - **Traffic messen.** Das Kontingent steht im Katalog und ist als „gemessen,
   nicht erzwungen" beschrieben — gemessen wird es noch nicht. Dafür braucht es
   die Zugriffsprotokolle der Domains, und die gibt es ab P3.

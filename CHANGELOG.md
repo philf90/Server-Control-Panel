@@ -347,6 +347,26 @@ einzelnen Ausbaustufe.
   löscht, während die Rückfrage davor von einem Kunden spricht. Zurückgebaute
   Abonnements zählen nicht mit — sonst liesse sich ein Kunde, der einmal eines
   hatte, nie wieder zurückziehen.
+- **Einen Kunden sperren heisst, seine Abonnements zu sperren** (`docs/26 §10`).
+  `CustomerStatus::Suspended` gab es von Anfang an und bedeutete nichts — es
+  liess sich nirgends setzen. Jetzt gibt es „Sperren" und „Freigeben" auf der
+  Kundenseite, und die Sperre nimmt mit, was der Kunde hat: **je Abonnement ein
+  Vorgang**, nicht ein Sammelvorgang, weil „teilweise erfolgreich" bei zehn
+  Abonnements keine Auskunft ist. **Die Freigabe ist die schwierigere Hälfte:**
+  „alle gesperrten wieder an" wäre die naheliegende Umkehrung und wäre falsch —
+  ein Abonnement, das der Betreiber vorher einzeln gesperrt hat, war nie Teil
+  der Kundensperre, und am Zustand ist das nicht zu erkennen. Das Abonnement
+  merkt sich deshalb in `suspended_with_customer`, zu welcher Sperre es gehört;
+  wer eines einzeln sperrt, löscht die Kennzeichnung damit. Ein einzelnes
+  Abonnement lässt sich nicht entsperren, solange der Kunde gesperrt ist —
+  sonst liesse sich die Kundensperre von unten aushebeln. Die Anmeldung bleibt
+  offen: Ein gesperrter Kunde soll sehen, warum nichts mehr geht.
+- **Die Erfolgsmeldung steht im Gerüst und nicht auf jeder Seite.** Sie kam
+  bisher von drei Seiten selbst, der Rest warf sie weg — wer einen Kunden
+  sperrte, bekam als einzige Rückmeldung einen anders beschrifteten Knopf,
+  während der Controller „Ein Abonnement wird gesperrt — der Vorgang läuft"
+  schickte. Dasselbe Muster wie bei den Knöpfen: eine Sache, die jede Seite
+  einzeln richtig machen musste, und die meisten machten sie gar nicht.
 - **Führt zu jeder Fähigkeit auch ein Weg?** (`PolicyReachTest`) Die
   Gegenrichtung zur Routenprüfung, und der Grund, aus dem die Lücke oben so
   lange stand: `RouteAuthorizationTest` prüft, dass jede Route eine Policy

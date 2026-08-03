@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Head, Link } from '@inertiajs/vue3'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Row {
@@ -15,8 +14,6 @@ interface Row {
 
 const props = defineProps<{ plans: Row[] }>()
 
-const page = usePage()
-const success = computed(() => (page.props.flash as Record<string, string> | undefined)?.success)
 
 /*
  * Die Zahl der gebundenen Abonnements steht in der Liste und nicht erst im
@@ -30,7 +27,6 @@ const success = computed(() => (page.props.flash as Record<string, string> | und
   <Head title="Pläne" />
 
   <PanelLayout title="Pläne" :subline="`${props.plans.length} angelegt`">
-    <p v-if="success" class="erfolg">{{ success }}</p>
 
     <header class="kopf">
       <Link href="/plans/create" class="knopf wichtig">Plan anlegen</Link>
@@ -76,7 +72,6 @@ const success = computed(() => (page.props.flash as Record<string, string> | und
 </template>
 
 <style scoped>
-.erfolg { padding: 8px 11px; font-size: var(--text-table); color: var(--ok); background: var(--ok-surface); border-radius: 6px; }
 .kopf { display: flex; justify-content: flex-end; margin-bottom: var(--gap); }
 table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }

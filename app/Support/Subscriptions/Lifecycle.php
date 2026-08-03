@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Subscriptions;
 
+use App\Enums\OperationStatus;
 use App\Enums\SubscriptionStatus;
+use App\Jobs\RunAgentOperation;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Support\Plans\Quota;
@@ -101,6 +103,38 @@ final class Lifecycle
         }
 
         return $payload;
+    }
+
+    /**
+     * Einen Vorgang für ein Abonnement einreihen.
+     *
+     * **Hier und nicht im Controller, seit es zwei Auslöser gibt.** Bis August
+     * 2026 stand das als private Methode in `SubscriptionController`; dann kam
+     * die Kundensperre dazu, die dieselben Vorgänge für alle Abonnements eines
+     * Kunden einreiht. Zwei Fassungen davon hiessen: zwei Stellen, an denen
+     * die Argumente entstehen, und die eine, die beim nächsten Mal nachgezogen
+     * wird, ist erfahrungsgemäss nicht beide.
+     *
+     * Die Argumente kommen aus der abgelegten Zeile und nicht aus einer
+     * Anfrage — siehe {@see self::payload()}. Der Vorgang trägt das
+     * Abonnement, damit ihn der Kunde in seiner eigenen Liste sieht.
+     */
+    public function dispatch(Subscription $subscription, string $task, string $message): Operation
+    {
+        $operation = Operation::query()->create([
+            'subscription_id' => $subscription->id,
+            'account_id' => request()->user()?->getAuthIdentifier(),
+            'type' => $task,
+            'task' => $task,
+            'payload' => $this->payload($subscription),
+            'status' => OperationStatus::Queued,
+            'progress' => 0,
+            'message' => $message,
+        ]);
+
+        RunAgentOperation::dispatch((int) $operation->id);
+
+        return $operation;
     }
 
     /**

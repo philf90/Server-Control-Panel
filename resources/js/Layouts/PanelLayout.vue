@@ -15,6 +15,21 @@ const account = computed(() => page.props.account as { name: string; is_admin: b
 const impersonation = computed(() => page.props.impersonation as { active: boolean; admin: string } | null)
 
 /*
+ * Die Erfolgsmeldung steht hier und nicht auf jeder Seite.
+ *
+ * Bis August 2026 brachte sie jede Seite selbst mit — drei Seiten taten es,
+ * der Rest nicht. Wer einen Kunden sperrte, bekam als einzige Rückmeldung
+ * einen Knopf, der jetzt anders beschriftet war; die Meldung „Ein Abonnement
+ * wird gesperrt — der Vorgang läuft" schickte der Controller, und die Seite
+ * warf sie weg. Dasselbe Muster wie bei den Knöpfen: eine Sache, die jede
+ * Seite einzeln richtig machen musste, und die meisten machten sie gar nicht.
+ *
+ * `role="status"` und nicht `alert`: Es ist eine Bestätigung und keine
+ * Warnung — ein Screenreader liest sie vor, ohne die Arbeit zu unterbrechen.
+ */
+const erfolg = computed(() => (page.props.flash as Record<string, string> | undefined)?.success)
+
+/*
  * Die Navigation kommt aus dem Kontotyp, nicht aus einer Rechteprüfung im
  * Menü. Das ist ausdrücklich keine Autorisierung — die sitzt an der Aktion
  * (§6.2.2). Ein Kunde, der eine Adminadresse von Hand einträgt, wird von der
@@ -202,12 +217,23 @@ onBeforeUnmount(() => {
         <span v-if="subline" class="meta">{{ subline }}</span>
       </header>
 
+      <p v-if="erfolg" class="erfolg" role="status">{{ erfolg }}</p>
+
       <slot />
     </main>
   </div>
 </template>
 
 <style scoped>
+.erfolg {
+  margin: 0 0 var(--gap);
+  padding: 8px 11px;
+  font-size: var(--text-table);
+  color: var(--ok);
+  background: var(--ok-surface);
+  border-radius: 6px;
+}
+
 .frame {
   display: grid;
   grid-template-columns: 186px 1fr;

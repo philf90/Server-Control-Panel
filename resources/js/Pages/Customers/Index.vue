@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Head, Link, router } from '@inertiajs/vue3'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Row {
@@ -16,8 +15,6 @@ interface Row {
 
 const props = defineProps<{ customers: { data: Row[]; total: number } }>()
 
-const page = usePage()
-const success = computed(() => (page.props.flash as Record<string, string> | undefined)?.success)
 
 function impersonate(row: Row): void {
   // Bestätigung vor dem Wechsel: Er ändert, in wessen Namen jede folgende
@@ -31,7 +28,6 @@ function impersonate(row: Row): void {
   <Head title="Kunden" />
 
   <PanelLayout title="Kunden" :subline="`${props.customers.total} angelegt`">
-    <p v-if="success" class="erfolg">{{ success }}</p>
 
     <header class="kopf">
       <Link href="/customers/create" class="knopf wichtig">Kunde anlegen</Link>
@@ -65,7 +61,6 @@ function impersonate(row: Row): void {
 
 <style scoped>
 .zeilenaktionen { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.erfolg { padding: 8px 11px; font-size: var(--text-table); color: var(--ok); background: var(--ok-surface); border-radius: 6px; }
 .kopf { display: flex; justify-content: flex-end; margin-bottom: var(--gap); }
 table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }

@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\OperationStatus;
+use App\Enums\CustomerStatus;
 use App\Enums\SubscriptionStatus;
-use App\Jobs\RunAgentOperation;
 use App\Models\Customer;
 use App\Models\Operation;
 use App\Models\Plan;
@@ -319,6 +318,12 @@ final class SubscriptionController extends Controller
             ]);
         }
 
+        // Einzeln gesperrt heisst: gehört nicht zur Kundensperre. Ohne diese
+        // Zeile bliebe eine Kennzeichnung von früher stehen, und die nächste
+        // Freigabe des Kunden holte ein Abonnement zurück, das der Betreiber
+        // aus einem eigenen Grund gesperrt hat.
+        $subscription->forceFill(['suspended_with_customer' => false])->save();
+
         return redirect()->route('operations.show', $this->start(
             $subscription, 'subscription.suspend', 'Abonnement sperren', $audit, $lifecycle,
         ));
@@ -326,6 +331,20 @@ final class SubscriptionController extends Controller
 
     public function resume(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
     {
+        /*
+         * **Nicht, solange der Kunde gesperrt ist.** Sonst liesse sich die
+         * Kundensperre von unten aushebeln: Ein Abonnement käme zurück,
+         * während im Panel weiter „Kunde gesperrt" steht — und die Freigabe
+         * des Kunden später wüsste nicht mehr, was zu ihr gehört. Wer eines
+         * herausnehmen will, gibt den Kunden frei und sperrt danach dieses
+         * eine.
+         */
+        if ($subscription->customer?->status === CustomerStatus::Suspended) {
+            throw ValidationException::withMessages([
+                'subscription' => 'Der Kunde ist gesperrt. Erst seine Freigabe, dann das Abonnement.',
+            ]);
+        }
+
         return redirect()->route('operations.show', $this->start(
             $subscription, 'subscription.resume', 'Abonnement entsperren', $audit, $lifecycle,
         ));
@@ -361,24 +380,13 @@ final class SubscriptionController extends Controller
         Audit $audit,
         Lifecycle $lifecycle,
     ): Operation {
-        $operation = Operation::query()->create([
-            'subscription_id' => $subscription->id,
-            'account_id' => request()->user()?->getAuthIdentifier(),
-            'type' => $task,
-            'task' => $task,
-            'payload' => $lifecycle->payload($subscription),
-            'status' => OperationStatus::Queued,
-            'progress' => 0,
-            'message' => $message,
-        ]);
+        $operation = $lifecycle->dispatch($subscription, $task, $message);
 
         $audit->success($task, $subscription, [
             'name' => $subscription->name,
             'user' => $subscription->system_user,
             'operation' => (int) $operation->id,
         ]);
-
-        RunAgentOperation::dispatch((int) $operation->id);
 
         return $operation;
     }

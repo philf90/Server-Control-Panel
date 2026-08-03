@@ -304,8 +304,7 @@ final class SubscriptionRemove implements Op
             $result = $context->stream('userdel', [$user]);
 
             if (! $result->successful()) {
-                throw new AgentException(
-                    AgentException::FAILED,
+                throw AgentException::execFailed(
                     'Systembenutzer konnte nicht entfernt werden.',
                     ['user' => $user, 'stderr' => $result->stderr],
                 );

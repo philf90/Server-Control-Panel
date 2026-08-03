@@ -178,8 +178,7 @@ final class SubscriptionProvision implements Op
         $group = $context->stream('groupadd', ['--force', $user]);
 
         if (! $group->successful()) {
-            throw new AgentException(
-                AgentException::FAILED,
+            throw AgentException::execFailed(
                 'Gruppe konnte nicht angelegt werden.',
                 ['user' => $user, 'stderr' => $group->stderr],
             );
@@ -199,8 +198,7 @@ final class SubscriptionProvision implements Op
         ]);
 
         if (! $result->successful()) {
-            throw new AgentException(
-                AgentException::FAILED,
+            throw AgentException::execFailed(
                 'Systembenutzer konnte nicht angelegt werden.',
                 ['user' => $user, 'stderr' => $result->stderr],
             );
@@ -240,8 +238,7 @@ final class SubscriptionProvision implements Op
     private function directory(string $path, string $owner, string $group, int $mode): void
     {
         if (! is_dir($path) && ! @mkdir($path, 0700, true) && ! is_dir($path)) {
-            throw new AgentException(
-                AgentException::FAILED,
+            throw AgentException::execFailed(
                 'Verzeichnis konnte nicht angelegt werden.',
                 ['path' => $path],
             );

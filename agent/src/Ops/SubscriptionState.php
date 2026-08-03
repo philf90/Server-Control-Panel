@@ -46,7 +46,11 @@ abstract class SubscriptionState implements Op
     /** Das Zugriffsbit der Wurzel in diesem Zustand. */
     abstract protected function rootMode(): int;
 
-    /** Die Argumente für `usermod`. */
+    /**
+     * Die Argumente für `usermod`.
+     *
+     * @return list<string>
+     */
     abstract protected function accountArgs(string $user): array;
 
     /** Werden laufende Prozesse beendet? */
@@ -82,8 +86,7 @@ abstract class SubscriptionState implements Op
         $account = $context->stream('usermod', $this->accountArgs($user));
 
         if (! $account->successful()) {
-            throw new AgentException(
-                AgentException::FAILED,
+            throw AgentException::execFailed(
                 'Das Konto konnte nicht umgestellt werden.',
                 ['user' => $user, 'stderr' => $account->stderr],
             );

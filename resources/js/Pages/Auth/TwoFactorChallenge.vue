@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3'
+import CodeField from '../../Components/CodeField.vue'
 
 /*
  * Der zweite Schritt. Bewusst ohne Navigation: Wer hier steht, ist noch nicht
@@ -23,19 +24,12 @@ function submit(): void {
         zur Hand haben, geht auch einer Ihrer Wiederherstellungscodes.
       </p>
 
-      <label for="code">Code</label>
-      <input
-        id="code"
+      <CodeField
         v-model="form.code"
-        type="text"
-        name="code"
-        inputmode="text"
-        autocomplete="one-time-code"
         autofocus
-        required
-      >
-
-      <p v-if="form.errors.code" class="fehler" role="alert">{{ form.errors.code }}</p>
+        hint="Sechs Ziffern — oder ein Wiederherstellungscode in der Form ABCDE-FGHIJ."
+        :error="form.errors.code"
+      />
 
       <button type="submit" :disabled="form.processing">
         {{ form.processing ? 'Einen Moment …' : 'Bestätigen' }}
@@ -45,13 +39,21 @@ function submit(): void {
 </template>
 
 <style scoped>
-.anmeldung { min-height: 100dvh; display: grid; place-items: center; padding: var(--padding); background: var(--bg); }
-.maske { width: min(384px, 100%); display: flex; flex-direction: column; gap: 6px; padding: calc(var(--padding) * 1.5); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 10px; }
-h1 { margin: 0 0 5px; font-size: var(--text-heading); color: var(--text-strong); }
-.hinweis { margin: 0 0 13px; font-size: var(--text-small); color: var(--text-muted); line-height: 1.5; }
-label { font-size: var(--text-small); color: var(--text-muted); }
-input { padding: 8px 10px; margin-bottom: 10px; font: inherit; letter-spacing: .1em; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+.anmeldung { min-height: 100dvh; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+
+/*
+ * Hier stand `padding: calc(var(--padding) * 1.5)`, und diese Karte hatte
+ * deshalb überhaupt keinen Innenabstand. `--padding` ist eine Kurzform mit
+ * drei Werten (`12px 13px 10px`); `calc()` rechnet nur mit einem einzelnen.
+ * Was daraus wird, ist kein Fehler, den der Übersetzer meldet, sondern eine
+ * ungültige Deklaration — und eine ungültige Deklaration fällt still auf den
+ * Ausgangswert zurück, hier auf null. Überschrift und Knopf klebten an der
+ * Kante. Feste Werte wie in der Anmeldemaske: Diese Seite steht ausserhalb
+ * der Dichteumschaltung, sie hat kein Panel um sich herum.
+ */
+.maske { width: min(384px, 100%); display: flex; flex-direction: column; gap: 14px; padding: 20px 22px 22px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 10px; }
+h1 { margin: 0; font-size: var(--text-heading); color: var(--text-strong); }
+.hinweis { margin: -8px 0 0; font-size: var(--text-small); color: var(--text-muted); line-height: 1.5; }
 button { padding: 9px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
 button:disabled { opacity: .6; cursor: default; }
-.fehler { margin: 0 0 8px; padding: 8px 10px; font-size: var(--text-table); color: var(--critical); background: var(--critical-surface); border-radius: 6px; }
 </style>

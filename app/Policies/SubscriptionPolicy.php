@@ -7,6 +7,7 @@ namespace App\Policies;
 use App\Enums\Permission;
 use App\Models\Account;
 use App\Models\Subscription;
+use App\Support\Plans\Feature;
 
 /**
  * Wer was mit einem Abonnement darf.
@@ -103,20 +104,20 @@ final class SubscriptionPolicy
     /**
      * Gibt der Plan diese Funktion überhaupt frei?
      *
-     * Die Zuordnung ist bewusst unvollständig: Was hier nicht steht, ist keine
-     * planabhängige Funktion und damit immer erlaubt — Dateien lesen etwa
-     * gehört zu jedem Abonnement.
+     * Die Zuordnung ist bewusst unvollständig: Was keiner Freigabe zugeordnet
+     * ist, ist keine planabhängige Funktion und damit immer erlaubt — Dateien
+     * lesen etwa gehört zu jedem Abonnement.
+     *
+     * Die Zuordnung selbst stand bis August 2026 hier als `match` mit vier
+     * Zeichenketten darin. Sie steht jetzt in {@see Feature}, wo auch die
+     * Beschriftung und der Vorgabewert stehen — vier Literale an einer Stelle,
+     * die nichts von den Plänen weiss, waren vier Gelegenheiten für einen
+     * Tippfehler, der eine Funktion stillschweigend für alle freigibt.
      */
     private function planAllows(Subscription $subscription, Permission $permission): bool
     {
-        $feature = match ($permission) {
-            Permission::Dns => 'dns_edit',
-            Permission::Certificates => 'certificate_upload',
-            Permission::Backups => 'backups',
-            Permission::PhpSettings => 'php_settings',
-            default => null,
-        };
+        $feature = Feature::forPermission($permission);
 
-        return $feature === null || $subscription->feature($feature);
+        return $feature === null || $subscription->feature($feature->value);
     }
 }

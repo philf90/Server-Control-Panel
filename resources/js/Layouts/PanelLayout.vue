@@ -37,7 +37,10 @@ const navigation = computed(() => {
 
   return [
     { group: null, items: [{ name: 'Übersicht', href: '/' }] },
-    { group: 'Verwaltung', items: [{ name: 'Kunden', href: '/customers' }] },
+    { group: 'Verwaltung', items: [
+      { name: 'Kunden', href: '/customers' },
+      { name: 'Pläne', href: '/plans' },
+    ] },
     { group: 'Server', items: [{ name: 'Vorgänge', href: '/operations' }, { name: 'Protokoll', href: '/audit' }] },
     { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile' }] },
   ]

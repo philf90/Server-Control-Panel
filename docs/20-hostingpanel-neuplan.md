@@ -471,6 +471,23 @@ ruhiger durch Luft, nicht durch größere Schrift.
 Geprüft von `tests/Feature/DesignTokensTest.php` — kein `rem` in einer
 Komponente, keine Schriftgröße außerhalb der Skala, keine Marke ohne Wert.
 
+#### Die Farben, die der Browser mitbringt
+
+Drei Stellen färbt der Browser von sich aus, und an allen dreien setzt er ein
+Blau, das in keiner Marke steht. Sie gehören in `resources/css/app.css` und
+nicht in die Komponente, an der sie zuerst auffallen:
+
+- **Selbst ausgefüllte Felder.** Chrome, Edge und Safari malen eine eigene
+  Fläche über den Hintergrund — auf hellem Grund ein blasses Gelb, auf dunklem
+  ein kräftiges Blau, das das Feld verschluckt. `background` erreicht sie
+  nicht; der einzige Weg ist ein Schatten nach innen (`-webkit-box-shadow …
+  inset`) samt `-webkit-text-fill-color`.
+- **Ankreuzfelder.** `accent-color: var(--accent)`. Ein gesetztes Häkchen ist
+  ein Zustand, und Zustand ist in diesem System Amber.
+- **Der Fokusrahmen an Eingabefeldern.** Die Regel für `:focus-visible` gilt
+  auch für `input`, `select` und `textarea` — sonst hängt der sichtbare Fokus
+  davon ab, welchen Browser jemand benutzt.
+
 #### Dichte in zwei Stufen
 
 Die Kritik am dunkelen, dichten Zuschnitt trifft die Kundenfläche, nicht die

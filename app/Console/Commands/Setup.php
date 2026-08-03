@@ -6,9 +6,12 @@ namespace App\Console\Commands;
 
 use App\Enums\AccountType;
 use App\Models\Account;
+use App\Models\Plan;
+use App\Support\Plans\Quotas;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\EnvFile;
@@ -98,6 +101,9 @@ final class Setup extends Command
             }
         }
 
+        $this->step('Standardplan');
+        $this->done($this->ensureStandardPlan());
+
         try {
             $this->step('Dienste');
             foreach (['srvpanel-web', 'srvpanel-worker', 'srvpanel-metrics'] as $unit) {
@@ -146,6 +152,57 @@ final class Setup extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Dafür sorgen, dass es einen Standardplan gibt.
+     *
+     * **Das ist kein Testdatensatz.** Der Seeder dieses Projekts ist mit
+     * Absicht leer (siehe DatabaseSeeder) — ein Panel, das als root läuft,
+     * bringt keine Konten mit bekanntem Passwort mit. Ein Plan ist etwas
+     * anderes: Er trägt keine Zugangsdaten, und ohne einen liesse sich kein
+     * einziges Abonnement anlegen. Der Betreiber stünde vor einem Formular,
+     * das nach einem Plan fragt, den es nicht gibt.
+     *
+     * Die Werte sind die Vorgabewerte des Katalogs. Sie sind ein Anfang und
+     * keine Empfehlung; wer sie ändern will, findet den Plan unter „Pläne".
+     */
+    private function ensureStandardPlan(): string
+    {
+        // Ohne Migrationen kann die Tabelle fehlen — `srvpanel setup
+        // --skip-migrations` auf einem frischen System. Dann ist die
+        // Antwort „später", nicht ein Absturz nach drei erfolgreichen
+        // Schritten.
+        if (! Schema::hasTable('plans')) {
+            return 'übersprungen (keine Tabellen)';
+        }
+
+        $existing = Plan::standard();
+
+        if ($existing !== null) {
+            return sprintf('war vorhanden (%s)', $existing->name);
+        }
+
+        // Es kann Pläne geben, aber keinen mit der Marke — etwa nachdem
+        // jemand den Standardplan von Hand aus der Datenbank entfernt hat.
+        // Dann wird der älteste zum Standard, statt einen zweiten anzulegen.
+        $orphan = Plan::query()->orderBy('id')->first();
+
+        if ($orphan !== null) {
+            $orphan->update(['is_default' => true]);
+
+            return sprintf('%s zum Standard gemacht', $orphan->name);
+        }
+
+        $plan = Plan::query()->create([
+            'name' => 'Standard',
+            'description' => 'Vorgabewerte der Ersteinrichtung.',
+            'quotas' => Quotas::defaults(),
+            'features' => Quotas::featureDefaults(),
+            'is_default' => true,
+        ]);
+
+        return sprintf('angelegt (%s)', $plan->name);
     }
 
     /**

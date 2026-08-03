@@ -14,10 +14,12 @@ use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SubscriptionController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Operation;
 use App\Models\Plan;
+use App\Models\Subscription;
 use Illuminate\Support\Facades\Route;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Version;
@@ -167,6 +169,41 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])
         ->middleware('can:delete,plan')
         ->name('plans.destroy');
+
+    /*
+     * Abonnements (docs/26).
+     *
+     * `viewAny` lässt jedes Konto auf die Liste; was darauf steht, entscheidet
+     * die Mandantenklammer — ein Kunde sieht seine eigenen. Alles Ändernde
+     * bleibt beim Betreiber.
+     */
+    Route::get('/subscriptions', [SubscriptionController::class, 'index'])
+        ->middleware('can:viewAny,'.Subscription::class)
+        ->name('subscriptions.index');
+
+    Route::get('/subscriptions/create', [SubscriptionController::class, 'create'])
+        ->middleware('can:create,'.Subscription::class)
+        ->name('subscriptions.create');
+
+    Route::post('/subscriptions', [SubscriptionController::class, 'store'])
+        ->middleware('can:create,'.Subscription::class)
+        ->name('subscriptions.store');
+
+    Route::get('/subscriptions/{subscription}', [SubscriptionController::class, 'show'])
+        ->middleware('can:view,subscription')
+        ->name('subscriptions.show');
+
+    Route::post('/subscriptions/{subscription}/suspend', [SubscriptionController::class, 'suspend'])
+        ->middleware('can:suspend,subscription')
+        ->name('subscriptions.suspend');
+
+    Route::post('/subscriptions/{subscription}/resume', [SubscriptionController::class, 'resume'])
+        ->middleware('can:suspend,subscription')
+        ->name('subscriptions.resume');
+
+    Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy'])
+        ->middleware('can:delete,subscription')
+        ->name('subscriptions.destroy');
 
     /*
      * „Anmelden als" (§6.3).

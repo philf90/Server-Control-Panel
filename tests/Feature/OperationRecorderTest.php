@@ -11,6 +11,7 @@ use App\Models\Operation;
 use App\Models\Subscription;
 use App\Support\Operations\OperationRecorder;
 use App\Support\Operations\Operations;
+use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -175,6 +176,6 @@ final class OperationRecorderTest extends TestCase
         // Ausnahme ist sie.
         $this->expectNotToPerformAssertions();
 
-        $job->handle(app(Client::class), app(Tenancy::class));
+        $job->handle(app(Client::class), app(Tenancy::class), app(Lifecycle::class));
     }
 }

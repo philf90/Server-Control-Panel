@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\Operation;
 use App\Support\Operations\OperationRecorder;
+use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -55,7 +56,7 @@ final class RunAgentOperation implements ShouldQueue
         $this->onQueue(self::QUEUE);
     }
 
-    public function handle(Client $agent, Tenancy $tenancy): void
+    public function handle(Client $agent, Tenancy $tenancy, Lifecycle $lifecycle): void
     {
         $operation = $tenancy->withoutRestriction(
             fn (): ?Operation => Operation::query()->find($this->operationId)
@@ -97,6 +98,11 @@ final class RunAgentOperation implements ShouldQueue
             );
 
             $recorder->succeed($result);
+
+            // Erst jetzt ändert sich der Zustand des Abonnements. Vorher wäre
+            // es eine Behauptung über ein System, das noch gar nicht
+            // geantwortet hat — siehe App\Support\Subscriptions\Lifecycle.
+            $lifecycle->afterSuccess($operation);
         } catch (AgentException $error) {
             // Ein Abbruch ist kein Fehlschlag. Er steht hier trotzdem im
             // catch, weil er über dieselbe Ausnahme kommt: Der Aufruf endet

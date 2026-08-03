@@ -6,12 +6,15 @@ namespace App\Models;
 
 use App\Enums\SubscriptionStatus;
 use App\Models\Concerns\BelongsToSubscription;
+use App\Support\Tenancy\Tenancy;
 use Database\Factories\SubscriptionFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -22,10 +25,16 @@ use Illuminate\Support\Carbon;
  * sehen darf, darf alles darunter sehen, und wer es nicht darf, kommt an
  * nichts darunter.
  *
- * Dieses Modell trägt selbst **keine** Mandantenklammer über
- * {@see BelongsToSubscription} — es wäre eine Klammer um sich selbst. Die
- * Sichtbarkeit von Abonnements regelt die Policy; die Klammer regelt alles,
- * was daran hängt.
+ * Dieses Modell trägt **nicht** die Klammer aus {@see BelongsToSubscription} —
+ * die filtert auf `subscription_id`, und das wäre hier eine Klammer um sich
+ * selbst. Es trägt statt dessen dieselbe Klammer auf den eigenen Schlüssel,
+ * siehe {@see self::booted()}.
+ *
+ * Hier stand „die Sichtbarkeit von Abonnements regelt die Policy". Das war zu
+ * wenig, und es fiel erst auf, als es die erste Liste gab: Eine Policy
+ * entscheidet über *ein* Objekt. Eine Abfrage über alle — `Subscription::query()`
+ * in einem Controller — fragt sie nie, und ein Kunde sah damit jedes
+ * Abonnement des Servers.
  *
  * @property int $id
  * @property int $customer_id
@@ -37,6 +46,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $quota_overrides
  * @property Carbon|null $suspended_at
  * @property Carbon|null $cancelled_at
+ * @property Carbon|null $deleted_at
  * @property-read Customer|null $customer
  * @property-read Plan|null $plan
  * @property-read Collection<int, Account> $additionalAccounts
@@ -45,6 +55,13 @@ class Subscription extends Model
 {
     /** @use HasFactory<SubscriptionFactory> */
     use HasFactory;
+
+    /*
+     * Zurückgezogen statt gelöscht — siehe die Migration. Der Systembenutzer
+     * bleibt damit verbraucht, und kein zweites Abonnement bekommt eine UID,
+     * unter der auf dem Dateisystem noch etwas liegt.
+     */
+    use SoftDeletes;
 
     /** @var list<string> */
     protected $fillable = [
@@ -61,6 +78,35 @@ class Subscription extends Model
             'suspended_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Die Mandantenklammer auf den eigenen Schlüssel.
+     *
+     * Wortgleich zu der in {@see BelongsToSubscription}, nur auf `id` statt
+     * auf `subscription_id` — samt `whereRaw('0 = 1')` für den Grundzustand
+     * „nichts", damit ein vergessener Aufruf eine leere Menge liefert und
+     * nicht alle Datensätze.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('tenancy', static function (Builder $builder): void {
+            $tenancy = app(Tenancy::class);
+
+            if ($tenancy->unrestricted()) {
+                return;
+            }
+
+            $ids = $tenancy->subscriptionIds();
+
+            if ($ids === []) {
+                $builder->whereRaw('0 = 1');
+
+                return;
+            }
+
+            $builder->whereIn($builder->getModel()->qualifyColumn('id'), $ids);
+        });
     }
 
     /** @return BelongsTo<Customer, $this> */

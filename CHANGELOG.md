@@ -367,6 +367,32 @@ einzelnen Ausbaustufe.
   daneben; wer ihn herausfiltert, lässt jemanden nach einem Kunden suchen, den
   er gestern angelegt hat. Die Anmeldung bleibt offen: Ein gesperrter Kunde
   soll sehen, warum nichts mehr geht.
+- **Das Zertifikat der Oberfläche** (`docs/27`) — vorgezogen aus P4, ohne
+  Let's Encrypt. Das selbstsignierte Zertifikat gab es seit P0; beim Nachsehen
+  fielen zwei Mängel auf, die beide erst im Betrieb weh getan hätten. **Es
+  trug keinen subjectAltName:** Der Name stand nur im CommonName, und den liest
+  Chrome seit 2017 nicht mehr, Firefox und Safari ebenso wenig — der Browser
+  meldete nicht „unbekannter Aussteller", sondern „der Name passt nicht", und
+  auch die Aufnahme in den eigenen Zertifikatsspeicher half nicht. Dazu ruft
+  man das Panel nach der Einrichtung über die **IP** auf, und die stand nirgends
+  darin. Jetzt stehen Hostname, Kurzform, `localhost` und jede Adresse aller
+  Schnittstellen darin — ohne die link-lokalen, die sich ändern und unter denen
+  niemand ein Panel aufruft. **Und nichts erneuerte es:** `panel.tls.ensure`
+  rief ausschliesslich `srvpanel setup` auf, die Prüfung auf Restlaufzeit lief
+  also nie. `srvpanel-tls.timer` prüft jetzt täglich; erneuert wird ab 30 Tagen
+  Restlaufzeit oder wenn der Rechner nicht mehr so heisst wie damals. Eine
+  geänderte IP erneuert **nicht** — auf einem Server mit Docker gäbe das jede
+  Woche ein neues Zertifikat samt neuer Warnung; die Seite im Panel zeigt statt
+  dessen an, welche Adresse fehlt.
+  Dazu drei kleinere Korrekturen am Zertifikat selbst: `CA:FALSE` statt einer
+  Zertifizierungsstelle (ein selbstsigniertes Zertifikat, das eine CA sein
+  darf, ist ein Generalschlüssel für jeden, der den privaten Schlüssel des
+  Servers erbeutet), eine zufällige Seriennummer statt `0`, und 397 statt 825
+  Tage Laufzeit. Nach einem Tausch wird nginx geprüft und neu geladen — vorher
+  hätte der Webserver das alte Zertifikat weiter aus dem Speicher ausgeliefert,
+  und eine Erneuerung, die nicht ankommt, ist schlimmer als keine.
+  `/settings/tls` zeigt Name, Aussteller, Laufzeit und Namen und stellt auf
+  Wunsch neu aus; das Nachsehen ist ausdrücklich **kein** Vorgang.
 - **Das Gerüst der schmalen Fläche ist eine Spalte** (`docs/24 §4`). Es war
   unter 720px weiterhin ein Raster mit `auto 1fr` — Kopfzeile oben, Inhalt
   darunter —, und das ging, solange es zwei Kinder im Fluss gab. Beim Wechsel

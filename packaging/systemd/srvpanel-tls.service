@@ -1,0 +1,33 @@
+[Unit]
+Description=SrvPanel — Zertifikat der Oberfläche prüfen und erneuern
+Documentation=https://repo.cloudsrv24.de/
+After=srvpanel-agentd.service
+Requires=srvpanel-agentd.service
+
+[Service]
+# Type=oneshot und kein Restart: Der Timer startet den nächsten Lauf.
+Type=oneshot
+User=srvpanel
+Group=srvpanel
+WorkingDirectory=/opt/srvpanel/current
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:tls
+
+# Dieser Lauf fragt den Agenten und schreibt sonst nichts. Das Zertifikat legt
+# der Agent an — er läuft als root, dieser Dienst nicht.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
+
+MemoryMax=192M
+TasksMax=32

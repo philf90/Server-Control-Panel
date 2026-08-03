@@ -62,6 +62,7 @@ const navigation = computed(() => {
       { name: 'Vorgänge', href: '/operations' },
       { name: 'Protokoll', href: '/audit' },
       { name: 'Mailversand', href: '/settings/mail' },
+      { name: 'Zertifikat', href: '/settings/tls' },
     ] },
     { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile' }] },
   ]

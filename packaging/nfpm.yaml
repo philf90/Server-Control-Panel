@@ -99,6 +99,14 @@ contents:
   - src: ./packaging/systemd/srvpanel-usage.timer
     dst: /lib/systemd/system/srvpanel-usage.timer
 
+  # Dasselbe für das Zertifikat der Oberfläche: Die Prüfung, ob es noch lange
+  # genug gilt, gab es von Anfang an — sie lief nur nie, weil niemand sie
+  # aufrief.
+  - src: ./packaging/systemd/srvpanel-tls.service
+    dst: /lib/systemd/system/srvpanel-tls.service
+  - src: ./packaging/systemd/srvpanel-tls.timer
+    dst: /lib/systemd/system/srvpanel-tls.timer
+
   - src: ./packaging/bin/php
     dst: /opt/srvpanel/bin/php
     file_info:

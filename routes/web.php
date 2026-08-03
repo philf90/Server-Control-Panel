@@ -15,6 +15,7 @@ use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\TlsSettingsController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Operation;
@@ -301,6 +302,20 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/settings/mail/test', [MailSettingsController::class, 'test'])
         ->middleware('can:manage-settings')
         ->name('settings.mail.test');
+
+    /*
+     * Das Zertifikat der Oberfläche (docs/27).
+     *
+     * Ansehen und neu ausstellen — dieselbe Fähigkeit wie beim Mailversand:
+     * Es gibt kein Modell, dem diese Einstellung gehört.
+     */
+    Route::get('/settings/tls', [TlsSettingsController::class, 'show'])
+        ->middleware('can:manage-settings')
+        ->name('settings.tls');
+
+    Route::post('/settings/tls', [TlsSettingsController::class, 'store'])
+        ->middleware('can:manage-settings')
+        ->name('settings.tls.reissue');
 
     /*
      * Den zweiten Faktor einrichten oder abschalten.

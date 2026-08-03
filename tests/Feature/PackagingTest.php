@@ -339,8 +339,22 @@ final class PackagingTest extends TestCase
                 $name.' wird beim Einrichten nicht angestellt — der Takt liefe nie.',
             );
 
+            /*
+             * Beim Entfernen nicht wörtlich geprüft: Sobald es zwei Timer
+             * gibt, steht dort eine Schleife über die Namen, und ein Muster
+             * auf `systemctl stop <name>.timer` fände sie nicht — es hielte
+             * eine richtige Umsetzung für einen Fehler. Geprüft wird deshalb
+             * beides einzeln: dass es ein Anhalten von Timern gibt und dass
+             * dieser Timer dabei vorkommt.
+             */
             $this->assertMatchesRegularExpression(
-                '/systemctl\s+stop\s+'.preg_quote($name, '/').'\b/',
+                '/systemctl\s+stop\s+[^\n]*\.timer/',
+                $preremove,
+                'preremove.sh hält überhaupt keinen Timer an.',
+            );
+
+            $this->assertStringContainsString(
+                basename($name, '.timer'),
                 $preremove,
                 $name.' wird beim Entfernen nicht angehalten.',
             );

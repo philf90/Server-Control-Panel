@@ -8,6 +8,7 @@ use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\PanelProvision;
 use SrvPanel\Agent\Ops\PanelTls;
+use SrvPanel\Agent\Ops\PanelTlsInfo;
 use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
 use SrvPanel\Agent\Ops\ServiceAction;
@@ -41,6 +42,7 @@ final class Registry
         $this->register(new ServiceAction);
         $this->register(new PanelProvision);
         $this->register(new PanelTls);
+        $this->register(new PanelTlsInfo);
         $this->register(new PanelVhost);
         $this->register(new PanelUpdate);
         $this->register(new SubscriptionProvision);

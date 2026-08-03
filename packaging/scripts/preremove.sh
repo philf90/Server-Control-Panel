@@ -6,8 +6,10 @@ set -eu
 
 # Der Timer zuerst: Sonst startet er die Messung noch, während die Dienste
 # unter ihm weggehen.
-systemctl stop srvpanel-usage.timer >/dev/null 2>&1 || true
-systemctl disable srvpanel-usage.timer >/dev/null 2>&1 || true
+for timer in srvpanel-usage srvpanel-tls; do
+    systemctl stop "${timer}.timer" >/dev/null 2>&1 || true
+    systemctl disable "${timer}.timer" >/dev/null 2>&1 || true
+done
 
 for service in srvpanel-metrics srvpanel-worker srvpanel-web srvpanel-agentd; do
     systemctl stop "${service}.service" >/dev/null 2>&1 || true

@@ -124,18 +124,18 @@ function stopImpersonation(): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: .5rem var(--padding);
-  font-size: .85rem;
+  gap: 16px;
+  padding: 8px var(--padding);
+  font-size: var(--text-table);
   color: var(--warn);
   background: var(--warn-surface);
   border-bottom: 1px solid var(--warn);
 }
 
 .band button {
-  padding: .25rem .6rem;
+  padding: 4px 10px;
   font: inherit;
-  font-size: .8rem;
+  font-size: var(--text-small);
   color: var(--warn);
   background: transparent;
   border: 1px solid var(--warn);
@@ -147,9 +147,9 @@ function stopImpersonation(): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: .5rem;
-  padding: .5rem 0;
-  font-size: .78rem;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: var(--text-small);
   color: var(--text-muted);
   border-top: 1px solid var(--nav-border);
 }
@@ -157,7 +157,7 @@ function stopImpersonation(): void {
 .account .signout {
   padding: 0;
   font: inherit;
-  font-size: .78rem;
+  font-size: var(--text-small);
   color: var(--text-faint);
   background: none;
   border: 0;
@@ -182,7 +182,7 @@ function stopImpersonation(): void {
 }
 
 .badge b {
-  font-size: 13px;
+  font-size: var(--text-body);
   letter-spacing: -0.01em;
   color: var(--text-strong);
 }
@@ -195,7 +195,7 @@ function stopImpersonation(): void {
   place-items: center;
   background: var(--accent);
   color: var(--accent-on);
-  font-size: 11px;
+  font-size: var(--text-small);
   font-weight: 700;
 }
 
@@ -206,7 +206,7 @@ nav {
 }
 
 .group {
-  font-size: 10px;
+  font-size: var(--text-label);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -218,7 +218,7 @@ nav {
   border-radius: 3px;
   text-decoration: none;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--text-table);
 }
 
 .item:hover {
@@ -235,7 +235,7 @@ nav {
 .source {
   margin-top: auto;
   padding-top: 20px;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 
 .source a {
@@ -264,7 +264,7 @@ nav {
 
 h1 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--text-heading);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-strong);
@@ -272,7 +272,7 @@ h1 {
 
 .meta {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--text-small);
   color: var(--text-muted);
 }
 </style>

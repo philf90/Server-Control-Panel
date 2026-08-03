@@ -141,7 +141,7 @@ function submit(): void {
 
 h1 {
   margin: 0 0 18px;
-  font-size: 16px;
+  font-size: var(--text-heading);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-strong);
@@ -155,7 +155,7 @@ h1 {
 }
 
 label {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: var(--text-muted);
 }
 
@@ -171,7 +171,7 @@ input[type='password'],
   height: var(--row-height);
   padding: 0 9px;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-body);
   color: var(--text);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -226,7 +226,7 @@ button:focus-visible {
   align-items: center;
   gap: 7px;
   margin: 2px 0 16px;
-  font-size: 12.5px;
+  font-size: var(--text-table);
   color: var(--text);
   cursor: pointer;
 }
@@ -241,7 +241,7 @@ button:focus-visible {
 button[type='submit'] {
   height: var(--row-height);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 600;
   color: var(--accent-on);
   background: var(--accent);
@@ -259,7 +259,7 @@ button[type='submit']:disabled {
 .hinweis {
   margin: 0 0 12px;
   padding: 7px 9px;
-  font-size: 12.5px;
+  font-size: var(--text-table);
   border-radius: 5px;
 }
 

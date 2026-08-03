@@ -93,6 +93,13 @@ anderes Produkt und zählt neu.
   Betriebssystems, ohne Textfarbe, auf manchen Servern ein leeres Rechteck.
   Ersetzt durch `EyeIcon.vue`: ein SVG mit `currentColor`, eigene Geometrie,
   keine Icon-Bibliothek. Geprüft von `test_no_vue_template_uses_an_emoji`.
+- **Schriftgrößen als Marken** (`docs/20 §7.2`). In den Komponenten standen zehn
+  `rem`-Werte für fünf Rollen, dazu neun Literale in px. `rem` rechnet gegen das
+  Wurzelelement (16px), die Grundgröße des Panels sind aber 13px — jeder Wert
+  war 23 % größer als gemeint, `.85rem` für Tabellentext ergab 13,6px und war
+  damit größer als der Fließtext, den er unterschreiten sollte. 150 Werte sind
+  auf eine Skala aus fünf Stufen umgestellt; `DesignTokensTest` lässt weder
+  `rem` noch ein Literal noch eine Marke ohne Wert durch.
 - **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
   Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
   `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im

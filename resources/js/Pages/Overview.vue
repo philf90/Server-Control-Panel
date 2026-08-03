@@ -228,7 +228,7 @@ const headline = props.server.reachable
 
 .alert code {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--text-small);
   color: var(--text-muted);
 }
 
@@ -261,7 +261,7 @@ table {
 }
 
 th {
-  font-size: 10.5px;
+  font-size: var(--text-label);
   letter-spacing: 0.09em;
   text-transform: uppercase;
   text-align: left;
@@ -276,7 +276,7 @@ td {
   padding: 0 10px 0 0;
   height: var(--row-height);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-table);
   color: var(--text);
 }
 
@@ -311,13 +311,13 @@ td.quiet {
 }
 
 .percent {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: var(--text-muted);
 }
 
 .badge {
   display: inline-block;
-  font-size: 10.5px;
+  font-size: var(--text-label);
   padding: 1px 7px;
   border-radius: 999px;
 }

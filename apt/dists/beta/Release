@@ -1,28 +1,28 @@
 Architectures: amd64 arm64
 Codename: beta
 Components: main
-Date: Mon, 03 Aug 2026 10:29:21 +0000
+Date: Mon, 03 Aug 2026 11:19:40 +0000
 Description: SrvPanel beta
 Label: SrvPanel
 Origin: SrvPanel
 Suite: beta
 MD5Sum:
- f312681ecd0fff551ab372448d8b6aaf             9904 main/binary-amd64/Packages
- 3db5339f637759c72cb19a46dfd5cb9a             2668 main/binary-amd64/Packages.gz
- fa31f6c604ae48210a4d80f521c89ca3             9904 main/binary-arm64/Packages
- 0553bdca77d305283f36d427bf3eeb82             2679 main/binary-arm64/Packages.gz
+ a1cec343758371718cc1a247389d1fae             9960 main/binary-amd64/Packages
+ 80c522275511ea6c58b31a1c4c38948d             2671 main/binary-amd64/Packages.gz
+ 942ec3c4b1df8c464c45df41d8700845             9960 main/binary-arm64/Packages
+ 95cf46844076b434750a599a513e7d3d             2675 main/binary-arm64/Packages.gz
 SHA1:
- be0b324071b8c296ad6082cd89d27c7b0b958351             9904 main/binary-amd64/Packages
- 85afd182f88d4c3cfa68f67397ab7abaff9b28c0             2668 main/binary-amd64/Packages.gz
- 18648448e4905a66773b1330a86a985ea23bb502             9904 main/binary-arm64/Packages
- 3f2a1eb0692ec763b8e8d8060d0ff13f32f50df3             2679 main/binary-arm64/Packages.gz
+ 5fcd5f9b48ed69897cc79ec32ab87b6e9f776375             9960 main/binary-amd64/Packages
+ 93182b4fd47a4934b318c410e4833a92c048a3fd             2671 main/binary-amd64/Packages.gz
+ 5824ff4322b631bfd85e5d26c4fef9c5f4bf4fc2             9960 main/binary-arm64/Packages
+ c38db06ca51849123dedf7925a704c95828536f5             2675 main/binary-arm64/Packages.gz
 SHA256:
- a95f68fbfc383e3e5ae782d5d37dee8a9c5ec8d26e9b412f763ccc080218f7c8             9904 main/binary-amd64/Packages
- ddacf6c8396587fd4f018a3a74114229f8b4e5b85fe8be1befdcbf650c259860             2668 main/binary-amd64/Packages.gz
- 08a6314800dbd9338610d9fb116ee67358f46f308993f31eec995710842fccde             9904 main/binary-arm64/Packages
- a840d7f29aa6587edcc2a9c80bcffffe8127b994647e50ac6f0ef65bbbc2a018             2679 main/binary-arm64/Packages.gz
+ db6d6d623e5afa015d4901dc30e98888266276b6e78511304c197800d38ff509             9960 main/binary-amd64/Packages
+ edf9e1a7a9cb79530fab475c5f882cdbd6e2df542f428900802ef3158ba6d891             2671 main/binary-amd64/Packages.gz
+ b7f18c7fd17808e92ebe6d1508a1a731f19da9102cd381f73fb00d8d00bd0b86             9960 main/binary-arm64/Packages
+ 0a6702242dd8a172299d2e1203884f7f1690621ea689c924d1f7a6d57933be0d             2675 main/binary-arm64/Packages.gz
 SHA512:
- 12f7766d776d3ce98017ffb51abed825ea4b75145514f7d577cfafc6d249109dc98030f9e81e01fdf9c47a220460541663bffefb4b975a36580f6d0d7625a649             9904 main/binary-amd64/Packages
- 023ec75401bb61a973fa30ae1fbf25f569d0d79b96796e27d5c1cc12ef042ed5cdc434afda5b1ae120709a202ebcc7308e7fdafc76485ce81a64d0d427f78514             2668 main/binary-amd64/Packages.gz
- b21b6d40b07a825297b4972bf8e28d3622f9a0f94c1efab62b074a3693fc36dc46fed404c14412dafc8a4a2c1c5d09afca689e9897bd6a9ccdb3e64f105f8a1a             9904 main/binary-arm64/Packages
- 3a5324f664b7c8d27524d2b168ea58eaf8c504f8b97a72ac0c2871167761e8395afbe37a1c849c9f91711a01b780d84b4a8d385dc68290278041183355c496f5             2679 main/binary-arm64/Packages.gz
+ 5c73a094ec0d0e333273302f5206e5c84a4896d8c57ad1e5368e59c9881eee4e8a67714b98cc3beff6d8dcbb5f326c686d33b4c732eb1b281891104fda6f7376             9960 main/binary-amd64/Packages
+ 8e78a76213a6397cd8339e4e79069d1ca7068babd3d649a895e8bf5098b80e545c192997fdf9d79872fe5d3598d1d8b1cc3be320f21f22848cad3cf8c6178040             2671 main/binary-amd64/Packages.gz
+ add4ad936a387979de446612cffedd1bda1ad571ecbf60e8510931f53c440be7aca3074c4bcb0dc4fc38838fa4118fa6766a283dc4a4fbc9fc72eea335b63819             9960 main/binary-arm64/Packages
+ 76877ee504bfe717b8e32bf68968792b41166cd4e1f5537d2cf9325a59e9eec4d4af11a8dc5b3013c679c5d530f91a8b590e46e52ba53c2effe778c4af37e2e5             2675 main/binary-arm64/Packages.gz

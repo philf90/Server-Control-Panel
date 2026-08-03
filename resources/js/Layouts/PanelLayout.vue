@@ -5,7 +5,7 @@
  * am Wurzelelement, das die Werte aus app.css umstellt (§7.2 des Plans).
  */
 import { Link, router, usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 defineProps<{ title: string; subline?: string }>()
 
@@ -41,7 +41,11 @@ const navigation = computed(() => {
       { name: 'Kunden', href: '/customers' },
       { name: 'Pläne', href: '/plans' },
     ] },
-    { group: 'Server', items: [{ name: 'Vorgänge', href: '/operations' }, { name: 'Protokoll', href: '/audit' }] },
+    { group: 'Server', items: [
+      { name: 'Vorgänge', href: '/operations' },
+      { name: 'Protokoll', href: '/audit' },
+      { name: 'Mailversand', href: '/settings/mail' },
+    ] },
     { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile' }] },
   ]
 })
@@ -53,6 +57,44 @@ function signOut(): void {
 function stopImpersonation(): void {
   router.post('/impersonation/stop')
 }
+
+/*
+ * Die Navigation auf einer schmalen Fläche.
+ *
+ * Unter 720px liegt die Seitenleiste nicht mehr daneben, sondern als Schublade
+ * darüber. Sie war zuvor eine feste Spalte von 186px — auf einem Telefon mit
+ * 390px sind das 48 % der Breite für ein Menü, das man einmal benutzt und dann
+ * nicht mehr ansieht. Die Übersicht daneben hatte 204px, und darin standen
+ * Kacheln, Tabellen mit sechs Spalten und Verlaufskurven.
+ *
+ * Drei Dinge, die eine Schublade haben muss, damit sie sich wie eine anfühlt:
+ * Sie schliesst beim Seitenwechsel (sonst steht sie über der Seite, die man
+ * gerade geöffnet hat), sie schliesst mit Escape, und solange sie offen ist,
+ * rollt die Seite darunter nicht mit.
+ */
+const menuOpen = ref(false)
+
+watch(() => page.url, () => {
+  menuOpen.value = false
+})
+
+watch(menuOpen, (open) => {
+  document.documentElement.classList.toggle('menu-offen', open)
+})
+
+function onKey(event: KeyboardEvent): void {
+  if (event.key === 'Escape') menuOpen.value = false
+}
+
+onMounted(() => document.addEventListener('keydown', onKey))
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKey)
+
+  // Ohne das bliebe die Seite gesperrt, wenn die Schublade offen war und die
+  // Anwendung das Gerüst wechselt — etwa beim Abmelden.
+  document.documentElement.classList.remove('menu-offen')
+})
 </script>
 
 <template>
@@ -70,7 +112,34 @@ function stopImpersonation(): void {
       <button type="button" @click="stopImpersonation">Zurück zur Verwaltung</button>
     </div>
 
-    <aside class="nav">
+    <!--
+      Die Kopfzeile der schmalen Fläche. Sie steht nur dort und trägt genau
+      das, was man beim Blick auf ein fremdes Telefon zuerst braucht: wo man
+      ist und wie man woanders hinkommt.
+    -->
+    <header class="topbar">
+      <button
+        type="button"
+        class="burger"
+        :aria-expanded="menuOpen"
+        aria-controls="hauptnavigation"
+        aria-label="Navigation"
+        @click="menuOpen = !menuOpen"
+      >
+        <!-- Drei Striche als SVG und nicht als „☰": Das Zeichen ist ein Emoji
+             mit eigener Zeichnung je Betriebssystem (docs/19 §3a). -->
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      </button>
+
+      <span class="titel">{{ title }}</span>
+    </header>
+
+    <!-- Der Schleier liegt zwischen Seite und Schublade und schliesst sie. -->
+    <div v-if="menuOpen" class="schleier" @click="menuOpen = false" />
+
+    <aside id="hauptnavigation" class="nav" :class="{ offen: menuOpen }">
       <div class="badge">
         <!-- „C" stand hier bis August 2026 — von CloudSrv, dem verworfenen Namen. -->
         <span class="glyph">S</span>
@@ -141,7 +210,23 @@ function stopImpersonation(): void {
   display: grid;
   grid-template-columns: 186px 1fr;
   grid-template-rows: auto 1fr;
-  min-height: 100vh;
+
+  /*
+   * `dvh` und nicht `vh`: Auf einem Telefon zählt `vh` die Adressleiste mit,
+   * die beim Rollen verschwindet. Eine Seite mit `100vh` steht deshalb im
+   * Ausgangszustand um die Höhe dieser Leiste zu hoch — man rollt, obwohl
+   * nichts zu rollen wäre.
+   */
+  min-height: 100dvh;
+}
+
+/* Die Kopfzeile gibt es nur auf der schmalen Fläche. */
+.topbar {
+  display: none;
+}
+
+.schleier {
+  display: none;
 }
 
 .band {
@@ -330,5 +415,138 @@ h1 {
   font-family: var(--font-mono);
   font-size: var(--text-small);
   color: var(--text-muted);
+}
+
+/*
+ * Die schmale Fläche (docs/24).
+ *
+ * Aus zwei Spalten wird eine, aus der Seitenleiste eine Schublade. Die
+ * Seitenleiste bleibt dabei dieselbe Komponente mit denselben Einträgen —
+ * eine zweite Navigation nur fürs Telefon wäre eine zweite Stelle, an der
+ * jemand einen neuen Menüpunkt vergisst.
+ */
+@media (max-width: 720px) {
+  .frame {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    padding-top: calc(6px + env(safe-area-inset-top));
+    background: var(--nav-bg);
+    border-bottom: 1px solid var(--nav-border);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .topbar .titel {
+    font-size: var(--text-body);
+    font-weight: 600;
+    color: var(--text-strong);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .burger {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: var(--tap);
+    height: var(--tap);
+    padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .burger svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+  }
+
+  .schleier {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: var(--scrim);
+  }
+
+  .nav {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: min(272px, 82vw);
+    padding-top: calc(16px + env(safe-area-inset-top));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 180ms ease;
+  }
+
+  .nav.offen {
+    transform: none;
+  }
+
+  /* Die Einträge sind hier Tippziele und keine Zeilen einer Liste. */
+  .item {
+    padding: 10px 12px;
+    font-size: var(--text-body);
+    min-height: var(--tap);
+    display: flex;
+    align-items: center;
+  }
+
+  .account .signout {
+    min-height: var(--tap);
+    padding: 0 4px;
+  }
+
+  .band {
+    flex-wrap: wrap;
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+
+  .content {
+    padding: 14px 12px 24px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+
+  /*
+   * Die Seitenüberschrift steht auf der schmalen Fläche schon in der
+   * Kopfzeile. Ein zweites Mal darunter wäre dieselbe Angabe zweimal auf
+   * einem Bildschirm, der ohnehin knapp ist — die Beizeile bleibt, sie sagt
+   * etwas anderes.
+   */
+  .header h1 {
+    display: none;
+  }
+
+  .header {
+    margin-bottom: 12px;
+  }
+}
+
+/*
+ * Solange die Schublade offen ist, rollt die Seite darunter nicht mit.
+ * `:global`, weil die Klasse am Wurzelelement hängt und nicht in dieser
+ * Komponente — ohne das schriebe Vue die Regel auf ein Element um, das es
+ * hier gar nicht gibt.
+ */
+:global(html.menu-offen) {
+  overflow: hidden;
 }
 </style>

@@ -260,7 +260,7 @@ function randomBelow(bound: number): number {
 .passwort { display: flex; flex-direction: column; gap: 8px; }
 label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
 .feld { display: flex; gap: 5px; }
-input { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; font-size: var(--text-body); font-family: var(--font-mono); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
+input { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; font-size: var(--text-input); font-family: var(--font-mono); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
 .auge { flex: none; display: grid; place-items: center; width: 34px; color: var(--text-muted); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
 .auge:hover { color: var(--text-strong); }
 .erzeugen { align-self: flex-start; padding: 5px 11px; font: inherit; font-size: var(--text-small); color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }

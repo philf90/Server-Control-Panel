@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\MailSettingsController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
@@ -196,6 +197,25 @@ Route::middleware('auth')->group(function (): void {
         ->name('profile.update');
     Route::put('/settings/password', [ProfileController::class, 'password'])
         ->name('profile.password');
+
+    /*
+     * Mailversand über ein Relay (docs/25).
+     *
+     * `can:manage-settings` ist eine Fähigkeit und keine Policy: Es gibt kein
+     * Modell, dem diese Einstellungen gehören. Die mechanische Routenprüfung
+     * nimmt beide Formen an — Hauptsache, an der Route steht eine Prüfung.
+     */
+    Route::get('/settings/mail', [MailSettingsController::class, 'show'])
+        ->middleware('can:manage-settings')
+        ->name('settings.mail');
+
+    Route::put('/settings/mail', [MailSettingsController::class, 'update'])
+        ->middleware('can:manage-settings')
+        ->name('settings.mail.update');
+
+    Route::post('/settings/mail/test', [MailSettingsController::class, 'test'])
+        ->middleware('can:manage-settings')
+        ->name('settings.mail.test');
 
     /*
      * Den zweiten Faktor einrichten oder abschalten.

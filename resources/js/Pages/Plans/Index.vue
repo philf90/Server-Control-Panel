@@ -36,7 +36,7 @@ const success = computed(() => (page.props.flash as Record<string, string> | und
       <Link href="/plans/create" class="anlegen">Plan anlegen</Link>
     </header>
 
-    <table>
+    <table class="stapelt">
       <thead>
         <tr>
           <th>Name</th>
@@ -48,14 +48,20 @@ const success = computed(() => (page.props.flash as Record<string, string> | und
       </thead>
       <tbody>
         <tr v-for="row in props.plans" :key="row.id">
-          <td>
+          <td data-spalte="Plan" class="mehrzeilig">
             <Link :href="`/plans/${row.id}/edit`">{{ row.name }}</Link>
             <span v-if="row.is_default" class="marke">Standard</span>
             <p v-if="row.description" class="beschreibung">{{ row.description }}</p>
           </td>
-          <td v-for="spalte in row.summary" :key="spalte.label" class="zahl">{{ spalte.value }}</td>
-          <td class="freigaben">{{ row.features.length > 0 ? row.features.join(', ') : 'keine' }}</td>
-          <td class="zahl">{{ row.subscriptions }}</td>
+          <!--
+            Die Beschriftung kommt hier aus den Daten und nicht aus dem
+            Quelltext: Welche drei Kontingente in der Liste stehen, entscheidet
+            der Katalog. Ein festes `data-spalte` wäre die vierte Stelle, an
+            der dieselbe Beschriftung stünde.
+          -->
+          <td v-for="spalte in row.summary" :key="spalte.label" :data-spalte="spalte.label" class="zahl">{{ spalte.value }}</td>
+          <td data-spalte="Freigaben" class="freigaben">{{ row.features.length > 0 ? row.features.join(', ') : 'keine' }}</td>
+          <td data-spalte="Abos" class="zahl">{{ row.subscriptions }}</td>
           <td><Link :href="`/plans/${row.id}/edit`" class="aktion">Bearbeiten</Link></td>
         </tr>
         <tr v-if="props.plans.length === 0">

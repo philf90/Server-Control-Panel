@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\Account;
 use App\Support\Metrics\Collector;
 use App\Support\Metrics\Store;
+use App\Support\Settings\MailConfiguration;
+use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
+use Illuminate\Mail\MailManager;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use SrvPanel\Agent\Client;
 
@@ -36,5 +41,38 @@ final class SrvPanelServiceProvider extends ServiceProvider
             $app->make(Client::class),
             $app->make(Store::class),
         ));
+
+        // Als Singleton, damit die Einstellungen je Anfrage einmal gelesen
+        // werden und nicht einmal je Aufrufer.
+        $this->app->singleton(Settings::class);
+    }
+
+    public function boot(): void
+    {
+        /*
+         * Einstellungen des Betreibers sind Betreibersache.
+         *
+         * Als Fähigkeit und nicht als Policy: Eine Policy gehört zu einem
+         * Modell, und hier gibt es keines — die Mailzugangsdaten sind eine
+         * Zeile in einer Tabelle, aber niemand „besitzt" sie. Die mechanische
+         * Routenprüfung nimmt `can:` in beiden Formen an; ohne diese Zeile
+         * fiele die Route dort durch.
+         */
+        Gate::define('manage-settings', static fn (Account $account): bool => $account->isAdmin());
+
+        /*
+         * Die Mailkonfiguration entsteht erst, wenn wirklich eine Mail
+         * verschickt wird.
+         *
+         * `resolving` läuft, sobald jemand den MailManager zum ersten Mal aus
+         * dem Container holt — und das tut nur, wer eine Mail verschickt. Der
+         * naheliegende Weg wäre gewesen, die Einstellungen hier in `boot()` zu
+         * lesen: Das wäre eine Datenbankabfrage bei jedem Seitenaufruf, jedem
+         * Artisan-Kommando und jedem Testlauf, für etwas, das ein Panel ein
+         * paar Mal am Tag braucht.
+         */
+        $this->app->resolving(MailManager::class, function (): void {
+            MailConfiguration::apply($this->app->make(Settings::class), $this->app->make('config'));
+        });
     }
 }

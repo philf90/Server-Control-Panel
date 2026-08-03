@@ -171,7 +171,7 @@ input[type='password'],
   height: var(--row-height);
   padding: 0 9px;
   font: inherit;
-  font-size: var(--text-body);
+  font-size: var(--text-input);
   color: var(--text);
   background: var(--bg);
   border: 1px solid var(--line);

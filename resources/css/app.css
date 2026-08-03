@@ -47,6 +47,11 @@
   --critical-surface: rgb(216 96 74 / 0.14);
 
   --focus: #7fc4ff;
+
+  /* Der Schleier hinter der Navigationsschublade (docs/24 §4). Eine Farbe,
+     also gehört sie hierher und nicht in die Komponente — §7.2 macht keine
+     Ausnahme für Schwarz mit Deckung. */
+  --scrim: rgb(0 0 0 / 0.55);
 }
 
 /*
@@ -79,6 +84,18 @@
   /* Die grosse Zahl auf einer Kachel. Kein Text, sondern ein Messwert — sie
      steht in der Reihe, damit sie nicht als Literal irgendwo festwaechst. */
   --text-metric: 22px;
+
+  /*
+   * Die Schrift in einem Eingabefeld. Auf dem Schreibtisch dieselbe wie im
+   * Fliesstext; auf einem Telefon 16px, weil Safari sonst beim Fokus
+   * hineinzoomt (siehe den Block zur schmalen Fläche weiter unten). Die
+   * einzige Grösse der Skala, die sich mit der Fläche ändert — und sie tut es
+   * aus einem technischen Grund, nicht aus einem gestalterischen.
+   */
+  --text-input: 13px;
+
+  /* Die kleinste Fläche für einen Zeiger. Am Finger wird daraus 44px. */
+  --tap: 30px;
 }
 
 /*
@@ -114,6 +131,10 @@
   --critical-surface: rgb(216 96 74 / 0.12);
 
   --focus: #005ea8;
+
+  /* Auf hellem Grund reicht weniger Deckung: Der Inhalt darunter ist hell,
+     der Kontrast zur Schublade entsteht ohnehin. */
+  --scrim: rgb(15 23 31 / 0.4);
 }
 
 /*
@@ -149,6 +170,47 @@
   --block-gap: 36px;
   --block-heading-gap: 10px;
   --block-heading-size: 15px;
+}
+
+/*
+ * Die schmale Fläche — ein Telefon, ein Tablet hochkant.
+ *
+ * **Zwei Haltepunkte, und keinen dritten.** 720px trennt „Seitenleiste daneben"
+ * von „Seitenleiste als Schublade", 480px ist der Punkt, ab dem auch zwei
+ * Spalten nebeneinander nicht mehr gehen. Beide stehen in docs/24 und werden
+ * von `MobileLayoutTest` erzwungen: Ein dritter Wert, irgendwo in einer
+ * Komponente erfunden, führt zu Seiten, die bei 640px umbrechen und bei 700px
+ * nicht — und niemand weiss danach, welcher Wert der richtige war.
+ *
+ * **Die Dichte wechselt hier unabhängig vom Kontotyp.** Auf einem Telefon
+ * bedient man mit dem Finger, nicht mit einem Mauszeiger; 34px hohe Zeilen
+ * sind dort keine Dichte, sondern Danebentippen. Das ist keine dritte
+ * Dichtestufe im Sinne von §7.2, sondern dieselbe Achse an ihrem oberen Ende.
+ */
+@media (max-width: 720px) {
+  :root,
+  :root[data-density='admin'],
+  :root[data-density='customer'] {
+    --row-height: 44px;
+    --gap: 12px;
+    --padding: 14px 14px 12px;
+    --tile-columns: 1;
+    --block-gap: 28px;
+    --block-heading-gap: 8px;
+    --block-heading-size: 15px;
+
+    /*
+     * 16px, und der Grund ist kein gestalterischer: Safari auf iOS zoomt die
+     * Seite hinein, sobald ein Eingabefeld mit weniger als 16px den Fokus
+     * bekommt — und zoomt danach nicht wieder heraus. Wer ein Passwort
+     * eintippt, steht anschliessend in einer um 30 % vergrösserten Seite und
+     * schiebt sie von Hand zurück. Auf dem Schreibtisch bleibt es bei 13px.
+     */
+    --text-input: 16px;
+
+    /* Die kleinste Fläche, die ein Finger zuverlässig trifft. */
+    --tap: 44px;
+  }
 }
 
 * {
@@ -198,6 +260,116 @@ th {
 input[type='checkbox'],
 input[type='radio'] {
   accent-color: var(--accent);
+}
+
+/*
+ * Tabellen auf einer schmalen Fläche — zwei Muster, und nur diese zwei.
+ *
+ * Eine Tabelle mit sechs Spalten ist auf 390px keine Tabelle mehr. Es gibt
+ * zwei brauchbare Antworten darauf, und welche richtig ist, hängt davon ab,
+ * was in der Tabelle steht. Beide stehen hier und nicht je Seite: Sonst
+ * bekommt jede Liste ihre eigene Lösung, und drei Module später sieht das
+ * Panel auf dem Telefon aus wie drei Panels.
+ *
+ * **`.rollt` — die Tabelle bleibt eine Tabelle und rollt waagerecht.**
+ * Für Messwerte: Dateisysteme, Prozesse, Dienste. Dort steht in jeder Spalte
+ * eine Zahl derselben Art, und der Vergleich *zwischen* den Zeilen ist der
+ * Zweck der Ansicht. Aufgebrochen in Kärtchen wäre genau dieser Vergleich
+ * weg. `-webkit-overflow-scrolling` gibt es nicht mehr zu setzen, das ist
+ * seit Jahren die Voreinstellung.
+ *
+ * **`.stapelt` — jede Zeile wird zu einem Kärtchen.**
+ * Für Verzeichnisse: Kunden, Pläne, Vorgänge, Protokoll. Dort ist die Zeile
+ * der Gegenstand, und man liest sie einzeln. Der Spaltenkopf verschwindet;
+ * seinen Text trägt jede Zelle als `data-spalte` bei sich. Ohne dieses
+ * Attribut steht die Zelle ohne Beschriftung da — deshalb prüft
+ * `MobileLayoutTest`, dass in einer `.stapelt`-Tabelle jede Zelle es hat.
+ */
+.rollt {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.rollt > table {
+  min-width: 100%;
+  width: max-content;
+}
+
+@media (max-width: 720px) {
+  .stapelt thead {
+    /* `display: none` nähme sie auch dem Screenreader. `clip` lässt die
+       Beschriftung in der Vorlesereihenfolge stehen und nimmt sie nur dem
+       Auge. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .stapelt,
+  .stapelt tbody,
+  .stapelt tr,
+  .stapelt td {
+    display: block;
+    width: 100%;
+  }
+
+  .stapelt tr {
+    padding: 10px 12px;
+    margin-bottom: var(--gap);
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: 6px;
+  }
+
+  .stapelt td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 3px 0;
+    border: 0;
+    text-align: right;
+  }
+
+  .stapelt td::before {
+    content: attr(data-spalte);
+    flex: none;
+    font-size: var(--text-label);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    text-align: left;
+  }
+
+  /* Eine Zelle ohne Beschriftung — der Knopf am Zeilenende — nimmt die ganze
+     Breite und steht links, wie ein Knopf es tut. */
+  .stapelt td:not([data-spalte]) {
+    justify-content: flex-start;
+    text-align: left;
+    padding-top: 8px;
+  }
+
+  /*
+   * Eine Zelle, in der mehr steht als ein Wert — Name, Marke und
+   * Beschreibung eines Plans etwa. Beschriftung und Inhalt nebeneinander
+   * lassen den Rest an den rechten Rand rutschen und dort umbrechen; sie
+   * gehören hier untereinander.
+   */
+  .stapelt td.mehrzeilig {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+    gap: 2px;
+  }
+
+  /* Die Meldung „noch nichts angelegt" ist keine Zeile mit Feldern. */
+  .stapelt td[colspan] {
+    justify-content: flex-start;
+    text-align: left;
+  }
 }
 
 /*

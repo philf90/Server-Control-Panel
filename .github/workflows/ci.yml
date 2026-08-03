@@ -91,10 +91,17 @@ jobs:
         run: npm run build
 
       - name: Farbwerte stehen nur in app.css
-        # Vorgabe aus §7.2: Jede Farbe kommt aus den Marken. Ein Hexwert in
+        # Vorgabe aus §7.2: Jede Farbe kommt aus den Marken. Ein Farbwert in
         # einer Komponente ist der Anfang vom Ende des zweiten Themes.
+        #
+        # Hier stand nur der Ausdruck für Hexwerte. Ein `rgb(0 0 0 / .5)` als
+        # Schleier hinter der Navigationsschublade ging glatt durch — es ist
+        # eine Farbe, sie stand in einer Komponente, und geprüft wurde etwas
+        # anderes. Eine Regel, die eine Schreibweise prüft statt der Sache,
+        # hält genau so lange, bis jemand die andere benutzt.
         run: |
-          if grep -rnE '#[0-9a-fA-F]{3,8}\b' resources/js --include='*.vue' --include='*.ts'; then
+          if grep -rnE '#[0-9a-fA-F]{3,8}\b|\b(rgba?|hsla?|oklch|color-mix)\(' \
+              resources/js --include='*.vue' --include='*.ts'; then
             echo "::error::Farbwert außerhalb von app.css. Marke aus resources/css/app.css benutzen."
             exit 1
           fi

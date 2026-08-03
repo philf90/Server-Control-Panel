@@ -75,7 +75,7 @@ function start(task: TaskEntry): void {
       </ul>
     </section>
 
-    <table>
+    <table class="stapelt">
       <thead>
         <tr>
           <th>#</th><th>Aufgabe</th><th>Zustand</th><th>Ausgelöst von</th><th>Begonnen</th><th>Beendet</th>
@@ -83,17 +83,17 @@ function start(task: TaskEntry): void {
       </thead>
       <tbody>
         <tr v-for="row in props.operations.data" :key="row.id">
-          <td><Link :href="`/operations/${row.id}`">{{ row.id }}</Link></td>
-          <td>
+          <td data-spalte="Nummer"><Link :href="`/operations/${row.id}`">{{ row.id }}</Link></td>
+          <td data-spalte="Aufgabe">
             <Link :href="`/operations/${row.id}`">{{ row.label }}</Link>
             <span class="op">{{ row.type }}</span>
           </td>
-          <td :data-status="row.status">
+          <td data-spalte="Zustand" :data-status="row.status">
             {{ row.status_label }}<template v-if="row.open"> · {{ row.progress }} %</template>
           </td>
-          <td>{{ row.account ?? '—' }}</td>
-          <td>{{ row.started_at ?? '—' }}</td>
-          <td>{{ row.finished_at ?? '—' }}</td>
+          <td data-spalte="Ausgelöst von">{{ row.account ?? '—' }}</td>
+          <td data-spalte="Begonnen">{{ row.started_at ?? '—' }}</td>
+          <td data-spalte="Beendet">{{ row.finished_at ?? '—' }}</td>
         </tr>
         <tr v-if="props.operations.data.length === 0">
           <td colspan="6">Noch kein Vorgang.</td>

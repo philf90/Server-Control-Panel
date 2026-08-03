@@ -230,7 +230,7 @@ label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-s
 .beschriftung { font-size: var(--text-small); color: var(--text-muted); }
 .zeile { display: flex; align-items: center; gap: 8px; }
 .zeile input[type='number'] { width: 130px; }
-input[type='text'], input[type='number'] { padding: 6px 8px; font: inherit; font-size: var(--text-body); font-variant-numeric: tabular-nums; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
+input[type='text'], input[type='number'] { padding: 6px 8px; font: inherit; font-size: var(--text-input); font-variant-numeric: tabular-nums; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
 input:disabled { color: var(--text-faint); background: var(--surface-border); border-color: transparent; }
 .einheit { font-size: var(--text-small); color: var(--text-faint); }
 .unbegrenzt, .version, .schalter { flex-direction: row; align-items: flex-start; gap: 6px; }

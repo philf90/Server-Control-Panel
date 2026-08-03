@@ -79,7 +79,7 @@ function exportUrl(): string {
         <label>IP <input v-model="filters.ip" type="text"></label>
       </div>
 
-      <table>
+      <table class="stapelt">
         <thead>
           <tr>
             <th>Zeitpunkt</th><th>Aktion</th><th>Ergebnis</th><th>Ziel</th><th>IP</th>
@@ -87,11 +87,11 @@ function exportUrl(): string {
         </thead>
         <tbody>
           <tr v-for="row in events.data" :key="row.id">
-            <td>{{ row.created_at }}</td>
-            <td>{{ row.action }}</td>
-            <td :data-ergebnis="row.result">{{ row.result_label }}</td>
-            <td>{{ row.target ?? '—' }}</td>
-            <td>{{ row.ip_address ?? '—' }}</td>
+            <td data-spalte="Zeitpunkt">{{ row.created_at }}</td>
+            <td data-spalte="Aktion">{{ row.action }}</td>
+            <td data-spalte="Ergebnis" :data-ergebnis="row.result">{{ row.result_label }}</td>
+            <td data-spalte="Ziel">{{ row.target ?? '—' }}</td>
+            <td data-spalte="IP">{{ row.ip_address ?? '—' }}</td>
           </tr>
           <tr v-if="events.data.length === 0">
             <td colspan="5">Keine Einträge für diese Auswahl.</td>
@@ -109,8 +109,20 @@ header { display: flex; justify-content: flex-end; }
 .filter { display: flex; flex-wrap: wrap; gap: 12px; }
 .filter label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
 .filter input, .filter select {
-  padding: 5px 6px; font: inherit; font-size: var(--text-table); color: var(--text);
+  padding: 5px 6px; font: inherit; font-size: var(--text-input); color: var(--text);
   background: var(--bg); border: 1px solid var(--line); border-radius: 5px;
+}
+
+/*
+ * Auf der schmalen Fläche stehen die Filter untereinander und über die volle
+ * Breite. Nebeneinander mit `flex-wrap` ergäben sie auf 390px vier Zeilen mit
+ * je einem angeschnittenen Feld — ein Datumsfeld ist im Browser breiter, als
+ * es aussieht.
+ */
+@media (max-width: 720px) {
+  .filter { flex-direction: column; gap: 10px; }
+  .filter label { width: 100%; }
+  .filter input, .filter select { width: 100%; min-height: var(--tap); }
 }
 table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }

@@ -139,6 +139,14 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:view,customer')
         ->name('customers.show');
 
+    Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])
+        ->middleware('can:update,customer')
+        ->name('customers.edit');
+
+    Route::patch('/customers/{customer}', [CustomerController::class, 'update'])
+        ->middleware('can:update,customer')
+        ->name('customers.update');
+
     /*
      * Pläne — die Vorlage für die Kontingente eines Abonnements (§5.2).
      *

@@ -20,7 +20,7 @@ const props = defineProps<{ subscriptions: Row[] }>()
 
   <PanelLayout title="Abonnements" :subline="`${props.subscriptions.length} angelegt`">
     <header class="kopf">
-      <Link href="/subscriptions/create" class="anlegen">Abonnement anlegen</Link>
+      <Link href="/subscriptions/create" class="knopf wichtig">Abonnement anlegen</Link>
     </header>
 
     <table class="stapelt">
@@ -48,7 +48,6 @@ const props = defineProps<{ subscriptions: Row[] }>()
 
 <style scoped>
 .kopf { display: flex; justify-content: flex-end; margin-bottom: var(--gap); }
-.anlegen { font-size: var(--text-table); color: var(--accent); }
 table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }

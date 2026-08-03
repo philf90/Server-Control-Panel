@@ -98,7 +98,7 @@ function savePassword(): void {
             </small>
           </label>
 
-          <button type="submit" :disabled="konto.processing">
+          <button type="submit" class="knopf wichtig" :disabled="konto.processing">
             {{ konto.processing ? 'Wird gespeichert …' : 'Speichern' }}
           </button>
         </form>
@@ -126,7 +126,7 @@ function savePassword(): void {
             Nach dem Wechsel werden alle anderen Sitzungen abgemeldet. Diese hier bleibt bestehen.
           </p>
 
-          <button type="submit" :disabled="passwort.processing">
+          <button type="submit" class="knopf wichtig" :disabled="passwort.processing">
             {{ passwort.processing ? 'Wird geändert …' : 'Passwort ändern' }}
           </button>
         </form>
@@ -166,8 +166,6 @@ input { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: va
 .fehler { font-size: var(--text-small); color: var(--critical); }
 .hinweis { margin: 0; font-size: var(--text-label); color: var(--text-faint); }
 
-button { align-self: flex-start; padding: 8px 16px; font: inherit; font-size: var(--text-body); font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
-button:disabled { opacity: .6; cursor: default; }
 
 .erfolg { margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--ok); background: var(--ok-surface); border-radius: 5px; }
 .gesperrt { margin: 0; padding: 11px 13px; max-width: 448px; font-size: var(--text-table); color: var(--warn); background: var(--warn-surface); border: 1px solid var(--warn); border-radius: 5px; }
@@ -178,4 +176,5 @@ button:disabled { opacity: .6; cursor: default; }
 .marke { font-size: var(--text-label); padding: 1px 7px; border-radius: 999px; }
 .marke.an { color: var(--ok); background: var(--ok-surface); }
 .marke.aus { color: var(--text-muted); background: var(--surface-border); }
+form .knopf { align-self: flex-start; }
 </style>

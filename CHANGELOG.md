@@ -345,6 +345,27 @@ einzelnen Ausbaustufe.
   verschluckt — `background` erreicht sie nicht, nur ein Schatten nach innen),
   das Blau der Ankreuzfelder und der Fokusrahmen an Eingabefeldern, den bis
   dahin nur die Anmeldemaske selbst gesetzt hatte.
+- **Knöpfe kommen aus `app.css`** (`docs/20 §7.2`). Jede Seite brachte ihre
+  eigenen mit — `8px 16px` hier, `6px 12px` dort, mal mit Rahmen, mal ohne —,
+  und „Kunde anlegen" in der Kundenliste war überhaupt kein Knopf, sondern ein
+  amberfarbener Link: auf dem Bildschirm eine Beschriftung, die zufällig
+  anklickbar ist. Es gibt jetzt eine Form und drei Ränge (`.knopf`,
+  `.wichtig`, `.gefahr`), dazu `.klein` für die Tabellenzeile und
+  `.knopfreihe`, die unter 480 px stapelt. Sechzehn Seiten sind umgestellt und
+  ihre eigenen Knopfregeln gelöscht. `ButtonStyleTest` lässt keine Seite mehr
+  ihr eigenes Aussehen erfinden und kein Formular mit zwei Hauptsachen durch.
+  Beim Nachmessen im Browser fiel auf, dass `.klein` auf 390 px zwei 23 px hohe
+  Ziele nebeneinander ergab — unter 720 px bekommt es `--tap` zurück (`docs/24
+  §2`), und ein Test hält das fest.
+- **Kunden lassen sich bearbeiten.** In der Kundenübersicht führte kein Weg zu
+  den Stammdaten eines angelegten Kunden: Sie liessen sich anlegen und ansehen,
+  danach nur noch über die Datenbank ändern. „Bearbeiten" steht jetzt in der
+  Zeile und auf der Kundenseite. Nicht änderbar bleiben die Kundennummer (sie
+  steht in Rechnungen und Verzeichnisnamen), der Zustand (er bekommt eine eigene
+  Aktion) und die Anmeldeadresse (sie gehört zum Konto, nicht zum
+  Vertragspartner) — ein `login_email` im Formular fasst kein Konto an. Das
+  Protokoll hält fest, **welche Felder** sich geändert haben, nicht ihren
+  Inhalt.
 
 ### Berichtigt
 

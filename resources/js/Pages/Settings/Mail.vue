@@ -151,11 +151,11 @@ function test(): void {
         </label>
       </fieldset>
 
-      <div class="aktionen">
-        <button type="submit" :disabled="form.processing">
+      <div class="knopfreihe">
+        <button type="submit" class="knopf wichtig" :disabled="form.processing">
           {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
         </button>
-        <button type="button" class="pruefen" :disabled="!props.usable" @click="test">Testmail an mich</button>
+        <button type="button" class="knopf" :disabled="!props.usable" @click="test">Testmail an mich</button>
       </div>
     </form>
   </PanelLayout>
@@ -179,16 +179,9 @@ input:disabled { color: var(--text-faint); background: var(--surface-border); bo
 .schalter { flex-direction: row; align-items: center; gap: 6px; font-size: var(--text-table); color: var(--text); }
 .hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
 .fehler { font-size: var(--text-small); color: var(--critical); }
-.aktionen { display: flex; align-items: center; gap: 12px; }
-button[type='submit'] { padding: 8px 16px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
-button[type='submit']:disabled { opacity: .6; cursor: default; }
-.pruefen { padding: 8px 14px; font: inherit; font-size: var(--text-table); color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
-.pruefen:disabled { color: var(--text-faint); cursor: default; }
 
 /* docs/24: unter 480px stehen zwei Felder nicht mehr nebeneinander. */
 @media (max-width: 480px) {
   .paar { grid-template-columns: 1fr; }
-  .aktionen { flex-direction: column; align-items: stretch; }
-  .aktionen button { min-height: var(--tap); }
 }
 </style>

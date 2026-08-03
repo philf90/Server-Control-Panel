@@ -101,7 +101,7 @@ function submit(): void {
         <span>Angemeldet bleiben</span>
       </label>
 
-      <button type="submit" :disabled="form.processing">
+      <button type="submit" class="knopf wichtig" :disabled="form.processing">
         {{ form.processing ? 'Einen Moment …' : 'Anmelden' }}
       </button>
     </form>
@@ -188,9 +188,10 @@ input[type='password'],
   min-width: 0;
 }
 
-/* Der Knopf für das Auge ist kein Absendeknopf — die Regel unten färbt jeden
-   button in Bernstein, und ohne diese Ausnahme stünde neben dem Feld eine
-   zweite, gleich aussehende Schaltfläche. */
+/* Der Knopf für das Auge ist kein Knopf im Sinne von app.css: Er trägt kein
+   `.knopf`, sondern zeigt einen Zustand am Feld daneben. Hier stand, er
+   brauche eine Ausnahme von „der Regel unten, die jeden button in Bernstein
+   färbt" — die Regel gibt es nicht mehr, seit die Knöpfe aus app.css kommen. */
 .auge {
   flex: none;
   display: grid;
@@ -236,23 +237,6 @@ button:focus-visible {
   height: 13px;
   margin: 0;
   accent-color: var(--accent);
-}
-
-button[type='submit'] {
-  height: var(--row-height);
-  font: inherit;
-  font-size: var(--text-body);
-  font-weight: 600;
-  color: var(--accent-on);
-  background: var(--accent);
-  border: 0;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-button[type='submit']:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 .fehler,

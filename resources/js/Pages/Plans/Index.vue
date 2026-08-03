@@ -33,7 +33,7 @@ const success = computed(() => (page.props.flash as Record<string, string> | und
     <p v-if="success" class="erfolg">{{ success }}</p>
 
     <header class="kopf">
-      <Link href="/plans/create" class="anlegen">Plan anlegen</Link>
+      <Link href="/plans/create" class="knopf wichtig">Plan anlegen</Link>
     </header>
 
     <table class="stapelt">
@@ -62,7 +62,7 @@ const success = computed(() => (page.props.flash as Record<string, string> | und
           <td v-for="spalte in row.summary" :key="spalte.label" :data-spalte="spalte.label" class="zahl">{{ spalte.value }}</td>
           <td data-spalte="Freigaben" class="freigaben">{{ row.features.length > 0 ? row.features.join(', ') : 'keine' }}</td>
           <td data-spalte="Abos" class="zahl">{{ row.subscriptions }}</td>
-          <td><Link :href="`/plans/${row.id}/edit`" class="aktion">Bearbeiten</Link></td>
+          <td><Link :href="`/plans/${row.id}/edit`" class="knopf klein">Bearbeiten</Link></td>
         </tr>
         <tr v-if="props.plans.length === 0">
           <td colspan="6">
@@ -78,13 +78,10 @@ const success = computed(() => (page.props.flash as Record<string, string> | und
 <style scoped>
 .erfolg { padding: 8px 11px; font-size: var(--text-table); color: var(--ok); background: var(--ok-surface); border-radius: 6px; }
 .kopf { display: flex; justify-content: flex-end; margin-bottom: var(--gap); }
-.anlegen { font-size: var(--text-table); color: var(--accent); }
 table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .marke { margin-left: 6px; padding: 1px 5px; font-size: var(--text-label); color: var(--accent); background: var(--accent-surface); border-radius: 3px; }
 .beschreibung { margin: 2px 0 0; font-size: var(--text-small); color: var(--text-faint); }
 .freigaben { color: var(--text-muted); }
-.aktion { font-size: var(--text-small); color: var(--text-muted); }
-.aktion:hover { color: var(--accent); }
 </style>

@@ -90,7 +90,7 @@ function submit(): void {
         />
       </fieldset>
 
-      <button type="submit" :disabled="form.processing">
+      <button type="submit" class="knopf wichtig" :disabled="form.processing">
         {{ form.processing ? 'Wird angelegt …' : 'Anlegen' }}
       </button>
     </form>
@@ -106,6 +106,5 @@ input { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: va
 input[readonly] { color: var(--text-muted); background: var(--surface-border); border-color: transparent; cursor: default; }
 .fehler { font-size: var(--text-small); color: var(--critical); }
 .hinweis { font-size: var(--text-label); color: var(--text-faint); }
-button[type='submit'] { align-self: flex-start; padding: 8px 16px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
-button[type='submit']:disabled { opacity: .6; cursor: default; }
+.maske > .knopf { align-self: flex-start; }
 </style>

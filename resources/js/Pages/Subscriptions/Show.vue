@@ -68,13 +68,13 @@ function remove(): void {
         <dd v-if="props.subscription.suspended_at">{{ props.subscription.suspended_at }}</dd>
       </dl>
 
-      <div class="aktionen">
-        <button v-if="props.subscription.status === 'active'" type="button" @click="suspend">Sperren</button>
-        <button v-if="props.subscription.status === 'suspended'" type="button" @click="resume">Entsperren</button>
+      <div class="knopfreihe">
+        <button v-if="props.subscription.status === 'active'" type="button" class="knopf" @click="suspend">Sperren</button>
+        <button v-if="props.subscription.status === 'suspended'" type="button" class="knopf" @click="resume">Entsperren</button>
         <button
           v-if="props.subscription.status !== 'provisioning'"
           type="button"
-          class="rueckbau"
+          class="knopf gefahr"
           @click="remove"
         >
           Zurückbauen
@@ -139,9 +139,6 @@ dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; f
 dt { color: var(--text-muted); }
 dd { margin: 0; color: var(--text); }
 .fest { font-family: var(--font-mono); }
-.aktionen { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-.aktionen button { padding: 6px 12px; font: inherit; font-size: var(--text-table); min-height: var(--tap); color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
-.aktionen .rueckbau { color: var(--critical); border-color: var(--critical); }
 table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }

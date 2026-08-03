@@ -31,7 +31,7 @@ function submit(): void {
         :error="form.errors.code"
       />
 
-      <button type="submit" :disabled="form.processing">
+      <button type="submit" class="knopf wichtig" :disabled="form.processing">
         {{ form.processing ? 'Einen Moment …' : 'Bestätigen' }}
       </button>
     </form>
@@ -54,6 +54,4 @@ function submit(): void {
 .maske { width: min(384px, 100%); display: flex; flex-direction: column; gap: 14px; padding: 20px 22px 22px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 10px; }
 h1 { margin: 0; font-size: var(--text-heading); color: var(--text-strong); }
 .hinweis { margin: -8px 0 0; font-size: var(--text-small); color: var(--text-muted); line-height: 1.5; }
-button { padding: 9px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
-button:disabled { opacity: .6; cursor: default; }
 </style>

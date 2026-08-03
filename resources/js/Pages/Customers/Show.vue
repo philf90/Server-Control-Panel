@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 defineProps<{
@@ -19,6 +19,10 @@ defineProps<{
   <Head :title="customer.name" />
 
   <PanelLayout :title="customer.name" :subline="customer.number">
+    <header class="kopf">
+      <Link :href="`/customers/${customer.id}/edit`" class="knopf">Bearbeiten</Link>
+    </header>
+
     <div class="spalten">
       <section>
         <h2>Vertragspartner</h2>
@@ -51,6 +55,7 @@ defineProps<{
 </template>
 
 <style scoped>
+.kopf { display: flex; justify-content: flex-end; margin-bottom: var(--gap); }
 .spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(256px, 1fr)); gap: var(--gap); }
 section { padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
 h2 { margin: 0 0 8px; font-size: var(--text-table); color: var(--text-muted); font-weight: 600; }

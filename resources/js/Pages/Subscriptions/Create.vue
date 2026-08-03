@@ -73,7 +73,7 @@ const form = useForm({
         </label>
       </fieldset>
 
-      <button type="submit" :disabled="form.processing || props.plans.length === 0">
+      <button type="submit" class="knopf wichtig" :disabled="form.processing || props.plans.length === 0">
         {{ form.processing ? 'Wird eingereiht …' : 'Anlegen' }}
       </button>
     </form>
@@ -91,6 +91,5 @@ input[readonly] { font-family: var(--font-mono); color: var(--text-muted); backg
 code { font-family: var(--font-mono); }
 .hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
 .fehler { font-size: var(--text-small); color: var(--critical); }
-button { align-self: flex-start; padding: 8px 16px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
-button:disabled { opacity: .6; cursor: default; }
+.maske > .knopf { align-self: flex-start; }
 </style>

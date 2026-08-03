@@ -62,7 +62,7 @@ function exportUrl(): string {
   <PanelLayout title="Protokoll" :subline="`${events.total} Einträge`">
     <section class="protokoll">
       <header>
-        <a :href="exportUrl()" class="export">Als CSV herunterladen</a>
+        <a :href="exportUrl()" class="knopf">Als CSV herunterladen</a>
       </header>
 
       <div class="filter">
@@ -105,7 +105,6 @@ function exportUrl(): string {
 <style scoped>
 .protokoll { display: flex; flex-direction: column; gap: var(--gap); }
 header { display: flex; justify-content: flex-end; }
-.export { font-size: var(--text-table); color: var(--accent); }
 .filter { display: flex; flex-wrap: wrap; gap: 12px; }
 .filter label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
 .filter input, .filter select {

@@ -13,9 +13,11 @@ use SrvPanel\Agent\Ops\PanelVhost;
 use SrvPanel\Agent\Ops\ServiceAction;
 use SrvPanel\Agent\Ops\ServiceStatus;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
+use SrvPanel\Agent\Ops\SubscriptionQuota;
 use SrvPanel\Agent\Ops\SubscriptionRemove;
 use SrvPanel\Agent\Ops\SubscriptionResume;
 use SrvPanel\Agent\Ops\SubscriptionSuspend;
+use SrvPanel\Agent\Ops\SubscriptionUsage;
 use SrvPanel\Agent\Ops\SystemInfo;
 
 /**
@@ -45,6 +47,8 @@ final class Registry
         $this->register(new SubscriptionRemove);
         $this->register(new SubscriptionSuspend);
         $this->register(new SubscriptionResume);
+        $this->register(new SubscriptionUsage);
+        $this->register(new SubscriptionQuota);
     }
 
     public function register(Op $op): void

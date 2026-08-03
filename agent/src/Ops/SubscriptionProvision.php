@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\DiskQuota;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Op;
 
@@ -77,7 +78,7 @@ final class SubscriptionProvision implements Op
     {
         $name = self::subscriptionName($args['name'] ?? null);
         $user = self::systemUser($args['user'] ?? null);
-        $quotaMb = self::quota($args['quota_mb'] ?? null);
+        $quotaMb = DiskQuota::limit($args['quota_mb'] ?? null);
 
         $root = self::VHOSTS.'/'.$name;
 
@@ -145,15 +146,6 @@ final class SubscriptionProvision implements Op
         }
 
         return $user;
-    }
-
-    private static function quota(mixed $value): int
-    {
-        if (! is_int($value) || $value < 0 || $value > 1024 * 1024 * 16) {
-            throw AgentException::badRequest('quota_mb muss eine Zahl zwischen 0 und 16 TiB sein.');
-        }
-
-        return $value;
     }
 
     /**
@@ -257,82 +249,15 @@ final class SubscriptionProvision implements Op
     /**
      * Die Dateisystem-Quota setzen.
      *
-     * **Ein Fehlschlag bricht das Anlegen nicht ab, sondern wird gemeldet.**
-     * Quota braucht einen Mount mit `usrquota` und ein gelaufenes `quotacheck`.
-     * Fehlt das, ist das ein Betriebsproblem des Servers und keine ungültige
-     * Anfrage — und ein Abonnement, das deswegen gar nicht erst entsteht,
-     * hinterlässt einen halben Zustand, den niemand bestellt hat. Der Aufrufer
-     * bekommt `enforced: false` samt Grund und kann es anzeigen.
+     * Die Mechanik steht in {@see DiskQuota} — dieselbe, die
+     * `subscription.quota` benutzt, wenn ein Kontingent nachträglich geändert
+     * wird. Eine zweite Fassung hier hiesse, dass zwei Wege dieselbe Grenze
+     * setzen und einer davon irgendwann anders rechnet.
      *
      * @return array{enforced: bool, limit_mb: int, reason?: string}
      */
     private function quotaApply(Context $context, string $user, int $quotaMb): array
     {
-        if ($quotaMb === 0) {
-            return ['enforced' => false, 'limit_mb' => 0, 'reason' => 'kein Kontingent gesetzt'];
-        }
-
-        $device = $this->deviceFor(self::VHOSTS);
-
-        if ($device === null) {
-            return ['enforced' => false, 'limit_mb' => $quotaMb, 'reason' => 'kein Mount für '.self::VHOSTS.' gefunden'];
-        }
-
-        // Blöcke in KiB. Weiche und harte Grenze auf denselben Wert: Eine
-        // Schonfrist, in der ein Abonnement sein Kontingent überschreiten
-        // darf, ist eine Zusage, die niemand verlangt hat.
-        $blocks = (string) ($quotaMb * 1024);
-
-        $result = $context->stream('setquota', ['-u', $user, $blocks, $blocks, '0', '0', $device]);
-
-        if (! $result->successful()) {
-            return [
-                'enforced' => false,
-                'limit_mb' => $quotaMb,
-                'reason' => trim($result->stderr) !== '' ? trim($result->stderr) : 'setquota fehlgeschlagen',
-            ];
-        }
-
-        return ['enforced' => true, 'limit_mb' => $quotaMb];
-    }
-
-    /**
-     * Das Gerät, auf dem ein Pfad liegt.
-     *
-     * Gelesen aus /proc/mounts und nicht über `df`: Der längste passende
-     * Einhängepunkt gewinnt, damit ein eigener Mount für /var/www/vhosts
-     * gefunden wird und nicht `/`.
-     */
-    private function deviceFor(string $path): ?string
-    {
-        $mounts = @file('/proc/mounts', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-        if ($mounts === false) {
-            return null;
-        }
-
-        $best = null;
-        $bestLength = -1;
-
-        foreach ($mounts as $line) {
-            $parts = preg_split('/\s+/', $line) ?: [];
-
-            if (count($parts) < 3 || ! str_starts_with($parts[0], '/')) {
-                continue;
-            }
-
-            $point = stripcslashes($parts[1]);
-
-            if ($point !== '/' && ! str_starts_with($path.'/', rtrim($point, '/').'/')) {
-                continue;
-            }
-
-            if (strlen($point) > $bestLength) {
-                $best = $parts[0];
-                $bestLength = strlen($point);
-            }
-        }
-
-        return $best;
+        return DiskQuota::apply($context, $user, $quotaMb);
     }
 }

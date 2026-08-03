@@ -91,6 +91,14 @@ contents:
   - src: ./packaging/systemd/srvpanel-metrics.service
     dst: /lib/systemd/system/srvpanel-metrics.service
 
+  # Die Speichermessung ist der einzige Takt, der nicht als Dauerlauf kommt:
+  # Timer und Dienst gehören zusammen, und ohne die .timer-Datei liefe der
+  # Dienst genau nie.
+  - src: ./packaging/systemd/srvpanel-usage.service
+    dst: /lib/systemd/system/srvpanel-usage.service
+  - src: ./packaging/systemd/srvpanel-usage.timer
+    dst: /lib/systemd/system/srvpanel-usage.timer
+
   - src: ./packaging/bin/php
     dst: /opt/srvpanel/bin/php
     file_info:

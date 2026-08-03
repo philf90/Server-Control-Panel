@@ -154,6 +154,11 @@ restart_services() {
         systemctl enable "${service}.service" >/dev/null 2>&1 || true
         systemctl restart "${service}.service" >/dev/null 2>&1 || true
     done
+
+    # Die Speichermessung hängt an einem Timer und nicht an einem Dauerlauf.
+    # `enable --now` auf den *Timer*: Ein `restart` auf srvpanel-usage.service
+    # führte die Messung sofort aus und stellte den Takt trotzdem nicht an.
+    systemctl enable --now srvpanel-usage.timer >/dev/null 2>&1 || true
 }
 
 # Zurück auf die vorige Fassung: Symlink umlegen, Dienste mit ihr starten.

@@ -201,6 +201,21 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:view,subscription')
         ->name('subscriptions.show');
 
+    /*
+     * Plan wechseln und Kontingente übersteuern (§5.2).
+     *
+     * `can:update` und nicht `can:view`: Der Kunde sieht seine Grenzen an
+     * seinem Abonnement, ändern darf sie der Betreiber. Was ein Kunde davon
+     * sieht, entscheidet die Show-Seite, nicht diese Route.
+     */
+    Route::get('/subscriptions/{subscription}/edit', [SubscriptionController::class, 'edit'])
+        ->middleware('can:update,subscription')
+        ->name('subscriptions.edit');
+
+    Route::patch('/subscriptions/{subscription}', [SubscriptionController::class, 'update'])
+        ->middleware('can:update,subscription')
+        ->name('subscriptions.update');
+
     Route::post('/subscriptions/{subscription}/suspend', [SubscriptionController::class, 'suspend'])
         ->middleware('can:suspend,subscription')
         ->name('subscriptions.suspend');

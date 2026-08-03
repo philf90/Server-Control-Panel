@@ -60,6 +60,8 @@ final class SubscriptionController extends Controller
                 'system_user' => $s->system_user,
                 'status' => $s->status->value,
                 'status_label' => $s->status->label(),
+                'used_mb' => $s->disk_used_mb,
+                'percent' => $s->diskUsagePercent(),
             ])->all(),
         ]);
     }
@@ -141,6 +143,21 @@ final class SubscriptionController extends Controller
                 'suspended_at' => $subscription->suspended_at?->toDateTimeString(),
             ],
 
+            /*
+             * Der belegte Speicher — gemessen, nicht vereinbart.
+             *
+             * Der Zeitstempel geht mit, und zwar immer: Ohne ihn sähe eine
+             * Messung von vor drei Tagen genauso aus wie eine von vor einer
+             * Minute. `measured_at: null` heisst „noch nie gemessen" und ist
+             * etwas anderes als „0 MB".
+             */
+            'usage' => [
+                'used_mb' => $subscription->disk_used_mb,
+                'limit_mb' => is_numeric($limit = $subscription->quota(Quota::DiskMb->value)) ? (int) $limit : null,
+                'percent' => $subscription->diskUsagePercent(),
+                'measured_at' => $subscription->disk_usage_measured_at?->toDateTimeString(),
+            ],
+
             // Der Stand, nicht die Vorlage: Was am Abonnement abweicht, ist
             // markiert. Ein Kunde sieht hier seine Grenzen und nicht den Plan,
             // aus dem sie kommen.
@@ -168,6 +185,130 @@ final class SubscriptionController extends Controller
                     'created_at' => $o->created_at?->toDateTimeString(),
                 ])->all(),
         ]);
+    }
+
+    /**
+     * Plan und Kontingente eines bestehenden Abonnements.
+     *
+     * **Was hier nicht steht, ist die Hälfte der Entscheidung.** Der Name
+     * fehlt: Er ist der Verzeichnisname unter /var/www/vhosts, und ihn zu
+     * ändern hiesse, einen Baum zu verschieben, auf den ein laufender
+     * Webserver, eine Chroot-Wurzel und der Heimatpfad eines Systembenutzers
+     * zeigen. Der Systembenutzer fehlt aus demselben Grund — er trägt eine
+     * UID, an der auf dem Dateisystem Eigentum hängt. Der Kunde fehlt, weil
+     * ein Abonnement umzuhängen eine Vertragsfrage ist und keine
+     * Formularzeile. Und der Zustand fehlt, weil er seine eigenen Aktionen hat.
+     */
+    public function edit(Subscription $subscription): Response
+    {
+        $subscription->loadMissing('plan');
+
+        $overrides = $subscription->quota_overrides ?? [];
+
+        return Inertia::render('Subscriptions/Edit', [
+            'subscription' => [
+                'id' => (int) $subscription->id,
+                'name' => $subscription->name,
+                'plan_id' => (int) $subscription->plan_id,
+                'status' => $subscription->status->value,
+            ],
+
+            'plans' => Plan::query()->orderByDesc('is_default')->orderBy('name')->get()
+                ->map(static fn (Plan $p): array => [
+                    'id' => (int) $p->id,
+                    'label' => $p->name,
+                ])->all(),
+
+            /*
+             * Je Kontingent drei Dinge: was der Katalog darüber weiss, was der
+             * Plan sagt, und ob dieses Abonnement abweicht. Die Oberfläche
+             * kennt kein Kontingent beim Namen — sie baut ihre Felder aus
+             * dieser Liste, genau wie das Formular der Pläne.
+             */
+            'quotas' => array_map(static fn (Quota $quota): array => [
+                'key' => $quota->value,
+                'label' => $quota->label(),
+                'hint' => $quota->hint(),
+                'unit' => $quota->unit(),
+                'selection' => $quota->isSelection(),
+                'minimum' => $quota->minimum(),
+                'maximum' => $quota->maximum(),
+                'plan_value' => Quotas::format($quota, ($subscription->plan->quotas ?? [])[$quota->value] ?? null),
+                'override' => $overrides[$quota->value] ?? null,
+            ], Quota::cases()),
+
+            'phpVersions' => Quota::PHP_VERSIONS,
+        ]);
+    }
+
+    /**
+     * Speichern — und die Speichergrenze anwenden, wenn sie sich ändert.
+     *
+     * **Nur `disk_mb` erreicht das System.** Von allen Kontingenten ist es das
+     * einzige, das gerade schon durchgesetzt wird: als Dateisystem-Quota des
+     * Systembenutzers. Domains, Datenbanken und FTP-Konten werden beim Anlegen
+     * gezählt (P3 und später), PHP-Versionen wählt eine vhost-Vorlage aus, und
+     * Traffic wird gemessen. Für sie gibt es nichts auszuführen — der neue
+     * Wert steht in der Datenbank, und das ist die ganze Wirkung.
+     *
+     * **Und nur, wenn er sich wirklich ändert.** Der Vergleich läuft über den
+     * *wirksamen* Wert und nicht über die Übersteuerung: Wer eine
+     * Übersteuerung von 5120 MB entfernt, während der Plan ebenfalls 5120 MB
+     * sagt, hat nichts geändert — ein Vorgang dafür wäre eine Zeile im
+     * Protokoll über ein System, das gleich bleibt.
+     */
+    public function update(Request $request, Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
+    {
+        $data = $request->validate([
+            'plan_id' => ['required', Rule::exists('plans', 'id')],
+            ...Quotas::overrideRules(),
+        ]);
+
+        $before = $subscription->quota(Quota::DiskMb->value);
+
+        $subscription->update([
+            'plan_id' => (int) $data['plan_id'],
+            // `?? []`: Ein Formular ohne eine einzige Übersteuerung schickt
+            // den Schlüssel gar nicht mit — siehe Quotas::overrideRules().
+            'quota_overrides' => Quotas::overrides($data['overrides'] ?? []),
+        ]);
+
+        $after = $subscription->quota(Quota::DiskMb->value);
+
+        $audit->success('subscription.updated', $subscription, [
+            'name' => $subscription->name,
+            'plan' => (int) $subscription->plan_id,
+            'overrides' => array_keys($subscription->quota_overrides ?? []),
+            'disk_mb' => $after,
+        ]);
+
+        /*
+         * **Nicht `usable()`, und das ist Absicht.** `usable()` heisst „aktiv"
+         * — ein gesperrtes Abonnement hätte damit keinen Vorgang bekommen. Es
+         * hat aber weiterhin einen Systembenutzer und eine Dateisystem-Quota,
+         * und `subscription.quota` fasst nichts an, was die Sperre trägt. Ohne
+         * diese Zeile stünde die neue Grenze in der Datenbank und würde nie
+         * angewandt: Das Entsperren setzt keine Quota, und einen zweiten
+         * Anlass gäbe es nicht.
+         *
+         * Kein Konto gibt es nur in zwei Zuständen: während des Anlegens (dort
+         * setzt `subscription.provision` die Grenze gleich mit) und nach dem
+         * Rückbau.
+         */
+        $hasAccount = in_array(
+            $subscription->status,
+            [SubscriptionStatus::Active, SubscriptionStatus::Suspended],
+            true,
+        );
+
+        if ($before === $after || ! $hasAccount) {
+            return redirect()->route('subscriptions.show', $subscription)
+                ->with('success', 'Abonnement gespeichert.');
+        }
+
+        return redirect()->route('operations.show', $this->start(
+            $subscription, 'subscription.quota', 'Speichergrenze anwenden', $audit, $lifecycle,
+        ));
     }
 
     public function suspend(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse

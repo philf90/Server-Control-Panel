@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -15,10 +16,26 @@ const props = defineProps<{
     status_label: string
     suspended_at: string | null
   }
+  usage: {
+    used_mb: number | null
+    limit_mb: number | null
+    percent: number | null
+    measured_at: string | null
+  }
   quotas: { key: string; label: string; value: string; differs: boolean }[]
   features: { label: string; granted: boolean }[]
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
+
+/*
+ * Der Balken wird bei 100 abgeschnitten, die Zahl daneben nicht.
+ *
+ * Eine Quota lässt sich überschreiten — sie wird gesenkt, während Daten
+ * liegen, oder ein Prozess schreibt mit root-Rechten daran vorbei. Ein Balken,
+ * der über seinen Rahmen hinausläuft, ist ein Darstellungsfehler; „118 %"
+ * daneben ist die Auskunft. Beides zusammen ist die Wahrheit.
+ */
+const balken = computed(() => Math.min(100, props.usage.percent ?? 0))
 
 function suspend(): void {
   if (!window.confirm(`${props.subscription.name} sperren? Webseiten und Zugänge sind danach aus, die Daten bleiben.`)) return
@@ -69,6 +86,7 @@ function remove(): void {
       </dl>
 
       <div class="knopfreihe">
+        <Link class="knopf" :href="`/subscriptions/${props.subscription.id}/edit`">Bearbeiten</Link>
         <button v-if="props.subscription.status === 'active'" type="button" class="knopf" @click="suspend">Sperren</button>
         <button v-if="props.subscription.status === 'suspended'" type="button" class="knopf" @click="resume">Entsperren</button>
         <button
@@ -80,6 +98,39 @@ function remove(): void {
           Zurückbauen
         </button>
       </div>
+    </section>
+
+    <!--
+      Der Speicher steht über den Kontingenten und nicht darin: Er ist das
+      einzige Kontingent, zu dem es einen gemessenen Stand gibt, und die
+      Tabelle darunter zeigt Vereinbartes. Beides in einer Zeile hiesse, zwei
+      verschiedene Dinge gleich aussehen zu lassen.
+    -->
+    <section class="block">
+      <h2 class="section">Speicher</h2>
+
+      <p v-if="props.usage.used_mb === null" class="ungemessen">
+        Noch nicht gemessen. Die Messung läuft im Viertelstundentakt
+        (<code>srvpanel-usage.timer</code>) und braucht eine Dateisystem-Quota
+        auf dem Mount von /var/www/vhosts.
+      </p>
+
+      <template v-else>
+        <p class="verbrauch">
+          <strong>{{ props.usage.used_mb.toLocaleString('de-DE') }} MB</strong>
+          <span v-if="props.usage.limit_mb !== null">
+            von {{ props.usage.limit_mb.toLocaleString('de-DE') }} MB
+            <template v-if="props.usage.percent !== null">· {{ props.usage.percent }} %</template>
+          </span>
+          <span v-else>ohne Grenze</span>
+        </p>
+
+        <div v-if="props.usage.percent !== null" class="balken" :data-voll="props.usage.percent >= 90">
+          <div class="fuellung" :style="{ width: `${balken}%` }" />
+        </div>
+
+        <p class="gemessen">Gemessen am {{ props.usage.measured_at ?? '—' }}</p>
+      </template>
     </section>
 
     <section class="block">
@@ -142,6 +193,14 @@ dd { margin: 0; color: var(--text); }
 table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.ungemessen { margin: 0; font-size: var(--text-table); color: var(--text-muted); line-height: 1.5; }
+code { font-family: var(--font-mono); }
+.verbrauch { margin: 0 0 6px; font-size: var(--text-table); color: var(--text-muted); }
+.verbrauch strong { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-body); color: var(--text-strong); }
+.balken { height: 6px; max-width: 420px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.fuellung { height: 100%; background: var(--accent); }
+.balken[data-voll='true'] .fuellung { background: var(--warn); }
+.gemessen { margin: 6px 0 0; font-size: var(--text-label); color: var(--text-faint); }
 .marke { padding: 1px 5px; font-size: var(--text-label); color: var(--warn); background: var(--warn-surface); border-radius: 3px; }
 .freigaben { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: var(--text-table); }
 .freigaben li[data-frei='true'] { color: var(--ok); }

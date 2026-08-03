@@ -274,6 +274,44 @@ Kunde kommt an ein fremdes Objekt.
   alle gebundenen Abonnements — die Zahl steht in der Liste und über dem
   Formular —, senkt aber nichts rückwirkend weg: Gesenkte Grenzen verbieten
   das nächste Objekt, sie löschen keines.
+- **Der belegte Speicher wird gemessen** (`docs/26 §7`). `subscription.usage`
+  liest die Dateisystem-Quota — **ein Aufruf für alle Abonnements und nicht
+  einer je Abonnement**: `repquota` liest die Quota-Datei einmal und kennt
+  danach jeden Benutzer darin. Herausgegeben wird nur, was der Form `p` plus
+  vier bis neun Ziffern entspricht; `root` und `www-data` stehen in derselben
+  Ausgabe, und eine Operation, die die Benutzerliste des Servers ausliefert,
+  wäre eine Auskunft, die niemand bestellt hat. **Messen ist kein Vorgang** —
+  niemand löst es aus, es ändert nichts, und es liefe alle fünfzehn Minuten
+  durch die Vorgangsliste jedes Kunden; der Aufruf geht direkt an den Agenten,
+  gestartet von `srvpanel-usage.timer`. Abgelegt werden **zwei** Werte: die
+  Zahl und der Zeitpunkt. Ohne den zweiten sähe eine Messung von vor drei Tagen
+  aus wie eine von vorhin. Ohne `usrquota` auf dem Mount wird nichts
+  zurückgesetzt — „nichts Neues" ist kein Grund, die Messung von gestern zu
+  verwerfen.
+- **Kontingente am Abonnement übersteuern** (`docs/26 §8`). Das Datenmodell
+  konnte es längst, ein Formular gab es nicht. Ein Kontingent hat dort zwei
+  Zustände und nicht einen Wert: „gilt der Plan" ist etwas anderes als „gilt
+  zufällig derselbe Wert". **Was fehlt, bleibt weg** — die Felder mit
+  Vorgabewerten aufzufüllen wäre eine stille Loslösung vom Plan, und ein
+  Abonnement, das jedes Kontingent übersteuert, erreicht keine Planänderung
+  mehr. Nur `disk_mb` erreicht das System, und nur wenn sich der *wirksame*
+  Wert ändert. Dafür gibt es **`subscription.quota`** statt eines zweiten
+  `subscription.provision`: Provision rückt die Rechte der Chroot-Wurzel auf
+  `0755` zurecht, und genau dieses Bit trägt die Sperre — ein gesperrtes
+  Abonnement wäre nach einer Kontingentänderung wieder erreichbar gewesen,
+  während im Panel weiter „gesperrt" stand. Ein gesperrtes Abonnement bekommt
+  seinen Vorgang trotzdem: `usable()` wäre die falsche Frage gewesen, denn das
+  Entsperren setzt keine Quota, und die neue Grenze käme sonst nie an.
+- **Der Abnahmelauf für P2** (`docs/26 §9`): `srvpanel acceptance --count=100`
+  legt an, baut zurück und sucht danach nach drei Sorten Rückstand —
+  Systembenutzer **und Gruppe getrennt** (`userdel` entfernt eine
+  nicht-primäre Gruppe nicht mit, und beim Anlegen steht `--no-user-group`),
+  Verzeichnis, Quota-Eintrag. Der letzte ist der, den man ohne Werkzeug
+  übersieht: kein Ort im Dateisystem, keine Zeile in /etc/passwd — und das
+  nächste Abonnement mit derselben UID erbt eine fremde Grenze. Ein Kommando
+  und kein Test, weil das Kriterium nach echten `useradd`-Aufrufen und der
+  ganzen Kette bis unter systemd fragt; was ohne Server prüfbar ist — dass ein
+  Rückstand jeder Art den Lauf durchfallen lässt —, steht als Test daneben.
 
 ### Quer zu den Stufen
 

@@ -399,8 +399,23 @@ jobs:
           # Der zweite Zweig. Ein Test, der nur den Fall ohne Konto prüft,
           # bliebe grün, wenn der Hinweis unbedingt erschiene — und dann
           # stünde er auch auf Servern, die längst eingerichtet sind.
-          docker exec bare srvpanel admin --generate --name=Rauchtest pruefer@example.test >/dev/null
-          docker exec bare srvpanel setup --port=8443 | tee setup2.txt >/dev/null
+          # Die Ausgabe geht in eine Datei und nicht nach /dev/null: Beim
+          # ersten Lauf scheiterte genau dieser Aufruf — der Wrapper kannte
+          # `admin` nicht — und die Umleitung hat die Begründung verschluckt.
+          # Ein Schritt, der stumm mit 1 endet, kostet einen ganzen Durchlauf.
+          #
+          # Beim Ausgeben fliegt die Zeile mit dem Passwort raus. Es gilt für
+          # ein erfundenes Konto in einem Wegwerf-Container, aber ein Passwort
+          # in einem öffentlichen Protokoll gewöhnt man sich besser gar nicht
+          # erst an.
+          if ! docker exec bare srvpanel admin --generate --no-ansi \
+                 --name=Rauchtest pruefer@example.test > admin.txt 2>&1; then
+            echo "::error::Das Anlegen des Adminkontos scheiterte:"
+            grep -v 'Passwort:' admin.txt
+            exit 1
+          fi
+
+          docker exec bare srvpanel setup --port=8443 --no-ansi > setup2.txt
 
           grep -q 'Adminkonto ist vorhanden' setup2.txt \
             || { echo "::error::Die Einrichtung erkennt das vorhandene Adminkonto nicht."; cat setup2.txt; exit 1; }

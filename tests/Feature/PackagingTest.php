@@ -264,6 +264,80 @@ final class PackagingTest extends TestCase
         ));
     }
 
+    /**
+     * Die Kurznamen, die `packaging/bin/srvpanel` auf `srvpanel:` abbildet.
+     *
+     * Gelesen wird der `case`-Zweig selbst und nicht mit einem Muster über die
+     * ganze Datei gesucht: Mein erster Versuch verlangte ein `|` vor dem
+     * Namen und meldete deshalb ausgerechnet den ersten Eintrag als fehlend.
+     *
+     * @return list<string>
+     */
+    private function wrapperCommands(): array
+    {
+        $wrapper = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/bin/srvpanel');
+
+        if (preg_match('/^\s*([a-z][a-z0-9_|-]*)\)\s*$/m', $wrapper, $match) !== 1) {
+            $this->fail('In packaging/bin/srvpanel ist kein case-Zweig mit Kommandonamen zu finden.');
+        }
+
+        return array_values(array_filter(explode('|', $match[1])));
+    }
+
+    public function test_the_wrapper_knows_every_command_of_the_panel(): void
+    {
+        // `srvpanel setup` ruft `artisan srvpanel:setup` auf — die Zuordnung
+        // steht als feste Liste im Wrapper, weil ein Ableiten hiesse, für
+        // jeden Aufruf erst PHP zu starten. Eine feste Liste läuft aber
+        // auseinander, und genau das ist passiert: `admin` fehlte. Wer nach
+        // der Ersteinrichtung `srvpanel admin` tippte — den Befehl, den die
+        // Einrichtung selbst nennt —, bekam „Command not defined" und kam
+        // nicht in sein Panel.
+        $known = $this->wrapperCommands();
+        $missing = [];
+
+        foreach ($this->artisanCommands() as $name) {
+            if (! str_starts_with($name, 'srvpanel:')) {
+                continue;
+            }
+
+            $short = substr($name, strlen('srvpanel:'));
+
+            if (! in_array($short, $known, true)) {
+                $missing[] = $short;
+            }
+        }
+
+        $this->assertSame([], $missing, sprintf(
+            "Diese Kommandos kennt packaging/bin/srvpanel nicht:\n  %s\n\n".
+            'Auf dem Server heisst das „Command not defined" — artisan kennt sie, der Wrapper nicht.',
+            implode("\n  ", $missing),
+        ));
+    }
+
+    public function test_the_setup_points_at_a_command_that_exists(): void
+    {
+        $setup = (string) file_get_contents(dirname(__DIR__, 2).'/app/Console/Commands/Setup.php');
+        $known = $this->wrapperCommands();
+
+        // Die Ersteinrichtung nennt am Ende den nächsten Schritt. Zeigt der
+        // ins Leere, ist der Hinweis schlimmer als keiner — er kostet den
+        // Leser die Zeit, in der er dem Vorschlag folgt, und lässt ihn dann
+        // an sich selbst zweifeln statt an der Anleitung.
+        preg_match_all('/srvpanel ([a-z][a-z0-9-]*)/', $setup, $matches);
+
+        $named = array_values(array_unique($matches[1]));
+
+        $this->assertNotSame([], $named, 'Die Einrichtung nennt kein srvpanel-Kommando mehr — dann stimmt dieser Test nicht.');
+
+        foreach ($named as $short) {
+            $this->assertContains($short, $known, sprintf(
+                'Die Einrichtung schlägt „srvpanel %s" vor, der Wrapper kennt es nicht.',
+                $short,
+            ));
+        }
+    }
+
     public function test_the_worker_listens_on_the_queue_the_operations_go_to(): void
     {
         $unit = $this->unit('srvpanel-worker.service');

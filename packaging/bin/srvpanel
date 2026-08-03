@@ -9,12 +9,20 @@
 # hier vorne darf man sie ohne schreiben. So heißt es "srvpanel setup" und
 # nicht "srvpanel srvpanel:setup", ohne dass in artisan unbenannte Kommandos
 # neben denen des Frameworks stehen.
+#
+# **Diese Liste muss vollständig sein.** `admin` fehlte, und das fiel lange
+# nicht auf, weil niemand ein Konto über die Kommandozeile anlegte: Wer
+# `srvpanel admin` tippte, bekam „Command not defined" — für ein frisch
+# eingerichtetes Panel ist das der Unterschied zwischen benutzbar und nicht.
+# Dass jedes `srvpanel:`-Kommando hier steht, prüft
+# tests/Feature/PackagingTest.php; abgeleitet wird die Liste nicht, denn das
+# hiesse, für jeden Aufruf erst PHP zu starten.
 set -eu
 
 COMMAND="${1:-list}"
 
 case "${COMMAND}" in
-    setup|update|metrics)
+    setup|update|metrics|admin)
         shift
         set -- "srvpanel:${COMMAND}" "$@"
         ;;

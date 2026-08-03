@@ -64,7 +64,8 @@ function stopImpersonation(): void {
 
     <aside class="nav">
       <div class="badge">
-        <span class="glyph">C</span>
+        <!-- „C" stand hier bis August 2026 — von CloudSrv, dem verworfenen Namen. -->
+        <span class="glyph">S</span>
         <b>SrvPanel</b>
       </div>
 

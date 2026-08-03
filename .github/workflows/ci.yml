@@ -349,9 +349,83 @@ jobs:
         run: |
           docker exec bare sh -c 'systemctl start mariadb || service mariadb start' || true
           sleep 5
-          docker exec bare srvpanel setup --port=8443
+          # --no-ansi: Ohne TTY schaltet Symfony die Einfärbung zwar von
+          # selbst ab, aber der Test unten liest diese Datei — und eine
+          # Prüfung, die von einer Vermutung über das Terminal abhängt, ist
+          # keine.
+          docker exec bare srvpanel setup --port=8443 --no-ansi | tee setup.txt
           docker exec bare curl -fsS -k https://127.0.0.1:8443/health
           echo
+
+      # Was die Einrichtung sagt, ist das Einzige, was der Betreiber danach
+      # hat. Genau hier fehlte eine Prüfung: Der Schlusssatz „Anmeldung und
+      # Konten kommen mit der Ausbaustufe P1" war seit P1 falsch und stand ein
+      # halbes Jahr da — wer ihn las, hörte auf, nach einem Adminkonto zu
+      # suchen. Gefunden hat ihn kein Lauf, sondern der erste Mensch, der die
+      # Einrichtung durchlaufen liess.
+      - name: Die Einrichtung sagt, wie es weitergeht
+        run: |
+          echo "── Ausgabe ──"; cat setup.txt; echo "─────────────"
+
+          # 1. Die Adresse muss aufloesbar sein. Ein blosser Rechnername ohne
+          #    Punkt ist es ausserhalb des Rechners nicht — genau das stand
+          #    dort: https://cloudsrv24:8443/
+          #
+          #    Geprueft wird auf einen Punkt. Das deckt beides ab, den
+          #    vollstaendigen Namen und die IP-Adresse, und ist die Eigenschaft,
+          #    an der es tatsaechlich lag.
+          url="$(grep -oE 'https://[^ /]+' setup.txt | head -1 | sed 's#https://##')"
+          echo "Adresse: ${url}"
+          if ! echo "${url}" | grep -q '\.'; then
+            echo "::error::Die Einrichtung nennt ${url} - kein Punkt darin, also von aussen nicht aufloesbar."
+            exit 1
+          fi
+
+          # 2. Ohne Adminkonto muss der Befehl dastehen, mit dem man eines
+          #    anlegt. Ohne ihn kommt niemand in ein frisch eingerichtetes
+          #    Panel hinein.
+          grep -q 'srvpanel admin' setup.txt \
+            || { echo "::error::Kein Hinweis auf srvpanel admin, obwohl es kein Adminkonto gibt."; exit 1; }
+
+          # 3. Und der alte Satz darf nicht zurückkommen.
+          if grep -qi 'Ausbaustufe P1' setup.txt; then
+            echo "::error::Der Satz über die Ausbaustufe P1 ist wieder da — er war seit P1 falsch."
+            exit 1
+          fi
+          echo "Adresse auflösbar, Hinweis vorhanden, alter Satz weg."
+
+      - name: Mit Adminkonto sagt sie etwas anderes
+        run: |
+          # Der zweite Zweig. Ein Test, der nur den Fall ohne Konto prüft,
+          # bliebe grün, wenn der Hinweis unbedingt erschiene — und dann
+          # stünde er auch auf Servern, die längst eingerichtet sind.
+          # Die Ausgabe geht in eine Datei und nicht nach /dev/null: Beim
+          # ersten Lauf scheiterte genau dieser Aufruf — der Wrapper kannte
+          # `admin` nicht — und die Umleitung hat die Begründung verschluckt.
+          # Ein Schritt, der stumm mit 1 endet, kostet einen ganzen Durchlauf.
+          #
+          # Beim Ausgeben fliegt die Zeile mit dem Passwort raus. Es gilt für
+          # ein erfundenes Konto in einem Wegwerf-Container, aber ein Passwort
+          # in einem öffentlichen Protokoll gewöhnt man sich besser gar nicht
+          # erst an.
+          if ! docker exec bare srvpanel admin --generate --no-ansi \
+                 --name=Rauchtest pruefer@example.test > admin.txt 2>&1; then
+            echo "::error::Das Anlegen des Adminkontos scheiterte:"
+            grep -v 'Passwort:' admin.txt
+            exit 1
+          fi
+
+          docker exec bare srvpanel setup --port=8443 --no-ansi > setup2.txt
+
+          grep -q 'Adminkonto ist vorhanden' setup2.txt \
+            || { echo "::error::Die Einrichtung erkennt das vorhandene Adminkonto nicht."; cat setup2.txt; exit 1; }
+
+          if grep -q 'srvpanel admin --generate' setup2.txt; then
+            echo "::error::Der Hinweis zum Anlegen steht da, obwohl ein Adminkonto existiert."
+            cat setup2.txt
+            exit 1
+          fi
+          echo "Zweiter Zweig stimmt."
 
       - name: Der Agent schreibt keine Warnungen ins Journal
         run: |

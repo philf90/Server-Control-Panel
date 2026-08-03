@@ -35,26 +35,37 @@ function submit(): void {
 
       <p v-if="notice" class="hinweis">{{ notice }}</p>
 
-      <label for="email">Adresse</label>
-      <input
-        id="email"
-        v-model="form.email"
-        type="email"
-        name="email"
-        autocomplete="username"
-        required
-        autofocus
-      >
+      <!--
+        Beschriftung und Feld stehen zusammen in einer Gruppe.
+        Vorher hingen sie als Geschwister in derselben Flex-Spalte mit
+        gleichmässigem Abstand — die Beschriftung stand dann genauso weit vom
+        eigenen Feld entfernt wie vom fremden darüber, und das Auge ordnet sie
+        beim Überfliegen dem falschen zu.
+      -->
+      <div class="feld">
+        <label for="email">Adresse</label>
+        <input
+          id="email"
+          v-model="form.email"
+          type="email"
+          name="email"
+          autocomplete="username"
+          required
+          autofocus
+        >
+      </div>
 
-      <label for="password">Passwort</label>
-      <input
-        id="password"
-        v-model="form.password"
-        type="password"
-        name="password"
-        autocomplete="current-password"
-        required
-      >
+      <div class="feld">
+        <label for="password">Passwort</label>
+        <input
+          id="password"
+          v-model="form.password"
+          type="password"
+          name="password"
+          autocomplete="current-password"
+          required
+        >
+      </div>
 
       <!--
         Eine Meldung für alles: unbekannte Adresse, falsches Passwort,
@@ -76,45 +87,66 @@ function submit(): void {
 </template>
 
 <style scoped>
+/*
+ * Alle Masse in px, nicht in rem.
+ *
+ * Der Grund ist gemessen und nicht Geschmack: Die Grundgrösse des Panels steht
+ * mit 13px am `body`, `rem` rechnet aber gegen das Wurzelelement — und das
+ * steht auf der Browservorgabe von 16px. Jeder rem-Wert hier war damit 23 %
+ * zu gross, und die Anmeldemaske trug eine Überschrift (18,4px), die grösser
+ * war als die Seitenüberschrift im angemeldeten Panel (16px).
+ *
+ * Die Zahlen unten sind dieselben wie im Gerüst (§7.2): 16px für die
+ * Überschrift, 13px für Inhalt, 34px Zeilenhöhe für alles, was man anfasst.
+ */
 .anmeldung {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: var(--padding);
+  padding: 16px;
   background: var(--bg);
 }
 
 .maske {
-  width: min(24rem, 100%);
+  width: min(320px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: calc(var(--padding) * 1.5);
+  padding: 20px 22px 22px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 h1 {
-  margin: 0 0 0.75rem;
-  font-size: 1.15rem;
+  margin: 0 0 18px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text-strong);
 }
 
+.feld {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
 label {
-  font-size: 0.8rem;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 input[type='email'],
 input[type='password'] {
-  padding: 0.5rem 0.6rem;
-  margin-bottom: 0.5rem;
+  height: var(--row-height);
+  padding: 0 9px;
   font: inherit;
+  font-size: 13px;
   color: var(--text);
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 input:focus-visible,
@@ -126,19 +158,29 @@ button:focus-visible {
 .merken {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  margin: 0.35rem 0 0.9rem;
+  gap: 7px;
+  margin: 2px 0 16px;
+  font-size: 12.5px;
   color: var(--text);
+  cursor: pointer;
+}
+
+.merken input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 button {
-  padding: 0.55rem;
+  height: var(--row-height);
   font: inherit;
+  font-size: 13px;
   font-weight: 600;
   color: var(--accent-on);
   background: var(--accent);
   border: 0;
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
 }
 
@@ -147,21 +189,21 @@ button:disabled {
   cursor: default;
 }
 
+.fehler,
+.hinweis {
+  margin: 0 0 12px;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  border-radius: 5px;
+}
+
 .fehler {
-  margin: 0 0 0.5rem;
-  padding: 0.5rem 0.6rem;
-  font-size: 0.85rem;
   color: var(--critical);
   background: var(--critical-surface);
-  border-radius: 6px;
 }
 
 .hinweis {
-  margin: 0 0 0.75rem;
-  padding: 0.5rem 0.6rem;
-  font-size: 0.85rem;
   color: var(--warn);
   background: var(--warn-surface);
-  border-radius: 6px;
 }
 </style>

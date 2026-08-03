@@ -15,6 +15,18 @@ namespace App\Enums;
  */
 enum SubscriptionStatus: string
 {
+    /**
+     * Angelegt im Panel, noch nicht auf dem System.
+     *
+     * Der Zustand zwischen dem Absenden des Formulars und dem Ende von
+     * `subscription.provision`. Er ist nicht Zierde: Ohne ihn stünde ein
+     * Abonnement in der Liste als „aktiv", während es weder Systembenutzer
+     * noch Verzeichnis hat — und die erste Aktion darin scheiterte mit einer
+     * Meldung über einen fehlenden Pfad. `usable()` ist hier `false`, damit
+     * die Policy gar nicht erst hineinlässt.
+     */
+    case Provisioning = 'provisioning';
+
     case Active = 'active';
     case Suspended = 'suspended';
     case Cancelled = 'cancelled';
@@ -28,6 +40,7 @@ enum SubscriptionStatus: string
     public function label(): string
     {
         return match ($this) {
+            self::Provisioning => 'wird angelegt',
             self::Active => 'aktiv',
             self::Suspended => 'gesperrt',
             self::Cancelled => 'gekündigt',

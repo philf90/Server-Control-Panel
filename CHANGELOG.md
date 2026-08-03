@@ -200,6 +200,25 @@ Kunde kommt an ein fremdes Objekt.
 
 ### P2 — die Systemseite eines Abonnements
 
+- **Abonnements im Panel** (`docs/26`). Die Bedienung zu den vier Operationen:
+  anlegen, sperren, entsperren, zurückbauen — jede als Vorgang mit sichtbarem
+  Verlauf. **Der Zustand folgt dem System und nicht der Absicht:** Er wird
+  gesetzt, nachdem der Agent geantwortet hat, nicht beim Klick. Sonst stünde in
+  der Liste „gesperrt", während das Abonnement weiter ausliefert — und genau in
+  die Liste schaut man ja. Daraus folgt der Zustand „wird angelegt" für die
+  Zeit, in der es die Zeile schon gibt und den Systembenutzer noch nicht. Der
+  Name wird mit **der Funktion des Agenten selbst** geprüft und nicht mit einer
+  zweiten Formulierung derselben Regel. Der Systembenutzer wird vergeben, nicht
+  gewählt, und bleibt nach einem Rückbau verbraucht — sonst erbte ein neuer
+  Kunde alles, was auf dem Dateisystem noch der alten UID gehört.
+- **Die Mandantenklammer am Abonnement selbst.** Im Modell stand, die
+  Sichtbarkeit regele die Policy. Das war zu wenig, und es fiel mit der ersten
+  Liste auf: Eine Policy entscheidet über *ein* Objekt, `Subscription::query()`
+  fragt sie nie — ein Kunde sah jedes Abonnement des Servers. Es trägt jetzt
+  dieselbe Klammer wie alles andere, nur auf den eigenen Schlüssel. Dabei kam
+  die Gegenrichtung mit heraus: `PlanPolicy::view()` filterte danach doppelt und
+  hing damit davon ab, was vor ihr lief. Eine Policy muss aus sich heraus
+  antworten.
 - **`subscription.provision`** legt Gruppe, Systembenutzer, das
   Verzeichnisschema aus §4.5 und die Dateisystem-Quota an. **Die Operation
   nimmt keinen Pfad entgegen — sie baut ihn.** Übergeben wird der Name des

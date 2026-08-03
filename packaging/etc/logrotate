@@ -1,4 +1,4 @@
-/var/log/srvpanel/*.log {
+/var/log/srvpanel/*.log /var/lib/srvpanel/storage/logs/*.log {
     daily
     rotate 30
     compress

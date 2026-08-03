@@ -281,6 +281,12 @@ jobs:
           alt="$(docker exec target readlink -f /opt/srvpanel/current)"
           echo "vorher: ${alt}"
 
+          # Eine Spur im Schreibbereich hinterlassen. Sie muss das Update
+          # überleben — bis rc.5 lag storage in der Fassung, und weil das
+          # Verzeichnis wörtlich ${VERSION} hiess und sich nie änderte, fiel
+          # das nicht auf. Ab P2 stünden dort Sicherungen und Kundendateien.
+          docker exec target sh -c 'echo unverwechselbar-4711 > /opt/srvpanel/current/storage/app/private/probe.txt'
+
           # Eine zweite, höhere Fassung bauen und einspielen. Die Ausgabe wird
           # aufgehoben: Was die Paketskripte sagen, ist der einzige Beleg für
           # den Rückweg, denn er ist nach dem Update absichtlich wieder weg.
@@ -309,8 +315,35 @@ jobs:
           docker exec target sh -c '! test -d /opt/srvpanel/rollback' \
             || { echo "::error::/opt/srvpanel/rollback steht noch da."; exit 1; }
 
+          # Der Schreibbereich hat das Update überlebt.
+          docker exec target grep -q unverwechselbar-4711 /opt/srvpanel/current/storage/app/private/probe.txt \
+            || { echo "::error::Der Schreibbereich ist beim Update verlorengegangen. Ab P2 wären das Sicherungen und Kundendateien."; exit 1; }
+
+          # Und die alte Fassung ist restlos weg. dpkg räumt nur seine eigenen
+          # Dateien ab; was zur Laufzeit entstanden ist, hielt bis rc.5 das
+          # Verzeichnis am Leben — sichtbar als fünf „Directory not empty" beim
+          # ersten echten Update auf einem Server. Ohne diese Prüfung sammelt
+          # sich unter releases/ nach jedem Update ein weiteres Gerippe.
+          uebrig="$(docker exec target sh -c 'ls -1 /opt/srvpanel/releases')"
+          if [ "$(echo "${uebrig}" | wc -l)" -ne 1 ]; then
+            echo "::error::Unter /opt/srvpanel/releases stehen noch Reste:"
+            echo "${uebrig}"
+            docker exec target sh -c 'find /opt/srvpanel/releases -mindepth 1 -maxdepth 3 | head -50'
+            exit 1
+          fi
+          echo "releases/ enthält nur noch: ${uebrig}"
+
+          # Als `grep … && { … }` geschrieben wäre dieser Schritt immer dann
+          # fehlgeschlagen, wenn er nichts findet: Der Lauf steht unter
+          # `set -e`, und ein erfolgloses grep beendet die Verkettung mit 1.
+          if grep -q 'Directory not empty' update.txt; then
+            echo "::error::dpkg konnte Verzeichnisse der alten Fassung nicht löschen."
+            cat update.txt
+            exit 1
+          fi
+
           docker exec target curl -fsS -k https://127.0.0.1:8443/health >/dev/null
-          echo "Update durchgelaufen, Rückweg bereitgestellt und abgeräumt, Panel antwortet."
+          echo "Update durchgelaufen, Rückweg bereitgestellt und abgeräumt, Schreibbereich erhalten, Panel antwortet."
 
       - name: Aufräumen
         if: always()

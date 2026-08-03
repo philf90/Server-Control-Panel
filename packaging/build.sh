@@ -26,19 +26,18 @@ rm -rf "${ROOT}/build"
 mkdir -p "${STAGE}"
 
 # Positivliste: alles, was das Panel zum Laufen braucht — und nichts sonst.
+#
+# **`storage` steht bewusst nicht dabei.** Es gehört nicht in die Fassung,
+# sondern nach /var/lib/srvpanel/storage; das Paket legt an seiner Stelle einen
+# Verweis. Warum, steht in packaging/nfpm.yaml.
 for part in \
-    agent app bootstrap config database public resources/views routes storage vendor artisan composer.json composer.lock
+    agent app bootstrap config database public resources/views routes vendor artisan composer.json composer.lock
 do
     if [ -e "${part}" ]; then
         mkdir -p "${STAGE}/$(dirname "${part}")"
         cp -a "${part}" "${STAGE}/${part}"
     fi
 done
-
-# Zustand aus der Entwicklung gehört nicht ins Paket.
-rm -rf "${STAGE}/storage/logs/"* "${STAGE}/storage/framework/cache/data/"* \
-       "${STAGE}/storage/framework/sessions/"* "${STAGE}/storage/framework/views/"*
-find "${STAGE}/storage" -type d -exec touch {}/.gitkeep \; 2>/dev/null || true
 
 # Die Fassung steht im Paket, nicht in der Umgebung: Wer später fragt, welche
 # Fassung läuft, soll die Antwort im Dateisystem finden.

@@ -30,7 +30,7 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel /opt/srvpanel/current/storage
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel
 
 MemoryMax=512M
 TasksMax=64

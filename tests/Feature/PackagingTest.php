@@ -338,6 +338,89 @@ final class PackagingTest extends TestCase
         }
     }
 
+    public function test_the_writable_area_lives_outside_the_release(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $nfpm = (string) file_get_contents($root.'/packaging/nfpm.yaml');
+        $build = (string) file_get_contents($root.'/packaging/build.sh');
+
+        // Der Fund kam vom ersten echten Update: dpkg meldete fünf Mal
+        // „Directory not empty" für storage-Unterverzeichnisse der alten
+        // Fassung. Solange das Fassungsverzeichnis wörtlich `${VERSION}` hiess
+        // und sich nie änderte, war storage versehentlich dauerhaft. Mit dem
+        // richtigen Namen ist es das nicht mehr — und ab P2 stünden dort
+        // Sicherungen und Kundendateien, die ein Update mitnähme.
+        $this->assertMatchesRegularExpression(
+            '#src:\s+/var/lib/srvpanel/storage\s+dst:\s+/opt/srvpanel/releases/\$\{VERSION\}/storage\s+type:\s+symlink#',
+            $nfpm,
+            'Das Paket legt storage nicht als Verweis nach /var/lib/srvpanel/storage.',
+        );
+
+        // Gegenprobe: Der Auslieferungsbaum darf storage nicht mitbringen,
+        // sonst überschriebe das Verzeichnis den Verweis.
+        $this->assertDoesNotMatchRegularExpression(
+            '/^\s+agent app .*\bstorage\b/m',
+            $build,
+            'build.sh kopiert storage in den Auslieferungsbaum — dann ist der Verweis aus nfpm.yaml wirkungslos.',
+        );
+    }
+
+    public function test_no_unit_declares_the_release_storage_writable(): void
+    {
+        foreach (glob(dirname(__DIR__, 2).'/packaging/systemd/*.service') ?: [] as $path) {
+            // Gelesen werden die ReadWritePaths-Zeilen und nicht die Datei:
+            // Der Kommentar darüber nennt den Pfad, um zu erklären, warum er
+            // dort nicht mehr steht — ein Test über die ganze Datei stolperte
+            // über die eigene Begründung.
+            preg_match_all('/^ReadWritePaths=(.*)$/m', (string) file_get_contents($path), $matches);
+
+            foreach ($matches[1] as $paths) {
+                // storage in der Fassung ist ein Verweis. systemd löst
+                // ReadWritePaths beim Start auf; fehlt das Ziel noch, startet
+                // die Unit nicht — und /var/lib/srvpanel deckt es ohnehin ab.
+                $this->assertStringNotContainsString(
+                    '/opt/srvpanel/current/storage',
+                    $paths,
+                    sprintf('%s erklärt den Verweis auf storage für beschreibbar.', basename($path)),
+                );
+            }
+        }
+    }
+
+    public function test_the_postinstall_creates_every_directory_laravel_expects(): void
+    {
+        $postinstall = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/scripts/postinstall.sh');
+
+        // Laravel legt diese Verzeichnisse nicht an, es setzt sie voraus.
+        // Vorher kamen sie aus dem Paket; seit dem Umzug muss sie das
+        // postinst anlegen, und eine vergessene Zeile fällt erst beim ersten
+        // Schreibversuch auf dem Server auf.
+        $missing = [];
+
+        foreach (['app/private', 'app/public', 'framework/cache/data', 'framework/sessions', 'framework/views', 'logs'] as $part) {
+            if (! str_contains($postinstall, $part)) {
+                $missing[] = $part;
+            }
+        }
+
+        $this->assertSame([], $missing, sprintf(
+            "Das postinst legt diese Verzeichnisse unter /var/lib/srvpanel/storage nicht an:\n  %s",
+            implode("\n  ", $missing),
+        ));
+    }
+
+    public function test_the_panel_log_is_rotated(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $logrotate = (string) file_get_contents($root.'/packaging/etc/logrotate');
+
+        // Das Protokoll des Panels liegt unter storage/logs und nicht unter
+        // /var/log/srvpanel — es war deshalb von keiner Regel erfasst und
+        // wuchs unbegrenzt. Auf einem Server, der Kunden trägt, ist eine
+        // volllaufende Platte kein Schönheitsfehler.
+        $this->assertStringContainsString('/var/lib/srvpanel/storage/logs/*.log', $logrotate);
+    }
+
     public function test_the_worker_listens_on_the_queue_the_operations_go_to(): void
     {
         $unit = $this->unit('srvpanel-worker.service');

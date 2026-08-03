@@ -27,7 +27,7 @@ footer{margin-top:2.5rem;font-size:.8rem;opacity:.7}
 Der Betreiber verwaltet Kunden, Kunden verwalten ihre Abonnements — ohne SSH
 und ohne Zugriff auf fremde Daten. Ein Systembenutzer je Abonnement.</p>
 
-<p class="status"><strong>Vorabversion 0.2.0-rc.1.</strong> Installierbar,
+<p class="status"><strong>Vorabversion 0.2.0-rc.2.</strong> Installierbar,
 einrichtbar, aktualisierbar — aber noch ohne Anmeldung und ohne
 Fachfunktionen. Gebaut sind das Fundament und das Werkzeug: der Agent mit
 seiner Trennlinie zwischen Anwendung und Systemrechten, die Adminübersicht,
@@ -36,7 +36,7 @@ ist das noch nichts.</p>
 
 <h2>Installieren</h2>
 <pre><code>curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
-sudo sh install.sh</code></pre>
+sudo SRVPANEL_CHANNEL=beta sh install.sh</code></pre>
 <p>Danach einmal <code>sudo srvpanel setup</code>: Das legt Datenbank,
 Anwendungsschlüssel und ein selbstsigniertes Zertifikat an, schreibt den
 nginx-Server-Block und startet die Dienste. Der Lauf ist wiederholbar und
@@ -53,7 +53,15 @@ Suites: beta
 Components: main
 Signed-By: /usr/share/keyrings/srvpanel-archive-keyring.gpg
 EOF
+sudo apt update &amp;&amp; sudo apt install srvpanel-php-source
 sudo apt update &amp;&amp; sudo apt install srvpanel</code></pre>
+<p class="hint">Zwei Schritte, und der erste ist keine Umständlichkeit:
+Das Panel braucht PHP 8.4, und das liefern Debian 12, Ubuntu 22.04 und 24.04
+nicht aus eigenen Quellen. <code>srvpanel-php-source</code> trägt
+<code>deb.sury.org</code> ein — als eigenes Paket, weil apt die
+Abhängigkeiten eines Pakets auflöst, <em>bevor</em> dessen Skripte laufen.
+Ein <code>srvpanel</code>, das die Quelle selbst nachreichte, käme immer zu
+spät. Auf Debian 13 ist PHP 8.4 im Bestand; dort tut das Paket nichts.</p>
 <p class="hint">Solange nur Vorabversionen erschienen sind, liegt das Paket
 ausschließlich im Kanal <code>beta</code>. Der Kanal <code>stable</code>
 bekommt es mit der ersten Fassung ohne Bindestrich in der Version.</p>
@@ -73,9 +81,9 @@ Migrationspfad. Bestehende Installationen laufen unter dem Paketnamen
 liegt im Branch <code>legacy/asylum</code>.</p>
 
 <footer>
-Version 0.2.0-rc.1 ·
+Version 0.2.0-rc.2 ·
 <a href="https://github.com/philf90/Server-Control-Panel">Quellcode</a> ·
-<a href="https://github.com/philf90/Server-Control-Panel/releases/tag/v0.2.0-rc.1">Release-Notizen</a> ·
+<a href="https://github.com/philf90/Server-Control-Panel/releases/tag/v0.2.0-rc.2">Release-Notizen</a> ·
 <a href="https://github.com/philf90/Server-Control-Panel/blob/main/SECURITY.md">Sicherheit</a> ·
 <a href="https://github.com/philf90/Server-Control-Panel/blob/main/CHANGELOG.md">Changelog</a> ·
 AGPL-3.0-only

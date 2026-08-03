@@ -68,8 +68,40 @@ EOF
 note "PHP-Quelle und PHP 8.4"
 # Das Panel braucht PHP 8.4 (Laravel 13). Woher es kommt, entscheidet
 # php-source.sh — dasselbe Skript benutzt die CI.
-sh "$(dirname "$0")/php-source.sh" 2>/dev/null || curl -fsSL --proto '=https' --tlsv1.2 \
-    "${REPO_URL%/apt}/php-source.sh" | sh
+#
+# Hier stand einmal `sh …/php-source.sh 2>/dev/null || curl … | sh`, und beide
+# Hälften konnten stillschweigend nichts tun: Die Datei lag nicht neben diesem
+# Skript (wer den Kopf oben liest, lädt nur install.sh herunter), und auf der
+# Seite lag sie auch nicht. `curl -f` endete im 404, gab nichts aus, und das
+# leere `sh` beendete sich mit 0. Der Fehler tauchte erst Schritte später als
+# apt-Meldung über php8.4-cli auf — an einer Stelle, an der ihn niemand mit
+# der PHP-Quelle in Verbindung bringt.
+#
+# Deshalb: erst in eine Datei holen, dann prüfen, dann ausführen. Eine Pipe
+# nach `sh` verbirgt in POSIX-sh den Rückgabewert des Herunterladens, und
+# `set -o pipefail` gibt es dort nicht.
+php_source="$(dirname "$0")/php-source.sh"
+
+if [ ! -r "${php_source}" ]; then
+    php_source="$(mktemp)"
+    curl -fsSL --proto '=https' --tlsv1.2 "${REPO_URL%/apt}/php-source.sh" -o "${php_source}" \
+        || fail "PHP-Quelle: ${REPO_URL%/apt}/php-source.sh ist nicht erreichbar."
+    [ -s "${php_source}" ] || fail "PHP-Quelle: ${REPO_URL%/apt}/php-source.sh kam leer an."
+fi
+
+sh "${php_source}" || fail "Die PHP-Quelle liess sich nicht einrichten."
+
+# Die Probe aufs Exempel — als Trockenlauf und nicht über `apt-cache policy`:
+# Dessen Ausgabe ist übersetzt („Kandidat" statt „Candidate"), und eine
+# Prüfung, die auf einem deutschen Server anders ausgeht als auf einem
+# englischen, ist keine.
+if ! apt-get install -s -qq php8.4-cli >/dev/null 2>&1; then
+    fail "PHP 8.4 ist aus keiner eingerichteten Paketquelle zu bekommen.
+  Auf Debian 12, Ubuntu 22.04 und 24.04 kommt es von deb.sury.org; dass es
+  fehlt, heisst, dass diese Quelle nicht eingerichtet werden konnte.
+  Prüfen: apt-cache policy php8.4-cli und /etc/apt/sources.list.d/php-sury.sources"
+fi
+
 apt-get install -y -qq php8.4-cli php8.4-fpm php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql
 
 note "SrvPanel installieren"

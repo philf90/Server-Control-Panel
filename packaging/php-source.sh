@@ -8,10 +8,24 @@
 #
 # Warum das Panel die Pakete nicht selbst spiegelt, steht in §4.3 des Plans.
 #
-# Dieses Skript wird von install.sh und von der CI benutzt — an zwei Stellen
-# dieselben Schritte zu pflegen, hieße, sie irgendwann auseinanderlaufen zu
-# lassen.
+# Dieses Skript wird von install.sh, von der CI und vom Paket
+# srvpanel-php-source benutzt — an drei Stellen dieselben Schritte zu pflegen,
+# hieße, sie irgendwann auseinanderlaufen zu lassen.
+#
+# **Aus einem postinst heraus gelten zwei Einschränkungen**, und beide stehen
+# unten als Bedingung im Code:
+#
+# 1. Kein `apt-get install`. Während ein Paket eingerichtet wird, hält dpkg
+#    seine Sperre; ein zweiter Aufruf liefe hinein und scheiterte. Deshalb
+#    werden curl, gnupg und ca-certificates nur nachinstalliert, wenn sie
+#    fehlen — und das Paket führt sie ohnehin als Abhängigkeit, damit sie
+#    vorher da sind.
+# 2. Kein `apt-get update`. Es hilft dem laufenden Vorgang nicht: apt hat
+#    seine Abhängigkeiten längst aufgelöst. Der Aufrufer setzt deshalb
+#    SRVPANEL_SKIP_APT_UPDATE=1 und sagt dem Menschen, was als Nächstes kommt.
 set -eu
+
+SKIP_UPDATE="${SRVPANEL_SKIP_APT_UPDATE:-0}"
 
 KEYRING="/usr/share/keyrings/php-sury-keyring.gpg"
 
@@ -27,7 +41,14 @@ if [ "${ID}" = "debian" ] && [ "${VERSION_ID%%.*}" -ge 13 ]; then
     exit 0
 fi
 
-apt-get install -y -qq curl ca-certificates gnupg >/dev/null
+missing=""
+for tool in curl gpg; do
+    command -v "${tool}" >/dev/null || missing="${missing} ${tool}"
+done
+
+if [ -n "${missing}" ]; then
+    apt-get install -y -qq curl ca-certificates gnupg >/dev/null
+fi
 
 case "${ID}" in
     debian) base="https://packages.sury.org/php/" ;;
@@ -52,4 +73,4 @@ Components: main
 Signed-By: ${KEYRING}
 EOF
 
-apt-get update -qq
+[ "${SKIP_UPDATE}" = "1" ] || apt-get update -qq

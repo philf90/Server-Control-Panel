@@ -55,5 +55,17 @@ VERSION="${VERSION}" ARCH="${ARCH}" nfpm package \
     --packager deb \
     --target "${ROOT}/dist"
 
+# Das Helferpaket für die PHP-Quelle.
+#
+# Es steht getrennt, weil es getrennt eingespielt werden muss: apt löst die
+# Abhängigkeiten von srvpanel auf, bevor irgendein Paketskript läuft — ein
+# postinst, das die Quelle nachreicht, käme immer zu spät. `arch: all`, es
+# enthält nur ein Skript.
+echo "==> Paket srvpanel-php-source"
+VERSION="${VERSION}" nfpm package \
+    --config packaging/nfpm-php-source.yaml \
+    --packager deb \
+    --target "${ROOT}/dist"
+
 echo "==> Fertig"
 ls -lh "${ROOT}/dist"

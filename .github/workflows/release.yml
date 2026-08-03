@@ -138,6 +138,16 @@ jobs:
 
           cp ../src/packaging/install.sh install.sh
           chmod 0644 install.sh
+
+          # php-source.sh muss mit — install.sh holt es sich von hier, wenn es
+          # allein heruntergeladen wurde, und genau so steht es in seinem
+          # eigenen Kopf. Es fehlte, und der Fehlschlag war unsichtbar: `curl
+          # -f` lief ins 404, gab nichts aus, das leere `sh` endete mit 0. Ohne
+          # PHP-Quelle scheiterte dann die Installation mit einer apt-Meldung
+          # über php8.4-cli, die niemand mit der Ursache verbindet.
+          cp ../src/packaging/php-source.sh php-source.sh
+          chmod 0644 php-source.sh
+
           cp ../src/packaging/minisign.pub minisign.pub
           mkdir -p apt
           cp ../src/packaging/srvpanel-archive-keyring.gpg apt/srvpanel-archive-keyring.gpg

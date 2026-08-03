@@ -27,16 +27,20 @@ footer{margin-top:2.5rem;font-size:.8rem;opacity:.7}
 Der Betreiber verwaltet Kunden, Kunden verwalten ihre Abonnements — ohne SSH
 und ohne Zugriff auf fremde Daten. Ein Systembenutzer je Abonnement.</p>
 
-<p class="status"><strong>Vorabversion 0.2.0-rc.2.</strong> Installierbar,
-einrichtbar, aktualisierbar — aber noch ohne Anmeldung und ohne
-Fachfunktionen. Gebaut sind das Fundament und das Werkzeug: der Agent mit
-seiner Trennlinie zwischen Anwendung und Systemrechten, die Adminübersicht,
-Paket, Ersteinrichtung und Update mit Rückweg. Für den Betrieb echter Kunden
-ist das noch nichts.</p>
+<p class="status"><strong>Vorabversion 0.2.0-rc.2.</strong> Anmeldung mit
+zweitem Faktor, Kunden und Abonnements als Datenmodell, Rechte und
+Mandantentrennung, Protokoll mit Export, Vorgänge mit Live-Ausgabe und
+Abbruch, Adminübersicht mit Kennzahlen. Was noch fehlt, ist alles, wofür man
+ein Panel kauft: Websites, Datenbanken, DNS, Postfächer, Sicherungen. Für den
+Betrieb echter Kunden ist das noch nichts.</p>
 
 <h2>Installieren</h2>
 <pre><code>curl -fsSL --proto '=https' --tlsv1.2 https://repo.cloudsrv24.de/install.sh -o install.sh
 sudo SRVPANEL_CHANNEL=beta sh install.sh</code></pre>
+<p>Das Skript richtet die Paketquelle ein, besorgt <strong>PHP 8.4</strong> und
+installiert daraus. Um die PHP-Quelle muss sich auf diesem Weg niemand
+kümmern — wer stattdessen von Hand über apt geht, braucht dafür
+<code>srvpanel-php-source</code>, siehe unten.</p>
 <p>Danach einmal <code>sudo srvpanel setup</code>: Das legt Datenbank,
 Anwendungsschlüssel und ein selbstsigniertes Zertifikat an, schreibt den
 nginx-Server-Block und startet die Dienste. Der Lauf ist wiederholbar und
@@ -55,6 +59,10 @@ Signed-By: /usr/share/keyrings/srvpanel-archive-keyring.gpg
 EOF
 sudo apt update &amp;&amp; sudo apt install srvpanel-php-source
 sudo apt update &amp;&amp; sudo apt install srvpanel</code></pre>
+<p class="hint"><strong><code>srvpanel-php-source</code> ist auf diesem Weg
+Voraussetzung, nicht Zubehör.</strong> Ohne es endet der zweite Befehl mit
+<code>„php8.4-cli ist aber nicht installierbar"</code> — einer Meldung, die
+die Ursache nicht nennt.</p>
 <p class="hint">Zwei Schritte, und der erste ist keine Umständlichkeit:
 Das Panel braucht PHP 8.4, und das liefern Debian 12, Ubuntu 22.04 und 24.04
 nicht aus eigenen Quellen. <code>srvpanel-php-source</code> trägt

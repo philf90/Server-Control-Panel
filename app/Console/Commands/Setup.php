@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\AccountType;
+use App\Models\Account;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -110,19 +112,38 @@ final class Setup extends Command
             return self::FAILURE;
         }
 
+        [$host, $why] = $this->reachableHost();
+
         $this->newLine();
         $this->line('  Das Panel ist erreichbar unter:');
-        $this->line(sprintf('  <options=bold>https://%s:%d/</>', gethostname() ?: 'localhost', $port));
+        $this->line(sprintf('  <options=bold>https://%s:%d/</>', $host, $port));
+
+        if ($why !== null) {
+            $this->newLine();
+            $this->line('  '.$why);
+        }
+
         $this->newLine();
         $this->line('  Das Zertifikat ist selbstsigniert — der Browser warnt beim ersten Aufruf.');
         $this->line('  Ein Zertifikat von Let\'s Encrypt kommt mit der Ausbaustufe P4.');
         $this->newLine();
 
-        // Kein Einmal-Link: Es gibt in dieser Ausbaustufe noch keine Konten,
-        // hinter die er führen könnte. Er entsteht in P1 zusammen mit dem
-        // Administratorkonto — eine Tür zu einem leeren Raum wäre kein
-        // Fortschritt, sondern eine Attrappe.
-        $this->comment('  Anmeldung und Konten kommen mit der Ausbaustufe P1.');
+        // Der letzte Satz muss der nächste Schritt sein.
+        //
+        // Hier stand „Anmeldung und Konten kommen mit der Ausbaustufe P1" —
+        // richtig, solange es keine gab, und danach stehengeblieben. Wer das
+        // nach einer erfolgreichen Einrichtung liest, hört auf zu suchen:
+        // Die Anmeldemaske ist da, ein Konto nicht, und der Text sagt ihm,
+        // das sei so gewollt.
+        if (Account::query()->where('type', AccountType::Admin)->exists()) {
+            $this->line('  Ein Adminkonto ist vorhanden — die Anmeldung steht offen.');
+        } else {
+            $this->comment('  Es gibt noch kein Adminkonto. Ohne eines kommt niemand hinein:');
+            $this->newLine();
+            $this->line('      srvpanel admin --generate');
+            $this->newLine();
+            $this->line('  Das erzeugt ein Passwort und zeigt es genau einmal an.');
+        }
 
         return self::SUCCESS;
     }
@@ -211,6 +232,85 @@ final class Setup extends Command
         $this->newLine();
 
         return self::FAILURE;
+    }
+
+    /**
+     * Eine Adresse, unter der das Panel tatsächlich zu erreichen ist.
+     *
+     * **Der Rechnername allein taugt oft nicht.** `gethostname()` liefert auf
+     * den meisten Servern den kurzen Namen — „cloudsrv24" statt
+     * „cloudsrv24.example.de". Als Link ist das wertlos: Außerhalb des
+     * Rechners löst ihn niemand auf. Genau so stand es hier, und der erste
+     * Mensch, der die Einrichtung durchlaufen ließ, bekam eine Adresse, die
+     * nicht funktioniert.
+     *
+     * Die Reihenfolge geht vom Brauchbarsten zum Sichersten: ein Name mit
+     * Punkt, sonst der Name aus der Rückwärtsauflösung, sonst die IP-Adresse.
+     * Die IP ist hässlich und stimmt immer — das ist hier die richtige
+     * Rangfolge.
+     *
+     * @return array{0:string,1:?string} Adresse und, falls nötig, die Erklärung
+     */
+    private function reachableHost(): array
+    {
+        $name = gethostname() ?: '';
+
+        if (str_contains($name, '.')) {
+            return [$name, null];
+        }
+
+        $address = $this->primaryAddress();
+
+        if ($address === null) {
+            return [$name !== '' ? $name : 'localhost', null];
+        }
+
+        $reverse = gethostbyaddr($address);
+
+        if (is_string($reverse) && str_contains($reverse, '.') && $reverse !== $address) {
+            return [$reverse, null];
+        }
+
+        return [$address, sprintf(
+            'Der Rechnername „%s" enthält keine Domain und ist von außen nicht'."\n".
+            '  auflösbar; deshalb steht hier die IP-Adresse.',
+            $name !== '' ? $name : 'unbekannt',
+        )];
+    }
+
+    /**
+     * Die IP-Adresse, über die dieser Rechner nach außen spricht.
+     *
+     * Über einen verbundenen UDP-Socket: Das schickt kein einziges Paket — der
+     * Kernel wählt beim `connect` nur die Route aus und trägt die passende
+     * Quelladresse ein, und die lesen wir zurück. Der Weg über
+     * `gethostbyname(gethostname())` liefert dagegen auf vielen Servern
+     * 127.0.1.1, weil genau das in /etc/hosts steht.
+     */
+    private function primaryAddress(): ?string
+    {
+        if (! function_exists('socket_create')) {
+            return null;
+        }
+
+        $socket = @socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+
+        if ($socket === false) {
+            return null;
+        }
+
+        // Dokumentationsadresse nach RFC 5737 — sie wird nie erreicht und
+        // soll es auch nicht.
+        $connected = @socket_connect($socket, '203.0.113.1', 53);
+        $address = null;
+
+        if ($connected && @socket_getsockname($socket, $local)) {
+            $address = $local;
+        }
+
+        socket_close($socket);
+
+        return is_string($address) && $address !== '' && ! str_starts_with($address, '127.') ? $address : null;
     }
 
     /** @return array<string,mixed> */

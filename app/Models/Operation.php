@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $subscription_id
  * @property int|null $account_id
  * @property string $type
+ * @property string|null $task
  * @property OperationStatus $status
  * @property int $progress
  * @property string|null $message
@@ -42,7 +43,7 @@ class Operation extends Model
 
     /** @var list<string> */
     protected $fillable = [
-        'subscription_id', 'account_id', 'type', 'status', 'progress',
+        'subscription_id', 'account_id', 'type', 'task', 'status', 'progress',
         'message', 'payload', 'result', 'output',
     ];
 

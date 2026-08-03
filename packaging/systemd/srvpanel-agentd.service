@@ -6,7 +6,19 @@ Before=srvpanel-worker.service srvpanel-metrics.service
 
 [Service]
 Type=simple
-ExecStart=/opt/srvpanel/current/agent/bin/srvpanel-agentd serve --config=/etc/srvpanel/agent.json
+# `pcre.jit=0`, und zwar wegen MemoryDenyWriteExecute weiter unten.
+#
+# Der JIT von PCRE will Speicher, der beschreibbar und ausführbar zugleich
+# ist — genau das, was die Härtung verbietet. PHP kommt damit zurecht und
+# schaltet den JIT ab, schreibt dabei aber bei jedem Start eine Warnung ins
+# Journal. Bei einem Prozess, der je Verbindung forkt, sind das vier Zeilen
+# pro Aufruf des Panels.
+#
+# Die Alternative wäre, die Härtung zu lockern. Für einen Dienst, der als
+# root Systembenutzer anlegt und Pakete installiert, ist der PCRE-JIT das
+# schlechtere Tauschgut: Er beschleunigt reguläre Ausdrücke, die hier
+# ausschließlich kurze Unit-Namen und Pfade prüfen.
+ExecStart=/opt/srvpanel/bin/php -d pcre.jit=0 /opt/srvpanel/current/agent/bin/srvpanel-agentd serve --config=/etc/srvpanel/agent.json
 Restart=on-failure
 RestartSec=2s
 TimeoutStopSec=30s

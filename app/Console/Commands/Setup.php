@@ -48,6 +48,10 @@ final class Setup extends Command
             return self::FAILURE;
         }
 
+        if (($missing = $this->missingExtensions()) !== []) {
+            return $this->reportMissingExtensions($missing);
+        }
+
         try {
             $this->step('Datenbank und Schlüssel');
             $provision = $agent->call('panel.provision', ['port' => $port], $this->actor());
@@ -153,6 +157,63 @@ final class Setup extends Command
     }
 
     /** @return array<string,mixed> */
+    /**
+     * Erweiterungen, die fehlen — geprüft, bevor irgendetwas angefasst wird.
+     *
+     * **Warum das hier steht, obwohl das Paket sie als Abhängigkeit führt.**
+     * Es hat sie eine Zeit lang nicht geführt, und der Fehlschlag kam dann
+     * mitten in der Einrichtung: Datenbank angelegt, Zertifikat ausgestellt,
+     * Webserver geschrieben — und dann „could not find driver" aus einer
+     * Framework-Datei, die nicht sagt, welches Paket fehlt. Wer das liest,
+     * sucht in der falschen Richtung.
+     *
+     * Die Prüfung kostet nichts und beantwortet die Frage in einer Zeile. Sie
+     * läuft vor dem ersten Schritt, damit ein Abbruch nichts halb Fertiges
+     * hinterlässt.
+     *
+     * @return array<string,string> Erweiterung => Debian-Paket
+     */
+    private function missingExtensions(): array
+    {
+        $required = [
+            'pdo_mysql' => 'php8.4-mysql',
+            'mbstring' => 'php8.4-mbstring',
+            'dom' => 'php8.4-xml',
+            'curl' => 'php8.4-curl',
+            'openssl' => 'php8.4-cli',
+            'tokenizer' => 'php8.4-cli',
+            'sockets' => 'php8.4-cli',
+        ];
+
+        return array_filter(
+            $required,
+            static fn (string $package, string $extension): bool => ! extension_loaded($extension),
+            ARRAY_FILTER_USE_BOTH,
+        );
+    }
+
+    /** @param array<string,string> $missing */
+    private function reportMissingExtensions(array $missing): int
+    {
+        $this->newLine();
+        $this->error('Dem PHP dieser Installation fehlen Erweiterungen:');
+        $this->newLine();
+
+        foreach ($missing as $extension => $package) {
+            $this->line(sprintf('    %-12s aus %s', $extension, $package));
+        }
+
+        $this->newLine();
+        $this->line('  Nachinstallieren:');
+        $this->line('      apt install '.implode(' ', array_unique(array_values($missing))));
+        $this->newLine();
+        $this->comment('  Das sollte nicht passieren — sie stehen als Abhängigkeit im Paket.');
+        $this->comment('  Bitte melden: https://github.com/philf90/Server-Control-Panel/issues');
+        $this->newLine();
+
+        return self::FAILURE;
+    }
+
     private function actor(): array
     {
         return ['source' => 'cli', 'command' => 'srvpanel:setup', 'uid' => function_exists('posix_getuid') ? posix_getuid() : null];

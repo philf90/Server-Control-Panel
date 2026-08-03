@@ -94,6 +94,99 @@ final class PackagingTest extends TestCase
         ));
     }
 
+    /**
+     * Erweiterungen, die Debian in php8.4-cli bzw. php8.4-common mitbringt.
+     *
+     * Sie brauchen kein eigenes Paket. Die Liste steht hier und nicht im
+     * Kopf: Wer eine Erweiterung fälschlich für eingebaut hält, merkt es
+     * sonst erst auf einem fremden Server.
+     *
+     * @var list<string>
+     */
+    private const BUILT_IN = [
+        'ctype', 'filter', 'hash', 'openssl', 'session', 'tokenizer', 'json',
+        'fileinfo', 'iconv', 'phar', 'pcre', 'sockets', 'posix', 'pcntl',
+        'simplexml', 'spl', 'date', 'random',
+    ];
+
+    /** @var array<string,string> Erweiterung => Debian-Paket */
+    private const NEEDS_PACKAGE = [
+        'mbstring' => 'php8.4-mbstring',
+        'dom' => 'php8.4-xml',
+        'xml' => 'php8.4-xml',
+        'libxml' => 'php8.4-xml',
+        'xmlwriter' => 'php8.4-xml',
+        'xmlreader' => 'php8.4-xml',
+        'curl' => 'php8.4-curl',
+        'pdo_mysql' => 'php8.4-mysql',
+        'mysqli' => 'php8.4-mysql',
+        'intl' => 'php8.4-intl',
+        'zip' => 'php8.4-zip',
+        'gd' => 'php8.4-gd',
+        'bcmath' => 'php8.4-bcmath',
+        'redis' => 'php8.4-redis',
+    ];
+
+    public function test_the_package_declares_every_extension_its_dependencies_need(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $declared = (string) file_get_contents($root.'/packaging/nfpm.yaml');
+        $missing = [];
+
+        // Jedes `ext-…` aus dem gesamten Abhängigkeitsbaum. Die Frage ist
+        // nicht, was wir zu brauchen glauben, sondern was die Pakete
+        // verlangen, die wir ausliefern.
+        foreach (glob($root.'/vendor/*/*/composer.json') ?: [] as $path) {
+            $manifest = json_decode((string) file_get_contents($path), true);
+
+            if (! is_array($manifest) || ! is_array($manifest['require'] ?? null)) {
+                continue;
+            }
+
+            foreach (array_keys($manifest['require']) as $requirement) {
+                if (! is_string($requirement) || ! str_starts_with($requirement, 'ext-')) {
+                    continue;
+                }
+
+                $extension = substr($requirement, 4);
+
+                if (in_array($extension, self::BUILT_IN, true)) {
+                    continue;
+                }
+
+                $package = self::NEEDS_PACKAGE[$extension] ?? null;
+
+                if ($package === null) {
+                    $missing[] = sprintf('%s (unbekannt — gehört in NEEDS_PACKAGE oder BUILT_IN)', $extension);
+
+                    continue;
+                }
+
+                if (! str_contains($declared, '- '.$package)) {
+                    $missing[] = sprintf('%s braucht %s', $extension, $package);
+                }
+            }
+        }
+
+        $this->assertSame([], array_values(array_unique($missing)), sprintf(
+            "Diese Erweiterungen verlangt der Abhängigkeitsbaum, das Paket führt sie nicht:\n  %s\n\n".
+            'Ein `apt install srvpanel` liefert dann ein Panel, dem etwas fehlt — '.
+            'und der Fehlschlag kommt erst bei der Ersteinrichtung.',
+            implode("\n  ", array_unique($missing)),
+        ));
+    }
+
+    public function test_the_package_declares_the_database_driver(): void
+    {
+        // `pdo_mysql` verlangt kein Composer-Paket — es steht in keinem
+        // `require`, weil Laravel den Treiber erst zur Laufzeit auswählt. Genau
+        // deshalb fiel es durch: Die Prüfung oben hätte es nie gefunden, und
+        // ohne den Treiber scheitert die erste Migration.
+        $declared = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/nfpm.yaml');
+
+        $this->assertStringContainsString('- php8.4-mysql', $declared);
+    }
+
     public function test_the_php_source_package_ships_the_script_it_runs(): void
     {
         $root = dirname(__DIR__, 2);

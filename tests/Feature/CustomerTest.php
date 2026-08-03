@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Account;
 use App\Models\AuditEvent;
 use App\Models\Customer;
+use App\Models\Subscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -156,5 +157,89 @@ final class CustomerTest extends TestCase
         // ändert der Betreiber.
         $this->actingAs($account)->get("/customers/{$mine->id}/edit")->assertForbidden();
         $this->actingAs($account)->patch("/customers/{$mine->id}", $this->payload())->assertForbidden();
+    }
+
+    public function test_a_customer_with_running_subscriptions_is_not_withdrawn(): void
+    {
+        /*
+         * Der bequeme Weg wäre, die Abonnements mit zurückzubauen. Dann wäre
+         * dieser Knopf einer, der als Nebenwirkung Verzeichnisbäume als root
+         * löscht — und die Rückfrage davor spräche von einem Kunden. Dieselbe
+         * Regel wie beim Plan mit gebundenen Abonnements.
+         */
+        $customer = Customer::factory()->create();
+        Subscription::factory()->create(['customer_id' => $customer->id]);
+
+        $this->actingAs($this->admin())
+            ->delete("/customers/{$customer->id}")
+            ->assertSessionHasErrors('customer');
+
+        $this->assertNull($customer->refresh()->deleted_at);
+
+        $event = AuditEvent::query()->where('action', 'customer.withdrawn')->firstOrFail();
+        $this->assertSame('denied', $event->result->value);
+        $this->assertSame(1, ($event->context ?? [])['subscriptions'] ?? null);
+    }
+
+    public function test_a_withdrawn_subscription_no_longer_blocks(): void
+    {
+        // Ein zurückgebautes Abonnement trägt `deleted_at`. Zählte es mit,
+        // liesse sich ein Kunde, der einmal ein Abonnement hatte, nie wieder
+        // zurückziehen.
+        $customer = Customer::factory()->create();
+        $subscription = Subscription::factory()->create(['customer_id' => $customer->id]);
+        $subscription->delete();
+
+        $this->actingAs($this->admin())
+            ->delete("/customers/{$customer->id}")
+            ->assertRedirect('/customers');
+
+        $this->assertNotNull($customer->refresh()->deleted_at);
+    }
+
+    public function test_the_number_stays_taken_after_a_withdrawal(): void
+    {
+        $customer = Customer::factory()->create(['number' => 'K10001']);
+
+        $this->actingAs($this->admin())->delete("/customers/{$customer->id}");
+
+        // **Der Kern der ganzen Sache.** Ein echtes DELETE gäbe die Nummer
+        // frei, und der nächste Kunde bekäme sie — danach trügen zwei
+        // Vertragspartner in zwei Rechnungen dieselbe.
+        $this->actingAs($this->admin())->post('/customers', $this->payload([
+            'email' => 'zweite@example.test',
+            'login_email' => 'zweite@example.test',
+            'password' => 'Ein-langes-Passwort9',
+            'password_confirmation' => 'Ein-langes-Passwort9',
+        ]));
+
+        $this->assertSame('K10002', Customer::query()->orderByDesc('id')->firstOrFail()->number);
+    }
+
+    public function test_a_withdrawn_customer_is_gone_from_the_list(): void
+    {
+        $customer = Customer::factory()->create(['number' => 'K10001']);
+
+        $this->actingAs($this->admin())->delete("/customers/{$customer->id}");
+
+        // Zurückgezogen heisst nicht unsichtbar in der Datenbank, aber sehr
+        // wohl unsichtbar in der Liste: Wer dort steht, ist Vertragspartner.
+        $this->actingAs($this->admin())
+            ->get('/customers')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Customers/Index')
+                ->has('customers.data', 0)
+                ->where('customers.total', 0));
+    }
+
+    public function test_a_customer_may_not_withdraw_anyone(): void
+    {
+        $mine = Customer::factory()->create();
+        $account = Account::factory()->customer($mine)->create();
+
+        $this->actingAs($account)->delete("/customers/{$mine->id}")->assertForbidden();
+
+        $this->assertNull($mine->refresh()->deleted_at);
     }
 }

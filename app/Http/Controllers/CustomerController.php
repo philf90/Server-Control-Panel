@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -184,6 +185,59 @@ final class CustomerController extends Controller
         return redirect()
             ->route('customers.show', $customer)
             ->with('success', "Kunde {$customer->number} gespeichert.");
+    }
+
+    /**
+     * Einen Kunden zurückziehen.
+     *
+     * **Zurückziehen und nicht löschen.** Ein `DELETE` gäbe die Kundennummer
+     * wieder frei, und der nächste Kunde bekäme sie — danach trügen zwei
+     * Vertragspartner in zwei Rechnungen dieselbe. Die Zeile bleibt mit
+     * `deleted_at` stehen, der eindeutige Index gilt weiter für sie, und die
+     * Vergabe fragt als einzige Stelle im Panel `withTrashed()`. Die Konten
+     * des Kunden bleiben ebenfalls stehen und kommen trotzdem nicht mehr
+     * herein: Die Anmeldung weist Konten eines zurückgezogenen Kunden ab.
+     *
+     * **Nicht, solange Abonnements laufen.** Der bequeme Weg wäre, sie mit
+     * zurückzubauen. Dann wäre dieser Knopf einer, der als Nebenwirkung fünf
+     * Verzeichnisbäume als root löscht — und die Rückfrage davor spräche von
+     * einem Kunden. Wer kündigt, baut die Abonnements zuerst zurück und sieht
+     * dabei jedes einzeln. Dieselbe Regel wie beim Plan mit gebundenen
+     * Abonnements, aus demselben Grund.
+     *
+     * Gezählt wird ohne die zurückgebauten: Ein gekündigtes Abonnement ist
+     * `deleted_at` und damit aus dieser Zählung heraus — sonst liesse sich ein
+     * Kunde, der einmal ein Abonnement hatte, nie wieder zurückziehen.
+     */
+    public function destroy(Customer $customer, Audit $audit): RedirectResponse
+    {
+        $running = $customer->subscriptions()->count();
+
+        if ($running > 0) {
+            $audit->denied('customer.withdrawn', $customer, [
+                'number' => $customer->number,
+                'reason' => 'laufende Abonnements',
+                'subscriptions' => $running,
+            ]);
+
+            // Mit Einzahl: „hängen noch 1 Abonnements" ist der Satz, an dem man
+            // merkt, dass niemand die Meldung gelesen hat, die er baut.
+            throw ValidationException::withMessages([
+                'customer' => $running === 1
+                    ? 'An diesem Kunden hängt noch ein Abonnement. Es muss zuerst zurückgebaut werden.'
+                    : "An diesem Kunden hängen noch {$running} Abonnements. Sie müssen zuerst zurückgebaut werden.",
+            ]);
+        }
+
+        $number = $customer->number;
+
+        $customer->delete();
+
+        $audit->success('customer.withdrawn', $customer, ['number' => $number]);
+
+        return redirect()
+            ->route('customers.index')
+            ->with('success', "Kunde {$number} zurückgezogen. Die Nummer bleibt vergeben.");
     }
 
     /** Der Ländercode einheitlich in Grossbuchstaben — oder gar keiner. */

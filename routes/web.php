@@ -148,6 +148,17 @@ Route::middleware('auth')->group(function (): void {
         ->name('customers.update');
 
     /*
+     * Zurückziehen, nicht löschen.
+     *
+     * `DELETE` als Methode, weil das die Absicht des Aufrufers ist; was
+     * daraus wird, ist ein `deleted_at` — die Kundennummer bleibt vergeben.
+     * Der Controller weist ab, solange Abonnements laufen.
+     */
+    Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])
+        ->middleware('can:delete,customer')
+        ->name('customers.destroy');
+
+    /*
      * Pläne — die Vorlage für die Kontingente eines Abonnements (§5.2).
      *
      * Durchgehend Betreibersache, deshalb an jeder Route eine Policy. Ein

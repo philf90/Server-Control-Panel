@@ -179,7 +179,9 @@ final class PlanController extends Controller
             $audit->denied('plan.deleted', $plan, ['reason' => 'gebundene Abonnements', 'subscriptions' => $bound]);
 
             throw ValidationException::withMessages([
-                'plan' => "An diesem Plan hängen noch {$bound} Abonnements. Sie müssen zuerst auf einen anderen Plan wechseln.",
+                'plan' => $bound === 1
+                    ? 'An diesem Plan hängt noch ein Abonnement. Es muss zuerst auf einen anderen Plan wechseln.'
+                    : "An diesem Plan hängen noch {$bound} Abonnements. Sie müssen zuerst auf einen anderen Plan wechseln.",
             ]);
         }
 

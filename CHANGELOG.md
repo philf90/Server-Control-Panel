@@ -338,6 +338,25 @@ einzelnen Ausbaustufe.
   fragt als einzige Stelle im Panel `withTrashed()`. Die Anmeldung weist Konten
   eines zurückgezogenen Kunden ab: Ohne das käme ein gekündigter Kunde weiter
   herein und sähe nichts — was wie ein Fehler aussieht und keine Kündigung ist.
+  **Erreichbar wurde das erst im August 2026:** Die Mechanik war gebaut, die
+  Policy stand da — es gab nur keine Route, keine Controllermethode und keinen
+  Knopf. Ein Kunde liess sich ausschliesslich über die Datenbank zurückziehen.
+  Jetzt steht „Zurückziehen" auf der Kundenseite, und der Versuch wird
+  **abgewiesen, solange Abonnements laufen**: Sie mit zurückzubauen hiesse, aus
+  diesem Knopf einen zu machen, der als Nebenwirkung Verzeichnisbäume als root
+  löscht, während die Rückfrage davor von einem Kunden spricht. Zurückgebaute
+  Abonnements zählen nicht mit — sonst liesse sich ein Kunde, der einmal eines
+  hatte, nie wieder zurückziehen.
+- **Führt zu jeder Fähigkeit auch ein Weg?** (`PolicyReachTest`) Die
+  Gegenrichtung zur Routenprüfung, und der Grund, aus dem die Lücke oben so
+  lange stand: `RouteAuthorizationTest` prüft, dass jede Route eine Policy
+  trägt — das ist die Richtung, in der ein Fehler gefährlich ist. Dass eine
+  Policy-Fähigkeit von nirgendwo aus erreichbar war, prüfte nichts. Eine
+  Fähigkeit ohne Weg ist kein Sicherheitsproblem, sondern eine Zusage im
+  Quelltext, die es in der Anwendung nicht gibt: Wer sie liest, hält eine
+  Funktion für vorhanden. Fünf Ausnahmen stehen mit Begründung in der Liste —
+  darunter `AuditEventPolicy::update` und `::delete`, die grundsätzlich
+  verweigern und für die eine Route gerade der Fehler wäre.
 - **Mein Konto** (`/settings/profile`). Name, Anmeldeadresse und Passwort des
   eigenen Kontos — bis dahin liess sich das Adminkonto ausschliesslich über
   `srvpanel:admin` auf der Kommandozeile ändern, also nur von jemandem mit root

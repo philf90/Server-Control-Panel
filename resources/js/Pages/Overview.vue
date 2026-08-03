@@ -18,6 +18,24 @@ interface Service {
   description: string
 }
 
+interface Filesystem {
+  mount: string
+  device: string
+  type: string
+  total: string
+  free: string
+  percent: number
+  tight: boolean
+}
+
+interface Process {
+  pid: number
+  name: string
+  rss: string
+  state: string
+  user: number
+}
+
 const props = defineProps<{
   server: {
     reachable: boolean
@@ -29,6 +47,8 @@ const props = defineProps<{
   }
   tiles: TileData[]
   services: Service[]
+  filesystems: Filesystem[]
+  processes: Process[]
 }>()
 
 function uptimeText(seconds: number): string {
@@ -50,7 +70,7 @@ const headline = props.server.reachable
   ? [props.server.hostname, props.server.distribution, uptimeText(props.server.uptime_s ?? 0)]
       .filter(Boolean)
       .join(' · ')
-  : 'Agent nicht reachable'
+  : 'Agent nicht erreichbar'
 </script>
 
 <template>
@@ -90,7 +110,69 @@ const headline = props.server.reachable
               {{ service.present ? service.active_state : 'nicht installiert' }}
             </span>
           </td>
-          <td class="muted">{{ service.description }}</td>
+          <td class="quiet">{{ service.description }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="section">Dateisysteme</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Einhängepunkt</th>
+          <th>Gerät</th>
+          <th>Art</th>
+          <th>Größe</th>
+          <th>Frei</th>
+          <th>Belegt</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="filesystem in filesystems" :key="filesystem.mount">
+          <td class="name">{{ filesystem.mount }}</td>
+          <td class="quiet">{{ filesystem.device }}</td>
+          <td class="quiet">{{ filesystem.type }}</td>
+          <td>{{ filesystem.total }}</td>
+          <td>{{ filesystem.free }}</td>
+          <td>
+            <!--
+              Der Balken statt nur der Zahl: „87 %" liest man, ein voller
+              Balken sieht man. Die Schwelle, ab der er warnt, kommt vom
+              Server — sie ist eine Aussage über den Betrieb.
+            -->
+            <div class="bar" :class="{ tight: filesystem.tight }">
+              <span :style="{ width: `${Math.min(100, filesystem.percent)}%` }" />
+            </div>
+            <span class="percent">{{ filesystem.percent }} %</span>
+          </td>
+        </tr>
+        <tr v-if="filesystems.length === 0">
+          <td colspan="6" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="section">Prozesse nach Speicher</p>
+    <table>
+      <thead>
+        <tr>
+          <th>PID</th>
+          <th>Name</th>
+          <th>Zustand</th>
+          <th>UID</th>
+          <th>Speicher</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="process in processes" :key="process.pid">
+          <td>{{ process.pid }}</td>
+          <td class="name">{{ process.name }}</td>
+          <td class="quiet">{{ process.state }}</td>
+          <td>{{ process.user }}</td>
+          <td>{{ process.rss }}</td>
+        </tr>
+        <tr v-if="processes.length === 0">
+          <td colspan="5" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
         </tr>
       </tbody>
     </table>
@@ -170,8 +252,34 @@ td.name {
   color: var(--text-strong);
 }
 
-td.ruhig {
+td.quiet {
   font-family: var(--font-sans);
+  color: var(--text-muted);
+}
+
+.bar {
+  display: inline-block;
+  vertical-align: middle;
+  width: 78px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: var(--surface-border);
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.bar.tight span {
+  background: var(--warn);
+}
+
+.percent {
+  font-size: 11px;
   color: var(--text-muted);
 }
 
@@ -187,12 +295,12 @@ td.ruhig {
   color: var(--ok);
 }
 
-.badge.aus {
+.badge.stopped {
   background: var(--critical-surface);
   color: var(--critical);
 }
 
-.badge.fehlt {
+.badge.missing {
   background: var(--surface-border);
   color: var(--text-muted);
 }

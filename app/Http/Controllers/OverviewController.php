@@ -35,10 +35,17 @@ final class OverviewController extends Controller
             return $this->forCustomer($account);
         }
 
+        // Ein Aufruf, nicht drei: `system.info` liefert alles auf einmal, und
+        // jeder weitere wäre ein Verbindungsaufbau zum Agenten für Werte, die
+        // schon dastehen.
+        $info = $this->systemInfo($agent);
+
         return Inertia::render('Overview', [
-            'server' => $this->server($agent),
+            'server' => $this->server($info),
             'tiles' => $this->tiles($store),
             'services' => $this->services($agent),
+            'filesystems' => $this->filesystems($info),
+            'processes' => $this->processes($info),
         ]);
     }
 
@@ -70,18 +77,34 @@ final class OverviewController extends Controller
         ]);
     }
 
-    /** @return array<string,mixed> */
-    private function server(Client $agent): array
+    /**
+     * `system.info` einmal holen — oder die Begründung, warum nicht.
+     *
+     * @return array{ok:bool,data:array<string,mixed>,error:string}
+     */
+    private function systemInfo(Client $agent): array
     {
         try {
-            $info = $agent->call('system.info');
+            return ['ok' => true, 'data' => $agent->call('system.info'), 'error' => ''];
         } catch (AgentException $error) {
             // Die Übersicht bleibt bedienbar, wenn der Agent schweigt — sie
             // sagt dann, dass er schweigt. Eine weiße Seite mit Stacktrace
             // wäre die schlechtere Auskunft über denselben Zustand.
-            return ['reachable' => false, 'error' => $error->getMessage()];
+            return ['ok' => false, 'data' => [], 'error' => $error->getMessage()];
+        }
+    }
+
+    /**
+     * @param  array{ok:bool,data:array<string,mixed>,error:string}  $result
+     * @return array<string,mixed>
+     */
+    private function server(array $result): array
+    {
+        if (! $result['ok']) {
+            return ['reachable' => false, 'error' => $result['error']];
         }
 
+        $info = $result['data'];
         $distribution = is_array($info['distribution'] ?? null) ? $info['distribution'] : [];
 
         return [
@@ -99,6 +122,11 @@ final class OverviewController extends Controller
         $cpu = $store->series('cpu', 2, 0, 60, ' %', 0);
         $ram = $store->series('ram', 2, 0, 60, ' %', 0);
         $load = $store->series('load', 3, 0, 60, '', 2);
+        // Spalte 1 ist bei beiden die abgehende Richtung. Gezeigt wird die
+        // eingehende — sie ist die, die man auf einem Webserver zuerst
+        // ansieht; der Verlauf beider steht in derselben Datei.
+        $network = $store->series('network', 2, 0, 60, '', 0);
+        $io = $store->series('disk_io', 2, 1, 60, '', 0);
 
         return [
             [
@@ -125,7 +153,103 @@ final class OverviewController extends Controller
                 'subline' => 'eine Minute',
                 'series' => $load,
             ],
+            [
+                'key' => 'network',
+                'label' => 'Netz',
+                'value' => $this->latest($network, '—'),
+                'unit' => 'B/s',
+                'subline' => 'eingehend',
+                'series' => $network,
+            ],
+            [
+                'key' => 'disk_io',
+                'label' => 'IO',
+                'value' => $this->latest($io, '—'),
+                'unit' => 'B/s',
+                'subline' => 'geschrieben',
+                'series' => $io,
+            ],
         ];
+    }
+
+    /**
+     * @param  array{ok:bool,data:array<string,mixed>,error:string}  $result
+     * @return list<array<string,mixed>>
+     */
+    private function filesystems(array $result): array
+    {
+        $rows = $result['data']['filesystems'] ?? null;
+        $rows = is_array($rows) ? $rows : [];
+        $out = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $out[] = [
+                'mount' => (string) ($row['mount'] ?? ''),
+                'device' => (string) ($row['device'] ?? ''),
+                'type' => (string) ($row['type'] ?? ''),
+                'total' => $this->bytes((int) ($row['total'] ?? 0)),
+                'free' => $this->bytes((int) ($row['free'] ?? 0)),
+                'percent' => (float) ($row['percent'] ?? 0),
+                // Die Schwelle steht hier und nicht in der Vorlage: Wann ein
+                // Dateisystem eng wird, ist eine Aussage über den Betrieb und
+                // keine über die Darstellung.
+                'tight' => (float) ($row['percent'] ?? 0) >= 85.0,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array{ok:bool,data:array<string,mixed>,error:string}  $result
+     * @return list<array<string,mixed>>
+     */
+    private function processes(array $result): array
+    {
+        $rows = $result['data']['processes'] ?? null;
+        $rows = is_array($rows) ? $rows : [];
+        $out = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $out[] = [
+                'pid' => (int) ($row['pid'] ?? 0),
+                'name' => (string) ($row['name'] ?? ''),
+                'rss' => $this->bytes((int) ($row['rss'] ?? 0)),
+                'state' => (string) ($row['state'] ?? ''),
+                'user' => (int) ($row['user'] ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Bytes in etwas, das ein Mensch liest.
+     *
+     * Mit 1024 und den Kürzeln KiB/MiB: Ein Datenträger, den der Hersteller
+     * mit 500 GB bewirbt, meldet sich beim Kernel mit 465 GiB, und wer beide
+     * Einheiten mischt, erklärt die Differenz später jedem Kunden einzeln.
+     */
+    private function bytes(int $value): string
+    {
+        $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+        $size = (float) $value;
+        $step = 0;
+
+        while ($size >= 1024 && $step < count($units) - 1) {
+            $size /= 1024;
+            $step++;
+        }
+
+        return number_format($size, $step === 0 ? 0 : 1, ',', '.').' '.$units[$step];
     }
 
     /** @param array{has:bool,points:list<array{x:float,y:float,t:string,v:string}>} $series */

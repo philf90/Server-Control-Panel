@@ -9,7 +9,7 @@ Type=simple
 User=srvpanel
 Group=srvpanel
 WorkingDirectory=/opt/srvpanel/current
-ExecStart=/opt/srvpanel/bin/php artisan queue:work --queue=vorgaenge,standard --sleep=1 --tries=1 --max-time=3600
+ExecStart=/opt/srvpanel/bin/php artisan queue:work --queue=operations,default --sleep=1 --tries=1 --max-time=3600
 Restart=always
 RestartSec=5s
 

@@ -37,7 +37,23 @@ final class RunAgentOperation implements ShouldQueue
     /** Der Vorgang darf länger dauern als eine Anfrage — aber nicht endlos. */
     public int $timeout = 1800;
 
-    public function __construct(private readonly int $operationId) {}
+    /**
+     * Eine eigene Warteschlange, und zwar ausdrücklich.
+     *
+     * Ein Vorgang darf eine halbe Stunde dauern. Läge er in derselben
+     * Warteschlange wie alles Kurze — eine Mail, ein Aufräumen —, stünde das
+     * hinter ihm und wartete. Der Name steht hier und in
+     * packaging/systemd/srvpanel-worker.service; dass beide übereinstimmen,
+     * prüft tests/Feature/PackagingTest.php. Ohne diese Prüfung wären es zwei
+     * Zeichenketten an zwei Orten, und ein Auftrag, den kein Arbeiter abholt,
+     * sieht in der Oberfläche aus wie einer, der noch wartet.
+     */
+    public const QUEUE = 'operations';
+
+    public function __construct(private readonly int $operationId)
+    {
+        $this->onQueue(self::QUEUE);
+    }
 
     public function handle(Client $agent, Tenancy $tenancy): void
     {

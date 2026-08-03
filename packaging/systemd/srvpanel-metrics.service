@@ -9,7 +9,7 @@ Type=simple
 User=srvpanel
 Group=srvpanel
 WorkingDirectory=/opt/srvpanel/current
-ExecStart=/opt/srvpanel/bin/php artisan srvpanel:kennzahlen
+ExecStart=/opt/srvpanel/bin/php artisan srvpanel:metrics
 Restart=always
 RestartSec=5s
 

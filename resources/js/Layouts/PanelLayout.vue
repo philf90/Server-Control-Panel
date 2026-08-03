@@ -224,7 +224,7 @@ nav {
   color: var(--text);
 }
 
-.item.an {
+.item.active {
   background: var(--surface);
   color: var(--accent);
   box-shadow: inset 2px 0 0 var(--accent);

@@ -62,6 +62,30 @@ Drei Dinge, ohne die sich eine Schublade falsch anfühlt:
 Die Seitenüberschrift steht in der Kopfzeile und darunter nicht noch einmal.
 Die Beizeile bleibt — sie sagt etwas anderes.
 
+### Das Gerüst ist unter 720px eine Spalte und kein Raster
+
+Auf der breiten Fläche ist `.frame` ein Raster: Seitenleiste links, Inhalt
+rechts, und darüber, über die volle Breite, das Band aus §6.3. Auf der schmalen
+Fläche blieb es zunächst ein Raster mit einer Spalte und zwei Zeilen — `auto`
+für die Kopfzeile, `1fr` für den Inhalt.
+
+**Das ging genau so lange, wie es zwei Kinder im Fluss gab.** Wer in die Sicht
+eines Kunden wechselt, bekommt das Band dazu, und damit sind es drei: Band in
+Zeile eins, **Kopfzeile in die `1fr`-Zeile** — und die nimmt sich allen übrigen
+Platz. Auf einem Telefon mit 844px Höhe war die Kopfzeile 591px hoch, zwischen
+Band und Seitentitel stand eine leere schwarze Fläche, und der Inhalt landete in
+einer Zeile, die es im Raster gar nicht gab. Am Schreibtisch sieht man das nie:
+Dort gilt die Regel nicht, und ohne „Anmelden als" gibt es das dritte Kind
+nicht.
+
+Eine dritte Zeile wäre die falsche Antwort — dann zählt man Kinder, und beim
+nächsten Band zählt jemand falsch. Unter 720px gibt es eine Spalte, und die
+Schublade steht ohnehin `fixed`: Gebraucht wird ein Flexcontainer von oben nach
+unten. Der hat keine Zeilen, die man verzählen könnte.
+
+`MobileLayoutTest` hält es fest: `.frame` ist unter 720px `display: flex` und
+setzt keine `grid-template-rows`.
+
 ## 5. Tabellen: zwei Muster, und nur diese zwei
 
 Eine Tabelle mit sechs Spalten ist auf 390px keine Tabelle mehr. Welches

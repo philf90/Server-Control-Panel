@@ -454,9 +454,30 @@ h1 {
  * jemand einen neuen Menüpunkt vergisst.
  */
 @media (max-width: 720px) {
+  /*
+   * **Hier stand `grid-template-columns: 1fr`, und das Gerüst blieb ein
+   * Raster mit zwei Zeilen.** Das ging genau so lange gut, wie es zwei Kinder
+   * im Fluss gab: Kopfzeile in die `auto`-Zeile, Inhalt in die `1fr`-Zeile.
+   *
+   * Beim Wechsel in die Sicht eines Kunden kommt das Band dazu, und damit
+   * sind es drei. Sie verteilen sich der Reihe nach: Band in Zeile eins,
+   * **Kopfzeile in die `1fr`-Zeile** — und die nimmt sich allen übrigen Platz.
+   * Auf einem Telefon mit 844px Höhe war die Kopfzeile damit 591px hoch, und
+   * der Inhalt begann darunter in einer Zeile, die es im Raster gar nicht
+   * gibt. Zu sehen war eine leere schwarze Fläche zwischen Band und
+   * „Übersicht".
+   *
+   * Die Antwort ist nicht eine dritte Zeile — dann zählt man Kinder, und beim
+   * nächsten Band zählt jemand falsch. Auf der schmalen Fläche gibt es nur
+   * eine Spalte, und die Schublade steht ohnehin `fixed`: Was hier gebraucht
+   * wird, ist eine Spalte von oben nach unten. Das ist ein Flexcontainer, und
+   * der hat keine Zeilen, die man verzählen könnte.
+   */
   .frame {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
   }
+
 
   .topbar {
     display: flex;
@@ -549,6 +570,9 @@ h1 {
   }
 
   .content {
+    /* Nimmt, was übrig ist — vorher tat das die `1fr`-Zeile des Rasters. */
+    flex: 1;
+    min-width: 0;
     padding: 14px 12px 24px;
     padding-bottom: calc(24px + env(safe-area-inset-bottom));
   }

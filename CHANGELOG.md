@@ -367,6 +367,16 @@ einzelnen Ausbaustufe.
   daneben; wer ihn herausfiltert, lässt jemanden nach einem Kunden suchen, den
   er gestern angelegt hat. Die Anmeldung bleibt offen: Ein gesperrter Kunde
   soll sehen, warum nichts mehr geht.
+- **Das Gerüst der schmalen Fläche ist eine Spalte** (`docs/24 §4`). Es war
+  unter 720px weiterhin ein Raster mit `auto 1fr` — Kopfzeile oben, Inhalt
+  darunter —, und das ging, solange es zwei Kinder im Fluss gab. Beim Wechsel
+  in die Sicht eines Kunden kommt das Band dazu: Dann rutscht die **Kopfzeile**
+  in die `1fr`-Zeile und nimmt sich allen übrigen Platz. Auf einem Telefon mit
+  844px Höhe war sie 591px hoch, zwischen Band und Seitentitel stand eine leere
+  schwarze Fläche, und der Inhalt landete in einer Zeile, die es im Raster gar
+  nicht gab. Eine dritte Zeile wäre die falsche Antwort gewesen — dann zählt
+  man Kinder. Unter 720px gibt es eine Spalte, und eine Spalte hat nichts zu
+  zählen. `MobileLayoutTest` lässt dort kein `grid-template-rows` mehr durch.
 - **Die Erfolgsmeldung steht im Gerüst und nicht auf jeder Seite.** Sie kam
   bisher von drei Seiten selbst, der Rest warf sie weg — wer einen Kunden
   sperrte, bekam als einzige Rückmeldung einen anders beschrifteten Knopf,

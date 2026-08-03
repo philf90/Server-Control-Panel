@@ -188,6 +188,55 @@ final class MobileLayoutTest extends TestCase
         $this->assertGreaterThan(10, $cells, 'Es werden kaum Zellen gefunden — dann prüft dieser Test nichts.');
     }
 
+    /**
+     * Das Gerüst der schmalen Fläche ist eine Spalte und kein Raster.
+     *
+     * **Der Fehler, den das festhält, hing von einem Kind ab.** Das Gerüst war
+     * unter 720px weiterhin ein Raster mit `grid-template-rows: auto 1fr` —
+     * Kopfzeile oben, Inhalt darunter. Das ging, solange es zwei Kinder im
+     * Fluss gab. Beim Wechsel in die Sicht eines Kunden kommt das Band dazu,
+     * und damit rutscht die **Kopfzeile** in die `1fr`-Zeile und nimmt sich
+     * allen übrigen Platz: Auf einem Telefon mit 844px Höhe war sie 591px
+     * hoch, und zwischen Band und Seitentitel stand eine leere schwarze
+     * Fläche. Der Inhalt landete in einer Zeile, die es im Raster gar nicht
+     * gab.
+     *
+     * Am Schreibtisch sieht man das nie — dort gilt die Regel nicht, und ohne
+     * „Anmelden als" gibt es das dritte Kind nicht.
+     *
+     * Eine dritte Zeile wäre die falsche Antwort gewesen: Dann zählt man
+     * Kinder, und beim nächsten Band zählt jemand falsch. Auf einer Spalte
+     * gibt es nichts zu zählen.
+     */
+    public function test_the_narrow_frame_is_a_column_and_not_a_grid(): void
+    {
+        $layout = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/Layouts/PanelLayout.vue');
+        $layout = (string) preg_replace('#/\*.*?\*/#su', '', $layout);
+
+        if (preg_match('/@media\s*\(\s*max-width:\s*720px\s*\)\s*\{(.*)\n\}/su', $layout, $match) !== 1) {
+            $this->fail('In PanelLayout.vue steht kein @media (max-width: 720px) mehr.');
+        }
+
+        if (preg_match('/(^|\})\s*\.frame\s*\{([^}]*)\}/s', $match[1], $frame) !== 1) {
+            $this->fail('Unter 720px gibt es keine Regel für .frame mehr.');
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/display\s*:\s*flex/',
+            $frame[2],
+            'Das Gerüst der schmalen Fläche muss eine Spalte sein (display: flex). Ein Raster mit '.
+            'festen Zeilen hängt davon ab, wie viele Kinder gerade da sind — und das Band von '.
+            '„Anmelden als" ist eines davon.',
+        );
+
+        $this->assertSame(
+            0,
+            preg_match('/grid-template-rows/', $frame[2]),
+            'Unter 720px setzt .frame wieder Rasterzeilen. Damit hängt die Höhe der Kopfzeile daran, '.
+            'ob gerade jemand in der Sicht eines Kunden arbeitet.',
+        );
+    }
+
     public function test_input_fields_use_the_zoom_safe_size(): void
     {
         // Ein Feld mit --text-body ist ein Feld, das Safari beim Fokus

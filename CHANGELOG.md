@@ -57,6 +57,34 @@ anderes Produkt und zählt neu.
   postinstall-Skript räumt außerdem Fassungen ab, die nicht mehr in Gebrauch
   sind: dpkg entfernt beim Update nur seine eigenen Dateien, und was zur
   Laufzeit entstand, hielt das alte Verzeichnis am Leben.
+- **Passwortrichtlinie an einer Stelle** (`docs/22`). Die Regel stand dreifach
+  da: als `min:12` im Controller, als Längenprüfung im Kommando `srvpanel:admin`
+  und als Satz unter dem Feld. Jetzt kommt alles aus
+  `App\Support\Passwords\Policy` — Validierung, Kommandozeile und, über
+  Inertia, die Prüfliste im Browser. `PasswordFields.vue` zeigt je Anforderung
+  Haken oder Kreuz, dazu eine Stärkeschätzung, einen Knopf zum Erzeugen (im
+  Browser, über `crypto.getRandomValues`) und ein Augensymbol. Bis dahin war
+  „mindestens zwölf Zeichen" die ganze Richtlinie; `passwortpasswort` erfüllte
+  sie.
+- **Die Kundennummer vergibt der Server.** Sie ist der Bezeichner, unter dem der
+  Kunde in Rechnungen und Verzeichnisnamen auftaucht — als freies Feld konnte
+  sie doppelt vergeben werden oder einen Schrägstrich enthalten. Im Formular
+  steht sie schreibgeschützt als Vorschau. Das Firmenfeld ist entfernt.
+- **Kunden werden zurückgezogen, nicht gelöscht.** Ein `DELETE` gäbe die
+  Kundennummer wieder frei, und der nächste Kunde bekäme sie — danach trügen
+  zwei Vertragspartner in zwei Rechnungen dieselbe. Die Zeile bleibt mit
+  `deleted_at` stehen, der eindeutige Index gilt weiter für sie, und die Vergabe
+  fragt als einzige Stelle im Panel `withTrashed()`. Die Anmeldung weist Konten
+  eines zurückgezogenen Kunden ab: Ohne das käme ein gekündigter Kunde weiter
+  herein und sähe nichts — was wie ein Fehler aussieht und keine Kündigung ist.
+- **Wortwahl wieder mechanisch geprüft** (`WordChoiceTest`). Die Vorgabe aus
+  `docs/19` hatte einen Test, und der ist beim Repo-Übergang mit dem Go-Code
+  verschwunden. Neun Monate später stand im Aufgabenkatalog „Fragt den Agenten
+  nach seiner Fassung". Die Beschreibungen der Vorgänge nennen jetzt Operation,
+  Unit und Wirkung.
+- **Abstände zwischen den Bereichen** der Übersicht als Dichte-Marken. Die
+  Abschnittsüberschriften standen ohne Abstand nach oben unter der vorigen
+  Tabelle — jede war damit näher an dem, wozu sie nicht gehörte.
 - **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
   Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
   `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im

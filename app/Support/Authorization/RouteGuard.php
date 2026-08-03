@@ -51,7 +51,7 @@ final class RouteGuard
         return [
             'GET login' => [
                 'kind' => self::OPEN,
-                'reason' => 'Die Anmeldemaske. Sie zeigt nichts über den Server — keine Fassung, keinen Rechnernamen, keine Kundenzahl.',
+                'reason' => 'Die Anmeldemaske. Sie zeigt nichts über den Server — keine Version, keinen Hostnamen, keine Kundenzahl.',
             ],
             'POST login' => [
                 'kind' => self::OPEN,
@@ -67,7 +67,7 @@ final class RouteGuard
             ],
             'POST impersonation/stop' => [
                 'kind' => self::AUTHENTICATED,
-                'reason' => 'Der Rückweg aus „Anmelden als". Bewusst ohne Policy: Wer in fremder Sicht ist, ist in diesem Moment ein Kundenkonto und hätte die Fähigkeit impersonate nicht mehr — die Prüfung stünde ihm ausgerechnet beim Zurückkommen im Weg. Ohne laufenden Wechsel tut die Route nichts.',
+                'reason' => 'Die Rückkehr aus „Anmelden als". Bewusst ohne Policy: Wer in fremder Sicht ist, ist in diesem Moment ein Kundenkonto und hätte die Fähigkeit impersonate nicht mehr — die Prüfung stünde ihm ausgerechnet beim Zurückkommen im Weg. Ohne laufenden Wechsel tut die Route nichts.',
             ],
             'GET two-factor' => [
                 'kind' => self::OPEN,
@@ -91,7 +91,7 @@ final class RouteGuard
             ],
             'GET health' => [
                 'kind' => self::OPEN,
-                'reason' => 'Die Bereitschaftsprüfung läuft, während das Paket umschaltet — da ist niemand angemeldet. Sie gibt Fassungsnummern und einen Bereitschaftszustand heraus, sonst nichts.',
+                'reason' => 'Die Bereitschaftsprüfung läuft, während das Paket umschaltet — da ist niemand angemeldet. Sie gibt Versionsnummern und einen Bereitschaftszustand heraus, sonst nichts.',
             ],
             'GET up' => [
                 'kind' => self::OPEN,

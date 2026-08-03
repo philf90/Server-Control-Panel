@@ -38,27 +38,41 @@ enum Task: string
     case WebserverCheck = 'webserver.check';
     case WebserverReload = 'webserver.reload';
 
+    /**
+     * Beschriftung und Beschreibung sind Text, den ein Browser anzeigt — für
+     * sie gilt docs/19: technisch vor literarisch.
+     *
+     * Hier stand vorher „Agent ansprechen" und „Fragt den Agenten nach seiner
+     * Fassung. Der kürzeste Weg festzustellen, ob der Weg vom Panel bis in das
+     * System offen ist." Beides ist korrektes Deutsch und sagt einer Fachperson
+     * nichts: Weder welche Operation läuft, noch gegen welche Unit, noch was
+     * danach anders ist. „Fassung" steht dazu auf der Liste der verbrauchten
+     * Wörter in docs/19 §3 — es heißt Version.
+     *
+     * Der Maßstab für jede Zeile hier: Wer sie liest, weiß, welcher Befehl auf
+     * dem Server ankommt.
+     */
     public function label(): string
     {
         return match ($this) {
-            self::AgentPing => 'Agent ansprechen',
-            self::AgentStatus => 'Zustand des Agenten',
-            self::WorkerStatus => 'Zustand der Warteschlange',
-            self::WebserverStatus => 'Zustand des Webservers',
-            self::WebserverCheck => 'Konfiguration des Webservers prüfen',
-            self::WebserverReload => 'Webserver neu einlesen',
+            self::AgentPing => 'Agent anpingen',
+            self::AgentStatus => 'Status srvpanel-agentd',
+            self::WorkerStatus => 'Status srvpanel-worker',
+            self::WebserverStatus => 'Status nginx',
+            self::WebserverCheck => 'nginx-Konfiguration prüfen',
+            self::WebserverReload => 'nginx neu laden',
         };
     }
 
     public function description(): string
     {
         return match ($this) {
-            self::AgentPing => 'Fragt den Agenten nach seiner Fassung. Der kürzeste Weg festzustellen, ob der Weg vom Panel bis in das System offen ist.',
-            self::AgentStatus => 'Liest den Zustand von srvpanel-agentd.service. Läuft er nicht, tut kein Vorgang etwas.',
-            self::WorkerStatus => 'Liest den Zustand von srvpanel-worker.service. Steht er, bleiben Vorgänge auf „wartet" stehen.',
-            self::WebserverStatus => 'Liest den Zustand von nginx.service.',
-            self::WebserverCheck => 'Lässt nginx seine eigene Konfiguration prüfen, ohne sie zu übernehmen.',
-            self::WebserverReload => 'Lässt nginx die Konfiguration neu einlesen. Bestehende Verbindungen laufen weiter.',
+            self::AgentPing => 'agent.ping über den Unix-Socket des Agenten. Antwortet er mit seiner Version, ist die Kette Panel → Warteschlange → Worker → Agent durchgängig.',
+            self::AgentStatus => 'service.status auf srvpanel-agentd.service. Liefert ActiveState, SubState und PID des Agenten — ohne ihn führt kein Vorgang etwas aus.',
+            self::WorkerStatus => 'service.status auf srvpanel-worker.service. Der Worker holt die Vorgänge aus der Queue „operations"; steht er, bleiben sie im Status „wartet".',
+            self::WebserverStatus => 'service.status auf nginx.service. Liefert ActiveState, SubState und PID.',
+            self::WebserverCheck => 'nginx -t gegen /etc/nginx/nginx.conf. Prüft Syntax und alle per include eingebundenen Dateien, ohne die Konfiguration zu aktivieren.',
+            self::WebserverReload => 'systemctl reload nginx.service. Der Master-Prozess liest die Konfiguration neu und startet neue Worker; bestehende Verbindungen laufen auf den alten aus.',
         };
     }
 

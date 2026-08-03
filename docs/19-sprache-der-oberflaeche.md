@@ -73,10 +73,16 @@ etwas geschieht.
 
 ## 3. Die Liste der verbrauchten Wörter
 
-Verbindlich, weil mechanisch geprüft: `internal/ui/wortwahl_test.go` liest die
-Werte aus `web/src/lib/texte.ts` und — über `go/ast`, damit Kommentare außen vor
-bleiben — die Zeichenkettenliterale aus `internal/httpd`, `internal/privops`,
-`internal/update` und `internal/acme`.
+Verbindlich, weil mechanisch geprüft: `tests/Feature/WordChoiceTest.php` liest
+den `<template>`-Block jeder Vue-Datei unter `resources/js` ohne
+HTML-Kommentare und — über `token_get_all`, damit Kommentare außen vor bleiben —
+die Zeichenkettenliterale aus `app/`.
+
+Bis August 2026 stand hier `internal/ui/wortwahl_test.go`. Dieser Test ist beim
+Repo-Übergang mit dem Go-Code verschwunden, die Vorgabe blieb stehen. Neun
+Monate später stand im Aufgabenkatalog der Vorgangsseite „Fragt den Agenten nach
+seiner Fassung" — gefunden hat es kein Lauf, sondern der erste Mensch, der
+hingesehen hat. Ein Dokument ohne Prüfung ist eine Absichtserklärung.
 
 | Verbraucht | Stattdessen | Wo es stand |
 |---|---|---|
@@ -130,8 +136,11 @@ die Antwort.
 Ein neuer Eintrag in der Liste gehört an drei Stellen gleichzeitig:
 
 1. die Tabelle in Abschnitt 3,
-2. `verbrauchteWoerter` in `internal/ui/wortwahl_test.go`,
+2. `words()` in `tests/Feature/WordChoiceTest.php`,
 3. der Ersatz an allen Fundstellen — der Test nennt sie.
+
+Die ersten beiden prüfen sich gegenseitig: `test_the_list_matches_the_document`
+schlägt an, wenn ein Wort nur noch an einer der beiden Stellen steht.
 
 Ein Wort landet dort nicht, weil es jemandem missfällt, sondern weil es im Panel
 schon einmal falsch stand. Die Liste ist ein Protokoll und keine Stilrichtlinie

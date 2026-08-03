@@ -177,7 +177,7 @@ final class OperationTaskTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Operations/Show')
-                ->where('operation.label', 'Zustand des Agenten')
+                ->where('operation.label', 'Status srvpanel-agentd')
                 ->where('operation.payload.unit', 'srvpanel-agentd.service')
                 ->where('operation.output', "systemctl show\n")
             );

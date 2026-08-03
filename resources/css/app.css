@@ -84,13 +84,28 @@
   --focus: #005ea8;
 }
 
-/* Dichte. Die Werte sind die Tabelle aus §7.2 und stehen sonst nirgends. */
+/*
+ * Dichte. Die Werte sind die Tabelle aus §7.2 und stehen sonst nirgends.
+ *
+ * `--block-gap` und `--block-heading-gap` kommen aus einer Durchsicht der
+ * Übersicht: Die Abschnittsüberschriften standen ohne Abstand nach oben direkt
+ * unter der vorigen Tabelle und mit 9px Abstand über ihrer eigenen. Damit war
+ * jede Überschrift näher an dem, wozu sie *nicht* gehört. Der Abstand über
+ * einer Überschrift muss deutlich größer sein als der darunter, sonst
+ * entscheidet der Lesende raten, was zusammengehört.
+ *
+ * Als Marken und nicht je Seite: Dieselbe Gliederung kommt in jedem Modul
+ * wieder, und ein Wert, der an fünf Stellen steht, steht nach dem dritten
+ * Modul in fünf Fassungen da.
+ */
 :root,
 :root[data-density='admin'] {
   --row-height: 34px;
   --gap: 10px;
   --padding: 12px 13px 10px;
   --tile-columns: 4;
+  --block-gap: 26px;
+  --block-heading-gap: 8px;
 }
 
 :root[data-density='customer'] {
@@ -98,6 +113,8 @@
   --gap: 16px;
   --padding: 16px 17px 14px;
   --tile-columns: 3;
+  --block-gap: 36px;
+  --block-heading-gap: 10px;
 }
 
 * {

@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
@@ -28,19 +29,21 @@ final class PanelWalkthroughTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Erfüllt docs/22 — die Richtlinie gilt beim Anlegen, nicht beim Anmelden. */
+    private const PASSWORD = 'Ein-langes-Passwort9';
+
     public function test_the_operator_creates_a_customer_who_then_signs_in(): void
     {
         $admin = Account::factory()->admin()->create();
 
         // 1. Der Admin legt einen Kunden an — mit Anmeldekonto.
         $this->actingAs($admin)->post('/customers', [
-            'number' => 'K10001',
             'first_name' => 'Erika',
             'last_name' => 'Mustermann',
             'email' => 'erika@example.test',
             'login_email' => 'erika@example.test',
-            'password' => 'ein-langes-passwort',
-            'password_confirmation' => 'ein-langes-passwort',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
         ])->assertRedirect('/customers');
 
         $customer = Customer::query()->where('number', 'K10001')->firstOrFail();
@@ -53,7 +56,7 @@ final class PanelWalkthroughTest extends TestCase
         $this->post('/logout');
         $this->post('/login', [
             'email' => 'erika@example.test',
-            'password' => 'ein-langes-passwort',
+            'password' => self::PASSWORD,
         ])->assertRedirect('/');
 
         $this->assertAuthenticatedAs($account);
@@ -71,16 +74,163 @@ final class PanelWalkthroughTest extends TestCase
         // zurücklassen, sonst ist die Nummer verbraucht und niemand kann sich
         // anmelden.
         $this->actingAs($admin)->post('/customers', [
-            'number' => 'K10002',
             'first_name' => 'Max',
             'last_name' => 'Mustermann',
             'email' => 'max@example.test',
             'login_email' => 'belegt@example.test',
-            'password' => 'ein-langes-passwort',
-            'password_confirmation' => 'ein-langes-passwort',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
         ])->assertSessionHasErrors('login_email');
 
-        $this->assertNull(Customer::query()->where('number', 'K10002')->first());
+        // Vorher stand hier eine Prüfung auf die Nummer aus dem Formular. Die
+        // vergibt jetzt der Server; geprüft wird deshalb, dass überhaupt kein
+        // Kunde entstanden ist — das ist ohnehin die schärfere Aussage, denn
+        // sie hinge nicht daran, unter welcher Nummer ein Rest liegenbliebe.
+        $this->assertSame(0, Customer::query()->count());
+    }
+
+    public function test_the_customer_number_comes_from_the_server(): void
+    {
+        $admin = Account::factory()->admin()->create();
+
+        // Was im Formular steht, ist eine Vorschau. Geschickt wird es nicht —
+        // und wer es trotzdem schickt, bekommt es nicht.
+        $this->actingAs($admin)->post('/customers', [
+            'number' => 'K99999',
+            'first_name' => 'Erika',
+            'last_name' => 'Mustermann',
+            'email' => 'erika@example.test',
+            'login_email' => 'erika@example.test',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
+        ])->assertRedirect('/customers');
+
+        $this->assertSame('K10001', Customer::query()->sole()->number);
+    }
+
+    public function test_the_next_number_beats_the_highest_and_not_the_newest(): void
+    {
+        // Die hohe Nummer bekommt die niedrige ID: So sieht ein Bestand aus,
+        // in dem jemand die Nummer einmal von Hand gesetzt hat — möglich war
+        // das, solange sie im Formular stand.
+        //
+        // Die alte Vergabe las die Nummer des jüngsten Datensatzes und käme
+        // hier auf K10002. Die neue nimmt das Maximum.
+        Customer::factory()->create(['number' => 'K90000']);
+        Customer::factory()->create(['number' => 'K10001']);
+
+        $admin = Account::factory()->admin()->create();
+
+        $this->actingAs($admin)->post('/customers', [
+            'first_name' => 'Max',
+            'last_name' => 'Mustermann',
+            'email' => 'max@example.test',
+            'login_email' => 'max@example.test',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
+        ])->assertRedirect('/customers');
+
+        $this->assertNotNull(
+            Customer::query()->where('number', 'K90001')->first(),
+            'Die nächste Nummer folgt der höchsten vergebenen, nicht der zuletzt angelegten.',
+        );
+    }
+
+    public function test_a_withdrawn_customer_keeps_its_number(): void
+    {
+        // Der Kern des Soft-Deletes. Trüge eine Rechnung die K10001 und bekäme
+        // der nächste Kunde sie erneut, stünden zwei Vertragspartner unter
+        // derselben Nummer — und beim Nachsehen findet man einen davon.
+        Customer::factory()->create(['number' => 'K10001'])->delete();
+
+        $admin = Account::factory()->admin()->create();
+
+        $this->actingAs($admin)->post('/customers', [
+            'first_name' => 'Max',
+            'last_name' => 'Mustermann',
+            'email' => 'max@example.test',
+            'login_email' => 'max@example.test',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
+        ])->assertRedirect('/customers');
+
+        $this->assertNotNull(
+            Customer::query()->where('number', 'K10002')->first(),
+            'Die Nummer eines zurückgezogenen Kunden bleibt verbraucht.',
+        );
+    }
+
+    public function test_a_withdrawn_customer_disappears_from_the_panel(): void
+    {
+        $customer = Customer::factory()->create();
+        $admin = Account::factory()->admin()->create();
+
+        $customer->delete();
+
+        // Nicht ausgeblendet, sondern nicht gefunden: Die Bindung in der Route
+        // sieht zurückgezogene Kunden nicht, und das ist ein 404 und kein 403.
+        // Ein 403 wäre die Auskunft, dass es ihn gibt.
+        $this->actingAs($admin)->get("/customers/{$customer->id}")->assertNotFound();
+
+        $this->actingAs($admin)->get('/customers')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('customers.total', 0));
+    }
+
+    public function test_an_account_of_a_withdrawn_customer_cannot_sign_in(): void
+    {
+        $customer = Customer::factory()->create();
+        $account = Account::factory()->customer($customer)->withoutTwoFactor()->create([
+            'password' => Hash::make(self::PASSWORD),
+        ]);
+
+        $customer->delete();
+
+        // Das Konto bleibt stehen, mit gültigem Passwort und Status „aktiv".
+        // Ohne die Prüfung in der Anmeldung käme der gekündigte Kunde weiter
+        // herein — er sähe zwar nichts, aber „kommt rein und sieht nichts" ist
+        // keine Kündigung, sondern ein Fehler, der wie einer aussieht.
+        $this->post('/login', [
+            'email' => $account->email,
+            'password' => self::PASSWORD,
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_an_admin_still_signs_in_when_customers_are_withdrawn(): void
+    {
+        // Die Gegenprobe. Ein Adminkonto hat keinen Kunden; die neue Prüfung
+        // darf es nicht treffen.
+        Customer::factory()->create()->delete();
+
+        $admin = Account::factory()->admin()->withoutTwoFactor()->create([
+            'password' => Hash::make(self::PASSWORD),
+        ]);
+
+        $this->post('/login', [
+            'email' => $admin->email,
+            'password' => self::PASSWORD,
+        ])->assertRedirect('/');
+
+        $this->assertAuthenticatedAs($admin);
+    }
+
+    public function test_a_weak_password_does_not_create_a_customer(): void
+    {
+        $admin = Account::factory()->admin()->create();
+
+        // Zwölf Zeichen und sonst nichts. Das war bis docs/22 die ganze Regel.
+        $this->actingAs($admin)->post('/customers', [
+            'first_name' => 'Erika',
+            'last_name' => 'Mustermann',
+            'email' => 'erika@example.test',
+            'login_email' => 'erika@example.test',
+            'password' => 'passwortpasswort',
+            'password_confirmation' => 'passwortpasswort',
+        ])->assertSessionHasErrors('password');
+
+        $this->assertSame(0, Customer::query()->count());
     }
 
     public function test_a_customer_does_not_see_the_operator_pages(): void

@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Account;
 use App\Support\Audit\Impersonation;
+use App\Support\Passwords\Policy;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -51,6 +52,18 @@ final class HandleInertiaRequests extends Middleware
             // Admin, der vergisst, in wessen Sicht er ist, tut sonst im Namen
             // eines Kunden Dinge, die er für seine eigenen hält.
             'impersonation' => $this->impersonation($request),
+
+            // Die Passwortrichtlinie steht auf jeder Seite bereit, weil ein
+            // Passwortfeld überall auftauchen kann — beim Anlegen eines
+            // Kunden, beim Ändern des eigenen, später beim Zurücksetzen. Sie
+            // hier zu teilen ist billiger als jede Seite daran zu erinnern,
+            // und sie kommt aus derselben Klasse wie die Validierung: Was der
+            // Browser als Prüfliste zeigt, ist damit keine Behauptung über die
+            // Regeln, sondern die Regeln.
+            'passwordPolicy' => [
+                'minimum' => Policy::MINIMUM_LENGTH,
+                'requirements' => Policy::requirements(),
+            ],
 
             'flash' => [
                 'notice' => fn () => $request->session()->get('notice'),

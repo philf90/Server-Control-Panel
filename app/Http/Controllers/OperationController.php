@@ -108,6 +108,44 @@ final class OperationController extends Controller
         return redirect()->route('operations.show', $operation);
     }
 
+    /**
+     * Einen Vorgang abbrechen.
+     *
+     * **Hier wird gebeten, nicht vollstreckt.** Der Vorgang läuft im Arbeiter,
+     * das Programm auf dem Server läuft im Agenten — beides andere Prozesse,
+     * die diese Anfrage nicht anhalten kann. Sie vermerkt den Wunsch; der
+     * Arbeiter sieht ihn beim nächsten Warten auf den Agenten, schließt die
+     * Verbindung, und der Agent beendet daraufhin das Programm.
+     *
+     * Der Zustand „abgebrochen" wird deshalb *nicht* hier gesetzt. Er stünde
+     * in der Datenbank, während das Programm weiterläuft — eine Auskunft, die
+     * zum Zeitpunkt ihrer Anzeige nicht stimmt. Wer den Knopf drückt, sieht
+     * „Abbruch angefordert", bis es zutrifft.
+     *
+     * Ein Vorgang, der noch wartet, ist die Ausnahme: Da gibt es nichts zu
+     * beenden, und der Arbeiter macht daraus einen sofortigen Abbruch, sobald
+     * er den Auftrag anfasst.
+     */
+    public function cancel(Request $request, Operation $operation, Audit $audit): RedirectResponse
+    {
+        if (! $operation->open()) {
+            // Zwischen dem Anzeigen der Seite und dem Klick können Sekunden
+            // liegen. Ein fertiger Vorgang ist kein Fehler des Benutzers.
+            return redirect()->route('operations.show', $operation);
+        }
+
+        if ($operation->cancel_requested_at === null) {
+            $operation->forceFill([
+                'cancel_requested_at' => now(),
+                'cancelled_by' => $this->account($request)->id,
+            ])->save();
+
+            $audit->success('operation.cancelled', $operation);
+        }
+
+        return redirect()->route('operations.show', $operation);
+    }
+
     public function show(Operation $operation): Response
     {
         return Inertia::render('Operations/Show', [
@@ -141,6 +179,9 @@ final class OperationController extends Controller
             'account' => $operation->account?->name,
             'started_at' => $operation->started_at?->toDateTimeString(),
             'finished_at' => $operation->finished_at?->toDateTimeString(),
+            // Angefordert, nicht vollzogen — solange der Vorgang noch offen
+            // ist, ist das der ehrliche Zwischenzustand.
+            'cancel_requested' => $operation->cancel_requested_at !== null,
         ];
     }
 

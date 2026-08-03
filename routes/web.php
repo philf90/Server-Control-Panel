@@ -77,6 +77,14 @@ Route::middleware('auth')->group(function (): void {
         ->name('operations.show');
 
     /*
+     * Abbrechen darf, wer den Vorgang sieht — er hat ihn in aller Regel selbst
+     * ausgelöst. Die Policy prüft zusätzlich, dass er überhaupt noch offen ist.
+     */
+    Route::post('/operations/{operation}/cancel', [OperationController::class, 'cancel'])
+        ->middleware('can:cancel,operation')
+        ->name('operations.cancel');
+
+    /*
      * Die Live-Ausgabe eines Vorgangs.
      *
      * Die erste Route mit einer Policy an der Aktion statt einer Eintragung

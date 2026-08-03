@@ -60,6 +60,7 @@ final class Connection
                 new Runner($this->journal),
                 $this->journal,
                 fn (array $line) => $this->send($line),
+                fn (): bool => Peer::gone($this->socket),
             );
 
             $data = $op->execute($request['args'], $context);

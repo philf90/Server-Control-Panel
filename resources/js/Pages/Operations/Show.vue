@@ -7,7 +7,7 @@
  * PHP-FPM-Arbeiter für nichts. Die Ausgabe steht dann schon vollständig in den
  * Eigenschaften der Seite.
  */
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import { useOperationStream } from '../../Composables/useOperationStream'
@@ -24,6 +24,7 @@ interface Operation {
   account: string | null
   started_at: string | null
   finished_at: string | null
+  cancel_requested: boolean
   payload: Record<string, unknown> | null
   result: Record<string, unknown> | null
   output: string
@@ -43,6 +44,20 @@ const label = computed(() => live?.state.value?.label ?? props.operation.status_
 const progress = computed(() => live?.state.value?.progress ?? props.operation.progress)
 const message = computed(() => live?.state.value?.message ?? props.operation.message)
 
+const open = computed(() => live?.state.value?.open ?? props.operation.open)
+
+// Der Wunsch bleibt stehen, bis die Seite neu geladen wird — der Ereignisstrom
+// überträgt ihn nicht, weil er den Zustand des Vorgangs meldet und nicht den
+// Zustand dieses Knopfes.
+const cancelRequested = ref(props.operation.cancel_requested)
+
+function cancel(): void {
+  if (!window.confirm('Diesen Vorgang abbrechen?')) return
+
+  cancelRequested.value = true
+  router.post(`/operations/${props.operation.id}/cancel`, {}, { preserveScroll: true })
+}
+
 const box = ref<HTMLElement | null>(null)
 
 // Mitlaufen lassen, solange etwas kommt. Ohne das müsste beim Zusehen jemand
@@ -58,7 +73,23 @@ watch(output, () => {
   <Head :title="`Vorgang ${props.operation.id}`" />
 
   <PanelLayout :title="props.operation.label" :subline="`Vorgang ${props.operation.id} · ${props.operation.type}`">
-    <p class="zurueck"><Link href="/operations">← Alle Vorgänge</Link></p>
+    <div class="leiste">
+      <Link href="/operations">← Alle Vorgänge</Link>
+
+      <button v-if="open" type="button" :disabled="cancelRequested" @click="cancel">
+        {{ cancelRequested ? 'Abbruch angefordert …' : 'Abbrechen' }}
+      </button>
+    </div>
+
+    <!--
+      Der ehrliche Zwischenzustand. „Abgebrochen" steht erst da, wenn es
+      zutrifft: Zwischen dem Wunsch und dem Ende des Programms auf dem Server
+      liegen ein, zwei Sekunden, und in dieser Zeit läuft es noch.
+    -->
+    <p v-if="cancelRequested && open" class="wartet">
+      Der Abbruch ist angefordert. Der Vorgang endet, sobald der Agent das
+      laufende Programm beendet hat.
+    </p>
 
     <dl class="kopf">
       <div><dt>Zustand</dt><dd :data-status="status">{{ label }}</dd></div>
@@ -84,7 +115,10 @@ watch(output, () => {
 </template>
 
 <style scoped>
-.zurueck { margin: 0 0 var(--gap); font-size: .8rem; }
+.leiste { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 0 var(--gap); font-size: .8rem; }
+.leiste button { padding: .2rem .6rem; font: inherit; font-size: .78rem; color: var(--warn); background: transparent; border: 1px solid var(--warn); border-radius: 5px; cursor: pointer; }
+.leiste button:disabled { color: var(--text-faint); border-color: var(--line); cursor: default; }
+.wartet { margin: 0 0 var(--gap); padding: .5rem .7rem; font-size: .82rem; color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
 .kopf { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 0 0 var(--gap); }
 .kopf dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); }
 .kopf dd { margin: .15rem 0 0; font-size: .85rem; color: var(--text); }

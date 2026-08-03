@@ -51,6 +51,21 @@ final class RunAgentOperation implements ShouldQueue
             return;
         }
 
+        if (! $operation->open()) {
+            // Schon abgeschlossen. Kommt vor, wenn die Warteschlange denselben
+            // Auftrag ein zweites Mal zustellt.
+            return;
+        }
+
+        // Der billige Abbruch: Wer abbricht, während der Vorgang noch wartet,
+        // kommt gar nicht erst an das System. Hier ist der Abbruch vollständig
+        // und sofort — es gibt nichts zu beenden, weil noch nichts läuft.
+        if ($operation->cancel_requested_at !== null) {
+            (new OperationRecorder($operation))->cancel();
+
+            return;
+        }
+
         $recorder = new OperationRecorder($operation);
         $recorder->start();
 
@@ -62,10 +77,21 @@ final class RunAgentOperation implements ShouldQueue
                 function (array $frame) use ($recorder): void {
                     $this->consume($recorder, $frame);
                 },
+                static fn (): bool => $operation->cancelRequested(),
             );
 
             $recorder->succeed($result);
         } catch (AgentException $error) {
+            // Ein Abbruch ist kein Fehlschlag. Er steht hier trotzdem im
+            // catch, weil er über dieselbe Ausnahme kommt: Der Aufruf endet
+            // vorzeitig, und das ist die Form, in der das durch den Aufrufer
+            // hindurchgereicht wird.
+            if ($error->errorCode === AgentException::CANCELLED) {
+                $recorder->cancel();
+
+                return;
+            }
+
             // Der Agent hat geantwortet und abgelehnt. Seine Begründung ist
             // für den Betreiber lesbar und gehört an den Vorgang.
             $recorder->fail($error->getMessage(), ['code' => $error->errorCode]);

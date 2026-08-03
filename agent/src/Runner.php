@@ -63,6 +63,7 @@ final class Runner
      *
      * @param  list<string>  $args
      * @param  null|callable(string,string):void  $onOutput  Erhält Ausgabezeilen, sobald sie anfallen
+     * @param  null|callable():bool  $abort  Wird in der Warteschleife befragt; `true` beendet das Programm
      */
     public function run(
         string $program,
@@ -70,6 +71,7 @@ final class Runner
         int $timeout = 60,
         ?callable $onOutput = null,
         ?string $input = null,
+        ?callable $abort = null,
     ): Result {
         $path = self::PROGRAMS[$program] ?? null;
 
@@ -118,6 +120,7 @@ final class Runner
         $truncated = false;
         $deadline = $startedAt + $timeout;
         $timedOut = false;
+        $aborted = false;
 
         while (true) {
             $read = array_filter([1 => $pipes[1], 2 => $pipes[2]], static fn ($r) => is_resource($r) && ! feof($r));
@@ -128,6 +131,15 @@ final class Runner
 
             if (microtime(true) >= $deadline) {
                 $timedOut = true;
+                break;
+            }
+
+            // Der Abbruch wird in derselben Schleife geprüft wie das
+            // Zeitlimit und danach genauso behandelt: erst SIGTERM, dann
+            // SIGKILL. Ein Abbruch, der das Kind weiterlaufen ließe, wäre
+            // keiner — er hätte nur die Ausgabe abgeschaltet.
+            if ($abort !== null && $abort()) {
+                $aborted = true;
                 break;
             }
 
@@ -165,7 +177,7 @@ final class Runner
             }
         }
 
-        if ($timedOut) {
+        if ($timedOut || $aborted) {
             proc_terminate($process, SIGTERM);
             usleep(300000);
             $status = proc_get_status($process);
@@ -188,7 +200,7 @@ final class Runner
         // ein SIGCHLD-Handler im selben Prozess etwa. Das als „Programm
         // fehlgeschlagen" durchzureichen, hat einmal eine halbe Stunde
         // gekostet; es ist ein Fehler im Agenten und sagt das jetzt auch.
-        if ($code === -1 && ! $timedOut) {
+        if ($code === -1 && ! $timedOut && ! $aborted) {
             $this->journal->write('statusverlust', ['command' => $command]);
 
             throw AgentException::execFailed(sprintf(
@@ -197,12 +209,20 @@ final class Runner
             ));
         }
 
-        $this->journal->command($command, $timedOut ? null : $code, $duration);
+        $this->journal->command($command, $timedOut || $aborted ? null : $code, $duration);
 
         if ($timedOut) {
             throw new AgentException(
                 AgentException::TIMEOUT,
                 sprintf('%s hat das Zeitlimit von %d s überschritten.', $program, $timeout),
+                ['program' => $program],
+            );
+        }
+
+        if ($aborted) {
+            throw new AgentException(
+                AgentException::CANCELLED,
+                sprintf('%s wurde abgebrochen.', $program),
                 ['program' => $program],
             );
         }

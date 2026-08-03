@@ -33,6 +33,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $output
  * @property Carbon|null $started_at
  * @property Carbon|null $finished_at
+ * @property Carbon|null $cancel_requested_at
+ * @property int|null $cancelled_by
  * @property-read Account|null $account
  * @property-read Subscription|null $subscription
  */
@@ -57,6 +59,7 @@ class Operation extends Model
             'result' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
+            'cancel_requested_at' => 'datetime',
         ];
     }
 
@@ -69,5 +72,22 @@ class Operation extends Model
     public function open(): bool
     {
         return $this->status->open();
+    }
+
+    /**
+     * Ist ein Abbruch verlangt worden?
+     *
+     * Frisch aus der Datenbank und an den Filtern vorbei. Beides mit Grund:
+     * Gefragt wird aus dem Arbeiter, während der Vorgang läuft — die Instanz
+     * im Speicher stammt vom Beginn und wüsste von einem Wunsch nichts, der
+     * seither in einer Anfrage gestellt wurde. Und der Arbeiter hat keinen
+     * Mandanten, weshalb der globale Filter hier nichts zu suchen hat.
+     */
+    public function cancelRequested(): bool
+    {
+        return $this->newQueryWithoutScopes()
+            ->whereKey($this->getKey())
+            ->whereNotNull('cancel_requested_at')
+            ->exists();
     }
 }

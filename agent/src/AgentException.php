@@ -29,6 +29,15 @@ final class AgentException extends RuntimeException
 
     public const INTERNAL = 'internal';
 
+    /**
+     * Der Aufrufer ist weggegangen, das Programm wurde abgebrochen.
+     *
+     * Kein Fehler im eigentlichen Sinn, aber ein anderes Ergebnis als Erfolg —
+     * und die Anwendung muss die beiden unterscheiden können, um einen
+     * abgebrochenen Vorgang nicht als fehlgeschlagen auszuweisen.
+     */
+    public const CANCELLED = 'cancelled';
+
     /** @param array<string,mixed> $details */
     public function __construct(
         public readonly string $errorCode,

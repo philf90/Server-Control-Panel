@@ -22,15 +22,32 @@ final class Client
     ) {}
 
     /**
+     * Wie lange höchstens auf ein einzelnes Stück gewartet wird.
+     *
+     * Nicht das Zeitlimit des Aufrufs — das steht in `$this->timeout` und wird
+     * unten mitgeführt. Diese kurze Wartezeit ist der Grund, warum sich ein
+     * Aufruf überhaupt abbrechen lässt: Ohne sie stünde die Schleife bis zur
+     * ersten Antwort still, und ein Programm, das schweigend zehn Minuten
+     * läuft, wäre zehn Minuten lang nicht zu stoppen.
+     */
+    private const POLL_SECONDS = 1;
+
+    /**
      * Führt eine Operation aus und gibt die Nutzdaten zurück.
      *
      * @param  array<string,mixed>  $args
      * @param  array<string,mixed>|null  $actor
      * @param  null|callable(array<string,mixed>):void  $onOutput  Fortschritt und Ausgabe, sobald sie anfallen
+     * @param  null|callable():bool  $shouldAbort  Wird beim Warten befragt; `true` bricht den Aufruf ab
      * @return array<string,mixed>
      */
-    public function call(string $op, array $args = [], ?array $actor = null, ?callable $onOutput = null): array
-    {
+    public function call(
+        string $op,
+        array $args = [],
+        ?array $actor = null,
+        ?callable $onOutput = null,
+        ?callable $shouldAbort = null,
+    ): array {
         $connection = $this->connect();
 
         $request = [
@@ -51,11 +68,52 @@ final class Client
 
         $buffer = '';
         $result = null;
+        $deadline = microtime(true) + $this->timeout;
 
         while (true) {
             $chunk = @socket_read($connection, 65536, PHP_BINARY_READ);
 
-            if ($chunk === false || $chunk === '') {
+            if ($chunk === false) {
+                $error = socket_last_error($connection);
+                socket_clear_error($connection);
+
+                // EAGAIN heißt nur: In dieser Sekunde kam nichts. Das als
+                // Verbindungsende zu lesen wäre der Fehler, der die kurze
+                // Wartezeit oben unbrauchbar machte — jeder Aufruf endete
+                // dann nach einer Sekunde ohne Ergebnis.
+                if (! in_array($error, [SOCKET_EAGAIN, SOCKET_EWOULDBLOCK], true)) {
+                    break;
+                }
+
+                if ($shouldAbort !== null && $shouldAbort()) {
+                    // Geschlossen, nicht abgemeldet: Der Agent bemerkt genau
+                    // daran, dass niemand mehr wartet, und beendet das
+                    // Programm. Ein „bitte aufhören" über die Leitung gäbe es
+                    // nicht — das Protokoll kennt nach der Anfrage keinen Weg
+                    // vom Aufrufer zum Agenten.
+                    socket_close($connection);
+
+                    throw new AgentException(
+                        AgentException::CANCELLED,
+                        'Der Vorgang wurde abgebrochen.',
+                        ['op' => $op],
+                    );
+                }
+
+                if (microtime(true) >= $deadline) {
+                    socket_close($connection);
+
+                    throw new AgentException(
+                        AgentException::TIMEOUT,
+                        sprintf('Der Agent hat innerhalb von %d s nicht geantwortet.', $this->timeout),
+                        ['op' => $op],
+                    );
+                }
+
+                continue;
+            }
+
+            if ($chunk === '') {
                 break;
             }
 
@@ -135,7 +193,10 @@ final class Client
             throw AgentException::execFailed('Socket ließ sich nicht anlegen.');
         }
 
-        socket_set_option($connection, SOL_SOCKET, SO_RCVTIMEO, ['sec' => $this->timeout, 'usec' => 0]);
+        // Kurz, nicht `$this->timeout`: Die Schleife in call() muss sich
+        // regelmäßig drehen, damit sie nach einem Abbruch sehen kann. Das
+        // eigentliche Zeitlimit wird dort mitgeführt.
+        socket_set_option($connection, SOL_SOCKET, SO_RCVTIMEO, ['sec' => self::POLL_SECONDS, 'usec' => 0]);
         socket_set_option($connection, SOL_SOCKET, SO_SNDTIMEO, ['sec' => 10, 'usec' => 0]);
 
         if (! @socket_connect($connection, $this->socket)) {

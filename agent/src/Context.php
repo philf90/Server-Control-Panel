@@ -15,12 +15,22 @@ namespace SrvPanel\Agent;
  */
 final class Context
 {
-    /** @param callable(array<string,mixed>):void $send */
+    /**
+     * @param  callable(array<string,mixed>):void  $send
+     * @param  null|callable():bool  $abort  Sagt, ob der Aufrufer weg ist
+     */
     public function __construct(
         public readonly Runner $runner,
         public readonly Journal $journal,
         private $send,
+        private $abort = null,
     ) {}
+
+    /** Der Aufrufer ist weg — was hier läuft, wartet auf niemanden mehr. */
+    public function abandoned(): bool
+    {
+        return $this->abort !== null && ($this->abort)();
+    }
 
     public function progress(int $percent, string $text): void
     {
@@ -52,6 +62,8 @@ final class Context
             $args,
             $timeout,
             fn (string $channel, string $line) => $this->output($channel, $line),
+            null,
+            fn (): bool => $this->abandoned(),
         );
     }
 }

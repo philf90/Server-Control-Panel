@@ -21,6 +21,7 @@
  * .getRandomValues` bleibt auf dem Gerät.
  */
 import { computed, ref } from 'vue'
+import EyeIcon from './EyeIcon.vue'
 
 interface Requirement {
   key: string
@@ -188,7 +189,7 @@ function randomBelow(bound: number): number {
           :aria-pressed="visible"
           @click="visible = !visible"
         >
-          <span aria-hidden="true">{{ visible ? '🙈' : '👁' }}</span>
+          <EyeIcon :off="visible" />
         </button>
       </div>
       <small v-if="props.error" class="fehler">{{ props.error }}</small>
@@ -212,7 +213,7 @@ function randomBelow(bound: number): number {
           :aria-pressed="visible"
           @click="visible = !visible"
         >
-          <span aria-hidden="true">{{ visible ? '🙈' : '👁' }}</span>
+          <EyeIcon :off="visible" />
         </button>
       </div>
       <small v-if="props.confirmationError" class="fehler">{{ props.confirmationError }}</small>
@@ -260,8 +261,8 @@ function randomBelow(bound: number): number {
 label { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; color: var(--text-muted); }
 .feld { display: flex; gap: .3rem; }
 input { flex: 1; min-width: 0; padding: .4rem .5rem; font: inherit; font-size: .9rem; font-family: var(--font-mono); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-.auge { flex: none; width: 2.1rem; font-size: .9rem; color: var(--text-muted); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
-.auge[aria-pressed='true'] { border-color: var(--accent); }
+.auge { flex: none; display: grid; place-items: center; width: 2.1rem; color: var(--text-muted); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+.auge:hover { color: var(--text-strong); }
 .erzeugen { align-self: flex-start; padding: .3rem .7rem; font: inherit; font-size: .78rem; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
 .erzeugen:hover { border-color: var(--accent); color: var(--accent); }
 

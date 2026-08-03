@@ -232,12 +232,26 @@ const headline = props.server.reachable
   color: var(--text-muted);
 }
 
+/*
+ * Die Abschnittsüberschrift ist eine Überschrift und keine kleine
+ * Beschriftung.
+ *
+ * Hier stand `10.5px`, Versalien, Sperrung `.11em`, `--text-muted` — also
+ * genau die Behandlung, die §7.2 für *kleine Beschriftungen* vorsieht und die
+ * zwölf Pixel weiter unten der Spaltenkopf trägt. Zwei Zeilen mit derselben
+ * Größe, derselben Schreibweise und fast derselben Farbe: Das Auge sieht
+ * daneben keine Rangfolge, sondern eine Wiederholung.
+ *
+ * §7.2 sagt es selbst: „Kleine Beschriftungen in Versalien mit Sperrung
+ * (.09em), **sonst keine Versalien**." Die Überschrift unterscheidet sich
+ * jetzt auf drei Achsen gleichzeitig — Größe, Schreibweise, Farbe — und der
+ * Spaltenkopf bleibt, was er ist.
+ */
 .section {
-  font-size: 10.5px;
+  font-size: var(--block-heading-size);
   font-weight: 600;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
   margin: 0 0 var(--block-heading-gap);
 }
 

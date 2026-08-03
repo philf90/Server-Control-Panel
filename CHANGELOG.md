@@ -84,7 +84,15 @@ anderes Produkt und zählt neu.
   Unit und Wirkung.
 - **Abstände zwischen den Bereichen** der Übersicht als Dichte-Marken. Die
   Abschnittsüberschriften standen ohne Abstand nach oben unter der vorigen
-  Tabelle — jede war damit näher an dem, wozu sie nicht gehörte.
+  Tabelle — jede war damit näher an dem, wozu sie nicht gehörte. Sie tragen
+  jetzt außerdem die Behandlung, die §7.2 für Überschriften vorsieht, statt der
+  für kleine Beschriftungen: Sie sahen sonst aus wie der Spaltenkopf zwölf
+  Pixel darunter.
+- **Keine Emoji in der Oberfläche** (`docs/19 §3a`). Das Augensymbol der
+  Passwortfelder war 👁 beziehungsweise 🙈 — gezeichnet von der Schriftart des
+  Betriebssystems, ohne Textfarbe, auf manchen Servern ein leeres Rechteck.
+  Ersetzt durch `EyeIcon.vue`: ein SVG mit `currentColor`, eigene Geometrie,
+  keine Icon-Bibliothek. Geprüft von `test_no_vue_template_uses_an_emoji`.
 - **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
   Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
   `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im

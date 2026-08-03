@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useForm, Head, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+import EyeIcon from '../../Components/EyeIcon.vue'
 
 /*
  * Die Anmeldemaske.
@@ -83,7 +84,7 @@ function submit(): void {
             :aria-pressed="passwortSichtbar"
             @click="passwortSichtbar = !passwortSichtbar"
           >
-            <span aria-hidden="true">{{ passwortSichtbar ? '🙈' : '👁' }}</span>
+            <EyeIcon :off="passwortSichtbar" />
           </button>
         </div>
       </div>
@@ -192,8 +193,9 @@ input[type='password'],
    zweite, gleich aussehende Schaltfläche. */
 .auge {
   flex: none;
+  display: grid;
+  place-items: center;
   width: 34px;
-  font-size: 13px;
   color: var(--text-muted);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -201,8 +203,16 @@ input[type='password'],
   cursor: pointer;
 }
 
-.auge[aria-pressed='true'] {
-  border-color: var(--accent);
+/*
+ * Kein amberfarbener Rand im gedrückten Zustand mehr.
+ *
+ * Amber bedeutet in diesem System Signal, Zustand oder primäre Aktion (§7.2).
+ * Ein sichtbar geschaltetes Passwort ist keines davon — der Rahmen zog den
+ * Blick auf den Knopf, obwohl daneben das Feld steht, um das es geht. Den
+ * Zustand trägt das Zeichen selbst: Auge mit oder ohne Strich.
+ */
+.auge:hover {
+  color: var(--text-strong);
 }
 
 input:focus-visible,

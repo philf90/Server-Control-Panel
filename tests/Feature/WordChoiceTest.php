@@ -125,6 +125,48 @@ final class WordChoiceTest extends TestCase
         ));
     }
 
+    /**
+     * Kein Emoji in der Oberfläche.
+     *
+     * **Warum das eine Regel ist.** Im Passwortfeld standen 👁 und 🙈. Ein
+     * Emoji wird von der Schriftart des Betriebssystems gezeichnet und sieht
+     * auf jeder Plattform anders aus — auf einem Server mit dünner
+     * Schriftausstattung mitunter als leeres Rechteck. Es nimmt keine
+     * Textfarbe an und steht damit neben einer Gestaltung, in der Farbe etwas
+     * bedeutet (§7.2). Und der Affe, der sich die Augen zuhält, war ein Witz
+     * an einer Stelle, an der jemand ein Passwort für ein Kundenkonto setzt.
+     *
+     * **Die Regel lautet „Emoji und nicht ASCII".** `\p{Emoji}` allein reicht
+     * nicht: Ziffern, `#` und `*` tragen diese Eigenschaft ebenfalls, weil sie
+     * die Grundlage der Tastenkappen-Emoji sind — der Test hätte jede Zahl in
+     * der Oberfläche gemeldet. Umgekehrt sind ✓, ✗, — und · keine Emoji,
+     * sondern Schriftzeichen; sie bleiben erlaubt und tragen die Prüfliste.
+     *
+     * Zeichen wie ⚠ werden erfasst, obwohl sie ohne Variantenselektor als Text
+     * gezeichnet werden. Das ist gewollt: Ein Warndreieck gehört als SVG in
+     * die Oberfläche, nicht als Schriftzeichen mit ungewisser Darstellung.
+     */
+    public function test_no_vue_template_uses_an_emoji(): void
+    {
+        $found = [];
+        $emoji = '/(?=\p{Emoji})[^\x00-\x7F]/u';
+
+        foreach ($this->files(dirname(__DIR__, 2).'/resources/js', 'vue') as $path) {
+            foreach (explode("\n", $this->template((string) file_get_contents($path))) as $number => $line) {
+                if (preg_match($emoji, $line) === 1) {
+                    $found[] = sprintf('%s:%d  %s', $this->relative($path), $number + 1, trim($line));
+                }
+            }
+        }
+
+        $this->assertSame([], $found, sprintf(
+            "Emoji in der Oberfläche:\n  %s\n\n".
+            'Ein Zeichen, das die Oberfläche selbst zeichnet — SVG mit `currentColor` — '.
+            'sieht überall gleich aus und erbt Farbe und Größe. Siehe Components/EyeIcon.vue.',
+            implode("\n  ", $found),
+        ));
+    }
+
     public function test_the_list_matches_the_document(): void
     {
         $document = (string) file_get_contents(dirname(__DIR__, 2).'/docs/19-sprache-der-oberflaeche.md');

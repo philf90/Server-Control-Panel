@@ -168,8 +168,13 @@ final class OperationRecorderTest extends TestCase
         // Warteschlange stand.
         $job = new RunAgentOperation(999999);
 
-        $job->handle(app(Client::class), app(Tenancy::class));
+        // Die Aussage dieses Tests ist, dass nichts fliegt: Ein Auftrag, dessen
+        // Vorgang zwischenzeitlich verschwunden ist, darf den Arbeiter nicht
+        // anhalten, sonst bleibt die ganze Warteschlange an einer Leiche
+        // hängen. Eine Zusicherung gibt es dafür nicht — das Ausbleiben der
+        // Ausnahme ist sie.
+        $this->expectNotToPerformAssertions();
 
-        $this->assertTrue(true);
+        $job->handle(app(Client::class), app(Tenancy::class));
     }
 }

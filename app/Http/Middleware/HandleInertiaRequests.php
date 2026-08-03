@@ -81,7 +81,7 @@ final class HandleInertiaRequests extends Middleware
 
         return [
             'active' => true,
-            'admin' => $admin?->name ?? 'unbekannt',
+            'admin' => $admin->name ?? 'unbekannt',
         ];
     }
 }

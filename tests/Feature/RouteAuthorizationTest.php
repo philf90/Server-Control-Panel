@@ -34,7 +34,7 @@ final class RouteAuthorizationTest extends TestCase
     /** @return list<Route> */
     private function routes(): array
     {
-        return array_values(iterator_to_array(Router::getRoutes()));
+        return array_values(Router::getRoutes()->getRoutes());
     }
 
     private function key(Route $route): string

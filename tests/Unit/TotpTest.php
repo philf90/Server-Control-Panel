@@ -124,7 +124,14 @@ final class TotpTest extends TestCase
     {
         // Menschen tippen Geheimnisse ab. „0" statt „O" soll zu einem falschen
         // Code führen, nicht zu einem Absturz.
-        $this->assertIsString(Totp::codeAt('GEZDGNBVGY3TQOJ0', 1));
+        $this->assertMatchesRegularExpression('/^\d{6}$/', Totp::codeAt('GEZDGNBVGY3TQOJ0', 1));
+
+        // Und er ist tatsächlich ein anderer — sonst wäre das „falsch" nur
+        // behauptet.
+        $this->assertNotSame(
+            Totp::codeAt('GEZDGNBVGY3TQOJQ', 1),
+            Totp::codeAt('GEZDGNBVGY3TQOJ0', 1),
+        );
     }
 
     public function test_the_provisioning_uri_carries_what_apps_read(): void

@@ -104,7 +104,7 @@ final class ImpersonationController extends Controller
             $request->session()->regenerateToken();
 
             return redirect()->route('login')
-                ->with('notice', 'Der Rückweg war versperrt. Bitte neu anmelden.');
+                ->with('notice', 'Die Rückkehr in das eigene Konto ist nicht möglich. Bitte neu anmelden.');
         }
 
         // Noch im Kontext protokollieren, damit der Eintrag die Zuordnung

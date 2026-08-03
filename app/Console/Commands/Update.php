@@ -21,7 +21,7 @@ final class Update extends Command
 {
     protected $signature = 'srvpanel:update';
 
-    protected $description = 'Installiert eine neue Fassung des Panels aus der Paketquelle';
+    protected $description = 'Installiert eine neue Version des Panels aus der Paketquelle';
 
     public function handle(Client $agent): int
     {
@@ -40,7 +40,7 @@ final class Update extends Command
         $this->line(sprintf('  Zusehen:   tail -f %s', $result['log']));
         $this->line(sprintf('  Zustand:   systemctl status %s', $result['unit']));
         $this->newLine();
-        $this->comment('  Antwortet die Bereitschaftsprüfung danach nicht, nimmt das Paket die Fassung selbst zurück.');
+        $this->comment('  Antwortet die Bereitschaftsprüfung danach nicht, setzt das Paket selbst auf die vorige Version zurück.');
 
         return self::SUCCESS;
     }

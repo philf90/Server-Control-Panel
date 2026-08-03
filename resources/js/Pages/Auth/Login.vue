@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useForm, Head, usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 /*
  * Die Anmeldemaske.
  *
  * Bewusst ohne Navigation und ohne Kacheln: Wer hier steht, hat noch kein
  * Konto vorgewiesen und soll nichts über den Server erfahren — nicht die
- * Fassung, nicht den Rechnernamen, nicht die Zahl der Kunden.
+ * Version, nicht den Hostnamen, nicht die Zahl der Kunden.
  */
 
 const form = useForm({
@@ -15,6 +15,8 @@ const form = useForm({
   password: '',
   remember: false,
 })
+
+const passwortSichtbar = ref(false)
 
 const page = usePage()
 const notice = computed(() => (page.props.flash as Record<string, string> | undefined)?.notice)
@@ -55,16 +57,35 @@ function submit(): void {
         >
       </div>
 
+      <!--
+        Das Augensymbol ja, die Prüfliste nein.
+        Beim Anmelden gilt keine Richtlinie: Das Passwort ist entweder das
+        richtige oder nicht, und eine Liste mit Anforderungen daneben würde
+        aussehen, als könne man es hier ändern. Sichtbar machen hilft
+        trotzdem — auf einem Handy vertippt man sich an einem langen Passwort
+        aus dem Passwortspeicher sonst dreimal.
+      -->
       <div class="feld">
         <label for="password">Passwort</label>
-        <input
-          id="password"
-          v-model="form.password"
-          type="password"
-          name="password"
-          autocomplete="current-password"
-          required
-        >
+        <div class="mit-auge">
+          <input
+            id="password"
+            v-model="form.password"
+            :type="passwortSichtbar ? 'text' : 'password'"
+            name="password"
+            autocomplete="current-password"
+            required
+          >
+          <button
+            type="button"
+            class="auge"
+            :aria-label="passwortSichtbar ? 'Passwort verbergen' : 'Passwort anzeigen'"
+            :aria-pressed="passwortSichtbar"
+            @click="passwortSichtbar = !passwortSichtbar"
+          >
+            <span aria-hidden="true">{{ passwortSichtbar ? '🙈' : '👁' }}</span>
+          </button>
+        </div>
       </div>
 
       <!--
@@ -137,8 +158,15 @@ label {
   color: var(--text-muted);
 }
 
+/*
+ * `input[type='text']` gehört dazu, seit das Passwortfeld sichtbar geschaltet
+ * werden kann: Der Typ wechselt beim Klick auf das Auge, und ohne diese Zeile
+ * verlöre das Feld genau dann seine Gestaltung — beim Umschalten sprang es
+ * auf die Vorgabe des Browsers.
+ */
 input[type='email'],
-input[type='password'] {
+input[type='password'],
+.mit-auge input[type='text'] {
   height: var(--row-height);
   padding: 0 9px;
   font: inherit;
@@ -147,6 +175,34 @@ input[type='password'] {
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 5px;
+}
+
+.mit-auge {
+  display: flex;
+  gap: 5px;
+}
+
+.mit-auge input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Der Knopf für das Auge ist kein Absendeknopf — die Regel unten färbt jeden
+   button in Bernstein, und ohne diese Ausnahme stünde neben dem Feld eine
+   zweite, gleich aussehende Schaltfläche. */
+.auge {
+  flex: none;
+  width: 34px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.auge[aria-pressed='true'] {
+  border-color: var(--accent);
 }
 
 input:focus-visible,
@@ -172,7 +228,7 @@ button:focus-visible {
   accent-color: var(--accent);
 }
 
-button {
+button[type='submit'] {
   height: var(--row-height);
   font: inherit;
   font-size: 13px;
@@ -184,7 +240,7 @@ button {
   cursor: pointer;
 }
 
-button:disabled {
+button[type='submit']:disabled {
   opacity: 0.6;
   cursor: default;
 }

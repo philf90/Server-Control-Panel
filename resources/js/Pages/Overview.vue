@@ -93,89 +93,103 @@ const headline = props.server.reachable
       />
     </div>
 
-    <p class="section">Dienste</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Unit</th>
-          <th>Zustand</th>
-          <th>Beschreibung</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="service in services" :key="service.unit">
-          <td class="name">{{ service.unit }}</td>
-          <td>
-            <span :class="['badge', service.active_state === 'active' ? 'ok' : service.present ? 'stopped' : 'missing']">
-              {{ service.present ? service.active_state : 'nicht installiert' }}
-            </span>
-          </td>
-          <td class="quiet">{{ service.description }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <!--
+      Jeder Bereich steht in einem eigenen <section> mit seiner Überschrift
+      darin. Vorher lagen Überschrift und Tabelle als Geschwister nebeneinander,
+      und der Abstand entstand nur aus dem Rand der Überschrift — nach oben
+      null. Damit stand jede Überschrift dichter an der Tabelle darüber als an
+      ihrer eigenen. Die Klammer macht die Zugehörigkeit auch dann richtig,
+      wenn später jemand an den Rändern dreht.
+    -->
+    <section class="block">
+      <h2 class="section">Dienste</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Unit</th>
+            <th>Zustand</th>
+            <th>Beschreibung</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="service in services" :key="service.unit">
+            <td class="name">{{ service.unit }}</td>
+            <td>
+              <span :class="['badge', service.active_state === 'active' ? 'ok' : service.present ? 'stopped' : 'missing']">
+                {{ service.present ? service.active_state : 'nicht installiert' }}
+              </span>
+            </td>
+            <td class="quiet">{{ service.description }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
-    <p class="section">Dateisysteme</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Einhängepunkt</th>
-          <th>Gerät</th>
-          <th>Art</th>
-          <th>Größe</th>
-          <th>Frei</th>
-          <th>Belegt</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="filesystem in filesystems" :key="filesystem.mount">
-          <td class="name">{{ filesystem.mount }}</td>
-          <td class="quiet">{{ filesystem.device }}</td>
-          <td class="quiet">{{ filesystem.type }}</td>
-          <td>{{ filesystem.total }}</td>
-          <td>{{ filesystem.free }}</td>
-          <td>
-            <!--
-              Der Balken statt nur der Zahl: „87 %" liest man, ein voller
-              Balken sieht man. Die Schwelle, ab der er warnt, kommt vom
-              Server — sie ist eine Aussage über den Betrieb.
-            -->
-            <div class="bar" :class="{ tight: filesystem.tight }">
-              <span :style="{ width: `${Math.min(100, filesystem.percent)}%` }" />
-            </div>
-            <span class="percent">{{ filesystem.percent }} %</span>
-          </td>
-        </tr>
-        <tr v-if="filesystems.length === 0">
-          <td colspan="6" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
-        </tr>
-      </tbody>
-    </table>
+    <section class="block">
+      <h2 class="section">Dateisysteme</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Einhängepunkt</th>
+            <th>Gerät</th>
+            <th>Art</th>
+            <th>Größe</th>
+            <th>Frei</th>
+            <th>Belegt</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="filesystem in filesystems" :key="filesystem.mount">
+            <td class="name">{{ filesystem.mount }}</td>
+            <td class="quiet">{{ filesystem.device }}</td>
+            <td class="quiet">{{ filesystem.type }}</td>
+            <td>{{ filesystem.total }}</td>
+            <td>{{ filesystem.free }}</td>
+            <td>
+              <!--
+                Der Balken statt nur der Zahl: „87 %" liest man, ein voller
+                Balken sieht man. Die Schwelle, ab der er warnt, kommt vom
+                Server — sie ist eine Aussage über den Betrieb.
+              -->
+              <div class="bar" :class="{ tight: filesystem.tight }">
+                <span :style="{ width: `${Math.min(100, filesystem.percent)}%` }" />
+              </div>
+              <span class="percent">{{ filesystem.percent }} %</span>
+            </td>
+          </tr>
+          <tr v-if="filesystems.length === 0">
+            <td colspan="6" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
-    <p class="section">Prozesse nach Speicher</p>
-    <table>
-      <thead>
-        <tr>
-          <th>PID</th>
-          <th>Name</th>
-          <th>Zustand</th>
-          <th>UID</th>
-          <th>Speicher</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="process in processes" :key="process.pid">
-          <td>{{ process.pid }}</td>
-          <td class="name">{{ process.name }}</td>
-          <td class="quiet">{{ process.state }}</td>
-          <td>{{ process.user }}</td>
-          <td>{{ process.rss }}</td>
-        </tr>
-        <tr v-if="processes.length === 0">
-          <td colspan="5" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
-        </tr>
-      </tbody>
-    </table>
+    <section class="block">
+      <h2 class="section">Prozesse nach Speicher</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>PID</th>
+            <th>Name</th>
+            <th>Zustand</th>
+            <th>UID</th>
+            <th>Speicher</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="process in processes" :key="process.pid">
+            <td>{{ process.pid }}</td>
+            <td class="name">{{ process.name }}</td>
+            <td class="quiet">{{ process.state }}</td>
+            <td>{{ process.user }}</td>
+            <td>{{ process.rss }}</td>
+          </tr>
+          <tr v-if="processes.length === 0">
+            <td colspan="5" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
   </PanelLayout>
 </template>
 
@@ -184,7 +198,10 @@ const headline = props.server.reachable
   display: grid;
   grid-template-columns: repeat(var(--tile-columns), minmax(0, 1fr));
   gap: var(--gap);
-  margin-bottom: 18px;
+}
+
+.block {
+  margin-top: var(--block-gap);
 }
 
 @media (max-width: 720px) {
@@ -217,10 +234,11 @@ const headline = props.server.reachable
 
 .section {
   font-size: 10.5px;
+  font-weight: 600;
   letter-spacing: 0.11em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin: 0 0 9px;
+  margin: 0 0 var(--block-heading-gap);
 }
 
 table {

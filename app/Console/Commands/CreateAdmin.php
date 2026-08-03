@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Enums\AccountStatus;
 use App\Enums\AccountType;
 use App\Models\Account;
+use App\Support\Passwords\Policy;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -103,7 +104,7 @@ final class CreateAdmin extends Command
     private function password(): array
     {
         if ($this->option('generate')) {
-            return [Str::password(24), true];
+            return [Policy::generate(), true];
         }
 
         $password = $this->secret('Passwort (Eingabe bleibt unsichtbar)');
@@ -112,8 +113,18 @@ final class CreateAdmin extends Command
             return [null, false];
         }
 
-        if (mb_strlen($password) < 12) {
-            $this->error('Mindestens zwölf Zeichen.');
+        // Die Prüfung kommt aus derselben Klasse wie die Validierung im Panel.
+        // Hier stand `mb_strlen($password) < 12` — die Kommandozeile war damit
+        // der Weg, an der Richtlinie vorbei ein schwaches Passwort für ein
+        // Adminkonto zu setzen. Ausgerechnet für das Konto, das alles darf.
+        $unmet = Policy::unmet($password);
+
+        if ($unmet !== []) {
+            $this->error('Das Passwort erfüllt die Richtlinie nicht:');
+
+            foreach ($unmet as $requirement) {
+                $this->line('  - '.$requirement);
+            }
 
             return [null, false];
         }

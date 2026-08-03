@@ -104,8 +104,10 @@ function start(task: TaskEntry): void {
 </template>
 
 <style scoped>
-.katalog { margin-bottom: calc(var(--gap) * 2); }
-.katalog h2 { margin: 0 0 .5rem; font-size: .8rem; font-weight: 600; color: var(--text-muted); }
+/* Derselbe Abstand wie zwischen den Bereichen der Übersicht — die Marke steht
+   in app.css, damit die Gliederung über die Module hinweg dieselbe bleibt. */
+.katalog { margin-bottom: var(--block-gap); }
+.katalog h2 { margin: 0 0 var(--block-heading-gap); font-size: 10.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase; color: var(--text-muted); }
 .katalog ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 6px; }
 .katalog li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
 .katalog li:last-child { border-bottom: 0; }

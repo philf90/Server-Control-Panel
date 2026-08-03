@@ -10,6 +10,7 @@ use App\Enums\CustomerStatus;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Support\Audit\Audit;
+use App\Support\Passwords\Policy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +30,9 @@ use Inertia\Response;
  */
 final class CustomerController extends Controller
 {
+    /** Die erste Kundennummer. Fünfstellig, damit sie nicht wie eine ID aussieht. */
+    private const FIRST_NUMBER = 10001;
+
     public function index(): Response
     {
         $customers = Customer::query()
@@ -57,15 +61,21 @@ final class CustomerController extends Controller
     public function create(): Response
     {
         return Inertia::render('Customers/Create', [
-            'suggestedNumber' => $this->suggestNumber(),
+            'nextNumber' => $this->nextNumber(),
         ]);
     }
 
     public function store(Request $request, Audit $audit): RedirectResponse
     {
         $data = $request->validate([
-            'number' => ['required', 'string', 'max:32', Rule::unique('customers', 'number')],
-            'company' => ['nullable', 'string', 'max:255'],
+            // `number` steht hier nicht mehr.
+            //
+            // Die Kundennummer ist der Bezeichner, unter dem der Kunde in
+            // Rechnungen, Verzeichnisnamen und Systembenutzern auftaucht. Ein
+            // Feld, das der Betreiber frei füllt, macht daraus eine
+            // Zeichenkette, die alles sein kann: doppelt vergeben, mit
+            // Leerzeichen, mit einem Schrägstrich darin. Sie wird jetzt beim
+            // Anlegen erzeugt; das Formular zeigt sie nur an.
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
@@ -75,13 +85,12 @@ final class CustomerController extends Controller
             // sein, nicht nur über die Kunden — sonst kollidiert sie später
             // mit einem Adminkonto, und die Anmeldung fände zwei Treffer.
             'login_email' => ['required', 'email', 'max:255', Rule::unique('accounts', 'email')],
-            'password' => ['required', 'string', 'min:12', 'max:1024', 'confirmed'],
+            'password' => ['required', 'confirmed', ...Policy::rules()],
         ]);
 
         $customer = DB::transaction(function () use ($data): Customer {
             $customer = Customer::query()->create([
-                'number' => $data['number'],
-                'company' => $data['company'] ?? null,
+                'number' => $this->nextNumber(),
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'email' => $data['email'],
@@ -141,22 +150,45 @@ final class CustomerController extends Controller
     }
 
     /**
-     * Ein Vorschlag für die nächste Kundennummer.
+     * Die nächste freie Kundennummer.
      *
-     * Nur ein Vorschlag: Die Nummer kommt aus dem Formular, und der eindeutige
-     * Index in der Datenbank entscheidet. Zwei Betreiber, die gleichzeitig ein
-     * Formular öffnen, bekämen sonst dieselbe Nummer und der zweite eine
-     * Fehlermeldung, die er nicht versteht.
+     * **Sie wird zweimal gebildet, und das ist Absicht.** Einmal für die
+     * Anzeige im Formular und einmal beim Anlegen, innerhalb der Transaktion.
+     * Zwischen dem Öffnen des Formulars und dem Absenden kann ein zweiter
+     * Betreiber einen Kunden angelegt haben; die Zahl im Formular ist deshalb
+     * eine Vorschau und keine Zusage. Verbindlich ist allein die, die hier in
+     * der Transaktion entsteht — und darüber wacht der eindeutige Index.
+     *
+     * **Gesucht wird das Maximum über die Nummern, nicht die Nummer des
+     * jüngsten Datensatzes.** Hier stand `orderByDesc('id')->value('number')`.
+     * Das stimmt nur, solange Nummer und ID in derselben Reihenfolge wachsen —
+     * und genau das war nicht garantiert, solange der Betreiber die Nummer im
+     * Formular frei setzen konnte. Ein einziger Kunde mit „K90000" hätte
+     * gereicht: Der nächste bekäme „K90001", der übernächste wieder eine aus
+     * der niedrigen Reihe, und irgendwann läuft die Vergabe in eine Nummer,
+     * die es schon gibt. Der eindeutige Index fängt das ab — mit einer
+     * Fehlermeldung, die der Betreiber nicht deuten kann.
+     *
+     * **Was das nicht leistet:** Wird ein Kunde gelöscht, wird seine Nummer
+     * wieder frei. Der Datensatz ist weg, es gibt keine Soft-Deletes. Damit
+     * eine Nummer dauerhaft verbraucht bleibt — was sie sein sollte, sobald
+     * eine Rechnung sie trägt —, braucht es entweder Soft-Deletes oder einen
+     * eigenen Zähler. Beides gehört zur Abrechnung und damit nicht in P1.
      */
-    private function suggestNumber(): string
+    private function nextNumber(): string
     {
+        // Die höchste Zahl wird in PHP gesucht und nicht in SQL. Ein `MAX(CAST(
+        // SUBSTRING(number, 2) AS UNSIGNED))` läuft auf MariaDB und nicht auf
+        // SQLite — die Tests liefen dann gegen etwas anderes als der Server,
+        // und zwar ausgerechnet bei der Vergabe eines Bezeichners. Ein Panel
+        // für einen einzelnen Server hat Kunden in einer Größenordnung, in der
+        // eine Spalte zu laden nichts kostet.
         $highest = Customer::query()
             ->where('number', 'like', 'K%')
-            ->orderByDesc('id')
-            ->value('number');
+            ->pluck('number')
+            ->map(static fn (string $number): int => (int) mb_substr($number, 1))
+            ->max();
 
-        $digits = is_string($highest) ? (int) preg_replace('/\D/', '', $highest) : 10000;
-
-        return 'K'.max(10001, $digits + 1);
+        return 'K'.max(self::FIRST_NUMBER, ((int) $highest) + 1);
     }
 }

@@ -28,19 +28,21 @@ final class PanelWalkthroughTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Erfüllt docs/22 — die Richtlinie gilt beim Anlegen, nicht beim Anmelden. */
+    private const PASSWORD = 'Ein-langes-Passwort9';
+
     public function test_the_operator_creates_a_customer_who_then_signs_in(): void
     {
         $admin = Account::factory()->admin()->create();
 
         // 1. Der Admin legt einen Kunden an — mit Anmeldekonto.
         $this->actingAs($admin)->post('/customers', [
-            'number' => 'K10001',
             'first_name' => 'Erika',
             'last_name' => 'Mustermann',
             'email' => 'erika@example.test',
             'login_email' => 'erika@example.test',
-            'password' => 'ein-langes-passwort',
-            'password_confirmation' => 'ein-langes-passwort',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
         ])->assertRedirect('/customers');
 
         $customer = Customer::query()->where('number', 'K10001')->firstOrFail();
@@ -53,7 +55,7 @@ final class PanelWalkthroughTest extends TestCase
         $this->post('/logout');
         $this->post('/login', [
             'email' => 'erika@example.test',
-            'password' => 'ein-langes-passwort',
+            'password' => self::PASSWORD,
         ])->assertRedirect('/');
 
         $this->assertAuthenticatedAs($account);
@@ -71,16 +73,83 @@ final class PanelWalkthroughTest extends TestCase
         // zurücklassen, sonst ist die Nummer verbraucht und niemand kann sich
         // anmelden.
         $this->actingAs($admin)->post('/customers', [
-            'number' => 'K10002',
             'first_name' => 'Max',
             'last_name' => 'Mustermann',
             'email' => 'max@example.test',
             'login_email' => 'belegt@example.test',
-            'password' => 'ein-langes-passwort',
-            'password_confirmation' => 'ein-langes-passwort',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
         ])->assertSessionHasErrors('login_email');
 
-        $this->assertNull(Customer::query()->where('number', 'K10002')->first());
+        // Vorher stand hier eine Prüfung auf die Nummer aus dem Formular. Die
+        // vergibt jetzt der Server; geprüft wird deshalb, dass überhaupt kein
+        // Kunde entstanden ist — das ist ohnehin die schärfere Aussage, denn
+        // sie hinge nicht daran, unter welcher Nummer ein Rest liegenbliebe.
+        $this->assertSame(0, Customer::query()->count());
+    }
+
+    public function test_the_customer_number_comes_from_the_server(): void
+    {
+        $admin = Account::factory()->admin()->create();
+
+        // Was im Formular steht, ist eine Vorschau. Geschickt wird es nicht —
+        // und wer es trotzdem schickt, bekommt es nicht.
+        $this->actingAs($admin)->post('/customers', [
+            'number' => 'K99999',
+            'first_name' => 'Erika',
+            'last_name' => 'Mustermann',
+            'email' => 'erika@example.test',
+            'login_email' => 'erika@example.test',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
+        ])->assertRedirect('/customers');
+
+        $this->assertSame('K10001', Customer::query()->sole()->number);
+    }
+
+    public function test_the_next_number_beats_the_highest_and_not_the_newest(): void
+    {
+        // Die hohe Nummer bekommt die niedrige ID: So sieht ein Bestand aus,
+        // in dem jemand die Nummer einmal von Hand gesetzt hat — möglich war
+        // das, solange sie im Formular stand.
+        //
+        // Die alte Vergabe las die Nummer des jüngsten Datensatzes und käme
+        // hier auf K10002. Die neue nimmt das Maximum.
+        Customer::factory()->create(['number' => 'K90000']);
+        Customer::factory()->create(['number' => 'K10001']);
+
+        $admin = Account::factory()->admin()->create();
+
+        $this->actingAs($admin)->post('/customers', [
+            'first_name' => 'Max',
+            'last_name' => 'Mustermann',
+            'email' => 'max@example.test',
+            'login_email' => 'max@example.test',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
+        ])->assertRedirect('/customers');
+
+        $this->assertNotNull(
+            Customer::query()->where('number', 'K90001')->first(),
+            'Die nächste Nummer folgt der höchsten vergebenen, nicht der zuletzt angelegten.',
+        );
+    }
+
+    public function test_a_weak_password_does_not_create_a_customer(): void
+    {
+        $admin = Account::factory()->admin()->create();
+
+        // Zwölf Zeichen und sonst nichts. Das war bis docs/22 die ganze Regel.
+        $this->actingAs($admin)->post('/customers', [
+            'first_name' => 'Erika',
+            'last_name' => 'Mustermann',
+            'email' => 'erika@example.test',
+            'login_email' => 'erika@example.test',
+            'password' => 'passwortpasswort',
+            'password_confirmation' => 'passwortpasswort',
+        ])->assertSessionHasErrors('password');
+
+        $this->assertSame(0, Customer::query()->count());
     }
 
     public function test_a_customer_does_not_see_the_operator_pages(): void

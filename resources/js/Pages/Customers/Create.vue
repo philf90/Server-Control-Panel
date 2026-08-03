@@ -1,8 +1,18 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head, useForm, usePage } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
-const props = defineProps<{ suggestedNumber: string }>()
+interface PasswordPolicy {
+  minimum: number
+  requirements: { key: string; label: string }[]
+}
+
+const props = defineProps<{ nextNumber: string }>()
+
+const page = usePage<{ passwordPolicy: PasswordPolicy }>()
+const policy = computed(() => page.props.passwordPolicy)
 
 /*
  * Kunde und Anmeldekonto in einem Formular.
@@ -10,10 +20,14 @@ const props = defineProps<{ suggestedNumber: string }>()
  * Sie entstehen zusammen in einer Transaktion — ein Kunde ohne Konto ist ein
  * Datensatz, mit dem niemand etwas anfangen kann. Deshalb steht auch das
  * Passwort hier und nicht in einem zweiten Schritt, den jemand überspringt.
+ *
+ * **Die Kundennummer steht nicht im Formular**, obwohl sie darauf zu sehen ist.
+ * Sie ist der Bezeichner, unter dem der Kunde später in Rechnungen,
+ * Verzeichnisnamen und Systembenutzern auftaucht; ein Feld dafür heißt, dass
+ * jemand sie doppelt vergeben oder mit einem Schrägstrich darin anlegen kann.
+ * Der Server erzeugt sie beim Anlegen — was hier steht, ist eine Vorschau.
  */
 const form = useForm({
-  number: props.suggestedNumber,
-  company: '',
   first_name: '',
   last_name: '',
   email: '',
@@ -37,22 +51,24 @@ function submit(): void {
         <legend>Vertragspartner</legend>
 
         <label>Kundennummer
-          <input v-model="form.number" type="text" required>
-          <small v-if="form.errors.number">{{ form.errors.number }}</small>
+          <input :value="props.nextNumber" type="text" readonly tabindex="-1">
+          <small class="hinweis">
+            Wird beim Anlegen vergeben. Steht bis dahin ein anderer Kunde davor,
+            rückt die Nummer nach.
+          </small>
         </label>
 
-        <label>Firma <input v-model="form.company" type="text"></label>
         <label>Vorname
           <input v-model="form.first_name" type="text" required>
-          <small v-if="form.errors.first_name">{{ form.errors.first_name }}</small>
+          <small v-if="form.errors.first_name" class="fehler">{{ form.errors.first_name }}</small>
         </label>
         <label>Nachname
           <input v-model="form.last_name" type="text" required>
-          <small v-if="form.errors.last_name">{{ form.errors.last_name }}</small>
+          <small v-if="form.errors.last_name" class="fehler">{{ form.errors.last_name }}</small>
         </label>
         <label>E-Mail
           <input v-model="form.email" type="email" required>
-          <small v-if="form.errors.email">{{ form.errors.email }}</small>
+          <small v-if="form.errors.email" class="fehler">{{ form.errors.email }}</small>
         </label>
         <label>Telefon <input v-model="form.phone" type="text"></label>
       </fieldset>
@@ -62,19 +78,16 @@ function submit(): void {
 
         <label>Anmeldeadresse
           <input v-model="form.login_email" type="email" autocomplete="off" required>
-          <small v-if="form.errors.login_email">{{ form.errors.login_email }}</small>
+          <small v-if="form.errors.login_email" class="fehler">{{ form.errors.login_email }}</small>
         </label>
 
-        <label>Passwort
-          <input v-model="form.password" type="password" autocomplete="new-password" required>
-          <small v-if="form.errors.password">{{ form.errors.password }}</small>
-        </label>
-
-        <label>Passwort wiederholen
-          <input v-model="form.password_confirmation" type="password" autocomplete="new-password" required>
-        </label>
-
-        <p class="hinweis">Mindestens zwölf Zeichen. Der Kunde kann es später ändern.</p>
+        <PasswordFields
+          v-model="form.password"
+          v-model:confirmation="form.password_confirmation"
+          :requirements="policy.requirements"
+          :minimum="policy.minimum"
+          :error="form.errors.password"
+        />
       </fieldset>
 
       <button type="submit" :disabled="form.processing">
@@ -90,8 +103,9 @@ fieldset { display: flex; flex-direction: column; gap: .5rem; padding: var(--pad
 legend { padding: 0 .3rem; font-size: .8rem; color: var(--text-muted); }
 label { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; color: var(--text-muted); }
 input { padding: .4rem .5rem; font: inherit; font-size: .9rem; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-small { font-size: .75rem; color: var(--critical); }
-.hinweis { margin: 0; font-size: .75rem; color: var(--text-faint); }
-button { align-self: flex-start; padding: .5rem 1rem; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
-button:disabled { opacity: .6; cursor: default; }
+input[readonly] { color: var(--text-muted); background: var(--surface-border); border-color: transparent; cursor: default; }
+.fehler { font-size: .75rem; color: var(--critical); }
+.hinweis { font-size: .72rem; color: var(--text-faint); }
+button[type='submit'] { align-self: flex-start; padding: .5rem 1rem; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
+button[type='submit']:disabled { opacity: .6; cursor: default; }
 </style>

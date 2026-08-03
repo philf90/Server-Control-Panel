@@ -113,6 +113,33 @@ zu allgemein, um sie mechanisch zu verbieten:
 - **Protokoll** für Container-Logs → *Logs*. Für das Audit bleibt es
   *Protokoll*: Dort ist es kein Log, sondern ein Nachweis.
 
+## 3a. Keine Emoji
+
+Im Passwortfeld standen 👁 und 🙈 als Knopf zum Ein- und Ausblenden. Das geht
+aus drei Gründen nicht, und alle drei gelten für jedes Emoji in dieser
+Oberfläche:
+
+1. **Es sieht überall anders aus.** Gezeichnet wird es von der Schriftart des
+   Betriebssystems — auf Windows bunt, auf macOS dreidimensional, auf einem
+   Server mit dünner Schriftausstattung als leeres Rechteck.
+2. **Es nimmt keine Textfarbe an.** In einer Gestaltung, in der Farbe etwas
+   bedeutet (§7.2), steht ein Zeichen mit eigener Farbe daneben und behauptet
+   eine Bedeutung, die es nicht hat.
+3. **Der Ton stimmt nicht.** Der Affe, der sich die Augen zuhält, ist ein Witz
+   an einer Stelle, an der jemand ein Passwort für ein Kundenkonto setzt.
+
+Stattdessen: ein SVG mit `currentColor` und `stroke`, das Farbe und Größe vom
+Umfeld erbt. Vorlage ist `resources/js/Components/EyeIcon.vue` — eigene
+Geometrie, keine Icon-Bibliothek, deren Lizenz zur AGPL passen müsste.
+
+**Was erlaubt bleibt:** ✓, ✗, —, · und Verwandte. Das sind Schriftzeichen und
+keine Emoji; sie tragen die Prüfliste der Passwortfelder und die Trenner in
+Kopfzeilen.
+
+Geprüft von `test_no_vue_template_uses_an_emoji`. Die Regel lautet dort „Emoji
+und nicht ASCII": `\p{Emoji}` allein trifft auch Ziffern, `#` und `*`, weil sie
+die Grundlage der Tastenkappen-Emoji sind.
+
 ## 4. Was ausdrücklich bleibt
 
 Diese Wörter sind kein Versehen, sondern das Vokabular des Projekts. Sie sind

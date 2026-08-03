@@ -106,6 +106,7 @@
   --tile-columns: 4;
   --block-gap: 26px;
   --block-heading-gap: 8px;
+  --block-heading-size: 13px;
 }
 
 :root[data-density='customer'] {
@@ -115,6 +116,7 @@
   --tile-columns: 3;
   --block-gap: 36px;
   --block-heading-gap: 10px;
+  --block-heading-size: 15px;
 }
 
 * {

@@ -13,6 +13,7 @@ use SrvPanel\Agent\Ops\PanelVhost;
 use SrvPanel\Agent\Ops\ServiceAction;
 use SrvPanel\Agent\Ops\ServiceStatus;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
+use SrvPanel\Agent\Ops\SubscriptionRemove;
 use SrvPanel\Agent\Ops\SystemInfo;
 
 /**
@@ -39,6 +40,7 @@ final class Registry
         $this->register(new PanelVhost);
         $this->register(new PanelUpdate);
         $this->register(new SubscriptionProvision);
+        $this->register(new SubscriptionRemove);
     }
 
     public function register(Op $op): void

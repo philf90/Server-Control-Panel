@@ -915,7 +915,8 @@ Offen bleibt:
 | 1 | **Markenanmeldung** für SrvPanel — nötig, sobald das Panel an Dritte verkauft wird; Recherche DPMA/EUIPO vorher | vor dem ersten Verkauf |
 | 2 | **Beitragsregelung**: DCO reicht, oder CLA, damit die Zweitlizenz belastbar bleibt? | erster Fremdbeitrag |
 | 2a | **Archiv-Keyring im Paket ausliefern?** Heute kommt er nur über `install.sh` auf den Server und wird danach von nichts aktualisiert — ein Schlüsseltausch wäre Handarbeit bei jedem Nutzer. Ihn ins Paket zu legen (wie `debian-archive-keyring`) löst das, nimmt ihn aber bei `apt remove` mit und hinterlässt eine unprüfbare Paketquelle. Braucht einen entfernungsfesten Entwurf (§ [21](21-signaturschluessel.md)) | vor 1.0 |
-| 3 | **Wie lange wird `deb.sury.org` als PHP-Bezug getragen**, und ab welcher Kundenzahl kommt der eigene Spiegel auf Objektspeicher (§4.3)? | P3 |
+| 3 | **Wie lange wird `deb.sury.org` als PHP-Bezug getragen**, und ab welcher Kundenzahl kommt der eigene Spiegel auf Objektspeicher (§4.3)? Seit `srvpanel-php-source` gibt es dafür genau eine Stelle: das Paket trägt die Quelle ein, ein Wechsel wäre eine neue Fassung davon | P3 |
+| 3a | **Den Schlüssel von sury im Paket mitliefern statt beim Einrichten zu holen?** `srvpanel-php-source` lädt ihn heute im `postinst` über das Netz — das braucht Netz zur Installationszeit und ist nicht reproduzierbar. Ihn einzubetten wäre besser, bindet aber einen fremden Schlüssel an unsere Fassung: Rotiert sury, ist jede ausgelieferte Fassung falsch, bis eine neue erscheint. Dieselbe Abwägung wie Punkt 2a, nur mit einem Schlüssel, der uns nicht gehört | vor 1.0 |
 | 4 | **Apache** zusätzlich unterstützen oder dauerhaft nur nginx? | P3 |
 | 5 | **PostgreSQL** wirklich in der 1.0 oder nach hinten? | P5 |
 | 6 | **FTP** (unverschlüsselt/FTPS über vsftpd oder ProFTPD) neben SFTP wirklich nötig, oder reicht SFTP? | P6 |

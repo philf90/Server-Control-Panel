@@ -225,6 +225,33 @@ jobs:
           ! docker exec target systemctl is-active srvpanel-agentd.service
           docker exec target test -d /var/lib/srvpanel
 
+      # In diesem Container hat der Schritt „PHP-Quelle und PHP 8.4" die
+      # Quelldatei angelegt, bevor srvpanel-php-source überhaupt installiert
+      # wurde. Sie gehört dem Paket also nicht, und ein purge darf sie nicht
+      # mitnehmen: Zurück bliebe sonst ein System mit installiertem PHP 8.4,
+      # für das es keine Sicherheitsupdates mehr gibt — unbemerkt, denn nichts
+      # daran sieht kaputt aus.
+      - name: Ein purge nimmt keine fremde PHP-Quelle mit
+        run: |
+          # Als if und nicht als `test … && var=ja`: Der Lauf steht unter
+          # `bash -e`, und der Rückgabewert einer UND-Liste ist der des
+          # fehlgeschlagenen Tests — der Schritt bräche ab, sobald die Datei
+          # fehlt, also genau auf Debian 13.
+          before=nein
+          if docker exec target test -f /etc/apt/sources.list.d/php-sury.sources; then before=ja; fi
+          echo "Quelle vor dem purge vorhanden: ${before}"
+
+          docker exec target sh -c 'DEBIAN_FRONTEND=noninteractive apt-get purge -y srvpanel-php-source'
+
+          after=nein
+          if docker exec target test -f /etc/apt/sources.list.d/php-sury.sources; then after=ja; fi
+
+          if [ "${before}" != "${after}" ]; then
+            echo "::error::purge hat die PHP-Quelle entfernt, obwohl das Paket sie nicht angelegt hat"
+            exit 1
+          fi
+          echo "Quelle nach dem purge vorhanden: ${after} — unverändert."
+
       - name: Aufräumen
         if: always()
         run: docker rm -f target || true

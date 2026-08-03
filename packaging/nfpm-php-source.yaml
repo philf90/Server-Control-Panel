@@ -1,0 +1,45 @@
+name: srvpanel-php-source
+arch: all
+platform: linux
+version: ${VERSION}
+section: admin
+priority: optional
+maintainer: philf90 <philipp@netzhost24.de>
+description: |
+  Richtet die PHP-8.4-Quelle für SrvPanel ein.
+  Debian 12, Ubuntu 22.04 und 24.04 liefern kein PHP 8.4; dieses Paket trägt
+  deb.sury.org bzw. das PPA von Ondřej Surý als Quelle ein. Vor srvpanel
+  einspielen — apt löst Abhängigkeiten auf, bevor Paketskripte laufen.
+vendor: SrvPanel
+homepage: https://repo.cloudsrv24.de/
+license: AGPL-3.0-only
+
+# `arch: all`: Das Paket enthält ein Skript und richtet eine Paketquelle ein.
+# Nichts davon ist übersetzt, und nichts davon unterscheidet sich zwischen
+# amd64 und arm64.
+
+# Die Werkzeuge, die php-source.sh braucht — als Abhängigkeit und nicht als
+# `apt-get install` im postinst: Während ein Paket eingerichtet wird, hält dpkg
+# seine Sperre, und ein zweiter apt-Aufruf liefe hinein.
+depends:
+  - curl
+  - ca-certificates
+  - gnupg
+
+# **Kein Bezug zu srvpanel, in keine Richtung.** Nicht als Abhängigkeit von
+# srvpanel: Die käme zu spät, weil apt die Auflösung schon hinter sich hat,
+# wenn das erste Paketskript läuft. Und nicht umgekehrt: Dieses Paket ist auch
+# ohne das Panel sinnvoll, und ein Bezug, der nur Absicht ausdrückt und nichts
+# bewirkt, verwirrt beim Lesen der Paketbeziehungen.
+
+contents:
+  # Dasselbe Skript, das install.sh und die CI benutzen. Eine Kopie mit
+  # eigener Fassung wäre die Stelle, an der die drei Wege auseinanderlaufen.
+  - src: ./packaging/php-source.sh
+    dst: /usr/share/srvpanel/php-source.sh
+    file_info:
+      mode: 0755
+
+scripts:
+  postinstall: ./packaging/scripts/php-source-postinstall.sh
+  postremove: ./packaging/scripts/php-source-postremove.sh

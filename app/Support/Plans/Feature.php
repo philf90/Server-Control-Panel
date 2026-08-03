@@ -72,10 +72,14 @@ enum Feature: string
     /**
      * Das Recht, dessen Benutzung diese Freigabe voraussetzt.
      *
-     * `null` heisst: Die Freigabe hängt an keinem einzelnen Recht — sie
-     * schaltet eine Funktion frei, die jedes Konto im Abonnement betrifft.
+     * **Kein `null`.** Hier stand `?Permission`, mit der Begründung, eine
+     * Freigabe könne an keinem einzelnen Recht hängen — nur gibt es diesen
+     * Fall nicht und kann es nicht geben: Eine Freigabe *ist* die Erlaubnis,
+     * eine bestimmte Funktion zu benutzen, und jede Funktion hat ihr Recht.
+     * Der Nullfall lag in der falschen Richtung; er gehört an
+     * {@see self::forPermission()}, wo er tatsächlich vorkommt.
      */
-    public function permission(): ?Permission
+    public function permission(): Permission
     {
         return match ($this) {
             self::DnsEdit => Permission::Dns,
@@ -85,7 +89,14 @@ enum Feature: string
         };
     }
 
-    /** Die Freigabe, die dieses Recht voraussetzt — die Gegenrichtung. */
+    /**
+     * Die Freigabe, die dieses Recht voraussetzt — die Gegenrichtung.
+     *
+     * **Hier ist `null` die Regel und keine Ausnahme.** Die meisten Rechte
+     * hängen an keiner Freigabe: Dateien lesen, Statistik ansehen, FTP-Konten
+     * verwalten gehören zu jedem Abonnement. `null` heisst deshalb „diese
+     * Funktion ist nicht planabhängig" und nicht „unbekannt".
+     */
     public static function forPermission(Permission $permission): ?self
     {
         foreach (self::cases() as $feature) {

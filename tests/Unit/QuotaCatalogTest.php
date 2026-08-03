@@ -176,10 +176,6 @@ final class QuotaCatalogTest extends TestCase
         foreach (Feature::cases() as $feature) {
             $permission = $feature->permission();
 
-            if ($permission === null) {
-                continue;
-            }
-
             $this->assertNotNull(Permission::tryFrom($permission->value));
             $this->assertSame($feature, Feature::forPermission($permission));
         }

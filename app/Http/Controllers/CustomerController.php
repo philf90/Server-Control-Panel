@@ -169,11 +169,16 @@ final class CustomerController extends Controller
      * die es schon gibt. Der eindeutige Index fängt das ab — mit einer
      * Fehlermeldung, die der Betreiber nicht deuten kann.
      *
-     * **Was das nicht leistet:** Wird ein Kunde gelöscht, wird seine Nummer
-     * wieder frei. Der Datensatz ist weg, es gibt keine Soft-Deletes. Damit
-     * eine Nummer dauerhaft verbraucht bleibt — was sie sein sollte, sobald
-     * eine Rechnung sie trägt —, braucht es entweder Soft-Deletes oder einen
-     * eigenen Zähler. Beides gehört zur Abrechnung und damit nicht in P1.
+     * **`withTrashed()` ist der Kern und keine Feinheit.** Kunden werden
+     * zurückgezogen und nicht gelöscht (siehe `Customer`), damit ihre Nummer
+     * verbraucht bleibt — sobald eine Rechnung sie trägt, darf sie nie wieder
+     * an jemand anderen gehen. Ohne diese Zeile wäre der ganze Soft-Delete
+     * wirkungslos: Die Vergabe sähe die zurückgezogene Zeile nicht, gäbe die
+     * Nummer erneut aus, und der eindeutige Index — der zurückgezogene Zeilen
+     * sehr wohl kennt — wiese das Anlegen mit einer Meldung ab, die niemand
+     * mit einem vor Monaten gelöschten Kunden in Verbindung bringt.
+     *
+     * Das ist die einzige Stelle im Panel, die zurückgezogene Kunden sieht.
      */
     private function nextNumber(): string
     {
@@ -184,6 +189,7 @@ final class CustomerController extends Controller
         // für einen einzelnen Server hat Kunden in einer Größenordnung, in der
         // eine Spalte zu laden nichts kostet.
         $highest = Customer::query()
+            ->withTrashed()
             ->where('number', 'like', 'K%')
             ->pluck('number')
             ->map(static fn (string $number): int => (int) mb_substr($number, 1))

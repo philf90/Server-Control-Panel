@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\AuditResult;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\Customer;
 use App\Support\Audit\Audit;
 use App\Support\Auth\LoginThrottle;
 use Illuminate\Http\RedirectResponse;
@@ -77,7 +78,23 @@ final class LoginController extends Controller
             ? Hash::check($credentials['password'], $account->password)
             : Hash::check($credentials['password'], $this->dummyHash());
 
-        if ($account === null || ! $passwordMatches || ! $account->status->canSignIn()) {
+        // Gehört das Konto zu einem zurückgezogenen Kunden?
+        //
+        // Kunden werden nicht gelöscht, sondern zurückgezogen — ihre Zeile
+        // bleibt stehen, damit die Kundennummer verbraucht bleibt. Ihre Konten
+        // bleiben damit aber ebenfalls stehen, mit gültigem Passwort und
+        // Status „aktiv". Ohne diese Prüfung meldet sich ein gekündigter Kunde
+        // weiter an; er sähe zwar nichts (die Mandantenklammer läuft über den
+        // Kunden und liefert dann eine leere Menge), aber „kommt rein und
+        // sieht nichts" ist keine Kündigung, sondern ein Fehler, der wie einer
+        // aussieht.
+        //
+        // `withTrashed()` beim Nachschlagen, sonst wäre die Beziehung leer und
+        // die Unterscheidung zu „Konto ohne Kunde" ginge verloren.
+        $customerWithdrawn = $account?->customer_id !== null
+            && Customer::query()->withTrashed()->whereKey($account->customer_id)->value('deleted_at') !== null;
+
+        if ($account === null || ! $passwordMatches || ! $account->status->canSignIn() || $customerWithdrawn) {
             $throttle->recordFailure($ip, $email);
 
             $audit->record(
@@ -91,6 +108,7 @@ final class LoginController extends Controller
                     'reason' => match (true) {
                         $account === null => 'unbekannte Adresse',
                         ! $passwordMatches => 'falsches Passwort',
+                        $customerWithdrawn => 'Kunde zurückgezogen',
                         default => 'Konto deaktiviert',
                     },
                 ],

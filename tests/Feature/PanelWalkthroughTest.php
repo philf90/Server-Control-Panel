@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
@@ -133,6 +134,86 @@ final class PanelWalkthroughTest extends TestCase
             Customer::query()->where('number', 'K90001')->first(),
             'Die nächste Nummer folgt der höchsten vergebenen, nicht der zuletzt angelegten.',
         );
+    }
+
+    public function test_a_withdrawn_customer_keeps_its_number(): void
+    {
+        // Der Kern des Soft-Deletes. Trüge eine Rechnung die K10001 und bekäme
+        // der nächste Kunde sie erneut, stünden zwei Vertragspartner unter
+        // derselben Nummer — und beim Nachsehen findet man einen davon.
+        Customer::factory()->create(['number' => 'K10001'])->delete();
+
+        $admin = Account::factory()->admin()->create();
+
+        $this->actingAs($admin)->post('/customers', [
+            'first_name' => 'Max',
+            'last_name' => 'Mustermann',
+            'email' => 'max@example.test',
+            'login_email' => 'max@example.test',
+            'password' => self::PASSWORD,
+            'password_confirmation' => self::PASSWORD,
+        ])->assertRedirect('/customers');
+
+        $this->assertNotNull(
+            Customer::query()->where('number', 'K10002')->first(),
+            'Die Nummer eines zurückgezogenen Kunden bleibt verbraucht.',
+        );
+    }
+
+    public function test_a_withdrawn_customer_disappears_from_the_panel(): void
+    {
+        $customer = Customer::factory()->create();
+        $admin = Account::factory()->admin()->create();
+
+        $customer->delete();
+
+        // Nicht ausgeblendet, sondern nicht gefunden: Die Bindung in der Route
+        // sieht zurückgezogene Kunden nicht, und das ist ein 404 und kein 403.
+        // Ein 403 wäre die Auskunft, dass es ihn gibt.
+        $this->actingAs($admin)->get("/customers/{$customer->id}")->assertNotFound();
+
+        $this->actingAs($admin)->get('/customers')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('customers.total', 0));
+    }
+
+    public function test_an_account_of_a_withdrawn_customer_cannot_sign_in(): void
+    {
+        $customer = Customer::factory()->create();
+        $account = Account::factory()->customer($customer)->withoutTwoFactor()->create([
+            'password' => Hash::make(self::PASSWORD),
+        ]);
+
+        $customer->delete();
+
+        // Das Konto bleibt stehen, mit gültigem Passwort und Status „aktiv".
+        // Ohne die Prüfung in der Anmeldung käme der gekündigte Kunde weiter
+        // herein — er sähe zwar nichts, aber „kommt rein und sieht nichts" ist
+        // keine Kündigung, sondern ein Fehler, der wie einer aussieht.
+        $this->post('/login', [
+            'email' => $account->email,
+            'password' => self::PASSWORD,
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
+    public function test_an_admin_still_signs_in_when_customers_are_withdrawn(): void
+    {
+        // Die Gegenprobe. Ein Adminkonto hat keinen Kunden; die neue Prüfung
+        // darf es nicht treffen.
+        Customer::factory()->create()->delete();
+
+        $admin = Account::factory()->admin()->withoutTwoFactor()->create([
+            'password' => Hash::make(self::PASSWORD),
+        ]);
+
+        $this->post('/login', [
+            'email' => $admin->email,
+            'password' => self::PASSWORD,
+        ])->assertRedirect('/');
+
+        $this->assertAuthenticatedAs($admin);
     }
 
     public function test_a_weak_password_does_not_create_a_customer(): void

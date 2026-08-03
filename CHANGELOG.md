@@ -70,6 +70,13 @@ anderes Produkt und zählt neu.
   Kunde in Rechnungen und Verzeichnisnamen auftaucht — als freies Feld konnte
   sie doppelt vergeben werden oder einen Schrägstrich enthalten. Im Formular
   steht sie schreibgeschützt als Vorschau. Das Firmenfeld ist entfernt.
+- **Kunden werden zurückgezogen, nicht gelöscht.** Ein `DELETE` gäbe die
+  Kundennummer wieder frei, und der nächste Kunde bekäme sie — danach trügen
+  zwei Vertragspartner in zwei Rechnungen dieselbe. Die Zeile bleibt mit
+  `deleted_at` stehen, der eindeutige Index gilt weiter für sie, und die Vergabe
+  fragt als einzige Stelle im Panel `withTrashed()`. Die Anmeldung weist Konten
+  eines zurückgezogenen Kunden ab: Ohne das käme ein gekündigter Kunde weiter
+  herein und sähe nichts — was wie ein Fehler aussieht und keine Kündigung ist.
 - **Wortwahl wieder mechanisch geprüft** (`WordChoiceTest`). Die Vorgabe aus
   `docs/19` hatte einen Test, und der ist beim Repo-Übergang mit dem Go-Code
   verschwunden. Neun Monate später stand im Aufgabenkatalog „Fragt den Agenten

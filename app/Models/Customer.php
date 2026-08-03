@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 /**
  * Der Vertragspartner.
@@ -34,6 +36,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $country
  * @property CustomerStatus $status
  * @property string|null $notes
+ * @property Carbon|null $deleted_at
  * @property-read Customer|null $parent
  * @property-read Collection<int, Customer> $children
  * @property-read Collection<int, Account> $accounts
@@ -43,6 +46,30 @@ class Customer extends Model
 {
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
+
+    /**
+     * Zurückgezogen statt gelöscht.
+     *
+     * **Wegen der Kundennummer.** Sie ist der Bezeichner, unter dem der Kunde
+     * in Rechnungen, Verzeichnisnamen und Systembenutzern auftaucht. Ein
+     * `DELETE` gäbe sie wieder frei, und der nächste Kunde bekäme sie — danach
+     * tragen zwei Vertragspartner in zwei Rechnungen dieselbe Nummer. Der
+     * eindeutige Index gilt auch für zurückgezogene Zeilen; die Nummer ist
+     * damit dauerhaft verbraucht.
+     *
+     * **Was daraus folgt.** Jede Abfrage auf Kunden sieht zurückgezogene nicht
+     * mehr — auch die Bindung in den Routen, die für sie ein 404 liefert.
+     * Wer sie ausdrücklich braucht, fragt `withTrashed()`; im Panel tut das
+     * genau eine Stelle, nämlich die Vergabe der nächsten Nummer.
+     *
+     * **Abonnements und Konten bleiben davon unberührt.** Sie liegen weiter in
+     * ihren Tabellen. Für die Konten ist das abgesichert: Die Anmeldung weist
+     * ein Konto ab, dessen Kunde zurückgezogen ist. Für Abonnements ist es
+     * offen und gehört nach P2 — dort hängen an einem Abonnement ein
+     * Systembenutzer, ein Verzeichnis und eine Quota, und die verschwinden
+     * nicht dadurch, dass eine Zeile ein Datum bekommt.
+     */
+    use SoftDeletes;
 
     /** @var list<string> */
     protected $fillable = [

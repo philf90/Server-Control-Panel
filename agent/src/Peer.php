@@ -67,6 +67,55 @@ final class Peer
     }
 
     /**
+     * Hat die Gegenseite die Verbindung geschlossen?
+     *
+     * **Das ist der Abbruch eines Vorgangs.** Das Panel bricht ab, indem es die
+     * Verbindung schließt; hier wird es bemerkt, und der Agent beendet
+     * daraufhin das laufende Programm. Ein zweiter Weg — eine Operation
+     * `operation.cancel` etwa — wäre schlechter: Der Agent müsste sich merken,
+     * welcher Auftrag zu welchem Vorgang gehört, und Zustand in einem Prozess
+     * als root ist genau das, was die Form „eine Verbindung, ein Auftrag"
+     * vermeidet.
+     *
+     * MSG_PEEK nimmt nichts aus dem Puffer, MSG_DONTWAIT wartet nicht. Ein
+     * Rückgabewert von 0 heißt: geschlossen. Ein Fehler mit EAGAIN heißt:
+     * nichts da, Verbindung steht — der Normalfall, solange ein Programm
+     * läuft, denn nach der Anfrage schickt der Aufrufer nichts mehr.
+     *
+     * **Ein blinder Fleck, benannt statt verschwiegen:** Liegen noch ungelesene
+     * Daten im Puffer, meldet MSG_PEEK diese und nicht das Ende — ein Abbruch
+     * bliebe dann unbemerkt, bis sie gelesen sind. Im Protokoll kann das nicht
+     * eintreten: Der Aufrufer schickt genau eine Zeile, und die hat der Agent
+     * vollständig gelesen, bevor er ein Programm startet. Käme je ein zweiter
+     * Schreibweg dazu, muss diese Methode mit. Der Fall steht in
+     * tests/Unit/AgentCancelTest.php, damit er sichtbar bleibt.
+     *
+     * Statisch und hier statt im Steuerungscode der Verbindung, damit sich das
+     * gegen ein Socketpaar prüfen lässt: Es ist der Punkt, an dem der Abbruch
+     * hängt, und eine Annahme über den Kernel gehört belegt.
+     */
+    public static function gone(Socket $connection): bool
+    {
+        $peeked = '';
+        $received = @socket_recv($connection, $peeked, 1, MSG_PEEK | MSG_DONTWAIT);
+
+        if ($received === 0) {
+            return true;
+        }
+
+        if ($received === false) {
+            $error = socket_last_error($connection);
+            socket_clear_error($connection);
+
+            // Alles außer EAGAIN ist ein echter Fehler an dieser Verbindung —
+            // und dann ist der Aufrufer für unsere Zwecke ebenfalls weg.
+            return ! in_array($error, [SOCKET_EAGAIN, SOCKET_EWOULDBLOCK], true);
+        }
+
+        return false;
+    }
+
+    /**
      * Darf dieser Aufrufer den Agenten benutzen?
      *
      * Erlaubt sind genau zwei: der Benutzer der Anwendung und root. Root steht

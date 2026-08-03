@@ -40,7 +40,253 @@ final class SystemInfo implements Op
             'load' => $this->load(),
             'memory' => $this->memory(),
             'cpu' => $this->cpuRaw(),
+            'network' => $this->networkRaw(),
+            'disk_io' => $this->diskRaw(),
+            'filesystems' => $this->filesystems(),
+            'processes' => $this->processes(),
         ];
+    }
+
+    /**
+     * Gesendete und empfangene Bytes, aufsummiert über alle echten Schnittstellen.
+     *
+     * Roh wie bei der CPU: Der Kernel führt Zählerstände, eine Rate entsteht
+     * erst aus zwei Messungen. `lo` bleibt draußen — der Verkehr eines Rechners
+     * mit sich selbst sagt über seine Anbindung nichts, würde die Zahl aber
+     * beliebig aufblähen, sobald Panel und Datenbank miteinander reden.
+     *
+     * @return array{rx:int,tx:int,interfaces:int}
+     */
+    private function networkRaw(): array
+    {
+        $raw = @file_get_contents($this->procRoot.'/net/dev');
+
+        if ($raw === false) {
+            return ['rx' => 0, 'tx' => 0, 'interfaces' => 0];
+        }
+
+        $rx = 0;
+        $tx = 0;
+        $count = 0;
+
+        foreach (explode("\n", $raw) as $line) {
+            if (! str_contains($line, ':')) {
+                continue;
+            }
+
+            [$name, $values] = explode(':', $line, 2);
+            $name = trim($name);
+
+            if ($name === 'lo' || str_starts_with($name, 'veth') || str_starts_with($name, 'docker')) {
+                continue;
+            }
+
+            $columns = preg_split('/\s+/', trim($values)) ?: [];
+
+            // Spalte 0 sind empfangene Bytes, Spalte 8 gesendete — die
+            // Reihenfolge steht seit Jahrzehnten fest und ist in
+            // Documentation/filesystems/proc.rst beschrieben.
+            $rx += (int) ($columns[0] ?? 0);
+            $tx += (int) ($columns[8] ?? 0);
+            $count++;
+        }
+
+        return ['rx' => $rx, 'tx' => $tx, 'interfaces' => $count];
+    }
+
+    /**
+     * Gelesene und geschriebene Bytes über alle Datenträger.
+     *
+     * `/proc/diskstats` zählt in Sektoren zu 512 Byte — das ist die Einheit
+     * des Kernels an dieser Stelle und unabhängig von der tatsächlichen
+     * Sektorgröße des Geräts.
+     *
+     * Partitionen werden übersprungen: `sda` und `sda1` zählen dieselben
+     * Zugriffe, und wer beide addiert, misst doppelt.
+     *
+     * @return array{read:int,write:int}
+     */
+    private function diskRaw(): array
+    {
+        $raw = @file_get_contents($this->procRoot.'/diskstats');
+
+        if ($raw === false) {
+            return ['read' => 0, 'write' => 0];
+        }
+
+        $read = 0;
+        $write = 0;
+
+        foreach (explode("\n", $raw) as $line) {
+            $columns = preg_split('/\s+/', trim($line)) ?: [];
+
+            if (count($columns) < 10) {
+                continue;
+            }
+
+            $name = $columns[2];
+
+            if (! $this->isWholeDevice($name)) {
+                continue;
+            }
+
+            $read += (int) $columns[5] * 512;
+            $write += (int) $columns[9] * 512;
+        }
+
+        return ['read' => $read, 'write' => $write];
+    }
+
+    /**
+     * Ein ganzes Gerät oder nur eine Partition darauf?
+     *
+     * `sda1` ist eine Partition von `sda`, `nvme0n1p1` eine von `nvme0n1`.
+     * Loop- und RAM-Geräte interessieren nicht.
+     */
+    private function isWholeDevice(string $name): bool
+    {
+        foreach (['loop', 'ram', 'sr', 'fd', 'dm-'] as $prefix) {
+            if (str_starts_with($name, $prefix)) {
+                return false;
+            }
+        }
+
+        if (preg_match('/^nvme\d+n\d+p\d+$/', $name)) {
+            return false;
+        }
+
+        if (preg_match('/^(sd|vd|hd|xvd)[a-z]+\d+$/', $name)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Belegung der eingehängten Dateisysteme.
+     *
+     * Gefiltert auf das, worauf Daten liegen: Was aus `/proc`, `/sys`, `tmpfs`
+     * und Ähnlichem kommt, ist kein Datenträger, sondern eine Sicht des
+     * Kernels. Eine Warnung „98 % voll" über ein `devtmpfs` wäre ein Fehlalarm,
+     * den man sich nach dem zweiten Mal abgewöhnt — und dann übersieht man den
+     * echten.
+     *
+     * @return list<array{mount:string,device:string,type:string,total:int,free:int,used:int,percent:float}>
+     */
+    private function filesystems(): array
+    {
+        $raw = @file_get_contents($this->procRoot.'/mounts');
+
+        if ($raw === false) {
+            return [];
+        }
+
+        $interesting = ['ext2', 'ext3', 'ext4', 'xfs', 'btrfs', 'zfs', 'f2fs', 'jfs', 'reiserfs', 'vfat'];
+        $rows = [];
+        $seen = [];
+
+        foreach (explode("\n", $raw) as $line) {
+            $columns = preg_split('/\s+/', trim($line)) ?: [];
+
+            if (count($columns) < 3) {
+                continue;
+            }
+
+            [$device, $mount, $type] = $columns;
+
+            if (! in_array($type, $interesting, true) || isset($seen[$mount])) {
+                continue;
+            }
+
+            // Der Kernel maskiert Leerzeichen im Einhängepunkt als \040.
+            $mount = str_replace('\\040', ' ', $mount);
+
+            $total = @disk_total_space($mount);
+            $free = @disk_free_space($mount);
+
+            if ($total === false || $free === false || $total <= 0) {
+                continue;
+            }
+
+            $seen[$mount] = true;
+            $used = $total - $free;
+
+            $rows[] = [
+                'mount' => $mount,
+                'device' => $device,
+                'type' => $type,
+                'total' => (int) $total,
+                'free' => (int) $free,
+                'used' => (int) $used,
+                'percent' => round($used / $total * 100, 1),
+            ];
+        }
+
+        usort($rows, static fn (array $a, array $b): int => strcmp($a['mount'], $b['mount']));
+
+        return $rows;
+    }
+
+    /**
+     * Die größten Prozesse nach Speicher.
+     *
+     * **Nach RSS und nicht nach CPU.** Eine CPU-Angabe je Prozess bräuchte auch
+     * hier zwei Messungen und einen Zustand über die Zeit; der Agent führt
+     * keinen. Was ohne Zustand zu haben wäre, ist die Gesamtzeit seit dem Start
+     * eines Prozesses — die sagt aber nur, dass ein alter Prozess viel
+     * gerechnet hat, und nicht, dass er es gerade tut. Der Speicher dagegen ist
+     * ein Augenblickswert und beantwortet die Frage, die man auf einem vollen
+     * Server tatsächlich hat.
+     *
+     * @return list<array{pid:int,name:string,rss:int,state:string,user:int}>
+     */
+    private function processes(int $limit = 15): array
+    {
+        $entries = @scandir($this->procRoot);
+
+        if ($entries === false) {
+            return [];
+        }
+
+        $rows = [];
+
+        foreach ($entries as $entry) {
+            if (! ctype_digit($entry)) {
+                continue;
+            }
+
+            $status = @file_get_contents($this->procRoot.'/'.$entry.'/status');
+
+            if ($status === false) {
+                // Zwischen scandir und dem Lesen kann ein Prozess enden. Das
+                // ist der Normalfall auf einem beschäftigten Server und kein
+                // Grund, die ganze Liste aufzugeben.
+                continue;
+            }
+
+            $name = $this->statusField($status, 'Name');
+
+            $rows[] = [
+                'pid' => (int) $entry,
+                'name' => $name,
+                'rss' => (int) $this->statusField($status, 'VmRSS') * 1024,
+                'state' => substr($this->statusField($status, 'State'), 0, 1),
+                'user' => (int) strtok($this->statusField($status, 'Uid'), " \t"),
+            ];
+        }
+
+        usort($rows, static fn (array $a, array $b): int => $b['rss'] <=> $a['rss']);
+
+        return array_slice($rows, 0, $limit);
+    }
+
+    private function statusField(string $status, string $field): string
+    {
+        if (preg_match('/^'.preg_quote($field, '/').':\s*(.*)$/m', $status, $match) !== 1) {
+            return '';
+        }
+
+        return trim(str_replace(' kB', '', $match[1]));
     }
 
     /** @return array{name:string,version:string} */

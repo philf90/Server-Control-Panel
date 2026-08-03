@@ -8,10 +8,12 @@ use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\ImpersonationController;
+use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
+use App\Models\Operation;
 use Illuminate\Support\Facades\Route;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Version;
@@ -53,6 +55,34 @@ Route::post('/logout', [LoginController::class, 'destroy'])
  */
 Route::middleware('auth')->group(function (): void {
     Route::get('/', OverviewController::class)->name('overview');
+
+    /*
+     * Vorgänge.
+     *
+     * `viewAny` lässt jedes angemeldete Konto auf die Liste; was darauf steht,
+     * entscheidet die Mandantenklammer. `create` ist enger — und die Prüfung,
+     * welche Aufgabe jemand auslösen darf, sitzt noch einmal dahinter im
+     * Katalog (App\Support\Operations\Task).
+     */
+    Route::get('/operations', [OperationController::class, 'index'])
+        ->middleware('can:viewAny,'.Operation::class)
+        ->name('operations.index');
+
+    Route::post('/operations', [OperationController::class, 'store'])
+        ->middleware('can:create,'.Operation::class)
+        ->name('operations.store');
+
+    Route::get('/operations/{operation}', [OperationController::class, 'show'])
+        ->middleware('can:view,operation')
+        ->name('operations.show');
+
+    /*
+     * Abbrechen darf, wer den Vorgang sieht — er hat ihn in aller Regel selbst
+     * ausgelöst. Die Policy prüft zusätzlich, dass er überhaupt noch offen ist.
+     */
+    Route::post('/operations/{operation}/cancel', [OperationController::class, 'cancel'])
+        ->middleware('can:cancel,operation')
+        ->name('operations.cancel');
 
     /*
      * Die Live-Ausgabe eines Vorgangs.

@@ -27,14 +27,14 @@ const navigation = computed(() => {
   if (account.value?.is_admin === false) {
     return [
       { group: null, items: [{ name: 'Übersicht', href: '/' }] },
-      { group: 'Konto', items: [{ name: 'Protokoll', href: '/audit' }] },
+      { group: 'Konto', items: [{ name: 'Vorgänge', href: '/operations' }, { name: 'Protokoll', href: '/audit' }] },
     ]
   }
 
   return [
     { group: null, items: [{ name: 'Übersicht', href: '/' }] },
     { group: 'Verwaltung', items: [{ name: 'Kunden', href: '/customers' }] },
-    { group: 'Server', items: [{ name: 'Protokoll', href: '/audit' }] },
+    { group: 'Server', items: [{ name: 'Vorgänge', href: '/operations' }, { name: 'Protokoll', href: '/audit' }] },
   ]
 })
 
@@ -224,7 +224,7 @@ nav {
   color: var(--text);
 }
 
-.item.an {
+.item.active {
   background: var(--surface);
   color: var(--accent);
   box-shadow: inset 2px 0 0 var(--accent);

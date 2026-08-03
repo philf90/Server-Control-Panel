@@ -112,9 +112,11 @@ final class PanelWalkthroughTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Overview')
-                ->has('tiles', 3)
+                ->has('tiles', 5)
                 ->has('server')
-                ->has('services'));
+                ->has('services')
+                ->has('filesystems')
+                ->has('processes'));
     }
 
     public function test_the_customer_overview_never_carries_them(): void
@@ -132,7 +134,13 @@ final class PanelWalkthroughTest extends TestCase
                 ->has('subscriptions', 0)
                 ->missing('server')
                 ->missing('tiles')
-                ->missing('services'));
+                ->missing('services')
+                // Prozessliste und Dateisysteme sind die Auskunft über den
+                // Server, die am wenigsten in eine Kundenantwort gehört: Sie
+                // nennt fremde Dienste, fremde Speicherbelegung und die
+                // Einhängepunkte des Betreibers.
+                ->missing('filesystems')
+                ->missing('processes'));
     }
 
     public function test_signing_in_as_a_customer_and_back_again(): void

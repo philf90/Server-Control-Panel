@@ -566,6 +566,11 @@ Administratorkonto.
 - Gestaltungssystem „Leitstand" (§7.2) in beiden Dichtestufen und beiden Themes
 - **`srvpanel-metrics` und die Adminübersicht mit Spikelines** (§4.6): CPU,
   RAM, Load, Netz, IO, Datenträger, dazu Prozessliste, Dateisysteme, Uptime
+  (*beim Bauen entschieden:* Die Prozessliste ordnet nach Speicher und nicht
+  nach CPU. Eine CPU-Angabe je Prozess bräuchte zwei Messungen und damit
+  Zustand im Agenten, der bewusst keinen führt; die Gesamtrechenzeit seit dem
+  Start wäre ohne Zustand zu haben, sagt aber nur, dass ein alter Prozess viel
+  gerechnet hat — nicht, dass er es gerade tut)
 
 **Fertig, wenn** ein Admin einen Kunden anlegt, dieser sich anmeldet, seine
 (leere) Übersicht sieht, der Admin auf seiner Übersicht die Verläufe des
@@ -917,3 +922,4 @@ Offen bleibt:
 | 7 | **Testserver**: gibt es Hardware/VM für Integrationsläufe und Lasttests, oder muss die CI das leisten? | P1 |
 | 8 | **Datenschutz**: Auftragsverarbeitung, Aufbewahrungsfristen für Protokoll und Zugriffs-Logs, Löschkonzept für Kundendaten | P9 |
 | 9 | **Passkeys** (§6.4) sind in P1 **nicht** gebaut worden. Gebaut sind TOTP und Wiederherstellungscodes. Passkeys brauchen WebAuthn — eine echte Abhängigkeit, einen Ablauf im Browser und eine eigene Verwaltung registrierter Schlüssel; das ist ein eigenes Stück Arbeit und nicht der Rest eines anderen. Sie bleiben geplant, aber als zweiter Weg **neben** TOTP, nicht als Ersatz | P2 |
+| 10 | **Reste der Umbenennung auf englische Bezeichner** (Commit `22e8bc0`) tauchen weiter auf: `app.ts` suchte die Seiten im alten Verzeichnis (die ganze Oberfläche war unbenutzbar), `srvpanel-metrics.service` rief `artisan srvpanel:kennzahlen` auf, `srvpanel-worker.service` horchte auf die alte Warteschlange (kein Vorgang wäre je gelaufen), dazu tote CSS-Klassen. Gemeinsam ist allen: eine Zeichenkette, die auf etwas verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug prüft. `InertiaPagesTest` und `PackagingTest` decken jetzt die drei gefundenen Sorten ab — **offen ist, ob es eine vierte gibt** | vor 1.0 |

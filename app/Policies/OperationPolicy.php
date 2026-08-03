@@ -23,6 +23,24 @@ final class OperationPolicy
         return true;
     }
 
+    /**
+     * Einen Vorgang auslösen.
+     *
+     * Die Route trägt diese Prüfung, damit sie überhaupt eine Policy hat und
+     * nicht als Ausnahme in der Registratur landet. Sie ist die grobe: Sie
+     * sagt, dass das Konto Vorgänge auslösen darf — nicht, welche. Welche,
+     * entscheidet Task::allowedFor, denn das hängt an der einzelnen Aufgabe
+     * und nicht am Konto allein.
+     *
+     * In P1 laufen beide auf dasselbe hinaus, weil alle Aufgaben den Server
+     * als Ganzes betreffen. Sobald es Websites gibt, tun sie das nicht mehr:
+     * Dann darf ein Kunde auslösen, aber nur Aufgaben an seinem Bestand.
+     */
+    public function create(Account $account): bool
+    {
+        return $account->isAdmin();
+    }
+
     public function view(Account $account, Operation $operation): bool
     {
         if ($account->isAdmin()) {

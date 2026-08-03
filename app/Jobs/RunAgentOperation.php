@@ -37,7 +37,23 @@ final class RunAgentOperation implements ShouldQueue
     /** Der Vorgang darf länger dauern als eine Anfrage — aber nicht endlos. */
     public int $timeout = 1800;
 
-    public function __construct(private readonly int $operationId) {}
+    /**
+     * Eine eigene Warteschlange, und zwar ausdrücklich.
+     *
+     * Ein Vorgang darf eine halbe Stunde dauern. Läge er in derselben
+     * Warteschlange wie alles Kurze — eine Mail, ein Aufräumen —, stünde das
+     * hinter ihm und wartete. Der Name steht hier und in
+     * packaging/systemd/srvpanel-worker.service; dass beide übereinstimmen,
+     * prüft tests/Feature/PackagingTest.php. Ohne diese Prüfung wären es zwei
+     * Zeichenketten an zwei Orten, und ein Auftrag, den kein Arbeiter abholt,
+     * sieht in der Oberfläche aus wie einer, der noch wartet.
+     */
+    public const QUEUE = 'operations';
+
+    public function __construct(private readonly int $operationId)
+    {
+        $this->onQueue(self::QUEUE);
+    }
 
     public function handle(Client $agent, Tenancy $tenancy): void
     {
@@ -48,6 +64,21 @@ final class RunAgentOperation implements ShouldQueue
         if ($operation === null) {
             // Der Vorgang ist verschwunden, während er in der Warteschlange
             // stand — das Abonnement wurde gelöscht. Kein Fehler.
+            return;
+        }
+
+        if (! $operation->open()) {
+            // Schon abgeschlossen. Kommt vor, wenn die Warteschlange denselben
+            // Auftrag ein zweites Mal zustellt.
+            return;
+        }
+
+        // Der billige Abbruch: Wer abbricht, während der Vorgang noch wartet,
+        // kommt gar nicht erst an das System. Hier ist der Abbruch vollständig
+        // und sofort — es gibt nichts zu beenden, weil noch nichts läuft.
+        if ($operation->cancel_requested_at !== null) {
+            (new OperationRecorder($operation))->cancel();
+
             return;
         }
 
@@ -62,10 +93,21 @@ final class RunAgentOperation implements ShouldQueue
                 function (array $frame) use ($recorder): void {
                     $this->consume($recorder, $frame);
                 },
+                static fn (): bool => $operation->cancelRequested(),
             );
 
             $recorder->succeed($result);
         } catch (AgentException $error) {
+            // Ein Abbruch ist kein Fehlschlag. Er steht hier trotzdem im
+            // catch, weil er über dieselbe Ausnahme kommt: Der Aufruf endet
+            // vorzeitig, und das ist die Form, in der das durch den Aufrufer
+            // hindurchgereicht wird.
+            if ($error->errorCode === AgentException::CANCELLED) {
+                $recorder->cancel();
+
+                return;
+            }
+
             // Der Agent hat geantwortet und abgelehnt. Seine Begründung ist
             // für den Betreiber lesbar und gehört an den Vorgang.
             $recorder->fail($error->getMessage(), ['code' => $error->errorCode]);

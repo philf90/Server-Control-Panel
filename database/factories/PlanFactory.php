@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\Plan;
+use App\Support\Plans\Feature;
+use App\Support\Plans\Quotas;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -14,30 +16,37 @@ class PlanFactory extends Factory
 {
     protected $model = Plan::class;
 
-    /** @return array<string, mixed> */
+    /**
+     * Die Werte kommen aus dem Katalog und stehen nicht mehr hier.
+     *
+     * Sie standen hier, und das war der Anfang eines bekannten Musters: neun
+     * Schlüssel als Literale, die niemand mit denen im Formular abglich. Ein
+     * Test gegen eine Factory mit einem eigenen Satz Schlüssel prüft die
+     * Factory und nicht die Anwendung.
+     *
+     * @return array<string, mixed>
+     */
     public function definition(): array
     {
         return [
             'name' => 'Paket '.fake()->unique()->word(),
             'description' => null,
-            'quotas' => [
-                'disk_mb' => 5120,
-                'traffic_gb' => 100,
-                'domains' => 5,
-                'subdomains' => 25,
-                'databases' => 5,
-                'ftp_accounts' => 5,
-                'cron_jobs' => 10,
-                'php_versions' => ['8.3', '8.4'],
-                'fpm_processes' => 10,
-            ],
-            'features' => [
-                'dns_edit' => true,
-                'certificate_upload' => false,
-                'backups' => true,
-                'php_settings' => true,
-            ],
+            'quotas' => Quotas::defaults(),
+            'features' => Quotas::featureDefaults(),
             'is_default' => false,
         ];
+    }
+
+    /** Ein Plan ohne jede Freigabe — für die Prüfung der Freigabeschranke. */
+    public function withoutFeatures(): self
+    {
+        return $this->state(fn (): array => [
+            'features' => array_fill_keys(Feature::keys(), false),
+        ]);
+    }
+
+    public function default(): self
+    {
+        return $this->state(fn (): array => ['is_default' => true]);
     }
 }

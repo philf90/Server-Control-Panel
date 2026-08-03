@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\Plans\Feature;
+use App\Support\Plans\Quota;
 use Database\Factories\PlanFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -59,5 +61,35 @@ class Plan extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Ein Kontingent dieses Plans.
+     *
+     * `null` heisst unbegrenzt — dieselbe Bedeutung wie überall (siehe
+     * {@see Quota}). Ein Schlüssel, den es im Katalog nicht gibt, kommt hier
+     * nicht durch: Der Parametertyp lässt ihn nicht zu.
+     */
+    public function quota(Quota $quota): mixed
+    {
+        return ($this->quotas ?? [])[$quota->value] ?? null;
+    }
+
+    public function feature(Feature $feature): bool
+    {
+        return (bool) (($this->features ?? [])[$feature->value] ?? false);
+    }
+
+    /**
+     * Der Standardplan — der, den ein neues Abonnement bekommt.
+     *
+     * `orderBy('id')` als zweite Bedingung, nicht als Verlegenheit: Sollten
+     * durch einen abgebrochenen Schreibvorgang je zwei Pläne die Marke tragen,
+     * ist die Antwort dieselbe wie beim vorigen Aufruf. Ein Standardplan, der
+     * je nach Laune der Sortierung wechselt, wäre der schlimmere Zustand.
+     */
+    public static function standard(): ?self
+    {
+        return self::query()->where('is_default', true)->orderBy('id')->first();
     }
 }

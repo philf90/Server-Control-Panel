@@ -172,9 +172,64 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
-:where(a, button, [tabindex]):focus-visible {
+/*
+ * Der Fokusrahmen — jetzt auch an Eingabefeldern.
+ *
+ * Die Anmeldemaske hatte dafür eine eigene Zeile, jedes andere Formular
+ * nicht: Dort zeichnete der Browser seinen eigenen Rahmen, und der ist je
+ * nach Browser blau, violett oder gar nicht da. Ein Fokus, der von der
+ * Wahl des Browsers abhängt, ist kein Gestaltungsmittel.
+ */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/*
+ * Ankreuzfelder in der Farbe des Systems.
+ *
+ * Ohne diese Zeile malt der Browser sie in seinem Blau — dieselbe Fremdfarbe
+ * wie bei den selbst ausgefüllten Feldern weiter unten, und mit derselben
+ * Wirkung: In einer Gestaltung, in der Farbe etwas bedeutet (§7.2), steht ein
+ * blaues Häkchen neben einer amberfarbenen Schaltfläche und behauptet eine
+ * zweite Bedeutungsebene, die es nicht gibt. Ein gesetztes Häkchen ist ein
+ * Zustand, und Zustand ist in diesem System Amber.
+ */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
+}
+
+/*
+ * Die Einfärbung des Browsers für selbst ausgefüllte Felder.
+ *
+ * Chrome, Edge und Safari malen ein Feld, das der Passwortspeicher gefüllt
+ * hat, mit einer eigenen Fläche aus — auf hellem Grund ein blasses Gelb, auf
+ * dunklem ein kräftiges Blau. Es ist die einzige Farbe im Panel, die nicht
+ * aus dieser Datei kommt, und sie trifft ausgerechnet die Felder, die man
+ * beim Anmelden ansieht: Adresse, Passwort, Bestätigungscode.
+ *
+ * **Warum ein Schatten und kein `background`.** Der Browser zeichnet seine
+ * Fläche über den Hintergrund des Feldes; `background` erreicht sie nicht.
+ * Ein Schatten nach innen liegt darüber und deckt sie ab — das ist kein
+ * Kunstgriff um seiner selbst willen, sondern die einzige Eigenschaft, die an
+ * dieser Stelle noch durchkommt. Dazu `-webkit-text-fill-color`, weil
+ * derselbe Mechanismus auch die Schriftfarbe setzt, und die lange
+ * `transition`, weil Chrome die Fläche sonst nach dem ersten Tastendruck
+ * kurz wieder aufblitzen lässt.
+ *
+ * Hier und nicht in einer Komponente: Es betrifft jedes Feld im Panel, und
+ * ein Fund, der nur an der Stelle behoben wird, an der er auffiel, kommt an
+ * der nächsten wieder.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 60px var(--bg) inset;
+  caret-color: var(--text);
+  transition: background-color 100000s ease-in-out 0s;
 }
 
 @media (prefers-reduced-motion: reduce) {

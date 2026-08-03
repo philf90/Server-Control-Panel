@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import CodeField from '../../Components/CodeField.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -51,10 +52,7 @@ const off = useForm({ code: '' })
       <p class="uri">{{ props.uri }}</p>
 
       <form @submit.prevent="setup.post('/settings/two-factor')">
-        <label>Code aus der App
-          <input v-model="setup.code" type="text" inputmode="numeric" required>
-        </label>
-        <small v-if="setup.errors.code">{{ setup.errors.code }}</small>
+        <CodeField v-model="setup.code" label="Code aus der App" :error="setup.errors.code" />
         <button type="submit" :disabled="setup.processing">Bestätigen</button>
       </form>
     </section>
@@ -67,10 +65,12 @@ const off = useForm({ code: '' })
       </p>
 
       <form @submit.prevent="off.delete('/settings/two-factor')">
-        <label>Zum Abschalten einen gültigen Code eintragen
-          <input v-model="off.code" type="text" inputmode="numeric" required>
-        </label>
-        <small v-if="off.errors.code">{{ off.errors.code }}</small>
+        <CodeField
+          v-model="off.code"
+          label="Code zum Abschalten"
+          hint="Ohne gültigen Code bleibt der zweite Faktor an — auch für den, der schon angemeldet ist."
+          :error="off.errors.code"
+        />
         <button type="submit" :disabled="off.processing">Abschalten</button>
       </form>
     </section>
@@ -85,9 +85,6 @@ p { margin: 0 0 10px; font-size: var(--text-table); color: var(--text-muted); li
 .secret { font-family: var(--font-mono); font-size: var(--text-body); color: var(--text-strong); letter-spacing: .08em; word-break: break-all; }
 .uri { font-family: var(--font-mono); font-size: var(--text-label); color: var(--text-faint); word-break: break-all; }
 ul { margin: 0; padding-left: 19px; font-family: var(--font-mono); font-size: var(--text-body); color: var(--text-strong); }
-form { display: flex; flex-direction: column; gap: 6px; }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-input { padding: 6px 8px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-small { font-size: var(--text-small); color: var(--critical); }
+form { display: flex; flex-direction: column; gap: 12px; max-width: 288px; }
 button { align-self: flex-start; padding: 7px 14px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
 </style>

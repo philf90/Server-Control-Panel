@@ -11,10 +11,12 @@ use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Operation;
+use App\Models\Plan;
 use Illuminate\Support\Facades\Route;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Version;
@@ -133,6 +135,37 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/customers/{customer}', [CustomerController::class, 'show'])
         ->middleware('can:view,customer')
         ->name('customers.show');
+
+    /*
+     * Pläne — die Vorlage für die Kontingente eines Abonnements (§5.2).
+     *
+     * Durchgehend Betreibersache, deshalb an jeder Route eine Policy. Ein
+     * Kunde sieht seine Kontingente an seinem Abonnement und nicht hier; was
+     * er sieht, ist der Stand, nicht die Vorlage.
+     */
+    Route::get('/plans', [PlanController::class, 'index'])
+        ->middleware('can:viewAny,'.Plan::class)
+        ->name('plans.index');
+
+    Route::get('/plans/create', [PlanController::class, 'create'])
+        ->middleware('can:create,'.Plan::class)
+        ->name('plans.create');
+
+    Route::post('/plans', [PlanController::class, 'store'])
+        ->middleware('can:create,'.Plan::class)
+        ->name('plans.store');
+
+    Route::get('/plans/{plan}/edit', [PlanController::class, 'edit'])
+        ->middleware('can:update,plan')
+        ->name('plans.edit');
+
+    Route::put('/plans/{plan}', [PlanController::class, 'update'])
+        ->middleware('can:update,plan')
+        ->name('plans.update');
+
+    Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])
+        ->middleware('can:delete,plan')
+        ->name('plans.destroy');
 
     /*
      * „Anmelden als" (§6.3).

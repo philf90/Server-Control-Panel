@@ -3,7 +3,7 @@ import { Head, useForm } from '@inertiajs/vue3'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
-  customers: { id: number; label: string }[]
+  customers: { id: number; label: string; suspended: boolean }[]
   plans: { id: number; label: string; is_default: boolean }[]
   nextUser: string
 }>()
@@ -16,8 +16,13 @@ const props = defineProps<{
  * wählbar, liesse sich über ihn ein bestehendes Konto berühren; der Agent
  * weist das ab, aber es hat im Panel nichts zu suchen.
  */
+/*
+ * Der Vorschlag überspringt gesperrte Kunden: Stünde einer oben im Feld,
+ * bekäme man beim Absenden eine Fehlermeldung über eine Auswahl, die man nie
+ * getroffen hat.
+ */
 const form = useForm({
-  customer_id: props.customers[0]?.id ?? null,
+  customer_id: props.customers.find((c) => !c.suspended)?.id ?? null,
   plan_id: props.plans.find((p) => p.is_default)?.id ?? props.plans[0]?.id ?? null,
   name: '',
 })
@@ -37,7 +42,14 @@ const form = useForm({
 
         <label>Kunde
           <select v-model="form.customer_id" required>
-            <option v-for="c in props.customers" :key="c.id" :value="c.id">{{ c.label }}</option>
+            <option
+              v-for="c in props.customers"
+              :key="c.id"
+              :value="c.id"
+              :disabled="c.suspended"
+            >
+              {{ c.label }}{{ c.suspended ? ' · gesperrt' : '' }}
+            </option>
           </select>
           <small v-if="form.errors.customer_id" class="fehler">{{ form.errors.customer_id }}</small>
         </label>

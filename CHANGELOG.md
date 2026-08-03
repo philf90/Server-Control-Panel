@@ -359,8 +359,14 @@ einzelnen Ausbaustufe.
   merkt sich deshalb in `suspended_with_customer`, zu welcher Sperre es gehört;
   wer eines einzeln sperrt, löscht die Kennzeichnung damit. Ein einzelnes
   Abonnement lässt sich nicht entsperren, solange der Kunde gesperrt ist —
-  sonst liesse sich die Kundensperre von unten aushebeln. Die Anmeldung bleibt
-  offen: Ein gesperrter Kunde soll sehen, warum nichts mehr geht.
+  sonst liesse sich die Kundensperre von unten aushebeln. **Und für einen
+  gesperrten Kunden lässt sich keines anlegen:** Es käme aktiv aus dem Anlegen
+  heraus — die Kaskade sperrt, was es beim Klick gab —, und danach stünde beim
+  Kunden „gesperrt" und darunter eine laufende Webseite. Im Formular steht ein
+  gesperrter Kunde trotzdem in der Liste, abgeblendet und mit dem Grund
+  daneben; wer ihn herausfiltert, lässt jemanden nach einem Kunden suchen, den
+  er gestern angelegt hat. Die Anmeldung bleibt offen: Ein gesperrter Kunde
+  soll sehen, warum nichts mehr geht.
 - **Die Erfolgsmeldung steht im Gerüst und nicht auf jeder Seite.** Sie kam
   bisher von drei Seiten selbst, der Rest warf sie weg — wer einen Kunden
   sperrte, bekam als einzige Rückmeldung einen anders beschrifteten Knopf,

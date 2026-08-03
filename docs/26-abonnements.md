@@ -245,6 +245,17 @@ gesperrt ist.** Sonst liesse sich die Kundensperre von unten aushebeln, und
 die spätere Freigabe wüsste nicht mehr, was zu ihr gehört. Wer eines
 herausnehmen will, gibt den Kunden frei und sperrt danach dieses eine.
 
+**Für einen gesperrten Kunden lässt sich kein Abonnement anlegen.** Es käme
+aktiv aus dem Anlegen heraus: Die Kaskade sperrt, was es beim Klick gab, und
+ein Abonnement im Zustand „wird angelegt" hat noch keinen Systembenutzer, den
+man sperren könnte. Danach stünde beim Kunden „gesperrt" und darunter eine
+laufende Webseite. Die Regel gilt auch für den Betreiber — anlegen kann
+ohnehin nur er, und wer für einen gesperrten Kunden etwas anlegen will, gibt
+ihn vorher frei. Dann ist die Freigabe eine Entscheidung und kein Nebeneffekt.
+Im Formular steht ein gesperrter Kunde weiterhin in der Liste, nur abgeblendet
+und mit dem Grund daneben: Wer ihn herausfiltert, lässt jemanden nach einem
+Kunden suchen, den er gestern angelegt hat.
+
 **Die Anmeldung bleibt offen.** Ein gesperrter Kunde kommt weiterhin in das
 Panel und sieht, dass seine Abonnements gesperrt sind — er kann darin nichts
 mehr tun, weil `SubscriptionPolicy::useFeature` einen unbenutzbaren Zustand
@@ -256,12 +267,6 @@ dagegen nicht mehr herein — das ist keine Sperre, sondern das Ende.
 
 - **Sicherung vor dem Rückbau.** Der Plan verlangt sie; solange es keine
   Sicherungen gibt (P8), ist der Rückbau endgültig, und die Rückfrage sagt das.
-- **Ein Abonnement, das während der Kundensperre angelegt wird**, bleibt aktiv:
-  Die Kaskade sperrt, was es beim Klick gab, und ein Abonnement im Zustand
-  „wird angelegt" hat noch keinen Systembenutzer, den man sperren könnte. Es
-  kommt aktiv aus dem Anlegen heraus, während der Kunde gesperrt ist. Die
-  saubere Antwort ist, das Anlegen für gesperrte Kunden zu verweigern; dafür
-  fehlt die Entscheidung, ob das auch für den Betreiber gilt.
 - **Traffic messen.** Das Kontingent steht im Katalog und ist als „gemessen,
   nicht erzwungen" beschrieben — gemessen wird es noch nicht. Dafür braucht es
   die Zugriffsprotokolle der Domains, und die gibt es ab P3.

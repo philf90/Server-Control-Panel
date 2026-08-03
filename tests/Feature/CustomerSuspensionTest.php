@@ -11,6 +11,7 @@ use App\Models\Account;
 use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Operation;
+use App\Models\Plan;
 use App\Models\Subscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -248,6 +249,59 @@ final class CustomerSuspensionTest extends TestCase
         // Welche mitgingen, ist die Frage, die man Wochen später an das
         // Protokoll stellt — die Zahl allein beantwortet sie nicht.
         $this->assertSame([$subscription->name], ($event->context ?? [])['subscriptions'] ?? null);
+    }
+
+    public function test_no_subscription_is_created_for_a_suspended_customer(): void
+    {
+        Queue::fake();
+
+        /*
+         * Sonst käme es aktiv aus dem Anlegen heraus, während der Kunde
+         * gesperrt ist: Die Kaskade sperrt, was es beim Klick gab, und ein
+         * Abonnement im Zustand „wird angelegt" hat noch keinen
+         * Systembenutzer. Danach stünde beim Kunden „gesperrt" und darunter
+         * eine laufende Webseite.
+         */
+        $customer = $this->customer();
+        $this->actingAs($this->admin())->post("/customers/{$customer->id}/suspend");
+
+        $plan = Plan::factory()->default()->create();
+
+        $this->actingAs($this->admin())
+            ->post('/subscriptions', [
+                'customer_id' => $customer->id,
+                'plan_id' => $plan->id,
+                'name' => 'neu-example.de',
+            ])
+            ->assertSessionHasErrors('customer_id');
+
+        $this->assertSame(0, Subscription::query()->count());
+    }
+
+    public function test_the_form_shows_a_suspended_customer_as_locked(): void
+    {
+        $customer = $this->customer();
+        $this->actingAs($this->admin())->post("/customers/{$customer->id}/suspend");
+
+        // Herausfiltern wäre der kürzere Weg und die schlechtere Auskunft: Wer
+        // einen Kunden sucht und ihn nicht findet, sucht den Fehler bei sich.
+        $this->actingAs($this->admin())
+            ->get('/subscriptions/create')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Subscriptions/Create')
+                ->where('customers.0.suspended', true));
+    }
+
+    public function test_an_active_customer_is_not_locked(): void
+    {
+        // Die Gegenprobe: Ohne sie könnte die Kennzeichnung überall stehen,
+        // und niemand käme mehr an ein Abonnement.
+        $this->customer();
+
+        $this->actingAs($this->admin())
+            ->get('/subscriptions/create')
+            ->assertInertia(fn ($page) => $page->where('customers.0.suspended', false));
     }
 
     public function test_a_customer_may_not_suspend_anyone(): void

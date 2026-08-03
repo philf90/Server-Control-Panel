@@ -68,10 +68,19 @@ final class SubscriptionController extends Controller
     public function create(): Response
     {
         return Inertia::render('Subscriptions/Create', [
+            /*
+             * Gesperrte Kunden stehen in der Liste — abgeblendet.
+             *
+             * Sie herauszufiltern wäre der kürzere Weg und die schlechtere
+             * Auskunft: Wer einen Kunden sucht, den er gestern angelegt hat,
+             * und ihn nicht findet, sucht den Fehler bei sich. So steht er da,
+             * lässt sich nicht wählen, und daneben steht der Grund.
+             */
             'customers' => Customer::query()->orderBy('last_name')->get()
                 ->map(static fn (Customer $c): array => [
                     'id' => (int) $c->id,
                     'label' => $c->number.' · '.$c->displayName(),
+                    'suspended' => $c->status === CustomerStatus::Suspended,
                 ])->all(),
             'plans' => Plan::query()->orderByDesc('is_default')->orderBy('name')->get()
                 ->map(static fn (Plan $p): array => [
@@ -94,6 +103,33 @@ final class SubscriptionController extends Controller
             // dass er einmalig sein muss.
             'name' => ['required', 'string', 'max:63', Rule::unique('subscriptions', 'name')->withoutTrashed()],
         ]);
+
+        /*
+         * **Kein Abonnement für einen gesperrten Kunden.**
+         *
+         * Es käme aktiv aus dem Anlegen heraus, während der Kunde gesperrt
+         * ist: Die Kaskade der Kundensperre (docs/26 §10) sperrt, was es beim
+         * Klick gab, und ein Abonnement im Zustand „wird angelegt" hat noch
+         * keinen Systembenutzer, den man sperren könnte. Danach stünde beim
+         * Kunden „gesperrt" und darunter eine laufende Webseite.
+         *
+         * Die Prüfung gilt auch für den Betreiber, und das ist kein Versehen:
+         * Anlegen kann ohnehin nur er. Wer für einen gesperrten Kunden etwas
+         * anlegen will, gibt ihn vorher frei — dann ist die Freigabe eine
+         * Entscheidung und kein Nebeneffekt.
+         *
+         * Die Regel steht hier und nicht als `Rule::exists(...)->where(...)`:
+         * Eine Prüfregel könnte nur „gibt es nicht" sagen, und der Betreiber
+         * sähe „Der gewählte Kunde ist ungültig" für einen Kunden, der vor ihm
+         * auf dem Bildschirm steht.
+         */
+        $customer = Customer::query()->findOrFail($data['customer_id']);
+
+        if ($customer->status === CustomerStatus::Suspended) {
+            throw ValidationException::withMessages([
+                'customer_id' => "Kunde {$customer->number} ist gesperrt. Erst freigeben, dann anlegen.",
+            ]);
+        }
 
         // **Die Regel des Agenten, nicht eine zweite Formulierung davon.**
         // Ein eigener Ausdruck im Controller wäre dieselbe Regel an zwei

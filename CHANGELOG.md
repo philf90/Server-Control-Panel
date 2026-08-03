@@ -57,6 +57,210 @@ anderes Produkt und zählt neu.
   postinstall-Skript räumt außerdem Fassungen ab, die nicht mehr in Gebrauch
   sind: dpkg entfernt beim Update nur seine eigenen Dateien, und was zur
   Laufzeit entstand, hielt das alte Verzeichnis am Leben.
+- **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
+  Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
+  `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im
+  Agenten, `nginx -t` vor der Übernahme, Rückweg bei Ablehnung) und
+  `panel.update`.
+- **`/etc/srvpanel/fpm.conf`** — eigener PHP-FPM-Pool für die Oberfläche, mit
+  `open_basedir` auf die Verzeichnisse des Panels und ohne `exec`, `system`
+  und Verwandte: Die Anwendung kann keinen Prozess starten, sie hat dafür den
+  Agenten.
+- **`packaging/testbed.sh`** — dieselbe Wegwerf-Maschine wie in der CI, aber
+  von Hand in zwei Minuten statt in Zwanzig-Minuten-Schritten.
+
+### P1 — Mandanten, Anmeldung, Vorgänge
+
+Sechs Schritte, und am Ende ein Test, der das Abnahmekriterium der Stufe am
+Stück durchläuft: Ein Admin legt einen Kunden an, dieser meldet sich an, sieht
+seine leere Übersicht, der Admin liest auf seiner die Serverwerte — und kein
+Kunde kommt an ein fremdes Objekt.
+
+- **Datenmodell und Mandantenklammer.** Kunde → Abonnement → Objekte, dazu die
+  Konten. **Der Grundzustand der Klammer ist „nichts"** — nicht „alles" und
+  nicht „das erste Abonnement". Ein Kommando, ein Job, ein neuer Controller:
+  Solange niemand einen Mandanten gesetzt hat, liefert jede mandantengebundene
+  Abfrage eine leere Menge. Der umgekehrte Grundzustand hätte die Eigenschaft,
+  dass ein vergessener Aufruf erst auffällt, wenn der zweite Kunde dazukommt.
+  Die Rechteprüfung läuft über eine Zugehörigkeitskette statt über einen festen
+  Vergleich; heute ist sie einen Schritt lang, mit der Reseller-Ebene aus §5.4
+  ändert sich eine Methode statt dreißig `where`-Bedingungen. Vorgänge heißen
+  `operations` und nicht `jobs` — `jobs` ist bereits die Warteschlangentabelle
+  von Laravel.
+- **Anmeldung, Sitzungen, Ratenbegrenzung.** Argon2id statt bcrypt (§6.4); der
+  Integrationslauf prüft das Verfahren auf allen vier Zielplattformen, weil es
+  eine Eigenschaft des übersetzten PHP ist und nicht der Konfiguration. Eine
+  einzige Fehlermeldung für unbekannte Adresse, falsches Passwort und
+  deaktiviertes Konto — wer unterscheidet, macht aus dem Formular ein Werkzeug
+  zum Sammeln von Kontonamen; auch für unbekannte Adressen wird gerechnet,
+  sonst verrät die Antwortzeit, was die Meldung verschweigt. **Die
+  Ratenbegrenzung hat eine Falle**, und deshalb zwei Zähler: Die IP-Sperre
+  steigt bis zu einer Stunde, die Kontosperre ist bei fünf Minuten gedeckelt —
+  sonst könnte jemand, der die Adresse des Betreibers kennt, ihn von beliebigen
+  IPs aus dauerhaft aussperren, ohne je ein Passwort zu erraten. Dazu die
+  absolute Sitzungsdauer, die Laravel nicht mitbringt: zwölf Stunden,
+  abschaltbar. `srvpanel:admin` nimmt das Passwort nicht als Argument
+  entgegen — es stünde in der Shell-Historie und in `ps`.
+- **Zweiter Faktor mit TOTP und Wiederherstellungscodes.** Zwischen Passwort
+  und zweitem Faktor ist niemand angemeldet: Das wartende Konto steht in der
+  Sitzung, nicht im Anmeldezustand. Ein angenommener Zeitschritt wird am Konto
+  vermerkt — das Fenster ist neunzig Sekunden breit, weil es ungenaue Uhren
+  abfangen muss, und ohne diesen Vermerk hätte jemand, der einen Code mitliest,
+  anderthalb Minuten Zeit. TOTP ohne Bibliothek, weil der RFC Testvektoren
+  liefert und sich die Umsetzung damit gegen den Standard belegen lässt statt
+  nur gegen sich selbst. Wiederherstellungscodes als SHA-256-Hashes: Argon2id
+  wäre hier das falsche Verfahren — die Codes tragen rund fünfzig Bit Entropie,
+  und acht Vergleiche zu je 64 MiB je Anmeldeversuch wären ein bequemer Weg,
+  den Server lahmzulegen. Für Administratoren ist der zweite Faktor
+  verpflichtend (§6.4). Passkeys bleiben offen (§15 Punkt 9).
+- **Policies und die mechanische Routenprüfung.** **Kein `Gate::before` für
+  Admins:** Die eine Zeile im Provider beantwortet auch Fragen, die es gar nicht
+  gibt — ein vertippter Fähigkeitsname liefert weiterhin `true`, und der Fehler
+  zeigt sich ausschließlich bei Kunden. Die Adminzeile steht deshalb in jeder
+  Policy einzeln. Die Routenprüfung hat drei Richtungen: Jede Route trägt eine
+  Policy oder steht mit Begründung in der Registratur; jede Eintragung muss zu
+  einer Route gehören, die es noch gibt; und die Eintragung muss stimmen — was
+  als „nur mit Anmeldung" deklariert ist, muss `auth` tragen. Alle drei
+  Richtungen wurden absichtlich gebrochen und melden sich; eine mechanische
+  Kontrolle, die noch nie fehlgeschlagen ist, ist eine Behauptung. Dabei fielen
+  zwei Routen des Frameworks auf, an die niemand gedacht hatte — `GET` und
+  `PUT` auf `storage/{path}`, geschützt über signierte URLs. Genau dafür ist
+  die Registratur da.
+- **Vorgänge: Warteschlange, Zustände, Live-Ausgabe über SSE.** **Die
+  Modellbindung lief bisher vor der Mandantenklammer** — ein Kunde mit einer
+  fremden ID in der Adresse bekäme das Objekt gebunden, und aus „nicht
+  gefunden" würde „verboten"; damit ließe sich abzählen, welche IDs es gibt.
+  Sie sitzt jetzt hinter `ApplyTenancy`, ein Test hält die Reihenfolge fest.
+  SSE statt WebSocket: eine Richtung, kein zweiter Dienst, kein eigener Port.
+  Der Preis ist ein belegter FPM-Arbeiter je offener Verbindung, deshalb endet
+  der Strom nach fünf Minuten von selbst und kündigt vorher `reconnect` an —
+  ohne diese Grenze könnten ein paar vergessene Browserreiter das Panel für
+  alle unerreichbar machen. Wiederaufnahme über `Last-Event-ID`, damit „auch
+  nach Seitenwechsel" nicht heißt, dass die Ausgabe von vorn beginnt. Kein
+  automatischer zweiter Anlauf im Arbeiter: Ein Wiederholungslauf nach einem
+  Abbruch mitten in einer Paketinstallation täte dasselbe noch einmal auf einem
+  halb veränderten Zustand.
+- **Aufgabenkatalog und Vorgangsfläche.** **Der Browser schickt einen
+  Schlüssel, keine Anweisung.** Nähme der Steuerungscode `type` und `payload`
+  aus dem Formular, wäre das Panel eine Fernsteuerung für beliebige Operationen
+  und die Positivliste im Agenten die einzige verbliebene Schranke. Sie ist
+  gut, aber sie darf nicht die einzige sein: `App\Support\Operations\Task` ist
+  ein Katalog im Quelltext, die Argumente entstehen erst dort, kein Wert aus
+  der Anfrage erreicht den Agenten.
+- **Abbrechen, das den Prozess auch wirklich beendet.** Ein Abbruch, der nur
+  die Ausgabe abschaltet, sähe in der Oberfläche genauso aus wie einer, der
+  wirkt. Dieser geht durch alle drei Prozesse: Der Knopf setzt
+  `cancel_requested_at` und nicht den Zustand — wer sofort „abgebrochen"
+  schriebe, schriebe eine Behauptung über einen fremden Prozess. Der Arbeiter
+  fragt beim Warten auf die nächste Antwort nach und schließt die Verbindung;
+  `Client::call` wartet dafür in Sekundenschritten statt am Stück, sonst wäre
+  ein Programm, das schweigend zehn Minuten läuft, zehn Minuten lang nicht zu
+  stoppen. Der Agent bemerkt das geschlossene Ende mit `MSG_PEEK` und beendet
+  das Kind wie beim Zeitlimit, erst SIGTERM, dann SIGKILL.
+- **Protokoll: Ansicht, Filter und Export.** **Beide gehen durch dieselbe
+  Sichtbarkeit.** Der naheliegende Fehler bei einem Export ist eine sorgfältig
+  gefilterte Liste und eine Datei, die „schnell noch" mit einer eigenen Abfrage
+  gebaut wurde — sie fällt niemandem auf, weil beide für den Betreiber gleich
+  aussehen, und liefert einem Kunden alles. Die Sichtbarkeit ist zweimal
+  formuliert, als Abfrage und als Policy; ein Test vergleicht sie Ereignis für
+  Ereignis. Der Export händigt keiner Tabellenkalkulation eine Formel aus
+  (führendes `=`, `+`, `-`, `@`, Tabulator) und ist gestreamt und gedeckelt,
+  aber nicht stillschweigend: Wird die Grenze erreicht, sagt die letzte Zeile
+  der Datei das.
+- **Kunden, Navigation, „Anmelden als".** Die Kundenübersicht bekommt die
+  Serverwerte nicht ausgeblendet, sondern gar nicht erst — eine gemeinsame
+  Seite mit `v-if` schickte Rechnername, Kernel und Dienstzustände an jeden
+  Browser und zeigte sie dort nur nicht an. Kunde und Anmeldekonto entstehen
+  zusammen in einer Transaktion. „Anmelden als" (§6.3) mit vier Zusagen: kein
+  Passwortzugriff, kein stiller Wechsel (beide Richtungen und alles dazwischen
+  im Protokoll, mit dem Admin als handelnder Person und dem Kundenkonto als
+  Kontext), ein nicht wegklickbares Band mit dem Rückweg bei sich, und ein
+  Rückweg, der auch dann funktioniert, wenn das Adminkonto inzwischen gesperrt
+  wurde. Kein Wechsel aus einem Wechsel heraus.
+- **Kennzahlen: Netz, IO, Dateisysteme, Prozesse** (§4.6). Gerechnet wird mit
+  der tatsächlich vergangenen Zeit und nicht mit dem eingestellten Takt — ein
+  Dienst, der ins Stocken gerät, zeigte sonst das Doppelte. Ein rückwärts
+  gelaufener Zähler ergibt keine Rate statt einer erfundenen, und die erste
+  Messung ebenfalls nicht: Sonst stünde der gesamte Verkehr seit dem
+  Systemstart als eine Sekunde in der Kurve. Die Prozessliste ordnet nach
+  Speicher und nicht nach CPU — eine CPU-Angabe je Prozess bräuchte zwei
+  Messungen und damit Zustand im Agenten, der bewusst keinen führt.
+  `SystemInfo` wird gegen ein erfundenes `/proc` geprüft: Ein Test gegen das
+  echte kennt die Antwort nur von derselben Stelle wie der Code.
+- **Statische Prüfung wieder mit Aussage.** Mit dem Datenmodell meldete PHPStan
+  auf einen Schlag 100 Fehler, alle vom selben Muster — `$model->id` als
+  „undefined property". Larastan erledigt 55 davon; die übrigen 45 waren eine
+  Lücke in dem, was der Code über sich selbst aussagt: `@property`-Blöcke für
+  sechs Modelle, Generics an jeder Beziehung, Wertetypen in Arrays. Kein
+  einziger war ein Laufzeitfehler — das ist kein Argument dafür, sie zu
+  unterdrücken: Eine Prüfung, die man mit Ausnahmen ruhigstellt, sagt beim
+  nächsten Mal nichts mehr. Dabei fand sie in
+  `Customer::descendantIdsIncludingSelf` eine Abbruchbedingung, die nie
+  zutreffen konnte — sie sah nach Sorgfalt aus und war toter Code.
+
+### P2 — die Systemseite eines Abonnements
+
+- **`subscription.provision`** legt Gruppe, Systembenutzer, das
+  Verzeichnisschema aus §4.5 und die Dateisystem-Quota an. **Die Operation
+  nimmt keinen Pfad entgegen — sie baut ihn.** Übergeben wird der Name des
+  Abonnements, geprüft gegen eine Positivliste; der Pfad entsteht im Agenten.
+  Damit gibt es kein `..`, keinen Symlink und keinen absoluten Pfad, den ein
+  Aufrufer unterschieben könnte. Der Benutzername muss `p` und vier bis neun
+  Ziffern sein — sonst wäre er ein Weg, über `useradd`/`usermod` ein
+  bestehendes Konto zu berühren und über `setquota` ein fremdes Kontingent zu
+  setzen. Wurzel `root`, Inhalt Kunde: OpenSSH verweigert ein Chroot, dessen
+  Wurzel dem eingesperrten Benutzer gehört, und zwar wortlos beim
+  Verbindungsaufbau. `useradd --no-user-group` mit eigener Gruppe zuvor, sonst
+  landet der Benutzer je nach Distribution in einer gleichnamigen Gruppe oder
+  in `users` — und dann sähe jedes Abonnement die Dateien jedes anderen.
+- **`subscription.remove`** — die gefährlichste Operation im Projekt: Sie
+  löscht als root einen Verzeichnisbaum. Vier Schranken: Der Pfad wird gebaut;
+  er muss nach `realpath` derselbe sein; die Wurzel aller Abonnements ist
+  ausdrücklich ausgeschlossen; und beim Absteigen wird keinem Symlink gefolgt
+  — der Kunde besitzt `httpdocs` und kann darin `ausbruch -> /etc` anlegen.
+  Die Reihenfolge ist der Rest der Arbeit: Prozesse beenden (sonst scheitert
+  `userdel`), dann Quota (danach gibt es den Namen nicht mehr, und der Eintrag
+  bliebe unter der nackten UID stehen — ein späteres Abonnement mit derselben
+  UID erbte das Kontingent), dann der Baum, dann das Konto samt `groupdel`.
+  **Keine Sicherung in dieser Operation:** Eine, die sichert *und* löscht,
+  sichert im Fehlerfall vielleicht nicht und löscht trotzdem. Die Tests laufen
+  gegen ein echtes Dateisystem und nicht gegen einen Doppelgänger — der
+  beantwortet nur, ob man sich den Ablauf richtig vorstellt.
+- **`subscription.suspend` und `.resume`** — **ein Schalter, nicht viele.** Der
+  naheliegende Weg wäre, jede Domain einzeln abzuschalten; ein
+  Sperrmechanismus, der bei jeder Ausbaustufe eine Stelle mehr anfassen muss,
+  vergisst irgendwann eine, und dann ist ein Abonnement gesperrt und liefert
+  trotzdem aus. Der Schalter sitzt am x-Bit für „andere" an der Chroot-Wurzel:
+  Fällt es weg, kommt kein Webserver-Prozess mehr hinein, unabhängig davon,
+  wie viele Domains darunter hängen. Dazu das Konto — `--lock` allein hindert
+  niemanden, der sich mit einem Schlüssel anmeldet, `--expiredate 1` ist die
+  Schranke, die SSH und SFTP prüfen; beim Freigeben ein leeres `--expiredate`
+  und nicht `0`, denn null ist der 1. Januar 1970 und damit weiterhin
+  abgelaufen. Und die laufenden Prozesse, weil der Kernel das Zugriffsbit beim
+  Öffnen prüft und nicht bei jedem Lesen.
+- **Pläne und Kontingente** (`docs/23`). Die Kontingente liegen weiter als
+  JSON — ein Abonnement übersteuert einzelne Werte und muss „nicht gesetzt"
+  von „auf 0 gesetzt" unterscheiden können. Die **Schlüssel** stehen jetzt in
+  `App\Support\Plans\Quota` und `Feature`, mit Beschriftung, Hinweis, Einheit,
+  Grenzen und Vorgabewert; vorher waren sie Literale an vier Stellen, und ein
+  Tippfehler darin liefert kein Kontingent — was aussieht wie unbegrenzt. Die
+  Zuordnung Freigabe → Recht ist aus der `SubscriptionPolicy` in
+  `Feature::permission()` gewandert, in die Richtung, in der ein Tippfehler
+  beim Übersetzen scheitert. Das Formular kennt kein Kontingent beim Namen; es
+  rendert den Katalog. **Speicherplatz und FPM-Prozesse dürfen nicht
+  unbegrenzt sein** — beide teilen eine Ressource, die der ganze Server teilt.
+  Es gibt genau einen Standardplan: Das Setzen nimmt ihn dem bisherigen, das
+  Abwählen tut nichts, beim Löschen rückt der älteste nach, und `srvpanel
+  setup` legt einen an, wenn keiner da ist. Eine Planänderung wirkt sofort auf
+  alle gebundenen Abonnements — die Zahl steht in der Liste und über dem
+  Formular —, senkt aber nichts rückwirkend weg: Gesenkte Grenzen verbieten
+  das nächste Objekt, sie löschen keines.
+
+### Quer zu den Stufen
+
+Nach der Abnahme von P1 nachgezogen; keines dieser Themen gehört einer
+einzelnen Ausbaustufe.
+
 - **Passwortrichtlinie an einer Stelle** (`docs/22`). Die Regel stand dreifach
   da: als `min:12` im Controller, als Längenprüfung im Kommando `srvpanel:admin`
   und als Satz unter dem Feld. Jetzt kommt alles aus
@@ -77,6 +281,17 @@ anderes Produkt und zählt neu.
   fragt als einzige Stelle im Panel `withTrashed()`. Die Anmeldung weist Konten
   eines zurückgezogenen Kunden ab: Ohne das käme ein gekündigter Kunde weiter
   herein und sähe nichts — was wie ein Fehler aussieht und keine Kündigung ist.
+- **Mein Konto** (`/settings/profile`). Name, Anmeldeadresse und Passwort des
+  eigenen Kontos — bis dahin liess sich das Adminkonto ausschliesslich über
+  `srvpanel:admin` auf der Kommandozeile ändern, also nur von jemandem mit root
+  auf dem Server. Jede Änderung verlangt das aktuelle Passwort, auch die des
+  Namens; ein Passwortwechsel meldet alle anderen Sitzungen ab. **Während
+  „Anmelden als" ist die Seite gesperrt** — ein Admin in fremder Sicht könnte
+  sonst das Passwort eines Kunden setzen und sich einen dauerhaften Zugang
+  verschaffen. Der abgewiesene Versuch steht im Protokoll.
+- **Die Version steht in der Navigation**, als Marke unter dem Schriftzug. Die
+  Fusszeile behält den Quelltextlink samt Version (Abschnitt 13 der AGPL); die
+  Marke beantwortet etwas anderes, nämlich die erste Frage jedes Fehlerberichts.
 - **Wortwahl wieder mechanisch geprüft** (`WordChoiceTest`). Die Vorgabe aus
   `docs/19` hatte einen Test, und der ist beim Repo-Übergang mit dem Go-Code
   verschwunden. Neun Monate später stand im Aufgabenkatalog „Fragt den Agenten
@@ -100,28 +315,17 @@ anderes Produkt und zählt neu.
   damit größer als der Fließtext, den er unterschreiten sollte. 150 Werte sind
   auf eine Skala aus fünf Stufen umgestellt; `DesignTokensTest` lässt weder
   `rem` noch ein Literal noch eine Marke ohne Wert durch.
-- **Mein Konto** (`/settings/profile`). Name, Anmeldeadresse und Passwort des
-  eigenen Kontos — bis dahin liess sich das Adminkonto ausschliesslich über
-  `srvpanel:admin` auf der Kommandozeile ändern, also nur von jemandem mit root
-  auf dem Server. Jede Änderung verlangt das aktuelle Passwort, auch die des
-  Namens; ein Passwortwechsel meldet alle anderen Sitzungen ab. **Während
-  „Anmelden als" ist die Seite gesperrt** — ein Admin in fremder Sicht könnte
-  sonst das Passwort eines Kunden setzen und sich einen dauerhaften Zugang
-  verschaffen. Der abgewiesene Versuch steht im Protokoll.
-- **Die Version steht in der Navigation**, als Marke unter dem Schriftzug. Die
-  Fusszeile behält den Quelltextlink samt Version (Abschnitt 13 der AGPL); die
-  Marke beantwortet etwas anderes, nämlich die erste Frage jedes Fehlerberichts.
-- **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
-  Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
-  `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im
-  Agenten, `nginx -t` vor der Übernahme, Rückweg bei Ablehnung) und
-  `panel.update`.
-- **`/etc/srvpanel/fpm.conf`** — eigener PHP-FPM-Pool für die Oberfläche, mit
-  `open_basedir` auf die Verzeichnisse des Panels und ohne `exec`, `system`
-  und Verwandte: Die Anwendung kann keinen Prozess starten, sie hat dafür den
-  Agenten.
-- **`packaging/testbed.sh`** — dieselbe Wegwerf-Maschine wie in der CI, aber
-  von Hand in zwei Minuten statt in Zwanzig-Minuten-Schritten.
+- **Die Eingabe eines Bestätigungscodes** ist eine eigene Komponente. Sechs
+  Ziffern sind kein Fließtext: Man liest sie von einem Telefon ab und
+  vergleicht sie Ziffer für Ziffer mit dem, was im Feld steht — dafür müssen
+  sie gleich breit sein und auseinander stehen. Dieselbe Komponente an allen
+  drei Stellen, an denen ein Code abgefragt wird.
+- **Drei Fremdfarben des Browsers abgestellt** (`docs/20 §7.2`), alle in
+  `app.css` und nicht dort, wo sie zuerst auffielen: die Einfärbung selbst
+  ausgefüllter Felder (ein kräftiges Blau, das auf dunklem Grund das ganze Feld
+  verschluckt — `background` erreicht sie nicht, nur ein Schatten nach innen),
+  das Blau der Ankreuzfelder und der Fokusrahmen an Eingabefeldern, den bis
+  dahin nur die Anmeldemaske selbst gesetzt hatte.
 
 ### Berichtigt
 
@@ -171,3 +375,28 @@ genau deshalb war jetzt der Zeitpunkt.
 - Ein Unix-Socket-Pfad ist im Kernel auf 108 Zeichen begrenzt. Darüber warf PHP
   eine `ValueError` mitten im Start; jetzt steht dort eine Meldung, aus der
   hervorgeht, was zu ändern ist.
+- **Zwei Units riefen ins Leere**, beide Reste der Umbenennung auf englische
+  Bezeichner, beide erst auf einem echten Server aufgefallen:
+  `srvpanel-metrics.service` rief `artisan srvpanel:kennzahlen` auf und wäre in
+  eine Neustartschleife gelaufen; `srvpanel-worker.service` horchte auf
+  `vorgaenge,standard`, während Aufträge nach `operations` gehen — kein
+  einziger Vorgang wäre je ausgeführt worden. `PackagingTest` prüft jetzt
+  beides.
+- **`app.ts` suchte die Seiten in `./Seiten`**, seit der Umbenennung heißen sie
+  `./Pages`. `import.meta.glob` auf ein Verzeichnis ohne Treffer ist kein
+  Fehler, sondern ein leeres Ergebnis: Der Build lief durch, war um jede Seite
+  leichter (545 statt 586 Module) und im Browser endete jede Seite in
+  „Seite … gibt es nicht". Weder `vue-tsc` noch Vite noch die Tests haben es
+  gemeldet. `InertiaPagesTest` tut es.
+- **`||` verkettet in SQLite, in MariaDB ist es ein logisches Oder.** Die
+  gesammelte Ausgabe jedes Vorgangs wäre im Betrieb nach dem ersten Anhängen
+  eine Ziffer gewesen — und die Tests gegen SQLite hätten das nie bemerkt. Der
+  Ausdruck hängt jetzt am Treiber, ein Test belegt beide Zweige.
+- **Die Ausgabengrenze prüfte nur, was schon dastand.** Ein einzelnes großes
+  Stück — und genau so kommt Ausgabe aus einem Programm — lief daran vorbei,
+  weil die Zeile davor noch leer war. Geprüft wird jetzt gegen das, was
+  ankommt.
+- **Die Karte des zweiten Faktors hatte keinen Innenabstand.** Dort stand
+  `padding: calc(var(--padding) * 1.5)`; `--padding` ist eine Kurzform mit drei
+  Werten, `calc()` rechnet mit einem. Die Deklaration war ungültig und fiel
+  still auf null zurück — Überschrift und Knopf klebten an der Kante.

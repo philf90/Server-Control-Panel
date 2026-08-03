@@ -50,6 +50,38 @@
 }
 
 /*
+ * Schriftgrößen — fünf Stufen, und keine sechste.
+ *
+ * **Warum das Marken sein müssen.** In den Komponenten standen die Größen als
+ * `rem`: `.7rem`, `.72rem`, `.75rem`, `.78rem`, `.8rem`, `.82rem`, `.85rem`,
+ * `.9rem`, `.95rem`, `1.15rem` — zehn Werte für fünf Rollen, entstanden beim
+ * Schreiben und nicht beim Entwerfen.
+ *
+ * **Und warum sie in px stehen.** `rem` rechnet gegen das Wurzelelement, und
+ * das steht auf der Browservorgabe von 16px. Die Grundgröße des Panels sind
+ * aber 13px am `body`. Jeder rem-Wert war damit 23 % größer als gemeint —
+ * `.85rem` für Tabellentext ergab 13,6px und war damit *größer* als der
+ * Fließtext, den er unterschreiten sollte. Aufgefallen ist das zuerst an der
+ * Anmeldemaske, deren Überschrift größer war als die Seitenüberschrift im
+ * angemeldeten Panel.
+ *
+ * **Nicht nach Dichte gestaffelt.** §7.2 staffelt Zeilenhöhe, Abstände und
+ * Kacheln je Reihe — Schriftgrößen nicht. Die Kundenfläche wird ruhiger durch
+ * Luft, nicht durch größere Schrift.
+ */
+:root {
+  --text-label: 10.5px;
+  --text-small: 11px;
+  --text-table: 12px;
+  --text-body: 13px;
+  --text-heading: 16px;
+
+  /* Die grosse Zahl auf einer Kachel. Kein Text, sondern ein Messwert — sie
+     steht in der Reihe, damit sie nicht als Literal irgendwo festwaechst. */
+  --text-metric: 22px;
+}
+
+/*
  * Das helle Theme ist kein Umkehrbild des dunklen.
  *
  * Amber auf Weiß erreicht die Kontrastschwelle für Text nicht — auf hellem

@@ -78,16 +78,16 @@ const off = useForm({ code: '' })
 </template>
 
 <style scoped>
-.karte, .codes { max-width: 34rem; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; margin-bottom: var(--gap); }
+.karte, .codes { max-width: 544px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; margin-bottom: var(--gap); }
 .codes { border-color: var(--warn); background: var(--warn-surface); }
-h2 { margin: 0 0 .4rem; font-size: .9rem; color: var(--text-strong); }
-p { margin: 0 0 .6rem; font-size: .85rem; color: var(--text-muted); line-height: 1.5; }
-.secret { font-family: var(--font-mono); font-size: .95rem; color: var(--text-strong); letter-spacing: .08em; word-break: break-all; }
-.uri { font-family: var(--font-mono); font-size: .7rem; color: var(--text-faint); word-break: break-all; }
-ul { margin: 0; padding-left: 1.2rem; font-family: var(--font-mono); font-size: .9rem; color: var(--text-strong); }
-form { display: flex; flex-direction: column; gap: .4rem; }
-label { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; color: var(--text-muted); }
-input { padding: .4rem .5rem; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-small { font-size: .75rem; color: var(--critical); }
-button { align-self: flex-start; padding: .45rem .9rem; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
+h2 { margin: 0 0 6px; font-size: var(--text-body); color: var(--text-strong); }
+p { margin: 0 0 10px; font-size: var(--text-table); color: var(--text-muted); line-height: 1.5; }
+.secret { font-family: var(--font-mono); font-size: var(--text-body); color: var(--text-strong); letter-spacing: .08em; word-break: break-all; }
+.uri { font-family: var(--font-mono); font-size: var(--text-label); color: var(--text-faint); word-break: break-all; }
+ul { margin: 0; padding-left: 19px; font-family: var(--font-mono); font-size: var(--text-body); color: var(--text-strong); }
+form { display: flex; flex-direction: column; gap: 6px; }
+label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
+input { padding: 6px 8px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
+small { font-size: var(--text-small); color: var(--critical); }
+button { align-self: flex-start; padding: 7px 14px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
 </style>

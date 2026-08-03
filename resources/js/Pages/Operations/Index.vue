@@ -109,18 +109,18 @@ function start(task: TaskEntry): void {
 .katalog { margin-bottom: var(--block-gap); }
 .katalog h2 { margin: 0 0 var(--block-heading-gap); font-size: var(--block-heading-size); font-weight: 600; letter-spacing: -.01em; color: var(--text-strong); }
 .katalog ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 6px; }
-.katalog li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+.katalog li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 11px; border-bottom: 1px solid var(--line); }
 .katalog li:last-child { border-bottom: 0; }
-.text { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
-.text b { font-size: .85rem; font-weight: 600; color: var(--text-strong); }
-.text span { font-size: .78rem; color: var(--text-muted); }
-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.text b { font-size: var(--text-table); font-weight: 600; color: var(--text-strong); }
+.text span { font-size: var(--text-small); color: var(--text-muted); }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }
-th, td { padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
-.op { display: block; font-family: var(--font-mono); font-size: .7rem; color: var(--text-faint); }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.op { display: block; font-family: var(--font-mono); font-size: var(--text-label); color: var(--text-faint); }
 td[data-status='failed'] { color: var(--warn); }
 td[data-status='running'], td[data-status='queued'] { color: var(--accent); }
-button { flex: none; padding: .2rem .6rem; font: inherit; font-size: .78rem; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+button { flex: none; padding: 3px 10px; font: inherit; font-size: var(--text-small); color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
 button:disabled { color: var(--text-faint); cursor: default; }
 button.aendernd { color: var(--warn); border-color: var(--warn); }
 </style>

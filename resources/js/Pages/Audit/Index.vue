@@ -105,16 +105,16 @@ function exportUrl(): string {
 <style scoped>
 .protokoll { display: flex; flex-direction: column; gap: var(--gap); }
 header { display: flex; justify-content: flex-end; }
-.export { font-size: .85rem; color: var(--accent); }
-.filter { display: flex; flex-wrap: wrap; gap: .75rem; }
-.filter label { display: flex; flex-direction: column; gap: .2rem; font-size: .75rem; color: var(--text-muted); }
+.export { font-size: var(--text-table); color: var(--accent); }
+.filter { display: flex; flex-wrap: wrap; gap: 12px; }
+.filter label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
 .filter input, .filter select {
-  padding: .3rem .4rem; font: inherit; font-size: .85rem; color: var(--text);
+  padding: 5px 6px; font: inherit; font-size: var(--text-table); color: var(--text);
   background: var(--bg); border: 1px solid var(--line); border-radius: 5px;
 }
-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }
-th, td { padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
 td[data-ergebnis='failure'] { color: var(--critical); }
 td[data-ergebnis='denied'] { color: var(--warn); }
 </style>

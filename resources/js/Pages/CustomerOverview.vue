@@ -46,12 +46,12 @@ defineProps<{
 </template>
 
 <style scoped>
-.abos { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--gap); }
+.abos { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--gap); }
 .abo { padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-.abo h2 { margin: 0 0 .2rem; font-size: .95rem; color: var(--text-strong); }
-.domain { margin: 0 0 .4rem; font-size: .8rem; color: var(--text-muted); }
-.status { margin: 0; font-size: .78rem; color: var(--ok); }
+.abo h2 { margin: 0 0 3px; font-size: var(--text-body); color: var(--text-strong); }
+.domain { margin: 0 0 6px; font-size: var(--text-small); color: var(--text-muted); }
+.status { margin: 0; font-size: var(--text-small); color: var(--ok); }
 .status[data-status='suspended'] { color: var(--warn); }
 .status[data-status='cancelled'] { color: var(--critical); }
-.leer { max-width: 34rem; font-size: .9rem; color: var(--text-muted); line-height: 1.6; }
+.leer { max-width: 544px; font-size: var(--text-body); color: var(--text-muted); line-height: 1.6; }
 </style>

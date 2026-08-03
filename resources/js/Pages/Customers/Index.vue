@@ -61,12 +61,12 @@ function impersonate(row: Row): void {
 </template>
 
 <style scoped>
-.erfolg { padding: .5rem .7rem; font-size: .85rem; color: var(--ok); background: var(--ok-surface); border-radius: 6px; }
+.erfolg { padding: 8px 11px; font-size: var(--text-table); color: var(--ok); background: var(--ok-surface); border-radius: 6px; }
 .kopf { display: flex; justify-content: flex-end; margin-bottom: var(--gap); }
-.anlegen { font-size: .85rem; color: var(--accent); }
-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.anlegen { font-size: var(--text-table); color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
 th { text-align: left; color: var(--text-muted); font-weight: 600; }
-th, td { padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
 td[data-status='suspended'] { color: var(--warn); }
-button { padding: .2rem .5rem; font: inherit; font-size: .78rem; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+button { padding: 3px 8px; font: inherit; font-size: var(--text-small); color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
 </style>

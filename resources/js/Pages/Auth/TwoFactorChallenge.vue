@@ -46,12 +46,12 @@ function submit(): void {
 
 <style scoped>
 .anmeldung { min-height: 100dvh; display: grid; place-items: center; padding: var(--padding); background: var(--bg); }
-.maske { width: min(24rem, 100%); display: flex; flex-direction: column; gap: .4rem; padding: calc(var(--padding) * 1.5); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 10px; }
-h1 { margin: 0 0 .3rem; font-size: 1.15rem; color: var(--text-strong); }
-.hinweis { margin: 0 0 .8rem; font-size: .82rem; color: var(--text-muted); line-height: 1.5; }
-label { font-size: .8rem; color: var(--text-muted); }
-input { padding: .5rem .6rem; margin-bottom: .6rem; font: inherit; letter-spacing: .1em; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
-button { padding: .55rem; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
+.maske { width: min(384px, 100%); display: flex; flex-direction: column; gap: 6px; padding: calc(var(--padding) * 1.5); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 10px; }
+h1 { margin: 0 0 5px; font-size: var(--text-heading); color: var(--text-strong); }
+.hinweis { margin: 0 0 13px; font-size: var(--text-small); color: var(--text-muted); line-height: 1.5; }
+label { font-size: var(--text-small); color: var(--text-muted); }
+input { padding: 8px 10px; margin-bottom: 10px; font: inherit; letter-spacing: .1em; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+button { padding: 9px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
 button:disabled { opacity: .6; cursor: default; }
-.fehler { margin: 0 0 .5rem; padding: .5rem .6rem; font-size: .85rem; color: var(--critical); background: var(--critical-surface); border-radius: 6px; }
+.fehler { margin: 0 0 8px; padding: 8px 10px; font-size: var(--text-table); color: var(--critical); background: var(--critical-surface); border-radius: 6px; }
 </style>

@@ -122,7 +122,7 @@ function nearest(event: PointerEvent): void {
 }
 
 .label {
-  font-size: 10.5px;
+  font-size: var(--text-label);
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -130,7 +130,7 @@ function nearest(event: PointerEvent): void {
 
 .value {
   font-family: var(--font-mono);
-  font-size: 22px;
+  font-size: var(--text-metric);
   letter-spacing: -0.02em;
   color: var(--text-strong);
   margin-top: 3px;
@@ -140,13 +140,13 @@ function nearest(event: PointerEvent): void {
 }
 
 .value small {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: var(--text-muted);
 }
 
 .subline {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-small);
   color: var(--text-faint);
   height: 16px;
   overflow: hidden;
@@ -166,7 +166,7 @@ function nearest(event: PointerEvent): void {
 }
 
 .series.leer {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: var(--text-faint);
   display: flex;
   align-items: center;

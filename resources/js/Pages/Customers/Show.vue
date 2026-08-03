@@ -51,14 +51,14 @@ defineProps<{
 </template>
 
 <style scoped>
-.spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--gap); }
+.spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(256px, 1fr)); gap: var(--gap); }
 section { padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-h2 { margin: 0 0 .5rem; font-size: .85rem; color: var(--text-muted); font-weight: 600; }
-dl { display: grid; grid-template-columns: auto 1fr; gap: .2rem .6rem; margin: 0; font-size: .85rem; }
+h2 { margin: 0 0 8px; font-size: var(--text-table); color: var(--text-muted); font-weight: 600; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: var(--text-table); }
 dt { color: var(--text-faint); }
 dd { margin: 0; color: var(--text); }
-ul { margin: 0; padding-left: 1rem; font-size: .85rem; }
-li { margin-bottom: .3rem; }
-.letzte { display: block; font-size: .75rem; color: var(--text-faint); }
-.leer { margin: 0; font-size: .85rem; color: var(--text-faint); }
+ul { margin: 0; padding-left: 16px; font-size: var(--text-table); }
+li { margin-bottom: 5px; }
+.letzte { display: block; font-size: var(--text-small); color: var(--text-faint); }
+.leer { margin: 0; font-size: var(--text-table); color: var(--text-faint); }
 </style>

@@ -93,6 +93,24 @@ anderes Produkt und zählt neu.
   Betriebssystems, ohne Textfarbe, auf manchen Servern ein leeres Rechteck.
   Ersetzt durch `EyeIcon.vue`: ein SVG mit `currentColor`, eigene Geometrie,
   keine Icon-Bibliothek. Geprüft von `test_no_vue_template_uses_an_emoji`.
+- **Schriftgrößen als Marken** (`docs/20 §7.2`). In den Komponenten standen zehn
+  `rem`-Werte für fünf Rollen, dazu neun Literale in px. `rem` rechnet gegen das
+  Wurzelelement (16px), die Grundgröße des Panels sind aber 13px — jeder Wert
+  war 23 % größer als gemeint, `.85rem` für Tabellentext ergab 13,6px und war
+  damit größer als der Fließtext, den er unterschreiten sollte. 150 Werte sind
+  auf eine Skala aus fünf Stufen umgestellt; `DesignTokensTest` lässt weder
+  `rem` noch ein Literal noch eine Marke ohne Wert durch.
+- **Mein Konto** (`/settings/profile`). Name, Anmeldeadresse und Passwort des
+  eigenen Kontos — bis dahin liess sich das Adminkonto ausschliesslich über
+  `srvpanel:admin` auf der Kommandozeile ändern, also nur von jemandem mit root
+  auf dem Server. Jede Änderung verlangt das aktuelle Passwort, auch die des
+  Namens; ein Passwortwechsel meldet alle anderen Sitzungen ab. **Während
+  „Anmelden als" ist die Seite gesperrt** — ein Admin in fremder Sicht könnte
+  sonst das Passwort eines Kunden setzen und sich einen dauerhaften Zugang
+  verschaffen. Der abgewiesene Versuch steht im Protokoll.
+- **Die Version steht in der Navigation**, als Marke unter dem Schriftzug. Die
+  Fusszeile behält den Quelltextlink samt Version (Abschnitt 13 der AGPL); die
+  Marke beantwortet etwas anderes, nämlich die erste Frage jedes Fehlerberichts.
 - **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
   Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
   `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im

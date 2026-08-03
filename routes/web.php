@@ -11,6 +11,7 @@ use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
+use App\Http\Controllers\ProfileController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Operation;
@@ -147,6 +148,21 @@ Route::middleware('auth')->group(function (): void {
 
     Route::post('/impersonation/stop', [ImpersonationController::class, 'stop'])
         ->name('impersonation.stop');
+
+    /*
+     * Das eigene Konto.
+     *
+     * Es gehört jedem angemeldeten Konto und keinem bestimmten Objekt —
+     * deshalb keine Policy, sondern die Anmeldung als Schranke. Wer hier
+     * ändert, ändert sich selbst; `$request->user()` ist der einzige Weg an
+     * das Ziel, eine ID aus der Anfrage gibt es nicht.
+     */
+    Route::get('/settings/profile', [ProfileController::class, 'show'])
+        ->name('profile');
+    Route::patch('/settings/profile', [ProfileController::class, 'update'])
+        ->name('profile.update');
+    Route::put('/settings/password', [ProfileController::class, 'password'])
+        ->name('profile.password');
 
     /*
      * Den zweiten Faktor einrichten oder abschalten.

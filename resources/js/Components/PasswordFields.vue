@@ -257,17 +257,17 @@ function randomBelow(bound: number): number {
 </template>
 
 <style scoped>
-.passwort { display: flex; flex-direction: column; gap: .5rem; }
-label { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; color: var(--text-muted); }
-.feld { display: flex; gap: .3rem; }
-input { flex: 1; min-width: 0; padding: .4rem .5rem; font: inherit; font-size: .9rem; font-family: var(--font-mono); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-.auge { flex: none; display: grid; place-items: center; width: 2.1rem; color: var(--text-muted); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+.passwort { display: flex; flex-direction: column; gap: 8px; }
+label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
+.feld { display: flex; gap: 5px; }
+input { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; font-size: var(--text-body); font-family: var(--font-mono); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
+.auge { flex: none; display: grid; place-items: center; width: 34px; color: var(--text-muted); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
 .auge:hover { color: var(--text-strong); }
-.erzeugen { align-self: flex-start; padding: .3rem .7rem; font: inherit; font-size: .78rem; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+.erzeugen { align-self: flex-start; padding: 5px 11px; font: inherit; font-size: var(--text-small); color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
 .erzeugen:hover { border-color: var(--accent); color: var(--accent); }
 
-.regeln { display: flex; flex-wrap: wrap; gap: .15rem 1rem; margin: .2rem 0 0; padding: 0; list-style: none; }
-.regeln li { display: flex; align-items: baseline; gap: .35rem; font-size: .78rem; color: var(--text-faint); }
+.regeln { display: flex; flex-wrap: wrap; gap: 2px 16px; margin: 3px 0 0; padding: 0; list-style: none; }
+.regeln li { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-small); color: var(--text-faint); }
 .regeln li.erfuellt { color: var(--ok); }
 .marke { font-family: var(--font-mono); color: var(--critical); }
 .regeln li.erfuellt .marke { color: var(--ok); }
@@ -275,16 +275,16 @@ input { flex: 1; min-width: 0; padding: .4rem .5rem; font: inherit; font-size: .
 /* Nur für Vorlesesoftware: Haken und Kreuz allein sagen ihr nichts. */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-.staerke { display: flex; align-items: center; gap: .5rem; }
-.leiste { display: flex; gap: 3px; flex: 1; max-width: 12rem; }
+.staerke { display: flex; align-items: center; gap: 8px; }
+.leiste { display: flex; gap: 3px; flex: 1; max-width: 192px; }
 .leiste span { flex: 1; height: 4px; border-radius: 999px; background: var(--surface-border); }
-.wert { font-size: .78rem; color: var(--text-muted); }
+.wert { font-size: var(--text-small); color: var(--text-muted); }
 [data-stufe='1'] .leiste span.an { background: var(--critical); }
 [data-stufe='2'] .leiste span.an { background: var(--warn); }
 [data-stufe='3'] .leiste span.an,
 [data-stufe='4'] .leiste span.an { background: var(--ok); }
 
-.hinweis { margin: 0; font-size: .72rem; color: var(--text-faint); }
-.fertig { margin: 0; font-size: .78rem; color: var(--ok); }
-.fehler { font-size: .75rem; color: var(--critical); }
+.hinweis { margin: 0; font-size: var(--text-label); color: var(--text-faint); }
+.fertig { margin: 0; font-size: var(--text-small); color: var(--ok); }
+.fehler { font-size: var(--text-small); color: var(--critical); }
 </style>

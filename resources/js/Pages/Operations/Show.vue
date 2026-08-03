@@ -115,19 +115,19 @@ watch(output, () => {
 </template>
 
 <style scoped>
-.leiste { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 0 var(--gap); font-size: .8rem; }
-.leiste button { padding: .2rem .6rem; font: inherit; font-size: .78rem; color: var(--warn); background: transparent; border: 1px solid var(--warn); border-radius: 5px; cursor: pointer; }
+.leiste { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 var(--gap); font-size: var(--text-small); }
+.leiste button { padding: 3px 10px; font: inherit; font-size: var(--text-small); color: var(--warn); background: transparent; border: 1px solid var(--warn); border-radius: 5px; cursor: pointer; }
 .leiste button:disabled { color: var(--text-faint); border-color: var(--line); cursor: default; }
-.wartet { margin: 0 0 var(--gap); padding: .5rem .7rem; font-size: .82rem; color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
-.kopf { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 0 0 var(--gap); }
-.kopf dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); }
-.kopf dd { margin: .15rem 0 0; font-size: .85rem; color: var(--text); }
+.wartet { margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-small); color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
+.kopf { display: flex; flex-wrap: wrap; gap: 24px; margin: 0 0 var(--gap); }
+.kopf dt { font-size: var(--text-label); text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); }
+.kopf dd { margin: 2px 0 0; font-size: var(--text-table); color: var(--text); }
 .kopf dd[data-status='failed'] { color: var(--warn); }
 .kopf dd[data-status='running'], .kopf dd[data-status='queued'] { color: var(--accent); }
-.meldung { padding: .5rem .7rem; font-size: .85rem; border-radius: 6px; background: var(--surface); }
+.meldung { padding: 8px 11px; font-size: var(--text-table); border-radius: 6px; background: var(--surface); }
 .meldung[data-status='failed'] { color: var(--warn); background: var(--warn-surface); }
-h2 { margin: calc(var(--gap) * 1.5) 0 .4rem; font-size: .8rem; font-weight: 600; color: var(--text-muted); }
-pre { margin: 0; padding: .6rem .7rem; font-family: var(--font-mono); font-size: .78rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
-.ausgabe { max-height: 26rem; overflow-y: auto; }
+h2 { margin: calc(var(--gap) * 1.5) 0 6px; font-size: var(--text-small); font-weight: 600; color: var(--text-muted); }
+pre { margin: 0; padding: 10px 11px; font-family: var(--font-mono); font-size: var(--text-small); line-height: 1.5; white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.ausgabe { max-height: 416px; overflow-y: auto; }
 .daten { color: var(--text-muted); }
 </style>

@@ -444,6 +444,33 @@ Menüpunkt. Wo beides in einer Zeile stünde, gewinnt der Zustand.
 - Kleine Beschriftungen in Versalien mit Sperrung (`.09em`), sonst keine
   Versalien.
 
+**Fünf Größen, und keine sechste.** Sie stehen als Marken in
+`resources/css/app.css` und sonst nirgends — dieselbe Regel wie für Farben:
+
+| Marke | Wert | Rolle |
+|---|---|---|
+| `--text-label` | 10,5 px | Versalien-Beschriftungen: Spaltenköpfe, Kachel-Beschriftung |
+| `--text-small` | 11 px | Feldbeschriftungen, Hinweise, Fehlertexte, kleine Knöpfe |
+| `--text-table` | 12 px | Tabellenzellen und Fließtext in Listen |
+| `--text-body` | 13 px | Eingaben, Knöpfe, Fließtext |
+| `--text-heading` | 16 px | Seitenüberschrift |
+| `--text-metric` | 22 px | die große Zahl auf einer Kachel |
+
+**In px und nicht in rem.** `rem` rechnet gegen das Wurzelelement, und das steht
+auf der Browservorgabe von 16 px — die Grundgröße des Panels sind aber 13 px am
+`body`. In den Komponenten standen zehn rem-Werte für fünf Rollen, jeder davon
+23 % größer als gemeint: `.85rem` für Tabellentext ergab 13,6 px und war damit
+*größer* als der Fließtext, den er unterschreiten sollte. Aufgefallen ist es an
+der Anmeldemaske, deren Überschrift größer war als die Seitenüberschrift im
+angemeldeten Panel.
+
+**Nicht nach Dichte gestaffelt.** Die Dichtetabelle unten staffelt Zeilenhöhe,
+Abstände und Kacheln je Reihe. Schriftgrößen nicht: Die Kundenfläche wird
+ruhiger durch Luft, nicht durch größere Schrift.
+
+Geprüft von `tests/Feature/DesignTokensTest.php` — kein `rem` in einer
+Komponente, keine Schriftgröße außerhalb der Skala, keine Marke ohne Wert.
+
 #### Dichte in zwei Stufen
 
 Die Kritik am dunkelen, dichten Zuschnitt trifft die Kundenfläche, nicht die

@@ -40,6 +40,12 @@ final class Runner
         'userdel' => '/usr/sbin/userdel',
         'usermod' => '/usr/sbin/usermod',
         'groupadd' => '/usr/sbin/groupadd',
+        // Dazugekommen mit subscription.remove. `userdel` nimmt die Gruppe
+        // nicht mit, wenn sie nicht als „user private group" angelegt wurde —
+        // und genau das ist sie hier nicht, weil useradd mit --no-user-group
+        // läuft. Ohne groupdel bliebe je gelöschtem Abonnement eine Gruppe in
+        // /etc/group stehen.
+        'groupdel' => '/usr/sbin/groupdel',
         'setquota' => '/usr/sbin/setquota',
         'repquota' => '/usr/sbin/repquota',
         'apt-get' => '/usr/bin/apt-get',

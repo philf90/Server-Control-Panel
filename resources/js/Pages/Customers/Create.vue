@@ -98,14 +98,14 @@ function submit(): void {
 </template>
 
 <style scoped>
-.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 34rem; }
-fieldset { display: flex; flex-direction: column; gap: .5rem; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-legend { padding: 0 .3rem; font-size: .8rem; color: var(--text-muted); }
-label { display: flex; flex-direction: column; gap: .2rem; font-size: .8rem; color: var(--text-muted); }
-input { padding: .4rem .5rem; font: inherit; font-size: .9rem; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
+.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 544px; }
+fieldset { display: flex; flex-direction: column; gap: 8px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
+legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
+label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
+input { padding: 6px 8px; font: inherit; font-size: var(--text-body); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
 input[readonly] { color: var(--text-muted); background: var(--surface-border); border-color: transparent; cursor: default; }
-.fehler { font-size: .75rem; color: var(--critical); }
-.hinweis { font-size: .72rem; color: var(--text-faint); }
-button[type='submit'] { align-self: flex-start; padding: .5rem 1rem; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
+.fehler { font-size: var(--text-small); color: var(--critical); }
+.hinweis { font-size: var(--text-label); color: var(--text-faint); }
+button[type='submit'] { align-self: flex-start; padding: 8px 16px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
 button[type='submit']:disabled { opacity: .6; cursor: default; }
 </style>

@@ -100,6 +100,17 @@ anderes Produkt und zählt neu.
   damit größer als der Fließtext, den er unterschreiten sollte. 150 Werte sind
   auf eine Skala aus fünf Stufen umgestellt; `DesignTokensTest` lässt weder
   `rem` noch ein Literal noch eine Marke ohne Wert durch.
+- **Mein Konto** (`/settings/profile`). Name, Anmeldeadresse und Passwort des
+  eigenen Kontos — bis dahin liess sich das Adminkonto ausschliesslich über
+  `srvpanel:admin` auf der Kommandozeile ändern, also nur von jemandem mit root
+  auf dem Server. Jede Änderung verlangt das aktuelle Passwort, auch die des
+  Namens; ein Passwortwechsel meldet alle anderen Sitzungen ab. **Während
+  „Anmelden als" ist die Seite gesperrt** — ein Admin in fremder Sicht könnte
+  sonst das Passwort eines Kunden setzen und sich einen dauerhaften Zugang
+  verschaffen. Der abgewiesene Versuch steht im Protokoll.
+- **Die Version steht in der Navigation**, als Marke unter dem Schriftzug. Die
+  Fusszeile behält den Quelltextlink samt Version (Abschnitt 13 der AGPL); die
+  Marke beantwortet etwas anderes, nämlich die erste Frage jedes Fehlerberichts.
 - **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
   Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
   `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im

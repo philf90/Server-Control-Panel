@@ -27,7 +27,11 @@ const navigation = computed(() => {
   if (account.value?.is_admin === false) {
     return [
       { group: null, items: [{ name: 'Übersicht', href: '/' }] },
-      { group: 'Konto', items: [{ name: 'Vorgänge', href: '/operations' }, { name: 'Protokoll', href: '/audit' }] },
+      { group: 'Konto', items: [
+        { name: 'Vorgänge', href: '/operations' },
+        { name: 'Protokoll', href: '/audit' },
+        { name: 'Mein Konto', href: '/settings/profile' },
+      ] },
     ]
   }
 
@@ -35,6 +39,7 @@ const navigation = computed(() => {
     { group: null, items: [{ name: 'Übersicht', href: '/' }] },
     { group: 'Verwaltung', items: [{ name: 'Kunden', href: '/customers' }] },
     { group: 'Server', items: [{ name: 'Vorgänge', href: '/operations' }, { name: 'Protokoll', href: '/audit' }] },
+    { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile' }] },
   ]
 })
 
@@ -66,7 +71,24 @@ function stopImpersonation(): void {
       <div class="badge">
         <!-- „C" stand hier bis August 2026 — von CloudSrv, dem verworfenen Namen. -->
         <span class="glyph">S</span>
-        <b>SrvPanel</b>
+        <!--
+          Die Version steht unter dem Schriftzug und nicht daneben.
+          Daneben war der Wunsch, und daneben passt sie nicht: Die Seitenleiste
+          ist 186px breit, abzüglich Innenabstand bleiben 158px, und Zeichen,
+          Schriftzug und Marke brauchen zusammen 177px — bei einer Vorabfassung
+          wie „0.10.0-rc.12" sogar 190px. Gemessen, nicht geschätzt. Unter dem
+          Schriftzug steht sie bündig mit ihm und bleibt dezent.
+
+          Sie steht hier und trotzdem weiter in der Fusszeile. Die Fusszeile
+          erfüllt Abschnitt 13 der AGPL: ein Link auf den Quelltext *dieser*
+          Fassung. Diese Marke erfüllt etwas anderes — sie beantwortet die
+          Frage „welche läuft hier eigentlich?" ohne Scrollen, und das ist die
+          erste Frage bei jedem Fehlerbericht.
+        -->
+        <span class="schrift">
+          <b>SrvPanel</b>
+          <span class="version">{{ source.version }}</span>
+        </span>
       </div>
 
       <nav>
@@ -187,7 +209,38 @@ function stopImpersonation(): void {
   color: var(--text-strong);
 }
 
+/*
+ * Die Version: dezent, weil sie eine Auskunft ist und keine Meldung.
+ *
+ * Kein Akzent — Amber bedeutet in diesem System Signal, Zustand oder primäre
+ * Aktion (§7.2), und eine Versionsnummer ist nichts davon. Sie sitzt in
+ * Monospace, damit die Ziffern beim Vergleich zweier Server untereinander
+ * stehen, und sie schrumpft nicht mit: `flex: none` verhindert, dass eine
+ * lange Vorabfassung wie „0.2.0-rc.10" den Schriftzug daneben quetscht.
+ */
+.schrift {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+
+.version {
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--text-faint);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 3px;
+}
+
 .glyph {
+  /* `flex: none`, seit die Version daneben steht: Ohne das schrumpft das
+     Quadrat zu einem Streifen, sobald die Zeile eng wird. Gesehen beim
+     Rendern, nicht beim Lesen. */
+  flex: none;
   width: 22px;
   height: 22px;
   border-radius: 3px;

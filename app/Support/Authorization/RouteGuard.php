@@ -77,6 +77,18 @@ final class RouteGuard
                 'kind' => self::OPEN,
                 'reason' => 'Die Prüfung des Codes. Geschützt durch dieselbe Ratenbegrenzung wie das Passwort — sechs Stellen liessen sich sonst in Ruhe durchprobieren.',
             ],
+            'GET settings/profile' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Das eigene Konto. Das Ziel kommt aus der Sitzung und nicht aus der Anfrage — es gibt keine ID, über die jemand ein fremdes Konto treffen könnte, und damit auch nichts, woran eine Policy ansetzen würde.',
+            ],
+            'PATCH settings/profile' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Name und Anmeldeadresse des eigenen Kontos. Verlangt zusätzlich das aktuelle Passwort und ist während „Anmelden als" gesperrt: Ein Admin in fremder Sicht könnte sonst die Anmeldeadresse eines Kunden auf seine eigene umschreiben.',
+            ],
+            'PUT settings/password' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Das eigene Passwort. Verlangt das aktuelle, meldet alle anderen Sitzungen ab und ist während „Anmelden als" gesperrt — sonst wäre der Sichtwechsel ein Weg, ein fremdes Konto dauerhaft zu übernehmen.',
+            ],
             'GET settings/two-factor' => [
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Der eigene zweite Faktor. Jedes Konto richtet nur seinen eigenen ein; es gibt kein fremdes Objekt, an dem eine Policy ansetzen könnte.',

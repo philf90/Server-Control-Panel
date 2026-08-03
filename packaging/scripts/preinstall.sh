@@ -24,15 +24,48 @@ if [ -r /etc/os-release ]; then
     esac
 fi
 
-# Den Stand vor dem Update festhalten. Danach ist er nicht mehr zu ermitteln:
-# dpkg legt den Symlink beim Entpacken um, und der alte Pfad wäre nur noch zu
-# raten. Geraten wird beim Zurücknehmen einer Fassung nicht.
+# Den Stand vor dem Update festhalten — und zwar als Kopie, nicht als Pfad.
+#
+# **Warum eine Kopie sein muss.** Hier stand nur der Pfad. Das reichte nicht:
+# dpkg entfernt beim Update alle Dateien, die im neuen Paket nicht mehr
+# vorkommen, und sobald das Verzeichnis die Fassung im Namen trägt, ist das die
+# gesamte vorige Fassung. Sie ist weg, bevor postinst überhaupt läuft — der
+# Rückweg zeigte auf ein Verzeichnis, das es nicht mehr gab. Belegt in der CI
+# auf allen vier Plattformen: „Die vorige Fassung … ist verschwunden."
+#
+# **`cp -al`, also harte Verweise.** Ein vollständiges Kopieren wäre eine
+# Minute Arbeit und 60 MiB, jedes Mal. Harte Verweise kosten Verzeichnis-
+# einträge; die Daten liegen ohnehin schon da. Wenn dpkg gleich darauf die
+# ursprünglichen Pfade entfernt, halten diese Verweise die Dateien am Leben —
+# genau das ist der Zweck.
+#
+# **Unter /opt und nicht unter /var**, obwohl der Vermerk dort liegt: Harte
+# Verweise gehen nur innerhalb eines Dateisystems, und /opt und /var sind auf
+# einem sortierten Server oft getrennt. Neben den Fassungen ist der einzige
+# Ort, an dem sie sicher funktionieren.
+ROLLBACK_DIR=/opt/srvpanel/rollback
+
+# Ein Rest von einem abgebrochenen Update. Er ist wertlos, sobald ein neues
+# beginnt, und würde sonst beliebig lange Platz halten.
+rm -rf "${ROLLBACK_DIR}"
+
 if [ -L /opt/srvpanel/current ]; then
     previous="$(readlink -f /opt/srvpanel/current || true)"
 
     if [ -n "${previous}" ] && [ -d "${previous}" ]; then
-        mkdir -p /var/lib/srvpanel
-        printf '%s\n' "${previous}" > /var/lib/srvpanel/previous-release
+        mkdir -p /var/lib/srvpanel "${ROLLBACK_DIR}"
+        keep="${ROLLBACK_DIR}/$(basename "${previous}")"
+
+        if cp -al "${previous}" "${keep}" 2>/dev/null; then
+            printf '%s\n' "${keep}" > /var/lib/srvpanel/previous-release
+            echo "SrvPanel: Rückweg bereitgestellt unter ${keep}."
+        else
+            # Getrennte Dateisysteme oder ein Dateisystem ohne harte Verweise.
+            # Dann lieber ehrlich ohne Rückweg als mit einem, der nicht hält.
+            rm -rf "${ROLLBACK_DIR}"
+            rm -f /var/lib/srvpanel/previous-release
+            echo "SrvPanel: Rückweg konnte nicht bereitgestellt werden — das Update läuft ohne." >&2
+        fi
     fi
 fi
 

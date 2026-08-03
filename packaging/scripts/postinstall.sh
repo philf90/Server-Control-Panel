@@ -201,6 +201,19 @@ if ! panel_ready; then
     exit 1
 fi
 
+# Der Rückweg hat seinen Zweck erfüllt und wird abgeräumt.
+#
+# Ihn zu behalten hiesse, auf jedem Kundenserver dauerhaft eine Fassung
+# zusätzlich zu halten — die harten Verweise aus dem preinst sind billig,
+# solange dpkg die Originale noch hält, aber danach sind sie die einzigen und
+# tragen die Daten allein. Nach einer bestandenen Bereitschaftsprüfung ist das
+# Platz für einen Fall, der nicht mehr eintreten kann: Wer später zurück will,
+# installiert die vorige Fassung aus der Paketquelle.
+if [ -d /opt/srvpanel/rollback ]; then
+    rm -rf /opt/srvpanel/rollback
+    echo "SrvPanel: Rückweg nicht mehr nötig, abgeräumt."
+fi
+
 rm -f "${PREVIOUS_FILE}"
 echo "SrvPanel ${VERSION} läuft."
 

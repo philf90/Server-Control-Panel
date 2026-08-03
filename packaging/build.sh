@@ -50,8 +50,22 @@ mkdir -p "${ROOT}/dist"
 sed "s/__VERSION__/${VERSION}/g" packaging/scripts/postinstall.sh > "${ROOT}/build/postinstall.sh"
 chmod +x "${ROOT}/build/postinstall.sh"
 
+# **`${VERSION}` wird hier ersetzt und nicht nfpm überlassen.**
+#
+# nfpm setzt Umgebungsvariablen in `version:` und `arch:` ein, aber nicht in
+# den Pfaden unter `contents:`. Das Verzeichnis der Fassung hiess deshalb in
+# jedem bisher gebauten Paket wörtlich `/opt/srvpanel/releases/${VERSION}` —
+# nachgesehen im ausgelieferten 0.2.0~rc.4.
+#
+# Aufgefallen ist es nie, weil auch der Symlink dieselbe Zeichenkette trug:
+# Eine Neuinstallation läuft damit tadellos. Kaputt war das Update. Der
+# Rückweg vergleicht die vorige Fassung mit der neuen und bricht ab, wenn
+# beide dasselbe Verzeichnis sind — und das waren sie immer. „Update mit
+# Rückweg" konnte nie zurück, und die neue Fassung wurde über die laufende
+# geschrieben statt neben sie.
 VERSION="${VERSION}" ARCH="${ARCH}" nfpm package \
-    --config <(sed "s#./packaging/scripts/postinstall.sh#${ROOT}/build/postinstall.sh#" packaging/nfpm.yaml) \
+    --config <(sed -e "s#./packaging/scripts/postinstall.sh#${ROOT}/build/postinstall.sh#" \
+                   -e "s#\${VERSION}#${VERSION}#g" packaging/nfpm.yaml) \
     --packager deb \
     --target "${ROOT}/dist"
 

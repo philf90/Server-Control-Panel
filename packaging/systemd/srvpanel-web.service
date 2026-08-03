@@ -26,7 +26,12 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
-ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel /opt/srvpanel/current/storage /run/srvpanel
+# Der Schreibbereich der Anwendung liegt unter /var/lib/srvpanel/storage und
+# ist damit von der ersten Angabe erfasst. Hier stand zusätzlich
+# /opt/srvpanel/current/storage; das ist seit dem Umzug ein Verweis, und ein
+# Verweis, dessen Ziel beim Start noch fehlt, lässt die Unit gar nicht erst
+# hochkommen.
+ReadWritePaths=/var/lib/srvpanel /var/log/srvpanel /run/srvpanel
 
 MemoryMax=768M
 TasksMax=128

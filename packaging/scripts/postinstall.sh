@@ -67,13 +67,33 @@ select_php() {
     return 1
 }
 
+# Der Schreibbereich der Anwendung liegt unter /var/lib/srvpanel/storage; in
+# der Fassung steht nur ein Verweis darauf (siehe packaging/nfpm.yaml).
+#
+# Die Unterverzeichnisse legt Laravel nicht selbst an — es erwartet sie. Sie
+# hier aufzuzählen ist stumpf, aber die Alternative wäre ein Panel, das beim
+# ersten Schreibversuch mit „directory does not exist" abbricht.
+create_storage() {
+    # 0700, nicht 0750: Hier stand vorher ein `chmod -R go-rwx` auf den
+    # Schreibbereich in der Fassung, und diese Absicht zieht mit um. Es liest
+    # ohnehin nur der Dienst selbst — nginx bedient public/, nicht storage/.
+    install -d -o srvpanel -g srvpanel -m 0700 /var/lib/srvpanel/storage
+    for part in app app/private app/public framework framework/cache \
+                framework/cache/data framework/sessions framework/views logs
+    do
+        install -d -o srvpanel -g srvpanel -m 0700 "/var/lib/srvpanel/storage/${part}"
+    done
+}
+
 set_permissions() {
+    # `chown -R` folgt keinen Verweisen: Der Verweis auf storage wechselt
+    # dadurch den Eigentümer, sein Ziel unter /var/lib/srvpanel bleibt
+    # unangetastet. Genau so soll es sein — create_storage hat es gesetzt.
     chown -R root:root "${RELEASE_DIR}"
     # Nur was geschrieben werden muss, gehört dem Dienst. Der Rest ist für ihn
     # lesbar und nicht mehr — ein Panel, das sein eigenes Programm überschreiben
     # kann, hat eine Schwachstelle mehr, als es haben müsste.
-    chown -R srvpanel:srvpanel "${RELEASE_DIR}/storage" "${RELEASE_DIR}/bootstrap/cache"
-    chmod -R u+rwX,go-rwx "${RELEASE_DIR}/storage"
+    chown -R srvpanel:srvpanel "${RELEASE_DIR}/bootstrap/cache"
     chown root:srvpanel /etc/srvpanel/agent.json
     chmod 0640 /etc/srvpanel/agent.json
     install -d -o srvpanel -g srvpanel -m 0750 /var/lib/srvpanel/metrics
@@ -168,9 +188,52 @@ roll_back() {
     return 1
 }
 
+# Fassungen abräumen, die nicht mehr gebraucht werden.
+#
+# **Warum das nötig ist.** dpkg entfernt beim Update die Dateien der vorigen
+# Fassung, aber nur die aus dem Paket. Was zur Laufzeit entstanden ist — bis
+# rc.5 das Protokoll unter storage/logs, dauerhaft die von Laravel erzeugten
+# Dateien unter bootstrap/cache — bleibt liegen, und mit ihm das Verzeichnis:
+#
+#     dpkg: Warnung: Altes Verzeichnis »/opt/srvpanel/releases/…/storage/logs«
+#           kann nicht gelöscht werden: Directory not empty
+#
+# Ohne diesen Schritt sammelt sich unter /opt/srvpanel/releases nach jedem
+# Update ein weiteres Gerippe an. Das gilt auch für das Verzeichnis, das bis
+# rc.4 wörtlich `${VERSION}` hieß — der Glob findet es wie jedes andere, ein
+# eigener Sonderfall ist dafür nicht nötig.
+#
+# **Warum das gefahrlos ist, obwohl der Rückweg noch gebraucht werden könnte.**
+# Der Rückweg liegt unter /opt/srvpanel/rollback und nicht hier. Er besteht aus
+# harten Verweisen auf dieselben Dateien; ein `rm -rf` auf den alten Pfad
+# entfernt nur diesen einen Namen, die Daten hängen weiter am Rückweg. Genau
+# darum ist die Kopie im preinst eine Kopie und kein Pfad.
+prune_releases() {
+    current="$(readlink -f /opt/srvpanel/current 2>/dev/null || true)"
+
+    if [ -z "${current}" ]; then
+        return 0
+    fi
+
+    for dir in /opt/srvpanel/releases/*; do
+        if [ ! -d "${dir}" ]; then
+            continue
+        fi
+
+        if [ "$(readlink -f "${dir}")" = "${current}" ]; then
+            continue
+        fi
+
+        rm -rf "${dir}"
+        echo "SrvPanel: Reste der Fassung $(basename "${dir}") abgeräumt."
+    done
+}
+
 create_user
+create_storage
 select_php
 set_permissions
+prune_releases
 
 systemctl daemon-reload
 

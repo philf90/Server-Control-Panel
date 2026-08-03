@@ -65,6 +65,23 @@ contents:
     dst: /opt/srvpanel/current
     type: symlink
 
+  # **Der Schreibbereich gehört nicht in die Fassung.**
+  #
+  # Bis 0.2.0~rc.4 hieß das Fassungsverzeichnis wörtlich `${VERSION}` und
+  # änderte sich nie. `storage` lag darin und war dadurch versehentlich
+  # dauerhaft. Mit dem richtigen Namen ist jede Fassung ein neues Verzeichnis —
+  # und damit wäre auch `storage` bei jedem Update neu: Das Protokoll des
+  # Panels finge von vorn an, das alte bliebe in der alten Fassung liegen, und
+  # alles, was ab P2 unter storage/app landet (Sicherungen, Dateien), wäre nach
+  # einem Update fort.
+  #
+  # Ein Verweis nach /var/lib/srvpanel/storage löst beides: Der Schreibbereich
+  # überlebt Updates, und das alte Fassungsverzeichnis lässt sich restlos
+  # abräumen, weil nichts Bewahrenswertes mehr darin steht.
+  - src: /var/lib/srvpanel/storage
+    dst: /opt/srvpanel/releases/${VERSION}/storage
+    type: symlink
+
   - src: ./packaging/systemd/srvpanel-agentd.service
     dst: /lib/systemd/system/srvpanel-agentd.service
   - src: ./packaging/systemd/srvpanel-web.service

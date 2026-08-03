@@ -49,6 +49,14 @@ anderes Produkt und zählt neu.
   zeigt der Symlink wieder auf die vorige Fassung und die Dienste laufen mit
   ihr weiter. Bis dahin war das ein Kommentar, der eine Zusage machte, die der
   Code nicht einlöste.
+- **Der Schreibbereich liegt außerhalb der Fassung.** `storage` ist ein Verweis
+  nach `/var/lib/srvpanel/storage`. Solange das Fassungsverzeichnis wörtlich
+  `${VERSION}` hieß und sich nie änderte, war das ohne Folgen; mit dem richtigen
+  Namen wäre der Schreibbereich bei jedem Update neu gewesen — das Protokoll des
+  Panels finge von vorn an, und alles, was ab P2 dort landet, wäre fort. Das
+  postinstall-Skript räumt außerdem Fassungen ab, die nicht mehr in Gebrauch
+  sind: dpkg entfernt beim Update nur seine eigenen Dateien, und was zur
+  Laufzeit entstand, hielt das alte Verzeichnis am Leben.
 - **Fünf neue Operationen im Agenten**: `service.action` (mit eigener, enger
   Unit-Liste — Zustand lesen ist harmlos, eine beliebige Unit stoppen nicht),
   `panel.provision`, `panel.tls.ensure`, `panel.vhost.apply` (Vorlage im

@@ -1,153 +1,3 @@
-Package: asylum-archive-keyring
-Architecture: all
-Version: 0.3.0~rc.5
-Priority: optional
-Section: admin
-Maintainer: Project Asylum <noreply@users.noreply.github.com>
-Installed-Size: 0
-Filename: pool/main/a/asylum-archive-keyring/asylum-archive-keyring_0.3.0-rc.5_linux_all.deb
-Size: 1594
-MD5sum: 0743df19713ef7924087fdb121807cf3
-SHA1: 5534244fe61c39845bfb8176eef4689f024c20e2
-SHA256: da7a3e00f80169381c8f1a994438a0746d63a90e28c5ad58be528b29cf2bcfdf
-SHA512: ebca91465cbae1026cb2f782fb4262c9c00fe3d42d6bf8838266400e0d1a28466ae9456574f5ecc9a448b9e9dfd3c9c11398cdc425ef6ce29214ffb5f470d380
-Homepage: https://repo.cloudsrv24.de/
-Description: Schlüsselbund des Project-Asylum-APT-Repositories.
- Enthält den öffentlichen OpenPGP-Schlüssel, mit dem die Release-Dateien
- unter https://repo.cloudsrv24.de/apt signiert sind.
-
-Package: asylum-archive-keyring
-Architecture: all
-Version: 0.3.0~rc.6
-Priority: optional
-Section: admin
-Maintainer: Project Asylum <noreply@users.noreply.github.com>
-Installed-Size: 0
-Filename: pool/main/a/asylum-archive-keyring/asylum-archive-keyring_0.3.0-rc.6_linux_all.deb
-Size: 1596
-MD5sum: 3481abb6fbdd10aec002c5539d7913e1
-SHA1: 57a2c1ea551f11dc466cfb49cf8215071edafa10
-SHA256: 70b2d0d6d7913de7bcc919149d89220523c8aaac4d864f78f663fe8983a99922
-SHA512: 4bc53e327930742e14fd25c3f16b354cb6891bf70d89bab138d8fa608aa9928c606876323e60a47b7c91101a62276d5879acdfc294aab710782834b47e60f4d6
-Homepage: https://repo.cloudsrv24.de/
-Description: Schlüsselbund des Project-Asylum-APT-Repositories.
- Enthält den öffentlichen OpenPGP-Schlüssel, mit dem die Release-Dateien
- unter https://repo.cloudsrv24.de/apt signiert sind.
-
-Package: asylum-archive-keyring
-Architecture: all
-Version: 0.4.0~rc.1
-Priority: optional
-Section: admin
-Maintainer: Project Asylum <noreply@users.noreply.github.com>
-Installed-Size: 0
-Filename: pool/main/a/asylum-archive-keyring/asylum-archive-keyring_0.4.0-rc.1_linux_all.deb
-Size: 1592
-MD5sum: 64b7c1cedf05b55c32e7393988875912
-SHA1: 98c2f3d5acf3855bbf307b73e3b6fd7f9f415747
-SHA256: bc5d0e1667f0f9fc41f817a221ac78f2167ec978df9ce5e6a6377386bd2e4aab
-SHA512: f2ff279647d5c36258306b752a565fe68cb12d8e74d0254355b3c0f605c028207e12c437742ba9ca7a9beae949a1a854da274bf283f2af5365236fd1b0e74579
-Homepage: https://repo.cloudsrv24.de/
-Description: Schlüsselbund des Project-Asylum-APT-Repositories.
- Enthält den öffentlichen OpenPGP-Schlüssel, mit dem die Release-Dateien
- unter https://repo.cloudsrv24.de/apt signiert sind.
-
-Package: asylum-archive-keyring
-Architecture: all
-Version: 0.4.0~rc.2
-Priority: optional
-Section: admin
-Maintainer: Project Asylum <noreply@users.noreply.github.com>
-Installed-Size: 0
-Filename: pool/main/a/asylum-archive-keyring/asylum-archive-keyring_0.4.0-rc.2_linux_all.deb
-Size: 1594
-MD5sum: 31368232a96da80e61e0d2876cfcee8e
-SHA1: 474adf9a942e01a0eea25980ce1e433f0c411f77
-SHA256: ffa69bddd595feb0ecb8f3b901a21761f857aee233747a4ce1d15991d334751d
-SHA512: 5cce91d3ecdb59ff779d0fb53701776c331f65a58731ce643a38597b47774f69476f2e18a5d4c699d2ccffb87970dce5f18f0c806c8b386e3ffe57a5ac0842f7
-Homepage: https://repo.cloudsrv24.de/
-Description: Schlüsselbund des Project-Asylum-APT-Repositories.
- Enthält den öffentlichen OpenPGP-Schlüssel, mit dem die Release-Dateien
- unter https://repo.cloudsrv24.de/apt signiert sind.
-
-Package: asylum-archive-keyring
-Architecture: all
-Version: 0.4.0~rc.3
-Priority: optional
-Section: admin
-Maintainer: Project Asylum <noreply@users.noreply.github.com>
-Installed-Size: 0
-Filename: pool/main/a/asylum-archive-keyring/asylum-archive-keyring_0.4.0-rc.3_linux_all.deb
-Size: 1594
-MD5sum: 5e983d807e3fe82d389b4c64c156502f
-SHA1: 24bc073589dca9dd41067f495740d4024b2cae8c
-SHA256: 379785bf60cbe1e89a4003a563e1e29fc583c0e6ff615750b74ad979a986656f
-SHA512: f5c2a6994f68fc34c0dae7add8895ab91b603e1f5d574402c2cd4f69db0a841cf942b12885c6da04c8fb291ed3ef57168e4e86675bb4423cee361f35b05e025e
-Homepage: https://repo.cloudsrv24.de/
-Description: Schlüsselbund des Project-Asylum-APT-Repositories.
- Enthält den öffentlichen OpenPGP-Schlüssel, mit dem die Release-Dateien
- unter https://repo.cloudsrv24.de/apt signiert sind.
-
-Package: asylum-panel
-Architecture: arm64
-Version: 0.6.0
-Priority: optional
-Section: admin
-Maintainer: Project Asylum <noreply@users.noreply.github.com>
-Installed-Size: 17741
-Depends: systemd
-Recommends: minisign, asylum-archive-keyring
-Filename: pool/main/a/asylum-panel/asylum-panel_0.6.0_linux_arm64.deb
-Size: 7306516
-MD5sum: 640da11151a3e10a218b104c2945e9ae
-SHA1: 1233f3e9d45fdb4cd4f9a4dca38c52182b41601f
-SHA256: a1816ac90754f1a5d9f590525c7aa71dd667e41bc2c668a22390c29dafa03b03
-SHA512: faaa08b421a93fdf1549675869f8caa64f9fe8f2c2eeae8c96e92f183d4ac229ca76bdc6571bb96fb52171f18aa139b814358a80976019cade668502dd2c47c0
-Homepage: https://repo.cloudsrv24.de/
-Description: Schlankes Control Panel für Linux-Server.
- Administration, Security, YAML, Logs, Updates, Monitoring — ein Binary,
- keine Runtime-Abhängigkeiten.
-
-Package: asylum-panel
-Architecture: arm64
-Version: 0.6.1
-Priority: optional
-Section: admin
-Maintainer: Project Asylum <noreply@users.noreply.github.com>
-Installed-Size: 17741
-Depends: systemd
-Recommends: minisign, asylum-archive-keyring
-Filename: pool/main/a/asylum-panel/asylum-panel_0.6.1_linux_arm64.deb
-Size: 7307010
-MD5sum: 8585fb0da634347d6348f4ca97a1cff4
-SHA1: 441170a1c602e1f93b8ed809f2dc112c482b9d3c
-SHA256: 77be432e860f2246dd2a2324911d273e8e273955edcb80d4d775ddeb6f2048c3
-SHA512: 10bbd0200b7a22ae44af636e9ca40a99f9b350efe9f07987da0ff5426f4654289d3f503fa018ead185e381fd55b563bf333870f2bfa7a3609bb5fdea89084a2c
-Homepage: https://repo.cloudsrv24.de/
-Description: Schlankes Control Panel für Linux-Server.
- Administration, Security, YAML, Logs, Updates, Monitoring — ein Binary,
- keine Runtime-Abhängigkeiten.
-
-Package: asylum-panel
-Architecture: arm64
-Version: 0.6.2
-Priority: optional
-Section: admin
-Maintainer: Project Asylum <noreply@users.noreply.github.com>
-Installed-Size: 17742
-Depends: systemd
-Recommends: minisign, asylum-archive-keyring
-Filename: pool/main/a/asylum-panel/asylum-panel_0.6.2_linux_arm64.deb
-Size: 7309070
-MD5sum: afbf48bd8fe6d5d89fca6d2a217831fd
-SHA1: f90f974237cae6d26e57a8c5f22bf49f4a5287b2
-SHA256: 0af44b33a432c7d61aa5e3b149c2a3372fd17c3b08535f6211329b72927fa335
-SHA512: 3103e45f6c5e98256b53413b8f3ca9f84b7f44995f00d26a089da39953f872a9daa6010cb4edc0298e23117f3d99ba0a3da9c9899fdf38e2f2608e4bd93457cf
-Homepage: https://repo.cloudsrv24.de/
-Description: Schlankes Control Panel für Linux-Server.
- Administration, Security, YAML, Logs, Updates, Monitoring — ein Binary,
- keine Runtime-Abhängigkeiten.
-
 Package: srvpanel-php-source
 Architecture: all
 Version: 0.2.0~rc.2
@@ -162,6 +12,27 @@ MD5sum: bffd7e8cf30b92afa39f5a7e9718011b
 SHA1: 37edd8a320fce473055fe0b635c6b62151013303
 SHA256: 5a588dea55b58d8483d1758b07ef20ff2c9ac72057fbc7381c8bd7e18c789e84
 SHA512: 58b618457194ed8e669aab0b8b205a3049b8dd66a3df39b1f3135dd94a095cbee94046b357cacf0d2b88e42072681bf5a3f90ce5db1efa0ff688056bd9b408ad
+Homepage: https://repo.cloudsrv24.de/
+Description: Richtet die PHP-8.4-Quelle für SrvPanel ein.
+ Debian 12, Ubuntu 22.04 und 24.04 liefern kein PHP 8.4; dieses Paket trägt
+ deb.sury.org bzw. das PPA von Ondřej Surý als Quelle ein. Vor srvpanel
+ einspielen — apt löst Abhängigkeiten auf, bevor Paketskripte laufen.
+License: AGPL-3.0-only
+
+Package: srvpanel-php-source
+Architecture: all
+Version: 0.2.0~rc.3
+Priority: optional
+Section: admin
+Maintainer: philf90 <philipp@netzhost24.de>
+Installed-Size: 2
+Depends: curl, ca-certificates, gnupg
+Filename: pool/main/s/srvpanel-php-source/srvpanel-php-source_0.2.0~rc.3_all.deb
+Size: 3766
+MD5sum: b5a588078a1bf14d087ec9624cdc7919
+SHA1: 86e15e6100c53bae4d3bb147b5a1716a3c881208
+SHA256: 8ae9a1314c5714a350caeba2bff29a628acec2c8fec44a72eefcb342516fa19a
+SHA512: 26a7736471688171b8c5c738f5d9c33947c6a44e8e29923ccffa52c751f7c62786329ef79433214356b9b1278ab4499730014ab208efbdd7515139a213642f08
 Homepage: https://repo.cloudsrv24.de/
 Description: Richtet die PHP-8.4-Quelle für SrvPanel ein.
  Debian 12, Ubuntu 22.04 und 24.04 liefern kein PHP 8.4; dieses Paket trägt
@@ -232,6 +103,29 @@ MD5sum: b228ff29dbb644289d1d7bd9e5574fef
 SHA1: 939d5cba907880f55d679429eac27e0e6a48180f
 SHA256: 0b6f03b8d7565b58eb4585d3534f23f1d64a6f5a50efe469e725a8f40d019bfb
 SHA512: f0395df5d79d61263d7777d6bbeded325cfeb3d0c87dbbc4022363c18fc851b50b99ce683cedaf05bb00f29fb832060fb4ef50d56529d9be70eb5540ee499c79
+Homepage: https://repo.cloudsrv24.de/
+Description: SrvPanel — Hosting-Panel für einen einzelnen Linux-Server.
+ Kunden, Abonnements, Domains, PHP, Datenbanken, DNS, Dateien und Sicherungen
+ über eine Oberfläche, mit einem Systembenutzer je Abonnement.
+License: AGPL-3.0-only
+
+Package: srvpanel
+Architecture: arm64
+Version: 0.2.0~rc.3
+Priority: optional
+Section: admin
+Maintainer: philf90 <philipp@netzhost24.de>
+Bugs: https://github.com/philf90/Server-Control-Panel/issues
+Installed-Size: 27164
+Depends: nginx, curl, php8.4-cli, php8.4-fpm, php8.4-mysql, php8.4-mbstring, php8.4-xml, php8.4-curl, mariadb-server, quota, ca-certificates
+Recommends: fail2ban
+Suggests: postgresql
+Filename: pool/main/s/srvpanel/srvpanel_0.2.0~rc.3_arm64.deb
+Size: 5271110
+MD5sum: 628487207792238a64af1e41bc68ee06
+SHA1: 9bc772a6af3e6b539c671e53e3584fe18f38b1d7
+SHA256: 6714996540274594eefe41cc1acdce3c32b2dec0ac2def87d14af743f96395b8
+SHA512: 15c22ce99d160ef5505c51f97c009659a280c62d08ba2623abfc5bb0288b78e8480da6c56a8dc3da5a246660fb535184ccdd122f445256cfdfe25dfa7cb71959
 Homepage: https://repo.cloudsrv24.de/
 Description: SrvPanel — Hosting-Panel für einen einzelnen Linux-Server.
  Kunden, Abonnements, Domains, PHP, Datenbanken, DNS, Dateien und Sicherungen

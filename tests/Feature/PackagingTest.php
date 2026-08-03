@@ -27,6 +27,11 @@ use Tests\TestCase;
  *   leer geblieben.
  * - `srvpanel-worker.service` horchte auf `vorgaenge,standard`. Aufträge gehen
  *   in `operations`. Kein einziger Vorgang wäre je ausgeführt worden.
+ * - `install.sh` holt `php-source.sh` von der Seite, der Freigabelauf hat es
+ *   dorthin nie kopiert. Ohne PHP-Quelle kein PHP 8.4, und die Installation
+ *   endete mit einer apt-Meldung über `php8.4-cli`, die die Ursache nicht
+ *   nennt. Gefunden hat das kein Test, sondern der erste Mensch, der es
+ *   benutzen wollte.
  */
 final class PackagingTest extends TestCase
 {
@@ -50,6 +55,43 @@ final class PackagingTest extends TestCase
         }
 
         return array_values(array_filter($commands));
+    }
+
+    public function test_the_release_publishes_every_file_the_installer_fetches(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $installer = (string) file_get_contents($root.'/packaging/install.sh');
+        $release = (string) file_get_contents($root.'/.github/workflows/release.yml');
+
+        // Alles, was install.sh unterhalb der Seitenwurzel holt. `${REPO_URL%/apt}`
+        // ist genau diese Wurzel — die Schreibweise steht so im Skript.
+        preg_match_all('#\$\{REPO_URL%/apt\}/([A-Za-z0-9._\-]+)#', $installer, $matches);
+
+        $this->assertNotSame([], $matches[1], 'install.sh holt nichts von der Seite — dann stimmt dieser Test nicht mehr.');
+
+        $missing = [];
+
+        foreach (array_unique($matches[1]) as $file) {
+            // Der Freigabelauf kopiert die Datei aus packaging/ in den
+            // Pages-Branch. Beides muss stimmen: Sie muss im Repository
+            // liegen, und sie muss veröffentlicht werden.
+            if (! is_file($root.'/packaging/'.$file)) {
+                $missing[] = $file.' (fehlt in packaging/)';
+
+                continue;
+            }
+
+            if (! str_contains($release, 'packaging/'.$file.' '.$file)) {
+                $missing[] = $file.' (wird vom Freigabelauf nicht veröffentlicht)';
+            }
+        }
+
+        $this->assertSame([], $missing, sprintf(
+            "install.sh holt diese Dateien von der Seite, aber sie kommen dort nicht an:\n  %s\n\n".
+            'Ein `curl -f` ins Leere gibt nichts aus, und ein leeres `sh` endet mit 0 — '.
+            'der Fehlschlag ist also unsichtbar, bis Schritte später etwas anderes scheitert.',
+            implode("\n  ", $missing),
+        ));
     }
 
     public function test_every_unit_calls_an_artisan_command_that_exists(): void

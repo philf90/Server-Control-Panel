@@ -47,6 +47,11 @@
   --critical-surface: rgb(216 96 74 / 0.14);
 
   --focus: #7fc4ff;
+
+  /* Der Schleier hinter der Navigationsschublade (docs/24 §4). Eine Farbe,
+     also gehört sie hierher und nicht in die Komponente — §7.2 macht keine
+     Ausnahme für Schwarz mit Deckung. */
+  --scrim: rgb(0 0 0 / 0.55);
 }
 
 /*
@@ -126,6 +131,10 @@
   --critical-surface: rgb(216 96 74 / 0.12);
 
   --focus: #005ea8;
+
+  /* Auf hellem Grund reicht weniger Deckung: Der Inhalt darunter ist hell,
+     der Kontrast zur Schublade entsteht ohnehin. */
+  --scrim: rgb(15 23 31 / 0.4);
 }
 
 /*

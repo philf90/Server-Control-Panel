@@ -480,7 +480,7 @@ h1 {
     position: fixed;
     inset: 0;
     z-index: 30;
-    background: rgb(0 0 0 / 0.5);
+    background: var(--scrim);
   }
 
   .nav {

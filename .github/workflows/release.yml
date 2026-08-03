@@ -214,14 +214,12 @@ jobs:
           # Jedes Paket unter seinem eigenen Namen in den Pool — Debian-Konvention
           # pool/main/<anfangsbuchstabe>/<paket>/.
           #
-          # Das Paket des Vorgängers liegt daneben und wird von hier an nicht
-          # mehr angefasst. „Von hier an": Der erste Lauf unter dem neuen Namen
-          # hat seine älteren Fassungen aus dem Pool geräumt, weil das
-          # Zurückschneiden weiter unten über alle Verzeichnisse lief. Das ist
-          # behoben, aber nicht rückgängig gemacht — die Entscheidung war,
-          # die 404 MiB nicht zurückzuholen. Geblieben sind asylum-panel 0.6.1
-          # und 0.6.2; bestehende Installationen können damit weiter
-          # aktualisieren, ältere Fassungen sind nicht mehr installierbar.
+          # Die Pakete des Vorgängers lagen bis August 2026 daneben und sind
+          # entfernt worden; im Pool steht nur noch, was dieses Projekt baut.
+          # Das Zurückschneiden weiter unten läuft trotzdem weiter nur über die
+          # Pakete dieses Laufs — eine Regel, die über alles läuft, kennt den
+          # Unterschied zwischen eigenen und fremden Verzeichnissen nicht, und
+          # genau das hat schon einmal 404 MiB gekostet.
           published=""
           for deb in ../dist/*.deb; do
             name="$(dpkg-deb -f "$deb" Package)"
@@ -240,14 +238,35 @@ jobs:
           # **Nur die Pakete dieses Laufs.** Vorher lief die Schleife über
           # jedes Verzeichnis unter pool/main. Der erste Lauf unter dem neuen
           # Namen hat damit 92 Dateien des Vorgängers gelöscht — 404 MiB, auf
-          # die der stable-Index weiter verweist. Zwanzig Zeilen weiter oben
+          # die der stable-Index weiter verwies. Zwanzig Zeilen weiter oben
           # stand zur selben Zeit, das Paket des Vorgängers werde „nicht
           # angefasst". Eine Regel, die über alles läuft, kennt den
           # Unterschied zwischen eigenen und fremden Paketen nicht; sie muss
           # ihn übergeben bekommen.
+          #
+          # **Sortiert nach Fassung, nicht nach Änderungszeit.** Hier stand
+          # `ls -1t`. Der Pages-Zweig wird in jedem Lauf frisch ausgecheckt,
+          # und dabei bekommen alle Dateien praktisch dieselbe Änderungszeit —
+          # welche als „älteste" gilt, war damit Zufall. Sichtbar wurde es bei
+          # 0.2.0-rc.2: gelöscht wurde 0.1.0~rc.1 in amd64, während dieselbe
+          # Fassung in arm64 stehenblieb. Solange nur wenige Fassungen im Pool
+          # liegen, ist das folgenlos; darüber hinaus löscht die Regel
+          # irgendwann eine neuere Fassung und behält eine ältere.
+          #
+          # `sort -V` bildet die Debian-Ordnung für unsere Fassungen richtig
+          # ab, auch die Tilde: 0.2.0~rc.2 < 0.2.0~rc.10 < 0.2.0.
+          #
+          # Und je Architektur getrennt: „fünf Dateien" wären bei zwei
+          # Architekturen sonst zweieinhalb Fassungen.
           for name in $(echo "${published}" | tr ' ' '\n' | grep -v '^$' | sort -u); do
             package_dir="apt/pool/main/${name:0:1}/${name}"
-            ls -1t "${package_dir}"/*.deb 2>/dev/null | tail -n +6 | xargs -r rm -f
+
+            for arch in $(ls -1 "${package_dir}" 2>/dev/null | sed -nE 's/^.*_([^_]+)\.deb$/\1/p' | sort -u); do
+              for deb in "${package_dir}"/*_"${arch}".deb; do
+                [ -e "$deb" ] || continue
+                printf '%s\t%s\n' "$(basename "$deb" | cut -d_ -f2)" "$deb"
+              done | sort -V | head -n -5 | cut -f2 | xargs -r rm -f
+            done
           done
 
           # Aus apt heraus, nicht darüber: apt-ftparchive schreibt den übergebenen

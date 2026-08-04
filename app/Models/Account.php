@@ -54,8 +54,19 @@ class Account extends Authenticatable
 
     /** @var list<string> */
     protected $fillable = [
-        'type', 'customer_id', 'name', 'email', 'password', 'locale', 'status',
+        'type', 'customer_id', 'name', 'email', 'password', 'locale', 'status', 'theme',
     ];
+
+    /**
+     * Die Themes, die ein Konto wählen kann.
+     *
+     * `null` fehlt hier mit Absicht: Es ist kein Theme, sondern die Abwesenheit
+     * einer Wahl — „dem Betriebssystem folgen". Die Liste steht an dieser einen
+     * Stelle, damit Validierung, Oberfläche und Test dieselbe fragen.
+     *
+     * @var list<string>
+     */
+    public const THEMES = ['dark', 'light'];
 
     /** @var list<string> */
     protected $hidden = [

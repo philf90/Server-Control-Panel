@@ -285,6 +285,17 @@ Route::middleware('auth')->group(function (): void {
         ->name('profile.password');
 
     /*
+     * Die Darstellung — hell, dunkel oder das, was das Betriebssystem sagt.
+     *
+     * Eigene Route und nicht Teil von `profile.update`: Jene verlangt das
+     * aktuelle Passwort, und das ist für einen Umschalter die falsche Hürde.
+     * Eine Rückfrage nach dem Passwort für eine Farbe erzieht dazu, es
+     * beiläufig einzutippen — genau das, was die Hürde dort verhindern soll.
+     */
+    Route::put('/settings/theme', [ProfileController::class, 'theme'])
+        ->name('profile.theme');
+
+    /*
      * Mailversand über ein Relay (docs/25).
      *
      * `can:manage-settings` ist eine Fähigkeit und keine Policy: Es gibt kein

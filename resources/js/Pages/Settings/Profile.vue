@@ -13,6 +13,15 @@ import { computed } from 'vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
+declare global {
+  interface Window {
+    /* Gesetzt vom Skript im Kopf der Seite (resources/views/app.blade.php).
+       Es muss dort stehen und nicht hier: Es läuft vor dem ersten Zeichnen,
+       dieses Bündel erst danach. */
+    srvpanelTheme?: (modus: 'system' | 'light' | 'dark') => void
+  }
+}
+
 interface PasswordPolicy {
   minimum: number
   requirements: { key: string; label: string }[]
@@ -24,15 +33,15 @@ const props = defineProps<{
     email: string
     type_label: string
     two_factor: boolean
+    theme: 'dark' | 'light' | null
     last_login_at: string | null
     last_login_ip: string | null
   }
   impersonating: boolean
 }>()
 
-const page = usePage<{ passwordPolicy: PasswordPolicy; flash: { success?: string } }>()
+const page = usePage<{ passwordPolicy: PasswordPolicy }>()
 const policy = computed(() => page.props.passwordPolicy)
-const success = computed(() => page.props.flash?.success)
 
 const konto = useForm({
   name: props.profile.name,
@@ -50,6 +59,39 @@ function saveAccount(): void {
   konto.patch('/settings/profile', { onFinish: () => konto.reset('current_password') })
 }
 
+/*
+ * Die Darstellung wird beim Klick gespeichert und nicht über einen
+ * „Speichern"-Knopf.
+ *
+ * Sie zeigt ihre Wirkung sofort — man sieht am Ergebnis, ob man sie haben
+ * will. Ein Knopf darunter hiesse: umschalten, ansehen, und dann noch einmal
+ * bestätigen, was man längst sieht. `preserveScroll`, damit die Seite bei der
+ * Antwort nicht nach oben springt; die Auswahl steht weit unten.
+ */
+const themes: { wert: 'dark' | 'light' | null; name: string }[] = [
+  { wert: null, name: 'System' },
+  { wert: 'light', name: 'Hell' },
+  { wert: 'dark', name: 'Dunkel' },
+]
+
+const darstellung = useForm<{ theme: 'dark' | 'light' | null }>({ theme: props.profile.theme })
+
+function saveTheme(wahl: 'dark' | 'light' | null): void {
+  darstellung.theme = wahl
+  darstellung.put('/settings/theme', {
+    preserveScroll: true,
+    /*
+     * Das Umschalten muss von Hand geschehen — und das ist keine Bequemlichkeit.
+     * `data-theme` steht am `<html>`, und das Gerüst rendert Inertia bei einer
+     * Navigation nie neu: Die Seite wechselt, der Rahmen bleibt stehen. Ohne
+     * diese Zeile täte ein Klick auf „Dunkel" sichtbar gar nichts, bis jemand
+     * die Seite neu lädt. Der Server hat dann längst das Richtige gespeichert,
+     * und genau deshalb fällt so etwas in einem Test nicht auf.
+     */
+    onSuccess: () => window.srvpanelTheme?.(wahl ?? 'system'),
+  })
+}
+
 function savePassword(): void {
   passwort.put('/settings/password', {
     onFinish: () => passwort.reset('current_password', 'password', 'password_confirmation'),
@@ -61,7 +103,6 @@ function savePassword(): void {
   <Head title="Mein Konto" />
 
   <PanelLayout title="Mein Konto" :subline="props.profile.type_label">
-    <p v-if="success" class="erfolg">{{ success }}</p>
 
     <!--
       Während „Anmelden als" wird gar kein Formular gezeigt. Der Server weist
@@ -133,6 +174,33 @@ function savePassword(): void {
       </section>
     </template>
 
+    <!--
+      Die Darstellung steht bei den Angaben zum Konto und nicht unter den
+      Servereinstellungen: Sie gilt für dieses eine Konto und nicht für den
+      Server. Wer sie dort suchte, suchte etwas, das alle beträfe.
+    -->
+    <section class="block">
+      <h2 class="section">Darstellung</h2>
+
+      <div class="wahl">
+        <button
+          v-for="option in themes"
+          :key="String(option.wert)"
+          type="button"
+          class="knopf"
+          :class="{ aktiv: props.profile.theme === option.wert }"
+          :aria-pressed="props.profile.theme === option.wert"
+          :disabled="darstellung.processing || props.impersonating"
+          @click="saveTheme(option.wert)"
+        >{{ option.name }}</button>
+      </div>
+
+      <p class="hinweis">
+        „System" übernimmt, was Ihr Betriebssystem gerade vorgibt, und wechselt
+        mit. Die Wahl gilt für dieses Konto, auch an einem anderen Rechner.
+      </p>
+    </section>
+
     <section class="block">
       <h2 class="section">Sicherheit</h2>
 
@@ -167,7 +235,6 @@ input { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: va
 .hinweis { margin: 0; font-size: var(--text-label); color: var(--text-faint); }
 
 
-.erfolg { margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--ok); background: var(--ok-surface); border-radius: 5px; }
 .gesperrt { margin: 0; padding: 11px 13px; max-width: 448px; font-size: var(--text-table); color: var(--warn); background: var(--warn-surface); border: 1px solid var(--warn); border-radius: 5px; }
 
 .werte { display: grid; grid-template-columns: auto 1fr; gap: 5px 16px; margin: 0; max-width: 448px; font-size: var(--text-table); }
@@ -177,4 +244,10 @@ input { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: va
 .marke.an { color: var(--ok); background: var(--ok-surface); }
 .marke.aus { color: var(--text-muted); background: var(--surface-border); }
 form .knopf { align-self: flex-start; }
+
+/* Die drei Knöpfe sind eine Wahl und keine drei Aktionen — deshalb stehen sie
+   in einer Reihe. Wie ein gewählter aussieht, steht in app.css unter
+   `.knopf.aktiv`: Hier stünde sonst das Aussehen eines Knopfes, und genau das
+   verbietet ButtonStyleTest — zu Recht. */
+.wahl { display: flex; flex-wrap: wrap; gap: 7px; }
 </style>

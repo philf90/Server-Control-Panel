@@ -2,6 +2,7 @@
 import { useForm, Head, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
+import MarkIcon from '../../Components/MarkIcon.vue'
 
 /*
  * Die Anmeldemaske.
@@ -50,7 +51,12 @@ function submit(): void {
 
   <main class="anmeldung">
     <form class="maske" @submit.prevent="submit">
-      <h1>SrvPanel</h1>
+      <!--
+        Zeichen und Name in einer Zeile. Das Zeichen ist hier grösser als in
+        der Seitenleiste: Dort steht es neben einer Navigation und ordnet sich
+        unter, hier ist es das einzige Bild auf der Seite.
+      -->
+      <h1><MarkIcon :size="26" /> SrvPanel</h1>
 
       <p v-if="notice" class="hinweis">{{ notice }}</p>
 
@@ -181,6 +187,9 @@ function submit(): void {
 }
 
 h1 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   margin: 0 0 18px;
   font-size: var(--text-heading);
   font-weight: 600;

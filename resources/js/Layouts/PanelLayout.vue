@@ -5,6 +5,7 @@
  * am Wurzelelement, das die Werte aus app.css umstellt (§7.2 des Plans).
  */
 import { Link, router, usePage } from '@inertiajs/vue3'
+import MarkIcon from '../Components/MarkIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 defineProps<{ title: string; subline?: string }>()
@@ -159,8 +160,17 @@ onBeforeUnmount(() => {
 
     <aside id="hauptnavigation" class="nav" :class="{ offen: menuOpen }">
       <div class="badge">
-        <!-- „C" stand hier bis August 2026 — von CloudSrv, dem verworfenen Namen. -->
-        <span class="glyph">S</span>
+        <!--
+          Hier stand ein Buchstabe in einem amberfarbenen Quadrat: erst „C" von
+          CloudSrv, dem verworfenen Namen, dann „S". Ein Platzhalter, solange es
+          kein Zeichen gab — und es gab keines, bis August 2026 auch keinen
+          Favicon: `public/favicon.ico` lag mit null Byte da.
+
+          Jetzt steht dort dasselbe Zeichen wie im Reiter des Browsers. Das ist
+          der Punkt: Wer mehrere Panels offen hat, erkennt sie am Reiter, und
+          erkennt sie nur dann, wenn Reiter und Seitenleiste dasselbe zeigen.
+        -->
+        <MarkIcon />
         <!--
           Die Version steht unter dem Schriftzug und nicht daneben.
           Daneben war der Wunsch, und daneben passt sie nicht: Die Seitenleiste
@@ -347,21 +357,6 @@ onBeforeUnmount(() => {
    gibt es die Marke zweimal auf dem Bildschirm und darf nur einmal im
    Quelltext stehen. */
 
-.glyph {
-  /* `flex: none`, seit die Version daneben steht: Ohne das schrumpft das
-     Quadrat zu einem Streifen, sobald die Zeile eng wird. Gesehen beim
-     Rendern, nicht beim Lesen. */
-  flex: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 3px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: var(--accent-on);
-  font-size: var(--text-small);
-  font-weight: 700;
-}
 
 nav {
   display: flex;

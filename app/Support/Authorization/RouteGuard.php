@@ -85,6 +85,10 @@ final class RouteGuard
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Name und Anmeldeadresse des eigenen Kontos. Verlangt zusätzlich das aktuelle Passwort und ist während „Anmelden als" gesperrt: Ein Admin in fremder Sicht könnte sonst die Anmeldeadresse eines Kunden auf seine eigene umschreiben.',
             ],
+            'PUT settings/theme' => [
+                'kind' => self::AUTHENTICATED,
+                'reason' => 'Die Darstellung des eigenen Kontos. Das Ziel kommt aus der Sitzung; verändert wird ein Bildschirm und nichts am Server. Während „Anmelden als" gesperrt, weil die Wahl sonst am Konto des Kunden landete und dessen Oberfläche umstellte.',
+            ],
             'PUT settings/password' => [
                 'kind' => self::AUTHENTICATED,
                 'reason' => 'Das eigene Passwort. Verlangt das aktuelle, meldet alle anderen Sitzungen ab und ist während „Anmelden als" gesperrt — sonst wäre der Sichtwechsel ein Weg, ein fremdes Konto dauerhaft zu übernehmen.',

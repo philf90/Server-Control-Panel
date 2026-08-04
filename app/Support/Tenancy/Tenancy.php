@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Tenancy;
 
 use App\Models\Account;
+use App\Models\Domain;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -175,7 +176,14 @@ final class Tenancy
      * Einschränkung mit ausgeschlossen — der Zusatzbenutzer sähe dort nichts
      * mehr, obwohl er dort alles darf.
      *
-     * @param  Builder<Model>  $builder
+     * **`covariant`, weil der Aufrufer einen engeren Erbauer hat.** Im
+     * globalen Filter von {@see Domain} ist es ein `Builder<Domain>`, und
+     * `Builder<TModel>` ist bei Laravel nicht kovariant — ohne die Angabe wäre
+     * die Übergabe ein Typfehler. Sie ist gefahrlos, weil diese Methode nur
+     * Bedingungen über Spaltennamen setzt und nie ein Modell in den Erbauer
+     * schreibt.
+     *
+     * @param  Builder<covariant Model>  $builder
      * @param  string  $subscriptionColumn  Spalte mit der Abonnement-ID
      * @param  string  $domainColumn  Spalte mit der Domain-ID
      */

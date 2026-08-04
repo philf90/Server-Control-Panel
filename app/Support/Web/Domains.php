@@ -397,7 +397,10 @@ final class Domains
         return $value;
     }
 
-    /** @param array<string, mixed> $data */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     private function settingsFrom(array $data): array
     {
         $settings = $data['php_settings'] ?? [];

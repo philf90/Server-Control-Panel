@@ -265,7 +265,7 @@ final class WebLifecycleTest extends TestCase
      */
     public function test_the_subscription_lifecycle_runs_first(): void
     {
-        $order = array_values(Lifecycles::HANDLERS);
+        $order = Lifecycles::HANDLERS;
 
         $this->assertLessThan(
             array_search(WebLifecycle::class, $order, true),

@@ -88,7 +88,17 @@ final class PhpVersionInstall implements Op
             );
         }
 
-        if (! PhpVersions::installed($version)) {
+        /*
+         * **Gefragt wird die Bestandsliste, nicht noch einmal dieselbe
+         * Bedingung.** Oben stand schon `PhpVersions::installed($version)`,
+         * und für einen Prüfer, der das Dateisystem nicht kennt, kann eine
+         * Frage, die eben mit „nein" beantwortet wurde, kein zweites Ergebnis
+         * haben — er hielt diesen Wurf für unausweichlich und alles darunter
+         * für toten Code. Dazwischen lag `apt-get install`. Über
+         * `available()` steht dieselbe Prüfung als andere Frage da: Taucht die
+         * Version jetzt im Bestand auf?
+         */
+        if (! in_array($version, PhpVersions::available(), true)) {
             throw AgentException::execFailed(
                 sprintf('apt meldet Erfolg, %s fehlt trotzdem.', PhpVersions::binary($version)),
             );

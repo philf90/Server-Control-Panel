@@ -129,13 +129,10 @@ final class AcceptanceWeb extends Command
         $abos = [];
 
         foreach ([0, 1] as $i) {
-            $abo = $this->createSubscription($prefix, $i + 1, $customer, $plan, $lifecycle);
-
-            if ($abo === null) {
-                return self::FAILURE;
-            }
-
-            $abos[] = ['subscription' => $abo, 'version' => $versionen[$i]];
+            $abos[] = [
+                'subscription' => $this->createSubscription($prefix, $i + 1, $customer, $plan, $lifecycle),
+                'version' => $versionen[$i],
+            ];
         }
 
         if (! $this->await(array_column($abos, 'subscription'), $timeout)) {
@@ -183,7 +180,15 @@ final class AcceptanceWeb extends Command
         }
     }
 
-    private function createSubscription(string $prefix, int $nummer, Customer $customer, Plan $plan, Lifecycle $lifecycle): ?Subscription
+    /**
+     * Legt ein Abonnement an — oder wirft.
+     *
+     * Kein `?Subscription`: `subscriptionName()` weist einen unbrauchbaren
+     * Namen mit einer Ausnahme ab, und `create()` liefert ein Modell. Ein
+     * Rückgabewert `null`, den niemand erzeugen kann, sieht wie ein zweiter
+     * Weg aus und ist keiner.
+     */
+    private function createSubscription(string $prefix, int $nummer, Customer $customer, Plan $plan, Lifecycle $lifecycle): Subscription
     {
         $name = sprintf('%s-%d.invalid', $prefix, $nummer);
 

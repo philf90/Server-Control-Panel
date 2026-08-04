@@ -22,7 +22,10 @@ use SrvPanel\Agent\Site;
  */
 final class SitePathTest extends TestCase
 {
-    /** @param array<string, mixed> $overrides */
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
     private function args(array $overrides = []): array
     {
         return array_merge([

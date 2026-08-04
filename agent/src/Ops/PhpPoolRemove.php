@@ -79,6 +79,6 @@ final class PhpPoolRemove implements Op
     {
         $found = glob(PhpVersions::poolDir($version).'/srvpanel-*.conf');
 
-        return $found === false ? [] : array_values($found);
+        return $found === false ? [] : $found;
     }
 }

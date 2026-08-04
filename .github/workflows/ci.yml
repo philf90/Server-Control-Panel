@@ -148,22 +148,31 @@ jobs:
       - name: Paket bauen
         run: packaging/build.sh 0.0.0-ci amd64
 
-      # **Der Spiegel, und warum er dasteht.** Gemessen im Lauf vom 4. August:
+      # **Warum das Fenster so gross ist.** Gemessen im Lauf vom 4. August:
       #
       #     Fetched 31.9 MB in 2min 38s (202 kB/s)
       #
       # `apt-get update` allein verbrauchte 158 der damals 180 Sekunden, danach
       # kam die Installation gerade noch bis zur Paketliste. Kein Hänger, kein
-      # Dialog — `archive.ubuntu.com` ist von den Läufern aus langsam, und die
-      # Paketlisten sind gross (allein `noble/universe` misst 19,3 MB).
+      # Dialog — Ubuntus Paketquellen sind von den Läufern aus langsam, und die
+      # Listen sind gross (allein `noble/universe` misst 19,3 MB).
       #
       # Debian war nie betroffen: `deb.debian.org` ist ein CDN. Deshalb war der
       # Fehler auch keine Flakiness, sondern zweimal Ubuntu und viermal Debian,
       # über drei Läufe hinweg gleich.
       #
+      # **Der Spiegel bei Azure steht hier auf Verdacht und nicht auf Beleg.**
       # Die Läufer stehen bei Azure, und `azure.archive.ubuntu.com` ist der
-      # Spiegel, den das Läufer-Abbild für sich selbst benutzt. Der Ausdruck
-      # trifft nur Ubuntu; auf Debian findet er nichts und ändert nichts.
+      # Spiegel, den das Läufer-Abbild für sich selbst benutzt — das klang nach
+      # der Kur. Die Messung danach gibt das nicht her: Der Startschritt brauchte
+      # 138 s auf 24.04 und 255 s auf 22.04, gegenüber 158 s allein fürs
+      # Auffrischen davor. Grün geworden ist der Lauf durch das grössere
+      # Fenster, nicht durch den Spiegel.
+      #
+      # Er bleibt trotzdem: Er kostet nichts, trifft nur Ubuntu (auf Debian
+      # findet der Ausdruck nichts) und ist die Quelle, die der Läufer ohnehin
+      # benutzt. Aber wer hier später Zeit sparen will, fängt bei der Grösse der
+      # Paketlisten an und nicht beim Spiegel.
       - name: Container mit systemd starten
         run: |
           docker run -d --name target --privileged \

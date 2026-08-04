@@ -1295,13 +1295,21 @@ Fetched 31.9 MB in 2min 38s (202 kB/s)
 - **Debian war nie betroffen**, weil `deb.debian.org` ein CDN ist. Genau
   deshalb war das Muster über drei Läufe hinweg identisch: viermal Debian grün,
   zweimal Ubuntu rot.
-- Die Läufer stehen bei Azure. Der Container benutzt jetzt
-  `azure.archive.ubuntu.com` — denselben Spiegel, den das Läufer-Abbild für
-  sich selbst benutzt. Der Ausdruck trifft nur Ubuntu; auf Debian findet er
-  nichts.
-- Das Zeitfenster wächst zusätzlich auf 300 Sekunden. Nicht als Ersatz für den
-  Spiegel, sondern weil 202 kB/s kein fester Wert ist und ein knappes Fenster
-  denselben Fehlschlag an einem langsameren Tag zurückbrächte.
+- **Das Zeitfenster wächst auf 300 Sekunden, und das ist der Fix.** Danach
+  waren alle elf Jobs grün.
+- **Der Spiegel bei Azure war es nicht — anders als beim Einbau behauptet.**
+  Die Läufer stehen bei Azure, `azure.archive.ubuntu.com` ist die Quelle, die
+  das Läufer-Abbild für sich selbst benutzt, und das klang nach der Kur. Die
+  Messung danach gibt es nicht her: Der Startschritt brauchte 138 s auf 24.04
+  und 255 s auf 22.04, gegenüber 158 s allein fürs Auffrischen davor. Der
+  Spiegel bleibt, weil er nichts kostet und nur Ubuntu trifft — aber als
+  Vermutung gekennzeichnet und nicht als Beleg. Wer hier später Zeit sparen
+  will, fängt bei der Grösse der Paketlisten an.
+- **Zwei Vermutungen davor lagen ebenfalls daneben** — „zu knapp bemessen" und
+  „debconf fragt". Beide Beiträge bleiben trotzdem richtig: Ohne den ersten
+  hätte der Lauf weiter geschwiegen statt zu scheitern, ohne den zweiten wäre
+  die Ausgabe nie sichtbar geworden. Sie waren die Voraussetzung dafür, dass
+  die dritte Vermutung überhaupt überprüfbar wurde.
 - **Kein neuer Wächter dazu, und das ist Absicht.** Was hier zu prüfen wäre —
   „der Spiegel ist schnell genug" — lässt sich nicht als Test schreiben, ohne
   ihn zu befragen. Die beiden Wächter aus den Absätzen davor sind die

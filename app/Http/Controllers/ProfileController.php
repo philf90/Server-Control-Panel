@@ -51,6 +51,7 @@ final class ProfileController extends Controller
                 'email' => $account->email,
                 'type_label' => $account->type->label(),
                 'two_factor' => $account->hasTwoFactor(),
+                'theme' => $account->theme,
                 'last_login_at' => $account->last_login_at?->toDateTimeString(),
                 'last_login_ip' => $account->last_login_ip,
             ],
@@ -92,6 +93,43 @@ final class ProfileController extends Controller
         ]);
 
         return back()->with('success', 'Konto gespeichert.');
+    }
+
+    /**
+     * Hell, dunkel oder das, was das Betriebssystem sagt.
+     *
+     * **Ohne Passwortbestätigung, anders als alles andere auf dieser Seite.**
+     * Die Schranke dort schützt die Sitzung: Wer einen fremden, unbeaufsichtigten
+     * Rechner findet, soll die Anmeldeadresse nicht umschreiben können. Eine
+     * Farbe ist kein Übernahmeweg — und eine Rückfrage nach dem Passwort für
+     * einen Umschalter erzieht dazu, das Passwort beiläufig einzutippen. Genau
+     * das soll die Schranke ja verhindern.
+     *
+     * **Während „Anmelden als" gesperrt.** Der Admin sieht die Sicht des
+     * Kunden; gespeichert würde die Wahl aber am Konto des Kunden. Ein
+     * Betreiber, der sein Panel hell mag, stellte damit fremde Konten um, und
+     * der Kunde fände seine Oberfläche verändert vor, ohne etwas getan zu
+     * haben.
+     *
+     * **Kein Protokolleintrag.** Das Protokoll beantwortet, wer was an diesem
+     * Server verändert hat. Ein Theme verändert nichts am Server, es verändert
+     * einen Bildschirm — und eine Zeile je Umschaltung machte das Protokoll
+     * genau dort unübersichtlich, wo man es im Ernstfall liest.
+     */
+    public function theme(Request $request, Audit $audit): RedirectResponse
+    {
+        $account = $this->account($request);
+        $this->refuseWhileImpersonating($request, $audit, 'profile.theme.changed');
+
+        $data = $request->validate([
+            // `nullable` ist die Wahl „System": kein Theme, sondern die
+            // Abwesenheit einer Wahl.
+            'theme' => ['nullable', Rule::in(Account::THEMES)],
+        ]);
+
+        $account->forceFill(['theme' => $data['theme'] ?? null])->save();
+
+        return back()->with('success', 'Darstellung gespeichert.');
     }
 
     public function password(Request $request, Audit $audit): RedirectResponse

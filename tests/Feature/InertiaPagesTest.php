@@ -105,4 +105,48 @@ final class InertiaPagesTest extends TestCase
 
         return $names;
     }
+
+    /**
+     * Die Erfolgsmeldung steht im Gerüst — und nur dort.
+     *
+     * **Warum das geprüft wird.** Bis August 2026 brachte jede Seite sie
+     * selbst mit, und drei von zwanzig taten es; der Rest verschluckte sie.
+     * Deshalb zog sie ins Gerüst. Eine Seite blieb dabei stehen: „Mein Konto"
+     * behielt ihre eigene, und wer dort etwas speicherte, bekam die Bestätigung
+     * **zweimal untereinander**. Gesehen im Browser, als eine neue Einstellung
+     * dazukam — sechs Monate hätte es sonst niemand bemerkt, weil zwei richtige
+     * Meldungen nicht falsch aussehen, nur doppelt.
+     *
+     * Der Test hängt an `flash.success` und nicht an einer Klasse: Wer die
+     * Meldung unter anderem Namen wieder einbaut, liest trotzdem dieselbe
+     * Quelle.
+     */
+    public function test_only_the_frame_shows_the_success_message(): void
+    {
+        $seiten = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($this->root().'/resources/js/Pages', \FilesystemIterator::SKIP_DOTS),
+        );
+
+        $geprueft = 0;
+
+        foreach ($seiten as $datei) {
+            if (! $datei instanceof \SplFileInfo || $datei->getExtension() !== 'vue') {
+                continue;
+            }
+
+            $geprueft++;
+
+            $this->assertSame(
+                0,
+                preg_match('/flash[^\n]*success/', (string) file_get_contents($datei->getPathname())),
+                sprintf(
+                    '%s zeigt die Erfolgsmeldung selbst. Sie steht in PanelLayout.vue — '.
+                    'sonst erscheint sie zweimal.',
+                    $datei->getBasename(),
+                ),
+            );
+        }
+
+        $this->assertGreaterThan(8, $geprueft, 'Es werden kaum Seiten gelesen — dann prüft dieser Test nichts.');
+    }
 }

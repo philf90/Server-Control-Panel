@@ -377,6 +377,24 @@ input[type='radio'] {
 }
 
 /*
+ * Der gewählte aus einer Reihe von Knöpfen, die zusammen eine Wahl sind.
+ *
+ * **Kein vierter Rang, sondern ein Zustand.** `.wichtig`, `.gefahr` und
+ * `.klein` sagen, *was* ein Knopf ist; `.aktiv` sagt, dass er gerade gilt.
+ * Deshalb bekommt er den Akzent nur als Rand und getönte Fläche und nicht
+ * satt wie `.wichtig` — sonst stünde in einer Dreierreihe eine Hauptsache,
+ * und die Reihe ist keine.
+ *
+ * Es steht hier und nicht auf der Seite, die es zuerst brauchte: Das Aussehen
+ * eines Knopfes gehört in diese Datei, und `ButtonStyleTest` besteht darauf.
+ */
+.knopf.aktiv {
+  color: var(--accent);
+  background: var(--accent-surface);
+  border-color: var(--accent);
+}
+
+/*
  * Die eine Aktion, für die man die Seite geöffnet hat. Amber ist in diesem
  * System die primäre Aktion (§7.2) — deshalb trägt sie hier die Fläche und
  * nicht nur die Schrift.

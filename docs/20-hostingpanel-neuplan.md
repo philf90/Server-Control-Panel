@@ -616,6 +616,51 @@ durch eine zweite Dichtestufe im selben System:
 Gleiche Marken, gleiche Bausteine, gleicher Code — ein Attribut am
 Wurzelelement schaltet um.
 
+#### Wer das Theme wählt
+
+Beide Themes standen ab P1 fertig da — und **schalten konnte sie niemand.**
+`data-theme` kam aus `SRVPANEL_THEME` in der `.env`, also serverweit für alle
+und nur für jemanden mit Zugriff auf die Datei. Dieser Abschnitt beschrieb
+durchgehend das Gestaltungssystem und nie seine Bedienung; in keiner Stufe
+P0–P10 stand ein Umschalter. Dasselbe Muster wie beim Zurückziehen eines
+Kunden und bei `CustomerStatus::Suspended`: Die Mechanik war vollständig
+gebaut, es fehlte der Weg dorthin.
+
+Seit August 2026 steht die Wahl unter „Mein Konto", für **Admins und
+Kundenkonten**. Der Kunde am hellen Bürobildschirm ist der Fall, für den das
+helle Theme überhaupt verlangt wird; ein Umschalter nur für Betreiber
+verfehlte ihn.
+
+| Wert | Bedeutung |
+|---|---|
+| `accounts.theme = null` | dem Betriebssystem folgen — die Vorgabe |
+| `'light'` / `'dark'` | ausdrücklich gewählt |
+| `SRVPANEL_THEME` | die Seiten **ohne** Konto: Anmeldung und zweiter Faktor |
+
+**Am Konto und nicht im Browser.** Ein Betreiber arbeitet an zwei Rechnern;
+eine Einstellung, die er zweimal treffen muss, ist keine. Der `localStorage`
+wäre die bequemere Stelle und die falsche.
+
+**Zwei Fallen, beide erst im Browser aufgefallen:**
+
+1. **Das falsche Theme blitzt auf.** Ein Konto, das dem Betriebssystem folgt,
+   kann der Server nicht auflösen — ob dort hell oder dunkel gilt, weiss nur
+   der Browser. Trägt die Anwendung das nach, sieht man bei *jedem*
+   Seitenaufruf kurz die dunkle Fläche, bevor sie hell wird: Vite lädt sein
+   Bündel mit `defer`, und das läuft erst nach dem ersten Zeichnen. Die
+   Abfrage steht deshalb als kleines Skript im Kopf, ohne `defer`, vor dem
+   Bündel.
+2. **Der Klick tut nichts.** `data-theme` steht am `<html>`, und dieses Gerüst
+   rendert Inertia bei einer Navigation nie neu: Die Seite wechselt, der
+   Rahmen bleibt. Gespeichert wurde richtig, die Bestätigung kam — und zu
+   sehen war nichts bis zum nächsten Neuladen. Das Skript im Kopf reicht die
+   Umschaltung deshalb als `window.srvpanelTheme` nach aussen.
+
+Geprüft von `tests/Feature/ThemeTest.php`, einschliesslich beider Fallen: Die
+Abfrage steht vor dem Bündel und trägt weder `defer` noch `async`, und die
+Verbindung zwischen Kopf und Seite besteht. Beides kann reissen, ohne dass
+etwas bricht — und das ist die schlimmste Sorte Fehler, weil ihn nichts meldet.
+
 #### Das helle Theme ist Pflicht, nicht Nacharbeit
 
 Die dunkle Fassung ist die, in der diese Richtung ihren Charakter hat. Sie ist

@@ -333,6 +333,24 @@ Sicherungsziele, Aufbewahrung und einen Weg zurück wäre „Sicherung" nur ein
 Verzeichnis daneben. Bis dahin ist der Rückbau endgültig, und die Rückfrage in
 der Oberfläche sagt das.
 
+### Gefunden auf dem Server
+
+- **Der vollständige Rechnername fehlte im Zertifikat.** Der subjectAltName
+  bekam den Knotennamen aus `php_uname('n')` — und der ist auf den meisten
+  Servern der kurze: `cloudsrv24` statt `cloudsrv24.de`. Aus ihm wurde
+  ausserdem noch eine Kurzform *abgeleitet*, also die falsche Richtung. Wer
+  das Panel unter seinem vollen Namen aufruft, bekam eine Warnung über einen
+  Namen, der nicht passt. **Dieselbe Lektion gab es schon einmal:** Bei der
+  Ersteinrichtung zeigte der Link am Ende auf den kurzen Namen, und dort steht
+  seit dem ersten Lauf auf einem echten Server ein Kommentar mit genau diesem
+  Beispiel — eine Regel, die an einer Stelle gelernt und an der nächsten neu
+  erfunden wurde. Sie steht jetzt in `Names::fqdn()`: Knotenname mit Punkt,
+  sonst `/etc/hosts`, sonst die Rückwärtsauflösung — und ein gefundener Name
+  zählt nur, wenn er den Knotennamen fortsetzt, damit weder eine fremde Zeile
+  noch ein Namensdienst einen beliebigen Namen in dieses Zertifikat schreibt.
+  Die Ersteinrichtung fragt dieselbe Funktion, statt ihre eigene Fassung zu
+  behalten.
+
 ### Quer zu den Stufen
 
 Nach der Abnahme von P1 nachgezogen; keines dieser Themen gehört einer

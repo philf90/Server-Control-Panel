@@ -36,18 +36,40 @@ final class Names
     {
         $dns = [];
 
-        $host = trim(php_uname('n'));
+        /*
+         * **Der vollständige Name zuerst — und er steht nicht im Kernel.**
+         *
+         * `php_uname('n')` liefert den Knotennamen, und der ist auf den
+         * meisten Servern der kurze: „cloudsrv24" statt „cloudsrv24.de".
+         * Hier stand deshalb genau das Falsche — der Knotenname, und aus ihm
+         * *abgeleitet* noch eine Kurzform. Auf einem Server, dessen Knotenname
+         * schon kurz ist, kam damit ausschliesslich „cloudsrv24" ins
+         * Zertifikat, und wer „cloudsrv24.de" aufruft, bekommt eine Warnung
+         * über einen Namen, der nicht passt.
+         *
+         * **Dasselbe war in `srvpanel setup` schon einmal behoben** — dort
+         * steht seit dem ersten Einrichtungslauf ein Kommentar mit genau
+         * diesem Beispiel. Eine Regel, die an einer Stelle gelernt und an der
+         * nächsten neu erfunden wird, ist keine Regel; deshalb steht sie jetzt
+         * hier, und die Einrichtung fragt dieselbe Funktion.
+         */
+        $node = trim(php_uname('n'));
+        $fqdn = self::fqdn($node);
 
-        if ($host !== '' && self::isHostname($host)) {
-            $dns[] = $host;
+        if ($fqdn !== null) {
+            $dns[] = $fqdn;
+        }
 
-            // `srv.example.com` ergibt zusätzlich `srv`. Auf einem Server im
-            // eigenen Netz ist das der Name, den man tatsächlich eintippt.
-            $short = strstr($host, '.', true);
+        if ($node !== '' && self::isHostname($node)) {
+            $dns[] = $node;
+        }
 
-            if (is_string($short) && $short !== '' && self::isHostname($short)) {
-                $dns[] = $short;
-            }
+        // `srv.example.com` ergibt zusätzlich `srv`. Auf einem Server im
+        // eigenen Netz ist das der Name, den man tatsächlich eintippt.
+        $short = strstr($fqdn ?? $node, '.', true);
+
+        if (is_string($short) && $short !== '' && self::isHostname($short)) {
+            $dns[] = $short;
         }
 
         $dns[] = 'localhost';
@@ -56,6 +78,143 @@ final class Names
             'dns' => array_values(array_unique($dns)),
             'ip' => self::addresses(),
         ];
+    }
+
+    /**
+     * Der vollständige Name dieses Rechners — oder `null`.
+     *
+     * **Drei Quellen, von der billigsten zur teuersten.** Trägt der
+     * Knotenname schon einen Punkt, ist er es. Sonst `/etc/hosts`, wo Debian
+     * die Zeile `127.0.1.1 cloudsrv24.de cloudsrv24` anlegt. Erst danach eine
+     * Rückwärtsauflösung über die Adresse, mit der der Rechner nach aussen
+     * spricht — die kostet einen Namensdienst, der auch schweigen kann.
+     *
+     * **Ein gefundener Name muss den Knotennamen fortsetzen.** Er zählt nur,
+     * wenn er mit „<knotenname>." beginnt. Ohne diese Bedingung könnte eine
+     * fremde Zeile in `/etc/hosts` oder ein Namensdienst einen beliebigen
+     * Namen in das Zertifikat dieses Servers schreiben — und ein Zertifikat
+     * ist eine Behauptung darüber, wer man ist.
+     */
+    public static function fqdn(?string $node = null): ?string
+    {
+        $node = trim($node ?? php_uname('n'));
+
+        if ($node === '' || ! self::isHostname($node)) {
+            return null;
+        }
+
+        if (str_contains($node, '.')) {
+            return $node;
+        }
+
+        $lines = @file('/etc/hosts', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+        $found = self::fromHosts(is_array($lines) ? $lines : [], $node);
+
+        if ($found !== null) {
+            return $found;
+        }
+
+        $address = self::primaryAddress();
+
+        if ($address === null) {
+            return null;
+        }
+
+        $reverse = gethostbyaddr($address);
+
+        return is_string($reverse) && self::extends($reverse, $node) ? $reverse : null;
+    }
+
+    /**
+     * Den vollständigen Namen aus `/etc/hosts` lesen.
+     *
+     * Getrennt, damit die Regel prüfbar ist, ohne die Datei des Systems zu
+     * fälschen — sie ist der Teil, der schiefgehen kann.
+     *
+     * @param  list<string>  $lines
+     */
+    public static function fromHosts(array $lines, string $node): ?string
+    {
+        foreach ($lines as $line) {
+            /*
+             * Hier stand `trim(strstr($line, '#', true) ?: $line)`, und eine
+             * vollständig auskommentierte Zeile kam damit trotzdem durch:
+             * `strstr` liefert für „# 127.0.1.1 …" die leere Zeichenkette, und
+             * die ist unwahr — `?:` griff und nahm die ganze Zeile samt Raute.
+             * Wer eine Zeile auskommentiert, hat einen Grund.
+             */
+            $hash = strpos($line, '#');
+            $line = trim($hash === false ? $line : substr($line, 0, $hash));
+
+            if ($line === '') {
+                continue;
+            }
+
+            $fields = preg_split('/\s+/', $line) ?: [];
+
+            // Feld eins ist die Adresse, alles Weitere sind Namen. Eine Zeile
+            // zählt nur, wenn der Knotenname darauf steht — sonst wäre jeder
+            // fremde Eintrag ein Name für diesen Rechner.
+            $names = array_slice($fields, 1);
+
+            if (! in_array($node, $names, true)) {
+                continue;
+            }
+
+            foreach ($names as $name) {
+                if (self::extends($name, $node)) {
+                    return $name;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** Setzt `$name` den Knotennamen fort — `cloudsrv24.de` zu `cloudsrv24`? */
+    private static function extends(string $name, string $node): bool
+    {
+        return $name !== $node
+            && str_starts_with($name, $node.'.')
+            && self::isHostname($name);
+    }
+
+    /**
+     * Die Adresse, über die dieser Rechner nach aussen spricht.
+     *
+     * Über einen verbundenen UDP-Socket: Das schickt kein einziges Paket — der
+     * Kernel wählt beim `connect` nur die Route aus und trägt die passende
+     * Quelladresse ein, und die lesen wir zurück. Der Weg über
+     * `gethostbyname(gethostname())` liefert dagegen auf vielen Servern
+     * 127.0.1.1, weil genau das in /etc/hosts steht.
+     */
+    public static function primaryAddress(): ?string
+    {
+        if (! function_exists('socket_create')) {
+            return null;
+        }
+
+        $socket = @socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+
+        if ($socket === false) {
+            return null;
+        }
+
+        // Dokumentationsadresse nach RFC 5737 — sie wird nie erreicht und soll
+        // es auch nicht.
+        $connected = @socket_connect($socket, '203.0.113.1', 53);
+        $address = null;
+
+        if ($connected && @socket_getsockname($socket, $local)) {
+            $address = $local;
+        }
+
+        socket_close($socket);
+
+        return is_string($address) && $address !== '' && ! str_starts_with($address, '127.')
+            ? $address
+            : null;
     }
 
     /**

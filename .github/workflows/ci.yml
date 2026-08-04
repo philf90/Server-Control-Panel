@@ -148,20 +148,36 @@ jobs:
       - name: Paket bauen
         run: packaging/build.sh 0.0.0-ci amd64
 
+      # **Der Spiegel, und warum er dasteht.** Gemessen im Lauf vom 4. August:
+      #
+      #     Fetched 31.9 MB in 2min 38s (202 kB/s)
+      #
+      # `apt-get update` allein verbrauchte 158 der damals 180 Sekunden, danach
+      # kam die Installation gerade noch bis zur Paketliste. Kein Hänger, kein
+      # Dialog — `archive.ubuntu.com` ist von den Läufern aus langsam, und die
+      # Paketlisten sind gross (allein `noble/universe` misst 19,3 MB).
+      #
+      # Debian war nie betroffen: `deb.debian.org` ist ein CDN. Deshalb war der
+      # Fehler auch keine Flakiness, sondern zweimal Ubuntu und viermal Debian,
+      # über drei Läufe hinweg gleich.
+      #
+      # Die Läufer stehen bei Azure, und `azure.archive.ubuntu.com` ist der
+      # Spiegel, den das Läufer-Abbild für sich selbst benutzt. Der Ausdruck
+      # trifft nur Ubuntu; auf Debian findet er nichts und ändert nichts.
       - name: Container mit systemd starten
         run: |
           docker run -d --name target --privileged \
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
-            'export DEBIAN_FRONTEND=noninteractive; set -x; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
+            'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
           # **Ohne die Prüfung danach endet ein Zeitüberschreiten stumm.** Die
           # Schleife lief ab, der Schritt galt als geglückt — das `| head -1`
           # gab den Rückgabewert von `head` zurück und nicht den von `docker
           # exec` —, und gescheitert ist der Lauf drei Schritte später an einer
           # dpkg-Sperre. Eine Meldung, die mit der Ursache nichts zu tun hat.
           bereit=nein
-          for i in $(seq 1 90); do
+          for i in $(seq 1 150); do
             if docker exec target systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
               bereit=ja
               break
@@ -170,7 +186,7 @@ jobs:
           done
 
           if [ "$bereit" != ja ]; then
-            echo "::error::systemd im Container ist in 180 s nicht hochgekommen."
+            echo "::error::systemd im Container ist in 300 s nicht hochgekommen."
 
             # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
             # `docker logs`, und das gab nichts aus — womit offen blieb, ob der
@@ -437,11 +453,11 @@ jobs:
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
-            'export DEBIAN_FRONTEND=noninteractive; set -x; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
+            'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
           # Dieselbe Prüfung wie oben, und hier fehlte sie ganz: Ein
           # Zeitüberschreiten war vollständig unsichtbar.
           bereit=nein
-          for i in $(seq 1 90); do
+          for i in $(seq 1 150); do
             if docker exec bare systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
               bereit=ja
               break
@@ -450,7 +466,7 @@ jobs:
           done
 
           if [ "$bereit" != ja ]; then
-            echo "::error::systemd im Container ist in 180 s nicht hochgekommen."
+            echo "::error::systemd im Container ist in 300 s nicht hochgekommen."
 
             # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
             # `docker logs`, und das gab nichts aus — womit offen blieb, ob der

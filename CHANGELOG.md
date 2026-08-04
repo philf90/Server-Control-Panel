@@ -1278,3 +1278,32 @@ weiter: „systemd im Container ist in 180 s nicht hochgekommen."
 - **Der Wächter sieht alle Arbeitsabläufe an, nicht nur die CI**, und hat dabei
   drei weitere Aufrufe gefunden: in `release.yml` und in `secrets.yml`. Ein
   hängendes apt in einem Freigabelauf wäre teurer als eines in der CI.
+
+### Und die eigentliche Ursache: ein langsamer Spiegel
+
+Nach dem Diagnoseschritt stand sie im Protokoll, gemessen statt vermutet:
+
+```
+Fetched 31.9 MB in 2min 38s (202 kB/s)
+```
+
+- **`apt-get update` allein verbrauchte 158 der 180 Sekunden.** Danach kam
+  `apt-get install` gerade noch bis zur Paketliste, dann war das Fenster zu.
+  Kein Hänger, kein Dialog, keine Flakiness: `archive.ubuntu.com` ist von den
+  Läufern aus langsam, und die Paketlisten sind gross — allein `noble/universe`
+  misst 19,3 MB.
+- **Debian war nie betroffen**, weil `deb.debian.org` ein CDN ist. Genau
+  deshalb war das Muster über drei Läufe hinweg identisch: viermal Debian grün,
+  zweimal Ubuntu rot.
+- Die Läufer stehen bei Azure. Der Container benutzt jetzt
+  `azure.archive.ubuntu.com` — denselben Spiegel, den das Läufer-Abbild für
+  sich selbst benutzt. Der Ausdruck trifft nur Ubuntu; auf Debian findet er
+  nichts.
+- Das Zeitfenster wächst zusätzlich auf 300 Sekunden. Nicht als Ersatz für den
+  Spiegel, sondern weil 202 kB/s kein fester Wert ist und ein knappes Fenster
+  denselben Fehlschlag an einem langsameren Tag zurückbrächte.
+- **Kein neuer Wächter dazu, und das ist Absicht.** Was hier zu prüfen wäre —
+  „der Spiegel ist schnell genug" — lässt sich nicht als Test schreiben, ohne
+  ihn zu befragen. Die beiden Wächter aus den Absätzen davor sind die
+  dauerhaften: Ein Warten muss scheitern können, und kein `apt-get` darf eine
+  Frage stellen. Ein schwacher dritter wäre schlechter als keiner.

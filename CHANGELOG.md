@@ -1190,3 +1190,48 @@ sprach: „Das Abonnement ist wird angelegt — daran lässt sich nichts ändern
   Zustand nicht nachgezogen, und das ist eine andere Spur.
 - **Ein Abnahmelauf, der nur „nein" sagt, verschiebt die Arbeit auf jemanden,
   der weniger sieht als er.** Das ist der Grund für den ganzen Abschnitt.
+
+### `subscriptions.main_domain` war eine zweite Wahrheit
+
+Der dritte Abnahmelauf brach ab, und diesmal stand die Ursache im Protokoll des
+Panels:
+
+```
+Duplicate entry 'abnahme-web-2.invalid' for key 'subscriptions_main_domain_unique'
+```
+
+Zwei Fehler, die einzeln harmlos aussehen und zusammen den Lauf unmöglich
+machten. Beide entstanden in P3, als die Spalte zum ersten Mal beschrieben
+wurde — vorher stand dort nie ein Wert, und deshalb konnte auch nie etwas
+kollidieren.
+
+- **Der Rückbau löschte die Domains mit einem Massenlöschen über den Erbauer,
+  und das feuert keine Modellereignisse.** An einem davon hängt die Abschrift:
+  Das Modell setzt `main_domain` beim `deleted` auf null. Übersprungen hielt
+  ein gekündigtes Abonnement seine Hauptdomain für immer fest. Im Modell steht
+  seit P3 der Kommentar, die Abschrift werde „nicht von einem Dienst gepflegt,
+  der daran denken muss, sondern vom Modell selbst" — und der eine Löschweg
+  ging am Modell vorbei. Er geht die Domains jetzt einzeln durch.
+- **Und die Spalte trug einen eindeutigen Index.** In P1 wurden `system_user`
+  und `main_domain` nebeneinander als eindeutig angelegt, mit derselben
+  Begründung. Für den Systembenutzer ist das richtig und bleibt: Ein weich
+  gelöschtes Abonnement **verbraucht** seinen `p1000`, weil die UID sonst
+  wiederverwendet würde und Dateien plötzlich jemand anderem gehörten. Für die
+  Hauptdomain gilt das Gegenteil, und zwar ausdrücklich — Domains haben seit P3
+  keine weiche Löschung, **damit** ein Name wieder frei wird. Die Abschrift
+  muss derselben Regel folgen wie das, was sie abschreibt.
+- **Es war ohnehin eine zweite Wahrheit.** Die Zuständigkeit für „diesen Namen
+  gibt es auf diesem Server einmal" liegt bei `domains.name`. Was dort
+  eindeutig ist, ist es in der Abschrift von selbst; ein zweiter Index fügt
+  keine Regel hinzu, sondern eine Stelle, an der dieselbe Regel anders
+  ausfällt. Er ist gefallen, ein gewöhnlicher Index bleibt.
+- **Warum es kein Test fand:** `test_the_main_domain_is_copied_to_the_subscription`
+  prüfte drei Ereignisse — anlegen, umbenennen, entfernen — alle über das
+  Modell. Der vierte Weg, der Rückbau, geht nicht über das Modell und war
+  deshalb nicht dabei. Er steht jetzt daneben, zusammen mit der Frage, an der
+  der Lauf hing: Lässt sich derselbe Name danach wieder vergeben? Und ein
+  Wächter über das Schema hält beide Uniques auseinander — `main_domain` darf
+  keinen tragen, `system_user` muss.
+- Die Migration räumt die Altlast mit auf: Jedes weich gelöschte Abonnement
+  verliert seine Abschrift. Ohne das bliebe der Name auf einem laufenden Server
+  belegt, obwohl der Index fällt.

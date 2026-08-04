@@ -223,10 +223,30 @@ final class Lifecycle implements AfterOperation
      * Fremdschlüssel hilft dabei nicht: `cascadeOnDelete` greift beim harten
      * Löschen und nicht bei `deleted_at`. Aufgefallen ist das beim Nachfragen,
      * nicht im Test; der Test steht jetzt daneben.
+     *
+     * **Und warum sie einzeln gehen.** Hier stand ein Massenlöschen über den
+     * Erbauer, und das feuert **keine Modellereignisse**. Genau an einem davon
+     * hängt aber die Abschrift `subscriptions.main_domain`: Das Modell setzt
+     * sie beim `deleted` auf null. Übersprungen hielt ein gekündigtes
+     * Abonnement seine Hauptdomain für immer fest — und weil die Spalte in P1
+     * als eindeutig angelegt worden war, scheiterte das nächste Abonnement mit
+     * demselben Namen an einem Index statt an einer Regel:
+     *
+     *     Duplicate entry 'abnahme-web-2.invalid'
+     *     for key 'subscriptions_main_domain_unique'
+     *
+     * Der Index ist inzwischen gefallen, weil er eine zweite Wahrheit war. Das
+     * einzelne Löschen bleibt trotzdem: Im Modell steht der Kommentar, die
+     * Abschrift werde „nicht von einem Dienst gepflegt, der daran denken muss,
+     * sondern vom Modell selbst". Ein Löschweg, der am Modell vorbeigeht,
+     * macht aus dieser Zusage eine Behauptung.
      */
     private function withdraw(Subscription $subscription): void
     {
-        Domain::query()->where('subscription_id', $subscription->id)->delete();
+        Domain::query()
+            ->where('subscription_id', $subscription->id)
+            ->get()
+            ->each(static fn (Domain $domain): ?bool => $domain->delete());
 
         $subscription->forceFill([
             'status' => SubscriptionStatus::Cancelled,

@@ -8,9 +8,12 @@ use App\Enums\DomainType;
 use App\Models\Domain;
 use App\Models\Subscription;
 use App\Support\Plans\Quota;
+use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 use Tests\TestCase;
@@ -35,6 +38,19 @@ final class DomainTest extends TestCase
         // Diese Tests prüfen Modellregeln, nicht die Mandantenklammer — die
         // hat ihren eigenen Durchgang in DomainTenancyTest.
         app(Tenancy::class)->allowAll();
+    }
+
+    /**
+     * Den Rückbau anstossen, ohne den Agenten.
+     *
+     * `withdraw()` ist privat und die Stelle, an der die Abschrift fallen
+     * muss — geprüft wird ihre Wirkung, wie in `SubscriptionCleanupTest`.
+     */
+    private function withdraw(Subscription $subscription): void
+    {
+        $method = new \ReflectionMethod(Lifecycle::class, 'withdraw');
+
+        $method->invoke(app(Lifecycle::class), $subscription);
     }
 
     /** @return list<array{0:string}> */
@@ -217,6 +233,108 @@ final class DomainTest extends TestCase
         $domain->delete();
 
         $this->assertNull($subscription->refresh()->main_domain);
+    }
+
+    /**
+     * Auch der Rückbau leert die Abschrift — er ist der vierte Weg.
+     *
+     * **Der Test darüber hat drei Ereignisse geprüft und den einen Weg
+     * übersehen, der nicht über das Modell geht.** `Lifecycle::withdraw()`
+     * löschte die Domains mit einem Massenlöschen über den Erbauer, und das
+     * feuert keine Modellereignisse. Ein gekündigtes Abonnement behielt seine
+     * Hauptdomain damit für immer.
+     *
+     * Sichtbar wurde es erst auf dem Zielserver, und nicht als schiefe
+     * Anzeige, sondern als Absturz: `subscriptions.main_domain` war in P1 als
+     * eindeutig angelegt worden, und der zweite Abnahmelauf lief mit
+     * demselben Namen in den Index.
+     *
+     *     Duplicate entry 'abnahme-web-2.invalid'
+     *     for key 'subscriptions_main_domain_unique'
+     */
+    public function test_withdrawing_a_subscription_clears_the_copy(): void
+    {
+        $subscription = Subscription::factory()->create();
+        Domain::factory()->main()->for($subscription)->create(['name' => 'beispiel.de']);
+
+        $this->assertSame('beispiel.de', $subscription->refresh()->main_domain);
+
+        $this->withdraw($subscription);
+
+        $zeile = DB::table('subscriptions')->where('id', $subscription->id)->first();
+
+        $this->assertNotNull($zeile, 'Das Abonnement ist hart fort — es soll weich gelöscht bleiben.');
+        $this->assertNull($zeile->main_domain, implode(' ', [
+            'Das gekündigte Abonnement hält seine Hauptdomain fest.',
+            'Ein Massenlöschen über den Erbauer feuert keine Modellereignisse,',
+            'und an einem davon hängt die Abschrift.',
+        ]));
+    }
+
+    /**
+     * Und derselbe Name lässt sich danach wieder vergeben.
+     *
+     * Das ist die Frage, an der der Abnahmelauf auf dem Server hängen blieb,
+     * und sie ist die Umkehrung der P3-Entscheidung: Domains haben keine
+     * weiche Löschung, **damit** ein Name wieder frei wird. Eine Abschrift,
+     * die ihn festhält, nimmt diese Entscheidung zurück.
+     */
+    public function test_the_name_is_free_again_after_a_teardown(): void
+    {
+        $erstes = Subscription::factory()->create();
+        Domain::factory()->main()->for($erstes)->create(['name' => 'beispiel.de']);
+
+        $this->withdraw($erstes);
+
+        $zweites = Subscription::factory()->create();
+
+        // Ohne den Fix wirft das eine UniqueConstraintViolationException —
+        // aus dem `saved`-Ereignis heraus, mitten im Lebenslauf.
+        Domain::factory()->main()->for($zweites)->create(['name' => 'beispiel.de']);
+
+        $this->assertSame('beispiel.de', $zweites->refresh()->main_domain);
+    }
+
+    /**
+     * `main_domain` ist eine Abschrift und trägt deshalb keinen eindeutigen
+     * Index.
+     *
+     * **Zwei Uniques, die gleich aussehen und es nicht sind.** In P1 wurden
+     * `system_user` und `main_domain` nebeneinander als eindeutig angelegt.
+     * Für den Systembenutzer ist das richtig: Ein weich gelöschtes Abonnement
+     * verbraucht seinen `p1000`, weil die UID sonst wiederverwendet würde.
+     * Für die Hauptdomain gilt das Gegenteil — ein Domainname soll nach dem
+     * Löschen wieder frei sein.
+     *
+     * Der Test prüft beide, damit aus „das eine ist weg" nicht versehentlich
+     * „beide sind weg" wird.
+     */
+    public function test_the_copy_is_not_a_second_authority(): void
+    {
+        $indizes = collect(Schema::getIndexes('subscriptions'));
+
+        $haupt = $indizes->first(
+            static fn (array $index): bool => $index['columns'] === ['main_domain'],
+        );
+
+        $this->assertNotNull($haupt, 'Der Index auf main_domain ist ganz verschwunden — die Übersicht sucht darüber.');
+        $this->assertFalse($haupt['unique'], implode(' ', [
+            'main_domain ist wieder eindeutig.',
+            'Die Zuständigkeit für „diesen Namen gibt es einmal" liegt bei domains.name;',
+            'ein zweiter Index fügt keine Regel hinzu, sondern eine Stelle, an der',
+            'dieselbe Regel anders ausfällt — hier gegen weich gelöschte Abonnements.',
+        ]));
+
+        $benutzer = $indizes->first(
+            static fn (array $index): bool => $index['columns'] === ['system_user'],
+        );
+
+        $this->assertNotNull($benutzer);
+        $this->assertTrue($benutzer['unique'], implode(' ', [
+            'system_user ist nicht mehr eindeutig.',
+            'Der muss verbraucht bleiben: Wird die UID neu vergeben, gehören Dateien',
+            'auf dem Dateisystem plötzlich jemand anderem.',
+        ]));
     }
 
     /** Eine Zusatzdomain rührt die Abschrift nicht an. */

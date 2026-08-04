@@ -60,7 +60,10 @@ final class SubscriptionQuotaTest extends TestCase
         ]);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
     private function form(Subscription $subscription, array $overrides = []): array
     {
         return ['plan_id' => (int) $subscription->plan_id, 'overrides' => $overrides];
@@ -76,7 +79,12 @@ final class SubscriptionQuotaTest extends TestCase
 
         // Ohne den Planwert im Formular müsste jemand in einem zweiten Fenster
         // nachsehen, wovon er abweicht.
-        $quotas = collect($response->viewData('page')['props']['quotas'])->keyBy('key');
+        // Der Zwischenschritt ist für PHPStan: `viewData()` liefert `mixed`,
+        // und `collect(mixed)` kann seine Typvariablen nicht auflösen.
+        /** @var list<array<string, mixed>> $katalog */
+        $katalog = $response->viewData('page')['props']['quotas'];
+
+        $quotas = collect($katalog)->keyBy('key');
 
         $this->assertSame('5.120 MB', $quotas[Quota::DiskMb->value]['plan_value']);
         $this->assertNull($quotas[Quota::DiskMb->value]['override']);

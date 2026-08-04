@@ -179,6 +179,26 @@ final class PanelTlsTest extends TestCase
         ]));
     }
 
+    public function test_a_certificate_outside_the_served_directory_leaves_nginx_alone(): void
+    {
+        /*
+         * **Die Bedingung, die in der CI aufgefallen ist.** Der Reload hing
+         * zuerst allein daran, ob es das Programm nginx gibt — und das ist die
+         * falsche Frage: Diese Operation kann in ein anderes Verzeichnis
+         * schreiben, der Server-Block zeigt aber fest auf `/etc/srvpanel/tls`.
+         * Auf dem Läufer ist nginx installiert, und der Test prüfte damit die
+         * Systemkonfiguration als unprivilegiertes Konto: neun Fehlschläge auf
+         * einen Schlag. Auf einer Maschine ohne nginx lief es durch.
+         *
+         * Dieser Test greift nur dort, wo nginx installiert ist — genau dort,
+         * wo es schiefging.
+         */
+        $result = (new PanelTls($this->directory))->execute([], $this->context());
+
+        $this->assertNotSame(PanelTls::DIRECTORY, $this->directory);
+        $this->assertFalse($result['reloaded'], 'Ein Zertifikat woanders lädt keinen laufenden Webserver neu.');
+    }
+
     public function test_a_second_run_keeps_the_valid_certificate(): void
     {
         $op = new PanelTls($this->directory);

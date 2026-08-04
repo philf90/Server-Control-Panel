@@ -46,7 +46,16 @@ final class PanelTls implements Op
     /** Ab wann erneuert wird. */
     public const RENEW_BEFORE_DAYS = 30;
 
-    public function __construct(private readonly string $directory = '/etc/srvpanel/tls') {}
+    /**
+     * Das Verzeichnis, auf das der Server-Block zeigt.
+     *
+     * Es steht als Konstante da, weil {@see self::reload()} sie braucht: nginx
+     * neu zu laden ergibt nur dann Sinn, wenn das eben geschriebene Zertifikat
+     * auch das ist, das er ausliefert.
+     */
+    public const DIRECTORY = '/etc/srvpanel/tls';
+
+    public function __construct(private readonly string $directory = self::DIRECTORY) {}
 
     public static function name(): string
     {
@@ -301,10 +310,25 @@ final class PanelTls implements Op
      */
     private function reload(Context $context, array $before, string $certificate, string $key): bool
     {
-        // Beim ersten Lauf gibt es nginx noch nicht oder es hat noch keinen
-        // Server-Block für das Panel — `srvpanel setup` wendet ihn gleich
-        // danach an, und dabei wird ohnehin neu geladen.
-        if (! is_file('/usr/sbin/nginx')) {
+        /*
+         * **Nur, wenn das eben geschriebene Zertifikat auch das ist, das nginx
+         * ausliefert.**
+         *
+         * Hier stand als einzige Bedingung „gibt es das Programm nginx" — und
+         * das ist die falsche Frage. Diese Operation kann in ein anderes
+         * Verzeichnis schreiben; der Server-Block zeigt aber fest auf
+         * `/etc/srvpanel/tls`. Ein Reload wäre dann ein Eingriff in den
+         * laufenden Webserver für ein Zertifikat, das er gar nicht kennt.
+         *
+         * Aufgefallen ist es in der CI, wo nginx auf dem Läufer installiert
+         * ist: Der Test schreibt in ein temporäres Verzeichnis, und die
+         * Operation prüfte daraufhin die Systemkonfiguration von nginx — als
+         * unprivilegiertes Konto, mit `open() "/run/nginx.pid" failed`. Neun
+         * Tests fielen um. Auf meiner Maschine gibt es nginx nicht, deshalb
+         * lief es dort durch: genau die Sorte Bedingung, die zu wenig fragt
+         * und trotzdem meistens stimmt.
+         */
+        if ($this->directory !== self::DIRECTORY || ! is_file('/usr/sbin/nginx')) {
             return false;
         }
 

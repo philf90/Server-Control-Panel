@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Link } from '@inertiajs/vue3'
 import Tile, { type Series } from '../Components/Tile.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
 
@@ -44,6 +45,11 @@ const props = defineProps<{
     kernel?: string
     uptime_s?: number
     error?: string
+  }
+  hosting: {
+    customers: { total: number; suspended: number }
+    subscriptions: { total: number; active: number; suspended: number; provisioning: number }
+    storage: { id: number; name: string; used_mb: number; percent: number; measured_at: string | null }[]
   }
   tiles: TileData[]
   services: Service[]
@@ -92,6 +98,74 @@ const headline = props.server.reachable
         :series="tile.series"
       />
     </div>
+
+    <!--
+      Der Bestand steht über den Diensten und unter den Kacheln.
+
+      Über den Diensten, weil ein Betreiber sein Panel nicht öffnet, um den
+      Zustand von nginx zu erfahren, sondern um zu sehen, ob mit dem, was er
+      hostet, etwas nicht stimmt. Unter den Kacheln, weil die Kacheln die Frage
+      beantworten, ob der Server überhaupt gesund ist — und wenn er es nicht
+      ist, ist alles darunter zweitrangig.
+    -->
+    <section class="block">
+      <h2 class="section">Bestand</h2>
+
+      <div class="zahlen">
+        <Link href="/customers" class="zahl">
+          <span class="wert">{{ props.hosting.customers.total }}</span>
+          <span class="was">Kunden</span>
+          <span v-if="props.hosting.customers.suspended > 0" class="dazu warn">
+            {{ props.hosting.customers.suspended }} gesperrt
+          </span>
+        </Link>
+
+        <Link href="/subscriptions" class="zahl">
+          <span class="wert">{{ props.hosting.subscriptions.total }}</span>
+          <span class="was">Abonnements</span>
+          <span class="dazu">{{ props.hosting.subscriptions.active }} aktiv</span>
+        </Link>
+
+        <!--
+          Gesperrt und „wird angelegt" stehen nur da, wenn es sie gibt. Eine
+          Null neben einer Beschriftung ist eine Angabe, die man jedes Mal
+          liest und nie braucht.
+        -->
+        <Link v-if="props.hosting.subscriptions.suspended > 0" href="/subscriptions" class="zahl">
+          <span class="wert warn">{{ props.hosting.subscriptions.suspended }}</span>
+          <span class="was">gesperrt</span>
+        </Link>
+
+        <Link v-if="props.hosting.subscriptions.provisioning > 0" href="/subscriptions" class="zahl">
+          <span class="wert">{{ props.hosting.subscriptions.provisioning }}</span>
+          <span class="was">werden angelegt</span>
+        </Link>
+      </div>
+    </section>
+
+    <!--
+      Nicht die grössten Abonnements, sondern die vollsten: Eines mit 40 GB von
+      200 ist unauffällig, eines mit 4,8 GB von 5 ist der Anruf von morgen.
+    -->
+    <section v-if="props.hosting.storage.length > 0" class="block">
+      <h2 class="section">Am nächsten an der Speichergrenze</h2>
+
+      <table class="stapelt">
+        <thead>
+          <tr><th>Abonnement</th><th>Belegt</th><th>Anteil</th><th>Gemessen</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in props.hosting.storage" :key="row.id">
+            <td data-spalte="Abonnement">
+              <Link :href="`/subscriptions/${row.id}`">{{ row.name }}</Link>
+            </td>
+            <td data-spalte="Belegt" class="zahlwert">{{ row.used_mb.toLocaleString('de-DE') }} MB</td>
+            <td data-spalte="Anteil" class="zahlwert" :data-voll="row.percent >= 90">{{ row.percent }} %</td>
+            <td data-spalte="Gemessen">{{ row.measured_at ?? '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
     <!--
       Jeder Bereich steht in einem eigenen <section> mit seiner Überschrift
@@ -341,5 +415,29 @@ td.quiet {
 .badge.missing {
   background: var(--surface-border);
   color: var(--text-muted);
+}
+
+/*
+ * Die Zahlen des Bestands.
+ *
+ * Sie sind Links und keine Kacheln: Wer die Zahl der gesperrten Abonnements
+ * liest, will als Nächstes wissen, welche das sind — und dann soll er sie
+ * anklicken können und nicht erst in die Navigation greifen.
+ */
+.zahlen { display: flex; flex-wrap: wrap; gap: var(--gap); }
+.zahl { display: flex; flex-direction: column; gap: 2px; min-width: 128px; padding: var(--padding); text-decoration: none; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
+.zahl:hover { border-color: var(--text-faint); }
+.wert { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-metric); line-height: 1.1; color: var(--text-strong); }
+.was { font-size: var(--text-small); color: var(--text-muted); }
+.dazu { font-size: var(--text-label); color: var(--text-faint); }
+.warn { color: var(--warn); }
+.zahlwert { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+td[data-voll='true'] { color: var(--warn); }
+
+/* Auf der schmalen Fläche nebeneinander, aber zu zweit: Vier Kärtchen
+   untereinander wären vier Bildschirmhöhen bis zur ersten Tabelle. */
+@media (max-width: 720px) {
+  .zahlen { display: grid; grid-template-columns: 1fr 1fr; }
+  .zahl { min-width: 0; }
 }
 </style>

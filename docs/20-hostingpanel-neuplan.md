@@ -488,6 +488,59 @@ nicht in die Komponente, an der sie zuerst auffallen:
   auch für `input`, `select` und `textarea` — sonst hängt der sichtbare Fokus
   davon ab, welchen Browser jemand benutzt.
 
+#### Knöpfe — eine Form, drei Ränge
+
+Ein Knopf ist keine Sache der Seite, auf der er steht. Bis August 2026 war er
+genau das: `padding: 8px 16px` auf der einen Seite, `6px 12px` auf der nächsten,
+mal mit Rahmen, mal ohne — und „Kunde anlegen" in der Kundenliste war überhaupt
+kein Knopf, sondern ein amberfarbener Link. Auf dem Bildschirm sah das aus wie
+eine Beschriftung, die zufällig anklickbar ist. Dasselbe Muster wie bei den
+Schriftgrößen: keine Vorgabe, kein Werkzeug, das sie prüft, und nach einem
+halben Jahr elf Fassungen desselben Elements.
+
+Die Form steht in `resources/css/app.css` und sonst nirgends:
+
+| Klasse | Aussehen | Wofür |
+|---|---|---|
+| `.knopf` | Rahmen, Bereichsgrund | die gewöhnliche Aktion |
+| `.knopf.wichtig` | amberfarbene Fläche | die eine Aktion, für die man die Seite geöffnet hat |
+| `.knopf.gefahr` | roter Rand, keine Fläche | was sich nicht zurücknehmen lässt |
+| `.knopf.klein` | flacher, kleinere Schrift | eine Aktion in einer Tabellenzeile |
+| `.knopfreihe` | Reihe, unter 480 px gestapelt | mehrere Knöpfe nebeneinander |
+
+Vier Regeln dazu:
+
+- **Höchstens ein `.wichtig` je Formular** — nicht je Seite. „Mein Konto" hat
+  zwei unabhängige Formulare untereinander, Stammdaten und Passwortwechsel, und
+  jedes hat seine eigene Hauptsache. Wer dort einen der beiden abstuft,
+  behauptet eine Rangfolge zwischen zwei Dingen, die nichts miteinander zu tun
+  haben.
+- **`.gefahr` bekommt keine Fläche.** Eine rote Fläche neben einer
+  amberfarbenen macht aus zwei Rängen einen Wettstreit.
+- **Es gilt für `<button>` und für `<Link>`.** Ob hinter einer Aktion ein
+  Formular oder eine Adresse steckt, ist eine Frage der Umsetzung und keine der
+  Bedienung.
+- **Auch `.klein` ist auf dem Telefon ein Fingerziel.** Es gibt `min-height`
+  auf, um die Tabellenzeile nicht aufzublasen — unter 720 px gibt es diese
+  Zeile aber nicht mehr, die Tabelle ist dort ein Kärtchen (docs/24), und der
+  Wert kommt auf `--tap` zurück.
+
+Nicht jedes anklickbare Element ist ein Knopf. Der Menüknopf der Schublade, das
+Augensymbol am Passwortfeld, das Abmelden in der Seitenleiste tragen kein
+`.knopf` und sollen es nicht: Ein Knopf auf einer Seite ist eine Aktion, die
+jemand auslöst; das Auge am Passwortfeld zeigt einen Zustand.
+
+Geprüft von `tests/Feature/ButtonStyleTest.php`: Keine Seite unter
+`resources/js/Pages` setzt an einem Knopf Innenabstand, Grund, Rahmen, Radius
+oder Schriftschnitt; jeder `<button>` trägt die Klasse; kein Formular hat zwei
+Hauptsachen.
+
+**Eine offene Abweichung.** Die Markentabelle oben verlangt 3 px Radius, „kein
+größerer Wert, nirgends". Der gebaute Panel hält das an keiner Stelle ein — die
+Werte liegen zwischen 5 und 8 px, der Knopf bei 6 px. Das ist hier festgehalten
+und nicht stillschweigend angeglichen: Entweder die Vorgabe stimmt und der Code
+muss nach, oder die Vorgabe war zu eng. Entschieden ist es nicht.
+
 #### Dichte in zwei Stufen
 
 Die Kritik am dunkelen, dichten Zuschnitt trifft die Kundenfläche, nicht die

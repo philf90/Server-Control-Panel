@@ -53,7 +53,7 @@ const off = useForm({ code: '' })
 
       <form @submit.prevent="setup.post('/settings/two-factor')">
         <CodeField v-model="setup.code" label="Code aus der App" :error="setup.errors.code" />
-        <button type="submit" :disabled="setup.processing">Bestätigen</button>
+        <button type="submit" class="knopf wichtig" :disabled="setup.processing">Bestätigen</button>
       </form>
     </section>
 
@@ -71,7 +71,7 @@ const off = useForm({ code: '' })
           hint="Ohne gültigen Code bleibt der zweite Faktor an — auch für den, der schon angemeldet ist."
           :error="off.errors.code"
         />
-        <button type="submit" :disabled="off.processing">Abschalten</button>
+        <button type="submit" class="knopf gefahr" :disabled="off.processing">Abschalten</button>
       </form>
     </section>
   </PanelLayout>
@@ -86,5 +86,5 @@ p { margin: 0 0 10px; font-size: var(--text-table); color: var(--text-muted); li
 .uri { font-family: var(--font-mono); font-size: var(--text-label); color: var(--text-faint); word-break: break-all; }
 ul { margin: 0; padding-left: 19px; font-family: var(--font-mono); font-size: var(--text-body); color: var(--text-strong); }
 form { display: flex; flex-direction: column; gap: 12px; max-width: 288px; }
-button { align-self: flex-start; padding: 7px 14px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
+form .knopf { align-self: flex-start; }
 </style>

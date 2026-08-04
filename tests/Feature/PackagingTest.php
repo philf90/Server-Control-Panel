@@ -265,6 +265,103 @@ final class PackagingTest extends TestCase
     }
 
     /**
+     * Jede Unit, die im Verzeichnis liegt, geht auch mit dem Paket mit.
+     *
+     * **Der Fehler, den das abfängt, sieht nach nichts aus.** Eine Unit, die
+     * in `packaging/systemd` liegt und in `nfpm.yaml` fehlt, wird gebaut,
+     * geprüft, gelesen — und ist auf dem Server nicht da. Es gibt keine
+     * Fehlermeldung dazu: Der Dienst läuft eben nicht, und niemand vermisst
+     * einen Takt, den es noch nie gab.
+     *
+     * Umgekehrt gilt es auch: Ein Eintrag in nfpm.yaml, zu dem keine Datei
+     * mehr existiert, lässt den Paketbau scheitern — das fällt wenigstens auf.
+     */
+    public function test_every_unit_is_shipped_with_the_package(): void
+    {
+        $nfpm = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/nfpm.yaml');
+        $units = glob(dirname(__DIR__, 2).'/packaging/systemd/*') ?: [];
+
+        $this->assertGreaterThan(4, count($units), 'Es werden kaum Units gelesen — dann prüft dieser Test nichts.');
+
+        foreach ($units as $path) {
+            $name = basename($path);
+
+            $this->assertStringContainsString(
+                '/lib/systemd/system/'.$name,
+                $nfpm,
+                sprintf('%s liegt im Verzeichnis, geht aber nicht mit dem Paket mit.', $name),
+            );
+        }
+    }
+
+    /**
+     * Ein Timer ohne seinen Dienst startet nichts.
+     *
+     * `srvpanel-usage.timer` ruft `srvpanel-usage.service` auf — der Name ist
+     * die ganze Verbindung zwischen beiden, es gibt keine Zeile, die sie
+     * nennt. Fehlt der Dienst, meldet systemd das erst beim Start des Timers,
+     * und der wird beim Einrichten mit `|| true` weggeschluckt.
+     */
+    public function test_every_timer_has_the_service_it_starts(): void
+    {
+        $timers = glob(dirname(__DIR__, 2).'/packaging/systemd/*.timer') ?: [];
+
+        $this->assertNotSame([], $timers, 'Kein Timer mehr da — dann prüft dieser Test nichts.');
+
+        foreach ($timers as $path) {
+            $service = preg_replace('/\.timer$/', '.service', $path);
+
+            $this->assertFileExists(
+                (string) $service,
+                sprintf('%s startet einen Dienst, den es nicht gibt.', basename($path)),
+            );
+        }
+    }
+
+    /**
+     * Der Timer wird beim Einrichten auch angestellt.
+     *
+     * Ein `enable` auf den Dienst statt auf den Timer ist der naheliegende
+     * Fehler: Beide heissen gleich, `systemctl enable srvpanel-usage.service`
+     * läuft ohne Murren durch — und der Takt steht trotzdem still.
+     */
+    public function test_the_timer_is_enabled_and_stopped_again(): void
+    {
+        $postinstall = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/scripts/postinstall.sh');
+        $preremove = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/scripts/preremove.sh');
+
+        foreach (glob(dirname(__DIR__, 2).'/packaging/systemd/*.timer') ?: [] as $path) {
+            $name = basename($path);
+
+            $this->assertMatchesRegularExpression(
+                '/systemctl\s+enable[^\n]*\s'.preg_quote($name, '/').'\b/',
+                $postinstall,
+                $name.' wird beim Einrichten nicht angestellt — der Takt liefe nie.',
+            );
+
+            /*
+             * Beim Entfernen nicht wörtlich geprüft: Sobald es zwei Timer
+             * gibt, steht dort eine Schleife über die Namen, und ein Muster
+             * auf `systemctl stop <name>.timer` fände sie nicht — es hielte
+             * eine richtige Umsetzung für einen Fehler. Geprüft wird deshalb
+             * beides einzeln: dass es ein Anhalten von Timern gibt und dass
+             * dieser Timer dabei vorkommt.
+             */
+            $this->assertMatchesRegularExpression(
+                '/systemctl\s+stop\s+[^\n]*\.timer/',
+                $preremove,
+                'preremove.sh hält überhaupt keinen Timer an.',
+            );
+
+            $this->assertStringContainsString(
+                basename($name, '.timer'),
+                $preremove,
+                $name.' wird beim Entfernen nicht angehalten.',
+            );
+        }
+    }
+
+    /**
      * Die Kurznamen, die `packaging/bin/srvpanel` auf `srvpanel:` abbildet.
      *
      * Gelesen wird der `case`-Zweig selbst und nicht mit einem Muster über die

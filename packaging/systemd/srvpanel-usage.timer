@@ -1,0 +1,24 @@
+[Unit]
+Description=SrvPanel — Speichermessung im Viertelstundentakt
+Documentation=https://repo.cloudsrv24.de/
+
+[Timer]
+# Fünf Minuten nach dem Start und danach alle fünfzehn Minuten. Der Versatz
+# nach dem Booten ist Absicht: In den ersten Minuten fährt der Server hoch,
+# und eine Messung, die dabei auf einen noch nicht laufenden Agenten trifft,
+# ist eine Fehlermeldung ohne Anlass.
+OnBootSec=5min
+OnUnitActiveSec=15min
+
+# Ein Server, der über Nacht ausgeschaltet war, misst nach dem Einschalten
+# einmal nach, statt bis zum nächsten Viertelstundenschlag mit Werten von
+# gestern dazustehen.
+Persistent=true
+
+# 90 Sekunden Streuung. Auf einem einzelnen Server bedeutungslos, auf zwanzig
+# gleichzeitig eingerichteten nicht: Sie messen sonst alle in derselben
+# Sekunde.
+RandomizedDelaySec=90
+
+[Install]
+WantedBy=timers.target

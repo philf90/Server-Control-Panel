@@ -274,6 +274,44 @@ Kunde kommt an ein fremdes Objekt.
   alle gebundenen Abonnements — die Zahl steht in der Liste und über dem
   Formular —, senkt aber nichts rückwirkend weg: Gesenkte Grenzen verbieten
   das nächste Objekt, sie löschen keines.
+- **Der belegte Speicher wird gemessen** (`docs/26 §8`). `subscription.usage`
+  liest die Dateisystem-Quota — **ein Aufruf für alle Abonnements und nicht
+  einer je Abonnement**: `repquota` liest die Quota-Datei einmal und kennt
+  danach jeden Benutzer darin. Herausgegeben wird nur, was der Form `p` plus
+  vier bis neun Ziffern entspricht; `root` und `www-data` stehen in derselben
+  Ausgabe, und eine Operation, die die Benutzerliste des Servers ausliefert,
+  wäre eine Auskunft, die niemand bestellt hat. **Messen ist kein Vorgang** —
+  niemand löst es aus, es ändert nichts, und es liefe alle fünfzehn Minuten
+  durch die Vorgangsliste jedes Kunden; der Aufruf geht direkt an den Agenten,
+  gestartet von `srvpanel-usage.timer`. Abgelegt werden **zwei** Werte: die
+  Zahl und der Zeitpunkt. Ohne den zweiten sähe eine Messung von vor drei Tagen
+  aus wie eine von vorhin. Ohne `usrquota` auf dem Mount wird nichts
+  zurückgesetzt — „nichts Neues" ist kein Grund, die Messung von gestern zu
+  verwerfen.
+- **Kontingente am Abonnement übersteuern** (`docs/26 §9`). Das Datenmodell
+  konnte es längst, ein Formular gab es nicht. Ein Kontingent hat dort zwei
+  Zustände und nicht einen Wert: „gilt der Plan" ist etwas anderes als „gilt
+  zufällig derselbe Wert". **Was fehlt, bleibt weg** — die Felder mit
+  Vorgabewerten aufzufüllen wäre eine stille Loslösung vom Plan, und ein
+  Abonnement, das jedes Kontingent übersteuert, erreicht keine Planänderung
+  mehr. Nur `disk_mb` erreicht das System, und nur wenn sich der *wirksame*
+  Wert ändert. Dafür gibt es **`subscription.quota`** statt eines zweiten
+  `subscription.provision`: Provision rückt die Rechte der Chroot-Wurzel auf
+  `0755` zurecht, und genau dieses Bit trägt die Sperre — ein gesperrtes
+  Abonnement wäre nach einer Kontingentänderung wieder erreichbar gewesen,
+  während im Panel weiter „gesperrt" stand. Ein gesperrtes Abonnement bekommt
+  seinen Vorgang trotzdem: `usable()` wäre die falsche Frage gewesen, denn das
+  Entsperren setzt keine Quota, und die neue Grenze käme sonst nie an.
+- **Der Abnahmelauf für P2** (`docs/26 §10`): `srvpanel acceptance --count=100`
+  legt an, baut zurück und sucht danach nach drei Sorten Rückstand —
+  Systembenutzer **und Gruppe getrennt** (`userdel` entfernt eine
+  nicht-primäre Gruppe nicht mit, und beim Anlegen steht `--no-user-group`),
+  Verzeichnis, Quota-Eintrag. Der letzte ist der, den man ohne Werkzeug
+  übersieht: kein Ort im Dateisystem, keine Zeile in /etc/passwd — und das
+  nächste Abonnement mit derselben UID erbt eine fremde Grenze. Ein Kommando
+  und kein Test, weil das Kriterium nach echten `useradd`-Aufrufen und der
+  ganzen Kette bis unter systemd fragt; was ohne Server prüfbar ist — dass ein
+  Rückstand jeder Art den Lauf durchfallen lässt —, steht als Test daneben.
 
 ### Quer zu den Stufen
 
@@ -300,6 +338,105 @@ einzelnen Ausbaustufe.
   fragt als einzige Stelle im Panel `withTrashed()`. Die Anmeldung weist Konten
   eines zurückgezogenen Kunden ab: Ohne das käme ein gekündigter Kunde weiter
   herein und sähe nichts — was wie ein Fehler aussieht und keine Kündigung ist.
+  **Erreichbar wurde das erst im August 2026:** Die Mechanik war gebaut, die
+  Policy stand da — es gab nur keine Route, keine Controllermethode und keinen
+  Knopf. Ein Kunde liess sich ausschliesslich über die Datenbank zurückziehen.
+  Jetzt steht „Zurückziehen" auf der Kundenseite, und der Versuch wird
+  **abgewiesen, solange Abonnements laufen**: Sie mit zurückzubauen hiesse, aus
+  diesem Knopf einen zu machen, der als Nebenwirkung Verzeichnisbäume als root
+  löscht, während die Rückfrage davor von einem Kunden spricht. Zurückgebaute
+  Abonnements zählen nicht mit — sonst liesse sich ein Kunde, der einmal eines
+  hatte, nie wieder zurückziehen.
+- **Einen Kunden sperren heisst, seine Abonnements zu sperren** (`docs/26 §11`).
+  `CustomerStatus::Suspended` gab es von Anfang an und bedeutete nichts — es
+  liess sich nirgends setzen. Jetzt gibt es „Sperren" und „Freigeben" auf der
+  Kundenseite, und die Sperre nimmt mit, was der Kunde hat: **je Abonnement ein
+  Vorgang**, nicht ein Sammelvorgang, weil „teilweise erfolgreich" bei zehn
+  Abonnements keine Auskunft ist. **Die Freigabe ist die schwierigere Hälfte:**
+  „alle gesperrten wieder an" wäre die naheliegende Umkehrung und wäre falsch —
+  ein Abonnement, das der Betreiber vorher einzeln gesperrt hat, war nie Teil
+  der Kundensperre, und am Zustand ist das nicht zu erkennen. Das Abonnement
+  merkt sich deshalb in `suspended_with_customer`, zu welcher Sperre es gehört;
+  wer eines einzeln sperrt, löscht die Kennzeichnung damit. Ein einzelnes
+  Abonnement lässt sich nicht entsperren, solange der Kunde gesperrt ist —
+  sonst liesse sich die Kundensperre von unten aushebeln. **Und für einen
+  gesperrten Kunden lässt sich keines anlegen:** Es käme aktiv aus dem Anlegen
+  heraus — die Kaskade sperrt, was es beim Klick gab —, und danach stünde beim
+  Kunden „gesperrt" und darunter eine laufende Webseite. Im Formular steht ein
+  gesperrter Kunde trotzdem in der Liste, abgeblendet und mit dem Grund
+  daneben; wer ihn herausfiltert, lässt jemanden nach einem Kunden suchen, den
+  er gestern angelegt hat. Die Anmeldung bleibt offen: Ein gesperrter Kunde
+  soll sehen, warum nichts mehr geht.
+- **Eine Willkommensseite im DocumentRoot** (`docs/26 §7`). Das
+  Verzeichnisschema legte `httpdocs` an und schrieb nichts hinein — ein Kunde
+  bekam ein leeres Verzeichnis. Sie entsteht **nur, solange das Verzeichnis
+  leer ist**: Das ist die Bedingung dafür, dass `subscription.provision`
+  wiederholbar bleiben darf, denn ein zweiter Lauf träfe sonst auf eine fertige
+  Webseite und legte eine `index.html` daneben, die vor `index.php` gefunden
+  wird. Sie nennt weder Abonnementnamen noch Systembenutzer noch das Panel —
+  sobald eine Domain hierher zeigt, ist sie öffentlich —, lädt nichts von
+  aussen und trägt `noindex`.
+- **Die Übersicht zeigt den Bestand** (`docs/26 §12`). Sie zeigte
+  ausschliesslich die Maschine: Auslastung, Dienste, Dateisysteme, Prozesse.
+  Ein Betreiber öffnet sein Panel aber nicht, um zu erfahren, wie viel RAM
+  belegt ist, sondern um zu sehen, ob mit dem, was er hostet, etwas nicht
+  stimmt. Jetzt stehen dort Kunden und Abonnements nach Zustand — und die fünf
+  Abonnements, die ihrer Speichergrenze am nächsten sind. **Die vollsten und
+  nicht die grössten:** Eines mit 40 GB von 200 ist unauffällig, eines mit 4,8
+  GB von 5 ist der Anruf von morgen. Ein Kunde bekommt diese Zahlen nicht
+  ausgeblendet, sondern gar nicht erst erhoben.
+- **Das Zertifikat der Oberfläche** (`docs/27`) — vorgezogen aus P4, ohne
+  Let's Encrypt. Das selbstsignierte Zertifikat gab es seit P0; beim Nachsehen
+  fielen zwei Mängel auf, die beide erst im Betrieb weh getan hätten. **Es
+  trug keinen subjectAltName:** Der Name stand nur im CommonName, und den liest
+  Chrome seit 2017 nicht mehr, Firefox und Safari ebenso wenig — der Browser
+  meldete nicht „unbekannter Aussteller", sondern „der Name passt nicht", und
+  auch die Aufnahme in den eigenen Zertifikatsspeicher half nicht. Dazu ruft
+  man das Panel nach der Einrichtung über die **IP** auf, und die stand nirgends
+  darin. Jetzt stehen Hostname, Kurzform, `localhost` und jede Adresse aller
+  Schnittstellen darin — ohne die link-lokalen, die sich ändern und unter denen
+  niemand ein Panel aufruft. **Und nichts erneuerte es:** `panel.tls.ensure`
+  rief ausschliesslich `srvpanel setup` auf, die Prüfung auf Restlaufzeit lief
+  also nie. `srvpanel-tls.timer` prüft jetzt täglich; erneuert wird ab 30 Tagen
+  Restlaufzeit oder wenn der Rechner nicht mehr so heisst wie damals. Eine
+  geänderte IP erneuert **nicht** — auf einem Server mit Docker gäbe das jede
+  Woche ein neues Zertifikat samt neuer Warnung; die Seite im Panel zeigt statt
+  dessen an, welche Adresse fehlt.
+  Dazu drei kleinere Korrekturen am Zertifikat selbst: `CA:FALSE` statt einer
+  Zertifizierungsstelle (ein selbstsigniertes Zertifikat, das eine CA sein
+  darf, ist ein Generalschlüssel für jeden, der den privaten Schlüssel des
+  Servers erbeutet), eine zufällige Seriennummer statt `0`, und 397 statt 825
+  Tage Laufzeit. Nach einem Tausch wird nginx geprüft und neu geladen — vorher
+  hätte der Webserver das alte Zertifikat weiter aus dem Speicher ausgeliefert,
+  und eine Erneuerung, die nicht ankommt, ist schlimmer als keine.
+  `/settings/tls` zeigt Name, Aussteller, Laufzeit und Namen und stellt auf
+  Wunsch neu aus; das Nachsehen ist ausdrücklich **kein** Vorgang.
+- **Das Gerüst der schmalen Fläche ist eine Spalte** (`docs/24 §4`). Es war
+  unter 720px weiterhin ein Raster mit `auto 1fr` — Kopfzeile oben, Inhalt
+  darunter —, und das ging, solange es zwei Kinder im Fluss gab. Beim Wechsel
+  in die Sicht eines Kunden kommt das Band dazu: Dann rutscht die **Kopfzeile**
+  in die `1fr`-Zeile und nimmt sich allen übrigen Platz. Auf einem Telefon mit
+  844px Höhe war sie 591px hoch, zwischen Band und Seitentitel stand eine leere
+  schwarze Fläche, und der Inhalt landete in einer Zeile, die es im Raster gar
+  nicht gab. Eine dritte Zeile wäre die falsche Antwort gewesen — dann zählt
+  man Kinder. Unter 720px gibt es eine Spalte, und eine Spalte hat nichts zu
+  zählen. `MobileLayoutTest` lässt dort kein `grid-template-rows` mehr durch.
+- **Die Erfolgsmeldung steht im Gerüst und nicht auf jeder Seite.** Sie kam
+  bisher von drei Seiten selbst, der Rest warf sie weg — wer einen Kunden
+  sperrte, bekam als einzige Rückmeldung einen anders beschrifteten Knopf,
+  während der Controller „Ein Abonnement wird gesperrt — der Vorgang läuft"
+  schickte. Dasselbe Muster wie bei den Knöpfen: eine Sache, die jede Seite
+  einzeln richtig machen musste, und die meisten machten sie gar nicht.
+- **Führt zu jeder Fähigkeit auch ein Weg?** (`PolicyReachTest`) Die
+  Gegenrichtung zur Routenprüfung, und der Grund, aus dem die Lücke oben so
+  lange stand: `RouteAuthorizationTest` prüft, dass jede Route eine Policy
+  trägt — das ist die Richtung, in der ein Fehler gefährlich ist. Dass eine
+  Policy-Fähigkeit von nirgendwo aus erreichbar war, prüfte nichts. Eine
+  Fähigkeit ohne Weg ist kein Sicherheitsproblem, sondern eine Zusage im
+  Quelltext, die es in der Anwendung nicht gibt: Wer sie liest, hält eine
+  Funktion für vorhanden. Fünf Ausnahmen stehen mit Begründung in der Liste —
+  darunter `AuditEventPolicy::update` und `::delete`, die grundsätzlich
+  verweigern und für die eine Route gerade der Fehler wäre.
 - **Mein Konto** (`/settings/profile`). Name, Anmeldeadresse und Passwort des
   eigenen Kontos — bis dahin liess sich das Adminkonto ausschliesslich über
   `srvpanel:admin` auf der Kommandozeile ändern, also nur von jemandem mit root
@@ -345,6 +482,27 @@ einzelnen Ausbaustufe.
   verschluckt — `background` erreicht sie nicht, nur ein Schatten nach innen),
   das Blau der Ankreuzfelder und der Fokusrahmen an Eingabefeldern, den bis
   dahin nur die Anmeldemaske selbst gesetzt hatte.
+- **Knöpfe kommen aus `app.css`** (`docs/20 §7.2`). Jede Seite brachte ihre
+  eigenen mit — `8px 16px` hier, `6px 12px` dort, mal mit Rahmen, mal ohne —,
+  und „Kunde anlegen" in der Kundenliste war überhaupt kein Knopf, sondern ein
+  amberfarbener Link: auf dem Bildschirm eine Beschriftung, die zufällig
+  anklickbar ist. Es gibt jetzt eine Form und drei Ränge (`.knopf`,
+  `.wichtig`, `.gefahr`), dazu `.klein` für die Tabellenzeile und
+  `.knopfreihe`, die unter 480 px stapelt. Sechzehn Seiten sind umgestellt und
+  ihre eigenen Knopfregeln gelöscht. `ButtonStyleTest` lässt keine Seite mehr
+  ihr eigenes Aussehen erfinden und kein Formular mit zwei Hauptsachen durch.
+  Beim Nachmessen im Browser fiel auf, dass `.klein` auf 390 px zwei 23 px hohe
+  Ziele nebeneinander ergab — unter 720 px bekommt es `--tap` zurück (`docs/24
+  §2`), und ein Test hält das fest.
+- **Kunden lassen sich bearbeiten.** In der Kundenübersicht führte kein Weg zu
+  den Stammdaten eines angelegten Kunden: Sie liessen sich anlegen und ansehen,
+  danach nur noch über die Datenbank ändern. „Bearbeiten" steht jetzt in der
+  Zeile und auf der Kundenseite. Nicht änderbar bleiben die Kundennummer (sie
+  steht in Rechnungen und Verzeichnisnamen), der Zustand (er bekommt eine eigene
+  Aktion) und die Anmeldeadresse (sie gehört zum Konto, nicht zum
+  Vertragspartner) — ein `login_email` im Formular fasst kein Konto an. Das
+  Protokoll hält fest, **welche Felder** sich geändert haben, nicht ihren
+  Inhalt.
 
 ### Berichtigt
 

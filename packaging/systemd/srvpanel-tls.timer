@@ -1,0 +1,21 @@
+[Unit]
+Description=SrvPanel — tägliche Prüfung des Zertifikats
+Documentation=https://repo.cloudsrv24.de/
+
+[Timer]
+# Täglich, obwohl ein Zertifikat 397 Tage gilt. Der Takt richtet sich nicht
+# nach der Laufzeit, sondern nach der Frist davor: Erneuert wird ab 30 Tagen
+# Restlaufzeit, und in diesen 30 Tagen muss der Server mindestens einmal
+# gelaufen sein. Ein wöchentlicher Takt täte es auch — ein täglicher kostet
+# einen Prozessstart und erspart die Rechnung.
+OnCalendar=daily
+
+# Ein Server, der über Nacht aus war, prüft nach dem Einschalten nach.
+Persistent=true
+
+# Eine Stunde Streuung: Der Lauf ist nicht dringend, und zwanzig Server
+# sollen nicht in derselben Sekunde messen.
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

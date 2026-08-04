@@ -57,6 +57,101 @@ final class Quotas
     }
 
     /**
+     * Die Prüfregeln für die Übersteuerungen eines Abonnements.
+     *
+     * **Der Unterschied zu {@see self::rules()} ist `sometimes` statt
+     * `present`, und er trägt die ganze Bedeutung.** Am Plan muss jedes
+     * Kontingent stehen: Ein fehlendes Feld wäre ein Formular aus einer
+     * anderen Fassung. Am Abonnement ist ein fehlender Schlüssel dagegen die
+     * Aussage „gilt der Plan" — und das ist der Normalfall, nicht die
+     * Ausnahme. Ein Abonnement, das jedes Kontingent überschreibt, hängt nicht
+     * mehr am Plan; eine Änderung des Plans erreichte es nie wieder.
+     *
+     * `nullable` steht hier auch bei den beiden Kontingenten, die am Plan
+     * nicht unbegrenzt sein dürfen — der Wert `null` bedeutet an dieser Stelle
+     * etwas anderes als dort. Er heisst nicht „unbegrenzt", sondern „keine
+     * Übersteuerung"; {@see self::overrides()} wirft ihn deshalb heraus,
+     * statt ihn abzulegen.
+     *
+     * @return array<string, mixed>
+     */
+    public static function overrideRules(): array
+    {
+        /*
+         * **`sometimes` auch am Behälter selbst, und das ist kein Nachlassen.**
+         * Am Plan steht `present`: Ein Formular ohne `quotas` ist eines aus
+         * einer anderen Fassung. Hier ist „gar keine Übersteuerung" der
+         * häufigste Fall — und ein leeres Feld ist genau das, was eine
+         * Formularkodierung nicht übertragen kann: Ein leeres Array
+         * verschwindet zwischen Browser und Server spurlos. Mit `present`
+         * bekäme derjenige, der die letzte Übersteuerung entfernt, eine
+         * Fehlermeldung über ein Feld, das er gerade geleert hat.
+         */
+        $rules = ['overrides' => ['sometimes', 'nullable', 'array']];
+
+        foreach (Quota::cases() as $quota) {
+            $key = 'overrides.'.$quota->value;
+
+            if ($quota->isSelection()) {
+                $rules[$key] = ['sometimes', 'nullable', 'array', 'min:1'];
+                $rules[$key.'.*'] = ['string', Rule::in(Quota::PHP_VERSIONS)];
+
+                continue;
+            }
+
+            $rules[$key] = ['sometimes', 'nullable', 'integer', 'min:'.$quota->minimum(), 'max:'.$quota->maximum()];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Aus einer Formulareingabe die Übersteuerungen eines Abonnements.
+     *
+     * **Was fehlt, bleibt weg.** Das ist der Unterschied zu
+     * {@see self::normalize()}, die Lücken mit Vorgabewerten füllt: Hier wäre
+     * ein Vorgabewert eine stille Loslösung vom Plan. Ein Schlüssel steht nur
+     * dann im Ergebnis, wenn er in der Eingabe stand und einen Wert trägt.
+     *
+     * Der Rückgabewert ist `null`, wenn nichts übersteuert wird — nicht ein
+     * leeres Array. `{}` in der Datenbank sähe für jeden Leser aus wie „hier
+     * war mal etwas".
+     *
+     * @param  array<mixed>  $input
+     * @return array<string, mixed>|null
+     */
+    public static function overrides(array $input): ?array
+    {
+        $overrides = [];
+
+        foreach (Quota::cases() as $quota) {
+            if (! array_key_exists($quota->value, $input)) {
+                continue;
+            }
+
+            $value = $input[$quota->value];
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            if ($quota->isSelection()) {
+                $versions = self::versions($value);
+
+                if ($versions !== []) {
+                    $overrides[$quota->value] = $versions;
+                }
+
+                continue;
+            }
+
+            $overrides[$quota->value] = max($quota->minimum(), min($quota->maximum(), (int) $value));
+        }
+
+        return $overrides === [] ? null : $overrides;
+    }
+
+    /**
      * Auf die bekannten Schlüssel zurückschneiden.
      *
      * In beide Richtungen: Was fehlt, kommt aus dem Vorgabewert dazu; was

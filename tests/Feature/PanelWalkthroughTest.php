@@ -266,7 +266,19 @@ final class PanelWalkthroughTest extends TestCase
                 ->has('server')
                 ->has('services')
                 ->has('filesystems')
-                ->has('processes'));
+                ->has('processes')
+
+                /*
+                 * Und der Bestand. Die Übersicht zeigte bis August 2026
+                 * ausschliesslich die Maschine — Auslastung, Dienste,
+                 * Dateisysteme, Prozesse. Das ist die halbe Auskunft: Ein
+                 * Betreiber öffnet sein Panel nicht, um zu erfahren, wie viel
+                 * RAM belegt ist, sondern um zu sehen, ob mit dem, was er
+                 * hostet, etwas nicht stimmt.
+                 */
+                ->has('hosting.customers')
+                ->has('hosting.subscriptions')
+                ->has('hosting.storage'));
     }
 
     public function test_the_customer_overview_never_carries_them(): void
@@ -285,6 +297,10 @@ final class PanelWalkthroughTest extends TestCase
                 ->missing('server')
                 ->missing('tiles')
                 ->missing('services')
+
+                // Der Bestand gehört dazu: Wie viele Kunden es auf diesem
+                // Server gibt, geht einen Kunden nichts an.
+                ->missing('hosting')
                 // Prozessliste und Dateisysteme sind die Auskunft über den
                 // Server, die am wenigsten in eine Kundenantwort gehört: Sie
                 // nennt fremde Dienste, fremde Speicherbelegung und die

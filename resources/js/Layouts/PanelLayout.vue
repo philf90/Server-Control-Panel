@@ -15,6 +15,21 @@ const account = computed(() => page.props.account as { name: string; is_admin: b
 const impersonation = computed(() => page.props.impersonation as { active: boolean; admin: string } | null)
 
 /*
+ * Die Erfolgsmeldung steht hier und nicht auf jeder Seite.
+ *
+ * Bis August 2026 brachte sie jede Seite selbst mit — drei Seiten taten es,
+ * der Rest nicht. Wer einen Kunden sperrte, bekam als einzige Rückmeldung
+ * einen Knopf, der jetzt anders beschriftet war; die Meldung „Ein Abonnement
+ * wird gesperrt — der Vorgang läuft" schickte der Controller, und die Seite
+ * warf sie weg. Dasselbe Muster wie bei den Knöpfen: eine Sache, die jede
+ * Seite einzeln richtig machen musste, und die meisten machten sie gar nicht.
+ *
+ * `role="status"` und nicht `alert`: Es ist eine Bestätigung und keine
+ * Warnung — ein Screenreader liest sie vor, ohne die Arbeit zu unterbrechen.
+ */
+const erfolg = computed(() => (page.props.flash as Record<string, string> | undefined)?.success)
+
+/*
  * Die Navigation kommt aus dem Kontotyp, nicht aus einer Rechteprüfung im
  * Menü. Das ist ausdrücklich keine Autorisierung — die sitzt an der Aktion
  * (§6.2.2). Ein Kunde, der eine Adminadresse von Hand einträgt, wird von der
@@ -47,6 +62,7 @@ const navigation = computed(() => {
       { name: 'Vorgänge', href: '/operations' },
       { name: 'Protokoll', href: '/audit' },
       { name: 'Mailversand', href: '/settings/mail' },
+      { name: 'Zertifikat', href: '/settings/tls' },
     ] },
     { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile' }] },
   ]
@@ -202,12 +218,23 @@ onBeforeUnmount(() => {
         <span v-if="subline" class="meta">{{ subline }}</span>
       </header>
 
+      <p v-if="erfolg" class="erfolg" role="status">{{ erfolg }}</p>
+
       <slot />
     </main>
   </div>
 </template>
 
 <style scoped>
+.erfolg {
+  margin: 0 0 var(--gap);
+  padding: 8px 11px;
+  font-size: var(--text-table);
+  color: var(--ok);
+  background: var(--ok-surface);
+  border-radius: 6px;
+}
+
 .frame {
   display: grid;
   grid-template-columns: 186px 1fr;
@@ -428,9 +455,30 @@ h1 {
  * jemand einen neuen Menüpunkt vergisst.
  */
 @media (max-width: 720px) {
+  /*
+   * **Hier stand `grid-template-columns: 1fr`, und das Gerüst blieb ein
+   * Raster mit zwei Zeilen.** Das ging genau so lange gut, wie es zwei Kinder
+   * im Fluss gab: Kopfzeile in die `auto`-Zeile, Inhalt in die `1fr`-Zeile.
+   *
+   * Beim Wechsel in die Sicht eines Kunden kommt das Band dazu, und damit
+   * sind es drei. Sie verteilen sich der Reihe nach: Band in Zeile eins,
+   * **Kopfzeile in die `1fr`-Zeile** — und die nimmt sich allen übrigen Platz.
+   * Auf einem Telefon mit 844px Höhe war die Kopfzeile damit 591px hoch, und
+   * der Inhalt begann darunter in einer Zeile, die es im Raster gar nicht
+   * gibt. Zu sehen war eine leere schwarze Fläche zwischen Band und
+   * „Übersicht".
+   *
+   * Die Antwort ist nicht eine dritte Zeile — dann zählt man Kinder, und beim
+   * nächsten Band zählt jemand falsch. Auf der schmalen Fläche gibt es nur
+   * eine Spalte, und die Schublade steht ohnehin `fixed`: Was hier gebraucht
+   * wird, ist eine Spalte von oben nach unten. Das ist ein Flexcontainer, und
+   * der hat keine Zeilen, die man verzählen könnte.
+   */
   .frame {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
   }
+
 
   .topbar {
     display: flex;
@@ -523,6 +571,9 @@ h1 {
   }
 
   .content {
+    /* Nimmt, was übrig ist — vorher tat das die `1fr`-Zeile des Rasters. */
+    flex: 1;
+    min-width: 0;
     padding: 14px 12px 24px;
     padding-bottom: calc(24px + env(safe-area-inset-bottom));
   }

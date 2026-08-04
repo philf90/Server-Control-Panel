@@ -123,21 +123,37 @@ final class MobileLayoutTest extends TestCase
 
             preg_match_all('/<table([^>]*)>/', $template, $matches, PREG_OFFSET_CAPTURE);
 
-            foreach ($matches[1] as $match) {
-                [$attributes, $offset] = $match;
+            // Die Position kommt aus dem *ganzen* Treffer und nicht aus der
+            // Klammer: Der Versatz der Attributklammer zeigt hinter `<table`,
+            // und alles davor endet damit auf genau dieser Zeichenfolge statt
+            // auf dem Behälter, nach dem hier gefragt wird.
+            foreach ($matches[0] as $index => $match) {
+                $attributes = $matches[1][$index][0];
+                $offset = $match[1];
                 $tables++;
 
                 $stacks = str_contains($attributes, 'stapelt');
 
-                // Rollt sie? Dann steht der Behälter davor. Gezählt wird über
-                // den ganzen Text bis zu dieser Tabelle — offene `rollt`
-                // gegen bereits geschlossene Tabellen. Hier stand ein
-                // `explode(...)[$index]`, und das liefert ab der zweiten
-                // Tabelle nur das Stück *zwischen* zwei Tabellen statt alles
-                // davor: Die erste Tabelle galt als in Ordnung, die zweite
-                // und dritte nicht.
-                $before = substr($template, 0, $offset);
-                $scrolls = substr_count($before, 'class="rollt"') > substr_count($before, '</table>');
+                /*
+                 * Rollt sie? Dann steht der Behälter unmittelbar davor.
+                 *
+                 * **Zweiter Anlauf an dieser Stelle, und beide Male aus
+                 * demselben Grund:** Der Ausdruck sah sich den ganzen Text vor
+                 * der Tabelle an, statt die eine Zeile davor. Erst stand hier
+                 * `explode(...)[$index]` — das liefert ab der zweiten Tabelle
+                 * nur das Stück *zwischen* zwei Tabellen. Dann wurde gezählt,
+                 * offene `rollt` gegen geschlossene Tabellen, und das hielt
+                 * genau so lange, wie jede Tabelle einer Seite gerollt hat:
+                 * Eine gestapelte Tabelle davor verschiebt die Bilanz, und die
+                 * gerollten dahinter fielen durch — obwohl an ihnen nichts
+                 * geändert wurde.
+                 *
+                 * Gefragt ist ohnehin etwas Einfacheres: Steht der Behälter
+                 * direkt um diese Tabelle? Alles andere war eine Bilanz über
+                 * eine Seite, die niemand behauptet hat.
+                 */
+                $before = rtrim(substr($template, 0, $offset));
+                $scrolls = str_ends_with($before, '<div class="rollt">');
 
                 $this->assertTrue(
                     $stacks || $scrolls,
@@ -186,6 +202,55 @@ final class MobileLayoutTest extends TestCase
         }
 
         $this->assertGreaterThan(10, $cells, 'Es werden kaum Zellen gefunden — dann prüft dieser Test nichts.');
+    }
+
+    /**
+     * Das Gerüst der schmalen Fläche ist eine Spalte und kein Raster.
+     *
+     * **Der Fehler, den das festhält, hing von einem Kind ab.** Das Gerüst war
+     * unter 720px weiterhin ein Raster mit `grid-template-rows: auto 1fr` —
+     * Kopfzeile oben, Inhalt darunter. Das ging, solange es zwei Kinder im
+     * Fluss gab. Beim Wechsel in die Sicht eines Kunden kommt das Band dazu,
+     * und damit rutscht die **Kopfzeile** in die `1fr`-Zeile und nimmt sich
+     * allen übrigen Platz: Auf einem Telefon mit 844px Höhe war sie 591px
+     * hoch, und zwischen Band und Seitentitel stand eine leere schwarze
+     * Fläche. Der Inhalt landete in einer Zeile, die es im Raster gar nicht
+     * gab.
+     *
+     * Am Schreibtisch sieht man das nie — dort gilt die Regel nicht, und ohne
+     * „Anmelden als" gibt es das dritte Kind nicht.
+     *
+     * Eine dritte Zeile wäre die falsche Antwort gewesen: Dann zählt man
+     * Kinder, und beim nächsten Band zählt jemand falsch. Auf einer Spalte
+     * gibt es nichts zu zählen.
+     */
+    public function test_the_narrow_frame_is_a_column_and_not_a_grid(): void
+    {
+        $layout = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/Layouts/PanelLayout.vue');
+        $layout = (string) preg_replace('#/\*.*?\*/#su', '', $layout);
+
+        if (preg_match('/@media\s*\(\s*max-width:\s*720px\s*\)\s*\{(.*)\n\}/su', $layout, $match) !== 1) {
+            $this->fail('In PanelLayout.vue steht kein @media (max-width: 720px) mehr.');
+        }
+
+        if (preg_match('/(^|\})\s*\.frame\s*\{([^}]*)\}/s', $match[1], $frame) !== 1) {
+            $this->fail('Unter 720px gibt es keine Regel für .frame mehr.');
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/display\s*:\s*flex/',
+            $frame[2],
+            'Das Gerüst der schmalen Fläche muss eine Spalte sein (display: flex). Ein Raster mit '.
+            'festen Zeilen hängt davon ab, wie viele Kinder gerade da sind — und das Band von '.
+            '„Anmelden als" ist eines davon.',
+        );
+
+        $this->assertSame(
+            0,
+            preg_match('/grid-template-rows/', $frame[2]),
+            'Unter 720px setzt .frame wieder Rasterzeilen. Damit hängt die Höhe der Kopfzeile daran, '.
+            'ob gerade jemand in der Sicht eines Kunden arbeitet.',
+        );
     }
 
     public function test_input_fields_use_the_zoom_safe_size(): void

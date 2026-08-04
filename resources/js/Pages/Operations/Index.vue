@@ -65,7 +65,7 @@ function start(task: TaskEntry): void {
           </div>
           <button
             type="button"
-            :class="{ aendernd: task.mutating }"
+            :class="['knopf', { gefahr: task.mutating }]"
             :disabled="starting !== null"
             @click="start(task)"
           >
@@ -120,7 +120,4 @@ th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .op { display: block; font-family: var(--font-mono); font-size: var(--text-label); color: var(--text-faint); }
 td[data-status='failed'] { color: var(--warn); }
 td[data-status='running'], td[data-status='queued'] { color: var(--accent); }
-button { flex: none; padding: 3px 10px; font: inherit; font-size: var(--text-small); color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
-button:disabled { color: var(--text-faint); cursor: default; }
-button.aendernd { color: var(--warn); border-color: var(--warn); }
 </style>

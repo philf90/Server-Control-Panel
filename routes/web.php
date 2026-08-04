@@ -15,6 +15,7 @@ use App\Http\Controllers\OverviewController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\TlsSettingsController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Operation;
@@ -139,6 +140,39 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:view,customer')
         ->name('customers.show');
 
+    Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])
+        ->middleware('can:update,customer')
+        ->name('customers.edit');
+
+    Route::patch('/customers/{customer}', [CustomerController::class, 'update'])
+        ->middleware('can:update,customer')
+        ->name('customers.update');
+
+    /*
+     * Sperren und freigeben — mit den Abonnements.
+     *
+     * `can:suspend` und nicht `can:update`: Das Bearbeiten ändert einen
+     * Datensatz, das Sperren nimmt einem Kunden seine Abonnements vom Netz.
+     */
+    Route::post('/customers/{customer}/suspend', [CustomerController::class, 'suspend'])
+        ->middleware('can:suspend,customer')
+        ->name('customers.suspend');
+
+    Route::post('/customers/{customer}/resume', [CustomerController::class, 'resume'])
+        ->middleware('can:suspend,customer')
+        ->name('customers.resume');
+
+    /*
+     * Zurückziehen, nicht löschen.
+     *
+     * `DELETE` als Methode, weil das die Absicht des Aufrufers ist; was
+     * daraus wird, ist ein `deleted_at` — die Kundennummer bleibt vergeben.
+     * Der Controller weist ab, solange Abonnements laufen.
+     */
+    Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])
+        ->middleware('can:delete,customer')
+        ->name('customers.destroy');
+
     /*
      * Pläne — die Vorlage für die Kontingente eines Abonnements (§5.2).
      *
@@ -192,6 +226,21 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/subscriptions/{subscription}', [SubscriptionController::class, 'show'])
         ->middleware('can:view,subscription')
         ->name('subscriptions.show');
+
+    /*
+     * Plan wechseln und Kontingente übersteuern (§5.2).
+     *
+     * `can:update` und nicht `can:view`: Der Kunde sieht seine Grenzen an
+     * seinem Abonnement, ändern darf sie der Betreiber. Was ein Kunde davon
+     * sieht, entscheidet die Show-Seite, nicht diese Route.
+     */
+    Route::get('/subscriptions/{subscription}/edit', [SubscriptionController::class, 'edit'])
+        ->middleware('can:update,subscription')
+        ->name('subscriptions.edit');
+
+    Route::patch('/subscriptions/{subscription}', [SubscriptionController::class, 'update'])
+        ->middleware('can:update,subscription')
+        ->name('subscriptions.update');
 
     Route::post('/subscriptions/{subscription}/suspend', [SubscriptionController::class, 'suspend'])
         ->middleware('can:suspend,subscription')
@@ -253,6 +302,20 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/settings/mail/test', [MailSettingsController::class, 'test'])
         ->middleware('can:manage-settings')
         ->name('settings.mail.test');
+
+    /*
+     * Das Zertifikat der Oberfläche (docs/27).
+     *
+     * Ansehen und neu ausstellen — dieselbe Fähigkeit wie beim Mailversand:
+     * Es gibt kein Modell, dem diese Einstellung gehört.
+     */
+    Route::get('/settings/tls', [TlsSettingsController::class, 'show'])
+        ->middleware('can:manage-settings')
+        ->name('settings.tls');
+
+    Route::post('/settings/tls', [TlsSettingsController::class, 'store'])
+        ->middleware('can:manage-settings')
+        ->name('settings.tls.reissue');
 
     /*
      * Den zweiten Faktor einrichten oder abschalten.

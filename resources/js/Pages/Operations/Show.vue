@@ -76,7 +76,7 @@ watch(output, () => {
     <div class="leiste">
       <Link href="/operations">← Alle Vorgänge</Link>
 
-      <button v-if="open" type="button" :disabled="cancelRequested" @click="cancel">
+      <button v-if="open" type="button" class="knopf gefahr" :disabled="cancelRequested" @click="cancel">
         {{ cancelRequested ? 'Abbruch angefordert …' : 'Abbrechen' }}
       </button>
     </div>
@@ -116,8 +116,6 @@ watch(output, () => {
 
 <style scoped>
 .leiste { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 var(--gap); font-size: var(--text-small); }
-.leiste button { padding: 3px 10px; font: inherit; font-size: var(--text-small); color: var(--warn); background: transparent; border: 1px solid var(--warn); border-radius: 5px; cursor: pointer; }
-.leiste button:disabled { color: var(--text-faint); border-color: var(--line); cursor: default; }
 .wartet { margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-small); color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
 .kopf { display: flex; flex-wrap: wrap; gap: 24px; margin: 0 0 var(--gap); }
 .kopf dt { font-size: var(--text-label); text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); }

@@ -7,15 +7,18 @@ namespace App\Http\Controllers;
 use App\Enums\AccountStatus;
 use App\Enums\AccountType;
 use App\Enums\CustomerStatus;
+use App\Enums\SubscriptionStatus;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Support\Audit\Audit;
 use App\Support\Passwords\Policy;
+use App\Support\Subscriptions\Lifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -117,6 +120,264 @@ final class CustomerController extends Controller
             ->with('success', "Kunde {$customer->number} angelegt.");
     }
 
+    /**
+     * Die Stammdaten ändern.
+     *
+     * **Ohne Kundennummer und ohne Zustand.** Die Nummer ist der Bezeichner,
+     * unter dem der Kunde in Rechnungen steht — sie zu ändern hiesse, zwei
+     * Belege desselben Vorgangs unter zwei Nummern zu führen. Der Zustand
+     * (aktiv, gesperrt) hat seine eigene Aktion — {@see self::suspend()} —,
+     * weil er die Abonnements mitnimmt. Als Auswahlfeld unter der
+     * Telefonnummer sähe er aus wie eine Angabe und wäre ein Schalter, der
+     * Webseiten abschaltet.
+     *
+     * **Und ohne die Anmeldeadresse.** Die gehört dem Konto, nicht dem
+     * Vertragspartner: Ein Kunde kann mehrere Konten haben, und welches davon
+     * hier gemeint wäre, ist nicht zu erraten. Sie ändert der Kontoinhaber
+     * unter „Mein Konto" — mit seinem Passwort als Nachweis.
+     */
+    public function edit(Customer $customer): Response
+    {
+        return Inertia::render('Customers/Edit', [
+            'customer' => [
+                'id' => (int) $customer->id,
+                'number' => $customer->number,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'street' => $customer->street,
+                'postal_code' => $customer->postal_code,
+                'city' => $customer->city,
+                'country' => $customer->country,
+                'notes' => $customer->notes,
+            ],
+        ]);
+    }
+
+    public function update(Request $request, Customer $customer, Audit $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:64'],
+            'street' => ['nullable', 'string', 'max:255'],
+            'postal_code' => ['nullable', 'string', 'max:32'],
+            'city' => ['nullable', 'string', 'max:255'],
+
+            // Zwei Buchstaben nach ISO 3166-1, oder gar nichts. Ein freies
+            // Feld ergäbe „DE", „Deutschland" und „de" nebeneinander — und
+            // spätestens die erste Rechnungsvorlage müsste raten.
+            'country' => ['nullable', 'string', 'size:2', 'alpha'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $before = $customer->only(array_keys($data));
+
+        $customer->update([...$data, 'country' => $this->country($data['country'] ?? null)]);
+
+        // Im Protokoll steht, welche Felder sich geändert haben — nicht ihr
+        // Inhalt. Eine Anschrift gehört in den Datensatz und nicht zusätzlich
+        // in jeden Protokolleintrag, der sie je berührt hat.
+        $audit->success('customer.updated', $customer, [
+            'number' => $customer->number,
+            'changed' => array_keys(array_diff_assoc($customer->only(array_keys($data)), $before)),
+        ]);
+
+        return redirect()
+            ->route('customers.show', $customer)
+            ->with('success', "Kunde {$customer->number} gespeichert.");
+    }
+
+    /**
+     * Einen Kunden sperren — und seine Abonnements mit.
+     *
+     * **Die Kaskade ist der Inhalt dieser Aktion.** Ein Kunde, der „gesperrt"
+     * heisst und dessen Webseiten weiterlaufen, ist nicht gesperrt, sondern
+     * anders beschriftet. Gesperrt wird deshalb, was er hat: für jedes aktive
+     * Abonnement ein Vorgang `subscription.suspend`.
+     *
+     * **Jedes bekommt seinen eigenen Vorgang.** Ein Sammelvorgang wäre
+     * bequemer und beantwortete die Frage nicht, die man nachher stellt:
+     * welches Abonnement es erwischt hat und welches nicht. Bei zehn
+     * Abonnements und einem Fehlschlag ist ein Vorgang mit „teilweise
+     * erfolgreich" keine Auskunft.
+     *
+     * **Der Zustand des Kunden wird sofort gesetzt, der der Abonnements
+     * nicht.** Das ist kein Widerspruch zu docs/26 §2: Der Kundenzustand ist
+     * eine Angabe im Panel und keine Behauptung über das System — für ihn gibt
+     * es nichts auszuführen. Ob ein Abonnement wirklich aus ist, entscheidet
+     * weiterhin der Agent.
+     *
+     * Abonnements, die gerade angelegt werden, bleiben aussen vor: Sie haben
+     * noch keinen Systembenutzer, den man sperren könnte. Sie kommen als aktiv
+     * aus dem Anlegen heraus — der Kunde bleibt gesperrt, das Abonnement
+     * nicht. Das ist eine bekannte Kante und in docs/26 §13 notiert.
+     */
+    public function suspend(Customer $customer, Audit $audit, Lifecycle $lifecycle): RedirectResponse
+    {
+        if ($customer->status === CustomerStatus::Suspended) {
+            throw ValidationException::withMessages([
+                'customer' => 'Der Kunde ist bereits gesperrt.',
+            ]);
+        }
+
+        $affected = DB::transaction(function () use ($customer, $lifecycle): array {
+            $customer->update(['status' => CustomerStatus::Suspended]);
+
+            $names = [];
+
+            foreach ($customer->subscriptions()->where('status', SubscriptionStatus::Active)->get() as $subscription) {
+                // Die Kennzeichnung entsteht hier und nicht nach dem Vorgang:
+                // Sie ist kein Zustand, sondern die Zugehörigkeit dieser
+                // Sperre — und die steht fest, bevor der Agent antwortet.
+                $subscription->forceFill(['suspended_with_customer' => true])->save();
+
+                $lifecycle->dispatch($subscription, 'subscription.suspend', 'Kunde gesperrt');
+
+                $names[] = (string) $subscription->name;
+            }
+
+            return $names;
+        });
+
+        $audit->success('customer.suspended', $customer, [
+            'number' => $customer->number,
+            'subscriptions' => $affected,
+        ]);
+
+        return redirect()
+            ->route('customers.show', $customer)
+            ->with('success', $this->cascadeMessage($customer->number, $affected, 'gesperrt'));
+    }
+
+    /**
+     * Freigeben — und genau die Abonnements zurückholen, die mitgingen.
+     *
+     * **`suspended_with_customer` und nicht „alle gesperrten".** Ein
+     * Abonnement, das der Betreiber vorher einzeln gesperrt hat — wegen
+     * Missbrauch, wegen eines Umzugs —, war nie Teil der Kundensperre. Käme es
+     * mit der Freigabe zurück, hätte die Kundensperre eine Entscheidung
+     * aufgehoben, mit der sie nichts zu tun hatte. Am Zustand allein ist das
+     * nicht zu erkennen: „gesperrt" sieht in beiden Fällen gleich aus.
+     */
+    public function resume(Customer $customer, Audit $audit, Lifecycle $lifecycle): RedirectResponse
+    {
+        if ($customer->status !== CustomerStatus::Suspended) {
+            throw ValidationException::withMessages([
+                'customer' => 'Der Kunde ist nicht gesperrt.',
+            ]);
+        }
+
+        $affected = DB::transaction(function () use ($customer, $lifecycle): array {
+            $customer->update(['status' => CustomerStatus::Active]);
+
+            $names = [];
+
+            foreach ($customer->subscriptions()->where('suspended_with_customer', true)->get() as $subscription) {
+                $subscription->forceFill(['suspended_with_customer' => false])->save();
+
+                $lifecycle->dispatch($subscription, 'subscription.resume', 'Kunde freigegeben');
+
+                $names[] = (string) $subscription->name;
+            }
+
+            return $names;
+        });
+
+        $audit->success('customer.resumed', $customer, [
+            'number' => $customer->number,
+            'subscriptions' => $affected,
+        ]);
+
+        return redirect()
+            ->route('customers.show', $customer)
+            ->with('success', $this->cascadeMessage($customer->number, $affected, 'freigegeben'));
+    }
+
+    /**
+     * Die Rückmeldung zur Kaskade.
+     *
+     * Sie nennt die Zahl, weil „Kunde gesperrt" allein die Frage offen lässt,
+     * die man danach hat: Ist etwas mitgegangen? Null Abonnements sind eine
+     * Antwort und kein Fehler.
+     *
+     * @param  list<string>  $affected
+     */
+    private function cascadeMessage(string $number, array $affected, string $verb): string
+    {
+        return match (count($affected)) {
+            0 => "Kunde {$number} {$verb}. Es gab kein Abonnement, das mitgeht.",
+            1 => "Kunde {$number} {$verb}. Ein Abonnement wird {$verb} — der Vorgang läuft.",
+            default => sprintf(
+                'Kunde %s %s. %d Abonnements werden %s — die Vorgänge laufen.',
+                $number, $verb, count($affected), $verb,
+            ),
+        };
+    }
+
+    /**
+     * Einen Kunden zurückziehen.
+     *
+     * **Zurückziehen und nicht löschen.** Ein `DELETE` gäbe die Kundennummer
+     * wieder frei, und der nächste Kunde bekäme sie — danach trügen zwei
+     * Vertragspartner in zwei Rechnungen dieselbe. Die Zeile bleibt mit
+     * `deleted_at` stehen, der eindeutige Index gilt weiter für sie, und die
+     * Vergabe fragt als einzige Stelle im Panel `withTrashed()`. Die Konten
+     * des Kunden bleiben ebenfalls stehen und kommen trotzdem nicht mehr
+     * herein: Die Anmeldung weist Konten eines zurückgezogenen Kunden ab.
+     *
+     * **Nicht, solange Abonnements laufen.** Der bequeme Weg wäre, sie mit
+     * zurückzubauen. Dann wäre dieser Knopf einer, der als Nebenwirkung fünf
+     * Verzeichnisbäume als root löscht — und die Rückfrage davor spräche von
+     * einem Kunden. Wer kündigt, baut die Abonnements zuerst zurück und sieht
+     * dabei jedes einzeln. Dieselbe Regel wie beim Plan mit gebundenen
+     * Abonnements, aus demselben Grund.
+     *
+     * Gezählt wird ohne die zurückgebauten: Ein gekündigtes Abonnement ist
+     * `deleted_at` und damit aus dieser Zählung heraus — sonst liesse sich ein
+     * Kunde, der einmal ein Abonnement hatte, nie wieder zurückziehen.
+     */
+    public function destroy(Customer $customer, Audit $audit): RedirectResponse
+    {
+        $running = $customer->subscriptions()->count();
+
+        if ($running > 0) {
+            $audit->denied('customer.withdrawn', $customer, [
+                'number' => $customer->number,
+                'reason' => 'laufende Abonnements',
+                'subscriptions' => $running,
+            ]);
+
+            // Mit Einzahl: „hängen noch 1 Abonnements" ist der Satz, an dem man
+            // merkt, dass niemand die Meldung gelesen hat, die er baut.
+            throw ValidationException::withMessages([
+                'customer' => $running === 1
+                    ? 'An diesem Kunden hängt noch ein Abonnement. Es muss zuerst zurückgebaut werden.'
+                    : "An diesem Kunden hängen noch {$running} Abonnements. Sie müssen zuerst zurückgebaut werden.",
+            ]);
+        }
+
+        $number = $customer->number;
+
+        $customer->delete();
+
+        $audit->success('customer.withdrawn', $customer, ['number' => $number]);
+
+        return redirect()
+            ->route('customers.index')
+            ->with('success', "Kunde {$number} zurückgezogen. Die Nummer bleibt vergeben.");
+    }
+
+    /** Der Ländercode einheitlich in Grossbuchstaben — oder gar keiner. */
+    private function country(?string $value): ?string
+    {
+        $code = mb_strtoupper(trim((string) $value));
+
+        return $code === '' ? null : $code;
+    }
+
     public function show(Customer $customer): Response
     {
         return Inertia::render('Customers/Show', [
@@ -144,6 +405,7 @@ final class CustomerController extends Controller
                 ->map(static fn ($subscription): array => [
                     'id' => (int) $subscription->id,
                     'name' => $subscription->name,
+                    'status' => $subscription->status->value,
                     'status_label' => $subscription->status->label(),
                 ])->all(),
         ]);

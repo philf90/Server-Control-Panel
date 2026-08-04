@@ -263,6 +263,143 @@ input[type='radio'] {
 }
 
 /*
+ * Knöpfe — eine Form, drei Ränge, und sonst nichts.
+ *
+ * **Warum sie hierher gehören.** Bis August 2026 brachte jede Seite ihre
+ * eigenen mit: `padding: 8px 16px` hier, `6px 12px` dort, mal mit Rahmen, mal
+ * ohne, und „Kunde anlegen" war überhaupt kein Knopf, sondern ein
+ * amberfarbener Link. Auf dem Bildschirm sah das nach einer Beschriftung aus,
+ * die zufällig anklickbar ist — man sucht den Knopf und findet ihn nicht.
+ * Dasselbe Muster wie bei den Schriftgrößen: keine Vorgabe, kein Werkzeug,
+ * das sie prüft, und nach einem halben Jahr elf Fassungen desselben Elements.
+ *
+ * **Drei Ränge, mehr braucht keine Seite:**
+ *
+ *   .knopf           die gewöhnliche Aktion — Rahmen, kein Grund
+ *   .knopf.wichtig   die eine Aktion, für die man die Seite geöffnet hat
+ *   .knopf.gefahr    was sich nicht zurücknehmen lässt
+ *
+ * Auf einer Seite steht **höchstens ein** `.wichtig`. Zwei Knöpfe, die beide
+ * die Hauptsache sind, sind keine Rangfolge, sondern zwei Farbflächen.
+ *
+ * Es gilt für `<button>` **und** für `<a>`/`<Link>`, der eine Aktion auslöst:
+ * Ob dahinter ein Formular oder eine Adresse steckt, ist eine Frage der
+ * Umsetzung und keine der Bedienung.
+ *
+ * Geprüft von `tests/Feature/ButtonStyleTest.php`: Wer in einer Komponente
+ * einem Knopf eigenen Grund oder eigenen Innenabstand gibt, fällt durch.
+ */
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 7px 14px;
+
+  font: inherit;
+  font-size: var(--text-table);
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.knopf:hover {
+  color: var(--text-strong);
+  border-color: var(--text-faint);
+}
+
+/*
+ * Die eine Aktion, für die man die Seite geöffnet hat. Amber ist in diesem
+ * System die primäre Aktion (§7.2) — deshalb trägt sie hier die Fläche und
+ * nicht nur die Schrift.
+ */
+.knopf.wichtig {
+  color: var(--accent-on);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.knopf.wichtig:hover {
+  color: var(--accent-on);
+  filter: brightness(1.08);
+}
+
+/* Was sich nicht zurücknehmen lässt: Rand und Schrift, keine Fläche. Eine
+   rote Fläche neben einer amberfarbenen macht aus zwei Rängen einen Wettstreit. */
+.knopf.gefahr {
+  color: var(--critical);
+  border-color: var(--critical);
+  background: transparent;
+}
+
+.knopf.gefahr:hover {
+  color: var(--critical);
+  background: var(--critical-surface);
+}
+
+/* Für eine Aktion, die in einer Tabellenzeile steht und die Zeile nicht
+   sprengen soll. */
+.knopf.klein {
+  min-height: 0;
+  padding: 4px 9px;
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+/*
+ * Auf der schmalen Fläche ist auch der kleine Knopf ein Ziel für einen Finger.
+ *
+ * `min-height: 0` oben ist eine Zusage an die Tabellenzeile: Ein Knopf in der
+ * Zeile soll sie nicht auf 30px aufblasen. Auf einem Telefon gibt es diese
+ * Zeile aber nicht mehr — die Tabelle ist dort ein Kärtchen (`.stapelt`), und
+ * die Aktionen stehen als Reihe darunter. Übrig blieben zwei 23px hohe Ziele
+ * mit 10px Abstand: genau der Fall, für den docs/24 §2 `--tap` eingeführt hat.
+ * Gemessen im Browser bei 390px, nicht gelesen.
+ */
+@media (max-width: 720px) {
+  .knopf.klein {
+    min-height: var(--tap);
+    padding: 4px 12px;
+  }
+}
+
+.knopf:disabled,
+.knopf[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: default;
+  filter: none;
+}
+
+/* Eine Reihe von Knöpfen. Unter 480px untereinander und über die volle
+   Breite — nebeneinander bleiben auf 390px vom dritten nur noch drei
+   Buchstaben übrig. */
+.knopfreihe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .knopfreihe {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .knopfreihe .knopf {
+    width: 100%;
+  }
+}
+
+/*
  * Tabellen auf einer schmalen Fläche — zwei Muster, und nur diese zwei.
  *
  * Eine Tabelle mit sechs Spalten ist auf 390px keine Tabelle mehr. Es gibt

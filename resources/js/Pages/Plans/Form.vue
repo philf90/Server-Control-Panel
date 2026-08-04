@@ -209,11 +209,11 @@ function remove(): void {
         </label>
       </fieldset>
 
-      <div class="aktionen">
-        <button type="submit" :disabled="form.processing">
+      <div class="knopfreihe">
+        <button type="submit" class="knopf wichtig" :disabled="form.processing">
           {{ form.processing ? 'Wird gespeichert …' : editing ? 'Speichern' : 'Anlegen' }}
         </button>
-        <button v-if="editing" type="button" class="loeschen" @click="remove">Löschen</button>
+        <button v-if="editing" type="button" class="knopf gefahr" @click="remove">Löschen</button>
       </div>
     </form>
   </PanelLayout>
@@ -240,8 +240,4 @@ input:disabled { color: var(--text-faint); background: var(--surface-border); bo
 .version { font-variant-numeric: tabular-nums; }
 .hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
 .fehler { font-size: var(--text-small); color: var(--critical); }
-.aktionen { display: flex; align-items: center; gap: 12px; }
-button[type='submit'] { padding: 8px 16px; font: inherit; font-weight: 600; color: var(--accent-on); background: var(--accent); border: 0; border-radius: 6px; cursor: pointer; }
-button[type='submit']:disabled { opacity: .6; cursor: default; }
-.loeschen { padding: 8px 14px; font: inherit; font-size: var(--text-table); color: var(--critical); background: transparent; border: 1px solid var(--critical); border-radius: 6px; cursor: pointer; }
 </style>

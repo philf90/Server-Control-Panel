@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\SubscriptionStatus;
 use App\Models\Concerns\BelongsToSubscription;
+use App\Support\Plans\Quota;
 use App\Support\Tenancy\Tenancy;
 use Database\Factories\SubscriptionFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -44,7 +45,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $main_domain
  * @property SubscriptionStatus $status
  * @property array<string, mixed>|null $quota_overrides
+ * @property int|null $disk_used_mb
+ * @property Carbon|null $disk_usage_measured_at
  * @property Carbon|null $suspended_at
+ * @property bool $suspended_with_customer
  * @property Carbon|null $cancelled_at
  * @property Carbon|null $deleted_at
  * @property-read Customer|null $customer
@@ -69,6 +73,15 @@ class Subscription extends Model
         'status', 'quota_overrides',
     ];
 
+    /*
+     * `disk_used_mb` und `disk_usage_measured_at` stehen mit Absicht **nicht**
+     * darin: Sie sind gemessen und nicht eingegeben. Ein Formular, das sie
+     * setzen könnte, wäre ein Formular, mit dem sich der Verbrauch
+     * herbeischreiben lässt. Geschrieben werden sie von
+     * {@see \App\Support\Subscriptions\Usage}, und dort ausdrücklich über
+     * `forceFill`.
+     */
+
     /** @return array<string, string> */
     protected function casts(): array
     {
@@ -76,7 +89,9 @@ class Subscription extends Model
             'status' => SubscriptionStatus::class,
             'quota_overrides' => 'array',
             'suspended_at' => 'datetime',
+            'suspended_with_customer' => 'boolean',
             'cancelled_at' => 'datetime',
+            'disk_usage_measured_at' => 'datetime',
         ];
     }
 
@@ -153,6 +168,31 @@ class Subscription extends Model
     public function quotaDiffersFromPlan(string $key): bool
     {
         return array_key_exists($key, $this->quota_overrides ?? []);
+    }
+
+    /**
+     * Der belegte Speicher im Verhältnis zum Kontingent — in Prozent.
+     *
+     * `null`, wenn eine der beiden Zahlen fehlt: ohne Messung gibt es nichts
+     * ins Verhältnis zu setzen, und ohne Grenze (`disk_mb` auf `null`) gibt es
+     * kein Verhältnis. Beides ist etwas anderes als „0 %", und die Oberfläche
+     * muss den Unterschied zeigen können.
+     *
+     * Nicht bei 100 abgeschnitten. Eine Quota lässt sich überschreiten — sie
+     * wird gesenkt, während Daten liegen, oder ein Prozess schreibt mit
+     * root-Rechten daran vorbei. 118 % ist dann die Wahrheit, und ein auf 100
+     * gedeckelter Balken wäre genau in dem Moment beruhigend, in dem er es
+     * nicht sein darf.
+     */
+    public function diskUsagePercent(): ?float
+    {
+        $limit = $this->quota(Quota::DiskMb->value);
+
+        if ($this->disk_used_mb === null || ! is_numeric($limit) || (int) $limit <= 0) {
+            return null;
+        }
+
+        return round($this->disk_used_mb / (int) $limit * 100, 1);
     }
 
     public function feature(string $key): bool

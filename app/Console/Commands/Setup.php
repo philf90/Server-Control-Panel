@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Schema;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\EnvFile;
+use SrvPanel\Agent\Names;
 
 /**
  * Die Ersteinrichtung: `srvpanel setup`.
@@ -296,36 +297,37 @@ final class Setup extends Command
      *
      * **Der Rechnername allein taugt oft nicht.** `gethostname()` liefert auf
      * den meisten Servern den kurzen Namen — „cloudsrv24" statt
-     * „cloudsrv24.example.de". Als Link ist das wertlos: Außerhalb des
-     * Rechners löst ihn niemand auf. Genau so stand es hier, und der erste
-     * Mensch, der die Einrichtung durchlaufen ließ, bekam eine Adresse, die
-     * nicht funktioniert.
+     * „cloudsrv24.de". Als Link ist das wertlos: Außerhalb des Rechners löst
+     * ihn niemand auf. Genau so stand es hier, und der erste Mensch, der die
+     * Einrichtung durchlaufen ließ, bekam eine Adresse, die nicht
+     * funktioniert.
      *
-     * Die Reihenfolge geht vom Brauchbarsten zum Sichersten: ein Name mit
-     * Punkt, sonst der Name aus der Rückwärtsauflösung, sonst die IP-Adresse.
-     * Die IP ist hässlich und stimmt immer — das ist hier die richtige
-     * Rangfolge.
+     * **Wie der vollständige Name gefunden wird, steht nicht mehr hier.**
+     * Dieselbe Frage stellt sich beim Zertifikat — was gehört in den
+     * subjectAltName —, und dort wurde sie im August 2026 neu und falsch
+     * beantwortet: Der Knotenname kam ins Zertifikat, die Domain nicht. Zwei
+     * Fassungen derselben Regel, und die zweite kannte die Lektion der ersten
+     * nicht. Sie steht jetzt in {@see Names::fqdn()}, und beide fragen dort.
+     *
+     * Die Reihenfolge hier ist geblieben: ein vollständiger Name, sonst die
+     * IP-Adresse. Die IP ist hässlich und stimmt immer — das ist an dieser
+     * Stelle die richtige Rangfolge.
      *
      * @return array{0:string,1:?string} Adresse und, falls nötig, die Erklärung
      */
     private function reachableHost(): array
     {
         $name = gethostname() ?: '';
+        $fqdn = Names::fqdn($name !== '' ? $name : null);
 
-        if (str_contains($name, '.')) {
-            return [$name, null];
+        if ($fqdn !== null) {
+            return [$fqdn, null];
         }
 
-        $address = $this->primaryAddress();
+        $address = Names::primaryAddress();
 
         if ($address === null) {
             return [$name !== '' ? $name : 'localhost', null];
-        }
-
-        $reverse = gethostbyaddr($address);
-
-        if (is_string($reverse) && str_contains($reverse, '.') && $reverse !== $address) {
-            return [$reverse, null];
         }
 
         return [$address, sprintf(
@@ -333,41 +335,6 @@ final class Setup extends Command
             '  auflösbar; deshalb steht hier die IP-Adresse.',
             $name !== '' ? $name : 'unbekannt',
         )];
-    }
-
-    /**
-     * Die IP-Adresse, über die dieser Rechner nach außen spricht.
-     *
-     * Über einen verbundenen UDP-Socket: Das schickt kein einziges Paket — der
-     * Kernel wählt beim `connect` nur die Route aus und trägt die passende
-     * Quelladresse ein, und die lesen wir zurück. Der Weg über
-     * `gethostbyname(gethostname())` liefert dagegen auf vielen Servern
-     * 127.0.1.1, weil genau das in /etc/hosts steht.
-     */
-    private function primaryAddress(): ?string
-    {
-        if (! function_exists('socket_create')) {
-            return null;
-        }
-
-        $socket = @socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
-
-        if ($socket === false) {
-            return null;
-        }
-
-        // Dokumentationsadresse nach RFC 5737 — sie wird nie erreicht und
-        // soll es auch nicht.
-        $connected = @socket_connect($socket, '203.0.113.1', 53);
-        $address = null;
-
-        if ($connected && @socket_getsockname($socket, $local)) {
-            $address = $local;
-        }
-
-        socket_close($socket);
-
-        return is_string($address) && $address !== '' && ! str_starts_with($address, '127.') ? $address : null;
     }
 
     /** @return array<string,mixed> */

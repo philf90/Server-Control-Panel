@@ -502,13 +502,13 @@ Die Form steht in `resources/css/app.css` und sonst nirgends:
 
 | Klasse | Aussehen | Wofür |
 |---|---|---|
-| `.knopf` | Rahmen, Bereichsgrund | die gewöhnliche Aktion |
+| `.knopf` | Rahmen und Fläche aus eigenen Marken | die gewöhnliche Aktion |
 | `.knopf.wichtig` | amberfarbene Fläche | die eine Aktion, für die man die Seite geöffnet hat |
 | `.knopf.gefahr` | roter Rand, keine Fläche | was sich nicht zurücknehmen lässt |
 | `.knopf.klein` | flacher, kleinere Schrift | eine Aktion in einer Tabellenzeile |
 | `.knopfreihe` | Reihe, unter 480 px gestapelt | mehrere Knöpfe nebeneinander |
 
-Vier Regeln dazu:
+Fünf Regeln dazu:
 
 - **Höchstens ein `.wichtig` je Formular** — nicht je Seite. „Mein Konto" hat
   zwei unabhängige Formulare untereinander, Stammdaten und Passwortwechsel, und
@@ -524,6 +524,16 @@ Vier Regeln dazu:
   auf, um die Tabellenzeile nicht aufzublasen — unter 720 px gibt es diese
   Zeile aber nicht mehr, die Tabelle ist dort ein Kärtchen (docs/24), und der
   Wert kommt auf `--tap` zurück.
+- **Den Rand muss man sehen — 3:1, gerechnet.** Der Knopf stand auf `--surface`
+  mit einem Rand aus `--line`; im dunklen Theme sind das #111922 und #141d26 und
+  damit ein Kontrast von **1,04:1**. Auf dem Bildschirm war „Bearbeiten" kein
+  Bedienelement, sondern ein etwas hellerer Fleck, den man für Text hält.
+  Aufgefallen ist das erst auf einem echten Monitor: Im Quelltext hat jeder Wert
+  einen Namen und sieht deshalb richtig aus. Der Knopf hat seitdem eigene
+  Marken — `--button-bg` und `--button-line` —, und sie sind gerechnet und nicht
+  gewählt: WCAG 1.4.11 verlangt für die Grenze eines Bedienelements 3:1 gegen
+  alles, was daneben liegt, und ein Knopf liegt auf dreierlei Grund — auf sich
+  selbst, auf einer Karte und auf der Seite.
 
 Nicht jedes anklickbare Element ist ein Knopf. Der Menüknopf der Schublade, das
 Augensymbol am Passwortfeld, das Abmelden in der Seitenleiste tragen kein
@@ -533,7 +543,17 @@ jemand auslöst; das Auge am Passwortfeld zeigt einen Zustand.
 Geprüft von `tests/Feature/ButtonStyleTest.php`: Keine Seite unter
 `resources/js/Pages` setzt an einem Knopf Innenabstand, Grund, Rahmen, Radius
 oder Schriftschnitt; jeder `<button>` trägt die Klasse; kein Formular hat zwei
-Hauptsachen.
+Hauptsachen; und der Rand erreicht in beiden Themes 3:1 gegen Fläche, Karte und
+Seitengrund. Geprüft wird dabei die Rechnung und nicht der Wert — ein Test, der
+`#647486` verlangt, hielte die Farbe fest; dieser hält die Eigenschaft fest.
+
+**Ein „Bearbeiten" steht in jeder Liste.** Bei den Abonnements war der Name die
+einzige Verbindung zur Bearbeitung, während Kunden und Pläne je Zeile einen
+Knopf hatten. Wer eine Liste überfliegt, sucht einen Knopf und keinen Link; und
+wenn drei Listen dieselbe Aufgabe verschieden lösen, ist die vierte wieder
+anders. Der Name bleibt trotzdem ein Link — er führt auf die Abo-Seite mit
+Speicher, Kontingenten und Vorgängen, und das ist etwas anderes als das
+Formular.
 
 **Eine offene Abweichung.** Die Markentabelle oben verlangt 3 px Radius, „kein
 größerer Wert, nirgends". Der gebaute Panel hält das an keiner Stelle ein — die

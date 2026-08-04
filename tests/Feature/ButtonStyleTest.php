@@ -248,6 +248,143 @@ final class ButtonStyleTest extends TestCase
         return $blocks;
     }
 
+    /**
+     * Der Rand eines Knopfes muss man sehen — gerechnet, nicht begutachtet.
+     *
+     * **Warum es diesen Test gibt.** `.knopf` stand auf `--surface` mit einem
+     * Rand aus `--line`. Im dunklen Theme sind das #111922 und #141d26, und
+     * das ist ein Kontrast von 1,04:1 — auf dem Bildschirm kein Rand, sondern
+     * gar nichts. „Bearbeiten" und „Anmelden als" wurden deshalb nicht als
+     * Knöpfe wahrgenommen; aufgefallen ist es an einer Kundenliste auf einem
+     * echten Monitor, denn im Entwurf hat jeder Wert einen Namen und sieht
+     * damit richtig aus.
+     *
+     * **Die Schwelle steht in WCAG 1.4.11:** 3:1 für die Grenze eines
+     * Bedienelements gegen alles, was daneben liegt. Ein Knopf liegt hier auf
+     * dreierlei Grund — auf sich selbst, auf einer Karte und auf der Seite —,
+     * und gegen jeden davon muss der Rand bestehen.
+     *
+     * **Geprüft wird die Rechnung und nicht der Wert.** Ein Test, der `#647486`
+     * verlangt, hält die Farbe fest; dieser hier hält die Eigenschaft fest.
+     * Wer die Reihe umstimmt, darf jede Farbe wählen, die sichtbar bleibt.
+     */
+    public function test_the_button_border_stands_out_against_everything_next_to_it(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+
+        foreach (['dark', 'light'] as $theme) {
+            $tokens = $this->tokens($css, $theme);
+
+            foreach (['button-bg', 'button-line', 'surface', 'bg', 'text'] as $name) {
+                $this->assertArrayHasKey($name, $tokens, sprintf('Im Theme „%s" fehlt --%s.', $theme, $name));
+            }
+
+            // Auf sich selbst, auf einer Karte, auf der Seite.
+            foreach (['button-bg', 'surface', 'bg'] as $neben) {
+                $ratio = $this->contrast($tokens['button-line'], $tokens[$neben]);
+
+                $this->assertGreaterThanOrEqual(
+                    3.0,
+                    $ratio,
+                    sprintf(
+                        'Theme „%s": --button-line (%s) erreicht gegen --%s (%s) nur %.2f:1. '.
+                        'WCAG 1.4.11 verlangt 3:1 — darunter ist der Knopf kein Knopf mehr.',
+                        $theme,
+                        $tokens['button-line'],
+                        $neben,
+                        $tokens[$neben],
+                        $ratio,
+                    ),
+                );
+            }
+
+            // Und die Beschriftung darauf bleibt lesbar: Wer die Fläche des
+            // Knopfes anhebt, um den Rand zu retten, verliert sonst den Text.
+            $ratio = $this->contrast($tokens['text'], $tokens['button-bg']);
+
+            $this->assertGreaterThanOrEqual(
+                4.5,
+                $ratio,
+                sprintf(
+                    'Theme „%s": --text auf --button-bg erreicht nur %.2f:1 (WCAG 1.4.3 verlangt 4,5:1).',
+                    $theme,
+                    $ratio,
+                ),
+            );
+        }
+    }
+
+    /**
+     * Die Farbmarken eines Themes aus app.css.
+     *
+     * Über Klammern gezählt und nicht über einen regulären Ausdruck: Zwischen
+     * den Marken stehen Kommentare, und in denen stehen Farbwerte als Beispiel.
+     *
+     * @return array<string, string>
+     */
+    private function tokens(string $css, string $theme): array
+    {
+        $start = strpos($css, ":root[data-theme='".$theme."']");
+
+        $this->assertIsInt($start, sprintf('In app.css steht kein Block für das Theme „%s" mehr.', $theme));
+
+        $open = strpos($css, '{', $start);
+        $this->assertIsInt($open);
+
+        $depth = 1;
+        $end = $open + 1;
+
+        for ($i = $open + 1; $i < strlen($css); $i++) {
+            $depth += match ($css[$i]) {
+                '{' => 1,
+                '}' => -1,
+                default => 0,
+            };
+
+            if ($depth === 0) {
+                $end = $i;
+
+                break;
+            }
+        }
+
+        $block = (string) preg_replace('#/\*.*?\*/#su', '', substr($css, $open + 1, $end - $open - 1));
+
+        preg_match_all('/--([a-z-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/', $block, $matches, PREG_SET_ORDER);
+
+        $tokens = [];
+
+        foreach ($matches as $match) {
+            $tokens[$match[1]] = $match[2];
+        }
+
+        return $tokens;
+    }
+
+    /** Der Kontrast zweier Farben nach WCAG 2.1. */
+    private function contrast(string $a, string $b): float
+    {
+        $high = max($this->luminance($a), $this->luminance($b));
+        $low = min($this->luminance($a), $this->luminance($b));
+
+        return ($high + 0.05) / ($low + 0.05);
+    }
+
+    private function luminance(string $hex): float
+    {
+        $rgb = sscanf(ltrim($hex, '#'), '%2x%2x%2x') ?? [0, 0, 0];
+
+        $channel = static function (int|float|null $value): float {
+            $value = ((int) $value) / 255;
+
+            return $value <= 0.03928 ? $value / 12.92 : (($value + 0.055) / 1.055) ** 2.4;
+        };
+
+        return 0.2126 * $channel($rgb[0] ?? 0)
+            + 0.7152 * $channel($rgb[1] ?? 0)
+            + 0.0722 * $channel($rgb[2] ?? 0);
+    }
+
     public function test_at_most_one_primary_button_per_form(): void
     {
         /*

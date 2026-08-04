@@ -233,6 +233,12 @@ an: Eine Kundennummer ist auf Dauer verbraucht, auch nach dem Zurückziehen.
 überspringt die Rückfrage. Angefasst wird ausschliesslich, was der Lauf selbst
 angelegt hat.
 
+**Er ist gelaufen.** Am 4. August 2026 auf dem Server des Betreibers, mit
+`--count=100`, aus dem Paket `0.2.0~rc.13`: hundert Abonnements angelegt und
+zurückgebaut, kein Systembenutzer, keine Gruppe, kein Verzeichnis und kein
+Quota-Eintrag geblieben. Damit ist das Abnahmekriterium von P2 nicht mehr eine
+Zusage, sondern eine Feststellung.
+
 ## 11. Die Kundensperre
 
 Einen Kunden zu sperren heisst, seine Abonnements zu sperren. Ein Kunde, der

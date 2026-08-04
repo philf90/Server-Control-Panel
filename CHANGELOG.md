@@ -313,6 +313,63 @@ Kunde kommt an ein fremdes Objekt.
   ganzen Kette bis unter systemd fragt; was ohne Server prüfbar ist — dass ein
   Rückstand jeder Art den Lauf durchfallen lässt —, steht als Test daneben.
 
+### P2 abgeschlossen
+
+Das Abnahmekriterium lautete: hundert Abonnements anlegen und wieder löschen,
+ohne dass ein Systembenutzer, ein Verzeichnis oder ein Quota-Eintrag
+zurückbleibt.
+
+`srvpanel acceptance --count=100` ist am 4. August 2026 auf dem Server des
+Betreibers gelaufen, aus dem Paket `0.2.0~rc.13`, und meldet: kein
+Systembenutzer, keine Gruppe, kein Verzeichnis, kein Quota-Eintrag geblieben.
+Geprüft ist damit nicht nur der Rückbau, sondern die ganze Kette Panel →
+Warteschlange → Arbeiter → Agent unter echtem systemd — und zwar
+zweihundertmal hintereinander.
+
+**Offen bleibt aus P2 die Sicherung vor dem Rückbau.** Sie steht im Plan und
+ist bewusst nach P8 verschoben: Eine Operation, die sichert *und* löscht,
+sichert im Fehlerfall vielleicht nicht und löscht trotzdem — und ohne
+Sicherungsziele, Aufbewahrung und einen Weg zurück wäre „Sicherung" nur ein
+Verzeichnis daneben. Bis dahin ist der Rückbau endgültig, und die Rückfrage in
+der Oberfläche sagt das.
+
+### Gefunden auf dem Server
+
+- **Der vollständige Rechnername fehlte im Zertifikat.** Der subjectAltName
+  bekam den Knotennamen aus `php_uname('n')` — und der ist auf den meisten
+  Servern der kurze: `cloudsrv24` statt `cloudsrv24.de`. Aus ihm wurde
+  ausserdem noch eine Kurzform *abgeleitet*, also die falsche Richtung. Wer
+  das Panel unter seinem vollen Namen aufruft, bekam eine Warnung über einen
+  Namen, der nicht passt. **Dieselbe Lektion gab es schon einmal:** Bei der
+  Ersteinrichtung zeigte der Link am Ende auf den kurzen Namen, und dort steht
+  seit dem ersten Lauf auf einem echten Server ein Kommentar mit genau diesem
+  Beispiel — eine Regel, die an einer Stelle gelernt und an der nächsten neu
+  erfunden wurde. Sie steht jetzt in `Names::fqdn()`: Knotenname mit Punkt,
+  sonst `/etc/hosts`, sonst die Rückwärtsauflösung — und ein gefundener Name
+  zählt nur, wenn er den Knotennamen fortsetzt, damit weder eine fremde Zeile
+  noch ein Namensdienst einen beliebigen Namen in dieses Zertifikat schreibt.
+  Die Ersteinrichtung fragt dieselbe Funktion, statt ihre eigene Fassung zu
+  behalten.
+- **Der Rand eines Knopfes war nicht zu sehen.** `.knopf` stand auf `--surface`
+  mit einem Rand aus `--line`; im dunklen Theme sind das #111922 und #141d26
+  und damit ein Kontrast von **1,04:1**. „Bearbeiten" und „Anmelden als" waren
+  auf dem Bildschirm keine Bedienelemente, sondern etwas hellere Flecken, die
+  man für Text hält. Im Quelltext fiel das nicht auf, weil dort jeder Wert
+  einen Namen hat und deshalb richtig aussieht. Der Knopf hat jetzt eigene
+  Marken, `--button-bg` und `--button-line`, und sie sind gerechnet: WCAG
+  1.4.11 verlangt für die Grenze eines Bedienelements 3:1 gegen alles, was
+  daneben liegt — erreicht werden 3,3:1 gegen die eigene Fläche, 3,7:1 gegen
+  die Karte und 4,0:1 gegen den Seitengrund, im hellen Theme 3,6:1 und 3,3:1.
+  `ButtonStyleTest` rechnet das nach, in beiden Themes und gegen alle drei
+  Gründe; geprüft wird die Rechnung und nicht der Wert, damit die Reihe
+  umstimmbar bleibt.
+- **Bei den Abonnements fehlte der „Bearbeiten"-Knopf.** Dort war der Name die
+  einzige Verbindung zur Bearbeitung, während Kunden und Pläne je Zeile einen
+  Knopf haben — man musste wissen, dass der Name klickbar ist und was dahinter
+  liegt. Wer eine Liste überfliegt, sucht einen Knopf und keinen Link. Der Name
+  bleibt trotzdem ein Link: Er führt auf die Abo-Seite mit Speicher,
+  Kontingenten und Vorgängen, und das ist etwas anderes als das Formular.
+
 ### Quer zu den Stufen
 
 Nach der Abnahme von P1 nachgezogen; keines dieser Themen gehört einer

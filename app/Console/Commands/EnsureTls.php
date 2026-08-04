@@ -49,16 +49,19 @@ final class EnsureTls extends Command
 
         $names = $result['names'] ?? ['dns' => [], 'ip' => []];
 
+        // Die Namen stehen in beiden Fällen da, nicht nur beim Ausstellen.
+        // „Gilt noch" beantwortet die Frage nicht, die jemand hat, der wegen
+        // einer Browserwarnung hier nachsieht: unter welchem Namen denn?
+        $liste = implode(', ', [...$names['dns'] ?? [], ...$names['ip'] ?? []]);
+
         if ($result['created'] !== true) {
             $this->info('Das Zertifikat gilt noch und deckt diesen Rechner ab.');
+            $this->line('  Namen: '.$liste);
 
             return self::SUCCESS;
         }
 
-        $this->info(sprintf(
-            'Neues Zertifikat ausgestellt für %s.',
-            implode(', ', [...$names['dns'] ?? [], ...$names['ip'] ?? []]),
-        ));
+        $this->info('Neues Zertifikat ausgestellt für '.$liste.'.');
 
         // Ob nginx es schon ausliefert, ist die Angabe, auf die es ankommt:
         // Ein erneuertes Zertifikat, das der Webserver nicht kennt, läuft

@@ -488,6 +488,45 @@ nicht in die Komponente, an der sie zuerst auffallen:
   auch für `input`, `select` und `textarea` — sonst hängt der sichtbare Fokus
   davon ab, welchen Browser jemand benutzt.
 
+#### Das Zeichen
+
+Drei gestapelte Balken, der oberste blau. Bis August 2026 gab es keines: In
+der Seitenleiste stand ein Buchstabe in einem amberfarbenen Quadrat — erst
+„C" von CloudSrv, dem verworfenen Namen, dann „S" —, und `public/favicon.ico`
+lag mit **null Byte** da, dem Platzhalter aus dem Laravel-Gerüst. Im Reiter
+des Browsers stand damit das leere Blatt. **Das ist ein Fehler, der sich als
+Vorgabe tarnt:** Ein leeres Zeichen sieht aus wie gar keines, deshalb meldet
+es niemand.
+
+| Wo | Was | Warum |
+|---|---|---|
+| Reiter, Lesezeichen | `public/favicon.svg`, `favicon.ico` (16/32/48) | die SVG gewinnt, wo sie verstanden wird; die .ico ist der Rückfall |
+| iOS-Startbildschirm | `public/apple-touch-icon.png` (180) | eigenes Bild: iOS legt nichts unter durchsichtige Ecken |
+| Android, Manifest | `public/icon-512.png`, `site.webmanifest` | nur Name und Zeichen — kein `display`, also keine App-Installation |
+| Oberfläche | `resources/js/Components/MarkIcon.vue` | erbt die Farbe, siehe unten |
+| ausserhalb | `resources/images/srvpanel-mark*.svg` | drei Fassungen für fremde Zusammenhänge |
+
+**In der Oberfläche steht es als Quelltext und nicht als Bild.** Ein `<img>`
+wäre ein zweiter Aufruf für drei Rechtecke — und vor allem könnte es seine
+Farbe nicht erben. Das Panel hat zwei Themes; ein Zeichen mit eingebauten
+Farben wäre in einem der beiden falsch. Die zwei unteren Balken nehmen
+`currentColor`, der obere `--mark-accent`, und die Marke führt je Theme den
+passenden Blauton: auf Dunkel den helleren, auf Weiss den kräftigeren.
+
+**Einfarbig ging nicht.** Der Versuch, das Zeichen ganz in Amber zu zeichnen,
+machte aus dem untersten Balken — er steht auf halber Deckung — ein
+schmutziges Braun. Das sah nach Fehler aus und nicht nach Gestaltung; gesehen
+im Browser bei 22 px, nicht im Entwurf.
+
+**Reiter und Seitenleiste zeigen dasselbe.** Das ist der eigentliche Zweck:
+Wer mehrere Panels offen hat, unterscheidet sie am Reiter — und nur dann,
+wenn dort steht, was auch in der Anwendung steht.
+
+Geprüft von `tests/Feature/IconTest.php`: Jeder Verweis im Kopf der Seite und
+im Manifest zeigt auf eine Datei, die es gibt **und die nicht leer ist**; die
+.ico ist wirklich eine und trägt mehr als eine Grösse; die SVG bringt ihre
+eigene Fläche mit; und in `MarkIcon.vue` steht kein Hexwert.
+
 #### Knöpfe — eine Form, drei Ränge
 
 Ein Knopf ist keine Sache der Seite, auf der er steht. Bis August 2026 war er

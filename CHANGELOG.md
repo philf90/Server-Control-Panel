@@ -333,6 +333,29 @@ Sicherungsziele, Aufbewahrung und einen Weg zurück wäre „Sicherung" nur ein
 Verzeichnis daneben. Bis dahin ist der Rückbau endgültig, und die Rückfrage in
 der Oberfläche sagt das.
 
+### Das Zeichen des Panels
+
+- **SrvPanel hat ein Icon** (`docs/20 §7.2`). Es hatte keines: In der
+  Seitenleiste stand ein Buchstabe in einem amberfarbenen Quadrat, und
+  `public/favicon.ico` lag mit **null Byte** da — der Platzhalter aus dem
+  Laravel-Gerüst. Im Kopf der Seite stand kein einziges `<link rel="icon">`.
+  Der Reiter im Browser trug damit das leere Blatt, und **das ist ein Fehler,
+  der sich als Vorgabe tarnt:** Ein leeres Zeichen sieht aus wie gar keines,
+  deshalb meldet es niemand. Jetzt liegen `.ico` (16/32/48), SVG,
+  Apple-Touch-Icon und ein Manifest in `public/`; das Manifest führt nur Name
+  und Zeichen und kein `display`, damit daraus keine App-Installation wird.
+- **In der Oberfläche steht das Zeichen als Quelltext.** Ein `<img>` wäre ein
+  zweiter Aufruf für drei Rechtecke — und könnte seine Farbe nicht erben. Das
+  Panel hat zwei Themes; geliefert wurde das Zeichen deshalb in drei Fassungen,
+  und drei Dateien in der Oberfläche hiessen, an jeder Stelle die richtige
+  auszuwählen und irgendwann die falsche. `MarkIcon.vue` löst das einmal: die
+  unteren Balken über `currentColor`, der obere über die neue Marke
+  `--mark-accent`, die je Theme den passenden Blauton führt. **Einfarbig ging
+  nicht** — das ganze Zeichen in Amber machte aus dem untersten Balken, der auf
+  halber Deckung steht, ein schmutziges Braun. Gesehen im Browser bei 22 px,
+  nicht im Entwurf. Reiter und Seitenleiste zeigen jetzt dasselbe, und darum
+  geht es: Wer mehrere Panels offen hat, unterscheidet sie am Reiter.
+
 ### Gefunden auf dem Server
 
 - **Der vollständige Rechnername fehlte im Zertifikat.** Der subjectAltName

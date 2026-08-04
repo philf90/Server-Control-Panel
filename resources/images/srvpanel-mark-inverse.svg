@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="SrvPanel">
+  <rect x="2" y="5.5" width="60" height="13" rx="4" fill="#4F9BE8"></rect>
+  <rect x="2" y="25.5" width="44" height="13" rx="4" fill="#F5F7F9"></rect>
+  <rect x="2" y="45.5" width="28" height="13" rx="4" fill="#F5F7F9" opacity="0.45"></rect>
+</svg>

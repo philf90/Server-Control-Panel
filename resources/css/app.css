@@ -48,6 +48,19 @@
   --nav-border: #1a232d;
   --line: #141d26;
 
+  /*
+   * Das Blau des Zeichens — die einzige Farbe im System, die nicht aus der
+   * Oberfläche stammt, sondern aus der Marke.
+   *
+   * Sie steht trotzdem hier, weil §7.2 keine Ausnahme macht: Ein Farbwert im
+   * Quelltext einer Komponente ist ein Fehler, sonst weiss beim nächsten Theme
+   * niemand mehr, wo überall Farbe steht. Zwei Werte, weil das Zeichen in zwei
+   * Fassungen geliefert wurde — auf dunklem Grund das hellere Blau, auf hellem
+   * das kräftigere. Wer beide Male dasselbe nähme, hätte einmal ein Zeichen,
+   * das leuchtet, und einmal eines, das absäuft.
+   */
+  --mark-accent: #4f9be8;
+
   --text-strong: #eaf1f8;
   --text: #b9c7d4;
   --text-muted: #91a2b1;
@@ -133,6 +146,9 @@
   --nav-bg: #ffffff;
   --nav-border: #dbe2e8;
   --line: #e9edf1;
+
+  /* Auf Weiss das kräftigere Blau — das hellere säuft darauf ab. */
+  --mark-accent: #1e7cd0;
 
   --text-strong: #101820;
   --text: #33414e;

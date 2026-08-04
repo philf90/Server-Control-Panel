@@ -959,3 +959,47 @@ genau deshalb war jetzt der Zeitpunkt.
   der Agent sie kennt, und hätte einen Fehler gemeldet, den es nicht gibt.
   Gefragt wird jetzt die Registratur des Agenten — dieselbe Sorte Korrektur wie
   beim Changelog-Test, der auf Dateien zeigt, die es geben muss.
+
+### P3 — die Oberfläche für Domains und PHP
+
+- **Vier neue Seiten**: die serverweite Domainliste, das Formular zum Anlegen,
+  die Domainseite mit Verzeichnis, Handler, PHP-Einstellungen, eigenen
+  Direktiven und Weiterleitung, dazu die Protokollansicht. Am Abonnement steht
+  die Liste seiner Domains — ein Kunde kommt über sein Abonnement zu seinen
+  Websites, und ein zweiter Menüpunkt wäre ein zweiter Weg zum selben Ort.
+- **`/settings/php`** zeigt, welche Versionen auf dem Server liegen, ob ihr FPM
+  läuft, wie viele Pools daran hängen und wie viele Domains sie benutzen.
+  Installiert und entfernt wird von dort über den Aufgabenkatalog. Antwortet
+  der Agent nicht, steht der letzte bekannte Stand da — mit dem Zeitpunkt,
+  damit niemand ihn für den heutigen hält.
+- **`App\Policies\DomainPolicy`** — und `viewLogs` als eigene Fähigkeit. Ein
+  Fehlerprotokoll enthält Pfade, Dateinamen und Bruchstücke aus dem Quelltext;
+  wer Dateien nicht lesen darf, soll sie nicht über diesen Umweg sehen. `create`
+  fragt am Abonnement, in dem die Domain entstehen soll: Ohne es liesse sich
+  nur fragen, ob ein Konto *irgendwo* Domains anlegen darf.
+- **Der Angriffsdurchgang** (`DomainRouteTest`) geht jede Route mit einer
+  fremden ID durch — und fremd heisst „nicht gefunden", nicht „verboten": Ein
+  403 verriete, dass es die Domain gibt. Dazu die Domain-Einschränkung eines
+  Zusatzbenutzers am direkten Aufruf einer Adresse, nicht nur an der Liste.
+- **Drei Fehler hat erst der Browser gezeigt**, und alle drei waren grün
+  getestet:
+  - `class="knopf betont"` — eine Klasse, die es in `app.css` nicht gibt. Der
+    Knopf sah aus wie ein gewöhnlicher, der ausgewählte Umschalter der
+    Protokollansicht war von dem daneben nicht zu unterscheiden.
+    `ButtonStyleTest` prüfte, dass keine Seite ihr *eigenes* Aussehen erfindet
+    — nicht, dass sie ein vorhandenes trifft. Jetzt prüft er beides.
+  - „höchstens 64" als Platzhalter, ohne die Einheit. Sekunden oder MB, das
+    stand nirgends.
+  - Rot am Installieren statt am Entfernen. Eine Version dazuzunehmen kostet
+    Platz, eine wegzunehmen kann Websites stilllegen.
+- **`PolicyReachTest` kannte eine Form des Aufrufs nicht.**
+  `$request->user()->can('updatePhp', $domain)` ist der Weg für eine Fähigkeit,
+  die keine eigene Route trägt, sondern in der Ansicht entscheidet, ob ein
+  Abschnitt überhaupt erscheint. Ohne diese Ergänzung hätte der Test verlangt,
+  eine erreichbare Fähigkeit als unerreichbar einzutragen.
+- **Und eine Gegenprobe blieb grün**, was einen fehlenden Fall zeigte: Die
+  Protokollroute auf `can:view` umzustellen fiel niemandem auf, weil `viewLogs`
+  weiterhin aus der Ansicht heraus aufgerufen wird und damit als erreichbar
+  galt. Erreichbarkeit ist nicht dasselbe wie „die richtige Fähigkeit an der
+  richtigen Route" — dafür steht jetzt ein Test, der ein Konto mit dem Recht
+  „Statistik" die Domain sehen und die Protokolle nicht lesen lässt.

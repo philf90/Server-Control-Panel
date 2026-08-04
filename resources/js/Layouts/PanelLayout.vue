@@ -58,10 +58,17 @@ const navigation = computed(() => {
       { name: 'Kunden', href: '/customers' },
       { name: 'Pläne', href: '/plans' },
       { name: 'Abonnements', href: '/subscriptions' },
+
+      // Serverweit und deshalb hier: „Welche Domain liegt in welchem
+      // Abonnement" ist eine Frage des Betreibers. Ein Kunde findet seine
+      // Domains an seinem Abonnement — für ihn wäre eine zweite Liste
+      // derselben drei Zeilen nur ein zweiter Weg zum selben Ort.
+      { name: 'Domains', href: '/domains' },
     ] },
     { group: 'Server', items: [
       { name: 'Vorgänge', href: '/operations' },
       { name: 'Protokoll', href: '/audit' },
+      { name: 'PHP-Versionen', href: '/settings/php' },
       { name: 'Mailversand', href: '/settings/mail' },
       { name: 'Zertifikat', href: '/settings/tls' },
     ] },

@@ -27,9 +27,16 @@ use ReflectionMethod;
  * hält eine Funktion für vorhanden.
  *
  * **Was als Weg zählt:** eine Route mit `can:<fähigkeit>,<modell>`, ein
- * `authorize('<fähigkeit>'` oder ein `Gate::`-Aufruf im Anwendungscode. Nicht
- * gezählt wird der blosse Name — `can:delete,plan` deckt nicht
- * `CustomerPolicy::delete`.
+ * `authorize('<fähigkeit>'`, ein `Gate::`-Aufruf oder ein `->can('<fähigkeit>'`
+ * im Anwendungscode. Nicht gezählt wird der blosse Name — `can:delete,plan`
+ * deckt nicht `CustomerPolicy::delete`.
+ *
+ * *Ergänzt in P3:* Die Form `$request->user()->can('updatePhp', $domain)`
+ * fehlte in der Liste. Sie ist der Weg für eine Fähigkeit, die keine eigene
+ * Route trägt, sondern innerhalb einer Ansicht entscheidet, ob ein Abschnitt
+ * überhaupt erscheint — und ob das Feld dahinter beim Speichern zählt. Ohne
+ * diese Zeile hätte der Test verlangt, eine erreichbare Fähigkeit als
+ * unerreichbar einzutragen.
  */
 final class PolicyReachTest extends TestCase
 {
@@ -118,6 +125,7 @@ final class PolicyReachTest extends TestCase
                     '/can:'.$ability.','.lcfirst($model).'\b/',
                     '/can:'.$ability.",'\\.".$model.'::class/',
                     '/authorize\(\s*[\'"]'.$ability.'[\'"]/',
+                    '/->can\(\s*[\'"]'.$ability.'[\'"]/',
                     '/Gate::[a-zA-Z]+\(\s*[\'"]'.$ability.'[\'"]/',
                 ];
 

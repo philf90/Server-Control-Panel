@@ -91,7 +91,11 @@ final class Settings
     {
         Setting::query()->updateOrCreate(
             ['key' => self::PHP_VERSIONS],
-            ['value' => ['installed' => array_values($versions), 'checked_at' => now()->toIso8601String()]],
+            // `toDateTimeString` und nicht ISO: Die Angabe steht in der
+            // Oberfläche, und dort sieht sie aus wie jeder andere Zeitpunkt im
+            // Panel. Ein `2026-08-04T11:05:18+00:00` daneben wäre dieselbe
+            // Auskunft in einer zweiten Schreibweise.
+            ['value' => ['installed' => array_values($versions), 'checked_at' => now()->toDateTimeString()]],
         );
 
         $this->phpVersions = array_values($versions);

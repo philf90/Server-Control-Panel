@@ -24,6 +24,16 @@ const props = defineProps<{
   }
   quotas: { key: string; label: string; value: string; differs: boolean }[]
   features: { label: string; granted: boolean }[]
+  domains: {
+    id: number
+    name: string
+    type_label: string
+    status: string
+    status_label: string
+    php_version: string | null
+    is_redirect: boolean
+  }[]
+  mayAddDomain: boolean
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
 
@@ -133,6 +143,40 @@ function remove(): void {
       </template>
     </section>
 
+    <!--
+      Die Domains stehen über den Kontingenten: Sie sind das, wofür ein
+      Abonnement da ist. Die Zahlen darunter sagen, wie viel davon noch geht.
+    -->
+    <section class="block">
+      <h2 class="section">Domains</h2>
+
+      <div class="rollt">
+        <table class="stapelt">
+          <thead>
+            <tr><th>Domain</th><th>Sorte</th><th>PHP</th><th>Zustand</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="d in props.domains" :key="d.id">
+              <td data-spalte="Domain"><Link :href="`/domains/${d.id}`">{{ d.name }}</Link></td>
+              <td data-spalte="Sorte">{{ d.type_label }}</td>
+              <td data-spalte="PHP">
+                <template v-if="d.is_redirect">leitet weiter</template>
+                <template v-else>{{ d.php_version ?? '—' }}</template>
+              </td>
+              <td data-spalte="Zustand" :data-status="d.status">{{ d.status_label }}</td>
+            </tr>
+            <tr v-if="props.domains.length === 0">
+              <td colspan="4">Noch keine Domain.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="props.mayAddDomain" class="knopfreihe">
+        <Link class="knopf" :href="`/subscriptions/${props.subscription.id}/domains/create`">Domain anlegen</Link>
+      </div>
+    </section>
+
     <section class="block">
       <h2 class="section">Kontingente</h2>
       <div class="rollt">
@@ -201,6 +245,9 @@ code { font-family: var(--font-mono); }
 .fuellung { height: 100%; background: var(--accent); }
 .balken[data-voll='true'] .fuellung { background: var(--warn); }
 .gemessen { margin: 6px 0 0; font-size: var(--text-label); color: var(--text-faint); }
+.knopfreihe { margin-top: var(--gap); }
+td[data-status='suspended'] { color: var(--warn); }
+td[data-status='provisioning'], td[data-status='removing'] { color: var(--accent); }
 .marke { padding: 1px 5px; font-size: var(--text-label); color: var(--warn); background: var(--warn-surface); border-radius: 3px; }
 .freigaben { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: var(--text-table); }
 .freigaben li[data-frei='true'] { color: var(--ok); }

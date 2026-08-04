@@ -1130,3 +1130,43 @@ genau deshalb war jetzt der Zeitpunkt.
   `packaging/version-channel.sh` wäre still ungeprüft mitgelaufen — dieselbe
   Sorte Lücke wie eine Policy ohne Route. Der Test prüft jetzt, dass jedes
   Skript unter `packaging/` in der Liste steht.
+
+### Der erste Abnahmelauf auf dem Zielserver — drei Fehler
+
+Er ist sofort gescheitert, mit einer Meldung, die von etwas ganz anderem
+sprach: „Das Abonnement ist wird angelegt — daran lässt sich nichts ändern."
+
+- **Das Warten auf die Vorgänge brachte die Modelle nicht auf Stand.** Es hielt
+  nur die Vorgangszeilen im Blick; die übergebenen Abonnements trugen weiter
+  `Provisioning` aus ihrem `create()`. `Domains::create()` bekommt das
+  Abonnement als Objekt gereicht und prüft daran — anders als
+  `Domains::update()`, das die Beziehung frisch aus der Datenbank holt und
+  deshalb glatt durchlief. Der Lauf konnte damit **nie** gelingen: kein
+  Wettlauf, sondern jedes Mal.
+- **Ein blosses Auffrischen wäre zu früh gewesen.** `RunAgentOperation`
+  schreibt erst den Vorgang auf „erledigt" und ruft **danach** `afterSuccess()`,
+  das den Zustand des Abonnements setzt. Dazwischen liegt ein Fenster, in dem
+  kein Vorgang mehr offen ist und das Abonnement trotzdem noch angelegt wird.
+  Deshalb wird jetzt gewartet, bis der Zustand da ist, und nicht einmal
+  nachgesehen.
+- **Der Rückbau stand hinter der Probe, in gerader Linie.** Die Ausnahme sprang
+  darüber hinweg, und auf dem Server blieben zwei Abonnements samt `useradd`,
+  Verzeichnisbaum, Server-Blöcken und FPM-Pools liegen — nach einem Kommando,
+  dessen ganze Zusage lautet, hinterher aufzuräumen. Er steht jetzt in einem
+  `finally`.
+- **Und das Deutsch.** `SubscriptionStatus::label()` liefert „wird angelegt" —
+  richtig für eine Spalte, falsch hinter „ist". Drei der vier Zustände passten
+  in den Satzrahmen, der vierte nicht, und weil in diesem Zustand sonst niemand
+  eine Domain anlegt, hat es kein Test und kein Blick in die Oberfläche
+  gezeigt. Für Sätze gibt es jetzt `sentence()`, und `WordChoiceTest` meldet
+  eine Beschriftung hinter einem Verb.
+- **Warum nichts davon vorher auffiel:** Den Abnahmelauf konnte kein Test
+  fahren — er braucht nginx, PHP-FPM und einen Agenten. Was sich **ohne** all
+  das prüfen lässt, steht jetzt in `AcceptanceWebCommandTest`, und das ist
+  mehr, als es aussah: das Auffrischen, das Fenster, der Rückbau im `finally`
+  und der Satzbau.
+- **Beim Schreiben des Tests fiel gleich der nächste auf:** Ohne
+  `withoutRestriction()` sah die Abfrage keine einzige Vorgangszeile, das
+  Warten fand nichts Offenes und meldete Erfolg — der Test hätte bestanden,
+  ohne etwas geprüft zu haben. Dieselbe Falle wie in P3 bei der
+  Namenseindeutigkeit.

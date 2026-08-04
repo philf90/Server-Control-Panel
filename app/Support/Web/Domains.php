@@ -310,7 +310,7 @@ final class Domains
     {
         if (! $subscription->usable()) {
             throw ValidationException::withMessages([
-                'domain' => sprintf('Das Abonnement ist %s — daran lässt sich nichts ändern.', $subscription->status->label()),
+                'domain' => sprintf('Das Abonnement %s — daran lässt sich nichts ändern.', $subscription->status->sentence()),
             ]);
         }
     }

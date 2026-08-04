@@ -37,6 +37,15 @@ enum SubscriptionStatus: string
         return $this === self::Active;
     }
 
+    /**
+     * Die Beschriftung — für eine Spalte, ein Abzeichen, eine Auswahl.
+     *
+     * Sie steht für sich allein und ist **kein Satzteil**. Wer sie in einen
+     * Satz einsetzt, bekommt Deutsch wie „Das Abonnement ist wird angelegt" —
+     * genau das ist passiert, und zwar erst auf dem Server im Abnahmelauf,
+     * weil in diesem Zustand sonst niemand eine Domain anlegt. Für einen Satz
+     * gibt es {@see self::sentence()}.
+     */
     public function label(): string
     {
         return match ($this) {
@@ -44,6 +53,24 @@ enum SubscriptionStatus: string
             self::Active => 'aktiv',
             self::Suspended => 'gesperrt',
             self::Cancelled => 'gekündigt',
+        };
+    }
+
+    /**
+     * Derselbe Zustand als Aussage über das Abonnement.
+     *
+     * Das Verb steht hier drin und nicht im Satzrahmen des Aufrufers: „ist"
+     * passt zu drei Zuständen und zum vierten nicht, und ein Rahmen, der für
+     * die meisten Fälle stimmt, ist der Grund, warum der eine übrige erst
+     * beim Kunden auffällt.
+     */
+    public function sentence(): string
+    {
+        return match ($this) {
+            self::Provisioning => 'wird gerade angelegt',
+            self::Active => 'ist aktiv',
+            self::Suspended => 'ist gesperrt',
+            self::Cancelled => 'ist gekündigt',
         };
     }
 }

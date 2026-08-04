@@ -57,6 +57,46 @@ final class PackagingTest extends TestCase
         return array_values(array_filter($commands));
     }
 
+    /**
+     * Ein Warten, das ablaufen kann, muss dabei auch scheitern.
+     *
+     * **Der Fall, aus dem diese Prüfung kommt.** Der Integrationslauf wartet
+     * darauf, dass systemd im Container hochkommt. Lief die Schleife ab,
+     * passierte nichts: Im einen Schritt fing ein `| head -1` den
+     * Rückgabewert ab, im anderen stand hinter der Schleife gar keine
+     * Prüfung. Der Lauf ging weiter und scheiterte drei Schritte später an
+     * einer dpkg-Sperre — an einer Stelle, die niemand mit dem Hochfahren in
+     * Verbindung bringt. Zwei Läufe auf Ubuntu sind so verlorengegangen.
+     *
+     * Geprüft wird die Sache und nicht der eine Schritt: Wer auf
+     * `is-system-running` wartet, muss im selben Schritt sagen, was gilt,
+     * wenn es nicht kommt.
+     */
+    public function test_every_wait_for_systemd_fails_when_it_times_out(): void
+    {
+        $ci = (string) file_get_contents(dirname(__DIR__, 2).'/.github/workflows/ci.yml');
+
+        // Ein Schritt beginnt mit „- name:" — daran wird zerlegt.
+        $steps = preg_split('/^      - (?:name|uses):/m', $ci) ?: [];
+
+        $waiting = array_filter(
+            $steps,
+            static fn (string $step): bool => str_contains($step, 'is-system-running'),
+        );
+
+        $this->assertNotSame([], $waiting, 'Kein Schritt wartet mehr auf systemd — dann prüft dieser Test nichts.');
+
+        foreach ($waiting as $step) {
+            $this->assertStringContainsString('::error::', $step, implode(' ', [
+                'Ein Schritt wartet auf systemd und sagt nicht, was gilt, wenn es nicht kommt.',
+                'Der Lauf geht dann weiter und scheitert an einer Stelle, die mit der Ursache nichts zu tun hat.',
+                'Schritt:'."\n".trim(substr($step, 0, 400)),
+            ]));
+
+            $this->assertStringContainsString('exit 1', $step, 'Der Schritt meldet den Fehlschlag, bricht aber nicht ab.');
+        }
+    }
+
     public function test_the_release_publishes_every_file_the_installer_fetches(): void
     {
         $root = dirname(__DIR__, 2);

@@ -1235,3 +1235,24 @@ kollidieren.
 - Die Migration räumt die Altlast mit auf: Jedes weich gelöschte Abonnement
   verliert seine Abschrift. Ohne das bliebe der Name auf einem laufenden Server
   belegt, obwohl der Index fällt.
+
+### Ein Warten in der CI, das ablaufen konnte, ohne zu scheitern
+
+Aufgefallen an zwei verlorenen Läufen auf Ubuntu, und die gemeldete Ursache war
+jedes Mal eine andere als die wirkliche: eine dpkg-Sperre und ein fehlendes
+`systemctl`, beides drei Schritte hinter der Stelle, an der es schiefging.
+
+- **Der Integrationslauf wartet darauf, dass systemd im Container hochkommt.**
+  Lief die Schleife ab, passierte nichts: Im einen Schritt fing ein `| head -1`
+  den Rückgabewert von `docker exec` ab — die Pipe gibt den von `head` zurück,
+  und der ist immer 0 —, im anderen stand hinter der Schleife überhaupt keine
+  Prüfung. Der Schritt galt als geglückt, und der Lauf ging in einen Container
+  weiter, in dem gerade noch apt arbeitete.
+- Das Zeitfenster ist von 120 auf 180 Sekunden gewachsen — die Ubuntu-Abbilder
+  bringen systemd nicht mit und müssen es erst installieren. Wichtiger ist
+  aber, dass ein Ablaufen jetzt **abbricht und sagt, warum**, samt der letzten
+  Zeilen aus `docker logs`.
+- **`PackagingTest` hält die Regel fest:** Wer auf `is-system-running` wartet,
+  muss im selben Schritt sagen, was gilt, wenn es nicht kommt. Geprüft wird die
+  Sache und nicht der eine Schritt — es waren zwei, und der zweite war der
+  stillere.

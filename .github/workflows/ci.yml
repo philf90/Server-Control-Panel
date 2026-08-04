@@ -155,11 +155,27 @@ jobs:
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
             'apt-get update -qq && apt-get install -y -qq systemd systemd-sysv >/dev/null && exec /sbin/init'
-          for i in $(seq 1 60); do
-            if docker exec target systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then break; fi
+          # **Ohne die Prüfung danach endet ein Zeitüberschreiten stumm.** Die
+          # Schleife lief ab, der Schritt galt als geglückt — das `| head -1`
+          # gab den Rückgabewert von `head` zurück und nicht den von `docker
+          # exec` —, und gescheitert ist der Lauf drei Schritte später an einer
+          # dpkg-Sperre. Eine Meldung, die mit der Ursache nichts zu tun hat.
+          bereit=nein
+          for i in $(seq 1 90); do
+            if docker exec target systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
+              bereit=ja
+              break
+            fi
             sleep 2
           done
-          docker exec target systemctl --version | head -1
+
+          if [ "$bereit" != ja ]; then
+            echo "::error::systemd im Container ist in 180 s nicht hochgekommen."
+            docker logs target 2>&1 | tail -30
+            exit 1
+          fi
+
+          docker exec target systemctl --version
 
       - name: PHP-Quelle und PHP 8.4
         # Denselben Weg geht install.sh. Von den vier Zielplattformen liefert nur
@@ -414,10 +430,22 @@ jobs:
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
             'apt-get update -qq && apt-get install -y -qq systemd systemd-sysv >/dev/null && exec /sbin/init'
-          for i in $(seq 1 60); do
-            if docker exec bare systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then break; fi
+          # Dieselbe Prüfung wie oben, und hier fehlte sie ganz: Ein
+          # Zeitüberschreiten war vollständig unsichtbar.
+          bereit=nein
+          for i in $(seq 1 90); do
+            if docker exec bare systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
+              bereit=ja
+              break
+            fi
             sleep 2
           done
+
+          if [ "$bereit" != ja ]; then
+            echo "::error::systemd im Container ist in 180 s nicht hochgekommen."
+            docker logs bare 2>&1 | tail -30
+            exit 1
+          fi
 
       - name: PHP-Quelle — nur wo sie Voraussetzung ist
         if: matrix.needs_php_source == 'ja'

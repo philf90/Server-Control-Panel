@@ -99,11 +99,31 @@ final class WebSiteApply implements Op
             );
         }
 
-        if ($site->phpVersion !== null && ! PhpVersions::installed($site->phpVersion)) {
+        if ($site->phpVersion === null) {
+            return;
+        }
+
+        if (! PhpVersions::installed($site->phpVersion)) {
             throw new AgentException(
                 AgentException::NOT_FOUND,
                 sprintf('PHP %s ist auf diesem Server nicht installiert.', $site->phpVersion),
                 ['php_version' => $site->phpVersion, 'available' => PhpVersions::available()],
+            );
+        }
+
+        /*
+         * **Und der Pool muss liegen.** Ohne ihn zeigt `fastcgi_pass` auf
+         * einen Sockel, den niemand bedient — die Website antwortet mit „502
+         * Bad Gateway", während im Panel alles grün aussieht. Die Reihenfolge
+         * (erst `php.pool.apply`, dann `web.site.apply`) stellt der Dienst
+         * her; diese Bedingung sorgt dafür, dass sie nicht bloss angenommen
+         * wird.
+         */
+        if (! is_file(PhpVersions::poolFile($site->phpVersion, $site->user))) {
+            throw new AgentException(
+                AgentException::NOT_FOUND,
+                sprintf('Für dieses Abonnement gibt es keinen FPM-Pool in PHP %s — erst php.pool.apply.', $site->phpVersion),
+                ['php_version' => $site->phpVersion],
             );
         }
     }

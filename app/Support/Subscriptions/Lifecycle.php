@@ -7,8 +7,10 @@ namespace App\Support\Subscriptions;
 use App\Enums\OperationStatus;
 use App\Enums\SubscriptionStatus;
 use App\Jobs\RunAgentOperation;
+use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Support\Operations\AfterOperation;
 use App\Support\Plans\Quota;
 use App\Support\Tenancy\Tenancy;
 
@@ -33,7 +35,7 @@ use App\Support\Tenancy\Tenancy;
  * ein ausdrückliches `withoutRestriction` — an einer Stelle, mit einem Namen,
  * der beim Lesen auffällt.
  */
-final class Lifecycle
+final class Lifecycle implements AfterOperation
 {
     /** Die erste Nummer eines Systembenutzers. Vier Stellen, wie der Agent verlangt. */
     public const FIRST_USER = 1000;
@@ -183,8 +185,29 @@ final class Lifecycle
         });
     }
 
+    /**
+     * Das Abonnement zurückziehen — und seine Domains hart löschen.
+     *
+     * **Die Reihenfolge ist der Punkt.** Erst die Domains, dann `deleted_at`:
+     * Danach ist das Abonnement für jede Abfrage fort, und eine Löschung, die
+     * darüber liefe, träfe keine Zeile mehr.
+     *
+     * **Warum die Domains überhaupt hart gehen.** Das Abonnement bleibt weich
+     * gelöscht stehen, weil sein Systembenutzer verbraucht bleiben muss — die
+     * UID darf nicht neu vergeben werden, solange auf dem Dateisystem etwas
+     * liegt, das ihr gehört. Für eine Domain gibt es diesen Grund nicht: Mit
+     * dem Abonnement ist ihr Verzeichnis fort, ihr vhost, ihr Protokoll.
+     *
+     * Ohne diese Zeilen blieben die Domainzeilen stehen und hielten ihre Namen
+     * belegt — auf einem Server, auf dem von ihnen nichts mehr liegt. Der
+     * Fremdschlüssel hilft dabei nicht: `cascadeOnDelete` greift beim harten
+     * Löschen und nicht bei `deleted_at`. Aufgefallen ist das beim Nachfragen,
+     * nicht im Test; der Test steht jetzt daneben.
+     */
     private function withdraw(Subscription $subscription): void
     {
+        Domain::query()->where('subscription_id', $subscription->id)->delete();
+
         $subscription->forceFill([
             'status' => SubscriptionStatus::Cancelled,
             'cancelled_at' => now(),

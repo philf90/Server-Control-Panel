@@ -858,3 +858,65 @@ genau deshalb war jetzt der Zeitpunkt.
   (§9 P3). Auf manchen Systemen liegt Apache als Abhängigkeit herum, ohne je
   zu starten; wer deswegen den Dienst verweigerte, verweigerte ihn auf einem
   Server, auf dem nichts im Weg ist.
+
+### P3 — die Dienstschicht: Kontingent, Plan, Lebenslauf
+
+- **`App\Support\Web\Domains`** legt Domains an, ändert und entfernt sie — und
+  ist die Schranke aus `docs/20 §6.2`: die Prüfung sitzt im Dienst, nicht im
+  Formular. Wer das Formular umgeht, trifft auf dieselbe Grenze. Die *Regeln*
+  formuliert sie nicht neu: Was ein Domainname ist, entscheidet der Agent, was
+  ein DocumentRoot sein darf ebenfalls, und welche Direktive zulässig ist auch.
+  Das Panel fragt und übersetzt die Ablehnung in eine Meldung am Feld.
+- **Die Zählregeln sind die, die im Formular des Betreibers stehen.** Haupt-
+  und Zusatzdomains auf ein Kontingent, Subdomains auf ein eigenes, Aliasse auf
+  keines — genau das verspricht `App\Support\Plans\Quota` als Hinweis unter dem
+  Eingabefeld, und `DomainServiceTest` hält beide aneinander. Gezählt wird
+  einschliesslich der Domains, die gerade entstehen: Zwei gleichzeitige Anlagen
+  kämen sonst beide durch, weil jede die andere noch nicht sieht.
+- **Drei neue Kontingente decken die PHP-Einstellungen** (`docs/23`):
+  `php_memory_mb`, `php_upload_mb`, `php_execution_seconds`. §9 P3 verlangt
+  „vom Plan gedeckelte Grenzen", und das braucht einen Ort — feste Serverwerte
+  wären kein Unterschied zwischen zwei Paketen, und dafür gibt es Pläne. Keines
+  der drei darf unbegrenzt sein: `memory_limit = -1` lässt eine einzige
+  Anfrage den Arbeitsspeicher belegen. `QuotaCatalogTest` hat beim Hinzunehmen
+  rot geschlagen und den Grund eingefordert — das war seine Aufgabe. Eine
+  Migration trägt die drei in bestehende Pläne nach; ohne sie hiesse ein
+  fehlender Schlüssel „unbegrenzt", also die genaue Umkehrung.
+- **Die drei Mengen der PHP-Versionen** stehen in
+  `App\Support\Web\PhpSelection`: Katalog, installiert, vom Plan erlaubt.
+  Wählbar ist der Schnitt, und diese Rechnung steht an einer Stelle. Der Kunde
+  sieht zusätzlich die Versionen, die sein Plan hergibt und die auf dem Server
+  fehlen — abgeblendet, mit dem Grund; er sieht damit, dass die Lücke am Server
+  liegt und nicht an seinem Vertrag. **Ein leerer Zwischenspeicher heisst
+  „nichts installiert" und nicht „alles erlaubt"**: Das ist die sichere
+  Richtung, solange `php.versions` noch nie gelaufen ist.
+- **Zwei Vorgänge je Domain, in dieser Reihenfolge**: erst der FPM-Pool, dann
+  der Server-Block. `web.site.apply` weist einen Block zurück, dessen Pool
+  fehlt — sonst zeigte `fastcgi_pass` auf einen Sockel, den niemand bedient,
+  und die Website antwortete mit „502 Bad Gateway", während im Panel alles
+  grün aussieht.
+- **Ein Vorgang sagt jetzt, wovon er handelt.** `subject_type` und
+  `subject_id` statt einer Spalte je Ausbaustufe — und statt eines
+  Klassennamens in der Datenbank steht dort der Wert einer Aufzählung
+  (`App\Enums\OperationSubject`). Ein Klassenname wäre wieder eine
+  Zeichenkette, die auf etwas zeigt, ohne dass jemand den Bezug prüft;
+  nach einer Umbenennung stünden in der Datenbank Zeilen, die ins Leere weisen.
+- **`App\Support\Operations\Lifecycles` hängt die Lebensläufe an den
+  Arbeiter.** Bis P2 gab es einen, und der Arbeiter rief ihn direkt auf; ab
+  zweien ist „man gibt dem Arbeiter die Klasse" der Weg, auf dem der dritte
+  vergessen wird — der Vorgang liefe durch, der Agent täte seine Arbeit, und im
+  Panel änderte sich nichts. Ohne Fehler, ohne Meldung. `LifecycleReachTest`
+  prüft beide Richtungen.
+- **Der Rückbau eines Abonnements gibt die Domainnamen frei.** Das Abonnement
+  wird weich gelöscht, damit sein Systembenutzer verbraucht bleibt — der
+  Fremdschlüssel der Domains hat `cascadeOnDelete`, und das greift dabei
+  **nicht**. Die Zeilen wären stehen geblieben und hätten ihre Namen belegt
+  gehalten, auf einem Server, auf dem von ihnen nichts mehr liegt. Aufgefallen
+  ist das beim Nachfragen und nicht im Test; der Test steht jetzt daneben.
+- **Zwei Tests waren zu schwach und sind es nicht mehr.** Die Prüfung auf einen
+  schon vergebenen Domainnamen lief nur als Admin — mit offener
+  Mandantenklammer sieht die Abfrage die fremde Domain ohnehin, und ihr
+  Entfernen blieb in der Gegenprobe grün. Der Test läuft jetzt zusätzlich aus
+  der Sicht eines Kunden, in der die Klammer zu ist. Und die Argumente für den
+  Agenten hingen daran, wer gerade angemeldet ist: Im Grundzustand der Klammer
+  stand im Namensfeld eine leere Zeichenkette.

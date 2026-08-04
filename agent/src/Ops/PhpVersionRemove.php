@@ -40,7 +40,12 @@ final class PhpVersionRemove implements Op
         $version = PhpVersions::normalize($args['php_version'] ?? null);
 
         if (! PhpVersions::installed($version)) {
-            return ['php_version' => $version, 'removed' => false, 'already' => true];
+            return [
+                'php_version' => $version,
+                'removed' => false,
+                'already' => true,
+                'available' => PhpVersions::available(),
+            ];
         }
 
         $pools = PhpPoolRemove::pools($version);
@@ -74,6 +79,7 @@ final class PhpVersionRemove implements Op
             'removed' => true,
             'already' => false,
             'packages' => PhpVersions::packages($version),
+            'available' => PhpVersions::available(),
         ];
     }
 }

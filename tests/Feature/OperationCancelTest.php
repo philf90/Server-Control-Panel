@@ -11,8 +11,8 @@ use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Support\Operations\Lifecycles;
 use App\Support\Operations\Task;
-use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -86,7 +86,7 @@ final class OperationCancelTest extends TestCase
         // Aufruf nie stattgefunden hat.
         $client = new Client('/tmp/es-gibt-diesen-socket-nicht.sock');
 
-        (new RunAgentOperation((int) $operation->id))->handle($client, app(Tenancy::class), app(Lifecycle::class));
+        (new RunAgentOperation((int) $operation->id))->handle($client, app(Tenancy::class), app(Lifecycles::class));
 
         $operation->refresh();
 

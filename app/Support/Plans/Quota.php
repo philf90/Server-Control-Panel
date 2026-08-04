@@ -59,6 +59,20 @@ enum Quota: string
     case FpmProcesses = 'fpm_processes';
     case PhpVersions = 'php_versions';
 
+    /*
+     * Die drei Deckel für die PHP-Einstellungen je Domain (§9 P3: „mit vom
+     * Plan gedeckelten Grenzen").
+     *
+     * Sie zählen nichts, sie begrenzen: Eine Domain darf `memory_limit`
+     * setzen, aber nicht über den Wert ihres Plans hinaus. Deshalb stehen sie
+     * hier und nicht als feste Serverwerte — ein Deckel, der für alle gleich
+     * ist, ist kein Unterscheidungsmerkmal zwischen zwei Paketen, und genau
+     * dafür gibt es Pläne.
+     */
+    case PhpMemoryMb = 'php_memory_mb';
+    case PhpUploadMb = 'php_upload_mb';
+    case PhpExecutionSeconds = 'php_execution_seconds';
+
     public function label(): string
     {
         return match ($this) {
@@ -71,6 +85,9 @@ enum Quota: string
             self::CronJobs => 'Cronjobs',
             self::FpmProcesses => 'FPM-Prozesse',
             self::PhpVersions => 'PHP-Versionen',
+            self::PhpMemoryMb => 'PHP-Speicher je Anfrage',
+            self::PhpUploadMb => 'Größte hochladbare Datei',
+            self::PhpExecutionSeconds => 'Laufzeit eines Skripts',
         };
     }
 
@@ -93,6 +110,9 @@ enum Quota: string
             self::CronJobs => 'Einträge in der Crontab des Systembenutzers.',
             self::FpmProcesses => 'Obergrenze des PHP-FPM-Pools (pm.max_children). Bestimmt, wie viele Anfragen gleichzeitig laufen.',
             self::PhpVersions => 'Welche Handler in den vhost-Vorlagen ausgewählt werden dürfen.',
+            self::PhpMemoryMb => 'Obergrenze für memory_limit je Domain. Ein Skript darüber bricht mit einem Speicherfehler ab.',
+            self::PhpUploadMb => 'Obergrenze für upload_max_filesize und post_max_size je Domain. nginx lässt genauso viel durch.',
+            self::PhpExecutionSeconds => 'Obergrenze für max_execution_time je Domain. Der Pool beendet eine Anfrage spätestens nach 300 Sekunden.',
         };
     }
 
@@ -102,6 +122,8 @@ enum Quota: string
         return match ($this) {
             self::DiskMb => 'MB',
             self::TrafficGb => 'GB',
+            self::PhpMemoryMb, self::PhpUploadMb => 'MB',
+            self::PhpExecutionSeconds => 's',
             default => null,
         };
     }
@@ -123,7 +145,21 @@ enum Quota: string
      */
     public function allowsUnlimited(): bool
     {
-        return $this !== self::DiskMb && $this !== self::FpmProcesses;
+        return ! in_array($this, [
+            self::DiskMb,
+            self::FpmProcesses,
+
+            // Die drei PHP-Deckel, und jeder aus demselben Grund wie die
+            // beiden darüber: Sie geben eine Ressource frei, die der ganze
+            // Server teilt. `memory_limit = -1` lässt eine einzige Anfrage
+            // den Arbeitsspeicher belegen; eine unbegrenzte Hochladegröße
+            // füllt Datenträger und Speicher zugleich; ein Skript ohne
+            // Laufzeitgrenze hält einen der gedeckelten FPM-Plätze, bis
+            // jemand nachsieht.
+            self::PhpMemoryMb,
+            self::PhpUploadMb,
+            self::PhpExecutionSeconds,
+        ], true);
     }
 
     /** Der kleinste sinnvolle Wert. */
@@ -136,6 +172,13 @@ enum Quota: string
         return match ($this) {
             self::DiskMb => 64,
             self::FpmProcesses => 1,
+
+            // Ein Deckel auf 0 wäre kein enges Paket, sondern ein kaputtes:
+            // Kein PHP-Skript läuft mit 0 MB, keines in 0 Sekunden.
+            self::PhpMemoryMb => 32,
+            self::PhpUploadMb => 1,
+            self::PhpExecutionSeconds => 5,
+
             default => 0,
         };
     }
@@ -153,6 +196,14 @@ enum Quota: string
             self::DiskMb => 100_000_000,   // 100 TB
             self::TrafficGb => 1_000_000,  // 1 PB
             self::FpmProcesses => 512,
+            self::PhpMemoryMb => 8_192,
+            self::PhpUploadMb => 4_096,
+
+            // Mehr als der Pool zulässt, wäre eine Zusage, die das System
+            // nicht hält: `request_terminate_timeout` beendet jede Anfrage
+            // nach 300 Sekunden.
+            self::PhpExecutionSeconds => 300,
+
             default => 10_000,
         };
     }
@@ -178,6 +229,9 @@ enum Quota: string
             self::CronJobs => 10,
             self::FpmProcesses => 10,
             self::PhpVersions => ['8.3', '8.4'],
+            self::PhpMemoryMb => 256,
+            self::PhpUploadMb => 64,
+            self::PhpExecutionSeconds => 60,
         };
     }
 

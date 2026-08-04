@@ -61,6 +61,7 @@ final class PhpVersionInstall implements Op
                 'already' => true,
                 'distribution_pool' => $this->disableDistributionPool($version),
                 'packages' => [],
+                'available' => PhpVersions::available(),
             ];
         }
 
@@ -113,6 +114,7 @@ final class PhpVersionInstall implements Op
             'already' => false,
             'distribution_pool' => $disabled,
             'packages' => $packages,
+            'available' => PhpVersions::available(),
         ];
     }
 

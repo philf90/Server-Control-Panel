@@ -53,7 +53,10 @@ final class PhpVersionList implements Op
             ];
         }
 
-        return ['versions' => $versions];
+        // `available` steht neben `versions`, weil das Panel genau diese
+        // Liste in seinen Zwischenspeicher legt. Sie aus `versions`
+        // herauszurechnen wäre dieselbe Aussage an einer zweiten Stelle.
+        return ['versions' => $versions, 'available' => PhpVersions::available()];
     }
 
     private function active(Context $context, string $unit): bool

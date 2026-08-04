@@ -77,18 +77,31 @@ final class QuotaCatalogTest extends TestCase
         }
     }
 
-    public function test_the_two_shared_resources_have_no_unlimited(): void
+    public function test_only_shared_resources_have_no_unlimited(): void
     {
-        // Nicht „irgendwelche zwei", sondern genau diese: Speicherplatz und
-        // FPM-Prozesse teilen sich eine Ressource, die der ganze Server teilt.
-        // Kommt eine dritte dazu, soll dieser Test dazu zwingen, den Grund
-        // aufzuschreiben.
+        // Nicht „irgendwelche", sondern genau diese — und jede mit ihrem
+        // Grund. Der Test zwingt dazu, ihn aufzuschreiben: Er ist beim
+        // Hinzunehmen der drei PHP-Deckel in P3 rot geworden, und das war
+        // seine Aufgabe.
+        //
+        // Speicherplatz und FPM-Prozesse teilen sich eine Ressource, die der
+        // ganze Server teilt. Für die drei PHP-Deckel gilt dasselbe:
+        // `memory_limit = -1` lässt eine einzige Anfrage den Arbeitsspeicher
+        // belegen; eine unbegrenzte Hochladegröße füllt Datenträger und
+        // Speicher zugleich; ein Skript ohne Laufzeitgrenze hält einen der
+        // gedeckelten FPM-Plätze, bis jemand nachsieht.
         $bounded = array_values(array_filter(
             Quota::cases(),
             static fn (Quota $quota): bool => ! $quota->allowsUnlimited(),
         ));
 
-        $this->assertSame([Quota::DiskMb, Quota::FpmProcesses], $bounded);
+        $this->assertSame([
+            Quota::DiskMb,
+            Quota::FpmProcesses,
+            Quota::PhpMemoryMb,
+            Quota::PhpUploadMb,
+            Quota::PhpExecutionSeconds,
+        ], $bounded);
     }
 
     public function test_the_defaults_carry_exactly_the_catalog_keys(): void

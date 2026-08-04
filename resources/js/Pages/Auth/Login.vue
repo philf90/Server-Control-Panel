@@ -7,8 +7,23 @@ import EyeIcon from '../../Components/EyeIcon.vue'
  * Die Anmeldemaske.
  *
  * Bewusst ohne Navigation und ohne Kacheln: Wer hier steht, hat noch kein
- * Konto vorgewiesen und soll nichts über den Server erfahren — nicht die
- * Version, nicht den Hostnamen, nicht die Zahl der Kunden.
+ * Konto vorgewiesen und soll nichts über den Server erfahren — nicht den
+ * Hostnamen, nicht die Zahl der Kunden, nicht die Namen der Abonnements.
+ *
+ * **Die Version ist die eine Ausnahme, und sie ist eine bewusste.** Hier stand
+ * sie zunächst mit auf der Liste. Der Betreiber hat sie sich gewünscht, und
+ * der Grund ist gut: Solange dieses Panel im Aufbau ist, steht man ständig vor
+ * der Frage, welcher Stand auf einem Server eigentlich läuft — und die
+ * Anmeldemaske ist die einzige Seite, die man ohne Sitzung sieht. Nach einem
+ * Update ist sie der erste Beleg dafür, dass das neue Paket auch wirklich
+ * ausgeliefert wird.
+ *
+ * **Was man dafür hergibt:** Wer die Maske aufruft, erfährt die genaue
+ * Fassung, und damit auch, welche bekannten Lücken auf sie zutreffen. Das ist
+ * kein Zugang, aber es erspart einem Angreifer das Raten. Vertretbar, weil
+ * dieses Panel nicht auf Port 443 im offenen Netz steht, sondern auf einem
+ * eigenen Port hinter einer Anmeldung mit zweitem Faktor — und weil eine
+ * Version, die niemand ablesen kann, auch niemand meldet.
  */
 
 const form = useForm({
@@ -21,6 +36,7 @@ const passwortSichtbar = ref(false)
 
 const page = usePage()
 const notice = computed(() => (page.props.flash as Record<string, string> | undefined)?.notice)
+const version = computed(() => (page.props.source as { version: string } | undefined)?.version)
 
 function submit(): void {
   form.post('/login', {
@@ -105,6 +121,16 @@ function submit(): void {
         {{ form.processing ? 'Einen Moment …' : 'Anmelden' }}
       </button>
     </form>
+
+    <!--
+      Unter der Maske und nicht darin: Die Version gehört nicht zum Formular.
+      Stünde sie zwischen Knopf und Rand, läse sie sich wie eine Angabe zur
+      Anmeldung — dort unten ist sie eine Fussnote zur Seite, und genau das
+      ist sie auch.
+    -->
+    <p v-if="version" class="stand">
+      <span class="version">{{ version }}</span>
+    </p>
   </main>
 </template>
 
@@ -121,12 +147,27 @@ function submit(): void {
  * Die Zahlen unten sind dieselben wie im Gerüst (§7.2): 16px für die
  * Überschrift, 13px für Inhalt, 34px Zeilenhöhe für alles, was man anfasst.
  */
+/*
+ * Flex statt Grid, seit die Version unter der Maske steht.
+ *
+ * `display: grid; place-items: center` zentrierte, solange es ein Kind gab.
+ * Mit zweien entstehen zwei implizite Zeilen, die sich über die volle Höhe
+ * strecken — die Maske sässe in der Mitte der oberen Hälfte und die Version in
+ * der Mitte der unteren. Eine Flex-Spalte zentriert den Stapel als Ganzes.
+ */
 .anmeldung {
   min-height: 100dvh;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   padding: 16px;
   background: var(--bg);
+}
+
+.stand {
+  margin: 0;
 }
 
 .maske {

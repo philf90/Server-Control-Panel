@@ -133,18 +133,49 @@ ist ein Vorgang, immer mit `force`: Wer den Knopf drückt, hat einen Grund,
 den das Panel nicht kennt, und die Prüfung „gilt ja noch" würde genau diesen
 Fall abweisen.
 
-## 7. Was mit P4 dazukommt — und eine Falle darin
+## 7. HSTS gilt erst, wenn ein Browser dem Zertifikat trauen kann
+
+Der Server-Block setzte `Strict-Transport-Security: max-age=31536000`
+bedingungslos. Hier stand dazu, das sei eine Falle für P4 — sie hat früher
+zugebissen, nämlich sofort.
+
+Die Annahme war, der Header sei heute wirkungslos, weil Browser ihn über eine
+nicht vertraute Verbindung verwerfen. Das stimmt genau so lange, wie niemand
+das Zertifikat in seinen Speicher aufnimmt. Tut er es — und dazu ist es ja da
+—, ist die Verbindung vertraut, der Header wird gespeichert, und ab da lässt
+sich auf diesem Host **kein Zertifikatsfehler mehr wegklicken**: kein
+„trotzdem fortfahren", keine Ausnahme. Das nächste neu ausgestellte Zertifikat
+sperrt den Betreiber aus seinem eigenen Panel aus. Der Ausweg war ein
+Inkognitofenster.
+
+**Ein Jahr Erzwingung zu versprechen, während sich das Zertifikat jederzeit
+ändern darf, ist kein Härtungsgewinn**, sondern eine Zusage, die das Panel
+nicht halten kann. `panel.vhost.apply` liest deshalb das Zertifikat, bevor es
+den Server-Block schreibt: Aussteller gleich Inhaber heisst selbstsigniert
+heisst kein HSTS, und im Block steht als Kommentar, warum die Zeile fehlt —
+sonst trägt sie der nächste wieder ein. **Unlesbar zählt als selbstsigniert:**
+Wer aus einem Zertifikat, das er nicht lesen kann, auf eine
+Zertifizierungsstelle schliesst, verspricht das Jahr auf Verdacht, und das ist
+die Richtung, in der ein Irrtum aussperrt.
+
+**Einen bereits gespeicherten Eintrag löscht das nicht.** Der Header ist eine
+Anweisung an den Browser, und der hat sie sich gemerkt; der Server kann sie
+nur mit `max-age=0` zurücknehmen, und auch das erst, wenn eine Verbindung
+zustande kommt — was sie ja gerade nicht tut. Wer schon betroffen ist, löscht
+den Eintrag selbst: in Chrome unter `chrome://net-internals/#hsts` bei „Delete
+domain security policies" den Hostnamen eintragen; in Firefox über „Chronik
+löschen" für diese Seite. Das Panel kann dabei nicht helfen, und deshalb steht
+es hier.
+
+## 8. Was mit P4 dazukommt
 
 Let's Encrypt über ACME. Diese Seite ist dann der Ort, an dem steht, welches
 der beiden gerade gilt; die Angabe `self_signed` beantwortet das schon heute.
 
-**Die Falle heisst HSTS.** Der Server-Block setzt
-`Strict-Transport-Security: max-age=31536000`. Solange das Zertifikat nicht
-vertraut ist, verwerfen Browser den Header — er ist heute wirkungslos. Sobald
-aber ein Zertifikat von Let's Encrypt gilt und der Header einmal gespeichert
-ist, lässt sich ein Zertifikatsfehler auf diesem Host **nicht mehr
-wegklicken**. Ein Rückfall auf das selbstsignierte Zertifikat — abgelaufenes
-ACME-Zertifikat, gescheiterte Erneuerung, umgezogene Domain — sperrt den
-Betreiber dann aus seinem eigenen Panel aus. Wer P4 baut, muss dafür eine
-Antwort haben: entweder HSTS erst setzen, wenn ein vertrautes Zertifikat
-vorliegt, oder einen zweiten Weg hinein, der nicht über diesen Namen läuft.
+Mit dem ersten vertrauten Zertifikat wird HSTS richtig — und kommt von selbst,
+weil die Bedingung dafür das Zertifikat ist und keine Einstellung. **Ein
+Server-Block muss dazu neu geschrieben werden:** Er entsteht bei
+`panel.vhost.apply`, und wer in P4 ein ACME-Zertifikat einspielt, ohne die
+Operation danach zu rufen, bekommt ein vertrautes Zertifikat ohne den Header.
+Das ist der harmlose Ausgang der beiden — aber es ist einer, den niemand
+bemerkt.

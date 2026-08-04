@@ -343,15 +343,9 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.version {
-  padding: 1px 5px;
-  font-family: var(--font-mono);
-  font-size: var(--text-label);
-  color: var(--text-faint);
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: 3px;
-}
+/* `.version` steht in app.css: Seit die Anmeldemaske denselben Stand zeigt,
+   gibt es die Marke zweimal auf dem Bildschirm und darf nur einmal im
+   Quelltext stehen. */
 
 .glyph {
   /* `flex: none`, seit die Version daneben steht: Ohne das schrumpft das

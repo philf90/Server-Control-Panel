@@ -1,0 +1,1280 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SrvPanel — zwei neue Richtungen</title>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   Zwei Entwürfe, die sich vom „Leitstand" lösen.
+
+   Farbwerte stehen hier als Werte, weil das ein Entwurfsdokument ist und
+   keine Komponente — die CI-Regel „Farbwerte stehen nur in app.css" liest
+   resources/js. Genau wie 20-stilvorschlaege.html und 29-optik-rework.html.
+
+   Beide Richtungen sind hell entworfen und dunkel mitgeführt: Der Charakter
+   entsteht im Hellen, und das dunkle Theme ist nicht die Umkehrung, sondern
+   eine eigene Rechnung. Jeder Wert unten ist gerechnet — 4,5:1 für Text,
+   3:1 für die Grenze eines Bedienelements (WCAG 1.4.11).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Rahmen des Dokuments ─────────────────────────────────────────────── */
+:root {
+  --dok-grund: #ffffff; --dok-schrift: #33383f; --dok-stark: #12151a;
+  --dok-still: #5c6470; --dok-linie: #e2e5ea; --dok-akzent: #3730a3;
+  --dok-gut: #076e54; --dok-schlecht: #ab2b19;
+}
+
+:root[data-theme='dark'] {
+  --dok-grund: #0e1014; --dok-schrift: #c4c9d4; --dok-stark: #edeff5;
+  --dok-still: #99a0ae; --dok-linie: #262a33; --dok-akzent: #a3aaff;
+  --dok-gut: #57c99c; --dok-schlecht: #f08a72;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0; background: var(--dok-grund); color: var(--dok-schrift);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1860px; margin: 0 auto; padding: 40px 28px 80px; }
+h1 { font-size: 34px; line-height: 1.15; letter-spacing: -0.022em; margin: 0 0 14px; font-weight: 660; color: var(--dok-stark); }
+h2 { font-size: 24px; letter-spacing: -0.015em; margin: 0 0 4px; font-weight: 660; color: var(--dok-stark); }
+.eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dok-still); font-weight: 640; margin: 0 0 12px; }
+.lede { max-width: 78ch; }
+.lede p { margin: 0 0 12px; }
+.dim { color: var(--dok-still); }
+.abschnitt { margin-top: 54px; padding-top: 26px; border-top: 1px solid var(--dok-linie); }
+.caption { font-size: 13px; color: var(--dok-still); margin: 20px 0 8px; max-width: 100ch; }
+.caption b { color: var(--dok-schrift); font-weight: 640; }
+.rahmen { border: 1px solid var(--dok-linie); border-radius: 8px; overflow: hidden; }
+.schmalrahmen { width: 390px; border: 1px solid var(--dok-linie); border-radius: 8px; overflow: hidden; }
+.nebeneinander { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+
+.kopfzeile { display: flex; flex-wrap: wrap; gap: 20px 44px; align-items: flex-start; justify-content: space-between; padding-bottom: 16px; }
+.kopfzeile .txt { max-width: 60ch; }
+.these { margin: 6px 0 0; color: var(--dok-still); }
+.fakten { display: flex; gap: 26px; flex-wrap: wrap; font-size: 13px; color: var(--dok-still); }
+.fakten b { display: block; color: var(--dok-stark); font-weight: 620; font-size: 13px; }
+.sw { display: flex; gap: 5px; margin-top: 8px; }
+.sw i { width: 22px; height: 22px; border-radius: 4px; display: block; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12); }
+
+.pro { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 40px; margin: 20px 0 4px; font-size: 14.5px; }
+.pro h4 { margin: 0 0 4px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dok-still); font-weight: 640; }
+.pro ul { margin: 0; padding-left: 18px; }
+.pro li { margin-bottom: 3px; }
+
+table.doku { width: 100%; border-collapse: collapse; font-size: 14.5px; margin-top: 10px; }
+table.doku th, table.doku td { text-align: left; padding: 10px 16px 10px 0; border-bottom: 1px solid var(--dok-linie); vertical-align: top; }
+table.doku th { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dok-still); font-weight: 640; }
+table.doku code, .lede code, .caption code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.gut { color: var(--dok-gut); font-weight: 620; }
+.schlecht { color: var(--dok-schlecht); font-weight: 620; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   A — WERKBANK
+   Der Bruch ist baulich: Die Seitenleiste verschwindet. Die Navigation
+   liegt oben über die volle Breite, der Inhalt bekommt jedes Pixel.
+   ═══════════════════════════════════════════════════════════════════════ */
+.v-a {
+  --bg: #f5f2ec;
+  --sheet: #ffffff;
+  --line: #e3dbcd;
+  --top-bg: #123f39;
+  --top-text: #eef5f2;
+  --top-muted: #a9c8c0;
+  --accent: #0e6455;
+  --accent-on: #ffffff;
+  --accent-weich: #e2efeb;
+  --strong: #191f1d;
+  --text: #3f4845;
+  --muted: #5f6a66;
+  --control: #76817d;
+  --control-bg: #ffffff;
+  --ok: #136349;      --ok-weich: #e0f0e8;
+  --warn: #8a5a06;    --warn-weich: #f8eeda;
+  --critical: #a5311e; --critical-weich: #fae7e2;
+
+  --radius: 9px;
+  --radius-blatt: 13px;
+  --row: 40px;
+  --gap: 16px;
+}
+
+:root[data-theme='dark'] .v-a {
+  --bg: #171613;
+  --sheet: #211f1b;
+  --line: #37342c;
+  --top-bg: #0e1b18;
+  --top-text: #e9f2ef;
+  --top-muted: #9db8b1;
+  --accent: #4bc7aa;
+  --accent-on: #0d1512;
+  --accent-weich: #1b3630;
+  --strong: #f2eee6;
+  --text: #cfc8bc;
+  --muted: #a79f91;
+  --control: #8b8375;
+  --control-bg: #2a2822;
+  --ok: #4bc08f;      --ok-weich: #1c3a2e;
+  --warn: #e0a340;    --warn-weich: #3b3020;
+  --critical: #ef8a72; --critical-weich: #3d2620;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   B — KONTOR
+   Der Bruch ist typografisch: keine Karten, keine Flächen. Die Ordnung
+   kommt aus Schriftgrad, Weißraum und Haarlinien.
+   ═══════════════════════════════════════════════════════════════════════ */
+.v-b {
+  --bg: #ffffff;
+  --sheet: #ffffff;
+  --plane: #fafafb;
+  --line: #dcdfe6;
+  --accent: #3730a3;
+  --accent-on: #ffffff;
+  --accent-weich: #ecebf9;
+  --strong: #0f1115;
+  --text: #3a3f49;
+  --muted: #5c6470;
+  --control: #757d8a;
+  --control-bg: #ffffff;
+  --ok: #076e54;      --ok-weich: #e4f2ed;
+  --warn: #845306;    --warn-weich: #f8eeda;
+  --critical: #ab2b19; --critical-weich: #fae7e3;
+
+  --radius: 5px;
+  --row: 40px;
+  --gap: 16px;
+}
+
+:root[data-theme='dark'] .v-b {
+  --bg: #0f1116;
+  --sheet: #0f1116;
+  --plane: #14171d;
+  --line: #2c313d;
+  --accent: #a3aaff;
+  --accent-on: #12142a;
+  --accent-weich: #1e2140;
+  --strong: #edeff5;
+  --text: #c4c9d4;
+  --muted: #99a0ae;
+  --control: #7b8393;
+  --control-bg: #191d25;
+  --ok: #57c99c;      --ok-weich: #16302a;
+  --warn: #e2a94a;    --warn-weich: #33291a;
+  --critical: #f08a72; --critical-weich: #3a2320;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Gemeinsames Skelett beider Entwürfe. Beide zeigen denselben Inhalt —
+   was sich unterscheidet, ist ausschließlich die Gestaltung.
+   ═══════════════════════════════════════════════════════════════════════ */
+.mock {
+  background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px; line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Monospace nur da, wo es eine Kennung ist — Pfad, Unit, Befehl, Benutzer.
+   Nicht für jede Zahl: Das war Leitstand, und es hat jede Tabelle wie ein
+   Terminal aussehen lassen. */
+.mock .kennung { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13.5px; white-space: nowrap; }
+.mock .zahl { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.mock h3 { margin: 0; font-size: 26px; font-weight: 660; letter-spacing: -0.02em; color: var(--strong); }
+.mock h4 { margin: 0; font-size: 17px; font-weight: 640; letter-spacing: -0.01em; color: var(--strong); }
+.mock .beizeile { font-size: 13.5px; color: var(--muted); }
+
+.mock table { width: 100%; border-collapse: collapse; }
+
+/*
+ * Eine Tabelle aus Bezeichnung und Wert bekommt eine Grenze.
+ *
+ * Ohne sie stand „Kontingente" in B über die volle Breite, weil der Bereich
+ * allein in seine Reihe umbrach — und „Domains" und „3 von 10" lagen 1300 px
+ * auseinander. Fläche ausnutzen heisst nicht, zwei zusammengehörige Angaben
+ * an die gegenüberliegenden Ränder zu schieben. Gesehen in der Aufnahme,
+ * nicht im Entwurf.
+ */
+.mock table.paare { max-width: 620px; }
+.mock th {
+  font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  text-align: left; font-weight: 640; color: var(--muted);
+  padding: 0 14px 9px 0; border-bottom: 1px solid var(--line);
+}
+.mock td { padding: 0 14px 0 0; height: var(--row); font-size: 14px; color: var(--text); border-bottom: 1px solid var(--line); }
+.mock tr:last-child td { border-bottom: 0; }
+.mock td.name { color: var(--strong); font-weight: 580; }
+.mock td.stumm { color: var(--muted); }
+.mock a.verweis { color: var(--accent); text-decoration: none; font-weight: 560; }
+
+/* Zustandsmarke — Punkt und Wort. Farbe ist nie der einzige Träger. */
+.mock .marke { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 560; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.mock .marke::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex: none; }
+.mock .marke.ok { background: var(--ok-weich); color: var(--ok); }
+.mock .marke.warn { background: var(--warn-weich); color: var(--warn); }
+.mock .marke.kritisch { background: var(--critical-weich); color: var(--critical); }
+.mock .marke.neutral { background: var(--accent-weich); color: var(--muted); }
+
+/* Balken */
+.mock .balkenzeile { display: flex; align-items: center; gap: 11px; }
+.mock .balken { flex: 1 1 60px; min-width: 40px; max-width: 150px; height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.mock .balken i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.mock .balken.voll i { background: var(--warn); }
+.mock .balkenwert { flex: none; font-size: 14px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Knöpfe */
+.mock .knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 38px; padding: 8px 17px;
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1.2;
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+  color: var(--text); background: var(--control-bg);
+  border: 1px solid var(--control); border-radius: var(--radius);
+}
+.mock .knopf.wichtig { color: var(--accent-on); background: var(--accent); border-color: var(--accent); }
+.mock .knopf.gefahr { color: var(--critical); border-color: var(--critical); background: transparent; }
+.mock .knopfreihe { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* Felder */
+.mock .feld { display: flex; flex-direction: column; gap: 6px; }
+.mock .feld > span { font-size: 13.5px; color: var(--muted); font-weight: 520; }
+.mock .feld input, .mock .feld select, .mock .feld textarea {
+  padding: 9px 12px; min-height: 38px; font: inherit; font-size: 15px;
+  color: var(--text); background: var(--control-bg);
+  border: 1px solid var(--control); border-radius: var(--radius);
+}
+.mock .hinweis { font-size: 13px; color: var(--muted); line-height: 1.45; max-width: 62ch; margin: 0; }
+
+/* Beschreibungsliste */
+.mock dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 24px; margin: 0; font-size: 14.5px; }
+.mock dt { color: var(--muted); }
+.mock dd { margin: 0; color: var(--strong); }
+
+/* Kachelzahl */
+.mock .kl { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 620; }
+.mock .kw { font-size: 34px; font-weight: 640; letter-spacing: -0.03em; color: var(--strong); line-height: 1.05; margin-top: 6px; display: flex; align-items: baseline; gap: 5px; }
+.mock .kw small { font-size: 14px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.mock .ks { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.mock .spark { height: 46px; margin-top: 12px; }
+.mock .spark svg { display: block; width: 100%; height: 46px; }
+
+/* ── A: Kopfleiste statt Seitenleiste ─────────────────────────────────── */
+.v-a .kopfband { background: var(--top-bg); color: var(--top-text); display: flex; align-items: center; gap: 26px; padding: 0 22px; flex-wrap: wrap; }
+.v-a .zeichen { display: flex; align-items: center; gap: 10px; padding: 13px 0; flex: none; }
+.v-a .zeichen svg { width: 24px; height: 24px; }
+.v-a .zeichen b { font-size: 16px; letter-spacing: -0.015em; font-weight: 660; }
+.v-a .hauptnav { display: flex; gap: 3px; flex: 1; flex-wrap: wrap; }
+.v-a .hauptnav a { padding: 9px 14px; border-radius: var(--radius); text-decoration: none; color: var(--top-muted); font-size: 14.5px; font-weight: 540; }
+.v-a .hauptnav a.aktiv { background: rgb(255 255 255 / 0.13); color: var(--top-text); font-weight: 640; }
+.v-a .kopfrechts { display: flex; align-items: center; gap: 16px; font-size: 13.5px; color: var(--top-muted); flex: none; }
+.v-a .kopfrechts .konto { color: var(--top-text); font-weight: 560; }
+
+.v-a .kontextband { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 18px 24px; background: var(--sheet); border-bottom: 1px solid var(--line); }
+.v-a .inhalt { padding: 22px 24px 30px; }
+
+.v-a .bereiche { display: flex; flex-wrap: wrap; gap: var(--gap); }
+.v-a .blatt { flex: 1 1 380px; min-width: 0; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius-blatt); padding: 20px 22px 18px; }
+.v-a .weit { flex-basis: 620px; }
+.v-a .voll { flex-basis: 100%; }
+.v-a .bkopf { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.v-a .kacheln { display: flex; flex-wrap: wrap; gap: var(--gap); margin-bottom: var(--gap); }
+.v-a .kachel { flex: 1 1 220px; min-width: 0; background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius-blatt); padding: 18px 20px 16px; }
+
+/* ── B: ruhiges Rail, keine Karten ────────────────────────────────────── */
+.v-b { display: grid; grid-template-columns: 236px 1fr; }
+.v-b .rail { background: var(--plane); border-right: 1px solid var(--line); padding: 22px 16px; display: flex; flex-direction: column; }
+.v-b .zeichen { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+.v-b .zeichen svg { width: 24px; height: 24px; }
+.v-b .zeichen b { font-size: 16px; font-weight: 660; letter-spacing: -0.015em; color: var(--strong); }
+.v-b .navliste { display: flex; flex-direction: column; gap: 2px; }
+.v-b .gruppe { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 640; margin: 22px 0 7px 12px; }
+.v-b .navliste a { padding: 9px 12px; border-radius: var(--radius); text-decoration: none; color: var(--text); font-size: 14.5px; display: block; }
+.v-b .navliste a.aktiv { background: var(--accent-weich); color: var(--accent); font-weight: 620; }
+.v-b .railfuss { margin-top: auto; padding-top: 22px; font-size: 13px; color: var(--muted); }
+
+.v-b .inhalt { padding: 26px 32px 34px; min-width: 0; }
+.v-b .seitenkopf { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
+
+/*
+ * Kein Blatt, keine Karte: Ein Bereich ist eine Überschrift mit einer
+ * Haarlinie und dem, was darunter steht. Das ist der eigentliche Unterschied
+ * zu A — und der Grund, warum hier mehr Zeilen auf einen Bildschirm gehen.
+ */
+.v-b .bereiche { display: flex; flex-wrap: wrap; gap: 30px 44px; }
+.v-b .bereich { flex: 1 1 400px; min-width: 0; }
+.v-b .weit { flex-basis: 640px; }
+.v-b .voll { flex-basis: 100%; }
+.v-b .bkopf { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding-bottom: 9px; border-bottom: 2px solid var(--strong); margin-bottom: 4px; }
+.v-b .kacheln { display: flex; flex-wrap: wrap; gap: 0; margin-bottom: 30px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.v-b .kachel { flex: 1 1 200px; min-width: 0; padding: 18px 24px 18px 0; }
+.v-b .kachel + .kachel { border-left: 1px solid var(--line); padding-left: 24px; }
+
+/* ── Die schmale Fläche: derselbe Bau, eine Spalte ────────────────────── */
+.schmal .mock { font-size: 15px; }
+.schmal .v-a .hauptnav, .schmal .v-a .kopfrechts { display: none; }
+.schmal .v-b { display: flex; flex-direction: column; }
+.schmal .v-b .rail { display: none; }
+.schmal .mock .striche { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; flex: none; }
+
+/*
+ * **Das Zeichen verschwindet neben dem Menüknopf, und zwar zwangsläufig.**
+ *
+ * Aufgefallen in der ersten Aufnahme bei 390 px: In der Kopfzeile stand
+ * „≡ ≡ SrvPanel". Das Zeichen sind drei gestapelte Balken — und der
+ * Menüknopf ist dasselbe Bild. Nebeneinander sind sie nicht zu
+ * unterscheiden; man sieht zwei Menüknöpfe und drückt auf den falschen.
+ *
+ * Das ist keine Eigenheit dieses Entwurfs, sondern eine Eigenschaft des
+ * Zeichens: Es verträgt keinen Hamburger neben sich. Bei Leitstand fiel es
+ * nie auf, weil das Zeichen in der Seitenleiste sass und der Menüknopf in
+ * der Kopfzeile — sie standen nie zusammen.
+ *
+ * Antwort hier: In der schmalen Kopfzeile trägt der Menüknopf allein, und
+ * die Marke steht als Schriftzug. Im Reiter des Browsers bleibt das Zeichen,
+ * und darum geht es dort (§7.2, „Reiter und Seitenleiste zeigen dasselbe").
+ */
+.schmal .v-a .zeichen svg { display: none; }
+.schmal .v-a .kopfband { padding: 0 14px; gap: 12px; }
+.schmal .v-a .zeichen { padding: 12px 0; }
+.schmal .v-a .kontextband { padding: 14px 16px; }
+.schmal .v-a .inhalt { padding: 16px; }
+.schmal .v-a .blatt, .schmal .v-a .weit, .schmal .v-a .voll, .schmal .v-a .kachel { flex-basis: 100%; }
+.schmal .v-b .topbar { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--plane); border-bottom: 1px solid var(--line); color: var(--strong); }
+.schmal .v-b .topbar b { font-size: 16px; font-weight: 660; }
+.schmal .v-b .inhalt { padding: 18px 16px 26px; }
+.schmal .v-b .bereich, .schmal .v-b .weit, .schmal .v-b .voll { flex-basis: 100%; }
+.schmal .v-b .kachel + .kachel { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); }
+.schmal .mock h3 { font-size: 21px; }
+.schmal .mock td { height: auto; }
+.v-b .topbar { display: none; }
+
+/* Gestapelte Tabelle — das Muster aus docs/24 §5 bleibt in beiden Entwürfen. */
+.schmal .mock table.stapelt thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.schmal .mock table.stapelt, .schmal .mock table.stapelt tbody, .schmal .mock table.stapelt tr, .schmal .mock table.stapelt td { display: block; width: 100%; }
+.schmal .mock table.stapelt tr { padding: 12px 14px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: var(--radius); }
+.schmal .v-a table.stapelt tr { background: var(--bg); }
+.schmal .mock table.stapelt tr:last-child { margin-bottom: 0; }
+.schmal .mock table.stapelt td { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 5px 0; border: 0; text-align: right; }
+.schmal .mock table.stapelt td::before { content: attr(data-spalte); flex: none; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 620; text-align: left; }
+</style>
+
+<div class="wrap">
+
+<p class="eyebrow">SrvPanel · Entwurf · August 2026</p>
+<h1>Zwei Richtungen ohne Leitstand</h1>
+<div class="lede">
+  <p>„Leitstand" fällt. Nicht seine Umsetzung, sondern seine Grundannahme:
+  dunkel, dicht, instrumentenhaft, Amber als einzige Farbe, jede Zahl in
+  Monospace. Der Kostenvermerk von damals sagt genau das, was heute stört —
+  <i>„Für Kunden ohne Serverwissen wirkt es schnell nach Werkzeug statt nach
+  Dienstleistung"</i> und <i>„Dichte verzeiht keine langen Texte"</i>.</p>
+
+  <p>Die eigentliche Aufgabe ist damit gestellt, und sie ist nicht trivial:
+  <b>Freundlichkeit ohne Verlust an Zeilen.</b> Der naheliegende Gegenentwurf —
+  „Werkstatt", hell und luftig — war 2026 mit demselben Verfahren schon
+  verworfen worden, und der Vermerk dort lautet <i>„deutlich weniger Zeilen je
+  Bildschirm — bei 50 Abonnements wird gescrollt"</i>. Wer Dichte gegen Luft
+  tauscht, hat nichts gewonnen.</p>
+
+  <p class="dim">Beide Entwürfe unten beantworten das anders. <b>A</b> holt die
+  Fläche baulich zurück: Die Seitenleiste verschwindet, die Navigation liegt
+  oben, der Inhalt bekommt jedes Pixel. <b>B</b> holt sie typografisch zurück:
+  Es gibt keine Karten, also auch keinen Innenabstand, den jede Karte kostet —
+  die Ordnung kommt aus Schriftgrad, Weißraum und Haarlinien.</p>
+
+  <p class="dim">Beide sind <b>hell entworfen und dunkel mitgeführt</b>; diese
+  Seite zeigt beide Themes. Jeder Farbwert ist gerechnet: 4,5:1 für Text,
+  3:1 für die Grenze eines Bedienelements.</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ A -->
+<div class="abschnitt">
+  <div class="kopfzeile">
+    <div class="txt">
+      <p class="eyebrow" style="margin-bottom:6px">Richtung A</p>
+      <h2>Werkbank</h2>
+      <p class="these">Die Navigation liegt oben, nicht daneben. Warmes Papier,
+      weiße Blätter mit weichen Ecken, ein Petrol als einzige tragende Farbe.
+      Monospace nur noch da, wo etwas eine Kennung ist. Ein Panel, das nach
+      Werkzeug aussieht, aber nach einem, das man gern in die Hand nimmt.</p>
+    </div>
+    <div class="fakten">
+      <div><b>Bruch</b>baulich</div>
+      <div><b>Dichte</b>hoch</div>
+      <div><b>Trennung</b>Blätter, 13 px</div>
+      <div><b>Ziffern</b>Grotesk, tabellarisch</div>
+      <div><b>Palette</b>
+        <span class="sw"><i style="background:#123f39"></i><i style="background:#f5f2ec"></i><i style="background:#ffffff"></i><i style="background:#0e6455"></i><i style="background:#a5311e"></i></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pro">
+    <div><h4>Spricht dafür</h4><ul>
+      <li><b>232 px mehr Inhalt auf jeder Seite</b> — die Seitenleiste kostet nichts mehr</li>
+      <li>Die Kopfleiste trägt Serverkennung und Konto dauerhaft sichtbar</li>
+      <li>Warm und gerundet, ohne Zeilen zu verlieren: Die Dichte sitzt in der Tabelle, die Freundlichkeit in Fläche und Ecke</li>
+      <li>Auf dem Telefon wird die Kopfleiste zur Kopfzeile — dieselbe Leiste, kein zweiter Bau</li>
+    </ul></div>
+    <div><h4>Kostet</h4><ul>
+      <li><b>Zwölf Menüpunkte passen nicht waagerecht.</b> „Einstellungen" wird ein Aufklappmenü — eine Ebene mehr</li>
+      <li>Wo man ist, steht oben und nicht links; bei tiefen Seiten braucht es eine Pfadleiste</li>
+      <li>Blätter kosten Innenabstand — pro Bereich rund 40 px, die B nicht ausgibt</li>
+    </ul></div>
+  </div>
+
+  <p class="caption"><b>Adminübersicht.</b> Die Kopfleiste trägt alles, was
+  sonst links stand. Darunter eine helle Kontextleiste mit Seitentitel,
+  Serverkennung und der Hauptaktion.</p>
+
+  <div class="rahmen"><div class="mock v-a">
+    <div class="kopfband">
+      <div class="zeichen">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="4.2" rx="1.4" fill="currentColor"/>
+          <rect x="3" y="10" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".72"/>
+          <rect x="3" y="16" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".44"/>
+        </svg>
+        <b>SrvPanel</b>
+      </div>
+      <nav class="hauptnav">
+        <a class="aktiv" href="#">Übersicht</a>
+        <a href="#">Kunden</a>
+        <a href="#">Pläne</a>
+        <a href="#">Abonnements</a>
+        <a href="#">Domains</a>
+        <a href="#">Vorgänge</a>
+        <a href="#">Protokoll</a>
+        <a href="#">Einstellungen ▾</a>
+      </nav>
+      <div class="kopfrechts">
+        <span class="kennung">srv1.netzhost24.de</span>
+        <span class="konto">P. Fischer</span>
+      </div>
+    </div>
+
+    <div class="kontextband">
+      <div>
+        <h3>Übersicht</h3>
+        <p class="beizeile" style="margin:2px 0 0">Debian 13 · Kernel 6.12 · seit 42 Tagen · Agent erreichbar</p>
+      </div>
+      <div class="knopfreihe">
+        <a class="knopf" href="#">Protokoll</a>
+        <a class="knopf wichtig" href="#">Abonnement anlegen</a>
+      </div>
+    </div>
+
+    <div class="inhalt">
+      <div class="kacheln">
+        <div class="kachel">
+          <div class="kl">CPU</div>
+          <div class="kw">23<small>%</small></div>
+          <div class="ks">4 Kerne · iowait 0,4 %</div>
+          <div class="spark" data-spark="cpu"></div>
+        </div>
+        <div class="kachel">
+          <div class="kl">Arbeitsspeicher</div>
+          <div class="kw">61<small>%</small></div>
+          <div class="ks">9,8 von 16 GB</div>
+          <div class="spark" data-spark="ram"></div>
+        </div>
+        <div class="kachel">
+          <div class="kl">Load</div>
+          <div class="kw">0,84</div>
+          <div class="ks">1,02 · 0,91 · 0,84</div>
+          <div class="spark" data-spark="load"></div>
+        </div>
+        <div class="kachel">
+          <div class="kl">Netz</div>
+          <div class="kw">118<small>Mbit/s</small></div>
+          <div class="ks">ein 84 · aus 34</div>
+          <div class="spark" data-spark="netz"></div>
+        </div>
+        <div class="kachel">
+          <div class="kl">Datenträger</div>
+          <div class="kw">312<small>GB</small></div>
+          <div class="ks">von 480 GB belegt</div>
+          <div class="spark" data-spark="disk"></div>
+        </div>
+      </div>
+
+      <div class="bereiche">
+        <div class="blatt">
+          <div class="bkopf"><h4>Bestand</h4><a class="verweis" href="#">Kunden ansehen</a></div>
+          <table class="paare">
+            <tbody>
+              <tr><td class="name">Kunden</td><td class="zahl" style="text-align:right">14</td><td style="width:1%"><span class="marke warn">1 gesperrt</span></td></tr>
+              <tr><td class="name">Abonnements</td><td class="zahl" style="text-align:right">23</td><td><span class="marke ok">21 aktiv</span></td></tr>
+              <tr><td class="name">Domains</td><td class="zahl" style="text-align:right">61</td><td><span class="marke neutral">2 leiten weiter</span></td></tr>
+              <tr><td class="name">Systembenutzer</td><td class="zahl" style="text-align:right">23</td><td><span class="marke neutral">p1000 – p1022</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="blatt weit">
+          <div class="bkopf">
+            <h4>Am nächsten an der Speichergrenze</h4>
+            <a class="verweis" href="#">Alle Abonnements</a>
+          </div>
+          <table>
+            <thead><tr><th>Abonnement</th><th>Kunde</th><th>Belegt</th><th>Anteil</th></tr></thead>
+            <tbody>
+              <tr><td class="name">schmidt-shop.de</td><td class="stumm">Schmidt Handel</td><td class="zahl">41,2 / 48 GB</td>
+                <td><div class="balkenzeile"><div class="balken voll"><i style="width:86%"></i></div><span class="balkenwert">86 %</span></div></td></tr>
+              <tr><td class="name">kunde-mueller.de</td><td class="stumm">Müller GmbH</td><td class="zahl">12,4 / 25 GB</td>
+                <td><div class="balkenzeile"><div class="balken"><i style="width:50%"></i></div><span class="balkenwert">50 %</span></div></td></tr>
+              <tr><td class="name">foto-lang.de</td><td class="stumm">Lang Fotografie</td><td class="zahl">6,1 / 25 GB</td>
+                <td><div class="balkenzeile"><div class="balken"><i style="width:24%"></i></div><span class="balkenwert">24 %</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="blatt">
+          <div class="bkopf"><h4>Dienste</h4></div>
+          <table class="paare">
+            <tbody>
+              <tr><td class="kennung name">nginx</td><td class="stumm">Webserver</td><td style="text-align:right"><span class="marke ok">active</span></td></tr>
+              <tr><td class="kennung name">php8.3-fpm</td><td class="stumm">PHP FastCGI</td><td style="text-align:right"><span class="marke ok">active</span></td></tr>
+              <tr><td class="kennung name">srvpanel-agentd</td><td class="stumm">Agent</td><td style="text-align:right"><span class="marke ok">active</span></td></tr>
+              <tr><td class="kennung name">fail2ban</td><td class="stumm">Sperrliste</td><td style="text-align:right"><span class="marke neutral">nicht installiert</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="blatt weit">
+          <div class="bkopf"><h4>Dateisysteme</h4><span class="beizeile">Schwelle 90 %</span></div>
+          <table>
+            <thead><tr><th>Einhängepunkt</th><th>Gerät</th><th>Art</th><th>Größe</th><th>Belegt</th></tr></thead>
+            <tbody>
+              <tr><td class="kennung name">/</td><td class="kennung stumm">/dev/sda2</td><td class="stumm">ext4</td><td class="zahl">480 GB</td>
+                <td><div class="balkenzeile"><div class="balken"><i style="width:65%"></i></div><span class="balkenwert">65 %</span></div></td></tr>
+              <tr><td class="kennung name">/var/www/vhosts</td><td class="kennung stumm">/dev/sdb1</td><td class="stumm">ext4</td><td class="zahl">1,8 TB</td>
+                <td><div class="balkenzeile"><div class="balken voll"><i style="width:91%"></i></div><span class="balkenwert">91 %</span></div></td></tr>
+              <tr><td class="kennung name">/boot</td><td class="kennung stumm">/dev/sda1</td><td class="stumm">ext2</td><td class="zahl">512 MB</td>
+                <td><div class="balkenzeile"><div class="balken"><i style="width:31%"></i></div><span class="balkenwert">31 %</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="blatt voll">
+          <div class="bkopf"><h4>Letzte Vorgänge</h4><a class="verweis" href="#">Alle Vorgänge</a></div>
+          <table>
+            <thead><tr><th>Nummer</th><th>Aufgabe</th><th>Gegenstand</th><th>Zustand</th><th>Angelegt</th><th>Dauer</th></tr></thead>
+            <tbody>
+              <tr><td class="kennung">1842</td><td class="name">domain.create</td><td class="kennung stumm">shop.kunde-mueller.de</td><td><span class="marke ok">erfolgreich</span></td><td class="stumm">04.08. 09:12</td><td class="zahl stumm">4,2 s</td></tr>
+              <tr><td class="kennung">1841</td><td class="name">php.switch</td><td class="kennung stumm">foto-lang.de → 8.4</td><td><span class="marke ok">erfolgreich</span></td><td class="stumm">04.08. 08:57</td><td class="zahl stumm">1,8 s</td></tr>
+              <tr><td class="kennung">1840</td><td class="name">subscription.suspend</td><td class="kennung stumm">alte-praxis.de</td><td><span class="marke warn">läuft</span></td><td class="stumm">04.08. 08:41</td><td class="zahl stumm">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <p class="caption"><b>Abonnement.</b> Dieselben sechs Bereiche, die heute
+  untereinander stehen — hier nebeneinander, mit der Hauptaktion in der
+  Kontextleiste statt am Ende des ersten Bereichs.</p>
+
+  <div class="rahmen"><div class="mock v-a">
+    <div class="kopfband">
+      <div class="zeichen">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="4.2" rx="1.4" fill="currentColor"/>
+          <rect x="3" y="10" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".72"/>
+          <rect x="3" y="16" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".44"/>
+        </svg>
+        <b>SrvPanel</b>
+      </div>
+      <nav class="hauptnav">
+        <a href="#">Übersicht</a>
+        <a href="#">Kunden</a>
+        <a href="#">Pläne</a>
+        <a class="aktiv" href="#">Abonnements</a>
+        <a href="#">Domains</a>
+        <a href="#">Vorgänge</a>
+        <a href="#">Protokoll</a>
+        <a href="#">Einstellungen ▾</a>
+      </nav>
+      <div class="kopfrechts">
+        <span class="kennung">srv1.netzhost24.de</span>
+        <span class="konto">P. Fischer</span>
+      </div>
+    </div>
+
+    <div class="kontextband">
+      <div>
+        <p class="beizeile" style="margin:0 0 2px"><a class="verweis" href="#">Abonnements</a> · Müller GmbH</p>
+        <h3>kunde-mueller.de</h3>
+      </div>
+      <div class="knopfreihe">
+        <span class="marke ok" style="font-size:14px;padding:6px 13px">aktiv seit 14.03.2026</span>
+        <a class="knopf" href="#">Sperren</a>
+        <a class="knopf wichtig" href="#">Bearbeiten</a>
+      </div>
+    </div>
+
+    <div class="inhalt">
+      <div class="bereiche">
+        <div class="blatt">
+          <div class="bkopf"><h4>Stammdaten</h4></div>
+          <dl>
+            <dt>Kunde</dt><dd><a class="verweis" href="#">Müller GmbH</a></dd>
+            <dt>Plan</dt><dd>Business M</dd>
+            <dt>Systembenutzer</dt><dd class="kennung">p1004</dd>
+            <dt>Verzeichnis</dt><dd class="kennung">/var/www/vhosts/p1004</dd>
+            <dt>Angelegt</dt><dd>14.03.2026</dd>
+          </dl>
+        </div>
+
+        <div class="blatt">
+          <div class="bkopf"><h4>Speicher</h4></div>
+          <div class="kw" style="margin-top:0">12,4<small>GB von 25 GB</small></div>
+          <div class="balkenzeile" style="margin-top:14px">
+            <div class="balken" style="max-width:none"><i style="width:50%"></i></div>
+            <span class="balkenwert">50 %</span>
+          </div>
+          <p class="hinweis" style="margin-top:12px">Gemessen am 04.08.2026 um 09:15 Uhr.
+          Die Messung läuft im Viertelstundentakt aus der Dateisystem-Quota.</p>
+        </div>
+
+        <div class="blatt">
+          <div class="bkopf"><h4>Freigaben</h4></div>
+          <table class="paare">
+            <tbody>
+              <tr><td>SSH-Zugang</td><td style="text-align:right"><span class="marke ok">frei</span></td></tr>
+              <tr><td>Cron-Aufträge</td><td style="text-align:right"><span class="marke ok">frei</span></td></tr>
+              <tr><td>Eigene PHP-Version</td><td style="text-align:right"><span class="marke ok">frei</span></td></tr>
+              <tr><td>Wildcard-Zertifikat</td><td style="text-align:right"><span class="marke neutral">gesperrt</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="blatt">
+          <div class="bkopf"><h4>Kontingente</h4></div>
+          <table class="paare">
+            <tbody>
+              <tr><td>Domains</td><td class="zahl" style="text-align:right">3 von 10</td><td style="width:1%"></td></tr>
+              <tr><td>Datenbanken</td><td class="zahl" style="text-align:right">2 von 5</td><td></td></tr>
+              <tr><td>Postfächer</td><td class="zahl" style="text-align:right">4 von 25</td><td><span class="marke warn">abweichend</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="blatt voll">
+          <div class="bkopf"><h4>Domains</h4><a class="knopf" href="#">Domain anlegen</a></div>
+          <table>
+            <thead><tr><th>Domain</th><th>Sorte</th><th>PHP</th><th>Zertifikat</th><th>Zustand</th></tr></thead>
+            <tbody>
+              <tr><td class="kennung name"><a class="verweis" href="#">kunde-mueller.de</a></td><td class="stumm">Hauptdomain</td><td class="zahl">8.3</td><td class="stumm">Let’s Encrypt, bis 12.10.</td><td><span class="marke ok">eingerichtet</span></td></tr>
+              <tr><td class="kennung name"><a class="verweis" href="#">www.kunde-mueller.de</a></td><td class="stumm">Alias</td><td class="stumm">leitet weiter</td><td class="stumm">Let’s Encrypt, bis 12.10.</td><td><span class="marke ok">eingerichtet</span></td></tr>
+              <tr><td class="kennung name"><a class="verweis" href="#">shop.kunde-mueller.de</a></td><td class="stumm">Subdomain</td><td class="zahl">8.4</td><td class="stumm">noch keines</td><td><span class="marke warn">wird angelegt</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <p class="caption"><b>390 px.</b> Die Kopfleiste wird zur Kopfzeile mit
+  Schublade — dieselbe Leiste, kein zweiter Bau. Verzeichnisse stapeln
+  (docs/24 §5).</p>
+
+  <div class="nebeneinander">
+    <div class="schmalrahmen schmal"><div class="mock v-a">
+      <div class="kopfband">
+        <svg class="striche" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <div class="zeichen">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="4.2" rx="1.4" fill="currentColor"/>
+            <rect x="3" y="10" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".72"/>
+            <rect x="3" y="16" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".44"/>
+          </svg>
+          <b>SrvPanel</b>
+        </div>
+      </div>
+      <div class="kontextband">
+        <div>
+          <h3>Übersicht</h3>
+          <p class="beizeile" style="margin:2px 0 0">srv1 · Debian 13 · seit 42 Tagen</p>
+        </div>
+      </div>
+      <div class="inhalt">
+        <div class="kacheln">
+          <div class="kachel">
+            <div class="kl">CPU</div><div class="kw">23<small>%</small></div>
+            <div class="ks">4 Kerne · iowait 0,4 %</div>
+            <div class="spark" data-spark="cpu"></div>
+          </div>
+          <div class="kachel">
+            <div class="kl">Arbeitsspeicher</div><div class="kw">61<small>%</small></div>
+            <div class="ks">9,8 von 16 GB</div>
+            <div class="spark" data-spark="ram"></div>
+          </div>
+        </div>
+        <div class="bereiche">
+          <div class="blatt">
+            <div class="bkopf"><h4>Speichergrenze</h4></div>
+            <table class="stapelt">
+              <thead><tr><th>Abonnement</th><th>Belegt</th><th>Anteil</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td data-spalte="Abonnement">schmidt-shop.de</td>
+                  <td data-spalte="Belegt" class="zahl">41,2 / 48 GB</td>
+                  <td data-spalte="Anteil"><span class="marke warn">86 %</span></td>
+                </tr>
+                <tr>
+                  <td data-spalte="Abonnement">kunde-mueller.de</td>
+                  <td data-spalte="Belegt" class="zahl">12,4 / 25 GB</td>
+                  <td data-spalte="Anteil"><span class="marke ok">50 %</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="blatt">
+            <div class="bkopf"><h4>Dienste</h4></div>
+            <table class="stapelt">
+              <thead><tr><th>Unit</th><th>Zustand</th></tr></thead>
+              <tbody>
+                <tr><td data-spalte="Unit" class="kennung">nginx</td><td data-spalte="Zustand"><span class="marke ok">active</span></td></tr>
+                <tr><td data-spalte="Unit" class="kennung">php8.3-fpm</td><td data-spalte="Zustand"><span class="marke ok">active</span></td></tr>
+                <tr><td data-spalte="Unit" class="kennung">fail2ban</td><td data-spalte="Zustand"><span class="marke neutral">nicht installiert</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="schmalrahmen schmal"><div class="mock v-a">
+      <div class="kopfband">
+        <svg class="striche" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <div class="zeichen">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="4.2" rx="1.4" fill="currentColor"/>
+            <rect x="3" y="10" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".72"/>
+            <rect x="3" y="16" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".44"/>
+          </svg>
+          <b>SrvPanel</b>
+        </div>
+      </div>
+      <div class="kontextband">
+        <div>
+          <p class="beizeile" style="margin:0 0 2px">Abonnements · Müller GmbH</p>
+          <h3>kunde-mueller.de</h3>
+        </div>
+      </div>
+      <div class="inhalt">
+        <div class="bereiche">
+          <div class="blatt">
+            <div class="bkopf"><h4>Speicher</h4><span class="marke ok">aktiv</span></div>
+            <div class="kw" style="margin-top:0">12,4<small>GB von 25 GB</small></div>
+            <div class="balkenzeile" style="margin-top:12px">
+              <div class="balken" style="max-width:none"><i style="width:50%"></i></div>
+              <span class="balkenwert">50 %</span>
+            </div>
+          </div>
+          <div class="blatt">
+            <div class="bkopf"><h4>Stammdaten</h4></div>
+            <dl>
+              <dt>Kunde</dt><dd><a class="verweis" href="#">Müller GmbH</a></dd>
+              <dt>Plan</dt><dd>Business M</dd>
+              <dt>Benutzer</dt><dd class="kennung">p1004</dd>
+            </dl>
+            <div class="knopfreihe" style="margin-top:16px">
+              <a class="knopf wichtig" href="#">Bearbeiten</a>
+              <a class="knopf" href="#">Sperren</a>
+            </div>
+          </div>
+          <div class="blatt">
+            <div class="bkopf"><h4>Domain anlegen</h4></div>
+            <div class="feld" style="margin-bottom:12px"><span>Name</span><input value="blog.kunde-mueller.de"></div>
+            <div class="feld" style="margin-bottom:16px"><span>PHP-Version</span><select><option>8.3 (Vorgabe des Plans)</option></select></div>
+            <div class="knopfreihe"><a class="knopf wichtig" href="#">Anlegen</a></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ B -->
+<div class="abschnitt">
+  <div class="kopfzeile">
+    <div class="txt">
+      <p class="eyebrow" style="margin-bottom:6px">Richtung B</p>
+      <h2>Kontor</h2>
+      <p class="these">Keine Karten, keine Flächen, kein Rahmen. Weiß, und die
+      Ordnung kommt aus Schriftgrad, Weißraum und Haarlinien. Ein Rail links,
+      aber in der Farbe der Seite — kein dunkler Block. Indigo als einzige
+      tragende Farbe. Liest sich wie ein gut gesetztes Dokument.</p>
+    </div>
+    <div class="fakten">
+      <div><b>Bruch</b>typografisch</div>
+      <div><b>Dichte</b>hoch</div>
+      <div><b>Trennung</b>Haarlinien</div>
+      <div><b>Ziffern</b>Grotesk, tabellarisch</div>
+      <div><b>Palette</b>
+        <span class="sw"><i style="background:#ffffff"></i><i style="background:#fafafb"></i><i style="background:#3730a3"></i><i style="background:#076e54"></i><i style="background:#ab2b19"></i></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pro">
+    <div><h4>Spricht dafür</h4><ul>
+      <li><b>Die meisten Zeilen je Bildschirm von allen drei Entwürfen</b> — eine Karte kostet rund 40 px Innenabstand, hier gibt es keine</li>
+      <li>Jede neue Seite ist billig: eine Überschrift, eine Linie, Inhalt. Kein Baustein, den man falsch verschachteln kann</li>
+      <li>Sehr ruhig bei langen Texten — Erklärsätze und Hilfen haben endlich einen Ort</li>
+      <li>Druckt und exportiert sich, wie es aussieht</li>
+    </ul></div>
+    <div><h4>Kostet</h4><ul>
+      <li><b>Ohne Karten muss jede Seite ihre Ordnung selbst herstellen</b> — mehr Disziplin, und genau dafür braucht es die Wächter</li>
+      <li>Wirkt nüchterner als A; wer „freundlich" mit „warm" gleichsetzt, findet es kühl</li>
+      <li>Die Seitenleiste kostet weiter 236 px</li>
+    </ul></div>
+  </div>
+
+  <p class="caption"><b>Adminübersicht.</b> Die Kacheln stehen in einer Reihe
+  zwischen zwei Haarlinien statt in fünf Kästen. Bereichsüberschriften tragen
+  eine kräftige Linie — das ist die ganze Gliederung.</p>
+
+  <div class="rahmen"><div class="mock v-b">
+    <aside class="rail">
+      <div class="zeichen">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="4.2" rx="1.4" fill="var(--accent)"/>
+          <rect x="3" y="10" width="18" height="4.2" rx="1.4" fill="currentColor"/>
+          <rect x="3" y="16" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".45"/>
+        </svg>
+        <b>SrvPanel</b>
+      </div>
+      <nav class="navliste">
+        <a class="aktiv" href="#">Übersicht</a>
+        <p class="gruppe">Verwaltung</p>
+        <a href="#">Kunden</a>
+        <a href="#">Pläne</a>
+        <a href="#">Abonnements</a>
+        <a href="#">Domains</a>
+        <p class="gruppe">Server</p>
+        <a href="#">Vorgänge</a>
+        <a href="#">Protokoll</a>
+        <a href="#">PHP-Versionen</a>
+        <a href="#">Mailversand</a>
+        <a href="#">Zertifikat</a>
+        <p class="gruppe">Konto</p>
+        <a href="#">Mein Konto</a>
+      </nav>
+      <div class="railfuss">P. Fischer<br><span style="font-size:12.5px">Quelltext · 0.3.0-rc.5</span></div>
+    </aside>
+
+    <div class="inhalt">
+      <div class="seitenkopf">
+        <div>
+          <h3>Übersicht</h3>
+          <p class="beizeile" style="margin:4px 0 0">
+            <span class="kennung">srv1.netzhost24.de</span> · Debian 13 · Kernel 6.12 · seit 42 Tagen
+          </p>
+        </div>
+        <div class="knopfreihe">
+          <a class="knopf" href="#">Protokoll</a>
+          <a class="knopf wichtig" href="#">Abonnement anlegen</a>
+        </div>
+      </div>
+
+      <div class="kacheln">
+        <div class="kachel">
+          <div class="kl">CPU</div><div class="kw">23<small>%</small></div>
+          <div class="ks">4 Kerne · iowait 0,4 %</div>
+          <div class="spark" data-spark="cpu"></div>
+        </div>
+        <div class="kachel">
+          <div class="kl">Arbeitsspeicher</div><div class="kw">61<small>%</small></div>
+          <div class="ks">9,8 von 16 GB</div>
+          <div class="spark" data-spark="ram"></div>
+        </div>
+        <div class="kachel">
+          <div class="kl">Load</div><div class="kw">0,84</div>
+          <div class="ks">1,02 · 0,91 · 0,84</div>
+          <div class="spark" data-spark="load"></div>
+        </div>
+        <div class="kachel">
+          <div class="kl">Netz</div><div class="kw">118<small>Mbit/s</small></div>
+          <div class="ks">ein 84 · aus 34</div>
+          <div class="spark" data-spark="netz"></div>
+        </div>
+        <div class="kachel">
+          <div class="kl">Datenträger</div><div class="kw">312<small>GB</small></div>
+          <div class="ks">von 480 GB belegt</div>
+          <div class="spark" data-spark="disk"></div>
+        </div>
+      </div>
+
+      <div class="bereiche">
+        <div class="bereich">
+          <div class="bkopf"><h4>Bestand</h4><a class="verweis" href="#">Kunden ansehen</a></div>
+          <table class="paare">
+            <tbody>
+              <tr><td class="name">Kunden</td><td class="zahl" style="text-align:right">14</td><td style="width:1%"><span class="marke warn">1 gesperrt</span></td></tr>
+              <tr><td class="name">Abonnements</td><td class="zahl" style="text-align:right">23</td><td><span class="marke ok">21 aktiv</span></td></tr>
+              <tr><td class="name">Domains</td><td class="zahl" style="text-align:right">61</td><td><span class="marke neutral">2 leiten weiter</span></td></tr>
+              <tr><td class="name">Systembenutzer</td><td class="zahl" style="text-align:right">23</td><td><span class="marke neutral">p1000 – p1022</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bereich weit">
+          <div class="bkopf"><h4>Am nächsten an der Speichergrenze</h4><a class="verweis" href="#">Alle Abonnements</a></div>
+          <table>
+            <thead><tr><th>Abonnement</th><th>Kunde</th><th>Belegt</th><th>Anteil</th></tr></thead>
+            <tbody>
+              <tr><td class="name">schmidt-shop.de</td><td class="stumm">Schmidt Handel</td><td class="zahl">41,2 / 48 GB</td>
+                <td><div class="balkenzeile"><div class="balken voll"><i style="width:86%"></i></div><span class="balkenwert">86 %</span></div></td></tr>
+              <tr><td class="name">kunde-mueller.de</td><td class="stumm">Müller GmbH</td><td class="zahl">12,4 / 25 GB</td>
+                <td><div class="balkenzeile"><div class="balken"><i style="width:50%"></i></div><span class="balkenwert">50 %</span></div></td></tr>
+              <tr><td class="name">foto-lang.de</td><td class="stumm">Lang Fotografie</td><td class="zahl">6,1 / 25 GB</td>
+                <td><div class="balkenzeile"><div class="balken"><i style="width:24%"></i></div><span class="balkenwert">24 %</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bereich">
+          <div class="bkopf"><h4>Dienste</h4></div>
+          <table class="paare">
+            <tbody>
+              <tr><td class="kennung name">nginx</td><td class="stumm">Webserver</td><td style="text-align:right"><span class="marke ok">active</span></td></tr>
+              <tr><td class="kennung name">php8.3-fpm</td><td class="stumm">PHP FastCGI</td><td style="text-align:right"><span class="marke ok">active</span></td></tr>
+              <tr><td class="kennung name">srvpanel-agentd</td><td class="stumm">Agent</td><td style="text-align:right"><span class="marke ok">active</span></td></tr>
+              <tr><td class="kennung name">fail2ban</td><td class="stumm">Sperrliste</td><td style="text-align:right"><span class="marke neutral">nicht installiert</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bereich weit">
+          <div class="bkopf"><h4>Dateisysteme</h4><span class="beizeile">Schwelle 90 %</span></div>
+          <table>
+            <thead><tr><th>Einhängepunkt</th><th>Gerät</th><th>Art</th><th>Größe</th><th>Belegt</th></tr></thead>
+            <tbody>
+              <tr><td class="kennung name">/</td><td class="kennung stumm">/dev/sda2</td><td class="stumm">ext4</td><td class="zahl">480 GB</td>
+                <td><div class="balkenzeile"><div class="balken"><i style="width:65%"></i></div><span class="balkenwert">65 %</span></div></td></tr>
+              <tr><td class="kennung name">/var/www/vhosts</td><td class="kennung stumm">/dev/sdb1</td><td class="stumm">ext4</td><td class="zahl">1,8 TB</td>
+                <td><div class="balkenzeile"><div class="balken voll"><i style="width:91%"></i></div><span class="balkenwert">91 %</span></div></td></tr>
+              <tr><td class="kennung name">/boot</td><td class="kennung stumm">/dev/sda1</td><td class="stumm">ext2</td><td class="zahl">512 MB</td>
+                <td><div class="balkenzeile"><div class="balken"><i style="width:31%"></i></div><span class="balkenwert">31 %</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bereich voll">
+          <div class="bkopf"><h4>Letzte Vorgänge</h4><a class="verweis" href="#">Alle Vorgänge</a></div>
+          <table>
+            <thead><tr><th>Nummer</th><th>Aufgabe</th><th>Gegenstand</th><th>Zustand</th><th>Angelegt</th><th>Dauer</th></tr></thead>
+            <tbody>
+              <tr><td class="kennung">1842</td><td class="name">domain.create</td><td class="kennung stumm">shop.kunde-mueller.de</td><td><span class="marke ok">erfolgreich</span></td><td class="stumm">04.08. 09:12</td><td class="zahl stumm">4,2 s</td></tr>
+              <tr><td class="kennung">1841</td><td class="name">php.switch</td><td class="kennung stumm">foto-lang.de → 8.4</td><td><span class="marke ok">erfolgreich</span></td><td class="stumm">04.08. 08:57</td><td class="zahl stumm">1,8 s</td></tr>
+              <tr><td class="kennung">1840</td><td class="name">subscription.suspend</td><td class="kennung stumm">alte-praxis.de</td><td><span class="marke warn">läuft</span></td><td class="stumm">04.08. 08:41</td><td class="zahl stumm">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <p class="caption"><b>Abonnement.</b> Ohne Karten rücken die Bereiche
+  zusammen: dasselbe Material auf deutlich weniger Höhe.</p>
+
+  <div class="rahmen"><div class="mock v-b">
+    <aside class="rail">
+      <div class="zeichen">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="4.2" rx="1.4" fill="var(--accent)"/>
+          <rect x="3" y="10" width="18" height="4.2" rx="1.4" fill="currentColor"/>
+          <rect x="3" y="16" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".45"/>
+        </svg>
+        <b>SrvPanel</b>
+      </div>
+      <nav class="navliste">
+        <a href="#">Übersicht</a>
+        <p class="gruppe">Konto</p>
+        <a class="aktiv" href="#">Abonnements</a>
+        <a href="#">Vorgänge</a>
+        <a href="#">Protokoll</a>
+        <a href="#">Mein Konto</a>
+      </nav>
+      <div class="railfuss">A. Müller<br><span style="font-size:12.5px">Quelltext · 0.3.0-rc.5</span></div>
+    </aside>
+
+    <div class="inhalt">
+      <div class="seitenkopf">
+        <div>
+          <p class="beizeile" style="margin:0 0 4px"><a class="verweis" href="#">Abonnements</a> · Müller GmbH</p>
+          <h3>kunde-mueller.de</h3>
+        </div>
+        <div class="knopfreihe">
+          <span class="marke ok" style="font-size:14px;padding:6px 13px">aktiv seit 14.03.2026</span>
+          <a class="knopf" href="#">Sperren</a>
+          <a class="knopf wichtig" href="#">Bearbeiten</a>
+        </div>
+      </div>
+
+      <div class="bereiche">
+        <div class="bereich">
+          <div class="bkopf"><h4>Stammdaten</h4></div>
+          <dl style="margin-top:14px">
+            <dt>Kunde</dt><dd><a class="verweis" href="#">Müller GmbH</a></dd>
+            <dt>Plan</dt><dd>Business M</dd>
+            <dt>Systembenutzer</dt><dd class="kennung">p1004</dd>
+            <dt>Verzeichnis</dt><dd class="kennung">/var/www/vhosts/p1004</dd>
+            <dt>Angelegt</dt><dd>14.03.2026</dd>
+          </dl>
+        </div>
+
+        <div class="bereich">
+          <div class="bkopf"><h4>Speicher</h4></div>
+          <div class="kw" style="margin-top:14px">12,4<small>GB von 25 GB</small></div>
+          <div class="balkenzeile" style="margin-top:14px">
+            <div class="balken" style="max-width:none"><i style="width:50%"></i></div>
+            <span class="balkenwert">50 %</span>
+          </div>
+          <p class="hinweis" style="margin-top:12px">Gemessen am 04.08.2026 um 09:15 Uhr.
+          Die Messung läuft im Viertelstundentakt aus der Dateisystem-Quota.</p>
+        </div>
+
+        <div class="bereich">
+          <div class="bkopf"><h4>Freigaben</h4></div>
+          <table class="paare">
+            <tbody>
+              <tr><td>SSH-Zugang</td><td style="text-align:right"><span class="marke ok">frei</span></td></tr>
+              <tr><td>Cron-Aufträge</td><td style="text-align:right"><span class="marke ok">frei</span></td></tr>
+              <tr><td>Eigene PHP-Version</td><td style="text-align:right"><span class="marke ok">frei</span></td></tr>
+              <tr><td>Wildcard-Zertifikat</td><td style="text-align:right"><span class="marke neutral">gesperrt</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bereich">
+          <div class="bkopf"><h4>Kontingente</h4></div>
+          <table class="paare">
+            <tbody>
+              <tr><td>Domains</td><td class="zahl" style="text-align:right">3 von 10</td><td style="width:1%"></td></tr>
+              <tr><td>Datenbanken</td><td class="zahl" style="text-align:right">2 von 5</td><td></td></tr>
+              <tr><td>Postfächer</td><td class="zahl" style="text-align:right">4 von 25</td><td><span class="marke warn">abweichend</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bereich voll">
+          <div class="bkopf"><h4>Domains</h4><a class="knopf" href="#">Domain anlegen</a></div>
+          <table>
+            <thead><tr><th>Domain</th><th>Sorte</th><th>PHP</th><th>Zertifikat</th><th>Zustand</th></tr></thead>
+            <tbody>
+              <tr><td class="kennung name"><a class="verweis" href="#">kunde-mueller.de</a></td><td class="stumm">Hauptdomain</td><td class="zahl">8.3</td><td class="stumm">Let’s Encrypt, bis 12.10.</td><td><span class="marke ok">eingerichtet</span></td></tr>
+              <tr><td class="kennung name"><a class="verweis" href="#">www.kunde-mueller.de</a></td><td class="stumm">Alias</td><td class="stumm">leitet weiter</td><td class="stumm">Let’s Encrypt, bis 12.10.</td><td><span class="marke ok">eingerichtet</span></td></tr>
+              <tr><td class="kennung name"><a class="verweis" href="#">shop.kunde-mueller.de</a></td><td class="stumm">Subdomain</td><td class="zahl">8.4</td><td class="stumm">noch keines</td><td><span class="marke warn">wird angelegt</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <p class="caption"><b>390 px.</b> Das Rail wird zur Schublade. Ohne Karten
+  bleibt auf dem Telefon mehr übrig — das ist dort am deutlichsten zu sehen.</p>
+
+  <div class="nebeneinander">
+    <div class="schmalrahmen schmal"><div class="mock v-b">
+      <div class="topbar">
+        <svg class="striche" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <b>Übersicht</b>
+      </div>
+      <div class="inhalt">
+        <div class="seitenkopf" style="padding-bottom:14px;margin-bottom:18px">
+          <p class="beizeile" style="margin:0"><span class="kennung">srv1</span> · Debian 13 · seit 42 Tagen</p>
+        </div>
+        <div class="kacheln">
+          <div class="kachel">
+            <div class="kl">CPU</div><div class="kw">23<small>%</small></div>
+            <div class="ks">4 Kerne · iowait 0,4 %</div>
+            <div class="spark" data-spark="cpu"></div>
+          </div>
+          <div class="kachel">
+            <div class="kl">Arbeitsspeicher</div><div class="kw">61<small>%</small></div>
+            <div class="ks">9,8 von 16 GB</div>
+            <div class="spark" data-spark="ram"></div>
+          </div>
+        </div>
+        <div class="bereiche">
+          <div class="bereich">
+            <div class="bkopf"><h4>Speichergrenze</h4></div>
+            <table class="stapelt" style="margin-top:12px">
+              <thead><tr><th>Abonnement</th><th>Belegt</th><th>Anteil</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td data-spalte="Abonnement">schmidt-shop.de</td>
+                  <td data-spalte="Belegt" class="zahl">41,2 / 48 GB</td>
+                  <td data-spalte="Anteil"><span class="marke warn">86 %</span></td>
+                </tr>
+                <tr>
+                  <td data-spalte="Abonnement">kunde-mueller.de</td>
+                  <td data-spalte="Belegt" class="zahl">12,4 / 25 GB</td>
+                  <td data-spalte="Anteil"><span class="marke ok">50 %</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="bereich">
+            <div class="bkopf"><h4>Dienste</h4></div>
+            <table class="stapelt" style="margin-top:12px">
+              <thead><tr><th>Unit</th><th>Zustand</th></tr></thead>
+              <tbody>
+                <tr><td data-spalte="Unit" class="kennung">nginx</td><td data-spalte="Zustand"><span class="marke ok">active</span></td></tr>
+                <tr><td data-spalte="Unit" class="kennung">php8.3-fpm</td><td data-spalte="Zustand"><span class="marke ok">active</span></td></tr>
+                <tr><td data-spalte="Unit" class="kennung">fail2ban</td><td data-spalte="Zustand"><span class="marke neutral">nicht installiert</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="schmalrahmen schmal"><div class="mock v-b">
+      <div class="topbar">
+        <svg class="striche" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <b>kunde-mueller.de</b>
+      </div>
+      <div class="inhalt">
+        <div class="seitenkopf" style="padding-bottom:14px;margin-bottom:18px">
+          <p class="beizeile" style="margin:0">Abonnements · Müller GmbH</p>
+          <span class="marke ok">aktiv</span>
+        </div>
+        <div class="bereiche">
+          <div class="bereich">
+            <div class="bkopf"><h4>Speicher</h4></div>
+            <div class="kw" style="margin-top:12px">12,4<small>GB von 25 GB</small></div>
+            <div class="balkenzeile" style="margin-top:12px">
+              <div class="balken" style="max-width:none"><i style="width:50%"></i></div>
+              <span class="balkenwert">50 %</span>
+            </div>
+          </div>
+          <div class="bereich">
+            <div class="bkopf"><h4>Stammdaten</h4></div>
+            <dl style="margin-top:12px">
+              <dt>Kunde</dt><dd><a class="verweis" href="#">Müller GmbH</a></dd>
+              <dt>Plan</dt><dd>Business M</dd>
+              <dt>Benutzer</dt><dd class="kennung">p1004</dd>
+            </dl>
+            <div class="knopfreihe" style="margin-top:16px">
+              <a class="knopf wichtig" href="#">Bearbeiten</a>
+              <a class="knopf" href="#">Sperren</a>
+            </div>
+          </div>
+          <div class="bereich">
+            <div class="bkopf"><h4>Domain anlegen</h4></div>
+            <div class="feld" style="margin:14px 0 12px"><span>Name</span><input value="blog.kunde-mueller.de"></div>
+            <div class="feld" style="margin-bottom:16px"><span>PHP-Version</span><select><option>8.3 (Vorgabe des Plans)</option></select></div>
+            <div class="knopfreihe"><a class="knopf wichtig" href="#">Anlegen</a></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ Vergleich -->
+<div class="abschnitt">
+  <h2>Was beide gemeinsam haben — und worin sie sich unterscheiden</h2>
+
+  <table class="doku">
+    <tr><th style="width:22%"></th><th style="width:39%">A — Werkbank</th><th>B — Kontor</th></tr>
+    <tr><td><b>Der Bruch</b></td>
+      <td>baulich: keine Seitenleiste, Navigation oben</td>
+      <td>typografisch: keine Karten, Ordnung aus Schrift und Linie</td></tr>
+    <tr><td><b>Grundfläche</b></td>
+      <td>warmes Papier <code>#f5f2ec</code>, Blätter in Weiß</td>
+      <td>Weiß <code>#ffffff</code>, ein ruhiges Rail in <code>#fafafb</code></td></tr>
+    <tr><td><b>Tragende Farbe</b></td>
+      <td>Petrol <code>#0e6455</code> · Kopfleiste <code>#123f39</code></td>
+      <td>Indigo <code>#3730a3</code></td></tr>
+    <tr><td><b>Radius</b></td>
+      <td>9 px an Bedienelementen, 13 px an Blättern</td>
+      <td>5 px, sparsam — die Form trägt hier nichts</td></tr>
+    <tr><td><b>Breite für Inhalt</b></td>
+      <td class="gut">volle Fensterbreite</td>
+      <td>Fensterbreite minus 236 px</td></tr>
+    <tr><td><b>Zeilen je Bildschirm</b></td>
+      <td>hoch — Blätter kosten je Bereich rund 40 px</td>
+      <td class="gut">am höchsten</td></tr>
+    <tr><td><b>Wo man ist</b></td>
+      <td>oben in der Kopfleiste, dazu eine Pfadleiste</td>
+      <td class="gut">links, dauerhaft, ohne Aufklappmenü</td></tr>
+    <tr><td><b>Zwölf Menüpunkte</b></td>
+      <td class="schlecht">passen nicht waagerecht — „Einstellungen ▾" wird ein Menü</td>
+      <td class="gut">passen mit Gruppen</td></tr>
+    <tr><td><b>Wirkung</b></td>
+      <td>warm, zupackend, nach Werkzeug</td>
+      <td>ruhig, sachlich, nach Dokument</td></tr>
+  </table>
+
+  <h2 style="margin-top:40px">In beiden gleich — und in beiden anders als bisher</h2>
+  <table class="doku">
+    <tr><th style="width:30%">Was</th><th>Warum</th></tr>
+    <tr><td><b>Monospace nur für Kennungen</b></td>
+      <td>Pfad, Unit, Systembenutzer, Befehl, Vorgangsnummer. <b>Nicht</b> für jede Zahl —
+        das war Leitstand, und es hat jede Tabelle wie ein Terminal aussehen lassen.
+        Zahlen stehen trotzdem spaltengenau untereinander: <code>font-variant-numeric: tabular-nums</code>
+        leistet das in jeder Grotesk.</td></tr>
+    <tr><td><b>Zustand ist eine Marke mit Wort</b></td>
+      <td>Punkt und Wort, nie Farbe allein. „aktiv", „läuft", „nicht installiert" —
+        acht Prozent der männlichen Nutzer lesen eine rote Fläche nicht.</td></tr>
+    <tr><td><b>Hell entworfen, dunkel mitgeführt</b></td>
+      <td>Umgekehrt zu Leitstand. Der Charakter entsteht im Hellen; das dunkle Theme
+        ist eine eigene Rechnung und keine Umkehrung.</td></tr>
+    <tr><td><b>Zwei Haltepunkte, kein dritter</b></td>
+      <td>720 px und 480 px, wie docs/24 es festlegt. Beide Entwürfe brechen über
+        Flexbox um, statt Spalten zu zählen — deshalb kommen sie ohne dritten aus.</td></tr>
+    <tr><td><b>Keine nachgeladene Schrift</b></td>
+      <td>System-Grotesk. Eine Schrift, die nicht ankommt, ist eine Oberfläche, die
+        anders aussieht als geplant — die einzige Regel aus §7.2, die ungeprüft
+        weitergilt.</td></tr>
+  </table>
+</div>
+
+</div>
+
+<script>
+/*
+ * Die Verlaufskurven. Feste Stützstellen und kein Zufall: Ein Entwurf, der
+ * sich bei jedem Neuladen anders zeichnet, lässt sich nicht mit dem
+ * vorherigen vergleichen.
+ */
+const reihen = {
+  cpu:  [31,28,34,22,19,24,29,41,37,26,21,18,23,27,25,19,22,26,31,23],
+  ram:  [54,55,56,56,58,57,59,60,61,60,62,61,63,62,61,60,61,62,61,61],
+  load: [0.6,0.7,0.9,1.4,1.1,0.8,0.7,0.9,1.2,1.0,0.8,0.7,0.6,0.8,0.9,1.1,0.9,0.8,0.9,0.84],
+  netz: [42,58,96,140,118,84,66,72,110,132,98,76,64,88,124,118,92,80,104,118],
+  disk: [59,59,60,60,61,61,62,62,63,63,63,64,64,64,65,65,65,65,65,65],
+}
+
+for (const feld of document.querySelectorAll('[data-spark]')) {
+  const werte = reihen[feld.dataset.spark]
+  const hoch = Math.max(...werte), tief = Math.min(...werte)
+  const spanne = hoch - tief || 1
+
+  const punkte = werte.map((v, i) => [
+    (i / (werte.length - 1)) * 100,
+    30 - ((v - tief) / spanne) * 26,
+  ])
+
+  const linie = punkte.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ')
+  const [ex, ey] = punkte[punkte.length - 1]
+
+  feld.innerHTML =
+    `<svg viewBox="0 0 100 32" preserveAspectRatio="none">
+       <path d="${linie} L100 32 L0 32 Z" fill="var(--accent)" opacity=".10"/>
+       <path d="${linie}" fill="none" stroke="var(--accent)" stroke-width="1.7"
+             stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+       <circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="2" fill="var(--accent)"/>
+     </svg>`
+}
+</script>

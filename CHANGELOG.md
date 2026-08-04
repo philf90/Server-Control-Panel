@@ -1092,3 +1092,41 @@ genau deshalb war jetzt der Zeitpunkt.
   Datei ausgibt, an die niemand hätte kommen dürfen. `WebIsolationProbeTest`
   deckt beides ab, samt der Reihenfolge: Die Konfiguration fällt vor dem
   Verzeichnis.
+
+### Freigaben bleiben in der Beta-Phase
+
+- **Vorgabe: Solange die Entwicklung läuft, erscheint jede Fassung als
+  `X.Y.Z-rc.N` im Kanal `beta`.** Das war vorher schon so gemeint und an
+  nichts geprüft. Der Freigabelauf leitete den Kanal aus einem Bindestrich in
+  der Fassung ab — als Regel richtig, als Wächter nichts wert: Ein Tag `v0.3.0`
+  statt `v0.3.0-rc.1` bricht nichts ab. Der Lauf wird grün, das Paket wird
+  gebaut, signiert und veröffentlicht, nur eben im falschen Kanal. **Beide
+  Hälften des Fehlers sind still:** Die Server im Beta-Kanal sehen das Paket
+  nie und `srvpanel update` meldet „nichts Neues"; die Server im Stable-Kanal
+  bekommen ein Panel angeboten, dessen Abnahmelauf nie gelaufen ist.
+- **`packaging/version-channel.sh`** beantwortet die Frage jetzt an einer
+  Stelle und weist ab, was nicht der Vorgabe entspricht — als erster Schritt
+  des Freigabelaufs, vor dem Bauen und vor jeder Signatur. Geprüft wird auch
+  die Form: Aus dem Tag `v.0.3.0-rc.1` würde die Fassung `.0.3.0-rc.1`, dpkg
+  verlangt vorn eine Ziffer, und der Lauf bräche sonst erst beim Paketbau ab —
+  nach dem Tag, den man ungern zurücknimmt.
+- **Der Kanal wird nur noch einmal bestimmt.** Vorher stand die Ableitung
+  zweimal da: einmal für das `--prerelease` des GitHub-Release, einmal für die
+  Paketquelle. Zwei Stellen, die dieselbe Frage beantworten, geben irgendwann
+  zwei Antworten — und dann liegt das Paket im einen Kanal und ist im anderen
+  als Vorabfassung ausgewiesen.
+- **Der Ausgang aus der Beta-Phase ist `packaging/stable-release`** und nennt
+  eine Fassung namentlich, nicht einen Schalter „stabil erlaubt". Ein Schalter
+  wäre einmal umgelegt und danach ein Freibrief für jeden weiteren Tag. Ohne
+  diesen Weg hiesse die erste stabile Freigabe, dass jemand den Wächter
+  entfernt — und ein entfernter Wächter nimmt seinen Test mit.
+- **`ReleaseChannelTest` fährt das Skript mit einer Tabelle durch**, und das
+  ist der Grund für den Umweg über ein Skript: Ein Wächter, der nur in
+  `release.yml` stünde, liesse sich nicht gegenprüfen — man müsste einen Tag
+  pushen, um ihn brechen zu sehen. Alle acht Gegenproben haben zugebissen,
+  darunter die entfernte rc-Pflicht, die zum Freibrief gewordene Marke und der
+  aus `release.yml` entfernte Aufruf.
+- **Dabei aufgefallen:** Die shellcheck-Liste im CI-Lauf ist von Hand geführt.
+  `packaging/version-channel.sh` wäre still ungeprüft mitgelaufen — dieselbe
+  Sorte Lücke wie eine Policy ohne Route. Der Test prüft jetzt, dass jedes
+  Skript unter `packaging/` in der Liste steht.

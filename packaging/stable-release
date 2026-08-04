@@ -1,0 +1,14 @@
+# Die eine Fassung, die im Kanal stable erscheinen darf.
+#
+# Leer bedeutet: keine. Solange die Entwicklung läuft, ist das der richtige
+# Zustand — jedes Paket erscheint als X.Y.Z-rc.N im Kanal beta, und der
+# Freigabelauf weist eine Fassung ohne Zusatz ab (packaging/version-channel.sh).
+#
+# Hier steht eine Fassung namentlich, nicht ein Schalter „stabil erlaubt". Ein
+# Schalter wäre einmal umgelegt und danach ein Freibrief für jeden weiteren
+# Tag; ein Name gilt für genau eine Freigabe und muss für die nächste wieder
+# angefasst werden.
+#
+# Der Weg heraus aus der Beta-Phase ist damit ein Commit, den jemand liest.
+#
+# Zeilen mit # sind Kommentar. Darunter steht die Fassung, sonst nichts.

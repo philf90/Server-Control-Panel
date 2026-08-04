@@ -337,6 +337,30 @@ input[type='radio'] {
 }
 
 /*
+ * Der Versionsstand als Marke.
+ *
+ * **Warum das hier steht und nicht in der Komponente.** Es gab die Regel
+ * einmal, im Gerüst neben dem Logo. Als sie unter der Anmeldemaske ein zweites
+ * Mal gebraucht wurde, war die naheliegende Bewegung, sie zu kopieren — und
+ * genau so entstehen zwei Fassungen desselben Elements, die eines Tages
+ * verschieden aussehen. Dasselbe Muster wie bei den Knöpfen, nur früher
+ * bemerkt.
+ *
+ * Monospace, weil eine Versionsnummer eine Kennung ist und kein Wort: In einer
+ * Proportionalschrift verrutschen die Ziffern gegeneinander, sobald zwei
+ * Stände untereinander stehen.
+ */
+.version {
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--text-faint);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 3px;
+}
+
+/*
  * Die eine Aktion, für die man die Seite geöffnet hat. Amber ist in diesem
  * System die primäre Aktion (§7.2) — deshalb trägt sie hier die Fläche und
  * nicht nur die Schrift.

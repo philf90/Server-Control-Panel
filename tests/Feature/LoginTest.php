@@ -293,4 +293,37 @@ final class LoginTest extends TestCase
 
         $this->assertTrue(app(Tenancy::class)->unrestricted());
     }
+
+    /**
+     * Der Versionsstand steht auf der Anmeldemaske — und sonst nichts vom Server.
+     *
+     * Die Maske ist die einzige Seite ohne Sitzung. Nach einem Update ist sie
+     * damit der erste Beleg dafür, dass das neue Paket auch wirklich
+     * ausgeliefert wird; ohne sie muss man sich anmelden, um zu erfahren, ob
+     * die Anmeldung zum neuen Stand gehört.
+     *
+     * **Der zweite Teil des Tests ist der wichtigere.** Die Version ist eine
+     * bewusst gemachte Ausnahme von „hier erfährt niemand etwas über diesen
+     * Server". Eine Ausnahme, die niemand eingrenzt, wird zur Regel: Der
+     * nächste, der eine Angabe braucht, findet hier einen Präzedenzfall. Also
+     * steht hier, was ausdrücklich **nicht** hingehört.
+     */
+    public function test_the_login_page_shows_the_version_and_nothing_else(): void
+    {
+        config(['app.version' => '0.2.0-rc.14']);
+
+        $response = $this->get('/login');
+
+        $response->assertInertia(
+            fn ($page) => $page->component('Auth/Login')->where('source.version', '0.2.0-rc.14'),
+        );
+
+        // Kein Hostname, keine Zahl der Kunden, keine Abonnementnamen.
+        $daten = $response->viewData('page');
+
+        $this->assertIsArray($daten);
+        $this->assertArrayNotHasKey('customers', $daten['props']);
+        $this->assertArrayNotHasKey('subscriptions', $daten['props']);
+        $this->assertStringNotContainsString(gethostname() ?: 'kein-name', json_encode($daten) ?: '');
+    }
 }

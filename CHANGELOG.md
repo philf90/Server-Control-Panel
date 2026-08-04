@@ -363,6 +363,36 @@ der Oberfläche sagt das.
   `ButtonStyleTest` rechnet das nach, in beiden Themes und gegen alle drei
   Gründe; geprüft wird die Rechnung und nicht der Wert, damit die Reihe
   umstimmbar bleibt.
+- **HSTS sperrte den Betreiber aus** (`docs/27 §7`). Der Server-Block setzte
+  `Strict-Transport-Security: max-age=31536000` bedingungslos, und die
+  Begründung dafür war, Browser verwürfen den Header über eine nicht vertraute
+  Verbindung. Das stimmt genau so lange, wie niemand das selbstsignierte
+  Zertifikat in seinen Speicher aufnimmt — und dazu ist es ja da. Danach ist
+  die Verbindung vertraut, der Header wird gespeichert, und ab da lässt sich
+  auf diesem Host **kein Zertifikatsfehler mehr wegklicken**: kein „trotzdem
+  fortfahren", keine Ausnahme. Das nächste neu ausgestellte Zertifikat sperrte
+  den Betreiber aus seinem eigenen Panel; der Ausweg war ein Inkognitofenster.
+  Ein Jahr Erzwingung zu versprechen, während sich das Zertifikat jederzeit
+  ändern darf, ist kein Härtungsgewinn, sondern eine Zusage, die das Panel
+  nicht halten kann. `panel.vhost.apply` liest jetzt das Zertifikat, bevor es
+  den Block schreibt: selbstsigniert heisst kein HSTS, und im Block steht als
+  Kommentar, warum die Zeile fehlt. **Unlesbar zählt als selbstsigniert** — wer
+  aus einem Zertifikat, das er nicht lesen kann, auf eine Zertifizierungsstelle
+  schliesst, verspricht das Jahr auf Verdacht. Mit dem ersten Zertifikat von
+  Let's Encrypt kommt der Header von selbst zurück. **Einen bereits
+  gespeicherten Eintrag löscht das nicht:** Der Header ist eine Anweisung an
+  den Browser, und die muss dort gelöscht werden (Chrome:
+  `chrome://net-internals/#hsts`).
+- **Der Versionsstand steht auf der Anmeldemaske.** Sie ist die einzige Seite
+  ohne Sitzung und damit nach einem Update der erste Beleg dafür, dass das neue
+  Paket auch ausgeliefert wird. Das ist eine **bewusste Ausnahme** von „hier
+  erfährt niemand etwas über diesen Server": Man gibt damit preis, welche
+  bekannten Lücken auf diese Fassung zutreffen. Vertretbar, weil das Panel
+  nicht im offenen Netz auf 443 steht, sondern auf einem eigenen Port hinter
+  einer Anmeldung mit zweitem Faktor. Der Test grenzt die Ausnahme ein und
+  hält fest, was ausdrücklich nicht dazugehört — sonst findet der nächste hier
+  einen Präzedenzfall. Die Marke `.version` steht seitdem in `app.css` statt
+  zweimal im Quelltext.
 - **Bei den Abonnements fehlte der „Bearbeiten"-Knopf.** Dort war der Name die
   einzige Verbindung zur Bearbeitung, während Kunden und Pläne je Zeile einen
   Knopf haben — man musste wissen, dass der Name klickbar ist und was dahinter

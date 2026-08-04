@@ -55,7 +55,13 @@ final class PanelVhost implements Op
         }
 
         $context->progress(20, 'Server-Block erzeugen');
-        $text = $this->template($port, $certificate, $key, $this->modernHttp2($context));
+        $text = $this->template(
+            $port,
+            $certificate,
+            $key,
+            $this->modernHttp2($context),
+            ! self::selfSigned((string) file_get_contents($certificate)),
+        );
 
         $before = is_file($this->target) ? (string) file_get_contents($this->target) : null;
 
@@ -89,6 +95,32 @@ final class PanelVhost implements Op
         }
 
         return ['path' => $this->target, 'port' => $port, 'replaced' => $before !== null];
+    }
+
+    /**
+     * Hat sich dieses Zertifikat selbst ausgestellt?
+     *
+     * Aussteller gleich Inhaber. Das ist dieselbe Frage, die `/settings/tls`
+     * als `self_signed` beantwortet — und sie entscheidet hier darüber, ob der
+     * Server-Block HSTS verspricht.
+     *
+     * **Unlesbar zählt als selbstsigniert.** Wer aus einem Zertifikat, das er
+     * nicht lesen kann, auf eine Zertifizierungsstelle schliesst, verspricht
+     * ein Jahr erzwungenes HTTPS auf Verdacht — und das ist die Richtung, in
+     * der ein Irrtum den Betreiber aussperrt.
+     */
+    public static function selfSigned(string $pem): bool
+    {
+        $parsed = @openssl_x509_parse($pem);
+
+        if (! is_array($parsed)) {
+            return true;
+        }
+
+        $issuer = $parsed['issuer'] ?? null;
+        $subject = $parsed['subject'] ?? null;
+
+        return ! is_array($issuer) || ! is_array($subject) || $issuer === $subject;
     }
 
     private function restore(?string $before): void
@@ -138,11 +170,39 @@ final class PanelVhost implements Op
      * Fehler, der eine Einrichtung auf drei von vier Plattformen verhindert
      * hätte.
      */
-    public function template(int $port, string $certificate, string $key, bool $modernHttp2): string
+    public function template(int $port, string $certificate, string $key, bool $modernHttp2, bool $hsts = true): string
     {
         $listen = $modernHttp2
             ? "listen {$port} ssl;\n    listen [::]:{$port} ssl;\n    http2 on;"
             : "listen {$port} ssl http2;\n    listen [::]:{$port} ssl http2;";
+
+        /*
+         * **HSTS erst, wenn ein Browser dem Zertifikat überhaupt trauen kann.**
+         *
+         * Der Header stand hier bedingungslos, und docs/27 §7 nannte das eine
+         * Falle für P4 — sie hat früher zugebissen. Wer das selbstsignierte
+         * Zertifikat in seinen Speicher aufnimmt, hat damit eine vertraute
+         * Verbindung, der Browser merkt sich `max-age=31536000`, und ab da
+         * lässt sich auf diesem Host **kein Zertifikatsfehler mehr
+         * wegklicken**: kein „trotzdem fortfahren", keine Ausnahme. Ein neu
+         * ausgestelltes Zertifikat — anderer Name, andere Seriennummer — sperrt
+         * den Betreiber dann aus seinem eigenen Panel aus, und der einzige Weg
+         * zurück führt über die Einstellungen des Browsers.
+         *
+         * Ein Jahr Erzwingung zu versprechen, während das Zertifikat sich
+         * jederzeit ändern darf, ist kein Härtungsgewinn, sondern eine Zusage,
+         * die das Panel nicht halten kann. Sobald in P4 ein Zertifikat von
+         * Let's Encrypt gilt, ändert sich die Lage: Dann ist der Header
+         * richtig, und `panel.vhost.apply` schreibt ihn von selbst hin — die
+         * Bedingung dafür ist das Zertifikat und keine Einstellung.
+         */
+        $strict = $hsts
+            ? "\n            # Erzwungenes HTTPS — das Zertifikat stammt von einer\n".
+              "            # Zertifizierungsstelle, der Browser kann ihm also trauen.\n".
+              '            add_header Strict-Transport-Security "max-age=31536000" always;'
+            : "\n            # Kein Strict-Transport-Security: Das Zertifikat ist\n".
+              "            # selbstsigniert. Ein Jahr Erzwingung würde einen späteren\n".
+              '            # Zertifikatswechsel unwegklickbar machen (docs/27 §7).';
 
         return <<<CONF
         # Von srvpanel-agentd erzeugt. Änderungen von Hand werden beim nächsten
@@ -166,7 +226,7 @@ final class PanelVhost implements Op
             # Das Panel ist keine öffentliche Seite. Es wird nicht indiziert,
             # nicht in einen fremden Rahmen gestellt und gibt keine Adresse
             # weiter, von der jemand kam.
-            add_header Strict-Transport-Security "max-age=31536000" always;
+        {$strict}
             add_header X-Content-Type-Options nosniff always;
             add_header X-Frame-Options DENY always;
             add_header Referrer-Policy no-referrer always;

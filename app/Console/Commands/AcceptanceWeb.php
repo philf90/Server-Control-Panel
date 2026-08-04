@@ -136,12 +136,6 @@ final class AcceptanceWeb extends Command
             ];
         }
 
-        if (! $this->await(array_column($abos, 'subscription'), $timeout)) {
-            $this->error('Die Abonnements sind nicht fertig geworden.');
-
-            return self::FAILURE;
-        }
-
         /*
          * **Ab hier stehen Systembenutzer und Verzeichnisse — der Rückbau
          * gehört deshalb in ein `finally`.**
@@ -149,11 +143,23 @@ final class AcceptanceWeb extends Command
          * Vorher lief er hinter der Probe, in gerader Linie. Jeder Fehlschlag
          * dazwischen sprang darüber hinweg, und auf dem Server blieben zwei
          * Abonnements samt `useradd`, Verzeichnisbaum, Server-Blöcken und
-         * FPM-Pools liegen — nach einem Kommando, dessen ganze Zusage lautet,
-         * hinterher aufzuräumen. Genau so ist es beim ersten Lauf auf dem
-         * Zielserver passiert.
+         * FPM-Pools liegen.
+         *
+         * **Das `finally` stand zuerst eine Stufe zu tief** — hinter dem
+         * Warten. Ein Abonnement, das nicht fertig wird, ist aber gerade der
+         * Fall, in dem etwas halb dasteht: `subscription.provision` kann den
+         * Systembenutzer angelegt und danach abgebrochen haben. Der zweite
+         * Lauf auf dem Zielserver ist genau hier ausgestiegen und hat wieder
+         * zwei Abonnements hinterlassen. Der Block beginnt deshalb dort, wo
+         * das erste Abonnement entsteht, und nicht später.
          */
         try {
+            if (! $this->await(array_column($abos, 'subscription'), $timeout)) {
+                $this->explainWhyNothingFinished($abos);
+
+                return self::FAILURE;
+            }
+
             foreach ($abos as $abo) {
                 if (! $this->createDomains($abo['subscription'], $abo['version'], $domains, $timeout)) {
                     return self::FAILURE;
@@ -217,6 +223,72 @@ final class AcceptanceWeb extends Command
         $lifecycle->dispatch($subscription, 'subscription.provision', 'Abnahme P3: '.$name);
 
         return $subscription;
+    }
+
+    /**
+     * Warum ist nichts fertig geworden?
+     *
+     * **„Die Abonnements sind nicht fertig geworden" ist keine Diagnose.** Der
+     * Satz stand allein da, und der Betreiber auf dem Server hatte damit
+     * nichts in der Hand: Ein fehlgeschlagener Vorgang trägt seine Begründung
+     * in der Datenbank, ein hängender trägt seinen Zustand, und beides sagt
+     * etwas völlig anderes über die Ursache. Ein Abnahmelauf, der nur „nein"
+     * sagt, verschiebt die Arbeit auf jemanden, der weniger sieht als er.
+     *
+     * @param  list<array{subscription: Subscription, version: string}>  $abos
+     */
+    private function explainWhyNothingFinished(array $abos): void
+    {
+        $this->error('Die Abonnements sind nicht fertig geworden.');
+        $this->newLine();
+
+        $ids = array_map(static fn (array $a): int => (int) $a['subscription']->id, $abos);
+
+        $gescheitert = Operation::query()
+            ->whereIn('subscription_id', $ids)
+            ->where('status', OperationStatus::Failed)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($gescheitert as $vorgang) {
+            $this->line(sprintf(
+                '  %s ist gescheitert: %s',
+                (string) $vorgang->type,
+                (string) ($vorgang->message ?? 'ohne Begründung'),
+            ));
+        }
+
+        // Offen heisst: Der Vorgang liegt noch in der Schlange oder läuft. Das
+        // ist der Fall, den man mit einem toten Arbeiter verwechselt — deshalb
+        // steht der Hinweis auf die Unit daneben.
+        $offen = Operation::query()
+            ->whereIn('subscription_id', $ids)
+            ->whereIn('status', [OperationStatus::Queued, OperationStatus::Running])
+            ->count();
+
+        if ($offen > 0) {
+            $this->line(sprintf('  %d Vorgang/Vorgänge sind nach %s Sekunden noch offen.', $offen, $this->option('timeout')));
+            $this->line('  Läuft der Arbeiter? systemctl status srvpanel-worker');
+        }
+
+        foreach ($abos as $abo) {
+            $this->line(sprintf(
+                '  %s: %s',
+                (string) $abo['subscription']->name,
+                $abo['subscription']->status->sentence(),
+            ));
+        }
+
+        if ($gescheitert->isEmpty() && $offen === 0) {
+            // Kein Vorgang offen, keiner gescheitert, und trotzdem nicht
+            // fertig: Dann hat `afterSuccess()` den Zustand nicht gesetzt.
+            $this->newLine();
+            $this->line('  Kein Vorgang ist offen oder gescheitert — der Zustand des Abonnements wurde nicht');
+            $this->line('  nachgezogen. Das Protokoll des Panels sagt, woran es lag.');
+        }
+
+        $this->newLine();
+        $this->line('  Die Vorgänge stehen im Panel unter Vorgänge, mit Ausgabe des Agenten.');
     }
 
     /**

@@ -1170,3 +1170,23 @@ sprach: „Das Abonnement ist wird angelegt — daran lässt sich nichts ändern
   Warten fand nichts Offenes und meldete Erfolg — der Test hätte bestanden,
   ohne etwas geprüft zu haben. Dieselbe Falle wie in P3 bei der
   Namenseindeutigkeit.
+
+### Der zweite Abnahmelauf — und was er über den ersten Fix sagte
+
+`Die Abonnements sind nicht fertig geworden.` Mehr stand nicht da.
+
+- **Das `finally` aus dem Fix davor stand eine Stufe zu tief** — hinter dem
+  Warten. Ein Abonnement, das nicht fertig wird, ist aber gerade der Fall, in
+  dem etwas halb dasteht: `subscription.provision` kann den Systembenutzer
+  angelegt und danach abgebrochen haben. Der Lauf ist genau hier ausgestiegen
+  und hat wieder zwei Abonnements hinterlassen. Der Block beginnt jetzt dort,
+  wo das erste Abonnement entsteht.
+- **Und der Satz war keine Diagnose.** Ein gescheiterter Vorgang trägt seine
+  Begründung in der Datenbank, ein hängender trägt seinen Zustand, und beides
+  sagt etwas völlig anderes über die Ursache. Der Lauf nennt jetzt den
+  gescheiterten Vorgang samt Meldung des Agenten, die Zahl der noch offenen
+  Vorgänge mit dem Hinweis auf `srvpanel-worker`, und den Zustand jedes
+  Abonnements. Ist nichts davon auffällig, sagt er auch das — dann wurde der
+  Zustand nicht nachgezogen, und das ist eine andere Spur.
+- **Ein Abnahmelauf, der nur „nein" sagt, verschiebt die Arbeit auf jemanden,
+  der weniger sieht als er.** Das ist der Grund für den ganzen Abschnitt.

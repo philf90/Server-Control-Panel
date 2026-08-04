@@ -143,6 +143,18 @@ final class DesignTokensTest extends TestCase
      * Zeichenkette, deren Bezug niemand prüft —, nur in der anderen Richtung:
      * Dort zeigte die Klasse auf keine Regel, hier zeigte keine Regel auf die
      * Marke.
+     *
+     * **Gesucht wird in app.css mit — und das war beim ersten Anlauf falsch.**
+     * Der Test las nur die `<style>`-Blöcke der Komponenten. Das stimmte
+     * genau so lange, wie jede Seite ihre Tabellen und Felder selbst
+     * gestaltete: Dort standen die Größen. Nach dem Umbau steht die Form der
+     * Bausteine in app.css, und die Komponenten haben fast kein CSS mehr —
+     * der Test hätte dann fast jede Stufe für unbenutzt erklärt und wäre
+     * ausgerechnet an der Aufräumarbeit rot geworden.
+     *
+     * Dieselbe Falle wie bei `MobileLayoutTest`, und beide Male dieselbe
+     * Ursache: Ein Wächter, der eine Regel prüft, darf nicht davon ausgehen,
+     * *wo* sie gerade eingehalten wird.
      */
     public function test_every_step_of_the_scale_is_used(): void
     {
@@ -157,7 +169,10 @@ final class DesignTokensTest extends TestCase
 
         $this->assertGreaterThan(4, count($scale), 'In app.css stehen kaum Schriftstufen — dann prüft dieser Test nichts.');
 
-        $used = '';
+        // `var(--x)` steht nur an der Fundstelle und nie an der Definition —
+        // deshalb darf app.css hier mitgelesen werden, ohne sich selbst zu
+        // bestätigen.
+        $used = $css;
 
         foreach ($this->vueFiles() as $path) {
             $used .= $this->style((string) file_get_contents($path));

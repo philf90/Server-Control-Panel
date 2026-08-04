@@ -73,6 +73,24 @@ final class SubscriptionProvision implements Op
         'mail' => ['%u', '%g', 0700],
     ];
 
+    /**
+     * Die Verzeichnisse des Schemas, die **kein** DocumentRoot sein dürfen.
+     *
+     * Sie stehen hier und nicht im Panel, weil sie aus derselben Tabelle
+     * kommen wie das Schema selbst: Wächst {@see self::TREE}, wächst diese
+     * Liste mit. Ein Panel, das `logs`, `conf`, `tmp`, `.ssh` und `mail`
+     * abgetippt hätte, wäre bei der ersten Erweiterung des Schemas falsch
+     * geworden — und was daraus folgt, ist keine Kleinigkeit: Ein
+     * DocumentRoot auf `logs` liefert die Zugriffsprotokolle des Kunden über
+     * HTTP aus, eines auf `.ssh` seine Schlüssel.
+     *
+     * @return list<string>
+     */
+    public static function reservedDirectories(): array
+    {
+        return array_values(array_diff(array_keys(self::TREE), [self::DOCUMENT_ROOT]));
+    }
+
     public static function name(): string
     {
         return 'subscription.provision';

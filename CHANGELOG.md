@@ -721,3 +721,59 @@ genau deshalb war jetzt der Zeitpunkt.
   `padding: calc(var(--padding) * 1.5)`; `--padding` ist eine Kurzform mit drei
   Werten, `calc()` rechnet mit einem. Die Deklaration war ungültig und fiel
   still auf null zurück — Überschrift und Knopf klebten an der Kante.
+
+### P3 — Web und PHP: das Datenmodell der Domains
+
+- **`App\Models\Domain`** (`docs/20 §5.1`) — der erste Gegenstand unter dem
+  Abonnement. Typ (Haupt, Zusatz, Subdomain, Alias), Zustand, DocumentRoot,
+  PHP-Version, PHP-Einstellungen, eigene nginx-Direktiven, Weiterleitung. Was
+  daran Regel ist, steht am Typ und nicht als Bedingung in einem Dienst:
+  `App\Enums\DomainType` beantwortet, ob eine Sorte eigene Dateien ausliefert,
+  eine Elterndomain braucht, sich einzeln entfernen lässt und auf welches
+  Kontingent sie zählt. Vier gleichlautende `if` an vier Stellen wären vier
+  Gelegenheiten, das fünfte zu vergessen.
+- **Der Name ist serverweit einmalig, und das ist eine Sicherheitsbedingung.**
+  Zwei Server-Blöcke mit demselben `server_name` sind für nginx kein Fehler —
+  es nimmt wortlos den ersten. Wäre die Eindeutigkeit nur je Abonnement
+  erzwungen, könnte ein Kunde die Domain eines anderen eintragen und je nach
+  Reihenfolge der Konfigurationsdateien dessen Besucher bekommen: ein
+  Mandantenübergriff, der keine einzige Rechteprüfung berührt.
+- **Was ein Domainname ist, entscheidet der Agent** — `SrvPanel\Agent\DomainName`,
+  und das Panel fragt dieselbe Regel, statt sie ein zweites Mal zu formulieren.
+  Sie bringt den Namen zugleich in seine Normalform: klein, ohne den
+  abschliessenden Punkt der DNS-Schreibweise. Ohne das wären `Beispiel.DE` und
+  `beispiel.de.` zwei Zeilen in der Datenbank und zwei `server_name` mit
+  demselben Inhalt. `DomainNameTest` führt den Angriffsdurchgang: Pfade,
+  Kommandozeilen, Platzhalter, Adressen, Nicht-ASCII, überlange Bestandteile.
+- **Die Domain-Einschränkung für Zusatzbenutzer wirkt jetzt** (`docs/20 §6.1`).
+  Die Spalte `domain_ids` lag seit P1 in der Verknüpfungstabelle, das
+  Rechtemodell versprach sie — **gelesen hat sie nichts.** Solange es keine
+  Domains gab, war das folgenlos; mit P3 wäre daraus ein Feld im Formular
+  geworden, das nichts bewirkt, und aufgefallen wäre es niemandem, weil alles
+  funktioniert. `App\Support\Tenancy\Tenancy` trägt die Einschränkung deshalb
+  **je Abonnement** und nicht als flache Liste erlaubter IDs: Derselbe Mensch
+  kann in einem Abonnement auf zwei Domains beschränkt sein und im nächsten an
+  allem arbeiten. Und sie wird bei jeder Abfrage ausgewertet statt einmal in
+  eine Liste aufgelöst — sonst wäre eine später angelegte Domain für ihn
+  unsichtbar geblieben, bis sich jemand ans Neubauen erinnert. Beide Fehler
+  haben einen eigenen Test in `DomainTenancyTest`, und beide wurden absichtlich
+  herbeigeführt, um zu sehen, dass er zubeißt.
+- **`main_domain` wurde von nichts beschrieben.** Die Spalte gibt es seit P1,
+  die Kundenübersicht liest sie — und zeigte deshalb bei jedem Abonnement „noch
+  keine Domain". Sie ist jetzt die Abschrift der Hauptdomain, nachgezogen vom
+  Modell an dem einen Ereignis, nach dem sie falsch sein könnte, und aus
+  `$fillable` entfernt: Bliebe sie füllbar, gäbe es einen zweiten Weg, sie zu
+  setzen, und der käme ohne Domain aus.
+- **Ein DocumentRoot kann kein Verzeichnis des Schemas treffen** (`docs/20
+  §4.5`). `logs` als DocumentRoot liefert die Zugriffsprotokolle des Kunden
+  über HTTP aus, `.ssh` seine Schlüssel. Die Liste der reservierten
+  Verzeichnisse kommt aus dem Agenten und wird dort aus dem Schema selbst
+  abgeleitet — wächst das Schema, wächst die Prüfung mit. `DomainTest` fragt
+  sie ab, statt sie abzuschreiben.
+- **Domains werden hart gelöscht, Abonnements nicht.** Das Abonnement wird
+  zurückgezogen, weil sein Systembenutzer verbraucht bleiben muss — die UID
+  darf nicht neu vergeben werden, solange auf dem Dateisystem etwas liegt, das
+  ihr gehört. Bei einer Domain gibt es diesen Grund nicht: Mit ihr geht ihr
+  Verzeichnis. Den Namen trotzdem für immer zu sperren hiesse, dass ein
+  versehentlich gelöschter Eintrag nie wieder anlegbar wäre — auch nicht für
+  den Kunden, dem die Domain gehört.

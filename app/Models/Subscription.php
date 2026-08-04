@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DomainType;
 use App\Enums\SubscriptionStatus;
 use App\Models\Concerns\BelongsToSubscription;
 use App\Support\Plans\Quota;
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -54,6 +57,8 @@ use Illuminate\Support\Carbon;
  * @property-read Customer|null $customer
  * @property-read Plan|null $plan
  * @property-read Collection<int, Account> $additionalAccounts
+ * @property-read Collection<int, Domain> $domains
+ * @property-read Domain|null $mainDomain
  */
 class Subscription extends Model
 {
@@ -69,9 +74,21 @@ class Subscription extends Model
 
     /** @var list<string> */
     protected $fillable = [
-        'customer_id', 'plan_id', 'name', 'system_user', 'main_domain',
+        'customer_id', 'plan_id', 'name', 'system_user',
         'status', 'quota_overrides',
     ];
+
+    /*
+     * `main_domain` steht seit P3 nicht mehr darin.
+     *
+     * Es ist die Abschrift des Namens der Hauptdomain und wird von
+     * {@see Domain} nachgezogen — an dem einen Ereignis, nach dem sie falsch
+     * sein könnte. Bliebe die Spalte füllbar, gäbe es einen zweiten Weg, sie
+     * zu setzen, und der käme ohne Domain aus: ein Abonnement mit einer
+     * Hauptdomain, die es im Bestand nicht gibt, und nichts, das den
+     * Widerspruch meldet. Bis P3 wurde sie von nichts beschrieben — die
+     * Kundenübersicht zeigte deshalb immer „noch keine Domain".
+     */
 
     /*
      * `disk_used_mb` und `disk_usage_measured_at` stehen mit Absicht **nicht**
@@ -134,6 +151,27 @@ class Subscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    /** @return HasMany<Domain, $this> */
+    public function domains(): HasMany
+    {
+        return $this->hasMany(Domain::class);
+    }
+
+    /**
+     * Die eine Hauptdomain (§5.1).
+     *
+     * Als Beziehung und nicht über `main_domain`: Die Spalte trägt den Namen,
+     * dieser Weg trägt die Domain — mit ihrem DocumentRoot, ihrer
+     * PHP-Version und ihrem Zustand. Wer nur den Namen braucht, nimmt die
+     * Spalte und spart die Abfrage.
+     *
+     * @return HasOne<Domain, $this>
+     */
+    public function mainDomain(): HasOne
+    {
+        return $this->hasOne(Domain::class)->where('type', DomainType::Main->value);
     }
 
     /** @return BelongsToMany<Account, $this> */

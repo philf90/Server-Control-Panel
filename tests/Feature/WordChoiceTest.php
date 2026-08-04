@@ -167,6 +167,46 @@ final class WordChoiceTest extends TestCase
         ));
     }
 
+    /**
+     * Eine Beschriftung ist kein Satzteil.
+     *
+     * **Aufgefallen ist das auf dem Zielserver**, im Abnahmelauf für P3: „Das
+     * Abonnement ist wird angelegt — daran lässt sich nichts ändern."
+     * `SubscriptionStatus::label()` liefert „wird angelegt" — richtig für eine
+     * Spalte, falsch hinter „ist". Drei der vier Zustände passten in den
+     * Satzrahmen, der vierte nicht, und weil in diesem Zustand sonst niemand
+     * eine Domain anlegt, hat es kein Test und kein Blick in die Oberfläche
+     * gezeigt.
+     *
+     * Geprüft wird deshalb die Sache und nicht der eine Fall: Ein Verb im
+     * Satzrahmen, gefolgt von einem Platzhalter, der aus einer Beschriftung
+     * gefüllt wird. Wer das braucht, schreibt das Verb in den Aufzählungstyp —
+     * siehe `SubscriptionStatus::sentence()`.
+     */
+    public function test_no_label_is_pushed_into_a_sentence(): void
+    {
+        $found = [];
+
+        // Die Verben, mit denen ein solcher Rahmen anfängt. Nach ihnen darf
+        // kein Platzhalter stehen, der eine Beschriftung aufnimmt.
+        $frame = '/\b(ist|war|wird|sind|waren|hat|wurde)\s+%s/u';
+
+        foreach ($this->files(dirname(__DIR__, 2).'/app', 'php') as $path) {
+            foreach (explode("\n", (string) file_get_contents($path)) as $number => $line) {
+                if (preg_match($frame, $line) === 1 && str_contains($line, 'label()')) {
+                    $found[] = sprintf('%s:%d  %s', $this->relative($path), $number + 1, trim($line));
+                }
+            }
+        }
+
+        $this->assertSame([], $found, sprintf(
+            "Eine Beschriftung steht in einem Satzrahmen:\n  %s\n\n".
+            'Das ergibt Deutsch wie „Das Abonnement ist wird angelegt". Das Verb gehört '.
+            'in den Aufzählungstyp, nicht in den Rahmen des Aufrufers.',
+            implode("\n  ", $found),
+        ));
+    }
+
     public function test_the_list_matches_the_document(): void
     {
         $document = (string) file_get_contents(dirname(__DIR__, 2).'/docs/19-sprache-der-oberflaeche.md');

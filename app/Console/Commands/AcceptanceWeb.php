@@ -18,6 +18,7 @@ use App\Support\Tenancy\Tenancy;
 use App\Support\Web\Domains;
 use App\Support\Web\PhpSelection;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
@@ -141,23 +142,34 @@ final class AcceptanceWeb extends Command
             return self::FAILURE;
         }
 
-        foreach ($abos as $abo) {
-            if (! $this->createDomains($abo['subscription'], $abo['version'], $domains, $timeout)) {
-                return self::FAILURE;
+        /*
+         * **Ab hier stehen Systembenutzer und Verzeichnisse — der Rückbau
+         * gehört deshalb in ein `finally`.**
+         *
+         * Vorher lief er hinter der Probe, in gerader Linie. Jeder Fehlschlag
+         * dazwischen sprang darüber hinweg, und auf dem Server blieben zwei
+         * Abonnements samt `useradd`, Verzeichnisbaum, Server-Blöcken und
+         * FPM-Pools liegen — nach einem Kommando, dessen ganze Zusage lautet,
+         * hinterher aufzuräumen. Genau so ist es beim ersten Lauf auf dem
+         * Zielserver passiert.
+         */
+        try {
+            foreach ($abos as $abo) {
+                if (! $this->createDomains($abo['subscription'], $abo['version'], $domains, $timeout)) {
+                    return self::FAILURE;
+                }
+            }
+
+            $this->info('Sechs Domains angelegt.');
+
+            return $this->probe($abos, $agent);
+        } finally {
+            if (! $this->option('keep')) {
+                $this->teardown($abos, $lifecycle, $timeout, $agent);
+            } else {
+                $this->warn('--keep: Es wird nicht zurückgebaut. Aufräumen von Hand.');
             }
         }
-
-        $this->info('Sechs Domains angelegt.');
-
-        $ergebnis = $this->probe($abos, $agent);
-
-        if (! $this->option('keep')) {
-            $this->teardown($abos, $lifecycle, $timeout, $agent);
-        } else {
-            $this->warn('--keep: Es wird nicht zurückgebaut. Aufräumen von Hand.');
-        }
-
-        return $ergebnis;
     }
 
     /**
@@ -440,10 +452,58 @@ final class AcceptanceWeb extends Command
                 ->count();
 
             if ($offen === 0) {
-                return Operation::query()
+                $fehlgeschlagen = Operation::query()
                     ->whereIn('subscription_id', $ids)
                     ->where('status', OperationStatus::Failed)
-                    ->count() === 0;
+                    ->count();
+
+                if ($fehlgeschlagen > 0) {
+                    return false;
+                }
+
+                /*
+                 * **Die Modelle auf Stand bringen — und darauf warten.**
+                 *
+                 * Das hat auf dem Server den ganzen Lauf gekostet, mit einer
+                 * Meldung, die von etwas ganz anderem sprach: „Das Abonnement
+                 * wird gerade angelegt — daran lässt sich nichts ändern."
+                 *
+                 * Der Grund waren zwei Dinge, die zusammenkamen. Erstens hielt
+                 * dieses Warten nur die Vorgänge im Blick und fasste die
+                 * übergebenen Modelle nie an; sie trugen weiter den Zustand aus
+                 * dem `create()` von vorhin, also `Provisioning`. `Domains::create()`
+                 * bekommt das Abonnement als Objekt gereicht und prüft daran —
+                 * anders als `Domains::update()`, das die Beziehung frisch aus
+                 * der Datenbank holt und deshalb glatt durchlief. Der Fehler
+                 * war damit sicher und nicht sporadisch.
+                 *
+                 * Zweitens wäre ein blosses `refresh()` zu früh gewesen:
+                 * `RunAgentOperation` schreibt erst den Vorgang auf „erledigt"
+                 * und ruft **danach** `afterSuccess()`, das den Zustand des
+                 * Abonnements setzt. Zwischen beidem liegt ein Fenster, in dem
+                 * kein Vorgang mehr offen ist und das Abonnement trotzdem noch
+                 * angelegt wird. Deshalb wird gewartet, bis der Zustand da ist,
+                 * und nicht einmal nachgesehen.
+                 */
+                $unfertig = 0;
+
+                foreach ($subscriptions as $subscription) {
+                    try {
+                        $subscription->refresh();
+                    } catch (ModelNotFoundException) {
+                        // Nach dem Rückbau kann die Zeile fort sein. Dann ist
+                        // dieses Abonnement fertig, und zwar endgültig.
+                        continue;
+                    }
+
+                    if ($subscription->status === SubscriptionStatus::Provisioning) {
+                        $unfertig++;
+                    }
+                }
+
+                if ($unfertig === 0) {
+                    return true;
+                }
             }
 
             usleep(500_000);

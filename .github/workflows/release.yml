@@ -18,16 +18,30 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.release.outputs.version }}
+      channel: ${{ steps.release.outputs.channel }}
     steps:
       - uses: actions/checkout@v4
 
+      # Der Kanal wird hier einmal bestimmt und danach nur weitergereicht.
+      # Vorher stand die Ableitung an zwei Stellen — einmal für das
+      # GitHub-Release, einmal für die Paketquelle —, und zwei Stellen, die
+      # dieselbe Frage beantworten, geben irgendwann zwei Antworten.
+      #
+      # Der Schritt steht vor allem anderen: Weist er ab, ist nichts gebaut,
+      # nichts signiert und nichts veröffentlicht.
       - id: release
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            VERSION="${{ github.event.inputs.version }}"
           else
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            VERSION="${GITHUB_REF_NAME#v}"
           fi
+
+          CHANNEL="$(packaging/version-channel.sh "$VERSION")"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
+          echo "Fassung ${VERSION} erscheint im Kanal ${CHANNEL}."
 
       # 8.4, nicht weniger: composer.json verlangt ^8.4 (Laravel 13 setzt
       # Symfony 8 voraus). Mit 8.3 bricht schon das composer install in
@@ -95,7 +109,7 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" dist/* \
             --title "SrvPanel ${{ steps.release.outputs.version }}" \
             --notes "Siehe CHANGELOG.md." \
-            $(case "${{ steps.release.outputs.version }}" in *-*) echo --prerelease ;; esac)
+            $([ "${{ steps.release.outputs.channel }}" = "beta" ] && echo --prerelease)
 
   repository:
     name: repo.cloudsrv24.de aktualisieren
@@ -116,15 +130,15 @@ jobs:
           name: dist
           path: dist
 
-      - name: Kanal bestimmen
+      - name: Kanal übernehmen
         id: channel
         env:
-          VERSION: ${{ needs.package.outputs.version }}
+          CHANNEL: ${{ needs.package.outputs.channel }}
         run: |
-          case "$VERSION" in
-            *-*) echo "name=beta"   >> "$GITHUB_OUTPUT" ;;
-            *)   echo "name=stable" >> "$GITHUB_OUTPUT" ;;
-          esac
+          # Nicht noch einmal abgeleitet: Der Kanal steht seit dem ersten
+          # Schritt des Paketlaufs fest und wird hier nur übernommen.
+          test -n "$CHANNEL" || { echo "::error::Der Paketlauf hat keinen Kanal gemeldet."; exit 1; }
+          echo "name=${CHANNEL}" >> "$GITHUB_OUTPUT"
 
       - name: Installer und Schlüssel veröffentlichen
         run: |

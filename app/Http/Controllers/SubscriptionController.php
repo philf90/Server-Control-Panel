@@ -108,7 +108,7 @@ final class SubscriptionController extends Controller
          * **Kein Abonnement für einen gesperrten Kunden.**
          *
          * Es käme aktiv aus dem Anlegen heraus, während der Kunde gesperrt
-         * ist: Die Kaskade der Kundensperre (docs/26 §10) sperrt, was es beim
+         * ist: Die Kaskade der Kundensperre (docs/26 §11) sperrt, was es beim
          * Klick gab, und ein Abonnement im Zustand „wird angelegt" hat noch
          * keinen Systembenutzer, den man sperren könnte. Danach stünde beim
          * Kunden „gesperrt" und darunter eine laufende Webseite.

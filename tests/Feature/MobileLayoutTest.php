@@ -123,21 +123,37 @@ final class MobileLayoutTest extends TestCase
 
             preg_match_all('/<table([^>]*)>/', $template, $matches, PREG_OFFSET_CAPTURE);
 
-            foreach ($matches[1] as $match) {
-                [$attributes, $offset] = $match;
+            // Die Position kommt aus dem *ganzen* Treffer und nicht aus der
+            // Klammer: Der Versatz der Attributklammer zeigt hinter `<table`,
+            // und alles davor endet damit auf genau dieser Zeichenfolge statt
+            // auf dem Behälter, nach dem hier gefragt wird.
+            foreach ($matches[0] as $index => $match) {
+                $attributes = $matches[1][$index][0];
+                $offset = $match[1];
                 $tables++;
 
                 $stacks = str_contains($attributes, 'stapelt');
 
-                // Rollt sie? Dann steht der Behälter davor. Gezählt wird über
-                // den ganzen Text bis zu dieser Tabelle — offene `rollt`
-                // gegen bereits geschlossene Tabellen. Hier stand ein
-                // `explode(...)[$index]`, und das liefert ab der zweiten
-                // Tabelle nur das Stück *zwischen* zwei Tabellen statt alles
-                // davor: Die erste Tabelle galt als in Ordnung, die zweite
-                // und dritte nicht.
-                $before = substr($template, 0, $offset);
-                $scrolls = substr_count($before, 'class="rollt"') > substr_count($before, '</table>');
+                /*
+                 * Rollt sie? Dann steht der Behälter unmittelbar davor.
+                 *
+                 * **Zweiter Anlauf an dieser Stelle, und beide Male aus
+                 * demselben Grund:** Der Ausdruck sah sich den ganzen Text vor
+                 * der Tabelle an, statt die eine Zeile davor. Erst stand hier
+                 * `explode(...)[$index]` — das liefert ab der zweiten Tabelle
+                 * nur das Stück *zwischen* zwei Tabellen. Dann wurde gezählt,
+                 * offene `rollt` gegen geschlossene Tabellen, und das hielt
+                 * genau so lange, wie jede Tabelle einer Seite gerollt hat:
+                 * Eine gestapelte Tabelle davor verschiebt die Bilanz, und die
+                 * gerollten dahinter fielen durch — obwohl an ihnen nichts
+                 * geändert wurde.
+                 *
+                 * Gefragt ist ohnehin etwas Einfacheres: Steht der Behälter
+                 * direkt um diese Tabelle? Alles andere war eine Bilanz über
+                 * eine Seite, die niemand behauptet hat.
+                 */
+                $before = rtrim(substr($template, 0, $offset));
+                $scrolls = str_ends_with($before, '<div class="rollt">');
 
                 $this->assertTrue(
                     $stacks || $scrolls,

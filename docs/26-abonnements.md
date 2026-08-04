@@ -94,7 +94,31 @@ trotzdem.
 Die Rückfrage verlangt den Namen zum Abtippen. Ein einzelnes „Wirklich?"
 beantwortet man im Vorbeigehen.
 
-## 7. Der belegte Speicher
+## 7. Die Willkommensseite
+
+Das Verzeichnisschema legt `httpdocs` an — den DocumentRoot, auf den ab P3 der
+vhost zeigt. Beim Anlegen entsteht darin eine `index.html`.
+
+**Nur, solange das Verzeichnis leer ist.** Das ist die Bedingung dafür, dass
+`subscription.provision` wiederholbar bleiben darf: Ein zweiter Lauf — nach
+einem abgebrochenen Vorgang, nach einer Kontingentänderung — träfe sonst auf
+eine fertige Webseite und legte eine `index.html` daneben, die vor `index.php`
+gefunden wird. Der Kunde sähe statt seiner Seite wieder den Platzhalter, und
+niemand käme auf den Gedanken, dass das Panel das war. Geprüft wird das ganze
+Verzeichnis und nicht nur die Datei: Wer seine `index.html` gelöscht hat und
+mit `index.php` arbeitet, hat damit eine Entscheidung getroffen.
+
+**Sie nennt weder den Abonnementnamen noch den Systembenutzer noch das
+Panel.** Sobald eine Domain hierher zeigt, ist sie öffentlich, und was
+öffentlich ist, sollte über den Server nichts erzählen: Ein Platzhalter, auf
+dem „Abonnement kunde-example.de, Systembenutzer p1003" steht, ist eine
+Einladung, in der Suchmaschine nach weiteren zu suchen.
+
+Alles in einer Datei — keine Schrift, kein Bild, kein Stylesheet von aussen:
+Ein Platzhalter, der beim ersten Aufruf eine fremde Adresse kontaktiert,
+verrät deren Betreiber, dass es diese Domain gibt. Dazu `noindex`.
+
+## 8. Der belegte Speicher
 
 Die Kontingente stehen am Plan, der Stand daneben kommt aus der
 Dateisystem-Quota — gemessen und nicht gerechnet.
@@ -131,7 +155,7 @@ dem Mount, weiss das Panel nichts Neues — und „nichts Neues" ist kein Grund,
 eine Messung von gestern zu verwerfen. Die Oberfläche zeigt „nicht gemessen"
 und nennt den Grund.
 
-## 8. Kontingente am Abonnement übersteuern
+## 9. Kontingente am Abonnement übersteuern
 
 Der Plan ist die Vorlage, das Abonnement der Stand. Ein Kontingent hat deshalb
 zwei Zustände und nicht einen Wert: „gilt der Plan" ist etwas anderes als
@@ -176,7 +200,7 @@ Heimatpfad eines Systembenutzers zeigen. Der Systembenutzer trägt eine UID, an
 der auf dem Dateisystem Eigentum hängt. Ein Abonnement umzuhängen ist eine
 Vertragsfrage. Und der Zustand hat seine eigenen Aktionen.
 
-## 9. Der Abnahmelauf
+## 10. Der Abnahmelauf
 
 Das Kriterium von P2 lautet: hundert Abonnements anlegen und wieder löschen,
 ohne dass ein Systembenutzer, ein Verzeichnis oder ein Quota-Eintrag
@@ -209,7 +233,7 @@ an: Eine Kundennummer ist auf Dauer verbraucht, auch nach dem Zurückziehen.
 überspringt die Rückfrage. Angefasst wird ausschliesslich, was der Lauf selbst
 angelegt hat.
 
-## 10. Die Kundensperre
+## 11. Die Kundensperre
 
 Einen Kunden zu sperren heisst, seine Abonnements zu sperren. Ein Kunde, der
 „gesperrt" heisst und dessen Webseiten weiterlaufen, ist nicht gesperrt,
@@ -263,10 +287,41 @@ abweist. Ihn auszusperren wäre die härtere Auslegung; sie nähme ihm die
 Auskunft darüber, warum nichts mehr geht. Ein zurückgezogener Kunde kommt
 dagegen nicht mehr herein — das ist keine Sperre, sondern das Ende.
 
-## 11. Was noch fehlt
+## 12. Der Bestand auf der Übersicht
 
-- **Sicherung vor dem Rückbau.** Der Plan verlangt sie; solange es keine
-  Sicherungen gibt (P8), ist der Rückbau endgültig, und die Rückfrage sagt das.
+Die Startseite des Betreibers zeigte bis August 2026 ausschliesslich die
+Maschine: Auslastung, Dienste, Dateisysteme, Prozesse. Das ist die halbe
+Auskunft — ein Betreiber öffnet sein Panel nicht, um zu erfahren, wie viel RAM
+belegt ist, sondern um zu sehen, ob mit dem, was er hostet, etwas nicht
+stimmt. Kunden und Abonnements gab es nur auf ihren eigenen Listenseiten, und
+dort sieht man sie erst, wenn man den Verdacht schon hat.
+
+Jetzt stehen darauf: Zahl der Kunden (und wie viele davon gesperrt sind), Zahl
+der Abonnements nach Zustand, und die fünf Abonnements, die ihrer
+Speichergrenze am nächsten sind.
+
+**Die vollsten und nicht die grössten.** Ein Abonnement mit 40 GB Verbrauch
+und 200 GB Kontingent ist unauffällig; eines mit 4,8 GB und 5 GB ist der Anruf
+von morgen. Sortiert wird deshalb nach dem Verhältnis — und das kennt erst
+`Subscription::diskUsagePercent()`, weil es an `quota_overrides` und am Plan
+hängt und sich in SQL nicht ohne Weiteres ausdrücken lässt.
+
+**Gezählt wird in der Datenbank, gerechnet nur, wo es sein muss.** Die
+Zustände kommen als `GROUP BY`; für die Rangfolge werden die fünfzig
+verbrauchsstärksten Abonnements mit ihrem Plan geladen und daraus die fünf
+vollsten gewählt. Ein Server ohne Messung lädt gar nichts.
+
+**Ein Kunde bekommt das nicht.** Nicht ausgeblendet, sondern gar nicht erst
+erhoben — wie viele Kunden es auf diesem Server gibt, geht ihn nichts an.
+
+## 13. Was noch fehlt
+
+- **Sicherung vor dem Rückbau.** Der Plan verlangt sie in P2 („löschen mit
+  Sicherung davor"); sie ist bewusst nach P8 verschoben. Eine Operation, die
+  sichert *und* löscht, sichert im Fehlerfall vielleicht nicht und löscht
+  trotzdem — und ohne Sicherungsziele, Aufbewahrung und einen Weg zurück wäre
+  „Sicherung" ohnehin nur ein Verzeichnis daneben. Solange es sie nicht gibt,
+  ist der Rückbau endgültig, und die Rückfrage sagt das.
 - **Traffic messen.** Das Kontingent steht im Katalog und ist als „gemessen,
   nicht erzwungen" beschrieben — gemessen wird es noch nicht. Dafür braucht es
   die Zugriffsprotokolle der Domains, und die gibt es ab P3.

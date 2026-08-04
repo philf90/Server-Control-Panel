@@ -16,7 +16,7 @@ use Tests\TestCase;
  * systemd. Nichts davon gibt es in einem Test, und ein Test mit einem
  * erfundenen Agenten prüfte genau das nicht, worum es geht: ob nach hundert
  * echten Rückbauten etwas auf einem echten Server zurückbleibt. Deshalb steht
- * der Lauf als Kommando da; wie man ihn ausführt, steht in docs/26 §7.
+ * der Lauf als Kommando da; wie man ihn ausführt, steht in docs/26 §8.
  *
  * Prüfbar ist trotzdem die Stelle, an der er sein Urteil fällt. Ein
  * Abnahmelauf, der Rückstände findet und trotzdem 0 zurückgibt, ist

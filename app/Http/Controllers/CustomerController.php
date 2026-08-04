@@ -213,7 +213,7 @@ final class CustomerController extends Controller
      * Abonnements, die gerade angelegt werden, bleiben aussen vor: Sie haben
      * noch keinen Systembenutzer, den man sperren könnte. Sie kommen als aktiv
      * aus dem Anlegen heraus — der Kunde bleibt gesperrt, das Abonnement
-     * nicht. Das ist eine bekannte Kante und in docs/26 §11 notiert.
+     * nicht. Das ist eine bekannte Kante und in docs/26 §13 notiert.
      */
     public function suspend(Customer $customer, Audit $audit, Lifecycle $lifecycle): RedirectResponse
     {

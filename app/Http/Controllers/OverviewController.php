@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CustomerStatus;
+use App\Enums\SubscriptionStatus;
 use App\Models\Account;
+use App\Models\Customer;
 use App\Models\Subscription;
 use App\Support\Metrics\Store;
 use Illuminate\Http\Request;
@@ -42,11 +45,96 @@ final class OverviewController extends Controller
 
         return Inertia::render('Overview', [
             'server' => $this->server($info),
+            'hosting' => $this->hosting(),
             'tiles' => $this->tiles($store),
             'services' => $this->services($agent),
             'filesystems' => $this->filesystems($info),
             'processes' => $this->processes($info),
         ]);
+    }
+
+    /**
+     * Der Bestand: Kunden, Abonnements, Zustand, Verbrauch.
+     *
+     * **Warum das auf die Übersicht gehört.** Sie zeigte bis August 2026
+     * ausschliesslich die Maschine — Auslastung, Dienste, Dateisysteme,
+     * Prozesse. Das ist die halbe Auskunft: Ein Betreiber öffnet sein Panel
+     * nicht, um zu erfahren, wie viel RAM belegt ist, sondern um zu sehen, ob
+     * mit dem, was er hostet, etwas nicht stimmt. Kunden und Abonnements gab
+     * es nur auf ihren eigenen Listenseiten, und dort sieht man sie erst,
+     * wenn man den Verdacht schon hat.
+     *
+     * **Gezählt wird in der Datenbank und nicht in PHP.** Bei zwanzig
+     * Abonnements ist das gleichgültig, bei zweitausend nicht — und die
+     * Übersicht ist die Seite, die jeder Aufruf des Panels zuerst lädt.
+     *
+     * @return array<string, mixed>
+     */
+    private function hosting(): array
+    {
+        $customers = Customer::query()
+            ->selectRaw('status, count(*) as anzahl')
+            ->groupBy('status')
+            ->pluck('anzahl', 'status');
+
+        $subscriptions = Subscription::query()
+            ->selectRaw('status, count(*) as anzahl')
+            ->groupBy('status')
+            ->pluck('anzahl', 'status');
+
+        return [
+            'customers' => [
+                'total' => (int) $customers->sum(),
+                'suspended' => (int) ($customers[CustomerStatus::Suspended->value] ?? 0),
+            ],
+            'subscriptions' => [
+                'total' => (int) $subscriptions->sum(),
+                'active' => (int) ($subscriptions[SubscriptionStatus::Active->value] ?? 0),
+                'suspended' => (int) ($subscriptions[SubscriptionStatus::Suspended->value] ?? 0),
+                'provisioning' => (int) ($subscriptions[SubscriptionStatus::Provisioning->value] ?? 0),
+            ],
+            'storage' => $this->storage(),
+        ];
+    }
+
+    /**
+     * Die Abonnements, die ihrer Speichergrenze am nächsten sind.
+     *
+     * **Nicht die grössten, sondern die vollsten.** Ein Abonnement mit 40 GB
+     * Verbrauch und 200 GB Kontingent ist unauffällig; eines mit 4,8 GB und 5
+     * GB ist der Anruf von morgen. Sortiert wird deshalb nach dem Verhältnis,
+     * und das kennt erst {@see Subscription::diskUsagePercent()} — es hängt an
+     * `quota_overrides` und am Plan und lässt sich in SQL nicht ohne Weiteres
+     * ausdrücken.
+     *
+     * Deshalb kommt hier die einzige Stelle, an der doch in PHP gerechnet
+     * wird: Geladen werden nur Abonnements, für die überhaupt eine Messung
+     * vorliegt, mit ihrem Plan — und aus denen die fünf vollsten. Der
+     * Unterschied zu „alles laden" ist, dass ein Server ohne Messung nichts
+     * lädt.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function storage(): array
+    {
+        return Subscription::query()
+            ->with('plan')
+            ->whereNotNull('disk_used_mb')
+            ->orderByDesc('disk_used_mb')
+            ->limit(50)
+            ->get()
+            ->map(static fn (Subscription $subscription): array => [
+                'id' => (int) $subscription->id,
+                'name' => $subscription->name,
+                'used_mb' => (int) $subscription->disk_used_mb,
+                'percent' => $subscription->diskUsagePercent(),
+                'measured_at' => $subscription->disk_usage_measured_at?->toDateTimeString(),
+            ])
+            ->filter(static fn (array $row): bool => $row['percent'] !== null)
+            ->sortByDesc('percent')
+            ->take(5)
+            ->values()
+            ->all();
     }
 
     /**

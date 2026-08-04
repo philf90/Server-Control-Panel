@@ -291,6 +291,49 @@ final class SubscriptionQuotaTest extends TestCase
         $this->assertNull($subscription->refresh()->disk_used_mb);
     }
 
+    public function test_the_overview_shows_the_fullest_and_not_the_biggest(): void
+    {
+        /*
+         * Ein Abonnement mit 40 GB Verbrauch und 200 GB Kontingent ist
+         * unauffällig; eines mit 4,8 GB und 5 GB ist der Anruf von morgen.
+         * Sortiert nach dem Verbrauch stünde das falsche oben — und zwar
+         * genau auf der Seite, die der Betreiber als erste öffnet.
+         */
+        $gross = $this->subscription();
+        $gross->forceFill([
+            'quota_overrides' => ['disk_mb' => 204_800],
+            'disk_used_mb' => 40_960,
+            'disk_usage_measured_at' => now(),
+        ])->save();
+
+        $voll = Subscription::factory()->create([
+            'customer_id' => $gross->customer_id,
+            'plan_id' => $gross->plan_id,
+            'name' => 'voll.example',
+            'system_user' => 'p1001',
+        ]);
+        $voll->forceFill(['disk_used_mb' => 4_812, 'disk_usage_measured_at' => now()])->save();
+
+        $response = $this->actingAs($this->admin())->get('/');
+
+        $storage = $response->viewData('page')['props']['hosting']['storage'];
+
+        $this->assertSame('voll.example', $storage[0]['name'], 'Oben steht das vollste Abonnement.');
+        $this->assertSame(94.0, $storage[0]['percent']);
+        $this->assertSame(20.0, $storage[1]['percent']);
+    }
+
+    public function test_a_subscription_without_a_measurement_is_not_listed(): void
+    {
+        // Ohne Messung gibt es keinen Anteil, und ohne Anteil hat die Zeile
+        // auf einer Liste der vollsten Abonnements nichts verloren.
+        $this->subscription();
+
+        $response = $this->actingAs($this->admin())->get('/');
+
+        $this->assertSame([], $response->viewData('page')['props']['hosting']['storage']);
+    }
+
     public function test_the_percentage_needs_both_numbers(): void
     {
         $subscription = $this->subscription();

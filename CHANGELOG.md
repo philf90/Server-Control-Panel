@@ -274,7 +274,7 @@ Kunde kommt an ein fremdes Objekt.
   alle gebundenen Abonnements — die Zahl steht in der Liste und über dem
   Formular —, senkt aber nichts rückwirkend weg: Gesenkte Grenzen verbieten
   das nächste Objekt, sie löschen keines.
-- **Der belegte Speicher wird gemessen** (`docs/26 §7`). `subscription.usage`
+- **Der belegte Speicher wird gemessen** (`docs/26 §8`). `subscription.usage`
   liest die Dateisystem-Quota — **ein Aufruf für alle Abonnements und nicht
   einer je Abonnement**: `repquota` liest die Quota-Datei einmal und kennt
   danach jeden Benutzer darin. Herausgegeben wird nur, was der Form `p` plus
@@ -288,7 +288,7 @@ Kunde kommt an ein fremdes Objekt.
   aus wie eine von vorhin. Ohne `usrquota` auf dem Mount wird nichts
   zurückgesetzt — „nichts Neues" ist kein Grund, die Messung von gestern zu
   verwerfen.
-- **Kontingente am Abonnement übersteuern** (`docs/26 §8`). Das Datenmodell
+- **Kontingente am Abonnement übersteuern** (`docs/26 §9`). Das Datenmodell
   konnte es längst, ein Formular gab es nicht. Ein Kontingent hat dort zwei
   Zustände und nicht einen Wert: „gilt der Plan" ist etwas anderes als „gilt
   zufällig derselbe Wert". **Was fehlt, bleibt weg** — die Felder mit
@@ -302,7 +302,7 @@ Kunde kommt an ein fremdes Objekt.
   während im Panel weiter „gesperrt" stand. Ein gesperrtes Abonnement bekommt
   seinen Vorgang trotzdem: `usable()` wäre die falsche Frage gewesen, denn das
   Entsperren setzt keine Quota, und die neue Grenze käme sonst nie an.
-- **Der Abnahmelauf für P2** (`docs/26 §9`): `srvpanel acceptance --count=100`
+- **Der Abnahmelauf für P2** (`docs/26 §10`): `srvpanel acceptance --count=100`
   legt an, baut zurück und sucht danach nach drei Sorten Rückstand —
   Systembenutzer **und Gruppe getrennt** (`userdel` entfernt eine
   nicht-primäre Gruppe nicht mit, und beim Anlegen steht `--no-user-group`),
@@ -347,7 +347,7 @@ einzelnen Ausbaustufe.
   löscht, während die Rückfrage davor von einem Kunden spricht. Zurückgebaute
   Abonnements zählen nicht mit — sonst liesse sich ein Kunde, der einmal eines
   hatte, nie wieder zurückziehen.
-- **Einen Kunden sperren heisst, seine Abonnements zu sperren** (`docs/26 §10`).
+- **Einen Kunden sperren heisst, seine Abonnements zu sperren** (`docs/26 §11`).
   `CustomerStatus::Suspended` gab es von Anfang an und bedeutete nichts — es
   liess sich nirgends setzen. Jetzt gibt es „Sperren" und „Freigeben" auf der
   Kundenseite, und die Sperre nimmt mit, was der Kunde hat: **je Abonnement ein
@@ -367,6 +367,24 @@ einzelnen Ausbaustufe.
   daneben; wer ihn herausfiltert, lässt jemanden nach einem Kunden suchen, den
   er gestern angelegt hat. Die Anmeldung bleibt offen: Ein gesperrter Kunde
   soll sehen, warum nichts mehr geht.
+- **Eine Willkommensseite im DocumentRoot** (`docs/26 §7`). Das
+  Verzeichnisschema legte `httpdocs` an und schrieb nichts hinein — ein Kunde
+  bekam ein leeres Verzeichnis. Sie entsteht **nur, solange das Verzeichnis
+  leer ist**: Das ist die Bedingung dafür, dass `subscription.provision`
+  wiederholbar bleiben darf, denn ein zweiter Lauf träfe sonst auf eine fertige
+  Webseite und legte eine `index.html` daneben, die vor `index.php` gefunden
+  wird. Sie nennt weder Abonnementnamen noch Systembenutzer noch das Panel —
+  sobald eine Domain hierher zeigt, ist sie öffentlich —, lädt nichts von
+  aussen und trägt `noindex`.
+- **Die Übersicht zeigt den Bestand** (`docs/26 §12`). Sie zeigte
+  ausschliesslich die Maschine: Auslastung, Dienste, Dateisysteme, Prozesse.
+  Ein Betreiber öffnet sein Panel aber nicht, um zu erfahren, wie viel RAM
+  belegt ist, sondern um zu sehen, ob mit dem, was er hostet, etwas nicht
+  stimmt. Jetzt stehen dort Kunden und Abonnements nach Zustand — und die fünf
+  Abonnements, die ihrer Speichergrenze am nächsten sind. **Die vollsten und
+  nicht die grössten:** Eines mit 40 GB von 200 ist unauffällig, eines mit 4,8
+  GB von 5 ist der Anruf von morgen. Ein Kunde bekommt diese Zahlen nicht
+  ausgeblendet, sondern gar nicht erst erhoben.
 - **Das Zertifikat der Oberfläche** (`docs/27`) — vorgezogen aus P4, ohne
   Let's Encrypt. Das selbstsignierte Zertifikat gab es seit P0; beim Nachsehen
   fielen zwei Mängel auf, die beide erst im Betrieb weh getan hätten. **Es

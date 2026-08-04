@@ -26,6 +26,24 @@
   --bg: #0b0f13;
   --surface: #111922;
   --surface-border: #1c2733;
+
+  /*
+   * Der Knopf hat eigene Marken — und zwar aus einem gemessenen Grund.
+   *
+   * Er stand auf `--surface` mit einem Rand aus `--line`, und beides ist
+   * gegeneinander kaum zu sehen: 1,04:1. Auf einem dunklen Bildschirm war ein
+   * „Bearbeiten" damit keine Schaltfläche, sondern ein etwas hellerer Fleck,
+   * den man für Text hält. Aufgefallen ist es an einer Kundenliste auf einem
+   * echten Monitor, nicht am Entwurf.
+   *
+   * Die Werte sind gerechnet, nicht gewählt: WCAG 1.4.11 verlangt für den Rand
+   * eines Bedienelements 3:1 gegen alles, was daneben liegt. `--button-line`
+   * erreicht 3,3:1 gegen die Fläche des Knopfes und 4,0:1 gegen den
+   * Seitengrund; im hellen Theme 3,6:1 und 3,3:1.
+   */
+  --button-bg: #1a2430;
+  --button-line: #647486;
+
   --nav-bg: #080c10;
   --nav-border: #1a232d;
   --line: #141d26;
@@ -110,6 +128,8 @@
   --bg: #f4f6f7;
   --surface: #ffffff;
   --surface-border: #dbe2e8;
+  --button-bg: #ffffff;
+  --button-line: #7c8996;
   --nav-bg: #ffffff;
   --nav-border: #dbe2e8;
   --line: #e9edf1;
@@ -305,8 +325,8 @@ input[type='radio'] {
   white-space: nowrap;
 
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--line);
+  background: var(--button-bg);
+  border: 1px solid var(--button-line);
   border-radius: 6px;
   cursor: pointer;
 }

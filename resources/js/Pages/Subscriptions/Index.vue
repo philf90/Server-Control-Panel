@@ -43,7 +43,7 @@ function verbrauch(row: Row): string {
 
     <table class="stapelt">
       <thead>
-        <tr><th>Name</th><th>Kunde</th><th>Plan</th><th>Systembenutzer</th><th>Speicher</th><th>Zustand</th></tr>
+        <tr><th>Name</th><th>Kunde</th><th>Plan</th><th>Systembenutzer</th><th>Speicher</th><th>Zustand</th><th></th></tr>
       </thead>
       <tbody>
         <tr v-for="row in props.subscriptions" :key="row.id">
@@ -55,9 +55,27 @@ function verbrauch(row: Row): string {
             {{ verbrauch(row) }}
           </td>
           <td data-spalte="Zustand" :data-status="row.status">{{ row.status_label }}</td>
+
+          <!--
+            Der Knopf steht hier, obwohl der Name schon ein Link ist.
+
+            Er war es zuerst allein, und das war ein Bruch zu den Kunden und
+            den Plänen: Dort steht in jeder Zeile ein „Bearbeiten", hier musste
+            man wissen, dass der Name klickbar ist und dass dahinter die
+            Bearbeitung liegt. Wer eine Liste überfliegt, sucht einen Knopf und
+            keinen Link — und wenn drei Listen dieselbe Aufgabe verschieden
+            lösen, ist die vierte wieder anders.
+
+            Der Name bleibt trotzdem ein Link: Er führt auf die Abo-Seite mit
+            Speicher, Kontingenten und Vorgängen, und das ist etwas anderes als
+            das Formular.
+          -->
+          <td data-spalte="Aktion">
+            <Link :href="`/subscriptions/${row.id}/edit`" class="knopf klein">Bearbeiten</Link>
+          </td>
         </tr>
         <tr v-if="props.subscriptions.length === 0">
-          <td colspan="6">
+          <td colspan="7">
             Noch kein Abonnement. Es braucht einen Kunden und einen Plan — beide
             gibt es unter Verwaltung.
           </td>

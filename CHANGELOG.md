@@ -350,6 +350,25 @@ der Oberfläche sagt das.
   noch ein Namensdienst einen beliebigen Namen in dieses Zertifikat schreibt.
   Die Ersteinrichtung fragt dieselbe Funktion, statt ihre eigene Fassung zu
   behalten.
+- **Der Rand eines Knopfes war nicht zu sehen.** `.knopf` stand auf `--surface`
+  mit einem Rand aus `--line`; im dunklen Theme sind das #111922 und #141d26
+  und damit ein Kontrast von **1,04:1**. „Bearbeiten" und „Anmelden als" waren
+  auf dem Bildschirm keine Bedienelemente, sondern etwas hellere Flecken, die
+  man für Text hält. Im Quelltext fiel das nicht auf, weil dort jeder Wert
+  einen Namen hat und deshalb richtig aussieht. Der Knopf hat jetzt eigene
+  Marken, `--button-bg` und `--button-line`, und sie sind gerechnet: WCAG
+  1.4.11 verlangt für die Grenze eines Bedienelements 3:1 gegen alles, was
+  daneben liegt — erreicht werden 3,3:1 gegen die eigene Fläche, 3,7:1 gegen
+  die Karte und 4,0:1 gegen den Seitengrund, im hellen Theme 3,6:1 und 3,3:1.
+  `ButtonStyleTest` rechnet das nach, in beiden Themes und gegen alle drei
+  Gründe; geprüft wird die Rechnung und nicht der Wert, damit die Reihe
+  umstimmbar bleibt.
+- **Bei den Abonnements fehlte der „Bearbeiten"-Knopf.** Dort war der Name die
+  einzige Verbindung zur Bearbeitung, während Kunden und Pläne je Zeile einen
+  Knopf haben — man musste wissen, dass der Name klickbar ist und was dahinter
+  liegt. Wer eine Liste überfliegt, sucht einen Knopf und keinen Link. Der Name
+  bleibt trotzdem ein Link: Er führt auf die Abo-Seite mit Speicher,
+  Kontingenten und Vorgängen, und das ist etwas anderes als das Formular.
 
 ### Quer zu den Stufen
 

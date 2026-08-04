@@ -146,7 +146,7 @@ final class SubscriptionProvision implements Op
     {
         $name = Guard::string($value, 'name');
 
-        if (! preg_match('/^[a-z0-9]([a-z0-9.\-]{0,61}[a-z0-9])?$/', $name)) {
+        if (! preg_match('/^[a-z0-9]([a-z0-9.\-]{0,61}[a-z0-9])?$/D', $name)) {
             throw AgentException::badRequest('Unzulässiger Name für ein Abonnement.', ['name' => $name]);
         }
 
@@ -170,7 +170,7 @@ final class SubscriptionProvision implements Op
     {
         $user = Guard::string($value, 'user');
 
-        if (! preg_match('/^p[0-9]{4,9}$/', $user)) {
+        if (! preg_match('/^p[0-9]{4,9}$/D', $user)) {
             throw AgentException::badRequest(
                 'Unzulässiger Systembenutzer — erwartet wird „p" und vier bis neun Ziffern.',
                 ['user' => $user],

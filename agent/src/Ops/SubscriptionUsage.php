@@ -118,7 +118,7 @@ final class SubscriptionUsage implements Op
 
             $user = (string) ($fields[0] ?? '');
 
-            if (preg_match('/^p[0-9]{4,9}$/', $user) !== 1) {
+            if (preg_match('/^p[0-9]{4,9}$/D', $user) !== 1) {
                 continue;
             }
 

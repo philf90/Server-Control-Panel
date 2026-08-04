@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Journal;
 use SrvPanel\Agent\Ops\SubscriptionRemove;
 use SrvPanel\Agent\Runner;
@@ -64,11 +65,15 @@ final class SubscriptionRemoveTest extends TestCase
         @rmdir($path);
     }
 
-    /** `removeTree` ist privat — geprüft wird die Wirkung, nicht die Sichtbarkeit. */
+    /**
+     * Der Baumlauf liegt seit P3 in {@see Filesystem} — `web.site.remove`
+     * braucht ihn ebenfalls, und zwei Abschriften eines `unlink` als root
+     * wären eine zu viel. Die Prüfungen darunter sind dieselben geblieben:
+     * Sie gelten der Wirkung und nicht dem Ort.
+     */
     private function removeTree(string $path): void
     {
-        $method = new \ReflectionMethod(SubscriptionRemove::class, 'removeTree');
-        $method->invoke(new SubscriptionRemove, $path);
+        Filesystem::removeTree($path);
     }
 
     public function test_a_symlink_inside_the_tree_is_removed_and_not_followed(): void

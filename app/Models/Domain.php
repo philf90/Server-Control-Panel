@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use SrvPanel\Agent\DocumentRoot;
 use SrvPanel\Agent\DomainName;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 
@@ -168,56 +169,27 @@ class Domain extends Model
     /**
      * Ist das ein zulässiger relativer DocumentRoot?
      *
-     * Vier Bedingungen, und jede hat einen Fall hinter sich:
+     * **Die Regel steht im Agenten.** Hier stand zuerst ein eigener Ausdruck
+     * mit derselben Absicht — und das war dieselbe Doppelung, die dieses
+     * Projekt schon mehrfach eingeholt hat: zwei Formulierungen einer Regel,
+     * von denen beim nächsten Mal eine nachgezogen wird. Der Agent baut aus
+     * dem Wert einen Pfad; also gehört ihm die Regel, und das Panel fragt sie.
+     * So ist es bei {@see DomainName} und beim Namen des Abonnements auch.
      *
-     * 1. **Relativ.** Ein führender Schrägstrich wäre ein absoluter Pfad, und
-     *    der Agent baut aus `/var/www/vhosts/abo//etc` nichts Gutes.
-     * 2. **Kein Bestandteil beginnt mit einem Punkt.** Damit sind `..` und
-     *    `.ssh` ausgeschlossen — der Ausbruch nach oben und das Verzeichnis
-     *    mit den Schlüsseln.
-     * 3. **Kein reserviertes Verzeichnis des Schemas** (§4.5). Ein
-     *    DocumentRoot auf `logs` liefert die Zugriffsprotokolle über HTTP aus.
-     *    Die Liste kommt aus dem Agenten und nicht von hier: Wächst das
-     *    Schema, wächst sie mit.
-     * 4. **Begrenzte Tiefe.** Acht Ebenen sind mehr, als ein DocumentRoot
-     *    braucht; alles darüber ist ein Vertipper oder ein Versuch.
-     *
-     * Der Agent prüft dasselbe noch einmal. Nicht, weil diese Prüfung
-     * schwach wäre, sondern weil er niemandem glaubt — auch dem Panel nicht.
+     * Dass der Agent beim Aufruf noch einmal prüft, bleibt richtig: Er glaubt
+     * seinem Aufrufer nicht. Es ist dann aber dieselbe Prüfung und nicht eine
+     * zweite, die davon abweichen kann.
      */
     public static function isValidDocumentRoot(string $value): bool
     {
-        if ($value === '' || strlen($value) > 255) {
-            return false;
-        }
-
-        if (str_starts_with($value, '/') || str_ends_with($value, '/') || str_contains($value, '//')) {
-            return false;
-        }
-
-        $segments = explode('/', $value);
-
-        if (count($segments) > 8) {
-            return false;
-        }
-
-        foreach ($segments as $segment) {
-            if (! preg_match('/^[A-Za-z0-9][A-Za-z0-9._\-]*$/', $segment)) {
-                return false;
-            }
-        }
-
-        return ! in_array($segments[0], SubscriptionProvision::reservedDirectories(), true);
+        return DocumentRoot::valid($value);
     }
 
     /**
      * Der Vorschlag für ein neues DocumentRoot.
      *
-     * Die Hauptdomain liefert aus `httpdocs` aus — dem Verzeichnis, das
-     * `subscription.provision` anlegt und dessen Namen der Agent als Konstante
-     * führt. Jede weitere Domain bekommt ein Verzeichnis mit ihrem eigenen
-     * Namen; §4.5 sieht `<weitere-domain>/` genau dafür vor. Ein Alias
-     * bekommt keines, weil er keine eigenen Dateien hat.
+     * Ein Alias bekommt keines, weil er keine eigenen Dateien hat; alles
+     * andere entscheidet {@see DocumentRoot::forDomain()}.
      */
     public static function defaultDocumentRoot(DomainType $type, string $name): ?string
     {
@@ -225,9 +197,7 @@ class Domain extends Model
             return null;
         }
 
-        return $type === DomainType::Main
-            ? SubscriptionProvision::DOCUMENT_ROOT
-            : $name;
+        return DocumentRoot::forDomain($name, $type === DomainType::Main);
     }
 
     /**

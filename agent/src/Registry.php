@@ -11,6 +11,11 @@ use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
 use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
+use SrvPanel\Agent\Ops\PhpPoolApply;
+use SrvPanel\Agent\Ops\PhpPoolRemove;
+use SrvPanel\Agent\Ops\PhpVersionInstall;
+use SrvPanel\Agent\Ops\PhpVersionList;
+use SrvPanel\Agent\Ops\PhpVersionRemove;
 use SrvPanel\Agent\Ops\ServiceAction;
 use SrvPanel\Agent\Ops\ServiceStatus;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
@@ -20,6 +25,11 @@ use SrvPanel\Agent\Ops\SubscriptionResume;
 use SrvPanel\Agent\Ops\SubscriptionSuspend;
 use SrvPanel\Agent\Ops\SubscriptionUsage;
 use SrvPanel\Agent\Ops\SystemInfo;
+use SrvPanel\Agent\Ops\WebLogrotate;
+use SrvPanel\Agent\Ops\WebLogsTail;
+use SrvPanel\Agent\Ops\WebserverDetect;
+use SrvPanel\Agent\Ops\WebSiteApply;
+use SrvPanel\Agent\Ops\WebSiteRemove;
 
 /**
  * Das Verzeichnis der Operationen.
@@ -51,6 +61,18 @@ final class Registry
         $this->register(new SubscriptionResume);
         $this->register(new SubscriptionUsage);
         $this->register(new SubscriptionQuota);
+
+        // P3 — Web und PHP.
+        $this->register(new WebserverDetect);
+        $this->register(new WebSiteApply);
+        $this->register(new WebSiteRemove);
+        $this->register(new WebLogsTail);
+        $this->register(new WebLogrotate);
+        $this->register(new PhpVersionList);
+        $this->register(new PhpVersionInstall);
+        $this->register(new PhpVersionRemove);
+        $this->register(new PhpPoolApply);
+        $this->register(new PhpPoolRemove);
     }
 
     public function register(Op $op): void

@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Op;
 
 /**
@@ -245,44 +246,9 @@ final class SubscriptionRemove implements Op
             throw AgentException::denied('Der aufgelöste Pfad weicht ab — es wird nichts entfernt.');
         }
 
-        $this->removeTree($root);
+        Filesystem::removeTree($root);
 
         return true;
-    }
-
-    /**
-     * Rekursiv entfernen, ohne je einem Symlink zu folgen.
-     *
-     * Der Kunde besitzt `httpdocs` und kann darin `foo -> /etc` anlegen.
-     * `is_link` vor dem Abstieg entscheidet: Ein Verweis wird entfernt, ein
-     * Verzeichnis betreten.
-     *
-     * **Was das nicht abdeckt:** Zwischen der Prüfung und dem Abstieg liegt
-     * ein Zeitfenster, in dem ein laufender Prozess des Abonnements ein
-     * Verzeichnis durch einen Verweis ersetzen könnte. Sauber schliessen liesse
-     * sich das nur mit `openat(O_NOFOLLOW)`, und das gibt PHP nicht heraus.
-     * Deshalb steht `stopProcesses()` vorher: Wenn hier gelöscht wird, läuft
-     * kein Prozess mehr, der das Fenster nutzen könnte.
-     */
-    private function removeTree(string $path): void
-    {
-        foreach (scandir($path) ?: [] as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-
-            $child = $path.'/'.$entry;
-
-            if (is_link($child) || ! is_dir($child)) {
-                @unlink($child);
-
-                continue;
-            }
-
-            $this->removeTree($child);
-        }
-
-        @rmdir($path);
     }
 
     /**

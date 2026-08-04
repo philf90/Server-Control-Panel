@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Plans;
 
 use App\Models\Subscription;
+use SrvPanel\Agent\PhpVersions;
 
 /**
  * Die Kontingente aus §5.2 — als Aufzählung und nicht als Zeichenketten.
@@ -33,15 +34,20 @@ enum Quota: string
     /**
      * Die PHP-Versionen, die das Panel kennt.
      *
-     * Sie steht hier und nicht in einer Konfigurationsdatei, weil sie kein
+     * Sie steht nicht in einer Konfigurationsdatei, weil sie kein
      * Betreiberwunsch ist: Für jede dieser Versionen muss es eine
      * FPM-Vorlage, einen Paketnamen und einen Handler geben. Eine Version
-     * hinzunehmen heisst, diese drei Dinge mitzuliefern — und dann ist die
-     * Zeile hier die kleinste der Änderungen.
+     * hinzunehmen heisst, diese drei Dinge mitzuliefern.
+     *
+     * **Seit P3 steht die Liste im Agenten** — dort, wo aus einer Version ein
+     * Paketname und ein Dateipfad wird. Hier stand sie zuerst, und das war die
+     * falsche Richtung: Der Agent glaubt dem Panel nichts und hätte die
+     * Angabe ohnehin gegen eine eigene Liste prüfen müssen. Zwei Listen, und
+     * die im Panel wäre die gepflegte gewesen.
      *
      * @var list<string>
      */
-    public const PHP_VERSIONS = ['8.1', '8.2', '8.3', '8.4'];
+    public const PHP_VERSIONS = PhpVersions::CATALOG;
 
     case DiskMb = 'disk_mb';
     case TrafficGb = 'traffic_gb';

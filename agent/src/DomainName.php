@@ -70,7 +70,7 @@ final class DomainName
         }
 
         foreach ($labels as $label) {
-            if (! preg_match('/^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?$/', $label)) {
+            if (! preg_match('/^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?$/D', $label)) {
                 throw self::rejected($field, $name);
             }
 
@@ -86,7 +86,7 @@ final class DomainName
         // sie beginnen mit Buchstaben.
         $tld = $labels[count($labels) - 1];
 
-        if (! preg_match('/^[a-z][a-z0-9\-]{1,}$/', $tld)) {
+        if (! preg_match('/^[a-z][a-z0-9\-]{1,}$/D', $tld)) {
             throw self::rejected($field, $name);
         }
 

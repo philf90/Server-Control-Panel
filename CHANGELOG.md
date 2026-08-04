@@ -777,3 +777,84 @@ genau deshalb war jetzt der Zeitpunkt.
   Verzeichnis. Den Namen trotzdem für immer zu sperren hiesse, dass ein
   versehentlich gelöschter Eintrag nie wieder anlegbar wäre — auch nicht für
   den Kunden, dem die Domain gehört.
+
+### P3 — der Agent kann Web und PHP
+
+- **Zehn neue Operationen** (`docs/20 §4.2`): `webserver.detect`,
+  `web.site.apply`, `web.site.remove`, `web.logs.tail`, `web.logrotate.apply`,
+  `php.versions`, `php.version.install`, `php.version.remove`,
+  `php.pool.apply`, `php.pool.remove`. Die Vorlagen für Server-Block und
+  FPM-Pool liegen im Agenten; das Panel schickt Struktur und keinen Text.
+- **Eine Klasse baut alle Pfade.** Zu einer Domain gehören sechs: Server-Block,
+  Include, DocumentRoot, Protokollverzeichnis, FPM-Sockel und die Wurzel des
+  Abonnements. Stünden sie in `apply`, `remove` und `state` je neu
+  zusammengesetzt, wäre die Operation, die **entfernt**, die schlechteste
+  Stelle für eine Abweichung. Übergeben wird ein *relatives* DocumentRoot;
+  alles andere entsteht im Agenten — dieselbe Regel wie bei
+  `subscription.provision`.
+- **`web.site.state` gibt es nicht.** Der Plan sah eine eigene Operation fürs
+  Sperren vor; sie hätte denselben Server-Block geschrieben, nur mit anderem
+  Rumpf. Zwei Wege zu einer Datei sind zwei Gelegenheiten, sie unterschiedlich
+  zu bauen — und die Sperre wäre der Weg, der seltener läuft und deshalb später
+  auffällt. Das Panel schickt den gewünschten Zustand, `suspended` ist ein Feld
+  darin. Eine gesperrte Website antwortet mit **503** und nicht mit dem nackten
+  403, den die Rechteänderung aus P2 erzeugte: „nicht in Betrieb" ist etwas
+  anderes als „du darfst nicht", und Suchmaschinen nehmen die Seite bei 503
+  nicht aus dem Bestand.
+- **Ohne PHP-Version wird `.php` verweigert, nicht ausgeliefert.** Der Fehler,
+  der bei jeder statischen Website teuer wird: Ohne Handler liefert nginx die
+  Datei als Text aus, mit allem, was an Zugangsdaten darin steht.
+- **Der Standardschutz steht in der Vorlage und in keinem Häkchen** (§9 P3):
+  Punktdateien (`.git`, `.env`, `.htaccess`) in einem Ausdruck — mit Ausnahme
+  von `.well-known`, ohne die ab P4 keine Domain je ein Zertifikat bekäme —,
+  kein PHP in Verzeichnissen, in die hochgeladen wird, und `try_files` **vor**
+  dem Handler, damit `/bild.jpg/schad.php` nicht in PHP endet.
+- **Eigene nginx-Direktiven gegen eine Positivliste** (`docs/20 §4.2`). Die
+  einzige Stelle in P3, an der Text eines Kunden in einer Datei landet, die als
+  root gelesen wird. Fünfzehn Namen sind erlaubt, keine Blöcke, ein Semikolon
+  am Ende und sonst keines. Was einen Pfad oder einen Empfänger bestimmt —
+  `root`, `alias`, `include`, `fastcgi_pass` — steht nicht darauf und wird
+  nicht dazukommen; `DirectiveAllowlistTest` prüft **die Liste** und nicht nur
+  die Prüfung.
+- **Die Abschottung liegt im Pool.** `open_basedir` auf die Wurzel des
+  Abonnements, `disable_functions` für alles, was einen Prozess startet, eigenes
+  `tmp` und eigene Sitzungsablage (§4.5), `security.limit_extensions = .php`
+  gegen den Umweg über `.phar`. Alles als `php_admin_value` — als `php_value`
+  wäre es eine Empfehlung, die ein `ini_set()` im Skript aufhebt. Die
+  Einstellungen **je Domain** gehen dagegen als `PHP_VALUE` über FastCGI mit;
+  ein Pool bedient drei Domains und kann nicht drei `memory_limit` haben.
+  `PhpIsolationTest` prüft beide Seiten, auch die Gegenrichtung: Keine
+  Domaineinstellung darf einen Schlüssel tragen, der im Pool `php_admin_value`
+  ist.
+- **`Quota::PHP_VERSIONS` zeigt jetzt auf den Katalog des Agenten.** Die Liste
+  stand im Panel, und das war die falsche Richtung: Der Agent glaubt dem Panel
+  nichts und hätte die Angabe ohnehin gegen eine eigene Liste prüfen müssen —
+  zwei Listen, und die gepflegte wäre die falsche gewesen.
+  `PhpVersionCatalogTest` löst `docs/23 §7` ein: Zu jeder Version im Katalog
+  gehören Vorlage, Paketname und Handler — samt einer Zeile in der
+  Programm-Positivliste des Agenten, ohne die sich der Pool nie prüfen liesse.
+- **`$` ist kein Ende — neun Muster waren betroffen, vier davon aus P0 bis P2.**
+  Aufgefallen im Angriffsdurchgang: Eine Zeitzone mit angehängtem
+  Zeilenumbruch ging durch. PCRE lässt `$` auch vor einem abschliessenden
+  Umbruch passen, und in einem `fastcgi_param PHP_VALUE` ist
+  `memory_limit=256M\n` eine Einstellung und der Anfang der nächsten. Die
+  Prüfungen des Abonnementnamens und des Systembenutzers hatten denselben
+  Fehler. Alle tragen jetzt den Modifikator `D`, und weil die Einzelkorrektur
+  nur den Fehler von heute behoben hätte, prüft `AnchoredPatternTest` die
+  ganze Klasse: Jedes Muster im Agenten, das auf `$` endet, trägt `D`.
+- **Der Standard-Pool der Distribution wird abgeschaltet.** `phpX.Y-fpm` bringt
+  `www.conf` mit — ein geteilter Pool als `www-data`, ohne `open_basedir`, also
+  genau das Loch, das P3 zumacht. `php.version.install` benennt ihn um; die
+  Unit bleibt danach stehen, solange kein Abonnement einen Pool hat, weil ein
+  PHP-FPM ohne Pool nicht startet.
+- **Zwei Abschriften weniger.** Der Ablauf „schreiben, `nginx -t`, neu laden,
+  im Fehlerfall zurück" stand in `panel.vhost.apply` und wird jetzt von jeder
+  Kundendomain gebraucht; er steht in einer Klasse, und die Panel-Vorlage
+  benutzt sie. Der Baumlauf, der als root löscht, stand in
+  `subscription.remove` und wird beim Entfernen einer Domain gebraucht — auch
+  er steht jetzt an einer Stelle. Beim Abschreiben wäre nach aller Erfahrung
+  die Zeile mit `is_link` verlorengegangen.
+- **Ein laufender Apache verweigert den Betrieb, ein installierter nicht**
+  (§9 P3). Auf manchen Systemen liegt Apache als Abhängigkeit herum, ohne je
+  zu starten; wer deswegen den Dienst verweigerte, verweigerte ihn auf einem
+  Server, auf dem nichts im Weg ist.

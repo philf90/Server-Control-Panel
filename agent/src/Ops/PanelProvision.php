@@ -121,7 +121,7 @@ final class PanelProvision implements Op
     private function database(Context $context, string $database, string $user, string $password): void
     {
         foreach ([$database, $user] as $identifier) {
-            if (! preg_match('/^[a-z][a-z0-9_]{0,30}$/', $identifier)) {
+            if (! preg_match('/^[a-z][a-z0-9_]{0,30}$/D', $identifier)) {
                 throw AgentException::badRequest('Unzulässiger Datenbank- oder Benutzername.');
             }
         }

@@ -304,7 +304,7 @@ final class Names
     private static function isHostname(string $value): bool
     {
         return strlen($value) <= 253
-            && preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9.\-]*[a-zA-Z0-9])?$/', $value) === 1;
+            && preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9.\-]*[a-zA-Z0-9])?$/D', $value) === 1;
     }
 
     private static function usable(string $address): bool

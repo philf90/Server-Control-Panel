@@ -313,6 +313,26 @@ Kunde kommt an ein fremdes Objekt.
   ganzen Kette bis unter systemd fragt; was ohne Server prüfbar ist — dass ein
   Rückstand jeder Art den Lauf durchfallen lässt —, steht als Test daneben.
 
+### P2 abgeschlossen
+
+Das Abnahmekriterium lautete: hundert Abonnements anlegen und wieder löschen,
+ohne dass ein Systembenutzer, ein Verzeichnis oder ein Quota-Eintrag
+zurückbleibt.
+
+`srvpanel acceptance --count=100` ist am 4. August 2026 auf dem Server des
+Betreibers gelaufen, aus dem Paket `0.2.0~rc.13`, und meldet: kein
+Systembenutzer, keine Gruppe, kein Verzeichnis, kein Quota-Eintrag geblieben.
+Geprüft ist damit nicht nur der Rückbau, sondern die ganze Kette Panel →
+Warteschlange → Arbeiter → Agent unter echtem systemd — und zwar
+zweihundertmal hintereinander.
+
+**Offen bleibt aus P2 die Sicherung vor dem Rückbau.** Sie steht im Plan und
+ist bewusst nach P8 verschoben: Eine Operation, die sichert *und* löscht,
+sichert im Fehlerfall vielleicht nicht und löscht trotzdem — und ohne
+Sicherungsziele, Aufbewahrung und einen Weg zurück wäre „Sicherung" nur ein
+Verzeichnis daneben. Bis dahin ist der Rückbau endgültig, und die Rückfrage in
+der Oberfläche sagt das.
+
 ### Quer zu den Stufen
 
 Nach der Abnahme von P1 nachgezogen; keines dieser Themen gehört einer

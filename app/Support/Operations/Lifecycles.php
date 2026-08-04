@@ -29,6 +29,24 @@ final class Lifecycles
         WebLifecycle::class,
     ];
 
+    /**
+     * Alle Aufgaben, die irgendein Lebenslauf beantwortet.
+     *
+     * @return list<string>
+     */
+    public static function handled(): array
+    {
+        $tasks = [];
+
+        foreach (self::HANDLERS as $handler) {
+            foreach ($handler::handles() as $task) {
+                $tasks[$task] = true;
+            }
+        }
+
+        return array_keys($tasks);
+    }
+
     public function afterSuccess(Operation $operation): void
     {
         foreach (self::HANDLERS as $handler) {

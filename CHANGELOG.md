@@ -1003,3 +1003,38 @@ genau deshalb war jetzt der Zeitpunkt.
   galt. Erreichbarkeit ist nicht dasselbe wie „die richtige Fähigkeit an der
   richtigen Route" — dafür steht jetzt ein Test, der ein Konto mit dem Recht
   „Statistik" die Domain sehen und die Protokolle nicht lesen lässt.
+
+### P3 — der Wächter über die Operationsnamen
+
+- **`AgentOperationReachTest`** hält drei Listen zusammen: was das Panel an den
+  Agenten schickt, was der Agent kennt, und was danach ein Lebenslauf
+  beantwortet. Mit P3 standen die Namen der Operationen als Zeichenketten in
+  zehn Dateien — `web.site.apply` im Lebenslauf, `php.versions` im
+  Steuerungscode, `panel.tls.info` in den Einstellungen — und geprüft hat sie
+  nichts. Wortwörtlich das Muster aus CLAUDE.md, diesmal an einer besonders
+  unangenehmen Stelle: Ein Tippfehler in `web.site.aply` fällt weder beim
+  Übersetzen noch in der Oberfläche auf, sondern erst, wenn ein Kunde eine
+  Domain anlegt und der Vorgang mit „Unbekannte Operation" scheitert.
+- **Ein Lebenslauf sagt jetzt, welche Aufgaben er beantwortet.** Vorher stand
+  das als `str_starts_with` und `match` im Rumpf — lesbar, aber für nichts
+  prüfbar. Und genau das ist die Frage, sobald jemand eine Aufgabe dazunimmt:
+  Beantwortet sie überhaupt jemand? Eine Aufgabe ohne Lebenslauf läuft durch,
+  der Agent tut seine Arbeit, und im Panel ändert sich nichts — ohne Fehler,
+  ohne Meldung. Was nichts ändert, steht mit Begründung in einer Liste.
+- **Zwei Operationen waren gebaut und wurden von nichts aufgerufen** — beide
+  vom neuen Test gefunden:
+  - `web.logrotate.apply`. Ohne sie füllt das Zugriffsprotokoll die Quota des
+    Kunden mit Dateien, die er nie angelegt hat. Sie entsteht jetzt mit dem
+    Abonnement; der Ausdruck darin deckt jede Domain ab, auch die von morgen.
+  - `php.pool.remove`. Der Pool einer entfernten Domain wäre stehen geblieben —
+    und `php.version.remove` weist ab, solange ein Abonnement einen Pool in
+    dieser Version hat. Die Version liesse sich nie wieder entfernen, und der
+    Betreiber suchte nach einem Abonnement, das es nicht mehr gibt.
+- **Und der Test selbst hat zweimal dazugelernt.** Der erste Entwurf suchte die
+  Namen an den Aufrufstellen — dabei sah `subscription.provision` unbenutzt
+  aus, weil der Steuerungscode sie über eine eigene Methode durchreicht. Ein
+  Ausdruck, der jede Schreibweise eines Aufrufs erraten muss, ist kein Wächter,
+  sondern eine zweite Fehlerquelle; die Vollständigkeit trägt seitdem die
+  erklärte Liste, und die Suche im Quelltext ist nur noch das Netz daneben.
+  Beim Gegenprüfen fiel dann auf, dass dieses Netz `dispatchForSubscription()`
+  nicht sah — ein Tippfehler in dem Namen, den sie abschickt, blieb unbemerkt.

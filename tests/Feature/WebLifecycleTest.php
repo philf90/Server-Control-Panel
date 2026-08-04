@@ -341,6 +341,82 @@ final class WebLifecycleTest extends TestCase
         $this->assertSame((int) $account->id, $follow->account_id);
     }
 
+    /**
+     * Ein Pool, den keine Domain mehr benutzt, wird abgeräumt.
+     *
+     * Bliebe er stehen, liesse sich die PHP-Version nie wieder entfernen:
+     * `php.version.remove` weist ab, solange ein Abonnement einen Pool hat.
+     * Der Betreiber suchte dann nach einem Abonnement, das es nicht mehr gibt.
+     */
+    public function test_removing_the_last_domain_of_a_version_removes_its_pool(): void
+    {
+        $domain = $this->domain();
+        $domain->forceFill(['php_version' => '8.3'])->save();
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.remove'));
+        $this->tenancy()->allowAll();
+
+        $pool = Operation::query()->where('task', 'php.pool.remove')->sole();
+
+        $this->assertSame('8.3', $pool->payload['php_version'] ?? null);
+        $this->assertSame((int) $domain->subscription_id, $pool->subscription_id);
+    }
+
+    /** Solange eine zweite Domain dieselbe Version benutzt, bleibt der Pool. */
+    public function test_a_pool_stays_while_another_domain_uses_it(): void
+    {
+        $domain = $this->domain();
+        $domain->forceFill(['php_version' => '8.3'])->save();
+
+        $this->tenancy()->withoutRestriction(function () use ($domain): void {
+            Domain::factory()->create([
+                'subscription_id' => $domain->subscription_id,
+                'name' => 'dritte.de',
+                'php_version' => '8.3',
+            ]);
+        });
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.remove'));
+        $this->tenancy()->allowAll();
+
+        $this->assertSame(0, Operation::query()->where('task', 'php.pool.remove')->count());
+    }
+
+    /**
+     * Die Protokollrotation entsteht mit dem Abonnement.
+     *
+     * Sie ist je Abonnement und deckt über den Ausdruck jede Domain ab, auch
+     * die von morgen. Ohne sie füllt das Zugriffsprotokoll die Quota des
+     * Kunden mit Dateien, die er nie angelegt hat.
+     */
+    public function test_provisioning_sets_up_the_log_rotation(): void
+    {
+        $subscription = $this->tenancy()->withoutRestriction(fn (): Subscription => Subscription::factory()->create([
+            'name' => 'rotation.de',
+            'system_user' => 'p1009',
+            'status' => SubscriptionStatus::Provisioning,
+        ]));
+
+        $operation = $this->tenancy()->withoutRestriction(fn (): Operation => Operation::query()->create([
+            'subscription_id' => $subscription->id,
+            'type' => 'subscription.provision',
+            'task' => 'subscription.provision',
+            'status' => OperationStatus::Succeeded,
+            'progress' => 100,
+        ]));
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($operation);
+        $this->tenancy()->allowAll();
+
+        $rotation = Operation::query()->where('task', 'web.logrotate.apply')->sole();
+
+        $this->assertSame('rotation.de', $rotation->payload['subscription'] ?? null);
+        $this->assertSame('p1009', $rotation->payload['user'] ?? null);
+    }
+
     /** Ein Vorgang gehört genau einem Lebenslauf. */
     public function test_a_foreign_task_is_left_alone(): void
     {

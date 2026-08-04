@@ -24,10 +24,28 @@ use App\Models\Operation;
 interface AfterOperation
 {
     /**
+     * Welche Aufgaben dieser Lebenslauf beantwortet.
+     *
+     * **Die Liste steht hier, weil sie sonst nirgends steht.** Ohne sie
+     * verteilt sich die Antwort auf ein `str_starts_with` und ein `match` im
+     * Rumpf — lesbar, aber für nichts prüfbar. Und die Frage, die sich stellt,
+     * sobald jemand eine Aufgabe dazunimmt, ist genau die: Beantwortet sie
+     * überhaupt jemand? Eine Aufgabe ohne Lebenslauf läuft durch, der Agent tut
+     * seine Arbeit, und im Panel ändert sich nichts. Ohne Fehler, ohne Meldung.
+     *
+     * `AgentOperationReachTest` hält drei Dinge zusammen: was hier steht, was
+     * die Registratur des Agenten kennt, und was das Panel tatsächlich
+     * abschickt.
+     *
+     * @return list<string>
+     */
+    public static function handles(): array;
+
+    /**
      * Der Vorgang ist durchgelaufen.
      *
      * Jede Umsetzung prüft zuerst, ob der Vorgang sie überhaupt betrifft, und
-     * tut sonst nichts. Ein Vorgang gehört genau einer von ihnen.
+     * tut sonst nichts.
      */
     public function afterSuccess(Operation $operation): void;
 }

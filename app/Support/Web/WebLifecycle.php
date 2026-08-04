@@ -203,6 +203,33 @@ final class WebLifecycle implements AfterOperation
         });
     }
 
+    /**
+     * Die Aufgaben, nach denen sich an einer Website etwas ändert.
+     *
+     * Die drei Abonnementaufgaben stehen mit darin, und das ist keine
+     * Doppelung: Der Lebenslauf des Abonnements setzt dessen Zustand, dieser
+     * schreibt die Server-Blöcke nach. Beide beantworten dieselbe Aufgabe mit
+     * verschiedenen Folgen.
+     *
+     * `php.pool.apply`, `web.logs.tail` und `web.logrotate.apply` fehlen: Sie
+     * ändern am Bestand des Panels nichts.
+     *
+     * @return list<string>
+     */
+    public static function handles(): array
+    {
+        return [
+            'web.site.apply',
+            'web.site.remove',
+            'php.versions',
+            'php.version.install',
+            'php.version.remove',
+            'subscription.provision',
+            'subscription.suspend',
+            'subscription.resume',
+        ];
+    }
+
     public function afterSuccess(Operation $operation): void
     {
         $task = (string) ($operation->task ?? '');
@@ -241,7 +268,7 @@ final class WebLifecycle implements AfterOperation
                 // weg, das Verzeichnis ist weg, die Protokolle sind weg — erst
                 // danach gibt der Bestand den Namen wieder frei. Andersherum
                 // wäre der Name frei, während die Dateien noch liegen.
-                'web.site.remove' => $domain->delete(),
+                'web.site.remove' => $this->removed($domain, $operation),
 
                 default => null,
             };
@@ -273,6 +300,23 @@ final class WebLifecycle implements AfterOperation
         }
 
         if ($task === 'subscription.provision') {
+            /*
+             * **Die Rotation gehört zum Abonnement und nicht zur Domain.** Der
+             * Ausdruck in der logrotate-Datei deckt `logs/*&#47;*.log` ab —
+             * jede Domain, auch die von morgen. Eine Datei je Domain hiesse,
+             * dass eine vergessene nicht rotiert, und das fiele erst auf, wenn
+             * die Quota des Kunden voll ist.
+             *
+             * Ohne diese Zeilen war `web.logrotate.apply` in P3 gebaut und von
+             * nichts aufgerufen — gefunden hat das `AgentOperationReachTest`.
+             */
+            $this->dispatchForSubscription(
+                $subscription,
+                'web.logrotate.apply',
+                'Protokollrotation für '.$subscription->name,
+                $operation->account_id,
+            );
+
             $main = $this->ensureMainDomain($subscription);
 
             if ($main !== null) {
@@ -306,6 +350,85 @@ final class WebLifecycle implements AfterOperation
                 $operation->account_id,
             );
         }
+    }
+
+    /**
+     * Die Zeile geht — und mit ihr der Pool, den niemand mehr braucht.
+     *
+     * **Ein Pool ohne Domain ist kein leerer Ordner, sondern eine Sperre.**
+     * `php.version.remove` weist ab, solange ein Abonnement einen Pool in
+     * dieser Version hat; bliebe der Pool einer entfernten Domain stehen,
+     * liesse sich die Version nie wieder entfernen, und der Betreiber suchte
+     * nach einem Abonnement, das es nicht mehr gibt.
+     *
+     * Gefunden hat diese Lücke `AgentOperationReachTest`: `php.pool.remove`
+     * war gebaut und wurde von nichts aufgerufen.
+     */
+    private function removed(Domain $domain, Operation $operation): void
+    {
+        $version = $domain->php_version;
+        $subscriptionId = $domain->subscription_id;
+
+        $domain->delete();
+
+        if ($version === null) {
+            return;
+        }
+
+        $weitere = Domain::query()
+            ->where('subscription_id', $subscriptionId)
+            ->where('php_version', $version)
+            ->exists();
+
+        if ($weitere) {
+            return;
+        }
+
+        $subscription = Subscription::query()->find($subscriptionId);
+
+        if ($subscription === null) {
+            return;
+        }
+
+        $this->dispatchForSubscription(
+            $subscription,
+            'php.pool.remove',
+            sprintf('PHP-Pool %s für %s wird entfernt', $version, $subscription->name),
+            $operation->account_id,
+            ['php_version' => $version],
+        );
+    }
+
+    /**
+     * Ein Vorgang, der zum Abonnement gehört und zu keiner einzelnen Domain.
+     *
+     * Er trägt deshalb keinen Gegenstand: Es gibt keine Domain, deren Zustand
+     * danach ein anderer wäre.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    private function dispatchForSubscription(
+        Subscription $subscription,
+        string $task,
+        string $message,
+        ?int $accountId,
+        array $extra = [],
+    ): void {
+        $operation = Operation::query()->create([
+            'subscription_id' => $subscription->id,
+            'account_id' => $accountId,
+            'type' => $task,
+            'task' => $task,
+            'payload' => array_merge([
+                'subscription' => (string) $subscription->name,
+                'user' => (string) $subscription->system_user,
+            ], $extra),
+            'status' => OperationStatus::Queued,
+            'progress' => 0,
+            'message' => $message,
+        ]);
+
+        RunAgentOperation::dispatch((int) $operation->id);
     }
 
     /**

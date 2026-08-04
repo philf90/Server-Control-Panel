@@ -140,6 +140,26 @@ final class Lifecycle implements AfterOperation
     }
 
     /**
+     * Die Aufgaben, nach denen sich am Abonnement etwas ändert.
+     *
+     * `subscription.usage` und `subscription.quota` stehen **nicht** darin:
+     * Die Messung schreibt ihr Ergebnis selbst (siehe
+     * {@see Usage}), und ein Kontingent ändert
+     * nichts am Zustand des Abonnements.
+     *
+     * @return list<string>
+     */
+    public static function handles(): array
+    {
+        return [
+            'subscription.provision',
+            'subscription.suspend',
+            'subscription.resume',
+            'subscription.remove',
+        ];
+    }
+
+    /**
      * Was ein erfolgreicher Vorgang am Abonnement ändert.
      *
      * Aufgerufen aus dem Arbeiter, nachdem der Agent geantwortet hat.

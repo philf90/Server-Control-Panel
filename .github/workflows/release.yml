@@ -80,7 +80,7 @@ jobs:
           MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
         run: |
           set -euo pipefail
-          sudo apt-get update -qq && sudo apt-get install -y -qq minisign
+          sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq minisign
 
           if [ -z "${MINISIGN_KEY:-}" ]; then
             echo "::error::Secret MINISIGN_KEY fehlt — ohne Signatur wird nicht veröffentlicht."
@@ -220,7 +220,7 @@ jobs:
           fi
 
           sudo apt-get update -qq
-          sudo apt-get install -y -qq apt-utils gnupg
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq apt-utils gnupg
 
           cd pages
           mkdir -p "apt/dists/${CHANNEL}/main/binary-amd64" "apt/dists/${CHANNEL}/main/binary-arm64"

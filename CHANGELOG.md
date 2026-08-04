@@ -1190,3 +1190,128 @@ sprach: „Das Abonnement ist wird angelegt — daran lässt sich nichts ändern
   Zustand nicht nachgezogen, und das ist eine andere Spur.
 - **Ein Abnahmelauf, der nur „nein" sagt, verschiebt die Arbeit auf jemanden,
   der weniger sieht als er.** Das ist der Grund für den ganzen Abschnitt.
+
+### `subscriptions.main_domain` war eine zweite Wahrheit
+
+Der dritte Abnahmelauf brach ab, und diesmal stand die Ursache im Protokoll des
+Panels:
+
+```
+Duplicate entry 'abnahme-web-2.invalid' for key 'subscriptions_main_domain_unique'
+```
+
+Zwei Fehler, die einzeln harmlos aussehen und zusammen den Lauf unmöglich
+machten. Beide entstanden in P3, als die Spalte zum ersten Mal beschrieben
+wurde — vorher stand dort nie ein Wert, und deshalb konnte auch nie etwas
+kollidieren.
+
+- **Der Rückbau löschte die Domains mit einem Massenlöschen über den Erbauer,
+  und das feuert keine Modellereignisse.** An einem davon hängt die Abschrift:
+  Das Modell setzt `main_domain` beim `deleted` auf null. Übersprungen hielt
+  ein gekündigtes Abonnement seine Hauptdomain für immer fest. Im Modell steht
+  seit P3 der Kommentar, die Abschrift werde „nicht von einem Dienst gepflegt,
+  der daran denken muss, sondern vom Modell selbst" — und der eine Löschweg
+  ging am Modell vorbei. Er geht die Domains jetzt einzeln durch.
+- **Und die Spalte trug einen eindeutigen Index.** In P1 wurden `system_user`
+  und `main_domain` nebeneinander als eindeutig angelegt, mit derselben
+  Begründung. Für den Systembenutzer ist das richtig und bleibt: Ein weich
+  gelöschtes Abonnement **verbraucht** seinen `p1000`, weil die UID sonst
+  wiederverwendet würde und Dateien plötzlich jemand anderem gehörten. Für die
+  Hauptdomain gilt das Gegenteil, und zwar ausdrücklich — Domains haben seit P3
+  keine weiche Löschung, **damit** ein Name wieder frei wird. Die Abschrift
+  muss derselben Regel folgen wie das, was sie abschreibt.
+- **Es war ohnehin eine zweite Wahrheit.** Die Zuständigkeit für „diesen Namen
+  gibt es auf diesem Server einmal" liegt bei `domains.name`. Was dort
+  eindeutig ist, ist es in der Abschrift von selbst; ein zweiter Index fügt
+  keine Regel hinzu, sondern eine Stelle, an der dieselbe Regel anders
+  ausfällt. Er ist gefallen, ein gewöhnlicher Index bleibt.
+- **Warum es kein Test fand:** `test_the_main_domain_is_copied_to_the_subscription`
+  prüfte drei Ereignisse — anlegen, umbenennen, entfernen — alle über das
+  Modell. Der vierte Weg, der Rückbau, geht nicht über das Modell und war
+  deshalb nicht dabei. Er steht jetzt daneben, zusammen mit der Frage, an der
+  der Lauf hing: Lässt sich derselbe Name danach wieder vergeben? Und ein
+  Wächter über das Schema hält beide Uniques auseinander — `main_domain` darf
+  keinen tragen, `system_user` muss.
+- Die Migration räumt die Altlast mit auf: Jedes weich gelöschte Abonnement
+  verliert seine Abschrift. Ohne das bliebe der Name auf einem laufenden Server
+  belegt, obwohl der Index fällt.
+
+### Ein Warten in der CI, das ablaufen konnte, ohne zu scheitern
+
+Aufgefallen an zwei verlorenen Läufen auf Ubuntu, und die gemeldete Ursache war
+jedes Mal eine andere als die wirkliche: eine dpkg-Sperre und ein fehlendes
+`systemctl`, beides drei Schritte hinter der Stelle, an der es schiefging.
+
+- **Der Integrationslauf wartet darauf, dass systemd im Container hochkommt.**
+  Lief die Schleife ab, passierte nichts: Im einen Schritt fing ein `| head -1`
+  den Rückgabewert von `docker exec` ab — die Pipe gibt den von `head` zurück,
+  und der ist immer 0 —, im anderen stand hinter der Schleife überhaupt keine
+  Prüfung. Der Schritt galt als geglückt, und der Lauf ging in einen Container
+  weiter, in dem gerade noch apt arbeitete.
+- Das Zeitfenster ist von 120 auf 180 Sekunden gewachsen — die Ubuntu-Abbilder
+  bringen systemd nicht mit und müssen es erst installieren. Wichtiger ist
+  aber, dass ein Ablaufen jetzt **abbricht und sagt, warum**, samt der letzten
+  Zeilen aus `docker logs`.
+- **`PackagingTest` hält die Regel fest:** Wer auf `is-system-running` wartet,
+  muss im selben Schritt sagen, was gilt, wenn es nicht kommt. Geprüft wird die
+  Sache und nicht der eine Schritt — es waren zwei, und der zweite war der
+  stillere.
+
+### Und die Frage, die niemand beantworten konnte
+
+Der schärfere Wächter aus dem Absatz davor hat beim ersten Lauf sofort
+zugebissen — und diesmal stand die Ursache in der Meldung statt drei Schritte
+weiter: „systemd im Container ist in 180 s nicht hochgekommen."
+
+- **Jede Installationszeile der Arbeitsabläufe trug
+  `DEBIAN_FRONTEND=noninteractive` — bis auf die beiden, die den Container
+  überhaupt erst hochfahren.** Dort fehlte sie. Solange die Abbilder es nicht
+  verlangten, fiel das nicht auf; als sich das Ubuntu-Abbild änderte, blieb
+  `apt-get install systemd` an einer debconf-Frage stehen, die in einem
+  Container ohne Terminal niemand beantwortet. Der Container schwieg, und
+  sichtbar war nur, dass systemd nicht kam.
+- Das ist die teure Sorte Ausnahme: eine Regel, die überall gilt, ausser an der
+  einen Stelle, an der niemand hinsieht, weil sie schon immer funktioniert hat.
+- **Die Ausgabe des Hochfahrens wird nicht mehr weggeworfen.** `-qq` und
+  `>/dev/null` sorgten dafür, dass `docker logs` beim Fehlschlag leer blieb —
+  ein Fehlschlag ohne jede Spur.
+- **Der Wächter sieht alle Arbeitsabläufe an, nicht nur die CI**, und hat dabei
+  drei weitere Aufrufe gefunden: in `release.yml` und in `secrets.yml`. Ein
+  hängendes apt in einem Freigabelauf wäre teurer als eines in der CI.
+
+### Und die eigentliche Ursache: ein langsamer Spiegel
+
+Nach dem Diagnoseschritt stand sie im Protokoll, gemessen statt vermutet:
+
+```
+Fetched 31.9 MB in 2min 38s (202 kB/s)
+```
+
+- **`apt-get update` allein verbrauchte 158 der 180 Sekunden.** Danach kam
+  `apt-get install` gerade noch bis zur Paketliste, dann war das Fenster zu.
+  Kein Hänger, kein Dialog, keine Flakiness: `archive.ubuntu.com` ist von den
+  Läufern aus langsam, und die Paketlisten sind gross — allein `noble/universe`
+  misst 19,3 MB.
+- **Debian war nie betroffen**, weil `deb.debian.org` ein CDN ist. Genau
+  deshalb war das Muster über drei Läufe hinweg identisch: viermal Debian grün,
+  zweimal Ubuntu rot.
+- **Das Zeitfenster wächst auf 300 Sekunden, und das ist der Fix.** Danach
+  waren alle elf Jobs grün.
+- **Der Spiegel bei Azure war es nicht — anders als beim Einbau behauptet.**
+  Die Läufer stehen bei Azure, `azure.archive.ubuntu.com` ist die Quelle, die
+  das Läufer-Abbild für sich selbst benutzt, und das klang nach der Kur. Die
+  Messung danach gibt es nicht her: Der Startschritt brauchte 138 s auf 24.04
+  und 255 s auf 22.04, gegenüber 158 s allein fürs Auffrischen davor. Der
+  Spiegel bleibt, weil er nichts kostet und nur Ubuntu trifft — aber als
+  Vermutung gekennzeichnet und nicht als Beleg. Wer hier später Zeit sparen
+  will, fängt bei der Grösse der Paketlisten an.
+- **Zwei Vermutungen davor lagen ebenfalls daneben** — „zu knapp bemessen" und
+  „debconf fragt". Beide Beiträge bleiben trotzdem richtig: Ohne den ersten
+  hätte der Lauf weiter geschwiegen statt zu scheitern, ohne den zweiten wäre
+  die Ausgabe nie sichtbar geworden. Sie waren die Voraussetzung dafür, dass
+  die dritte Vermutung überhaupt überprüfbar wurde.
+- **Kein neuer Wächter dazu, und das ist Absicht.** Was hier zu prüfen wäre —
+  „der Spiegel ist schnell genug" — lässt sich nicht als Test schreiben, ohne
+  ihn zu befragen. Die beiden Wächter aus den Absätzen davor sind die
+  dauerhaften: Ein Warten muss scheitern können, und kein `apt-get` darf eine
+  Frage stellen. Ein schwacher dritter wäre schlechter als keiner.

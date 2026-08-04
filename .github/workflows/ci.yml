@@ -148,18 +148,67 @@ jobs:
       - name: Paket bauen
         run: packaging/build.sh 0.0.0-ci amd64
 
+      # **Warum das Fenster so gross ist.** Gemessen im Lauf vom 4. August:
+      #
+      #     Fetched 31.9 MB in 2min 38s (202 kB/s)
+      #
+      # `apt-get update` allein verbrauchte 158 der damals 180 Sekunden, danach
+      # kam die Installation gerade noch bis zur Paketliste. Kein Hänger, kein
+      # Dialog — Ubuntus Paketquellen sind von den Läufern aus langsam, und die
+      # Listen sind gross (allein `noble/universe` misst 19,3 MB).
+      #
+      # Debian war nie betroffen: `deb.debian.org` ist ein CDN. Deshalb war der
+      # Fehler auch keine Flakiness, sondern zweimal Ubuntu und viermal Debian,
+      # über drei Läufe hinweg gleich.
+      #
+      # **Der Spiegel bei Azure steht hier auf Verdacht und nicht auf Beleg.**
+      # Die Läufer stehen bei Azure, und `azure.archive.ubuntu.com` ist der
+      # Spiegel, den das Läufer-Abbild für sich selbst benutzt — das klang nach
+      # der Kur. Die Messung danach gibt das nicht her: Der Startschritt brauchte
+      # 138 s auf 24.04 und 255 s auf 22.04, gegenüber 158 s allein fürs
+      # Auffrischen davor. Grün geworden ist der Lauf durch das grössere
+      # Fenster, nicht durch den Spiegel.
+      #
+      # Er bleibt trotzdem: Er kostet nichts, trifft nur Ubuntu (auf Debian
+      # findet der Ausdruck nichts) und ist die Quelle, die der Läufer ohnehin
+      # benutzt. Aber wer hier später Zeit sparen will, fängt bei der Grösse der
+      # Paketlisten an und nicht beim Spiegel.
       - name: Container mit systemd starten
         run: |
           docker run -d --name target --privileged \
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
-            'apt-get update -qq && apt-get install -y -qq systemd systemd-sysv >/dev/null && exec /sbin/init'
-          for i in $(seq 1 60); do
-            if docker exec target systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then break; fi
+            'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
+          # **Ohne die Prüfung danach endet ein Zeitüberschreiten stumm.** Die
+          # Schleife lief ab, der Schritt galt als geglückt — das `| head -1`
+          # gab den Rückgabewert von `head` zurück und nicht den von `docker
+          # exec` —, und gescheitert ist der Lauf drei Schritte später an einer
+          # dpkg-Sperre. Eine Meldung, die mit der Ursache nichts zu tun hat.
+          bereit=nein
+          for i in $(seq 1 150); do
+            if docker exec target systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
+              bereit=ja
+              break
+            fi
             sleep 2
           done
-          docker exec target systemctl --version | head -1
+
+          if [ "$bereit" != ja ]; then
+            echo "::error::systemd im Container ist in 300 s nicht hochgekommen."
+
+            # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
+            # `docker logs`, und das gab nichts aus — womit offen blieb, ob der
+            # Container noch läuft, schon beendet ist oder nie etwas geschrieben
+            # hat. Drei sehr verschiedene Lagen, eine leere Zeile.
+            echo "--- Zustand ---"
+            docker ps -a --filter "name=target" --format '{{.Status}} (exit {{.State}})' || true
+            echo "--- Ausgabe ---"
+            docker logs target 2>&1 | tail -50 || echo "(docker logs hat nichts geliefert)"
+            exit 1
+          fi
+
+          docker exec target systemctl --version
 
       - name: PHP-Quelle und PHP 8.4
         # Denselben Weg geht install.sh. Von den vier Zielplattformen liefert nur
@@ -413,11 +462,31 @@ jobs:
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
-            'apt-get update -qq && apt-get install -y -qq systemd systemd-sysv >/dev/null && exec /sbin/init'
-          for i in $(seq 1 60); do
-            if docker exec bare systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then break; fi
+            'export DEBIAN_FRONTEND=noninteractive; set -x; sed -i "s|//archive.ubuntu.com|//azure.archive.ubuntu.com|g" /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
+          # Dieselbe Prüfung wie oben, und hier fehlte sie ganz: Ein
+          # Zeitüberschreiten war vollständig unsichtbar.
+          bereit=nein
+          for i in $(seq 1 150); do
+            if docker exec bare systemctl is-system-running 2>/dev/null | grep -qE 'running|degraded'; then
+              bereit=ja
+              break
+            fi
             sleep 2
           done
+
+          if [ "$bereit" != ja ]; then
+            echo "::error::systemd im Container ist in 300 s nicht hochgekommen."
+
+            # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
+            # `docker logs`, und das gab nichts aus — womit offen blieb, ob der
+            # Container noch läuft, schon beendet ist oder nie etwas geschrieben
+            # hat. Drei sehr verschiedene Lagen, eine leere Zeile.
+            echo "--- Zustand ---"
+            docker ps -a --filter "name=bare" --format '{{.Status}} (exit {{.State}})' || true
+            echo "--- Ausgabe ---"
+            docker logs bare 2>&1 | tail -50 || echo "(docker logs hat nichts geliefert)"
+            exit 1
+          fi
 
       - name: PHP-Quelle — nur wo sie Voraussetzung ist
         if: matrix.needs_php_source == 'ja'
@@ -551,7 +620,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: shellcheck
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq shellcheck
           # SC1091 ist ausgenommen: /etc/os-release und /etc/srvpanel/php.path
           # gibt es auf dem Prüfrechner nicht, und beide sind keine Quelldateien
           # dieses Projekts. SC1090 desgleichen für den Pfad aus einer Variablen.

@@ -8,6 +8,7 @@ use App\Console\Commands\AcceptanceWeb;
 use App\Enums\OperationStatus;
 use App\Enums\SubscriptionStatus;
 use App\Models\Customer;
+use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -257,6 +258,102 @@ final class AcceptanceWebCommandTest extends TestCase
             'Genau sie ist das, was der Betreiber braucht.',
         ]));
         $this->assertStringContainsString($subscription->name, $ausgabe);
+    }
+
+    /**
+     * Die Selbstprobe geht in **jedes** Verzeichnis, aus dem ausgeliefert wird.
+     *
+     * **Der Fehler auf dem Zielserver.** Der Lauf legte eine einzige Probe ab,
+     * und der Agent schrieb sie nach `httpdocs` — dem DocumentRoot der
+     * Hauptdomain. Jede Zusatzdomain liefert aus einem Verzeichnis mit ihrem
+     * eigenen Namen aus. Für vier von sechs Domains lag die Probe damit am
+     * falschen Ort; nginx antwortete mit 404.
+     *
+     * Beide Hauptdomains bestanden, alle vier Zusatzdomains fielen durch — und
+     * die Meldung lautete „antwortet nicht", als ginge es um die Abschottung.
+     */
+    public function test_the_probe_goes_into_every_document_root(): void
+    {
+        $subscription = $this->subscription(SubscriptionStatus::Active);
+
+        $haupt = Domain::factory()->main()->for($subscription)->create([
+            'name' => 'beispiel.de',
+            'document_root' => 'httpdocs',
+        ]);
+
+        $zusatz = Domain::factory()->for($subscription)->create([
+            'name' => 'eins-beispiel.de',
+            'document_root' => 'eins-beispiel.de',
+        ]);
+
+        // Ein Alias liefert nichts aus und hat kein Verzeichnis.
+        $alias = Domain::factory()->alias($haupt)->create();
+
+        $method = new ReflectionMethod(AcceptanceWeb::class, 'documentRootsOf');
+
+        /** @var list<string> $roots */
+        $roots = $method->invoke(app(AcceptanceWeb::class), [$haupt, $zusatz, $alias]);
+
+        sort($roots);
+
+        $this->assertSame(['eins-beispiel.de', 'httpdocs'], $roots, implode(' ', [
+            'Die Verzeichnisse stimmen nicht.',
+            'Fehlt das der Zusatzdomain, liegt die Selbstprobe für sie am falschen Ort',
+            'und nginx antwortet mit 404 — genau der Fehlschlag vom Zielserver.',
+        ]));
+    }
+
+    /**
+     * „Antwortet nicht" war keine Diagnose.
+     *
+     * Der Satz warf vier Lagen in einen Topf: keine Verbindung, ein
+     * HTTP-Fehler, eine fremde Seite, ungültiges JSON. Jede hat eine andere
+     * Ursache und einen anderen nächsten Schritt. Beim Lauf auf dem Zielserver
+     * war es ein 404 — und die Meldung las sich wie ein Befund über die
+     * Abschottung.
+     */
+    public function test_the_status_line_is_read_exactly(): void
+    {
+        $method = new ReflectionMethod(AcceptanceWeb::class, 'statusFrom');
+        $command = app(AcceptanceWeb::class);
+
+        $this->assertSame(200, $method->invoke($command, ['HTTP/1.1 200 OK', 'Content-Type: application/json']));
+        $this->assertSame(404, $method->invoke($command, ['HTTP/1.1 404 Not Found']));
+        $this->assertSame(502, $method->invoke($command, ['HTTP/2 502 Bad Gateway']));
+
+        // Ohne Antwort gibt es keine Statuszeile — das muss unterscheidbar
+        // bleiben von einem echten Status.
+        $this->assertSame(0, $method->invoke($command, []));
+        $this->assertSame(0, $method->invoke($command, ['Content-Type: text/html']));
+
+        // Bei einer Weiterleitung zählt die letzte Zeile.
+        $this->assertSame(200, $method->invoke($command, ['HTTP/1.1 301 Moved', 'HTTP/1.1 200 OK']));
+    }
+
+    /**
+     * Und der Ausschnitt zeigt, *was* stattdessen kam.
+     *
+     * Eine nginx-Fehlerseite sieht anders aus als ein PHP-Skript, das im
+     * Klartext ausgeliefert wird — das eine heisst „falscher Ort", das andere
+     * „PHP läuft hier nicht". Ohne den Ausschnitt sind beide „kein JSON".
+     */
+    public function test_the_excerpt_shows_what_came_instead(): void
+    {
+        $method = new ReflectionMethod(AcceptanceWeb::class, 'excerpt');
+        $command = app(AcceptanceWeb::class);
+
+        $nginx = (string) $method->invoke($command, "<html>\n<head><title>404 Not Found</title></head>\n<body>…</body>\n</html>");
+
+        $this->assertStringContainsString('404 Not Found', $nginx);
+        $this->assertStringNotContainsString("\n", $nginx, 'Der Ausschnitt muss eine Zeile bleiben.');
+
+        $this->assertStringContainsString('(leerer Körper)', (string) $method->invoke($command, ''));
+
+        // Lang genug, um gekürzt zu werden — die Meldung darf nicht fluten.
+        $lang = (string) $method->invoke($command, str_repeat('abcdefghij', 30));
+
+        $this->assertLessThan(120, mb_strlen($lang));
+        $this->assertStringContainsString('…', $lang);
     }
 
     /**

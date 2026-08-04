@@ -1315,3 +1315,38 @@ Fetched 31.9 MB in 2min 38s (202 kB/s)
   ihn zu befragen. Die beiden Wächter aus den Absätzen davor sind die
   dauerhaften: Ein Warten muss scheitern können, und kein `apt-get` darf eine
   Frage stellen. Ein schwacher dritter wäre schlechter als keiner.
+
+### Die Selbstprobe lag für vier von sechs Domains am falschen Ort
+
+Der Abnahmelauf kam zum ersten Mal bis zur eigentlichen Prüfung — und meldete:
+
+```
+  · eins-abnahme-web-1.invalid antwortet nicht.
+  · zwei-abnahme-web-1.invalid antwortet nicht.
+  · eins-abnahme-web-2.invalid antwortet nicht.
+  · zwei-abnahme-web-2.invalid antwortet nicht.
+```
+
+Beide **Haupt**domains bestanden, alle vier **Zusatz**domains fielen durch. Das
+ist kein Befund über die Abschottung, sondern über den Lauf selbst.
+
+- **`web.isolation.probe` schrieb fest nach `httpdocs`.** Das ist das
+  DocumentRoot der Hauptdomain; jede Zusatzdomain liefert nach §4.5 aus einem
+  Verzeichnis mit ihrem eigenen Namen aus. Dort lag die Probe nicht, nginx
+  antwortete mit 404. Die Operation nimmt das Verzeichnis jetzt als Argument —
+  und prüft es mit `DocumentRoot::valid()`, demselben Wächter wie das Panel:
+  Was als Pfad in einer Operation ankommt, prüft der Agent selbst, auch wenn
+  der Wert aus der eigenen Datenbank stammt.
+- **„Antwortet nicht" war keine Diagnose.** Der Satz warf vier Lagen in einen
+  Topf: keine Verbindung, ein HTTP-Fehler, eine fremde Seite, ungültiges JSON.
+  Jede hat eine andere Ursache und einen anderen nächsten Schritt; hier war es
+  der zweite, und die Meldung las sich wie ein Urteil über `open_basedir`. Der
+  Lauf nennt jetzt den Status, bei 404 den erwarteten Pfad, und bei fremdem
+  Inhalt einen Ausschnitt — eine nginx-Fehlerseite sieht anders aus als ein
+  PHP-Skript, das im Klartext ausgeliefert wird.
+- **Auch die übrigen Meldungen sagen mehr:** die falsche PHP-Version nennt die
+  Pool-Datei, der falsche Benutzer den Grund, warum das zählt, und der
+  durchlässige Zugriff das, was `open_basedir` tatsächlich meldet.
+- **Die Regel „je DocumentRoot eine Probe" steht in einer eigenen Methode**,
+  damit sie prüfbar ist: Ein Alias hat kein Verzeichnis, zwei Domains können
+  sich eines teilen, und genau diese Unterscheidung ist untergegangen.

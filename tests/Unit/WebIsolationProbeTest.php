@@ -6,8 +6,12 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Journal;
 use SrvPanel\Agent\Ops\SubscriptionRemove;
 use SrvPanel\Agent\Ops\WebIsolationProbe;
+use SrvPanel\Agent\Runner;
 
 /**
  * Die Selbstprobe darf nichts verraten — und der Rückbau muss sie aufrufen.
@@ -27,6 +31,14 @@ use SrvPanel\Agent\Ops\WebIsolationProbe;
  */
 final class WebIsolationProbeTest extends TestCase
 {
+    /** Ein Kontext, der nichts tut — die Prüfung greift vor jedem Zugriff. */
+    private function context(): Context
+    {
+        $journal = new Journal(sys_get_temp_dir().'/srvpanel-probe-test.log');
+
+        return new Context(new Runner($journal), $journal, static function (array $frame): void {});
+    }
+
     private function script(): string
     {
         return WebIsolationProbe::script();
@@ -70,6 +82,85 @@ final class WebIsolationProbeTest extends TestCase
         $this->assertStringContainsString('posix_getpwuid', $script);
         $this->assertStringContainsString('open_basedir', $script);
         $this->assertStringContainsString('shell_exec', $script);
+    }
+
+    /**
+     * Das DocumentRoot kommt als Argument — und wird geprüft.
+     *
+     * **Warum es überhaupt eines gibt.** Vorher stand `httpdocs` fest im Code.
+     * Das ist das Verzeichnis der Hauptdomain; jede Zusatzdomain liefert aus
+     * einem Verzeichnis mit ihrem eigenen Namen aus. Beim Abnahmelauf auf dem
+     * Zielserver lag die Selbstprobe deshalb für vier von sechs Domains am
+     * falschen Ort — nginx antwortete mit 404, und der Lauf meldete „antwortet
+     * nicht": eine Aussage über die Abschottung, die gar keine war.
+     *
+     * **Und warum der Agent sie trotzdem prüft**, obwohl der Wert aus der
+     * Datenbank des Panels kommt: Was als Pfad in einer Operation ankommt,
+     * prüft der Agent selbst. Die Abweisung passiert vor jedem Zugriff auf das
+     * Dateisystem — deshalb lässt sie sich hier ohne Server prüfen.
+     */
+    public function test_a_document_root_that_leaves_the_subscription_is_refused(): void
+    {
+        $verboten = [
+            '../../etc',
+            '/etc/nginx',
+            'httpdocs/../../etc',
+            '..',
+            '.ssh',
+            'logs',          // reserviertes Verzeichnis des Schemas
+            'conf',
+            '',
+            'httpdocs; rm -rf /',
+        ];
+
+        foreach ($verboten as $wert) {
+            $abgewiesen = false;
+
+            try {
+                (new WebIsolationProbe)->execute([
+                    'subscription' => 'beispiel.de',
+                    'user' => 'p1001',
+                    'document_root' => $wert,
+                    'action' => 'place',
+                ], $this->context());
+            } catch (AgentException $error) {
+                $abgewiesen = $error->errorCode === AgentException::BAD_REQUEST;
+            }
+
+            $this->assertTrue($abgewiesen, sprintf(
+                'Das DocumentRoot „%s" wurde nicht abgewiesen. Es entscheidet, wohin der Agent als root eine Datei schreibt.',
+                $wert,
+            ));
+        }
+    }
+
+    /**
+     * Ein brauchbares Verzeichnis kommt durch die Prüfung.
+     *
+     * Danach scheitert der Lauf am fehlenden Abo-Verzeichnis — und genau das
+     * belegt, dass die Formprüfung ihn durchgelassen hat. Ohne diese
+     * Gegenrichtung wäre der Test darüber auch mit einer Prüfung bestanden,
+     * die alles ablehnt.
+     */
+    public function test_a_usable_document_root_passes_the_check(): void
+    {
+        foreach (['httpdocs', 'eins-beispiel.de', 'beispiel.de/public'] as $wert) {
+            try {
+                (new WebIsolationProbe)->execute([
+                    'subscription' => 'beispiel.de',
+                    'user' => 'p1001',
+                    'document_root' => $wert,
+                    'action' => 'place',
+                ], $this->context());
+
+                $this->fail('Ohne Abo-Verzeichnis darf der Lauf nicht durchgehen.');
+            } catch (AgentException $error) {
+                $this->assertSame(AgentException::NOT_FOUND, $error->errorCode, sprintf(
+                    'Das DocumentRoot „%s" wurde als unbrauchbar abgewiesen.',
+                    $wert,
+                ));
+            }
+        }
     }
 
     /** Ein Skript, das PHP nicht übersetzen kann, meldet gar nichts. */

@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\DocumentRoot;
 use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Op;
@@ -58,8 +59,34 @@ final class WebIsolationProbe implements Op
         $user = SubscriptionProvision::systemUser($args['user'] ?? null);
         $action = Guard::enum($args['action'] ?? 'place', ['place', 'remove'], 'action');
 
+        /*
+         * **Das Verzeichnis kommt als Argument, und es wird geprüft.**
+         *
+         * Vorher stand hier fest `httpdocs`. Das ist das DocumentRoot der
+         * Hauptdomain; jede Zusatzdomain liefert aus einem Verzeichnis mit
+         * ihrem eigenen Namen aus (§4.5). Die Selbstprobe lag deshalb für vier
+         * von sechs Domains am falschen Ort, nginx antwortete mit 404, und der
+         * Abnahmelauf meldete „antwortet nicht" — eine Aussage über die
+         * Abschottung, die gar keine war.
+         *
+         * `DocumentRoot::valid()` ist derselbe Wächter, den auch das Panel
+         * benutzt: kein führender Schrägstrich, kein `..`, kein reserviertes
+         * Verzeichnis des Schemas. Der Wert kommt aus der Datenbank des Panels
+         * und wird hier trotzdem geprüft — was als Pfad in einer Operation
+         * ankommt, prüft der Agent selbst.
+         */
+        $documentRoot = $args['document_root'] ?? SubscriptionProvision::DOCUMENT_ROOT;
+
+        if (! is_string($documentRoot) || ! DocumentRoot::valid($documentRoot)) {
+            throw new AgentException(
+                AgentException::BAD_REQUEST,
+                'Das DocumentRoot ist kein Verzeichnis innerhalb des Abonnements.',
+                ['document_root' => is_string($documentRoot) ? $documentRoot : gettype($documentRoot)],
+            );
+        }
+
         $root = SubscriptionProvision::VHOSTS.'/'.$subscription;
-        $file = $root.'/'.SubscriptionProvision::DOCUMENT_ROOT.'/'.self::FILENAME;
+        $file = $root.'/'.$documentRoot.'/'.self::FILENAME;
 
         if (! is_dir($root)) {
             throw new AgentException(
@@ -76,7 +103,7 @@ final class WebIsolationProbe implements Op
                 unlink($file);
             }
 
-            return ['path' => $file, 'placed' => false, 'existed' => $existed];
+            return ['path' => $file, 'document_root' => $documentRoot, 'placed' => false, 'existed' => $existed];
         }
 
         file_put_contents($file, self::script());
@@ -88,9 +115,12 @@ final class WebIsolationProbe implements Op
         chgrp($file, posix_getgrnam('www-data') !== false ? 'www-data' : $user);
         chmod($file, 0o640);
 
-        Filesystem::directory($root.'/'.SubscriptionProvision::DOCUMENT_ROOT, $user, 'www-data', 0o750);
+        // Dasselbe Verzeichnis, in dem die Datei liegt — nicht das der
+        // Hauptdomain. Sonst bekämen bei einer Zusatzdomain die Rechte des
+        // einen Verzeichnisses und die Datei des anderen gesetzt.
+        Filesystem::directory($root.'/'.$documentRoot, $user, 'www-data', 0o750);
 
-        return ['path' => $file, 'placed' => true, 'existed' => true];
+        return ['path' => $file, 'document_root' => $documentRoot, 'placed' => true, 'existed' => true];
     }
 
     /**

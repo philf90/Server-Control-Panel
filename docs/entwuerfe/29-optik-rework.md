@@ -32,6 +32,18 @@ fehlende — und das sind die teuren.
 | 9 | **§7.2 verlangt 3 px Radius, „kein größerer Wert, nirgends".** Gebaut sind 3, 5, 6, 8 und 999 px. | **0 / 26** Seiten halten ihn |
 | 10 | **Die Seitenleiste ist 186 px — und das eigene Zeichen passt nicht hinein.** | **177–190 px** gebraucht, **158 px** da |
 
+### Der Ausgangsstand ist grün
+
+`phpunit`: **822 Tests, 3044 Zusicherungen, alle grün.** `pint --test`: grün.
+`vue-tsc --noEmit`: grün. Die acht Wächter der Gestaltung allein: 69 Tests, 472
+Zusicherungen, grün.
+
+**Das ist der Befund und nicht die Entwarnung.** Ein Panel, dessen
+Eingabefelder einen Rand von 1,13 : 1 haben, dessen Dichtestufe an 24 von 26
+Seiten wirkungslos ist und in dem eine Klasse auf eine Regel zeigt, die es
+nicht gibt, besteht heute jeden Lauf. Was hier fehlt, ist keine Korrektur an
+einem Test — es sind Tests, die es nicht gibt.
+
 ### Was daran das Muster dieses Projekts ist
 
 Befund 1, 2 und 5 sind derselbe Fehler, den `CLAUDE.md` als den
@@ -252,6 +264,17 @@ Umbau statt den Bestand.
 | **3** | Bausteine: `Bereich`, `Marke`, `Balken`, `Kennzahl`, `Leer`. Dazu `Tile.vue` (Befund 5 beheben). | 5 neue, 1 geänderte Komponente |
 | **4** | `PanelLayout.vue`: Seitenleiste, Kopfzeile, Bereichsraster. | 1 Datei |
 | **5** | Die 26 Seiten in vier Gruppen: Verzeichnisse (6) → Detailseiten (5) → Formulare (8) → Einstellungen und Anmeldung (7). Je Gruppe ein Durchgang mit Aufnahmen. | 26 Dateien, ~−950 Zeilen CSS |
+
+### Eine Anmerkung zur Umgebung
+
+`composer install` läuft in diesem Container nicht durch: Composer holt jedes
+Paket über `api.github.com/repos/…/zipball/…`, und die GitHub-Freigabe der
+Sitzung reicht nur bis `philf90/server-control-panel` — jedes Fremdpaket
+bekommt 403. `git clone` gegen dieselben Repos geht, deshalb
+`--prefer-source`. Übrig bleiben `phpstan/phpstan` (wird ohne `source`
+ausgeliefert) und `larastan/larastan`, das es fest verlangt; beide sind hier
+laut `CLAUDE.md` ohnehin nicht lauffähig und im lokalen `vendor/` ausgelassen.
+`composer.json` und `composer.lock` sind unverändert.
 
 **Abnahme:** Alle 26 Seiten in beiden Themes bei 390 px **und** breit
 aufgenommen und angesehen — nicht nur grün getestet. Dazu `pint`, `phpunit`,

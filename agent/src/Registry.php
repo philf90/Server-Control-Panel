@@ -25,6 +25,7 @@ use SrvPanel\Agent\Ops\SubscriptionResume;
 use SrvPanel\Agent\Ops\SubscriptionSuspend;
 use SrvPanel\Agent\Ops\SubscriptionUsage;
 use SrvPanel\Agent\Ops\SystemInfo;
+use SrvPanel\Agent\Ops\WebIsolationProbe;
 use SrvPanel\Agent\Ops\WebLogrotate;
 use SrvPanel\Agent\Ops\WebLogsTail;
 use SrvPanel\Agent\Ops\WebserverDetect;
@@ -68,6 +69,7 @@ final class Registry
         $this->register(new WebSiteRemove);
         $this->register(new WebLogsTail);
         $this->register(new WebLogrotate);
+        $this->register(new WebIsolationProbe);
         $this->register(new PhpVersionList);
         $this->register(new PhpVersionInstall);
         $this->register(new PhpVersionRemove);

@@ -1038,3 +1038,57 @@ genau deshalb war jetzt der Zeitpunkt.
   erklärte Liste, und die Suche im Quelltext ist nur noch das Netz daneben.
   Beim Gegenprüfen fiel dann auf, dass dieses Netz `dispatchForSubscription()`
   nicht sah — ein Tippfehler in dem Namen, den sie abschickt, blieb unbemerkt.
+
+### P3 — Rückbau, Abnahme, Dokumente
+
+- **Der Rückbau reicht seit P3 über das Abo-Verzeichnis hinaus.** Bis P2 lag
+  alles zu einem Abonnement unter `/var/www/vhosts/<abo>`, und der Baumlauf nahm
+  es mit. Mit den Websites liegen drei Dinge ausserhalb: der Server-Block in
+  `/etc/nginx/srvpanel.d`, der FPM-Pool in `/etc/php/<version>/fpm/pool.d`, die
+  Rotation in `/etc/logrotate.d`. `subscription.remove` räumt sie mit ab —
+  **vor** dem Verzeichnis, weil der Server-Block darauf zeigt: Ein nginx, das
+  zwischen beiden Schritten neu lädt, fände sonst ein `root`, das es nicht mehr
+  gibt.
+- **Die Server-Blöcke werden gesucht und nicht übergeben.** Das Panel wüsste,
+  welche Domains es gab — nur ist genau das die Liste, die nach einem
+  abgebrochenen Lauf unvollständig ist. Gesucht wird in einem Verzeichnis, das
+  ausschliesslich srvpanel gehört, nach dem Pfad des Abonnements; jeder erzeugte
+  Block trägt ihn in `access_log`. `SubscriptionCleanupTest` beantwortet die
+  Frage aus §8.7 über das Dateisystem — einschliesslich der beiden Fälle, an
+  denen ein Aufräumen scheitert, ohne dass es auffällt: Es räumt zu viel
+  (`beispiel.de` nähme die Blöcke von `beispiel.de.alt` mit) oder es findet die
+  verwaiste Datei nicht.
+- **`srvpanel acceptance-web`** misst das Abnahmekriterium von P3, statt es zu
+  behaupten: zwei Abonnements, je drei Domains, zwei PHP-Versionen. Gefragt wird
+  über HTTP — durch nginx, durch den Pool, als der Systembenutzer des
+  Abonnements. Geprüft werden vier Dinge: dass jede Domain antwortet, mit ihrer
+  Version, unter ihrem Benutzer, und dass sie **nicht** an die Dateien des
+  anderen Abonnements kommt. In die Pool-Vorlage zu sehen zeigt nur, dass
+  `open_basedir` dasteht — nicht, dass PHP es anwendet, nginx den richtigen
+  Sockel trifft und die Rechte stimmen.
+- **`web.isolation.probe`** legt die Selbstprobe ab und entfernt sie wieder.
+  Ihr Inhalt steht im Agenten und kommt nicht als Argument — dieselbe Regel wie
+  bei der Willkommensseite; käme er von aussen, wäre das eine Fernsteuerung zum
+  Ablegen beliebigen PHP-Codes unter fremdem Namen. Und sie antwortet mit
+  „lesbar: ja/nein" und niemals mit dem Inhalt einer Datei: Ein Selbsttest, der
+  bei einem Fehlschlag die Datei ausgibt, an die er nicht hätte kommen dürfen,
+  hat aus einem Beleg ein Leck gemacht. Die Domains des Laufs enden auf
+  `.invalid` (RFC 2606) und stehen in keinem DNS — ein Abnahmelauf trifft
+  niemals eine echte Domain.
+- **`docs/28`** hält fest, was beim Bauen entschieden wurde und was dabei
+  schiefging. Und §15 des Plans hat zwei Antworten weniger offen: `deb.sury.org`
+  bleibt (die Abhängigkeit ist auf eine Stelle zusammengezogen), und es bleibt
+  dauerhaft bei nginx — zwei Webserver-Vorlagen verdoppelten genau die Fläche,
+  die klein bleiben soll.
+- **Der Wächter aus dem Paket davor hat gleich wieder zugebissen:** Die neue
+  Operation `web.isolation.probe` war registriert und von nichts aufgerufen, und
+  `AgentOperationReachTest` meldete das, bevor der Abnahmelauf geschrieben war.
+- **Und zwei Gegenproben blieben grün — beide zeigten eine fehlende Prüfung.**
+  Aus `subscription.remove` liess sich der Aufruf des Aufräumens entfernen,
+  ohne dass ein Test es merkte: `SubscriptionCleanupTest` prüft die Methode
+  über Reflexion und damit ihre Wirkung, nicht ihren Anschluss. Und in der
+  Selbstprobe liess sich `is_readable()` durch `file_get_contents()` ersetzen —
+  aus dem Beleg wäre ein Leck geworden, das bei einem Fehlschlag genau die
+  Datei ausgibt, an die niemand hätte kommen dürfen. `WebIsolationProbeTest`
+  deckt beides ab, samt der Reihenfolge: Die Konfiguration fällt vor dem
+  Verzeichnis.

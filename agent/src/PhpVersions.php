@@ -52,6 +52,16 @@ final class PhpVersions
         'zip', 'intl', 'bcmath', 'opcache', 'readline', 'soap',
     ];
 
+    /**
+     * Wo die Konfiguration der Distribution liegt.
+     *
+     * Als Vorgabe und nicht als feste Zeichenkette, damit ein Test die Pfade
+     * in einem Sandkasten prüfen kann — **ohne sie dort ein zweites Mal zu
+     * bauen.** Ein Test, der `/tmp/.../fpm/pool.d/srvpanel-p1001.conf` selbst
+     * zusammensetzt, prüft seine eigene Formel und nicht die des Agenten.
+     */
+    public const PHP_ROOT = '/etc/php';
+
     /** Prüft eine Versionsangabe gegen den Katalog. */
     public static function normalize(mixed $value, string $field = 'php_version'): string
     {
@@ -91,15 +101,15 @@ final class PhpVersions
         return '/usr/sbin/php-fpm'.self::normalize($version);
     }
 
-    public static function poolDir(string $version): string
+    public static function poolDir(string $version, string $root = self::PHP_ROOT): string
     {
-        return '/etc/php/'.self::normalize($version).'/fpm/pool.d';
+        return rtrim($root, '/').'/'.self::normalize($version).'/fpm/pool.d';
     }
 
     /** Die Pool-Datei eines Abonnements in dieser Version. */
-    public static function poolFile(string $version, string $user): string
+    public static function poolFile(string $version, string $user, string $root = self::PHP_ROOT): string
     {
-        return self::poolDir($version).'/srvpanel-'.Ops\SubscriptionProvision::systemUser($user).'.conf';
+        return self::poolDir($version, $root).'/srvpanel-'.Ops\SubscriptionProvision::systemUser($user).'.conf';
     }
 
     /**

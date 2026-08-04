@@ -54,6 +54,7 @@ final class AgentOperationReachTest extends TestCase
         'config.validate' => 'Prüft eine Konfigurationsdatei.',
         'webserver.detect' => 'Schaut nach, welcher Webserver läuft.',
         'web.logs.tail' => 'Liest die letzten Zeilen eines Protokolls.',
+        'web.isolation.probe' => 'Legt die Selbstprobe des Abnahmelaufs ab und entfernt sie wieder; im Panel steht dazu nichts.',
         'web.logrotate.apply' => 'Schreibt eine logrotate-Datei; im Panel steht dazu nichts.',
         'php.pool.apply' => 'Der Pool gehört zum Abonnement und hat keinen eigenen Zustand im Panel.',
         'php.pool.remove' => 'Dasselbe in der Gegenrichtung.',

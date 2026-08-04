@@ -484,7 +484,12 @@ final class AcceptanceWeb extends Command
      * enden auf `.invalid` und stehen in keinem DNS — das ist Absicht (RFC
      * 2606), damit ein Lauf niemals eine echte Domain trifft.
      *
-     * @return array<string, mixed>|null
+     * **Der Rückgabewert ist immer beides**: die Antwort oder `null`, und
+     * daneben die Diagnose. Vorher gab die Methode nur `?array` zurück, und
+     * genau darin steckte der Fehler vom Zielserver — wer `null` bekam, wusste
+     * nicht, ob nginx schwieg, ein 404 kam oder das JSON kaputt war.
+     *
+     * @return array{antwort: array<string, mixed>|null, diagnose: string}
      */
     private function request(string $domain, string $ziel): array
     {
@@ -496,12 +501,16 @@ final class AcceptanceWeb extends Command
             'ignore_errors' => true,
         ]]);
 
+        // **Vorbelegt, und das ist die ganze Behandlung.** PHP setzt
+        // `$http_response_header` im lokalen Gültigkeitsbereich, sobald eine
+        // Antwort kommt — und lässt die Variable sonst unberührt. Ohne die
+        // Vorbelegung wäre sie im Fehlerfall undefiniert; mit ihr steht dort
+        // eine leere Liste, und genau daran erkennt der Aufrufer, dass gar
+        // keine Verbindung zustande kam.
         $http_response_header = [];
         $body = @file_get_contents($url, false, $context);
 
-        // `$http_response_header` setzt PHP im lokalen Gültigkeitsbereich —
-        // auch bei unterdrückten Fehlern. Ohne Antwort bleibt es ungesetzt.
-        $kopf = $http_response_header ?? [];
+        $kopf = $http_response_header;
 
         if (! is_string($body)) {
             return ['antwort' => null, 'diagnose' => sprintf(

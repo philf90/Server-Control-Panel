@@ -19,7 +19,7 @@ final class Guard
     {
         $name = self::string($value, 'unit');
 
-        if (! preg_match('/^[a-zA-Z0-9@._\-]{1,128}$/', $name)) {
+        if (! preg_match('/^[a-zA-Z0-9@._\-]{1,128}$/D', $name)) {
             throw AgentException::badRequest('Unzulässiger Unit-Name.', ['unit' => $name]);
         }
 
@@ -80,6 +80,28 @@ final class Guard
         }
 
         return $s;
+    }
+
+    /**
+     * Eine ganze Zahl.
+     *
+     * Eine Ziffernfolge als Zeichenkette wird angenommen: Sie kommt so aus
+     * einem Formular, das über JSON geht, und sie abzulehnen hiesse, jedem
+     * Aufrufer eine Umwandlung aufzuerlegen, die hier einmal steht. Was nicht
+     * angenommen wird, ist alles andere — kein `true`, kein `"12abc"`, keine
+     * Gleitkommazahl, deren Nachkommastellen stillschweigend verschwänden.
+     */
+    public static function int(mixed $value, string $field): int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && preg_match('/^-?[0-9]{1,10}$/D', $value) === 1) {
+            return (int) $value;
+        }
+
+        throw AgentException::badRequest(sprintf('%s muss eine ganze Zahl sein.', $field));
     }
 
     public static function string(mixed $value, string $field): string

@@ -130,7 +130,7 @@ final class Connection
         }
 
         $op = $raw['op'] ?? null;
-        if (! is_string($op) || ! preg_match('/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/', $op)) {
+        if (! is_string($op) || ! preg_match('/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/D', $op)) {
             throw AgentException::badRequest('Feld op fehlt oder ist unzulässig.');
         }
 
@@ -140,7 +140,7 @@ final class Connection
         }
 
         $id = $raw['id'] ?? null;
-        if (! is_string($id) || ! preg_match('/^[A-Za-z0-9_\-]{1,64}$/', $id)) {
+        if (! is_string($id) || ! preg_match('/^[A-Za-z0-9_\-]{1,64}$/D', $id)) {
             throw AgentException::badRequest('Feld id fehlt oder ist unzulässig.');
         }
 

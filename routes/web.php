@@ -7,17 +7,20 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DomainController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\MailSettingsController;
 use App\Http\Controllers\OperationController;
 use App\Http\Controllers\OperationStreamController;
 use App\Http\Controllers\OverviewController;
+use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TlsSettingsController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
+use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -253,6 +256,69 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy'])
         ->middleware('can:delete,subscription')
         ->name('subscriptions.destroy');
+
+    /*
+     * Domains (P3, §9).
+     *
+     * **Angelegt wird am Abonnement, alles Weitere an der Domain.** Der
+     * Unterschied steht in der Adresse und in der Policy: `can:create` fragt
+     * am Abonnement, in dem die Domain entstehen soll — ohne es liesse sich
+     * nur fragen, ob dieses Konto *irgendwo* Domains anlegen darf.
+     *
+     * `viewAny` lässt jedes Konto auf die Liste; was darauf steht, entscheidet
+     * die Mandantenklammer. Ein Kunde sieht dort seine Domains, der Betreiber
+     * alle.
+     */
+    Route::get('/domains', [DomainController::class, 'index'])
+        ->middleware('can:viewAny,'.Domain::class)
+        ->name('domains.index');
+
+    Route::get('/subscriptions/{subscription}/domains/create', [DomainController::class, 'create'])
+        ->middleware('can:create,'.Domain::class.',subscription')
+        ->name('domains.create');
+
+    Route::post('/subscriptions/{subscription}/domains', [DomainController::class, 'store'])
+        ->middleware('can:create,'.Domain::class.',subscription')
+        ->name('domains.store');
+
+    Route::get('/domains/{domain}', [DomainController::class, 'show'])
+        ->middleware('can:view,domain')
+        ->name('domains.show');
+
+    Route::patch('/domains/{domain}', [DomainController::class, 'update'])
+        ->middleware('can:update,domain')
+        ->name('domains.update');
+
+    /*
+     * Entfernen nimmt das Verzeichnis mit — so hat der Betreiber es
+     * festgelegt. Die Rückfrage in der Oberfläche nennt den Pfad, bevor
+     * jemand bestätigt.
+     */
+    Route::delete('/domains/{domain}', [DomainController::class, 'destroy'])
+        ->middleware('can:delete,domain')
+        ->name('domains.destroy');
+
+    /*
+     * Die Protokolle einer Domain.
+     *
+     * Eigene Fähigkeit statt `view`: Ein Fehlerprotokoll enthält Pfade,
+     * Dateinamen und Bruchstücke aus dem Quelltext. Wer Dateien nicht lesen
+     * darf, soll sie nicht über diesen Umweg sehen.
+     */
+    Route::get('/domains/{domain}/logs', [DomainController::class, 'logs'])
+        ->middleware('can:viewLogs,domain')
+        ->name('domains.logs');
+
+    /*
+     * Die PHP-Versionen des Servers (§4.3).
+     *
+     * Dieselbe Fähigkeit wie Mailversand und Zertifikat: Es gibt kein Modell,
+     * dem diese Einstellungen gehören. Installieren und Entfernen laufen von
+     * hier aus über den Aufgabenkatalog — die Prüfung steht an dessen Route.
+     */
+    Route::get('/settings/php', [PhpSettingsController::class, 'show'])
+        ->middleware('can:manage-settings')
+        ->name('settings.php');
 
     /*
      * „Anmelden als" (§6.3).

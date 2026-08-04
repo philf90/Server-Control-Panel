@@ -6,7 +6,10 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Filesystem;
 use SrvPanel\Agent\Op;
+use SrvPanel\Agent\PhpVersions;
+use SrvPanel\Agent\Site;
 
 /**
  * Baut die Systemseite eines Abonnements vollständig zurück: Prozesse,
@@ -47,6 +50,22 @@ final class SubscriptionRemove implements Op
     /** Wie lange ein Prozess des Abonnements nach SIGTERM Zeit bekommt. */
     private const GRACE_MS = 500;
 
+    /**
+     * Die drei Orte ausserhalb des Abo-Verzeichnisses — als Vorgaben.
+     *
+     * Sie stehen im Konstruktor und nicht als Konstanten im Rumpf, damit der
+     * Test aus §8.7 sie auf einen Sandkasten zeigen kann: „Abo löschen
+     * entfernt alles restlos, geprüft durch einen Test, der hinterher das
+     * Dateisystem absucht". Ein Test, der `/etc/nginx` anfasst, ist keiner,
+     * der zweimal läuft. Dasselbe Muster wie bei {@see PanelVhost}, wo das
+     * Ziel aus demselben Grund im Konstruktor steht.
+     */
+    public function __construct(
+        private readonly string $confDir = Site::CONF_DIR,
+        private readonly string $logrotateDir = WebLogrotate::DIRECTORY,
+        private readonly string $phpRoot = PhpVersions::PHP_ROOT,
+    ) {}
+
     public static function name(): string
     {
         return 'subscription.remove';
@@ -72,7 +91,26 @@ final class SubscriptionRemove implements Op
         $context->progress(30, 'Quota zurücknehmen');
         $quota = $entry === false ? false : $this->clearQuota($context, $user);
 
-        $context->progress(50, 'Verzeichnisse entfernen');
+        /*
+         * **Was ausserhalb des Abo-Verzeichnisses liegt, geht zuerst.**
+         *
+         * Bis P3 war der Rückbau vollständig, weil alles zu einem Abonnement
+         * unter `/var/www/vhosts/<abo>` lag. Mit den Websites ist das nicht
+         * mehr so: Der Server-Block steht in `/etc/nginx/srvpanel.d`, der
+         * FPM-Pool in `/etc/php/<version>/fpm/pool.d`, die Rotation in
+         * `/etc/logrotate.d`. Der Baumlauf über das Abo-Verzeichnis sieht
+         * nichts davon — und §8.7 verlangt, dass „Abo löschen alles restlos
+         * entfernt, geprüft durch einen Test, der hinterher das Dateisystem
+         * absucht".
+         *
+         * Vor dem Verzeichnis, weil der Server-Block darauf zeigt: Ein nginx,
+         * das zwischen beiden Schritten neu lädt, fände sonst ein `root`, das
+         * es nicht mehr gibt.
+         */
+        $context->progress(45, 'Konfiguration entfernen');
+        $configuration = $this->removeConfiguration($context, $name, $user, $root);
+
+        $context->progress(60, 'Verzeichnisse entfernen');
         $removed = $this->removeRoot($root);
 
         $context->progress(80, 'Systembenutzer und Gruppe entfernen');
@@ -93,9 +131,99 @@ final class SubscriptionRemove implements Op
             'processes_stopped' => $killed,
             'quota_cleared' => $quota,
             'directory_removed' => $removed,
+            'configuration_removed' => $configuration,
             'account_removed' => $account,
             'orphans' => $orphans,
         ];
+    }
+
+    /**
+     * Server-Blöcke, FPM-Pools und die Rotation dieses Abonnements.
+     *
+     * **Die Server-Blöcke werden gesucht und nicht übergeben.** Das Panel
+     * wüsste, welche Domains es gab; nur ist genau das die Liste, die nach
+     * einem abgebrochenen Lauf unvollständig ist — und dann bliebe eine Datei
+     * liegen, die auf ein Verzeichnis zeigt, das es nicht mehr gibt. Gesucht
+     * wird in einem Verzeichnis, das ausschliesslich srvpanel gehört, nach dem
+     * Pfad des Abonnements: Jeder erzeugte Block trägt ihn in `access_log`.
+     * Das findet auch die Reste, die niemand mehr auf der Rechnung hat.
+     *
+     * **Die Pools stehen dagegen fest.** Ihr Dateiname enthält den
+     * Systembenutzer, und der ist geprüft — dort gibt es nichts zu suchen.
+     *
+     * @return array<string, list<string>>
+     */
+    private function removeConfiguration(Context $context, string $name, string $user, string $root): array
+    {
+        $entfernt = ['sites' => [], 'pools' => [], 'logrotate' => []];
+
+        foreach (glob($this->confDir.'/*.conf') ?: [] as $file) {
+            $inhalt = (string) @file_get_contents($file);
+
+            // `$root.'/'` und nicht `$root`: Ohne den Schrägstrich träfe
+            // `beispiel.de` auch die Blöcke von `beispiel.de.alt`.
+            if (! str_contains($inhalt, $root.'/')) {
+                continue;
+            }
+
+            if (@unlink($file)) {
+                $entfernt['sites'][] = $file;
+            }
+        }
+
+        $versionen = [];
+
+        foreach (PhpVersions::CATALOG as $version) {
+            $pool = PhpVersions::poolFile($version, $user, $this->phpRoot);
+
+            if (is_file($pool) && @unlink($pool)) {
+                $entfernt['pools'][] = $pool;
+                $versionen[] = $version;
+            }
+        }
+
+        $rotation = $this->logrotateDir.'/srvpanel-'.$name;
+
+        if (is_file($rotation) && @unlink($rotation)) {
+            $entfernt['logrotate'][] = $rotation;
+        }
+
+        $this->reload($context, $versionen, $entfernt['sites'] !== []);
+
+        return $entfernt;
+    }
+
+    /**
+     * Die Dienste über den Wegfall in Kenntnis setzen.
+     *
+     * **Ohne Abbruch bei einem Fehlschlag.** Ein nginx, das sich nicht neu
+     * laden lässt, ist ein Problem — aber kein Grund, den Rückbau mitten im
+     * Lauf abzubrechen und ein halb entferntes Abonnement zu hinterlassen. Die
+     * Dateien sind fort; was bleibt, ist ein Dienst mit einer veralteten
+     * Konfiguration, und das sieht der Betreiber an seinem Zustand.
+     *
+     * @param  list<string>  $versionen
+     */
+    private function reload(Context $context, array $versionen, bool $nginx): void
+    {
+        if ($nginx) {
+            $context->runner->run('systemctl', ['reload-or-restart', 'nginx.service'], 60);
+        }
+
+        foreach ($versionen as $version) {
+            // Bleibt kein Pool übrig, startet PHP-FPM nicht mehr — dann wird
+            // die Unit gestoppt statt neu geladen. Dieselbe Regel wie in
+            // php.pool.remove, und aus demselben Grund.
+            $verbleibend = glob(PhpVersions::poolDir($version, $this->phpRoot).'/srvpanel-*.conf') ?: [];
+
+            $context->runner->run(
+                'systemctl',
+                $verbleibend === []
+                    ? ['disable', '--now', PhpVersions::unit($version)]
+                    : ['reload-or-restart', PhpVersions::unit($version)],
+                60,
+            );
+        }
     }
 
     /**
@@ -245,44 +373,9 @@ final class SubscriptionRemove implements Op
             throw AgentException::denied('Der aufgelöste Pfad weicht ab — es wird nichts entfernt.');
         }
 
-        $this->removeTree($root);
+        Filesystem::removeTree($root);
 
         return true;
-    }
-
-    /**
-     * Rekursiv entfernen, ohne je einem Symlink zu folgen.
-     *
-     * Der Kunde besitzt `httpdocs` und kann darin `foo -> /etc` anlegen.
-     * `is_link` vor dem Abstieg entscheidet: Ein Verweis wird entfernt, ein
-     * Verzeichnis betreten.
-     *
-     * **Was das nicht abdeckt:** Zwischen der Prüfung und dem Abstieg liegt
-     * ein Zeitfenster, in dem ein laufender Prozess des Abonnements ein
-     * Verzeichnis durch einen Verweis ersetzen könnte. Sauber schliessen liesse
-     * sich das nur mit `openat(O_NOFOLLOW)`, und das gibt PHP nicht heraus.
-     * Deshalb steht `stopProcesses()` vorher: Wenn hier gelöscht wird, läuft
-     * kein Prozess mehr, der das Fenster nutzen könnte.
-     */
-    private function removeTree(string $path): void
-    {
-        foreach (scandir($path) ?: [] as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
-
-            $child = $path.'/'.$entry;
-
-            if (is_link($child) || ! is_dir($child)) {
-                @unlink($child);
-
-                continue;
-            }
-
-            $this->removeTree($child);
-        }
-
-        @rmdir($path);
     }
 
     /**

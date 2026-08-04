@@ -73,6 +73,24 @@ final class SubscriptionProvision implements Op
         'mail' => ['%u', '%g', 0700],
     ];
 
+    /**
+     * Die Verzeichnisse des Schemas, die **kein** DocumentRoot sein dürfen.
+     *
+     * Sie stehen hier und nicht im Panel, weil sie aus derselben Tabelle
+     * kommen wie das Schema selbst: Wächst {@see self::TREE}, wächst diese
+     * Liste mit. Ein Panel, das `logs`, `conf`, `tmp`, `.ssh` und `mail`
+     * abgetippt hätte, wäre bei der ersten Erweiterung des Schemas falsch
+     * geworden — und was daraus folgt, ist keine Kleinigkeit: Ein
+     * DocumentRoot auf `logs` liefert die Zugriffsprotokolle des Kunden über
+     * HTTP aus, eines auf `.ssh` seine Schlüssel.
+     *
+     * @return list<string>
+     */
+    public static function reservedDirectories(): array
+    {
+        return array_values(array_diff(array_keys(self::TREE), [self::DOCUMENT_ROOT]));
+    }
+
     public static function name(): string
     {
         return 'subscription.provision';
@@ -128,7 +146,7 @@ final class SubscriptionProvision implements Op
     {
         $name = Guard::string($value, 'name');
 
-        if (! preg_match('/^[a-z0-9]([a-z0-9.\-]{0,61}[a-z0-9])?$/', $name)) {
+        if (! preg_match('/^[a-z0-9]([a-z0-9.\-]{0,61}[a-z0-9])?$/D', $name)) {
             throw AgentException::badRequest('Unzulässiger Name für ein Abonnement.', ['name' => $name]);
         }
 
@@ -152,7 +170,7 @@ final class SubscriptionProvision implements Op
     {
         $user = Guard::string($value, 'user');
 
-        if (! preg_match('/^p[0-9]{4,9}$/', $user)) {
+        if (! preg_match('/^p[0-9]{4,9}$/D', $user)) {
             throw AgentException::badRequest(
                 'Unzulässiger Systembenutzer — erwartet wird „p" und vier bis neun Ziffern.',
                 ['user' => $user],

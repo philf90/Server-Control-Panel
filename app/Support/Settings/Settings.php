@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Settings;
 
 use App\Models\Setting;
+use App\Support\Web\PhpSelection;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -28,7 +29,20 @@ final class Settings
 {
     private const MAIL = 'mail';
 
+    /**
+     * Die auf dem Server installierten PHP-Versionen.
+     *
+     * Kein Geheimnis und trotzdem in derselben Ablage: Sie ist die eine
+     * Stelle für Zustand, den der Betreiber setzt und der keine eigene
+     * Tabelle rechtfertigt. Verschlüsselt ist sie, weil es die Ablage ist —
+     * nicht, weil die Liste es bräuchte.
+     */
+    private const PHP_VERSIONS = 'php_versions';
+
     private ?MailSettings $mail = null;
+
+    /** @var list<string>|null */
+    private ?array $phpVersions = null;
 
     public function mail(): MailSettings
     {
@@ -44,6 +58,55 @@ final class Settings
         Setting::query()->updateOrCreate(['key' => self::MAIL], ['value' => $settings->toArray()]);
 
         $this->mail = $settings;
+    }
+
+    /**
+     * Welche PHP-Versionen auf dem Server liegen.
+     *
+     * **Leer heisst „nicht bekannt" und wird wie „keine" behandelt.** Vor dem
+     * ersten Lauf von `php.versions` weiss das Panel es nicht; eine Domain
+     * mit einer Version anzulegen, die es vielleicht nicht gibt, endet in
+     * einem Server-Block, den der Agent zurückweist. Siehe
+     * {@see PhpSelection::installed()}.
+     *
+     * @return list<string>
+     */
+    public function phpVersions(): array
+    {
+        if ($this->phpVersions !== null) {
+            return $this->phpVersions;
+        }
+
+        $stored = $this->read(self::PHP_VERSIONS)['installed'] ?? null;
+
+        if (! is_array($stored)) {
+            return $this->phpVersions = [];
+        }
+
+        return $this->phpVersions = array_values(array_filter($stored, is_string(...)));
+    }
+
+    /** @param list<string> $versions */
+    public function savePhpVersions(array $versions): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::PHP_VERSIONS],
+            // `toDateTimeString` und nicht ISO: Die Angabe steht in der
+            // Oberfläche, und dort sieht sie aus wie jeder andere Zeitpunkt im
+            // Panel. Ein `2026-08-04T11:05:18+00:00` daneben wäre dieselbe
+            // Auskunft in einer zweiten Schreibweise.
+            ['value' => ['installed' => array_values($versions), 'checked_at' => now()->toDateTimeString()]],
+        );
+
+        $this->phpVersions = array_values($versions);
+    }
+
+    /** Wann zuletzt nachgesehen wurde — `null`, wenn noch nie. */
+    public function phpVersionsCheckedAt(): ?string
+    {
+        $at = $this->read(self::PHP_VERSIONS)['checked_at'] ?? null;
+
+        return is_string($at) ? $at : null;
     }
 
     /**

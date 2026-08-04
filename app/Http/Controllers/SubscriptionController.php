@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\CustomerStatus;
 use App\Enums\SubscriptionStatus;
 use App\Models\Customer;
+use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -207,6 +208,30 @@ final class SubscriptionController extends Controller
                 'label' => $feature->label(),
                 'granted' => $subscription->feature($feature->value),
             ], Feature::cases()),
+
+            /*
+             * Die Domains des Abonnements.
+             *
+             * Sie stehen an dieser Seite und nicht auf einer eigenen: Ein Kunde
+             * kommt über sein Abonnement zu seinen Websites, und ein zweiter
+             * Menüpunkt wäre ein zweiter Weg zum selben Ort. Der Betreiber hat
+             * zusätzlich die serverweite Liste unter /domains.
+             */
+            'domains' => $subscription->domains()
+                ->orderByRaw("case when type = 'main' then 0 else 1 end")
+                ->orderBy('name')
+                ->get()
+                ->map(static fn (Domain $domain): array => [
+                    'id' => (int) $domain->id,
+                    'name' => $domain->name,
+                    'type_label' => $domain->type->label(),
+                    'status' => $domain->status->value,
+                    'status_label' => $domain->status->label(),
+                    'php_version' => $domain->php_version,
+                    'is_redirect' => $domain->isRedirect(),
+                ])->all(),
+
+            'mayAddDomain' => request()->user()?->can('create', [Domain::class, $subscription]) ?? false,
 
             'operations' => Operation::query()
                 ->where('subscription_id', $subscription->id)

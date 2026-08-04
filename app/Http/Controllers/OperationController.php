@@ -57,6 +57,11 @@ final class OperationController extends Controller
                 'label' => $task->label(),
                 'description' => $task->description(),
                 'mutating' => $task->mutating(),
+
+                // Die Auswahl kommt aus dem Katalog und nicht aus der
+                // Oberfläche. Ein Feld ohne Auswahl bleibt ein Knopf.
+                'argument_label' => $task->argumentLabel(),
+                'choices' => $task->choices(),
             ])->all(),
         ]);
     }
@@ -67,6 +72,7 @@ final class OperationController extends Controller
 
         $data = $request->validate([
             'task' => ['required', 'string', 'max:64'],
+            'argument' => ['nullable', 'string', 'max:64'],
         ]);
 
         $key = (string) $data['task'];
@@ -83,6 +89,22 @@ final class OperationController extends Controller
             ]);
         }
 
+        // **Das Argument wird gegen den Katalog geprüft, nicht gegen ein
+        // Muster.** Es geht als Wert an den Agenten — bei
+        // `php.version.install` in einen Paketnamen. Ein Wert, der nicht in
+        // der Liste steht, ist deshalb keine ungültige Eingabe, sondern ein
+        // Versuch, und wird wie ein unbekannter Schlüssel behandelt: dieselbe
+        // Antwort, damit sich der Katalog nicht abklopfen lässt.
+        $argument = is_string($data['argument'] ?? null) ? $data['argument'] : null;
+
+        if ($task->choices() !== [] && ($argument === null || ! in_array($argument, $task->choices(), true))) {
+            $audit->denied('operation.started', context: ['task' => $key, 'argument' => $argument]);
+
+            throw ValidationException::withMessages([
+                'task' => 'Diese Aufgabe gibt es nicht oder sie steht Ihnen nicht offen.',
+            ]);
+        }
+
         $operation = Operation::query()->create([
             // Betreibervorgänge tragen kein Abonnement — sie betreffen den
             // Server und nicht einen Kunden. Für Kunden bleibt die Klammer
@@ -92,16 +114,17 @@ final class OperationController extends Controller
             'account_id' => $account->id,
             'type' => $task->operation(),
             'task' => $task->value,
-            'payload' => $task->payload(),
+            'payload' => $task->payload($argument),
             'status' => OperationStatus::Queued,
             'progress' => 0,
-            'message' => $task->label(),
+            'message' => $argument === null ? $task->label() : $task->label().' '.$argument,
         ]);
 
-        $audit->success('operation.started', $operation, [
+        $audit->success('operation.started', $operation, array_filter([
             'task' => $task->value,
             'operation' => $task->operation(),
-        ]);
+            'argument' => $argument,
+        ], static fn (mixed $value): bool => $value !== null));
 
         RunAgentOperation::dispatch((int) $operation->id);
 

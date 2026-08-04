@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\NginxApply;
 use SrvPanel\Agent\Op;
 
 /**
@@ -65,6 +66,10 @@ final class PanelVhost implements Op
 
         $before = is_file($this->target) ? (string) file_get_contents($this->target) : null;
 
+        // Das Verzeichnis wird hier **nicht** angelegt, obwohl NginxApply das
+        // könnte: Fehlt es, ist nicht die Datei das Problem, sondern der
+        // fehlende Webserver — und ein stillschweigend angelegtes
+        // /etc/nginx/conf.d verschöbe diese Auskunft auf den Reload.
         if (! is_dir(dirname($this->target))) {
             throw new AgentException(
                 AgentException::NOT_FOUND,
@@ -72,27 +77,11 @@ final class PanelVhost implements Op
             );
         }
 
-        file_put_contents($this->target, $text);
-        chmod($this->target, 0o644);
-
-        $context->progress(50, 'nginx -t');
-        $check = $context->runner->run('nginx', ['-t'], 30);
-
-        if (! $check->successful()) {
-            $this->restore($before);
-
-            throw AgentException::execFailed('nginx hat die Konfiguration abgelehnt: '.$check->message());
-        }
-
-        $context->progress(80, 'nginx neu laden');
-        $reload = $context->runner->run('systemctl', ['reload-or-restart', 'nginx.service'], 60);
-
-        if (! $reload->successful()) {
-            $this->restore($before);
-            $context->runner->run('systemctl', ['reload-or-restart', 'nginx.service'], 60);
-
-            throw AgentException::execFailed('nginx ließ sich nicht neu laden: '.$reload->message());
-        }
+        // Schreiben, prüfen, neu laden, im Fehlerfall zurück — der Ablauf
+        // steht seit P3 in NginxApply, weil ihn jede Kundendomain ebenfalls
+        // braucht. Er stand zuerst hier; abgeschrieben wäre er beim zweiten
+        // Mal um die Zeile mit dem Zurück ärmer gewesen.
+        NginxApply::commit($context, [$this->target => $text]);
 
         return ['path' => $this->target, 'port' => $port, 'replaced' => $before !== null];
     }
@@ -121,17 +110,6 @@ final class PanelVhost implements Op
         $subject = $parsed['subject'] ?? null;
 
         return ! is_array($issuer) || ! is_array($subject) || $issuer === $subject;
-    }
-
-    private function restore(?string $before): void
-    {
-        if ($before === null) {
-            @unlink($this->target);
-
-            return;
-        }
-
-        file_put_contents($this->target, $before);
     }
 
     /**

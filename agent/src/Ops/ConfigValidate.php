@@ -57,7 +57,7 @@ final class ConfigValidate implements Op
 
         if ($kind === 'zone') {
             $zone = Guard::string($args['zone'] ?? null, 'zone');
-            if (! preg_match('/^[a-zA-Z0-9.\-]{1,253}$/', $zone)) {
+            if (! preg_match('/^[a-zA-Z0-9.\-]{1,253}$/D', $zone)) {
                 throw AgentException::badRequest('Unzulässiger Zonenname.', ['zone' => $zone]);
             }
             $arguments[] = $zone;

@@ -7,8 +7,9 @@ AGPL-3.0-only. Zielplattformen sind Debian 12/13 und Ubuntu 22.04/24.04.
 Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 (§9). Wo dieses Dokument und der Plan sich widersprechen, gilt der Plan.
 
-Stand: **P0, P1 und P2 abgenommen**, ausgeliefert als `v0.2.0-rc.x`. Als
-Nächstes P3 (Web und PHP).
+Stand: **P0, P1 und P2 abgenommen**, ausgeliefert als `v0.2.0-rc.x`. **P3 (Web
+und PHP) ist gebaut** — die Abnahme steht aus: Sie braucht einen Server mit
+nginx und PHP-FPM (`srvpanel acceptance-web`). Als Nächstes P4 (TLS).
 
 ---
 
@@ -30,7 +31,16 @@ rot war, ist kein Wächter.
 Vorhandene Wächter, an denen man sich orientieren kann:
 `RouteAuthorizationTest`, `PolicyReachTest`, `ButtonStyleTest`, `IconTest`,
 `ThemeTest`, `InertiaPagesTest`, `PackagingTest`, `WordChoiceTest`,
-`MobileLayoutTest`, `DesignTokensTest`.
+`MobileLayoutTest`, `DesignTokensTest` — und aus P3
+`AgentOperationReachTest` (jeder Operationsname zeigt auf eine Operation, die
+es gibt), `LifecycleReachTest`, `AnchoredPatternTest`, `PhpVersionCatalogTest`,
+`DirectiveAllowlistTest`, `PhpIsolationTest`.
+
+**Drei Funde aus P3, die keiner Regel widersprachen, sondern eine fehlende
+zeigten:** `$` passt in PCRE auch vor einem abschliessenden Zeilenumbruch (neun
+Muster betroffen, vier davon aus P0–P2); zwei fertig gebaute Agent-Operationen
+wurden von nichts aufgerufen; eine Knopfklasse zeigte auf eine CSS-Regel, die
+es nicht gibt. Jeder Fund hat seinen Wächter bekommen.
 
 **Und: im Browser nachsehen, nicht nur bauen.** Drei Fehler dieser Woche waren
 grün getestet und trotzdem falsch — ein Knopfrand mit 1,04:1 Kontrast, ein
@@ -89,7 +99,7 @@ nicht geschätzt: 4,5:1 für Text, **3:1 für die Grenze eines Bedienelements**
 
 Weitere Dokumente: `21` Signaturschlüssel · `22` Passwörter · `23` Pläne und
 Kontingente · `24` mobile Ansicht · `25` Mailversand · `26` Abonnements ·
-`27` Zertifikat.
+`27` Zertifikat · `28` Web und PHP.
 
 ---
 
@@ -104,7 +114,8 @@ npm run build          # Vite
 php artisan migrate
 ```
 
-Auf dem Zielserver: `srvpanel setup|update|metrics|usage|tls|acceptance|admin`.
+Auf dem Zielserver:
+`srvpanel setup|update|metrics|usage|tls|acceptance|acceptance-web|admin`.
 
 ---
 
@@ -113,9 +124,17 @@ Auf dem Zielserver: `srvpanel setup|update|metrics|usage|tls|acceptance|admin`.
 Der Container ist **nicht** der Zielserver. Was hier fehlt, muss man beim
 Testen berücksichtigen:
 
-- **kein nginx, kein Agent, kein systemd.** Operationen laufen gegen Attrappen.
-  Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat* und dieser Container
-  nicht — Tests, die Systemzustand annehmen, gehören abgesichert.
+- **kein nginx, kein PHP-FPM, kein Agent, kein systemd.** Operationen laufen
+  gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
+  und dieser Container nicht — Tests, die Systemzustand annehmen, gehören
+  abgesichert. Vorlagen werden deshalb **als Text** geprüft
+  (`SiteTemplateTest`, `PhpIsolationTest`): Der Standardschutz ist eine
+  Eigenschaft der erzeugten Zeichenkette.
+- **Die Ratenbegrenzung greift beim Aufnehmen von Screenshots.** Drei
+  Anmeldungen hintereinander sperren die Adresse (§6.4) — eine Anmeldung für
+  alle Aufnahmen, dann `emulateMedia` und `setViewportSize` umschalten. Und
+  Inertia schickt über XHR: `networkidle` kommt zurück, bevor die Antwort da
+  ist; gewartet wird auf die Adresse.
 - **PHPStan ist hier nicht lauffähig** (bricht ohne Ausgabe mit Rückgabewert 1
   ab). Er läuft in der CI; `composer pruefe` schlägt deshalb lokal fehl. Einzeln
   `pint` und `phpunit` aufrufen.

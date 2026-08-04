@@ -159,6 +159,66 @@ class Account extends Authenticatable
         });
     }
 
+    /**
+     * Auf welche Domains dieses Konto in welchem Abonnement beschränkt ist.
+     *
+     * **Das Feld `domain_ids` lag seit P1 in der Verknüpfungstabelle und wurde
+     * von nichts gelesen.** §6.1 verspricht „zusätzlich eine Einschränkung auf
+     * einzelne Domains eines Abonnements", die Spalte war da, das Formular
+     * hätte sie füllen können — und die Klammer hätte sie ignoriert. Solange
+     * es keine Domains gab, war das folgenlos. Mit P3 wird daraus eine Zusage,
+     * die eingelöst gehört.
+     *
+     * **Ein fehlender oder leerer Eintrag heißt „keine Einschränkung".** Das
+     * ist der Normalfall: Die meisten Zusatzbenutzer arbeiten an allem, was
+     * ihr Abonnement hat. `null` von „leere Liste" zu unterscheiden wäre hier
+     * eine Unterscheidung ohne Unterschied — eine Zuweisung, die auf *keine*
+     * Domain zeigt, entsteht nur durch ein Formular, das noch keine gewählt
+     * hat, und die richtige Auskunft darauf ist „alle des Abonnements" und
+     * nicht „gar nichts".
+     *
+     * @return array<int, list<int>> Abonnement-ID => erlaubte Domain-IDs
+     */
+    public function domainRestrictions(): array
+    {
+        if ($this->type !== AccountType::Additional) {
+            return [];
+        }
+
+        return app(Tenancy::class)->withoutRestriction(function (): array {
+            $restrictions = [];
+
+            foreach ($this->assignedSubscriptions()->get() as $subscription) {
+                $pivot = $subscription->getAttribute('pivot');
+                $stored = $pivot instanceof Pivot ? $pivot->getAttribute('domain_ids') : null;
+
+                // Wie bei den Rechten: Die Verknüpfungstabelle hat kein Modell
+                // mit Casts, der Wert kann als JSON-Zeichenkette ankommen.
+                if (is_string($stored)) {
+                    $stored = json_decode($stored, true);
+                }
+
+                if (! is_array($stored) || $stored === []) {
+                    continue;
+                }
+
+                $ids = [];
+
+                foreach ($stored as $id) {
+                    if (is_int($id) || (is_string($id) && ctype_digit($id))) {
+                        $ids[] = (int) $id;
+                    }
+                }
+
+                if ($ids !== []) {
+                    $restrictions[(int) $subscription->id] = array_values(array_unique($ids));
+                }
+            }
+
+            return $restrictions;
+        });
+    }
+
     /** Ist der zweite Faktor eingerichtet und bestätigt? */
     public function hasTwoFactor(): bool
     {

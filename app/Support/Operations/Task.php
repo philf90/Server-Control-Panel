@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Support\Operations;
 
 use App\Models\Account;
+use InvalidArgumentException;
+use SrvPanel\Agent\PhpVersions;
 
 /**
  * Was sich aus dem Panel heraus auslösen lässt.
@@ -38,6 +40,21 @@ enum Task: string
     case WebserverCheck = 'webserver.check';
     case WebserverReload = 'webserver.reload';
 
+    /*
+     * P3 — Web und PHP. Die ersten Aufgaben mit einem Argument.
+     *
+     * Der Kommentar über dieser Aufzählung hat sie angekündigt: „Sobald es
+     * Websites gibt, brauchen Aufgaben Argumente (welche Domain, welches
+     * Zertifikat), und dann muss dieser Katalog auch beschreiben, welche Werte
+     * zulässig sind und woher sie stammen dürfen." Genau das steht jetzt
+     * darunter — und die Antwort auf „woher" ist dieselbe wie bei allem
+     * anderen: aus einer festen Liste im Quelltext, nie aus der Anfrage.
+     */
+    case WebserverDetect = 'webserver.detect';
+    case PhpVersionList = 'php.versions';
+    case PhpVersionInstall = 'php.version.install';
+    case PhpVersionRemove = 'php.version.remove';
+
     /**
      * Beschriftung und Beschreibung sind Text, den ein Browser anzeigt — für
      * sie gilt docs/19: technisch vor literarisch.
@@ -61,6 +78,10 @@ enum Task: string
             self::WebserverStatus => 'Status nginx',
             self::WebserverCheck => 'nginx-Konfiguration prüfen',
             self::WebserverReload => 'nginx neu laden',
+            self::WebserverDetect => 'Webserver erkennen',
+            self::PhpVersionList => 'PHP-Versionen nachsehen',
+            self::PhpVersionInstall => 'PHP-Version installieren',
+            self::PhpVersionRemove => 'PHP-Version entfernen',
         };
     }
 
@@ -73,6 +94,10 @@ enum Task: string
             self::WebserverStatus => 'service.status auf nginx.service. Liefert ActiveState, SubState und PID.',
             self::WebserverCheck => 'nginx -t gegen /etc/nginx/nginx.conf. Prüft Syntax und alle per include eingebundenen Dateien, ohne die Konfiguration zu aktivieren.',
             self::WebserverReload => 'systemctl reload nginx.service. Der Master-Prozess liest die Konfiguration neu und startet neue Worker; bestehende Verbindungen laufen auf den alten aus.',
+            self::WebserverDetect => 'webserver.detect. Sucht nach Apache, lighttpd und Caddy und meldet, ob srvpanel arbeiten darf — ein laufender fremder Webserver wird nicht angefasst.',
+            self::PhpVersionList => 'php.versions. Liest, welche PHP-Versionen installiert sind, ob ihr FPM läuft und wie viele Pools daran hängen. Füllt zugleich die Auswahl in den Domainformularen.',
+            self::PhpVersionInstall => 'apt-get install phpX.Y-fpm samt Erweiterungen aus deb.sury.org, danach wird der geteilte Standard-Pool der Distribution abgeschaltet.',
+            self::PhpVersionRemove => 'apt-get remove phpX.Y-*. Wird abgewiesen, solange ein Abonnement einen Pool in dieser Version hat.',
         };
     }
 
@@ -84,24 +109,91 @@ enum Task: string
             self::AgentStatus, self::WorkerStatus, self::WebserverStatus => 'service.status',
             self::WebserverCheck => 'config.validate',
             self::WebserverReload => 'service.action',
+            self::WebserverDetect => 'webserver.detect',
+            self::PhpVersionList => 'php.versions',
+            self::PhpVersionInstall => 'php.version.install',
+            self::PhpVersionRemove => 'php.version.remove',
         };
     }
 
     /**
      * Die Argumente — fest im Quelltext, nicht aus der Anfrage.
      *
+     * **Das Argument ist ein Wert aus {@see self::choices()}, kein Freitext.**
+     * Der Browser schickt „8.2"; was daraus wird, entsteht hier. Zwischen
+     * beidem liegt die Prüfung im Steuerungscode, und sie prüft gegen dieselbe
+     * Liste, aus der die Oberfläche ihr Auswahlfeld baut — es gibt keinen
+     * zweiten Weg, einen Wert hierher zu bringen.
+     *
      * @return array<string, mixed>
      */
-    public function payload(): array
+    public function payload(?string $argument = null): array
     {
         return match ($this) {
-            self::AgentPing => [],
+            self::AgentPing, self::WebserverDetect, self::PhpVersionList => [],
             self::AgentStatus => ['unit' => 'srvpanel-agentd.service'],
             self::WorkerStatus => ['unit' => 'srvpanel-worker.service'],
             self::WebserverStatus => ['unit' => 'nginx.service'],
             self::WebserverCheck => ['kind' => 'nginx', 'path' => '/etc/nginx/nginx.conf'],
             self::WebserverReload => ['unit' => 'nginx.service', 'action' => 'reload'],
+
+            self::PhpVersionInstall, self::PhpVersionRemove => [
+                'php_version' => $this->choice($argument),
+            ],
         };
+    }
+
+    /**
+     * Braucht diese Aufgabe ein Argument — und wie heißt es in der Oberfläche?
+     *
+     * `null` heisst: keines. Die Oberfläche zeigt dann einen Knopf und sonst
+     * nichts.
+     */
+    public function argumentLabel(): ?string
+    {
+        return match ($this) {
+            self::PhpVersionInstall, self::PhpVersionRemove => 'PHP-Version',
+            default => null,
+        };
+    }
+
+    /**
+     * Die zulässigen Werte des Arguments.
+     *
+     * **Der Katalog des Agenten und nichts sonst.** Für jede Version darin
+     * gibt es Vorlage, Paketname und Handler (`docs/23 §7`); eine Version, die
+     * nicht darin steht, hat keine davon. Die Liste ist bewusst nicht auf „was
+     * gerade installiert ist" eingeschränkt: Installieren soll gerade das, was
+     * fehlt, und Entfernen ist wiederholbar — der Agent antwortet auf beides
+     * mit „war schon so", statt zu scheitern.
+     *
+     * @return list<string>
+     */
+    public function choices(): array
+    {
+        return match ($this) {
+            self::PhpVersionInstall, self::PhpVersionRemove => PhpVersions::CATALOG,
+            default => [],
+        };
+    }
+
+    /**
+     * Das Argument, geprüft.
+     *
+     * Ein unbekannter Wert kommt hier nicht mehr an — der Steuerungscode weist
+     * ihn vorher ab. Die Prüfung steht trotzdem da: Sie ist die letzte vor dem
+     * Agenten, und sie kostet eine Zeile.
+     */
+    private function choice(?string $argument): string
+    {
+        if ($argument === null || ! in_array($argument, $this->choices(), true)) {
+            throw new InvalidArgumentException(sprintf(
+                '%s braucht ein Argument aus dem Katalog.',
+                $this->value,
+            ));
+        }
+
+        return $argument;
     }
 
     /**
@@ -113,17 +205,29 @@ enum Task: string
      */
     public function mutating(): bool
     {
-        return $this === self::WebserverReload;
+        return in_array($this, [
+            self::WebserverReload,
+            self::PhpVersionInstall,
+            self::PhpVersionRemove,
+        ], true);
     }
 
     /**
      * Wer diese Aufgabe auslösen darf.
      *
-     * In P1 ausschließlich Betreiber, und das ist keine vorläufige Strenge:
-     * Alle sechs Aufgaben betreffen den Server als Ganzes. Es gibt noch keine
-     * Websites, keine Datenbanken, kein Postfach — also nichts, was einem
-     * einzelnen Kunden gehörte und das er anfassen dürfte. Ein Kunde sieht
-     * deshalb einen leeren Katalog, und das ist die richtige Auskunft.
+     * **Weiterhin ausschließlich Betreiber, auch in P3.** In P1 stand hier,
+     * alle sechs Aufgaben beträfen den Server als Ganzes — es gebe noch nichts,
+     * was einem einzelnen Kunden gehöre. Für die vier neuen gilt dasselbe, und
+     * für die PHP-Versionen ist es eine ausdrückliche Festlegung: Installieren
+     * und Entfernen sind Betreiberhandlungen. Ein Kunde sieht, welche
+     * Versionen er wählen kann und welche sein Plan hergibt, ohne dass es sie
+     * auf dem Server gibt; anfordern kann er nichts, weil ein Knopf ohne
+     * Empfänger schlechter ist als keiner.
+     *
+     * Was ein Kunde an *seinen* Domains auslöst, läuft nicht über diesen
+     * Katalog, sondern über den Dienst (App\Support\Web\Domains): Dort ist der
+     * Gegenstand ein Objekt, das durch die Mandantenklammer gekommen ist, und
+     * nicht ein Schlüssel aus einer Liste.
      */
     public function allowedFor(Account $account): bool
     {

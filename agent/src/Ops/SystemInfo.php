@@ -151,11 +151,11 @@ final class SystemInfo implements Op
             }
         }
 
-        if (preg_match('/^nvme\d+n\d+p\d+$/', $name)) {
+        if (preg_match('/^nvme\d+n\d+p\d+$/D', $name)) {
             return false;
         }
 
-        if (preg_match('/^(sd|vd|hd|xvd)[a-z]+\d+$/', $name)) {
+        if (preg_match('/^(sd|vd|hd|xvd)[a-z]+\d+$/D', $name)) {
             return false;
         }
 
@@ -363,7 +363,7 @@ final class SystemInfo implements Op
         $values = [];
 
         foreach (explode("\n", $raw) as $line) {
-            if (! preg_match('/^([A-Za-z()_]+):\s+(\d+)\s*kB$/', trim($line), $match)) {
+            if (! preg_match('/^([A-Za-z()_]+):\s+(\d+)\s*kB$/D', trim($line), $match)) {
                 continue;
             }
             if (isset($wanted[$match[1]])) {

@@ -721,3 +721,374 @@ genau deshalb war jetzt der Zeitpunkt.
   `padding: calc(var(--padding) * 1.5)`; `--padding` ist eine Kurzform mit drei
   Werten, `calc()` rechnet mit einem. Die Deklaration war ungültig und fiel
   still auf null zurück — Überschrift und Knopf klebten an der Kante.
+
+### P3 — Web und PHP: das Datenmodell der Domains
+
+- **`App\Models\Domain`** (`docs/20 §5.1`) — der erste Gegenstand unter dem
+  Abonnement. Typ (Haupt, Zusatz, Subdomain, Alias), Zustand, DocumentRoot,
+  PHP-Version, PHP-Einstellungen, eigene nginx-Direktiven, Weiterleitung. Was
+  daran Regel ist, steht am Typ und nicht als Bedingung in einem Dienst:
+  `App\Enums\DomainType` beantwortet, ob eine Sorte eigene Dateien ausliefert,
+  eine Elterndomain braucht, sich einzeln entfernen lässt und auf welches
+  Kontingent sie zählt. Vier gleichlautende `if` an vier Stellen wären vier
+  Gelegenheiten, das fünfte zu vergessen.
+- **Der Name ist serverweit einmalig, und das ist eine Sicherheitsbedingung.**
+  Zwei Server-Blöcke mit demselben `server_name` sind für nginx kein Fehler —
+  es nimmt wortlos den ersten. Wäre die Eindeutigkeit nur je Abonnement
+  erzwungen, könnte ein Kunde die Domain eines anderen eintragen und je nach
+  Reihenfolge der Konfigurationsdateien dessen Besucher bekommen: ein
+  Mandantenübergriff, der keine einzige Rechteprüfung berührt.
+- **Was ein Domainname ist, entscheidet der Agent** — `SrvPanel\Agent\DomainName`,
+  und das Panel fragt dieselbe Regel, statt sie ein zweites Mal zu formulieren.
+  Sie bringt den Namen zugleich in seine Normalform: klein, ohne den
+  abschliessenden Punkt der DNS-Schreibweise. Ohne das wären `Beispiel.DE` und
+  `beispiel.de.` zwei Zeilen in der Datenbank und zwei `server_name` mit
+  demselben Inhalt. `DomainNameTest` führt den Angriffsdurchgang: Pfade,
+  Kommandozeilen, Platzhalter, Adressen, Nicht-ASCII, überlange Bestandteile.
+- **Die Domain-Einschränkung für Zusatzbenutzer wirkt jetzt** (`docs/20 §6.1`).
+  Die Spalte `domain_ids` lag seit P1 in der Verknüpfungstabelle, das
+  Rechtemodell versprach sie — **gelesen hat sie nichts.** Solange es keine
+  Domains gab, war das folgenlos; mit P3 wäre daraus ein Feld im Formular
+  geworden, das nichts bewirkt, und aufgefallen wäre es niemandem, weil alles
+  funktioniert. `App\Support\Tenancy\Tenancy` trägt die Einschränkung deshalb
+  **je Abonnement** und nicht als flache Liste erlaubter IDs: Derselbe Mensch
+  kann in einem Abonnement auf zwei Domains beschränkt sein und im nächsten an
+  allem arbeiten. Und sie wird bei jeder Abfrage ausgewertet statt einmal in
+  eine Liste aufgelöst — sonst wäre eine später angelegte Domain für ihn
+  unsichtbar geblieben, bis sich jemand ans Neubauen erinnert. Beide Fehler
+  haben einen eigenen Test in `DomainTenancyTest`, und beide wurden absichtlich
+  herbeigeführt, um zu sehen, dass er zubeißt.
+- **`main_domain` wurde von nichts beschrieben.** Die Spalte gibt es seit P1,
+  die Kundenübersicht liest sie — und zeigte deshalb bei jedem Abonnement „noch
+  keine Domain". Sie ist jetzt die Abschrift der Hauptdomain, nachgezogen vom
+  Modell an dem einen Ereignis, nach dem sie falsch sein könnte, und aus
+  `$fillable` entfernt: Bliebe sie füllbar, gäbe es einen zweiten Weg, sie zu
+  setzen, und der käme ohne Domain aus.
+- **Ein DocumentRoot kann kein Verzeichnis des Schemas treffen** (`docs/20
+  §4.5`). `logs` als DocumentRoot liefert die Zugriffsprotokolle des Kunden
+  über HTTP aus, `.ssh` seine Schlüssel. Die Liste der reservierten
+  Verzeichnisse kommt aus dem Agenten und wird dort aus dem Schema selbst
+  abgeleitet — wächst das Schema, wächst die Prüfung mit. `DomainTest` fragt
+  sie ab, statt sie abzuschreiben.
+- **Domains werden hart gelöscht, Abonnements nicht.** Das Abonnement wird
+  zurückgezogen, weil sein Systembenutzer verbraucht bleiben muss — die UID
+  darf nicht neu vergeben werden, solange auf dem Dateisystem etwas liegt, das
+  ihr gehört. Bei einer Domain gibt es diesen Grund nicht: Mit ihr geht ihr
+  Verzeichnis. Den Namen trotzdem für immer zu sperren hiesse, dass ein
+  versehentlich gelöschter Eintrag nie wieder anlegbar wäre — auch nicht für
+  den Kunden, dem die Domain gehört.
+
+### P3 — der Agent kann Web und PHP
+
+- **Zehn neue Operationen** (`docs/20 §4.2`): `webserver.detect`,
+  `web.site.apply`, `web.site.remove`, `web.logs.tail`, `web.logrotate.apply`,
+  `php.versions`, `php.version.install`, `php.version.remove`,
+  `php.pool.apply`, `php.pool.remove`. Die Vorlagen für Server-Block und
+  FPM-Pool liegen im Agenten; das Panel schickt Struktur und keinen Text.
+- **Eine Klasse baut alle Pfade.** Zu einer Domain gehören sechs: Server-Block,
+  Include, DocumentRoot, Protokollverzeichnis, FPM-Sockel und die Wurzel des
+  Abonnements. Stünden sie in `apply`, `remove` und `state` je neu
+  zusammengesetzt, wäre die Operation, die **entfernt**, die schlechteste
+  Stelle für eine Abweichung. Übergeben wird ein *relatives* DocumentRoot;
+  alles andere entsteht im Agenten — dieselbe Regel wie bei
+  `subscription.provision`.
+- **`web.site.state` gibt es nicht.** Der Plan sah eine eigene Operation fürs
+  Sperren vor; sie hätte denselben Server-Block geschrieben, nur mit anderem
+  Rumpf. Zwei Wege zu einer Datei sind zwei Gelegenheiten, sie unterschiedlich
+  zu bauen — und die Sperre wäre der Weg, der seltener läuft und deshalb später
+  auffällt. Das Panel schickt den gewünschten Zustand, `suspended` ist ein Feld
+  darin. Eine gesperrte Website antwortet mit **503** und nicht mit dem nackten
+  403, den die Rechteänderung aus P2 erzeugte: „nicht in Betrieb" ist etwas
+  anderes als „du darfst nicht", und Suchmaschinen nehmen die Seite bei 503
+  nicht aus dem Bestand.
+- **Ohne PHP-Version wird `.php` verweigert, nicht ausgeliefert.** Der Fehler,
+  der bei jeder statischen Website teuer wird: Ohne Handler liefert nginx die
+  Datei als Text aus, mit allem, was an Zugangsdaten darin steht.
+- **Der Standardschutz steht in der Vorlage und in keinem Häkchen** (§9 P3):
+  Punktdateien (`.git`, `.env`, `.htaccess`) in einem Ausdruck — mit Ausnahme
+  von `.well-known`, ohne die ab P4 keine Domain je ein Zertifikat bekäme —,
+  kein PHP in Verzeichnissen, in die hochgeladen wird, und `try_files` **vor**
+  dem Handler, damit `/bild.jpg/schad.php` nicht in PHP endet.
+- **Eigene nginx-Direktiven gegen eine Positivliste** (`docs/20 §4.2`). Die
+  einzige Stelle in P3, an der Text eines Kunden in einer Datei landet, die als
+  root gelesen wird. Fünfzehn Namen sind erlaubt, keine Blöcke, ein Semikolon
+  am Ende und sonst keines. Was einen Pfad oder einen Empfänger bestimmt —
+  `root`, `alias`, `include`, `fastcgi_pass` — steht nicht darauf und wird
+  nicht dazukommen; `DirectiveAllowlistTest` prüft **die Liste** und nicht nur
+  die Prüfung.
+- **Die Abschottung liegt im Pool.** `open_basedir` auf die Wurzel des
+  Abonnements, `disable_functions` für alles, was einen Prozess startet, eigenes
+  `tmp` und eigene Sitzungsablage (§4.5), `security.limit_extensions = .php`
+  gegen den Umweg über `.phar`. Alles als `php_admin_value` — als `php_value`
+  wäre es eine Empfehlung, die ein `ini_set()` im Skript aufhebt. Die
+  Einstellungen **je Domain** gehen dagegen als `PHP_VALUE` über FastCGI mit;
+  ein Pool bedient drei Domains und kann nicht drei `memory_limit` haben.
+  `PhpIsolationTest` prüft beide Seiten, auch die Gegenrichtung: Keine
+  Domaineinstellung darf einen Schlüssel tragen, der im Pool `php_admin_value`
+  ist.
+- **`Quota::PHP_VERSIONS` zeigt jetzt auf den Katalog des Agenten.** Die Liste
+  stand im Panel, und das war die falsche Richtung: Der Agent glaubt dem Panel
+  nichts und hätte die Angabe ohnehin gegen eine eigene Liste prüfen müssen —
+  zwei Listen, und die gepflegte wäre die falsche gewesen.
+  `PhpVersionCatalogTest` löst `docs/23 §7` ein: Zu jeder Version im Katalog
+  gehören Vorlage, Paketname und Handler — samt einer Zeile in der
+  Programm-Positivliste des Agenten, ohne die sich der Pool nie prüfen liesse.
+- **`$` ist kein Ende — neun Muster waren betroffen, vier davon aus P0 bis P2.**
+  Aufgefallen im Angriffsdurchgang: Eine Zeitzone mit angehängtem
+  Zeilenumbruch ging durch. PCRE lässt `$` auch vor einem abschliessenden
+  Umbruch passen, und in einem `fastcgi_param PHP_VALUE` ist
+  `memory_limit=256M\n` eine Einstellung und der Anfang der nächsten. Die
+  Prüfungen des Abonnementnamens und des Systembenutzers hatten denselben
+  Fehler. Alle tragen jetzt den Modifikator `D`, und weil die Einzelkorrektur
+  nur den Fehler von heute behoben hätte, prüft `AnchoredPatternTest` die
+  ganze Klasse: Jedes Muster im Agenten, das auf `$` endet, trägt `D`.
+- **Der Standard-Pool der Distribution wird abgeschaltet.** `phpX.Y-fpm` bringt
+  `www.conf` mit — ein geteilter Pool als `www-data`, ohne `open_basedir`, also
+  genau das Loch, das P3 zumacht. `php.version.install` benennt ihn um; die
+  Unit bleibt danach stehen, solange kein Abonnement einen Pool hat, weil ein
+  PHP-FPM ohne Pool nicht startet.
+- **Zwei Abschriften weniger.** Der Ablauf „schreiben, `nginx -t`, neu laden,
+  im Fehlerfall zurück" stand in `panel.vhost.apply` und wird jetzt von jeder
+  Kundendomain gebraucht; er steht in einer Klasse, und die Panel-Vorlage
+  benutzt sie. Der Baumlauf, der als root löscht, stand in
+  `subscription.remove` und wird beim Entfernen einer Domain gebraucht — auch
+  er steht jetzt an einer Stelle. Beim Abschreiben wäre nach aller Erfahrung
+  die Zeile mit `is_link` verlorengegangen.
+- **Ein laufender Apache verweigert den Betrieb, ein installierter nicht**
+  (§9 P3). Auf manchen Systemen liegt Apache als Abhängigkeit herum, ohne je
+  zu starten; wer deswegen den Dienst verweigerte, verweigerte ihn auf einem
+  Server, auf dem nichts im Weg ist.
+
+### P3 — die Dienstschicht: Kontingent, Plan, Lebenslauf
+
+- **`App\Support\Web\Domains`** legt Domains an, ändert und entfernt sie — und
+  ist die Schranke aus `docs/20 §6.2`: die Prüfung sitzt im Dienst, nicht im
+  Formular. Wer das Formular umgeht, trifft auf dieselbe Grenze. Die *Regeln*
+  formuliert sie nicht neu: Was ein Domainname ist, entscheidet der Agent, was
+  ein DocumentRoot sein darf ebenfalls, und welche Direktive zulässig ist auch.
+  Das Panel fragt und übersetzt die Ablehnung in eine Meldung am Feld.
+- **Die Zählregeln sind die, die im Formular des Betreibers stehen.** Haupt-
+  und Zusatzdomains auf ein Kontingent, Subdomains auf ein eigenes, Aliasse auf
+  keines — genau das verspricht `App\Support\Plans\Quota` als Hinweis unter dem
+  Eingabefeld, und `DomainServiceTest` hält beide aneinander. Gezählt wird
+  einschliesslich der Domains, die gerade entstehen: Zwei gleichzeitige Anlagen
+  kämen sonst beide durch, weil jede die andere noch nicht sieht.
+- **Drei neue Kontingente decken die PHP-Einstellungen** (`docs/23`):
+  `php_memory_mb`, `php_upload_mb`, `php_execution_seconds`. §9 P3 verlangt
+  „vom Plan gedeckelte Grenzen", und das braucht einen Ort — feste Serverwerte
+  wären kein Unterschied zwischen zwei Paketen, und dafür gibt es Pläne. Keines
+  der drei darf unbegrenzt sein: `memory_limit = -1` lässt eine einzige
+  Anfrage den Arbeitsspeicher belegen. `QuotaCatalogTest` hat beim Hinzunehmen
+  rot geschlagen und den Grund eingefordert — das war seine Aufgabe. Eine
+  Migration trägt die drei in bestehende Pläne nach; ohne sie hiesse ein
+  fehlender Schlüssel „unbegrenzt", also die genaue Umkehrung.
+- **Die drei Mengen der PHP-Versionen** stehen in
+  `App\Support\Web\PhpSelection`: Katalog, installiert, vom Plan erlaubt.
+  Wählbar ist der Schnitt, und diese Rechnung steht an einer Stelle. Der Kunde
+  sieht zusätzlich die Versionen, die sein Plan hergibt und die auf dem Server
+  fehlen — abgeblendet, mit dem Grund; er sieht damit, dass die Lücke am Server
+  liegt und nicht an seinem Vertrag. **Ein leerer Zwischenspeicher heisst
+  „nichts installiert" und nicht „alles erlaubt"**: Das ist die sichere
+  Richtung, solange `php.versions` noch nie gelaufen ist.
+- **Zwei Vorgänge je Domain, in dieser Reihenfolge**: erst der FPM-Pool, dann
+  der Server-Block. `web.site.apply` weist einen Block zurück, dessen Pool
+  fehlt — sonst zeigte `fastcgi_pass` auf einen Sockel, den niemand bedient,
+  und die Website antwortete mit „502 Bad Gateway", während im Panel alles
+  grün aussieht.
+- **Ein Vorgang sagt jetzt, wovon er handelt.** `subject_type` und
+  `subject_id` statt einer Spalte je Ausbaustufe — und statt eines
+  Klassennamens in der Datenbank steht dort der Wert einer Aufzählung
+  (`App\Enums\OperationSubject`). Ein Klassenname wäre wieder eine
+  Zeichenkette, die auf etwas zeigt, ohne dass jemand den Bezug prüft;
+  nach einer Umbenennung stünden in der Datenbank Zeilen, die ins Leere weisen.
+- **`App\Support\Operations\Lifecycles` hängt die Lebensläufe an den
+  Arbeiter.** Bis P2 gab es einen, und der Arbeiter rief ihn direkt auf; ab
+  zweien ist „man gibt dem Arbeiter die Klasse" der Weg, auf dem der dritte
+  vergessen wird — der Vorgang liefe durch, der Agent täte seine Arbeit, und im
+  Panel änderte sich nichts. Ohne Fehler, ohne Meldung. `LifecycleReachTest`
+  prüft beide Richtungen.
+- **Der Rückbau eines Abonnements gibt die Domainnamen frei.** Das Abonnement
+  wird weich gelöscht, damit sein Systembenutzer verbraucht bleibt — der
+  Fremdschlüssel der Domains hat `cascadeOnDelete`, und das greift dabei
+  **nicht**. Die Zeilen wären stehen geblieben und hätten ihre Namen belegt
+  gehalten, auf einem Server, auf dem von ihnen nichts mehr liegt. Aufgefallen
+  ist das beim Nachfragen und nicht im Test; der Test steht jetzt daneben.
+- **Zwei Tests waren zu schwach und sind es nicht mehr.** Die Prüfung auf einen
+  schon vergebenen Domainnamen lief nur als Admin — mit offener
+  Mandantenklammer sieht die Abfrage die fremde Domain ohnehin, und ihr
+  Entfernen blieb in der Gegenprobe grün. Der Test läuft jetzt zusätzlich aus
+  der Sicht eines Kunden, in der die Klammer zu ist. Und die Argumente für den
+  Agenten hingen daran, wer gerade angemeldet ist: Im Grundzustand der Klammer
+  stand im Namensfeld eine leere Zeichenkette.
+
+### P3 — Vorgänge mit Argument, und was ein Abonnementvorgang nach sich zieht
+
+- **Vier neue Aufgaben im Katalog**: Webserver erkennen, PHP-Versionen
+  nachsehen, installieren, entfernen. Die letzten beiden sind die ersten
+  Aufgaben mit einem Argument — der Kommentar über der Aufzählung hatte sie
+  seit P1 angekündigt („sobald es Websites gibt, brauchen Aufgaben Argumente …
+  und dann muss dieser Katalog auch beschreiben, welche Werte zulässig sind und
+  woher sie stammen dürfen"). Die Antwort auf „woher" ist dieselbe wie überall:
+  aus einer festen Liste im Quelltext. Der Browser schickt „8.2", der
+  Steuerungscode prüft gegen dieselbe Liste, aus der die Oberfläche ihr
+  Auswahlfeld baut, und `apt-get` bekommt einen Paketnamen, den der Agent
+  zusammensetzt.
+- **Installieren und Entfernen bleiben Betreiberhandlungen.** Ein Kunde sieht
+  im Domainformular, welche Versionen er wählen kann und welche sein Plan
+  hergibt, ohne dass es sie auf dem Server gibt — anfordern kann er nichts. Ein
+  Knopf ohne Empfänger ist schlechter als keiner: Der Kunde drückt, sichtbar
+  passiert nichts, und niemand ist zuständig.
+- **Ein Abonnementvorgang zieht die Websites nach.** Nach
+  `subscription.provision` entsteht die Hauptdomain — der Name des Abonnements
+  *ist* sie (§5.1), ein zweites Eingabefeld wäre eine Gelegenheit, zwei
+  verschiedene Namen einzutragen — und ihr Server-Block wird geschrieben.
+  Sperren und Entsperren schreiben jeden Server-Block neu: Bis hierher setzte
+  `subscription.suspend` nur die Rechte des Verzeichnisses, und ein Besucher
+  bekam einen nackten „403 Forbidden" zu sehen.
+- **Die Reihenfolge in `App\Support\Operations\Lifecycles` ist die
+  Voraussetzung dafür.** Der Lebenslauf des Abonnements läuft zuerst und hat
+  den Zustand gesetzt, bevor die Argumente für den Server-Block entstehen.
+  Umgekehrt trüge jeder Block noch den Zustand von vorher — die Sperre stünde
+  im Panel und die Website antwortete weiter. Ein Test hält die Reihenfolge
+  fest und steht neben dem, der sie braucht.
+- **Ein Folgevorgang trägt das Konto dessen, der ihn ausgelöst hat.** Im
+  Arbeiter gibt es keine Anfrage; ohne diese Weitergabe stünde in der Liste
+  „—" neben einer Sperre, die jemand angeordnet hat.
+- **Ein Test führte eine abgeschriebene Liste der Agent-Operationen** und war
+  damit beim ersten Zuwachs falsch: Er kannte `webserver.detect` nicht, obwohl
+  der Agent sie kennt, und hätte einen Fehler gemeldet, den es nicht gibt.
+  Gefragt wird jetzt die Registratur des Agenten — dieselbe Sorte Korrektur wie
+  beim Changelog-Test, der auf Dateien zeigt, die es geben muss.
+
+### P3 — die Oberfläche für Domains und PHP
+
+- **Vier neue Seiten**: die serverweite Domainliste, das Formular zum Anlegen,
+  die Domainseite mit Verzeichnis, Handler, PHP-Einstellungen, eigenen
+  Direktiven und Weiterleitung, dazu die Protokollansicht. Am Abonnement steht
+  die Liste seiner Domains — ein Kunde kommt über sein Abonnement zu seinen
+  Websites, und ein zweiter Menüpunkt wäre ein zweiter Weg zum selben Ort.
+- **`/settings/php`** zeigt, welche Versionen auf dem Server liegen, ob ihr FPM
+  läuft, wie viele Pools daran hängen und wie viele Domains sie benutzen.
+  Installiert und entfernt wird von dort über den Aufgabenkatalog. Antwortet
+  der Agent nicht, steht der letzte bekannte Stand da — mit dem Zeitpunkt,
+  damit niemand ihn für den heutigen hält.
+- **`App\Policies\DomainPolicy`** — und `viewLogs` als eigene Fähigkeit. Ein
+  Fehlerprotokoll enthält Pfade, Dateinamen und Bruchstücke aus dem Quelltext;
+  wer Dateien nicht lesen darf, soll sie nicht über diesen Umweg sehen. `create`
+  fragt am Abonnement, in dem die Domain entstehen soll: Ohne es liesse sich
+  nur fragen, ob ein Konto *irgendwo* Domains anlegen darf.
+- **Der Angriffsdurchgang** (`DomainRouteTest`) geht jede Route mit einer
+  fremden ID durch — und fremd heisst „nicht gefunden", nicht „verboten": Ein
+  403 verriete, dass es die Domain gibt. Dazu die Domain-Einschränkung eines
+  Zusatzbenutzers am direkten Aufruf einer Adresse, nicht nur an der Liste.
+- **Drei Fehler hat erst der Browser gezeigt**, und alle drei waren grün
+  getestet:
+  - `class="knopf betont"` — eine Klasse, die es in `app.css` nicht gibt. Der
+    Knopf sah aus wie ein gewöhnlicher, der ausgewählte Umschalter der
+    Protokollansicht war von dem daneben nicht zu unterscheiden.
+    `ButtonStyleTest` prüfte, dass keine Seite ihr *eigenes* Aussehen erfindet
+    — nicht, dass sie ein vorhandenes trifft. Jetzt prüft er beides.
+  - „höchstens 64" als Platzhalter, ohne die Einheit. Sekunden oder MB, das
+    stand nirgends.
+  - Rot am Installieren statt am Entfernen. Eine Version dazuzunehmen kostet
+    Platz, eine wegzunehmen kann Websites stilllegen.
+- **`PolicyReachTest` kannte eine Form des Aufrufs nicht.**
+  `$request->user()->can('updatePhp', $domain)` ist der Weg für eine Fähigkeit,
+  die keine eigene Route trägt, sondern in der Ansicht entscheidet, ob ein
+  Abschnitt überhaupt erscheint. Ohne diese Ergänzung hätte der Test verlangt,
+  eine erreichbare Fähigkeit als unerreichbar einzutragen.
+- **Und eine Gegenprobe blieb grün**, was einen fehlenden Fall zeigte: Die
+  Protokollroute auf `can:view` umzustellen fiel niemandem auf, weil `viewLogs`
+  weiterhin aus der Ansicht heraus aufgerufen wird und damit als erreichbar
+  galt. Erreichbarkeit ist nicht dasselbe wie „die richtige Fähigkeit an der
+  richtigen Route" — dafür steht jetzt ein Test, der ein Konto mit dem Recht
+  „Statistik" die Domain sehen und die Protokolle nicht lesen lässt.
+
+### P3 — der Wächter über die Operationsnamen
+
+- **`AgentOperationReachTest`** hält drei Listen zusammen: was das Panel an den
+  Agenten schickt, was der Agent kennt, und was danach ein Lebenslauf
+  beantwortet. Mit P3 standen die Namen der Operationen als Zeichenketten in
+  zehn Dateien — `web.site.apply` im Lebenslauf, `php.versions` im
+  Steuerungscode, `panel.tls.info` in den Einstellungen — und geprüft hat sie
+  nichts. Wortwörtlich das Muster aus CLAUDE.md, diesmal an einer besonders
+  unangenehmen Stelle: Ein Tippfehler in `web.site.aply` fällt weder beim
+  Übersetzen noch in der Oberfläche auf, sondern erst, wenn ein Kunde eine
+  Domain anlegt und der Vorgang mit „Unbekannte Operation" scheitert.
+- **Ein Lebenslauf sagt jetzt, welche Aufgaben er beantwortet.** Vorher stand
+  das als `str_starts_with` und `match` im Rumpf — lesbar, aber für nichts
+  prüfbar. Und genau das ist die Frage, sobald jemand eine Aufgabe dazunimmt:
+  Beantwortet sie überhaupt jemand? Eine Aufgabe ohne Lebenslauf läuft durch,
+  der Agent tut seine Arbeit, und im Panel ändert sich nichts — ohne Fehler,
+  ohne Meldung. Was nichts ändert, steht mit Begründung in einer Liste.
+- **Zwei Operationen waren gebaut und wurden von nichts aufgerufen** — beide
+  vom neuen Test gefunden:
+  - `web.logrotate.apply`. Ohne sie füllt das Zugriffsprotokoll die Quota des
+    Kunden mit Dateien, die er nie angelegt hat. Sie entsteht jetzt mit dem
+    Abonnement; der Ausdruck darin deckt jede Domain ab, auch die von morgen.
+  - `php.pool.remove`. Der Pool einer entfernten Domain wäre stehen geblieben —
+    und `php.version.remove` weist ab, solange ein Abonnement einen Pool in
+    dieser Version hat. Die Version liesse sich nie wieder entfernen, und der
+    Betreiber suchte nach einem Abonnement, das es nicht mehr gibt.
+- **Und der Test selbst hat zweimal dazugelernt.** Der erste Entwurf suchte die
+  Namen an den Aufrufstellen — dabei sah `subscription.provision` unbenutzt
+  aus, weil der Steuerungscode sie über eine eigene Methode durchreicht. Ein
+  Ausdruck, der jede Schreibweise eines Aufrufs erraten muss, ist kein Wächter,
+  sondern eine zweite Fehlerquelle; die Vollständigkeit trägt seitdem die
+  erklärte Liste, und die Suche im Quelltext ist nur noch das Netz daneben.
+  Beim Gegenprüfen fiel dann auf, dass dieses Netz `dispatchForSubscription()`
+  nicht sah — ein Tippfehler in dem Namen, den sie abschickt, blieb unbemerkt.
+
+### P3 — Rückbau, Abnahme, Dokumente
+
+- **Der Rückbau reicht seit P3 über das Abo-Verzeichnis hinaus.** Bis P2 lag
+  alles zu einem Abonnement unter `/var/www/vhosts/<abo>`, und der Baumlauf nahm
+  es mit. Mit den Websites liegen drei Dinge ausserhalb: der Server-Block in
+  `/etc/nginx/srvpanel.d`, der FPM-Pool in `/etc/php/<version>/fpm/pool.d`, die
+  Rotation in `/etc/logrotate.d`. `subscription.remove` räumt sie mit ab —
+  **vor** dem Verzeichnis, weil der Server-Block darauf zeigt: Ein nginx, das
+  zwischen beiden Schritten neu lädt, fände sonst ein `root`, das es nicht mehr
+  gibt.
+- **Die Server-Blöcke werden gesucht und nicht übergeben.** Das Panel wüsste,
+  welche Domains es gab — nur ist genau das die Liste, die nach einem
+  abgebrochenen Lauf unvollständig ist. Gesucht wird in einem Verzeichnis, das
+  ausschliesslich srvpanel gehört, nach dem Pfad des Abonnements; jeder erzeugte
+  Block trägt ihn in `access_log`. `SubscriptionCleanupTest` beantwortet die
+  Frage aus §8.7 über das Dateisystem — einschliesslich der beiden Fälle, an
+  denen ein Aufräumen scheitert, ohne dass es auffällt: Es räumt zu viel
+  (`beispiel.de` nähme die Blöcke von `beispiel.de.alt` mit) oder es findet die
+  verwaiste Datei nicht.
+- **`srvpanel acceptance-web`** misst das Abnahmekriterium von P3, statt es zu
+  behaupten: zwei Abonnements, je drei Domains, zwei PHP-Versionen. Gefragt wird
+  über HTTP — durch nginx, durch den Pool, als der Systembenutzer des
+  Abonnements. Geprüft werden vier Dinge: dass jede Domain antwortet, mit ihrer
+  Version, unter ihrem Benutzer, und dass sie **nicht** an die Dateien des
+  anderen Abonnements kommt. In die Pool-Vorlage zu sehen zeigt nur, dass
+  `open_basedir` dasteht — nicht, dass PHP es anwendet, nginx den richtigen
+  Sockel trifft und die Rechte stimmen.
+- **`web.isolation.probe`** legt die Selbstprobe ab und entfernt sie wieder.
+  Ihr Inhalt steht im Agenten und kommt nicht als Argument — dieselbe Regel wie
+  bei der Willkommensseite; käme er von aussen, wäre das eine Fernsteuerung zum
+  Ablegen beliebigen PHP-Codes unter fremdem Namen. Und sie antwortet mit
+  „lesbar: ja/nein" und niemals mit dem Inhalt einer Datei: Ein Selbsttest, der
+  bei einem Fehlschlag die Datei ausgibt, an die er nicht hätte kommen dürfen,
+  hat aus einem Beleg ein Leck gemacht. Die Domains des Laufs enden auf
+  `.invalid` (RFC 2606) und stehen in keinem DNS — ein Abnahmelauf trifft
+  niemals eine echte Domain.
+- **`docs/28`** hält fest, was beim Bauen entschieden wurde und was dabei
+  schiefging. Und §15 des Plans hat zwei Antworten weniger offen: `deb.sury.org`
+  bleibt (die Abhängigkeit ist auf eine Stelle zusammengezogen), und es bleibt
+  dauerhaft bei nginx — zwei Webserver-Vorlagen verdoppelten genau die Fläche,
+  die klein bleiben soll.
+- **Der Wächter aus dem Paket davor hat gleich wieder zugebissen:** Die neue
+  Operation `web.isolation.probe` war registriert und von nichts aufgerufen, und
+  `AgentOperationReachTest` meldete das, bevor der Abnahmelauf geschrieben war.
+- **Und zwei Gegenproben blieben grün — beide zeigten eine fehlende Prüfung.**
+  Aus `subscription.remove` liess sich der Aufruf des Aufräumens entfernen,
+  ohne dass ein Test es merkte: `SubscriptionCleanupTest` prüft die Methode
+  über Reflexion und damit ihre Wirkung, nicht ihren Anschluss. Und in der
+  Selbstprobe liess sich `is_readable()` durch `file_get_contents()` ersetzen —
+  aus dem Beleg wäre ein Leck geworden, das bei einem Fehlschlag genau die
+  Datei ausgibt, an die niemand hätte kommen dürfen. `WebIsolationProbeTest`
+  deckt beides ab, samt der Reihenfolge: Die Konfiguration fällt vor dem
+  Verzeichnis.

@@ -121,6 +121,84 @@ final class ButtonStyleTest extends TestCase
         $this->assertGreaterThan(1, $checked, 'Es werden kaum Knopfregeln gefunden — dann prüft dieser Test nichts.');
     }
 
+    /**
+     * Jede Zusatzklasse an einem Knopf muss es in app.css geben.
+     *
+     * **Der Fehler, den dieser Test hätte melden müssen und nicht meldete.**
+     * In P3 stand auf drei Seiten `class="knopf betont"` — eine Klasse, die
+     * app.css nicht kennt. Der Knopf sah aus wie ein gewöhnlicher, die
+     * Hervorhebung fehlte, und kein Lauf sagte etwas: Der Test darüber prüft,
+     * dass keine Seite ihr *eigenes* Aussehen erfindet, nicht, dass sie ein
+     * vorhandenes trifft. Gesehen hat es der Blick in den Browser — die zwei
+     * Umschalter der Protokollansicht sahen gleich aus, obwohl einer der
+     * ausgewählte war.
+     *
+     * Das ist wieder dasselbe Muster: eine Zeichenkette, die auf etwas zeigt,
+     * ohne dass jemand den Bezug prüft. Ab jetzt prüft ihn dieser Test.
+     */
+    public function test_every_button_modifier_exists_in_the_stylesheet(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+
+        // Die Klassen, die app.css neben `.knopf` kennt: `.knopf.wichtig` und
+        // Verwandte. Gelesen statt aufgezählt — eine Aufzählung hier wäre der
+        // zweite Ort für dieselbe Liste.
+        preg_match_all('/\.knopf\.([a-zäöüß-]+)/', $css, $found);
+
+        $known = array_values(array_unique($found[1]));
+
+        $this->assertGreaterThan(2, count($known), 'In app.css stehen kaum Knopfvarianten — dann prüft dieser Test nichts.');
+
+        $unknown = [];
+        $checked = 0;
+
+        foreach ($this->pages() as $path) {
+            $template = $this->template((string) file_get_contents($path));
+
+            // Beide Schreibweisen: `class="knopf wichtig"` und die gebundene
+            // Form `:class="['knopf', { aktiv: … }]"`.
+            // `\s` nach `knopf` ist der Unterschied zwischen einem Knopf und
+            // `class="knopfreihe"` — der Reihe, in der Knöpfe stehen. Ohne ihn
+            // meldete der Test „reihe" als unbekannte Knopfklasse.
+            preg_match_all('/class="knopf(\s[^"]*)?"/', $template, $statisch);
+            preg_match_all('/:class="\\[\'knopf\',\\s*\\{([^}]*)\\}/', $template, $gebunden);
+
+            foreach ($statisch[1] as $rest) {
+                foreach (preg_split('/\s+/', trim($rest)) ?: [] as $klasse) {
+                    if ($klasse === '') {
+                        continue;
+                    }
+
+                    $checked++;
+
+                    if (! in_array($klasse, $known, true)) {
+                        $unknown[] = $this->relative($path).': '.$klasse;
+                    }
+                }
+            }
+
+            foreach ($gebunden[1] as $rest) {
+                preg_match_all('/([a-zäöüß-]+)\s*:/', $rest, $namen);
+
+                foreach ($namen[1] as $klasse) {
+                    $checked++;
+
+                    if (! in_array($klasse, $known, true)) {
+                        $unknown[] = $this->relative($path).': '.$klasse;
+                    }
+                }
+            }
+        }
+
+        $this->assertGreaterThan(3, $checked, 'Es werden kaum Knopfklassen gefunden — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $unknown, sprintf(
+            "Diese Klassen stehen an einem Knopf und nicht in app.css:\n  %s\n\nBekannt sind: %s.",
+            implode("\n  ", $unknown),
+            implode(', ', $known),
+        ));
+    }
+
     public function test_every_button_carries_the_class(): void
     {
         // Ein `<button>` ohne `.knopf` sähe aus wie das, was der Browser

@@ -35,6 +35,16 @@ final class Runner
         'nginx' => '/usr/sbin/nginx',
         'sshd' => '/usr/sbin/sshd',
         'php-fpm' => '/usr/sbin/php-fpm',
+
+        // Je Version ein eigener Handler, und jeder steht einzeln hier.
+        // Sie aus der Version zusammenzusetzen wäre bequemer und genau das,
+        // was eine Positivliste nicht tun darf: Aus einem Wert einen Pfad zu
+        // bauen ist der Vorgang, den sie verhindert. `PhpVersionCatalogTest`
+        // prüft, dass zu jeder Version im Katalog eine Zeile hier gehört.
+        'php-fpm8.1' => '/usr/sbin/php-fpm8.1',
+        'php-fpm8.2' => '/usr/sbin/php-fpm8.2',
+        'php-fpm8.3' => '/usr/sbin/php-fpm8.3',
+        'php-fpm8.4' => '/usr/sbin/php-fpm8.4',
         'named-checkzone' => '/usr/bin/named-checkzone',
         'useradd' => '/usr/sbin/useradd',
         'userdel' => '/usr/sbin/userdel',
@@ -56,6 +66,13 @@ final class Runner
 
     private const ENVIRONMENT = [
         'PATH' => '/usr/sbin:/usr/bin:/sbin:/bin',
+
+        // Ohne diese Zeile hält `apt-get` beim ersten Paket an, das eine
+        // Rückfrage stellt — und wartet auf eine Eingabe, die von einem
+        // Dienst ohne Terminal nie kommt. Das Zeitlimit beendet den Lauf dann
+        // nach zehn Minuten mit einer Meldung, in der nichts von der
+        // eigentlichen Ursache steht.
+        'DEBIAN_FRONTEND' => 'noninteractive',
         'LC_ALL' => 'C',
         'LANG' => 'C',
         'HOME' => '/root',
@@ -63,6 +80,18 @@ final class Runner
     ];
 
     public function __construct(private readonly Journal $journal) {}
+
+    /**
+     * Steht dieses Programm auf der Positivliste?
+     *
+     * Für die Prüfungen, die den Katalog gegen die Liste halten — nicht für
+     * den Betrieb: Wer ein Programm starten will, ruft {@see self::run()} auf
+     * und bekommt dieselbe Antwort als Ausnahme.
+     */
+    public static function knows(string $program): bool
+    {
+        return isset(self::PROGRAMS[$program]);
+    }
 
     /**
      * Führt ein Programm aus der Positivliste aus.

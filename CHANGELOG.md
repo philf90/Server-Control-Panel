@@ -920,3 +920,42 @@ genau deshalb war jetzt der Zeitpunkt.
   der Sicht eines Kunden, in der die Klammer zu ist. Und die Argumente für den
   Agenten hingen daran, wer gerade angemeldet ist: Im Grundzustand der Klammer
   stand im Namensfeld eine leere Zeichenkette.
+
+### P3 — Vorgänge mit Argument, und was ein Abonnementvorgang nach sich zieht
+
+- **Vier neue Aufgaben im Katalog**: Webserver erkennen, PHP-Versionen
+  nachsehen, installieren, entfernen. Die letzten beiden sind die ersten
+  Aufgaben mit einem Argument — der Kommentar über der Aufzählung hatte sie
+  seit P1 angekündigt („sobald es Websites gibt, brauchen Aufgaben Argumente …
+  und dann muss dieser Katalog auch beschreiben, welche Werte zulässig sind und
+  woher sie stammen dürfen"). Die Antwort auf „woher" ist dieselbe wie überall:
+  aus einer festen Liste im Quelltext. Der Browser schickt „8.2", der
+  Steuerungscode prüft gegen dieselbe Liste, aus der die Oberfläche ihr
+  Auswahlfeld baut, und `apt-get` bekommt einen Paketnamen, den der Agent
+  zusammensetzt.
+- **Installieren und Entfernen bleiben Betreiberhandlungen.** Ein Kunde sieht
+  im Domainformular, welche Versionen er wählen kann und welche sein Plan
+  hergibt, ohne dass es sie auf dem Server gibt — anfordern kann er nichts. Ein
+  Knopf ohne Empfänger ist schlechter als keiner: Der Kunde drückt, sichtbar
+  passiert nichts, und niemand ist zuständig.
+- **Ein Abonnementvorgang zieht die Websites nach.** Nach
+  `subscription.provision` entsteht die Hauptdomain — der Name des Abonnements
+  *ist* sie (§5.1), ein zweites Eingabefeld wäre eine Gelegenheit, zwei
+  verschiedene Namen einzutragen — und ihr Server-Block wird geschrieben.
+  Sperren und Entsperren schreiben jeden Server-Block neu: Bis hierher setzte
+  `subscription.suspend` nur die Rechte des Verzeichnisses, und ein Besucher
+  bekam einen nackten „403 Forbidden" zu sehen.
+- **Die Reihenfolge in `App\Support\Operations\Lifecycles` ist die
+  Voraussetzung dafür.** Der Lebenslauf des Abonnements läuft zuerst und hat
+  den Zustand gesetzt, bevor die Argumente für den Server-Block entstehen.
+  Umgekehrt trüge jeder Block noch den Zustand von vorher — die Sperre stünde
+  im Panel und die Website antwortete weiter. Ein Test hält die Reihenfolge
+  fest und steht neben dem, der sie braucht.
+- **Ein Folgevorgang trägt das Konto dessen, der ihn ausgelöst hat.** Im
+  Arbeiter gibt es keine Anfrage; ohne diese Weitergabe stünde in der Liste
+  „—" neben einer Sperre, die jemand angeordnet hat.
+- **Ein Test führte eine abgeschriebene Liste der Agent-Operationen** und war
+  damit beim ersten Zuwachs falsch: Er kannte `webserver.detect` nicht, obwohl
+  der Agent sie kennt, und hätte einen Fehler gemeldet, den es nicht gibt.
+  Gefragt wird jetzt die Registratur des Agenten — dieselbe Sorte Korrektur wie
+  beim Changelog-Test, der auf Dateien zeigt, die es geben muss.

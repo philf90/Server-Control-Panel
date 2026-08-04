@@ -8,6 +8,7 @@ use App\Enums\DomainStatus;
 use App\Enums\DomainType;
 use App\Enums\OperationStatus;
 use App\Enums\SubscriptionStatus;
+use App\Models\Account;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
@@ -219,6 +220,125 @@ final class WebLifecycleTest extends TestCase
         // neben einem neuen Panel ist genau die Lage, in der so etwas ankommt.
         $this->assertSame(['8.3', '8.4'], app(PhpSelection::class)->installed());
         $this->assertNotNull(app(Settings::class)->phpVersionsCheckedAt());
+    }
+
+    /**
+     * Das Sperren eines Abonnements schaltet seine Websites ab.
+     *
+     * Bis P3 setzte `subscription.suspend` nur die Rechte des Verzeichnisses;
+     * ein Besucher sah einen nackten „403 Forbidden". Jetzt wird jeder
+     * Server-Block neu geschrieben — und der Wert, der darüber entscheidet,
+     * kommt aus dem Zustand, den der Lebenslauf des Abonnements **vorher**
+     * gesetzt hat.
+     */
+    public function test_suspending_a_subscription_reapplies_its_sites(): void
+    {
+        $domain = $this->domain();
+        $domain->forceFill(['status' => DomainStatus::Active])->save();
+
+        $operation = $this->tenancy()->withoutRestriction(fn (): Operation => Operation::query()->create([
+            'subscription_id' => $domain->subscription_id,
+            'account_id' => null,
+            'type' => 'subscription.suspend',
+            'task' => 'subscription.suspend',
+            'status' => OperationStatus::Succeeded,
+            'progress' => 100,
+        ]));
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($operation);
+        $this->tenancy()->allowAll();
+
+        $follow = Operation::query()->where('task', 'web.site.apply')->latest('id')->firstOrFail();
+
+        $this->assertSame((int) $domain->id, $follow->subject_id);
+        $this->assertTrue($follow->payload['suspended'] ?? null, 'Der Server-Block muss sperren.');
+    }
+
+    /**
+     * Und die Reihenfolge, an der das hängt.
+     *
+     * Liefe der Lebenslauf der Websites zuerst, trüge der Server-Block noch
+     * den Zustand von vorher: Die Sperre stünde im Panel und die Website
+     * antwortete weiter. Der Test steht neben dem darüber, weil er dessen
+     * Voraussetzung ist.
+     */
+    public function test_the_subscription_lifecycle_runs_first(): void
+    {
+        $order = array_values(Lifecycles::HANDLERS);
+
+        $this->assertLessThan(
+            array_search(WebLifecycle::class, $order, true),
+            array_search(Lifecycle::class, $order, true),
+        );
+    }
+
+    /**
+     * Die Hauptdomain entsteht mit dem Abonnement — und erst danach.
+     *
+     * Vorher gäbe es kein `httpdocs`, in das der Server-Block zeigen könnte.
+     * Der Name kommt aus dem Abonnement und nicht aus einem zweiten
+     * Eingabefeld: Zwei Felder wären zwei Gelegenheiten, zwei verschiedene
+     * Namen einzutragen.
+     */
+    public function test_provisioning_creates_and_applies_the_main_domain(): void
+    {
+        $subscription = $this->tenancy()->withoutRestriction(fn (): Subscription => Subscription::factory()->create([
+            'name' => 'neukunde.de',
+            'system_user' => 'p1005',
+            'status' => SubscriptionStatus::Provisioning,
+        ]));
+
+        $operation = $this->tenancy()->withoutRestriction(fn (): Operation => Operation::query()->create([
+            'subscription_id' => $subscription->id,
+            'type' => 'subscription.provision',
+            'task' => 'subscription.provision',
+            'status' => OperationStatus::Succeeded,
+            'progress' => 100,
+        ]));
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($operation);
+        app(Lifecycles::class)->afterSuccess($operation);
+        $this->tenancy()->allowAll();
+
+        $domains = Domain::query()->where('subscription_id', $subscription->id)->get();
+
+        // Zweimal aufgerufen und trotzdem eine: der Lauf ist wiederholbar.
+        $this->assertCount(1, $domains);
+        $this->assertSame('neukunde.de', $domains[0]->name);
+        $this->assertSame(DomainType::Main, $domains[0]->type);
+
+        // Und die Abschrift am Abonnement steht.
+        $this->assertSame('neukunde.de', $subscription->refresh()->main_domain);
+    }
+
+    /** Ein Folgevorgang trägt das Konto dessen, der ihn ausgelöst hat. */
+    public function test_a_follow_up_carries_the_account(): void
+    {
+        $domain = $this->domain();
+        $domain->forceFill(['status' => DomainStatus::Active])->save();
+
+        $account = Account::factory()->admin()->create();
+
+        $operation = $this->tenancy()->withoutRestriction(fn (): Operation => Operation::query()->create([
+            'subscription_id' => $domain->subscription_id,
+            'account_id' => $account->id,
+            'type' => 'subscription.suspend',
+            'task' => 'subscription.suspend',
+            'status' => OperationStatus::Succeeded,
+            'progress' => 100,
+        ]));
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($operation);
+        $this->tenancy()->allowAll();
+
+        $follow = Operation::query()->where('task', 'web.site.apply')->latest('id')->firstOrFail();
+
+        // Ohne diese Zeile stünde in der Liste „—" neben einer Sperre, die
+        // jemand angeordnet hat.
+        $this->assertSame((int) $account->id, $follow->account_id);
     }
 
     /** Ein Vorgang gehört genau einem Lebenslauf. */

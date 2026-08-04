@@ -83,36 +83,7 @@ final class Domains
         $domain->subscription_id = (int) $subscription->id;
         $domain->save();
 
-        $this->apply($domain, 'Domain '.$domain->name.' wird angelegt');
-
-        return $domain;
-    }
-
-    /**
-     * Die Hauptdomain beim Anlegen eines Abonnements.
-     *
-     * **Sie entsteht ohne Vorgang.** Der Server-Block kommt mit
-     * `subscription.provision`, das ohnehin läuft — eine zweite Operation
-     * daneben würde denselben Verzeichnisbaum zweimal anfassen. Angewandt wird
-     * sie, sobald das Abonnement steht.
-     */
-    public function createMain(Subscription $subscription, string $name): Domain
-    {
-        $name = $this->name($name);
-
-        $this->assertNameIsFree($name);
-
-        $domain = new Domain([
-            'subscription_id' => $subscription->id,
-            'name' => $name,
-            'type' => DomainType::Main,
-            'status' => DomainStatus::Provisioning,
-            'document_root' => DocumentRoot::forDomain($name, true),
-            'php_version' => $this->php->defaultFor($subscription),
-        ]);
-
-        $domain->subscription_id = (int) $subscription->id;
-        $domain->save();
+        $this->lifecycle->apply($domain, 'Domain '.$domain->name.' wird angelegt');
 
         return $domain;
     }
@@ -164,7 +135,7 @@ final class Domains
         $domain->status = DomainStatus::Provisioning;
         $domain->save();
 
-        $this->apply($domain, 'Domain '.$domain->name.' wird geändert');
+        $this->lifecycle->apply($domain, 'Domain '.$domain->name.' wird geändert');
 
         return $domain;
     }
@@ -247,30 +218,6 @@ final class Domains
         }
 
         return $counts;
-    }
-
-    /**
-     * Den Server-Block einreihen — und davor den Pool, wenn PHP läuft.
-     *
-     * **Zwei Vorgänge und nicht einer.** `web.site.apply` weist einen
-     * Server-Block zurück, dessen FPM-Pool fehlt; der Pool muss also vorher
-     * liegen. Beides in eine Operation zu packen hiesse, dass der Agent zwei
-     * Dinge auf einmal tut und bei einem Fehlschlag die Hälfte davon getan
-     * hat. Die Reihenfolge trägt die Warteschlange — sie hat einen Arbeiter,
-     * und der arbeitet der Reihe nach.
-     */
-    private function apply(Domain $domain, string $message): void
-    {
-        if ($domain->servesPhp() && $domain->php_version !== null) {
-            $this->lifecycle->dispatch(
-                $domain,
-                'php.pool.apply',
-                'PHP-Pool für '.$domain->name,
-                $this->lifecycle->poolPayload($domain),
-            );
-        }
-
-        $this->lifecycle->dispatch($domain, 'web.site.apply', $message);
     }
 
     private function type(mixed $value): DomainType

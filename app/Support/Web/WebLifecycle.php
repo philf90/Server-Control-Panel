@@ -13,8 +13,12 @@ use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Support\Operations\AfterOperation;
+use App\Support\Operations\Lifecycles;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
+use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\DocumentRoot;
+use SrvPanel\Agent\DomainName;
 
 /**
  * Der Lebenslauf einer Website — und die Argumente, die den Agenten erreichen.
@@ -97,13 +101,21 @@ final class WebLifecycle implements AfterOperation
      *
      * @param  array<string, mixed>|null  $payload
      */
-    public function dispatch(Domain $domain, string $task, string $message, ?array $payload = null): Operation
-    {
+    public function dispatch(
+        Domain $domain,
+        string $task,
+        string $message,
+        ?array $payload = null,
+        ?int $accountId = null,
+    ): Operation {
         $operation = Operation::query()->create([
             'subscription_id' => $domain->subscription_id,
             'subject_type' => OperationSubject::Domain->value,
             'subject_id' => $domain->id,
-            'account_id' => request()->user()?->getAuthIdentifier(),
+            // Im Arbeiter gibt es keine Anfrage. Ein Folgevorgang trägt
+            // deshalb das Konto dessen, der ihn ausgelöst hat — sonst stünde
+            // in der Liste „—" neben einer Sperre, die jemand angeordnet hat.
+            'account_id' => $accountId ?? request()->user()?->getAuthIdentifier(),
             'type' => $task,
             'task' => $task,
             'payload' => $payload ?? $this->payload($domain),
@@ -117,12 +129,92 @@ final class WebLifecycle implements AfterOperation
         return $operation;
     }
 
+    /**
+     * Den Pool und den Server-Block einreihen — in dieser Reihenfolge.
+     *
+     * **Zwei Vorgänge und nicht einer.** `web.site.apply` weist einen
+     * Server-Block zurück, dessen FPM-Pool fehlt; der Pool muss also vorher
+     * liegen. Beides in eine Operation zu packen hiesse, dass der Agent zwei
+     * Dinge auf einmal tut und bei einem Fehlschlag die Hälfte davon getan
+     * hat. Die Reihenfolge trägt die Warteschlange — sie hat einen Arbeiter,
+     * und der arbeitet der Reihe nach.
+     *
+     * Steht hier und nicht im Dienst, weil beide Auslöser sie brauchen: das
+     * Formular des Kunden und die Folge eines Abonnementvorgangs.
+     */
+    public function apply(Domain $domain, string $message, ?int $accountId = null): void
+    {
+        if ($domain->servesPhp() && $domain->php_version !== null) {
+            $this->dispatch($domain, 'php.pool.apply', 'PHP-Pool für '.$domain->name, $this->poolPayload($domain), $accountId);
+        }
+
+        $this->dispatch($domain, 'web.site.apply', $message, null, $accountId);
+    }
+
+    /**
+     * Die Hauptdomain eines Abonnements — angelegt, sobald es sie tragen kann.
+     *
+     * Sie entsteht nicht im Formular: Der Name des Abonnements *ist* die
+     * Hauptdomain (§5.1), und ein zweites Eingabefeld dafür wäre eine
+     * Gelegenheit, zwei verschiedene Namen einzutragen. Angelegt wird sie,
+     * nachdem `subscription.provision` den Verzeichnisbaum gebaut hat —
+     * vorher gäbe es kein `httpdocs`, in das der Server-Block zeigen könnte.
+     *
+     * Wiederholbar: Ein zweiter Lauf findet sie vor und legt nichts doppelt an.
+     */
+    public function ensureMainDomain(Subscription $subscription): ?Domain
+    {
+        return $this->tenancy->withoutRestriction(function () use ($subscription): ?Domain {
+            $existing = Domain::query()
+                ->where('subscription_id', $subscription->id)
+                ->where('type', DomainType::Main->value)
+                ->first();
+
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            // Der Name des Abonnements ist schon durch die Prüfung des
+            // Agenten gegangen — er ist der Verzeichnisname. Ist er trotzdem
+            // kein Domainname (ein Abonnement aus P2, das „testabo" heisst),
+            // entsteht keine Hauptdomain und niemand kommt zu Schaden.
+            try {
+                $name = DomainName::normalize($subscription->name);
+            } catch (AgentException) {
+                return null;
+            }
+
+            if (Domain::query()->where('name', $name)->exists()) {
+                return null;
+            }
+
+            $domain = new Domain([
+                'name' => $name,
+                'type' => DomainType::Main,
+                'status' => DomainStatus::Provisioning,
+                'document_root' => DocumentRoot::forDomain($name, true),
+                'php_version' => $this->php->defaultFor($subscription),
+            ]);
+
+            $domain->subscription_id = (int) $subscription->id;
+            $domain->save();
+
+            return $domain;
+        });
+    }
+
     public function afterSuccess(Operation $operation): void
     {
         $task = (string) ($operation->task ?? '');
 
         if (str_starts_with($task, 'php.version')) {
             $this->rememberVersions($operation);
+
+            return;
+        }
+
+        if (str_starts_with($task, 'subscription.')) {
+            $this->afterSubscription($operation, $task);
 
             return;
         }
@@ -154,6 +246,66 @@ final class WebLifecycle implements AfterOperation
                 default => null,
             };
         });
+    }
+
+    /**
+     * Was ein Abonnementvorgang für die Websites bedeutet.
+     *
+     * **Die Reihenfolge in {@see Lifecycles::HANDLERS}
+     * ist die Voraussetzung dafür, dass das hier stimmt.** Der Lebenslauf des
+     * Abonnements läuft zuerst und hat den Zustand schon gesetzt; die
+     * Argumente, die hier entstehen, lesen ihn frisch aus der Datenbank. Liefe
+     * es umgekehrt, trüge jeder Server-Block noch den Zustand von vorher — die
+     * Sperre stünde im Panel und die Website antwortete weiter.
+     */
+    private function afterSubscription(Operation $operation, string $task): void
+    {
+        if (! in_array($task, ['subscription.provision', 'subscription.suspend', 'subscription.resume'], true)) {
+            return;
+        }
+
+        $subscription = $this->tenancy->withoutRestriction(
+            fn (): ?Subscription => Subscription::query()->find($operation->subscription_id)
+        );
+
+        if ($subscription === null) {
+            return;
+        }
+
+        if ($task === 'subscription.provision') {
+            $main = $this->ensureMainDomain($subscription);
+
+            if ($main !== null) {
+                $this->apply($main, 'Website '.$main->name.' wird eingerichtet', $operation->account_id);
+            }
+
+            return;
+        }
+
+        // **Sperren und Entsperren schlagen auf jede Website durch.** Bis
+        // hierher setzte `subscription.suspend` nur die Rechte des
+        // Verzeichnisses; ein Besucher sah daraufhin einen nackten „403
+        // Forbidden" von nginx. Jetzt wird jeder Server-Block neu geschrieben
+        // — mit 503 und einer Erklärung, und beim Entsperren zurück.
+        $domains = $this->tenancy->withoutRestriction(
+            fn (): array => Domain::query()
+                ->where('subscription_id', $subscription->id)
+                ->orderBy('id')
+                ->get()
+                ->all()
+        );
+
+        foreach ($domains as $domain) {
+            if ($domain->status->pending()) {
+                continue;
+            }
+
+            $this->apply(
+                $domain,
+                sprintf('Website %s wird %s', $domain->name, $task === 'subscription.suspend' ? 'gesperrt' : 'freigegeben'),
+                $operation->account_id,
+            );
+        }
     }
 
     /**

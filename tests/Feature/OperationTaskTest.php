@@ -15,6 +15,9 @@ use App\Support\Operations\Task;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia;
+use PHPUnit\Framework\Attributes\DataProvider;
+use SrvPanel\Agent\Config;
+use SrvPanel\Agent\Registry;
 use Tests\TestCase;
 
 /**
@@ -136,12 +139,107 @@ final class OperationTaskTest extends TestCase
         $this->assertSame(AuditResult::Denied, $event->result);
     }
 
+    /**
+     * Eine Aufgabe mit Argument — und der Weg, auf dem das Argument kommt.
+     *
+     * Der Browser schickt „8.2"; was daraus wird, entsteht im Katalog. Zwischen
+     * beidem liegt die Prüfung gegen dieselbe Liste, aus der die Oberfläche ihr
+     * Auswahlfeld baut.
+     */
+    public function test_a_task_with_an_argument_carries_it_into_the_payload(): void
+    {
+        Queue::fake();
+
+        $this->actingAs($this->admin())
+            ->post('/operations', ['task' => Task::PhpVersionInstall->value, 'argument' => '8.2'])
+            ->assertRedirect();
+
+        $operation = Operation::query()->sole();
+
+        $this->assertSame('php.version.install', $operation->type);
+        $this->assertSame(['php_version' => '8.2'], $operation->payload);
+
+        // Die Beschriftung nennt das Argument mit: „PHP-Version installieren"
+        // allein sagt in der Liste nicht, welche.
+        $this->assertStringContainsString('8.2', (string) $operation->message);
+    }
+
+    /** @return list<array{0: array<string, string>}> */
+    public static function badArguments(): array
+    {
+        return [
+            [['task' => 'php.version.install']],
+            [['task' => 'php.version.install', 'argument' => '']],
+            [['task' => 'php.version.install', 'argument' => '8.0']],
+            [['task' => 'php.version.install', 'argument' => '5.6']],
+            [['task' => 'php.version.install', 'argument' => 'fpm; reboot']],
+            [['task' => 'php.version.install', 'argument' => '../../etc']],
+            [['task' => 'php.version.remove', 'argument' => 'alle']],
+        ];
+    }
+
+    /**
+     * Ein Argument, das nicht im Katalog steht, ist kein Tippfehler.
+     *
+     * Es würde bei `php.version.install` zu einem Paketnamen für `apt-get`.
+     * Deshalb dieselbe Antwort wie bei einem unbekannten Schlüssel — und ein
+     * Eintrag im Protokoll.
+     *
+     * @param  array<string, string>  $payload
+     */
+    #[DataProvider('badArguments')]
+    public function test_an_argument_outside_the_catalog_is_refused(array $payload): void
+    {
+        Queue::fake();
+
+        $this->actingAs($this->admin())
+            ->post('/operations', $payload)
+            ->assertSessionHasErrors('task');
+
+        $this->assertSame(0, Operation::query()->count());
+        Queue::assertNothingPushed();
+
+        $this->assertSame(
+            AuditResult::Denied,
+            AuditEvent::query()->where('action', 'operation.started')->sole()->result,
+        );
+    }
+
+    /** Ein Kunde kommt an keine der PHP-Aufgaben — sie sind Betreiberhandlungen. */
+    public function test_a_customer_cannot_install_a_php_version(): void
+    {
+        Queue::fake();
+
+        $customer = $this->customer();
+
+        // Nicht erst am Katalog, sondern schon an der Policy der Route: Ein
+        // Kunde darf überhaupt keinen Betreibervorgang auslösen.
+        $this->actingAs($customer)
+            ->post('/operations', ['task' => Task::PhpVersionInstall->value, 'argument' => '8.4'])
+            ->assertForbidden();
+
+        $this->assertSame(0, Operation::query()->count());
+
+        // Und im Katalog steht sie für ihn gar nicht erst.
+        $this->assertSame([], Task::for($customer));
+    }
+
     public function test_every_task_names_an_operation_the_agent_knows(): void
     {
         // Ein Katalogeintrag mit einem Tippfehler in der Operation fiele sonst
         // erst auf, wenn jemand darauf drückt — und dann als Fehlschlag eines
         // Vorgangs statt als Fehler im Panel.
-        $known = ['agent.ping', 'service.status', 'service.action', 'config.validate', 'system.info'];
+        //
+        // **Gefragt wird die Registratur des Agenten, nicht eine Abschrift.**
+        // Hier stand eine Liste von fünf Namen, und sie war beim Hinzunehmen
+        // der P3-Aufgaben genau so falsch, wie eine abgeschriebene Liste es
+        // wird: Sie kannte `webserver.detect` nicht, obwohl der Agent sie
+        // kennt. Der Test hätte einen Fehler gemeldet, den es nicht gibt —
+        // und beim nächsten Mal hätte jemand die Liste erweitert, statt zu
+        // prüfen.
+        $known = (new Registry(new Config))->names();
+
+        $this->assertGreaterThan(10, count($known), 'Die Registratur ist leer — dann prüft dieser Test nichts.');
 
         foreach (Task::cases() as $task) {
             $this->assertContains($task->operation(), $known, $task->value);

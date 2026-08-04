@@ -154,7 +154,7 @@ jobs:
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
-            'export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y systemd systemd-sysv && exec /sbin/init'
+            'export DEBIAN_FRONTEND=noninteractive; set -x; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
           # **Ohne die Prüfung danach endet ein Zeitüberschreiten stumm.** Die
           # Schleife lief ab, der Schritt galt als geglückt — das `| head -1`
           # gab den Rückgabewert von `head` zurück und nicht den von `docker
@@ -171,7 +171,15 @@ jobs:
 
           if [ "$bereit" != ja ]; then
             echo "::error::systemd im Container ist in 180 s nicht hochgekommen."
-            docker logs target 2>&1 | tail -30
+
+            # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
+            # `docker logs`, und das gab nichts aus — womit offen blieb, ob der
+            # Container noch läuft, schon beendet ist oder nie etwas geschrieben
+            # hat. Drei sehr verschiedene Lagen, eine leere Zeile.
+            echo "--- Zustand ---"
+            docker ps -a --filter "name=target" --format '{{.Status}} (exit {{.State}})' || true
+            echo "--- Ausgabe ---"
+            docker logs target 2>&1 | tail -50 || echo "(docker logs hat nichts geliefert)"
             exit 1
           fi
 
@@ -429,7 +437,7 @@ jobs:
             --tmpfs /run --tmpfs /run/lock -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host \
             -v "${PWD}/dist:/packages:ro" \
             ${{ matrix.image }} /bin/sh -c \
-            'export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y systemd systemd-sysv && exec /sbin/init'
+            'export DEBIAN_FRONTEND=noninteractive; set -x; apt-get update && apt-get install -y systemd systemd-sysv && exec /sbin/init'
           # Dieselbe Prüfung wie oben, und hier fehlte sie ganz: Ein
           # Zeitüberschreiten war vollständig unsichtbar.
           bereit=nein
@@ -443,7 +451,15 @@ jobs:
 
           if [ "$bereit" != ja ]; then
             echo "::error::systemd im Container ist in 180 s nicht hochgekommen."
-            docker logs bare 2>&1 | tail -30
+
+            # **Zustand vor Ausgabe.** Beim ersten Fehlschlag stand hier nur
+            # `docker logs`, und das gab nichts aus — womit offen blieb, ob der
+            # Container noch läuft, schon beendet ist oder nie etwas geschrieben
+            # hat. Drei sehr verschiedene Lagen, eine leere Zeile.
+            echo "--- Zustand ---"
+            docker ps -a --filter "name=bare" --format '{{.Status}} (exit {{.State}})' || true
+            echo "--- Ausgabe ---"
+            docker logs bare 2>&1 | tail -50 || echo "(docker logs hat nichts geliefert)"
             exit 1
           fi
 

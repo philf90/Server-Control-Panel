@@ -334,31 +334,53 @@ final class AcceptanceWeb extends Command
 
         foreach ($abos as $i => $abo) {
             $fremd = $abos[1 - $i]['subscription'];
+            $domains = $this->domainsOf($abo['subscription']);
 
-            try {
-                $agent->call('web.isolation.probe', [
-                    'subscription' => $abo['subscription']->name,
-                    'user' => $abo['subscription']->system_user,
-                    'action' => 'place',
-                ]);
-            } catch (AgentException $error) {
-                $this->error('Die Selbstprobe liess sich nicht ablegen: '.$error->getMessage());
+            /*
+             * **Je DocumentRoot eine Selbstprobe, nicht eine je Abonnement.**
+             *
+             * Hier stand ein einziger Aufruf ohne Verzeichnis, und der Agent
+             * legte die Datei nach `httpdocs`. Das ist das DocumentRoot der
+             * Hauptdomain; jede Zusatzdomain liefert aus einem Verzeichnis mit
+             * ihrem eigenen Namen aus. Für vier von sechs Domains lag die Probe
+             * damit am falschen Ort — nginx antwortete mit 404, und der Lauf
+             * meldete „antwortet nicht": eine Aussage über die Abschottung, die
+             * gar keine war.
+             */
+            $roots = $this->documentRootsOf($domains);
 
-                return self::FAILURE;
+            foreach ($roots as $root) {
+                try {
+                    $agent->call('web.isolation.probe', [
+                        'subscription' => $abo['subscription']->name,
+                        'user' => $abo['subscription']->system_user,
+                        'document_root' => $root,
+                        'action' => 'place',
+                    ]);
+                } catch (AgentException $error) {
+                    $this->error(sprintf('Die Selbstprobe liess sich nicht nach %s legen: %s', $root, $error->getMessage()));
+
+                    return self::FAILURE;
+                }
             }
 
-            foreach ($this->domainNames($abo['subscription']) as $domain) {
+            $this->line(sprintf('  %s: Selbstprobe in %s', $abo['subscription']->name, implode(', ', $roots)));
+
+            foreach ($domains as $domain) {
                 $fehler = array_merge($fehler, $this->check($domain, $abo, $fremd));
             }
 
-            try {
-                $agent->call('web.isolation.probe', [
-                    'subscription' => $abo['subscription']->name,
-                    'user' => $abo['subscription']->system_user,
-                    'action' => 'remove',
-                ]);
-            } catch (AgentException $error) {
-                $fehler[] = 'Die Selbstprobe blieb liegen: '.$error->getMessage();
+            foreach ($roots as $root) {
+                try {
+                    $agent->call('web.isolation.probe', [
+                        'subscription' => $abo['subscription']->name,
+                        'user' => $abo['subscription']->system_user,
+                        'document_root' => $root,
+                        'action' => 'remove',
+                    ]);
+                } catch (AgentException $error) {
+                    $fehler[] = sprintf('Die Selbstprobe blieb in %s liegen: %s', $root, $error->getMessage());
+                }
             }
         }
 
@@ -386,31 +408,48 @@ final class AcceptanceWeb extends Command
      * @param  array{subscription: Subscription, version: string}  $abo
      * @return list<string>
      */
-    private function check(string $domain, array $abo, Subscription $fremd): array
+    private function check(Domain $domain, array $abo, Subscription $fremd): array
     {
+        $name = (string) $domain->name;
         $ziel = SubscriptionProvision::VHOSTS.'/'.$fremd->name.'/'.SubscriptionProvision::DOCUMENT_ROOT.'/index.html';
 
-        $antwort = $this->request($domain, $ziel);
+        ['antwort' => $antwort, 'diagnose' => $diagnose] = $this->request($name, $ziel);
 
         if ($antwort === null) {
-            return [sprintf('%s antwortet nicht.', $domain)];
+            /*
+             * **Hier stand „antwortet nicht", und mehr nicht.**
+             *
+             * Der Satz warf vier Lagen in einen Topf: keine Verbindung, ein
+             * HTTP-Fehler, eine fremde Seite, ungültiges JSON. Beim Lauf auf
+             * dem Zielserver war es der zweite Fall — nginx antwortete mit 404,
+             * weil die Selbstprobe im falschen Verzeichnis lag. Die Meldung
+             * las sich wie ein Befund über die Abschottung und war keiner.
+             */
+            return [sprintf(
+                '%s: %s. Erwartet wurde die Selbstprobe unter %s/%s.',
+                $name,
+                $diagnose,
+                (string) $domain->absoluteDocumentRoot(),
+                WebIsolationProbe::FILENAME,
+            )];
         }
 
         $fehler = [];
 
         if (($antwort['php'] ?? null) !== $abo['version']) {
             $fehler[] = sprintf(
-                '%s antwortet mit PHP %s, erwartet war %s.',
-                $domain,
+                '%s antwortet mit PHP %s, erwartet war %s (Pool %s).',
+                $name,
                 (string) ($antwort['php'] ?? '?'),
                 $abo['version'],
+                PhpVersions::poolFile($abo['version'], (string) $abo['subscription']->system_user),
             );
         }
 
         if (($antwort['user'] ?? null) !== $abo['subscription']->system_user) {
             $fehler[] = sprintf(
-                '%s läuft als %s, erwartet war %s.',
-                $domain,
+                '%s läuft als %s, erwartet war %s. Ein Pool als www-data sähe von aussen genauso aus.',
+                $name,
                 (string) ($antwort['user'] ?? '?'),
                 (string) $abo['subscription']->system_user,
             );
@@ -418,7 +457,12 @@ final class AcceptanceWeb extends Command
 
         // Die Frage, um die es geht.
         if (($antwort['lesbar'] ?? null) !== false) {
-            $fehler[] = sprintf('%s kommt an %s — die Abschottung greift nicht.', $domain, $ziel);
+            $fehler[] = sprintf(
+                '%s kommt an %s — die Abschottung greift nicht. open_basedir meldet: %s',
+                $name,
+                $ziel,
+                ($antwort['open_basedir'] ?? '') === '' ? '(leer)' : (string) $antwort['open_basedir'],
+            );
         }
 
         $offen = array_keys(array_filter(
@@ -427,7 +471,7 @@ final class AcceptanceWeb extends Command
         ));
 
         if ($offen !== []) {
-            $fehler[] = sprintf('%s kann noch Prozesse starten: %s.', $domain, implode(', ', $offen));
+            $fehler[] = sprintf('%s kann noch Prozesse starten: %s.', $name, implode(', ', $offen));
         }
 
         return $fehler;
@@ -440,9 +484,14 @@ final class AcceptanceWeb extends Command
      * enden auf `.invalid` und stehen in keinem DNS — das ist Absicht (RFC
      * 2606), damit ein Lauf niemals eine echte Domain trifft.
      *
-     * @return array<string, mixed>|null
+     * **Der Rückgabewert ist immer beides**: die Antwort oder `null`, und
+     * daneben die Diagnose. Vorher gab die Methode nur `?array` zurück, und
+     * genau darin steckte der Fehler vom Zielserver — wer `null` bekam, wusste
+     * nicht, ob nginx schwieg, ein 404 kam oder das JSON kaputt war.
+     *
+     * @return array{antwort: array<string, mixed>|null, diagnose: string}
      */
-    private function request(string $domain, string $ziel): ?array
+    private function request(string $domain, string $ziel): array
     {
         $url = sprintf('http://127.0.0.1/%s?ziel=%s', WebIsolationProbe::FILENAME, urlencode($ziel));
 
@@ -452,26 +501,131 @@ final class AcceptanceWeb extends Command
             'ignore_errors' => true,
         ]]);
 
+        // **Vorbelegt, und das ist die ganze Behandlung.** PHP setzt
+        // `$http_response_header` im lokalen Gültigkeitsbereich, sobald eine
+        // Antwort kommt — und lässt die Variable sonst unberührt. Ohne die
+        // Vorbelegung wäre sie im Fehlerfall undefiniert; mit ihr steht dort
+        // eine leere Liste, und genau daran erkennt der Aufrufer, dass gar
+        // keine Verbindung zustande kam.
+        $http_response_header = [];
         $body = @file_get_contents($url, false, $context);
 
+        $kopf = $http_response_header;
+
         if (! is_string($body)) {
-            return null;
+            return ['antwort' => null, 'diagnose' => sprintf(
+                'keine Antwort von 127.0.0.1:80 mit Host %s (%s)',
+                $domain,
+                $kopf === [] ? 'keine Verbindung — läuft nginx?' : 'Verbindung stand, Körper leer',
+            )];
+        }
+
+        $status = $this->statusFrom($kopf);
+
+        if ($status !== 200) {
+            return ['antwort' => null, 'diagnose' => sprintf(
+                'HTTP %d%s',
+                $status,
+                $status === 404 ? ' — die Selbstprobe liegt nicht im DocumentRoot dieser Domain' : '',
+            )];
         }
 
         $antwort = json_decode($body, true);
 
-        return is_array($antwort) ? $antwort : null;
+        if (! is_array($antwort)) {
+            return ['antwort' => null, 'diagnose' => sprintf(
+                'HTTP 200, aber kein JSON: %s — wird PHP hier überhaupt ausgeführt?',
+                $this->excerpt($body),
+            )];
+        }
+
+        return ['antwort' => $antwort, 'diagnose' => ''];
     }
 
-    /** @return list<string> */
-    private function domainNames(Subscription $subscription): array
+    /**
+     * Die Statuszeile aus den Kopfzeilen.
+     *
+     * Ohne Antwort oder ohne erkennbare Statuszeile: 0. Der Aufrufer
+     * unterscheidet das von einem echten Status.
+     *
+     * @param  list<string>  $kopf
+     */
+    private function statusFrom(array $kopf): int
+    {
+        $status = 0;
+
+        foreach ($kopf as $zeile) {
+            if (preg_match('#^HTTP/[\d.]+\s+(\d{3})#', $zeile, $treffer) === 1) {
+                // Bei einer Weiterleitung stehen mehrere Statuszeilen da; die
+                // letzte ist die, die zählt.
+                $status = (int) $treffer[1];
+            }
+        }
+
+        return $status;
+    }
+
+    /**
+     * Ein kurzer Ausschnitt für die Fehlermeldung.
+     *
+     * Er muss zeigen, *was* stattdessen kam — eine nginx-Fehlerseite sieht
+     * anders aus als ein nicht ausgeführtes PHP-Skript —, und er darf die
+     * Ausgabe nicht fluten. Zeilenumbrüche fallen weg, damit die Meldung eine
+     * Zeile bleibt.
+     */
+    private function excerpt(string $body): string
+    {
+        $text = trim((string) preg_replace('/\s+/', ' ', strip_tags($body)));
+
+        if ($text === '') {
+            $text = trim((string) preg_replace('/\s+/', ' ', $body));
+        }
+
+        return $text === ''
+            ? '(leerer Körper)'
+            : '„'.mb_substr($text, 0, 90).(mb_strlen($text) > 90 ? '…' : '').'"';
+    }
+
+    /**
+     * Die Verzeichnisse, aus denen dieses Abonnement ausliefert.
+     *
+     * **Die Regel steht hier und nicht in der Schleife**, damit sie sich
+     * prüfen lässt: Eine Weiterleitung und ein Alias haben kein eigenes
+     * Verzeichnis (`null`), zwei Domains können sich eines teilen, und die
+     * Hauptdomain liefert aus `httpdocs` aus, jede Zusatzdomain aus einem
+     * Verzeichnis mit ihrem Namen. Genau diese Unterscheidung ist beim ersten
+     * Lauf auf dem Zielserver untergegangen.
+     *
+     * @param  list<Domain>  $domains
+     * @return list<string>
+     */
+    private function documentRootsOf(array $domains): array
+    {
+        $roots = [];
+
+        foreach ($domains as $domain) {
+            if (is_string($domain->document_root) && $domain->document_root !== '') {
+                $roots[$domain->document_root] = true;
+            }
+        }
+
+        return array_keys($roots);
+    }
+
+    /**
+     * Die Domains eines Abonnements — als Modelle, nicht als Namen.
+     *
+     * Der Lauf braucht neben dem Namen auch das DocumentRoot: dort liegt die
+     * Selbstprobe, und dorthin zeigt die Meldung, wenn sie fehlt.
+     *
+     * @return list<Domain>
+     */
+    private function domainsOf(Subscription $subscription): array
     {
         return Domain::query()
             ->where('subscription_id', $subscription->id)
             ->orderBy('id')
-            ->pluck('name')
-            ->map(strval(...))
-            ->values()
+            ->get()
             ->all();
     }
 

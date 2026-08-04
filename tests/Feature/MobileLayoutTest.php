@@ -255,19 +255,26 @@ final class MobileLayoutTest extends TestCase
 
     public function test_input_fields_use_the_zoom_safe_size(): void
     {
-        // Ein Feld mit --text-body ist ein Feld, das Safari beim Fokus
-        // hineinzoomt. Gesucht wird jede Regel, deren Selektor ein Feld nennt
-        // und die eine Schriftgröße setzt.
+        /*
+         * Ein Feld mit --text-body ist ein Feld, das Safari beim Fokus
+         * hineinzoomt. Gesucht wird jede Regel, deren Selektor ein Feld nennt
+         * und die eine Schriftgröße setzt.
+         *
+         * **Gesucht wird in app.css mit.** Vorher las dieser Test nur
+         * `resources/js` — zu der Zeit brachte jede Seite ihr eigenes Feld mit,
+         * und dort standen die Regeln. Genau das hört auf: Das Aussehen eines
+         * Feldes gehört in app.css, wie das eines Knopfes
+         * (`ButtonStyleTest::test_no_page_styles_a_field_itself`).
+         *
+         * Ohne diese Erweiterung hätte der Test in dem Augenblick nichts mehr
+         * gefunden, in dem die Felder umziehen — und wäre an seiner eigenen
+         * Untergrenze durchgefallen statt an der Sache. Ein Wächter, der beim
+         * Aufräumen zubeisst, wird beim Aufräumen abgeschaltet.
+         */
         $checked = 0;
 
-        foreach ($this->files('resources/js', 'vue') as $path) {
-            $source = (string) file_get_contents($path);
-
-            if (preg_match('#<style[^>]*>(.*)</style>#su', $source, $match) !== 1) {
-                continue;
-            }
-
-            preg_match_all('/([^{}]*)\{([^{}]*)\}/s', $match[1], $rules, PREG_SET_ORDER);
+        foreach ($this->stylesheets() as $name => $css) {
+            preg_match_all('/([^{}]*)\{([^{}]*)\}/s', $css, $rules, PREG_SET_ORDER);
 
             foreach ($rules as $rule) {
                 $selector = trim($rule[1]);
@@ -288,7 +295,7 @@ final class MobileLayoutTest extends TestCase
                     sprintf(
                         '%s setzt an „%s" die Größe %s (%dpx). Eingabefelder brauchen --text-input oder eine '.
                         'Marke ab 16px, sonst zoomt Safari beim Fokus in die Seite (docs/24 §3).',
-                        $this->relative($path),
+                        $name,
                         $selector,
                         $token,
                         $this->scale()[$token] ?? 0,
@@ -297,7 +304,31 @@ final class MobileLayoutTest extends TestCase
             }
         }
 
-        $this->assertGreaterThan(3, $checked, 'Es werden kaum Feldregeln gefunden — dann prüft dieser Test nichts.');
+        $this->assertGreaterThan(0, $checked, 'Es wird keine Feldregel mehr gefunden — dann prüft dieser Test nichts.');
+    }
+
+    /**
+     * Jedes Stylesheet des Panels: app.css und die `<style>`-Blöcke.
+     *
+     * @return array<string, string>
+     */
+    private function stylesheets(): array
+    {
+        $sheets = [];
+
+        foreach ($this->files('resources/css', 'css') as $path) {
+            $sheets[$this->relative($path)] = (string) file_get_contents($path);
+        }
+
+        foreach ($this->files('resources/js', 'vue') as $path) {
+            $source = (string) file_get_contents($path);
+
+            if (preg_match('#<style[^>]*>(.*)</style>#su', $source, $match) === 1) {
+                $sheets[$this->relative($path)] = $match[1];
+            }
+        }
+
+        return $sheets;
     }
 
     /**

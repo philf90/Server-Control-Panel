@@ -1384,3 +1384,83 @@ Sechs Domains, zwei PHP-Versionen, zwei Systembenutzer — und kein Zugriff übe
   braucht". Das stimmte nur für das Ergebnis, nicht für den Weg dorthin.
 
 Als Nächstes P4 (TLS).
+
+### Rework der Optik, Schritt 1: die Wächter kommen vor dem Umbau
+
+Die Oberfläche wird neu gestaltet — die Richtung „Kontor" aus
+`docs/entwuerfe/30-neue-richtungen.md`, bedienbar in
+`docs/entwuerfe/31-kontor-mockup.html`. Das Gestaltungssystem „Leitstand"
+fällt: nicht seine Umsetzung, sondern seine Grundannahme — dunkel als
+Ausgangsfassung, Amber als einzige Farbe, jede Zahl in Monospace, ein schmales
+dunkles Rail neben dem Inhalt.
+
+**Zuerst die Wächter, und noch keine Zeile Gestaltung.** Wer den Umbau zuerst
+macht, prüft danach den Umbau statt den Bestand — und erfährt nie, was vorher
+falsch war. Deshalb steht die Messung am Anfang, und sie ist unbequem: Der
+Lauf ist nach diesem Schritt **rot an sechs Stellen**, und jede davon ist ein
+Befund und kein Versehen.
+
+- **`ButtonStyleTest::test_every_control_border_stands_out`** — der
+  Kontrasttest liest keine Namen mehr, sondern Regeln. Vorher las er genau eine
+  Marke, `--button-line`, weil genau ein Fund ihn ausgelöst hatte: ein Knopf
+  auf `--surface` mit einem Rand aus `--line`, 1,04:1, auf dem Bildschirm kein
+  Bedienelement, sondern ein hellerer Fleck.
+
+  Die Regel dahinter steht in WCAG 1.4.11 und redet nicht von Knöpfen, sondern
+  von der Grenze eines Bedienelements. Der Test tat es doch — und hat deshalb
+  neun Monate lang nicht gemeldet, dass **jedes Eingabefeld des Panels**
+  denselben Fehler trägt: `border: 1px solid var(--line)` auf elf Seiten,
+  **1,13:1 im dunklen Theme und 1,09:1 im hellen**. Er sucht jetzt jede Regel —
+  in `app.css` *und* in jeder Komponente —, deren Selektor ein Bedienelement
+  nennt und die ihm einen Rand aus einer Marke gibt, und rechnet diese Marke
+  gegen jede Fläche, auf der das Element liegen kann. Ein künftiges `.schalter`
+  fällt darunter, ohne dass jemand den Test anfasst.
+- **`ButtonStyleTest::test_no_page_styles_a_field_itself`** — dieselbe Regel wie
+  für Knöpfe, nur für `input`, `select` und `textarea`. Elf Seiten trugen
+  dieselbe abgeschriebene Zeile; beim zwölften Mal wäre sie anders gewesen.
+- **`ClassReachTest`** (neu) — jede Klasse in einem Template zeigt auf eine
+  Regel, die es gibt. Das ist die Verallgemeinerung einer Prüfung, die es schon
+  gab: `ButtonStyleTest` verlangt seit P3, dass jede *Knopfklasse* existiert —
+  Anlass war `class="knopf betont"`, eine Klasse, die niemand kennt. Für jede
+  andere Klasse fragte danach niemand. Der erste Lauf fand drei tote, zwei
+  davon vorher unbemerkt:
+  - `Tile.vue` schreibt `class="series empty"`, das CSS kennt `.series.leer`;
+  - `Tile.vue` schreibt `class="value num"` — **`.num` gibt es nirgends.** Die
+    Marke sollte der Kachelzahl Tabellenziffern geben; `app.css` setzt sie über
+    `.zahl`, die Klasse heisst anders. Die eine grosse Zahl, für die die Kachel
+    da ist, stand also in Proportionalziffern, und zwei Kacheln nebeneinander
+    hatten ihre Ziffern nicht auf derselben Linie. Sichtbar, messbar, und
+    trotzdem ein Jahr lang von niemandem gemeldet;
+  - `PanelLayout.vue` schreibt `class="name"` im Kontoblock, ohne Regel dazu.
+- **`TableStyleTest`** (neu) — Tabellen kommen aus `app.css`, und ihre
+  Zeilenhöhe aus `--row-height`. §7.2 verspricht zwei Dichtestufen und nennt
+  als erste Zeile ihrer Tabelle die Zeilenhöhe. Die Marke dafür wurde von
+  **zwei der 26 Seiten** benutzt; auf den übrigen 24 entstand die Zeilenhöhe
+  aus `padding: 6px 8px`, je Seite neu geschrieben. Die Kundenfläche war dort
+  also nicht ruhiger als die Adminfläche, und gemerkt hat es niemand, weil kein
+  Lauf danach fragt. Dazu, was daraus folgt: zehn Seiten definieren `table`,
+  und es gibt **zwei unvereinbare Fassungen** davon.
+- **`DesignTokensTest`** — die Ausnahme im Ausdruck fällt. Dort stand
+  `|block-heading-size`, damit eine Marke durchkommt, die §7.2 gerade verbietet:
+  „Schriftgrößen nicht nach Dichte gestaffelt", und `--block-heading-size` ist
+  13px auf der Admin- und 15px auf der Kundenfläche. Ein Test, der die Ausnahme
+  einbaut, hält nicht mehr die Regel fest, sondern ihre Verletzung. Neu dazu:
+  **jede Stufe der Skala wird auch benutzt** — eine Rolle ohne Nutzer ist keine
+  Rolle, sondern ein Rest, an dem sich beim nächsten Umbau jemand festhält.
+- **`MobileLayoutTest`** — die Regel bleibt, der Ort ändert sich: Er sucht
+  Feldregeln jetzt auch in `app.css` und nicht mehr nur unter `resources/js`.
+  Ohne das hätte er in dem Augenblick nichts mehr gefunden, in dem die Felder
+  dorthin umziehen — und wäre an seiner eigenen Untergrenze durchgefallen statt
+  an der Sache. **Ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen
+  abgeschaltet.**
+
+**Und jeder Wächter wurde absichtlich gebrochen.** Das steht als
+`tests/waechter-brechen.sh` im Repo und nicht als Notiz, weil es sonst beim
+nächsten Wächter nicht mehr geschieht. Es hat sich beim ersten Lauf sofort
+gelohnt: `TableStyleTest::test_the_density_token_exists_in_both_steps` blieb
+**grün**, obwohl `--row-height` aus der Kundendichte entfernt war. In `app.css`
+steht `[data-density='customer']` ein zweites Mal, nämlich im
+`@media (max-width: 720px)`-Block, wo beide Stufen auf 44px zusammenlaufen —
+und der Ausdruck fand diese Fundstelle. Der Wächter sah richtig aus und war es
+nicht; gemerkt hat es nur der Bruch. Er zählt jetzt Klammern und sucht
+ausserhalb der Haltepunkte.

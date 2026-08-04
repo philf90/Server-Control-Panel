@@ -214,6 +214,40 @@ Die Domains des Laufs enden auf `.invalid` (RFC 2606) und stehen in keinem DNS.
 Gefragt wird über `127.0.0.1` mit dem Hostnamen im Header; damit trifft ein
 Abnahmelauf niemals eine echte Domain.
 
+### Der Lauf ist gelaufen
+
+Auf dem Server des Betreibers, aus dem Paket `0.3.0~rc.5`:
+
+```
+  abnahme-web-1.invalid: Selbstprobe in httpdocs, eins-abnahme-web-1.invalid, zwei-abnahme-web-1.invalid
+  abnahme-web-2.invalid: Selbstprobe in httpdocs, eins-abnahme-web-2.invalid, zwei-abnahme-web-2.invalid
+
+Das Abnahmekriterium von P3 ist erfüllt.
+Sechs Domains, zwei PHP-Versionen, zwei Systembenutzer — und kein Zugriff über die Grenze.
+```
+
+Damit ist das Kriterium aus §9 keine Zusage mehr, sondern eine Feststellung.
+Geprüft ist nicht die Vorlage, sondern die Kette: nginx nimmt die Anfrage an,
+trifft den richtigen Sockel, der Pool läuft unter dem Systembenutzer des
+Abonnements, PHP wendet `open_basedir` an, und die Rechte auf dem Dateisystem
+stimmen. Der Rückbau danach hat acht Pool-Dateien über vier Katalogversionen
+hinterlassen — keine einzige.
+
+**Vier Anläufe hat es gebraucht, und keiner davon scheiterte an der
+Abschottung.** Der Reihe nach: ein Abonnement, dessen Zustand im Speicher
+veraltet war; ein Rückbau, der zu spät begann und Systembenutzer stehenliess;
+eine Abschrift der Hauptdomain, die einen Namen festhielt, den das Original
+längst freigegeben hatte; und die Selbstprobe, die für vier von sechs Domains
+im falschen Verzeichnis lag. Drei davon waren Fehler im Prüfwerkzeug und nicht
+im Geprüften — was die Sache nicht besser macht: Ein Werkzeug, das falsch
+misst, ist genauso teuer wie ein Fehler im Gemessenen, und es kostet zusätzlich
+das Vertrauen in das Ergebnis.
+
+Die Lehre steht in `AcceptanceWebCommandTest`: Was sich am Abnahmelauf **ohne**
+Server prüfen lässt, ist mehr, als es aussieht — das Auffrischen der Modelle,
+das Fenster zwischen Vorgang und Zustand, der Rückbau im `finally`, die
+Ableitung der Verzeichnisse und jede einzelne Fehlermeldung.
+
 ## 11. Was noch fehlt
 
 - **Traffic messen.** Das Kontingent steht im Katalog und ist als „gemessen,

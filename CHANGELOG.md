@@ -1350,3 +1350,37 @@ ist kein Befund über die Abschottung, sondern über den Lauf selbst.
 - **Die Regel „je DocumentRoot eine Probe" steht in einer eigenen Methode**,
   damit sie prüfbar ist: Ein Alias hat kein Verzeichnis, zwei Domains können
   sich eines teilen, und genau diese Unterscheidung ist untergegangen.
+
+### P3 ist abgenommen
+
+`srvpanel acceptance-web --force` auf dem Server des Betreibers, aus dem Paket
+`0.3.0~rc.5`:
+
+```
+Das Abnahmekriterium von P3 ist erfüllt.
+Sechs Domains, zwei PHP-Versionen, zwei Systembenutzer — und kein Zugriff über die Grenze.
+```
+
+- **Damit ist das Kriterium aus §9 P3 keine Zusage mehr, sondern eine
+  Feststellung.** Geprüft ist nicht die Pool-Vorlage, sondern die Kette: nginx
+  nimmt die Anfrage an, trifft den richtigen Sockel, der Pool läuft unter dem
+  Systembenutzer des Abonnements, PHP wendet `open_basedir` an, und die Rechte
+  auf dem Dateisystem stimmen. Ein Skript im einen Abonnement kommt an die
+  Dateien des anderen nicht heran — versucht, nicht gelesen.
+- **Der Rückbau danach war restlos**: acht Pool-Dateien über vier
+  Katalogversionen, keine geblieben. Das ist §8.7 am selben Lauf.
+- **Vier Anläufe hat es gebraucht, und keiner scheiterte an der Abschottung.**
+  Ein Abonnement, dessen Zustand im Speicher veraltet war; ein Rückbau, der zu
+  spät begann; eine Abschrift, die einen Domainnamen festhielt; und die
+  Selbstprobe im falschen Verzeichnis. **Drei davon waren Fehler im
+  Prüfwerkzeug, nicht im Geprüften.** Das macht die Sache nicht besser: Ein
+  Werkzeug, das falsch misst, kostet dasselbe wie ein Fehler im Gemessenen —
+  und zusätzlich das Vertrauen in sein Ergebnis.
+- Was daraus bleibt, steht in `AcceptanceWebCommandTest`: Am Abnahmelauf lässt
+  sich **ohne** Server mehr prüfen, als es aussieht — das Auffrischen der
+  Modelle, das Fenster zwischen Vorgang und Zustand, der Rückbau im `finally`,
+  die Ableitung der Verzeichnisse und jede einzelne Fehlermeldung. Beim
+  Schreiben des Laufs gab es davon keinen einzigen Test, weil er „einen Server
+  braucht". Das stimmte nur für das Ergebnis, nicht für den Weg dorthin.
+
+Als Nächstes P4 (TLS).

@@ -7,9 +7,10 @@ AGPL-3.0-only. Zielplattformen sind Debian 12/13 und Ubuntu 22.04/24.04.
 Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 (§9). Wo dieses Dokument und der Plan sich widersprechen, gilt der Plan.
 
-Stand: **P0, P1 und P2 abgenommen**, ausgeliefert als `v0.2.0-rc.x`. **P3 (Web
-und PHP) ist gebaut** — die Abnahme steht aus: Sie braucht einen Server mit
-nginx und PHP-FPM (`srvpanel acceptance-web`). Als Nächstes P4 (TLS).
+Stand: **P0 bis P3 abgenommen**, ausgeliefert als `v0.3.0-rc.x`. Der
+Abnahmelauf `srvpanel acceptance-web` ist auf dem Zielserver aus `0.3.0~rc.5`
+durchgelaufen: sechs Domains, zwei PHP-Versionen, zwei Systembenutzer, kein
+Zugriff über die Grenze. Als Nächstes **P4 (TLS)**.
 
 ---
 

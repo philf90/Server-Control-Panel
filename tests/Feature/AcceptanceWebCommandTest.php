@@ -12,8 +12,11 @@ use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Support\Tenancy\Tenancy;
+use Illuminate\Console\OutputStyle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use ReflectionMethod;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
 
 /**
@@ -193,6 +196,67 @@ final class AcceptanceWebCommandTest extends TestCase
             'Das finally räumt nicht auf.',
             'Der Rückbau muss darin stehen, nicht dahinter.',
         ]));
+
+        /*
+         * **Und es beginnt früh genug.**
+         *
+         * Das `finally` stand zuerst hinter dem Warten. Ein Abonnement, das
+         * nicht fertig wird, ist aber gerade der Fall, in dem etwas halb
+         * dasteht — `subscription.provision` kann den Systembenutzer angelegt
+         * und danach abgebrochen haben. Der zweite Lauf auf dem Zielserver ist
+         * genau hier ausgestiegen und hat wieder zwei Abonnements
+         * hinterlassen.
+         */
+        $this->assertLessThan(
+            (int) strpos($source, '$this->await('),
+            (int) strpos($source, 'try {'),
+            implode(' ', [
+                'Das Warten steht ausserhalb des try.',
+                'Werden die Abonnements nicht fertig, räumt niemand auf —',
+                'und gerade dann steht auf dem Server etwas halb da.',
+            ]),
+        );
+    }
+
+    /**
+     * Ein Fehlschlag sagt, woran er lag.
+     *
+     * „Die Abonnements sind nicht fertig geworden" stand auf dem Zielserver
+     * allein da. Der Betreiber hatte damit nichts in der Hand: Ein
+     * gescheiterter Vorgang trägt seine Begründung in der Datenbank, ein
+     * hängender trägt seinen Zustand, und beides sagt etwas völlig anderes
+     * über die Ursache.
+     */
+    public function test_the_failure_says_what_went_wrong(): void
+    {
+        $subscription = $this->subscription(SubscriptionStatus::Provisioning);
+
+        Operation::factory()->create([
+            'subscription_id' => $subscription->id,
+            'type' => 'subscription.provision',
+            'status' => OperationStatus::Failed,
+            'message' => 'useradd: UID 1000 wird bereits benutzt',
+        ]);
+
+        $command = app(AcceptanceWeb::class);
+        $buffer = new BufferedOutput;
+        $command->setOutput(new OutputStyle(new ArrayInput([]), $buffer));
+
+        $method = new ReflectionMethod(AcceptanceWeb::class, 'explainWhyNothingFinished');
+
+        app(Tenancy::class)->withoutRestriction(fn () => $method->invoke(
+            $command,
+            [['subscription' => $subscription, 'version' => '8.4']],
+        ));
+
+        $ausgabe = $buffer->fetch();
+
+        $this->assertStringContainsString('subscription.provision', $ausgabe, 'Der gescheiterte Vorgang wird nicht genannt.');
+        $this->assertStringContainsString('UID 1000 wird bereits benutzt', $ausgabe, implode(' ', [
+            'Die Begründung des Agenten steht in der Datenbank und nicht in der Ausgabe.',
+            'Genau sie ist das, was der Betreiber braucht.',
+        ]));
+        $this->assertStringContainsString($subscription->name, $ausgabe);
     }
 
     /**

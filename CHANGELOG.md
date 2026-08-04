@@ -1256,3 +1256,25 @@ jedes Mal eine andere als die wirkliche: eine dpkg-Sperre und ein fehlendes
   muss im selben Schritt sagen, was gilt, wenn es nicht kommt. Geprüft wird die
   Sache und nicht der eine Schritt — es waren zwei, und der zweite war der
   stillere.
+
+### Und die Frage, die niemand beantworten konnte
+
+Der schärfere Wächter aus dem Absatz davor hat beim ersten Lauf sofort
+zugebissen — und diesmal stand die Ursache in der Meldung statt drei Schritte
+weiter: „systemd im Container ist in 180 s nicht hochgekommen."
+
+- **Jede Installationszeile der Arbeitsabläufe trug
+  `DEBIAN_FRONTEND=noninteractive` — bis auf die beiden, die den Container
+  überhaupt erst hochfahren.** Dort fehlte sie. Solange die Abbilder es nicht
+  verlangten, fiel das nicht auf; als sich das Ubuntu-Abbild änderte, blieb
+  `apt-get install systemd` an einer debconf-Frage stehen, die in einem
+  Container ohne Terminal niemand beantwortet. Der Container schwieg, und
+  sichtbar war nur, dass systemd nicht kam.
+- Das ist die teure Sorte Ausnahme: eine Regel, die überall gilt, ausser an der
+  einen Stelle, an der niemand hinsieht, weil sie schon immer funktioniert hat.
+- **Die Ausgabe des Hochfahrens wird nicht mehr weggeworfen.** `-qq` und
+  `>/dev/null` sorgten dafür, dass `docker logs` beim Fehlschlag leer blieb —
+  ein Fehlschlag ohne jede Spur.
+- **Der Wächter sieht alle Arbeitsabläufe an, nicht nur die CI**, und hat dabei
+  drei weitere Aufrufe gefunden: in `release.yml` und in `secrets.yml`. Ein
+  hängendes apt in einem Freigabelauf wäre teurer als eines in der CI.

@@ -97,6 +97,57 @@ final class PackagingTest extends TestCase
         }
     }
 
+    /**
+     * Kein `apt-get install` in der CI ohne `DEBIAN_FRONTEND=noninteractive`.
+     *
+     * **Der Fall dahinter.** Jede Installationszeile der Datei trug die
+     * Angabe — bis auf die beiden, die den Container überhaupt erst
+     * hochfahren. Dort fehlte sie, und als das Ubuntu-Abbild sich änderte,
+     * blieb `apt-get install systemd` an einer debconf-Frage stehen. Der
+     * Container schwieg 180 Sekunden lang; sichtbar war nur, dass systemd
+     * nicht kam.
+     *
+     * Das ist die teure Sorte Ausnahme: eine Regel, die überall gilt, ausser
+     * an der einen Stelle, an der niemand hinsieht, weil sie schon immer
+     * funktioniert hat.
+     */
+    public function test_no_apt_install_in_the_ci_can_ask_a_question(): void
+    {
+        $workflows = glob(dirname(__DIR__, 2).'/.github/workflows/*.yml') ?: [];
+
+        $this->assertGreaterThanOrEqual(3, count($workflows), 'Das Glob findet keine Arbeitsabläufe mehr.');
+
+        $found = [];
+        $seen = 0;
+
+        foreach ($workflows as $path) {
+            foreach (explode("\n", (string) file_get_contents($path)) as $number => $line) {
+                if (! preg_match('/apt-get (install|remove|purge|upgrade)\b/', $line)) {
+                    continue;
+                }
+
+                $seen++;
+
+                // Die Angabe darf in derselben Zeile stehen oder vorher im
+                // selben Kommando gesetzt worden sein — beides kommt vor.
+                if (str_contains($line, 'DEBIAN_FRONTEND=noninteractive')) {
+                    continue;
+                }
+
+                $found[] = sprintf('%s:%d  %s', basename($path), $number + 1, trim($line));
+            }
+        }
+
+        $this->assertGreaterThan(5, $seen, 'Der Ausdruck findet keine apt-Aufrufe mehr.');
+
+        $this->assertSame([], $found, sprintf(
+            "apt-get ohne DEBIAN_FRONTEND=noninteractive:\n  %s\n\n".
+            'Eine debconf-Frage in einem Container ohne Terminal wird nie beantwortet. '.
+            'Der Lauf steht dann bis zum Zeitüberschreiten und sagt nicht, worauf er wartet.',
+            implode("\n  ", $found),
+        ));
+    }
+
     public function test_the_release_publishes_every_file_the_installer_fetches(): void
     {
         $root = dirname(__DIR__, 2);

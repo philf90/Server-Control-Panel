@@ -2616,7 +2616,13 @@ Die Frage „darf ein Browser dem trauen?" steht dabei nicht mehr in
 gestellt, und die zweite Formulierung wäre die gewesen, die HSTS auf ein
 selbstsigniertes Zertifikat schreibt.
 
-Sieben weitere Brüche im Wächterskript, jeder gegengeprüft.
+Sieben weitere Brüche im Wächterskript — und hier gehört eine Einschränkung
+hin, die dieses Projekt sonst nicht macht: **Sie sind nicht gelaufen.** In
+dieser Umgebung fehlt `vendor/`, es gibt also kein PHPUnit (siehe CLAUDE.md).
+Geprüft ist mechanisch, dass jeder der sieben Eingriffe greift, die Datei
+verändert und gültiges PHP hinterlässt; der Rot-Grün-Durchgang steht aus und
+gehört auf eine Maschine mit `vendor/`. Ein Wächter, der nie rot war, ist kein
+Wächter — diese sieben sind bis dahin Zusagen.
 
 **Was P4 noch fehlt:** Das Panel selbst läuft weiter mit einem selbstsignierten
 Zertifikat. Die Prüfadresse auf Port 80 steht seit Schritt 3, bestellt wird für

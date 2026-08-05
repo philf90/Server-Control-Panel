@@ -15,13 +15,13 @@ auf dem Zielserver aus `0.3.0~rc.5` durchgelaufen: sechs Domains, zwei
 PHP-Versionen, zwei Systembenutzer, kein Zugriff über die Grenze. Als Nächstes
 **P4 (TLS)**.
 
-Ausgeliefert wird `v0.3.1-rc.1` — der Optik-Rework. **Für ihn steht der
-Abnahmelauf auf einem echten Server noch aus:** Belegt sind bisher nur die
-Ausfallzustände, weil dieser Container weder nginx noch PHP-FPM noch den
-Agenten hat. Zuerst nachzusehen ist, ob die Schwellen der Verlaufskacheln
-unter Last sinnvoll greifen (85 % CPU, Load gegen die Kernzahl) und ob die
-Übersicht mit echten Diensten und echtem Zertifikat so aussieht wie mit den
-Attrappen.
+Ausgeliefert wird `v0.3.1-rc.3` — der Optik-Rework. **Sein Abnahmelauf ist am
+5. August auf dem Zielserver durchgelaufen, vollständig grün** (`docs/33`):
+beide Abnahmekommandos, die Schwellen der Verlaufskacheln unter echter Last,
+Übersicht und Zertifikatsseite mit laufenden Diensten, Sitzung auf dem Telefon,
+Kundensicht, Blättern. Er kam bewusst **vor** P4, weil P4 genau die Stellen
+anfasst, an denen `rc.3` nie unter echten Bedingungen gelaufen war — ein
+Fehlschlag ab jetzt hat nur noch eine mögliche Ursache.
 
 ---
 
@@ -149,7 +149,8 @@ nicht geschätzt: 4,5:1 für Text, **3:1 für die Grenze eines Bedienelements**
 Weitere Dokumente: `21` Signaturschlüssel · `22` Passwörter · `23` Pläne und
 Kontingente · `24` mobile Ansicht · `25` Mailversand · `26` Abonnements ·
 `27` Zertifikat · `28` Web und PHP · **`32` Übergabe an P4** — was für TLS
-schon dasteht, was fehlt, und die Falle, die dabei aussperrt. Die Entwürfe zum Gestaltungssystem stehen
+schon dasteht, was fehlt, und die Falle, die dabei aussperrt — und **`33` der
+Abnahmelauf für 0.3.1**, der davor kommt. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".
@@ -196,6 +197,22 @@ Testen berücksichtigen:
   `composer pruefe` schlägt deshalb lokal fehl. Einzeln `pint` und
   `php artisan test` aufrufen.
 
+  **Und manchmal geht auch das nicht.** In der Sitzung vom 5. August gab es
+  `vendor/` überhaupt nicht — kein Pint, kein PHPUnit, `php artisan` bricht
+  schon beim `require` des Autoloaders ab. Derselbe Proxy, dieselbe Meldung.
+  Wer hier ankommt, sieht als Erstes nach, ob `vendor/` da ist: Ist es das
+  nicht, prüft ausschliesslich die CI, und **jede** Änderung an `app/`,
+  `agent/` oder `tests/` kostet eine Runde — nicht nur die, die PHPStan
+  beträfe.
+
+  **Für `agent/` gibt es einen Ausweg, und er hat in P4 eine Runde gespart.**
+  `agent/src/autoload.php` ist framework- und abhängigkeitsfrei; Code unterhalb
+  von `agent/` lässt sich damit aus einem Wegwerfskript im Scratchpad fahren,
+  ganz ohne PHPUnit — `require agent/src/autoload.php`, Testdoppel von Hand
+  dazuladen, Behauptungen als `if`. Das ersetzt den Wächter nicht und gehört
+  nicht ins Repo (zwei Fassungen desselben Tests, und die zweite veraltet),
+  aber es beantwortet vor dem Commit die Frage, ob der Code überhaupt läuft.
+
   **Was das für die Arbeit heisst:** Undefinierte Variablen, fehlende
   Typangaben und tote Zweige findet hier nichts. Wer `app/`, `agent/` oder
   `tests/` anfasst, rechnet mit einer Runde CI dafür — viermal an einem Tag
@@ -208,6 +225,15 @@ Testen berücksichtigen:
   Angabe ist damit weg — PHPStan meldet „no value type specified", und zwar
   erst in der CI. Marken stehen auf einer eigenen Zeile; `/** @return
   list<string> */` allein geht, mit Text davor nicht.
+
+  **Und eine zweite, die an einem Tag zweimal zugeschlagen hat: ein Name, der
+  der Basisklasse gehört.** `count()` in einem PHPUnit-Testfall (dort `final`)
+  und `configure()` in einem Artisan-Kommando (dort `protected`) — beide
+  brechen beim **Laden** der Klasse und nicht beim Ausführen. `php -l` sieht
+  davon nichts, die Meldung kommt als fataler Fehler, und im zweiten Fall stand
+  damit nicht ein Kommando still, sondern `artisan` mit allen. Wer in einer
+  abgeleiteten Klasse eine private Hilfsmethode einzieht, sieht vorher in der
+  Basisklasse nach.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

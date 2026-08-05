@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent;
 
+use SrvPanel\Agent\Acme\HttpChallenge;
+use SrvPanel\Agent\Acme\Store;
+use SrvPanel\Agent\Ops\PanelVhost;
+
 /**
  * Der Server-Block einer Kundenwebsite.
  *
@@ -41,16 +45,54 @@ final class SiteTemplate
      */
     public const DEFAULT_BODY_MB = 64;
 
-    public static function render(Site $site): string
+    /**
+     * Der Server-Block — mit HTTPS, sobald ein Zertifikat dafür daliegt.
+     *
+     * **Die Pfade kommen nicht von aussen.** Der Agent fragt {@see Store} nach
+     * dem Ablageort und sieht selbst nach, ob dort etwas liegt. Ein Pfad aus der
+     * Anwendung wäre bei `ssl_certificate` dasselbe wie bei `root`: die
+     * Erlaubnis, eine beliebige Datei des Servers zu benennen.
+     *
+     * **Ohne Zertifikat keine Weiterleitung.** Das ist der dritte Teil des
+     * Abnahmekriteriums — ein Fehlschlag darf den laufenden Betrieb nicht
+     * unterbrechen. Eine Domain, die auf HTTPS umleitet, bevor ein Zertifikat
+     * da ist, ist eine Domain, die nicht mehr aufgeht; und genau das passiert,
+     * wenn die Bestellung scheitert.
+     */
+    public static function render(Site $site, ?Store $store = null): string
     {
         $names = implode(' ', $site->serverNames());
         $header = self::header();
+        $tls = ($store ?? new Store)->existing($site->domain);
+
+        /*
+         * **Die Prüfadresse steht vor der Fallunterscheidung, und das ist der
+         * ganze Punkt.**
+         *
+         * Hier hätte fast eine Zeile je Zweig gestanden. `docs/32` nahm an,
+         * die Vorlage trage HTTP-01 schon halb: Sie hört auf Port 80, und
+         * `.well-known` ist vom Punktdatei-Schutz ausgenommen. Diese Ausnahme
+         * steht aber nur im ausliefernden Zweig. Eine **Weiterleitung**
+         * beantwortet jede Anfrage mit `return 302` und sucht nie eine Datei;
+         * ein **gesperrtes** Abonnement antwortet mit 503. Beide hätten nie
+         * ein Zertifikat bekommen — dauerhaft und ohne Fehlermeldung, weil die
+         * Prüfung schlicht nicht findet, was sie sucht.
+         *
+         * Was strukturell nicht vergessen werden kann, muss später niemand
+         * nachtragen: Der Block entsteht einmal, oberhalb von `$body`.
+         */
+        $challenge = HttpChallenge::nginxLocation();
 
         $body = match (true) {
             $site->suspended => self::suspended(),
             $site->redirectTarget !== null => self::redirect($site),
             default => self::serving($site),
         };
+
+        // Mit Zertifikat beantwortet Port 80 nur noch die Prüfung und leitet
+        // weiter; der Inhalt steht dann im 443er Block.
+        $plain = $tls === null ? $body : self::toHttps();
+        $secure = $tls === null ? '' : self::secure($site, $names, $tls, $body);
 
         return <<<CONF
         {$header}
@@ -62,6 +104,70 @@ final class SiteTemplate
 
             access_log {$site->accessLog()};
             error_log  {$site->errorLog()};
+
+        {$challenge}
+
+        {$plain}
+        }
+        {$secure}
+        CONF;
+    }
+
+    /**
+     * Alles ausser der Prüfadresse geht auf die gesicherte Verbindung.
+     *
+     * `301` und nicht `302`: Die Umstellung ist dauerhaft, und ein Browser, der
+     * sie sich merkt, spart jedem Besucher den Umweg. Das ist auch der
+     * Unterschied zu einer Weiterleitungsdomain, die `302` bekommt — die kann
+     * der Kunde morgen wieder ändern.
+     */
+    private static function toHttps(): string
+    {
+        return <<<'CONF'
+            location / {
+                return 301 https://$host$request_uri;
+            }
+        CONF;
+    }
+
+    /**
+     * Der Block, der wirklich ausliefert.
+     *
+     * **Kein `http2`, und das ist Absicht.** Die eigenständige Direktive gibt es
+     * erst seit nginx 1.25.1; davor wird HTTP/2 als Parameter an `listen`
+     * angehängt. Von den vier Zielplattformen bringen drei eine ältere Fassung
+     * mit, und die falsche Schreibweise macht die Einrichtung unmöglich —
+     * {@see PanelVhost} fragt dafür `nginx -v`. Diese Fallunterscheidung hier
+     * nachzubauen, ohne sie auf allen vier Plattformen gesehen zu haben, wäre
+     * dieselbe Wette, die schon einmal fast schiefging.
+     * HTTP/2 kommt, wenn die Abfrage an einer Stelle steht, die beide Vorlagen
+     * fragen.
+     *
+     * **Kein `ssl_stapling`.** Let's Encrypt hat OCSP eingestellt; eine
+     * Direktive, die auf eine Adresse zeigt, die im Zertifikat nicht mehr steht,
+     * ist eine Zeile ohne Wirkung. Für hochgeladene Zertifikate anderer
+     * Aussteller wird sie wieder ein Thema — dann mit einer Bedingung, die das
+     * Zertifikat liest, und nicht auf Verdacht.
+     *
+     * @param  array{certificate: string, key: string}  $tls
+     */
+    private static function secure(Site $site, string $names, array $tls, string $body): string
+    {
+        return <<<CONF
+
+        server {
+            listen 443 ssl;
+            listen [::]:443 ssl;
+
+            server_name {$names};
+
+            access_log {$site->accessLog()};
+            error_log  {$site->errorLog()};
+
+            ssl_certificate     {$tls['certificate']};
+            ssl_certificate_key {$tls['key']};
+            ssl_protocols       TLSv1.2 TLSv1.3;
+            ssl_prefer_server_ciphers off;
 
         {$body}
         }
@@ -162,9 +268,10 @@ final class SiteTemplate
             # Standardschutz — nicht abschaltbar.
             #
             # Punktdateien in einem Rutsch: `.git`, `.env`, `.htaccess`,
-            # `.svn`. Ausgenommen ist `.well-known` — dort legt die
-            # ACME-Prüfung ab P4 ihre Datei ab, und ohne diese Ausnahme
-            # bekäme die Domain nie ein Zertifikat.
+            # `.svn`. Ausgenommen bleibt `.well-known`: Die Prüfdatei von
+            # ACME kommt seit P4 aus dem gemeinsamen Verzeichnis weiter
+            # oben, aber im DocumentRoot liegen dort weitere Dateien, die
+            # abgerufen werden sollen — `security.txt` etwa.
             location ~ /\\.(?!well-known/) {
                 deny all;
                 access_log off;

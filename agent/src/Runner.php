@@ -61,7 +61,14 @@ final class Runner
         'apt-get' => '/usr/bin/apt-get',
         'mysql' => '/usr/bin/mysql',
         'mysqldump' => '/usr/bin/mysqldump',
-        'certbot' => '/usr/bin/certbot',
+
+        // **`certbot` stand hier und ist mit P4 wieder gegangen.** Er war für
+        // TLS vorgesehen; gebaut wurde statt dessen ein eigener ACME-Client im
+        // Agenten (`agent/src/Acme/`, Begründung in docs/32 §6). Ein Programm,
+        // das der Agent als root starten darf und nie startet, ist
+        // Angriffsfläche mit Erlaubnisschein — und `certbot` ist keine
+        // beliebige Zeile: Seine Erneuerungsdateien dürfen Hooks nennen, die
+        // bei jedem Lauf als root ausgeführt werden.
     ];
 
     private const ENVIRONMENT = [

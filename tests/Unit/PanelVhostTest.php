@@ -21,7 +21,7 @@ final class PanelVhostTest extends TestCase
 {
     public function test_modern_nginx_gets_the_standalone_directive(): void
     {
-        $config = (new PanelVhost)->template(8443, '/etc/srvpanel/tls/panel.crt', '/etc/srvpanel/tls/panel.key', true);
+        $config = (new PanelVhost)->template(8443, '/etc/srvpanel/tls/panel.crt', '/etc/srvpanel/tls/panel.key', true, 'panel.example.de');
 
         $this->assertStringContainsString('listen 8443 ssl;', $config);
         $this->assertStringContainsString('http2 on;', $config);
@@ -30,7 +30,7 @@ final class PanelVhostTest extends TestCase
 
     public function test_older_nginx_gets_the_listen_parameter(): void
     {
-        $config = (new PanelVhost)->template(8443, '/etc/srvpanel/tls/panel.crt', '/etc/srvpanel/tls/panel.key', false);
+        $config = (new PanelVhost)->template(8443, '/etc/srvpanel/tls/panel.crt', '/etc/srvpanel/tls/panel.key', false, 'panel.example.de');
 
         $this->assertStringContainsString('listen 8443 ssl http2;', $config);
         $this->assertStringContainsString('listen [::]:8443 ssl http2;', $config);
@@ -40,7 +40,7 @@ final class PanelVhostTest extends TestCase
     public function test_the_hardening_is_in_both_variants(): void
     {
         foreach ([true, false] as $modern) {
-            $config = (new PanelVhost)->template(8443, '/tmp/a.crt', '/tmp/a.key', $modern);
+            $config = (new PanelVhost)->template(8443, '/tmp/a.crt', '/tmp/a.key', $modern, 'panel.example.de');
 
             // Ohne diese Zeile liefert ein hochgeladenes .php im
             // public-Verzeichnis Codeausführung.
@@ -60,7 +60,7 @@ final class PanelVhostTest extends TestCase
 
     public function test_the_port_lands_in_the_configuration(): void
     {
-        $config = (new PanelVhost)->template(9443, '/tmp/a.crt', '/tmp/a.key', true);
+        $config = (new PanelVhost)->template(9443, '/tmp/a.crt', '/tmp/a.key', true, 'panel.example.de');
 
         $this->assertStringContainsString('listen 9443 ssl;', $config);
     }
@@ -84,7 +84,7 @@ final class PanelVhostTest extends TestCase
      */
     public function test_a_self_signed_certificate_gets_no_hsts(): void
     {
-        $config = (new PanelVhost)->template(8443, '/tmp/a.crt', '/tmp/a.key', true, false);
+        $config = (new PanelVhost)->template(8443, '/tmp/a.crt', '/tmp/a.key', true, 'panel.example.de', false);
 
         $this->assertStringNotContainsString('add_header Strict-Transport-Security', $config);
 
@@ -94,7 +94,7 @@ final class PanelVhostTest extends TestCase
 
     public function test_a_certificate_from_an_authority_gets_hsts(): void
     {
-        $config = (new PanelVhost)->template(8443, '/tmp/a.crt', '/tmp/a.key', true, true);
+        $config = (new PanelVhost)->template(8443, '/tmp/a.crt', '/tmp/a.key', true, 'panel.example.de', true);
 
         $this->assertStringContainsString(
             'add_header Strict-Transport-Security "max-age=31536000" always;',

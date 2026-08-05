@@ -2135,3 +2135,408 @@ dem Quelltext gelesen sind:
 Dazu die Erinnerung, die sonst zwischen zwei Freigaben verlorengeht: Die
 Sitzungswerte aus `rc.2` stehen erst nach `srvpanel setup` in `panel.env` —
 `srvpanel update` schreibt diese Datei nicht.
+
+### Ein Abnahmelauf, der nicht jedes Mal neu erfunden wird
+
+`docs/33-abnahme-0.3.1.md` ist der Prüfweg für `0.3.1-rc.3` auf einem echten
+Server — Schritt für Schritt, mit dem, was dastehen muss, und einem
+Ergebnisblock zum Ausfüllen.
+
+**Warum er vor P4 steht und nicht danach.** P4 fasst das Zertifikat der
+Oberfläche, den Server-Block des Panels und die Vorlage der Kundendomains an.
+Das sind genau die Stellen, an denen der Optik-Rework nie unter echten
+Bedingungen gelaufen ist; abgenommen wurde P3 aus `0.3.0~rc.5`. Ohne den
+Nachweis hätte jeder Fehlschlag in P4 zwei mögliche Ursachen, und die
+Unterscheidung kostet mehr als der Lauf.
+
+Drei Dinge stehen darin, die man beim Fahren sonst falsch macht:
+
+- **Zuerst `panel.env` ansehen.** `srvpanel update` schreibt die Datei nicht
+  neu. Wer von `0.3.0` nur aktualisiert hat, prüft die Sitzung auf dem Telefon
+  gegen `SESSION_SAME_SITE=strict` — also gegen den Stand vor `rc.2` und nicht
+  gegen den, der abgenommen werden soll.
+- **Erst das Maschinelle, dann das Sichtbare.** Wer die Kacheln ansieht,
+  während `acceptance-web` läuft, misst die Last des Abnahmelaufs und weiß
+  hinterher nicht, was er gesehen hat.
+- **RAM nicht mit Gewalt auf 85 % treiben.** Der naheliegende Weg dorthin endet
+  beim OOM-Killer, und der sucht sich sein Opfer selbst. CPU und Load lassen
+  sich gefahrlos auslösen (`yes` je Kern, danach `pkill -x yes`) und laufen
+  durch denselben Code — was dort warnt, warnt bei RAM auch.
+
+### Der Abnahmelauf für 0.3.1 ist durch — grün
+
+Gefahren am 5. August auf dem Zielserver, nach `docs/33`: beide
+Abnahmekommandos, die Schwellen der Verlaufskacheln unter echter Last (CPU und
+Load wechseln in die Warnfarbe und gehen danach zurück), Übersicht und
+Zertifikatsseite mit laufenden Diensten, die Sitzung auf dem Telefon nach fünf
+Minuten Bildschirmsperre, die Kundensicht, das Blättern mit gesetztem Filter.
+
+**Was das für P4 wert ist.** Der Rework hat `app/` angefasst, abgenommen war P3
+aus `0.3.0~rc.5`. Ohne diesen Lauf hätte jeder Fehlschlag in P4 zwei mögliche
+Ursachen gehabt, und die Unterscheidung wäre teurer gewesen als der Lauf. Ab
+hier kommt, was bricht, aus P4.
+
+### P4 — TLS
+
+Erster Wurf: ACME über HTTP-01, das Zertifikat der Oberfläche über dieselbe
+Strecke, die Kundenvorlage mit HTTPS. DNS-01 mit mehreren Anbietern und das
+Hochladen eigener Zertifikate sind der zweite Wurf. Die Entscheidungen und ihre
+Begründung stehen in `docs/32 §6`.
+
+#### Schritt 1: der ACME-Kern im Agenten
+
+Ein eigener Client statt `certbot` — reines PHP über die openssl-Erweiterung,
+unter `agent/src/Acme/`. **Der Ausschlag gab nicht die Codemenge, sondern die
+zweite Wahrheit:** certbot führt Zustand in `/etc/letsencrypt` und einen eigenen
+Timer, das Panel führt beides ebenfalls, und verbunden wären sie durch einen
+Pfad in einer nginx-Datei, den niemand nachprüft. Das ist wörtlich das Muster,
+an dem dieses Projekt sechsmal verloren hat.
+
+Drei Punkte kamen beim Nachsehen dazu, und jeder allein hätte gereicht:
+`php8.4-curl`, `ca-certificates` und `openssl` sind längst Abhängigkeiten des
+Pakets — ein eigener Client braucht **kein** neues. certbot liefe als
+Kindprozess des Agenten unter dessen Härtung, also mit
+`MemoryDenyWriteExecute=yes`, und an genau dieser Sorte Einschränkung ist hier
+schon einmal `dpkg` zerbrochen; gefunden hat das kein Test, sondern der erste
+Lauf auf einem echten Server. Und die certbot-Fassungen der vier Zielplattformen
+spreizen von 1.21 auf Ubuntu 22.04 bis zu deutlich neueren auf Debian 13 —
+weiter als nginx 1.18 gegen 1.25, woran die Einrichtung schon einmal fast
+gescheitert wäre.
+
+**`RS256` und nicht `ES256`.** Bei einem EC-Schlüssel liefert `openssl_sign` die
+Signatur in DER-Kodierung, JWS verlangt die beiden Zahlen roh hintereinander —
+dazwischen liegt ein kleiner ASN.1-Parser an der heikelsten Stelle des Clients,
+wo ein Fehler nicht abbricht, sondern als „unauthorized" von der Gegenseite
+zurückkommt. Mit RSA gibt `openssl_sign` genau das Format aus, das hineingehört.
+Das ausgestellte Zertifikat ist davon unberührt.
+
+**Die Naht für den zweiten Wurf ist von Anfang an da.** Der Ablauf einer
+Bestellung enthält keine Fallunterscheidung nach der Art der Prüfung; das
+erledigt die Schnittstelle `Challenge` mit `present`, `ready` und `cleanup`.
+`ready()` gibt es, obwohl HTTP-01 es nicht braucht: Ein TXT-Eintrag ist nicht
+da, weil die API des Anbieters „ok" gesagt hat, sondern erst, wenn die
+autoritativen Nameserver ihn ausliefern — und wer zu früh prüfen lässt,
+verbrennt einen der fünf Fehlversuche, die eine Stunde halten. Nachträglich
+eingezogen hätte dieser Schritt die Form jeder Operation geändert, die eine
+Bestellung fährt.
+
+**Ein gemeinsames Prüfverzeichnis für alle Domains**, nicht eines je Abonnement.
+Damit braucht kein Kunde irgendwo Schreibrechte, und eine Domain **ohne
+DocumentRoot** bekommt trotzdem ein Zertifikat — eine Weiterleitung beantwortet
+jede Anfrage selbst, ein gesperrtes Abonnement antwortet mit 503, und beide
+wären sonst dauerhaft von TLS ausgeschlossen. Dass die Vorlage das heute nicht
+hergibt, ist Schritt 3.
+
+`certbot` ist aus der Positivliste des Runners entfernt. Ein Programm, das der
+Agent als root starten darf und nie startet, ist Angriffsfläche mit
+Erlaubnisschein — und seine Erneuerungsdateien dürfen Hooks nennen, die bei
+jedem Lauf als root laufen.
+
+**`AcmeProtocolTest` prüft auf zwei Arten**, und die zweite ist die, die zählt.
+Der Fingerabdruck des Kontoschlüssels wird gegen den Testvektor aus RFC 7638
+gemessen — dieselbe Begründung wie bei TOTP: gegen den Standard belegen und
+nicht gegen sich selbst. Alles, was Ablauf ist, läuft gegen ein Drehbuch
+(`ScriptedTransport`): die Reihenfolge der Anfragen, der verbrauchte
+Einmalwert, der leere Rumpf, das Abräumen nach einem Fehlschlag. Gegen einen
+echten Server geprüft hiesse Netz in der CI, eine Ratenbegrenzung, die den Lauf
+sperrt — und keine Möglichkeit, den seltenen Fall herzustellen.
+
+Zwei Funde stammen aus dem Brechen selbst und nicht aus dem Bauen:
+
+- **Der leere Rumpf ist `{}` und nicht `[]`.** `json_encode([])` schreibt `[]`,
+  und ACME antwortet darauf mit „malformed" — an der einen Stelle, an der ein
+  leerer Rumpf vorkommt, beim Anstossen einer Prüfung. Aufgefallen wäre das erst
+  auf dem echten Server, denn ein Drehbuch antwortet ja trotzdem. Die
+  Sonderbehandlung steht bewusst in `sign()` und nicht in `json()`: Dort träfe
+  sie auch verschachtelte leere Listen, und aus `"contact": []` würde
+  `"contact": {}` — wieder „malformed", nur an einer Stelle, an der niemand
+  danach sucht.
+- **Der Testvektor allein bewacht die Feldreihenfolge nicht.** Er prüft
+  `thumbprintOf()` mit einem JWK aus dem RFC, bringt die Ordnung also selbst
+  mit. Wer sie in `jwk()` umstellt, kommt daran vorbei: Der Fingerabdruck wäre
+  falsch, der Vektor bliebe grün. Gemerkt hat das erst der Bruch — die zweite
+  Prüfung an der Stelle, an der die Reihenfolge entsteht, gibt es seitdem.
+
+Die sechs Brüche stehen in `tests/waechter-brechen.sh`. Das Skript sichert
+jetzt auch `agent/`; ausserdem trägt es einen Hinweis, den es brauchte: `git
+checkout` stellt nur wieder her, was git kennt — ein Bruch an noch nicht
+eingechecktem Code löscht ihn, statt ihn zu brechen.
+
+#### Nachtrag aus der ersten CI-Runde
+
+Pint meldete eine Datei mit zwei Regelverstössen, und der zweite hat mehr
+verändert als eine Formatierung.
+
+Der erste war schlicht: `{@see \SrvPanel\Agent\Runner}` im Klassenkommentar von
+`CurlTransport` — `fully_qualified_strict_types` fasst auch `@see` an und will
+den Namen importiert und kurz.
+
+Der zweite war `unary_operator_spaces`, und der Weg dorthin ist der Teil, der
+sich zu erzählen lohnt. Pint kürzt seine Meldung ab, PHPStan lief wegen des
+Abbruchs gar nicht erst, und hier gibt es kein `vendor/`, mit dem sich das
+nachstellen liesse. Statt zu raten: der Tokenizer von PHP, auf dem der Fixer
+selbst arbeitet. Er entlastete beide `!` und das binäre `+` und liess drei
+`&`-Referenzen übrig — die Closures, die Kopfzeilen und Rumpf über
+`use (&$…)` einsammelten.
+
+**Die Antwort war nicht, ein Leerzeichen zu verschieben.** Die drei Referenzen
+waren das Symptom: Der Deckel auf der Antwortgrösse stand als Bedingung mitten
+in der Konfigurationsablage von curl, zusammen mit zwei weiteren Zuständen. Er
+liess sich damit nur befragen, indem man eine Gegenstelle baut, die zuviel
+schickt — also gar nicht. Er war eine Zusage ohne Wächter, drei Tage nachdem
+das Projekt sich vorgenommen hat, keine mehr zu bauen.
+
+`ResponseBuffer` nimmt jetzt Kopfzeilen und Rumpf auf und trägt die Regel als
+Methode mit Rückgabewert. Die Closures kommen ohne `&` aus, der Deckel hat einen
+Test, und der Bruch dazu steht im Skript. Dass Pint den Anstoss gab, ändert
+nichts daran, dass die Stelle vorher schlechter war.
+
+#### Schritt 2: das Zertifikat als eigener Gegenstand
+
+Ein Zertifikat ist eine Zeile mit einer **Namensliste**, an der Domains hängen
+— nicht eine Spalte an der Domain. Das ist die Entscheidung, die nachträglich
+am teuersten wäre: Ein Wildcard `*.example.de` gehört zu keiner einzelnen
+Domainzeile, und mit der umgekehrten Modellierung bräche der zweite Wurf das
+Datenmodell auf, samt Mandantenklammer und Migration.
+
+**Zwei getrennte Angaben, und das ist Absicht.** `certificates.names` sagt, was
+das Zertifikat *behauptet*; `domains.certificate_id` sagt, was nginx für diese
+Domain *ausliefert*. Aus dem einen auf das andere zu schliessen ist genau der
+Fehler, der eine Namenswarnung im Browser erzeugt — und die bemerkt niemand,
+weil die Seite lädt.
+
+**`subscription_id` darf null sein**, denn das Zertifikat der Oberfläche gehört
+keinem Kunden. Für einen Kunden ist es damit unsichtbar: `null` ist kein
+Treffer in einem `where subscription_id in (…)`. Wer eines anlegt, muss die
+Null ausdrücklich hinschreiben — sonst trägt `BelongsToSubscription` den gerade
+aktiven Mandanten ein, dieselbe Falle wie bei einem Vorgang des Betreibers, der
+aus einer Kundenanfrage heraus entsteht.
+
+**`nullOnDelete` und nicht `cascadeOnDelete`.** Verschwindet ein Zertifikat,
+verliert die Domain ihren Verweis — mitgehen darf sie nicht. Ein `cascade`
+hätte eine Domain gelöscht, weil ihr Zertifikat abgelaufen ist.
+
+`CertificateCoverageTest` prüft die Regel, an der man sich verrechnet: Ein
+Platzhalter deckt **genau eine Beschriftung**. `*.example.de` gilt für
+`www.example.de`, aber weder für `example.de` noch für `a.b.example.de` — und
+ohne den Punkt im Vergleich deckte er auch `notexample.de`. Elf Fälle als
+Tabelle.
+
+**Die Regel steht im Modell und nicht beim Aufrufer.** `Domain` lässt eine
+Zuordnung ohne Deckung gar nicht erst zu; es wird davon drei Aufrufer geben
+(Einspielen, Erneuern, Hochladen), und drei Stellen mit derselben Prüfung sind
+zwei Gelegenheiten, sie zu vergessen. Geprüft wird nur beim Setzen — ein
+Speichern, das den Verweis nicht anfasst, kostet keine Abfrage.
+
+**Und die Prüfung liest ohne Mandantenklammer.** Sie steht im Grundzustand auf
+„nichts", und in einem Kommando oder einem Job ist das der Normalfall; ein
+gewöhnliches `find()` lieferte dort `null`, und der Wächter hätte eine richtige
+Zuordnung abgewiesen — *ein Wächter, der beim Arbeiten zubeisst, wird beim
+Arbeiten abgeschaltet.* Dasselbe Muster hat drei Wächter des Optik-Reworks
+getroffen; es hat hier einen eigenen Testdurchgang.
+
+**Was in Schritt 2 bewusst fehlt: die Policy.** `PolicyReachTest` verlangt zu
+jeder Fähigkeit einen Weg — eine Route, ein `authorize`, ein `can`. Die Routen
+entstehen mit der Oberfläche; eine `CertificatePolicy` jetzt hiesse, vier
+Einträge in die Ausnahmeliste zu schreiben, deren Begründung „kommt noch"
+wäre. Genau davor warnt der Kommentar an dieser Liste: Sie wächst über Jahre,
+und irgendwann steht darin, was jemand nicht nachziehen wollte.
+
+#### Schritt 3: die Prüfadresse kommt überall an
+
+**`docs/32` hat sich an dieser Stelle geirrt, und der Irrtum wäre teuer
+geworden.** Dort stand, die Kundenvorlage trage HTTP-01 schon halb: Sie hört
+auf Port 80, und `.well-known` ist vom Punktdatei-Schutz ausgenommen. Diese
+Ausnahme steht aber nur im **ausliefernden** Zweig. Eine Weiterleitung
+beantwortet jede Anfrage mit `return 302` und sucht nie eine Datei; ein
+gesperrtes Abonnement antwortet mit 503. **Beide hätten nie ein Zertifikat
+bekommen** — dauerhaft, und ohne dass irgendwo etwas gemeldet hätte.
+
+Der `location`-Block entsteht deshalb **einmal, oberhalb der
+Fallunterscheidung**. Was strukturell nicht vergessen werden kann, muss später
+niemand nachtragen.
+
+**Und die Oberfläche bekommt einen eigenen Block auf Port 80.** Sie hört auf
+8443 und sonst nirgends; die Prüfung fragt immer über Port 80. Ohne diesen
+Block bekäme ausgerechnet das Panel nie ein Zertifikat, während jede
+Kundendomain eines bekommt. Er trägt den **Rechnernamen** und nicht `_`: Ein
+`server_name _;` trifft keinen echten Host-Header, er wirkte nur als
+Vorgabeserver — und der ist auf Port 80 längst vergeben, weil nginx
+`conf.d/srvpanel-sites.conf` vor `conf.d/srvpanel.conf` liest. Der Name kommt
+aus `Names::host()`, der einzigen Stelle, die diese Frage beantworten darf.
+
+**Der Schnipsel steht in `HttpChallenge` und nicht in den beiden Vorlagen.**
+Ablageort und ausliefernde Zeile sind eine Zusage; wer das Verzeichnis ändert
+und eine Vorlage vergisst, bekommt keine Fehlermeldung, sondern eine Prüfung,
+die nichts findet. Zwei Formulierungen derselben Regel sind der Fehler, der
+dieses Projekt sechsmal getroffen hat.
+
+**`root` und nicht `alias`** — die Stelle, die still danebengeht. `root` hängt
+den *ganzen* Pfad aus der Adresse an das Verzeichnis an, und genau dorthin
+schreibt `HttpChallenge::present()`. Mit `alias` läge der gesuchte Pfad zwei
+Ebenen höher als der geschriebene, und die Prüfung scheiterte mit
+„unauthorized" — einer Meldung, in der von Pfaden nichts steht.
+`ChallengeLocationTest` hält beide Hälften zusammen: Es schreibt eine echte
+Prüfdatei und misst, dass der Teil unterhalb des Verzeichnisses genau der Pfad
+aus der Adresse ist.
+
+Dazu `^~`, damit der Präfix jede Regex-Regel schlägt — sonst entschiede
+`location ~ /\.` über die Prüfadresse und verweigerte sie. Der
+Punktdatei-Schutz bleibt trotzdem stehen: Im DocumentRoot liegen weitere
+`.well-known`-Dateien, die abgerufen werden sollen.
+
+Drei Brüche im Wächterskript, alle gegengeprüft: `alias` statt `root`, die
+Prüfadresse aus der Kundenvorlage entfernt, der Panel-Block wieder mit `_`.
+
+#### Nachtrag: zwei Pint-Befunde aus Schritt 2
+
+`fully_qualified_strict_types` an zwei Stellen, dazu je eine Folgeregel. Die
+Ursache waren voll ausgeschriebene Klassennamen in `{@see …}`; sie stehen jetzt
+als Import da und im Text nur noch kurz. Dieselbe Stelle in `HttpChallenge` ist
+gleich mitgegangen, bevor sie in der nächsten Runde auffällt.
+
+**Und die Längenrechnung in `Certificate::covers()` ist ausgeschrieben.** Sie
+stand als `substr($wanted, 0, -strlen($suffix))` da — ein unäres Minus, und
+`unary_operator_spaces` hatte etwas daran auszusetzen. Was jetzt dasteht,
+`strlen($wanted) - strlen($suffix)`, sagt dasselbe und liest sich als das, was
+es ist: die Länge ohne den Platzhalterteil. Die elf Deckungsfälle sind
+unverändert grün.
+
+#### Schritt 4: die Operationen — und die Regel, die niemand bemerkt
+
+Drei Operationen im Agenten: `acme.account.ensure`, `acme.certificate.issue`
+und `acme.certificate.info`. Der Kontoschlüssel und der Schlüssel des
+Zertifikats entstehen dort und überqueren den Socket nie; zurück geht, was auch
+jeder Browser sieht.
+
+**Das Panel nennt einen Schlüssel, keine Adresse.** `Directories` ist eine
+Positivliste mit zwei Einträgen — Testbetrieb und Produktion. Nähme der Agent
+eine URL entgegen, wäre die Anwendung eine Fernsteuerung dafür, wohin ein
+Prozess als root eine TLS-Verbindung aufbaut und wem er den Fingerabdruck
+seines Kontoschlüssels zeigt; die Prüfung „fängt mit https an" wäre dabei keine
+Schranke, sondern eine Formalie. Dieselbe Entscheidung wie im Aufgabenkatalog
+des Panels und bei der Programm-Positivliste des Runners. **Ohne Angabe gilt
+der Testbetrieb** — ein vertippter Wert, der still produktiv landet, ist der
+Weg in eine Sperre, die Stunden hält.
+
+**Wer ein Zertifikat einspielt, schreibt danach den Server-Block neu.** Das ist
+die Falle aus `docs/32 §8`, und sie ist die unangenehme Sorte: Es bricht nichts
+ab. Der Block entsteht bei `web.site.apply`, und ob `Strict-Transport-Security`
+darin steht, entscheidet sich an dem Zertifikat, das dabei gelesen wird. Wer
+ein vertrautes Zertifikat ablegt und die Operation nicht ruft, bekommt ein
+vertrautes Zertifikat **ohne** den Header — die Seite läuft, das Protokoll ist
+leer, und niemand sucht danach.
+
+**Bestellt wird von selbst, und der Auslöser ist kein Knopf.** Das
+Abnahmekriterium der Stufe verlangt ein Zertifikat „ohne Zutun des Admins";
+der Auslöser ist deshalb der fertige Server-Block. Vorher ist die Domain über
+Port 80 nicht erreichbar, und die Prüfung könnte gar nicht gelingen.
+
+**Und die beiden zusammen wären eine Schleife** — Bestellung, Zuordnung, Block
+neu, Bestellung. Dass sie aufhört, ist keine Beobachtung, sondern eine Zusage:
+Bestellt wird nur, wenn die Domain noch kein Zertifikat hat, und die Zuordnung
+passiert **vor** dem neuen Block. `CertificateReapplyTest` hat dafür einen
+eigenen Durchgang; ohne ihn liefe eine Warteschlange, bis die Ratenbegrenzung
+sie anhält.
+
+**Ohne Kontaktadresse bestellt das Panel nichts.** Der naheliegende Weg wäre,
+die Adresse des ersten Adminkontos zu nehmen — und das wäre geraten. Sie ist
+die Stelle, an die Let's Encrypt schreibt, wenn ein Zertifikat abzulaufen
+droht; sie gehört gesetzt und nicht abgeleitet.
+
+Dazu, aus dem Bauen: **Platzhalter werden abgewiesen** (über HTTP-01 gibt es
+kein Wildcard, und die Zertifizierungsstelle antwortet darauf mit einer
+Meldung, die das nicht sagt), **höchstens fünf Namen je Bestellung** (eine über
+hundert scheitert an einem einzigen nicht auflösbaren Namen und nimmt
+neunundneunzig mit), und `Domain::serverNames()` als die eine Liste der Namen,
+unter denen ein Block antwortet — ein Zertifikat, das nur den ersten deckt,
+warnt bei jedem Alias.
+
+#### Schritt 4b: die beiden Lücken, ohne die auf dem Server nichts passiert
+
+Nach Schritt 4 stand die ganze Strecke — und ein Server hätte trotzdem kein
+einziges Zertifikat ausgeliefert. Zwei Enden fehlten, jedes für sich still.
+
+**Die Kontaktadresse liess sich nicht setzen.** Ohne sie bestellt das Panel
+nichts, das Formular dafür kommt mit der Oberfläche in Schritt 6, und dazwischen
+sähe TLS aus wie kaputt: Es passiert nichts, und nichts meldet sich.
+`srvpanel tls --contact=… --directory=staging|production` schliesst die Lücke an
+dem Kommando, das ohnehin so heisst. Beides wird **dort** geprüft und nicht erst
+beim Bestellen — eine Adresse, die keine ist, fiele sonst erst auf, wenn ein
+Kunde eine Domain anlegt, und dann als Vorgang, der ohne Zutun scheitert. Der
+Schlüssel der Zertifizierungsstelle geht durch dieselbe Positivliste, die auch
+der Agent befragt. Ein Lauf mit Optionen fragt den Agenten nicht: Wer etwas
+einträgt, will nichts erneuern.
+
+**Zusammengelegt und nicht ersetzt.** Beide Angaben liegen unter demselben
+Schlüssel, und dort wird künftig der Zugang eines DNS-Anbieters dazukommen. Ein
+`updateOrCreate` mit der halben Ablage löschte die andere Hälfte — lautlos, und
+danach steht die Zertifizierungsstelle richtig da, während die Kontaktadresse
+fehlt und nichts mehr bestellt wird.
+
+**Und die Kundenvorlage kannte `ssl_certificate` nicht.** Ein ausgestelltes
+Zertifikat lag damit im Ablageort und wurde von niemandem ausgeliefert.
+Sie hat jetzt einen zweiten Server-Block auf 443, und Port 80 beantwortet nur
+noch die Prüfadresse und leitet dauerhaft weiter (`301`, nicht `302` — die
+Umstellung ist nicht vorläufig).
+
+**Ob es einen gibt, sieht der Agent selbst nach.** Der Pfad kommt nicht aus der
+Anwendung: Bei `ssl_certificate` wäre das dieselbe Freiheit wie bei `root` — die
+Erlaubnis, eine beliebige Datei des Servers zu benennen. Und daran hängt der
+dritte Teil des Abnahmekriteriums: **Ohne Zertifikat keine Weiterleitung.** Eine
+Domain, die auf HTTPS umleitet, während auf 443 niemand hört, ist nicht „noch
+nicht gesichert" — sie ist weg, und genau das passierte bei jeder gescheiterten
+Bestellung.
+
+**Ein halbes Zertifikat ist keines.** Bricht ein Lauf zwischen den beiden
+Schreibvorgängen ab, liegt die Kette da und der Schlüssel nicht. Ein
+`ssl_certificate` ohne `ssl_certificate_key` lässt nginx **nicht starten** —
+dann steht nicht eine Domain still, sondern der Webserver mit allen. `Store`
+antwortet deshalb mit beiden Pfaden oder mit nichts.
+
+**Kein `http2` und kein `ssl_stapling`, beides mit Absicht.** Die eigenständige
+`http2`-Direktive gibt es erst seit nginx 1.25.1; davor ist HTTP/2 ein Parameter
+an `listen`. Drei der vier Zielplattformen bringen die ältere Fassung mit, und
+die falsche Schreibweise macht die Einrichtung unmöglich — dieselbe Wette, an
+der P0 schon einmal fast gescheitert wäre. Sie kommt, wenn die Abfrage aus
+`PanelVhost` an einer Stelle steht, die beide Vorlagen fragen. Und Let's Encrypt
+hat OCSP eingestellt: Eine Direktive, die auf eine Adresse zeigt, die im
+Zertifikat nicht mehr steht, ist eine Zeile ohne Wirkung.
+
+Der Reihenfolgetest ist dabei der eigentliche. Beide Blöcke tragen
+`server_name`, `access_log` und `error_log`; ein Ausdruck, der nur nach dem
+Vorkommen von `root` fragt, wäre auch dann grün, wenn der Inhalt im
+**unverschlüsselten** Block stünde — auf beiden Adressen antwortet ja etwas.
+Geprüft wird deshalb, dass er genau einmal dasteht und hinter `listen 443`.
+
+Drei weitere Brüche im Wächterskript: die Weiterleitung ohne Zertifikat, das
+halbe Zertifikat, die ersetzte statt zusammengelegte Einstellung.
+
+#### Nachtrag: der Zähler stand auf dem Bestand
+
+`CertificateReapplyTest::test_the_two_rules_do_not_chase_each_other` war rot,
+während die Regel hielt. Der Durchgang spielt zuerst ein Zertifikat ein — und
+der Vorgang, mit dem er das tut, heisst selbst `acme.certificate.issue` und
+steht in derselben Tabelle wie das, wonach danach gesucht wird. Erwartet waren
+null Bestellungen, dagestanden hat die eigene aus dem Aufbau.
+
+Das ist wörtlich die Falle, die in CLAUDE.md unter „drei Wächter des
+Optik-Reworks" steht, nur andersherum: Wer zählt, muss zählen, was
+**dazukommt**. Gemessen wird jetzt der Zuwachs. Der Bruch dazu beisst
+unverändert — ohne die Bedingung im Lebenslauf kommt eine zweite Bestellung
+hinzu, und genau das ist der Unterschied, den der Zähler sehen soll.
+
+#### Nachtrag: zwei Namen, die der Basisklasse gehören
+
+An einem Tag zweimal dieselbe Sorte Fehler, und beide brechen beim **Laden** der
+Klasse statt beim Ausführen: `count()` in einem PHPUnit-Testfall — dort ist der
+Name `final`, die Datei liess sich nicht einmal einlesen — und `configure()` als
+private Hilfsmethode in einem Artisan-Kommando, wo Symfony ihn `protected`
+belegt. Der zweite hielt nicht ein Kommando an, sondern `artisan` mit allen: Die
+Klasse wird beim Einlesen der Kommandos geladen, also schon bei
+`package:discover`.
+
+`php -l` sieht davon nichts, und hier gibt es kein `vendor/`, mit dem sich das
+nachstellen liesse — beide haben je eine Runde CI gekostet. Die Regel steht
+jetzt in CLAUDE.md: Wer in einer abgeleiteten Klasse eine private Hilfsmethode
+einzieht, sieht vorher in der Basisklasse nach.

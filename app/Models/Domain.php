@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use RuntimeException;
 use SrvPanel\Agent\DocumentRoot;
 use SrvPanel\Agent\DomainName;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
@@ -38,6 +39,7 @@ use SrvPanel\Agent\Ops\SubscriptionProvision;
  *
  * @property int $id
  * @property int $subscription_id
+ * @property int|null $certificate_id
  * @property int|null $parent_domain_id
  * @property string $name
  * @property DomainType $type
@@ -49,6 +51,7 @@ use SrvPanel\Agent\Ops\SubscriptionProvision;
  * @property string|null $redirect_target
  * @property RedirectKind|null $redirect_kind
  * @property-read Subscription|null $subscription
+ * @property-read Certificate|null $certificate
  * @property-read Domain|null $parent
  * @property-read Collection<int, Domain> $children
  */
@@ -112,6 +115,77 @@ class Domain extends Model
         static::deleted(static function (Domain $domain): void {
             $domain->projectMainDomain(null);
         });
+
+        /*
+         * **Ein Zertifikat, das diese Domain nicht deckt, wird ihr nicht
+         * zugeordnet.**
+         *
+         * Die Regel steht hier und nicht beim Aufrufer, weil es davon mehrere
+         * geben wird: das Einspielen nach einer Bestellung, die Erneuerung,
+         * später das Hochladen. Drei Stellen mit derselben Prüfung heisst zwei
+         * Gelegenheiten, sie zu vergessen — und was dann entsteht, ist kein
+         * Fehler, den jemand meldet: Die Seite lädt, der Browser zeigt eine
+         * Namenswarnung, und der Betreiber sieht sie nie, weil er die eigene
+         * Domain im Zertifikatsspeicher stehen hat.
+         *
+         * Geprüft wird nur beim Setzen — ein Speichern, das den Verweis nicht
+         * anfasst, kostet keine Abfrage.
+         */
+        static::saving(static function (Domain $domain): void {
+            $domain->guardCertificateCoverage();
+        });
+    }
+
+    /**
+     * Das Zertifikat, das nginx für diese Domain ausliefert.
+     *
+     * **Nicht in `$fillable`.** Der Verweis kommt aus einem Vorgang und nie aus
+     * einem Formular; stünde er dort, könnte ein Kunde beim Bearbeiten seiner
+     * Domain eine fremde Zertifikatsnummer mitschicken. Die Deckungsprüfung
+     * unten finge das meistens ab — aber nicht bei einem Wildcard, das den
+     * Namen zufällig deckt.
+     *
+     * @return BelongsTo<Certificate, $this>
+     */
+    public function certificate(): BelongsTo
+    {
+        return $this->belongsTo(Certificate::class);
+    }
+
+    /**
+     * Die Prüfung zur Zuordnung — siehe den Kommentar in {@see self::booted()}.
+     *
+     * **Ohne die Mandantenklammer, und das will begründet sein.** Sie steht im
+     * Grundzustand auf „nichts", und in einem Kommando oder einem Job ist das
+     * der Normalfall. Ein `Certificate::find()` lieferte dort `null`, und diese
+     * Prüfung wiese eine Zuordnung ab, die richtig ist — der Wächter würde beim
+     * Arbeiten zubeissen, statt beim Fehler. Gelesen wird hier nichts, was
+     * jemand zu sehen bekommt: Die Antwort ist ein Ja oder Nein über eine
+     * Nummer, die der Aufrufer schon hat.
+     */
+    private function guardCertificateCoverage(): void
+    {
+        if ($this->certificate_id === null || ! $this->isDirty('certificate_id')) {
+            return;
+        }
+
+        $certificate = Certificate::query()->withoutGlobalScopes()->find($this->certificate_id);
+
+        if ($certificate === null) {
+            throw new RuntimeException(sprintf(
+                'Zertifikat %d gibt es nicht — %s bekommt es nicht zugeordnet.',
+                $this->certificate_id,
+                $this->name,
+            ));
+        }
+
+        if (! $certificate->covers($this->name)) {
+            throw new RuntimeException(sprintf(
+                'Das Zertifikat deckt %s nicht ab. Gedeckt sind: %s.',
+                $this->name,
+                implode(', ', $certificate->coveredNames()) ?: 'keine Namen',
+            ));
+        }
     }
 
     /** @return BelongsTo<Domain, $this> */
@@ -124,6 +198,32 @@ class Domain extends Model
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_domain_id');
+    }
+
+    /**
+     * Alle Namen, unter denen diese Domain antwortet.
+     *
+     * **Dieselbe Liste wie im `server_name` des Agenten**, und aus demselben
+     * Grund an einer Stelle: Ein Zertifikat muss jeden Namen decken, unter dem
+     * der Block antwortet. Deckt es nur den ersten, warnt der Browser bei jedem
+     * Alias — und die Seite lädt trotzdem, weshalb es niemand meldet.
+     *
+     * Aliasse sind Kinder ohne eigenen Block; Subdomains und Zusatzdomains
+     * haben einen eigenen und stehen deshalb nicht hier.
+     *
+     * @return list<string>
+     */
+    public function serverNames(): array
+    {
+        $names = [$this->name];
+
+        foreach ($this->children as $child) {
+            if ($child->type === DomainType::Alias) {
+                $names[] = $child->name;
+            }
+        }
+
+        return $names;
     }
 
     /** Leitet diese Domain weiter, statt eigene Dateien auszuliefern? */

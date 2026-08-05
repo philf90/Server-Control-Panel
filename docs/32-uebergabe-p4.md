@@ -105,6 +105,13 @@ auf HTTPS. Eine Kundendomain spricht Klartext. Das ist der Teil, der die Vorlage
 selbst anfasst — und damit `SiteTemplateTest` und `PhpIsolationTest` berührt,
 die die erzeugte Zeichenkette als Text prüfen.
 
+> **Nachgetragen in Schritt 4b.** Die Vorlage hat jetzt einen zweiten Block auf
+> 443; Port 80 beantwortet nur noch die Prüfadresse und leitet weiter. Ob es ein
+> Zertifikat gibt, sieht der Agent über `Store` selbst nach — **ohne Zertifikat
+> keine Weiterleitung**, sonst nähme jede gescheiterte Bestellung eine laufende
+> Website vom Netz. `http2` und `ssl_stapling` fehlen mit Absicht; die Gründe
+> stehen im Changelog.
+
 ---
 
 ## 5. Das Abnahmekriterium, und wie man es misst
@@ -138,6 +145,76 @@ Sie gehören in den ersten Prompt, sonst rät die Session:
    dahin braucht ein Wildcard einen externen Anbieter mit API.
 4. **Eigenes Zertifikat hochladen:** in P4 oder später. Es steht in der
    Stufenliste, hängt aber an nichts, was ACME braucht.
+
+### Getroffen am 5. August 2026
+
+| Frage | Antwort |
+|---|---|
+| Woher ACME | **Eigener Client im Agenten**, reines PHP über die openssl-Erweiterung — kein certbot, kein lego |
+| Verzeichnis | **Staging zuerst**, umschaltbar als Einstellung, im Panel als Testbetrieb gekennzeichnet |
+| Konto | **Eines je Server** — der Kontoschlüssel entsteht im Agenten und verlässt ihn nie, ein gemeinsames Konto wäre nur mit einem Schlüssel über den Socket zu haben |
+| Kontaktadresse | Einstellung auf `/settings/tls` — und **nicht** vorbelegt: An diese Adresse schreibt die Zertifizierungsstelle, sie gehört gesetzt und nicht aus dem ersten Adminkonto geraten. Bis das Formular steht, setzt sie `srvpanel tls --contact=…` |
+| Erster Wurf | HTTP-01, Panel-Zertifikat, Vorlage (`ssl_certificate`, Weiterleitung, Chiffren, OCSP-Stapling), Erneuerung als Zeitplan mit Warnung und Protokoll |
+| Zweiter Wurf | **DNS-01 mit mehreren Anbietern** — welche, steht noch offen. Dazu eigenes Zertifikat hochladen |
+
+**Warum der eigene Client.** certbot führt Zustand in `/etc/letsencrypt` und
+einen eigenen Timer; das Panel führt beides ebenfalls. Zwei Wahrheiten über
+dieselbe Sache, verbunden durch einen Pfad in einer nginx-Datei, den niemand
+nachprüft — das ist wörtlich das Muster, an dem dieses Projekt sechsmal verloren
+hat. Dazu drei Punkte, die erst beim Nachsehen auftauchten: `php8.4-curl`,
+`ca-certificates` und `openssl` sind schon Abhängigkeiten des Pakets, ein
+eigener Client braucht also **kein** neues; certbot liefe als Kindprozess unter
+`MemoryDenyWriteExecute=yes` aus `srvpanel-agentd.service`, und an genau dieser
+Sorte Härtung ist hier schon einmal `dpkg` zerbrochen — gefunden vom ersten Lauf
+auf einem echten Server und von keinem Test; und die certbot-Fassungen der vier
+Zielplattformen spreizen von 1.21 auf Ubuntu 22.04 über 2.1 auf Debian 12 bis zu
+deutlich neueren auf Debian 13 und Ubuntu 24.04 — weiter als nginx 1.18 gegen
+1.25, woran die Einrichtung schon einmal fast gescheitert wäre.
+
+**Der Kontoschlüssel ist RSA und nicht EC.** `openssl_sign` liefert bei einem
+EC-Schlüssel eine DER-Signatur, JWS `ES256` will rohes R‖S — dreißig Zeilen
+ASN.1 an der heikelsten Stelle des Clients. Mit `RS256` entfällt das ersatzlos,
+und Let's Encrypt nimmt beides. Das ausgestellte Zertifikat darf trotzdem ECDSA
+sein: dessen Signatur macht `openssl_csr_new()`, und dieser Aufruf steht in
+`PanelTls` schon.
+
+### Was der erste Wurf für den zweiten offenhalten muss
+
+Drei Entscheidungen, die nachträglich Umbau wären statt Ergänzung:
+
+1. **Die Challenge ist eine Strategie und kein `if`.** Der Ablauf einer
+   Bestellung ist für HTTP-01 und DNS-01 derselbe; verschieden sind genau zwei
+   Schritte, hinlegen und abräumen. Eine Schnittstelle mit `type()`,
+   `present()`, `cleanup()` — HTTP-01 als erste Umsetzung.
+2. **Dazu `ready()`, auch wenn HTTP-01 es nicht braucht.** Ein `TXT`-Eintrag ist
+   nicht da, weil die API „ok" gesagt hat, sondern wenn die autoritativen
+   Nameserver ihn ausliefern. Wer zu früh prüfen lässt, verbrennt einen der fünf
+   Versuche je Konto und Stunde. Bei HTTP-01 ist die Antwort schlicht `true`;
+   nachträglich eingezogen ändert der Schritt die Form jeder Operation, die eine
+   Bestellung fährt.
+3. **Ein Zertifikat ist ein eigener Gegenstand mit einer Namensliste**, an dem
+   Domains hängen — nicht eine Spalte an `domains`. `*.example.com` gehört zu
+   keiner einzelnen Domainzeile, und ein Zertifikat trägt mehrere Namen. Die
+   umgekehrte Modellierung bräche im zweiten Wurf samt Mandantenklammer, Policy
+   und Migration auf.
+
+Offen bleibt, und das darf es: welche Anbieter und in welcher Reihenfolge, und
+ob die Zugangsdaten am Betreiber hängen oder am Abonnement. Solange die Token in
+`Setting` (`encrypted:array`, wie beim Mailversand) oder an einem eigenen Modell
+liegen und nicht in der Challenge-Klasse, entscheidet das am ersten Wurf nichts.
+
+### Zwei Funde, die von der Wahl des Clients unabhängig sind
+
+- **Weiterleitungs- und gesperrte Domains können HTTP-01 heute nicht bestehen.**
+  Die `.well-known`-Ausnahme steht nur im `serving()`-Zweig von
+  `agent/src/SiteTemplate.php`. Eine Weiterleitung beantwortet
+  `location /` mit `return 302` für *alles*, eine gesperrte Domain mit
+  `return 503` — die Prüfdatei ist unerreichbar. §2 sagt, die Vorlage trage
+  HTTP-01 „schon halb"; die Hälfte ist kleiner als dort angenommen. Die Antwort
+  ist ein `location ^~ /.well-known/acme-challenge/` in **allen drei** Zweigen.
+- **Ein gemeinsames Prüfverzeichnis statt eines je Abonnement.** Dann braucht
+  kein Kunde irgendwo Schreibrechte, und eine Domain ohne DocumentRoot bekommt
+  trotzdem ein Zertifikat.
 
 ---
 

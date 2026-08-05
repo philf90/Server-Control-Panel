@@ -1931,3 +1931,28 @@ Das ist dasselbe Muster wie beim Bruchskript, dessen `sed` ins Leere lief:
 jetzt einmal in `Tests\Support\WithoutPhpComments` und kommt von
 `token_get_all()` — der Parser weiss, was Zeichenkette ist und was Kommentar.
 Ein regulärer Ausdruck weiss es nie.
+
+### Ein Aufräumen, das die Einrichtung zerbrochen hat — und was daran fehlte
+
+`Setup::reachableHost()` holte den Rechnernamen selbst, nur um ihn an
+`Names::fqdn()` weiterzureichen. Die Zeile fiel weg; die beiden Stellen weiter
+unten, die dieselbe Variable benutzten, blieben stehen. Ergebnis: „Undefined
+variable $name" mitten in `srvpanel setup` — nachdem Datenbank, Zertifikat,
+Webserver, Migrationen und Dienste schon standen.
+
+**Gemeldet hat es der Installationslauf der CI, nicht der Testlauf.** Und das
+ist der eigentliche Befund: Kein Test ging durch diesen Zweig, PHPStan ist in
+der Entwicklungsumgebung nicht lauffähig — der Fehler war lokal auf keinem Weg
+zu sehen.
+
+Zwei Dinge daraus:
+
+- `NamesTest` ruft `reachableHost()` jetzt auf und prüft, dass die Einrichtung
+  eine Adresse aus Zeichen nennt. `Names::host()` gibt notfalls `localhost`
+  statt einer leeren Zeichenkette: Wer sie aufruft, baut eine Adresse, und aus
+  einem leeren Namen würde `https://:8443`.
+- **`failOnWarning`, `failOnNotice` und `failOnDeprecation` stehen jetzt in
+  `phpunit.xml`.** Ohne sie lief der neue Test grün *mit* einer Warnung — genau
+  der Warnung, die auf dem Server zum Abbruch führte. Eine Warnung, die niemand
+  rot macht, ist eine Warnung, die niemand liest. Der gesamte Lauf ist auch mit
+  der Verschärfung grün; es gab keine Altlasten.

@@ -329,14 +329,16 @@ final class Setup extends Command
 
         $address = Names::primaryAddress();
 
+        // Ab hier gibt es keinen vollständigen Namen — übrig bleibt der
+        // Knotenname, und den liefert `Names::host()`. Er ist nie leer.
         if ($address === null) {
-            return [$name !== '' ? $name : 'localhost', null];
+            return [Names::host(), null];
         }
 
         return [$address, sprintf(
             'Der Rechnername „%s" enthält keine Domain und ist von außen nicht'."\n".
             '  auflösbar; deshalb steht hier die IP-Adresse.',
-            $name !== '' ? $name : 'unbekannt',
+            Names::host(),
         )];
     }
 

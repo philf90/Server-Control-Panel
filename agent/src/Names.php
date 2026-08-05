@@ -143,7 +143,13 @@ final class Names
      */
     public static function host(): string
     {
-        return self::fqdn() ?? trim(php_uname('n'));
+        $name = self::fqdn() ?? trim(php_uname('n'));
+
+        // `localhost` als letzte Antwort und nicht die leere Zeichenkette: Wer
+        // hier fragt, baut eine Adresse. Aus einem leeren Namen würde
+        // `https://:8443` — eine Adresse, die nirgends hinführt und wie ein
+        // Tippfehler aussieht.
+        return $name !== '' ? $name : 'localhost';
     }
 
     /**

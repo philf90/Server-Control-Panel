@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Console\Commands\Setup;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Names;
 
@@ -106,5 +107,50 @@ final class NamesTest extends TestCase
         } else {
             $this->assertSame($node, $names['dns'][0]);
         }
+    }
+
+    /**
+     * `host()` gibt immer einen Namen — auch wenn es keinen vollständigen gibt.
+     *
+     * **Warum diese Zusicherung eine eigene Prüfung wert ist.** Wer sie
+     * aufruft, baut eine Adresse: `https://<name>:8443`. Eine leere Antwort
+     * ergäbe `https://:8443` — nirgendwohin, und es sähe aus wie ein
+     * Tippfehler. Ohne die Zusicherung stünde beim nächsten Aufrufer wieder
+     * ein `?? php_uname('n')` daneben, und damit wäre der Rechnername zum
+     * fünften Mal an einer neuen Stelle beantwortet.
+     */
+    public function test_the_best_name_is_never_empty(): void
+    {
+        $name = Names::host();
+
+        $this->assertNotSame('', $name);
+        $this->assertSame(trim($name), $name);
+    }
+
+    /**
+     * Und die Einrichtung nennt eine Adresse, die aus Zeichen besteht.
+     *
+     * **Der Anlass ist ein Fehler, den hier nichts gemeldet hat.** Beim
+     * Aufräumen fiel in `Setup::reachableHost()` die Zeile weg, die `$name`
+     * setzte — die beiden Stellen, die es weiter unten benutzten, blieben
+     * stehen. Kein Test lief durch diesen Zweig, PHPStan ist in dieser
+     * Umgebung nicht lauffähig, und gemeldet hat es erst der Installationslauf
+     * der CI: „Undefined variable $name" mitten in `srvpanel setup`, nachdem
+     * Datenbank, Zertifikat und Dienste schon standen.
+     *
+     * Die Prüfung ruft die Methode über Reflexion auf. Das ist die Ausnahme
+     * und nicht die Regel — sie ist hier gerechtfertigt, weil der Zweig sonst
+     * ausschliesslich auf einem frisch aufgesetzten Server läuft.
+     */
+    public function test_the_setup_names_an_address_made_of_characters(): void
+    {
+        $command = new Setup;
+        $method = new \ReflectionMethod($command, 'reachableHost');
+
+        /** @var array{0:string,1:?string} $result */
+        $result = $method->invoke($command);
+
+        $this->assertIsString($result[0]);
+        $this->assertNotSame('', $result[0]);
     }
 }

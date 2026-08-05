@@ -6,6 +6,7 @@ namespace SrvPanel\Agent;
 
 use SrvPanel\Agent\Acme\HttpChallenge;
 use SrvPanel\Agent\Acme\Store;
+use SrvPanel\Agent\Ops\PanelVhost;
 
 /**
  * Der Server-Block einer Kundenwebsite.
@@ -136,9 +137,9 @@ final class SiteTemplate
      * erst seit nginx 1.25.1; davor wird HTTP/2 als Parameter an `listen`
      * angehängt. Von den vier Zielplattformen bringen drei eine ältere Fassung
      * mit, und die falsche Schreibweise macht die Einrichtung unmöglich —
-     * {@see \SrvPanel\Agent\Ops\PanelVhost} fragt dafür `nginx -v`. Diese
-     * Fallunterscheidung hier nachzubauen, ohne sie auf allen vier Plattformen
-     * gesehen zu haben, wäre dieselbe Wette, die schon einmal fast schiefging.
+     * {@see PanelVhost} fragt dafür `nginx -v`. Diese Fallunterscheidung hier
+     * nachzubauen, ohne sie auf allen vier Plattformen gesehen zu haben, wäre
+     * dieselbe Wette, die schon einmal fast schiefging.
      * HTTP/2 kommt, wenn die Abfrage an einer Stelle steht, die beide Vorlagen
      * fragen.
      *

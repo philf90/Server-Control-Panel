@@ -2290,3 +2290,54 @@ das Projekt sich vorgenommen hat, keine mehr zu bauen.
 Methode mit Rückgabewert. Die Closures kommen ohne `&` aus, der Deckel hat einen
 Test, und der Bruch dazu steht im Skript. Dass Pint den Anstoss gab, ändert
 nichts daran, dass die Stelle vorher schlechter war.
+
+#### Schritt 2: das Zertifikat als eigener Gegenstand
+
+Ein Zertifikat ist eine Zeile mit einer **Namensliste**, an der Domains hängen
+— nicht eine Spalte an der Domain. Das ist die Entscheidung, die nachträglich
+am teuersten wäre: Ein Wildcard `*.example.de` gehört zu keiner einzelnen
+Domainzeile, und mit der umgekehrten Modellierung bräche der zweite Wurf das
+Datenmodell auf, samt Mandantenklammer und Migration.
+
+**Zwei getrennte Angaben, und das ist Absicht.** `certificates.names` sagt, was
+das Zertifikat *behauptet*; `domains.certificate_id` sagt, was nginx für diese
+Domain *ausliefert*. Aus dem einen auf das andere zu schliessen ist genau der
+Fehler, der eine Namenswarnung im Browser erzeugt — und die bemerkt niemand,
+weil die Seite lädt.
+
+**`subscription_id` darf null sein**, denn das Zertifikat der Oberfläche gehört
+keinem Kunden. Für einen Kunden ist es damit unsichtbar: `null` ist kein
+Treffer in einem `where subscription_id in (…)`. Wer eines anlegt, muss die
+Null ausdrücklich hinschreiben — sonst trägt `BelongsToSubscription` den gerade
+aktiven Mandanten ein, dieselbe Falle wie bei einem Vorgang des Betreibers, der
+aus einer Kundenanfrage heraus entsteht.
+
+**`nullOnDelete` und nicht `cascadeOnDelete`.** Verschwindet ein Zertifikat,
+verliert die Domain ihren Verweis — mitgehen darf sie nicht. Ein `cascade`
+hätte eine Domain gelöscht, weil ihr Zertifikat abgelaufen ist.
+
+`CertificateCoverageTest` prüft die Regel, an der man sich verrechnet: Ein
+Platzhalter deckt **genau eine Beschriftung**. `*.example.de` gilt für
+`www.example.de`, aber weder für `example.de` noch für `a.b.example.de` — und
+ohne den Punkt im Vergleich deckte er auch `notexample.de`. Elf Fälle als
+Tabelle.
+
+**Die Regel steht im Modell und nicht beim Aufrufer.** `Domain` lässt eine
+Zuordnung ohne Deckung gar nicht erst zu; es wird davon drei Aufrufer geben
+(Einspielen, Erneuern, Hochladen), und drei Stellen mit derselben Prüfung sind
+zwei Gelegenheiten, sie zu vergessen. Geprüft wird nur beim Setzen — ein
+Speichern, das den Verweis nicht anfasst, kostet keine Abfrage.
+
+**Und die Prüfung liest ohne Mandantenklammer.** Sie steht im Grundzustand auf
+„nichts", und in einem Kommando oder einem Job ist das der Normalfall; ein
+gewöhnliches `find()` lieferte dort `null`, und der Wächter hätte eine richtige
+Zuordnung abgewiesen — *ein Wächter, der beim Arbeiten zubeisst, wird beim
+Arbeiten abgeschaltet.* Dasselbe Muster hat drei Wächter des Optik-Reworks
+getroffen; es hat hier einen eigenen Testdurchgang.
+
+**Was in Schritt 2 bewusst fehlt: die Policy.** `PolicyReachTest` verlangt zu
+jeder Fähigkeit einen Weg — eine Route, ein `authorize`, ein `can`. Die Routen
+entstehen mit der Oberfläche; eine `CertificatePolicy` jetzt hiesse, vier
+Einträge in die Ausnahmeliste zu schreiben, deren Begründung „kommt noch"
+wäre. Genau davor warnt der Kommentar an dieser Liste: Sie wächst über Jahre,
+und irgendwann steht darin, was jemand nicht nachziehen wollte.

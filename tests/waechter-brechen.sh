@@ -494,6 +494,42 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AcmeProtocolTest passed
 
 echo
+echo "── CertificateCoverageTest: der Platzhalter deckt plötzlich zwei Ebenen ──"
+#
+# `*.example.de` deckt genau eine Beschriftung. Fällt die Bedingung weg, gilt
+# das Zertifikat auch für `a.b.example.de` — und der Browser zeigt dort eine
+# Namenswarnung, die niemand meldet, weil die Seite ja lädt.
+vorher_datei app/Models/Certificate.php
+python3 - <<'PY'
+p = 'app/Models/Certificate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if ($label !== '' && ! str_contains($label, '.')) {", "if ($label !== '') {")
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei app/Models/Certificate.php "Platzhalter über zwei Ebenen" &&
+pruefe "Platzhalter über zwei Ebenen" \
+  CertificateCoverageTest::test_a_certificate_covers_exactly_what_it_names failed
+wiederherstellen
+
+echo
+echo "── CertificateCoverageTest: die Zuordnung wird nicht mehr geprüft ──"
+#
+# Die Regel steht im Modell, weil es mehrere Aufrufer geben wird: Einspielen,
+# Erneuern, später Hochladen. Fällt sie dort weg, fällt sie überall weg.
+vorher_datei app/Models/Domain.php
+python3 - <<'PY'
+p = 'app/Models/Domain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('if (! $certificate->covers($this->name)) {', 'if (false) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei app/Models/Domain.php "Zuordnung ohne Deckungsprüfung" &&
+pruefe "Zuordnung ohne Deckungsprüfung" \
+  CertificateCoverageTest::test_a_domain_refuses_a_certificate_that_does_not_cover_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateCoverageTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

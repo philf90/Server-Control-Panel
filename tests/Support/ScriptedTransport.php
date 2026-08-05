@@ -173,9 +173,11 @@ final class ScriptedTransport implements Transport
 
         $response = $queue[0];
 
+        // `array_shift` nummeriert selbst neu — ein `array_values` danach sähe
+        // nach Sorgfalt aus und täte nichts.
         if (count($queue) > 1) {
             array_shift($queue);
-            $this->script[$url] = array_values($queue);
+            $this->script[$url] = $queue;
         }
 
         return $response;

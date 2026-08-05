@@ -2691,3 +2691,60 @@ gelaufen, aus demselben Grund wie in Schritt 5.
 ausstellt — mit einem ACME-Zertifikat davor sieht man davon nichts. Die Auskunft
 dafür steht seit diesem Schritt im Rückgabewert (`acme`); die Seite bekommt sie
 in Schritt 6, zusammen mit den Screenshots in beiden Themes und bei 390 px.
+
+#### Schritt 5c: die ausgelieferte nginx-Konfiguration wird nachgezogen
+
+**Der erste Lauf gegen Let's Encrypt für die Oberfläche scheiterte — und der
+Grund lag nicht bei ACME.** Die Prüfung fragte
+`http://cloudsrv24.de/.well-known/acme-challenge/…` und bekam **404**. Also hat
+ein Server-Block auf Port 80 geantwortet, nur nicht der der Oberfläche.
+
+**Die Vorlage lebt im Agenten, die Datei unter `/etc/nginx` ist eine Kopie —
+und die zog bis hierher niemand nach.** `panel.vhost.apply` ruft ausschliesslich
+`srvpanel setup`; `srvpanel update` stösst `panel.update` an, und das fasst
+nginx nicht an. Auf einem einmal eingerichteten Server steht deshalb der Block
+von damals, beliebig alt. Der Port-80-Block aus Schritt 3 stand im Code und
+nicht auf dem Server; die Anfrage fand keinen passenden `server_name`, landete
+beim Vorgabeserver auf Port 80 — einem Kundenblock aus P3, der die Prüfadresse
+nicht kennt — und bekam 404. Kein Fehler, keine Meldung, nur eine Zahl.
+
+Das ist genau das Muster, an dem dieses Projekt sechsmal verloren hat: eine
+Kopie, die nichts nachzieht. Neu ist daran nur, dass sie diesmal auf einem
+echten Server aufgefallen ist und nicht beim Lesen.
+
+- **`srvpanel vhost`** schreibt den Server-Block der Oberfläche neu — ohne
+  Portangabe, denn den liest `panel.vhost.apply` seit 5b aus dem Block, der
+  dasteht. Für den Betreiber ist es damit auch der Hebel, den es vorher nicht
+  gab: Bis jetzt half nur ein zweiter `srvpanel setup`.
+- **Das postinstall-Skript ruft es nach jedem Umschalten**, vor der
+  Bereitschaftsprüfung: Der Agent nimmt nur an, was `nginx -t` besteht, und
+  käme trotzdem etwas Unbrauchbares heraus, meldet die Prüfung das Panel als
+  nicht erreichbar und der Rückweg greift. Ein Fehlschlag bricht das Update
+  **nicht** ab — der alte Block liefert weiter aus, und ein Update wegen einer
+  Konfigurationsdatei zurückzunehmen wäre die teurere Antwort.
+- **`srvpanel vhost --sites`** nimmt die Kundendomains mit. Das ist eine
+  ausdrückliche Option und läuft nicht mit: Jeder neu geschriebene Block löst
+  den Lebenslauf aus, und der bestellt für jede Domain ohne Zertifikat eines.
+  Bei zwanzig Domains ist das erwünscht, bei tausend ist es eine Bestellwelle
+  in die Wochengrenze der Zertifizierungsstelle — die dann auch die *neuen*
+  Domains aussperrt. Gesagt wird die Zahl trotzdem: Wieviele Bestellungen
+  daraus werden, steht in der Ausgabe.
+- **Ein Alias bekommt keinen.** Er steht im `server_name` seiner Elterndomain;
+  für ihn etwas anzuwenden hiesse, denselben Block ein zweites Mal zu
+  schreiben, und der Agent suchte ein DocumentRoot, das es nicht gibt.
+
+**Der Wächter dazu prüft die Zeigerichtung**, wie überall hier: Das
+Installationsskript muss den Aufruf enthalten, und zwar vor der
+Bereitschaftsprüfung — danach wäre der Rückweg verspielt. Gesucht wird dabei
+der *Aufruf* (`/usr/local/bin/srvpanel vhost`) und nicht das Wort: Der Hinweis
+„Nachholen mit: sudo srvpanel vhost" steht eine Zeile darunter, und ein
+Ausdruck, der ihn findet, bliebe grün, wenn der Aufruf verschwindet.
+
+`tests/waechter-brechen.sh` sichert dafür jetzt auch `packaging/`. Ein Bruch in
+einem Verzeichnis, das `wiederherstellen` nicht kennt, ist keine Probe, sondern
+eine Änderung.
+
+**Was auf dem Zielserver zu tun ist**, sobald diese Fassung dort läuft: Das
+Update schreibt den Block der Oberfläche selbst neu. Die sechs Domains aus dem
+P3-Abnahmelauf kennen die Prüfadresse weiterhin nicht — für sie einmal
+`srvpanel vhost --sites`.

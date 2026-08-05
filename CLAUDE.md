@@ -169,7 +169,7 @@ php artisan migrate
 ```
 
 Auf dem Zielserver:
-`srvpanel setup|update|metrics|usage|tls|acceptance|acceptance-web|admin`.
+`srvpanel setup|update|metrics|usage|tls|vhost|acceptance|acceptance-web|admin`.
 
 ---
 

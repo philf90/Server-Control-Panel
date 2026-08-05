@@ -17,9 +17,14 @@
 # Fläche, und der Ausdruck fand diese Fundstelle. Der Wächter sah richtig aus
 # und war es nicht — gemerkt hat es nur der Bruch.
 #
-# Das Skript ändert Dateien unter resources/, app/ und agent/ und stellt sie
-# wieder her. Es verweigert den Start, wenn dort schon etwas geändert ist, und
-# räumt auch nach einem Abbruch auf.
+# Das Skript ändert Dateien unter resources/, app/, agent/ und packaging/ und
+# stellt sie wieder her. Es verweigert den Start, wenn dort schon etwas geändert
+# ist, und räumt auch nach einem Abbruch auf.
+#
+# `packaging/` steht seit P4 in dieser Liste: Dort liegt das Installationsskript,
+# und die Regel „nach einem Update entspricht die nginx-Konfiguration wieder der
+# Vorlage" wohnt in ihm. Ein Bruch in einem Verzeichnis, das `wiederherstellen`
+# nicht kennt, ist keine Probe, sondern eine Änderung.
 #
 # **`git checkout` stellt nur wieder her, was git kennt.** Ein Wächter für Code,
 # der noch nicht eingecheckt ist, wird hier nicht gebrochen, sondern gelöscht.
@@ -30,14 +35,14 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/; then
-  echo "resources/, app/ oder agent/ hat ungesicherte Änderungen. Erst committen" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/; then
+  echo "resources/, app/, agent/ oder packaging/ hat ungesicherte Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -923,6 +928,44 @@ pruefe "Panel-Zertifikat aus dem Testbetrieb" \
   AcmeSettingsTest::test_the_panel_never_orders_from_the_staging_directory failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AcmeSettingsTest passed
+
+echo
+echo "── PackagingTest: das Update schreibt den Server-Block nicht mehr neu ──"
+#
+# Die Vorlage lebt im Agenten, die Datei unter /etc/nginx ist eine Kopie. Ohne
+# diesen Aufruf gilt nach einem Update weiter der Block von der
+# Ersteinrichtung — jede Änderung an der Vorlage bliebe wirkungslos, und zwar
+# ohne Meldung. Genau daran ist die erste ACME-Bestellung für die Oberfläche
+# gescheitert: 404 vom Vorgabeserver.
+vorher_datei packaging/scripts/postinstall.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postinstall.sh'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if ! /usr/local/bin/srvpanel vhost --no-interaction; then", 'if false; then')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/scripts/postinstall.sh "Update ohne neuen Server-Block" &&
+pruefe "Update ohne neuen Server-Block" \
+  PackagingTest::test_the_update_writes_the_server_block_again failed
+wiederherstellen
+
+echo
+echo "── PackagingTest: der Wrapper kennt das neue Kommando nicht ──"
+#
+# Wer `srvpanel vhost` tippt, bekommt sonst „Command not defined" — und das
+# postinstall-Skript ebenfalls, still und mit Rückgabewert 1.
+vorher_datei packaging/bin/srvpanel
+python3 - <<'PY2'
+p = 'packaging/bin/srvpanel'
+s = open(p, encoding='utf-8').read()
+s = s.replace('|tls|vhost|', '|tls|')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/bin/srvpanel "Kommando fehlt im Wrapper" &&
+pruefe "Kommando fehlt im Wrapper" \
+  PackagingTest::test_the_wrapper_knows_every_command_of_the_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

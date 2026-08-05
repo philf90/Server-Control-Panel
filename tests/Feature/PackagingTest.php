@@ -638,4 +638,41 @@ final class PackagingTest extends TestCase
 
         $this->assertSame(RunAgentOperation::QUEUE, $job->queue);
     }
+
+    /**
+     * Nach einem Update entspricht die nginx-Konfiguration wieder der Vorlage.
+     *
+     * **Das ist die Lücke, die P4 an der teuersten Stelle gezeigt hat.** Die
+     * Vorlage lebt im Agenten, die Datei unter `/etc/nginx` ist eine Kopie —
+     * und `panel.vhost.apply` rief bis 0.4.0 ausschliesslich `srvpanel setup`.
+     * Wer einmal eingerichtet hatte, behielt seinen Block, beliebig alt.
+     * Aufgefallen ist es, als die Oberfläche in P4 einen Block auf Port 80
+     * bekam, um die ACME-Prüfung zu beantworten: Der neue Block stand im Code
+     * und nicht in `/etc/nginx`, die Prüfung landete beim Vorgabeserver und
+     * bekam 404 — kein Fehler, keine Meldung, nur eine Zahl.
+     *
+     * Dieser Wächter prüft die Zeigerichtung, wie überall in diesem Projekt:
+     * Das Installationsskript muss das Kommando nennen, und zwar **vor** der
+     * Bereitschaftsprüfung. Danach wäre der Rückweg schon verspielt.
+     */
+    public function test_the_update_writes_the_server_block_again(): void
+    {
+        $postinstall = (string) file_get_contents(dirname(__DIR__, 2).'/packaging/scripts/postinstall.sh');
+
+        // Gesucht ist der Aufruf und nicht das Wort: Der Hinweis „Nachholen
+        // mit: sudo srvpanel vhost" steht eine Zeile weiter unten, und ein
+        // Ausdruck, der ihn findet, bliebe grün, wenn der Aufruf verschwindet.
+        $call = strpos($postinstall, '/usr/local/bin/srvpanel vhost');
+
+        $this->assertNotFalse($call, implode("\n", [
+            'Das postinstall-Skript schreibt den Server-Block nicht neu.',
+            'Damit gilt nach einem Update weiter der Block von der Ersteinrichtung —',
+            'jede Änderung an der Vorlage bliebe wirkungslos, ohne dass etwas meldet.',
+        ]));
+
+        $ready = strpos($postinstall, 'if ! panel_ready; then');
+
+        $this->assertNotFalse($ready);
+        $this->assertLessThan($ready, $call, 'Der Aufruf steht nach der Bereitschaftsprüfung — dann greift der Rückweg nicht mehr.');
+    }
 }

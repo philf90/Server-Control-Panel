@@ -451,6 +451,31 @@ pruefe "kein Abräumen im finally" \
 wiederherstellen
 
 echo
+echo "── AcmeProtocolTest: der Deckel auf der Antwort fällt weg ──"
+#
+# Die Regel stand zuerst als Bedingung mitten in der Konfigurationsablage von
+# curl — dort war sie eine Zusage ohne Wächter, denn befragen liess sie sich nur
+# mit einer Gegenstelle, die zuviel schickt. Seit sie in ResponseBuffer steht,
+# gibt es etwas zu brechen.
+vorher_datei agent/src/Acme/ResponseBuffer.php
+python3 - <<'PY'
+p = 'agent/src/Acme/ResponseBuffer.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (strlen($this->body) + strlen($chunk) > $this->limit) {\n"
+    "            $this->truncated = true;\n\n"
+    "            return 0;\n"
+    "        }\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/ResponseBuffer.php "Antwort ohne Deckel" &&
+pruefe "Antwort ohne Deckel" \
+  AcmeProtocolTest::test_the_response_buffer_stops_at_its_limit failed
+wiederherstellen
+
+echo
 echo "── AcmeProtocolTest: die erste Prüfung statt der passenden ──"
 #
 # Die Zertifizierungsstelle bietet je Autorisierung mehrere Arten an. Wer die

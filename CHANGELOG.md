@@ -2261,3 +2261,32 @@ Die sechs Brüche stehen in `tests/waechter-brechen.sh`. Das Skript sichert
 jetzt auch `agent/`; ausserdem trägt es einen Hinweis, den es brauchte: `git
 checkout` stellt nur wieder her, was git kennt — ein Bruch an noch nicht
 eingechecktem Code löscht ihn, statt ihn zu brechen.
+
+#### Nachtrag aus der ersten CI-Runde
+
+Pint meldete eine Datei mit zwei Regelverstössen, und der zweite hat mehr
+verändert als eine Formatierung.
+
+Der erste war schlicht: `{@see \SrvPanel\Agent\Runner}` im Klassenkommentar von
+`CurlTransport` — `fully_qualified_strict_types` fasst auch `@see` an und will
+den Namen importiert und kurz.
+
+Der zweite war `unary_operator_spaces`, und der Weg dorthin ist der Teil, der
+sich zu erzählen lohnt. Pint kürzt seine Meldung ab, PHPStan lief wegen des
+Abbruchs gar nicht erst, und hier gibt es kein `vendor/`, mit dem sich das
+nachstellen liesse. Statt zu raten: der Tokenizer von PHP, auf dem der Fixer
+selbst arbeitet. Er entlastete beide `!` und das binäre `+` und liess drei
+`&`-Referenzen übrig — die Closures, die Kopfzeilen und Rumpf über
+`use (&$…)` einsammelten.
+
+**Die Antwort war nicht, ein Leerzeichen zu verschieben.** Die drei Referenzen
+waren das Symptom: Der Deckel auf der Antwortgrösse stand als Bedingung mitten
+in der Konfigurationsablage von curl, zusammen mit zwei weiteren Zuständen. Er
+liess sich damit nur befragen, indem man eine Gegenstelle baut, die zuviel
+schickt — also gar nicht. Er war eine Zusage ohne Wächter, drei Tage nachdem
+das Projekt sich vorgenommen hat, keine mehr zu bauen.
+
+`ResponseBuffer` nimmt jetzt Kopfzeilen und Rumpf auf und trägt die Regel als
+Methode mit Rückgabewert. Die Closures kommen ohne `&` aus, der Deckel hat einen
+Test, und der Bruch dazu steht im Skript. Dass Pint den Anstoss gab, ändert
+nichts daran, dass die Stelle vorher schlechter war.

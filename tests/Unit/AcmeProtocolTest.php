@@ -10,6 +10,7 @@ use SrvPanel\Agent\Acme\HttpChallenge;
 use SrvPanel\Agent\Acme\Jws;
 use SrvPanel\Agent\Acme\Order;
 use SrvPanel\Agent\Acme\Problem;
+use SrvPanel\Agent\Acme\ResponseBuffer;
 use SrvPanel\Agent\Acme\Session;
 use SrvPanel\Agent\AgentException;
 use Tests\Support\ScriptedTransport;
@@ -296,6 +297,42 @@ final class AcmeProtocolTest extends TestCase
                 $this->assertSame(AgentException::BAD_REQUEST, $error->errorCode);
             }
         }
+    }
+
+    /**
+     * Der Deckel greift beim Schreiben und nicht danach.
+     *
+     * **Er war bis eben eine Zusage ohne Wächter.** Die Regel stand als
+     * Bedingung mitten in der Konfigurationsablage von curl und liess sich nur
+     * mit einer Gegenstelle befragen, die zuviel schickt — also gar nicht. Erst
+     * seit sie in {@see ResponseBuffer} steht, gibt es etwas zu prüfen.
+     */
+    public function test_the_response_buffer_stops_at_its_limit(): void
+    {
+        $buffer = new ResponseBuffer(10);
+
+        $this->assertSame(6, $buffer->write('123456'));
+        $this->assertFalse($buffer->truncated());
+
+        // Eine andere Zahl als die übergebene Länge bricht die Übertragung ab.
+        $this->assertSame(0, $buffer->write('789012'));
+        $this->assertTrue($buffer->truncated());
+        $this->assertSame('123456', $buffer->response(200)->body);
+    }
+
+    /** Ein Replay-Nonce, den man unter `replay-nonce` sucht, ist einer, den man nicht findet. */
+    public function test_the_response_buffer_lowercases_header_names(): void
+    {
+        $buffer = new ResponseBuffer(100);
+        $buffer->header("Replay-Nonce: abc\r\n");
+        $buffer->header("HTTP/2 200\r\n");
+
+        $response = $buffer->response(200);
+
+        $this->assertSame('abc', $response->header('Replay-Nonce'));
+
+        // Die Statuszeile trägt keinen Namen mit Doppelpunkt und fällt heraus.
+        $this->assertSame(['replay-nonce' => 'abc'], $response->headers);
     }
 
     private function challenge(): HttpChallenge

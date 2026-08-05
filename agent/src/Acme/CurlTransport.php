@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Acme;
 
 use CurlHandle;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Runner;
 use SrvPanel\Agent\Version;
 
 /**
@@ -16,7 +17,7 @@ use SrvPanel\Agent\Version;
  * Verbindung zu einem fremden Rechner auf, und das ist eine neue Art von
  * Oberfläche. Sie steht deshalb an genau einer Stelle, mit vier Zusagen, die
  * nirgends sonst eingelöst werden — dieselbe Aufteilung wie bei
- * {@see \SrvPanel\Agent\Runner} für Programme:
+ * {@see Runner} für Programme:
  *
  * 1. **Nur https.** Eine Adresse ohne TLS wird abgelehnt, bevor curl sie
  *    sieht. Das Verzeichnis nennt die Folgeadressen selbst; ohne diese Schranke
@@ -72,9 +73,7 @@ final class CurlTransport implements Transport
             throw AgentException::execFailed('Die Verbindung ließ sich nicht vorbereiten.');
         }
 
-        $headers = [];
-        $received = '';
-        $truncated = false;
+        $buffer = new ResponseBuffer(self::RESPONSE_MAX);
 
         $options = [
             CURLOPT_URL => $url,
@@ -86,29 +85,12 @@ final class CurlTransport implements Transport
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT => 'srvpanel/'.Version::AGENT,
             CURLOPT_HTTPHEADER => ['Accept: application/json'],
-            CURLOPT_HEADERFUNCTION => static function (CurlHandle $handle, string $line) use (&$headers): int {
-                $parts = explode(':', $line, 2);
-
-                if (count($parts) === 2) {
-                    $headers[strtolower(trim($parts[0]))] = trim($parts[1]);
-                }
+            CURLOPT_HEADERFUNCTION => static function (CurlHandle $handle, string $line) use ($buffer): int {
+                $buffer->header($line);
 
                 return strlen($line);
             },
-            CURLOPT_WRITEFUNCTION => static function (CurlHandle $handle, string $chunk) use (&$received, &$truncated): int {
-                if (strlen($received) + strlen($chunk) > self::RESPONSE_MAX) {
-                    $truncated = true;
-
-                    // Eine andere Länge als die geschriebene bricht die
-                    // Übertragung ab — der vorgesehene Weg, einen Deckel
-                    // durchzusetzen, statt den Rest noch zu holen.
-                    return 0;
-                }
-
-                $received .= $chunk;
-
-                return strlen($chunk);
-            },
+            CURLOPT_WRITEFUNCTION => static fn (CurlHandle $handle, string $chunk): int => $buffer->write($chunk),
         ];
 
         if ($body !== null) {
@@ -123,7 +105,9 @@ final class CurlTransport implements Transport
         $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         curl_close($handle);
 
-        if ($truncated) {
+        // Zuerst der Deckel: Ein abgeschnittener Rumpf lässt curl mit
+        // „write error" abbrechen, und diese Meldung erklärt nichts.
+        if ($buffer->truncated()) {
             throw AgentException::execFailed('Die Antwort der Zertifizierungsstelle ist unerwartet gross.');
         }
 
@@ -131,6 +115,6 @@ final class CurlTransport implements Transport
             throw AgentException::execFailed('Die Zertifizierungsstelle ist nicht erreichbar: '.$error);
         }
 
-        return new Response(is_int($status) ? $status : 0, $headers, $received);
+        return $buffer->response(is_int($status) ? $status : 0);
     }
 }

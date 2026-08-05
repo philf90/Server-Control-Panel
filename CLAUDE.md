@@ -196,9 +196,16 @@ Testen berücksichtigen:
 
   **Was das für die Arbeit heisst:** Undefinierte Variablen, fehlende
   Typangaben und tote Zweige findet hier nichts. Wer `app/`, `agent/` oder
-  `tests/` anfasst, rechnet mit einer Runde CI dafür — dreimal an einem Tag
+  `tests/` anfasst, rechnet mit einer Runde CI dafür — viermal an einem Tag
   passiert, und jedes Mal war es eine Typangabe oder eine Variable, die beim
   Aufräumen wegfiel.
+
+  **Eine Falle, die dreimal davon ausgemacht hat:** Ein einzeiliger
+  Dokumentationsblock trägt **keine Marke**. In
+  `/** Die Namen. @return list<string> */` ist `@return` Fliesstext, und die
+  Angabe ist damit weg — PHPStan meldet „no value type specified", und zwar
+  erst in der CI. Marken stehen auf einer eigenen Zeile; `/** @return
+  list<string> */` allein geht, mit Text davor nicht.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

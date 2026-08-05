@@ -36,7 +36,11 @@ final class NavIconTest extends TestCase
         return (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/Components/NavIcon.vue');
     }
 
-    /** Die Namen, für die es eine Zeichnung gibt. @return list<string> */
+    /**
+     * Die Namen, für die es eine Zeichnung gibt.
+     *
+     * @return list<string>
+     */
     private function drawn(): array
     {
         // Nur der `PATHS`-Block: Der Rest der Datei enthält Prosa, in der
@@ -64,7 +68,11 @@ final class NavIconTest extends TestCase
         return $drawn;
     }
 
-    /** Die Namen, die das Menü verlangt. @return list<string> */
+    /**
+     * Die Namen, die das Menü verlangt.
+     *
+     * @return list<string>
+     */
     private function requested(): array
     {
         preg_match_all("/icon:\s*'([a-z][a-zA-Z0-9]*)'/", $this->layout(), $namen);

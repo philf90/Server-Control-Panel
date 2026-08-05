@@ -1951,8 +1951,21 @@ Zwei Dinge daraus:
   eine Adresse aus Zeichen nennt. `Names::host()` gibt notfalls `localhost`
   statt einer leeren Zeichenkette: Wer sie aufruft, baut eine Adresse, und aus
   einem leeren Namen würde `https://:8443`.
-- **`failOnWarning`, `failOnNotice` und `failOnDeprecation` stehen jetzt in
-  `phpunit.xml`.** Ohne sie lief der neue Test grün *mit* einer Warnung — genau
-  der Warnung, die auf dem Server zum Abbruch führte. Eine Warnung, die niemand
-  rot macht, ist eine Warnung, die niemand liest. Der gesamte Lauf ist auch mit
-  der Verschärfung grün; es gab keine Altlasten.
+- **Ein Versuch, Warnungen rot zu machen — wieder zurückgenommen.** Der neue
+  Test lief grün *mit* einer Warnung: genau der Warnung, die auf dem Server zum
+  Abbruch führte. `failOnWarning` in `phpunit.xml` schien die Antwort, war hier
+  grün und machte in der CI 40 Prüfungen rot — unterdrückte Warnungen aus
+  `@unlink` in Aufräumcode, die **nur dort** gemeldet werden. Warum sie hier
+  nicht auftauchen, ist nicht geklärt; damit lässt sich die Verschärfung vor dem
+  Push nicht prüfen, und eine Regel, die man nicht prüfen kann, wird nicht
+  eingeführt. Sie bleibt offen.
+
+  Der Aufräumcode ist trotzdem geradegezogen: `ReleaseChannelTest` löscht seine
+  Marke jetzt mit `is_file()` statt mit `@unlink`. Der Stille-Operator macht aus
+  einem Aufruf, der scheitern darf, einen, bei dem niemand mehr sieht, dass er
+  scheitert.
+
+  **Und die ehrliche Zuordnung:** Den `$name` hat PHPStan gefunden — das ist
+  das Werkzeug für undefinierte Variablen, und es hat funktioniert. Die Lücke
+  war nicht der fehlende Testlauf, sondern dass hier ohne PHPStan gepusht
+  wurde.

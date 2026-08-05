@@ -200,6 +200,32 @@ class Domain extends Model
         return $this->hasMany(self::class, 'parent_domain_id');
     }
 
+    /**
+     * Alle Namen, unter denen diese Domain antwortet.
+     *
+     * **Dieselbe Liste wie im `server_name` des Agenten**, und aus demselben
+     * Grund an einer Stelle: Ein Zertifikat muss jeden Namen decken, unter dem
+     * der Block antwortet. Deckt es nur den ersten, warnt der Browser bei jedem
+     * Alias — und die Seite lädt trotzdem, weshalb es niemand meldet.
+     *
+     * Aliasse sind Kinder ohne eigenen Block; Subdomains und Zusatzdomains
+     * haben einen eigenen und stehen deshalb nicht hier.
+     *
+     * @return list<string>
+     */
+    public function serverNames(): array
+    {
+        $names = [$this->name];
+
+        foreach ($this->children as $child) {
+            if ($child->type === DomainType::Alias) {
+                $names[] = $child->name;
+            }
+        }
+
+        return $names;
+    }
+
     /** Leitet diese Domain weiter, statt eigene Dateien auszuliefern? */
     public function isRedirect(): bool
     {

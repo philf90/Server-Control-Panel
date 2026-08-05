@@ -2401,3 +2401,53 @@ stand als `substr($wanted, 0, -strlen($suffix))` da — ein unäres Minus, und
 `strlen($wanted) - strlen($suffix)`, sagt dasselbe und liest sich als das, was
 es ist: die Länge ohne den Platzhalterteil. Die elf Deckungsfälle sind
 unverändert grün.
+
+#### Schritt 4: die Operationen — und die Regel, die niemand bemerkt
+
+Drei Operationen im Agenten: `acme.account.ensure`, `acme.certificate.issue`
+und `acme.certificate.info`. Der Kontoschlüssel und der Schlüssel des
+Zertifikats entstehen dort und überqueren den Socket nie; zurück geht, was auch
+jeder Browser sieht.
+
+**Das Panel nennt einen Schlüssel, keine Adresse.** `Directories` ist eine
+Positivliste mit zwei Einträgen — Testbetrieb und Produktion. Nähme der Agent
+eine URL entgegen, wäre die Anwendung eine Fernsteuerung dafür, wohin ein
+Prozess als root eine TLS-Verbindung aufbaut und wem er den Fingerabdruck
+seines Kontoschlüssels zeigt; die Prüfung „fängt mit https an" wäre dabei keine
+Schranke, sondern eine Formalie. Dieselbe Entscheidung wie im Aufgabenkatalog
+des Panels und bei der Programm-Positivliste des Runners. **Ohne Angabe gilt
+der Testbetrieb** — ein vertippter Wert, der still produktiv landet, ist der
+Weg in eine Sperre, die Stunden hält.
+
+**Wer ein Zertifikat einspielt, schreibt danach den Server-Block neu.** Das ist
+die Falle aus `docs/32 §8`, und sie ist die unangenehme Sorte: Es bricht nichts
+ab. Der Block entsteht bei `web.site.apply`, und ob `Strict-Transport-Security`
+darin steht, entscheidet sich an dem Zertifikat, das dabei gelesen wird. Wer
+ein vertrautes Zertifikat ablegt und die Operation nicht ruft, bekommt ein
+vertrautes Zertifikat **ohne** den Header — die Seite läuft, das Protokoll ist
+leer, und niemand sucht danach.
+
+**Bestellt wird von selbst, und der Auslöser ist kein Knopf.** Das
+Abnahmekriterium der Stufe verlangt ein Zertifikat „ohne Zutun des Admins";
+der Auslöser ist deshalb der fertige Server-Block. Vorher ist die Domain über
+Port 80 nicht erreichbar, und die Prüfung könnte gar nicht gelingen.
+
+**Und die beiden zusammen wären eine Schleife** — Bestellung, Zuordnung, Block
+neu, Bestellung. Dass sie aufhört, ist keine Beobachtung, sondern eine Zusage:
+Bestellt wird nur, wenn die Domain noch kein Zertifikat hat, und die Zuordnung
+passiert **vor** dem neuen Block. `CertificateReapplyTest` hat dafür einen
+eigenen Durchgang; ohne ihn liefe eine Warteschlange, bis die Ratenbegrenzung
+sie anhält.
+
+**Ohne Kontaktadresse bestellt das Panel nichts.** Der naheliegende Weg wäre,
+die Adresse des ersten Adminkontos zu nehmen — und das wäre geraten. Sie ist
+die Stelle, an die Let's Encrypt schreibt, wenn ein Zertifikat abzulaufen
+droht; sie gehört gesetzt und nicht abgeleitet.
+
+Dazu, aus dem Bauen: **Platzhalter werden abgewiesen** (über HTTP-01 gibt es
+kein Wildcard, und die Zertifizierungsstelle antwortet darauf mit einer
+Meldung, die das nicht sagt), **höchstens fünf Namen je Bestellung** (eine über
+hundert scheitert an einem einzigen nicht auflösbaren Namen und nimmt
+neunundneunzig mit), und `Domain::serverNames()` als die eine Liste der Namen,
+unter denen ein Block antwortet — ein Zertifikat, das nur den ersten deckt,
+warnt bei jedem Alias.

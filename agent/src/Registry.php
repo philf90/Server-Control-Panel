@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent;
 
+use SrvPanel\Agent\Ops\AcmeAccount;
+use SrvPanel\Agent\Ops\AcmeCertificate;
+use SrvPanel\Agent\Ops\AcmeCertificateInfo;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\PanelProvision;
@@ -75,6 +78,11 @@ final class Registry
         $this->register(new PhpVersionRemove);
         $this->register(new PhpPoolApply);
         $this->register(new PhpPoolRemove);
+
+        // P4 — TLS.
+        $this->register(new AcmeAccount);
+        $this->register(new AcmeCertificate);
+        $this->register(new AcmeCertificateInfo);
     }
 
     public function register(Op $op): void

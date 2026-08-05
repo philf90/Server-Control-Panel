@@ -583,6 +583,70 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ChallengeLocationTest passed
 
 echo
+echo "── CertificateReapplyTest: das Zertifikat wird eingespielt, der Block bleibt alt ──"
+#
+# docs/32 §8: Der Block entsteht bei web.site.apply, und ob HSTS darin steht,
+# entscheidet sich am Zertifikat, das dabei gelesen wird. Wer nicht neu
+# schreibt, bekommt ein vertrautes Zertifikat ohne den Header — und es bricht
+# nichts ab.
+vorher_datei app/Support/Tls/CertificateLifecycle.php
+python3 - <<'PY'
+p = 'app/Support/Tls/CertificateLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $this->dispatch($domain, 'web.site.apply', 'Server-Block mit Zertifikat für '.$domain->name, $operation);",
+    '        // nichts',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei app/Support/Tls/CertificateLifecycle.php "kein neuer Server-Block nach dem Einspielen" &&
+pruefe "kein neuer Server-Block nach dem Einspielen" \
+  CertificateReapplyTest::test_an_installed_certificate_is_followed_by_a_new_server_block failed
+wiederherstellen
+
+echo
+echo "── CertificateReapplyTest: die beiden Regeln jagen einander ──"
+#
+# Bestellung, Zuordnung, Block neu, Bestellung. Ohne die Bedingung läuft die
+# Warteschlange, bis die Ratenbegrenzung sie anhält.
+vorher_datei app/Support/Tls/CertificateLifecycle.php
+python3 - <<'PY'
+p = 'app/Support/Tls/CertificateLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'if ($domain->certificate_id !== null || ! $this->settings->configured()) {',
+    'if (! $this->settings->configured()) {',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei app/Support/Tls/CertificateLifecycle.php "Bestellung ohne Blick auf das vorhandene Zertifikat" &&
+pruefe "Bestellung ohne Blick auf das vorhandene Zertifikat" \
+  CertificateReapplyTest::test_the_two_rules_do_not_chase_each_other failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateReapplyTest passed
+
+echo
+echo "── AcmeProtocolTest: die Zertifizierungsstelle wird zur freien Adresse ──"
+#
+# Die Adresse, zu der ein root-Prozess eine TLS-Verbindung aufbaut, darf nicht
+# aus der Anwendung kommen. Eine Prüfung auf https wäre keine Schranke.
+vorher_datei agent/src/Acme/Directories.php
+python3 - <<'PY'
+p = 'agent/src/Acme/Directories.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! is_string($key) || ! isset(self::URLS[$key])) {",
+    "        if (! is_string($key)) {",
+)
+s = s.replace('        return self::URLS[$key];', '        return self::URLS[$key] ?? $key;')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/Directories.php "beliebige Adresse als Zertifizierungsstelle" &&
+pruefe "beliebige Adresse als Zertifizierungsstelle" \
+  AcmeProtocolTest::test_the_panel_names_a_key_and_never_an_address failed
+wiederherstellen
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

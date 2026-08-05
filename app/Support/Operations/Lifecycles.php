@@ -6,6 +6,7 @@ namespace App\Support\Operations;
 
 use App\Models\Operation;
 use App\Support\Subscriptions\Lifecycle;
+use App\Support\Tls\CertificateLifecycle;
 use App\Support\Web\WebLifecycle;
 
 /**
@@ -27,6 +28,7 @@ final class Lifecycles
     public const HANDLERS = [
         Lifecycle::class,
         WebLifecycle::class,
+        CertificateLifecycle::class,
     ];
 
     /**

@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Acme\Account;
+use SrvPanel\Agent\Acme\Directories;
 use SrvPanel\Agent\Acme\HttpChallenge;
 use SrvPanel\Agent\Acme\Jws;
 use SrvPanel\Agent\Acme\Order;
@@ -333,6 +334,35 @@ final class AcmeProtocolTest extends TestCase
 
         // Die Statuszeile trägt keinen Namen mit Doppelpunkt und fällt heraus.
         $this->assertSame(['replay-nonce' => 'abc'], $response->headers);
+    }
+
+    /**
+     * Das Panel nennt einen Schlüssel, keine Adresse.
+     *
+     * **Die Adresse, zu der ein root-Prozess eine TLS-Verbindung aufbaut, darf
+     * nicht aus der Anwendung kommen.** Dieselbe Entscheidung wie im
+     * Aufgabenkatalog des Panels und bei der Programm-Positivliste des Runners:
+     * Ein Wert aus der Datenbank landet hier nicht als URL, sondern als
+     * abgewiesenes Argument. Die Prüfung „fängt mit https an" wäre keine
+     * Schranke, sondern eine Formalie.
+     */
+    public function test_the_panel_names_a_key_and_never_an_address(): void
+    {
+        $this->assertStringContainsString('acme-staging-v02', Directories::url('staging'));
+        $this->assertStringContainsString('acme-v02', Directories::url('production'));
+
+        // Ohne Angabe der Testbetrieb: Produktiv sind fünf Fehlversuche je
+        // Konto und Stunde die Grenze, und die Sperre danach hält Stunden.
+        $this->assertSame(Directories::url('staging'), Directories::url(null));
+
+        foreach (['https://boese.example/directory', 'staging ', 'STAGING', ''] as $versuch) {
+            try {
+                Directories::url($versuch);
+                $this->fail(sprintf('„%s" wurde als Zertifizierungsstelle angenommen.', $versuch));
+            } catch (AgentException $error) {
+                $this->assertSame(AgentException::BAD_REQUEST, $error->errorCode);
+            }
+        }
     }
 
     private function challenge(): HttpChallenge

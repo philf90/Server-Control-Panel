@@ -65,6 +65,8 @@ final class AgentOperationReachTest extends TestCase
         'panel.tls.ensure' => 'Stellt das Zertifikat der Oberfläche aus; es steht nicht im Bestand.',
         'panel.tls.info' => 'Liest das Zertifikat der Oberfläche.',
         'panel.vhost.apply' => 'Schreibt den Server-Block des Panels.',
+        'acme.account.ensure' => 'Legt das ACME-Konto an; der Kontoschlüssel bleibt im Agenten und steht im Panel nirgends.',
+        'acme.certificate.info' => 'Liest ein abgelegtes Zertifikat.',
     ];
 
     private function registry(): Registry

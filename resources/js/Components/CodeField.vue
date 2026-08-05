@@ -85,6 +85,16 @@ const id = useId()
  * einem Telefon ab und vergleicht ihn Ziffer für Ziffer; dafür müssen die
  * Ziffern gleich breit sein und auseinander stehen.
  */
+/*
+ * Die Breite gehört zu diesem Feld und nicht zum Gestaltungssystem: Sie folgt
+ * daraus, dass in ihm sechs Zeichen stehen. Ohne diese Zeile war es 540px
+ * breit — die Grenze für ein Feld mit Fließtext — und sah aus, als erwarte es
+ * einen Satz. Im Browser gesehen.
+ */
+.feld {
+  max-width: 280px;
+}
+
 .feld input {
   font-family: var(--font-mono);
   font-size: var(--text-metric);

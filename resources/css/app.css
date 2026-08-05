@@ -1029,11 +1029,21 @@ table.paare {
   align-items: flex-start;
 }
 
+/*
+ * Ein Feld hört bei 540px auf.
+ *
+ * Ein Bereich, der allein in seiner Zeile steht, nimmt die ganze Breite — und
+ * ohne diese Grenze nahm sie das Feld darin mit: Im Formular eines Plans stand
+ * „Business M" in einem Eingabefeld von 1570px. Die Fläche auszunutzen heisst,
+ * mehr Zeilen zu zeigen, nicht ein Wort über den halben Bildschirm zu ziehen.
+ * Im Browser gesehen, nicht gerechnet.
+ */
 .feld {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-top: 16px;
+  max-width: 540px;
 }
 
 .feld > span {
@@ -1042,9 +1052,20 @@ table.paare {
   color: var(--text-muted);
 }
 
+/*
+ * `.mit-einheit input` steht hier mit, und das ist im Browser aufgefallen.
+ *
+ * Die Kontingente eines Plans tragen ihre Beschriftung als eigene Zeile und
+ * den Wert in `.mit-einheit` — ohne `.feld` dazwischen. Damit griff keine
+ * dieser Zeilen: Zwölf Zahlenfelder standen als nackter Text auf der Seite,
+ * ohne Rand, ohne Fläche, ohne Innenabstand. Grün getestet war es trotzdem,
+ * weil kein Wächter fragt, ob ein Feld überhaupt *ein* Aussehen bekommt — nur,
+ * ob das, was es bekommt, aus app.css stammt.
+ */
 .feld input,
 .feld select,
-.feld textarea {
+.feld textarea,
+.mit-einheit input {
   width: 100%;
   min-height: var(--tap);
   padding: 9px 12px;
@@ -1073,7 +1094,8 @@ table.paare {
 .feld input[readonly],
 .feld input:disabled,
 .feld select:disabled,
-.feld textarea:disabled {
+.feld textarea:disabled,
+.mit-einheit input:disabled {
   color: var(--text-muted);
   background: var(--surface);
   border-style: dashed;
@@ -1092,10 +1114,192 @@ table.paare {
   flex: 1 1 160px;
 }
 
+/* Ein Feld, dessen Inhalt eine feste kurze Länge hat — PLZ, Länderkürzel,
+   Portnummer. Es nimmt seinen Anteil an der Zeile nicht mit. */
+.paar > .feld.schmal {
+  flex: 0 1 118px;
+}
+
 @media (max-width: 480px) {
   .paar > .feld {
     flex-basis: 100%;
   }
+}
+
+/*
+ * Ein Ankreuzfeld mit seinem Text daneben.
+ *
+ * **Fünf Seiten hatten dafür ihre eigene Fassung**, und sie waren
+ * verschieden: einmal 7px Abstand zum Text, einmal 9, einmal ein Häkchen in
+ * Standardgröße, einmal eines in 17px. Bei den Kontingenten stand der Text in
+ * `--text-table`, beim Mailversand in `--text-small` — dieselbe Sache, je nach
+ * Seite eine andere Größe.
+ *
+ * `.feld input` gibt jedem Feld volle Breite und `--tap` Höhe. Für ein
+ * Ankreuzfeld ist beides falsch, deshalb steht es hier ausdrücklich anders;
+ * der Selektor mit Typangabe ist spezifischer und gewinnt.
+ */
+.schalter {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 14px;
+  font-size: var(--text-table);
+  color: var(--text-strong);
+  cursor: pointer;
+}
+
+.schalter input[type='checkbox'],
+.schalter input[type='radio'] {
+  flex: none;
+  width: 17px;
+  min-width: 0;
+  height: 17px;
+  min-height: 0;
+  margin-top: 2px;
+}
+
+.schalter > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.schalter .hinweis {
+  margin-top: 0;
+}
+
+/*
+ * Was von einem Schalter abhängt, steht unter ihm und eingerückt.
+ *
+ * Die Einrückung ist die ganze Auskunft: Sie sagt, dass dieses Feld nur etwas
+ * bedeutet, solange der Schalter darüber an ist. Unter 480px fällt sie weg —
+ * dort ist die Zeile zu kurz, um 26px zu verschenken, und der Zusammenhang
+ * trägt sich über die Nähe.
+ */
+.abhaengig {
+  padding-left: 26px;
+}
+
+@media (max-width: 480px) {
+  .abhaengig {
+    padding-left: 0;
+  }
+}
+
+/* Eine Zahl mit ihrer Einheit daneben — MB, Stück, Tage. Das Feld bleibt
+   schmal: Ein Eingabefeld über die halbe Zeile für „500" behauptet eine
+   Freiheit, die die Zahl nicht hat. */
+.mit-einheit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.mit-einheit input {
+  width: 140px;
+}
+
+.einheit {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+/* Mehrere Ankreuzfelder als eine Auswahl — die PHP-Versionen eines Plans. */
+.auswahl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.auswahl .schalter {
+  align-items: center;
+  margin-top: 6px;
+  font-size: var(--text-small);
+  color: var(--text);
+}
+
+.auswahl .schalter input[type='checkbox'] {
+  margin-top: 0;
+}
+
+/*
+ * Eine Liste gleichartiger Posten in Spalten — die Kontingente eines Plans
+ * und die eines Abonnements.
+ *
+ * **Warum das hier steht und nicht auf den beiden Seiten.** Es stand erst
+ * dort, in beiden `<style scoped>`, und war schon beim Schreiben verschieden:
+ * einmal 10px Innenabstand, einmal 12, einmal eine Linie zwischen den Posten,
+ * einmal über jedem. Genau der Weg, auf dem in diesem Projekt vier Fassungen
+ * derselben Sache entstanden sind.
+ *
+ * `auto-fill` und nicht `auto-fit`: Bei zwei Posten in der letzten Zeile soll
+ * die dritte Spalte leer bleiben und die übrigen ihre Breite behalten — sonst
+ * ziehen sich zwei Zahlenfelder über 1900px auseinander.
+ */
+.posten-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0 44px;
+}
+
+/* Jeder Posten trägt seine Linie oben. Zwischen den Posten geschrieben
+   (`+ .posten`) hätte im Raster die erste Zeile keine und die zweite eine —
+   je nachdem, wie viele Spalten gerade passen. */
+.posten {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.posten > .schalter:first-child {
+  margin-top: 0;
+}
+
+/* Die Beschriftung eines Werts, der nicht in einem `.feld` steht — weil neben
+   ihm noch eine Einheit und ein Schalter stehen. */
+.beschriftung {
+  display: block;
+  font-size: var(--text-small);
+  font-weight: 540;
+  color: var(--text-muted);
+}
+
+/* Sie bringt ihren Abstand selbst mit; sonst stünde zwischen ihr und dem Wert
+   die volle Feldluft von 16px. */
+.beschriftung + .mit-einheit,
+.beschriftung + .auswahl {
+  margin-top: 6px;
+}
+
+.beschriftung + .auswahl .schalter {
+  margin-top: 0;
+}
+
+/* „unbegrenzt" gehört in die Zeile des Werts und nicht darunter: Es ist die
+   Alternative zu dieser einen Zahl und keine zweite Einstellung. */
+.mit-einheit .schalter {
+  align-items: center;
+  margin-top: 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.mit-einheit .schalter input[type='checkbox'] {
+  margin-top: 0;
+}
+
+/*
+ * Die Knopfreihe unter einer Maske steht auf eigener Zeile.
+ *
+ * `.maske` ist dieselbe Flexverteilung wie `.bereiche`, und ohne diese Zeile
+ * rutscht „Speichern" neben den letzten Bereich — an eine Stelle, an der es so
+ * aussieht, als gehöre es nur zu diesem einen. Ein Formular hat einen
+ * Abschluss und nicht drei.
+ */
+.maske > .knopfreihe {
+  flex-basis: 100%;
+  margin-top: 4px;
 }
 
 .hinweis {
@@ -1263,6 +1467,21 @@ table.paare {
 .meldung.kritisch {
   background: var(--critical-surface);
   border-color: var(--critical);
+}
+
+/*
+ * Eine Meldung ohne Rang — sie sagt, was gleich passiert, und nicht, dass
+ * etwas gut oder schlecht steht.
+ *
+ * Sie ist der Grundzustand und trotzdem eine eigene Klasse: Ohne sie hätte
+ * `.meldung` allein keinen Rand und keine Fläche, weil `border-left: 3px
+ * solid` ohne Farbangabe auf `currentColor` fällt. Das ist genau die Sorte
+ * stiller Rückfall, für die es hier Wächter gibt — deshalb wird der Rang immer
+ * geschrieben.
+ */
+.meldung.neutral {
+  background: var(--surface);
+  border-color: var(--control-line);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

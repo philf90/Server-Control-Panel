@@ -334,18 +334,39 @@ final class MobileLayoutTest extends TestCase
         $sheets = [];
 
         foreach ($this->files('resources/css', 'css') as $path) {
-            $sheets[$this->relative($path)] = (string) file_get_contents($path);
+            $sheets[$this->relative($path)] = $this->withoutComments((string) file_get_contents($path));
         }
 
         foreach ($this->files('resources/js', 'vue') as $path) {
             $source = (string) file_get_contents($path);
 
             if (preg_match('#<style[^>]*>(.*)</style>#su', $source, $match) === 1) {
-                $sheets[$this->relative($path)] = $match[1];
+                $sheets[$this->relative($path)] = $this->withoutComments($match[1]);
             }
         }
 
         return $sheets;
+    }
+
+    /**
+     * Kommentare weg, bevor eine Regel gelesen wird.
+     *
+     * **Das hat gefehlt, und es hat falschen Alarm geschlagen.** Der Ausdruck
+     * `([^{}]*)\{([^{}]*)\}` nimmt als Selektor alles, was vor der Klammer
+     * steht — also auch den Kommentar darüber. In app.css steht über `.schalter`
+     * die Begründung, warum ein `input[type='checkbox']` dort seine eigene
+     * Größe bekommt; das Wort „input" darin genügte, damit die Regel als
+     * Feldregel galt und an `--text-table` durchfiel. Ein Ankreuzfeld zoomt
+     * Safari nie hinein — das ist das Gegenteil einer echten Meldung.
+     *
+     * Jeder andere Wächter mit demselben Ausdruck macht das längst
+     * (`ButtonStyleTest`, `TableStyleTest`, `ClassReachTest`); hier war es
+     * vergessen worden. Ein Wächter, der bei einem gut kommentierten
+     * Stylesheet Fehlalarm gibt, wird beim dritten Mal abgeschaltet.
+     */
+    private function withoutComments(string $css): string
+    {
+        return (string) preg_replace('#/\*.*?\*/#su', '', $css);
     }
 
     /**

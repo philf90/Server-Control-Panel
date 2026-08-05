@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head, Link, useForm } from '@inertiajs/vue3'
+import Bereich from '../../Components/Bereich.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -32,15 +33,18 @@ const form = useForm({
   <Head title="Abonnement anlegen" />
 
   <PanelLayout title="Abonnement anlegen" subline="Systembenutzer, Verzeichnis und Quota entstehen als Vorgang">
-    <p v-if="props.customers.length === 0 || props.plans.length === 0" class="hinweis-block">
+    <template #pfad>
+      <Link href="/subscriptions" class="verweis">Abonnements</Link>
+    </template>
+
+    <p v-if="props.customers.length === 0 || props.plans.length === 0" class="meldung warn">
       Es braucht mindestens einen Kunden und einen Plan. Beide finden sich unter Verwaltung.
     </p>
 
     <form class="maske" @submit.prevent="form.post('/subscriptions')">
-      <fieldset>
-        <legend>Zuordnung</legend>
-
-        <label>Kunde
+      <Bereich titel="Zuordnung">
+        <label class="feld">
+          <span>Kunde</span>
           <select v-model="form.customer_id" required>
             <option
               v-for="c in props.customers"
@@ -51,57 +55,48 @@ const form = useForm({
               {{ c.label }}{{ c.suspended ? ' · gesperrt' : '' }}
             </option>
           </select>
-          <small v-if="form.errors.customer_id" class="fehler">{{ form.errors.customer_id }}</small>
         </label>
+        <p v-if="form.errors.customer_id" class="fehler">{{ form.errors.customer_id }}</p>
 
-        <label>Plan
+        <label class="feld">
+          <span>Plan</span>
           <select v-model="form.plan_id" required>
             <option v-for="p in props.plans" :key="p.id" :value="p.id">
               {{ p.label }}{{ p.is_default ? ' (Standard)' : '' }}
             </option>
           </select>
-          <small v-if="form.errors.plan_id" class="fehler">{{ form.errors.plan_id }}</small>
         </label>
-      </fieldset>
+        <p v-if="form.errors.plan_id" class="fehler">{{ form.errors.plan_id }}</p>
+      </Bereich>
 
-      <fieldset>
-        <legend>Abonnement</legend>
-
-        <label>Name
+      <Bereich titel="Abonnement">
+        <label class="feld">
+          <span>Name</span>
           <input v-model="form.name" type="text" placeholder="kunde-example.de" autocomplete="off" required>
-          <small v-if="form.errors.name" class="fehler">{{ form.errors.name }}</small>
-          <small class="hinweis">
-            Wird zum Verzeichnis <code>/var/www/vhosts/&lt;name&gt;</code>. Kleinbuchstaben,
-            Ziffern, Punkt und Bindestrich; Anfang und Ende alphanumerisch.
-          </small>
         </label>
+        <p v-if="form.errors.name" class="fehler">{{ form.errors.name }}</p>
+        <p class="hinweis">
+          Wird zum Verzeichnis <span class="kennung">/var/www/vhosts/&lt;name&gt;</span>.
+          Kleinbuchstaben, Ziffern, Punkt und Bindestrich; Anfang und Ende
+          alphanumerisch.
+        </p>
 
-        <label>Systembenutzer
+        <label class="feld">
+          <span>Systembenutzer</span>
           <input :value="props.nextUser" type="text" readonly tabindex="-1">
-          <small class="hinweis">
-            Wird beim Anlegen vergeben. Er bleibt auch nach einem Rückbau verbraucht —
-            sonst erbte ein späteres Abonnement seine UID.
-          </small>
         </label>
-      </fieldset>
+        <p class="hinweis">
+          Wird beim Anlegen vergeben. Er bleibt auch nach einem Rückbau
+          verbraucht — sonst erbte ein späteres Abonnement seine UID.
+        </p>
+      </Bereich>
 
-      <button type="submit" class="knopf wichtig" :disabled="form.processing || props.plans.length === 0">
-        {{ form.processing ? 'Wird eingereiht …' : 'Anlegen' }}
-      </button>
+      <div class="knopfreihe">
+        <button type="submit" class="knopf wichtig" :disabled="form.processing || props.plans.length === 0">
+          {{ form.processing ? 'Wird eingereiht …' : 'Anlegen' }}
+        </button>
+        <Link href="/subscriptions" class="knopf">Abbrechen</Link>
+      </div>
     </form>
   </PanelLayout>
 </template>
-
-<style scoped>
-.hinweis-block { max-width: 544px; margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
-.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 544px; }
-fieldset { display: flex; flex-direction: column; gap: 10px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-input, select { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-input[readonly] { font-family: var(--font-mono); color: var(--text-muted); background: var(--surface-border); border-color: transparent; cursor: default; }
-code { font-family: var(--font-mono); }
-.hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
-.fehler { font-size: var(--text-small); color: var(--critical); }
-.maske > .knopf { align-self: flex-start; }
-</style>

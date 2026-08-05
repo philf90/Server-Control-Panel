@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3'
+import Bereich from '../../Components/Bereich.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -42,77 +43,92 @@ const form = useForm({
 <template>
   <Head :title="`${props.customer.first_name} ${props.customer.last_name}`" />
 
-  <PanelLayout title="Kunde bearbeiten" :subline="props.customer.number">
-    <form class="maske" @submit.prevent="form.patch(`/customers/${props.customer.id}`)">
-      <fieldset>
-        <legend>Vertragspartner</legend>
+  <PanelLayout title="Kunde bearbeiten">
+    <template #pfad>
+      <Link href="/customers" class="verweis">Kunden</Link> ·
+      <Link :href="`/customers/${props.customer.id}`" class="verweis">
+        {{ props.customer.first_name }} {{ props.customer.last_name }}
+      </Link>
+    </template>
 
-        <label>Kundennummer
+    <form class="maske" @submit.prevent="form.patch(`/customers/${props.customer.id}`)">
+      <Bereich titel="Vertragspartner">
+        <label class="feld">
+          <span>Kundennummer</span>
           <input :value="props.customer.number" type="text" readonly tabindex="-1">
-          <small class="hinweis">
-            Steht in Rechnungen und Verzeichnisnamen und lässt sich deshalb nicht ändern.
-          </small>
         </label>
+        <p class="hinweis">
+          Steht in Rechnungen und Verzeichnisnamen und lässt sich deshalb nicht ändern.
+        </p>
 
         <div class="paar">
-          <label>Vorname
+          <label class="feld">
+            <span>Vorname</span>
             <input v-model="form.first_name" type="text" required>
-            <small v-if="form.errors.first_name" class="fehler">{{ form.errors.first_name }}</small>
           </label>
-          <label>Nachname
+          <label class="feld">
+            <span>Nachname</span>
             <input v-model="form.last_name" type="text" required>
-            <small v-if="form.errors.last_name" class="fehler">{{ form.errors.last_name }}</small>
           </label>
         </div>
+        <p v-if="form.errors.first_name" class="fehler">{{ form.errors.first_name }}</p>
+        <p v-if="form.errors.last_name" class="fehler">{{ form.errors.last_name }}</p>
 
-        <label>E-Mail
+        <label class="feld">
+          <span>E-Mail</span>
           <input v-model="form.email" type="email" required>
-          <small v-if="form.errors.email" class="fehler">{{ form.errors.email }}</small>
-          <small class="hinweis">
-            Die Adresse des Vertragspartners. Die Anmeldeadresse gehört zum
-            Konto und wird unter „Mein Konto" geändert.
-          </small>
         </label>
+        <p v-if="form.errors.email" class="fehler">{{ form.errors.email }}</p>
+        <p class="hinweis">
+          Die Adresse des Vertragspartners. Die Anmeldeadresse gehört zum Konto
+          und wird unter „Mein Konto" geändert.
+        </p>
 
-        <label>Telefon
+        <label class="feld">
+          <span>Telefon</span>
           <input v-model="form.phone" type="text">
-          <small v-if="form.errors.phone" class="fehler">{{ form.errors.phone }}</small>
         </label>
-      </fieldset>
+        <p v-if="form.errors.phone" class="fehler">{{ form.errors.phone }}</p>
+      </Bereich>
 
-      <fieldset>
-        <legend>Anschrift</legend>
-
-        <label>Straße und Hausnummer
+      <Bereich titel="Anschrift">
+        <label class="feld">
+          <span>Straße und Hausnummer</span>
           <input v-model="form.street" type="text">
         </label>
 
-        <div class="paar plz">
-          <label>PLZ
+        <!--
+          Die PLZ bekommt einen schmaleren Grundriss als der Ort: Fünf Ziffern
+          in einem Feld von halber Zeilenbreite sehen aus, als fehle etwas.
+        -->
+        <div class="paar">
+          <label class="feld schmal">
+            <span>PLZ</span>
             <input v-model="form.postal_code" type="text">
           </label>
-          <label>Ort
+          <label class="feld">
+            <span>Ort</span>
             <input v-model="form.city" type="text">
           </label>
         </div>
 
-        <label>Land
+        <label class="feld">
+          <span>Land</span>
           <input v-model="form.country" type="text" maxlength="2" placeholder="DE">
-          <small v-if="form.errors.country" class="fehler">{{ form.errors.country }}</small>
-          <small class="hinweis">Zwei Buchstaben nach ISO 3166-1, etwa DE, AT oder CH.</small>
         </label>
-      </fieldset>
+        <p v-if="form.errors.country" class="fehler">{{ form.errors.country }}</p>
+        <p class="hinweis">Zwei Buchstaben nach ISO 3166-1, etwa DE, AT oder CH.</p>
+      </Bereich>
 
-      <fieldset>
-        <legend>Notiz</legend>
-
-        <label>Vermerk
-          <textarea v-model="form.notes" rows="4"></textarea>
-          <small class="hinweis">
-            Nur für den Betreiber sichtbar. Der Kunde sieht diesen Text nicht.
-          </small>
+      <Bereich titel="Notiz">
+        <label class="feld">
+          <span>Vermerk</span>
+          <textarea v-model="form.notes" rows="5"></textarea>
         </label>
-      </fieldset>
+        <p class="hinweis">
+          Nur für den Betreiber sichtbar. Der Kunde sieht diesen Text nicht.
+        </p>
+      </Bereich>
 
       <div class="knopfreihe">
         <button type="submit" class="knopf wichtig" :disabled="form.processing">
@@ -123,22 +139,3 @@ const form = useForm({
     </form>
   </PanelLayout>
 </template>
-
-<style scoped>
-.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 544px; }
-fieldset { display: flex; flex-direction: column; gap: 10px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-.paar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.paar.plz { grid-template-columns: 120px 1fr; }
-input, textarea { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-textarea { resize: vertical; }
-input[readonly] { font-family: var(--font-mono); color: var(--text-muted); background: var(--surface-border); border-color: transparent; cursor: default; }
-.hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
-.fehler { font-size: var(--text-small); color: var(--critical); }
-
-/* docs/24: unter 480px stehen zwei Felder nicht mehr nebeneinander. */
-@media (max-width: 480px) {
-  .paar, .paar.plz { grid-template-columns: 1fr; }
-}
-</style>

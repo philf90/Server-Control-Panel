@@ -857,6 +857,74 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WelcomePageTest passed
 
 echo
+echo "── PanelCertificateTest: die Oberfläche liefert weiter das selbstsignierte ──"
+#
+# Ein bestelltes Zertifikat, das nginx nicht ausliefert, ist keins. Und die
+# Zertifikatsseite zeigte dann eines an, das der Browser nie bekommt.
+vorher_datei agent/src/Acme/PanelCertificate.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/PanelCertificate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $acme = self::fromStore($store ?? new Store, $host ?? Names::host());",
+    '        $acme = null;',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/PanelCertificate.php "ACME-Zertifikat der Oberfläche wird nicht ausgeliefert" &&
+pruefe "ACME-Zertifikat der Oberfläche wird nicht ausgeliefert" \
+  PanelCertificateTest::test_a_certificate_from_an_authority_wins failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PanelCertificateTest passed
+
+echo
+echo "── PanelVhostTest: der Aufruf ohne Port verschiebt das Panel ──"
+#
+# Nach dem Ausstellen wird der Block neu geschrieben, ohne dass jemand einen
+# Port nennt. Wer 9443 gewählt hat, fände sein Panel danach auf 8443 — die
+# Meldung dazu wäre "Verbindung abgelehnt" und stünde in keinem Protokoll.
+vorher_datei agent/src/Ops/PanelVhost.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelVhost.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (preg_match('/listen\\s+(\\d+)\\s+ssl/', $conf, $match) === 1) {\n"
+    "            return (int) $match[1];\n"
+    "        }\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PanelVhost.php "Port der Oberfläche wird nicht gelesen" &&
+pruefe "Port der Oberfläche wird nicht gelesen" \
+  PanelVhostTest::test_a_call_without_a_port_keeps_the_one_that_is_there failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PanelVhostTest passed
+
+echo
+echo "── AcmeSettingsTest: das Panel bestellt aus dem Testbetrieb ──"
+#
+# Ein Staging-Zertifikat ist von einer Zertifizierungsstelle ausgestellt — der
+# Agent schreibt also HSTS in den Block. Kein Browser kennt die Wurzel dahinter,
+# die Warnung bleibt, und wegklicken lässt sie sich nicht mehr. Der Betreiber
+# ist aus seinem eigenen Panel ausgesperrt.
+vorher_datei app/Support/Tls/AcmeSettings.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/AcmeSettings.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        return $this->configured() && ! $this->staging();',
+    '        return $this->configured();',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/AcmeSettings.php "Panel-Zertifikat aus dem Testbetrieb" &&
+pruefe "Panel-Zertifikat aus dem Testbetrieb" \
+  AcmeSettingsTest::test_the_panel_never_orders_from_the_staging_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AcmeSettingsTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

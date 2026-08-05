@@ -2628,3 +2628,66 @@ Wächter — diese sieben sind bis dahin Zusagen.
 Zertifikat. Die Prüfadresse auf Port 80 steht seit Schritt 3, bestellt wird für
 den Rechnernamen aber nichts — `docs/32` führt das im ersten Wurf, und es ist
 der nächste Schritt vor der Oberfläche.
+
+#### Schritt 5b: das Zertifikat der Oberfläche kommt von Let's Encrypt
+
+Der letzte Punkt des ersten Wurfs, der noch offen war: Das Panel lief mit dem
+selbstsignierten Zertifikat aus P0, und jeder Aufruf begann mit einer
+Browserwarnung.
+
+**Bestellt wird über dieselbe Strecke wie für jede Kundendomain** —
+`acme.certificate.issue` für den vollständigen Rechnernamen, HTTP-01 über den
+Block auf Port 80, den Schritt 3 der Oberfläche gegeben hat. Kein zweiter
+ACME-Weg, keine zweite Ablage.
+
+**Ohne Vorgang und ohne Zeile im Bestand.** Das Zertifikat der Oberfläche
+gehört keinem Kunden, hängt an keiner Domain und wird von keiner Seite
+verwaltet; was gilt, steht im Ablageort. Eine Zeile in `certificates` bräuchte
+einen zweiten Erneuerungsweg — und der zweite Weg ist immer der, der veraltet.
+`srvpanel:tls` fragt deshalb täglich `acme.certificate.info` und bestellt ab 30
+Tagen Restlaufzeit neu, mit derselben Frist wie bei den Kundenzertifikaten.
+
+**Aus dem Testbetrieb wird für die Oberfläche nie bestellt, und das ist die
+wichtigste Zeile dieses Schritts.** Ein Staging-Zertifikat ist von einer
+Zertifizierungsstelle ausgestellt — der Agent hält es damit für
+vertrauenswürdig und schreibt `Strict-Transport-Security` in den Server-Block.
+Kein Browser kennt die Wurzel dahinter: Die Warnung bleibt, **und sie lässt
+sich nicht mehr wegklicken**, weil HSTS genau das verbietet. Der Betreiber wäre
+aus seinem eigenen Panel ausgesperrt — und die Einstellung, mit der er sich
+ausgesperrt hat, liegt hinter der Anmeldung. Bei einer Kundendomain ist
+derselbe Fall unschön, hier ist er teuer.
+
+**Das selbstsignierte bleibt liegen und bleibt gültig.** Es ist der Rückweg,
+wenn unter dem Namen dieses Servers nichts mehr steht; `panel.tls.ensure` hält
+es weiter aktuell, auch wenn es gerade niemand ausliefert. Ein Rückweg, den man
+erst wieder herstellen muss, ist keiner.
+
+**Welche der beiden Dateien ausgeliefert wird, entscheidet eine Stelle**
+(`Acme\PanelCertificate`). Der Server-Block wählt sie, die Zertifikatsseite
+zeigt sie an, die Erneuerung fragt danach — drei Stellen, die je selbst
+nachsähen, sind zwei Gelegenheiten für eine Seite, die ein anderes Zertifikat
+anzeigt als das, was der Browser bekommt. Und ein **kurzer Rechnername** ist
+dabei kein Fehler: `Store` nimmt nur Domainnamen an, auf einem Server namens
+`cloudsrv24` fliegt die Frage nach dem Ablageort. Sie heisst hier „es gibt
+keines" und nicht „der Server-Block lässt sich nicht schreiben" — sonst nähme
+ein kurzer Hostname das ganze Panel mit.
+
+**Ein Aufruf ohne Portangabe verschiebt das Panel nicht mehr.** Nach dem
+Ausstellen wird der Block neu geschrieben, und niemand nennt dabei einen Port;
+die Vorgabe 8443 wäre für jeden Betreiber, der 9443 gewählt hat, ein Panel an
+einer anderen Stelle — mit „Verbindung abgelehnt" als einziger Meldung.
+`panel.vhost.apply` liest den Port jetzt aus dem Block, der dasteht.
+
+**Ein Fehlschlag hält den Lauf nicht an.** Ohne DNS-Eintrag auf diesen Server
+kann die Prüfung nicht gelingen; das ist beim Einrichten der Normalfall und
+kein Grund, eine systemd-Unit rot zu färben. Die Oberfläche antwortet weiter,
+nur eben mit der Warnung.
+
+Drei weitere Brüche im Wächterskript — auch sie sind geschrieben und nicht
+gelaufen, aus demselben Grund wie in Schritt 5.
+
+**Was dabei bewusst liegen bleibt:** Die Seite `/settings/tls` zeigt weiter nur
+„selbstsigniert oder nicht" und trägt einen Knopf, der das selbstsignierte neu
+ausstellt — mit einem ACME-Zertifikat davor sieht man davon nichts. Die Auskunft
+dafür steht seit diesem Schritt im Rückgabewert (`acme`); die Seite bekommt sie
+in Schritt 6, zusammen mit den Screenshots in beiden Themes und bei 390 px.

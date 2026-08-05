@@ -68,6 +68,27 @@ final class AcmeSettings
     }
 
     /**
+     * Darf für die Oberfläche selbst eines bestellt werden?
+     *
+     * **Aus dem Testbetrieb nie**, und das ist die wichtigste Zeile dieser
+     * Klasse. Ein Staging-Zertifikat ist von einer Zertifizierungsstelle
+     * ausgestellt — der Agent hält es damit für vertrauenswürdig und schreibt
+     * `Strict-Transport-Security` in den Server-Block. Kein Browser kennt die
+     * Wurzel dahinter: Die Warnung bleibt, **und sie lässt sich nicht mehr
+     * wegklicken**, weil HSTS genau das verbietet. Der Betreiber wäre aus
+     * seinem eigenen Panel ausgesperrt, und der Weg zurück führte über die
+     * Einstellungen des Browsers (`docs/27 §7`).
+     *
+     * Für eine Kundendomain ist derselbe Fall unschön, hier ist er teuer:
+     * Wer sich aussperrt, kann die Einstellung nicht mehr ändern, mit der er
+     * sich ausgesperrt hat.
+     */
+    public function mayOrderForPanel(): bool
+    {
+        return $this->configured() && ! $this->staging();
+    }
+
+    /**
      * Darf ein Server-Block für dieses Zertifikat HSTS versprechen?
      *
      * **Der Testbetrieb ist der Grund, warum diese Frage hier steht und nicht

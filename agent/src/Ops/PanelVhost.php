@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\Acme\HttpChallenge;
+use SrvPanel\Agent\Acme\PanelCertificate;
 use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
@@ -42,14 +43,18 @@ final class PanelVhost implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $port = is_int($args['port'] ?? null) ? $args['port'] : 8443;
+        $port = is_int($args['port'] ?? null) ? $args['port'] : $this->currentPort();
 
         if ($port < 1 || $port > 65535) {
             throw AgentException::badRequest('Unzulässiger Port.', ['port' => $port]);
         }
 
-        $certificate = '/etc/srvpanel/tls/panel.crt';
-        $key = '/etc/srvpanel/tls/panel.key';
+        // Welche Datei ausgeliefert wird, entscheidet eine Stelle — sonst
+        // zeigt die Zertifikatsseite eines und der Browser bekommt ein
+        // anderes.
+        $tls = PanelCertificate::current();
+        $certificate = $tls['certificate'];
+        $key = $tls['key'];
 
         if (! is_file($certificate) || ! is_file($key)) {
             throw new AgentException(
@@ -89,7 +94,48 @@ final class PanelVhost implements Op
         // Mal um die Zeile mit dem Zurück ärmer gewesen.
         NginxApply::commit($context, [$this->target => $text]);
 
-        return ['path' => $this->target, 'port' => $port, 'replaced' => $before !== null];
+        return [
+            'path' => $this->target,
+            'port' => $port,
+            'replaced' => $before !== null,
+            'acme' => $tls['acme'],
+        ];
+    }
+
+    /**
+     * Der Port, auf dem die Oberfläche gerade hört.
+     *
+     * **Ohne diese Frage verschiebt ein Aufruf ohne Portangabe das Panel.**
+     * Die Vorgabe war 8443, und sie ist richtig für die Ersteinrichtung — für
+     * jeden späteren Aufruf ist sie eine Behauptung. Seit der Erneuerung des
+     * Zertifikats den Block neu schreibt, gibt es solche Aufrufe: Ein
+     * Betreiber, der 9443 gewählt hat, fände sein Panel danach woanders, und
+     * die Meldung dazu wäre „Verbindung abgelehnt".
+     */
+    private function currentPort(): int
+    {
+        return self::portIn(is_file($this->target) ? (string) file_get_contents($this->target) : '');
+    }
+
+    /**
+     * Der Port aus einem vorhandenen Block — oder die Vorgabe.
+     *
+     * Öffentlich und ohne Datei, damit die Regel prüfbar ist: Sie entscheidet
+     * darüber, wo das Panel nach einem Aufruf ohne Portangabe zu finden ist,
+     * und ein Test, der dafür `/etc/nginx` fälscht, ist keiner.
+     *
+     * `listen 9443 ssl;` und `listen 9443 ssl http2;` — beide Schreibweisen
+     * stehen im eigenen Block, und beide passen. `listen [::]:9443` bleibt
+     * aussen vor, `listen 80;` ebenfalls: Der Port der Oberfläche trägt immer
+     * `ssl`.
+     */
+    public static function portIn(string $conf): int
+    {
+        if (preg_match('/listen\s+(\d+)\s+ssl/', $conf, $match) === 1) {
+            return (int) $match[1];
+        }
+
+        return 8443;
     }
 
     /**

@@ -265,6 +265,31 @@ fi
 
 restart_services
 
+# Die ausgelieferte nginx-Konfiguration wieder auf den Stand der Vorlage
+# bringen.
+#
+# **Die Vorlage lebt im Agenten, die Datei unter /etc/nginx ist eine Kopie —
+# und die zog bis 0.4.0 niemand nach.** `panel.vhost.apply` rief allein
+# `srvpanel setup`; wer einmal eingerichtet hatte, behielt den Block von damals,
+# beliebig alt. Aufgefallen ist das an der teuersten Stelle: P4 hat der
+# Oberfläche einen Block auf Port 80 gegeben, damit sie die ACME-Prüfung
+# beantwortet. Auf dem Zielserver kam die Bestellung trotzdem nicht durch — der
+# neue Block stand im Code, nicht in /etc/nginx, und die Prüfung landete beim
+# Vorgabeserver auf Port 80. Antwort: 404, ohne Fehler, ohne Meldung.
+#
+# **Vor der Bereitschaftsprüfung und nicht danach:** Der Agent nimmt eine
+# Konfiguration nur an, die `nginx -t` besteht, und legt sonst die alte zurück.
+# Käme trotzdem etwas Unbrauchbares dabei heraus, meldet die Prüfung gleich
+# darunter das Panel als nicht erreichbar — und der Rückweg greift.
+#
+# **Ein Fehlschlag bricht das Update nicht ab.** Der alte Block bleibt liegen
+# und liefert weiter aus; ein Update wegen einer Konfigurationsdatei
+# zurückzunehmen, wäre die teurere Antwort. Die Meldung steht dafür deutlich da.
+if ! /usr/local/bin/srvpanel vhost --no-interaction; then
+    echo "SrvPanel: Der Server-Block der Oberfläche liess sich nicht neu schreiben." >&2
+    echo "SrvPanel: Es gilt der bisherige. Nachholen mit: sudo srvpanel vhost" >&2
+fi
+
 if ! panel_ready; then
     roll_back || true
     exit 1

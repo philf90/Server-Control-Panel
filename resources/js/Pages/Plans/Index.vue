@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import Pager from '../../Components/Pager.vue'
 
 interface Row {
   id: number
@@ -13,13 +14,15 @@ interface Row {
   features: string[]
 }
 
-const props = defineProps<{ plans: Row[] }>()
+const props = defineProps<{
+  plans: { data: Row[]; current_page: number; last_page: number; total: number }
+}>()
 </script>
 
 <template>
   <Head title="Pläne" />
 
-  <PanelLayout title="Pläne" :subline="`${props.plans.length} angelegt`">
+  <PanelLayout title="Pläne" :subline="`${props.plans.total} angelegt`">
     <template #actions>
       <Link href="/plans/create" class="button primary">Plan anlegen</Link>
     </template>
@@ -29,7 +32,7 @@ const props = defineProps<{ plans: Row[] }>()
         <thead>
           <tr>
             <th>Name</th>
-            <th v-for="spalte in props.plans[0]?.summary ?? []" :key="spalte.label" class="right">
+            <th v-for="spalte in props.plans.data[0]?.summary ?? []" :key="spalte.label" class="right">
               {{ spalte.label }}
             </th>
             <th>Freigaben</th>
@@ -46,7 +49,7 @@ const props = defineProps<{ plans: Row[] }>()
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in props.plans" :key="row.id">
+          <tr v-for="row in props.plans.data" :key="row.id">
             <td data-column="Plan" class="multiline">
               <span class="title-row">
                 <Link :href="`/plans/${row.id}/edit`" class="link">{{ row.name }}</Link>
@@ -76,7 +79,7 @@ const props = defineProps<{ plans: Row[] }>()
             <td data-column="Abos" class="right">{{ row.subscriptions }}</td>
             <td><Link :href="`/plans/${row.id}/edit`" class="button small">Bearbeiten</Link></td>
           </tr>
-          <tr v-if="props.plans.length === 0">
+          <tr v-if="props.plans.data.length === 0">
             <td colspan="6" class="quiet">
               Noch kein Plan angelegt. Ohne Plan lässt sich kein Abonnement
               anlegen — er trägt dessen Kontingente.
@@ -85,6 +88,8 @@ const props = defineProps<{ plans: Row[] }>()
         </tbody>
       </table>
     </div>
+
+    <Pager :page="props.plans.current_page" :pages="props.plans.last_page" />
   </PanelLayout>
 </template>
 

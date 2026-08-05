@@ -40,8 +40,9 @@ Vorhandene Wächter, an denen man sich orientieren kann:
 es gibt), `LifecycleReachTest`, `AnchoredPatternTest`, `PhpVersionCatalogTest`,
 `DirectiveAllowlistTest`, `PhpIsolationTest` — und aus dem Optik-Rework
 `ClassReachTest` (jede Klasse in einem Template zeigt auf eine Regel, die es
-gibt), `TableStyleTest` und `ClassNameTest` (jeder Klassenname ist englisch,
-und jede Regel in app.css wird von einem Template erreicht). Der Bruch selbst steht als
+gibt), `TableStyleTest`, `ClassNameTest` (jeder Klassenname ist englisch, und
+jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
+(wer paginiert, lässt auch blättern). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 

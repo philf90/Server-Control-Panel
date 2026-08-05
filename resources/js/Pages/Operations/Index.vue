@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import Pager from '../../Components/Pager.vue'
 
 interface Row {
   id: number
@@ -29,7 +30,7 @@ interface TaskEntry {
 }
 
 const props = defineProps<{
-  operations: { data: Row[]; total: number }
+  operations: { data: Row[]; current_page: number; last_page: number; total: number }
   tasks: TaskEntry[]
 }>()
 
@@ -169,6 +170,8 @@ function start(task: TaskEntry): void {
             </tbody>
           </table>
         </div>
+
+        <Pager :page="props.operations.current_page" :pages="props.operations.last_page" />
       </Section>
     </div>
   </PanelLayout>

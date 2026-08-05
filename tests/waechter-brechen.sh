@@ -210,6 +210,18 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
 
 echo
+echo "── PaginationTest: eine Liste ohne Weg zur zweiten Seite ──"
+#
+# Der Zustand von vor diesem Wächter: Vier Controller paginierten, keine
+# Seite zeigte einen Pager, und ab Zeile 51 war alles unerreichbar.
+sed -i 's|<Pager :page="props.events|<span v-if="false" :page="props.events|' \
+  resources/js/Pages/Audit/Index.vue
+pruefe "Verzeichnis ohne Pager" \
+  PaginationTest::test_every_paginated_page_renders_the_pager failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PaginationTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

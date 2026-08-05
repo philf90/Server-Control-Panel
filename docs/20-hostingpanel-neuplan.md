@@ -584,6 +584,41 @@ bindend:
 
 Geprüft von `tests/Feature/TableStyleTest.php` und `MobileLayoutTest`.
 
+#### Blättern
+
+Ein Verzeichnis endet nach 50 Zeilen, und darunter steht der Weg zur nächsten
+Seite: `.pager` mit „Zurück", „Seite N von M" und „Weiter".
+
+**Warum Vor und Zurück und keine Seitenzahlenleiste.** Eine Leiste
+„1 2 … 7 8 9 … 42" bricht auf 390 px entweder um oder braucht Abkürzungslogik,
+und die ist eine klassische Quelle für Zählfehler. Bei fünfzig Zeilen je Seite
+hat eine reale Installation ein bis drei Seiten; wer eine bestimmte Zeile
+sucht, filtert.
+
+**Der Befund, der das nötig machte, ist ein Jahr alt.** Vier Controller riefen
+`paginate()` auf — und **keine einzige Seite zeigte einen Weg zur zweiten.**
+Vom Protokoll waren 76 Einträge da und 50 zu sehen; von den Vorgängen, der
+Liste, die man ansieht, wenn etwas nicht stimmt, ebenso. Drei der vier
+schickten die Seitenzahlen nicht einmal mit; beim vierten kamen sie an und die
+Seite warf sie weg. Zwei weitere Verzeichnisse — Abonnements und Pläne —
+paginierten gar nicht und wuchsen ohne Grenze.
+
+Kein Fehler, keine Meldung, nur eine Liste, die aufhört. Wieder eine Zusage auf
+der einen Seite, der auf der anderen nichts entspricht.
+
+| Wo | Was |
+|---|---|
+| `App\Support\Web\Page::SIZE` | 50 Zeilen je Seite, für **alle** Verzeichnisse |
+| `Page::from($paginator, $row)` | erzeugt die Nutzlast: `data`, `current_page`, `last_page`, `total` |
+| `->withQueryString()` | trägt die eingestellten Filter in den Verweis auf Seite 2 |
+| `Components/Pager.vue` | zeigt sich nur, wenn es mehr als eine Seite gibt |
+
+Geprüft von `tests/Feature/PaginationTest.php`: Jede Paginierung geht durch den
+Helfer, behält ihre Abfrage — und **jede Seite, die eine paginierte Nutzlast
+bekommt, zeigt den Pager.** Die dritte Prüfung springt über die Sprachgrenze
+und ist die, die gefehlt hat: Der Controller war richtig, die Seite ignorierte
+ihn, und beide für sich sahen in Ordnung aus.
+
 #### Die Farben, die der Browser mitbringt
 
 Drei Stellen färbt der Browser von sich aus, und an allen dreien setzt er ein

@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import Pager from '../../Components/Pager.vue'
 
 interface Row {
   id: number
@@ -14,7 +15,9 @@ interface Row {
   accounts: number
 }
 
-const props = defineProps<{ customers: { data: Row[]; total: number } }>()
+const props = defineProps<{
+  customers: { data: Row[]; current_page: number; last_page: number; total: number }
+}>()
 
 /*
  * Der Zustand als Rang und nicht als Farbe an der Zelle.
@@ -92,5 +95,7 @@ function impersonate(row: Row): void {
         </tbody>
       </table>
     </div>
+
+    <Pager :page="props.customers.current_page" :pages="props.customers.last_page" />
   </PanelLayout>
 </template>

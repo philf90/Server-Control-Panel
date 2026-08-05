@@ -16,6 +16,7 @@ use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
 use App\Support\Subscriptions\Lifecycle;
+use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -49,10 +50,11 @@ final class SubscriptionController extends Controller
         $subscriptions = Subscription::query()
             ->with(['customer', 'plan'])
             ->orderBy('name')
-            ->get();
+            ->paginate(Page::SIZE)
+            ->withQueryString();
 
         return Inertia::render('Subscriptions/Index', [
-            'subscriptions' => $subscriptions->map(static fn (Subscription $s): array => [
+            'subscriptions' => Page::from($subscriptions, static fn (Subscription $s): array => [
                 'id' => (int) $s->id,
                 'name' => $s->name,
                 'customer' => $s->customer?->displayName(),
@@ -62,7 +64,7 @@ final class SubscriptionController extends Controller
                 'status_label' => $s->status->label(),
                 'used_mb' => $s->disk_used_mb,
                 'percent' => $s->diskUsagePercent(),
-            ])->all(),
+            ]),
         ]);
     }
 

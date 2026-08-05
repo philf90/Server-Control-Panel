@@ -10,6 +10,7 @@ use App\Models\Account;
 use App\Models\Operation;
 use App\Support\Audit\Audit;
 use App\Support\Operations\Task;
+use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -43,15 +44,11 @@ final class OperationController extends Controller
         $operations = Operation::query()
             ->with('account')
             ->orderByDesc('id')
-            ->paginate(50);
+            ->paginate(Page::SIZE)
+            ->withQueryString();
 
         return Inertia::render('Operations/Index', [
-            'operations' => [
-                'data' => collect($operations->items())
-                    ->map(fn (Operation $operation): array => $this->row($operation))
-                    ->all(),
-                'total' => $operations->total(),
-            ],
+            'operations' => Page::from($operations, fn (Operation $operation): array => $this->row($operation)),
             'tasks' => collect(Task::for($account))->map(static fn (Task $task): array => [
                 'key' => $task->value,
                 'label' => $task->label(),

@@ -1625,3 +1625,68 @@ in keinem Template steht.
 
 Wer eine Klasse hinzufügt, trägt ihr Wort in `VOCABULARY` ein. Die Zeile steht
 im Diff — genau dort, wo ein deutsches Wort auffällt.
+
+### Blättern — vier Verzeichnisse hörten nach fünfzig Zeilen auf
+
+Aufgefallen beim Ansehen einer Aufnahme des Protokolls: Oben stand „76
+Einträge", darunter fünfzig, und darunter nichts.
+
+**Der Befund war schlimmer als der erste Blick.** Vier Controller riefen
+`paginate()` auf — Protokoll, Kunden, Domains, Vorgänge — und **keine einzige
+Seite zeigte einen Weg zur zweiten.** Drei von ihnen schickten die
+Seitenzahlen nicht einmal mit; beim vierten kamen sie an und die Seite warf
+sie weg. Alles ab Zeile 51 war unerreichbar: kein Fehler, keine Meldung, nur
+eine Liste, die aufhört. Am schlimmsten trifft es die **Vorgänge** — die
+Liste wächst am schnellsten, eine Zeile je Operation, und man sieht sie an,
+wenn etwas nicht stimmt.
+
+Zwei weitere Verzeichnisse — **Abonnements und Pläne** — paginierten gar
+nicht und wuchsen ohne Grenze. Auf der schmalen Fläche wird daraus ein
+Kärtchen je Zeile; das Protokoll war bei 76 Einträgen bereits 21 000 px hoch.
+
+Wieder derselbe Fehler: eine Zusage auf der einen Seite (`paginate`), der auf
+der anderen nichts entspricht. Er ist ein Jahr alt.
+
+#### Was jetzt gilt
+
+- **Alle sechs Verzeichnisse paginieren**, 50 Zeilen je Seite, aus einer
+  Konstante. Auch Pläne — ein Katalog von über 50 ist unwahrscheinlich, aber
+  die Kosten sind ungleich verteilt: Blättern, das nie erscheint, kostet
+  nichts; zehn unsichtbare Pläne sind derselbe stille Verlust.
+- **Domains von 100 auf 50.** Ein abweichender Wert ohne Grund ist einer, den
+  beim nächsten Verzeichnis jemand anders setzt.
+- **Die Nutzlast entsteht in `App\Support\Web\Page`** und nicht je Controller.
+  Vorher schickte das Protokoll vier Felder und die übrigen drei zwei.
+- **`->withQueryString()` überall.** Ohne den Aufruf trägt der Verweis auf
+  Seite 2 die eingestellten Filter nicht mit: Man filtert auf
+  „fehlgeschlagen", blättert weiter und steht wieder in der ungefilterten
+  Liste — mit einem Formular, das weiter den Filter anzeigt.
+- **`Pager.vue`: Zurück · Seite N von M · Weiter.** Keine Seitenzahlenleiste:
+  „1 2 … 7 8 9 … 42" bricht auf 390 px um oder braucht Abkürzungslogik, und
+  die ist eine klassische Quelle für Zählfehler. Er zeigt sich nur, wenn es
+  mehr als eine Seite gibt, und auf Seite 1 steht kein `?page=1` in der
+  Adresse.
+
+#### Zwei Dinge, die erst der Browser zeigte
+
+Der Pager landete zunächst als Geschwister von `<Section>` und damit in
+`.sections` — einer Flexverteilung. Dort schrumpfte er auf seine
+Inhaltsbreite, und seine Trennlinie reichte über ein Fünftel der Seite. Er
+gehört unter die Tabelle und damit *in* den Bereich.
+
+Die äusseren Spalten halten ihre Breite auch dann, wenn kein Knopf darin
+steht. Ohne das rutschte „Seite 2 von 5" um eine Knopfbreite, sobald man von
+Seite 1 weiterblättert — auf einer Seite, die sonst gleich bleibt, sieht das
+nach einem Fehler aus.
+
+#### Der Wächter, der gefehlt hat
+
+`PaginationTest` prüft drei Dinge, und die dritte ist die entscheidende: Sie
+liest, welche Inertia-Seite ein `Page::from()` in ihrer Nutzlast hat, und
+sieht in der zugehörigen `.vue` nach, ob dort ein `<Pager>` steht. **Genau an
+dieser Naht ist der Fehler entstanden** — der Controller war richtig, die
+Seite ignorierte ihn, und beide für sich sahen in Ordnung aus.
+
+Dazu zwei funktionale Prüfungen in `AuditLogTest`, die der Wächter nicht
+leisten kann: dass Seite 2 andere Zeilen zeigt als Seite 1, und dass ein
+Filter das Blättern überlebt.

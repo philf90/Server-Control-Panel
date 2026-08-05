@@ -186,6 +186,19 @@ Vorgangsseite sah aus wie eine Paartabelle — Name, Beschreibung, ein Knopf —
 und ist eine Liste von Dingen, die man tun kann. Er steht als `<ul>` da. Die
 Frage vor der Wahl des Musters ist, ob die Daten überhaupt tabellarisch sind.
 
+### Blättern
+
+Unter jedem Verzeichnis steht `.pager` — drei Spalten: „Zurück", „Seite N von
+M", „Weiter". Die äusseren halten ihre Breite auch dann, wenn kein Knopf darin
+steht; sonst rutschte die Angabe in der Mitte um eine Knopfbreite, sobald man
+von Seite 1 weiterblättert.
+
+**Er stapelt nicht.** `.button-row` legt seine Knöpfe unter 480 px
+untereinander und über die volle Breite — der Pager tut das ausdrücklich
+nicht: Drei kurze Elemente passen bei 390 px nebeneinander (gemessen: rund
+300 px), und ein „Weiter" über die ganze Breite sähe aus wie die Hauptsache
+der Seite.
+
 ## 6. `dvh` statt `vh`
 
 `vh` zählt auf einem Telefon die Adressleiste mit, die beim Rollen

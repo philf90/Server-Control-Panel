@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import Pager from '../../Components/Pager.vue'
 
 interface Row {
   id: number
@@ -15,7 +16,9 @@ interface Row {
   percent: number | null
 }
 
-const props = defineProps<{ subscriptions: Row[] }>()
+const props = defineProps<{
+  subscriptions: { data: Row[]; current_page: number; last_page: number; total: number }
+}>()
 
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'active') return 'ok'
@@ -45,7 +48,7 @@ function verbrauch(row: Row): string {
 <template>
   <Head title="Abonnements" />
 
-  <PanelLayout title="Abonnements" :subline="`${props.subscriptions.length} angelegt`">
+  <PanelLayout title="Abonnements" :subline="`${props.subscriptions.total} angelegt`">
     <template #actions>
       <Link href="/subscriptions/create" class="button primary">Abonnement anlegen</Link>
     </template>
@@ -59,7 +62,7 @@ function verbrauch(row: Row): string {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in props.subscriptions" :key="row.id">
+          <tr v-for="row in props.subscriptions.data" :key="row.id">
             <td data-column="Name" class="ident name">
               <Link :href="`/subscriptions/${row.id}`" class="link">{{ row.name }}</Link>
             </td>
@@ -100,7 +103,7 @@ function verbrauch(row: Row): string {
               <Link :href="`/subscriptions/${row.id}/edit`" class="button small">Bearbeiten</Link>
             </td>
           </tr>
-          <tr v-if="props.subscriptions.length === 0">
+          <tr v-if="props.subscriptions.data.length === 0">
             <td colspan="7" class="quiet">
               Noch kein Abonnement. Es braucht einen Kunden und einen Plan —
               beide gibt es unter Verwaltung.
@@ -109,5 +112,7 @@ function verbrauch(row: Row): string {
         </tbody>
       </table>
     </div>
+
+    <Pager :page="props.subscriptions.current_page" :pages="props.subscriptions.last_page" />
   </PanelLayout>
 </template>

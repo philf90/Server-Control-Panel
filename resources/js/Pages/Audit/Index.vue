@@ -4,6 +4,7 @@ import { reactive, watch } from 'vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import Pager from '../../Components/Pager.vue'
 
 /*
  * Das Protokoll.
@@ -116,6 +117,8 @@ function exportUrl(): string {
             </tbody>
           </table>
         </div>
+
+        <Pager :page="props.events.current_page" :pages="props.events.last_page" />
       </Section>
     </div>
   </PanelLayout>

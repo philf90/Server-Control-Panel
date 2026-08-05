@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import Pager from '../../Components/Pager.vue'
 
 interface Row {
   id: number
@@ -16,7 +17,7 @@ interface Row {
 }
 
 const props = defineProps<{
-  domains: { data: Row[]; total: number }
+  domains: { data: Row[]; current_page: number; last_page: number; total: number }
 }>()
 
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
@@ -74,5 +75,7 @@ function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
         </tbody>
       </table>
     </div>
+
+    <Pager :page="props.domains.current_page" :pages="props.domains.last_page" />
   </PanelLayout>
 </template>

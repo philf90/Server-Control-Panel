@@ -914,6 +914,40 @@ table.pairs {
 /* Eine Reihe von Knöpfen. Unter 480px untereinander und über die volle
    Breite — nebeneinander bleiben auf 390px vom dritten nur noch drei
    Buchstaben übrig. */
+/* ═══════════════════════════════════════════════════════════════════════
+   Blättern
+
+   Drei Spalten, und die äusseren halten ihre Breite auch dann, wenn kein
+   Knopf darin steht: Sonst rutschte „Seite 2 von 5" um eine Knopfbreite,
+   sobald man von Seite 1 weiterblättert — auf einer Seite, die sonst gleich
+   bleibt, sieht das nach einem Fehler aus.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pager {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+  margin-top: var(--block-gap);
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.pager > :first-child {
+  justify-self: start;
+}
+
+.pager > :last-child {
+  justify-self: end;
+}
+
+.pager-state {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .button-row {
   display: flex;
   flex-wrap: wrap;

@@ -99,6 +99,26 @@
      seit die tragende Farbe in beiden Themes genug Kontrast hat. */
   --mark-accent: #3730a3;
 
+  /*
+   * Die zweite Kurve einer Kachel, die zwei Richtungen zeigt — heute das Netz
+   * mit eingehend und ausgehend.
+   *
+   * **Warum eine eigene Marke und nicht `--ok`.** Das naheliegende Grün ist
+   * hier vergeben: `--ok` heisst in diesem Panel „in Ordnung". Eine zweite
+   * Kurve ist keine Aussage über einen Zustand, sondern eine zweite Messgröße;
+   * sie in der Zustandsfarbe zu zeichnen hiesse, dass ausgehender Verkehr
+   * gesund und eingehender neutral ist. Deshalb ein Petrol, das weder nach
+   * „gut" noch nach „Warnung" aussieht: 6,18:1 gegen den hellen Grund,
+   * 11,10:1 gegen den dunklen — beides über den 3:1, die WCAG 1.4.11 für ein
+   * grafisches Objekt verlangt.
+   *
+   * **Und die Farbe trägt den Unterschied nicht allein.** Zwei Linien, die
+   * sich nur im Farbton unterscheiden, sind für rund acht Prozent der Männer
+   * zwei gleiche Linien (WCAG 1.4.1). Die zweite Kurve ist deshalb zusätzlich
+   * gestrichelt und hat keine Fläche unter sich; das steht in Tile.vue.
+   */
+  --accent-second: #0b6b7a;
+
   --ok: #076e54;
   --ok-surface: rgb(7 110 84 / 0.1);
   --warn: #845306;
@@ -142,6 +162,11 @@
   --accent-surface: rgb(163 170 255 / 0.14);
 
   --mark-accent: #a3aaff;
+
+  /* Aufgehellt statt umgekehrt, wie der Akzent — ein Petrol aus dem hellen
+     Theme erreicht auf `#0f1116` 1,5:1 und wäre keine Kurve, sondern ein
+     Schatten. */
+  --accent-second: #5cd7e8;
 
   --ok: #57c99c;
   --ok-surface: rgb(87 201 156 / 0.14);
@@ -487,7 +512,22 @@ input[type='radio'] {
   border-bottom: 1px solid var(--line);
 }
 
+/*
+ * Eine Spalte, damit die Kurven aller Kacheln auf einer Linie liegen.
+ *
+ * **Der Befund.** Die Netzkachel braucht zwei Zeilen Beizeile, die anderen
+ * eine — und damit begann ihre Kurve 20px tiefer als die vier daneben. Fünf
+ * Sparklines auf vier Höhen sehen nicht nach zwei Richtungen aus, sondern nach
+ * einem Fehler; im Test war nichts davon zu sehen.
+ *
+ * Die Kacheln sind Flexkinder und strecken sich ohnehin auf die Höhe der
+ * höchsten. Wenn die Beizeile den Rest nimmt und die Kurve unten sitzt,
+ * gleicht sich der Unterschied dort aus, wo er nicht auffällt — im Leerraum
+ * über der Kurve statt in ihrer Grundlinie.
+ */
 .tile {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 var(--kachel-min);
   min-width: 0;
   padding: 18px 24px 18px 0;
@@ -532,9 +572,30 @@ input[type='radio'] {
  */
 .tile-sub {
   margin-top: 3px;
+
+  /* Ausgeschrieben und nicht aus der Grundzeilenhöhe gerechnet: Darauf baut
+     die Reserve für zwei Zeilen darunter auf, und eine Reserve, die sich mit
+     einer Änderung am `body` verschiebt, ist keine. */
+  line-height: 20px;
   min-height: 20px;
   font-size: var(--text-small);
   color: var(--text-muted);
+
+  /* Sie nimmt den Rest der Kachelhöhe — siehe die Begründung an `.tile`. */
+  flex: 1 0 auto;
+}
+
+/*
+ * Eine Kachel mit zwei Richtungen hält zwei Zeilen frei.
+ *
+ * **Gemessen, nicht geschätzt.** Eine Kachel ist auf 1440px 228px breit, ihre
+ * Beizeile 179px — darin passen rund 25 Zeichen. „eingehend · ausgehend
+ * 84,2 MB/s" braucht zwei Zeilen, die Ablesung ebenfalls. Ohne diese Reserve
+ * wuchs die Kachel beim Zeigen um 19px und die ganze Reihe sprang mit; das
+ * ist derselbe Grund, aus dem `.tile-sub` überhaupt eine Mindesthöhe hat.
+ */
+.tile-sub.paired {
+  min-height: 40px;
 }
 
 .tile-sub[data-readout='true'] {

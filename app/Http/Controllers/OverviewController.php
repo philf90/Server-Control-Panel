@@ -251,11 +251,34 @@ final class OverviewController extends Controller
         $cpu = $store->series('cpu', 2, 0, 60, ' %', 0, 85.0);
         $ram = $store->series('ram', 2, 0, 60, ' %', 0, 85.0);
         $load = $store->series('load', 3, 0, 60, '', 2, (float) $cores);
-        // Spalte 1 ist bei beiden die abgehende Richtung. Gezeigt wird die
-        // eingehende — sie ist die, die man auf einem Webserver zuerst
-        // ansieht; der Verlauf beider steht in derselben Datei.
-        $network = $store->series('network', 2, 0, 60, '', 0, $networkLimit);
-        $io = $store->series('disk_io', 2, 1, 60, '', 0);
+
+        /*
+         * Beide Richtungen, aus derselben Datei: Spalte 0 ist eingehend,
+         * Spalte 1 ausgehend.
+         *
+         * **Ausgehend stand hier neun Monate ungenutzt.** Der Sammler schreibt
+         * seit P0 beide Spalten, die Kachel zeigte eine — und die Beizeile
+         * „eingehend" war die einzige Stelle, an der stand, dass die andere
+         * fehlt. Auf einem Webserver ist ausgehend ausserdem die Richtung, die
+         * zuerst an die Grenze stösst: Eine Seite auszuliefern kostet ein
+         * Vielfaches dessen, was ihre Anforderung kostet. Gezeigt wurde also
+         * die ruhigere der beiden.
+         *
+         * **Dieselbe Schwelle für beide, getrennt gerechnet.** Die Leitung ist
+         * dieselbe, aber sie kann in eine Richtung voll und in die andere leer
+         * sein; eine gemeinsame Warnung liesse offen, welche Richtung sie
+         * meint.
+         *
+         * Die Einheit steht jetzt an den Stützstellen. Ohne sie las sich die
+         * Ablesung zweier Kurven als „09:14 · 5.730 · 1.204" — drei Zahlen
+         * ohne Angabe, was gemessen wurde.
+         */
+        $network = $store->pair('network', 2, 0, 1, 60, $networkLimit);
+
+        // Auch der Schreibdurchsatz in Grössenordnungen — sonst stünde auf
+        // derselben Reihe „62,9 MB/s" neben „1.160.000 B/s". Seine Schwelle
+        // bleibt `null`, aus dem Grund weiter oben.
+        $io = $store->series('disk_io', 2, 1, 60, '', 0, null, bytes: true);
 
         return [
             [
@@ -285,16 +308,22 @@ final class OverviewController extends Controller
             [
                 'key' => 'network',
                 'label' => 'Netz',
-                'value' => $this->latest($network, '—'),
-                'unit' => 'B/s',
+                'value' => $this->latest($network['first'], '—'),
+                'unit' => $network['first']['unit'],
                 'subline' => 'eingehend',
-                'series' => $network,
+                'series' => $network['first'],
+                'second' => [
+                    'label' => 'ausgehend',
+                    'value' => $this->latest($network['second'], '—'),
+                    'unit' => $network['second']['unit'],
+                    'series' => $network['second'],
+                ],
             ],
             [
                 'key' => 'disk_io',
                 'label' => 'IO',
                 'value' => $this->latest($io, '—'),
-                'unit' => 'B/s',
+                'unit' => $io['unit'],
                 'subline' => 'geschrieben',
                 'series' => $io,
             ],

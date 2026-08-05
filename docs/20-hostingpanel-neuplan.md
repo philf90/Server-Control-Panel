@@ -604,7 +604,7 @@ Betrieb und keine über die Darstellung.
 | CPU | 85 % | Muster |
 | RAM | 85 % | Muster |
 | Load | Zahl der Kerne | der Agent zählt sie (`SystemInfo::cpu()['cores']`) |
-| Netz | 900 Mbit/s, in Byte gerechnet | Muster |
+| Netz | 900 Mbit/s, in Byte gerechnet — **je Richtung** | Muster |
 | Schreibdurchsatz | **keine** | siehe unten |
 
 **Warum der Schreibdurchsatz keine bekommt.** Es gibt für ihn keine Zahl, die
@@ -626,6 +626,49 @@ Daten mitbringt — `SeriesThresholdTest` für die Rechnung und
 `PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so` über die ganze
 Kette, weil ein weggekürztes Argument im Controller sonst still jede Kurve
 wieder gleich färbt.
+
+#### Zwei Richtungen in einer Kachel
+
+Das Netz zeigt beides: eingehend als durchgezogene Linie im Akzent, ausgehend
+gestrichelt in `--accent-second`. Der Sammler schreibt beide Spalten seit P0;
+gezeigt wurde bis August 2026 nur die eingehende — auf einem Webserver
+ausgerechnet die ruhigere, denn eine Seite auszuliefern kostet ein Vielfaches
+dessen, was ihre Anforderung kostet.
+
+**Die beiden Kurven teilen sich die Achse. Das ist die eigentliche Regel.**
+`Store::series()` normiert jede Reihe auf ihr eigenes Kleinstes und Grösstes —
+für eine Kurve richtig, für zwei in einem Feld eine Lüge: Der eingehende
+Verkehr, tausendfach kleiner, läge gleich hoch und schlüge gleich weit aus.
+Deshalb `Store::pair()` mit einer gemeinsamen Spanne; die kleinere Richtung
+liegt dann flach unten, und **genau das ist die Auskunft.** Auf einem
+Bildschirmfoto sieht der Fehler richtig aus — er hat deshalb einen eigenen
+Wächter (`PairedSeriesTest`), der die Geometrie prüft und nicht die
+Anwesenheit.
+
+**Die Zahlen teilen sich die Vorsilbe nicht.** Die gemeinsame Achse ist eine
+Aussage über die Darstellung; „0,0 MB/s" für 12,9 kB/s wäre eine über den
+Messwert und wäre falsch. Jede Richtung bekommt ihre eigene Grössenordnung —
+eine je Reihe, gewählt nach ihrem höchsten Wert, damit die Ablesung beim
+Wandern über die Kurve nicht zwischen kB/s und MB/s springt.
+
+**Drei Unterschiede und nicht einer.** Farbe, Strichart und die Fläche, die nur
+die erste Kurve hat. Rechnerisch liegen Akzent und zweite Farbe im
+Helligkeitsverhältnis bei 1,85:1 (hell) und 1,49:1 (dunkel): Wer Farbtöne
+schlecht unterscheidet, sähe zwei gleich helle Linien. Der Strich löst das ohne
+Farbe (WCAG 1.4.1) — und er steht in **Bildpunkten**, weil die Linie
+`vector-effect: non-scaling-stroke` trägt und das Muster damit im
+Bildschirmraum rechnet. Zweimal danebengegriffen, bis das im Bild zu sehen war.
+
+**Die Beizeile hält zwei Zeilen frei** (`.tile-sub.paired`), und die Kurven
+sitzen am unteren Rand der Kachel statt unter der Beizeile. Gemessen: Eine
+Kachel ist auf 1440 px 228 px breit, ihre Beizeile 179 px — darin passen rund
+25 Zeichen. Beide Zustände sind dort zweizeilig; ohne die Reserve wuchs die
+Kachel beim Zeigen, und ohne die Ausrichtung an der Unterkante lagen fünf
+Sparklines auf zwei Höhen.
+
+**Die Ablesung nennt eine Richtung — die, auf die man zeigt.** Beide zusammen
+brauchten drei Zeilen. Wer auf eine Kurve zeigt, will diese ablesen; die andere
+Zahl steht im Ruhezustand daneben.
 
 #### Blättern
 

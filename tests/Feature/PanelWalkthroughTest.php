@@ -472,4 +472,60 @@ final class PanelWalkthroughTest extends TestCase
             @rmdir($verzeichnis);
         }
     }
+
+    /**
+     * Die Netzkachel zeigt beide Richtungen — und zwar zwei verschiedene.
+     *
+     * **Warum das eine eigene Prüfung ist.** Der naheliegende Fehler beim
+     * Nachrüsten der zweiten Kurve ist nicht, dass sie fehlt, sondern dass sie
+     * dieselbe ist: zweimal Spalte 0, weil die Zeile kopiert und die Zahl
+     * vergessen wurde. Auf dem Bildschirm sähe man zwei Linien, die genau
+     * übereinanderliegen — und weil die zweite gestrichelt ist, sähe das nach
+     * einer Absicht aus. Deshalb stehen hier verschiedene Messwerte je Spalte
+     * und werden verschiedene Werte erwartet.
+     *
+     * Die Schwelle liegt bei 112,5 MB/s (900 Mbit/s); eingehend bleibt darunter
+     * und ausgehend geht darüber. Das ist der Fall, für den die getrennte
+     * Rechnung da ist: eine Leitung, die in eine Richtung voll ist.
+     *
+     * **Und jede Richtung bekommt ihre eigene Einheit** — kB/s neben MB/s.
+     * Die Achse teilen sie sich, damit das Bild nicht lügt; die Vorsilbe
+     * nicht, denn „0,0 MB/s" wäre für 5,7 kB/s eine falsche Auskunft.
+     */
+    public function test_the_network_tile_carries_both_directions(): void
+    {
+        $verzeichnis = sys_get_temp_dir().'/srvpanel-network-'.bin2hex(random_bytes(6));
+        mkdir($verzeichnis);
+        config(['srvpanel.metrics.directory' => $verzeichnis]);
+
+        $store = app(Store::class);
+        $zeit = 1_754_000_000.0;
+
+        for ($i = 0; $i < 5; $i++) {
+            $store->buffer('network', 2)->write([5_730.0, 130_000_000.0], $zeit + $i * 10);
+        }
+
+        try {
+            $this->actingAs(Account::factory()->admin()->create())
+                ->get('/')
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page
+                    ->where('tiles.3.label', 'Netz')
+                    ->where('tiles.3.subline', 'eingehend')
+                    ->where('tiles.3.value', '5,7')
+                    ->where('tiles.3.unit', 'kB/s')
+                    ->where('tiles.3.series.warns', false)
+                    ->where('tiles.3.second.label', 'ausgehend')
+                    ->where('tiles.3.second.value', '130,0')
+                    ->where('tiles.3.second.unit', 'MB/s')
+                    ->where('tiles.3.second.series.warns', true)
+                    ->etc());
+        } finally {
+            foreach (glob($verzeichnis.'/*') ?: [] as $datei) {
+                @unlink($datei);
+            }
+
+            @rmdir($verzeichnis);
+        }
+    }
 }

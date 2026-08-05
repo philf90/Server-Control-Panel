@@ -238,6 +238,50 @@ pruefe "  … zurückgesetzt wieder grün" \
   PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so passed
 
 echo
+echo "── RedirectTargetTest: das Ziel wieder `back()` überlassen ──"
+#
+# Der Zustand von vor diesem Wächter, und er war auf dem Zielserver zu sehen
+# und hier nicht: Der Vhost schickt `Referrer-Policy: no-referrer`, Inertia
+# navigiert über XHR — `back()` kennt damit kein Ziel und leitet auf `/`. Wer
+# im Konto die Darstellung umstellte, stand danach auf der Übersicht.
+sed -i "s|return to_route('profile')->with('success', 'Darstellung gespeichert.')|return back()->with('success', 'Darstellung gespeichert.')|" \
+  app/Http/Controllers/ProfileController.php
+pruefe "Weiterleitung ohne Ziel" \
+  RedirectTargetTest::test_no_controller_leaves_the_target_to_back failed
+pruefe "  … und man landet auf der Übersicht" \
+  RedirectTargetTest::test_saving_the_theme_stays_on_the_account_page failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" RedirectTargetTest passed
+
+echo
+echo "── PairedSeriesTest: jede Kurve gegen ihre eigene Spanne ──"
+#
+# Der Fehler, der auf einem Bildschirmfoto richtig aussieht: Zwei Kurven, jede
+# auf ihr eigenes Kleinstes und Grösstes normiert, füllen beide die Kachel —
+# bei tausendfachem Unterschied. Das Bild behauptet dann „etwa gleich viel in
+# beide Richtungen".
+sed -i 's|\$min = min(min(\$a), min(\$b));|\$min = min(\$a);|' app/Support/Metrics/Store.php
+sed -i 's|\$max = max(max(\$a), max(\$b));|\$max = max(\$a);|' app/Support/Metrics/Store.php
+pruefe "getrennte Achsen in einem Feld" \
+  PairedSeriesTest::test_the_smaller_direction_stays_flat_at_the_bottom failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" PairedSeriesTest passed
+
+echo
+echo "── Netzkachel: die zweite Richtung ist dieselbe wie die erste ──"
+#
+# Der naheliegende Kopierfehler beim Nachrüsten: zweimal Spalte 0. Auf dem
+# Bildschirm lägen zwei Linien genau übereinander — und weil die zweite
+# gestrichelt ist, sähe das nach Absicht aus.
+sed -i "s|\\\$store->pair('network', 2, 0, 1, 60|\\\$store->pair('network', 2, 0, 0, 60|" \
+  app/Http/Controllers/OverviewController.php
+pruefe "zweite Richtung ist die erste" \
+  PanelWalkthroughTest::test_the_network_tile_carries_both_directions failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" \
+  PanelWalkthroughTest::test_the_network_tile_carries_both_directions passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

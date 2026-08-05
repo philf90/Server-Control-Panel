@@ -92,7 +92,7 @@ final class ProfileController extends Controller
             'after' => ['name' => $account->name, 'email' => $account->email],
         ]);
 
-        return back()->with('success', 'Konto gespeichert.');
+        return to_route('profile')->with('success', 'Konto gespeichert.');
     }
 
     /**
@@ -115,6 +115,28 @@ final class ProfileController extends Controller
      * Server verändert hat. Ein Theme verändert nichts am Server, es verändert
      * einen Bildschirm — und eine Zeile je Umschaltung machte das Protokoll
      * genau dort unübersichtlich, wo man es im Ernstfall liest.
+     *
+     * **`to_route('profile')` und nicht `back()` — und das ist der Fund.** Wer
+     * hier die Darstellung umstellte, landete auf der Übersicht. Gespeichert
+     * war richtig, nur stand man danach woanders. Es lag an drei Dingen, die
+     * einzeln jedes für sich vernünftig sind:
+     *
+     *   1. Der Vhost des Panels schickt `Referrer-Policy: no-referrer`
+     *      (`agent/src/Ops/PanelVhost.php`) — das Panel gibt nicht preis, von
+     *      welcher Adresse jemand kam. Der Browser sendet damit kein `Referer`.
+     *   2. `back()` fragt zuerst genau dieses `Referer`. Fehlt es, nimmt es die
+     *      zuletzt in der Sitzung vermerkte Adresse.
+     *   3. Vermerkt wird sie nur bei einem GET, das **kein** XHR ist
+     *      (`StartSession::storeCurrentUrl`). Jede Navigation über Inertia ist
+     *      eines. In der Sitzung steht deshalb der letzte vollständige
+     *      Seitenaufruf — nach der Anmeldung die Übersicht.
+     *
+     * `back()` konnte hier also gar nicht wissen, wohin zurück ist, und fiel
+     * auf `/` durch. Auffallen konnte es beim Entwickeln nicht: Ohne nginx gibt
+     * es die Kopfzeile aus (1) nicht, und dann funktioniert es. Wieder eine
+     * Zusage ohne Gegenprüfung — „zurück" verweist auf eine Adresse, die
+     * niemand kennt. `RedirectTargetTest` lässt `back()` deshalb nirgends mehr
+     * zu.
      */
     public function theme(Request $request, Audit $audit): RedirectResponse
     {
@@ -129,7 +151,7 @@ final class ProfileController extends Controller
 
         $account->forceFill(['theme' => $data['theme'] ?? null])->save();
 
-        return back()->with('success', 'Darstellung gespeichert.');
+        return to_route('profile')->with('success', 'Darstellung gespeichert.');
     }
 
     public function password(Request $request, Audit $audit): RedirectResponse
@@ -162,7 +184,7 @@ final class ProfileController extends Controller
         // nicht seine Länge.
         $audit->success('profile.password.changed', $account);
 
-        return back()->with('success', 'Passwort geändert. Andere Sitzungen wurden abgemeldet.');
+        return to_route('profile')->with('success', 'Passwort geändert. Andere Sitzungen wurden abgemeldet.');
     }
 
     private function account(Request $request): Account

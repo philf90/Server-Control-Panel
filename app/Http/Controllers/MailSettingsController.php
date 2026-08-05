@@ -122,8 +122,15 @@ final class MailSettingsController extends Controller
             abort(403);
         }
 
+        /*
+         * Das Ziel wird genannt und nicht `back()` überlassen. Der Vhost des
+         * Panels schickt `Referrer-Policy: no-referrer`, und Inertia navigiert
+         * über XHR — damit kennt `back()` weder ein `Referer` noch eine in der
+         * Sitzung vermerkte Adresse und fällt auf die Übersicht durch. Die
+         * ganze Begründung steht bei `ProfileController::theme()`.
+         */
         if (! $settings->mail()->usable()) {
-            return back()->with('error', 'Erst Server und Absenderadresse eintragen und speichern.');
+            return to_route('settings.mail')->with('error', 'Erst Server und Absenderadresse eintragen und speichern.');
         }
 
         try {
@@ -131,11 +138,11 @@ final class MailSettingsController extends Controller
         } catch (Throwable $error) {
             $audit->failure('settings.mail.tested', ['error' => mb_substr($error->getMessage(), 0, 500)]);
 
-            return back()->with('error', 'Der Versand ist gescheitert: '.mb_substr($error->getMessage(), 0, 500));
+            return to_route('settings.mail')->with('error', 'Der Versand ist gescheitert: '.mb_substr($error->getMessage(), 0, 500));
         }
 
         $audit->success('settings.mail.tested', context: ['to' => $account->email]);
 
-        return back()->with('success', 'Testmail an '.$account->email.' verschickt.');
+        return to_route('settings.mail')->with('success', 'Testmail an '.$account->email.' verschickt.');
     }
 }

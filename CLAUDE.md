@@ -50,7 +50,10 @@ es gibt), `LifecycleReachTest`, `AnchoredPatternTest`, `PhpVersionCatalogTest`,
 `ClassReachTest` (jede Klasse in einem Template zeigt auf eine Regel, die es
 gibt), `TableStyleTest`, `ClassNameTest` (jeder Klassenname ist englisch, und
 jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
-(wer paginiert, lässt auch blättern). Der Bruch selbst steht als
+(wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
+weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
+`PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse). Der
+Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 

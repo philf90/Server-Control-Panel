@@ -1749,3 +1749,100 @@ Dieser Test ist beim ersten Anlauf selbst hereingefallen: Er legte einen
 eigenen `Store` mit Kapazität 100 an, während die Anwendung mit 8640 liest. Ein
 RingBuffer legt seine Datei nach der Kapazität aus — dieselbe Datei, anders
 gelesen, und die CPU stand auf „warnt nicht", obwohl 96 % darin standen.
+
+### „Darstellung gespeichert" — und man stand auf der Übersicht
+
+Wer im Konto hell auf dunkel stellte, wurde auf die Übersicht geworfen.
+Gespeichert war richtig; man stand nur woanders. Dasselbe galt für „Konto
+gespeichert", „Passwort geändert" und alle drei Antworten der Mailprüfung —
+**sechs Stellen, ein Fehler.**
+
+Die Ursache sind drei Dinge, die einzeln jedes für sich vernünftig sind:
+
+1. Der Vhost des Panels schickt `Referrer-Policy: no-referrer`. Das Panel gibt
+   nicht preis, von welcher Adresse jemand kam — der Browser sendet damit kein
+   `Referer`.
+2. `back()` fragt zuerst genau dieses `Referer` und nimmt sonst die zuletzt in
+   der Sitzung vermerkte Adresse.
+3. Vermerkt wird sie nur bei einem GET, das **kein** XHR ist
+   (`StartSession::storeCurrentUrl`). Jede Navigation über Inertia ist eines.
+   In der Sitzung steht deshalb der letzte vollständige Seitenaufruf — nach der
+   Anmeldung die Übersicht.
+
+`back()` konnte also gar nicht wissen, wohin zurück ist, und fiel auf `/`
+durch. Wieder eine Zusage ohne Gegenprüfung: „zurück" verweist auf eine
+Adresse, die niemand kennt.
+
+**Beim Entwickeln war davon nichts zu sehen.** Ohne nginx gibt es die
+Kopfzeile aus (1) nicht, der Browser schickt ein `Referer`, und alles stimmt.
+Der Fehler entsteht erst auf dem Zielserver — dieselbe Sorte Lücke wie bei den
+nginx-Vorlagen, die deshalb als Text geprüft werden.
+
+`RedirectTargetTest` lässt `back()` in keinem Controller mehr zu und prüft
+jedes Ziel ausgeschrieben. Der alte `ThemeTest` hatte den Fehler nicht
+gemerkt, weil er `assertRedirect()` **ohne Ziel** aufrief — eine Zusicherung,
+die nur sagt, dass überhaupt weitergeleitet wird. Beim Gegenprüfen meldete der
+neue Test genau den gemeldeten Effekt: erwartet `/settings/profile`, bekommen
+`http://localhost`.
+
+### Die Netzkachel zeigt beide Richtungen
+
+Der Sammler schreibt seit P0 **zwei** Spalten — eingehend und ausgehend. Die
+Kachel zeigte eine, und die Beizeile „eingehend" war die einzige Stelle, an
+der stand, dass die andere fehlt. Auf einem Webserver ist ausgehend ausserdem
+die Richtung, die zuerst an die Grenze stösst: Eine Seite auszuliefern kostet
+ein Vielfaches dessen, was ihre Anforderung kostet. Gezeigt wurde also die
+ruhigere der beiden.
+
+Ausgehend steht jetzt als zweite Kurve daneben: gestrichelt, in
+`--accent-second` und ohne Fläche darunter.
+
+**Der Fehler, der dabei fast entstanden wäre, sieht auf einem Bildschirmfoto
+richtig aus.** `Store::series()` normiert jede Reihe auf ihr eigenes Kleinstes
+und Grösstes — für **eine** Kurve richtig, für zwei in einem Feld eine Lüge:
+Der eingehende Verkehr, tausendfach kleiner, läge gleich hoch und schlüge
+gleich weit aus. Wer hinsieht, liest „etwa gleich viel in beide Richtungen".
+Kein Testlauf hätte etwas gemeldet — beide Reihen wären da, beide mit
+richtigen Zahlen daneben. Deshalb `Store::pair()` mit einer gemeinsamen
+Spanne, und deshalb prüft `PairedSeriesTest` die **Geometrie**: Die kleinere
+Richtung muss flach am Boden liegen, die grössere darf ihn nicht berühren.
+
+**Die Zahlen teilen sich die Vorsilbe trotzdem nicht.** Die gemeinsame Achse
+ist eine Aussage über die Darstellung; „0,0 MB/s" für 12,9 kB/s wäre eine über
+den Messwert und wäre falsch. Jede Richtung bekommt ihre eigene
+Grössenordnung — eine je Reihe, damit die Ablesung beim Wandern über die Kurve
+nicht zwischen kB/s und MB/s springt.
+
+#### Was die Messung im Browser erzwungen hat
+
+Drei Entscheidungen stehen so, weil nachgemessen wurde und nicht, weil sie
+schöner aussehen:
+
+- **Byte bekommen Grössenordnungen.** Eine Kachel ist auf 1440 px 228 px
+  breit, ihre Beizeile 179 px — darin passen rund 25 Zeichen.
+  „65.981.645 B/s" sind vierzehn davon, und mit einem Wort davor bricht die
+  Zeile um. Netz und Schreibdurchsatz zeigen deshalb `9,0 kB/s` und
+  `0,7 MB/s`. Lesbar war die rohe Zahl ohnehin nie: Wer sieht einem
+  neunstelligen Bytewert an, dass er 63 Megabyte bedeutet?
+- **Die Kurven sitzen an der Unterkante der Kachel.** Die Netzkachel braucht
+  zwei Zeilen Beizeile, die anderen eine — und damit begann ihre Kurve 20 px
+  tiefer als die vier daneben. Fünf Sparklines auf zwei Höhen sehen nicht nach
+  zwei Richtungen aus, sondern nach einem Fehler.
+- **Der Strich rechnet in Bildpunkten.** Zweimal danebengegriffen: Die Linie
+  trägt `vector-effect: non-scaling-stroke`, damit sie überall gleich dick
+  ist — damit rechnet aber auch das Strichmuster im Bildschirmraum. Ein
+  `stroke-dasharray: 2 1.6` sind zwei Bildpunkte, und im Bild sah das nicht
+  nach einer gestrichelten Linie aus, sondern nach einer unsauber
+  gezeichneten. Der Umweg über `pathLength` half aus demselben Grund nicht.
+
+**Die Ablesung nennt eine Richtung — die, auf die man zeigt.** Beide zusammen
+brauchten drei Zeilen (gemessen). Die Beizeile hält zwei frei, damit die
+Kachel beim Zeigen nicht springt; in jedem Zustand und bei 1440, 1100 und
+390 px sind es genau 40 px.
+
+**Drei Unterschiede tragen die zweite Kurve und nicht einer.** Farbe,
+Strichart und die Fläche, die nur die erste hat. Akzent und zweite Farbe
+liegen im Helligkeitsverhältnis bei 1,85:1 (hell) und 1,49:1 (dunkel) — wer
+Farbtöne schlecht unterscheidet, sähe zwei gleich helle Linien. Der Strich
+löst das ohne Farbe (WCAG 1.4.1). Gegen den Grund erreicht `--accent-second`
+6,18:1 hell und 11,10:1 dunkel, über den 3:1 aus WCAG 1.4.11.

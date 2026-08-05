@@ -238,7 +238,7 @@ pruefe "  … zurückgesetzt wieder grün" \
   PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so passed
 
 echo
-echo "── RedirectTargetTest: das Ziel wieder `back()` überlassen ──"
+echo '── RedirectTargetTest: das Ziel wieder `back()` überlassen ──'
 #
 # Der Zustand von vor diesem Wächter, und er war auf dem Zielserver zu sehen
 # und hier nicht: Der Vhost schickt `Referrer-Policy: no-referrer`, Inertia

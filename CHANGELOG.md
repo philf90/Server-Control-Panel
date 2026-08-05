@@ -2540,3 +2540,85 @@ Klasse wird beim Einlesen der Kommandos geladen, also schon bei
 nachstellen liesse — beide haben je eine Runde CI gekostet. Die Regel steht
 jetzt in CLAUDE.md: Wer in einer abgeleiteten Klasse eine private Hilfsmethode
 einzieht, sieht vorher in der Basisklasse nach.
+
+#### Schritt 5: Erneuerung, HSTS — und der Fund vom Zielserver
+
+Der Abnahmelauf für P4 ist auf `cloudlab24.de` durchgelaufen: Server-Block →
+Bestellung → Einspielen → Server-Block, und danach hört die Kette auf. Das
+Zertifikat ist echt (`(STAGING) Dastardly Durum YR1`, 90 Tage), Port 80 leitet
+dauerhaft weiter, und über 443 kam eine Antwort — aus dem 443er Block, der
+damit beide Zertifikatsdateien liest.
+
+**Die Antwort war „403 Forbidden", und das ist der Fund.** Das DocumentRoot war
+leer, nginx meldete „directory index is forbidden". Die Willkommensseite
+entstand in `subscription.provision` und nur für das *erste* DocumentRoot eines
+Abonnements; jede weitere Domain bekam ein leeres Verzeichnis. Das ist wörtlich
+dieselbe falsche Auskunft wie bei der Sperre, die zuerst 403 statt 503 gab: „du
+darfst nicht" statt „hier ist noch nichts". Gesehen hat es kein Test — der
+Abnahmelauf legt seine eigene Prüfdatei in jedes DocumentRoot und ist damit an
+genau diesem Fall vorbeigelaufen.
+
+Die Seite steht jetzt in `WelcomePage` und wird von beiden Operationen
+geschrieben, die ein DocumentRoot anlegen. Sie nennt das Verzeichnis, in dem
+die Dateien liegen sollen, als **Angabe** und nicht mehr als Wort im Text: Es
+hiess `httpdocs`, solange nur das erste eine Seite bekam, und ein Hinweis auf
+ein Verzeichnis, das es für diese Domain nicht gibt, schickt den Kunden ins
+Leere. Die Bedingung von früher gilt unverändert — geschrieben wird nur in ein
+leeres Verzeichnis, sonst legte ein zweiter Lauf eine `index.html` neben die
+Seite des Kunden, die vor `index.php` gefunden wird.
+
+**Erneuert wird am selben Timer.** `srvpanel:tls` läuft täglich für das
+Zertifikat der Oberfläche und nimmt jetzt die Kundenzertifikate mit: Was
+weniger als 30 Tage Restlaufzeit hat, wird neu bestellt. Der Takt hängt nicht
+an der Laufzeit, sondern an dieser Frist — in diesen 30 Tagen muss ein Server
+einmal gelaufen sein.
+
+Vier Zeilen entscheiden, ob dieser Lauf trägt:
+
+- **Ein Zertifikat, an dem keine Domain hängt, wird nicht erneuert.** Beim
+  Erneuern entsteht ein *neues* Zertifikat, die Domain zeigt danach darauf, und
+  die alte Zeile bleibt als Beleg stehen. Ohne diese Bedingung wäre sie in alle
+  Ewigkeit fällig — jeder Lauf bestellte sie neu, bis die Ratenbegrenzung
+  zuschlägt. Das fiele nicht am ersten Tag auf, sondern am dreissigsten.
+- **Erst nachsehen, dann bestellen.** Bricht ein Lauf zwischen dem Ablegen der
+  Dateien und dem Eintrag im Bestand ab, liegt ein erneuertes Zertifikat da,
+  von dem das Panel nichts weiss. `acme.certificate.info` beantwortet das — die
+  Operation war seit Schritt 4 gebaut und wurde von nichts gerufen.
+- **Nach einem Versuch wird gewartet.** Sechs Stunden. Produktiv sind fünf
+  Fehlversuche je Konto und Stunde die Grenze; wer sofort wieder anklopft,
+  sperrt sich selbst aus — samt aller Domains, die in dieser Stunde neu
+  angelegt werden.
+- **Und ein Lauf bestellt höchstens zehn.** Ein Server, auf dem hundert Domains
+  am selben Tag fällig werden, holt das über mehrere Tage auf, statt an der
+  Wochengrenze hängenzubleiben, hinter der dann auch die neuen stehen. Was
+  liegen bleibt, steht in der Ausgabe: **eine Grenze, die niemand meldet, sieht
+  aus wie „alles erledigt".**
+
+**Wie bestellt wird, steht jetzt an einer Stelle** (`CertificateOrder`). Es gibt
+zwei Anlässe und ab dem zweiten Wurf drei — eine Domain ohne Zertifikat, eine
+Erneuerung, später ein Knopf. Drei Stellen, die eine Bestellung zusammenbauen,
+sind zwei Gelegenheiten, die Kontaktadresse zu vergessen oder die Namen aus der
+Anfrage statt aus dem Bestand zu nehmen.
+
+**HSTS für Kundendomains — mit einer Bedingung auf jeder Seite.** Ob ein Jahr
+erzwungenes HTTPS gewollt ist, weiss nur das Panel: Es kennt den Testbetrieb,
+dessen Wurzel kein Browser kennt, und an der Datei ist ein Staging-Zertifikat
+von einem echten nicht zu unterscheiden. Ob das Zertifikat es hergibt, weiss
+nur der Agent, denn nur er liest die Datei. Die Erlaubnis reist deshalb in den
+Vorgangsdaten, und der Agent prüft trotzdem noch einmal — `docs/27 §7` nennt
+das die Falle, die aussperrt, und bei einer Kundendomain trifft sie jeden
+Besucher statt nur den Betreiber. **Kein `includeSubDomains`:** Eine Subdomain
+ist hier eine eigene Domain mit eigenem Zertifikat, und die Erzwingung träfe
+sie, bevor sie eines hat.
+
+Die Frage „darf ein Browser dem trauen?" steht dabei nicht mehr in
+`panel.vhost.apply`, sondern in `Acme\Trust` — sie wird jetzt von zwei Vorlagen
+gestellt, und die zweite Formulierung wäre die gewesen, die HSTS auf ein
+selbstsigniertes Zertifikat schreibt.
+
+Sieben weitere Brüche im Wächterskript, jeder gegengeprüft.
+
+**Was P4 noch fehlt:** Das Panel selbst läuft weiter mit einem selbstsignierten
+Zertifikat. Die Prüfadresse auf Port 80 steht seit Schritt 3, bestellt wird für
+den Rechnernamen aber nichts — `docs/32` führt das im ersten Wurf, und es ist
+der nächste Schritt vor der Oberfläche.

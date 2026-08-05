@@ -105,6 +105,13 @@ auf HTTPS. Eine Kundendomain spricht Klartext. Das ist der Teil, der die Vorlage
 selbst anfasst — und damit `SiteTemplateTest` und `PhpIsolationTest` berührt,
 die die erzeugte Zeichenkette als Text prüfen.
 
+> **Nachgetragen in Schritt 5:** Erneuert wird am Timer von `srvpanel:tls`, ab
+> 30 Tagen Restlaufzeit; HSTS steht in der Kundenvorlage, sobald das Panel es
+> erlaubt *und* der Agent ein Zertifikat einer Zertifizierungsstelle vorfindet.
+> Offen bleibt aus dieser Liste allein das **Zertifikat für die Panel-Fläche
+> selbst**: Die Prüfadresse auf Port 80 steht, bestellt wird für den
+> Rechnernamen noch nichts.
+
 > **Nachgetragen in Schritt 4b.** Die Vorlage hat jetzt einen zweiten Block auf
 > 443; Port 80 beantwortet nur noch die Prüfadresse und leitet weiter. Ob es ein
 > Zertifikat gibt, sieht der Agent über `Store` selbst nach — **ohne Zertifikat

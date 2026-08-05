@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\Acme\HttpChallenge;
+use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Names;
@@ -66,7 +67,7 @@ final class PanelVhost implements Op
             // Die einzige Stelle, die den Rechnernamen beantwortet — siehe
             // `HostnameSourceTest`.
             Names::host(),
-            ! self::selfSigned((string) file_get_contents($certificate)),
+            ! Trust::selfSigned((string) file_get_contents($certificate)),
         );
 
         $before = is_file($this->target) ? (string) file_get_contents($this->target) : null;
@@ -89,32 +90,6 @@ final class PanelVhost implements Op
         NginxApply::commit($context, [$this->target => $text]);
 
         return ['path' => $this->target, 'port' => $port, 'replaced' => $before !== null];
-    }
-
-    /**
-     * Hat sich dieses Zertifikat selbst ausgestellt?
-     *
-     * Aussteller gleich Inhaber. Das ist dieselbe Frage, die `/settings/tls`
-     * als `self_signed` beantwortet — und sie entscheidet hier darüber, ob der
-     * Server-Block HSTS verspricht.
-     *
-     * **Unlesbar zählt als selbstsigniert.** Wer aus einem Zertifikat, das er
-     * nicht lesen kann, auf eine Zertifizierungsstelle schliesst, verspricht
-     * ein Jahr erzwungenes HTTPS auf Verdacht — und das ist die Richtung, in
-     * der ein Irrtum den Betreiber aussperrt.
-     */
-    public static function selfSigned(string $pem): bool
-    {
-        $parsed = @openssl_x509_parse($pem);
-
-        if (! is_array($parsed)) {
-            return true;
-        }
-
-        $issuer = $parsed['issuer'] ?? null;
-        $subject = $parsed['subject'] ?? null;
-
-        return ! is_array($issuer) || ! is_array($subject) || $issuer === $subject;
     }
 
     /**

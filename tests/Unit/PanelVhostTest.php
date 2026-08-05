@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\Ops\PanelVhost;
 
 /**
@@ -111,8 +112,8 @@ final class PanelVhostTest extends TestCase
      */
     public function test_an_unreadable_certificate_counts_as_self_signed(): void
     {
-        $this->assertTrue(PanelVhost::selfSigned(''));
-        $this->assertTrue(PanelVhost::selfSigned('-----BEGIN CERTIFICATE-----\nkein Zertifikat\n'));
+        $this->assertTrue(Trust::selfSigned(''));
+        $this->assertTrue(Trust::selfSigned('-----BEGIN CERTIFICATE-----\nkein Zertifikat\n'));
     }
 
     public function test_a_certificate_that_issued_itself_is_recognised(): void
@@ -131,6 +132,6 @@ final class PanelVhostTest extends TestCase
 
         openssl_x509_export($certificate, $pem);
 
-        $this->assertTrue(PanelVhost::selfSigned($pem));
+        $this->assertTrue(Trust::selfSigned($pem));
     }
 }

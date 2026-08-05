@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Acme\HttpChallenge;
 use SrvPanel\Agent\Acme\Store;
+use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\Site;
 use SrvPanel\Agent\SiteTemplate;
 
@@ -301,6 +302,126 @@ final class SiteTemplateTest extends TestCase
 
         $this->assertStringNotContainsString('listen 443', $config);
         $this->assertStringNotContainsString('return 301 https://$host', $config);
+    }
+
+    /**
+     * Ein Zertifikat, das eine andere Stelle ausgestellt hat.
+     *
+     * Selbst gebaut und nicht abgelegt: Ein Zertifikat im Repo läuft ab, und
+     * der Test wäre dann rot aus einem Grund, der mit seiner Regel nichts zu
+     * tun hat. Wichtig ist allein, dass Aussteller und Inhaber verschieden
+     * sind — daran erkennt {@see Trust} eine Zertifizierungsstelle.
+     */
+    private function signedByAnAuthority(): string
+    {
+        $caKey = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        $this->assertNotFalse($caKey, 'Ohne openssl-Erweiterung prüft dieser Test nichts.');
+
+        $caCsr = openssl_csr_new(['commonName' => 'Test CA'], $caKey, ['digest_alg' => 'sha256']);
+        $this->assertNotFalse($caCsr);
+
+        $ca = openssl_csr_sign($caCsr, null, $caKey, 2, ['digest_alg' => 'sha256']);
+        $this->assertNotFalse($ca);
+
+        $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        $this->assertNotFalse($key);
+
+        $csr = openssl_csr_new(['commonName' => 'beispiel.de'], $key, ['digest_alg' => 'sha256']);
+        $this->assertNotFalse($csr);
+
+        $leaf = openssl_csr_sign($csr, $ca, $caKey, 1, ['digest_alg' => 'sha256']);
+        $this->assertNotFalse($leaf);
+
+        openssl_x509_export($leaf, $pem);
+
+        return (string) $pem;
+    }
+
+    private function selfSignedPem(): string
+    {
+        $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        $this->assertNotFalse($key);
+
+        $csr = openssl_csr_new(['commonName' => 'beispiel.de'], $key, ['digest_alg' => 'sha256']);
+        $this->assertNotFalse($csr);
+
+        $certificate = openssl_csr_sign($csr, null, $key, 1, ['digest_alg' => 'sha256']);
+        $this->assertNotFalse($certificate);
+
+        openssl_x509_export($certificate, $pem);
+
+        return (string) $pem;
+    }
+
+    /** Das Zertifikat im Ablageort durch ein echtes ersetzen. */
+    private function put(string $pem): void
+    {
+        file_put_contents((string) $this->root.'/beispiel.de/fullchain.pem', $pem);
+    }
+
+    /**
+     * HSTS steht da, wenn beide Seiten zustimmen.
+     *
+     * **Das Panel erlaubt, der Agent kann.** Die Erlaubnis kommt aus den
+     * Vorgangsdaten — nur das Panel weiss, ob gerade der Testbetrieb läuft,
+     * dessen Wurzel kein Browser kennt. Ob das Zertifikat es hergibt, sieht
+     * nur der Agent, denn nur er liest die Datei.
+     */
+    public function test_hsts_needs_the_permission_and_a_certificate_from_an_authority(): void
+    {
+        $store = $this->store(['fullchain.pem', 'privkey.pem']);
+        $this->put($this->signedByAnAuthority());
+
+        $config = SiteTemplate::render($this->site(['hsts' => true]), $store);
+
+        $this->assertStringContainsString(
+            'add_header Strict-Transport-Security "max-age=31536000" always;',
+            $config,
+        );
+
+        // **Kein `includeSubDomains`.** Eine Subdomain ist hier eine eigene
+        // Domain mit eigenem Zertifikat; die Erzwingung träfe sie, bevor sie
+        // eines hat, und nähme sie damit vom Netz.
+        $this->assertStringNotContainsString('includeSubDomains', $config);
+    }
+
+    /**
+     * Ohne Erlaubnis kein Header — auch mit tadellosem Zertifikat.
+     *
+     * Das ist der Fall „Testbetrieb": Die Datei sieht aus wie ein echtes
+     * Zertifikat, weil sie eines ist — nur kennt kein Browser die Wurzel
+     * dahinter.
+     */
+    public function test_without_the_permission_there_is_no_hsts(): void
+    {
+        $store = $this->store(['fullchain.pem', 'privkey.pem']);
+        $this->put($this->signedByAnAuthority());
+
+        // Geprüft wird die Direktive und nicht das Wort: Der Block sagt auch
+        // dann etwas über HSTS, wenn er keines setzt — als Kommentar, damit
+        // wer die Datei auf dem Server liest, die Abwesenheit erklärt bekommt.
+        $this->assertStringNotContainsString(
+            'add_header Strict-Transport-Security',
+            SiteTemplate::render($this->site(['hsts' => false]), $store),
+        );
+    }
+
+    /**
+     * Und ein selbstsigniertes Zertifikat bekommt ihn nie.
+     *
+     * `docs/27 §7`: Ein Jahr Erzwingung macht den nächsten Zertifikatswechsel
+     * unwegklickbar. Beim Panel sperrt das den Betreiber aus, bei einer
+     * Kundendomain jeden Besucher — und der kann nichts dagegen tun.
+     */
+    public function test_a_self_signed_certificate_never_gets_hsts(): void
+    {
+        $store = $this->store(['fullchain.pem', 'privkey.pem']);
+        $this->put($this->selfSignedPem());
+
+        $this->assertStringNotContainsString(
+            'add_header Strict-Transport-Security',
+            SiteTemplate::render($this->site(['hsts' => true]), $store),
+        );
     }
 
     public function test_own_directives_land_in_the_include_file(): void

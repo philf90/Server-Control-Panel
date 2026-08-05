@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificateRenewal;
 use Illuminate\Console\Command;
 use SrvPanel\Agent\Acme\Directories;
 use SrvPanel\Agent\AgentException;
@@ -44,7 +45,7 @@ final class EnsureTls extends Command
 
     protected $description = 'Prüft das Zertifikat der Oberfläche und erneuert es, bevor es abläuft';
 
-    public function handle(Client $agent, AcmeSettings $settings): int
+    public function handle(Client $agent, AcmeSettings $settings, CertificateRenewal $renewal): int
     {
         $contact = $this->option('contact');
         $directory = $this->option('directory');
@@ -90,8 +91,44 @@ final class EnsureTls extends Command
         }
 
         $this->showAcme($settings);
+        $this->renew($renewal);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Die Zertifikate der Kunden erneuern, soweit fällig.
+     *
+     * **Am selben Timer und nicht an einem zweiten.** Die Frage ist dieselbe —
+     * läuft ein Zertifikat ab? —, nur für Kundendomains statt für die
+     * Oberfläche. Ein eigener Dienst dafür wäre eine zweite Unit, ein zweiter
+     * Zeitplan und eine zweite Stelle, an der jemand nachsieht, warum nichts
+     * passiert.
+     *
+     * **Nach dem Panel und nicht davor:** Ist der Agent nicht erreichbar, ist
+     * dieser Lauf oben schon beendet. Bestellungen einzureihen, die
+     * anschliessend scheitern, verbraucht Fehlversuche bei der
+     * Zertifizierungsstelle.
+     */
+    private function renew(CertificateRenewal $renewal): void
+    {
+        $report = $renewal->run();
+
+        $this->line(sprintf(
+            '  Kundenzertifikate: %d fällig, %d bestellt, %d nachgetragen.',
+            $report->due,
+            $report->ordered,
+            $report->corrected,
+        ));
+
+        // Eine Grenze, die niemand nennt, sieht aus wie „alles erledigt".
+        if ($report->left > 0) {
+            $this->line(sprintf(
+                '  %d warten auf den nächsten Lauf — höchstens %d Bestellungen je Lauf.',
+                $report->left,
+                CertificateRenewal::PER_RUN,
+            ));
+        }
     }
 
     /**

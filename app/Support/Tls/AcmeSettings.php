@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Tls;
 
+use App\Models\Certificate;
 use App\Models\Setting;
 use SrvPanel\Agent\Acme\Directories;
 
@@ -64,6 +65,27 @@ final class AcmeSettings
     public function configured(): bool
     {
         return $this->contact() !== null;
+    }
+
+    /**
+     * Darf ein Server-Block für dieses Zertifikat HSTS versprechen?
+     *
+     * **Der Testbetrieb ist der Grund, warum diese Frage hier steht und nicht
+     * im Agenten.** Ein Staging-Zertifikat ist von einer Zertifizierungsstelle
+     * ausgestellt — an der Datei ist es also nicht von einem echten zu
+     * unterscheiden, nur kennt kein Browser die Wurzel dahinter. Was der Agent
+     * beantworten kann, ist „selbstsigniert oder nicht"; ob überhaupt ein
+     * Zertifikat gemeint ist, dem jemand trauen soll, weiss das Panel.
+     *
+     * `docs/27 §7`: Ein Jahr Erzwingung auf eine Domain zu setzen, die morgen
+     * kein gültiges Zertifikat mehr hat, nimmt sie vom Netz — beim Panel
+     * trifft das den Betreiber, bei einer Kundendomain jeden Besucher.
+     */
+    public function hsts(?Certificate $certificate): bool
+    {
+        return $certificate !== null
+            && $certificate->source->trusted()
+            && ! $this->staging();
     }
 
     /**

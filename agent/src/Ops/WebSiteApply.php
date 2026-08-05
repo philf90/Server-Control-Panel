@@ -12,6 +12,7 @@ use SrvPanel\Agent\Op;
 use SrvPanel\Agent\PhpVersions;
 use SrvPanel\Agent\Site;
 use SrvPanel\Agent\SiteTemplate;
+use SrvPanel\Agent\WelcomePage;
 
 /**
  * Eine Website in den Zustand bringen, den das Panel beschreibt.
@@ -58,6 +59,24 @@ final class WebSiteApply implements Op
         $context->progress(25, 'Verzeichnisse');
         $created = $this->directories($site);
 
+        /*
+         * **Eine Domain ohne Inhalt antwortet sonst mit „403 Forbidden".**
+         *
+         * Die Willkommensseite entstand in `subscription.provision` und nur
+         * für das erste DocumentRoot. Jede weitere Domain bekam ein leeres
+         * Verzeichnis — und nginx antwortet darauf mit „directory index is
+         * forbidden". Das ist dieselbe falsche Auskunft wie bei der Sperre,
+         * die zuerst 403 statt 503 gab: „du darfst nicht" statt „hier ist noch
+         * nichts". Gefunden im Abnahmelauf für P4, an einer Domain, die gerade
+         * ein gültiges Zertifikat bekommen hatte.
+         *
+         * Geschrieben wird nur in ein leeres Verzeichnis; die Begründung steht
+         * in {@see WelcomePage}, und sie ist die Bedingung dafür, dass diese
+         * Operation wiederholbar bleiben darf.
+         */
+        $documentRoot = $site->documentRootPath();
+        $welcome = $documentRoot !== null && WelcomePage::into($documentRoot, $site->user);
+
         $context->progress(40, 'Server-Block erzeugen');
         $include = NginxApply::ensureInclude();
 
@@ -71,12 +90,13 @@ final class WebSiteApply implements Op
         return [
             'domain' => $site->domain,
             'conf' => $site->confFile(),
-            'document_root' => $site->documentRootPath(),
+            'document_root' => $documentRoot,
             'log_dir' => $site->logDir(),
             'php_version' => $site->phpVersion,
             'socket' => $site->socket(),
             'suspended' => $site->suspended,
             'created' => $created,
+            'welcome' => $welcome,
             'include_written' => $include,
         ];
     }

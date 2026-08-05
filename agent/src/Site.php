@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent;
 
+use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 
 /**
@@ -58,6 +59,7 @@ final class Site
         public readonly ?string $redirectTarget,
         public readonly int $redirectCode,
         public readonly bool $suspended,
+        public readonly bool $hsts,
     ) {}
 
     /**
@@ -94,6 +96,16 @@ final class Site
             redirectTarget: $redirect,
             redirectCode: self::redirectCode($args['redirect_code'] ?? null),
             suspended: (bool) ($args['suspended'] ?? false),
+
+            /*
+             * **Eine Erlaubnis, keine Anweisung.** Ob ein Jahr erzwungenes
+             * HTTPS gewollt ist, weiss nur das Panel: Es kennt die
+             * Zertifizierungsstelle und weiss, ob gerade der Testbetrieb
+             * läuft, dessen Wurzel kein Browser kennt. Ob das Zertifikat es
+             * hergibt, weiss nur der Agent, denn nur er liest die Datei —
+             * beide Bedingungen zusammen stehen in {@see Trust::hsts()}.
+             */
+            hsts: (bool) ($args['hsts'] ?? false),
         );
     }
 

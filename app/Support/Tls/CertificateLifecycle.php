@@ -44,7 +44,7 @@ final class CertificateLifecycle implements AfterOperation
 {
     public function __construct(
         private readonly Tenancy $tenancy,
-        private readonly AcmeSettings $settings,
+        private readonly CertificateOrder $order,
     ) {}
 
     /** @return list<string> */
@@ -90,6 +90,8 @@ final class CertificateLifecycle implements AfterOperation
             return;
         }
 
+        $notAfter = $this->moment($result, 'not_after');
+
         $certificate = new Certificate([
             'names' => $names,
             'status' => CertificateStatus::Active,
@@ -97,9 +99,14 @@ final class CertificateLifecycle implements AfterOperation
             'issuer' => $this->text($result, 'issuer'),
             'serial' => $this->text($result, 'serial'),
             'not_before' => $this->moment($result, 'not_before'),
-            'not_after' => $this->moment($result, 'not_after'),
+            'not_after' => $notAfter,
             'last_error' => null,
             'last_attempt_at' => now(),
+
+            // Die Frist wird hier eingetragen und nicht beim Nachsehen
+            // gerechnet: Ein Zertifikat ohne Termin wäre eines, das erst
+            // auffällt, wenn ein Browser es meldet.
+            'renew_after' => CertificateRenewal::due($notAfter),
         ]);
 
         $certificate->subscription_id = $domain->subscription_id;
@@ -117,41 +124,32 @@ final class CertificateLifecycle implements AfterOperation
     /**
      * Für diese Domain ein Zertifikat bestellen — wenn eines fehlt.
      *
-     * Die drei Bedingungen sind je eine eigene Entscheidung: **ohne
-     * Kontaktadresse** bestellt das Panel gar nichts (siehe
-     * {@see AcmeSettings}), **mit vorhandenem Zertifikat** wäre es die
-     * Schleife aus der Klassenbeschreibung, und **ein Vorgang, der selbst aus
-     * einer Zuordnung stammt**, hat sein Zertifikat gerade erst bekommen.
+     * **Mit vorhandenem Zertifikat wäre es die Schleife** aus der
+     * Klassenbeschreibung: Bestellung, Zuordnung, Block neu, Bestellung. Die
+     * zweite Bedingung — ohne Kontaktadresse passiert nichts — steht in
+     * {@see CertificateOrder} und damit an der Stelle, die auch die Erneuerung
+     * benutzt.
      */
     private function request(Domain $domain, Operation $operation): void
     {
-        if ($domain->certificate_id !== null || ! $this->settings->configured()) {
+        if ($domain->certificate_id !== null) {
             return;
         }
 
-        $contact = $this->settings->contact();
-
-        if ($contact === null) {
-            return;
-        }
-
-        $this->dispatch($domain, 'acme.certificate.issue', 'Zertifikat für '.$domain->name, $operation, [
-            'names' => $domain->serverNames(),
-            'contact' => $contact,
-            'directory' => $this->settings->directory(),
-        ]);
+        // Wie bestellt wird, steht an einer Stelle — ohne Kontaktadresse
+        // passiert dort nichts, und das ist die Antwort auf die zweite
+        // Bedingung von früher.
+        $this->order->place($domain, $operation);
     }
 
     /**
-     * Einen Folgevorgang einreihen.
+     * Den Server-Block neu schreiben lassen.
      *
      * Er trägt das Konto dessen, der den auslösenden Vorgang angestossen hat —
      * im Arbeiter gibt es keine Anfrage, und ohne diese Zeile stünde in der
      * Liste „—" neben einem Vorgang, den jemand ausgelöst hat.
-     *
-     * @param  array<string, mixed>|null  $payload
      */
-    private function dispatch(Domain $domain, string $task, string $message, Operation $cause, ?array $payload = null): void
+    private function dispatch(Domain $domain, string $task, string $message, Operation $cause): void
     {
         $operation = Operation::query()->create([
             'subscription_id' => $domain->subscription_id,
@@ -160,7 +158,7 @@ final class CertificateLifecycle implements AfterOperation
             'account_id' => $cause->account_id,
             'type' => $task,
             'task' => $task,
-            'payload' => $payload ?? app(WebLifecycle::class)->payload($domain),
+            'payload' => app(WebLifecycle::class)->payload($domain),
             'status' => OperationStatus::Queued,
             'progress' => 0,
             'message' => $message,

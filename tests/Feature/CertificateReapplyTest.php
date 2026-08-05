@@ -14,6 +14,7 @@ use App\Models\Subscription;
 use App\Support\Operations\Lifecycles;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificateRenewal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -146,6 +147,14 @@ final class CertificateReapplyTest extends TestCase
 
         $this->assertSame(['beispiel.de'], $certificate->names);
         $this->assertSame('Test CA', $certificate->issuer);
+
+        // **Und der Termin steht mit.** Ein Zertifikat ohne Frist wäre eines,
+        // das der Erneuerungslauf nie findet — auffallen würde das erst, wenn
+        // ein Browser es meldet. Gerechnet wird die Frist an einer Stelle.
+        $this->assertSame(
+            CertificateRenewal::due($certificate->not_after)?->toDateTimeString(),
+            $certificate->renew_after?->toDateTimeString(),
+        );
 
         // **Die Regel.** Ohne diesen Vorgang gilt ein vertrautes Zertifikat und
         // der Server-Block kennt es nicht — HSTS fehlt, und nichts sagt es.

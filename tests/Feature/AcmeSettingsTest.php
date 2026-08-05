@@ -83,6 +83,39 @@ final class AcmeSettingsTest extends TestCase
     }
 
     /**
+     * Für die Oberfläche selbst wird aus dem Testbetrieb nichts bestellt.
+     *
+     * **Das ist die Zeile, die den Betreiber davor bewahrt, sich auszusperren.**
+     * Ein Staging-Zertifikat ist von einer Zertifizierungsstelle ausgestellt —
+     * der Agent hält es damit für vertrauenswürdig und schreibt
+     * `Strict-Transport-Security` in den Server-Block. Kein Browser kennt die
+     * Wurzel dahinter: Die Warnung bleibt, und sie lässt sich nicht mehr
+     * wegklicken, weil HSTS genau das verbietet. Der Weg zurück führte über die
+     * Einstellungen des Browsers — und die Einstellung, mit der man sich
+     * ausgesperrt hat, liegt hinter der Anmeldung (`docs/27 §7`).
+     */
+    public function test_the_panel_never_orders_from_the_staging_directory(): void
+    {
+        $this->artisan('srvpanel:tls', ['--contact' => 'post@beispiel.de'])->assertExitCode(0);
+
+        // Vorgabe ist der Testbetrieb.
+        $this->assertTrue($this->settings()->staging());
+        $this->assertFalse($this->settings()->mayOrderForPanel());
+
+        $this->artisan('srvpanel:tls', ['--directory' => Directories::PRODUCTION])->assertExitCode(0);
+
+        $this->assertTrue($this->settings()->mayOrderForPanel());
+    }
+
+    /** Und ohne Kontaktadresse ebenfalls nicht — auch produktiv nicht. */
+    public function test_without_a_contact_address_the_panel_orders_nothing(): void
+    {
+        $this->artisan('srvpanel:tls', ['--directory' => Directories::PRODUCTION])->assertExitCode(0);
+
+        $this->assertFalse($this->settings()->mayOrderForPanel());
+    }
+
+    /**
      * Wer eine Angabe setzt, verliert die andere nicht.
      *
      * Beide liegen unter demselben Schlüssel. Ein `updateOrCreate` mit der

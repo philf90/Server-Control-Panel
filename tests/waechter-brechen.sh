@@ -713,6 +713,218 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AcmeSettingsTest passed
 
 echo
+echo "── CertificateRenewalTest: das abgelöste Zertifikat bleibt fällig ──"
+#
+# Beim Erneuern entsteht ein neues Zertifikat, die Domain zeigt danach darauf,
+# und die alte Zeile bleibt als Beleg stehen. Ohne die Bedingung ist sie in alle
+# Ewigkeit fällig — jeder Lauf bestellt sie neu, bis die Ratenbegrenzung
+# zuschlägt. Das fällt nicht am ersten Tag auf, sondern am dreissigsten.
+vorher_datei app/Support/Tls/CertificateRenewal.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateRenewal.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            ->whereHas('domains')", "            ->where('id', '>', 0)")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateRenewal.php "Erneuerung ohne Blick auf die Domain" &&
+pruefe "Erneuerung ohne Blick auf die Domain" \
+  CertificateRenewalTest::test_a_certificate_no_domain_points_at_is_never_renewed failed
+wiederherstellen
+
+echo
+echo "── CertificateRenewalTest: der Fehlversuch wird zum Dauerversuch ──"
+#
+# Produktiv sind fünf Fehlversuche je Konto und Stunde die Grenze. Wer nach
+# jedem Fehlschlag sofort wieder anklopft, sperrt sich selbst aus — samt aller
+# Domains, die in dieser Stunde neu angelegt werden.
+vorher_datei app/Support/Tls/CertificateRenewal.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateRenewal.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            ->where(fn (Builder $query) => $query\n"
+    "                ->whereNull('last_attempt_at')\n"
+    "                ->orWhere('last_attempt_at', '<=', now()->subHours(self::RETRY_HOURS)))\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateRenewal.php "Erneuerung ohne Abstand nach einem Versuch" &&
+pruefe "Erneuerung ohne Abstand nach einem Versuch" \
+  CertificateRenewalTest::test_after_an_attempt_the_next_run_waits failed
+wiederherstellen
+
+echo
+echo "── CertificateRenewalTest: der Lauf kennt keine Grenze ──"
+#
+# Hundert am selben Tag fällige Domains laufen sonst in die Wochengrenze der
+# Zertifizierungsstelle — und dahinter stehen dann auch die neuen.
+vorher_datei app/Support/Tls/CertificateRenewal.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateRenewal.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if ($ordered + $corrected >= self::PER_RUN) {\n                break;\n            }\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateRenewal.php "Erneuerungslauf ohne Grenze" &&
+pruefe "Erneuerungslauf ohne Grenze" \
+  CertificateRenewalTest::test_a_run_orders_at_most_its_limit_and_says_what_is_left failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateRenewalTest passed
+
+echo
+echo "── CertificateReapplyTest: das Zertifikat kommt ohne Termin in den Bestand ──"
+#
+# Ein Zertifikat ohne Frist findet der Erneuerungslauf nie. Auffallen würde das
+# in neunzig Tagen, und zwar im Browser.
+vorher_datei app/Support/Tls/CertificateLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'renew_after' => CertificateRenewal::due($notAfter),", "            'renew_after' => null,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateLifecycle.php "Zertifikat ohne Erneuerungstermin" &&
+pruefe "Zertifikat ohne Erneuerungstermin" \
+  CertificateReapplyTest::test_an_installed_certificate_is_followed_by_a_new_server_block failed
+wiederherstellen
+
+echo
+echo "── SiteTemplateTest: HSTS auf ein selbstsigniertes Zertifikat ──"
+#
+# docs/27 §7: Der Browser merkt sich ein Jahr, und danach lässt sich auf diesem
+# Host kein Zertifikatsfehler mehr wegklicken. Bei einer Kundendomain trifft das
+# jeden Besucher, und der kann nichts dagegen tun.
+vorher_datei agent/src/Acme/Trust.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Trust.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        return ! self::selfSigned((string) file_get_contents($certificate));',
+    '        return true;',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Trust.php "HSTS ohne Blick auf den Aussteller" &&
+pruefe "HSTS ohne Blick auf den Aussteller" \
+  SiteTemplateTest::test_a_self_signed_certificate_never_gets_hsts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteTemplateTest passed
+
+echo
+echo "── WelcomePageTest: die Seite überschreibt, was der Kunde abgelegt hat ──"
+#
+# Ein zweiter Lauf legt sonst eine index.html neben die Seite des Kunden, und
+# die wird vor index.php gefunden. Der Kunde sieht wieder den Platzhalter und
+# kommt nicht auf den Gedanken, dass das Panel das war.
+vorher_datei agent/src/WelcomePage.php
+python3 - <<'PY2'
+p = 'agent/src/WelcomePage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($entries === false || array_diff($entries, ['.', '..']) !== []) {",
+    '        if ($entries === false) {',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/WelcomePage.php "Willkommensseite ohne Rücksicht auf den Inhalt" &&
+pruefe "Willkommensseite ohne Rücksicht auf den Inhalt" \
+  WelcomePageTest::test_the_welcome_page_is_written_only_into_an_empty_document_root failed
+wiederherstellen
+
+echo
+echo "── WelcomePageTest: eine neue Domain bekommt wieder ein leeres Verzeichnis ──"
+#
+# Der Fund aus dem Abnahmelauf für P4: nginx antwortet auf ein leeres
+# DocumentRoot mit 403 — „du darfst nicht" statt „hier ist noch nichts".
+vorher_datei agent/src/Ops/WebSiteApply.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/WebSiteApply.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        $welcome = $documentRoot !== null && WelcomePage::into($documentRoot, $site->user);',
+    '        $welcome = false;',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/WebSiteApply.php "Domain ohne Willkommensseite" &&
+pruefe "Domain ohne Willkommensseite" \
+  WelcomePageTest::test_every_operation_that_creates_a_document_root_writes_the_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WelcomePageTest passed
+
+echo
+echo "── PanelCertificateTest: die Oberfläche liefert weiter das selbstsignierte ──"
+#
+# Ein bestelltes Zertifikat, das nginx nicht ausliefert, ist keins. Und die
+# Zertifikatsseite zeigte dann eines an, das der Browser nie bekommt.
+vorher_datei agent/src/Acme/PanelCertificate.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/PanelCertificate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $acme = self::fromStore($store ?? new Store, $host ?? Names::host());",
+    '        $acme = null;',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/PanelCertificate.php "ACME-Zertifikat der Oberfläche wird nicht ausgeliefert" &&
+pruefe "ACME-Zertifikat der Oberfläche wird nicht ausgeliefert" \
+  PanelCertificateTest::test_a_certificate_from_an_authority_wins failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PanelCertificateTest passed
+
+echo
+echo "── PanelVhostTest: der Aufruf ohne Port verschiebt das Panel ──"
+#
+# Nach dem Ausstellen wird der Block neu geschrieben, ohne dass jemand einen
+# Port nennt. Wer 9443 gewählt hat, fände sein Panel danach auf 8443 — die
+# Meldung dazu wäre "Verbindung abgelehnt" und stünde in keinem Protokoll.
+vorher_datei agent/src/Ops/PanelVhost.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelVhost.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (preg_match('/listen\\s+(\\d+)\\s+ssl/', $conf, $match) === 1) {\n"
+    "            return (int) $match[1];\n"
+    "        }\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PanelVhost.php "Port der Oberfläche wird nicht gelesen" &&
+pruefe "Port der Oberfläche wird nicht gelesen" \
+  PanelVhostTest::test_a_call_without_a_port_keeps_the_one_that_is_there failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PanelVhostTest passed
+
+echo
+echo "── AcmeSettingsTest: das Panel bestellt aus dem Testbetrieb ──"
+#
+# Ein Staging-Zertifikat ist von einer Zertifizierungsstelle ausgestellt — der
+# Agent schreibt also HSTS in den Block. Kein Browser kennt die Wurzel dahinter,
+# die Warnung bleibt, und wegklicken lässt sie sich nicht mehr. Der Betreiber
+# ist aus seinem eigenen Panel ausgesperrt.
+vorher_datei app/Support/Tls/AcmeSettings.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/AcmeSettings.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        return $this->configured() && ! $this->staging();',
+    '        return $this->configured();',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/AcmeSettings.php "Panel-Zertifikat aus dem Testbetrieb" &&
+pruefe "Panel-Zertifikat aus dem Testbetrieb" \
+  AcmeSettingsTest::test_the_panel_never_orders_from_the_staging_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AcmeSettingsTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

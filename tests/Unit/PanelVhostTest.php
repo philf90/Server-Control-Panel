@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\Ops\PanelVhost;
 
 /**
@@ -111,8 +112,8 @@ final class PanelVhostTest extends TestCase
      */
     public function test_an_unreadable_certificate_counts_as_self_signed(): void
     {
-        $this->assertTrue(PanelVhost::selfSigned(''));
-        $this->assertTrue(PanelVhost::selfSigned('-----BEGIN CERTIFICATE-----\nkein Zertifikat\n'));
+        $this->assertTrue(Trust::selfSigned(''));
+        $this->assertTrue(Trust::selfSigned('-----BEGIN CERTIFICATE-----\nkein Zertifikat\n'));
     }
 
     public function test_a_certificate_that_issued_itself_is_recognised(): void
@@ -131,6 +132,31 @@ final class PanelVhostTest extends TestCase
 
         openssl_x509_export($certificate, $pem);
 
-        $this->assertTrue(PanelVhost::selfSigned($pem));
+        $this->assertTrue(Trust::selfSigned($pem));
+    }
+
+    /**
+     * Ein Aufruf ohne Portangabe verschiebt das Panel nicht.
+     *
+     * **Die Vorgabe 8443 ist für die Ersteinrichtung richtig und für jeden
+     * späteren Aufruf eine Behauptung.** Seit das Zertifikat der Oberfläche
+     * über ACME kommt, gibt es solche Aufrufe: Nach dem Ausstellen wird der
+     * Block neu geschrieben, und niemand nennt dabei einen Port. Ein Betreiber,
+     * der 9443 gewählt hat, fände sein Panel danach woanders — die Meldung
+     * dazu wäre „Verbindung abgelehnt", und sie stünde in keinem Protokoll.
+     */
+    public function test_a_call_without_a_port_keeps_the_one_that_is_there(): void
+    {
+        $this->assertSame(9443, PanelVhost::portIn("server {\n    listen 9443 ssl;\n    listen [::]:9443 ssl;\n    http2 on;\n"));
+
+        // Die ältere Schreibweise steht auf drei der vier Zielplattformen.
+        $this->assertSame(9443, PanelVhost::portIn("server {\n    listen 9443 ssl http2;\n"));
+
+        // Ohne Datei bleibt es bei der Vorgabe — das ist die Ersteinrichtung.
+        $this->assertSame(8443, PanelVhost::portIn(''));
+
+        // Und der Block für die Prüfadresse zählt nicht: Der Port der
+        // Oberfläche trägt immer `ssl`.
+        $this->assertSame(8443, PanelVhost::portIn("server {\n    listen 80;\n    server_name panel.example.de;\n}\n"));
     }
 }

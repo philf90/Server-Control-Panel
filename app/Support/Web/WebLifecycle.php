@@ -9,6 +9,7 @@ use App\Enums\DomainType;
 use App\Enums\OperationStatus;
 use App\Enums\OperationSubject;
 use App\Jobs\RunAgentOperation;
+use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
@@ -16,6 +17,7 @@ use App\Support\Operations\AfterOperation;
 use App\Support\Operations\Lifecycles;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Tls\AcmeSettings;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\DocumentRoot;
 use SrvPanel\Agent\DomainName;
@@ -41,6 +43,7 @@ final class WebLifecycle implements AfterOperation
     public function __construct(
         private readonly Tenancy $tenancy,
         private readonly PhpSelection $php,
+        private readonly AcmeSettings $tls,
     ) {}
 
     /**
@@ -70,7 +73,30 @@ final class WebLifecycle implements AfterOperation
             // Domain eines gesperrten Abonnements wieder aus.
             'suspended' => $domain->status === DomainStatus::Suspended
                 || $subscription?->status->usable() === false,
+
+            // **Eine Erlaubnis, keine Anweisung.** Ob HSTS gewollt ist, weiss
+            // nur das Panel — es kennt den Testbetrieb, dessen Wurzel kein
+            // Browser kennt. Ob das Zertifikat es hergibt, sieht der Agent
+            // selbst nach; erst beide zusammen schreiben den Header.
+            'hsts' => $this->tls->hsts($this->certificate($domain)),
         ];
+    }
+
+    /**
+     * Das Zertifikat der Domain — ohne Mandantenklammer gelesen.
+     *
+     * Sie steht im Grundzustand auf „nichts", und in einem Job ist das der
+     * Normalfall: Ein gewöhnliches `find()` lieferte dort `null`, und der
+     * Server-Block verspräche kein HSTS, obwohl ein vertrautes Zertifikat
+     * daliegt. Dieselbe Falle wie bei der Deckungsprüfung am Modell.
+     */
+    private function certificate(Domain $domain): ?Certificate
+    {
+        if ($domain->certificate_id === null) {
+            return null;
+        }
+
+        return Certificate::query()->withoutGlobalScopes()->find($domain->certificate_id);
     }
 
     /**

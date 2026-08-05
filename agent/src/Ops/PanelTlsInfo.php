@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Ops;
 
+use SrvPanel\Agent\Acme\PanelCertificate;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Names;
 use SrvPanel\Agent\Op;
@@ -38,7 +39,14 @@ final class PanelTlsInfo implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $path = $this->directory.'/panel.crt';
+        // **Das ausgelieferte und nicht das abgelegte.** Seit P4 kann neben
+        // dem selbstsignierten ein Zertifikat von Let's Encrypt liegen; welches
+        // der Browser bekommt, entscheidet {@see PanelCertificate}. Eine Seite,
+        // die hier die Notlösung anzeigt, während nginx das echte ausliefert,
+        // schickt den Betreiber auf die Suche nach einem Fehler, den es nicht
+        // gibt.
+        $serving = PanelCertificate::current($this->directory);
+        $path = $serving['certificate'];
 
         if (! is_file($path)) {
             return ['present' => false, 'reason' => 'Es liegt kein Zertifikat unter '.$path.'.'];
@@ -56,6 +64,7 @@ final class PanelTlsInfo implements Op
         return [
             'present' => true,
             'path' => $path,
+            'acme' => $serving['acme'],
             'subject' => (string) ($parsed['subject']['CN'] ?? ''),
             'issuer' => (string) ($parsed['issuer']['CN'] ?? ''),
 

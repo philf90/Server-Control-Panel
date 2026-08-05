@@ -2540,3 +2540,154 @@ Klasse wird beim Einlesen der Kommandos geladen, also schon bei
 nachstellen liesse — beide haben je eine Runde CI gekostet. Die Regel steht
 jetzt in CLAUDE.md: Wer in einer abgeleiteten Klasse eine private Hilfsmethode
 einzieht, sieht vorher in der Basisklasse nach.
+
+#### Schritt 5: Erneuerung, HSTS — und der Fund vom Zielserver
+
+Der Abnahmelauf für P4 ist auf `cloudlab24.de` durchgelaufen: Server-Block →
+Bestellung → Einspielen → Server-Block, und danach hört die Kette auf. Das
+Zertifikat ist echt (`(STAGING) Dastardly Durum YR1`, 90 Tage), Port 80 leitet
+dauerhaft weiter, und über 443 kam eine Antwort — aus dem 443er Block, der
+damit beide Zertifikatsdateien liest.
+
+**Die Antwort war „403 Forbidden", und das ist der Fund.** Das DocumentRoot war
+leer, nginx meldete „directory index is forbidden". Die Willkommensseite
+entstand in `subscription.provision` und nur für das *erste* DocumentRoot eines
+Abonnements; jede weitere Domain bekam ein leeres Verzeichnis. Das ist wörtlich
+dieselbe falsche Auskunft wie bei der Sperre, die zuerst 403 statt 503 gab: „du
+darfst nicht" statt „hier ist noch nichts". Gesehen hat es kein Test — der
+Abnahmelauf legt seine eigene Prüfdatei in jedes DocumentRoot und ist damit an
+genau diesem Fall vorbeigelaufen.
+
+Die Seite steht jetzt in `WelcomePage` und wird von beiden Operationen
+geschrieben, die ein DocumentRoot anlegen. Sie nennt das Verzeichnis, in dem
+die Dateien liegen sollen, als **Angabe** und nicht mehr als Wort im Text: Es
+hiess `httpdocs`, solange nur das erste eine Seite bekam, und ein Hinweis auf
+ein Verzeichnis, das es für diese Domain nicht gibt, schickt den Kunden ins
+Leere. Die Bedingung von früher gilt unverändert — geschrieben wird nur in ein
+leeres Verzeichnis, sonst legte ein zweiter Lauf eine `index.html` neben die
+Seite des Kunden, die vor `index.php` gefunden wird.
+
+**Erneuert wird am selben Timer.** `srvpanel:tls` läuft täglich für das
+Zertifikat der Oberfläche und nimmt jetzt die Kundenzertifikate mit: Was
+weniger als 30 Tage Restlaufzeit hat, wird neu bestellt. Der Takt hängt nicht
+an der Laufzeit, sondern an dieser Frist — in diesen 30 Tagen muss ein Server
+einmal gelaufen sein.
+
+Vier Zeilen entscheiden, ob dieser Lauf trägt:
+
+- **Ein Zertifikat, an dem keine Domain hängt, wird nicht erneuert.** Beim
+  Erneuern entsteht ein *neues* Zertifikat, die Domain zeigt danach darauf, und
+  die alte Zeile bleibt als Beleg stehen. Ohne diese Bedingung wäre sie in alle
+  Ewigkeit fällig — jeder Lauf bestellte sie neu, bis die Ratenbegrenzung
+  zuschlägt. Das fiele nicht am ersten Tag auf, sondern am dreissigsten.
+- **Erst nachsehen, dann bestellen.** Bricht ein Lauf zwischen dem Ablegen der
+  Dateien und dem Eintrag im Bestand ab, liegt ein erneuertes Zertifikat da,
+  von dem das Panel nichts weiss. `acme.certificate.info` beantwortet das — die
+  Operation war seit Schritt 4 gebaut und wurde von nichts gerufen.
+- **Nach einem Versuch wird gewartet.** Sechs Stunden. Produktiv sind fünf
+  Fehlversuche je Konto und Stunde die Grenze; wer sofort wieder anklopft,
+  sperrt sich selbst aus — samt aller Domains, die in dieser Stunde neu
+  angelegt werden.
+- **Und ein Lauf bestellt höchstens zehn.** Ein Server, auf dem hundert Domains
+  am selben Tag fällig werden, holt das über mehrere Tage auf, statt an der
+  Wochengrenze hängenzubleiben, hinter der dann auch die neuen stehen. Was
+  liegen bleibt, steht in der Ausgabe: **eine Grenze, die niemand meldet, sieht
+  aus wie „alles erledigt".**
+
+**Wie bestellt wird, steht jetzt an einer Stelle** (`CertificateOrder`). Es gibt
+zwei Anlässe und ab dem zweiten Wurf drei — eine Domain ohne Zertifikat, eine
+Erneuerung, später ein Knopf. Drei Stellen, die eine Bestellung zusammenbauen,
+sind zwei Gelegenheiten, die Kontaktadresse zu vergessen oder die Namen aus der
+Anfrage statt aus dem Bestand zu nehmen.
+
+**HSTS für Kundendomains — mit einer Bedingung auf jeder Seite.** Ob ein Jahr
+erzwungenes HTTPS gewollt ist, weiss nur das Panel: Es kennt den Testbetrieb,
+dessen Wurzel kein Browser kennt, und an der Datei ist ein Staging-Zertifikat
+von einem echten nicht zu unterscheiden. Ob das Zertifikat es hergibt, weiss
+nur der Agent, denn nur er liest die Datei. Die Erlaubnis reist deshalb in den
+Vorgangsdaten, und der Agent prüft trotzdem noch einmal — `docs/27 §7` nennt
+das die Falle, die aussperrt, und bei einer Kundendomain trifft sie jeden
+Besucher statt nur den Betreiber. **Kein `includeSubDomains`:** Eine Subdomain
+ist hier eine eigene Domain mit eigenem Zertifikat, und die Erzwingung träfe
+sie, bevor sie eines hat.
+
+Die Frage „darf ein Browser dem trauen?" steht dabei nicht mehr in
+`panel.vhost.apply`, sondern in `Acme\Trust` — sie wird jetzt von zwei Vorlagen
+gestellt, und die zweite Formulierung wäre die gewesen, die HSTS auf ein
+selbstsigniertes Zertifikat schreibt.
+
+Sieben weitere Brüche im Wächterskript — und hier gehört eine Einschränkung
+hin, die dieses Projekt sonst nicht macht: **Sie sind nicht gelaufen.** In
+dieser Umgebung fehlt `vendor/`, es gibt also kein PHPUnit (siehe CLAUDE.md).
+Geprüft ist mechanisch, dass jeder der sieben Eingriffe greift, die Datei
+verändert und gültiges PHP hinterlässt; der Rot-Grün-Durchgang steht aus und
+gehört auf eine Maschine mit `vendor/`. Ein Wächter, der nie rot war, ist kein
+Wächter — diese sieben sind bis dahin Zusagen.
+
+**Was P4 noch fehlt:** Das Panel selbst läuft weiter mit einem selbstsignierten
+Zertifikat. Die Prüfadresse auf Port 80 steht seit Schritt 3, bestellt wird für
+den Rechnernamen aber nichts — `docs/32` führt das im ersten Wurf, und es ist
+der nächste Schritt vor der Oberfläche.
+
+#### Schritt 5b: das Zertifikat der Oberfläche kommt von Let's Encrypt
+
+Der letzte Punkt des ersten Wurfs, der noch offen war: Das Panel lief mit dem
+selbstsignierten Zertifikat aus P0, und jeder Aufruf begann mit einer
+Browserwarnung.
+
+**Bestellt wird über dieselbe Strecke wie für jede Kundendomain** —
+`acme.certificate.issue` für den vollständigen Rechnernamen, HTTP-01 über den
+Block auf Port 80, den Schritt 3 der Oberfläche gegeben hat. Kein zweiter
+ACME-Weg, keine zweite Ablage.
+
+**Ohne Vorgang und ohne Zeile im Bestand.** Das Zertifikat der Oberfläche
+gehört keinem Kunden, hängt an keiner Domain und wird von keiner Seite
+verwaltet; was gilt, steht im Ablageort. Eine Zeile in `certificates` bräuchte
+einen zweiten Erneuerungsweg — und der zweite Weg ist immer der, der veraltet.
+`srvpanel:tls` fragt deshalb täglich `acme.certificate.info` und bestellt ab 30
+Tagen Restlaufzeit neu, mit derselben Frist wie bei den Kundenzertifikaten.
+
+**Aus dem Testbetrieb wird für die Oberfläche nie bestellt, und das ist die
+wichtigste Zeile dieses Schritts.** Ein Staging-Zertifikat ist von einer
+Zertifizierungsstelle ausgestellt — der Agent hält es damit für
+vertrauenswürdig und schreibt `Strict-Transport-Security` in den Server-Block.
+Kein Browser kennt die Wurzel dahinter: Die Warnung bleibt, **und sie lässt
+sich nicht mehr wegklicken**, weil HSTS genau das verbietet. Der Betreiber wäre
+aus seinem eigenen Panel ausgesperrt — und die Einstellung, mit der er sich
+ausgesperrt hat, liegt hinter der Anmeldung. Bei einer Kundendomain ist
+derselbe Fall unschön, hier ist er teuer.
+
+**Das selbstsignierte bleibt liegen und bleibt gültig.** Es ist der Rückweg,
+wenn unter dem Namen dieses Servers nichts mehr steht; `panel.tls.ensure` hält
+es weiter aktuell, auch wenn es gerade niemand ausliefert. Ein Rückweg, den man
+erst wieder herstellen muss, ist keiner.
+
+**Welche der beiden Dateien ausgeliefert wird, entscheidet eine Stelle**
+(`Acme\PanelCertificate`). Der Server-Block wählt sie, die Zertifikatsseite
+zeigt sie an, die Erneuerung fragt danach — drei Stellen, die je selbst
+nachsähen, sind zwei Gelegenheiten für eine Seite, die ein anderes Zertifikat
+anzeigt als das, was der Browser bekommt. Und ein **kurzer Rechnername** ist
+dabei kein Fehler: `Store` nimmt nur Domainnamen an, auf einem Server namens
+`cloudsrv24` fliegt die Frage nach dem Ablageort. Sie heisst hier „es gibt
+keines" und nicht „der Server-Block lässt sich nicht schreiben" — sonst nähme
+ein kurzer Hostname das ganze Panel mit.
+
+**Ein Aufruf ohne Portangabe verschiebt das Panel nicht mehr.** Nach dem
+Ausstellen wird der Block neu geschrieben, und niemand nennt dabei einen Port;
+die Vorgabe 8443 wäre für jeden Betreiber, der 9443 gewählt hat, ein Panel an
+einer anderen Stelle — mit „Verbindung abgelehnt" als einziger Meldung.
+`panel.vhost.apply` liest den Port jetzt aus dem Block, der dasteht.
+
+**Ein Fehlschlag hält den Lauf nicht an.** Ohne DNS-Eintrag auf diesen Server
+kann die Prüfung nicht gelingen; das ist beim Einrichten der Normalfall und
+kein Grund, eine systemd-Unit rot zu färben. Die Oberfläche antwortet weiter,
+nur eben mit der Warnung.
+
+Drei weitere Brüche im Wächterskript — auch sie sind geschrieben und nicht
+gelaufen, aus demselben Grund wie in Schritt 5.
+
+**Was dabei bewusst liegen bleibt:** Die Seite `/settings/tls` zeigt weiter nur
+„selbstsigniert oder nicht" und trägt einen Knopf, der das selbstsignierte neu
+ausstellt — mit einem ACME-Zertifikat davor sieht man davon nichts. Die Auskunft
+dafür steht seit diesem Schritt im Rückgabewert (`acme`); die Seite bekommt sie
+in Schritt 6, zusammen mit den Screenshots in beiden Themes und bei 390 px.

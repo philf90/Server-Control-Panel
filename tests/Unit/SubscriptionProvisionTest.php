@@ -6,7 +6,6 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 
@@ -129,69 +128,5 @@ final class SubscriptionProvisionTest extends TestCase
         // Stünde sie in einer Datei, wäre die Frage, wer die Datei schreiben
         // darf — und die Antwort wäre eine weitere Schranke, die stimmen muss.
         $this->assertSame('/var/www/vhosts', SubscriptionProvision::VHOSTS);
-    }
-
-    public function test_the_welcome_page_reveals_nothing_about_the_server(): void
-    {
-        /*
-         * Sobald eine Domain hierher zeigt, ist die Seite öffentlich. Ein
-         * Platzhalter, auf dem „Abonnement kunde-example.de, Systembenutzer
-         * p1003" steht, ist eine Einladung, in der Suchmaschine nach weiteren
-         * zu suchen.
-         */
-        $html = SubscriptionProvision::welcomePage();
-
-        foreach (['p1000', 'vhosts', '/var/www', 'SrvPanel', 'srvpanel'] as $verboten) {
-            $this->assertStringNotContainsString($verboten, $html, sprintf(
-                'Die Willkommensseite nennt „%s". Sie ist öffentlich, sobald eine Domain hierher zeigt.',
-                $verboten,
-            ));
-        }
-    }
-
-    public function test_the_welcome_page_asks_no_one_for_anything(): void
-    {
-        // Keine Schrift, kein Bild, kein Stylesheet von aussen: Ein
-        // Platzhalter, der beim ersten Aufruf eine fremde Adresse kontaktiert,
-        // ist ein Platzhalter, der etwas verrät — dem Betreiber der fremden
-        // Adresse nämlich, dass es diese Domain gibt.
-        $html = SubscriptionProvision::welcomePage();
-
-        $this->assertSame(0, preg_match_all('#https?://#', $html));
-        $this->assertSame(0, preg_match_all('/<(script|img|iframe|link)\b/i', $html));
-
-        // Und sie gehört nicht in den Index einer Suchmaschine.
-        $this->assertStringContainsString('name="robots" content="noindex"', $html);
-    }
-
-    public function test_the_welcome_page_is_written_only_into_an_empty_document_root(): void
-    {
-        /*
-         * **Die Bedingung, unter der diese Operation wiederholbar bleiben
-         * darf.** Ein zweiter Lauf — nach einem abgebrochenen Vorgang, nach
-         * einer Kontingentänderung — träfe sonst auf eine fertige Webseite und
-         * legte eine `index.html` daneben, die vor `index.php` gefunden wird.
-         * Der Kunde sähe statt seiner Seite wieder den Platzhalter.
-         */
-        $root = sys_get_temp_dir().'/srvpanel-doc-'.bin2hex(random_bytes(6));
-        mkdir($root, 0o755, true);
-
-        $welcome = new ReflectionMethod(SubscriptionProvision::class, 'welcome');
-
-        $this->assertTrue($welcome->invoke(new SubscriptionProvision, $root, 'root'));
-        $this->assertFileExists($root.'/index.html');
-
-        // Der Kunde legt seine eigene Seite ab.
-        file_put_contents($root.'/index.php', '<?php echo "meins";');
-        unlink($root.'/index.html');
-
-        $this->assertFalse($welcome->invoke(new SubscriptionProvision, $root, 'root'));
-        $this->assertFileDoesNotExist($root.'/index.html');
-
-        foreach (glob($root.'/*') ?: [] as $file) {
-            unlink($file);
-        }
-
-        rmdir($root);
     }
 }

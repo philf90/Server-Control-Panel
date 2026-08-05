@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Ops;
 
 use SrvPanel\Agent\Acme\HttpChallenge;
+use SrvPanel\Agent\Acme\PanelCertificate;
+use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Names;
@@ -41,14 +43,18 @@ final class PanelVhost implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $port = is_int($args['port'] ?? null) ? $args['port'] : 8443;
+        $port = is_int($args['port'] ?? null) ? $args['port'] : $this->currentPort();
 
         if ($port < 1 || $port > 65535) {
             throw AgentException::badRequest('Unzulässiger Port.', ['port' => $port]);
         }
 
-        $certificate = '/etc/srvpanel/tls/panel.crt';
-        $key = '/etc/srvpanel/tls/panel.key';
+        // Welche Datei ausgeliefert wird, entscheidet eine Stelle — sonst
+        // zeigt die Zertifikatsseite eines und der Browser bekommt ein
+        // anderes.
+        $tls = PanelCertificate::current();
+        $certificate = $tls['certificate'];
+        $key = $tls['key'];
 
         if (! is_file($certificate) || ! is_file($key)) {
             throw new AgentException(
@@ -66,7 +72,7 @@ final class PanelVhost implements Op
             // Die einzige Stelle, die den Rechnernamen beantwortet — siehe
             // `HostnameSourceTest`.
             Names::host(),
-            ! self::selfSigned((string) file_get_contents($certificate)),
+            ! Trust::selfSigned((string) file_get_contents($certificate)),
         );
 
         $before = is_file($this->target) ? (string) file_get_contents($this->target) : null;
@@ -88,33 +94,48 @@ final class PanelVhost implements Op
         // Mal um die Zeile mit dem Zurück ärmer gewesen.
         NginxApply::commit($context, [$this->target => $text]);
 
-        return ['path' => $this->target, 'port' => $port, 'replaced' => $before !== null];
+        return [
+            'path' => $this->target,
+            'port' => $port,
+            'replaced' => $before !== null,
+            'acme' => $tls['acme'],
+        ];
     }
 
     /**
-     * Hat sich dieses Zertifikat selbst ausgestellt?
+     * Der Port, auf dem die Oberfläche gerade hört.
      *
-     * Aussteller gleich Inhaber. Das ist dieselbe Frage, die `/settings/tls`
-     * als `self_signed` beantwortet — und sie entscheidet hier darüber, ob der
-     * Server-Block HSTS verspricht.
-     *
-     * **Unlesbar zählt als selbstsigniert.** Wer aus einem Zertifikat, das er
-     * nicht lesen kann, auf eine Zertifizierungsstelle schliesst, verspricht
-     * ein Jahr erzwungenes HTTPS auf Verdacht — und das ist die Richtung, in
-     * der ein Irrtum den Betreiber aussperrt.
+     * **Ohne diese Frage verschiebt ein Aufruf ohne Portangabe das Panel.**
+     * Die Vorgabe war 8443, und sie ist richtig für die Ersteinrichtung — für
+     * jeden späteren Aufruf ist sie eine Behauptung. Seit der Erneuerung des
+     * Zertifikats den Block neu schreibt, gibt es solche Aufrufe: Ein
+     * Betreiber, der 9443 gewählt hat, fände sein Panel danach woanders, und
+     * die Meldung dazu wäre „Verbindung abgelehnt".
      */
-    public static function selfSigned(string $pem): bool
+    private function currentPort(): int
     {
-        $parsed = @openssl_x509_parse($pem);
+        return self::portIn(is_file($this->target) ? (string) file_get_contents($this->target) : '');
+    }
 
-        if (! is_array($parsed)) {
-            return true;
+    /**
+     * Der Port aus einem vorhandenen Block — oder die Vorgabe.
+     *
+     * Öffentlich und ohne Datei, damit die Regel prüfbar ist: Sie entscheidet
+     * darüber, wo das Panel nach einem Aufruf ohne Portangabe zu finden ist,
+     * und ein Test, der dafür `/etc/nginx` fälscht, ist keiner.
+     *
+     * `listen 9443 ssl;` und `listen 9443 ssl http2;` — beide Schreibweisen
+     * stehen im eigenen Block, und beide passen. `listen [::]:9443` bleibt
+     * aussen vor, `listen 80;` ebenfalls: Der Port der Oberfläche trägt immer
+     * `ssl`.
+     */
+    public static function portIn(string $conf): int
+    {
+        if (preg_match('/listen\s+(\d+)\s+ssl/', $conf, $match) === 1) {
+            return (int) $match[1];
         }
 
-        $issuer = $parsed['issuer'] ?? null;
-        $subject = $parsed['subject'] ?? null;
-
-        return ! is_array($issuer) || ! is_array($subject) || $issuer === $subject;
+        return 8443;
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Tls;
 
+use App\Models\Certificate;
 use App\Models\Setting;
 use SrvPanel\Agent\Acme\Directories;
 
@@ -64,6 +65,48 @@ final class AcmeSettings
     public function configured(): bool
     {
         return $this->contact() !== null;
+    }
+
+    /**
+     * Darf für die Oberfläche selbst eines bestellt werden?
+     *
+     * **Aus dem Testbetrieb nie**, und das ist die wichtigste Zeile dieser
+     * Klasse. Ein Staging-Zertifikat ist von einer Zertifizierungsstelle
+     * ausgestellt — der Agent hält es damit für vertrauenswürdig und schreibt
+     * `Strict-Transport-Security` in den Server-Block. Kein Browser kennt die
+     * Wurzel dahinter: Die Warnung bleibt, **und sie lässt sich nicht mehr
+     * wegklicken**, weil HSTS genau das verbietet. Der Betreiber wäre aus
+     * seinem eigenen Panel ausgesperrt, und der Weg zurück führte über die
+     * Einstellungen des Browsers (`docs/27 §7`).
+     *
+     * Für eine Kundendomain ist derselbe Fall unschön, hier ist er teuer:
+     * Wer sich aussperrt, kann die Einstellung nicht mehr ändern, mit der er
+     * sich ausgesperrt hat.
+     */
+    public function mayOrderForPanel(): bool
+    {
+        return $this->configured() && ! $this->staging();
+    }
+
+    /**
+     * Darf ein Server-Block für dieses Zertifikat HSTS versprechen?
+     *
+     * **Der Testbetrieb ist der Grund, warum diese Frage hier steht und nicht
+     * im Agenten.** Ein Staging-Zertifikat ist von einer Zertifizierungsstelle
+     * ausgestellt — an der Datei ist es also nicht von einem echten zu
+     * unterscheiden, nur kennt kein Browser die Wurzel dahinter. Was der Agent
+     * beantworten kann, ist „selbstsigniert oder nicht"; ob überhaupt ein
+     * Zertifikat gemeint ist, dem jemand trauen soll, weiss das Panel.
+     *
+     * `docs/27 §7`: Ein Jahr Erzwingung auf eine Domain zu setzen, die morgen
+     * kein gültiges Zertifikat mehr hat, nimmt sie vom Netz — beim Panel
+     * trifft das den Betreiber, bei einer Kundendomain jeden Besucher.
+     */
+    public function hsts(?Certificate $certificate): bool
+    {
+        return $certificate !== null
+            && $certificate->source->trusted()
+            && ! $this->staging();
     }
 
     /**

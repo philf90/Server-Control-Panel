@@ -6,6 +6,7 @@ namespace SrvPanel\Agent;
 
 use SrvPanel\Agent\Acme\HttpChallenge;
 use SrvPanel\Agent\Acme\Store;
+use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\Ops\PanelVhost;
 
 /**
@@ -153,6 +154,27 @@ final class SiteTemplate
      */
     private static function secure(Site $site, string $names, array $tls, string $body): string
     {
+        /*
+         * **HSTS erst, wenn ein Browser dem Zertifikat trauen kann** — und
+         * beide Hälften der Bedingung stehen dort, wo sie beantwortbar sind
+         * ({@see Trust::hsts()}). `docs/27 §7` nennt das die Falle, die
+         * aussperrt: Der Browser merkt sich ein Jahr, und danach lässt sich
+         * auf diesem Host kein Zertifikatsfehler mehr wegklicken. Beim Panel
+         * trifft das den Betreiber, bei einer Kundendomain jeden Besucher —
+         * und der kann nichts dagegen tun.
+         *
+         * **Kein `includeSubDomains`.** Eine Subdomain ist in diesem Panel
+         * eine eigene Domain mit eigenem Zertifikat. Die Erzwingung träfe sie,
+         * bevor sie eines hat, und nähme sie damit vom Netz.
+         */
+        $strict = Trust::hsts($site->hsts, $tls['certificate'])
+            ? "\n    # Erzwungenes HTTPS — das Zertifikat stammt von einer\n".
+              "    # Zertifizierungsstelle, der Browser kann ihm also trauen.\n".
+              '    add_header Strict-Transport-Security "max-age=31536000" always;'."\n"
+            : "\n    # Kein erzwungenes HTTPS: Das Zertifikat ist entweder\n".
+              "    # selbstsigniert, oder es kommt aus dem Testbetrieb, dessen\n".
+              "    # Wurzel kein Browser kennt (docs/27 §7).\n";
+
         return <<<CONF
 
         server {
@@ -168,7 +190,7 @@ final class SiteTemplate
             ssl_certificate_key {$tls['key']};
             ssl_protocols       TLSv1.2 TLSv1.3;
             ssl_prefer_server_ciphers off;
-
+        {$strict}
         {$body}
         }
 

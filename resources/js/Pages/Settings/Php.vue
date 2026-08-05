@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
+import Marke from '../../Components/Marke.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Version {
@@ -53,57 +54,75 @@ function entfernen(v: Version): void {
       : `PHP ${v.version} entfernen?\n\nDie Konfiguration unter /etc/php/${v.version} bleibt liegen.`,
   )
 }
+
+/*
+ * Drei Zustände und drei Ränge.
+ *
+ * Installiert und gestoppt ist kein Fehler: Ein PHP-FPM ohne Pool startet
+ * nicht, und ohne Abonnement in dieser Version gibt es keinen. Deshalb
+ * „neutral" und nicht „warn" — eine Warnung schickt jemanden auf die Suche
+ * nach einem Problem, das keines ist.
+ */
+function rang(v: Version): 'ok' | 'neutral' {
+  return v.installed && v.active === true ? 'ok' : 'neutral'
+}
+
+function zustand(v: Version): string {
+  if (!v.installed) return 'nicht installiert'
+  if (v.active === true) return 'FPM läuft'
+  if (v.active === false) return 'FPM steht'
+
+  return 'installiert'
+}
 </script>
 
 <template>
   <Head title="PHP-Versionen" />
 
   <PanelLayout title="PHP-Versionen" subline="Was auf diesem Server für Kundenwebsites bereitsteht">
-    <p v-if="props.error" class="fehler-block">
-      Der Agent antwortet nicht: {{ props.error }}
-      <template v-if="props.checked_at">
-        Angezeigt wird der Stand vom {{ props.checked_at }}.
-      </template>
+    <p v-if="props.error" class="meldung warn">
+      <span>
+        Der Agent antwortet nicht: {{ props.error }}
+        <template v-if="props.checked_at">
+          Angezeigt wird der Stand vom {{ props.checked_at }}.
+        </template>
+      </span>
     </p>
 
-    <p class="hinweis-block">
-      Kunden wählen aus diesen Versionen, soweit ihr Plan sie freigibt. Eine
-      Version, die ein Plan hergibt und die hier fehlt, erscheint im
-      Domainformular abgeblendet — der Kunde sieht damit, dass die Lücke am
-      Server liegt und nicht an seinem Vertrag.
+    <p class="meldung neutral">
+      <span>
+        Kunden wählen aus diesen Versionen, soweit ihr Plan sie freigibt. Eine
+        Version, die ein Plan hergibt und die hier fehlt, erscheint im
+        Domainformular abgeblendet — der Kunde sieht damit, dass die Lücke am
+        Server liegt und nicht an seinem Vertrag.
+      </span>
     </p>
 
     <div class="rollt">
       <table class="stapelt">
         <thead>
           <tr>
-            <th>Version</th><th>Zustand</th><th>Pools</th><th>Domains</th><th></th>
+            <th>Version</th>
+            <th>Ausgabe</th>
+            <th>Zustand</th>
+            <th class="rechts">Pools</th>
+            <th class="rechts">Domains</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="v in props.versions" :key="v.version">
-            <td data-spalte="Version">
-              <b>{{ v.version }}</b>
-              <span v-if="v.release" class="genau">{{ v.release }}</span>
+            <td data-spalte="Version" class="kennung name">{{ v.version }}</td>
+            <td data-spalte="Ausgabe" class="kennung stumm">{{ v.release ?? '—' }}</td>
+
+            <td data-spalte="Zustand">
+              <Marke :art="rang(v)">{{ zustand(v) }}</Marke>
             </td>
 
-            <td data-spalte="Zustand" :data-installiert="v.installed">
-              <template v-if="!v.installed">nicht installiert</template>
-              <template v-else-if="v.active === true">installiert · FPM läuft</template>
-              <!--
-                Installiert und gestoppt ist kein Fehler: Ein PHP-FPM ohne Pool
-                startet nicht, und ohne Abonnement in dieser Version gibt es
-                keinen. Der Satz daneben sagt das, sonst sucht jemand nach
-                einem Problem, das keines ist.
-              -->
-              <template v-else-if="v.active === false">installiert · FPM steht</template>
-              <template v-else>installiert</template>
-            </td>
+            <td data-spalte="Pools" class="rechts">{{ v.pools ?? '—' }}</td>
+            <td data-spalte="Domains" class="rechts">{{ props.usage[v.version] ?? 0 }}</td>
 
-            <td data-spalte="Pools">{{ v.pools ?? '—' }}</td>
-            <td data-spalte="Domains">{{ props.usage[v.version] ?? 0 }}</td>
-
-            <td data-spalte="">
+            <td data-spalte="" class="rechts">
               <!--
                 Rot am Entfernen und nicht am Installieren. Zuerst stand es
                 andersherum, und im Browser sah man sofort, dass es falsch ist:
@@ -113,7 +132,7 @@ function entfernen(v: Version): void {
               <button
                 v-if="!v.installed"
                 type="button"
-                class="knopf"
+                class="knopf klein"
                 :disabled="läuft !== null"
                 @click="installieren(v)"
               >
@@ -122,7 +141,7 @@ function entfernen(v: Version): void {
               <button
                 v-else
                 type="button"
-                class="knopf gefahr"
+                class="knopf klein gefahr"
                 :disabled="läuft !== null"
                 @click="entfernen(v)"
               >
@@ -134,20 +153,8 @@ function entfernen(v: Version): void {
       </table>
     </div>
 
-    <p v-if="!props.live && !props.error" class="gemessen">
+    <p v-if="!props.live && !props.error" class="erklaer">
       Stand vom {{ props.checked_at ?? '—' }}
     </p>
   </PanelLayout>
 </template>
-
-<style scoped>
-.hinweis-block { max-width: 640px; margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--text-muted); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 6px; line-height: 1.5; }
-.fehler-block { max-width: 640px; margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--warn); background: var(--warn-surface); border-radius: 6px; line-height: 1.5; }
-table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
-th { text-align: left; color: var(--text-muted); font-weight: 600; }
-th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
-td b { font-family: var(--font-mono); font-size: var(--text-table); color: var(--text-strong); }
-.genau { display: block; font-family: var(--font-mono); font-size: var(--text-label); color: var(--text-faint); }
-td[data-installiert='false'] { color: var(--text-faint); }
-.gemessen { margin: 6px 0 0; font-size: var(--text-label); color: var(--text-faint); }
-</style>

@@ -1318,6 +1318,111 @@ table.paare {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   Die Anmeldeseite
+
+   Zwei Seiten stehen ausserhalb des Gerüsts: die Anmeldung und der zweite
+   Faktor. Sie haben keine Navigation, keine Kopfzeile und keinen Kunden —
+   wer dort steht, hat noch kein Konto vorgewiesen.
+
+   **Und sie haben als einzige eine Karte.** Kontor kennt sonst keine: Ein
+   Bereich ist eine Überschrift, eine Linie und Inhalt, weil eine Karte je
+   Bereich rund 40px Innenabstand kostet. Auf einer leeren Seite mit einem
+   einzigen Formular kehrt sich das um — dort gibt der Rahmen dem Formular
+   überhaupt erst seine Gestalt, und es gibt keinen zweiten Bereich, dem der
+   Platz fehlt.
+
+   Beide Seiten trugen das bis hierher je selbst, mit verschiedenen Werten:
+   320px und 384px breit, Radius 8 und 10, einmal `gap: 14px` und einmal
+   Abstände je Feld.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.anmeldung {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+  background: var(--bg);
+}
+
+.blatt {
+  width: min(376px, 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 26px 28px 28px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.blatt h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-size: var(--text-heading);
+  font-weight: 660;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+
+/* Der Knopf einer Anmeldemaske nimmt die ganze Breite: Es gibt genau eine
+   Handlung auf dieser Seite, und sie steht am Ende. */
+.blatt .knopfreihe {
+  margin-top: 22px;
+}
+
+.blatt .knopfreihe .knopf {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Das Auge am Passwortfeld
+
+   Es steht neben dem Feld und nicht darin, und es trägt denselben Rand:
+   `--control-line`. §7.2 nennt es ausdrücklich kein `.knopf` — es löst keine
+   Aktion aus, es zeigt einen Zustand —, aber ein Bedienelement ist es
+   trotzdem, und WCAG 1.4.11 fragt nicht danach, wie wir es nennen.
+
+   Es stand zweimal geschrieben: in der Anmeldemaske mit 34px Breite und
+   einem Rand aus `--line` (1,13:1 im dunklen Theme), in `PasswordFields`
+   mit `--tap` und `--control-line`. Dieselbe Sache, zwei Fassungen, eine
+   davon ohne sichtbare Grenze.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.mit-auge {
+  display: flex;
+  gap: 6px;
+}
+
+.mit-auge input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+
+.auge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  min-height: var(--tap);
+  color: var(--text-muted);
+  background: var(--control-bg);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.auge:hover {
+  color: var(--text-strong);
+  border-color: var(--text-strong);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    Zustandsmarke
 
    Punkt und Wort, nie Farbe allein: Rund acht Prozent der männlichen Nutzer

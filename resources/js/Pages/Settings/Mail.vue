@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+import Bereich from '../../Components/Bereich.vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
@@ -72,45 +73,50 @@ function test(): void {
   <Head title="Mailversand" />
 
   <PanelLayout title="Mailversand" subline="SMTP-Relay für Nachrichten des Panels">
-    <p v-if="flash?.error" class="fehler-block">{{ flash.error }}</p>
+    <p v-if="flash?.error" class="meldung kritisch">
+      <span>{{ flash.error }}</span>
+    </p>
 
-    <p v-if="!props.usable" class="hinweis-block">
-      Noch kein Relay hinterlegt. Bis dahin verschickt das Panel nichts —
-      Einmal-Links und Warnungen entstehen, erreichen aber niemanden.
+    <p v-if="!props.usable" class="meldung warn">
+      <span>
+        Noch kein Relay hinterlegt. Bis dahin verschickt das Panel nichts —
+        Einmal-Links und Warnungen entstehen, erreichen aber niemanden.
+      </span>
     </p>
 
     <form class="maske" @submit.prevent="submit">
-      <fieldset>
-        <legend>Relay</legend>
-
-        <label>Server
+      <Bereich titel="Relay">
+        <label class="feld">
+          <span>Server</span>
           <input v-model="form.host" type="text" autocomplete="off" placeholder="mail.example.net" required>
-          <small v-if="form.errors.host" class="fehler">{{ form.errors.host }}</small>
         </label>
+        <p v-if="form.errors.host" class="fehler">{{ form.errors.host }}</p>
 
         <div class="paar">
-          <label>Verschlüsselung
+          <label class="feld">
+            <span>Verschlüsselung</span>
             <select v-model="form.encryption" @change="onEncryption">
               <option v-for="e in props.encryptions" :key="e.value" :value="e.value">{{ e.label }}</option>
             </select>
           </label>
 
-          <label>Port
+          <label class="feld schmal">
+            <span>Port</span>
             <input v-model.number="form.port" type="number" min="1" max="65535" required>
-            <small v-if="form.errors.port" class="fehler">{{ form.errors.port }}</small>
           </label>
         </div>
-      </fieldset>
+        <p v-if="form.errors.port" class="fehler">{{ form.errors.port }}</p>
+      </Bereich>
 
-      <fieldset>
-        <legend>Anmeldung</legend>
-
-        <label>Benutzername
+      <Bereich titel="Anmeldung">
+        <label class="feld">
+          <span>Benutzername</span>
           <input v-model="form.username" type="text" autocomplete="off">
-          <small class="hinweis">Leer lassen, wenn das Relay im eigenen Netz ohne Anmeldung arbeitet.</small>
         </label>
+        <p class="hinweis">Leer lassen, wenn das Relay im eigenen Netz ohne Anmeldung arbeitet.</p>
 
-        <label>Passwort
+        <label class="feld">
+          <span>Passwort</span>
           <span class="mit-auge">
             <input
               v-model="form.password"
@@ -119,36 +125,42 @@ function test(): void {
               :placeholder="props.mail.password_set ? 'gespeichert — leer lassen, um es zu behalten' : ''"
               :disabled="form.password_clear"
             >
-            <button type="button" class="auge" :aria-label="zeigen ? 'Passwort verbergen' : 'Passwort anzeigen'" @click="zeigen = !zeigen">
+            <button
+              type="button"
+              class="auge"
+              :aria-label="zeigen ? 'Passwort verbergen' : 'Passwort anzeigen'"
+              :aria-pressed="zeigen"
+              @click.prevent="zeigen = !zeigen"
+            >
               <EyeIcon :off="zeigen" />
             </button>
           </span>
-          <small v-if="form.errors.password" class="fehler">{{ form.errors.password }}</small>
         </label>
+        <p v-if="form.errors.password" class="fehler">{{ form.errors.password }}</p>
 
         <label v-if="props.mail.password_set" class="schalter">
           <input v-model="form.password_clear" type="checkbox">
           <span>Hinterlegtes Passwort entfernen</span>
         </label>
-      </fieldset>
+      </Bereich>
 
-      <fieldset>
-        <legend>Absender</legend>
-
-        <label>Adresse
+      <Bereich titel="Absender">
+        <label class="feld">
+          <span>Adresse</span>
           <input v-model="form.from_address" type="email" autocomplete="off" placeholder="panel@example.net" required>
-          <small v-if="form.errors.from_address" class="fehler">{{ form.errors.from_address }}</small>
-          <small class="hinweis">
-            Muss beim Relay als Absender zulässig sein. Viele Anbieter weisen
-            alles ab, was nicht zum angemeldeten Konto gehört.
-          </small>
         </label>
+        <p v-if="form.errors.from_address" class="fehler">{{ form.errors.from_address }}</p>
+        <p class="hinweis">
+          Muss beim Relay als Absender zulässig sein. Viele Anbieter weisen
+          alles ab, was nicht zum angemeldeten Konto gehört.
+        </p>
 
-        <label>Anzeigename
+        <label class="feld">
+          <span>Anzeigename</span>
           <input v-model="form.from_name" type="text" required>
-          <small v-if="form.errors.from_name" class="fehler">{{ form.errors.from_name }}</small>
         </label>
-      </fieldset>
+        <p v-if="form.errors.from_name" class="fehler">{{ form.errors.from_name }}</p>
+      </Bereich>
 
       <div class="knopfreihe">
         <button type="submit" class="knopf wichtig" :disabled="form.processing">
@@ -160,26 +172,3 @@ function test(): void {
   </PanelLayout>
 </template>
 
-<style scoped>
-.fehler-block { max-width: 544px; padding: 8px 11px; font-size: var(--text-table); color: var(--critical); background: var(--critical-surface); border-radius: 6px; word-break: break-word; }
-.hinweis-block { max-width: 544px; padding: 8px 11px; font-size: var(--text-table); color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
-.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 544px; }
-fieldset { display: flex; flex-direction: column; gap: 10px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-.paar { display: grid; grid-template-columns: 1fr 130px; gap: 10px; }
-input, select { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-input:disabled { color: var(--text-faint); background: var(--surface-border); border-color: transparent; }
-.mit-auge { display: flex; gap: 6px; }
-.mit-auge input { flex: 1; min-width: 0; }
-.auge { display: grid; place-items: center; width: 34px; color: var(--text-faint); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
-.auge:hover { color: var(--text-strong); }
-.schalter { flex-direction: row; align-items: center; gap: 6px; font-size: var(--text-table); color: var(--text); }
-.hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
-.fehler { font-size: var(--text-small); color: var(--critical); }
-
-/* docs/24: unter 480px stehen zwei Felder nicht mehr nebeneinander. */
-@media (max-width: 480px) {
-  .paar { grid-template-columns: 1fr; }
-}
-</style>

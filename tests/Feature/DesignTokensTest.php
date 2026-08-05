@@ -194,28 +194,48 @@ final class DesignTokensTest extends TestCase
         ));
     }
 
-    public function test_every_scale_token_a_component_uses_exists(): void
+    /**
+     * **Jede** Marke, nicht nur die der Skala.
+     *
+     * Der Test las `--text-…` und `--block-…` und sonst nichts. Beim Umbau auf
+     * „Kontor" fielen `--surface-border` und `--padding` weg — und sieben
+     * Seiten nannten sie weiter, elf Stellen insgesamt. Der Browser wirft eine
+     * Deklaration mit unbekannter Marke still weg: Aus `border: 1px solid
+     * var(--surface-border)` wird kein Rand, aus `padding: var(--padding)` kein
+     * Innenabstand. Grün getestet und trotzdem falsch, monatelang.
+     *
+     * Das ist derselbe Fehler wie immer in diesem Projekt — eine Zeichenkette,
+     * die auf etwas verweist, ohne dass etwas den Bezug prüft — und er stand
+     * hier direkt neben einem Wächter, der genau das prüft, nur für ein
+     * Zehntel der Marken.
+     */
+    public function test_every_token_a_component_uses_exists(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
         $missing = [];
+        $checked = 0;
 
         foreach ($this->vueFiles() as $path) {
-            preg_match_all('/var\((--(?:text|block)-[a-z-]+)\)/', $this->style((string) file_get_contents($path)), $matches);
+            preg_match_all('/var\((--[a-z][\w-]*)\)/', $this->style((string) file_get_contents($path)), $matches);
 
             foreach (array_unique($matches[1]) as $token) {
+                $checked++;
+
                 // Die Marke muss in app.css *gesetzt* werden, nicht bloss
                 // vorkommen. Ein Tippfehler im Namen ergäbe sonst eine
-                // Eigenschaft ohne Wert — und der Browser fällt still auf die
-                // geerbte Größe zurück, was niemandem auffällt.
+                // Deklaration ohne Wert — und die wirft der Browser still weg.
                 if (preg_match('/^\s*'.preg_quote($token, '/').':/m', $css) !== 1) {
                     $missing[] = sprintf('%s  %s', $this->relative($path), $token);
                 }
             }
         }
 
+        $this->assertGreaterThan(10, $checked, 'Es werden kaum Marken gefunden — dann prüft dieser Test nichts.');
+
         $this->assertSame([], array_values(array_unique($missing)), sprintf(
             "Diese Marken benutzt eine Komponente, app.css setzt sie nicht:\n  %s\n\n".
-            'Der Browser fällt dann still auf die geerbte Größe zurück.',
+            'Der Browser wirft die ganze Deklaration dann still weg — kein Rand, kein Abstand, '.
+            'keine Farbe, keine Meldung.',
             implode("\n  ", array_unique($missing)),
         ));
     }

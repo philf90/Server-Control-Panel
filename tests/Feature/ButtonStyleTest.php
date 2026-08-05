@@ -118,7 +118,50 @@ final class ButtonStyleTest extends TestCase
             }
         }
 
-        $this->assertGreaterThan(1, $checked, 'Es werden kaum Knopfregeln gefunden — dann prüft dieser Test nichts.');
+        /*
+         * Die Untergrenze zählt app.css mit, und das ist keine Bequemlichkeit.
+         *
+         * Sie soll belegen, dass der Ausdruck oben überhaupt noch auf eine
+         * Knopfregel passt — nicht, dass irgendeine Seite eine hat. Als die
+         * letzte Seite ihr eigenes Knopf-CSS abgab, fiel dieser Test durch:
+         * `$checked` stand auf 0, und der Wächter meldete Rot für genau die
+         * Ordnung, die er durchsetzen soll.
+         *
+         * Dieselbe Falle wie bei `MobileLayoutTest` und bei
+         * `DesignTokensTest::test_every_step_of_the_scale_is_used`, und
+         * dreimal dieselbe Ursache: **Ein Wächter, der eine Regel prüft, darf
+         * nicht davon ausgehen, wo sie gerade eingehalten wird.** Der Befund
+         * kommt weiter ausschliesslich aus den Seiten — nur gezählt wird
+         * dort, wo die Regeln stehen dürfen.
+         */
+        $this->assertGreaterThan(1, $checked + $this->rulesInAppCss('/(^|[\\s,>])button\\b|\\.knopf/'),
+            'Es werden kaum Knopfregeln gefunden — dann prüft dieser Test nichts.');
+    }
+
+    /**
+     * Wie viele Regeln in app.css auf diesen Selektorausdruck passen.
+     *
+     * Nur zum Zählen: Die Prüfung selbst gilt weiter allein den Seiten.
+     */
+    private function rulesInAppCss(string $selectorPattern): int
+    {
+        $css = (string) preg_replace(
+            '#/\\*.*?\\*/#su',
+            '',
+            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
+        );
+
+        preg_match_all('/([^{}]*)\\{([^{}]*)\\}/s', $css, $rules, PREG_SET_ORDER);
+
+        $found = 0;
+
+        foreach ($rules as $rule) {
+            if (preg_match($selectorPattern, trim($rule[1])) === 1) {
+                $found++;
+            }
+        }
+
+        return $found;
     }
 
     /**
@@ -378,7 +421,14 @@ final class ButtonStyleTest extends TestCase
             }
         }
 
-        $this->assertGreaterThan(4, $checked, 'Es werden kaum Feldregeln gefunden — dann prüft dieser Test nichts.');
+        // Gezählt wird in app.css mit — siehe die Begründung an
+        // `rulesInAppCss()`. Geprüft wird weiter allein, was auf den Seiten
+        // steht.
+        $this->assertGreaterThan(
+            4,
+            $checked + $this->rulesInAppCss('/(^|[\\s,>+~])(input|select|textarea)\\b/'),
+            'Es werden kaum Feldregeln gefunden — dann prüft dieser Test nichts.',
+        );
 
         $this->assertSame([], $found, sprintf(
             "Diese Regeln geben einem Eingabefeld sein eigenes Aussehen:\n  %s\n\n".

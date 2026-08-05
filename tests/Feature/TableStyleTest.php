@@ -116,7 +116,18 @@ final class TableStyleTest extends TestCase
             }
         }
 
-        $this->assertGreaterThan(4, $checked, 'Es werden kaum Tabellenregeln gefunden — dann prüft dieser Test nichts.');
+        /*
+         * Die Untergrenze zählt app.css mit.
+         *
+         * Sie belegt, dass `TABLE_SELECTOR` überhaupt noch auf eine Regel
+         * passt — nicht, dass irgendeine Seite eine Tabelle gestaltet. Als die
+         * letzte Seite ihr eigenes Tabellen-CSS abgab, stand `$checked` auf 0
+         * und dieser Wächter meldete Rot für genau die Ordnung, die er
+         * durchsetzen soll. Der Befund darunter kommt weiter ausschliesslich
+         * aus den Komponenten.
+         */
+        $this->assertGreaterThan(4, $checked + $this->tableRulesInAppCss(),
+            'Es werden kaum Tabellenregeln gefunden — dann prüft dieser Test nichts.');
 
         $this->assertSame([], $found, sprintf(
             "Diese Regeln geben einer Tabelle ihre eigene Form:\n  %s\n\n".
@@ -241,5 +252,27 @@ final class TableStyleTest extends TestCase
         }
 
         return $css;
+    }
+
+    /** Wie viele Regeln in app.css eine Tabelle meinen. Nur zum Zählen. */
+    private function tableRulesInAppCss(): int
+    {
+        $css = (string) preg_replace(
+            '#/\\*.*?\\*/#su',
+            '',
+            (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'),
+        );
+
+        preg_match_all('/([^{}]*)\\{([^{}]*)\\}/s', $css, $rules, PREG_SET_ORDER);
+
+        $found = 0;
+
+        foreach ($rules as $rule) {
+            if (preg_match(self::TABLE_SELECTOR, trim($rule[1])) === 1) {
+                $found++;
+            }
+        }
+
+        return $found;
     }
 }

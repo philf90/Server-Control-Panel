@@ -275,50 +275,18 @@ function randomBelow(bound: number): number {
  * den Seitengrund. Elf Seiten trugen dieselbe abgeschriebene Zeile. `.feld`
  * aus app.css trägt es jetzt, samt `--control-line`.
  *
- * Was hier bleibt, ist die Prüfliste, die Stärkeschätzung und der Knopf am
- * Feldrand — Dinge, die es nur in einem Passwortfeld gibt.
+ * Das Auge daneben ist inzwischen ebenfalls umgezogen: Die Anmeldemaske
+ * hatte ihre eigene Fassung davon, 34px breit und mit einem Rand aus `--line`
+ * — 1,45:1 im dunklen Theme. Zwei Fassungen desselben Bedienelements, eine
+ * davon ohne sichtbare Grenze.
+ *
+ * Was hier bleibt, ist die Prüfliste und die Stärkeschätzung — Dinge, die es
+ * nur in einem Passwortfeld gibt.
  */
 .passwort {
   display: flex;
   flex-direction: column;
   gap: var(--gap);
-}
-
-/*
- * Das Auge sitzt neben dem Feld und nicht darin.
- *
- * Es trägt denselben Rand wie das Feld: `--control-line`. §7.2 nennt es
- * ausdrücklich kein `.knopf` — es löst keine Aktion aus, es zeigt einen
- * Zustand —, aber ein Bedienelement ist es trotzdem, und WCAG 1.4.11 fragt
- * nicht danach, wie wir es nennen.
- */
-.mit-auge {
-  display: flex;
-  gap: 6px;
-}
-
-.mit-auge input {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--font-mono);
-}
-
-.auge {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: var(--tap);
-  min-height: var(--tap);
-  color: var(--text-muted);
-  background: var(--control-bg);
-  border: 1px solid var(--control-line);
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.auge:hover {
-  color: var(--text-strong);
-  border-color: var(--text-strong);
 }
 
 /*

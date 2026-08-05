@@ -185,9 +185,19 @@ Testen berücksichtigen:
   alle Aufnahmen, dann `emulateMedia` und `setViewportSize` umschalten. Und
   Inertia schickt über XHR: `networkidle` kommt zurück, bevor die Antwort da
   ist; gewartet wird auf die Adresse.
-- **PHPStan ist hier nicht lauffähig** (bricht ohne Ausgabe mit Rückgabewert 1
-  ab). Er läuft in der CI; `composer pruefe` schlägt deshalb lokal fehl. Einzeln
-  `pint` und `phpunit` aufrufen.
+- **PHPStan ist hier nicht lauffähig — und zwar, weil er nicht installiert
+  ist.** `vendor/bin/phpstan` gibt es schlicht nicht; der Aufruf endet mit
+  Rückgabewert 127. Nachinstallieren geht auch nicht: `composer install`
+  scheitert an „Could not authenticate against github.com", der Proxy dieses
+  Containers lässt die Paketquelle nicht durch. Er läuft in der CI;
+  `composer pruefe` schlägt deshalb lokal fehl. Einzeln `pint` und
+  `php artisan test` aufrufen.
+
+  **Was das für die Arbeit heisst:** Undefinierte Variablen, fehlende
+  Typangaben und tote Zweige findet hier nichts. Wer `app/`, `agent/` oder
+  `tests/` anfasst, rechnet mit einer Runde CI dafür — dreimal an einem Tag
+  passiert, und jedes Mal war es eine Typangabe oder eine Variable, die beim
+  Aufräumen wegfiel.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

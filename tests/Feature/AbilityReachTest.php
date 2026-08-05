@@ -176,7 +176,11 @@ final class AbilityReachTest extends TestCase
         ));
     }
 
-    /** Ein Kunde mit einem Abonnement — der Fall aus der Meldung. */
+    /**
+     * Ein Kunde mit einem Abonnement — der Fall aus der Meldung.
+     *
+     * @return array{0: Account, 1: Subscription}
+     */
     private function customerWithSubscription(): array
     {
         $customer = Customer::factory()->create();

@@ -968,6 +968,63 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
 echo
+echo "── TlsSettingsTest: die Kontaktadresse wird nicht mehr geprüft ──"
+#
+# Eine Adresse, die keine ist, fiele sonst erst auf, wenn ein Kunde eine Domain
+# anlegt — und dann als Vorgang, der ohne Zutun scheitert.
+vorher_datei app/Http/Controllers/TlsSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/TlsSettingsController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'contact' => ['required', 'email', 'max:255'],", "'contact' => ['required', 'string'],")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/TlsSettingsController.php "Kontaktadresse ohne Prüfung" &&
+pruefe "Kontaktadresse ohne Prüfung" \
+  TlsSettingsTest::test_an_address_that_is_none_is_refused failed
+wiederherstellen
+
+echo
+echo "── TlsSettingsTest: jede Zeichenkette als Zertifizierungsstelle ──"
+#
+# Der Wert geht an einen Prozess, der als root eine TLS-Verbindung aufbaut. Der
+# Agent weist ihn ab — aber dann steht er im Bestand und nichts wird bestellt.
+vorher_datei app/Http/Controllers/TlsSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/TlsSettingsController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'directory' => ['required', Rule::in(Directories::keys())],", "'directory' => ['required', 'string'],")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/TlsSettingsController.php "Zertifizierungsstelle ohne Positivliste" &&
+pruefe "Zertifizierungsstelle ohne Positivliste" \
+  TlsSettingsTest::test_only_the_known_certificate_authorities_are_accepted failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TlsSettingsTest passed
+
+echo
+echo "── DomainCertificateTest: der Knopf hinterlässt eine leere Vorgangsliste ──"
+#
+# Ohne Kontaktadresse bestellt CertificateOrder nichts. Ein Knopf, der das nicht
+# sagt, sieht aus, als hätte er gewirkt — und der Betreiber wartet auf einen
+# Vorgang, den es nie gab.
+vorher_datei app/Http/Controllers/DomainController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DomainController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($operation === null) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DomainController.php "Bestellung ohne Kontaktadresse schweigt" &&
+pruefe "Bestellung ohne Kontaktadresse schweigt" \
+  DomainCertificateTest::test_without_a_contact_address_it_says_why_nothing_happened failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DomainCertificateTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

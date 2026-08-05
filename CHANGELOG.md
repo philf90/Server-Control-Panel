@@ -2748,3 +2748,54 @@ eine Änderung.
 Update schreibt den Block der Oberfläche selbst neu. Die sechs Domains aus dem
 P3-Abnahmelauf kennen die Prüfadresse weiterhin nicht — für sie einmal
 `srvpanel vhost --sites`.
+
+#### Schritt 6: die Oberfläche zu TLS
+
+**Die Zertifikatsseite hat drei Jahre lang die Wahrheit gesagt und tat es seit
+Schritt 5b nicht mehr.** Sie zeigte „selbstsigniert oder nicht" und einen
+Knopf, der neu ausstellt — mit einem Zertifikat von Let's Encrypt davor sagte
+sie damit das Falsche über das, was der Browser bekommt, und der Knopf erneuerte
+sichtbar nichts. Genau diese Sorte Fehler steht in CLAUDE.md als eine der drei,
+die grün getestet und trotzdem falsch waren.
+
+- **Sie zeigt jetzt, was ausgeliefert wird.** `panel.tls.info` gibt seit
+  Schritt 5b `acme` zurück; die Seite liest es und nennt die Art als Marke.
+- **Der Knopf heisst, was er tut.** Mit einem ACME-Zertifikat davor steht dort
+  „Rückweg erneuern", und die Rückfrage sagt, dass sich im Browser nichts
+  ändert: Erneuert wird das selbstsignierte, und das ist der Rückweg für den
+  Fall, dass unter dem Namen dieses Servers nichts mehr steht.
+- **Und die beiden Angaben stehen endlich in einem Formular.** Kontaktadresse
+  und Zertifizierungsstelle gab es seit Schritt 4b nur auf der Kommandozeile.
+  Wer das Panel benutzt und nicht die Konsole, sah TLS als etwas, das still
+  nichts tut — und „still nichts" erkennt von aussen niemand. Ganz oben steht
+  deshalb die Meldung, dass ohne Kontaktadresse **für keine Domain** etwas
+  bestellt wird, und im Testbetrieb, dass für die Oberfläche selbst gar nichts
+  bestellt wird.
+
+**Die Domainseite sagt, ob die Domain gesichert ist.** Art, Aussteller,
+Laufzeit, gedeckte Namen — und `covers_all`, die Angabe, die man übersieht: Ein
+Alias, der nach der Ausstellung dazukam, steht im `server_name` und nicht im
+Zertifikat. Der Browser warnt dann bei ihm, und im Panel sieht alles grün aus.
+
+**Ein Knopf zum Bestellen, obwohl es von selbst passiert.** Der Lebenslauf
+bestellt, sobald der Server-Block steht; scheitert die Prüfung — falscher
+DNS-Eintrag, Port 80 zu —, wartet die Domain auf den nächsten Anlass, und den
+gibt es womöglich nicht. Wer den Eintrag gerade berichtigt hat, will es jetzt
+versuchen. Er trägt dieselbe Fähigkeit wie das Ändern der Domain, und ohne
+Kontaktadresse ist er abgeschaltet statt wirkungslos: Ein Knopf, der eine leere
+Vorgangsliste hinterlässt, sieht aus, als hätte er gewirkt.
+
+**Gelesen wird der Bestand und nicht der Ablageort.** Eine Domainseite, die bei
+jedem Aufruf über den Socket geht, ist eine Seite, die bei einem stehenden
+Agenten nicht mehr aufgeht — und die Frage „habe ich eines?" beantwortet die
+Datenbank.
+
+**Was hier fehlt, und es ist der Teil, auf dem dieses Projekt sonst besteht:
+die Screenshots.** CLAUDE.md verlangt bei allem Sichtbaren einen Blick in den
+Browser, in beiden Themes und bei 390 px. In dieser Umgebung liess sich das
+nicht einlösen: `npm ci` ging durch, `npm run types` und `npm run build` laufen
+also — aber `composer install` scheitert weiterhin an „Could not authenticate
+against github.com", und ohne `vendor/` startet `artisan serve` nicht. Geprüft
+ist damit, dass die Vorlagen übersetzen und die Typen stimmen; **wie die Seite
+aussieht, hat niemand gesehen.** Das gehört nachgeholt, bevor die Stufe als
+abgenommen gilt — auf dem Zielserver oder in einer Sitzung mit `vendor/`.

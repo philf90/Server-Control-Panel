@@ -38,9 +38,44 @@ const props = defineProps<{
   caps: Record<string, number | null>
   settings: string[]
   directives: string[]
+  certificate: {
+    names: string[]
+    issuer: string | null
+    source: string
+    source_label: string
+    trusted: boolean
+    not_after: number | null
+    renew_after: number | null
+    covers_all: boolean
+  } | null
+  acme: { configured: boolean; staging: boolean }
   may: { update: boolean; update_php: boolean; delete: boolean; view_logs: boolean }
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
+
+/*
+ * Die Restlaufzeit in Tagen, abgerundet — dieselbe Rechnung wie auf der
+ * Zertifikatsseite der Oberfläche. Abgerundet, weil aufgerundet in genau dem
+ * Fall schmeichelt, in dem es darauf ankommt.
+ */
+const tage = computed(() => {
+  const bis = props.certificate?.not_after
+
+  return bis ? Math.floor((bis * 1000 - Date.now()) / 86400000) : null
+})
+
+function datum(zeit: number | null): string {
+  return zeit ? new Date(zeit * 1000).toLocaleDateString('de-DE') : '—'
+}
+
+/*
+ * Bestellt wird von selbst, sobald der Server-Block steht. Dieser Knopf ist
+ * für den Fall danach: Wer den DNS-Eintrag gerade berichtigt hat, will es
+ * jetzt versuchen und nicht beim nächsten Anlass, den es womöglich nicht gibt.
+ */
+function zertifikatBestellen(): void {
+  router.post(`/domains/${props.domain.id}/certificate`)
+}
 
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'active') return 'ok'
@@ -192,6 +227,76 @@ function entfernen(): void {
         <p v-if="!props.domain.removable" class="section-note">
           Die Hauptdomain gehört zum Abonnement und wird mit ihm entfernt.
         </p>
+      </Section>
+
+      <!--
+        Das Zertifikat steht neben den Stammdaten und nicht in einem eigenen
+        Reiter: Es ist die zweite Frage, die jemand an eine Domain hat — läuft
+        sie, und läuft sie gesichert?
+      -->
+      <Section v-if="props.domain.type !== 'alias'" title="Zertifikat">
+        <table v-if="props.certificate" class="pairs">
+          <tbody>
+            <tr>
+              <td class="quiet">Art</td>
+              <td class="right">
+                <Badge :kind="props.certificate.trusted ? 'ok' : 'warn'">
+                  {{ props.certificate.source_label }}
+                </Badge>
+              </td>
+            </tr>
+            <tr>
+              <td class="quiet">Aussteller</td>
+              <td class="right ident">{{ props.certificate.issuer ?? '—' }}</td>
+            </tr>
+            <tr>
+              <td class="quiet">Gültig bis</td>
+              <td class="right">
+                {{ datum(props.certificate.not_after) }}
+                <template v-if="tage !== null">({{ tage }} Tage)</template>
+              </td>
+            </tr>
+            <tr>
+              <td class="quiet">Gilt für</td>
+              <td class="right ident">{{ props.certificate.names.join(', ') || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!--
+          Ein Alias, der nach der Ausstellung dazukam, ist genau der Fall, in
+          dem der Browser warnt und im Panel alles grün aussieht. Deshalb steht
+          hier nicht „hat ein Zertifikat", sondern ob es *alle* Namen deckt,
+          unter denen dieser Block antwortet.
+        -->
+        <p v-if="props.certificate && !props.certificate.covers_all" class="section-note">
+          Das Zertifikat deckt nicht alle Namen ab, unter denen diese Domain
+          antwortet. Beim nächsten Erneuern kommen sie mit; bis dahin warnt der
+          Browser bei den übrigen.
+        </p>
+
+        <p v-if="!props.certificate" class="section-note">
+          <template v-if="!props.acme.configured">
+            Es ist keine Kontaktadresse für Let’s Encrypt eingetragen — ohne sie
+            bestellt das Panel nichts, für keine Domain.
+          </template>
+          <template v-else>
+            Noch keines. Bestellt wird von selbst, sobald der Server-Block
+            steht; scheitert die Prüfung — falscher DNS-Eintrag, Port 80 zu —,
+            hilft der Knopf, nachdem das behoben ist.
+          </template>
+        </p>
+
+        <div v-if="props.may.update && !props.certificate" class="button-row">
+          <button
+            type="button"
+            class="button"
+            :disabled="!props.acme.configured"
+            @click="zertifikatBestellen"
+          >
+            Zertifikat bestellen
+          </button>
+        </div>
       </Section>
 
       <Section v-if="props.operations.length > 0" title="Vorgänge">

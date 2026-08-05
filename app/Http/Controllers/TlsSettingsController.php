@@ -7,10 +7,13 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Operations\Operations;
+use App\Support\Tls\AcmeSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use SrvPanel\Agent\Acme\Directories;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 
@@ -31,13 +34,20 @@ use SrvPanel\Agent\Client;
  * gehört in die Warteschlange, mit sichtbarem Verlauf und einer Zeile im
  * Protokoll.
  *
- * Ab P4 kommt Let's Encrypt dazu. Diese Seite ist dann der Ort, an dem steht,
- * welches der beiden gerade gilt — die Angabe `self_signed` beantwortet das
- * schon heute.
+ * **Seit P4 gibt es zwei Zertifikate und nur eines gilt.** Das selbstsignierte
+ * ist die Notlösung aus P0 und bleibt als Rückweg liegen; sobald eines von
+ * Let's Encrypt daneben liegt, liefert nginx dieses aus. Welches, entscheidet
+ * der Agent an einer Stelle, und `panel.tls.info` gibt genau das zurück —
+ * `acme` sagt es, `self_signed` beschreibt die Datei. Eine Seite, die statt
+ * dessen die Notlösung anzeigt, während der Browser das echte bekommt, schickt
+ * den Betreiber auf die Suche nach einem Fehler, den es nicht gibt.
+ *
+ * **Und hier stehen die beiden Angaben, ohne die nichts bestellt wird.** Bis
+ * hierher gab es sie nur auf der Kommandozeile ({@see AcmeSettings}).
  */
 final class TlsSettingsController extends Controller
 {
-    public function show(Client $agent): Response
+    public function show(Client $agent, AcmeSettings $settings): Response
     {
         try {
             $certificate = $agent->call('panel.tls.info');
@@ -48,7 +58,19 @@ final class TlsSettingsController extends Controller
             $certificate = ['present' => false, 'reason' => 'Der Agent antwortet nicht: '.$error->getMessage()];
         }
 
-        return Inertia::render('Settings/Tls', ['certificate' => $certificate]);
+        return Inertia::render('Settings/Tls', [
+            'certificate' => $certificate,
+            'acme' => [
+                'contact' => $settings->contact(),
+                'directory' => $settings->directory(),
+                'staging' => $settings->staging(),
+                'configured' => $settings->configured(),
+            ],
+            'directories' => [
+                ['value' => Directories::STAGING, 'label' => 'Testbetrieb — Zertifikate, denen kein Browser traut'],
+                ['value' => Directories::PRODUCTION, 'label' => 'Produktiv — gültige Zertifikate von Let’s Encrypt'],
+            ],
+        ]);
     }
 
     /**
@@ -72,5 +94,38 @@ final class TlsSettingsController extends Controller
         $audit->success('panel.tls.reissued', context: ['operation' => (int) $operation->id]);
 
         return redirect()->route('operations.show', $operation);
+    }
+
+    /**
+     * Die beiden ACME-Angaben setzen.
+     *
+     * **Die Kontaktadresse wird nicht geraten.** An sie schreibt die
+     * Zertifizierungsstelle, wenn ein Zertifikat abzulaufen droht; sie aus dem
+     * ersten Adminkonto abzuleiten wäre bequem und falsch. Solange sie fehlt,
+     * bestellt das Panel nichts — deshalb ist dieses Formular der Schalter,
+     * mit dem TLS überhaupt anfängt.
+     *
+     * **Geprüft wird gegen dieselbe Positivliste, die der Agent befragt.** Was
+     * hier durchkommt, kann dort keine unbekannte Adresse mehr werden
+     * ({@see Directories}).
+     */
+    public function acme(Request $request, AcmeSettings $settings, Audit $audit): RedirectResponse
+    {
+        $data = $request->validate([
+            'contact' => ['required', 'email', 'max:255'],
+            'directory' => ['required', Rule::in(Directories::keys())],
+        ]);
+
+        $settings->update([
+            'contact' => (string) $data['contact'],
+            'directory' => (string) $data['directory'],
+        ]);
+
+        // Die Adresse steht im Protokoll, das Verzeichnis auch: Beides
+        // entscheidet darüber, was auf diesem Server ausgestellt wird, und wer
+        // es geändert hat, gehört dazu.
+        $audit->success('panel.acme.settings', context: $data);
+
+        return redirect()->route('settings.tls');
     }
 }

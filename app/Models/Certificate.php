@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use SrvPanel\Agent\DomainName;
 
 /**
  * Ein Zertifikat — der Gegenstand, an dem Domains hängen, nicht umgekehrt.
@@ -95,7 +96,7 @@ class Certificate extends Model
      *
      * Der abschliessende Punkt eines vollqualifizierten Namens fällt weg, und
      * verglichen wird kleingeschrieben — beides, weil ein Name aus einem
-     * Zertifikat kommt und nicht durch {@see \SrvPanel\Agent\DomainName}
+     * Zertifikat kommt und nicht durch {@see DomainName}
      * gegangen sein muss.
      */
     public function covers(string $name): bool
@@ -123,7 +124,7 @@ class Certificate extends Model
                 continue;
             }
 
-            $label = substr($wanted, 0, -strlen($suffix));
+            $label = substr($wanted, 0, strlen($wanted) - strlen($suffix));
 
             // Genau eine Beschriftung: nicht leer und ohne weiteren Punkt.
             if ($label !== '' && ! str_contains($label, '.')) {

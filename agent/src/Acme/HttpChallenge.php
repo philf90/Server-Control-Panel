@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Acme;
 
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Ops\PanelVhost;
+use SrvPanel\Agent\SiteTemplate;
 
 /**
  * HTTP-01: eine Datei unter `/.well-known/acme-challenge/`.
@@ -50,8 +52,8 @@ final class HttpChallenge implements Challenge
      * ändert und die Vorlage vergisst, bekommt keine Fehlermeldung, sondern
      * eine Prüfung, die nichts findet. Zwei Formulierungen derselben Regel
      * sind der Fehler, der dieses Projekt sechsmal getroffen hat — deshalb
-     * fragen {@see \SrvPanel\Agent\SiteTemplate} und
-     * {@see \SrvPanel\Agent\Ops\PanelVhost} beide hier.
+     * fragen {@see SiteTemplate} und
+     * {@see PanelVhost} beide hier.
      *
      * **`root` und nicht `alias`, und das ist die Stelle, die still
      * danebengeht.** `root` hängt den *ganzen* Pfad aus der Adresse an das

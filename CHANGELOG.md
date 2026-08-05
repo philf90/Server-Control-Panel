@@ -2387,3 +2387,17 @@ Punktdatei-Schutz bleibt trotzdem stehen: Im DocumentRoot liegen weitere
 
 Drei Brüche im Wächterskript, alle gegengeprüft: `alias` statt `root`, die
 Prüfadresse aus der Kundenvorlage entfernt, der Panel-Block wieder mit `_`.
+
+#### Nachtrag: zwei Pint-Befunde aus Schritt 2
+
+`fully_qualified_strict_types` an zwei Stellen, dazu je eine Folgeregel. Die
+Ursache waren voll ausgeschriebene Klassennamen in `{@see …}`; sie stehen jetzt
+als Import da und im Text nur noch kurz. Dieselbe Stelle in `HttpChallenge` ist
+gleich mitgegangen, bevor sie in der nächsten Runde auffällt.
+
+**Und die Längenrechnung in `Certificate::covers()` ist ausgeschrieben.** Sie
+stand als `substr($wanted, 0, -strlen($suffix))` da — ein unäres Minus, und
+`unary_operator_spaces` hatte etwas daran auszusetzen. Was jetzt dasteht,
+`strlen($wanted) - strlen($suffix)`, sagt dasselbe und liest sich als das, was
+es ist: die Länge ohne den Platzhalterteil. Die elf Deckungsfälle sind
+unverändert grün.

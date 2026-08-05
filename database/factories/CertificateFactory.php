@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Enums\CertificateSource;
 use App\Enums\CertificateStatus;
 use App\Models\Certificate;
+use App\Models\Concerns\BelongsToSubscription;
 use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -47,7 +48,7 @@ class CertificateFactory extends Factory
      * Das Zertifikat der Oberfläche.
      *
      * **`subscription_id` steht ausdrücklich auf null.** Ohne diese Zeile trüge
-     * {@see \App\Models\Concerns\BelongsToSubscription} den gerade aktiven
+     * {@see BelongsToSubscription} den gerade aktiven
      * Mandanten ein, sobald es genau einen gibt — und aus dem Zertifikat des
      * Betreibers würde eines, das einem Kunden gehört.
      */

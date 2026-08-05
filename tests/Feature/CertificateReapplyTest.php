@@ -202,6 +202,16 @@ final class CertificateReapplyTest extends TestCase
         app(Lifecycles::class)->afterSuccess($this->finished($domain, 'acme.certificate.issue', $this->issued()));
         $this->assertSame(1, $this->operations('web.site.apply'));
 
+        /*
+         * **Gezählt wird der Zuwachs und nicht der Bestand.** Hier stand `0`,
+         * und der Test war rot, obwohl die Regel hielt: Der eingespielte
+         * Vorgang aus der Zeile darüber heisst selbst `acme.certificate.issue`
+         * und steht in derselben Tabelle. Wer eine Bestellung sucht, muss die
+         * meinen, die *dazukommt* — dieselbe Falle wie bei den Wächtern, die
+         * ihre Treffer dort zählen, wo die Regel schon eingehalten wird.
+         */
+        $before = $this->operations('acme.certificate.issue');
+
         // Und dieser Server-Block läuft durch: keine zweite Bestellung.
         $block = Operation::query()->where('task', 'web.site.apply')->firstOrFail();
         $block->update(['status' => OperationStatus::Succeeded, 'result' => []]);
@@ -209,6 +219,6 @@ final class CertificateReapplyTest extends TestCase
         $this->tenancy()->reset();
         app(Lifecycles::class)->afterSuccess($block);
 
-        $this->assertSame(0, $this->operations('acme.certificate.issue'), 'Die Kette hört nicht auf.');
+        $this->assertSame($before, $this->operations('acme.certificate.issue'), 'Die Kette hört nicht auf.');
     }
 }

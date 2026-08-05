@@ -2511,3 +2511,17 @@ Geprüft wird deshalb, dass er genau einmal dasteht und hinter `listen 443`.
 
 Drei weitere Brüche im Wächterskript: die Weiterleitung ohne Zertifikat, das
 halbe Zertifikat, die ersetzte statt zusammengelegte Einstellung.
+
+#### Nachtrag: der Zähler stand auf dem Bestand
+
+`CertificateReapplyTest::test_the_two_rules_do_not_chase_each_other` war rot,
+während die Regel hielt. Der Durchgang spielt zuerst ein Zertifikat ein — und
+der Vorgang, mit dem er das tut, heisst selbst `acme.certificate.issue` und
+steht in derselben Tabelle wie das, wonach danach gesucht wird. Erwartet waren
+null Bestellungen, dagestanden hat die eigene aus dem Aufbau.
+
+Das ist wörtlich die Falle, die in CLAUDE.md unter „drei Wächter des
+Optik-Reworks" steht, nur andersherum: Wer zählt, muss zählen, was
+**dazukommt**. Gemessen wird jetzt der Zuwachs. Der Bruch dazu beisst
+unverändert — ohne die Bedingung im Lebenslauf kommt eine zweite Bestellung
+hinzu, und genau das ist der Unterschied, den der Zähler sehen soll.

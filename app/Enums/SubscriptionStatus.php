@@ -38,6 +38,25 @@ enum SubscriptionStatus: string
     }
 
     /**
+     * Dieselbe Frage als Werteliste — für eine Abfrage.
+     *
+     * **Abgeleitet und nicht abgeschrieben.** Ein `whereIn('status',
+     * ['active'])` in einem Controller wäre eine zweite Fassung von
+     * {@see usable()}, und beim nächsten benutzbaren Zustand zöge nur eine von
+     * beiden mit. Hier fällt die Liste aus der Methode heraus, die die Frage
+     * ohnehin beantwortet.
+     *
+     * @return list<string>
+     */
+    public static function usableValues(): array
+    {
+        return array_values(array_map(
+            static fn (self $status): string => $status->value,
+            array_filter(self::cases(), static fn (self $status): bool => $status->usable()),
+        ));
+    }
+
+    /**
      * Die Beschriftung — für eine Spalte, ein Abzeichen, eine Auswahl.
      *
      * Sie steht für sich allein und ist **kein Satzteil**. Wer sie in einen

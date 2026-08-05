@@ -2015,3 +2015,62 @@ den Namen.
 Im Browser gegengeprüft: Als Kunde steht auf `/subscriptions` **kein** Knopf und
 am Abonnement nur „Domain anlegen" (das darf er). Als Betreiber steht alles da,
 was vorher da war.
+
+### Der Weg zu einer neuen Domain war drei Klicks lang und der letzte versteckt
+
+Ein Kunde erreichte „Domain anlegen" nur so: Menüpunkt **Abonnements** → auf den
+**Namen** des Abonnements klicken → im Bereich „Domains" rechts einen kleinen
+Knopf finden. Drei Klicks für die Sache, wegen der er das Panel überhaupt
+öffnet, und der letzte davon in einer Zeile, die man kennen muss.
+
+**Die Liste `/domains` gab es für ihn längst.** `DomainPolicy::viewAny` lässt
+jedes Konto durch, und was darauf steht, entscheidet die Mandantenklammer — ein
+Kunde sieht seine Domains, der Betreiber alle. Gefehlt haben zwei Dinge: der
+Menüpunkt und ein Knopf an der Stelle, an der man ihn sucht.
+
+Beides ist jetzt da. Der Menüpunkt steht bei einem Kunden erst, **wenn es ein
+aktives Abonnement gibt** — ohne eines gibt es keinen Ort, an dem eine Domain
+entstehen könnte, und der Eintrag führte auf eine leere Liste ohne Knopf. Das
+ist eine Sackgasse mit Einladung.
+
+**Die Abkürzung bekommt nur der Kunde**, und das ist Absicht: Sie führt in ein
+bestimmtes Abonnement, und der Betreiber hat davon Hunderte — eine Auswahlliste
+über alle wäre kein kurzer Weg, sondern ein langer mit Suchfeld. Seine Wege
+bleiben unverändert. Bei genau einem Abonnement führt der Knopf direkt hin, bei
+mehreren steht eine Auswahl davor; die Auswahl immer zu zeigen wäre die
+einfachere Fassung und die schlechtere, denn wer ein Abonnement hat, müsste erst
+das einzige auswählen, das es gibt.
+
+`SubscriptionStatus::usableValues()` gibt es dafür neu — abgeleitet aus
+`usable()` und nicht daneben geschrieben. Ein `whereIn('status', ['active'])` im
+Controller wäre eine zweite Fassung derselben Regel, und beim nächsten
+benutzbaren Zustand zöge nur eine von beiden mit.
+
+### Zeichen im Menü, und Trennüberschriften, die trennen
+
+Die Menüpunkte trugen kein Symbol, und die Überschriften „Verwaltung",
+„Server" und „Konto" hoben sich zu wenig von ihnen ab: Sie waren kleiner und
+blasser, sonst nichts. In einer Spalte aus lauter kurzen Wörtern reicht ein
+Größenunterschied nicht, um „Überschrift" von „Menüpunkt" zu trennen.
+
+Jeder Eintrag hat jetzt ein Zeichen — zwölf Pfade in `NavIcon.vue`, ein Raster,
+eine Strichstärke, kein Füllen. **Keine Symbolbibliothek:** Zwölf Zeichen sind
+zwölf Zeilen Pfad; ein Paket dafür wäre eine Abhängigkeit, ein Bündel und eine
+Auswahl von tausend Symbolen, aus der beim nächsten Menüpunkt jemand ein anderes
+Stilmittel greift. Sie erben ihre Farbe über `currentColor`, laufen also mit dem
+aktiven Eintrag in den Akzent, und tragen `aria-hidden`: Neben jedem steht sein
+Wort, das Zeichen ist Wiedererkennung und kein Ersatz (WCAG 1.1.1).
+
+Die Überschriften bekommen eine Haarlinie darüber und werden **blasser** statt
+lauter. Eine Überschrift, die lauter wird, zieht den Blick von dem weg, worum es
+geht; die Linie leistet das Abheben, die Farbe nimmt sich zurück. Gerechnet
+gegen `--nav-bg`: 4,63:1 hell, 5,31:1 dunkel — über den 4,5:1 aus WCAG 1.4.3 und
+im hellen Theme knapp, weshalb die Linie den Unterschied trägt und nicht die
+Farbe. Den dritten Teil des Unterschieds leisten die Zeichen: Die Einträge haben
+eines, die Überschriften nicht, und das trägt schon im Umriss.
+
+`NavIconTest` hält die Kette zusammen: Jeder Menüpunkt trägt ein `icon:`, jeder
+Name zeigt auf eine Zeichnung, jede Zeichnung wird benutzt, und im Zeichensatz
+steht kein Farbwert. Ohne ihn ist `<NavIcon name="domain" />` eine Zeichenkette,
+die auf nichts zeigt — die Komponente zeichnet dann nichts, kein Fehler, keine
+Meldung, nur ein Eintrag ohne Punkt davor.

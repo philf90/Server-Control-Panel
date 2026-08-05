@@ -295,6 +295,25 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AbilityReachTest passed
 
 echo
+echo "── NavIconTest: ein Menüpunkt ohne Zeichen ──"
+#
+# Ein Eintrag ohne `icon:` steht in der Spalte als einziger ohne Zeichen da —
+# kein Fehler, keine Meldung, nur eine Lücke, die nach einem Fehler aussieht.
+sed -i "s|{ name: 'Mailversand', href: '/settings/mail', icon: 'mail' }|{ name: 'Mailversand', href: '/settings/mail' }|" \
+  resources/js/Layouts/PanelLayout.vue
+pruefe "Menüpunkt ohne Zeichen" \
+  NavIconTest::test_every_menu_entry_carries_an_icon failed
+wiederherstellen
+
+echo
+echo "── NavIconTest: ein Zeichen, das es nicht gibt ──"
+sed -i "s|icon: 'domains'|icon: 'domain'|g" resources/js/Layouts/PanelLayout.vue
+pruefe "Zeichen ohne Zeichnung" \
+  NavIconTest::test_every_requested_icon_is_drawn failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavIconTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\SubscriptionStatus;
+use App\Models\Account;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
@@ -50,7 +52,24 @@ final class DomainController extends Controller
      * Für einen Kunden zeigt dieselbe Route nur seine Domains: Die
      * Mandantenklammer entscheidet, nicht eine Bedingung hier.
      */
-    public function index(): Response
+    /**
+     * Die Domains — und, für den Kunden, der kurze Weg zu einer neuen.
+     *
+     * **Der Befund kam vom Betreiber.** Ein Kunde erreichte „Domain anlegen"
+     * nur über Abonnements → Name des Abonnements → einen kleinen Knopf rechts
+     * im Bereich „Domains". Drei Klicks für die Sache, wegen der er das Panel
+     * überhaupt öffnet, und der letzte davon versteckt. Die Liste selbst gab es
+     * für ihn schon: `viewAny` lässt jedes Konto durch, und was darauf steht,
+     * entscheidet die Mandantenklammer. Gefehlt hat der Menüpunkt — und ein
+     * Knopf an der Stelle, an der man ihn sucht.
+     *
+     * **Warum die Abkürzung nur Kunden bekommen.** Sie führt in ein bestimmtes
+     * Abonnement, und der Betreiber hat davon Hunderte: Eine Auswahlliste über
+     * alle wäre kein kurzer Weg, sondern ein langer mit Suchfeld. Seine Wege
+     * bleiben unverändert — er legt eine Domain dort an, wo sie hingehört, am
+     * Abonnement.
+     */
+    public function index(Request $request): Response
     {
         $domains = Domain::query()
             ->with('subscription')
@@ -60,7 +79,35 @@ final class DomainController extends Controller
 
         return Inertia::render('Domains/Index', [
             'domains' => Page::from($domains, fn (Domain $domain): array => $this->row($domain)),
+            'creatable' => $this->creatable($request->user()),
         ]);
+    }
+
+    /**
+     * Die Abonnements, in denen dieses Konto eine Domain anlegen darf.
+     *
+     * Gefragt wird dieselbe Policy, die die Route später prüft — nicht der
+     * Kontotyp. Ein Zusatzbenutzer ohne `files.write` darf es nämlich nicht,
+     * und ein gesperrtes Abonnement ist kein Ort für eine neue Domain
+     * ({@see DomainPolicy::create()}).
+     *
+     * @return list<array{id:int,name:string}>
+     */
+    private function creatable(?Account $account): array
+    {
+        if (! $account instanceof Account || $account->isAdmin()) {
+            return [];
+        }
+
+        return Subscription::query()
+            ->whereIn('id', $account->accessibleSubscriptionIds())
+            ->whereIn('status', SubscriptionStatus::usableValues())
+            ->orderBy('name')
+            ->get()
+            ->filter(static fn (Subscription $s): bool => $account->can('create', [Domain::class, $s]))
+            ->map(static fn (Subscription $s): array => ['id' => (int) $s->id, 'name' => $s->name])
+            ->values()
+            ->all();
     }
 
     public function create(Subscription $subscription): Response

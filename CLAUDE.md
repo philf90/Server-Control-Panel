@@ -55,7 +55,8 @@ weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
 `PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse) und
 `HostnameSourceTest` (nur `Names` fragt den Kernel nach dem Rechnernamen) und
 `AbilityReachTest` (ein Knopf, den der Betrachter nicht drücken darf, wird nicht
-gezeigt). Der Bruch selbst steht als
+gezeigt) und `NavIconTest` (jeder Menüpunkt trägt ein Zeichen, und jedes Zeichen
+ist gezeichnet). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 

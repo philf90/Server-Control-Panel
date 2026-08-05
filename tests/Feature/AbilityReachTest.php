@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\SubscriptionStatus;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Models\Plan;
@@ -233,6 +234,70 @@ final class AbilityReachTest extends TestCase
                  * Pfad kein Verweis.
                  */
                 ->where('can.viewCustomer', true)
+                ->etc());
+    }
+
+    /**
+     * Der kurze Weg zu einer neuen Domain — für den Kunden, nicht für den
+     * Betreiber.
+     *
+     * **Der Befund kam vom Betreiber.** Ein Kunde erreichte „Domain anlegen"
+     * nur über Abonnements → Name des Abonnements → einen kleinen Knopf rechts
+     * im Bereich „Domains". Die Liste `/domains` gab es für ihn schon —
+     * `viewAny` lässt jedes Konto durch, die Mandantenklammer schneidet zu —,
+     * nur stand sie nicht im Menü und trug keinen Knopf.
+     *
+     * `creatable` ist beim Betreiber **leer**, und das ist Absicht: Die
+     * Abkürzung führt in ein bestimmtes Abonnement, und er hat davon Hunderte.
+     */
+    public function test_a_customer_gets_the_short_way_to_a_new_domain(): void
+    {
+        [$account, $subscription] = $this->customerWithSubscription();
+
+        $this->actingAs($account)
+            ->get('/domains')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Domains/Index')
+                ->where('creatable.0.id', $subscription->id)
+                ->count('creatable', 1)
+                ->etc());
+
+        // Und das Menü zeigt den Eintrag erst, wenn es ein aktives Abonnement
+        // gibt — sonst führte er auf eine leere Liste ohne Knopf.
+        $this->actingAs($account)
+            ->get('/subscriptions')
+            ->assertInertia(fn ($page) => $page->where('account.has_active_subscription', true)->etc());
+    }
+
+    public function test_a_customer_without_an_active_subscription_is_not_sent_to_domains(): void
+    {
+        [$account, $subscription] = $this->customerWithSubscription();
+        $subscription->forceFill(['status' => SubscriptionStatus::Suspended])->save();
+
+        $this->actingAs($account)
+            ->get('/subscriptions')
+            ->assertInertia(fn ($page) => $page->where('account.has_active_subscription', false)->etc());
+
+        // Die Liste bleibt erreichbar — sie zeigt weiter, was da ist. Nur der
+        // Knopf fehlt: In einem gesperrten Abonnement entsteht keine Domain.
+        $this->actingAs($account)
+            ->get('/domains')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->count('creatable', 0)->etc());
+    }
+
+    public function test_the_operator_keeps_the_way_through_the_subscription(): void
+    {
+        $this->customerWithSubscription();
+        $admin = Account::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get('/domains')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->count('creatable', 0)
+                ->where('account.has_active_subscription', true)
                 ->etc());
     }
 

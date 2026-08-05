@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\SubscriptionStatus;
 use App\Models\Account;
+use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
 use App\Support\Passwords\Policy;
 use Illuminate\Http\Request;
@@ -46,6 +48,31 @@ final class HandleInertiaRequests extends Middleware
                 'email' => $account->email,
                 'type' => $account->type->value,
                 'is_admin' => $account->isAdmin(),
+
+                /*
+                 * Hat dieses Konto ein benutzbares Abonnement?
+                 *
+                 * **Wofür.** Der Menüpunkt „Domains" steht bei einem Kunden
+                 * erst da, wenn es einen Ort gibt, an dem eine Domain entstehen
+                 * kann. Ohne aktives Abonnement führte er auf eine leere Liste
+                 * ohne Knopf — eine Sackgasse mit Einladung.
+                 *
+                 * **Warum die Antwort hierher gehört.** Das Menü steht auf
+                 * jeder Seite; jede einzelne müsste die Frage sonst selbst
+                 * beantworten, und die meisten täten es nicht. Es ist keine
+                 * Autorisierung — die sitzt an der Route (`can:viewAny`) —,
+                 * sondern dieselbe Auskunft wie `is_admin` daneben: welcher Weg
+                 * überhaupt einer ist.
+                 *
+                 * Für den Betreiber ohne Abfrage `true`: Er sieht die Liste
+                 * immer, und eine Zählung über alle Abonnements bei jedem
+                 * Seitenaufruf wäre für eine Antwort bezahlt, die feststeht.
+                 */
+                'has_active_subscription' => $account->isAdmin()
+                    || Subscription::query()
+                        ->whereIn('id', $account->accessibleSubscriptionIds())
+                        ->whereIn('status', SubscriptionStatus::usableValues())
+                        ->exists(),
             ] : null,
 
             // „Anmelden als" muss auf jeder Seite sichtbar sein (§6.3). Ein

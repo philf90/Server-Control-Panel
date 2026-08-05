@@ -35,7 +35,22 @@ const props = defineProps<{
     php_version: string | null
     is_redirect: boolean
   }[]
-  mayAddDomain: boolean
+  /**
+   * Was der Betrachter an diesem Abonnement tun darf — vom Server entschieden.
+   *
+   * **Hier stand `mayAddDomain` allein.** Richtig gedacht und nur für eine der
+   * sechs Aktionen dieser Seite gemacht: Bearbeiten, Sperren, Entsperren und
+   * Zurückbauen standen ungefragt da, und ein Kunde bekam auf jeden Klick
+   * einen 403. Eine Form für dieselbe Sache, damit `AbilityReachTest` sie
+   * gegenprüfen kann.
+   */
+  can: {
+    update: boolean
+    suspend: boolean
+    delete: boolean
+    addDomain: boolean
+    viewCustomer: boolean
+  }
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
 
@@ -82,18 +97,47 @@ function remove(): void {
   <PanelLayout :title="props.subscription.name">
     <template #breadcrumb>
       <Link href="/subscriptions" class="link">Abonnements</Link> ·
-      <Link :href="`/customers/${props.subscription.customer_id}`" class="link">
+      <!-- Ohne das Recht auf die Kundenseite bleibt der Name stehen und wird
+           kein Verweis: Der Weg dorthin ist ihm verwehrt, der Name ist es
+           nicht. -->
+      <Link
+        v-if="props.can.viewCustomer"
+        :href="`/customers/${props.subscription.customer_id}`"
+        class="link"
+      >
         {{ props.subscription.customer ?? '—' }}
       </Link>
+      <template v-else>{{ props.subscription.customer ?? '—' }}</template>
     </template>
 
     <template #actions>
       <Badge :kind="rang(props.subscription.status)">{{ props.subscription.status_label }}</Badge>
-      <Link class="button primary" :href="`/subscriptions/${props.subscription.id}/edit`">Bearbeiten</Link>
-      <button v-if="props.subscription.status === 'active'" type="button" class="button" @click="suspend">Sperren</button>
-      <button v-if="props.subscription.status === 'suspended'" type="button" class="button" @click="resume">Entsperren</button>
+      <!--
+        Jede Aktion fragt zuerst, ob sie dem Betrachter überhaupt offensteht,
+        und dann, ob sie zum Zustand passt. Die Reihenfolge ist keine
+        Geschmacksfrage: „Sperren" für einen Kunden auszublenden, weil das Abo
+        gerade gesperrt ist, wäre die richtige Antwort aus dem falschen Grund —
+        und beim nächsten Zustand stünde der Knopf wieder da.
+      -->
+      <Link
+        v-if="props.can.update"
+        class="button primary"
+        :href="`/subscriptions/${props.subscription.id}/edit`"
+      >Bearbeiten</Link>
       <button
-        v-if="props.subscription.status !== 'provisioning'"
+        v-if="props.can.suspend && props.subscription.status === 'active'"
+        type="button"
+        class="button"
+        @click="suspend"
+      >Sperren</button>
+      <button
+        v-if="props.can.suspend && props.subscription.status === 'suspended'"
+        type="button"
+        class="button"
+        @click="resume"
+      >Entsperren</button>
+      <button
+        v-if="props.can.delete && props.subscription.status !== 'provisioning'"
         type="button"
         class="button danger"
         @click="remove"
@@ -193,7 +237,7 @@ function remove(): void {
       <Section title="Domains" full>
         <template #actions>
           <Link
-            v-if="props.mayAddDomain"
+            v-if="props.can.addDomain"
             class="button small"
             :href="`/subscriptions/${props.subscription.id}/domains/create`"
           >

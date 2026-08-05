@@ -45,8 +45,30 @@ use SrvPanel\Agent\Ops\SubscriptionProvision;
  */
 final class SubscriptionController extends Controller
 {
-    public function index(): Response
+    /**
+     * Das Verzeichnis — und was der Betrachter darin tun darf.
+     *
+     * **Warum die Fähigkeiten mitkommen.** Ein Kunde sah hier „Abonnement
+     * anlegen" und in jeder Zeile „Bearbeiten". Beides ist ihm verwehrt, beides
+     * endete mit einem 403 — die Autorisierung war richtig, die Auskunft
+     * falsch. Ein Knopf ist ein Angebot; einer, der nur ablehnen kann, ist eine
+     * Falle.
+     *
+     * Die Entscheidung fällt hier und nicht im Browser: Dieselbe Regel wie bei
+     * den Kacheln (§7.2, Regel 2) — der Server schickt, was gilt, die Seite
+     * zeichnet es. Ein `v-if="istAdmin"` im Template wäre eine zweite Fassung
+     * der Policy, und die zweite Fassung ist die, die veraltet.
+     *
+     * **Je Zeile und nicht je Seite.** `SubscriptionPolicy::update()` fragt
+     * heute nur nach dem Kontotyp und fiele für alle Zeilen gleich aus. Das ist
+     * eine Eigenschaft von heute und keine Zusage: Sobald ein Zusatzbenutzer
+     * eines seiner Abonnements bearbeiten darf, ist die Antwort je Zeile eine
+     * andere. Ein Aufruf je Zeile kostet hier nichts.
+     */
+    public function index(Request $request): Response
     {
+        $account = $request->user();
+
         $subscriptions = Subscription::query()
             ->with(['customer', 'plan'])
             ->orderBy('name')
@@ -64,7 +86,9 @@ final class SubscriptionController extends Controller
                 'status_label' => $s->status->label(),
                 'used_mb' => $s->disk_used_mb,
                 'percent' => $s->diskUsagePercent(),
+                'can' => ['update' => $account?->can('update', $s) ?? false],
             ]),
+            'can' => ['create' => $account?->can('create', Subscription::class) ?? false],
         ]);
     }
 
@@ -163,9 +187,10 @@ final class SubscriptionController extends Controller
         return redirect()->route('operations.show', $operation);
     }
 
-    public function show(Subscription $subscription): Response
+    public function show(Request $request, Subscription $subscription): Response
     {
         $subscription->loadMissing(['customer', 'plan']);
+        $account = $request->user();
 
         return Inertia::render('Subscriptions/Show', [
             'subscription' => [
@@ -233,7 +258,27 @@ final class SubscriptionController extends Controller
                     'is_redirect' => $domain->isRedirect(),
                 ])->all(),
 
-            'mayAddDomain' => request()->user()?->can('create', [Domain::class, $subscription]) ?? false,
+            /*
+             * Was der Betrachter an diesem Abonnement tun darf.
+             *
+             * **Eine Ablage und nicht fünf einzelne Fahnen.** Hier stand
+             * `mayAddDomain` allein — richtig gedacht und nur für eine der
+             * sechs Aktionen dieser Seite gemacht. Bearbeiten, Sperren,
+             * Entsperren und Zurückbauen standen ungefragt da, und ein Kunde
+             * bekam auf jeden Klick einen 403.
+             *
+             * `addDomain` heisst deshalb jetzt `can.addDomain`: eine Form für
+             * dieselbe Sache, damit `AbilityReachTest` sie überhaupt
+             * gegenprüfen kann.
+             */
+            'can' => [
+                'update' => $account?->can('update', $subscription) ?? false,
+                'suspend' => $account?->can('suspend', $subscription) ?? false,
+                'delete' => $account?->can('delete', $subscription) ?? false,
+                'addDomain' => $account?->can('create', [Domain::class, $subscription]) ?? false,
+                'viewCustomer' => $subscription->customer !== null
+                    && ($account?->can('view', $subscription->customer) ?? false),
+            ],
 
             'operations' => Operation::query()
                 ->where('subscription_id', $subscription->id)

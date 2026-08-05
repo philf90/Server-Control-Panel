@@ -14,10 +14,23 @@ interface Row {
   status_label: string
   used_mb: number | null
   percent: number | null
+
+  /* Was der Betrachter mit dieser Zeile tun darf — vom Server entschieden. */
+  can: { update: boolean }
 }
 
 const props = defineProps<{
   subscriptions: { data: Row[]; current_page: number; last_page: number; total: number }
+
+  /**
+   * Was der Betrachter auf dieser Seite tun darf.
+   *
+   * **Warum das vom Server kommt.** Ein Kunde sah „Abonnement anlegen" und in
+   * jeder Zeile „Bearbeiten"; beides endete mit einem 403. Ein `v-if` auf den
+   * Kontotyp wäre hier eine zweite Fassung der Policy — und die zweite Fassung
+   * ist die, die veraltet. Der Server entscheidet, die Seite zeichnet.
+   */
+  can: { create: boolean }
 }>()
 
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
@@ -50,7 +63,9 @@ function verbrauch(row: Row): string {
 
   <PanelLayout title="Abonnements" :subline="`${props.subscriptions.total} angelegt`">
     <template #actions>
-      <Link href="/subscriptions/create" class="button primary">Abonnement anlegen</Link>
+      <Link v-if="props.can.create" href="/subscriptions/create" class="button primary">
+        Abonnement anlegen
+      </Link>
     </template>
 
     <div class="scrolls">
@@ -99,8 +114,17 @@ function verbrauch(row: Row): string {
               Speicher, Kontingenten und Vorgängen, und das ist etwas anderes
               als das Formular.
             -->
+            <!--
+              Die Zelle bleibt auch ohne Knopf stehen: Ohne sie hätte die Zeile
+              eine Spalte weniger als der Kopf, und auf der schmalen Fläche
+              rutschte die Zuordnung von `data-column` um eins.
+            -->
             <td>
-              <Link :href="`/subscriptions/${row.id}/edit`" class="button small">Bearbeiten</Link>
+              <Link
+                v-if="row.can.update"
+                :href="`/subscriptions/${row.id}/edit`"
+                class="button small"
+              >Bearbeiten</Link>
             </td>
           </tr>
           <tr v-if="props.subscriptions.data.length === 0">

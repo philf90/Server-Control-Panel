@@ -282,6 +282,19 @@ pruefe "  … zurückgesetzt wieder grün" \
   PanelWalkthroughTest::test_the_network_tile_carries_both_directions passed
 
 echo
+echo "── AbilityReachTest: ein Knopf ohne Rückfrage bei der Policy ──"
+#
+# Der Zustand von vor diesem Wächter: In der Sicht eines Kunden stand
+# „Abonnement anlegen" auf der Seite, und der Klick endete mit einem nackten
+# 403. Die Autorisierung war richtig, die Auskunft davor falsch.
+sed -i 's|<Link v-if="props.can.create" href="/subscriptions/create"|<Link href="/subscriptions/create"|' \
+  resources/js/Pages/Subscriptions/Index.vue
+pruefe "Aktion ohne Rückfrage bei der Policy" \
+  AbilityReachTest::test_every_ability_a_page_asks_for_is_sent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AbilityReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

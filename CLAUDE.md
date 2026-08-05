@@ -53,8 +53,9 @@ jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
 (wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
 weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
 `PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse) und
-`HostnameSourceTest` (nur `Names` fragt den Kernel nach dem Rechnernamen). Der
-Bruch selbst steht als
+`HostnameSourceTest` (nur `Names` fragt den Kernel nach dem Rechnernamen) und
+`AbilityReachTest` (ein Knopf, den der Betrachter nicht drücken darf, wird nicht
+gezeigt). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -102,6 +103,13 @@ ausdrückliche Ausnahme und will begründet sein; Admins sind über
 `forAccount()` unbeschränkt. **Autorisierung sitzt an der Aktion**, nicht im
 Menü — jede Route trägt `can:` oder steht mit Begründung in
 `app/Support/Authorization/RouteGuard.php`.
+
+Das ist die Regel fürs **Durchsetzen** und war nie eine Erlaubnis, jedem alles
+anzubieten. Die Kehrseite: **Wer eine Aktion zeigt, fragt vorher dieselbe
+Policy, die sie später abweist.** Die Antwort kommt als `can`-Ablage im
+Inertia-Payload — nicht als `v-if` auf den Kontotyp, denn das wäre eine zweite
+Fassung der Policy, und die zweite Fassung ist die, die veraltet.
+`AbilityReachTest` prüft beide Richtungen.
 
 Weiteres, das man wissen muss: Weiche Löschungen verbrauchen Bezeichner
 (Kundennummern, `p1000`-Systembenutzer ↔ UID-Wiederverwendung).

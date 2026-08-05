@@ -1969,3 +1969,49 @@ Zwei Dinge daraus:
   das Werkzeug für undefinierte Variablen, und es hat funktioniert. Die Lücke
   war nicht der fehlende Testlauf, sondern dass hier ohne PHPStan gepusht
   wurde.
+
+### Ein Knopf, den der Kunde nicht drücken darf, stand trotzdem da
+
+In der Sicht eines Kunden zeigte `/subscriptions` den Knopf „Abonnement
+anlegen" und in jeder Zeile „Bearbeiten". Beides ist einem Kunden verwehrt,
+beides endete mit einem nackten **„403 This action is unauthorized"**.
+
+**Die Autorisierung war dabei richtig.** Die Routen tragen `can:create` und
+`can:update`, und sie haben abgewiesen — genau so, wie es sein soll. Falsch war
+die Auskunft davor: Ein Knopf ist ein Angebot, und einer, der nur ablehnen kann,
+ist eine Falle.
+
+CLAUDE.md sagt „Autorisierung sitzt an der Aktion, nicht im Menü". Das ist die
+Regel fürs **Durchsetzen** und war nie eine Erlaubnis, jedem alles anzubieten.
+Die Kehrseite fehlte, und sie steht jetzt daneben: Wer eine Aktion zeigt, fragt
+vorher dieselbe Policy, die sie später abweist.
+
+**Die Vorlage stand schon im selben Verzeichnis.** `Subscriptions/Show`
+gatterte „Domain anlegen" über `mayAddDomain` — richtig gedacht und für genau
+eine der sechs Aktionen dieser Seite gemacht. Bearbeiten, Sperren, Entsperren
+und Zurückbauen standen ungefragt da. Wieder eine Seite, die es an einer Stelle
+richtig macht und an fünf nicht; wieder kein Werkzeug, das danach fragt.
+
+Die Antwort kommt jetzt als `can`-Ablage im Payload — eine Form für dieselbe
+Sache, auch je Zeile (`row.can.update`). **Nicht** als `v-if` auf den Kontotyp:
+Das wäre eine zweite Fassung der Policy, und die zweite Fassung ist die, die
+veraltet. Je Zeile und nicht je Seite, weil `SubscriptionPolicy::update()` heute
+nur nach dem Kontotyp fragt — das ist eine Eigenschaft von heute und keine
+Zusage.
+
+`AbilityReachTest` prüft beide Richtungen: Jede Fähigkeit, die ein Template
+unter `can.` abfragt, wird auch geschickt, und jede geschickte wird abgefragt.
+Eine Fahne, die nie ankommt, ist in Vue `undefined` — der Knopf verschwindet
+dann für **alle**, lautlos. Dazu zwei Läufe am Panel: Ein Kunde bekommt überall
+`false`, ein Betreiber überall `true`.
+
+**Und der Wächter hat gleich eine falsche Annahme von mir widerlegt.** Der erste
+Anlauf erwartete, dass ein Kunde auch den Verweis auf „seinen" Kunden nicht
+sehen darf. `CustomerPolicy::view` lässt ihn für den eigenen Datensatz und
+dessen Untergeordnete zu — die Policy hat recht, die Erwartung war falsch. Der
+Verweis bleibt, und ein Zusatzbenutzer ohne eigenen Kunden sieht dort nur noch
+den Namen.
+
+Im Browser gegengeprüft: Als Kunde steht auf `/subscriptions` **kein** Knopf und
+am Abonnement nur „Domain anlegen" (das darf er). Als Betreiber steht alles da,
+was vorher da war.

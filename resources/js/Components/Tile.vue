@@ -124,6 +124,31 @@ function path(points: Point[]): string {
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ')
 }
 
+/**
+ * Ein runder Punkt an einer Stelle der Kurve.
+ *
+ * **Warum kein `<circle>`.** Der viewBox ist 100 × 32 Einheiten und wird auf
+ * rund 230 × 46px gezogen — waagerecht gut zweieinhalbmal so stark wie
+ * senkrecht. Ein Kreis in Nutzerkoordinaten wird dabei mitverzerrt: Aus `r="2"`
+ * wurden 4,6px waagerecht und 2,9px senkrecht, also eine liegende Ellipse. Auf
+ * dem Bildschirm des Betreibers sah der Endpunkt jeder Kurve aus wie ein
+ * plattgedrückter Strich.
+ *
+ * Der Ausweg ist derselbe wie beim Strichmuster der zweiten Kurve: **im
+ * Bildschirmraum zeichnen, nicht in Nutzerkoordinaten.** Ein Pfad ohne Länge
+ * mit runder Kappe und `vector-effect="non-scaling-stroke"` ergibt genau einen
+ * Kreis, dessen Durchmesser die Strichstärke in Bildpunkten ist — unabhängig
+ * davon, wie das Feld gezogen wird.
+ *
+ * Die Länge ist nicht null, sondern ein Tausendstel: Ein Teilpfad ohne
+ * Ausdehnung wird zwar laut Norm mit runder Kappe gezeichnet, aber nicht jeder
+ * Renderer hält sich daran. Ein Tausendstel einer Einheit ist auf dem Schirm
+ * nicht zu sehen und macht aus der Sonderregel einen gewöhnlichen Strich.
+ */
+function dot(point: Point): string {
+  return `M${point.x} ${point.y}L${point.x + 0.001} ${point.y}`
+}
+
 const line = computed(() => path(props.series?.points ?? []))
 
 const secondLine = computed(() => path(props.second?.series.points ?? []))
@@ -266,23 +291,23 @@ function nearest(event: PointerEvent): void {
           vector-effect="non-scaling-stroke"
         />
 
-        <circle v-if="last" :cx="last.x" :cy="last.y" r="2" class="end" />
-        <circle
+        <!-- Punkte als Pfad und nicht als `<circle>` — siehe `dot()`: In einem
+             ungleich gezogenen Feld ist ein Kreis eine Ellipse. -->
+        <path v-if="last" :d="dot(last)" class="end" vector-effect="non-scaling-stroke" />
+        <path
           v-if="secondLast && second"
-          :cx="secondLast.x"
-          :cy="secondLast.y"
-          r="2"
+          :d="dot(secondLast)"
           class="end second"
           :class="{ tight: second.series.warns }"
+          vector-effect="non-scaling-stroke"
         />
-        <circle v-if="hovered" :cx="hovered.x" :cy="hovered.y" r="2.6" class="cursor" />
-        <circle
+        <path v-if="hovered" :d="dot(hovered)" class="cursor" vector-effect="non-scaling-stroke" />
+        <path
           v-if="hoveredSecond"
-          :cx="hoveredSecond.x"
-          :cy="hoveredSecond.y"
-          r="2.6"
+          :d="dot(hoveredSecond)"
           class="cursor second"
           :class="{ tight: second?.series.warns }"
+          vector-effect="non-scaling-stroke"
         />
       </svg>
     </div>
@@ -304,6 +329,21 @@ function nearest(event: PointerEvent): void {
   width: 100%;
   height: 46px;
   cursor: crosshair;
+
+  /*
+   * Der Punkt am Ende darf über die Kante hinausragen.
+   *
+   * **Sonst ist er ein halber.** Die letzte Stützstelle liegt bei x = 100, also
+   * genau auf dem rechten Rand des Feldes — und ein `<svg>` schneidet an seiner
+   * Kante ab. Vom Punkt blieb die linke Hälfte übrig, und die liest sich nicht
+   * als Punkt, sondern als Klotz. Beim vorigen Zustand fiel es nicht auf, weil
+   * der Punkt ohnehin eine breitgezogene Ellipse war.
+   *
+   * Zwei Bildpunkte ragen hinaus. Sie landen im Innenabstand der Kachel (24px
+   * rechts) beziehungsweise im Seitenrand der schmalen Fläche — gemessen, kein
+   * waagerechter Überlauf.
+   */
+  overflow: visible;
 
   /* Ohne das rollt ein Telefon die Seite, sobald jemand über die Kurve
      streicht, statt sie abzulesen. */
@@ -345,9 +385,24 @@ function nearest(event: PointerEvent): void {
   stroke-linecap: round;
 }
 
+/*
+ * Der Punkt entsteht aus der Kappe eines Strichs — deshalb `stroke` und nicht
+ * `fill`, und deshalb ist die Strichstärke sein **Durchmesser** in Bildpunkten.
+ *
+ * Vier Bildpunkte für den Endpunkt: Er sitzt auf einer 1,8px starken Linie und
+ * soll deren Ende markieren, nicht überdecken. Der Zeiger ist mit sechs etwas
+ * grösser — er wandert, und was wandert, muss man finden.
+ */
 .end,
 .cursor {
-  fill: var(--accent);
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.cursor {
+  stroke-width: 6;
 }
 
 /*
@@ -362,10 +417,13 @@ function nearest(event: PointerEvent): void {
   stroke: var(--warn);
 }
 
-.trend.tight .area,
+.trend.tight .area {
+  fill: var(--warn);
+}
+
 .trend.tight .end:not(.second),
 .trend.tight .cursor:not(.second) {
-  fill: var(--warn);
+  stroke: var(--warn);
 }
 
 /*
@@ -402,7 +460,7 @@ function nearest(event: PointerEvent): void {
 
 .end.second,
 .cursor.second {
-  fill: var(--accent-second);
+  stroke: var(--accent-second);
 }
 
 .line.second.tight {
@@ -411,6 +469,6 @@ function nearest(event: PointerEvent): void {
 
 .end.second.tight,
 .cursor.second.tight {
-  fill: var(--warn);
+  stroke: var(--warn);
 }
 </style>

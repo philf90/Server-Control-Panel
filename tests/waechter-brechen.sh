@@ -314,6 +314,19 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NavIconTest passed
 
 echo
+echo "── SparklineShapeTest: der Punkt wieder als Kreis ──"
+#
+# Zweimal derselbe Fehler in derselben Kachel: Das Feld wird waagerecht gut
+# zweieinhalbmal so stark gezogen wie senkrecht. Ein `<circle r="2">` ist darin
+# 4,6px breit und 2,9px hoch — eine liegende Ellipse.
+sed -i 's|<path v-if="last" :d="dot(last)" class="end" vector-effect="non-scaling-stroke" />|<circle v-if="last" :cx="last.x" :cy="last.y" r="2" class="end" />|' \
+  resources/js/Components/Tile.vue
+pruefe "Kreis in Nutzerkoordinaten" \
+  SparklineShapeTest::test_nothing_round_is_drawn_in_user_coordinates failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SparklineShapeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

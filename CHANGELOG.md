@@ -2074,3 +2074,36 @@ Name zeigt auf eine Zeichnung, jede Zeichnung wird benutzt, und im Zeichensatz
 steht kein Farbwert. Ohne ihn ist `<NavIcon name="domain" />` eine Zeichenkette,
 die auf nichts zeigt — die Komponente zeichnet dann nichts, kein Fehler, keine
 Meldung, nur ein Eintrag ohne Punkt davor.
+
+### Der Punkt am Ende jeder Kurve war eine Ellipse — und eine halbe dazu
+
+Gemeldet vom Betreiber mit einem Bild: „Die Punkte der einzelnen Messwerte sind
+extrem groß und platt gedrückt." Genau so war es, und zwar aus zwei Gründen
+gleichzeitig.
+
+**Erstens die Form.** Das Feld der Kachel ist 100 × 32 Einheiten und wird mit
+`preserveAspectRatio="none"` auf rund 204 × 46 Bildpunkte gezogen — waagerecht
+gut zweieinhalbmal so stark wie senkrecht. Ein `<circle r="2">` wird darin
+**4,6px breit und 2,9px hoch**. Das ist keine Ungenauigkeit, das ist die
+Rechnung.
+
+**Zweitens die Kante.** Die letzte Stützstelle liegt bei x = 100, also genau auf
+dem rechten Rand des Feldes, und ein `<svg>` schneidet dort ab. Vom Punkt blieb
+die linke Hälfte — und eine halbe liegende Ellipse liest sich als Klotz.
+
+Der Punkt entsteht jetzt aus der **Kappe eines Strichs**: ein kurzer Pfad mit
+`stroke-linecap: round` und `vector-effect="non-scaling-stroke"`. Damit ist sein
+Durchmesser die Strichstärke in Bildpunkten — unabhängig davon, wie das Feld
+gezogen wird. Die Länge des Pfades ist nicht null, sondern ein Tausendstel: Ein
+Teilpfad ohne Ausdehnung wird zwar laut Norm mit runder Kappe gezeichnet, aber
+nicht jeder Renderer hält sich daran. Und `overflow: visible` lässt die zwei
+Bildpunkte über die Kante ragen; sie landen im Innenabstand der Kachel, gemessen
+ohne waagerechten Überlauf bei 1440 und 390 px.
+
+**Das ist der zweite Fehler dieser Art in derselben Kachel.** Der erste war das
+Strichmuster der zweiten Netzkurve: `stroke-dasharray` in Nutzerkoordinaten wurde
+auf flachen Stücken lang und auf steilen gestaucht. Zweimal dieselbe Ursache,
+zweimal erst auf einem fremden Bildschirm gesehen — deshalb jetzt
+`SparklineShapeTest`: Wer ein Feld ungleich zieht, zeichnet darin nichts Rundes
+in Nutzerkoordinaten, und jede Zeichnung mit Strich sagt, dass ihre Stärke in
+Bildpunkten gilt.

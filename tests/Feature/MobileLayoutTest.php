@@ -108,10 +108,24 @@ final class MobileLayoutTest extends TestCase
         }
     }
 
-    public function test_every_table_carries_one_of_the_two_patterns(): void
+    public function test_every_table_carries_one_of_the_patterns(): void
     {
-        // Eine Tabelle ohne Muster ist auf 390px entweder abgeschnitten oder
-        // sie schiebt die ganze Seite seitwärts.
+        /*
+         * Eine Tabelle ohne Muster ist auf 390px entweder abgeschnitten oder
+         * sie schiebt die ganze Seite seitwärts.
+         *
+         * **Seit dem Rework sind es drei und nicht mehr zwei.** `.paare` ist
+         * die Tabelle aus Bezeichnung und Wert — Kontingente, Freigaben,
+         * Dienste. Sie passt auf 390px und muss weder rollen noch zu Kärtchen
+         * zerfallen; ihr fehlte nur eine Regel, was mit dem Wert geschieht,
+         * wenn eine Zustandsmarke in der dritten Spalte ihn zusammendrückt.
+         * Ohne die Regel stand „3 von 10" auf drei Zeilen — gesehen in der
+         * Aufnahme, nicht im Entwurf.
+         *
+         * Das dritte Muster ist keine Aufweichung der Regel, sondern eine
+         * Lücke, die vorher jede Seite selbst gefüllt hat. docs/24 §5 nennt
+         * alle drei und sagt, wann welches gilt.
+         */
         $tables = 0;
 
         foreach ($this->files('resources/js', 'vue') as $path) {
@@ -133,6 +147,7 @@ final class MobileLayoutTest extends TestCase
                 $tables++;
 
                 $stacks = str_contains($attributes, 'stapelt');
+                $pairs = str_contains($attributes, 'paare');
 
                 /*
                  * Rollt sie? Dann steht der Behälter unmittelbar davor.
@@ -156,10 +171,12 @@ final class MobileLayoutTest extends TestCase
                 $scrolls = str_ends_with($before, '<div class="rollt">');
 
                 $this->assertTrue(
-                    $stacks || $scrolls,
+                    $stacks || $scrolls || $pairs,
                     sprintf(
                         'In %s steht eine Tabelle ohne Muster aus docs/24 §5. Messwerte gehören in '.
-                        '<div class="rollt">, Verzeichnisse bekommen class="stapelt".',
+                        '<div class="rollt">, Verzeichnisse bekommen class="stapelt", und '.
+                        'Bezeichnung-und-Wert bekommt class="paare". Was gar keine Tabelle ist — '.
+                        'ein Katalog von Aufgaben etwa —, wird auch keine.',
                         $this->relative($path),
                     ),
                 );

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
+import Marke from '../../Components/Marke.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Row {
@@ -15,6 +16,21 @@ interface Row {
 
 const props = defineProps<{ customers: { data: Row[]; total: number } }>()
 
+/*
+ * Der Zustand als Rang und nicht als Farbe an der Zelle.
+ *
+ * Vorher stand `td[data-status='suspended'] { color: var(--warn) }` auf jeder
+ * Liste einzeln — vier Seiten, vier Fassungen, und in einer davon fehlte der
+ * Zustand „zurückgezogen" ganz. Der Rang steht jetzt an einer Stelle, und die
+ * Marke bringt neben der Farbe ein Wort mit.
+ */
+function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+  if (status === 'active') return 'ok'
+  if (status === 'suspended') return 'warn'
+  if (status === 'cancelled') return 'kritisch'
+
+  return 'neutral'
+}
 
 function impersonate(row: Row): void {
   // Bestätigung vor dem Wechsel: Er ändert, in wessen Namen jede folgende
@@ -28,42 +44,53 @@ function impersonate(row: Row): void {
   <Head title="Kunden" />
 
   <PanelLayout title="Kunden" :subline="`${props.customers.total} angelegt`">
-
-    <header class="kopf">
+    <template #aktion>
       <Link href="/customers/create" class="knopf wichtig">Kunde anlegen</Link>
-    </header>
+    </template>
 
-    <table class="stapelt">
-      <thead>
-        <tr><th>Nummer</th><th>Name</th><th>E-Mail</th><th>Abos</th><th>Zustand</th><th></th></tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in props.customers.data" :key="row.id">
-          <td data-spalte="Nummer"><Link :href="`/customers/${row.id}`">{{ row.number }}</Link></td>
-          <td data-spalte="Name">{{ row.name }}</td>
-          <td data-spalte="E-Mail">{{ row.email }}</td>
-          <td data-spalte="Abos">{{ row.subscriptions }}</td>
-          <td data-spalte="Zustand" :data-status="row.status">{{ row.status_label }}</td>
-          <td>
-            <span class="zeilenaktionen">
-              <Link :href="`/customers/${row.id}/edit`" class="knopf klein">Bearbeiten</Link>
-              <button v-if="row.accounts > 0" type="button" class="knopf klein" @click="impersonate(row)">Anmelden als</button>
-            </span>
-          </td>
-        </tr>
-        <tr v-if="props.customers.data.length === 0">
-          <td colspan="6">Noch kein Kunde angelegt.</td>
-        </tr>
-      </tbody>
-    </table>
+    <!--
+      Kein Bereich mit eigener Überschrift: Diese Seite *ist* das Verzeichnis,
+      und „Kunden → Verzeichnis" wäre dieselbe Angabe zweimal. Ein Bereich
+      lohnt sich, wo mehrere Listen auf einer Seite stehen.
+    -->
+    <div class="rollt">
+      <table class="stapelt">
+        <thead>
+          <tr>
+            <th>Nummer</th><th>Name</th><th>E-Mail</th>
+            <th class="rechts">Abos</th><th>Zustand</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in props.customers.data" :key="row.id">
+            <td data-spalte="Nummer" class="kennung">
+              <Link :href="`/customers/${row.id}`" class="verweis">{{ row.number }}</Link>
+            </td>
+            <td data-spalte="Name" class="name">{{ row.name }}</td>
+            <td data-spalte="E-Mail" class="stumm">{{ row.email }}</td>
+            <td data-spalte="Abos" class="rechts">{{ row.subscriptions }}</td>
+            <td data-spalte="Zustand">
+              <Marke :art="rang(row.status)">{{ row.status_label }}</Marke>
+            </td>
+            <td>
+              <div class="knopfreihe">
+                <Link :href="`/customers/${row.id}/edit`" class="knopf klein">Bearbeiten</Link>
+                <button
+                  v-if="row.accounts > 0"
+                  type="button"
+                  class="knopf klein"
+                  @click="impersonate(row)"
+                >
+                  Anmelden als
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="props.customers.data.length === 0">
+            <td colspan="6" class="stumm">Noch kein Kunde angelegt.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </PanelLayout>
 </template>
-
-<style scoped>
-.zeilenaktionen { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.kopf { display: flex; justify-content: flex-end; margin-bottom: var(--gap); }
-table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
-th { text-align: left; color: var(--text-muted); font-weight: 600; }
-th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
-td[data-status='suspended'] { color: var(--warn); }
-</style>

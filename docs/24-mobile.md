@@ -86,10 +86,18 @@ unten. Der hat keine Zeilen, die man verzählen könnte.
 `MobileLayoutTest` hält es fest: `.frame` ist unter 720px `display: flex` und
 setzt keine `grid-template-rows`.
 
-## 5. Tabellen: zwei Muster, und nur diese zwei
+## 5. Tabellen: drei Muster, und nur diese drei
 
 Eine Tabelle mit sechs Spalten ist auf 390px keine Tabelle mehr. Welches
 Muster richtig ist, hängt davon ab, was darin steht.
+
+> **Bis August 2026 standen hier zwei.** Das dritte kam mit dem Rework der
+> Optik dazu und ist keine Aufweichung, sondern eine Lücke, die vorher jede
+> Seite selbst gefüllt hat: die Tabelle aus **Bezeichnung und Wert** —
+> Kontingente, Freigaben, Dienste. Sie passt auf 390px, sie muss also weder
+> rollen noch zu Kärtchen zerfallen; ihr fehlte nur eine Regel, was mit dem
+> Wert geschieht, wenn eine Zustandsmarke in der dritten Spalte ihn
+> zusammendrückt. Ohne diese Regel stand „3 von 10" auf drei Zeilen.
 
 ### `.rollt` — sie bleibt eine Tabelle und rollt waagerecht
 
@@ -130,6 +138,43 @@ Beschriftung und Inhalt stehen dann untereinander statt nebeneinander, sonst
 rutscht der Rest an den rechten Rand und bricht dort um. Der Test prüft, dass in einer `.stapelt`-Tabelle jede Zelle
 entweder ein `data-spalte` trägt oder ein Bedienelement enthält — eine Zelle,
 die beides nicht hat, steht auf dem Telefon ohne Beschriftung da.
+
+### `.paare` — Bezeichnung links, Wert rechts
+
+Für **Bezeichnung und Wert**: Kontingente, Freigaben, Dienste, Bestand. Zwei
+oder drei Spalten, und die erste ist immer die Beschriftung der zweiten.
+
+**Warum das kein `.stapelt` ist.** `.stapelt` macht aus jeder *Zeile* ein
+Kärtchen, weil die Zeile der Gegenstand ist — ein Kunde, ein Vorgang. Bei
+einer Paartabelle ist die Zeile schon nur ein Paar; sie zu einem Kärtchen mit
+zwei beschrifteten Feldern aufzublasen, verdoppelte die Beschriftung
+(„KONTINGENT: Domains / STAND: 3 von 10") und dreifachte die Höhe.
+
+Auf der schmalen Fläche wird jede Zeile zu einer Flexzeile: Bezeichnung links,
+Wert rechts und ohne Umbruch, und eine Zustandsmarke rutscht in die nächste
+Zeile, wenn sie nicht mehr danebenpasst. Ohne das drückte die Marke den Wert
+so weit zusammen, dass „3 von 10" auf drei Zeilen stand.
+
+Breit bekommt sie eine Grenze von 620px: Steht der Bereich allein in seiner
+Reihe, lägen Bezeichnung und Wert sonst an den gegenüberliegenden Rändern —
+gemessen 1300px auseinander.
+
+```html
+<table class="paare">
+  <tbody>
+    <tr>
+      <td>Domains</td>
+      <td class="rechts">3 von 10</td>
+      <td class="rechts"><Marke art="warn">abweichend vom Plan</Marke></td>
+    </tr>
+  </tbody>
+</table>
+```
+
+**Was keine Tabelle ist, wird auch keine.** Der Aufgabenkatalog der
+Vorgangsseite sah aus wie eine Paartabelle — Name, Beschreibung, ein Knopf —
+und ist eine Liste von Dingen, die man tun kann. Er steht als `<ul>` da. Die
+Frage vor der Wahl des Musters ist, ob die Daten überhaupt tabellarisch sind.
 
 ## 6. `dvh` statt `vh`
 

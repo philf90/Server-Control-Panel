@@ -42,6 +42,47 @@ final class HttpChallenge implements Challenge
         return self::TYPE;
     }
 
+    /**
+     * Der `location`-Block, mit dem nginx diese Dateien ausliefert.
+     *
+     * **Er steht hier und nicht in den beiden Vorlagen.** Der Ablageort und
+     * die Zeile, die ihn ausliefert, sind eine Zusage: Wer das Verzeichnis
+     * ändert und die Vorlage vergisst, bekommt keine Fehlermeldung, sondern
+     * eine Prüfung, die nichts findet. Zwei Formulierungen derselben Regel
+     * sind der Fehler, der dieses Projekt sechsmal getroffen hat — deshalb
+     * fragen {@see \SrvPanel\Agent\SiteTemplate} und
+     * {@see \SrvPanel\Agent\Ops\PanelVhost} beide hier.
+     *
+     * **`root` und nicht `alias`, und das ist die Stelle, die still
+     * danebengeht.** `root` hängt den *ganzen* Pfad aus der Adresse an das
+     * Verzeichnis an — die Datei liegt also unter
+     * `<Verzeichnis>/.well-known/acme-challenge/<Token>`, und genau dorthin
+     * schreibt {@see self::present()}. Mit `alias` wäre der Pfad um zwei
+     * Ebenen kürzer, nginx suchte in einem Verzeichnis, in das nie jemand
+     * schreibt, und die Prüfung scheiterte mit „unauthorized" — einer Meldung,
+     * in der von Pfaden nichts steht.
+     *
+     * **`^~`**, damit der Präfix gewinnt: Sonst entschiede in der Kundenvorlage
+     * die Regel `location ~ /\.` über Punktdateien, und die verweigert.
+     */
+    public static function nginxLocation(): string
+    {
+        $directory = self::DIRECTORY;
+        $prefix = self::PREFIX;
+
+        return <<<CONF
+            # Prüfdatei für das Zertifikat. Sie liegt für alle Domains dieses
+            # Servers an einer Stelle — so braucht kein Kunde irgendwo
+            # Schreibrechte, und eine Domain ohne DocumentRoot bekommt trotzdem
+            # ein Zertifikat.
+            location ^~ {$prefix}/ {
+                root {$directory};
+                default_type text/plain;
+                access_log off;
+            }
+        CONF;
+    }
+
     public function present(string $domain, string $token, string $keyAuthorization): void
     {
         $file = $this->file($token);

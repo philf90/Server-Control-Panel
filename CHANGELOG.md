@@ -2341,3 +2341,49 @@ entstehen mit der Oberfläche; eine `CertificatePolicy` jetzt hiesse, vier
 Einträge in die Ausnahmeliste zu schreiben, deren Begründung „kommt noch"
 wäre. Genau davor warnt der Kommentar an dieser Liste: Sie wächst über Jahre,
 und irgendwann steht darin, was jemand nicht nachziehen wollte.
+
+#### Schritt 3: die Prüfadresse kommt überall an
+
+**`docs/32` hat sich an dieser Stelle geirrt, und der Irrtum wäre teuer
+geworden.** Dort stand, die Kundenvorlage trage HTTP-01 schon halb: Sie hört
+auf Port 80, und `.well-known` ist vom Punktdatei-Schutz ausgenommen. Diese
+Ausnahme steht aber nur im **ausliefernden** Zweig. Eine Weiterleitung
+beantwortet jede Anfrage mit `return 302` und sucht nie eine Datei; ein
+gesperrtes Abonnement antwortet mit 503. **Beide hätten nie ein Zertifikat
+bekommen** — dauerhaft, und ohne dass irgendwo etwas gemeldet hätte.
+
+Der `location`-Block entsteht deshalb **einmal, oberhalb der
+Fallunterscheidung**. Was strukturell nicht vergessen werden kann, muss später
+niemand nachtragen.
+
+**Und die Oberfläche bekommt einen eigenen Block auf Port 80.** Sie hört auf
+8443 und sonst nirgends; die Prüfung fragt immer über Port 80. Ohne diesen
+Block bekäme ausgerechnet das Panel nie ein Zertifikat, während jede
+Kundendomain eines bekommt. Er trägt den **Rechnernamen** und nicht `_`: Ein
+`server_name _;` trifft keinen echten Host-Header, er wirkte nur als
+Vorgabeserver — und der ist auf Port 80 längst vergeben, weil nginx
+`conf.d/srvpanel-sites.conf` vor `conf.d/srvpanel.conf` liest. Der Name kommt
+aus `Names::host()`, der einzigen Stelle, die diese Frage beantworten darf.
+
+**Der Schnipsel steht in `HttpChallenge` und nicht in den beiden Vorlagen.**
+Ablageort und ausliefernde Zeile sind eine Zusage; wer das Verzeichnis ändert
+und eine Vorlage vergisst, bekommt keine Fehlermeldung, sondern eine Prüfung,
+die nichts findet. Zwei Formulierungen derselben Regel sind der Fehler, der
+dieses Projekt sechsmal getroffen hat.
+
+**`root` und nicht `alias`** — die Stelle, die still danebengeht. `root` hängt
+den *ganzen* Pfad aus der Adresse an das Verzeichnis an, und genau dorthin
+schreibt `HttpChallenge::present()`. Mit `alias` läge der gesuchte Pfad zwei
+Ebenen höher als der geschriebene, und die Prüfung scheiterte mit
+„unauthorized" — einer Meldung, in der von Pfaden nichts steht.
+`ChallengeLocationTest` hält beide Hälften zusammen: Es schreibt eine echte
+Prüfdatei und misst, dass der Teil unterhalb des Verzeichnisses genau der Pfad
+aus der Adresse ist.
+
+Dazu `^~`, damit der Präfix jede Regex-Regel schlägt — sonst entschiede
+`location ~ /\.` über die Prüfadresse und verweigerte sie. Der
+Punktdatei-Schutz bleibt trotzdem stehen: Im DocumentRoot liegen weitere
+`.well-known`-Dateien, die abgerufen werden sollen.
+
+Drei Brüche im Wächterskript, alle gegengeprüft: `alias` statt `root`, die
+Prüfadresse aus der Kundenvorlage entfernt, der Panel-Block wieder mit `_`.

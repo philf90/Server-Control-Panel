@@ -530,6 +530,59 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateCoverageTest passed
 
 echo
+echo "── ChallengeLocationTest: alias statt root ──"
+#
+# `root` hängt den ganzen Pfad aus der Adresse an — genau dorthin schreibt der
+# Agent. Mit `alias` sucht nginx zwei Ebenen höher, in einem Verzeichnis, in
+# das nie jemand schreibt, und die Prüfung scheitert mit „unauthorized".
+vorher_datei agent/src/Acme/HttpChallenge.php
+python3 - <<'PY'
+p = 'agent/src/Acme/HttpChallenge.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('                root {$directory};', '                alias {$directory};')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/HttpChallenge.php "alias statt root" &&
+pruefe "alias statt root" \
+  ChallengeLocationTest::test_nginx_looks_exactly_where_the_agent_writes failed
+wiederherstellen
+
+echo
+echo "── ChallengeLocationTest: die Prüfadresse fällt aus der Kundenvorlage ──"
+#
+# Eine Weiterleitung beantwortet jede Anfrage selbst, ein gesperrtes Abonnement
+# antwortet 503 — beide bekämen dauerhaft kein Zertifikat, ohne Fehlermeldung.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        {$challenge}\n\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/SiteTemplate.php "Kundenvorlage ohne Prüfadresse" &&
+pruefe "Kundenvorlage ohne Prüfadresse" \
+  ChallengeLocationTest::test_every_kind_of_site_answers_the_challenge failed
+wiederherstellen
+
+echo
+echo "── ChallengeLocationTest: der Panel-Block bekommt wieder den Unterstrich ──"
+#
+# `server_name _;` trifft keinen echten Host-Header. Der Block wirkte nur als
+# Vorgabeserver, und der ist auf Port 80 längst vergeben.
+vorher_datei agent/src/Ops/PanelVhost.php
+python3 - <<'PY'
+p = 'agent/src/Ops/PanelVhost.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('server_name {$hostname};', 'server_name _;')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Ops/PanelVhost.php "Panel-Block ohne Rechnernamen" &&
+pruefe "Panel-Block ohne Rechnernamen" \
+  ChallengeLocationTest::test_the_panel_answers_the_challenge_on_port_80 failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ChallengeLocationTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

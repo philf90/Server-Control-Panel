@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent;
 
+use SrvPanel\Agent\Acme\HttpChallenge;
+
 /**
  * Der Server-Block einer Kundenwebsite.
  *
@@ -46,6 +48,24 @@ final class SiteTemplate
         $names = implode(' ', $site->serverNames());
         $header = self::header();
 
+        /*
+         * **Die Prüfadresse steht vor der Fallunterscheidung, und das ist der
+         * ganze Punkt.**
+         *
+         * Hier hätte fast eine Zeile je Zweig gestanden. `docs/32` nahm an,
+         * die Vorlage trage HTTP-01 schon halb: Sie hört auf Port 80, und
+         * `.well-known` ist vom Punktdatei-Schutz ausgenommen. Diese Ausnahme
+         * steht aber nur im ausliefernden Zweig. Eine **Weiterleitung**
+         * beantwortet jede Anfrage mit `return 302` und sucht nie eine Datei;
+         * ein **gesperrtes** Abonnement antwortet mit 503. Beide hätten nie
+         * ein Zertifikat bekommen — dauerhaft und ohne Fehlermeldung, weil die
+         * Prüfung schlicht nicht findet, was sie sucht.
+         *
+         * Was strukturell nicht vergessen werden kann, muss später niemand
+         * nachtragen: Der Block entsteht einmal, oberhalb von `$body`.
+         */
+        $challenge = HttpChallenge::nginxLocation();
+
         $body = match (true) {
             $site->suspended => self::suspended(),
             $site->redirectTarget !== null => self::redirect($site),
@@ -63,11 +83,14 @@ final class SiteTemplate
             access_log {$site->accessLog()};
             error_log  {$site->errorLog()};
 
+        {$challenge}
+
         {$body}
         }
 
         CONF;
     }
+
 
     /**
      * Der Inhalt der Include-Datei mit den eigenen Direktiven.
@@ -162,9 +185,10 @@ final class SiteTemplate
             # Standardschutz — nicht abschaltbar.
             #
             # Punktdateien in einem Rutsch: `.git`, `.env`, `.htaccess`,
-            # `.svn`. Ausgenommen ist `.well-known` — dort legt die
-            # ACME-Prüfung ab P4 ihre Datei ab, und ohne diese Ausnahme
-            # bekäme die Domain nie ein Zertifikat.
+            # `.svn`. Ausgenommen bleibt `.well-known`: Die Prüfdatei von
+            # ACME kommt seit P4 aus dem gemeinsamen Verzeichnis weiter
+            # oben, aber im DocumentRoot liegen dort weitere Dateien, die
+            # abgerufen werden sollen — `security.txt` etwa.
             location ~ /\\.(?!well-known/) {
                 deny all;
                 access_log off;

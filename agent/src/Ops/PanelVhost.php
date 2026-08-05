@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Ops;
 
+use SrvPanel\Agent\Acme\HttpChallenge;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Names;
 use SrvPanel\Agent\NginxApply;
 use SrvPanel\Agent\Op;
 
@@ -61,6 +63,9 @@ final class PanelVhost implements Op
             $certificate,
             $key,
             $this->modernHttp2($context),
+            // Die einzige Stelle, die den Rechnernamen beantwortet — siehe
+            // `HostnameSourceTest`.
+            Names::host(),
             ! self::selfSigned((string) file_get_contents($certificate)),
         );
 
@@ -148,11 +153,21 @@ final class PanelVhost implements Op
      * Fehler, der eine Einrichtung auf drei von vier Plattformen verhindert
      * hätte.
      */
-    public function template(int $port, string $certificate, string $key, bool $modernHttp2, bool $hsts = true): string
-    {
+    public function template(
+        int $port,
+        string $certificate,
+        string $key,
+        bool $modernHttp2,
+        string $hostname,
+        bool $hsts = true,
+    ): string {
         $listen = $modernHttp2
             ? "listen {$port} ssl;\n    listen [::]:{$port} ssl;\n    http2 on;"
             : "listen {$port} ssl http2;\n    listen [::]:{$port} ssl http2;";
+
+        // Derselbe Block wie in der Kundenvorlage, und aus derselben Quelle:
+        // Ablageort und ausliefernde Zeile dürfen nicht auseinanderlaufen.
+        $challenge = HttpChallenge::nginxLocation();
 
         /*
          * **HSTS erst, wenn ein Browser dem Zertifikat überhaupt trauen kann.**
@@ -242,6 +257,38 @@ final class PanelVhost implements Op
             }
 
             include /etc/srvpanel/nginx-extra.conf*;
+
+            access_log /var/log/srvpanel/panel-access.log;
+            error_log  /var/log/srvpanel/panel-error.log;
+        }
+
+        # **Port 80, und zwar nur für zwei Dinge.**
+        #
+        # Das Panel hört auf {$port} und sonst nirgends. Die Prüfung von ACME
+        # fragt aber immer über Port 80 — ohne diesen Block bekäme ausgerechnet
+        # die Oberfläche nie ein Zertifikat, während jede Kundendomain eines
+        # bekommt.
+        #
+        # **Mit dem Rechnernamen und nicht mit `_`.** Ein `server_name _;`
+        # trifft keinen echten Host-Header; er wirkte nur als Vorgabeserver,
+        # und der ist auf Port 80 längst vergeben — nginx liest
+        # `conf.d/srvpanel-sites.conf` vor dieser Datei. Der Block hinge also
+        # da und beantwortete nichts.
+        server {
+            listen 80;
+            listen [::]:80;
+
+            server_name {$hostname};
+
+        {$challenge}
+
+            # Alles andere gehört auf die gesicherte Verbindung. Das Ziel steht
+            # als fester Name da und nicht als \$host: Dieser Block antwortet
+            # ohnehin nur unter diesem einen Namen, und ein weitergereichter
+            # Host-Header wäre eine Adresse, die der Aufrufer bestimmt.
+            location / {
+                return 301 https://{$hostname}:{$port}\$request_uri;
+            }
 
             access_log /var/log/srvpanel/panel-access.log;
             error_log  /var/log/srvpanel/panel-error.log;

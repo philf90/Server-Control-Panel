@@ -22,13 +22,16 @@
  */
 import { Link, router, usePage } from '@inertiajs/vue3'
 import MarkIcon from '../Components/MarkIcon.vue'
+import NavIcon from '../Components/NavIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 defineProps<{ title: string; subline?: string }>()
 
 const page = usePage()
 const source = computed(() => page.props.source as { repository: string; version: string; commit: string })
-const account = computed(() => page.props.account as { name: string; is_admin: boolean } | null)
+const account = computed(
+  () => page.props.account as { name: string; is_admin: boolean; has_active_subscription: boolean } | null,
+)
 const impersonation = computed(() => page.props.impersonation as { active: boolean; admin: string } | null)
 
 /*
@@ -58,37 +61,55 @@ const current = computed(() => page.url.split('?')[0])
 const navigation = computed(() => {
   if (account.value?.is_admin === false) {
     return [
-      { group: null, items: [{ name: 'Übersicht', href: '/' }] },
+      { group: null, items: [{ name: 'Übersicht', href: '/', icon: 'overview' }] },
       { group: 'Konto', items: [
-        { name: 'Abonnements', href: '/subscriptions' },
-        { name: 'Vorgänge', href: '/operations' },
-        { name: 'Protokoll', href: '/audit' },
-        { name: 'Mein Konto', href: '/settings/profile' },
+        { name: 'Abonnements', href: '/subscriptions', icon: 'subscriptions' },
+
+        /*
+         * **Domains stehen erst da, wenn es etwas zu benennen gibt.**
+         *
+         * Der Betreiber hat die Liste seit P3; ein Kunde kam an seine Domains
+         * nur über Abonnements → Name des Abonnements → ein kleiner Knopf
+         * rechts im Bereich „Domains". Drei Klicks für die Sache, wegen der er
+         * das Panel überhaupt öffnet.
+         *
+         * Die Bedingung ist ein **aktives** Abonnement und nicht bloss eines:
+         * Ohne ein benutzbares gibt es keinen Ort, an dem eine Domain
+         * entstehen könnte — der Menüpunkt führte auf eine leere Liste ohne
+         * Knopf, und das ist eine Sackgasse mit Einladung.
+         */
+        ...(account.value?.has_active_subscription
+          ? [{ name: 'Domains', href: '/domains', icon: 'domains' }]
+          : []),
+
+        { name: 'Vorgänge', href: '/operations', icon: 'operations' },
+        { name: 'Protokoll', href: '/audit', icon: 'log' },
+        { name: 'Mein Konto', href: '/settings/profile', icon: 'account' },
       ] },
     ]
   }
 
   return [
-    { group: null, items: [{ name: 'Übersicht', href: '/' }] },
+    { group: null, items: [{ name: 'Übersicht', href: '/', icon: 'overview' }] },
     { group: 'Verwaltung', items: [
-      { name: 'Kunden', href: '/customers' },
-      { name: 'Pläne', href: '/plans' },
-      { name: 'Abonnements', href: '/subscriptions' },
+      { name: 'Kunden', href: '/customers', icon: 'customers' },
+      { name: 'Pläne', href: '/plans', icon: 'plans' },
+      { name: 'Abonnements', href: '/subscriptions', icon: 'subscriptions' },
 
       // Serverweit und deshalb hier: „Welche Domain liegt in welchem
       // Abonnement" ist eine Frage des Betreibers. Ein Kunde findet seine
       // Domains an seinem Abonnement — für ihn wäre eine zweite Liste
       // derselben drei Zeilen nur ein zweiter Weg zum selben Ort.
-      { name: 'Domains', href: '/domains' },
+      { name: 'Domains', href: '/domains', icon: 'domains' },
     ] },
     { group: 'Server', items: [
-      { name: 'Vorgänge', href: '/operations' },
-      { name: 'Protokoll', href: '/audit' },
-      { name: 'PHP-Versionen', href: '/settings/php' },
-      { name: 'Mailversand', href: '/settings/mail' },
-      { name: 'Zertifikat', href: '/settings/tls' },
+      { name: 'Vorgänge', href: '/operations', icon: 'operations' },
+      { name: 'Protokoll', href: '/audit', icon: 'log' },
+      { name: 'PHP-Versionen', href: '/settings/php', icon: 'php' },
+      { name: 'Mailversand', href: '/settings/mail', icon: 'mail' },
+      { name: 'Zertifikat', href: '/settings/tls', icon: 'tls' },
     ] },
-    { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile' }] },
+    { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile', icon: 'account' }] },
   ]
 })
 
@@ -228,6 +249,7 @@ onBeforeUnmount(() => {
             :class="{ active: current === item.href }"
             :aria-current="current === item.href ? 'page' : undefined"
           >
+            <NavIcon :name="item.icon" />
             {{ item.name }}
           </Link>
         </template>
@@ -389,13 +411,44 @@ onBeforeUnmount(() => {
   gap: 2px;
 }
 
+/*
+ * Die Trennüberschrift — eine Linie und ein Wort, nicht nur ein Wort.
+ *
+ * **Der Befund kam vom Betreiber:** „Verwaltung", „Server" und „Konto" hoben
+ * sich zu wenig von den Einträgen ab. Sie waren kleiner und blasser, sonst
+ * nichts — und in einer Spalte aus lauter kurzen Wörtern reicht ein
+ * Größenunterschied nicht, um „Überschrift" von „Menüpunkt" zu trennen.
+ *
+ * Drei Änderungen, und zwei davon sind keine Farbe:
+ *
+ *   1. Eine Haarlinie darüber. Kontor trennt mit Linien und nicht mit Kästen;
+ *      das ist der Baustein, den die Seite ohnehin überall benutzt.
+ *   2. Die Einträge haben jetzt ein Zeichen, die Überschriften nicht. Der
+ *      Unterschied trägt schon im Umriss, bevor man liest.
+ *   3. `--text-faint` statt `--text-muted`: Eine Überschrift, die *lauter*
+ *      wird, zieht den Blick von dem weg, worum es geht. Sie soll gliedern,
+ *      nicht rufen — die Linie leistet das Abheben, die Farbe nimmt sich
+ *      zurück. Gerechnet gegen `--nav-bg`: 4,63:1 im hellen und 5,31:1 im
+ *      dunklen Theme. Das ist über den 4,5:1 aus WCAG 1.4.3 und im hellen
+ *      Theme knapp — eine Stufe blasser gäbe es hier nicht mehr, und deshalb
+ *      trägt die Linie den Unterschied und nicht die Farbe.
+ */
 .nav-group {
-  margin: 22px 0 7px 12px;
+  margin: 20px 0 6px;
+  padding: 14px 12px 0;
+  border-top: 1px solid var(--nav-border);
   font-size: var(--text-label);
-  font-weight: 660;
-  letter-spacing: 0.11em;
+  font-weight: 700;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-faint);
+}
+
+/* Die erste Gruppe braucht ihre Linie nicht: Darüber steht der Eintrag
+   „Übersicht" und davor schon die Marke. Zwei Linien in Folge sind keine
+   Gliederung, sondern ein Rahmen. */
+.nav-group:first-of-type {
+  margin-top: 14px;
 }
 
 .nav-item {
@@ -403,6 +456,10 @@ onBeforeUnmount(() => {
   min-height: var(--tap);
   display: flex;
   align-items: center;
+
+  /* Der Abstand zwischen Zeichen und Wort. Ohne ihn klebt beides aneinander;
+     mit mehr zerfällt der Eintrag in zwei Dinge. */
+  gap: 10px;
   font-size: var(--text-table);
   color: var(--text);
   text-decoration: none;

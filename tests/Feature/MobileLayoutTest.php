@@ -270,6 +270,58 @@ final class MobileLayoutTest extends TestCase
         );
     }
 
+    /**
+     * Was untereinander liegt, trennt keine senkrechte Linie.
+     *
+     * **Der Befund kam vom Telefon des Betreibers.** Unter 720px legt
+     * `--kachel-min: 100%` die Kacheln untereinander — der Trenner aus
+     * `.tile + .tile` blieb aber der **linke** Rand. Auf 390px stand damit ein
+     * senkrechter Strich neben allen Kacheln ausser der ersten, und ihr Inhalt
+     * war um 24px eingerückt: Die erste begann am Seitenrand, die vier darunter
+     * nicht.
+     *
+     * **Auf meiner eigenen 390px-Aufnahme war es zu sehen.** Eine Aufnahme zu
+     * machen genügt nicht, wenn man sie nur auf das ansieht, was man gerade
+     * geändert hat. Deshalb hier eine Regel, die der Blick nicht ersetzt: Wer
+     * eine Trennlinie hat und stapelt, dreht sie.
+     */
+    public function test_stacked_tiles_are_separated_from_above(): void
+    {
+        $css = $this->withoutComments((string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css'));
+
+        $regeln = $this->insideMediaQuery($css, 720);
+
+        $this->assertNotSame('', $regeln, 'Es gibt keine 720px-Abfrage mehr — dann prüft dieser Test nichts.');
+
+        if (preg_match('/(^|\})\s*\.tile\s*\+\s*\.tile\s*\{([^}]*)\}/s', $regeln, $tile) !== 1) {
+            $this->fail(
+                "Unter 720px gibt es keine Regel für `.tile + .tile` mehr.\n\n".
+                'Ohne sie gilt der Trenner der breiten Fläche weiter — ein linker Rand neben Kacheln, '.
+                'die untereinander liegen, und 24px Einrückung ab der zweiten.',
+            );
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/border-top\s*:\s*1px/',
+            $tile[2],
+            'Gestapelte Kacheln brauchen ihre Trennlinie oben.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/border-left\s*:\s*0/',
+            $tile[2],
+            'Die senkrechte Trennlinie muss unter 720px weg — untereinander trennt sie nichts, '.
+            'sondern rückt ein.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/padding-left\s*:\s*0/',
+            $tile[2],
+            'Mit der linken Linie geht auch der linke Abstand: Sonst beginnt die erste Kachel am '.
+            'Seitenrand und jede weitere 24px daneben.',
+        );
+    }
+
     public function test_input_fields_use_the_zoom_safe_size(): void
     {
         /*
@@ -421,5 +473,42 @@ final class MobileLayoutTest extends TestCase
         preg_match_all('#<table[^>]*stacks[^>]*>(.*?)</table>#su', $template, $matches);
 
         return $matches[1];
+    }
+
+    /**
+     * Der Inhalt aller `@media (max-width: Npx)`-Blöcke, zusammengesetzt.
+     *
+     * **Klammern zählen und nicht Zeichen abschneiden.** Der erste Anlauf nahm
+     * 4000 Zeichen ab dem `@media` — und lief damit über das Ende der Abfrage
+     * hinaus in die Regeln der breiten Fläche. Der Test fand dort `.tile +
+     * .tile` mit `border-left` und meldete Rot für eine Regel, die an ihrer
+     * Stelle richtig ist.
+     */
+    private function insideMediaQuery(string $css, int $breakpoint): string
+    {
+        $inhalt = '';
+        $muster = sprintf('/@media\s*\(\s*max-width:\s*%dpx\s*\)\s*\{/', $breakpoint);
+
+        preg_match_all($muster, $css, $treffer, PREG_OFFSET_CAPTURE);
+
+        foreach ($treffer[0] as $start) {
+            $offen = 1;
+            $i = (int) $start[1] + strlen((string) $start[0]);
+            $von = $i;
+
+            while ($offen > 0 && $i < strlen($css)) {
+                $offen += match ($css[$i]) {
+                    '{' => 1,
+                    '}' => -1,
+                    default => 0,
+                };
+
+                $i++;
+            }
+
+            $inhalt .= substr($css, $von, $i - $von - 1);
+        }
+
+        return $inhalt;
     }
 }

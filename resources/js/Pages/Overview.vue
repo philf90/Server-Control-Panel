@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/vue3'
 import Bar from '../Components/Bar.vue'
 import Section from '../Components/Section.vue'
 import Badge from '../Components/Badge.vue'
-import Tile, { type Series } from '../Components/Tile.vue'
+import Tile, { type Second, type Series } from '../Components/Tile.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
 
 interface TileData {
@@ -13,6 +13,9 @@ interface TileData {
   unit: string
   subline: string
   series: Series
+
+  /* Nur das Netz hat sie: die zweite Richtung derselben Kennzahl. */
+  second?: Second
 }
 
 interface Service {
@@ -115,6 +118,7 @@ const headline = props.server.reachable
         :unit="tile.unit"
         :subline="tile.subline"
         :series="tile.series"
+        :second="tile.second"
       />
     </div>
 

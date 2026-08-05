@@ -1749,3 +1749,328 @@ Dieser Test ist beim ersten Anlauf selbst hereingefallen: Er legte einen
 eigenen `Store` mit Kapazität 100 an, während die Anwendung mit 8640 liest. Ein
 RingBuffer legt seine Datei nach der Kapazität aus — dieselbe Datei, anders
 gelesen, und die CPU stand auf „warnt nicht", obwohl 96 % darin standen.
+
+### „Darstellung gespeichert" — und man stand auf der Übersicht
+
+Wer im Konto hell auf dunkel stellte, wurde auf die Übersicht geworfen.
+Gespeichert war richtig; man stand nur woanders. Dasselbe galt für „Konto
+gespeichert", „Passwort geändert" und alle drei Antworten der Mailprüfung —
+**sechs Stellen, ein Fehler.**
+
+Die Ursache sind drei Dinge, die einzeln jedes für sich vernünftig sind:
+
+1. Der Vhost des Panels schickt `Referrer-Policy: no-referrer`. Das Panel gibt
+   nicht preis, von welcher Adresse jemand kam — der Browser sendet damit kein
+   `Referer`.
+2. `back()` fragt zuerst genau dieses `Referer` und nimmt sonst die zuletzt in
+   der Sitzung vermerkte Adresse.
+3. Vermerkt wird sie nur bei einem GET, das **kein** XHR ist
+   (`StartSession::storeCurrentUrl`). Jede Navigation über Inertia ist eines.
+   In der Sitzung steht deshalb der letzte vollständige Seitenaufruf — nach der
+   Anmeldung die Übersicht.
+
+`back()` konnte also gar nicht wissen, wohin zurück ist, und fiel auf `/`
+durch. Wieder eine Zusage ohne Gegenprüfung: „zurück" verweist auf eine
+Adresse, die niemand kennt.
+
+**Beim Entwickeln war davon nichts zu sehen.** Ohne nginx gibt es die
+Kopfzeile aus (1) nicht, der Browser schickt ein `Referer`, und alles stimmt.
+Der Fehler entsteht erst auf dem Zielserver — dieselbe Sorte Lücke wie bei den
+nginx-Vorlagen, die deshalb als Text geprüft werden.
+
+`RedirectTargetTest` lässt `back()` in keinem Controller mehr zu und prüft
+jedes Ziel ausgeschrieben. Der alte `ThemeTest` hatte den Fehler nicht
+gemerkt, weil er `assertRedirect()` **ohne Ziel** aufrief — eine Zusicherung,
+die nur sagt, dass überhaupt weitergeleitet wird. Beim Gegenprüfen meldete der
+neue Test genau den gemeldeten Effekt: erwartet `/settings/profile`, bekommen
+`http://localhost`.
+
+### Die Netzkachel zeigt beide Richtungen
+
+Der Sammler schreibt seit P0 **zwei** Spalten — eingehend und ausgehend. Die
+Kachel zeigte eine, und die Beizeile „eingehend" war die einzige Stelle, an
+der stand, dass die andere fehlt. Auf einem Webserver ist ausgehend ausserdem
+die Richtung, die zuerst an die Grenze stösst: Eine Seite auszuliefern kostet
+ein Vielfaches dessen, was ihre Anforderung kostet. Gezeigt wurde also die
+ruhigere der beiden.
+
+Ausgehend steht jetzt als zweite Kurve daneben: gestrichelt, in
+`--accent-second` und ohne Fläche darunter.
+
+**Der Fehler, der dabei fast entstanden wäre, sieht auf einem Bildschirmfoto
+richtig aus.** `Store::series()` normiert jede Reihe auf ihr eigenes Kleinstes
+und Grösstes — für **eine** Kurve richtig, für zwei in einem Feld eine Lüge:
+Der eingehende Verkehr, tausendfach kleiner, läge gleich hoch und schlüge
+gleich weit aus. Wer hinsieht, liest „etwa gleich viel in beide Richtungen".
+Kein Testlauf hätte etwas gemeldet — beide Reihen wären da, beide mit
+richtigen Zahlen daneben. Deshalb `Store::pair()` mit einer gemeinsamen
+Spanne, und deshalb prüft `PairedSeriesTest` die **Geometrie**: Die kleinere
+Richtung muss flach am Boden liegen, die grössere darf ihn nicht berühren.
+
+**Die Zahlen teilen sich die Vorsilbe trotzdem nicht.** Die gemeinsame Achse
+ist eine Aussage über die Darstellung; „0,0 MB/s" für 12,9 kB/s wäre eine über
+den Messwert und wäre falsch. Jede Richtung bekommt ihre eigene
+Grössenordnung — eine je Reihe, damit die Ablesung beim Wandern über die Kurve
+nicht zwischen kB/s und MB/s springt.
+
+#### Was die Messung im Browser erzwungen hat
+
+Drei Entscheidungen stehen so, weil nachgemessen wurde und nicht, weil sie
+schöner aussehen:
+
+- **Byte bekommen Grössenordnungen.** Eine Kachel ist auf 1440 px 228 px
+  breit, ihre Beizeile 179 px — darin passen rund 25 Zeichen.
+  „65.981.645 B/s" sind vierzehn davon, und mit einem Wort davor bricht die
+  Zeile um. Netz und Schreibdurchsatz zeigen deshalb `9,0 kB/s` und
+  `0,7 MB/s`. Lesbar war die rohe Zahl ohnehin nie: Wer sieht einem
+  neunstelligen Bytewert an, dass er 63 Megabyte bedeutet?
+- **Die Kurven sitzen an der Unterkante der Kachel.** Die Netzkachel braucht
+  zwei Zeilen Beizeile, die anderen eine — und damit begann ihre Kurve 20 px
+  tiefer als die vier daneben. Fünf Sparklines auf zwei Höhen sehen nicht nach
+  zwei Richtungen aus, sondern nach einem Fehler.
+- **Der Strich rechnet in Bildpunkten.** Zweimal danebengegriffen: Die Linie
+  trägt `vector-effect: non-scaling-stroke`, damit sie überall gleich dick
+  ist — damit rechnet aber auch das Strichmuster im Bildschirmraum. Ein
+  `stroke-dasharray: 2 1.6` sind zwei Bildpunkte, und im Bild sah das nicht
+  nach einer gestrichelten Linie aus, sondern nach einer unsauber
+  gezeichneten. Der Umweg über `pathLength` half aus demselben Grund nicht.
+
+**Die Ablesung nennt eine Richtung — die, auf die man zeigt.** Beide zusammen
+brauchten drei Zeilen (gemessen). Die Beizeile hält zwei frei, damit die
+Kachel beim Zeigen nicht springt; in jedem Zustand und bei 1440, 1100 und
+390 px sind es genau 40 px.
+
+**Drei Unterschiede tragen die zweite Kurve und nicht einer.** Farbe,
+Strichart und die Fläche, die nur die erste hat. Akzent und zweite Farbe
+liegen im Helligkeitsverhältnis bei 1,85:1 (hell) und 1,49:1 (dunkel) — wer
+Farbtöne schlecht unterscheidet, sähe zwei gleich helle Linien. Der Strich
+löst das ohne Farbe (WCAG 1.4.1). Gegen den Grund erreicht `--accent-second`
+6,18:1 hell und 11,10:1 dunkel, über den 3:1 aus WCAG 1.4.11.
+
+### Auf dem Telefon: gestapelte Kacheln mit einem Strich an der falschen Seite
+
+Unter 720px legt `--kachel-min: 100%` die Kacheln untereinander — der Trenner
+aus `.tile + .tile` blieb aber der **linke** Rand. Auf 390px stand damit ein
+senkrechter Strich neben allen Kacheln ausser der ersten, und ihr Inhalt war um
+24px eingerückt: Die erste begann am Seitenrand, die vier darunter nicht. Das
+sieht aus wie eine Einrückung mit Bedeutung und ist ein Trenner, der sich nicht
+gedreht hat.
+
+**Auf der eigenen 390px-Aufnahme war es zu sehen.** Gemeldet hat es der
+Betreiber vom Telefon. Genau davor warnt CLAUDE.md — „im Browser nachsehen,
+nicht nur bauen" —, und der Satz reicht offenbar nicht: Eine Aufnahme zu machen
+genügt nicht, wenn man sie nur auf das ansieht, was man gerade geändert hat.
+`MobileLayoutTest` prüft jetzt, dass ein Trenner sich mit der Richtung dreht.
+
+Dazu ein zweiter Fund aus demselben Bild: Steht die Kachelreihe unmittelbar
+unter dem Seitenkopf, standen dort **zwei Haarlinien** mit einer leeren Fläche
+dazwischen. Hier ist das nie zu sehen — zwischen beiden steht in dieser
+Umgebung immer die Meldung „Der Agent antwortet nicht", und die gibt es nur,
+weil der Agent fehlt.
+
+### Die Sitzung überlebte auf dem iPhone keinen Seitenaufruf
+
+`SESSION_SAME_SITE` stand auf `strict`, mit der Begründung, es gebe keine
+Anmeldung über eine fremde Seite. Das ist richtig und war trotzdem der falsche
+Schluss: `strict` heisst nicht „keine fremde Anmeldung", sondern **„das Cookie
+geht bei keinem Seitenaufruf mit, den der Browser nicht als von dieser Seite
+ausgehend ansieht"**. Dazu gehört ein Verweis aus einem Mailprogramm, eine
+Verknüpfung vom Startbildschirm — und auf iOS das Wiederaufnehmen eines Tabs,
+den Safari zwischendurch aus dem Speicher geworfen hat. Der Betreiber landete
+dadurch immer wieder am Anmeldeformular, obwohl seine Sitzung gültig war.
+
+Jetzt `lax`, Laravels Vorgabe: Das Cookie geht beim Aufrufen der Seite mit und
+weiter **nicht** bei einem fremden POST — und gegen genau den steht ohnehin die
+CSRF-Prüfung an jeder ändernden Route.
+
+**Und die gleitende Sitzungsdauer hatte nie jemand entschieden.** §6.4 legt die
+absolute fest (12 Stunden); die gleitende stand nirgends und war damit Laravels
+Vorgabe von 120 Minuten. Wer sein Panel ein paarmal am Tag vom Telefon ansieht,
+meldet sich damit jedes Mal neu an. Sie steht jetzt ausgeschrieben auf acht
+Stunden — ein Arbeitstag, und die absolute Grenze zieht die Sitzung ohnehin
+spätestens nach zwölf ein.
+
+### `APP_URL` erfand den Rechnernamen zum dritten Mal
+
+`php_uname('n')` liefert den Knotennamen des Kernels, und der ist auf den
+meisten Servern der kurze: „cloudsrv24" statt „cloudsrv24.de". `APP_URL` ist
+die Adresse, unter der sich das Panel selbst nennt — in Mails, in erzeugten
+Verweisen, im EHLO-Namen des Mailversands. Ein kurzer Name löst ausserhalb des
+Servers nicht auf.
+
+Dreimal derselbe Fehler: in `srvpanel setup` fürs Zertifikat, in
+`Names::forThisHost()` für den subjectAltName, jetzt in `PanelProvision` für
+`APP_URL`. Zweimal wurde er einzeln behoben, und beide Male stand danach ein
+Kommentar da, der die Regel erklärt — CLAUDE.md sagt es sogar wörtlich: „sie ist
+die *einzige* Stelle, die diese Frage beantworten darf. Sie ist schon zweimal
+neu erfunden worden." **Ein Kommentar ist kein Wächter.**
+
+`HostnameSourceTest` lässt `php_uname('n')` und `gethostname()` jetzt nur noch
+in `Names` zu und in `SystemInfo`, das den Knotennamen bewusst als solchen
+anzeigt. Beim ersten Lauf hat er eine **vierte** Stelle gefunden:
+`Setup::reachableHost()` holte den Namen selbst, nur um ihn an `Names::fqdn()`
+weiterzureichen — dieselbe Frage, die die Funktion sich selbst stellt.
+`Names::host()` gibt es neu für alle, die eine Adresse zusammensetzen und mit
+„kein Name" nichts anfangen können.
+
+#### Der Wächter hatte selbst ein Loch, und nur der Bruch hat es gezeigt
+
+Drei Wächter teilten sich eine abgeschriebene Zeile, um Kommentare aus PHP zu
+entfernen — ein `preg_replace`, dessen zweites Muster alles ab `//` bis zum
+Zeilenende strich. `//` beginnt aber nicht nur einen Kommentar, es steht auch in
+jeder URL. Aus
+
+    'APP_URL' => 'https://'.php_uname('n').':'.$port,
+
+wurde `'APP_URL' => 'https:` — und der Aufruf, den der Wächter suchte, war für
+ihn nicht mehr da. **Beim Gegenprüfen blieb er deshalb grün, während die Regel
+gebrochen war.**
+
+Das ist dasselbe Muster wie beim Bruchskript, dessen `sed` ins Leere lief:
+*Ein Werkzeug, das die Wächter trägt, braucht selbst einen.* Die Antwort steht
+jetzt einmal in `Tests\Support\WithoutPhpComments` und kommt von
+`token_get_all()` — der Parser weiss, was Zeichenkette ist und was Kommentar.
+Ein regulärer Ausdruck weiss es nie.
+
+### Ein Aufräumen, das die Einrichtung zerbrochen hat — und was daran fehlte
+
+`Setup::reachableHost()` holte den Rechnernamen selbst, nur um ihn an
+`Names::fqdn()` weiterzureichen. Die Zeile fiel weg; die beiden Stellen weiter
+unten, die dieselbe Variable benutzten, blieben stehen. Ergebnis: „Undefined
+variable $name" mitten in `srvpanel setup` — nachdem Datenbank, Zertifikat,
+Webserver, Migrationen und Dienste schon standen.
+
+**Gemeldet hat es der Installationslauf der CI, nicht der Testlauf.** Und das
+ist der eigentliche Befund: Kein Test ging durch diesen Zweig, PHPStan ist in
+der Entwicklungsumgebung nicht lauffähig — der Fehler war lokal auf keinem Weg
+zu sehen.
+
+Zwei Dinge daraus:
+
+- `NamesTest` ruft `reachableHost()` jetzt auf und prüft, dass die Einrichtung
+  eine Adresse aus Zeichen nennt. `Names::host()` gibt notfalls `localhost`
+  statt einer leeren Zeichenkette: Wer sie aufruft, baut eine Adresse, und aus
+  einem leeren Namen würde `https://:8443`.
+- **Ein Versuch, Warnungen rot zu machen — wieder zurückgenommen.** Der neue
+  Test lief grün *mit* einer Warnung: genau der Warnung, die auf dem Server zum
+  Abbruch führte. `failOnWarning` in `phpunit.xml` schien die Antwort, war hier
+  grün und machte in der CI 40 Prüfungen rot — unterdrückte Warnungen aus
+  `@unlink` in Aufräumcode, die **nur dort** gemeldet werden. Warum sie hier
+  nicht auftauchen, ist nicht geklärt; damit lässt sich die Verschärfung vor dem
+  Push nicht prüfen, und eine Regel, die man nicht prüfen kann, wird nicht
+  eingeführt. Sie bleibt offen.
+
+  Der Aufräumcode ist trotzdem geradegezogen: `ReleaseChannelTest` löscht seine
+  Marke jetzt mit `is_file()` statt mit `@unlink`. Der Stille-Operator macht aus
+  einem Aufruf, der scheitern darf, einen, bei dem niemand mehr sieht, dass er
+  scheitert.
+
+  **Und die ehrliche Zuordnung:** Den `$name` hat PHPStan gefunden — das ist
+  das Werkzeug für undefinierte Variablen, und es hat funktioniert. Die Lücke
+  war nicht der fehlende Testlauf, sondern dass hier ohne PHPStan gepusht
+  wurde.
+
+### Ein Knopf, den der Kunde nicht drücken darf, stand trotzdem da
+
+In der Sicht eines Kunden zeigte `/subscriptions` den Knopf „Abonnement
+anlegen" und in jeder Zeile „Bearbeiten". Beides ist einem Kunden verwehrt,
+beides endete mit einem nackten **„403 This action is unauthorized"**.
+
+**Die Autorisierung war dabei richtig.** Die Routen tragen `can:create` und
+`can:update`, und sie haben abgewiesen — genau so, wie es sein soll. Falsch war
+die Auskunft davor: Ein Knopf ist ein Angebot, und einer, der nur ablehnen kann,
+ist eine Falle.
+
+CLAUDE.md sagt „Autorisierung sitzt an der Aktion, nicht im Menü". Das ist die
+Regel fürs **Durchsetzen** und war nie eine Erlaubnis, jedem alles anzubieten.
+Die Kehrseite fehlte, und sie steht jetzt daneben: Wer eine Aktion zeigt, fragt
+vorher dieselbe Policy, die sie später abweist.
+
+**Die Vorlage stand schon im selben Verzeichnis.** `Subscriptions/Show`
+gatterte „Domain anlegen" über `mayAddDomain` — richtig gedacht und für genau
+eine der sechs Aktionen dieser Seite gemacht. Bearbeiten, Sperren, Entsperren
+und Zurückbauen standen ungefragt da. Wieder eine Seite, die es an einer Stelle
+richtig macht und an fünf nicht; wieder kein Werkzeug, das danach fragt.
+
+Die Antwort kommt jetzt als `can`-Ablage im Payload — eine Form für dieselbe
+Sache, auch je Zeile (`row.can.update`). **Nicht** als `v-if` auf den Kontotyp:
+Das wäre eine zweite Fassung der Policy, und die zweite Fassung ist die, die
+veraltet. Je Zeile und nicht je Seite, weil `SubscriptionPolicy::update()` heute
+nur nach dem Kontotyp fragt — das ist eine Eigenschaft von heute und keine
+Zusage.
+
+`AbilityReachTest` prüft beide Richtungen: Jede Fähigkeit, die ein Template
+unter `can.` abfragt, wird auch geschickt, und jede geschickte wird abgefragt.
+Eine Fahne, die nie ankommt, ist in Vue `undefined` — der Knopf verschwindet
+dann für **alle**, lautlos. Dazu zwei Läufe am Panel: Ein Kunde bekommt überall
+`false`, ein Betreiber überall `true`.
+
+**Und der Wächter hat gleich eine falsche Annahme von mir widerlegt.** Der erste
+Anlauf erwartete, dass ein Kunde auch den Verweis auf „seinen" Kunden nicht
+sehen darf. `CustomerPolicy::view` lässt ihn für den eigenen Datensatz und
+dessen Untergeordnete zu — die Policy hat recht, die Erwartung war falsch. Der
+Verweis bleibt, und ein Zusatzbenutzer ohne eigenen Kunden sieht dort nur noch
+den Namen.
+
+Im Browser gegengeprüft: Als Kunde steht auf `/subscriptions` **kein** Knopf und
+am Abonnement nur „Domain anlegen" (das darf er). Als Betreiber steht alles da,
+was vorher da war.
+
+### Der Weg zu einer neuen Domain war drei Klicks lang und der letzte versteckt
+
+Ein Kunde erreichte „Domain anlegen" nur so: Menüpunkt **Abonnements** → auf den
+**Namen** des Abonnements klicken → im Bereich „Domains" rechts einen kleinen
+Knopf finden. Drei Klicks für die Sache, wegen der er das Panel überhaupt
+öffnet, und der letzte davon in einer Zeile, die man kennen muss.
+
+**Die Liste `/domains` gab es für ihn längst.** `DomainPolicy::viewAny` lässt
+jedes Konto durch, und was darauf steht, entscheidet die Mandantenklammer — ein
+Kunde sieht seine Domains, der Betreiber alle. Gefehlt haben zwei Dinge: der
+Menüpunkt und ein Knopf an der Stelle, an der man ihn sucht.
+
+Beides ist jetzt da. Der Menüpunkt steht bei einem Kunden erst, **wenn es ein
+aktives Abonnement gibt** — ohne eines gibt es keinen Ort, an dem eine Domain
+entstehen könnte, und der Eintrag führte auf eine leere Liste ohne Knopf. Das
+ist eine Sackgasse mit Einladung.
+
+**Die Abkürzung bekommt nur der Kunde**, und das ist Absicht: Sie führt in ein
+bestimmtes Abonnement, und der Betreiber hat davon Hunderte — eine Auswahlliste
+über alle wäre kein kurzer Weg, sondern ein langer mit Suchfeld. Seine Wege
+bleiben unverändert. Bei genau einem Abonnement führt der Knopf direkt hin, bei
+mehreren steht eine Auswahl davor; die Auswahl immer zu zeigen wäre die
+einfachere Fassung und die schlechtere, denn wer ein Abonnement hat, müsste erst
+das einzige auswählen, das es gibt.
+
+`SubscriptionStatus::usableValues()` gibt es dafür neu — abgeleitet aus
+`usable()` und nicht daneben geschrieben. Ein `whereIn('status', ['active'])` im
+Controller wäre eine zweite Fassung derselben Regel, und beim nächsten
+benutzbaren Zustand zöge nur eine von beiden mit.
+
+### Zeichen im Menü, und Trennüberschriften, die trennen
+
+Die Menüpunkte trugen kein Symbol, und die Überschriften „Verwaltung",
+„Server" und „Konto" hoben sich zu wenig von ihnen ab: Sie waren kleiner und
+blasser, sonst nichts. In einer Spalte aus lauter kurzen Wörtern reicht ein
+Größenunterschied nicht, um „Überschrift" von „Menüpunkt" zu trennen.
+
+Jeder Eintrag hat jetzt ein Zeichen — zwölf Pfade in `NavIcon.vue`, ein Raster,
+eine Strichstärke, kein Füllen. **Keine Symbolbibliothek:** Zwölf Zeichen sind
+zwölf Zeilen Pfad; ein Paket dafür wäre eine Abhängigkeit, ein Bündel und eine
+Auswahl von tausend Symbolen, aus der beim nächsten Menüpunkt jemand ein anderes
+Stilmittel greift. Sie erben ihre Farbe über `currentColor`, laufen also mit dem
+aktiven Eintrag in den Akzent, und tragen `aria-hidden`: Neben jedem steht sein
+Wort, das Zeichen ist Wiedererkennung und kein Ersatz (WCAG 1.1.1).
+
+Die Überschriften bekommen eine Haarlinie darüber und werden **blasser** statt
+lauter. Eine Überschrift, die lauter wird, zieht den Blick von dem weg, worum es
+geht; die Linie leistet das Abheben, die Farbe nimmt sich zurück. Gerechnet
+gegen `--nav-bg`: 4,63:1 hell, 5,31:1 dunkel — über den 4,5:1 aus WCAG 1.4.3 und
+im hellen Theme knapp, weshalb die Linie den Unterschied trägt und nicht die
+Farbe. Den dritten Teil des Unterschieds leisten die Zeichen: Die Einträge haben
+eines, die Überschriften nicht, und das trägt schon im Umriss.
+
+`NavIconTest` hält die Kette zusammen: Jeder Menüpunkt trägt ein `icon:`, jeder
+Name zeigt auf eine Zeichnung, jede Zeichnung wird benutzt, und im Zeichensatz
+steht kein Farbwert. Ohne ihn ist `<NavIcon name="domain" />` eine Zeichenkette,
+die auf nichts zeigt — die Komponente zeichnet dann nichts, kein Fehler, keine
+Meldung, nur ein Eintrag ohne Punkt davor.

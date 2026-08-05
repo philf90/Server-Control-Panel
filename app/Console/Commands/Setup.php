@@ -317,8 +317,11 @@ final class Setup extends Command
      */
     private function reachableHost(): array
     {
-        $name = gethostname() ?: '';
-        $fqdn = Names::fqdn($name !== '' ? $name : null);
+        // Ohne Argument: `fqdn()` holt den Knotennamen selbst. Hier stand
+        // `Names::fqdn(gethostname() ?: null)` — dasselbe Ergebnis, aber eine
+        // zweite Stelle, die den Kernel nach dem Rechnernamen fragt. Genau die
+        // hat `HostnameSourceTest` beim ersten Lauf gemeldet.
+        $fqdn = Names::fqdn();
 
         if ($fqdn !== null) {
             return [$fqdn, null];
@@ -326,14 +329,16 @@ final class Setup extends Command
 
         $address = Names::primaryAddress();
 
+        // Ab hier gibt es keinen vollständigen Namen — übrig bleibt der
+        // Knotenname, und den liefert `Names::host()`. Er ist nie leer.
         if ($address === null) {
-            return [$name !== '' ? $name : 'localhost', null];
+            return [Names::host(), null];
         }
 
         return [$address, sprintf(
             'Der Rechnername „%s" enthält keine Domain und ist von außen nicht'."\n".
             '  auflösbar; deshalb steht hier die IP-Adresse.',
-            $name !== '' ? $name : 'unbekannt',
+            Names::host(),
         )];
     }
 

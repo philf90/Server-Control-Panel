@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Support\WithoutPhpComments;
 
 /**
  * Wer paginiert, muss auch blättern lassen.
@@ -39,6 +40,8 @@ use SplFileInfo;
  */
 final class PaginationTest extends TestCase
 {
+    use WithoutPhpComments;
+
     /** @return list<string> */
     private function controllers(): array
     {
@@ -63,11 +66,6 @@ final class PaginationTest extends TestCase
     private function relative(string $path): string
     {
         return str_replace(dirname(__DIR__, 2).'/', '', $path);
-    }
-
-    private function withoutComments(string $php): string
-    {
-        return (string) preg_replace(['#/\*.*?\*/#su', '#//[^\n]*#'], '', $php);
     }
 
     public function test_every_pagination_goes_through_the_page_helper(): void

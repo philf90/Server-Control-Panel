@@ -10,10 +10,18 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P3 abgenommen**, ausgeliefert als `v0.3.0-rc.x`. Der
-Abnahmelauf `srvpanel acceptance-web` ist auf dem Zielserver aus `0.3.0~rc.5`
-durchgelaufen: sechs Domains, zwei PHP-Versionen, zwei Systembenutzer, kein
-Zugriff über die Grenze. Als Nächstes **P4 (TLS)**.
+Stand: **P0 bis P3 abgenommen**. Der Abnahmelauf `srvpanel acceptance-web` ist
+auf dem Zielserver aus `0.3.0~rc.5` durchgelaufen: sechs Domains, zwei
+PHP-Versionen, zwei Systembenutzer, kein Zugriff über die Grenze. Als Nächstes
+**P4 (TLS)**.
+
+Ausgeliefert wird `v0.3.1-rc.1` — der Optik-Rework. **Für ihn steht der
+Abnahmelauf auf einem echten Server noch aus:** Belegt sind bisher nur die
+Ausfallzustände, weil dieser Container weder nginx noch PHP-FPM noch den
+Agenten hat. Zuerst nachzusehen ist, ob die Schwellen der Verlaufskacheln
+unter Last sinnvoll greifen (85 % CPU, Load gegen die Kernzahl) und ob die
+Übersicht mit echten Diensten und echtem Zertifikat so aussieht wie mit den
+Attrappen.
 
 ---
 
@@ -42,7 +50,13 @@ es gibt), `LifecycleReachTest`, `AnchoredPatternTest`, `PhpVersionCatalogTest`,
 `ClassReachTest` (jede Klasse in einem Template zeigt auf eine Regel, die es
 gibt), `TableStyleTest`, `ClassNameTest` (jeder Klassenname ist englisch, und
 jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
-(wer paginiert, lässt auch blättern). Der Bruch selbst steht als
+(wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
+weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
+`PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse) und
+`HostnameSourceTest` (nur `Names` fragt den Kernel nach dem Rechnernamen) und
+`AbilityReachTest` (ein Knopf, den der Betrachter nicht drücken darf, wird nicht
+gezeigt) und `NavIconTest` (jeder Menüpunkt trägt ein Zeichen, und jedes Zeichen
+ist gezeichnet). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -90,6 +104,13 @@ ausdrückliche Ausnahme und will begründet sein; Admins sind über
 `forAccount()` unbeschränkt. **Autorisierung sitzt an der Aktion**, nicht im
 Menü — jede Route trägt `can:` oder steht mit Begründung in
 `app/Support/Authorization/RouteGuard.php`.
+
+Das ist die Regel fürs **Durchsetzen** und war nie eine Erlaubnis, jedem alles
+anzubieten. Die Kehrseite: **Wer eine Aktion zeigt, fragt vorher dieselbe
+Policy, die sie später abweist.** Die Antwort kommt als `can`-Ablage im
+Inertia-Payload — nicht als `v-if` auf den Kontotyp, denn das wäre eine zweite
+Fassung der Policy, und die zweite Fassung ist die, die veraltet.
+`AbilityReachTest` prüft beide Richtungen.
 
 Weiteres, das man wissen muss: Weiche Löschungen verbrauchen Bezeichner
 (Kundennummern, `p1000`-Systembenutzer ↔ UID-Wiederverwendung).
@@ -165,13 +186,31 @@ Testen berücksichtigen:
   alle Aufnahmen, dann `emulateMedia` und `setViewportSize` umschalten. Und
   Inertia schickt über XHR: `networkidle` kommt zurück, bevor die Antwort da
   ist; gewartet wird auf die Adresse.
-- **PHPStan ist hier nicht lauffähig** (bricht ohne Ausgabe mit Rückgabewert 1
-  ab). Er läuft in der CI; `composer pruefe` schlägt deshalb lokal fehl. Einzeln
-  `pint` und `phpunit` aufrufen.
+- **PHPStan ist hier nicht lauffähig — und zwar, weil er nicht installiert
+  ist.** `vendor/bin/phpstan` gibt es schlicht nicht; der Aufruf endet mit
+  Rückgabewert 127. Nachinstallieren geht auch nicht: `composer install`
+  scheitert an „Could not authenticate against github.com", der Proxy dieses
+  Containers lässt die Paketquelle nicht durch. Er läuft in der CI;
+  `composer pruefe` schlägt deshalb lokal fehl. Einzeln `pint` und
+  `php artisan test` aufrufen.
+
+  **Was das für die Arbeit heisst:** Undefinierte Variablen, fehlende
+  Typangaben und tote Zweige findet hier nichts. Wer `app/`, `agent/` oder
+  `tests/` anfasst, rechnet mit einer Runde CI dafür — viermal an einem Tag
+  passiert, und jedes Mal war es eine Typangabe oder eine Variable, die beim
+  Aufräumen wegfiel.
+
+  **Eine Falle, die dreimal davon ausgemacht hat:** Ein einzeiliger
+  Dokumentationsblock trägt **keine Marke**. In
+  `/** Die Namen. @return list<string> */` ist `@return` Fliesstext, und die
+  Angabe ist damit weg — PHPStan meldet „no value type specified", und zwar
+  erst in der CI. Marken stehen auf einer eigenen Zeile; `/** @return
+  list<string> */` allein geht, mit Text davor nicht.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
-  dafür gibt es `SrvPanel\Agent\Names::fqdn()`, und die ist die *einzige*
-  Stelle, die diese Frage beantworten darf. Sie ist schon zweimal neu erfunden
-  worden.
+  dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
+  gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die
+  diese Frage beantworten darf. Sie ist **viermal** neu erfunden worden; seit
+  dem vierten Mal gibt es `HostnameSourceTest` dafür.
 - **Screenshots** über Playwright mit dem vorinstallierten Chromium
   (`/opt/pw-browsers/chromium`), niemals `playwright install`. Vier Dinge, die
   jedes Mal Zeit gekostet haben:

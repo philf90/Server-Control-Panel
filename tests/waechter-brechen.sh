@@ -238,6 +238,82 @@ pruefe "  … zurückgesetzt wieder grün" \
   PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so passed
 
 echo
+echo '── RedirectTargetTest: das Ziel wieder `back()` überlassen ──'
+#
+# Der Zustand von vor diesem Wächter, und er war auf dem Zielserver zu sehen
+# und hier nicht: Der Vhost schickt `Referrer-Policy: no-referrer`, Inertia
+# navigiert über XHR — `back()` kennt damit kein Ziel und leitet auf `/`. Wer
+# im Konto die Darstellung umstellte, stand danach auf der Übersicht.
+sed -i "s|return to_route('profile')->with('success', 'Darstellung gespeichert.')|return back()->with('success', 'Darstellung gespeichert.')|" \
+  app/Http/Controllers/ProfileController.php
+pruefe "Weiterleitung ohne Ziel" \
+  RedirectTargetTest::test_no_controller_leaves_the_target_to_back failed
+pruefe "  … und man landet auf der Übersicht" \
+  RedirectTargetTest::test_saving_the_theme_stays_on_the_account_page failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" RedirectTargetTest passed
+
+echo
+echo "── PairedSeriesTest: jede Kurve gegen ihre eigene Spanne ──"
+#
+# Der Fehler, der auf einem Bildschirmfoto richtig aussieht: Zwei Kurven, jede
+# auf ihr eigenes Kleinstes und Grösstes normiert, füllen beide die Kachel —
+# bei tausendfachem Unterschied. Das Bild behauptet dann „etwa gleich viel in
+# beide Richtungen".
+sed -i 's|\$min = min(min(\$a), min(\$b));|\$min = min(\$a);|' app/Support/Metrics/Store.php
+sed -i 's|\$max = max(max(\$a), max(\$b));|\$max = max(\$a);|' app/Support/Metrics/Store.php
+pruefe "getrennte Achsen in einem Feld" \
+  PairedSeriesTest::test_the_smaller_direction_stays_flat_at_the_bottom failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" PairedSeriesTest passed
+
+echo
+echo "── Netzkachel: die zweite Richtung ist dieselbe wie die erste ──"
+#
+# Der naheliegende Kopierfehler beim Nachrüsten: zweimal Spalte 0. Auf dem
+# Bildschirm lägen zwei Linien genau übereinander — und weil die zweite
+# gestrichelt ist, sähe das nach Absicht aus.
+sed -i "s|\\\$store->pair('network', 2, 0, 1, 60|\\\$store->pair('network', 2, 0, 0, 60|" \
+  app/Http/Controllers/OverviewController.php
+pruefe "zweite Richtung ist die erste" \
+  PanelWalkthroughTest::test_the_network_tile_carries_both_directions failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" \
+  PanelWalkthroughTest::test_the_network_tile_carries_both_directions passed
+
+echo
+echo "── AbilityReachTest: ein Knopf ohne Rückfrage bei der Policy ──"
+#
+# Der Zustand von vor diesem Wächter: In der Sicht eines Kunden stand
+# „Abonnement anlegen" auf der Seite, und der Klick endete mit einem nackten
+# 403. Die Autorisierung war richtig, die Auskunft davor falsch.
+sed -i 's|<Link v-if="props.can.create" href="/subscriptions/create"|<Link href="/subscriptions/create"|' \
+  resources/js/Pages/Subscriptions/Index.vue
+pruefe "Aktion ohne Rückfrage bei der Policy" \
+  AbilityReachTest::test_every_ability_a_page_asks_for_is_sent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AbilityReachTest passed
+
+echo
+echo "── NavIconTest: ein Menüpunkt ohne Zeichen ──"
+#
+# Ein Eintrag ohne `icon:` steht in der Spalte als einziger ohne Zeichen da —
+# kein Fehler, keine Meldung, nur eine Lücke, die nach einem Fehler aussieht.
+sed -i "s|{ name: 'Mailversand', href: '/settings/mail', icon: 'mail' }|{ name: 'Mailversand', href: '/settings/mail' }|" \
+  resources/js/Layouts/PanelLayout.vue
+pruefe "Menüpunkt ohne Zeichen" \
+  NavIconTest::test_every_menu_entry_carries_an_icon failed
+wiederherstellen
+
+echo
+echo "── NavIconTest: ein Zeichen, das es nicht gibt ──"
+sed -i "s|icon: 'domains'|icon: 'domain'|g" resources/js/Layouts/PanelLayout.vue
+pruefe "Zeichen ohne Zeichnung" \
+  NavIconTest::test_every_requested_icon_is_drawn failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NavIconTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -86,6 +86,30 @@ unten. Der hat keine Zeilen, die man verzählen könnte.
 `MobileLayoutTest` hält es fest: `.frame` ist unter 720px `display: flex` und
 setzt keine `grid-template-rows`.
 
+## 4a. Was stapelt, trennt sich nach oben
+
+Unter 720px liegen die Kacheln untereinander (`--kachel-min: 100%`). Ihr
+Trenner ist dann eine Linie **oben** und nicht links.
+
+Das klingt selbstverständlich und war es nicht: `.tile + .tile` trug auf der
+breiten Fläche `padding-left: 24px` und `border-left`, und beides galt auf der
+schmalen weiter. Auf 390px stand damit ein senkrechter Strich neben allen
+Kacheln ausser der ersten, und ihr Inhalt war um 24px eingerückt — die erste
+begann am Seitenrand, die vier darunter nicht. Aufgefallen ist es auf dem
+Telefon des Betreibers; auf der eigenen 390px-Aufnahme war es zu sehen, und
+gesehen hat es niemand.
+
+**Die Regel dahinter gilt für jeden Baustein, der stapelt:** Ein Trenner ist
+eine Aussage über die Richtung, in der Dinge nebeneinanderliegen. Dreht sich
+die Richtung, dreht sich der Trenner. `MobileLayoutTest` hält es für die
+Kacheln fest.
+
+Dazu gehört auch, dass die Kachelreihe unmittelbar unter dem Seitenkopf ihre
+obere Linie ablegt (`.page-head + .tiles`). Sonst stehen dort zwei Haarlinien
+mit einer leeren Fläche dazwischen. In der Entwicklungsumgebung ist das nie zu
+sehen — dort steht zwischen beiden immer die Meldung „Der Agent antwortet
+nicht".
+
 ## 5. Tabellen: drei Muster, und nur diese drei
 
 Eine Tabelle mit sechs Spalten ist auf 390px keine Tabelle mehr. Welches

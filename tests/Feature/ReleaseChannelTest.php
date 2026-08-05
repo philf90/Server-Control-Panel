@@ -37,9 +37,26 @@ final class ReleaseChannelTest extends TestCase
 
     protected function tearDown(): void
     {
-        @unlink($this->marker);
+        $this->removeMarker();
 
         parent::tearDown();
+    }
+
+    /**
+     * Die Marke wegräumen, falls es sie gibt.
+     *
+     * **Warum nicht `@unlink`.** Der Stille-Operator macht aus einem Aufruf,
+     * der scheitern darf, einen, bei dem niemand mehr sieht, dass er scheitert.
+     * Die meisten Läufe dieses Tests legen gar keine Marke an — jeder Durchgang
+     * erzeugte damit zwei unterdrückte Warnungen, und in der CI standen 40
+     * davon im Protokoll. Gefragt ist hier nicht Stille, sondern die Bedingung:
+     * löschen, wenn da ist.
+     */
+    private function removeMarker(): void
+    {
+        if (is_file($this->marker)) {
+            unlink($this->marker);
+        }
     }
 
     private function root(): string
@@ -55,7 +72,7 @@ final class ReleaseChannelTest extends TestCase
     private function channelFor(string $version, ?string $stable = null): array
     {
         if ($stable === null) {
-            @unlink($this->marker);
+            $this->removeMarker();
         } else {
             file_put_contents($this->marker, "# Kommentar\n".$stable."\n");
         }

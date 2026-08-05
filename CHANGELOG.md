@@ -2162,3 +2162,16 @@ Drei Dinge stehen darin, die man beim Fahren sonst falsch macht:
   beim OOM-Killer, und der sucht sich sein Opfer selbst. CPU und Load lassen
   sich gefahrlos auslösen (`yes` je Kern, danach `pkill -x yes`) und laufen
   durch denselben Code — was dort warnt, warnt bei RAM auch.
+
+### Der Abnahmelauf für 0.3.1 ist durch — grün
+
+Gefahren am 5. August auf dem Zielserver, nach `docs/33`: beide
+Abnahmekommandos, die Schwellen der Verlaufskacheln unter echter Last (CPU und
+Load wechseln in die Warnfarbe und gehen danach zurück), Übersicht und
+Zertifikatsseite mit laufenden Diensten, die Sitzung auf dem Telefon nach fünf
+Minuten Bildschirmsperre, die Kundensicht, das Blättern mit gesetztem Filter.
+
+**Was das für P4 wert ist.** Der Rework hat `app/` angefasst, abgenommen war P3
+aus `0.3.0~rc.5`. Ohne diesen Lauf hätte jeder Fehlschlag in P4 zwei mögliche
+Ursachen gehabt, und die Unterscheidung wäre teurer gewesen als der Lauf. Ab
+hier kommt, was bricht, aus P4.

@@ -15,12 +15,13 @@ auf dem Zielserver aus `0.3.0~rc.5` durchgelaufen: sechs Domains, zwei
 PHP-Versionen, zwei Systembenutzer, kein Zugriff über die Grenze. Als Nächstes
 **P4 (TLS)**.
 
-Ausgeliefert wird `v0.3.1-rc.3` — der Optik-Rework. **Für ihn steht der
-Abnahmelauf auf einem echten Server noch aus:** Belegt sind bisher nur die
-Ausfallzustände, weil dieser Container weder nginx noch PHP-FPM noch den
-Agenten hat. Der Prüfweg dafür steht in `docs/33` — er kommt **vor** P4, weil
-P4 genau die Stellen anfasst, an denen `rc.3` nie unter echten Bedingungen
-gelaufen ist, und ein Fehlschlag danach sonst zwei mögliche Ursachen hätte.
+Ausgeliefert wird `v0.3.1-rc.3` — der Optik-Rework. **Sein Abnahmelauf ist am
+5. August auf dem Zielserver durchgelaufen, vollständig grün** (`docs/33`):
+beide Abnahmekommandos, die Schwellen der Verlaufskacheln unter echter Last,
+Übersicht und Zertifikatsseite mit laufenden Diensten, Sitzung auf dem Telefon,
+Kundensicht, Blättern. Er kam bewusst **vor** P4, weil P4 genau die Stellen
+anfasst, an denen `rc.3` nie unter echten Bedingungen gelaufen war — ein
+Fehlschlag ab jetzt hat nur noch eine mögliche Ursache.
 
 ---
 

@@ -235,7 +235,25 @@ G  Blättern mit Filter:      ok / ...
 
 ---
 
-## 5. Was danach passiert
+## 5. Das Ergebnis vom 5. August 2026
+
+**Vollständig grün.** Beide Abnahmekommandos liefen durch, `srvpanel tls` gab
+die erwarteten Namen aus, CPU- und Load-Kurve wechselten unter der Lastprobe in
+die Warnfarbe und gingen danach zurück, Übersicht und `/settings/tls` zeigten
+echte Dienste und ein Zertifikat, das die aufgerufene Adresse abdeckt, der Punkt
+am Kurvenende ist rund, die Sitzung überlebte die gesperrte Bildschirmsperre,
+kein waagerechter Überlauf bei 390 px, die Kundensicht trug keinen Knopf zuviel,
+und der Filter überlebte die Seitenzahl.
+
+Damit ist der Untergrund für P4 belegt: Was ab hier bricht, kommt aus P4.
+
+**Dieses Dokument bleibt trotzdem stehen.** Der nächste Optik- oder
+Fundamentumbau braucht denselben Lauf, und ihn beim zweiten Mal neu zu erfinden
+hiesse, ihn anders zu fahren.
+
+---
+
+## 6. Was danach passiert
 
 **Grün:** P4 beginnt, und jeder spätere Fehlschlag hat einen Ausgangspunkt, an
 dem er nicht gelegen haben kann.

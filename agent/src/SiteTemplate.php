@@ -91,7 +91,6 @@ final class SiteTemplate
         CONF;
     }
 
-
     /**
      * Der Inhalt der Include-Datei mit den eigenen Direktiven.
      *

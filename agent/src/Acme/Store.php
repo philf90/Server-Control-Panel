@@ -56,6 +56,28 @@ final class Store
     }
 
     /**
+     * Liegt für diesen Namen ein Zertifikat — und wo?
+     *
+     * **Beide Dateien oder keine.** Ein `ssl_certificate` ohne
+     * `ssl_certificate_key` lässt nginx nicht starten; die halbe Antwort wäre
+     * hier also schlimmer als gar keine. Der Fall tritt auf, wenn ein Lauf
+     * zwischen den beiden Schreibvorgängen abbricht.
+     *
+     * @return array{certificate: string, key: string}|null
+     */
+    public function existing(string $name): ?array
+    {
+        $certificate = $this->certificate($name);
+        $key = $this->key($name);
+
+        if (! is_file($certificate) || ! is_file($key)) {
+            return null;
+        }
+
+        return ['certificate' => $certificate, 'key' => $key];
+    }
+
+    /**
      * Kette und Schlüssel ablegen.
      *
      * @return array{certificate: string, key: string}

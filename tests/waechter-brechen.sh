@@ -647,6 +647,72 @@ pruefe "beliebige Adresse als Zertifizierungsstelle" \
 wiederherstellen
 
 echo
+echo "── SiteTemplateTest: die Weiterleitung steht auch ohne Zertifikat ──"
+#
+# Der dritte Teil des Abnahmekriteriums: Ein Fehlschlag bei der Bestellung darf
+# den laufenden Betrieb nicht unterbrechen. Eine Domain, die auf HTTPS
+# weiterleitet, obwohl auf 443 niemand hört, ist nicht ungesichert — sie ist
+# weg.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        $plain = $tls === null ? $body : self::toHttps();',
+    '        $plain = self::toHttps();',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/SiteTemplate.php "Weiterleitung ohne Zertifikat" &&
+pruefe "Weiterleitung ohne Zertifikat" \
+  SiteTemplateTest::test_without_a_certificate_the_site_stays_on_port_80 failed
+wiederherstellen
+
+echo
+echo "── SiteTemplateTest: ein halbes Zertifikat zählt wieder ──"
+#
+# Der Fall entsteht, wenn ein Lauf zwischen den beiden Schreibvorgängen
+# abbricht. Ein ssl_certificate ohne ssl_certificate_key lässt nginx nicht
+# starten — dann steht nicht eine Domain still, sondern der Webserver mit allen.
+vorher_datei agent/src/Acme/Store.php
+python3 - <<'PY'
+p = 'agent/src/Acme/Store.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        if (! is_file($certificate) || ! is_file($key)) {',
+    '        if (! is_file($certificate)) {',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/Store.php "halbes Zertifikat gilt als Zertifikat" &&
+pruefe "halbes Zertifikat gilt als Zertifikat" \
+  SiteTemplateTest::test_half_a_certificate_is_none failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SiteTemplateTest passed
+
+echo
+echo "── AcmeSettingsTest: die halbe Ablage überschreibt die ganze ──"
+#
+# Beide Angaben liegen unter demselben Schlüssel. Wer nur eine setzt und dabei
+# ersetzt statt zusammenzulegen, löscht die andere — lautlos, und danach
+# bestellt das Panel nichts mehr.
+vorher_datei app/Support/Tls/AcmeSettings.php
+python3 - <<'PY'
+p = 'app/Support/Tls/AcmeSettings.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            ['value' => array_merge($setting?->value ?? [], $values)],",
+    "            ['value' => $values],",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei app/Support/Tls/AcmeSettings.php "Einstellung wird ersetzt statt zusammengelegt" &&
+pruefe "Einstellung wird ersetzt statt zusammengelegt" \
+  AcmeSettingsTest::test_setting_one_value_keeps_the_other failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AcmeSettingsTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

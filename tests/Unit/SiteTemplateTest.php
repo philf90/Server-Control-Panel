@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\Acme\HttpChallenge;
+use SrvPanel\Agent\Acme\Store;
 use SrvPanel\Agent\Site;
 use SrvPanel\Agent\SiteTemplate;
 
@@ -19,9 +21,35 @@ use SrvPanel\Agent\SiteTemplate;
  * Domain ohne Handler, deren `.php`-Dateien nginx als Text ausliefert, ist
  * kein Schönheitsfehler — sie gibt Datenbankpasswörter heraus. Der Test steht
  * deshalb an erster Stelle.
+ *
+ * **Seit P4 entscheidet die Vorlage zusätzlich über HTTPS**, und zwar nicht
+ * nach einem Häkchen, sondern danach, ob unterhalb von {@see Store} wirklich
+ * ein Zertifikat liegt. Beide Richtungen sind gefährlich: Ohne den 443er Block
+ * ist ein ausgestelltes Zertifikat wirkungslos, und eine Weiterleitung auf
+ * HTTPS ohne Zertifikat nimmt eine laufende Website vom Netz.
  */
 final class SiteTemplateTest extends TestCase
 {
+    private ?string $root = null;
+
+    protected function tearDown(): void
+    {
+        if ($this->root !== null) {
+            foreach (glob($this->root.'/*/*') ?: [] as $file) {
+                @unlink($file);
+            }
+
+            foreach (glob($this->root.'/*') ?: [] as $directory) {
+                @rmdir($directory);
+            }
+
+            @rmdir($this->root);
+            $this->root = null;
+        }
+
+        parent::tearDown();
+    }
+
     /** @param array<string, mixed> $overrides */
     private function site(array $overrides = []): Site
     {
@@ -32,6 +60,28 @@ final class SiteTemplateTest extends TestCase
             'document_root' => 'httpdocs',
             'php_version' => '8.4',
         ], $overrides));
+    }
+
+    /**
+     * Ein Ablageort, in dem für `beispiel.de` genau diese Dateien liegen.
+     *
+     * Er zeigt in ein Wegwerfverzeichnis und nicht auf {@see Store::ROOT}:
+     * Dieser Container hat kein `/etc/srvpanel`, und die CI soll dort nichts
+     * anlegen.
+     *
+     * @param  list<string>  $files
+     */
+    private function store(array $files): Store
+    {
+        $this->root = sys_get_temp_dir().'/srvpanel-certs-'.bin2hex(random_bytes(6));
+
+        mkdir($this->root.'/beispiel.de', 0o750, true);
+
+        foreach ($files as $file) {
+            file_put_contents($this->root.'/beispiel.de/'.$file, "-----BEGIN-----\n");
+        }
+
+        return new Store($this->root);
     }
 
     public function test_without_php_no_php_file_is_delivered(): void
@@ -157,6 +207,100 @@ final class SiteTemplateTest extends TestCase
         $this->assertStringContainsString('root /var/www/vhosts/beispiel.de/httpdocs/public;', $config);
         $this->assertStringContainsString('access_log /var/www/vhosts/beispiel.de/logs/beispiel.de/access.log;', $config);
         $this->assertStringContainsString('include /var/www/vhosts/beispiel.de/conf/beispiel.de.include;', $config);
+    }
+
+    /**
+     * Ohne Zertifikat bleibt alles, wie es war.
+     *
+     * **Das ist der dritte Teil des Abnahmekriteriums** und der Grund, warum
+     * die Vorlage selbst nachsieht: Ein Fehlschlag bei der Bestellung darf den
+     * laufenden Betrieb nicht unterbrechen. Eine Domain, die auf HTTPS
+     * weiterleitet, obwohl auf 443 niemand hört, ist nicht „noch nicht
+     * gesichert" — sie ist weg.
+     */
+    public function test_without_a_certificate_the_site_stays_on_port_80(): void
+    {
+        $config = SiteTemplate::render($this->site(), $this->store([]));
+
+        $this->assertStringNotContainsString('listen 443', $config);
+        $this->assertStringNotContainsString('ssl_certificate', $config);
+        $this->assertStringNotContainsString('return 301 https://$host', $config);
+
+        // Und ausgeliefert wird weiter — über Port 80.
+        $this->assertStringContainsString('root /var/www/vhosts/beispiel.de/httpdocs;', $config);
+    }
+
+    /**
+     * Mit Zertifikat zieht der Inhalt auf 443, und 80 leitet weiter.
+     *
+     * Der Reihenfolgetest ist der eigentliche: Beide Blöcke enthalten
+     * `server_name` und `access_log`, und ein Ausdruck, der nur nach dem
+     * Vorkommen fragt, wäre auch dann grün, wenn `root` im falschen Block
+     * stünde — dann liefe die Website unverschlüsselt weiter und niemand sähe
+     * es, weil auf beiden Adressen etwas antwortet.
+     */
+    public function test_with_a_certificate_the_content_moves_to_the_secure_block(): void
+    {
+        $config = SiteTemplate::render($this->site(), $this->store(['fullchain.pem', 'privkey.pem']));
+
+        $this->assertStringContainsString('listen 443 ssl;', $config);
+        $this->assertStringContainsString('listen [::]:443 ssl;', $config);
+
+        $this->assertMatchesRegularExpression(
+            '#ssl_certificate\s+'.preg_quote((string) $this->root, '#').'/beispiel\.de/fullchain\.pem;#',
+            $config,
+        );
+        $this->assertMatchesRegularExpression(
+            '#ssl_certificate_key\s+'.preg_quote((string) $this->root, '#').'/beispiel\.de/privkey\.pem;#',
+            $config,
+        );
+
+        // Kein TLS 1.0 und kein TLS 1.1 — beide sind seit 2021 abgekündigt.
+        $this->assertStringContainsString('ssl_protocols       TLSv1.2 TLSv1.3;', $config);
+
+        // Port 80 leitet dauerhaft weiter, und der Inhalt steht genau einmal
+        // da: hinter `listen 443`.
+        $this->assertStringContainsString('return 301 https://$host$request_uri;', $config);
+        $this->assertSame(1, substr_count($config, 'root /var/www/vhosts/beispiel.de/httpdocs;'));
+        $this->assertGreaterThan(
+            strpos($config, 'listen 443 ssl;'),
+            strpos($config, 'root /var/www/vhosts/beispiel.de/httpdocs;'),
+        );
+    }
+
+    /**
+     * Die Weiterleitung lässt die Prüfung von ACME vorbei.
+     *
+     * Sonst gäbe es genau ein Zertifikat je Domain: Die Erneuerung nach zwei
+     * Monaten liefe gegen eine Weiterleitung, die das erste Zertifikat gerade
+     * erst aufgestellt hat. Das fiele nicht beim Einrichten auf, sondern
+     * neunzig Tage später.
+     */
+    public function test_the_redirect_lets_the_challenge_through(): void
+    {
+        $config = SiteTemplate::render($this->site(), $this->store(['fullchain.pem', 'privkey.pem']));
+
+        $this->assertLessThan(
+            strpos($config, 'return 301 https://$host$request_uri;'),
+            strpos($config, 'location ^~ '.HttpChallenge::PREFIX.'/ {'),
+            'Die Prüfadresse steht nicht mehr im Block, der auf Port 80 hört.',
+        );
+    }
+
+    /**
+     * Ein halbes Zertifikat ist keines.
+     *
+     * Der Fall entsteht, wenn ein Lauf zwischen den beiden Schreibvorgängen
+     * abbricht. Ein `ssl_certificate` ohne `ssl_certificate_key` lässt nginx
+     * nicht starten — und dann steht nicht eine Domain still, sondern der
+     * Webserver mit allen.
+     */
+    public function test_half_a_certificate_is_none(): void
+    {
+        $config = SiteTemplate::render($this->site(), $this->store(['fullchain.pem']));
+
+        $this->assertStringNotContainsString('listen 443', $config);
+        $this->assertStringNotContainsString('return 301 https://$host', $config);
     }
 
     public function test_own_directives_land_in_the_include_file(): void

@@ -2451,3 +2451,63 @@ hundert scheitert an einem einzigen nicht auflösbaren Namen und nimmt
 neunundneunzig mit), und `Domain::serverNames()` als die eine Liste der Namen,
 unter denen ein Block antwortet — ein Zertifikat, das nur den ersten deckt,
 warnt bei jedem Alias.
+
+#### Schritt 4b: die beiden Lücken, ohne die auf dem Server nichts passiert
+
+Nach Schritt 4 stand die ganze Strecke — und ein Server hätte trotzdem kein
+einziges Zertifikat ausgeliefert. Zwei Enden fehlten, jedes für sich still.
+
+**Die Kontaktadresse liess sich nicht setzen.** Ohne sie bestellt das Panel
+nichts, das Formular dafür kommt mit der Oberfläche in Schritt 6, und dazwischen
+sähe TLS aus wie kaputt: Es passiert nichts, und nichts meldet sich.
+`srvpanel tls --contact=… --directory=staging|production` schliesst die Lücke an
+dem Kommando, das ohnehin so heisst. Beides wird **dort** geprüft und nicht erst
+beim Bestellen — eine Adresse, die keine ist, fiele sonst erst auf, wenn ein
+Kunde eine Domain anlegt, und dann als Vorgang, der ohne Zutun scheitert. Der
+Schlüssel der Zertifizierungsstelle geht durch dieselbe Positivliste, die auch
+der Agent befragt. Ein Lauf mit Optionen fragt den Agenten nicht: Wer etwas
+einträgt, will nichts erneuern.
+
+**Zusammengelegt und nicht ersetzt.** Beide Angaben liegen unter demselben
+Schlüssel, und dort wird künftig der Zugang eines DNS-Anbieters dazukommen. Ein
+`updateOrCreate` mit der halben Ablage löschte die andere Hälfte — lautlos, und
+danach steht die Zertifizierungsstelle richtig da, während die Kontaktadresse
+fehlt und nichts mehr bestellt wird.
+
+**Und die Kundenvorlage kannte `ssl_certificate` nicht.** Ein ausgestelltes
+Zertifikat lag damit im Ablageort und wurde von niemandem ausgeliefert.
+Sie hat jetzt einen zweiten Server-Block auf 443, und Port 80 beantwortet nur
+noch die Prüfadresse und leitet dauerhaft weiter (`301`, nicht `302` — die
+Umstellung ist nicht vorläufig).
+
+**Ob es einen gibt, sieht der Agent selbst nach.** Der Pfad kommt nicht aus der
+Anwendung: Bei `ssl_certificate` wäre das dieselbe Freiheit wie bei `root` — die
+Erlaubnis, eine beliebige Datei des Servers zu benennen. Und daran hängt der
+dritte Teil des Abnahmekriteriums: **Ohne Zertifikat keine Weiterleitung.** Eine
+Domain, die auf HTTPS umleitet, während auf 443 niemand hört, ist nicht „noch
+nicht gesichert" — sie ist weg, und genau das passierte bei jeder gescheiterten
+Bestellung.
+
+**Ein halbes Zertifikat ist keines.** Bricht ein Lauf zwischen den beiden
+Schreibvorgängen ab, liegt die Kette da und der Schlüssel nicht. Ein
+`ssl_certificate` ohne `ssl_certificate_key` lässt nginx **nicht starten** —
+dann steht nicht eine Domain still, sondern der Webserver mit allen. `Store`
+antwortet deshalb mit beiden Pfaden oder mit nichts.
+
+**Kein `http2` und kein `ssl_stapling`, beides mit Absicht.** Die eigenständige
+`http2`-Direktive gibt es erst seit nginx 1.25.1; davor ist HTTP/2 ein Parameter
+an `listen`. Drei der vier Zielplattformen bringen die ältere Fassung mit, und
+die falsche Schreibweise macht die Einrichtung unmöglich — dieselbe Wette, an
+der P0 schon einmal fast gescheitert wäre. Sie kommt, wenn die Abfrage aus
+`PanelVhost` an einer Stelle steht, die beide Vorlagen fragen. Und Let's Encrypt
+hat OCSP eingestellt: Eine Direktive, die auf eine Adresse zeigt, die im
+Zertifikat nicht mehr steht, ist eine Zeile ohne Wirkung.
+
+Der Reihenfolgetest ist dabei der eigentliche. Beide Blöcke tragen
+`server_name`, `access_log` und `error_log`; ein Ausdruck, der nur nach dem
+Vorkommen von `root` fragt, wäre auch dann grün, wenn der Inhalt im
+**unverschlüsselten** Block stünde — auf beiden Adressen antwortet ja etwas.
+Geprüft wird deshalb, dass er genau einmal dasteht und hinter `listen 443`.
+
+Drei weitere Brüche im Wächterskript: die Weiterleitung ohne Zertifikat, das
+halbe Zertifikat, die ersetzte statt zusammengelegte Einstellung.

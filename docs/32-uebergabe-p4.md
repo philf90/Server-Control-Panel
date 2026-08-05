@@ -105,6 +105,13 @@ auf HTTPS. Eine Kundendomain spricht Klartext. Das ist der Teil, der die Vorlage
 selbst anfasst — und damit `SiteTemplateTest` und `PhpIsolationTest` berührt,
 die die erzeugte Zeichenkette als Text prüfen.
 
+> **Nachgetragen in Schritt 4b.** Die Vorlage hat jetzt einen zweiten Block auf
+> 443; Port 80 beantwortet nur noch die Prüfadresse und leitet weiter. Ob es ein
+> Zertifikat gibt, sieht der Agent über `Store` selbst nach — **ohne Zertifikat
+> keine Weiterleitung**, sonst nähme jede gescheiterte Bestellung eine laufende
+> Website vom Netz. `http2` und `ssl_stapling` fehlen mit Absicht; die Gründe
+> stehen im Changelog.
+
 ---
 
 ## 5. Das Abnahmekriterium, und wie man es misst
@@ -146,7 +153,7 @@ Sie gehören in den ersten Prompt, sonst rät die Session:
 | Woher ACME | **Eigener Client im Agenten**, reines PHP über die openssl-Erweiterung — kein certbot, kein lego |
 | Verzeichnis | **Staging zuerst**, umschaltbar als Einstellung, im Panel als Testbetrieb gekennzeichnet |
 | Konto | **Eines je Server** — der Kontoschlüssel entsteht im Agenten und verlässt ihn nie, ein gemeinsames Konto wäre nur mit einem Schlüssel über den Socket zu haben |
-| Kontaktadresse | Einstellung auf `/settings/tls`, vorbelegt mit der Adresse des ersten Admin-Kontos |
+| Kontaktadresse | Einstellung auf `/settings/tls` — und **nicht** vorbelegt: An diese Adresse schreibt die Zertifizierungsstelle, sie gehört gesetzt und nicht aus dem ersten Adminkonto geraten. Bis das Formular steht, setzt sie `srvpanel tls --contact=…` |
 | Erster Wurf | HTTP-01, Panel-Zertifikat, Vorlage (`ssl_certificate`, Weiterleitung, Chiffren, OCSP-Stapling), Erneuerung als Zeitplan mit Warnung und Protokoll |
 | Zweiter Wurf | **DNS-01 mit mehreren Anbietern** — welche, steht noch offen. Dazu eigenes Zertifikat hochladen |
 

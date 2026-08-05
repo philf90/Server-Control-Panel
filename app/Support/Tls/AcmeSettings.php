@@ -66,6 +66,27 @@ final class AcmeSettings
         return $this->contact() !== null;
     }
 
+    /**
+     * Einzelne Angaben ändern, ohne die anderen zu verlieren.
+     *
+     * **Zusammengelegt und nicht ersetzt.** Unter demselben Schlüssel liegt
+     * alles, was zu ACME gehört — heute zwei Angaben, morgen der Zugang eines
+     * DNS-Anbieters. Ein `updateOrCreate` mit der halben Ablage löschte die
+     * andere Hälfte, und zwar lautlos: Die Bestellung liefe danach ohne
+     * Kontaktadresse und damit gar nicht mehr.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    public function update(array $values): void
+    {
+        $setting = Setting::query()->find(self::KEY);
+
+        Setting::query()->updateOrCreate(
+            ['key' => self::KEY],
+            ['value' => array_merge($setting?->value ?? [], $values)],
+        );
+    }
+
     private function value(string $field): mixed
     {
         $setting = Setting::query()->find(self::KEY);

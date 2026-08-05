@@ -10,6 +10,7 @@ use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Subscription;
 use App\Support\Audit\AuditQuery;
+use App\Support\Web\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -230,5 +231,65 @@ final class AuditLogTest extends TestCase
         $this->actingAs($this->admin)
             ->get('/audit?from=irgendwann')
             ->assertSessionHasErrors('from');
+    }
+
+    /**
+     * Die zweite Seite zeigt, was auf der ersten nicht steht.
+     *
+     * **Warum das ein eigener Test ist.** `PaginationTest` prüft die Naht —
+     * dass der Controller `Page::from()` benutzt und die Seite einen `<Pager>`
+     * zeigt. Er kann nicht prüfen, dass am Ende auch andere Zeilen ankommen.
+     * Genau das war ein Jahr lang der Zustand: Der Controller paginierte
+     * richtig, und trotzdem kam niemand über die erste Seite hinaus.
+     */
+    public function test_the_second_page_shows_rows_the_first_one_does_not(): void
+    {
+        AuditEvent::factory()->count(Page::SIZE + 5)->create([
+            'subscription_id' => $this->ownSubscription->id,
+        ]);
+
+        $erste = $this->actingAs($this->admin)->get('/audit')->viewData('page')['props']['events'];
+        $zweite = $this->actingAs($this->admin)->get('/audit?page=2')->viewData('page')['props']['events'];
+
+        $this->assertSame(1, $erste['current_page']);
+        $this->assertSame(2, $zweite['current_page']);
+        $this->assertSame(2, $erste['last_page']);
+        $this->assertCount(Page::SIZE, $erste['data']);
+        $this->assertCount(5, $zweite['data']);
+
+        $aufErster = array_column($erste['data'], 'id');
+        $aufZweiter = array_column($zweite['data'], 'id');
+
+        $this->assertSame([], array_intersect($aufErster, $aufZweiter),
+            'Beide Seiten zeigen dieselben Zeilen — dann blättert man nicht, man lädt neu.');
+    }
+
+    /**
+     * Und der Filter überlebt das Blättern.
+     *
+     * Ohne `withQueryString()` trägt der Verweis auf Seite 2 die eingestellte
+     * Auswahl nicht mit: Man filtert, blättert weiter und steht wieder in der
+     * ungefilterten Liste — mit einem Formular, das weiter den Filter anzeigt.
+     */
+    public function test_a_filter_still_applies_on_the_second_page(): void
+    {
+        AuditEvent::factory()->count(Page::SIZE + 5)->create([
+            'subscription_id' => $this->ownSubscription->id,
+            'result' => AuditResult::Success,
+        ]);
+        AuditEvent::factory()->count(3)->create([
+            'subscription_id' => $this->ownSubscription->id,
+            'result' => AuditResult::Failure,
+        ]);
+
+        $zweite = $this->actingAs($this->admin)
+            ->get('/audit?result=success&page=2')
+            ->viewData('page')['props']['events'];
+
+        $this->assertSame(Page::SIZE + 5, $zweite['total']);
+
+        foreach ($zweite['data'] as $zeile) {
+            $this->assertSame(AuditResult::Success->value, $zeile['result']);
+        }
     }
 }

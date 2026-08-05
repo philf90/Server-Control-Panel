@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface PhpOption {
@@ -52,61 +53,88 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
   <Head title="Domain anlegen" />
 
   <PanelLayout title="Domain anlegen" :subline="props.subscription.name">
-    <p class="hinweis-block">
-      <template v-for="(stand, key) in props.counts" :key="key">
-        {{ stand.label }}: {{ stand.used }} von {{ stand.limit ?? 'unbegrenzt' }}.
-      </template>
-      Aliasse zählen auf kein Kontingent.
+    <template #breadcrumb>
+      <Link href="/subscriptions" class="link">Abonnements</Link> ·
+      <Link :href="`/subscriptions/${props.subscription.id}`" class="link">
+        {{ props.subscription.name }}
+      </Link>
+    </template>
+
+    <!--
+      Ein Fehler, der keinem Feld gehört, steht als Meldung über dem Formular
+      und nicht darunter: Unter dem Absendeknopf hätte er dieselbe Stelle wie
+      die Fehler der einzelnen Felder und sähe aus, als betreffe er das letzte
+      davon.
+    -->
+    <p v-if="allgemein" class="notice critical">
+      <span>{{ allgemein }}</span>
     </p>
 
-    <form class="maske" @submit.prevent="form.post(`/subscriptions/${props.subscription.id}/domains`)">
-      <fieldset>
-        <legend>Sorte und Name</legend>
+    <p class="notice neutral">
+      <span>
+        <template v-for="(stand, key) in props.counts" :key="key">
+          {{ stand.label }}: <b>{{ stand.used }}</b> von {{ stand.limit ?? 'unbegrenzt' }}.
+        </template>
+        Aliasse zählen auf kein Kontingent.
+      </span>
+    </p>
 
-        <label>Sorte
+    <form class="form" @submit.prevent="form.post(`/subscriptions/${props.subscription.id}/domains`)">
+      <Section title="Sorte und Name">
+        <label class="field">
+          <span>Sorte</span>
           <select v-model="form.type">
             <option value="addon">Zusatzdomain</option>
             <option value="subdomain">Subdomain</option>
             <option value="alias">Alias</option>
           </select>
-          <small v-if="form.errors.type" class="fehler">{{ form.errors.type }}</small>
         </label>
+        <p v-if="form.errors.type" class="error">{{ form.errors.type }}</p>
 
-        <label v-if="brauchtEltern">Gehört zu
+        <label v-if="brauchtEltern" class="field">
+          <span>Gehört zu</span>
           <select v-model="form.parent_domain_id" required>
             <option v-for="p in props.parents" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
-          <small v-if="form.errors.parent_domain_id" class="fehler">{{ form.errors.parent_domain_id }}</small>
-          <small class="hinweis">
-            Eine Subdomain muss unterhalb dieser Domain liegen. Ein Alias darf jeden
-            Namen tragen — er ist ein zweiter Name für dieselben Inhalte.
-          </small>
         </label>
+        <template v-if="brauchtEltern">
+          <p v-if="form.errors.parent_domain_id" class="error">{{ form.errors.parent_domain_id }}</p>
+          <p class="hint">
+            Eine Subdomain muss unterhalb dieser Domain liegen. Ein Alias darf
+            jeden Namen tragen — er ist ein zweiter Name für dieselben Inhalte.
+          </p>
+        </template>
 
-        <label>Name
+        <label class="field">
+          <span>Name</span>
           <input v-model="form.name" type="text" placeholder="beispiel.de" autocomplete="off" required>
-          <small v-if="form.errors.name" class="fehler">{{ form.errors.name }}</small>
-          <small class="hinweis">
-            Kleinbuchstaben, Ziffern, Punkt und Bindestrich. Umlautdomains in
-            Punycode (<code>xn--…</code>).
-          </small>
         </label>
-      </fieldset>
+        <p v-if="form.errors.name" class="error">{{ form.errors.name }}</p>
+        <p class="hint">
+          Kleinbuchstaben, Ziffern, Punkt und Bindestrich. Umlautdomains in
+          Punycode (<span class="ident">xn--…</span>).
+        </p>
+      </Section>
 
-      <fieldset v-if="eigenesVerzeichnis">
-        <legend>Auslieferung</legend>
-
-        <label>Verzeichnis
+      <Section v-if="eigenesVerzeichnis" title="Auslieferung">
+        <label class="field">
+          <span>Verzeichnis</span>
           <input v-model="form.document_root" type="text" :placeholder="form.name || 'beispiel.de'" autocomplete="off">
-          <small v-if="form.errors.document_root" class="fehler">{{ form.errors.document_root }}</small>
-          <small class="hinweis">
-            Relativ zum Abonnement. Leer lassen für ein Verzeichnis mit dem Namen
-            der Domain.
-          </small>
         </label>
+        <p v-if="form.errors.document_root" class="error">{{ form.errors.document_root }}</p>
+        <p class="hint">
+          Relativ zum Abonnement. Leer lassen für ein Verzeichnis mit dem Namen
+          der Domain.
+        </p>
 
-        <label>PHP-Version
+        <label class="field">
+          <span>PHP-Version</span>
           <select v-model="form.php_version">
+            <!--
+              Abgeblendete Versionen bleiben sichtbar: Der Plan gibt sie her,
+              der Server hat sie nicht. Wer sie gar nicht sähe, hielte die
+              Lücke für eine Frage seines Vertrags.
+            -->
             <option
               v-for="option in props.php"
               :key="option.version"
@@ -116,65 +144,46 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
               {{ option.version }}<template v-if="option.reason"> · {{ option.reason }}</template>
             </option>
           </select>
-          <small v-if="form.errors.php_version" class="fehler">{{ form.errors.php_version }}</small>
-          <!--
-            Abgeblendete Versionen bleiben sichtbar: Der Plan gibt sie her, der
-            Server hat sie nicht. Wer sie gar nicht sähe, hielte die Lücke für
-            eine Frage seines Vertrags.
-          -->
-          <small v-if="props.php.length === 0" class="hinweis">
-            Der Plan gibt keine PHP-Version frei. Diese Domain liefert dann nur
-            statische Dateien aus.
-          </small>
         </label>
-      </fieldset>
+        <p v-if="form.errors.php_version" class="error">{{ form.errors.php_version }}</p>
+        <p v-if="props.php.length === 0" class="hint">
+          Der Plan gibt keine PHP-Version frei. Diese Domain liefert dann nur
+          statische Dateien aus.
+        </p>
+      </Section>
 
-      <fieldset v-if="form.type !== 'alias'">
-        <legend>Weiterleitung</legend>
-
-        <label>Ziel
+      <Section v-if="form.type !== 'alias'" title="Weiterleitung">
+        <label class="field">
+          <span>Ziel</span>
           <input v-model="form.redirect_target" type="url" placeholder="https://ziel.de/" autocomplete="off">
-          <small v-if="form.errors.redirect_target" class="fehler">{{ form.errors.redirect_target }}</small>
-          <small class="hinweis">
-            Leer lassen, wenn diese Domain eigene Dateien ausliefert. Mit Ziel
-            antwortet nginx selbst — ohne Verzeichnis und ohne PHP.
-          </small>
         </label>
+        <p v-if="form.errors.redirect_target" class="error">{{ form.errors.redirect_target }}</p>
+        <p class="hint">
+          Leer lassen, wenn diese Domain eigene Dateien ausliefert. Mit Ziel
+          antwortet nginx selbst — ohne Verzeichnis und ohne PHP.
+        </p>
 
-        <label v-if="form.redirect_target !== ''">Art
-          <select v-model="form.redirect_kind">
-            <option value="temporary">vorübergehend (302)</option>
-            <option value="permanent">dauerhaft (301)</option>
-          </select>
-          <small class="hinweis">
+        <template v-if="form.redirect_target !== ''">
+          <label class="field">
+            <span>Art</span>
+            <select v-model="form.redirect_kind">
+              <option value="temporary">vorübergehend (302)</option>
+              <option value="permanent">dauerhaft (301)</option>
+            </select>
+          </label>
+          <p class="hint">
             Eine dauerhafte Weiterleitung merkt sich der Browser. Nach einer
             Rücknahme rufen Besucher noch lange das alte Ziel auf.
-          </small>
-        </label>
-      </fieldset>
+          </p>
+        </template>
+      </Section>
 
-      <p v-if="allgemein" class="fehler">{{ allgemein }}</p>
-
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
-          {{ form.processing ? 'wird angelegt …' : 'Anlegen' }}
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
+          {{ form.processing ? 'Wird angelegt …' : 'Anlegen' }}
         </button>
-        <a class="knopf" :href="`/subscriptions/${props.subscription.id}`">Abbrechen</a>
+        <Link class="button" :href="`/subscriptions/${props.subscription.id}`">Abbrechen</Link>
       </div>
     </form>
   </PanelLayout>
 </template>
-
-<style scoped>
-/* Dieselben Marken wie im Formular für Abonnements — die Gliederung soll
-   über die Module hinweg dieselbe bleiben. */
-.hinweis-block { max-width: 544px; margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--text-muted); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 6px; }
-.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 544px; }
-fieldset { display: flex; flex-direction: column; gap: 10px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-input, select { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-code { font-family: var(--font-mono); }
-.hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
-.fehler { font-size: var(--text-small); color: var(--critical); }
-</style>

@@ -37,7 +37,19 @@ final class Store
      * Ein Verlauf für die Kachel: höchstens `$points` Stützstellen, auf 0…100
      * in x normiert, mit fertiger Beschriftung.
      *
-     * @return array{has:bool,points:list<array{x:float,y:float,t:string,v:string}>}
+     * **`$threshold` ist die Zahl, ab der die Kurve warnt** — und sie kommt von
+     * aussen. Ab wann eine Auslastung eng ist, ist eine Aussage über den
+     * Betrieb und keine über die Darstellung: Der Controller kennt sie, dieser
+     * Speicher nicht. `null` heisst „für diese Kennzahl gibt es keine
+     * allgemeingültige Schwelle" und ist keine Nachlässigkeit, sondern eine
+     * Angabe.
+     *
+     * Verglichen wird der **letzte** Wert und nicht der höchste. Eine Kurve,
+     * die vor einer Stunde einmal ausgeschlagen ist und seitdem ruhig läuft,
+     * warnt sonst für immer — und eine Warnung, die nicht mehr weggeht, liest
+     * nach dem dritten Mal niemand.
+     *
+     * @return array{has:bool,warns:bool,points:list<array{x:float,y:float,t:string,v:string}>}
      */
     public function series(
         string $name,
@@ -46,11 +58,12 @@ final class Store
         int $points = 60,
         string $unit = '',
         int $decimals = 0,
+        ?float $threshold = null,
     ): array {
         $records = $this->buffer($name, $columns)->read();
 
         if (count($records) < 2) {
-            return ['has' => false, 'points' => []];
+            return ['has' => false, 'warns' => false, 'points' => []];
         }
 
         $records = $this->downsample($records, $points);
@@ -76,7 +89,13 @@ final class Store
             ];
         }
 
-        return ['has' => true, 'points' => $out];
+        $last = $values[$lastIndex] ?? 0.0;
+
+        return [
+            'has' => true,
+            'warns' => $threshold !== null && $last >= $threshold,
+            'points' => $out,
+        ];
     }
 
     /**

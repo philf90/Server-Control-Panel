@@ -45,8 +45,8 @@ const id = useId()
 </script>
 
 <template>
-  <div class="feld">
-    <label :for="id">{{ label }}</label>
+  <div class="field">
+    <span><label :for="id">{{ label }}</label></span>
 
     <input
       :id="id"
@@ -63,34 +63,41 @@ const id = useId()
       required
     >
 
-    <small v-if="hint" class="hinweis">{{ hint }}</small>
-    <small v-if="error" class="fehler" role="alert">{{ error }}</small>
+    <p v-if="hint" class="hint">{{ hint }}</p>
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
   </div>
 </template>
 
 <style scoped>
-.feld {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
 /*
- * Kleine Beschriftung nach §7.2: Versalien mit Sperrung. Sie darf das, weil
- * darunter kein Spaltenkopf steht, mit dem sie sich verwechseln liesse.
+ * **Form und Farbe des Feldes stehen nicht mehr hier.**
+ *
+ * Bis zum Rework brachte diese Komponente ihr eigenes Feld mit — Innenabstand,
+ * Grund, Rahmen, Radius —, und der Rahmen kam aus `--line`. Das ist die
+ * Haarlinie zum Trennen und erreicht gegen den Seitengrund 1,09:1 im hellen
+ * und 1,13:1 im dunklen Theme: ein Eingabefeld ohne sichtbare Grenze, und das
+ * ausgerechnet an der Stelle, an der jemand einen Code ablesen und eintippen
+ * soll. Elf Seiten trugen dieselbe Zeile.
+ *
+ * `.field` aus app.css trägt das jetzt, samt `--control-line` mit 4,15:1 hell
+ * und 4,95:1 dunkel. Hier bleibt nur, was **diesen** Code betrifft und kein
+ * anderes Feld: Ein sechsstelliger Code ist kein Fliesstext. Man liest ihn von
+ * einem Telefon ab und vergleicht ihn Ziffer für Ziffer; dafür müssen die
+ * Ziffern gleich breit sein und auseinander stehen.
  */
-label {
-  font-size: var(--text-label);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+/*
+ * Die Breite gehört zu diesem Feld und nicht zum Gestaltungssystem: Sie folgt
+ * daraus, dass in ihm sechs Zeichen stehen. Ohne diese Zeile war es 540px
+ * breit — die Grenze für ein Feld mit Fließtext — und sah aus, als erwarte es
+ * einen Satz. Im Browser gesehen.
+ */
+.field {
+  max-width: 280px;
 }
 
-input {
-  padding: 10px 12px;
+.field input {
   font-family: var(--font-mono);
   font-size: var(--text-metric);
-  font-variant-numeric: tabular-nums;
 
   /*
    * Die Sperrung sitzt hinter jedem Zeichen, auch hinter dem letzten. Ohne
@@ -103,34 +110,15 @@ input {
   text-align: center;
 
   color: var(--text-strong);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-}
-
-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-surface);
 }
 
 /*
- * Die Einfärbung des Browsers ist nicht hier abgestellt, sondern in
- * app.css — sie betrifft jedes Feld im Panel und nicht nur dieses. Was hier
- * noch dazukommt, ist die kräftigere Schriftfarbe: Ein Code, den der Browser
- * eingesetzt hat, soll genauso aussehen wie einer, den jemand tippt.
+ * Die Einfärbung des Browsers ist nicht hier abgestellt, sondern in app.css —
+ * sie betrifft jedes Feld im Panel und nicht nur dieses. Was hier dazukommt,
+ * ist die kräftigere Schriftfarbe: Ein Code, den der Browser eingesetzt hat,
+ * soll genauso aussehen wie einer, den jemand tippt.
  */
-input:-webkit-autofill {
+.field input:-webkit-autofill {
   -webkit-text-fill-color: var(--text-strong);
-}
-
-.hinweis {
-  font-size: var(--text-label);
-  color: var(--text-faint);
-}
-
-.fehler {
-  font-size: var(--text-small);
-  color: var(--critical);
 }
 </style>

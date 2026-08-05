@@ -46,7 +46,7 @@ final class OverviewController extends Controller
         return Inertia::render('Overview', [
             'server' => $this->server($info),
             'hosting' => $this->hosting(),
-            'tiles' => $this->tiles($store),
+            'tiles' => $this->tiles($store, $this->cores($info)),
             'services' => $this->services($agent),
             'filesystems' => $this->filesystems($info),
             'processes' => $this->processes($info),
@@ -204,16 +204,57 @@ final class OverviewController extends Controller
         ];
     }
 
-    /** @return list<array<string,mixed>> */
-    private function tiles(Store $store): array
+    /**
+     * Wie viele Kerne der Server hat — für die Schwelle der Load.
+     *
+     * **Der Agent zählt sie längst** (`SystemInfo::cpu()['cores']`), und
+     * benutzt hat sie bisher niemand. Eine feste Zahl wäre hier besonders
+     * falsch: Load 4 heisst auf vier Kernen „ausgelastet" und auf
+     * zweiunddreissig „langweilt sich". Ohne Angabe des Agenten die vier aus
+     * dem Muster (docs/entwuerfe/31) — dort hatte der erfundene Server vier.
+     *
+     * @param  array{ok:bool,data:array<string,mixed>,error:string}  $result
+     */
+    private function cores(array $result): int
     {
-        $cpu = $store->series('cpu', 2, 0, 60, ' %', 0);
-        $ram = $store->series('ram', 2, 0, 60, ' %', 0);
-        $load = $store->series('load', 3, 0, 60, '', 2);
+        $cpu = $result['ok'] && is_array($result['data']['cpu'] ?? null) ? $result['data']['cpu'] : [];
+
+        return max(1, (int) ($cpu['cores'] ?? 4));
+    }
+
+    /**
+     * Die fünf Kacheln — und ab wann ihre Kurve warnt.
+     *
+     * **Die Schwellen stehen hier und nicht in der Komponente.** Dieselbe
+     * Begründung wie beim `tight` der Dateisysteme weiter unten: Ab wann eine
+     * Auslastung eng ist, ist eine Aussage über den Betrieb und keine über die
+     * Darstellung. Die Zahlen sind die des bedienten Musters
+     * (docs/entwuerfe/31-kontor-mockup.html), das der Betreiber abgenommen
+     * hat; die Load rechnet zusätzlich mit der wirklichen Kernzahl.
+     *
+     * **Der Schreibdurchsatz bekommt keine.** Es gibt für ihn keine Zahl, die
+     * auf zwei Servern dasselbe bedeutet: Eine NVMe schreibt zwei Gigabyte je
+     * Sekunde, ein Netzlaufwerk hundert Megabyte. Eine Schwelle, die überall
+     * gilt, warnt entweder ständig oder nie — und das ist schlechter als
+     * keine. Deshalb `null`, und deshalb steht es hier als Satz und nicht als
+     * fehlende Zeile.
+     *
+     * @param  int  $cores  Kerne des Servers; die Load teilt sich durch sie auf
+     * @return list<array<string,mixed>>
+     */
+    private function tiles(Store $store, int $cores): array
+    {
+        // 900 Mbit/s aus dem Muster, in Byte je Sekunde — die Kennzahl wird in
+        // Byte gemessen, und ein Vergleich zweier Einheiten ist keiner.
+        $networkLimit = 900 * 1_000_000 / 8;
+
+        $cpu = $store->series('cpu', 2, 0, 60, ' %', 0, 85.0);
+        $ram = $store->series('ram', 2, 0, 60, ' %', 0, 85.0);
+        $load = $store->series('load', 3, 0, 60, '', 2, (float) $cores);
         // Spalte 1 ist bei beiden die abgehende Richtung. Gezeigt wird die
         // eingehende — sie ist die, die man auf einem Webserver zuerst
         // ansieht; der Verlauf beider steht in derselben Datei.
-        $network = $store->series('network', 2, 0, 60, '', 0);
+        $network = $store->series('network', 2, 0, 60, '', 0, $networkLimit);
         $io = $store->series('disk_io', 2, 1, 60, '', 0);
 
         return [

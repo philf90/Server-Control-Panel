@@ -9,6 +9,7 @@ use App\Support\Audit\Audit;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
+use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,10 +42,11 @@ final class PlanController extends Controller
             ->withCount('subscriptions')
             ->orderByDesc('is_default')
             ->orderBy('name')
-            ->get();
+            ->paginate(Page::SIZE)
+            ->withQueryString();
 
         return Inertia::render('Plans/Index', [
-            'plans' => $plans->map(static fn (Plan $plan): array => [
+            'plans' => Page::from($plans, static fn (Plan $plan): array => [
                 'id' => (int) $plan->id,
                 'name' => $plan->name,
                 'description' => $plan->description,
@@ -62,7 +64,7 @@ final class PlanController extends Controller
                     static fn (Feature $feature): string => $feature->short(),
                     array_filter(Feature::cases(), static fn (Feature $feature): bool => $plan->feature($feature)),
                 )),
-            ])->all(),
+            ]),
         ]);
     }
 

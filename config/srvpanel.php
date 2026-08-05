@@ -68,11 +68,21 @@ return [
     ],
 
     /*
-     * Vorgaben der Oberfläche. Beide Achsen aus §7.2 des Plans; die
+     * Vorgaben der Oberfläche. Beide Achsen aus dem Gestaltungssystem; die
      * Kundenfläche setzt die Dichte selbst auf „kunde".
+     *
+     * `theme` gilt nur für die Seiten **ohne** Konto — Anmeldung und zweiter
+     * Faktor. Wer angemeldet ist, bekommt die Wahl aus seinem Konto oder,
+     * wenn er keine getroffen hat, die seines Betriebssystems.
+     *
+     * **Die Vorgabe ist hell, seit „Kontor" gilt.** Bei „Leitstand" war sie
+     * dunkel, weil dort die dunkle Fassung die war, in der die Gestaltung
+     * ihren Charakter hatte. Kontor ist hell entworfen und dunkel mitgeführt;
+     * eine dunkle Vorgabe hiesse, jedem Unangemeldeten zuerst die
+     * Zweitfassung zu zeigen.
      */
     'ui' => [
-        'theme' => env('SRVPANEL_THEME', 'dark'),
+        'theme' => env('SRVPANEL_THEME', 'light'),
         'density' => 'admin',
     ],
 

@@ -57,7 +57,7 @@ Drei Dinge, ohne die sich eine Schublade falsch anfühlt:
    gerade geöffnet hat.
 2. Sie schließt mit Escape und mit einem Tipp auf den Schleier.
 3. Solange sie offen ist, rollt die Seite darunter nicht mit
-   (`html.menu-offen { overflow: hidden }`).
+   (`html.menu-open { overflow: hidden }`).
 
 Die Seitenüberschrift steht in der Kopfzeile und darunter nicht noch einmal.
 Die Beizeile bleibt — sie sagt etwas anderes.
@@ -86,50 +86,118 @@ unten. Der hat keine Zeilen, die man verzählen könnte.
 `MobileLayoutTest` hält es fest: `.frame` ist unter 720px `display: flex` und
 setzt keine `grid-template-rows`.
 
-## 5. Tabellen: zwei Muster, und nur diese zwei
+## 5. Tabellen: drei Muster, und nur diese drei
 
 Eine Tabelle mit sechs Spalten ist auf 390px keine Tabelle mehr. Welches
 Muster richtig ist, hängt davon ab, was darin steht.
 
-### `.rollt` — sie bleibt eine Tabelle und rollt waagerecht
+> **Bis August 2026 standen hier zwei.** Das dritte kam mit dem Rework der
+> Optik dazu und ist keine Aufweichung, sondern eine Lücke, die vorher jede
+> Seite selbst gefüllt hat: die Tabelle aus **Bezeichnung und Wert** —
+> Kontingente, Freigaben, Dienste. Sie passt auf 390px, sie muss also weder
+> rollen noch zu Kärtchen zerfallen; ihr fehlte nur eine Regel, was mit dem
+> Wert geschieht, wenn eine Zustandsmarke in der dritten Spalte ihn
+> zusammendrückt. Ohne diese Regel stand „3 von 10" auf drei Zeilen.
+
+### `.scrolls` — sie bleibt eine Tabelle und rollt waagerecht
 
 Für **Messwerte**: Dateisysteme, Prozesse, Dienste. Dort steht in jeder Spalte
 eine Zahl derselben Art, und der Vergleich *zwischen* den Zeilen ist der Zweck
 der Ansicht. Aufgebrochen in Kärtchen wäre genau dieser Vergleich weg.
 
 ```html
-<div class="rollt">
+<div class="scrolls">
   <table> … </table>
 </div>
 ```
 
-### `.stapelt` — jede Zeile wird zu einem Kärtchen
+### `.stacks` — jede Zeile wird zu einem Kärtchen
 
 Für **Verzeichnisse**: Kunden, Pläne, Vorgänge, Protokoll. Dort ist die Zeile
 der Gegenstand, und man liest sie einzeln. Der Spaltenkopf verschwindet für
 das Auge (nicht für den Screenreader); seinen Text trägt jede Zelle als
-`data-spalte` bei sich.
+`data-column` bei sich.
 
 ```html
-<table class="stapelt">
+<table class="stacks">
   <thead><tr><th>Nummer</th><th>Name</th></tr></thead>
   <tbody>
     <tr>
-      <td data-spalte="Nummer">K10001</td>
-      <td data-spalte="Name">Musterfirma</td>
+      <td data-column="Nummer">K10001</td>
+      <td data-column="Name">Musterfirma</td>
       <td><button>Anmelden als</button></td>  <!-- ohne: eine Aktion -->
     </tr>
   </tbody>
 </table>
 ```
 
-Eine Zelle **ohne** `data-spalte` gilt als Aktion und steht linksbündig über
+Eine Zelle **ohne** `data-column` gilt als Aktion und steht linksbündig über
 die volle Breite. Steht in einer Zelle mehr als ein Wert — Name, Marke und
-Beschreibung zusammen —, bekommt sie zusätzlich `class="mehrzeilig"`:
+Beschreibung zusammen —, bekommt sie zusätzlich `class="multiline"`:
 Beschriftung und Inhalt stehen dann untereinander statt nebeneinander, sonst
-rutscht der Rest an den rechten Rand und bricht dort um. Der Test prüft, dass in einer `.stapelt`-Tabelle jede Zelle
-entweder ein `data-spalte` trägt oder ein Bedienelement enthält — eine Zelle,
+rutscht der Rest an den rechten Rand und bricht dort um. Der Test prüft, dass in einer `.stacks`-Tabelle jede Zelle
+entweder ein `data-column` trägt oder ein Bedienelement enthält — eine Zelle,
 die beides nicht hat, steht auf dem Telefon ohne Beschriftung da.
+
+### `.pairs` — Bezeichnung links, Wert rechts
+
+Für **Bezeichnung und Wert**: Kontingente, Freigaben, Dienste, Bestand. Zwei
+oder drei Spalten, und die erste ist immer die Beschriftung der zweiten.
+
+**Warum das kein `.stacks` ist.** `.stacks` macht aus jeder *Zeile* ein
+Kärtchen, weil die Zeile der Gegenstand ist — ein Kunde, ein Vorgang. Bei
+einer Paartabelle ist die Zeile schon nur ein Paar; sie zu einem Kärtchen mit
+zwei beschrifteten Feldern aufzublasen, verdoppelte die Beschriftung
+(„KONTINGENT: Domains / STAND: 3 von 10") und dreifachte die Höhe.
+
+Auf der schmalen Fläche wird jede Zeile zu einer Flexzeile: Bezeichnung links,
+Wert rechts und ohne Umbruch, und eine Zustandsmarke rutscht in die nächste
+Zeile, wenn sie nicht mehr danebenpasst. Ohne das drückte die Marke den Wert
+so weit zusammen, dass „3 von 10" auf drei Zeilen stand.
+
+Breit bekommt sie eine Grenze von 620px: Steht der Bereich allein in seiner
+Reihe, lägen Bezeichnung und Wert sonst an den gegenüberliegenden Rändern —
+gemessen 1300px auseinander.
+
+**Und eine Kennung in der Wertspalte braucht `flex: 1 1 auto; min-width: 0`.**
+`.ident` trägt `white-space: nowrap`, weil ein umgebrochener Pfad keiner
+mehr ist; in einer Paarzeile hiess das auf `/domains/1` bei 390px **81px
+waagerechter Überlauf**. Der naheliegende Versuch — `white-space: normal;
+overflow-wrap: anywhere` — liess ihn auf exakt denselben 81px stehen: In einer
+Flexzeile hält `flex: none` die Inhaltsbreite, ganz gleich wie umgebrochen
+werden darf. Erst das Recht, schmaler zu werden als der eigene Inhalt, löst
+das. Zwei Messungen, ein Fund — der erste Fix sah aus wie einer und war
+keiner.
+
+```html
+<table class="pairs">
+  <tbody>
+    <tr>
+      <td>Domains</td>
+      <td class="rechts">3 von 10</td>
+      <td class="rechts"><Marke art="warn">abweichend vom Plan</Marke></td>
+    </tr>
+  </tbody>
+</table>
+```
+
+**Was keine Tabelle ist, wird auch keine.** Der Aufgabenkatalog der
+Vorgangsseite sah aus wie eine Paartabelle — Name, Beschreibung, ein Knopf —
+und ist eine Liste von Dingen, die man tun kann. Er steht als `<ul>` da. Die
+Frage vor der Wahl des Musters ist, ob die Daten überhaupt tabellarisch sind.
+
+### Blättern
+
+Unter jedem Verzeichnis steht `.pager` — drei Spalten: „Zurück", „Seite N von
+M", „Weiter". Die äusseren halten ihre Breite auch dann, wenn kein Knopf darin
+steht; sonst rutschte die Angabe in der Mitte um eine Knopfbreite, sobald man
+von Seite 1 weiterblättert.
+
+**Er stapelt nicht.** `.button-row` legt seine Knöpfe unter 480 px
+untereinander und über die volle Breite — der Pager tut das ausdrücklich
+nicht: Drei kurze Elemente passen bei 390 px nebeneinander (gemessen: rund
+300 px), und ein „Weiter" über die ganze Breite sähe aus wie die Hauptsache
+der Seite.
 
 ## 6. `dvh` statt `vh`
 
@@ -146,7 +214,7 @@ unter der Leiste des Browsers oder unter dem Bedienbalken des Geräts.
 ## 8. Was beim Bauen einer neuen Seite zu tun ist
 
 - Formularfelder: `--text-input`, volle Breite unter 720px, `min-height: var(--tap)`.
-- Tabelle: `.rollt` oder `.stapelt` — eine dritte Antwort gibt es nicht.
+- Tabelle: `.scrolls` oder `.stacks` — eine dritte Antwort gibt es nicht.
 - Knopfreihen: unter 480px untereinander statt nebeneinander.
 - Nach dem Bauen einmal bei 390px ansehen. Das ist ein iPhone im Hochformat
   und die schmalste Fläche, die dieses Panel bedienen können muss.

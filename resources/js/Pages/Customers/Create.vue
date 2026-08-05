@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import Section from '../../Components/Section.vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
@@ -46,40 +47,52 @@ function submit(): void {
   <Head title="Kunde anlegen" />
 
   <PanelLayout title="Kunde anlegen" subline="Vertragspartner und erstes Anmeldekonto">
-    <form class="maske" @submit.prevent="submit">
-      <fieldset>
-        <legend>Vertragspartner</legend>
+    <template #breadcrumb>
+      <Link href="/customers" class="link">Kunden</Link>
+    </template>
 
-        <label>Kundennummer
+    <form class="form" @submit.prevent="submit">
+      <Section title="Vertragspartner">
+        <label class="field">
+          <span>Kundennummer</span>
           <input :value="props.nextNumber" type="text" readonly tabindex="-1">
-          <small class="hinweis">
-            Wird beim Anlegen vergeben. Steht bis dahin ein anderer Kunde davor,
-            rückt die Nummer nach.
-          </small>
         </label>
+        <p class="hint">
+          Wird beim Anlegen vergeben. Steht bis dahin ein anderer Kunde davor,
+          rückt die Nummer nach.
+        </p>
 
-        <label>Vorname
-          <input v-model="form.first_name" type="text" required>
-          <small v-if="form.errors.first_name" class="fehler">{{ form.errors.first_name }}</small>
-        </label>
-        <label>Nachname
-          <input v-model="form.last_name" type="text" required>
-          <small v-if="form.errors.last_name" class="fehler">{{ form.errors.last_name }}</small>
-        </label>
-        <label>E-Mail
+        <div class="field-row">
+          <label class="field">
+            <span>Vorname</span>
+            <input v-model="form.first_name" type="text" required>
+          </label>
+          <label class="field">
+            <span>Nachname</span>
+            <input v-model="form.last_name" type="text" required>
+          </label>
+        </div>
+        <p v-if="form.errors.first_name" class="error">{{ form.errors.first_name }}</p>
+        <p v-if="form.errors.last_name" class="error">{{ form.errors.last_name }}</p>
+
+        <label class="field">
+          <span>E-Mail</span>
           <input v-model="form.email" type="email" required>
-          <small v-if="form.errors.email" class="fehler">{{ form.errors.email }}</small>
         </label>
-        <label>Telefon <input v-model="form.phone" type="text"></label>
-      </fieldset>
+        <p v-if="form.errors.email" class="error">{{ form.errors.email }}</p>
 
-      <fieldset>
-        <legend>Anmeldekonto</legend>
+        <label class="field">
+          <span>Telefon</span>
+          <input v-model="form.phone" type="text">
+        </label>
+      </Section>
 
-        <label>Anmeldeadresse
+      <Section title="Anmeldekonto">
+        <label class="field">
+          <span>Anmeldeadresse</span>
           <input v-model="form.login_email" type="email" autocomplete="off" required>
-          <small v-if="form.errors.login_email" class="fehler">{{ form.errors.login_email }}</small>
         </label>
+        <p v-if="form.errors.login_email" class="error">{{ form.errors.login_email }}</p>
 
         <PasswordFields
           v-model="form.password"
@@ -88,23 +101,14 @@ function submit(): void {
           :minimum="policy.minimum"
           :error="form.errors.password"
         />
-      </fieldset>
+      </Section>
 
-      <button type="submit" class="knopf wichtig" :disabled="form.processing">
-        {{ form.processing ? 'Wird angelegt …' : 'Anlegen' }}
-      </button>
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
+          {{ form.processing ? 'Wird angelegt …' : 'Anlegen' }}
+        </button>
+        <Link href="/customers" class="button">Abbrechen</Link>
+      </div>
     </form>
   </PanelLayout>
 </template>
-
-<style scoped>
-.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 544px; }
-fieldset { display: flex; flex-direction: column; gap: 8px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-input { padding: 6px 8px; font: inherit; font-size: var(--text-input); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-input[readonly] { color: var(--text-muted); background: var(--surface-border); border-color: transparent; cursor: default; }
-.fehler { font-size: var(--text-small); color: var(--critical); }
-.hinweis { font-size: var(--text-label); color: var(--text-faint); }
-.maske > .knopf { align-self: flex-start; }
-</style>

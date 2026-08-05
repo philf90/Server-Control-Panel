@@ -1384,3 +1384,368 @@ Sechs Domains, zwei PHP-Versionen, zwei Systembenutzer — und kein Zugriff übe
   braucht". Das stimmte nur für das Ergebnis, nicht für den Weg dorthin.
 
 Als Nächstes P4 (TLS).
+
+### Rework der Optik, Schritt 1: die Wächter kommen vor dem Umbau
+
+Die Oberfläche wird neu gestaltet — die Richtung „Kontor" aus
+`docs/entwuerfe/30-neue-richtungen.md`, bedienbar in
+`docs/entwuerfe/31-kontor-mockup.html`. Das Gestaltungssystem „Leitstand"
+fällt: nicht seine Umsetzung, sondern seine Grundannahme — dunkel als
+Ausgangsfassung, Amber als einzige Farbe, jede Zahl in Monospace, ein schmales
+dunkles Rail neben dem Inhalt.
+
+**Zuerst die Wächter, und noch keine Zeile Gestaltung.** Wer den Umbau zuerst
+macht, prüft danach den Umbau statt den Bestand — und erfährt nie, was vorher
+falsch war. Deshalb steht die Messung am Anfang, und sie ist unbequem: Der
+Lauf ist nach diesem Schritt **rot an sechs Stellen**, und jede davon ist ein
+Befund und kein Versehen.
+
+- **`ButtonStyleTest::test_every_control_border_stands_out`** — der
+  Kontrasttest liest keine Namen mehr, sondern Regeln. Vorher las er genau eine
+  Marke, `--button-line`, weil genau ein Fund ihn ausgelöst hatte: ein Knopf
+  auf `--surface` mit einem Rand aus `--line`, 1,04:1, auf dem Bildschirm kein
+  Bedienelement, sondern ein hellerer Fleck.
+
+  Die Regel dahinter steht in WCAG 1.4.11 und redet nicht von Knöpfen, sondern
+  von der Grenze eines Bedienelements. Der Test tat es doch — und hat deshalb
+  neun Monate lang nicht gemeldet, dass **jedes Eingabefeld des Panels**
+  denselben Fehler trägt: `border: 1px solid var(--line)` auf elf Seiten,
+  **1,13:1 im dunklen Theme und 1,09:1 im hellen**. Er sucht jetzt jede Regel —
+  in `app.css` *und* in jeder Komponente —, deren Selektor ein Bedienelement
+  nennt und die ihm einen Rand aus einer Marke gibt, und rechnet diese Marke
+  gegen jede Fläche, auf der das Element liegen kann. Ein künftiges `.schalter`
+  fällt darunter, ohne dass jemand den Test anfasst.
+- **`ButtonStyleTest::test_no_page_styles_a_field_itself`** — dieselbe Regel wie
+  für Knöpfe, nur für `input`, `select` und `textarea`. Elf Seiten trugen
+  dieselbe abgeschriebene Zeile; beim zwölften Mal wäre sie anders gewesen.
+- **`ClassReachTest`** (neu) — jede Klasse in einem Template zeigt auf eine
+  Regel, die es gibt. Das ist die Verallgemeinerung einer Prüfung, die es schon
+  gab: `ButtonStyleTest` verlangt seit P3, dass jede *Knopfklasse* existiert —
+  Anlass war `class="knopf betont"`, eine Klasse, die niemand kennt. Für jede
+  andere Klasse fragte danach niemand. Der erste Lauf fand drei tote, zwei
+  davon vorher unbemerkt:
+  - `Tile.vue` schreibt `class="series empty"`, das CSS kennt `.series.leer`;
+  - `Tile.vue` schreibt `class="value num"` — **`.num` gibt es nirgends.** Die
+    Marke sollte der Kachelzahl Tabellenziffern geben; `app.css` setzt sie über
+    `.zahl`, die Klasse heisst anders. Die eine grosse Zahl, für die die Kachel
+    da ist, stand also in Proportionalziffern, und zwei Kacheln nebeneinander
+    hatten ihre Ziffern nicht auf derselben Linie. Sichtbar, messbar, und
+    trotzdem ein Jahr lang von niemandem gemeldet;
+  - `PanelLayout.vue` schreibt `class="name"` im Kontoblock, ohne Regel dazu.
+- **`TableStyleTest`** (neu) — Tabellen kommen aus `app.css`, und ihre
+  Zeilenhöhe aus `--row-height`. §7.2 verspricht zwei Dichtestufen und nennt
+  als erste Zeile ihrer Tabelle die Zeilenhöhe. Die Marke dafür wurde von
+  **zwei der 26 Seiten** benutzt; auf den übrigen 24 entstand die Zeilenhöhe
+  aus `padding: 6px 8px`, je Seite neu geschrieben. Die Kundenfläche war dort
+  also nicht ruhiger als die Adminfläche, und gemerkt hat es niemand, weil kein
+  Lauf danach fragt. Dazu, was daraus folgt: zehn Seiten definieren `table`,
+  und es gibt **zwei unvereinbare Fassungen** davon.
+- **`DesignTokensTest`** — die Ausnahme im Ausdruck fällt. Dort stand
+  `|block-heading-size`, damit eine Marke durchkommt, die §7.2 gerade verbietet:
+  „Schriftgrößen nicht nach Dichte gestaffelt", und `--block-heading-size` ist
+  13px auf der Admin- und 15px auf der Kundenfläche. Ein Test, der die Ausnahme
+  einbaut, hält nicht mehr die Regel fest, sondern ihre Verletzung. Neu dazu:
+  **jede Stufe der Skala wird auch benutzt** — eine Rolle ohne Nutzer ist keine
+  Rolle, sondern ein Rest, an dem sich beim nächsten Umbau jemand festhält.
+- **`MobileLayoutTest`** — die Regel bleibt, der Ort ändert sich: Er sucht
+  Feldregeln jetzt auch in `app.css` und nicht mehr nur unter `resources/js`.
+  Ohne das hätte er in dem Augenblick nichts mehr gefunden, in dem die Felder
+  dorthin umziehen — und wäre an seiner eigenen Untergrenze durchgefallen statt
+  an der Sache. **Ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen
+  abgeschaltet.**
+
+**Und jeder Wächter wurde absichtlich gebrochen.** Das steht als
+`tests/waechter-brechen.sh` im Repo und nicht als Notiz, weil es sonst beim
+nächsten Wächter nicht mehr geschieht. Es hat sich beim ersten Lauf sofort
+gelohnt: `TableStyleTest::test_the_density_token_exists_in_both_steps` blieb
+**grün**, obwohl `--row-height` aus der Kundendichte entfernt war. In `app.css`
+steht `[data-density='customer']` ein zweites Mal, nämlich im
+`@media (max-width: 720px)`-Block, wo beide Stufen auf 44px zusammenlaufen —
+und der Ausdruck fand diese Fundstelle. Der Wächter sah richtig aus und war es
+nicht; gemerkt hat es nur der Bruch. Er zählt jetzt Klammern und sucht
+ausserhalb der Haltepunkte.
+
+### Rework der Optik, Schritte 2 bis 5: „Kontor" steht
+
+Alle 26 Seiten, ein Gerüst, acht Komponenten und `resources/css/app.css`
+folgen jetzt der Richtung aus `docs/entwuerfe/30-neue-richtungen.md`. Was sich
+gegenüber „Leitstand" geändert hat, steht ausführlich in Plan §7.2; hier steht,
+was dabei gefunden wurde.
+
+**Vier Grundannahmen sind gefallen, nicht der Maßstab.** Hell ist die
+Ausgangsfassung und nicht die nachträgliche zweite Fassung. Es gibt keine
+Karten mehr — ein Bereich ist eine Überschrift, eine Linie und Inhalt, und die
+rund 40px Innenabstand, die eine Karte je Bereich kostet, sind jetzt Zeilen.
+Monospace trägt nur noch Kennungen; Ziffern stehen trotzdem spaltengenau, weil
+`tabular-nums` am `body` steht statt in vierzig Regeln. Und die Form jedes
+Bausteins steht in `app.css` — vorher gab es davon vier bis elf Fassungen über
+32 Dateien.
+
+Drei Vorgaben sind dabei ausdrücklich gefallen, jede mit ihrer Begründung im
+Plan: der 3px-Radius (in neun Monaten an keiner einzigen Stelle eingehalten —
+eine Vorgabe, die kein Werkzeug prüft, ist ein Satz im Dokument), „fünf
+Größen, und keine sechste" (widersprach ihrer eigenen sechszeiligen Tabelle
+und der Datei mit sieben Marken), und Amber als tragende Farbe (Akzent und
+Zustand „Warnung" waren derselbe Farbwert und mussten sich die Bedeutung
+teilen). `docs/24` bekommt mit `.paare` ein drittes Tabellenmuster: Es füllt
+eine Lücke, die bis dahin jede Detailseite selbst gefüllt hat.
+
+#### Was im Browser gefunden wurde und kein Test gemeldet hat
+
+- **Zwölf Zahlenfelder ohne jedes Aussehen.** Im Formular eines Plans stehen
+  die Kontingente in `.mit-einheit` und nicht in `.feld`, und nur `.feld input`
+  trug Rand, Fläche und Innenabstand. Auf dem Bildschirm standen die Werte als
+  nackter Text. Kein Wächter fragt, ob ein Feld überhaupt *ein* Aussehen
+  bekommt — sie fragen nur, ob das, was es bekommt, aus `app.css` stammt.
+- **Ein Eingabefeld von 1570px.** Ein Bereich, der allein in seiner Zeile
+  steht, nimmt die volle Breite — und nahm sie ohne Grenze mit ins Feld. „Die
+  Fläche ausnutzen" heisst mehr Zeilen zu zeigen und nicht, ein Wort über den
+  halben Bildschirm zu ziehen. `.feld` hört bei 540px auf, das Codefeld bei
+  280px.
+- **Ein Überlauf von 81px auf `/domains/1` bei 390px**, und der erste Versuch
+  half nicht: `white-space: normal` statt `nowrap` liess ihn auf exakt
+  denselben 81px stehen. In einer Flexzeile hält `flex: none` die
+  Inhaltsbreite, ganz gleich wie umgebrochen werden darf. Erst `flex: 1 1 auto`
+  mit `min-width: 0` gibt der Zelle das Recht, schmaler zu werden als ihr
+  Inhalt.
+- **1400px Lauflänge in einem halben Grundriss.** Zwölf Kontingente
+  untereinander, daneben die halbe Seite leer — derselbe Vorwurf wie vorher,
+  nur in neuer Gestalt. Als Raster über die volle Breite passt das Formular
+  eines Abonnements auf einen Bildschirm.
+- **Ein Satz in Monospace.** „noch keine Domain" stand mit `.kennung` da und
+  las sich wie ein Wert, den man irgendwo eintippen soll.
+
+#### Der Fund, der einem Wächter seine Reichweite gegeben hat
+
+**Sieben Seiten nannten `--surface-border` und `--padding` — Marken, die es
+seit dem Umbau nicht mehr gibt.** An elf Stellen. Der Browser wirft eine
+Deklaration mit unbekannter Marke still weg: Der Spaltenkopf der Übersicht
+hatte keine Linie, die Balkenspur keinen Grund, die Karte der Anmeldemaske
+keinen Rand.
+
+`DesignTokensTest` prüfte genau das schon — aber nur für `--text-…` und
+`--block-…`, also für ein Zehntel der Marken. Der Wächter stand daneben und
+sah weg. Er heisst jetzt `test_every_token_a_component_uses_exists` und liest
+jede Marke, die eine Komponente nennt.
+
+#### Drei Wächter mussten ihre Untergrenze weiten — und einer log
+
+`test_no_page_styles_a_button_itself`, `..._a_field_itself` und
+`test_no_component_styles_a_table_itself` zählen ihre Treffer, damit sie
+merken, wenn ihr Ausdruck ins Leere läuft. Gezählt haben sie nur in den
+Seiten. Als die letzte Seite ihr eigenes CSS abgab, stand der Zähler auf null,
+und alle drei meldeten Rot für genau die Ordnung, die sie durchsetzen sollen.
+Gezählt wird jetzt in `app.css` mit; der Befund kommt weiter allein aus den
+Seiten.
+
+Dazu ein vierter, der **falschen Alarm schlug**:
+`MobileLayoutTest::test_input_fields_use_the_zoom_safe_size` liest als Selektor
+alles, was vor der geschweiften Klammer steht — also auch den Kommentar
+darüber. In `app.css` steht über `.schalter` die Begründung, warum ein
+Ankreuzfeld dort seine eigene Größe bekommt; das Wort „input" darin genügte,
+damit die Regel als Feldregel galt und an `--text-table` durchfiel. Ein
+Ankreuzfeld zoomt Safari nie hinein. Jeder andere Wächter mit demselben
+Ausdruck schneidet Kommentare weg; hier war es vergessen worden.
+
+Das ist inzwischen **dreimal dieselbe Ursache** — bei `MobileLayoutTest`, bei
+`DesignTokensTest::test_every_step_of_the_scale_is_used` und jetzt bei diesen
+dreien: *Ein Wächter, der eine Regel prüft, darf nicht davon ausgehen, **wo**
+sie gerade eingehalten wird.* Alle sechs Änderungen sind über
+`tests/waechter-brechen.sh` gegengeprüft — Regel gebrochen, Wächter beisst.
+
+#### Und das Werkzeug, das die Wächter prüft, hatte selbst keinen
+
+`tests/waechter-brechen.sh` meldete nach dem Umbau **fünf Wächter als „hält
+seine Regel nicht"** — und keiner davon war schuld. Die Eingriffe nennen
+wörtliche Werte: `--row-height: 42px`, `--button-line`, `--text: #b9c7d4`,
+`--text-metric: 22px`. Nach „Kontor" hiessen alle anders, und `sed` schweigt,
+wenn sein Muster nicht passt. Das Skript patchte also nichts, liess den Test
+laufen, sah ihn grün und schrieb das dem Wächter zu.
+
+Das ist wieder dieselbe Sache: eine Zeichenkette, die auf etwas verweist, ohne
+dass etwas den Bezug prüft — diesmal im Werkzeug, das genau dafür gebaut wurde.
+Jeder Eingriff vergleicht die Datei jetzt vorher und nachher; ändert er nichts,
+meldet das Skript **„Eingriff hat nichts geändert"** statt den Wächter
+anzuschwärzen.
+
+**Ein Bruch war ausserdem gar keiner.** Der Test zur Zeilenhöhe wurde
+gebrochen, indem eine *zusätzliche* Regel `td { height: 40px }` angehängt
+wurde. Der Test fragt aber, ob *irgendeine* Tabellenregel die Marke liest — und
+die echte tat es weiter. Ein Bruch, der neben die Regel greift statt auf sie,
+kann nie zubeissen; er hat den Wächter zwei Ausbaustufen lang bestätigt, ohne
+ihn je zu prüfen. Er bricht jetzt die eine Stelle, die es wirklich gibt.
+
+Dazu drei neue Eingriffe für die drei neuen Wächter. Elf Brüche, elf Bisse.
+
+### Klassennamen sind englisch
+
+Aufgefallen ist es dem Betreiber beim Lesen: `.knopf`, `.marke`, `.bereich`,
+`.kennung`, `.stapelt`, `data-spalte` — rund 110 Namen, dazu Komponenten
+namens `Bereich`, `Marke` und `Balken` mit Eigenschaften wie `titel`,
+`erklaerung` und `prozent`.
+
+**Das war nie die Vorgabe.** `CLAUDE.md` sagt seit dem ersten Tag: „Kommentare,
+Dokumentation und alle Texte der Oberfläche: deutsch. Bezeichner: englisch."
+Eine CSS-Klasse ist ein Bezeichner. Es gab dafür nur kein Werkzeug — dieselbe
+Geschichte wie bei den Knöpfen, den Schriftgrößen und den Tabellen: eine Regel
+im Dokument, keine im Lauf.
+
+**Und `docs/19` §4 hielt das Gegenteil fest.** Dort stand „Die Bezeichner im
+Quelltext sind von alledem unberührt", mit `api.einspielen` und `ufwEinspielen`
+als Beispielen. Der Satz stammt aus dem Vorgängerprojekt und meinte etwas
+Enges und Richtiges: eine **Schnittstelle**, die man nicht für einen
+Wortgeschmack umbenennt, weil auf der anderen Seite jemand mitliest. Auf die
+Klassennamen der eigenen Gestaltung angewandt hat er neun Monate lang eine
+zweite Sprache gerechtfertigt. §4a zieht die Grenze jetzt dort, wo sie
+hingehört: Was eine Migration oder einen Bruch kosten würde, bleibt; was
+ausschliesslich zwischen `app.css` und einem Template dieses Repositorys
+steht, wird englisch.
+
+Umgestellt sind alle CSS-Klassen, die Datenattribute (`data-spalte` →
+`data-column`, `data-stufe`, `data-ablesung`), die drei deutschen Komponenten
+samt Eigenschaften und Slots (`#pfad` → `#breadcrumb`, `#aktion` →
+`#actions`). Seitenlokale Hilfsfunktionen bleiben deutsch — sie sind
+niemandes Schnittstelle, und ein eigener Durchgang nur dafür lohnt nicht.
+
+**Eine Übersetzung war keine.** `.bereich.voll` hiess „über die ganze Breite",
+`.balken.voll` hiess „nahe an der Grenze" — wörtlich übersetzt hätten beide
+`full` geheissen, und dieselbe Klasse hätte an zwei Bausteinen zwei Dinge
+bedeutet. Der Balken heisst jetzt `.bar.tight` und `.bar.over` und sagt damit,
+was er meint. Das ist im Deutschen neun Monate lang niemandem aufgefallen.
+
+**Der neue Wächter fand drei tote Regeln.** `ClassNameTest` prüft zwei Dinge:
+dass jeder Klassenname aus einer Wortliste stammt, und — als Gegenrichtung zu
+`ClassReachTest` — dass jede Regel in `app.css` von einem Template erreicht
+wird. Die zweite Prüfung meldete `.pair-list`, `.output .time` und
+`.output .fehl`: eine Beschreibungsliste, die seit „Kontor" niemand mehr baut,
+und zwei Regeln für Markup, das die Vorgangsausgabe längst nicht mehr
+erzeugt — sie ist reiner Text in einem `<pre>`. `.fehl` war ausserdem die
+letzte deutsche Klasse und wäre beim Umbenennen fast durchgerutscht, weil sie
+in keinem Template steht.
+
+Wer eine Klasse hinzufügt, trägt ihr Wort in `VOCABULARY` ein. Die Zeile steht
+im Diff — genau dort, wo ein deutsches Wort auffällt.
+
+### Blättern — vier Verzeichnisse hörten nach fünfzig Zeilen auf
+
+Aufgefallen beim Ansehen einer Aufnahme des Protokolls: Oben stand „76
+Einträge", darunter fünfzig, und darunter nichts.
+
+**Der Befund war schlimmer als der erste Blick.** Vier Controller riefen
+`paginate()` auf — Protokoll, Kunden, Domains, Vorgänge — und **keine einzige
+Seite zeigte einen Weg zur zweiten.** Drei von ihnen schickten die
+Seitenzahlen nicht einmal mit; beim vierten kamen sie an und die Seite warf
+sie weg. Alles ab Zeile 51 war unerreichbar: kein Fehler, keine Meldung, nur
+eine Liste, die aufhört. Am schlimmsten trifft es die **Vorgänge** — die
+Liste wächst am schnellsten, eine Zeile je Operation, und man sieht sie an,
+wenn etwas nicht stimmt.
+
+Zwei weitere Verzeichnisse — **Abonnements und Pläne** — paginierten gar
+nicht und wuchsen ohne Grenze. Auf der schmalen Fläche wird daraus ein
+Kärtchen je Zeile; das Protokoll war bei 76 Einträgen bereits 21 000 px hoch.
+
+Wieder derselbe Fehler: eine Zusage auf der einen Seite (`paginate`), der auf
+der anderen nichts entspricht. Er ist ein Jahr alt.
+
+#### Was jetzt gilt
+
+- **Alle sechs Verzeichnisse paginieren**, 50 Zeilen je Seite, aus einer
+  Konstante. Auch Pläne — ein Katalog von über 50 ist unwahrscheinlich, aber
+  die Kosten sind ungleich verteilt: Blättern, das nie erscheint, kostet
+  nichts; zehn unsichtbare Pläne sind derselbe stille Verlust.
+- **Domains von 100 auf 50.** Ein abweichender Wert ohne Grund ist einer, den
+  beim nächsten Verzeichnis jemand anders setzt.
+- **Die Nutzlast entsteht in `App\Support\Web\Page`** und nicht je Controller.
+  Vorher schickte das Protokoll vier Felder und die übrigen drei zwei.
+- **`->withQueryString()` überall.** Ohne den Aufruf trägt der Verweis auf
+  Seite 2 die eingestellten Filter nicht mit: Man filtert auf
+  „fehlgeschlagen", blättert weiter und steht wieder in der ungefilterten
+  Liste — mit einem Formular, das weiter den Filter anzeigt.
+- **`Pager.vue`: Zurück · Seite N von M · Weiter.** Keine Seitenzahlenleiste:
+  „1 2 … 7 8 9 … 42" bricht auf 390 px um oder braucht Abkürzungslogik, und
+  die ist eine klassische Quelle für Zählfehler. Er zeigt sich nur, wenn es
+  mehr als eine Seite gibt, und auf Seite 1 steht kein `?page=1` in der
+  Adresse.
+
+#### Zwei Dinge, die erst der Browser zeigte
+
+Der Pager landete zunächst als Geschwister von `<Section>` und damit in
+`.sections` — einer Flexverteilung. Dort schrumpfte er auf seine
+Inhaltsbreite, und seine Trennlinie reichte über ein Fünftel der Seite. Er
+gehört unter die Tabelle und damit *in* den Bereich.
+
+Die äusseren Spalten halten ihre Breite auch dann, wenn kein Knopf darin
+steht. Ohne das rutschte „Seite 2 von 5" um eine Knopfbreite, sobald man von
+Seite 1 weiterblättert — auf einer Seite, die sonst gleich bleibt, sieht das
+nach einem Fehler aus.
+
+#### Der Wächter, der gefehlt hat
+
+`PaginationTest` prüft drei Dinge, und die dritte ist die entscheidende: Sie
+liest, welche Inertia-Seite ein `Page::from()` in ihrer Nutzlast hat, und
+sieht in der zugehörigen `.vue` nach, ob dort ein `<Pager>` steht. **Genau an
+dieser Naht ist der Fehler entstanden** — der Controller war richtig, die
+Seite ignorierte ihn, und beide für sich sahen in Ordnung aus.
+
+Dazu zwei funktionale Prüfungen in `AuditLogTest`, die der Wächter nicht
+leisten kann: dass Seite 2 andere Zeilen zeigt als Seite 1, und dass ein
+Filter das Blättern überlebt.
+
+### Die Kurve warnt wieder — das Merkmal, wegen dem „Kontor" gewählt wurde
+
+Beim Zuschlag hiess es: „Die Gestaltung mit unterschiedlichen farbigen Badges
+und den farbigen Sparklines gefällt mir sehr gut." Die Badges kamen mit dem
+Rework. **Die farbigen Sparklines nicht.**
+
+Im bedienten Muster wechselt die Kurve die Farbe, sobald der letzte Wert über
+einer Schwelle liegt; der Kommentar dort nennt es „den Unterschied zwischen
+bunt und bedeutend: ‚Datenträger' ist bei 91 % nicht dieselbe Auskunft wie
+‚CPU' bei 23 %". `Tile.vue` hatte davon nichts — die Linie stand fest auf
+`var(--accent)`.
+
+**Warum es ein Jahr lang niemandem auffiel.** In dieser Entwicklungsumgebung
+läuft kein Agent. Auf jeder Kachel stand „noch keine Messwerte", und eine
+Kurve, die es nicht gibt, hat auch keine falsche Farbe. Bemerkt wurde es erst,
+als zum Abschluss des Reworks zum ersten Mal jemand Messwerte in den
+Ringpuffer schrieb, um die Kacheln überhaupt einmal gefüllt zu sehen.
+
+Die Schwellen sind die des Musters — mit zwei Abweichungen, die begründet
+sind:
+
+- **Die Load rechnet mit der wirklichen Kernzahl.** Das Muster nannte 4, weil
+  sein erfundener Server vier Kerne hatte. Eine feste Zahl wäre hier besonders
+  falsch: Load 4 heisst auf vier Kernen „ausgelastet" und auf zweiunddreissig
+  „langweilt sich". Der Agent zählt die Kerne seit P0 —
+  `SystemInfo::cpu()['cores']` — und **benutzt hat sie bis heute niemand.**
+- **Der Schreibdurchsatz bekommt keine.** Das Muster hatte an fünfter Stelle
+  den Füllstand des Datenträgers (90 %); das Panel zeigt dort den
+  Schreibdurchsatz, und für den gibt es keine Zahl, die auf zwei Servern
+  dasselbe bedeutet — eine NVMe schreibt zwei Gigabyte je Sekunde, ein
+  Netzlaufwerk hundert Megabyte. Eine Schwelle, die überall gilt, warnt
+  entweder ständig oder nie. `null` steht dort als Angabe und mit Begründung.
+
+**Verglichen wird der letzte Wert und nicht der höchste.** Eine Kurve, die vor
+einer Stunde einmal ausgeschlagen ist und seitdem ruhig läuft, warnte sonst
+für immer — und eine Warnung, die nicht mehr weggeht, liest nach dem dritten
+Mal niemand.
+
+Im Browser nachgesehen, beide Themes: CPU auf 90 % und Load auf 8,96 tragen
+die Warnfarbe, RAM auf 61 %, Netz und IO bleiben im Akzent.
+
+#### Zwei Wächter, und der zweite war nötig
+
+`SeriesThresholdTest` prüft die Rechnung: unter der Schwelle ruhig, ab der
+Schwelle Warnung, ein alter Ausschlag warnt nicht weiter, ohne Schwelle warnt
+nichts, und das Feld steht auch in einer leeren Reihe.
+
+Beim Gegenprüfen zeigte sich, dass das nicht genügt: **Kürzt jemand im
+Controller das letzte Argument weg, bleibt der Unit-Test grün** und die
+Übersicht zeichnet wieder jede Kurve gleich — also genau der Zustand, der
+gerade behoben wurde. `PanelWalkthroughTest::test_a_tile_over_its_threshold
+_says_so` schreibt deshalb echte Messwerte in den Ringpuffer und prüft die
+ganze Kette: CPU über ihrer Schwelle warnt, RAM darunter nicht.
+
+Dieser Test ist beim ersten Anlauf selbst hereingefallen: Er legte einen
+eigenen `Store` mit Kapazität 100 an, während die Anwendung mit 8640 liest. Ein
+RingBuffer legt seine Datei nach der Kapazität aus — dieselbe Datei, anders
+gelesen, und die CPU stand auf „warnt nicht", obwohl 96 % darin standen.

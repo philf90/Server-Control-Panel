@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Plans\Quota;
 use App\Support\Web\Domains;
+use App\Support\Web\Page;
 use App\Support\Web\PhpLimits;
 use App\Support\Web\PhpSelection;
 use Illuminate\Http\RedirectResponse;
@@ -54,15 +55,11 @@ final class DomainController extends Controller
         $domains = Domain::query()
             ->with('subscription')
             ->orderBy('name')
-            ->paginate(100);
+            ->paginate(Page::SIZE)
+            ->withQueryString();
 
         return Inertia::render('Domains/Index', [
-            'domains' => [
-                'data' => collect($domains->items())
-                    ->map(fn (Domain $domain): array => $this->row($domain))
-                    ->all(),
-                'total' => $domains->total(),
-            ],
+            'domains' => Page::from($domains, fn (Domain $domain): array => $this->row($domain)),
         ]);
     }
 

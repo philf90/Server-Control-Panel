@@ -108,10 +108,24 @@ final class MobileLayoutTest extends TestCase
         }
     }
 
-    public function test_every_table_carries_one_of_the_two_patterns(): void
+    public function test_every_table_carries_one_of_the_patterns(): void
     {
-        // Eine Tabelle ohne Muster ist auf 390px entweder abgeschnitten oder
-        // sie schiebt die ganze Seite seitwärts.
+        /*
+         * Eine Tabelle ohne Muster ist auf 390px entweder abgeschnitten oder
+         * sie schiebt die ganze Seite seitwärts.
+         *
+         * **Seit dem Rework sind es drei und nicht mehr zwei.** `.paare` ist
+         * die Tabelle aus Bezeichnung und Wert — Kontingente, Freigaben,
+         * Dienste. Sie passt auf 390px und muss weder rollen noch zu Kärtchen
+         * zerfallen; ihr fehlte nur eine Regel, was mit dem Wert geschieht,
+         * wenn eine Zustandsmarke in der dritten Spalte ihn zusammendrückt.
+         * Ohne die Regel stand „3 von 10" auf drei Zeilen — gesehen in der
+         * Aufnahme, nicht im Entwurf.
+         *
+         * Das dritte Muster ist keine Aufweichung der Regel, sondern eine
+         * Lücke, die vorher jede Seite selbst gefüllt hat. docs/24 §5 nennt
+         * alle drei und sagt, wann welches gilt.
+         */
         $tables = 0;
 
         foreach ($this->files('resources/js', 'vue') as $path) {
@@ -132,7 +146,8 @@ final class MobileLayoutTest extends TestCase
                 $offset = $match[1];
                 $tables++;
 
-                $stacks = str_contains($attributes, 'stapelt');
+                $stacks = str_contains($attributes, 'stacks');
+                $pairs = str_contains($attributes, 'pairs');
 
                 /*
                  * Rollt sie? Dann steht der Behälter unmittelbar davor.
@@ -144,7 +159,7 @@ final class MobileLayoutTest extends TestCase
                  * nur das Stück *zwischen* zwei Tabellen. Dann wurde gezählt,
                  * offene `rollt` gegen geschlossene Tabellen, und das hielt
                  * genau so lange, wie jede Tabelle einer Seite gerollt hat:
-                 * Eine gestapelte Tabelle davor verschiebt die Bilanz, und die
+                 * Eine gestackse Tabelle davor verschiebt die Bilanz, und die
                  * gerollten dahinter fielen durch — obwohl an ihnen nichts
                  * geändert wurde.
                  *
@@ -153,13 +168,15 @@ final class MobileLayoutTest extends TestCase
                  * eine Seite, die niemand behauptet hat.
                  */
                 $before = rtrim(substr($template, 0, $offset));
-                $scrolls = str_ends_with($before, '<div class="rollt">');
+                $scrolls = str_ends_with($before, '<div class="scrolls">');
 
                 $this->assertTrue(
-                    $stacks || $scrolls,
+                    $stacks || $scrolls || $pairs,
                     sprintf(
                         'In %s steht eine Tabelle ohne Muster aus docs/24 §5. Messwerte gehören in '.
-                        '<div class="rollt">, Verzeichnisse bekommen class="stapelt".',
+                        '<div class="scrolls">, Verzeichnisse bekommen class="stacks", und '.
+                        'Bezeichnung-und-Wert bekommt class="pairs". Was gar keine Tabelle ist — '.
+                        'ein Katalog von Aufgaben etwa —, wird auch keine.',
                         $this->relative($path),
                     ),
                 );
@@ -172,7 +189,7 @@ final class MobileLayoutTest extends TestCase
     public function test_every_cell_of_a_stacked_table_is_labelled(): void
     {
         // Im Stapel verschwindet der Spaltenkopf. Eine Zelle ohne
-        // `data-spalte` steht danach ohne Beschriftung da — es sei denn, sie
+        // `data-column` steht danach ohne Beschriftung da — es sei denn, sie
         // enthält ein Bedienelement, das für sich selbst spricht.
         $cells = 0;
 
@@ -185,14 +202,14 @@ final class MobileLayoutTest extends TestCase
                 foreach ($matches as $cell) {
                     $cells++;
 
-                    $labelled = str_contains($cell[1], 'data-spalte');
+                    $labelled = str_contains($cell[1], 'data-column');
                     $spans = str_contains($cell[1], 'colspan');
                     $acts = (bool) preg_match('/<(button|a|Link)\b/i', $cell[2]);
 
                     $this->assertTrue(
                         $labelled || $spans || $acts,
                         sprintf(
-                            'In %s hat eine Zelle einer gestapelten Tabelle kein data-spalte und keine Aktion '.
+                            'In %s hat eine Zelle einer gestacksen Tabelle kein data-column und keine Aktion '.
                             'darin. Auf dem Telefon steht ihr Wert ohne Beschriftung (docs/24 §5).',
                             $this->relative($path),
                         ),
@@ -255,19 +272,26 @@ final class MobileLayoutTest extends TestCase
 
     public function test_input_fields_use_the_zoom_safe_size(): void
     {
-        // Ein Feld mit --text-body ist ein Feld, das Safari beim Fokus
-        // hineinzoomt. Gesucht wird jede Regel, deren Selektor ein Feld nennt
-        // und die eine Schriftgröße setzt.
+        /*
+         * Ein Feld mit --text-body ist ein Feld, das Safari beim Fokus
+         * hineinzoomt. Gesucht wird jede Regel, deren Selektor ein Feld nennt
+         * und die eine Schriftgröße setzt.
+         *
+         * **Gesucht wird in app.css mit.** Vorher las dieser Test nur
+         * `resources/js` — zu der Zeit brachte jede Seite ihr eigenes Feld mit,
+         * und dort standen die Regeln. Genau das hört auf: Das Aussehen eines
+         * Feldes gehört in app.css, wie das eines Knopfes
+         * (`ButtonStyleTest::test_no_page_styles_a_field_itself`).
+         *
+         * Ohne diese Erweiterung hätte der Test in dem Augenblick nichts mehr
+         * gefunden, in dem die Felder umziehen — und wäre an seiner eigenen
+         * Untergrenze durchgefallen statt an der Sache. Ein Wächter, der beim
+         * Aufräumen zubeisst, wird beim Aufräumen abgeschaltet.
+         */
         $checked = 0;
 
-        foreach ($this->files('resources/js', 'vue') as $path) {
-            $source = (string) file_get_contents($path);
-
-            if (preg_match('#<style[^>]*>(.*)</style>#su', $source, $match) !== 1) {
-                continue;
-            }
-
-            preg_match_all('/([^{}]*)\{([^{}]*)\}/s', $match[1], $rules, PREG_SET_ORDER);
+        foreach ($this->stylesheets() as $name => $css) {
+            preg_match_all('/([^{}]*)\{([^{}]*)\}/s', $css, $rules, PREG_SET_ORDER);
 
             foreach ($rules as $rule) {
                 $selector = trim($rule[1]);
@@ -288,7 +312,7 @@ final class MobileLayoutTest extends TestCase
                     sprintf(
                         '%s setzt an „%s" die Größe %s (%dpx). Eingabefelder brauchen --text-input oder eine '.
                         'Marke ab 16px, sonst zoomt Safari beim Fokus in die Seite (docs/24 §3).',
-                        $this->relative($path),
+                        $name,
                         $selector,
                         $token,
                         $this->scale()[$token] ?? 0,
@@ -297,7 +321,52 @@ final class MobileLayoutTest extends TestCase
             }
         }
 
-        $this->assertGreaterThan(3, $checked, 'Es werden kaum Feldregeln gefunden — dann prüft dieser Test nichts.');
+        $this->assertGreaterThan(0, $checked, 'Es wird keine Feldregel mehr gefunden — dann prüft dieser Test nichts.');
+    }
+
+    /**
+     * Jedes Stylesheet des Panels: app.css und die `<style>`-Blöcke.
+     *
+     * @return array<string, string>
+     */
+    private function stylesheets(): array
+    {
+        $sheets = [];
+
+        foreach ($this->files('resources/css', 'css') as $path) {
+            $sheets[$this->relative($path)] = $this->withoutComments((string) file_get_contents($path));
+        }
+
+        foreach ($this->files('resources/js', 'vue') as $path) {
+            $source = (string) file_get_contents($path);
+
+            if (preg_match('#<style[^>]*>(.*)</style>#su', $source, $match) === 1) {
+                $sheets[$this->relative($path)] = $this->withoutComments($match[1]);
+            }
+        }
+
+        return $sheets;
+    }
+
+    /**
+     * Kommentare weg, bevor eine Regel gelesen wird.
+     *
+     * **Das hat gefehlt, und es hat falschen Alarm geschlagen.** Der Ausdruck
+     * `([^{}]*)\{([^{}]*)\}` nimmt als Selektor alles, was vor der Klammer
+     * steht — also auch den Kommentar darüber. In app.css steht über `.schalter`
+     * die Begründung, warum ein `input[type='checkbox']` dort seine eigene
+     * Größe bekommt; das Wort „input" darin genügte, damit die Regel als
+     * Feldregel galt und an `--text-table` durchfiel. Ein Ankreuzfeld zoomt
+     * Safari nie hinein — das ist das Gegenteil einer echten Meldung.
+     *
+     * Jeder andere Wächter mit demselben Ausdruck macht das längst
+     * (`ButtonStyleTest`, `TableStyleTest`, `ClassReachTest`); hier war es
+     * vergessen worden. Ein Wächter, der bei einem gut kommentierten
+     * Stylesheet Fehlalarm gibt, wird beim dritten Mal abgeschaltet.
+     */
+    private function withoutComments(string $css): string
+    {
+        return (string) preg_replace('#/\*.*?\*/#su', '', $css);
     }
 
     /**
@@ -343,13 +412,13 @@ final class MobileLayoutTest extends TestCase
     }
 
     /**
-     * Die Inhalte aller `.stapelt`-Tabellen eines Templates.
+     * Die Inhalte aller `.stacks`-Tabellen eines Templates.
      *
      * @return list<string>
      */
     private function stackedTables(string $template): array
     {
-        preg_match_all('#<table[^>]*stapelt[^>]*>(.*?)</table>#su', $template, $matches);
+        preg_match_all('#<table[^>]*stacks[^>]*>(.*?)</table>#su', $template, $matches);
 
         return $matches[1];
     }

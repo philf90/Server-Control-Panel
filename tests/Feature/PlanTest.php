@@ -57,7 +57,7 @@ final class PlanTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Plans/Index')
-                ->where('plans.0.name', 'Paket S'));
+                ->where('plans.data.0.name', 'Paket S'));
     }
 
     public function test_a_customer_does_not_reach_the_plans(): void

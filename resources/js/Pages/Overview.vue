@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
+import Bar from '../Components/Bar.vue'
+import Section from '../Components/Section.vue'
+import Badge from '../Components/Badge.vue'
 import Tile, { type Series } from '../Components/Tile.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
 
@@ -72,6 +75,19 @@ function uptimeText(seconds: number): string {
   return minutes === 1 ? 'seit 1 Minute' : `seit ${minutes} Minuten`
 }
 
+/*
+ * Ein Dienst hat drei Ausgänge und nicht zwei.
+ *
+ * „Nicht installiert" ist kein Fehler: Der Agent nennt jeden Dienst, den
+ * dieses Panel kennt, und nicht jeder gehört auf jeden Server. Rot dafür
+ * schickt jemanden auf die Suche nach etwas, das nie da war.
+ */
+function dienstRang(service: Service): 'ok' | 'critical' | 'neutral' {
+  if (!service.present) return 'neutral'
+
+  return service.active_state === 'active' ? 'ok' : 'critical'
+}
+
 const headline = props.server.reachable
   ? [props.server.hostname, props.server.distribution, uptimeText(props.server.uptime_s ?? 0)]
       .filter(Boolean)
@@ -81,11 +97,14 @@ const headline = props.server.reachable
 
 <template>
   <PanelLayout title="Übersicht" :subline="headline">
-    <div v-if="!server.reachable" class="alert">
-      <b>Der Agent antwortet nicht.</b>
-      <span>{{ server.error }}</span>
-      <code>systemctl status srvpanel-agentd</code>
-    </div>
+    <p v-if="!server.reachable" class="notice critical">
+      <span>
+        <b>Der Agent antwortet nicht.</b>
+        {{ server.error }}
+        Zustand nachsehen mit
+        <span class="ident">systemctl status srvpanel-agentd</span>.
+      </span>
+    </p>
 
     <div class="tiles">
       <Tile
@@ -99,345 +118,200 @@ const headline = props.server.reachable
       />
     </div>
 
-    <!--
-      Der Bestand steht über den Diensten und unter den Kacheln.
+    <div class="sections after-tiles">
+      <!--
+        Der Bestand steht über den Diensten und unter den Kacheln.
 
-      Über den Diensten, weil ein Betreiber sein Panel nicht öffnet, um den
-      Zustand von nginx zu erfahren, sondern um zu sehen, ob mit dem, was er
-      hostet, etwas nicht stimmt. Unter den Kacheln, weil die Kacheln die Frage
-      beantworten, ob der Server überhaupt gesund ist — und wenn er es nicht
-      ist, ist alles darunter zweitrangig.
-    -->
-    <section class="block">
-      <h2 class="section">Bestand</h2>
-
-      <div class="zahlen">
-        <Link href="/customers" class="zahl">
-          <span class="wert">{{ props.hosting.customers.total }}</span>
-          <span class="was">Kunden</span>
-          <span v-if="props.hosting.customers.suspended > 0" class="dazu warn">
-            {{ props.hosting.customers.suspended }} gesperrt
-          </span>
-        </Link>
-
-        <Link href="/subscriptions" class="zahl">
-          <span class="wert">{{ props.hosting.subscriptions.total }}</span>
-          <span class="was">Abonnements</span>
-          <span class="dazu">{{ props.hosting.subscriptions.active }} aktiv</span>
-        </Link>
-
+        Über den Diensten, weil ein Betreiber sein Panel nicht öffnet, um den
+        Zustand von nginx zu erfahren, sondern um zu sehen, ob mit dem, was er
+        hostet, etwas nicht stimmt. Unter den Kacheln, weil die Kacheln die
+        Frage beantworten, ob der Server überhaupt gesund ist — und wenn er es
+        nicht ist, ist alles darunter zweitrangig.
+      -->
+      <Section title="Bestand">
         <!--
-          Gesperrt und „wird angelegt" stehen nur da, wenn es sie gibt. Eine
-          Null neben einer Beschriftung ist eine Angabe, die man jedes Mal
-          liest und nie braucht.
+          Die Zahlen sind Verweise und keine Kacheln: Wer die Zahl der
+          gesperrten Abonnements liest, will als Nächstes wissen, welche das
+          sind — und dann soll er sie anklicken können und nicht erst in die
+          Navigation greifen.
         -->
-        <Link v-if="props.hosting.subscriptions.suspended > 0" href="/subscriptions" class="zahl">
-          <span class="wert warn">{{ props.hosting.subscriptions.suspended }}</span>
-          <span class="was">gesperrt</span>
-        </Link>
-
-        <Link v-if="props.hosting.subscriptions.provisioning > 0" href="/subscriptions" class="zahl">
-          <span class="wert">{{ props.hosting.subscriptions.provisioning }}</span>
-          <span class="was">werden angelegt</span>
-        </Link>
-      </div>
-    </section>
-
-    <!--
-      Nicht die grössten Abonnements, sondern die vollsten: Eines mit 40 GB von
-      200 ist unauffällig, eines mit 4,8 GB von 5 ist der Anruf von morgen.
-    -->
-    <section v-if="props.hosting.storage.length > 0" class="block">
-      <h2 class="section">Am nächsten an der Speichergrenze</h2>
-
-      <table class="stapelt">
-        <thead>
-          <tr><th>Abonnement</th><th>Belegt</th><th>Anteil</th><th>Gemessen</th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in props.hosting.storage" :key="row.id">
-            <td data-spalte="Abonnement">
-              <Link :href="`/subscriptions/${row.id}`">{{ row.name }}</Link>
-            </td>
-            <td data-spalte="Belegt" class="zahlwert">{{ row.used_mb.toLocaleString('de-DE') }} MB</td>
-            <td data-spalte="Anteil" class="zahlwert" :data-voll="row.percent >= 90">{{ row.percent }} %</td>
-            <td data-spalte="Gemessen">{{ row.measured_at ?? '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!--
-      Jeder Bereich steht in einem eigenen <section> mit seiner Überschrift
-      darin. Vorher lagen Überschrift und Tabelle als Geschwister nebeneinander,
-      und der Abstand entstand nur aus dem Rand der Überschrift — nach oben
-      null. Damit stand jede Überschrift dichter an der Tabelle darüber als an
-      ihrer eigenen. Die Klammer macht die Zugehörigkeit auch dann richtig,
-      wenn später jemand an den Rändern dreht.
-    -->
-    <section class="block">
-      <h2 class="section">Dienste</h2>
-      <div class="rollt">
-        <table>
-          <thead>
-            <tr>
-              <th>Unit</th>
-              <th>Zustand</th>
-              <th>Beschreibung</th>
-            </tr>
-          </thead>
+        <table class="pairs">
           <tbody>
-            <tr v-for="service in services" :key="service.unit">
-              <td class="name">{{ service.unit }}</td>
-              <td>
-                <span :class="['badge', service.active_state === 'active' ? 'ok' : service.present ? 'stopped' : 'missing']">
-                  {{ service.present ? service.active_state : 'nicht installiert' }}
-                </span>
-              </td>
-              <td class="quiet">{{ service.description }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="block">
-      <h2 class="section">Dateisysteme</h2>
-      <div class="rollt">
-        <table>
-          <thead>
             <tr>
-              <th>Einhängepunkt</th>
-              <th>Gerät</th>
-              <th>Art</th>
-              <th>Größe</th>
-              <th>Frei</th>
-              <th>Belegt</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="filesystem in filesystems" :key="filesystem.mount">
-              <td class="name">{{ filesystem.mount }}</td>
-              <td class="quiet">{{ filesystem.device }}</td>
-              <td class="quiet">{{ filesystem.type }}</td>
-              <td>{{ filesystem.total }}</td>
-              <td>{{ filesystem.free }}</td>
-              <td>
+              <td class="quiet"><Link href="/customers" class="link">Kunden</Link></td>
+              <td class="right name">{{ props.hosting.customers.total }}</td>
+              <td class="right">
                 <!--
-                  Der Balken statt nur der Zahl: „87 %" liest man, ein voller
-                  Balken sieht man. Die Schwelle, ab der er warnt, kommt vom
-                  Server — sie ist eine Aussage über den Betrieb.
+                  Gesperrt und „wird angelegt" stehen nur da, wenn es sie gibt.
+                  Eine Null neben einer Beschriftung ist eine Angabe, die man
+                  jedes Mal liest und nie braucht.
                 -->
-                <div class="bar" :class="{ tight: filesystem.tight }">
-                  <span :style="{ width: `${Math.min(100, filesystem.percent)}%` }" />
-              </div>
-              <span class="percent">{{ filesystem.percent }} %</span>
-            </td>
-          </tr>
-          <tr v-if="filesystems.length === 0">
-            <td colspan="6" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
-          </tr>
-        </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="block">
-      <h2 class="section">Prozesse nach Speicher</h2>
-      <div class="rollt">
-        <table>
-          <thead>
+                <Badge v-if="props.hosting.customers.suspended > 0" kind="warn">
+                  {{ props.hosting.customers.suspended }} gesperrt
+                </Badge>
+              </td>
+            </tr>
             <tr>
-              <th>PID</th>
-              <th>Name</th>
-              <th>Zustand</th>
-              <th>UID</th>
-              <th>Speicher</th>
+              <td class="quiet"><Link href="/subscriptions" class="link">Abonnements</Link></td>
+              <td class="right name">{{ props.hosting.subscriptions.total }}</td>
+              <td class="right">
+                <Badge kind="ok">{{ props.hosting.subscriptions.active }} aktiv</Badge>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            <tr v-for="process in processes" :key="process.pid">
-              <td>{{ process.pid }}</td>
-              <td class="name">{{ process.name }}</td>
-              <td class="quiet">{{ process.state }}</td>
-              <td>{{ process.user }}</td>
-              <td>{{ process.rss }}</td>
+            <tr v-if="props.hosting.subscriptions.suspended > 0">
+              <td class="quiet">davon gesperrt</td>
+              <td class="right name">{{ props.hosting.subscriptions.suspended }}</td>
+              <td class="right"><Badge kind="warn">gesperrt</Badge></td>
             </tr>
-            <tr v-if="processes.length === 0">
-              <td colspan="5" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
+            <tr v-if="props.hosting.subscriptions.provisioning > 0">
+              <td class="quiet">werden angelegt</td>
+              <td class="right name">{{ props.hosting.subscriptions.provisioning }}</td>
+              <td class="right"><Badge kind="warn" running>läuft</Badge></td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </section>
+      </Section>
+
+      <!--
+        Nicht die grössten Abonnements, sondern die vollsten: Eines mit 40 GB
+        von 200 ist unauffällig, eines mit 4,8 GB von 5 ist der Anruf von
+        morgen.
+      -->
+      <Section
+        v-if="props.hosting.storage.length > 0"
+        title="Am nächsten an der Speichergrenze"
+        weit
+      >
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Abonnement</th><th class="right">Belegt</th><th>Anteil</th><th>Gemessen</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in props.hosting.storage" :key="row.id">
+                <td data-column="Abonnement" class="name">
+                  <Link :href="`/subscriptions/${row.id}`" class="link">{{ row.name }}</Link>
+                </td>
+                <td data-column="Belegt" class="right">{{ row.used_mb.toLocaleString('de-DE') }} MB</td>
+                <td data-column="Anteil">
+                  <Bar
+                    :percent="row.percent"
+                    :tight="row.percent >= 90 && row.percent <= 100"
+                    :over="row.percent > 100"
+                  />
+                </td>
+                <td data-column="Gemessen" class="quiet">{{ row.measured_at ?? '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section title="Dienste" wide>
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Unit</th><th>Zustand</th><th>Beschreibung</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="service in services" :key="service.unit">
+                <td data-column="Unit" class="ident name">{{ service.unit }}</td>
+                <td data-column="Zustand">
+                  <Badge :kind="dienstRang(service)">
+                    {{ service.present ? service.active_state : 'nicht installiert' }}
+                  </Badge>
+                </td>
+                <td data-column="Beschreibung" class="quiet">{{ service.description }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section title="Dateisysteme" full>
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr>
+                <th>Einhängepunkt</th>
+                <th>Gerät</th>
+                <th>Art</th>
+                <th class="right">Größe</th>
+                <th class="right">Frei</th>
+                <th>Belegt</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="filesystem in filesystems" :key="filesystem.mount">
+                <td data-column="Einhängepunkt" class="ident name">{{ filesystem.mount }}</td>
+                <td data-column="Gerät" class="ident quiet">{{ filesystem.device }}</td>
+                <td data-column="Art" class="quiet">{{ filesystem.type }}</td>
+                <td data-column="Größe" class="right">{{ filesystem.total }}</td>
+                <td data-column="Frei" class="right">{{ filesystem.free }}</td>
+                <td data-column="Belegt">
+                  <!--
+                    Der Balken statt nur der Zahl: „87 %" liest man, einen
+                    vollen Balken sieht man. Die Schwelle, ab der er warnt,
+                    kommt vom Server — sie ist eine Aussage über den Betrieb.
+                  -->
+                  <Bar :percent="filesystem.percent" :tight="filesystem.tight" />
+                </td>
+              </tr>
+              <tr v-if="filesystems.length === 0">
+                <td colspan="6" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section title="Prozesse nach Speicher" full>
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr>
+                <th class="right">PID</th>
+                <th>Name</th>
+                <th>Zustand</th>
+                <th class="right">UID</th>
+                <th class="right">Speicher</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="process in processes" :key="process.pid">
+                <td data-column="PID" class="right ident">{{ process.pid }}</td>
+                <td data-column="Name" class="ident name">{{ process.name }}</td>
+                <td data-column="Zustand" class="quiet">{{ process.state }}</td>
+                <td data-column="UID" class="right ident">{{ process.user }}</td>
+                <td data-column="Speicher" class="right">{{ process.rss }}</td>
+              </tr>
+              <tr v-if="processes.length === 0">
+                <td colspan="5" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+    </div>
   </PanelLayout>
 </template>
 
 <style scoped>
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(var(--tile-columns), minmax(0, 1fr));
-  gap: var(--gap);
-}
-
-.block {
+/*
+ * **Von 180 Zeilen sind vier übrig.**
+ *
+ * Hier standen die Form der Tabelle, der Spaltenkopf, die Zeilenhöhe, ein
+ * Balken (`.bar`), eine Zustandsmarke (`.badge`) und ein Kärtchen für den
+ * Bestand — jedes davon eine eigene Fassung von etwas, das app.css inzwischen
+ * trägt. Drei davon nannten `--surface-border`, eine Marke, die es seit dem
+ * Umbau nicht mehr gibt: Der Spaltenkopf hatte damit keine Linie und die
+ * Balkenspur keinen Grund, und niemandem ist es aufgefallen.
+ *
+ * Was bleibt, ist der Abstand zwischen den Kacheln und dem ersten Bereich —
+ * die einzige Stelle, an der auf dieser Seite zwei verschiedene Bausteine
+ * aufeinandertreffen.
+ */
+.after-tiles {
   margin-top: var(--block-gap);
-}
-
-@media (max-width: 720px) {
-  .tiles {
-    grid-template-columns: 1fr;
-  }
-}
-
-.alert {
-  border: 1px solid var(--critical);
-  background: var(--critical-surface);
-  border-radius: 3px;
-  padding: 11px 13px;
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  color: var(--text);
-}
-
-.alert b {
-  color: var(--text-strong);
-}
-
-.alert code {
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  color: var(--text-muted);
-}
-
-/*
- * Die Abschnittsüberschrift ist eine Überschrift und keine kleine
- * Beschriftung.
- *
- * Hier stand `10.5px`, Versalien, Sperrung `.11em`, `--text-muted` — also
- * genau die Behandlung, die §7.2 für *kleine Beschriftungen* vorsieht und die
- * zwölf Pixel weiter unten der Spaltenkopf trägt. Zwei Zeilen mit derselben
- * Größe, derselben Schreibweise und fast derselben Farbe: Das Auge sieht
- * daneben keine Rangfolge, sondern eine Wiederholung.
- *
- * §7.2 sagt es selbst: „Kleine Beschriftungen in Versalien mit Sperrung
- * (.09em), **sonst keine Versalien**." Die Überschrift unterscheidet sich
- * jetzt auf drei Achsen gleichzeitig — Größe, Schreibweise, Farbe — und der
- * Spaltenkopf bleibt, was er ist.
- */
-.section {
-  font-size: var(--block-heading-size);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-strong);
-  margin: 0 0 var(--block-heading-gap);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th {
-  font-size: var(--text-label);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  text-align: left;
-  font-weight: 600;
-  color: var(--text-faint);
-  border-bottom: 1px solid var(--surface-border);
-  padding: 0 10px 7px 0;
-}
-
-td {
-  border-bottom: 1px solid var(--line);
-  padding: 0 10px 0 0;
-  height: var(--row-height);
-  font-family: var(--font-mono);
-  font-size: var(--text-table);
-  color: var(--text);
-}
-
-td.name {
-  color: var(--text-strong);
-}
-
-td.quiet {
-  font-family: var(--font-sans);
-  color: var(--text-muted);
-}
-
-.bar {
-  display: inline-block;
-  vertical-align: middle;
-  width: 78px;
-  height: 6px;
-  margin-right: 7px;
-  border-radius: 999px;
-  background: var(--surface-border);
-  overflow: hidden;
-}
-
-.bar span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-}
-
-.bar.tight span {
-  background: var(--warn);
-}
-
-.percent {
-  font-size: var(--text-small);
-  color: var(--text-muted);
-}
-
-.badge {
-  display: inline-block;
-  font-size: var(--text-label);
-  padding: 1px 7px;
-  border-radius: 999px;
-}
-
-.badge.ok {
-  background: var(--ok-surface);
-  color: var(--ok);
-}
-
-.badge.stopped {
-  background: var(--critical-surface);
-  color: var(--critical);
-}
-
-.badge.missing {
-  background: var(--surface-border);
-  color: var(--text-muted);
-}
-
-/*
- * Die Zahlen des Bestands.
- *
- * Sie sind Links und keine Kacheln: Wer die Zahl der gesperrten Abonnements
- * liest, will als Nächstes wissen, welche das sind — und dann soll er sie
- * anklicken können und nicht erst in die Navigation greifen.
- */
-.zahlen { display: flex; flex-wrap: wrap; gap: var(--gap); }
-.zahl { display: flex; flex-direction: column; gap: 2px; min-width: 128px; padding: var(--padding); text-decoration: none; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-.zahl:hover { border-color: var(--text-faint); }
-.wert { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-metric); line-height: 1.1; color: var(--text-strong); }
-.was { font-size: var(--text-small); color: var(--text-muted); }
-.dazu { font-size: var(--text-label); color: var(--text-faint); }
-.warn { color: var(--warn); }
-.zahlwert { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-td[data-voll='true'] { color: var(--warn); }
-
-/* Auf der schmalen Fläche nebeneinander, aber zu zweit: Vier Kärtchen
-   untereinander wären vier Bildschirmhöhen bis zur ersten Tabelle. */
-@media (max-width: 720px) {
-  .zahlen { display: grid; grid-template-columns: 1fr 1fr; }
-  .zahl { min-width: 0; }
 }
 </style>

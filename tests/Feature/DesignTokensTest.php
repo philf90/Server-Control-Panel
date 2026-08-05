@@ -100,7 +100,22 @@ final class DesignTokensTest extends TestCase
             foreach ($matches[1] as $value) {
                 $value = trim($value);
 
-                if (preg_match('/^var\(--(text-[a-z-]+|block-heading-size)\)$/', $value) !== 1) {
+                /*
+                 * **Hier stand `|block-heading-size`, und das war eine Ausnahme
+                 * für eine Regelverletzung.**
+                 *
+                 * §7.2 sagt zwei Absätze über der Dichtetabelle: „Nicht nach
+                 * Dichte gestaffelt. Die Dichtetabelle unten staffelt
+                 * Zeilenhöhe, Abstände und Kacheln je Reihe. Schriftgrößen
+                 * nicht." `--block-heading-size` ist genau das — 13px auf der
+                 * Adminfläche, 15px auf der Kundenfläche —, und statt die Regel
+                 * zu klären, hat der Ausdruck hier die Ausnahme eingebaut.
+                 *
+                 * Damit hielt dieser Test die Regel nicht mehr fest, sondern
+                 * ihre Verletzung. Die Bereichsüberschrift bekommt eine eigene
+                 * Rolle in der Skala und wird nicht gestaffelt.
+                 */
+                if (preg_match('/^var\(--text-[a-z-]+\)$/', $value) !== 1) {
                     $found[] = sprintf('%s  font-size: %s', $this->relative($path), $value);
                 }
             }
@@ -108,34 +123,119 @@ final class DesignTokensTest extends TestCase
 
         $this->assertSame([], $found, sprintf(
             "Diese Schriftgrößen stehen nicht in der Skala:\n  %s\n\n".
-            'Die fünf Stufen stehen in resources/css/app.css. Wer eine sechste braucht, '.
-            'trägt sie dort ein — und muss dabei begründen, welche Rolle sie hat.',
+            'Die Stufen stehen in resources/css/app.css als `--text-…` und sonst nirgends. '.
+            'Wer eine weitere braucht, trägt sie dort ein — und muss dabei begründen, welche Rolle '.
+            'sie hat. Eine Marke, die nach Dichte staffelt, ist keine Rolle, sondern zwei.',
             implode("\n  ", $found),
         ));
     }
 
-    public function test_every_scale_token_a_component_uses_exists(): void
+    /**
+     * Jede Stufe der Skala wird auch benutzt.
+     *
+     * **Warum das die Gegenrichtung derselben Regel ist.** Der Test darüber
+     * verhindert Größen ohne Marke. Dieser verhindert Marken ohne Rolle: eine
+     * Stufe, die in app.css steht und die keine Komponente liest, ist keine
+     * Entscheidung über Typografie, sondern ein Rest. Beim nächsten Umbau
+     * hält sich jemand daran fest, weil sie dasteht.
+     *
+     * Es ist dieselbe Sorte Fund wie `class="value num"` in `Tile.vue` — eine
+     * Zeichenkette, deren Bezug niemand prüft —, nur in der anderen Richtung:
+     * Dort zeigte die Klasse auf keine Regel, hier zeigte keine Regel auf die
+     * Marke.
+     *
+     * **Gesucht wird in app.css mit — und das war beim ersten Anlauf falsch.**
+     * Der Test las nur die `<style>`-Blöcke der Komponenten. Das stimmte
+     * genau so lange, wie jede Seite ihre Tabellen und Felder selbst
+     * gestaltete: Dort standen die Größen. Nach dem Umbau steht die Form der
+     * Bausteine in app.css, und die Komponenten haben fast kein CSS mehr —
+     * der Test hätte dann fast jede Stufe für unbenutzt erklärt und wäre
+     * ausgerechnet an der Aufräumarbeit rot geworden.
+     *
+     * Dieselbe Falle wie bei `MobileLayoutTest`, und beide Male dieselbe
+     * Ursache: Ein Wächter, der eine Regel prüft, darf nicht davon ausgehen,
+     * *wo* sie gerade eingehalten wird.
+     */
+    public function test_every_step_of_the_scale_is_used(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+        $css = (string) preg_replace('#/\*.*?\*/#su', '', $css);
+
+        // Die Skala und nicht die Farben: `--text-strong` und Verwandte tragen
+        // Hexwerte, die Stufen tragen eine Länge in px.
+        preg_match_all('/(--text-[a-z-]+)\s*:\s*[\d.]+px/', $css, $matches);
+
+        $scale = array_values(array_unique($matches[1]));
+
+        $this->assertGreaterThan(4, count($scale), 'In app.css stehen kaum Schriftstufen — dann prüft dieser Test nichts.');
+
+        // `var(--x)` steht nur an der Fundstelle und nie an der Definition —
+        // deshalb darf app.css hier mitgelesen werden, ohne sich selbst zu
+        // bestätigen.
+        $used = $css;
+
+        foreach ($this->vueFiles() as $path) {
+            $used .= $this->style((string) file_get_contents($path));
+        }
+
+        $unused = [];
+
+        foreach ($scale as $token) {
+            if (! str_contains($used, 'var('.$token.')')) {
+                $unused[] = $token;
+            }
+        }
+
+        $this->assertSame([], $unused, sprintf(
+            "Diese Stufen der Skala benutzt keine Komponente:\n  %s\n\n".
+            'Eine Rolle ohne Nutzer ist keine Rolle. Entweder fehlt die Verwendung — oder die '.
+            'Stufe gehört aus app.css entfernt, bevor sich jemand daran festhält.',
+            implode("\n  ", $unused),
+        ));
+    }
+
+    /**
+     * **Jede** Marke, nicht nur die der Skala.
+     *
+     * Der Test las `--text-…` und `--block-…` und sonst nichts. Beim Umbau auf
+     * „Kontor" fielen `--surface-border` und `--padding` weg — und sieben
+     * Seiten nannten sie weiter, elf Stellen insgesamt. Der Browser wirft eine
+     * Deklaration mit unbekannter Marke still weg: Aus `border: 1px solid
+     * var(--surface-border)` wird kein Rand, aus `padding: var(--padding)` kein
+     * Innenabstand. Grün getestet und trotzdem falsch, monatelang.
+     *
+     * Das ist derselbe Fehler wie immer in diesem Projekt — eine Zeichenkette,
+     * die auf etwas verweist, ohne dass etwas den Bezug prüft — und er stand
+     * hier direkt neben einem Wächter, der genau das prüft, nur für ein
+     * Zehntel der Marken.
+     */
+    public function test_every_token_a_component_uses_exists(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
         $missing = [];
+        $checked = 0;
 
         foreach ($this->vueFiles() as $path) {
-            preg_match_all('/var\((--(?:text|block)-[a-z-]+)\)/', $this->style((string) file_get_contents($path)), $matches);
+            preg_match_all('/var\((--[a-z][\w-]*)\)/', $this->style((string) file_get_contents($path)), $matches);
 
             foreach (array_unique($matches[1]) as $token) {
+                $checked++;
+
                 // Die Marke muss in app.css *gesetzt* werden, nicht bloss
                 // vorkommen. Ein Tippfehler im Namen ergäbe sonst eine
-                // Eigenschaft ohne Wert — und der Browser fällt still auf die
-                // geerbte Größe zurück, was niemandem auffällt.
+                // Deklaration ohne Wert — und die wirft der Browser still weg.
                 if (preg_match('/^\s*'.preg_quote($token, '/').':/m', $css) !== 1) {
                     $missing[] = sprintf('%s  %s', $this->relative($path), $token);
                 }
             }
         }
 
+        $this->assertGreaterThan(10, $checked, 'Es werden kaum Marken gefunden — dann prüft dieser Test nichts.');
+
         $this->assertSame([], array_values(array_unique($missing)), sprintf(
             "Diese Marken benutzt eine Komponente, app.css setzt sie nicht:\n  %s\n\n".
-            'Der Browser fällt dann still auf die geerbte Größe zurück.',
+            'Der Browser wirft die ganze Deklaration dann still weg — kein Rand, kein Abstand, '.
+            'keine Farbe, keine Meldung.',
             implode("\n  ", array_unique($missing)),
         ));
     }

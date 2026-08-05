@@ -22,26 +22,25 @@ function mehr(): void {
   <Head :title="`Protokolle · ${props.domain.name}`" />
 
   <PanelLayout :title="props.domain.name" subline="Protokolle">
-    <div class="kopf">
-      <div class="wahl">
-        <button
-          type="button"
-          :class="['knopf', { aktiv: props.kind === 'access' }]"
-          @click="zeige('access')"
-        >
-          Zugriffe
-        </button>
-        <button
-          type="button"
-          :class="['knopf', { aktiv: props.kind === 'error' }]"
-          @click="zeige('error')"
-        >
-          Fehler
-        </button>
-      </div>
+    <template #breadcrumb>
+      <Link href="/domains" class="link">Domains</Link> ·
+      <Link :href="`/domains/${props.domain.id}`" class="link">{{ props.domain.name }}</Link>
+    </template>
 
-      <Link class="knopf" :href="`/domains/${props.domain.id}`">Zur Domain</Link>
-    </div>
+    <template #actions>
+      <!--
+        Die beiden Umschalter sind eine Wahl und keine Rangfolge: Der gewählte
+        trägt `.aktiv` — Akzentrand und getönte Fläche —, nicht `.wichtig`.
+        Sonst stünde in einer Zweierreihe eine Hauptsache, und die Reihe ist
+        keine.
+      -->
+      <button type="button" class="button" :class="{ active: props.kind === 'access' }" @click="zeige('access')">
+        Zugriffe
+      </button>
+      <button type="button" class="button" :class="{ active: props.kind === 'error' }" @click="zeige('error')">
+        Fehler
+      </button>
+    </template>
 
     <!--
       Drei verschiedene Auskünfte, und keine sieht aus wie eine andere: Der
@@ -49,26 +48,26 @@ function mehr(): void {
       Eine leere Liste für alle drei wäre die bequeme Lösung — und sähe im
       ersten Fall aus, als sei alles in Ordnung.
     -->
-    <p v-if="props.log.error" class="fehler-block">
+    <p v-if="props.log.error" class="notice critical">
       Der Agent antwortet nicht: {{ props.log.error }}
     </p>
 
-    <p v-else-if="!props.log.exists" class="hinweis-block">
+    <p v-else-if="!props.log.exists" class="empty">
       Für diese Domain gibt es noch kein Protokoll. Es entsteht mit dem ersten
       Zugriff.
     </p>
 
-    <p v-else-if="props.log.lines.length === 0" class="hinweis-block">
+    <p v-else-if="props.log.lines.length === 0" class="empty">
       Das Protokoll ist leer.
     </p>
 
     <template v-else>
-      <p class="pfad fest">{{ props.log.path }}</p>
+      <p class="breadcrumb ident">{{ props.log.path }}</p>
 
-      <pre class="protokoll">{{ props.log.lines.join('\n') }}</pre>
+      <pre class="output log">{{ props.log.lines.join('\n') }}</pre>
 
-      <div class="knopfreihe">
-        <button v-if="props.lines < 500" type="button" class="knopf" @click="mehr">
+      <div class="button-row footer-row">
+        <button v-if="props.lines < 500" type="button" class="button" @click="mehr">
           Mehr Zeilen ({{ props.lines }} → {{ Math.min(500, props.lines * 2) }})
         </button>
       </div>
@@ -77,26 +76,24 @@ function mehr(): void {
 </template>
 
 <style scoped>
-.kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: var(--gap); }
-.wahl { display: flex; gap: 6px; }
-.pfad { margin: 0 0 6px; font-size: var(--text-label); color: var(--text-faint); }
-.fest { font-family: var(--font-mono); }
-
 /*
  * Das Protokoll rollt in beide Richtungen und bricht keine Zeile um.
  *
  * Eine umgebrochene Zeile eines Zugriffsprotokolls ist unlesbar: Man erkennt
  * nicht mehr, wo ein Eintrag anfängt. Auf 390px rollt es waagerecht — dieselbe
- * Entscheidung wie bei den Tabellen unter `.rollt`.
+ * Entscheidung wie bei den Tabellen unter `.scrolls`.
+ *
+ * Form und Farbe kommen aus `.output` in app.css; hier steht nur, was dieses
+ * eine Protokoll davon unterscheidet.
  */
-.protokoll {
-  margin: 0; padding: 10px 12px; max-height: 60dvh; overflow: auto;
-  font-family: var(--font-mono); font-size: var(--text-label); line-height: 1.55;
-  color: var(--text); background: var(--surface);
-  border: 1px solid var(--surface-border); border-radius: 8px;
+.log {
+  margin: 0;
+  max-height: 60dvh;
+  overflow: auto;
   white-space: pre;
 }
-.hinweis-block { max-width: 544px; margin: 0; padding: 8px 11px; font-size: var(--text-table); color: var(--text-muted); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 6px; }
-.fehler-block { max-width: 544px; margin: 0; padding: 8px 11px; font-size: var(--text-table); color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
-.knopfreihe { margin-top: var(--gap); }
+
+.footer-row {
+  margin-top: var(--gap);
+}
 </style>

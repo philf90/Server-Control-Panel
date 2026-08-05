@@ -13,6 +13,7 @@ use App\Models\Customer;
 use App\Support\Audit\Audit;
 use App\Support\Passwords\Policy;
 use App\Support\Subscriptions\Lifecycle;
+use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -42,22 +43,20 @@ final class CustomerController extends Controller
             ->withCount(['subscriptions', 'accounts'])
             ->orderBy('last_name')
             ->orderBy('company')
-            ->paginate(50);
+            ->paginate(Page::SIZE)
+            ->withQueryString();
 
         return Inertia::render('Customers/Index', [
-            'customers' => [
-                'data' => collect($customers->items())->map(static fn (Customer $customer): array => [
-                    'id' => (int) $customer->id,
-                    'number' => $customer->number,
-                    'name' => $customer->displayName(),
-                    'email' => $customer->email,
-                    'status' => $customer->status->value,
-                    'status_label' => $customer->status->label(),
-                    'subscriptions' => (int) $customer->getAttribute('subscriptions_count'),
-                    'accounts' => (int) $customer->getAttribute('accounts_count'),
-                ])->all(),
-                'total' => $customers->total(),
-            ],
+            'customers' => Page::from($customers, static fn (Customer $customer): array => [
+                'id' => (int) $customer->id,
+                'number' => $customer->number,
+                'name' => $customer->displayName(),
+                'email' => $customer->email,
+                'status' => $customer->status->value,
+                'status_label' => $customer->status->label(),
+                'subscriptions' => (int) $customer->getAttribute('subscriptions_count'),
+                'accounts' => (int) $customer->getAttribute('accounts_count'),
+            ]),
         ]);
     }
 

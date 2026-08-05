@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import Bar from '../../Components/Bar.vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -37,15 +39,13 @@ const props = defineProps<{
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
 
-/*
- * Der Balken wird bei 100 abgeschnitten, die Zahl daneben nicht.
- *
- * Eine Quota lässt sich überschreiten — sie wird gesenkt, während Daten
- * liegen, oder ein Prozess schreibt mit root-Rechten daran vorbei. Ein Balken,
- * der über seinen Rahmen hinausläuft, ist ein Darstellungsfehler; „118 %"
- * daneben ist die Auskunft. Beides zusammen ist die Wahrheit.
- */
-const balken = computed(() => Math.min(100, props.usage.percent ?? 0))
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
+  if (status === 'active') return 'ok'
+  if (status === 'suspended' || status === 'provisioning' || status === 'removing') return 'warn'
+  if (status === 'cancelled' || status === 'failed') return 'critical'
+
+  return 'neutral'
+}
 
 function suspend(): void {
   if (!window.confirm(`${props.subscription.name} sperren? Webseiten und Zugänge sind danach aus, die Daten bleiben.`)) return
@@ -79,177 +79,202 @@ function remove(): void {
 <template>
   <Head :title="props.subscription.name" />
 
-  <PanelLayout :title="props.subscription.name" :subline="props.subscription.status_label">
-    <section class="block">
-      <h2 class="section">Stammdaten</h2>
-      <dl>
-        <dt>Kunde</dt>
-        <dd><Link :href="`/customers/${props.subscription.customer_id}`">{{ props.subscription.customer ?? '—' }}</Link></dd>
-        <dt>Plan</dt>
-        <dd>{{ props.subscription.plan ?? '—' }}</dd>
-        <dt>Systembenutzer</dt>
-        <dd class="fest">{{ props.subscription.system_user ?? '—' }}</dd>
-        <dt>Verzeichnis</dt>
-        <dd class="fest">{{ props.subscription.root }}</dd>
-        <dt v-if="props.subscription.suspended_at">Gesperrt seit</dt>
-        <dd v-if="props.subscription.suspended_at">{{ props.subscription.suspended_at }}</dd>
-      </dl>
+  <PanelLayout :title="props.subscription.name">
+    <template #breadcrumb>
+      <Link href="/subscriptions" class="link">Abonnements</Link> ·
+      <Link :href="`/customers/${props.subscription.customer_id}`" class="link">
+        {{ props.subscription.customer ?? '—' }}
+      </Link>
+    </template>
 
-      <div class="knopfreihe">
-        <Link class="knopf" :href="`/subscriptions/${props.subscription.id}/edit`">Bearbeiten</Link>
-        <button v-if="props.subscription.status === 'active'" type="button" class="knopf" @click="suspend">Sperren</button>
-        <button v-if="props.subscription.status === 'suspended'" type="button" class="knopf" @click="resume">Entsperren</button>
-        <button
-          v-if="props.subscription.status !== 'provisioning'"
-          type="button"
-          class="knopf gefahr"
-          @click="remove"
-        >
-          Zurückbauen
-        </button>
-      </div>
-    </section>
+    <template #actions>
+      <Badge :kind="rang(props.subscription.status)">{{ props.subscription.status_label }}</Badge>
+      <Link class="button primary" :href="`/subscriptions/${props.subscription.id}/edit`">Bearbeiten</Link>
+      <button v-if="props.subscription.status === 'active'" type="button" class="button" @click="suspend">Sperren</button>
+      <button v-if="props.subscription.status === 'suspended'" type="button" class="button" @click="resume">Entsperren</button>
+      <button
+        v-if="props.subscription.status !== 'provisioning'"
+        type="button"
+        class="button danger"
+        @click="remove"
+      >
+        Zurückbauen
+      </button>
+    </template>
 
-    <!--
-      Der Speicher steht über den Kontingenten und nicht darin: Er ist das
-      einzige Kontingent, zu dem es einen gemessenen Stand gibt, und die
-      Tabelle darunter zeigt Vereinbartes. Beides in einer Zeile hiesse, zwei
-      verschiedene Dinge gleich aussehen zu lassen.
-    -->
-    <section class="block">
-      <h2 class="section">Speicher</h2>
+    <div class="sections">
+      <Section title="Stammdaten">
+        <table class="pairs">
+          <tbody>
+            <tr>
+              <td class="quiet">Kunde</td>
+              <td class="right">
+                <Link :href="`/customers/${props.subscription.customer_id}`" class="link">
+                  {{ props.subscription.customer ?? '—' }}
+                </Link>
+              </td>
+            </tr>
+            <tr><td class="quiet">Plan</td><td class="right name">{{ props.subscription.plan ?? '—' }}</td></tr>
+            <tr><td class="quiet">Systembenutzer</td><td class="right ident">{{ props.subscription.system_user ?? '—' }}</td></tr>
+            <tr><td class="quiet">Verzeichnis</td><td class="right ident">{{ props.subscription.root }}</td></tr>
+            <tr v-if="props.subscription.suspended_at">
+              <td class="quiet">Gesperrt seit</td>
+              <td class="right">{{ props.subscription.suspended_at }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Section>
 
-      <p v-if="props.usage.used_mb === null" class="ungemessen">
-        Noch nicht gemessen. Die Messung läuft im Viertelstundentakt
-        (<code>srvpanel-usage.timer</code>) und braucht eine Dateisystem-Quota
-        auf dem Mount von /var/www/vhosts.
-      </p>
-
-      <template v-else>
-        <p class="verbrauch">
-          <strong>{{ props.usage.used_mb.toLocaleString('de-DE') }} MB</strong>
-          <span v-if="props.usage.limit_mb !== null">
-            von {{ props.usage.limit_mb.toLocaleString('de-DE') }} MB
-            <template v-if="props.usage.percent !== null">· {{ props.usage.percent }} %</template>
-          </span>
-          <span v-else>ohne Grenze</span>
+      <!--
+        Der Speicher steht neben den Kontingenten und nicht darin: Er ist das
+        einzige Kontingent, zu dem es einen gemessenen Stand gibt, und die
+        Tabelle daneben zeigt Vereinbartes. Beides in einer Zeile hiesse, zwei
+        verschiedene Dinge gleich aussehen zu lassen.
+      -->
+      <Section title="Speicher">
+        <p v-if="props.usage.used_mb === null" class="empty">
+          Noch nicht gemessen. Die Messung läuft im Viertelstundentakt
+          (<span class="ident">srvpanel-usage.timer</span>) und braucht eine
+          Dateisystem-Quota auf dem Mount von /var/www/vhosts.
         </p>
 
-        <div v-if="props.usage.percent !== null" class="balken" :data-voll="props.usage.percent >= 90">
-          <div class="fuellung" :style="{ width: `${balken}%` }" />
-        </div>
+        <template v-else>
+          <p class="usage">
+            <strong>{{ props.usage.used_mb.toLocaleString('de-DE') }} MB</strong>
+            <span v-if="props.usage.limit_mb !== null">
+              von {{ props.usage.limit_mb.toLocaleString('de-DE') }} MB
+            </span>
+            <span v-else>ohne Grenze</span>
+          </p>
 
-        <p class="gemessen">Gemessen am {{ props.usage.measured_at ?? '—' }}</p>
-      </template>
-    </section>
+          <Bar
+            v-if="props.usage.percent !== null"
+            :percent="props.usage.percent"
+            :tight="props.usage.percent >= 90 && props.usage.percent <= 100"
+            :over="props.usage.percent > 100"
+            breit
+          />
 
-    <!--
-      Die Domains stehen über den Kontingenten: Sie sind das, wofür ein
-      Abonnement da ist. Die Zahlen darunter sagen, wie viel davon noch geht.
-    -->
-    <section class="block">
-      <h2 class="section">Domains</h2>
+          <p class="section-note">Gemessen am {{ props.usage.measured_at ?? '—' }}</p>
+        </template>
+      </Section>
 
-      <div class="rollt">
-        <table class="stapelt">
-          <thead>
-            <tr><th>Domain</th><th>Sorte</th><th>PHP</th><th>Zustand</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="d in props.domains" :key="d.id">
-              <td data-spalte="Domain"><Link :href="`/domains/${d.id}`">{{ d.name }}</Link></td>
-              <td data-spalte="Sorte">{{ d.type_label }}</td>
-              <td data-spalte="PHP">
-                <template v-if="d.is_redirect">leitet weiter</template>
-                <template v-else>{{ d.php_version ?? '—' }}</template>
-              </td>
-              <td data-spalte="Zustand" :data-status="d.status">{{ d.status_label }}</td>
-            </tr>
-            <tr v-if="props.domains.length === 0">
-              <td colspan="4">Noch keine Domain.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="props.mayAddDomain" class="knopfreihe">
-        <Link class="knopf" :href="`/subscriptions/${props.subscription.id}/domains/create`">Domain anlegen</Link>
-      </div>
-    </section>
-
-    <section class="block">
-      <h2 class="section">Kontingente</h2>
-      <div class="rollt">
-        <table>
-          <thead>
-            <tr><th>Kontingent</th><th>Stand</th><th></th></tr>
-          </thead>
+      <Section title="Kontingente">
+        <table class="pairs">
           <tbody>
             <tr v-for="q in props.quotas" :key="q.key">
-              <td>{{ q.label }}</td>
-              <td class="zahl">{{ q.value }}</td>
-              <td><span v-if="q.differs" class="marke">abweichend vom Plan</span></td>
+              <td class="quiet">{{ q.label }}</td>
+              <td class="right name">{{ q.value }}</td>
+              <td class="right">
+                <Badge v-if="q.differs" kind="warn">abweichend vom Plan</Badge>
+              </td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </section>
+      </Section>
 
-    <section class="block">
-      <h2 class="section">Freigaben</h2>
-      <ul class="freigaben">
-        <li v-for="f in props.features" :key="f.label" :data-frei="f.granted">
-          {{ f.granted ? '✓' : '✗' }} {{ f.label }}
-        </li>
-      </ul>
-    </section>
+      <Section title="Freigaben">
+        <table class="pairs">
+          <tbody>
+            <tr v-for="f in props.features" :key="f.label">
+              <td class="quiet">{{ f.label }}</td>
+              <td class="right">
+                <Badge :kind="f.granted ? 'ok' : 'neutral'">{{ f.granted ? 'frei' : 'gesperrt' }}</Badge>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </Section>
 
-    <section class="block">
-      <h2 class="section">Vorgänge</h2>
-      <table class="stapelt">
-        <thead>
-          <tr><th>Nummer</th><th>Aufgabe</th><th>Zustand</th><th>Angelegt</th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="o in props.operations" :key="o.id">
-            <td data-spalte="Nummer"><Link :href="`/operations/${o.id}`">{{ o.id }}</Link></td>
-            <td data-spalte="Aufgabe" class="fest">{{ o.task ?? '—' }}</td>
-            <td data-spalte="Zustand">{{ o.status_label }}</td>
-            <td data-spalte="Angelegt">{{ o.created_at ?? '—' }}</td>
-          </tr>
-          <tr v-if="props.operations.length === 0">
-            <td colspan="4">Noch kein Vorgang für dieses Abonnement.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+      <!--
+        Die Domains stehen vor den Vorgängen: Sie sind das, wofür ein
+        Abonnement da ist.
+      -->
+      <Section title="Domains" full>
+        <template #actions>
+          <Link
+            v-if="props.mayAddDomain"
+            class="button small"
+            :href="`/subscriptions/${props.subscription.id}/domains/create`"
+          >
+            Domain anlegen
+          </Link>
+        </template>
+
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Domain</th><th>Sorte</th><th>PHP</th><th>Zustand</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="d in props.domains" :key="d.id">
+                <td data-column="Domain" class="ident name">
+                  <Link :href="`/domains/${d.id}`" class="link">{{ d.name }}</Link>
+                </td>
+                <td data-column="Sorte" class="quiet">{{ d.type_label }}</td>
+                <td data-column="PHP">
+                  <template v-if="d.is_redirect"><span class="quiet">leitet weiter</span></template>
+                  <template v-else>{{ d.php_version ?? '—' }}</template>
+                </td>
+                <td data-column="Zustand">
+                  <Badge :kind="rang(d.status)">{{ d.status_label }}</Badge>
+                </td>
+              </tr>
+              <tr v-if="props.domains.length === 0">
+                <td colspan="4" class="quiet">Noch keine Domain.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section title="Vorgänge" full>
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Nummer</th><th>Aufgabe</th><th>Zustand</th><th>Angelegt</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="o in props.operations" :key="o.id">
+                <td data-column="Nummer" class="ident">
+                  <Link :href="`/operations/${o.id}`" class="link">{{ o.id }}</Link>
+                </td>
+                <td data-column="Aufgabe" class="ident name">{{ o.task ?? '—' }}</td>
+                <td data-column="Zustand" class="quiet">{{ o.status_label }}</td>
+                <td data-column="Angelegt" class="quiet">{{ o.created_at ?? '—' }}</td>
+              </tr>
+              <tr v-if="props.operations.length === 0">
+                <td colspan="4" class="quiet">Noch kein Vorgang für dieses Abonnement.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+    </div>
   </PanelLayout>
 </template>
 
 <style scoped>
-.block { margin-top: var(--block-gap); }
-.block:first-child { margin-top: 0; }
-.section { font-size: var(--block-heading-size); font-weight: 600; letter-spacing: -0.01em; color: var(--text-strong); margin: 0 0 var(--block-heading-gap); }
-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; font-size: var(--text-table); }
-dt { color: var(--text-muted); }
-dd { margin: 0; color: var(--text); }
-.fest { font-family: var(--font-mono); }
-table { width: 100%; border-collapse: collapse; font-size: var(--text-table); }
-th { text-align: left; color: var(--text-muted); font-weight: 600; }
-th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
-.ungemessen { margin: 0; font-size: var(--text-table); color: var(--text-muted); line-height: 1.5; }
-code { font-family: var(--font-mono); }
-.verbrauch { margin: 0 0 6px; font-size: var(--text-table); color: var(--text-muted); }
-.verbrauch strong { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-body); color: var(--text-strong); }
-.balken { height: 6px; max-width: 420px; background: var(--line); border-radius: 3px; overflow: hidden; }
-.fuellung { height: 100%; background: var(--accent); }
-.balken[data-voll='true'] .fuellung { background: var(--warn); }
-.gemessen { margin: 6px 0 0; font-size: var(--text-label); color: var(--text-faint); }
-.knopfreihe { margin-top: var(--gap); }
-td[data-status='suspended'] { color: var(--warn); }
-td[data-status='provisioning'], td[data-status='removing'] { color: var(--accent); }
-.marke { padding: 1px 5px; font-size: var(--text-label); color: var(--warn); background: var(--warn-surface); border-radius: 3px; }
-.freigaben { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: var(--text-table); }
-.freigaben li[data-frei='true'] { color: var(--ok); }
-.freigaben li[data-frei='false'] { color: var(--text-faint); }
+/*
+ * Der gemessene Stand als grosse Zahl — dieselbe Rolle wie auf einer Kachel,
+ * deshalb dieselbe Marke. Die Einheit daneben ist kleiner, weil sie mitläuft
+ * und nicht gelesen wird.
+ */
+.usage {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0 14px;
+  font-size: var(--text-table);
+  color: var(--text-muted);
+}
+
+.usage strong {
+  font-size: var(--text-metric);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text-strong);
+}
 </style>

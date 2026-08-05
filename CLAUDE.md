@@ -7,6 +7,9 @@ AGPL-3.0-only. Zielplattformen sind Debian 12/13 und Ubuntu 22.04/24.04.
 Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 (§9). Wo dieses Dokument und der Plan sich widersprechen, gilt der Plan.
 
+Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
+(Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
+
 Stand: **P0 bis P3 abgenommen**, ausgeliefert als `v0.3.0-rc.x`. Der
 Abnahmelauf `srvpanel acceptance-web` ist auf dem Zielserver aus `0.3.0~rc.5`
 durchgelaufen: sechs Domains, zwei PHP-Versionen, zwei Systembenutzer, kein
@@ -32,10 +35,26 @@ rot war, ist kein Wächter.
 Vorhandene Wächter, an denen man sich orientieren kann:
 `RouteAuthorizationTest`, `PolicyReachTest`, `ButtonStyleTest`, `IconTest`,
 `ThemeTest`, `InertiaPagesTest`, `PackagingTest`, `WordChoiceTest`,
-`MobileLayoutTest`, `DesignTokensTest` — und aus P3
+`MobileLayoutTest`, `DesignTokensTest` — aus P3
 `AgentOperationReachTest` (jeder Operationsname zeigt auf eine Operation, die
 es gibt), `LifecycleReachTest`, `AnchoredPatternTest`, `PhpVersionCatalogTest`,
-`DirectiveAllowlistTest`, `PhpIsolationTest`.
+`DirectiveAllowlistTest`, `PhpIsolationTest` — und aus dem Optik-Rework
+`ClassReachTest` (jede Klasse in einem Template zeigt auf eine Regel, die es
+gibt), `TableStyleTest`, `ClassNameTest` (jeder Klassenname ist englisch, und
+jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
+(wer paginiert, lässt auch blättern). Der Bruch selbst steht als
+`tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
+prüft, dass ihr Wächter zubeisst.
+
+**Die Falle, in die dieses Vorgehen selbst dreimal gelaufen ist.** Ein Wächter
+zählt seine Treffer, damit er merkt, wenn sein Ausdruck ins Leere läuft — und
+zählt sie dort, wo die Regel gerade eingehalten wird. Zieht die Regel um, steht
+der Zähler auf null, und der Wächter meldet Rot für genau die Ordnung, die er
+durchsetzen soll: *Ein Wächter, der beim Aufräumen zubeisst, wird beim
+Aufräumen abgeschaltet.* Passiert bei `MobileLayoutTest`, bei
+`DesignTokensTest::test_every_step_of_the_scale_is_used` und bei drei Tests des
+Optik-Reworks. Die Untergrenze zählt seitdem überall mit, wo die Regel stehen
+*darf*; der Befund kommt weiter nur von dort, wo sie stehen *soll*.
 
 **Drei Funde aus P3, die keiner Regel widersprachen, sondern eine fehlende
 zeigten:** `$` passt in PCRE auch vor einem abschliessenden Zeilenumbruch (neun
@@ -85,7 +104,10 @@ Agent-Klassen sind aus der Anwendung autoladbar (`SrvPanel\Agent\` →
 `WordChoiceTest` geprüft. Kurz:
 
 - **Kommentare, Dokumentation und alle Texte der Oberfläche: deutsch.
-  Bezeichner: englisch.**
+  Bezeichner: englisch** (§4a) — das schliesst CSS-Klassen, Datenattribute,
+  Komponentennamen und ihre Eigenschaften ein und wird von `ClassNameTest`
+  gegen eine Wortliste geprüft. Eine echte Schnittstelle, die eine Migration
+  kosten würde, bleibt wie sie ist.
 - Keine Emoji in der Oberfläche (§3a) — sie sehen auf jedem System anders aus
   und nehmen keine Textfarbe an.
 - Kommentare erklären **warum**, nicht was. Der wertvollste Kommentar hält
@@ -93,14 +115,21 @@ Agent-Klassen sind aus der Anwendung autoladbar (`SrvPanel\Agent\` →
 
 **Jede Farbe kommt aus `resources/css/app.css`** (Plan §7.2). Ein Hexwert in
 einer Komponente ist ein Fehler und keine Ausnahme; die CI prüft das. Beide
-Themes entstehen zusammen, nie eines nachträglich. Kontrast wird gerechnet,
+Themes entstehen zusammen, nie eines nachträglich — **hell ist die
+Ausgangsfassung**, seit „Kontor" das dunkle „Leitstand" abgelöst hat. Und die
+Form jedes Bausteins steht ebenfalls dort: Tabelle, Feld, Marke, Balken,
+Meldung, Schalter. Eine Komponente, die ihr eigenes `input` oder `table`
+gestaltet, ist derselbe Fehler wie ein Hexwert. Kontrast wird gerechnet,
 nicht geschätzt: 4,5:1 für Text, **3:1 für die Grenze eines Bedienelements**
 (WCAG 1.4.11). Das Aussehen eines Knopfes steht ausschliesslich in `app.css`
 — `ButtonStyleTest` besteht darauf.
 
 Weitere Dokumente: `21` Signaturschlüssel · `22` Passwörter · `23` Pläne und
 Kontingente · `24` mobile Ansicht · `25` Mailversand · `26` Abonnements ·
-`27` Zertifikat · `28` Web und PHP.
+`27` Zertifikat · `28` Web und PHP. Die Entwürfe zum Gestaltungssystem stehen
+unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
+Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
+„Kontor".
 
 ---
 
@@ -144,10 +173,26 @@ Testen berücksichtigen:
   Stelle, die diese Frage beantworten darf. Sie ist schon zweimal neu erfunden
   worden.
 - **Screenshots** über Playwright mit dem vorinstallierten Chromium
-  (`/opt/pw-browsers/chromium`), niemals `playwright install`. Anmeldung
-  braucht den zweiten Faktor; der Code kommt aus
-  `App\Support\Auth\Totp::codeAt()`.
+  (`/opt/pw-browsers/chromium`), niemals `playwright install`. Vier Dinge, die
+  jedes Mal Zeit gekostet haben:
+  - `Totp::codeAt($secret, $step)` nimmt den **Schritt**, nicht den
+    Zeitstempel: `intdiv(time(), Totp::PERIOD)`. Und `two_factor_last_step`
+    verhindert die Wiederverwendung — ein zweiter Lauf in derselben Minute
+    muss auf den nächsten Schritt warten.
+  - **Der SSE-Kanal eines offenen Vorgangs blockiert `artisan serve`.** Der
+    bedient eine Anfrage gleichzeitig, und `PHP_CLI_SERVER_WORKERS` greift
+    hier nicht. Im Aufnahmeskript `page.route('**/stream', r => r.abort())`.
+  - **Der Entwicklungsserver liefert aus `public/build`.** Nach jeder Änderung
+    an einer `.vue` erst `npm run build`, sonst zeigt die Aufnahme den
+    vorigen Stand. Zweimal darauf hereingefallen.
+  - Nach jeder Aufnahme `scrollWidth - clientWidth` messen. Ein waagerechter
+    Überlauf bei 390px sieht auf dem Bild nach nichts aus und ist auf dem
+    Telefon der ganze Unterschied.
 - Vordergrund-`sleep` ist blockiert — Hintergrundlauf verwenden.
+- **`git checkout -- resources/` wirft eigene Arbeit weg.** Beim Gegenprüfen
+  eines Wächters ist das der Weg zurück — und wenn im selben Verzeichnis noch
+  nicht Eingechecktes liegt, ist es danach fort. `tests/waechter-brechen.sh`
+  weigert sich deshalb bei schmutzigem `resources/`; von Hand gilt dasselbe.
 
 ---
 

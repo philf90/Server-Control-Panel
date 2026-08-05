@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3'
+import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface QuotaEntry {
@@ -89,116 +90,103 @@ function submit(): void {
 <template>
   <Head :title="`${props.subscription.name} bearbeiten`" />
 
-  <PanelLayout :title="`${props.subscription.name} bearbeiten`" subline="Plan und Kontingente">
+  <PanelLayout title="Plan und Kontingente">
+    <template #breadcrumb>
+      <Link href="/subscriptions" class="link">Abonnements</Link> ·
+      <Link :href="`/subscriptions/${props.subscription.id}`" class="link">
+        {{ props.subscription.name }}
+      </Link>
+    </template>
+
     <!--
       Der Hinweis steht über dem Formular, weil er das Ergebnis des Absendens
       betrifft: Eine geänderte Speichergrenze ist kein Datensatz, sondern ein
       Vorgang auf dem Server, und danach steht man auf der Vorgangsseite und
       nicht wieder hier.
     -->
-    <p class="hinweis-block">
-      Eine geänderte Speichergrenze wird als Vorgang auf das Dateisystem
-      angewandt (<code>setquota</code>). Alle übrigen Kontingente gelten beim
-      nächsten Anlegen eines Objekts und lösen keinen Vorgang aus.
+    <p class="notice neutral">
+      <span>
+        Eine geänderte Speichergrenze wird als Vorgang auf das Dateisystem
+        angewandt (<span class="ident">setquota</span>). Alle übrigen
+        Kontingente gelten beim nächsten Anlegen eines Objekts und lösen keinen
+        Vorgang aus.
+      </span>
     </p>
 
-    <form class="maske" @submit.prevent="submit">
-      <fieldset>
-        <legend>Plan</legend>
-
-        <label>Plan
+    <form class="form" @submit.prevent="submit">
+      <Section title="Plan">
+        <label class="field">
+          <span>Plan</span>
           <select v-model.number="form.plan_id">
             <option v-for="p in props.plans" :key="p.id" :value="p.id">{{ p.label }}</option>
           </select>
-          <small class="hinweis">
-            Der Plan gibt jedes Kontingent vor, das unten nicht abweicht. Ein
-            Wechsel wirkt sofort auf alle geerbten Werte.
-          </small>
-          <small v-if="fehler('plan_id')" class="fehler">{{ fehler('plan_id') }}</small>
         </label>
-      </fieldset>
+        <p v-if="fehler('plan_id')" class="error">{{ fehler('plan_id') }}</p>
+        <p class="hint">
+          Der Plan gibt jedes Kontingent vor, das unten nicht abweicht. Ein
+          Wechsel wirkt sofort auf alle geerbten Werte.
+        </p>
+      </Section>
 
-      <fieldset>
-        <legend>Kontingente</legend>
-
-        <div v-for="entry in props.quotas" :key="entry.key" class="feld">
-          <label class="schalter">
-            <input
-              type="checkbox"
-              :checked="abweichend(entry.key)"
-              @change="umschalten(entry, ($event.target as HTMLInputElement).checked)"
-            >
-            <span>
-              {{ entry.label }}
-              <small class="hinweis">Vom Plan: {{ entry.plan_value }}</small>
-            </span>
-          </label>
-
-          <template v-if="abweichend(entry.key)">
-            <div v-if="entry.selection" class="auswahl">
-              <label v-for="version in props.phpVersions" :key="version" class="version">
-                <input
-                  type="checkbox"
-                  :checked="versionen(entry.key).includes(version)"
-                  @change="versionUmschalten(entry.key, version, ($event.target as HTMLInputElement).checked)"
-                >
-                <span>{{ version }}</span>
-              </label>
-            </div>
-
-            <div v-else class="zeile">
+      <!--
+        Dieselbe Spaltenaufteilung wie im Formular eines Plans: Zwölf
+        Kontingente untereinander sind eine Seite zum Rollen, nebeneinander
+        eine Liste zum Überfliegen.
+      -->
+      <Section title="Kontingente" full>
+        <div class="item-grid">
+          <div v-for="entry in props.quotas" :key="entry.key" class="item">
+            <label class="toggle">
               <input
-                :id="`quota-${entry.key}`"
-                v-model.number="form.overrides[entry.key] as number"
-                type="number"
-                :min="entry.minimum"
-                :max="entry.maximum"
-                required
+                type="checkbox"
+                :checked="abweichend(entry.key)"
+                @change="umschalten(entry, ($event.target as HTMLInputElement).checked)"
               >
-              <span v-if="entry.unit" class="einheit">{{ entry.unit }}</span>
-            </div>
+              <span>
+                {{ entry.label }}
+                <small class="hint">Vom Plan: {{ entry.plan_value }}</small>
+              </span>
+            </label>
 
-            <small class="hinweis">{{ entry.hint }}</small>
-          </template>
+            <template v-if="abweichend(entry.key)">
+              <div v-if="entry.selection" class="choices dependent">
+                <label v-for="version in props.phpVersions" :key="version" class="toggle">
+                  <input
+                    type="checkbox"
+                    :checked="versionen(entry.key).includes(version)"
+                    @change="versionUmschalten(entry.key, version, ($event.target as HTMLInputElement).checked)"
+                  >
+                  <span class="ident">{{ version }}</span>
+                </label>
+              </div>
 
-          <small v-if="fehler(`overrides.${entry.key}`)" class="fehler">{{ fehler(`overrides.${entry.key}`) }}</small>
+              <div v-else class="with-unit dependent">
+                <input
+                  :id="`quota-${entry.key}`"
+                  v-model.number="form.overrides[entry.key] as number"
+                  type="number"
+                  :min="entry.minimum"
+                  :max="entry.maximum"
+                  required
+                >
+                <span v-if="entry.unit" class="unit">{{ entry.unit }}</span>
+              </div>
+
+              <p class="hint dependent">{{ entry.hint }}</p>
+            </template>
+
+            <p v-if="fehler(`overrides.${entry.key}`)" class="error">{{ fehler(`overrides.${entry.key}`) }}</p>
+          </div>
         </div>
-      </fieldset>
+      </Section>
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
         </button>
-        <Link class="knopf" :href="`/subscriptions/${props.subscription.id}`">Abbrechen</Link>
+        <Link class="button" :href="`/subscriptions/${props.subscription.id}`">Abbrechen</Link>
       </div>
     </form>
   </PanelLayout>
 </template>
 
-<style scoped>
-.hinweis-block { max-width: 640px; margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--text-muted); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 6px; line-height: 1.5; }
-code { font-family: var(--font-mono); color: var(--text); }
-.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 640px; }
-fieldset { display: flex; flex-direction: column; gap: 12px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-.feld { display: flex; flex-direction: column; gap: 5px; }
-.schalter { flex-direction: row; align-items: flex-start; gap: 7px; }
-.schalter > span { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-table); color: var(--text); }
-.zeile { display: flex; align-items: center; gap: 8px; padding-left: 20px; }
-.zeile input[type='number'] { width: 130px; }
-select, input[type='number'] { padding: 6px 8px; font: inherit; font-size: var(--text-input); font-variant-numeric: tabular-nums; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-select { max-width: 320px; }
-.einheit { font-size: var(--text-small); color: var(--text-faint); }
-.auswahl { display: flex; flex-wrap: wrap; gap: 14px; padding: 2px 0 2px 20px; }
-.version { flex-direction: row; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
-.version span { font-size: var(--text-small); color: var(--text-muted); }
-.hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
-.fehler { font-size: var(--text-small); color: var(--critical); }
-
-/* Unter 480px hat der eingerückte Wert keinen Platz mehr — dort steht er
-   linksbündig wie alles andere. */
-@media (max-width: 480px) {
-  .zeile, .auswahl { padding-left: 0; }
-}
-</style>

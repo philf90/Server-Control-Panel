@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3'
+import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface QuotaEntry {
@@ -111,133 +112,133 @@ function remove(): void {
     :title="editing ? `Plan ${props.plan?.name}` : 'Plan anlegen'"
     :subline="editing ? `${props.subscriptions} Abonnements gebunden` : 'Vorlage für die Kontingente eines Abonnements'"
   >
+    <template #breadcrumb>
+      <Link href="/plans" class="link">Pläne</Link>
+    </template>
+
+    <p v-if="fieldError('plan')" class="notice critical">
+      <span>{{ fieldError('plan') }}</span>
+    </p>
+
     <!--
       Die Warnung steht über dem Formular und nicht daneben: Eine Änderung an
       einem Plan mit gebundenen Abonnements wirkt sofort auf alle. Sie erscheint
       nur, wenn tatsächlich welche daran hängen — eine Warnung, die immer da
       steht, liest nach der dritten Bearbeitung niemand mehr.
     -->
-    <p v-if="editing && props.subscriptions > 0" class="warnung">
-      An diesem Plan hängen {{ props.subscriptions }} Abonnements. Gesenkte Grenzen
-      verbieten das Anlegen weiterer Objekte; vorhandene bleiben bestehen.
+    <p v-if="editing && props.subscriptions > 0" class="notice warn">
+      <span>
+        An diesem Plan hängen <b>{{ props.subscriptions }}</b> Abonnements.
+        Gesenkte Grenzen verbieten das Anlegen weiterer Objekte; vorhandene
+        bleiben bestehen.
+      </span>
     </p>
 
-    <p v-if="fieldError('plan')" class="fehler-block">{{ fieldError('plan') }}</p>
-
-    <form class="maske" @submit.prevent="submit">
-      <fieldset>
-        <legend>Plan</legend>
-
-        <label>Name
+    <form class="form" @submit.prevent="submit">
+      <Section title="Plan">
+        <label class="field">
+          <span>Name</span>
           <input v-model="form.name" type="text" required>
-          <small v-if="form.errors.name" class="fehler">{{ form.errors.name }}</small>
         </label>
+        <p v-if="form.errors.name" class="error">{{ form.errors.name }}</p>
 
-        <label>Beschreibung
+        <label class="field">
+          <span>Beschreibung</span>
           <input v-model="form.description" type="text">
-          <small class="hinweis">Erscheint in der Liste. Wofür dieses Paket gedacht ist.</small>
         </label>
+        <p class="hint">Erscheint in der Liste. Wofür dieses Paket gedacht ist.</p>
 
-        <label class="schalter">
+        <label class="toggle">
           <input v-model="form.is_default" type="checkbox">
           <span>
             Standardplan
-            <small class="hinweis">
+            <small class="hint">
               Der Plan, den ein neues Abonnement bekommt. Es gibt genau einen;
               das Setzen hier nimmt ihn dem bisherigen.
             </small>
           </span>
         </label>
-      </fieldset>
+      </Section>
 
-      <fieldset>
-        <legend>Kontingente</legend>
+      <!--
+        Die Kontingente nehmen die ganze Zeile und stehen darin in Spalten.
+        Untereinander in einem halben Grundriss waren es 1400px Lauflänge, und
+        daneben blieb die halbe Seite leer — im Browser gesehen. Zwölf Posten
+        sind eine Liste zum Überfliegen und keine Folge von Schritten.
+      -->
+      <Section title="Kontingente" full>
+        <div class="item-grid">
+          <div v-for="entry in props.catalog.quotas" :key="entry.key" class="item">
+            <template v-if="entry.selection">
+              <span class="label">{{ entry.label }}</span>
+              <div class="choices">
+                <label v-for="version in props.catalog.php_versions" :key="version" class="toggle">
+                  <input
+                    type="checkbox"
+                    :checked="versions(entry.key).includes(version)"
+                    @change="toggleVersion(entry.key, version, ($event.target as HTMLInputElement).checked)"
+                  >
+                  <span class="ident">{{ version }}</span>
+                </label>
+              </div>
+            </template>
 
-        <div v-for="entry in props.catalog.quotas" :key="entry.key" class="feld">
-          <template v-if="entry.selection">
-            <span class="beschriftung">{{ entry.label }}</span>
-            <div class="auswahl">
-              <label v-for="version in props.catalog.php_versions" :key="version" class="version">
+            <template v-else>
+              <label class="label" :for="`quota-${entry.key}`">{{ entry.label }}</label>
+              <div class="with-unit">
                 <input
-                  type="checkbox"
-                  :checked="versions(entry.key).includes(version)"
-                  @change="toggleVersion(entry.key, version, ($event.target as HTMLInputElement).checked)"
+                  :id="`quota-${entry.key}`"
+                  v-model.number="form.quotas[entry.key] as number"
+                  type="number"
+                  :min="entry.minimum"
+                  :max="entry.maximum"
+                  :disabled="isUnlimited(entry.key)"
+                  required
                 >
-                <span>{{ version }}</span>
-              </label>
-            </div>
-          </template>
+                <span v-if="entry.unit" class="unit">{{ entry.unit }}</span>
 
-          <template v-else>
-            <label class="beschriftung" :for="`quota-${entry.key}`">{{ entry.label }}</label>
-            <div class="zeile">
-              <input
-                :id="`quota-${entry.key}`"
-                v-model.number="form.quotas[entry.key] as number"
-                type="number"
-                :min="entry.minimum"
-                :max="entry.maximum"
-                :disabled="isUnlimited(entry.key)"
-                required
-              >
-              <span v-if="entry.unit" class="einheit">{{ entry.unit }}</span>
-              <label v-if="entry.unlimited" class="unbegrenzt">
-                <input
-                  type="checkbox"
-                  :checked="isUnlimited(entry.key)"
-                  @change="toggleUnlimited(entry, ($event.target as HTMLInputElement).checked)"
-                >
-                <span>unbegrenzt</span>
-              </label>
-            </div>
-          </template>
+                <!--
+                  „unbegrenzt" steht neben dem Feld und nicht darüber: Es ist die
+                  Alternative zu dieser einen Zahl und nicht eine zweite
+                  Einstellung. Angehakt blendet es das Feld ab — gestrichelter
+                  Rand aus app.css, weil ein Feld ohne Wirkung kein Bedienelement
+                  mehr ist.
+                -->
+                <label v-if="entry.unlimited" class="toggle">
+                  <input
+                    type="checkbox"
+                    :checked="isUnlimited(entry.key)"
+                    @change="toggleUnlimited(entry, ($event.target as HTMLInputElement).checked)"
+                  >
+                  <span>unbegrenzt</span>
+                </label>
+              </div>
+            </template>
 
-          <small class="hinweis">{{ entry.hint }}</small>
-          <small v-if="fieldError(`quotas.${entry.key}`)" class="fehler">{{ fieldError(`quotas.${entry.key}`) }}</small>
+              <p class="hint">{{ entry.hint }}</p>
+            <p v-if="fieldError(`quotas.${entry.key}`)" class="error">{{ fieldError(`quotas.${entry.key}`) }}</p>
+          </div>
         </div>
-      </fieldset>
+      </Section>
 
-      <fieldset>
-        <legend>Freigaben</legend>
-
-        <label v-for="entry in props.catalog.features" :key="entry.key" class="schalter">
+      <Section title="Freigaben">
+        <label v-for="entry in props.catalog.features" :key="entry.key" class="toggle">
           <input v-model="form.features[entry.key]" type="checkbox">
           <span>
             {{ entry.label }}
-            <small class="hinweis">{{ entry.hint }}</small>
+            <small class="hint">{{ entry.hint }}</small>
           </span>
         </label>
-      </fieldset>
+      </Section>
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Wird gespeichert …' : editing ? 'Speichern' : 'Anlegen' }}
         </button>
-        <button v-if="editing" type="button" class="knopf gefahr" @click="remove">Löschen</button>
+        <Link href="/plans" class="button">Abbrechen</Link>
+        <button v-if="editing" type="button" class="button danger" @click="remove">Löschen</button>
       </div>
     </form>
   </PanelLayout>
 </template>
 
-<style scoped>
-.warnung { max-width: 640px; margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
-.fehler-block { max-width: 640px; margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--critical); background: var(--critical-surface); border-radius: 6px; }
-.maske { display: flex; flex-direction: column; gap: var(--gap); max-width: 640px; }
-fieldset { display: flex; flex-direction: column; gap: 10px; padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-legend { padding: 0 5px; font-size: var(--text-small); color: var(--text-muted); }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-.feld { display: flex; flex-direction: column; gap: 3px; }
-.beschriftung { font-size: var(--text-small); color: var(--text-muted); }
-.zeile { display: flex; align-items: center; gap: 8px; }
-.zeile input[type='number'] { width: 130px; }
-input[type='text'], input[type='number'] { padding: 6px 8px; font: inherit; font-size: var(--text-input); font-variant-numeric: tabular-nums; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-input:disabled { color: var(--text-faint); background: var(--surface-border); border-color: transparent; }
-.einheit { font-size: var(--text-small); color: var(--text-faint); }
-.unbegrenzt, .version, .schalter { flex-direction: row; align-items: flex-start; gap: 6px; }
-.unbegrenzt span, .version span { font-size: var(--text-small); color: var(--text-muted); }
-.schalter > span { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-table); color: var(--text); }
-.auswahl { display: flex; flex-wrap: wrap; gap: 14px; padding: 2px 0; }
-.version { font-variant-numeric: tabular-nums; }
-.hinweis { font-size: var(--text-label); color: var(--text-faint); line-height: 1.45; }
-.fehler { font-size: var(--text-small); color: var(--critical); }
-</style>

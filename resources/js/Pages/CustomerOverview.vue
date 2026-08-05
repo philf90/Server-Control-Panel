@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3'
+import Section from '../Components/Section.vue'
+import Badge from '../Components/Badge.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
 
 /*
@@ -19,39 +21,62 @@ defineProps<{
     status_label: string
   }[]
 }>()
+
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
+  if (status === 'active') return 'ok'
+  if (status === 'suspended' || status === 'provisioning' || status === 'removing') return 'warn'
+  if (status === 'cancelled' || status === 'failed') return 'critical'
+
+  return 'neutral'
+}
 </script>
 
 <template>
   <Head title="Übersicht" />
 
   <PanelLayout title="Übersicht" subline="Ihre Abonnements">
-    <section v-if="subscriptions.length > 0" class="abos">
-      <article v-for="abo in subscriptions" :key="abo.id" class="abo">
-        <h2>{{ abo.name }}</h2>
-        <p class="domain">{{ abo.main_domain ?? 'noch keine Domain' }}</p>
-        <p class="status" :data-status="abo.status">{{ abo.status_label }}</p>
-      </article>
-    </section>
+    <!--
+      Ein Bereich je Abonnement und keine Kärtchenwand.
+
+      Die meisten Kunden haben eines, viele zwei, kaum jemand mehr als vier.
+      Für diese Zahl ist ein Raster aus Kärtchen die falsche Form: Es macht
+      aus drei Zeilen Text drei Kästen und lässt daneben die halbe Seite leer.
+      Ein Bereich trägt dieselben Angaben und macht Platz für das, was in P4
+      dazukommt — Zertifikat, Speicherstand, Zugänge.
+    -->
+    <div v-if="subscriptions.length > 0" class="sections">
+      <Section v-for="abo in subscriptions" :key="abo.id" :title="abo.name">
+        <template #actions>
+          <Badge :kind="rang(abo.status)">{{ abo.status_label }}</Badge>
+        </template>
+
+        <table class="pairs">
+          <tbody>
+            <!--
+              `.kennung` nur, wenn wirklich eine Domain dasteht. Mit der
+              Klasse am ganzen Feld stand „noch keine Domain" in Monospace —
+              ein Satz in der Schrift für Bezeichner liest sich wie ein Wert,
+              den man irgendwo eintippen soll. Im Browser gesehen.
+            -->
+            <tr>
+              <td class="quiet">Hauptdomain</td>
+              <td class="right" :class="{ ident: abo.main_domain !== null }">
+                {{ abo.main_domain ?? 'noch keine Domain' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </Section>
+    </div>
 
     <!--
       Eine leere Liste mit einem Satz dazu ist eine Auskunft; eine weiße
       Fläche wäre keine.
     -->
-    <p v-else class="leer">
+    <p v-else class="empty">
       Für Sie ist noch kein Abonnement eingerichtet. Sobald eines angelegt ist,
       erscheint es hier. Ihre bisherigen Anmeldungen stehen im
-      <Link href="/audit">Protokoll</Link>.
+      <Link href="/audit" class="link">Protokoll</Link>.
     </p>
   </PanelLayout>
 </template>
-
-<style scoped>
-.abos { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--gap); }
-.abo { padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-.abo h2 { margin: 0 0 3px; font-size: var(--text-body); color: var(--text-strong); }
-.domain { margin: 0 0 6px; font-size: var(--text-small); color: var(--text-muted); }
-.status { margin: 0; font-size: var(--text-small); color: var(--ok); }
-.status[data-status='suspended'] { color: var(--warn); }
-.status[data-status='cancelled'] { color: var(--critical); }
-.leer { max-width: 544px; font-size: var(--text-body); color: var(--text-muted); line-height: 1.6; }
-</style>

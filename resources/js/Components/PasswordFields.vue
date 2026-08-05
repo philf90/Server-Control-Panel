@@ -170,10 +170,10 @@ function randomBelow(bound: number): number {
 </script>
 
 <template>
-  <div class="passwort">
-    <label>
-      {{ props.label ?? 'Passwort' }}
-      <div class="feld">
+  <div class="password">
+    <label class="field">
+      <span>{{ props.label ?? 'Passwort' }}</span>
+      <div class="with-reveal">
         <input
           :value="props.modelValue"
           :type="visible ? 'text' : 'password'"
@@ -184,7 +184,7 @@ function randomBelow(bound: number): number {
         >
         <button
           type="button"
-          class="auge"
+          class="reveal"
           :aria-label="visible ? 'Passwort verbergen' : 'Passwort anzeigen'"
           :aria-pressed="visible"
           @click="visible = !visible"
@@ -192,12 +192,12 @@ function randomBelow(bound: number): number {
           <EyeIcon :off="visible" />
         </button>
       </div>
-      <small v-if="props.error" class="fehler">{{ props.error }}</small>
     </label>
+    <p v-if="props.error" class="error">{{ props.error }}</p>
 
-    <label>
-      Passwort wiederholen
-      <div class="feld">
+    <label class="field">
+      <span>Passwort wiederholen</span>
+      <div class="with-reveal">
         <input
           :value="props.confirmation"
           :type="visible ? 'text' : 'password'"
@@ -208,7 +208,7 @@ function randomBelow(bound: number): number {
         >
         <button
           type="button"
-          class="auge"
+          class="reveal"
           :aria-label="visible ? 'Passwort verbergen' : 'Passwort anzeigen'"
           :aria-pressed="visible"
           @click="visible = !visible"
@@ -216,13 +216,15 @@ function randomBelow(bound: number): number {
           <EyeIcon :off="visible" />
         </button>
       </div>
-      <small v-if="props.confirmationError" class="fehler">{{ props.confirmationError }}</small>
-      <small v-else-if="props.confirmation.length > 0 && !matches" class="fehler">
-        Die beiden Eingaben sind nicht gleich.
-      </small>
     </label>
+    <p v-if="props.confirmationError" class="error">{{ props.confirmationError }}</p>
+    <p v-else-if="props.confirmation.length > 0 && !matches" class="error">
+      Die beiden Eingaben sind nicht gleich.
+    </p>
 
-    <button type="button" class="erzeugen" @click="generate">Passwort erzeugen</button>
+    <div class="button-row">
+      <button type="button" class="button small" @click="generate">Passwort erzeugen</button>
+    </div>
 
     <!--
       Die Prüfliste steht immer da und erscheint nicht erst beim Fehlschlag.
@@ -230,61 +232,142 @@ function randomBelow(bound: number): number {
       warum Leute „Passwort1!" tippen: Sie raten sich an die Regel heran,
       statt sie zu lesen.
     -->
-    <ul class="regeln" aria-live="polite">
-      <li v-for="entry in checked" :key="entry.key" :class="{ erfuellt: entry.met }">
-        <span class="marke" aria-hidden="true">{{ entry.met ? '✓' : '✗' }}</span>
+    <ul class="rules" aria-live="polite">
+      <li v-for="entry in checked" :key="entry.key" :class="{ met: entry.met }">
+        <!--
+          `.haken` und nicht `.marke`: Seit „Kontor" ist `.marke` die
+          Zustandsmarke aus app.css — eine Pille mit farbigem Punkt davor. Ein
+          ✓ mit dieser Klasse hätte sich stillschweigend in eine Pille
+          verwandelt, und in der Prüfliste stünden acht davon nebeneinander.
+          Ein Name, der in zwei Bedeutungen benutzt wird, ist beim ersten Umbau
+          ein Fehler.
+        -->
+        <span class="check" aria-hidden="true">{{ entry.met ? '✓' : '✗' }}</span>
         <span class="sr">{{ entry.met ? 'erfüllt:' : 'offen:' }}</span>
         {{ entry.label }}
       </li>
     </ul>
 
-    <div class="staerke" :data-stufe="strength.step">
-      <div class="leiste">
-        <span v-for="step in 4" :key="step" :class="{ an: step <= strength.step }" />
+    <div class="strength" :data-step="strength.step">
+      <div class="meter">
+        <span v-for="step in 4" :key="step" :class="{ on: step <= strength.step }" />
       </div>
-      <span class="wert">
+      <span class="value">
         {{ strength.label }}<template v-if="strength.bits > 0"> · {{ strength.bits }} Bit</template>
       </span>
     </div>
 
-    <p class="hinweis">
+    <p class="hint">
       Die Schätzung rechnet Länge und Zeichenvorrat, kein Wörterbuch. Ein
       Passwort aus einem gebräuchlichen Wort ist schwächer, als hier steht.
     </p>
 
-    <p v-if="touched && allMet && matches" class="fertig">Das Passwort erfüllt die Richtlinie.</p>
+    <p v-if="touched && allMet && matches" class="done">Das Passwort erfüllt die Richtlinie.</p>
   </div>
 </template>
 
 <style scoped>
-.passwort { display: flex; flex-direction: column; gap: 8px; }
-label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-small); color: var(--text-muted); }
-.feld { display: flex; gap: 5px; }
-input { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; font-size: var(--text-input); font-family: var(--font-mono); color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; }
-.auge { flex: none; display: grid; place-items: center; width: 34px; color: var(--text-muted); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
-.auge:hover { color: var(--text-strong); }
-.erzeugen { align-self: flex-start; padding: 5px 11px; font: inherit; font-size: var(--text-small); color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
-.erzeugen:hover { border-color: var(--accent); color: var(--accent); }
+/*
+ * **Form und Farbe des Feldes stehen nicht mehr hier.**
+ *
+ * Diese Komponente brachte ihr eigenes Feld mit — und mit ihm einen Rahmen
+ * aus `--line`, der Haarlinie zum Trennen: 1,09:1 hell, 1,13:1 dunkel gegen
+ * den Seitengrund. Elf Seiten trugen dieselbe abgeschriebene Zeile. `.field`
+ * aus app.css trägt es jetzt, samt `--control-line`.
+ *
+ * Das Auge daneben ist inzwischen ebenfalls umgezogen: Die Anmeldemaske
+ * hatte ihre eigene Fassung davon, 34px breit und mit einem Rand aus `--line`
+ * — 1,45:1 im dunklen Theme. Zwei Fassungen desselben Bedienelements, eine
+ * davon ohne sichtbare Grenze.
+ *
+ * Was hier bleibt, ist die Prüfliste und die Stärkeschätzung — Dinge, die es
+ * nur in einem Passwortfeld gibt.
+ */
+.password {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
 
-.regeln { display: flex; flex-wrap: wrap; gap: 2px 16px; margin: 3px 0 0; padding: 0; list-style: none; }
-.regeln li { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-small); color: var(--text-faint); }
-.regeln li.erfuellt { color: var(--ok); }
-.marke { font-family: var(--font-mono); color: var(--critical); }
-.regeln li.erfuellt .marke { color: var(--ok); }
+/*
+ * Die Prüfliste steht immer da und erscheint nicht erst beim Fehlschlag.
+ * Anforderungen, die man erst nach dem Absenden erfährt, sind der Grund,
+ * warum Leute „Passwort1!" tippen.
+ */
+.rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rules li {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.rules li.met {
+  color: var(--ok);
+}
+
+.check {
+  font-family: var(--font-mono);
+  color: var(--critical);
+}
+
+.rules li.met .check {
+  color: var(--ok);
+}
 
 /* Nur für Vorlesesoftware: Haken und Kreuz allein sagen ihr nichts. */
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
-.staerke { display: flex; align-items: center; gap: 8px; }
-.leiste { display: flex; gap: 3px; flex: 1; max-width: 192px; }
-.leiste span { flex: 1; height: 4px; border-radius: 999px; background: var(--surface-border); }
-.wert { font-size: var(--text-small); color: var(--text-muted); }
-[data-stufe='1'] .leiste span.an { background: var(--critical); }
-[data-stufe='2'] .leiste span.an { background: var(--warn); }
-[data-stufe='3'] .leiste span.an,
-[data-stufe='4'] .leiste span.an { background: var(--ok); }
+.strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-.hinweis { margin: 0; font-size: var(--text-label); color: var(--text-faint); }
-.fertig { margin: 0; font-size: var(--text-small); color: var(--ok); }
-.fehler { font-size: var(--text-small); color: var(--critical); }
+.meter {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+  max-width: 192px;
+}
+
+.meter span {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.value {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+[data-step='1'] .meter span.on { background: var(--critical); }
+[data-step='2'] .meter span.on { background: var(--warn); }
+
+[data-step='3'] .meter span.on,
+[data-step='4'] .meter span.on { background: var(--ok); }
+
+.done {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ok);
+}
 </style>

@@ -4,15 +4,35 @@
 @source '../views/**/*.blade.php';
 
 /*
- * Gestaltungssystem „Leitstand" — die Marken.
+ * Gestaltungssystem „Kontor" — die Marken und die Bausteine.
  *
- * Vorgabe: docs/20-hostingpanel-neuplan.md §7.2. Jede Farbe der Oberfläche
- * kommt von hier. Ein Farbwert irgendwo anders im Quelltext ist ein Fehler und
- * keine Ausnahme — sonst entsteht das zweite Theme nie, weil niemand mehr
- * weiß, wo überall Farbe steht.
+ * Vorgabe: docs/entwuerfe/30-neue-richtungen.md, bedienbar in
+ * docs/entwuerfe/31-kontor-mockup.html. Jede Farbe der Oberfläche kommt von
+ * hier. Ein Farbwert irgendwo anders im Quelltext ist ein Fehler und keine
+ * Ausnahme — sonst entsteht das zweite Theme nie, weil niemand mehr weiß, wo
+ * überall Farbe steht.
+ *
+ * **Was sich gegenüber „Leitstand" geändert hat, und warum.** Nicht der
+ * Maßstab, sondern vier Grundannahmen:
+ *
+ *   1. **Hell entworfen, dunkel mitgeführt** statt umgekehrt. Der Charakter
+ *      entsteht im Hellen; das dunkle Theme ist eine eigene Rechnung und keine
+ *      Umkehrung.
+ *   2. **Keine Karten.** Ein Bereich ist eine Überschrift, eine Linie und
+ *      Inhalt. Eine Karte kostet je Bereich rund 40px Innenabstand, und die
+ *      fehlen am Ende als Zeilen — genau der Vorwurf, an dem „Werkstatt" 2026
+ *      gescheitert ist.
+ *   3. **Monospace nur für Kennungen** — Pfad, Unit, Systembenutzer, Befehl,
+ *      Vorgangsnummer. Nicht für jede Zahl: Das war Leitstand, und es liess
+ *      jede Tabelle wie ein Terminal aussehen. Ziffern stehen trotzdem
+ *      spaltengenau, das leistet `font-variant-numeric: tabular-nums` in jeder
+ *      Grotesk.
+ *   4. **Die Form der Bausteine steht hier**, nicht je Seite. Tabelle,
+ *      Formularfeld, Zustandsmarke, Balken, Meldung — vorher gab es davon vier
+ *      bis elf Fassungen über 32 Dateien.
  *
  * Zwei Achsen, unabhängig voneinander:
- *   Theme  — dunkel (Vorgabe) und hell, über [data-theme]
+ *   Theme  — hell (Ausgangsfassung) und dunkel, über [data-theme]
  *   Dichte — admin (dicht) und kunde (ruhig), über [data-density]
  */
 
@@ -21,207 +41,227 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/*
+ * Das helle Theme ist die Ausgangsfassung.
+ *
+ * Es steht deshalb zuerst und unter `:root` ohne Attribut: Wer ohne gewähltes
+ * Theme lädt, bekommt es. Bei „Leitstand" war es umgekehrt, und das helle
+ * Theme war die Fassung, die seltener jemand ansah.
+ *
+ * Jeder Wert ist gerechnet und nicht gewählt: 4,5:1 für Text, 3:1 für die
+ * Grenze eines Bedienelements (WCAG 1.4.3 und 1.4.11). Geprüft von
+ * `ButtonStyleTest::test_every_control_border_stands_out`.
+ */
 :root,
-:root[data-theme='dark'] {
-  --bg: #0b0f13;
-  --surface: #111922;
-  --surface-border: #1c2733;
+:root[data-theme='light'] {
+  --bg: #ffffff;
+
+  /* Die ruhige Fläche: das Rail, ein Kärtchen auf der schmalen Fläche, die
+     Ausgabe eines Vorgangs. Kontor kennt keine Karte — das hier ist eine
+     Tönung, kein Behälter. */
+  --surface: #fafafb;
+
+  /* Eine Haarlinie, und nur eine. Spaltenkopf, Zeilentrenner, Rail-Kante und
+     Kachelgitter sind dieselbe Linie; zwei Marken dafür wären zwei Fassungen
+     derselben Sache. */
+  --line: #dcdfe6;
+
+  --nav-bg: #fafafb;
+  --nav-border: #dcdfe6;
 
   /*
-   * Der Knopf hat eigene Marken — und zwar aus einem gemessenen Grund.
+   * Die Grenze und die Fläche **jedes** Bedienelements — Knopf, Feld,
+   * Auswahl.
    *
-   * Er stand auf `--surface` mit einem Rand aus `--line`, und beides ist
-   * gegeneinander kaum zu sehen: 1,04:1. Auf einem dunklen Bildschirm war ein
-   * „Bearbeiten" damit keine Schaltfläche, sondern ein etwas hellerer Fleck,
-   * den man für Text hält. Aufgefallen ist es an einer Kundenliste auf einem
-   * echten Monitor, nicht am Entwurf.
-   *
-   * Die Werte sind gerechnet, nicht gewählt: WCAG 1.4.11 verlangt für den Rand
-   * eines Bedienelements 3:1 gegen alles, was daneben liegt. `--button-line`
-   * erreicht 3,3:1 gegen die Fläche des Knopfes und 4,0:1 gegen den
-   * Seitengrund; im hellen Theme 3,6:1 und 3,3:1.
+   * Vorher hiessen sie `--button-bg` und `--button-line` und galten nur für
+   * Knöpfe. Das Eingabefeld stand auf `--line`, einer Haarlinie zum Trennen,
+   * und erreichte damit 1,09:1 gegen den Seitengrund im hellen und 1,13:1 im
+   * dunklen Theme — ein Feld ohne sichtbare Grenze. Derselbe Fehler wie beim
+   * Knopf mit 1,04:1, nur an einem anderen Element und neun Monate später
+   * bemerkt. Eine Marke für beide, damit es kein drittes Mal gibt.
    */
-  --button-bg: #1a2430;
-  --button-line: #647486;
+  --control-bg: #ffffff;
+  --control-line: #757d8a;
 
-  --nav-bg: #080c10;
-  --nav-border: #1a232d;
-  --line: #141d26;
+  --text-strong: #0f1115;
+  --text: #3a3f49;
+  --text-muted: #5c6470;
+  --text-faint: #6b7280;
 
-  /*
-   * Das Blau des Zeichens — die einzige Farbe im System, die nicht aus der
-   * Oberfläche stammt, sondern aus der Marke.
-   *
-   * Sie steht trotzdem hier, weil §7.2 keine Ausnahme macht: Ein Farbwert im
-   * Quelltext einer Komponente ist ein Fehler, sonst weiss beim nächsten Theme
-   * niemand mehr, wo überall Farbe steht. Zwei Werte, weil das Zeichen in zwei
-   * Fassungen geliefert wurde — auf dunklem Grund das hellere Blau, auf hellem
-   * das kräftigere. Wer beide Male dasselbe nähme, hätte einmal ein Zeichen,
-   * das leuchtet, und einmal eines, das absäuft.
-   */
-  --mark-accent: #4f9be8;
+  /* Indigo. Eine tragende Farbe, und sie sieht nicht nach Warnung aus — das
+     war der Preis von Amber: Der Akzent und der Zustand „Warnung" waren
+     derselbe Farbwert und mussten sich die Bedeutung teilen. */
+  --accent: #3730a3;
+  --accent-on: #ffffff;
+  --accent-surface: rgb(55 48 163 / 0.09);
 
-  --text-strong: #eaf1f8;
-  --text: #b9c7d4;
-  --text-muted: #91a2b1;
-  --text-faint: #7b8c9b;
+  /* Das Zeichen trägt den Akzent. Zwei Werte je Theme braucht es nicht mehr,
+     seit die tragende Farbe in beiden Themes genug Kontrast hat. */
+  --mark-accent: #3730a3;
 
-  --accent: #e0a340;
-  --accent-on: #0b0f13;
-  --accent-surface: rgb(224 163 64 / 0.13);
+  --ok: #076e54;
+  --ok-surface: rgb(7 110 84 / 0.1);
+  --warn: #845306;
+  --warn-surface: rgb(132 83 6 / 0.11);
+  --critical: #ab2b19;
+  --critical-surface: rgb(171 43 25 / 0.09);
 
-  --ok: #5cc294;
-  --ok-surface: rgb(79 178 134 / 0.14);
-  --warn: #e0a340;
-  --warn-surface: rgb(224 163 64 / 0.14);
-  --critical: #e87761;
-  --critical-surface: rgb(216 96 74 / 0.14);
-
-  --focus: #7fc4ff;
+  --focus: #3730a3;
 
   /* Der Schleier hinter der Navigationsschublade (docs/24 §4). Eine Farbe,
-     also gehört sie hierher und nicht in die Komponente — §7.2 macht keine
-     Ausnahme für Schwarz mit Deckung. */
-  --scrim: rgb(0 0 0 / 0.55);
+     also gehört sie hierher und nicht in die Komponente. */
+  --scrim: rgb(15 17 21 / 0.42);
 }
 
 /*
- * Schriftgrößen — fünf Stufen, und keine sechste.
+ * Das dunkle Theme ist keine Umkehrung.
+ *
+ * Ein invertiertes Indigo wäre auf dunklem Grund zu dunkel für Text; hier
+ * trägt ein aufgehelltes den Akzent. Die Zustandsfarben sind ebenfalls eigene
+ * Werte und nicht dieselben: `#076e54` auf `#0f1116` erreicht 2,2:1 und wäre
+ * unlesbar.
+ */
+:root[data-theme='dark'] {
+  --bg: #0f1116;
+  --surface: #14171d;
+  --line: #2c313d;
+
+  --nav-bg: #14171d;
+  --nav-border: #2c313d;
+
+  --control-bg: #191d25;
+  --control-line: #7b8393;
+
+  --text-strong: #edeff5;
+  --text: #c4c9d4;
+  --text-muted: #99a0ae;
+  --text-faint: #858c9a;
+
+  --accent: #a3aaff;
+  --accent-on: #12142a;
+  --accent-surface: rgb(163 170 255 / 0.14);
+
+  --mark-accent: #a3aaff;
+
+  --ok: #57c99c;
+  --ok-surface: rgb(87 201 156 / 0.14);
+  --warn: #e2a94a;
+  --warn-surface: rgb(226 169 74 / 0.14);
+  --critical: #f08a72;
+  --critical-surface: rgb(240 138 114 / 0.14);
+
+  --focus: #a3aaff;
+
+  --scrim: rgb(0 0 0 / 0.58);
+}
+
+/*
+ * Schriftgrößen — sieben Rollen, je eine Marke, dazu die Feldgröße.
  *
  * **Warum das Marken sein müssen.** In den Komponenten standen die Größen als
  * `rem`: `.7rem`, `.72rem`, `.75rem`, `.78rem`, `.8rem`, `.82rem`, `.85rem`,
  * `.9rem`, `.95rem`, `1.15rem` — zehn Werte für fünf Rollen, entstanden beim
  * Schreiben und nicht beim Entwerfen.
  *
- * **Und warum sie in px stehen.** `rem` rechnet gegen das Wurzelelement, und
- * das steht auf der Browservorgabe von 16px. Die Grundgröße des Panels sind
- * aber 13px am `body`. Jeder rem-Wert war damit 23 % größer als gemeint —
- * `.85rem` für Tabellentext ergab 13,6px und war damit *größer* als der
- * Fließtext, den er unterschreiten sollte. Aufgefallen ist das zuerst an der
- * Anmeldemaske, deren Überschrift größer war als die Seitenüberschrift im
- * angemeldeten Panel.
+ * **Und warum sie in px stehen.** `rem` rechnet gegen das Wurzelelement und
+ * damit gegen die Browservorgabe von 16px, nicht gegen die Grundgröße des
+ * Panels.
  *
- * **Nicht nach Dichte gestaffelt.** §7.2 staffelt Zeilenhöhe, Abstände und
- * Kacheln je Reihe — Schriftgrößen nicht. Die Kundenfläche wird ruhiger durch
- * Luft, nicht durch größere Schrift.
+ * **Warum die Skala gewachsen ist.** Die alte drängte drei Rollen in 2,5px —
+ * 10,5px, 11px und 12px für Beschriftung, Hinweis und Tabellenzelle. Eine
+ * Rangfolge, die man messen muss, ist keine; auf dem Bildschirm sah das nach
+ * einer Größe mit Messfehlern aus. Die Vorgabe „fünf Größen, und keine
+ * sechste" widersprach ausserdem ihrer eigenen Tabelle, die sechs Zeilen
+ * hatte, und der Datei, die sieben Marken führte.
+ *
+ * **Nicht nach Dichte gestaffelt.** Die Dichte staffelt Zeilenhöhe, Abstände
+ * und Kachelbreite — Schriftgrößen nicht. Die Kundenfläche wird ruhiger durch
+ * Luft, nicht durch größere Schrift. Hier stand einmal `--block-heading-size`
+ * mit 13px auf der Admin- und 15px auf der Kundenfläche, also genau das, was
+ * die Regel verbietet; `--text-section` tritt an seine Stelle und staffelt
+ * nicht.
+ *
+ * Geprüft von `DesignTokensTest`: keine Größe ausserhalb der Skala, keine
+ * Marke ohne Wert — und keine Stufe ohne Nutzer.
  */
 :root {
-  --text-label: 10.5px;
-  --text-small: 11px;
-  --text-table: 12px;
-  --text-body: 13px;
-  --text-heading: 16px;
-
-  /* Die grosse Zahl auf einer Kachel. Kein Text, sondern ein Messwert — sie
-     steht in der Reihe, damit sie nicht als Literal irgendwo festwaechst. */
-  --text-metric: 22px;
+  --text-label: 11.5px;    /* Versalien: Spaltenkopf, Kachelbeschriftung */
+  --text-small: 13px;      /* Feldbeschriftung, Hinweis, Fehlertext, Beizeile */
+  --text-table: 14px;      /* Tabellenzelle, Knopf, Kennung */
+  --text-body: 15px;       /* Fließtext */
+  --text-section: 17px;    /* Bereichsüberschrift */
+  --text-heading: 26px;    /* Seitenüberschrift */
+  --text-metric: 34px;     /* die große Zahl auf einer Kachel */
 
   /*
    * Die Schrift in einem Eingabefeld. Auf dem Schreibtisch dieselbe wie im
-   * Fliesstext; auf einem Telefon 16px, weil Safari sonst beim Fokus
+   * Fließtext; auf einem Telefon 16px, weil Safari sonst beim Fokus
    * hineinzoomt (siehe den Block zur schmalen Fläche weiter unten). Die
-   * einzige Grösse der Skala, die sich mit der Fläche ändert — und sie tut es
+   * einzige Größe der Skala, die sich mit der Fläche ändert — und sie tut es
    * aus einem technischen Grund, nicht aus einem gestalterischen.
    */
-  --text-input: 13px;
+  --text-input: 15px;
+
+  /*
+   * Ein Radius, und ein kleiner.
+   *
+   * §7.2 verlangte 3px, „kein größerer Wert, nirgends" — und keine der 26
+   * Seiten hielt sich daran; gebaut waren 3, 5, 6, 8 und 999px. Die Vorgabe
+   * war nie in Kraft, und der Plan hielt das selbst als unentschieden fest.
+   * Entschieden ist es jetzt: 5px an Bedienelementen, 999px an einer Marke,
+   * die eine Pille ist. Kontor trägt seine Ordnung in der Linie und nicht in
+   * der Ecke — ein größerer Radius hätte hier nichts zu tragen.
+   */
+  --radius: 5px;
 
   /* Die kleinste Fläche für einen Zeiger. Am Finger wird daraus 44px. */
-  --tap: 30px;
+  --tap: 38px;
 }
 
 /*
- * Das helle Theme ist kein Umkehrbild des dunklen.
+ * Dichte in zwei Stufen.
  *
- * Amber auf Weiß erreicht die Kontrastschwelle für Text nicht — auf hellem
- * Grund trägt deshalb ein abgedunkeltes Bernstein die Schrift, während die
- * Fläche die helle Fassung behält. Wer hier bloß invertiert, bekommt eine
- * Oberfläche, die messbar unlesbar ist.
- */
-:root[data-theme='light'] {
-  --bg: #f4f6f7;
-  --surface: #ffffff;
-  --surface-border: #dbe2e8;
-  --button-bg: #ffffff;
-  --button-line: #7c8996;
-  --nav-bg: #ffffff;
-  --nav-border: #dbe2e8;
-  --line: #e9edf1;
-
-  /* Auf Weiss das kräftigere Blau — das hellere säuft darauf ab. */
-  --mark-accent: #1e7cd0;
-
-  --text-strong: #101820;
-  --text: #33414e;
-  --text-muted: #55636f;
-  --text-faint: #64727e;
-
-  --accent: #8a5a06;
-  --accent-on: #ffffff;
-  --accent-surface: rgb(224 163 64 / 0.2);
-
-  --ok: #1c6d4c;
-  --ok-surface: rgb(79 178 134 / 0.18);
-  --warn: #8a5a06;
-  --warn-surface: rgb(224 163 64 / 0.2);
-  --critical: #a5311e;
-  --critical-surface: rgb(216 96 74 / 0.12);
-
-  --focus: #005ea8;
-
-  /* Auf hellem Grund reicht weniger Deckung: Der Inhalt darunter ist hell,
-     der Kontrast zur Schublade entsteht ohnehin. */
-  --scrim: rgb(15 23 31 / 0.4);
-}
-
-/*
- * Dichte. Die Werte sind die Tabelle aus §7.2 und stehen sonst nirgends.
- *
- * `--block-gap` und `--block-heading-gap` kommen aus einer Durchsicht der
- * Übersicht: Die Abschnittsüberschriften standen ohne Abstand nach oben direkt
- * unter der vorigen Tabelle und mit 9px Abstand über ihrer eigenen. Damit war
- * jede Überschrift näher an dem, wozu sie *nicht* gehört. Der Abstand über
- * einer Überschrift muss deutlich größer sein als der darunter, sonst
- * entscheidet der Lesende raten, was zusammengehört.
- *
- * Als Marken und nicht je Seite: Dieselbe Gliederung kommt in jedem Modul
- * wieder, und ein Wert, der an fünf Stellen steht, steht nach dem dritten
- * Modul in fünf Fassungen da.
+ * **Und diesmal wirkt sie.** `--row-height` gab es schon, und benutzt haben
+ * sie zwei der 26 Seiten; auf den übrigen 24 entstand die Zeilenhöhe aus
+ * abgeschriebenem `padding: 6px 8px`. Die Kundenfläche war damit nirgends
+ * ruhiger als die Adminfläche — ein Versprechen im Dokument statt einer
+ * Eigenschaft der Oberfläche. Seit die Form der Tabelle hier steht, liest sie
+ * die Marke, und `TableStyleTest` besteht darauf.
  */
 :root,
 :root[data-density='admin'] {
-  --row-height: 34px;
-  --gap: 10px;
-  --padding: 12px 13px 10px;
-  --tile-columns: 4;
+  --row-height: 40px;
+  --gap: 14px;
+  --bereich-gap: 30px 44px;
+  --bereich-min: 400px;
+  --kachel-min: 200px;
   --block-gap: 26px;
-  --block-heading-gap: 8px;
-  --block-heading-size: 13px;
 }
 
 :root[data-density='customer'] {
-  --row-height: 42px;
-  --gap: 16px;
-  --padding: 16px 17px 14px;
-  --tile-columns: 3;
-  --block-gap: 36px;
-  --block-heading-gap: 10px;
-  --block-heading-size: 15px;
+  --row-height: 48px;
+  --gap: 18px;
+  --bereich-gap: 38px 52px;
+  --bereich-min: 460px;
+  --kachel-min: 250px;
+  --block-gap: 34px;
 }
 
 /*
  * Die schmale Fläche — ein Telefon, ein Tablet hochkant.
  *
- * **Zwei Haltepunkte, und keinen dritten.** 720px trennt „Seitenleiste daneben"
- * von „Seitenleiste als Schublade", 480px ist der Punkt, ab dem auch zwei
- * Spalten nebeneinander nicht mehr gehen. Beide stehen in docs/24 und werden
- * von `MobileLayoutTest` erzwungen: Ein dritter Wert, irgendwo in einer
- * Komponente erfunden, führt zu Seiten, die bei 640px umbrechen und bei 700px
- * nicht — und niemand weiss danach, welcher Wert der richtige war.
+ * **Zwei Haltepunkte, und keinen dritten.** 720px trennt „Rail daneben" von
+ * „Rail als Schublade", 480px ist der Punkt, ab dem auch zwei Spalten
+ * nebeneinander nicht mehr gehen. Beide stehen in docs/24 und werden von
+ * `MobileLayoutTest` erzwungen: Ein dritter Wert, irgendwo in einer Komponente
+ * erfunden, führt zu Seiten, die bei 640px umbrechen und bei 700px nicht.
+ *
+ * Die Bereiche brauchen keinen eigenen Haltepunkt: Sie stehen in einem
+ * Flexfluss und brechen um, sobald sie nicht mehr nebeneinander passen.
  *
  * **Die Dichte wechselt hier unabhängig vom Kontotyp.** Auf einem Telefon
- * bedient man mit dem Finger, nicht mit einem Mauszeiger; 34px hohe Zeilen
- * sind dort keine Dichte, sondern Danebentippen. Das ist keine dritte
- * Dichtestufe im Sinne von §7.2, sondern dieselbe Achse an ihrem oberen Ende.
+ * bedient man mit dem Finger, nicht mit einem Mauszeiger. Das ist keine dritte
+ * Dichtestufe, sondern dieselbe Achse an ihrem oberen Ende.
  */
 @media (max-width: 720px) {
   :root,
@@ -229,18 +269,16 @@
   :root[data-density='customer'] {
     --row-height: 44px;
     --gap: 12px;
-    --padding: 14px 14px 12px;
-    --tile-columns: 1;
-    --block-gap: 28px;
-    --block-heading-gap: 8px;
-    --block-heading-size: 15px;
+    --bereich-gap: 26px;
+    --bereich-min: 100%;
+    --kachel-min: 100%;
+    --block-gap: 24px;
 
     /*
      * 16px, und der Grund ist kein gestalterischer: Safari auf iOS zoomt die
      * Seite hinein, sobald ein Eingabefeld mit weniger als 16px den Fokus
      * bekommt — und zoomt danach nicht wieder heraus. Wer ein Passwort
-     * eintippt, steht anschliessend in einer um 30 % vergrösserten Seite und
-     * schiebt sie von Hand zurück. Auf dem Schreibtisch bleibt es bei 13px.
+     * eintippt, steht anschliessend in einer um 30 % vergrösserten Seite.
      */
     --text-input: 16px;
 
@@ -248,6 +286,10 @@
     --tap: 44px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Grundlagen
+   ═══════════════════════════════════════════════════════════════════════ */
 
 * {
   box-sizing: border-box;
@@ -258,25 +300,43 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: var(--text-body);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-}
 
-/* Ziffern stehen untereinander. Ohne das ist eine Tabelle nur eine Liste. */
-.zahl,
-td,
-th {
+  /*
+   * Ziffern stehen untereinander — im ganzen Panel und nicht je Klasse.
+   *
+   * Vorher trug das `.zahl, td, th`, und die Kachelzahl stand mit
+   * `class="value num"` daneben: `.num` gab es nirgends. Die eine grosse Zahl,
+   * für die eine Kachel da ist, hatte damit keine Tabellenziffern, und zwei
+   * Kacheln nebeneinander standen nicht auf derselben Linie. Am Wurzelelement
+   * gilt es überall, und es gibt nichts mehr, das man vergessen kann.
+   */
   font-variant-numeric: tabular-nums;
 }
 
 /*
- * Der Fokusrahmen — jetzt auch an Eingabefeldern.
+ * Eine Kennung — Pfad, Unit, Systembenutzer, Befehl, Vorgangsnummer.
  *
- * Die Anmeldemaske hatte dafür eine eigene Zeile, jedes andere Formular
- * nicht: Dort zeichnete der Browser seinen eigenen Rahmen, und der ist je
- * nach Browser blau, violett oder gar nicht da. Ein Fokus, der von der
- * Wahl des Browsers abhängt, ist kein Gestaltungsmittel.
+ * Das ist die **einzige** Stelle, an der Monospace vorkommt. Bei „Leitstand"
+ * stand jede Zahl darin, und dadurch sah jede Tabelle aus wie ein Terminal;
+ * die Auskunft „hier steht etwas, das man abtippt" war damit nichts mehr wert,
+ * weil sie überall stand.
+ */
+.ident {
+  font-family: var(--font-mono);
+  font-size: var(--text-table);
+  white-space: nowrap;
+}
+
+/*
+ * Der Fokusrahmen — auch an Eingabefeldern.
+ *
+ * Die Anmeldemaske hatte dafür eine eigene Zeile, jedes andere Formular nicht:
+ * Dort zeichnete der Browser seinen eigenen Rahmen, und der ist je nach
+ * Browser blau, violett oder gar nicht da. Ein Fokus, der von der Wahl des
+ * Browsers abhängt, ist kein Gestaltungsmittel.
  */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--focus);
@@ -287,231 +347,296 @@ th {
  * Ankreuzfelder in der Farbe des Systems.
  *
  * Ohne diese Zeile malt der Browser sie in seinem Blau — dieselbe Fremdfarbe
- * wie bei den selbst ausgefüllten Feldern weiter unten, und mit derselben
- * Wirkung: In einer Gestaltung, in der Farbe etwas bedeutet (§7.2), steht ein
- * blaues Häkchen neben einer amberfarbenen Schaltfläche und behauptet eine
- * zweite Bedeutungsebene, die es nicht gibt. Ein gesetztes Häkchen ist ein
- * Zustand, und Zustand ist in diesem System Amber.
+ * wie bei den selbst ausgefüllten Feldern weiter unten. In einer Gestaltung,
+ * in der Farbe etwas bedeutet, behauptet ein blaues Häkchen eine zweite
+ * Bedeutungsebene, die es nicht gibt.
  */
 input[type='checkbox'],
 input[type='radio'] {
   accent-color: var(--accent);
 }
 
-/*
- * Knöpfe — eine Form, drei Ränge, und sonst nichts.
- *
- * **Warum sie hierher gehören.** Bis August 2026 brachte jede Seite ihre
- * eigenen mit: `padding: 8px 16px` hier, `6px 12px` dort, mal mit Rahmen, mal
- * ohne, und „Kunde anlegen" war überhaupt kein Knopf, sondern ein
- * amberfarbener Link. Auf dem Bildschirm sah das nach einer Beschriftung aus,
- * die zufällig anklickbar ist — man sucht den Knopf und findet ihn nicht.
- * Dasselbe Muster wie bei den Schriftgrößen: keine Vorgabe, kein Werkzeug,
- * das sie prüft, und nach einem halben Jahr elf Fassungen desselben Elements.
- *
- * **Drei Ränge, mehr braucht keine Seite:**
- *
- *   .knopf           die gewöhnliche Aktion — Rahmen, kein Grund
- *   .knopf.wichtig   die eine Aktion, für die man die Seite geöffnet hat
- *   .knopf.gefahr    was sich nicht zurücknehmen lässt
- *
- * Auf einer Seite steht **höchstens ein** `.wichtig`. Zwei Knöpfe, die beide
- * die Hauptsache sind, sind keine Rangfolge, sondern zwei Farbflächen.
- *
- * Es gilt für `<button>` **und** für `<a>`/`<Link>`, der eine Aktion auslöst:
- * Ob dahinter ein Formular oder eine Adresse steckt, ist eine Frage der
- * Umsetzung und keine der Bedienung.
- *
- * Geprüft von `tests/Feature/ButtonStyleTest.php`: Wer in einer Komponente
- * einem Knopf eigenen Grund oder eigenen Innenabstand gibt, fällt durch.
- */
-.knopf {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: var(--tap);
-  padding: 7px 14px;
+/* ═══════════════════════════════════════════════════════════════════════
+   Seite und Bereich
 
-  font: inherit;
-  font-size: var(--text-table);
-  font-weight: 600;
-  line-height: 1.2;
-  text-decoration: none;
-  white-space: nowrap;
+   Ein Bereich ist eine Überschrift, eine Linie und Inhalt. Das ist der Kern
+   von Kontor und der Grund, warum hier mehr Zeilen auf einen Bildschirm gehen
+   als in jedem Entwurf mit Karten.
+   ═══════════════════════════════════════════════════════════════════════ */
 
-  color: var(--text);
-  background: var(--button-bg);
-  border: 1px solid var(--button-line);
-  border-radius: 6px;
-  cursor: pointer;
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  margin-bottom: var(--block-gap);
+  border-bottom: 1px solid var(--line);
 }
 
-.knopf:hover {
+.page-head h1 {
+  margin: 0;
+  font-size: var(--text-heading);
+  font-weight: 660;
+  letter-spacing: -0.022em;
   color: var(--text-strong);
-  border-color: var(--text-faint);
+  text-wrap: balance;
 }
 
-/*
- * Der Versionsstand als Marke.
- *
- * **Warum das hier steht und nicht in der Komponente.** Es gab die Regel
- * einmal, im Gerüst neben dem Logo. Als sie unter der Anmeldemaske ein zweites
- * Mal gebraucht wurde, war die naheliegende Bewegung, sie zu kopieren — und
- * genau so entstehen zwei Fassungen desselben Elements, die eines Tages
- * verschieden aussehen. Dasselbe Muster wie bei den Knöpfen, nur früher
- * bemerkt.
- *
- * Monospace, weil eine Versionsnummer eine Kennung ist und kein Wort: In einer
- * Proportionalschrift verrutschen die Ziffern gegeneinander, sobald zwei
- * Stände untereinander stehen.
- */
-.version {
-  padding: 1px 5px;
-  font-family: var(--font-mono);
-  font-size: var(--text-label);
-  color: var(--text-faint);
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: 3px;
-}
-
-/*
- * Der gewählte aus einer Reihe von Knöpfen, die zusammen eine Wahl sind.
- *
- * **Kein vierter Rang, sondern ein Zustand.** `.wichtig`, `.gefahr` und
- * `.klein` sagen, *was* ein Knopf ist; `.aktiv` sagt, dass er gerade gilt.
- * Deshalb bekommt er den Akzent nur als Rand und getönte Fläche und nicht
- * satt wie `.wichtig` — sonst stünde in einer Dreierreihe eine Hauptsache,
- * und die Reihe ist keine.
- *
- * Es steht hier und nicht auf der Seite, die es zuerst brauchte: Das Aussehen
- * eines Knopfes gehört in diese Datei, und `ButtonStyleTest` besteht darauf.
- */
-.knopf.aktiv {
-  color: var(--accent);
-  background: var(--accent-surface);
-  border-color: var(--accent);
-}
-
-/*
- * Die eine Aktion, für die man die Seite geöffnet hat. Amber ist in diesem
- * System die primäre Aktion (§7.2) — deshalb trägt sie hier die Fläche und
- * nicht nur die Schrift.
- */
-.knopf.wichtig {
-  color: var(--accent-on);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.knopf.wichtig:hover {
-  color: var(--accent-on);
-  filter: brightness(1.08);
-}
-
-/* Was sich nicht zurücknehmen lässt: Rand und Schrift, keine Fläche. Eine
-   rote Fläche neben einer amberfarbenen macht aus zwei Rängen einen Wettstreit. */
-.knopf.gefahr {
-  color: var(--critical);
-  border-color: var(--critical);
-  background: transparent;
-}
-
-.knopf.gefahr:hover {
-  color: var(--critical);
-  background: var(--critical-surface);
-}
-
-/* Für eine Aktion, die in einer Tabellenzeile steht und die Zeile nicht
-   sprengen soll. */
-.knopf.klein {
-  min-height: 0;
-  padding: 4px 9px;
+/* Der Weg hierher — steht über der Überschrift und nicht darunter: Man liest
+   zuerst, wo man ist, und dann, was es ist. */
+.breadcrumb {
+  margin: 0 0 4px;
   font-size: var(--text-small);
-  font-weight: 500;
+  color: var(--text-muted);
 }
 
-/*
- * Auf der schmalen Fläche ist auch der kleine Knopf ein Ziel für einen Finger.
- *
- * `min-height: 0` oben ist eine Zusage an die Tabellenzeile: Ein Knopf in der
- * Zeile soll sie nicht auf 30px aufblasen. Auf einem Telefon gibt es diese
- * Zeile aber nicht mehr — die Tabelle ist dort ein Kärtchen (`.stapelt`), und
- * die Aktionen stehen als Reihe darunter. Übrig blieben zwei 23px hohe Ziele
- * mit 10px Abstand: genau der Fall, für den docs/24 §2 `--tap` eingeführt hat.
- * Gemessen im Browser bei 390px, nicht gelesen.
- */
-@media (max-width: 720px) {
-  .knopf.klein {
-    min-height: var(--tap);
-    padding: 4px 12px;
-  }
+.subline {
+  margin: 4px 0 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
 }
 
-.knopf:disabled,
-.knopf[aria-disabled='true'] {
-  opacity: 0.55;
-  cursor: default;
-  filter: none;
-}
-
-/* Eine Reihe von Knöpfen. Unter 480px untereinander und über die volle
-   Breite — nebeneinander bleiben auf 390px vom dritten nur noch drei
-   Buchstaben übrig. */
-.knopfreihe {
+.sections {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+  gap: var(--bereich-gap);
+  align-items: flex-start;
 }
 
-@media (max-width: 480px) {
-  .knopfreihe {
-    flex-direction: column;
-    align-items: stretch;
-  }
+/*
+ * Flex und nicht Grid, und das ist im Browser entschieden worden.
+ *
+ * Der erste Entwurf hatte `grid-template-columns: repeat(auto-fit,
+ * minmax(…, 1fr))`. Ein Raster hält seine Spaltenzahl über alle Zeilen: Sobald
+ * eine Reihe nur einen Bereich trägt, steht er in *einer* Spalte, und die
+ * übrigen zwei Drittel bleiben leer. „Dateisysteme" stand so allein mit 900px
+ * Leerraum daneben — der Vorwurf „nutzt die Fläche nicht aus", nur in neuer
+ * Gestalt. Flexbox verteilt den Rest an die Bereiche, die in der Reihe stehen.
+ */
+.section {
+  flex: 1 1 var(--bereich-min);
+  min-width: 0;
+}
 
-  .knopfreihe .knopf {
-    width: 100%;
-  }
+/* Ein Bereich, in dem eine Tabelle mit mehr als drei Spalten steht, will den
+   anderthalbfachen Grundriss — sonst bricht in jeder Zelle der Wert um. */
+.section.wide {
+  flex-basis: calc(var(--bereich-min) * 1.6);
+}
+
+.section.full {
+  flex-basis: 100%;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 9px;
+  margin-bottom: 6px;
+  border-bottom: 2px solid var(--text-strong);
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: var(--text-section);
+  font-weight: 660;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+
+/* Der Erklärsatz unter einer Bereichsüberschrift. Er behält seine
+   Zeilenlänge — Fläche ausnutzen heisst nicht, einen Satz über 1900px zu
+   ziehen. */
+.section-note {
+  margin: 10px 0 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  max-width: 64ch;
+}
+
+/* Ein leerer Zustand ist eine Auskunft. Eine weisse Fläche wäre keine. */
+.empty {
+  margin: 0;
+  padding: 22px 0;
+  font-size: var(--text-table);
+  color: var(--text-muted);
+  max-width: 60ch;
+  line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Kacheln
+
+   Eine Reihe zwischen zwei Haarlinien statt fünf Kästen. Die Spaltenzahl
+   rechnet der Fluss aus der Fläche aus — `--tile-columns: 4` war eine
+   Behauptung über die Bildschirmbreite: bei 1000px gequetscht, bei 2560px
+   vier Riesenkacheln.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: var(--block-gap);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.tile {
+  flex: 1 1 var(--kachel-min);
+  min-width: 0;
+  padding: 18px 24px 18px 0;
+}
+
+.tile + .tile {
+  padding-left: 24px;
+  border-left: 1px solid var(--line);
+}
+
+.tile-label {
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 660;
+  color: var(--text-muted);
+}
+
+.tile-value {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: var(--text-metric);
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text-strong);
+}
+
+.tile-value small {
+  font-size: var(--text-table);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+/*
+ * Die Zeile unter der Zahl trägt zwei Dinge: für gewöhnlich die Einordnung
+ * („4 Kerne · iowait 0,4 %"), und beim Zeigen auf die Kurve die Ablesung.
+ * `min-height`, damit die Kachel beim Wechsel nicht springt.
+ */
+.tile-sub {
+  margin-top: 3px;
+  min-height: 20px;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.tile-sub[data-readout='true'] {
+  color: var(--accent);
+  font-weight: 580;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Tabellen
+
+   **Eine Fassung, und sie steht hier.** Zehn Seiten haben ihre eigene
+   mitgebracht, und es gab zwei unvereinbare davon: auf der Übersicht ein
+   Spaltenkopf in Versalien mit `--row-height`, auf allen Listen
+   `th { text-align: left }` mit `padding: 6px 8px` und ohne Zeilenhöhe.
+   Dieselbe Sache, zweimal gebaut, verschieden — und die Dichtestufe wirkte
+   auf keiner der beiden. Geprüft von `TableStyleTest`.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  padding: 12px 14px 9px 0;
+  font-size: var(--text-label);
+  font-weight: 660;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--line);
+}
+
+td {
+  padding: 0 14px 0 0;
+
+  /* Hier liest die Tabelle die Dichtestufe. Der einzige Ort im Panel, an dem
+     das geschieht — und deshalb der, den `TableStyleTest` prüft. */
+  height: var(--row-height);
+
+  font-size: var(--text-table);
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+td.name {
+  color: var(--text-strong);
+  font-weight: 580;
+}
+
+td.quiet {
+  color: var(--text-muted);
+}
+
+th.right,
+td.right {
+  text-align: right;
+}
+
+/*
+ * Eine Tabelle aus Bezeichnung und Wert bekommt eine Grenze.
+ *
+ * Ohne sie stand „Kontingente" über die volle Breite, weil der Bereich allein
+ * in seine Reihe umbrach — „Domains" und „3 von 10" lagen 1300px auseinander.
+ * Fläche ausnutzen heisst nicht, zwei zusammengehörige Angaben an die
+ * gegenüberliegenden Ränder zu schieben. Gesehen in der Aufnahme, nicht im
+ * Entwurf.
+ */
+table.pairs {
+  max-width: 620px;
 }
 
 /*
  * Tabellen auf einer schmalen Fläche — zwei Muster, und nur diese zwei.
  *
- * Eine Tabelle mit sechs Spalten ist auf 390px keine Tabelle mehr. Es gibt
- * zwei brauchbare Antworten darauf, und welche richtig ist, hängt davon ab,
- * was in der Tabelle steht. Beide stehen hier und nicht je Seite: Sonst
- * bekommt jede Liste ihre eigene Lösung, und drei Module später sieht das
- * Panel auf dem Telefon aus wie drei Panels.
- *
- * **`.rollt` — die Tabelle bleibt eine Tabelle und rollt waagerecht.**
+ * **`.scrolls` — die Tabelle bleibt eine Tabelle und rollt waagerecht.**
  * Für Messwerte: Dateisysteme, Prozesse, Dienste. Dort steht in jeder Spalte
  * eine Zahl derselben Art, und der Vergleich *zwischen* den Zeilen ist der
- * Zweck der Ansicht. Aufgebrochen in Kärtchen wäre genau dieser Vergleich
- * weg. `-webkit-overflow-scrolling` gibt es nicht mehr zu setzen, das ist
- * seit Jahren die Voreinstellung.
+ * Zweck der Ansicht. Aufgebrochen in Kärtchen wäre genau dieser Vergleich weg.
  *
- * **`.stapelt` — jede Zeile wird zu einem Kärtchen.**
+ * **`.stacks` — jede Zeile wird zu einem Kärtchen.**
  * Für Verzeichnisse: Kunden, Pläne, Vorgänge, Protokoll. Dort ist die Zeile
  * der Gegenstand, und man liest sie einzeln. Der Spaltenkopf verschwindet;
- * seinen Text trägt jede Zelle als `data-spalte` bei sich. Ohne dieses
- * Attribut steht die Zelle ohne Beschriftung da — deshalb prüft
- * `MobileLayoutTest`, dass in einer `.stapelt`-Tabelle jede Zelle es hat.
+ * seinen Text trägt jede Zelle als `data-column` bei sich.
  */
-.rollt {
+.scrolls {
   overflow-x: auto;
   overscroll-behavior-x: contain;
 }
 
-.rollt > table {
+.scrolls > table {
   min-width: 100%;
   width: max-content;
 }
 
 @media (max-width: 720px) {
-  .stapelt thead {
+  .stacks thead {
     /* `display: none` nähme sie auch dem Screenreader. `clip` lässt die
        Beschriftung in der Vorlesereihenfolge stehen und nimmt sie nur dem
        Auge. */
@@ -523,68 +648,1003 @@ input[type='radio'] {
     white-space: nowrap;
   }
 
-  .stapelt,
-  .stapelt tbody,
-  .stapelt tr,
-  .stapelt td {
+  .stacks,
+  .stacks tbody,
+  .stacks tr,
+  .stacks td {
     display: block;
     width: 100%;
   }
 
-  .stapelt tr {
-    padding: 10px 12px;
+  .stacks tr {
+    padding: 12px 14px;
     margin-bottom: var(--gap);
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
-    border-radius: 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
   }
 
-  .stapelt td {
+  .stacks tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .stacks td {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 12px;
-    padding: 3px 0;
+    gap: 14px;
+    height: auto;
+    padding: 5px 0;
     border: 0;
     text-align: right;
   }
 
-  .stapelt td::before {
-    content: attr(data-spalte);
+  .stacks td::before {
+    content: attr(data-column);
     flex: none;
     font-size: var(--text-label);
-    letter-spacing: 0.09em;
+    font-weight: 660;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-faint);
+    color: var(--text-muted);
     text-align: left;
   }
 
   /* Eine Zelle ohne Beschriftung — der Knopf am Zeilenende — nimmt die ganze
      Breite und steht links, wie ein Knopf es tut. */
-  .stapelt td:not([data-spalte]) {
+  .stacks td:not([data-column]) {
     justify-content: flex-start;
     text-align: left;
-    padding-top: 8px;
+    padding-top: 10px;
   }
 
-  /*
-   * Eine Zelle, in der mehr steht als ein Wert — Name, Marke und
-   * Beschreibung eines Plans etwa. Beschriftung und Inhalt nebeneinander
-   * lassen den Rest an den rechten Rand rutschen und dort umbrechen; sie
-   * gehören hier untereinander.
-   */
-  .stapelt td.mehrzeilig {
+  /* Eine Zelle, in der mehr steht als ein Wert — Name, Marke und Beschreibung
+     eines Plans etwa. Beschriftung und Inhalt nebeneinander lassen den Rest an
+     den rechten Rand rutschen und dort umbrechen; sie gehören untereinander. */
+  .stacks td.multiline {
     flex-direction: column;
     align-items: stretch;
     text-align: left;
-    gap: 2px;
+    gap: 3px;
   }
 
-  /* Die Meldung „noch nichts angelegt" ist keine Zeile mit Feldern. */
-  .stapelt td[colspan] {
+  .stacks td[colspan] {
     justify-content: flex-start;
     text-align: left;
   }
+
+  /*
+   * Paar-Tabellen werden zu Flexzeilen und behalten ihre Werte zusammen.
+   *
+   * Auf 390px drückte eine Zustandsmarke in der dritten Spalte den Wert in der
+   * zweiten so weit zusammen, dass „3 von 10" auf drei Zeilen stand — ein
+   * Wert, den man zweimal lesen muss, um ihn zu verstehen. Gesehen in der
+   * Aufnahme.
+   */
+  table.pairs {
+    max-width: none;
+  }
+
+  table.pairs tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 9px 0;
+    margin-bottom: 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+  }
+
+  table.pairs tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  table.pairs td {
+    display: block;
+    height: auto;
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  table.pairs td:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  table.pairs td.right {
+    flex: none;
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  /*
+   * Eine Kennung darf brechen, wenn sie sonst die Zeile sprengt.
+   *
+   * `.ident` steht auf `nowrap`, und das ist auf dem Schreibtisch richtig:
+   * Ein Pfad, der mitten im Verzeichnisnamen umbricht, ist schwerer zu lesen
+   * als einer, für den man die Tabelle schiebt. Auf 390px gibt es nichts zu
+   * schieben — `/var/www/vhosts/kunde-mueller.de/…` war 337px breit und schob
+   * die ganze Seite um 81px nach rechts. Gemessen an der Domainseite, nicht
+   * geraten.
+   *
+   * `anywhere` und nicht `break-word`: Eine Kennung hat keine Leerzeichen, an
+   * denen ein Umbruch natürlich wäre. Werte mit Leerzeichen — „3 von 10" —
+   * behalten ihr `nowrap` und bleiben zusammen; das ist der Fall, für den
+   * diese Zeilen überhaupt eingeführt wurden.
+   *
+   * **Und `flex` muss mit.** Beim ersten Anlauf stand hier nur `white-space`
+   * und `overflow-wrap`, und der Überlauf blieb bei exakt denselben 81px:
+   * `flex: none` von der Zeile darüber heisst `flex: 0 0 auto`, und damit
+   * behält die Zelle ihre Inhaltsbreite, auch wenn sie umbrechen *dürfte*. Die
+   * Erlaubnis zu brechen nützt nichts, solange nichts sie dazu zwingt.
+   */
+  table.pairs td.right.ident {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  table.pairs td:empty {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Knöpfe — eine Form, drei Ränge, und sonst nichts.
+
+   **Warum sie hierher gehören.** Bis August 2026 brachte jede Seite ihre
+   eigenen mit: `padding: 8px 16px` hier, `6px 12px` dort, mal mit Rahmen, mal
+   ohne, und „Kunde anlegen" war überhaupt kein Knopf, sondern ein farbiger
+   Link. Auf dem Bildschirm sah das nach einer Beschriftung aus, die zufällig
+   anklickbar ist.
+
+   Drei Ränge, mehr braucht keine Seite:
+
+     .button           die gewöhnliche Aktion
+     .button.primary   die eine Aktion, für die man die Seite geöffnet hat
+     .button.danger    was sich nicht zurücknehmen lässt
+
+   Je Formular steht **höchstens ein** `.primary`. Es gilt für `<button>` und
+   für `<a>`/`<Link>`, der eine Aktion auslöst: Ob dahinter ein Formular oder
+   eine Adresse steckt, ist eine Frage der Umsetzung und keine der Bedienung.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: var(--tap);
+  padding: 8px 17px;
+
+  font: inherit;
+  font-size: var(--text-table);
+  font-weight: 620;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+
+  color: var(--text);
+  background: var(--control-bg);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.button:hover {
+  color: var(--text-strong);
+  border-color: var(--text-strong);
+}
+
+.button.primary {
+  color: var(--accent-on);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.button.primary:hover {
+  color: var(--accent-on);
+  border-color: var(--accent);
+  filter: brightness(1.12);
+}
+
+/* Was sich nicht zurücknehmen lässt: Rand und Schrift, keine Fläche. Eine
+   rote Fläche neben einer farbigen macht aus zwei Rängen einen Wettstreit. */
+.button.danger {
+  color: var(--critical);
+  background: transparent;
+  border-color: var(--critical);
+}
+
+.button.danger:hover {
+  color: var(--critical);
+  background: var(--critical-surface);
+  border-color: var(--critical);
+}
+
+/*
+ * Der gewählte aus einer Reihe von Knöpfen, die zusammen eine Wahl sind.
+ *
+ * **Kein vierter Rang, sondern ein Zustand.** `.primary` und `.danger` sagen,
+ * *was* ein Knopf ist; `.active` sagt, dass er gerade gilt. Deshalb bekommt er
+ * den Akzent nur als Rand und getönte Fläche und nicht satt wie `.primary` —
+ * sonst stünde in einer Dreierreihe eine Hauptsache, und die Reihe ist keine.
+ */
+.button.active {
+  color: var(--accent);
+  background: var(--accent-surface);
+  border-color: var(--accent);
+}
+
+/* Für eine Aktion, die in einer Tabellenzeile steht und die Zeile nicht
+   sprengen soll. */
+.button.small {
+  min-height: 0;
+  padding: 5px 11px;
+  font-size: var(--text-small);
+  font-weight: 580;
+}
+
+/*
+ * Auf der schmalen Fläche ist auch der kleine Knopf ein Ziel für einen Finger.
+ *
+ * `min-height: 0` oben ist eine Zusage an die Tabellenzeile. Auf einem Telefon
+ * gibt es diese Zeile nicht mehr — die Tabelle ist dort ein Kärtchen —, und
+ * übrig blieben zwei flache Ziele nebeneinander. docs/24 §2 verlangt für jedes
+ * Bedienelement `--tap`; wer den Wert in der breiten Ansicht unterschreitet,
+ * muss ihn in der schmalen wiederherstellen.
+ */
+@media (max-width: 720px) {
+  .button.small {
+    min-height: var(--tap);
+    padding: 5px 14px;
+  }
+}
+
+.button:disabled,
+.button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+  filter: none;
+}
+
+/* Eine Reihe von Knöpfen. Unter 480px untereinander und über die volle
+   Breite — nebeneinander bleiben auf 390px vom dritten nur noch drei
+   Buchstaben übrig. */
+/* ═══════════════════════════════════════════════════════════════════════
+   Blättern
+
+   Drei Spalten, und die äusseren halten ihre Breite auch dann, wenn kein
+   Knopf darin steht: Sonst rutschte „Seite 2 von 5" um eine Knopfbreite,
+   sobald man von Seite 1 weiterblättert — auf einer Seite, die sonst gleich
+   bleibt, sieht das nach einem Fehler aus.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pager {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+  margin-top: var(--block-gap);
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.pager > :first-child {
+  justify-self: start;
+}
+
+.pager > :last-child {
+  justify-self: end;
+}
+
+.pager-state {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .button-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .button-row .button {
+    width: 100%;
+  }
+
+  /*
+   * Eine Zustandsmarke in einer Knopfreihe bleibt so breit, wie ihr Wort ist.
+   *
+   * Am Kopf einer Abonnementseite steht „aktiv seit 14.03.2026" neben
+   * „Sperren" und „Bearbeiten". Unter 480px stacks die Reihe und zieht ihre
+   * Kinder auf volle Breite — aus der Pille wurde ein Band über den ganzen
+   * Bildschirm, das aussah wie ein Knopf, den man drücken kann. Eine Marke ist
+   * eine Auskunft und kein Bedienelement; sie darf nicht wie eines aussehen.
+   * Gesehen im Musterbogen bei 390px.
+   */
+  .button-row .badge {
+    align-self: flex-start;
+  }
+}
+
+/*
+ * Ein Verweis im Fließtext, in einer Zelle oder am Bereichskopf.
+ *
+ * Er trägt den Akzent und keinen Unterstrich in Ruhe: In einer Tabelle mit
+ * zwanzig Zeilen wäre ein Unterstrich je Zeile ein Muster und keine Auskunft.
+ * Beim Zeigen kommt er dazu.
+ */
+.link {
+  font: inherit;
+  padding: 0;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  font-weight: 580;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/*
+ * Der Versionsstand als Marke.
+ *
+ * **Warum das hier steht und nicht in der Komponente.** Es gab die Regel
+ * einmal, im Gerüst neben dem Zeichen. Als sie unter der Anmeldemaske ein
+ * zweites Mal gebraucht wurde, war die naheliegende Bewegung, sie zu kopieren
+ * — und genau so entstehen zwei Fassungen desselben Elements, die eines Tages
+ * verschieden aussehen.
+ *
+ * Monospace, weil eine Versionsnummer eine Kennung ist und kein Wort: In einer
+ * Proportionalschrift verrutschen die Ziffern gegeneinander, sobald zwei
+ * Stände untereinander stehen.
+ */
+.version {
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--text-faint);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Formularfelder
+
+   **Dieselbe Regel wie für Knöpfe, und aus demselben Anlass.** Elf Seiten
+   trugen dieselbe abgeschriebene Zeile — und mit ihr denselben Fehler: einen
+   Rand aus `--line`, der Haarlinie zum Trennen. Gegen den Seitengrund waren
+   das 1,09:1 im hellen und 1,13:1 im dunklen Theme, also ein Eingabefeld ohne
+   sichtbare Grenze. Geprüft von `ButtonStyleTest`.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bereich-gap);
+  align-items: flex-start;
+}
+
+/*
+ * Ein Feld hört bei 540px auf.
+ *
+ * Ein Bereich, der allein in seiner Zeile steht, nimmt die ganze Breite — und
+ * ohne diese Grenze nahm sie das Feld darin mit: Im Formular eines Plans stand
+ * „Business M" in einem Eingabefeld von 1570px. Die Fläche auszunutzen heisst,
+ * mehr Zeilen zu zeigen, nicht ein Wort über den halben Bildschirm zu ziehen.
+ * Im Browser gesehen, nicht gerechnet.
+ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  max-width: 540px;
+}
+
+.field > span {
+  font-size: var(--text-small);
+  font-weight: 540;
+  color: var(--text-muted);
+}
+
+/*
+ * `.with-unit input` steht hier mit, und das ist im Browser aufgefallen.
+ *
+ * Die Kontingente eines Plans tragen ihre Beschriftung als eigene Zeile und
+ * den Wert in `.with-unit` — ohne `.field` dazwischen. Damit griff keine
+ * dieser Zeilen: Zwölf Zahlenfelder standen als nackter Text auf der Seite,
+ * ohne Rand, ohne Fläche, ohne Innenabstand. Grün getestet war es trotzdem,
+ * weil kein Wächter fragt, ob ein Feld überhaupt *ein* Aussehen bekommt — nur,
+ * ob das, was es bekommt, aus app.css stammt.
+ */
+.field input,
+.field select,
+.field textarea,
+.with-unit input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 9px 12px;
+
+  font: inherit;
+  font-size: var(--text-input);
+
+  color: var(--text);
+  background: var(--control-bg);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+}
+
+.field textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+/*
+ * Ein Feld, das nur zum Lesen dasteht, ist kein Bedienelement.
+ *
+ * Es bekommt deshalb keinen Rand nach WCAG 1.4.11, sondern einen gestrichelten
+ * — die Form sagt „hier steht etwas, das man nicht ändert", und sie sagt es
+ * ohne Farbe. Die Kundennummer ist der Fall, für den das gebraucht wird.
+ */
+.field input[readonly],
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled,
+.with-unit input:disabled {
+  color: var(--text-muted);
+  background: var(--surface);
+  border-style: dashed;
+  cursor: default;
+}
+
+/* Zwei Felder nebeneinander — Vorname und Nachname, PLZ und Ort. Unter 480px
+   untereinander (docs/24). */
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.field-row > .field {
+  flex: 1 1 160px;
+}
+
+/* Ein Feld, dessen Inhalt eine feste kurze Länge hat — PLZ, Länderkürzel,
+   Portnummer. Es nimmt seinen Anteil an der Zeile nicht mit. */
+.field-row > .field.narrow {
+  flex: 0 1 118px;
+}
+
+@media (max-width: 480px) {
+  .field-row > .field {
+    flex-basis: 100%;
+  }
+}
+
+/*
+ * Ein Ankreuzfeld mit seinem Text daneben.
+ *
+ * **Fünf Seiten hatten dafür ihre eigene Fassung**, und sie waren
+ * verschieden: einmal 7px Abstand zum Text, einmal 9, einmal ein Häkchen in
+ * Standardgröße, einmal eines in 17px. Bei den Kontingenten stand der Text in
+ * `--text-table`, beim Mailversand in `--text-small` — dieselbe Sache, je nach
+ * Seite eine andere Größe.
+ *
+ * `.field input` gibt jedem Feld volle Breite und `--tap` Höhe. Für ein
+ * Ankreuzfeld ist beides falsch, deshalb steht es hier ausdrücklich anders;
+ * der Selektor mit Typangabe ist spezifischer und gewinnt.
+ */
+.toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 14px;
+  font-size: var(--text-table);
+  color: var(--text-strong);
+  cursor: pointer;
+}
+
+.toggle input[type='checkbox'],
+.toggle input[type='radio'] {
+  flex: none;
+  width: 17px;
+  min-width: 0;
+  height: 17px;
+  min-height: 0;
+  margin-top: 2px;
+}
+
+.toggle > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle .hint {
+  margin-top: 0;
+}
+
+/*
+ * Was von einem Schalter abhängt, steht unter ihm und eingerückt.
+ *
+ * Die Einrückung ist die ganze Auskunft: Sie sagt, dass dieses Feld nur etwas
+ * bedeutet, solange der Schalter darüber an ist. Unter 480px fällt sie weg —
+ * dort ist die Zeile zu kurz, um 26px zu verschenken, und der Zusammenhang
+ * trägt sich über die Nähe.
+ */
+.dependent {
+  padding-left: 26px;
+}
+
+@media (max-width: 480px) {
+  .dependent {
+    padding-left: 0;
+  }
+}
+
+/* Eine Zahl mit ihrer Einheit daneben — MB, Stück, Tage. Das Feld bleibt
+   schmal: Ein Eingabefeld über die halbe Zeile für „500" behauptet eine
+   Freiheit, die die Zahl nicht hat. */
+.with-unit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.with-unit input {
+  width: 140px;
+}
+
+.unit {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+/* Mehrere Ankreuzfelder als eine Auswahl — die PHP-Versionen eines Plans. */
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.choices .toggle {
+  align-items: center;
+  margin-top: 6px;
+  font-size: var(--text-small);
+  color: var(--text);
+}
+
+.choices .toggle input[type='checkbox'] {
+  margin-top: 0;
+}
+
+/*
+ * Eine Liste gleichartiger Posten in Spalten — die Kontingente eines Plans
+ * und die eines Abonnements.
+ *
+ * **Warum das hier steht und nicht auf den beiden Seiten.** Es stand erst
+ * dort, in beiden `<style scoped>`, und war schon beim Schreiben verschieden:
+ * einmal 10px Innenabstand, einmal 12, einmal eine Linie zwischen den Posten,
+ * einmal über jedem. Genau der Weg, auf dem in diesem Projekt vier Fassungen
+ * derselben Sache entstanden sind.
+ *
+ * `auto-fill` und nicht `auto-fit`: Bei zwei Posten in der letzten Zeile soll
+ * die dritte Spalte leer bleiben und die übrigen ihre Breite behalten — sonst
+ * ziehen sich zwei Zahlenfelder über 1900px auseinander.
+ */
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0 44px;
+}
+
+/* Jeder Posten trägt seine Linie oben. Zwischen den Posten geschrieben
+   (`+ .item`) hätte im Raster die erste Zeile keine und die zweite eine —
+   je nachdem, wie viele Spalten gerade passen. */
+.item {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.item > .toggle:first-child {
+  margin-top: 0;
+}
+
+/* Die Beschriftung eines Werts, der nicht in einem `.field` steht — weil neben
+   ihm noch eine Einheit und ein Schalter stehen. */
+.label {
+  display: block;
+  font-size: var(--text-small);
+  font-weight: 540;
+  color: var(--text-muted);
+}
+
+/* Sie bringt ihren Abstand selbst mit; sonst stünde zwischen ihr und dem Wert
+   die volle Feldluft von 16px. */
+.label + .with-unit,
+.label + .choices {
+  margin-top: 6px;
+}
+
+.label + .choices .toggle {
+  margin-top: 0;
+}
+
+/* „unbegrenzt" gehört in die Zeile des Werts und nicht darunter: Es ist die
+   Alternative zu dieser einen Zahl und keine zweite Einstellung. */
+.with-unit .toggle {
+  align-items: center;
+  margin-top: 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.with-unit .toggle input[type='checkbox'] {
+  margin-top: 0;
+}
+
+/*
+ * Die Knopfreihe unter einer Maske steht auf eigener Zeile.
+ *
+ * `.form` ist dieselbe Flexverteilung wie `.sections`, und ohne diese Zeile
+ * rutscht „Speichern" neben den letzten Bereich — an eine Stelle, an der es so
+ * aussieht, als gehöre es nur zu diesem einen. Ein Formular hat einen
+ * Abschluss und nicht drei.
+ */
+.form > .button-row {
+  flex-basis: 100%;
+  margin-top: 4px;
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  line-height: 1.45;
+  max-width: 62ch;
+}
+
+.error {
+  margin: 6px 0 0;
+  font-size: var(--text-small);
+  font-weight: 560;
+  color: var(--critical);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Die Anmeldeseite
+
+   Zwei Seiten stehen ausserhalb des Gerüsts: die Anmeldung und der zweite
+   Faktor. Sie haben keine Navigation, keine Kopfzeile und keinen Kunden —
+   wer dort steht, hat noch kein Konto vorgewiesen.
+
+   **Und sie haben als einzige eine Karte.** Kontor kennt sonst keine: Ein
+   Bereich ist eine Überschrift, eine Linie und Inhalt, weil eine Karte je
+   Bereich rund 40px Innenabstand kostet. Auf einer leeren Seite mit einem
+   einzigen Formular kehrt sich das um — dort gibt der Rahmen dem Formular
+   überhaupt erst seine Gestalt, und es gibt keinen zweiten Bereich, dem der
+   Platz fehlt.
+
+   Beide Seiten trugen das bis hierher je selbst, mit verschiedenen Werten:
+   320px und 384px breit, Radius 8 und 10, einmal `gap: 14px` und einmal
+   Abstände je Feld.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.signin {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+  background: var(--bg);
+}
+
+.sheet {
+  width: min(376px, 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 26px 28px 28px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.sheet h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-size: var(--text-heading);
+  font-weight: 660;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+
+/* Der Knopf einer Anmeldemaske nimmt die ganze Breite: Es gibt genau eine
+   Handlung auf dieser Seite, und sie steht am Ende. */
+.sheet .button-row {
+  margin-top: 22px;
+}
+
+.sheet .button-row .button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Das Auge am Passwortfeld
+
+   Es steht neben dem Feld und nicht darin, und es trägt denselben Rand:
+   `--control-line`. §7.2 nennt es ausdrücklich kein `.button` — es löst keine
+   Aktion aus, es zeigt einen Zustand —, aber ein Bedienelement ist es
+   trotzdem, und WCAG 1.4.11 fragt nicht danach, wie wir es nennen.
+
+   Es stand zweimal geschrieben: in der Anmeldemaske mit 34px Breite und
+   einem Rand aus `--line` (1,13:1 im dunklen Theme), in `PasswordFields`
+   mit `--tap` und `--control-line`. Dieselbe Sache, zwei Fassungen, eine
+   davon ohne sichtbare Grenze.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.with-reveal {
+  display: flex;
+  gap: 6px;
+}
+
+.with-reveal input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+
+.reveal {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  min-height: var(--tap);
+  color: var(--text-muted);
+  background: var(--control-bg);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.reveal:hover {
+  color: var(--text-strong);
+  border-color: var(--text-strong);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Zustandsmarke
+
+   Punkt und Wort, nie Farbe allein: Rund acht Prozent der männlichen Nutzer
+   lesen eine rote Fläche nicht als Signal. Vorher gab es davon vier Fassungen
+   — `.badge`, `.chip`, `.badge` und `.status`, je nach Seite.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: var(--text-small);
+  font-weight: 580;
+  white-space: nowrap;
+  border-radius: 999px;
+}
+
+.badge::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 999px;
+}
+
+.badge.ok {
+  color: var(--ok);
+  background: var(--ok-surface);
+}
+
+.badge.warn {
+  color: var(--warn);
+  background: var(--warn-surface);
+}
+
+.badge.critical {
+  color: var(--critical);
+  background: var(--critical-surface);
+}
+
+.badge.neutral {
+  color: var(--text-muted);
+  background: var(--accent-surface);
+}
+
+/* Ein Vorgang, der läuft. Der Punkt pulst — und hält an, wenn das
+   Betriebssystem weniger Bewegung verlangt (siehe ganz unten). */
+.badge.running::before {
+  animation: marke-puls 1.4s ease-in-out infinite;
+}
+
+@keyframes marke-puls {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Balken
+
+   Eine Fassung statt drei — vorher `.bar`, `.bar` und `.fuellung`, je nach
+   Seite. Der Balken wird bei 100 abgeschnitten, die Zahl daneben nicht: Eine
+   Quota lässt sich überschreiten, ein Balken über seinen Rahmen hinaus wäre
+   ein Darstellungsfehler, und „118 %" daneben ist die Auskunft.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.bar {
+  flex: 1 1 60px;
+  min-width: 40px;
+  max-width: 150px;
+  height: 8px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+/*
+ * `tight` und `over` und nicht `full`/`critical`.
+ *
+ * Beim Umstellen der Klassennamen auf Englisch fielen drei Bedeutungen auf
+ * einen Namen: `.bereich.voll` hiess „über die ganze Breite", `.balken.voll`
+ * hiess „nahe an der Grenze". Wörtlich übersetzt hätten beide `full` geheissen
+ * und dieselbe Klasse an zwei Bausteinen zwei Dinge bedeutet. Der Balken sagt
+ * jetzt, was er meint.
+ */
+.bar.tight > i {
+  background: var(--warn);
+}
+
+.bar.over > i {
+  background: var(--critical);
+}
+
+/* Über die volle Breite — auf einer Seite, die einem einzigen Wert gewidmet
+   ist, ist der Balken die Hauptsache und keine Randnotiz. */
+.bar.wide {
+  max-width: none;
+}
+
+.bar-value {
+  flex: none;
+  font-size: var(--text-table);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Meldungen
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+  margin-bottom: var(--block-gap);
+  font-size: var(--text-table);
+  border-left: 3px solid;
+  border-radius: var(--radius);
+}
+
+.notice b {
+  color: var(--text-strong);
+}
+
+.notice.ok {
+  background: var(--ok-surface);
+  border-color: var(--ok);
+}
+
+.notice.warn {
+  background: var(--warn-surface);
+  border-color: var(--warn);
+}
+
+.notice.critical {
+  background: var(--critical-surface);
+  border-color: var(--critical);
+}
+
+/*
+ * Eine Meldung ohne Rang — sie sagt, was gleich passiert, und nicht, dass
+ * etwas gut oder schlecht steht.
+ *
+ * Sie ist der Grundzustand und trotzdem eine eigene Klasse: Ohne sie hätte
+ * `.notice` allein keinen Rand und keine Fläche, weil `border-left: 3px
+ * solid` ohne Farbangabe auf `currentColor` fällt. Das ist genau die Sorte
+ * stiller Rückfall, für die es hier Wächter gibt — deshalb wird der Rang immer
+ * geschrieben.
+ */
+.notice.neutral {
+  background: var(--surface);
+  border-color: var(--control-line);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Die Ausgabe eines Vorgangs
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.output {
+  margin-top: 14px;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  line-height: 1.7;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow-y: auto;
+}
+
+.output > div {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.progress {
+  height: 4px;
+  margin-top: 14px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.progress > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 220ms ease;
 }
 
 /*
@@ -592,29 +1652,23 @@ input[type='radio'] {
  *
  * Chrome, Edge und Safari malen ein Feld, das der Passwortspeicher gefüllt
  * hat, mit einer eigenen Fläche aus — auf hellem Grund ein blasses Gelb, auf
- * dunklem ein kräftiges Blau. Es ist die einzige Farbe im Panel, die nicht
- * aus dieser Datei kommt, und sie trifft ausgerechnet die Felder, die man
- * beim Anmelden ansieht: Adresse, Passwort, Bestätigungscode.
+ * dunklem ein kräftiges Blau. Es ist die einzige Farbe im Panel, die nicht aus
+ * dieser Datei kommt, und sie trifft ausgerechnet die Felder, die man beim
+ * Anmelden ansieht.
  *
  * **Warum ein Schatten und kein `background`.** Der Browser zeichnet seine
- * Fläche über den Hintergrund des Feldes; `background` erreicht sie nicht.
- * Ein Schatten nach innen liegt darüber und deckt sie ab — das ist kein
- * Kunstgriff um seiner selbst willen, sondern die einzige Eigenschaft, die an
- * dieser Stelle noch durchkommt. Dazu `-webkit-text-fill-color`, weil
- * derselbe Mechanismus auch die Schriftfarbe setzt, und die lange
- * `transition`, weil Chrome die Fläche sonst nach dem ersten Tastendruck
- * kurz wieder aufblitzen lässt.
- *
- * Hier und nicht in einer Komponente: Es betrifft jedes Feld im Panel, und
- * ein Fund, der nur an der Stelle behoben wird, an der er auffiel, kommt an
- * der nächsten wieder.
+ * Fläche über den Hintergrund des Feldes; `background` erreicht sie nicht. Ein
+ * Schatten nach innen liegt darüber und deckt sie ab. Dazu
+ * `-webkit-text-fill-color`, weil derselbe Mechanismus auch die Schriftfarbe
+ * setzt, und die lange `transition`, weil Chrome die Fläche sonst nach dem
+ * ersten Tastendruck kurz wieder aufblitzen lässt.
  */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--text);
-  -webkit-box-shadow: 0 0 0 60px var(--bg) inset;
+  -webkit-box-shadow: 0 0 0 60px var(--control-bg) inset;
   caret-color: var(--text);
   transition: background-color 100000s ease-in-out 0s;
 }

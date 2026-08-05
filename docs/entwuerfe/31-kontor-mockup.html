@@ -1,0 +1,1475 @@
+<title>SrvPanel — Kontor, interaktives Mockup</title>
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   RAHMEN DES SCHAUKASTENS
+   Bewusst leise. Er ist nicht der Entwurf, er hält ihn nur.
+   Neutral mit leichter Indigo-Neigung, damit er gewählt und nicht geerbt
+   wirkt — dieselbe Familie wie der Akzent des Panels, nur entsättigt.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --ui-bg: #f2f2f5;
+  --ui-panel: #ffffff;
+  --ui-line: #d9dae1;
+  --ui-text: #3c3e47;
+  --ui-strong: #16171c;
+  --ui-still: #646673;
+  --ui-accent: #3730a3;
+  --ui-accent-weich: #ecebf9;
+  --ui-radius: 7px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ui-bg: #0b0c0f;
+    --ui-panel: #15161b;
+    --ui-line: #292b33;
+    --ui-text: #c3c5cf;
+    --ui-strong: #edeef3;
+    --ui-still: #8f92a0;
+    --ui-accent: #a3aaff;
+    --ui-accent-weich: #1e2140;
+  }
+}
+
+:root[data-theme='light'] {
+  --ui-bg: #f2f2f5;
+  --ui-panel: #ffffff;
+  --ui-line: #d9dae1;
+  --ui-text: #3c3e47;
+  --ui-strong: #16171c;
+  --ui-still: #646673;
+  --ui-accent: #3730a3;
+  --ui-accent-weich: #ecebf9;
+}
+
+:root[data-theme='dark'] {
+  --ui-bg: #0b0c0f;
+  --ui-panel: #15161b;
+  --ui-line: #292b33;
+  --ui-text: #c3c5cf;
+  --ui-strong: #edeef3;
+  --ui-still: #8f92a0;
+  --ui-accent: #a3aaff;
+  --ui-accent-weich: #1e2140;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.ui-wrap { max-width: 1720px; margin: 0 auto; padding: 26px 20px 60px; }
+
+.ui-kopf { margin-bottom: 20px; }
+.ui-kopf h1 { margin: 0 0 6px; font-size: 25px; font-weight: 660; letter-spacing: -0.02em; color: var(--ui-strong); text-wrap: balance; }
+.ui-kopf p { margin: 0; max-width: 82ch; color: var(--ui-still); font-size: 14.5px; }
+
+/* ── Bedienleiste ──────────────────────────────────────────────────────
+   Sticky, damit man beim Rollen durch eine lange Seite die Umschalter
+   nicht verliert. */
+.ui-leiste {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
+  padding: 11px 14px; margin-bottom: 18px;
+  background: var(--ui-panel);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+}
+
+.ui-gruppe { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ui-gruppe > .ui-titel {
+  font-size: 10.5px; letter-spacing: 0.11em; text-transform: uppercase;
+  font-weight: 660; color: var(--ui-still); flex: none;
+}
+
+.ui-schalter { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; background: var(--ui-bg); border-radius: var(--ui-radius); }
+
+.ui-schalter button {
+  font: inherit; font-size: 13.5px; font-weight: 550;
+  padding: 6px 12px; min-height: 32px;
+  color: var(--ui-text); background: transparent;
+  border: 0; border-radius: calc(var(--ui-radius) - 2px); cursor: pointer;
+  white-space: nowrap;
+}
+
+.ui-schalter button:hover { color: var(--ui-strong); }
+
+.ui-schalter button[aria-pressed='true'] {
+  color: var(--ui-accent);
+  background: var(--ui-accent-weich);
+  font-weight: 660;
+}
+
+.ui-hinweis { margin-left: auto; font-size: 13px; color: var(--ui-still); }
+
+/* ── Der Schaukasten ─────────────────────────────────────────────────── */
+.ui-buehne { display: flex; justify-content: center; }
+
+.ui-geraet {
+  width: 100%;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  overflow: hidden;
+  background: var(--ui-panel);
+}
+
+.ui-geraet[data-breite='schmal'] { width: 390px; flex: none; }
+
+.ui-fuss { margin-top: 20px; font-size: 13.5px; color: var(--ui-still); max-width: 88ch; }
+.ui-fuss code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KONTOR — die Marken. Das ist der Entwurf; alles darüber ist Verpackung.
+
+   Zwei Achsen, unabhängig voneinander, genau wie im gebauten Panel:
+     Theme  — hell (Ausgangsfassung) und dunkel, über [data-panel-theme]
+     Dichte — admin (dicht) und kunde (ruhig), über [data-density]
+   ═══════════════════════════════════════════════════════════════════════ */
+.panel {
+  --bg: #ffffff;
+  --plane: #fafafb;
+  --line: #dcdfe6;
+  --accent: #3730a3;
+  --accent-on: #ffffff;
+  --accent-weich: #ecebf9;
+  --strong: #0f1115;
+  --text: #3a3f49;
+  --muted: #5c6470;
+  --control: #757d8a;
+  --control-bg: #ffffff;
+  --ok: #076e54;       --ok-weich: #e4f2ed;
+  --warn: #845306;     --warn-weich: #f8eeda;
+  --critical: #ab2b19; --critical-weich: #fae7e3;
+  --scrim: rgb(15 17 21 / 0.42);
+
+  /* Schrift — acht Rollen, je eine Marke. */
+  --t-label: 11.5px;
+  --t-small: 13px;
+  --t-table: 14px;
+  --t-body: 15px;
+  --t-section: 17px;
+  --t-heading: 26px;
+  --t-metric: 34px;
+  --t-input: 15px;
+
+  --radius: 5px;
+  --tap: 38px;
+}
+
+.panel[data-panel-theme='dark'] {
+  --bg: #0f1116;
+  --plane: #14171d;
+  --line: #2c313d;
+  --accent: #a3aaff;
+  --accent-on: #12142a;
+  --accent-weich: #1e2140;
+  --strong: #edeff5;
+  --text: #c4c9d4;
+  --muted: #99a0ae;
+  --control: #7b8393;
+  --control-bg: #191d25;
+  --ok: #57c99c;       --ok-weich: #16302a;
+  --warn: #e2a94a;     --warn-weich: #33291a;
+  --critical: #f08a72; --critical-weich: #3a2320;
+  --scrim: rgb(0 0 0 / 0.58);
+}
+
+/* Dichte: Zeilenhöhe, Abstände, Kachelbreite — keine Schriftgrößen.
+   Die Kundenfläche wird ruhiger durch Luft, nicht durch größere Schrift. */
+.panel[data-density='admin'] {
+  --row: 40px;
+  --gap: 30px 44px;
+  --kachel-min: 200px;
+  --bereich-min: 400px;
+}
+
+.panel[data-density='customer'] {
+  --row: 48px;
+  --gap: 38px 52px;
+  --kachel-min: 250px;
+  --bereich-min: 460px;
+}
+
+.panel {
+  display: grid;
+  grid-template-columns: 236px 1fr;
+  min-height: 660px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: var(--t-body);
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+
+/* Monospace nur, wo etwas eine Kennung ist — Pfad, Unit, Benutzer, Befehl.
+   Nicht für jede Zahl: Das war Leitstand, und es liess jede Tabelle wie ein
+   Terminal aussehen. Zahlen stehen trotzdem spaltengenau, das leistet
+   `tabular-nums` in jeder Grotesk. */
+.panel .kennung { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--t-table); white-space: nowrap; }
+
+/* ── Rail ─────────────────────────────────────────────────────────────── */
+.panel .rail {
+  background: var(--plane);
+  border-right: 1px solid var(--line);
+  padding: 22px 16px;
+  display: flex; flex-direction: column;
+}
+
+.panel .zeichen { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.panel .zeichen svg { width: 24px; height: 24px; flex: none; }
+.panel .zeichen b { font-size: 16px; font-weight: 660; letter-spacing: -0.015em; color: var(--strong); }
+
+.panel .navliste { display: flex; flex-direction: column; gap: 2px; }
+.panel .gruppe { font-size: var(--t-label); letter-spacing: 0.11em; text-transform: uppercase; color: var(--muted); font-weight: 660; margin: 22px 0 7px 12px; }
+.panel .navliste button {
+  font: inherit; font-size: var(--t-table); text-align: left;
+  padding: 9px 12px; min-height: var(--tap);
+  color: var(--text); background: transparent;
+  border: 0; border-radius: var(--radius); cursor: pointer; width: 100%;
+}
+.panel .navliste button:hover { background: var(--accent-weich); }
+.panel .navliste button[aria-current='page'] { background: var(--accent-weich); color: var(--accent); font-weight: 660; }
+.panel .railfuss { margin-top: auto; padding-top: 22px; font-size: var(--t-small); color: var(--muted); }
+.panel .railfuss b { display: block; color: var(--text); font-weight: 580; }
+
+/* ── Kopfzeile der schmalen Fläche ────────────────────────────────────── */
+.panel .topbar { display: none; }
+.panel .schleier { display: none; }
+
+/* ── Inhalt ───────────────────────────────────────────────────────────── */
+.panel .inhalt { padding: 26px 32px 36px; min-width: 0; }
+
+.panel .seitenkopf {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+  padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 26px;
+}
+.panel h2 { margin: 0; font-size: var(--t-heading); font-weight: 660; letter-spacing: -0.022em; color: var(--strong); text-wrap: balance; }
+.panel .beizeile { margin: 4px 0 0; font-size: var(--t-small); color: var(--muted); }
+.panel .pfad { margin: 0 0 4px; font-size: var(--t-small); color: var(--muted); }
+
+/*
+ * Ein Bereich ist eine Überschrift, eine Linie und Inhalt — keine Karte.
+ * Das ist der Kern von Kontor: Eine Karte kostet rund 40 px Innenabstand
+ * je Bereich, und die fehlen am Ende als Zeilen.
+ */
+.panel .bereiche { display: flex; flex-wrap: wrap; gap: var(--gap); }
+.panel .bereich { flex: 1 1 var(--bereich-min); min-width: 0; }
+.panel .weit { flex-basis: calc(var(--bereich-min) * 1.6); }
+.panel .voll { flex-basis: 100%; }
+.panel .bkopf {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  padding-bottom: 9px; border-bottom: 2px solid var(--strong); margin-bottom: 6px;
+}
+.panel h3 { margin: 0; font-size: var(--t-section); font-weight: 660; letter-spacing: -0.01em; color: var(--strong); }
+.panel .erklaer { margin: 10px 0 0; font-size: var(--t-small); color: var(--muted); max-width: 64ch; }
+
+/* ── Kacheln: eine Reihe zwischen zwei Haarlinien, keine fünf Kästen ──── */
+.panel .kacheln {
+  display: flex; flex-wrap: wrap; gap: 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  margin-bottom: 30px;
+}
+.panel .kachel { flex: 1 1 var(--kachel-min); min-width: 0; padding: 18px 24px 18px 0; }
+.panel .kachel + .kachel { border-left: 1px solid var(--line); padding-left: 24px; }
+.panel .kl { font-size: var(--t-label); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 660; }
+.panel .kw { font-size: var(--t-metric); font-weight: 640; letter-spacing: -0.03em; color: var(--strong); line-height: 1.05; margin-top: 6px; display: flex; align-items: baseline; gap: 5px; }
+.panel .kw small { font-size: var(--t-table); font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.panel .ks { font-size: var(--t-small); color: var(--muted); margin-top: 3px; min-height: 20px; }
+.panel .ks[data-ablesung='true'] { color: var(--accent); font-weight: 580; }
+
+.panel .spark { margin-top: 12px; height: 46px; }
+.panel .spark svg { display: block; width: 100%; height: 46px; touch-action: none; cursor: crosshair; }
+
+/* ── Tabellen ─────────────────────────────────────────────────────────── */
+.panel table { width: 100%; border-collapse: collapse; }
+.panel .rollt { overflow-x: auto; overscroll-behavior-x: contain; }
+.panel .rollt > table { min-width: 100%; width: max-content; }
+
+/* Bezeichnung und Wert bekommen eine Grenze: Sonst liegen zwei
+   zusammengehörige Angaben an den gegenüberliegenden Rändern. */
+.panel table.paare { max-width: 620px; }
+
+.panel th {
+  font-size: var(--t-label); letter-spacing: 0.08em; text-transform: uppercase;
+  text-align: left; font-weight: 660; color: var(--muted);
+  padding: 12px 14px 9px 0; border-bottom: 1px solid var(--line);
+}
+.panel td { padding: 0 14px 0 0; height: var(--row); font-size: var(--t-table); color: var(--text); border-bottom: 1px solid var(--line); }
+.panel tbody tr:last-child td { border-bottom: 0; }
+.panel td.name { color: var(--strong); font-weight: 580; }
+.panel td.stumm { color: var(--muted); }
+.panel td.rechts, .panel th.rechts { text-align: right; }
+
+.panel a.verweis, .panel button.verweis {
+  font: inherit; font-size: inherit; color: var(--accent); text-decoration: none;
+  font-weight: 580; background: none; border: 0; padding: 0; cursor: pointer;
+}
+.panel a.verweis:hover, .panel button.verweis:hover { text-decoration: underline; }
+
+/* ── Zustandsmarke: Punkt und Wort, nie Farbe allein ──────────────────── */
+.panel .marke {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--t-small); font-weight: 580;
+  padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+}
+.panel .marke::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex: none; }
+.panel .marke.ok { background: var(--ok-weich); color: var(--ok); }
+.panel .marke.warn { background: var(--warn-weich); color: var(--warn); }
+.panel .marke.kritisch { background: var(--critical-weich); color: var(--critical); }
+.panel .marke.neutral { background: var(--accent-weich); color: var(--muted); }
+.panel .marke.laeuft::before { animation: puls 1.4s ease-in-out infinite; }
+
+@keyframes puls { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+
+/* ── Balken ───────────────────────────────────────────────────────────── */
+.panel .balkenzeile { display: flex; align-items: center; gap: 11px; }
+.panel .balken { flex: 1 1 60px; min-width: 40px; max-width: 150px; height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.panel .balken i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.panel .balken.voll i { background: var(--warn); }
+.panel .balken.kritisch i { background: var(--critical); }
+.panel .balkenwert { flex: none; font-size: var(--t-table); color: var(--muted); white-space: nowrap; }
+
+/* ── Knöpfe: eine Form, drei Ränge ────────────────────────────────────── */
+.panel .knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: var(--tap); padding: 8px 17px;
+  font: inherit; font-size: var(--t-table); font-weight: 620; line-height: 1.2;
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+  color: var(--text); background: var(--control-bg);
+  border: 1px solid var(--control); border-radius: var(--radius);
+}
+.panel .knopf:hover { color: var(--strong); border-color: var(--strong); }
+.panel .knopf.wichtig { color: var(--accent-on); background: var(--accent); border-color: var(--accent); }
+.panel .knopf.wichtig:hover { color: var(--accent-on); filter: brightness(1.1); }
+.panel .knopf.gefahr { color: var(--critical); border-color: var(--critical); background: transparent; }
+.panel .knopf.gefahr:hover { color: var(--critical); background: var(--critical-weich); }
+.panel .knopf:disabled { opacity: 0.5; cursor: default; filter: none; }
+.panel .knopfreihe { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* ── Felder ───────────────────────────────────────────────────────────── */
+.panel .maske { display: flex; flex-wrap: wrap; gap: var(--gap); }
+.panel .feld { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.panel .feld > span { font-size: var(--t-small); color: var(--muted); font-weight: 540; }
+.panel .feld input, .panel .feld select, .panel .feld textarea {
+  padding: 9px 12px; min-height: var(--tap);
+  font: inherit; font-size: var(--t-input);
+  color: var(--text); background: var(--control-bg);
+  border: 1px solid var(--control); border-radius: var(--radius);
+  width: 100%;
+}
+.panel .feld textarea { resize: vertical; min-height: 92px; }
+.panel .feld input[readonly] { color: var(--muted); background: var(--plane); border-style: dashed; }
+.panel .hinweis { margin: 6px 0 0; font-size: var(--t-small); color: var(--muted); line-height: 1.45; max-width: 62ch; }
+.panel .fehler { margin: 6px 0 0; font-size: var(--t-small); color: var(--critical); font-weight: 560; }
+.panel .paar { display: flex; flex-wrap: wrap; gap: 14px; }
+.panel .paar > .feld { flex: 1 1 160px; }
+
+/* ── Meldungen ────────────────────────────────────────────────────────── */
+.panel .meldung {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 13px 16px; margin-bottom: 22px;
+  font-size: var(--t-table); border-radius: var(--radius);
+  border-left: 3px solid;
+}
+.panel .meldung b { color: var(--strong); }
+.panel .meldung.ok { background: var(--ok-weich); border-color: var(--ok); }
+.panel .meldung.kritisch { background: var(--critical-weich); border-color: var(--critical); }
+.panel .meldung code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--t-small); }
+
+/* ── Leerer Zustand ───────────────────────────────────────────────────── */
+.panel .leer { padding: 26px 0; font-size: var(--t-table); color: var(--muted); max-width: 60ch; }
+
+/* ── Ausgabe eines Vorgangs ───────────────────────────────────────────── */
+.panel .ausgabe {
+  margin-top: 14px; padding: 14px 16px;
+  background: var(--plane); border: 1px solid var(--line); border-radius: var(--radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--t-small); line-height: 1.7;
+  height: 232px; overflow-y: auto;
+}
+.panel .ausgabe div { white-space: pre-wrap; word-break: break-word; }
+.panel .ausgabe .zeit { color: var(--muted); }
+.panel .ausgabe .fehl { color: var(--critical); }
+.panel .fortschritt { height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 14px; }
+.panel .fortschritt i { display: block; height: 100%; background: var(--accent); transition: width 220ms ease; }
+
+/* ── Bausteinschau ────────────────────────────────────────────────────── */
+.panel .schau { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 14px; }
+.panel .marken-reihe { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.panel .farbfeld { display: flex; align-items: center; gap: 10px; font-size: var(--t-small); }
+.panel .farbfeld i { width: 30px; height: 30px; border-radius: var(--radius); border: 1px solid var(--line); flex: none; }
+.panel .farbraster { display: flex; flex-wrap: wrap; gap: 14px 26px; margin-top: 14px; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DIE SCHMALE FLÄCHE
+   Im gebauten Panel ist das `@media (max-width: 720px)`. Hier eine Klasse,
+   weil das Fenster des Schaukastens breit ist und die Ansicht trotzdem
+   umschaltbar sein muss.
+   ═══════════════════════════════════════════════════════════════════════ */
+.panel.schmal {
+  display: flex; flex-direction: column;
+  --row: 44px; --tap: 44px; --t-input: 16px;
+  --gap: 26px; --bereich-min: 100%; --kachel-min: 100%;
+  --t-heading: 21px; --t-metric: 30px;
+}
+
+.panel.schmal .rail {
+  position: absolute; top: 0; bottom: 0; left: 0; z-index: 40;
+  width: min(272px, 82%);
+  transform: translateX(-100%);
+  transition: transform 180ms ease;
+  overflow-y: auto;
+}
+.panel.schmal .rail.offen { transform: none; }
+
+/*
+ * Der Schleier liegt nur da, wenn die Schublade offen ist.
+ *
+ * Hier stand `display: block` an `.panel.schmal .schleier`, und geschlossen
+ * wurde über `style.display = ''`. Das setzt auf den *CSS-Wert* zurück — also
+ * wieder auf `block`. Ergebnis: In der schmalen Ansicht lag ein
+ * durchsichtiger Knopf über dem ganzen Panel und schluckte jeden Klick, auch
+ * den auf den Menüknopf. Nichts sah falsch aus; es ging nur nichts mehr.
+ * Gefunden hat es der Klickdurchlauf, nicht der Blick.
+ */
+.panel.schmal .schleier { display: none; position: absolute; inset: 0; z-index: 30; background: var(--scrim); border: 0; padding: 0; }
+.panel.schmal .schleier.sichtbar { display: block; }
+
+.panel.schmal .topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: var(--plane); border-bottom: 1px solid var(--line);
+}
+.panel.schmal .topbar b { font-size: 16px; font-weight: 660; color: var(--strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel.schmal .burger {
+  display: grid; place-items: center; flex: none;
+  width: var(--tap); height: var(--tap); padding: 0;
+  color: var(--muted); background: transparent; border: 0; border-radius: var(--radius); cursor: pointer;
+}
+.panel.schmal .burger svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+
+.panel.schmal .inhalt { padding: 18px 16px 28px; flex: 1; }
+.panel.schmal .seitenkopf h2 { display: none; }
+.panel.schmal .weit, .panel.schmal .voll { flex-basis: 100%; }
+.panel.schmal .kachel + .kachel { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; }
+.panel.schmal .kachel { padding-right: 0; }
+/*
+ * Paar-Tabellen auf der schmalen Fläche.
+ *
+ * Sie bleiben hier keine Tabelle mit Spalten: Auf 390 px drückt eine
+ * Zustandsmarke in der dritten Spalte den Wert in der zweiten so weit
+ * zusammen, dass „3 von 10" auf drei Zeilen steht — ein Wert, den man
+ * zweimal lesen muss, um ihn zu verstehen. Gesehen in der Aufnahme.
+ *
+ * Als Flexzeile bleibt der Wert zusammen, und die Marke rutscht in die
+ * nächste Zeile, wenn sie nicht mehr danebenpasst.
+ */
+.panel.schmal table.paare { max-width: none; }
+.panel.schmal table.paare tbody tr {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 4px 12px; padding: 9px 0; border-bottom: 1px solid var(--line);
+}
+.panel.schmal table.paare tbody tr:last-child { border-bottom: 0; }
+.panel.schmal table.paare td { display: block; height: auto; padding: 0; border: 0; }
+.panel.schmal table.paare td:first-child { flex: 1 1 auto; min-width: 0; }
+.panel.schmal table.paare td.rechts { flex: none; white-space: nowrap; }
+.panel.schmal table.paare td:empty { display: none; }
+.panel.schmal .knopfreihe .knopf { flex: 1 1 100%; }
+
+/* Verzeichnisse stapeln — jede Zeile wird zu einem Kärtchen (docs/24 §5) */
+.panel.schmal table.stapelt thead {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.panel.schmal table.stapelt,
+.panel.schmal table.stapelt tbody,
+.panel.schmal table.stapelt tr,
+.panel.schmal table.stapelt td { display: block; width: 100%; }
+.panel.schmal table.stapelt tr {
+  padding: 12px 14px; margin-bottom: 10px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.panel.schmal table.stapelt td {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+  padding: 5px 0; height: auto; border: 0; text-align: right;
+}
+.panel.schmal table.stapelt td::before {
+  content: attr(data-spalte); flex: none;
+  font-size: var(--t-label); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); font-weight: 660; text-align: left;
+}
+.panel.schmal table.stapelt td:not([data-spalte]) { justify-content: flex-start; text-align: left; padding-top: 10px; }
+.panel.schmal table.stapelt td.mehrzeilig { flex-direction: column; align-items: stretch; text-align: left; gap: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@media (max-width: 720px) {
+  .ui-wrap { padding: 16px 12px 40px; }
+  .ui-hinweis { margin-left: 0; }
+  .ui-geraet[data-breite='schmal'] { width: 100%; }
+}
+</style>
+
+<div class="ui-wrap">
+
+  <header class="ui-kopf">
+    <h1>SrvPanel — „Kontor“, zum Anfassen</h1>
+    <p>Die gewählte Richtung als bedienbares Mockup: sechs Seiten, beide Themes,
+    beide Dichtestufen und die schmale Fläche. Die Verlaufskurven lassen sich
+    ablesen, die Schublade öffnet, der Vorgang läuft wirklich. Nichts davon
+    spricht mit einem Server — es ist der Entwurf, nicht das Panel.</p>
+  </header>
+
+  <div class="ui-leiste">
+    <div class="ui-gruppe">
+      <span class="ui-titel">Seite</span>
+      <div class="ui-schalter" id="seiten"></div>
+    </div>
+
+    <div class="ui-gruppe">
+      <span class="ui-titel">Theme</span>
+      <div class="ui-schalter">
+        <button type="button" data-theme-wahl="light">hell</button>
+        <button type="button" data-theme-wahl="dark">dunkel</button>
+      </div>
+    </div>
+
+    <div class="ui-gruppe">
+      <span class="ui-titel">Dichte</span>
+      <div class="ui-schalter">
+        <button type="button" data-dichte="admin">Admin</button>
+        <button type="button" data-dichte="customer">Kunde</button>
+      </div>
+    </div>
+
+    <div class="ui-gruppe">
+      <span class="ui-titel">Breite</span>
+      <div class="ui-schalter">
+        <button type="button" data-breite="weit">Schreibtisch</button>
+        <button type="button" data-breite="schmal">390 px</button>
+      </div>
+    </div>
+
+    <p class="ui-hinweis" id="hinweis"></p>
+  </div>
+
+  <div class="ui-buehne">
+    <div class="ui-geraet" id="geraet" data-breite="weit">
+      <div class="panel" id="panel" data-panel-theme="light" data-density="admin">
+
+        <button type="button" class="schleier" id="schleier" aria-label="Menü schließen"></button>
+
+        <header class="topbar">
+          <button type="button" class="burger" id="burger" aria-label="Navigation" aria-expanded="false" aria-controls="rail">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <b id="topbar-titel">Übersicht</b>
+        </header>
+
+        <aside class="rail" id="rail">
+          <div class="zeichen">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="4.2" rx="1.4" fill="var(--accent)"/>
+              <rect x="3" y="10" width="18" height="4.2" rx="1.4" fill="currentColor"/>
+              <rect x="3" y="16" width="18" height="4.2" rx="1.4" fill="currentColor" opacity=".45"/>
+            </svg>
+            <b>SrvPanel</b>
+          </div>
+          <nav class="navliste" id="navliste" aria-label="Hauptnavigation"></nav>
+          <div class="railfuss">
+            <b>P. Fischer</b>
+            Quelltext · 0.3.0-rc.5
+          </div>
+        </aside>
+
+        <main class="inhalt" id="inhalt"></main>
+      </div>
+    </div>
+  </div>
+
+  <p class="ui-fuss">
+    Alle Farben stehen als Marken am Wurzelelement des Panels und nirgends
+    sonst — im gebauten Panel ist das <code>resources/css/app.css</code>. Die
+    schmale Ansicht läuft hier über eine Klasse statt über
+    <code>@media (max-width: 720px)</code>, weil das Fenster dieses
+    Schaukastens breit ist; im Panel selbst ist es die Media Query. Kontrast
+    gerechnet: 4,5:1 für Text, 3:1 für die Grenze eines Bedienelements.
+  </p>
+
+</div>
+
+<script>
+'use strict'
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Zustand des Schaukastens
+   ═══════════════════════════════════════════════════════════════════════ */
+const panel = document.getElementById('panel')
+const geraet = document.getElementById('geraet')
+const inhalt = document.getElementById('inhalt')
+const navliste = document.getElementById('navliste')
+const rail = document.getElementById('rail')
+const burger = document.getElementById('burger')
+const schleier = document.getElementById('schleier')
+const topbarTitel = document.getElementById('topbar-titel')
+const hinweis = document.getElementById('hinweis')
+
+let seite = 'uebersicht'
+let laufendeAusgabe = null
+
+/* ── Navigation. Dieselben Einträge wie im Panel, in denselben Gruppen. ── */
+const navigation = [
+  { gruppe: null, punkte: [['uebersicht', 'Übersicht']] },
+  { gruppe: 'Verwaltung', punkte: [
+    ['kunden', 'Kunden'],
+    ['abonnement', 'Abonnement'],
+    ['formular', 'Kunde bearbeiten'],
+  ] },
+  { gruppe: 'Server', punkte: [
+    ['vorgang', 'Vorgang'],
+  ] },
+  { gruppe: 'Gestaltung', punkte: [
+    ['bausteine', 'Bausteine'],
+  ] },
+]
+
+const titel = {
+  uebersicht: 'Übersicht',
+  kunden: 'Kunden',
+  abonnement: 'kunde-mueller.de',
+  formular: 'Kunde bearbeiten',
+  vorgang: 'Vorgang 1843',
+  bausteine: 'Bausteine',
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Messreihen. Feste Stützstellen und kein Zufall: Ein Entwurf, der sich
+   bei jedem Neuladen anders zeichnet, lässt sich nicht mit dem vorherigen
+   vergleichen.
+   ═══════════════════════════════════════════════════════════════════════ */
+const reihen = {
+  cpu:  { werte: [31,28,34,22,19,24,29,41,37,26,21,18,23,27,25,19,22,26,31,23], einheit: ' %', schwelle: 85 },
+  ram:  { werte: [54,55,56,56,58,57,59,60,61,60,62,61,63,62,61,60,61,62,61,61], einheit: ' %', schwelle: 85 },
+  load: { werte: [0.6,0.7,0.9,1.4,1.1,0.8,0.7,0.9,1.2,1.0,0.8,0.7,0.6,0.8,0.9,1.1,0.9,0.8,0.9,0.84], einheit: '', schwelle: 4 },
+  netz: { werte: [42,58,96,140,118,84,66,72,110,132,98,76,64,88,124,118,92,80,104,118], einheit: ' Mbit/s', schwelle: 900 },
+  disk: { werte: [78,79,80,81,82,83,84,85,86,87,88,88,89,89,90,90,91,91,91,91], einheit: ' %', schwelle: 90 },
+}
+
+/* Zeitstempel je Stützstelle — rückwärts in Zehnminutenschritten. Feste
+   Basiszeit, damit zwei Aufnahmen vergleichbar bleiben. */
+function stempel(index, anzahl) {
+  const minuten = (anzahl - 1 - index) * 10
+  const basis = 9 * 60 + 15
+  const t = basis - minuten
+  const h = String(Math.floor((t + 1440) / 60) % 24).padStart(2, '0')
+  const m = String(((t % 60) + 60) % 60).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+function zahl(wert) {
+  return wert.toLocaleString('de-DE', { maximumFractionDigits: 2 })
+}
+
+/*
+ * Die Verlaufskurve.
+ *
+ * Kein Diagramm ohne Ablesung: Wer auf die Linie zeigt, sieht Zeitpunkt und
+ * Wert. Sonst wäre die Linie Dekoration, und Dekoration hat in einer
+ * Gestaltung, in der Farbe etwas bedeutet, nichts verloren.
+ *
+ * Die Farbe der Kurve ist der Akzent — ausser die Reihe steht über ihrer
+ * Schwelle, dann trägt sie die Warnfarbe. Das ist der Unterschied zwischen
+ * bunt und bedeutend: „Datenträger" ist bei 91 % nicht dieselbe Auskunft
+ * wie „CPU" bei 23 %.
+ */
+function kurve(name) {
+  const reihe = reihen[name]
+  const werte = reihe.werte
+  const hoch = Math.max(...werte)
+  const tief = Math.min(...werte)
+  const spanne = hoch - tief || 1
+  const letzter = werte[werte.length - 1]
+  const warnt = letzter >= reihe.schwelle
+
+  const punkte = werte.map((v, i) => [
+    (i / (werte.length - 1)) * 100,
+    30 - ((v - tief) / spanne) * 25,
+  ])
+
+  const linie = punkte.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)} ${y.toFixed(2)}`).join(' ')
+  const farbe = warnt ? 'var(--warn)' : 'var(--accent)'
+  const [ex, ey] = punkte[punkte.length - 1]
+
+  return `<svg viewBox="0 0 100 32" preserveAspectRatio="none" role="img"
+       aria-label="Verlauf ${name}, zuletzt ${zahl(letzter)}${reihe.einheit}"
+       data-reihe="${name}">
+    <line x1="0" y1="16" x2="100" y2="16" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+    <path d="${linie} L100 32 L0 32 Z" fill="${farbe}" opacity=".11"/>
+    <path d="${linie}" fill="none" stroke="${farbe}" stroke-width="1.8"
+          stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${ex.toFixed(2)}" cy="${ey.toFixed(2)}" r="2" fill="${farbe}"/>
+    <circle class="zeiger" r="2.6" fill="${farbe}" opacity="0" cx="0" cy="0"/>
+  </svg>`
+}
+
+function kachel(name, beschriftung, wert, einheit, unterzeile) {
+  return `<div class="kachel">
+    <div class="kl">${beschriftung}</div>
+    <div class="kw">${wert}<small>${einheit}</small></div>
+    <div class="ks" data-ks="${name}">${unterzeile}</div>
+    <div class="spark">${kurve(name)}</div>
+  </div>`
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Die Seiten
+   ═══════════════════════════════════════════════════════════════════════ */
+const seiten = {}
+
+seiten.uebersicht = () => `
+  <div class="seitenkopf">
+    <div>
+      <h2>Übersicht</h2>
+      <p class="beizeile"><span class="kennung">srv1.netzhost24.de</span> · Debian 13 · Kernel 6.12 · seit 42 Tagen</p>
+    </div>
+    <div class="knopfreihe">
+      <button type="button" class="knopf" data-gehe="vorgang">Vorgänge</button>
+      <button type="button" class="knopf wichtig">Abonnement anlegen</button>
+    </div>
+  </div>
+
+  <div class="meldung kritisch">
+    <div>
+      <b>Ein Dateisystem läuft voll.</b>
+      <span class="kennung">/var/www/vhosts</span> ist zu 91 % belegt — die Schwelle liegt bei 90 %.
+      Betroffen sind 23 Abonnements.
+    </div>
+  </div>
+
+  <div class="kacheln">
+    ${kachel('cpu', 'CPU', '23', '%', '4 Kerne · iowait 0,4 %')}
+    ${kachel('ram', 'Arbeitsspeicher', '61', '%', '9,8 von 16 GB')}
+    ${kachel('load', 'Load', '0,84', '', '1,02 · 0,91 · 0,84')}
+    ${kachel('netz', 'Netz', '118', 'Mbit/s', 'ein 84 · aus 34')}
+    ${kachel('disk', 'Datenträger', '91', '%', 'von 1,8 TB belegt')}
+  </div>
+
+  <div class="bereiche">
+    <div class="bereich">
+      <div class="bkopf"><h3>Bestand</h3><button type="button" class="verweis" data-gehe="kunden">Kunden ansehen</button></div>
+      <table class="paare">
+        <tbody>
+          <tr><td class="name">Kunden</td><td class="rechts">14</td><td class="rechts" style="width:1%"><span class="marke warn">1 gesperrt</span></td></tr>
+          <tr><td class="name">Abonnements</td><td class="rechts">23</td><td class="rechts"><span class="marke ok">21 aktiv</span></td></tr>
+          <tr><td class="name">Domains</td><td class="rechts">61</td><td class="rechts"><span class="marke neutral">2 leiten weiter</span></td></tr>
+          <tr><td class="name">Systembenutzer</td><td class="rechts">23</td><td class="rechts"><span class="marke neutral">p1000 – p1022</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bereich weit">
+      <div class="bkopf"><h3>Am nächsten an der Speichergrenze</h3><button type="button" class="verweis">Alle Abonnements</button></div>
+      <div class="rollt">
+        <table>
+          <thead><tr><th>Abonnement</th><th>Kunde</th><th>Belegt</th><th>Anteil</th></tr></thead>
+          <tbody>
+            <tr><td class="name">schmidt-shop.de</td><td class="stumm">Schmidt Handel</td><td>41,2 / 48 GB</td>
+              <td><div class="balkenzeile"><div class="balken voll"><i style="width:86%"></i></div><span class="balkenwert">86 %</span></div></td></tr>
+            <tr><td class="name">kunde-mueller.de</td><td class="stumm">Müller GmbH</td><td>12,4 / 25 GB</td>
+              <td><div class="balkenzeile"><div class="balken"><i style="width:50%"></i></div><span class="balkenwert">50 %</span></div></td></tr>
+            <tr><td class="name">foto-lang.de</td><td class="stumm">Lang Fotografie</td><td>6,1 / 25 GB</td>
+              <td><div class="balkenzeile"><div class="balken"><i style="width:24%"></i></div><span class="balkenwert">24 %</span></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Dienste</h3></div>
+      <table class="paare">
+        <tbody>
+          <tr><td class="kennung name">nginx</td><td class="stumm">Webserver</td><td class="rechts"><span class="marke ok">active</span></td></tr>
+          <tr><td class="kennung name">php8.3-fpm</td><td class="stumm">PHP FastCGI</td><td class="rechts"><span class="marke ok">active</span></td></tr>
+          <tr><td class="kennung name">srvpanel-agentd</td><td class="stumm">Agent</td><td class="rechts"><span class="marke ok">active</span></td></tr>
+          <tr><td class="kennung name">fail2ban</td><td class="stumm">Sperrliste</td><td class="rechts"><span class="marke neutral">nicht installiert</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bereich weit">
+      <div class="bkopf"><h3>Dateisysteme</h3><span class="beizeile">Schwelle 90 %</span></div>
+      <div class="rollt">
+        <table>
+          <thead><tr><th>Einhängepunkt</th><th>Gerät</th><th>Art</th><th>Größe</th><th>Belegt</th></tr></thead>
+          <tbody>
+            <tr><td class="kennung name">/</td><td class="kennung stumm">/dev/sda2</td><td class="stumm">ext4</td><td>480 GB</td>
+              <td><div class="balkenzeile"><div class="balken"><i style="width:65%"></i></div><span class="balkenwert">65 %</span></div></td></tr>
+            <tr><td class="kennung name">/var/www/vhosts</td><td class="kennung stumm">/dev/sdb1</td><td class="stumm">ext4</td><td>1,8 TB</td>
+              <td><div class="balkenzeile"><div class="balken kritisch"><i style="width:91%"></i></div><span class="balkenwert">91 %</span></div></td></tr>
+            <tr><td class="kennung name">/boot</td><td class="kennung stumm">/dev/sda1</td><td class="stumm">ext2</td><td>512 MB</td>
+              <td><div class="balkenzeile"><div class="balken"><i style="width:31%"></i></div><span class="balkenwert">31 %</span></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bereich voll">
+      <div class="bkopf"><h3>Letzte Vorgänge</h3><button type="button" class="verweis" data-gehe="vorgang">Alle Vorgänge</button></div>
+      <div class="rollt">
+        <table>
+          <thead><tr><th>Nummer</th><th>Aufgabe</th><th>Gegenstand</th><th>Zustand</th><th>Angelegt</th><th class="rechts">Dauer</th></tr></thead>
+          <tbody>
+            <tr><td class="kennung">1843</td><td class="name">domain.create</td><td class="kennung stumm">blog.kunde-mueller.de</td><td><span class="marke warn laeuft">läuft</span></td><td class="stumm">04.08. 09:21</td><td class="rechts stumm">—</td></tr>
+            <tr><td class="kennung">1842</td><td class="name">domain.create</td><td class="kennung stumm">shop.kunde-mueller.de</td><td><span class="marke ok">erfolgreich</span></td><td class="stumm">04.08. 09:12</td><td class="rechts">4,2 s</td></tr>
+            <tr><td class="kennung">1841</td><td class="name">php.switch</td><td class="kennung stumm">foto-lang.de → 8.4</td><td><span class="marke ok">erfolgreich</span></td><td class="stumm">04.08. 08:57</td><td class="rechts">1,8 s</td></tr>
+            <tr><td class="kennung">1840</td><td class="name">subscription.suspend</td><td class="kennung stumm">alte-praxis.de</td><td><span class="marke kritisch">gescheitert</span></td><td class="stumm">04.08. 08:41</td><td class="rechts">0,9 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`
+
+seiten.kunden = () => `
+  <div class="seitenkopf">
+    <div>
+      <h2>Kunden</h2>
+      <p class="beizeile">14 Kunden · 1 gesperrt</p>
+    </div>
+    <div class="knopfreihe">
+      <button type="button" class="knopf wichtig">Kunde anlegen</button>
+    </div>
+  </div>
+
+  <div class="bereiche">
+    <div class="bereich voll">
+      <div class="bkopf"><h3>Verzeichnis</h3><span class="beizeile">nach Kundennummer</span></div>
+      <div class="rollt">
+        <table class="stapelt">
+          <thead>
+            <tr><th>Nummer</th><th>Name</th><th>E-Mail</th><th>Abonnements</th><th>Zustand</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-spalte="Nummer" class="kennung">K10001</td>
+              <td data-spalte="Name" class="name">Müller GmbH</td>
+              <td data-spalte="E-Mail" class="stumm">anna.mueller@example.de</td>
+              <td data-spalte="Abonnements" class="rechts">3</td>
+              <td data-spalte="Zustand"><span class="marke ok">aktiv</span></td>
+              <td><button type="button" class="knopf" data-gehe="formular">Bearbeiten</button></td>
+            </tr>
+            <tr>
+              <td data-spalte="Nummer" class="kennung">K10002</td>
+              <td data-spalte="Name" class="name">Schmidt Handel e. K.</td>
+              <td data-spalte="E-Mail" class="stumm">buchhaltung@schmidt-handel.de</td>
+              <td data-spalte="Abonnements" class="rechts">7</td>
+              <td data-spalte="Zustand"><span class="marke ok">aktiv</span></td>
+              <td><button type="button" class="knopf" data-gehe="formular">Bearbeiten</button></td>
+            </tr>
+            <tr>
+              <td data-spalte="Nummer" class="kennung">K10003</td>
+              <td data-spalte="Name" class="name">Lang Fotografie</td>
+              <td data-spalte="E-Mail" class="stumm">post@foto-lang.de</td>
+              <td data-spalte="Abonnements" class="rechts">2</td>
+              <td data-spalte="Zustand"><span class="marke ok">aktiv</span></td>
+              <td><button type="button" class="knopf" data-gehe="formular">Bearbeiten</button></td>
+            </tr>
+            <tr>
+              <td data-spalte="Nummer" class="kennung">K10004</td>
+              <td data-spalte="Name" class="name">Praxis Dr. Alte</td>
+              <td data-spalte="E-Mail" class="stumm">kontakt@alte-praxis.de</td>
+              <td data-spalte="Abonnements" class="rechts">1</td>
+              <td data-spalte="Zustand"><span class="marke warn">gesperrt seit 21.07.</span></td>
+              <td><button type="button" class="knopf" data-gehe="formular">Bearbeiten</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bereich voll">
+      <div class="bkopf"><h3>Zurückgezogen</h3></div>
+      <p class="leer">Kein Kunde ist zurückgezogen. Zurückgezogene Kunden behalten
+      ihre Kundennummer — sie wird nicht neu vergeben, damit zwei Belege
+      desselben Vorgangs nicht unter derselben Nummer stehen.</p>
+    </div>
+  </div>`
+
+seiten.abonnement = () => `
+  <div class="seitenkopf">
+    <div>
+      <p class="pfad"><button type="button" class="verweis">Abonnements</button> · Müller GmbH</p>
+      <h2>kunde-mueller.de</h2>
+    </div>
+    <div class="knopfreihe">
+      <span class="marke ok">aktiv seit 14.03.2026</span>
+      <button type="button" class="knopf">Sperren</button>
+      <button type="button" class="knopf gefahr">Zurückbauen</button>
+      <button type="button" class="knopf wichtig" data-gehe="formular">Bearbeiten</button>
+    </div>
+  </div>
+
+  <div class="bereiche">
+    <div class="bereich">
+      <div class="bkopf"><h3>Stammdaten</h3></div>
+      <table class="paare">
+        <tbody>
+          <tr><td class="stumm">Kunde</td><td class="rechts"><button type="button" class="verweis" data-gehe="kunden">Müller GmbH</button></td></tr>
+          <tr><td class="stumm">Plan</td><td class="rechts name">Business M</td></tr>
+          <tr><td class="stumm">Systembenutzer</td><td class="rechts kennung">p1004</td></tr>
+          <tr><td class="stumm">Verzeichnis</td><td class="rechts kennung">/var/www/vhosts/p1004</td></tr>
+          <tr><td class="stumm">Angelegt</td><td class="rechts">14.03.2026</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Speicher</h3></div>
+      <div class="kw" style="margin-top:16px">12,4<small>GB von 25 GB</small></div>
+      <div class="balkenzeile" style="margin-top:14px">
+        <div class="balken" style="max-width:none"><i style="width:50%"></i></div>
+        <span class="balkenwert">50 %</span>
+      </div>
+      <p class="erklaer">Gemessen am 04.08.2026 um 09:15 Uhr. Die Messung läuft im
+      Viertelstundentakt aus der Dateisystem-Quota des Systembenutzers.</p>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Freigaben</h3></div>
+      <table class="paare">
+        <tbody>
+          <tr><td>SSH-Zugang</td><td class="rechts"><span class="marke ok">frei</span></td></tr>
+          <tr><td>Cron-Aufträge</td><td class="rechts"><span class="marke ok">frei</span></td></tr>
+          <tr><td>Eigene PHP-Version</td><td class="rechts"><span class="marke ok">frei</span></td></tr>
+          <tr><td>Wildcard-Zertifikat</td><td class="rechts"><span class="marke neutral">gesperrt</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Kontingente</h3></div>
+      <table class="paare">
+        <tbody>
+          <tr><td>Domains</td><td class="rechts">3 von 10</td><td class="rechts" style="width:1%"></td></tr>
+          <tr><td>Datenbanken</td><td class="rechts">2 von 5</td><td class="rechts"></td></tr>
+          <tr><td>Postfächer</td><td class="rechts">4 von 25</td><td class="rechts"><span class="marke warn">abweichend vom Plan</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bereich voll">
+      <div class="bkopf"><h3>Domains</h3><button type="button" class="knopf">Domain anlegen</button></div>
+      <div class="rollt">
+        <table class="stapelt">
+          <thead><tr><th>Domain</th><th>Sorte</th><th>PHP</th><th>Zertifikat</th><th>Zustand</th></tr></thead>
+          <tbody>
+            <tr>
+              <td data-spalte="Domain" class="kennung name">kunde-mueller.de</td>
+              <td data-spalte="Sorte" class="stumm">Hauptdomain</td>
+              <td data-spalte="PHP">8.3</td>
+              <td data-spalte="Zertifikat" class="stumm">Let’s Encrypt, bis 12.10.</td>
+              <td data-spalte="Zustand"><span class="marke ok">eingerichtet</span></td>
+            </tr>
+            <tr>
+              <td data-spalte="Domain" class="kennung name">www.kunde-mueller.de</td>
+              <td data-spalte="Sorte" class="stumm">Alias</td>
+              <td data-spalte="PHP" class="stumm">leitet weiter</td>
+              <td data-spalte="Zertifikat" class="stumm">Let’s Encrypt, bis 12.10.</td>
+              <td data-spalte="Zustand"><span class="marke ok">eingerichtet</span></td>
+            </tr>
+            <tr>
+              <td data-spalte="Domain" class="kennung name">blog.kunde-mueller.de</td>
+              <td data-spalte="Sorte" class="stumm">Subdomain</td>
+              <td data-spalte="PHP">8.4</td>
+              <td data-spalte="Zertifikat" class="stumm">noch keines</td>
+              <td data-spalte="Zustand"><span class="marke warn laeuft">wird angelegt</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`
+
+seiten.formular = () => `
+  <div class="seitenkopf">
+    <div>
+      <p class="pfad"><button type="button" class="verweis" data-gehe="kunden">Kunden</button> · K10001</p>
+      <h2>Kunde bearbeiten</h2>
+    </div>
+  </div>
+
+  <div class="maske">
+    <div class="bereich">
+      <div class="bkopf"><h3>Vertragspartner</h3></div>
+
+      <label class="feld">
+        <span>Kundennummer</span>
+        <input value="K10001" readonly>
+      </label>
+      <p class="hinweis">Steht in Rechnungen und Verzeichnisnamen und lässt sich deshalb nicht ändern.</p>
+
+      <div class="paar">
+        <label class="feld"><span>Vorname</span><input value="Anna"></label>
+        <label class="feld"><span>Nachname</span><input value="Müller"></label>
+      </div>
+
+      <label class="feld">
+        <span>E-Mail</span>
+        <input value="anna.mueller@example" type="email">
+      </label>
+      <p class="fehler">Keine gültige Adresse — nach dem Punkt fehlt die Endung.</p>
+
+      <label class="feld"><span>Telefon</span><input value="+49 30 1234567"></label>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Anschrift</h3></div>
+      <label class="feld"><span>Straße und Hausnummer</span><input value="Chausseestraße 14"></label>
+      <div class="paar">
+        <label class="feld" style="flex-basis:110px"><span>PLZ</span><input value="10115"></label>
+        <label class="feld"><span>Ort</span><input value="Berlin"></label>
+      </div>
+      <label class="feld"><span>Land</span><input value="DE" maxlength="2"></label>
+      <p class="hinweis">Zwei Buchstaben nach ISO 3166-1, etwa DE, AT oder CH.</p>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Notiz</h3></div>
+      <label class="feld">
+        <span>Vermerk</span>
+        <textarea rows="5">Zahlt per Lastschrift. Ansprechpartner technisch: Herr Weber.</textarea>
+      </label>
+      <p class="hinweis">Nur für den Betreiber sichtbar. Der Kunde sieht diesen Text nicht.</p>
+    </div>
+  </div>
+
+  <div class="knopfreihe" style="margin-top:30px">
+    <button type="button" class="knopf wichtig">Speichern</button>
+    <button type="button" class="knopf" data-gehe="kunden">Abbrechen</button>
+  </div>`
+
+seiten.vorgang = () => `
+  <div class="seitenkopf">
+    <div>
+      <p class="pfad"><button type="button" class="verweis">Vorgänge</button> · <span class="kennung">domain.create</span></p>
+      <h2>Vorgang 1843</h2>
+    </div>
+    <div class="knopfreihe">
+      <span class="marke warn laeuft" id="vorgang-marke">läuft</span>
+      <button type="button" class="knopf gefahr" id="vorgang-abbruch">Abbrechen</button>
+    </div>
+  </div>
+
+  <div class="bereiche">
+    <div class="bereich">
+      <div class="bkopf"><h3>Gegenstand</h3></div>
+      <table class="paare">
+        <tbody>
+          <tr><td class="stumm">Aufgabe</td><td class="rechts kennung">domain.create</td></tr>
+          <tr><td class="stumm">Domain</td><td class="rechts kennung">blog.kunde-mueller.de</td></tr>
+          <tr><td class="stumm">Abonnement</td><td class="rechts"><button type="button" class="verweis" data-gehe="abonnement">kunde-mueller.de</button></td></tr>
+          <tr><td class="stumm">Angelegt von</td><td class="rechts">P. Fischer</td></tr>
+          <tr><td class="stumm">Angelegt</td><td class="rechts">04.08.2026, 09:21:04</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bereich weit">
+      <div class="bkopf">
+        <h3>Ausgabe</h3>
+        <span class="beizeile" id="vorgang-schritt">Schritt 1 von 6</span>
+      </div>
+      <div class="fortschritt"><i id="vorgang-balken" style="width:0%"></i></div>
+      <div class="ausgabe" id="vorgang-ausgabe" role="log" aria-live="polite" aria-label="Ausgabe des Vorgangs"></div>
+      <p class="erklaer">Die Ausgabe kommt über einen SSE-Kanal und wird
+      mitgeschrieben. Neuladen ist unschädlich — was bereits gelaufen ist,
+      steht danach wieder da.</p>
+    </div>
+  </div>`
+
+seiten.bausteine = () => `
+  <div class="seitenkopf">
+    <div>
+      <h2>Bausteine</h2>
+      <p class="beizeile">Jeder Baustein steht an einer Stelle — im gebauten Panel in <span class="kennung">app.css</span> oder als Komponente</p>
+    </div>
+  </div>
+
+  <div class="bereiche">
+    <div class="bereich">
+      <div class="bkopf"><h3>Knöpfe — eine Form, drei Ränge</h3></div>
+      <div class="schau">
+        <button type="button" class="knopf wichtig">Speichern</button>
+        <button type="button" class="knopf">Bearbeiten</button>
+        <button type="button" class="knopf gefahr">Zurückbauen</button>
+        <button type="button" class="knopf" disabled>Nicht möglich</button>
+      </div>
+      <p class="erklaer">Höchstens ein <b>wichtig</b> je Formular. Gefahr bekommt
+      keine Fläche — eine rote Fläche neben einer farbigen macht aus zwei
+      Rängen einen Wettstreit.</p>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Zustandsmarken</h3></div>
+      <div class="marken-reihe">
+        <span class="marke ok">aktiv</span>
+        <span class="marke ok">erfolgreich</span>
+        <span class="marke warn">gesperrt</span>
+        <span class="marke warn laeuft">läuft</span>
+        <span class="marke kritisch">gescheitert</span>
+        <span class="marke neutral">nicht installiert</span>
+      </div>
+      <p class="erklaer">Punkt und Wort, nie Farbe allein: Rund acht Prozent der
+      männlichen Nutzer lesen eine rote Fläche nicht als Signal.</p>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Balken</h3></div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px">
+        <div class="balkenzeile"><div class="balken"><i style="width:24%"></i></div><span class="balkenwert">24 %</span><span class="stumm" style="font-size:var(--t-small)">unauffällig</span></div>
+        <div class="balkenzeile"><div class="balken voll"><i style="width:86%"></i></div><span class="balkenwert">86 %</span><span class="stumm" style="font-size:var(--t-small)">nahe der Grenze</span></div>
+        <div class="balkenzeile"><div class="balken kritisch"><i style="width:100%"></i></div><span class="balkenwert">118 %</span><span class="stumm" style="font-size:var(--t-small)">überschritten</span></div>
+      </div>
+      <p class="erklaer">Der Balken wird bei 100 abgeschnitten, die Zahl daneben
+      nicht. Eine Quota lässt sich überschreiten; ein Balken über seinen Rahmen
+      hinaus wäre ein Darstellungsfehler, „118 %“ daneben ist die Auskunft.</p>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Meldungen</h3></div>
+      <div class="meldung ok" style="margin-top:14px"><div><b>Die Domain ist eingerichtet.</b> nginx wurde neu geladen.</div></div>
+      <div class="meldung kritisch" style="margin-bottom:0"><div><b>Der Agent antwortet nicht.</b> <code>systemctl status srvpanel-agentd</code></div></div>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Feld, Hinweis, Fehler</h3></div>
+      <label class="feld"><span>Domainname</span><input value="blog.kunde-mueller.de"></label>
+      <p class="hinweis">Ohne <span class="kennung">www.</span> — der Alias wird mit angelegt.</p>
+      <label class="feld"><span>Upstream-Adresse</span><input value="127.0.0.1:"></label>
+      <p class="fehler">Der Port fehlt.</p>
+    </div>
+
+    <div class="bereich">
+      <div class="bkopf"><h3>Leerer Zustand</h3></div>
+      <p class="leer">Noch keine Domain in diesem Abonnement. Die erste Domain
+      legt zugleich das Verzeichnis unter <span class="kennung">/var/www/vhosts</span>
+      an und bestimmt, welche PHP-Version voreingestellt ist.</p>
+    </div>
+
+    <div class="bereich voll">
+      <div class="bkopf"><h3>Die Marken</h3><span class="beizeile">alle Farben stehen hier und nirgends sonst</span></div>
+      <div class="farbraster" id="farbraster"></div>
+    </div>
+  </div>`
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Zeichnen und Bedienen
+   ═══════════════════════════════════════════════════════════════════════ */
+function bauNavigation() {
+  navliste.innerHTML = navigation.map(block => {
+    const kopf = block.gruppe ? `<p class="gruppe">${block.gruppe}</p>` : ''
+    const punkte = block.punkte.map(([schluessel, name]) =>
+      `<button type="button" data-seite="${schluessel}">${name}</button>`).join('')
+    return kopf + punkte
+  }).join('')
+}
+
+function farbfelder() {
+  const feld = document.getElementById('farbraster')
+  if (!feld) return
+
+  const marken = [
+    ['--bg', 'Grund'], ['--plane', 'Rail'], ['--line', 'Haarlinie'],
+    ['--accent', 'Akzent'], ['--strong', 'Text stark'], ['--text', 'Text'],
+    ['--muted', 'Text gedämpft'], ['--control', 'Rand Bedienelement'],
+    ['--ok', 'ok'], ['--warn', 'warn'], ['--critical', 'kritisch'],
+  ]
+
+  const stil = getComputedStyle(panel)
+
+  feld.innerHTML = marken.map(([marke, name]) => {
+    const wert = stil.getPropertyValue(marke).trim()
+    return `<div class="farbfeld">
+      <i style="background:${wert}"></i>
+      <span><b style="color:var(--strong)">${name}</b><br><span class="kennung" style="color:var(--muted)">${wert}</span></span>
+    </div>`
+  }).join('')
+}
+
+/*
+ * Die Ablesung an der Verlaufskurve.
+ *
+ * Der viewBox ist 100 Einheiten breit und wird auf die Kachelbreite gezogen.
+ * Die Zeigerposition muss denselben Weg zurück — deshalb die Umrechnung über
+ * die tatsächliche Breite und nicht über die Koordinaten des Ereignisses.
+ */
+function verdrahteKurven() {
+  for (const svg of inhalt.querySelectorAll('svg[data-reihe]')) {
+    const name = svg.dataset.reihe
+    const reihe = reihen[name]
+    const zeiger = svg.querySelector('.zeiger')
+    const kachelZeile = inhalt.querySelector(`[data-ks="${name}"]`)
+    if (!kachelZeile) continue
+
+    const ausgangstext = kachelZeile.textContent
+
+    const zeigen = (event) => {
+      const box = svg.getBoundingClientRect()
+      if (box.width === 0) return
+
+      const x = ((event.clientX - box.left) / box.width) * 100
+      const index = Math.max(0, Math.min(reihe.werte.length - 1,
+        Math.round((x / 100) * (reihe.werte.length - 1))))
+
+      const werte = reihe.werte
+      const hoch = Math.max(...werte)
+      const tief = Math.min(...werte)
+      const spanne = hoch - tief || 1
+
+      zeiger.setAttribute('cx', ((index / (werte.length - 1)) * 100).toFixed(2))
+      zeiger.setAttribute('cy', (30 - ((werte[index] - tief) / spanne) * 25).toFixed(2))
+      zeiger.setAttribute('opacity', '1')
+
+      kachelZeile.textContent = `${stempel(index, werte.length)} Uhr · ${zahl(werte[index])}${reihe.einheit}`
+      kachelZeile.dataset.ablesung = 'true'
+    }
+
+    const verbergen = () => {
+      zeiger.setAttribute('opacity', '0')
+      kachelZeile.textContent = ausgangstext
+      kachelZeile.dataset.ablesung = 'false'
+    }
+
+    svg.addEventListener('pointermove', zeigen)
+    svg.addEventListener('pointerleave', verbergen)
+  }
+}
+
+/*
+ * Der laufende Vorgang.
+ *
+ * Er läuft wirklich — Zeile für Zeile, mit Fortschritt und einer
+ * Erfolgsmeldung am Ende. Ein Mockup, in dem „läuft" nur dasteht, zeigt
+ * genau die Stelle nicht, an der man hinsehen will.
+ */
+const vorgangsschritte = [
+  ['09:21:04', 'Prüfe Kontingent: 3 von 10 Domains belegt'],
+  ['09:21:04', 'Lege Verzeichnis an: /var/www/vhosts/p1004/blog.kunde-mueller.de'],
+  ['09:21:05', 'Setze Eigentümer p1004:psacln, Rechte 0750'],
+  ['09:21:05', 'Schreibe nginx-Vorlage nach /etc/nginx/sites-available'],
+  ['09:21:06', 'nginx -t: syntax is ok, test is successful'],
+  ['09:21:06', 'Lade nginx neu (systemctl reload nginx)'],
+]
+
+function starteVorgang() {
+  const feld = document.getElementById('vorgang-ausgabe')
+  const balken = document.getElementById('vorgang-balken')
+  const schritt = document.getElementById('vorgang-schritt')
+  const marke = document.getElementById('vorgang-marke')
+  const abbruch = document.getElementById('vorgang-abbruch')
+  if (!feld) return
+
+  let i = 0
+  feld.innerHTML = ''
+
+  const naechster = () => {
+    if (i >= vorgangsschritte.length) {
+      clearInterval(laufendeAusgabe)
+      laufendeAusgabe = null
+      feld.insertAdjacentHTML('beforeend',
+        '<div><span class="zeit">09:21:07</span>  Fertig in 3,1 s</div>')
+      feld.scrollTop = feld.scrollHeight
+      marke.className = 'marke ok'
+      marke.textContent = 'erfolgreich'
+      schritt.textContent = 'abgeschlossen'
+      abbruch.disabled = true
+      return
+    }
+
+    const [zeit, text] = vorgangsschritte[i]
+    feld.insertAdjacentHTML('beforeend',
+      `<div><span class="zeit">${zeit}</span>  ${text}</div>`)
+    feld.scrollTop = feld.scrollHeight
+
+    i++
+    balken.style.width = `${Math.round((i / vorgangsschritte.length) * 100)}%`
+    schritt.textContent = `Schritt ${i} von ${vorgangsschritte.length}`
+  }
+
+  naechster()
+  laufendeAusgabe = setInterval(naechster, 850)
+
+  abbruch.addEventListener('click', () => {
+    if (!laufendeAusgabe) return
+    clearInterval(laufendeAusgabe)
+    laufendeAusgabe = null
+    feld.insertAdjacentHTML('beforeend',
+      '<div class="fehl">abgebrochen — der Vorgang wurde vom Betreiber gestoppt</div>')
+    feld.scrollTop = feld.scrollHeight
+    marke.className = 'marke kritisch'
+    marke.textContent = 'abgebrochen'
+    abbruch.disabled = true
+  })
+}
+
+function zeichne() {
+  if (laufendeAusgabe) {
+    clearInterval(laufendeAusgabe)
+    laufendeAusgabe = null
+  }
+
+  inhalt.innerHTML = seiten[seite]()
+  topbarTitel.textContent = titel[seite]
+
+  for (const knopf of navliste.querySelectorAll('button')) {
+    const gewaehlt = knopf.dataset.seite === seite
+    knopf.setAttribute('aria-current', gewaehlt ? 'page' : 'false')
+  }
+
+  verdrahteKurven()
+  if (seite === 'vorgang') starteVorgang()
+  if (seite === 'bausteine') farbfelder()
+
+  inhalt.scrollIntoView({ block: 'nearest' })
+  hinweis.textContent = hinweisText()
+}
+
+function hinweisText() {
+  if (seite === 'uebersicht') return 'Auf eine Verlaufskurve zeigen — sie liest ab.'
+  if (seite === 'vorgang') return 'Der Vorgang läuft. „Abbrechen" hält ihn an.'
+  if (seite === 'bausteine') return 'Die Marken lesen sich live aus dem Panel.'
+  if (panel.classList.contains('schmal')) return 'Der Menüknopf öffnet die Schublade.'
+  return ''
+}
+
+function geheZu(neu) {
+  if (!seiten[neu]) return
+  seite = neu
+  schliesseSchublade()
+  zeichne()
+}
+
+/* ── Schublade ────────────────────────────────────────────────────────── */
+function schliesseSchublade() {
+  rail.classList.remove('offen')
+  burger.setAttribute('aria-expanded', 'false')
+  schleier.classList.remove('sichtbar')
+}
+
+function oeffneSchublade() {
+  rail.classList.add('offen')
+  burger.setAttribute('aria-expanded', 'true')
+  schleier.classList.add('sichtbar')
+}
+
+burger.addEventListener('click', () => {
+  rail.classList.contains('offen') ? schliesseSchublade() : oeffneSchublade()
+})
+
+schleier.addEventListener('click', schliesseSchublade)
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') schliesseSchublade()
+})
+
+/* ── Umschalter ───────────────────────────────────────────────────────── */
+function markiere(attribut, wert) {
+  for (const knopf of document.querySelectorAll(`[${attribut}]`)) {
+    knopf.setAttribute('aria-pressed', String(knopf.getAttribute(attribut) === wert))
+  }
+}
+
+/*
+ * Der Seitenumschalter in der Leiste — und nicht nur die Navigation im Panel.
+ *
+ * In der schmalen Ansicht liegt die Navigation hinter der Schublade. Wer nur
+ * schnell auf eine andere Seite sehen will, müsste sie erst öffnen; das ist
+ * beim Begutachten eine Hürde und im Panel selbst keine, weil man dort
+ * ohnehin bedient und nicht vergleicht.
+ */
+document.getElementById('seiten').innerHTML = Object.keys(seiten)
+  .map(schluessel => {
+    const name = navigation.flatMap(b => b.punkte).find(([s]) => s === schluessel)
+    return `<button type="button" data-seite-leiste="${schluessel}">${name ? name[1] : schluessel}</button>`
+  }).join('')
+
+for (const knopf of document.querySelectorAll('[data-seite-leiste]')) {
+  knopf.addEventListener('click', () => geheZu(knopf.dataset.seiteLeiste))
+}
+
+for (const knopf of document.querySelectorAll('[data-theme-wahl]')) {
+  knopf.addEventListener('click', () => {
+    const wert = knopf.dataset.themeWahl
+    panel.dataset.panelTheme = wert
+    markiere('data-theme-wahl', wert)
+    if (seite === 'bausteine') farbfelder()
+  })
+}
+
+for (const knopf of document.querySelectorAll('[data-dichte]')) {
+  knopf.addEventListener('click', () => {
+    panel.dataset.density = knopf.dataset.dichte
+    markiere('data-dichte', knopf.dataset.dichte)
+  })
+}
+
+for (const knopf of document.querySelectorAll('[data-breite]')) {
+  knopf.addEventListener('click', () => {
+    const schmal = knopf.dataset.breite === 'schmal'
+    geraet.dataset.breite = knopf.dataset.breite
+    panel.classList.toggle('schmal', schmal)
+    if (!schmal) schliesseSchublade()
+    markiere('data-breite', knopf.dataset.breite)
+    hinweis.textContent = hinweisText()
+  })
+}
+
+/* Ein Klick irgendwo im Panel, der auf eine Seite zeigt. So sind
+   „Bearbeiten" in der Kundenliste und der Verweis im Vorgang echte Wege
+   und keine Attrappen. */
+inhalt.addEventListener('click', (event) => {
+  const ziel = event.target.closest('[data-gehe]')
+  if (ziel) geheZu(ziel.dataset.gehe)
+})
+
+navliste.addEventListener('click', (event) => {
+  const ziel = event.target.closest('[data-seite]')
+  if (ziel) geheZu(ziel.dataset.seite)
+})
+
+/* ── Start ────────────────────────────────────────────────────────────── */
+bauNavigation()
+
+/* Das Panel folgt beim ersten Zeichnen dem Theme des Betrachters — wer
+   dunkel liest, soll nicht in ein weisses Rechteck sehen. Danach
+   entscheidet der Umschalter. */
+const wurzelTheme = document.documentElement.getAttribute('data-theme')
+const dunkel = wurzelTheme
+  ? wurzelTheme === 'dark'
+  : window.matchMedia('(prefers-color-scheme: dark)').matches
+
+panel.dataset.panelTheme = dunkel ? 'dark' : 'light'
+markiere('data-theme-wahl', dunkel ? 'dark' : 'light')
+markiere('data-dichte', 'admin')
+markiere('data-breite', 'weit')
+
+zeichne()
+</script>

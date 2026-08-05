@@ -283,8 +283,8 @@ final class SubscriptionTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Subscriptions/Index')
-                ->has('subscriptions', 1)
-                ->where('subscriptions.0.name', 'meins.de'));
+                ->has('subscriptions.data', 1)
+                ->where('subscriptions.data.0.name', 'meins.de'));
 
         $this->assertNotNull($own->id);
     }

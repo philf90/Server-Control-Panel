@@ -1,8 +1,24 @@
 <script setup lang="ts">
 /*
- * Das Gerüst beider Flächen. Der Unterschied zwischen Admin- und Kundenfläche
- * ist die Dichte, nicht die Gestaltung — umgeschaltet wird über ein Attribut
- * am Wurzelelement, das die Werte aus app.css umstellt (§7.2 des Plans).
+ * Das Gerüst beider Flächen — Rail, Seitenkopf, Schublade.
+ *
+ * Der Unterschied zwischen Admin- und Kundenfläche ist die Dichte, nicht die
+ * Gestaltung; umgeschaltet wird über ein Attribut am Wurzelelement, das die
+ * Werte aus app.css umstellt.
+ *
+ * **Was „Kontor" hier geändert hat.** Das Rail ist kein dunkler Block mehr
+ * neben dem Inhalt, sondern eine ruhige Fläche in der Farbe der Seite — und es
+ * ist von 186px auf 236px gewachsen. Der Grund steht in der alten Fassung als
+ * Kommentar: Zeichen, Schriftzug und Version brauchten zusammen 177 bis 190px,
+ * und da waren 158px.
+ *
+ * **Der Unterschied ist nicht, dass jetzt alles in eine Zeile passt.** Bei
+ * „0.3.0-rc.5" tut es das nicht, gemessen im Browser: 209px gegen 203px
+ * verfügbare Breite. Der Unterschied ist, dass der Umbruch nicht mehr
+ * festgeschrieben ist. Die alte Fassung hat die Version *immer* unter den
+ * Schriftzug gesetzt, weil die längste denkbare nicht danebenpasste — also den
+ * Normalfall nach dem Ausnahmefall gestaltet. Hier steht sie daneben, solange
+ * sie danebenpasst, und rutscht sonst in die zweite Zeile.
  */
 import { Link, router, usePage } from '@inertiajs/vue3'
 import MarkIcon from '../Components/MarkIcon.vue'
@@ -87,11 +103,10 @@ function stopImpersonation(): void {
 /*
  * Die Navigation auf einer schmalen Fläche.
  *
- * Unter 720px liegt die Seitenleiste nicht mehr daneben, sondern als Schublade
- * darüber. Sie war zuvor eine feste Spalte von 186px — auf einem Telefon mit
- * 390px sind das 48 % der Breite für ein Menü, das man einmal benutzt und dann
- * nicht mehr ansieht. Die Übersicht daneben hatte 204px, und darin standen
- * Kacheln, Tabellen mit sechs Spalten und Verlaufskurven.
+ * Unter 720px liegt das Rail nicht mehr daneben, sondern als Schublade
+ * darüber. Es war zuvor eine feste Spalte — auf einem Telefon mit 390px ist
+ * das die halbe Breite für ein Menü, das man einmal benutzt und dann nicht
+ * mehr ansieht.
  *
  * Drei Dinge, die eine Schublade haben muss, damit sie sich wie eine anfühlt:
  * Sie schliesst beim Seitenwechsel (sonst steht sie über der Seite, die man
@@ -105,7 +120,7 @@ watch(() => page.url, () => {
 })
 
 watch(menuOpen, (open) => {
-  document.documentElement.classList.toggle('menu-offen', open)
+  document.documentElement.classList.toggle('menu-open', open)
 })
 
 function onKey(event: KeyboardEvent): void {
@@ -119,7 +134,7 @@ onBeforeUnmount(() => {
 
   // Ohne das bliebe die Seite gesperrt, wenn die Schublade offen war und die
   // Anwendung das Gerüst wechselt — etwa beim Abmelden.
-  document.documentElement.classList.remove('menu-offen')
+  document.documentElement.classList.remove('menu-open')
 })
 </script>
 
@@ -135,18 +150,24 @@ onBeforeUnmount(() => {
         Sie arbeiten in der Sicht dieses Kunden.
         Angemeldet als <b>{{ account?.name }}</b>, gewechselt von <b>{{ impersonation.admin }}</b>.
       </span>
-      <button type="button" @click="stopImpersonation">Zurück zur Verwaltung</button>
+      <button type="button" class="button small" @click="stopImpersonation">Zurück zur Verwaltung</button>
     </div>
 
     <!--
-      Die Kopfzeile der schmalen Fläche. Sie steht nur dort und trägt genau
-      das, was man beim Blick auf ein fremdes Telefon zuerst braucht: wo man
-      ist und wie man woanders hinkommt.
+      Die Kopfzeile der schmalen Fläche.
+
+      **Ohne das Zeichen, und das ist kein Versehen.** Es sind drei gestackse
+      Balken — dasselbe Bild wie der Menüknopf daneben. In der ersten Aufnahme
+      des Entwurfs stand hier „≡ ≡ SrvPanel", und man sieht zwei Menüknöpfe und
+      drückt auf den falschen. Bei „Leitstand" fiel das nie auf, weil das
+      Zeichen in der Seitenleiste sass und der Menüknopf in der Kopfzeile — sie
+      standen nie zusammen. Im Reiter des Browsers bleibt das Zeichen, und
+      darum geht es dort.
     -->
     <header class="topbar">
       <button
         type="button"
-        class="burger"
+        class="nav-toggle"
         :aria-expanded="menuOpen"
         aria-controls="hauptnavigation"
         aria-label="Navigation"
@@ -159,32 +180,33 @@ onBeforeUnmount(() => {
         </svg>
       </button>
 
-      <span class="titel">{{ title }}</span>
+      <span class="title">{{ title }}</span>
     </header>
 
     <!-- Der Schleier liegt zwischen Seite und Schublade und schliesst sie. -->
-    <div v-if="menuOpen" class="schleier" @click="menuOpen = false" />
+    <div v-if="menuOpen" class="scrim" @click="menuOpen = false" />
 
-    <aside id="hauptnavigation" class="nav" :class="{ offen: menuOpen }">
-      <div class="badge">
+    <aside id="hauptnavigation" class="rail" :class="{ open: menuOpen }">
+      <div class="row">
         <!--
-          Hier stand ein Buchstabe in einem amberfarbenen Quadrat: erst „C" von
-          CloudSrv, dem verworfenen Namen, dann „S". Ein Platzhalter, solange es
-          kein Zeichen gab — und es gab keines, bis August 2026 auch keinen
+          Hier stand ein Buchstabe in einem farbigen Quadrat: erst „C" von
+          CloudSrv, dem verworfenen Namen, dann „S". Ein Platzhalter, solange
+          es kein Zeichen gab — und es gab keines, bis August 2026 auch keinen
           Favicon: `public/favicon.ico` lag mit null Byte da.
 
           Jetzt steht dort dasselbe Zeichen wie im Reiter des Browsers. Das ist
           der Punkt: Wer mehrere Panels offen hat, erkennt sie am Reiter, und
-          erkennt sie nur dann, wenn Reiter und Seitenleiste dasselbe zeigen.
+          erkennt sie nur dann, wenn Reiter und Rail dasselbe zeigen.
         -->
-        <MarkIcon />
+        <MarkIcon :size="24" />
+        <b>SrvPanel</b>
+
         <!--
-          Die Version steht unter dem Schriftzug und nicht daneben.
-          Daneben war der Wunsch, und daneben passt sie nicht: Die Seitenleiste
-          ist 186px breit, abzüglich Innenabstand bleiben 158px, und Zeichen,
-          Schriftzug und Marke brauchen zusammen 177px — bei einer Vorabfassung
-          wie „0.10.0-rc.12" sogar 190px. Gemessen, nicht geschätzt. Unter dem
-          Schriftzug steht sie bündig mit ihm und bleibt dezent.
+          Die Version steht neben dem Schriftzug — und das ging vorher nicht.
+          Bei 186px Rail blieben 158px, und Zeichen, Schriftzug und Marke
+          brauchten zusammen 177px, bei einer Vorabfassung wie „0.10.0-rc.12"
+          sogar 190px; gemessen, nicht geschätzt. Die Antwort damals war, sie
+          umzubrechen. Bei 236px passt sie daneben.
 
           Sie steht hier und trotzdem weiter in der Fusszeile. Die Fusszeile
           erfüllt Abschnitt 13 der AGPL: ein Link auf den Quelltext *dieser*
@@ -192,20 +214,19 @@ onBeforeUnmount(() => {
           Frage „welche läuft hier eigentlich?" ohne Scrollen, und das ist die
           erste Frage bei jedem Fehlerbericht.
         -->
-        <span class="schrift">
-          <b>SrvPanel</b>
-          <span class="version">{{ source.version }}</span>
-        </span>
+        <span class="version">{{ source.version }}</span>
       </div>
 
-      <nav>
+      <nav class="nav-list">
         <template v-for="block in navigation" :key="block.group ?? 'oben'">
-          <p v-if="block.group" class="group">{{ block.group }}</p>
+          <p v-if="block.group" class="nav-group">{{ block.group }}</p>
           <Link
             v-for="item in block.items"
             :key="item.name"
             :href="item.href"
-            :class="['item', { active: current === item.href }]"
+            class="nav-item"
+            :class="{ active: current === item.href }"
+            :aria-current="current === item.href ? 'page' : undefined"
           >
             {{ item.name }}
           </Link>
@@ -217,25 +238,40 @@ onBeforeUnmount(() => {
         den Quelltext der laufenden Fassung kommen. Deshalb Version und Commit
         im Link und nicht bloß die Adresse des Repositorys.
       -->
-      <div v-if="account" class="account">
-        <span class="name">{{ account.name }}</span>
-        <button type="button" class="signout" @click="signOut">Abmelden</button>
-      </div>
+      <div class="rail-foot">
+        <div v-if="account" class="account">
+          <b>{{ account.name }}</b>
+          <button type="button" class="signout" @click="signOut">Abmelden</button>
+        </div>
 
-      <footer class="source">
-        <a :href="source.commit ? `${source.repository}/tree/${source.commit}` : source.repository">
+        <a
+          class="source"
+          :href="source.commit ? `${source.repository}/tree/${source.commit}` : source.repository"
+        >
           Quelltext · {{ source.version }}
         </a>
-      </footer>
+      </div>
     </aside>
 
     <main class="content">
-      <header class="header">
-        <h1>{{ title }}</h1>
-        <span v-if="subline" class="meta">{{ subline }}</span>
-      </header>
+      <div class="page-head">
+        <div class="title-block">
+          <p v-if="$slots.breadcrumb" class="breadcrumb"><slot name="breadcrumb" /></p>
+          <h1>{{ title }}</h1>
+          <p v-if="subline" class="subline">{{ subline }}</p>
+        </div>
 
-      <p v-if="erfolg" class="erfolg" role="status">{{ erfolg }}</p>
+        <!--
+          Rechts am Seitenkopf steht die Hauptaktion der Seite. Vorher stand
+          sie am Ende des ersten Bereichs, also dort, wo man sie erst findet,
+          nachdem man an ihr vorbeigelesen hat.
+        -->
+        <div v-if="$slots.actions" class="button-row">
+          <slot name="actions" />
+        </div>
+      </div>
+
+      <p v-if="erfolg" class="notice ok" role="status">{{ erfolg }}</p>
 
       <slot />
     </main>
@@ -243,18 +279,9 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.erfolg {
-  margin: 0 0 var(--gap);
-  padding: 8px 11px;
-  font-size: var(--text-table);
-  color: var(--ok);
-  background: var(--ok-surface);
-  border-radius: 6px;
-}
-
 .frame {
   display: grid;
-  grid-template-columns: 186px 1fr;
+  grid-template-columns: 236px 1fr;
   grid-template-rows: auto 1fr;
 
   /*
@@ -266,189 +293,214 @@ onBeforeUnmount(() => {
   min-height: 100dvh;
 }
 
-/* Die Kopfzeile gibt es nur auf der schmalen Fläche. */
-.topbar {
+/* Kopfzeile und Schleier gibt es nur auf der schmalen Fläche. */
+.topbar,
+.scrim {
   display: none;
 }
 
-.schleier {
-  display: none;
-}
-
+/*
+ * **Band, Rail und Inhalt bekommen ihre Zeile ausdrücklich.**
+ *
+ * Ohne das verteilt das Raster sie der Reihe nach — und ohne Band landen Rail
+ * und Inhalt zusammen in Zeile eins, die `auto` ist. Das Rail wird dann nur so
+ * hoch wie seine Einträge, und seine Kante endet auf halber Bildschirmhöhe;
+ * die `1fr`-Zeile darunter bleibt leer. Sobald jemand in die Sicht eines
+ * Kunden wechselt, rutscht alles um eine Zeile weiter und es sieht richtig
+ * aus — der Fehler hängt also davon ab, wer gerade zusieht.
+ *
+ * Dasselbe Muster wie auf der schmalen Fläche, wo das Zählen von Kindern
+ * schon einmal 591px hohe Kopfzeilen erzeugt hat. Dort war die Antwort, das
+ * Raster aufzugeben; hier reicht es, nicht zählen zu lassen.
+ */
 .band {
   grid-column: 1 / -1;
+  grid-row: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 8px var(--padding);
+  padding: 10px 24px;
   font-size: var(--text-table);
   color: var(--warn);
   background: var(--warn-surface);
   border-bottom: 1px solid var(--warn);
 }
 
-.band button {
-  padding: 4px 10px;
-  font: inherit;
+/* ── Das Rail ─────────────────────────────────────────────────────────── */
+.rail {
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 16px;
+  background: var(--nav-bg);
+  border-right: 1px solid var(--nav-border);
+}
+
+/*
+ * `flex-wrap`, und der Grund ist eine Messung mit dem ungünstigen Fall.
+ *
+ * Gemessen im Browser, bei 203px verfügbarer Breite im Rail:
+ *
+ *   0.1.0-dev       201px   eine Zeile
+ *   1.0.0           unter 203px   eine Zeile
+ *   0.3.0-rc.5      209px   zwei Zeilen
+ *   0.10.0-rc.12    226px   zwei Zeilen
+ *
+ * In keinem Fall ein Überlauf. Ohne `flex-wrap` müsste hier eine Entscheidung
+ * für einen der beiden Fälle stehen, und die alte Seitenleiste hat sie für den
+ * schlechteren getroffen.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  margin-bottom: 24px;
+}
+
+/*
+ * Der Schriftzug in `--text-section` und nicht in `--text-heading`.
+ *
+ * **Gemessen, nicht geschätzt — und beim ersten Anlauf falsch.** Mit
+ * `--text-heading` (26px) war der Schriftzug 126px breit; zusammen mit dem
+ * Zeichen (24px), der Versionsmarke (76px) und zwei Lücken sind das 244px, und
+ * im Rail stehen nach Innenabstand 203px zur Verfügung. Die Zeile brach um —
+ * also genau der Fehler, wegen dem das Rail von 186px auf 236px gewachsen ist.
+ *
+ * Bei 17px sind es 200px und die Zeile hält. Eine eigene Stufe für den
+ * Schriftzug wäre die achte Rolle für einen Sonderfall gewesen, und genau so
+ * ist die alte Skala mit ihren zehn rem-Werten entstanden.
+ */
+.row b {
+  font-size: var(--text-section);
+  font-weight: 660;
+  letter-spacing: -0.015em;
+  color: var(--text-strong);
+}
+
+.row :deep(.version) {
+  flex: none;
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-group {
+  margin: 22px 0 7px 12px;
+  font-size: var(--text-label);
+  font-weight: 660;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.nav-item {
+  padding: 9px 12px;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  font-size: var(--text-table);
+  color: var(--text);
+  text-decoration: none;
+  border-radius: var(--radius);
+}
+
+.nav-item:hover {
+  background: var(--accent-surface);
+}
+
+/*
+ * Der aktive Eintrag ist eine gefüllte Pille und kein Balken am Rand.
+ *
+ * „Leitstand" markierte ihn mit `box-shadow: inset 2px 0 0` — einem Strich,
+ * der links an der Kante klebte. In einem Rail, das die Farbe der Seite hat,
+ * ist eine Fläche die klarere Auskunft: Sie sagt „hier bist du", und der
+ * Strich sagte „hier ist eine Kante".
+ */
+.nav-item.active {
+  color: var(--accent);
+  background: var(--accent-surface);
+  font-weight: 660;
+}
+
+.rail-foot {
+  margin-top: auto;
+  padding-top: 22px;
   font-size: var(--text-small);
-  color: var(--warn);
-  background: transparent;
-  border: 1px solid var(--warn);
-  border-radius: 5px;
-  cursor: pointer;
+  color: var(--text-muted);
 }
 
 .account {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
-  padding: 8px 0;
-  font-size: var(--text-small);
-  color: var(--text-muted);
-  border-top: 1px solid var(--nav-border);
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
-.account .signout {
+.account b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 580;
+  color: var(--text);
+}
+
+/*
+ * Abmelden ist kein `.button` und soll keiner sein: Ein Knopf auf einer Seite
+ * ist eine Aktion, für die man dorthin gegangen ist. Das Abmelden steht im
+ * Rail, weil es von überall erreichbar sein muss — nicht, weil es die
+ * Hauptsache wäre.
+ */
+.signout {
+  flex: none;
   padding: 0;
   font: inherit;
   font-size: var(--text-small);
-  color: var(--text-faint);
+  color: var(--text-muted);
   background: none;
   border: 0;
   cursor: pointer;
 }
 
-.account .signout:hover { color: var(--text); }
-
-.nav {
-  background: var(--nav-bg);
-  border-right: 1px solid var(--nav-border);
-  padding: 16px 12px;
-  display: flex;
-  flex-direction: column;
-}
-
-.badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.badge b {
-  font-size: var(--text-body);
-  letter-spacing: -0.01em;
-  color: var(--text-strong);
-}
-
-/*
- * Die Version: dezent, weil sie eine Auskunft ist und keine Meldung.
- *
- * Kein Akzent — Amber bedeutet in diesem System Signal, Zustand oder primäre
- * Aktion (§7.2), und eine Versionsnummer ist nichts davon. Sie sitzt in
- * Monospace, damit die Ziffern beim Vergleich zweier Server untereinander
- * stehen, und sie schrumpft nicht mit: `flex: none` verhindert, dass eine
- * lange Vorabfassung wie „0.2.0-rc.10" den Schriftzug daneben quetscht.
- */
-.schrift {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  min-width: 0;
-}
-
-/* `.version` steht in app.css: Seit die Anmeldemaske denselben Stand zeigt,
-   gibt es die Marke zweimal auf dem Bildschirm und darf nur einmal im
-   Quelltext stehen. */
-
-
-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.group {
-  font-size: var(--text-label);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin: 16px 0 6px 9px;
-}
-
-.item {
-  padding: 6px 9px;
-  border-radius: 3px;
-  text-decoration: none;
-  color: var(--text-muted);
-  font-size: var(--text-table);
-}
-
-.item:hover {
-  color: var(--text);
-}
-
-.item.active {
-  background: var(--surface);
+.signout:hover {
   color: var(--accent);
-  box-shadow: inset 2px 0 0 var(--accent);
-  border-radius: 0 3px 3px 0;
-}
-
-.source {
-  margin-top: auto;
-  padding-top: 20px;
-  font-size: var(--text-small);
-}
-
-.source a {
-  color: var(--text-faint);
-  text-decoration: none;
-}
-
-.source a:hover {
-  color: var(--text-muted);
   text-decoration: underline;
 }
 
+.source {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.source:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ── Der Inhalt ───────────────────────────────────────────────────────── */
 .content {
-  padding: 18px 22px 28px;
+  grid-row: 2;
+  padding: 26px 32px 36px;
   min-width: 0;
 }
 
-.header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-h1 {
-  margin: 0;
-  font-size: var(--text-heading);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-strong);
-}
-
-.meta {
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  color: var(--text-muted);
+.title-block {
+  min-width: 0;
 }
 
 /*
  * Die schmale Fläche (docs/24).
  *
- * Aus zwei Spalten wird eine, aus der Seitenleiste eine Schublade. Die
- * Seitenleiste bleibt dabei dieselbe Komponente mit denselben Einträgen —
- * eine zweite Navigation nur fürs Telefon wäre eine zweite Stelle, an der
- * jemand einen neuen Menüpunkt vergisst.
+ * Aus zwei Spalten wird eine, aus dem Rail eine Schublade. Das Rail bleibt
+ * dabei dieselbe Komponente mit denselben Einträgen — eine zweite Navigation
+ * nur fürs Telefon wäre eine zweite Stelle, an der jemand einen neuen
+ * Menüpunkt vergisst.
  */
 @media (max-width: 720px) {
   /*
@@ -461,8 +513,7 @@ h1 {
    * **Kopfzeile in die `1fr`-Zeile** — und die nimmt sich allen übrigen Platz.
    * Auf einem Telefon mit 844px Höhe war die Kopfzeile damit 591px hoch, und
    * der Inhalt begann darunter in einer Zeile, die es im Raster gar nicht
-   * gibt. Zu sehen war eine leere schwarze Fläche zwischen Band und
-   * „Übersicht".
+   * gibt. Zu sehen war eine leere Fläche zwischen Band und „Übersicht".
    *
    * Die Antwort ist nicht eine dritte Zeile — dann zählt man Kinder, und beim
    * nächsten Band zählt jemand falsch. Auf der schmalen Fläche gibt es nur
@@ -475,13 +526,12 @@ h1 {
     flex-direction: column;
   }
 
-
   .topbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 10px;
-    padding-top: calc(6px + env(safe-area-inset-top));
+    gap: 12px;
+    padding: 10px 12px;
+    padding-top: calc(10px + env(safe-area-inset-top));
     background: var(--nav-bg);
     border-bottom: 1px solid var(--nav-border);
     position: sticky;
@@ -489,16 +539,16 @@ h1 {
     z-index: 20;
   }
 
-  .topbar .titel {
-    font-size: var(--text-body);
-    font-weight: 600;
+  .topbar .title {
+    font-size: var(--text-section);
+    font-weight: 660;
     color: var(--text-strong);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .burger {
+  .nav-toggle {
     display: grid;
     place-items: center;
     flex: none;
@@ -508,20 +558,20 @@ h1 {
     color: var(--text-muted);
     background: transparent;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius);
     cursor: pointer;
   }
 
-  .burger svg {
-    width: 22px;
-    height: 22px;
+  .nav-toggle svg {
+    width: 24px;
+    height: 24px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.6;
+    stroke-width: 1.7;
     stroke-linecap: round;
   }
 
-  .schleier {
+  .scrim {
     display: block;
     position: fixed;
     inset: 0;
@@ -529,63 +579,45 @@ h1 {
     background: var(--scrim);
   }
 
-  .nav {
+  .rail {
     position: fixed;
     top: 0;
     bottom: 0;
     left: 0;
     z-index: 40;
     width: min(272px, 82vw);
-    padding-top: calc(16px + env(safe-area-inset-top));
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    padding-top: calc(22px + env(safe-area-inset-top));
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
     overflow-y: auto;
     transform: translateX(-100%);
     transition: transform 180ms ease;
   }
 
-  .nav.offen {
+  .rail.open {
     transform: none;
-  }
-
-  /* Die Einträge sind hier Tippziele und keine Zeilen einer Liste. */
-  .item {
-    padding: 10px 12px;
-    font-size: var(--text-body);
-    min-height: var(--tap);
-    display: flex;
-    align-items: center;
-  }
-
-  .account .signout {
-    min-height: var(--tap);
-    padding: 0 4px;
   }
 
   .band {
     flex-wrap: wrap;
-    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-top: calc(10px + env(safe-area-inset-top));
   }
 
   .content {
     /* Nimmt, was übrig ist — vorher tat das die `1fr`-Zeile des Rasters. */
     flex: 1;
     min-width: 0;
-    padding: 14px 12px 24px;
-    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    padding: 18px 16px 28px;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
   }
 
   /*
    * Die Seitenüberschrift steht auf der schmalen Fläche schon in der
    * Kopfzeile. Ein zweites Mal darunter wäre dieselbe Angabe zweimal auf
-   * einem Bildschirm, der ohnehin knapp ist — die Beizeile bleibt, sie sagt
-   * etwas anderes.
+   * einem Bildschirm, der ohnehin knapp ist — Pfad und Beizeile bleiben, sie
+   * sagen etwas anderes.
    */
-  .header h1 {
+  .page-head h1 {
     display: none;
-  }
-
-  .header {
-    margin-bottom: 12px;
   }
 }
 
@@ -595,7 +627,7 @@ h1 {
  * Komponente — ohne das schriebe Vue die Regel auf ein Element um, das es
  * hier gar nicht gibt.
  */
-:global(html.menu-offen) {
+:global(html.menu-open) {
   overflow: hidden;
 }
 </style>

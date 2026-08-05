@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -16,6 +18,14 @@ const props = defineProps<{
 }>()
 
 const page = usePage()
+
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
+  if (status === 'active') return 'ok'
+  if (status === 'suspended') return 'warn'
+  if (status === 'cancelled') return 'critical'
+
+  return 'neutral'
+}
 
 /*
  * Die Ablehnung kommt als Prüfungsfehler zurück und nicht als Meldung — der
@@ -78,69 +88,88 @@ function freigeben(): void {
 <template>
   <Head :title="props.customer.name" />
 
-  <PanelLayout :title="props.customer.name" :subline="props.customer.number">
-    <p v-if="fehler" class="fehler-block">{{ fehler }}</p>
+  <PanelLayout :title="props.customer.name">
+    <template #breadcrumb>
+      <Link href="/customers" class="link">Kunden</Link> · <span class="ident">{{ props.customer.number }}</span>
+    </template>
 
-    <header class="kopf knopfreihe">
-      <Link :href="`/customers/${props.customer.id}/edit`" class="knopf">Bearbeiten</Link>
+    <template #actions>
+      <Badge :kind="rang(props.customer.status)">{{ props.customer.status_label }}</Badge>
+      <Link :href="`/customers/${props.customer.id}/edit`" class="button primary">Bearbeiten</Link>
       <button
         v-if="props.customer.status !== 'suspended'"
         type="button"
-        class="knopf"
+        class="button"
         @click="sperren"
       >
         Sperren
       </button>
-      <button v-else type="button" class="knopf" @click="freigeben">Freigeben</button>
-      <button type="button" class="knopf gefahr" @click="zurueckziehen">Zurückziehen</button>
-    </header>
+      <button v-else type="button" class="button" @click="freigeben">Freigeben</button>
+      <button type="button" class="button danger" @click="zurueckziehen">Zurückziehen</button>
+    </template>
 
-    <div class="spalten">
-      <section>
-        <h2>Vertragspartner</h2>
-        <dl>
-          <dt>E-Mail</dt><dd>{{ props.customer.email }}</dd>
-          <dt>Telefon</dt><dd>{{ props.customer.phone ?? '—' }}</dd>
-          <dt>Zustand</dt><dd>{{ props.customer.status_label }}</dd>
-        </dl>
-      </section>
+    <p v-if="fehler" class="notice critical">{{ fehler }}</p>
 
-      <section>
-        <h2>Konten</h2>
-        <ul>
-          <li v-for="a in props.accounts" :key="a.id">
-            <b>{{ a.email }}</b> · {{ a.type_label }} · {{ a.status_label }}
-            <span class="letzte">{{ a.last_login_at ?? 'noch nie angemeldet' }}</span>
-          </li>
-        </ul>
-      </section>
+    <div class="sections">
+      <Section title="Vertragspartner">
+        <table class="pairs">
+          <tbody>
+            <tr><td class="quiet">E-Mail</td><td class="right name">{{ props.customer.email }}</td></tr>
+            <tr><td class="quiet">Telefon</td><td class="right name">{{ props.customer.phone ?? '—' }}</td></tr>
+            <tr>
+              <td class="quiet">Zustand</td>
+              <td class="right"><Badge :kind="rang(props.customer.status)">{{ props.customer.status_label }}</Badge></td>
+            </tr>
+          </tbody>
+        </table>
+      </Section>
 
-      <section>
-        <h2>Abonnements</h2>
-        <ul v-if="props.subscriptions.length > 0">
-          <li v-for="s in props.subscriptions" :key="s.id" :data-status="s.status">
-            {{ s.name }} · {{ s.status_label }}
-          </li>
-        </ul>
-        <p v-else class="leer">Noch keines angelegt.</p>
-      </section>
+      <Section title="Konten" note="Zugänge zu diesem Kunden. Ein Kunde ohne Konto ist angelegt, aber niemand kommt herein.">
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Anmeldeadresse</th><th>Art</th><th>Zustand</th><th>Zuletzt angemeldet</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in props.accounts" :key="a.id">
+                <td data-column="Anmeldeadresse" class="name">{{ a.email }}</td>
+                <td data-column="Art" class="quiet">{{ a.type_label }}</td>
+                <td data-column="Zustand" class="quiet">{{ a.status_label }}</td>
+                <td data-column="Zuletzt angemeldet" class="quiet">
+                  {{ a.last_login_at ?? 'noch nie angemeldet' }}
+                </td>
+              </tr>
+              <tr v-if="props.accounts.length === 0">
+                <td colspan="4" class="quiet">Kein Konto — dieser Kunde kann sich nicht anmelden.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section title="Abonnements" full>
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Name</th><th>Zustand</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in props.subscriptions" :key="s.id">
+                <td data-column="Name" class="ident name">
+                  <Link :href="`/subscriptions/${s.id}`" class="link">{{ s.name }}</Link>
+                </td>
+                <td data-column="Zustand"><Badge :kind="rang(s.status)">{{ s.status_label }}</Badge></td>
+                <td>
+                  <Link :href="`/subscriptions/${s.id}/edit`" class="button small">Bearbeiten</Link>
+                </td>
+              </tr>
+              <tr v-if="props.subscriptions.length === 0">
+                <td colspan="3" class="quiet">Noch keines angelegt.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
     </div>
   </PanelLayout>
 </template>
-
-<style scoped>
-.kopf { justify-content: flex-end; margin-bottom: var(--gap); }
-.fehler-block { margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--critical); background: var(--critical-surface); border-radius: 6px; }
-.spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(256px, 1fr)); gap: var(--gap); }
-section { padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-h2 { margin: 0 0 8px; font-size: var(--text-table); color: var(--text-muted); font-weight: 600; }
-dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: var(--text-table); }
-dt { color: var(--text-faint); }
-dd { margin: 0; color: var(--text); }
-ul { margin: 0; padding-left: 16px; font-size: var(--text-table); }
-li { margin-bottom: 5px; }
-.letzte { display: block; font-size: var(--text-small); color: var(--text-faint); }
-li[data-status='suspended'] { color: var(--warn); }
-li[data-status='provisioning'] { color: var(--text-faint); }
-.leer { margin: 0; font-size: var(--text-table); color: var(--text-faint); }
-</style>

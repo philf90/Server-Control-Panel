@@ -8,6 +8,7 @@ use App\Enums\AuditResult;
 use App\Models\Account;
 use App\Models\AuditEvent;
 use App\Support\Audit\AuditQuery;
+use App\Support\Web\Page;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,8 +24,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 final class AuditController extends Controller
 {
-    private const PER_PAGE = 50;
-
     public function index(Request $request): Response
     {
         $account = $this->account($request);
@@ -32,17 +31,10 @@ final class AuditController extends Controller
 
         $events = AuditQuery::newestFirst(
             AuditQuery::filter(AuditQuery::visibleTo($account), $filters)
-        )->paginate(self::PER_PAGE)->withQueryString();
+        )->paginate(Page::SIZE)->withQueryString();
 
         return Inertia::render('Audit/Index', [
-            'events' => [
-                'data' => collect($events->items())
-                    ->map(static fn (AuditEvent $event): array => AuditQuery::toArrayRow($event))
-                    ->all(),
-                'current_page' => $events->currentPage(),
-                'last_page' => $events->lastPage(),
-                'total' => $events->total(),
-            ],
+            'events' => Page::from($events, static fn (AuditEvent $event): array => AuditQuery::toArrayRow($event)),
             'filters' => $filters,
             'results' => collect(AuditResult::cases())
                 ->map(static fn (AuditResult $r): array => ['value' => $r->value, 'label' => $r->label()])

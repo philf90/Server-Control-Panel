@@ -10,6 +10,7 @@ use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
+use App\Support\Metrics\Store;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -263,6 +264,17 @@ final class PanelWalkthroughTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Overview')
                 ->has('tiles', 5)
+
+                /*
+                 * Jede Kachel bringt die Angabe mit, ob ihre Kurve warnt.
+                 *
+                 * Sie hat gefehlt: Der Wechsel der Farbe an einer Schwelle ist
+                 * das Merkmal, wegen dem „Kontor" gewählt wurde — und die
+                 * Kachel zeichnete ein Jahr lang jede Kurve gleich. Gesehen hat
+                 * es niemand, weil in diesem Container kein Agent läuft und
+                 * deshalb auf jeder Kachel „noch keine Messwerte" stand.
+                 */
+                ->has('tiles.0.series.warns')
                 ->has('server')
                 ->has('services')
                 ->has('filesystems')
@@ -405,5 +417,59 @@ final class PanelWalkthroughTest extends TestCase
         // Zustand.
         $this->post('/impersonation/stop')->assertRedirect('/login');
         $this->assertGuest();
+    }
+
+    /**
+     * Und die Schwelle verlässt den Controller wirklich.
+     *
+     * **Warum das eigen geprüft wird.** Der Unit-Test daneben prüft
+     * `Store::series()` — dass eine Kurve über ihrer Schwelle warnt. Er bleibt
+     * grün, wenn jemand im Controller das letzte Argument wegkürzt, und dann
+     * zeichnet die Übersicht wieder jede Kurve gleich. Genau dieser Zustand
+     * bestand ein Jahr lang, und niemand hat ihn gemeldet.
+     *
+     * Deshalb hier mit echten Messwerten und über die ganze Kette: Ringpuffer,
+     * Store, Controller, Nutzlast. Die CPU läuft über ihre Schwelle, der
+     * Arbeitsspeicher darunter — und nur eine der beiden Kurven darf warnen.
+     */
+    public function test_a_tile_over_its_threshold_says_so(): void
+    {
+        $verzeichnis = sys_get_temp_dir().'/srvpanel-tiles-'.bin2hex(random_bytes(6));
+        mkdir($verzeichnis);
+        config(['srvpanel.metrics.directory' => $verzeichnis]);
+
+        /*
+         * **Derselbe Speicher, den auch die Anwendung benutzt** — und nicht
+         * ein eigener mit eigener Kapazität. Ein RingBuffer legt seine Datei
+         * nach der Kapazität aus; wer mit 100 schreibt und mit 8640 liest,
+         * liest dieselbe Datei falsch. Beim ersten Anlauf stand die CPU
+         * deshalb auf „warnt nicht", obwohl 96 % drin standen.
+         */
+        $store = app(Store::class);
+        $zeit = 1_754_000_000.0;
+
+        for ($i = 0; $i < 5; $i++) {
+            $store->buffer('cpu', 2)->write([92.0 + $i, 1.0], $zeit + $i * 10);
+            $store->buffer('ram', 2)->write([44.0 + $i, 1.0], $zeit + $i * 10);
+        }
+
+        try {
+            $this->actingAs(Account::factory()->admin()->create())
+                ->get('/')
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page
+                    ->component('Overview')
+                    ->where('tiles.0.label', 'CPU')
+                    ->where('tiles.0.series.warns', true)
+                    ->where('tiles.1.label', 'RAM')
+                    ->where('tiles.1.series.warns', false)
+                    ->etc());
+        } finally {
+            foreach (glob($verzeichnis.'/*') ?: [] as $datei) {
+                @unlink($datei);
+            }
+
+            @rmdir($verzeichnis);
+        }
     }
 }

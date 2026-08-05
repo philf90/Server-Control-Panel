@@ -148,7 +148,8 @@ nicht geschätzt: 4,5:1 für Text, **3:1 für die Grenze eines Bedienelements**
 
 Weitere Dokumente: `21` Signaturschlüssel · `22` Passwörter · `23` Pläne und
 Kontingente · `24` mobile Ansicht · `25` Mailversand · `26` Abonnements ·
-`27` Zertifikat · `28` Web und PHP. Die Entwürfe zum Gestaltungssystem stehen
+`27` Zertifikat · `28` Web und PHP · **`32` Übergabe an P4** — was für TLS
+schon dasteht, was fehlt, und die Falle, die dabei aussperrt. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".

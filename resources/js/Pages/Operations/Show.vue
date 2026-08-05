@@ -9,6 +9,8 @@
  */
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
+import Bereich from '../../Components/Bereich.vue'
+import Marke from '../../Components/Marke.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import { useOperationStream } from '../../Composables/useOperationStream'
 
@@ -46,6 +48,14 @@ const message = computed(() => live?.state.value?.message ?? props.operation.mes
 
 const open = computed(() => live?.state.value?.open ?? props.operation.open)
 
+const rang = computed<'ok' | 'warn' | 'kritisch' | 'neutral'>(() => {
+  if (status.value === 'succeeded') return 'ok'
+  if (status.value === 'running' || status.value === 'queued') return 'warn'
+  if (status.value === 'failed' || status.value === 'cancelled') return 'kritisch'
+
+  return 'neutral'
+})
+
 // Der Wunsch bleibt stehen, bis die Seite neu geladen wird — der Ereignisstrom
 // überträgt ihn nicht, weil er den Zustand des Vorgangs meldet und nicht den
 // Zustand dieses Knopfes.
@@ -72,60 +82,81 @@ watch(output, () => {
 <template>
   <Head :title="`Vorgang ${props.operation.id}`" />
 
-  <PanelLayout :title="props.operation.label" :subline="`Vorgang ${props.operation.id} · ${props.operation.type}`">
-    <div class="leiste">
-      <Link href="/operations">← Alle Vorgänge</Link>
+  <PanelLayout :title="props.operation.label">
+    <template #pfad>
+      <Link href="/operations" class="verweis">Vorgänge</Link> ·
+      <span class="kennung">{{ props.operation.type }}</span> · Nummer {{ props.operation.id }}
+    </template>
 
+    <template #aktion>
+      <Marke :art="rang" :laeuft="open">{{ label }}</Marke>
       <button v-if="open" type="button" class="knopf gefahr" :disabled="cancelRequested" @click="cancel">
         {{ cancelRequested ? 'Abbruch angefordert …' : 'Abbrechen' }}
       </button>
-    </div>
+    </template>
 
     <!--
       Der ehrliche Zwischenzustand. „Abgebrochen" steht erst da, wenn es
       zutrifft: Zwischen dem Wunsch und dem Ende des Programms auf dem Server
       liegen ein, zwei Sekunden, und in dieser Zeit läuft es noch.
     -->
-    <p v-if="cancelRequested && open" class="wartet">
+    <p v-if="cancelRequested && open" class="meldung warn">
       Der Abbruch ist angefordert. Der Vorgang endet, sobald der Agent das
       laufende Programm beendet hat.
     </p>
 
-    <dl class="kopf">
-      <div><dt>Zustand</dt><dd :data-status="status">{{ label }}</dd></div>
-      <div><dt>Fortschritt</dt><dd>{{ progress }} %</dd></div>
-      <div><dt>Ausgelöst von</dt><dd>{{ props.operation.account ?? '—' }}</dd></div>
-      <div><dt>Begonnen</dt><dd>{{ props.operation.started_at ?? '—' }}</dd></div>
-      <div><dt>Beendet</dt><dd>{{ props.operation.finished_at ?? '—' }}</dd></div>
-    </dl>
+    <p v-if="message" class="meldung" :class="rang === 'kritisch' ? 'kritisch' : 'ok'">{{ message }}</p>
 
-    <p v-if="message" class="meldung" :data-status="status">{{ message }}</p>
+    <div class="bereiche">
+      <Bereich titel="Gegenstand">
+        <table class="paare">
+          <tbody>
+            <tr><td class="stumm">Aufgabe</td><td class="rechts kennung name">{{ props.operation.type }}</td></tr>
+            <tr>
+              <td class="stumm">Zustand</td>
+              <td class="rechts"><Marke :art="rang" :laeuft="open">{{ label }}</Marke></td>
+            </tr>
+            <tr><td class="stumm">Ausgelöst von</td><td class="rechts name">{{ props.operation.account ?? '—' }}</td></tr>
+            <tr><td class="stumm">Begonnen</td><td class="rechts">{{ props.operation.started_at ?? '—' }}</td></tr>
+            <tr><td class="stumm">Beendet</td><td class="rechts">{{ props.operation.finished_at ?? '—' }}</td></tr>
+          </tbody>
+        </table>
 
-    <h2>Argumente</h2>
-    <pre class="daten">{{ JSON.stringify(props.operation.payload ?? {}, null, 2) }}</pre>
+        <div class="fortschritt"><i :style="{ width: `${progress}%` }" /></div>
+        <p class="erklaer">Fortschritt {{ progress }} %</p>
+      </Bereich>
 
-    <h2>Ausgabe</h2>
-    <pre ref="box" class="ausgabe">{{ output || 'Noch keine Ausgabe.' }}</pre>
+      <Bereich titel="Argumente" erklaerung="Was das Panel dem Agenten geschickt hat — typisiert und nicht als Kommandozeile.">
+        <pre class="ausgabe daten">{{ JSON.stringify(props.operation.payload ?? {}, null, 2) }}</pre>
+      </Bereich>
 
-    <template v-if="props.operation.result">
-      <h2>Ergebnis</h2>
-      <pre class="daten">{{ JSON.stringify(props.operation.result, null, 2) }}</pre>
-    </template>
+      <Bereich titel="Ausgabe" voll>
+        <pre ref="box" class="ausgabe lang">{{ output || 'Noch keine Ausgabe.' }}</pre>
+      </Bereich>
+
+      <Bereich v-if="props.operation.result" titel="Ergebnis" voll>
+        <pre class="ausgabe daten">{{ JSON.stringify(props.operation.result, null, 2) }}</pre>
+      </Bereich>
+    </div>
   </PanelLayout>
 </template>
 
 <style scoped>
-.leiste { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 var(--gap); font-size: var(--text-small); }
-.wartet { margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-small); color: var(--warn); background: var(--warn-surface); border-radius: 6px; }
-.kopf { display: flex; flex-wrap: wrap; gap: 24px; margin: 0 0 var(--gap); }
-.kopf dt { font-size: var(--text-label); text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); }
-.kopf dd { margin: 2px 0 0; font-size: var(--text-table); color: var(--text); }
-.kopf dd[data-status='failed'] { color: var(--warn); }
-.kopf dd[data-status='running'], .kopf dd[data-status='queued'] { color: var(--accent); }
-.meldung { padding: 8px 11px; font-size: var(--text-table); border-radius: 6px; background: var(--surface); }
-.meldung[data-status='failed'] { color: var(--warn); background: var(--warn-surface); }
-h2 { margin: calc(var(--gap) * 1.5) 0 6px; font-size: var(--text-small); font-weight: 600; color: var(--text-muted); }
-pre { margin: 0; padding: 10px 11px; font-family: var(--font-mono); font-size: var(--text-small); line-height: 1.5; white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
-.ausgabe { max-height: 416px; overflow-y: auto; }
-.daten { color: var(--text-muted); }
+/*
+ * Form und Farbe der Ausgabe stehen in app.css — hier nur, wie hoch sie ist.
+ * Die Argumente sind kurz und sollen nicht rollen; die Ausgabe eines Vorgangs
+ * ist beliebig lang und bekommt eine Grenze, damit die Seite darunter
+ * erreichbar bleibt.
+ */
+.ausgabe {
+  margin: 0;
+}
+
+.daten {
+  color: var(--text-muted);
+}
+
+.lang {
+  max-height: 420px;
+}
 </style>

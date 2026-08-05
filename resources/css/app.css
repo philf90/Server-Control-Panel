@@ -759,6 +759,34 @@ table.paare {
     text-align: right;
   }
 
+  /*
+   * Eine Kennung darf brechen, wenn sie sonst die Zeile sprengt.
+   *
+   * `.kennung` steht auf `nowrap`, und das ist auf dem Schreibtisch richtig:
+   * Ein Pfad, der mitten im Verzeichnisnamen umbricht, ist schwerer zu lesen
+   * als einer, für den man die Tabelle schiebt. Auf 390px gibt es nichts zu
+   * schieben — `/var/www/vhosts/kunde-mueller.de/…` war 337px breit und schob
+   * die ganze Seite um 81px nach rechts. Gemessen an der Domainseite, nicht
+   * geraten.
+   *
+   * `anywhere` und nicht `break-word`: Eine Kennung hat keine Leerzeichen, an
+   * denen ein Umbruch natürlich wäre. Werte mit Leerzeichen — „3 von 10" —
+   * behalten ihr `nowrap` und bleiben zusammen; das ist der Fall, für den
+   * diese Zeilen überhaupt eingeführt wurden.
+   *
+   * **Und `flex` muss mit.** Beim ersten Anlauf stand hier nur `white-space`
+   * und `overflow-wrap`, und der Überlauf blieb bei exakt denselben 81px:
+   * `flex: none` von der Zeile darüber heisst `flex: 0 0 auto`, und damit
+   * behält die Zelle ihre Inhaltsbreite, auch wenn sie umbrechen *dürfte*. Die
+   * Erlaubnis zu brechen nützt nichts, solange nichts sie dazu zwingt.
+   */
+  table.paare td.rechts.kennung {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   table.paare td:empty {
     display: none;
   }

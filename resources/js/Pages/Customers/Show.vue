@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
+import Bereich from '../../Components/Bereich.vue'
+import Marke from '../../Components/Marke.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -16,6 +18,14 @@ const props = defineProps<{
 }>()
 
 const page = usePage()
+
+function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+  if (status === 'active') return 'ok'
+  if (status === 'suspended') return 'warn'
+  if (status === 'cancelled') return 'kritisch'
+
+  return 'neutral'
+}
 
 /*
  * Die Ablehnung kommt als Prüfungsfehler zurück und nicht als Meldung — der
@@ -78,11 +88,14 @@ function freigeben(): void {
 <template>
   <Head :title="props.customer.name" />
 
-  <PanelLayout :title="props.customer.name" :subline="props.customer.number">
-    <p v-if="fehler" class="fehler-block">{{ fehler }}</p>
+  <PanelLayout :title="props.customer.name">
+    <template #pfad>
+      <Link href="/customers" class="verweis">Kunden</Link> · <span class="kennung">{{ props.customer.number }}</span>
+    </template>
 
-    <header class="kopf knopfreihe">
-      <Link :href="`/customers/${props.customer.id}/edit`" class="knopf">Bearbeiten</Link>
+    <template #aktion>
+      <Marke :art="rang(props.customer.status)">{{ props.customer.status_label }}</Marke>
+      <Link :href="`/customers/${props.customer.id}/edit`" class="knopf wichtig">Bearbeiten</Link>
       <button
         v-if="props.customer.status !== 'suspended'"
         type="button"
@@ -93,54 +106,70 @@ function freigeben(): void {
       </button>
       <button v-else type="button" class="knopf" @click="freigeben">Freigeben</button>
       <button type="button" class="knopf gefahr" @click="zurueckziehen">Zurückziehen</button>
-    </header>
+    </template>
 
-    <div class="spalten">
-      <section>
-        <h2>Vertragspartner</h2>
-        <dl>
-          <dt>E-Mail</dt><dd>{{ props.customer.email }}</dd>
-          <dt>Telefon</dt><dd>{{ props.customer.phone ?? '—' }}</dd>
-          <dt>Zustand</dt><dd>{{ props.customer.status_label }}</dd>
-        </dl>
-      </section>
+    <p v-if="fehler" class="meldung kritisch">{{ fehler }}</p>
 
-      <section>
-        <h2>Konten</h2>
-        <ul>
-          <li v-for="a in props.accounts" :key="a.id">
-            <b>{{ a.email }}</b> · {{ a.type_label }} · {{ a.status_label }}
-            <span class="letzte">{{ a.last_login_at ?? 'noch nie angemeldet' }}</span>
-          </li>
-        </ul>
-      </section>
+    <div class="bereiche">
+      <Bereich titel="Vertragspartner">
+        <table class="paare">
+          <tbody>
+            <tr><td class="stumm">E-Mail</td><td class="rechts name">{{ props.customer.email }}</td></tr>
+            <tr><td class="stumm">Telefon</td><td class="rechts name">{{ props.customer.phone ?? '—' }}</td></tr>
+            <tr>
+              <td class="stumm">Zustand</td>
+              <td class="rechts"><Marke :art="rang(props.customer.status)">{{ props.customer.status_label }}</Marke></td>
+            </tr>
+          </tbody>
+        </table>
+      </Bereich>
 
-      <section>
-        <h2>Abonnements</h2>
-        <ul v-if="props.subscriptions.length > 0">
-          <li v-for="s in props.subscriptions" :key="s.id" :data-status="s.status">
-            {{ s.name }} · {{ s.status_label }}
-          </li>
-        </ul>
-        <p v-else class="leer">Noch keines angelegt.</p>
-      </section>
+      <Bereich titel="Konten" erklaerung="Zugänge zu diesem Kunden. Ein Kunde ohne Konto ist angelegt, aber niemand kommt herein.">
+        <div class="rollt">
+          <table class="stapelt">
+            <thead>
+              <tr><th>Anmeldeadresse</th><th>Art</th><th>Zustand</th><th>Zuletzt angemeldet</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in props.accounts" :key="a.id">
+                <td data-spalte="Anmeldeadresse" class="name">{{ a.email }}</td>
+                <td data-spalte="Art" class="stumm">{{ a.type_label }}</td>
+                <td data-spalte="Zustand" class="stumm">{{ a.status_label }}</td>
+                <td data-spalte="Zuletzt angemeldet" class="stumm">
+                  {{ a.last_login_at ?? 'noch nie angemeldet' }}
+                </td>
+              </tr>
+              <tr v-if="props.accounts.length === 0">
+                <td colspan="4" class="stumm">Kein Konto — dieser Kunde kann sich nicht anmelden.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Bereich>
+
+      <Bereich titel="Abonnements" voll>
+        <div class="rollt">
+          <table class="stapelt">
+            <thead>
+              <tr><th>Name</th><th>Zustand</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in props.subscriptions" :key="s.id">
+                <td data-spalte="Name" class="kennung name">
+                  <Link :href="`/subscriptions/${s.id}`" class="verweis">{{ s.name }}</Link>
+                </td>
+                <td data-spalte="Zustand"><Marke :art="rang(s.status)">{{ s.status_label }}</Marke></td>
+                <td>
+                  <Link :href="`/subscriptions/${s.id}/edit`" class="knopf klein">Bearbeiten</Link>
+                </td>
+              </tr>
+              <tr v-if="props.subscriptions.length === 0">
+                <td colspan="3" class="stumm">Noch keines angelegt.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Bereich>
     </div>
   </PanelLayout>
 </template>
-
-<style scoped>
-.kopf { justify-content: flex-end; margin-bottom: var(--gap); }
-.fehler-block { margin: 0 0 var(--gap); padding: 8px 11px; font-size: var(--text-table); color: var(--critical); background: var(--critical-surface); border-radius: 6px; }
-.spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(256px, 1fr)); gap: var(--gap); }
-section { padding: var(--padding); background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; }
-h2 { margin: 0 0 8px; font-size: var(--text-table); color: var(--text-muted); font-weight: 600; }
-dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: var(--text-table); }
-dt { color: var(--text-faint); }
-dd { margin: 0; color: var(--text); }
-ul { margin: 0; padding-left: 16px; font-size: var(--text-table); }
-li { margin-bottom: 5px; }
-.letzte { display: block; font-size: var(--text-small); color: var(--text-faint); }
-li[data-status='suspended'] { color: var(--warn); }
-li[data-status='provisioning'] { color: var(--text-faint); }
-.leer { margin: 0; font-size: var(--text-table); color: var(--text-faint); }
-</style>

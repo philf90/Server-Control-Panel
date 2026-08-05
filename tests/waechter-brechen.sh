@@ -17,22 +17,27 @@
 # Fläche, und der Ausdruck fand diese Fundstelle. Der Wächter sah richtig aus
 # und war es nicht — gemerkt hat es nur der Bruch.
 #
-# Das Skript ändert Dateien unter resources/ und stellt sie wieder her. Es
-# verweigert den Start, wenn dort schon etwas geändert ist, und räumt auch nach
-# einem Abbruch auf.
+# Das Skript ändert Dateien unter resources/, app/ und agent/ und stellt sie
+# wieder her. Es verweigert den Start, wenn dort schon etwas geändert ist, und
+# räumt auch nach einem Abbruch auf.
+#
+# **`git checkout` stellt nur wieder her, was git kennt.** Ein Wächter für Code,
+# der noch nicht eingecheckt ist, wird hier nicht gebrochen, sondern gelöscht.
+# Deshalb der Abbruch oben — und deshalb kommt ein neuer Bruch erst nach dem
+# Commit dazu, den er prüft.
 
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/; then
-  echo "resources/ oder app/ hat ungesicherte Änderungen. Erst committen oder" >&2
-  echo "verwerfen — dieses Skript ändert dort Dateien und stellt sie über git" >&2
-  echo "wieder her." >&2
+if ! git diff --quiet -- resources/ app/ agent/; then
+  echo "resources/, app/ oder agent/ hat ungesicherte Änderungen. Erst committen" >&2
+  echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
+  echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -48,6 +53,24 @@ fehler=0
 # meldete fünf Wächter als „hält seine Regel nicht". Ein Werkzeug, das die
 # Wächter prüft, hat selbst keinen gehabt.
 vorher() { cp resources/css/app.css /tmp/waechter-vorher.css; }
+
+# Dasselbe für eine beliebige Datei. Die beiden oben sind fest auf app.css
+# verdrahtet, weil es zur Zeit des Optik-Reworks nur diese eine gab; ab P4
+# werden auch Dateien unter agent/ gebrochen.
+vorher_datei() { cp "$1" /tmp/waechter-vorher-datei; }
+
+griff_datei() {
+  local datei="$1" name="$2"
+
+  if cmp -s "$datei" /tmp/waechter-vorher-datei; then
+    printf '  FEHLT  %-56s Eingriff hat nichts geändert\n' "$name"
+    fehler=$((fehler + 1))
+
+    return 1
+  fi
+
+  return 0
+}
 
 griff() {
   local name="$1"
@@ -325,6 +348,125 @@ pruefe "Kreis in Nutzerkoordinaten" \
   SparklineShapeTest::test_nothing_round_is_drawn_in_user_coordinates failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SparklineShapeTest passed
+
+echo
+echo "── AcmeProtocolTest: der leere Rumpf wird wieder zur leeren Liste ──"
+#
+# `json_encode([])` schreibt `[]`. ACME will an der einen Stelle, an der ein
+# leerer Rumpf vorkommt — beim Anstossen einer Prüfung — ein `{}`. Die Antwort
+# auf `[]` ist „malformed", und zwar erst auf dem echten Server: Ein Drehbuch
+# antwortet ja trotzdem.
+vorher_datei agent/src/Acme/Jws.php
+python3 - <<'PY'
+p = 'agent/src/Acme/Jws.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $payload === [] => self::base64url('{}'),\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/Jws.php "leerer Rumpf als [] statt {}" &&
+pruefe "leerer Rumpf als [] statt {}" \
+  AcmeProtocolTest::test_an_empty_payload_is_an_object_and_not_a_list failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AcmeProtocolTest::test_an_empty_payload_is_an_object_and_not_a_list passed
+
+echo
+echo "── AcmeProtocolTest: die Felder des JWK werden umgestellt ──"
+#
+# **Der Testvektor allein fängt das nicht.** Er prüft `thumbprintOf()` mit einem
+# JWK aus dem RFC, bringt die Reihenfolge also selbst mit. Umgestellt wird sie
+# in `jwk()` — und dort hat der Vektor nichts zu melden. Aufgefallen ist die
+# Lücke genau hier, beim Brechen.
+vorher_datei agent/src/Acme/Jws.php
+python3 - <<'PY'
+p = 'agent/src/Acme/Jws.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'e' => self::base64url($exponent),\n            'kty' => 'RSA',",
+    "            'kty' => 'RSA',\n            'e' => self::base64url($exponent),",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/Jws.php "JWK-Felder nicht mehr lexikographisch" &&
+pruefe "JWK-Felder nicht mehr lexikographisch" \
+  AcmeProtocolTest::test_the_jwk_carries_its_fields_in_the_order_rfc_7638_demands failed
+wiederherstellen
+
+echo
+echo "── AcmeProtocolTest: der Token ohne Positivliste ──"
+#
+# Der Token kommt von aussen und landet in einem file_put_contents, das als root
+# läuft. Dass die Gegenstelle vertrauenswürdig ist, ist eine Annahme über heute.
+vorher_datei agent/src/Acme/HttpChallenge.php
+python3 - <<'PY'
+p = 'agent/src/Acme/HttpChallenge.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (preg_match('/^[A-Za-z0-9_-]{16,128}$/D', $token) !== 1) {\n"
+    "            throw AgentException::badRequest('Unzulässiger Token für die Prüfdatei.', ['token' => $token]);\n"
+    "        }\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/HttpChallenge.php "Token wird ungeprüft zum Dateinamen" &&
+pruefe "Token wird ungeprüft zum Dateinamen" \
+  AcmeProtocolTest::test_a_token_that_is_a_path_never_becomes_a_filename failed
+wiederherstellen
+
+echo
+echo "── AcmeProtocolTest: keine Wiederholung bei verbrauchtem Einmalwert ──"
+vorher_datei agent/src/Acme/Session.php
+python3 - <<'PY'
+p = 'agent/src/Acme/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($problem !== null && $problem->isBadNonce() && ! $retried) {\n"
+    "            return $this->send($url, $payload, $useJwk, true);\n"
+    "        }\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/Session.php "badNonce wird nicht wiederholt" &&
+pruefe "badNonce wird nicht wiederholt" \
+  AcmeProtocolTest::test_a_used_nonce_is_retried_exactly_once failed
+wiederherstellen
+
+echo
+echo "── AcmeProtocolTest: die Prüfdatei bleibt liegen ──"
+#
+# Beim zweiten Anlauf mit demselben Namen stünde dort ein Wert von gestern, und
+# die Prüfung scheiterte mit „unauthorized" an einer Ursache, die nirgends steht.
+vorher_datei agent/src/Acme/Order.php
+python3 - <<'PY'
+p = 'agent/src/Acme/Order.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$this->challenge->cleanup($done['domain'], $done['token']);", '// nichts')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/Order.php "kein Abräumen im finally" &&
+pruefe "kein Abräumen im finally" \
+  AcmeProtocolTest::test_the_challenge_file_is_cleared_after_a_failed_order failed
+wiederherstellen
+
+echo
+echo "── AcmeProtocolTest: die erste Prüfung statt der passenden ──"
+#
+# Die Zertifizierungsstelle bietet je Autorisierung mehrere Arten an. Wer die
+# erste nimmt, legt eine Datei hin und beantwortet damit eine DNS-Prüfung.
+vorher_datei agent/src/Acme/Order.php
+python3 - <<'PY'
+p = 'agent/src/Acme/Order.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if (self::text($candidate, 'type') === $this->challenge->type()) {", 'if (true) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+griff_datei agent/src/Acme/Order.php "Art der Prüfung wird nicht abgeglichen" &&
+pruefe "Art der Prüfung wird nicht abgeglichen" \
+  AcmeProtocolTest::test_the_order_runs_from_the_names_to_a_certificate failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AcmeProtocolTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

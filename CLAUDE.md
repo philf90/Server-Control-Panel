@@ -205,6 +205,14 @@ Testen berücksichtigen:
   `agent/` oder `tests/` kostet eine Runde — nicht nur die, die PHPStan
   beträfe.
 
+  **Für `agent/` gibt es einen Ausweg, und er hat in P4 eine Runde gespart.**
+  `agent/src/autoload.php` ist framework- und abhängigkeitsfrei; Code unterhalb
+  von `agent/` lässt sich damit aus einem Wegwerfskript im Scratchpad fahren,
+  ganz ohne PHPUnit — `require agent/src/autoload.php`, Testdoppel von Hand
+  dazuladen, Behauptungen als `if`. Das ersetzt den Wächter nicht und gehört
+  nicht ins Repo (zwei Fassungen desselben Tests, und die zweite veraltet),
+  aber es beantwortet vor dem Commit die Frage, ob der Code überhaupt läuft.
+
   **Was das für die Arbeit heisst:** Undefinierte Variablen, fehlende
   Typangaben und tote Zweige findet hier nichts. Wer `app/`, `agent/` oder
   `tests/` anfasst, rechnet mit einer Runde CI dafür — viermal an einem Tag

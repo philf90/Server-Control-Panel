@@ -2175,3 +2175,89 @@ Minuten Bildschirmsperre, die Kundensicht, das Blättern mit gesetztem Filter.
 aus `0.3.0~rc.5`. Ohne diesen Lauf hätte jeder Fehlschlag in P4 zwei mögliche
 Ursachen gehabt, und die Unterscheidung wäre teurer gewesen als der Lauf. Ab
 hier kommt, was bricht, aus P4.
+
+### P4 — TLS
+
+Erster Wurf: ACME über HTTP-01, das Zertifikat der Oberfläche über dieselbe
+Strecke, die Kundenvorlage mit HTTPS. DNS-01 mit mehreren Anbietern und das
+Hochladen eigener Zertifikate sind der zweite Wurf. Die Entscheidungen und ihre
+Begründung stehen in `docs/32 §6`.
+
+#### Schritt 1: der ACME-Kern im Agenten
+
+Ein eigener Client statt `certbot` — reines PHP über die openssl-Erweiterung,
+unter `agent/src/Acme/`. **Der Ausschlag gab nicht die Codemenge, sondern die
+zweite Wahrheit:** certbot führt Zustand in `/etc/letsencrypt` und einen eigenen
+Timer, das Panel führt beides ebenfalls, und verbunden wären sie durch einen
+Pfad in einer nginx-Datei, den niemand nachprüft. Das ist wörtlich das Muster,
+an dem dieses Projekt sechsmal verloren hat.
+
+Drei Punkte kamen beim Nachsehen dazu, und jeder allein hätte gereicht:
+`php8.4-curl`, `ca-certificates` und `openssl` sind längst Abhängigkeiten des
+Pakets — ein eigener Client braucht **kein** neues. certbot liefe als
+Kindprozess des Agenten unter dessen Härtung, also mit
+`MemoryDenyWriteExecute=yes`, und an genau dieser Sorte Einschränkung ist hier
+schon einmal `dpkg` zerbrochen; gefunden hat das kein Test, sondern der erste
+Lauf auf einem echten Server. Und die certbot-Fassungen der vier Zielplattformen
+spreizen von 1.21 auf Ubuntu 22.04 bis zu deutlich neueren auf Debian 13 —
+weiter als nginx 1.18 gegen 1.25, woran die Einrichtung schon einmal fast
+gescheitert wäre.
+
+**`RS256` und nicht `ES256`.** Bei einem EC-Schlüssel liefert `openssl_sign` die
+Signatur in DER-Kodierung, JWS verlangt die beiden Zahlen roh hintereinander —
+dazwischen liegt ein kleiner ASN.1-Parser an der heikelsten Stelle des Clients,
+wo ein Fehler nicht abbricht, sondern als „unauthorized" von der Gegenseite
+zurückkommt. Mit RSA gibt `openssl_sign` genau das Format aus, das hineingehört.
+Das ausgestellte Zertifikat ist davon unberührt.
+
+**Die Naht für den zweiten Wurf ist von Anfang an da.** Der Ablauf einer
+Bestellung enthält keine Fallunterscheidung nach der Art der Prüfung; das
+erledigt die Schnittstelle `Challenge` mit `present`, `ready` und `cleanup`.
+`ready()` gibt es, obwohl HTTP-01 es nicht braucht: Ein TXT-Eintrag ist nicht
+da, weil die API des Anbieters „ok" gesagt hat, sondern erst, wenn die
+autoritativen Nameserver ihn ausliefern — und wer zu früh prüfen lässt,
+verbrennt einen der fünf Fehlversuche, die eine Stunde halten. Nachträglich
+eingezogen hätte dieser Schritt die Form jeder Operation geändert, die eine
+Bestellung fährt.
+
+**Ein gemeinsames Prüfverzeichnis für alle Domains**, nicht eines je Abonnement.
+Damit braucht kein Kunde irgendwo Schreibrechte, und eine Domain **ohne
+DocumentRoot** bekommt trotzdem ein Zertifikat — eine Weiterleitung beantwortet
+jede Anfrage selbst, ein gesperrtes Abonnement antwortet mit 503, und beide
+wären sonst dauerhaft von TLS ausgeschlossen. Dass die Vorlage das heute nicht
+hergibt, ist Schritt 3.
+
+`certbot` ist aus der Positivliste des Runners entfernt. Ein Programm, das der
+Agent als root starten darf und nie startet, ist Angriffsfläche mit
+Erlaubnisschein — und seine Erneuerungsdateien dürfen Hooks nennen, die bei
+jedem Lauf als root laufen.
+
+**`AcmeProtocolTest` prüft auf zwei Arten**, und die zweite ist die, die zählt.
+Der Fingerabdruck des Kontoschlüssels wird gegen den Testvektor aus RFC 7638
+gemessen — dieselbe Begründung wie bei TOTP: gegen den Standard belegen und
+nicht gegen sich selbst. Alles, was Ablauf ist, läuft gegen ein Drehbuch
+(`ScriptedTransport`): die Reihenfolge der Anfragen, der verbrauchte
+Einmalwert, der leere Rumpf, das Abräumen nach einem Fehlschlag. Gegen einen
+echten Server geprüft hiesse Netz in der CI, eine Ratenbegrenzung, die den Lauf
+sperrt — und keine Möglichkeit, den seltenen Fall herzustellen.
+
+Zwei Funde stammen aus dem Brechen selbst und nicht aus dem Bauen:
+
+- **Der leere Rumpf ist `{}` und nicht `[]`.** `json_encode([])` schreibt `[]`,
+  und ACME antwortet darauf mit „malformed" — an der einen Stelle, an der ein
+  leerer Rumpf vorkommt, beim Anstossen einer Prüfung. Aufgefallen wäre das erst
+  auf dem echten Server, denn ein Drehbuch antwortet ja trotzdem. Die
+  Sonderbehandlung steht bewusst in `sign()` und nicht in `json()`: Dort träfe
+  sie auch verschachtelte leere Listen, und aus `"contact": []` würde
+  `"contact": {}` — wieder „malformed", nur an einer Stelle, an der niemand
+  danach sucht.
+- **Der Testvektor allein bewacht die Feldreihenfolge nicht.** Er prüft
+  `thumbprintOf()` mit einem JWK aus dem RFC, bringt die Ordnung also selbst
+  mit. Wer sie in `jwk()` umstellt, kommt daran vorbei: Der Fingerabdruck wäre
+  falsch, der Vektor bliebe grün. Gemerkt hat das erst der Bruch — die zweite
+  Prüfung an der Stelle, an der die Reihenfolge entsteht, gibt es seitdem.
+
+Die sechs Brüche stehen in `tests/waechter-brechen.sh`. Das Skript sichert
+jetzt auch `agent/`; ausserdem trägt es einen Hinweis, den es brauchte: `git
+checkout` stellt nur wieder her, was git kennt — ein Bruch an noch nicht
+eingechecktem Code löscht ihn, statt ihn zu brechen.

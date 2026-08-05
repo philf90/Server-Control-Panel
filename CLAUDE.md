@@ -52,7 +52,8 @@ gibt), `TableStyleTest`, `ClassNameTest` (jeder Klassenname ist englisch, und
 jede Regel in app.css wird von einem Template erreicht) und `PaginationTest`
 (wer paginiert, lässt auch blättern) — dazu `RedirectTargetTest` (wer
 weiterleitet, nennt das Ziel; `back()` kennt es hier nicht) und
-`PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse). Der
+`PairedSeriesTest` (zwei Kurven in einem Feld teilen sich die Achse) und
+`HostnameSourceTest` (nur `Names` fragt den Kernel nach dem Rechnernamen). Der
 Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
@@ -180,9 +181,10 @@ Testen berücksichtigen:
   ab). Er läuft in der CI; `composer pruefe` schlägt deshalb lokal fehl. Einzeln
   `pint` und `phpunit` aufrufen.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
-  dafür gibt es `SrvPanel\Agent\Names::fqdn()`, und die ist die *einzige*
-  Stelle, die diese Frage beantworten darf. Sie ist schon zweimal neu erfunden
-  worden.
+  dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
+  gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die
+  diese Frage beantworten darf. Sie ist **viermal** neu erfunden worden; seit
+  dem vierten Mal gibt es `HostnameSourceTest` dafür.
 - **Screenshots** über Playwright mit dem vorinstallierten Chromium
   (`/opt/pw-browsers/chromium`), niemals `playwright install`. Vier Dinge, die
   jedes Mal Zeit gekostet haben:

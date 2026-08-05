@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Ops;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\EnvFile;
+use SrvPanel\Agent\Names;
 use SrvPanel\Agent\Op;
 
 /**
@@ -69,7 +70,29 @@ final class PanelProvision implements Op
             'APP_ENV' => 'production',
             'APP_KEY' => $key,
             'APP_DEBUG' => 'false',
-            'APP_URL' => 'https://'.php_uname('n').':'.$port,
+            /*
+             * **Der vollständige Name, und er kommt aus `Names::fqdn()`.**
+             *
+             * Hier stand `php_uname('n')` — der Knotenname, und der ist auf
+             * den meisten Servern der kurze: „cloudsrv24" statt
+             * „cloudsrv24.de". `APP_URL` ist die Adresse, unter der sich das
+             * Panel selbst nennt: in Mails, in erzeugten Verweisen, im
+             * EHLO-Namen des Mailversands. Ein kurzer Name löst ausserhalb des
+             * Servers nicht auf.
+             *
+             * **Das ist die dritte Stelle mit demselben Fehler.** Er ist in
+             * `srvpanel setup` behoben worden, danach in `Names::forThisHost()`
+             * für das Zertifikat — und der Kommentar dort sagt schon: „Eine
+             * Regel, die an einer Stelle gelernt und an der nächsten neu
+             * erfunden wird, ist keine Regel." Seit diesem Mal gibt es einen
+             * Wächter dafür (`HostnameSourceTest`).
+             *
+             * `Names::host()` gibt den vollständigen Namen und fällt auf den
+             * Knotennamen zurück, wenn es keinen gibt — kein Punkt im Namen,
+             * nichts in `/etc/hosts`, keine Rückwärtsauflösung. Er ist dann das
+             * Beste, was der Server über sich weiss.
+             */
+            'APP_URL' => 'https://'.Names::host().':'.$port,
             'PANEL_PORT' => $port,
             'LOG_CHANNEL' => 'stack',
             'DB_CONNECTION' => 'mariadb',
@@ -82,15 +105,56 @@ final class PanelProvision implements Op
 
             // Das Panel spricht ausschließlich HTTPS — der Server-Block hört
             // auf keinem Klartext-Port. Damit kann das Sitzungs-Cookie fest
-            // auf „secure" stehen, und „strict" beim SameSite ist möglich,
-            // weil es keine Anmeldung über eine fremde Seite gibt.
+            // auf „secure" stehen.
             //
-            // In der Entwicklung bleibt beides ungesetzt: Dort läuft die
+            // In der Entwicklung bleibt das ungesetzt: Dort läuft die
             // Anwendung über http://localhost, und ein secure-Cookie käme
             // dort nie an — mit dem Ergebnis, dass die Anmeldung wortlos
             // scheitert.
             'SESSION_SECURE_COOKIE' => 'true',
-            'SESSION_SAME_SITE' => 'strict',
+
+            /*
+             * **`lax` und nicht mehr `strict`.**
+             *
+             * Hier stand `strict`, mit der Begründung, es gebe keine Anmeldung
+             * über eine fremde Seite. Das ist richtig und war trotzdem der
+             * falsche Schluss: `strict` heisst nicht „keine fremde Anmeldung",
+             * sondern **„das Cookie geht bei keinem Seitenaufruf mit, den der
+             * Browser nicht als von dieser Seite ausgehend ansieht"**. Dazu
+             * gehört ein Verweis aus einem Mailprogramm, ein Verknüpfung vom
+             * Startbildschirm — und auf iOS auch das Wiederaufnehmen eines
+             * Tabs, den Safari zwischendurch aus dem Speicher geworfen hat.
+             * Der Betreiber landete auf dem Telefon dadurch immer wieder am
+             * Anmeldeformular, obwohl seine Sitzung noch gültig war.
+             *
+             * `lax` schickt das Cookie beim Aufrufen der Seite mit und weiter
+             * **nicht** bei einem fremden POST — und gegen genau den steht
+             * ohnehin die CSRF-Prüfung an jeder ändernden Route. Der
+             * Sicherheitsgewinn von `strict` war hier also gering, sein Preis
+             * eine Anmeldung bei jedem Weg ins Panel, der nicht aus dem Panel
+             * selbst kommt. `lax` ist auch Laravels Vorgabe.
+             */
+            'SESSION_SAME_SITE' => 'lax',
+
+            /*
+             * Die gleitende Sitzungsdauer — ausgeschrieben, weil sie bis jetzt
+             * niemand entschieden hatte.
+             *
+             * §6.4 legt die **absolute** Dauer fest (12 Stunden,
+             * `SRVPANEL_SESSION_ABSOLUTE_LIFETIME`). Die gleitende stand
+             * nirgends und war damit Laravels Vorgabe von 120 Minuten: Wer zwei
+             * Stunden nichts anklickt, meldet sich neu an. Für ein Panel, das
+             * man vom Telefon aus ein paarmal am Tag ansieht, ist das die
+             * häufigste Ursache für „schon wieder am Login" — und es war keine
+             * Entscheidung, sondern ein Vorgabewert.
+             *
+             * Acht Stunden: Wer morgens anfängt, wird nicht mittags
+             * herausgeworfen, und die absolute Grenze zieht die Sitzung
+             * spätestens nach zwölf Stunden ohnehin ein. Wer es enger will,
+             * setzt `SESSION_LIFETIME` in `/etc/srvpanel/panel.env`.
+             */
+            'SESSION_LIFETIME' => '480',
+
             'SESSION_ENCRYPT' => 'true',
 
             'QUEUE_CONNECTION' => 'database',

@@ -127,6 +127,26 @@ final class Names
     }
 
     /**
+     * Der beste Name, den dieser Rechner für sich hat.
+     *
+     * Der vollständige, wenn es einen gibt — sonst der Knotenname. Anders als
+     * {@see fqdn()} gibt diese Funktion nie `null` zurück: Wer eine Adresse
+     * zusammensetzt, braucht **einen** Namen und kann mit „keiner" nichts
+     * anfangen.
+     *
+     * **Warum es sie gibt.** `APP_URL` schrieb `php_uname('n')` — den kurzen
+     * Knotennamen — und damit war derselbe Fehler zum dritten Mal im Repo. Die
+     * beiden ersten Male ist er einzeln behoben worden; beim dritten stand
+     * daneben `fqdn() ?? php_uname('n')`, und das ist wieder eine Stelle, die
+     * die Frage selbst beantwortet. Jetzt gibt es dafür eine Funktion, und
+     * `HostnameSourceTest` lässt `php_uname('n')` sonst nirgends mehr zu.
+     */
+    public static function host(): string
+    {
+        return self::fqdn() ?? trim(php_uname('n'));
+    }
+
+    /**
      * Den vollständigen Namen aus `/etc/hosts` lesen.
      *
      * Getrennt, damit die Regel prüfbar ist, ohne die Datei des Systems zu

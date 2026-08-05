@@ -1846,3 +1846,88 @@ liegen im Helligkeitsverhältnis bei 1,85:1 (hell) und 1,49:1 (dunkel) — wer
 Farbtöne schlecht unterscheidet, sähe zwei gleich helle Linien. Der Strich
 löst das ohne Farbe (WCAG 1.4.1). Gegen den Grund erreicht `--accent-second`
 6,18:1 hell und 11,10:1 dunkel, über den 3:1 aus WCAG 1.4.11.
+
+### Auf dem Telefon: gestapelte Kacheln mit einem Strich an der falschen Seite
+
+Unter 720px legt `--kachel-min: 100%` die Kacheln untereinander — der Trenner
+aus `.tile + .tile` blieb aber der **linke** Rand. Auf 390px stand damit ein
+senkrechter Strich neben allen Kacheln ausser der ersten, und ihr Inhalt war um
+24px eingerückt: Die erste begann am Seitenrand, die vier darunter nicht. Das
+sieht aus wie eine Einrückung mit Bedeutung und ist ein Trenner, der sich nicht
+gedreht hat.
+
+**Auf der eigenen 390px-Aufnahme war es zu sehen.** Gemeldet hat es der
+Betreiber vom Telefon. Genau davor warnt CLAUDE.md — „im Browser nachsehen,
+nicht nur bauen" —, und der Satz reicht offenbar nicht: Eine Aufnahme zu machen
+genügt nicht, wenn man sie nur auf das ansieht, was man gerade geändert hat.
+`MobileLayoutTest` prüft jetzt, dass ein Trenner sich mit der Richtung dreht.
+
+Dazu ein zweiter Fund aus demselben Bild: Steht die Kachelreihe unmittelbar
+unter dem Seitenkopf, standen dort **zwei Haarlinien** mit einer leeren Fläche
+dazwischen. Hier ist das nie zu sehen — zwischen beiden steht in dieser
+Umgebung immer die Meldung „Der Agent antwortet nicht", und die gibt es nur,
+weil der Agent fehlt.
+
+### Die Sitzung überlebte auf dem iPhone keinen Seitenaufruf
+
+`SESSION_SAME_SITE` stand auf `strict`, mit der Begründung, es gebe keine
+Anmeldung über eine fremde Seite. Das ist richtig und war trotzdem der falsche
+Schluss: `strict` heisst nicht „keine fremde Anmeldung", sondern **„das Cookie
+geht bei keinem Seitenaufruf mit, den der Browser nicht als von dieser Seite
+ausgehend ansieht"**. Dazu gehört ein Verweis aus einem Mailprogramm, eine
+Verknüpfung vom Startbildschirm — und auf iOS das Wiederaufnehmen eines Tabs,
+den Safari zwischendurch aus dem Speicher geworfen hat. Der Betreiber landete
+dadurch immer wieder am Anmeldeformular, obwohl seine Sitzung gültig war.
+
+Jetzt `lax`, Laravels Vorgabe: Das Cookie geht beim Aufrufen der Seite mit und
+weiter **nicht** bei einem fremden POST — und gegen genau den steht ohnehin die
+CSRF-Prüfung an jeder ändernden Route.
+
+**Und die gleitende Sitzungsdauer hatte nie jemand entschieden.** §6.4 legt die
+absolute fest (12 Stunden); die gleitende stand nirgends und war damit Laravels
+Vorgabe von 120 Minuten. Wer sein Panel ein paarmal am Tag vom Telefon ansieht,
+meldet sich damit jedes Mal neu an. Sie steht jetzt ausgeschrieben auf acht
+Stunden — ein Arbeitstag, und die absolute Grenze zieht die Sitzung ohnehin
+spätestens nach zwölf ein.
+
+### `APP_URL` erfand den Rechnernamen zum dritten Mal
+
+`php_uname('n')` liefert den Knotennamen des Kernels, und der ist auf den
+meisten Servern der kurze: „cloudsrv24" statt „cloudsrv24.de". `APP_URL` ist
+die Adresse, unter der sich das Panel selbst nennt — in Mails, in erzeugten
+Verweisen, im EHLO-Namen des Mailversands. Ein kurzer Name löst ausserhalb des
+Servers nicht auf.
+
+Dreimal derselbe Fehler: in `srvpanel setup` fürs Zertifikat, in
+`Names::forThisHost()` für den subjectAltName, jetzt in `PanelProvision` für
+`APP_URL`. Zweimal wurde er einzeln behoben, und beide Male stand danach ein
+Kommentar da, der die Regel erklärt — CLAUDE.md sagt es sogar wörtlich: „sie ist
+die *einzige* Stelle, die diese Frage beantworten darf. Sie ist schon zweimal
+neu erfunden worden." **Ein Kommentar ist kein Wächter.**
+
+`HostnameSourceTest` lässt `php_uname('n')` und `gethostname()` jetzt nur noch
+in `Names` zu und in `SystemInfo`, das den Knotennamen bewusst als solchen
+anzeigt. Beim ersten Lauf hat er eine **vierte** Stelle gefunden:
+`Setup::reachableHost()` holte den Namen selbst, nur um ihn an `Names::fqdn()`
+weiterzureichen — dieselbe Frage, die die Funktion sich selbst stellt.
+`Names::host()` gibt es neu für alle, die eine Adresse zusammensetzen und mit
+„kein Name" nichts anfangen können.
+
+#### Der Wächter hatte selbst ein Loch, und nur der Bruch hat es gezeigt
+
+Drei Wächter teilten sich eine abgeschriebene Zeile, um Kommentare aus PHP zu
+entfernen — ein `preg_replace`, dessen zweites Muster alles ab `//` bis zum
+Zeilenende strich. `//` beginnt aber nicht nur einen Kommentar, es steht auch in
+jeder URL. Aus
+
+    'APP_URL' => 'https://'.php_uname('n').':'.$port,
+
+wurde `'APP_URL' => 'https:` — und der Aufruf, den der Wächter suchte, war für
+ihn nicht mehr da. **Beim Gegenprüfen blieb er deshalb grün, während die Regel
+gebrochen war.**
+
+Das ist dasselbe Muster wie beim Bruchskript, dessen `sed` ins Leere lief:
+*Ein Werkzeug, das die Wächter trägt, braucht selbst einen.* Die Antwort steht
+jetzt einmal in `Tests\Support\WithoutPhpComments` und kommt von
+`token_get_all()` — der Parser weiss, was Zeichenkette ist und was Kommentar.
+Ein regulärer Ausdruck weiss es nie.

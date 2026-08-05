@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Tests\Support\WithoutPhpComments;
 use Tests\TestCase;
 
 /**
@@ -49,6 +50,7 @@ use Tests\TestCase;
 final class RedirectTargetTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutPhpComments;
 
     /** Dasselbe Passwort wie in `ProfileTest` — die Schranke ist dort begründet. */
     private const PASSWORD = 'probe-passwort-nur-fuer-tests';
@@ -72,11 +74,6 @@ final class RedirectTargetTest extends TestCase
         $this->assertGreaterThan(4, count($files), 'Es werden kaum Controller gelesen — dann prüft dieser Test nichts.');
 
         return $files;
-    }
-
-    private function withoutComments(string $php): string
-    {
-        return (string) preg_replace(['#/\*.*?\*/#su', '#//[^\n]*#'], '', $php);
     }
 
     public function test_no_controller_leaves_the_target_to_back(): void

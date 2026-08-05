@@ -513,6 +513,23 @@ input[type='radio'] {
 }
 
 /*
+ * Steht die Kachelreihe unmittelbar unter dem Seitenkopf, entfällt ihre obere
+ * Linie.
+ *
+ * Sonst stehen dort zwei Haarlinien mit `--block-gap` leerer Fläche
+ * dazwischen — die untere Kante des Seitenkopfs und die obere der Reihe. Das
+ * sieht nach einem leeren Bereich aus, den jemand vergessen hat.
+ *
+ * **Hier war es nie zu sehen.** Zwischen beiden steht in dieser Umgebung immer
+ * die Meldung „Der Agent antwortet nicht" — die gibt es nur, weil der Agent
+ * fehlt. Auf einem gesunden Server sind die zwei Linien direkt untereinander,
+ * und genau so kam die Aufnahme vom Betreiber.
+ */
+.page-head + .tiles {
+  border-top: 0;
+}
+
+/*
  * Eine Spalte, damit die Kurven aller Kacheln auf einer Linie liegen.
  *
  * **Der Befund.** Die Netzkachel braucht zwei Zeilen Beizeile, die anderen
@@ -697,6 +714,34 @@ table.pairs {
 }
 
 @media (max-width: 720px) {
+  /*
+   * Gestapelte Kacheln trennt eine Linie **oben**, nicht links.
+   *
+   * **Der Befund kam vom Telefon des Betreibers.** `--kachel-min: 100%` legt
+   * die Kacheln untereinander — der Trenner aus `.tile + .tile` blieb aber der
+   * linke Rand. Auf 390px stand damit ein senkrechter Strich neben allen
+   * Kacheln ausser der ersten, und ihr Inhalt war um 24px eingerückt: Die
+   * erste Kachel begann am Seitenrand, die vier darunter nicht. Das sieht aus
+   * wie eine Einrückung mit Bedeutung und ist ein Trenner, der sich nicht
+   * gedreht hat.
+   *
+   * **Auf meiner eigenen 390px-Aufnahme war es zu sehen, und ich habe es nicht
+   * gesehen.** Genau davor warnt CLAUDE.md („im Browser nachsehen, nicht nur
+   * bauen") — eine Aufnahme zu machen genügt nicht, wenn man sie nur auf das
+   * ansieht, was man gerade geändert hat. `MobileLayoutTest` hält den Fall
+   * jetzt fest.
+   */
+  .tile {
+    /* Rechts nichts, sonst endet die Kurve 24px vor dem Rand. */
+    padding: 16px 0;
+  }
+
+  .tile + .tile {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
   .stacks thead {
     /* `display: none` nähme sie auch dem Screenreader. `clip` lässt die
        Beschriftung in der Vorlesereihenfolge stehen und nimmt sie nur dem

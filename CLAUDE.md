@@ -10,10 +10,18 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P3 abgenommen**, ausgeliefert als `v0.3.0-rc.x`. Der
-Abnahmelauf `srvpanel acceptance-web` ist auf dem Zielserver aus `0.3.0~rc.5`
-durchgelaufen: sechs Domains, zwei PHP-Versionen, zwei Systembenutzer, kein
-Zugriff über die Grenze. Als Nächstes **P4 (TLS)**.
+Stand: **P0 bis P3 abgenommen**. Der Abnahmelauf `srvpanel acceptance-web` ist
+auf dem Zielserver aus `0.3.0~rc.5` durchgelaufen: sechs Domains, zwei
+PHP-Versionen, zwei Systembenutzer, kein Zugriff über die Grenze. Als Nächstes
+**P4 (TLS)**.
+
+Ausgeliefert wird `v0.3.1-rc.1` — der Optik-Rework. **Für ihn steht der
+Abnahmelauf auf einem echten Server noch aus:** Belegt sind bisher nur die
+Ausfallzustände, weil dieser Container weder nginx noch PHP-FPM noch den
+Agenten hat. Zuerst nachzusehen ist, ob die Schwellen der Verlaufskacheln
+unter Last sinnvoll greifen (85 % CPU, Load gegen die Kernzahl) und ob die
+Übersicht mit echten Diensten und echtem Zertifikat so aussieht wie mit den
+Attrappen.
 
 ---
 

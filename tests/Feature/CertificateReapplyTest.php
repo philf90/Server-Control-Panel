@@ -53,17 +53,17 @@ final class CertificateReapplyTest extends TestCase
 
     private function domain(): Domain
     {
-        return $this->tenancy()->withoutRestriction(function (): Domain {
-            $subscription = Subscription::factory()->create([
-                'name' => 'beispiel.de',
-                'system_user' => 'p1001',
-            ]);
+        $this->tenancy()->allowAll();
 
-            return Domain::factory()->for($subscription)->create([
-                'name' => 'beispiel.de',
-                'status' => DomainStatus::Active,
-            ]);
-        });
+        $subscription = Subscription::factory()->create([
+            'name' => 'beispiel.de',
+            'system_user' => 'p1001',
+        ]);
+
+        return Domain::factory()->for($subscription)->create([
+            'name' => 'beispiel.de',
+            'status' => DomainStatus::Active,
+        ]);
     }
 
     private function withContact(): void
@@ -74,10 +74,16 @@ final class CertificateReapplyTest extends TestCase
         );
     }
 
-    /** @param  array<string, mixed>  $result */
+    /**
+     * Ein durchgelaufener Vorgang — und danach steht die Klammer wie im Arbeiter.
+     *
+     * @param  array<string, mixed>  $result
+     */
     private function finished(Domain $domain, string $task, array $result = []): Operation
     {
-        return $this->tenancy()->withoutRestriction(fn (): Operation => Operation::query()->create([
+        $this->tenancy()->allowAll();
+
+        $operation = Operation::query()->create([
             'subscription_id' => $domain->subscription_id,
             'subject_type' => 'domain',
             'subject_id' => $domain->id,
@@ -86,7 +92,13 @@ final class CertificateReapplyTest extends TestCase
             'status' => OperationStatus::Succeeded,
             'progress' => 100,
             'result' => $result,
-        ]));
+        ]);
+
+        // Der Arbeiter kennt keinen Mandanten. Was danach läuft, läuft im
+        // Grundzustand der Klammer — genau darum geht es hier.
+        $this->tenancy()->reset();
+
+        return $operation;
     }
 
     /** @return array<string, mixed> */
@@ -103,11 +115,18 @@ final class CertificateReapplyTest extends TestCase
         ];
     }
 
-    private function count(string $task): int
+    /**
+     * Wieviele Vorgänge dieser Art liegen in der Warteschlange?
+     *
+     * **Nicht `count()`.** Der Name gehört PHPUnit und ist dort `final` — die
+     * Datei liess sich damit nicht einmal laden, und zwar mit einem fatalen
+     * Fehler statt einer Testmeldung.
+     */
+    private function operations(string $task): int
     {
-        return $this->tenancy()->withoutRestriction(
-            fn (): int => Operation::query()->where('task', $task)->count(),
-        );
+        $this->tenancy()->allowAll();
+
+        return Operation::query()->where('task', $task)->count();
     }
 
     public function test_an_installed_certificate_is_followed_by_a_new_server_block(): void
@@ -117,20 +136,20 @@ final class CertificateReapplyTest extends TestCase
         $this->tenancy()->reset();
         app(Lifecycles::class)->afterSuccess($this->finished($domain, 'acme.certificate.issue', $this->issued()));
 
-        $fresh = $this->tenancy()->withoutRestriction(fn (): ?Domain => Domain::query()->find($domain->id));
+        $this->tenancy()->allowAll();
 
-        $this->assertNotNull($fresh?->certificate_id, 'Das Zertifikat wurde der Domain nicht zugeordnet.');
+        $fresh = Domain::query()->findOrFail($domain->id);
 
-        $certificate = $this->tenancy()->withoutRestriction(
-            fn (): ?Certificate => Certificate::query()->find($fresh?->certificate_id),
-        );
+        $this->assertNotNull($fresh->certificate_id, 'Das Zertifikat wurde der Domain nicht zugeordnet.');
 
-        $this->assertSame(['beispiel.de'], $certificate?->names);
-        $this->assertSame('Test CA', $certificate?->issuer);
+        $certificate = Certificate::query()->findOrFail($fresh->certificate_id);
+
+        $this->assertSame(['beispiel.de'], $certificate->names);
+        $this->assertSame('Test CA', $certificate->issuer);
 
         // **Die Regel.** Ohne diesen Vorgang gilt ein vertrautes Zertifikat und
         // der Server-Block kennt es nicht — HSTS fehlt, und nichts sagt es.
-        $this->assertSame(1, $this->count('web.site.apply'), 'Der Server-Block wurde nicht neu geschrieben.');
+        $this->assertSame(1, $this->operations('web.site.apply'), 'Der Server-Block wurde nicht neu geschrieben.');
     }
 
     public function test_a_domain_without_a_certificate_orders_one_after_the_block_is_written(): void
@@ -141,19 +160,18 @@ final class CertificateReapplyTest extends TestCase
         $this->tenancy()->reset();
         app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.apply'));
 
-        $this->assertSame(1, $this->count('acme.certificate.issue'));
+        $this->assertSame(1, $this->operations('acme.certificate.issue'));
 
-        $bestellung = $this->tenancy()->withoutRestriction(
-            fn (): ?Operation => Operation::query()->where('task', 'acme.certificate.issue')->first(),
-        );
+        $bestellung = Operation::query()->where('task', 'acme.certificate.issue')->firstOrFail();
+        $payload = $bestellung->payload ?? [];
 
         // Die Namen kommen aus dem Bestand und nicht aus einer Anfrage.
-        $this->assertSame(['beispiel.de'], $bestellung?->payload['names'] ?? null);
-        $this->assertSame('post@beispiel.de', $bestellung?->payload['contact'] ?? null);
+        $this->assertSame(['beispiel.de'], $payload['names'] ?? null);
+        $this->assertSame('post@beispiel.de', $payload['contact'] ?? null);
 
         // Der Testbetrieb ist die Vorgabe — produktiv sind fünf Fehlversuche
         // je Konto und Stunde die Grenze.
-        $this->assertSame('staging', $bestellung?->payload['directory'] ?? null);
+        $this->assertSame('staging', $payload['directory'] ?? null);
     }
 
     /** Ohne Kontaktadresse bestellt das Panel nichts — sie wird nicht geraten. */
@@ -164,7 +182,7 @@ final class CertificateReapplyTest extends TestCase
         $this->tenancy()->reset();
         app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.apply'));
 
-        $this->assertSame(0, $this->count('acme.certificate.issue'));
+        $this->assertSame(0, $this->operations('acme.certificate.issue'));
     }
 
     /**
@@ -182,18 +200,15 @@ final class CertificateReapplyTest extends TestCase
 
         // Einspielen → Zuordnung → Server-Block.
         app(Lifecycles::class)->afterSuccess($this->finished($domain, 'acme.certificate.issue', $this->issued()));
-        $this->assertSame(1, $this->count('web.site.apply'));
+        $this->assertSame(1, $this->operations('web.site.apply'));
 
         // Und dieser Server-Block läuft durch: keine zweite Bestellung.
-        $block = $this->tenancy()->withoutRestriction(
-            fn (): ?Operation => Operation::query()->where('task', 'web.site.apply')->first(),
-        );
-
-        $this->assertNotNull($block);
-
+        $block = Operation::query()->where('task', 'web.site.apply')->firstOrFail();
         $block->update(['status' => OperationStatus::Succeeded, 'result' => []]);
+
+        $this->tenancy()->reset();
         app(Lifecycles::class)->afterSuccess($block);
 
-        $this->assertSame(0, $this->count('acme.certificate.issue'), 'Die Kette hört nicht auf.');
+        $this->assertSame(0, $this->operations('acme.certificate.issue'), 'Die Kette hört nicht auf.');
     }
 }

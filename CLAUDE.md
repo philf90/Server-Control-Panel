@@ -225,6 +225,15 @@ Testen berücksichtigen:
   Angabe ist damit weg — PHPStan meldet „no value type specified", und zwar
   erst in der CI. Marken stehen auf einer eigenen Zeile; `/** @return
   list<string> */` allein geht, mit Text davor nicht.
+
+  **Und eine zweite, die an einem Tag zweimal zugeschlagen hat: ein Name, der
+  der Basisklasse gehört.** `count()` in einem PHPUnit-Testfall (dort `final`)
+  und `configure()` in einem Artisan-Kommando (dort `protected`) — beide
+  brechen beim **Laden** der Klasse und nicht beim Ausführen. `php -l` sieht
+  davon nichts, die Meldung kommt als fataler Fehler, und im zweiten Fall stand
+  damit nicht ein Kommando still, sondern `artisan` mit allen. Wer in einer
+  abgeleiteten Klasse eine private Hilfsmethode einzieht, sieht vorher in der
+  Basisklasse nach.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

@@ -2525,3 +2525,18 @@ Optik-Reworks" steht, nur andersherum: Wer zählt, muss zählen, was
 **dazukommt**. Gemessen wird jetzt der Zuwachs. Der Bruch dazu beisst
 unverändert — ohne die Bedingung im Lebenslauf kommt eine zweite Bestellung
 hinzu, und genau das ist der Unterschied, den der Zähler sehen soll.
+
+#### Nachtrag: zwei Namen, die der Basisklasse gehören
+
+An einem Tag zweimal dieselbe Sorte Fehler, und beide brechen beim **Laden** der
+Klasse statt beim Ausführen: `count()` in einem PHPUnit-Testfall — dort ist der
+Name `final`, die Datei liess sich nicht einmal einlesen — und `configure()` als
+private Hilfsmethode in einem Artisan-Kommando, wo Symfony ihn `protected`
+belegt. Der zweite hielt nicht ein Kommando an, sondern `artisan` mit allen: Die
+Klasse wird beim Einlesen der Kommandos geladen, also schon bei
+`package:discover`.
+
+`php -l` sieht davon nichts, und hier gibt es kein `vendor/`, mit dem sich das
+nachstellen liesse — beide haben je eine Runde CI gekostet. Die Regel steht
+jetzt in CLAUDE.md: Wer in einer abgeleiteten Klasse eine private Hilfsmethode
+einzieht, sieht vorher in der Basisklasse nach.

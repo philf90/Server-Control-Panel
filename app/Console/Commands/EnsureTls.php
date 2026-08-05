@@ -53,7 +53,7 @@ final class EnsureTls extends Command
         // hiesse das Zertifikat der Oberfläche anzufassen, weil jemand eine
         // Adresse eingetragen hat — und dieser Zusammenhang besteht nicht.
         if (is_string($contact) || is_string($directory)) {
-            return $this->configure($settings, $contact, $directory);
+            return $this->storeAcme($settings, $contact, $directory);
         }
 
         try {
@@ -89,7 +89,7 @@ final class EnsureTls extends Command
                 : '  nginx läuft nicht — es wird beim nächsten Start übernommen.');
         }
 
-        $this->state($settings);
+        $this->showAcme($settings);
 
         return self::SUCCESS;
     }
@@ -103,8 +103,15 @@ final class EnsureTls extends Command
      * Zertifizierungsstelle geht durch dieselbe Positivliste, die auch der
      * Agent befragt ({@see Directories}); was hier durchkommt, kann dort keine
      * unbekannte Adresse mehr werden.
+     *
+     * **Nicht `configure()`.** Der Name gehört Symfony und ist dort `protected`
+     * — eine private Methode desselben Namens lässt die Klasse nicht mehr
+     * laden, und zwar mit einem fatalen Fehler beim Einlesen der Kommandos.
+     * Damit steht nicht ein Kommando still, sondern `artisan` mit allen.
+     * Zweiter Fall dieser Sorte in dieser Woche; der erste war `count()` in
+     * einem PHPUnit-Testfall.
      */
-    private function configure(AcmeSettings $settings, mixed $contact, mixed $directory): int
+    private function storeAcme(AcmeSettings $settings, mixed $contact, mixed $directory): int
     {
         $values = [];
 
@@ -132,7 +139,7 @@ final class EnsureTls extends Command
         $settings->update($values);
 
         $this->info('Gespeichert.');
-        $this->state($settings);
+        $this->showAcme($settings);
 
         return self::SUCCESS;
     }
@@ -145,7 +152,7 @@ final class EnsureTls extends Command
      * kein Zertifikat? Ohne Kontaktadresse bestellt das Panel nichts, und das
      * ist von aussen nicht zu sehen — es passiert schlicht nichts.
      */
-    private function state(AcmeSettings $settings): void
+    private function showAcme(AcmeSettings $settings): void
     {
         $contact = $settings->contact();
 

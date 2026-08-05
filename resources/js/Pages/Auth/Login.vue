@@ -49,8 +49,8 @@ function submit(): void {
 <template>
   <Head title="Anmeldung" />
 
-  <main class="anmeldung">
-    <form class="blatt" @submit.prevent="submit">
+  <main class="signin">
+    <form class="sheet" @submit.prevent="submit">
       <!--
         Zeichen und Name in einer Zeile. Das Zeichen ist hier grösser als in
         der Seitenleiste: Dort steht es neben einer Navigation und ordnet sich
@@ -58,11 +58,11 @@ function submit(): void {
       -->
       <h1><MarkIcon :size="26" /> SrvPanel</h1>
 
-      <p v-if="notice" class="meldung warn">
+      <p v-if="notice" class="notice warn">
         <span>{{ notice }}</span>
       </p>
 
-      <label class="feld">
+      <label class="field">
         <span>Adresse</span>
         <input
           v-model="form.email"
@@ -82,9 +82,9 @@ function submit(): void {
         trotzdem — auf einem Handy vertippt man sich an einem langen Passwort
         aus dem Passwortspeicher sonst dreimal.
       -->
-      <label class="feld">
+      <label class="field">
         <span>Passwort</span>
-        <div class="mit-auge">
+        <div class="with-reveal">
           <input
             v-model="form.password"
             :type="passwortSichtbar ? 'text' : 'password'"
@@ -94,7 +94,7 @@ function submit(): void {
           >
           <button
             type="button"
-            class="auge"
+            class="reveal"
             :aria-label="passwortSichtbar ? 'Passwort verbergen' : 'Passwort anzeigen'"
             :aria-pressed="passwortSichtbar"
             @click.prevent="passwortSichtbar = !passwortSichtbar"
@@ -109,15 +109,15 @@ function submit(): void {
         deaktiviertes Konto. Wer unterscheidet, verrät, welche Adressen es
         gibt.
       -->
-      <p v-if="form.errors.email" class="fehler" role="alert">{{ form.errors.email }}</p>
+      <p v-if="form.errors.email" class="error" role="alert">{{ form.errors.email }}</p>
 
-      <label class="schalter">
+      <label class="toggle">
         <input v-model="form.remember" type="checkbox" name="remember">
         <span>Angemeldet bleiben</span>
       </label>
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Einen Moment …' : 'Anmelden' }}
         </button>
       </div>
@@ -129,7 +129,7 @@ function submit(): void {
       Anmeldung — dort unten ist sie eine Fussnote zur Seite, und genau das
       ist sie auch.
     -->
-    <p v-if="version" class="stand">
+    <p v-if="version" class="release">
       <span class="version">{{ version }}</span>
     </p>
   </main>
@@ -149,7 +149,7 @@ function submit(): void {
  * Was bleibt, ist die Stelle der Fussnote — das Einzige an dieser Seite, das
  * keine andere hat.
  */
-.stand {
+.release {
   margin: 0;
 }
 </style>

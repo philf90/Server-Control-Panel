@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
+import Section from '../../Components/Section.vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
@@ -47,52 +47,52 @@ function submit(): void {
   <Head title="Kunde anlegen" />
 
   <PanelLayout title="Kunde anlegen" subline="Vertragspartner und erstes Anmeldekonto">
-    <template #pfad>
-      <Link href="/customers" class="verweis">Kunden</Link>
+    <template #breadcrumb>
+      <Link href="/customers" class="link">Kunden</Link>
     </template>
 
-    <form class="maske" @submit.prevent="submit">
-      <Bereich titel="Vertragspartner">
-        <label class="feld">
+    <form class="form" @submit.prevent="submit">
+      <Section title="Vertragspartner">
+        <label class="field">
           <span>Kundennummer</span>
           <input :value="props.nextNumber" type="text" readonly tabindex="-1">
         </label>
-        <p class="hinweis">
+        <p class="hint">
           Wird beim Anlegen vergeben. Steht bis dahin ein anderer Kunde davor,
           rückt die Nummer nach.
         </p>
 
-        <div class="paar">
-          <label class="feld">
+        <div class="field-row">
+          <label class="field">
             <span>Vorname</span>
             <input v-model="form.first_name" type="text" required>
           </label>
-          <label class="feld">
+          <label class="field">
             <span>Nachname</span>
             <input v-model="form.last_name" type="text" required>
           </label>
         </div>
-        <p v-if="form.errors.first_name" class="fehler">{{ form.errors.first_name }}</p>
-        <p v-if="form.errors.last_name" class="fehler">{{ form.errors.last_name }}</p>
+        <p v-if="form.errors.first_name" class="error">{{ form.errors.first_name }}</p>
+        <p v-if="form.errors.last_name" class="error">{{ form.errors.last_name }}</p>
 
-        <label class="feld">
+        <label class="field">
           <span>E-Mail</span>
           <input v-model="form.email" type="email" required>
         </label>
-        <p v-if="form.errors.email" class="fehler">{{ form.errors.email }}</p>
+        <p v-if="form.errors.email" class="error">{{ form.errors.email }}</p>
 
-        <label class="feld">
+        <label class="field">
           <span>Telefon</span>
           <input v-model="form.phone" type="text">
         </label>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Anmeldekonto">
-        <label class="feld">
+      <Section title="Anmeldekonto">
+        <label class="field">
           <span>Anmeldeadresse</span>
           <input v-model="form.login_email" type="email" autocomplete="off" required>
         </label>
-        <p v-if="form.errors.login_email" class="fehler">{{ form.errors.login_email }}</p>
+        <p v-if="form.errors.login_email" class="error">{{ form.errors.login_email }}</p>
 
         <PasswordFields
           v-model="form.password"
@@ -101,13 +101,13 @@ function submit(): void {
           :minimum="policy.minimum"
           :error="form.errors.password"
         />
-      </Bereich>
+      </Section>
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Wird angelegt …' : 'Anlegen' }}
         </button>
-        <Link href="/customers" class="knopf">Abbrechen</Link>
+        <Link href="/customers" class="button">Abbrechen</Link>
       </div>
     </form>
   </PanelLayout>

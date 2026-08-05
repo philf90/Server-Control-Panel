@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
-import Marke from '../../Components/Marke.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Version {
@@ -80,7 +80,7 @@ function zustand(v: Version): string {
   <Head title="PHP-Versionen" />
 
   <PanelLayout title="PHP-Versionen" subline="Was auf diesem Server für Kundenwebsites bereitsteht">
-    <p v-if="props.error" class="meldung warn">
+    <p v-if="props.error" class="notice warn">
       <span>
         Der Agent antwortet nicht: {{ props.error }}
         <template v-if="props.checked_at">
@@ -89,7 +89,7 @@ function zustand(v: Version): string {
       </span>
     </p>
 
-    <p class="meldung neutral">
+    <p class="notice neutral">
       <span>
         Kunden wählen aus diesen Versionen, soweit ihr Plan sie freigibt. Eine
         Version, die ein Plan hergibt und die hier fehlt, erscheint im
@@ -98,31 +98,31 @@ function zustand(v: Version): string {
       </span>
     </p>
 
-    <div class="rollt">
-      <table class="stapelt">
+    <div class="scrolls">
+      <table class="stacks">
         <thead>
           <tr>
             <th>Version</th>
             <th>Ausgabe</th>
             <th>Zustand</th>
-            <th class="rechts">Pools</th>
-            <th class="rechts">Domains</th>
+            <th class="right">Pools</th>
+            <th class="right">Domains</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="v in props.versions" :key="v.version">
-            <td data-spalte="Version" class="kennung name">{{ v.version }}</td>
-            <td data-spalte="Ausgabe" class="kennung stumm">{{ v.release ?? '—' }}</td>
+            <td data-column="Version" class="ident name">{{ v.version }}</td>
+            <td data-column="Ausgabe" class="ident quiet">{{ v.release ?? '—' }}</td>
 
-            <td data-spalte="Zustand">
-              <Marke :art="rang(v)">{{ zustand(v) }}</Marke>
+            <td data-column="Zustand">
+              <Badge :kind="rang(v)">{{ zustand(v) }}</Badge>
             </td>
 
-            <td data-spalte="Pools" class="rechts">{{ v.pools ?? '—' }}</td>
-            <td data-spalte="Domains" class="rechts">{{ props.usage[v.version] ?? 0 }}</td>
+            <td data-column="Pools" class="right">{{ v.pools ?? '—' }}</td>
+            <td data-column="Domains" class="right">{{ props.usage[v.version] ?? 0 }}</td>
 
-            <td data-spalte="" class="rechts">
+            <td data-column="" class="right">
               <!--
                 Rot am Entfernen und nicht am Installieren. Zuerst stand es
                 andersherum, und im Browser sah man sofort, dass es falsch ist:
@@ -132,7 +132,7 @@ function zustand(v: Version): string {
               <button
                 v-if="!v.installed"
                 type="button"
-                class="knopf klein"
+                class="button small"
                 :disabled="läuft !== null"
                 @click="installieren(v)"
               >
@@ -141,7 +141,7 @@ function zustand(v: Version): string {
               <button
                 v-else
                 type="button"
-                class="knopf klein gefahr"
+                class="button small danger"
                 :disabled="läuft !== null"
                 @click="entfernen(v)"
               >
@@ -153,7 +153,7 @@ function zustand(v: Version): string {
       </table>
     </div>
 
-    <p v-if="!props.live && !props.error" class="erklaer">
+    <p v-if="!props.live && !props.error" class="section-note">
       Stand vom {{ props.checked_at ?? '—' }}
     </p>
   </PanelLayout>

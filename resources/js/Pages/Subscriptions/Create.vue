@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3'
-import Bereich from '../../Components/Bereich.vue'
+import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -33,17 +33,17 @@ const form = useForm({
   <Head title="Abonnement anlegen" />
 
   <PanelLayout title="Abonnement anlegen" subline="Systembenutzer, Verzeichnis und Quota entstehen als Vorgang">
-    <template #pfad>
-      <Link href="/subscriptions" class="verweis">Abonnements</Link>
+    <template #breadcrumb>
+      <Link href="/subscriptions" class="link">Abonnements</Link>
     </template>
 
-    <p v-if="props.customers.length === 0 || props.plans.length === 0" class="meldung warn">
+    <p v-if="props.customers.length === 0 || props.plans.length === 0" class="notice warn">
       Es braucht mindestens einen Kunden und einen Plan. Beide finden sich unter Verwaltung.
     </p>
 
-    <form class="maske" @submit.prevent="form.post('/subscriptions')">
-      <Bereich titel="Zuordnung">
-        <label class="feld">
+    <form class="form" @submit.prevent="form.post('/subscriptions')">
+      <Section title="Zuordnung">
+        <label class="field">
           <span>Kunde</span>
           <select v-model="form.customer_id" required>
             <option
@@ -56,9 +56,9 @@ const form = useForm({
             </option>
           </select>
         </label>
-        <p v-if="form.errors.customer_id" class="fehler">{{ form.errors.customer_id }}</p>
+        <p v-if="form.errors.customer_id" class="error">{{ form.errors.customer_id }}</p>
 
-        <label class="feld">
+        <label class="field">
           <span>Plan</span>
           <select v-model="form.plan_id" required>
             <option v-for="p in props.plans" :key="p.id" :value="p.id">
@@ -66,36 +66,36 @@ const form = useForm({
             </option>
           </select>
         </label>
-        <p v-if="form.errors.plan_id" class="fehler">{{ form.errors.plan_id }}</p>
-      </Bereich>
+        <p v-if="form.errors.plan_id" class="error">{{ form.errors.plan_id }}</p>
+      </Section>
 
-      <Bereich titel="Abonnement">
-        <label class="feld">
+      <Section title="Abonnement">
+        <label class="field">
           <span>Name</span>
           <input v-model="form.name" type="text" placeholder="kunde-example.de" autocomplete="off" required>
         </label>
-        <p v-if="form.errors.name" class="fehler">{{ form.errors.name }}</p>
-        <p class="hinweis">
-          Wird zum Verzeichnis <span class="kennung">/var/www/vhosts/&lt;name&gt;</span>.
+        <p v-if="form.errors.name" class="error">{{ form.errors.name }}</p>
+        <p class="hint">
+          Wird zum Verzeichnis <span class="ident">/var/www/vhosts/&lt;name&gt;</span>.
           Kleinbuchstaben, Ziffern, Punkt und Bindestrich; Anfang und Ende
           alphanumerisch.
         </p>
 
-        <label class="feld">
+        <label class="field">
           <span>Systembenutzer</span>
           <input :value="props.nextUser" type="text" readonly tabindex="-1">
         </label>
-        <p class="hinweis">
+        <p class="hint">
           Wird beim Anlegen vergeben. Er bleibt auch nach einem Rückbau
           verbraucht — sonst erbte ein späteres Abonnement seine UID.
         </p>
-      </Bereich>
+      </Section>
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing || props.plans.length === 0">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing || props.plans.length === 0">
           {{ form.processing ? 'Wird eingereiht …' : 'Anlegen' }}
         </button>
-        <Link href="/subscriptions" class="knopf">Abbrechen</Link>
+        <Link href="/subscriptions" class="button">Abbrechen</Link>
       </div>
     </form>
   </PanelLayout>

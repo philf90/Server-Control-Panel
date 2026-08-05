@@ -502,7 +502,7 @@ Bereich trägt, steht er in *einer* Spalte und die übrigen zwei Drittel bleiben
 leer. „Dateisysteme" stand so allein mit 900 px Leerraum daneben — der Vorwurf
 „nutzt die Fläche nicht aus", nur in neuer Gestalt.
 
-Die einzige Karte im ganzen Panel ist die Anmeldemaske (`.blatt`). Auf einer
+Die einzige Karte im ganzen Panel ist die Anmeldemaske (`.sheet`). Auf einer
 leeren Seite mit einem einzigen Formular kehrt sich die Rechnung um: Dort gibt
 der Rahmen dem Formular überhaupt erst seine Gestalt, und es gibt keinen
 zweiten Bereich, dem der Platz fehlt.
@@ -510,7 +510,7 @@ zweiten Bereich, dem der Platz fehlt.
 #### Schrift
 
 - **Kennungen: Monospace** — Pfad, Unit, Systembenutzer, Befehl,
-  Vorgangsnummer, Version, IP. Über die Klasse `.kennung` und nicht je Seite.
+  Vorgangsnummer, Version, IP. Über die Klasse `.ident` und nicht je Seite.
 - **Alles andere: Grotesk** (System-Stack, keine nachgeladene Schrift — eine
   Schrift, die nicht ankommt, ist eine Oberfläche, die anders aussieht als
   geplant). `font-variant-numeric: tabular-nums` steht am `body` und lässt
@@ -578,9 +578,9 @@ bindend:
 
 | Klasse | Was sie tut | Wofür |
 |---|---|---|
-| `.rollt` | rollt waagerecht | die Umschliessung jeder breiten Tabelle |
-| `.stapelt` | Zeile wird auf schmal zum Kärtchen | Verzeichnisse und Listen |
-| `.paare` | Beschriftung links, Wert rechts | Stammdaten einer Detailseite |
+| `.scrolls` | rollt waagerecht | die Umschliessung jeder breiten Tabelle |
+| `.stacks` | Zeile wird auf schmal zum Kärtchen | Verzeichnisse und Listen |
+| `.pairs` | Beschriftung links, Wert rechts | Stammdaten einer Detailseite |
 
 Geprüft von `tests/Feature/TableStyleTest.php` und `MobileLayoutTest`.
 
@@ -655,25 +655,25 @@ Die Form steht in `resources/css/app.css` und sonst nirgends:
 
 | Klasse | Aussehen | Wofür |
 |---|---|---|
-| `.knopf` | Rahmen und Fläche aus eigenen Marken | die gewöhnliche Aktion |
-| `.knopf.wichtig` | Akzentfläche | die eine Aktion, für die man die Seite geöffnet hat |
-| `.knopf.gefahr` | roter Rand, keine Fläche | was sich nicht zurücknehmen lässt |
-| `.knopf.klein` | flacher, kleinere Schrift | eine Aktion in einer Tabellenzeile |
-| `.knopfreihe` | Reihe, unter 480 px gestapelt | mehrere Knöpfe nebeneinander |
+| `.button` | Rahmen und Fläche aus eigenen Marken | die gewöhnliche Aktion |
+| `.button.primary` | Akzentfläche | die eine Aktion, für die man die Seite geöffnet hat |
+| `.button.danger` | roter Rand, keine Fläche | was sich nicht zurücknehmen lässt |
+| `.button.small` | flacher, kleinere Schrift | eine Aktion in einer Tabellenzeile |
+| `.button-row` | Reihe, unter 480 px gestapelt | mehrere Knöpfe nebeneinander |
 
 Fünf Regeln dazu:
 
-- **Höchstens ein `.wichtig` je Formular** — nicht je Seite. „Mein Konto" hat
+- **Höchstens ein `.primary` je Formular** — nicht je Seite. „Mein Konto" hat
   zwei unabhängige Formulare untereinander, Stammdaten und Passwortwechsel, und
   jedes hat seine eigene Hauptsache. Wer dort einen der beiden abstuft,
   behauptet eine Rangfolge zwischen zwei Dingen, die nichts miteinander zu tun
   haben.
-- **`.gefahr` bekommt keine Fläche.** Eine rote Fläche neben einer
+- **`.danger` bekommt keine Fläche.** Eine rote Fläche neben einer
   Akzentfläche macht aus zwei Rängen einen Wettstreit.
 - **Es gilt für `<button>` und für `<Link>`.** Ob hinter einer Aktion ein
   Formular oder eine Adresse steckt, ist eine Frage der Umsetzung und keine der
   Bedienung.
-- **Auch `.klein` ist auf dem Telefon ein Fingerziel.** Es gibt `min-height`
+- **Auch `.small` ist auf dem Telefon ein Fingerziel.** Es gibt `min-height`
   auf, um die Tabellenzeile nicht aufzublasen — unter 720 px gibt es diese
   Zeile aber nicht mehr, die Tabelle ist dort ein Kärtchen (docs/24), und der
   Wert kommt auf `--tap` zurück.
@@ -690,7 +690,7 @@ Fünf Regeln dazu:
 
 Nicht jedes anklickbare Element ist ein Knopf. Der Menüknopf der Schublade, das
 Augensymbol am Passwortfeld, das Abmelden in der Seitenleiste tragen kein
-`.knopf` und sollen es nicht: Ein Knopf auf einer Seite ist eine Aktion, die
+`.button` und sollen es nicht: Ein Knopf auf einer Seite ist eine Aktion, die
 jemand auslöst; das Auge am Passwortfeld zeigt einen Zustand.
 
 Geprüft von `tests/Feature/ButtonStyleTest.php`: Keine Seite unter

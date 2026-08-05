@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
+import Section from '../../Components/Section.vue'
 import CodeField from '../../Components/CodeField.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
@@ -32,19 +32,19 @@ const off = useForm({ code: '' })
   <Head title="Zweiter Faktor" />
 
   <PanelLayout title="Zweiter Faktor" subline="Einmalkennwörter aus einer Authenticator-App">
-    <template #pfad>
-      <Link href="/settings/profile" class="verweis">Mein Konto</Link>
+    <template #breadcrumb>
+      <Link href="/settings/profile" class="link">Mein Konto</Link>
     </template>
 
-    <div class="bereiche">
+    <div class="sections">
       <!--
         Die Codes stehen ganz oben und über die volle Breite: Sie erscheinen
         genau einmal, und wer sie übersieht, muss den zweiten Faktor neu
         einrichten. Ein Bereich neben zweien anderen wäre für diesen einen
         Augenblick zu leise.
       -->
-      <Bereich v-if="recoveryCodes" titel="Wiederherstellungscodes" voll>
-        <p class="meldung warn">
+      <Section v-if="recoveryCodes" title="Wiederherstellungscodes" full>
+        <p class="notice warn">
           <span>
             Jetzt notieren oder ausdrucken. Sie werden nicht wieder angezeigt —
             auch das Panel kennt sie ab jetzt nicht mehr. Jeder Code gilt
@@ -53,34 +53,34 @@ const off = useForm({ code: '' })
         </p>
 
         <ul class="codes">
-          <li v-for="code in recoveryCodes" :key="code" class="kennung">{{ code }}</li>
+          <li v-for="code in recoveryCodes" :key="code" class="ident">{{ code }}</li>
         </ul>
-      </Bereich>
+      </Section>
 
-      <Bereich v-if="!props.active" titel="Einrichten">
-        <p class="erklaer">
+      <Section v-if="!props.active" title="Einrichten">
+        <p class="section-note">
           Diesen Schlüssel in einer Authenticator-App hinterlegen und danach den
           angezeigten Code eintragen. Erst dann gilt der zweite Faktor.
         </p>
 
-        <table class="paare">
+        <table class="pairs">
           <tbody>
-            <tr><td class="stumm">Schlüssel</td><td class="rechts kennung">{{ props.secret }}</td></tr>
-            <tr><td class="stumm">Adresse</td><td class="rechts kennung">{{ props.uri }}</td></tr>
+            <tr><td class="quiet">Schlüssel</td><td class="right ident">{{ props.secret }}</td></tr>
+            <tr><td class="quiet">Adresse</td><td class="right ident">{{ props.uri }}</td></tr>
           </tbody>
         </table>
 
         <form @submit.prevent="setup.post('/settings/two-factor')">
           <CodeField v-model="setup.code" label="Code aus der App" :error="setup.errors.code" />
 
-          <div class="knopfreihe abstand">
-            <button type="submit" class="knopf wichtig" :disabled="setup.processing">Bestätigen</button>
+          <div class="button-row spaced">
+            <button type="submit" class="button primary" :disabled="setup.processing">Bestätigen</button>
           </div>
         </form>
-      </Bereich>
+      </Section>
 
-      <Bereich v-else titel="Abschalten">
-        <p class="erklaer">
+      <Section v-else title="Abschalten">
+        <p class="section-note">
           Der zweite Faktor ist eingerichtet. Es sind noch
           {{ props.remainingRecoveryCodes }} Wiederherstellungscodes übrig.
         </p>
@@ -93,11 +93,11 @@ const off = useForm({ code: '' })
             :error="off.errors.code"
           />
 
-          <div class="knopfreihe abstand">
-            <button type="submit" class="knopf gefahr" :disabled="off.processing">Abschalten</button>
+          <div class="button-row spaced">
+            <button type="submit" class="button danger" :disabled="off.processing">Abschalten</button>
           </div>
         </form>
-      </Bereich>
+      </Section>
     </div>
   </PanelLayout>
 </template>
@@ -107,7 +107,7 @@ const off = useForm({ code: '' })
  * Die Codes stehen in Spalten und nicht in einer Aufzählung.
  *
  * Man liest sie ab und tippt sie irgendwo ein — untereinander in einer langen
- * Reihe verliert man die Zeile. Monospace kommt aus `.kennung` in app.css.
+ * Reihe verliert man die Zeile. Monospace kommt aus `.ident` in app.css.
  */
 .codes {
   display: grid;
@@ -120,7 +120,7 @@ const off = useForm({ code: '' })
   color: var(--text-strong);
 }
 
-.abstand {
+.spaced {
   margin-top: var(--gap);
 }
 </style>

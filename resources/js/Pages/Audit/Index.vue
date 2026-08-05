@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 import { reactive, watch } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
-import Marke from '../../Components/Marke.vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 /*
@@ -33,10 +33,10 @@ const props = defineProps<{
   results: { value: string; label: string }[]
 }>()
 
-function rang(ergebnis: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+function rang(ergebnis: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (ergebnis === 'success') return 'ok'
   if (ergebnis === 'denied') return 'warn'
-  if (ergebnis === 'failure') return 'kritisch'
+  if (ergebnis === 'failure') return 'critical'
 
   return 'neutral'
 }
@@ -71,30 +71,30 @@ function exportUrl(): string {
   <Head title="Protokoll" />
 
   <PanelLayout title="Protokoll" :subline="`${events.total} Einträge`">
-    <template #aktion>
-      <a :href="exportUrl()" class="knopf">Als CSV herunterladen</a>
+    <template #actions>
+      <a :href="exportUrl()" class="button">Als CSV herunterladen</a>
     </template>
 
-    <div class="bereiche">
-      <Bereich titel="Auswahl" voll>
+    <div class="sections">
+      <Section title="Auswahl" full>
         <div class="filter">
-          <label class="feld"><span>Von</span><input v-model="filters.from" type="date"></label>
-          <label class="feld"><span>Bis</span><input v-model="filters.to" type="date"></label>
-          <label class="feld"><span>Aktion</span><input v-model="filters.action" type="text" placeholder="auth."></label>
-          <label class="feld">
+          <label class="field"><span>Von</span><input v-model="filters.from" type="date"></label>
+          <label class="field"><span>Bis</span><input v-model="filters.to" type="date"></label>
+          <label class="field"><span>Aktion</span><input v-model="filters.action" type="text" placeholder="auth."></label>
+          <label class="field">
             <span>Ergebnis</span>
             <select v-model="filters.result">
               <option value="">alle</option>
               <option v-for="r in results" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
           </label>
-          <label class="feld"><span>IP</span><input v-model="filters.ip" type="text"></label>
+          <label class="field"><span>IP</span><input v-model="filters.ip" type="text"></label>
         </div>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Einträge" voll>
-        <div class="rollt">
-          <table class="stapelt">
+      <Section title="Einträge" full>
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
               <tr>
                 <th>Zeitpunkt</th><th>Aktion</th><th>Ergebnis</th><th>Ziel</th><th>IP</th>
@@ -102,21 +102,21 @@ function exportUrl(): string {
             </thead>
             <tbody>
               <tr v-for="row in events.data" :key="row.id">
-                <td data-spalte="Zeitpunkt" class="stumm">{{ row.created_at }}</td>
-                <td data-spalte="Aktion" class="kennung name">{{ row.action }}</td>
-                <td data-spalte="Ergebnis">
-                  <Marke :art="rang(row.result)">{{ row.result_label }}</Marke>
+                <td data-column="Zeitpunkt" class="quiet">{{ row.created_at }}</td>
+                <td data-column="Aktion" class="ident name">{{ row.action }}</td>
+                <td data-column="Ergebnis">
+                  <Badge :kind="rang(row.result)">{{ row.result_label }}</Badge>
                 </td>
-                <td data-spalte="Ziel" class="stumm">{{ row.target ?? '—' }}</td>
-                <td data-spalte="IP" class="kennung stumm">{{ row.ip_address ?? '—' }}</td>
+                <td data-column="Ziel" class="quiet">{{ row.target ?? '—' }}</td>
+                <td data-column="IP" class="ident quiet">{{ row.ip_address ?? '—' }}</td>
               </tr>
               <tr v-if="events.data.length === 0">
-                <td colspan="5" class="stumm">Keine Einträge für diese Auswahl.</td>
+                <td colspan="5" class="quiet">Keine Einträge für diese Auswahl.</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
     </div>
   </PanelLayout>
 </template>
@@ -137,7 +137,7 @@ function exportUrl(): string {
   gap: 14px;
 }
 
-.filter > .feld {
+.filter > .field {
   flex: 1 1 180px;
   margin-top: 0;
 }

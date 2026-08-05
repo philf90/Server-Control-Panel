@@ -1576,3 +1576,52 @@ kann nie zubeissen; er hat den Wächter zwei Ausbaustufen lang bestätigt, ohne
 ihn je zu prüfen. Er bricht jetzt die eine Stelle, die es wirklich gibt.
 
 Dazu drei neue Eingriffe für die drei neuen Wächter. Elf Brüche, elf Bisse.
+
+### Klassennamen sind englisch
+
+Aufgefallen ist es dem Betreiber beim Lesen: `.knopf`, `.marke`, `.bereich`,
+`.kennung`, `.stapelt`, `data-spalte` — rund 110 Namen, dazu Komponenten
+namens `Bereich`, `Marke` und `Balken` mit Eigenschaften wie `titel`,
+`erklaerung` und `prozent`.
+
+**Das war nie die Vorgabe.** `CLAUDE.md` sagt seit dem ersten Tag: „Kommentare,
+Dokumentation und alle Texte der Oberfläche: deutsch. Bezeichner: englisch."
+Eine CSS-Klasse ist ein Bezeichner. Es gab dafür nur kein Werkzeug — dieselbe
+Geschichte wie bei den Knöpfen, den Schriftgrößen und den Tabellen: eine Regel
+im Dokument, keine im Lauf.
+
+**Und `docs/19` §4 hielt das Gegenteil fest.** Dort stand „Die Bezeichner im
+Quelltext sind von alledem unberührt", mit `api.einspielen` und `ufwEinspielen`
+als Beispielen. Der Satz stammt aus dem Vorgängerprojekt und meinte etwas
+Enges und Richtiges: eine **Schnittstelle**, die man nicht für einen
+Wortgeschmack umbenennt, weil auf der anderen Seite jemand mitliest. Auf die
+Klassennamen der eigenen Gestaltung angewandt hat er neun Monate lang eine
+zweite Sprache gerechtfertigt. §4a zieht die Grenze jetzt dort, wo sie
+hingehört: Was eine Migration oder einen Bruch kosten würde, bleibt; was
+ausschliesslich zwischen `app.css` und einem Template dieses Repositorys
+steht, wird englisch.
+
+Umgestellt sind alle CSS-Klassen, die Datenattribute (`data-spalte` →
+`data-column`, `data-stufe`, `data-ablesung`), die drei deutschen Komponenten
+samt Eigenschaften und Slots (`#pfad` → `#breadcrumb`, `#aktion` →
+`#actions`). Seitenlokale Hilfsfunktionen bleiben deutsch — sie sind
+niemandes Schnittstelle, und ein eigener Durchgang nur dafür lohnt nicht.
+
+**Eine Übersetzung war keine.** `.bereich.voll` hiess „über die ganze Breite",
+`.balken.voll` hiess „nahe an der Grenze" — wörtlich übersetzt hätten beide
+`full` geheissen, und dieselbe Klasse hätte an zwei Bausteinen zwei Dinge
+bedeutet. Der Balken heisst jetzt `.bar.tight` und `.bar.over` und sagt damit,
+was er meint. Das ist im Deutschen neun Monate lang niemandem aufgefallen.
+
+**Der neue Wächter fand drei tote Regeln.** `ClassNameTest` prüft zwei Dinge:
+dass jeder Klassenname aus einer Wortliste stammt, und — als Gegenrichtung zu
+`ClassReachTest` — dass jede Regel in `app.css` von einem Template erreicht
+wird. Die zweite Prüfung meldete `.pair-list`, `.output .time` und
+`.output .fehl`: eine Beschreibungsliste, die seit „Kontor" niemand mehr baut,
+und zwei Regeln für Markup, das die Vorgangsausgabe längst nicht mehr
+erzeugt — sie ist reiner Text in einem `<pre>`. `.fehl` war ausserdem die
+letzte deutsche Klasse und wäre beim Umbenennen fast durchgerutscht, weil sie
+in keinem Template steht.
+
+Wer eine Klasse hinzufügt, trägt ihr Wort in `VOCABULARY` ein. Die Zeile steht
+im Diff — genau dort, wo ein deutsches Wort auffällt.

@@ -16,7 +16,7 @@ use SplFileInfo;
  * **Warum es diesen Test gibt.** Er ist die Verallgemeinerung einer Prüfung,
  * die es schon gibt und die zu eng gefasst war. `ButtonStyleTest` prüft seit
  * P3, dass jede *Knopfklasse* in app.css existiert — der Anlass war
- * `class="knopf betont"` auf drei Seiten, eine Klasse, die niemand kennt: Der
+ * `class="button betont"` auf drei Seiten, eine Klasse, die niemand kennt: Der
  * Knopf sah aus wie ein gewöhnlicher, die Hervorhebung fehlte, und kein Lauf
  * sagte etwas.
  *
@@ -41,7 +41,7 @@ final class ClassReachTest extends TestCase
     /**
      * Ein Literal rechts von einem Vergleich ist keine Klasse.
      *
-     * In `:class="['knopf', { aktiv: props.kind === 'access' }]"` ist `aktiv`
+     * In `:class="['button', { aktiv: props.kind === 'access' }]"` ist `aktiv`
      * die Klasse und `'access'` der Wert, mit dem verglichen wird. Ohne diese
      * Ausnahme meldete der Test `access`, `error` und `active` als unbekannte
      * Klassen — drei Fehlalarme, und ein Wächter, der Fehlalarme gibt, wird
@@ -133,7 +133,7 @@ final class ClassReachTest extends TestCase
             }
         }
 
-        // `:class="['knopf', { aktiv: … }]"` — Zeichenkettenliterale und
+        // `:class="['button', { aktiv: … }]"` — Zeichenkettenliterale und
         // Objektschlüssel.
         preg_match_all('/:class="([^"]*)"/', $template, $gebunden);
 

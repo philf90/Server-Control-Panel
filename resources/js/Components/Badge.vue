@@ -16,11 +16,11 @@
  *
  *   ok         läuft, ist eingerichtet, ist frei
  *   warn       läuft noch, ist gesperrt, weicht ab — jemand sollte hinsehen
- *   kritisch   gescheitert, nicht erreichbar — jemand muss handeln
+ *   critical   gescheitert, nicht erreichbar — jemand muss handeln
  *   neutral    nicht installiert, nicht gesetzt — kein Zustand, eine Abwesenheit
  */
 withDefaults(defineProps<{
-  art: 'ok' | 'warn' | 'kritisch' | 'neutral'
+  kind: 'ok' | 'warn' | 'critical' | 'neutral'
 
   /**
    * Ein Vorgang, der gerade läuft: Der Punkt pulst.
@@ -28,13 +28,13 @@ withDefaults(defineProps<{
    * Nur für etwas, das sich ohne Zutun ändert — sonst ist Bewegung in einer
    * Liste mit zwanzig Zeilen keine Auskunft, sondern Unruhe.
    */
-  laeuft?: boolean
-}>(), { laeuft: false })
+  running?: boolean
+}>(), { running: false })
 </script>
 
 <template>
   <!--
-    Die vier Ränge stehen als Objektschlüssel und nicht als `:class="art"`.
+    Die vier Ränge stehen als Objektschlüssel und nicht als `:class="kind"`.
     Das ist umständlicher zu lesen und der Grund ist ein gemessener: Nur so
     sieht `ClassReachTest`, welche Klassen hier entstehen können, und prüft,
     dass es sie in app.css gibt. Käme die Klasse aus der Variablen, wäre ein
@@ -42,13 +42,13 @@ withDefaults(defineProps<{
     dann nur, wenn jemand genau diesen Zustand vor sich hat.
   -->
   <span
-    class="marke"
+    class="badge"
     :class="{
-      ok: art === 'ok',
-      warn: art === 'warn',
-      kritisch: art === 'kritisch',
-      neutral: art === 'neutral',
-      laeuft,
+      ok: kind === 'ok',
+      warn: kind === 'warn',
+      critical: kind === 'critical',
+      neutral: kind === 'neutral',
+      running,
     }"
   >
     <slot />

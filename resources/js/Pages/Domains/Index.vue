@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3'
-import Marke from '../../Components/Marke.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Row {
@@ -19,10 +19,10 @@ const props = defineProps<{
   domains: { data: Row[]; total: number }
 }>()
 
-function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'active') return 'ok'
   if (status === 'provisioning' || status === 'removing') return 'warn'
-  if (status === 'failed') return 'kritisch'
+  if (status === 'failed') return 'critical'
 
   return 'neutral'
 }
@@ -32,8 +32,8 @@ function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
   <Head title="Domains" />
 
   <PanelLayout title="Domains" :subline="`${props.domains.total} insgesamt`">
-    <div class="rollt">
-      <table class="stapelt">
+    <div class="scrolls">
+      <table class="stacks">
         <thead>
           <tr>
             <th>Domain</th><th>Sorte</th><th>Abonnement</th><th>PHP</th><th>Zustand</th>
@@ -41,12 +41,12 @@ function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
         </thead>
         <tbody>
           <tr v-for="row in props.domains.data" :key="row.id">
-            <td data-spalte="Domain" class="kennung name">
-              <Link :href="`/domains/${row.id}`" class="verweis">{{ row.name }}</Link>
+            <td data-column="Domain" class="ident name">
+              <Link :href="`/domains/${row.id}`" class="link">{{ row.name }}</Link>
             </td>
-            <td data-spalte="Sorte" class="stumm">{{ row.type_label }}</td>
-            <td data-spalte="Abonnement">
-              <Link :href="`/subscriptions/${row.subscription_id}`" class="verweis">
+            <td data-column="Sorte" class="quiet">{{ row.type_label }}</td>
+            <td data-column="Abonnement">
+              <Link :href="`/subscriptions/${row.subscription_id}`" class="link">
                 {{ row.subscription ?? '—' }}
               </Link>
             </td>
@@ -57,19 +57,19 @@ function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
               Domain, der die PHP-Version fehlt, und das sind zwei verschiedene
               Dinge.
             -->
-            <td data-spalte="PHP">
+            <td data-column="PHP">
               <template v-if="row.is_redirect">
-                <span class="stumm">leitet weiter</span>
+                <span class="quiet">leitet weiter</span>
               </template>
               <template v-else>{{ row.php_version ?? '—' }}</template>
             </td>
 
-            <td data-spalte="Zustand">
-              <Marke :art="rang(row.status)">{{ row.status_label }}</Marke>
+            <td data-column="Zustand">
+              <Badge :kind="rang(row.status)">{{ row.status_label }}</Badge>
             </td>
           </tr>
           <tr v-if="props.domains.data.length === 0">
-            <td colspan="5" class="stumm">Noch keine Domain.</td>
+            <td colspan="5" class="quiet">Noch keine Domain.</td>
           </tr>
         </tbody>
       </table>

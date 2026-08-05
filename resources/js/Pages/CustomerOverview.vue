@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3'
-import Bereich from '../Components/Bereich.vue'
-import Marke from '../Components/Marke.vue'
+import Section from '../Components/Section.vue'
+import Badge from '../Components/Badge.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
 
 /*
@@ -22,10 +22,10 @@ defineProps<{
   }[]
 }>()
 
-function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'active') return 'ok'
   if (status === 'suspended' || status === 'provisioning' || status === 'removing') return 'warn'
-  if (status === 'cancelled' || status === 'failed') return 'kritisch'
+  if (status === 'cancelled' || status === 'failed') return 'critical'
 
   return 'neutral'
 }
@@ -44,13 +44,13 @@ function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
       Ein Bereich trägt dieselben Angaben und macht Platz für das, was in P4
       dazukommt — Zertifikat, Speicherstand, Zugänge.
     -->
-    <div v-if="subscriptions.length > 0" class="bereiche">
-      <Bereich v-for="abo in subscriptions" :key="abo.id" :titel="abo.name">
-        <template #aktion>
-          <Marke :art="rang(abo.status)">{{ abo.status_label }}</Marke>
+    <div v-if="subscriptions.length > 0" class="sections">
+      <Section v-for="abo in subscriptions" :key="abo.id" :title="abo.name">
+        <template #actions>
+          <Badge :kind="rang(abo.status)">{{ abo.status_label }}</Badge>
         </template>
 
-        <table class="paare">
+        <table class="pairs">
           <tbody>
             <!--
               `.kennung` nur, wenn wirklich eine Domain dasteht. Mit der
@@ -59,24 +59,24 @@ function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
               den man irgendwo eintippen soll. Im Browser gesehen.
             -->
             <tr>
-              <td class="stumm">Hauptdomain</td>
-              <td class="rechts" :class="{ kennung: abo.main_domain !== null }">
+              <td class="quiet">Hauptdomain</td>
+              <td class="right" :class="{ ident: abo.main_domain !== null }">
                 {{ abo.main_domain ?? 'noch keine Domain' }}
               </td>
             </tr>
           </tbody>
         </table>
-      </Bereich>
+      </Section>
     </div>
 
     <!--
       Eine leere Liste mit einem Satz dazu ist eine Auskunft; eine weiße
       Fläche wäre keine.
     -->
-    <p v-else class="leer">
+    <p v-else class="empty">
       Für Sie ist noch kein Abonnement eingerichtet. Sobald eines angelegt ist,
       erscheint es hier. Ihre bisherigen Anmeldungen stehen im
-      <Link href="/audit" class="verweis">Protokoll</Link>.
+      <Link href="/audit" class="link">Protokoll</Link>.
     </p>
   </PanelLayout>
 </template>

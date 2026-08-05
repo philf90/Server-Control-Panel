@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
+import Section from '../../Components/Section.vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
@@ -73,51 +73,51 @@ function test(): void {
   <Head title="Mailversand" />
 
   <PanelLayout title="Mailversand" subline="SMTP-Relay für Nachrichten des Panels">
-    <p v-if="flash?.error" class="meldung kritisch">
+    <p v-if="flash?.error" class="notice critical">
       <span>{{ flash.error }}</span>
     </p>
 
-    <p v-if="!props.usable" class="meldung warn">
+    <p v-if="!props.usable" class="notice warn">
       <span>
         Noch kein Relay hinterlegt. Bis dahin verschickt das Panel nichts —
         Einmal-Links und Warnungen entstehen, erreichen aber niemanden.
       </span>
     </p>
 
-    <form class="maske" @submit.prevent="submit">
-      <Bereich titel="Relay">
-        <label class="feld">
+    <form class="form" @submit.prevent="submit">
+      <Section title="Relay">
+        <label class="field">
           <span>Server</span>
           <input v-model="form.host" type="text" autocomplete="off" placeholder="mail.example.net" required>
         </label>
-        <p v-if="form.errors.host" class="fehler">{{ form.errors.host }}</p>
+        <p v-if="form.errors.host" class="error">{{ form.errors.host }}</p>
 
-        <div class="paar">
-          <label class="feld">
+        <div class="field-row">
+          <label class="field">
             <span>Verschlüsselung</span>
             <select v-model="form.encryption" @change="onEncryption">
               <option v-for="e in props.encryptions" :key="e.value" :value="e.value">{{ e.label }}</option>
             </select>
           </label>
 
-          <label class="feld schmal">
+          <label class="field narrow">
             <span>Port</span>
             <input v-model.number="form.port" type="number" min="1" max="65535" required>
           </label>
         </div>
-        <p v-if="form.errors.port" class="fehler">{{ form.errors.port }}</p>
-      </Bereich>
+        <p v-if="form.errors.port" class="error">{{ form.errors.port }}</p>
+      </Section>
 
-      <Bereich titel="Anmeldung">
-        <label class="feld">
+      <Section title="Anmeldung">
+        <label class="field">
           <span>Benutzername</span>
           <input v-model="form.username" type="text" autocomplete="off">
         </label>
-        <p class="hinweis">Leer lassen, wenn das Relay im eigenen Netz ohne Anmeldung arbeitet.</p>
+        <p class="hint">Leer lassen, wenn das Relay im eigenen Netz ohne Anmeldung arbeitet.</p>
 
-        <label class="feld">
+        <label class="field">
           <span>Passwort</span>
-          <span class="mit-auge">
+          <span class="with-reveal">
             <input
               v-model="form.password"
               :type="zeigen ? 'text' : 'password'"
@@ -127,7 +127,7 @@ function test(): void {
             >
             <button
               type="button"
-              class="auge"
+              class="reveal"
               :aria-label="zeigen ? 'Passwort verbergen' : 'Passwort anzeigen'"
               :aria-pressed="zeigen"
               @click.prevent="zeigen = !zeigen"
@@ -136,37 +136,37 @@ function test(): void {
             </button>
           </span>
         </label>
-        <p v-if="form.errors.password" class="fehler">{{ form.errors.password }}</p>
+        <p v-if="form.errors.password" class="error">{{ form.errors.password }}</p>
 
-        <label v-if="props.mail.password_set" class="schalter">
+        <label v-if="props.mail.password_set" class="toggle">
           <input v-model="form.password_clear" type="checkbox">
           <span>Hinterlegtes Passwort entfernen</span>
         </label>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Absender">
-        <label class="feld">
+      <Section title="Absender">
+        <label class="field">
           <span>Adresse</span>
           <input v-model="form.from_address" type="email" autocomplete="off" placeholder="panel@example.net" required>
         </label>
-        <p v-if="form.errors.from_address" class="fehler">{{ form.errors.from_address }}</p>
-        <p class="hinweis">
+        <p v-if="form.errors.from_address" class="error">{{ form.errors.from_address }}</p>
+        <p class="hint">
           Muss beim Relay als Absender zulässig sein. Viele Anbieter weisen
           alles ab, was nicht zum angemeldeten Konto gehört.
         </p>
 
-        <label class="feld">
+        <label class="field">
           <span>Anzeigename</span>
           <input v-model="form.from_name" type="text" required>
         </label>
-        <p v-if="form.errors.from_name" class="fehler">{{ form.errors.from_name }}</p>
-      </Bereich>
+        <p v-if="form.errors.from_name" class="error">{{ form.errors.from_name }}</p>
+      </Section>
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
         </button>
-        <button type="button" class="knopf" :disabled="!props.usable" @click="test">Testmail an mich</button>
+        <button type="button" class="button" :disabled="!props.usable" @click="test">Testmail an mich</button>
       </div>
     </form>
   </PanelLayout>

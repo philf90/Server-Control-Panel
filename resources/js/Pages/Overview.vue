@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
-import Balken from '../Components/Balken.vue'
-import Bereich from '../Components/Bereich.vue'
-import Marke from '../Components/Marke.vue'
+import Bar from '../Components/Bar.vue'
+import Section from '../Components/Section.vue'
+import Badge from '../Components/Badge.vue'
 import Tile, { type Series } from '../Components/Tile.vue'
 import PanelLayout from '../Layouts/PanelLayout.vue'
 
@@ -82,10 +82,10 @@ function uptimeText(seconds: number): string {
  * dieses Panel kennt, und nicht jeder gehört auf jeden Server. Rot dafür
  * schickt jemanden auf die Suche nach etwas, das nie da war.
  */
-function dienstRang(service: Service): 'ok' | 'kritisch' | 'neutral' {
+function dienstRang(service: Service): 'ok' | 'critical' | 'neutral' {
   if (!service.present) return 'neutral'
 
-  return service.active_state === 'active' ? 'ok' : 'kritisch'
+  return service.active_state === 'active' ? 'ok' : 'critical'
 }
 
 const headline = props.server.reachable
@@ -97,16 +97,16 @@ const headline = props.server.reachable
 
 <template>
   <PanelLayout title="Übersicht" :subline="headline">
-    <p v-if="!server.reachable" class="meldung kritisch">
+    <p v-if="!server.reachable" class="notice critical">
       <span>
         <b>Der Agent antwortet nicht.</b>
         {{ server.error }}
         Zustand nachsehen mit
-        <span class="kennung">systemctl status srvpanel-agentd</span>.
+        <span class="ident">systemctl status srvpanel-agentd</span>.
       </span>
     </p>
 
-    <div class="kacheln">
+    <div class="tiles">
       <Tile
         v-for="tile in tiles"
         :key="tile.key"
@@ -118,7 +118,7 @@ const headline = props.server.reachable
       />
     </div>
 
-    <div class="bereiche nach-kacheln">
+    <div class="sections after-tiles">
       <!--
         Der Bestand steht über den Diensten und unter den Kacheln.
 
@@ -128,170 +128,170 @@ const headline = props.server.reachable
         Frage beantworten, ob der Server überhaupt gesund ist — und wenn er es
         nicht ist, ist alles darunter zweitrangig.
       -->
-      <Bereich titel="Bestand">
+      <Section title="Bestand">
         <!--
           Die Zahlen sind Verweise und keine Kacheln: Wer die Zahl der
           gesperrten Abonnements liest, will als Nächstes wissen, welche das
           sind — und dann soll er sie anklicken können und nicht erst in die
           Navigation greifen.
         -->
-        <table class="paare">
+        <table class="pairs">
           <tbody>
             <tr>
-              <td class="stumm"><Link href="/customers" class="verweis">Kunden</Link></td>
-              <td class="rechts name">{{ props.hosting.customers.total }}</td>
-              <td class="rechts">
+              <td class="quiet"><Link href="/customers" class="link">Kunden</Link></td>
+              <td class="right name">{{ props.hosting.customers.total }}</td>
+              <td class="right">
                 <!--
                   Gesperrt und „wird angelegt" stehen nur da, wenn es sie gibt.
                   Eine Null neben einer Beschriftung ist eine Angabe, die man
                   jedes Mal liest und nie braucht.
                 -->
-                <Marke v-if="props.hosting.customers.suspended > 0" art="warn">
+                <Badge v-if="props.hosting.customers.suspended > 0" kind="warn">
                   {{ props.hosting.customers.suspended }} gesperrt
-                </Marke>
+                </Badge>
               </td>
             </tr>
             <tr>
-              <td class="stumm"><Link href="/subscriptions" class="verweis">Abonnements</Link></td>
-              <td class="rechts name">{{ props.hosting.subscriptions.total }}</td>
-              <td class="rechts">
-                <Marke art="ok">{{ props.hosting.subscriptions.active }} aktiv</Marke>
+              <td class="quiet"><Link href="/subscriptions" class="link">Abonnements</Link></td>
+              <td class="right name">{{ props.hosting.subscriptions.total }}</td>
+              <td class="right">
+                <Badge kind="ok">{{ props.hosting.subscriptions.active }} aktiv</Badge>
               </td>
             </tr>
             <tr v-if="props.hosting.subscriptions.suspended > 0">
-              <td class="stumm">davon gesperrt</td>
-              <td class="rechts name">{{ props.hosting.subscriptions.suspended }}</td>
-              <td class="rechts"><Marke art="warn">gesperrt</Marke></td>
+              <td class="quiet">davon gesperrt</td>
+              <td class="right name">{{ props.hosting.subscriptions.suspended }}</td>
+              <td class="right"><Badge kind="warn">gesperrt</Badge></td>
             </tr>
             <tr v-if="props.hosting.subscriptions.provisioning > 0">
-              <td class="stumm">werden angelegt</td>
-              <td class="rechts name">{{ props.hosting.subscriptions.provisioning }}</td>
-              <td class="rechts"><Marke art="warn" laeuft>läuft</Marke></td>
+              <td class="quiet">werden angelegt</td>
+              <td class="right name">{{ props.hosting.subscriptions.provisioning }}</td>
+              <td class="right"><Badge kind="warn" running>läuft</Badge></td>
             </tr>
           </tbody>
         </table>
-      </Bereich>
+      </Section>
 
       <!--
         Nicht die grössten Abonnements, sondern die vollsten: Eines mit 40 GB
         von 200 ist unauffällig, eines mit 4,8 GB von 5 ist der Anruf von
         morgen.
       -->
-      <Bereich
+      <Section
         v-if="props.hosting.storage.length > 0"
-        titel="Am nächsten an der Speichergrenze"
+        title="Am nächsten an der Speichergrenze"
         weit
       >
-        <div class="rollt">
-          <table class="stapelt">
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
-              <tr><th>Abonnement</th><th class="rechts">Belegt</th><th>Anteil</th><th>Gemessen</th></tr>
+              <tr><th>Abonnement</th><th class="right">Belegt</th><th>Anteil</th><th>Gemessen</th></tr>
             </thead>
             <tbody>
               <tr v-for="row in props.hosting.storage" :key="row.id">
-                <td data-spalte="Abonnement" class="name">
-                  <Link :href="`/subscriptions/${row.id}`" class="verweis">{{ row.name }}</Link>
+                <td data-column="Abonnement" class="name">
+                  <Link :href="`/subscriptions/${row.id}`" class="link">{{ row.name }}</Link>
                 </td>
-                <td data-spalte="Belegt" class="rechts">{{ row.used_mb.toLocaleString('de-DE') }} MB</td>
-                <td data-spalte="Anteil">
-                  <Balken
-                    :prozent="row.percent"
-                    :eng="row.percent >= 90 && row.percent <= 100"
-                    :ueber="row.percent > 100"
+                <td data-column="Belegt" class="right">{{ row.used_mb.toLocaleString('de-DE') }} MB</td>
+                <td data-column="Anteil">
+                  <Bar
+                    :percent="row.percent"
+                    :tight="row.percent >= 90 && row.percent <= 100"
+                    :over="row.percent > 100"
                   />
                 </td>
-                <td data-spalte="Gemessen" class="stumm">{{ row.measured_at ?? '—' }}</td>
+                <td data-column="Gemessen" class="quiet">{{ row.measured_at ?? '—' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Dienste" weit>
-        <div class="rollt">
-          <table class="stapelt">
+      <Section title="Dienste" wide>
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
               <tr><th>Unit</th><th>Zustand</th><th>Beschreibung</th></tr>
             </thead>
             <tbody>
               <tr v-for="service in services" :key="service.unit">
-                <td data-spalte="Unit" class="kennung name">{{ service.unit }}</td>
-                <td data-spalte="Zustand">
-                  <Marke :art="dienstRang(service)">
+                <td data-column="Unit" class="ident name">{{ service.unit }}</td>
+                <td data-column="Zustand">
+                  <Badge :kind="dienstRang(service)">
                     {{ service.present ? service.active_state : 'nicht installiert' }}
-                  </Marke>
+                  </Badge>
                 </td>
-                <td data-spalte="Beschreibung" class="stumm">{{ service.description }}</td>
+                <td data-column="Beschreibung" class="quiet">{{ service.description }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Dateisysteme" voll>
-        <div class="rollt">
-          <table class="stapelt">
+      <Section title="Dateisysteme" full>
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
               <tr>
                 <th>Einhängepunkt</th>
                 <th>Gerät</th>
                 <th>Art</th>
-                <th class="rechts">Größe</th>
-                <th class="rechts">Frei</th>
+                <th class="right">Größe</th>
+                <th class="right">Frei</th>
                 <th>Belegt</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="filesystem in filesystems" :key="filesystem.mount">
-                <td data-spalte="Einhängepunkt" class="kennung name">{{ filesystem.mount }}</td>
-                <td data-spalte="Gerät" class="kennung stumm">{{ filesystem.device }}</td>
-                <td data-spalte="Art" class="stumm">{{ filesystem.type }}</td>
-                <td data-spalte="Größe" class="rechts">{{ filesystem.total }}</td>
-                <td data-spalte="Frei" class="rechts">{{ filesystem.free }}</td>
-                <td data-spalte="Belegt">
+                <td data-column="Einhängepunkt" class="ident name">{{ filesystem.mount }}</td>
+                <td data-column="Gerät" class="ident quiet">{{ filesystem.device }}</td>
+                <td data-column="Art" class="quiet">{{ filesystem.type }}</td>
+                <td data-column="Größe" class="right">{{ filesystem.total }}</td>
+                <td data-column="Frei" class="right">{{ filesystem.free }}</td>
+                <td data-column="Belegt">
                   <!--
                     Der Balken statt nur der Zahl: „87 %" liest man, einen
                     vollen Balken sieht man. Die Schwelle, ab der er warnt,
                     kommt vom Server — sie ist eine Aussage über den Betrieb.
                   -->
-                  <Balken :prozent="filesystem.percent" :eng="filesystem.tight" />
+                  <Bar :percent="filesystem.percent" :tight="filesystem.tight" />
                 </td>
               </tr>
               <tr v-if="filesystems.length === 0">
-                <td colspan="6" class="stumm">Keine Angaben — der Agent antwortet nicht.</td>
+                <td colspan="6" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Prozesse nach Speicher" voll>
-        <div class="rollt">
-          <table class="stapelt">
+      <Section title="Prozesse nach Speicher" full>
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
               <tr>
-                <th class="rechts">PID</th>
+                <th class="right">PID</th>
                 <th>Name</th>
                 <th>Zustand</th>
-                <th class="rechts">UID</th>
-                <th class="rechts">Speicher</th>
+                <th class="right">UID</th>
+                <th class="right">Speicher</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="process in processes" :key="process.pid">
-                <td data-spalte="PID" class="rechts kennung">{{ process.pid }}</td>
-                <td data-spalte="Name" class="kennung name">{{ process.name }}</td>
-                <td data-spalte="Zustand" class="stumm">{{ process.state }}</td>
-                <td data-spalte="UID" class="rechts kennung">{{ process.user }}</td>
-                <td data-spalte="Speicher" class="rechts">{{ process.rss }}</td>
+                <td data-column="PID" class="right ident">{{ process.pid }}</td>
+                <td data-column="Name" class="ident name">{{ process.name }}</td>
+                <td data-column="Zustand" class="quiet">{{ process.state }}</td>
+                <td data-column="UID" class="right ident">{{ process.user }}</td>
+                <td data-column="Speicher" class="right">{{ process.rss }}</td>
               </tr>
               <tr v-if="processes.length === 0">
-                <td colspan="5" class="stumm">Keine Angaben — der Agent antwortet nicht.</td>
+                <td colspan="5" class="quiet">Keine Angaben — der Agent antwortet nicht.</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
     </div>
   </PanelLayout>
 </template>
@@ -311,7 +311,7 @@ const headline = props.server.reachable
  * die einzige Stelle, an der auf dieser Seite zwei verschiedene Bausteine
  * aufeinandertreffen.
  */
-.nach-kacheln {
+.after-tiles {
   margin-top: var(--block-gap);
 }
 </style>

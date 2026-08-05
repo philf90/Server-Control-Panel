@@ -324,7 +324,7 @@ body {
  * die Auskunft „hier steht etwas, das man abtippt" war damit nichts mehr wert,
  * weil sie überall stand.
  */
-.kennung {
+.ident {
   font-family: var(--font-mono);
   font-size: var(--text-table);
   white-space: nowrap;
@@ -364,7 +364,7 @@ input[type='radio'] {
    als in jedem Entwurf mit Karten.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.seitenkopf {
+.page-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -375,7 +375,7 @@ input[type='radio'] {
   border-bottom: 1px solid var(--line);
 }
 
-.seitenkopf h1 {
+.page-head h1 {
   margin: 0;
   font-size: var(--text-heading);
   font-weight: 660;
@@ -386,19 +386,19 @@ input[type='radio'] {
 
 /* Der Weg hierher — steht über der Überschrift und nicht darunter: Man liest
    zuerst, wo man ist, und dann, was es ist. */
-.pfad {
+.breadcrumb {
   margin: 0 0 4px;
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
-.beizeile {
+.subline {
   margin: 4px 0 0;
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
-.bereiche {
+.sections {
   display: flex;
   flex-wrap: wrap;
   gap: var(--bereich-gap);
@@ -415,22 +415,22 @@ input[type='radio'] {
  * Leerraum daneben — der Vorwurf „nutzt die Fläche nicht aus", nur in neuer
  * Gestalt. Flexbox verteilt den Rest an die Bereiche, die in der Reihe stehen.
  */
-.bereich {
+.section {
   flex: 1 1 var(--bereich-min);
   min-width: 0;
 }
 
 /* Ein Bereich, in dem eine Tabelle mit mehr als drei Spalten steht, will den
    anderthalbfachen Grundriss — sonst bricht in jeder Zelle der Wert um. */
-.bereich.weit {
+.section.wide {
   flex-basis: calc(var(--bereich-min) * 1.6);
 }
 
-.bereich.voll {
+.section.full {
   flex-basis: 100%;
 }
 
-.bkopf {
+.section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -441,7 +441,7 @@ input[type='radio'] {
   border-bottom: 2px solid var(--text-strong);
 }
 
-.bkopf h2 {
+.section-head h2 {
   margin: 0;
   font-size: var(--text-section);
   font-weight: 660;
@@ -452,7 +452,7 @@ input[type='radio'] {
 /* Der Erklärsatz unter einer Bereichsüberschrift. Er behält seine
    Zeilenlänge — Fläche ausnutzen heisst nicht, einen Satz über 1900px zu
    ziehen. */
-.erklaer {
+.section-note {
   margin: 10px 0 0;
   font-size: var(--text-small);
   color: var(--text-muted);
@@ -460,7 +460,7 @@ input[type='radio'] {
 }
 
 /* Ein leerer Zustand ist eine Auskunft. Eine weisse Fläche wäre keine. */
-.leer {
+.empty {
   margin: 0;
   padding: 22px 0;
   font-size: var(--text-table);
@@ -478,7 +478,7 @@ input[type='radio'] {
    vier Riesenkacheln.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.kacheln {
+.tiles {
   display: flex;
   flex-wrap: wrap;
   gap: 0;
@@ -487,18 +487,18 @@ input[type='radio'] {
   border-bottom: 1px solid var(--line);
 }
 
-.kachel {
+.tile {
   flex: 1 1 var(--kachel-min);
   min-width: 0;
   padding: 18px 24px 18px 0;
 }
 
-.kachel + .kachel {
+.tile + .tile {
   padding-left: 24px;
   border-left: 1px solid var(--line);
 }
 
-.kachel-label {
+.tile-label {
   font-size: var(--text-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -506,7 +506,7 @@ input[type='radio'] {
   color: var(--text-muted);
 }
 
-.kachel-wert {
+.tile-value {
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -518,7 +518,7 @@ input[type='radio'] {
   color: var(--text-strong);
 }
 
-.kachel-wert small {
+.tile-value small {
   font-size: var(--text-table);
   font-weight: 500;
   letter-spacing: 0;
@@ -530,14 +530,14 @@ input[type='radio'] {
  * („4 Kerne · iowait 0,4 %"), und beim Zeigen auf die Kurve die Ablesung.
  * `min-height`, damit die Kachel beim Wechsel nicht springt.
  */
-.kachel-sub {
+.tile-sub {
   margin-top: 3px;
   min-height: 20px;
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
-.kachel-sub[data-ablesung='true'] {
+.tile-sub[data-readout='true'] {
   color: var(--accent);
   font-weight: 580;
 }
@@ -590,12 +590,12 @@ td.name {
   font-weight: 580;
 }
 
-td.stumm {
+td.quiet {
   color: var(--text-muted);
 }
 
-th.rechts,
-td.rechts {
+th.right,
+td.right {
   text-align: right;
 }
 
@@ -608,35 +608,35 @@ td.rechts {
  * gegenüberliegenden Ränder zu schieben. Gesehen in der Aufnahme, nicht im
  * Entwurf.
  */
-table.paare {
+table.pairs {
   max-width: 620px;
 }
 
 /*
  * Tabellen auf einer schmalen Fläche — zwei Muster, und nur diese zwei.
  *
- * **`.rollt` — die Tabelle bleibt eine Tabelle und rollt waagerecht.**
+ * **`.scrolls` — die Tabelle bleibt eine Tabelle und rollt waagerecht.**
  * Für Messwerte: Dateisysteme, Prozesse, Dienste. Dort steht in jeder Spalte
  * eine Zahl derselben Art, und der Vergleich *zwischen* den Zeilen ist der
  * Zweck der Ansicht. Aufgebrochen in Kärtchen wäre genau dieser Vergleich weg.
  *
- * **`.stapelt` — jede Zeile wird zu einem Kärtchen.**
+ * **`.stacks` — jede Zeile wird zu einem Kärtchen.**
  * Für Verzeichnisse: Kunden, Pläne, Vorgänge, Protokoll. Dort ist die Zeile
  * der Gegenstand, und man liest sie einzeln. Der Spaltenkopf verschwindet;
- * seinen Text trägt jede Zelle als `data-spalte` bei sich.
+ * seinen Text trägt jede Zelle als `data-column` bei sich.
  */
-.rollt {
+.scrolls {
   overflow-x: auto;
   overscroll-behavior-x: contain;
 }
 
-.rollt > table {
+.scrolls > table {
   min-width: 100%;
   width: max-content;
 }
 
 @media (max-width: 720px) {
-  .stapelt thead {
+  .stacks thead {
     /* `display: none` nähme sie auch dem Screenreader. `clip` lässt die
        Beschriftung in der Vorlesereihenfolge stehen und nimmt sie nur dem
        Auge. */
@@ -648,26 +648,26 @@ table.paare {
     white-space: nowrap;
   }
 
-  .stapelt,
-  .stapelt tbody,
-  .stapelt tr,
-  .stapelt td {
+  .stacks,
+  .stacks tbody,
+  .stacks tr,
+  .stacks td {
     display: block;
     width: 100%;
   }
 
-  .stapelt tr {
+  .stacks tr {
     padding: 12px 14px;
     margin-bottom: var(--gap);
     border: 1px solid var(--line);
     border-radius: var(--radius);
   }
 
-  .stapelt tr:last-child {
+  .stacks tr:last-child {
     margin-bottom: 0;
   }
 
-  .stapelt td {
+  .stacks td {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -678,8 +678,8 @@ table.paare {
     text-align: right;
   }
 
-  .stapelt td::before {
-    content: attr(data-spalte);
+  .stacks td::before {
+    content: attr(data-column);
     flex: none;
     font-size: var(--text-label);
     font-weight: 660;
@@ -691,7 +691,7 @@ table.paare {
 
   /* Eine Zelle ohne Beschriftung — der Knopf am Zeilenende — nimmt die ganze
      Breite und steht links, wie ein Knopf es tut. */
-  .stapelt td:not([data-spalte]) {
+  .stacks td:not([data-column]) {
     justify-content: flex-start;
     text-align: left;
     padding-top: 10px;
@@ -700,14 +700,14 @@ table.paare {
   /* Eine Zelle, in der mehr steht als ein Wert — Name, Marke und Beschreibung
      eines Plans etwa. Beschriftung und Inhalt nebeneinander lassen den Rest an
      den rechten Rand rutschen und dort umbrechen; sie gehören untereinander. */
-  .stapelt td.mehrzeilig {
+  .stacks td.multiline {
     flex-direction: column;
     align-items: stretch;
     text-align: left;
     gap: 3px;
   }
 
-  .stapelt td[colspan] {
+  .stacks td[colspan] {
     justify-content: flex-start;
     text-align: left;
   }
@@ -720,11 +720,11 @@ table.paare {
    * Wert, den man zweimal lesen muss, um ihn zu verstehen. Gesehen in der
    * Aufnahme.
    */
-  table.paare {
+  table.pairs {
     max-width: none;
   }
 
-  table.paare tbody tr {
+  table.pairs tbody tr {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
@@ -736,11 +736,11 @@ table.paare {
     border-radius: 0;
   }
 
-  table.paare tbody tr:last-child {
+  table.pairs tbody tr:last-child {
     border-bottom: 0;
   }
 
-  table.paare td {
+  table.pairs td {
     display: block;
     height: auto;
     padding: 0;
@@ -748,12 +748,12 @@ table.paare {
     text-align: left;
   }
 
-  table.paare td:first-child {
+  table.pairs td:first-child {
     flex: 1 1 auto;
     min-width: 0;
   }
 
-  table.paare td.rechts {
+  table.pairs td.right {
     flex: none;
     white-space: nowrap;
     text-align: right;
@@ -762,7 +762,7 @@ table.paare {
   /*
    * Eine Kennung darf brechen, wenn sie sonst die Zeile sprengt.
    *
-   * `.kennung` steht auf `nowrap`, und das ist auf dem Schreibtisch richtig:
+   * `.ident` steht auf `nowrap`, und das ist auf dem Schreibtisch richtig:
    * Ein Pfad, der mitten im Verzeichnisnamen umbricht, ist schwerer zu lesen
    * als einer, für den man die Tabelle schiebt. Auf 390px gibt es nichts zu
    * schieben — `/var/www/vhosts/kunde-mueller.de/…` war 337px breit und schob
@@ -780,37 +780,16 @@ table.paare {
    * behält die Zelle ihre Inhaltsbreite, auch wenn sie umbrechen *dürfte*. Die
    * Erlaubnis zu brechen nützt nichts, solange nichts sie dazu zwingt.
    */
-  table.paare td.rechts.kennung {
+  table.pairs td.right.ident {
     flex: 1 1 auto;
     min-width: 0;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  table.paare td:empty {
+  table.pairs td:empty {
     display: none;
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Beschreibungsliste — Bezeichnung und Wert ohne Tabelle
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.paare-liste {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 10px 24px;
-  margin: 0;
-  font-size: var(--text-table);
-}
-
-.paare-liste dt {
-  color: var(--text-muted);
-}
-
-.paare-liste dd {
-  margin: 0;
-  color: var(--text-strong);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -824,16 +803,16 @@ table.paare {
 
    Drei Ränge, mehr braucht keine Seite:
 
-     .knopf           die gewöhnliche Aktion
-     .knopf.wichtig   die eine Aktion, für die man die Seite geöffnet hat
-     .knopf.gefahr    was sich nicht zurücknehmen lässt
+     .button           die gewöhnliche Aktion
+     .button.primary   die eine Aktion, für die man die Seite geöffnet hat
+     .button.danger    was sich nicht zurücknehmen lässt
 
-   Je Formular steht **höchstens ein** `.wichtig`. Es gilt für `<button>` und
+   Je Formular steht **höchstens ein** `.primary`. Es gilt für `<button>` und
    für `<a>`/`<Link>`, der eine Aktion auslöst: Ob dahinter ein Formular oder
    eine Adresse steckt, ist eine Frage der Umsetzung und keine der Bedienung.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.knopf {
+.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -855,18 +834,18 @@ table.paare {
   cursor: pointer;
 }
 
-.knopf:hover {
+.button:hover {
   color: var(--text-strong);
   border-color: var(--text-strong);
 }
 
-.knopf.wichtig {
+.button.primary {
   color: var(--accent-on);
   background: var(--accent);
   border-color: var(--accent);
 }
 
-.knopf.wichtig:hover {
+.button.primary:hover {
   color: var(--accent-on);
   border-color: var(--accent);
   filter: brightness(1.12);
@@ -874,13 +853,13 @@ table.paare {
 
 /* Was sich nicht zurücknehmen lässt: Rand und Schrift, keine Fläche. Eine
    rote Fläche neben einer farbigen macht aus zwei Rängen einen Wettstreit. */
-.knopf.gefahr {
+.button.danger {
   color: var(--critical);
   background: transparent;
   border-color: var(--critical);
 }
 
-.knopf.gefahr:hover {
+.button.danger:hover {
   color: var(--critical);
   background: var(--critical-surface);
   border-color: var(--critical);
@@ -889,12 +868,12 @@ table.paare {
 /*
  * Der gewählte aus einer Reihe von Knöpfen, die zusammen eine Wahl sind.
  *
- * **Kein vierter Rang, sondern ein Zustand.** `.wichtig` und `.gefahr` sagen,
- * *was* ein Knopf ist; `.aktiv` sagt, dass er gerade gilt. Deshalb bekommt er
- * den Akzent nur als Rand und getönte Fläche und nicht satt wie `.wichtig` —
+ * **Kein vierter Rang, sondern ein Zustand.** `.primary` und `.danger` sagen,
+ * *was* ein Knopf ist; `.active` sagt, dass er gerade gilt. Deshalb bekommt er
+ * den Akzent nur als Rand und getönte Fläche und nicht satt wie `.primary` —
  * sonst stünde in einer Dreierreihe eine Hauptsache, und die Reihe ist keine.
  */
-.knopf.aktiv {
+.button.active {
   color: var(--accent);
   background: var(--accent-surface);
   border-color: var(--accent);
@@ -902,7 +881,7 @@ table.paare {
 
 /* Für eine Aktion, die in einer Tabellenzeile steht und die Zeile nicht
    sprengen soll. */
-.knopf.klein {
+.button.small {
   min-height: 0;
   padding: 5px 11px;
   font-size: var(--text-small);
@@ -919,14 +898,14 @@ table.paare {
  * muss ihn in der schmalen wiederherstellen.
  */
 @media (max-width: 720px) {
-  .knopf.klein {
+  .button.small {
     min-height: var(--tap);
     padding: 5px 14px;
   }
 }
 
-.knopf:disabled,
-.knopf[aria-disabled='true'] {
+.button:disabled,
+.button[aria-disabled='true'] {
   opacity: 0.5;
   cursor: default;
   filter: none;
@@ -935,7 +914,7 @@ table.paare {
 /* Eine Reihe von Knöpfen. Unter 480px untereinander und über die volle
    Breite — nebeneinander bleiben auf 390px vom dritten nur noch drei
    Buchstaben übrig. */
-.knopfreihe {
+.button-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -943,12 +922,12 @@ table.paare {
 }
 
 @media (max-width: 480px) {
-  .knopfreihe {
+  .button-row {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .knopfreihe .knopf {
+  .button-row .button {
     width: 100%;
   }
 
@@ -956,13 +935,13 @@ table.paare {
    * Eine Zustandsmarke in einer Knopfreihe bleibt so breit, wie ihr Wort ist.
    *
    * Am Kopf einer Abonnementseite steht „aktiv seit 14.03.2026" neben
-   * „Sperren" und „Bearbeiten". Unter 480px stapelt die Reihe und zieht ihre
+   * „Sperren" und „Bearbeiten". Unter 480px stacks die Reihe und zieht ihre
    * Kinder auf volle Breite — aus der Pille wurde ein Band über den ganzen
    * Bildschirm, das aussah wie ein Knopf, den man drücken kann. Eine Marke ist
    * eine Auskunft und kein Bedienelement; sie darf nicht wie eines aussehen.
    * Gesehen im Musterbogen bei 390px.
    */
-  .knopfreihe .marke {
+  .button-row .badge {
     align-self: flex-start;
   }
 }
@@ -974,7 +953,7 @@ table.paare {
  * zwanzig Zeilen wäre ein Unterstrich je Zeile ein Muster und keine Auskunft.
  * Beim Zeigen kommt er dazu.
  */
-.verweis {
+.link {
   font: inherit;
   padding: 0;
   color: var(--accent);
@@ -985,7 +964,7 @@ table.paare {
   cursor: pointer;
 }
 
-.verweis:hover {
+.link:hover {
   text-decoration: underline;
 }
 
@@ -1022,7 +1001,7 @@ table.paare {
    sichtbare Grenze. Geprüft von `ButtonStyleTest`.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.maske {
+.form {
   display: flex;
   flex-wrap: wrap;
   gap: var(--bereich-gap);
@@ -1038,7 +1017,7 @@ table.paare {
  * mehr Zeilen zu zeigen, nicht ein Wort über den halben Bildschirm zu ziehen.
  * Im Browser gesehen, nicht gerechnet.
  */
-.feld {
+.field {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1046,26 +1025,26 @@ table.paare {
   max-width: 540px;
 }
 
-.feld > span {
+.field > span {
   font-size: var(--text-small);
   font-weight: 540;
   color: var(--text-muted);
 }
 
 /*
- * `.mit-einheit input` steht hier mit, und das ist im Browser aufgefallen.
+ * `.with-unit input` steht hier mit, und das ist im Browser aufgefallen.
  *
  * Die Kontingente eines Plans tragen ihre Beschriftung als eigene Zeile und
- * den Wert in `.mit-einheit` — ohne `.feld` dazwischen. Damit griff keine
+ * den Wert in `.with-unit` — ohne `.field` dazwischen. Damit griff keine
  * dieser Zeilen: Zwölf Zahlenfelder standen als nackter Text auf der Seite,
  * ohne Rand, ohne Fläche, ohne Innenabstand. Grün getestet war es trotzdem,
  * weil kein Wächter fragt, ob ein Feld überhaupt *ein* Aussehen bekommt — nur,
  * ob das, was es bekommt, aus app.css stammt.
  */
-.feld input,
-.feld select,
-.feld textarea,
-.mit-einheit input {
+.field input,
+.field select,
+.field textarea,
+.with-unit input {
   width: 100%;
   min-height: var(--tap);
   padding: 9px 12px;
@@ -1079,7 +1058,7 @@ table.paare {
   border-radius: var(--radius);
 }
 
-.feld textarea {
+.field textarea {
   min-height: 92px;
   resize: vertical;
 }
@@ -1091,11 +1070,11 @@ table.paare {
  * — die Form sagt „hier steht etwas, das man nicht ändert", und sie sagt es
  * ohne Farbe. Die Kundennummer ist der Fall, für den das gebraucht wird.
  */
-.feld input[readonly],
-.feld input:disabled,
-.feld select:disabled,
-.feld textarea:disabled,
-.mit-einheit input:disabled {
+.field input[readonly],
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled,
+.with-unit input:disabled {
   color: var(--text-muted);
   background: var(--surface);
   border-style: dashed;
@@ -1104,24 +1083,24 @@ table.paare {
 
 /* Zwei Felder nebeneinander — Vorname und Nachname, PLZ und Ort. Unter 480px
    untereinander (docs/24). */
-.paar {
+.field-row {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
 }
 
-.paar > .feld {
+.field-row > .field {
   flex: 1 1 160px;
 }
 
 /* Ein Feld, dessen Inhalt eine feste kurze Länge hat — PLZ, Länderkürzel,
    Portnummer. Es nimmt seinen Anteil an der Zeile nicht mit. */
-.paar > .feld.schmal {
+.field-row > .field.narrow {
   flex: 0 1 118px;
 }
 
 @media (max-width: 480px) {
-  .paar > .feld {
+  .field-row > .field {
     flex-basis: 100%;
   }
 }
@@ -1135,11 +1114,11 @@ table.paare {
  * `--text-table`, beim Mailversand in `--text-small` — dieselbe Sache, je nach
  * Seite eine andere Größe.
  *
- * `.feld input` gibt jedem Feld volle Breite und `--tap` Höhe. Für ein
+ * `.field input` gibt jedem Feld volle Breite und `--tap` Höhe. Für ein
  * Ankreuzfeld ist beides falsch, deshalb steht es hier ausdrücklich anders;
  * der Selektor mit Typangabe ist spezifischer und gewinnt.
  */
-.schalter {
+.toggle {
   display: flex;
   align-items: flex-start;
   gap: 9px;
@@ -1149,8 +1128,8 @@ table.paare {
   cursor: pointer;
 }
 
-.schalter input[type='checkbox'],
-.schalter input[type='radio'] {
+.toggle input[type='checkbox'],
+.toggle input[type='radio'] {
   flex: none;
   width: 17px;
   min-width: 0;
@@ -1159,13 +1138,13 @@ table.paare {
   margin-top: 2px;
 }
 
-.schalter > span {
+.toggle > span {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.schalter .hinweis {
+.toggle .hint {
   margin-top: 0;
 }
 
@@ -1177,12 +1156,12 @@ table.paare {
  * dort ist die Zeile zu kurz, um 26px zu verschenken, und der Zusammenhang
  * trägt sich über die Nähe.
  */
-.abhaengig {
+.dependent {
   padding-left: 26px;
 }
 
 @media (max-width: 480px) {
-  .abhaengig {
+  .dependent {
     padding-left: 0;
   }
 }
@@ -1190,37 +1169,37 @@ table.paare {
 /* Eine Zahl mit ihrer Einheit daneben — MB, Stück, Tage. Das Feld bleibt
    schmal: Ein Eingabefeld über die halbe Zeile für „500" behauptet eine
    Freiheit, die die Zahl nicht hat. */
-.mit-einheit {
+.with-unit {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 9px;
 }
 
-.mit-einheit input {
+.with-unit input {
   width: 140px;
 }
 
-.einheit {
+.unit {
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
 /* Mehrere Ankreuzfelder als eine Auswahl — die PHP-Versionen eines Plans. */
-.auswahl {
+.choices {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 20px;
 }
 
-.auswahl .schalter {
+.choices .toggle {
   align-items: center;
   margin-top: 6px;
   font-size: var(--text-small);
   color: var(--text);
 }
 
-.auswahl .schalter input[type='checkbox'] {
+.choices .toggle input[type='checkbox'] {
   margin-top: 0;
 }
 
@@ -1238,27 +1217,27 @@ table.paare {
  * die dritte Spalte leer bleiben und die übrigen ihre Breite behalten — sonst
  * ziehen sich zwei Zahlenfelder über 1900px auseinander.
  */
-.posten-raster {
+.item-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 0 44px;
 }
 
 /* Jeder Posten trägt seine Linie oben. Zwischen den Posten geschrieben
-   (`+ .posten`) hätte im Raster die erste Zeile keine und die zweite eine —
+   (`+ .item`) hätte im Raster die erste Zeile keine und die zweite eine —
    je nachdem, wie viele Spalten gerade passen. */
-.posten {
+.item {
   padding: 12px 0;
   border-top: 1px solid var(--line);
 }
 
-.posten > .schalter:first-child {
+.item > .toggle:first-child {
   margin-top: 0;
 }
 
-/* Die Beschriftung eines Werts, der nicht in einem `.feld` steht — weil neben
+/* Die Beschriftung eines Werts, der nicht in einem `.field` steht — weil neben
    ihm noch eine Einheit und ein Schalter stehen. */
-.beschriftung {
+.label {
   display: block;
   font-size: var(--text-small);
   font-weight: 540;
@@ -1267,42 +1246,42 @@ table.paare {
 
 /* Sie bringt ihren Abstand selbst mit; sonst stünde zwischen ihr und dem Wert
    die volle Feldluft von 16px. */
-.beschriftung + .mit-einheit,
-.beschriftung + .auswahl {
+.label + .with-unit,
+.label + .choices {
   margin-top: 6px;
 }
 
-.beschriftung + .auswahl .schalter {
+.label + .choices .toggle {
   margin-top: 0;
 }
 
 /* „unbegrenzt" gehört in die Zeile des Werts und nicht darunter: Es ist die
    Alternative zu dieser einen Zahl und keine zweite Einstellung. */
-.mit-einheit .schalter {
+.with-unit .toggle {
   align-items: center;
   margin-top: 0;
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
-.mit-einheit .schalter input[type='checkbox'] {
+.with-unit .toggle input[type='checkbox'] {
   margin-top: 0;
 }
 
 /*
  * Die Knopfreihe unter einer Maske steht auf eigener Zeile.
  *
- * `.maske` ist dieselbe Flexverteilung wie `.bereiche`, und ohne diese Zeile
+ * `.form` ist dieselbe Flexverteilung wie `.sections`, und ohne diese Zeile
  * rutscht „Speichern" neben den letzten Bereich — an eine Stelle, an der es so
  * aussieht, als gehöre es nur zu diesem einen. Ein Formular hat einen
  * Abschluss und nicht drei.
  */
-.maske > .knopfreihe {
+.form > .button-row {
   flex-basis: 100%;
   margin-top: 4px;
 }
 
-.hinweis {
+.hint {
   margin: 6px 0 0;
   font-size: var(--text-small);
   color: var(--text-muted);
@@ -1310,7 +1289,7 @@ table.paare {
   max-width: 62ch;
 }
 
-.fehler {
+.error {
   margin: 6px 0 0;
   font-size: var(--text-small);
   font-weight: 560;
@@ -1336,7 +1315,7 @@ table.paare {
    Abstände je Feld.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.anmeldung {
+.signin {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -1347,7 +1326,7 @@ table.paare {
   background: var(--bg);
 }
 
-.blatt {
+.sheet {
   width: min(376px, 100%);
   display: flex;
   flex-direction: column;
@@ -1357,7 +1336,7 @@ table.paare {
   border-radius: 10px;
 }
 
-.blatt h1 {
+.sheet h1 {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1370,11 +1349,11 @@ table.paare {
 
 /* Der Knopf einer Anmeldemaske nimmt die ganze Breite: Es gibt genau eine
    Handlung auf dieser Seite, und sie steht am Ende. */
-.blatt .knopfreihe {
+.sheet .button-row {
   margin-top: 22px;
 }
 
-.blatt .knopfreihe .knopf {
+.sheet .button-row .button {
   width: 100%;
   justify-content: center;
 }
@@ -1383,7 +1362,7 @@ table.paare {
    Das Auge am Passwortfeld
 
    Es steht neben dem Feld und nicht darin, und es trägt denselben Rand:
-   `--control-line`. §7.2 nennt es ausdrücklich kein `.knopf` — es löst keine
+   `--control-line`. §7.2 nennt es ausdrücklich kein `.button` — es löst keine
    Aktion aus, es zeigt einen Zustand —, aber ein Bedienelement ist es
    trotzdem, und WCAG 1.4.11 fragt nicht danach, wie wir es nennen.
 
@@ -1393,18 +1372,18 @@ table.paare {
    davon ohne sichtbare Grenze.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.mit-auge {
+.with-reveal {
   display: flex;
   gap: 6px;
 }
 
-.mit-auge input {
+.with-reveal input {
   flex: 1;
   min-width: 0;
   font-family: var(--font-mono);
 }
 
-.auge {
+.reveal {
   flex: none;
   display: grid;
   place-items: center;
@@ -1417,7 +1396,7 @@ table.paare {
   cursor: pointer;
 }
 
-.auge:hover {
+.reveal:hover {
   color: var(--text-strong);
   border-color: var(--text-strong);
 }
@@ -1427,10 +1406,10 @@ table.paare {
 
    Punkt und Wort, nie Farbe allein: Rund acht Prozent der männlichen Nutzer
    lesen eine rote Fläche nicht als Signal. Vorher gab es davon vier Fassungen
-   — `.badge`, `.chip`, `.marke` und `.status`, je nach Seite.
+   — `.badge`, `.chip`, `.badge` und `.status`, je nach Seite.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.marke {
+.badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1441,7 +1420,7 @@ table.paare {
   border-radius: 999px;
 }
 
-.marke::before {
+.badge::before {
   content: '';
   flex: none;
   width: 6px;
@@ -1450,29 +1429,29 @@ table.paare {
   border-radius: 999px;
 }
 
-.marke.ok {
+.badge.ok {
   color: var(--ok);
   background: var(--ok-surface);
 }
 
-.marke.warn {
+.badge.warn {
   color: var(--warn);
   background: var(--warn-surface);
 }
 
-.marke.kritisch {
+.badge.critical {
   color: var(--critical);
   background: var(--critical-surface);
 }
 
-.marke.neutral {
+.badge.neutral {
   color: var(--text-muted);
   background: var(--accent-surface);
 }
 
 /* Ein Vorgang, der läuft. Der Punkt pulst — und hält an, wenn das
    Betriebssystem weniger Bewegung verlangt (siehe ganz unten). */
-.marke.laeuft::before {
+.badge.running::before {
   animation: marke-puls 1.4s ease-in-out infinite;
 }
 
@@ -1490,19 +1469,19 @@ table.paare {
 /* ═══════════════════════════════════════════════════════════════════════
    Balken
 
-   Eine Fassung statt drei — vorher `.bar`, `.balken` und `.fuellung`, je nach
+   Eine Fassung statt drei — vorher `.bar`, `.bar` und `.fuellung`, je nach
    Seite. Der Balken wird bei 100 abgeschnitten, die Zahl daneben nicht: Eine
    Quota lässt sich überschreiten, ein Balken über seinen Rahmen hinaus wäre
    ein Darstellungsfehler, und „118 %" daneben ist die Auskunft.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.balkenzeile {
+.bar-row {
   display: flex;
   align-items: center;
   gap: 11px;
 }
 
-.balken {
+.bar {
   flex: 1 1 60px;
   min-width: 40px;
   max-width: 150px;
@@ -1512,28 +1491,37 @@ table.paare {
   border-radius: 999px;
 }
 
-.balken > i {
+.bar > i {
   display: block;
   height: 100%;
   background: var(--accent);
   border-radius: 999px;
 }
 
-.balken.voll > i {
+/*
+ * `tight` und `over` und nicht `full`/`critical`.
+ *
+ * Beim Umstellen der Klassennamen auf Englisch fielen drei Bedeutungen auf
+ * einen Namen: `.bereich.voll` hiess „über die ganze Breite", `.balken.voll`
+ * hiess „nahe an der Grenze". Wörtlich übersetzt hätten beide `full` geheissen
+ * und dieselbe Klasse an zwei Bausteinen zwei Dinge bedeutet. Der Balken sagt
+ * jetzt, was er meint.
+ */
+.bar.tight > i {
   background: var(--warn);
 }
 
-.balken.kritisch > i {
+.bar.over > i {
   background: var(--critical);
 }
 
 /* Über die volle Breite — auf einer Seite, die einem einzigen Wert gewidmet
    ist, ist der Balken die Hauptsache und keine Randnotiz. */
-.balken.breit {
+.bar.wide {
   max-width: none;
 }
 
-.balkenwert {
+.bar-value {
   flex: none;
   font-size: var(--text-table);
   color: var(--text-muted);
@@ -1544,7 +1532,7 @@ table.paare {
    Meldungen
    ═══════════════════════════════════════════════════════════════════════ */
 
-.meldung {
+.notice {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -1555,21 +1543,21 @@ table.paare {
   border-radius: var(--radius);
 }
 
-.meldung b {
+.notice b {
   color: var(--text-strong);
 }
 
-.meldung.ok {
+.notice.ok {
   background: var(--ok-surface);
   border-color: var(--ok);
 }
 
-.meldung.warn {
+.notice.warn {
   background: var(--warn-surface);
   border-color: var(--warn);
 }
 
-.meldung.kritisch {
+.notice.critical {
   background: var(--critical-surface);
   border-color: var(--critical);
 }
@@ -1579,12 +1567,12 @@ table.paare {
  * etwas gut oder schlecht steht.
  *
  * Sie ist der Grundzustand und trotzdem eine eigene Klasse: Ohne sie hätte
- * `.meldung` allein keinen Rand und keine Fläche, weil `border-left: 3px
+ * `.notice` allein keinen Rand und keine Fläche, weil `border-left: 3px
  * solid` ohne Farbangabe auf `currentColor` fällt. Das ist genau die Sorte
  * stiller Rückfall, für die es hier Wächter gibt — deshalb wird der Rang immer
  * geschrieben.
  */
-.meldung.neutral {
+.notice.neutral {
   background: var(--surface);
   border-color: var(--control-line);
 }
@@ -1593,7 +1581,7 @@ table.paare {
    Die Ausgabe eines Vorgangs
    ═══════════════════════════════════════════════════════════════════════ */
 
-.ausgabe {
+.output {
   margin-top: 14px;
   padding: 14px 16px;
   font-family: var(--font-mono);
@@ -1605,20 +1593,12 @@ table.paare {
   overflow-y: auto;
 }
 
-.ausgabe > div {
+.output > div {
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.ausgabe .zeit {
-  color: var(--text-muted);
-}
-
-.ausgabe .fehl {
-  color: var(--critical);
-}
-
-.fortschritt {
+.progress {
   height: 4px;
   margin-top: 14px;
   overflow: hidden;
@@ -1626,7 +1606,7 @@ table.paare {
   border-radius: 999px;
 }
 
-.fortschritt > i {
+.progress > i {
   display: block;
   height: 100%;
   background: var(--accent);

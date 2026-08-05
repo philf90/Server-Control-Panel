@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
-import Marke from '../../Components/Marke.vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Certificate {
@@ -59,16 +59,16 @@ function neuAusstellen(): void {
   <Head title="Zertifikat" />
 
   <PanelLayout title="Zertifikat" subline="Die Verbindung zu dieser Oberfläche">
-    <template #aktion>
-      <Marke v-if="props.certificate.present" :art="abgelaufen ? 'kritisch' : knapp ? 'warn' : 'ok'">
+    <template #actions>
+      <Badge v-if="props.certificate.present" :kind="abgelaufen ? 'critical' : knapp ? 'warn' : 'ok'">
         <template v-if="abgelaufen">abgelaufen</template>
         <template v-else-if="tage !== null">noch {{ tage }} Tage</template>
         <template v-else>vorhanden</template>
-      </Marke>
-      <button type="button" class="knopf" @click="neuAusstellen">Neu ausstellen</button>
+      </Badge>
+      <button type="button" class="button" @click="neuAusstellen">Neu ausstellen</button>
     </template>
 
-    <p v-if="!props.certificate.present" class="meldung kritisch">
+    <p v-if="!props.certificate.present" class="notice critical">
       <span>{{ props.certificate.reason ?? 'Es liegt kein Zertifikat vor.' }}</span>
     </p>
 
@@ -78,81 +78,81 @@ function neuAusstellen(): void {
         Seite öffnet, hat meistens genau eine Frage, und wenn etwas nicht
         stimmt, ist das die Antwort darauf.
       -->
-      <p v-if="abgelaufen" class="meldung kritisch">
+      <p v-if="abgelaufen" class="notice critical">
         <span>
           Das Zertifikat ist am {{ datum(props.certificate.valid_to) }}
           abgelaufen. Der Browser lässt die Verbindung nicht mehr ohne Weiteres
           zu.
         </span>
       </p>
-      <p v-else-if="knapp" class="meldung warn">
+      <p v-else-if="knapp" class="notice warn">
         <span>
           Das Zertifikat läuft in <b>{{ tage }}</b> Tagen ab. Die tägliche
-          Prüfung (<span class="kennung">srvpanel-tls.timer</span>) erneuert es
+          Prüfung (<span class="ident">srvpanel-tls.timer</span>) erneuert es
           von selbst; passiert das nicht, steht der Grund im Journal des
           Dienstes.
         </span>
       </p>
 
-      <p v-if="fehlende.length > 0" class="meldung warn">
+      <p v-if="fehlende.length > 0" class="notice warn">
         <span>
           Dieser Rechner ist auch unter
-          <span class="kennung">{{ fehlende.join(', ') }}</span> erreichbar —
+          <span class="ident">{{ fehlende.join(', ') }}</span> erreichbar —
           das Zertifikat deckt das nicht ab. Eine neue Adresse stellt es nicht
           von selbst neu aus; auf einem Server mit Docker gäbe das jede Woche
           ein neues Zertifikat samt neuer Warnung im Browser.
         </span>
       </p>
 
-      <div class="bereiche">
-        <Bereich titel="Ausstellung">
-          <table class="paare">
+      <div class="sections">
+        <Section title="Ausstellung">
+          <table class="pairs">
             <tbody>
               <tr>
-                <td class="stumm">Ausgestellt für</td>
-                <td class="rechts kennung">{{ props.certificate.subject || '—' }}</td>
+                <td class="quiet">Ausgestellt für</td>
+                <td class="right ident">{{ props.certificate.subject || '—' }}</td>
               </tr>
               <tr>
-                <td class="stumm">Aussteller</td>
-                <td class="rechts kennung">{{ props.certificate.issuer || '—' }}</td>
+                <td class="quiet">Aussteller</td>
+                <td class="right ident">{{ props.certificate.issuer || '—' }}</td>
               </tr>
               <tr v-if="props.certificate.self_signed">
-                <td class="stumm">Art</td>
-                <td class="rechts"><Marke art="warn">selbstsigniert</Marke></td>
+                <td class="quiet">Art</td>
+                <td class="right"><Badge kind="warn">selbstsigniert</Badge></td>
               </tr>
               <tr>
-                <td class="stumm">Gültig ab</td>
-                <td class="rechts">{{ datum(props.certificate.valid_from) }}</td>
+                <td class="quiet">Gültig ab</td>
+                <td class="right">{{ datum(props.certificate.valid_from) }}</td>
               </tr>
               <tr>
-                <td class="stumm">Gültig bis</td>
-                <td class="rechts">{{ datum(props.certificate.valid_to) }}</td>
+                <td class="quiet">Gültig bis</td>
+                <td class="right">{{ datum(props.certificate.valid_to) }}</td>
               </tr>
               <tr>
-                <td class="stumm">Datei</td>
-                <td class="rechts kennung">{{ props.certificate.path }}</td>
+                <td class="quiet">Datei</td>
+                <td class="right ident">{{ props.certificate.path }}</td>
               </tr>
             </tbody>
           </table>
-        </Bereich>
+        </Section>
 
-        <Bereich titel="Gilt für" erklaerung="Namen und Adressen, unter denen dieses Zertifikat anerkannt wird.">
-          <table class="paare">
+        <Section title="Gilt für" note="Namen und Adressen, unter denen dieses Zertifikat anerkannt wird.">
+          <table class="pairs">
             <tbody>
               <tr>
-                <td class="stumm">Namen</td>
-                <td class="rechts kennung">{{ props.certificate.names?.dns.join(', ') || '—' }}</td>
+                <td class="quiet">Namen</td>
+                <td class="right ident">{{ props.certificate.names?.dns.join(', ') || '—' }}</td>
               </tr>
               <tr>
-                <td class="stumm">Adressen</td>
-                <td class="rechts kennung">{{ props.certificate.names?.ip.join(', ') || '—' }}</td>
+                <td class="quiet">Adressen</td>
+                <td class="right ident">{{ props.certificate.names?.ip.join(', ') || '—' }}</td>
               </tr>
             </tbody>
           </table>
-        </Bereich>
+        </Section>
       </div>
 
-      <p v-if="props.certificate.self_signed" class="meldung neutral nachtrag">
+      <p v-if="props.certificate.self_signed" class="notice neutral postscript">
         <span>
           Ein selbstsigniertes Zertifikat kennt kein Browser — die Warnung beim
           ersten Aufruf gehört dazu. Ein Zertifikat von Let's Encrypt kommt mit
@@ -168,7 +168,7 @@ function neuAusstellen(): void {
 /* Diese eine Meldung steht am Fuss der Seite und nicht darüber: Sie ordnet
    ein, was oben steht, und ist keine Antwort auf die Frage, mit der jemand
    hierherkommt. */
-.nachtrag {
+.postscript {
   margin-top: var(--block-gap);
   margin-bottom: 0;
 }

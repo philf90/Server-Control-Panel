@@ -120,7 +120,7 @@ watch(() => page.url, () => {
 })
 
 watch(menuOpen, (open) => {
-  document.documentElement.classList.toggle('menu-offen', open)
+  document.documentElement.classList.toggle('menu-open', open)
 })
 
 function onKey(event: KeyboardEvent): void {
@@ -134,7 +134,7 @@ onBeforeUnmount(() => {
 
   // Ohne das bliebe die Seite gesperrt, wenn die Schublade offen war und die
   // Anwendung das Gerüst wechselt — etwa beim Abmelden.
-  document.documentElement.classList.remove('menu-offen')
+  document.documentElement.classList.remove('menu-open')
 })
 </script>
 
@@ -150,13 +150,13 @@ onBeforeUnmount(() => {
         Sie arbeiten in der Sicht dieses Kunden.
         Angemeldet als <b>{{ account?.name }}</b>, gewechselt von <b>{{ impersonation.admin }}</b>.
       </span>
-      <button type="button" class="knopf klein" @click="stopImpersonation">Zurück zur Verwaltung</button>
+      <button type="button" class="button small" @click="stopImpersonation">Zurück zur Verwaltung</button>
     </div>
 
     <!--
       Die Kopfzeile der schmalen Fläche.
 
-      **Ohne das Zeichen, und das ist kein Versehen.** Es sind drei gestapelte
+      **Ohne das Zeichen, und das ist kein Versehen.** Es sind drei gestackse
       Balken — dasselbe Bild wie der Menüknopf daneben. In der ersten Aufnahme
       des Entwurfs stand hier „≡ ≡ SrvPanel", und man sieht zwei Menüknöpfe und
       drückt auf den falschen. Bei „Leitstand" fiel das nie auf, weil das
@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
     <header class="topbar">
       <button
         type="button"
-        class="burger"
+        class="nav-toggle"
         :aria-expanded="menuOpen"
         aria-controls="hauptnavigation"
         aria-label="Navigation"
@@ -180,14 +180,14 @@ onBeforeUnmount(() => {
         </svg>
       </button>
 
-      <span class="titel">{{ title }}</span>
+      <span class="title">{{ title }}</span>
     </header>
 
     <!-- Der Schleier liegt zwischen Seite und Schublade und schliesst sie. -->
-    <div v-if="menuOpen" class="schleier" @click="menuOpen = false" />
+    <div v-if="menuOpen" class="scrim" @click="menuOpen = false" />
 
-    <aside id="hauptnavigation" class="rail" :class="{ offen: menuOpen }">
-      <div class="zeile">
+    <aside id="hauptnavigation" class="rail" :class="{ open: menuOpen }">
+      <div class="row">
         <!--
           Hier stand ein Buchstabe in einem farbigen Quadrat: erst „C" von
           CloudSrv, dem verworfenen Namen, dann „S". Ein Platzhalter, solange
@@ -217,15 +217,15 @@ onBeforeUnmount(() => {
         <span class="version">{{ source.version }}</span>
       </div>
 
-      <nav class="navliste">
+      <nav class="nav-list">
         <template v-for="block in navigation" :key="block.group ?? 'oben'">
-          <p v-if="block.group" class="gruppe">{{ block.group }}</p>
+          <p v-if="block.group" class="nav-group">{{ block.group }}</p>
           <Link
             v-for="item in block.items"
             :key="item.name"
             :href="item.href"
-            class="eintrag"
-            :class="{ aktiv: current === item.href }"
+            class="nav-item"
+            :class="{ active: current === item.href }"
             :aria-current="current === item.href ? 'page' : undefined"
           >
             {{ item.name }}
@@ -238,14 +238,14 @@ onBeforeUnmount(() => {
         den Quelltext der laufenden Fassung kommen. Deshalb Version und Commit
         im Link und nicht bloß die Adresse des Repositorys.
       -->
-      <div class="railfuss">
-        <div v-if="account" class="konto">
+      <div class="rail-foot">
+        <div v-if="account" class="account">
           <b>{{ account.name }}</b>
-          <button type="button" class="abmelden" @click="signOut">Abmelden</button>
+          <button type="button" class="signout" @click="signOut">Abmelden</button>
         </div>
 
         <a
-          class="quelltext"
+          class="source"
           :href="source.commit ? `${source.repository}/tree/${source.commit}` : source.repository"
         >
           Quelltext · {{ source.version }}
@@ -253,12 +253,12 @@ onBeforeUnmount(() => {
       </div>
     </aside>
 
-    <main class="inhalt">
-      <div class="seitenkopf">
-        <div class="titelblock">
-          <p v-if="$slots.pfad" class="pfad"><slot name="pfad" /></p>
+    <main class="content">
+      <div class="page-head">
+        <div class="title-block">
+          <p v-if="$slots.breadcrumb" class="breadcrumb"><slot name="breadcrumb" /></p>
           <h1>{{ title }}</h1>
-          <p v-if="subline" class="beizeile">{{ subline }}</p>
+          <p v-if="subline" class="subline">{{ subline }}</p>
         </div>
 
         <!--
@@ -266,12 +266,12 @@ onBeforeUnmount(() => {
           sie am Ende des ersten Bereichs, also dort, wo man sie erst findet,
           nachdem man an ihr vorbeigelesen hat.
         -->
-        <div v-if="$slots.aktion" class="knopfreihe">
-          <slot name="aktion" />
+        <div v-if="$slots.actions" class="button-row">
+          <slot name="actions" />
         </div>
       </div>
 
-      <p v-if="erfolg" class="meldung ok" role="status">{{ erfolg }}</p>
+      <p v-if="erfolg" class="notice ok" role="status">{{ erfolg }}</p>
 
       <slot />
     </main>
@@ -295,7 +295,7 @@ onBeforeUnmount(() => {
 
 /* Kopfzeile und Schleier gibt es nur auf der schmalen Fläche. */
 .topbar,
-.schleier {
+.scrim {
   display: none;
 }
 
@@ -351,7 +351,7 @@ onBeforeUnmount(() => {
  * für einen der beiden Fälle stehen, und die alte Seitenleiste hat sie für den
  * schlechteren getroffen.
  */
-.zeile {
+.row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -372,24 +372,24 @@ onBeforeUnmount(() => {
  * Schriftzug wäre die achte Rolle für einen Sonderfall gewesen, und genau so
  * ist die alte Skala mit ihren zehn rem-Werten entstanden.
  */
-.zeile b {
+.row b {
   font-size: var(--text-section);
   font-weight: 660;
   letter-spacing: -0.015em;
   color: var(--text-strong);
 }
 
-.zeile :deep(.version) {
+.row :deep(.version) {
   flex: none;
 }
 
-.navliste {
+.nav-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.gruppe {
+.nav-group {
   margin: 22px 0 7px 12px;
   font-size: var(--text-label);
   font-weight: 660;
@@ -398,7 +398,7 @@ onBeforeUnmount(() => {
   color: var(--text-muted);
 }
 
-.eintrag {
+.nav-item {
   padding: 9px 12px;
   min-height: var(--tap);
   display: flex;
@@ -409,7 +409,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius);
 }
 
-.eintrag:hover {
+.nav-item:hover {
   background: var(--accent-surface);
 }
 
@@ -421,20 +421,20 @@ onBeforeUnmount(() => {
  * ist eine Fläche die klarere Auskunft: Sie sagt „hier bist du", und der
  * Strich sagte „hier ist eine Kante".
  */
-.eintrag.aktiv {
+.nav-item.active {
   color: var(--accent);
   background: var(--accent-surface);
   font-weight: 660;
 }
 
-.railfuss {
+.rail-foot {
   margin-top: auto;
   padding-top: 22px;
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
-.konto {
+.account {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -442,7 +442,7 @@ onBeforeUnmount(() => {
   margin-bottom: 4px;
 }
 
-.konto b {
+.account b {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -452,12 +452,12 @@ onBeforeUnmount(() => {
 }
 
 /*
- * Abmelden ist kein `.knopf` und soll keiner sein: Ein Knopf auf einer Seite
+ * Abmelden ist kein `.button` und soll keiner sein: Ein Knopf auf einer Seite
  * ist eine Aktion, für die man dorthin gegangen ist. Das Abmelden steht im
  * Rail, weil es von überall erreichbar sein muss — nicht, weil es die
  * Hauptsache wäre.
  */
-.abmelden {
+.signout {
   flex: none;
   padding: 0;
   font: inherit;
@@ -468,29 +468,29 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.abmelden:hover {
+.signout:hover {
   color: var(--accent);
   text-decoration: underline;
 }
 
-.quelltext {
+.source {
   color: var(--text-muted);
   text-decoration: none;
 }
 
-.quelltext:hover {
+.source:hover {
   color: var(--accent);
   text-decoration: underline;
 }
 
 /* ── Der Inhalt ───────────────────────────────────────────────────────── */
-.inhalt {
+.content {
   grid-row: 2;
   padding: 26px 32px 36px;
   min-width: 0;
 }
 
-.titelblock {
+.title-block {
   min-width: 0;
 }
 
@@ -539,7 +539,7 @@ onBeforeUnmount(() => {
     z-index: 20;
   }
 
-  .topbar .titel {
+  .topbar .title {
     font-size: var(--text-section);
     font-weight: 660;
     color: var(--text-strong);
@@ -548,7 +548,7 @@ onBeforeUnmount(() => {
     white-space: nowrap;
   }
 
-  .burger {
+  .nav-toggle {
     display: grid;
     place-items: center;
     flex: none;
@@ -562,7 +562,7 @@ onBeforeUnmount(() => {
     cursor: pointer;
   }
 
-  .burger svg {
+  .nav-toggle svg {
     width: 24px;
     height: 24px;
     fill: none;
@@ -571,7 +571,7 @@ onBeforeUnmount(() => {
     stroke-linecap: round;
   }
 
-  .schleier {
+  .scrim {
     display: block;
     position: fixed;
     inset: 0;
@@ -593,7 +593,7 @@ onBeforeUnmount(() => {
     transition: transform 180ms ease;
   }
 
-  .rail.offen {
+  .rail.open {
     transform: none;
   }
 
@@ -602,7 +602,7 @@ onBeforeUnmount(() => {
     padding-top: calc(10px + env(safe-area-inset-top));
   }
 
-  .inhalt {
+  .content {
     /* Nimmt, was übrig ist — vorher tat das die `1fr`-Zeile des Rasters. */
     flex: 1;
     min-width: 0;
@@ -616,7 +616,7 @@ onBeforeUnmount(() => {
    * einem Bildschirm, der ohnehin knapp ist — Pfad und Beizeile bleiben, sie
    * sagen etwas anderes.
    */
-  .seitenkopf h1 {
+  .page-head h1 {
     display: none;
   }
 }
@@ -627,7 +627,7 @@ onBeforeUnmount(() => {
  * Komponente — ohne das schriebe Vue die Regel auf ein Element um, das es
  * hier gar nicht gibt.
  */
-:global(html.menu-offen) {
+:global(html.menu-open) {
   overflow: hidden;
 }
 </style>

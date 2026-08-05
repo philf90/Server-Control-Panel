@@ -10,8 +10,8 @@
  */
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
-import Marke from '../../Components/Marke.vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
@@ -110,54 +110,54 @@ function savePassword(): void {
       es ohnehin ab (siehe ProfileController); hier steht der Grund, damit
       niemand ihn erraten muss.
     -->
-    <p v-if="props.impersonating" class="meldung warn">
+    <p v-if="props.impersonating" class="notice warn">
       <span>
         Sie arbeiten gerade in fremder Sicht. Das Konto eines Kunden lässt sich
         von hier aus nicht ändern — kehren Sie dafür in die Verwaltung zurück.
       </span>
     </p>
 
-    <div class="bereiche">
-      <Bereich v-if="!props.impersonating" titel="Konto">
+    <div class="sections">
+      <Section v-if="!props.impersonating" title="Konto">
         <form @submit.prevent="saveAccount">
-          <label class="feld">
+          <label class="field">
             <span>Anzeigename</span>
             <input v-model="konto.name" type="text" required>
           </label>
-          <p v-if="konto.errors.name" class="fehler">{{ konto.errors.name }}</p>
+          <p v-if="konto.errors.name" class="error">{{ konto.errors.name }}</p>
 
-          <label class="feld">
+          <label class="field">
             <span>Anmeldeadresse</span>
             <input v-model="konto.email" type="email" autocomplete="username" required>
           </label>
-          <p v-if="konto.errors.email" class="fehler">{{ konto.errors.email }}</p>
-          <p class="hinweis">Mit dieser Adresse melden Sie sich an.</p>
+          <p v-if="konto.errors.email" class="error">{{ konto.errors.email }}</p>
+          <p class="hint">Mit dieser Adresse melden Sie sich an.</p>
 
-          <label class="feld">
+          <label class="field">
             <span>Aktuelles Passwort</span>
             <input v-model="konto.current_password" type="password" autocomplete="current-password" required>
           </label>
-          <p v-if="konto.errors.current_password" class="fehler">{{ konto.errors.current_password }}</p>
-          <p class="hinweis">
+          <p v-if="konto.errors.current_password" class="error">{{ konto.errors.current_password }}</p>
+          <p class="hint">
             Auch für eine Änderung am Namen — sonst genügte ein unbeaufsichtigter
             Rechner, um die Anmeldeadresse umzuschreiben.
           </p>
 
-          <div class="knopfreihe">
-            <button type="submit" class="knopf wichtig" :disabled="konto.processing">
+          <div class="button-row">
+            <button type="submit" class="button primary" :disabled="konto.processing">
               {{ konto.processing ? 'Wird gespeichert …' : 'Speichern' }}
             </button>
           </div>
         </form>
-      </Bereich>
+      </Section>
 
-      <Bereich v-if="!props.impersonating" titel="Passwort ändern">
+      <Section v-if="!props.impersonating" title="Passwort ändern">
         <form @submit.prevent="savePassword">
-          <label class="feld">
+          <label class="field">
             <span>Aktuelles Passwort</span>
             <input v-model="passwort.current_password" type="password" autocomplete="current-password" required>
           </label>
-          <p v-if="passwort.errors.current_password" class="fehler">{{ passwort.errors.current_password }}</p>
+          <p v-if="passwort.errors.current_password" class="error">{{ passwort.errors.current_password }}</p>
 
           <PasswordFields
             v-model="passwort.password"
@@ -168,75 +168,75 @@ function savePassword(): void {
             label="Neues Passwort"
           />
 
-          <p class="hinweis">
+          <p class="hint">
             Nach dem Wechsel werden alle anderen Sitzungen abgemeldet. Diese
             hier bleibt bestehen.
           </p>
 
-          <div class="knopfreihe">
-            <button type="submit" class="knopf wichtig" :disabled="passwort.processing">
+          <div class="button-row">
+            <button type="submit" class="button primary" :disabled="passwort.processing">
               {{ passwort.processing ? 'Wird geändert …' : 'Passwort ändern' }}
             </button>
           </div>
         </form>
-      </Bereich>
+      </Section>
 
       <!--
         Die Darstellung steht bei den Angaben zum Konto und nicht unter den
         Servereinstellungen: Sie gilt für dieses eine Konto und nicht für den
         Server. Wer sie dort suchte, suchte etwas, das alle beträfe.
       -->
-      <Bereich titel="Darstellung">
+      <Section title="Darstellung">
         <!--
           Die drei Knöpfe sind eine Wahl und keine drei Aktionen — deshalb
           stehen sie in einer Reihe und tragen `.aktiv` statt `.wichtig`. Wie
           ein gewählter aussieht, steht in app.css.
         -->
-        <div class="knopfreihe abstand">
+        <div class="button-row spaced">
           <button
             v-for="option in themes"
             :key="String(option.wert)"
             type="button"
-            class="knopf"
-            :class="{ aktiv: props.profile.theme === option.wert }"
+            class="button"
+            :class="{ active: props.profile.theme === option.wert }"
             :aria-pressed="props.profile.theme === option.wert"
             :disabled="darstellung.processing || props.impersonating"
             @click="saveTheme(option.wert)"
           >{{ option.name }}</button>
         </div>
 
-        <p class="hinweis">
+        <p class="hint">
           „System" übernimmt, was Ihr Betriebssystem gerade vorgibt, und
           wechselt mit. Die Wahl gilt für dieses Konto, auch an einem anderen
           Rechner.
         </p>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Sicherheit">
-        <table class="paare">
+      <Section title="Sicherheit">
+        <table class="pairs">
           <tbody>
             <tr>
-              <td class="stumm">Zweiter Faktor</td>
-              <td class="rechts">
-                <Marke :art="props.profile.two_factor ? 'ok' : 'neutral'">
+              <td class="quiet">Zweiter Faktor</td>
+              <td class="right">
+                <Badge :kind="props.profile.two_factor ? 'ok' : 'neutral'">
                   {{ props.profile.two_factor ? 'eingerichtet' : 'nicht eingerichtet' }}
-                </Marke>
+                </Badge>
               </td>
-              <td class="rechts">
-                <Link href="/settings/two-factor" class="verweis">verwalten</Link>
+              <td class="right">
+                <Link href="/settings/two-factor" class="link">verwalten</Link>
               </td>
             </tr>
             <tr>
-              <td class="stumm">Letzte Anmeldung</td>
-              <td class="rechts">{{ props.profile.last_login_at ?? '—' }}</td>
+              <td class="quiet">Letzte Anmeldung</td>
+              <td class="right">{{ props.profile.last_login_at ?? '—' }}</td>
             </tr>
             <tr>
-              <td class="stumm">Von</td>
-              <td class="rechts kennung">{{ props.profile.last_login_ip ?? '—' }}</td>
+              <td class="quiet">Von</td>
+              <td class="right ident">{{ props.profile.last_login_ip ?? '—' }}</td>
             </tr>
           </tbody>
         </table>
-      </Bereich>
+      </Section>
     </div>
   </PanelLayout>
 </template>
@@ -244,7 +244,7 @@ function savePassword(): void {
 <style scoped>
 /* Die Wahl der Darstellung braucht denselben Abstand nach oben wie ein Feld —
    sonst klebt die erste Knopfreihe an der Bereichslinie. */
-.abstand {
+.spaced {
   margin-top: 16px;
 }
 </style>

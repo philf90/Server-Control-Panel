@@ -19,27 +19,27 @@
  */
 const props = withDefaults(defineProps<{
   /** Der Anteil in Prozent. Darf über 100 liegen. */
-  prozent: number
+  percent: number
 
   /** Nahe an der Grenze — der Balken trägt die Warnfarbe. */
-  eng?: boolean
+  tight?: boolean
 
   /** Die Grenze ist überschritten. */
-  ueber?: boolean
+  over?: boolean
 
   /** Über die volle Breite, wenn der Wert die Hauptsache der Seite ist. */
-  breit?: boolean
+  wide?: boolean
 }>(), {
-  eng: false,
-  ueber: false,
-  breit: false,
+  tight: false,
+  over: false,
+  wide: false,
 })
 
-const gefuellt = `${Math.max(0, Math.min(100, props.prozent))}%`
+const filled = `${Math.max(0, Math.min(100, props.percent))}%`
 </script>
 
 <template>
-  <div class="balkenzeile">
+  <div class="bar-row">
     <!--
       Die Ränge stehen als Objektschlüssel, damit `ClassReachTest` sie prüfen
       kann — dieselbe Begründung wie bei der Zustandsmarke.
@@ -49,14 +49,14 @@ const gefuellt = `${Math.max(0, Math.min(100, props.prozent))}%`
       als eigenes Element und nicht als Beschriftung des Balkens.
     -->
     <div
-      class="balken"
-      :class="{ voll: eng, kritisch: ueber, breit }"
+      class="bar"
+      :class="{ tight, over, wide }"
       role="img"
-      :aria-label="`${prozent} Prozent belegt`"
+      :aria-label="`${percent} Prozent belegt`"
     >
-      <i :style="{ width: gefuellt }" />
+      <i :style="{ width: filled }" />
     </div>
 
-    <span class="balkenwert">{{ prozent }} %</span>
+    <span class="bar-value">{{ percent }} %</span>
   </div>
 </template>

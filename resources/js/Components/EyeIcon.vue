@@ -26,7 +26,7 @@ defineProps<{
 
 <template>
   <svg
-    class="auge-symbol"
+    class="eye-icon"
     viewBox="0 0 24 24"
     width="16"
     height="16"
@@ -53,7 +53,7 @@ defineProps<{
 </template>
 
 <style scoped>
-.auge-symbol {
+.eye-icon {
   display: block;
   margin: 0 auto;
 }

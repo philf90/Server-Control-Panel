@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * Das Zeichen des Panels: drei gestapelte Balken.
+ * Das Zeichen des Panels: drei gestackse Balken.
  *
  * **Warum es hier als Quelltext steht und nicht als Datei geladen wird.**
  * Dasselbe wie beim Auge: Ein `<img src="…">` wäre ein zweiter Aufruf für drei
@@ -23,7 +23,7 @@
  * Themes denselben Indigo wie der Akzent, und die zwei Blautöne von damals
  * werden nicht mehr gebraucht.
  *
- * **Das Zeichen verträgt keinen Menüknopf neben sich.** Drei gestapelte Balken
+ * **Das Zeichen verträgt keinen Menüknopf neben sich.** Drei gestackse Balken
  * sind dasselbe Bild wie ein Hamburger; stehen beide in einer Leiste, sieht
  * man zwei Menüknöpfe und drückt auf den falschen. Bei „Leitstand" fiel das
  * nie auf, weil das Zeichen in der Seitenleiste sass und der Menüknopf in der
@@ -39,14 +39,14 @@ withDefaults(defineProps<{ size?: number }>(), { size: 22 })
 
 <template>
   <svg
-    class="zeichen"
+    class="mark"
     viewBox="0 0 64 64"
     :width="size"
     :height="size"
     role="img"
     aria-label="SrvPanel"
   >
-    <rect x="2" y="5.5" width="60" height="13" rx="4" class="balken-oben" />
+    <rect x="2" y="5.5" width="60" height="13" rx="4" class="bar-top" />
     <rect x="2" y="25.5" width="44" height="13" rx="4" fill="currentColor" />
     <rect x="2" y="45.5" width="28" height="13" rx="4" fill="currentColor" opacity="0.5" />
   </svg>
@@ -54,15 +54,15 @@ withDefaults(defineProps<{ size?: number }>(), { size: 22 })
 
 <style scoped>
 /*
- * `.zeichen` und nicht mehr `.marke`.
+ * `.mark` und nicht mehr `.badge`.
  *
- * Seit „Kontor" ist `.marke` die Zustandsmarke aus app.css — eine Pille mit
+ * Seit „Kontor" ist `.badge` die Zustandsmarke aus app.css — eine Pille mit
  * farbigem Punkt davor und `border-radius: 999px`. Das Zeichen des Panels
  * hätte sich damit stillschweigend in eine Pille verwandelt, und zwar an der
  * auffälligsten Stelle der Oberfläche. Zwei Bedeutungen für einen Namen sind
  * beim ersten Umbau ein Fehler.
  */
-.zeichen {
+.mark {
   display: block;
   /* `flex: none`: In der Seitenleiste steht das Zeichen neben Schriftzug und
      Version, und ohne das schrumpft es zu einem Streifen, sobald die Zeile eng
@@ -70,7 +70,7 @@ withDefaults(defineProps<{ size?: number }>(), { size: 22 })
   flex: none;
 }
 
-.balken-oben {
+.bar-top {
   fill: var(--mark-accent);
 }
 </style>

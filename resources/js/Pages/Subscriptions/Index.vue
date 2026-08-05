@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3'
-import Marke from '../../Components/Marke.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Row {
@@ -17,10 +17,10 @@ interface Row {
 
 const props = defineProps<{ subscriptions: Row[] }>()
 
-function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'active') return 'ok'
   if (status === 'suspended') return 'warn'
-  if (status === 'cancelled') return 'kritisch'
+  if (status === 'cancelled') return 'critical'
 
   return 'neutral'
 }
@@ -46,12 +46,12 @@ function verbrauch(row: Row): string {
   <Head title="Abonnements" />
 
   <PanelLayout title="Abonnements" :subline="`${props.subscriptions.length} angelegt`">
-    <template #aktion>
-      <Link href="/subscriptions/create" class="knopf wichtig">Abonnement anlegen</Link>
+    <template #actions>
+      <Link href="/subscriptions/create" class="button primary">Abonnement anlegen</Link>
     </template>
 
-    <div class="rollt">
-      <table class="stapelt">
+    <div class="scrolls">
+      <table class="stacks">
         <thead>
           <tr>
             <th>Name</th><th>Kunde</th><th>Plan</th><th>Systembenutzer</th>
@@ -60,27 +60,27 @@ function verbrauch(row: Row): string {
         </thead>
         <tbody>
           <tr v-for="row in props.subscriptions" :key="row.id">
-            <td data-spalte="Name" class="kennung name">
-              <Link :href="`/subscriptions/${row.id}`" class="verweis">{{ row.name }}</Link>
+            <td data-column="Name" class="ident name">
+              <Link :href="`/subscriptions/${row.id}`" class="link">{{ row.name }}</Link>
             </td>
-            <td data-spalte="Kunde">{{ row.customer ?? '—' }}</td>
-            <td data-spalte="Plan" class="stumm">{{ row.plan ?? '—' }}</td>
-            <td data-spalte="Systembenutzer" class="kennung stumm">{{ row.system_user ?? '—' }}</td>
+            <td data-column="Kunde">{{ row.customer ?? '—' }}</td>
+            <td data-column="Plan" class="quiet">{{ row.plan ?? '—' }}</td>
+            <td data-column="Systembenutzer" class="ident quiet">{{ row.system_user ?? '—' }}</td>
 
             <!--
               Ab 90 Prozent trägt der Speicher eine Marke statt einer
               eingefärbten Zelle. Die Zahl steht darin — Farbe ist nicht der
               einzige Träger.
             -->
-            <td data-spalte="Speicher">
-              <Marke v-if="row.percent !== null && row.percent >= 90" art="warn">
+            <td data-column="Speicher">
+              <Badge v-if="row.percent !== null && row.percent >= 90" kind="warn">
                 {{ verbrauch(row) }}
-              </Marke>
+              </Badge>
               <template v-else>{{ verbrauch(row) }}</template>
             </td>
 
-            <td data-spalte="Zustand">
-              <Marke :art="rang(row.status)">{{ row.status_label }}</Marke>
+            <td data-column="Zustand">
+              <Badge :kind="rang(row.status)">{{ row.status_label }}</Badge>
             </td>
 
             <!--
@@ -97,11 +97,11 @@ function verbrauch(row: Row): string {
               als das Formular.
             -->
             <td>
-              <Link :href="`/subscriptions/${row.id}/edit`" class="knopf klein">Bearbeiten</Link>
+              <Link :href="`/subscriptions/${row.id}/edit`" class="button small">Bearbeiten</Link>
             </td>
           </tr>
           <tr v-if="props.subscriptions.length === 0">
-            <td colspan="7" class="stumm">
+            <td colspan="7" class="quiet">
               Noch kein Abonnement. Es braucht einen Kunden und einen Plan —
               beide gibt es unter Verwaltung.
             </td>

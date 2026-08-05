@@ -45,7 +45,7 @@ const id = useId()
 </script>
 
 <template>
-  <div class="feld">
+  <div class="field">
     <span><label :for="id">{{ label }}</label></span>
 
     <input
@@ -63,8 +63,8 @@ const id = useId()
       required
     >
 
-    <p v-if="hint" class="hinweis">{{ hint }}</p>
-    <p v-if="error" class="fehler" role="alert">{{ error }}</p>
+    <p v-if="hint" class="hint">{{ hint }}</p>
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
   </div>
 </template>
 
@@ -79,7 +79,7 @@ const id = useId()
  * ausgerechnet an der Stelle, an der jemand einen Code ablesen und eintippen
  * soll. Elf Seiten trugen dieselbe Zeile.
  *
- * `.feld` aus app.css trägt das jetzt, samt `--control-line` mit 4,15:1 hell
+ * `.field` aus app.css trägt das jetzt, samt `--control-line` mit 4,15:1 hell
  * und 4,95:1 dunkel. Hier bleibt nur, was **diesen** Code betrifft und kein
  * anderes Feld: Ein sechsstelliger Code ist kein Fliesstext. Man liest ihn von
  * einem Telefon ab und vergleicht ihn Ziffer für Ziffer; dafür müssen die
@@ -91,11 +91,11 @@ const id = useId()
  * breit — die Grenze für ein Feld mit Fließtext — und sah aus, als erwarte es
  * einen Satz. Im Browser gesehen.
  */
-.feld {
+.field {
   max-width: 280px;
 }
 
-.feld input {
+.field input {
   font-family: var(--font-mono);
   font-size: var(--text-metric);
 
@@ -118,7 +118,7 @@ const id = useId()
  * ist die kräftigere Schriftfarbe: Ein Code, den der Browser eingesetzt hat,
  * soll genauso aussehen wie einer, den jemand tippt.
  */
-.feld input:-webkit-autofill {
+.field input:-webkit-autofill {
   -webkit-text-fill-color: var(--text-strong);
 }
 </style>

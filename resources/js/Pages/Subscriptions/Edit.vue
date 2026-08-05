@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3'
-import Bereich from '../../Components/Bereich.vue'
+import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface QuotaEntry {
@@ -91,9 +91,9 @@ function submit(): void {
   <Head :title="`${props.subscription.name} bearbeiten`" />
 
   <PanelLayout title="Plan und Kontingente">
-    <template #pfad>
-      <Link href="/subscriptions" class="verweis">Abonnements</Link> ·
-      <Link :href="`/subscriptions/${props.subscription.id}`" class="verweis">
+    <template #breadcrumb>
+      <Link href="/subscriptions" class="link">Abonnements</Link> ·
+      <Link :href="`/subscriptions/${props.subscription.id}`" class="link">
         {{ props.subscription.name }}
       </Link>
     </template>
@@ -104,39 +104,39 @@ function submit(): void {
       Vorgang auf dem Server, und danach steht man auf der Vorgangsseite und
       nicht wieder hier.
     -->
-    <p class="meldung neutral">
+    <p class="notice neutral">
       <span>
         Eine geänderte Speichergrenze wird als Vorgang auf das Dateisystem
-        angewandt (<span class="kennung">setquota</span>). Alle übrigen
+        angewandt (<span class="ident">setquota</span>). Alle übrigen
         Kontingente gelten beim nächsten Anlegen eines Objekts und lösen keinen
         Vorgang aus.
       </span>
     </p>
 
-    <form class="maske" @submit.prevent="submit">
-      <Bereich titel="Plan">
-        <label class="feld">
+    <form class="form" @submit.prevent="submit">
+      <Section title="Plan">
+        <label class="field">
           <span>Plan</span>
           <select v-model.number="form.plan_id">
             <option v-for="p in props.plans" :key="p.id" :value="p.id">{{ p.label }}</option>
           </select>
         </label>
-        <p v-if="fehler('plan_id')" class="fehler">{{ fehler('plan_id') }}</p>
-        <p class="hinweis">
+        <p v-if="fehler('plan_id')" class="error">{{ fehler('plan_id') }}</p>
+        <p class="hint">
           Der Plan gibt jedes Kontingent vor, das unten nicht abweicht. Ein
           Wechsel wirkt sofort auf alle geerbten Werte.
         </p>
-      </Bereich>
+      </Section>
 
       <!--
         Dieselbe Spaltenaufteilung wie im Formular eines Plans: Zwölf
         Kontingente untereinander sind eine Seite zum Rollen, nebeneinander
         eine Liste zum Überfliegen.
       -->
-      <Bereich titel="Kontingente" voll>
-        <div class="posten-raster">
-          <div v-for="entry in props.quotas" :key="entry.key" class="posten">
-            <label class="schalter">
+      <Section title="Kontingente" full>
+        <div class="item-grid">
+          <div v-for="entry in props.quotas" :key="entry.key" class="item">
+            <label class="toggle">
               <input
                 type="checkbox"
                 :checked="abweichend(entry.key)"
@@ -144,23 +144,23 @@ function submit(): void {
               >
               <span>
                 {{ entry.label }}
-                <small class="hinweis">Vom Plan: {{ entry.plan_value }}</small>
+                <small class="hint">Vom Plan: {{ entry.plan_value }}</small>
               </span>
             </label>
 
             <template v-if="abweichend(entry.key)">
-              <div v-if="entry.selection" class="auswahl abhaengig">
-                <label v-for="version in props.phpVersions" :key="version" class="schalter">
+              <div v-if="entry.selection" class="choices dependent">
+                <label v-for="version in props.phpVersions" :key="version" class="toggle">
                   <input
                     type="checkbox"
                     :checked="versionen(entry.key).includes(version)"
                     @change="versionUmschalten(entry.key, version, ($event.target as HTMLInputElement).checked)"
                   >
-                  <span class="kennung">{{ version }}</span>
+                  <span class="ident">{{ version }}</span>
                 </label>
               </div>
 
-              <div v-else class="mit-einheit abhaengig">
+              <div v-else class="with-unit dependent">
                 <input
                   :id="`quota-${entry.key}`"
                   v-model.number="form.overrides[entry.key] as number"
@@ -169,22 +169,22 @@ function submit(): void {
                   :max="entry.maximum"
                   required
                 >
-                <span v-if="entry.unit" class="einheit">{{ entry.unit }}</span>
+                <span v-if="entry.unit" class="unit">{{ entry.unit }}</span>
               </div>
 
-              <p class="hinweis abhaengig">{{ entry.hint }}</p>
+              <p class="hint dependent">{{ entry.hint }}</p>
             </template>
 
-            <p v-if="fehler(`overrides.${entry.key}`)" class="fehler">{{ fehler(`overrides.${entry.key}`) }}</p>
+            <p v-if="fehler(`overrides.${entry.key}`)" class="error">{{ fehler(`overrides.${entry.key}`) }}</p>
           </div>
         </div>
-      </Bereich>
+      </Section>
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
         </button>
-        <Link class="knopf" :href="`/subscriptions/${props.subscription.id}`">Abbrechen</Link>
+        <Link class="button" :href="`/subscriptions/${props.subscription.id}`">Abbrechen</Link>
       </div>
     </form>
   </PanelLayout>

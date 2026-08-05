@@ -146,8 +146,8 @@ final class MobileLayoutTest extends TestCase
                 $offset = $match[1];
                 $tables++;
 
-                $stacks = str_contains($attributes, 'stapelt');
-                $pairs = str_contains($attributes, 'paare');
+                $stacks = str_contains($attributes, 'stacks');
+                $pairs = str_contains($attributes, 'pairs');
 
                 /*
                  * Rollt sie? Dann steht der Behälter unmittelbar davor.
@@ -159,7 +159,7 @@ final class MobileLayoutTest extends TestCase
                  * nur das Stück *zwischen* zwei Tabellen. Dann wurde gezählt,
                  * offene `rollt` gegen geschlossene Tabellen, und das hielt
                  * genau so lange, wie jede Tabelle einer Seite gerollt hat:
-                 * Eine gestapelte Tabelle davor verschiebt die Bilanz, und die
+                 * Eine gestackse Tabelle davor verschiebt die Bilanz, und die
                  * gerollten dahinter fielen durch — obwohl an ihnen nichts
                  * geändert wurde.
                  *
@@ -168,14 +168,14 @@ final class MobileLayoutTest extends TestCase
                  * eine Seite, die niemand behauptet hat.
                  */
                 $before = rtrim(substr($template, 0, $offset));
-                $scrolls = str_ends_with($before, '<div class="rollt">');
+                $scrolls = str_ends_with($before, '<div class="scrolls">');
 
                 $this->assertTrue(
                     $stacks || $scrolls || $pairs,
                     sprintf(
                         'In %s steht eine Tabelle ohne Muster aus docs/24 §5. Messwerte gehören in '.
-                        '<div class="rollt">, Verzeichnisse bekommen class="stapelt", und '.
-                        'Bezeichnung-und-Wert bekommt class="paare". Was gar keine Tabelle ist — '.
+                        '<div class="scrolls">, Verzeichnisse bekommen class="stacks", und '.
+                        'Bezeichnung-und-Wert bekommt class="pairs". Was gar keine Tabelle ist — '.
                         'ein Katalog von Aufgaben etwa —, wird auch keine.',
                         $this->relative($path),
                     ),
@@ -189,7 +189,7 @@ final class MobileLayoutTest extends TestCase
     public function test_every_cell_of_a_stacked_table_is_labelled(): void
     {
         // Im Stapel verschwindet der Spaltenkopf. Eine Zelle ohne
-        // `data-spalte` steht danach ohne Beschriftung da — es sei denn, sie
+        // `data-column` steht danach ohne Beschriftung da — es sei denn, sie
         // enthält ein Bedienelement, das für sich selbst spricht.
         $cells = 0;
 
@@ -202,14 +202,14 @@ final class MobileLayoutTest extends TestCase
                 foreach ($matches as $cell) {
                     $cells++;
 
-                    $labelled = str_contains($cell[1], 'data-spalte');
+                    $labelled = str_contains($cell[1], 'data-column');
                     $spans = str_contains($cell[1], 'colspan');
                     $acts = (bool) preg_match('/<(button|a|Link)\b/i', $cell[2]);
 
                     $this->assertTrue(
                         $labelled || $spans || $acts,
                         sprintf(
-                            'In %s hat eine Zelle einer gestapelten Tabelle kein data-spalte und keine Aktion '.
+                            'In %s hat eine Zelle einer gestacksen Tabelle kein data-column und keine Aktion '.
                             'darin. Auf dem Telefon steht ihr Wert ohne Beschriftung (docs/24 §5).',
                             $this->relative($path),
                         ),
@@ -412,13 +412,13 @@ final class MobileLayoutTest extends TestCase
     }
 
     /**
-     * Die Inhalte aller `.stapelt`-Tabellen eines Templates.
+     * Die Inhalte aller `.stacks`-Tabellen eines Templates.
      *
      * @return list<string>
      */
     private function stackedTables(string $template): array
     {
-        preg_match_all('#<table[^>]*stapelt[^>]*>(.*?)</table>#su', $template, $matches);
+        preg_match_all('#<table[^>]*stacks[^>]*>(.*?)</table>#su', $template, $matches);
 
         return $matches[1];
     }

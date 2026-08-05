@@ -95,10 +95,10 @@ function nearest(event: PointerEvent): void {
 </script>
 
 <template>
-  <div class="kachel">
-    <div class="kachel-label">{{ label }}</div>
+  <div class="tile">
+    <div class="tile-label">{{ label }}</div>
 
-    <div class="kachel-wert">
+    <div class="tile-value">
       {{ value }}<small v-if="unit">{{ unit }}</small>
     </div>
 
@@ -107,12 +107,12 @@ function nearest(event: PointerEvent): void {
       Zeigen die Ablesung. Zwei Zeilen untereinander wären eine, die meistens
       leer ist — und die Kachel spränge, sobald sie sich füllt.
     -->
-    <div class="kachel-sub" :data-ablesung="hovered !== null">
+    <div class="tile-sub" :data-readout="hovered !== null">
       <template v-if="hovered">{{ hovered.t }} · {{ hovered.v }}</template>
       <template v-else>{{ subline }}</template>
     </div>
 
-    <div v-if="series?.has" class="verlauf">
+    <div v-if="series?.has" class="trend">
       <svg
         ref="field"
         viewBox="0 0 100 32"
@@ -122,27 +122,27 @@ function nearest(event: PointerEvent): void {
         @pointermove="nearest"
         @pointerleave="hovered = null"
       >
-        <line x1="0" y1="16" x2="100" y2="16" class="gitter" vector-effect="non-scaling-stroke" />
-        <path :d="area" class="flaeche" />
-        <path :d="line" class="linie" vector-effect="non-scaling-stroke" />
-        <circle v-if="last" :cx="last.x" :cy="last.y" r="2" class="ende" />
-        <circle v-if="hovered" :cx="hovered.x" :cy="hovered.y" r="2.6" class="zeiger" />
+        <line x1="0" y1="16" x2="100" y2="16" class="grid" vector-effect="non-scaling-stroke" />
+        <path :d="area" class="area" />
+        <path :d="line" class="line" vector-effect="non-scaling-stroke" />
+        <circle v-if="last" :cx="last.x" :cy="last.y" r="2" class="end" />
+        <circle v-if="hovered" :cx="hovered.x" :cy="hovered.y" r="2.6" class="cursor" />
       </svg>
     </div>
 
     <!-- Der leere Zustand steht in derselben Höhe wie die Kurve, damit eine
          Kachel ohne Messwerte die Reihe nicht verkürzt. -->
-    <p v-else class="verlauf ohne">noch keine Messwerte</p>
+    <p v-else class="trend blank">noch keine Messwerte</p>
   </div>
 </template>
 
 <style scoped>
-.verlauf {
+.trend {
   height: 46px;
   margin-top: 12px;
 }
 
-.verlauf svg {
+.trend svg {
   display: block;
   width: 100%;
   height: 46px;
@@ -153,7 +153,7 @@ function nearest(event: PointerEvent): void {
   touch-action: none;
 }
 
-.ohne {
+.blank {
   display: flex;
   align-items: center;
   margin: 12px 0 0;
@@ -161,12 +161,12 @@ function nearest(event: PointerEvent): void {
   color: var(--text-muted);
 }
 
-.gitter {
+.grid {
   stroke: var(--line);
   stroke-width: 1;
 }
 
-.flaeche {
+.area {
   fill: var(--accent);
 
   /*
@@ -180,7 +180,7 @@ function nearest(event: PointerEvent): void {
   opacity: 0.11;
 }
 
-.linie {
+.line {
   fill: none;
   stroke: var(--accent);
   stroke-width: 1.8;
@@ -188,8 +188,8 @@ function nearest(event: PointerEvent): void {
   stroke-linecap: round;
 }
 
-.ende,
-.zeiger {
+.end,
+.cursor {
   fill: var(--accent);
 }
 </style>

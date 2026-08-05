@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
-import Marke from '../../Components/Marke.vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 const props = defineProps<{
@@ -19,10 +19,10 @@ const props = defineProps<{
 
 const page = usePage()
 
-function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'active') return 'ok'
   if (status === 'suspended') return 'warn'
-  if (status === 'cancelled') return 'kritisch'
+  if (status === 'cancelled') return 'critical'
 
   return 'neutral'
 }
@@ -89,87 +89,87 @@ function freigeben(): void {
   <Head :title="props.customer.name" />
 
   <PanelLayout :title="props.customer.name">
-    <template #pfad>
-      <Link href="/customers" class="verweis">Kunden</Link> · <span class="kennung">{{ props.customer.number }}</span>
+    <template #breadcrumb>
+      <Link href="/customers" class="link">Kunden</Link> · <span class="ident">{{ props.customer.number }}</span>
     </template>
 
-    <template #aktion>
-      <Marke :art="rang(props.customer.status)">{{ props.customer.status_label }}</Marke>
-      <Link :href="`/customers/${props.customer.id}/edit`" class="knopf wichtig">Bearbeiten</Link>
+    <template #actions>
+      <Badge :kind="rang(props.customer.status)">{{ props.customer.status_label }}</Badge>
+      <Link :href="`/customers/${props.customer.id}/edit`" class="button primary">Bearbeiten</Link>
       <button
         v-if="props.customer.status !== 'suspended'"
         type="button"
-        class="knopf"
+        class="button"
         @click="sperren"
       >
         Sperren
       </button>
-      <button v-else type="button" class="knopf" @click="freigeben">Freigeben</button>
-      <button type="button" class="knopf gefahr" @click="zurueckziehen">Zurückziehen</button>
+      <button v-else type="button" class="button" @click="freigeben">Freigeben</button>
+      <button type="button" class="button danger" @click="zurueckziehen">Zurückziehen</button>
     </template>
 
-    <p v-if="fehler" class="meldung kritisch">{{ fehler }}</p>
+    <p v-if="fehler" class="notice critical">{{ fehler }}</p>
 
-    <div class="bereiche">
-      <Bereich titel="Vertragspartner">
-        <table class="paare">
+    <div class="sections">
+      <Section title="Vertragspartner">
+        <table class="pairs">
           <tbody>
-            <tr><td class="stumm">E-Mail</td><td class="rechts name">{{ props.customer.email }}</td></tr>
-            <tr><td class="stumm">Telefon</td><td class="rechts name">{{ props.customer.phone ?? '—' }}</td></tr>
+            <tr><td class="quiet">E-Mail</td><td class="right name">{{ props.customer.email }}</td></tr>
+            <tr><td class="quiet">Telefon</td><td class="right name">{{ props.customer.phone ?? '—' }}</td></tr>
             <tr>
-              <td class="stumm">Zustand</td>
-              <td class="rechts"><Marke :art="rang(props.customer.status)">{{ props.customer.status_label }}</Marke></td>
+              <td class="quiet">Zustand</td>
+              <td class="right"><Badge :kind="rang(props.customer.status)">{{ props.customer.status_label }}</Badge></td>
             </tr>
           </tbody>
         </table>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Konten" erklaerung="Zugänge zu diesem Kunden. Ein Kunde ohne Konto ist angelegt, aber niemand kommt herein.">
-        <div class="rollt">
-          <table class="stapelt">
+      <Section title="Konten" note="Zugänge zu diesem Kunden. Ein Kunde ohne Konto ist angelegt, aber niemand kommt herein.">
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
               <tr><th>Anmeldeadresse</th><th>Art</th><th>Zustand</th><th>Zuletzt angemeldet</th></tr>
             </thead>
             <tbody>
               <tr v-for="a in props.accounts" :key="a.id">
-                <td data-spalte="Anmeldeadresse" class="name">{{ a.email }}</td>
-                <td data-spalte="Art" class="stumm">{{ a.type_label }}</td>
-                <td data-spalte="Zustand" class="stumm">{{ a.status_label }}</td>
-                <td data-spalte="Zuletzt angemeldet" class="stumm">
+                <td data-column="Anmeldeadresse" class="name">{{ a.email }}</td>
+                <td data-column="Art" class="quiet">{{ a.type_label }}</td>
+                <td data-column="Zustand" class="quiet">{{ a.status_label }}</td>
+                <td data-column="Zuletzt angemeldet" class="quiet">
                   {{ a.last_login_at ?? 'noch nie angemeldet' }}
                 </td>
               </tr>
               <tr v-if="props.accounts.length === 0">
-                <td colspan="4" class="stumm">Kein Konto — dieser Kunde kann sich nicht anmelden.</td>
+                <td colspan="4" class="quiet">Kein Konto — dieser Kunde kann sich nicht anmelden.</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Abonnements" voll>
-        <div class="rollt">
-          <table class="stapelt">
+      <Section title="Abonnements" full>
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
               <tr><th>Name</th><th>Zustand</th><th></th></tr>
             </thead>
             <tbody>
               <tr v-for="s in props.subscriptions" :key="s.id">
-                <td data-spalte="Name" class="kennung name">
-                  <Link :href="`/subscriptions/${s.id}`" class="verweis">{{ s.name }}</Link>
+                <td data-column="Name" class="ident name">
+                  <Link :href="`/subscriptions/${s.id}`" class="link">{{ s.name }}</Link>
                 </td>
-                <td data-spalte="Zustand"><Marke :art="rang(s.status)">{{ s.status_label }}</Marke></td>
+                <td data-column="Zustand"><Badge :kind="rang(s.status)">{{ s.status_label }}</Badge></td>
                 <td>
-                  <Link :href="`/subscriptions/${s.id}/edit`" class="knopf klein">Bearbeiten</Link>
+                  <Link :href="`/subscriptions/${s.id}/edit`" class="button small">Bearbeiten</Link>
                 </td>
               </tr>
               <tr v-if="props.subscriptions.length === 0">
-                <td colspan="3" class="stumm">Noch keines angelegt.</td>
+                <td colspan="3" class="quiet">Noch keines angelegt.</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
     </div>
   </PanelLayout>
 </template>

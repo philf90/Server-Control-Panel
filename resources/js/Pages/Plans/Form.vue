@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
+import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface QuotaEntry {
@@ -112,11 +112,11 @@ function remove(): void {
     :title="editing ? `Plan ${props.plan?.name}` : 'Plan anlegen'"
     :subline="editing ? `${props.subscriptions} Abonnements gebunden` : 'Vorlage für die Kontingente eines Abonnements'"
   >
-    <template #pfad>
-      <Link href="/plans" class="verweis">Pläne</Link>
+    <template #breadcrumb>
+      <Link href="/plans" class="link">Pläne</Link>
     </template>
 
-    <p v-if="fieldError('plan')" class="meldung kritisch">
+    <p v-if="fieldError('plan')" class="notice critical">
       <span>{{ fieldError('plan') }}</span>
     </p>
 
@@ -126,7 +126,7 @@ function remove(): void {
       nur, wenn tatsächlich welche daran hängen — eine Warnung, die immer da
       steht, liest nach der dritten Bearbeitung niemand mehr.
     -->
-    <p v-if="editing && props.subscriptions > 0" class="meldung warn">
+    <p v-if="editing && props.subscriptions > 0" class="notice warn">
       <span>
         An diesem Plan hängen <b>{{ props.subscriptions }}</b> Abonnements.
         Gesenkte Grenzen verbieten das Anlegen weiterer Objekte; vorhandene
@@ -134,31 +134,31 @@ function remove(): void {
       </span>
     </p>
 
-    <form class="maske" @submit.prevent="submit">
-      <Bereich titel="Plan">
-        <label class="feld">
+    <form class="form" @submit.prevent="submit">
+      <Section title="Plan">
+        <label class="field">
           <span>Name</span>
           <input v-model="form.name" type="text" required>
         </label>
-        <p v-if="form.errors.name" class="fehler">{{ form.errors.name }}</p>
+        <p v-if="form.errors.name" class="error">{{ form.errors.name }}</p>
 
-        <label class="feld">
+        <label class="field">
           <span>Beschreibung</span>
           <input v-model="form.description" type="text">
         </label>
-        <p class="hinweis">Erscheint in der Liste. Wofür dieses Paket gedacht ist.</p>
+        <p class="hint">Erscheint in der Liste. Wofür dieses Paket gedacht ist.</p>
 
-        <label class="schalter">
+        <label class="toggle">
           <input v-model="form.is_default" type="checkbox">
           <span>
             Standardplan
-            <small class="hinweis">
+            <small class="hint">
               Der Plan, den ein neues Abonnement bekommt. Es gibt genau einen;
               das Setzen hier nimmt ihn dem bisherigen.
             </small>
           </span>
         </label>
-      </Bereich>
+      </Section>
 
       <!--
         Die Kontingente nehmen die ganze Zeile und stehen darin in Spalten.
@@ -166,26 +166,26 @@ function remove(): void {
         daneben blieb die halbe Seite leer — im Browser gesehen. Zwölf Posten
         sind eine Liste zum Überfliegen und keine Folge von Schritten.
       -->
-      <Bereich titel="Kontingente" voll>
-        <div class="posten-raster">
-          <div v-for="entry in props.catalog.quotas" :key="entry.key" class="posten">
+      <Section title="Kontingente" full>
+        <div class="item-grid">
+          <div v-for="entry in props.catalog.quotas" :key="entry.key" class="item">
             <template v-if="entry.selection">
-              <span class="beschriftung">{{ entry.label }}</span>
-              <div class="auswahl">
-                <label v-for="version in props.catalog.php_versions" :key="version" class="schalter">
+              <span class="label">{{ entry.label }}</span>
+              <div class="choices">
+                <label v-for="version in props.catalog.php_versions" :key="version" class="toggle">
                   <input
                     type="checkbox"
                     :checked="versions(entry.key).includes(version)"
                     @change="toggleVersion(entry.key, version, ($event.target as HTMLInputElement).checked)"
                   >
-                  <span class="kennung">{{ version }}</span>
+                  <span class="ident">{{ version }}</span>
                 </label>
               </div>
             </template>
 
             <template v-else>
-              <label class="beschriftung" :for="`quota-${entry.key}`">{{ entry.label }}</label>
-              <div class="mit-einheit">
+              <label class="label" :for="`quota-${entry.key}`">{{ entry.label }}</label>
+              <div class="with-unit">
                 <input
                   :id="`quota-${entry.key}`"
                   v-model.number="form.quotas[entry.key] as number"
@@ -195,7 +195,7 @@ function remove(): void {
                   :disabled="isUnlimited(entry.key)"
                   required
                 >
-                <span v-if="entry.unit" class="einheit">{{ entry.unit }}</span>
+                <span v-if="entry.unit" class="unit">{{ entry.unit }}</span>
 
                 <!--
                   „unbegrenzt" steht neben dem Feld und nicht darüber: Es ist die
@@ -204,7 +204,7 @@ function remove(): void {
                   Rand aus app.css, weil ein Feld ohne Wirkung kein Bedienelement
                   mehr ist.
                 -->
-                <label v-if="entry.unlimited" class="schalter">
+                <label v-if="entry.unlimited" class="toggle">
                   <input
                     type="checkbox"
                     :checked="isUnlimited(entry.key)"
@@ -215,28 +215,28 @@ function remove(): void {
               </div>
             </template>
 
-              <p class="hinweis">{{ entry.hint }}</p>
-            <p v-if="fieldError(`quotas.${entry.key}`)" class="fehler">{{ fieldError(`quotas.${entry.key}`) }}</p>
+              <p class="hint">{{ entry.hint }}</p>
+            <p v-if="fieldError(`quotas.${entry.key}`)" class="error">{{ fieldError(`quotas.${entry.key}`) }}</p>
           </div>
         </div>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Freigaben">
-        <label v-for="entry in props.catalog.features" :key="entry.key" class="schalter">
+      <Section title="Freigaben">
+        <label v-for="entry in props.catalog.features" :key="entry.key" class="toggle">
           <input v-model="form.features[entry.key]" type="checkbox">
           <span>
             {{ entry.label }}
-            <small class="hinweis">{{ entry.hint }}</small>
+            <small class="hint">{{ entry.hint }}</small>
           </span>
         </label>
-      </Bereich>
+      </Section>
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Wird gespeichert …' : editing ? 'Speichern' : 'Anlegen' }}
         </button>
-        <Link href="/plans" class="knopf">Abbrechen</Link>
-        <button v-if="editing" type="button" class="knopf gefahr" @click="remove">Löschen</button>
+        <Link href="/plans" class="button">Abbrechen</Link>
+        <button v-if="editing" type="button" class="button danger" @click="remove">Löschen</button>
       </div>
     </form>
   </PanelLayout>

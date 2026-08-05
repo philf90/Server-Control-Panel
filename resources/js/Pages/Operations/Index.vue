@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
-import Marke from '../../Components/Marke.vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Row {
@@ -33,10 +33,10 @@ const props = defineProps<{
   tasks: TaskEntry[]
 }>()
 
-function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'succeeded') return 'ok'
   if (status === 'running' || status === 'queued') return 'warn'
-  if (status === 'failed' || status === 'cancelled') return 'kritisch'
+  if (status === 'failed' || status === 'cancelled') return 'critical'
 
   return 'neutral'
 }
@@ -81,12 +81,12 @@ function start(task: TaskEntry): void {
   <Head title="Vorgänge" />
 
   <PanelLayout title="Vorgänge" :subline="`${props.operations.total} insgesamt`">
-    <div class="bereiche">
-      <Bereich
+    <div class="sections">
+      <Section
         v-if="props.tasks.length > 0"
-        titel="Auslösen"
+        title="Auslösen"
         voll
-        erklaerung="Jede Aufgabe schickt eine typisierte Operation an den Agenten. Was etwas
+        note="Jede Aufgabe schickt eine typisierte Operation an den Agenten. Was etwas
                     ändert, fragt vorher zurück."
       >
         <!--
@@ -98,21 +98,21 @@ function start(task: TaskEntry): void {
           Tabellenmusters ist, ob die Daten überhaupt tabellarisch sind
           (docs/24 §5).
         -->
-        <ul class="aufgaben">
+        <ul class="tasks">
           <li v-for="task in props.tasks" :key="task.key">
             <div class="text">
               <b>{{ task.label }}</b>
-              <p class="beschreibung">{{ task.description }}</p>
+              <p class="description">{{ task.description }}</p>
             </div>
 
-            <div class="knopfreihe">
+            <div class="button-row">
               <!--
                 `aria-label` statt einer sichtbaren Beschriftung: Die Aufgabe
                 steht daneben, ein zweites „PHP-Version" davor wäre für
                 Sehende Doppelung. Ohne Beschriftung wäre das Feld für eine
                 Vorleseausgabe ein Auswahlfeld ohne Namen.
               -->
-              <label v-if="task.choices.length > 0" class="feld wahl">
+              <label v-if="task.choices.length > 0" class="field choice">
                 <select
                   v-model="argumente[task.key]"
                   :aria-label="task.argument_label ?? undefined"
@@ -124,8 +124,8 @@ function start(task: TaskEntry): void {
 
               <button
                 type="button"
-                class="knopf"
-                :class="{ gefahr: task.mutating }"
+                class="button"
+                :class="{ danger: task.mutating }"
                 :disabled="starting !== null"
                 @click="start(task)"
               >
@@ -134,11 +134,11 @@ function start(task: TaskEntry): void {
             </div>
           </li>
         </ul>
-      </Bereich>
+      </Section>
 
-      <Bereich titel="Verlauf" voll>
-        <div class="rollt">
-          <table class="stapelt">
+      <Section title="Verlauf" full>
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
               <tr>
                 <th>Nummer</th><th>Aufgabe</th><th>Zustand</th>
@@ -147,35 +147,35 @@ function start(task: TaskEntry): void {
             </thead>
             <tbody>
               <tr v-for="row in props.operations.data" :key="row.id">
-                <td data-spalte="Nummer" class="kennung">
-                  <Link :href="`/operations/${row.id}`" class="verweis">{{ row.id }}</Link>
+                <td data-column="Nummer" class="ident">
+                  <Link :href="`/operations/${row.id}`" class="link">{{ row.id }}</Link>
                 </td>
-                <td data-spalte="Aufgabe" class="mehrzeilig">
-                  <Link :href="`/operations/${row.id}`" class="verweis">{{ row.label }}</Link>
+                <td data-column="Aufgabe" class="multiline">
+                  <Link :href="`/operations/${row.id}`" class="link">{{ row.label }}</Link>
                   <span class="op">{{ row.type }}</span>
                 </td>
-                <td data-spalte="Zustand">
-                  <Marke :art="rang(row.status)" :laeuft="row.open">
+                <td data-column="Zustand">
+                  <Badge :kind="rang(row.status)" :running="row.open">
                     {{ row.status_label }}<template v-if="row.open"> · {{ row.progress }} %</template>
-                  </Marke>
+                  </Badge>
                 </td>
-                <td data-spalte="Ausgelöst von" class="stumm">{{ row.account ?? '—' }}</td>
-                <td data-spalte="Begonnen" class="stumm">{{ row.started_at ?? '—' }}</td>
-                <td data-spalte="Beendet" class="stumm">{{ row.finished_at ?? '—' }}</td>
+                <td data-column="Ausgelöst von" class="quiet">{{ row.account ?? '—' }}</td>
+                <td data-column="Begonnen" class="quiet">{{ row.started_at ?? '—' }}</td>
+                <td data-column="Beendet" class="quiet">{{ row.finished_at ?? '—' }}</td>
               </tr>
               <tr v-if="props.operations.data.length === 0">
-                <td colspan="6" class="stumm">Noch kein Vorgang.</td>
+                <td colspan="6" class="quiet">Noch kein Vorgang.</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
     </div>
   </PanelLayout>
 </template>
 
 <style scoped>
-.aufgaben {
+.tasks {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -190,7 +190,7 @@ function start(task: TaskEntry): void {
  * selbst, und der Haltepunkt entfällt — die Beschreibung ist hier der Teil,
  * der sagt, welcher Befehl auf dem Server ankommt.
  */
-.aufgaben li {
+.tasks li {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -200,7 +200,7 @@ function start(task: TaskEntry): void {
   border-bottom: 1px solid var(--line);
 }
 
-.aufgaben li:last-child {
+.tasks li:last-child {
   border-bottom: 0;
 }
 
@@ -214,7 +214,7 @@ function start(task: TaskEntry): void {
   color: var(--text-strong);
 }
 
-.beschreibung {
+.description {
   margin: 3px 0 0;
   font-size: var(--text-small);
   color: var(--text-muted);
@@ -223,11 +223,11 @@ function start(task: TaskEntry): void {
 
 /*
  * Das Auswahlfeld neben dem Knopf trägt keine Beschriftung über sich — es
- * steht in einer Reihe mit ihm und nicht in einem Formular. `.feld` gibt ihm
+ * steht in einer Reihe mit ihm und nicht in einem Formular. `.field` gibt ihm
  * trotzdem Form und Rand aus app.css; nur der Aussenabstand fällt weg, den
  * ein Feld in einer Maske hätte.
  */
-.wahl {
+.choice {
   margin-top: 0;
   min-width: 0;
 }

@@ -22,43 +22,43 @@
  * die Breite an derselben Stelle mit.
  */
 withDefaults(defineProps<{
-  titel: string
+  title: string
 
   /** Anderthalb Grundrisse — für eine Tabelle mit mehr als drei Spalten. */
-  weit?: boolean
+  wide?: boolean
 
   /** Die ganze Zeile — für die lange Liste am Ende einer Seite. */
-  voll?: boolean
+  full?: boolean
 
   /** Ein Satz unter der Überschrift, der die Zahlen darunter einordnet. */
-  erklaerung?: string
+  note?: string
 }>(), {
-  weit: false,
-  voll: false,
-  erklaerung: undefined,
+  wide: false,
+  full: false,
+  note: undefined,
 })
 </script>
 
 <template>
   <!--
-    `weit` und `voll` stehen als Objektschlüssel und nicht als Ausdruck
+    `wide` und `full` stehen als Objektschlüssel und nicht als Ausdruck
     (`:class="breite"`): So sieht `ClassReachTest`, welche Klassen hier
     entstehen können, und prüft, dass es sie in app.css gibt. Eine
     Zeichenkette, die aus einer Variablen kommt, kann er nicht prüfen — und
     genau solche Zeichenketten sind in diesem Projekt schon dreimal ins Leere
     gelaufen.
   -->
-  <section class="bereich" :class="{ weit, voll }">
-    <div class="bkopf">
-      <h2>{{ titel }}</h2>
+  <section class="section" :class="{ wide, full }">
+    <div class="section-head">
+      <h2>{{ title }}</h2>
 
       <!-- Rechts am Bereichskopf steht, was diesen Bereich betrifft: ein
            Knopf, ein Verweis auf die volle Liste, eine Angabe zur Sortierung.
            Nicht mehr als eines. -->
-      <slot name="aktion" />
+      <slot name="actions" />
     </div>
 
-    <p v-if="erklaerung" class="erklaer">{{ erklaerung }}</p>
+    <p v-if="note" class="section-note">{{ note }}</p>
 
     <slot />
   </section>

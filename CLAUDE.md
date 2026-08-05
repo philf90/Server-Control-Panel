@@ -40,7 +40,8 @@ Vorhandene Wächter, an denen man sich orientieren kann:
 es gibt), `LifecycleReachTest`, `AnchoredPatternTest`, `PhpVersionCatalogTest`,
 `DirectiveAllowlistTest`, `PhpIsolationTest` — und aus dem Optik-Rework
 `ClassReachTest` (jede Klasse in einem Template zeigt auf eine Regel, die es
-gibt) und `TableStyleTest`. Der Bruch selbst steht als
+gibt), `TableStyleTest` und `ClassNameTest` (jeder Klassenname ist englisch,
+und jede Regel in app.css wird von einem Template erreicht). Der Bruch selbst steht als
 `tests/waechter-brechen.sh` im Repo: Er bricht jede Regel der Reihe nach und
 prüft, dass ihr Wächter zubeisst.
 
@@ -102,7 +103,10 @@ Agent-Klassen sind aus der Anwendung autoladbar (`SrvPanel\Agent\` →
 `WordChoiceTest` geprüft. Kurz:
 
 - **Kommentare, Dokumentation und alle Texte der Oberfläche: deutsch.
-  Bezeichner: englisch.**
+  Bezeichner: englisch** (§4a) — das schliesst CSS-Klassen, Datenattribute,
+  Komponentennamen und ihre Eigenschaften ein und wird von `ClassNameTest`
+  gegen eine Wortliste geprüft. Eine echte Schnittstelle, die eine Migration
+  kosten würde, bleibt wie sie ist.
 - Keine Emoji in der Oberfläche (§3a) — sie sehen auf jedem System anders aus
   und nehmen keine Textfarbe an.
 - Kommentare erklären **warum**, nicht was. Der wertvollste Kommentar hält

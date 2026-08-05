@@ -16,11 +16,11 @@ function submit(): void {
 <template>
   <Head title="Bestätigung" />
 
-  <main class="anmeldung">
-    <form class="blatt" @submit.prevent="submit">
+  <main class="signin">
+    <form class="sheet" @submit.prevent="submit">
       <h1>Bestätigung</h1>
 
-      <p class="hinweis">
+      <p class="hint">
         Der sechsstellige Code aus Ihrer Authenticator-App. Wenn Sie kein Gerät
         zur Hand haben, geht auch einer Ihrer Wiederherstellungscodes.
       </p>
@@ -32,8 +32,8 @@ function submit(): void {
         :error="form.errors.code"
       />
 
-      <div class="knopfreihe">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing">
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
           {{ form.processing ? 'Einen Moment …' : 'Bestätigen' }}
         </button>
       </div>

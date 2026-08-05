@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
-import Marke from '../../Components/Marke.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface Row {
@@ -24,10 +24,10 @@ const props = defineProps<{ customers: { data: Row[]; total: number } }>()
  * Zustand „zurückgezogen" ganz. Der Rang steht jetzt an einer Stelle, und die
  * Marke bringt neben der Farbe ein Wort mit.
  */
-function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'active') return 'ok'
   if (status === 'suspended') return 'warn'
-  if (status === 'cancelled') return 'kritisch'
+  if (status === 'cancelled') return 'critical'
 
   return 'neutral'
 }
@@ -44,8 +44,8 @@ function impersonate(row: Row): void {
   <Head title="Kunden" />
 
   <PanelLayout title="Kunden" :subline="`${props.customers.total} angelegt`">
-    <template #aktion>
-      <Link href="/customers/create" class="knopf wichtig">Kunde anlegen</Link>
+    <template #actions>
+      <Link href="/customers/create" class="button primary">Kunde anlegen</Link>
     </template>
 
     <!--
@@ -53,32 +53,32 @@ function impersonate(row: Row): void {
       und „Kunden → Verzeichnis" wäre dieselbe Angabe zweimal. Ein Bereich
       lohnt sich, wo mehrere Listen auf einer Seite stehen.
     -->
-    <div class="rollt">
-      <table class="stapelt">
+    <div class="scrolls">
+      <table class="stacks">
         <thead>
           <tr>
             <th>Nummer</th><th>Name</th><th>E-Mail</th>
-            <th class="rechts">Abos</th><th>Zustand</th><th></th>
+            <th class="right">Abos</th><th>Zustand</th><th></th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in props.customers.data" :key="row.id">
-            <td data-spalte="Nummer" class="kennung">
-              <Link :href="`/customers/${row.id}`" class="verweis">{{ row.number }}</Link>
+            <td data-column="Nummer" class="ident">
+              <Link :href="`/customers/${row.id}`" class="link">{{ row.number }}</Link>
             </td>
-            <td data-spalte="Name" class="name">{{ row.name }}</td>
-            <td data-spalte="E-Mail" class="stumm">{{ row.email }}</td>
-            <td data-spalte="Abos" class="rechts">{{ row.subscriptions }}</td>
-            <td data-spalte="Zustand">
-              <Marke :art="rang(row.status)">{{ row.status_label }}</Marke>
+            <td data-column="Name" class="name">{{ row.name }}</td>
+            <td data-column="E-Mail" class="quiet">{{ row.email }}</td>
+            <td data-column="Abos" class="right">{{ row.subscriptions }}</td>
+            <td data-column="Zustand">
+              <Badge :kind="rang(row.status)">{{ row.status_label }}</Badge>
             </td>
             <td>
-              <div class="knopfreihe">
-                <Link :href="`/customers/${row.id}/edit`" class="knopf klein">Bearbeiten</Link>
+              <div class="button-row">
+                <Link :href="`/customers/${row.id}/edit`" class="button small">Bearbeiten</Link>
                 <button
                   v-if="row.accounts > 0"
                   type="button"
-                  class="knopf klein"
+                  class="button small"
                   @click="impersonate(row)"
                 >
                   Anmelden als
@@ -87,7 +87,7 @@ function impersonate(row: Row): void {
             </td>
           </tr>
           <tr v-if="props.customers.data.length === 0">
-            <td colspan="6" class="stumm">Noch kein Kunde angelegt.</td>
+            <td colspan="6" class="quiet">Noch kein Kunde angelegt.</td>
           </tr>
         </tbody>
       </table>

@@ -9,8 +9,8 @@
  */
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
-import Marke from '../../Components/Marke.vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import { useOperationStream } from '../../Composables/useOperationStream'
 
@@ -48,10 +48,10 @@ const message = computed(() => live?.state.value?.message ?? props.operation.mes
 
 const open = computed(() => live?.state.value?.open ?? props.operation.open)
 
-const rang = computed<'ok' | 'warn' | 'kritisch' | 'neutral'>(() => {
+const rang = computed<'ok' | 'warn' | 'critical' | 'neutral'>(() => {
   if (status.value === 'succeeded') return 'ok'
   if (status.value === 'running' || status.value === 'queued') return 'warn'
-  if (status.value === 'failed' || status.value === 'cancelled') return 'kritisch'
+  if (status.value === 'failed' || status.value === 'cancelled') return 'critical'
 
   return 'neutral'
 })
@@ -83,14 +83,14 @@ watch(output, () => {
   <Head :title="`Vorgang ${props.operation.id}`" />
 
   <PanelLayout :title="props.operation.label">
-    <template #pfad>
-      <Link href="/operations" class="verweis">Vorgänge</Link> ·
-      <span class="kennung">{{ props.operation.type }}</span> · Nummer {{ props.operation.id }}
+    <template #breadcrumb>
+      <Link href="/operations" class="link">Vorgänge</Link> ·
+      <span class="ident">{{ props.operation.type }}</span> · Nummer {{ props.operation.id }}
     </template>
 
-    <template #aktion>
-      <Marke :art="rang" :laeuft="open">{{ label }}</Marke>
-      <button v-if="open" type="button" class="knopf gefahr" :disabled="cancelRequested" @click="cancel">
+    <template #actions>
+      <Badge :kind="rang" :running="open">{{ label }}</Badge>
+      <button v-if="open" type="button" class="button danger" :disabled="cancelRequested" @click="cancel">
         {{ cancelRequested ? 'Abbruch angefordert …' : 'Abbrechen' }}
       </button>
     </template>
@@ -100,43 +100,43 @@ watch(output, () => {
       zutrifft: Zwischen dem Wunsch und dem Ende des Programms auf dem Server
       liegen ein, zwei Sekunden, und in dieser Zeit läuft es noch.
     -->
-    <p v-if="cancelRequested && open" class="meldung warn">
+    <p v-if="cancelRequested && open" class="notice warn">
       Der Abbruch ist angefordert. Der Vorgang endet, sobald der Agent das
       laufende Programm beendet hat.
     </p>
 
-    <p v-if="message" class="meldung" :class="rang === 'kritisch' ? 'kritisch' : 'ok'">{{ message }}</p>
+    <p v-if="message" class="notice" :class="rang === 'critical' ? 'critical' : 'ok'">{{ message }}</p>
 
-    <div class="bereiche">
-      <Bereich titel="Gegenstand">
-        <table class="paare">
+    <div class="sections">
+      <Section title="Gegenstand">
+        <table class="pairs">
           <tbody>
-            <tr><td class="stumm">Aufgabe</td><td class="rechts kennung name">{{ props.operation.type }}</td></tr>
+            <tr><td class="quiet">Aufgabe</td><td class="right ident name">{{ props.operation.type }}</td></tr>
             <tr>
-              <td class="stumm">Zustand</td>
-              <td class="rechts"><Marke :art="rang" :laeuft="open">{{ label }}</Marke></td>
+              <td class="quiet">Zustand</td>
+              <td class="right"><Badge :kind="rang" :running="open">{{ label }}</Badge></td>
             </tr>
-            <tr><td class="stumm">Ausgelöst von</td><td class="rechts name">{{ props.operation.account ?? '—' }}</td></tr>
-            <tr><td class="stumm">Begonnen</td><td class="rechts">{{ props.operation.started_at ?? '—' }}</td></tr>
-            <tr><td class="stumm">Beendet</td><td class="rechts">{{ props.operation.finished_at ?? '—' }}</td></tr>
+            <tr><td class="quiet">Ausgelöst von</td><td class="right name">{{ props.operation.account ?? '—' }}</td></tr>
+            <tr><td class="quiet">Begonnen</td><td class="right">{{ props.operation.started_at ?? '—' }}</td></tr>
+            <tr><td class="quiet">Beendet</td><td class="right">{{ props.operation.finished_at ?? '—' }}</td></tr>
           </tbody>
         </table>
 
-        <div class="fortschritt"><i :style="{ width: `${progress}%` }" /></div>
-        <p class="erklaer">Fortschritt {{ progress }} %</p>
-      </Bereich>
+        <div class="progress"><i :style="{ width: `${progress}%` }" /></div>
+        <p class="section-note">Fortschritt {{ progress }} %</p>
+      </Section>
 
-      <Bereich titel="Argumente" erklaerung="Was das Panel dem Agenten geschickt hat — typisiert und nicht als Kommandozeile.">
-        <pre class="ausgabe daten">{{ JSON.stringify(props.operation.payload ?? {}, null, 2) }}</pre>
-      </Bereich>
+      <Section title="Argumente" note="Was das Panel dem Agenten geschickt hat — typisiert und nicht als Kommandozeile.">
+        <pre class="output facts">{{ JSON.stringify(props.operation.payload ?? {}, null, 2) }}</pre>
+      </Section>
 
-      <Bereich titel="Ausgabe" voll>
-        <pre ref="box" class="ausgabe lang">{{ output || 'Noch keine Ausgabe.' }}</pre>
-      </Bereich>
+      <Section title="Ausgabe" full>
+        <pre ref="box" class="output long">{{ output || 'Noch keine Ausgabe.' }}</pre>
+      </Section>
 
-      <Bereich v-if="props.operation.result" titel="Ergebnis" voll>
-        <pre class="ausgabe daten">{{ JSON.stringify(props.operation.result, null, 2) }}</pre>
-      </Bereich>
+      <Section v-if="props.operation.result" title="Ergebnis" full>
+        <pre class="output facts">{{ JSON.stringify(props.operation.result, null, 2) }}</pre>
+      </Section>
     </div>
   </PanelLayout>
 </template>
@@ -148,15 +148,15 @@ watch(output, () => {
  * ist beliebig lang und bekommt eine Grenze, damit die Seite darunter
  * erreichbar bleibt.
  */
-.ausgabe {
+.output {
   margin: 0;
 }
 
-.daten {
+.facts {
   color: var(--text-muted);
 }
 
-.lang {
+.long {
   max-height: 420px;
 }
 </style>

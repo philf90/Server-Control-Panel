@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import Bereich from '../../Components/Bereich.vue'
-import Marke from '../../Components/Marke.vue'
+import Section from '../../Components/Section.vue'
+import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 
 interface PhpOption {
@@ -42,10 +42,10 @@ const props = defineProps<{
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
 
-function rang(status: string): 'ok' | 'warn' | 'kritisch' | 'neutral' {
+function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
   if (status === 'active') return 'ok'
   if (status === 'provisioning' || status === 'removing') return 'warn'
-  if (status === 'failed') return 'kritisch'
+  if (status === 'failed') return 'critical'
 
   return 'neutral'
 }
@@ -125,24 +125,24 @@ function entfernen(): void {
   <Head :title="props.domain.name" />
 
   <PanelLayout :title="props.domain.name" :subline="props.domain.type_label">
-    <template #pfad>
-      <Link href="/domains" class="verweis">Domains</Link> ·
-      <Link :href="`/subscriptions/${props.domain.subscription_id}`" class="verweis">
+    <template #breadcrumb>
+      <Link href="/domains" class="link">Domains</Link> ·
+      <Link :href="`/subscriptions/${props.domain.subscription_id}`" class="link">
         {{ props.domain.subscription ?? '—' }}
       </Link>
     </template>
 
-    <template #aktion>
-      <Marke :art="rang(props.domain.status)" :laeuft="props.domain.pending">
+    <template #actions>
+      <Badge :kind="rang(props.domain.status)" :running="props.domain.pending">
         {{ props.domain.status_label }}
-      </Marke>
-      <Link v-if="props.may.view_logs" class="knopf" :href="`/domains/${props.domain.id}/logs`">
+      </Badge>
+      <Link v-if="props.may.view_logs" class="button" :href="`/domains/${props.domain.id}/logs`">
         Protokolle
       </Link>
       <button
         v-if="props.may.delete && props.domain.removable"
         type="button"
-        class="knopf gefahr"
+        class="button danger"
         :disabled="props.domain.pending"
         @click="entfernen"
       >
@@ -150,74 +150,74 @@ function entfernen(): void {
       </button>
     </template>
 
-    <p v-if="props.domain.pending" class="meldung warn">
+    <p v-if="props.domain.pending" class="notice warn">
       An dieser Domain läuft gerade ein Vorgang. Bis er durch ist, lässt sich
       nichts ändern — der Zustand folgt dem Server und nicht dem Formular.
     </p>
 
-    <div class="bereiche">
-      <Bereich titel="Stammdaten">
-        <table class="paare">
+    <div class="sections">
+      <Section title="Stammdaten">
+        <table class="pairs">
           <tbody>
             <tr>
-              <td class="stumm">Abonnement</td>
-              <td class="rechts">
-                <Link :href="`/subscriptions/${props.domain.subscription_id}`" class="verweis">
+              <td class="quiet">Abonnement</td>
+              <td class="right">
+                <Link :href="`/subscriptions/${props.domain.subscription_id}`" class="link">
                   {{ props.domain.subscription ?? '—' }}
                 </Link>
               </td>
             </tr>
             <tr v-if="props.domain.parent">
-              <td class="stumm">Gehört zu</td>
-              <td class="rechts kennung name">{{ props.domain.parent }}</td>
+              <td class="quiet">Gehört zu</td>
+              <td class="right ident name">{{ props.domain.parent }}</td>
             </tr>
             <tr>
-              <td class="stumm">Verzeichnis</td>
-              <td class="rechts kennung">{{ props.domain.document_root_path ?? '—' }}</td>
+              <td class="quiet">Verzeichnis</td>
+              <td class="right ident">{{ props.domain.document_root_path ?? '—' }}</td>
             </tr>
             <tr>
-              <td class="stumm">PHP</td>
-              <td class="rechts">
+              <td class="quiet">PHP</td>
+              <td class="right">
                 <template v-if="props.domain.is_redirect">leitet weiter</template>
                 <template v-else>{{ props.domain.php_version ?? 'ohne Handler' }}</template>
               </td>
             </tr>
             <tr v-if="props.domain.log_dir">
-              <td class="stumm">Protokolle</td>
-              <td class="rechts kennung">{{ props.domain.log_dir }}</td>
+              <td class="quiet">Protokolle</td>
+              <td class="right ident">{{ props.domain.log_dir }}</td>
             </tr>
           </tbody>
         </table>
 
-        <p v-if="!props.domain.removable" class="erklaer">
+        <p v-if="!props.domain.removable" class="section-note">
           Die Hauptdomain gehört zum Abonnement und wird mit ihm entfernt.
         </p>
-      </Bereich>
+      </Section>
 
-      <Bereich v-if="props.operations.length > 0" titel="Vorgänge">
-        <div class="rollt">
-          <table class="stapelt">
+      <Section v-if="props.operations.length > 0" title="Vorgänge">
+        <div class="scrolls">
+          <table class="stacks">
             <thead>
               <tr><th>Nummer</th><th>Aufgabe</th><th>Zustand</th><th>Angelegt</th></tr>
             </thead>
             <tbody>
               <tr v-for="op in props.operations" :key="op.id">
-                <td data-spalte="Nummer" class="kennung">
-                  <Link :href="`/operations/${op.id}`" class="verweis">{{ op.id }}</Link>
+                <td data-column="Nummer" class="ident">
+                  <Link :href="`/operations/${op.id}`" class="link">{{ op.id }}</Link>
                 </td>
-                <td data-spalte="Aufgabe" class="kennung name">{{ op.task }}</td>
-                <td data-spalte="Zustand" class="stumm">{{ op.status_label }}</td>
-                <td data-spalte="Angelegt" class="stumm">{{ op.created_at ?? '—' }}</td>
+                <td data-column="Aufgabe" class="ident name">{{ op.task }}</td>
+                <td data-column="Zustand" class="quiet">{{ op.status_label }}</td>
+                <td data-column="Angelegt" class="quiet">{{ op.created_at ?? '—' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </Bereich>
+      </Section>
     </div>
 
     <form v-if="props.may.update" @submit.prevent="speichern">
-      <div class="bereiche maske-oben">
-        <Bereich titel="Verzeichnis und Handler">
+      <div class="sections form-top">
+        <Section title="Verzeichnis und Handler">
           <!--
             Das `<fieldset>` bleibt, obwohl es keinen Rahmen mehr trägt: Es
             schaltet mit einem Attribut jedes Feld darin ab, solange ein Vorgang
@@ -225,16 +225,16 @@ function entfernen(): void {
             zwei Aufgaben, die vorher ein Element hatte.
           -->
           <fieldset :disabled="props.domain.pending">
-            <label v-if="props.domain.type !== 'alias'" class="feld">
+            <label v-if="props.domain.type !== 'alias'" class="field">
               <span>Verzeichnis</span>
               <input v-model="form.document_root" type="text" autocomplete="off">
             </label>
-            <p v-if="form.errors.document_root" class="fehler">{{ form.errors.document_root }}</p>
-            <p v-if="props.domain.type !== 'alias'" class="hinweis">
+            <p v-if="form.errors.document_root" class="error">{{ form.errors.document_root }}</p>
+            <p v-if="props.domain.type !== 'alias'" class="hint">
               Relativ zum Abonnement, ohne führenden Schrägstrich.
             </p>
 
-            <label v-if="props.domain.type !== 'alias'" class="feld">
+            <label v-if="props.domain.type !== 'alias'" class="field">
               <span>PHP-Version</span>
               <select v-model="form.php_version">
                 <option value="">ohne Handler — nur statische Dateien</option>
@@ -248,15 +248,15 @@ function entfernen(): void {
                 </option>
               </select>
             </label>
-            <p v-if="form.errors.php_version" class="fehler">{{ form.errors.php_version }}</p>
+            <p v-if="form.errors.php_version" class="error">{{ form.errors.php_version }}</p>
 
-            <label class="feld">
+            <label class="field">
               <span>Weiterleitung</span>
               <input v-model="form.redirect_target" type="url" placeholder="leer = keine" autocomplete="off">
             </label>
-            <p v-if="form.errors.redirect_target" class="fehler">{{ form.errors.redirect_target }}</p>
+            <p v-if="form.errors.redirect_target" class="error">{{ form.errors.redirect_target }}</p>
 
-            <label v-if="form.redirect_target !== ''" class="feld">
+            <label v-if="form.redirect_target !== ''" class="field">
               <span>Art der Weiterleitung</span>
               <select v-model="form.redirect_kind">
                 <option value="temporary">vorübergehend (302)</option>
@@ -264,7 +264,7 @@ function entfernen(): void {
               </select>
             </label>
           </fieldset>
-        </Bereich>
+        </Section>
 
         <!--
           Die PHP-Einstellungen stehen nur da, wenn der Plan sie freigibt und
@@ -272,13 +272,13 @@ function entfernen(): void {
           „das gibt es, du darfst nur nicht" — richtig, aber hier ohne Nutzen:
           Wer sie braucht, wendet sich an den Betreiber.
         -->
-        <Bereich
+        <Section
           v-if="props.may.update_php && props.domain.type !== 'alias'"
-          titel="PHP-Einstellungen dieser Domain"
+          title="PHP-Einstellungen dieser Domain"
         >
           <fieldset :disabled="props.domain.pending">
-            <label v-for="key in props.settings" :key="key" class="feld">
-              <span class="kennung">{{ key }}</span>
+            <label v-for="key in props.settings" :key="key" class="field">
+              <span class="ident">{{ key }}</span>
               <input
                 v-model="form.php_settings[key]"
                 type="text"
@@ -288,35 +288,35 @@ function entfernen(): void {
             </label>
           </fieldset>
 
-          <p v-if="form.errors.php_settings" class="fehler">{{ form.errors.php_settings }}</p>
-          <p class="hinweis">
+          <p v-if="form.errors.php_settings" class="error">{{ form.errors.php_settings }}</p>
+          <p class="hint">
             Leer lassen heißt: Vorgabe des Servers. Die Grenzen kommen aus dem
-            Plan; <span class="kennung">open_basedir</span> und die Abschottung
+            Plan; <span class="ident">open_basedir</span> und die Abschottung
             stehen im Pool und lassen sich hier nicht ändern.
           </p>
-        </Bereich>
+        </Section>
 
-        <Bereich titel="Eigene nginx-Direktiven" voll>
+        <Section title="Eigene nginx-Direktiven" full>
           <fieldset :disabled="props.domain.pending">
-            <label class="feld">
+            <label class="field">
               <span>Eine je Zeile</span>
-              <textarea v-model="form.nginx_directives" rows="4" spellcheck="false" class="kennungsfeld" />
+              <textarea v-model="form.nginx_directives" rows="4" spellcheck="false" class="ident-field" />
             </label>
           </fieldset>
 
-          <p v-if="form.errors.nginx_directives" class="fehler">{{ form.errors.nginx_directives }}</p>
-          <p class="hinweis">
+          <p v-if="form.errors.nginx_directives" class="error">{{ form.errors.nginx_directives }}</p>
+          <p class="hint">
             Erlaubt sind: {{ props.directives.join(', ') }}. Keine Blöcke, ein
             Semikolon am Ende. Was einen Pfad oder einen Empfänger bestimmt,
             steht nicht darauf.
           </p>
-        </Bereich>
+        </Section>
       </div>
 
-      <p v-if="allgemein" class="fehler">{{ allgemein }}</p>
+      <p v-if="allgemein" class="error">{{ allgemein }}</p>
 
-      <div class="knopfreihe abschluss">
-        <button type="submit" class="knopf wichtig" :disabled="form.processing || props.domain.pending">
+      <div class="button-row footer-row">
+        <button type="submit" class="button primary" :disabled="form.processing || props.domain.pending">
           {{ form.processing ? 'wird übernommen …' : 'Übernehmen' }}
         </button>
       </div>
@@ -337,15 +337,15 @@ fieldset {
   min-width: 0;
 }
 
-.maske-oben {
+.form-top {
   margin-top: var(--block-gap);
 }
 
-.kennungsfeld {
+.ident-field {
   font-family: var(--font-mono);
 }
 
-.abschluss {
+.footer-row {
   margin-top: var(--block-gap);
 }
 </style>

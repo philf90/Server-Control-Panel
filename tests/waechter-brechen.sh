@@ -191,6 +191,25 @@ pruefe "eigene Tabellenform auf einer Seite" \
 wiederherstellen
 
 echo
+echo "── ClassNameTest: ein deutscher Klassenname ──"
+vorher
+printf '\n.knopfreihe-neu { color: var(--text); }\n' >> resources/css/app.css
+griff "deutsches Wort in einem Klassennamen" &&
+pruefe "deutsches Wort in einem Klassennamen" \
+  ClassNameTest::test_every_class_name_comes_from_the_vocabulary failed
+wiederherstellen
+
+echo
+echo "── ClassNameTest: eine Regel, die kein Template erreicht ──"
+vorher
+printf '\n.item-grid-legacy { color: var(--text); }\n' >> resources/css/app.css
+griff "Regel ohne Nutzer" &&
+pruefe "Regel ohne Nutzer" \
+  ClassNameTest::test_every_rule_in_app_css_is_reached_by_a_template failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ClassNameTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

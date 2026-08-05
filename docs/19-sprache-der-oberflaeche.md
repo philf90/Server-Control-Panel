@@ -151,12 +151,39 @@ Bestätigungsstufen aus [14](14-bestaetigungen.md)), **Prüfer**,
 **Zeitplan**, **Zugang**, **Anmeldung**, **Geheimnis** (für das TOTP-Secret,
 weil die Authenticator-Apps es so nennen).
 
-Die Bezeichner im Quelltext sind von alledem unberührt. `api.einspielen`,
-`ufwEinspielen`, das JSON-Feld `einspielbar` und die Schlüssel `einspielenTitel`
-in `texte.ts` bleiben, wie sie sind: Sie sind kein Text, den jemand liest, und
-`einspielbar` umzubenennen wäre eine Änderung an der Schnittstelle für einen
-Wortgeschmack. Wer sie beim Lesen des Codes für die Vorgabe hält, findet hier
-die Antwort.
+## 4a. Bezeichner sind englisch
+
+**Kommentare, Dokumentation und jeder Text der Oberfläche: deutsch.
+Bezeichner: englisch.** Ein Bezeichner ist kein Text, den jemand liest — er
+ist der Name, unter dem zwei Stellen im Quelltext sich treffen.
+
+Das galt hier von Anfang an und stand trotzdem nur in `CLAUDE.md`. An dieser
+Stelle stand sogar das Gegenteil: „Die Bezeichner im Quelltext sind von alledem
+unberührt", mit `api.einspielen` und `ufwEinspielen` als Beispielen. Der Satz
+stammt aus dem Vorgängerprojekt und meinte etwas Enges und Richtiges — eine
+**Schnittstelle**, die man nicht für einen Wortgeschmack umbenennt, weil auf
+der anderen Seite jemand mitliest.
+
+Auf die Klassennamen der eigenen Gestaltung angewandt hat er neun Monate lang
+eine zweite Sprache gerechtfertigt: `.knopf`, `.marke`, `.bereich`, `.kennung`,
+`.stapelt`, `data-spalte` — rund 110 Namen, und dazu Komponenten mit
+`titel`- und `erklaerung`-Eigenschaften. Eine CSS-Klasse ist keine
+Schnittstelle nach aussen; sie steht ausschliesslich zwischen `app.css` und
+einem Template dieses Repositorys.
+
+Was daraus folgt:
+
+- **CSS-Klassen, Datenattribute, Komponentennamen und ihre Eigenschaften sind
+  englisch.** Geprüft von `tests/Feature/ClassNameTest.php` gegen eine
+  Wortliste: Wer eine Klasse hinzufügt, trägt ihr Wort dort ein, und die Zeile
+  steht im Diff — genau dort, wo ein deutsches Wort auffällt.
+- **Eine echte Schnittstelle bleibt, wie sie ist.** Ein JSON-Feld, ein
+  Operationsname des Agenten, ein Spaltenname in der Datenbank: Die umzubenennen
+  kostet eine Migration oder einen Bruch, und dafür ist ein Wortgeschmack kein
+  Grund.
+- **Was im Rumpf einer Funktion steht, ist niemandes Schnittstelle.** Lokale
+  Variablen und seitenlokale Hilfsfunktionen sind hier nicht geprüft. Wer sie
+  anfasst, macht sie englisch mit; ein eigener Durchgang nur dafür lohnt nicht.
 
 ## 5. Wenn ein Wort dazukommt
 

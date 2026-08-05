@@ -22,22 +22,22 @@ function mehr(): void {
   <Head :title="`Protokolle · ${props.domain.name}`" />
 
   <PanelLayout :title="props.domain.name" subline="Protokolle">
-    <template #pfad>
-      <Link href="/domains" class="verweis">Domains</Link> ·
-      <Link :href="`/domains/${props.domain.id}`" class="verweis">{{ props.domain.name }}</Link>
+    <template #breadcrumb>
+      <Link href="/domains" class="link">Domains</Link> ·
+      <Link :href="`/domains/${props.domain.id}`" class="link">{{ props.domain.name }}</Link>
     </template>
 
-    <template #aktion>
+    <template #actions>
       <!--
         Die beiden Umschalter sind eine Wahl und keine Rangfolge: Der gewählte
         trägt `.aktiv` — Akzentrand und getönte Fläche —, nicht `.wichtig`.
         Sonst stünde in einer Zweierreihe eine Hauptsache, und die Reihe ist
         keine.
       -->
-      <button type="button" class="knopf" :class="{ aktiv: props.kind === 'access' }" @click="zeige('access')">
+      <button type="button" class="button" :class="{ active: props.kind === 'access' }" @click="zeige('access')">
         Zugriffe
       </button>
-      <button type="button" class="knopf" :class="{ aktiv: props.kind === 'error' }" @click="zeige('error')">
+      <button type="button" class="button" :class="{ active: props.kind === 'error' }" @click="zeige('error')">
         Fehler
       </button>
     </template>
@@ -48,26 +48,26 @@ function mehr(): void {
       Eine leere Liste für alle drei wäre die bequeme Lösung — und sähe im
       ersten Fall aus, als sei alles in Ordnung.
     -->
-    <p v-if="props.log.error" class="meldung kritisch">
+    <p v-if="props.log.error" class="notice critical">
       Der Agent antwortet nicht: {{ props.log.error }}
     </p>
 
-    <p v-else-if="!props.log.exists" class="leer">
+    <p v-else-if="!props.log.exists" class="empty">
       Für diese Domain gibt es noch kein Protokoll. Es entsteht mit dem ersten
       Zugriff.
     </p>
 
-    <p v-else-if="props.log.lines.length === 0" class="leer">
+    <p v-else-if="props.log.lines.length === 0" class="empty">
       Das Protokoll ist leer.
     </p>
 
     <template v-else>
-      <p class="pfad kennung">{{ props.log.path }}</p>
+      <p class="breadcrumb ident">{{ props.log.path }}</p>
 
-      <pre class="ausgabe protokoll">{{ props.log.lines.join('\n') }}</pre>
+      <pre class="output log">{{ props.log.lines.join('\n') }}</pre>
 
-      <div class="knopfreihe abschluss">
-        <button v-if="props.lines < 500" type="button" class="knopf" @click="mehr">
+      <div class="button-row footer-row">
+        <button v-if="props.lines < 500" type="button" class="button" @click="mehr">
           Mehr Zeilen ({{ props.lines }} → {{ Math.min(500, props.lines * 2) }})
         </button>
       </div>
@@ -81,19 +81,19 @@ function mehr(): void {
  *
  * Eine umgebrochene Zeile eines Zugriffsprotokolls ist unlesbar: Man erkennt
  * nicht mehr, wo ein Eintrag anfängt. Auf 390px rollt es waagerecht — dieselbe
- * Entscheidung wie bei den Tabellen unter `.rollt`.
+ * Entscheidung wie bei den Tabellen unter `.scrolls`.
  *
- * Form und Farbe kommen aus `.ausgabe` in app.css; hier steht nur, was dieses
+ * Form und Farbe kommen aus `.output` in app.css; hier steht nur, was dieses
  * eine Protokoll davon unterscheidet.
  */
-.protokoll {
+.log {
   margin: 0;
   max-height: 60dvh;
   overflow: auto;
   white-space: pre;
 }
 
-.abschluss {
+.footer-row {
   margin-top: var(--gap);
 }
 </style>

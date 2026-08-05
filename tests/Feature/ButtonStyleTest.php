@@ -28,7 +28,7 @@ use SplFileInfo;
  * **Warum nur `resources/js/Pages`.** Das Gerüst hat Bedienelemente, die keine
  * Knöpfe im Sinne der Gestaltung sind: der Menüknopf der Schublade, das
  * Augensymbol am Passwortfeld, das Abmelden in der Seitenleiste. Sie tragen
- * kein `.knopf` und sollen es nicht — sie sind Teil ihrer Komponente. Der
+ * kein `.button` und sollen es nicht — sie sind Teil ihrer Komponente. Der
  * Unterschied ist nicht formal: Ein Knopf auf einer Seite ist eine Aktion,
  * die jemand auslöst; das Auge am Passwortfeld zeigt einen Zustand.
  */
@@ -96,7 +96,7 @@ final class ButtonStyleTest extends TestCase
                 // Ein Selektor, der einen Knopf meint: das Element selbst oder
                 // eine Klasse mit „knopf" darin. Das Augensymbol (`.auge`)
                 // fällt nicht darunter — es ist keines.
-                if (! preg_match('/(^|[\s,>])button\b|\.knopf/', $selector)) {
+                if (! preg_match('/(^|[\s,>])button\b|\.button/', $selector)) {
                     continue;
                 }
 
@@ -106,7 +106,7 @@ final class ButtonStyleTest extends TestCase
                         preg_match('/(^|[;\s])'.preg_quote($property, '/').'\s*:/', $rule[2]),
                         sprintf(
                             '%s setzt an „%s" die Eigenschaft %s. Das Aussehen eines Knopfes steht in '.
-                            'app.css: .knopf, .knopf.wichtig, .knopf.gefahr, .knopf.klein.',
+                            'app.css: .button, .button.primary, .button.danger, .button.small.',
                             $this->relative($path),
                             $selector,
                             $property,
@@ -134,7 +134,7 @@ final class ButtonStyleTest extends TestCase
          * kommt weiter ausschliesslich aus den Seiten — nur gezählt wird
          * dort, wo die Regeln stehen dürfen.
          */
-        $this->assertGreaterThan(1, $checked + $this->rulesInAppCss('/(^|[\\s,>])button\\b|\\.knopf/'),
+        $this->assertGreaterThan(1, $checked + $this->rulesInAppCss('/(^|[\\s,>])button\\b|\\.button/'),
             'Es werden kaum Knopfregeln gefunden — dann prüft dieser Test nichts.');
     }
 
@@ -168,7 +168,7 @@ final class ButtonStyleTest extends TestCase
      * Jede Zusatzklasse an einem Knopf muss es in app.css geben.
      *
      * **Der Fehler, den dieser Test hätte melden müssen und nicht meldete.**
-     * In P3 stand auf drei Seiten `class="knopf betont"` — eine Klasse, die
+     * In P3 stand auf drei Seiten `class="button betont"` — eine Klasse, die
      * app.css nicht kennt. Der Knopf sah aus wie ein gewöhnlicher, die
      * Hervorhebung fehlte, und kein Lauf sagte etwas: Der Test darüber prüft,
      * dass keine Seite ihr *eigenes* Aussehen erfindet, nicht, dass sie ein
@@ -183,10 +183,10 @@ final class ButtonStyleTest extends TestCase
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
 
-        // Die Klassen, die app.css neben `.knopf` kennt: `.knopf.wichtig` und
+        // Die Klassen, die app.css neben `.button` kennt: `.button.primary` und
         // Verwandte. Gelesen statt aufgezählt — eine Aufzählung hier wäre der
         // zweite Ort für dieselbe Liste.
-        preg_match_all('/\.knopf\.([a-zäöüß-]+)/', $css, $found);
+        preg_match_all('/\.button\.([a-zäöüß-]+)/', $css, $found);
 
         $known = array_values(array_unique($found[1]));
 
@@ -198,12 +198,12 @@ final class ButtonStyleTest extends TestCase
         foreach ($this->pages() as $path) {
             $template = $this->template((string) file_get_contents($path));
 
-            // Beide Schreibweisen: `class="knopf wichtig"` und die gebundene
-            // Form `:class="['knopf', { aktiv: … }]"`.
+            // Beide Schreibweisen: `class="button wichtig"` und die gebundene
+            // Form `:class="['button', { aktiv: … }]"`.
             // `\s` nach `knopf` ist der Unterschied zwischen einem Knopf und
-            // `class="knopfreihe"` — der Reihe, in der Knöpfe stehen. Ohne ihn
+            // `class="buttonreihe"` — der Reihe, in der Knöpfe stehen. Ohne ihn
             // meldete der Test „reihe" als unbekannte Knopfklasse.
-            preg_match_all('/class="knopf(\s[^"]*)?"/', $template, $statisch);
+            preg_match_all('/class="button(\s[^"]*)?"/', $template, $statisch);
             preg_match_all('/:class="\\[\'knopf\',\\s*\\{([^}]*)\\}/', $template, $gebunden);
 
             foreach ($statisch[1] as $rest) {
@@ -244,7 +244,7 @@ final class ButtonStyleTest extends TestCase
 
     public function test_every_button_carries_the_class(): void
     {
-        // Ein `<button>` ohne `.knopf` sähe aus wie das, was der Browser
+        // Ein `<button>` ohne `.button` sähe aus wie das, was der Browser
         // mitbringt — grau, eckig, in einer fremden Schrift.
         $buttons = 0;
 
@@ -257,8 +257,8 @@ final class ButtonStyleTest extends TestCase
                 $buttons++;
 
                 $this->assertTrue(
-                    str_contains($attributes, 'knopf') || str_contains($attributes, 'class="auge"'),
-                    sprintf('In %s steht ein <button> ohne class="knopf" (app.css).', $this->relative($path)),
+                    str_contains($attributes, 'button') || str_contains($attributes, 'class="reveal"'),
+                    sprintf('In %s steht ein <button> ohne class="button" (app.css).', $this->relative($path)),
                 );
             }
         }
@@ -269,7 +269,7 @@ final class ButtonStyleTest extends TestCase
     /**
      * Ein Knopf, der die Zeilenhöhe schont, muss sie auf dem Telefon zurückbekommen.
      *
-     * `.knopf.klein` setzt `min-height: 0` — eine Zusage an die Tabellenzeile,
+     * `.button.small` setzt `min-height: 0` — eine Zusage an die Tabellenzeile,
      * die er sonst auf 30px aufblasen würde. Auf einer schmalen Fläche gibt es
      * diese Zeile nicht mehr: Die Tabelle ist dort ein Kärtchen, und übrig
      * blieben zwei 23px hohe Ziele nebeneinander. docs/24 §2 verlangt für jedes
@@ -277,7 +277,7 @@ final class ButtonStyleTest extends TestCase
      * Ansicht unterschreitet, muss ihn in der schmalen wiederherstellen.
      *
      * Der Test hängt nicht an `.klein`, sondern an der Form der Ausnahme — ein
-     * künftiges `.knopf.winzig` fällt genauso darunter.
+     * künftiges `.button.winzig` fällt genauso darunter.
      */
     public function test_a_button_that_gives_up_the_tap_target_regains_it_when_narrow(): void
     {
@@ -300,7 +300,7 @@ final class ButtonStyleTest extends TestCase
         foreach ($rules as $rule) {
             $selector = trim($rule[1]);
 
-            if (! str_contains($selector, '.knopf')) {
+            if (! str_contains($selector, '.button')) {
                 continue;
             }
 
@@ -463,7 +463,7 @@ final class ButtonStyleTest extends TestCase
      *
      * **Wogegen gerechnet wird.** Gegen den Seitengrund und gegen jede Fläche,
      * auf der ein Bedienelement liegen kann — und gegen die eigene Fläche,
-     * *falls sie eine andere ist*. Bei `.knopf.wichtig` sind Rand und Fläche
+     * *falls sie eine andere ist*. Bei `.button.primary` sind Rand und Fläche
      * dieselbe Marke; dort wäre die Rechnung 1:1 und die Frage falsch gestellt:
      * Was diesen Knopf sichtbar macht, ist seine Fläche gegen die Seite.
      */
@@ -604,7 +604,7 @@ final class ButtonStyleTest extends TestCase
             // Was ein Bedienelement ist: der Knopf und die drei Feldarten.
             // `:disabled` und `[readonly]` fallen mit darunter und werden unten
             // über ihren Randwert ausgesortiert.
-            if (! preg_match('/\.knopf|(^|[\s,>+~])(button|input|select|textarea)\b/', $selector)) {
+            if (! preg_match('/\.button|(^|[\s,>+~])(button|input|select|textarea)\b/', $selector)) {
                 continue;
             }
 
@@ -745,7 +745,7 @@ final class ButtonStyleTest extends TestCase
             $bereiche = $forms[0] === [] ? [$template] : $forms[0];
 
             foreach ($bereiche as $bereich) {
-                $count = preg_match_all('/knopf wichtig/', $bereich);
+                $count = preg_match_all('/button primary/', $bereich);
 
                 $this->assertLessThanOrEqual(
                     1,

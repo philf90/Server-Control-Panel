@@ -83,7 +83,7 @@ final class AcmeSettings
 
         Setting::query()->updateOrCreate(
             ['key' => self::KEY],
-            ['value' => array_merge($setting?->value ?? [], $values)],
+            ['value' => array_merge($setting->value ?? [], $values)],
         );
     }
 

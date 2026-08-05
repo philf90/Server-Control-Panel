@@ -701,7 +701,7 @@ python3 - <<'PY'
 p = 'app/Support/Tls/AcmeSettings.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "            ['value' => array_merge($setting?->value ?? [], $values)],",
+    "            ['value' => array_merge($setting->value ?? [], $values)],",
     "            ['value' => $values],",
 )
 open(p, 'w', encoding='utf-8').write(s)

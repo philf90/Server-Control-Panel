@@ -73,14 +73,14 @@ const fehlende = computed(() => [
  *
  * Solange nur die Notlösung dalag, war das dasselbe und die Beschriftung
  * durfte kurz sein. Seit daneben ein Zertifikat von Let's Encrypt liegen kann,
- * ist es das nicht mehr: Der Knopf erneuert dann den *Rückweg*, und im Browser
+ * ist es das nicht mehr: Der Knopf erneuert dann die *Notlösung*, und im Browser
  * ändert sich nichts. Ein Knopf, der sichtbar nichts tut, ist genau der
  * Fehler, den dieses Projekt schon einmal gemacht hat — deshalb sagen
  * Beschriftung und Rückfrage beide, worum es geht.
  */
 function neuAusstellen(): void {
   const nachfrage = props.certificate.acme
-    ? 'Das selbstsignierte Zertifikat neu ausstellen? Es ist der Rückweg für den Fall, '
+    ? 'Das selbstsignierte Zertifikat neu ausstellen? Es ist die Notlösung für den Fall, '
       + 'dass kein Name mehr auf diesen Server zeigt. Ausgeliefert wird weiterhin das '
       + 'Zertifikat von Let’s Encrypt — im Browser ändert sich nichts.'
     : 'Neues Zertifikat ausstellen? nginx wird danach neu geladen, und der Browser '
@@ -103,7 +103,7 @@ function neuAusstellen(): void {
         <template v-else>vorhanden</template>
       </Badge>
       <button type="button" class="button" @click="neuAusstellen">
-        {{ props.certificate.acme ? 'Rückweg erneuern' : 'Neu ausstellen' }}
+        {{ props.certificate.acme ? 'Selbstsigniertes erneuern' : 'Neu ausstellen' }}
       </button>
     </template>
 
@@ -232,9 +232,9 @@ function neuAusstellen(): void {
       <p v-else-if="props.certificate.acme" class="notice neutral postscript">
         <span>
           Ausgeliefert wird das Zertifikat von Let’s Encrypt. Das
-          selbstsignierte bleibt daneben liegen und bleibt gültig — es ist der
-          Rückweg für den Fall, dass unter dem Namen dieses Servers nichts mehr
-          steht.
+          selbstsignierte bleibt daneben liegen und bleibt gültig — es ist die
+          Notlösung für den Fall, dass unter dem Namen dieses Servers nichts
+          mehr steht.
         </span>
       </p>
     </template>

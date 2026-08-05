@@ -312,11 +312,10 @@ final class DomainController extends Controller
         return $out;
     }
 
-    /** @return array<string, mixed> */
     /**
      * Was für ein Zertifikat diese Domain ausliefert.
      *
-     * **Gelesen wird der Bestand und nicht die Platte.** Was dort liegt, weiss
+     * **Gelesen wird der Bestand und nicht der Ablageort.** Was dort liegt, weiss
      * der Agent; was gilt, steht in `certificates`. Die Seite fragt den
      * Agenten hier bewusst nicht: Eine Domainseite, die bei jedem Aufruf über
      * den Socket geht, ist eine Seite, die bei einem stehenden Agenten nicht
@@ -379,6 +378,7 @@ final class DomainController extends Controller
         return redirect()->route('operations.show', $operation);
     }
 
+    /** @return array<string, mixed> */
     private function row(Domain $domain): array
     {
         return [

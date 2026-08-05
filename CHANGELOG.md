@@ -2107,3 +2107,31 @@ zweimal erst auf einem fremden Bildschirm gesehen — deshalb jetzt
 `SparklineShapeTest`: Wer ein Feld ungleich zieht, zeichnet darin nichts Rundes
 in Nutzerkoordinaten, und jede Zeichnung mit Strich sagt, dass ihre Stärke in
 Bildpunkten gilt.
+
+### Eine Übergabe, die das Chatfenster überlebt
+
+`docs/32-uebergabe-p4.md` beantwortet die Fragen, die am Anfang von P4 ohnehin
+gestellt werden: was für TLS schon dasteht, was fehlt, welche Entscheidungen
+der Betreiber treffen muss — und die zwei Dinge, die man dabei falsch machen
+kann, ohne es zu merken.
+
+**Warum das ein Dokument ist und keine Notiz im Chat.** Eine Übergabe, die im
+Sitzungsfenster steht, verschwindet mit dem Fenster. Die nächste Session sieht
+in `docs/` nach; dort gehört sie hin.
+
+Zwei Dinge stehen darin, die man aus dem Plan allein nicht sieht, weil sie aus
+dem Quelltext gelesen sind:
+
+- **Die Kundenvorlage trägt HTTP-01 schon halb.** Sie hört auf Port 80, und
+  `.well-known` ist vom Punktdatei-Schutz ausgenommen — mit einem Kommentar,
+  der P4 namentlich nennt. Was dort fehlt, ist `ssl_certificate` und die
+  Weiterleitung auf HTTPS: Eine Kundendomain spricht heute Klartext.
+- **HSTS kommt mit dem ersten vertrauten Zertifikat von selbst — aber nur,
+  wenn der Server-Block danach neu geschrieben wird.** Wer ein ACME-Zertifikat
+  einspielt, ohne `panel.vhost.apply` zu rufen, bekommt ein vertrautes
+  Zertifikat ohne den Header. Der harmlosere der beiden Ausgänge, und genau
+  deshalb bemerkt ihn niemand.
+
+Dazu die Erinnerung, die sonst zwischen zwei Freigaben verlorengeht: Die
+Sitzungswerte aus `rc.2` stehen erst nach `srvpanel setup` in `panel.env` —
+`srvpanel update` schreibt diese Datei nicht.

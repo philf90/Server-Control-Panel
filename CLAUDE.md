@@ -15,13 +15,12 @@ auf dem Zielserver aus `0.3.0~rc.5` durchgelaufen: sechs Domains, zwei
 PHP-Versionen, zwei Systembenutzer, kein Zugriff über die Grenze. Als Nächstes
 **P4 (TLS)**.
 
-Ausgeliefert wird `v0.3.1-rc.1` — der Optik-Rework. **Für ihn steht der
+Ausgeliefert wird `v0.3.1-rc.3` — der Optik-Rework. **Für ihn steht der
 Abnahmelauf auf einem echten Server noch aus:** Belegt sind bisher nur die
 Ausfallzustände, weil dieser Container weder nginx noch PHP-FPM noch den
-Agenten hat. Zuerst nachzusehen ist, ob die Schwellen der Verlaufskacheln
-unter Last sinnvoll greifen (85 % CPU, Load gegen die Kernzahl) und ob die
-Übersicht mit echten Diensten und echtem Zertifikat so aussieht wie mit den
-Attrappen.
+Agenten hat. Der Prüfweg dafür steht in `docs/33` — er kommt **vor** P4, weil
+P4 genau die Stellen anfasst, an denen `rc.3` nie unter echten Bedingungen
+gelaufen ist, und ein Fehlschlag danach sonst zwei mögliche Ursachen hätte.
 
 ---
 
@@ -149,7 +148,8 @@ nicht geschätzt: 4,5:1 für Text, **3:1 für die Grenze eines Bedienelements**
 Weitere Dokumente: `21` Signaturschlüssel · `22` Passwörter · `23` Pläne und
 Kontingente · `24` mobile Ansicht · `25` Mailversand · `26` Abonnements ·
 `27` Zertifikat · `28` Web und PHP · **`32` Übergabe an P4** — was für TLS
-schon dasteht, was fehlt, und die Falle, die dabei aussperrt. Die Entwürfe zum Gestaltungssystem stehen
+schon dasteht, was fehlt, und die Falle, die dabei aussperrt — und **`33` der
+Abnahmelauf für 0.3.1**, der davor kommt. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".
@@ -195,6 +195,14 @@ Testen berücksichtigen:
   Containers lässt die Paketquelle nicht durch. Er läuft in der CI;
   `composer pruefe` schlägt deshalb lokal fehl. Einzeln `pint` und
   `php artisan test` aufrufen.
+
+  **Und manchmal geht auch das nicht.** In der Sitzung vom 5. August gab es
+  `vendor/` überhaupt nicht — kein Pint, kein PHPUnit, `php artisan` bricht
+  schon beim `require` des Autoloaders ab. Derselbe Proxy, dieselbe Meldung.
+  Wer hier ankommt, sieht als Erstes nach, ob `vendor/` da ist: Ist es das
+  nicht, prüft ausschliesslich die CI, und **jede** Änderung an `app/`,
+  `agent/` oder `tests/` kostet eine Runde — nicht nur die, die PHPStan
+  beträfe.
 
   **Was das für die Arbeit heisst:** Undefinierte Variablen, fehlende
   Typangaben und tote Zweige findet hier nichts. Wer `app/`, `agent/` oder

@@ -2135,3 +2135,30 @@ dem Quelltext gelesen sind:
 Dazu die Erinnerung, die sonst zwischen zwei Freigaben verlorengeht: Die
 Sitzungswerte aus `rc.2` stehen erst nach `srvpanel setup` in `panel.env` —
 `srvpanel update` schreibt diese Datei nicht.
+
+### Ein Abnahmelauf, der nicht jedes Mal neu erfunden wird
+
+`docs/33-abnahme-0.3.1.md` ist der Prüfweg für `0.3.1-rc.3` auf einem echten
+Server — Schritt für Schritt, mit dem, was dastehen muss, und einem
+Ergebnisblock zum Ausfüllen.
+
+**Warum er vor P4 steht und nicht danach.** P4 fasst das Zertifikat der
+Oberfläche, den Server-Block des Panels und die Vorlage der Kundendomains an.
+Das sind genau die Stellen, an denen der Optik-Rework nie unter echten
+Bedingungen gelaufen ist; abgenommen wurde P3 aus `0.3.0~rc.5`. Ohne den
+Nachweis hätte jeder Fehlschlag in P4 zwei mögliche Ursachen, und die
+Unterscheidung kostet mehr als der Lauf.
+
+Drei Dinge stehen darin, die man beim Fahren sonst falsch macht:
+
+- **Zuerst `panel.env` ansehen.** `srvpanel update` schreibt die Datei nicht
+  neu. Wer von `0.3.0` nur aktualisiert hat, prüft die Sitzung auf dem Telefon
+  gegen `SESSION_SAME_SITE=strict` — also gegen den Stand vor `rc.2` und nicht
+  gegen den, der abgenommen werden soll.
+- **Erst das Maschinelle, dann das Sichtbare.** Wer die Kacheln ansieht,
+  während `acceptance-web` läuft, misst die Last des Abnahmelaufs und weiß
+  hinterher nicht, was er gesehen hat.
+- **RAM nicht mit Gewalt auf 85 % treiben.** Der naheliegende Weg dorthin endet
+  beim OOM-Killer, und der sucht sich sein Opfer selbst. CPU und Load lassen
+  sich gefahrlos auslösen (`yes` je Kern, danach `pkill -x yes`) und laufen
+  durch denselben Code — was dort warnt, warnt bei RAM auch.

@@ -25,13 +25,14 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/; then
-  echo "resources/ hat ungesicherte Änderungen. Erst committen oder verwerfen —" >&2
-  echo "dieses Skript ändert dort Dateien und stellt sie über git wieder her." >&2
+if ! git diff --quiet -- resources/ app/; then
+  echo "resources/ oder app/ hat ungesicherte Änderungen. Erst committen oder" >&2
+  echo "verwerfen — dieses Skript ändert dort Dateien und stellt sie über git" >&2
+  echo "wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -220,6 +221,21 @@ pruefe "Verzeichnis ohne Pager" \
   PaginationTest::test_every_paginated_page_renders_the_pager failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PaginationTest passed
+
+echo
+echo "── Schwelle: die Kurve warnt nicht mehr ──"
+#
+# Das Merkmal, wegen dem „Kontor" gewählt wurde — und das ein Jahr lang
+# gefehlt hat, weil in dieser Umgebung kein Agent läuft und auf jeder Kachel
+# „noch keine Messwerte" stand. Der Unit-Test allein genügt nicht: Er bliebe
+# grün, wenn hier das letzte Argument wegfällt.
+sed -i "s|\\\$store->series('cpu', 2, 0, 60, ' %', 0, 85.0)|\\\$store->series('cpu', 2, 0, 60, ' %', 0)|" \
+  app/Http/Controllers/OverviewController.php
+pruefe "Schwelle im Controller weggekürzt" \
+  PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so failed
+git checkout -- app/ 2>/dev/null
+pruefe "  … zurückgesetzt wieder grün" \
+  PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

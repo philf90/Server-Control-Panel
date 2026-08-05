@@ -1690,3 +1690,62 @@ Seite ignorierte ihn, und beide für sich sahen in Ordnung aus.
 Dazu zwei funktionale Prüfungen in `AuditLogTest`, die der Wächter nicht
 leisten kann: dass Seite 2 andere Zeilen zeigt als Seite 1, und dass ein
 Filter das Blättern überlebt.
+
+### Die Kurve warnt wieder — das Merkmal, wegen dem „Kontor" gewählt wurde
+
+Beim Zuschlag hiess es: „Die Gestaltung mit unterschiedlichen farbigen Badges
+und den farbigen Sparklines gefällt mir sehr gut." Die Badges kamen mit dem
+Rework. **Die farbigen Sparklines nicht.**
+
+Im bedienten Muster wechselt die Kurve die Farbe, sobald der letzte Wert über
+einer Schwelle liegt; der Kommentar dort nennt es „den Unterschied zwischen
+bunt und bedeutend: ‚Datenträger' ist bei 91 % nicht dieselbe Auskunft wie
+‚CPU' bei 23 %". `Tile.vue` hatte davon nichts — die Linie stand fest auf
+`var(--accent)`.
+
+**Warum es ein Jahr lang niemandem auffiel.** In dieser Entwicklungsumgebung
+läuft kein Agent. Auf jeder Kachel stand „noch keine Messwerte", und eine
+Kurve, die es nicht gibt, hat auch keine falsche Farbe. Bemerkt wurde es erst,
+als zum Abschluss des Reworks zum ersten Mal jemand Messwerte in den
+Ringpuffer schrieb, um die Kacheln überhaupt einmal gefüllt zu sehen.
+
+Die Schwellen sind die des Musters — mit zwei Abweichungen, die begründet
+sind:
+
+- **Die Load rechnet mit der wirklichen Kernzahl.** Das Muster nannte 4, weil
+  sein erfundener Server vier Kerne hatte. Eine feste Zahl wäre hier besonders
+  falsch: Load 4 heisst auf vier Kernen „ausgelastet" und auf zweiunddreissig
+  „langweilt sich". Der Agent zählt die Kerne seit P0 —
+  `SystemInfo::cpu()['cores']` — und **benutzt hat sie bis heute niemand.**
+- **Der Schreibdurchsatz bekommt keine.** Das Muster hatte an fünfter Stelle
+  den Füllstand des Datenträgers (90 %); das Panel zeigt dort den
+  Schreibdurchsatz, und für den gibt es keine Zahl, die auf zwei Servern
+  dasselbe bedeutet — eine NVMe schreibt zwei Gigabyte je Sekunde, ein
+  Netzlaufwerk hundert Megabyte. Eine Schwelle, die überall gilt, warnt
+  entweder ständig oder nie. `null` steht dort als Angabe und mit Begründung.
+
+**Verglichen wird der letzte Wert und nicht der höchste.** Eine Kurve, die vor
+einer Stunde einmal ausgeschlagen ist und seitdem ruhig läuft, warnte sonst
+für immer — und eine Warnung, die nicht mehr weggeht, liest nach dem dritten
+Mal niemand.
+
+Im Browser nachgesehen, beide Themes: CPU auf 90 % und Load auf 8,96 tragen
+die Warnfarbe, RAM auf 61 %, Netz und IO bleiben im Akzent.
+
+#### Zwei Wächter, und der zweite war nötig
+
+`SeriesThresholdTest` prüft die Rechnung: unter der Schwelle ruhig, ab der
+Schwelle Warnung, ein alter Ausschlag warnt nicht weiter, ohne Schwelle warnt
+nichts, und das Feld steht auch in einer leeren Reihe.
+
+Beim Gegenprüfen zeigte sich, dass das nicht genügt: **Kürzt jemand im
+Controller das letzte Argument weg, bleibt der Unit-Test grün** und die
+Übersicht zeichnet wieder jede Kurve gleich — also genau der Zustand, der
+gerade behoben wurde. `PanelWalkthroughTest::test_a_tile_over_its_threshold
+_says_so` schreibt deshalb echte Messwerte in den Ringpuffer und prüft die
+ganze Kette: CPU über ihrer Schwelle warnt, RAM darunter nicht.
+
+Dieser Test ist beim ersten Anlauf selbst hereingefallen: Er legte einen
+eigenen `Store` mit Kapazität 100 an, während die Anwendung mit 8640 liest. Ein
+RingBuffer legt seine Datei nach der Kapazität aus — dieselbe Datei, anders
+gelesen, und die CPU stand auf „warnt nicht", obwohl 96 % darin standen.

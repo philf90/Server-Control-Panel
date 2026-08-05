@@ -32,6 +32,16 @@ export interface Point {
 
 export interface Series {
   has: boolean
+
+  /**
+   * Der letzte Wert liegt über der Schwelle — die Kurve trägt die Warnfarbe.
+   *
+   * Die Schwelle kommt vom Server und steht nicht hier: Ab wann eine
+   * Auslastung eng ist, ist eine Aussage über den Betrieb und keine über die
+   * Darstellung (OverviewController::tiles).
+   */
+  warns: boolean
+
   points: Point[]
 }
 
@@ -112,7 +122,16 @@ function nearest(event: PointerEvent): void {
       <template v-else>{{ subline }}</template>
     </div>
 
-    <div v-if="series?.has" class="trend">
+    <!--
+      **Der Unterschied zwischen bunt und bedeutend.** Die Kurve wechselt die
+      Farbe, wenn der letzte Wert über der Schwelle liegt — „Datenträger" bei
+      91 % ist nicht dieselbe Auskunft wie „CPU" bei 23 %. Fünf Kurven in fünf
+      Farben wären Dekoration; eine, die als einzige warnt, ist eine Meldung.
+
+      `tight` als Objektschlüssel und nicht als Ausdruck, damit
+      `ClassReachTest` die Klasse sieht.
+    -->
+    <div v-if="series?.has" class="trend" :class="{ tight: series.warns }">
       <svg
         ref="field"
         viewBox="0 0 100 32"
@@ -191,5 +210,23 @@ function nearest(event: PointerEvent): void {
 .end,
 .cursor {
   fill: var(--accent);
+}
+
+/*
+ * Über der Schwelle trägt die ganze Kurve die Warnfarbe — Linie, Fläche und
+ * Endpunkt zusammen.
+ *
+ * Nur die Linie umzufärben hatte im Browser nicht genügt: Die Fläche darunter
+ * blieb im Akzent, und aus beidem wurde ein Verlauf, der nach einem
+ * Darstellungsfehler aussah statt nach einer Warnung.
+ */
+.trend.tight .line {
+  stroke: var(--warn);
+}
+
+.trend.tight .area,
+.trend.tight .end,
+.trend.tight .cursor {
+  fill: var(--warn);
 }
 </style>

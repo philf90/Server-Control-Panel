@@ -584,6 +584,49 @@ bindend:
 
 Geprüft von `tests/Feature/TableStyleTest.php` und `MobileLayoutTest`.
 
+#### Die Verlaufskachel und ihre Schwelle
+
+Die Kurve wechselt die Farbe, wenn der **letzte** Wert über einer Schwelle
+liegt — sonst Akzent, darüber Warnung. Das bediente Muster nennt es „den
+Unterschied zwischen bunt und bedeutend": Fünf Kurven in fünf Farben wären
+Dekoration; eine, die als einzige warnt, ist eine Meldung.
+
+**Der letzte Wert und nicht der höchste.** Eine Kurve, die vor einer Stunde
+einmal ausgeschlagen ist und seitdem ruhig läuft, warnte sonst für immer — und
+eine Warnung, die nicht mehr weggeht, liest nach dem dritten Mal niemand.
+
+**Die Schwellen stehen im Controller**, aus demselben Grund wie das `tight` der
+Dateisysteme: Ab wann eine Auslastung eng ist, ist eine Aussage über den
+Betrieb und keine über die Darstellung.
+
+| Kachel | Schwelle | woher |
+|---|---|---|
+| CPU | 85 % | Muster |
+| RAM | 85 % | Muster |
+| Load | Zahl der Kerne | der Agent zählt sie (`SystemInfo::cpu()['cores']`) |
+| Netz | 900 Mbit/s, in Byte gerechnet | Muster |
+| Schreibdurchsatz | **keine** | siehe unten |
+
+**Warum der Schreibdurchsatz keine bekommt.** Es gibt für ihn keine Zahl, die
+auf zwei Servern dasselbe bedeutet: Eine NVMe schreibt zwei Gigabyte je
+Sekunde, ein Netzlaufwerk hundert Megabyte. Eine Schwelle, die überall gilt,
+warnt entweder ständig oder nie — und das ist schlechter als keine. `null`
+heisst hier „es gibt keine" und ist eine Angabe, keine vergessene Zeile.
+
+**Und die Load rechnet mit der wirklichen Kernzahl.** Eine feste Vier wäre hier
+besonders falsch: Load 4 heisst auf vier Kernen „ausgelastet" und auf
+zweiunddreissig „langweilt sich". Der Agent zählt die Kerne seit P0 und benutzt
+hat sie bis dahin niemand.
+
+**Das Merkmal hat ein Jahr lang gefehlt**, und aufgefallen ist es erst, als
+zum ersten Mal jemand Messwerte in den Ringpuffer schrieb: In der
+Entwicklungsumgebung läuft kein Agent, und auf jeder Kachel stand „noch keine
+Messwerte". Ein Merkmal, das man nur mit Daten sieht, braucht einen Test, der
+Daten mitbringt — `SeriesThresholdTest` für die Rechnung und
+`PanelWalkthroughTest::test_a_tile_over_its_threshold_says_so` über die ganze
+Kette, weil ein weggekürztes Argument im Controller sonst still jede Kurve
+wieder gleich färbt.
+
 #### Blättern
 
 Ein Verzeichnis endet nach 50 Zeilen, und darunter steht der Weg zur nächsten

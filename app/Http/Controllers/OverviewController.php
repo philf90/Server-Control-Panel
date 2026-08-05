@@ -212,6 +212,8 @@ final class OverviewController extends Controller
      * falsch: Load 4 heisst auf vier Kernen „ausgelastet" und auf
      * zweiunddreissig „langweilt sich". Ohne Angabe des Agenten die vier aus
      * dem Muster (docs/entwuerfe/31) — dort hatte der erfundene Server vier.
+     *
+     * @param  array{ok:bool,data:array<string,mixed>,error:string}  $result
      */
     private function cores(array $result): int
     {

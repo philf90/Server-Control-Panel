@@ -36,6 +36,31 @@ trap wiederherstellen EXIT INT TERM
 
 fehler=0
 
+# Vor jedem Eingriff merken, wie die Datei aussah — danach prüfen, dass sie
+# anders aussieht.
+#
+# **Das ist derselbe Fehler wie überall in diesem Projekt, nur im Werkzeug.**
+# Die Eingriffe unten nennen wörtliche Werte: `--row-height: 42px`,
+# `--button-line`, `--text-metric: 22px`. Beim Umbau auf „Kontor" hiessen alle
+# fünf plötzlich anders — und `sed` schweigt, wenn sein Muster nicht passt.
+# Das Skript patchte also nichts, liess den Test laufen, sah ihn grün und
+# meldete fünf Wächter als „hält seine Regel nicht". Ein Werkzeug, das die
+# Wächter prüft, hat selbst keinen gehabt.
+vorher() { cp resources/css/app.css /tmp/waechter-vorher.css; }
+
+griff() {
+  local name="$1"
+
+  if cmp -s resources/css/app.css /tmp/waechter-vorher.css; then
+    printf '  FEHLT  %-56s Eingriff hat nichts geändert\n' "$name"
+    fehler=$((fehler + 1))
+
+    return 1
+  fi
+
+  return 0
+}
+
 # name | filter | erwartetes Ergebnis
 pruefe() {
   local name="$1" filter="$2" erwartung="$3" ergebnis roh
@@ -66,12 +91,14 @@ wiederherstellen
 
 echo
 echo "── TableStyleTest: Dichtemarke fehlt in einer Stufe ──"
+vorher
 python3 - <<'PY'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace(":root[data-density='customer'] {\n  --row-height: 42px;", ":root[data-density='customer'] {")
+s = s.replace(":root[data-density='customer'] {\n  --row-height: 48px;", ":root[data-density='customer'] {")
 open(p, 'w', encoding='utf-8').write(s)
 PY
+griff "--row-height fehlt in der Kundendichte" &&
 pruefe "--row-height fehlt in der Kundendichte" \
   TableStyleTest::test_the_density_token_exists_in_both_steps failed
 wiederherstellen
@@ -80,23 +107,35 @@ pruefe "  … zurückgesetzt wieder grün" \
 
 echo
 echo "── TableStyleTest: Zeilenhöhe als Literal statt aus der Marke ──"
-printf '\ntd { height: var(--row-height); }\n' >> resources/css/app.css
-pruefe "Marke gesetzt -> grün" \
-  TableStyleTest::test_the_row_height_comes_from_the_density_token passed
-sed -i 's/^td { height: var(--row-height); }$/td { height: 34px; }/' resources/css/app.css
+#
+# **Hier stand einmal ein Bruch, der keiner war.** Er hängte eine *zusätzliche*
+# Regel `td { height: 40px }` an app.css und erwartete Rot. Der Test fragt aber,
+# ob *irgendeine* Tabellenregel die Marke liest — und die echte tat es weiter.
+# Ein Bruch, der neben die Regel greift statt auf sie, kann nie zubeissen; er
+# hat den Wächter zwei Ausbaustufen lang bestätigt, ohne ihn je zu prüfen.
+# Gebrochen werden muss die eine Stelle, die es wirklich gibt.
+vorher
+sed -i 's/^  height: var(--row-height);$/  height: 40px;/' resources/css/app.css
+griff "Literal statt Marke -> rot" &&
 pruefe "Literal statt Marke -> rot" \
   TableStyleTest::test_the_row_height_comes_from_the_density_token failed
 wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  TableStyleTest::test_the_row_height_comes_from_the_density_token passed
 
 echo
 echo "── ButtonStyleTest: Knopfrand aus der Haarlinie ──"
-sed -i 's/  border: 1px solid var(--button-line);/  border: 1px solid var(--line);/' resources/css/app.css
+vorher
+sed -i 's/  border: 1px solid var(--control-line);/  border: 1px solid var(--line);/' resources/css/app.css
+griff "unsichtbarer Rand am Knopf" &&
 pruefe "unsichtbarer Rand am Knopf" ButtonStyleTest::test_every_control_border_stands_out failed
 wiederherstellen
 
 echo
 echo "── ButtonStyleTest: Beschriftung auf dem Knopf unlesbar ──"
-sed -i 's/^  --text: #b9c7d4;/  --text: #1e2833;/' resources/css/app.css
+vorher
+sed -i 's/^  --text: #3a3f49;/  --text: #e8eaef;/' resources/css/app.css
+griff "--text auf der Knopffläche unter 4,5:1" &&
 pruefe "--text auf der Knopffläche unter 4,5:1" \
   ButtonStyleTest::test_the_label_on_a_button_stays_readable failed
 wiederherstellen
@@ -105,17 +144,50 @@ pruefe "  … zurückgesetzt wieder grün" \
 
 echo
 echo "── DesignTokensTest: eine Stufe, die niemand benutzt ──"
-sed -i 's/^  --text-metric: 22px;/  --text-metric: 22px;\n  --text-riesig: 99px;/' resources/css/app.css
+vorher
+sed -i 's/^  --text-metric: 34px;/  --text-metric: 34px;\n  --text-riesig: 99px;/' resources/css/app.css
+griff "Marke ohne Nutzer" &&
 pruefe "Marke ohne Nutzer" DesignTokensTest::test_every_step_of_the_scale_is_used failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DesignTokensTest::test_every_step_of_the_scale_is_used passed
 
 echo
 echo "── MobileLayoutTest: Feld in app.css mit zoomender Größe ──"
+vorher
 printf '\ninput { font-size: var(--text-small); }\n' >> resources/css/app.css
+griff "Feldregel unter 16px" &&
 pruefe "Feldregel unter 16px" MobileLayoutTest::test_input_fields_use_the_zoom_safe_size failed
 sed -i 's/^input { font-size: var(--text-small); }$/input { font-size: var(--text-input); }/' resources/css/app.css
 pruefe "  … mit --text-input wieder grün" MobileLayoutTest::test_input_fields_use_the_zoom_safe_size passed
+wiederherstellen
+
+echo
+echo "── DesignTokensTest: eine Marke, die es nicht gibt ──"
+#
+# Der Fund, der diesen Wächter seine Reichweite gekostet hat: Sieben Seiten
+# nannten `--surface-border` und `--padding` weiter, nachdem beide mit den
+# Karten weggefallen waren. Der Browser wirft eine Deklaration mit unbekannter
+# Marke still weg — kein Rand, kein Abstand, keine Meldung.
+printf '\n<style scoped>\n.x { color: var(--diese-marke-gibt-es-nicht); }\n</style>\n' \
+  >> resources/js/Pages/Customers/Index.vue
+pruefe "erfundene Marke in einer Komponente" \
+  DesignTokensTest::test_every_token_a_component_uses_exists failed
+wiederherstellen
+
+echo
+echo "── ButtonStyleTest: eine Seite gestaltet ihr eigenes Feld ──"
+printf '\n<style scoped>\ninput { border: 1px solid var(--line); padding: 4px; }\n</style>\n' \
+  >> resources/js/Pages/Customers/Index.vue
+pruefe "eigenes Feldaussehen auf einer Seite" \
+  ButtonStyleTest::test_no_page_styles_a_field_itself failed
+wiederherstellen
+
+echo
+echo "── TableStyleTest: eine Seite gestaltet ihre eigene Tabelle ──"
+printf '\n<style scoped>\ntd { padding: 3px; border-bottom: 1px solid var(--line); }\n</style>\n' \
+  >> resources/js/Pages/Customers/Index.vue
+pruefe "eigene Tabellenform auf einer Seite" \
+  TableStyleTest::test_no_component_styles_a_table_itself failed
 wiederherstellen
 
 echo

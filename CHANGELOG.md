@@ -1464,3 +1464,115 @@ steht `[data-density='customer']` ein zweites Mal, nämlich im
 und der Ausdruck fand diese Fundstelle. Der Wächter sah richtig aus und war es
 nicht; gemerkt hat es nur der Bruch. Er zählt jetzt Klammern und sucht
 ausserhalb der Haltepunkte.
+
+### Rework der Optik, Schritte 2 bis 5: „Kontor" steht
+
+Alle 26 Seiten, ein Gerüst, acht Komponenten und `resources/css/app.css`
+folgen jetzt der Richtung aus `docs/entwuerfe/30-neue-richtungen.md`. Was sich
+gegenüber „Leitstand" geändert hat, steht ausführlich in Plan §7.2; hier steht,
+was dabei gefunden wurde.
+
+**Vier Grundannahmen sind gefallen, nicht der Maßstab.** Hell ist die
+Ausgangsfassung und nicht die nachträgliche zweite Fassung. Es gibt keine
+Karten mehr — ein Bereich ist eine Überschrift, eine Linie und Inhalt, und die
+rund 40px Innenabstand, die eine Karte je Bereich kostet, sind jetzt Zeilen.
+Monospace trägt nur noch Kennungen; Ziffern stehen trotzdem spaltengenau, weil
+`tabular-nums` am `body` steht statt in vierzig Regeln. Und die Form jedes
+Bausteins steht in `app.css` — vorher gab es davon vier bis elf Fassungen über
+32 Dateien.
+
+Drei Vorgaben sind dabei ausdrücklich gefallen, jede mit ihrer Begründung im
+Plan: der 3px-Radius (in neun Monaten an keiner einzigen Stelle eingehalten —
+eine Vorgabe, die kein Werkzeug prüft, ist ein Satz im Dokument), „fünf
+Größen, und keine sechste" (widersprach ihrer eigenen sechszeiligen Tabelle
+und der Datei mit sieben Marken), und Amber als tragende Farbe (Akzent und
+Zustand „Warnung" waren derselbe Farbwert und mussten sich die Bedeutung
+teilen). `docs/24` bekommt mit `.paare` ein drittes Tabellenmuster: Es füllt
+eine Lücke, die bis dahin jede Detailseite selbst gefüllt hat.
+
+#### Was im Browser gefunden wurde und kein Test gemeldet hat
+
+- **Zwölf Zahlenfelder ohne jedes Aussehen.** Im Formular eines Plans stehen
+  die Kontingente in `.mit-einheit` und nicht in `.feld`, und nur `.feld input`
+  trug Rand, Fläche und Innenabstand. Auf dem Bildschirm standen die Werte als
+  nackter Text. Kein Wächter fragt, ob ein Feld überhaupt *ein* Aussehen
+  bekommt — sie fragen nur, ob das, was es bekommt, aus `app.css` stammt.
+- **Ein Eingabefeld von 1570px.** Ein Bereich, der allein in seiner Zeile
+  steht, nimmt die volle Breite — und nahm sie ohne Grenze mit ins Feld. „Die
+  Fläche ausnutzen" heisst mehr Zeilen zu zeigen und nicht, ein Wort über den
+  halben Bildschirm zu ziehen. `.feld` hört bei 540px auf, das Codefeld bei
+  280px.
+- **Ein Überlauf von 81px auf `/domains/1` bei 390px**, und der erste Versuch
+  half nicht: `white-space: normal` statt `nowrap` liess ihn auf exakt
+  denselben 81px stehen. In einer Flexzeile hält `flex: none` die
+  Inhaltsbreite, ganz gleich wie umgebrochen werden darf. Erst `flex: 1 1 auto`
+  mit `min-width: 0` gibt der Zelle das Recht, schmaler zu werden als ihr
+  Inhalt.
+- **1400px Lauflänge in einem halben Grundriss.** Zwölf Kontingente
+  untereinander, daneben die halbe Seite leer — derselbe Vorwurf wie vorher,
+  nur in neuer Gestalt. Als Raster über die volle Breite passt das Formular
+  eines Abonnements auf einen Bildschirm.
+- **Ein Satz in Monospace.** „noch keine Domain" stand mit `.kennung` da und
+  las sich wie ein Wert, den man irgendwo eintippen soll.
+
+#### Der Fund, der einem Wächter seine Reichweite gegeben hat
+
+**Sieben Seiten nannten `--surface-border` und `--padding` — Marken, die es
+seit dem Umbau nicht mehr gibt.** An elf Stellen. Der Browser wirft eine
+Deklaration mit unbekannter Marke still weg: Der Spaltenkopf der Übersicht
+hatte keine Linie, die Balkenspur keinen Grund, die Karte der Anmeldemaske
+keinen Rand.
+
+`DesignTokensTest` prüfte genau das schon — aber nur für `--text-…` und
+`--block-…`, also für ein Zehntel der Marken. Der Wächter stand daneben und
+sah weg. Er heisst jetzt `test_every_token_a_component_uses_exists` und liest
+jede Marke, die eine Komponente nennt.
+
+#### Drei Wächter mussten ihre Untergrenze weiten — und einer log
+
+`test_no_page_styles_a_button_itself`, `..._a_field_itself` und
+`test_no_component_styles_a_table_itself` zählen ihre Treffer, damit sie
+merken, wenn ihr Ausdruck ins Leere läuft. Gezählt haben sie nur in den
+Seiten. Als die letzte Seite ihr eigenes CSS abgab, stand der Zähler auf null,
+und alle drei meldeten Rot für genau die Ordnung, die sie durchsetzen sollen.
+Gezählt wird jetzt in `app.css` mit; der Befund kommt weiter allein aus den
+Seiten.
+
+Dazu ein vierter, der **falschen Alarm schlug**:
+`MobileLayoutTest::test_input_fields_use_the_zoom_safe_size` liest als Selektor
+alles, was vor der geschweiften Klammer steht — also auch den Kommentar
+darüber. In `app.css` steht über `.schalter` die Begründung, warum ein
+Ankreuzfeld dort seine eigene Größe bekommt; das Wort „input" darin genügte,
+damit die Regel als Feldregel galt und an `--text-table` durchfiel. Ein
+Ankreuzfeld zoomt Safari nie hinein. Jeder andere Wächter mit demselben
+Ausdruck schneidet Kommentare weg; hier war es vergessen worden.
+
+Das ist inzwischen **dreimal dieselbe Ursache** — bei `MobileLayoutTest`, bei
+`DesignTokensTest::test_every_step_of_the_scale_is_used` und jetzt bei diesen
+dreien: *Ein Wächter, der eine Regel prüft, darf nicht davon ausgehen, **wo**
+sie gerade eingehalten wird.* Alle sechs Änderungen sind über
+`tests/waechter-brechen.sh` gegengeprüft — Regel gebrochen, Wächter beisst.
+
+#### Und das Werkzeug, das die Wächter prüft, hatte selbst keinen
+
+`tests/waechter-brechen.sh` meldete nach dem Umbau **fünf Wächter als „hält
+seine Regel nicht"** — und keiner davon war schuld. Die Eingriffe nennen
+wörtliche Werte: `--row-height: 42px`, `--button-line`, `--text: #b9c7d4`,
+`--text-metric: 22px`. Nach „Kontor" hiessen alle anders, und `sed` schweigt,
+wenn sein Muster nicht passt. Das Skript patchte also nichts, liess den Test
+laufen, sah ihn grün und schrieb das dem Wächter zu.
+
+Das ist wieder dieselbe Sache: eine Zeichenkette, die auf etwas verweist, ohne
+dass etwas den Bezug prüft — diesmal im Werkzeug, das genau dafür gebaut wurde.
+Jeder Eingriff vergleicht die Datei jetzt vorher und nachher; ändert er nichts,
+meldet das Skript **„Eingriff hat nichts geändert"** statt den Wächter
+anzuschwärzen.
+
+**Ein Bruch war ausserdem gar keiner.** Der Test zur Zeilenhöhe wurde
+gebrochen, indem eine *zusätzliche* Regel `td { height: 40px }` angehängt
+wurde. Der Test fragt aber, ob *irgendeine* Tabellenregel die Marke liest — und
+die echte tat es weiter. Ein Bruch, der neben die Regel greift statt auf sie,
+kann nie zubeissen; er hat den Wächter zwei Ausbaustufen lang bestätigt, ohne
+ihn je zu prüfen. Er bricht jetzt die eine Stelle, die es wirklich gibt.
+
+Dazu drei neue Eingriffe für die drei neuen Wächter. Elf Brüche, elf Bisse.

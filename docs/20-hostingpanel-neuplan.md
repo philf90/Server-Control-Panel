@@ -401,75 +401,188 @@ die Adminfläche, API-Tokens mit Bereichen und Ablauf.
 - **Bestätigungsstufen** für riskante Aktionen: lesen → tippen → Sicherung
   anbieten. Löschen eines Abonnements verlangt den Namen.
 
-### 7.2 Gestaltungssystem „Leitstand"
+### 7.2 Gestaltungssystem „Kontor"
 
-Entschieden aus drei Vorschlägen; die verworfenen sind mitsamt ihren Vor- und
-Nachteilen in [entwuerfe/20-stilvorschlaege.html](entwuerfe/20-stilvorschlaege.html)
-festgehalten und nicht gelöscht — eine Entscheidung ohne ihre Alternativen ist
-in einem halben Jahr nicht mehr nachvollziehbar.
+**Zwei Systeme, und beide sind hier festgehalten.** Bis August 2026 hiess dieses
+System „Leitstand" — dunkel, dicht, instrumentenhaft, entschieden aus drei
+Vorschlägen in
+[entwuerfe/20-stilvorschlaege.html](entwuerfe/20-stilvorschlaege.html). Der
+Betreiber hat es abgelöst, und die Begründung steht in seinen Worten: „zu
+schmal, zu kleinlich, zu beschränkt und macht Dinge kompliziert". Die neuen
+Richtungen samt der verworfenen Alternative „Werkbank" stehen in
+[entwuerfe/30-neue-richtungen.md](entwuerfe/30-neue-richtungen.md), das
+bedienbare Muster in
+[entwuerfe/31-kontor-mockup.html](entwuerfe/31-kontor-mockup.html). Nichts
+davon ist gelöscht: Eine Entscheidung ohne ihre Alternativen ist in einem
+halben Jahr nicht mehr nachvollziehbar, und das gilt für die abgelöste
+genauso.
 
-**Die Richtung in einem Satz:** dunkel, dicht, instrumentenhaft — Zahlen stehen
-in Monospace und damit spaltengenau untereinander, und Farbe bedeutet etwas
-oder wird nicht benutzt.
+**Die Richtung in einem Satz:** hell entworfen, offen, technisch informativ —
+die Fläche wird ausgenutzt, Farbe bedeutet etwas oder wird nicht benutzt.
+
+Vier Grundannahmen haben sich gegenüber „Leitstand" geändert. Nicht der
+Maßstab — die vier:
+
+1. **Hell entworfen, dunkel mitgeführt** statt umgekehrt. Der Charakter
+   entsteht im Hellen; das dunkle Theme ist eine eigene Rechnung und keine
+   Umkehrung. Vorher war das helle Theme die Fassung, die seltener jemand
+   ansah — und entsprechend sah sie aus.
+2. **Keine Karten.** Ein Bereich ist eine Überschrift, eine 2px-Linie und
+   Inhalt. Eine Karte kostet je Bereich rund 40 px Innenabstand, und die
+   fehlen am Ende als Zeilen. Genau das war der Vorwurf.
+3. **Monospace nur für Kennungen** — Pfad, Unit, Systembenutzer, Befehl,
+   Vorgangsnummer. Nicht für jede Zahl: Das war „Leitstand", und es liess jede
+   Tabelle wie ein Terminal aussehen. Ziffern stehen trotzdem spaltengenau,
+   das leistet `font-variant-numeric: tabular-nums` am `body` in jeder
+   Grotesk.
+4. **Die Form der Bausteine steht in `app.css`**, nicht je Seite. Tabelle,
+   Formularfeld, Zustandsmarke, Balken, Meldung, Schalter — vorher gab es
+   davon vier bis elf Fassungen über 32 Dateien.
 
 #### Marken (Token)
 
-| Rolle | Marke | Wert |
-|---|---|---|
-| Grund | `--bg` | `#0B0F13` |
-| Bereich | `--surface`, `--surface-border` | `#111922`, Rand `#1C2733` |
-| Navigation | `--nav-bg`, `--nav-border` | `#080C10`, Rand `#1A232D` |
-| Text | `--text-strong`, `--text`, `--text-muted`, `--text-faint` | `#EAF1F8` … `#7B8C9B` |
-| Akzent | `--accent`, `--accent-on`, `--accent-surface` | `#E0A340` (Amber) — Signal, Zustand, aktive Navigation, primäre Aktion |
-| Zustände | `--ok`, `--warn`, `--critical` (je mit `-surface`) | `#5CC294` · `#E0A340` · `#E87761` |
-| Radius | — | 3 px. Kein größerer Wert, nirgends |
-| Trennung | `--line` | 1 px Rand, keine Schatten |
+| Rolle | Marke | Hell | Dunkel |
+|---|---|---|---|
+| Grund | `--bg` | `#ffffff` | `#0f1116` |
+| Ruhige Fläche | `--surface` | `#fafafb` | `#14171d` |
+| Trennung | `--line` | `#dcdfe6` | `#2c313d` — 1 px, keine Schatten |
+| Bedienelement | `--control-bg`, `--control-line` | `#ffffff`, `#757d8a` | `#191d25`, `#7b8393` |
+| Text | `--text-strong` … `--text-faint` | `#0f1115` … `#6b7280` | `#edeff5` … `#858c9a` |
+| Akzent | `--accent`, `--accent-on`, `--accent-surface` | `#3730a3` (Indigo) | `#a3aaff` |
+| Zustände | `--ok`, `--warn`, `--critical` (je mit `-surface`) | `#076e54` · `#845306` · `#ab2b19` | `#57c99c` · `#e2a94a` · `#f08a72` |
+| Radius | `--radius` | 5 px | |
 
 Umgeschaltet wird über `data-theme` (`dark`/`light`) und `data-density`
 (`admin`/`customer`) am Wurzelelement. Die CI prüft, dass außerhalb von
 `resources/css/app.css` kein Farbwert steht.
 
-Die Zustandsfarben sind vom Akzent getrennt zu denken, auch wo sie denselben
-Farbwert haben: Amber als Warnung heißt etwas anderes als Amber am aktiven
-Menüpunkt. Wo beides in einer Zeile stünde, gewinnt der Zustand.
+**Indigo statt Amber, und der Grund ist kein Geschmack.** Unter „Leitstand"
+trugen der Akzent und der Zustand „Warnung" denselben Farbwert `#E0A340` und
+mussten sich die Bedeutung teilen — der aktive Menüpunkt sah aus wie eine
+Warnung, und wo beides in einer Zeile stand, musste eine Regel entscheiden,
+welches gewinnt. Eine tragende Farbe, die nicht nach Warnung aussieht, macht
+diese Regel überflüssig.
+
+**Eine Marke für jedes Bedienelement.** Vorher hiessen sie `--button-bg` und
+`--button-line` und galten nur für Knöpfe. Das Eingabefeld stand auf `--line`,
+einer Haarlinie zum Trennen, und erreichte damit **1,09:1** gegen den
+Seitengrund im hellen und **1,13:1** im dunklen Theme — ein Feld ohne sichtbare
+Grenze, auf elf Seiten dieselbe abgeschriebene Zeile. Derselbe Fehler wie beim
+Knopf mit 1,04:1, nur an einem anderen Element und neun Monate später bemerkt.
+Jetzt tragen beide dieselbe Marke, damit es kein drittes Mal gibt.
+
+**`--surface-border` und `--padding` gibt es nicht mehr.** Sie sind mit den
+Karten weggefallen — und sieben Seiten nannten sie danach weiter, an elf
+Stellen. Der Browser wirft eine Deklaration mit unbekannter Marke still weg:
+Der Spaltenkopf der Übersicht hatte keine Linie, die Balkenspur keinen Grund,
+die Karte der Anmeldemaske keinen Rand. Monatelang grün getestet. Seitdem
+prüft `DesignTokensTest::test_every_token_a_component_uses_exists` **jede**
+Marke, die eine Komponente nennt, und nicht mehr nur die der Schriftskala.
+
+#### Bereiche statt Karten
+
+Ein Bereich ist der Baustein, aus dem jede Seite besteht:
+
+```
+Überschrift                                    [eine Handlung]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Inhalt
+```
+
+Er steht in `resources/js/Components/Bereich.vue`. **Die Breite ist eine
+Eigenschaft des Inhalts und nicht der Seite:** `weit` für eine Tabelle mit
+mehr als drei Spalten, `voll` für die lange Liste am Ende. Deshalb stehen sie
+an der Komponente und nicht als Rasterangabe auf der Seite — wer die Tabelle
+um eine Spalte erweitert, ändert die Breite an derselben Stelle mit.
+
+**Flex und nicht Grid**, und das ist im Browser entschieden worden. Der erste
+Entwurf hatte `grid-template-columns: repeat(auto-fit, minmax(…, 1fr))`. Ein
+Raster hält seine Spaltenzahl über alle Zeilen: Sobald eine Reihe nur einen
+Bereich trägt, steht er in *einer* Spalte und die übrigen zwei Drittel bleiben
+leer. „Dateisysteme" stand so allein mit 900 px Leerraum daneben — der Vorwurf
+„nutzt die Fläche nicht aus", nur in neuer Gestalt.
+
+Die einzige Karte im ganzen Panel ist die Anmeldemaske (`.blatt`). Auf einer
+leeren Seite mit einem einzigen Formular kehrt sich die Rechnung um: Dort gibt
+der Rahmen dem Formular überhaupt erst seine Gestalt, und es gibt keinen
+zweiten Bereich, dem der Platz fehlt.
 
 #### Schrift
 
-- **Ziffern, Kennungen, Pfade, Zeitstempel: Monospace.** Das ist keine Zierde —
-  es ist der Grund, warum sich Werte in einer Tabelle vergleichen lassen, ohne
-  sie zu lesen. Überall `font-variant-numeric: tabular-nums`.
-- **Fließtext, Beschriftungen, Überschriften: Grotesk** (System-Stack, keine
-  nachgeladene Schrift — eine Schrift, die nicht ankommt, ist eine Oberfläche,
-  die anders aussieht als geplant).
+- **Kennungen: Monospace** — Pfad, Unit, Systembenutzer, Befehl,
+  Vorgangsnummer, Version, IP. Über die Klasse `.kennung` und nicht je Seite.
+- **Alles andere: Grotesk** (System-Stack, keine nachgeladene Schrift — eine
+  Schrift, die nicht ankommt, ist eine Oberfläche, die anders aussieht als
+  geplant). `font-variant-numeric: tabular-nums` steht am `body` und lässt
+  sich damit nirgends mehr vergessen.
 - Kleine Beschriftungen in Versalien mit Sperrung (`.09em`), sonst keine
   Versalien.
 
-**Fünf Größen, und keine sechste.** Sie stehen als Marken in
-`resources/css/app.css` und sonst nirgends — dieselbe Regel wie für Farben:
+**Sieben Rollen, je eine Marke.** Sie stehen in `resources/css/app.css` und
+sonst nirgends — dieselbe Regel wie für Farben:
 
 | Marke | Wert | Rolle |
 |---|---|---|
-| `--text-label` | 10,5 px | Versalien-Beschriftungen: Spaltenköpfe, Kachel-Beschriftung |
-| `--text-small` | 11 px | Feldbeschriftungen, Hinweise, Fehlertexte, kleine Knöpfe |
-| `--text-table` | 12 px | Tabellenzellen und Fließtext in Listen |
-| `--text-body` | 13 px | Eingaben, Knöpfe, Fließtext |
-| `--text-heading` | 16 px | Seitenüberschrift |
-| `--text-metric` | 22 px | die große Zahl auf einer Kachel |
+| `--text-label` | 11,5 px | Versalien: Spaltenkopf, Kachelbeschriftung |
+| `--text-small` | 13 px | Feldbeschriftung, Hinweis, Fehlertext, Beizeile |
+| `--text-table` | 14 px | Tabellenzelle, Knopf, Kennung |
+| `--text-body` | 15 px | Fließtext |
+| `--text-section` | 17 px | Bereichsüberschrift |
+| `--text-heading` | 26 px | Seitenüberschrift |
+| `--text-metric` | 34 px | die große Zahl auf einer Kachel |
+| `--text-input` | 15 px, auf schmal 16 px | die Schrift in einem Eingabefeld |
 
-**In px und nicht in rem.** `rem` rechnet gegen das Wurzelelement, und das steht
-auf der Browservorgabe von 16 px — die Grundgröße des Panels sind aber 13 px am
-`body`. In den Komponenten standen zehn rem-Werte für fünf Rollen, jeder davon
-23 % größer als gemeint: `.85rem` für Tabellentext ergab 13,6 px und war damit
-*größer* als der Fließtext, den er unterschreiten sollte. Aufgefallen ist es an
-der Anmeldemaske, deren Überschrift größer war als die Seitenüberschrift im
-angemeldeten Panel.
+**Die Skala ist gewachsen, und die alte Vorgabe ist gefallen.** „Fünf Größen,
+und keine sechste" widersprach ihrer eigenen Tabelle, die sechs Zeilen hatte,
+und der Datei, die sieben Marken führte. Sie drängte ausserdem drei Rollen in
+2,5 px — 10,5 px, 11 px und 12 px für Beschriftung, Hinweis und
+Tabellenzelle. Eine Rangfolge, die man messen muss, ist keine; auf dem
+Bildschirm sah das nach einer Größe mit Messfehlern aus.
+
+**`--text-input` ist eine eigene Marke und keine Wiederholung.** Auf schmaler
+Fläche steht sie auf 16 px, weil Safari sonst beim Fokus in die Seite zoomt
+(docs/24 §3). Geprüft von
+`MobileLayoutTest::test_input_fields_use_the_zoom_safe_size`.
+
+**In px und nicht in rem.** `rem` rechnet gegen das Wurzelelement, und das
+steht auf der Browservorgabe von 16 px — die Grundgröße des Panels ist eine
+andere. In den Komponenten standen zehn rem-Werte für fünf Rollen, jeder davon
+23 % größer als gemeint.
 
 **Nicht nach Dichte gestaffelt.** Die Dichtetabelle unten staffelt Zeilenhöhe,
-Abstände und Kacheln je Reihe. Schriftgrößen nicht: Die Kundenfläche wird
-ruhiger durch Luft, nicht durch größere Schrift.
+Abstände und Kacheln. Schriftgrößen nicht: Die Kundenfläche wird ruhiger durch
+Luft, nicht durch größere Schrift. Hier stand einmal `--block-heading-size`
+mit 13 px auf der Admin- und 15 px auf der Kundenfläche, also genau das, was
+die Regel verbietet; `--text-section` tritt an seine Stelle und staffelt
+nicht.
 
 Geprüft von `tests/Feature/DesignTokensTest.php` — kein `rem` in einer
-Komponente, keine Schriftgröße außerhalb der Skala, keine Marke ohne Wert.
+Komponente, keine Schriftgröße außerhalb der Skala, keine Marke ohne Wert, und
+**keine Stufe ohne Nutzer.**
+
+#### Tabellen — eine Form, drei Muster
+
+Die Form einer Tabelle steht in `app.css` und sonst nirgends: Zeilenhöhe aus
+`--row-height`, Innenabstand, Zeilentrenner, Spaltenkopf.
+
+**Der Befund, der diese Regel nötig machte.** Die Dichtestufe verspricht als
+erste Zeile ihrer Tabelle die Zeilenhöhe. Die Marke dafür heisst
+`--row-height` und wurde von **zwei der 26 Seiten** benutzt. Auf den übrigen
+24 entstand die Zeilenhöhe aus `padding: 6px 8px`, je Seite neu geschrieben —
+die Kundenfläche war dort also nicht ruhiger als die Adminfläche, und niemand
+hat es gemerkt, weil kein Lauf danach fragte. Zehn Seiten definierten `table`,
+und es gab zwei unvereinbare Fassungen davon.
+
+Die drei Muster stehen in [24-mobile.md](24-mobile.md) §5 und sind dort
+bindend:
+
+| Klasse | Was sie tut | Wofür |
+|---|---|---|
+| `.rollt` | rollt waagerecht | die Umschliessung jeder breiten Tabelle |
+| `.stapelt` | Zeile wird auf schmal zum Kärtchen | Verzeichnisse und Listen |
+| `.paare` | Beschriftung links, Wert rechts | Stammdaten einer Detailseite |
+
+Geprüft von `tests/Feature/TableStyleTest.php` und `MobileLayoutTest`.
 
 #### Die Farben, die der Browser mitbringt
 
@@ -483,7 +596,8 @@ nicht in die Komponente, an der sie zuerst auffallen:
   nicht; der einzige Weg ist ein Schatten nach innen (`-webkit-box-shadow …
   inset`) samt `-webkit-text-fill-color`.
 - **Ankreuzfelder.** `accent-color: var(--accent)`. Ein gesetztes Häkchen ist
-  ein Zustand, und Zustand ist in diesem System Amber.
+  ein Zustand — in einer Gestaltung, in der Farbe etwas bedeutet, behauptet ein
+  blaues Häkchen eine zweite Bedeutungsebene, die es nicht gibt.
 - **Der Fokusrahmen an Eingabefeldern.** Die Regel für `:focus-visible` gilt
   auch für `input`, `select` und `textarea` — sonst hängt der sichtbare Fokus
   davon ab, welchen Browser jemand benutzt.
@@ -513,7 +627,7 @@ Farben wäre in einem der beiden falsch. Die zwei unteren Balken nehmen
 `currentColor`, der obere `--mark-accent`, und die Marke führt je Theme den
 passenden Blauton: auf Dunkel den helleren, auf Weiss den kräftigeren.
 
-**Einfarbig ging nicht.** Der Versuch, das Zeichen ganz in Amber zu zeichnen,
+**Einfarbig ging nicht.** Der Versuch, das Zeichen in einer Farbe zu zeichnen,
 machte aus dem untersten Balken — er steht auf halber Deckung — ein
 schmutziges Braun. Das sah nach Fehler aus und nicht nach Gestaltung; gesehen
 im Browser bei 22 px, nicht im Entwurf.
@@ -542,7 +656,7 @@ Die Form steht in `resources/css/app.css` und sonst nirgends:
 | Klasse | Aussehen | Wofür |
 |---|---|---|
 | `.knopf` | Rahmen und Fläche aus eigenen Marken | die gewöhnliche Aktion |
-| `.knopf.wichtig` | amberfarbene Fläche | die eine Aktion, für die man die Seite geöffnet hat |
+| `.knopf.wichtig` | Akzentfläche | die eine Aktion, für die man die Seite geöffnet hat |
 | `.knopf.gefahr` | roter Rand, keine Fläche | was sich nicht zurücknehmen lässt |
 | `.knopf.klein` | flacher, kleinere Schrift | eine Aktion in einer Tabellenzeile |
 | `.knopfreihe` | Reihe, unter 480 px gestapelt | mehrere Knöpfe nebeneinander |
@@ -555,7 +669,7 @@ Fünf Regeln dazu:
   behauptet eine Rangfolge zwischen zwei Dingen, die nichts miteinander zu tun
   haben.
 - **`.gefahr` bekommt keine Fläche.** Eine rote Fläche neben einer
-  amberfarbenen macht aus zwei Rängen einen Wettstreit.
+  Akzentfläche macht aus zwei Rängen einen Wettstreit.
 - **Es gilt für `<button>` und für `<Link>`.** Ob hinter einer Aktion ein
   Formular oder eine Adresse steckt, ist eine Frage der Umsetzung und keine der
   Bedienung.
@@ -569,8 +683,8 @@ Fünf Regeln dazu:
   Bedienelement, sondern ein etwas hellerer Fleck, den man für Text hält.
   Aufgefallen ist das erst auf einem echten Monitor: Im Quelltext hat jeder Wert
   einen Namen und sieht deshalb richtig aus. Der Knopf hat seitdem eigene
-  Marken — `--button-bg` und `--button-line` —, und sie sind gerechnet und nicht
-  gewählt: WCAG 1.4.11 verlangt für die Grenze eines Bedienelements 3:1 gegen
+  Marken — inzwischen `--control-bg` und `--control-line`, die sich Knopf, Feld
+  und Auswahl teilen —, und sie sind gerechnet und nicht gewählt: WCAG 1.4.11 verlangt für die Grenze eines Bedienelements 3:1 gegen
   alles, was daneben liegt, und ein Knopf liegt auf dreierlei Grund — auf sich
   selbst, auf einer Karte und auf der Seite.
 
@@ -594,11 +708,12 @@ anders. Der Name bleibt trotzdem ein Link — er führt auf die Abo-Seite mit
 Speicher, Kontingenten und Vorgängen, und das ist etwas anderes als das
 Formular.
 
-**Eine offene Abweichung.** Die Markentabelle oben verlangt 3 px Radius, „kein
-größerer Wert, nirgends". Der gebaute Panel hält das an keiner Stelle ein — die
-Werte liegen zwischen 5 und 8 px, der Knopf bei 6 px. Das ist hier festgehalten
-und nicht stillschweigend angeglichen: Entweder die Vorgabe stimmt und der Code
-muss nach, oder die Vorgabe war zu eng. Entschieden ist es nicht.
+**Die offene Abweichung ist entschieden — zugunsten des Codes.** „Leitstand"
+verlangte 3 px Radius, „kein größerer Wert, nirgends", und der gebaute Panel
+hielt das an keiner einzigen Stelle ein: Die Werte lagen zwischen 5 und 8 px.
+Eine Vorgabe, die in neun Monaten kein einziges Mal befolgt wurde und die kein
+Werkzeug prüft, ist keine Vorgabe, sondern ein Satz im Dokument. „Kontor" führt
+`--radius` mit 5 px, und der Wert steht an einer Stelle statt an vierzig.
 
 #### Dichte in zwei Stufen
 
@@ -606,15 +721,20 @@ Die Kritik am dunkelen, dichten Zuschnitt trifft die Kundenfläche, nicht die
 Adminfläche. Sie wird nicht durch eine zweite Gestaltung aufgefangen, sondern
 durch eine zweite Dichtestufe im selben System:
 
-| | Adminfläche | Kundenfläche |
+| Marke | Adminfläche | Kundenfläche |
 |---|---|---|
-| Zeilenhöhe Tabelle | 34 px | 42 px |
-| Abstand der Bereiche | 10 px | 16 px |
+| `--row-height` (Zeilenhöhe) | 40 px | 48 px |
+| `--bereich-gap` (Abstand der Bereiche) | 30/44 px | 38/52 px |
+| `--bereich-min` (kleinster Grundriss) | 400 px | 460 px |
+| `--kachel-min` (kleinste Kachel) | 200 px | 250 px |
+| `--block-gap`, `--gap` | 26 px, 14 px | 34 px, 18 px |
 | Erklärsatz unter der Überschrift | nur wo nötig | immer |
-| Kacheln je Reihe | 4 | 3 |
 
 Gleiche Marken, gleiche Bausteine, gleicher Code — ein Attribut am
-Wurzelelement schaltet um.
+Wurzelelement schaltet um. **Keine Kachelzahl mehr, sondern eine Mindestbreite:**
+`--tile-columns: 4` hiess auf einem 1920er Bildschirm vier Riesenkacheln und auf
+einem 1280er vier gequetschte. Wie viele in eine Reihe passen, rechnet der Fluss
+aus der Fläche aus.
 
 #### Wer das Theme wählt
 
@@ -764,7 +884,8 @@ Administratorkonto.
   für die Tests
 - Oberflächengerüst: Navigation, Gestaltung, Bestätigungsstufen, Sprachen,
   Fehlerbilder, „Anmelden als", Quellenlink in der Fußzeile (Auflage der AGPL, Abschnitt 13)
-- Gestaltungssystem „Leitstand" (§7.2) in beiden Dichtestufen und beiden Themes
+- Gestaltungssystem (§7.2) in beiden Dichtestufen und beiden Themes — damals
+  „Leitstand", seit August 2026 „Kontor"
 - **`srvpanel-metrics` und die Adminübersicht mit Spikelines** (§4.6): CPU,
   RAM, Load, Netz, IO, Datenträger, dazu Prozessliste, Dateisysteme, Uptime
   (*beim Bauen entschieden:* Die Prozessliste ordnet nach Speicher und nicht

@@ -159,6 +159,16 @@ Breit bekommt sie eine Grenze von 620px: Steht der Bereich allein in seiner
 Reihe, lägen Bezeichnung und Wert sonst an den gegenüberliegenden Rändern —
 gemessen 1300px auseinander.
 
+**Und eine Kennung in der Wertspalte braucht `flex: 1 1 auto; min-width: 0`.**
+`.kennung` trägt `white-space: nowrap`, weil ein umgebrochener Pfad keiner
+mehr ist; in einer Paarzeile hiess das auf `/domains/1` bei 390px **81px
+waagerechter Überlauf**. Der naheliegende Versuch — `white-space: normal;
+overflow-wrap: anywhere` — liess ihn auf exakt denselben 81px stehen: In einer
+Flexzeile hält `flex: none` die Inhaltsbreite, ganz gleich wie umgebrochen
+werden darf. Erst das Recht, schmaler zu werden als der eigene Inhalt, löst
+das. Zwei Messungen, ein Fund — der erste Fix sah aus wie einer und war
+keiner.
+
 ```html
 <table class="paare">
   <tbody>

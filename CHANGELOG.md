@@ -2913,3 +2913,149 @@ abhängigkeitsfrei, und ein Wegwerfskript im Scratchpad hat die elf Behauptungen
 zur Vorlage geprüft — ohne Nennung kein `listen 443`, mit fremdem Ablageort
 genau dieser Pfad, und ein `../../etc/passwd` als Zertifikatsname wird
 abgewiesen. Die Tests der Anwendung prüft die CI.
+
+#### Schritt 2: ein Platzhalter heisst nicht so, wie er heisst
+
+`*.example.de` als Verzeichnisname wäre ein Stern in einem Pfad, der als
+`ssl_certificate` in einer nginx-Datei steht und von einem Prozess als root
+gelesen wird. Für jede Shell, für `find` und für `rm` ist das ein Muster — ein
+Name, der unterwegs expandiert, bezeichnet dann etwas anderes als das, was
+gemeint war.
+
+**Und gescheitert wäre es an der teuersten Stelle:** `Store::directory()` prüft
+über `DomainName::normalize()`, und die weist den Stern ab. Die Ablage wäre
+also erst *nach* der erfolgreichen Bestellung gescheitert — ein Zertifikat, das
+ausgestellt ist und sich nicht ablegen lässt, ist ein verbrauchter Eintrag in
+der Wochengrenze der Zertifizierungsstelle.
+
+Der Schlüssel heisst deshalb `_wildcard.example.de`. Die führende
+Unterstrich-Beschriftung kann kein Domainname sein — `DomainName` weist sie ab
+—, also kollidiert der Schlüssel mit keinem echten Namen. Die Umformung steht
+in `CertificateName` und ist **mehrfach anwendbar**, weil derselbe Schlüssel
+zweimal durchgeht: einmal beim Ablegen und einmal, wenn die Anwendung ihn
+später wieder nennt. Wäre sie es nicht, ginge genau dieser zweite Weg schief —
+bei jeder gesicherten Website gleichzeitig.
+
+`CertificateStorageTest` prüft die drei Zusagen: kein Stern im Pfad, zwei
+verschiedene Namen nie im selben Verzeichnis (mit `example.de` und
+`*.example.de` als dem teuren Paar), und zehn Formen, die weder Name noch
+Schlüssel sind, werden abgewiesen — `*.*.example.de`, `a.*.example.de`,
+`*./../../etc` und Verwandte. Dazu der Durchgang über die ganze Strecke: Das
+Panel nennt `*.example.de`, und im Server-Block steht der Pfad ohne Stern.
+
+Zwei neue Brüche im Wächterskript — der Stern im Ablageort und der Platzhalter
+ohne eigenes Verzeichnis —, und beide sind hier **rot-grün gefahren**, nicht nur
+geschrieben: `agent/src/autoload.php` ist abhängigkeitsfrei, das Wegwerfskript
+im Scratchpad kommt ohne PHPUnit aus. Bruch 1 nimmt zwei Behauptungen mit,
+Bruch 2 die Eindeutigkeit, und zurückgesetzt ist wieder alles grün.
+
+**Ein Zusammenstoss, der dabei aufgefallen ist und zu Schritt 3 gehört:** Der
+Schlüssel entsteht aus dem ersten Namen — zwei verschiedene Zertifikate mit
+demselben ersten Namen ergeben also denselben Ablageort. Solange jede Domain
+genau eines hat und die Erneuerung es an Ort und Stelle ersetzt, ist das
+richtig. Sobald ein hochgeladenes neben einem bestellten liegen kann, ist es
+das nicht mehr; die Antwort ist eine Frage der Quelle und nicht des Sterns und
+steht deshalb in `docs/34 §2.2` für den nächsten Schritt vorgemerkt.
+
+#### Schritt 3a: ein eigenes Zertifikat ablegen — der Agent und die Kommandozeile
+
+Geprüft wird im Agenten, und zwar vollständig, **bevor** irgendetwas abgelegt
+wird. Dort sitzt openssl, dort läuft nginx, und dort bleibt der private
+Schlüssel — er soll nicht durch das Panel wandern, um von dort wieder
+hinauszugehen. Eine halb abgelegte Kette wäre schlimmer als eine abgewiesene:
+Ein Zertifikat, das nginx nicht laden kann, nimmt beim nächsten Reload *alle*
+Websites dieses Servers mit, auch die, mit denen es nichts zu tun hat.
+
+`Bundle` weist ab, und jeder Fall nennt seinen Grund: Schlüssel und Kette
+gehören nicht zusammen, die Kette ist falsch sortiert, der Schlüssel trägt ein
+Passwort, es ist abgelaufen oder gilt erst später, es nennt keinen Namen im
+subjectAltName. **Die falsch sortierte Kette ist der teure Fall** — Firefox holt
+das fehlende Glied nach, ein Mobilgerät nicht; der Betreiber sieht eine Seite,
+die bei ihm aufgeht, und der Kunde eine Warnung. Geprüft wird die Kette
+gliedweise, nicht als Ganzes: `openssl_x509_parse` liest von einer Kette das
+erste Zertifikat und schweigt über den Rest.
+
+**Keine Prüfung gegen die Wurzelspeicher des Systems.** Ob die ausstellende
+Stelle bekannt ist, entscheidet der Browser des Besuchers und nicht dieser
+Server; ein internes Zertifikat einer Firmen-CA abzuweisen wäre eine Anmassung.
+
+**Abgelegt wird unter `_uploaded.<name>`** — die Antwort auf den Zusammenstoss
+aus Schritt 2: Der Ablageort entsteht aus dem ersten Namen, ein hochgeladenes
+Zertifikat für `example.de` hätte also denselben wie ein bestelltes.
+Unterschieden wird nach der Quelle und nicht nach dem Namen.
+
+**Und der Fund dieses Schritts: das Hochladen darf nicht über die Warteschlange
+laufen.** Ein eingereihter Vorgang legt seine Argumente in `operations.payload`
+ab — der private Schlüssel läge damit im Klartext in der Datenbank, dauerhaft
+und für jeden lesbar, der sie liest. `srvpanel tls --upload` ruft den Agenten
+deshalb unmittelbar auf und schreibt den Bestand über
+`App\Support\Tls\CertificateRecord`, die neue gemeinsame Stelle für „ein
+abgelegtes Zertifikat in den Bestand nehmen" — dieselbe Zeile wie nach einer
+Bestellung, nur mit anderer Quelle. `AgentOperationReachTest` führt den Grund
+in seiner Ausnahmeliste; die Liste hat dafür eine zweite Sorte Begründung
+bekommen.
+
+Dabei ist noch etwas aus Schritt 1 nachgezogen worden: Der Erneuerungslauf
+fragte `acme.certificate.info` mit dem **Domainnamen** nach dem abgelegten
+Zertifikat. Seit ein Platzhalter unter `_wildcard.example.de` liegt, wäre die
+Antwort „liegt nichts da" — und der Lauf bestellte jeden Tag neu. Gefragt wird
+jetzt nach dem Ablageort.
+
+`CertificateUploadTest` fährt achtzehn Behauptungen gegen **im Test erzeugte**
+Zertifikate: eine eigene CA, ein Blatt mit subjectAltName, eines ohne, ein
+Schlüssel mit Passwort. Eingecheckt wird davon nichts — ein privater Schlüssel
+im Repo, und sei es ein erfundener, ist ein Fundstück für jeden Scanner und
+eine Erklärung, die man immer wieder abgeben muss. Erzeugt wird mit den
+openssl-Funktionen von PHP, das `openssl`-Programm braucht es dafür nicht.
+
+Zwei neue Brüche, beide **rot-grün gefahren**: ohne Reihenfolgeprüfung geht die
+verkehrte Kette durch, ohne die Kennzeichnung der Quelle teilen sich
+hochgeladen und bestellt denselben Ort.
+
+Offen bleibt Schritt 3b — die Oberfläche dazu, mit `Feature::CertificateUpload`
+und den Screenshots, die zu allem Sichtbaren gehören.
+
+#### Schritt 3b: die Oberfläche zum eigenen Zertifikat
+
+Ein eigener Bereich auf der Domainseite, sichtbar nur, wenn der Plan
+`certificate_upload` freigibt. **Am Rechtemodell war dafür nichts zu bauen:**
+`Feature::CertificateUpload` steht seit P2 in den Plänen, mit Beschriftung,
+Hinweis und Recht — gefehlt hat die Funktion dahinter. Die Fähigkeit heisst
+`uploadCertificate` und hängt nicht an `update`: Wer hochlädt, legt einen
+privaten Schlüssel auf den Server, und was danach ausgeliefert wird, sieht
+jeder Besucher. Das ist eine andere Grössenordnung als ein DocumentRoot zu
+ändern, und der Betreiber entscheidet über den Plan, wer sie bekommt.
+
+**Zwei Textfelder und keine Dateiauswahl.** Wer ein Zertifikat gekauft hat, hat
+es meistens als Text in einer Mail — und wer es als Datei hat, kann sie öffnen
+und den Inhalt einfügen. Umgekehrt gilt das nicht: Eine Dateiauswahl auf dem
+Telefon findet den Anhang einer Mail nicht. Der Schlüssel wird nach dem
+Absenden geleert, auch bei Erfolg.
+
+**Die Meldung des Agenten wird wörtlich durchgereicht.** „Die Kette ist nicht
+in der richtigen Reihenfolge" ist eine Auskunft, mit der jemand weiterkommt;
+„ungültig" ist keine. Ein Betreiber liest sonst das Protokoll — ein Kunde liest
+diese Seite und sonst nichts.
+
+**Und auch hier kein Vorgang, sondern ein unmittelbarer Aufruf** — aus dem
+Grund aus Schritt 3a: Ein eingereihter Vorgang legt seine Argumente in
+`operations.payload` ab, und ein privater Schlüssel gehört dort nicht hin.
+
+**Zum dritten Mal derselbe Abstand.** Eine Knopfreihe hinter einem Feld klebt
+am Text darüber, weil `.button-row` keinen Rand nach oben setzt; in einem
+`.form` fällt das nicht auf, weil sie dort ein Flexkind ist und den `gap` erbt.
+Die Antwort war bisher jedes Mal eine eigene Klasse auf der Seite — `.spaced`
+im Profil, ein Umbau in der Zertifikatsseite. Jetzt steht sie in `app.css`, wo
+das Aussehen eines Bausteins hingehört, und trifft über einen
+Nachbarschaftsausdruck genau den Fall: eine Reihe *nach* Formularinhalt.
+
+**Im Browser nachgesehen**, auf dem Weg aus CLAUDE.md, der ohne `artisan serve`
+auskommt: das gebaute Stylesheet mit dem Markup des Bereichs in einer eigenen
+Datei, gerendert im vorinstallierten Chromium bei 390px, in beiden Themes.
+Kein waagerechter Überlauf (0px), das Feld 358px breit, und der Knopf steht
+nach der Ergänzung nicht mehr am Hinweis. Das ersetzt den Blick auf die echte
+Seite nicht — der gehört auf dem Zielserver nachgeholt, wie in P4 Schritt 6.
+
+`DomainRouteTest` um drei Durchgänge erweitert: ohne Freigabe abgewiesen, mit
+Freigabe kommt die Meldung des Agenten zurück, und ein halbes Formular reicht
+nicht. Dazu ein neuer Bruch — die Policy ohne Planfreigabe.

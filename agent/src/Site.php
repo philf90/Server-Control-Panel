@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent;
 
+use SrvPanel\Agent\Acme\CertificateName;
 use SrvPanel\Agent\Acme\Trust;
 use SrvPanel\Agent\Ops\SubscriptionProvision;
 
@@ -130,7 +131,7 @@ final class Site
              */
             certificate: ($args['certificate'] ?? null) === null
                 ? null
-                : DomainName::normalize($args['certificate'], 'certificate'),
+                : CertificateName::normalize($args['certificate'], 'certificate'),
         );
     }
 

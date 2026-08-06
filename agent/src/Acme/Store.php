@@ -11,10 +11,12 @@ use SrvPanel\Agent\DomainName;
  * Wo ein ausgestelltes Zertifikat liegt — und wie es dorthin kommt.
  *
  * **Der Pfad entsteht hier und kommt nicht von aussen.** Übergeben wird ein
- * Domainname, und der geht durch dieselbe Prüfung wie überall
- * ({@see DomainName::normalize()}). Ein Pfad aus der Anwendung wäre bei einem
- * Prozess, der als root schreibt, genau die Freiheit, die dieses Projekt
- * nirgends gewährt — dieselbe Regel wie in `Site` und `SubscriptionProvision`.
+ * Name, und der geht durch {@see CertificateName::normalize()} — also durch
+ * dieselbe Prüfung wie jeder Domainname ({@see DomainName::normalize()}), nur
+ * dass ein Platzhalter zusätzlich seinen Schlüssel bekommt. Ein Pfad aus der
+ * Anwendung wäre bei einem Prozess, der als root schreibt, genau die Freiheit,
+ * die dieses Projekt nirgends gewährt — dieselbe Regel wie in `Site` und
+ * `SubscriptionProvision`.
  *
  * **Kette und Schlüssel liegen getrennt**, weil nginx sie getrennt liest:
  * `ssl_certificate` will die Kette, `ssl_certificate_key` den Schlüssel. Eine
@@ -37,12 +39,12 @@ final class Store
      * Das Verzeichnis eines Zertifikats.
      *
      * Benannt nach dem ersten Namen — das ist der, der auch im CommonName
-     * steht. Ein Platzhalter kommt hier nicht an: Wildcards brauchen DNS-01,
-     * und das ist der zweite Wurf.
+     * steht. Ein Platzhalter heisst hier `_wildcard.example.de` und nicht
+     * `*.example.de`; warum, steht in {@see CertificateName}.
      */
     public function directory(string $name): string
     {
-        return $this->root.'/'.DomainName::normalize($name, 'name');
+        return $this->root.'/'.CertificateName::normalize($name, 'name');
     }
 
     public function certificate(string $name): string

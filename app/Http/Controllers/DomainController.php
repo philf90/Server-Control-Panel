@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CertificateSource;
 use App\Enums\SubscriptionStatus;
 use App\Models\Account;
 use App\Models\Certificate;
@@ -14,14 +15,17 @@ use App\Support\Audit\Audit;
 use App\Support\Plans\Quota;
 use App\Support\Tls\AcmeSettings;
 use App\Support\Tls\CertificateOrder;
+use App\Support\Tls\CertificateRecord;
 use App\Support\Web\Domains;
 use App\Support\Web\Page;
 use App\Support\Web\PhpLimits;
 use App\Support\Web\PhpSelection;
+use App\Support\Web\WebLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use SrvPanel\Agent\Acme\Bundle;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Directives;
@@ -171,6 +175,7 @@ final class DomainController extends Controller
                 'update_php' => $request->user()?->can('updatePhp', $domain) ?? false,
                 'delete' => $request->user()?->can('delete', $domain) ?? false,
                 'view_logs' => $request->user()?->can('viewLogs', $domain) ?? false,
+                'upload_certificate' => $request->user()?->can('uploadCertificate', $domain) ?? false,
             ],
             'operations' => Operation::query()
                 ->where('subject_type', 'domain')
@@ -376,6 +381,69 @@ final class DomainController extends Controller
         $audit->success('domain.certificate.ordered', $domain, ['operation' => (int) $operation->id]);
 
         return redirect()->route('operations.show', $operation);
+    }
+
+    /**
+     * Ein eigenes Zertifikat hinterlegen.
+     *
+     * **Kein Vorgang, sondern ein unmittelbarer Aufruf — und das ist keine
+     * Bequemlichkeit.** Ein eingereihter Vorgang legt seine Argumente in
+     * `operations.payload` ab; der private Schlüssel läge damit im Klartext in
+     * der Datenbank, dauerhaft und für jeden lesbar, der sie liest. Er darf
+     * den Socket genau einmal überqueren und nirgends sonst stehen. Dieselbe
+     * Entscheidung wie bei `srvpanel tls --upload` (`docs/34 §7`).
+     *
+     * **Die Meldung des Agenten wird wörtlich durchgereicht.** Sie ist das
+     * Wertvollste an einem Fehlschlag: „Die Kette ist nicht in der richtigen
+     * Reihenfolge" ist eine Auskunft, mit der jemand weiterkommt; „ungültig"
+     * ist keine. Ein Betreiber liest sonst das Protokoll — ein Kunde liest
+     * diese Seite und sonst nichts.
+     *
+     * **Und danach wird der Server-Block neu geschrieben.** Ohne das gilt das
+     * Zertifikat und nginx kennt es nicht: Welches ausgeliefert wird, steht
+     * seit dem zweiten Wurf von P4 in den Argumenten des Blocks.
+     */
+    public function uploadCertificate(
+        Domain $domain,
+        Request $request,
+        Client $agent,
+        CertificateRecord $record,
+        WebLifecycle $web,
+        Audit $audit,
+    ): RedirectResponse {
+        $eingaben = $request->validate([
+            'certificate' => ['required', 'string', 'max:'.Bundle::MAX_CHAIN_BYTES],
+            'private_key' => ['required', 'string', 'max:'.Bundle::MAX_KEY_BYTES],
+        ]);
+
+        try {
+            $result = $agent->call('tls.certificate.upload', [
+                'certificate' => $eingaben['certificate'],
+                'private_key' => $eingaben['private_key'],
+            ], ['source' => 'web', 'account' => $request->user()?->id]);
+        } catch (AgentException $error) {
+            $audit->failure('domain.certificate.uploaded', [
+                'domain' => $domain->name,
+                'reason' => $error->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('domains.show', $domain)
+                ->with('error', 'Zertifikat abgewiesen: '.$error->getMessage());
+        }
+
+        $certificate = $record->store($domain, $result, CertificateSource::Uploaded);
+
+        $audit->success('domain.certificate.uploaded', $domain, [
+            'certificate' => (int) $certificate->id,
+            'names' => $certificate->coveredNames(),
+        ]);
+
+        $web->apply($domain, 'Server-Block mit hochgeladenem Zertifikat für '.$domain->name);
+
+        return redirect()
+            ->route('domains.show', $domain)
+            ->with('success', 'Das Zertifikat ist hinterlegt. Der Server-Block wird neu geschrieben.');
     }
 
     /** @return array<string, mixed> */

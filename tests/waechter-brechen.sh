@@ -1135,6 +1135,110 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateReapplyTest passed
 
 echo
+echo "── CertificateStorageTest: der Stern landet im Pfad ──"
+#
+# Der Ablageort steht als `ssl_certificate` in einer nginx-Datei, die als root
+# gelesen wird. Ein Stern ist für jede Shell, für `find` und für `rm` ein
+# Muster — ein Name, der unterwegs expandiert, bezeichnet dann etwas anderes.
+vorher_datei agent/src/Acme/CertificateName.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/CertificateName.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    public const WILDCARD = '_wildcard.';", "    public const WILDCARD = '*.';")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/CertificateName.php "Stern im Ablageort" &&
+pruefe "Stern im Ablageort" \
+  CertificateStorageTest::test_a_wildcard_is_stored_under_a_name_without_a_star failed
+wiederherstellen
+
+echo
+echo "── CertificateStorageTest: Platzhalter und Basisdomain fallen zusammen ──"
+#
+# `example.de` und `*.example.de` sind zwei Zertifikate, nicht eines. Fielen
+# sie in dasselbe Verzeichnis, überschriebe das eine das andere — und welches
+# gerade dort liegt, hinge davon ab, welche Bestellung zuletzt lief.
+vorher_datei agent/src/Acme/CertificateName.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/CertificateName.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                return $source.self::WILDCARD.DomainName::normalize(substr($name, strlen($prefix)), $field);",
+    "                return $source.DomainName::normalize(substr($name, strlen($prefix)), $field);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/CertificateName.php "Platzhalter ohne eigenen Ablageort" &&
+pruefe "Platzhalter ohne eigenen Ablageort" \
+  CertificateStorageTest::test_two_different_names_never_share_a_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateStorageTest passed
+
+echo
+echo "── CertificateUploadTest: die Kette wird nicht auf Reihenfolge geprüft ──"
+#
+# Eine falsch sortierte Kette verzeihen Browser unterschiedlich: Firefox holt
+# das fehlende Glied nach, ein Mobilgerät nicht. Der Betreiber sieht eine
+# Seite, die bei ihm aufgeht, und der Kunde eine Warnung.
+vorher_datei agent/src/Acme/Bundle.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Bundle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        self::ordered($certificates);", "        // self::ordered($certificates);")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Bundle.php "Kette ohne Reihenfolgeprüfung" &&
+pruefe "Kette ohne Reihenfolgeprüfung" \
+  CertificateUploadTest::test_a_chain_in_the_wrong_order_is_refused failed
+wiederherstellen
+
+echo
+echo "── CertificateUploadTest: hochgeladen und bestellt teilen sich den Ort ──"
+#
+# Der Schlüssel im Ablageort entsteht aus dem ersten Namen. Ohne die
+# Kennzeichnung der Quelle überschriebe ein hochgeladenes Zertifikat für
+# `example.de` das bestellte — und welches gerade dort liegt, hinge davon ab,
+# was zuletzt lief.
+vorher_datei agent/src/Acme/CertificateName.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/CertificateName.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return str_starts_with($key, self::UPLOADED) ? $key : self::UPLOADED.$key;",
+    "        return $key;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/CertificateName.php "Hochgeladenes ohne eigenen Ablageort" &&
+pruefe "Hochgeladenes ohne eigenen Ablageort" \
+  CertificateUploadTest::test_it_is_stored_apart_from_what_was_ordered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateUploadTest passed
+
+echo
+echo "── DomainRouteTest: Hochladen ohne Planfreigabe ──"
+#
+# Wer hochlädt, legt einen privaten Schlüssel auf den Server, und was danach
+# ausgeliefert wird, sieht jeder Besucher. Ob ein Kunde das darf, entscheidet
+# der Betreiber über den Plan — nicht die Fähigkeit, eine Domain zu ändern.
+vorher_datei app/Policies/DomainPolicy.php
+python3 - <<'PY2'
+p = 'app/Policies/DomainPolicy.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            && $subscription->feature(Feature::CertificateUpload->value)\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Policies/DomainPolicy.php "Hochladen ohne Planfreigabe" &&
+pruefe "Hochladen ohne Planfreigabe" \
+  DomainRouteTest::test_without_the_plan_feature_no_certificate_may_be_uploaded failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DomainRouteTest::test_without_the_plan_feature_no_certificate_may_be_uploaded passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

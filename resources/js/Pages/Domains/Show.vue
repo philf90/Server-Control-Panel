@@ -49,7 +49,13 @@ const props = defineProps<{
     covers_all: boolean
   } | null
   acme: { configured: boolean; staging: boolean }
-  may: { update: boolean; update_php: boolean; delete: boolean; view_logs: boolean }
+  may: {
+    update: boolean
+    update_php: boolean
+    delete: boolean
+    view_logs: boolean
+    upload_certificate: boolean
+  }
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
 
@@ -75,6 +81,26 @@ function datum(zeit: number | null): string {
  */
 function zertifikatBestellen(): void {
   router.post(`/domains/${props.domain.id}/certificate`)
+}
+
+/*
+ * Das eigene Zertifikat.
+ *
+ * **Zwei Textfelder und keine Dateiauswahl.** Wer ein Zertifikat gekauft hat,
+ * hat es meistens als Text in einer Mail — und wer es als Datei hat, kann sie
+ * öffnen und den Inhalt einfügen. Umgekehrt gilt das nicht: Eine Dateiauswahl
+ * auf dem Telefon findet den Anhang einer Mail nicht.
+ *
+ * Der Schlüssel wird nach dem Absenden geleert, auch bei Erfolg. Er hat in
+ * einem Formularfeld nichts zu suchen, das jemand offen liegen lässt.
+ */
+const hochladen = useForm({ certificate: '', private_key: '' })
+
+function zertifikatHochladen(): void {
+  hochladen.post(`/domains/${props.domain.id}/certificate/upload`, {
+    preserveScroll: true,
+    onFinish: () => hochladen.reset('private_key'),
+  })
 }
 
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
@@ -297,6 +323,58 @@ function entfernen(): void {
             Zertifikat bestellen
           </button>
         </div>
+      </Section>
+
+      <!--
+        Das eigene Zertifikat steht in einem eigenen Bereich und nicht neben
+        den Angaben darüber: Dort steht, was gerade gilt — hier wird etwas
+        ersetzt. Der Bereich erscheint nur, wenn der Plan die Freigabe gibt;
+        gefragt wird dieselbe Policy, die die Route später abweist.
+      -->
+      <Section
+        v-if="props.may.upload_certificate"
+        title="Eigenes Zertifikat"
+        note="Für ein gekauftes Zertifikat. Ohne Eintrag bleibt es beim automatisch ausgestellten."
+      >
+        <form @submit.prevent="zertifikatHochladen">
+          <label class="field">
+            <span>Zertifikat samt Kette (PEM)</span>
+            <textarea
+              v-model="hochladen.certificate"
+              rows="6"
+              spellcheck="false"
+              placeholder="-----BEGIN CERTIFICATE-----"
+              required
+            ></textarea>
+          </label>
+          <p v-if="hochladen.errors.certificate" class="error">{{ hochladen.errors.certificate }}</p>
+          <p v-else class="hint">
+            Zuerst das eigene, danach die ausstellenden. Die Reihenfolge zählt:
+            Eine verkehrte Kette verzeihen manche Browser und Mobilgeräte nicht.
+          </p>
+
+          <label class="field">
+            <span>Privater Schlüssel (PEM)</span>
+            <textarea
+              v-model="hochladen.private_key"
+              rows="6"
+              spellcheck="false"
+              placeholder="-----BEGIN PRIVATE KEY-----"
+              required
+            ></textarea>
+          </label>
+          <p v-if="hochladen.errors.private_key" class="error">{{ hochladen.errors.private_key }}</p>
+          <p v-else class="hint">
+            Ohne Passwort — nginx fragt beim Start danach, und niemand ist da,
+            um es einzutippen. Er wird nach dem Absenden geleert.
+          </p>
+
+          <div class="button-row">
+            <button type="submit" class="button primary" :disabled="hochladen.processing">
+              {{ hochladen.processing ? 'Wird geprüft …' : 'Hinterlegen' }}
+            </button>
+          </div>
+        </form>
       </Section>
 
       <Section v-if="props.operations.length > 0" title="Vorgänge">

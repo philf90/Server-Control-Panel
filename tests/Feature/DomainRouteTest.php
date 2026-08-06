@@ -228,6 +228,70 @@ final class DomainRouteTest extends TestCase
         $this->assertSame([], $domain->php_settings ?? []);
     }
 
+    /**
+     * Ein eigenes Zertifikat hängt an einer Planfreigabe.
+     *
+     * **Und an einer eigenen Fähigkeit, nicht an `update`.** Wer hier hochlädt,
+     * legt einen privaten Schlüssel auf den Server, und was danach ausgeliefert
+     * wird, sieht jeder Besucher — eine andere Grössenordnung als ein
+     * DocumentRoot zu ändern. Ohne `certificate_upload` weist die Route ab, und
+     * zwar bevor irgendetwas den Socket erreicht.
+     */
+    private function allowUpload(bool $erlaubt): void
+    {
+        app(Tenancy::class)->withoutRestriction(function () use ($erlaubt): void {
+            $this->mine->plan->update([
+                'features' => [Feature::CertificateUpload->value => $erlaubt] + $this->mine->plan->features,
+            ]);
+        });
+    }
+
+    public function test_without_the_plan_feature_no_certificate_may_be_uploaded(): void
+    {
+        $domain = $this->domainIn($this->mine, 'ohne-zertifikat.de');
+        $this->allowUpload(false);
+
+        $this->actingAs($this->customer)
+            ->post("/domains/{$domain->id}/certificate/upload", [
+                'certificate' => '-----BEGIN CERTIFICATE-----',
+                'private_key' => '-----BEGIN PRIVATE KEY-----',
+            ])
+            ->assertForbidden();
+    }
+
+    /**
+     * Mit Freigabe kommt es durch — und der Grund des Agenten kommt zurück.
+     *
+     * In dieser Umgebung antwortet kein Agent, und genau das ist hier der
+     * Durchgang: Die Meldung wird wörtlich durchgereicht statt in ein
+     * „ungültig" übersetzt. Sie ist das Wertvollste an einem Fehlschlag — ein
+     * Kunde liest diese Seite und sonst nichts.
+     */
+    public function test_with_the_plan_feature_the_answer_of_the_agent_reaches_the_page(): void
+    {
+        $domain = $this->domainIn($this->mine, 'mit-zertifikat.de');
+        $this->allowUpload(true);
+
+        $this->actingAs($this->customer)
+            ->post("/domains/{$domain->id}/certificate/upload", [
+                'certificate' => '-----BEGIN CERTIFICATE-----',
+                'private_key' => '-----BEGIN PRIVATE KEY-----',
+            ])
+            ->assertRedirect("/domains/{$domain->id}")
+            ->assertSessionHas('error');
+    }
+
+    /** Beide Teile gehören zusammen — eines allein ergibt kein Zertifikat. */
+    public function test_an_upload_without_both_parts_is_refused(): void
+    {
+        $domain = $this->domainIn($this->mine, 'halb.de');
+        $this->allowUpload(true);
+
+        $this->actingAs($this->customer)
+            ->post("/domains/{$domain->id}/certificate/upload", ['certificate' => '-----BEGIN CERTIFICATE-----'])
+            ->assertSessionHasErrors('private_key');
+    }
+
     public function test_the_main_domain_cannot_be_removed_over_the_route(): void
     {
         $main = app(Tenancy::class)->withoutRestriction(

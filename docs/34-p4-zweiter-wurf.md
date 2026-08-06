@@ -82,6 +82,21 @@ Shell und für `find`, und dieser Pfad landet in einer nginx-Datei. Vorschlag:
 `_wildcard.example.de` — eindeutig, ohne Sonderzeichen, und die führende
 Unterstrich-Beschriftung kann kein Domainname sein, kollidiert also mit keinem.
 
+> **Erledigt in Schritt 2.** Die Regel steht in `CertificateName::normalize()`
+> und wird von `Store` und `Site` gemeinsam benutzt; sie ist mehrfach
+> anwendbar, weil derselbe Schlüssel zweimal durchgeht — beim Ablegen und wenn
+> die Anwendung ihn später wieder nennt.
+>
+> **Dabei ist ein zweiter Zusammenstoss aufgefallen, und er gehört zu Schritt
+> 3.** Der Schlüssel entsteht aus dem *ersten Namen*. Zwei verschiedene
+> Zertifikate mit demselben ersten Namen ergeben damit denselben Ablageort —
+> ein hochgeladenes für `example.de` und ein bestelltes für `example.de`
+> überschrieben einander. Solange jede Domain genau ein Zertifikat hat und die
+> Erneuerung es an Ort und Stelle ersetzt, ist das richtig so; sobald man
+> zwischen zweien wählen kann (§8), ist es das nicht mehr. Die Antwort gehört
+> in den Schritt, der das Hochladen bringt, und nicht hierher — sie ist eine
+> Frage der Quelle und nicht des Sterns.
+
 ### 2.3 `AcmeCertificate` weist Platzhalter ab, und `MAX_NAMES` ist fünf
 
 Beides ist richtig gesetzt und beides muss mit: Die Schranke fällt genau dann,
@@ -303,6 +318,33 @@ Geprüft wird, bevor irgendetwas abgelegt wird:
 
 Der Schlüssel überquert den Socket einmal, wie das DNS-Token, und steht in
 keinem Protokoll.
+
+> **Erledigt in Schritt 3a — der Agent und die Kommandozeile.** Die Prüfung
+> steht in `Bundle`, die Operation heisst `tls.certificate.upload`, und abgelegt
+> wird unter `_uploaded.<name>`: Das ist die Antwort auf den Zusammenstoss aus
+> §2.2 — unterschieden wird nach der **Quelle**, nicht nach dem Namen.
+>
+> **Und sie läuft nicht über die Warteschlange, das ist der Fund dieses
+> Schritts.** Ein eingereihter Vorgang legt seine Argumente in
+> `operations.payload` ab — der private Schlüssel läge damit im Klartext in der
+> Datenbank, dauerhaft und für jeden lesbar, der sie liest. Er darf den Socket
+> genau einmal überqueren und nirgends sonst stehen. Das Kommando ruft den
+> Agenten deshalb unmittelbar und schreibt den Bestand über
+> `CertificateRecord` — dieselbe Stelle, die auch eine Bestellung benutzt.
+> Für die Oberfläche (Schritt 3b) gilt dasselbe: kein Vorgang, sondern ein
+> unmittelbarer Aufruf.
+>
+> **Erledigt in Schritt 3b — die Oberfläche.** Ein eigener Bereich auf der
+> Domainseite mit zwei Textfeldern, sichtbar nur, wenn der Plan
+> `certificate_upload` freigibt; gefragt wird dieselbe Policy, die die Route
+> später abweist. Zwei Textfelder und keine Dateiauswahl: Wer ein Zertifikat
+> gekauft hat, hat es meistens als Text in einer Mail, und eine Dateiauswahl
+> auf dem Telefon findet den Anhang einer Mail nicht.
+>
+> Dabei ist zum dritten Mal derselbe Abstand aufgefallen — eine Knopfreihe
+> hinter einem Feld klebt am Text darüber, weil `.button-row` keinen Rand nach
+> oben setzt. Die Antwort war bisher jedes Mal eine eigene Klasse auf der Seite;
+> jetzt steht sie in `app.css`, wo das Aussehen eines Bausteins hingehört.
 
 ### Der Kunde darf hochladen — und das ist keine neue Entscheidung
 

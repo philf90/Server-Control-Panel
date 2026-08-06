@@ -229,7 +229,25 @@ Testen berücksichtigen:
   abgebrochenes `composer install`, das aussieht wie ein fertiges. Gefragt wird
   nach `vendor/autoload.php`, nicht nach dem Verzeichnis.
 
-  **Für `agent/` gibt es einen Ausweg, und er hat in P4 eine Runde gespart.**
+  **Und es gibt zwei Werkzeuge, die der Proxy durchlässt — sie haben in P4
+  eine Runde gespart und hätten zwei weitere gespart.** `php-cs-fixer.phar`
+  und `phpstan.phar` lassen sich von den GitHub-Releases herunterladen; was
+  scheitert, ist `composer install`, nicht jedes HTTPS. Beide sind aber
+  **nicht dasselbe** wie der CI-Lauf:
+
+  - **php-cs-fixer ist nicht Pint.** Pints Laravel-Voreinstellung ist ein
+    eigener Regelsatz; wer hier alles anschaltet, bekommt Meldungen zu Stellen,
+    die Pint in Ruhe lässt (`) {}` an einem leeren Konstruktor zum Beispiel).
+    Brauchbar ist es, wenn man **genau die Regeln** anschaltet, die die CI
+    gemeldet hat — dann findet man die Fundstelle, statt sie zu raten.
+  - **PHPStan taugt nur für `agent/`.** Ohne `vendor/` fehlt larastan, und
+    jedes `Model::query()` und jede Spalte gilt als undefiniert — hunderte
+    Meldungen, die nichts bedeuten. Unterhalb von `agent/` gibt es kein
+    Framework, und dort läuft Stufe 6 sauber durch. Genau so gefunden:
+    `array_values()` auf einer Liste, die schon eine ist.
+
+  **Für `agent/` gibt es ausserdem einen Ausweg, und er hat in P4 eine Runde
+  gespart.**
   `agent/src/autoload.php` ist framework- und abhängigkeitsfrei; Code unterhalb
   von `agent/` lässt sich damit aus einem Wegwerfskript im Scratchpad fahren,
   ganz ohne PHPUnit — `require agent/src/autoload.php`, Testdoppel von Hand

@@ -1239,6 +1239,52 @@ pruefe "  … zurückgesetzt wieder grün" \
   DomainRouteTest::test_without_the_plan_feature_no_certificate_may_be_uploaded passed
 
 echo
+echo "── CertificateChoiceTest: die Bestellung nimmt die Wahl still zurück ──"
+#
+# Der Grund, aus dem es `certificate_pinned_at` überhaupt gibt. Ohne die
+# Bedingung hängt die Domain nach der nächsten Erneuerung am neuen Zertifikat —
+# ohne Fehler, ohne Meldung, und die Wahl von gestern ist weg.
+vorher_datei app/Support/Tls/CertificateRecord.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateRecord.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($uploaded || $domain->certificate_pinned_at === null) {",
+    "        if (true) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateRecord.php "Bestellung überschreibt die Wahl" &&
+pruefe "Bestellung überschreibt die Wahl" \
+  CertificateChoiceTest::test_a_choice_survives_a_new_order failed
+wiederherstellen
+
+echo
+echo "── CertificateChoiceTest: die abgelaufene Wahl wird befolgt ──"
+#
+# Der stumme Ausgang desselben Falls: Ein hochgeladenes Zertifikat erneuert
+# niemand. Wer stur daran festhält, liefert ein abgelaufenes aus, obwohl ein
+# gültiges danebenliegt — und die Website ist für jeden Browser kaputt.
+vorher_datei app/Support/Tls/CertificateChoice.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateChoice.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($domain->certificate_pinned_at !== null\n"
+    "            && $assigned instanceof Certificate\n"
+    "            && $this->usable($assigned, $names)) {",
+    "        if ($domain->certificate_pinned_at !== null\n"
+    "            && $assigned instanceof Certificate) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateChoice.php "Abgelaufene Wahl wird ausgeliefert" &&
+pruefe "Abgelaufene Wahl wird ausgeliefert" \
+  CertificateChoiceTest::test_an_expired_choice_is_overridden_loudly failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateChoiceTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

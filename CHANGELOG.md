@@ -3059,3 +3059,71 @@ Seite nicht — der gehört auf dem Zielserver nachgeholt, wie in P4 Schritt 6.
 `DomainRouteTest` um drei Durchgänge erweitert: ohne Freigabe abgewiesen, mit
 Freigabe kommt die Meldung des Agenten zurück, und ein halbes Formular reicht
 nicht. Dazu ein neuer Bruch — die Policy ohne Planfreigabe.
+
+#### Schritt 4: welches Zertifikat gilt, wenn zwei dastehen
+
+Seit Schritt 3 kann eine Domain mehrere haben — das für ihren Namen bestellte,
+ein hochgeladenes, später den Platzhalter ihres Abonnements. Damit wird aus
+einer Zuweisung eine Frage, und die hat ab jetzt **genau eine Antwort**:
+`App\Support\Tls\CertificateChoice`. Wer sie an drei Stellen zusammensetzt —
+beim Schreiben des Server-Blocks, beim Entscheiden über eine Bestellung, in der
+Oberfläche —, bekommt drei Antworten, und die beiden falschen fallen erst im
+Browser auf.
+
+**Wahl und Zuweisung sind zweierlei.** `domains.certificate_id` trägt beides;
+die neue Spalte `certificate_pinned_at` sagt, welches von beiden es gerade ist.
+Ohne diesen Unterschied nähme die nächste Erneuerung die Wahl still zurück — der
+Fehlertyp, der in diesem Projekt am teuersten war. **Ein Hochladen ist dagegen
+selbst eine Wahl:** Wer die Datei einfügt und absendet, hat entschieden, und ein
+Formular, das nichts tut, weil eine ältere Wahl dasteht, wäre schlimmer als
+keines.
+
+**Der laute Rückfall — die Entscheidung des Betreibers vom 6. August.** Läuft
+die Wahl ab, wird sie übergangen und nicht befolgt: Ein hochgeladenes
+Zertifikat erneuert niemand, und stur daran festzuhalten nähme die Website vom
+Netz. Übergangen heisst aber nicht verschwiegen — die Wahl bleibt eingetragen,
+greift wieder, sobald sie gilt, und die Domainseite sagt in einer Meldung, dass
+sie gerade nicht gilt.
+
+**Ein Fund beim Bauen, und er wäre eine Bestellschleife gewesen.** Die
+Bedingung, ob bestellt wird, darf nicht nach dem *zugeordneten* Zertifikat
+fragen. Bei einer abgelaufenen Wahl ändert sich die Zuordnung ja nicht — die
+Domain hätte bei jedem Anwenden erneut bestellt, bis die Wochengrenze der
+Zertifizierungsstelle sie anhält. `satisfied()` fragt deshalb etwas anderes als
+`effective()`: nicht „was liefern wir aus", sondern „gibt es überhaupt eines,
+das gilt und alles deckt".
+
+**Gibt es gar nichts Gültiges, bleibt das Abgelaufene stehen.** Ohne Zertifikat
+fällt der Block auf Port 80 zurück, und eine Adresse, die vorher HTTPS war, ist
+dann nicht mehr erreichbar, sondern still unverschlüsselt. Ein abgelaufenes
+warnt wenigstens — und `satisfied()` sorgt dafür, dass parallel ein neues
+bestellt wird.
+
+Die Oberfläche zeigt das Auswahlfeld erst ab zwei Kandidaten: Ein Feld mit
+einem Eintrag ist eine Frage ohne Antwortmöglichkeit. Die Einträge nennen
+Herkunft und Laufzeit und **nicht die gedeckten Namen** — jeder Kandidat deckt
+alle, sonst stünde er nicht zur Wahl, und ein `<select>` bricht nicht um,
+sondern schneidet ab (`docs/24 §8`).
+
+`CertificateChoiceTest` prüft die sieben Regeln einzeln; `DomainRouteTest` dazu,
+dass nur gewählt werden kann, was zur Wahl steht, und dass sich eine Wahl
+zurücknehmen lässt. Zwei neue Brüche: die Bestellung, die die Wahl
+überschreibt, und die abgelaufene Wahl, die befolgt wird.
+
+**Im Browser nachgesehen** wie in Schritt 3b — gebautes Stylesheet, Markup in
+einer eigenen Datei, Chromium bei 390px: kein Überlauf, und der Text des
+Auswahlfelds passt in seine Breite.
+
+##### Nachtrag: ein fester Zeitstempel als Zeitbombe
+
+Die CI hat einen einzigen Durchgang gemeldet, und er hatte recht: „die beiden
+Regeln jagen einander nicht" schlug fehl, weil das Testzertifikat abgelaufen
+war. In `CertificateReapplyTest` standen zwei feste Zeitstempel aus dem August
+2025 — solange die Bestellbedingung nur nach der *Deckung* fragte, war das
+folgenlos. Seit Schritt 4 fragt sie auch nach dem Ablauf, und damit bestellte
+der Durchgang ein zweites Mal.
+
+**Der Test hatte unrecht, nicht der Code.** Ein fester Zeitstempel in einem
+Datensatz ist eine Zeitbombe mit unbekanntem Zünder: Er wartet, bis irgendwann
+jemand nach der Zeit fragt. Die Laufzeit ist jetzt relativ — neunzig Tage, so
+wie Let's Encrypt sie ausstellt.

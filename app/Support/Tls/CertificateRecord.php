@@ -71,10 +71,32 @@ final class CertificateRecord
         $certificate->subscription_id = $domain->subscription_id;
         $certificate->save();
 
-        // Die Deckungs- und Eigentumsprüfung sitzt am Modell und weist eine
-        // Zuordnung ab, die nicht passt.
-        $domain->certificate_id = (int) $certificate->id;
-        $domain->save();
+        /*
+         * **Eine Wahl wird nicht von einer Bestellung überschrieben.**
+         *
+         * Hat jemand für diese Domain ein Zertifikat ausgewählt, bleibt die
+         * Zuordnung stehen; das neue steht danach als Kandidat daneben und
+         * springt ein, wenn die Wahl abläuft ({@see CertificateChoice}). Ohne
+         * diese Bedingung nähme die nächste Erneuerung die Wahl still zurück —
+         * und still ist hier das Problem, nicht die Erneuerung.
+         *
+         * **Ein Hochladen ist dagegen selbst eine Wahl.** Wer die Datei
+         * einfügt und absendet, hat entschieden; es danach nicht auszuliefern,
+         * weil eine ältere Wahl dasteht, wäre ein Formular, das nichts tut.
+         */
+        $uploaded = $source === CertificateSource::Uploaded;
+
+        if ($uploaded || $domain->certificate_pinned_at === null) {
+            // Die Deckungs- und Eigentumsprüfung sitzt am Modell und weist eine
+            // Zuordnung ab, die nicht passt.
+            $domain->certificate_id = (int) $certificate->id;
+
+            if ($uploaded) {
+                $domain->certificate_pinned_at = now();
+            }
+
+            $domain->save();
+        }
 
         return $certificate;
     }

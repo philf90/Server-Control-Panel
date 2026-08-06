@@ -8,6 +8,7 @@ use App\Enums\DomainStatus;
 use App\Enums\DomainType;
 use App\Enums\Permission;
 use App\Models\Account;
+use App\Models\Certificate;
 use App\Models\Customer;
 use App\Models\Domain;
 use App\Models\Subscription;
@@ -290,6 +291,72 @@ final class DomainRouteTest extends TestCase
         $this->actingAs($this->customer)
             ->post("/domains/{$domain->id}/certificate/upload", ['certificate' => '-----BEGIN CERTIFICATE-----'])
             ->assertSessionHasErrors('private_key');
+    }
+
+    /**
+     * Gewählt wird nur unter dem, was zur Wahl steht.
+     *
+     * **Die Liste ist die Prüfung.** Was nicht darin vorkommt — ein fremdes
+     * Zertifikat, eines, das nicht alle Namen deckt —, gibt es für diese Domain
+     * nicht. Damit kann keine Zusatzprüfung vergessen werden, die anderswo
+     * stünde.
+     */
+    public function test_a_certificate_that_is_not_on_offer_cannot_be_chosen(): void
+    {
+        $domain = $this->domainIn($this->mine, 'wahl.de');
+
+        $fremd = app(Tenancy::class)->withoutRestriction(
+            fn (): Certificate => Certificate::factory()->covering(['wahl.de'])->create([
+                'subscription_id' => $this->foreign->id,
+            ]),
+        );
+
+        $this->actingAs($this->customer)
+            ->put("/domains/{$domain->id}/certificate", ['certificate' => (string) $fremd->id])
+            ->assertRedirect("/domains/{$domain->id}")
+            ->assertSessionHas('error');
+
+        app(Tenancy::class)->allowAll();
+
+        $frisch = Domain::query()->findOrFail($domain->id);
+
+        $this->assertNull($frisch->certificate_id);
+        $this->assertNull($frisch->certificate_pinned_at);
+    }
+
+    /**
+     * Und eine Wahl lässt sich zurücknehmen.
+     *
+     * Eine Einstellung, die man nur einmal treffen kann, ist eine Falle —
+     * danach entscheidet wieder die Automatik.
+     */
+    public function test_a_choice_can_be_taken_back(): void
+    {
+        $domain = $this->domainIn($this->mine, 'zurueck.de');
+
+        app(Tenancy::class)->withoutRestriction(function () use ($domain): void {
+            $certificate = Certificate::factory()->covering(['zurueck.de'])->create([
+                'subscription_id' => $domain->subscription_id,
+            ]);
+
+            $domain->certificate_id = (int) $certificate->id;
+            $domain->certificate_pinned_at = now();
+            $domain->save();
+        });
+
+        $this->actingAs($this->customer)
+            ->put("/domains/{$domain->id}/certificate", ['certificate' => ''])
+            ->assertRedirect("/domains/{$domain->id}")
+            ->assertSessionHas('success');
+
+        app(Tenancy::class)->allowAll();
+
+        $frisch = Domain::query()->findOrFail($domain->id);
+
+        // Die Zuordnung bleibt — zurückgenommen ist die Wahl, nicht das
+        // Zertifikat.
+        $this->assertNotNull($frisch->certificate_id);
+        $this->assertNull($frisch->certificate_pinned_at);
     }
 
     public function test_the_main_domain_cannot_be_removed_over_the_route(): void

@@ -428,15 +428,29 @@ Daraus folgen drei Regeln:
    als Knopf da. Eine Einstellung, die man nur einmal treffen kann, ist eine
    Falle.
 
-**Offen, und ich empfehle es so:** Was passiert, wenn das gewählte Zertifikat
-abläuft? Ein hochgeladenes erneuert niemand. Stur daran festzuhalten nähme die
-Website vom Netz; still auf ein anderes zu wechseln wäre die zweite Wahrheit.
-Mein Vorschlag ist der laute Rückfall: **Ist die Wahl abgelaufen und liegt ein
-gültiges, deckendes Zertifikat vor, liefert der Block dieses aus** — die Wahl
-bleibt aber vermerkt, die Domainseite sagt in einer Meldung, dass sie
-übergangen wird und warum, und der Vorgang steht im Protokoll. Vorgewarnt wird
-davor 30 Tage lang, mit demselben Zeitplan, der auch erneuert. Das ist die
-Entscheidung, die beim Bauen von Schritt 3 zu treffen ist.
+**Entschieden am 6. August 2026: der laute Rückfall.** Läuft die Wahl ab, wird
+sie übergangen — ein hochgeladenes Zertifikat erneuert niemand, und stur daran
+festzuhalten nähme die Website vom Netz. **Ist die Wahl abgelaufen und liegt
+ein gültiges, deckendes Zertifikat vor, liefert der Block dieses aus**; die
+Wahl bleibt eingetragen, greift wieder, sobald sie gilt, und die Domainseite
+sagt in einer Meldung, dass sie gerade übergangen wird.
+
+> **Erledigt in Schritt 4.** Die Antwort auf „welches liefert dieser Block
+> aus?" steht in `CertificateChoice` und nirgends sonst — `effective()` für den
+> Server-Block und die Seite, `satisfied()` für die Frage, ob bestellt werden
+> muss.
+>
+> **Und die beiden sind mit Absicht verschiedene Fragen.** `satisfied()` fragt
+> nicht nach der Wahl, sondern ob es überhaupt eines gibt, das gilt und alles
+> deckt. Fragte die Bestellbedingung nach dem *zugeordneten* Zertifikat,
+> bestellte eine Domain mit abgelaufener Wahl bei jedem Anwenden erneut: Die
+> Zuordnung ändert sich ja nicht. Das ist beim Bauen aufgefallen und wäre eine
+> Bestellschleife bis in die Wochengrenze gewesen.
+>
+> **Gibt es gar nichts Gültiges, bleibt das Abgelaufene stehen.** Ohne
+> Zertifikat fällt der Block auf Port 80 zurück — eine Adresse, die vorher
+> HTTPS war, ist dann nicht mehr erreichbar, sondern still unverschlüsselt. Ein
+> abgelaufenes warnt wenigstens.
 
 ---
 

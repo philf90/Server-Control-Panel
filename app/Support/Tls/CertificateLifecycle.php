@@ -8,7 +8,6 @@ use App\Enums\CertificateSource;
 use App\Enums\OperationStatus;
 use App\Enums\OperationSubject;
 use App\Jobs\RunAgentOperation;
-use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Support\Operations\AfterOperation;
@@ -44,6 +43,7 @@ final class CertificateLifecycle implements AfterOperation
         private readonly Tenancy $tenancy,
         private readonly CertificateOrder $order,
         private readonly CertificateRecord $record,
+        private readonly CertificateChoice $choice,
     ) {}
 
     /** @return list<string> */
@@ -90,13 +90,18 @@ final class CertificateLifecycle implements AfterOperation
     /**
      * Für diese Domain ein Zertifikat bestellen — wenn keines ihre Namen deckt.
      *
-     * **Gefragt wird nach der Deckung und nicht mehr nach dem Verweis.** Bis
-     * zum zweiten Wurf von P4 genügte hier ein zugeordnetes Zertifikat, egal
+     * **Gefragt wird nach der Deckung und nicht nach dem Verweis.** Bis zum
+     * zweiten Wurf von P4 genügte hier ein zugeordnetes Zertifikat, egal
      * welches. Das reichte, solange jedes für genau eine Domain bestellt wurde;
      * es reicht nicht mehr, sobald ein Alias nachträglich dazukommt — dann
      * steht er im `server_name` und nicht im Zertifikat, der Browser warnt bei
-     * ihm, und im Panel sieht alles grün aus. Dieselbe Bedingung trägt später
-     * den Platzhalter und das hochgeladene Zertifikat (`docs/34 §7`).
+     * ihm, und im Panel sieht alles grün aus.
+     *
+     * **Seit der Auswahl fragt die Bedingung nicht einmal mehr das zugeordnete**
+     * ({@see CertificateChoice::satisfied()}), sondern ob es überhaupt eines
+     * gibt, das gilt und alles deckt. Sonst bestellte eine Domain mit
+     * abgelaufener Wahl bei jedem Anwenden erneut: Die Zuordnung ändert sich ja
+     * nicht.
      *
      * **Mit deckendem Zertifikat wäre es die Schleife** aus der
      * Klassenbeschreibung: Bestellung, Zuordnung, Block neu, Bestellung. Sie
@@ -114,30 +119,11 @@ final class CertificateLifecycle implements AfterOperation
      */
     private function request(Domain $domain, Operation $operation): void
     {
-        if ($this->covered($domain) || $this->ordering($domain)) {
+        if ($this->choice->satisfied($domain) || $this->ordering($domain)) {
             return;
         }
 
         $this->order->place($domain, $operation);
-    }
-
-    /**
-     * Deckt das zugeordnete Zertifikat alle Namen dieses Server-Blocks?
-     *
-     * Ohne Mandantenklammer gelesen, aus demselben Grund wie in
-     * {@see WebLifecycle}: Im Arbeiter steht sie im Grundzustand auf „nichts",
-     * und ein gewöhnliches `find()` lieferte dort `null` — die Domain bekäme
-     * bei jedem Anwenden eine neue Bestellung, obwohl ihr Zertifikat daliegt.
-     */
-    private function covered(Domain $domain): bool
-    {
-        if ($domain->certificate_id === null) {
-            return false;
-        }
-
-        $certificate = Certificate::query()->withoutGlobalScopes()->find($domain->certificate_id);
-
-        return $certificate instanceof Certificate && $certificate->coversAll($domain->serverNames());
     }
 
     /** Läuft für diese Domain schon eine Bestellung? */

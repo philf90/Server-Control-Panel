@@ -132,28 +132,27 @@ final class Bundle
      */
     private static function split(string $pem): array
     {
-        $found = preg_match_all(
+        $gefunden = preg_match_all(
             '/-----BEGIN CERTIFICATE-----.+?-----END CERTIFICATE-----/s',
             $pem,
             $matches,
         );
 
-        if ($found === false || $found === 0) {
+        $certificates = $gefunden === false ? [] : $matches[0];
+
+        if ($certificates === []) {
             throw AgentException::badRequest(
                 'Darin steht kein Zertifikat im PEM-Format.',
                 ['certificate' => 'kein BEGIN CERTIFICATE'],
             );
         }
 
-        if ($found > self::MAX_CERTIFICATES) {
+        if (count($certificates) > self::MAX_CERTIFICATES) {
             throw AgentException::badRequest(
                 sprintf('Mehr als %d Zertifikate in einer Kette.', self::MAX_CERTIFICATES),
-                ['certificate' => $found],
+                ['certificate' => count($certificates)],
             );
         }
-
-        /** @var non-empty-list<string> $certificates */
-        $certificates = array_values($matches[0]);
 
         return $certificates;
     }

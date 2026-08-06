@@ -176,7 +176,4 @@ final class CertificateLifecycle implements AfterOperation
 
         RunAgentOperation::dispatch((int) $operation->id);
     }
-
-
-
 }

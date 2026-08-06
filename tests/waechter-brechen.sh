@@ -1135,6 +1135,46 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateReapplyTest passed
 
 echo
+echo "── CertificateStorageTest: der Stern landet im Pfad ──"
+#
+# Der Ablageort steht als `ssl_certificate` in einer nginx-Datei, die als root
+# gelesen wird. Ein Stern ist für jede Shell, für `find` und für `rm` ein
+# Muster — ein Name, der unterwegs expandiert, bezeichnet dann etwas anderes.
+vorher_datei agent/src/Acme/CertificateName.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/CertificateName.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    public const WILDCARD = '_wildcard.';", "    public const WILDCARD = '*.';")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/CertificateName.php "Stern im Ablageort" &&
+pruefe "Stern im Ablageort" \
+  CertificateStorageTest::test_a_wildcard_is_stored_under_a_name_without_a_star failed
+wiederherstellen
+
+echo
+echo "── CertificateStorageTest: Platzhalter und Basisdomain fallen zusammen ──"
+#
+# `example.de` und `*.example.de` sind zwei Zertifikate, nicht eines. Fielen
+# sie in dasselbe Verzeichnis, überschriebe das eine das andere — und welches
+# gerade dort liegt, hinge davon ab, welche Bestellung zuletzt lief.
+vorher_datei agent/src/Acme/CertificateName.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/CertificateName.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                return self::WILDCARD.DomainName::normalize(substr($name, strlen($prefix)), $field);",
+    "                return DomainName::normalize(substr($name, strlen($prefix)), $field);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/CertificateName.php "Platzhalter ohne eigenen Ablageort" &&
+pruefe "Platzhalter ohne eigenen Ablageort" \
+  CertificateStorageTest::test_two_different_names_never_share_a_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateStorageTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

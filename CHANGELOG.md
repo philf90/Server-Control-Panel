@@ -2913,3 +2913,46 @@ abhängigkeitsfrei, und ein Wegwerfskript im Scratchpad hat die elf Behauptungen
 zur Vorlage geprüft — ohne Nennung kein `listen 443`, mit fremdem Ablageort
 genau dieser Pfad, und ein `../../etc/passwd` als Zertifikatsname wird
 abgewiesen. Die Tests der Anwendung prüft die CI.
+
+#### Schritt 2: ein Platzhalter heisst nicht so, wie er heisst
+
+`*.example.de` als Verzeichnisname wäre ein Stern in einem Pfad, der als
+`ssl_certificate` in einer nginx-Datei steht und von einem Prozess als root
+gelesen wird. Für jede Shell, für `find` und für `rm` ist das ein Muster — ein
+Name, der unterwegs expandiert, bezeichnet dann etwas anderes als das, was
+gemeint war.
+
+**Und gescheitert wäre es an der teuersten Stelle:** `Store::directory()` prüft
+über `DomainName::normalize()`, und die weist den Stern ab. Die Ablage wäre
+also erst *nach* der erfolgreichen Bestellung gescheitert — ein Zertifikat, das
+ausgestellt ist und sich nicht ablegen lässt, ist ein verbrauchter Eintrag in
+der Wochengrenze der Zertifizierungsstelle.
+
+Der Schlüssel heisst deshalb `_wildcard.example.de`. Die führende
+Unterstrich-Beschriftung kann kein Domainname sein — `DomainName` weist sie ab
+—, also kollidiert der Schlüssel mit keinem echten Namen. Die Umformung steht
+in `CertificateName` und ist **mehrfach anwendbar**, weil derselbe Schlüssel
+zweimal durchgeht: einmal beim Ablegen und einmal, wenn die Anwendung ihn
+später wieder nennt. Wäre sie es nicht, ginge genau dieser zweite Weg schief —
+bei jeder gesicherten Website gleichzeitig.
+
+`CertificateStorageTest` prüft die drei Zusagen: kein Stern im Pfad, zwei
+verschiedene Namen nie im selben Verzeichnis (mit `example.de` und
+`*.example.de` als dem teuren Paar), und zehn Formen, die weder Name noch
+Schlüssel sind, werden abgewiesen — `*.*.example.de`, `a.*.example.de`,
+`*./../../etc` und Verwandte. Dazu der Durchgang über die ganze Strecke: Das
+Panel nennt `*.example.de`, und im Server-Block steht der Pfad ohne Stern.
+
+Zwei neue Brüche im Wächterskript — der Stern im Ablageort und der Platzhalter
+ohne eigenes Verzeichnis —, und beide sind hier **rot-grün gefahren**, nicht nur
+geschrieben: `agent/src/autoload.php` ist abhängigkeitsfrei, das Wegwerfskript
+im Scratchpad kommt ohne PHPUnit aus. Bruch 1 nimmt zwei Behauptungen mit,
+Bruch 2 die Eindeutigkeit, und zurückgesetzt ist wieder alles grün.
+
+**Ein Zusammenstoss, der dabei aufgefallen ist und zu Schritt 3 gehört:** Der
+Schlüssel entsteht aus dem ersten Namen — zwei verschiedene Zertifikate mit
+demselben ersten Namen ergeben also denselben Ablageort. Solange jede Domain
+genau eines hat und die Erneuerung es an Ort und Stelle ersetzt, ist das
+richtig. Sobald ein hochgeladenes neben einem bestellten liegen kann, ist es
+das nicht mehr; die Antwort ist eine Frage der Quelle und nicht des Sterns und
+steht deshalb in `docs/34 §2.2` für den nächsten Schritt vorgemerkt.

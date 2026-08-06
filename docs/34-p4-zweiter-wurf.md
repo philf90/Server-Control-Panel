@@ -82,6 +82,21 @@ Shell und für `find`, und dieser Pfad landet in einer nginx-Datei. Vorschlag:
 `_wildcard.example.de` — eindeutig, ohne Sonderzeichen, und die führende
 Unterstrich-Beschriftung kann kein Domainname sein, kollidiert also mit keinem.
 
+> **Erledigt in Schritt 2.** Die Regel steht in `CertificateName::normalize()`
+> und wird von `Store` und `Site` gemeinsam benutzt; sie ist mehrfach
+> anwendbar, weil derselbe Schlüssel zweimal durchgeht — beim Ablegen und wenn
+> die Anwendung ihn später wieder nennt.
+>
+> **Dabei ist ein zweiter Zusammenstoss aufgefallen, und er gehört zu Schritt
+> 3.** Der Schlüssel entsteht aus dem *ersten Namen*. Zwei verschiedene
+> Zertifikate mit demselben ersten Namen ergeben damit denselben Ablageort —
+> ein hochgeladenes für `example.de` und ein bestelltes für `example.de`
+> überschrieben einander. Solange jede Domain genau ein Zertifikat hat und die
+> Erneuerung es an Ort und Stelle ersetzt, ist das richtig so; sobald man
+> zwischen zweien wählen kann (§8), ist es das nicht mehr. Die Antwort gehört
+> in den Schritt, der das Hochladen bringt, und nicht hierher — sie ist eine
+> Frage der Quelle und nicht des Sterns.
+
 ### 2.3 `AcmeCertificate` weist Platzhalter ab, und `MAX_NAMES` ist fünf
 
 Beides ist richtig gesetzt und beides muss mit: Die Schranke fällt genau dann,

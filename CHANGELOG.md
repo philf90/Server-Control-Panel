@@ -2799,3 +2799,47 @@ against github.com", und ohne `vendor/` startet `artisan serve` nicht. Geprüft
 ist damit, dass die Vorlagen übersetzen und die Typen stimmen; **wie die Seite
 aussieht, hat niemand gesehen.** Das gehört nachgeholt, bevor die Stufe als
 abgenommen gilt — auf dem Zielserver oder in einer Sitzung mit `vendor/`.
+
+#### Schritt 6a: der Blick in den Browser, den Schritt 6 schuldig geblieben ist
+
+Nachgeholt auf dem Zielserver, und er hat drei Dinge gefunden — alle drei grün
+getestet und trotzdem falsch. Genau der Grund, aus dem CLAUDE.md bei allem
+Sichtbaren einen Screenshot verlangt.
+
+**Eine Kennung im Fliesstext brach nicht, und die Seite lief aus dem
+Bildschirm.** In der Warnung der Zertifikatsseite steht die Liste der Namen,
+unter denen der Rechner sonst noch erreichbar ist — als `.ident`, und `.ident`
+stand auf `white-space: nowrap`. Damit war die ganze Liste eine einzige
+unteilbare Zeile: 99px über den Rand der Meldung hinaus, 83px über den der
+Seite. Gemessen, nicht geschätzt.
+
+Behoben ist es diesmal an der Klasse und nicht am Fundort. **Denn genau so
+wurde es beim ersten Mal behoben:** `table.pairs td.right.ident` löst denselben
+Überlauf für die eine Tabelle, an der er auffiel — und der zweite Ort kam
+trotzdem, elf Monate später. `nowrap` gehört jetzt der Tabelle (`td .ident`),
+wo man schieben kann; die Klasse selbst bricht. Dazu
+`MobileLayoutTest::test_an_identifier_may_break_outside_a_table`: Keine Regel
+in irgendeinem Stylesheet — auch nicht im `<style>`-Block einer Seite — hält
+eine Kennung ausserhalb einer Tabelle vom Umbruch ab.
+
+**Ein Abstand, der aus der Reihenfolge der Seite abgeleitet war.** Das
+Nachwort unter den Angaben trug `margin-bottom: 0` mit der Begründung „steht am
+Fuss der Seite". Seit Schritt 6 steht das ACME-Formular darunter, und die
+Überschrift klebte an seiner Unterkante. Dieselbe Sorte Annahme wie überall
+hier: eine Aussage über den Nachbarn, die niemand nachprüft, wenn der Nachbar
+wechselt.
+
+**Und zwei Stellen, an denen Text abgeschnitten wurde statt umzubrechen.** Die
+Knopfreihe in `Tls.vue` stand im Bereich statt daneben und bekam damit keinen
+Abstand nach oben — „Speichern" klebte am Hinweis darüber. Und ein `<select>`
+bricht seine Einträge nicht um, es schneidet ab: „Produktiv — gültige
+Zertifikate von Let's Encrypt" endete bei 390px als „… von Let's Encry". Die
+beiden Beschriftungen sind jetzt kurz genug; was darüber hinaus zu sagen ist,
+steht im Hinweis unter dem Feld, und der bricht um.
+
+Gegengeprüft wurde diesmal ohne `artisan serve`: Das gebaute Stylesheet aus
+`public/build` mit dem Markup der Meldung in einer eigenen Datei, gerendert im
+vorinstallierten Chromium bei 390px, in beiden Themes, mit `scrollWidth -
+clientWidth` als Zahl auf der Seite. Vorher 99px, nachher 0px. Das ersetzt den
+Blick auf die echte Seite nicht — aber es beantwortet die Frage, um die es
+geht, ohne auf eine Umgebung mit `vendor/` zu warten.

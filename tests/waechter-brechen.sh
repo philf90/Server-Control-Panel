@@ -1025,6 +1025,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DomainCertificateTest passed
 
 echo
+echo "── MobileLayoutTest: eine Kennung, die im Fliesstext nicht bricht ──"
+#
+# Der Bruch stellt den Zustand von vor P4 wieder her: `white-space: nowrap` an
+# der Klasse selbst. Auf dem Zielserver lief damit die Liste der Namen in der
+# Warnung der Zertifikatsseite aus der Meldung und die Seite aus dem Bildschirm.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace('\n  overflow-wrap: anywhere;\n}', '\n  white-space: nowrap;\n}', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Kennung ohne Umbruch im Fliesstext" &&
+pruefe "Kennung ohne Umbruch im Fliesstext" \
+  MobileLayoutTest::test_an_identifier_may_break_outside_a_table failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_an_identifier_may_break_outside_a_table passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

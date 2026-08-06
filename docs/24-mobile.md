@@ -240,5 +240,13 @@ unter der Leiste des Browsers oder unter dem Bedienbalken des Geräts.
 - Formularfelder: `--text-input`, volle Breite unter 720px, `min-height: var(--tap)`.
 - Tabelle: `.scrolls` oder `.stacks` — eine dritte Antwort gibt es nicht.
 - Knopfreihen: unter 480px untereinander statt nebeneinander.
+- Kennungen (`.ident`) brechen im Fliesstext und bleiben nur in einer Tabelle
+  zusammen — dort kann man schieben, sonst nirgends. Eine Liste von Namen in
+  einer Meldung hat die Zertifikatsseite sonst 83px über den Bildschirm
+  hinausgeschoben (`MobileLayoutTest::test_an_identifier_may_break_outside_a_table`).
+- Ein `<select>` bricht seine Einträge nicht um, es schneidet sie ab. Was
+  länger ist als rund 40 Zeichen, gehört in den Hinweis unter dem Feld.
 - Nach dem Bauen einmal bei 390px ansehen. Das ist ein iPhone im Hochformat
-  und die schmalste Fläche, die dieses Panel bedienen können muss.
+  und die schmalste Fläche, die dieses Panel bedienen können muss. Dazu gehört
+  `document.body.scrollWidth - clientWidth`: Ein waagerechter Überlauf sieht
+  auf einem Bild nach nichts aus und ist auf dem Telefon der ganze Unterschied.

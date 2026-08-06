@@ -264,23 +264,34 @@ function neuAusstellen(): void {
           Server einrichtet, bleibt so lange im Testbetrieb, bis eine Domain
           wirklich hierher zeigt.
         </p>
-
-        <div class="button-row">
-          <button type="submit" class="button primary" :disabled="form.processing">
-            {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
-          </button>
-        </div>
       </Section>
+
+      <!--
+        Die Knopfreihe steht neben dem Bereich und nicht darin — so wie in
+        jeder anderen Maske des Panels. Als Kind des Bereichs bekam sie keinen
+        Abstand nach oben (`.button-row` setzt keinen), und „Speichern" klebte
+        am Hinweis darüber; als Kind von `.form` erbt sie dessen `gap`.
+      -->
+      <div class="button-row">
+        <button type="submit" class="button primary" :disabled="form.processing">
+          {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
+        </button>
+      </div>
     </form>
   </PanelLayout>
 </template>
 
 <style scoped>
-/* Diese eine Meldung steht am Fuss der Seite und nicht darüber: Sie ordnet
+/* Diese eine Meldung steht unter den Angaben und nicht über ihnen: Sie ordnet
    ein, was oben steht, und ist keine Antwort auf die Frage, mit der jemand
-   hierherkommt. */
+   hierherkommt.
+
+   **`margin-bottom: 0` stand hier einmal und war ab Schritt 6 falsch.** Sie
+   war damals das Letzte auf der Seite; seit das Formular für Kontaktadresse
+   und Zertifizierungsstelle darunter steht, klebte die Überschrift „Let's
+   Encrypt" an ihrer Unterkante. Ein Abstand, der aus der Reihenfolge der Seite
+   abgeleitet ist, hält genau bis zur nächsten Ergänzung. */
 .postscript {
   margin-top: var(--block-gap);
-  margin-bottom: 0;
 }
 </style>

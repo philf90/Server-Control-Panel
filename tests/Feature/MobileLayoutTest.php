@@ -377,6 +377,77 @@ final class MobileLayoutTest extends TestCase
     }
 
     /**
+     * Eine Kennung bricht — ausser in einer Tabelle.
+     *
+     * **Der Fall, für den diese Regel eingeführt wurde.** Auf der
+     * Zertifikatsseite steht in einer Warnung die Liste der Namen, unter denen
+     * dieser Rechner sonst noch erreichbar ist. Sie stand in einer `.ident`,
+     * `.ident` stand auf `white-space: nowrap`, und damit war die ganze Liste
+     * eine einzige unteilbare Zeile: Der Text lief unter dem Rand der Meldung
+     * heraus und die Seite über den Bildschirm. Auf dem Zielserver gesehen,
+     * bei 390px — im Test war alles grün.
+     *
+     * **Warum das keine Ausnahme für diese eine Meldung ist.** Genau so wurde
+     * es beim ersten Mal behoben: `table.pairs td.right.ident` löst denselben
+     * Überlauf für den einen Ort, an dem er auffiel. Der zweite Ort kam
+     * trotzdem. `nowrap` gehört der Tabelle — dort kann man schieben —, und
+     * die Klasse selbst darf brechen.
+     *
+     * Geprüft wird in allen Stylesheets, auch in den `<style>`-Blöcken der
+     * Seiten: Eine Seite, die sich ihr `nowrap` selbst zurückholt, ist
+     * derselbe Fehler an einer Stelle, die niemand liest.
+     */
+    public function test_an_identifier_may_break_outside_a_table(): void
+    {
+        $rules = 0;
+        $breaks = false;
+
+        foreach ($this->stylesheets() as $name => $css) {
+            preg_match_all('/([^{}]*)\{([^{}]*)\}/s', $css, $matches, PREG_SET_ORDER);
+
+            foreach ($matches as $rule) {
+                $selector = trim($rule[1]);
+
+                if (! str_contains($selector, '.ident')) {
+                    continue;
+                }
+
+                $rules++;
+
+                if (preg_match('/white-space:\s*nowrap/', $rule[2]) === 1) {
+                    $this->assertMatchesRegularExpression(
+                        '/(^|[\s,>.])(td|th)\b/',
+                        $selector,
+                        sprintf(
+                            '%s hält an „%s" eine Kennung vom Umbruch ab. Ausserhalb einer Tabelle gibt es '.
+                            'nichts zu schieben — eine lange Kennung schiebt dann die Seite (docs/24 §8).',
+                            $name,
+                            $selector,
+                        ),
+                    );
+                }
+
+                // Nur die Klasse selbst: Ob eine Tabellenzelle brechen darf,
+                // entscheidet die Zelle.
+                if ($selector === '.ident') {
+                    $breaks = str_contains($rule[2], 'overflow-wrap: anywhere');
+                }
+            }
+        }
+
+        // Die Untergrenze zählt, wo die Regel stehen *darf* — sonst meldet
+        // dieser Wächter Rot, sobald jemand die beiden Regeln zusammenlegt.
+        $this->assertGreaterThanOrEqual(2, $rules, 'Es wird kaum eine Regel zu .ident gelesen — dann prüft dieser Test nichts.');
+
+        $this->assertTrue(
+            $breaks,
+            '.ident braucht `overflow-wrap: anywhere`. Ohne diese Zeile bleibt eine Kennung ohne Leerzeichen '.
+            'so breit, wie sie ist — und in einer Meldung (einer Flexbox) hält sie das Kind auf seiner '.
+            'Inhaltsbreite fest, statt umzubrechen.',
+        );
+    }
+
+    /**
      * Jedes Stylesheet des Panels: app.css und die `<style>`-Blöcke.
      *
      * @return array<string, string>

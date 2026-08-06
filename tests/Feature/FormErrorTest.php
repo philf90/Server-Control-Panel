@@ -103,7 +103,7 @@ final class FormErrorTest extends TestCase
             "`<%s />` gehört über das erste Formular der Seite. Ohne sie steht die einzige Meldung\n".
             "als rote Zeile am betroffenen Feld — und nach einer Antwort springt die Seite nach oben,\n".
             'wo dann nichts steht. Genau so ist ein Fehlschlag einen halben Tag lang als „der Knopf tut '.
-            "nichts\" gelesen worden.",
+            'nichts" gelesen worden.',
             implode("\n  ", $found),
             self::COMPONENT,
         ));

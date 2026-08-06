@@ -35,7 +35,7 @@ use RuntimeException;
  * @property AccountType $type
  * @property int|null $customer_id
  * @property string $name
- * @property string|null $email  Frei, sobald der Kunde zurückgezogen ist
+ * @property string|null $email
  * @property string $password
  * @property string $locale
  * @property AccountStatus $status

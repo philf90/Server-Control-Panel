@@ -7,7 +7,8 @@ dieselbe Strecke, HTTPS und HSTS in der Kundenvorlage, Erneuerung am Zeitplan.
 Dieser Text ist der Plan für den Rest — **er wird gelesen, bevor etwas gebaut
 wird.** Er nennt drei Dinge: was der erste Wurf offengehalten hat und wo er es
 *nicht* getan hat, die Reihenfolge der Schritte samt ihrer Wächter, und die
-Entscheidungen, die der Betreiber trifft und nicht der Code.
+Entscheidungen des Betreibers. Die vier, die vor dem Bauen zu treffen waren,
+sind getroffen und stehen in §10.
 
 ---
 
@@ -113,6 +114,17 @@ dessen Domains dürfen ihn ausliefern. Das ist dieselbe Klammer wie überall —
 Der Wächter prüft die Zuordnung an der Stelle, an der sie zählt: beim Schreiben
 des Server-Blocks.
 
+**Entschieden am 6. August 2026: Der Kunde darf selbst bestellen.** Eine Domain
+liegt in aller Regel bei einem Kunden, und wer sie hält, hält auch die Zone —
+ihn dafür beim Betreiber anfragen zu lassen, wäre eine Warteschleife ohne
+Gewinn. **Damit wird die Regel oben tragend statt vorsorglich:** Solange nur
+der Betreiber bestellte, war die Zuordnung eine Sorgfaltsfrage; jetzt ist sie
+die Grenze zwischen zwei Kunden. Bestellt werden darf ein Platzhalter deshalb
+nur zu einer Basisdomain, die dem eigenen Abonnement gehört — geprüft an der
+Domain und nicht am eingetippten Namen, sonst bestellt jemand `*.fremde.de`,
+und die Bestellung scheitert erst an der Zertifizierungsstelle, mit einem
+verbrauchten Fehlversuch für alle.
+
 **Und eine Grenze, die ACME selbst zieht:** `*.example.de` deckt keine zweite
 Ebene. Wer `a.b.example.de` betreibt, braucht `*.b.example.de` dazu — das ist
 kein Fehler des Panels, aber es ist eine Auskunft, die die Oberfläche geben
@@ -176,33 +188,68 @@ Geheimnisse entstehen oder wohnen im Agenten, und die Anwendung nennt sie beim
 Namen. Der Preis ist eine Operation mehr und ein Ablageort mehr; der Gewinn
 ist, dass ein Datenbankauszug keine Zonen öffnet.
 
-**Offen, und der Betreiber entscheidet:** ob die Zugangsdaten am Betreiber
-hängen (ein Profil je Anbieter, für alle Kunden) oder am Abonnement (jeder
-Kunde hinterlegt sein eigenes). Der Ablageort trägt beides — der Profilname
-kann `betrieb` oder `abo-1042` heissen. Die Frage ist nicht technisch, sondern
-eine des Geschäftsmodells: Wer die Zone des Kunden verwaltet, braucht kein
-Kundentoken; wer sie nicht verwaltet, kann kein Wildcard anbieten, ohne eines
-zu verlangen.
+### Am Betreiber oder am Abonnement? Beides, und die Antwort steht schon da
+
+**Entschieden: am Abonnement — aber nicht als Entweder-oder, sondern über den
+Plan.** Die Unterscheidung gibt es in diesem Panel bereits, ausformuliert und
+von einer Policy durchgesetzt: `Feature::DnsEdit`, mit dem Hinweistext *„Ohne
+diese Freigabe verwaltet der Betreiber die Zone; das Abonnement sieht sie
+nur."* Genau diese Frage ist es.
+
+Daraus folgt ohne neue Begriffe:
+
+- **Plan mit `DnsEdit`:** Das Abonnement hinterlegt sein eigenes Profil
+  (`abo-1042`) und bestellt damit für seine Zonen. Der Kunde verwaltet die Zone
+  ohnehin — er hält den Schlüssel dazu bereits in den Händen.
+- **Plan ohne `DnsEdit`:** Es gilt das Profil des Betreibers (`betrieb`). Der
+  Kunde sieht, dass über DNS-01 bestellt wird, und hinterlegt nichts; das Token
+  gehört dem, der die Zone führt.
+- **Beides vorhanden:** Das Abonnement gewinnt für seine eigenen Zonen. Sonst
+  entschiede die Reihenfolge im Code darüber, wessen Token benutzt wird — und
+  das ist keine Entscheidung, die im Code stehen darf.
+
+Der Ablageort trägt das ohne Änderung: Der Profilname ist ein Schlüssel, kein
+Pfad, und `betrieb` und `abo-1042` sind derselbe Mechanismus. Was dazukommt,
+ist eine **Auflösung** — welches Profil gilt für diese Domain? — und die gehört
+in **eine** Klasse, in der Anwendung, neben `AcmeSettings`. Zwei Stellen, die
+diese Frage beantworten, geben irgendwann zwei Antworten.
+
+**Der Wächter dazu:** Ein Abonnement kommt nie an ein fremdes Profil, auch
+nicht über einen selbst gewählten Profilnamen. Der Name wird nicht
+entgegengenommen, sondern aus dem Abonnement abgeleitet — dieselbe Haltung wie
+bei den Verzeichnisnamen der Systembenutzer.
 
 ---
 
-## 6. Die Anbieter — Vorschlag zur Reihenfolge
+## 6. Die Anbieter
 
-Jeder Anbieter ist eine eigene Umsetzung, eigene Fehlerfälle und ein eigener
-Wächter. Deshalb nicht fünf auf einmal:
+Entschieden am 6. August 2026. Jeder Anbieter ist eine eigene Umsetzung, eigene
+Fehlerfälle und ein eigener Wächter — deshalb einer nach dem anderen und nicht
+fünf auf einmal:
 
 | Anbieter | Warum | Wann |
 |---|---|---|
-| **RFC 2136** (TSIG) | Der Standard, kein Anbietercode — er bedient BIND, Knot und PowerDNS, und **damit die eigene Zone aus P7** ohne zweite Umsetzung. | zuerst |
-| **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | zuerst |
-| **Cloudflare** | Der häufigste Fall überhaupt, feingranulare Token je Zone. | danach |
-| **INWX**, **Netcup** | Deutsche Registrare mit API; lohnen sich, wenn Kunden sie mitbringen. | nach Bedarf |
-| **deSEC** | Kostenlos und schnell — als **Ziel für die Abnahme**, nicht als Angebot. | mit dem ersten |
+| **RFC 2136** (TSIG) | Der Standard, kein Anbietercode — er bedient BIND, Knot und PowerDNS, und **damit die eigene Zone aus P7** ohne zweite Umsetzung. | 1. |
+| **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | 2. |
+| **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | 3. |
+| **Netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | 4. |
+| **IPv64.net** | Kleiner deutscher Anbieter mit Token-API; deckt den Fall ab, in dem jemand seine Zone dort und nicht beim Registrar führt. | 5. |
 
-Die Empfehlung ist, mit **RFC 2136 und einem Token-Anbieter** zu beginnen: Der
-eine ist die Brücke zu P7, der andere deckt echte Kunden ab. Die Liste ist eine
-Positivliste im Code — eine dritte Zertifizierungsstelle oder ein vierter
-Anbieter ist eine Änderung, die jemand liest, kein Feld in einem Formular.
+**Zu IPv64.net gehört ein Vorbehalt in diesen Plan und nicht erst in den
+Quelltext:** Der genaue Satz an Endpunkten — Anlegen und Löschen eines
+TXT-Eintrags, und ob die Zone aus dem Namen abgeleitet oder abgefragt wird —
+ist an der Dokumentation des Anbieters zu prüfen, **bevor** die Umsetzung
+beginnt. Was hier steht, ist die Absicht, ihn aufzunehmen; die Form seiner API
+ist damit nicht behauptet.
+
+Die Liste ist eine Positivliste im Code. Ein sechster Anbieter ist eine
+Änderung, die jemand liest, kein Feld in einem Formular — dieselbe Haltung wie
+bei den Zertifizierungsstellen in `Directories`.
+
+**Die Abnahme läuft gegen eine Zone, die der Betreiber selbst führt.** Ein
+fremder Dienst im Abnahmelauf ist ein Lauf, der irgendwann aus einem Grund rot
+wird, der nichts mit diesem Panel zu tun hat. Für alles davor gibt es den
+`FakeProvider`.
 
 ---
 
@@ -232,6 +279,49 @@ Geprüft wird, bevor irgendetwas abgelegt wird:
 Der Schlüssel überquert den Socket einmal, wie das DNS-Token, und steht in
 keinem Protokoll.
 
+### Der Kunde darf hochladen — und das ist keine neue Entscheidung
+
+`Feature::CertificateUpload` gibt es, mit Beschriftung („Eigene Zertifikate
+hochladen"), Kurzform („Zertifikate") und Hinweis („Ohne diese Freigabe bleibt
+nur das automatisch ausgestellte Zertifikat"), und sie hängt an
+`Permission::Certificates`. Die Pläne tragen die Freigabe also längst; was
+fehlt, ist die Funktion dahinter. **Zu bauen ist nichts am Rechtemodell** — zu
+bauen ist die Aktion, die dieselbe Freigabe fragt, die sie später abweist, und
+ihre `can`-Ablage im Payload (`AbilityReachTest` prüft beide Richtungen).
+
+Was ein Kunde hochladen darf, verschärft die Prüfung aus dem Absatz davor an
+zwei Stellen:
+
+- **Die Abweisung muss den Grund nennen.** Ein Betreiber mit einer falsch
+  sortierten Kette liest das Protokoll; ein Kunde liest die Meldung auf der
+  Seite und sonst nichts. „Ungültig" ist dort keine Auskunft.
+- **Grösse und Anzahl sind begrenzt.** Eine Datei, die als root abgelegt wird,
+  ist ein Schreibrecht auf dem Server — nur PEM, nur eine feste Obergrenze, und
+  nur für Domains des eigenen Abonnements.
+
+### Was das Hochladen an bereits Gebautem berührt
+
+Drei Stellen, und alle drei sind dieselbe Frage: **Wer entscheidet, welches
+Zertifikat gilt?**
+
+1. **Die automatische Bestellung darf ein hochgeladenes nicht überholen.**
+   Heute bestellt der Lebenslauf, sobald ein Server-Block steht und die Domain
+   kein Zertifikat hat. Mit dem Hochladen gibt es einen zweiten Weg, zu einem
+   Zertifikat zu kommen — bestellt wird deshalb nur noch, wenn die Domain
+   **kein zugewiesenes Zertifikat hat, das ihre Namen deckt**. Das ist
+   ohnehin die richtige Bedingung: Sie ist auch die für den Platzhalter.
+2. **Die Erneuerung lässt es liegen.** `CertificateRenewal` erneuert, was von
+   ACME kommt. Ein `source = uploaded` gehört übersprungen — aber sichtbar, mit
+   Datum: Ein Zertifikat, das niemand erneuert und das stillschweigend abläuft,
+   nimmt eine Website vom Netz, und das an einem Tag, an dem niemand etwas
+   geändert hat.
+3. **Der Server-Block liefert aus, was zugewiesen ist** — §2.1, derselbe
+   Schritt. Er ist damit nicht nur die Voraussetzung für Platzhalter, sondern
+   auch für das Hochladen.
+
+**Die Reihenfolge der Schritte ändert sich dadurch nicht**, sie wird nur
+besser begründet: Schritt 1 trägt beide Funktionen.
+
 ---
 
 ## 8. Die Schritte, in dieser Reihenfolge
@@ -240,23 +330,34 @@ Jeder Schritt ist für sich abnehmbar, und jeder bringt seinen Wächter samt
 Bruch in `tests/waechter-brechen.sh` mit.
 
 1. **Die Zuordnung umdrehen** (§2.1). Die Anwendung nennt das Zertifikat, der
-   Agent leitet es nicht mehr ab. *Wächter:* Kein Server-Block liefert ein
-   Zertifikat aus, das die Anwendung ihm nicht zugewiesen hat — und keines, das
-   einem fremden Abonnement gehört.
+   Agent leitet es nicht mehr ab; bestellt wird nur noch, wenn kein
+   zugewiesenes Zertifikat die Namen der Domain deckt. *Wächter:* Kein
+   Server-Block liefert ein Zertifikat aus, das die Anwendung ihm nicht
+   zugewiesen hat — und keines, das einem fremden Abonnement gehört.
+   **Dieser Schritt trägt Platzhalter und Hochladen gleichermassen** und hängt
+   an keiner Anbieterwahl.
 2. **Ablageort für Platzhalter** (§2.2). *Wächter:* Der abgeleitete Pfad enthält
    nie einen Stern, und zwei verschiedene Namen ergeben nie dasselbe
    Verzeichnis.
-3. **`DnsChallenge` samt `ready()`** gegen `FakeProvider`. *Wächter:* Es wird
+3. **Hochladen** (§7) — es braucht keinen Anbieter und keine Challenge und ist
+   nach Schritt 1 die kürzeste Strecke zu etwas, das ein Kunde benutzen kann.
+   *Wächter:* Jeder Abweisungsfall einzeln (Schlüssel passt nicht, Kette falsch
+   sortiert, abgelaufen, deckt die Domain nicht), die Freigabe aus dem Plan, und
+   die Erneuerung, die ein hochgeladenes liegen lässt, ohne es zu verschweigen.
+4. **`DnsChallenge` samt `ready()`** gegen `FakeProvider`. *Wächter:* Es wird
    nicht geprüft, bevor die autoritativen Nameserver den Eintrag ausliefern;
    `cleanup()` läuft auch nach einem Fehlschlag.
-4. **Zugangsdaten** (§5). *Wächter:* Kein Token verlässt den Agenten — keine
-   Leseoperation gibt es zurück, kein Protokolleintrag enthält es.
-5. **Der erste echte Anbieter** und die Abnahme gegen deSEC.
-6. **Bestellen mit Platzhalter in der Oberfläche.** Wer darf, was wird bestellt
-   (`example.de` **und** `*.example.de`), und was die Seite sagt, wenn eine
+5. **Zugangsdaten und die Auflösung des Profils** (§5). *Wächter:* Kein Token
+   verlässt den Agenten — keine Leseoperation gibt es zurück, kein
+   Protokolleintrag enthält es; und ein Abonnement kommt nie an ein fremdes
+   Profil.
+6. **RFC 2136** als erster echter Anbieter, dazu die Abnahme gegen eine eigene
+   Zone.
+7. **Bestellen mit Platzhalter in der Oberfläche.** Wer darf (§3), was bestellt
+   wird (`example.de` **und** `*.example.de`), und was die Seite sagt, wenn eine
    zweite Ebene ungedeckt bleibt.
-7. **Hochladen** (§7).
-8. **Weitere Anbieter**, einer nach dem anderen.
+8. **Hetzner, Cloudflare, Netcup, IPv64.net** — einer nach dem anderen, jeder
+   mit seinem Wächter und seinen Fehlerfällen.
 
 ---
 
@@ -274,17 +375,31 @@ Gemessen auf einem echten Server, nicht geschätzt (Plan §8):
 - Die Erneuerung läuft über denselben Zeitplan und ist **eine** Bestellung.
 - Ein hochgeladenes Zertifikat mit falsch sortierter Kette wird abgewiesen, und
   die Meldung sagt, was falsch ist.
+- Ein hochgeladenes, gültiges Zertifikat bleibt liegen: Die automatische
+  Bestellung überholt es nicht, und die Erneuerung fasst es nicht an — die
+  Domainseite nennt aber das Datum, ab dem es zu spät ist.
 - Das DNS-Token steht in keinem Vorgang, in keinem Protokoll und in keiner
   Antwort der Oberfläche.
 
 ---
 
-## 10. Was der Betreiber entscheidet, bevor gebaut wird
+## 10. Die Entscheidungen des Betreibers
 
-1. **Welche Anbieter, und in welcher Reihenfolge?** Vorschlag in §6.
-2. **Zugangsdaten am Betreiber oder am Abonnement?** (§5) — die Frage mit den
-   grössten Folgen für die Oberfläche.
-3. **Darf ein Kunde selbst einen Platzhalter bestellen**, oder ist das eine
-   Handlung des Betreibers? Ein Platzhalter deckt die ganze Zone (§3).
-4. **Darf ein Kunde ein eigenes Zertifikat hochladen?** Technisch geprüft ist es
-   in beiden Fällen; die Frage ist, wer den Schlüssel auf den Server legen darf.
+Getroffen am 6. August 2026, alle vier:
+
+1. **Anbieter und Reihenfolge:** RFC 2136, Hetzner, Cloudflare, Netcup,
+   IPv64.net (§6).
+2. **Zugangsdaten am Abonnement** — über `Feature::DnsEdit` aus dem Plan, mit
+   dem Profil des Betreibers als Grundfall (§5).
+3. **Der Kunde darf einen Platzhalter bestellen** — für Basisdomains, die ihm
+   gehören (§3).
+4. **Der Kunde darf ein eigenes Zertifikat hochladen** — über
+   `Feature::CertificateUpload`, die es im Plan bereits gibt (§7).
+
+**Was daraus offen bleibt und beim Bauen beantwortet wird**, nicht vorher:
+
+- Der Endpunktsatz von IPv64.net (§6) — an der Dokumentation zu prüfen.
+- Die Frist, nach der `ready()` aufgibt, und wie oft dazwischen gefragt wird.
+  Sie hängt an dem, was die Anbieter tatsächlich tun, und gehört gemessen statt
+  geraten.
+- Die Obergrenze für eine hochgeladene Datei (§7).

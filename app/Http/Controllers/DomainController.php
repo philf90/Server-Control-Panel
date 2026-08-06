@@ -6,11 +6,14 @@ namespace App\Http\Controllers;
 
 use App\Enums\SubscriptionStatus;
 use App\Models\Account;
+use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Plans\Quota;
+use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificateOrder;
 use App\Support\Web\Domains;
 use App\Support\Web\Page;
 use App\Support\Web\PhpLimits;
@@ -42,6 +45,7 @@ final class DomainController extends Controller
 {
     public function __construct(
         private readonly Domains $domains,
+        private readonly AcmeSettings $tls,
         private readonly PhpSelection $php,
         private readonly PhpLimits $limits,
     ) {}
@@ -160,6 +164,8 @@ final class DomainController extends Controller
             'caps' => $subscription === null ? [] : $this->limits->capsFor($subscription),
             'settings' => array_keys(PhpSettings::ALLOWED),
             'directives' => Directives::ALLOWED,
+            'certificate' => $this->certificateOf($domain),
+            'acme' => ['configured' => $this->tls->configured(), 'staging' => $this->tls->staging()],
             'may' => [
                 'update' => $request->user()?->can('update', $domain) ?? false,
                 'update_php' => $request->user()?->can('updatePhp', $domain) ?? false,
@@ -304,6 +310,72 @@ final class DomainController extends Controller
         }
 
         return $out;
+    }
+
+    /**
+     * Was für ein Zertifikat diese Domain ausliefert.
+     *
+     * **Gelesen wird der Bestand und nicht der Ablageort.** Was dort liegt, weiss
+     * der Agent; was gilt, steht in `certificates`. Die Seite fragt den
+     * Agenten hier bewusst nicht: Eine Domainseite, die bei jedem Aufruf über
+     * den Socket geht, ist eine Seite, die bei einem stehenden Agenten nicht
+     * mehr aufgeht — und die Frage „habe ich eines?" beantwortet der Bestand.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function certificateOf(Domain $domain): ?array
+    {
+        $certificate = $domain->certificate_id === null
+            ? null
+            : Certificate::query()->find($domain->certificate_id);
+
+        if (! $certificate instanceof Certificate) {
+            return null;
+        }
+
+        return [
+            'names' => $certificate->coveredNames(),
+            'issuer' => $certificate->issuer,
+            'source' => $certificate->source->value,
+            'source_label' => $certificate->source->label(),
+            'trusted' => $certificate->source->trusted(),
+            'not_after' => $certificate->not_after?->getTimestamp(),
+            'renew_after' => $certificate->renew_after?->getTimestamp(),
+
+            // Deckt es wirklich alles ab, was im `server_name` steht? Ein
+            // Alias, der nach der Ausstellung dazukam, ist genau der Fall, in
+            // dem der Browser warnt und im Panel alles grün aussieht.
+            'covers_all' => $certificate->coversAll($domain->serverNames()),
+        ];
+    }
+
+    /**
+     * Für diese Domain ein Zertifikat bestellen.
+     *
+     * Wie bestellt wird, steht an einer Stelle ({@see CertificateOrder}) —
+     * hier wird nur entschieden, *ob*. Ohne Kontaktadresse passiert dort
+     * nichts, und dann sagt es die Meldung statt einer leeren Vorgangsliste.
+     */
+    public function certificate(Domain $domain, Request $request, CertificateOrder $order, Audit $audit): RedirectResponse
+    {
+        $operation = $order->place($domain);
+
+        if ($operation === null) {
+            // `failure()` kennt kein Ziel — die Domain steht deshalb im
+            // Zusammenhang. Ohne sie wäre der Eintrag die halbe Auskunft.
+            $audit->failure('domain.certificate.ordered', [
+                'domain' => $domain->name,
+                'reason' => 'keine Kontaktadresse',
+            ]);
+
+            return redirect()
+                ->route('domains.show', $domain)
+                ->with('error', 'Es ist keine Kontaktadresse für Let’s Encrypt eingetragen — ohne sie wird nichts bestellt.');
+        }
+
+        $audit->success('domain.certificate.ordered', $domain, ['operation' => (int) $operation->id]);
+
+        return redirect()->route('operations.show', $operation);
     }
 
     /** @return array<string, mixed> */

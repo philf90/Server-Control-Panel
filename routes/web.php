@@ -299,6 +299,22 @@ Route::middleware('auth')->group(function (): void {
         ->name('domains.destroy');
 
     /*
+     * Ein Zertifikat für diese Domain bestellen.
+     *
+     * **Von Hand, obwohl es von selbst passiert.** Der Lebenslauf bestellt,
+     * sobald der Server-Block steht; scheitert die Prüfung — falscher
+     * DNS-Eintrag, Port 80 zu —, wartet die Domain sonst auf den nächsten
+     * Anlass, den es nicht gibt. Wer den Eintrag gerade berichtigt hat, will
+     * es jetzt versuchen und nicht morgen.
+     *
+     * Dieselbe Fähigkeit wie beim Ändern der Domain: Wer sie einstellen darf,
+     * darf auch ihr Zertifikat bestellen.
+     */
+    Route::post('/domains/{domain}/certificate', [DomainController::class, 'certificate'])
+        ->middleware('can:update,domain')
+        ->name('domains.certificate');
+
+    /*
      * Die Protokolle einer Domain.
      *
      * Eigene Fähigkeit statt `view`: Ein Fehlerprotokoll enthält Pfade,
@@ -393,6 +409,17 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/settings/tls', [TlsSettingsController::class, 'store'])
         ->middleware('can:manage-settings')
         ->name('settings.tls.reissue');
+
+    /*
+     * Kontaktadresse und Zertifizierungsstelle für ACME.
+     *
+     * Ohne die Adresse bestellt das Panel nichts — dieses Formular ist der
+     * Schalter, mit dem TLS für die Kunden überhaupt anfängt. Bis P4 gab es
+     * ihn nur auf der Kommandozeile.
+     */
+    Route::put('/settings/tls/acme', [TlsSettingsController::class, 'acme'])
+        ->middleware('can:manage-settings')
+        ->name('settings.tls.acme');
 
     /*
      * Den zweiten Faktor einrichten oder abschalten.

@@ -34,7 +34,15 @@ final class DnsPacketTest extends TestCase
     /** Zeigt auf Offset 12 — den Namen in der Frage. */
     private const POINTER = "\xc0\x0c";
 
-    private function name(string $name): string
+    /**
+     * Ein Name im Drahtformat.
+     *
+     * **Nicht `name()`.** Der Name gehört PHPUnit und ist dort `final` — die
+     * Datei liess sich damit nicht einmal laden, und zwar mit einem fatalen
+     * Fehler statt einer Testmeldung. Dritter Fall dieser Art in diesem
+     * Projekt nach `count()` und `configure()`.
+     */
+    private function encoded(string $name): string
     {
         $encoded = '';
 
@@ -66,7 +74,7 @@ final class DnsPacketTest extends TestCase
     private function answer(array $answers, int $id = self::ID, int $flags = 0x8400): string
     {
         $packet = pack('n6', $id, $flags, 1, count($answers), 0, 0);
-        $packet .= $this->name(self::NAME).pack('n2', Packet::TYPE_TXT, Packet::CLASS_IN);
+        $packet .= $this->encoded(self::NAME).pack('n2', Packet::TYPE_TXT, Packet::CLASS_IN);
 
         return $packet.implode('', $answers);
     }
@@ -99,7 +107,7 @@ final class DnsPacketTest extends TestCase
     public function test_a_name_written_out_is_read_correctly(): void
     {
         $answer = $this->answer([
-            $this->record($this->name(self::NAME), Packet::TYPE_TXT, $this->rdata(self::VALUE)),
+            $this->record($this->encoded(self::NAME), Packet::TYPE_TXT, $this->rdata(self::VALUE)),
         ]);
 
         $this->assertSame([self::VALUE], Packet::txt($answer, self::ID));

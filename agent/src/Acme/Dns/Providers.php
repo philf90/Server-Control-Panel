@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Acme\Dns;
 
+use SrvPanel\Agent\Acme\Directories;
 use SrvPanel\Agent\AgentException;
 
 /**
  * Die DNS-Anbieter, mit denen dieser Agent spricht — als Positivliste.
  *
  * **Das Panel nennt einen Schlüssel, keine Adresse.** Dieselbe Entscheidung wie
- * bei den Zertifizierungsstellen ({@see \SrvPanel\Agent\Acme\Directories}):
+ * bei den Zertifizierungsstellen ({@see Directories}):
  * Nähme der Agent eine URL entgegen, wäre die Anwendung eine Fernsteuerung
  * dafür, wohin ein Prozess als root eine Verbindung aufbaut und wem er ein
  * Token zeigt, das eine ganze Zone öffnet.

@@ -6,9 +6,11 @@ namespace Tests\Feature;
 
 use App\Enums\DomainType;
 use App\Models\Domain;
+use App\Models\Setting;
 use App\Models\Subscription;
 use App\Support\Plans\Feature;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Tls\AcmeSettings;
 use App\Support\Tls\CertificateOrder;
 use App\Support\Tls\DnsProfile;
 use App\Support\Tls\WildcardOrder;
@@ -39,6 +41,22 @@ final class WildcardOrderTest extends TestCase
     private function wildcards(array $profiles = [DnsProfile::OPERATOR]): WildcardOrder
     {
         return new WildcardOrder(new DnsProfile, new ScriptedDnsCredentials($profiles));
+    }
+
+    /**
+     * Ohne Kontaktadresse bestellt {@see CertificateOrder} gar nichts.
+     *
+     * **Und das ist keine Kulisse, sondern die Zusage aus {@see AcmeSettings}:**
+     * Die Adresse gehört gesetzt und nicht aus dem ersten Adminkonto geraten.
+     * Genau daran sind hier zwei Durchgänge gescheitert — sie prüften den
+     * Auftrag und bekamen `null`.
+     */
+    private function withContact(): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => AcmeSettings::KEY],
+            ['value' => ['contact' => 'post@beispiel.de', 'directory' => 'staging']],
+        );
     }
 
     private function subscription(bool $mayEditDns = false): Subscription
@@ -85,6 +103,8 @@ final class WildcardOrderTest extends TestCase
     /** Und die Bestellung nimmt genau diese Reihenfolge mit. */
     public function test_the_order_carries_the_star_first(): void
     {
+        $this->withContact();
+
         $domain = $this->domain($this->subscription(), 'example.de');
 
         $operation = app(CertificateOrder::class)->place($domain, wildcard: true);
@@ -104,6 +124,8 @@ final class WildcardOrderTest extends TestCase
      */
     public function test_an_ordinary_order_says_nothing_about_dns(): void
     {
+        $this->withContact();
+
         $domain = $this->domain($this->subscription(), 'example.de');
 
         $operation = app(CertificateOrder::class)->place($domain);

@@ -21,12 +21,12 @@ use SrvPanel\Agent\AgentException;
  * sechsten braucht, ändert diese Datei; das ist eine Änderung, die jemand
  * liest, und kein Feld in einem Formular.
  *
- * **Umgesetzt ist noch keiner, und hier steht deshalb auch keine Werkstatt.**
- * Die Reihenfolge des Plans baut zuerst die Strecke — Prüfung, Ablage der
- * Zugangsdaten — und dann die Anbieter. Eine Fabrikmethode, die für jeden
- * Schlüssel eine Ausnahme wirft, wäre genau die Sorte Zeichenkette, die auf
- * nichts zeigt; sie kommt mit der ersten Umsetzung. Geprüft wird hier nur, ob
- * ein Schlüssel überhaupt einer ist.
+ * **Und was noch nicht gebaut ist, lässt sich auch nicht hinterlegen.** Vier
+ * der fünf stehen in {@see self::PENDING} und werden beim Ablegen der
+ * Zugangsdaten abgewiesen. Das ist der Unterschied zu einer Liste, die schon
+ * einmal alles anbietet: Ein Token, das im Formular angenommen wird und von
+ * nichts benutzt werden kann, ist genau die Sorte Zeichenkette, die auf nichts
+ * zeigt — und sie liegt hier als Geheimnis auf der Platte.
  */
 final class Providers
 {
@@ -54,10 +54,98 @@ final class Providers
         self::IPV64 => 'IPv64.net',
     ];
 
+    /**
+     * Die vier, die noch kommen — Schritt 9 des Plans.
+     *
+     * **Sie stehen hier und nicht in einem Kommentar**, damit
+     * `Rfc2136Test::test_every_provider_key_points_at_something` beide
+     * Richtungen prüfen kann: Jeder Schlüssel ist entweder gebaut oder steht
+     * hier, und wer hier steht, hat keine Umsetzung. Ein Schlüssel, der aus
+     * dieser Liste fällt, ohne dass es ihn gibt, fällt beim nächsten Lauf auf.
+     *
+     * @var list<string>
+     */
+    public const PENDING = [
+        self::HETZNER,
+        self::CLOUDFLARE,
+        self::NETCUP,
+        self::IPV64,
+    ];
+
     /** @return list<string> */
     public static function keys(): array
     {
         return array_keys(self::LABELS);
+    }
+
+    /**
+     * Die Anbieter, die heute benutzbar sind.
+     *
+     * @return list<string>
+     */
+    public static function available(): array
+    {
+        return array_values(array_diff(self::keys(), self::PENDING));
+    }
+
+    /**
+     * Die Zugangsdaten prüfen, ohne etwas anzulegen.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed> Die geprüfte Fassung — sie wird abgelegt, nicht die rohe
+     */
+    public static function configure(mixed $key, array $config): array
+    {
+        return match ($name = self::usable($key)) {
+            self::RFC2136 => Rfc2136::configure($config),
+            default => throw self::missing($name),
+        };
+    }
+
+    /**
+     * Und die Werkstatt selbst.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    public static function make(mixed $key, array $config): DnsProvider
+    {
+        return match ($name = self::usable($key)) {
+            self::RFC2136 => Rfc2136::fromConfig($config),
+            default => throw self::missing($name),
+        };
+    }
+
+    /**
+     * Der Fall, den es nicht geben soll: bekannt, nicht offen, nicht gebaut.
+     *
+     * **Er steht hier als Zweig und nicht als Lücke.** Ein `match` ohne diesen
+     * Ausgang wirft zwar auch — aber einen `UnhandledMatchError`, und der
+     * landet als „interner Fehler" im Panel, ohne zu sagen, woran es liegt.
+     * Erreichbar ist er nur über einen Schlüssel, der aus {@see self::PENDING}
+     * gefallen ist, ohne dass es die Umsetzung gibt; genau das prüft
+     * `Rfc2136Test::test_every_provider_key_points_at_something`.
+     */
+    private static function missing(string $key): AgentException
+    {
+        return AgentException::execFailed(
+            'Für diesen DNS-Anbieter fehlt die Umsetzung.',
+            ['provider' => $key, 'available' => self::available()],
+        );
+    }
+
+    /** Ein Schlüssel, hinter dem auch etwas steht. */
+    public static function usable(mixed $key): string
+    {
+        $name = self::normalize($key);
+
+        if (in_array($name, self::PENDING, true)) {
+            throw AgentException::badRequest(
+                'Dieser DNS-Anbieter ist noch nicht umgesetzt.',
+                ['provider' => $name, 'available' => self::available()],
+            );
+        }
+
+        return $name;
     }
 
     /** Der Name, wie ihn jemand liest. */

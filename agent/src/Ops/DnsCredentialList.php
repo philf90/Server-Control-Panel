@@ -49,6 +49,13 @@ final class DnsCredentialList implements Op
             $profiles[] = $described + ['provider_label' => Providers::label($described['provider'])];
         }
 
-        return ['profiles' => $profiles, 'providers' => Providers::keys()];
+        // **Beide Listen.** Die Oberfläche soll zeigen können, dass es die
+        // anderen vier gibt und dass sie noch nicht gehen — sonst fragt sich
+        // jemand, warum sein Anbieter fehlt, und trägt ihn beim falschen ein.
+        return [
+            'profiles' => $profiles,
+            'providers' => Providers::keys(),
+            'available' => Providers::available(),
+        ];
     }
 }

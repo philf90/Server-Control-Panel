@@ -189,6 +189,12 @@ muss, statt eine Warnung im Browser entstehen zu lassen.
 > Der `DnsProvider` selbst hat noch keine Umsetzung; die kommt mit den
 > Zugangsdaten (Schritt 6) und RFC 2136 (Schritt 7). Bis dahin steht die
 > Schnittstelle und ein Doppel im Testverzeichnis.
+>
+> **Nachtrag zu Schritt 7:** Sie steht jetzt — `Acme\Dns\Rfc2136`, mit
+> `Tsig` für die Unterschrift, `UpdateMessage` für das Drahtformat und
+> `Exchange` als Naht zum Netz. Die vier übrigen Anbieter stehen in
+> `Providers::PENDING` und werden beim Hinterlegen abgewiesen, damit kein
+> Geheimnis auf der Platte liegt, das nichts benutzen kann.
 
 **Ein `FakeProvider` gehört dazu und ist keine Zugabe.** Sonst prüft nichts von
 alledem ohne fremden Dienst, und ein Test, der eine fremde API braucht, wird
@@ -528,7 +534,16 @@ Bruch in `tests/waechter-brechen.sh` mit.
    Protokolleintrag enthält es; und ein Abonnement kommt nie an ein fremdes
    Profil.
 7. **RFC 2136** als erster echter Anbieter, dazu die Abnahme gegen eine eigene
-   Zone.
+   Zone. *Gebaut.* Die Zonen stehen dabei **in den Zugangsdaten** und werden
+   nicht über den SOA-Satz erraten: Ein TSIG-Schlüssel ist im Nameserver
+   ohnehin auf eine Zone eingegrenzt, und die Liste ist damit eine
+   Positivliste — ein Profil ändert genau die Zonen, die der Betreiber
+   hineingeschrieben hat, und nicht die, die aus dem Namen einer Kundendomain
+   folgen. *Wächter:* die Unterschrift Byte für Byte gegen RFC 8945 §4.3.3
+   nachgerechnet (und nicht mit derselben Klasse gebaut, die sie prüft), die
+   Antwort des Nameservers nachgerechnet, ein Name ausserhalb der Zonen wird
+   nicht versucht, und jeder Anbieterschlüssel zeigt auf eine Umsetzung oder
+   steht als offen. Die Abnahme gegen eine echte Zone steht aus (§10).
 8. **Bestellen mit Platzhalter in der Oberfläche.** Wer darf (§3), was bestellt
    wird (`example.de` **und** `*.example.de`), und was die Seite sagt, wenn eine
    zweite Ebene ungedeckt bleibt.

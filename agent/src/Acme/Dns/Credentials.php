@@ -38,7 +38,12 @@ final class Credentials
     public function __construct(private readonly string $directory = self::DIRECTORY) {}
 
     /**
-     * Ein Profil ablegen — und dabei den Anbieter prüfen.
+     * Ein Profil ablegen — und dabei Anbieter und Zugangsdaten prüfen.
+     *
+     * **Geprüft wird hier und nicht beim Bestellen.** Was beim Hinterlegen
+     * durchgeht, fällt sonst erst auf, wenn eine Erneuerung um drei Uhr
+     * morgens an einem vertippten Schlüsselnamen scheitert — und der Betreiber
+     * sieht am nächsten Tag ein abgelaufenes Zertifikat und keine Ursache.
      *
      * **Geschrieben wird über eine Zwischendatei**, aus demselben Grund wie
      * beim Zertifikat: Ein Lauf, der mittendrin abbricht, hinterlässt sonst
@@ -50,7 +55,8 @@ final class Credentials
     public function store(mixed $profile, mixed $provider, array $config): void
     {
         $name = self::name($profile);
-        $key = Providers::normalize($provider);
+        $key = Providers::usable($provider);
+        $config = Providers::configure($key, $config);
 
         if (! is_dir($this->directory) && ! @mkdir($this->directory, 0o700, true) && ! is_dir($this->directory)) {
             throw AgentException::execFailed('Das Verzeichnis für die Zugangsdaten ließ sich nicht anlegen.');

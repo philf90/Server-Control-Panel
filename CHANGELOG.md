@@ -3221,3 +3221,88 @@ Oberfläche dazu kommt danach und ersetzt dieses Kommando nicht.
 
 Drei neue Brüche, zwei davon **rot-grün gefahren**: der ungeprüfte Profilname,
 das Token in der Antwort, und die Planfreigabe, die nicht mehr entscheidet.
+
+#### Schritt 7: RFC 2136 — der erste Anbieter, der wirklich etwas ändert
+
+**Der Standard und kein Anbietercode.** Eine TSIG-unterschriebene
+Zonenaktualisierung bedient BIND, Knot und PowerDNS gleichermassen — und damit
+auch die eigene Zone aus P7, ohne dass es dafür eine zweite Umsetzung bräuchte.
+Deshalb steht er in der Reihenfolge vorn.
+
+**Die Zonen stehen in den Zugangsdaten und werden nicht erraten.** Man könnte
+sie über den SOA-Satz suchen, und die meisten Umsetzungen tun das; hier nicht.
+Ein TSIG-Schlüssel ist im Nameserver ohnehin auf eine Zone eingegrenzt — wer sie
+errät, bekommt ein stummes `REFUSED` —, und vor allem ist die Liste damit eine
+**Positivliste**: Ein Profil ändert genau die Zonen, die der Betreiber
+hineingeschrieben hat. Ohne sie wäre der Zonenname eine Grösse, die aus dem
+Namen einer Domain folgt, und den bestimmt ein Kunde. Zusammengesetzt wird von
+unten, die längste passende Zone gewinnt: Wer `example.de` und
+`intern.example.de` mit demselben Schlüssel führt, will für einen Namen in der
+zweiten auch die zweite genannt haben.
+
+**Verglichen wird beschriftungsweise.** `boesexample.de` endet auf
+`example.de` — ein Vergleich als Zeichenkette liesse hier eine fremde Domain in
+eine Zone hinein, die jemand anderem gehört.
+
+**Die Antwort des Nameservers wird nachgerechnet.** Über TCP ist eine
+untergeschobene Antwort nicht leicht, aber „nicht leicht" ist bei einem Prozess
+mit Systemrechten kein Argument: Ein gefälschtes `NOERROR` hiesse, wir sagen der
+Zertifizierungsstelle „prüf jetzt", während nichts in der Zone steht — und
+verbrennen einen der fünf Fehlversuche je Konto und Stunde, die für jeden Kunden
+dieses Servers gelten. Geprüft werden Kennung, Unterschrift und Rückgabewert,
+und jeder Rückgabewert hat einen deutschen Satz: Ohne ihn stünde im Protokoll
+„Rückgabewert 9" und der Betreiber suchte an der falschen Stelle.
+
+**Der Rechenweg der Unterschrift ist zweimal geschrieben, und das mit Absicht.**
+Die Durchgänge rechnen ihn Byte für Byte aus RFC 8945 §4.3.3 nach, statt mit
+derselben Klasse zu unterschreiben, die gleich prüfen soll — sonst bestünden sie
+auch dann, wenn beide Seiten denselben Fehler machen. Die Stelle, um die es dabei
+geht: Gerechnet wird über die Nachricht **vor** dem TSIG-Satz, also mit dem alten
+`ARCOUNT`. Wer es andersherum macht, bekommt eine Unterschrift, die in sich
+stimmig ist, und einen Nameserver, der `NOTAUTH` antwortet, ohne zu sagen, an
+welcher der acht Grössen es lag.
+
+**Ohne `hmac-md5` und ohne `hmac-sha1`.** Beide stehen in RFC 8945 noch drin,
+und `hmac-md5` ist dort sogar der alte Standardwert; für einen Schlüssel, der
+heute neu eingerichtet wird, gibt es keinen Grund dazu.
+
+**Was noch nicht gebaut ist, lässt sich jetzt auch nicht mehr hinterlegen.**
+Hetzner, Cloudflare, Netcup und IPv64.net stehen in `Providers::PENDING` und
+werden beim Ablegen abgewiesen. Ein Formular, das ein Cloudflare-Token annimmt,
+sagt dem Betreiber, dass es geht — und die Wahrheit erfährt er beim ersten
+Zertifikat, mit einem Geheimnis, das längst auf der Platte liegt. Aus demselben
+Grund prüft `srvpanel dns` die Angaben jetzt beim Hinterlegen und nicht erst
+beim Bestellen: Was durchgeht, fällt sonst auf, wenn eine Erneuerung um drei Uhr
+morgens an einem vertippten Schlüsselnamen scheitert. Und das Geheimnis wird
+gefragt, wenn es nicht in der Kommandozeile steht — was dort steht, steht danach
+in der Verlaufsdatei der Shell und in `ps`.
+
+**Das Drahtformat eines Namens hat jetzt eine Stelle.** `Acme\Dns\Name` schreibt
+und überliest ihn; die Frage nach einem TXT-Satz, die Aktualisierung und die
+Unterschrift benutzen sie. Der zusammengefasste Name — zwei Bytes, die auf eine
+frühere Stelle zeigen (RFC 1035 §4.1.4) — ist die Stelle, an der
+handgeschriebener DNS-Code danebengeht, und drei Fassungen davon wären der
+Fehler, der dieses Projekt am häufigsten kostet. `DnsNameSourceTest` besteht
+darauf, mit denselben zwei Mustern, die auch `HostnameSourceTest` benutzt: eng
+genug, dass `explode('.', …)` in `DomainName` und `Resolver` nicht mitgemeldet
+wird — ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen
+abgeschaltet.
+
+**Und ein Wächter für einen Fehler, der drei CI-Runden gekostet hat.** Ein Name,
+der der Basisklasse gehört, bricht beim *Laden* der Klasse und nicht beim
+Ausführen: `count()` in einem Testfall, `configure()` in einem Artisan-Kommando
+— dort stand danach nicht ein Kommando still, sondern `artisan` mit allen —, und
+zuletzt `name()` in `DnsPacketTest`. Nach dem zweiten Mal stand die Regel in
+CLAUDE.md; beim dritten Mal habe ich sie gelesen und bin trotzdem hineingelaufen.
+**Ein Satz in einer Datei ist kein Wächter.** `InheritedNameTest` liest den Text
+der Datei und lädt nur die Basisklasse — denn ein Wächter, der die fragliche
+Klasse zur Prüfung lädt, stürzt selbst mit demselben fatalen Fehler ab.
+
+Fünf neue Brüche im Bruchskript: die Unterschrift über den erhöhten Zähler, die
+Zone als Zeichenkette verglichen, ein Anbieter ohne Umsetzung, der nicht als
+offen geführt wird, eine zweite Fassung des Drahtformats, und ein Name der
+Basisklasse.
+
+Was aussteht: die Abnahme gegen eine echte Zone auf dem Zielserver — sie ist das
+Kriterium aus `docs/34 §10` und lässt sich hier nicht messen; dieser Container
+hat keinen Nameserver, der Aktualisierungen annimmt.

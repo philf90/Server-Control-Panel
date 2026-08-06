@@ -13,12 +13,11 @@ namespace SrvPanel\Agent\Acme\Dns;
  * ohne Nameserver, ohne Wartezeit. Der Teil, der eine Steckdose braucht, bleibt
  * im Resolver und ist eine Handvoll Zeilen.
  *
- * **Und weil hier der Fehler wohnt, den man nicht sieht.** Ein Name in einer
- * Antwort steht selten ausgeschrieben da; meistens sind es zwei Bytes, die auf
- * eine frühere Stelle zeigen (§4.1.4). Wer das nicht erkennt, liest die
- * folgenden Felder um einige Bytes verschoben und bekommt Werte, die fast
- * stimmen — und „fast" heisst hier: Die Prüfung schlägt fehl, und im Protokoll
- * steht nichts, was darauf hindeutet.
+ * **Der Name selbst steht in {@see Name}.** Dort wohnt der Fehler, den man
+ * nicht sieht — der zusammengefasste Name aus §4.1.4 —, und dort wohnt er
+ * einmal: Auch die TSIG-Unterschrift und die Aktualisierung schreiben Namen,
+ * und drei Fassungen desselben Gedankens sind in diesem Projekt der teuerste
+ * aller Fehler.
  */
 final class Packet
 {
@@ -37,7 +36,7 @@ final class Packet
     public static function query(int $id, string $name): string
     {
         return pack('n6', $id, 0, 1, 0, 0, 0)
-            .self::encodeName($name)
+            .Name::encode($name)
             .pack('n2', self::TYPE_TXT, self::CLASS_IN);
     }
 
@@ -80,14 +79,14 @@ final class Packet
         $offset = 12;
 
         for ($i = 0; $i < $header['qd']; $i++) {
-            self::skipName($answer, $offset);
+            Name::skip($answer, $offset);
             $offset += 4;
         }
 
         $values = [];
 
         for ($i = 0; $i < $header['an']; $i++) {
-            self::skipName($answer, $offset);
+            Name::skip($answer, $offset);
 
             if ($offset + 10 > strlen($answer)) {
                 return $values;
@@ -122,52 +121,6 @@ final class Packet
         }
 
         return $values;
-    }
-
-    /** Ein Name als Folge von Beschriftungen, abgeschlossen mit einer Null. */
-    private static function encodeName(string $name): string
-    {
-        $encoded = '';
-
-        foreach (explode('.', trim($name, '.')) as $label) {
-            if ($label === '') {
-                continue;
-            }
-
-            $encoded .= chr(min(strlen($label), 63)).substr($label, 0, 63);
-        }
-
-        return $encoded."\0";
-    }
-
-    /**
-     * Einen Namen überspringen — auch einen zusammengefassten.
-     *
-     * Siehe die Klassenbeschreibung: Das ist die Stelle, an der ein
-     * handgeschriebener Auflöser danebengeht.
-     */
-    private static function skipName(string $answer, int &$offset): void
-    {
-        $length = strlen($answer);
-
-        while ($offset < $length) {
-            $marker = ord($answer[$offset]);
-
-            if ($marker === 0) {
-                $offset++;
-
-                return;
-            }
-
-            if (($marker & 0xC0) === 0xC0) {
-                // Ein Zeiger ist zwei Bytes lang und beendet den Namen.
-                $offset += 2;
-
-                return;
-            }
-
-            $offset += 1 + $marker;
-        }
     }
 
     /**

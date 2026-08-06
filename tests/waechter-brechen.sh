@@ -1404,6 +1404,121 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsProfileTest passed
 
 echo
+echo "── TsigTest: über den erhöhten Zähler unterschrieben ──"
+#
+# Gerechnet wird über die Nachricht, *bevor* der TSIG-Satz dazukommt — also mit
+# dem alten ARCOUNT. Wer es andersherum macht, bekommt eine Unterschrift, die in
+# sich stimmig ist, und einen Nameserver, der NOTAUTH antwortet, ohne zu sagen,
+# an welcher der acht Grössen es lag.
+vorher_datei agent/src/Acme/Dns/Tsig.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Tsig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $mac = hash_hmac(self::ALGORITHMS[$this->algorithm], $message.$variables, $this->secret, true);",
+    "        $mac = hash_hmac(self::ALGORITHMS[$this->algorithm], self::withOneMoreAdditional($message).$variables, $this->secret, true);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Tsig.php "Unterschrift über den erhöhten Zähler" &&
+pruefe "Unterschrift über den erhöhten Zähler" \
+  TsigTest::test_the_mac_is_the_one_the_rfc_prescribes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TsigTest passed
+
+echo
+echo "── Rfc2136Test: die Zone als Zeichenkette verglichen ──"
+#
+# `bösexample.de` endet auf `example.de`. Verglichen wird deshalb
+# beschriftungsweise — ein Vergleich als Zeichenkette liesse eine fremde Domain
+# in eine Zone hinein, die jemand anderem gehört, und das ist hier die Grenze
+# zwischen zwei Kunden.
+vorher_datei agent/src/Acme/Dns/Name.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Name.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $name === $zone || ($zone !== '' && str_ends_with($name, '.'.$zone));",
+    "        return $zone !== '' && str_ends_with($name, $zone);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Name.php "Zone als Zeichenkette verglichen" &&
+pruefe "Zone als Zeichenkette verglichen" \
+  Rfc2136Test::test_a_name_outside_the_zones_is_refused failed
+wiederherstellen
+
+echo
+echo "── Rfc2136Test: ein Anbieter ohne Umsetzung gilt als fertig ──"
+#
+# Ein Schlüssel, der weder gebaut ist noch als offen dasteht, ist genau die
+# Zeichenkette, die auf nichts zeigt — und sie fiele erst beim ersten
+# Zertifikat auf, mit einem Token, das längst auf der Platte liegt.
+vorher_datei agent/src/Acme/Dns/Providers.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Providers.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        self::HETZNER,\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Providers.php "Anbieter ohne Umsetzung nicht als offen geführt" &&
+pruefe "Anbieter ohne Umsetzung nicht als offen geführt" \
+  Rfc2136Test::test_every_provider_key_points_at_something failed
+wiederherstellen
+
+echo
+echo "── DnsNameSourceTest: eine zweite Fassung des Drahtformats ──"
+#
+# Ein Name in einer Antwort steht selten ausgeschrieben da; meistens sind es
+# zwei Bytes, die auf eine frühere Stelle zeigen. Eine zweite Fassung liest die
+# folgenden Felder irgendwann um einige Bytes verschoben — und im Protokoll
+# steht nichts, was darauf hindeutet.
+vorher_datei agent/src/Acme/Dns/Resolver.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Resolver.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "    public const PORT = 53;",
+    "    public const PORT = 53;\n\n"
+    "    private static function skipName(string $answer, int &$offset): void\n"
+    "    {\n"
+    "        if ((ord($answer[$offset]) & 0xC0) === 0xC0) {\n"
+    "            $offset += 2;\n"
+    "        }\n"
+    "    }",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Resolver.php "zweite Fassung des Drahtformats" &&
+pruefe "zweite Fassung des Drahtformats" \
+  DnsNameSourceTest::test_only_one_place_writes_a_dns_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsNameSourceTest passed
+
+echo
+echo "── InheritedNameTest: ein Name, der der Basisklasse gehört ──"
+#
+# `configure()` ist in einem Artisan-Kommando protected. Als private eingezogen
+# bricht die Klasse beim Laden — und damit steht nicht ein Kommando still,
+# sondern artisan mit allen. Dreimal passiert; `php -l` sieht davon nichts.
+vorher_datei app/Console/Commands/DnsCredentials.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/DnsCredentials.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "    /** @return array<string, string> */\n    private function actor(): array",
+    "    private function configure(): void {}\n\n"
+    "    /** @return array<string, string> */\n    private function actor(): array",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/DnsCredentials.php "Name der Basisklasse eingezogen" &&
+pruefe "Name der Basisklasse eingezogen" \
+  InheritedNameTest::test_no_class_redeclares_a_name_of_its_base_class failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InheritedNameTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

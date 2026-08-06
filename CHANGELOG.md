@@ -3127,3 +3127,182 @@ der Durchgang ein zweites Mal.
 Datensatz ist eine Zeitbombe mit unbekanntem Zünder: Er wartet, bis irgendwann
 jemand nach der Zeit fragt. Die Laufzeit ist jetzt relativ — neunzig Tage, so
 wie Let's Encrypt sie ausstellt.
+
+#### Schritt 5: DNS-01 — die Strecke, noch ohne Anbieter
+
+`DnsChallenge` ist die zweite Umsetzung derselben Schnittstelle; der Ablauf in
+`Order` bleibt ohne Fallunterscheidung. Verschieden sind hinlegen, abräumen —
+und vor allem `ready()`, der Grund, aus dem es die Schnittstelle überhaupt gibt.
+
+**Gefragt werden die autoritativen Nameserver und nicht der Anbieter.** Dessen
+API sagt „ok", sobald sie den Eintrag entgegengenommen hat; ausgeliefert wird er
+Sekunden bis Minuten später. Wer der Zertifizierungsstelle zu früh sagt „prüf
+jetzt", verbrennt einen der fünf Fehlversuche je Stunde — und die gelten für das
+ganze Konto, also für jeden Kunden dieses Servers. **Und auch nicht der
+Systemauflöser:** Der antwortet aus seinem Zwischenspeicher, und der kann den
+Namen von vorhin noch als „gibt es nicht" führen.
+
+**Erst wenn alle Server den Wert ausliefern.** Welchen die Zertifizierungsstelle
+fragt, weiss niemand; sie fragt sogar aus mehreren Netzen zugleich. Ein Wert,
+den nur die Hälfte kennt, ist eine Prüfung, die manchmal gelingt — die
+unangenehmste Sorte Fehler.
+
+**Ein eigener Auflöser und kein `dig`.** Das Programm gehörte auf die
+Positivliste des Agenten und als Abhängigkeit ins Paket, für eine Frage, die in
+hundert Zeilen beantwortet ist; unterhalb von `agent/` gibt es keine
+Abhängigkeiten, und das bleibt so. Das Drahtformat steht als reine Umformung in
+`Packet` — getrennt von der Steckdose und damit gegen **gebaute** Pakete
+prüfbar: ein Name als Zeiger, ein Name ausgeschrieben, ein Satz anderer Art
+dazwischen, zwei Werte unter einem Namen, ein Wert in Stücken, eine Antwort auf
+eine fremde Frage, ein gesetztes Abschneidebit, ein Satz über das Paketende
+hinaus. **Der Zeiger ist der Fall, für den dieser Durchgang existiert:** Wer die
+Zusammenfassung aus RFC 1035 §4.1.4 nicht erkennt, liest die folgenden Felder
+verschoben und bekommt Werte, die fast stimmen.
+
+**Zwei Entscheidungen kamen beim Bauen dazu.** `cleanup()` bekommt vom Ablauf
+nur Domain und Token — der Anbieter muss aber den *Wert* kennen: Zwei
+Bestellungen für dieselbe Zone laufen sonst einander ins Handwerk, weil die eine
+den `_acme-challenge`-Eintrag der anderen mit abräumt. Die Challenge merkt sich
+deshalb, was sie hingelegt hat. Und `add()` legt an, statt zu ersetzen:
+`example.de` und `*.example.de` in einer Bestellung ergeben zwei Werte unter
+demselben Namen, und beide müssen dastehen.
+
+**Der Stern fällt weg.** Für `*.example.de` heisst der Eintrag
+`_acme-challenge.example.de` — derselbe wie für `example.de`. Das ist keine
+Eigenheit dieses Panels, sondern RFC 8555: Der Platzhalter steht in der
+Bestellung und nicht im Namen der Prüfung.
+
+Der `DnsProvider` hat noch keine Umsetzung — sie kommt mit den Zugangsdaten
+(Schritt 6) und RFC 2136 (Schritt 7). Bis dahin steht die Schnittstelle, und
+die Doppel liegen unter `tests/Support/`.
+
+Zwei neue Brüche, beide **rot-grün gefahren**: der nicht erkannte Namenszeiger
+und der eine Nameserver, der genügt.
+
+#### Schritt 6: wo ein DNS-Token liegt — und was den Agenten davon verlässt
+
+**Ein DNS-Token ist ein grösseres Geheimnis als das Panel-Passwort.** Wer es
+hat, kann sich für die Domain jedes Zertifikat der Welt ausstellen lassen, auch
+anderswo. Es liegt deshalb dort, wo `panel.env` schon liegt: in einer Datei, die
+root allein lesen darf (0600 im 0700-Verzeichnis `/etc/srvpanel/dns`) — und
+nicht in der Datenbank des Panels, aus der es bei jedem Vorgang über den Socket
+ginge und in jeder Fehlermeldung auftauchen könnte.
+
+**Drei Operationen sind der einzige Weg dorthin**, und keine gibt ein Token
+zurück: `dns.credential.store` überquert den Socket genau einmal beim
+Einrichten, `.list` nennt Profil, Anbieter und Zeitpunkt, `.forget` räumt wieder
+weg. **Auch nicht die letzten vier Zeichen** — bei einem kurzen Token ist das
+ein spürbarer Teil davon, und der Gewinn wäre eine Bequemlichkeit beim
+Wiedererkennen.
+
+**Der Profilname wird geprüft und nicht geglaubt.** Er wird zu einem Dateinamen
+in einem Prozess mit Systemrechten; was durchginge, läge als
+`../../etc/irgendwas` auf der Platte — mit 0600 root, also genau da, wo es
+niemandem auffällt. Zugelassen sind Kleinbuchstaben, Ziffern und Bindestriche:
+genug für `betrieb` und `abo-1042`, und sonst nichts.
+
+**Und er wird abgeleitet, nicht entgegengenommen.** `App\Support\Tls\DnsProfile`
+fragt die Freigabe, die es dafür längst gibt: `Feature::DnsEdit` trägt seit den
+Plänen den Hinweistext „Ohne diese Freigabe verwaltet der Betreiber die Zone;
+das Abonnement sieht sie nur." Mit Freigabe gilt `abo-<nummer>`, ohne sie
+`betrieb`. **Keinen stillen Rückfall:** Ein Abonnement mit Freigabe, das noch
+nichts hinterlegt hat, bekommt nicht ersatzweise das Token des Betreibers — das
+wäre ein Zugriff auf eine fremde Zone mit einem Schlüssel, der sie womöglich gar
+nicht öffnet.
+
+`Providers` führt die fünf Schlüssel aus der Entscheidung vom 6. August und
+sonst nichts. Eine Fabrikmethode, die für jeden von ihnen eine Ausnahme wirft,
+wäre genau die Sorte Zeichenkette, die auf nichts zeigt; sie kommt mit der
+ersten Umsetzung.
+
+`srvpanel dns` ist der Weg von der Kommandozeile — hinterlegen, ansehen,
+entfernen. Wer einen Server einrichtet, hat das Token gerade im Terminal; die
+Oberfläche dazu kommt danach und ersetzt dieses Kommando nicht.
+
+Drei neue Brüche, zwei davon **rot-grün gefahren**: der ungeprüfte Profilname,
+das Token in der Antwort, und die Planfreigabe, die nicht mehr entscheidet.
+
+#### Schritt 7: RFC 2136 — der erste Anbieter, der wirklich etwas ändert
+
+**Der Standard und kein Anbietercode.** Eine TSIG-unterschriebene
+Zonenaktualisierung bedient BIND, Knot und PowerDNS gleichermassen — und damit
+auch die eigene Zone aus P7, ohne dass es dafür eine zweite Umsetzung bräuchte.
+Deshalb steht er in der Reihenfolge vorn.
+
+**Die Zonen stehen in den Zugangsdaten und werden nicht erraten.** Man könnte
+sie über den SOA-Satz suchen, und die meisten Umsetzungen tun das; hier nicht.
+Ein TSIG-Schlüssel ist im Nameserver ohnehin auf eine Zone eingegrenzt — wer sie
+errät, bekommt ein stummes `REFUSED` —, und vor allem ist die Liste damit eine
+**Positivliste**: Ein Profil ändert genau die Zonen, die der Betreiber
+hineingeschrieben hat. Ohne sie wäre der Zonenname eine Grösse, die aus dem
+Namen einer Domain folgt, und den bestimmt ein Kunde. Zusammengesetzt wird von
+unten, die längste passende Zone gewinnt: Wer `example.de` und
+`intern.example.de` mit demselben Schlüssel führt, will für einen Namen in der
+zweiten auch die zweite genannt haben.
+
+**Verglichen wird beschriftungsweise.** `boesexample.de` endet auf
+`example.de` — ein Vergleich als Zeichenkette liesse hier eine fremde Domain in
+eine Zone hinein, die jemand anderem gehört.
+
+**Die Antwort des Nameservers wird nachgerechnet.** Über TCP ist eine
+untergeschobene Antwort nicht leicht, aber „nicht leicht" ist bei einem Prozess
+mit Systemrechten kein Argument: Ein gefälschtes `NOERROR` hiesse, wir sagen der
+Zertifizierungsstelle „prüf jetzt", während nichts in der Zone steht — und
+verbrennen einen der fünf Fehlversuche je Konto und Stunde, die für jeden Kunden
+dieses Servers gelten. Geprüft werden Kennung, Unterschrift und Rückgabewert,
+und jeder Rückgabewert hat einen deutschen Satz: Ohne ihn stünde im Protokoll
+„Rückgabewert 9" und der Betreiber suchte an der falschen Stelle.
+
+**Der Rechenweg der Unterschrift ist zweimal geschrieben, und das mit Absicht.**
+Die Durchgänge rechnen ihn Byte für Byte aus RFC 8945 §4.3.3 nach, statt mit
+derselben Klasse zu unterschreiben, die gleich prüfen soll — sonst bestünden sie
+auch dann, wenn beide Seiten denselben Fehler machen. Die Stelle, um die es dabei
+geht: Gerechnet wird über die Nachricht **vor** dem TSIG-Satz, also mit dem alten
+`ARCOUNT`. Wer es andersherum macht, bekommt eine Unterschrift, die in sich
+stimmig ist, und einen Nameserver, der `NOTAUTH` antwortet, ohne zu sagen, an
+welcher der acht Grössen es lag.
+
+**Ohne `hmac-md5` und ohne `hmac-sha1`.** Beide stehen in RFC 8945 noch drin,
+und `hmac-md5` ist dort sogar der alte Standardwert; für einen Schlüssel, der
+heute neu eingerichtet wird, gibt es keinen Grund dazu.
+
+**Was noch nicht gebaut ist, lässt sich jetzt auch nicht mehr hinterlegen.**
+Hetzner, Cloudflare, Netcup und IPv64.net stehen in `Providers::PENDING` und
+werden beim Ablegen abgewiesen. Ein Formular, das ein Cloudflare-Token annimmt,
+sagt dem Betreiber, dass es geht — und die Wahrheit erfährt er beim ersten
+Zertifikat, mit einem Geheimnis, das längst auf der Platte liegt. Aus demselben
+Grund prüft `srvpanel dns` die Angaben jetzt beim Hinterlegen und nicht erst
+beim Bestellen: Was durchgeht, fällt sonst auf, wenn eine Erneuerung um drei Uhr
+morgens an einem vertippten Schlüsselnamen scheitert. Und das Geheimnis wird
+gefragt, wenn es nicht in der Kommandozeile steht — was dort steht, steht danach
+in der Verlaufsdatei der Shell und in `ps`.
+
+**Das Drahtformat eines Namens hat jetzt eine Stelle.** `Acme\Dns\Name` schreibt
+und überliest ihn; die Frage nach einem TXT-Satz, die Aktualisierung und die
+Unterschrift benutzen sie. Der zusammengefasste Name — zwei Bytes, die auf eine
+frühere Stelle zeigen (RFC 1035 §4.1.4) — ist die Stelle, an der
+handgeschriebener DNS-Code danebengeht, und drei Fassungen davon wären der
+Fehler, der dieses Projekt am häufigsten kostet. `DnsNameSourceTest` besteht
+darauf, mit denselben zwei Mustern, die auch `HostnameSourceTest` benutzt: eng
+genug, dass `explode('.', …)` in `DomainName` und `Resolver` nicht mitgemeldet
+wird — ein Wächter, der beim Aufräumen zubeisst, wird beim Aufräumen
+abgeschaltet.
+
+**Und ein Wächter für einen Fehler, der drei CI-Runden gekostet hat.** Ein Name,
+der der Basisklasse gehört, bricht beim *Laden* der Klasse und nicht beim
+Ausführen: `count()` in einem Testfall, `configure()` in einem Artisan-Kommando
+— dort stand danach nicht ein Kommando still, sondern `artisan` mit allen —, und
+zuletzt `name()` in `DnsPacketTest`. Nach dem zweiten Mal stand die Regel in
+CLAUDE.md; beim dritten Mal habe ich sie gelesen und bin trotzdem hineingelaufen.
+**Ein Satz in einer Datei ist kein Wächter.** `InheritedNameTest` liest den Text
+der Datei und lädt nur die Basisklasse — denn ein Wächter, der die fragliche
+Klasse zur Prüfung lädt, stürzt selbst mit demselben fatalen Fehler ab.
+
+Fünf neue Brüche im Bruchskript: die Unterschrift über den erhöhten Zähler, die
+Zone als Zeichenkette verglichen, ein Anbieter ohne Umsetzung, der nicht als
+offen geführt wird, eine zweite Fassung des Drahtformats, und ein Name der
+Basisklasse.
+
+Was aussteht: die Abnahme gegen eine echte Zone auf dem Zielserver — sie ist das
+Kriterium aus `docs/34 §10` und lässt sich hier nicht messen; dieser Container
+hat keinen Nameserver, der Aktualisierungen annimmt.

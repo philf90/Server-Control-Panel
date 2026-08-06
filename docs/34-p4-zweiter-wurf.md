@@ -169,6 +169,33 @@ muss, statt eine Warnung im Browser entstehen zu lassen.
    Anbieter stehen auf einer **Positivliste mit festen Schlüsseln**, genau wie
    `Directories` — die Anwendung nennt einen Schlüssel, nie eine Adresse.
 
+> **Erledigt in Schritt 5 — die Strecke, noch ohne Anbieter.** `DnsChallenge`
+> steht, `ready()` fragt über `Resolver` die autoritativen Nameserver, und das
+> Drahtformat liegt als reine Umformung in `Packet` — damit prüfbar ohne Netz,
+> ohne Zone und ohne Wartezeit.
+>
+> **Ein eigener Auflöser und kein `dig`.** Das Programm gehörte auf die
+> Positivliste des Agenten und als Abhängigkeit ins Paket, für eine Frage, die
+> in hundert Zeilen beantwortet ist.
+>
+> **Zwei Entscheidungen, die beim Bauen dazukamen.** `cleanup()` bekommt vom
+> Ablauf nur Domain und Token, aber der Anbieter muss den *Wert* kennen: Zwei
+> Bestellungen für dieselbe Zone laufen sonst einander ins Handwerk, weil die
+> eine den `_acme-challenge`-Eintrag der anderen mit abräumt. Die Challenge
+> merkt sich deshalb, was sie hingelegt hat. Und `add()` legt an, statt zu
+> ersetzen — `example.de` und `*.example.de` in einer Bestellung ergeben zwei
+> Werte unter demselben Namen, und beide müssen dastehen.
+>
+> Der `DnsProvider` selbst hat noch keine Umsetzung; die kommt mit den
+> Zugangsdaten (Schritt 6) und RFC 2136 (Schritt 7). Bis dahin steht die
+> Schnittstelle und ein Doppel im Testverzeichnis.
+>
+> **Nachtrag zu Schritt 7:** Sie steht jetzt — `Acme\Dns\Rfc2136`, mit
+> `Tsig` für die Unterschrift, `UpdateMessage` für das Drahtformat und
+> `Exchange` als Naht zum Netz. Die vier übrigen Anbieter stehen in
+> `Providers::PENDING` und werden beim Hinterlegen abgewiesen, damit kein
+> Geheimnis auf der Platte liegt, das nichts benutzen kann.
+
 **Ein `FakeProvider` gehört dazu und ist keine Zugabe.** Sonst prüft nichts von
 alledem ohne fremden Dienst, und ein Test, der eine fremde API braucht, wird
 beim dritten roten Lauf abgeschaltet.
@@ -233,6 +260,24 @@ diese Frage beantworten, geben irgendwann zwei Antworten.
 nicht über einen selbst gewählten Profilnamen. Der Name wird nicht
 entgegengenommen, sondern aus dem Abonnement abgeleitet — dieselbe Haltung wie
 bei den Verzeichnisnamen der Systembenutzer.
+
+> **Erledigt in Schritt 6 — der Agent und die Kommandozeile.** `Credentials`
+> legt je Profil eine Datei unter `/etc/srvpanel/dns` ab, 0600 root im
+> 0700-Verzeichnis; drei Operationen (`dns.credential.store`, `.list`,
+> `.forget`) sind der einzige Weg dorthin, und keine davon gibt ein Token
+> zurück — auch nicht die letzten vier Zeichen. `DnsProfile` leitet den Namen
+> ab: `abo-<nummer>` mit `dns_edit`, sonst `betrieb`.
+>
+> **Kein stiller Rückfall auf das Profil des Betreibers.** Ein Abonnement mit
+> Freigabe, das noch nichts hinterlegt hat, bekommt nicht ersatzweise dessen
+> Token: Das wäre ein Zugriff auf eine fremde Zone mit einem Schlüssel, der sie
+> womöglich gar nicht öffnet, und die Fehlermeldung dazu käme vom Anbieter
+> statt von hier.
+>
+> **`Providers` führt die fünf Schlüssel und sonst nichts.** Eine Fabrikmethode,
+> die für jeden von ihnen eine Ausnahme wirft, wäre genau die Sorte
+> Zeichenkette, die auf nichts zeigt; sie kommt mit der ersten Umsetzung in
+> Schritt 7. Die Oberfläche zu den Zugangsdaten steht als 6b aus.
 
 ---
 
@@ -489,7 +534,16 @@ Bruch in `tests/waechter-brechen.sh` mit.
    Protokolleintrag enthält es; und ein Abonnement kommt nie an ein fremdes
    Profil.
 7. **RFC 2136** als erster echter Anbieter, dazu die Abnahme gegen eine eigene
-   Zone.
+   Zone. *Gebaut.* Die Zonen stehen dabei **in den Zugangsdaten** und werden
+   nicht über den SOA-Satz erraten: Ein TSIG-Schlüssel ist im Nameserver
+   ohnehin auf eine Zone eingegrenzt, und die Liste ist damit eine
+   Positivliste — ein Profil ändert genau die Zonen, die der Betreiber
+   hineingeschrieben hat, und nicht die, die aus dem Namen einer Kundendomain
+   folgen. *Wächter:* die Unterschrift Byte für Byte gegen RFC 8945 §4.3.3
+   nachgerechnet (und nicht mit derselben Klasse gebaut, die sie prüft), die
+   Antwort des Nameservers nachgerechnet, ein Name ausserhalb der Zonen wird
+   nicht versucht, und jeder Anbieterschlüssel zeigt auf eine Umsetzung oder
+   steht als offen. Die Abnahme gegen eine echte Zone steht aus (§10).
 8. **Bestellen mit Platzhalter in der Oberfläche.** Wer darf (§3), was bestellt
    wird (`example.de` **und** `*.example.de`), und was die Seite sagt, wenn eine
    zweite Ebene ungedeckt bleibt.

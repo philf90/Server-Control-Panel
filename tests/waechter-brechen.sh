@@ -1285,6 +1285,240 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateChoiceTest passed
 
 echo
+echo "── DnsPacketTest: der Namenszeiger wird nicht erkannt ──"
+#
+# Ein Name in einer DNS-Antwort steht selten ausgeschrieben da; meistens sind es
+# zwei Bytes, die auf eine frühere Stelle zeigen. Wer das nicht erkennt, liest
+# die folgenden Felder verschoben — und bekommt Werte, die fast stimmen.
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (($marker & 0xC0) === 0xC0) {",
+    "            if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Namenszeiger nicht erkannt" &&
+pruefe "Namenszeiger nicht erkannt" \
+  DnsPacketTest::test_a_compressed_name_is_read_correctly failed
+wiederherstellen
+
+echo
+echo "── DnsChallengeTest: ein Nameserver genügt ──"
+#
+# Welchen die Zertifizierungsstelle fragt, weiss niemand — sie fragt sogar aus
+# mehreren Netzen zugleich. Ein Wert, den nur die Hälfte der Server kennt, ist
+# eine Prüfung, die manchmal gelingt, und das ist die unangenehmste Sorte
+# Fehler: Jeder Fehlschlag kostet einen der fünf Versuche je Stunde.
+vorher_datei agent/src/Acme/DnsChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/DnsChallenge.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        foreach ($servers as $server) {\n"
+    "            if (! in_array($wanted, $this->resolver->txt($server, $record), true)) {\n"
+    "                return false;\n"
+    "            }\n"
+    "        }\n"
+    "\n"
+    "        return true;",
+    "        foreach ($servers as $server) {\n"
+    "            if (in_array($wanted, $this->resolver->txt($server, $record), true)) {\n"
+    "                return true;\n"
+    "            }\n"
+    "        }\n"
+    "\n"
+    "        return false;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/DnsChallenge.php "Ein Nameserver genügt" &&
+pruefe "Ein Nameserver genügt" \
+  DnsChallengeTest::test_it_waits_until_every_nameserver_serves_the_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsChallengeTest passed
+
+echo
+echo "── DnsCredentialsTest: der Profilname wird geglaubt ──"
+#
+# Er wird zu einem Pfad in einem Prozess mit Systemrechten. Ohne die Prüfung
+# läge `../../etc/irgendwas` auf der Platte — und zwar mit 0600 root, also
+# genau da, wo es niemandem auffällt.
+vorher_datei agent/src/Acme/Dns/Credentials.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Credentials.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (preg_match(self::NAME_PATTERN, $name) !== 1) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Credentials.php "Profilname ohne Prüfung" &&
+pruefe "Profilname ohne Prüfung" \
+  DnsCredentialsTest::test_a_name_that_is_no_file_name_is_refused failed
+wiederherstellen
+
+echo
+echo "── DnsCredentialsTest: die Antwort trägt das Token mit ──"
+#
+# Der Weg vom Token in den Agenten ist einer, und zurück führt keiner. Gäbe die
+# Auskunft es heraus, stünde es in jeder Antwort, die jemand mitschneidet — und
+# in der Vorgangsliste des Panels.
+vorher_datei agent/src/Ops/DnsCredentialStore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCredentialStore.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'stored' => true,\n        ];",
+    "            'stored' => true,\n            'config' => $config,\n        ];",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DnsCredentialStore.php "Token in der Antwort" &&
+pruefe "Token in der Antwort" \
+  DnsCredentialsTest::test_no_operation_answers_with_the_token failed
+wiederherstellen
+
+echo
+echo "── DnsProfileTest: die Planfreigabe entscheidet nicht mehr ──"
+#
+# Ohne sie bekäme jedes Abonnement sein eigenes Profil — auch eines, dessen Zone
+# der Betreiber führt. Bestellt würde dann mit Zugangsdaten, die es nicht gibt.
+vorher_datei app/Support/Tls/DnsProfile.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/DnsProfile.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! $subscription->feature(Feature::DnsEdit->value)) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/DnsProfile.php "Profil ohne Planfreigabe" &&
+pruefe "Profil ohne Planfreigabe" \
+  DnsProfileTest::test_without_the_feature_the_operator_profile_applies failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsProfileTest passed
+
+echo
+echo "── TsigTest: über den erhöhten Zähler unterschrieben ──"
+#
+# Gerechnet wird über die Nachricht, *bevor* der TSIG-Satz dazukommt — also mit
+# dem alten ARCOUNT. Wer es andersherum macht, bekommt eine Unterschrift, die in
+# sich stimmig ist, und einen Nameserver, der NOTAUTH antwortet, ohne zu sagen,
+# an welcher der acht Grössen es lag.
+vorher_datei agent/src/Acme/Dns/Tsig.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Tsig.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $mac = hash_hmac(self::ALGORITHMS[$this->algorithm], $message.$variables, $this->secret, true);",
+    "        $mac = hash_hmac(self::ALGORITHMS[$this->algorithm], self::withOneMoreAdditional($message).$variables, $this->secret, true);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Tsig.php "Unterschrift über den erhöhten Zähler" &&
+pruefe "Unterschrift über den erhöhten Zähler" \
+  TsigTest::test_the_mac_is_the_one_the_rfc_prescribes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TsigTest passed
+
+echo
+echo "── Rfc2136Test: die Zone als Zeichenkette verglichen ──"
+#
+# `bösexample.de` endet auf `example.de`. Verglichen wird deshalb
+# beschriftungsweise — ein Vergleich als Zeichenkette liesse eine fremde Domain
+# in eine Zone hinein, die jemand anderem gehört, und das ist hier die Grenze
+# zwischen zwei Kunden.
+vorher_datei agent/src/Acme/Dns/Name.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Name.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $name === $zone || ($zone !== '' && str_ends_with($name, '.'.$zone));",
+    "        return $zone !== '' && str_ends_with($name, $zone);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Name.php "Zone als Zeichenkette verglichen" &&
+pruefe "Zone als Zeichenkette verglichen" \
+  Rfc2136Test::test_a_name_outside_the_zones_is_refused failed
+wiederherstellen
+
+echo
+echo "── Rfc2136Test: ein Anbieter ohne Umsetzung gilt als fertig ──"
+#
+# Ein Schlüssel, der weder gebaut ist noch als offen dasteht, ist genau die
+# Zeichenkette, die auf nichts zeigt — und sie fiele erst beim ersten
+# Zertifikat auf, mit einem Token, das längst auf der Platte liegt.
+vorher_datei agent/src/Acme/Dns/Providers.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Providers.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        self::HETZNER,\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Providers.php "Anbieter ohne Umsetzung nicht als offen geführt" &&
+pruefe "Anbieter ohne Umsetzung nicht als offen geführt" \
+  Rfc2136Test::test_every_provider_key_points_at_something failed
+wiederherstellen
+
+echo
+echo "── DnsNameSourceTest: eine zweite Fassung des Drahtformats ──"
+#
+# Ein Name in einer Antwort steht selten ausgeschrieben da; meistens sind es
+# zwei Bytes, die auf eine frühere Stelle zeigen. Eine zweite Fassung liest die
+# folgenden Felder irgendwann um einige Bytes verschoben — und im Protokoll
+# steht nichts, was darauf hindeutet.
+vorher_datei agent/src/Acme/Dns/Resolver.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Resolver.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "    public const PORT = 53;",
+    "    public const PORT = 53;\n\n"
+    "    private static function skipName(string $answer, int &$offset): void\n"
+    "    {\n"
+    "        if ((ord($answer[$offset]) & 0xC0) === 0xC0) {\n"
+    "            $offset += 2;\n"
+    "        }\n"
+    "    }",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Resolver.php "zweite Fassung des Drahtformats" &&
+pruefe "zweite Fassung des Drahtformats" \
+  DnsNameSourceTest::test_only_one_place_writes_a_dns_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsNameSourceTest passed
+
+echo
+echo "── InheritedNameTest: ein Name, der der Basisklasse gehört ──"
+#
+# `configure()` ist in einem Artisan-Kommando protected. Als private eingezogen
+# bricht die Klasse beim Laden — und damit steht nicht ein Kommando still,
+# sondern artisan mit allen. Dreimal passiert; `php -l` sieht davon nichts.
+vorher_datei app/Console/Commands/DnsCredentials.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/DnsCredentials.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "    /** @return array<string, string> */\n    private function actor(): array",
+    "    private function configure(): void {}\n\n"
+    "    /** @return array<string, string> */\n    private function actor(): array",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/DnsCredentials.php "Name der Basisklasse eingezogen" &&
+pruefe "Name der Basisklasse eingezogen" \
+  InheritedNameTest::test_no_class_redeclares_a_name_of_its_base_class failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InheritedNameTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

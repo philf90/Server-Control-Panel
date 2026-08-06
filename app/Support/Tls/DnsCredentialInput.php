@@ -1,0 +1,124 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\Tls;
+
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Was aus dem Formular für DNS-Zugangsdaten wird.
+ *
+ * **Eine Stelle für beide Formulare.** Der Betreiber trägt seine Zugangsdaten
+ * in den Einstellungen ein, ein Abonnement mit `dns_edit` an seinem
+ * Abonnement — dieselben Felder, dieselben Regeln. Zwei Fassungen davon wären
+ * genau das Muster, an dem dieses Projekt am häufigsten verloren hat.
+ *
+ * **Geprüft wird hier nur die Form, nicht der Inhalt.** Ob der Nameserver
+ * erreichbar ist, ob eine Zone ein Name sein kann, ob das Geheimnis Base64 ist
+ * und ob das Verfahren eines der drei zugelassenen ist, entscheidet
+ * `Rfc2136::configure()` im Agenten. Dieselbe Aufteilung wie auf der
+ * Kommandozeile: Zwei Fassungen derselben Prüfung sind eine zu viel, und die
+ * zweite ist die, die veraltet.
+ *
+ * **Der Anbieter dagegen gehört hierher.** Er entscheidet, welche Felder
+ * überhaupt gelten, und die vier offenen aus Schritt 9 nimmt der Agent ohnehin
+ * nicht an. Ihn hier abzuweisen heisst, die Meldung am Feld zu haben statt als
+ * Abweisung von der anderen Seite des Sockets.
+ */
+final class DnsCredentialInput
+{
+    /**
+     * Der gewählte Anbieter — und nur einer, den es auch gibt.
+     *
+     * @param  array<string, mixed>  $input
+     * @param  list<string>  $usable
+     *
+     * @throws ValidationException
+     */
+    public static function provider(array $input, array $usable): string
+    {
+        $data = Validator::make($input, [
+            'provider' => ['required', 'string', 'in:'.implode(',', $usable)],
+        ], [
+            'provider.in' => 'Diesen Anbieter gibt es noch nicht. Heute geht nur RFC 2136 (TSIG).',
+        ])->validate();
+
+        return (string) $data['provider'];
+    }
+
+    /**
+     * Die Angaben zu RFC 2136 — in der Form, die der Agent erwartet.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    public static function config(array $input): array
+    {
+        $data = Validator::make($input, [
+            'server' => ['required', 'string', 'max:255'],
+            'port' => ['nullable', 'integer'],
+            'zones' => ['required', 'string', 'max:4000'],
+            'key_name' => ['required', 'string', 'max:255'],
+            'algorithm' => ['nullable', 'string', 'max:64'],
+            'secret' => ['required', 'string', 'max:4000'],
+        ], [], [
+            'server' => 'Nameserver',
+            'zones' => 'Zonen',
+            'key_name' => 'Schlüsselname',
+            'algorithm' => 'Verfahren',
+            'secret' => 'Geheimnis',
+        ])->validate();
+
+        $config = [
+            'server' => (string) $data['server'],
+            'zones' => self::zones($input['zones'] ?? null),
+            'key_name' => (string) $data['key_name'],
+            'secret' => (string) $data['secret'],
+        ];
+
+        // Beide sind Angaben mit einer Vorgabe im Agenten — Port 53,
+        // hmac-sha256. Leer mitzuschicken hiesse, die Vorgabe hier ein zweites
+        // Mal zu treffen; weglassen lässt sie dort, wo sie steht.
+        if (isset($data['port']) && $data['port'] !== '') {
+            $config['port'] = (int) $data['port'];
+        }
+
+        if (isset($data['algorithm']) && is_string($data['algorithm']) && $data['algorithm'] !== '') {
+            $config['algorithm'] = $data['algorithm'];
+        }
+
+        return $config;
+    }
+
+    /**
+     * Die Zonen aus dem Textfeld.
+     *
+     * **Ein Textfeld und keine Liste von Eingabefeldern.** Wer einen
+     * TSIG-Schlüssel einrichtet, hat seine Zonen meistens schon irgendwo
+     * stehen und fügt sie ein; ein Feld je Zone hiesse, sie einzeln
+     * abzutippen. Getrennt wird an Leerraum, Kommas und Semikola, weil in der
+     * Zwischenablage jede dieser Formen vorkommt.
+     *
+     * @return list<string>
+     */
+    public static function zones(mixed $raw): array
+    {
+        $parts = preg_split('/[\s,;]+/', is_string($raw) ? $raw : '') ?: [];
+
+        $zones = [];
+
+        foreach ($parts as $zone) {
+            $zone = trim($zone);
+
+            if ($zone !== '' && ! in_array($zone, $zones, true)) {
+                $zones[] = $zone;
+            }
+        }
+
+        return $zones;
+    }
+}

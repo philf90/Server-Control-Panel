@@ -63,16 +63,64 @@ final class FormErrorTest extends TestCase
         return $pages;
     }
 
+    /**
+     * Die Komponenten, die selbst ein Formular abschicken.
+     *
+     * **Diese Liste kam mit Schritt 6b dazu, und zwar aus einer Lücke, die
+     * dieser Wächter selbst hatte.** `DnsCredentials.vue` trägt ein Formular
+     * mit `useForm`, steht aber unter `Components/` — eine Seite, die es
+     * einbindet, enthielt das Wort `useForm` nirgends und galt damit als
+     * formularlos. Genau so wäre die Abonnementseite ohne Zusammenfassung
+     * durchgegangen: ein Wächter, der grün meldet, weil die Regel umgezogen ist.
+     *
+     * Gesucht wird deshalb nicht nach dem Wort, sondern nach der Sache — und
+     * die Sache ist „diese Seite kann eine Abweisung kassieren".
+     *
+     * @return list<string> Die Namen, wie sie im Markup stehen
+     */
+    private function formComponents(): array
+    {
+        $names = [];
+        $root = dirname(__DIR__, 2).'/resources/js/Components';
+
+        foreach (glob($root.'/*.vue') ?: [] as $path) {
+            $name = basename($path, '.vue');
+
+            if ($name === self::COMPONENT) {
+                continue;
+            }
+
+            if (str_contains((string) file_get_contents($path), 'useForm')) {
+                $names[] = $name;
+            }
+        }
+
+        sort($names);
+
+        return $names;
+    }
+
     public function test_every_page_with_a_form_shows_what_went_wrong(): void
     {
         $found = [];
         $checked = 0;
+        $components = $this->formComponents();
 
         foreach ($this->pages() as $path) {
             $source = (string) file_get_contents($path);
             $relative = str_replace(dirname(__DIR__, 2).'/', '', $path);
 
-            if (! str_contains($source, 'useForm')) {
+            $embedded = false;
+
+            foreach ($components as $component) {
+                if (str_contains($source, '<'.$component)) {
+                    $embedded = true;
+
+                    break;
+                }
+            }
+
+            if (! str_contains($source, 'useForm') && ! $embedded) {
                 continue;
             }
 

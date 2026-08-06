@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3'
 import Bar from '../../Components/Bar.vue'
+import DnsCredentials from '../../Components/DnsCredentials.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
@@ -50,7 +52,28 @@ const props = defineProps<{
     delete: boolean
     addDomain: boolean
     viewCustomer: boolean
+    manageDns: boolean
   }
+
+  /**
+   * Die eigenen DNS-Zugangsdaten — `null`, wenn es keine geben kann.
+   *
+   * Der Server entscheidet das und nicht die Seite: Ohne die Freigabe
+   * `dns_edit` im Plan gilt das Profil des Betreibers, und dann gibt es hier
+   * nichts zu hinterlegen. Ein `v-if` auf den Kontotyp wäre eine zweite
+   * Fassung der Policy — und die zweite ist die, die veraltet.
+   */
+  dns: {
+    profile: string
+    credential: {
+      profile: string
+      provider: string
+      provider_label: string
+      stored_at: number
+      zones: string[]
+    } | null
+    providers: { value: string; label: string; usable: boolean }[]
+  } | null
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
 
@@ -146,6 +169,17 @@ function remove(): void {
       </button>
     </template>
 
+    <!--
+      Die Zusammenfassung steht über allem und nicht am Feld.
+
+      Diese Seite hatte lange kein Formular; mit den DNS-Zugangsdaten hat sie
+      eines. Ohne die Zusammenfassung stünde eine Abweisung als kleine rote
+      Zeile unten in einem langen Aufbau, und nach der Antwort springt die
+      Seite nach oben — genau der Fall, der beim Anlegen eines Kunden einen
+      halben Tag gekostet hat.
+    -->
+    <FormErrors />
+
     <div class="sections">
       <Section title="Stammdaten">
         <table class="pairs">
@@ -229,6 +263,30 @@ function remove(): void {
           </tbody>
         </table>
       </Section>
+
+      <!--
+        Die eigenen DNS-Zugangsdaten (docs/34 §5).
+
+        Sie stehen unmittelbar hinter den Freigaben, weil sie an genau einer
+        davon hängen: Ohne `DNS-Einträge bearbeiten` verwaltet der Betreiber
+        die Zone, und dieser Bereich erscheint gar nicht. Wer die Freigabe hat,
+        führt seine Zone selbst und hält den Schlüssel dazu ohnehin in den
+        Händen.
+
+        Gefragt wird `can.manageDns` — dieselbe Policy, die den Aufruf später
+        abweist. `props.dns` daneben trägt die Angaben und ist aus demselben
+        Grund `null`; die Bedingung steht trotzdem an der Fähigkeit, denn ein
+        Knopf, der an einer vorhandenen Ablage hängt statt an einem Recht, ist
+        beim nächsten Umbau der Ablage ungeschützt.
+      -->
+      <template v-if="props.can.manageDns && props.dns">
+        <DnsCredentials
+          :action="`/subscriptions/${props.subscription.id}/dns`"
+          :profile="props.dns.profile"
+          :credential="props.dns.credential"
+          :providers="props.dns.providers"
+        />
+      </template>
 
       <!--
         Die Domains stehen vor den Vorgängen: Sie sind das, wofür ein

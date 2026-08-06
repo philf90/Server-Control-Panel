@@ -16,6 +16,8 @@ use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
 use App\Support\Subscriptions\Lifecycle;
+use App\Support\Tls\DnsCredentialAccess;
+use App\Support\Tls\DnsProfile;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -187,8 +189,12 @@ final class SubscriptionController extends Controller
         return redirect()->route('operations.show', $operation);
     }
 
-    public function show(Request $request, Subscription $subscription): Response
-    {
+    public function show(
+        Request $request,
+        Subscription $subscription,
+        DnsCredentialAccess $credentials,
+        DnsProfile $profiles,
+    ): Response {
         $subscription->loadMissing(['customer', 'plan']);
         $account = $request->user();
 
@@ -278,7 +284,30 @@ final class SubscriptionController extends Controller
                 'addDomain' => $account?->can('create', [Domain::class, $subscription]) ?? false,
                 'viewCustomer' => $subscription->customer !== null
                     && ($account?->can('view', $subscription->customer) ?? false),
+                'manageDns' => $account?->can('manageDns', $subscription) ?? false,
             ],
+
+            /*
+             * Die eigenen DNS-Zugangsdaten (docs/34 §5, Schritt 6b).
+             *
+             * **Nur wenn der Plan `dns_edit` freigibt.** Ohne die Freigabe gilt
+             * das Profil des Betreibers, und dann gibt es hier nichts zu
+             * hinterlegen — der Agent würde nach einem Profil gefragt, das
+             * niemand je liest. Die Frage stellt dieselbe Policy, die den
+             * Aufruf später abweist; ein `v-if` auf den Kontotyp wäre eine
+             * zweite Fassung davon.
+             *
+             * **Und das Geheimnis steht hier nicht.** `describe()` gibt
+             * Anbieter, Zeitpunkt und Zonen — mehr gibt der Agent nicht heraus,
+             * auch nicht die letzten vier Zeichen.
+             */
+            'dns' => $account?->can('manageDns', $subscription) === true
+                ? [
+                    'profile' => $profiles->forSubscription($subscription),
+                    'credential' => $credentials->describe($profiles->forSubscription($subscription)),
+                    'providers' => $credentials->providers(),
+                ]
+                : null,
 
             'operations' => Operation::query()
                 ->where('subscription_id', $subscription->id)

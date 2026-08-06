@@ -119,6 +119,56 @@ final class DnsCredentialsTest extends TestCase
         $this->assertStringNotContainsString(base64_encode('geheim-123'), (string) json_encode($described));
     }
 
+    /**
+     * Und die Auskunft ist genau diese vier Angaben — nicht „alles ausser dem
+     * Token".
+     *
+     * **Der Unterschied ist der ganze Punkt.** Ein Test, der nur nachsieht, ob
+     * das Geheimnis fehlt, bleibt grün, wenn `describe()` eines Tages die
+     * Konfiguration durchreicht und der Anbieter sein Geheimnis nur anders
+     * nennt — bei Hetzner, Cloudflare, Netcup und IPv64.net heisst es `token`
+     * oder `api_key`, und keiner dieser Namen steht hier. Eine Positivliste
+     * bemerkt die Erweiterung; eine Sperrliste bemerkt sie nicht.
+     */
+    public function test_the_description_says_these_four_things_and_no_more(): void
+    {
+        $credentials = $this->credentials();
+        $credentials->store('betrieb', Providers::RFC2136, $this->config());
+
+        $described = $credentials->describe('betrieb');
+
+        $this->assertSame(
+            ['profile', 'provider', 'stored_at', 'zones'],
+            array_keys((array) $described),
+            'describe() gibt etwas anderes heraus als vereinbart. Was hier dazukommt, steht danach in '.
+            'einer Antwort der Oberfläche — und die Geheimnisse der vier offenen Anbieter heissen nicht '.
+            '„secret".',
+        );
+    }
+
+    /**
+     * Die Zonen dürfen heraus, und sie sind der Grund für diese Auskunft.
+     *
+     * Ein TSIG-Schlüssel ist im Nameserver auf Zonen eingegrenzt, und die Liste
+     * in den Zugangsdaten ist eine Positivliste. Fehlt eine, scheitert die
+     * Bestellung — und ein Fehlversuch zählt bei Let's Encrypt für jeden Kunden
+     * dieses Servers. Deshalb steht sie in der Oberfläche, bevor jemand
+     * bestellt (Schritt 6b).
+     */
+    public function test_the_description_names_the_zones(): void
+    {
+        $credentials = $this->credentials();
+        $credentials->store('betrieb', Providers::RFC2136, $this->config());
+
+        $described = $credentials->describe('betrieb');
+
+        $this->assertNotSame([], $described['zones'] ?? [], 'Ohne Zonen sagt die Auskunft nicht, was das Profil ändern darf.');
+
+        foreach ($described['zones'] as $zone) {
+            $this->assertIsString($zone);
+        }
+    }
+
     /** @return list<array{0: string}> */
     public static function badNames(): array
     {

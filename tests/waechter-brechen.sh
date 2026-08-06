@@ -1706,6 +1706,53 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FormErrorTest passed
 
 echo
+echo "── FormErrorTest: eine Seite, die ihr Formular aus einer Komponente holt ──"
+#
+# **Die Lücke, aus der dieser Bruch entstand.** Der Wächter suchte in den Seiten
+# nach `useForm`. `DnsCredentials.vue` trägt das Formular für die
+# DNS-Zugangsdaten und steht unter `Components/`; die Abonnementseite bindet es
+# ein und enthält das Wort nirgends — sie galt damit als formularlos und wäre
+# ohne Zusammenfassung durchgegangen. Ein Wächter, der grün meldet, weil die
+# Regel umgezogen ist, ist der Fehler, der in diesem Projekt am häufigsten
+# wiederkehrt.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    <FormErrors />\n\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "Formular aus einer Komponente, ohne Zusammenfassung" &&
+pruefe "Formular aus einer Komponente, ohne Zusammenfassung" \
+  FormErrorTest::test_every_page_with_a_form_shows_what_went_wrong failed
+wiederherstellen
+
+echo
+echo "── DnsCredentialsTest: die Auskunft reicht die Konfiguration durch ──"
+#
+# Der Weg, auf dem ein DNS-Token die Oberfläche erreichen würde: nicht als
+# `secret` — daran denkt jeder —, sondern weil `describe()` eines Tages die
+# ganze Konfiguration durchreicht. Bei Hetzner, Cloudflare, Netcup und
+# IPv64.net heisst das Geheimnis `token` oder `api_key`, und keiner dieser
+# Namen stünde in einer Sperrliste. Deshalb prüft der Wächter den Schlüsselsatz
+# und nicht die Abwesenheit eines Wortes.
+vorher_datei agent/src/Acme/Dns/Credentials.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Credentials.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'zones' => self::zonesOf(is_array($config) ? $config : []),\n        ];",
+    "            'zones' => self::zonesOf(is_array($config) ? $config : []),\n            'config' => $config,\n        ];",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Credentials.php "Auskunft mit der ganzen Konfiguration" &&
+pruefe "Auskunft mit der ganzen Konfiguration" \
+  DnsCredentialsTest::test_the_description_says_these_four_things_and_no_more failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsCredentialsTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

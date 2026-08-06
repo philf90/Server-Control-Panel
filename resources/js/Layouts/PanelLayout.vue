@@ -108,6 +108,7 @@ const navigation = computed(() => {
       { name: 'PHP-Versionen', href: '/settings/php', icon: 'php' },
       { name: 'Mailversand', href: '/settings/mail', icon: 'mail' },
       { name: 'Zertifikat', href: '/settings/tls', icon: 'tls' },
+      { name: 'DNS-Zugang', href: '/settings/dns', icon: 'dns' },
     ] },
     { group: 'Konto', items: [{ name: 'Mein Konto', href: '/settings/profile', icon: 'account' }] },
   ]

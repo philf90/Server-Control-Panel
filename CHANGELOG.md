@@ -3113,3 +3113,17 @@ zurücknehmen lässt. Zwei neue Brüche: die Bestellung, die die Wahl
 **Im Browser nachgesehen** wie in Schritt 3b — gebautes Stylesheet, Markup in
 einer eigenen Datei, Chromium bei 390px: kein Überlauf, und der Text des
 Auswahlfelds passt in seine Breite.
+
+##### Nachtrag: ein fester Zeitstempel als Zeitbombe
+
+Die CI hat einen einzigen Durchgang gemeldet, und er hatte recht: „die beiden
+Regeln jagen einander nicht" schlug fehl, weil das Testzertifikat abgelaufen
+war. In `CertificateReapplyTest` standen zwei feste Zeitstempel aus dem August
+2025 — solange die Bestellbedingung nur nach der *Deckung* fragte, war das
+folgenlos. Seit Schritt 4 fragt sie auch nach dem Ablauf, und damit bestellte
+der Durchgang ein zweites Mal.
+
+**Der Test hatte unrecht, nicht der Code.** Ein fester Zeitstempel in einem
+Datensatz ist eine Zeitbombe mit unbekanntem Zünder: Er wartet, bis irgendwann
+jemand nach der Zeit fragt. Die Laufzeit ist jetzt relativ — neunzig Tage, so
+wie Let's Encrypt sie ausstellt.

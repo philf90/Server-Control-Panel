@@ -14,6 +14,7 @@ use App\Models\Subscription;
 use App\Support\Operations\Lifecycles;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificateChoice;
 use App\Support\Tls\CertificateRenewal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -36,8 +37,8 @@ use Tests\TestCase;
  *
  * **Und zusammen wären die beiden eine Schleife.** Bestellung → Zuordnung →
  * Block neu → Bestellung. Dass sie aufhört, ist keine Beobachtung, sondern eine
- * Zusage: Bestellt wird nur, wenn kein zugeordnetes Zertifikat die Namen des
- * Server-Blocks deckt, und die Zuordnung passiert vor dem neuen Block. Ein
+ * Zusage: Bestellt wird nur, wenn nichts Gültiges die Namen des Server-Blocks
+ * deckt, und die Zuordnung passiert vor dem neuen Block. Ein
  * Wächter, der das nicht prüft, lässt eine Warteschlange laufen, bis die
  * Ratenbegrenzung sie anhält.
  *
@@ -46,6 +47,11 @@ use Tests\TestCase;
  * genügte, solange jedes für genau eine Domain bestellt wurde; kommt ein Alias
  * nachträglich dazu, steht er im `server_name` und nicht im Zertifikat — der
  * Browser warnt bei ihm, und im Panel sieht alles grün aus.
+ *
+ * **Und seit Schritt 4 fragt sie überhaupt nicht mehr nach dem zugeordneten**
+ * ({@see CertificateChoice::satisfied()}), sondern ob es eines gibt, das gilt
+ * und alles deckt. Damit zählt auch der Ablauf — was diesem Durchgang prompt
+ * einen festen Zeitstempel von 2025 als Zeitbombe vorgeführt hat.
  *
  * Die Tests laufen wie der Arbeiter — ohne angemeldetes Konto, also im
  * Grundzustand der Mandantenklammer. Was hier grün ist, läuft auch dort.
@@ -109,7 +115,21 @@ final class CertificateReapplyTest extends TestCase
         return $operation;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * Die Antwort des Agenten auf eine gelungene Bestellung.
+     *
+     * **Die Laufzeit ist relativ und nicht absolut, und das war ein Fund.**
+     * Hier standen zwei feste Zeitstempel aus dem August 2025 — solange nichts
+     * nach dem Ablauf fragte, war das folgenlos. Mit der Auswahl aus Schritt 4
+     * fragt die Bestellbedingung danach: Ein abgelaufenes Zertifikat gilt nicht
+     * mehr als gedeckt, und der Durchgang „die beiden Regeln jagen einander
+     * nicht" schlug fehl, weil das Testzertifikat inzwischen abgelaufen war.
+     * Ein fester Zeitstempel in einem Datensatz ist eine Zeitbombe mit
+     * unbekanntem Zünder — neunzig Tage sind ausserdem das, was Let's Encrypt
+     * tatsächlich ausstellt.
+     *
+     * @return array<string, mixed>
+     */
     private function issued(): array
     {
         return [
@@ -118,8 +138,8 @@ final class CertificateReapplyTest extends TestCase
             'key' => '/etc/srvpanel/tls/certs/beispiel.de/privkey.pem',
             'issuer' => 'Test CA',
             'serial' => 'ab12',
-            'not_before' => 1_754_000_000,
-            'not_after' => 1_761_000_000,
+            'not_before' => now()->subDay()->getTimestamp(),
+            'not_after' => now()->addDays(90)->getTimestamp(),
         ];
     }
 

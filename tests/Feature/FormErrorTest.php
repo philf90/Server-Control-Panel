@@ -29,22 +29,17 @@ use SplFileInfo;
  * **Warum das ein Wächter ist und keine Notiz:** Es waren dreizehn Seiten, und
  * bei zwölf davon wäre derselbe Fehlschlag genauso unsichtbar gewesen. Die
  * nächste Seite kommt bestimmt.
+ *
+ * **Und ohne Ausnahmeliste.** Hier stand eine, leer und mit dem Hinweis, dass
+ * ein Eintrag begründet sein will — PHPStan hat sie als das gemeldet, was sie
+ * war: ein Vergleich gegen ein leeres Feld, der nie zutrifft. Wer eine Ausnahme
+ * braucht, baut die Liste samt Begründung; eine Vorratsliste ist genau die
+ * Sorte Zeichenkette, gegen die dieses Projekt seine Wächter stellt.
  */
 final class FormErrorTest extends TestCase
 {
     /** Die Zusammenfassung, die oben stehen muss. */
     public const COMPONENT = 'FormErrors';
-
-    /**
-     * Seiten, die ein Formular abschicken, ohne eines zu sein.
-     *
-     * Steht hier nichts, ist das die richtige Länge. Der Eintrag will
-     * begründet sein: Eine Seite, die `useForm` benutzt, schickt etwas ab, und
-     * was abgeschickt wird, kann abgewiesen werden.
-     *
-     * @var list<string>
-     */
-    private const ALLOWED = [];
 
     /** @return list<string> */
     private function pages(): array
@@ -78,10 +73,6 @@ final class FormErrorTest extends TestCase
             $relative = str_replace(dirname(__DIR__, 2).'/', '', $path);
 
             if (! str_contains($source, 'useForm')) {
-                continue;
-            }
-
-            if (in_array($relative, self::ALLOWED, true)) {
                 continue;
             }
 

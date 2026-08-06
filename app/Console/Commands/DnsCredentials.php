@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use SrvPanel\Agent\Acme\Dns\Providers;
+use SrvPanel\Agent\Acme\Dns\Rfc2136;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 
@@ -98,9 +99,8 @@ final class DnsCredentials extends Command
      * Die Angaben zu RFC 2136 — geprüft wird sie der Agent.
      *
      * Hier steht nur, was aus welcher Angabe wird; ob es zusammenpasst,
-     * entscheidet {@see \SrvPanel\Agent\Acme\Dns\Rfc2136::configure()}. Zwei
-     * Fassungen derselben Prüfung wären eine zu viel, und die zweite ist die,
-     * die veraltet.
+     * entscheidet {@see Rfc2136::configure()}. Zwei Fassungen derselben Prüfung
+     * wären eine zu viel, und die zweite ist die, die veraltet.
      *
      * @param  list<string>  $zones
      * @return array<string, mixed>

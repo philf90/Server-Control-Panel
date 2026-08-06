@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Acme\Dns;
 
+use SrvPanel\Agent\AgentException;
+
 /**
  * Eine Nachricht hin, eine Antwort zurück — mehr braucht eine Aktualisierung.
  *
@@ -16,7 +18,7 @@ namespace SrvPanel\Agent\Acme\Dns;
 interface Exchange
 {
     /**
-     * @throws \SrvPanel\Agent\AgentException wenn die Verbindung nicht zustande kommt
+     * @throws AgentException wenn die Verbindung nicht zustande kommt
      */
     public function send(string $server, int $port, string $message): string;
 }

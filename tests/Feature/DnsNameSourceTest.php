@@ -10,6 +10,11 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
 use SrvPanel\Agent\Acme\Dns\Name;
+use SrvPanel\Agent\Acme\Dns\Resolver;
+use SrvPanel\Agent\Acme\Dns\Rfc2136;
+use SrvPanel\Agent\Acme\Dns\Tsig;
+use SrvPanel\Agent\DomainName;
+use Tests\Support\ScriptedExchange;
 use Tests\Support\WithoutPhpComments;
 
 /**
@@ -28,11 +33,11 @@ use Tests\Support\WithoutPhpComments;
  * diesem Projekt der teuerste Fehler überhaupt — beim Rechnernamen ist er
  * genau viermal passiert, und deshalb steht diese Regel schon in CLAUDE.md.
  *
- * **Der Doppelgänger darf es trotzdem selbst.** {@see \Tests\Support\ScriptedExchange}
- * und die Durchgänge zu {@see \SrvPanel\Agent\Acme\Dns\Tsig} rechnen absichtlich
- * mit einer zweiten Fassung: Ein Durchgang, der dieselbe Funktion benutzt wie
- * der Prüfling, besteht auch dann, wenn beide Seiten denselben Fehler machen.
- * Deshalb prüft dieser Wächter `agent/` und nicht `tests/`.
+ * **Der Doppelgänger darf es trotzdem selbst.** {@see ScriptedExchange} und die
+ * Durchgänge zu {@see Tsig} rechnen absichtlich mit einer zweiten Fassung: Ein
+ * Durchgang, der dieselbe Funktion benutzt wie der Prüfling, besteht auch dann,
+ * wenn beide Seiten denselben Fehler machen. Deshalb prüft dieser Wächter
+ * `agent/` und nicht `tests/`.
  */
 final class DnsNameSourceTest extends TestCase
 {
@@ -51,11 +56,11 @@ final class DnsNameSourceTest extends TestCase
      * Längenbyte vor einer Beschriftung auch nicht.
      *
      * **Die naheliegenden weiteren wären falsch.** `explode('.', …)` steht in
-     * {@see \SrvPanel\Agent\DomainName} und im {@see \SrvPanel\Agent\Acme\Dns\Resolver},
-     * beide zu Recht — dort wird ein Name zerlegt und nicht geschrieben. Und
-     * `"\0"` steht in `Guard` und `Runner` als Prüfung auf ein Nullbyte im
-     * Pfad. Ein Wächter, der beides meldet, wird beim ersten Aufräumen
-     * abgeschaltet; das ist in diesem Projekt schon dreimal passiert.
+     * {@see DomainName} und im {@see Resolver}, beide zu Recht — dort wird ein
+     * Name zerlegt und nicht geschrieben. Und `"\0"` steht in `Guard` und
+     * `Runner` als Prüfung auf ein Nullbyte im Pfad. Ein Wächter, der beides
+     * meldet, wird beim ersten Aufräumen abgeschaltet; das ist in diesem
+     * Projekt schon dreimal passiert.
      */
     private const PATTERNS = [
         '/0xC0|0xc0/',
@@ -132,8 +137,7 @@ final class DnsNameSourceTest extends TestCase
      *
      * `bösexample.de` endet auf `example.de`. Ein Vergleich als Zeichenkette
      * liesse hier eine fremde Domain in eine Zone hinein, die jemand anderem
-     * gehört — und das ist bei {@see \SrvPanel\Agent\Acme\Dns\Rfc2136} die
-     * Grenze zwischen zwei Kunden.
+     * gehört — und das ist bei {@see Rfc2136} die Grenze zwischen zwei Kunden.
      */
     public function test_a_zone_is_not_a_suffix(): void
     {

@@ -334,8 +334,17 @@ keinem Protokoll.
 > Für die Oberfläche (Schritt 3b) gilt dasselbe: kein Vorgang, sondern ein
 > unmittelbarer Aufruf.
 >
-> Offen bleibt Schritt 3b: die Oberfläche samt `Feature::CertificateUpload`,
-> und mit ihr die Screenshots.
+> **Erledigt in Schritt 3b — die Oberfläche.** Ein eigener Bereich auf der
+> Domainseite mit zwei Textfeldern, sichtbar nur, wenn der Plan
+> `certificate_upload` freigibt; gefragt wird dieselbe Policy, die die Route
+> später abweist. Zwei Textfelder und keine Dateiauswahl: Wer ein Zertifikat
+> gekauft hat, hat es meistens als Text in einer Mail, und eine Dateiauswahl
+> auf dem Telefon findet den Anhang einer Mail nicht.
+>
+> Dabei ist zum dritten Mal derselbe Abstand aufgefallen — eine Knopfreihe
+> hinter einem Feld klebt am Text darüber, weil `.button-row` keinen Rand nach
+> oben setzt. Die Antwort war bisher jedes Mal eine eigene Klasse auf der Seite;
+> jetzt steht sie in `app.css`, wo das Aussehen eines Bausteins hingehört.
 
 ### Der Kunde darf hochladen — und das ist keine neue Entscheidung
 

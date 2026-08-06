@@ -104,6 +104,39 @@ final class DomainPolicy
     }
 
     /**
+     * Ein eigenes Zertifikat für diese Domain hinterlegen.
+     *
+     * **Dieselbe Bauart wie {@see self::updatePhp()}, und aus demselben
+     * Grund:** `update` fragt, ob jemand die Domain anfassen darf; das hier
+     * fragt zusätzlich, ob der Plan diese Funktion hergibt. Die Freigabe steht
+     * seit den Plänen als `Feature::CertificateUpload` da — mit Beschriftung,
+     * Hinweis und Recht. Gebaut werden musste die Funktion dahinter, nicht das
+     * Rechtemodell.
+     *
+     * **Warum das nicht an `update` hängt.** Wer hier hochlädt, legt einen
+     * privaten Schlüssel auf den Server, und was danach ausgeliefert wird,
+     * sieht jeder Besucher. Das ist eine andere Grössenordnung als ein
+     * DocumentRoot zu ändern — und der Betreiber entscheidet über den Plan,
+     * ob ein Kunde sie bekommt.
+     */
+    public function uploadCertificate(Account $account, Domain $domain): bool
+    {
+        if (! $this->mayChange($account, $domain)) {
+            return false;
+        }
+
+        if ($account->isAdmin()) {
+            return true;
+        }
+
+        $subscription = $domain->subscription;
+
+        return $subscription !== null
+            && $subscription->feature(Feature::CertificateUpload->value)
+            && $account->hasPermission($subscription, Permission::Certificates);
+    }
+
+    /**
      * Die Protokolle einer Domain lesen.
      *
      * `FilesRead` und nicht `Statistics`: Ein Fehlerprotokoll enthält Pfade,

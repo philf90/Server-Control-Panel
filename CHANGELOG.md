@@ -3014,3 +3014,48 @@ hochgeladen und bestellt denselben Ort.
 
 Offen bleibt Schritt 3b — die Oberfläche dazu, mit `Feature::CertificateUpload`
 und den Screenshots, die zu allem Sichtbaren gehören.
+
+#### Schritt 3b: die Oberfläche zum eigenen Zertifikat
+
+Ein eigener Bereich auf der Domainseite, sichtbar nur, wenn der Plan
+`certificate_upload` freigibt. **Am Rechtemodell war dafür nichts zu bauen:**
+`Feature::CertificateUpload` steht seit P2 in den Plänen, mit Beschriftung,
+Hinweis und Recht — gefehlt hat die Funktion dahinter. Die Fähigkeit heisst
+`uploadCertificate` und hängt nicht an `update`: Wer hochlädt, legt einen
+privaten Schlüssel auf den Server, und was danach ausgeliefert wird, sieht
+jeder Besucher. Das ist eine andere Grössenordnung als ein DocumentRoot zu
+ändern, und der Betreiber entscheidet über den Plan, wer sie bekommt.
+
+**Zwei Textfelder und keine Dateiauswahl.** Wer ein Zertifikat gekauft hat, hat
+es meistens als Text in einer Mail — und wer es als Datei hat, kann sie öffnen
+und den Inhalt einfügen. Umgekehrt gilt das nicht: Eine Dateiauswahl auf dem
+Telefon findet den Anhang einer Mail nicht. Der Schlüssel wird nach dem
+Absenden geleert, auch bei Erfolg.
+
+**Die Meldung des Agenten wird wörtlich durchgereicht.** „Die Kette ist nicht
+in der richtigen Reihenfolge" ist eine Auskunft, mit der jemand weiterkommt;
+„ungültig" ist keine. Ein Betreiber liest sonst das Protokoll — ein Kunde liest
+diese Seite und sonst nichts.
+
+**Und auch hier kein Vorgang, sondern ein unmittelbarer Aufruf** — aus dem
+Grund aus Schritt 3a: Ein eingereihter Vorgang legt seine Argumente in
+`operations.payload` ab, und ein privater Schlüssel gehört dort nicht hin.
+
+**Zum dritten Mal derselbe Abstand.** Eine Knopfreihe hinter einem Feld klebt
+am Text darüber, weil `.button-row` keinen Rand nach oben setzt; in einem
+`.form` fällt das nicht auf, weil sie dort ein Flexkind ist und den `gap` erbt.
+Die Antwort war bisher jedes Mal eine eigene Klasse auf der Seite — `.spaced`
+im Profil, ein Umbau in der Zertifikatsseite. Jetzt steht sie in `app.css`, wo
+das Aussehen eines Bausteins hingehört, und trifft über einen
+Nachbarschaftsausdruck genau den Fall: eine Reihe *nach* Formularinhalt.
+
+**Im Browser nachgesehen**, auf dem Weg aus CLAUDE.md, der ohne `artisan serve`
+auskommt: das gebaute Stylesheet mit dem Markup des Bereichs in einer eigenen
+Datei, gerendert im vorinstallierten Chromium bei 390px, in beiden Themes.
+Kein waagerechter Überlauf (0px), das Feld 358px breit, und der Knopf steht
+nach der Ergänzung nicht mehr am Hinweis. Das ersetzt den Blick auf die echte
+Seite nicht — der gehört auf dem Zielserver nachgeholt, wie in P4 Schritt 6.
+
+`DomainRouteTest` um drei Durchgänge erweitert: ohne Freigabe abgewiesen, mit
+Freigabe kommt die Meldung des Agenten zurück, und ein halbes Formular reicht
+nicht. Dazu ein neuer Bruch — die Policy ohne Planfreigabe.

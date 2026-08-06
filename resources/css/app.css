@@ -1096,6 +1096,26 @@ table.pairs {
   gap: 10px;
 }
 
+/*
+ * Eine Knopfreihe unter einem Formular bekommt Abstand — hier und nicht auf
+ * der Seite.
+ *
+ * **Das ist beim dritten Mal aufgefallen.** `.button-row` setzt keinen Rand
+ * nach oben; in einem `.form` fällt das nicht auf, weil die Reihe dort ein
+ * Flexkind ist und den `gap` erbt. Steht sie in einem Bereich hinter einem
+ * Feld oder einem Hinweis, klebt „Speichern" am Text darüber. Die Antwort war
+ * bisher jedes Mal eine eigene Klasse auf der Seite — `.spaced` im Profil, ein
+ * Umbau in der Zertifikatsseite —, und das ist derselbe Fehler wie ein Hexwert
+ * in einer Komponente: Das Aussehen eines Bausteins gehört hierher.
+ *
+ * Der Nachbarschaftsausdruck trifft genau den Fall: eine Reihe *nach*
+ * Formularinhalt. Eine Knopfreihe am Kopf einer Seite oder in einer Kachel
+ * berührt er nicht.
+ */
+:is(.field, .hint, .error) + .button-row {
+  margin-top: 16px;
+}
+
 @media (max-width: 480px) {
   .button-row {
     flex-direction: column;

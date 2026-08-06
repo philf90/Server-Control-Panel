@@ -1216,6 +1216,29 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateUploadTest passed
 
 echo
+echo "── DomainRouteTest: Hochladen ohne Planfreigabe ──"
+#
+# Wer hochlädt, legt einen privaten Schlüssel auf den Server, und was danach
+# ausgeliefert wird, sieht jeder Besucher. Ob ein Kunde das darf, entscheidet
+# der Betreiber über den Plan — nicht die Fähigkeit, eine Domain zu ändern.
+vorher_datei app/Policies/DomainPolicy.php
+python3 - <<'PY2'
+p = 'app/Policies/DomainPolicy.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            && $subscription->feature(Feature::CertificateUpload->value)\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Policies/DomainPolicy.php "Hochladen ohne Planfreigabe" &&
+pruefe "Hochladen ohne Planfreigabe" \
+  DomainRouteTest::test_without_the_plan_feature_no_certificate_may_be_uploaded failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  DomainRouteTest::test_without_the_plan_feature_no_certificate_may_be_uploaded passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

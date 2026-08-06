@@ -315,6 +315,18 @@ Route::middleware('auth')->group(function (): void {
         ->name('domains.certificate');
 
     /*
+     * Ein eigenes Zertifikat hinterlegen.
+     *
+     * **Eine eigene Fähigkeit und nicht `update`.** Wer hier hochlädt, legt
+     * einen privaten Schlüssel auf den Server, und was danach ausgeliefert
+     * wird, sieht jeder Besucher. Ob ein Kunde das darf, entscheidet der Plan
+     * über `certificate_upload` — die Freigabe gibt es dort seit P2.
+     */
+    Route::post('/domains/{domain}/certificate/upload', [DomainController::class, 'uploadCertificate'])
+        ->middleware('can:uploadCertificate,domain')
+        ->name('domains.certificate.upload');
+
+    /*
      * Die Protokolle einer Domain.
      *
      * Eigene Fähigkeit statt `view`: Ein Fehlerprotokoll enthält Pfade,

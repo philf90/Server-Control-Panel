@@ -44,15 +44,14 @@ final class CertificateOrder
      * Der Aufrufer entscheidet, *ob* bestellt wird — diese Klasse entscheidet,
      * *wie*. Zurück kommt `null`, wenn keine Kontaktadresse eingetragen ist.
      *
-     * @param  bool  $wildcard  Bestellt `*.example.de` **und** `example.de`
-     *                          über DNS-01. Die Berechtigung dazu ist an
-     *                          diesem Punkt schon geprüft.
-     *
      * @param  Operation|null  $cause  Der auslösende Vorgang, dessen Konto der
      *                                 neue erbt: Im Arbeiter gibt es keine
      *                                 Anfrage, und ohne diese Zeile stünde in
      *                                 der Liste „—" neben einem Vorgang, den
      *                                 jemand ausgelöst hat.
+     * @param  bool  $wildcard  Bestellt `*.example.de` **und** `example.de` über
+     *                          DNS-01. Die Berechtigung dazu ist an diesem
+     *                          Punkt schon geprüft.
      */
     public function place(Domain $domain, ?Operation $cause = null, bool $wildcard = false): ?Operation
     {

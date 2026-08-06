@@ -8,7 +8,6 @@ use App\Enums\DomainType;
 use App\Models\Domain;
 use SrvPanel\Agent\Acme\DnsChallenge;
 use SrvPanel\Agent\Acme\Store;
-use SrvPanel\Agent\AgentException;
 
 /**
  * Ob zu dieser Domain ein Platzhalter bestellt werden darf — und was er kostet.
@@ -115,48 +114,15 @@ final class WildcardOrder
     /**
      * Liegen für das Profil dieser Domain Zugangsdaten?
      *
-     * **Gefragt wird der Agent, denn dort liegen sie** — nicht in der
-     * Datenbank des Panels (`docs/34 §5`). Zurück kommen Profilnamen und
-     * Anbieter, nie ein Geheimnis.
-     *
-     * **Antwortet er gar nicht, ist die Antwort „nein".** Das ist hier die
-     * vorsichtige Richtung: Ein Knopf, der eine Bestellung auslöst, die
-     * mangels Zugangsdaten scheitert, verbrennt einen Fehlversuch, der für
-     * jeden Kunden dieses Servers zählt.
+     * **Gefragt wird der Agent, denn dort liegen sie** — nicht in der Datenbank
+     * des Panels (`docs/34 §5`). Antwortet er nicht, ist die Antwort „nein":
+     * Ein Knopf, der eine Bestellung auslöst, die mangels Zugangsdaten
+     * scheitert, verbrennt einen Fehlversuch, der für jeden Kunden dieses
+     * Servers zählt.
      */
     private function hasCredentials(Domain $domain): bool
     {
-        return in_array($this->profile($domain), $this->known(), true);
-    }
-
-    /** @return list<string> */
-    private function known(): array
-    {
-        if ($this->profiles_known !== null) {
-            return $this->profiles_known;
-        }
-
-        try {
-            $answer = $this->agent->call(
-                'dns.credential.list',
-                [],
-                ['source' => 'web', 'command' => 'domains.certificate'],
-            );
-        } catch (AgentException) {
-            return $this->profiles_known = [];
-        }
-
-        $names = [];
-
-        foreach (is_array($answer['profiles'] ?? null) ? $answer['profiles'] : [] as $profile) {
-            $name = is_array($profile) ? ($profile['profile'] ?? null) : null;
-
-            if (is_string($name) && $name !== '') {
-                $names[] = $name;
-            }
-        }
-
-        return $this->profiles_known = $names;
+        return in_array($this->profile($domain), $this->credentials->profiles(), true);
     }
 
     /** Das Profil, unter dem die Zone dieser Domain geändert wird. */

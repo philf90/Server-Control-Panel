@@ -3386,5 +3386,22 @@ sagte trotzdem null. Gemessen wird seitdem ein Rahmen im Dokument und nicht das
 Fenster. *Ein Werkzeug, das die Wächter trägt, braucht selbst einen* — derselbe
 Fall wie beim Bruchskript, dem sein `sed` ins Leere lief.
 
+**Und ein Fehler, der eine Runde gekostet hat, mit seiner Lehre.** Eine
+Textersetzung im Skript hat den halben Block stehen lassen: Der Konstruktor
+nahm die neue Naht entgegen, die alte Methode daneben griff weiter auf eine
+Eigenschaft zu, die es nicht mehr gab. `php -l` sieht davon nichts — eine
+undefinierte Eigenschaft ist ein Laufzeitfehler —, und PHPStan läuft hier nur
+über `agent/`. Acht Tests waren rot. Es gibt dafür jetzt eine Probe im
+Scratchpad, die den Text nach `$this->x` ohne zugehörige Erklärung durchsucht;
+sie hätte den Fall in einer Sekunde gemeldet. **Wer eine Ersetzung schreibt,
+sieht danach nach, dass das Alte weg ist** — nicht nur, dass das Neue da ist.
+
+Dazu die vierte Runde derselben Sorte an der lokalen Fixer-Einstellung: Pint
+meldete `braces_position` und `phpdoc_separation`, und beide wollten in der
+Voreinstellung des Fixers hundert bzw. fünfunddreissig Dateien anfassen, die
+die CI heute annimmt. Sie stehen deshalb **nicht** in der lokalen Fassung, und
+der Grund steht als Kommentar daneben: *Eine Regel gehört nur dorthin, wenn sie
+genau das meldet, was die CI meldet.*
+
 Was aussteht: der Blick auf die **echte** Seite (dafür fehlt `vendor/`) und die
 Abnahme gegen eine echte Zone (`docs/34 §10`).

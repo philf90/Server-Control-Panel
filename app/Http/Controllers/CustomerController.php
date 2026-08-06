@@ -327,6 +327,19 @@ final class CustomerController extends Controller
      * des Kunden bleiben ebenfalls stehen und kommen trotzdem nicht mehr
      * herein: Die Anmeldung weist Konten eines zurückgezogenen Kunden ab.
      *
+     * **Die Anmeldeadresse wird dabei frei — und nur sie.** Gesperrt bleibt
+     * die Kundennummer, denn sie steht in Rechnungen. Die Adresse gehört
+     * dagegen einem Menschen, und wer einen Kunden zurückzieht und neu anlegt,
+     * hat denselben vor sich. Sie blieb bis hierher belegt, und weil
+     * `accounts.email` einen Unique-Index trägt, war das kein Versehen in der
+     * Validierung, sondern eine Sperre in der Datenbank: Das Anlegen schlug
+     * fehl, und im Formular sah es aus wie nichts.
+     *
+     * **Freigegeben heisst `null`**, nicht „irgendeine Adresse, die keiner
+     * hat". Was sie war, hält der Eintrag im Prüfprotokoll fest — dort gehört
+     * sie hin, denn ab jetzt ist sie eine Tatsache der Vergangenheit und keine
+     * Eigenschaft des Kontos.
+     *
      * **Nicht, solange Abonnements laufen.** Der bequeme Weg wäre, sie mit
      * zurückzubauen. Dann wäre dieser Knopf einer, der als Nebenwirkung fünf
      * Verzeichnisbäume als root löscht — und die Rückfrage davor spräche von
@@ -360,13 +373,35 @@ final class CustomerController extends Controller
 
         $number = $customer->number;
 
-        $customer->delete();
+        // Beides zusammen oder gar nicht: Ein Kunde, der zurückgezogen ist,
+        // dessen Konten aber noch ihre Adresse belegen, ist genau der Zustand,
+        // aus dem dieser Fehler entstanden ist.
+        $released = DB::transaction(function () use ($customer): array {
+            $addresses = [];
 
-        $audit->success('customer.withdrawn', $customer, ['number' => $number]);
+            foreach ($customer->accounts()->whereNotNull('email')->get() as $account) {
+                $addresses[] = (string) $account->email;
+
+                $account->forceFill(['email' => null])->save();
+            }
+
+            $customer->delete();
+
+            return $addresses;
+        });
+
+        $audit->success('customer.withdrawn', $customer, [
+            'number' => $number,
+            // Ohne diese Zeile wäre die Adresse weg, ohne dass irgendwo
+            // stünde, welche es war.
+            'released_addresses' => $released,
+        ]);
 
         return redirect()
             ->route('customers.index')
-            ->with('success', "Kunde {$number} zurückgezogen. Die Nummer bleibt vergeben.");
+            ->with('success', $released === []
+                ? "Kunde {$number} zurückgezogen. Die Nummer bleibt vergeben."
+                : "Kunde {$number} zurückgezogen. Die Nummer bleibt vergeben, die Anmeldeadresse ist wieder frei.");
     }
 
     /** Der Ländercode einheitlich in Grossbuchstaben — oder gar keiner. */

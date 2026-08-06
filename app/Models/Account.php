@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Carbon;
+use RuntimeException;
 
 /**
  * Ein Anmeldekonto.
@@ -34,7 +35,7 @@ use Illuminate\Support\Carbon;
  * @property AccountType $type
  * @property int|null $customer_id
  * @property string $name
- * @property string $email
+ * @property string|null $email
  * @property string $password
  * @property string $locale
  * @property AccountStatus $status
@@ -223,6 +224,31 @@ class Account extends Authenticatable
     public function hasTwoFactor(): bool
     {
         return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
+    }
+
+    /**
+     * Die Adresse eines Kontos, das sich anmelden kann.
+     *
+     * **Ein zurückgezogenes Konto hat keine mehr.** Seine Adresse wird beim
+     * Zurückziehen des Kunden freigegeben, damit derselbe Mensch sich wieder
+     * anlegen lässt; die Kundennummer bleibt vergeben, die Adresse nicht.
+     *
+     * **Und hierher kommt so ein Konto nicht.** Die Anmeldung findet es nicht,
+     * weil `null` auf keine getippte Adresse passt. Wer es trotzdem erreicht,
+     * hat einen Weg an der Anmeldung vorbei gebaut — und dann ist eine
+     * Ausnahme besser als eine leere Zeichenkette: Die stünde als Schlüssel
+     * einer Ratenbegrenzung für *alle* Konten zugleich, und ein `clear()`
+     * darauf setzte die Sperre für jeden zurück.
+     */
+    public function signInAddress(): string
+    {
+        $address = $this->email;
+
+        if ($address === null || $address === '') {
+            throw new RuntimeException('Dieses Konto hat keine Anmeldeadresse mehr: '.$this->id);
+        }
+
+        return $address;
     }
 
     public function isAdmin(): bool

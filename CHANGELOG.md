@@ -3405,3 +3405,60 @@ genau das meldet, was die CI meldet.*
 
 Was aussteht: der Blick auf die **echte** Seite (dafür fehlt `vendor/`) und die
 Abnahme gegen eine echte Zone (`docs/34 §10`).
+
+#### Die Anmeldeadresse eines zurückgezogenen Kunden wird frei
+
+**Der Fund kommt aus dem Betrieb, und er sah aus wie ein kaputter Knopf.** Ein
+Kunde liess sich nicht anlegen: ausfüllen, „Anlegen", und scheinbar passierte
+nichts — kein Eintrag im Prüfprotokoll, keine Zeile im Fehlerprotokoll, kein
+Kunde. Es waren zwei Fehler übereinander.
+
+**Der erste: Eine weiche Löschung sperrte mehr, als sie darf.** Die
+Kundennummer *soll* vergeben bleiben — sie steht in Rechnungen, und zwei
+Vertragspartner mit derselben wären ein Buchhaltungsproblem. Die Anmeldeadresse
+soll es nicht: Wer einen Kunden zurückzieht und ihn neu anlegt, hat denselben
+Menschen vor sich. Sie blieb trotzdem belegt, und zwar nicht aus Versehen in
+der Validierung, sondern durch den Unique-Index auf `accounts.email`. Nur die
+Regel zu lockern hätte aus der stummen Abweisung einen Serverfehler gemacht.
+
+**Freigegeben wird jetzt beim Zurückziehen, und `null` heisst frei.** Die
+Alternative wäre eine Adresse gewesen, die niemand tippen kann —
+`zurueckgezogen-12@invalid` oder dergleichen. Das ist genau die Sorte
+Zeichenkette, an der dieses Projekt wiederholt verloren hat: Sie sieht aus wie
+eine Adresse, ist keine, und jede Stelle, die sie anzeigt oder anschreibt,
+müsste das wissen. Ein Unique-Index verträgt beliebig viele `null`.
+
+**Das Konto selbst bleibt stehen** — das Prüfprotokoll zeigt per `account_id`
+darauf, und ein Eintrag ohne Urheber ist als Protokoll wertlos. Was verloren
+ginge, hält der Eintrag `customer.withdrawn` fest: Er nennt die freigegebenen
+Adressen. Und weil `email` damit `null` sein kann, gibt es
+`Account::signInAddress()` für die Stellen, die eine echte brauchen. Sie wirft,
+statt eine leere Zeichenkette weiterzureichen — die stünde als Schlüssel der
+Ratenbegrenzung für **alle** Konten zugleich, und ein `clear()` darauf setzte
+die Sperre für jeden zurück.
+
+**Nachgeprüft und nicht geglaubt:** Ein zurückgezogenes Konto kam schon vorher
+nicht mehr herein (`LoginController` weist es ab), und es gibt keinen Weg,
+einen Kunden wiederherzustellen — die freigegebene Adresse kann also nie zu
+zwei aktiven Konten mit derselben führen.
+
+**Der zweite Fehler: Es gab keine Meldung, die man findet.** Die Abweisung war
+die ganze Zeit da — als kleine rote Zeile unter dem Feld, mitten in einem
+langen Formular. Inertia setzt die Scrollposition nach einer Antwort zurück;
+oben angekommen sieht man dieselben ausgefüllten Felder wie vorher und schliesst
+auf einen kaputten Knopf. **Eine Meldung, die man suchen muss, ist keine.**
+
+`FormErrors` fasst deshalb zusammen, was schiefging, und steht über dem ersten
+Formular jeder Seite — dort, wo der Blick nach dem Sprung landet. Sie liest den
+Fehlersatz der **Seite** und nicht den eines Formulars: `useForm().errors`
+füllt sich nur bei der Anfrage dieser einen Instanz, und die Domainseite hat
+drei Formulare. `preserveScroll` braucht es dafür ausdrücklich *nicht* — steht
+die Zusammenfassung oben, führt der Sprung genau zu ihr.
+
+**Es waren dreizehn Seiten mit Formularen, und bei zwölf davon wäre derselbe
+Fehlschlag genauso unsichtbar gewesen.** Deshalb ist es ein Wächter geworden
+und keine Notiz: `FormErrorTest` verlangt die Zusammenfassung auf jeder Seite,
+die `useForm` benutzt, und prüft, dass sie am Fehlersatz der Seite hängt.
+
+Zwei neue Brüche: die Adresse, die belegt bleibt, und eine Seite ohne
+Zusammenfassung.

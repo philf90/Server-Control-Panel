@@ -246,6 +246,16 @@ Testen berücksichtigen:
     Framework, und dort läuft Stufe 6 sauber durch. Genau so gefunden:
     `array_values()` auf einer Liste, die schon eine ist.
 
+    **Für eine einzelne neue Datei geht trotzdem mehr, als es aussieht.** Ein
+    Lauf über *nur* die geänderte Datei bringt zwar ein Dutzend
+    `method.notFound` für jede `assert…` — aber alles, was PHPStan aus dem
+    Code selbst schliesst, steht dazwischen und ist echt. Gefiltert nach
+    Kennungen, die nichts mit fehlenden Klassen zu tun haben
+    (`--error-format=raw`, dann ohne `notFound`), fällt zum Beispiel ein
+    `function.impossibleType` heraus: ein `in_array($x, self::LEER, true)`
+    gegen eine leere Konstante. Genau der hat eine CI-Runde gekostet, und die
+    Gegenprobe zeigt, dass er lokal auffindbar gewesen wäre.
+
   **Für `agent/` gibt es ausserdem einen Ausweg, und er hat in P4 eine Runde
   gespart.**
   `agent/src/autoload.php` ist framework- und abhängigkeitsfrei; Code unterhalb

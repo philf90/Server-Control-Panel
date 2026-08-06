@@ -134,15 +134,15 @@ final class MailSettingsController extends Controller
         }
 
         try {
-            Mail::to($account->email)->send(new TestMessage($account->name, now()->toDateTimeString()));
+            Mail::to($account->signInAddress())->send(new TestMessage($account->name, now()->toDateTimeString()));
         } catch (Throwable $error) {
             $audit->failure('settings.mail.tested', ['error' => mb_substr($error->getMessage(), 0, 500)]);
 
             return to_route('settings.mail')->with('error', 'Der Versand ist gescheitert: '.mb_substr($error->getMessage(), 0, 500));
         }
 
-        $audit->success('settings.mail.tested', context: ['to' => $account->email]);
+        $audit->success('settings.mail.tested', context: ['to' => $account->signInAddress()]);
 
-        return to_route('settings.mail')->with('success', 'Testmail an '.$account->email.' verschickt.');
+        return to_route('settings.mail')->with('success', 'Testmail an '.$account->signInAddress().' verschickt.');
     }
 }

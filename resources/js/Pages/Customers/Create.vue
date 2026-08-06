@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 interface PasswordPolicy {
   minimum: number
@@ -50,6 +51,8 @@ function submit(): void {
     <template #breadcrumb>
       <Link href="/customers" class="link">Kunden</Link>
     </template>
+
+    <FormErrors />
 
     <form class="form" @submit.prevent="submit">
       <Section title="Vertragspartner">

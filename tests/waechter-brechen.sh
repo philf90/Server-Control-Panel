@@ -1628,6 +1628,49 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AbilityReachTest passed
 
 echo
+echo "── CustomerTest: die Anmeldeadresse bleibt beim Zurückziehen belegt ──"
+#
+# Der Fall aus dem Betrieb: Kunde zurückgezogen, neuer Kunde mit derselben
+# Adresse — und scheinbar passiert nichts. `accounts.email` trägt einen
+# Unique-Index, und der galt weiter für ein Konto, das sich nie wieder anmelden
+# kann. Die Nummer soll gesperrt bleiben, die Adresse nicht.
+vorher_datei app/Http/Controllers/CustomerController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/CustomerController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            foreach ($customer->accounts()->whereNotNull('email')->get() as $account) {",
+    "            foreach ([] as $account) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/CustomerController.php "Adresse bleibt belegt" &&
+pruefe "Adresse bleibt belegt" \
+  CustomerTest::test_the_address_is_free_again_after_a_withdrawal failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CustomerTest passed
+
+echo
+echo "── FormErrorTest: eine Seite verschweigt, dass das Formular abgewiesen wurde ──"
+#
+# Ohne die Zusammenfassung steht die einzige Meldung als rote Zeile am Feld —
+# und nach einer Antwort springt die Seite nach oben, wo dann nichts steht.
+# Genau so ist ein Fehlschlag einen halben Tag lang als „der Knopf tut nichts"
+# gelesen worden.
+vorher_datei resources/js/Pages/Customers/Create.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Customers/Create.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    <FormErrors />\n\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Customers/Create.vue "Formular ohne Zusammenfassung" &&
+pruefe "Formular ohne Zusammenfassung" \
+  FormErrorTest::test_every_page_with_a_form_shows_what_went_wrong failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormErrorTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

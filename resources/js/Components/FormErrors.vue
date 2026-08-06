@@ -1,0 +1,56 @@
+<script setup lang="ts">
+import { usePage } from '@inertiajs/vue3'
+import { computed } from 'vue'
+
+/*
+ * Was an einem Formular gerade nicht stimmt — an einer Stelle, die man sieht.
+ *
+ * **Der Fall, der diese Komponente ausgelöst hat.** Ein Kunde liess sich nicht
+ * anlegen, weil die Anmeldeadresse eines zurückgezogenen Kunden sie noch
+ * belegte. Die Meldung dazu stand als kleine rote Zeile unter dem Feld — mitten
+ * in einem langen Formular. Inertia setzt die Scrollposition nach einer Antwort
+ * zurück, der Betreiber landete also oben, sah dieselben ausgefüllten Felder
+ * wie vorher und schloss daraus: „Der Knopf tut nichts." Das aufzuklären hat
+ * einen halben Tag gekostet, und die Zeile am Feld war die ganze Zeit da.
+ *
+ * **Deshalb steht die Zusammenfassung oben und nicht am Feld.** Die Zeile am
+ * Feld bleibt — sie sagt, *welches* Feld —, aber sie ist nicht mehr der
+ * einzige Ort, an dem ein Fehlschlag überhaupt sichtbar wird. Und weil die
+ * Seite nach der Antwort ohnehin nach oben springt, steht sie damit genau dort,
+ * wo der Blick landet.
+ *
+ * **Gelesen wird der Fehlersatz der Seite und nicht der eines Formulars.**
+ * `useForm().errors` füllt sich nur bei der Anfrage *dieser* Instanz; auf einer
+ * Seite mit drei Formularen — die Domainseite hat drei — bliebe die
+ * Zusammenfassung bei zweien von ihnen stumm. `page.props.errors` trägt, was
+ * die letzte Antwort gemeldet hat, gleich von welchem Formular sie kam.
+ */
+const page = usePage()
+
+/*
+ * Die Meldungen in der Reihenfolge, in der sie ankommen.
+ *
+ * Nicht sortiert: Laravel liefert sie in der Reihenfolge der Regeln, und die
+ * ist die des Formulars. Alphabetisch stünde „E-Mail" vor „Vorname", und die
+ * Zusammenfassung läse sich gegen die Seite.
+ */
+const messages = computed((): string[] =>
+  // `Errors` von Inertia ist ein Wörterbuch mit Zeichenketten; die Typangabe
+  // dort lässt aber auch verschachtelte Sätze zu, und ein Typprädikat darauf
+  // wäre gelogen. Geprüft wird deshalb zur Laufzeit.
+  Object.values(page.props.errors ?? {}).flatMap((message) =>
+    typeof message === 'string' && message !== '' ? [message] : [],
+  ),
+)
+</script>
+
+<template>
+  <p v-if="messages.length > 0" class="notice critical" role="alert">
+    <span>
+      <b>Das Formular wurde nicht gespeichert.</b>
+      <template v-for="(message, index) in messages" :key="index">
+        <br>{{ message }}
+      </template>
+    </span>
+  </p>
+</template>

@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 interface QuotaEntry {
   key: string
@@ -112,6 +113,8 @@ function submit(): void {
         Vorgang aus.
       </span>
     </p>
+
+    <FormErrors />
 
     <form class="form" @submit.prevent="submit">
       <Section title="Plan">

@@ -14,6 +14,7 @@ import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PasswordFields from '../../Components/PasswordFields.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 declare global {
   interface Window {
@@ -119,6 +120,8 @@ function savePassword(): void {
 
     <div class="sections">
       <Section v-if="!props.impersonating" title="Konto">
+        <FormErrors />
+
         <form @submit.prevent="saveAccount">
           <label class="field">
             <span>Anzeigename</span>

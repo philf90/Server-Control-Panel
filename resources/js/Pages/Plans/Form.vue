@@ -3,6 +3,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 interface QuotaEntry {
   key: string
@@ -133,6 +134,8 @@ function remove(): void {
         bleiben bestehen.
       </span>
     </p>
+
+    <FormErrors />
 
     <form class="form" @submit.prevent="submit">
       <Section title="Plan">

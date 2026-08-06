@@ -80,7 +80,7 @@ final class TwoFactorChallengeController extends Controller
         // Derselbe Zähler wie beim Passwort. Ohne ihn wäre der zweite Faktor
         // sechs Stellen, die sich in Ruhe durchprobieren lassen — eine Million
         // Möglichkeiten sind für ein Programm kein Hindernis.
-        if ($throttle->tooManyAttempts($ip, $account->email)) {
+        if ($throttle->tooManyAttempts($ip, $account->signInAddress())) {
             throw ValidationException::withMessages([
                 'code' => 'Zu viele Versuche. Bitte einen Moment warten.',
             ]);
@@ -89,7 +89,7 @@ final class TwoFactorChallengeController extends Controller
         $accepted = $this->accept($account, $data['code']);
 
         if ($accepted === null) {
-            $throttle->recordFailure($ip, $account->email);
+            $throttle->recordFailure($ip, $account->signInAddress());
             $audit->record('auth.two_factor.failed', AuditResult::Failure, account: $account);
 
             throw ValidationException::withMessages([
@@ -97,7 +97,7 @@ final class TwoFactorChallengeController extends Controller
             ]);
         }
 
-        $throttle->clear($ip, $account->email);
+        $throttle->clear($ip, $account->signInAddress());
 
         $remember = (bool) $request->session()->get(self::REMEMBER_KEY, false);
         $request->session()->forget([self::SESSION_KEY, self::REMEMBER_KEY]);

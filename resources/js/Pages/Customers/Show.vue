@@ -11,7 +11,7 @@ const props = defineProps<{
     email: string; phone: string | null; status: string; status_label: string
   }
   accounts: {
-    id: number; name: string; email: string
+    id: number; name: string; email: string | null
     type: string; type_label: string; status_label: string; last_login_at: string | null
   }[]
   subscriptions: { id: number; name: string; status: string; status_label: string }[]
@@ -132,7 +132,16 @@ function freigeben(): void {
             </thead>
             <tbody>
               <tr v-for="a in props.accounts" :key="a.id">
-                <td data-column="Anmeldeadresse" class="name">{{ a.email }}</td>
+                <!--
+                  Ein zurückgezogener Kunde hat keine Anmeldeadresse mehr — sie
+                  ist beim Zurückziehen freigegeben worden, damit derselbe
+                  Mensch sich wieder anlegen lässt. Eine leere Zelle sähe hier
+                  nach einem fehlenden Wert aus statt nach einer Entscheidung.
+                -->
+                <td data-column="Anmeldeadresse" class="name">
+                  <template v-if="a.email">{{ a.email }}</template>
+                  <span v-else class="quiet">freigegeben</span>
+                </td>
                 <td data-column="Art" class="quiet">{{ a.type_label }}</td>
                 <td data-column="Zustand" class="quiet">{{ a.status_label }}</td>
                 <td data-column="Zuletzt angemeldet" class="quiet">

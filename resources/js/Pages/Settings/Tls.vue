@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 interface Certificate {
   present: boolean
@@ -238,6 +239,8 @@ function neuAusstellen(): void {
         </span>
       </p>
     </template>
+
+    <FormErrors />
 
     <form class="form" @submit.prevent="speichern">
       <Section title="Let’s Encrypt" note="Ohne diese beiden Angaben bestellt das Panel nichts.">

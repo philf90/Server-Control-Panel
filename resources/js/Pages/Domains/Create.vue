@@ -3,6 +3,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 interface PhpOption {
   version: string
@@ -78,6 +79,8 @@ const eigenesVerzeichnis = computed(() => form.type !== 'alias' && form.redirect
         Aliasse zählen auf kein Kontingent.
       </span>
     </p>
+
+    <FormErrors />
 
     <form class="form" @submit.prevent="form.post(`/subscriptions/${props.subscription.id}/domains`)">
       <Section title="Sorte und Name">

@@ -4,35 +4,35 @@ Hash: SHA512
 Architectures: amd64 arm64
 Codename: beta
 Components: main
-Date: Thu, 06 Aug 2026 10:34:09 +0000
+Date: Thu, 06 Aug 2026 12:04:30 +0000
 Description: SrvPanel beta
 Label: SrvPanel
 Origin: SrvPanel
 Suite: beta
 MD5Sum:
- 46d9f6451251dc5d9c247ccf1dabb2d2             9960 main/binary-amd64/Packages
- 6fe130855e601b16476550440f76d91d             2677 main/binary-amd64/Packages.gz
- a083892033b8e91966e150ffcb49322b             9960 main/binary-arm64/Packages
- 022ee1a5d187a526fc2eb48262ac3a70             2679 main/binary-arm64/Packages.gz
+ 5e6b7c5ccc66f55124a4f8bef275b323             9960 main/binary-amd64/Packages
+ 447d71ec8900dd22234eb48c10406b1e             2675 main/binary-amd64/Packages.gz
+ 89f32146fc61ae1e5463d06169e39e4e             9960 main/binary-arm64/Packages
+ ada32acc82c1ed83a81eae07a9bd5b94             2680 main/binary-arm64/Packages.gz
 SHA1:
- bbaa9aec52c3356ad9eadbd1a58ed9cc4138e5d2             9960 main/binary-amd64/Packages
- f530b14322b741d40aeda777fb3d9c846ba2e9c1             2677 main/binary-amd64/Packages.gz
- f56794d24c8a2a9f1f00b247d93effbfb07a21df             9960 main/binary-arm64/Packages
- d44e21d39461b40000d498a162043f11c974c455             2679 main/binary-arm64/Packages.gz
+ 42e17e003557ded564f2e4e1aae14822bb570df9             9960 main/binary-amd64/Packages
+ 123eed57c074da88de10cd956ce3a5b1fcc2c9cb             2675 main/binary-amd64/Packages.gz
+ 8eddaa06599b72cd995a6f9e590aa118355d95cb             9960 main/binary-arm64/Packages
+ 89d37ec4404591cef14edd2c96f5a390d6d300e5             2680 main/binary-arm64/Packages.gz
 SHA256:
- e1c0ef43d72edf3af1254b928e999b9aeb288f6a60fdd23ebfbda3d78ffe0ddb             9960 main/binary-amd64/Packages
- de06b0135fa11dcc74fb16ba3ebac546ded30f487653afa64b5aa92f9bbdf367             2677 main/binary-amd64/Packages.gz
- fc1f9ffb09025d90f1d471ca502d7b83bd30203716659d55aaf171d641a471c0             9960 main/binary-arm64/Packages
- d9fefd44f1ac06af4367707a4f21543e60d9c30c93fb9734d6b5ebe942da7f1e             2679 main/binary-arm64/Packages.gz
+ 9b5e4d4ab89fedd23a56bc21dba997d419e5cd300ec3f5c8250df8902461ad2f             9960 main/binary-amd64/Packages
+ cb975e51649a7b77262b0a9082b238f6a89c148e1ef3fd5f5f21e91ba3dfdbc0             2675 main/binary-amd64/Packages.gz
+ 71332c26a7ca4603d6f93aaa7d64b55691f22d8e630cbb5ba9a90944177966cc             9960 main/binary-arm64/Packages
+ 069688f905d860eb1724a6d42799591d7f2806b76c53a76c8f413dc7bb1407b7             2680 main/binary-arm64/Packages.gz
 SHA512:
- 1f1826a1fcaf5c42e2aee6be2cde4f4b20b89800dff512ed41e4a367b52973e8089e42957a6a3b8f0374f2bad818d62edc4ea1938f40e484d46276bfada2fbd0             9960 main/binary-amd64/Packages
- df49bb263d57936cc473a606d0b7e01e27b1a36df19cce89b714e9d1d3abe1cf310427725662f96c050c59f8769cbb9f7e505aa3959b5a81f0cfe463e9ab3263             2677 main/binary-amd64/Packages.gz
- 68dce5f3e257863de4b0aaeebd52824a9f66ecf891e8d9865fdb06bf4012f38f1046f21ef1a302116a9c8f76c57deee652e60e53c41887b8dbaaf37d0fcc3188             9960 main/binary-arm64/Packages
- b3401367f5ad5d0b66b8146d9c377e94b4a0630b4c6de2367d9a51e75b4f4311e60d6dd66f406caf66974c38a8170bae0282030d2342bf02cdafc2375d7b2eee             2679 main/binary-arm64/Packages.gz
+ b962daed2afef6c63af97c2ba04f96759250f9615c5c2bad897a5c4fa65fa946e1232b5ce152140cf5fe32811e7e440ef0aefc5b578bbc5862c9622fa6d66b4e             9960 main/binary-amd64/Packages
+ 47d41167a182da9bf091cf47664bd9f86bf97545b5b3f5b6fee1319f8c18b0c6fa1b6e1cb181ae64cec4f09f4277f6f33f0516507ab0ed4bde332af1f29c3b8c             2675 main/binary-amd64/Packages.gz
+ f3ee90fb00e6ebdc67c6a0e0ffc0c5073d5ec62c25c01068fa6ed42e86e91021453f1cbb599ca05c4e14445ea179973c2a9ec1bdf2a7c6d049f81c9e9cc012b6             9960 main/binary-arm64/Packages
+ a2c5738391a7ced13bc6807b6d571082782bcfa2f6a89bbd8b0d177a0a0f3c28abeaa4ad6af3bcdf1bb10da86f3ce25e1c704c37c0cd32182e4e3af8718c0bb6             2680 main/binary-arm64/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iHUEARYKAB0WIQRY7kZETivIq9Rx/R5xIrfJxDk+hgUCanRjIQAKCRBxIrfJxDk+
-hnSOAQCBWXQ1qKIitAgSi4ugCbI0fZssWBozimLCUKw14VF6yQD/bzF6My0zTIc4
-/c6ePYrzRW2k7igxpCTlDr7FPTMoaQc=
-=uPyR
+iHUEARYKAB0WIQRY7kZETivIq9Rx/R5xIrfJxDk+hgUCanR4TgAKCRBxIrfJxDk+
+hmU8AP99Ux1HxqL50/PIl+y6HF469UxY7NaiLIj2KyG2E5y/CgEA58l3iAv05LB6
+teruPb7jGLkfaDtLzDr9YzZ0zFfESQc=
+=aATR
 -----END PGP SIGNATURE-----

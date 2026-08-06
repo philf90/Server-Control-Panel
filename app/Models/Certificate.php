@@ -33,6 +33,7 @@ use SrvPanel\Agent\DomainName;
  * @property int $id
  * @property int|null $subscription_id
  * @property list<string>|null $names
+ * @property string|null $storage_name
  * @property CertificateStatus $status
  * @property CertificateSource $source
  * @property string|null $issuer
@@ -53,7 +54,7 @@ class Certificate extends Model
 
     /** @var list<string> */
     protected $fillable = [
-        'subscription_id', 'names', 'status', 'source', 'issuer', 'serial',
+        'subscription_id', 'names', 'storage_name', 'status', 'source', 'issuer', 'serial',
         'not_before', 'not_after', 'last_error', 'last_attempt_at', 'renew_after',
     ];
 

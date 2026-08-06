@@ -79,6 +79,14 @@ final class WebLifecycle implements AfterOperation
             // Browser kennt. Ob das Zertifikat es hergibt, sieht der Agent
             // selbst nach; erst beide zusammen schreiben den Header.
             'hsts' => $this->tls->hsts($this->certificate($domain)),
+
+            // **Welches Zertifikat ausgeliefert wird, sagt das Panel.** Bis
+            // zum zweiten Wurf von P4 sah der Agent unter dem Namen der Domain
+            // nach — damit entschied das Dateisystem, was nginx vorweist, und
+            // die Zuordnung in der Datenbank war die zweite Wahrheit daneben.
+            // Was hier hinausgeht, ist ein Name und kein Pfad; den Ablageort
+            // baut der Agent (`docs/34 §2.1`).
+            'certificate' => $this->certificate($domain)?->storage_name,
         ];
     }
 

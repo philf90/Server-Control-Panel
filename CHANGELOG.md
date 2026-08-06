@@ -2843,3 +2843,73 @@ vorinstallierten Chromium bei 390px, in beiden Themes, mit `scrollWidth -
 clientWidth` als Zahl auf der Seite. Vorher 99px, nachher 0px. Das ersetzt den
 Blick auf die echte Seite nicht — aber es beantwortet die Frage, um die es
 geht, ohne auf eine Umgebung mit `vendor/` zu warten.
+
+### P4, zweiter Wurf — DNS-01, Platzhalter, eigene Zertifikate
+
+Der Plan dazu steht in `docs/34`: die drei Stellen, an denen der erste Wurf der
+Erweiterung nicht standhält, die Reihenfolge der Schritte, und die
+Entscheidungen des Betreibers. Anbieter sind RFC 2136, Hetzner, Cloudflare,
+Netcup und IPv64.net; die Zugangsdaten hängen am Abonnement, sobald der Plan
+`dns_edit` freigibt, sonst am Betreiber. Kunden dürfen Platzhalter bestellen
+und eigene Zertifikate hochladen — beides gibt es als Freigabe im Plan längst.
+
+#### Schritt 1: welches Zertifikat gilt, sagt das Panel
+
+**Bis hierher leitete der Agent es aus dem Domainnamen ab.**
+`SiteTemplate::render()` sah unter dem Namen der Domain nach und nahm, was dort
+lag. Für ein Zertifikat, das genau diese eine Domain deckt, stimmt das — und
+für nichts sonst: Ein Platzhalter liegt unter keinem der Namen, die er deckt,
+und ein hochgeladenes Zertifikat für drei Domains höchstens unter einer davon.
+
+Damit gäbe es zwei Wahrheiten zu einer Frage: die Zuordnung in der Datenbank
+und der Verzeichnisname auf dem Server. Das ist wörtlich das Muster, an dem
+dieses Projekt sechsmal verloren hat — und diesmal wäre es aufgefallen, indem
+eine Website ohne Fehlermeldung auf Port 80 zurückfällt.
+
+**Jetzt nennt das Panel den Namen, und der Agent baut den Pfad.** Ein Name und
+kein Pfad: Ein Pfad aus der Anwendung wäre bei `ssl_certificate` dasselbe wie
+bei `root` — die Erlaubnis, eine beliebige Datei des Servers zu benennen.
+Nennt das Panel keines, liefert der Block keines aus, auch wenn unter dem Namen
+der Domain eines läge.
+
+**Wo es liegt, berichtet der Agent, statt dass es jemand ausrechnet.**
+`Store::write()` gibt den Schlüssel zurück, unter dem abgelegt wurde;
+`certificates.storage_name` merkt ihn sich. Die Regel „Verzeichnis = erster
+Name" stünde sonst an zwei Stellen — und sie ändert sich schon im nächsten
+Schritt, weil `*.example.de` kein Verzeichnisname sein kann. Bestehende Zeilen
+trägt die Migration nach genau dieser Regel nach; ohne den Nachtrag verlöre
+jede bestehende Domain beim nächsten Anwenden ihr HTTPS.
+
+**Bestellt wird jetzt nach der Deckung und nicht mehr nach dem Verweis.** Ein
+zugeordnetes Zertifikat genügte, solange jedes für genau eine Domain bestellt
+wurde. Kommt ein Alias nachträglich dazu, steht er im `server_name` und nicht
+im Zertifikat: Der Browser warnt bei ihm, und im Panel sieht alles grün aus —
+`covers_all` zeigt das seit Schritt 6 an, behoben hat es bis hierher nichts.
+Dieselbe Bedingung trägt später den Platzhalter und das hochgeladene
+Zertifikat.
+
+**Und läuft schon eine Bestellung, kommt keine zweite dazu.** Ohne diese Frage
+bestellte jedes erneute Anwenden noch einmal — bei `srvpanel vhost --sites`
+über viele Domains wären das ebenso viele Prüfungen, und fünf Fehlversuche je
+Stunde sind die Grenze der Zertifizierungsstelle.
+
+**Die Zuordnung fragt jetzt auch nach dem Eigentum, und diesen Fall hat der
+Quelltext vorhergesagt, bevor es ihn gab.** Am Verweis in `App\Models\Domain`
+stand seit P4, die Deckungsprüfung fange eine fremde Nummer „meistens" ab —
+„aber nicht bei einem Wildcard, das den Namen zufällig deckt". Genau das kommt
+mit diesem Wurf: `*.example.de` deckt jede Unterdomain der Zone, auch die eines
+anderen Kunden. Ab da ist die Zuordnung keine Sorgfaltsfrage mehr, sondern die
+Grenze zwischen zwei Abonnements.
+
+Vier neue Brüche im Wächterskript: der ableitende Agent, das schweigende Panel,
+das fremde Zertifikat, der Verweis statt der Deckung. Geprüft wird in
+`SiteTemplateTest`, `WebLifecycleTest`, `CertificateCoverageTest` und
+`CertificateReapplyTest`.
+
+**Gegengeprüft wurde diesmal ohne PHPUnit.** `vendor/` ist in dieser Umgebung
+unvollständig — 39 Pakete, aber weder `vendor/bin` noch Autoloader. Der Teil
+unterhalb von `agent/` liess sich trotzdem fahren: `agent/src/autoload.php` ist
+abhängigkeitsfrei, und ein Wegwerfskript im Scratchpad hat die elf Behauptungen
+zur Vorlage geprüft — ohne Nennung kein `listen 443`, mit fremdem Ablageort
+genau dieser Pfad, und ein `../../etc/passwd` als Zertifikatsname wird
+abgewiesen. Die Tests der Anwendung prüft die CI.

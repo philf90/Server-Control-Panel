@@ -60,6 +60,11 @@ final class SiteTemplateTest extends TestCase
             'domain' => 'beispiel.de',
             'document_root' => 'httpdocs',
             'php_version' => '8.4',
+
+            // Welches Zertifikat ausgeliefert wird, sagt seit dem zweiten Wurf
+            // von P4 das Panel — hier also der Regelfall: eines, das genau
+            // unter dem Namen dieser Domain liegt.
+            'certificate' => 'beispiel.de',
         ], $overrides));
     }
 
@@ -72,14 +77,14 @@ final class SiteTemplateTest extends TestCase
      *
      * @param  list<string>  $files
      */
-    private function store(array $files): Store
+    private function store(array $files, string $name = 'beispiel.de'): Store
     {
         $this->root = sys_get_temp_dir().'/srvpanel-certs-'.bin2hex(random_bytes(6));
 
-        mkdir($this->root.'/beispiel.de', 0o750, true);
+        mkdir($this->root.'/'.$name, 0o750, true);
 
         foreach ($files as $file) {
-            file_put_contents($this->root.'/beispiel.de/'.$file, "-----BEGIN-----\n");
+            file_put_contents($this->root.'/'.$name.'/'.$file, "-----BEGIN-----\n");
         }
 
         return new Store($this->root);
@@ -229,6 +234,52 @@ final class SiteTemplateTest extends TestCase
 
         // Und ausgeliefert wird weiter — über Port 80.
         $this->assertStringContainsString('root /var/www/vhosts/beispiel.de/httpdocs;', $config);
+    }
+
+    /**
+     * Was das Panel nicht nennt, wird nicht ausgeliefert.
+     *
+     * **Das ist die Umkehrung aus `docs/34 §2.1`, und sie ist der ganze Punkt
+     * von Schritt 1.** Bis hierher sah der Agent unter dem Namen der Domain
+     * nach und nahm, was dort lag — damit entschied das Dateisystem darüber,
+     * was nginx vorweist, und die Zuordnung in der Datenbank war eine zweite
+     * Wahrheit daneben. Hier liegt eine vollständige Ablage bereit, und
+     * trotzdem bleibt die Website auf Port 80: Es ist keine zugeordnet.
+     */
+    public function test_a_certificate_the_panel_does_not_name_is_not_delivered(): void
+    {
+        $config = SiteTemplate::render(
+            $this->site(['certificate' => null]),
+            $this->store(['fullchain.pem', 'privkey.pem']),
+        );
+
+        $this->assertStringNotContainsString('listen 443', $config);
+        $this->assertStringNotContainsString('ssl_certificate', $config);
+        $this->assertStringContainsString('root /var/www/vhosts/beispiel.de/httpdocs;', $config);
+    }
+
+    /**
+     * Ausgeliefert wird das genannte — nicht das gleichnamige.
+     *
+     * Der Fall, für den die Umkehrung gebaut ist: Ein Platzhalter oder ein
+     * hochgeladenes Zertifikat liegt unter einem anderen Namen als die Domain,
+     * die es deckt. Hier heisst der Ablageort `mehrere.de`, die Domain
+     * `beispiel.de` — und genau der genannte Pfad steht im Block.
+     */
+    public function test_the_named_certificate_is_the_one_that_is_delivered(): void
+    {
+        $config = SiteTemplate::render(
+            $this->site(['certificate' => 'mehrere.de']),
+            $this->store(['fullchain.pem', 'privkey.pem'], 'mehrere.de'),
+        );
+
+        $this->assertMatchesRegularExpression(
+            '#ssl_certificate\s+'.preg_quote((string) $this->root, '#').'/mehrere\.de/fullchain\.pem;#',
+            $config,
+        );
+
+        // Und nicht unter dem Namen der Domain gesucht.
+        $this->assertStringNotContainsString('/beispiel.de/fullchain.pem', $config);
     }
 
     /**

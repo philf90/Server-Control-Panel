@@ -80,7 +80,7 @@ final class Store
     /**
      * Kette und Schlüssel ablegen.
      *
-     * @return array{certificate: string, key: string}
+     * @return array{certificate: string, key: string, storage_name: string}
      */
     public function write(string $name, string $chain, string $privateKey): array
     {
@@ -100,7 +100,18 @@ final class Store
         // und der läuft als root; die Worker brauchen ihn nicht.
         $this->put($key, $privateKey, 0o600);
 
-        return ['certificate' => $certificate, 'key' => $key];
+        // **`storage_name` geht mit zurück, und das ist keine Zugabe.** Ab dem
+        // zweiten Wurf von P4 sagt das Panel, welches Zertifikat ein
+        // Server-Block ausliefert — dazu muss es den Schlüssel kennen, unter
+        // dem es hier liegt. Ihn in der Anwendung ein zweites Mal auszurechnen
+        // hiesse, dieselbe Regel an zwei Stellen zu führen; und die Regel
+        // ändert sich gleich wieder, wenn ein Platzhalter dazukommt, dessen
+        // Name kein Verzeichnisname sein kann.
+        return [
+            'certificate' => $certificate,
+            'key' => $key,
+            'storage_name' => basename($directory),
+        ];
     }
 
     private function put(string $path, string $contents, int $mode): void

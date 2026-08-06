@@ -94,6 +94,10 @@ final class CertificateLifecycle implements AfterOperation
 
         $certificate = new Certificate([
             'names' => $names,
+
+            // Wo es liegt, berichtet der Agent — gerechnet wird es hier nicht.
+            'storage_name' => $this->storageName($result, $names),
+
             'status' => CertificateStatus::Active,
             'source' => CertificateSource::Acme,
             'issuer' => $this->text($result, 'issuer'),
@@ -122,24 +126,86 @@ final class CertificateLifecycle implements AfterOperation
     }
 
     /**
-     * Für diese Domain ein Zertifikat bestellen — wenn eines fehlt.
+     * Für diese Domain ein Zertifikat bestellen — wenn keines ihre Namen deckt.
      *
-     * **Mit vorhandenem Zertifikat wäre es die Schleife** aus der
-     * Klassenbeschreibung: Bestellung, Zuordnung, Block neu, Bestellung. Die
-     * zweite Bedingung — ohne Kontaktadresse passiert nichts — steht in
+     * **Gefragt wird nach der Deckung und nicht mehr nach dem Verweis.** Bis
+     * zum zweiten Wurf von P4 genügte hier ein zugeordnetes Zertifikat, egal
+     * welches. Das reichte, solange jedes für genau eine Domain bestellt wurde;
+     * es reicht nicht mehr, sobald ein Alias nachträglich dazukommt — dann
+     * steht er im `server_name` und nicht im Zertifikat, der Browser warnt bei
+     * ihm, und im Panel sieht alles grün aus. Dieselbe Bedingung trägt später
+     * den Platzhalter und das hochgeladene Zertifikat (`docs/34 §7`).
+     *
+     * **Mit deckendem Zertifikat wäre es die Schleife** aus der
+     * Klassenbeschreibung: Bestellung, Zuordnung, Block neu, Bestellung. Sie
+     * hört auf, weil eine erfolgreiche Bestellung genau die Namen deckt, für
+     * die sie lief.
+     *
+     * **Und läuft schon eine, kommt keine zweite dazu.** Ohne diese Frage
+     * bestellte jedes erneute Anwenden noch einmal — bei `srvpanel vhost
+     * --sites` über viele Domains wären das ebenso viele Prüfungen, und fünf
+     * Fehlversuche je Stunde sind die Grenze der Zertifizierungsstelle.
+     *
+     * Die dritte Bedingung — ohne Kontaktadresse passiert nichts — steht in
      * {@see CertificateOrder} und damit an der Stelle, die auch die Erneuerung
      * benutzt.
      */
     private function request(Domain $domain, Operation $operation): void
     {
-        if ($domain->certificate_id !== null) {
+        if ($this->covered($domain) || $this->ordering($domain)) {
             return;
         }
 
-        // Wie bestellt wird, steht an einer Stelle — ohne Kontaktadresse
-        // passiert dort nichts, und das ist die Antwort auf die zweite
-        // Bedingung von früher.
         $this->order->place($domain, $operation);
+    }
+
+    /**
+     * Deckt das zugeordnete Zertifikat alle Namen dieses Server-Blocks?
+     *
+     * Ohne Mandantenklammer gelesen, aus demselben Grund wie in
+     * {@see WebLifecycle}: Im Arbeiter steht sie im Grundzustand auf „nichts",
+     * und ein gewöhnliches `find()` lieferte dort `null` — die Domain bekäme
+     * bei jedem Anwenden eine neue Bestellung, obwohl ihr Zertifikat daliegt.
+     */
+    private function covered(Domain $domain): bool
+    {
+        if ($domain->certificate_id === null) {
+            return false;
+        }
+
+        $certificate = Certificate::query()->withoutGlobalScopes()->find($domain->certificate_id);
+
+        return $certificate instanceof Certificate && $certificate->coversAll($domain->serverNames());
+    }
+
+    /** Läuft für diese Domain schon eine Bestellung? */
+    private function ordering(Domain $domain): bool
+    {
+        return Operation::query()
+            ->withoutGlobalScopes()
+            ->where('subject_type', OperationSubject::Domain->value)
+            ->where('subject_id', $domain->id)
+            ->where('task', 'acme.certificate.issue')
+            ->whereIn('status', [OperationStatus::Queued->value, OperationStatus::Running->value])
+            ->exists();
+    }
+
+    /**
+     * Der Ablageort, den der Agent gemeldet hat.
+     *
+     * **Der Rückfall auf den ersten Namen ist die Regel, die der Agent bis zum
+     * zweiten Wurf angewandt hat**, und er steht hier nur für den Fall, dass
+     * eine Antwort ohne die Angabe ankommt. Ohne ihn stünde in der Spalte
+     * `null`, und eine Domain mit gültigem Zertifikat fiele beim nächsten
+     * Anwenden auf Port 80 zurück — ohne Fehler und ohne Meldung. Von zwei
+     * Ausgängen ist das der teurere.
+     *
+     * @param  array<string, mixed>  $result
+     * @param  non-empty-list<string>  $names
+     */
+    private function storageName(array $result, array $names): string
+    {
+        return $this->text($result, 'storage_name') ?? strtolower(trim($names[0]));
     }
 
     /**

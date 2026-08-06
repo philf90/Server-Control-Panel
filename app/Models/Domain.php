@@ -186,6 +186,28 @@ class Domain extends Model
                 implode(', ', $certificate->coveredNames()) ?: 'keine Namen',
             ));
         }
+
+        /*
+         * **Und es muss demselben Abonnement gehören.**
+         *
+         * Der Kommentar an {@see self::certificate()} sagt seit P4 voraus,
+         * wann die Deckungsprüfung allein nicht genügt: „nicht bei einem
+         * Wildcard, das den Namen zufällig deckt". Genau das kommt mit dem
+         * zweiten Wurf — `*.example.de` deckt jede Unterdomain der Zone, auch
+         * die eines fremden Kunden, und ab da ist die Zuordnung keine
+         * Sorgfaltsfrage mehr, sondern die Grenze zwischen zwei Abonnements
+         * (`docs/34 §3`).
+         *
+         * Das Zertifikat der Oberfläche (`subscription_id === null`) fällt
+         * damit ebenfalls heraus, und das ist richtig: Es gehört keinem
+         * Kunden und keiner Kundendomain.
+         */
+        if ($certificate->subscription_id !== $this->subscription_id) {
+            throw new RuntimeException(sprintf(
+                'Das Zertifikat gehört nicht zum Abonnement von %s.',
+                $this->name,
+            ));
+        }
     }
 
     /** @return BelongsTo<Domain, $this> */

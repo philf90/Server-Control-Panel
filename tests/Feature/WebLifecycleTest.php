@@ -9,6 +9,7 @@ use App\Enums\DomainType;
 use App\Enums\OperationStatus;
 use App\Enums\SubscriptionStatus;
 use App\Models\Account;
+use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
@@ -180,6 +181,42 @@ final class WebLifecycleTest extends TestCase
         $this->assertSame('p1001', $payload['user']);
         $this->assertSame(['beispiel.at', 'www.beispiel.de'], $payload['aliases']);
         $this->assertFalse($payload['suspended']);
+
+        // Ohne zugeordnetes Zertifikat wird auch keines genannt — und der
+        // Agent liefert dann keines aus, auch wenn unter dem Namen der Domain
+        // eines läge (`docs/34 §2.1`).
+        $this->assertNull($payload['certificate']);
+    }
+
+    /**
+     * Welches Zertifikat ausgeliefert wird, sagt das Panel — mit seinem Namen.
+     *
+     * **Bis zum zweiten Wurf von P4 sah der Agent unter dem Namen der Domain
+     * nach.** Damit entschied das Dateisystem darüber, was nginx vorweist, und
+     * die Zuordnung in der Datenbank war die zweite Wahrheit daneben. Genannt
+     * wird der Schlüssel im Ablageort, kein Pfad: Ein Pfad aus der Anwendung
+     * wäre bei `ssl_certificate` dasselbe wie bei `root`.
+     */
+    public function test_the_payload_names_the_assigned_certificate(): void
+    {
+        $domain = $this->tenancy()->withoutRestriction(function (): Domain {
+            $subscription = Subscription::factory()->create(['name' => 'beispiel.de', 'system_user' => 'p1001']);
+            $main = Domain::factory()->main()->for($subscription)->create(['name' => 'beispiel.de']);
+
+            $certificate = Certificate::factory()->covering(['*.beispiel.de', 'beispiel.de'])->create([
+                'subscription_id' => $subscription->id,
+                'storage_name' => '_wildcard.beispiel.de',
+            ]);
+
+            $main->certificate_id = (int) $certificate->id;
+            $main->save();
+
+            return $main;
+        });
+
+        $payload = app(WebLifecycle::class)->payload($domain);
+
+        $this->assertSame('_wildcard.beispiel.de', $payload['certificate']);
     }
 
     /**

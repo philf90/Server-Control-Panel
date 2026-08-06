@@ -60,6 +60,7 @@ final class Site
         public readonly int $redirectCode,
         public readonly bool $suspended,
         public readonly bool $hsts,
+        public readonly ?string $certificate,
     ) {}
 
     /**
@@ -106,6 +107,30 @@ final class Site
              * beide Bedingungen zusammen stehen in {@see Trust::hsts()}.
              */
             hsts: (bool) ($args['hsts'] ?? false),
+
+            /*
+             * **Welches Zertifikat dieser Block ausliefert, sagt das Panel.**
+             *
+             * Bis zum zweiten Wurf von P4 hat der Agent es abgeleitet: Er sah
+             * unter dem Namen der Domain nach und nahm, was dort lag. Für ein
+             * Zertifikat, das genau diese eine Domain deckt, stimmt das — und
+             * für nichts sonst. Ein Platzhalter liegt unter keinem der Namen,
+             * die er deckt, und ein hochgeladenes Zertifikat für drei Domains
+             * höchstens unter einer davon.
+             *
+             * Damit gäbe es zwei Wahrheiten zu einer Frage: die Zuordnung in
+             * der Datenbank des Panels und der Verzeichnisname auf dem Server.
+             * Das ist wörtlich das Muster, an dem dieses Projekt sechsmal
+             * verloren hat (`docs/34 §2.1`).
+             *
+             * **Ein Name, kein Pfad.** Was hier hereinkommt, ist der Schlüssel
+             * im Ablageort; den Pfad baut weiterhin {@see Store}. Ein Pfad aus
+             * der Anwendung wäre eine Fernsteuerung dafür, welche Datei nginx
+             * als Schlüssel liest.
+             */
+            certificate: ($args['certificate'] ?? null) === null
+                ? null
+                : DomainName::normalize($args['certificate'], 'certificate'),
         );
     }
 

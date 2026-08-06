@@ -3306,3 +3306,85 @@ Basisklasse.
 Was aussteht: die Abnahme gegen eine echte Zone auf dem Zielserver — sie ist das
 Kriterium aus `docs/34 §10` und lässt sich hier nicht messen; dieser Container
 hat keinen Nameserver, der Aktualisierungen annimmt.
+
+#### Schritt 8: einen Platzhalter bestellen
+
+**Ein Kästchen und keine Automatik.** Ein Platzhalter deckt jede Unterdomain der
+Zone — auch eine, die einem *anderen* Abonnement gehört. Technisch ist damit
+nichts gewonnen oder verloren, der Schlüssel liegt ohnehin root-eigen auf
+demselben Server; die Aussage nach aussen ändert sich aber, und etwas mit dieser
+Folge passiert nicht als Nebenwirkung eines Knopfdrucks. Was er einbringt, steht
+daneben: Ein Abonnement mit vierzig Unterdomains verbraucht sonst vierzig
+Einträge je Woche statt zwei.
+
+**Der Stern steht zuerst, und das ist keine Kosmetik.** Bestellt wird
+`['*.example.de', 'example.de']`. Der Ablageort entsteht aus dem ersten Namen;
+stünde die Basisdomain vorn, läge der Platzhalter unter `example.de` und
+überschriebe ein einfaches Zertifikat für denselben Namen. Das sieht man einer
+Bestellung nicht an — gemerkt hätte man es, wenn eine Domain plötzlich das
+falsche Zertifikat ausliefert. Und die Basisdomain gehört mit in die Bestellung:
+`*.example.de` deckt `example.de` nicht.
+
+**Geprüft wird an der Domain und nicht am eingetippten Namen** (`docs/34 §3`).
+Ein Platzhalter geht nur zu einer Haupt- oder Zusatzdomain des eigenen
+Abonnements. Käme der Name aus der Anfrage, bestellte jemand `*.fremde.de` —
+und das scheitert erst an der Zertifizierungsstelle, mit einem verbrauchten
+Fehlversuch, der für das ganze Konto zählt und damit für jeden Kunden dieses
+Servers.
+
+**„Darfst du nicht" und „geht gerade nicht" sind zwei verschiedene Neins.** Die
+Berechtigung beantwortet `DomainPolicy::orderWildcard()` — an `Feature::DnsEdit`
+und nicht an `Certificates`, denn ein Platzhalter geht nur über DNS-01, und
+DNS-01 heisst: In der Zone wird ein Eintrag angelegt. Fehlende Zugangsdaten sind
+dagegen keine Frage der Berechtigung, sondern eine Auskunft, und sie steht in
+`WildcardOrder::obstacle()`. Wer beides vermischt, sagt dem Betreiber „keine
+Berechtigung", wo „kein Token hinterlegt" gemeint ist.
+
+**Die Sternschranke im Agenten hängt jetzt an der Art der Prüfung statt am
+Namen.** `AcmeCertificate` nimmt `challenge` und `profile` entgegen — ein Wort
+aus einer Positivliste und einen Profilnamen, keine Adresse und kein Token.
+Über HTTP-01 bleibt die Abweisung, weil die Zertifizierungsstelle dort mit einer
+Meldung antwortet, die den Grund nicht nennt. **Ohne Angabe bleibt es HTTP-01:**
+Jede Bestellung aus der Fassung davor kommt ohne diese Felder an, und ein
+Zeitplan, der noch die alte fährt, soll nicht stehenbleiben.
+
+**Der Stern gehört nicht in `DomainName::normalize()`.** Dort ist eine
+Beschriftung `[a-z0-9]`, und das bleibt sie — sonst wäre `*` überall im Agenten
+ein zulässiges Zeichen, auch dort, wo ein Name zu einem Pfad wird. Geprüft wird
+der Rest des Namens, und der Stern kommt danach wieder davor.
+
+**Und die Domainseite heisst jetzt `can` statt `may`.** Sie war die einzige mit
+dieser Schreibweise und damit von `AbilityReachTest` **in beide Richtungen nicht
+erfasst** — weder „kommt an" noch „wird benutzt". Eine neue Fahne dort
+einzuhängen, ohne das zu beheben, wäre wieder eine Zeichenkette, die auf nichts
+zeigt: Eine Fahne, die nie ankommt, ist in Vue `undefined`, und der Knopf
+verschwindet dann für **alle**, ohne dass etwas meldet.
+
+**Eine Naht mehr, und aus einem konkreten Grund:** `SrvPanel\Agent\Client` ist
+`final`. Die Frage „welche DNS-Profile sind hinterlegt?" hat deshalb eine eigene
+Schnittstelle bekommen (`App\Support\Tls\DnsCredentials`), sonst hinge jede
+Prüfung an einem Unix-Socket, den dieser Container nicht hat — und die drei
+Fälle, auf die es ankommt, liessen sich gar nicht herstellen: Profil da, Profil
+fehlt, Agent schweigt.
+
+Dazu die Auskunft, die ACME erzwingt: **`*.example.de` deckt `a.b.example.de`
+nicht.** Hat das Abonnement solche Namen, nennt die Seite sie — als Hinweis,
+nicht als Fehler.
+
+Fünf neue Brüche im Bruchskript: die Basisdomain vor dem Stern, ein Platzhalter
+ohne Zugangsdaten, einer zu einer Subdomain, DNS-01 auch ohne Platzhalter, und
+eine Fähigkeit, die nicht im Payload ankommt.
+
+**Der Blick bei 390 px ist gefahren, über den Ersatzweg** — das gebaute
+Stylesheet mit dem Markup des Bausteins in einer eigenen Datei, gerendert im
+vorinstallierten Chromium: kein Überlauf, in beiden Themes, und die langen
+Kennungen brechen. **Dabei hat der Messweg selbst zuerst gelogen:** Chromium
+klemmt das Fenster in Headless auf mindestens 500 px, `--window-size=390` wird
+stillschweigend ignoriert. Gerendert wurde also bei 500 px und der Screenshot
+bei 390 abgeschnitten — das Bild zeigte abgeschnittenen Text, und die Messung
+sagte trotzdem null. Gemessen wird seitdem ein Rahmen im Dokument und nicht das
+Fenster. *Ein Werkzeug, das die Wächter trägt, braucht selbst einen* — derselbe
+Fall wie beim Bruchskript, dem sein `sed` ins Leere lief.
+
+Was aussteht: der Blick auf die **echte** Seite (dafür fehlt `vendor/`) und die
+Abnahme gegen eine echte Zone (`docs/34 §10`).

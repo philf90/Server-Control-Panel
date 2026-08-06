@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\Domain;
 use App\Models\Subscription;
 use App\Support\Plans\Feature;
+use App\Support\Tls\WildcardOrder;
 
 /**
  * Wer was mit einer Domain darf.
@@ -133,6 +134,43 @@ final class DomainPolicy
 
         return $subscription !== null
             && $subscription->feature(Feature::CertificateUpload->value)
+            && $account->hasPermission($subscription, Permission::Certificates);
+    }
+
+    /**
+     * Einen Platzhalter zu dieser Domain bestellen.
+     *
+     * **Dieselbe Grössenordnung wie das Hochladen, aus dem umgekehrten Grund.**
+     * Ein Platzhalter deckt jede Unterdomain der Zone — auch eine, die einem
+     * *anderen* Abonnement gehört (`docs/34 §3`). Wer ihn bestellt, ändert
+     * damit, was der Server über fremde Namen aussagt, und das hängt nicht am
+     * Recht, ein DocumentRoot zu ändern.
+     *
+     * **`DnsEdit` und nicht `Certificates`.** Ein Platzhalter geht nur über
+     * DNS-01, und DNS-01 heisst: In der Zone wird ein Eintrag angelegt. Wer die
+     * Zone nicht verwalten darf, lässt sie auch nicht über diesen Umweg ändern
+     * — der Betreiber behält sie dann bei sich und bestellt selbst.
+     *
+     * **Ob es gerade geht, steht nicht hier.** Fehlende Zugangsdaten sind keine
+     * Frage der Berechtigung, sondern eine Auskunft; sie steht in
+     * {@see WildcardOrder::obstacle()}. Eine Policy, die
+     * „darf" und „geht gerade" vermischt, sagt dem Betreiber „keine
+     * Berechtigung", wo „kein Token hinterlegt" gemeint ist.
+     */
+    public function orderWildcard(Account $account, Domain $domain): bool
+    {
+        if (! $this->mayChange($account, $domain)) {
+            return false;
+        }
+
+        if ($account->isAdmin()) {
+            return true;
+        }
+
+        $subscription = $domain->subscription;
+
+        return $subscription !== null
+            && $subscription->feature(Feature::DnsEdit->value)
             && $account->hasPermission($subscription, Permission::Certificates);
     }
 

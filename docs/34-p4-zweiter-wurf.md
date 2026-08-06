@@ -546,7 +546,15 @@ Bruch in `tests/waechter-brechen.sh` mit.
    steht als offen. Die Abnahme gegen eine echte Zone steht aus (§10).
 8. **Bestellen mit Platzhalter in der Oberfläche.** Wer darf (§3), was bestellt
    wird (`example.de` **und** `*.example.de`), und was die Seite sagt, wenn eine
-   zweite Ebene ungedeckt bleibt.
+   zweite Ebene ungedeckt bleibt. *Gebaut.* Bestellt wird **mit dem Stern
+   zuerst** — der Ablageort entsteht aus dem ersten Namen, und andersherum
+   überschriebe der Platzhalter ein einfaches Zertifikat für dieselbe Domain.
+   Erlaubt ist er nur zu einer Haupt- oder Zusatzdomain des eigenen
+   Abonnements, geprüft an der Domain; die Berechtigung hängt an
+   `Feature::DnsEdit`, weil DNS-01 die Zone ändert. *Wächter:* die Reihenfolge
+   der Namen, die fehlenden Zugangsdaten, der Platzhalter zu einer Subdomain,
+   die gewöhnliche Bestellung ohne DNS-01, und die Fähigkeit, die im Payload
+   ankommt.
 9. **Hetzner, Cloudflare, Netcup, IPv64.net** — einer nach dem anderen, jeder
    mit seinem Wächter und seinen Fehlerfällen. IPv64.net bringt dabei den Fall
    mit, an dem sich die Zonenauflösung beweist: Die Zone ist dort oft selbst

@@ -24,10 +24,19 @@ use App\Models\Operation;
  * **Ohne Kontaktadresse wird nichts bestellt**, und das ist keine Vorsicht,
  * sondern die Zusage aus {@see AcmeSettings}: Die Adresse gehört gesetzt und
  * nicht aus dem ersten Adminkonto geraten.
+ *
+ * **Seit Schritt 8 gibt es zwei Formen derselben Bestellung.** Der Unterschied
+ * sind die Namen und zwei Felder mehr im Auftrag — nicht ein zweiter Weg. Wer
+ * hier eine `placeWildcard()` einzöge, hätte die Kontaktadresse an zwei Stellen
+ * zu vergessen; **ob** ein Platzhalter erlaubt ist, entscheidet dagegen
+ * {@see WildcardOrder} und nicht diese Klasse.
  */
 final class CertificateOrder
 {
-    public function __construct(private readonly AcmeSettings $settings) {}
+    public function __construct(
+        private readonly AcmeSettings $settings,
+        private readonly WildcardOrder $wildcards,
+    ) {}
 
     /**
      * Für diese Domain ein Zertifikat bestellen.
@@ -35,19 +44,29 @@ final class CertificateOrder
      * Der Aufrufer entscheidet, *ob* bestellt wird — diese Klasse entscheidet,
      * *wie*. Zurück kommt `null`, wenn keine Kontaktadresse eingetragen ist.
      *
+     * @param  bool  $wildcard  Bestellt `*.example.de` **und** `example.de`
+     *                          über DNS-01. Die Berechtigung dazu ist an
+     *                          diesem Punkt schon geprüft.
+     *
      * @param  Operation|null  $cause  Der auslösende Vorgang, dessen Konto der
      *                                 neue erbt: Im Arbeiter gibt es keine
      *                                 Anfrage, und ohne diese Zeile stünde in
      *                                 der Liste „—" neben einem Vorgang, den
      *                                 jemand ausgelöst hat.
      */
-    public function place(Domain $domain, ?Operation $cause = null): ?Operation
+    public function place(Domain $domain, ?Operation $cause = null, bool $wildcard = false): ?Operation
     {
         $contact = $this->settings->contact();
 
         if ($contact === null) {
             return null;
         }
+
+        // **Der Stern zuerst** — siehe {@see WildcardOrder::names()}. Der
+        // Ablageort entsteht aus dem ersten Namen; stünde die Basisdomain
+        // vorn, überschriebe der Platzhalter ein einfaches Zertifikat für
+        // denselben Namen.
+        $names = $wildcard ? WildcardOrder::names($domain) : $domain->serverNames();
 
         $operation = Operation::query()->create([
             'subscription_id' => $domain->subscription_id,
@@ -60,13 +79,20 @@ final class CertificateOrder
                 // Die Namen kommen aus dem Bestand und nicht aus einer
                 // Anfrage: Ein Zertifikat, das nur den ersten Namen deckt,
                 // warnt bei jedem Alias.
-                'names' => $domain->serverNames(),
+                'names' => $names,
                 'contact' => $contact,
                 'directory' => $this->settings->directory(),
-            ],
+                // **Ohne Platzhalter steht hier nichts.** Eine Bestellung des
+                // ersten Wurfs kommt ohne diese Felder an, und der Agent
+                // bleibt dann bei HTTP-01 — ein Zeitplan aus der alten Fassung
+                // soll nicht stehenbleiben.
+            ] + ($wildcard ? [
+                'challenge' => WildcardOrder::challenge(),
+                'profile' => $this->wildcards->profile($domain),
+            ] : []),
             'status' => OperationStatus::Queued,
             'progress' => 0,
-            'message' => 'Zertifikat für '.$domain->name,
+            'message' => ($wildcard ? 'Platzhalter für ' : 'Zertifikat für ').$domain->name,
         ]);
 
         RunAgentOperation::dispatch((int) $operation->id);

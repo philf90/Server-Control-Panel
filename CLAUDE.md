@@ -165,8 +165,11 @@ nicht geschätzt: 4,5:1 für Text, **3:1 für die Grenze eines Bedienelements**
 Weitere Dokumente: `21` Signaturschlüssel · `22` Passwörter · `23` Pläne und
 Kontingente · `24` mobile Ansicht · `25` Mailversand · `26` Abonnements ·
 `27` Zertifikat · `28` Web und PHP · **`32` Übergabe an P4** — was für TLS
-schon dasteht, was fehlt, und die Falle, die dabei aussperrt — und **`33` der
-Abnahmelauf für 0.3.1**, der davor kommt. Die Entwürfe zum Gestaltungssystem stehen
+schon dasteht, was fehlt, und die Falle, die dabei aussperrt — · **`33` der
+Abnahmelauf für 0.3.1**, der davor kommt · und **`34` der zweite Wurf von P4**:
+DNS-01, Platzhalter, eigene Zertifikate — mit den drei Stellen, an denen der
+erste Wurf der Erweiterung nicht standhält, und den vier Fragen, die der
+Betreiber vorher beantwortet. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".

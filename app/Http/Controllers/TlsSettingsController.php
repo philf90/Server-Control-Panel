@@ -66,9 +66,15 @@ final class TlsSettingsController extends Controller
                 'staging' => $settings->staging(),
                 'configured' => $settings->configured(),
             ],
+            // **Kurz genug für ein Auswahlfeld auf dem Telefon.** Ein
+            // `<select>` bricht seine Einträge nicht um und zeigt keinen
+            // Hinweis darauf, dass etwas fehlt — es schneidet ab. „Produktiv —
+            // gültige Zertifikate von Let's Encrypt" endete bei 390px als
+            // „… von Let's Encry". Was darüber hinaus zu sagen ist, steht im
+            // Hinweis unter dem Feld; der bricht um.
             'directories' => [
-                ['value' => Directories::STAGING, 'label' => 'Testbetrieb — Zertifikate, denen kein Browser traut'],
-                ['value' => Directories::PRODUCTION, 'label' => 'Produktiv — gültige Zertifikate von Let’s Encrypt'],
+                ['value' => Directories::STAGING, 'label' => 'Testbetrieb — kein Browser traut ihnen'],
+                ['value' => Directories::PRODUCTION, 'label' => 'Produktiv — gültige Zertifikate'],
             ],
         ]);
     }

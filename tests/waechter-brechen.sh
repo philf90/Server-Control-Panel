@@ -1285,6 +1285,62 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateChoiceTest passed
 
 echo
+echo "── DnsPacketTest: der Namenszeiger wird nicht erkannt ──"
+#
+# Ein Name in einer DNS-Antwort steht selten ausgeschrieben da; meistens sind es
+# zwei Bytes, die auf eine frühere Stelle zeigen. Wer das nicht erkennt, liest
+# die folgenden Felder verschoben — und bekommt Werte, die fast stimmen.
+vorher_datei agent/src/Acme/Dns/Packet.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Packet.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (($marker & 0xC0) === 0xC0) {",
+    "            if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Packet.php "Namenszeiger nicht erkannt" &&
+pruefe "Namenszeiger nicht erkannt" \
+  DnsPacketTest::test_a_compressed_name_is_read_correctly failed
+wiederherstellen
+
+echo
+echo "── DnsChallengeTest: ein Nameserver genügt ──"
+#
+# Welchen die Zertifizierungsstelle fragt, weiss niemand — sie fragt sogar aus
+# mehreren Netzen zugleich. Ein Wert, den nur die Hälfte der Server kennt, ist
+# eine Prüfung, die manchmal gelingt, und das ist die unangenehmste Sorte
+# Fehler: Jeder Fehlschlag kostet einen der fünf Versuche je Stunde.
+vorher_datei agent/src/Acme/DnsChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/DnsChallenge.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        foreach ($servers as $server) {\n"
+    "            if (! in_array($wanted, $this->resolver->txt($server, $record), true)) {\n"
+    "                return false;\n"
+    "            }\n"
+    "        }\n"
+    "\n"
+    "        return true;",
+    "        foreach ($servers as $server) {\n"
+    "            if (in_array($wanted, $this->resolver->txt($server, $record), true)) {\n"
+    "                return true;\n"
+    "            }\n"
+    "        }\n"
+    "\n"
+    "        return false;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/DnsChallenge.php "Ein Nameserver genügt" &&
+pruefe "Ein Nameserver genügt" \
+  DnsChallengeTest::test_it_waits_until_every_nameserver_serves_the_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsChallengeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

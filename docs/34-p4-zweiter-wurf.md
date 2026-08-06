@@ -169,6 +169,27 @@ muss, statt eine Warnung im Browser entstehen zu lassen.
    Anbieter stehen auf einer **Positivliste mit festen Schlüsseln**, genau wie
    `Directories` — die Anwendung nennt einen Schlüssel, nie eine Adresse.
 
+> **Erledigt in Schritt 5 — die Strecke, noch ohne Anbieter.** `DnsChallenge`
+> steht, `ready()` fragt über `Resolver` die autoritativen Nameserver, und das
+> Drahtformat liegt als reine Umformung in `Packet` — damit prüfbar ohne Netz,
+> ohne Zone und ohne Wartezeit.
+>
+> **Ein eigener Auflöser und kein `dig`.** Das Programm gehörte auf die
+> Positivliste des Agenten und als Abhängigkeit ins Paket, für eine Frage, die
+> in hundert Zeilen beantwortet ist.
+>
+> **Zwei Entscheidungen, die beim Bauen dazukamen.** `cleanup()` bekommt vom
+> Ablauf nur Domain und Token, aber der Anbieter muss den *Wert* kennen: Zwei
+> Bestellungen für dieselbe Zone laufen sonst einander ins Handwerk, weil die
+> eine den `_acme-challenge`-Eintrag der anderen mit abräumt. Die Challenge
+> merkt sich deshalb, was sie hingelegt hat. Und `add()` legt an, statt zu
+> ersetzen — `example.de` und `*.example.de` in einer Bestellung ergeben zwei
+> Werte unter demselben Namen, und beide müssen dastehen.
+>
+> Der `DnsProvider` selbst hat noch keine Umsetzung; die kommt mit den
+> Zugangsdaten (Schritt 6) und RFC 2136 (Schritt 7). Bis dahin steht die
+> Schnittstelle und ein Doppel im Testverzeichnis.
+
 **Ein `FakeProvider` gehört dazu und ist keine Zugabe.** Sonst prüft nichts von
 alledem ohne fremden Dienst, und ein Test, der eine fremde API braucht, wird
 beim dritten roten Lauf abgeschaltet.

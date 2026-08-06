@@ -3127,3 +3127,54 @@ der Durchgang ein zweites Mal.
 Datensatz ist eine Zeitbombe mit unbekanntem Zünder: Er wartet, bis irgendwann
 jemand nach der Zeit fragt. Die Laufzeit ist jetzt relativ — neunzig Tage, so
 wie Let's Encrypt sie ausstellt.
+
+#### Schritt 5: DNS-01 — die Strecke, noch ohne Anbieter
+
+`DnsChallenge` ist die zweite Umsetzung derselben Schnittstelle; der Ablauf in
+`Order` bleibt ohne Fallunterscheidung. Verschieden sind hinlegen, abräumen —
+und vor allem `ready()`, der Grund, aus dem es die Schnittstelle überhaupt gibt.
+
+**Gefragt werden die autoritativen Nameserver und nicht der Anbieter.** Dessen
+API sagt „ok", sobald sie den Eintrag entgegengenommen hat; ausgeliefert wird er
+Sekunden bis Minuten später. Wer der Zertifizierungsstelle zu früh sagt „prüf
+jetzt", verbrennt einen der fünf Fehlversuche je Stunde — und die gelten für das
+ganze Konto, also für jeden Kunden dieses Servers. **Und auch nicht der
+Systemauflöser:** Der antwortet aus seinem Zwischenspeicher, und der kann den
+Namen von vorhin noch als „gibt es nicht" führen.
+
+**Erst wenn alle Server den Wert ausliefern.** Welchen die Zertifizierungsstelle
+fragt, weiss niemand; sie fragt sogar aus mehreren Netzen zugleich. Ein Wert,
+den nur die Hälfte kennt, ist eine Prüfung, die manchmal gelingt — die
+unangenehmste Sorte Fehler.
+
+**Ein eigener Auflöser und kein `dig`.** Das Programm gehörte auf die
+Positivliste des Agenten und als Abhängigkeit ins Paket, für eine Frage, die in
+hundert Zeilen beantwortet ist; unterhalb von `agent/` gibt es keine
+Abhängigkeiten, und das bleibt so. Das Drahtformat steht als reine Umformung in
+`Packet` — getrennt von der Steckdose und damit gegen **gebaute** Pakete
+prüfbar: ein Name als Zeiger, ein Name ausgeschrieben, ein Satz anderer Art
+dazwischen, zwei Werte unter einem Namen, ein Wert in Stücken, eine Antwort auf
+eine fremde Frage, ein gesetztes Abschneidebit, ein Satz über das Paketende
+hinaus. **Der Zeiger ist der Fall, für den dieser Durchgang existiert:** Wer die
+Zusammenfassung aus RFC 1035 §4.1.4 nicht erkennt, liest die folgenden Felder
+verschoben und bekommt Werte, die fast stimmen.
+
+**Zwei Entscheidungen kamen beim Bauen dazu.** `cleanup()` bekommt vom Ablauf
+nur Domain und Token — der Anbieter muss aber den *Wert* kennen: Zwei
+Bestellungen für dieselbe Zone laufen sonst einander ins Handwerk, weil die eine
+den `_acme-challenge`-Eintrag der anderen mit abräumt. Die Challenge merkt sich
+deshalb, was sie hingelegt hat. Und `add()` legt an, statt zu ersetzen:
+`example.de` und `*.example.de` in einer Bestellung ergeben zwei Werte unter
+demselben Namen, und beide müssen dastehen.
+
+**Der Stern fällt weg.** Für `*.example.de` heisst der Eintrag
+`_acme-challenge.example.de` — derselbe wie für `example.de`. Das ist keine
+Eigenheit dieses Panels, sondern RFC 8555: Der Platzhalter steht in der
+Bestellung und nicht im Namen der Prüfung.
+
+Der `DnsProvider` hat noch keine Umsetzung — sie kommt mit den Zugangsdaten
+(Schritt 6) und RFC 2136 (Schritt 7). Bis dahin steht die Schnittstelle, und
+die Doppel liegen unter `tests/Support/`.
+
+Zwei neue Brüche, beide **rot-grün gefahren**: der nicht erkannte Namenszeiger
+und der eine Nameserver, der genügt.

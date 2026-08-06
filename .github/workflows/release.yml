@@ -101,15 +101,39 @@ jobs:
           name: dist
           path: dist/
 
+      # **Ein zweiter Anlauf darf nicht daran scheitern, dass der erste gelang.**
+      #
+      # Am 6. August hat GitHubs Warteschlange fünf Anläufe dieses Laufs ohne
+      # Runner verhungern lassen. Der sechste kam durch, baute, signierte und
+      # legte das Release an — und der siebte brach hier ab mit „a release with
+      # the same tag name already exists". Das ist für sich richtig: Ein
+      # fertiges Release soll niemand versehentlich überschreiben.
+      #
+      # Der Schaden lag daneben: `package` galt als gescheitert, und damit
+      # wurde `repository` übersprungen. Die Paketquelle blieb ohne die
+      # Fassung, die als GitHub-Release längst dastand — ein halber Zustand,
+      # den niemand an einer Meldung erkennt, die nur vom Release spricht.
+      #
+      # Deshalb wird der Fall unterschieden statt ihn zu verbieten: Gibt es das
+      # Release schon, werden die Dateien ersetzt. Das ist gewollt und nicht
+      # bloss geduldet — der Lauf baut aus einem Tag, der Inhalt ist also
+      # derselbe, und Prüfsumme wie Signatur werden im selben Zug mit
+      # ausgetauscht. Ein Release, das zur Hälfte aus dem einen und zur Hälfte
+      # aus dem anderen Lauf stammt, wäre schlimmer.
       - name: GitHub-Release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" dist/* \
-            --title "SrvPanel ${{ steps.release.outputs.version }}" \
-            --notes "Siehe CHANGELOG.md." \
-            $([ "${{ steps.release.outputs.channel }}" = "beta" ] && echo --prerelease)
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "::notice::Release ${GITHUB_REF_NAME} steht bereits — die Dateien werden ersetzt."
+            gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/* \
+              --title "SrvPanel ${{ steps.release.outputs.version }}" \
+              --notes "Siehe CHANGELOG.md." \
+              $([ "${{ steps.release.outputs.channel }}" = "beta" ] && echo --prerelease)
+          fi
 
   repository:
     name: repo.cloudsrv24.de aktualisieren

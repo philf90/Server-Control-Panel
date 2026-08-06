@@ -26,6 +26,10 @@
 # Vorlage" wohnt in ihm. Ein Bruch in einem Verzeichnis, das `wiederherstellen`
 # nicht kennt, ist keine Probe, sondern eine Änderung.
 #
+# `.github/` kam mit dem Wächter dazu, der prüft, dass ein Freigabelauf ein
+# zweites Mal laufen darf. Auch dort steht eine Regel als Text in einer Datei,
+# und auch dort gilt: Wer sie zum Prüfen bricht, muss sie zurückbekommen.
+#
 # **`git checkout` stellt nur wieder her, was git kennt.** Ein Wächter für Code,
 # der noch nicht eingecheckt ist, wird hier nicht gebrochen, sondern gelöscht.
 # Deshalb der Abbruch oben — und deshalb kommt ein neuer Bruch erst nach dem
@@ -35,14 +39,14 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/; then
-  echo "resources/, app/, agent/ oder packaging/ hat ungesicherte Änderungen. Erst committen" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/; then
+  echo "resources/, app/, agent/, packaging/ oder .github/ hat ungesicherte Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -1751,6 +1755,27 @@ pruefe "Auskunft mit der ganzen Konfiguration" \
   DnsCredentialsTest::test_the_description_says_these_four_things_and_no_more failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsCredentialsTest passed
+
+echo
+echo "── PackagingTest: der Freigabelauf legt an, ohne vorher zu fragen ──"
+#
+# Am 6. August hat GitHubs Warteschlange fünf Anläufe ohne Runner verhungern
+# lassen; der sechste kam durch und legte das Release an, der siebte brach
+# genau hier ab. Für sich richtig — nur galt damit `package` als gescheitert,
+# und `repository` wurde übersprungen. Die Paketquelle blieb ohne die Fassung,
+# die als Release längst dastand.
+vorher_datei .github/workflows/release.yml
+python3 - <<'PY2'
+p = '.github/workflows/release.yml'
+s = open(p, encoding='utf-8').read()
+s = s.replace('gh release view', 'gh release ansehen')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/release.yml "Release anlegen ohne Fallunterscheidung" &&
+pruefe "Release anlegen ohne Fallunterscheidung" \
+  PackagingTest::test_the_release_can_run_a_second_time failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -3576,3 +3576,34 @@ dieses Panels hängt an `[data-theme]` und nicht an `prefers-color-scheme`.
 Beide Aufnahmen waren hell, und die dunkle Fassung wäre ungeprüft
 durchgegangen. Gesetzt wird das Attribut jetzt ausdrücklich, und die Probe
 liest zur Kontrolle die Hintergrundfarbe zurück: `#fff` gegen `#0f1116`.
+
+#### Ein Freigabelauf, der ein zweites Mal laufen darf
+
+**Der 6. August hat es vorgeführt.** GitHubs Warteschlange liess fünf Anläufe
+des Freigabelaufs ohne Runner verhungern — `runner_id: 0`, kein einziger
+Schritt, nach fünfzehn Minuten abgeräumt. Der sechste kam durch: gebaut,
+signiert, `v0.4.0-rc.8` als Release angelegt. Der siebte brach an
+`gh release create` ab, mit „a release with the same tag name already exists".
+
+Diese Abweisung ist für sich richtig; ein fertiges Release soll niemand
+versehentlich überschreiben. **Der Schaden lag daneben:** Der Job `package`
+galt als gescheitert, und damit wurde `repository` übersprungen. Die
+Paketquelle blieb ohne die Fassung, die als GitHub-Release längst dastand — ein
+halber Zustand, den an einer Meldung über das Release niemand erkennt.
+
+Der Fall wird jetzt unterschieden statt verboten: Gibt es das Release schon,
+werden die Dateien ersetzt. Das ist gewollt und nicht bloss geduldet — der Lauf
+baut aus einem Tag, der Inhalt ist derselbe, und Prüfsumme wie Signatur werden
+im selben Zug mit ausgetauscht. Ein Release, das zur Hälfte aus dem einen und
+zur Hälfte aus dem anderen Lauf stammt, wäre schlimmer.
+
+**Warum daraus ein Wächter wurde.** Ein Freigabelauf läuft selten und wird
+genau dann wiederholt, wenn ohnehin etwas schiefging. Ein Schritt, der beim
+zweiten Mal abbricht, ist deshalb nicht selten, sondern verlässlich im
+ungünstigsten Moment im Weg. `PackagingTest` verlangt, dass jeder Ablauf, der
+ein Release anlegt, vorher fragt, ob es schon eines gibt.
+
+**Und `tests/waechter-brechen.sh` klammert jetzt auch `.github/`.** Der Bruch
+dazu ändert eine Datei dort; ein Bruch in einem Verzeichnis, das
+`wiederherstellen` nicht kennt, ist keine Probe, sondern eine Änderung. Genau
+aus diesem Grund war `packaging/` in P4 dazugekommen.

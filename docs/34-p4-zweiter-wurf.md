@@ -8,7 +8,7 @@ Dieser Text ist der Plan für den Rest — **er wird gelesen, bevor etwas gebaut
 wird.** Er nennt drei Dinge: was der erste Wurf offengehalten hat und wo er es
 *nicht* getan hat, die Reihenfolge der Schritte samt ihrer Wächter, und die
 Entscheidungen des Betreibers. Die vier, die vor dem Bauen zu treffen waren,
-sind getroffen und stehen in §10.
+sind getroffen und stehen in §11.
 
 ---
 
@@ -235,12 +235,37 @@ fünf auf einmal:
 | **Netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | 4. |
 | **IPv64.net** | Kleiner deutscher Anbieter mit Token-API; deckt den Fall ab, in dem jemand seine Zone dort und nicht beim Registrar führt. | 5. |
 
-**Zu IPv64.net gehört ein Vorbehalt in diesen Plan und nicht erst in den
-Quelltext:** Der genaue Satz an Endpunkten — Anlegen und Löschen eines
-TXT-Eintrags, und ob die Zone aus dem Namen abgeleitet oder abgefragt wird —
-ist an der Dokumentation des Anbieters zu prüfen, **bevor** die Umsetzung
-beginnt. Was hier steht, ist die Absicht, ihn aufzunehmen; die Form seiner API
-ist damit nicht behauptet.
+### IPv64.net im Einzelnen
+
+Nachgesehen am 6. August 2026. **Die Seiten von IPv64.net selbst waren aus
+diesem Container nicht abrufbar (HTTP 403);** was hier steht, stammt aus zwei
+unabhängigen, im Einsatz befindlichen ACME-Umsetzungen —
+[`dns_ipv64.sh` aus acme.sh](https://github.com/acmesh-official/acme.sh/blob/master/dnsapi/dns_ipv64.sh)
+und dem
+[IPv64-Anbieter aus lego](https://pkg.go.dev/github.com/go-acme/lego/v5/providers/dns/ipv64).
+Beide nennen dieselben Felder. Beim ersten Zugriff wird das gegen die
+Dokumentation des Anbieters gehalten, nicht blind übernommen.
+
+- **Adresse:** `https://ipv64.net/api`
+- **Anmeldung:** `Authorization: Bearer <Token>`
+- **Anlegen:** `POST`, `application/x-www-form-urlencoded`, Felder
+  `add_record=<zone>`, `praefix=<name>`, `type=TXT`, `content=<wert>`
+- **Löschen:** dasselbe mit `DELETE` und `del_record=<zone>`
+- **Zonen:** `get_domains` liefert die Zonen des Kontos
+- Erfolg erkennt acme.sh an `"info":"success"`, und es wartet bei **HTTP 429**
+  zehn Sekunden — der Anbieter drosselt also.
+
+**Ein Fund, der die Bauart bestätigt.** lego zerlegt den Namen und verlangt
+mindestens drei Bestandteile: Bei IPv64.net ist die Zone häufig selbst eine
+Unterdomain (`meinname.ipv64.net`), also **nicht** die registrierbare Domain.
+Wer die Zone aus dem Namen errechnet, liegt hier falsch. Deshalb steht in §4,
+dass die Zone **abgefragt** und nicht abgeleitet wird — `get_domains` ist genau
+dafür da, und acme.sh macht es ebenso. Was als Vorsicht in den Plan geschrieben
+war, ist bei diesem Anbieter der Normalfall.
+
+Der Feldname `praefix` ist deutsch geschrieben, weil der Anbieter ihn so nennt.
+Das ist eine echte Schnittstelle nach aussen — `docs/19 §4a` lässt sie, wie sie
+ist; übersetzt wird sie nicht.
 
 Die Liste ist eine Positivliste im Code. Ein sechster Anbieter ist eine
 Änderung, die jemand liest, kein Feld in einem Formular — dieselbe Haltung wie
@@ -324,7 +349,56 @@ besser begründet: Schritt 1 trägt beide Funktionen.
 
 ---
 
-## 8. Die Schritte, in dieser Reihenfolge
+## 8. Mehr als ein Zertifikat — die Auswahl
+
+**Ja, das geht, und die Auswahl gibt es sogar schon:** `domains.certificate_id`
+*ist* sie. Was heute eine Zuweisung ist, die nur der Lebenslauf schreibt, wird
+mit Schritt 1 die Stelle, an der die Frage „welches liefert diese Domain aus?"
+einmal und für alle beantwortet wird. Ein Auswahlfeld ist damit kein neuer
+Mechanismus, sondern eine Oberfläche auf einen, der dann dasteht.
+
+**Und die Lage ist nicht selten, sondern der Regelfall.** Sobald es das
+Hochladen gibt und Platzhalter dazukommen, hat eine Domain schnell drei
+Kandidaten: das bestellte für ihren Namen, den Platzhalter des Abonnements und
+ein hochgeladenes. Ohne Auswahl entschiede die Reihenfolge im Code — und das
+ist keine Entscheidung, die im Code stehen darf.
+
+**Kandidat ist, was deckt.** Angeboten wird, was dem Abonnement gehört, gültig
+ist und **alle** Namen des Server-Blocks deckt. Die Prüfung dafür gibt es:
+`Certificate::coversAll($domain->serverNames())`. Was nur den halben Block
+deckt, steht nicht zur Wahl — es erzeugte eine Warnung im Browser, die im Panel
+grün aussieht.
+
+**Eine Auswahl muss von einer Zuweisung unterscheidbar sein.** Sonst nimmt die
+nächste automatische Bestellung sie zurück, und zwar still — genau der
+Fehlertyp, der in diesem Projekt am teuersten war. Dafür braucht es ein
+Kennzeichen an der Domain (`certificate_pinned_at`, ein Zeitstempel, der
+`null` ist, solange niemand gewählt hat). Es ist die einzige Migration dieses
+Wurfs.
+
+Daraus folgen drei Regeln:
+
+1. **Ohne Wahl entscheidet die Automatik** wie bisher — sie bestellt, wenn
+   nichts Deckendes da ist, und weist zu.
+2. **Mit Wahl fasst die Automatik die Zuweisung nicht an.** Sie darf weiter
+   *erneuern*, was sie erneuern kann; sie darf nicht umhängen.
+3. **Eine Wahl lässt sich zurücknehmen** („wieder automatisch"), und das steht
+   als Knopf da. Eine Einstellung, die man nur einmal treffen kann, ist eine
+   Falle.
+
+**Offen, und ich empfehle es so:** Was passiert, wenn das gewählte Zertifikat
+abläuft? Ein hochgeladenes erneuert niemand. Stur daran festzuhalten nähme die
+Website vom Netz; still auf ein anderes zu wechseln wäre die zweite Wahrheit.
+Mein Vorschlag ist der laute Rückfall: **Ist die Wahl abgelaufen und liegt ein
+gültiges, deckendes Zertifikat vor, liefert der Block dieses aus** — die Wahl
+bleibt aber vermerkt, die Domainseite sagt in einer Meldung, dass sie
+übergangen wird und warum, und der Vorgang steht im Protokoll. Vorgewarnt wird
+davor 30 Tage lang, mit demselben Zeitplan, der auch erneuert. Das ist die
+Entscheidung, die beim Bauen von Schritt 3 zu treffen ist.
+
+---
+
+## 9. Die Schritte, in dieser Reihenfolge
 
 Jeder Schritt ist für sich abnehmbar, und jeder bringt seinen Wächter samt
 Bruch in `tests/waechter-brechen.sh` mit.
@@ -344,24 +418,33 @@ Bruch in `tests/waechter-brechen.sh` mit.
    *Wächter:* Jeder Abweisungsfall einzeln (Schlüssel passt nicht, Kette falsch
    sortiert, abgelaufen, deckt die Domain nicht), die Freigabe aus dem Plan, und
    die Erneuerung, die ein hochgeladenes liegen lässt, ohne es zu verschweigen.
-4. **`DnsChallenge` samt `ready()`** gegen `FakeProvider`. *Wächter:* Es wird
+4. **Die Auswahl** (§8) — samt `certificate_pinned_at`, der einzigen Migration
+   dieses Wurfs. Sie kommt hier und nicht später: Ab Schritt 3 gibt es zwei
+   Zertifikate für dieselbe Domain, und ohne das Kennzeichen nimmt die nächste
+   Bestellung die Wahl still zurück. *Wächter:* Eine gewählte Zuweisung
+   überlebt einen Lauf des Zeitplans und ein erneutes Schreiben des
+   Server-Blocks; angeboten wird nur, was alle Namen deckt und dem Abonnement
+   gehört.
+5. **`DnsChallenge` samt `ready()`** gegen `FakeProvider`. *Wächter:* Es wird
    nicht geprüft, bevor die autoritativen Nameserver den Eintrag ausliefern;
    `cleanup()` läuft auch nach einem Fehlschlag.
-5. **Zugangsdaten und die Auflösung des Profils** (§5). *Wächter:* Kein Token
+6. **Zugangsdaten und die Auflösung des Profils** (§5). *Wächter:* Kein Token
    verlässt den Agenten — keine Leseoperation gibt es zurück, kein
    Protokolleintrag enthält es; und ein Abonnement kommt nie an ein fremdes
    Profil.
-6. **RFC 2136** als erster echter Anbieter, dazu die Abnahme gegen eine eigene
+7. **RFC 2136** als erster echter Anbieter, dazu die Abnahme gegen eine eigene
    Zone.
-7. **Bestellen mit Platzhalter in der Oberfläche.** Wer darf (§3), was bestellt
+8. **Bestellen mit Platzhalter in der Oberfläche.** Wer darf (§3), was bestellt
    wird (`example.de` **und** `*.example.de`), und was die Seite sagt, wenn eine
    zweite Ebene ungedeckt bleibt.
-8. **Hetzner, Cloudflare, Netcup, IPv64.net** — einer nach dem anderen, jeder
-   mit seinem Wächter und seinen Fehlerfällen.
+9. **Hetzner, Cloudflare, Netcup, IPv64.net** — einer nach dem anderen, jeder
+   mit seinem Wächter und seinen Fehlerfällen. IPv64.net bringt dabei den Fall
+   mit, an dem sich die Zonenauflösung beweist: Die Zone ist dort oft selbst
+   eine Unterdomain (§6).
 
 ---
 
-## 9. Das Abnahmekriterium
+## 10. Das Abnahmekriterium
 
 Gemessen auf einem echten Server, nicht geschätzt (Plan §8):
 
@@ -383,7 +466,7 @@ Gemessen auf einem echten Server, nicht geschätzt (Plan §8):
 
 ---
 
-## 10. Die Entscheidungen des Betreibers
+## 11. Die Entscheidungen des Betreibers
 
 Getroffen am 6. August 2026, alle vier:
 
@@ -396,9 +479,17 @@ Getroffen am 6. August 2026, alle vier:
 4. **Der Kunde darf ein eigenes Zertifikat hochladen** — über
    `Feature::CertificateUpload`, die es im Plan bereits gibt (§7).
 
+Dazu kam am selben Tag die fünfte, aus der vierten heraus: **Sind mehrere
+Zertifikate da, wird gewählt** (§8) — die Auswahl ist `domains.certificate_id`,
+und sie bekommt mit `certificate_pinned_at` ein Kennzeichen, damit die
+Automatik sie nicht still zurücknimmt.
+
 **Was daraus offen bleibt und beim Bauen beantwortet wird**, nicht vorher:
 
-- Der Endpunktsatz von IPv64.net (§6) — an der Dokumentation zu prüfen.
+- Der Rückfall, wenn die Wahl abläuft (§8). Vorschlag steht dort: laut
+  zurückfallen statt die Website vom Netz zu nehmen.
+- Der Endpunktsatz von IPv64.net (§6) — beim ersten Zugriff gegen die
+  Dokumentation des Anbieters zu halten.
 - Die Frist, nach der `ready()` aufgibt, und wie oft dazwischen gefragt wird.
   Sie hängt an dem, was die Anbieter tatsächlich tun, und gehört gemessen statt
   geraten.

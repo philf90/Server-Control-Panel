@@ -10,18 +10,22 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P3 abgenommen**. Der Abnahmelauf `srvpanel acceptance-web` ist
-auf dem Zielserver aus `0.3.0~rc.5` durchgelaufen: sechs Domains, zwei
-PHP-Versionen, zwei Systembenutzer, kein Zugriff über die Grenze. Als Nächstes
-**P4 (TLS)**.
+Stand: **P0 bis P4 abgenommen** — P4 im ersten Wurf: ACME über HTTP-01, das
+Zertifikat der Oberfläche über dieselbe Strecke, HTTPS in der Kundenvorlage.
+Nachgewiesen auf dem Zielserver: Eine Kundendomain hat ihr Zertifikat ohne
+Zutun eines Admins bekommen, und das Panel liefert auf 8443 ein Zertifikat von
+Let's Encrypt aus, mit HSTS und ohne `curl -k`. Der zweite Wurf — DNS-01 mit
+mehreren Anbietern und das Hochladen eigener Zertifikate — steht aus; die
+Entscheidungen dazu in `docs/32 §6`.
 
-Ausgeliefert wird `v0.3.1-rc.3` — der Optik-Rework. **Sein Abnahmelauf ist am
-5. August auf dem Zielserver durchgelaufen, vollständig grün** (`docs/33`):
-beide Abnahmekommandos, die Schwellen der Verlaufskacheln unter echter Last,
-Übersicht und Zertifikatsseite mit laufenden Diensten, Sitzung auf dem Telefon,
-Kundensicht, Blättern. Er kam bewusst **vor** P4, weil P4 genau die Stellen
-anfasst, an denen `rc.3` nie unter echten Bedingungen gelaufen war — ein
-Fehlschlag ab jetzt hat nur noch eine mögliche Ursache.
+Ausgeliefert wird `v0.4.0-rc.5`. **Die Abnahme hing bis zuletzt an den
+Screenshots, und sie haben sich gelohnt:** drei Fehler auf einer Seite, die
+vollständig grün getestet war — eine Kennung, die im Fliesstext nicht brach und
+die Seite um 83px aus dem Bildschirm schob, ein Abstand, der aus der
+Reihenfolge der Seite abgeleitet war und mit der nächsten Ergänzung fiel, und
+ein `<select>`, das abschneidet statt umzubrechen. Das ist der Grund für die
+Regel weiter unten, und `v0.4.0-rc.4` ist mit dem Umbruchfehler ausgeliefert
+worden, weil sie einen Tag zu früh kam.
 
 ---
 
@@ -81,6 +85,18 @@ es nicht gibt. Jeder Fund hat seinen Wächter bekommen.
 grün getestet und trotzdem falsch — ein Knopfrand mit 1,04:1 Kontrast, ein
 Umschalter, der sichtbar nichts tat, eine doppelte Erfolgsmeldung. Bei allem
 Sichtbaren gehört ein Screenshot dazu, in beiden Themes und bei 390 px.
+
+**Und wenn es gerade nicht geht, wird es nachgeholt und nicht abgehakt.** P4
+Schritt 6 ging ohne Screenshots in die Auslieferung, weil `vendor/` fehlte —
+und die nachgeholte Runde fand auf einer einzigen Seite drei Fehler, jeden
+davon vollständig grün getestet. Der teuerste war eine Kennung im Fliesstext,
+die 83px aus dem Bildschirm schob; er war ausgeliefert. **Für den Fall, dass
+`artisan serve` nicht läuft, gibt es einen Weg, der eine Fassung früher
+gereicht hätte:** das gebaute Stylesheet aus `public/build` mit dem Markup des
+fraglichen Bausteins in einer eigenen HTML-Datei, gerendert im vorinstallierten
+Chromium bei 390px, `scrollWidth - clientWidth` per `<script>` als Text auf die
+Seite geschrieben. Das ersetzt den Blick auf die echte Seite nicht — aber es
+beantwortet die Frage, ob etwas überläuft, ohne Datenbank und ohne PHP.
 
 ---
 
@@ -149,8 +165,11 @@ nicht geschätzt: 4,5:1 für Text, **3:1 für die Grenze eines Bedienelements**
 Weitere Dokumente: `21` Signaturschlüssel · `22` Passwörter · `23` Pläne und
 Kontingente · `24` mobile Ansicht · `25` Mailversand · `26` Abonnements ·
 `27` Zertifikat · `28` Web und PHP · **`32` Übergabe an P4** — was für TLS
-schon dasteht, was fehlt, und die Falle, die dabei aussperrt — und **`33` der
-Abnahmelauf für 0.3.1**, der davor kommt. Die Entwürfe zum Gestaltungssystem stehen
+schon dasteht, was fehlt, und die Falle, die dabei aussperrt — · **`33` der
+Abnahmelauf für 0.3.1**, der davor kommt · und **`34` der zweite Wurf von P4**:
+DNS-01, Platzhalter, eigene Zertifikate — mit den drei Stellen, an denen der
+erste Wurf der Erweiterung nicht standhält, und den vier Fragen, die der
+Betreiber vorher beantwortet. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".
@@ -204,6 +223,11 @@ Testen berücksichtigen:
   nicht, prüft ausschliesslich die CI, und **jede** Änderung an `app/`,
   `agent/` oder `tests/` kostet eine Runde — nicht nur die, die PHPStan
   beträfe.
+
+  **Und `ls vendor` genügt für diese Frage nicht.** Am 6. August lagen dort
+  39 Pakete und trotzdem weder `vendor/bin` noch `vendor/autoload.php`: ein
+  abgebrochenes `composer install`, das aussieht wie ein fertiges. Gefragt wird
+  nach `vendor/autoload.php`, nicht nach dem Verzeichnis.
 
   **Für `agent/` gibt es einen Ausweg, und er hat in P4 eine Runde gespart.**
   `agent/src/autoload.php` ist framework- und abhängigkeitsfrei; Code unterhalb

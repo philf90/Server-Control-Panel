@@ -49,10 +49,16 @@ final class SiteTemplate
     /**
      * Der Server-Block — mit HTTPS, sobald ein Zertifikat dafür daliegt.
      *
-     * **Die Pfade kommen nicht von aussen.** Der Agent fragt {@see Store} nach
-     * dem Ablageort und sieht selbst nach, ob dort etwas liegt. Ein Pfad aus der
-     * Anwendung wäre bei `ssl_certificate` dasselbe wie bei `root`: die
-     * Erlaubnis, eine beliebige Datei des Servers zu benennen.
+     * **Welches Zertifikat, sagt das Panel — wo es liegt, weiss der Agent.**
+     * `Site::$certificate` ist ein Name und kein Pfad; den Ablageort baut
+     * {@see Store} daraus, und ob dort etwas liegt, sieht der Agent selbst
+     * nach. Ein Pfad aus der Anwendung wäre bei `ssl_certificate` dasselbe wie
+     * bei `root`: die Erlaubnis, eine beliebige Datei des Servers zu benennen.
+     *
+     * **Nennt das Panel keines, wird keines ausgeliefert** — auch dann nicht,
+     * wenn unter dem Namen der Domain etwas läge. Bis zum zweiten Wurf von P4
+     * war es andersherum, und damit entschied das Dateisystem darüber, was
+     * nginx vorweist (`docs/34 §2.1`).
      *
      * **Ohne Zertifikat keine Weiterleitung.** Das ist der dritte Teil des
      * Abnahmekriteriums — ein Fehlschlag darf den laufenden Betrieb nicht
@@ -64,7 +70,9 @@ final class SiteTemplate
     {
         $names = implode(' ', $site->serverNames());
         $header = self::header();
-        $tls = ($store ?? new Store)->existing($site->domain);
+        $tls = $site->certificate === null
+            ? null
+            : ($store ?? new Store)->existing($site->certificate);
 
         /*
          * **Die Prüfadresse steht vor der Fallunterscheidung, und das ist der

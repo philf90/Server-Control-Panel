@@ -36,9 +36,16 @@ use Tests\TestCase;
  *
  * **Und zusammen wären die beiden eine Schleife.** Bestellung → Zuordnung →
  * Block neu → Bestellung. Dass sie aufhört, ist keine Beobachtung, sondern eine
- * Zusage: Bestellt wird nur, wenn die Domain noch kein Zertifikat hat, und die
- * Zuordnung passiert vor dem neuen Block. Ein Wächter, der das nicht prüft,
- * lässt eine Warteschlange laufen, bis die Ratenbegrenzung sie anhält.
+ * Zusage: Bestellt wird nur, wenn kein zugeordnetes Zertifikat die Namen des
+ * Server-Blocks deckt, und die Zuordnung passiert vor dem neuen Block. Ein
+ * Wächter, der das nicht prüft, lässt eine Warteschlange laufen, bis die
+ * Ratenbegrenzung sie anhält.
+ *
+ * **Seit dem zweiten Wurf von P4 fragt diese Bedingung nach der Deckung und
+ * nicht mehr nach dem Verweis** (`docs/34 §2.1`). Ein zugeordnetes Zertifikat
+ * genügte, solange jedes für genau eine Domain bestellt wurde; kommt ein Alias
+ * nachträglich dazu, steht er im `server_name` und nicht im Zertifikat — der
+ * Browser warnt bei ihm, und im Panel sieht alles grün aus.
  *
  * Die Tests laufen wie der Arbeiter — ohne angemeldetes Konto, also im
  * Grundzustand der Mandantenklammer. Was hier grün ist, läuft auch dort.
@@ -229,5 +236,123 @@ final class CertificateReapplyTest extends TestCase
         app(Lifecycles::class)->afterSuccess($block);
 
         $this->assertSame($before, $this->operations('acme.certificate.issue'), 'Die Kette hört nicht auf.');
+    }
+
+    /**
+     * Wo das Zertifikat liegt, sagt der Agent — und das Panel merkt es sich.
+     *
+     * **Ohne diese Angabe gäbe es zwei Wahrheiten zu einer Frage** (`docs/34
+     * §2.1`): die Zuordnung in der Datenbank und den Verzeichnisnamen auf dem
+     * Server. Der Agent legt ab und berichtet, unter welchem Schlüssel; das
+     * Panel nennt genau diesen, wenn der Server-Block geschrieben wird.
+     */
+    public function test_the_place_of_the_certificate_comes_from_the_agent(): void
+    {
+        $domain = $this->domain();
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($this->finished(
+            $domain,
+            'acme.certificate.issue',
+            $this->issued() + ['storage_name' => 'mehrere.de'],
+        ));
+
+        $this->tenancy()->allowAll();
+
+        $fresh = Domain::query()->findOrFail($domain->id);
+        $certificate = Certificate::query()->findOrFail($fresh->certificate_id);
+
+        $this->assertSame('mehrere.de', $certificate->storage_name);
+    }
+
+    /**
+     * Fehlt sie, gilt die Regel, die der Agent bis dahin angewandt hat.
+     *
+     * Von zwei Ausgängen ist das der günstigere: Stünde `null` in der Spalte,
+     * fiele eine Domain mit gültigem Zertifikat beim nächsten Anwenden auf Port
+     * 80 zurück — ohne Fehler und ohne Meldung.
+     */
+    public function test_an_answer_without_the_place_falls_back_to_the_first_name(): void
+    {
+        $domain = $this->domain();
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'acme.certificate.issue', $this->issued()));
+
+        $this->tenancy()->allowAll();
+
+        $fresh = Domain::query()->findOrFail($domain->id);
+        $certificate = Certificate::query()->findOrFail($fresh->certificate_id);
+
+        $this->assertSame('beispiel.de', $certificate->storage_name);
+    }
+
+    /**
+     * Ein Zertifikat, das nicht jeden Namen deckt, ist keines für diesen Block.
+     *
+     * Der Fall aus dem Alltag: Die Domain hatte ihr Zertifikat, danach kam ein
+     * Alias dazu. Er steht ab sofort im `server_name` — und nicht im
+     * Zertifikat. Bis hierher genügte dem Panel der Verweis, und es bestellte
+     * nichts nach.
+     */
+    public function test_a_certificate_that_misses_a_name_is_ordered_again(): void
+    {
+        $domain = $this->domain();
+        $this->withContact();
+
+        $this->tenancy()->allowAll();
+
+        $certificate = Certificate::factory()->covering(['beispiel.de'])->create([
+            'subscription_id' => $domain->subscription_id,
+        ]);
+
+        $domain->certificate_id = (int) $certificate->id;
+        $domain->save();
+
+        // Und jetzt kommt der Alias dazu.
+        Domain::factory()->alias($domain)->create(['name' => 'www.beispiel.de']);
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.apply'));
+
+        $this->assertSame(1, $this->operations('acme.certificate.issue'));
+
+        $this->tenancy()->allowAll();
+        $order = Operation::query()->where('task', 'acme.certificate.issue')->firstOrFail();
+        $payload = $order->payload ?? [];
+
+        // Bestellt wird für den ganzen Block und nicht nur für den Nachzügler.
+        $this->assertSame(['beispiel.de', 'www.beispiel.de'], $payload['names'] ?? null);
+    }
+
+    /**
+     * Läuft schon eine Bestellung, kommt keine zweite dazu.
+     *
+     * **Sonst zählt jedes erneute Anwenden mit.** `srvpanel vhost --sites`
+     * schreibt alle Blöcke neu; ohne diese Frage wären das ebenso viele
+     * Prüfungen wie Domains, und fünf Fehlversuche je Stunde sind die Grenze
+     * der Zertifizierungsstelle.
+     */
+    public function test_while_an_order_is_running_no_second_one_is_placed(): void
+    {
+        $domain = $this->domain();
+        $this->withContact();
+
+        $this->tenancy()->allowAll();
+
+        Operation::query()->create([
+            'subscription_id' => $domain->subscription_id,
+            'subject_type' => 'domain',
+            'subject_id' => $domain->id,
+            'type' => 'acme.certificate.issue',
+            'task' => 'acme.certificate.issue',
+            'status' => OperationStatus::Queued,
+            'progress' => 0,
+        ]);
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.apply'));
+
+        $this->assertSame(1, $this->operations('acme.certificate.issue'), 'Es wurde ein zweites Mal bestellt.');
     }
 }

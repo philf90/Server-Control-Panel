@@ -1045,6 +1045,96 @@ pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_an_identifier_may_break_outside_a_table passed
 
 echo
+echo "── SiteTemplateTest: der Agent leitet das Zertifikat wieder selbst ab ──"
+#
+# Der Zustand vor dem zweiten Wurf: Der Agent sieht unter dem Namen der Domain
+# nach und nimmt, was dort liegt. Damit entscheidet das Dateisystem darüber,
+# was nginx vorweist — ein Platzhalter liegt unter keinem der Namen, die er
+# deckt, und die Zuordnung im Panel ist die zweite Wahrheit daneben.
+vorher_datei agent/src/SiteTemplate.php
+python3 - <<'PY2'
+p = 'agent/src/SiteTemplate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $tls = $site->certificate === null\n"
+    "            ? null\n"
+    "            : ($store ?? new Store)->existing($site->certificate);",
+    "        $tls = ($store ?? new Store)->existing($site->domain);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/SiteTemplate.php "Zertifikat aus dem Domainnamen abgeleitet" &&
+pruefe "Zertifikat aus dem Domainnamen abgeleitet" \
+  SiteTemplateTest::test_a_certificate_the_panel_does_not_name_is_not_delivered failed
+wiederherstellen
+
+echo
+echo "── WebLifecycleTest: das Panel nennt kein Zertifikat mehr ──"
+#
+# Die Gegenrichtung desselben Fehlers: Der Agent fragt richtig, aber es kommt
+# keine Antwort. Jede gesicherte Website fiele beim nächsten Anwenden auf
+# Port 80 zurück — ohne Fehler und ohne Meldung.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'certificate' => $this->certificate($domain)?->storage_name,",
+    "            'certificate' => null,",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "Payload ohne Zertifikatsnamen" &&
+pruefe "Payload ohne Zertifikatsnamen" \
+  WebLifecycleTest::test_the_payload_names_the_assigned_certificate failed
+wiederherstellen
+
+echo
+echo "── CertificateCoverageTest: ein fremdes Zertifikat wird zugeordnet ──"
+#
+# Die Deckungsprüfung allein genügt ab dem Platzhalter nicht mehr:
+# `*.example.de` deckt auch die Unterdomain eines anderen Kunden. Ohne die
+# Eigentumsfrage wiese der Block des einen Kunden das Zertifikat des anderen
+# vor.
+vorher_datei app/Models/Domain.php
+python3 - <<'PY2'
+p = 'app/Models/Domain.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($certificate->subscription_id !== $this->subscription_id) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Domain.php "Zertifikat eines fremden Abonnements" &&
+pruefe "Zertifikat eines fremden Abonnements" \
+  CertificateCoverageTest::test_a_covering_certificate_of_another_subscription_is_refused failed
+wiederherstellen
+
+echo
+echo "── CertificateReapplyTest: der Verweis genügt wieder statt der Deckung ──"
+#
+# Der Alias, der nach der Ausstellung dazukam, steht im `server_name` und nicht
+# im Zertifikat. Der Browser warnt bei ihm, und im Panel sieht alles grün aus —
+# der Fall, den `covers_all` seit Schritt 6 anzeigt und den bis hierher niemand
+# behob.
+vorher_datei app/Support/Tls/CertificateLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $certificate instanceof Certificate && $certificate->coversAll($domain->serverNames());",
+    "        return $certificate instanceof Certificate;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateLifecycle.php "Verweis statt Deckung" &&
+pruefe "Verweis statt Deckung" \
+  CertificateReapplyTest::test_a_certificate_that_misses_a_name_is_ordered_again failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateReapplyTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

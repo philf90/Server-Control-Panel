@@ -117,6 +117,46 @@ final class CertificateCoverageTest extends TestCase
     }
 
     /**
+     * Und ein Platzhalter aus einem fremden Abonnement gilt trotzdem nicht.
+     *
+     * **Diesen Fall hat der Kommentar an `Domain::certificate()` vorhergesagt,
+     * bevor es ihn gab:** Die Deckungsprüfung fange eine fremde Nummer
+     * „meistens" ab — „aber nicht bei einem Wildcard, das den Namen zufällig
+     * deckt". Genau das kommt mit dem zweiten Wurf von P4. `*.example.de` deckt
+     * jede Unterdomain der Zone, auch die eines anderen Kunden; ab da ist die
+     * Zuordnung keine Sorgfaltsfrage mehr, sondern die Grenze zwischen zwei
+     * Abonnements (`docs/34 §3`).
+     */
+    public function test_a_covering_certificate_of_another_subscription_is_refused(): void
+    {
+        $domain = Domain::factory()->create(['name' => 'shop.example.de']);
+
+        // Dasselbe Zertifikat, dieselbe Deckung — nur gehört es jemand anderem.
+        $fremd = Certificate::factory()->covering(['*.example.de'])->create();
+
+        $this->assertNotSame($domain->subscription_id, $fremd->subscription_id);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('gehört nicht zum Abonnement');
+
+        $domain->certificate_id = $fremd->id;
+        $domain->save();
+    }
+
+    /** Und das Zertifikat der Oberfläche gehört keiner Kundendomain. */
+    public function test_the_certificate_of_the_panel_is_not_assigned_to_a_domain(): void
+    {
+        $domain = Domain::factory()->create(['name' => 'example.de']);
+        $panel = Certificate::factory()->forPanel()->covering(['example.de'])->create();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('gehört nicht zum Abonnement');
+
+        $domain->certificate_id = $panel->id;
+        $domain->save();
+    }
+
+    /**
      * Und die Prüfung greift auch dort, wo die Mandantenklammer zu ist.
      *
      * **Das ist der Fall, in dem ein Wächter beim Arbeiten zubeisst statt beim

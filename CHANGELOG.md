@@ -3462,3 +3462,43 @@ die `useForm` benutzt, und prüft, dass sie am Fehlersatz der Seite hängt.
 
 Zwei neue Brüche: die Adresse, die belegt bleibt, und eine Seite ohne
 Zusammenfassung.
+
+#### Der Stable-Kanal, der nie unserer war
+
+**`install.sh` bot als Vorgabe `stable` an, und dorthin ist nie etwas
+freigegeben worden.** Aufgefallen ist es beim Nachsehen, warum die
+Pages-Auslieferung von `v0.4.0-rc.7` scheiterte — nicht durch einen Test, der
+zubiss.
+
+Unter `apt/dists/stable/` lag auf der Seite weiterhin der Index des
+Vorgängerprojekts: 68 Fassungen von `asylum-panel` und
+`asylum-archive-keyring`, `Origin: Project Asylum`, Stand 2. August, signiert
+mit `FC79D6FB…EEB9AA1A` statt mit unserem `58EE4644…C4393E86`. Die
+`pool`-Dateien dazu sind im August entfernt worden, der Index nicht: Der
+Freigabelauf schreibt nur `dists/<kanal>` des **gerade freigegebenen** Kanals
+neu, und ein Kanal ohne Freigabe enthält, was immer dort lag.
+
+Wer dem dokumentierten Weg folgte — `curl … install.sh | sudo sh` —, bekam
+eine Paketquelle mit `Suites: stable`, verwiesen auf unseren Schlüsselbund.
+Das erste `apt-get update` endete im
+`NO_PUBKEY`, `apt-get install srvpanel` fand nichts. **Die Erstinstallation war
+kaputt, und beide Hälften waren still** — derselbe Fehlschlag wie beim
+fehlenden `php-source.sh`, gefunden wieder nicht von einem Test.
+
+Die Vorgabe heisst jetzt `beta`. Sie ist damit aber nur zufällig richtig, und
+das ist der eigentliche Punkt: **eine Zeichenkette, die auf einen Kanal zeigt,
+und nichts prüfte den Bezug.** `PackagingTest` prüft ihn seitdem gegen
+`packaging/stable-release` — dieselbe Marke, die auch `version-channel.sh`
+steuert, statt einer zweiten Fassung derselben Entscheidung. Solange dort keine
+Fassung steht, muss die Vorgabe `beta` heissen; steht eine drin, muss sie
+`stable` heissen.
+
+**Beide Richtungen, und das mit Absicht.** Ein Wächter, der nur beim Betreten
+der Beta-Phase zubeisst, verschwindet beim Verlassen: Nach der ersten stabilen
+Freigabe bekäme sonst jeder Neuzugang weiter eine Vorabfassung angeboten, und
+niemand meldete es. Zwei neue Brüche entsprechend — die alte Vorgabe zurück,
+und die Marke gesetzt ohne nachgezogene Vorgabe.
+
+Was auf `gh-pages` unter `dists/stable/` und als `apt/asylum-archive-keyring.gpg`
+liegt, gehört gelöscht; ein Kanal, den es nicht gibt, meldet sich klar, einer
+mit fremdem Index nicht.

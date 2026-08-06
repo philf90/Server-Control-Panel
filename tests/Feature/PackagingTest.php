@@ -186,6 +186,76 @@ final class PackagingTest extends TestCase
     }
 
     /**
+     * Der Kanal, auf den `install.sh` zeigt, muss auch beliefert werden.
+     *
+     * **Der Fall, aus dem diese Prüfung kommt.** `install.sh` trug als Vorgabe
+     * `stable`. Freigegeben wurde seit dem ersten Tag ausschliesslich nach
+     * `beta` — `packaging/stable-release` ist leer, und `version-channel.sh`
+     * weist damit jede Fassung ohne Zusatz ab. Unter `dists/stable` lag auf
+     * der Seite deshalb weiterhin der Index des Vorgängerprojekts: 68
+     * Fassungen von `asylum-panel` und `asylum-archive-keyring`, deren
+     * Pool-Dateien im August entfernt wurden, signiert mit einem anderen
+     * Schlüssel als dem, den `install.sh` unter `Signed-By` einträgt. Der
+     * Freigabelauf schreibt nämlich nur `dists/<kanal>` des gerade
+     * freigegebenen Kanals neu; in einem Kanal ohne Freigabe steht, was immer
+     * dort lag.
+     *
+     * Die Folge war die kaputte Erstinstallation: `apt-get update` endete im
+     * `NO_PUBKEY`, `apt-get install srvpanel` fand nichts. Beides still — wie
+     * beim fehlenden `php-source.sh` fällt es erst dem ersten Menschen auf,
+     * der es benutzen will.
+     *
+     * **Warum ein Wächter und keine Korrektur.** Die Vorgabe ist eine
+     * Zeichenkette, die auf einen Kanal zeigt, und nichts prüfte den Bezug.
+     * Beim Verlassen der Beta-Phase kehrt sich die richtige Antwort um: Steht
+     * in `packaging/stable-release` eine Fassung, *muss* die Vorgabe wieder
+     * `stable` heissen, sonst installiert jeder Neuzugang eine Vorabfassung.
+     * Genau deshalb prüft dieser Test beide Richtungen gegen dieselbe Marke,
+     * die auch den Freigabelauf steuert — statt eine zweite Fassung derselben
+     * Entscheidung zu sein.
+     */
+    public function test_the_installer_offers_a_channel_that_is_actually_published(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $installer = (string) file_get_contents($root.'/packaging/install.sh');
+
+        $this->assertSame(
+            1,
+            preg_match('/^CHANNEL="\$\{SRVPANEL_CHANNEL:-([a-z]+)\}"$/m', $installer, $match),
+            'In install.sh steht keine Vorgabe der Form CHANNEL="${SRVPANEL_CHANNEL:-<kanal>}" mehr — '.
+            'dann prüft dieser Test nichts.',
+        );
+
+        // Dieselbe Lesart wie in version-channel.sh: Kommentare weg,
+        // Leerraum weg, die erste übrige Zeile zählt.
+        $marker = (string) file_get_contents($root.'/packaging/stable-release');
+        $named = '';
+
+        foreach (explode("\n", $marker) as $line) {
+            $line = preg_replace('/#.*/', '', $line) ?? '';
+            $line = preg_replace('/\s+/', '', $line) ?? '';
+
+            if ($line !== '') {
+                $named = $line;
+
+                break;
+            }
+        }
+
+        $expected = $named === '' ? 'beta' : 'stable';
+
+        $this->assertSame($expected, $match[1], sprintf(
+            "install.sh bietet als Vorgabe den Kanal „%s\" an, beliefert wird aber „%s\".\n\n".
+            "packaging/stable-release nennt %s. Der Freigabelauf schreibt nur dists/<kanal> des\n".
+            "gerade freigegebenen Kanals neu — ein Kanal ohne Freigabe enthält, was immer dort lag,\n".
+            'und apt scheitert daran mit NO_PUBKEY oder findet das Paket gar nicht erst.',
+            $match[1],
+            $expected,
+            $named === '' ? 'keine Fassung, es kann also nichts nach stable gelangen' : "„{$named}\"",
+        ));
+    }
+
+    /**
      * Erweiterungen, die Debian in php8.4-cli bzw. php8.4-common mitbringt.
      *
      * Sie brauchen kein eigenes Paket. Die Liste steht hier und nicht im

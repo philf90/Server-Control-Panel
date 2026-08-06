@@ -965,6 +965,41 @@ griff_datei packaging/bin/srvpanel "Kommando fehlt im Wrapper" &&
 pruefe "Kommando fehlt im Wrapper" \
   PackagingTest::test_the_wrapper_knows_every_command_of_the_panel failed
 wiederherstellen
+
+echo
+echo "── PackagingTest: install.sh zeigt auf einen Kanal ohne Freigabe ──"
+#
+# Genau der Zustand, der die Erstinstallation kaputtgemacht hat: Vorgabe
+# `stable`, während dort noch der Index des Vorgängers lag — fremd signiert,
+# ohne eine einzige Datei im Pool. `apt-get update` endete im NO_PUBKEY.
+vorher_datei packaging/install.sh
+python3 - <<'PY2'
+p = 'packaging/install.sh'
+s = open(p, encoding='utf-8').read()
+s = s.replace('CHANNEL="${SRVPANEL_CHANNEL:-beta}"', 'CHANNEL="${SRVPANEL_CHANNEL:-stable}"')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/install.sh "Vorgabe auf einen Kanal ohne Freigabe" &&
+pruefe "Vorgabe auf einen Kanal ohne Freigabe" \
+  PackagingTest::test_the_installer_offers_a_channel_that_is_actually_published failed
+wiederherstellen
+
+echo
+echo "── PackagingTest: die stabile Freigabe kommt, install.sh bleibt auf beta ──"
+#
+# Die andere Richtung, und die zählt genauso: Steht in der Marke eine Fassung,
+# bekäme sonst jeder Neuzugang weiter eine Vorabfassung angeboten. Ein Wächter,
+# der nur beim Betreten der Beta-Phase zubeisst, verschwindet beim Verlassen.
+vorher_datei packaging/stable-release
+python3 - <<'PY2'
+p = 'packaging/stable-release'
+s = open(p, encoding='utf-8').read()
+open(p, 'w', encoding='utf-8').write(s + '0.5.0\n')
+PY2
+griff_datei packaging/stable-release "Marke gesetzt, Vorgabe nicht nachgezogen" &&
+pruefe "Marke gesetzt, Vorgabe nicht nachgezogen" \
+  PackagingTest::test_the_installer_offers_a_channel_that_is_actually_published failed
+wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
 echo

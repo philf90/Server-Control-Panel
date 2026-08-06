@@ -56,7 +56,7 @@ final class TwoFactorSetupController extends Controller
         return Inertia::render('Auth/TwoFactorSetup', [
             'active' => false,
             'secret' => $secret,
-            'uri' => Totp::provisioningUri($secret, $account->email, config('app.name', 'SrvPanel')),
+            'uri' => Totp::provisioningUri($secret, $account->signInAddress(), config('app.name', 'SrvPanel')),
         ]);
     }
 

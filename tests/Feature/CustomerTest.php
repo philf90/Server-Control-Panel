@@ -216,6 +216,72 @@ final class CustomerTest extends TestCase
         $this->assertSame('K10002', Customer::query()->orderByDesc('id')->firstOrFail()->number);
     }
 
+    /**
+     * Die Nummer bleibt vergeben, die Anmeldeadresse wird frei.
+     *
+     * **Der Fall aus dem Betrieb, und er hat einen halben Tag gekostet.** Ein
+     * Kunde wurde zurückgezogen; beim Anlegen des nächsten mit derselben
+     * Anmeldeadresse passierte scheinbar nichts. `accounts.email` trägt einen
+     * Unique-Index, und der galt weiter für ein Konto, das sich nie wieder
+     * anmelden kann.
+     *
+     * **Die beiden Bezeichner sind verschieden zu behandeln.** Die
+     * Kundennummer steht in Rechnungen — zwei Vertragspartner mit derselben
+     * wären ein Buchhaltungsproblem, sie bleibt gesperrt. Die Adresse gehört
+     * einem Menschen, und wer einen Kunden zurückzieht und neu anlegt, hat
+     * denselben vor sich.
+     */
+    public function test_the_address_is_free_again_after_a_withdrawal(): void
+    {
+        $customer = Customer::factory()->create(['number' => 'K10001']);
+
+        $account = Account::factory()->create([
+            'customer_id' => $customer->id,
+            'email' => 'wieder@example.test',
+        ]);
+
+        $this->actingAs($this->admin())->delete("/customers/{$customer->id}");
+
+        $this->assertNull($account->refresh()->email, 'Die Adresse belegt die Zeile noch.');
+
+        // Und sie lässt sich wieder vergeben — das ist der Punkt.
+        $this->actingAs($this->admin())
+            ->post('/customers', $this->payload([
+                'email' => 'wieder@example.test',
+                'login_email' => 'wieder@example.test',
+                'password' => 'Ein-langes-Passwort9',
+                'password_confirmation' => 'Ein-langes-Passwort9',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            'wieder@example.test',
+            Account::query()->whereNotNull('email')->orderByDesc('id')->firstOrFail()->email,
+        );
+    }
+
+    /**
+     * Und was sie war, steht im Prüfprotokoll.
+     *
+     * Ohne diese Zeile wäre die Adresse weg, ohne dass irgendwo stünde, welche
+     * es war — ein Protokoll, das die Änderung verschweigt, die es begleitet.
+     */
+    public function test_the_released_address_is_recorded(): void
+    {
+        $customer = Customer::factory()->create(['number' => 'K10001']);
+
+        Account::factory()->create([
+            'customer_id' => $customer->id,
+            'email' => 'notiert@example.test',
+        ]);
+
+        $this->actingAs($this->admin())->delete("/customers/{$customer->id}");
+
+        $event = AuditEvent::query()->where('action', 'customer.withdrawn')->firstOrFail();
+
+        $this->assertSame(['notiert@example.test'], $event->context['released_addresses'] ?? null);
+    }
+
     public function test_a_withdrawn_customer_is_gone_from_the_list(): void
     {
         $customer = Customer::factory()->create(['number' => 'K10001']);

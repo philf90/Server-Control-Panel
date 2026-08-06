@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import Section from '../../Components/Section.vue'
 import CodeField from '../../Components/CodeField.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 const props = defineProps<{
   active: boolean
@@ -69,6 +70,8 @@ const off = useForm({ code: '' })
             <tr><td class="quiet">Adresse</td><td class="right ident">{{ props.uri }}</td></tr>
           </tbody>
         </table>
+
+        <FormErrors />
 
         <form @submit.prevent="setup.post('/settings/two-factor')">
           <CodeField v-model="setup.code" label="Code aus der App" :error="setup.errors.code" />

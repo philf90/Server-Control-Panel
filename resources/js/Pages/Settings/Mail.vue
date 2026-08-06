@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import Section from '../../Components/Section.vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 interface Encryption {
   value: string
@@ -83,6 +84,8 @@ function test(): void {
         Einmal-Links und Warnungen entstehen, erreichen aber niemanden.
       </span>
     </p>
+
+    <FormErrors />
 
     <form class="form" @submit.prevent="submit">
       <Section title="Relay">

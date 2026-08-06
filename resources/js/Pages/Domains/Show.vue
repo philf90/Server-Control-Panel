@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 interface PhpOption {
   version: string
@@ -418,6 +419,8 @@ function entfernen(): void {
           einzigen Zertifikat wäre ein Feld mit einem Eintrag eine Frage ohne
           Antwortmöglichkeit.
         -->
+        <FormErrors />
+
         <form v-if="props.can.update && props.choice.options.length > 1" @submit.prevent="wahlSpeichern">
           <label class="field">
             <span>Ausgeliefert wird</span>

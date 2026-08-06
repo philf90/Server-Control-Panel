@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 const props = defineProps<{
   customers: { id: number; label: string; suspended: boolean }[]
@@ -40,6 +41,8 @@ const form = useForm({
     <p v-if="props.customers.length === 0 || props.plans.length === 0" class="notice warn">
       Es braucht mindestens einen Kunden und einen Plan. Beide finden sich unter Verwaltung.
     </p>
+
+    <FormErrors />
 
     <form class="form" @submit.prevent="form.post('/subscriptions')">
       <Section title="Zuordnung">

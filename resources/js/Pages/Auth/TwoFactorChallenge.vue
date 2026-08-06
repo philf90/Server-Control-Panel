@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3'
 import CodeField from '../../Components/CodeField.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 /*
  * Der zweite Schritt. Bewusst ohne Navigation: Wer hier steht, ist noch nicht
@@ -17,6 +18,8 @@ function submit(): void {
   <Head title="Bestätigung" />
 
   <main class="signin">
+    <FormErrors />
+
     <form class="sheet" @submit.prevent="submit">
       <h1>Bestätigung</h1>
 

@@ -2,6 +2,7 @@
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import Section from '../../Components/Section.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 const props = defineProps<{
   customer: {
@@ -50,6 +51,8 @@ const form = useForm({
         {{ props.customer.first_name }} {{ props.customer.last_name }}
       </Link>
     </template>
+
+    <FormErrors />
 
     <form class="form" @submit.prevent="form.patch(`/customers/${props.customer.id}`)">
       <Section title="Vertragspartner">

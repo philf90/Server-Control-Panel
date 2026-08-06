@@ -3,6 +3,7 @@ import { useForm, Head, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import EyeIcon from '../../Components/EyeIcon.vue'
 import MarkIcon from '../../Components/MarkIcon.vue'
+import FormErrors from '../../Components/FormErrors.vue'
 
 /*
  * Die Anmeldemaske.
@@ -50,6 +51,8 @@ function submit(): void {
   <Head title="Anmeldung" />
 
   <main class="signin">
+    <FormErrors />
+
     <form class="sheet" @submit.prevent="submit">
       <!--
         Zeichen und Name in einer Zeile. Das Zeichen ist hier grösser als in

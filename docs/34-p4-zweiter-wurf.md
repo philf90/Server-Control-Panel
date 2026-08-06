@@ -255,6 +255,24 @@ nicht über einen selbst gewählten Profilnamen. Der Name wird nicht
 entgegengenommen, sondern aus dem Abonnement abgeleitet — dieselbe Haltung wie
 bei den Verzeichnisnamen der Systembenutzer.
 
+> **Erledigt in Schritt 6 — der Agent und die Kommandozeile.** `Credentials`
+> legt je Profil eine Datei unter `/etc/srvpanel/dns` ab, 0600 root im
+> 0700-Verzeichnis; drei Operationen (`dns.credential.store`, `.list`,
+> `.forget`) sind der einzige Weg dorthin, und keine davon gibt ein Token
+> zurück — auch nicht die letzten vier Zeichen. `DnsProfile` leitet den Namen
+> ab: `abo-<nummer>` mit `dns_edit`, sonst `betrieb`.
+>
+> **Kein stiller Rückfall auf das Profil des Betreibers.** Ein Abonnement mit
+> Freigabe, das noch nichts hinterlegt hat, bekommt nicht ersatzweise dessen
+> Token: Das wäre ein Zugriff auf eine fremde Zone mit einem Schlüssel, der sie
+> womöglich gar nicht öffnet, und die Fehlermeldung dazu käme vom Anbieter
+> statt von hier.
+>
+> **`Providers` führt die fünf Schlüssel und sonst nichts.** Eine Fabrikmethode,
+> die für jeden von ihnen eine Ausnahme wirft, wäre genau die Sorte
+> Zeichenkette, die auf nichts zeigt; sie kommt mit der ersten Umsetzung in
+> Schritt 7. Die Oberfläche zu den Zugangsdaten steht als 6b aus.
+
 ---
 
 ## 6. Die Anbieter

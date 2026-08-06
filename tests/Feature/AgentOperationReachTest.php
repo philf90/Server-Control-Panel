@@ -75,6 +75,9 @@ final class AgentOperationReachTest extends TestCase
         'acme.account.ensure' => 'Legt das ACME-Konto an; der Kontoschlüssel bleibt im Agenten und steht im Panel nirgends.',
         'acme.certificate.info' => 'Liest ein abgelegtes Zertifikat; der Erneuerungslauf fragt damit nach, ohne etwas zu ändern.',
         'tls.certificate.upload' => 'Der private Schlüssel darf nicht in operations.payload liegen — das Kommando ruft unmittelbar auf und schreibt den Bestand über App\Support\Tls\CertificateRecord.',
+        'dns.credential.store' => 'Dasselbe für ein DNS-Token: Es überquert den Socket genau einmal und liegt danach im Agenten, nicht im Panel.',
+        'dns.credential.list' => 'Zeigt, welche DNS-Profile hinterlegt sind; im Bestand des Panels steht dazu nichts.',
+        'dns.credential.forget' => 'Entfernt ein DNS-Profil im Agenten; im Bestand des Panels steht dazu nichts.',
     ];
 
     private function registry(): Registry

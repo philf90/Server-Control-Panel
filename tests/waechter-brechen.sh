@@ -1341,6 +1341,69 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsChallengeTest passed
 
 echo
+echo "── DnsCredentialsTest: der Profilname wird geglaubt ──"
+#
+# Er wird zu einem Pfad in einem Prozess mit Systemrechten. Ohne die Prüfung
+# läge `../../etc/irgendwas` auf der Platte — und zwar mit 0600 root, also
+# genau da, wo es niemandem auffällt.
+vorher_datei agent/src/Acme/Dns/Credentials.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Credentials.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (preg_match(self::NAME_PATTERN, $name) !== 1) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Credentials.php "Profilname ohne Prüfung" &&
+pruefe "Profilname ohne Prüfung" \
+  DnsCredentialsTest::test_a_name_that_is_no_file_name_is_refused failed
+wiederherstellen
+
+echo
+echo "── DnsCredentialsTest: die Antwort trägt das Token mit ──"
+#
+# Der Weg vom Token in den Agenten ist einer, und zurück führt keiner. Gäbe die
+# Auskunft es heraus, stünde es in jeder Antwort, die jemand mitschneidet — und
+# in der Vorgangsliste des Panels.
+vorher_datei agent/src/Ops/DnsCredentialStore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DnsCredentialStore.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'stored' => true,\n        ];",
+    "            'stored' => true,\n            'config' => $config,\n        ];",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DnsCredentialStore.php "Token in der Antwort" &&
+pruefe "Token in der Antwort" \
+  DnsCredentialsTest::test_no_operation_answers_with_the_token failed
+wiederherstellen
+
+echo
+echo "── DnsProfileTest: die Planfreigabe entscheidet nicht mehr ──"
+#
+# Ohne sie bekäme jedes Abonnement sein eigenes Profil — auch eines, dessen Zone
+# der Betreiber führt. Bestellt würde dann mit Zugangsdaten, die es nicht gibt.
+vorher_datei app/Support/Tls/DnsProfile.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/DnsProfile.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! $subscription->feature(Feature::DnsEdit->value)) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/DnsProfile.php "Profil ohne Planfreigabe" &&
+pruefe "Profil ohne Planfreigabe" \
+  DnsProfileTest::test_without_the_feature_the_operator_profile_applies failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsProfileTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

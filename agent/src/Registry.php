@@ -10,6 +10,9 @@ use SrvPanel\Agent\Ops\AcmeCertificateInfo;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
+use SrvPanel\Agent\Ops\DnsCredentialForget;
+use SrvPanel\Agent\Ops\DnsCredentialList;
+use SrvPanel\Agent\Ops\DnsCredentialStore;
 use SrvPanel\Agent\Ops\PanelProvision;
 use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
@@ -85,6 +88,9 @@ final class Registry
         $this->register(new AcmeCertificate);
         $this->register(new AcmeCertificateInfo);
         $this->register(new CertificateUpload);
+        $this->register(new DnsCredentialStore);
+        $this->register(new DnsCredentialList);
+        $this->register(new DnsCredentialForget);
     }
 
     public function register(Op $op): void

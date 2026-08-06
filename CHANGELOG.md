@@ -3178,3 +3178,46 @@ die Doppel liegen unter `tests/Support/`.
 
 Zwei neue Brüche, beide **rot-grün gefahren**: der nicht erkannte Namenszeiger
 und der eine Nameserver, der genügt.
+
+#### Schritt 6: wo ein DNS-Token liegt — und was den Agenten davon verlässt
+
+**Ein DNS-Token ist ein grösseres Geheimnis als das Panel-Passwort.** Wer es
+hat, kann sich für die Domain jedes Zertifikat der Welt ausstellen lassen, auch
+anderswo. Es liegt deshalb dort, wo `panel.env` schon liegt: in einer Datei, die
+root allein lesen darf (0600 im 0700-Verzeichnis `/etc/srvpanel/dns`) — und
+nicht in der Datenbank des Panels, aus der es bei jedem Vorgang über den Socket
+ginge und in jeder Fehlermeldung auftauchen könnte.
+
+**Drei Operationen sind der einzige Weg dorthin**, und keine gibt ein Token
+zurück: `dns.credential.store` überquert den Socket genau einmal beim
+Einrichten, `.list` nennt Profil, Anbieter und Zeitpunkt, `.forget` räumt wieder
+weg. **Auch nicht die letzten vier Zeichen** — bei einem kurzen Token ist das
+ein spürbarer Teil davon, und der Gewinn wäre eine Bequemlichkeit beim
+Wiedererkennen.
+
+**Der Profilname wird geprüft und nicht geglaubt.** Er wird zu einem Dateinamen
+in einem Prozess mit Systemrechten; was durchginge, läge als
+`../../etc/irgendwas` auf der Platte — mit 0600 root, also genau da, wo es
+niemandem auffällt. Zugelassen sind Kleinbuchstaben, Ziffern und Bindestriche:
+genug für `betrieb` und `abo-1042`, und sonst nichts.
+
+**Und er wird abgeleitet, nicht entgegengenommen.** `App\Support\Tls\DnsProfile`
+fragt die Freigabe, die es dafür längst gibt: `Feature::DnsEdit` trägt seit den
+Plänen den Hinweistext „Ohne diese Freigabe verwaltet der Betreiber die Zone;
+das Abonnement sieht sie nur." Mit Freigabe gilt `abo-<nummer>`, ohne sie
+`betrieb`. **Keinen stillen Rückfall:** Ein Abonnement mit Freigabe, das noch
+nichts hinterlegt hat, bekommt nicht ersatzweise das Token des Betreibers — das
+wäre ein Zugriff auf eine fremde Zone mit einem Schlüssel, der sie womöglich gar
+nicht öffnet.
+
+`Providers` führt die fünf Schlüssel aus der Entscheidung vom 6. August und
+sonst nichts. Eine Fabrikmethode, die für jeden von ihnen eine Ausnahme wirft,
+wäre genau die Sorte Zeichenkette, die auf nichts zeigt; sie kommt mit der
+ersten Umsetzung.
+
+`srvpanel dns` ist der Weg von der Kommandozeile — hinterlegen, ansehen,
+entfernen. Wer einen Server einrichtet, hat das Token gerade im Terminal; die
+Oberfläche dazu kommt danach und ersetzt dieses Kommando nicht.
+
+Drei neue Brüche, zwei davon **rot-grün gefahren**: der ungeprüfte Profilname,
+das Token in der Antwort, und die Planfreigabe, die nicht mehr entscheidet.

@@ -39,7 +39,14 @@ use SrvPanel\Agent\Registry;
 final class AgentOperationReachTest extends TestCase
 {
     /**
-     * Aufgaben, nach denen sich am Bestand des Panels nichts ändert.
+     * Aufgaben ohne Lebenslauf — mit Grund.
+     *
+     * Der Regelfall ist: Am Bestand des Panels ändert sich nichts. Es gibt
+     * einen zweiten, und er steht seit dem zweiten Wurf von P4 in der Liste —
+     * eine Aufgabe, die den Bestand ändert, aber **nicht über die
+     * Warteschlange laufen darf**: Ein eingereihter Vorgang legt seine
+     * Argumente in `operations.payload` ab, und ein privater Schlüssel gehört
+     * dort nicht hin. Wer so etwas einträgt, schreibt den Grund dazu.
      *
      * Der Grund steht im Wert und nicht in einem Kommentar daneben: Eine Liste
      * ohne Begründung je Eintrag wächst, bis sie alles enthält.
@@ -67,6 +74,7 @@ final class AgentOperationReachTest extends TestCase
         'panel.vhost.apply' => 'Schreibt den Server-Block des Panels.',
         'acme.account.ensure' => 'Legt das ACME-Konto an; der Kontoschlüssel bleibt im Agenten und steht im Panel nirgends.',
         'acme.certificate.info' => 'Liest ein abgelegtes Zertifikat; der Erneuerungslauf fragt damit nach, ohne etwas zu ändern.',
+        'tls.certificate.upload' => 'Der private Schlüssel darf nicht in operations.payload liegen — das Kommando ruft unmittelbar auf und schreibt den Bestand über App\Support\Tls\CertificateRecord.',
     ];
 
     private function registry(): Registry

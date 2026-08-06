@@ -44,6 +44,23 @@ final class CertificateName
     public const WILDCARD = '_wildcard.';
 
     /**
+     * Und was ein hochgeladenes Zertifikat kennzeichnet.
+     *
+     * **Warum es das braucht.** Der Schlüssel entsteht aus dem ersten Namen —
+     * zwei verschiedene Zertifikate mit demselben ersten Namen ergäben also
+     * denselben Ablageort. Solange jede Domain genau eines hat und die
+     * Erneuerung es an Ort und Stelle ersetzt, ist das richtig; sobald neben
+     * dem bestellten ein hochgeladenes liegen kann, überschriebe eines das
+     * andere — und welches gerade dort liegt, hinge davon ab, was zuletzt lief.
+     *
+     * Unterschieden wird deshalb nach der **Quelle** und nicht nach dem Namen:
+     * `_uploaded.example.de` neben `example.de`. Zwei je Domain, und mehr
+     * braucht es nicht — ein zweites hochgeladenes ersetzt das erste, und das
+     * ist gemeint.
+     */
+    public const UPLOADED = '_uploaded.';
+
+    /**
      * Der Schlüssel zu einem Namen — geprüft wie jeder Domainname.
      *
      * Angenommen wird beides: der Name, wie er im Zertifikat steht
@@ -66,16 +83,40 @@ final class CertificateName
             return DomainName::normalize($value, $field);
         }
 
+        // Die Quelle steht aussen, der Platzhalter innen — in einer festen
+        // Reihenfolge. Ohne sie wären `_uploaded._wildcard.x` und
+        // `_wildcard._uploaded.x` zwei Schreibweisen für denselben Ort.
+        $source = '';
+
+        if (str_starts_with($name, self::UPLOADED)) {
+            $source = self::UPLOADED;
+            $name = substr($name, strlen(self::UPLOADED));
+        }
+
         foreach ([self::WILDCARD, '*.'] as $prefix) {
             if (str_starts_with($name, $prefix)) {
                 // Der Rest muss ein gewöhnlicher Domainname sein. Damit sind
                 // `*.*.example.de` und `_wildcard.*.example.de` ausgeschlossen,
                 // ohne dass es dafür eine eigene Zeile braucht: Der zweite
                 // Stern fällt bei der Prüfung der Beschriftungen durch.
-                return self::WILDCARD.DomainName::normalize(substr($name, strlen($prefix)), $field);
+                return $source.self::WILDCARD.DomainName::normalize(substr($name, strlen($prefix)), $field);
             }
         }
 
-        return DomainName::normalize($name, $field);
+        return $source.DomainName::normalize($name, $field);
+    }
+
+    /**
+     * Derselbe Schlüssel, aber für ein hochgeladenes Zertifikat.
+     *
+     * Mehrfach anwendbar wie {@see self::normalize()}: Wer einen Schlüssel
+     * hineingibt, der die Kennzeichnung schon trägt, bekommt ihn zurück und
+     * nicht `_uploaded._uploaded.`.
+     */
+    public static function uploaded(mixed $value, string $field = 'certificate'): string
+    {
+        $key = self::normalize($value, $field);
+
+        return str_starts_with($key, self::UPLOADED) ? $key : self::UPLOADED.$key;
     }
 }

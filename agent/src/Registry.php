@@ -8,6 +8,7 @@ use SrvPanel\Agent\Ops\AcmeAccount;
 use SrvPanel\Agent\Ops\AcmeCertificate;
 use SrvPanel\Agent\Ops\AcmeCertificateInfo;
 use SrvPanel\Agent\Ops\AgentPing;
+use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\PanelProvision;
 use SrvPanel\Agent\Ops\PanelTls;
@@ -83,6 +84,7 @@ final class Registry
         $this->register(new AcmeAccount);
         $this->register(new AcmeCertificate);
         $this->register(new AcmeCertificateInfo);
+        $this->register(new CertificateUpload);
     }
 
     public function register(Op $op): void

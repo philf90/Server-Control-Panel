@@ -2956,3 +2956,61 @@ genau eines hat und die Erneuerung es an Ort und Stelle ersetzt, ist das
 richtig. Sobald ein hochgeladenes neben einem bestellten liegen kann, ist es
 das nicht mehr; die Antwort ist eine Frage der Quelle und nicht des Sterns und
 steht deshalb in `docs/34 §2.2` für den nächsten Schritt vorgemerkt.
+
+#### Schritt 3a: ein eigenes Zertifikat ablegen — der Agent und die Kommandozeile
+
+Geprüft wird im Agenten, und zwar vollständig, **bevor** irgendetwas abgelegt
+wird. Dort sitzt openssl, dort läuft nginx, und dort bleibt der private
+Schlüssel — er soll nicht durch das Panel wandern, um von dort wieder
+hinauszugehen. Eine halb abgelegte Kette wäre schlimmer als eine abgewiesene:
+Ein Zertifikat, das nginx nicht laden kann, nimmt beim nächsten Reload *alle*
+Websites dieses Servers mit, auch die, mit denen es nichts zu tun hat.
+
+`Bundle` weist ab, und jeder Fall nennt seinen Grund: Schlüssel und Kette
+gehören nicht zusammen, die Kette ist falsch sortiert, der Schlüssel trägt ein
+Passwort, es ist abgelaufen oder gilt erst später, es nennt keinen Namen im
+subjectAltName. **Die falsch sortierte Kette ist der teure Fall** — Firefox holt
+das fehlende Glied nach, ein Mobilgerät nicht; der Betreiber sieht eine Seite,
+die bei ihm aufgeht, und der Kunde eine Warnung. Geprüft wird die Kette
+gliedweise, nicht als Ganzes: `openssl_x509_parse` liest von einer Kette das
+erste Zertifikat und schweigt über den Rest.
+
+**Keine Prüfung gegen die Wurzelspeicher des Systems.** Ob die ausstellende
+Stelle bekannt ist, entscheidet der Browser des Besuchers und nicht dieser
+Server; ein internes Zertifikat einer Firmen-CA abzuweisen wäre eine Anmassung.
+
+**Abgelegt wird unter `_uploaded.<name>`** — die Antwort auf den Zusammenstoss
+aus Schritt 2: Der Ablageort entsteht aus dem ersten Namen, ein hochgeladenes
+Zertifikat für `example.de` hätte also denselben wie ein bestelltes.
+Unterschieden wird nach der Quelle und nicht nach dem Namen.
+
+**Und der Fund dieses Schritts: das Hochladen darf nicht über die Warteschlange
+laufen.** Ein eingereihter Vorgang legt seine Argumente in `operations.payload`
+ab — der private Schlüssel läge damit im Klartext in der Datenbank, dauerhaft
+und für jeden lesbar, der sie liest. `srvpanel tls --upload` ruft den Agenten
+deshalb unmittelbar auf und schreibt den Bestand über
+`App\Support\Tls\CertificateRecord`, die neue gemeinsame Stelle für „ein
+abgelegtes Zertifikat in den Bestand nehmen" — dieselbe Zeile wie nach einer
+Bestellung, nur mit anderer Quelle. `AgentOperationReachTest` führt den Grund
+in seiner Ausnahmeliste; die Liste hat dafür eine zweite Sorte Begründung
+bekommen.
+
+Dabei ist noch etwas aus Schritt 1 nachgezogen worden: Der Erneuerungslauf
+fragte `acme.certificate.info` mit dem **Domainnamen** nach dem abgelegten
+Zertifikat. Seit ein Platzhalter unter `_wildcard.example.de` liegt, wäre die
+Antwort „liegt nichts da" — und der Lauf bestellte jeden Tag neu. Gefragt wird
+jetzt nach dem Ablageort.
+
+`CertificateUploadTest` fährt achtzehn Behauptungen gegen **im Test erzeugte**
+Zertifikate: eine eigene CA, ein Blatt mit subjectAltName, eines ohne, ein
+Schlüssel mit Passwort. Eingecheckt wird davon nichts — ein privater Schlüssel
+im Repo, und sei es ein erfundener, ist ein Fundstück für jeden Scanner und
+eine Erklärung, die man immer wieder abgeben muss. Erzeugt wird mit den
+openssl-Funktionen von PHP, das `openssl`-Programm braucht es dafür nicht.
+
+Zwei neue Brüche, beide **rot-grün gefahren**: ohne Reihenfolgeprüfung geht die
+verkehrte Kette durch, ohne die Kennzeichnung der Quelle teilen sich
+hochgeladen und bestellt denselben Ort.
+
+Offen bleibt Schritt 3b — die Oberfläche dazu, mit `Feature::CertificateUpload`
+und den Screenshots, die zu allem Sichtbaren gehören.

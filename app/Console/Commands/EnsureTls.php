@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\CertificateSource;
+use App\Models\Domain;
+use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificateRecord;
 use App\Support\Tls\CertificateRenewal;
+use App\Support\Web\WebLifecycle;
 use Illuminate\Console\Command;
 use SrvPanel\Agent\Acme\Directories;
 use SrvPanel\Agent\AgentException;
@@ -42,12 +47,26 @@ final class EnsureTls extends Command
     protected $signature = 'srvpanel:tls
         {--force : Neu ausstellen, auch wenn das vorhandene noch gilt}
         {--contact= : Kontaktadresse für ACME setzen — an sie schreibt die Zertifizierungsstelle}
-        {--directory= : Zertifizierungsstelle setzen: staging oder production}';
+        {--directory= : Zertifizierungsstelle setzen: staging oder production}
+        {--upload : Ein eigenes Zertifikat ablegen — mit --domain, --certificate und --key}
+        {--domain= : Für welche Domain das hochgeladene Zertifikat gilt}
+        {--certificate= : Pfad zur PEM-Kette: erst das eigene, dann die ausstellenden}
+        {--key= : Pfad zum privaten Schlüssel, ohne Passwort}';
 
     protected $description = 'Prüft das Zertifikat der Oberfläche und erneuert es, bevor es abläuft';
 
-    public function handle(Client $agent, AcmeSettings $settings, CertificateRenewal $renewal): int
-    {
+    public function handle(
+        Client $agent,
+        AcmeSettings $settings,
+        CertificateRenewal $renewal,
+        Tenancy $tenancy,
+        CertificateRecord $record,
+        WebLifecycle $web,
+    ): int {
+        if ($this->option('upload') === true) {
+            return $this->upload($agent, $tenancy, $record, $web);
+        }
+
         $contact = $this->option('contact');
         $directory = $this->option('directory');
 
@@ -251,6 +270,134 @@ final class EnsureTls extends Command
      * Zweiter Fall dieser Sorte in dieser Woche; der erste war `count()` in
      * einem PHPUnit-Testfall.
      */
+    /**
+     * Ein eigenes Zertifikat ablegen.
+     *
+     * **Unmittelbar und nicht über die Warteschlange, und das ist der Grund
+     * dafür.** Ein eingereihter Vorgang legt seine Argumente in
+     * `operations.payload` ab — der private Schlüssel läge damit im Klartext in
+     * der Datenbank, und zwar dauerhaft und für jeden lesbar, der sie liest.
+     * Er darf den Socket genau einmal überqueren und nirgends sonst stehen.
+     * Deshalb ruft dieses Kommando den Agenten selbst und schreibt den Bestand
+     * über {@see CertificateRecord}, die dieselbe Zeile erzeugt wie eine
+     * Bestellung.
+     *
+     * **Gelesen werden die Dateien hier und nicht im Agenten.** Ein Pfad, den
+     * das Panel an einen Prozess als root weiterreicht, wäre die Erlaubnis,
+     * eine beliebige Datei des Servers zu lesen — `/etc/shadow` als
+     * „Zertifikat" käme zwar durch keine Prüfung, stünde danach aber im
+     * Fehlertext. Was hinausgeht, ist Inhalt und kein Pfad.
+     */
+    private function upload(Client $agent, Tenancy $tenancy, CertificateRecord $record, WebLifecycle $web): int
+    {
+        $name = $this->option('domain');
+        $chain = $this->contents($this->option('certificate'), 'certificate');
+        $key = $this->contents($this->option('key'), 'key');
+
+        if (! is_string($name) || $name === '' || $chain === null || $key === null) {
+            $this->error('Es fehlt eine Angabe: --domain, --certificate und --key gehören zusammen.');
+
+            return self::FAILURE;
+        }
+
+        $wanted = strtolower(trim($name));
+
+        $domain = $tenancy->withoutRestriction(
+            fn (): ?Domain => Domain::query()->where('name', $wanted)->first(),
+        );
+
+        if (! $domain instanceof Domain) {
+            $this->error('Diese Domain gibt es nicht: '.$wanted);
+
+            return self::FAILURE;
+        }
+
+        try {
+            $result = $agent->call('tls.certificate.upload', [
+                'certificate' => $chain,
+                'private_key' => $key,
+            ], $this->actor());
+        } catch (AgentException $error) {
+            // Die Meldung des Agenten nennt den Grund — falsch sortierte Kette,
+            // Schlüssel passt nicht, abgelaufen. Sie ist das Wertvollste an
+            // diesem Vorgang und wird deshalb wörtlich durchgereicht.
+            $this->error('Zertifikat abgewiesen: '.$error->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $tenancy->withoutRestriction(function () use ($record, $domain, $result): void {
+            $record->store($domain, $result, CertificateSource::Uploaded);
+        });
+
+        $until = $result['not_after'] ?? null;
+
+        $this->info(sprintf(
+            'Abgelegt für %s: %s (gültig bis %s).',
+            $domain->name,
+            implode(', ', $this->names($result)),
+            is_int($until) && $until > 0 ? gmdate('d.m.Y', $until) : '?',
+        ));
+
+        // **Ohne diesen Vorgang gilt es und der Server-Block kennt es nicht.**
+        // Dieselbe Falle wie bei einer Bestellung (`docs/32 §8`): Der Block
+        // entsteht bei `web.site.apply`, und welches Zertifikat er ausliefert,
+        // steht seit dem zweiten Wurf in seinen Argumenten.
+        $tenancy->withoutRestriction(function () use ($web, $domain): void {
+            $web->apply($domain, 'Server-Block mit hochgeladenem Zertifikat für '.$domain->name);
+        });
+
+        $this->line('  Der Server-Block wird neu geschrieben.');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Die Namen aus der Antwort des Agenten, als saubere Liste.
+     *
+     * @param  array<string, mixed>  $result
+     * @return list<string>
+     */
+    private function names(array $result): array
+    {
+        $value = $result['names'] ?? null;
+        $names = [];
+
+        if (is_array($value)) {
+            foreach ($value as $name) {
+                if (is_string($name) && $name !== '') {
+                    $names[] = $name;
+                }
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * Der Inhalt einer Datei, die der Betreiber genannt hat.
+     *
+     * Gelesen wird als das Konto des Panels und nicht als root: Wer eine Datei
+     * hochlädt, die dieses Konto nicht lesen darf, bekommt es hier gesagt — und
+     * nicht dadurch, dass ein Prozess mit Systemrechten sie für ihn öffnet.
+     */
+    private function contents(mixed $path, string $option): ?string
+    {
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        if (! is_file($path) || ! is_readable($path)) {
+            $this->error(sprintf('--%s: Diese Datei gibt es nicht oder sie ist nicht lesbar: %s', $option, $path));
+
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+
+        return is_string($contents) && trim($contents) !== '' ? $contents : null;
+    }
+
     private function storeAcme(AcmeSettings $settings, mixed $contact, mixed $directory): int
     {
         $values = [];

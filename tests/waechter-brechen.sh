@@ -1163,8 +1163,8 @@ python3 - <<'PY2'
 p = 'agent/src/Acme/CertificateName.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "                return self::WILDCARD.DomainName::normalize(substr($name, strlen($prefix)), $field);",
-    "                return DomainName::normalize(substr($name, strlen($prefix)), $field);",
+    "                return $source.self::WILDCARD.DomainName::normalize(substr($name, strlen($prefix)), $field);",
+    "                return $source.DomainName::normalize(substr($name, strlen($prefix)), $field);",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -1173,6 +1173,47 @@ pruefe "Platzhalter ohne eigenen Ablageort" \
   CertificateStorageTest::test_two_different_names_never_share_a_directory failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateStorageTest passed
+
+echo
+echo "── CertificateUploadTest: die Kette wird nicht auf Reihenfolge geprüft ──"
+#
+# Eine falsch sortierte Kette verzeihen Browser unterschiedlich: Firefox holt
+# das fehlende Glied nach, ein Mobilgerät nicht. Der Betreiber sieht eine
+# Seite, die bei ihm aufgeht, und der Kunde eine Warnung.
+vorher_datei agent/src/Acme/Bundle.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Bundle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        self::ordered($certificates);", "        // self::ordered($certificates);")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Bundle.php "Kette ohne Reihenfolgeprüfung" &&
+pruefe "Kette ohne Reihenfolgeprüfung" \
+  CertificateUploadTest::test_a_chain_in_the_wrong_order_is_refused failed
+wiederherstellen
+
+echo
+echo "── CertificateUploadTest: hochgeladen und bestellt teilen sich den Ort ──"
+#
+# Der Schlüssel im Ablageort entsteht aus dem ersten Namen. Ohne die
+# Kennzeichnung der Quelle überschriebe ein hochgeladenes Zertifikat für
+# `example.de` das bestellte — und welches gerade dort liegt, hinge davon ab,
+# was zuletzt lief.
+vorher_datei agent/src/Acme/CertificateName.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/CertificateName.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return str_starts_with($key, self::UPLOADED) ? $key : self::UPLOADED.$key;",
+    "        return $key;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/CertificateName.php "Hochgeladenes ohne eigenen Ablageort" &&
+pruefe "Hochgeladenes ohne eigenen Ablageort" \
+  CertificateUploadTest::test_it_is_stored_apart_from_what_was_ordered failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateUploadTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

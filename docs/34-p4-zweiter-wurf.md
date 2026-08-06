@@ -319,6 +319,24 @@ Geprüft wird, bevor irgendetwas abgelegt wird:
 Der Schlüssel überquert den Socket einmal, wie das DNS-Token, und steht in
 keinem Protokoll.
 
+> **Erledigt in Schritt 3a — der Agent und die Kommandozeile.** Die Prüfung
+> steht in `Bundle`, die Operation heisst `tls.certificate.upload`, und abgelegt
+> wird unter `_uploaded.<name>`: Das ist die Antwort auf den Zusammenstoss aus
+> §2.2 — unterschieden wird nach der **Quelle**, nicht nach dem Namen.
+>
+> **Und sie läuft nicht über die Warteschlange, das ist der Fund dieses
+> Schritts.** Ein eingereihter Vorgang legt seine Argumente in
+> `operations.payload` ab — der private Schlüssel läge damit im Klartext in der
+> Datenbank, dauerhaft und für jeden lesbar, der sie liest. Er darf den Socket
+> genau einmal überqueren und nirgends sonst stehen. Das Kommando ruft den
+> Agenten deshalb unmittelbar und schreibt den Bestand über
+> `CertificateRecord` — dieselbe Stelle, die auch eine Bestellung benutzt.
+> Für die Oberfläche (Schritt 3b) gilt dasselbe: kein Vorgang, sondern ein
+> unmittelbarer Aufruf.
+>
+> Offen bleibt Schritt 3b: die Oberfläche samt `Feature::CertificateUpload`,
+> und mit ihr die Screenshots.
+
 ### Der Kunde darf hochladen — und das ist keine neue Entscheidung
 
 `Feature::CertificateUpload` gibt es, mit Beschriftung („Eigene Zertifikate

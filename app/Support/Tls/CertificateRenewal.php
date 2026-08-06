@@ -169,7 +169,12 @@ final class CertificateRenewal
         try {
             $info = $this->agent->call(
                 'acme.certificate.info',
-                ['name' => $domain->name],
+                // **Gefragt wird nach dem Ablageort und nicht nach der Domain.**
+                // Bis zum zweiten Wurf von P4 war beides dasselbe; seit ein
+                // Platzhalter unter `_wildcard.example.de` liegt, ist es das
+                // nicht mehr — und die Antwort wäre „liegt nichts da", worauf
+                // dieser Lauf jeden Tag neu bestellte.
+                ['name' => $certificate->storage_name ?? $domain->name],
                 ['source' => 'cli', 'command' => 'srvpanel:tls'],
             );
         } catch (AgentException) {

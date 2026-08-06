@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Support\Tls;
 
 use App\Enums\CertificateSource;
-use App\Enums\CertificateStatus;
 use App\Enums\OperationStatus;
 use App\Enums\OperationSubject;
 use App\Jobs\RunAgentOperation;
@@ -15,7 +14,6 @@ use App\Models\Operation;
 use App\Support\Operations\AfterOperation;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Web\WebLifecycle;
-use Illuminate\Support\Carbon;
 
 /**
  * Der Lebenslauf eines Zertifikats — und die Regel, die sonst niemand bemerkt.
@@ -36,15 +34,16 @@ use Illuminate\Support\Carbon;
  *
  * **Die beiden zusammen wären eine Schleife**, und das ist der Teil, den man
  * beim Schreiben nicht sieht: Bestellung → Zuordnung → Block neu → Bestellung.
- * Sie hört auf, weil {@see self::request()} nur bestellt, wenn die Domain noch
- * kein Zertifikat hat, und die Zuordnung **vor** dem neuen Block passiert. Ein
- * eigener Testdurchgang steht dafür ein.
+ * Sie hört auf, weil {@see self::request()} nur bestellt, wenn kein zugeordnetes
+ * Zertifikat die Namen des Blocks deckt, und die Zuordnung **vor** dem neuen
+ * Block passiert. Ein eigener Testdurchgang steht dafür ein.
  */
 final class CertificateLifecycle implements AfterOperation
 {
     public function __construct(
         private readonly Tenancy $tenancy,
         private readonly CertificateOrder $order,
+        private readonly CertificateRecord $record,
     ) {}
 
     /** @return list<string> */
@@ -83,44 +82,7 @@ final class CertificateLifecycle implements AfterOperation
      */
     private function install(Operation $operation, Domain $domain): void
     {
-        $result = $operation->result ?? [];
-        $names = $this->names($result, $domain);
-
-        if ($names === []) {
-            return;
-        }
-
-        $notAfter = $this->moment($result, 'not_after');
-
-        $certificate = new Certificate([
-            'names' => $names,
-
-            // Wo es liegt, berichtet der Agent — gerechnet wird es hier nicht.
-            'storage_name' => $this->storageName($result, $names),
-
-            'status' => CertificateStatus::Active,
-            'source' => CertificateSource::Acme,
-            'issuer' => $this->text($result, 'issuer'),
-            'serial' => $this->text($result, 'serial'),
-            'not_before' => $this->moment($result, 'not_before'),
-            'not_after' => $notAfter,
-            'last_error' => null,
-            'last_attempt_at' => now(),
-
-            // Die Frist wird hier eingetragen und nicht beim Nachsehen
-            // gerechnet: Ein Zertifikat ohne Termin wäre eines, das erst
-            // auffällt, wenn ein Browser es meldet.
-            'renew_after' => CertificateRenewal::due($notAfter),
-        ]);
-
-        $certificate->subscription_id = $domain->subscription_id;
-        $certificate->save();
-
-        // Die Deckungsprüfung sitzt am Modell und weist eine Zuordnung ohne
-        // Deckung ab — hier ist sie erfüllt, weil die Namen aus derselben
-        // Bestellung stammen.
-        $domain->certificate_id = (int) $certificate->id;
-        $domain->save();
+        $this->record->store($domain, $operation->result ?? [], CertificateSource::Acme);
 
         $this->dispatch($domain, 'web.site.apply', 'Server-Block mit Zertifikat für '.$domain->name, $operation);
     }
@@ -191,24 +153,6 @@ final class CertificateLifecycle implements AfterOperation
     }
 
     /**
-     * Der Ablageort, den der Agent gemeldet hat.
-     *
-     * **Der Rückfall auf den ersten Namen ist die Regel, die der Agent bis zum
-     * zweiten Wurf angewandt hat**, und er steht hier nur für den Fall, dass
-     * eine Antwort ohne die Angabe ankommt. Ohne ihn stünde in der Spalte
-     * `null`, und eine Domain mit gültigem Zertifikat fiele beim nächsten
-     * Anwenden auf Port 80 zurück — ohne Fehler und ohne Meldung. Von zwei
-     * Ausgängen ist das der teurere.
-     *
-     * @param  array<string, mixed>  $result
-     * @param  non-empty-list<string>  $names
-     */
-    private function storageName(array $result, array $names): string
-    {
-        return $this->text($result, 'storage_name') ?? strtolower(trim($names[0]));
-    }
-
-    /**
      * Den Server-Block neu schreiben lassen.
      *
      * Er trägt das Konto dessen, der den auslösenden Vorgang angestossen hat —
@@ -233,51 +177,6 @@ final class CertificateLifecycle implements AfterOperation
         RunAgentOperation::dispatch((int) $operation->id);
     }
 
-    /**
-     * Die Namen, die das Zertifikat deckt.
-     *
-     * Sie kommen aus der Antwort des Agenten und nicht aus dem, was das Panel
-     * bestellt hat: Was gilt, steht im ausgestellten Zertifikat.
-     *
-     * @param  array<string, mixed>  $result
-     * @return list<string>
-     */
-    private function names(array $result, Domain $domain): array
-    {
-        $value = $result['names'] ?? null;
-        $names = [];
 
-        if (is_array($value)) {
-            foreach ($value as $name) {
-                if (is_string($name) && $name !== '') {
-                    $names[] = $name;
-                }
-            }
-        }
 
-        return $names === [] ? [$domain->name] : $names;
-    }
-
-    /** @param  array<string, mixed>  $result */
-    private function text(array $result, string $key): ?string
-    {
-        $value = $result[$key] ?? null;
-
-        return is_string($value) && $value !== '' ? $value : null;
-    }
-
-    /**
-     * Ein Zeitstempel aus der Antwort des Agenten.
-     *
-     * Der Agent schickt Sekunden seit 1970 — das ist, was `openssl_x509_parse`
-     * liefert, und es ist die Form, die keine Zeitzone mitschleppt.
-     *
-     * @param  array<string, mixed>  $result
-     */
-    private function moment(array $result, string $key): ?Carbon
-    {
-        $value = $result[$key] ?? null;
-
-        return is_int($value) && $value > 0 ? Carbon::createFromTimestamp($value) : null;
-    }
 }

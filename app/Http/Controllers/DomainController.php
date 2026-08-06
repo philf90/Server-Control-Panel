@@ -14,6 +14,7 @@ use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Plans\Quota;
 use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificateChoice;
 use App\Support\Tls\CertificateOrder;
 use App\Support\Tls\CertificateRecord;
 use App\Support\Web\Domains;
@@ -52,6 +53,7 @@ final class DomainController extends Controller
         private readonly AcmeSettings $tls,
         private readonly PhpSelection $php,
         private readonly PhpLimits $limits,
+        private readonly CertificateChoice $choice,
     ) {}
 
     /**
@@ -170,6 +172,21 @@ final class DomainController extends Controller
             'directives' => Directives::ALLOWED,
             'certificate' => $this->certificateOf($domain),
             'acme' => ['configured' => $this->tls->configured(), 'staging' => $this->tls->staging()],
+
+            // Die Auswahl: wovon gewählt werden kann, was gewählt ist, und ob
+            // die Wahl gerade übergangen wird (`docs/34 §8`).
+            'choice' => [
+                'pinned' => $domain->certificate_pinned_at !== null ? (int) $domain->certificate_id : null,
+                'overridden' => $this->choice->overridden($domain),
+                'options' => array_map(
+                    static fn (Certificate $c): array => [
+                        'id' => (int) $c->id,
+                        'label' => $c->source->label(),
+                        'not_after' => $c->not_after?->getTimestamp(),
+                    ],
+                    $this->choice->candidates($domain),
+                ),
+            ],
             'may' => [
                 'update' => $request->user()?->can('update', $domain) ?? false,
                 'update_php' => $request->user()?->can('updatePhp', $domain) ?? false,
@@ -330,15 +347,17 @@ final class DomainController extends Controller
      */
     private function certificateOf(Domain $domain): ?array
     {
-        $certificate = $domain->certificate_id === null
-            ? null
-            : Certificate::query()->find($domain->certificate_id);
+        // **Gezeigt wird, was ausgeliefert wird — nicht, was zugeordnet ist.**
+        // Eine abgelaufene Wahl wird übergangen; stünde hier trotzdem sie,
+        // zeigte die Seite ein Zertifikat, das kein Besucher zu sehen bekommt.
+        $certificate = $this->choice->effective($domain);
 
         if (! $certificate instanceof Certificate) {
             return null;
         }
 
         return [
+            'id' => (int) $certificate->id,
             'names' => $certificate->coveredNames(),
             'issuer' => $certificate->issuer,
             'source' => $certificate->source->value,
@@ -381,6 +400,67 @@ final class DomainController extends Controller
         $audit->success('domain.certificate.ordered', $domain, ['operation' => (int) $operation->id]);
 
         return redirect()->route('operations.show', $operation);
+    }
+
+    /**
+     * Auswählen, welches Zertifikat diese Domain ausliefert.
+     *
+     * **Gewählt wird aus dem, was ohnehin gilt.** Die Nummer aus der Anfrage
+     * muss unter den Kandidaten stehen — also dem eigenen Abonnement gehören,
+     * gültig sein und alle Namen des Blocks decken. Damit ist keine
+     * Zusatzprüfung nötig, die man vergessen könnte: Was nicht in der Liste
+     * steht, gibt es für diese Domain nicht.
+     *
+     * **`null` nimmt die Wahl zurück.** Dann entscheidet wieder die Automatik,
+     * und das ist ausdrücklich ein Weg zurück: Eine Einstellung, die man nur
+     * einmal treffen kann, ist eine Falle.
+     */
+    public function chooseCertificate(
+        Domain $domain,
+        Request $request,
+        WebLifecycle $web,
+        Audit $audit,
+    ): RedirectResponse {
+        $wanted = $request->input('certificate');
+
+        if ($wanted === null || $wanted === '') {
+            $domain->certificate_pinned_at = null;
+            $domain->save();
+
+            $audit->success('domain.certificate.chosen', $domain, ['certificate' => null]);
+            $web->apply($domain, 'Server-Block nach der Wahl für '.$domain->name);
+
+            return redirect()
+                ->route('domains.show', $domain)
+                ->with('success', 'Es entscheidet wieder die Automatik.');
+        }
+
+        $chosen = null;
+
+        foreach ($this->choice->candidates($domain) as $candidate) {
+            if ((int) $candidate->id === (int) $wanted) {
+                $chosen = $candidate;
+            }
+        }
+
+        if (! $chosen instanceof Certificate) {
+            return redirect()
+                ->route('domains.show', $domain)
+                ->with('error', 'Dieses Zertifikat steht für diese Domain nicht zur Wahl.');
+        }
+
+        $domain->certificate_id = (int) $chosen->id;
+        $domain->certificate_pinned_at = now();
+        $domain->save();
+
+        $audit->success('domain.certificate.chosen', $domain, ['certificate' => (int) $chosen->id]);
+
+        // Ohne diesen Vorgang gilt die Wahl und nginx kennt sie nicht.
+        $web->apply($domain, 'Server-Block nach der Wahl für '.$domain->name);
+
+        return redirect()
+            ->route('domains.show', $domain)
+            ->with('success', 'Die Wahl ist gespeichert. Der Server-Block wird neu geschrieben.');
     }
 
     /**

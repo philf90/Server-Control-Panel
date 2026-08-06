@@ -39,6 +39,7 @@ const props = defineProps<{
   settings: string[]
   directives: string[]
   certificate: {
+    id: number
     names: string[]
     issuer: string | null
     source: string
@@ -49,6 +50,11 @@ const props = defineProps<{
     covers_all: boolean
   } | null
   acme: { configured: boolean; staging: boolean }
+  choice: {
+    pinned: number | null
+    overridden: boolean
+    options: { id: number; label: string; not_after: number | null }[]
+  }
   may: {
     update: boolean
     update_php: boolean
@@ -81,6 +87,21 @@ function datum(zeit: number | null): string {
  */
 function zertifikatBestellen(): void {
   router.post(`/domains/${props.domain.id}/certificate`)
+}
+
+/*
+ * Die Auswahl.
+ *
+ * **Sie steht auf dem, was gewählt ist — nicht auf dem, was ausgeliefert
+ * wird.** Die beiden fallen auseinander, wenn eine Wahl abgelaufen ist: Dann
+ * springt ein anderes ein, und das Feld zeigt trotzdem weiter die Wahl, weil
+ * sie es ja ist. Was gerade gilt, steht darüber in den Angaben, und die
+ * Meldung dazwischen sagt, dass beides nicht dasselbe ist.
+ */
+const wahl = useForm({ certificate: props.choice.pinned === null ? '' : String(props.choice.pinned) })
+
+function wahlSpeichern(): void {
+  wahl.put(`/domains/${props.domain.id}/certificate`, { preserveScroll: true })
 }
 
 /*
@@ -313,6 +334,20 @@ function entfernen(): void {
           </template>
         </p>
 
+        <!--
+          Der laute Rückfall (`docs/34 §8`): Die Wahl gilt gerade nicht, und
+          das gehört dahin, wo jemand das Zertifikat ansieht — nicht nur ins
+          Protokoll. Ein hochgeladenes erneuert niemand, und stur daran
+          festzuhalten nähme die Website vom Netz.
+        -->
+        <p v-if="props.choice.overridden" class="notice warn">
+          <span>
+            Das ausgewählte Zertifikat gilt nicht mehr. Ausgeliefert wird
+            solange das oben genannte; die Wahl bleibt eingetragen und greift
+            wieder, sobald sie gültig ist.
+          </span>
+        </p>
+
         <div v-if="props.may.update && !props.certificate" class="button-row">
           <button
             type="button"
@@ -323,6 +358,41 @@ function entfernen(): void {
             Zertifikat bestellen
           </button>
         </div>
+
+        <!--
+          Die Auswahl erscheint erst, wenn es etwas zu wählen gibt — bei einem
+          einzigen Zertifikat wäre ein Feld mit einem Eintrag eine Frage ohne
+          Antwortmöglichkeit.
+        -->
+        <form v-if="props.may.update && props.choice.options.length > 1" @submit.prevent="wahlSpeichern">
+          <label class="field">
+            <span>Ausgeliefert wird</span>
+            <select v-model="wahl.certificate">
+              <option value="">Automatisch — das jeweils gültige</option>
+              <!--
+                Kurz genug für ein Auswahlfeld auf dem Telefon (`docs/24 §8`):
+                ein `<select>` bricht nicht um, es schneidet ab. Die gedeckten
+                Namen stehen bewusst nicht dabei — jeder Eintrag deckt alle,
+                sonst stünde er nicht zur Wahl. Was unterscheidet, ist die
+                Herkunft und die Laufzeit.
+              -->
+              <option v-for="o in props.choice.options" :key="o.id" :value="String(o.id)">
+                {{ o.label }} — bis {{ datum(o.not_after) }}
+              </option>
+            </select>
+          </label>
+          <p class="hint">
+            Ohne Wahl entscheidet die Automatik: Sie nimmt das gültige, das alle
+            Namen deckt, und tauscht es nach einer Erneuerung selbst aus. Eine
+            Wahl bleibt stehen, bis sie hier zurückgenommen wird.
+          </p>
+
+          <div class="button-row">
+            <button type="submit" class="button" :disabled="wahl.processing">
+              {{ wahl.processing ? 'Wird übernommen …' : 'Übernehmen' }}
+            </button>
+          </div>
+        </form>
       </Section>
 
       <!--

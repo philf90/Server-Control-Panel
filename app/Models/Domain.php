@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use RuntimeException;
 use SrvPanel\Agent\DocumentRoot;
 use SrvPanel\Agent\DomainName;
@@ -40,6 +41,7 @@ use SrvPanel\Agent\Ops\SubscriptionProvision;
  * @property int $id
  * @property int $subscription_id
  * @property int|null $certificate_id
+ * @property Carbon|null $certificate_pinned_at
  * @property int|null $parent_domain_id
  * @property string $name
  * @property DomainType $type
@@ -78,6 +80,7 @@ class Domain extends Model
             'redirect_kind' => RedirectKind::class,
             'php_settings' => 'array',
             'nginx_directives' => 'array',
+            'certificate_pinned_at' => 'datetime',
         ];
     }
 

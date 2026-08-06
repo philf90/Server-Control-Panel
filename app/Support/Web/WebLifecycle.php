@@ -18,6 +18,7 @@ use App\Support\Operations\Lifecycles;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificateChoice;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\DocumentRoot;
 use SrvPanel\Agent\DomainName;
@@ -44,6 +45,7 @@ final class WebLifecycle implements AfterOperation
         private readonly Tenancy $tenancy,
         private readonly PhpSelection $php,
         private readonly AcmeSettings $tls,
+        private readonly CertificateChoice $choice,
     ) {}
 
     /**
@@ -91,20 +93,17 @@ final class WebLifecycle implements AfterOperation
     }
 
     /**
-     * Das Zertifikat der Domain — ohne Mandantenklammer gelesen.
+     * Welches Zertifikat dieser Block ausliefert.
      *
-     * Sie steht im Grundzustand auf „nichts", und in einem Job ist das der
-     * Normalfall: Ein gewöhnliches `find()` lieferte dort `null`, und der
-     * Server-Block verspräche kein HSTS, obwohl ein vertrautes Zertifikat
-     * daliegt. Dieselbe Falle wie bei der Deckungsprüfung am Modell.
+     * **Gefragt wird {@see CertificateChoice} und nicht die Spalte.** Sie trägt
+     * die Zuordnung; ob die gerade gilt, entscheidet die Auswahl — eine
+     * abgelaufene Wahl wird übergangen, und dann steht hier das Zertifikat, das
+     * einspringt. Zwei Stellen, die diese Frage beantworten, geben irgendwann
+     * zwei Antworten, und die falsche fällt erst im Browser auf.
      */
     private function certificate(Domain $domain): ?Certificate
     {
-        if ($domain->certificate_id === null) {
-            return null;
-        }
-
-        return Certificate::query()->withoutGlobalScopes()->find($domain->certificate_id);
+        return $this->choice->effective($domain);
     }
 
     /**

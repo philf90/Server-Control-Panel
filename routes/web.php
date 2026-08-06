@@ -327,6 +327,18 @@ Route::middleware('auth')->group(function (): void {
         ->name('domains.certificate.upload');
 
     /*
+     * Auswählen, welches Zertifikat diese Domain ausliefert.
+     *
+     * **Dieselbe Fähigkeit wie beim Ändern der Domain.** Gewählt wird unter
+     * dem, was dem eigenen Abonnement gehört und alle Namen deckt — es kommt
+     * also nichts hinzu, was jemand nicht ohnehin hätte. Wer die Domain
+     * einstellen darf, entscheidet auch, welches ihrer Zertifikate gilt.
+     */
+    Route::put('/domains/{domain}/certificate', [DomainController::class, 'chooseCertificate'])
+        ->middleware('can:update,domain')
+        ->name('domains.certificate.choose');
+
+    /*
      * Die Protokolle einer Domain.
      *
      * Eigene Fähigkeit statt `view`: Ein Fehlerprotokoll enthält Pfade,

@@ -8,6 +8,9 @@ use SrvPanel\Agent\Acme\Account;
 use SrvPanel\Agent\Acme\Challenge;
 use SrvPanel\Agent\Acme\CurlTransport;
 use SrvPanel\Agent\Acme\Directories;
+use SrvPanel\Agent\Acme\Dns\Credentials;
+use SrvPanel\Agent\Acme\Dns\Providers;
+use SrvPanel\Agent\Acme\DnsChallenge;
 use SrvPanel\Agent\Acme\HttpChallenge;
 use SrvPanel\Agent\Acme\Order;
 use SrvPanel\Agent\Acme\Session;
@@ -31,19 +34,31 @@ use SrvPanel\Agent\Op;
  * eine, die an einem einzigen nicht auflösbaren Namen scheitert und
  * neunundneunzig mitnimmt.
  *
- * **Platzhalter werden abgewiesen.** Sie verlangen DNS-01; über HTTP-01 gibt es
- * kein Wildcard, und die Zertifizierungsstelle antwortete darauf mit einer
- * Meldung, die das nicht sagt. Der zweite Wurf bringt DNS-01 mit, und dann
- * fällt diese Schranke — die Naht dafür steht in {@see Challenge}.
+ * **Platzhalter werden über HTTP-01 abgewiesen — und nur dort.** Über HTTP-01
+ * gibt es kein Wildcard, und die Zertifizierungsstelle antwortet darauf mit
+ * einer Meldung, die das nicht sagt. Seit Schritt 7 gibt es DNS-01, und die
+ * Schranke hängt jetzt an der Art der Prüfung statt am Namen: Wer `dns-01`
+ * nennt und ein Profil dazu, darf einen Stern bestellen.
+ *
+ * **Die Art kommt als Wort und der Anbieter als Profilname** — nicht als
+ * Adresse und nicht als Token. Dieselbe Entscheidung wie bei den
+ * Zertifizierungsstellen ({@see Directories}) und bei den Anbietern
+ * ({@see Providers}): Was der Agent entgegennimmt, ist ein Schlüssel aus einer
+ * Positivliste. Das Geheimnis dazu liegt schon hier und überquert den Socket
+ * nicht noch einmal.
  */
 final class AcmeCertificate implements Op
 {
     /** Siehe die Klassenbeschreibung. */
     public const MAX_NAMES = 5;
 
+    /** Die Arten, die dieser Agent fahren kann. */
+    public const CHALLENGES = [HttpChallenge::TYPE, DnsChallenge::TYPE];
+
     public function __construct(
         private readonly Store $store = new Store,
         private readonly HttpChallenge $challenge = new HttpChallenge,
+        private readonly Credentials $credentials = new Credentials,
     ) {}
 
     public static function name(): string
@@ -58,7 +73,8 @@ final class AcmeCertificate implements Op
 
     public function execute(array $args, Context $context): array
     {
-        $names = $this->names($args['names'] ?? null);
+        $challenge = $this->challenge($args['challenge'] ?? null, $args['profile'] ?? null);
+        $names = $this->names($args['names'] ?? null, $challenge->type());
         $contact = Guard::string($args['contact'] ?? null, 'contact');
         $url = Directories::url($args['directory'] ?? null);
 
@@ -66,7 +82,7 @@ final class AcmeCertificate implements Op
         $session = Session::open(new CurlTransport, $url, new Account($url));
         $session->register($contact);
 
-        $order = new Order($session, $this->challenge);
+        $order = new Order($session, $challenge);
 
         $result = $order->issue(
             $names,
@@ -81,11 +97,41 @@ final class AcmeCertificate implements Op
     }
 
     /**
+     * Womit bewiesen wird, dass die Domain hierher gehört.
+     *
+     * **Ohne Angabe bleibt es HTTP-01.** Jede Bestellung des ersten Wurfs kommt
+     * ohne dieses Feld an, und die soll weiterlaufen wie bisher — eine
+     * Voreinstellung ist hier keine Bequemlichkeit, sondern die Zusicherung,
+     * dass ein Zeitplan aus der alten Fassung nicht stehenbleibt.
+     */
+    private function challenge(mixed $type, mixed $profile): Challenge
+    {
+        $name = is_string($type) && trim($type) !== '' ? strtolower(trim($type)) : HttpChallenge::TYPE;
+
+        if (! in_array($name, self::CHALLENGES, true)) {
+            throw AgentException::badRequest(
+                'Unbekannte Art der Prüfung.',
+                ['challenge' => $name, 'known' => self::CHALLENGES],
+            );
+        }
+
+        if ($name === HttpChallenge::TYPE) {
+            return $this->challenge;
+        }
+
+        // Der Profilname ist alles, was die Anwendung schickt. Das Token dazu
+        // liegt seit Schritt 6 hier und geht nicht über den Socket.
+        $stored = $this->credentials->read($profile);
+
+        return new DnsChallenge(Providers::make($stored['provider'], $stored['config']));
+    }
+
+    /**
      * Die bestellten Namen — geprüft wie jeder Domainname im Agenten.
      *
      * @return list<string>
      */
-    private function names(mixed $value): array
+    private function names(mixed $value, string $challenge): array
     {
         if (! is_array($value) || $value === []) {
             throw AgentException::badRequest('Ohne Namen keine Bestellung.', ['names' => 'leer']);
@@ -101,14 +147,22 @@ final class AcmeCertificate implements Op
         $names = [];
 
         foreach (array_values($value) as $index => $name) {
-            if (is_string($name) && str_starts_with(trim($name), '*.')) {
+            $field = 'names['.$index.']';
+            $star = is_string($name) && str_starts_with(trim($name), '*.');
+
+            if ($star && $challenge !== DnsChallenge::TYPE) {
                 throw AgentException::badRequest(
                     'Ein Platzhalter braucht DNS-01; über HTTP-01 gibt es kein Wildcard.',
-                    ['names['.$index.']' => $name],
+                    [$field => $name],
                 );
             }
 
-            $clean = DomainName::normalize($name, 'names['.$index.']');
+            // Der Stern gehört nicht in `DomainName::normalize()` — dort ist
+            // eine Beschriftung `[a-z0-9]`, und das soll sie bleiben. Geprüft
+            // wird der Rest, und der Stern kommt danach wieder davor.
+            $clean = $star
+                ? '*.'.DomainName::normalize(substr(trim((string) $name), 2), $field)
+                : DomainName::normalize($name, $field);
 
             if (! in_array($clean, $names, true)) {
                 $names[] = $clean;

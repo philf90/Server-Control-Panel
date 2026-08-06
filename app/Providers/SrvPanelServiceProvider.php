@@ -10,6 +10,8 @@ use App\Support\Metrics\Store;
 use App\Support\Settings\MailConfiguration;
 use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Tls\AgentDnsCredentials;
+use App\Support\Tls\DnsCredentials;
 use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -41,6 +43,10 @@ final class SrvPanelServiceProvider extends ServiceProvider
             $app->make(Client::class),
             $app->make(Store::class),
         ));
+
+        // Welche DNS-Profile hinterlegt sind, weiss der Agent — als Singleton,
+        // damit eine Domainseite ihn einmal fragt und nicht je Zeile.
+        $this->app->singleton(DnsCredentials::class, AgentDnsCredentials::class);
 
         // Als Singleton, damit die Einstellungen je Anfrage einmal gelesen
         // werden und nicht einmal je Aufrufer.

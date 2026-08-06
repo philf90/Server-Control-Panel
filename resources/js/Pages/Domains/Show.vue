@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import Section from '../../Components/Section.vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
@@ -55,12 +55,19 @@ const props = defineProps<{
     overridden: boolean
     options: { id: number; label: string; not_after: number | null }[]
   }
-  may: {
+  wildcard: {
+    possible: boolean
+    obstacle: string | null
+    names: string[]
+    uncovered: string[]
+  }
+  can: {
     update: boolean
     update_php: boolean
     delete: boolean
     view_logs: boolean
     upload_certificate: boolean
+    order_wildcard: boolean
   }
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()
@@ -86,8 +93,21 @@ function datum(zeit: number | null): string {
  * jetzt versuchen und nicht beim nächsten Anlass, den es womöglich nicht gibt.
  */
 function zertifikatBestellen(): void {
-  router.post(`/domains/${props.domain.id}/certificate`)
+  router.post(`/domains/${props.domain.id}/certificate`, { wildcard: alsPlatzhalter.value })
 }
+
+/*
+ * Der Platzhalter.
+ *
+ * **Ein Kästchen und keine Automatik.** Ein Platzhalter deckt jede Unterdomain
+ * der Zone — auch eine, die einem anderen Abonnement gehört (`docs/34 §3`).
+ * Etwas mit dieser Folge passiert nicht als Nebenwirkung eines Knopfdrucks.
+ */
+// **Nicht `platzhalter`.** Den Namen trägt in dieser Datei schon die
+// Hilfsfunktion für die Platzhaltertexte der Felder — dasselbe Wort, zwei
+// Bedeutungen. Aufgefallen ist es beim Bauen; im Gegensatz zu PHP meldet der
+// Übersetzer hier sofort.
+const alsPlatzhalter = ref(false)
 
 /*
  * Die Auswahl.
@@ -218,11 +238,11 @@ function entfernen(): void {
       <Badge :kind="rang(props.domain.status)" :running="props.domain.pending">
         {{ props.domain.status_label }}
       </Badge>
-      <Link v-if="props.may.view_logs" class="button" :href="`/domains/${props.domain.id}/logs`">
+      <Link v-if="props.can.view_logs" class="button" :href="`/domains/${props.domain.id}/logs`">
         Protokolle
       </Link>
       <button
-        v-if="props.may.delete && props.domain.removable"
+        v-if="props.can.delete && props.domain.removable"
         type="button"
         class="button danger"
         :disabled="props.domain.pending"
@@ -348,14 +368,48 @@ function entfernen(): void {
           </span>
         </p>
 
-        <div v-if="props.may.update && !props.certificate" class="button-row">
+        <!--
+          Der Platzhalter (`docs/34 §3`). Er löst die Wochengrenze — ein
+          Abonnement mit vierzig Unterdomains verbraucht sonst vierzig Einträge
+          je Woche statt zwei — und kostet die Trennschärfe. Deshalb steht
+          neben dem Kästchen, was er deckt, und nicht nur sein Name.
+        -->
+        <label v-if="props.can.order_wildcard && !props.certificate" class="toggle">
+          <input v-model="alsPlatzhalter" type="checkbox" :disabled="!props.wildcard.possible">
+          <span>
+            Als Platzhalter bestellen
+            <small class="hint">
+              Ein Zertifikat für <span class="ident">{{ props.wildcard.names.join(' ') }}</span> —
+              es gilt für jede Unterdomain dieser Zone, auch für die eines
+              anderen Abonnements. Dafür zählt es bei der Wochengrenze als eine
+              Bestellung statt als eine je Name.
+            </small>
+            <small v-if="props.wildcard.obstacle" class="hint">{{ props.wildcard.obstacle }}</small>
+          </span>
+        </label>
+
+        <!--
+          Eine Grenze, die ACME selbst zieht: `*.example.de` deckt
+          `a.b.example.de` nicht. Das gehört auf die Seite, statt es als
+          Browserwarnung entstehen zu lassen.
+        -->
+        <p
+          v-if="alsPlatzhalter && props.wildcard.uncovered.length > 0"
+          class="section-note"
+        >
+          Eine Ebene tiefer deckt ein Platzhalter nicht. Ohne eigenes Zertifikat
+          bleiben:
+          <span class="ident">{{ props.wildcard.uncovered.join(' ') }}</span>
+        </p>
+
+        <div v-if="props.can.update && !props.certificate" class="button-row">
           <button
             type="button"
             class="button"
             :disabled="!props.acme.configured"
             @click="zertifikatBestellen"
           >
-            Zertifikat bestellen
+            {{ alsPlatzhalter ? 'Platzhalter bestellen' : 'Zertifikat bestellen' }}
           </button>
         </div>
 
@@ -364,7 +418,7 @@ function entfernen(): void {
           einzigen Zertifikat wäre ein Feld mit einem Eintrag eine Frage ohne
           Antwortmöglichkeit.
         -->
-        <form v-if="props.may.update && props.choice.options.length > 1" @submit.prevent="wahlSpeichern">
+        <form v-if="props.can.update && props.choice.options.length > 1" @submit.prevent="wahlSpeichern">
           <label class="field">
             <span>Ausgeliefert wird</span>
             <select v-model="wahl.certificate">
@@ -402,7 +456,7 @@ function entfernen(): void {
         gefragt wird dieselbe Policy, die die Route später abweist.
       -->
       <Section
-        v-if="props.may.upload_certificate"
+        v-if="props.can.upload_certificate"
         title="Eigenes Zertifikat"
         note="Für ein gekauftes Zertifikat. Ohne Eintrag bleibt es beim automatisch ausgestellten."
       >
@@ -468,7 +522,7 @@ function entfernen(): void {
       </Section>
     </div>
 
-    <form v-if="props.may.update" @submit.prevent="speichern">
+    <form v-if="props.can.update" @submit.prevent="speichern">
       <div class="sections form-top">
         <Section title="Verzeichnis und Handler">
           <!--
@@ -526,7 +580,7 @@ function entfernen(): void {
           Wer sie braucht, wendet sich an den Betreiber.
         -->
         <Section
-          v-if="props.may.update_php && props.domain.type !== 'alias'"
+          v-if="props.can.update_php && props.domain.type !== 'alias'"
           title="PHP-Einstellungen dieser Domain"
         >
           <fieldset :disabled="props.domain.pending">

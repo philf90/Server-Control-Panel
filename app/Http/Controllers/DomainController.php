@@ -17,6 +17,7 @@ use App\Support\Tls\AcmeSettings;
 use App\Support\Tls\CertificateChoice;
 use App\Support\Tls\CertificateOrder;
 use App\Support\Tls\CertificateRecord;
+use App\Support\Tls\WildcardOrder;
 use App\Support\Web\Domains;
 use App\Support\Web\Page;
 use App\Support\Web\PhpLimits;
@@ -54,6 +55,7 @@ final class DomainController extends Controller
         private readonly PhpSelection $php,
         private readonly PhpLimits $limits,
         private readonly CertificateChoice $choice,
+        private readonly WildcardOrder $wildcards,
     ) {}
 
     /**
@@ -187,12 +189,27 @@ final class DomainController extends Controller
                     $this->choice->candidates($domain),
                 ),
             ],
-            'may' => [
+            // Der Platzhalter: ob er erlaubt ist, ob er gerade geht, und was
+            // er nicht deckt (`docs/34 §3`).
+            'wildcard' => [
+                'possible' => $this->wildcards->possible($domain),
+                'obstacle' => $this->wildcards->obstacle($domain),
+                'names' => WildcardOrder::names($domain),
+                'uncovered' => WildcardOrder::uncovered($domain),
+            ],
+
+            // **`can` und nicht `may`.** Diese Seite hiess als einzige anders
+            // und war damit von `AbilityReachTest` in beide Richtungen nicht
+            // erfasst — weder „kommt an" noch „wird benutzt". Eine zweite
+            // Schreibweise für dieselbe Sache ist genau die Zeichenkette, die
+            // auf nichts zeigt.
+            'can' => [
                 'update' => $request->user()?->can('update', $domain) ?? false,
                 'update_php' => $request->user()?->can('updatePhp', $domain) ?? false,
                 'delete' => $request->user()?->can('delete', $domain) ?? false,
                 'view_logs' => $request->user()?->can('viewLogs', $domain) ?? false,
                 'upload_certificate' => $request->user()?->can('uploadCertificate', $domain) ?? false,
+                'order_wildcard' => $request->user()?->can('orderWildcard', $domain) ?? false,
             ],
             'operations' => Operation::query()
                 ->where('subject_type', 'domain')
@@ -382,7 +399,13 @@ final class DomainController extends Controller
      */
     public function certificate(Domain $domain, Request $request, CertificateOrder $order, Audit $audit): RedirectResponse
     {
-        $operation = $order->place($domain);
+        $wildcard = $request->boolean('wildcard');
+
+        if ($wildcard && ($refusal = $this->refuseWildcard($domain, $request, $audit)) !== null) {
+            return $refusal;
+        }
+
+        $operation = $order->place($domain, wildcard: $wildcard);
 
         if ($operation === null) {
             // `failure()` kennt kein Ziel — die Domain steht deshalb im
@@ -397,9 +420,43 @@ final class DomainController extends Controller
                 ->with('error', 'Es ist keine Kontaktadresse für Let’s Encrypt eingetragen — ohne sie wird nichts bestellt.');
         }
 
-        $audit->success('domain.certificate.ordered', $domain, ['operation' => (int) $operation->id]);
+        $audit->success('domain.certificate.ordered', $domain, [
+            'operation' => (int) $operation->id,
+            'wildcard' => $wildcard,
+        ]);
 
         return redirect()->route('operations.show', $operation);
+    }
+
+    /**
+     * Warum ein Platzhalter jetzt nicht bestellt wird.
+     *
+     * **Zwei verschiedene Neins, und sie gehören auseinandergehalten.** „Darfst
+     * du nicht" beantwortet die Policy und endet mit 403 — die Fähigkeit steht
+     * an der Route und wird hier nur für den Zusatzfall nachgefragt, weil
+     * dieselbe Route auch die gewöhnliche Bestellung fährt. „Geht gerade
+     * nicht" ist eine Auskunft: keine Basisdomain, keine Zugangsdaten. Wer
+     * beides gleich behandelt, sagt dem Betreiber „keine Berechtigung", wo
+     * „kein Token hinterlegt" gemeint ist.
+     */
+    private function refuseWildcard(Domain $domain, Request $request, Audit $audit): ?RedirectResponse
+    {
+        if ($request->user()?->can('orderWildcard', $domain) !== true) {
+            abort(403);
+        }
+
+        $obstacle = $this->wildcards->obstacle($domain);
+
+        if ($obstacle === null) {
+            return null;
+        }
+
+        $audit->failure('domain.certificate.ordered', [
+            'domain' => $domain->name,
+            'reason' => $obstacle,
+        ]);
+
+        return redirect()->route('domains.show', $domain)->with('error', $obstacle);
     }
 
     /**

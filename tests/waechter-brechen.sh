@@ -1519,6 +1519,115 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InheritedNameTest passed
 
 echo
+echo "── WildcardOrderTest: die Basisdomain steht vorn ──"
+#
+# Der Ablageort entsteht aus dem ersten Namen. Steht die Basisdomain vorn, liegt
+# der Platzhalter unter example.de und überschreibt ein einfaches Zertifikat für
+# denselben Namen — gemerkt hätte man es, wenn eine Domain plötzlich das falsche
+# ausliefert.
+vorher_datei app/Support/Tls/WildcardOrder.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/WildcardOrder.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return ['*.'.$domain->name, $domain->name];",
+    "        return [$domain->name, '*.'.$domain->name];",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/WildcardOrder.php "Basisdomain vor dem Stern" &&
+pruefe "Basisdomain vor dem Stern" \
+  WildcardOrderTest::test_the_star_comes_first_and_the_base_name_is_there failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WildcardOrderTest passed
+
+echo
+echo "── WildcardOrderTest: ohne Zugangsdaten wird trotzdem angeboten ──"
+#
+# Eine Bestellung, die mangels Token scheitert, verbrennt einen der fünf
+# Fehlversuche je Konto und Stunde — und die gelten für jeden Kunden dieses
+# Servers, nicht nur für den, der geklickt hat.
+vorher_datei app/Support/Tls/WildcardOrder.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/WildcardOrder.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! $this->hasCredentials($domain)) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/WildcardOrder.php "Platzhalter ohne Zugangsdaten" &&
+pruefe "Platzhalter ohne Zugangsdaten" \
+  WildcardOrderTest::test_without_credentials_it_says_so_instead_of_ordering failed
+wiederherstellen
+
+echo
+echo "── WildcardOrderTest: eine Subdomain bekommt auch einen ──"
+#
+# `*.blog.example.de` ist zulässig und nicht das, was jemand meint, der auf
+# einer Subdomainseite auf „Platzhalter" klickt. Geprüft wird der Typ, den das
+# Panel ohnehin führt — nicht der eingetippte Name.
+vorher_datei app/Support/Tls/WildcardOrder.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/WildcardOrder.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return in_array($domain->type, self::BASE_TYPES, true);",
+    "        return true;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/WildcardOrder.php "Platzhalter zu einer Subdomain" &&
+pruefe "Platzhalter zu einer Subdomain" \
+  WildcardOrderTest::test_only_a_base_domain_gets_one failed
+wiederherstellen
+
+echo
+echo "── WildcardOrderTest: die gewöhnliche Bestellung nennt plötzlich DNS-01 ──"
+#
+# Ein Zeitplan aus der Fassung vor Schritt 8 schickt keine Challenge mit. Stünde
+# sie hier immer, liefe jede Erneuerung über DNS-01 — auch für Domains, für die
+# gar keine Zugangsdaten hinterlegt sind.
+vorher_datei app/Support/Tls/CertificateOrder.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateOrder.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            ] + ($wildcard ? [",
+    "            ] + (true ? [",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateOrder.php "DNS-01 auch ohne Platzhalter" &&
+pruefe "DNS-01 auch ohne Platzhalter" \
+  WildcardOrderTest::test_an_ordinary_order_says_nothing_about_dns failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WildcardOrderTest passed
+
+echo
+echo "── AbilityReachTest: eine Fähigkeit der Domainseite kommt nicht an ──"
+#
+# Eine Fahne, die nie ankommt, ist in Vue `undefined` — der Knopf verschwindet
+# dann für **alle**, ohne dass etwas meldet. Bis Schritt 8 hiess diese Ablage
+# `may` und war von diesem Wächter gar nicht erfasst.
+vorher_datei app/Http/Controllers/DomainController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DomainController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                'order_wildcard' => $request->user()?->can('orderWildcard', $domain) ?? false,\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DomainController.php "Fähigkeit fehlt im Payload" &&
+pruefe "Fähigkeit fehlt im Payload" \
+  AbilityReachTest::test_every_ability_a_page_asks_for_is_sent failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AbilityReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -12,6 +12,10 @@ namespace App\Enums;
  * jederzeit zurückkommen; ein gekündigtes wartet auf das Aufräumen. Wer beides
  * in ein Feld „inaktiv" wirft, kann später nicht mehr sagen, was gelöscht
  * werden darf.
+ *
+ * Seit docs/35 gibt es „gekündigt" hier nicht mehr als Fall — nicht, weil der
+ * Unterschied verschwunden wäre, sondern weil ein zurückgebautes Abonnement
+ * keine Zeile mehr hat, die ihn tragen könnte.
  */
 enum SubscriptionStatus: string
 {
@@ -29,7 +33,19 @@ enum SubscriptionStatus: string
 
     case Active = 'active';
     case Suspended = 'suspended';
-    case Cancelled = 'cancelled';
+
+    /*
+     * **Hier stand `case Cancelled` — bis August 2026, und gelesen hat es nie
+     * jemand.** `Lifecycle::withdraw()` setzte den Zustand auf einer Zeile, die
+     * im selben Atemzug unsichtbar wurde; sie lag nur da, damit der
+     * Systembenutzer verbraucht blieb. Seit docs/35 steht die Reservierung in
+     * `system_users`, das Abonnement wird hart gelöscht — und ein Zustand für
+     * „gekündigt" hätte keinen Träger mehr.
+     *
+     * Der Absatz oben gilt weiter: „gesperrt" und „gekündigt" sind nicht
+     * dasselbe. Nur ist das Zweite jetzt kein Zustand mehr, sondern das Fehlen
+     * der Zeile.
+     */
 
     /** Darf in diesem Zustand noch gearbeitet werden? */
     public function usable(): bool
@@ -71,7 +87,6 @@ enum SubscriptionStatus: string
             self::Provisioning => 'wird angelegt',
             self::Active => 'aktiv',
             self::Suspended => 'gesperrt',
-            self::Cancelled => 'gekündigt',
         };
     }
 
@@ -89,7 +104,6 @@ enum SubscriptionStatus: string
             self::Provisioning => 'wird gerade angelegt',
             self::Active => 'ist aktiv',
             self::Suspended => 'ist gesperrt',
-            self::Cancelled => 'ist gekündigt',
         };
     }
 }

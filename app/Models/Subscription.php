@@ -51,7 +51,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $disk_usage_measured_at
  * @property Carbon|null $suspended_at
  * @property bool $suspended_with_customer
- * @property Carbon|null $cancelled_at
  * @property-read Customer|null $customer
  * @property-read Plan|null $plan
  * @property-read Collection<int, Account> $additionalAccounts
@@ -120,7 +119,6 @@ class Subscription extends Model
             'quota_overrides' => 'array',
             'suspended_at' => 'datetime',
             'suspended_with_customer' => 'boolean',
-            'cancelled_at' => 'datetime',
             'disk_usage_measured_at' => 'datetime',
         ];
     }

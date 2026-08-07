@@ -9,6 +9,7 @@ use App\Support\Audit\Audit;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
+use App\Support\Tenancy\Tenancy;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -83,6 +84,7 @@ final class PlanController extends Controller
             ],
             'catalog' => Quotas::catalog(),
             'subscriptions' => 0,
+            'withdrawn' => 0,
         ]);
     }
 
@@ -109,8 +111,19 @@ final class PlanController extends Controller
         return redirect()->route('plans.index')->with('success', "Plan {$plan->name} angelegt.");
     }
 
-    public function edit(Plan $plan): Response
+    public function edit(Plan $plan, Tenancy $tenancy): Response
     {
+        // Beide Zahlen mit denselben Augen wie `destroy()` — sonst zeigt das
+        // Formular einen Knopf an, den der Aufruf danach abweist. Ein Knopf,
+        // der an einer anderen Frage hängt als die Prüfung dahinter, ist in
+        // diesem Projekt schon mehrfach teuer gewesen.
+        [$bound, $withdrawn] = $tenancy->withoutRestriction(
+            static fn (): array => [
+                $plan->subscriptions()->count(),
+                $plan->subscriptions()->onlyTrashed()->count(),
+            ],
+        );
+
         return Inertia::render('Plans/Form', [
             'plan' => ['id' => (int) $plan->id, 'name' => $plan->name],
             'values' => [
@@ -127,7 +140,8 @@ final class PlanController extends Controller
                 'features' => Quotas::normalizeFeatures($plan->features ?? []),
             ],
             'catalog' => Quotas::catalog(),
-            'subscriptions' => $plan->subscriptions()->count(),
+            'subscriptions' => $bound,
+            'withdrawn' => $withdrawn,
         ]);
     }
 
@@ -168,14 +182,28 @@ final class PlanController extends Controller
      * Datenbankmeldung, die der Betreiber nicht deuten kann. Die Prüfung hier
      * ist dieselbe Aussage in verständlich.
      *
+     * **Und sie zählt mit denselben Augen wie der Fremdschlüssel.** Das war
+     * der Fehler, der bis August 2026 einen 500er warf: `Subscription` trägt
+     * zwei Filter, die der Datenbank fremd sind — die Mandantenklammer und
+     * `SoftDeletes`. Ein zurückgebautes Abonnement verschwindet damit aus
+     * `$plan->subscriptions()`, hält aber seine Zeile und darin `plan_id`.
+     * Das Panel zählte null, der Fremdschlüssel zählte eins, und `DELETE`
+     * endete als SQLSTATE 23000. Gezählt wird deshalb ohne Klammer und mit
+     * den Grabsteinen; `RestrictedDeleteTest` besteht darauf.
+     *
      * War es der Standardplan, rückt der älteste verbliebene nach. Die
      * Alternative wäre, das Löschen zu verweigern, bis jemand anderswo einen
      * neuen Standard setzt — das ist ein Umweg für einen Zustand, den das
      * Panel selbst auflösen kann.
      */
-    public function destroy(Plan $plan, Audit $audit): RedirectResponse
+    public function destroy(Plan $plan, Audit $audit, Tenancy $tenancy): RedirectResponse
     {
-        $bound = $plan->subscriptions()->count();
+        [$bound, $withdrawn] = $tenancy->withoutRestriction(
+            static fn (): array => [
+                $plan->subscriptions()->count(),
+                $plan->subscriptions()->onlyTrashed()->count(),
+            ],
+        );
 
         if ($bound > 0) {
             $audit->denied('plan.deleted', $plan, ['reason' => 'gebundene Abonnements', 'subscriptions' => $bound]);
@@ -184,6 +212,23 @@ final class PlanController extends Controller
                 'plan' => $bound === 1
                     ? 'An diesem Plan hängt noch ein Abonnement. Es muss zuerst auf einen anderen Plan wechseln.'
                     : "An diesem Plan hängen noch {$bound} Abonnements. Sie müssen zuerst auf einen anderen Plan wechseln.",
+            ]);
+        }
+
+        // **Ein Grabstein ist kein Kunde, und trotzdem hält er den Plan.**
+        // Ein zurückgebautes Abonnement bleibt als Zeile liegen, damit sein
+        // Systembenutzer nicht ein zweites Mal vergeben wird (siehe
+        // `Lifecycle::nextSystemUser()`) — und diese Zeile zeigt weiter auf
+        // ihren Plan. Deshalb steht hier eine eigene Meldung: „Es hängt kein
+        // Abonnement daran" und „der Plan lässt sich löschen" sind seitdem
+        // zwei verschiedene Aussagen, und die Meldung sagt, welche gilt.
+        if ($withdrawn > 0) {
+            $audit->denied('plan.deleted', $plan, ['reason' => 'zurückgebaute Abonnements', 'withdrawn' => $withdrawn]);
+
+            throw ValidationException::withMessages([
+                'plan' => $withdrawn === 1
+                    ? 'An diesem Plan hängt noch ein zurückgebautes Abonnement. Es ist aus dem Panel verschwunden, seine Zeile bleibt aber liegen, damit sein Systembenutzer nicht neu vergeben wird — und sie hält den Plan fest.'
+                    : "An diesem Plan hängen noch {$withdrawn} zurückgebaute Abonnements. Sie sind aus dem Panel verschwunden, ihre Zeilen bleiben aber liegen, damit ihre Systembenutzer nicht neu vergeben werden — und sie halten den Plan fest.",
             ]);
         }
 

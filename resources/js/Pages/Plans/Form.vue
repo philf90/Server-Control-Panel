@@ -35,6 +35,12 @@ const props = defineProps<{
   }
   catalog: { quotas: QuotaEntry[]; features: FeatureEntry[]; php_versions: string[] }
   subscriptions: number
+
+  /**
+   * Zurückgebaute Abonnements — im Panel unsichtbar, für den Fremdschlüssel
+   * vorhanden. Sie halten den Plan fest, und deshalb steht die Zahl hier.
+   */
+  withdrawn: number
 }>()
 
 /*
@@ -97,8 +103,19 @@ function submit(): void {
   else form.post('/plans')
 }
 
+/*
+ * Löschbar ist ein Plan, an dem keine Zeile mehr hängt — auch keine
+ * zurückgebaute.
+ *
+ * Gefragt wird hier dieselbe Frage wie in `PlanController::destroy()`. Vorher
+ * hing der Knopf an gar nichts und die Prüfung an der Zahl der *sichtbaren*
+ * Abonnements; ein Plan mit einem Grabstein sah damit löschbar aus und
+ * antwortete mit einem 500er.
+ */
+const removable = computed(() => props.subscriptions === 0 && props.withdrawn === 0)
+
 function remove(): void {
-  if (!props.plan) return
+  if (!props.plan || !removable.value) return
 
   if (!window.confirm(`Plan ${props.plan.name} löschen?`)) return
 
@@ -132,6 +149,36 @@ function remove(): void {
         An diesem Plan hängen <b>{{ props.subscriptions }}</b> Abonnements.
         Gesenkte Grenzen verbieten das Anlegen weiterer Objekte; vorhandene
         bleiben bestehen.
+      </span>
+    </p>
+
+    <!--
+      **Warum der Löschknopf fehlt, steht dort, wo er fehlt.** Ein Knopf, der
+      wortlos verschwindet, ist für den Betreiber dasselbe wie einer, der nicht
+      funktioniert — er sucht ihn und findet nichts. Diese Meldung erscheint
+      nur, wenn ausschliesslich Grabsteine im Weg stehen: Hängen noch lebende
+      Abonnements daran, sagt das die Warnung darüber schon.
+    -->
+    <p v-if="editing && props.subscriptions === 0 && props.withdrawn > 0" class="notice neutral">
+      <!--
+        **Einzahl und Mehrzahl, und der Fall Eins ist der häufige.** Genau ein
+        Grabstein ist der Normalfall, wenn jemand ein Abonnement zum Ausprobieren
+        angelegt und wieder zurückgebaut hat — und in der ersten Fassung stand
+        dort „1 zurückgebaute Abonnements". Aufgefallen ist es auf dem Bild,
+        nicht beim Schreiben.
+      -->
+      <span v-if="props.withdrawn === 1">
+        Dieser Plan lässt sich nicht löschen: An ihm hängt noch ein
+        zurückgebautes Abonnement. Es ist aus dem Panel verschwunden, seine
+        Zeile bleibt aber liegen, damit sein Systembenutzer nicht ein zweites
+        Mal vergeben wird — und sie hält den Plan fest.
+      </span>
+      <span v-else>
+        Dieser Plan lässt sich nicht löschen: An ihm hängen noch
+        <b>{{ props.withdrawn }}</b> zurückgebaute Abonnements. Sie sind aus dem
+        Panel verschwunden, ihre Zeilen bleiben aber liegen, damit ihre
+        Systembenutzer nicht ein zweites Mal vergeben werden — und sie halten
+        den Plan fest.
       </span>
     </p>
 
@@ -239,7 +286,7 @@ function remove(): void {
           {{ form.processing ? 'Wird gespeichert …' : editing ? 'Speichern' : 'Anlegen' }}
         </button>
         <Link href="/plans" class="button">Abbrechen</Link>
-        <button v-if="editing" type="button" class="button danger" @click="remove">Löschen</button>
+        <button v-if="editing && removable" type="button" class="button danger" @click="remove">Löschen</button>
       </div>
     </form>
   </PanelLayout>

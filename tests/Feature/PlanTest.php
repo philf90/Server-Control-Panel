@@ -269,6 +269,60 @@ final class PlanTest extends TestCase
         );
     }
 
+    /**
+     * Ein zurückgebautes Abonnement hält seinen Plan fest — und sagt das auch.
+     *
+     * **Der gemeldete Fehler, 7. August 2026.** Der Betreiber wollte einen Plan
+     * löschen, an dem „keine Abos mehr" hingen, und bekam einen 500er.
+     *
+     * `Subscription` trägt zwei Filter, die die Datenbank nicht kennt: die
+     * Mandantenklammer und `SoftDeletes`. Ein zurückgebautes Abonnement fällt
+     * damit aus `$plan->subscriptions()` heraus, seine Zeile bleibt aber liegen
+     * — sie muss es, sonst bekäme der nächste Kunde denselben Systembenutzer.
+     * Das Panel zählte null, `restrictOnDelete` zählte eins, und `DELETE`
+     * endete als SQLSTATE 23000 statt in einer Meldung.
+     *
+     * Geprüft wird beides: dass der Plan noch da ist **und** dass die Antwort
+     * ein Formularfehler ist. Ohne die zweite Behauptung bliebe der Test grün,
+     * wenn wieder ein 500er käme — der Plan überlebt einen Absturz schliesslich
+     * auch.
+     */
+    public function test_a_withdrawn_subscription_still_holds_its_plan(): void
+    {
+        $plan = Plan::factory()->create();
+        $subscription = Subscription::factory()->for($plan)->create();
+        $subscription->delete();
+
+        $this->assertSame(0, $plan->subscriptions()->count(), 'Der Grabstein soll unsichtbar sein — sonst prüft dieser Test etwas anderes.');
+
+        $this->actingAs($this->admin())
+            ->delete("/plans/{$plan->id}")
+            ->assertSessionHasErrors('plan');
+
+        $this->assertNotNull(Plan::query()->find($plan->id));
+    }
+
+    /**
+     * Und das Formular bietet den Knopf gar nicht erst an.
+     *
+     * Dieselbe Frage wie in `destroy()`, an derselben Stelle beantwortet — die
+     * Seite bekommt die Zahl vom Server und leitet sie nicht aus dem ab, was
+     * sie sonst noch weiss.
+     */
+    public function test_the_form_names_the_withdrawn_subscriptions(): void
+    {
+        $plan = Plan::factory()->create();
+        $subscription = Subscription::factory()->for($plan)->create();
+        $subscription->delete();
+
+        $this->actingAs($this->admin())
+            ->get("/plans/{$plan->id}/edit")
+            ->assertInertia(fn ($page) => $page
+                ->where('subscriptions', 0)
+                ->where('withdrawn', 1)
+                ->etc());
+    }
+
     public function test_deleting_the_default_promotes_the_oldest_remaining(): void
     {
         $standard = Plan::factory()->default()->create(['name' => 'Standard']);

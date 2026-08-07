@@ -2910,6 +2910,81 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SectionSpacingTest passed
 
 echo
+echo "── RestrictedDeleteTest: die Prüfung sieht die Grabsteine nicht ──"
+#
+# **Der gemeldete Fehler, 7. August 2026.** `restrictOnDelete` zählt Zeilen;
+# `$plan->subscriptions()` sieht sie durch zwei Filter, die die Datenbank nicht
+# kennt. Ohne `onlyTrashed()` zählt das Panel wieder null, wo der
+# Fremdschlüssel eins zählt — und der Knopf antwortet mit einem 500er.
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                $plan->subscriptions()->onlyTrashed()->count(),\n            ],\n        );\n\n        if ($bound > 0) {",
+    "                0,\n            ],\n        );\n\n        if ($bound > 0) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/PlanController.php "Grabsteine werden nicht gezählt" &&
+pruefe "Grabsteine werden nicht gezählt" \
+  RestrictedDeleteTest::test_a_destroy_counts_what_the_foreign_key_counts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RestrictedDeleteTest passed
+
+echo
+echo "── RestrictedDeleteTest: die Mandantenklammer bleibt zu ──"
+#
+# Der zweite Filter, und er ist der stillere: Ein Kommando ohne gesetzten
+# Mandanten sieht überhaupt kein Abonnement und hielte jeden Plan für löschbar.
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        [$bound, $withdrawn] = $tenancy->withoutRestriction(
+            static fn (): array => [
+                $plan->subscriptions()->count(),
+                $plan->subscriptions()->onlyTrashed()->count(),
+            ],
+        );
+
+        if ($bound > 0) {""",
+    """        [$bound, $withdrawn] = [
+            $plan->subscriptions()->count(),
+            $plan->subscriptions()->onlyTrashed()->count(),
+        ];
+
+        if ($bound > 0) {""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/PlanController.php "Klammer bleibt beim Zählen zu" &&
+pruefe "Klammer bleibt beim Zählen zu" \
+  RestrictedDeleteTest::test_a_destroy_counts_what_the_foreign_key_counts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RestrictedDeleteTest passed
+
+echo
+echo "── PlanTest: ein Grabstein hält den Plan nicht mehr ──"
+#
+# Die Regression selbst: Ohne die zweite Abweisung geht `DELETE` an die
+# Datenbank und endet als SQLSTATE 23000 — kein Formularfehler, sondern ein
+# 500er.
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        if ($withdrawn > 0) {', '        if (false) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/PlanController.php "Grabstein hält den Plan nicht mehr" &&
+pruefe "Grabstein hält den Plan nicht mehr" \
+  PlanTest::test_a_withdrawn_subscription_still_holds_its_plan failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlanTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

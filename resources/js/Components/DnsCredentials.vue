@@ -58,20 +58,34 @@ const RFC2136 = 'rfc2136'
 const IPV64 = 'ipv64'
 const HETZNER = 'hetzner'
 const CLOUDFLARE = 'cloudflare'
+const NETCUP = 'netcup'
 
 /*
  * Wer seine Zonen selbst führt, bekommt hier kein Feld dafür.
  *
  * Bei RFC 2136 stehen die Zonen in den Zugangsdaten, weil ein TSIG-Schlüssel im
- * Nameserver ohnehin auf Zonen eingegrenzt ist. Eine API-Schnittstelle kennt
- * ihre Zonen selbst — ein zweites, von Hand gepflegtes Verzeichnis daneben wäre
+ * Nameserver ohnehin auf Zonen eingegrenzt ist; bei netcup, weil die
+ * Schnittstelle die Domains eines Kontos nicht nennt. Alle anderen kennen ihre
+ * Zonen selbst — ein zweites, von Hand gepflegtes Verzeichnis daneben wäre
  * dieselbe Auskunft ein zweites Mal, und die zweite ist die, die veraltet.
+ *
+ * **Die zwei stehen als Liste da und nicht als Ausnahme von einem.** Vorher
+ * hiess die Bedingung „alles ausser RFC 2136", und netcup wäre stillschweigend
+ * auf der falschen Seite gelandet: Die Auskunft hätte „vom Anbieter" gesagt,
+ * wo der Betreiber die Zonen selbst eingetragen hat.
  */
-const asked = computed(() => props.credential !== null && props.credential.provider !== RFC2136)
+const carriesZones = [RFC2136, NETCUP]
+
+const asked = computed(
+  () => props.credential !== null && !carriesZones.includes(props.credential.provider),
+)
 
 const form = useForm({
   provider: usable.value[0]?.value ?? '',
   token: '',
+  customer_number: '',
+  api_key: '',
+  api_password: '',
   server: '',
   port: '',
   zones: '',
@@ -85,7 +99,7 @@ const revealed = ref(false)
 function submit(): void {
   form.put(props.action, {
     preserveScroll: true,
-    onSuccess: () => form.reset('secret', 'token'),
+    onSuccess: () => form.reset('secret', 'token', 'api_key', 'api_password'),
   })
 }
 
@@ -262,6 +276,80 @@ function moment(seconds: number): string {
           Ein API-Token mit den Rechten Zone:Read und DNS:Edit. Der globale
           API-Schlüssel wird nicht angenommen: Er öffnet das ganze Konto, ein
           Token nur die Zonen, für die es ausgestellt ist.
+        </p>
+      </template>
+
+      <!--
+        netcup ist der einzige ohne Token: Kundennummer, zwei Geheimnisse und
+        die Zonen. Die Zonen stehen hier, weil die Schnittstelle die Domains
+        eines Kontos nicht selbst nennt — dieselbe Antwort wie bei RFC 2136 und
+        aus demselben Grund.
+      -->
+      <template v-if="form.provider === NETCUP">
+        <label class="field">
+          <span>Kundennummer</span>
+          <input v-model="form.customer_number" type="text" inputmode="numeric" autocomplete="off" required>
+        </label>
+        <p v-if="form.errors.customer_number" class="error">{{ form.errors.customer_number }}</p>
+
+        <label class="field">
+          <span>API-Schlüssel</span>
+          <span class="with-reveal">
+            <input
+              v-model="form.api_key"
+              :type="revealed ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            >
+            <button
+              type="button"
+              class="reveal"
+              :aria-label="revealed ? 'Angaben verbergen' : 'Angaben anzeigen'"
+              :aria-pressed="revealed"
+              @click.prevent="revealed = !revealed"
+            >
+              <EyeIcon :off="revealed" />
+            </button>
+          </span>
+        </label>
+        <p v-if="form.errors.api_key" class="error">{{ form.errors.api_key }}</p>
+
+        <label class="field">
+          <span>API-Passwort</span>
+          <span class="with-reveal">
+            <input
+              v-model="form.api_password"
+              :type="revealed ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            >
+            <button
+              type="button"
+              class="reveal"
+              :aria-label="revealed ? 'Angaben verbergen' : 'Angaben anzeigen'"
+              :aria-pressed="revealed"
+              @click.prevent="revealed = !revealed"
+            >
+              <EyeIcon :off="revealed" />
+            </button>
+          </span>
+        </label>
+        <p v-if="form.errors.api_password" class="error">{{ form.errors.api_password }}</p>
+        <p class="hint">
+          Beide stehen im Kundenkonto von netcup unter den API-Zugängen. Sie
+          überqueren die Grenze zum Agenten genau einmal — beim Speichern — und
+          werden danach nie wieder herausgegeben.
+        </p>
+
+        <label class="field">
+          <span>Zonen</span>
+          <textarea v-model="form.zones" rows="3" placeholder="example.de&#10;example.net" required />
+        </label>
+        <p v-if="form.errors.zones" class="error">{{ form.errors.zones }}</p>
+        <p class="hint">
+          Eine je Zeile. Die Schnittstelle von netcup nennt die Domains eines
+          Kontos nicht selbst, deshalb stehen sie hier — und nur diese Zonen
+          darf das Profil ändern.
         </p>
       </template>
 

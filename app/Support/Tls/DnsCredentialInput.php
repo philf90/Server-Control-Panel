@@ -74,6 +74,7 @@ final class DnsCredentialInput
             // demselben Rumpf wären zwei Orte für dieselbe Regel, und der
             // zweite ist der, der veraltet.
             Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE => self::tokenOnly($input),
+            Providers::NETCUP => self::netcup($input),
             // Unerreichbar, solange {@see self::provider()} davor steht — und
             // deshalb steht der Zweig hier: Ein `match` ohne ihn wirft einen
             // UnhandledMatchError, und der landet als „interner Fehler" im
@@ -99,6 +100,42 @@ final class DnsCredentialInput
         ], [], ['token' => 'Token'])->validate();
 
         return ['token' => (string) $data['token']];
+    }
+
+    /**
+     * netcup — Kundennummer, zwei Geheimnisse und die Zonen.
+     *
+     * **Die Zonen stehen hier, weil die Schnittstelle sie nicht nennt.** netcup
+     * kennt keine Auskunft, die die Domains eines Kontos aufzählt; lego fragt
+     * dafür die autoritativen Nameserver. Das wäre eine dritte Quelle für
+     * dieselbe Frage — stattdessen gilt dieselbe Antwort wie bei RFC 2136: eine
+     * Positivliste, die der Betreiber aufschreibt.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    private static function netcup(array $input): array
+    {
+        $data = Validator::make($input, [
+            'customer_number' => ['required', 'string', 'max:20'],
+            'api_key' => ['required', 'string', 'max:512'],
+            'api_password' => ['required', 'string', 'max:512'],
+            'zones' => ['required', 'string', 'max:4000'],
+        ], [], [
+            'customer_number' => 'Kundennummer',
+            'api_key' => 'API-Schlüssel',
+            'api_password' => 'API-Passwort',
+            'zones' => 'Zonen',
+        ])->validate();
+
+        return [
+            'customer_number' => (string) $data['customer_number'],
+            'api_key' => (string) $data['api_key'],
+            'api_password' => (string) $data['api_password'],
+            'zones' => self::zones($input['zones'] ?? null),
+        ];
     }
 
     /**

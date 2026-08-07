@@ -2083,6 +2083,116 @@ pruefe "globaler API-Schlüssel angenommen" \
 wiederherstellen
 
 echo
+echo "── NetcupTest: die Sitzung bleibt nach einem Fehlschlag offen ──"
+#
+# Abgemeldet wird im `finally` — sonst bliebe eine Sitzung bei einem fremden
+# Anbieter genau dann liegen, wenn der Zugriff dazwischen scheitert. Das ist der
+# Fall, der sich häuft: Jeder Fehlversuch einer Bestellung liesse eine zurück.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        try {
+            $work($session);
+        } finally {
+            try {""",
+    """        $work($session);
+
+        if (true) {
+            try {""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "Sitzung bleibt nach einem Fehlschlag offen" &&
+pruefe "Sitzung bleibt nach einem Fehlschlag offen" \
+  NetcupTest::test_the_session_is_closed_after_a_failure failed
+wiederherstellen
+
+echo
+echo "── NetcupTest: ein gescheitertes Abmelden wird zum Fehlschlag ──"
+#
+# Die Gegenrichtung. Wer den Fehler des Abmeldens durchreicht, macht aus einem
+# gesetzten Eintrag einen Fehlschlag — und der Vorgang wird wiederholt, obwohl
+# er durchgelaufen ist. Bei Let's Encrypt zählt jeder Fehlversuch für alle
+# Kunden dieses Servers.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            try {
+                $this->call('logout', ['apisessionid' => $session], 'Das Abmelden bei netcup ist gescheitert');
+            } catch (AgentException) {
+                // Siehe oben: Die Sitzung läuft bei netcup ohnehin ab.
+            }""",
+    "            $this->call('logout', ['apisessionid' => $session], 'Das Abmelden bei netcup ist gescheitert');",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "gescheitertes Abmelden wird zum Fehlschlag" &&
+pruefe "gescheitertes Abmelden wird zum Fehlschlag" \
+  NetcupTest::test_a_failed_logout_does_not_fail_the_operation failed
+wiederherstellen
+
+echo
+echo "── NetcupTest: die ganze Zone wird zurückgeschrieben ──"
+#
+# lego liest an dieser Stelle alle Einträge, hängt den neuen an und schickt
+# alles zurück. Für ein Panel, das fremde Zonen anfasst, ist das der teure Weg:
+# Geht beim Lesen etwas schief oder ändert jemand dazwischen etwas, steht der
+# Bestand eines Kunden auf dem Spiel.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            $this->call('updateDnsRecords', [
+                'domainname' => $zone,
+                'apisessionid' => $session,
+                'dnsrecordset' => ['dnsrecords' => [[
+                    'hostname' => $host,""",
+    """            $this->call('infoDnsRecords', [
+                'domainname' => $zone,
+                'apisessionid' => $session,
+            ], 'Die Einträge von netcup ließen sich nicht abfragen');
+
+            $this->call('updateDnsRecords', [
+                'domainname' => $zone,
+                'apisessionid' => $session,
+                'dnsrecordset' => ['dnsrecords' => [[
+                    'hostname' => $host,""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "ganze Zone wird gelesen" &&
+pruefe "ganze Zone wird gelesen" \
+  NetcupTest::test_only_the_one_record_is_written failed
+wiederherstellen
+
+echo
+echo "── NetcupTest: beim Löschen zählt nur der Wert ──"
+#
+# Stehen zwei Prüfeinträge mit demselben Wert unter verschiedenen Namen, ist
+# das der falsche Satz — genau so vergleicht lego, und genau so löscht man die
+# Prüfung eines anderen Vorgangs mit ab.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                && strtolower($entry['hostname']) === $host\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "beim Löschen zählt nur der Wert" &&
+pruefe "beim Löschen zählt nur der Wert" \
+  NetcupTest::test_removing_matches_name_and_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NetcupTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

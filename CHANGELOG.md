@@ -3893,3 +3893,55 @@ zählen beide Formen, weil Cloudflare die Anführungszeichen ablegt und
 zurückgibt, andere aber den nackten Wert liefern. Wer nur die eine Form
 vergleicht, findet seinen eigenen Eintrag nicht — und lässt eine Aussage über
 die Zone stehen, die niemand mehr zurücknimmt.
+
+#### Schritt 9, fünfter Anbieter: netcup — der erste mit einer Sitzung
+
+Drei Dinge sind bei netcup anders als bei allen bisherigen.
+
+**Erstens: eine Sitzung.** Vor jedem Zugriff steht ein `login`, danach ein
+`logout`. An- und abgemeldet wird **je Vorgang** und nicht einmal für die
+Lebensdauer des Objekts: Ein Abmelden im Destruktor wäre Netzverkehr zu einem
+Zeitpunkt, den niemand bestimmt, und eine Ausnahme darin ist in PHP ein fataler
+Fehler. Zwei Regeln hängen daran, und beide haben ihren Bruch:
+
+- Das Abmelden steht im `finally` — sonst bliebe eine Sitzung bei einem fremden
+  Anbieter genau dann liegen, wenn der Zugriff dazwischen scheitert. Das ist
+  der Fall, der sich häuft.
+- Sein Ergebnis wird **nicht** geprüft. Ein gescheitertes Abmelden machte sonst
+  aus einem gesetzten Eintrag einen Fehlschlag, und der Vorgang würde
+  wiederholt, obwohl er durchgelaufen ist — bei Let's Encrypt zählt jeder
+  Fehlversuch für alle Kunden dieses Servers.
+
+**Zweitens: die Zonen stehen in den Zugangsdaten.** Die DNS-Schnittstelle von
+netcup kennt keine Auskunft, die die Domains eines Kontos aufzählt; lego fragt
+dafür die autoritativen Nameserver nach dem SOA-Satz. Das wäre eine dritte
+Quelle für dieselbe Frage. Stattdessen gilt dieselbe Antwort wie bei RFC 2136
+und aus demselben Grund: eine Positivliste, die der Betreiber aufschreibt. Ein
+Name ausserhalb kostet damit nicht einmal eine Anmeldung.
+
+Dabei ist eine Stelle in der Oberfläche aufgefallen, die still falsch geworden
+wäre: Die Auskunft entschied mit „alles ausser RFC 2136", ob die Zonen vom
+Anbieter kommen. netcup wäre auf der falschen Seite gelandet — die Seite hätte
+„vom Anbieter" gesagt, wo der Betreiber sie selbst eingetragen hat. Die beiden
+stehen jetzt als Liste da, und wer einen Anbieter baut, muss ihn einordnen.
+
+**Drittens: geschrieben wird nur der eine Satz.** lego liest an dieser Stelle
+**die ganze Zone**, hängt den neuen Eintrag an und schickt alles zurück. Das ist
+ein Lesen-Ändern-Schreiben über den Bestand eines Kunden. Es ist auch unnötig:
+`updateDnsRecords` legt an, was keine Kennung hat, und löscht, was
+`deleterecord` trägt — es ersetzt den Bestand nicht. Belegt ist das aus legos
+eigenem `CleanUp`, das genau einen Satz schickt; wäre der Aufruf ein Ersetzen,
+nähme er jedem netcup-Nutzer beim Abräumen die Zone. Beim ersten echten Zugriff
+gehört das gegen netcups Dokumentation gehalten, so wie beim Endpunktsatz von
+IPv64.net — die Seiten von netcup sind aus diesem Container nicht erreichbar.
+
+**Und beim Löschen zählt der Name mit.** lego vergleicht nur Wert und Art;
+stehen zwei Prüfeinträge mit demselben Wert unter verschiedenen Namen, ist das
+der falsche Satz.
+
+**Der Fund, den hier sonst nichts findet.** Der Abschluss in `add()` nahm
+`$record` nicht mit, und die Fehlermeldung hätte den Namen der Domain verloren.
+Gefunden hat es die Wegwerfprobe über `agent/src/autoload.php` — PHP warnt zur
+Laufzeit, wo `php -l` nichts sieht und PHPStan erst in der CI läuft.
+
+Vier neue Brüche, alle rot und grün gegengeprüft.

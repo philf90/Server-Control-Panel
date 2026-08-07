@@ -294,7 +294,7 @@ Anbieter ist eine eigene Umsetzung, eigene Fehlerfälle und ein eigener Wächter
 | **IPv64.net** | Kleiner deutscher Anbieter mit Token-API; deckt den Fall ab, in dem jemand seine Zone dort und nicht beim Registrar führt. **Vorgezogen**, weil sich an ihm die Zonenauflösung beweist (unten). | gebaut |
 | **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | gebaut |
 | **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | gebaut |
-| **netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | 5. |
+| **netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | gebaut |
 | **IONOS** | Der grösste deutsche Massenhoster; wer dort seine Domain hat, hat sie meist auch dort delegiert. | 6. |
 | **INWX** | Der Registrar, den deutsche Wiederverkäufer benutzen — und der einzige der sieben mit einer Anmeldung statt eines Tokens. | 7. |
 | **deSEC** | Gemeinnütziger deutscher DNS-Betreiber, DNSSEC ab Werk, kostenfrei. Er ist der **Ausweg für alle, deren Anbieter keine API hat** — die Zone zieht um, die Domain bleibt. | 8. |
@@ -334,7 +334,7 @@ Bauen teuer wird:
 | IPv64.net | `https://ipv64.net/api` | `token` | Die Zone ist oft selbst eine Unterdomain — **gefragt, nicht gerechnet**. Drosselt mit 429. |
 | Hetzner | `https://api.hetzner.cloud/v1` (gebaut) — daneben die alte `https://dns.hetzner.com` | `token` | **Zwei Schnittstellen nebeneinander.** lego hält beide vor (`HETZNER_API_KEY` für die alte DNS-Konsole, `HETZNER_API_TOKEN` für die Cloud-API). Ein Token der einen gilt bei der anderen nicht, und die Abweisung sagt das nicht deutlich. |
 | Cloudflare | `https://api.cloudflare.com/client/v4` (gebaut) | `token`; `email` + `api_key` wird **abgewiesen** | Der alte Weg über den globalen Schlüssel öffnet **das ganze Konto**. Genommen wird nur das Token, mit `Zone:Read` und `DNS:Edit`. Gelöscht wird über eine Eintragskennung, die erst gesucht werden muss. |
-| netcup | `https://ccp.netcup.net/run/webservice/servers/endpoint.php` | `customer_number` + `api_key` + `api_password` | **Der einzige mit einer Sitzung.** Erst `login`, dann die Änderung, dann `logout`; die Sitzungskennung hängt an jedem Aufruf. Ein Vorgang, der zwischendurch abbricht, lässt eine Sitzung offen. |
+| netcup | `https://ccp.netcup.net/run/webservice/servers/endpoint.php?JSON` (gebaut) | `customer_number` + `api_key` + `api_password` + **`zones`** | **Der einzige mit einer Sitzung** und der einzige, dem die Zonen genannt werden müssen — seine Schnittstelle zählt die Domains eines Kontos nicht auf. |
 | IONOS | `https://api.hosting.ionos.com` | `api_key` in der Form `<prefix>.<secret>` | Ein Feld, das in Wahrheit zwei ist. Wer nur den Präfix einträgt, bekommt eine Abweisung, die von einem ungültigen Schlüssel spricht. Das gehört beim Hinterlegen geprüft. |
 | INWX | `https://api.domrobot.com/xmlrpc/` | `username` + `password`, wahlweise `shared_secret` | XML-RPC, Sitzungscookie, TOTP. **Und das Passwort öffnet das Registrarkonto**, nicht eine Zone. Der einzige, bei dem ein Kunde besser nicht seine eigenen Zugangsdaten hinterlegt. |
 | deSEC | `https://desec.io/api/v1` | `token` | Der geradlinigste: REST, Token, Zonen abfragbar. Sein TTL ist mit 3600 der höchste der sieben — `ready()` darf hier nicht nach zwei Minuten aufgeben. |
@@ -358,6 +358,43 @@ Das gehört so gesagt, weil die naheliegende Antwort — „bauen wir eben Strat
 dazu" — hier nicht existiert. Der Ausweg ist die Zone, nicht das Panel: Sie
 lässt sich zu deSEC delegieren, ohne dass die Domain umzieht. Deshalb steht
 deSEC überhaupt auf der Liste.
+
+### netcup im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego. **Die Seiten von netcup selbst waren aus
+diesem Container nicht abrufbar** — weder das Wiki noch der Endpunkt; was hier
+steht, stammt aus legos Umsetzung und gehört beim ersten Zugriff dagegen
+gehalten.
+
+- **Adresse:** `https://ccp.netcup.net/run/webservice/servers/endpoint.php?JSON`
+- **Bauart:** alles `POST` mit JSON `{"action":"…","param":{…}}`; Kundennummer
+  und API-Schlüssel stehen in **jedem** Rumpf
+- **Anmelden:** `login` mit `apipassword` → `responsedata.apisessionid`
+- **Abmelden:** `logout` mit `apisessionid`
+- **Lesen:** `infoDnsRecords` mit `domainname`
+- **Schreiben:** `updateDnsRecords` mit `dnsrecordset.dnsrecords`; ein Satz ohne
+  `id` wird angelegt, einer mit `deleterecord: true` gelöscht
+- **Antwort:** `status` ist `success` oder `error`, dazu `statuscode`,
+  `shortmessage`, `longmessage` — **auch bei HTTP 200**
+- Der TXT-Wert geht **ohne** Anführungszeichen hinaus, anders als bei Hetzner
+  und Cloudflare
+
+**Die Zonen stehen in den Zugangsdaten.** Es gibt keine Auskunft, die die
+Domains eines Kontos aufzählt; lego fragt dafür die autoritativen Nameserver
+nach dem SOA-Satz. Das wäre eine dritte Quelle für dieselbe Frage — stattdessen
+gilt dieselbe Antwort wie bei RFC 2136: eine Positivliste, die der Betreiber
+aufschreibt. Ein Name ausserhalb kostet damit nicht einmal eine Anmeldung.
+
+**Angemeldet wird je Vorgang, abgemeldet im `finally`, und das Ergebnis des
+Abmeldens wird nicht geprüft.** Das erste, damit keine Sitzung liegenbleibt,
+wenn der Zugriff dazwischen scheitert; das zweite, damit ein gescheitertes
+Abmelden aus einem gesetzten Eintrag keinen Fehlschlag macht.
+
+**Geschrieben wird nur der eine Satz.** lego liest hier die ganze Zone, hängt an
+und schickt alles zurück — ein Lesen-Ändern-Schreiben über den Bestand eines
+Kunden. Dass `updateDnsRecords` nicht ersetzt, sondern anlegt und löscht, zeigt
+legos eigenes `CleanUp`: Es schickt genau einen Satz, und wäre der Aufruf ein
+Ersetzen, nähme er jedem netcup-Nutzer beim Abräumen die Zone.
 
 ### Hetzner im Einzelnen
 
@@ -711,7 +748,9 @@ Bruch in `tests/waechter-brechen.sh` mit.
    selbst eine Unterdomain (§6). **Hetzner ebenfalls gebaut**, gegen die
    Cloud-API und nicht gegen die auslaufende DNS-Konsole. **Cloudflare
    ebenfalls gebaut**, nur mit API-Token; der globale Schlüssel wird abgewiesen.
-   Es folgen netcup, IONOS, INWX und deSEC; INWX steht zuletzt, weil er als einziger
+   **netcup ebenfalls gebaut** — der erste mit einer Sitzung und der erste, dem
+   die Zonen genannt werden müssen. Es folgen IONOS, INWX und deSEC; INWX steht
+   zuletzt, weil er als einziger
    XML-RPC, eine Sitzung und ein Kontopasswort statt eines Tokens mitbringt.
 
    Vorweg kam eine Grenze, die es schon gab, aber nur als Prosa: **Der Agent

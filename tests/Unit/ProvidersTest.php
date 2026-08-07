@@ -54,6 +54,12 @@ final class ProvidersTest extends TestCase
         Providers::CLOUDFLARE => [
             'token' => 'ein-token-mit-genug-zeichen',
         ],
+        Providers::NETCUP => [
+            'customer_number' => '12345',
+            'api_key' => 'schluessel-abc',
+            'api_password' => 'passwort-xyz',
+            'zones' => ['example.de'],
+        ],
     ];
 
     public function test_every_provider_key_points_at_something(): void
@@ -86,7 +92,13 @@ final class ProvidersTest extends TestCase
         // gleichzeitig richtig. Wer einen Anbieter baut, ändert diese Zeile —
         // und das ist der Punkt.
         $this->assertSame(
-            [Providers::RFC2136, Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE],
+            [
+                Providers::RFC2136,
+                Providers::IPV64,
+                Providers::HETZNER,
+                Providers::CLOUDFLARE,
+                Providers::NETCUP,
+            ],
             Providers::available(),
         );
     }

@@ -11,7 +11,26 @@
 # Skript.
 set -eu
 
-CHANNEL="${SRVPANEL_CHANNEL:-stable}"
+# **Der Kanal, aus dem eine Erstinstallation kommt.**
+#
+# Hier stand `stable`, und das war falsch, solange es keine stabile Freigabe
+# gibt. Unter dists/stable lag auf der Seite noch der Index des Vorgängers:
+# 68 Fassungen zweier fremder Pakete, deren Dateien im August aus dem Pool
+# entfernt wurden, signiert mit einem anderen Schlüssel als dem, den dieses
+# Skript unter Signed-By einträgt. Wer dem dokumentierten Weg folgte, bekam
+# beim ersten `apt-get update` ein NO_PUBKEY und danach ein „srvpanel" das es
+# nicht gibt — die Erstinstallation war kaputt, und nichts hat es gemeldet.
+#
+# Der Freigabelauf schreibt nur dists/<kanal> des gerade freigegebenen Kanals
+# neu (.github/workflows/release.yml). Ein Kanal, in dem noch nie etwas
+# freigegeben wurde, enthält deshalb, was immer dort lag.
+#
+# Welcher Kanal richtig ist, entscheidet packaging/stable-release: Solange die
+# Marke leer ist, weist version-channel.sh jede Fassung ohne Zusatz ab, es
+# kann also gar nichts nach stable gelangen. Dass diese Vorgabe und die Marke
+# zusammenpassen, prüft PackagingTest — von selbst weiß das Skript es nicht,
+# denn es wird allein heruntergeladen und hat das Repository nicht zur Hand.
+CHANNEL="${SRVPANEL_CHANNEL:-beta}"
 REPO_URL="https://repo.cloudsrv24.de/apt"
 KEYRING="/usr/share/keyrings/srvpanel-archive-keyring.gpg"
 

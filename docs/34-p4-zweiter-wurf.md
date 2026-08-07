@@ -907,17 +907,52 @@ Zertifikate da, wird gewählt** (§8) — die Auswahl ist `domains.certificate_i
 und sie bekommt mit `certificate_pinned_at` ein Kennzeichen, damit die
 Automatik sie nicht still zurücknimmt.
 
-**Was daraus offen bleibt und beim Bauen beantwortet wird**, nicht vorher:
+**Was beim Bauen offenblieb — am 7. August 2026 beantwortet, alle fünf:**
 
-- Der Rückfall, wenn die Wahl abläuft (§8). Vorschlag steht dort: laut
-  zurückfallen statt die Website vom Netz zu nehmen.
-- ~~Der Endpunktsatz von IPv64.net (§6)~~ — **beantwortet.** Gebaut wie
-  beschrieben; die Zonenauflösung über `get_domains` ist unsere Wahl und nicht
-  die von lego, siehe die Berichtigung in §6.
-- Ob ein Kunde bei INWX überhaupt Zugangsdaten hinterlegen soll (§6). Dort ist
-  es sein Registrarkonto und nicht eine Zone; das ist eine andere Grössenordnung
-  als ein Token, das eine Zone öffnet.
-- Die Frist, nach der `ready()` aufgibt, und wie oft dazwischen gefragt wird.
-  Sie hängt an dem, was die Anbieter tatsächlich tun, und gehört gemessen statt
-  geraten.
-- Die Obergrenze für eine hochgeladene Datei (§7).
+1. ~~Der Endpunktsatz von IPv64.net (§6)~~ — gebaut wie beschrieben; die
+   Zonenauflösung über `get_domains` ist unsere Wahl und nicht die von lego,
+   siehe die Berichtigung in §6.
+
+2. **Der Rückfall, wenn die Wahl abläuft (§8): laut zurückfallen.** Ist die
+   gewählte Zuweisung abgelaufen und deckt ein anderes gültiges Zertifikat alle
+   Namen, wird gewechselt — aber mit einem Eintrag im Prüfprotokoll und einem
+   Hinweis auf der Domainseite, dass die Wahl überholt ist. Die Website bleibt
+   erreichbar, und die Entscheidung verschwindet nicht unbemerkt. Ein stiller
+   Wechsel wäre bequemer und würde genau das tun, wogegen
+   `certificate_pinned_at` überhaupt eingeführt wurde.
+
+3. **INWX wird nicht angeboten.** Bei den übrigen sieben sind die Zugangsdaten
+   ein Token, das sich auf Zonen eingrenzen lässt; bei INWX sind es
+   Benutzername und Passwort desselben Zugangs, mit dem man Domains kauft,
+   überträgt und löscht. Ein Panel soll niemanden dazu bringen, sein
+   Registrarkonto auf einem fremden Server abzulegen — auch den Betreiber
+   nicht. **Der Code bleibt**, der Schlüssel steht wieder in
+   `Providers::PENDING`; kommt bei INWX eines Tages ein eingrenzbares Token,
+   ist es eine Zeile.
+
+   **Damit ändert sich, was `PENDING` bedeutet.** Bisher hiess es „noch nicht
+   gebaut", jetzt heisst es „nicht angeboten" — und der Unterschied gehört in
+   die Oberfläche: „Noch nicht verfügbar: INWX" wäre schlicht falsch. Jeder
+   zurückgehaltene Anbieter bekommt einen Grund, und der wird angezeigt.
+
+4. **Die Frist für `ready()` kommt vom Anbieter, nicht aus einer Konstante.**
+   Heute wartet `Order` für alle 120 Sekunden und fragt alle 2 Sekunden nach.
+   Das ist kürzer, als lego für drei der acht Anbieter für nötig hält:
+
+   | | IPv64 | Hetzner | Cloudflare | deSEC | INWX | netcup | IONOS |
+   |---|---|---|---|---|---|---|---|
+   | Frist | 60 s | 60 s | 120 s | 120 s | 360 s | 900 s | 900 s |
+   | Abstand | 2 s | 2 s | 2 s | 4 s | 2 s | 30 s | 2 s |
+
+   Bei netcup und IONOS bricht eine Bestellung damit nach zwei Minuten ab, wo
+   lego fünfzehn zugesteht — und **jeder Fehlversuch zählt bei Let's Encrypt
+   für alle Kunden dieses Servers**. Jeder Anbieter bringt deshalb seine eigene
+   Frist und seinen eigenen Abstand mit. Die Zahlen sind die von lego, weil sie
+   aus dem Einsatz kommen; die Frist für das Warten auf die
+   Zertifizierungsstelle bleibt davon unberührt.
+
+5. **Die Obergrenzen fürs Hochladen bleiben, wie sie gebaut sind:** 64 KiB für
+   die Kette, 32 KiB für den Schlüssel (`Bundle::MAX_CHAIN_BYTES`,
+   `MAX_KEY_BYTES`), geprüft im Controller und noch einmal im Agenten. Eine
+   übliche Kette liegt bei vier bis acht Kilobyte; die Grenze steht nicht da,
+   weil eine echte ihr nahekäme, sondern weil das Gegenüber als root schreibt.

@@ -64,6 +64,7 @@ final class CertificateRenewal
         private readonly Tenancy $tenancy,
         private readonly CertificateOrder $order,
         private readonly Client $agent,
+        private readonly WildcardOrder $wildcards,
     ) {}
 
     /**
@@ -94,13 +95,15 @@ final class CertificateRenewal
         $due = $candidates->count();
         $ordered = 0;
         $corrected = 0;
+        $blocked = 0;
 
         foreach ($candidates as $certificate) {
             if ($ordered + $corrected >= self::PER_RUN) {
                 break;
             }
 
-            $domain = $certificate->domains()->orderBy('id')->first();
+            $wildcard = $certificate->isWildcard();
+            $domain = $this->renewalDomain($certificate, $wildcard);
 
             if (! $domain instanceof Domain) {
                 continue;
@@ -112,7 +115,18 @@ final class CertificateRenewal
                 continue;
             }
 
-            if ($this->order->place($domain) === null) {
+            // **Ein Platzhalter, der jetzt nicht als Platzhalter bestellt werden
+            // kann, wird gar nicht bestellt.** Die Zugangsdaten können seit der
+            // Ausstellung fort sein; ihn dann als gewöhnliches Zertifikat
+            // nachzuholen hiesse, eine Zone stillschweigend auf einen Namen zu
+            // verkleinern.
+            if ($wildcard && ! $this->wildcards->possible($domain)) {
+                $blocked++;
+
+                continue;
+            }
+
+            if ($this->order->place($domain, wildcard: $wildcard) === null) {
                 // Ohne Kontaktadresse bestellt das Panel nichts. Ein Versuch,
                 // der nie stattfand, darf auch keine Frist verbrauchen.
                 continue;
@@ -128,8 +142,53 @@ final class CertificateRenewal
             due: $due,
             ordered: $ordered,
             corrected: $corrected,
-            left: max(0, $due - $ordered - $corrected),
+            left: max(0, $due - $ordered - $corrected - $blocked),
+            blocked: $blocked,
         );
+    }
+
+    /**
+     * Welche Domain diese Erneuerung bestellt — und ob als Platzhalter.
+     *
+     * **Der Fund aus dem Abnahmelauf, 7. August 2026.** Bis dahin stand hier
+     * `$certificate->domains()->orderBy('id')->first()` und die Bestellung ging
+     * ohne `wildcard:` hinaus. Ein Platzhalter wurde damit als **gewöhnliches**
+     * Zertifikat erneuert: Auf `cloudlab24.ipv64.de` trug das erneuerte nur noch
+     * den Namen der Hauptdomain, und die drei Unterdomains lieferten weiter das
+     * alte aus — bis es abläuft und der Browser bei jeder von ihnen warnt.
+     *
+     * **Der Fehler wäre still und käme mit neunzig Tagen Verzögerung.** Im
+     * Panel sieht ein erneuertes Zertifikat aus wie ein erneuertes Zertifikat;
+     * dass es eine Zone weniger deckt als vorher, steht nirgends.
+     *
+     * **Die Basisdomain kommt aus dem Namen und nicht aus der Zuordnung.**
+     * `*.example.de` gehört zu `example.de`, und das gilt auch dann, wenn an
+     * dem Zertifikat gerade nur Unterdomains hängen — nach einer Wahl etwa.
+     * Über die Zuordnung zu gehen hiesse, `*.a.example.de` zu bestellen, weil
+     * `a.example.de` die kleinste Kennung hatte.
+     */
+    private function renewalDomain(Certificate $certificate, bool $wildcard): ?Domain
+    {
+        if (! $wildcard) {
+            return $certificate->domains()->orderBy('id')->first();
+        }
+
+        foreach ($certificate->coveredNames() as $name) {
+            if (! str_starts_with($name, '*.')) {
+                continue;
+            }
+
+            $base = Domain::query()
+                ->where('subscription_id', $certificate->subscription_id)
+                ->where('name', substr($name, 2))
+                ->first();
+
+            if ($base instanceof Domain && WildcardOrder::isBase($base)) {
+                return $base;
+            }
+        }
+
+        return null;
     }
 
     /**

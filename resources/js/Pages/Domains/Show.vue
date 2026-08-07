@@ -54,7 +54,7 @@ const props = defineProps<{
   choice: {
     pinned: number | null
     overridden: boolean
-    options: { id: number; label: string; not_after: number | null }[]
+    options: { id: number; label: string; not_after: number | null; wildcard: boolean }[]
   }
   wildcard: {
     possible: boolean
@@ -407,9 +407,18 @@ function entfernen(): void {
           Eine Grenze, die ACME selbst zieht: `*.example.de` deckt
           `a.b.example.de` nicht. Das gehört auf die Seite, statt es als
           Browserwarnung entstehen zu lassen.
+
+          **Auch dann, wenn der Platzhalter schon liegt.** Die Bedingung hing
+          bis zum 7. August 2026 allein am Kästchen — also an der Absicht, einen
+          zu bestellen. Sobald er ausgestellt war, verschwand das Kästchen (es
+          gibt nichts mehr zu bestellen) und mit ihm dieser Satz. Er fehlte
+          damit genau in dem Zustand, in dem er keine Vorhersage mehr ist,
+          sondern eine Tatsache. Im Abnahmelauf auf `cloudlab24.ipv64.de`
+          aufgefallen, mit `tief.a.cloudlab24.ipv64.de` angelegt und ohne jeden
+          Hinweis darauf.
         -->
         <p
-          v-if="alsPlatzhalter && props.wildcard.uncovered.length > 0"
+          v-if="(alsPlatzhalter || props.wildcard.covered) && props.wildcard.uncovered.length > 0"
           class="section-note"
         >
           Eine Ebene tiefer deckt ein Platzhalter nicht. Ohne eigenes Zertifikat
@@ -457,12 +466,18 @@ function entfernen(): void {
               <!--
                 Kurz genug für ein Auswahlfeld auf dem Telefon (`docs/24 §8`):
                 ein `<select>` bricht nicht um, es schneidet ab. Die gedeckten
-                Namen stehen bewusst nicht dabei — jeder Eintrag deckt alle,
-                sonst stünde er nicht zur Wahl. Was unterscheidet, ist die
-                Herkunft und die Laufzeit.
+                Namen stehen deshalb nicht dabei — jeder Eintrag deckt alle,
+                sonst stünde er nicht zur Wahl.
+
+                **Ein Wort steht trotzdem dazu, und es ist das entscheidende.**
+                Herkunft und Laufzeit reichten nicht: Bei zwei Zertifikaten von
+                Let’s Encrypt stand hier zweimal dasselbe Wort mit zwei Daten,
+                und ob ein Eintrag eine Domain deckt oder jede Unterdomain der
+                Zone, musste man am Datum erraten. Im Abnahmelauf am 7. August
+                2026 genau so passiert.
               -->
               <option v-for="o in props.choice.options" :key="o.id" :value="String(o.id)">
-                {{ o.label }} — bis {{ datum(o.not_after) }}
+                {{ o.label }}<template v-if="o.wildcard"> · Platzhalter</template> — bis {{ datum(o.not_after) }}
               </option>
             </select>
           </label>

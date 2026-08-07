@@ -185,6 +185,13 @@ final class DomainController extends Controller
                         'id' => (int) $c->id,
                         'label' => $c->source->label(),
                         'not_after' => $c->not_after?->getTimestamp(),
+
+                        // **Der Unterschied, wegen dem jemand hier wählt.** Ohne
+                        // diese Angabe steht in der Liste zweimal „Let’s
+                        // Encrypt" mit zwei Daten, und ob ein Eintrag eine
+                        // Domain deckt oder jede Unterdomain der Zone, muss man
+                        // am Datum erraten. Im Abnahmelauf genau so passiert.
+                        'wildcard' => $c->isWildcard(),
                     ],
                     $this->choice->candidates($domain),
                 ),

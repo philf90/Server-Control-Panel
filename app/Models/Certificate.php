@@ -192,4 +192,25 @@ class Certificate extends Model
 
         return $names;
     }
+
+    /**
+     * Deckt es eine ganze Zone?
+     *
+     * **Der Unterschied, wegen dem jemand überhaupt wählt.** In der Auswahl auf
+     * der Domainseite steht sonst zweimal „Let’s Encrypt" mit zwei Daten — und
+     * ob ein Eintrag eine Domain deckt oder jede Unterdomain der Zone, ist
+     * genau die Frage, die man dort beantwortet. Am 7. August 2026 beim
+     * Abnahmelauf aufgefallen: Der Betreiber musste den Platzhalter am Datum
+     * erraten.
+     */
+    public function isWildcard(): bool
+    {
+        foreach ($this->coveredNames() as $name) {
+            if (str_starts_with($name, '*.')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

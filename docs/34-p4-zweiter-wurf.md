@@ -890,6 +890,56 @@ Gemessen auf einem echten Server, nicht geschätzt (Plan §8):
 - Das DNS-Token steht in keinem Vorgang, in keinem Protokoll und in keiner
   Antwort der Oberfläche.
 
+### Der Lauf vom 7. August 2026 auf `cloudlab24.ipv64.de`
+
+Gefahren gegen IPv64.net, mit `v0.4.0-rc.10`. **Vier der sieben Kriterien sind
+erfüllt, drei nicht** — und die drei Funde sind zusammen der Grund, warum dieser
+Lauf stattgefunden hat.
+
+| | Kriterium | rc.10 |
+|---|---|---|
+| 1 | Ein Zertifikat mit beiden Namen über DNS-01 | **erfüllt** |
+| 2 | Alle Blöcke des Abonnements liefern es aus | **nicht erfüllt** |
+| 3 | Fremdes Abonnement bekommt es nicht | **erfüllt** |
+| 4 | Die Erneuerung ist eine Bestellung | **nicht erfüllt** |
+| 5 | Verkehrte Kette abgewiesen, Meldung nennt den Grund | **halb** |
+| 6 | Hochgeladenes bleibt liegen | **erfüllt** |
+| 7 | Das Token steht nirgends | **erfüllt** |
+
+**Zu 2:** Der Platzhalter erreichte nur den Block, der ihn bestellt hat. Die
+Hauptdomain lieferte ihn aus, die drei Unterdomains behielten ihre einzelnen
+Zertifikate — vier verschiedene Seriennummern. `CertificateChoice` antwortete
+für sie längst richtig, nur schrieb niemand ihre Blöcke neu.
+
+**Zu 4:** Der Lauf meldete `1 fällig, 1 bestellt` — die Zahl, die dieses
+Kriterium verlangt. Das Bestellte war ein **gewöhnliches** Zertifikat: Das
+erneuerte trug nur `cloudlab24.ipv64.de`. Ohne den Vergleich der Seriennummern
+wäre das durchgegangen und in neunzig Tagen als Browserwarnung
+wiedergekommen. **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was
+gezählt wurde.**
+
+**Zu 5:** Abgewiesen wurde sie — mit „Der Schlüssel gehört nicht zu diesem
+Zertifikat". Buchstäblich wahr und die falsche Auskunft; die Prüfung, die es
+genau weiss, lief eine Zeile zu spät.
+
+Dazu vier Funde, die kein Kriterium betreffen und trotzdem hierher gehören: das
+unbeschriftete Auswahlfeld für das Abonnement, der fehlende Hinweis auf die
+Namen eine Ebene tiefer, die zwei Meldungen für eine Ursache beim Hochladen —
+und die beiden Fallen in `tinker`, die diesen Lauf zweimal stumm haben scheitern
+lassen.
+
+> **Für den nächsten Lauf: `tinker` braucht zweierlei.** `HOME=/tmp` davor,
+> sonst darf psysh seine Einrichtung nicht schreiben und führt den Code gar
+> nicht aus; und `app(Tenancy::class)->allowAll()` als erste Zeile, sonst
+> klammert die Mandantenklammer jede Abfrage auf nichts. Beide Male passiert
+> **ohne eine einzige Fehlermeldung**. Jeder Aufruf gibt deshalb aus, was er
+> getan hat.
+
+Die Nachweise für 2, 4 und 5 stehen aus und brauchen eine Fassung mit den
+Korrekturen. Kriterium 2 verlangt dann einen **frischen** Platzhalter: Der
+vorhandene liegt, und das Kästchen verschwindet dafür zu Recht — der billigste
+Weg ohne einen weiteren Fehlversuch ist eine zusätzliche Zusatzdomain.
+
 ---
 
 ## 11. Die Entscheidungen des Betreibers

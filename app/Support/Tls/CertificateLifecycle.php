@@ -8,6 +8,7 @@ use App\Enums\CertificateSource;
 use App\Enums\OperationStatus;
 use App\Enums\OperationSubject;
 use App\Jobs\RunAgentOperation;
+use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Support\Operations\AfterOperation;
@@ -74,17 +75,115 @@ final class CertificateLifecycle implements AfterOperation
     }
 
     /**
-     * Das ausgestellte Zertifikat in den Bestand nehmen — und den Block neu.
+     * Das ausgestellte Zertifikat in den Bestand nehmen — und die Blöcke neu.
      *
      * Die Reihenfolge ist die Aussage: erst zuordnen, dann anwenden. Andersherum
      * schriebe der Agent einen Block für ein Zertifikat, das das Panel noch
      * nicht kennt.
+     *
+     * **Blöcke, nicht Block.** Bis zum 7. August 2026 wurde genau eine Domain
+     * angewandt: die, die bestellt hat. Dahinter stand die Annahme, ein
+     * Zertifikat betreffe die Domain, die es bestellt — und beim Platzhalter
+     * stimmt sie nicht mehr. Im Abnahmelauf auf `cloudlab24.ipv64.de` gesehen:
+     * Die Hauptdomain lieferte den Platzhalter aus, die drei Unterdomains
+     * behielten ihre einzelnen Zertifikate. `CertificateChoice` antwortete für
+     * sie längst richtig — nur fragte niemand, weil ihre Blöcke nicht neu
+     * geschrieben wurden. Der Betreiber musste jede Unterdomain von Hand
+     * „übernehmen".
      */
     private function install(Operation $operation, Domain $domain): void
     {
+        // **Vorher gemerkt, was ausgeliefert wird**, denn nachher ist es
+        // womöglich etwas anderes — und genau diese Differenz entscheidet, wer
+        // neu geschrieben werden muss. Siehe {@see self::spread()}.
+        $vorher = $this->delivered($domain);
+
         $this->record->store($domain, $operation->result ?? [], CertificateSource::Acme);
 
         $this->dispatch($domain, 'web.site.apply', 'Server-Block mit Zertifikat für '.$domain->name, $operation);
+
+        $this->spread($domain, $operation, $vorher);
+    }
+
+    /**
+     * Was die Blöcke dieses Abonnements gerade ausliefern — je Domain der
+     * Ablageort.
+     *
+     * **Der Ablageort und nicht die Kennung.** Er ist das, was im Server-Block
+     * steht; die Kennung ist es nicht. Eine Erneuerung legt eine neue Zeile an
+     * — andere Kennung, **derselbe** Ablageort —, und ein Vergleich über die
+     * Kennung hielte jeden Nachbarblock für veraltet. Bei einem Abonnement mit
+     * vierzig Domains wären das vierzig Vorgänge alle sechzig Tage für eine
+     * Datei, die genauso heisst wie vorher.
+     *
+     * @return array<int, string|null>
+     */
+    private function delivered(Domain $domain): array
+    {
+        $orte = [];
+
+        foreach ($this->siblings($domain) as $nachbar) {
+            $orte[(int) $nachbar->id] = $this->choice->effective($nachbar)?->storage_name;
+        }
+
+        return $orte;
+    }
+
+    /**
+     * Und die Blöcke nachziehen, für die jetzt etwas anderes gilt.
+     *
+     * **Nur wo sich die Antwort geändert hat.** Eine gewöhnliche Bestellung
+     * betrifft eine Domain, und dann tut diese Schleife nichts; ein Platzhalter
+     * betrifft jede Domain der Zone, und dann tut sie genau das, was sonst
+     * jemand von Hand tun müsste.
+     *
+     * **Eine Wahl wird dabei nicht angefasst.** Wer für eine Domain ein
+     * Zertifikat ausgewählt hat, behält es — die Zuordnung bleibt stehen. Der
+     * Block wird trotzdem geschrieben, wenn sich der Ablageort geändert hat:
+     * Genau dann ist die Wahl abgelaufen und der laute Rückfall greift, und der
+     * greift nur, wenn ihn jemand aufschreibt.
+     *
+     * @param  array<int, string|null>  $vorher
+     */
+    private function spread(Domain $ordered, Operation $cause, array $vorher): void
+    {
+        foreach ($this->siblings($ordered) as $domain) {
+            $jetzt = $this->choice->effective($domain);
+
+            if ($jetzt?->storage_name === ($vorher[(int) $domain->id] ?? null)) {
+                continue;
+            }
+
+            if ($domain->certificate_pinned_at === null && $jetzt instanceof Certificate) {
+                $domain->certificate_id = (int) $jetzt->id;
+                $domain->save();
+            }
+
+            $this->dispatch(
+                $domain,
+                'web.site.apply',
+                'Server-Block mit Zertifikat für '.$domain->name,
+                $cause,
+            );
+        }
+    }
+
+    /**
+     * Die übrigen Domains desselben Abonnements.
+     *
+     * Ohne die bestellende: Für die ist der Vorgang schon eingereiht, und ein
+     * zweiter schriebe denselben Block ein zweites Mal.
+     *
+     * @return list<Domain>
+     */
+    private function siblings(Domain $domain): array
+    {
+        return Domain::query()
+            ->where('subscription_id', $domain->subscription_id)
+            ->whereKeyNot($domain->getKey())
+            ->get()
+            ->values()
+            ->all();
     }
 
     /**

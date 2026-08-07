@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\DomainStatus;
+use App\Enums\DomainType;
 use App\Enums\OperationStatus;
 use App\Models\Certificate;
 use App\Models\Domain;
@@ -374,5 +375,131 @@ final class CertificateReapplyTest extends TestCase
         app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.apply'));
 
         $this->assertSame(1, $this->operations('acme.certificate.issue'), 'Es wurde ein zweites Mal bestellt.');
+    }
+
+    /**
+     * **Der Fund aus dem Abnahmelauf: ein Platzhalter erreicht alle Blöcke.**
+     *
+     * Am 7. August 2026 auf `cloudlab24.ipv64.de` gesehen. Der Platzhalter war
+     * ausgestellt, die Hauptdomain lieferte ihn aus — die drei Unterdomains
+     * behielten ihre einzelnen Zertifikate. `CertificateChoice` antwortete für
+     * sie längst richtig; nur fragte niemand, weil `install()` genau eine
+     * Domain anwandte: die, die bestellt hat.
+     *
+     * **Dahinter stand eine Annahme, die der Platzhalter bricht.** Ein
+     * Zertifikat betreffe die Domain, die es bestellt — das gilt, solange jedes
+     * für einen Namen ausgestellt wird. Ein Platzhalter ändert die Antwort für
+     * jede Domain der Zone.
+     *
+     * Der Betreiber musste jede Unterdomain von Hand „übernehmen", und das ist
+     * die Sorte Handgriff, die niemand kennt, der die Software nicht gebaut hat.
+     */
+    public function test_a_wildcard_reaches_every_block_of_the_subscription(): void
+    {
+        $domain = $this->domain();
+
+        $this->tenancy()->allowAll();
+
+        $sub = Domain::factory()->for($domain->subscription)->create([
+            'name' => 'a.beispiel.de',
+            'type' => DomainType::Subdomain->value,
+            'status' => DomainStatus::Active,
+        ]);
+
+        // Die Unterdomain hat ihr eigenes, kürzer laufendes Zertifikat — der
+        // Zustand nach den ersten HTTP-01-Bestellungen.
+        $eigenes = Certificate::factory()->covering(['a.beispiel.de'])->create([
+            'subscription_id' => $domain->subscription_id,
+            'not_after' => now()->addDays(60),
+            'storage_name' => 'a.beispiel.de',
+        ]);
+
+        $sub->certificate_id = (int) $eigenes->id;
+        $sub->save();
+
+        $this->tenancy()->reset();
+
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'acme.certificate.issue', [
+            'names' => ['*.beispiel.de', 'beispiel.de'],
+            'storage_name' => '_wildcard.beispiel.de',
+            'issuer' => 'Test CA',
+            'serial' => 'cd34',
+            'not_before' => now()->subDay()->getTimestamp(),
+            'not_after' => now()->addDays(90)->getTimestamp(),
+        ]));
+
+        $this->tenancy()->allowAll();
+
+        $bloecke = Operation::query()
+            ->where('task', 'web.site.apply')
+            ->pluck('subject_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+
+        $this->assertContains((int) $domain->id, $bloecke, 'Die bestellende Domain wurde nicht angewandt.');
+        $this->assertContains((int) $sub->id, $bloecke, sprintf(
+            'Der Block von %s wurde nicht neu geschrieben. Er liefert damit weiter sein einzelnes '.
+            'Zertifikat aus, obwohl der Platzhalter gilt — und niemand sieht es ausser im Browser.',
+            $sub->name,
+        ));
+
+        // Und der Ablageort im Auftrag ist der des Platzhalters, nicht der alte.
+        $auftrag = Operation::query()
+            ->where('task', 'web.site.apply')
+            ->where('subject_id', $sub->id)
+            ->firstOrFail();
+
+        $this->assertSame('_wildcard.beispiel.de', $auftrag->payload['certificate'] ?? null);
+    }
+
+    /**
+     * Eine Erneuerung schreibt die Nachbarblöcke **nicht** neu.
+     *
+     * **Die Gegenrichtung, und sie ist die teurere.** Eine Erneuerung legt eine
+     * neue Zeile an — andere Kennung, derselbe Ablageort. Wer über die Kennung
+     * vergleicht, hält jeden Nachbarblock für veraltet: Bei einem Abonnement
+     * mit vierzig Domains sind das vierzig Vorgänge alle sechzig Tage für eine
+     * Datei, die genauso heisst wie vorher. Entschieden am 7. August 2026.
+     */
+    public function test_a_renewal_leaves_the_neighbours_alone(): void
+    {
+        $domain = $this->domain();
+
+        $this->tenancy()->allowAll();
+
+        $sub = Domain::factory()->for($domain->subscription)->create([
+            'name' => 'a.beispiel.de',
+            'type' => DomainType::Subdomain->value,
+            'status' => DomainStatus::Active,
+        ]);
+
+        $alt = Certificate::factory()->covering(['*.beispiel.de', 'beispiel.de'])->create([
+            'subscription_id' => $domain->subscription_id,
+            'not_after' => now()->addDays(20),
+            'storage_name' => '_wildcard.beispiel.de',
+        ]);
+
+        $sub->certificate_id = (int) $alt->id;
+        $sub->save();
+
+        $this->tenancy()->reset();
+
+        // Dieselben Namen, derselbe Ablageort, nur länger gültig.
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'acme.certificate.issue', [
+            'names' => ['*.beispiel.de', 'beispiel.de'],
+            'storage_name' => '_wildcard.beispiel.de',
+            'issuer' => 'Test CA',
+            'serial' => 'ef56',
+            'not_before' => now()->subDay()->getTimestamp(),
+            'not_after' => now()->addDays(90)->getTimestamp(),
+        ]));
+
+        $this->tenancy()->allowAll();
+
+        $this->assertSame(
+            0,
+            Operation::query()->where('task', 'web.site.apply')->where('subject_id', $sub->id)->count(),
+            'Die Erneuerung hat den Nachbarblock neu geschrieben, obwohl sich am Ablageort nichts ändert.',
+        );
     }
 }

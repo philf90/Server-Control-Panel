@@ -2677,6 +2677,190 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsProviderReachTest passed
 
 echo
+echo "── CertificateReapplyTest: nur der Besteller bekommt seinen Block ──"
+#
+# **Der Fund aus dem Abnahmelauf, 7. August 2026.** Auf cloudlab24.ipv64.de war
+# der Platzhalter ausgestellt, die Hauptdomain lieferte ihn aus — die drei
+# Unterdomains behielten ihre einzelnen Zertifikate. CertificateChoice
+# antwortete für sie längst richtig; nur fragte niemand, weil install() genau
+# eine Domain anwandte.
+vorher_datei app/Support/Tls/CertificateLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $this->spread($domain, $operation, $vorher);\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateLifecycle.php "Nachbarblöcke bleiben stehen" &&
+pruefe "Nachbarblöcke bleiben stehen" \
+  CertificateReapplyTest::test_a_wildcard_reaches_every_block_of_the_subscription failed
+wiederherstellen
+
+echo
+echo "── CertificateReapplyTest: jede Erneuerung schreibt alle Blöcke neu ──"
+#
+# **Die Gegenrichtung, und sie ist die teurere.** Verglichen wird der Ablageort
+# und nicht die Kennung: Eine Erneuerung legt eine neue Zeile an — andere
+# Kennung, derselbe Ablageort. Wer über die Kennung vergleicht, reiht bei einem
+# Abonnement mit vierzig Domains alle sechzig Tage vierzig Vorgänge ein.
+vorher_datei app/Support/Tls/CertificateLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            $orte[(int) $nachbar->id] = $this->choice->effective($nachbar)?->storage_name;",
+    "            $orte[(int) $nachbar->id] = (string) $this->choice->effective($nachbar)?->id;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateLifecycle.php "Kennung statt Ablageort verglichen" &&
+pruefe "Kennung statt Ablageort verglichen" \
+  CertificateReapplyTest::test_a_renewal_leaves_the_neighbours_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateReapplyTest passed
+
+echo
+echo "── FormLabelTest: ein Auswahlfeld ohne sichtbare Beschriftung ──"
+#
+# **Vom Betreiber gemeldet, 7. August 2026.** Auf der Domainliste stand neben
+# „Domain anlegen" eine Auswahl, in *welches* Abonnement die neue Domain kommt —
+# mit `aria-label` und sonst nichts. Wer sie übersieht, legt die Domain im
+# falschen Abonnement an, mit eigenem Verzeichnisbaum und eigenem Systembenutzer.
+vorher_datei resources/js/Pages/Domains/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        <label class="field inline">\n          <span>Abonnement</span>\n',
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Domains/Index.vue "Auswahlfeld ohne Beschriftung" &&
+pruefe "Auswahlfeld ohne Beschriftung" \
+  FormLabelTest::test_every_select_sits_in_a_label failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormLabelTest passed
+
+echo
+echo "── DomainCertificateTest: die Auskunft hängt wieder an der Absicht ──"
+#
+# Der Satz „eine Ebene tiefer deckt ein Platzhalter nicht" hing allein am
+# Kästchen. Sobald der Platzhalter ausgestellt war, verschwand das Kästchen — und
+# mit ihm die Auskunft, genau dann, wenn sie keine Vorhersage mehr ist.
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'v-if="(alsPlatzhalter || props.wildcard.covered) && props.wildcard.uncovered.length > 0"',
+    'v-if="alsPlatzhalter && props.wildcard.uncovered.length > 0"',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "ungedeckte Namen nur bei der Absicht" &&
+pruefe "ungedeckte Namen nur bei der Absicht" \
+  DomainCertificateTest::test_the_uncovered_names_do_not_depend_on_the_checkbox_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DomainCertificateTest passed
+
+echo
+echo "── CertificateRenewalTest: ein Platzhalter wird gewöhnlich erneuert ──"
+#
+# **Der teuerste Fund des Abnahmelaufs, 7. August 2026.** Die Erneuerung meldete
+# „1 fällig, 1 bestellt" — die Zahl stimmte, das Bestellte nicht: Das neue
+# Zertifikat trug nur den Namen der Hauptdomain, und die drei Unterdomains
+# lieferten weiter das alte aus. Aufgefallen wäre es in neunzig Tagen, wenn das
+# alte abläuft und der Browser bei jeder Unterdomain warnt.
+vorher_datei app/Support/Tls/CertificateRenewal.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateRenewal.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if ($this->order->place($domain, wildcard: $wildcard) === null) {",
+    "            if ($this->order->place($domain) === null) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateRenewal.php "Platzhalter als gewöhnliches erneuert" &&
+pruefe "Platzhalter als gewöhnliches erneuert" \
+  CertificateRenewalTest::test_a_wildcard_is_renewed_as_a_wildcard failed
+wiederherstellen
+
+echo
+echo "── CertificateRenewalTest: ohne Zugangsdaten still schrumpfen ──"
+#
+# Der naheliegende Ausweg, wenn die Zugangsdaten fort sind: den Platzhalter als
+# gewöhnliches Zertifikat nachholen. Genau das ist der stille Rückschritt —
+# danach warnt der Browser bei jeder Unterdomain, und im Panel sieht alles grün
+# aus.
+vorher_datei app/Support/Tls/CertificateRenewal.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateRenewal.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if ($wildcard && ! $this->wildcards->possible($domain)) {\n                $blocked++;\n\n                continue;\n            }\n\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateRenewal.php "ohne Zugangsdaten trotzdem bestellt" &&
+pruefe "ohne Zugangsdaten trotzdem bestellt" \
+  CertificateRenewalTest::test_a_wildcard_without_credentials_is_not_renewed_as_a_plain_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateRenewalTest passed
+
+echo
+echo "── CertificateUploadCommandTest: zwei Meldungen für eine Ursache ──"
+#
+# **Aus dem Abnahmelauf, 7. August 2026.** Ein unlesbarer Schlüssel brachte zwei
+# Sätze: den richtigen („nicht lesbar") und darunter „Es fehlt eine Angabe" —
+# und der zweite ist der, den man glaubt. Er schickt zurück an die
+# Kommandozeile, wo alles stimmt, statt zu den Dateirechten.
+vorher_datei app/Console/Commands/EnsureTls.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/EnsureTls.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        // `contents()` hat schon gesagt, woran es liegt.\n        if (! is_string($name) || $chain === null || $key === null) {\n            return self::FAILURE;\n        }",
+    "        if (! is_string($name) || $chain === null || $key === null) {\n            $this->error('Es fehlt: eine Angabe.');\n\n            return self::FAILURE;\n        }",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/EnsureTls.php "Datei und Angabe in einem Topf" &&
+pruefe "Datei und Angabe in einem Topf" \
+  CertificateUploadCommandTest::test_a_missing_file_is_named_and_no_option_is_blamed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateUploadCommandTest passed
+
+echo
+echo "── CertificateUploadTest: die verkehrte Kette meldet den Schlüssel ──"
+#
+# **Aus dem Abnahmelauf, 7. August 2026.** Eine verkehrt sortierte Kette wurde
+# abgewiesen — mit „Der Schlüssel gehört nicht zu diesem Zertifikat". Der Satz
+# ist buchstäblich wahr: Steht das ausstellende Zertifikat vorn, ist es „dieses
+# Zertifikat", und der Schlüssel des Blattes passt nicht dazu. Er ist trotzdem
+# die falsche Auskunft — sie schickt zum Schlüssel statt zur Datei.
+vorher_datei agent/src/Acme/Bundle.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Bundle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        self::ordered($certificates);\n        self::keyBelongs($certificates[0], $key);",
+    "        self::keyBelongs($certificates[0], $key);\n        self::ordered($certificates);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Bundle.php "Schlüssel vor Reihenfolge geprüft" &&
+pruefe "Schlüssel vor Reihenfolge geprüft" \
+  CertificateUploadTest::test_a_wrong_order_is_named_even_with_the_leaf_key failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateUploadTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

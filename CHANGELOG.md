@@ -4370,3 +4370,217 @@ Der Bruch nimmt `--token` wieder weg. Und eine Meldung aus der Gegenprobe steht
 als Kommentar an der Sammlung im Test: PHPStan liest die Form einer Konstanten
 genauer, als eine `@var`-Angabe sie beschreiben kann, und weist jede zurück, die
 weiter ist.
+
+#### Der Platzhalter erreichte nur den Block, der ihn bestellt hat
+
+**Im Abnahmelauf auf `cloudlab24.ipv64.de` gefunden — dem Lauf, für den das
+alles gebaut wurde.** Der Platzhalter war ausgestellt und trug beide Namen; die
+Hauptdomain lieferte ihn aus. Die drei Unterdomains behielten ihre einzelnen
+Zertifikate, vier verschiedene Seriennummern. Der Betreiber musste auf jeder
+Unterdomain den Platzhalter von Hand auswählen oder „Übernehmen" drücken.
+
+**Das ist Abnahmekriterium 2** (`docs/34 §10`): „Alle Server-Blöcke dieses
+Abonnements liefern es aus." Es war nicht erfüllt.
+
+`CertificateChoice` antwortete für die Unterdomains die ganze Zeit richtig — der
+Platzhalter deckt sie, läuft am längsten und gewinnt. **Nur fragte niemand.**
+`CertificateLifecycle::install()` reihte genau einen `web.site.apply` ein: für
+die Domain, die bestellt hat. Bis dahin trägt nginx, was beim letzten Anwenden
+dastand, und deshalb wirkte „Übernehmen" — der Knopf schreibt den Block neu.
+
+**Die Annahme dahinter war: ein Zertifikat betrifft die Domain, die es bestellt
+hat.** Das gilt, solange jedes für einen Namen ausgestellt wird. Ein Platzhalter
+ändert die Antwort für **jede** Domain der Zone. Es ist derselbe Bruch derselben
+Annahme wie zweimal am selben Tag: erst beim Kästchen, das an „gibt es schon
+eines" hing, dann beim Kommando, das nur RFC 2136 kannte.
+
+**Verglichen wird der Ablageort und nicht die Kennung** — das ist die
+Entscheidung, an der die Kosten hängen. Vor dem Ablegen wird gemerkt, was jeder
+Block ausliefert; danach wird nur der neu geschrieben, für den jetzt ein anderer
+Ablageort gilt. Eine Erneuerung legt eine neue Zeile an mit **derselben** Datei
+`_wildcard.example.de`: Der Vergleich über die Kennung hielte jeden Nachbarblock
+für veraltet und reihte bei einem Abonnement mit vierzig Domains alle sechzig
+Tage vierzig Vorgänge ein, für eine Datei, die genauso heisst wie vorher.
+Entschieden vom Betreiber am 7. August 2026.
+
+**Eine Wahl wird dabei nicht angefasst.** Die Zuordnung bleibt stehen; der Block
+wird trotzdem geschrieben, wenn sich der Ablageort geändert hat — genau dann ist
+die Wahl abgelaufen und der laute Rückfall greift, und der greift nur, wenn ihn
+jemand aufschreibt.
+
+#### Und der Platzhalter ist in der Auswahl als solcher zu erkennen
+
+Zweiter Fund desselben Laufs, vom Betreiber gemeldet. In der Liste „Ausgeliefert
+wird" stand die Herkunft und das Datum — **bei zwei Zertifikaten von Let's
+Encrypt also zweimal dasselbe Wort.** Ob ein Eintrag eine Domain deckt oder jede
+Unterdomain der Zone, musste man am Datum erraten; und das ist genau die Frage,
+wegen der man dort überhaupt wählt.
+
+`Certificate::isWildcard()` beantwortet sie, der Eintrag heisst jetzt
+„Let's Encrypt · Platzhalter — bis 5.11.2026". Die gedeckten Namen stehen
+weiter nicht dabei: Ein `<select>` bricht nicht um, es schneidet ab (`docs/24
+§8`). Bei 390px gemessen, beide Themes, kein Überlauf.
+
+**Zwei Brüche:** die Nachbarblöcke gar nicht angefasst — wörtlich der Zustand
+aus dem Abnahmelauf — und die Kennung statt des Ablageorts verglichen, was jede
+Erneuerung zu einem Rundumschlag machte.
+
+#### Zwei Befunde aus dem laufenden Abnahmelauf
+
+**Das Auswahlfeld für das Abonnement war unbeschriftet.** Auf der Domainliste
+steht neben „Domain anlegen" eine Auswahl, in *welches* Abonnement die neue
+Domain kommt. Sie trug ein `aria-label` und sonst nichts — für einen sehenden
+Betrachter also ein Feld mit einem Domainnamen darin, neben einem Knopf. Der
+Betreiber am 7. August 2026: „geht unter und wird nicht wirklich wahrgenommen."
+
+**Der Schaden ist nicht kosmetisch.** Wer die Auswahl übersieht, legt die Domain
+im falschen Abonnement an — mit eigenem Verzeichnisbaum, eigenem Systembenutzer
+und eigenem Server-Block. Zurück geht es nur über Entfernen und neu Anlegen.
+
+Daraus ist eine Regel geworden, die weiter reicht als der eine Ort:
+**`FormLabelTest` besteht darauf, dass jedes `<select>` in einem `<label>`
+steht.** Alle 17 im Panel tun das jetzt; `aria-label` beschriftet für die
+Vorlesehilfe und für nichts sonst. Ein `<select>` zeigt immer einen gültigen
+Wert an — es sieht nie leer aus und lädt deshalb dazu ein, überlesen zu werden.
+`input` steht bewusst nicht in der Regel: Ein Suchfeld trägt seinen Zweck im
+`placeholder`, ein Kästchen seinen Text daneben.
+
+**Und der Satz zu den ungedeckten Namen fehlte genau dann, wenn er zählt.**
+„Eine Ebene tiefer deckt ein Platzhalter nicht" hing allein am Kästchen „Als
+Platzhalter bestellen" — also an der **Absicht**, einen zu bestellen. Sobald er
+ausgestellt war, verschwand das Kästchen (es gibt nichts mehr zu bestellen) und
+mit ihm die Auskunft. Im Abnahmelauf war `tief.a.cloudlab24.ipv64.de` angelegt,
+und die Seite schwieg dazu.
+
+Gefragt wird jetzt zusätzlich, ob der Platzhalter schon liegt. Der Unterschied
+ist der zwischen einer Vorhersage und einer Tatsache, und die Tatsache ist die,
+die jemand braucht.
+
+**Der Wächter prüft die Bedingung im Markup und nicht das Bild** — gerendert
+wird in den Tests nichts. Das ist die schwächere Prüfung, hält aber genau den
+Rückschritt auf, der hier passiert ist: die Bedingung wieder auf die Absicht
+allein zu verkürzen.
+
+Beide Brüche gegengeprüft; Screenshots bei 1280 und 390px in beiden Themes,
+kein Überlauf.
+
+#### Ein Platzhalter wurde als gewöhnliches Zertifikat erneuert
+
+**Der teuerste Fund des Abnahmelaufs, und er sah aus wie ein Erfolg.** Der Lauf
+meldete `1 fällig, 1 bestellt, 0 nachgetragen` — genau die Zahl, die
+Abnahmekriterium 4 verlangt. Die Zahl stimmte auch. Das Bestellte nicht:
+
+```
+cloudlab24.ipv64.de     serial=057551B2…  notBefore=Aug 7 10:34:53
+a.cloudlab24.ipv64.de   serial=059229C9…  notBefore=Aug 7 09:41:20
+b.cloudlab24.ipv64.de   serial=059229C9…  notBefore=Aug 7 09:41:20
+c.cloudlab24.ipv64.de   serial=059229C9…  notBefore=Aug 7 09:41:20
+```
+
+Das erneuerte Zertifikat trug nur `cloudlab24.ipv64.de`. Die drei Unterdomains
+lieferten weiter das alte aus — richtig, denn das neue deckt sie nicht.
+
+**Die Ursache ist eine fehlende Angabe.** `CertificateRenewal::sweep()` rief
+`$this->order->place($domain)` auf, und `place()` hat `bool $wildcard = false`.
+Die Erneuerung wusste nichts von Platzhaltern; sie bestellte, was
+`$domain->serverNames()` sagt.
+
+**Der Fehler wäre still und käme mit neunzig Tagen Verzögerung.** Im Panel sieht
+ein erneuertes Zertifikat aus wie ein erneuertes; dass es eine Zone weniger
+deckt als vorher, steht nirgends. Aufgefallen wäre es, wenn das alte abläuft und
+der Browser bei jeder Unterdomain warnt — an einem Tag, an dem niemand etwas
+geändert hat.
+
+**Und es wäre in diesem Abnahmelauf beinahe durchgegangen**, weil das Kriterium
+nach der *Anzahl* fragt und die stimmte. Gefunden hat es der Betreiber, weil er
+danach die Seriennummern verglichen hat.
+
+**Die Basisdomain kommt jetzt aus dem Namen und nicht aus der Zuordnung.**
+`*.example.de` gehört zu `example.de`, auch wenn an dem Zertifikat gerade nur
+Unterdomains hängen — nach einer Wahl etwa. Über die Zuordnung zu gehen (bisher
+`domains()->orderBy('id')->first()`) ergäbe `*.a.example.de`, weil
+`a.example.de` die kleinste Kennung hat: ein Platzhalter eine Ebene tiefer, für
+etwas ganz anderes.
+
+**Ohne DNS-Zugangsdaten wird gar nicht erneuert**, und das ist die zweite
+Entscheidung. Der naheliegende Ausweg wäre, den Platzhalter dann als
+gewöhnliches Zertifikat nachzuholen — genau der stille Rückschritt, um den es
+hier geht. `RenewalReport::$blocked` zählt diese Fälle, und `srvpanel tls` meldet
+sie als **Fehler** und nicht als Auskunft: Wer den Lauf aus einem Skript fährt,
+sieht sonst nichts.
+
+Drei Wächter, zwei Brüche — die fehlende Angabe und der stille Rückschritt.
+
+#### Zwei Meldungen für eine Ursache, und die falsche stand unten
+
+**Aus dem Abnahmelauf, Schritt „verkehrte Kette".** `srvpanel tls --upload` mit
+einem frisch angelegten privaten Schlüssel:
+
+```
+--key: Diese Datei gibt es nicht oder sie ist nicht lesbar: /tmp/pk.pem
+Es fehlt eine Angabe: --domain, --certificate und --key gehören zusammen.
+```
+
+Der erste Satz war richtig, der zweite falsch — die Angabe war da. **Und der
+zweite ist der, den man glaubt:** Er steht zuletzt und klingt allgemeiner, also
+sucht man den Fehler in der Kommandozeile, wo alles stimmt.
+
+Ursache war eine Hilfsmethode, die `null` für zwei verschiedene Dinge zurückgab
+— „nicht angegeben" und „angegeben, aber nicht lesbar" —, und ein Aufrufer, der
+beides gleich behandelte. Geprüft werden jetzt erst die Angaben, dann die
+Dateien, und jede Ursache meldet sich einmal.
+
+**Der eigentliche Stolperstein steht jetzt in der Meldung.** `srvpanel` wechselt
+per `setpriv` auf den Dienstbenutzer, bevor artisan startet — gelesen wird also
+**nicht** als root. Ein privater Schlüssel, den ein Betreiber gerade mit
+`openssl req -keyout` angelegt hat, gehört root und steht auf 0600; dieses
+Kommando kommt nicht heran, und zwar immer. Ohne diesen Hinweis ist der
+naheliegende nächste Griff `chmod 644` auf einen privaten Schlüssel. Die Meldung
+nennt deshalb den Benutzer und sagt dazu, dass das Kommando nicht als root
+läuft.
+
+Der Name kommt aus `posix_geteuid()` und nicht aus `get_current_user()` — das
+zweite nennt den Eigentümer der Skriptdatei, und auf einem Panel, das die
+Rechte wechselt, sind das zwei verschiedene Antworten.
+
+**Was der Wächter nicht prüft:** den unlesbaren Fall selbst. Die Tests laufen in
+der CI als root, und root liest auch 0600. Geprüft werden die beiden Ausgänge,
+die sich herstellen lassen — fehlende Angabe und fehlende Datei —, und dass
+keiner die Meldung des anderen mitbringt.
+
+#### Die verkehrte Kette meldete den Schlüssel
+
+**Abnahmekriterium 5 zur Hälfte.** „Ein hochgeladenes Zertifikat mit falsch
+sortierter Kette wird abgewiesen, und die Meldung sagt, was falsch ist." Es
+wurde abgewiesen. Die Meldung sagte:
+
+```
+Zertifikat abgewiesen: Der Schlüssel gehört nicht zu diesem Zertifikat.
+```
+
+**Der Satz ist buchstäblich wahr und die falsche Auskunft.** Steht das
+ausstellende Zertifikat vorn, ist es „dieses Zertifikat", und der Schlüssel des
+Blattes passt nicht dazu. Ein Betreiber, der seine Kette verkehrt herum
+eingefügt hat, geht danach seinen Schlüssel suchen — holt ihn neu, leitet ihn
+neu aus, fügt ihn neu ein —, während die Ursache zwei Zeilen weiter oben in
+derselben Datei steht.
+
+**Die Prüfung, die es genau weiss, gab es die ganze Zeit.** `Bundle::ordered()`
+sagt, welches Glied welches nicht unterschrieben hat, und nennt die richtige
+Reihenfolge dazu. Sie lief nur **nach** `keyBelongs()` und kam deshalb nie zum
+Zug. Beide Zeilen stehen jetzt umgekehrt.
+
+**Und der bestehende Wächter hat das nicht gefunden**, obwohl es ihn gibt:
+`test_a_chain_in_the_wrong_order_is_refused` reicht den Schlüssel der
+**Zertifizierungsstelle** ein. Den hat niemand, der ein gekauftes Zertifikat
+hochlädt — der Durchgang umging damit ausgerechnet die Prüfung, die im Weg
+stand. Der neue nimmt den Schlüssel, den ein Mensch wirklich hat.
+
+Das ist dieselbe Lehre wie beim `$`-Anker in P3: Ein Wächter, der den Weg prüft,
+der gerade durchkommt, statt den, den jemand geht, ist grün und wertlos.
+
+Der Bruch ist vollständig rot-grün gegengeprüft — `agent/` läuft ohne Framework,
+und eine Wegwerfprobe über `agent/src/autoload.php` baut sich ihre CA selbst.
+Mit der alten Reihenfolge meldet sie den Schlüssel, mit der neuen die Kette; die
+richtige Kette mit fremdem Schlüssel meldet weiter den Schlüssel, und die
+richtige Kette mit dem richtigen geht durch.

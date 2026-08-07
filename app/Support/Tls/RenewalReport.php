@@ -22,6 +22,13 @@ use App\Support\Tenancy\Tenancy;
  * erledigt" aussieht.** Der nächste Lauf ist einen Tag später; bei vielen
  * Domains dauert das Aufholen dann seine Zeit, und das gehört auf den Schirm
  * dessen, der zusieht.
+ *
+ * **`blocked` aus demselben Grund, und es ist der teurere Fall.** Ein
+ * Platzhalter, der sich nicht als Platzhalter erneuern lässt — weil die
+ * DNS-Zugangsdaten fort sind —, wird gar nicht erneuert. Die Alternative wäre,
+ * ihn als gewöhnliches Zertifikat nachzubestellen, und das ist genau der
+ * stille Rückschritt, den dieser Lauf verhindern soll: Danach warnt der Browser
+ * bei jeder Unterdomain, und im Panel sieht alles grün aus.
  */
 final class RenewalReport
 {
@@ -30,5 +37,6 @@ final class RenewalReport
         public readonly int $ordered = 0,
         public readonly int $corrected = 0,
         public readonly int $left = 0,
+        public readonly int $blocked = 0,
     ) {}
 }

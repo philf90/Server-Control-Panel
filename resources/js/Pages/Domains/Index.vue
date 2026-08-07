@@ -67,11 +67,21 @@ function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
       </Link>
 
       <!-- Mehrere Abonnements: erst wohin, dann anlegen. Ein `form` und kein
-           Knopf mit Zustand — so trägt die Eingabetaste im Auswahlfeld. -->
+           Knopf mit Zustand — so trägt die Eingabetaste im Auswahlfeld.
+
+           **Die Beschriftung steht sichtbar dabei und nicht nur als
+           `aria-label`.** Vorher war es ein Feld mit einem Domainnamen darin,
+           neben einem Knopf — für einen sehenden Betrachter unbeschriftet. Wer
+           es übersieht, legt die Domain im falschen Abonnement an, und das
+           merkt man erst am Verzeichnisbaum. Am 7. August 2026 vom Betreiber
+           gemeldet. -->
       <form v-else-if="props.creatable.length > 1" class="button-row" @submit.prevent="createDomain">
-        <select v-model="chosen" aria-label="In welchem Abonnement?">
-          <option v-for="s in props.creatable" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
+        <label class="field inline">
+          <span>Abonnement</span>
+          <select v-model="chosen">
+            <option v-for="s in props.creatable" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </label>
         <button type="submit" class="button primary">Domain anlegen</button>
       </form>
     </template>

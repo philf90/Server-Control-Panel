@@ -82,8 +82,29 @@ final class Bundle
         $certificates = self::split($pem);
         $leaf = self::parse($certificates[0]);
 
-        self::keyBelongs($certificates[0], $key);
+        /*
+         * **Erst die Reihenfolge, dann der Schlüssel — und das ist keine
+         * Geschmacksfrage.**
+         *
+         * Beides stand hier andersherum, und im Abnahmelauf am 7. August 2026
+         * fiel auf, was das bedeutet: Eine verkehrt sortierte Kette wurde mit
+         * „Der Schlüssel gehört nicht zu diesem Zertifikat" abgewiesen. Der
+         * Satz ist buchstäblich wahr — steht das ausstellende Zertifikat vorn,
+         * ist es „dieses Zertifikat", und der Schlüssel des Blattes passt nicht
+         * dazu. Er ist trotzdem die falsche Auskunft: Sie schickt den Betreiber
+         * zum Schlüssel, den er neu holt, neu ausleitet und neu einfügt, während
+         * die Ursache zwei Zeilen weiter oben in derselben Datei steht.
+         *
+         * `ordered()` weiss es genau und sagt es auch — welches Glied welches
+         * nicht unterschrieben hat. Diese Prüfung gehört deshalb zuerst.
+         *
+         * **Die umgekehrte Reihenfolge kostet nichts.** Eine richtig sortierte
+         * Kette mit falschem Schlüssel läuft durch `ordered()` hindurch und
+         * bekommt weiterhin die Meldung zum Schlüssel; ein einzelnes Zertifikat
+         * ohne Kette lässt `ordered()` unberührt.
+         */
         self::ordered($certificates);
+        self::keyBelongs($certificates[0], $key);
 
         $notBefore = (int) ($leaf['validFrom_time_t'] ?? 0);
         $notAfter = (int) ($leaf['validTo_time_t'] ?? 0);

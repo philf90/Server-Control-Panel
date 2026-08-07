@@ -117,6 +117,52 @@ final class DomainCertificateTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('wildcard.covered', true));
     }
 
+    /** Wo die Domainseite steht. */
+    private const PAGE = 'resources/js/Pages/Domains/Show.vue';
+
+    /**
+     * **Eine Auskunft über den Zustand hängt nicht an einer Absicht.**
+     *
+     * `*.example.de` deckt `a.b.example.de` nicht — eine Grenze, die ACME zieht
+     * und die auf die Seite gehört, statt als Browserwarnung zu entstehen. Die
+     * Bedingung dafür hing bis zum 7. August 2026 allein am Kästchen „Als
+     * Platzhalter bestellen", also an der **Absicht**, einen zu bestellen.
+     *
+     * **Damit fehlte der Satz genau dann, wenn er keine Vorhersage mehr ist.**
+     * Sobald der Platzhalter ausgestellt war, verschwand das Kästchen — es gibt
+     * nichts mehr zu bestellen —, und mit ihm die Auskunft darüber, was er
+     * nicht deckt. Im Abnahmelauf auf `cloudlab24.ipv64.de` aufgefallen: Die
+     * Unterdomain eine Ebene tiefer war angelegt, und die Seite schwieg.
+     *
+     * Geprüft wird die Bedingung im Markup und nicht das Bild — gerendert wird
+     * hier nichts. Das ist die schwächere Prüfung, aber sie hält genau den
+     * Rückschritt auf, der hier passiert ist: die Bedingung wieder auf die
+     * Absicht allein zu verkürzen.
+     */
+    public function test_the_uncovered_names_do_not_depend_on_the_checkbox_alone(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2).'/'.self::PAGE);
+
+        preg_match_all('/v-if="([^"]*wildcard\.uncovered[^"]*)"/', $source, $treffer);
+
+        $this->assertNotSame([], $treffer[1], sprintf(
+            'In %s hängt nichts mehr an `wildcard.uncovered` — dann sagt die Seite nicht, was ein '.
+            'Platzhalter nicht deckt.',
+            self::PAGE,
+        ));
+
+        foreach ($treffer[1] as $bedingung) {
+            $this->assertStringContainsString('wildcard.covered', $bedingung, sprintf(
+                "Die Bedingung „%s\" in %s fragt nicht, ob der Platzhalter schon liegt.\n\n".
+                'Sie hängt damit allein an der Absicht, einen zu bestellen — und sobald er ausgestellt '.
+                'ist, verschwindet das Kästchen und mit ihm die Auskunft. Genau dann ist sie keine '.
+                'Vorhersage mehr, sondern eine Tatsache.',
+                $bedingung,
+                self::PAGE,
+            ));
+        }
+    }
+
     /**
      * Mit Zertifikat steht da, was es deckt — und ob das reicht.
      *

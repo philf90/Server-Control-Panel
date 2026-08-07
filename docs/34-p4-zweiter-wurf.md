@@ -767,6 +767,12 @@ ein gültiges, deckendes Zertifikat vor, liefert der Block dieses aus**; die
 Wahl bleibt eingetragen, greift wieder, sobald sie gilt, und die Domainseite
 sagt in einer Meldung, dass sie gerade übergangen wird.
 
+> **Und das Prüfprotokoll sagt es auch — nachgetragen am 7. August 2026.** Die
+> Meldung auf der Seite beantwortet „gilt meine Wahl gerade?"; sie beantwortet
+> nicht „seit wann nicht mehr?". Dafür gibt es
+> `domain.certificate.overridden`, geschrieben nach jedem `web.site.apply`, das
+> die Wahl übergeht. Die Einzelheiten in §11.2.
+
 > **Erledigt in Schritt 4.** Die Antwort auf „welches liefert dieser Block
 > aus?" steht in `CertificateChoice` und nirgends sonst — `effective()` für den
 > Server-Block und die Seite, `satisfied()` für die Frage, ob bestellt werden
@@ -913,13 +919,25 @@ Automatik sie nicht still zurücknimmt.
    Zonenauflösung über `get_domains` ist unsere Wahl und nicht die von lego,
    siehe die Berichtigung in §6.
 
-2. **Der Rückfall, wenn die Wahl abläuft (§8): laut zurückfallen.** Ist die
+2. ~~**Der Rückfall, wenn die Wahl abläuft (§8): laut zurückfallen.**~~ —
+   umgesetzt am 7. August 2026. Ist die
    gewählte Zuweisung abgelaufen und deckt ein anderes gültiges Zertifikat alle
    Namen, wird gewechselt — aber mit einem Eintrag im Prüfprotokoll und einem
    Hinweis auf der Domainseite, dass die Wahl überholt ist. Die Website bleibt
    erreichbar, und die Entscheidung verschwindet nicht unbemerkt. Ein stiller
    Wechsel wäre bequemer und würde genau das tun, wogegen
    `certificate_pinned_at` überhaupt eingeführt wurde.
+
+   **Der Eintrag entsteht nach dem Vorgang und nicht beim Einreihen**
+   (`WebLifecycle::afterSuccess()`, Aufgabe `web.site.apply`): Erst dann
+   liefert der Block wirklich etwas anderes aus. Damit deckt er auch beide
+   Wege, auf denen ein Block geschrieben wird — das Formular und die Erneuerung
+   —, ohne dass ein Haken an zwei Stellen hängt. Er heisst
+   `domain.certificate.overridden`, steht als **Fehlschlag** darin (jemand
+   durfte wählen, und die Wahl liess sich nicht einlösen) und trägt das
+   Abonnement, damit der Kunde ihn sieht. **Er wiederholt sich bei jedem
+   angewandten Block**, und das ist Absicht: So steht im Protokoll die Spanne
+   und nicht ein Punkt, und es braucht keinen zweiten Zustand „schon gesagt".
 
 3. ~~**INWX wird nicht angeboten.**~~ — umgesetzt am 7. August 2026. Die Liste
    heisst jetzt `Providers::WITHHELD` und trägt den Grund als Wert; er geht bis

@@ -4185,3 +4185,56 @@ weiter geprüft wird und nicht erst am Tag seiner Rückkehr auffällt.
 **Ein neuer Bruch:** ein Zurückgehaltener ohne Grund. Er war beim ersten Anlauf
 grün — die Wegwerfprobe fragte nur, *ob* abgewiesen wird, nicht *ob der Grund
 dabeisteht*. Genau die Lücke, die der Wächter schliessen soll, hatte er selbst.
+
+#### Der laute Rückfall wird laut — der Eintrag im Prüfprotokoll fehlte
+
+Die erste offene Entscheidung aus `docs/34 §11`, beschlossen am 6. August 2026:
+Läuft die gewählte Zuweisung ab und deckt ein anderes gültiges Zertifikat alle
+Namen, liefert der Block dieses aus — „aber mit einem Eintrag im Prüfprotokoll
+und einem Hinweis auf der Domainseite". **Der Hinweis stand seit Schritt 4, der
+Eintrag nicht.** Und die beiden beantworten verschiedene Fragen: Die Seite sagt
+dem, der gerade hinsieht, dass seine Wahl nicht gilt; seit wann sie nicht mehr
+gilt, sagt nur ein Eintrag mit Zeitstempel.
+
+**Er entsteht nach dem Vorgang und nicht beim Einreihen.** Der Zustand folgt
+dem Agenten (CLAUDE.md, zweite Grenze) — erst wenn `web.site.apply` durch ist,
+liefert dieser Block wirklich etwas anderes aus als das Eingestellte. Ein
+Eintrag beim Absenden behauptete es früher, als es stimmt, und bliebe stehen,
+wenn der Vorgang scheitert.
+
+**Und das löst nebenbei ein Problem, das ein Haken am Einreihen gehabt hätte.**
+`web.site.apply` wird an zwei Stellen eingereiht: von `WebLifecycle::apply()`
+und von `CertificateLifecycle::install()` nach jeder Erneuerung. Die zweite ist
+genau der Weg, auf dem eine abgelaufene Wahl auffällt — und die, die man beim
+Verhaken vergisst. In `afterSuccess()` laufen beide zusammen, weil jeder
+abgeschlossene Vorgang durch `Lifecycles::afterSuccess()` geht.
+
+Drei Entscheidungen am Eintrag selbst, jede mit einem Grund:
+
+- **Als Fehlschlag, nicht als Erfolg.** Jemand durfte wählen, und die Wahl
+  liess sich nicht einlösen — genau der Fall, für den es diesen Ausgang gibt.
+  „Erfolgreich" stünde neben einem Ereignis, das für den, der es eingestellt
+  hat, das Gegenteil bedeutet, und niemand fände es beim Filtern nach dem, was
+  Aufmerksamkeit braucht.
+- **Mit dem Abonnement.** `AuditQuery::visibleTo()` zeigt einem Kunden sein
+  eigenes Konto und seine Abonnements; geschrieben hat den Eintrag der
+  Arbeiter. Ohne die Angabe stünde er nur dem Betreiber offen — und es ist die
+  Wahl des Kunden, die übergangen wird.
+- **Er wiederholt sich, und das ist Absicht.** Jeder geschriebene Block, der
+  die Wahl übergeht, ist ein eigener Vorgang. Wer nur den ersten protokolliert,
+  braucht einen Vermerk „schon gesagt" — also einen zweiten Zustand neben der
+  Wahl, und der veraltet. So steht im Protokoll die Spanne und nicht ein Punkt.
+
+**Zwei Brüche, und der zweite ist der wichtigere.** Der naheliegende Fehler ist
+nicht der fehlende Eintrag, sondern der bei jedem angewandten Block: Die
+Automatik hängt eine Domain regelmässig um — auf das mit der längsten Laufzeit
+—, und das ist kein Übergehen, sondern ihre Aufgabe. Ein Protokoll, das sie
+meldet, meldet nichts. Deshalb prüft `CertificateChoiceTest` beide Richtungen
+und dazu ausdrücklich den Fall ohne Wahl.
+
+**Rot-Grün steht aus.** Dieser Container hat kein `vendor/` — `composer
+install` scheitert am Proxy —, und beide Brüche hängen an PHPUnit mit
+Datenbank. Geprüft ist hier nur, dass die Eingriffe greifen (beide Muster
+finden ihre Stelle) und dass das Ergebnis lädt; der Biss selbst gehört
+nachgeholt, sobald `vendor/` da ist. Das steht hier, weil „nachher noch" in
+diesem Projekt schon einmal eine ausgelieferte Fassung gekostet hat.

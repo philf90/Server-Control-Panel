@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\AuditResult;
 use App\Enums\CertificateSource;
+use App\Enums\OperationStatus;
+use App\Models\AuditEvent;
 use App\Models\Certificate;
 use App\Models\Domain;
+use App\Models\Operation;
 use App\Models\Subscription;
+use App\Support\Operations\Lifecycles;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\CertificateChoice;
 use App\Support\Tls\CertificateRecord;
@@ -30,7 +35,8 @@ use Tests\TestCase;
  * **Und der Rückfall ist laut.** Läuft die Wahl ab, wird sie übergangen: Ein
  * hochgeladenes Zertifikat erneuert niemand, und stur daran festzuhalten nähme
  * die Website vom Netz. Übergangen heisst aber nicht verschwiegen — die Wahl
- * bleibt eingetragen, und die Domainseite sagt es (`docs/34 §8`).
+ * bleibt eingetragen, die Domainseite sagt es dem, der hinsieht, und das
+ * Prüfprotokoll dem, der später fragt, seit wann (`docs/34 §8`).
  */
 final class CertificateChoiceTest extends TestCase
 {
@@ -146,6 +152,127 @@ final class CertificateChoiceTest extends TestCase
 
         // Die Wahl bleibt eingetragen — sie greift wieder, sobald sie gilt.
         $this->assertSame((int) $abgelaufen->id, Domain::query()->findOrFail($domain->id)->certificate_id);
+    }
+
+    /**
+     * Ein fertiger Vorgang, wie ihn der Arbeiter dem Lebenslauf hinhält.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    private function finished(Domain $domain, string $task, array $result = []): Operation
+    {
+        app(Tenancy::class)->allowAll();
+
+        $operation = Operation::query()->create([
+            'subscription_id' => $domain->subscription_id,
+            'subject_type' => 'domain',
+            'subject_id' => $domain->id,
+            'type' => $task,
+            'task' => $task,
+            'status' => OperationStatus::Succeeded,
+            'progress' => 100,
+            'result' => $result,
+        ]);
+
+        // Der Arbeiter kennt keinen Mandanten. Was danach läuft, läuft im
+        // Grundzustand der Klammer.
+        app(Tenancy::class)->reset();
+
+        return $operation;
+    }
+
+    /** @return list<AuditEvent> */
+    private function overrides(): array
+    {
+        return AuditEvent::query()
+            ->where('action', 'domain.certificate.overridden')
+            ->orderBy('id')
+            ->get()
+            ->all();
+    }
+
+    /**
+     * Der geschriebene Block, der die Wahl übergeht, steht im Protokoll.
+     *
+     * **Das ist die zweite Hälfte des lauten Rückfalls, und sie hat gefehlt.**
+     * Die Domainseite sagt es dem, der gerade hinsieht; die Frage „seit wann
+     * liefert diese Domain nicht mehr aus, was ich eingestellt habe?"
+     * beantwortet nur ein Eintrag mit Zeitstempel.
+     *
+     * **Geprüft wird nach dem Vorgang und nicht nach dem Einreihen** — der
+     * Zustand folgt dem Agenten. Vorher wäre der Eintrag eine Behauptung über
+     * einen Block, den es noch nicht gibt, und er bliebe stehen, wenn der
+     * Vorgang scheitert.
+     */
+    public function test_an_overridden_choice_lands_in_the_audit_trail(): void
+    {
+        $domain = $this->domain();
+        $abgelaufen = $this->certificateFor($domain, '-1 day', CertificateSource::Uploaded);
+        $gueltig = $this->certificateFor($domain, '+60 days');
+
+        $this->assign($domain, $abgelaufen, true);
+
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.apply'));
+
+        $events = $this->overrides();
+
+        $this->assertCount(1, $events, 'Der übergangene Wahl fehlt der Eintrag im Prüfprotokoll.');
+
+        $event = $events[0];
+
+        // **Als Fehlschlag.** Jemand durfte wählen, und die Wahl liess sich
+        // nicht einlösen. „Erfolgreich" fände niemand beim Filtern nach dem,
+        // was Aufmerksamkeit braucht.
+        $this->assertSame(AuditResult::Failure, $event->result);
+
+        // **Und mit dem Abonnement**, sonst sieht der Kunde den Eintrag nicht:
+        // `AuditQuery::visibleTo()` zeigt ihm sein eigenes Konto und seine
+        // Abonnements — und geschrieben hat den Eintrag der Arbeiter, nicht er.
+        $this->assertSame((int) $domain->subscription_id, $event->subscription_id);
+
+        $this->assertSame((int) $abgelaufen->id, $event->context['chosen'] ?? null);
+        $this->assertSame((int) $gueltig->id, $event->context['delivered'] ?? null);
+    }
+
+    /**
+     * Gilt die Wahl, schweigt das Protokoll.
+     *
+     * Die Gegenrichtung, und sie ist die wichtigere: Ein Eintrag bei jedem
+     * angewandten Block machte die Meldung wertlos, weil sie dann nichts mehr
+     * bedeutet.
+     */
+    public function test_a_valid_choice_leaves_the_audit_trail_alone(): void
+    {
+        $domain = $this->domain();
+        $gewaehlt = $this->certificateFor($domain, '+40 days', CertificateSource::Uploaded);
+        $this->certificateFor($domain, '+80 days');
+
+        $this->assign($domain, $gewaehlt, true);
+
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.apply'));
+
+        $this->assertSame([], $this->overrides());
+    }
+
+    /**
+     * Und ohne Wahl erst recht nicht.
+     *
+     * **Ohne diese Richtung wäre der Eintrag der Normalfall.** Die Automatik
+     * hängt eine Domain regelmässig um — auf das Zertifikat mit der längsten
+     * Laufzeit —, und das ist kein Übergehen, sondern ihre Aufgabe. Ein
+     * Protokoll, das sie meldet, meldet nichts.
+     */
+    public function test_the_automatic_reassignment_is_not_an_override(): void
+    {
+        $domain = $this->domain();
+        $alt = $this->certificateFor($domain, '+10 days');
+        $this->certificateFor($domain, '+80 days');
+
+        $this->assign($domain, $alt, false);
+
+        app(Lifecycles::class)->afterSuccess($this->finished($domain, 'web.site.apply'));
+
+        $this->assertSame([], $this->overrides());
     }
 
     /**

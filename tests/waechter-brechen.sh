@@ -2520,6 +2520,50 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PatienceTest passed
 
 echo
+echo "── CertificateChoiceTest: der Rückfall bleibt still ──"
+#
+# Der laute Rückfall (`docs/34 §8`): Ein Block, der die Wahl übergeht, gehört
+# ins Prüfprotokoll. Ohne den Eintrag bleibt nur der Hinweis auf der
+# Domainseite — und der beantwortet nicht, seit wann.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $this->recordOverride($domain);\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "übergangene Wahl nicht protokolliert" &&
+pruefe "übergangene Wahl nicht protokolliert" \
+  CertificateChoiceTest::test_an_overridden_choice_lands_in_the_audit_trail failed
+wiederherstellen
+
+echo
+echo "── CertificateChoiceTest: der Rückfall meldet auch, wenn nichts war ──"
+#
+# **Die wichtigere Richtung.** Der naheliegende Fehler ist nicht der fehlende
+# Eintrag, sondern der bei jedem angewandten Block — eine Meldung, die immer
+# kommt, bedeutet nichts, und die Automatik hängt eine Domain regelmässig um,
+# ohne dass jemand übergangen wird.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! $this->choice->overridden($domain)) {\n            return;\n        }\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "jeder Block meldet einen Rückfall" &&
+pruefe "jeder Block meldet einen Rückfall" \
+  CertificateChoiceTest::test_a_valid_choice_leaves_the_audit_trail_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateChoiceTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

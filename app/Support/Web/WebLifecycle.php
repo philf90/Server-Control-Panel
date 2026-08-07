@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Web;
 
+use App\Enums\AuditResult;
 use App\Enums\DomainStatus;
 use App\Enums\DomainType;
 use App\Enums\OperationStatus;
@@ -13,6 +14,7 @@ use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Support\Audit\Audit;
 use App\Support\Operations\AfterOperation;
 use App\Support\Operations\Lifecycles;
 use App\Support\Subscriptions\Lifecycle;
@@ -46,6 +48,7 @@ final class WebLifecycle implements AfterOperation
         private readonly PhpSelection $php,
         private readonly AcmeSettings $tls,
         private readonly CertificateChoice $choice,
+        private readonly Audit $audit,
     ) {}
 
     /**
@@ -293,9 +296,7 @@ final class WebLifecycle implements AfterOperation
             }
 
             match ($task) {
-                'web.site.apply' => $domain->forceFill([
-                    'status' => $this->appliedStatus($operation),
-                ])->save(),
+                'web.site.apply' => $this->applied($domain, $operation),
 
                 // **Jetzt erst verschwindet die Zeile.** Der Server-Block ist
                 // weg, das Verzeichnis ist weg, die Protokolle sind weg — erst
@@ -306,6 +307,81 @@ final class WebLifecycle implements AfterOperation
                 default => null,
             };
         });
+    }
+
+    /**
+     * Der Block steht — und mit ihm die Antwort auf „was liefert er aus?".
+     *
+     * **Der Zustand folgt dem Agenten, nicht dem Klick** (CLAUDE.md, zweite
+     * Grenze). Deshalb steht der Protokolleintrag hier und nicht beim
+     * Einreihen: Erst jetzt liefert dieser Block wirklich etwas anderes aus,
+     * als jemand eingestellt hat. Ein Eintrag beim Absenden behauptete es
+     * schon, bevor es stimmt — und bliebe stehen, wenn der Vorgang scheitert.
+     *
+     * **Und er steht hier für beide Wege.** `web.site.apply` wird an zwei
+     * Stellen eingereiht: von {@see self::apply()} und von
+     * `CertificateLifecycle::install()` nach jeder Erneuerung. Ein Haken am
+     * Einreihen müsste an beiden hängen, und der zweite ist der, den jemand
+     * vergisst. Hier laufen sie zusammen, weil jeder abgeschlossene Vorgang
+     * durch `Lifecycles::afterSuccess()` geht.
+     */
+    private function applied(Domain $domain, Operation $operation): void
+    {
+        $domain->forceFill(['status' => $this->appliedStatus($operation)])->save();
+
+        $this->recordOverride($domain);
+    }
+
+    /**
+     * Der laute Rückfall: Die Wahl gilt nicht mehr, und das steht im Protokoll.
+     *
+     * **Beschlossen am 6. August 2026** (`docs/34 §8`, umgesetzt am 7. August):
+     * Läuft die Wahl ab und liegt ein gültiges, deckendes Zertifikat daneben,
+     * liefert der Block dieses aus — sonst nähme ein hochgeladenes Zertifikat,
+     * das niemand erneuert, die Website vom Netz. **Übergangen heisst aber
+     * nicht verschwiegen.** Die Domainseite sagt es dem, der hinsieht; das
+     * Protokoll sagt es dem, der später fragt, seit wann.
+     *
+     * **Gefragt wird {@see CertificateChoice::overridden()} und nicht die
+     * Spalte.** Dieselbe Stelle beantwortet die Frage für den Server-Block und
+     * für die Domainseite; eine zweite Rechnung hier wäre eine zweite Antwort,
+     * und die falsche fiele erst auf, wenn jemand das Protokoll gegen die Seite
+     * hält.
+     *
+     * **Der Eintrag wiederholt sich, und das ist Absicht.** Jeder geschriebene
+     * Block, der die Wahl übergeht, ist ein eigener Vorgang; wer nur den ersten
+     * protokollierte, bräuchte einen Vermerk „schon gesagt" — also einen
+     * zweiten Zustand neben der Wahl, der veraltet. So steht im Protokoll die
+     * Spanne und nicht ein Punkt.
+     *
+     * **Als Fehlschlag und nicht als Erfolg.** Jemand durfte wählen, und die
+     * Wahl liess sich nicht einlösen — genau der Fall, für den es diesen
+     * Ausgang gibt. „Erfolgreich" stünde neben einem Ereignis, das für den, der
+     * es eingestellt hat, das Gegenteil bedeutet, und niemand fände es beim
+     * Filtern nach dem, was Aufmerksamkeit braucht.
+     */
+    private function recordOverride(Domain $domain): void
+    {
+        if (! $this->choice->overridden($domain)) {
+            return;
+        }
+
+        $delivered = $this->choice->effective($domain);
+
+        $this->audit->record(
+            'domain.certificate.overridden',
+            AuditResult::Failure,
+            target: $domain,
+            subscriptionId: (int) $domain->subscription_id,
+            context: [
+                // Beide als `int` und nicht so, wie der Treiber sie liefert:
+                // Das Protokoll wird als JSON abgelegt, und eine Kennung, die
+                // einmal `7` und einmal `"7"` heisst, lässt sich später nicht
+                // vergleichen, ohne dass jemand daran denkt.
+                'chosen' => (int) $domain->certificate_id,
+                'delivered' => $delivered === null ? null : (int) $delivered->id,
+            ],
+        );
     }
 
     /**

@@ -675,6 +675,14 @@ Verzeichnis `root:srvpanel 0750`, Dateien `root:srvpanel 0640`.
   zurückzureichen, wäre der Weg, auf dem der Agent den Speicher des Servers
   füllt. Er schreibt, das Panel liest.
 
+> **Berichtigt am 7. August 2026, siehe §22.3.** Der Filter unten kann
+> **nicht** im Rohr sitzen: `Runner` deckelt die Ausgabe bei 4 MiB und
+> zerschneidet den Rückkanal an der 64-KiB-Lesegrenze statt an der Zeilengrenze.
+> `mysqldump --result-file=<pfad>` schreibt deshalb unmittelbar in eine Datei,
+> und der Filter läuft in einem zweiten Durchgang darüber (`fgets`), bevor er
+> komprimiert daneben schreibt. Was in §10.1 über den Filter selbst steht, gilt
+> unverändert — nur nicht der Ort, an dem er läuft.
+
 ### 10.1 Die DEFINER-Falle
 
 `mysqldump` schreibt zu jeder Prozedur, jedem Trigger und jeder Sicht eine
@@ -963,6 +971,10 @@ den Zertifikaten.
 Datenbank.
 
 ### Schritt 6 — Sichern und Zurückspielen (§10)
+
+**Zuerst die Berichtigung aus §22.3 in §10 einarbeiten** — der Filter läuft über
+eine Datei und nicht durch `Runner`s Rückkanal. Ein Aufruf, der auf der alten
+Annahme aufsetzt, liefert abgeschnittene Sicherungen.
 
 ```
 agent/src/Db/Dump.php          agent/src/Db/Ephemeral.php
@@ -1443,12 +1455,54 @@ oben steht unverändert; hier steht, was er nicht wusste.
   der eine Anwendung genau einmal überrascht, und zwar in der Produktion.
   Gewählt wird nur die Sortierung.
 
-### 22.3 Was noch fehlt
+### 22.3 Ein Fehler im Plan: der Filter kann nicht im Rohr sitzen
 
-Schritt 4 bis 10 aus §15 stehen aus: die Sperre ist **gebaut**
-(`DbLifecycle`), die Messung (§9), Sichern und Zurückspielen (§10), die
-Screenshots (§11), `srvpanel db` und `acceptance-db` (§17) sowie der Fernzugriff
-(§12) nicht. Das Abnahmekriterium von P5 ist damit **nicht** erfüllt: Anlegen
+**§10.1 nimmt an, dass `Db\Dump` die DEFINER-Angabe streicht, während der Dump
+durch den Agenten läuft.** Das geht mit `Runner` nicht, und der Grund liegt in
+zwei Zeilen, die für jeden anderen Zweck richtig sind:
+
+1. **`Runner` sammelt die Ausgabe im Speicher, gedeckelt auf
+   `OUTPUT_MAX` = 4 MiB.** Was darüber hinausgeht, wird verworfen und der Lauf
+   als `truncated` gekennzeichnet. Eine Kundendatenbank ist regelmässig
+   grösser. Ein Dump über diesen Weg wäre **abgeschnitten**, und `Result` sagte
+   das zwar — nur ist eine abgeschnittene Sicherung schlimmer als keine, weil
+   sie aussieht wie eine.
+2. **Der Rückkanal `onOutput` zerschneidet an der Lesegrenze und nicht an der
+   Zeilengrenze.** `fread($pipe, 65536)` liefert 64 KiB, und darüber läuft
+   `explode("\n", …)`. Eine Zeile, die eine Chunk-Grenze überschreitet, kommt
+   als **zwei** „Zeilen" an. Nachgerechnet: eine Zeile von 70 016 Byte wird zu
+   zwei Aufrufen. Für eine Fortschrittsanzeige ist das kosmetisch; für einen
+   Filter über Kundendaten ist es Datenkorruption — und zwar eine, die genau an
+   den grossen Zeilen zuschlägt, also an den Datenzeilen.
+
+**Der Plan ist damit an dieser Stelle falsch, und die Korrektur ist klein:**
+`mysqldump --result-file=<pfad>` schreibt unmittelbar in eine Datei; über
+`Runner`s Ausgabepfad läuft dann gar nichts. Der Filter arbeitet danach in einem
+zweiten Durchgang über diese Datei — `fgets` respektiert echte Zeilengrenzen —
+und schreibt komprimiert daneben, worauf die Rohdatei fällt. Das kostet
+vorübergehend Platz für beide Fassungen (der Vorprüfung gegen
+`disk_free_space` aus §20 Punkt 3 ist damit die doppelte Grösse zugrunde zu
+legen) und fügt **kein** Programm zur Positivliste hinzu: Komprimiert wird mit
+`gzopen`/`gzwrite` in PHP, nicht mit `gzip`.
+
+**Deshalb ist Schritt 6 hier nicht angefangen worden.** `Db\Dump` und
+`Db\Ephemeral` waren geschrieben und sind wieder entfernt: Sie hätten auf der
+falschen Annahme aufgesetzt, und ein Baustein unter `agent/`, den keine
+Operation erreicht, ist Code, der als root läuft und zu dem es keinen Weg gibt.
+Die Korrektur oben gehört in §10, bevor der erste Aufruf entsteht.
+
+**Und die Lehre ist die alte, an einer neuen Stelle:** Eine Schnittstelle, die
+für ihren bisherigen Zweck richtig ist, ist damit noch nicht für den nächsten
+richtig. `onOutput` heisst „Ausgabezeilen, sobald sie anfallen" — der Kommentar
+im Quelltext sagt genau das, und er sagt nirgends, dass eine Zeile eine Zeile
+ist.
+
+### 22.4 Was noch fehlt
+
+Schritt 4 ist **gebaut** (die Sperre, `DbLifecycle`), die Screenshots aus
+Schritt 7 sind gemacht und haben zwei Fehler gefunden. Es fehlen: die Messung
+(§9), Sichern und Zurückspielen (§10 — mit der Korrektur aus §22.3 zuerst),
+`srvpanel db` und `acceptance-db` (§17) sowie der Fernzugriff (§12). Das Abnahmekriterium von P5 ist damit **nicht** erfüllt: Anlegen
 und Benutzen gehen, Sichern und Zurückspielen nicht, und die Gegenprobe zur
 Mandantentrennung ist bisher eine Eigenschaft der erzeugten Zeichenkette
 (`DbIsolationTest`, `GrantPatternTest`) und keine Verbindung, die MariaDB
@@ -1460,7 +1514,7 @@ mit einem Wegwerfskript, das jeden einzeln anwendet und `cmp` gegen die Fassung
 davor hält. Ob die Wächter danach rot werden, braucht weiterhin ein lokales
 PHPUnit.
 
-### 22.4 Eine Umgebungsnotiz, die künftig Runden spart
+### 22.5 Eine Umgebungsnotiz, die künftig Runden spart
 
 **`pint.phar` lässt sich von den GitHub-Releases holen, und es *ist* Pint.**
 CLAUDE.md stand bis hierher auf `php-cs-fixer.phar` als Behelf, mit der

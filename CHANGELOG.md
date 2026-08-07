@@ -4136,6 +4136,14 @@ abschliesst, sind zwei verschiedene Fragen — `awaitAuthorization()` behält se
 Vorgabe in den Schnittstellen: Eine geerbte Zahl wäre die, die beim nächsten
 Anbieter zu kurz ist.
 
+**Und ein Nachtrag, den die CI gefunden hat:** `RecordingDnsProvider`, das
+Testdoppel, bekam die neue Methode nicht. Das ist kein Fehlschlag, sondern ein
+Abbruch — eine Klasse, die sich nicht laden lässt, beendet den Lauf mit
+„Premature end of PHP process", und alles danach bleibt ungeprüft. Lokal
+auffindbar wäre es gewesen: PHPStan läuft in diesem Container über `agent/src`
+**und** `tests/Support` sauber durch, weil die Doppel dort am Agenten hängen und
+nicht am Framework. Steht jetzt so in `CLAUDE.md`.
+
 **Ein Bruch fehlt im Skript, und zwar mit Begründung dort.** Der naheliegende —
 `Order::awaitReady()` die Frist des Anbieters wegnehmen — zeigt auf
 `AcmeProtocolTest`, und der fährt HTTP-01, wo die Prüfdatei sofort liegt. Ein

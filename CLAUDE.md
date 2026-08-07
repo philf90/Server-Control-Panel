@@ -256,6 +256,14 @@ Testen berücksichtigen:
     gegen eine leere Konstante. Genau der hat eine CI-Runde gekostet, und die
     Gegenprobe zeigt, dass er lokal auffindbar gewesen wäre.
 
+    **Und `tests/Support/` gehört in denselben Lauf wie `agent/src`.** Die
+    Testdoppel dort hängen am Agenten und nicht am Framework, also läuft Stufe 6
+    auch über sie sauber durch. Wer das trennt, sieht die teuerste Meldung
+    nicht: Bekommt eine Schnittstelle unter `agent/` eine Methode und das Doppel
+    nicht, ist das `method.abstract` — und in den Tests kein Fehlschlag, sondern
+    ein Abbruch („Premature end of PHP process"), der alles Folgende verschluckt.
+    Am 7. August genau so passiert, mit `DnsProvider::patience()`.
+
   **Für `agent/` gibt es ausserdem einen Ausweg, und er hat in P4 eine Runde
   gespart.**
   `agent/src/autoload.php` ist framework- und abhängigkeitsfrei; Code unterhalb

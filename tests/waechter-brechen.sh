@@ -1488,11 +1488,11 @@ pruefe "Zone als Zeichenkette verglichen" \
 wiederherstellen
 
 echo
-echo "── ProvidersTest: ein Anbieter ohne Umsetzung gilt als fertig ──"
+echo "── ProvidersTest: ein Anbieter ohne Umsetzung gilt als angeboten ──"
 #
-# Ein Schlüssel, der weder gebaut ist noch als offen dasteht, ist genau die
+# Ein Schlüssel, der weder gebaut ist noch zurückgehalten wird, ist genau die
 # Zeichenkette, die auf nichts zeigt — und sie fiele erst beim ersten
-# Zertifikat auf, mit einem Token, das längst auf der Platte liegt.
+# Zertifikat auf, mit einem Geheimnis, das längst auf der Platte liegt.
 vorher_datei agent/src/Acme/Dns/Providers.php
 python3 - <<'PY2'
 p = 'agent/src/Acme/Dns/Providers.php'
@@ -2431,6 +2431,28 @@ pruefe "abgeschnittene Zonenliste verschwiegen" \
   InwxTest::test_a_truncated_zone_list_is_reported failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InwxTest passed
+
+echo
+echo "── ProvidersTest: ein Zurückgehaltener wird stumm abgewiesen ──"
+#
+# Seit dem 7. August gibt es zwei Gründe, warum ein Anbieter fehlt: „noch nicht
+# gebaut" und „gebaut, aber nicht angeboten". Eine Abweisung ohne Grund lässt
+# den Betreiber im zweiten Fall auf etwas warten, das nicht kommt.
+vorher_datei agent/src/Acme/Dns/Providers.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Providers.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        self::INWX => 'Die Zugangsdaten sind dort Benutzername und Passwort des Registrarkontos '.\n            'und nicht ein Token für eine Zone.',",
+    "        self::INWX => '',",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Providers.php "Zurückgehaltener ohne Grund" &&
+pruefe "Zurückgehaltener ohne Grund" \
+  ProvidersTest::test_every_provider_key_points_at_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProvidersTest passed
 
 echo
 echo "── PatienceTest: eine Frist für alle Anbieter ──"

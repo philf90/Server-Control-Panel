@@ -6,6 +6,9 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
+use SrvPanel\Agent\Acme\Dns\DnsProvider;
+use SrvPanel\Agent\Acme\Dns\Inwx;
 use SrvPanel\Agent\Acme\Dns\Providers;
 use SrvPanel\Agent\Acme\DnsChallenge;
 use SrvPanel\Agent\Acme\HttpChallenge;
@@ -82,6 +85,26 @@ final class PatienceTest extends TestCase
     }
 
     /**
+     * Ein Anbieter, auch ein zurückgehaltener.
+     *
+     * **`Providers::make()` weist INWX ab**, seit er nicht mehr angeboten wird
+     * (`docs/34 §11`) — die Werkstatt ist die Grenze, und das ist richtig so.
+     * Seine Zahl gehört trotzdem geprüft: Der Code steht, und am Tag, an dem
+     * INWX zurückkommt, soll sie nicht erst dann falsch auffallen.
+     */
+    private static function provider(string $key): DnsProvider
+    {
+        if (in_array($key, Providers::available(), true)) {
+            return Providers::make($key, self::configs()[$key]);
+        }
+
+        return match ($key) {
+            Providers::INWX => new Inwx('wer', 'geheim', ''),
+            default => throw new RuntimeException('Für '.$key.' fehlt hier der Weg am Werkstattzugang vorbei.'),
+        };
+    }
+
+    /**
      * Jeder Anbieter nennt genau die Zahl aus dem Plan.
      *
      * **Und die Prüfung reicht sie durch**, denn eine Zahl, die im Anbieter
@@ -90,7 +113,7 @@ final class PatienceTest extends TestCase
     #[DataProvider('expected')]
     public function test_every_provider_names_its_own_patience(string $key, int $seconds, int $interval): void
     {
-        $provider = Providers::make($key, self::configs()[$key]);
+        $provider = self::provider($key);
 
         $this->assertSame($seconds, $provider->patience()->seconds, sprintf(
             'Die Frist für %s weicht von `docs/34 §11` ab.',

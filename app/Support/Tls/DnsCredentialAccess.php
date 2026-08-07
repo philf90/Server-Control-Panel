@@ -76,15 +76,20 @@ final class DnsCredentialAccess
     }
 
     /**
-     * Die Anbieter für das Formular — die brauchbaren zuerst, die offenen dazu.
+     * Die Anbieter für das Formular — die brauchbaren und die zurückgehaltenen.
      *
-     * **Beide Listen, und die offenen als offen gekennzeichnet.** Wer seinen
-     * Anbieter gar nicht findet, trägt ihn beim falschen ein; wer ihn ausgegraut
-     * sieht, weiss, dass er kommt. Angeboten zur Auswahl wird trotzdem nur, was
-     * {@see Providers::make()} auch bauen kann — ein Eintrag, den der Agent
-     * abweist, ist genau die Sorte Zeichenkette, die auf nichts zeigt.
+     * **Beide Listen, und die zurückgehaltenen mit ihrem Grund.** Wer seinen
+     * Anbieter gar nicht findet, trägt ihn beim falschen ein. Wer ihn ausgegraut
+     * sieht, will wissen, warum — und die Antwort ist seit dem 7. August 2026
+     * nicht mehr immer dieselbe: INWX ist gebaut und wird trotzdem nicht
+     * angeboten, weil dort die Zugangsdaten das Registrarkonto öffnen. „Noch
+     * nicht verfügbar" wäre für ihn schlicht falsch.
      *
-     * @return list<array{value: string, label: string, usable: bool}>
+     * Angeboten zur Auswahl wird trotzdem nur, was {@see Providers::make()}
+     * auch bauen darf — ein Eintrag, den der Agent abweist, ist genau die Sorte
+     * Zeichenkette, die auf nichts zeigt.
+     *
+     * @return list<array{value: string, label: string, usable: bool, reason: ?string}>
      */
     public function providers(): array
     {
@@ -95,6 +100,7 @@ final class DnsCredentialAccess
             'value' => $key,
             'label' => Providers::label($key),
             'usable' => in_array($key, $usable, true),
+            'reason' => Providers::reason($key),
         ], $listed['providers']);
     }
 

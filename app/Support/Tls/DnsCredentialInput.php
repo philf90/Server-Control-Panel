@@ -24,14 +24,21 @@ use SrvPanel\Agent\Acme\Dns\Providers;
  * zweite ist die, die veraltet.
  *
  * **Der Anbieter dagegen gehört hierher.** Er entscheidet, welche Felder
- * überhaupt gelten, und die noch offenen aus Schritt 9 nimmt der Agent ohnehin
- * nicht an. Ihn hier abzuweisen heisst, die Meldung am Feld zu haben statt als
- * Abweisung von der anderen Seite des Sockets.
+ * überhaupt gelten, und einen, der nicht angeboten wird, nimmt der Agent
+ * ohnehin nicht an. Ihn hier abzuweisen heisst, die Meldung am Feld zu haben
+ * statt als Abweisung von der anderen Seite des Sockets.
  */
 final class DnsCredentialInput
 {
     /**
-     * Der gewählte Anbieter — und nur einer, den es auch gibt.
+     * Der gewählte Anbieter — und nur einer, der auch angeboten wird.
+     *
+     * **Die Meldung sagt nicht mehr „noch nicht".** Bis zum 7. August 2026 gab
+     * es nur einen Grund zu fehlen: noch nicht gebaut. Seit INWX gebaut ist und
+     * trotzdem nicht angeboten wird (`docs/34 §11`), wäre „noch nicht" bei ihm
+     * eine Zusage, die niemand einlöst. Warum ein einzelner fehlt, steht im
+     * Formular neben seinem Namen — hier fehlt der Platz dafür, denn diese
+     * Meldung gilt für jeden abgewiesenen Wert.
      *
      * @param  array<string, mixed>  $input
      * @param  list<string>  $usable
@@ -43,7 +50,7 @@ final class DnsCredentialInput
         $data = Validator::make($input, [
             'provider' => ['required', 'string', 'in:'.implode(',', $usable)],
         ], [
-            'provider.in' => 'Diesen Anbieter gibt es noch nicht.',
+            'provider.in' => 'Diesen Anbieter gibt es hier nicht.',
         ])->validate();
 
         return (string) $data['provider'];
@@ -76,6 +83,10 @@ final class DnsCredentialInput
             Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE, Providers::DESEC => self::tokenOnly($input),
             Providers::NETCUP => self::netcup($input),
             Providers::IONOS => self::ionos($input),
+            // INWX steht hier, obwohl `self::provider()` ihn davor abweist —
+            // dieselbe Entscheidung wie im Agenten (`Providers::configure()`).
+            // Der Zweig zu löschen hiesse, ihn beim nächsten Sinneswandel neu
+            // zu schreiben, und dann fehlte genau die Prüfung, die hier steht.
             Providers::INWX => self::inwx($input),
             // Unerreichbar, solange {@see self::provider()} davor steht — und
             // deshalb steht der Zweig hier: Ein `match` ohne ihn wirft einen

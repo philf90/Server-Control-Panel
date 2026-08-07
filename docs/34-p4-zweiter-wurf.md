@@ -921,28 +921,41 @@ Automatik sie nicht still zurücknimmt.
    Wechsel wäre bequemer und würde genau das tun, wogegen
    `certificate_pinned_at` überhaupt eingeführt wurde.
 
-3. **INWX wird nicht angeboten.** Bei den übrigen sieben sind die Zugangsdaten
+3. ~~**INWX wird nicht angeboten.**~~ — umgesetzt am 7. August 2026. Die Liste
+   heisst jetzt `Providers::WITHHELD` und trägt den Grund als Wert; er geht bis
+   ins Formular. Bei den übrigen sieben sind die Zugangsdaten
    ein Token, das sich auf Zonen eingrenzen lässt; bei INWX sind es
    Benutzername und Passwort desselben Zugangs, mit dem man Domains kauft,
    überträgt und löscht. Ein Panel soll niemanden dazu bringen, sein
    Registrarkonto auf einem fremden Server abzulegen — auch den Betreiber
-   nicht. **Der Code bleibt**, der Schlüssel steht wieder in
-   `Providers::PENDING`; kommt bei INWX eines Tages ein eingrenzbares Token,
-   ist es eine Zeile.
+   nicht. **Der Code bleibt** — an allen drei Stellen, im Agenten, in der
+   Formularprüfung und im Formular selbst; kommt bei INWX eines Tages ein
+   eingrenzbares Token, ist es eine Zeile in `WITHHELD`.
 
-   **Damit ändert sich, was `PENDING` bedeutet.** Bisher hiess es „noch nicht
-   gebaut", jetzt heisst es „nicht angeboten" — und der Unterschied gehört in
-   die Oberfläche: „Noch nicht verfügbar: INWX" wäre schlicht falsch. Jeder
-   zurückgehaltene Anbieter bekommt einen Grund, und der wird angezeigt.
+   **Damit ändert sich, was diese Liste bedeutet.** Bisher hiess sie `PENDING`
+   und meinte „noch nicht gebaut", jetzt heisst sie `WITHHELD` und meint „nicht
+   angeboten" — und der Unterschied gehört in die Oberfläche: „Noch nicht
+   verfügbar: INWX" wäre schlicht falsch. Jeder zurückgehaltene Anbieter trägt
+   deshalb seinen Grund als Wert, und der wird angezeigt: im Formular neben dem
+   Namen, im Kommando als eigene Zeile. Aus demselben Grund heisst die
+   Abweisung am Feld nicht mehr „Diesen Anbieter gibt es noch nicht", sondern
+   „hier nicht" — sie gilt für jeden abgewiesenen Wert und kann den Einzelfall
+   nicht erklären.
 
-4. **Die Frist für `ready()` kommt vom Anbieter, nicht aus einer Konstante.**
-   Heute wartet `Order` für alle 120 Sekunden und fragt alle 2 Sekunden nach.
-   Das ist kürzer, als lego für drei der acht Anbieter für nötig hält:
+4. ~~**Die Frist für `ready()` kommt vom Anbieter, nicht aus einer
+   Konstante.**~~ — umgesetzt am 7. August 2026 als `Patience`.
+   Bis dahin wartete `Order` für alle 120 Sekunden und fragte alle 2 Sekunden
+   nach. Das ist kürzer, als lego für drei der acht Anbieter für nötig hält:
 
-   | | IPv64 | Hetzner | Cloudflare | deSEC | INWX | netcup | IONOS |
-   |---|---|---|---|---|---|---|---|
-   | Frist | 60 s | 60 s | 120 s | 120 s | 360 s | 900 s | 900 s |
-   | Abstand | 2 s | 2 s | 2 s | 4 s | 2 s | 30 s | 2 s |
+   | | RFC 2136 | IPv64 | Hetzner | Cloudflare | deSEC | INWX | netcup | IONOS |
+   |---|---|---|---|---|---|---|---|---|
+   | Frist | 60 s | 60 s | 60 s | 120 s | 120 s | 360 s | 900 s | 900 s |
+   | Abstand | 2 s | 2 s | 2 s | 2 s | 4 s | 2 s | 30 s | 2 s |
+
+   **Diese Tabelle ist die Quelle, gegen die `PatienceTest` jede Zahl einzeln
+   prüft** — und zwar auch die von INWX, obwohl er nicht angeboten wird. RFC
+   2136 steht hier ohne lego-Vorbild: Ein Nameserver, der die Aktualisierung
+   selbst bestätigt hat, braucht nicht länger als die schnellsten.
 
    Bei netcup und IONOS bricht eine Bestellung damit nach zwei Minuten ab, wo
    lego fünfzehn zugesteht — und **jeder Fehlversuch zählt bei Let's Encrypt

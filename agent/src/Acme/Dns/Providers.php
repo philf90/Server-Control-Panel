@@ -28,12 +28,12 @@ use SrvPanel\Agent\AgentException;
  * die Zone und nicht das Panel: Sie lässt sich zu deSEC delegieren, ohne dass
  * die Domain umzieht, und deshalb steht deSEC überhaupt hier.
  *
- * **Und was noch nicht gebaut ist, lässt sich auch nicht hinterlegen.** Die
- * noch offenen stehen in {@see self::PENDING} und werden beim Ablegen der
- * Zugangsdaten abgewiesen. Das ist der Unterschied zu einer Liste, die schon
- * einmal alles anbietet: Ein Token, das im Formular angenommen wird und von
- * nichts benutzt werden kann, ist genau die Sorte Zeichenkette, die auf nichts
- * zeigt — und sie liegt hier als Geheimnis auf der Platte.
+ * **Und was nicht angeboten wird, lässt sich auch nicht hinterlegen.** Wer in
+ * {@see self::WITHHELD} steht, wird beim Ablegen der Zugangsdaten abgewiesen —
+ * mit dem Grund, der dort steht. Das ist der Unterschied zu einer Liste, die
+ * schon einmal alles anbietet: Ein Geheimnis, das im Formular angenommen wird
+ * und von nichts benutzt werden kann, liegt danach auf der Platte eines
+ * Servers, auf dem Kunden Websites betreiben.
  */
 final class Providers
 {
@@ -76,22 +76,27 @@ final class Providers
     ];
 
     /**
-     * Die, die noch kommen — Schritt 9 des Plans.
+     * Die, die nicht angeboten werden — mit dem Grund, warum nicht.
      *
-     * **Sie stehen hier und nicht in einem Kommentar**, damit
+     * **Die Liste hiess bis zum 7. August 2026 `PENDING` und meinte „noch nicht
+     * gebaut".** Mit dem achten Anbieter war sie leer, und im selben Zug fiel
+     * die Entscheidung, INWX **nicht anzubieten**, obwohl er gebaut ist
+     * (`docs/34 §11`). Damit sind es zwei verschiedene Gründe, und ein
+     * Formular, das für beide „Noch nicht verfügbar" sagt, sagt bei einem davon
+     * die Unwahrheit. Deshalb steht hier der Grund und nicht nur der Schlüssel
+     * — und er wird angezeigt.
+     *
+     * **Sie steht hier und nicht in einem Kommentar**, damit
      * `ProvidersTest::test_every_provider_key_points_at_something` beide
-     * Richtungen prüfen kann: Jeder Schlüssel ist entweder gebaut oder steht
-     * hier, und wer hier steht, hat keine Umsetzung. Ein Schlüssel, der aus
-     * dieser Liste fällt, ohne dass es ihn gibt, fällt beim nächsten Lauf auf.
+     * Richtungen prüfen kann: Ein Schlüssel, der hier herausfällt, ohne dass es
+     * die Umsetzung gibt, fällt beim nächsten Lauf auf.
      *
-     * **Seit dem 7. August 2026 ist sie leer** — alle acht sind gebaut. Sie
-     * bleibt trotzdem stehen: Ein neunter Anbieter beginnt hier, und der
-     * Unterschied zwischen „beschlossen" und „gebaut" ist der, den dieses
-     * Panel dem Betreiber im Formular zeigt.
-     *
-     * @var list<string>
+     * @var array<string, string>
      */
-    public const PENDING = [];
+    public const WITHHELD = [
+        self::INWX => 'Die Zugangsdaten sind dort Benutzername und Passwort des Registrarkontos '.
+            'und nicht ein Token für eine Zone.',
+    ];
 
     /** @return list<string> */
     public static function keys(): array
@@ -106,7 +111,7 @@ final class Providers
      */
     public static function available(): array
     {
-        return array_values(array_diff(self::keys(), self::PENDING));
+        return array_values(array_diff(self::keys(), array_keys(self::WITHHELD)));
     }
 
     /**
@@ -125,6 +130,10 @@ final class Providers
             self::NETCUP => Netcup::configure($config),
             self::IONOS => Ionos::configure($config),
             self::DESEC => Desec::configure($config),
+            // INWX steht hier, obwohl er nicht angeboten wird: Der Weg über
+            // `usable()` kommt nie hier an. Ihn zu entfernen hiesse, ihn beim
+            // nächsten Sinneswandel neu zu schreiben — und `ProvidersTest`
+            // prüft weiter, dass der Schlüssel auf eine Umsetzung zeigt.
             self::INWX => Inwx::configure($config),
             default => throw self::missing($name),
         };
@@ -156,7 +165,7 @@ final class Providers
      * **Er steht hier als Zweig und nicht als Lücke.** Ein `match` ohne diesen
      * Ausgang wirft zwar auch — aber einen `UnhandledMatchError`, und der
      * landet als „interner Fehler" im Panel, ohne zu sagen, woran es liegt.
-     * Erreichbar ist er nur über einen Schlüssel, der aus {@see self::PENDING}
+     * Erreichbar ist er nur über einen Schlüssel, der aus {@see self::WITHHELD}
      * gefallen ist, ohne dass es die Umsetzung gibt; genau das prüft
      * `ProvidersTest::test_every_provider_key_points_at_something`.
      */
@@ -171,26 +180,37 @@ final class Providers
     /**
      * Ein Schlüssel, hinter dem auch etwas steht.
      *
-     * **Gefragt wird gegen {@see self::available()} und nicht gegen
-     * {@see self::PENDING}.** Beides ist dieselbe Aussage — aber seit alle acht
-     * gebaut sind, ist `PENDING` leer, und ein `in_array` gegen eine leere
-     * Konstante ist ein Zweig, den nichts erreichen kann. PHPStan sagt das auch
-     * so; es hier stehen zu lassen hiesse, seine Meldung wegzudrücken statt sie
-     * zu beantworten. Die Frage „steht dieser Schlüssel auf der Liste der
-     * benutzbaren" ist ausserdem die direktere.
+     * **Die Abweisung nennt den Grund**, denn es gibt zwei: „noch nicht gebaut"
+     * und „gebaut, aber nicht angeboten". Wer nur „nicht verfügbar" liest,
+     * wartet im zweiten Fall auf etwas, das nicht kommt.
      */
     public static function usable(mixed $key): string
     {
         $name = self::normalize($key);
 
-        if (! in_array($name, self::available(), true)) {
+        $reason = self::reason($name);
+
+        if ($reason !== null) {
             throw AgentException::badRequest(
-                'Dieser DNS-Anbieter ist noch nicht umgesetzt.',
+                'Dieser DNS-Anbieter wird nicht angeboten: '.$reason,
                 ['provider' => $name, 'available' => self::available()],
             );
         }
 
         return $name;
+    }
+
+    /**
+     * Warum ein Anbieter nicht angeboten wird — oder `null`, wenn er es wird.
+     *
+     * Der Grund geht bis in die Oberfläche: Er steht neben dem Namen im
+     * Formular, damit niemand auf einen Anbieter wartet, der nicht kommt.
+     */
+    public static function reason(mixed $key): ?string
+    {
+        $name = self::normalize($key);
+
+        return self::WITHHELD[$name] ?? null;
     }
 
     /** Der Name, wie ihn jemand liest. */

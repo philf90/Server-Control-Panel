@@ -40,11 +40,22 @@ const props = defineProps<{
   profile: string
 
   credential: Credential | null
-  providers: { value: string; label: string; usable: boolean }[]
+  providers: { value: string; label: string; usable: boolean; reason: string | null }[]
 }>()
 
 const usable = computed(() => props.providers.filter((p) => p.usable))
-const pending = computed(() => props.providers.filter((p) => !p.usable))
+
+/*
+ * Und die, die es nicht gibt — mit ihrem Grund.
+ *
+ * **Der Grund kommt vom Agenten und steht nicht hier.** Seit dem 7. August 2026
+ * gibt es zwei davon: „noch nicht gebaut" und „gebaut, aber nicht angeboten".
+ * INWX ist der zweite Fall — dort öffnen die Zugangsdaten das Registrarkonto
+ * und nicht eine Zone. Ein Satz an dieser Stelle, der für beide „Noch nicht
+ * verfügbar" sagt, sagt bei einem davon die Unwahrheit; und zwei Sätze hier
+ * wären eine zweite Fassung dessen, was in `Providers::WITHHELD` steht.
+ */
+const withheld = computed(() => props.providers.filter((p) => !p.usable))
 
 /*
  * Ein Formular für alle Anbieter, aber nicht alle Felder für alle.
@@ -224,8 +235,8 @@ function moment(seconds: number): string {
         </select>
       </label>
       <p v-if="form.errors.provider" class="error">{{ form.errors.provider }}</p>
-      <p v-if="pending.length > 0" class="hint">
-        Noch nicht verfügbar: {{ pending.map((p) => p.label).join(', ') }}.
+      <p v-for="p in withheld" :key="p.value" class="hint">
+        Nicht angeboten: {{ p.label }} — {{ p.reason }}
       </p>
 
       <!--
@@ -294,6 +305,12 @@ function moment(seconds: number): string {
         wird, öffnet ein Registrarkonto und nicht eine Zone — das gehört vor die
         Felder und nicht in eine Fussnote. Das gemeinsame Geheimnis ist
         freiwillig: Nur ein Konto mit zweitem Faktor braucht es.
+
+        **Und genau deshalb ist dieser Zweig seit dem 7. August 2026 nicht mehr
+        erreichbar:** INWX steht in `Providers::WITHHELD` und kommt in der Liste
+        oben nicht vor (`docs/34 §11`). Er bleibt trotzdem stehen — wie der
+        Zweig in `DnsCredentialInput::config()` und der im Agenten. Ein
+        Sinneswandel ist eine Zeile in `WITHHELD`, kein neues Formular.
       -->
       <template v-if="form.provider === INWX">
         <p class="hint">

@@ -174,9 +174,12 @@ final class DnsCredentials extends Command
             $this->line('Es ist kein Profil hinterlegt.');
             $this->line('  Anbieter: '.implode(', ', is_array($available) ? $available : []));
 
-            // Die vier anderen stehen im Plan und sind noch nicht gebaut. Wer
-            // sie hier nicht sieht, trägt sie sonst beim falschen ein.
-            $this->line('  Später: '.implode(', ', Providers::PENDING));
+            // Und was zurückgehalten wird, mit dem Grund: Wer INWX hier
+            // vermisst, soll nicht auf ihn warten — er kommt nicht, solange
+            // seine Zugangsdaten das Registrarkonto öffnen.
+            foreach (Providers::WITHHELD as $key => $reason) {
+                $this->line('  Nicht angeboten: '.Providers::label($key).' — '.$reason);
+            }
 
             return self::SUCCESS;
         }

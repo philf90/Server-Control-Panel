@@ -14,7 +14,7 @@ use SrvPanel\Agent\AgentException;
  *
  * **Das ist der Wächter zu der Regel, die dieses Projekt trägt.** Ein Anbieter,
  * der in {@see Providers::keys()} steht und weder gebaut ist noch in
- * {@see Providers::PENDING}, wäre genau die Zeichenkette, die auf nichts zeigt
+ * {@see Providers::WITHHELD}, wäre genau die Zeichenkette, die auf nichts zeigt
  * — und sie würde erst beim ersten Zertifikat auffallen.
  *
  * **Warum er hier steht und nicht mehr in `Rfc2136Test`.** Dort ist er
@@ -75,18 +75,22 @@ final class ProvidersTest extends TestCase
     public function test_every_provider_key_points_at_something(): void
     {
         foreach (Providers::keys() as $key) {
-            // **Gefragt wird gegen `available()` und nicht gegen `PENDING`.**
-            // Seit alle acht gebaut sind, ist `PENDING` leer, und ein
+            // **Gefragt wird gegen `available()` und nicht gegen `WITHHELD`.**
+            // Beides ist dieselbe Aussage, aber diese Form bleibt richtig, auch
+            // wenn die Liste der Zurückgehaltenen einmal leer ist — ein
             // `in_array` gegen eine leere Konstante ist ein Zweig, den nichts
-            // erreichen kann — PHPStan sagt das auch so. Diese Form prüft
-            // dieselbe Sache und bekommt ihren Gegenstand mit dem neunten
-            // Anbieter von selbst zurück.
+            // erreichen kann, und PHPStan sagt das auch so.
             if (! in_array($key, Providers::available(), true)) {
                 try {
                     Providers::make($key, []);
-                    $this->fail($key.' steht als offen und lässt sich trotzdem bauen.');
+                    $this->fail($key.' wird nicht angeboten und lässt sich trotzdem bauen.');
                 } catch (AgentException $exception) {
-                    $this->assertStringContainsString('noch nicht umgesetzt', $exception->getMessage());
+                    $this->assertStringContainsString('wird nicht angeboten', $exception->getMessage());
+
+                    // **Und der Grund steht dabei.** Eine Abweisung ohne ihn
+                    // lässt den Betreiber auf einen Anbieter warten, der nicht
+                    // kommt.
+                    $this->assertNotSame('', (string) Providers::reason($key));
                 }
 
                 continue;
@@ -102,17 +106,15 @@ final class ProvidersTest extends TestCase
             $this->assertInstanceOf(DnsProvider::class, Providers::make($key, self::CONFIGS[$key]));
         }
 
-        // **Die Liste steht hier wörtlich und nicht als Abzug von PENDING.**
+        // **Die Liste steht hier wörtlich und nicht als Abzug von WITHHELD.**
         // Sonst prüfte der Test seine eigene Rechnung: Fällt ein Schlüssel aus
-        // PENDING, ohne dass es die Umsetzung gibt, wäre er in beiden Listen
-        // gleichzeitig richtig. Wer einen Anbieter baut, ändert diese Zeile —
-        // und das ist der Punkt.
+        // WITHHELD, ohne dass es die Umsetzung gibt, wäre er in beiden Listen
+        // gleichzeitig richtig. Wer einen Anbieter baut oder zurückzieht, ändert
+        // diese Zeile — und das ist der Punkt.
         //
-        // **Seit dem achten Anbieter ist sie dieselbe wie die in
-        // `DnsCredentialsTest`**, weil alles Beschlossene gebaut ist. Das ist
-        // ein Zustand und keine Verdopplung: Dort steht, was beschlossen ist,
-        // hier, was gebaut ist. Mit dem neunten Anbieter laufen sie wieder
-        // auseinander, und dann zählt der Unterschied wieder.
+        // INWX fehlt hier, obwohl er gebaut ist: Er wird nicht angeboten
+        // (`docs/34 §11`). Der Unterschied zu `DnsCredentialsTest` ist genau
+        // dieser — dort steht, was beschlossen ist, hier, was angeboten wird.
         $this->assertSame(
             [
                 Providers::RFC2136,
@@ -121,7 +123,6 @@ final class ProvidersTest extends TestCase
                 Providers::CLOUDFLARE,
                 Providers::NETCUP,
                 Providers::IONOS,
-                Providers::INWX,
                 Providers::DESEC,
             ],
             Providers::available(),

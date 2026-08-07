@@ -291,8 +291,9 @@ final class DnsCredentialsTest extends TestCase
      * der Test nicht mehr die Regel, sondern die Tokenform eines fertigen
      * Anbieters. Dann stand hier `Providers::PENDING[0]`, bewusst ohne
      * Auffangzweig — damit er auffällt, wenn der letzte Anbieter gebaut ist.
-     * Genau das ist am 7. August 2026 passiert: {@see Providers::PENDING} ist
-     * leer, und die Regel „noch nicht umgesetzt" hat keinen Gegenstand mehr.
+     * Genau das ist am 7. August 2026 passiert, und im selben Zug bekam die
+     * Liste eine neue Bedeutung: Sie heisst {@see Providers::WITHHELD} und
+     * meint „wird nicht angeboten", mit einem Grund je Eintrag.
      *
      * **Geprüft wird deshalb die Regel, die immer einen hat:** Ein Schlüssel,
      * den es gar nicht gibt, wird abgewiesen. Die Variante für offene Anbieter

@@ -4110,3 +4110,70 @@ auffällt, wenn der letzte Anbieter kommt. Genau das ist passiert. Geprüft wird
 jetzt, dass ein Schlüssel, den es gar nicht gibt, abgewiesen wird; die Variante
 für offene Anbieter steht in `ProvidersTest` und bekommt ihren Gegenstand mit
 dem neunten Anbieter von selbst zurück.
+
+#### Die Frist für `ready()` kommt vom Anbieter und nicht aus einer Konstante
+
+Bis zum 7. August 2026 wartete jede Bestellung dieselben 120 Sekunden darauf,
+dass der TXT-Eintrag von aussen sichtbar wird, und fragte alle zwei. **Das ist
+kürzer, als lego für drei der acht Anbieter für nötig hält** — netcup und IONOS
+bekommen dort 900 Sekunden, INWX 360. Eine Bestellung, die zu früh aufgibt,
+verbrennt einen der fünf Fehlversuche je Konto und Stunde, **und die gelten für
+jeden Kunden dieses Servers**, nicht nur für den, dessen Domain gerade dran war.
+
+Umgekehrt wäre eine Viertelstunde für alle genauso falsch: Eine hängende
+Bestellung hielte dann eine Operation des Agenten fünfzehn Minuten fest, statt
+nach einer Minute mit einer brauchbaren Meldung zurückzukommen. Jeder Anbieter
+nennt deshalb seine eigene Frist und seinen eigenen Abstand (`Patience`),
+`DnsChallenge` reicht sie durch, und `Order::awaitReady()` nimmt sie. Die Zahlen
+sind die von lego, weil sie aus dem Einsatz stammen und nicht aus einer
+Schätzung; sie stehen in `docs/34 §11` und werden von `PatienceTest` einzeln
+dagegen geprüft.
+
+**Das Warten auf die Zertifizierungsstelle bleibt unberührt.** Wie schnell ein
+DNS-Anbieter ausliefert und wie schnell Let's Encrypt eine Autorisierung
+abschliesst, sind zwei verschiedene Fragen — `awaitAuthorization()` behält seine
+120 Sekunden. `Challenge::patience()` und `DnsProvider::patience()` stehen ohne
+Vorgabe in den Schnittstellen: Eine geerbte Zahl wäre die, die beim nächsten
+Anbieter zu kurz ist.
+
+**Ein Bruch fehlt im Skript, und zwar mit Begründung dort.** Der naheliegende —
+`Order::awaitReady()` die Frist des Anbieters wegnehmen — zeigt auf
+`AcmeProtocolTest`, und der fährt HTTP-01, wo die Prüfdatei sofort liegt. Ein
+Bruch, der nicht rot werden kann, ist kein Wächter; geprüft wird stattdessen,
+dass `DnsChallenge` die Zahl durchreicht.
+
+#### INWX wird nicht angeboten — gebaut, und trotzdem nicht in der Liste
+
+Die Entscheidung des Betreibers vom 7. August 2026 zur vierten offenen Frage aus
+`docs/34 §11`: **Was hier hinterlegt würde, sind Benutzername und Passwort des
+Registrarkontos** und nicht ein Token für eine Zone. Bei den übrigen sieben
+lässt sich der Zugang auf die Zonen einschränken, für die er gebraucht wird;
+bei INWX öffnet er alles, was dem Kunden dort gehört — Domainübertragungen
+eingeschlossen. Ein Panel, das das entgegennimmt, verwahrt danach ein Geheimnis
+auf der Platte eines Servers, auf dem Kunden Websites betreiben.
+
+**Die Liste hiess `PENDING` und meint jetzt `WITHHELD` — mit dem Grund als
+Wert.** Das ist der eigentliche Punkt dieser Runde: Bis heute gab es genau einen
+Grund zu fehlen, „noch nicht gebaut", und die Oberfläche konnte ihn als festen
+Satz schreiben. Jetzt gibt es zwei, und **„Noch nicht verfügbar" wäre bei INWX
+eine Zusage, die niemand einlöst.** Der Grund steht deshalb im Agenten neben dem
+Schlüssel, geht als `reason` durch `DnsCredentialAccess::providers()` bis ins
+Formular und steht dort neben dem Namen; das Kommando schreibt ihn ebenso. Zwei
+Sätze in der Oberfläche wären eine zweite Fassung dessen, was in `WITHHELD`
+steht — und die zweite ist die, die veraltet.
+
+Aus demselben Grund heisst die Abweisung am Feld nicht mehr „Diesen Anbieter
+gibt es noch nicht", sondern „hier nicht": Sie gilt für jeden abgewiesenen Wert
+und kann den Einzelfall nicht erklären.
+
+**Der Code bleibt stehen, an allen drei Stellen** — `Providers::make()`,
+`DnsCredentialInput::config()` und der Zweig im Formular. Er ist gebaut,
+gegengeprüft und von sechs Wächtern gedeckt; ihn zu löschen hiesse, ihn beim
+nächsten Sinneswandel neu zu schreiben. Erreichbar ist er nicht mehr: `usable()`
+weist ab, bevor gebaut wird, und die Auswahl im Formular kennt ihn nicht.
+`PatienceTest` baut ihn deshalb an der Werkstatt vorbei, damit seine Zahl
+weiter geprüft wird und nicht erst am Tag seiner Rückkehr auffällt.
+
+**Ein neuer Bruch:** ein Zurückgehaltener ohne Grund. Er war beim ersten Anlauf
+grün — die Wegwerfprobe fragte nur, *ob* abgewiesen wird, nicht *ob der Grund
+dabeisteht*. Genau die Lücke, die der Wächter schliessen soll, hatte er selbst.

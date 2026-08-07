@@ -30,6 +30,13 @@
 # zweites Mal laufen darf. Auch dort steht eine Regel als Text in einer Datei,
 # und auch dort gilt: Wer sie zum Prüfen bricht, muss sie zurückbekommen.
 #
+# `database/` kam mit P5 dazu, und der Anlass ist genau der Satz darüber: Ein
+# Wächter prüft dort am **Schema**, dass es keine Spalte für ein Passwort gibt
+# (`SecretsStayOutOfTheQueueTest`), und der Bruch dazu fügt eine ein. Ohne diese
+# Zeile wäre er keine Probe, sondern eine Änderung — die Migration bliebe mit
+# der Spalte stehen, und der nächste Lauf des Skripts fände ein schmutziges
+# Verzeichnis vor, das er sich selbst gemacht hat.
+#
 # **`git checkout` stellt nur wieder her, was git kennt.** Ein Wächter für Code,
 # der noch nicht eingecheckt ist, wird hier nicht gebrochen, sondern gelöscht.
 # Deshalb der Abbruch oben — und deshalb kommt ein neuer Bruch erst nach dem
@@ -39,14 +46,15 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/; then
-  echo "resources/, app/, agent/, packaging/ oder .github/ hat ungesicherte Änderungen. Erst committen" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/; then
+  echo "resources/, app/, agent/, packaging/, .github/ oder database/ hat ungesicherte" >&2
+  echo "Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -3222,6 +3230,190 @@ pruefe "Verknüpfung wird verfolgt" \
   CertificateStoreTest::test_a_symlink_is_refused_and_its_target_survives failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateStoreTest passed
+
+echo
+echo "── GrantPatternTest: der Unterstrich im GRANT-Ziel wird nicht maskiert ──"
+#
+# In `GRANT … ON <db>.*` ist `<db>` ein Muster. Ohne die Maskierung trifft
+# `p1001_shop` auch `p1001Xshop` — und der naheliegende Weg, `p1001_%`, träfe
+# die Datenbanken eines fremden Abonnements. Das ist genau der Zugriff, den das
+# Abnahmekriterium von P5 ausschliesst.
+vorher_datei agent/src/Db/Sql.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Sql.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $escaped = str_replace(['\\\\', '_'], ['\\\\\\\\', '\\\\_'], $database);",
+    "        $escaped = $database;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Sql.php "GRANT-Ziel ohne Maskierung" &&
+pruefe "GRANT-Ziel ohne Maskierung" \
+  GrantPatternTest::test_the_underscore_is_escaped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" GrantPatternTest passed
+
+echo
+echo "── GrantPatternTest: auf ein Muster wird berechtigt ──"
+#
+# Die Maskierung allein reicht nicht: Sie macht aus einem Namen einen Namen,
+# hindert aber niemanden daran, `p1001_%` zu schicken.
+vorher_datei agent/src/Db/Sql.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Sql.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if (str_contains($database, '%')) {
+            throw AgentException::denied('Auf ein Muster wird nicht berechtigt.');
+        }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Sql.php "Muster als GRANT-Ziel erlaubt" &&
+pruefe "Muster als GRANT-Ziel erlaubt" \
+  GrantPatternTest::test_a_pattern_is_refused_outright failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" GrantPatternTest passed
+
+echo
+echo "── DbIsolationTest: die Rechtevergabe reicht das Weiterreichen mit ──"
+#
+# `WITH GRANT OPTION` lässt einen Kunden Rechte weiterreichen — und damit sich
+# selbst welche geben. Dieser Container hat keine MariaDB; geprüft wird deshalb
+# der erzeugte Text, wie bei den nginx-Vorlagen.
+vorher_datei agent/src/Ops/DbUserCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbUserCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                'GRANT ALL PRIVILEGES ON %s TO %s',",
+    "                'GRANT ALL PRIVILEGES ON %s TO %s WITH GRANT OPTION',",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbUserCreate.php "Rechte lassen sich weiterreichen" &&
+pruefe "Rechte lassen sich weiterreichen" \
+  DbIsolationTest::test_no_statement_hands_the_grant_option_on failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbIsolationTest passed
+
+echo
+echo "── DbNameTest: die Form des befristeten Benutzers ist nicht reserviert ──"
+#
+# Ein Kunde dürfte seinen Zugang `r3f9a20c1` nennen. Das ist die Form, die das
+# Zurückspielen einer Sicherung für ein paar Minuten anlegt; db.server.info
+# meldet sie nach einer Stunde als Rest, und das Aufräumen wirft sie weg. Der
+# Kunde verlöre seinen Zugang, ohne dass irgendetwas falsch programmiert wäre.
+vorher_datei agent/src/Db/Names.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Names.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if (preg_match(self::EPHEMERAL_SUFFIX, $suffix)) {
+            throw AgentException::badRequest(
+                'Dieser Name ist für die Zugänge reserviert, die das Zurückspielen einer Sicherung '
+                .'für ein paar Minuten anlegt — er würde danach von selbst wieder verschwinden.',
+                ['suffix' => $suffix],
+            );
+        }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Names.php "befristete Form frei wählbar" &&
+pruefe "befristete Form frei wählbar" \
+  DbNameTest::test_the_ephemeral_shape_is_reserved failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbNameTest passed
+
+echo
+echo "── DbNameTest: die Mandantengrenze verwechselt p1001 mit p10012 ──"
+#
+# Ohne den Unterstrich im Vergleich wäre `p1001` ein Präfix von `p10012_shop` —
+# und das Abonnement p1001 dürfte die Datenbanken von p10012 entfernen.
+vorher_datei agent/src/Db/Names.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Names.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return str_starts_with($name, $systemUser.'_');",
+    "        return str_starts_with($name, $systemUser);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Names.php "Präfixvergleich ohne Unterstrich" &&
+pruefe "Präfixvergleich ohne Unterstrich" \
+  DbNameTest::test_a_foreign_prefix_is_not_a_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbNameTest passed
+
+echo
+echo "── RemovalPathTest: eine Operation legt an, und nichts entfernt es ──"
+#
+# Der Wächter, der die Zertifikatslücke aus docs/35 ein Jahr früher gemeldet
+# hätte. Gebrochen wird er, indem eine remove-Hälfte aus der Registratur fällt.
+vorher_datei agent/src/Registry.php
+python3 - <<'PY2'
+p = 'agent/src/Registry.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->register(new DbDatabaseRemove);\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Registry.php "db.database.create ohne remove" &&
+pruefe "db.database.create ohne remove" \
+  RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: ein Passwort landet in der Warteschlange ──"
+#
+# Ein eingereihter Vorgang legt seine Argumente in `operations.payload` ab —
+# dauerhaft und im Klartext in der Datenbank des Panels. Die Regel gilt seit P4
+# für den privaten Schlüssel und das DNS-Token; P5 macht sie zum dritten Mal
+# nötig und damit zum Wächter.
+vorher_datei app/Support/Databases/DbLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DbLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'type' => 'db.user.lock',",
+    "            'type' => 'db.user.create',",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DbLifecycle.php "db.user.create wird eingereiht" &&
+pruefe "db.user.create wird eingereiht" \
+  SecretsStayOutOfTheQueueTest::test_no_secret_carrying_operation_is_queued failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: eine Spalte für das Passwort ──"
+#
+# Die zweite Hälfte, am Schema statt am Weg: Eine Spalte, die es nicht gibt,
+# lässt sich nicht versehentlich füllen.
+vorher_datei database/migrations/2026_08_08_100000_create_databases_tables.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_08_08_100000_create_databases_tables.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            $table->string('host', 64)->default('localhost');",
+    "            $table->string('host', 64)->default('localhost');\n            $table->string('password')->nullable();",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei database/migrations/2026_08_08_100000_create_databases_tables.php "Spalte für ein Passwort" &&
+pruefe "Spalte für ein Passwort" \
+  SecretsStayOutOfTheQueueTest::test_the_database_tables_have_no_place_for_a_secret failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

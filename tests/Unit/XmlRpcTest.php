@@ -161,9 +161,10 @@ final class XmlRpcTest extends TestCase
 
         try {
             $decoded = XmlRpc::response($xml);
-        } catch (AgentException) {
-            // Abgewiesen ist ebenfalls richtig.
-            $this->assertTrue(true);
+        } catch (AgentException $exception) {
+            // Abgewiesen ist ebenfalls richtig: Dann kam die Entität gar nicht
+            // erst durch den Parser.
+            $this->assertNotSame('', $exception->getMessage());
 
             return;
         }

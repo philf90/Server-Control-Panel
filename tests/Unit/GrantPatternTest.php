@@ -34,8 +34,24 @@ use SrvPanel\Agent\Db\Sql;
  */
 final class GrantPatternTest extends TestCase
 {
-    /** `LIKE` als Glob: `_` → `?`, `%` → `*`. */
-    private function matches(string $pattern, string $name): bool
+    /**
+     * `LIKE` als Glob: `_` → `?`, `%` → `*`.
+     *
+     * **Sie hiess `matches()` und hat die ganze Testsuite umgebracht.**
+     * `PHPUnit\Framework\Assert::matches()` ist `final` und `static`; eine
+     * Methode dieses Namens in einem Testfall bricht beim **Laden** der Klasse,
+     * nicht beim Ausführen — `php -l` sieht davon nichts, und `php artisan
+     * test` endete mit „Cannot override final method" und Rückgabewert 255,
+     * bevor ein einziger Test lief. Nicht dieser eine stand still, sondern alle
+     * vierundsiebzig Dateien.
+     *
+     * Das ist wortwörtlich die Falle aus CLAUDE.md: *„ein Name, der der
+     * Basisklasse gehört"* — dort mit `count()` in einem Testfall und
+     * `configure()` in einem Artisan-Kommando. Im selben Beitrag ist sie ein
+     * zweites Mal aufgetreten, bei `DatabaseFactory::for()`; die hat ein Blick
+     * in die Basisklasse gefangen, diese nicht.
+     */
+    private function likeHits(string $pattern, string $name): bool
     {
         $glob = '';
         $length = strlen($pattern);
@@ -71,12 +87,12 @@ final class GrantPatternTest extends TestCase
     public function test_the_trap_is_real(): void
     {
         $this->assertTrue(
-            $this->matches('p1001_%', 'p10012_shop'),
+            $this->likeHits('p1001_%', 'p10012_shop'),
             'Ein Muster p1001_% träfe die Datenbank eines fremden Abonnements — das ist der Grund für diesen Wächter.',
         );
 
         $this->assertTrue(
-            $this->matches('p1001_shop', 'p1001Xshop'),
+            $this->likeHits('p1001_shop', 'p1001Xshop'),
             'Ein unmaskierter Unterstrich macht auch aus einem Namen ein Muster.',
         );
     }
@@ -90,9 +106,9 @@ final class GrantPatternTest extends TestCase
 
         $pattern = trim(substr($target, 0, -2), '`');
 
-        $this->assertTrue($this->matches($pattern, 'p1001_shop'), 'Die eigene Datenbank muss weiterhin getroffen werden.');
-        $this->assertFalse($this->matches($pattern, 'p1001Xshop'), 'Maskiert darf der Unterstrich nichts anderes mehr treffen.');
-        $this->assertFalse($this->matches($pattern, 'p10012_shop'));
+        $this->assertTrue($this->likeHits($pattern, 'p1001_shop'), 'Die eigene Datenbank muss weiterhin getroffen werden.');
+        $this->assertFalse($this->likeHits($pattern, 'p1001Xshop'), 'Maskiert darf der Unterstrich nichts anderes mehr treffen.');
+        $this->assertFalse($this->likeHits($pattern, 'p10012_shop'));
     }
 
     /**

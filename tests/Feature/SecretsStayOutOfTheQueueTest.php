@@ -52,6 +52,11 @@ final class SecretsStayOutOfTheQueueTest extends TestCase
         'db.user.password' => 'dasselbe Passwort beim Zurücksetzen',
     ];
 
+    /**
+     * Die Namen aller Operationen des Agenten.
+     *
+     * @return list<string>
+     */
     private function names(): array
     {
         return (new Registry(new Config))->names();

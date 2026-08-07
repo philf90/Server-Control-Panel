@@ -89,6 +89,11 @@ final class RemovalPathTest extends TestCase
         'web.logrotate.apply' => 'Die Rotationsdatei eines Abonnements. Sie wird von `subscription.remove` entfernt, und zwar gesucht statt übergeben — eine eigene Operation hätte eine Liste zu führen, die nach einem abgebrochenen Lauf unvollständig ist.',
     ];
 
+    /**
+     * Die Namen aller Operationen des Agenten.
+     *
+     * @return list<string>
+     */
     private function names(): array
     {
         return (new Registry(new Config))->names();

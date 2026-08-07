@@ -320,7 +320,13 @@ final class DatabaseController extends Controller
             // Die Abschrift und nicht die Beziehung: Ist das Abonnement
             // zurückgebaut, steht hier weiterhin ein Name — und ohne ihn wäre
             // eine verwaiste Zeile eine Zeile ohne Auskunft (`docs/36 §5`).
-            'subscription' => $database->subscription?->name ?? $database->subscription_name,
+            //
+            // `->` und nicht `?->`: Der Null-Zusammenführungsoperator hat
+            // isset-Semantik und fängt das fehlende Abonnement schon selbst ab.
+            // Dieselbe Zeile steht so in `Subscription::quota()`, mit demselben
+            // Kommentar — ein `?->` davor ist nicht falsch, aber überflüssig,
+            // und PHPStan sagt das.
+            'subscription' => $database->subscription->name ?? $database->subscription_name,
             'subscription_id' => $database->subscription_id === null ? null : (int) $database->subscription_id,
             'orphaned' => $database->orphaned(),
 

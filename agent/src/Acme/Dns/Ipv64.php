@@ -135,30 +135,15 @@ final class Ipv64 implements DnsProvider
      */
     private function split(string $record): array
     {
-        $name = strtolower(trim($record));
-        $zone = '';
+        $zone = Zones::pick($record, $this->knownZones());
 
-        foreach ($this->knownZones() as $candidate) {
-            // Die längste passende gewinnt. Führt jemand `example.de` und
-            // `kunde.example.de` beim selben Anbieter, gehört der Eintrag in
-            // die engere — sonst legt er ihn in der falschen Zone an, und die
-            // Prüfung findet ihn nie.
-            if (Name::within($name, $candidate) && strlen($candidate) > strlen($zone)) {
-                $zone = $candidate;
-            }
-        }
-
-        if ($zone === '') {
+        if ($zone === null) {
             throw AgentException::badRequest(
-                'Für diesen Namen führt das IPv64.net-Konto keine Zone: '.$name,
+                'Für diesen Namen führt das IPv64.net-Konto keine Zone: '.strtolower(trim($record)),
             );
         }
 
-        // Der Präfix ist, was vor der Zone steht — leer, wenn der Name die
-        // Zone selbst ist.
-        $prefix = $name === $zone ? '' : substr($name, 0, -(strlen($zone) + 1));
-
-        return [$zone, $prefix];
+        return [$zone, Zones::prefix($record, $zone)];
     }
 
     /**

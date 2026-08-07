@@ -24,7 +24,7 @@ use SrvPanel\Agent\Acme\Dns\Providers;
  * zweite ist die, die veraltet.
  *
  * **Der Anbieter dagegen gehört hierher.** Er entscheidet, welche Felder
- * überhaupt gelten, und die vier offenen aus Schritt 9 nimmt der Agent ohnehin
+ * überhaupt gelten, und die noch offenen aus Schritt 9 nimmt der Agent ohnehin
  * nicht an. Ihn hier abzuweisen heisst, die Meldung am Feld zu haben statt als
  * Abweisung von der anderen Seite des Sockets.
  */
@@ -53,11 +53,11 @@ final class DnsCredentialInput
      * Die Angaben des gewählten Anbieters — in der Form, die der Agent erwartet.
      *
      * **Jeder Anbieter hat sein eigenes Formular.** RFC 2136 braucht
-     * Nameserver, Zonen, Schlüsselnamen und ein Base64-Geheimnis; IPv64.net
-     * braucht ein Token und sonst nichts — seine Zonen kommen aus seiner
+     * Nameserver, Zonen, Schlüsselnamen und ein Base64-Geheimnis; IPv64.net und
+     * Hetzner brauchen ein Token und sonst nichts — ihre Zonen kommen aus ihrer
      * eigenen Auskunft. Ein gemeinsames Formular mit lauter freiwilligen
-     * Feldern hiesse, dass beide Anbieter alles annehmen und die Hälfte
-     * ignorieren; wer dann etwas Falsches einträgt, erfährt es nie.
+     * Feldern hiesse, dass jeder Anbieter alles annimmt und die Hälfte
+     * ignoriert; wer dann etwas Falsches einträgt, erfährt es nie.
      *
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
@@ -68,7 +68,12 @@ final class DnsCredentialInput
     {
         return match ($provider) {
             Providers::RFC2136 => self::rfc2136($input),
-            Providers::IPV64 => self::ipv64($input),
+            // **Zwei Anbieter, ein Zweig — und das ist kein Zusammenfassen aus
+            // Bequemlichkeit.** Bei beiden sind die Zugangsdaten genau ein
+            // Token; was sie unterscheidet, prüft der Agent. Zwei Methoden mit
+            // demselben Rumpf wären zwei Orte für dieselbe Regel, und der
+            // zweite ist der, der veraltet.
+            Providers::IPV64, Providers::HETZNER => self::tokenOnly($input),
             // Unerreichbar, solange {@see self::provider()} davor steht — und
             // deshalb steht der Zweig hier: Ein `match` ohne ihn wirft einen
             // UnhandledMatchError, und der landet als „interner Fehler" im
@@ -80,14 +85,14 @@ final class DnsCredentialInput
     }
 
     /**
-     * IPv64.net — ein Token, mehr nicht.
+     * Ein Token, mehr nicht — IPv64.net und Hetzner.
      *
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      *
      * @throws ValidationException
      */
-    private static function ipv64(array $input): array
+    private static function tokenOnly(array $input): array
     {
         $data = Validator::make($input, [
             'token' => ['required', 'string', 'max:512'],

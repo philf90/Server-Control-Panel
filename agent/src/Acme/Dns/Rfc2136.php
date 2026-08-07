@@ -187,19 +187,15 @@ final class Rfc2136 implements DnsProvider
     /**
      * Zu welcher der hinterlegten Zonen gehört dieser Name?
      *
-     * Die längste gewinnt — siehe die Klassenbeschreibung. Gehört er zu keiner,
-     * ist das kein Grund, es trotzdem zu versuchen: Der Nameserver würde
-     * ablehnen, und die Meldung dazu nennt den Grund nicht.
+     * Die längste gewinnt, und der Abgleich steht in {@see Zones} — dieselbe
+     * Regel gilt bei jedem Anbieter, und sie stand hier einmal zu oft. Gehört
+     * der Name zu keiner Zone, ist das kein Grund, es trotzdem zu versuchen:
+     * Der Nameserver würde ablehnen, und die Meldung dazu nennt den Grund
+     * nicht.
      */
     private function zoneFor(string $record): string
     {
-        $found = null;
-
-        foreach ($this->zones as $zone) {
-            if (Name::within($record, $zone) && ($found === null || strlen($zone) > strlen($found))) {
-                $found = $zone;
-            }
-        }
+        $found = Zones::pick($record, $this->zones);
 
         if ($found === null) {
             throw AgentException::badRequest(

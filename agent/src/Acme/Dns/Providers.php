@@ -87,7 +87,6 @@ final class Providers
      * @var list<string>
      */
     public const PENDING = [
-        self::HETZNER,
         self::CLOUDFLARE,
         self::NETCUP,
         self::IONOS,
@@ -122,6 +121,7 @@ final class Providers
         return match ($name = self::usable($key)) {
             self::RFC2136 => Rfc2136::configure($config),
             self::IPV64 => Ipv64::configure($config),
+            self::HETZNER => Hetzner::configure($config),
             default => throw self::missing($name),
         };
     }
@@ -136,6 +136,7 @@ final class Providers
         return match ($name = self::usable($key)) {
             self::RFC2136 => Rfc2136::fromConfig($config),
             self::IPV64 => Ipv64::fromConfig($config),
+            self::HETZNER => Hetzner::fromConfig($config),
             default => throw self::missing($name),
         };
     }

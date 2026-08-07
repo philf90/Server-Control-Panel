@@ -292,7 +292,7 @@ Anbieter ist eine eigene Umsetzung, eigene Fehlerfälle und ein eigener Wächter
 |---|---|---|
 | **RFC 2136** (TSIG) | Der Standard, kein Anbietercode — er bedient BIND, Knot und PowerDNS, und **damit die eigene Zone aus P7** ohne zweite Umsetzung. | gebaut |
 | **IPv64.net** | Kleiner deutscher Anbieter mit Token-API; deckt den Fall ab, in dem jemand seine Zone dort und nicht beim Registrar führt. **Vorgezogen**, weil sich an ihm die Zonenauflösung beweist (unten). | gebaut |
-| **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | 3. |
+| **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | gebaut |
 | **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | 4. |
 | **netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | 5. |
 | **IONOS** | Der grösste deutsche Massenhoster; wer dort seine Domain hat, hat sie meist auch dort delegiert. | 6. |
@@ -332,7 +332,7 @@ Bauen teuer wird:
 | Anbieter | Adresse | Felder | Was daran teuer wird |
 |---|---|---|---|
 | IPv64.net | `https://ipv64.net/api` | `token` | Die Zone ist oft selbst eine Unterdomain — **gefragt, nicht gerechnet**. Drosselt mit 429. |
-| Hetzner | `https://dns.hetzner.com` **oder** `https://api.hetzner.cloud/v1` | `token` | **Zwei Schnittstellen nebeneinander.** lego hält beide vor (`HETZNER_API_KEY` für die alte DNS-Konsole, `HETZNER_API_TOKEN` für die Cloud-API). Ein Token der einen gilt bei der anderen nicht, und die Abweisung sagt das nicht deutlich. |
+| Hetzner | `https://api.hetzner.cloud/v1` (gebaut) — daneben die alte `https://dns.hetzner.com` | `token` | **Zwei Schnittstellen nebeneinander.** lego hält beide vor (`HETZNER_API_KEY` für die alte DNS-Konsole, `HETZNER_API_TOKEN` für die Cloud-API). Ein Token der einen gilt bei der anderen nicht, und die Abweisung sagt das nicht deutlich. |
 | Cloudflare | `https://api.cloudflare.com/client/v4` | `token` — oder `email` + `api_key` | Der alte Weg über den globalen Schlüssel öffnet **das ganze Konto**. Wir nehmen nur das Token; der globale Schlüssel wird abgewiesen, nicht angeboten. Ausserdem kennt Cloudflare zwei Token (Zone lesen, Einträge ändern) — lego lässt beide zu, wir kommen mit einem aus. |
 | netcup | `https://ccp.netcup.net/run/webservice/servers/endpoint.php` | `customer_number` + `api_key` + `api_password` | **Der einzige mit einer Sitzung.** Erst `login`, dann die Änderung, dann `logout`; die Sitzungskennung hängt an jedem Aufruf. Ein Vorgang, der zwischendurch abbricht, lässt eine Sitzung offen. |
 | IONOS | `https://api.hosting.ionos.com` | `api_key` in der Form `<prefix>.<secret>` | Ein Feld, das in Wahrheit zwei ist. Wer nur den Präfix einträgt, bekommt eine Abweisung, die von einem ungültigen Schlüssel spricht. Das gehört beim Hinterlegen geprüft. |
@@ -358,6 +358,43 @@ Das gehört so gesagt, weil die naheliegende Antwort — „bauen wir eben Strat
 dazu" — hier nicht existiert. Der Ausweg ist die Zone, nicht das Panel: Sie
 lässt sich zu deSEC delegieren, ohne dass die Domain umzieht. Deshalb steht
 deSEC überhaupt auf der Liste.
+
+### Hetzner im Einzelnen
+
+Nachgesehen am 7. August 2026 — und zwar **nicht in lego**, sondern in Hetzners
+eigenem Go-SDK
+([`hetznercloud/hcloud-go`](https://github.com/hetznercloud/hcloud-go)). lego
+löst die Zone hier über den SOA-Satz der autoritativen Nameserver auf und
+benutzt `GET /zones` gar nicht; das SDK zeigt, dass es den Endpunkt gibt, samt
+Blätterauskunft und Feldnamen.
+
+- **Adresse:** `https://api.hetzner.cloud/v1`
+- **Anmeldung:** `Authorization: Bearer <Token>`
+- **Zonen:** `GET /zones?page=<n>&per_page=50` → `{"zones":[{"name":…}],
+  "meta":{"pagination":{"next_page":…}}}`; `next_page` steht auf `null`, sobald
+  die letzte Seite erreicht ist
+- **Anlegen:** `POST /zones/<zone>/rrsets/<praefix>/TXT/actions/add_records`,
+  JSON, `{"ttl":60,"records":[{"value":"\"…\""}]}`
+- **Löschen:** dasselbe auf `remove_records`, ohne `ttl`
+- **Antwort:** eine *Action* mit `status` aus `running`, `success`, `error` —
+  der Schreibvorgang ist beim Antworten also **nicht** zwingend fertig
+- **Fehler:** `{"error":{"code":…,"message":…}}`; Drosselung mit HTTP 429
+
+**Der Name der RRSet ist der Präfix, nicht der volle Name.** Wer den vollen
+schickt, legt den Eintrag unter `_acme-challenge.example.de.example.de` an —
+angenommen wird das, gefunden wird es nie.
+
+**Gewartet wird auf die Action nicht.** Ob der Eintrag ausgeliefert wird,
+beantwortet ohnehin nur `DnsChallenge` durch Fragen der autoritativen
+Nameserver, und das ist die strengere Frage. Gelesen wird der Zustand einmal,
+und zwar wegen `error`: Der steht sofort da und spart eine Prüfung, die zwei
+Minuten auf einen Eintrag wartet, den niemand mehr anlegt.
+
+**Und die Blätterschleife zählt Runden, nicht Seitennummern.** Beim Bauen lief
+sie endlos, weil sie die Seitennummer mit der Obergrenze verglich und
+`next_page` mit `1` zurückkam, während `page` auf `1` stand. Das Ende wird
+gemeldet und nicht verschwiegen — wer still abschneidet, sagt gleich darauf
+„für diesen Namen keine Zone" und nennt einen Grund, der nicht stimmt.
 
 ### IPv64.net im Einzelnen
 
@@ -635,9 +672,10 @@ Bruch in `tests/waechter-brechen.sh` mit.
 9. **Die sieben Anbieter** — einer nach dem anderen, jeder mit seinem Wächter
    und seinen Fehlerfällen. **IPv64.net vorgezogen und gebaut:** Er bringt den
    Fall mit, an dem sich die Zonenauflösung beweist — die Zone ist dort oft
-   selbst eine Unterdomain (§6). Es folgen Hetzner, Cloudflare, netcup, IONOS,
-   INWX und deSEC; INWX steht zuletzt, weil er als einziger XML-RPC, eine
-   Sitzung und ein Kontopasswort statt eines Tokens mitbringt.
+   selbst eine Unterdomain (§6). **Hetzner ebenfalls gebaut**, gegen die
+   Cloud-API und nicht gegen die auslaufende DNS-Konsole. Es folgen Cloudflare,
+   netcup, IONOS, INWX und deSEC; INWX steht zuletzt, weil er als einziger
+   XML-RPC, eine Sitzung und ein Kontopasswort statt eines Tokens mitbringt.
 
    Vorweg kam eine Grenze, die es schon gab, aber nur als Prosa: **Der Agent
    spricht an genau einer Stelle nach draussen** (`Acme\Curl`), und ihre vier

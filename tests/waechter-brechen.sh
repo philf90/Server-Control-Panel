@@ -1864,8 +1864,8 @@ python3 - <<'PY2'
 p = 'agent/src/Acme/Dns/Ipv64.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "        foreach ($this->knownZones() as $candidate) {",
-    "        foreach ([implode('.', array_slice(explode('.', $name), -2))] as $candidate) {",
+    "        $zone = Zones::pick($record, $this->knownZones());",
+    "        $zone = implode('.', array_slice(explode('.', strtolower(trim($record))), -2));",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -1874,6 +1874,103 @@ pruefe "Zone aus dem Namen gerechnet" \
   Ipv64Test::test_the_zone_comes_from_the_account_and_not_from_the_name failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" Ipv64Test passed
+
+echo
+echo "── ZoneSourceTest: eine zweite Stelle entscheidet über die Zone ──"
+#
+# Die Regel „die längste passende Zone gewinnt" stand vor Hetzner zweimal als
+# eigene Schleife da. Eine dritte daneben nimmt irgendwann die erste passende
+# statt der längsten — und legt den Eintrag eine Ebene zu hoch an, ohne dass
+# irgendetwas es meldet.
+vorher_datei agent/src/Acme/Dns/Hetzner.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Hetzner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $zone = Zones::pick($record, $this->knownZones());",
+    "        $zone = null;\n\n        foreach ($this->knownZones() as $candidate) {\n            if (Name::within($record, $candidate)) {\n                $zone = $candidate;\n            }\n        }",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Hetzner.php "zweite Stelle entscheidet über die Zone" &&
+pruefe "zweite Stelle entscheidet über die Zone" \
+  ZoneSourceTest::test_only_one_place_decides_which_zone_a_name_belongs_to failed
+wiederherstellen
+
+echo
+echo "── ZonesTest: die erste passende Zone statt der längsten ──"
+#
+# Die Regel selbst. Führt jemand `example.de` und `kunde.example.de` beim
+# selben Anbieter, gehört der Eintrag in die engere; wer die erste nimmt, legt
+# ihn eine Ebene zu hoch an.
+vorher_datei agent/src/Acme/Dns/Zones.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Zones.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (Name::within($record, $zone) && ($found === null || strlen($zone) > strlen($found))) {",
+    "            if (Name::within($record, $zone) && $found === null) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Zones.php "erste passende Zone statt der längsten" &&
+pruefe "erste passende Zone statt der längsten" \
+  ZonesTest::test_the_longest_matching_zone_wins failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ZonesTest passed
+
+echo
+echo "── HetznerTest: der Auftrag gilt als erledigt, sobald geantwortet wird ──"
+#
+# Die Cloud-API antwortet mit einer Action, die auf `error` stehen kann. Wer
+# nur auf den HTTP-Code sieht, hält den Fehlschlag für einen Erfolg — und
+# wartet danach zwei Minuten auf einen Eintrag, den niemand mehr anlegt.
+vorher_datei agent/src/Acme/Dns/Hetzner.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Hetzner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (($action['status'] ?? null) !== 'error') {",
+    "        if (true) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Hetzner.php "Auftrag gilt ungelesen als erledigt" &&
+pruefe "Auftrag gilt ungelesen als erledigt" \
+  HetznerTest::test_a_failed_action_says_why failed
+wiederherstellen
+
+echo
+echo "── HetznerTest: die Blätterschleife hört still auf ──"
+#
+# **Was hier absichtlich nicht gebrochen wird.** Der Deckel selbst — die
+# Bedingung, die die Runden zählt — lässt sich nicht automatisiert brechen:
+# Die erste Fassung verglich die Seitennummer mit der Obergrenze, und ein
+# `next_page`, das auf die laufende Seite zurückzeigt, hielt sie damit für
+# immer erfüllt. Ein Bruch dieser Art hinge, statt rot zu werden, und ein
+# hängender Lauf ist schlimmer als ein fehlender. Gefunden hat den Fehler eine
+# Wegwerfprobe, die nicht zurückkam.
+#
+# Gebrochen wird die Hälfte, die still zurückfallen kann: das Melden. Wer hier
+# einfach aufhört, sagt gleich darauf „für diesen Namen keine Zone" — und nennt
+# damit einen Grund, der nicht stimmt.
+vorher_datei agent/src/Acme/Dns/Hetzner.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Hetzner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """                throw AgentException::execFailed(
+                    'Die Zonenliste von Hetzner hört nach '.self::MAX_PAGES.' Seiten nicht auf.',
+                );""",
+    "                break;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Hetzner.php "Blätterschleife hört still auf" &&
+pruefe "Blätterschleife hört still auf" \
+  HetznerTest::test_a_pagination_that_points_in_circles_is_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" HetznerTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

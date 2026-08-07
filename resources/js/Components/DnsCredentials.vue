@@ -56,6 +56,17 @@ const pending = computed(() => props.providers.filter((p) => !p.usable))
  */
 const RFC2136 = 'rfc2136'
 const IPV64 = 'ipv64'
+const HETZNER = 'hetzner'
+
+/*
+ * Wer seine Zonen selbst führt, bekommt hier kein Feld dafür.
+ *
+ * Bei RFC 2136 stehen die Zonen in den Zugangsdaten, weil ein TSIG-Schlüssel im
+ * Nameserver ohnehin auf Zonen eingegrenzt ist. Eine API-Schnittstelle kennt
+ * ihre Zonen selbst — ein zweites, von Hand gepflegtes Verzeichnis daneben wäre
+ * dieselbe Auskunft ein zweites Mal, und die zweite ist die, die veraltet.
+ */
+const asked = computed(() => props.credential !== null && props.credential.provider !== RFC2136)
 
 const form = useForm({
   provider: usable.value[0]?.value ?? '',
@@ -144,19 +155,34 @@ function moment(seconds: number): string {
           einer Variablen: So sieht `ClassReachTest`, welche Klasse hier
           entstehen kann. Ohne Zonen bleibt sie weg — eine Meldung in
           Monospace wäre eine Kennung, die keine ist.
+
+          **Und in dieser Zelle steht nur der Wert, nie ein Satz.** Beim ersten
+          Anlauf stand hier „aus dem Konto bei IPv64.net — dieses Profil ändert,
+          was dort geführt wird", und das waren bei 390px 128px Überlauf:
+          `td.right` steht auf `nowrap` und `flex: none`, ein Satz darin wird
+          also weder umbrochen noch zusammengedrückt. Die Ausnahme dagegen hängt
+          an `ident`, und einen Satz in Monospace zu setzen, damit er umbricht,
+          wäre die falsche Antwort auf die richtige Beobachtung. Sätze stehen
+          unter der Tabelle.
         -->
         <tr>
           <td class="quiet">Zonen</td>
           <td class="right" :class="{ ident: props.credential.zones.length > 0 }">
             <template v-if="props.credential.zones.length > 0">{{ props.credential.zones.join(' ') }}</template>
-            <span v-else-if="props.credential.provider === IPV64" class="quiet">
-              aus dem Konto bei IPv64.net — dieses Profil ändert, was dort geführt wird
-            </span>
-            <span v-else class="quiet">keine — so ändert dieses Profil nichts</span>
+            <template v-else-if="asked">vom Anbieter</template>
+            <template v-else>keine</template>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <p v-if="asked && props.credential.zones.length === 0" class="hint">
+      Die Zonen führt der Anbieter selbst; hier werden sie nicht eingetragen.
+      Dieses Profil ändert, was dort steht.
+    </p>
+    <p v-else-if="props.credential.zones.length === 0" class="hint">
+      Ohne eine Zone ändert dieses Profil nichts.
+    </p>
 
     <p class="hint">
       Das Geheimnis wird nicht angezeigt, auch nicht in Teilen. Wer prüfen will,
@@ -187,7 +213,7 @@ function moment(seconds: number): string {
         eine richtige Eingabe ab. Geprüft wird derselbe Satz Felder auf der
         Serverseite — `DnsCredentialInput` verzweigt an derselben Stelle.
       -->
-      <template v-if="form.provider === IPV64">
+      <template v-if="form.provider === IPV64 || form.provider === HETZNER">
         <label class="field">
           <span>Token</span>
           <span class="with-reveal">
@@ -209,10 +235,21 @@ function moment(seconds: number): string {
           </span>
         </label>
         <p v-if="form.errors.token" class="error">{{ form.errors.token }}</p>
-        <p class="hint">
+        <p v-if="form.provider === IPV64" class="hint">
           Aus dem Konto bei IPv64.net. Die Zonen kommen von dort und werden
           nicht hier eingetragen — der Anbieter führt sie selbst, und bei ihm
           ist eine Zone häufig schon eine Unterdomain.
+        </p>
+        <!--
+          **Hetzner führt zwei Schnittstellen für dasselbe**, und ein Token der
+          einen gilt bei der anderen nicht. Auseinanderhalten lassen sie sich an
+          ihrer Form nicht, also steht der Satz hier — vor der Eingabe und nicht
+          erst in der Abweisung, die eine Erneuerung nachts scheitern lässt.
+        -->
+        <p v-if="form.provider === HETZNER" class="hint">
+          Ein Token aus der Cloud-Konsole von Hetzner. Ein Token der älteren
+          DNS-Konsole gilt hier nicht. Die Zonen kommen aus dem Projekt und
+          werden nicht hier eingetragen.
         </p>
       </template>
 

@@ -3754,3 +3754,79 @@ Abfrage ist damit unsere Wahl und nicht die von lego, und sie ist die bessere.
 Das gehört richtiggestellt, weil eine Begründung, die sich auf einen anderen
 beruft, beim nächsten Anbieter wieder herangezogen wird — und dann für etwas,
 das dort nicht stimmt.
+
+#### Schritt 9, dritter Anbieter: Hetzner — gegen die Cloud-API
+
+Hetzner führt **zwei** Schnittstellen für dasselbe: die ältere der DNS-Konsole
+(`dns.hetzner.com/api/v1`, Kopfzeile `Auth-API-Token`) und die neuere als Teil
+der Cloud-API (`api.hetzner.cloud/v1`, `Authorization: Bearer`). Gebaut ist die
+**Cloud-API**, weil Hetzner die DNS-Verwaltung dorthin überführt hat und ein
+Panel, das gegen die auslaufende Strecke baut, sie zweimal bauen muss. Belegt
+ist der Endpunktsatz nicht aus lego, sondern aus Hetzners eigenem Go-SDK
+(`hetznercloud/hcloud-go`) — `GET /zones` mit Blätterauskunft,
+`POST /zones/{zone}/rrsets/{name}/TXT/actions/add_records` und `remove_records`.
+
+**Ein Token der einen gilt bei der anderen nicht, und an der Form lassen sie
+sich nicht unterscheiden.** Nachgesehen und nicht gefunden — also steht der
+Hinweis dort, wo er ankommt: im Formular vor der Eingabe, und in der Meldung zu
+401 und 403. Eine Abweisung, die nur „unauthorized" sagt, führt dazu, dass
+jemand dasselbe Token ein zweites Mal einträgt.
+
+**Der Schreibvorgang ist beim Antworten nicht fertig.** Die Cloud-API antwortet
+mit einer *Action*, die auf `running` stehen kann. Gewartet wird trotzdem nicht:
+Ob der Eintrag ausgeliefert wird, beantwortet ohnehin nur `DnsChallenge` durch
+Fragen der autoritativen Nameserver, und das ist die strengere Frage. Gelesen
+wird der Zustand **einmal**, und zwar wegen `error` — der steht sofort da und
+spart eine Prüfung, die zwei Minuten auf einen Eintrag wartet, den niemand mehr
+anlegt.
+
+**Der TXT-Wert geht in Anführungszeichen hinaus**, wie eine Zonendatei ihn
+schreibt. Ein Wert mit einem Anführungszeichen oder Rückstrich darin bräuchte
+eine Fluchtregel — eine eigene kleine Sprache mit eigenen Fehlern. Ein
+ACME-Prüfwert ist Base64 ohne Polster und enthält beides nie; was es doch
+enthält, wird abgewiesen statt halb richtig verpackt.
+
+**Der Fund, den kein Test gemacht hat.** Die Blätterschleife lief endlos. Sie
+verglich die *Seitennummer* mit der Obergrenze — kommt `next_page` mit `1`
+zurück, während `page` auf `1` steht, ist „Seite kleiner als die Obergrenze"
+für immer erfüllt. Gefunden hat es eine Wegwerfprobe, die nicht zurückkam;
+ein Test an dieser Stelle hätte die CI blockiert statt rot zu werden. Gezählt
+werden jetzt die **Runden**, und das Ende wird gemeldet statt still
+abgeschnitten: Wer hier einfach aufhört, sagt gleich darauf „für diesen Namen
+keine Zone" und nennt damit einen Grund, der nicht stimmt.
+
+Der Bruch dazu bricht deshalb bewusst nur die Hälfte, die still zurückfallen
+kann — das Melden. Ein Bruch des Deckels selbst hinge, und ein hängender Lauf
+ist schlimmer als ein fehlender; das steht als Absatz im Bruchskript.
+
+#### Die Zonenauflösung stand zweimal da und wäre dreimal geworden
+
+Die Regel ist bei jedem Anbieter dieselbe: Von allen Zonen, in denen ein Name
+liegt, gewinnt die **längste**. Sie stand als eigene Schleife bei RFC 2136 und
+noch einmal bei IPv64.net. Mit Hetzner wäre sie zum dritten Mal geschrieben
+worden — dasselbe Muster wie beim Rechnernamen, den dieses Projekt viermal neu
+erfunden hat, bis `HostnameSourceTest` dazwischenging.
+
+Sie steht jetzt in `Zones`, und `ZoneSourceTest` besteht darauf: `Name::within()`
+ruft nur diese eine Stelle. Der Fehler wäre still gewesen — eine Schleife, die
+die erste statt der längsten passenden Zone nimmt, legt den Eintrag eine Ebene
+zu hoch an. Der Anbieter nimmt das an, es gibt keine Meldung; die Prüfung findet
+ihn nur nie. Die zwei Richtungen haben zwei Tests: `erste gewinnt` bricht den
+einen, `letzte gewinnt` den anderen, und beide wurden gegengeprüft.
+
+#### Ein Satz in einer Zelle, die nicht umbricht — 128px, ausgeliefert im PR
+
+Die Zonenzeile der Auskunft trug im Leerfall einen Satz: „aus dem Konto bei
+IPv64.net — dieses Profil ändert, was dort geführt wird". Bei 390px sind das
+**128px Überlauf**. `table.pairs td.right` steht auf `nowrap` und `flex: none`;
+ein Satz darin wird weder umbrochen noch zusammengedrückt, und die Ausnahme
+dafür hängt an `ident` — also an einer Kennung, die ein Satz nicht ist.
+
+**Er war grün getestet und gemessen.** Gemessen wurde die Seite *ohne*
+hinterlegte Zugangsdaten, und in diesem Zustand gibt es die Zeile nicht. Das ist
+dieselbe Lücke wie bei den drei Fehlern aus `v0.4.0-rc.4`: Eine Aufnahme prüft
+den Zustand, den sie zeigt, und keinen anderen.
+
+In der Zelle steht jetzt nur noch der Wert — `vom Anbieter`, `keine` oder die
+Zonen —, die Sätze stehen als `hint` unter der Tabelle. Nachgemessen bei 390px
+in beiden Themes: 0px, auch mit einer dreigliedrigen Zonenliste.

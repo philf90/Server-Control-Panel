@@ -3709,3 +3709,48 @@ Weg, den Linkfilter der `AttributesExtension` mit Steuerzeichen zu umgehen
 (mittel). Das Paket ist eine mittelbare Abhängigkeit und nichts, was dieses
 Projekt selbst aufruft; die CI meldet es trotzdem, und genau dafür gibt es den
 Lauf „Schwachstellen und Lizenzen". Nur die Sperrdatei wandert, der Rest bleibt.
+
+#### Sieben Anbieter statt vier — und ein achter, den es nicht geben kann
+
+Vor dem zweiten Anbieter wurde die Liste noch einmal gegen die vollständige
+gehalten: **222 Anbieter unter `providers/dns/` in lego**, durchgesehen am
+7. August. Aus dem deutschsprachigen Markt kamen drei dazu, jeder aus einem
+eigenen Grund — **IONOS** (der grösste deutsche Massenhoster, ein Token, eine
+REST-Schnittstelle), **INWX** (der Registrar der Wiederverkäufer) und **deSEC**
+(gemeinnützig, DNSSEC ab Werk, kostenfrei).
+
+**Der Fund, der deSEC auf die Liste gebracht hat: Strato hat keine öffentliche
+DNS-Schnittstelle.** Weder lego noch acme.sh können ihn, und das ist kein
+Versäumnis der beiden — es gibt schlicht nichts, worüber sich ein TXT-Eintrag
+setzen liesse. Für einen Kunden mit Domain bei Strato heisst das: kein
+Platzhalter über DNS-01, solange die Zone dort liegt. Der Ausweg ist die Zone
+und nicht das Panel; sie lässt sich zu deSEC delegieren, ohne dass die Domain
+umzieht. Das gehört gesagt, weil die naheliegende Antwort — „bauen wir eben
+Strato dazu" — hier nicht existiert.
+
+**INWX steht zuletzt, und das ist keine Reihenfolge nach Bequemlichkeit.** Er
+ist der einzige der sieben mit Benutzername und Passwort statt eines Tokens, er
+spricht XML-RPC statt JSON, er führt eine Sitzung über ein Cookie, und bei
+gesichertem Konto rechnet der Agent bei jeder Anmeldung einen TOTP-Code aus.
+Vor allem aber öffnet das, was dort hinterlegt wird, ein ganzes Registrarkonto
+und nicht eine Zone. Ob ein **Kunde** dort überhaupt etwas hinterlegen soll,
+steht als offene Frage in `docs/34 §11`.
+
+Die drei stehen jetzt als offen in `Providers::PENDING` — die Entscheidung ist
+damit im Code und nicht nur im Plan, und `ProvidersTest` hält sie fest: Jeder
+Schlüssel ist entweder gebaut oder offen, und wer offen ist, lässt sich nicht
+hinterlegen. Die Zugangsdatenformen aller sieben sind in `docs/34 §6`
+tabelliert — nachgesehen und nicht angenommen. Drei Stellen darin sind teurer,
+als sie aussehen: Hetzner führt **zwei** Schnittstellen nebeneinander (alte
+DNS-Konsole und Cloud-API, und ein Token der einen gilt bei der anderen nicht),
+netcup ist der einzige mit einer Sitzung aus `login`/`logout`, und der eine
+IONOS-Schlüssel ist in Wahrheit zwei Felder in der Form `<prefix>.<secret>`.
+
+**Und eine Berichtigung.** `docs/34 §6` schrieb, `get_domains` sei „genau dafür
+da, und acme.sh macht es ebenso", lego „verlange mindestens drei Bestandteile".
+Beim Bauen nachgesehen: lego benutzt `get_domains` zur Zonenauflösung **nicht**
+— sein `splitDomain` nimmt die letzten drei Bestandteile des Namens. Die
+Abfrage ist damit unsere Wahl und nicht die von lego, und sie ist die bessere.
+Das gehört richtiggestellt, weil eine Begründung, die sich auf einen anderen
+beruft, beim nächsten Anbieter wieder herangezogen wird — und dann für etwas,
+das dort nicht stimmt.

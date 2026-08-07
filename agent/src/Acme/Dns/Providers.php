@@ -16,10 +16,17 @@ use SrvPanel\Agent\AgentException;
  * dafür, wohin ein Prozess als root eine Verbindung aufbaut und wem er ein
  * Token zeigt, das eine ganze Zone öffnet.
  *
- * **Die fünf stehen fest** (`docs/34 §6`), und sie sind eine Entscheidung des
- * Betreibers vom 6. August 2026 — keine Liste, die nebenbei wächst. Wer einen
- * sechsten braucht, ändert diese Datei; das ist eine Änderung, die jemand
- * liest, und kein Feld in einem Formular.
+ * **Die acht stehen fest** (`docs/34 §6`): eine Entscheidung des Betreibers vom
+ * 6. August 2026 über fünf, erweitert am 7. August um IONOS, INWX und deSEC —
+ * nach einer Durchsicht aller 222 Anbieter, die lego mitbringt. Keine Liste,
+ * die nebenbei wächst: Wer einen neunten braucht, ändert diese Datei, und das
+ * ist eine Änderung, die jemand liest, kein Feld in einem Formular.
+ *
+ * **Strato steht nicht darauf und wird auch nicht dazukommen.** Der Anbieter
+ * hat keine öffentliche Schnittstelle, über die sich ein TXT-Eintrag setzen
+ * lässt — weder lego noch acme.sh können ihn. Der Ausweg für einen Kunden ist
+ * die Zone und nicht das Panel: Sie lässt sich zu deSEC delegieren, ohne dass
+ * die Domain umzieht, und deshalb steht deSEC überhaupt hier.
  *
  * **Und was noch nicht gebaut ist, lässt sich auch nicht hinterlegen.** Die
  * noch offenen stehen in {@see self::PENDING} und werden beim Ablegen der
@@ -33,25 +40,39 @@ final class Providers
     /** Der Standard: TSIG-signierte Aktualisierung, wie sie jeder Nameserver kann. */
     public const RFC2136 = 'rfc2136';
 
+    public const IPV64 = 'ipv64';
+
     public const HETZNER = 'hetzner';
 
     public const CLOUDFLARE = 'cloudflare';
 
     public const NETCUP = 'netcup';
 
-    public const IPV64 = 'ipv64';
+    public const IONOS = 'ionos';
+
+    public const INWX = 'inwx';
+
+    public const DESEC = 'desec';
 
     /**
      * Die Reihenfolge ist die aus dem Plan — sie sagt, was zuerst gebaut wird.
+     *
+     * IPv64.net steht vor Hetzner, weil er vorgezogen wurde: An ihm beweist
+     * sich die Zonenauflösung, denn dort ist die Zone häufig selbst eine
+     * Unterdomain. INWX steht zuletzt, weil er als einziger XML-RPC, eine
+     * Sitzung und ein Kontopasswort statt eines Tokens mitbringt.
      *
      * @var array<string, string>
      */
     private const LABELS = [
         self::RFC2136 => 'RFC 2136 (TSIG)',
+        self::IPV64 => 'IPv64.net',
         self::HETZNER => 'Hetzner DNS',
         self::CLOUDFLARE => 'Cloudflare',
-        self::NETCUP => 'Netcup',
-        self::IPV64 => 'IPv64.net',
+        self::NETCUP => 'netcup',
+        self::IONOS => 'IONOS',
+        self::INWX => 'INWX',
+        self::DESEC => 'deSEC',
     ];
 
     /**
@@ -69,6 +90,9 @@ final class Providers
         self::HETZNER,
         self::CLOUDFLARE,
         self::NETCUP,
+        self::IONOS,
+        self::INWX,
+        self::DESEC,
     ];
 
     /** @return list<string> */

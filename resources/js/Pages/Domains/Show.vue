@@ -407,9 +407,18 @@ function entfernen(): void {
           Eine Grenze, die ACME selbst zieht: `*.example.de` deckt
           `a.b.example.de` nicht. Das gehört auf die Seite, statt es als
           Browserwarnung entstehen zu lassen.
+
+          **Auch dann, wenn der Platzhalter schon liegt.** Die Bedingung hing
+          bis zum 7. August 2026 allein am Kästchen — also an der Absicht, einen
+          zu bestellen. Sobald er ausgestellt war, verschwand das Kästchen (es
+          gibt nichts mehr zu bestellen) und mit ihm dieser Satz. Er fehlte
+          damit genau in dem Zustand, in dem er keine Vorhersage mehr ist,
+          sondern eine Tatsache. Im Abnahmelauf auf `cloudlab24.ipv64.de`
+          aufgefallen, mit `tief.a.cloudlab24.ipv64.de` angelegt und ohne jeden
+          Hinweis darauf.
         -->
         <p
-          v-if="alsPlatzhalter && props.wildcard.uncovered.length > 0"
+          v-if="(alsPlatzhalter || props.wildcard.covered) && props.wildcard.uncovered.length > 0"
           class="section-note"
         >
           Eine Ebene tiefer deckt ein Platzhalter nicht. Ohne eigenes Zertifikat

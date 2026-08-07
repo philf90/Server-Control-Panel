@@ -4424,3 +4424,42 @@ weiter nicht dabei: Ein `<select>` bricht nicht um, es schneidet ab (`docs/24
 **Zwei Brüche:** die Nachbarblöcke gar nicht angefasst — wörtlich der Zustand
 aus dem Abnahmelauf — und die Kennung statt des Ablageorts verglichen, was jede
 Erneuerung zu einem Rundumschlag machte.
+
+#### Zwei Befunde aus dem laufenden Abnahmelauf
+
+**Das Auswahlfeld für das Abonnement war unbeschriftet.** Auf der Domainliste
+steht neben „Domain anlegen" eine Auswahl, in *welches* Abonnement die neue
+Domain kommt. Sie trug ein `aria-label` und sonst nichts — für einen sehenden
+Betrachter also ein Feld mit einem Domainnamen darin, neben einem Knopf. Der
+Betreiber am 7. August 2026: „geht unter und wird nicht wirklich wahrgenommen."
+
+**Der Schaden ist nicht kosmetisch.** Wer die Auswahl übersieht, legt die Domain
+im falschen Abonnement an — mit eigenem Verzeichnisbaum, eigenem Systembenutzer
+und eigenem Server-Block. Zurück geht es nur über Entfernen und neu Anlegen.
+
+Daraus ist eine Regel geworden, die weiter reicht als der eine Ort:
+**`FormLabelTest` besteht darauf, dass jedes `<select>` in einem `<label>`
+steht.** Alle 17 im Panel tun das jetzt; `aria-label` beschriftet für die
+Vorlesehilfe und für nichts sonst. Ein `<select>` zeigt immer einen gültigen
+Wert an — es sieht nie leer aus und lädt deshalb dazu ein, überlesen zu werden.
+`input` steht bewusst nicht in der Regel: Ein Suchfeld trägt seinen Zweck im
+`placeholder`, ein Kästchen seinen Text daneben.
+
+**Und der Satz zu den ungedeckten Namen fehlte genau dann, wenn er zählt.**
+„Eine Ebene tiefer deckt ein Platzhalter nicht" hing allein am Kästchen „Als
+Platzhalter bestellen" — also an der **Absicht**, einen zu bestellen. Sobald er
+ausgestellt war, verschwand das Kästchen (es gibt nichts mehr zu bestellen) und
+mit ihm die Auskunft. Im Abnahmelauf war `tief.a.cloudlab24.ipv64.de` angelegt,
+und die Seite schwieg dazu.
+
+Gefragt wird jetzt zusätzlich, ob der Platzhalter schon liegt. Der Unterschied
+ist der zwischen einer Vorhersage und einer Tatsache, und die Tatsache ist die,
+die jemand braucht.
+
+**Der Wächter prüft die Bedingung im Markup und nicht das Bild** — gerendert
+wird in den Tests nichts. Das ist die schwächere Prüfung, hält aber genau den
+Rückschritt auf, der hier passiert ist: die Bedingung wieder auf die Absicht
+allein zu verkürzen.
+
+Beide Brüche gegengeprüft; Screenshots bei 1280 und 390px in beiden Themes,
+kein Überlauf.

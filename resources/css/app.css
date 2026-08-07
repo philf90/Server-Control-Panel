@@ -1258,6 +1258,29 @@ table.pairs {
 }
 
 /*
+ * Die Beschriftung neben dem Feld statt darüber — für eine Auswahl im Kopf
+ * einer Seite.
+ *
+ * **Warum es diese Zeile gibt.** Auf der Domainliste steht neben „Domain
+ * anlegen" eine Auswahl, in *welches* Abonnement die neue Domain kommt. Sie
+ * trug nur ein `aria-label`, war also für einen sehenden Betrachter
+ * unbeschriftet: ein Feld mit einem Domainnamen darin, neben einem Knopf. Am
+ * 7. August 2026 vom Betreiber gemeldet — „geht unter und wird nicht wirklich
+ * wahrgenommen". Wer sie übersieht, legt die Domain im falschen Abonnement an,
+ * und das merkt man erst am Verzeichnisbaum.
+ *
+ * Der senkrechte Aufbau von `.field` passt dort nicht: Er stellt die
+ * Beschriftung über das Feld und schiebt es mit `margin-top` aus der Zeile, in
+ * der der Knopf steht.
+ */
+.field.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+}
+
+/*
  * `.with-unit input` steht hier mit, und das ist im Browser aufgefallen.
  *
  * Die Kontingente eines Plans tragen ihre Beschriftung als eigene Zeile und

@@ -2723,6 +2723,51 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateReapplyTest passed
 
 echo
+echo "── FormLabelTest: ein Auswahlfeld ohne sichtbare Beschriftung ──"
+#
+# **Vom Betreiber gemeldet, 7. August 2026.** Auf der Domainliste stand neben
+# „Domain anlegen" eine Auswahl, in *welches* Abonnement die neue Domain kommt —
+# mit `aria-label` und sonst nichts. Wer sie übersieht, legt die Domain im
+# falschen Abonnement an, mit eigenem Verzeichnisbaum und eigenem Systembenutzer.
+vorher_datei resources/js/Pages/Domains/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '        <label class="field inline">\n          <span>Abonnement</span>\n',
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Domains/Index.vue "Auswahlfeld ohne Beschriftung" &&
+pruefe "Auswahlfeld ohne Beschriftung" \
+  FormLabelTest::test_every_select_sits_in_a_label failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FormLabelTest passed
+
+echo
+echo "── DomainCertificateTest: die Auskunft hängt wieder an der Absicht ──"
+#
+# Der Satz „eine Ebene tiefer deckt ein Platzhalter nicht" hing allein am
+# Kästchen. Sobald der Platzhalter ausgestellt war, verschwand das Kästchen — und
+# mit ihm die Auskunft, genau dann, wenn sie keine Vorhersage mehr ist.
+vorher_datei resources/js/Pages/Domains/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Domains/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'v-if="(alsPlatzhalter || props.wildcard.covered) && props.wildcard.uncovered.length > 0"',
+    'v-if="alsPlatzhalter && props.wildcard.uncovered.length > 0"',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Domains/Show.vue "ungedeckte Namen nur bei der Absicht" &&
+pruefe "ungedeckte Namen nur bei der Absicht" \
+  DomainCertificateTest::test_the_uncovered_names_do_not_depend_on_the_checkbox_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DomainCertificateTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

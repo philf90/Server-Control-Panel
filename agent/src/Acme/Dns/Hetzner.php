@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SrvPanel\Agent\Acme\Dns;
 
 use SrvPanel\Agent\Acme\Curl;
+use SrvPanel\Agent\Acme\DnsChallenge;
 use SrvPanel\Agent\Acme\Outbound;
 use SrvPanel\Agent\Acme\Response;
 use SrvPanel\Agent\AgentException;
@@ -34,11 +35,11 @@ use SrvPanel\Agent\AgentException;
  * **Und der Schreibvorgang ist nicht fertig, wenn die Antwort kommt.** Die
  * Cloud-API antwortet mit einer *Action*, die auf `running` stehen kann. Wir
  * lesen ihren Zustand **einmal** und warten nicht: Ob der Eintrag wirklich da
- * ist, beantwortet ohnehin nur {@see \SrvPanel\Agent\Acme\DnsChallenge}, und
- * die fragt die autoritativen Nameserver — eine strengere Frage als „der
- * Auftrag ist durchgelaufen". Was ein einmaliger Blick bringt, ist der Fall
- * `error`: Der steht sofort da und spart eine Prüfung, die zwei Minuten lang
- * auf einen Eintrag wartet, den niemand mehr anlegen wird.
+ * ist, beantwortet ohnehin nur {@see DnsChallenge}, und die fragt die
+ * autoritativen Nameserver — eine strengere Frage als „der Auftrag ist
+ * durchgelaufen". Was ein einmaliger Blick bringt, ist der Fall `error`: Der
+ * steht sofort da und spart eine Prüfung, die zwei Minuten lang auf einen
+ * Eintrag wartet, den niemand mehr anlegen wird.
  */
 final class Hetzner implements DnsProvider
 {

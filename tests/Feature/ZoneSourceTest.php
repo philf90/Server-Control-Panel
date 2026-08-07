@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use SrvPanel\Agent\Acme\Dns\Name;
 
 /**
  * Welche Zone zu einem Namen gehört, entscheidet genau eine Stelle.
@@ -25,8 +26,8 @@ use SplFileInfo;
  * nimmt das an, es gibt keine Fehlermeldung — die Prüfung findet den Eintrag
  * nur nie, und der Vorgang scheitert nach Minuten mit „nicht ausgeliefert".
  *
- * Geprüft wird an {@see \SrvPanel\Agent\Acme\Dns\Name::within()}: Wer den
- * Zonenvergleich anstellt, ruft sie auf, und rufen darf sie nur `Zones`.
+ * Geprüft wird an {@see Name::within()}: Wer den Zonenvergleich anstellt, ruft
+ * sie auf, und rufen darf sie nur `Zones`.
  */
 final class ZoneSourceTest extends TestCase
 {

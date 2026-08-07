@@ -164,8 +164,6 @@ final class HetznerTest extends TestCase
      * Das ist der teuerste Fall dieses Anbieters: Die Antwort sagt nur
      * „unauthorized", und wer das liest, sucht den Fehler beim Token statt bei
      * der Schnittstelle — und trägt dasselbe Token noch einmal ein.
-     *
-     * @param  int  $status
      */
     #[DataProvider('refusals')]
     public function test_a_refused_token_names_the_other_api(int $status): void

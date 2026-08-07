@@ -256,14 +256,24 @@ final class DnsCredentialsTest extends TestCase
     /**
      * Die Anbieter stehen fest — und zwar in dieser Reihenfolge.
      *
-     * Sie ist eine Entscheidung des Betreibers vom 6. August 2026 und steht in
-     * `docs/34 §6`. Ein sechster ist eine Änderung an dieser Datei, die jemand
-     * liest, und kein Feld in einem Formular.
+     * Eine Entscheidung des Betreibers vom 6. August 2026 über fünf, am
+     * 7. August um IONOS, INWX und deSEC erweitert; sie steht in `docs/34 §6`.
+     * Ein neunter ist eine Änderung an dieser Datei, die jemand liest, und kein
+     * Feld in einem Formular.
+     *
+     * **Die Reihenfolge zählt mit**, denn sie ist die des Auswahlfelds und
+     * damit die, in der gebaut wird. IPv64.net steht vor Hetzner, weil er
+     * vorgezogen wurde; INWX steht zuletzt, weil er als einziger XML-RPC, eine
+     * Sitzung und ein Kontopasswort mitbringt.
+     *
+     * Der Unterschied zu `ProvidersTest`: Dort steht, was **gebaut** ist, hier
+     * steht, was **beschlossen** ist. Ein Anbieter, der aus dieser Liste fällt,
+     * ist keine Umsetzung weniger, sondern eine zurückgenommene Entscheidung.
      */
     public function test_the_providers_are_the_agreed_ones(): void
     {
         $this->assertSame(
-            ['rfc2136', 'hetzner', 'cloudflare', 'netcup', 'ipv64'],
+            ['rfc2136', 'ipv64', 'hetzner', 'cloudflare', 'netcup', 'ionos', 'inwx', 'desec'],
             Providers::keys(),
         );
     }

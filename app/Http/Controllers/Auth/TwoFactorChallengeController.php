@@ -10,13 +10,13 @@ use App\Models\Account;
 use App\Support\Audit\Audit;
 use App\Support\Auth\LoginThrottle;
 use App\Support\Auth\RecoveryCodes;
-use App\Support\Auth\Totp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use SrvPanel\Agent\Totp;
 
 /**
  * Der zweite Schritt der Anmeldung.

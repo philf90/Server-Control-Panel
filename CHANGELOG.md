@@ -4026,3 +4026,28 @@ hängt, dass `ready()` hier nicht nach zwei Minuten aufgeben darf.
 Drei neue Brüche, alle rot und grün gegengeprüft. **Damit ist deSEC der
 Anbieter, wegen dem Strato auf der Liste fehlen darf:** Wessen Anbieter keine
 Schnittstelle hat, delegiert die Zone hierher, ohne die Domain umzuziehen.
+
+#### `Totp` zieht in den Agenten — damit es ihn nur einmal gibt
+
+Die Klasse für zeitbasierte Einmalkennwörter stand in `app/Support/Auth`, für
+den zweiten Faktor der Anmeldung. Mit INWX kommt ein zweiter Aufrufer: Dessen
+Schnittstelle verlangt bei einem gesicherten Konto einen TAN, und der entsteht
+aus einem Geheimnis, das der Agent hält und die Anwendung nach dem Speichern
+nie wiedersieht.
+
+**Der Agent kann nicht auf `app/` zugreifen** — die andere Richtung geht,
+`SrvPanel\Agent\` ist von dort autoladbar. Die naheliegende Antwort wäre also
+eine zweite Umsetzung im Agenten gewesen, und damit genau das Muster, an dem
+dieses Projekt am häufigsten verloren hat. Sie im Agenten zu haben ist der
+einzige Weg, sie **einmal** zu haben.
+
+**Der Fehler wäre teuer und still zugleich.** Eine zweite Fassung, die die
+Abschneideregel aus RFC 4226 §5.3 um ein Byte danebenlegt, erzeugt Codes, die
+*manchmal* stimmen — immer dann, wenn das Versatz-Halbbyte klein genug ist. Ein
+Anbieter, der sich alle paar Stunden nicht anmelden lässt, ist schwerer zu
+finden als einer, der es nie tut. `TotpSourceTest` besteht deshalb darauf, dass
+`hash_hmac` mit SHA1 nur an dieser einen Stelle vorkommt — und prüft die Stelle
+gegen den Testvektor aus RFC 6238 Anhang B.
+
+Die Klasse ist unverändert; es wandert nur der Namensraum, und mit ihm fünf
+Verweise.

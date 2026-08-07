@@ -45,6 +45,7 @@ final class WildcardOrder
     public function __construct(
         private readonly DnsProfile $profiles,
         private readonly DnsCredentials $credentials,
+        private readonly CertificateChoice $choice,
     ) {}
 
     /**
@@ -109,6 +110,33 @@ final class WildcardOrder
     public function possible(Domain $domain): bool
     {
         return $this->obstacle($domain) === null;
+    }
+
+    /**
+     * Liegt der Platzhalter schon — gültig und diesem Abonnement gehörend?
+     *
+     * **Diese Frage hat am 7. August 2026 gefehlt, und sie hat den Platzhalter
+     * unerreichbar gemacht.** Die Domainseite band das Kästchen an „es gibt
+     * noch kein Zertifikat". Die Automatik bestellt aber, sobald der
+     * Server-Block steht, und der Arbeiter ist schneller als jeder Mensch — auf
+     * dem Zielserver stand die Seite mit einem gültigen Einzelzertifikat da und
+     * bot weder Platzhalter noch Bestellung an. Ein Weg von Einzelzertifikaten
+     * zu einem Platzhalter gab es damit über die Oberfläche gar nicht.
+     *
+     * **Gefragt wird nach der Deckung und nicht nach „gibt es eines".** Das ist
+     * dieselbe Unterscheidung wie bei {@see CertificateChoice::satisfied()}:
+     * Ein Zertifikat für `example.de` ist keines für `*.example.de`, und wer
+     * die beiden gleich behandelt, verwechselt „da ist etwas" mit „da ist das
+     * Richtige".
+     *
+     * **Und sie ist die Bremse gegen die Wochengrenze.** Ein Knopf, der einen
+     * Platzhalter nachbestellt, der schon daliegt, verbrennt einen der fünf
+     * Fehlversuche je Konto und Stunde — die für jeden Kunden dieses Servers
+     * gelten.
+     */
+    public function covered(Domain $domain): bool
+    {
+        return self::isBase($domain) && $this->choice->covers($domain, self::names($domain));
     }
 
     /**

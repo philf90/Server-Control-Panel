@@ -68,6 +68,56 @@ final class DomainCertificateTest extends TestCase
     }
 
     /**
+     * **Ein Einzelzertifikat nimmt den Platzhalter nicht vom Tisch.**
+     *
+     * Der Fund vom Zielserver am 7. August 2026: Das Kästchen „Als Platzhalter
+     * bestellen" hing an `!certificate`. Die Automatik bestellt aber, sobald
+     * der Server-Block steht, und der Arbeiter ist schneller als jeder Mensch
+     * — die Seite stand mit einem gültigen Zertifikat für die Hauptdomain da
+     * und bot weder Platzhalter noch Bestellung an. **Der Weg von
+     * Einzelzertifikaten zu einem Platzhalter existierte über die Oberfläche
+     * gar nicht**, obwohl die Route ihn annimmt.
+     *
+     * Geprüft wird hier die Angabe, an der das Kästchen jetzt hängt. Dass sie
+     * das Richtige beantwortet, prüft `WildcardOrderTest`; dass sie überhaupt
+     * auf der Seite ankommt, nur dieser Durchgang — eine Angabe, die im
+     * Zusammenbau der Seite fehlt, fällt sonst erst im Browser auf.
+     */
+    public function test_a_single_certificate_leaves_the_wildcard_on_offer(): void
+    {
+        $domain = $this->domain();
+
+        Certificate::factory()->covering([$domain->name])->create([
+            'subscription_id' => $domain->subscription_id,
+            'not_after' => now()->addDays(60),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get('/domains/'.$domain->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Domains/Show')
+                ->where('wildcard.covered', false)
+                ->where('can.order_wildcard', true));
+    }
+
+    /** Und liegt der Platzhalter, ist das Angebot weg — sonst bestellt jemand doppelt. */
+    public function test_an_existing_wildcard_takes_the_offer_away(): void
+    {
+        $domain = $this->domain();
+
+        Certificate::factory()->covering(['*.'.$domain->name, $domain->name])->create([
+            'subscription_id' => $domain->subscription_id,
+            'not_after' => now()->addDays(60),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get('/domains/'.$domain->id)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('wildcard.covered', true));
+    }
+
+    /**
      * Mit Zertifikat steht da, was es deckt — und ob das reicht.
      *
      * `covers_all` ist die Angabe, die man übersieht: Ein Alias, der nach der

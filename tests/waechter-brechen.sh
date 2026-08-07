@@ -2564,6 +2564,50 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateChoiceTest passed
 
 echo
+echo "── WildcardOrderTest: Vorhandensein statt Deckung ──"
+#
+# **Der Fund vom Zielserver, 7. August 2026.** Das Kästchen „Als Platzhalter
+# bestellen" hing an „es gibt noch kein Zertifikat". Die Automatik bestellt
+# aber, sobald der Server-Block steht — die Seite stand also mit einem
+# gültigen Einzelzertifikat da und bot den Platzhalter nie an. Der Bruch stellt
+# genau diese Frage wieder her.
+vorher_datei app/Support/Tls/WildcardOrder.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/WildcardOrder.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return self::isBase($domain) && $this->choice->covers($domain, self::names($domain));",
+    "        return self::isBase($domain) && $this->choice->effective($domain) !== null;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/WildcardOrder.php "Platzhalter gilt als gedeckt, sobald irgendetwas liegt" &&
+pruefe "Platzhalter gilt als gedeckt, sobald irgendetwas liegt" \
+  WildcardOrderTest::test_a_certificate_for_the_name_alone_is_not_a_wildcard failed
+wiederherstellen
+
+echo
+echo "── WildcardOrderTest: ein abgelaufener Platzhalter zählt mit ──"
+#
+# Die Gegenrichtung: Wer die Laufzeit nicht prüft, lässt eine Domain mit
+# abgelaufenem Platzhalter ohne Angebot stehen — und genau dann braucht sie eines.
+vorher_datei app/Support/Tls/CertificateChoice.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateChoice.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $this->best($this->owned($domain), $names) instanceof Certificate;",
+    "        foreach ($this->owned($domain) as $c) { if ($c->coversAll($names)) { return true; } }\n\n        return false;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateChoice.php "Laufzeit bei der Deckung nicht gefragt" &&
+pruefe "Laufzeit bei der Deckung nicht gefragt" \
+  WildcardOrderTest::test_an_expired_wildcard_does_not_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WildcardOrderTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

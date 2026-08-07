@@ -4238,3 +4238,51 @@ Datenbank. Geprüft ist hier nur, dass die Eingriffe greifen (beide Muster
 finden ihre Stelle) und dass das Ergebnis lädt; der Biss selbst gehört
 nachgeholt, sobald `vendor/` da ist. Das steht hier, weil „nachher noch" in
 diesem Projekt schon einmal eine ausgelieferte Fassung gekostet hat.
+
+#### Der Platzhalter war über die Oberfläche nicht erreichbar
+
+**Auf dem Zielserver aufgefallen, und nur dort.** Die Domainseite von
+`cloudlab24.ipv64.de` zeigte ein gültiges Let's-Encrypt-Zertifikat — und weder
+das Kästchen „Als Platzhalter bestellen" noch den Bestellknopf. Beide hingen an
+`!props.certificate`.
+
+**Das ist kein Randfall, sondern der Normalfall.** Die Automatik bestellt,
+sobald der Server-Block steht, und der Arbeiter ist schneller als jeder Mensch.
+Wer eine Domain anlegt, wartet und dann die Seite öffnet, findet dort immer
+schon ein Zertifikat — das Kästchen war damit praktisch nie zu sehen. Und weil
+der Bestellknopf an derselben Bedingung hing, gab es auch keinen Weg zurück:
+**Der Umstieg von Einzelzertifikaten auf einen Platzhalter existierte über die
+Oberfläche gar nicht**, obwohl die Route ihn annimmt und die Policy ihn erlaubt.
+
+Gefragt wird jetzt nach der **Deckung** statt nach dem Vorhandensein:
+`WildcardOrder::covered()` beantwortet, ob schon ein gültiges, dem Abonnement
+gehörendes Zertifikat `*.example.de` **und** `example.de` deckt. Das ist
+dieselbe Unterscheidung wie bei `CertificateChoice::satisfied()` — ein
+Zertifikat für `example.de` ist keines für `*.example.de`, und wer beide gleich
+behandelt, verwechselt „da ist etwas" mit „da ist das Richtige".
+
+**Die Frage steht in `CertificateChoice`**, wo alle Deckungsfragen stehen, als
+`covers()`. Sie teilt sich die Abfrage mit `candidates()` — wem ein Zertifikat
+gehört und ob es in Gebrauch ist, wird an einer Stelle beantwortet.
+
+**Der Bestellknopf hat jetzt zwei Anlässe statt einem.** Ohne Zertifikat ist er
+der Nachschlag zu einer gescheiterten Bestellung — falscher DNS-Eintrag, Port 80
+zu. Mit Zertifikat erscheint er erst, wenn das Kästchen gesetzt ist: Der einzige
+sinnvolle Anlass ist dann der Umstieg. Ein Knopf, der ohne Kästchen dasselbe
+noch einmal bestellt, verbrennt einen der fünf Fehlversuche je Konto und Stunde
+für nichts — und die gelten für jeden Kunden dieses Servers.
+
+Dazu ein Satz, der vorher fehlte und den man sonst durch zweimaliges Klicken
+lernt: Das bestehende Zertifikat wird nicht ersetzt. Der Platzhalter tritt als
+Kandidat daneben und übernimmt von selbst, weil er alles deckt und länger läuft.
+
+**Zwei Brüche.** Deckung durch Vorhandensein ersetzt — das ist wörtlich der
+ausgelieferte Fehler. Und die Laufzeit bei der Deckung nicht gefragt, denn ein
+abgelaufener Platzhalter darf das Angebot nicht wegnehmen; genau dann braucht
+die Domain eines. Rot-Grün steht aus, solange dieser Container kein `vendor/`
+hat; geprüft ist, dass beide Eingriffe ihre Stelle finden.
+
+**Und ein Nachtrag zur Prüfung selbst:** `WildcardOrder` hat einen dritten
+Bestandteil bekommen, und `WildcardOrderTest` baut die Klasse von Hand. Ohne die
+mitgezogene Zeile wäre das kein Fehlschlag gewesen, sondern ein Abbruch beim
+Laden — dieselbe Falle wie beim Testdoppel des DNS-Anbieters zwei Tage zuvor.

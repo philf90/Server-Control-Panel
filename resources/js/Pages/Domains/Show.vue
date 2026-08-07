@@ -61,6 +61,7 @@ const props = defineProps<{
     obstacle: string | null
     names: string[]
     uncovered: string[]
+    covered: boolean
   }
   can: {
     update: boolean
@@ -375,7 +376,7 @@ function entfernen(): void {
           je Woche statt zwei — und kostet die Trennschärfe. Deshalb steht
           neben dem Kästchen, was er deckt, und nicht nur sein Name.
         -->
-        <label v-if="props.can.order_wildcard && !props.certificate" class="toggle">
+        <label v-if="props.can.order_wildcard && !props.wildcard.covered" class="toggle">
           <input v-model="alsPlatzhalter" type="checkbox" :disabled="!props.wildcard.possible">
           <span>
             Als Platzhalter bestellen
@@ -388,6 +389,19 @@ function entfernen(): void {
             <small v-if="props.wildcard.obstacle" class="hint">{{ props.wildcard.obstacle }}</small>
           </span>
         </label>
+
+        <!--
+          Der Umstieg, und was er nicht tut: Ein bestehendes Zertifikat wird
+          nicht ersetzt. Der Platzhalter tritt als Kandidat daneben, und weil er
+          alles deckt und länger läuft, übernimmt die Automatik von selbst. Wer
+          das nicht weiss, klickt zweimal — und jeder Klick kostet einen der
+          fünf Fehlversuche je Stunde, die für alle Kunden dieses Servers
+          zählen.
+        -->
+        <p v-if="alsPlatzhalter && props.certificate" class="section-note">
+          Das bestehende Zertifikat bleibt liegen. Der Platzhalter kommt daneben
+          und wird ausgeliefert, sobald er da ist.
+        </p>
 
         <!--
           Eine Grenze, die ACME selbst zieht: `*.example.de` deckt
@@ -403,7 +417,21 @@ function entfernen(): void {
           <span class="ident">{{ props.wildcard.uncovered.join(' ') }}</span>
         </p>
 
-        <div v-if="props.can.update && !props.certificate" class="button-row">
+        <!--
+          **Zwei Anlässe zu bestellen, und der zweite hat gefehlt.** Ohne
+          Zertifikat ist der Knopf der Nachschlag zu einer Bestellung, die
+          scheiterte — falscher DNS-Eintrag, Port 80 zu. Mit Zertifikat gibt es
+          genau einen sinnvollen Anlass: den Umstieg auf den Platzhalter. Er
+          erscheint deshalb erst, wenn das Kästchen gesetzt ist.
+
+          Die Bedingung hiess bis zum 7. August 2026 nur `!props.certificate`,
+          und damit war der Umstieg über die Oberfläche nicht möglich: Die
+          Automatik bestellt, sobald der Server-Block steht, also stand auf der
+          Seite immer schon eines. Ein zweiter Knopf, der ohne Kästchen dasselbe
+          noch einmal bestellt, wäre die falsche Antwort darauf — er verbrennt
+          einen der fünf Fehlversuche je Stunde für nichts.
+        -->
+        <div v-if="props.can.update && (!props.certificate || alsPlatzhalter)" class="button-row">
           <button
             type="button"
             class="button"

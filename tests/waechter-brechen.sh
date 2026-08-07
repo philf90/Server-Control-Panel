@@ -2768,6 +2768,52 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DomainCertificateTest passed
 
 echo
+echo "── CertificateRenewalTest: ein Platzhalter wird gewöhnlich erneuert ──"
+#
+# **Der teuerste Fund des Abnahmelaufs, 7. August 2026.** Die Erneuerung meldete
+# „1 fällig, 1 bestellt" — die Zahl stimmte, das Bestellte nicht: Das neue
+# Zertifikat trug nur den Namen der Hauptdomain, und die drei Unterdomains
+# lieferten weiter das alte aus. Aufgefallen wäre es in neunzig Tagen, wenn das
+# alte abläuft und der Browser bei jeder Unterdomain warnt.
+vorher_datei app/Support/Tls/CertificateRenewal.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateRenewal.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if ($this->order->place($domain, wildcard: $wildcard) === null) {",
+    "            if ($this->order->place($domain) === null) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateRenewal.php "Platzhalter als gewöhnliches erneuert" &&
+pruefe "Platzhalter als gewöhnliches erneuert" \
+  CertificateRenewalTest::test_a_wildcard_is_renewed_as_a_wildcard failed
+wiederherstellen
+
+echo
+echo "── CertificateRenewalTest: ohne Zugangsdaten still schrumpfen ──"
+#
+# Der naheliegende Ausweg, wenn die Zugangsdaten fort sind: den Platzhalter als
+# gewöhnliches Zertifikat nachholen. Genau das ist der stille Rückschritt —
+# danach warnt der Browser bei jeder Unterdomain, und im Panel sieht alles grün
+# aus.
+vorher_datei app/Support/Tls/CertificateRenewal.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateRenewal.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if ($wildcard && ! $this->wildcards->possible($domain)) {\n                $blocked++;\n\n                continue;\n            }\n\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateRenewal.php "ohne Zugangsdaten trotzdem bestellt" &&
+pruefe "ohne Zugangsdaten trotzdem bestellt" \
+  CertificateRenewalTest::test_a_wildcard_without_credentials_is_not_renewed_as_a_plain_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateRenewalTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

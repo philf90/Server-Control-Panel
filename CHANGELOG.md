@@ -4463,3 +4463,50 @@ allein zu verkürzen.
 
 Beide Brüche gegengeprüft; Screenshots bei 1280 und 390px in beiden Themes,
 kein Überlauf.
+
+#### Ein Platzhalter wurde als gewöhnliches Zertifikat erneuert
+
+**Der teuerste Fund des Abnahmelaufs, und er sah aus wie ein Erfolg.** Der Lauf
+meldete `1 fällig, 1 bestellt, 0 nachgetragen` — genau die Zahl, die
+Abnahmekriterium 4 verlangt. Die Zahl stimmte auch. Das Bestellte nicht:
+
+```
+cloudlab24.ipv64.de     serial=057551B2…  notBefore=Aug 7 10:34:53
+a.cloudlab24.ipv64.de   serial=059229C9…  notBefore=Aug 7 09:41:20
+b.cloudlab24.ipv64.de   serial=059229C9…  notBefore=Aug 7 09:41:20
+c.cloudlab24.ipv64.de   serial=059229C9…  notBefore=Aug 7 09:41:20
+```
+
+Das erneuerte Zertifikat trug nur `cloudlab24.ipv64.de`. Die drei Unterdomains
+lieferten weiter das alte aus — richtig, denn das neue deckt sie nicht.
+
+**Die Ursache ist eine fehlende Angabe.** `CertificateRenewal::sweep()` rief
+`$this->order->place($domain)` auf, und `place()` hat `bool $wildcard = false`.
+Die Erneuerung wusste nichts von Platzhaltern; sie bestellte, was
+`$domain->serverNames()` sagt.
+
+**Der Fehler wäre still und käme mit neunzig Tagen Verzögerung.** Im Panel sieht
+ein erneuertes Zertifikat aus wie ein erneuertes; dass es eine Zone weniger
+deckt als vorher, steht nirgends. Aufgefallen wäre es, wenn das alte abläuft und
+der Browser bei jeder Unterdomain warnt — an einem Tag, an dem niemand etwas
+geändert hat.
+
+**Und es wäre in diesem Abnahmelauf beinahe durchgegangen**, weil das Kriterium
+nach der *Anzahl* fragt und die stimmte. Gefunden hat es der Betreiber, weil er
+danach die Seriennummern verglichen hat.
+
+**Die Basisdomain kommt jetzt aus dem Namen und nicht aus der Zuordnung.**
+`*.example.de` gehört zu `example.de`, auch wenn an dem Zertifikat gerade nur
+Unterdomains hängen — nach einer Wahl etwa. Über die Zuordnung zu gehen (bisher
+`domains()->orderBy('id')->first()`) ergäbe `*.a.example.de`, weil
+`a.example.de` die kleinste Kennung hat: ein Platzhalter eine Ebene tiefer, für
+etwas ganz anderes.
+
+**Ohne DNS-Zugangsdaten wird gar nicht erneuert**, und das ist die zweite
+Entscheidung. Der naheliegende Ausweg wäre, den Platzhalter dann als
+gewöhnliches Zertifikat nachzuholen — genau der stille Rückschritt, um den es
+hier geht. `RenewalReport::$blocked` zählt diese Fälle, und `srvpanel tls` meldet
+sie als **Fehler** und nicht als Auskunft: Wer den Lauf aus einem Skript fährt,
+sieht sonst nichts.
+
+Drei Wächter, zwei Brüche — die fehlende Angabe und der stille Rückschritt.

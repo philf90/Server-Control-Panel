@@ -251,6 +251,17 @@ final class EnsureTls extends Command
                 CertificateRenewal::PER_RUN,
             ));
         }
+
+        // **Und das hier ist keine Zeile unter anderen.** Ein Platzhalter, der
+        // sich nicht mehr als Platzhalter bestellen lässt, läuft ab — und mit
+        // ihm jede Unterdomain der Zone. Deshalb als Fehler und nicht als
+        // Auskunft: Wer den Lauf aus einem Skript fährt, sieht sonst nichts.
+        if ($report->blocked > 0) {
+            $this->error(sprintf(
+                '  %d Platzhalter lassen sich nicht erneuern — es fehlen die DNS-Zugangsdaten ihres Profils.',
+                $report->blocked,
+            ));
+        }
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\CertificateStatus;
 use App\Enums\DomainStatus;
+use App\Enums\DomainType;
 use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Operation;
@@ -14,8 +15,11 @@ use App\Models\Subscription;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
 use App\Support\Tls\CertificateRenewal;
+use App\Support\Tls\DnsCredentials;
+use App\Support\Tls\DnsProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Tests\Support\ScriptedDnsCredentials;
 use Tests\TestCase;
 
 /**
@@ -304,5 +308,173 @@ final class CertificateRenewalTest extends TestCase
         $this->tenancy()->reset();
 
         $this->assertSame(0, $this->renewal()->run()->due);
+    }
+
+    /**
+     * **Der Fund aus dem Abnahmelauf: ein Platzhalter bleibt einer.**
+     *
+     * Am 7. August 2026 auf `cloudlab24.ipv64.de` gemessen. Die Erneuerung
+     * meldete „1 fällig, 1 bestellt" — die Zahl stimmte, das Bestellte nicht:
+     * Das neue Zertifikat trug nur `cloudlab24.ipv64.de`, und die drei
+     * Unterdomains lieferten weiter das alte aus. `sweep()` rief
+     * `place($domain)` ohne `wildcard:` auf.
+     *
+     * **Der Fehler wäre still und käme mit neunzig Tagen Verzögerung.** Im
+     * Panel sieht ein erneuertes Zertifikat aus wie ein erneuertes; dass es eine
+     * Zone weniger deckt als vorher, steht nirgends. Auffallen würde es, wenn
+     * das alte abläuft und der Browser bei jeder Unterdomain warnt.
+     */
+    public function test_a_wildcard_is_renewed_as_a_wildcard(): void
+    {
+        $this->withContact();
+
+        $this->tenancy()->allowAll();
+
+        $subscription = Subscription::factory()->create(['name' => 'beispiel.de']);
+
+        $domain = Domain::factory()->for($subscription)->create([
+            'name' => 'beispiel.de',
+            'status' => DomainStatus::Active,
+        ]);
+
+        $notAfter = now()->addDays(10);
+
+        $platzhalter = Certificate::factory()->covering(['*.beispiel.de', 'beispiel.de'])->create([
+            'subscription_id' => $subscription->id,
+            'not_after' => $notAfter,
+            'renew_after' => CertificateRenewal::due($notAfter),
+            'storage_name' => '_wildcard.beispiel.de',
+        ]);
+
+        $domain->certificate_id = (int) $platzhalter->id;
+        $domain->save();
+
+        $this->tenancy()->reset();
+
+        // Ohne hinterlegtes Profil sagt `WildcardOrder::obstacle()` nein, und
+        // der Lauf zählte den Platzhalter als liegengeblieben statt bestellt.
+        $this->app->instance(DnsCredentials::class, new ScriptedDnsCredentials([DnsProfile::OPERATOR]));
+
+        $report = $this->renewal()->run();
+
+        $this->assertSame(1, $report->ordered);
+
+        $this->tenancy()->allowAll();
+
+        $auftrag = Operation::query()->where('task', 'acme.certificate.issue')->firstOrFail();
+
+        $this->assertSame(
+            ['*.beispiel.de', 'beispiel.de'],
+            $auftrag->payload['names'] ?? null,
+            'Die Erneuerung eines Platzhalters bestellt kein Platzhalterzertifikat — die Zone schrumpft '.
+            'damit stillschweigend auf einen Namen.',
+        );
+
+        // Und die Prüfung geht wieder über DNS: Ein Platzhalter lässt sich über
+        // HTTP-01 gar nicht ausstellen.
+        $this->assertSame('dns-01', $auftrag->payload['challenge'] ?? null);
+    }
+
+    /**
+     * Die Basisdomain kommt aus dem Namen, nicht aus der Zuordnung.
+     *
+     * **Sonst bestellt die Erneuerung `*.a.beispiel.de`.** Hängt an einem
+     * Platzhalter gerade nur eine Unterdomain — nach einer Wahl etwa —, dann
+     * ist sie die mit der kleinsten Kennung, und über die Zuordnung zu gehen
+     * ergäbe einen Platzhalter eine Ebene tiefer. Der wäre nicht falsch, nur
+     * für etwas ganz anderes.
+     */
+    public function test_the_base_domain_comes_from_the_name(): void
+    {
+        $this->withContact();
+
+        $this->tenancy()->allowAll();
+
+        $subscription = Subscription::factory()->create(['name' => 'beispiel.de']);
+
+        $basis = Domain::factory()->for($subscription)->create([
+            'name' => 'beispiel.de',
+            'status' => DomainStatus::Active,
+        ]);
+
+        $sub = Domain::factory()->for($subscription)->create([
+            'name' => 'a.beispiel.de',
+            'type' => DomainType::Subdomain->value,
+            'status' => DomainStatus::Active,
+        ]);
+
+        $notAfter = now()->addDays(10);
+
+        $platzhalter = Certificate::factory()->covering(['*.beispiel.de', 'beispiel.de'])->create([
+            'subscription_id' => $subscription->id,
+            'not_after' => $notAfter,
+            'renew_after' => CertificateRenewal::due($notAfter),
+            'storage_name' => '_wildcard.beispiel.de',
+        ]);
+
+        // Nur die Unterdomain zeigt darauf — die Basisdomain hat inzwischen ein
+        // eigenes bekommen.
+        $sub->certificate_id = (int) $platzhalter->id;
+        $sub->save();
+
+        $this->assertNotNull($basis->id);
+
+        $this->tenancy()->reset();
+
+        $this->app->instance(DnsCredentials::class, new ScriptedDnsCredentials([DnsProfile::OPERATOR]));
+
+        $this->renewal()->run();
+
+        $this->tenancy()->allowAll();
+
+        $auftrag = Operation::query()->where('task', 'acme.certificate.issue')->firstOrFail();
+
+        $this->assertSame(['*.beispiel.de', 'beispiel.de'], $auftrag->payload['names'] ?? null);
+        $this->assertSame((int) $basis->id, (int) $auftrag->subject_id);
+    }
+
+    /**
+     * Und ohne Zugangsdaten wird er **gar nicht** erneuert.
+     *
+     * **Die wichtigere Richtung.** Der naheliegende Ausweg wäre, ihn dann als
+     * gewöhnliches Zertifikat nachzuholen — und das ist genau der stille
+     * Rückschritt: Danach warnt der Browser bei jeder Unterdomain, und im Panel
+     * sieht alles grün aus. Gemeldet wird es stattdessen, und zwar als Fehler.
+     */
+    public function test_a_wildcard_without_credentials_is_not_renewed_as_a_plain_one(): void
+    {
+        $this->withContact();
+
+        $this->tenancy()->allowAll();
+
+        $subscription = Subscription::factory()->create(['name' => 'ohnezugang.de']);
+
+        $domain = Domain::factory()->for($subscription)->create([
+            'name' => 'ohnezugang.de',
+            'status' => DomainStatus::Active,
+        ]);
+
+        $notAfter = now()->addDays(10);
+
+        $platzhalter = Certificate::factory()->covering(['*.ohnezugang.de', 'ohnezugang.de'])->create([
+            'subscription_id' => $subscription->id,
+            'not_after' => $notAfter,
+            'renew_after' => CertificateRenewal::due($notAfter),
+            'storage_name' => '_wildcard.ohnezugang.de',
+        ]);
+
+        $domain->certificate_id = (int) $platzhalter->id;
+        $domain->save();
+
+        $this->tenancy()->reset();
+
+        // Kein Profil hinterlegt — `WildcardOrder::obstacle()` sagt das auch.
+        $this->app->instance(DnsCredentials::class, new ScriptedDnsCredentials([]));
+
+        $report = $this->renewal()->run();
+
+        $this->assertSame(0, $report->ordered, 'Ein Platzhalter ohne Zugangsdaten wurde trotzdem bestellt.');
+        $this->assertSame(1, $report->blocked, 'Der Lauf verschweigt, dass ein Platzhalter liegenbleibt.');
+        $this->assertSame(0, $this->orders());
     }
 }

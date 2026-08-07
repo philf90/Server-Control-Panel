@@ -212,6 +212,36 @@ final class CertificateUploadTest extends TestCase
         Bundle::from($verkehrt, $key);
     }
 
+    /**
+     * **Und mit dem Schlüssel, den ein Betreiber wirklich hat.**
+     *
+     * Der Durchgang darüber reicht den Schlüssel der **Zertifizierungsstelle**
+     * ein — den hat niemand, der ein gekauftes Zertifikat hochlädt. Er umgeht
+     * damit ausgerechnet die Prüfung, die im Weg steht: Steht das ausstellende
+     * Zertifikat vorn, ist es „dieses Zertifikat", und der Schlüssel des
+     * Blattes passt nicht dazu.
+     *
+     * **Im Abnahmelauf am 7. August 2026 genau so passiert.** Die verkehrte
+     * Kette wurde abgewiesen — mit „Der Schlüssel gehört nicht zu diesem
+     * Zertifikat". Der Satz ist buchstäblich wahr und die falsche Auskunft: Er
+     * schickt den Betreiber zum Schlüssel, den er neu holt, neu ausleitet und
+     * neu einfügt, während die Ursache zwei Zeilen weiter oben in derselben
+     * Datei steht.
+     *
+     * Geprüft wird deshalb der Weg, den ein Mensch geht, und nicht der, der
+     * gerade durch die Prüfung passt.
+     */
+    public function test_a_wrong_order_is_named_even_with_the_leaf_key(): void
+    {
+        $verkehrt = $this->pem($this->ca()['cert'])."\n".$this->pem($this->leaf()['cert']);
+        $key = $this->privateKey($this->leaf()['key']);
+
+        $this->expectException(AgentException::class);
+        $this->expectExceptionMessage('nicht in der richtigen Reihenfolge');
+
+        Bundle::from($verkehrt, $key);
+    }
+
     /** nginx fragt beim Start nach dem Passwort — und niemand ist da. */
     public function test_a_key_with_a_password_is_refused(): void
     {

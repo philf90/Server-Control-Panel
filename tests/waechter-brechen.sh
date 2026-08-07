@@ -2837,6 +2837,30 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateUploadCommandTest passed
 
 echo
+echo "── CertificateUploadTest: die verkehrte Kette meldet den Schlüssel ──"
+#
+# **Aus dem Abnahmelauf, 7. August 2026.** Eine verkehrt sortierte Kette wurde
+# abgewiesen — mit „Der Schlüssel gehört nicht zu diesem Zertifikat". Der Satz
+# ist buchstäblich wahr: Steht das ausstellende Zertifikat vorn, ist es „dieses
+# Zertifikat", und der Schlüssel des Blattes passt nicht dazu. Er ist trotzdem
+# die falsche Auskunft — sie schickt zum Schlüssel statt zur Datei.
+vorher_datei agent/src/Acme/Bundle.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Bundle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        self::ordered($certificates);\n        self::keyBelongs($certificates[0], $key);",
+    "        self::keyBelongs($certificates[0], $key);\n        self::ordered($certificates);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Bundle.php "Schlüssel vor Reihenfolge geprüft" &&
+pruefe "Schlüssel vor Reihenfolge geprüft" \
+  CertificateUploadTest::test_a_wrong_order_is_named_even_with_the_leaf_key failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateUploadTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

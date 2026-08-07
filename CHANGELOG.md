@@ -4547,3 +4547,40 @@ Rechte wechselt, sind das zwei verschiedene Antworten.
 der CI als root, und root liest auch 0600. Geprüft werden die beiden Ausgänge,
 die sich herstellen lassen — fehlende Angabe und fehlende Datei —, und dass
 keiner die Meldung des anderen mitbringt.
+
+#### Die verkehrte Kette meldete den Schlüssel
+
+**Abnahmekriterium 5 zur Hälfte.** „Ein hochgeladenes Zertifikat mit falsch
+sortierter Kette wird abgewiesen, und die Meldung sagt, was falsch ist." Es
+wurde abgewiesen. Die Meldung sagte:
+
+```
+Zertifikat abgewiesen: Der Schlüssel gehört nicht zu diesem Zertifikat.
+```
+
+**Der Satz ist buchstäblich wahr und die falsche Auskunft.** Steht das
+ausstellende Zertifikat vorn, ist es „dieses Zertifikat", und der Schlüssel des
+Blattes passt nicht dazu. Ein Betreiber, der seine Kette verkehrt herum
+eingefügt hat, geht danach seinen Schlüssel suchen — holt ihn neu, leitet ihn
+neu aus, fügt ihn neu ein —, während die Ursache zwei Zeilen weiter oben in
+derselben Datei steht.
+
+**Die Prüfung, die es genau weiss, gab es die ganze Zeit.** `Bundle::ordered()`
+sagt, welches Glied welches nicht unterschrieben hat, und nennt die richtige
+Reihenfolge dazu. Sie lief nur **nach** `keyBelongs()` und kam deshalb nie zum
+Zug. Beide Zeilen stehen jetzt umgekehrt.
+
+**Und der bestehende Wächter hat das nicht gefunden**, obwohl es ihn gibt:
+`test_a_chain_in_the_wrong_order_is_refused` reicht den Schlüssel der
+**Zertifizierungsstelle** ein. Den hat niemand, der ein gekauftes Zertifikat
+hochlädt — der Durchgang umging damit ausgerechnet die Prüfung, die im Weg
+stand. Der neue nimmt den Schlüssel, den ein Mensch wirklich hat.
+
+Das ist dieselbe Lehre wie beim `$`-Anker in P3: Ein Wächter, der den Weg prüft,
+der gerade durchkommt, statt den, den jemand geht, ist grün und wertlos.
+
+Der Bruch ist vollständig rot-grün gegengeprüft — `agent/` läuft ohne Framework,
+und eine Wegwerfprobe über `agent/src/autoload.php` baut sich ihre CA selbst.
+Mit der alten Reihenfolge meldet sie den Schlüssel, mit der neuen die Kette; die
+richtige Kette mit fremdem Schlüssel meldet weiter den Schlüssel, und die
+richtige Kette mit dem richtigen geht durch.

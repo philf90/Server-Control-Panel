@@ -66,11 +66,27 @@ const props = defineProps<{
       </span>
     </p>
 
-    <DnsCredentials
-      action="/settings/dns"
-      :profile="props.profile"
-      :credential="props.credential"
-      :providers="props.providers"
-    />
+    <!--
+      **Der Behälter ist kein Beiwerk, er trägt den Abstand.** `DnsCredentials`
+      bringt zwei Bereiche mit — „Hinterlegt" und „Neu hinterlegen" —, und der
+      Abstand zwischen zwei Bereichen kommt in Kontor nirgends vom Bereich
+      selbst, sondern aus dem `gap` seines Behälters (`.sections` oder
+      `.form`). Ohne ihn standen die beiden hier auf 0px: Der letzte Hinweis
+      des einen berührte die Überschrift des anderen. Im Browser gemessen,
+      nicht geschätzt.
+
+      Am Abonnement stand die Komponente von Anfang an in einem `.sections` —
+      dort fiel nichts auf. Genau das ist das Muster: Eine Komponente, deren
+      Gestalt vom Ort abhängt, sieht an ihrem ersten Ort richtig aus.
+      `SectionSpacingTest` fragt seitdem an beiden.
+    -->
+    <div class="sections">
+      <DnsCredentials
+        action="/settings/dns"
+        :profile="props.profile"
+        :credential="props.credential"
+        :providers="props.providers"
+      />
+    </div>
   </PanelLayout>
 </template>

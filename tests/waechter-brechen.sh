@@ -2861,6 +2861,55 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateUploadTest passed
 
 echo
+echo "── SectionSpacingTest: eine Seite verliert ihren Behälter ──"
+#
+# Ein Bereich hat in Kontor keinen eigenen Aussenabstand — der kommt aus dem
+# `gap` des Behälters. Fällt der weg, stehen zwei Bereiche auf 0px aufeinander,
+# und jede einzelne Regel stimmt weiter.
+vorher_datei resources/js/Pages/Domains/Show.vue
+sed -i '0,/class="sections"/s//class="unwrapped"/' resources/js/Pages/Domains/Show.vue
+griff_datei resources/js/Pages/Domains/Show.vue "Bereiche ohne Behälter" &&
+pruefe "Bereiche ohne Behälter" \
+  SectionSpacingTest::test_every_section_stands_in_a_container_that_carries_the_gap failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SectionSpacingTest::test_every_section_stands_in_a_container_that_carries_the_gap passed
+
+echo
+echo "── SectionSpacingTest: die Komponente steht ohne Klammer ──"
+#
+# **Das ist der gemeldete Fehler selbst, 7. August 2026.** `DnsCredentials`
+# bringt zwei Bereiche mit und keinen Behälter; am Abonnement stand die Klammer,
+# auf „DNS-Zugang" fehlte sie. Dieser Bruch stellt genau den Stand her, der
+# ausgeliefert war.
+vorher_datei resources/js/Pages/Settings/Dns.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Dns.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    <div class="sections">\n', '').replace('      />\n    </div>', '      />')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Dns.vue "Trägerkomponente ohne Behälter" &&
+pruefe "Trägerkomponente ohne Behälter" \
+  SectionSpacingTest::test_every_component_that_brings_sections_is_wrapped_where_it_is_used failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SectionSpacingTest passed
+
+echo
+echo "── SectionSpacingTest: der Behälter trägt den Abstand nicht mehr ──"
+#
+# Ohne diese Richtung wäre `CONTAINERS` eine Liste von Klassennamen, die
+# behauptet, dass dort ein `gap` steht — und die beiden Prüfungen darüber
+# blieben grün, während jeder Bereich seinen Abstand verliert.
+vorher
+sed -i '/^\.sections {$/,/^}$/s/^  gap: var(--bereich-gap);$/  gap: 0;/' resources/css/app.css
+griff ".sections ohne gap" &&
+pruefe ".sections ohne gap" \
+  SectionSpacingTest::test_a_container_is_a_container_because_app_css_says_so failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SectionSpacingTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

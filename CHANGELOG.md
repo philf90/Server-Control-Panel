@@ -4637,3 +4637,39 @@ jetzt als Kasten in `docs/34 §10`: `tinker` braucht `HOME=/tmp` (sonst darf
 psysh seine Einrichtung nicht schreiben und führt den Code gar nicht aus) und
 `allowAll()` als erste Zeile (sonst klammert die Mandantenklammer jede Abfrage
 auf nichts). Beide Male ohne eine einzige Fehlermeldung.
+
+### Zwei Bereiche ohne Abstand — und der Wächter dafür
+
+Auf **DNS-Zugang** berührte der letzte Hinweis des Bereichs „Hinterlegt" die
+Überschrift „Neu hinterlegen": 0px dazwischen, im Browser gemessen. Gemeldet hat
+es der Betreiber, kein Lauf.
+
+Die Ursache ist keine fehlende Regel in app.css, sondern eine fehlende Klammer
+im Template. In „Kontor" hat ein Bereich **keinen eigenen Aussenabstand**, und
+das ist Absicht: Bereiche stehen in einem Flexfluss, der sie nebeneinander
+stellt, solange sie nebeneinander passen. Ein Abstand am Bereich selbst wäre
+waagerecht wie senkrecht derselbe — die Spaltenlücke ist aber eine andere als
+die Zeilenlücke (`--bereich-gap: 30px 44px`). Deshalb kommt er aus dem `gap` des
+Behälters: `.sections` um eine Gruppe von Bereichen, `.form` um ein Formular.
+
+**Ein Bereich ohne diesen Behälter bekommt damit gar keinen Abstand** — nicht zu
+wenig, sondern keinen. Jede einzelne Regel stimmt weiter, und nichts sagt etwas.
+
+Die Falle lag eine Ebene höher. `DnsCredentials` bringt zwei Bereiche mit und
+keinen Behälter; wer die Komponente einsetzt, stellt ihn. Am Abonnement stand er
+von Anfang an, auf der Seite des Betreibers fehlte er: **dieselbe Komponente,
+zwei Orte, ein Ort falsch.** Eine Komponente, deren Gestalt vom Ort abhängt,
+sieht an ihrem ersten Ort richtig aus.
+
+`SectionSpacingTest` prüft das jetzt in drei Richtungen: jeder `<Section>` steht
+in einem Behälter, jede Komponente, die Bereiche mitbringt, wird an **jeder**
+Einsatzstelle eingeklammert, und die beiden Behälterklassen setzen in app.css
+wirklich ein `gap` aus `--bereich-gap`. Die Trägerkomponenten zählt der Test
+nicht auf, sondern sucht sie selbst zusammen — als Fixpunkt, damit auch eine
+Komponente auffällt, die ihrerseits eine Trägerkomponente ohne Klammer einsetzt.
+Wer morgen eine zweite baut, wird ohne Zutun mitgeprüft.
+
+Gemessen statt geschätzt: 0px vorher, 44px Spaltenlücke bei 1440px (die beiden
+Bereiche stehen dort jetzt nebeneinander wie überall sonst im Panel) und 26px
+Zeilenlücke bei 390px, kein waagerechter Überlauf. Alle drei Brüche stehen in
+`tests/waechter-brechen.sh` und beissen.

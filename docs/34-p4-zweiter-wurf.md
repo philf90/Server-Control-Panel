@@ -892,19 +892,50 @@ Gemessen auf einem echten Server, nicht geschätzt (Plan §8):
 
 ### Der Lauf vom 7. August 2026 auf `cloudlab24.ipv64.de`
 
-Gefahren gegen IPv64.net, mit `v0.4.0-rc.10`. **Vier der sieben Kriterien sind
-erfüllt, drei nicht** — und die drei Funde sind zusammen der Grund, warum dieser
-Lauf stattgefunden hat.
+Gefahren gegen IPv64.net. **Alle sieben Kriterien sind erfüllt** — vier davon
+sofort auf `v0.4.0-rc.10`, drei erst auf `v0.4.0-rc.11`, nachdem der Lauf die
+Fehler zutage gefördert hatte, für die es ihn gibt.
 
-| | Kriterium | rc.10 |
-|---|---|---|
-| 1 | Ein Zertifikat mit beiden Namen über DNS-01 | **erfüllt** |
-| 2 | Alle Blöcke des Abonnements liefern es aus | **nicht erfüllt** |
-| 3 | Fremdes Abonnement bekommt es nicht | **erfüllt** |
-| 4 | Die Erneuerung ist eine Bestellung | **nicht erfüllt** |
-| 5 | Verkehrte Kette abgewiesen, Meldung nennt den Grund | **halb** |
-| 6 | Hochgeladenes bleibt liegen | **erfüllt** |
-| 7 | Das Token steht nirgends | **erfüllt** |
+| | Kriterium | rc.10 | rc.11 |
+|---|---|---|---|
+| 1 | Ein Zertifikat mit beiden Namen über DNS-01 | **erfüllt** | |
+| 2 | Alle Blöcke des Abonnements liefern es aus | nicht erfüllt | **erfüllt** |
+| 3 | Fremdes Abonnement bekommt es nicht | **erfüllt** | |
+| 4 | Die Erneuerung ist eine Bestellung | nicht erfüllt | **erfüllt** |
+| 5 | Verkehrte Kette abgewiesen, Meldung nennt den Grund | halb | **erfüllt** |
+| 6 | Hochgeladenes bleibt liegen | **erfüllt** | |
+| 7 | Das Token steht nirgends | **erfüllt** | |
+
+**Die Belege aus dem Lauf auf rc.11:**
+
+```
+subjectAltName:  DNS:*.cloudlab24.ipv64.de, DNS:cloudlab24.ipv64.de
+notBefore:       Aug  7 11:59:58 2026 GMT
+alle vier:       serial=06832C1F89711756C037F68969E0631EC641
+                 HTTP/1.1 200 OK   (ohne curl -k)
+
+Erneuerung:      Kundenzertifikate: 1 fällig, 1 bestellt, 0 nachgetragen.
+
+verkehrte Kette: Die Kette ist nicht in der richtigen Reihenfolge: Das 2.
+                 Zertifikat hat das 1. nicht unterschrieben. Zuerst das
+                 eigene, dann die ausstellenden.                       → 1
+richtige Kette:  Abgelegt für b.cloudlab24.ipv64.de (gültig bis 06.09.2026). → 0
+```
+
+> **Eine Einschränkung, die zum Nachweis gehört.** Kriterium 2 ist nach seinem
+> Wortlaut erfüllt: Alle Blöcke liefern den Platzhalter aus, `covers_all` steht
+> überall auf ja, kein Browser warnt. **Der behobene Fehler ist damit aber nicht
+> auf dem Server gemessen.** Er trat auf, als aus vier Einzelzertifikaten ein
+> Platzhalter wurde — da ändert sich der Ablageort, und da müssen die Blöcke
+> folgen. Die Erneuerung schreibt dagegen in *dieselbe* Datei
+> `_wildcard.…`; die Blöcke zeigen längst dorthin und brauchten kein Anfassen.
+> `CertificateLifecycle::spread()` ist deshalb nur von
+> `CertificateReapplyTest` gedeckt, nicht von einer Messung. Wer den Nachweis
+> nachholen will, braucht eine **zweite Zone**: ein Abonnement mit drei
+> Unterdomains, jede mit ihrem Einzelzertifikat, und dann einen Platzhalter
+> darauf.
+
+**Was auf rc.10 nicht ging — die drei Funde, die den Lauf gerechtfertigt haben:**
 
 **Zu 2:** Der Platzhalter erreichte nur den Block, der ihn bestellt hat. Die
 Hauptdomain lieferte ihn aus, die drei Unterdomains behielten ihre einzelnen
@@ -935,10 +966,16 @@ lassen.
 > **ohne eine einzige Fehlermeldung**. Jeder Aufruf gibt deshalb aus, was er
 > getan hat.
 
-Die Nachweise für 2, 4 und 5 stehen aus und brauchen eine Fassung mit den
-Korrekturen. Kriterium 2 verlangt dann einen **frischen** Platzhalter: Der
-vorhandene liegt, und das Kästchen verschwindet dafür zu Recht — der billigste
-Weg ohne einen weiteren Fehlversuch ist eine zusätzliche Zusatzdomain.
+**Und was der Lauf über Abnahmen selbst gezeigt hat.** Vier der sechs Funde
+hätte kein Kriterium erwischt; sie sind aufgefallen, weil ein Mensch die
+Oberfläche benutzt hat, statt eine Liste abzuhaken. Zwei davon standen sogar im
+Weg — ohne das Platzhalter-Kästchen und ohne `srvpanel dns --token` wäre der
+Lauf gar nicht auf dem Weg zustande gekommen, den ein Kunde geht.
+
+Der teuerste Fund kam dagegen aus dem Vergleich **nach** einer grünen Meldung.
+Wer nur die Zeile `1 fällig, 1 bestellt` gelesen hätte, hätte Kriterium 4
+abgehakt — und der Fehler wäre in neunzig Tagen als Browserwarnung
+wiedergekommen, an einem Tag, an dem niemand etwas geändert hat.
 
 ---
 

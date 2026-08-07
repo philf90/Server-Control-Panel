@@ -4584,3 +4584,56 @@ und eine Wegwerfprobe über `agent/src/autoload.php` baut sich ihre CA selbst.
 Mit der alten Reihenfolge meldet sie den Schlüssel, mit der neuen die Kette; die
 richtige Kette mit fremdem Schlüssel meldet weiter den Schlüssel, und die
 richtige Kette mit dem richtigen geht durch.
+
+### P4 zweiter Wurf abgenommen
+
+**Gemessen am 7. August 2026 auf `cloudlab24.ipv64.de` gegen IPv64.net, nicht
+geschätzt.** Alle sieben Kriterien aus `docs/34 §10` sind erfüllt: vier sofort
+auf `v0.4.0-rc.10`, drei auf `v0.4.0-rc.11`, nachdem der Lauf die Fehler zutage
+gefördert hatte, für die es ihn gibt.
+
+```
+subjectAltName:  DNS:*.cloudlab24.ipv64.de, DNS:cloudlab24.ipv64.de
+alle vier:       serial=06832C1F89711756C037F68969E0631EC641
+                 HTTP/1.1 200 OK   (ohne curl -k)
+Erneuerung:      Kundenzertifikate: 1 fällig, 1 bestellt, 0 nachgetragen.
+verkehrte Kette: „…nicht in der richtigen Reihenfolge: Das 2. Zertifikat hat
+                 das 1. nicht unterschrieben."                          → 1
+richtige Kette:  „Abgelegt für b.cloudlab24.ipv64.de."                  → 0
+```
+
+**Der Lauf hat sechs Fehler gefunden, und keinen davon ein Test.** Drei
+betrafen ein Kriterium, drei die Bedienung; sie stehen einzeln weiter oben in
+diesem Dokument. Was sie zusammen zeigen, steht hier:
+
+**Vier der sechs hätte kein Kriterium erwischt.** Sie sind aufgefallen, weil ein
+Mensch die Oberfläche benutzt hat, statt eine Liste abzuhaken — das
+unbeschriftete Auswahlfeld, der fehlende Hinweis auf die Namen eine Ebene
+tiefer, die zwei Meldungen für eine Ursache, das Kommando, das nur RFC 2136
+kannte. **Zwei davon standen dem Lauf sogar im Weg:** Ohne das
+Platzhalter-Kästchen und ohne `srvpanel dns --token` wäre er auf dem Weg, den
+ein Kunde geht, gar nicht zustande gekommen.
+
+**Der teuerste kam aus dem Vergleich nach einer grünen Meldung.** Die Erneuerung
+schrieb `1 fällig, 1 bestellt` — genau die Zahl, die Kriterium 4 verlangt — und
+bestellte ein gewöhnliches Zertifikat statt eines Platzhalters. Wer nur die
+Zeile gelesen hätte, hätte abgehakt, und der Fehler wäre in neunzig Tagen als
+Browserwarnung wiedergekommen, an einem Tag, an dem niemand etwas geändert hat.
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
+**Eine Einschränkung gehört zum Nachweis.** Kriterium 2 ist nach seinem Wortlaut
+erfüllt — alle Blöcke liefern den Platzhalter aus, `covers_all` steht überall
+auf ja, kein Browser warnt. Der behobene Fehler ist damit aber **nicht auf dem
+Server gemessen**: Er trat beim Wechsel von Einzelzertifikaten auf einen
+Platzhalter auf, wo sich der Ablageort ändert; eine Erneuerung schreibt dagegen
+in dieselbe Datei, und die Blöcke zeigen längst dorthin.
+`CertificateLifecycle::spread()` ist deshalb von `CertificateReapplyTest`
+gedeckt und nicht von einer Messung. Das steht so auch in `docs/34 §10`, samt
+dem Weg, es nachzuholen — eine zweite Zone.
+
+Und zwei Fallen, die den Lauf zweimal **stumm** haben scheitern lassen, stehen
+jetzt als Kasten in `docs/34 §10`: `tinker` braucht `HOME=/tmp` (sonst darf
+psysh seine Einrichtung nicht schreiben und führt den Code gar nicht aus) und
+`allowAll()` als erste Zeile (sonst klammert die Mandantenklammer jede Abfrage
+auf nichts). Beide Male ohne eine einzige Fehlermeldung.

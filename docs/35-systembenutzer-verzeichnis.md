@@ -1064,3 +1064,74 @@ noch im Verzeichnis — das eine für das lebende Abonnement, das andere für di
 Oberfläche.
 
 Danach die elf Kriterien aus §10.3.
+
+---
+
+## 12. Abnahme — durch
+
+**7. August 2026, `v0.4.1-rc.2` auf `cloudsrv24`.** Der zweite Anlauf ist
+durchgelaufen, alle elf Kriterien sind vom Betreiber abgenommen.
+
+### 12.1 Was gemessen wurde
+
+```
+2026_08_07_100150_certificates_survive_a_deleted_subscription  DONE
+2026_08_07_100200_withdrawn_subscriptions_are_gone             DONE
+2026_08_07_100300_a_subscription_is_never_cancelled            DONE
+```
+
+| Prüfung | Gemessen |
+|---|---|
+| `SELECT COUNT(*) FROM system_users` | 121 |
+| `SELECT MAX(number) FROM system_users` | **1120** |
+| `SELECT COUNT(*) FROM subscriptions` | 1 |
+| `SHOW COLUMNS FROM subscriptions LIKE 'deleted_at'` | leer |
+| verwaiste Vorgänge mit Namen | 403 |
+| **`nextSystemUser()`** | **`p1121`** |
+
+**Kriterium 3 ist erfüllt: `p1121` vor der Migration, `p1121` danach.** Die
+Reservierung ist unangetastet durch einen Umbau gegangen, der 121 Zeilen
+gelöscht hat.
+
+### 12.2 Der Prune
+
+```
+12 verwaiste Zeile(n), 9 Ablageort(e) zu entfernen.
+  cloudlab24.de: Ablageort bleibt — er wird noch gebraucht. Nur die Zeile geht.
+  … neun weitere: Ablageort und Zeile(n)
+Aufgeräumt.
+```
+
+**Zwölf Zeilen, zehn Ablageorte, neun entfernt** — die Arithmetik ist der
+Beweis, dass je Ablageort entschieden wurde und nicht je Zeile:
+`cloudlab24.ipv64.de` und `_wildcard.cloudlab24.ipv64.de` kamen doppelt vor,
+weil eine Erneuerung eine neue Zeile auf dasselbe Verzeichnis legt. Wer je Zeile
+löscht, läuft im zweiten Durchgang in ein Verzeichnis, das der erste schon weg
+hat.
+
+Und `cloudlab24.de` ist geblieben — der Ablageort, den ein zurückgebautes und
+ein **lebendes** Abonnement teilten. Ein `rm -rf` je Zeile hätte dort eine
+laufende Website abgeschossen.
+
+Gegenprobe danach: `verwaist = 0`, und unter `/etc/srvpanel/tls/certs` liegen
+genau zwei Verzeichnisse — `cloudlab24.de` für das lebende Abonnement und
+`cloudsrv24.de` für die Oberfläche. **Die privaten Schlüssel von zehn
+zurückgebauten Abonnements sind von der Platte.**
+
+### 12.3 Was der Abgleich *nicht* gemeldet hat
+
+Migration 3 druckt `Verzeichnis nachgezogen: …`, wenn sie einen fehlenden Namen
+findet. Die Zeile blieb aus — zwischen dem Abbruch von rc.1 und dem zweiten
+Anlauf ist also kein Abonnement entstanden, das im Verzeichnis gefehlt hätte.
+Das halb migrierte Fenster hat keinen Schaden angerichtet. Der Abgleich bleibt
+trotzdem drin: Er kostet nichts und deckt einen Zustand ab, der sich jederzeit
+wiederholen kann.
+
+### 12.4 Was offen bleibt
+
+- **`tests/waechter-brechen.sh` ist zur Hälfte geprüft.** Alle zwölf Eingriffe
+  dieses Umbaus greifen nachweislich in ihre Zieldatei; ob die Wächter danach
+  rot werden, braucht ein lokales PHPUnit. **Wer als Nächstes an diesem Repo mit
+  `vendor/` sitzt, holt das nach.**
+- **Die Screenshots von Schritt 7 sind am Nachbau entstanden**, nicht an der
+  laufenden Seite — ohne `vendor/` läuft `artisan serve` nicht.

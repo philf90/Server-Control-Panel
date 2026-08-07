@@ -4936,3 +4936,34 @@ eingeschleppt, gegen den er gebaut ist.**
 Migration 3 gleicht deshalb erst ab — lebende Abonnements und Grabsteine — und
 prüft danach. Was sie nachträgt, schreibt sie hin; stillschweigend zu heilen
 wäre dieselbe Sorte Nebenwirkung, die diesen Umbau nötig gemacht hat.
+
+### docs/35 ist abgenommen — `p1121` vor und nach der Migration
+
+**7. August 2026, `v0.4.1-rc.2` auf `cloudsrv24`.** Alle elf Kriterien erfüllt.
+Die zentrale Invariante hält: `nextSystemUser()` sagt vor dem Umbau `p1121` und
+danach `p1121` — durch eine Migration hindurch, die 121 Zeilen gelöscht hat.
+`MAX(number) = 1120`, `subscriptions` ohne `deleted_at`, 403 verwaiste Vorgänge
+mit ihrem Namen.
+
+**Der Prune ist der Beleg dafür, dass je Ablageort entschieden wird und nicht je
+Zeile:** zwölf verwaiste Zeilen, zehn Ablageorte, neun entfernt.
+`cloudlab24.ipv64.de` und `_wildcard.cloudlab24.ipv64.de` kamen doppelt vor,
+weil eine Erneuerung eine neue Zeile auf dasselbe Verzeichnis legt — je Zeile
+gelöscht wäre der zweite Durchgang in ein Verzeichnis gelaufen, das der erste
+schon weg hat. Und `cloudlab24.de` ist geblieben: der Ablageort, den ein
+zurückgebautes und ein **lebendes** Abonnement teilten.
+
+Danach liegen unter `/etc/srvpanel/tls/certs` genau zwei Verzeichnisse — eines
+für das lebende Abonnement, eines für die Oberfläche. **Die privaten Schlüssel
+von zehn zurückgebauten Abonnements sind von der Platte**, zum ersten Mal, seit
+es Kundenzertifikate gibt.
+
+Die Zeile `Verzeichnis nachgezogen: …` blieb aus: Zwischen dem Abbruch von rc.1
+und dem zweiten Anlauf ist kein Abonnement entstanden, das im Verzeichnis
+gefehlt hätte. Der Abgleich bleibt trotzdem stehen — er kostet nichts und deckt
+einen Zustand ab, der sich jederzeit wiederholen kann.
+
+**Was offen bleibt und nicht abgehakt wird:** `tests/waechter-brechen.sh` ist
+zur Hälfte geprüft. Alle zwölf Eingriffe dieses Umbaus greifen nachweislich in
+ihre Zieldatei; ob die Wächter danach rot werden, braucht ein lokales PHPUnit.
+Wer als Nächstes mit `vendor/` an diesem Repo sitzt, holt das nach.

@@ -94,6 +94,17 @@ Aufräumen abgeschaltet.* Passiert bei `MobileLayoutTest`, bei
 Optik-Reworks. Die Untergrenze zählt seitdem überall mit, wo die Regel stehen
 *darf*; der Befund kommt weiter nur von dort, wo sie stehen *soll*.
 
+**Und ein zweites Muster, das der Umbau aus `docs/35` freigelegt hat: eine
+Ressource, die sich anlegen, aber nirgends löschen lässt.** Zertifikate konnte
+dieses System bestellen, hochladen und erneuern — ein `remove` gab es weder im
+Panel noch im Agenten. Jedes zurückgebaute Abonnement liess seinen privaten
+Schlüssel unter `/etc/srvpanel/tls/certs` liegen, und zwar seit es
+Kundenzertifikate gibt. Gemerkt hat es niemand, weil ein Grabstein die Zeile am
+Leben hielt: Solange etwas auf den Rest zeigt, sieht der Rest nicht aus wie
+einer. Aufgefallen ist es erst, als eine Migration danach *fragte* — und dann
+gleich zwölfmal. Wer etwas anlegt, das auf der Platte bleibt, baut den Weg
+zurück mit; sonst findet ihn Jahre später eine Datenmigration.
+
 **Drei Funde aus P3, die keiner Regel widersprachen, sondern eine fehlende
 zeigten:** `$` passt in PCRE auch vor einem abschliessenden Zeilenumbruch (neun
 Muster betroffen, vier davon aus P0–P2); zwei fertig gebaute Agent-Operationen
@@ -194,10 +205,11 @@ Abnahmelauf für 0.3.1**, der davor kommt · und **`34` der zweite Wurf von P4**
 DNS-01, Platzhalter, eigene Zertifikate — mit den drei Stellen, an denen der
 erste Wurf der Erweiterung nicht standhält, und den vier Fragen, die der
 Betreiber vorher beantwortet · und **`35` das Verzeichnis der Systembenutzer** —
-gebaut, auf dem Server noch nicht abgenommen: Abonnements werden hart gelöscht,
-die verbrauchten Namen stehen in `system_users`. **§9 „Umsetzung" nennt drei
-Stellen, an denen der Plan nicht trug**, und §10 die Befehlsfolge für die
-Abnahme. Die Entwürfe zum Gestaltungssystem stehen
+**abgenommen am 7. August 2026**: Abonnements werden hart gelöscht, die
+verbrauchten Namen stehen in `system_users`. **§9 nennt drei Stellen, an denen
+der Plan nicht trug**, §10 die Befehlsfolge, **§11 den Abbruch des ersten
+Anlaufs** — ein Zertifikat liess sich in diesem System nicht löschen — und §12
+die Messwerte. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".

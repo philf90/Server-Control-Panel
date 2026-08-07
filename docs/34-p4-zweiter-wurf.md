@@ -293,7 +293,7 @@ Anbieter ist eine eigene Umsetzung, eigene Fehlerfälle und ein eigener Wächter
 | **RFC 2136** (TSIG) | Der Standard, kein Anbietercode — er bedient BIND, Knot und PowerDNS, und **damit die eigene Zone aus P7** ohne zweite Umsetzung. | gebaut |
 | **IPv64.net** | Kleiner deutscher Anbieter mit Token-API; deckt den Fall ab, in dem jemand seine Zone dort und nicht beim Registrar führt. **Vorgezogen**, weil sich an ihm die Zonenauflösung beweist (unten). | gebaut |
 | **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | gebaut |
-| **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | 4. |
+| **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | gebaut |
 | **netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | 5. |
 | **IONOS** | Der grösste deutsche Massenhoster; wer dort seine Domain hat, hat sie meist auch dort delegiert. | 6. |
 | **INWX** | Der Registrar, den deutsche Wiederverkäufer benutzen — und der einzige der sieben mit einer Anmeldung statt eines Tokens. | 7. |
@@ -333,7 +333,7 @@ Bauen teuer wird:
 |---|---|---|---|
 | IPv64.net | `https://ipv64.net/api` | `token` | Die Zone ist oft selbst eine Unterdomain — **gefragt, nicht gerechnet**. Drosselt mit 429. |
 | Hetzner | `https://api.hetzner.cloud/v1` (gebaut) — daneben die alte `https://dns.hetzner.com` | `token` | **Zwei Schnittstellen nebeneinander.** lego hält beide vor (`HETZNER_API_KEY` für die alte DNS-Konsole, `HETZNER_API_TOKEN` für die Cloud-API). Ein Token der einen gilt bei der anderen nicht, und die Abweisung sagt das nicht deutlich. |
-| Cloudflare | `https://api.cloudflare.com/client/v4` | `token` — oder `email` + `api_key` | Der alte Weg über den globalen Schlüssel öffnet **das ganze Konto**. Wir nehmen nur das Token; der globale Schlüssel wird abgewiesen, nicht angeboten. Ausserdem kennt Cloudflare zwei Token (Zone lesen, Einträge ändern) — lego lässt beide zu, wir kommen mit einem aus. |
+| Cloudflare | `https://api.cloudflare.com/client/v4` (gebaut) | `token`; `email` + `api_key` wird **abgewiesen** | Der alte Weg über den globalen Schlüssel öffnet **das ganze Konto**. Genommen wird nur das Token, mit `Zone:Read` und `DNS:Edit`. Gelöscht wird über eine Eintragskennung, die erst gesucht werden muss. |
 | netcup | `https://ccp.netcup.net/run/webservice/servers/endpoint.php` | `customer_number` + `api_key` + `api_password` | **Der einzige mit einer Sitzung.** Erst `login`, dann die Änderung, dann `logout`; die Sitzungskennung hängt an jedem Aufruf. Ein Vorgang, der zwischendurch abbricht, lässt eine Sitzung offen. |
 | IONOS | `https://api.hosting.ionos.com` | `api_key` in der Form `<prefix>.<secret>` | Ein Feld, das in Wahrheit zwei ist. Wer nur den Präfix einträgt, bekommt eine Abweisung, die von einem ungültigen Schlüssel spricht. Das gehört beim Hinterlegen geprüft. |
 | INWX | `https://api.domrobot.com/xmlrpc/` | `username` + `password`, wahlweise `shared_secret` | XML-RPC, Sitzungscookie, TOTP. **Und das Passwort öffnet das Registrarkonto**, nicht eine Zone. Der einzige, bei dem ein Kunde besser nicht seine eigenen Zugangsdaten hinterlegt. |
@@ -395,6 +395,42 @@ sie endlos, weil sie die Seitennummer mit der Obergrenze verglich und
 `next_page` mit `1` zurückkam, während `page` auf `1` stand. Das Ende wird
 gemeldet und nicht verschwiegen — wer still abschneidet, sagt gleich darauf
 „für diesen Namen keine Zone" und nennt einen Grund, der nicht stimmt.
+
+### Cloudflare im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego und — für die Filter beim Suchen — in
+Cloudflares eigenem Go-SDK
+([`cloudflare/cloudflare-go`](https://github.com/cloudflare/cloudflare-go)).
+
+- **Adresse:** `https://api.cloudflare.com/client/v4`
+- **Anmeldung:** `Authorization: Bearer <Token>`. Der ältere Weg über
+  `X-Auth-Email` und `X-Auth-Key` wird **nicht angeboten** — siehe unten.
+- **Zonen:** `GET /zones?page=<n>&per_page=50` mit
+  `{"success":true,"result":[{"id":…,"name":…}],"result_info":{"total_pages":…}}`
+- **Anlegen:** `POST /zones/<zonen-id>/dns_records`, JSON, mit `type`, `name`
+  (dem **vollen** Namen), `content` (in Anführungszeichen) und `ttl`
+- **Suchen:** `GET /zones/<zonen-id>/dns_records?type=TXT&name.exact=<name>`
+- **Löschen:** `DELETE /zones/<zonen-id>/dns_records/<eintrags-id>`
+- **Fehler:** `{"success":false,"errors":[{"code":…,"message":…}]}` — und zwar
+  **auch mit HTTP 200**
+
+**Der volle Name, nicht der Präfix.** Das ist der Unterschied zu Hetzner: Dort
+adressiert der Pfad die RRSet über den Präfix, hier steht der ganze Name im
+Rumpf.
+
+**Der globale API-Schlüssel wird abgewiesen, nicht bloss nicht angeboten.** Er
+öffnet das ganze Konto. lego nimmt ihn entgegen und rät im Kommentar davon ab;
+ein Rat in einem Kommentar ist zu wenig für ein Formularfeld auf einem Server,
+auf dem Kunden Websites betreiben. Wer eine Kontoadresse mitschickt, bekommt
+einen Satz dazu — sie stillschweigend fallenzulassen hiesse, etwas anderes
+entgegenzunehmen, als der Betreiber gemeint hat.
+
+**Gelöscht wird über eine Eintragskennung.** lego merkt sie sich beim Anlegen;
+wir suchen sie beim Abräumen, weil `cleanup()` auch nach einem Fehlschlag läuft
+und die Ablage dann leer wäre — lego bricht dort mit „unknown record ID" ab und
+macht aus einem Fehlschlag zwei. Und der Wert wird nach dem Suchen **noch
+einmal** verglichen: Cloudflares Filter sind ausdrücklich nicht auf Gross- und
+Kleinschreibung bedacht, ein ACME-Prüfwert ist es sehr wohl.
 
 ### IPv64.net im Einzelnen
 
@@ -673,8 +709,9 @@ Bruch in `tests/waechter-brechen.sh` mit.
    und seinen Fehlerfällen. **IPv64.net vorgezogen und gebaut:** Er bringt den
    Fall mit, an dem sich die Zonenauflösung beweist — die Zone ist dort oft
    selbst eine Unterdomain (§6). **Hetzner ebenfalls gebaut**, gegen die
-   Cloud-API und nicht gegen die auslaufende DNS-Konsole. Es folgen Cloudflare,
-   netcup, IONOS, INWX und deSEC; INWX steht zuletzt, weil er als einziger
+   Cloud-API und nicht gegen die auslaufende DNS-Konsole. **Cloudflare
+   ebenfalls gebaut**, nur mit API-Token; der globale Schlüssel wird abgewiesen.
+   Es folgen netcup, IONOS, INWX und deSEC; INWX steht zuletzt, weil er als einziger
    XML-RPC, eine Sitzung und ein Kontopasswort statt eines Tokens mitbringt.
 
    Vorweg kam eine Grenze, die es schon gab, aber nur als Prosa: **Der Agent

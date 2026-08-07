@@ -51,6 +51,9 @@ final class ProvidersTest extends TestCase
         Providers::HETZNER => [
             'token' => 'ein-token-mit-genug-zeichen',
         ],
+        Providers::CLOUDFLARE => [
+            'token' => 'ein-token-mit-genug-zeichen',
+        ],
     ];
 
     public function test_every_provider_key_points_at_something(): void
@@ -82,6 +85,9 @@ final class ProvidersTest extends TestCase
         // PENDING, ohne dass es die Umsetzung gibt, wäre er in beiden Listen
         // gleichzeitig richtig. Wer einen Anbieter baut, ändert diese Zeile —
         // und das ist der Punkt.
-        $this->assertSame([Providers::RFC2136, Providers::IPV64, Providers::HETZNER], Providers::available());
+        $this->assertSame(
+            [Providers::RFC2136, Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE],
+            Providers::available(),
+        );
     }
 }

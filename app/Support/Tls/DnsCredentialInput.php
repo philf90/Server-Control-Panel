@@ -73,7 +73,7 @@ final class DnsCredentialInput
             // Token; was sie unterscheidet, prüft der Agent. Zwei Methoden mit
             // demselben Rumpf wären zwei Orte für dieselbe Regel, und der
             // zweite ist der, der veraltet.
-            Providers::IPV64, Providers::HETZNER => self::tokenOnly($input),
+            Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE => self::tokenOnly($input),
             // Unerreichbar, solange {@see self::provider()} davor steht — und
             // deshalb steht der Zweig hier: Ein `match` ohne ihn wirft einen
             // UnhandledMatchError, und der landet als „interner Fehler" im
@@ -85,7 +85,7 @@ final class DnsCredentialInput
     }
 
     /**
-     * Ein Token, mehr nicht — IPv64.net und Hetzner.
+     * Ein Token, mehr nicht — IPv64.net, Hetzner und Cloudflare.
      *
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>

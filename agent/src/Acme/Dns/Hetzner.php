@@ -120,7 +120,7 @@ final class Hetzner implements DnsProvider
 
         $this->act($zone, $prefix, 'add_records', [
             'ttl' => self::TTL,
-            'records' => [['value' => self::quoted($value)]],
+            'records' => [['value' => TxtValue::quoted($value)]],
         ], $record);
     }
 
@@ -132,26 +132,8 @@ final class Hetzner implements DnsProvider
         // stehen zwei `_acme-challenge`-Werte in derselben RRSet; ein Aufruf
         // ohne Wert räumte die Prüfung des anderen Vorgangs mit ab.
         $this->act($zone, $prefix, 'remove_records', [
-            'records' => [['value' => self::quoted($value)]],
+            'records' => [['value' => TxtValue::quoted($value)]],
         ], $record);
-    }
-
-    /**
-     * Ein TXT-Wert, wie ihn die Zonendatei schreibt: in Anführungszeichen.
-     *
-     * **Und ohne Fluchtfolgen.** Ein Wert mit einem Anführungszeichen oder
-     * einem Rückstrich darin bräuchte eine Fluchtregel, und die wäre eine
-     * eigene kleine Sprache mit eigenen Fehlern. Ein ACME-Prüfwert ist Base64
-     * ohne Polster und enthält beides nie — was ihn doch enthält, ist kein
-     * Prüfwert und wird abgewiesen statt halb richtig verpackt.
-     */
-    private static function quoted(string $value): string
-    {
-        if (str_contains($value, '"') || str_contains($value, '\\')) {
-            throw AgentException::badRequest('Dieser Prüfwert lässt sich nicht als TXT-Eintrag schreiben.');
-        }
-
-        return '"'.$value.'"';
     }
 
     /**

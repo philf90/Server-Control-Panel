@@ -3830,3 +3830,66 @@ den Zustand, den sie zeigt, und keinen anderen.
 In der Zelle steht jetzt nur noch der Wert — `vom Anbieter`, `keine` oder die
 Zonen —, die Sätze stehen als `hint` unter der Tabelle. Nachgemessen bei 390px
 in beiden Themes: 0px, auch mit einer dreigliedrigen Zonenliste.
+
+#### Schritt 9, vierter Anbieter: Cloudflare — und die Anmeldung, die fehlt
+
+Cloudflare kennt zwei Arten von Zugangsdaten. Die ältere ist der globale
+API-Schlüssel samt Kontoadresse (`X-Auth-Email`, `X-Auth-Key`) und öffnet **das
+ganze Konto** — alle Zonen, alle Einstellungen, den Zugriffsschutz. Die neuere
+ist ein API-Token, eingrenzbar auf einzelne Zonen und auf zwei Rechte:
+`Zone:Read`, um die Zonen zu finden, und `DNS:Edit`, um den Prüfeintrag zu
+setzen.
+
+**Angeboten wird nur das Token.** lego nimmt beide entgegen und rät im
+Kommentar vom globalen Schlüssel ab. Ein Rat in einem Kommentar ist hier zu
+wenig: Was in einem Formular steht, wird ausgefüllt, und was ausgefüllt wird,
+liegt danach als Geheimnis auf einem Server, auf dem Kunden Websites
+betreiben. Eine mitgeschickte Kontoadresse wird deshalb **abgewiesen** und
+nicht stillschweigend fallengelassen — sonst käme die Abweisung von Cloudflare,
+mit einem Satz, der den Grund nicht nennt.
+
+**Gelöscht wird über eine Eintragskennung, nicht über den Wert** — der
+Unterschied zu Hetzner und IPv64.net. lego merkt sich die Kennung beim Anlegen
+in einer Ablage; wir suchen sie beim Abräumen. Der Grund steht in
+`DnsProvider::remove()`: Der Aufruf läuft auch nach einem Fehlschlag, und dann
+ist die Ablage leer. lego bricht an dieser Stelle mit „unknown record ID" ab
+und macht aus einem Fehlschlag zwei.
+
+**Gefiltert wird zweimal, und das ist Absicht.** Cloudflare grenzt serverseitig
+ein (`type`, `name.exact`), aber seine Filter sind ausdrücklich *nicht* auf
+Gross- und Kleinschreibung bedacht — nachgesehen in Cloudflares eigenem Go-SDK.
+Ein ACME-Prüfwert ist Base64 und damit sehr wohl. Deshalb wird der Wert nach
+dem Suchen noch einmal Zeichen für Zeichen verglichen: Ohne das löschte eine
+Bestellung den Eintrag einer anderen, die sich nur in der Schreibweise
+unterscheidet.
+
+**Und `success` zählt, nicht nur der HTTP-Code.** Cloudflare antwortet auf einen
+abgelehnten Vorgang durchaus mit 200 und `"success": false`. Wer nur den Code
+liest, hält das für erledigt und wartet danach zwei Minuten auf einen Eintrag,
+den es nicht gibt.
+
+Fünf neue Brüche, alle gegengeprüft.
+
+#### Der TXT-Wert stand zweimal da — diesmal beim zweiten Mal bemerkt
+
+Ein TXT-Eintrag besteht aus „character-strings" in Anführungszeichen
+(RFC 1035 §3.3.14), und Hetzner wie Cloudflare nehmen den Wert genau so
+entgegen. Bei Hetzner stand die Regel als private Methode; mit Cloudflare wäre
+sie zum zweiten Mal geschrieben worden.
+
+Sie steht jetzt in `TxtValue`, und `TxtValueSourceTest` besteht darauf. Das ist
+dieselbe Sorte Fund wie bei der Zonenauflösung eine Runde vorher — nur früher:
+Dort stand die Regel dreimal, bevor jemand hinsah.
+
+**Dabei ist eine Abweisung dazugekommen, die vorher fehlte: die Länge.** Ein
+Anbieter teilt einen Wert über 255 Zeichen stillschweigend in zwei
+character-strings, und ein TXT-Satz aus zwei Teilen ist für die
+Zertifizierungsstelle ein anderer Wert — der Vorgang scheitert dann an einer
+Ursache, die nirgends steht. Ein ACME-Prüfwert ist 43 Zeichen lang; was länger
+ankommt, ist keiner.
+
+`TxtValue::matches()` ist die Gegenrichtung und ebenfalls neu: Beim Abräumen
+zählen beide Formen, weil Cloudflare die Anführungszeichen ablegt und
+zurückgibt, andere aber den nackten Wert liefern. Wer nur die eine Form
+vergleicht, findet seinen eigenen Eintrag nicht — und lässt eine Aussage über
+die Zone stehen, die niemand mehr zurücknimmt.

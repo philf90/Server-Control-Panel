@@ -87,7 +87,6 @@ final class Providers
      * @var list<string>
      */
     public const PENDING = [
-        self::CLOUDFLARE,
         self::NETCUP,
         self::IONOS,
         self::INWX,
@@ -122,6 +121,7 @@ final class Providers
             self::RFC2136 => Rfc2136::configure($config),
             self::IPV64 => Ipv64::configure($config),
             self::HETZNER => Hetzner::configure($config),
+            self::CLOUDFLARE => Cloudflare::configure($config),
             default => throw self::missing($name),
         };
     }
@@ -137,6 +137,7 @@ final class Providers
             self::RFC2136 => Rfc2136::fromConfig($config),
             self::IPV64 => Ipv64::fromConfig($config),
             self::HETZNER => Hetzner::fromConfig($config),
+            self::CLOUDFLARE => Cloudflare::fromConfig($config),
             default => throw self::missing($name),
         };
     }

@@ -1973,6 +1973,116 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" HetznerTest passed
 
 echo
+echo "── TxtValueSourceTest: eine zweite Stelle setzt die Anführungszeichen ──"
+#
+# Ein TXT-Wert steht in Anführungszeichen (RFC 1035 §3.3.14), und Hetzner wie
+# Cloudflare nehmen ihn so entgegen. Die zweite Fassung vergisst die Abweisung:
+# den Wert mit einem Anführungszeichen darin, oder den zu langen, den der
+# Anbieter dann stillschweigend in zwei character-strings teilt.
+vorher_datei agent/src/Acme/Dns/Cloudflare.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Cloudflare.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                    'content' => TxtValue::quoted($value),",
+    "                    'content' => '\"'.$value.'\"',",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Cloudflare.php "zweite Stelle mit Anführungszeichen" &&
+pruefe "zweite Stelle mit Anführungszeichen" \
+  TxtValueSourceTest::test_only_one_place_wraps_a_value_in_quotes failed
+wiederherstellen
+
+echo
+echo "── TxtValueTest: ein zu langer Wert geht durch ──"
+#
+# Anbieter teilen einen Wert über 255 Zeichen stillschweigend in zwei
+# character-strings auf, und ein TXT-Satz aus zwei Teilen ist für die Prüfung
+# der Zertifizierungsstelle ein anderer Wert.
+vorher_datei agent/src/Acme/Dns/TxtValue.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/TxtValue.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($value === '' || strlen($value) > self::MAX_LENGTH) {",
+    "        if ($value === '') {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/TxtValue.php "zu langer TXT-Wert geht durch" &&
+pruefe "zu langer TXT-Wert geht durch" \
+  TxtValueTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TxtValueTest passed
+
+echo
+echo "── CloudflareTest: nach dem Namen allein gelöscht ──"
+#
+# Laufen zwei Bestellungen für dieselbe Zone, stehen zwei
+# `_acme-challenge`-Einträge unter demselben Namen. Wer den Wert beim Suchen
+# nicht mit vergleicht, räumt die Prüfung des anderen Vorgangs mit ab — und der
+# scheitert dann an einer Ursache, die nirgends steht.
+vorher_datei agent/src/Acme/Dns/Cloudflare.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Cloudflare.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (is_string($id) && $id !== '' && is_string($content) && TxtValue::matches($content, $value)) {",
+    "            if (is_string($id) && $id !== '') {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Cloudflare.php "nach dem Namen allein gelöscht" &&
+pruefe "nach dem Namen allein gelöscht" \
+  CloudflareTest::test_removing_deletes_only_the_matching_record failed
+wiederherstellen
+
+echo
+echo "── CloudflareTest: nur der HTTP-Code gelesen ──"
+#
+# Cloudflare antwortet auf einen abgelehnten Vorgang durchaus mit 200 und
+# `"success": false`. Wer nur den Code liest, hält das für erledigt und wartet
+# danach zwei Minuten auf einen Eintrag, den es nicht gibt.
+vorher_datei agent/src/Acme/Dns/Cloudflare.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Cloudflare.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! $response->successful() || ($data['success'] ?? null) !== true) {",
+    "        if (! $response->successful()) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Cloudflare.php "nur der HTTP-Code gelesen" &&
+pruefe "nur der HTTP-Code gelesen" \
+  CloudflareTest::test_success_false_counts_even_with_http_200 failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CloudflareTest passed
+
+echo
+echo "── CloudflareTest: der globale API-Schlüssel wird angenommen ──"
+#
+# Er öffnet das ganze Cloudflare-Konto — alle Zonen, alle Einstellungen, den
+# Zugriffsschutz. Ein Formularfeld dafür ist keines, dessen Fehlen jemand
+# vermisst; ihn stillschweigend fallenzulassen wäre genauso falsch, denn dann
+# käme die Abweisung von Cloudflare, mit einem Satz ohne Grund.
+vorher_datei agent/src/Acme/Dns/Cloudflare.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Cloudflare.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (isset($config['email']) && $config['email'] !== '') {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Cloudflare.php "globaler API-Schlüssel angenommen" &&
+pruefe "globaler API-Schlüssel angenommen" \
+  CloudflareTest::test_an_account_address_is_refused failed
+wiederherstellen
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

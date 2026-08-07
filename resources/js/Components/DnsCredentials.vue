@@ -57,6 +57,7 @@ const pending = computed(() => props.providers.filter((p) => !p.usable))
 const RFC2136 = 'rfc2136'
 const IPV64 = 'ipv64'
 const HETZNER = 'hetzner'
+const CLOUDFLARE = 'cloudflare'
 
 /*
  * Wer seine Zonen selbst führt, bekommt hier kein Feld dafür.
@@ -213,7 +214,7 @@ function moment(seconds: number): string {
         eine richtige Eingabe ab. Geprüft wird derselbe Satz Felder auf der
         Serverseite — `DnsCredentialInput` verzweigt an derselben Stelle.
       -->
-      <template v-if="form.provider === IPV64 || form.provider === HETZNER">
+      <template v-if="form.provider === IPV64 || form.provider === HETZNER || form.provider === CLOUDFLARE">
         <label class="field">
           <span>Token</span>
           <span class="with-reveal">
@@ -250,6 +251,17 @@ function moment(seconds: number): string {
           Ein Token aus der Cloud-Konsole von Hetzner. Ein Token der älteren
           DNS-Konsole gilt hier nicht. Die Zonen kommen aus dem Projekt und
           werden nicht hier eingetragen.
+        </p>
+        <!--
+          **Der globale API-Schlüssel wird hier nicht angeboten.** Er öffnet das
+          ganze Cloudflare-Konto; ein Token lässt sich auf zwei Rechte und auf
+          einzelne Zonen eingrenzen. Ein Feld, das es nicht gibt, wird nicht
+          ausgefüllt — ein Rat im Kleingedruckten schon.
+        -->
+        <p v-if="form.provider === CLOUDFLARE" class="hint">
+          Ein API-Token mit den Rechten Zone:Read und DNS:Edit. Der globale
+          API-Schlüssel wird nicht angenommen: Er öffnet das ganze Konto, ein
+          Token nur die Zonen, für die es ausgestellt ist.
         </p>
       </template>
 

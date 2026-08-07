@@ -49,8 +49,11 @@ final class CertificateUploadCommandTest extends TestCase
             '--domain' => 'beispiel.de',
             '--certificate' => __FILE__,
         ])
-            ->expectsOutputToContain('--key')
-            ->expectsOutputToContain('Es fehlt:')
+            // **Eine Behauptung für eine Meldung.** Zwei `expectsOutputToContain`
+            // auf denselben Satz sind zwei Prüfungen derselben Sache — und je
+            // nach Fassung prüft die zweite gegen das, was die erste übrig
+            // gelassen hat.
+            ->expectsOutputToContain('Es fehlt: --key')
             ->doesntExpectOutputToContain('Diese Datei')
             ->assertExitCode(1);
     }

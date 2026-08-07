@@ -353,7 +353,15 @@ final class CertificateRenewalTest extends TestCase
 
         // Ohne hinterlegtes Profil sagt `WildcardOrder::obstacle()` nein, und
         // der Lauf zählte den Platzhalter als liegengeblieben statt bestellt.
-        $this->app->instance(DnsCredentials::class, new ScriptedDnsCredentials([DnsProfile::OPERATOR]));
+        // **Das Profil kommt von `DnsProfile` und wird nicht geraten.**
+        // `Feature::default()` gibt für alles ausser `CertificateUpload` `true`
+        // zurück — der Standardplan der Fabrik hat also `dns_edit`, und damit
+        // heisst das Profil `abo-<id>` und nicht `betrieb`. Mit der geratenen
+        // Vorgabe fand `WildcardOrder::obstacle()` keine Zugangsdaten, und der
+        // Lauf zählte den Platzhalter als liegengeblieben statt bestellt.
+        $this->app->instance(DnsCredentials::class, new ScriptedDnsCredentials([
+            app(DnsProfile::class)->forSubscription($subscription),
+        ]));
 
         $report = $this->renewal()->run();
 
@@ -421,7 +429,15 @@ final class CertificateRenewalTest extends TestCase
 
         $this->tenancy()->reset();
 
-        $this->app->instance(DnsCredentials::class, new ScriptedDnsCredentials([DnsProfile::OPERATOR]));
+        // **Das Profil kommt von `DnsProfile` und wird nicht geraten.**
+        // `Feature::default()` gibt für alles ausser `CertificateUpload` `true`
+        // zurück — der Standardplan der Fabrik hat also `dns_edit`, und damit
+        // heisst das Profil `abo-<id>` und nicht `betrieb`. Mit der geratenen
+        // Vorgabe fand `WildcardOrder::obstacle()` keine Zugangsdaten, und der
+        // Lauf zählte den Platzhalter als liegengeblieben statt bestellt.
+        $this->app->instance(DnsCredentials::class, new ScriptedDnsCredentials([
+            app(DnsProfile::class)->forSubscription($subscription),
+        ]));
 
         $this->renewal()->run();
 

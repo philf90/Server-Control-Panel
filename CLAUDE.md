@@ -10,22 +10,41 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P4 abgenommen** — P4 im ersten Wurf: ACME über HTTP-01, das
-Zertifikat der Oberfläche über dieselbe Strecke, HTTPS in der Kundenvorlage.
-Nachgewiesen auf dem Zielserver: Eine Kundendomain hat ihr Zertifikat ohne
-Zutun eines Admins bekommen, und das Panel liefert auf 8443 ein Zertifikat von
-Let's Encrypt aus, mit HSTS und ohne `curl -k`. Der zweite Wurf — DNS-01 mit
-mehreren Anbietern und das Hochladen eigener Zertifikate — steht aus; die
-Entscheidungen dazu in `docs/32 §6`.
+Stand: **P0 bis P4 abgenommen, beide Würfe.** Der zweite brachte DNS-01 mit
+sieben Anbietern, Platzhalterzertifikate, das Hochladen eigener Zertifikate und
+die Auswahl, welches eine Domain ausliefert. Nachgewiesen am 7. August 2026 auf
+`cloudlab24.ipv64.de` gegen IPv64.net: **alle sieben Kriterien aus `docs/34
+§10`** — ein Platzhalter über DNS-01, alle Blöcke des Abonnements liefern ihn
+aus, ein fremdes Abonnement in derselben Zone bekommt ihn nicht, die Erneuerung
+ist eine Bestellung und bleibt ein Platzhalter, eine verkehrt sortierte Kette
+wird mit dem richtigen Grund abgewiesen, ein hochgeladenes bleibt liegen, und
+das DNS-Token steht nirgends.
 
-Ausgeliefert wird `v0.4.0-rc.5`. **Die Abnahme hing bis zuletzt an den
-Screenshots, und sie haben sich gelohnt:** drei Fehler auf einer Seite, die
-vollständig grün getestet war — eine Kennung, die im Fliesstext nicht brach und
-die Seite um 83px aus dem Bildschirm schob, ein Abstand, der aus der
-Reihenfolge der Seite abgeleitet war und mit der nächsten Ergänzung fiel, und
-ein `<select>`, das abschneidet statt umzubrechen. Das ist der Grund für die
-Regel weiter unten, und `v0.4.0-rc.4` ist mit dem Umbruchfehler ausgeliefert
-worden, weil sie einen Tag zu früh kam.
+Ausgeliefert wird `v0.4.0-rc.11`.
+
+**Der Abnahmelauf hat sechs Fehler gefunden, und keinen davon ein Test.** Drei
+betrafen ein Kriterium, drei die Bedienung. Der teuerste sah aus wie ein Erfolg:
+Die Erneuerung meldete `1 fällig, 1 bestellt` — genau die Zahl, die das
+Kriterium verlangt — und bestellte ein **gewöhnliches** Zertifikat statt eines
+Platzhalters. Gefunden hat es der Betreiber, weil er nach der grünen Meldung die
+Seriennummern verglichen hat. Daraus die Lehre, die über TLS hinausgeht:
+
+> **Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde.**
+
+Die anderen fünf folgen demselben Muster wie schon der Wurf davor: eine
+Bedingung, die an einer *Absicht* hängt statt an einem *Zustand* (das
+Platzhalter-Kästchen, der Hinweis auf ungedeckte Namen), eine Prüfung, die eine
+Zeile zu spät läuft (die Kettenreihenfolge), eine zweite Fassung derselben Regel
+(`srvpanel dns` kannte nur RFC 2136) und ein Bedienelement ohne sichtbare
+Beschriftung.
+
+**Die Abnahme davor hing an den Screenshots**, und sie haben sich gelohnt: drei
+Fehler auf einer Seite, die vollständig grün getestet war — eine Kennung, die im
+Fliesstext nicht brach und die Seite um 83px aus dem Bildschirm schob, ein
+Abstand, der aus der Reihenfolge der Seite abgeleitet war und mit der nächsten
+Ergänzung fiel, und ein `<select>`, das abschneidet statt umzubrechen. Das ist
+der Grund für die Regel weiter unten, und `v0.4.0-rc.4` ist mit dem
+Umbruchfehler ausgeliefert worden, weil sie einen Tag zu früh kam.
 
 ---
 

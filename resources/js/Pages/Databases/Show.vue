@@ -128,119 +128,130 @@ function size(): string {
 
     <FormErrors />
 
-    <Section title="Datenbank">
-      <div class="scrolls">
-        <table class="pairs">
-          <tbody>
-            <tr>
-              <th>Name auf dem Server</th>
-              <td class="ident">{{ props.database.name }}</td>
-            </tr>
-            <tr>
-              <th>Sortierung</th>
-              <td class="ident">{{ props.database.collation }}</td>
-            </tr>
-            <tr>
-              <th>Zustand</th>
-              <td><Badge :kind="rang(props.database.status)">{{ props.database.status_label }}</Badge></td>
-            </tr>
-            <tr>
-              <th>Belegt</th>
-              <!-- „nicht gemessen" ist etwas anderes als „0 MB" — ohne den
-                   Zeitpunkt daneben sähe eine drei Tage alte Zahl aus wie eine
-                   Messung von vorhin (docs/26 §8). -->
-              <td :class="props.database.size_mb === null ? 'quiet' : ''">
-                {{ size() }}
-                <span v-if="props.database.size_measured_at" class="quiet">
-                  (gemessen {{ new Date(props.database.size_measured_at).toLocaleString('de-DE') }})
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </Section>
+    <!--
+      **Der Behälter trägt den Abstand, nicht der Bereich** (`SectionSpacingTest`).
+      In Kontor hat ein Bereich keinen eigenen Aussenabstand: Bereiche stehen in
+      einem Flexfluss, und die Spaltenlücke unterscheidet sich von der
+      Zeilenlücke. Ohne `.sections` bekämen die drei Bereiche unten *gar keinen*
+      Abstand — sie sähen nicht knapp aus, sondern kaputt, und keine einzelne
+      Regel in app.css wäre dabei falsch.
+    -->
+    <div class="sections">
+      <Section title="Datenbank">
+        <div class="scrolls">
+          <table class="pairs">
+            <tbody>
+              <tr>
+                <th>Name auf dem Server</th>
+                <td class="ident">{{ props.database.name }}</td>
+              </tr>
+              <tr>
+                <th>Sortierung</th>
+                <td class="ident">{{ props.database.collation }}</td>
+              </tr>
+              <tr>
+                <th>Zustand</th>
+                <td><Badge :kind="rang(props.database.status)">{{ props.database.status_label }}</Badge></td>
+              </tr>
+              <tr>
+                <th>Belegt</th>
+                <!-- „nicht gemessen" ist etwas anderes als „0 MB" — ohne den
+                     Zeitpunkt daneben sähe eine drei Tage alte Zahl aus wie eine
+                     Messung von vorhin (docs/26 §8). -->
+                <td :class="props.database.size_mb === null ? 'quiet' : ''">
+                  {{ size() }}
+                  <span v-if="props.database.size_measured_at" class="quiet">
+                    (gemessen {{ new Date(props.database.size_measured_at).toLocaleString('de-DE') }})
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
 
-    <Section title="Zugänge">
-      <div class="scrolls">
-        <table class="stacks">
-          <thead>
-            <tr><th>Benutzer</th><th>Herkunft</th><th>Zustand</th><th v-if="props.can.update">Aktion</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="user in props.database.users" :key="user.id">
-              <td data-column="Benutzer" class="ident name">{{ user.name }}</td>
-              <td data-column="Herkunft" class="ident">{{ user.host }}</td>
-              <td data-column="Zustand">
-                <Badge :kind="rang(user.status)">{{ user.status_label }}</Badge>
-              </td>
-              <td v-if="props.can.update" data-column="Aktion">
-                <div class="button-row">
-                  <button type="button" class="button" @click="resetPassword(user)">
-                    Neues Passwort
-                  </button>
-                  <button type="button" class="button danger" @click="removeUser(user)">
-                    Entfernen
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="props.database.users.length === 0">
-              <td :colspan="props.can.update ? 4 : 3" class="quiet">
-                Kein Zugang — in diese Datenbank kommt gerade niemand hinein.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <Section title="Zugänge">
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Benutzer</th><th>Herkunft</th><th>Zustand</th><th v-if="props.can.update">Aktion</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in props.database.users" :key="user.id">
+                <td data-column="Benutzer" class="ident name">{{ user.name }}</td>
+                <td data-column="Herkunft" class="ident">{{ user.host }}</td>
+                <td data-column="Zustand">
+                  <Badge :kind="rang(user.status)">{{ user.status_label }}</Badge>
+                </td>
+                <td v-if="props.can.update" data-column="Aktion">
+                  <div class="button-row">
+                    <button type="button" class="button" @click="resetPassword(user)">
+                      Neues Passwort
+                    </button>
+                    <button type="button" class="button danger" @click="removeUser(user)">
+                      Entfernen
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="props.database.users.length === 0">
+                <td :colspan="props.can.update ? 4 : 3" class="quiet">
+                  Kein Zugang — in diese Datenbank kommt gerade niemand hinein.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <form
-        v-if="props.can.update"
-        class="form"
-        @submit.prevent="userForm.post(`/databases/${props.database.id}/users`, { onSuccess: () => userForm.reset() })"
-      >
-        <label class="field">
-          <span>Weiterer Zugang</span>
-          <input v-model="userForm.label" type="text" placeholder="user2" autocomplete="off" required>
-        </label>
-        <p v-if="userForm.errors.label" class="error">{{ userForm.errors.label }}</p>
-        <p class="hint">
-          Heisst auf dem Server
-          <span class="ident">{{ props.subscription?.prefix ?? '…' }}_{{ userForm.label || '…' }}</span>.
-          Das Passwort wird erzeugt und genau einmal angezeigt.
+        <form
+          v-if="props.can.update"
+          class="form"
+          @submit.prevent="userForm.post(`/databases/${props.database.id}/users`, { onSuccess: () => userForm.reset() })"
+        >
+          <label class="field">
+            <span>Weiterer Zugang</span>
+            <input v-model="userForm.label" type="text" placeholder="user2" autocomplete="off" required>
+          </label>
+          <p v-if="userForm.errors.label" class="error">{{ userForm.errors.label }}</p>
+          <p class="hint">
+            Heisst auf dem Server
+            <span class="ident">{{ props.subscription?.prefix ?? '…' }}_{{ userForm.label || '…' }}</span>.
+            Das Passwort wird erzeugt und genau einmal angezeigt.
+          </p>
+
+          <div class="button-row">
+            <button type="submit" class="button" :disabled="userForm.processing">Zugang anlegen</button>
+          </div>
+        </form>
+      </Section>
+
+      <Section v-if="props.can.delete" title="Entfernen">
+        <p class="notice critical">
+          <span>
+            Die Datenbank und ihre Daten werden gelöscht. <b>Es gibt keine
+            Sicherung davor</b> — sie kommt mit einer späteren Ausbaustufe.
+            Zugänge, die an keiner weiteren Datenbank hängen, gehen mit.
+          </span>
         </p>
 
-        <div class="button-row">
-          <button type="submit" class="button" :disabled="userForm.processing">Zugang anlegen</button>
-        </div>
-      </form>
-    </Section>
+        <form class="form" @submit.prevent="remove">
+          <label class="field">
+            <span>Zum Bestätigen den Namen eintippen</span>
+            <input v-model="confirmation" type="text" autocomplete="off" :placeholder="props.database.name">
+          </label>
 
-    <Section v-if="props.can.delete" title="Entfernen">
-      <p class="notice critical">
-        <span>
-          Die Datenbank und ihre Daten werden gelöscht. <b>Es gibt keine
-          Sicherung davor</b> — sie kommt mit einer späteren Ausbaustufe.
-          Zugänge, die an keiner weiteren Datenbank hängen, gehen mit.
-        </span>
-      </p>
+          <div class="button-row">
+            <button
+              type="submit"
+              class="button danger"
+              :disabled="confirmation !== props.database.name || props.database.status !== 'active'"
+            >
+              Datenbank entfernen
+            </button>
+          </div>
+        </form>
+      </Section>
+    </div>
 
-      <form class="form" @submit.prevent="remove">
-        <label class="field">
-          <span>Zum Bestätigen den Namen eintippen</span>
-          <input v-model="confirmation" type="text" autocomplete="off" :placeholder="props.database.name">
-        </label>
-
-        <div class="button-row">
-          <button
-            type="submit"
-            class="button danger"
-            :disabled="confirmation !== props.database.name || props.database.status !== 'active'"
-          >
-            Datenbank entfernen
-          </button>
-        </div>
-      </form>
-    </Section>
   </PanelLayout>
 </template>

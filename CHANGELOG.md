@@ -4327,3 +4327,46 @@ weil dieser Wächter reine Textprüfung ist und ohne Datenbank auskommt: `nowrap
 zurückgeholt (rot) und die Ausnahme in den `@media`-Block zurückgeschoben (rot);
 ohne Bruch grün. Nachgemessen im Browser bei 1440, 1280, 1024 und 390px: kein
 Zellenüberhang mehr, in beiden Themes.
+
+#### `srvpanel dns` kannte nur RFC 2136 — vier Anbieter waren aus dem Skript nicht zu setzen
+
+**Beim Zusammenstellen des Abnahmelaufs aufgefallen**, und zwar an der Frage, mit
+welchem Befehl der Betreiber sein IPv64-Token hinterlegt. Antwort: mit gar
+keinem. Das Kommando baute die Angaben selbst zusammen — `server`, `zones`,
+`key_name`, `secret` —, und in seiner Hilfe stand seit P4 unverändert „heute
+geht nur rfc2136". Ein `--token` gab es nicht.
+
+Schritt 9 hat sieben Anbieter gebaut, das Formular verzweigt seither an ihnen.
+**Das Kommando ist die zweite Fassung derselben Regel gewesen, und die zweite
+ist die, die veraltet** — genau das Muster, an dem dieses Projekt am häufigsten
+verliert. Gemerkt hat es niemand, weil nichts danach fragte.
+
+Die Angaben baut jetzt `DnsCredentialInput::config()`, dieselbe Stelle, an der
+auch das Formular prüft; im Kommando steht nur noch, wie eine Angabe von der
+Kommandozeile dorthin kommt. Dazu `--token`, `--customer-number`, `--api-key`
+und `--api-password`.
+
+**Zwei Dinge, die dabei mit falsch waren.** Die Zone stand in der Bedingung, ob
+überhaupt etwas hinterlegt werden soll — wer für IPv64 kein `--zone` mitgab,
+landete in der Anzeige statt in der Eingabe, obwohl fünf der sieben Anbieter
+ihre Zonen aus ihrer eigenen Auskunft mitbringen. Und die Erfolgsmeldung
+schrieb die Zonen immer; sie steht jetzt nur noch, wenn das Profil wirklich eine
+Liste trägt. „Zonen: —" behauptete eine Einschränkung, die es nicht gibt.
+
+**Gefragt wird weiter nach dem, was fehlt**, aber nur nach dem, was der Anbieter
+braucht: das TSIG-Geheimnis bei RFC 2136, das API-Passwort bei netcup, das Token
+bei den vier mit Token. Ein Prompt für ein Geheimnis, das der Agent gar nicht
+annimmt, liesse den Betreiber etwas eintippen, das verworfen wird. IONOS trägt
+sein Geheimnis im Schlüssel selbst und bekommt deshalb keinen zweiten.
+
+**Der Wächter steht in `DnsProviderReachTest`**, wo schon „jeder benutzbare
+Anbieter hat ein Formular" steht — die Kommandozeile ist dieselbe Frage. Für
+jeden Anbieter läuft ein Satz Angaben durch `DnsCredentialInput::config()`, und
+für jeden Schlüssel der geprüften Fassung muss das Kommando eine Angabe
+anbieten. Ein achter Anbieter mit einem neuen Feld fällt damit dort auf und
+nicht beim ersten Einrichtungsskript.
+
+Der Bruch nimmt `--token` wieder weg. Und eine Meldung aus der Gegenprobe steht
+als Kommentar an der Sammlung im Test: PHPStan liest die Form einer Konstanten
+genauer, als eine `@var`-Angabe sie beschreiben kann, und weist jede zurück, die
+weiter ist.

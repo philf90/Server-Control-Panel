@@ -2653,6 +2653,30 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
 
 echo
+echo "── DnsProviderReachTest: das Kommando kennt einen Anbieter nicht ──"
+#
+# **Der Fund vom 7. August 2026.** `srvpanel dns` baute die Angaben selbst
+# zusammen — und zwar nur die von RFC 2136, weil das beim Schreiben der einzige
+# Anbieter war. Schritt 9 hat sieben gebaut, das Formular verzweigt seither an
+# ihnen, und in der Hilfe stand weiter „heute geht nur rfc2136". Der Bruch nimmt
+# die Angabe wieder weg, die vier Anbieter brauchen.
+vorher_datei app/Console/Commands/DnsCredentials.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/DnsCredentials.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        {--token= : Das Token; ohne diese Angabe wird gefragt (IPv64.net, Hetzner, Cloudflare, deSEC)}\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/DnsCredentials.php "Anbieter ohne Angabe auf der Kommandozeile" &&
+pruefe "Anbieter ohne Angabe auf der Kommandozeile" \
+  DnsProviderReachTest::test_every_usable_provider_can_be_set_from_the_command_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsProviderReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

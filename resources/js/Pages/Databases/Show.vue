@@ -138,36 +138,47 @@ function size(): string {
     -->
     <div class="sections">
       <Section title="Datenbank">
-        <div class="scrolls">
-          <table class="pairs">
-            <tbody>
-              <tr>
-                <th>Name auf dem Server</th>
-                <td class="ident">{{ props.database.name }}</td>
-              </tr>
-              <tr>
-                <th>Sortierung</th>
-                <td class="ident">{{ props.database.collation }}</td>
-              </tr>
-              <tr>
-                <th>Zustand</th>
-                <td><Badge :kind="rang(props.database.status)">{{ props.database.status_label }}</Badge></td>
-              </tr>
-              <tr>
-                <th>Belegt</th>
-                <!-- „nicht gemessen" ist etwas anderes als „0 MB" — ohne den
-                     Zeitpunkt daneben sähe eine drei Tage alte Zahl aus wie eine
-                     Messung von vorhin (docs/26 §8). -->
-                <td :class="props.database.size_mb === null ? 'quiet' : ''">
-                  {{ size() }}
-                  <span v-if="props.database.size_measured_at" class="quiet">
-                    (gemessen {{ new Date(props.database.size_measured_at).toLocaleString('de-DE') }})
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <!--
+          **Eine Bezeichnungstabelle steht in keinem Rollbehälter.** Sie war
+          hier zuerst in `<div class="scrolls">` — und damit hatte sie Raum,
+          breiter zu werden als ihr Bereich: `p123456789_aaaaaaaaaaaaaaaa`
+          schob sie bei 390px um 52px hinaus, statt umzubrechen. Genau dagegen
+          steht `table.pairs td.ident { white-space: normal }` in app.css, und
+          der Rollbehälter hat die Regel wirkungslos gemacht. Keine andere Seite
+          in diesem Panel wickelt eine `pairs` in `scrolls`; die `stacks`
+          darunter dagegen schon, und das ist richtig — dort kann man schieben.
+
+          Gefunden beim Nachbau mit dem gebauten Stylesheet bei 390px, nicht von
+          einem Test.
+        -->
+        <table class="pairs">
+          <tbody>
+            <tr>
+              <th>Name auf dem Server</th>
+              <td class="ident">{{ props.database.name }}</td>
+            </tr>
+            <tr>
+              <th>Sortierung</th>
+              <td class="ident">{{ props.database.collation }}</td>
+            </tr>
+            <tr>
+              <th>Zustand</th>
+              <td><Badge :kind="rang(props.database.status)">{{ props.database.status_label }}</Badge></td>
+            </tr>
+            <tr>
+              <th>Belegt</th>
+              <!-- „nicht gemessen" ist etwas anderes als „0 MB" — ohne den
+                   Zeitpunkt daneben sähe eine drei Tage alte Zahl aus wie eine
+                   Messung von vorhin (docs/26 §8). -->
+              <td :class="props.database.size_mb === null ? 'quiet' : ''">
+                {{ size() }}
+                <span v-if="props.database.size_measured_at" class="quiet">
+                  (gemessen {{ new Date(props.database.size_measured_at).toLocaleString('de-DE') }})
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </Section>
 
       <Section title="Zugänge">

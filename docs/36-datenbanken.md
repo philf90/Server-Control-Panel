@@ -1400,6 +1400,31 @@ oben steht unverändert; hier steht, was er nicht wusste.
 5. **`docs/23 §3` nannte einen Wächter unter seinem alten Namen** (§9). Kleiner
    Fund, dasselbe Muster.
 
+6. **Zwei Gestaltungsfehler, die kein Test der Anwendung gesehen hätte** — und
+   beide auf derselben Seite:
+
+   - Drei Bereiche ohne `<div class="sections">`. In Kontor hat ein Bereich
+     keinen eigenen Aussenabstand; ohne den Behälter bekommen sie **gar
+     keinen**. Das hat `SectionSpacingTest` gemeldet — ein Wächter, den es erst
+     seit dem 7. August gibt, und er hat beim ersten Neuling zugebissen.
+   - Eine Bezeichnungstabelle in `<div class="scrolls">`. Der Rollbehälter gibt
+     ihr Raum, breiter zu werden als ihr Bereich — und macht damit
+     `table.pairs td.ident { white-space: normal }` wirkungslos, also genau die
+     Regel, die app.css am 7. August für diesen Fall bekommen hat.
+     `p123456789_aaaaaaaaaaaaaaaa` schob die Tabelle bei 390 px um **52 px**
+     hinaus, statt umzubrechen. **Der Seitenüberlauf war dabei 0** — der Kasten
+     rollt, die Seite nicht; ein Wächter, der nur `scrollWidth - clientWidth`
+     misst, sieht davon nichts. Gemessen wurde die Zelle gegen den Bildschirm.
+
+   Beide sind über den Weg aus CLAUDE.md gefunden worden, und der brauchte
+   selbst eine Korrektur: **`chromium --headless --window-size=390,…` rendert
+   nicht bei 390 px.** Chrome erzwingt eine Mindestbreite von 500; der
+   Screenshot wird auf 390 beschnitten, gerechnet wird gegen 500. Damit sind
+   auch die `@media`-Blöcke für die schmale Fläche nie eingesprungen — die
+   Aufnahme sah aus wie 390 px und war es an keiner Stelle. Playwright
+   (`newPage({ viewport: { width: 390 } })`) mit dem vorinstallierten Chromium
+   setzt die Breite wirklich.
+
 ### 22.2 Zwei Abweichungen vom Plan, bewusst
 
 - **Die Abschrift `subscription_name` steht in `booted()` und nicht in einem

@@ -282,15 +282,27 @@ final class DnsCredentialsTest extends TestCase
      * Und was es noch nicht gibt, lässt sich auch nicht hinterlegen.
      *
      * **Sonst läge ein Geheimnis auf der Platte, das nichts benutzt.** Ein
-     * Formular, das ein Cloudflare-Token annimmt, sagt dem Betreiber, dass es
-     * geht — und die Wahrheit erfährt er beim ersten Zertifikat.
+     * Formular, das ein Token annimmt, sagt dem Betreiber, dass es geht — und
+     * die Wahrheit erfährt er beim ersten Zertifikat.
+     *
+     * **Der offene Anbieter wird genommen und nicht genannt.** Hier stand
+     * einmal `Providers::CLOUDFLARE` wörtlich, und als der gebaut wurde, prüfte
+     * dieser Test nicht mehr die Regel, sondern die Tokenform eines fertigen
+     * Anbieters — er fiel mit „enthält Zeichen, die in einer Kopfzeile nicht
+     * stehen dürfen". Das ist derselbe Fehler, gegen den dieses Projekt seine
+     * Wächter stellt, nur in einem Wächter selbst: eine Zeichenkette, die auf
+     * etwas zeigt, ohne dass jemand den Bezug prüft.
      */
     public function test_a_provider_without_an_implementation_is_refused(): void
     {
         $this->expectException(AgentException::class);
         $this->expectExceptionMessage('noch nicht umgesetzt');
 
-        $this->credentials()->store('betrieb', Providers::CLOUDFLARE, ['token' => 'x']);
+        // **Der Zugriff ohne Auffangzweig ist Absicht.** Ist eines Tages der
+        // letzte Anbieter gebaut, fällt dieser Test mit einem Fehler statt
+        // still grün zu bleiben — dann gibt es die Regel nicht mehr, und wer
+        // sie ausbaut, soll darüber stolpern.
+        $this->credentials()->store('betrieb', Providers::PENDING[0], ['token' => 'x']);
     }
 
     /** Die Zugangsdaten werden beim Hinterlegen geprüft, nicht beim Bestellen. */

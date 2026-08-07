@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Concerns\BelongsToSubscription;
 use FilesystemIterator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,8 +13,8 @@ use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
-use ReflectionMethod;
 use SplFileInfo;
+use Tests\Support\ReadsMethodSource;
 
 /**
  * Wer vor dem Löschen zählt, zählt mit denselben Augen wie der Fremdschlüssel.
@@ -46,13 +47,24 @@ use SplFileInfo;
  */
 final class RestrictedDeleteTest extends TestCase
 {
+    use ReadsMethodSource;
+
     /**
-     * Was ein `destroy()` sagen muss, um beide Filter abzuschalten.
+     * Was ein `destroy()` sagen muss, um einen Filter abzuschalten.
      *
-     * Es sind zwei getrennte Fragen, deshalb zwei Einträge: `withTrashed()`
-     * allein zählt die Grabsteine mit und bleibt trotzdem in der Klammer,
-     * `withoutRestriction()` allein hebt die Klammer auf und übersieht weiter
-     * jeden Grabstein.
+     * **Verlangt wird nur, was das Kindmodell auch wirklich anlegt.** Bis
+     * August 2026 stand hier eine feste Liste beider Einträge, und sie wurde
+     * fällig, sobald ein Modell *irgendwie* gefiltert war. Das ging genau so
+     * lange gut, wie beide Filter an denselben Modellen hingen: Als
+     * `Subscription` mit docs/35 seine weiche Löschung verlor, verlangte der
+     * Wächter weiter ein `withTrashed()`, das es gar nicht mehr geben kann —
+     * er hätte beim Aufräumen zugebissen und wäre dafür abgeschaltet worden.
+     * Genau die Falle, vor der CLAUDE.md warnt.
+     *
+     * Es bleiben zwei getrennte Fragen, und sie werden getrennt gestellt:
+     * `withTrashed()` allein zählt die Grabsteine mit und bleibt trotzdem in
+     * der Klammer, `withoutRestriction()` allein hebt die Klammer auf und
+     * übersieht weiter jeden Grabstein.
      *
      * @var array<string, list<string>>
      */
@@ -75,13 +87,22 @@ final class RestrictedDeleteTest extends TestCase
         );
 
         $missing = [];
+        $checked = 0;
 
         foreach ($pairs as [$child, $parent]) {
             $model = $this->model($child);
 
-            if ($model === null || ! $this->filtered($model)) {
+            if ($model === null) {
                 continue;
             }
+
+            $required = $this->requiredFor($model);
+
+            if ($required === []) {
+                continue;
+            }
+
+            $checked++;
 
             $source = $this->destroySource($parent);
 
@@ -91,10 +112,10 @@ final class RestrictedDeleteTest extends TestCase
                 continue;
             }
 
-            foreach (self::REQUIRED as $what => $calls) {
+            foreach ($required as $what) {
                 $found = false;
 
-                foreach ($calls as $call) {
+                foreach (self::REQUIRED[$what] as $call) {
                     if (str_contains($source, $call.'(')) {
                         $found = true;
 
@@ -107,6 +128,15 @@ final class RestrictedDeleteTest extends TestCase
                 }
             }
         }
+
+        // **Die Untergrenze, ohne die der Wächter still ins Leere liefe.** Die
+        // Prüfung darunter besteht auch dann, wenn kein einziges Kindmodell
+        // mehr gefiltert ist — und genau dann prüft sie nichts.
+        $this->assertGreaterThan(
+            0,
+            $checked,
+            'Kein einziges Kindmodell eines RESTRICT-Fremdschlüssels filtert noch mehr, als die Datenbank kennt — dann bewacht dieser Test nichts mehr.',
+        );
 
         $this->assertSame([], $missing, implode("\n", [
             'Ein Fremdschlüssel mit RESTRICT zählt Zeilen — ohne Rücksicht auf',
@@ -179,13 +209,43 @@ final class RestrictedDeleteTest extends TestCase
     }
 
     /**
-     * Filtert dieses Modell mehr weg, als die Datenbank kennt?
+     * Welche Filter dieses Modell anlegt — und deshalb abgeschaltet gehören.
+     *
+     * Gefragt wird je Filter einzeln. Ein Modell mit Mandantenklammer und ohne
+     * weiche Löschung verlangt genau ein `withoutRestriction()` und kein
+     * `withTrashed()`, das es nicht geben kann.
+     *
+     * @param  class-string<Model>  $model
+     * @return list<string>
+     */
+    private function requiredFor(string $model): array
+    {
+        $required = [];
+
+        if (in_array(SoftDeletes::class, class_uses_recursive($model), true)) {
+            $required[] = 'die Grabsteine';
+        }
+
+        if ($this->scoped($model)) {
+            $required[] = 'die Mandantenklammer';
+        }
+
+        return $required;
+    }
+
+    /**
+     * Trägt dieses Modell eine Mandantenklammer?
+     *
+     * Am Quelltext und nicht an `getGlobalScopes()`: Der Filter wird beim
+     * Booten registriert, und dieser Testfall bootet Laravel nicht.
+     * `BelongsToSubscription` steht mit dazu — der Filter wohnt dort im Trait
+     * und nicht in der Modelldatei.
      *
      * @param  class-string<Model>  $model
      */
-    private function filtered(string $model): bool
+    private function scoped(string $model): bool
     {
-        if (in_array(SoftDeletes::class, class_uses_recursive($model), true)) {
+        if (in_array(BelongsToSubscription::class, class_uses_recursive($model), true)) {
             return true;
         }
 
@@ -214,31 +274,16 @@ final class RestrictedDeleteTest extends TestCase
     /**
      * Der Rumpf von `destroy()` im Controller einer Tabelle.
      *
-     * Gelesen wird die Methode und nicht die Datei: Ein `withTrashed()`
-     * irgendwo sonst im Controller beantwortet die Frage nicht.
+     * Die Reflexion selbst steht in {@see ReadsMethodSource} — sie beantwortet
+     * dieselbe Frage für den Wächter der Namensvergabe, und zweimal
+     * ausformuliert wäre sie dieselbe Regel an zwei Orten.
      */
     private function destroySource(string $table): ?string
     {
-        $controller = 'App\\Http\\Controllers\\'.Str::studly(Str::singular($table)).'Controller';
-
-        if (! class_exists($controller) || ! method_exists($controller, 'destroy')) {
-            return null;
-        }
-
-        $method = new ReflectionMethod($controller, 'destroy');
-        $file = $method->getFileName();
-
-        if ($file === false) {
-            return null;
-        }
-
-        $lines = file($file) ?: [];
-
-        return implode('', array_slice(
-            $lines,
-            $method->getStartLine() - 1,
-            $method->getEndLine() - $method->getStartLine() + 1,
-        ));
+        return $this->methodSource(
+            'App\\Http\\Controllers\\'.Str::studly(Str::singular($table)).'Controller',
+            'destroy',
+        );
     }
 
     /** @return list<string> */

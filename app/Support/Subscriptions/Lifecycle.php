@@ -10,9 +10,12 @@ use App\Jobs\RunAgentOperation;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Models\SystemUser;
 use App\Support\Operations\AfterOperation;
 use App\Support\Plans\Quota;
 use App\Support\Tenancy\Tenancy;
+use Illuminate\Database\UniqueConstraintViolationException;
+use RuntimeException;
 
 /**
  * Der Lebenslauf eines Abonnements — und wer den Zustand setzt.
@@ -43,37 +46,83 @@ final class Lifecycle implements AfterOperation
     public function __construct(private readonly Tenancy $tenancy) {}
 
     /**
-     * Der nächste freie Systembenutzer.
+     * Der nächste freie Systembenutzer — ohne Zuteilung.
      *
-     * **`withTrashed()` ist der Kern und keine Feinheit** — derselbe Grund wie
-     * bei der Kundennummer, nur mit schärferer Folge: Ein zurückgezogenes
-     * Abonnement hat seinen Namen verbraucht. Sähe die Vergabe ihn nicht,
-     * bekäme ein neuer Kunde `p1000` ein zweites Mal und damit alles, was auf
-     * dem Dateisystem noch der alten UID gehört.
+     * Für das Formular: Es zeigt, was der nächste wäre. Verbraucht wird der
+     * Name erst mit {@see self::claim()}.
      *
-     * Gesucht wird in PHP und nicht in SQL: Ein `CAST(SUBSTRING(...))` läuft
-     * auf MariaDB und nicht auf SQLite, und dann prüften die Tests etwas
-     * anderes als der Server — ausgerechnet bei der Vergabe eines Bezeichners.
+     * **Gefragt wird das Verzeichnis und nicht der Bestand.** Bis August 2026
+     * stand hier ein `withTrashed()` auf dem Abonnement, und daran hing der
+     * ganze Grund, aus dem ein zurückgebautes als Zeile liegen blieb: Es
+     * hatte seinen Namen verbraucht, und sähe die Vergabe ihn nicht, bekäme ein
+     * neuer Kunde `p1000` ein zweites Mal — samt allem, was auf dem
+     * Dateisystem noch der alten UID gehört. Der Grund war richtig, das Mittel
+     * zu grob; 121 Zeilen auf dem Zielserver existierten für diese eine
+     * Abfrage. Seit docs/35 steht die Reservierung als eigene Tabelle da.
+     *
+     * **Und hier steht deshalb kein `withoutRestriction` mehr.** Es war nötig,
+     * weil `Subscription` die Mandantenklammer trägt: Ein Kunde — oder ein
+     * Kommando ohne gesetzten Mandanten — sah kein einziges Abonnement und
+     * bekam `p1000` zurück, den es längst gab. Aufgefallen war das im Test, der
+     * nach dem Rückbau erneut vergibt. {@see SystemUser} trägt keine Klammer,
+     * und damit fällt die Ausnahme weg statt vergessen zu werden.
+     *
+     * `MAX(number)` und nicht mehr die Suche in PHP: Ein `CAST(SUBSTRING(...))`
+     * fiel auf MariaDB und SQLite verschieden aus, und dann prüften die Tests
+     * etwas anderes als der Server. Über eine Zahlspalte ist die Frage auf
+     * beiden dieselbe.
      */
     public function nextSystemUser(): string
     {
-        // **Ohne Mandantenklammer, und zwar ausdrücklich.** Der Name ist über
-        // den ganzen Server eindeutig; die Klammer zeigt aber nur, was das
-        // anfragende Konto sehen darf. Ein Kunde — oder ein Kommando ohne
-        // gesetzten Mandanten — sähe damit kein einziges Abonnement und
-        // bekäme `p1000` zurück, den es längst gibt. Aufgefallen im Test, der
-        // nach dem Rückbau erneut vergibt.
-        return $this->tenancy->withoutRestriction(function (): string {
-            $highest = Subscription::query()
-                ->withTrashed()
-                ->whereNotNull('system_user')
-                ->where('system_user', 'like', 'p%')
-                ->pluck('system_user')
-                ->map(static fn (string $user): int => (int) mb_substr($user, 1))
-                ->max();
+        return $this->name(max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1));
+    }
 
-            return 'p'.max(self::FIRST_USER, ((int) $highest) + 1);
-        });
+    /**
+     * Den nächsten Namen vergeben und verbrauchen.
+     *
+     * In einer Transaktion mit dem Anlegen des Abonnements — steht sie
+     * ausserhalb, verbraucht ein fehlgeschlagenes Anlegen eine Nummer.
+     *
+     * **Der eindeutige Index auf `number` ist die Sicherung.** Zwei
+     * gleichzeitige Anlagen sehen sonst dieselbe höchste Nummer und wollen
+     * beide die nächste. Bis hierher scheiterte die zweite am eindeutigen Index
+     * auf `subscriptions.system_user`, und zwar mit einer Meldung, die der
+     * Betreiber nicht deuten kann. Jetzt läuft sie in die Kollision, holt sich
+     * die nächste und ist fertig. Perfekt ist das nicht: Bei sehr hoher Last
+     * bleibt eine Restwahrscheinlichkeit, dass fünf Versuche nicht reichen —
+     * für ein Panel auf einem einzelnen Server ist das die richtige
+     * Grössenordnung, und der Fehlschlag ist wenigstens lesbar.
+     */
+    public function claim(string $subscription): string
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $number = max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1);
+
+            try {
+                SystemUser::query()->create([
+                    'number' => $number,
+                    'subscription' => $subscription,
+                    'claimed_at' => now(),
+                ]);
+
+                return $this->name($number);
+            } catch (UniqueConstraintViolationException) {
+                continue;
+            }
+        }
+
+        throw new RuntimeException('Es liess sich kein Systembenutzer vergeben.');
+    }
+
+    /**
+     * Aus der Zahl wird der Name — an dieser einen Stelle.
+     *
+     * Beides zu speichern wäre eine zweite Fassung derselben Wahrheit; das
+     * Präfix zweimal zu schreiben wäre dieselbe Regel an zwei Orten.
+     */
+    private function name(int $number): string
+    {
+        return 'p'.$number;
     }
 
     /**
@@ -196,8 +245,9 @@ final class Lifecycle implements AfterOperation
                 ])->save(),
 
                 // Der Rückbau ist durch: Verzeichnis weg, Konto weg. Die Zeile
-                // bleibt mit `deleted_at` stehen, damit der Systembenutzer
-                // verbraucht bleibt.
+                // geht mit — der Systembenutzer bleibt trotzdem verbraucht, er
+                // steht seit docs/35 im Verzeichnis und nicht mehr in dieser
+                // Zeile.
                 'subscription.remove' => $this->withdraw($subscription),
 
                 default => null,
@@ -206,25 +256,14 @@ final class Lifecycle implements AfterOperation
     }
 
     /**
-     * Das Abonnement zurückziehen — und seine Domains hart löschen.
+     * Das Abonnement zurückbauen — Domains hart, Vorgänge abgelöst, Zeile weg.
      *
-     * **Die Reihenfolge ist der Punkt.** Erst die Domains, dann `deleted_at`:
-     * Danach ist das Abonnement für jede Abfrage fort, und eine Löschung, die
-     * darüber liefe, träfe keine Zeile mehr.
+     * **Die Reihenfolge ist der Punkt.** Erst die Domains, dann die Vorgänge,
+     * dann die Zeile. Was danach über das Abonnement liefe, träfe nichts mehr.
      *
-     * **Warum die Domains überhaupt hart gehen.** Das Abonnement bleibt weich
-     * gelöscht stehen, weil sein Systembenutzer verbraucht bleiben muss — die
-     * UID darf nicht neu vergeben werden, solange auf dem Dateisystem etwas
-     * liegt, das ihr gehört. Für eine Domain gibt es diesen Grund nicht: Mit
-     * dem Abonnement ist ihr Verzeichnis fort, ihr vhost, ihr Protokoll.
-     *
-     * Ohne diese Zeilen blieben die Domainzeilen stehen und hielten ihre Namen
-     * belegt — auf einem Server, auf dem von ihnen nichts mehr liegt. Der
-     * Fremdschlüssel hilft dabei nicht: `cascadeOnDelete` greift beim harten
-     * Löschen und nicht bei `deleted_at`. Aufgefallen ist das beim Nachfragen,
-     * nicht im Test; der Test steht jetzt daneben.
-     *
-     * **Und warum sie einzeln gehen.** Hier stand ein Massenlöschen über den
+     * **Warum die Domains einzeln gehen und nicht über die Kaskade.** Mit dem
+     * Abonnement ist ihr Verzeichnis fort, ihr vhost, ihr Protokoll — hart
+     * löschen ist richtig. Nur stand hier ein Massenlöschen über den
      * Erbauer, und das feuert **keine Modellereignisse**. Genau an einem davon
      * hängt aber die Abschrift `subscriptions.main_domain`: Das Modell setzt
      * sie beim `deleted` auf null. Übersprungen hielt ein gekündigtes
@@ -240,6 +279,18 @@ final class Lifecycle implements AfterOperation
      * Abschrift werde „nicht von einem Dienst gepflegt, der daran denken muss,
      * sondern vom Modell selbst". Ein Löschweg, der am Modell vorbeigeht,
      * macht aus dieser Zusage eine Behauptung.
+     *
+     * **Warum die Vorgänge hier von Hand abgelöst werden.** Auf MariaDB steht
+     * `operations.subscription_id` seit docs/35 auf `nullOnDelete` und täte das
+     * von selbst. Auf SQLite steht er weiter auf `cascadeOnDelete`, weil sich
+     * ein Fremdschlüssel dort überhaupt nicht ändern lässt — und dann nähme
+     * `forceDelete()` das Vorgangsprotokoll mit. Ein Rückbau, der auf dem
+     * Server etwas anderes tut als im Test, ist genau die Sorte Fehler, die
+     * docs/35 §7 benennt. Der Name des Abonnements bleibt am Vorgang stehen; er
+     * wird beim Anlegen abgeschrieben ({@see Operation::booted()}).
+     *
+     * `forceDelete()` und nicht `delete()`: Es soll auch dann hart löschen,
+     * wenn das Modell den Trait wider Erwarten wieder trägt.
      */
     private function withdraw(Subscription $subscription): void
     {
@@ -248,11 +299,10 @@ final class Lifecycle implements AfterOperation
             ->get()
             ->each(static fn (Domain $domain): ?bool => $domain->delete());
 
-        $subscription->forceFill([
-            'status' => SubscriptionStatus::Cancelled,
-            'cancelled_at' => now(),
-        ])->save();
+        Operation::query()
+            ->where('subscription_id', $subscription->id)
+            ->update(['subscription_id' => null]);
 
-        $subscription->delete();
+        $subscription->forceDelete();
     }
 }

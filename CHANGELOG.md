@@ -4784,3 +4784,102 @@ Kindmodell *irgendwie* gefiltert ist. Verliert `Subscription` seine weiche
 Löschung, verlangt er weiter ein `withTrashed()`, das es nicht mehr geben kann
 — ein Wächter, der beim Aufräumen zubeisst, genau die Falle, in die dieses
 Vorgehen schon dreimal gelaufen ist. Die Aufteilung steht als Schritt 8 im Plan.
+
+### Das Verzeichnis der Systembenutzer — die Grabsteine sind weg (docs/35)
+
+Ein zurückgebautes Abonnement blieb als Zeile mit `deleted_at` liegen, damit
+sein Systembenutzer `p1000` nicht ein zweites Mal vergeben wird: `userdel` gibt
+die UID frei, das nächste `useradd` vergibt sie wieder, und dann erbt ein neuer
+Kunde alles, was auf dem Dateisystem noch der alten UID gehört.
+
+**Der Grund war richtig. Das Mittel war zu grob**, und der Befund, der das
+zeigte, stand in einer einzigen Zeile: `withTrashed()` auf `Subscription` kam in
+`app/` genau einmal vor. Sonst las nichts im ganzen Panel einen dieser
+Grabsteine. 121 Zeilen auf dem Zielserver existierten für ein einzelnes `MAX()`
+— und hielten dabei einen Fremdschlüssel auf `plans` fest, was der 500er vom
+7. August 2026 war.
+
+Die Reservierung steht jetzt in `system_users`: eine Nummer, eine Abschrift des
+Abonnementnamens, ein Zeitpunkt. `Lifecycle::claim()` verbraucht einen Namen und
+schreibt die Zeile, `nextSystemUser()` zeigt nur, was der nächste wäre. Der
+eindeutige Index auf `number` ist die Sicherung gegen zwei gleichzeitige
+Anlagen; bis dahin scheiterte die zweite an einem Index mit einer Meldung, die
+niemand deuten konnte. Abonnements werden hart gelöscht, und `subscriptions`
+enthält damit nur noch, was es gibt.
+
+**Kunden behalten ihre weiche Löschung**, und das ist keine Inkonsequenz: Ihr
+Grabstein wird von zwei Stellen gelesen, an ihm hängen ihre Konten, und ihre
+Nummer steht in Rechnungen. Der Abonnementgrabstein trug eine Zahl.
+
+**Eine Verhaltensänderung, die man kennen muss.** `operations.subscription_id`
+steht nicht mehr auf `cascadeOnDelete`, sondern fällt beim Rückbau auf `NULL`;
+der Name des Abonnements steht daneben in `subscription_name`. Die Vorgänge
+überleben damit das Abonnement — sie fallen aber aus der Mandantenklammer
+(`subscription_id in (…)`, und `NULL` ist in keiner Liste) und sind **nur noch
+für den Admin sichtbar**. Das ist richtig, der Kunde hat das Abonnement nicht
+mehr, aber es ist eine Änderung und keine Nebensache.
+
+**`PlanController` ist um die Hälfte kleiner.** Die Übertragung der Grabsteine
+samt Rückfrage nach einem Zielplan, die am 7. August entstand, hatte keinen
+Anlass mehr: Am Plan hängt nichts Unsichtbares. Was bleibt, ist
+`withoutRestriction()` um die Zählung — die Mandantenklammer liegt weiter auf
+`Subscription`, und ein Kommando ohne gesetzten Mandanten zählte sonst null.
+
+**Und `SubscriptionStatus::Cancelled` ist gefallen**, in einem eigenen Commit
+danach. Der Zustand wurde gesetzt und nie wieder gelesen; er stand auf einer
+Zeile, die im selben Atemzug unsichtbar wurde.
+
+### Drei Fehler im Plan, und alle drei hätten erst auf dem Server gefehlt
+
+`docs/35` war vollständig genug, um ihn abzuarbeiten — und drei Stellen trugen
+trotzdem nicht. Sie folgen demselben Muster wie die sechs Funde aus dem
+TLS-Abnahmelauf: **eine Regel, die an einem Ort steht und an einem zweiten
+gebraucht wird, ohne dass etwas den Bezug prüft.**
+
+**SQLite kann einen Fremdschlüssel überhaupt nicht ändern.** Der Plan nennt für
+diesen Schritt zwei Stolpersteine — `UPDATE … JOIN` und den Indexnamen — und
+diesen dritten nicht. Es gibt dort kein `ALTER TABLE … DROP FOREIGN KEY`; die
+Umstellung auf `nullOnDelete` läuft deshalb nur auf MariaDB. Damit im Test nicht
+etwas anderes geschieht als auf dem Server, löst der Rückbau seine Vorgänge
+jetzt **selbst** ab, und die Umstellung ist die Sicherung darunter — für ein
+`DELETE` von Hand auf der Konsole, das am Panel vorbeigeht.
+
+**Der Plan trägt die Namen nur rückwirkend nach.** Für jeden Vorgang, der
+*danach* entsteht, stand nirgends, wer `subscription_name` schreibt — er wäre
+nach dem nächsten Rückbau namenlos gewesen, und das fiele erst beim
+zurückgebauten Abonnement auf, wenn nichts mehr zu heilen ist. Geschrieben wird
+er jetzt vom Modell beim Anlegen, nicht von den sechs Stellen, an denen
+Vorgänge entstehen. Dasselbe Muster wie bei `subscriptions.main_domain`: „nicht
+von einem Dienst gepflegt, der daran denken muss, sondern vom Modell selbst".
+
+**`srvpanel acceptance` vergibt Namen in einer Schleife.** Schritt 6 des Plans
+nennt zwei Aufrufer im `SubscriptionController` und keinen der beiden
+Abnahmekommandos. Beide riefen `nextSystemUser()`, das seit diesem Umbau nichts
+mehr verbraucht: Alle Abonnements eines Laufs hätten `p1000` bekommen, und das
+zweite wäre am eindeutigen Index gescheitert — im Abnahmelauf, auf dem
+Zielserver. Der Wächter dazu prüft die Regel und nicht den Fall: Jeder
+Systembenutzer, der in eine Zeile geschrieben wird, muss aus einem `claim()`
+kommen.
+
+Dazu drei kleinere: `Rule::unique('subscriptions', 'name')->withoutTrashed()`
+hängt eine Bedingung auf `deleted_at` an und wäre ab der Migration ein
+SQL-Fehler auf jedem Anlegen; und zwei Tests behaupteten, nach dem Rückbau
+stehe die Zeile noch da.
+
+**Der letzte davon ist der lehrreiche, und er kostete den einen roten Lauf.**
+`DomainTest::test_withdrawing_a_subscription_clears_the_copy` benutzte weder
+`withTrashed` noch `onlyTrashed` noch `deleted_at` — nur ein
+`DB::table('subscriptions')->first()` und ein `assertNotNull`. Die Annahme „die
+Zeile bleibt liegen" stand allein im Meldungstext der Behauptung, und kein
+`grep` über die Vokabeln der weichen Löschung holt so etwas heraus. Daraus die
+Lehre, die neben der aus dem TLS-Lauf steht:
+
+> **Eine Annahme, die nur in einem Meldungstext steht, ist mit keinem
+> Suchmuster zu finden. Die einzige Suche, die sie hergibt, ist der Lauf.**
+
+**Und ein Bruch aus dem Plan beisst nicht.** `docs/35 §5.3` verlangt einen
+Eingriff, der in `withdraw()` `delete()` statt `forceDelete()` schreibt. Ohne
+`SoftDeletes` sind die beiden dasselbe — der Eingriff ist wirkungslos, und ein
+Wächter, der ihn überlebt, sähe gesund aus. An seiner Stelle stehen zwei
+Brüche, die es gibt: die Vorgänge, die am Abonnement hängen bleiben, und ein
+`Subscription`, das seinen Trait zurückbekommt.

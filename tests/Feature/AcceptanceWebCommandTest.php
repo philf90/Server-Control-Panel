@@ -367,7 +367,6 @@ final class AcceptanceWebCommandTest extends TestCase
             'Provisioning' => 'Das Abonnement wird gerade angelegt.',
             'Active' => 'Das Abonnement ist aktiv.',
             'Suspended' => 'Das Abonnement ist gesperrt.',
-            'Cancelled' => 'Das Abonnement ist gekündigt.',
         ];
 
         foreach (SubscriptionStatus::cases() as $status) {

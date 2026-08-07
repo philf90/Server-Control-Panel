@@ -592,3 +592,353 @@ Reservierung steht als Tabelle da, die man lesen und gegen `/etc/passwd`
 abgleichen kann. Und die Klasse von Fehlern, die am 7. August 2026 einen 500er
 verursacht hat — eine Zählung, die weniger sieht als der Fremdschlüssel —
 verschwindet an dieser Stelle vollständig, statt umschifft zu werden.
+
+---
+
+## 9. Umsetzung
+
+**Stand: 7. August 2026, umgesetzt.** Zwei Commits auf
+`claude/systembenutzer-verzeichnis-migration-jkfff5` — der Umbau und, getrennt
+davon, Schritt 9. Die Schrittreihenfolge des Plans ist eingehalten; die drei
+Migrationen tragen `2026_08_07_1000{00,10,20}` und laufen damit zwingend in der
+Reihenfolge Verzeichnis → Abschrift → Purge.
+
+### 9.1 Was gebaut wurde
+
+| Schritt | Ergebnis |
+|---|---|
+| 1 | `..._create_system_users_table.php` — Tabelle und Füllung aus dem Bestand |
+| 2 | `..._operations_survive_a_deleted_subscription.php` — `subscription_name`, Rückfüllung in PHP, Fremdschlüssel gelockert |
+| 3 | `..._withdrawn_subscriptions_are_gone.php` — Purge und `dropSoftDeletes()` |
+| 4 | `Lifecycle::claim()` neu, `nextSystemUser()` liest das Verzeichnis, `withdraw()` löscht hart |
+| 5 | `app/Models/SystemUser.php` neu, `Subscription` ohne `SoftDeletes` |
+| 6 | `SubscriptionController::store()` ruft `claim()` **in** der Transaktion |
+| 7 | `PlanController` und `Plans/Form.vue` zurückgebaut |
+| 8 | `RestrictedDeleteTest` fragt die beiden Filter getrennt (im selben Commit wie 5) |
+| 9 | `SubscriptionStatus::Cancelled` und `cancelled_at` — **eigener Commit danach** |
+
+Neue Wächter: `SystemUserLedgerTest` mit zehn Prüfungen, darunter der statische
+`test_the_allocation_reads_only_the_ledger` und
+`test_every_written_name_was_claimed`. Sieben neue Brüche in
+`tests/waechter-brechen.sh`; die Reflexion auf einen Methodenrumpf ist als
+`tests/Support/ReadsMethodSource.php` aus `RestrictedDeleteTest` herausgelöst.
+
+### 9.2 Drei Stellen, an denen der Plan nicht trug
+
+Das ist der wertvollste Teil dieses Abschnitts. Alle drei hätten erst auf dem
+Server gefehlt.
+
+**1. SQLite kann einen Fremdschlüssel überhaupt nicht ändern.** §4 Schritt 2
+nennt zwei Stolpersteine (`UPDATE … JOIN`, den Indexnamen) und diesen dritten
+nicht. Es gibt dort kein `ALTER TABLE … DROP FOREIGN KEY`; die Umstellung auf
+`nullOnDelete` läuft nur auf MariaDB und ist im Test wirkungslos. Damit das
+Verhalten auf beiden Treibern dasselbe ist, löst `Lifecycle::withdraw()` seine
+Vorgänge **selbst** ab, und die Migration tut vor dem Purge dasselbe. Die
+Umstellung des Fremdschlüssels bleibt als Sicherung darunter — für ein `DELETE`
+von Hand, das am Panel vorbeigeht.
+
+**2. Niemand schreibt `operations.subscription_name` für neue Vorgänge.** §3.3
+und Schritt 2 beschreiben nur die Rückfüllung. Jeder Vorgang danach wäre nach
+dem nächsten Rückbau namenlos gewesen — Kriterium 10 hätte für den Bestand
+gehalten und für alles Neue nicht, und aufgefallen wäre es erst, wenn nichts
+mehr zu heilen ist. Geschrieben wird der Name jetzt in `Operation::booted()`
+beim Anlegen; die sechs Stellen, an denen Vorgänge entstehen, wissen davon
+nichts.
+
+**3. `srvpanel acceptance` und `acceptance-web` vergeben Namen.** Schritt 6
+nennt zwei Zeilen im `SubscriptionController` und keines der beiden
+Abnahmekommandos. Beide riefen `nextSystemUser()`, das seit diesem Umbau nichts
+mehr verbraucht: `Acceptance::create()` legt in einer Schleife an, alle
+Abonnements hätten `p1000` bekommen, und das zweite wäre am eindeutigen Index
+gescheitert. Der Wächter dazu prüft die Regel und nicht den Fall — jeder
+Systembenutzer, der in eine Zeile geschrieben wird, kommt aus einem `claim()`.
+
+Dazu drei kleinere Funde: `Rule::unique('subscriptions', 'name')
+->withoutTrashed()` in `SubscriptionController` hängt eine Bedingung auf
+`deleted_at` an und wäre ab der Migration ein SQL-Fehler auf jedem Anlegen; und
+zwei Tests behaupteten, nach dem Rückbau stehe die Zeile noch da —
+`WebLifecycleTest::test_the_teardown_of_a_subscription_frees_its_domain_names`
+und `DomainTest::test_withdrawing_a_subscription_clears_the_copy`.
+
+**Der zweite davon ist der lehrreiche: Er war mit keinem Suchmuster zu
+finden.** §5.4 nennt `withTrashed` und `onlyTrashed`; dieser Test benutzte
+weder das eine noch das andere, sondern ein
+`DB::table('subscriptions')->where('id', …)->first()` und ein
+`assertNotNull` — die Annahme „die Zeile bleibt liegen" stand nur im
+Meldungstext der Behauptung. Kein `grep` über Vokabeln der weichen Löschung
+holt so etwas heraus. Gefunden hat ihn die CI, und zwar als einzigen
+Fehlschlag von 1292 Tests.
+
+### 9.3 Ein Bruch aus §5.3, der nicht beisst
+
+> `withdraw()` benutzt `delete()` statt `forceDelete()` → ein Test, der prüft,
+> dass keine Zeile bleibt
+
+Ohne `SoftDeletes` sind `delete()` und `forceDelete()` dasselbe. Der Eingriff
+ändert die Datei, der Test bleibt grün, und `waechter-brechen.sh` meldete einen
+gesunden Wächter als „beisst nicht". `forceDelete()` steht trotzdem im Code —
+aus dem Grund, den §4 Schritt 4 nennt: falls das Modell den Trait wider Erwarten
+wieder trägt. Nur ist das keine Regel, die sich einzeln brechen lässt.
+
+An seiner Stelle stehen zwei Brüche, die es gibt:
+
+- **die Vorgänge bleiben am Abonnement hängen** → `test_the_operations_survive_the_removal`
+- **`Subscription` bekommt seinen Trait zurück** → `RestrictedDeleteTest`
+
+Der zweite ist der wichtigere: Nach diesem Umbau löst kein Modell mehr den
+Zweig „die Grabsteine" in `RestrictedDeleteTest` aus. Ein Zweig, den nichts
+erreicht, ist kein Wächter — deshalb der Bruch, der ihn erreicht, und deshalb
+die Untergrenze `$checked > 0` im Test selbst.
+
+### 9.4 Zwei Entscheidungen, die vom Plan abweichen
+
+**Die Prüfung in Migration 1 läuft, bevor das Schema angefasst wird.** §4
+Schritt 1 stellt sie hinter die Füllung. DDL ist auf MariaDB nicht
+transaktional: Ein Abbruch nach dem `CREATE` liesse eine halb gefüllte Tabelle
+zurück, und der zweite Lauf scheiterte an ihr statt am eigentlichen Grund.
+Gelesen und geprüft wird deshalb zuerst; erst danach entsteht die Tabelle.
+
+**Ein Name, der nicht dem Muster `p<Zahl>` folgt, hält die Migration an.** §4
+Schritt 1 lässt sie `continue`en („nicht raten") — richtig, nur würde die
+Reservierung damit still verloren gehen, und für ein *lebendes* Abonnement fängt
+das auch Schritt 3 nicht ab. Geraten wird weiterhin nichts; die Migration nennt
+die Namen und bricht ab. Auf dem Zielserver tritt der Fall nicht ein, alle Namen
+stammen aus `nextSystemUser()`.
+
+Ausserdem: Migration 3 hält an, wenn an einem Grabstein noch ein Zertifikat
+hängt. §4 Schritt 0 lässt den Betreiber das im Vorflug prüfen; die Prüfung im
+Code sorgt dafür, dass er es auch dann tut, wenn er den Vorflug übersprungen hat.
+
+### 9.5 Was hier **nicht** geprüft werden konnte
+
+Ehrlich benannt, weil §7 es verlangt:
+
+- **Im Container lief weder `php artisan migrate` noch `php artisan test`.**
+  `vendor/` fehlt, und `composer install` scheitert nicht an einer Laune,
+  sondern an einer Regel: Der Proxy dieses Containers gibt GitHub nur für die
+  Repositorys frei, die der Sitzung zugeordnet sind. Jedes Paket eines Dritten
+  antwortet mit `403 GitHub access to this repository is not enabled for this
+  session`. Es gibt keinen Weg daran vorbei, der nicht hiesse, die
+  Abhängigkeiten aus einer fremden Quelle zu ziehen — und dieses Projekt prüft
+  seine Lieferkette in der CI.
+
+- **Gelaufen ist die Testsuite trotzdem, und zwar dort, wo sie hingehört.** Die
+  CI kennt `workflow_dispatch`; ein Lauf auf dem Zweig bringt dasselbe Ergebnis
+  wie ein PR, ohne einen zu öffnen. **Das ist der Weg, wenn `composer install`
+  im Container nicht geht** — und er hat hier zwei Runden gebraucht:
+
+  | Lauf | Tests | Statische Prüfung | Oberfläche | Lieferkette |
+  |---|---|---|---|---|
+  | 385 | 1291 grün, **1 rot** | Pint + PHPStan grün | grün | grün |
+  | 386 | **1292 grün** (4631 Behauptungen, 92,6s) | Pint + PHPStan grün | grün | grün |
+
+  Der eine rote Test in 385 war der `DomainTest` aus §9.2 — der Fund, den kein
+  Suchmuster hergab. Danach ist die Suite grün, einschliesslich der zehn neuen
+  Prüfungen in `SystemUserLedgerTest` und des geschärften
+  `RestrictedDeleteTest`.
+
+- **Die Datenmigrationen sind damit noch immer nicht auf MariaDB gelaufen.**
+  Grün ist SQLite. Was auf dem Server anders ist — `dropForeign`, die
+  Fremdschlüsselumstellung, `dropSoftDeletes` auf einer Tabelle mit Daten —,
+  steht erst nach §10 fest. Die zentrale Invariante aus Kriterium 3 ist
+  zusätzlich gegen eine SQLite-Datenbank mit der Form der Serverdaten
+  nachgerechnet worden (121 Namen, höchste 1120, die höchsten davon
+  Grabsteine): `p1121` vor und nach der Migration, und ohne das Verzeichnis
+  wäre es `p1100` gewesen. Das ist eine Probe der Rechnung, kein Ersatz für den
+  Lauf auf dem Server.
+- **`waechter-brechen.sh` ist nur zur Hälfte gelaufen.** Jeder der acht neuen
+  Eingriffe ist gegen eine Kopie der Zieldatei gefahren worden und ändert sie
+  auch wirklich — die `griff_datei`-Hälfte ist damit belegt, und für
+  `test_every_written_name_was_claimed` ist zusätzlich die Testlogik nachgebaut
+  und gezeigt worden, dass sie mit dem Bruch genau einen Befund meldet. Ob die
+  übrigen sieben Wächter danach rot werden, braucht ein lokales PHPUnit und
+  steht aus; das Skript ändert Dateien und lässt sich nicht über die CI fahren.
+  **Wer als Nächstes an diesem Repo mit `vendor/` sitzt, holt das nach.**
+- **Was lief:** `php -l` über alle geänderten Dateien, `pint --test` (grün),
+  PHPStan Stufe 6 über `agent/src` und `tests/Support` sowie über die neuen
+  Dateien einzeln, `npm run types` (grün) und `npm run build`.
+- **Screenshots** des zurückgebauten Formulars: über den Weg aus CLAUDE.md —
+  gebautes Stylesheet aus `public/build`, Markup der Knopfreihe in einer eigenen
+  HTML-Datei, gerendert im vorinstallierten Chromium. Beide Themes, 1440px und
+  390px, `scrollWidth - clientWidth` je **0**. Das ersetzt den Blick auf die
+  echte Seite nicht: Die entfallene Auswahl neben dem Löschknopf war genau die
+  Stelle, an der die Knopfreihe im letzten Abnahmelauf auseinanderging, und mit
+  ihr ist der Anlass fort — aber gesehen ist das an einem Nachbau und nicht an
+  der Seite.
+
+### 9.6 Beobachtung ohne Handlung
+
+Die `rang()`-Helfer in `Subscriptions/Index.vue`, `Subscriptions/Show.vue` und
+`CustomerOverview.vue` prüfen weiter auf `'cancelled'`. Sie tragen auch
+`'removing'` und `'failed'`, die es als Zustand eines Abonnements nie gab — vier
+Fassungen derselben Zuordnung auf vier Seiten, was der Kommentar in
+`Customers/Index.vue` selbst schon anmerkt. Das ist eine eigene Aufräumfrage
+(ein Wächter „jede Zeichenkette in einem `rang()` zeigt auf einen Fall der
+Aufzählung" wäre der passende) und gehört nicht in diesen Umbau.
+
+---
+
+## 10. Die Abnahme auf dem Server — als Befehlsfolge
+
+Diese Befehle laufen auf dem Zielserver, nicht im Container. Sie sind so
+geschnitten, dass sich ihre Ausgabe in den Abnahmebericht kopieren lässt.
+
+### 10.1 Vorflug — **vor** `srvpanel update`
+
+Ohne diese Zahlen gibt es hinterher nichts zu vergleichen, und ohne die
+Sicherung gibt es keinen Rückweg.
+
+```bash
+# 1. Die Sicherung. Der Purge ist nicht rückgängig zu machen.
+mariadb-dump srvpanel > /root/vor-35.sql
+ls -lh /root/vor-35.sql
+
+# 2. Die Zahlen.
+mariadb srvpanel -e "
+SELECT COUNT(*) AS grabsteine,
+       MIN(CAST(SUBSTRING(system_user,2) AS UNSIGNED)) AS kleinste,
+       MAX(CAST(SUBSTRING(system_user,2) AS UNSIGNED)) AS groesste
+FROM subscriptions WHERE deleted_at IS NOT NULL;
+
+SELECT COUNT(*) AS lebend FROM subscriptions WHERE deleted_at IS NULL;
+
+SELECT COUNT(*) AS namen_gesamt FROM subscriptions
+WHERE system_user IS NOT NULL AND system_user LIKE 'p%';
+
+SELECT COUNT(*) AS vorgaenge_an_grabsteinen
+FROM operations o JOIN subscriptions s ON s.id = o.subscription_id
+WHERE s.deleted_at IS NOT NULL;
+
+SELECT COUNT(*) AS zertifikate_an_grabsteinen
+FROM certificates c JOIN subscriptions s ON s.id = c.subscription_id
+WHERE s.deleted_at IS NOT NULL;
+"
+
+# 3. Die zentrale Invariante.
+HOME=/tmp srvpanel tinker --execute="
+  echo app(\App\Support\Subscriptions\Lifecycle::class)->nextSystemUser();
+"
+```
+
+**`namen_gesamt` ist neu gegenüber §4 Schritt 0** und die Zahl, die Kriterium 1
+wirklich meint: `grabsteine + lebend` stimmt nur, solange jedes Abonnement einen
+Namen hat. Ein Abonnement, das im Zustand `provisioning` steckengeblieben ist,
+hat keinen — und dann zählt das Verzeichnis weniger, ohne dass etwas fehlt.
+
+**Wenn `zertifikate_an_grabsteinen > 0` ist: anhalten.** Die Migration bricht
+dann von selbst ab und nennt die Zahl; entschieden wird das nach §4 Schritt 0
+und nicht nebenbei.
+
+Am 7. August 2026 waren die Zahlen: `grabsteine 121`, `groesste 1120`,
+`nextSystemUser() = p1121`.
+
+### 10.2 Das Update
+
+```bash
+srvpanel update
+journalctl -u srvpanel-update -n 50 --no-pager
+```
+
+Bricht eine der Migrationen ab, steht ihr Grund im Klartext im Protokoll
+(„Diese Namen stehen nicht im Verzeichnis: …", „Verzeichnis unvollständig: …",
+„An zurückgebauten Abonnements hängen noch N Zertifikate."). In dem Fall: nichts
+weiter tun, den Text mitschicken. Die erste Migration prüft, bevor sie das
+Schema anfasst; die dritte, bevor sie löscht.
+
+### 10.3 Die elf Kriterien
+
+```bash
+mariadb srvpanel -e "
+-- 1  erwartet: namen_gesamt aus 10.1
+SELECT COUNT(*) AS k1_verzeichnis FROM system_users;
+
+-- 2  erwartet: groesste aus 10.1  (1120)
+SELECT MAX(number) AS k2_hoechste FROM system_users;
+
+-- 4  erwartet: lebend aus 10.1
+SELECT COUNT(*) AS k4_abonnements FROM subscriptions;
+
+-- 5  erwartet: leer
+SHOW COLUMNS FROM subscriptions LIKE 'deleted_at';
+
+-- 6  erwartet: vorgaenge_an_grabsteinen aus 10.1
+SELECT COUNT(*) AS k6_verwaiste FROM operations
+WHERE subscription_id IS NULL AND subscription_name IS NOT NULL;
+"
+
+# 3  DIE ZENTRALE INVARIANTE — erwartet: derselbe Wert wie in 10.1 (p1121)
+HOME=/tmp srvpanel tinker --execute="
+  echo app(\App\Support\Subscriptions\Lifecycle::class)->nextSystemUser();
+"
+```
+
+**Kriterium 3 ist das eigentliche.** Ist die Zahl vor und nach der Migration
+dieselbe, hat der Umbau die Reservierung nicht angefasst. Und es ist ein
+Kriterium, das nach einem *Wert* fragt und nicht nach einer Anzahl — die Lehre
+aus dem TLS-Abnahmelauf.
+
+Kriterien 7 bis 11 im Panel, mit der Datenbank daneben:
+
+```bash
+# 7  Abonnement anlegen (Panel: /subscriptions/create) und danach:
+mariadb srvpanel -e "
+SELECT name, system_user FROM subscriptions ORDER BY id DESC LIMIT 1;
+SELECT number, subscription, claimed_at FROM system_users ORDER BY number DESC LIMIT 3;
+"
+#    erwartet: system_user = nextSystemUser() aus 10.1, und die Zeile steht im
+#    Verzeichnis. Nicht nur die Anzahl vergleichen — den Namen.
+
+# 8  dasselbe Abonnement zurückbauen, warten bis der Vorgang durch ist, dann
+#    ein neues anlegen:
+mariadb srvpanel -e "
+SELECT number, subscription FROM system_users ORDER BY number DESC LIMIT 4;
+SELECT COUNT(*) AS abonnements FROM subscriptions;
+"
+#    erwartet: der neue Name ist WIEDER eins höher — nicht der freigewordene.
+#    Und gegen das System geprüft:
+getent passwd | grep '^p1' | tail -5
+#    Kein Name aus dem Verzeichnis darf einer neuen UID gehören.
+
+# 9  einen Plan löschen, an dem vorher Grabsteine hingen (Panel: /plans)
+#    erwartet: geht durch, OHNE Rückfrage nach einem Ziel. Es gibt keine
+#    Auswahl neben dem Löschknopf mehr.
+
+# 10 Vorgangsliste als Admin (Panel: /operations)
+#    erwartet: die Vorgänge des zurückgebauten Abonnements stehen noch da.
+mariadb srvpanel -e "
+SELECT id, type, subscription_id, subscription_name
+FROM operations WHERE subscription_id IS NULL AND subscription_name IS NOT NULL
+ORDER BY id DESC LIMIT 5;
+"
+#    Der Name muss dastehen. Ein leeres subscription_name bei einem Vorgang,
+#    der NACH dem Update entstanden ist, ist ein Fehler.
+
+# 11 Vorgangsliste als Kunde („Anmelden als", Panel)
+#    erwartet: die verwaisten Vorgänge sind NICHT dabei.
+```
+
+### 10.4 Und der Abnahmelauf selbst
+
+Er vergibt Namen in einer Schleife und ist damit die schärfste Probe auf
+`claim()`:
+
+```bash
+srvpanel acceptance --count=3
+mariadb srvpanel -e "SELECT number, subscription FROM system_users ORDER BY number DESC LIMIT 5;"
+```
+
+Erwartet: drei aufeinanderfolgende Nummern, drei verschiedene Namen. Vor der
+Behebung des dritten Fundes aus §9.2 hätten alle drei `p1000` bekommen.
+
+### 10.5 Wenn etwas schiefgeht
+
+```bash
+systemctl stop srvpanel-worker srvpanel
+mariadb srvpanel < /root/vor-35.sql
+# und dann die vorige Fassung zurückrollen — der Symlink in
+# /opt/srvpanel/releases zeigt auf die Fassung, das postinstall-Skript kennt
+# den Weg.
+```
+
+Die `down()`-Methoden stellen die Spalten wieder her und **keine einzige Zeile**.
+Der Dump aus 10.1 ist der Rückweg.

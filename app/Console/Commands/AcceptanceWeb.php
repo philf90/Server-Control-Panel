@@ -216,7 +216,11 @@ final class AcceptanceWeb extends Command
             'customer_id' => $customer->id,
             'plan_id' => $plan->id,
             'name' => $name,
-            'system_user' => $lifecycle->nextSystemUser(),
+
+            // `claim()` und nicht `nextSystemUser()`: Der zweite sagt nur, was
+            // der nächste wäre. Der Abnahmelauf legt zwei Abonnements an, und
+            // beide bekämen sonst denselben Namen.
+            'system_user' => $lifecycle->claim($name),
             'status' => SubscriptionStatus::Provisioning,
         ]);
 

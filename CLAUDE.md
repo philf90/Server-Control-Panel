@@ -148,8 +148,13 @@ Inertia-Payload — nicht als `v-if` auf den Kontotyp, denn das wäre eine zweit
 Fassung der Policy, und die zweite Fassung ist die, die veraltet.
 `AbilityReachTest` prüft beide Richtungen.
 
-Weiteres, das man wissen muss: Weiche Löschungen verbrauchen Bezeichner
-(Kundennummern, `p1000`-Systembenutzer ↔ UID-Wiederverwendung).
+Weiteres, das man wissen muss: Weiche Löschungen verbrauchen Bezeichner —
+**für Kunden.** Ihre Nummer steht in Rechnungen, an ihrem Grabstein hängen die
+Konten, und die Anmeldung liest ihn. Für Abonnements galt dasselbe bis August
+2026; seit `docs/35` steht die Reservierung des Systembenutzers in
+`system_users`, und ein zurückgebautes Abonnement wird hart gelöscht.
+`Lifecycle::claim()` verbraucht einen Namen, `nextSystemUser()` zeigt ihn nur
+an — wer die beiden verwechselt, vergibt `p1000` zweimal.
 Agent-Klassen sind aus der Anwendung autoladbar (`SrvPanel\Agent\` →
 `agent/src/`), das Panel darf also `Names::fqdn()` direkt fragen.
 
@@ -189,8 +194,10 @@ Abnahmelauf für 0.3.1**, der davor kommt · und **`34` der zweite Wurf von P4**
 DNS-01, Platzhalter, eigene Zertifikate — mit den drei Stellen, an denen der
 erste Wurf der Erweiterung nicht standhält, und den vier Fragen, die der
 Betreiber vorher beantwortet · und **`35` das Verzeichnis der Systembenutzer** —
-beschlossen, noch nicht gebaut: Abonnements hart löschen, die verbrauchten
-Namen in einer eigenen Tabelle sperren. Die Entwürfe zum Gestaltungssystem stehen
+gebaut, auf dem Server noch nicht abgenommen: Abonnements werden hart gelöscht,
+die verbrauchten Namen stehen in `system_users`. **§9 „Umsetzung" nennt drei
+Stellen, an denen der Plan nicht trug**, und §10 die Befehlsfolge für die
+Abnahme. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".

@@ -170,9 +170,10 @@ anders prüfen könnte.
 
 ## 4. Wo das Passwort liegt
 
-Das ist die eine Entscheidung in P5 mit Folgen bis in die Oberfläche, und sie
-gehört dem Betreiber (**Frage 3** in §19). Hier steht, was zur Wahl steht und
-was empfohlen wird.
+Das ist die eine Entscheidung in P5 mit Folgen bis in die Oberfläche. Sie ist am
+7. August 2026 gefallen — **nirgends** (§19, Entscheidung 3). Hier stehen die
+drei Möglichkeiten und der Grund, weil eine Entscheidung ohne ihre Alternativen
+in einem Jahr wie eine Selbstverständlichkeit aussieht.
 
 Ein Datenbankpasswort wird an vier Stellen gebraucht:
 
@@ -198,7 +199,7 @@ nie, kann es aber für Adminer anfordern.
 **(c) Im Panel abgelegt**, als `encrypted`-Spalte wie `accounts.two_factor_secret`.
 Der Kunde kann es jederzeit ansehen, Adminer meldet sich damit an.
 
-### Die Empfehlung: (a)
+### Gewählt: (a)
 
 Der Massstab dafür steht im Abnahmelauf von P4: *„und das DNS-Token steht
 nirgends"* war eines von sieben Kriterien. Ein Geheimnis, das man nicht
@@ -209,8 +210,8 @@ Bequemlichkeit mit einer Ablage, die es vorher nicht gab.
   Datenbankpasswörter **aller** Kunden enthält, im Klartext für jeden, der den
   `APP_KEY` aus `/etc/srvpanel/panel.env` dazu hat. Beide liegen auf demselben
   Server.
-- Gegen (b) spricht weniger, aber es kauft nur Adminer — und ob Adminer
-  überhaupt gebaut wird, ist Frage 4.
+- Gegen (b) spricht weniger, aber es kauft im Wesentlichen nur Adminer — und der
+  ist mit Entscheidung 4 aufgeschoben.
 
 **Der Preis von (a) ist ehrlich zu nennen:** Wer sein Passwort verliert, setzt es
 zurück und trägt es in seine Anwendung ein. Das ist eine Handlung mehr als bei
@@ -790,7 +791,8 @@ horcht — `bind-address`. **Das ist eine serverweite Änderung, und Leitbild 1
 sagt: „Der Bestand ist Gesetz."** Das Panel schaltet das nicht nebenbei ein, weil
 ein Kunde ein Häkchen gesetzt hat.
 
-Deshalb, wenn Frage 5 mit „ja" beantwortet wird:
+**Entschieden am 7. August 2026: Fernzugriff kommt, aber nur nach einem
+ausdrücklichen Schalter des Betreibers** (§19, Entscheidung 5). Konkret:
 
 1. `db.server.info` meldet die tatsächliche `bind-address` und ob der Port offen
    ist. Solange sie auf `127.0.0.1` steht, zeigt das Panel das Häkchen **nicht**
@@ -815,9 +817,12 @@ ausdrücklich, dass die IP-Beschränkung in MariaDB gilt und **nicht** im Paketf
 
 ## 13. Adminer — der Teil mit der grössten neuen Angriffsfläche
 
+> **Entschieden am 7. August 2026: aufgeschoben** (§19, Entscheidung 4). Dieser
+> Abschnitt bleibt als Begründung stehen; gebaut wird er in P5 nicht.
+
 Der Plan nennt ihn: „Adminer als eingebettetes Werkzeug, Anmeldung ohne
 Passwortweitergabe." Er ist **nicht** Teil des Abnahmekriteriums, und deshalb
-steht er hier als eigener, aufschiebbarer Schritt — **Frage 4** in §19.
+stand er zur Entscheidung.
 
 Was dafür spricht: Ein Kunde ohne SSH braucht einen Weg, in seine Tabellen zu
 sehen. Ohne ihn ist „Datenbanken" im Panel eine Verwaltung von Namen.
@@ -833,52 +838,52 @@ Was dagegen spricht, und es ist mehr als üblich:
 - **Es wird mit ausgeliefert und muss mit aktualisiert werden.** Eine
   Sicherheitslücke in Adminer ist ab dann eine Sicherheitslücke in SrvPanel, mit
   unserem Freigabelauf und unserer apt-Quelle. Adminer hat solche gehabt.
-- **„Anmeldung ohne Passwortweitergabe" ist genau der Punkt, der von Frage 3
-  abhängt.** Bei Möglichkeit (a) — Passwort nirgends abgelegt — braucht Adminer
-  denselben befristeten Benutzer wie das Zurückspielen (§10.2), also einen
-  Mechanismus, der eine Sitzung lang einen Datenbankzugang aufmacht. Das ist
-  baubar und es ist nicht wenig.
+- **„Anmeldung ohne Passwortweitergabe" hängt an Entscheidung 3.** Das Passwort
+  liegt nirgends; Adminer braucht damit denselben befristeten Benutzer wie das
+  Zurückspielen (§10.2), also einen Mechanismus, der eine Sitzung lang einen
+  Datenbankzugang aufmacht. Das ist baubar und es ist nicht wenig.
 
-**Empfehlung: aufschieben und in `docs/20 §15` als Punkt aufnehmen.** Die Stufe
-ist ohne ihn abnehmbar, und die Entscheidung wird besser, wenn PostgreSQL (Frage
-1) beantwortet ist — ein eingebettetes Werkzeug für zwei Datenbanksysteme ist
-eine andere Aufgabe als eines für ein System.
+**Er wird nach P5b entschieden**, nicht davor: Ein eingebettetes Werkzeug für
+zwei Datenbanksysteme ist eine andere Aufgabe als eines für eines. Bis dahin
+steht er als Punkt in `docs/20 §15`.
 
 ---
 
-## 14. PostgreSQL — Frage 1, und sie wird hier nicht beantwortet
+## 14. PostgreSQL — beantwortet: eigene Stufe P5b
 
-`docs/20 §15` führt sie als offenen Punkt 5: **„PostgreSQL wirklich in der 1.0
-oder nach hinten?"**, fällig „vor P5". Sie steht dem Betreiber zu und nicht
-diesem Dokument.
+`docs/20 §15` führte sie als offenen Punkt 5: **„PostgreSQL wirklich in der 1.0
+oder nach hinten?"**, fällig „vor P5". **Beantwortet am 7. August 2026: in der
+1.0, aber als eigene Stufe mit eigenem Plan (`docs/37`) und eigener Abnahme** —
+nicht als „zweiter Schritt der Stufe", wie `§9 P5` es formuliert hatte.
 
-Was für die Entscheidung auf dem Tisch liegen sollte:
+Was in diesem Abschnitt steht, ist damit keine Abwägung mehr, sondern die
+Übergabe an P5b — und die Liste dessen, was P5 dafür **unterlassen** muss:
 
-**Der Zuschnitt trägt.** Der Entwurf in diesem Dokument ist so gebaut, dass ein
-zweites System nichts umstösst: `agent/src/Db/` ist bereits nach Bausteinen
-getrennt, `Db\Session` ist die einzige Stelle, die `mysql` aufruft, und die
-Modelle tragen kein `mysql` im Namen. Was fehlte, wäre eine Spalte `engine` an
-`databases` und ein zweiter Satz Operationen. **Das ist eine Erweiterung und kein
-Umbau** — die Antwort „nach hinten" kostet später nicht mehr als jetzt.
+**Die Trennung ist die einzige Vorleistung, und sie ist eine Unterlassung.**
+`agent/src/Db/` ist nach Bausteinen getrennt, `Db\Session` ist die einzige
+Stelle, die `mysql` aufruft, und weder ein Modell noch eine Tabelle noch eine
+Spalte trägt `mysql` im Namen. Mehr baut P5 nicht vor: keine `engine`-Spalte auf
+Verdacht, keine Schnittstelle mit einer einzigen Umsetzung, keine Aufzählung mit
+einem Fall. **Eine Abstraktion für ein zweites System, das es noch nicht gibt,
+ist geraten** — und dieses Projekt hat mit `Feature::permission()` gerade erst
+aufgeschrieben, dass ein Nullfall in der falschen Richtung teurer ist als keiner.
 
-**Was PostgreSQL *nicht* umsonst mitbringt:**
+Was P5b zu leisten hat, steht in `docs/37` und nicht hier. Drei Punkte gehören
+aber jetzt schon aufgeschrieben, weil sie die Erwartung geraderücken, P5b sei
+„dasselbe noch einmal":
 
-- Ein eigenes Rechtemodell. `GRANT ALL ON DATABASE` in PostgreSQL erlaubt kein
-  Lesen der Tabellen; das läuft über Schemata und `ALTER DEFAULT PRIVILEGES`. Die
-  Isolationszusage aus §3.1 muss dort **neu** bewiesen werden, nicht übertragen —
-  und `datallowconn`/`pg_database` machen fremde Datenbanknamen standardmässig
-  sichtbar. Das Abnahmekriterium „sieht keine fremde Datenbank" bedeutet in
-  PostgreSQL etwas anderes und braucht eine eigene Antwort (`REVOKE CONNECT ON
-  DATABASE ... FROM PUBLIC`, und das reicht für die *Namen* nicht).
-- Ein zweiter Dienst, der laufen, gesichert und aktualisiert werden muss.
-- `pg_dump`/`pg_restore` auf der Positivliste, also zwei Pfade mehr.
-
-**Meine Einschätzung, ohne die Entscheidung zu treffen:** Der Anteil an
-PHP-Hosting-Kunden, die PostgreSQL verlangen, ist klein; der Anteil der Arbeit,
-den es an P5 anhängt, ist es nicht — es ist ungefähr eine zweite Stufe P5. Wenn
-die 1.0 näher rücken soll, ist das der offensichtliche Kandidat für §11 („Nach
-der 1.0"). Wenn es bleiben soll, gehört die Zeit **jetzt** eingeplant und nicht
-als „zweiter Schritt der Stufe" mitgeschleift.
+- **Ein eigenes Rechtemodell.** `GRANT ALL ON DATABASE` erlaubt in PostgreSQL
+  kein Lesen der Tabellen; das läuft über Schemata und `ALTER DEFAULT
+  PRIVILEGES`. Die Isolationszusage aus §3.1 muss dort **neu** bewiesen werden,
+  nicht übertragen.
+- **„Sieht keine fremde Datenbank" bedeutet dort etwas anderes.** `pg_database`
+  ist für jeden lesbar; `REVOKE CONNECT ON DATABASE ... FROM PUBLIC` nimmt die
+  Verbindung und nicht die Sichtbarkeit des **Namens**. Das Abnahmekriterium
+  braucht in P5b eine eigene Formulierung — und genau deshalb ist eine eigene
+  Abnahme die richtige Bauform.
+- **Ein zweiter Dienst und zwei Pfade mehr** auf der Positivliste des Runners
+  (`pg_dump`, `pg_restore`). P5 fügt dort nichts hinzu (§8); P5b tut es, und das
+  ist der sichtbare Preis.
 
 ---
 
@@ -887,9 +892,12 @@ als „zweiter Schritt der Stufe" mitgeschleift.
 Kein Schritt beginnt, bevor der vorige grün ist. Die CI läuft über
 `workflow_dispatch` auf dem Zweig — das ist hier die Testsuite (§18).
 
-### Schritt 0 — Die Fragen aus §19 beantworten
+### Schritt 0 — Die Fragen aus §19 beantworten ✓
 
-Ohne Antwort auf Frage 3 lässt sich Schritt 2 nicht schreiben.
+**Erledigt am 7. August 2026**, alle vier vorgelegten. Die Antworten stehen in
+§19 und sind in die Schritte eingearbeitet: Adminer entfällt, PostgreSQL wird
+`docs/37`, das Passwort liegt nirgends, der Fernzugriff braucht einen
+Betreiberschalter.
 
 ### Schritt 1 — Der Agent, und zwar der Weg zurück zuerst
 
@@ -983,11 +991,23 @@ falls ein `vendor/` erreichbar ist. Falls nicht, siehe §18 und §20.
 
 `srvpanel acceptance-db` auf dem Zielserver.
 
-### Aufgeschoben, bis der Betreiber entscheidet
+### Schritt 10 — Fernzugriff (§12)
 
-Schritt A — Fernzugriff (§12, Frage 5).
-Schritt B — Adminer (§13, Frage 4).
-Schritt C — PostgreSQL (§14, Frage 1).
+**Ganz am Ende und in einem eigenen Beitrag**, weil er als einziger Schritt dazu
+führt, dass ein Dienst auf einer erreichbaren Adresse horcht. Ohne ihn ist die
+Stufe abnehmbar; er gehört nicht in denselben Beitrag wie das Anlegen der ersten
+Datenbank.
+
+```
+agent/src/Ops/DbRemoteAccess.php     schreibt /etc/mysql/mariadb.conf.d/60-srvpanel.cnf
+app/Console/Commands/Databases.php   `srvpanel db --remote=on|off`
+packaging/                           der Include-Punkt in PackagingTest
+```
+
+### Nicht mehr in P5
+
+- **Adminer** — aufgeschoben (§13), als Punkt in `docs/20 §15`.
+- **PostgreSQL** — eigene Stufe P5b mit eigenem Plan `docs/37` (§14).
 
 ---
 
@@ -1213,19 +1233,71 @@ ist eingeplant und kein Grund, Schritte zusammenzuziehen.
 
 ---
 
-## 19. Die Fragen, die der Betreiber vorher beantwortet
+## 19. Die Entscheidungen des Betreibers
 
-| # | Frage | Blockiert | Empfehlung |
-|---|---|---|---|
-| 1 | **PostgreSQL in der 1.0 oder nach hinten?** (`docs/20 §15`, Punkt 5) | Schritt C, und die Zeitplanung der ganzen Stufe | keine — die Entscheidung steht dem Betreiber zu. Die Abwägung steht in §14. |
-| 2 | **Wird eine Datenbank beim Rückbau des Abonnements geworfen?** | Schritt 3 | **Ja**, über eigene Vorgänge vor `subscription.remove`, mit Abschrift und `nullOnDelete` als Auffanglinie und `srvpanel db prune` als Weg zurück (§5). Leitbild 4 lässt wenig anderes zu; eine Sicherung davor kommt mit P8, so wie `docs/26 §13` es für den übrigen Rückbau schon festhält. |
-| 3 | **Wo liegt das Datenbankpasswort?** (a) nirgends, (b) im Agenten, (c) im Panel verschlüsselt | Schritt 1 und 3 — ohne Antwort lässt sich `db.user.create` nicht schreiben | **(a) nirgends.** Begründung in §4. Der Preis ist ein Zurücksetzen statt eines Nachschlagens. |
-| 4 | **Adminer bauen, aufschieben oder streichen?** | Schritt B | **Aufschieben**, und als Punkt in `docs/20 §15` aufnehmen — nicht Teil des Abnahmekriteriums, grösste neue Angriffsfläche, und die Aufgabe ändert sich mit der Antwort auf Frage 1 (§13). |
-| 5 | **Fernzugriff auf MariaDB in der 1.0?** | Schritt A | Anbieten, aber **nur** nach ausdrücklichem `srvpanel db --remote=on` durch den Betreiber, nie durch ein Kundenhäkchen, und `%` als Wirt gar nicht (§12). Wenn die Antwort „nicht in der 1.0" lautet, entfällt Schritt A ganz. |
-| 6 | **Grenze für den Import.** | Schritt 6 | **512 MB**, über `Settings` änderbar (§10.3). |
+Getroffen am 7. August 2026, alle vier vorgelegten:
 
-Frage 1 ist die, die den Zuschnitt der Stufe bestimmt; Frage 3 die, ohne die
-nicht angefangen werden kann.
+1. **PostgreSQL bleibt in der 1.0 — aber als eigene Stufe P5b**, mit eigenem
+   Plan und eigener Abnahme. Damit ist `docs/20 §15` Punkt 5 beantwortet, und
+   zwar in einer dritten Form, die im Entwurf nicht stand: nicht „mitgeschleift
+   als zweiter Schritt der Stufe" und nicht „nach hinten", sondern **getrennt
+   abnehmbar**.
+
+   Das ist die Antwort, die den Zuschnitt aus §14 einlöst statt ihn nur zu
+   behaupten. Der Punkt dort war, dass ein zweites System eine Erweiterung ist
+   und kein Umbau — eine eigene Stufe ist die Bauform, in der das überprüfbar
+   wird: Wenn P5b `agent/src/Db/` nicht aufreissen muss, war die Trennung
+   richtig; wenn doch, fällt es auf, bevor MariaDB darunter leidet. Und die
+   Abnahme von P5 hängt nicht mehr an einem halbfertigen zweiten System.
+
+   **Folge für diesen Plan:** Schritt C entfällt hier und wird `docs/37`.
+   Was P5 dafür schuldet, ist keine Vorleistung, sondern eine Unterlassung —
+   nichts in `app/` oder in den Tabellen darf `mysql` im Namen tragen, und
+   `Db\Session` bleibt die einzige Stelle, die `mysql` aufruft. §21 rechnet P5b
+   nicht mit; es ist eine eigene Stufe mit eigenem Umfang.
+
+2. **Eine Datenbank wird beim Rückbau des Abonnements geworfen** — über eigene
+   Vorgänge vor `subscription.remove`, mit der Abschrift und `nullOnDelete` als
+   Auffanglinie und `srvpanel db prune` als Weg zurück (§5). Leitbild 4 lässt
+   wenig anderes zu; eine Sicherung davor kommt mit P8, so wie `docs/26 §13` es
+   für den übrigen Rückbau schon festhält.
+
+3. **Das Datenbankpasswort liegt nirgends** (§4, Möglichkeit a). Das Panel
+   erzeugt es, schickt es in einem unmittelbaren Aufruf an den Agenten, zeigt es
+   genau einmal und vergisst es. Zurücksetzen erzeugt ein neues. Das
+   Zurückspielen bekommt den befristeten Benutzer aus §10.2.
+
+   Damit ist auch entschieden, was §16.4 prüft: `db.user.create` und
+   `db.user.password` laufen nie über die Warteschlange, und weder `databases`
+   noch `db_users` bekommt eine Spalte, die ein Geheimnis aufnehmen könnte.
+
+4. **Adminer wird aufgeschoben** und als Punkt in `docs/20 §15` aufgenommen
+   (§13). Schritt B entfällt aus P5.
+
+   Mit Entscheidung 1 zusammen wird daraus mehr als ein Aufschub: Ein
+   eingebettetes Werkzeug für **zwei** Datenbanksysteme ist eine andere Aufgabe
+   als eines für eines, und es gehört nach P5b entschieden, nicht davor.
+
+5. **Fernzugriff kommt in die 1.0, aber nur nach einem Betreiberschalter**
+   (§12): `srvpanel db --remote=on` schreibt einen Include-Punkt unter
+   `/etc/mysql/mariadb.conf.d/`, nie eine Distributionsdatei. Solange
+   `bind-address` auf `127.0.0.1` steht, zeigt das Panel das Häkchen gar nicht
+   an — mit dem Grund daneben, nicht ausgeblendet. `%` als Wirt wird abgewiesen.
+   Die Oberfläche sagt ausdrücklich, dass die Beschränkung in MariaDB gilt und
+   nicht im Paketfilter; der kommt mit P9.
+
+   Schritt A bleibt damit, wandert aber ans Ende: Ohne ihn ist die Stufe
+   abnehmbar, mit ihm horcht ein Dienst auf einer erreichbaren Adresse. Das
+   gehört nicht in denselben Beitrag wie das Anlegen der ersten Datenbank.
+
+**Nicht vorgelegt, weil entscheidbar — und deshalb hier zum Widerspruch:**
+
+6. **Die Grenze für den Import ist 512 MB**, über `Settings` änderbar (§10.3).
+   Grösseres gehört in P8, wo es Sicherungsziele und Aufbewahrung gibt, und
+   nicht in ein Formularfeld.
+7. **Der Kunde wählt sein Datenbankpasswort nicht**, es wird erzeugt (§4). Das
+   ist umkehrbar, falls jemand beim Umzug einer Anwendung ein bestimmtes
+   braucht — dann ist es ein Feld mit einer Prüfregel und keine Architekturfrage.
 
 ---
 
@@ -1279,6 +1351,6 @@ nicht angefangen werden kann.
 | `packaging/` | — | `bin/srvpanel`, `srvpanel-usage` |
 | `docs/` | dieses | `20 §15`, `23`, `CHANGELOG`, `CLAUDE.md` |
 
-Geschätzt zwei bis drei Wochen ohne die aufgeschobenen Schritte — dieselbe
-Grössenordnung, die `docs/20 §9` für P5 nennt. Mit PostgreSQL ungefähr das
-Doppelte, und deshalb ist Frage 1 die erste.
+Geschätzt zwei bis drei Wochen — dieselbe Grössenordnung, die `docs/20 §9` für
+P5 nennt. **PostgreSQL ist darin nicht enthalten**; es ist mit Entscheidung 1
+eine eigene Stufe P5b mit eigenem Plan, eigenem Umfang und eigener Abnahme.

@@ -302,12 +302,40 @@ final class EnsureTls extends Command
     private function upload(Client $agent, Tenancy $tenancy, CertificateRecord $record, WebLifecycle $web): int
     {
         $name = $this->option('domain');
+
+        // **Erst die fehlenden Angaben, dann die Dateien — und nur eine
+        // Meldung je Ursache.**
+        //
+        // Vorher las diese Stelle beides auf einmal und schrieb danach in jedem
+        // Fall „Es fehlt eine Angabe". Wer einen unlesbaren Schlüssel angab,
+        // bekam zwei Sätze: den richtigen („nicht lesbar") und darunter einen
+        // falschen. Der zweite ist der, den man glaubt — und er schickt zur
+        // Kommandozeile statt zu den Dateirechten. Im Abnahmelauf am 7. August
+        // 2026 genau so passiert.
+        $fehlend = [];
+
+        foreach (['domain', 'certificate', 'key'] as $option) {
+            $value = $this->option($option);
+
+            if (! is_string($value) || trim($value) === '') {
+                $fehlend[] = '--'.$option;
+            }
+        }
+
+        if ($fehlend !== []) {
+            $this->error(sprintf(
+                'Es fehlt: %s — --domain, --certificate und --key gehören zusammen.',
+                implode(', ', $fehlend),
+            ));
+
+            return self::FAILURE;
+        }
+
         $chain = $this->contents($this->option('certificate'), 'certificate');
         $key = $this->contents($this->option('key'), 'key');
 
-        if (! is_string($name) || $name === '' || $chain === null || $key === null) {
-            $this->error('Es fehlt eine Angabe: --domain, --certificate und --key gehören zusammen.');
-
+        // `contents()` hat schon gesagt, woran es liegt.
+        if (! is_string($name) || $chain === null || $key === null) {
             return self::FAILURE;
         }
 
@@ -398,15 +426,67 @@ final class EnsureTls extends Command
             return null;
         }
 
-        if (! is_file($path) || ! is_readable($path)) {
-            $this->error(sprintf('--%s: Diese Datei gibt es nicht oder sie ist nicht lesbar: %s', $option, $path));
+        if (! is_file($path)) {
+            $this->error(sprintf('--%s: Diese Datei gibt es nicht: %s', $option, $path));
+
+            return null;
+        }
+
+        /*
+         * **„Nicht lesbar" ist ohne den Benutzer keine Auskunft.**
+         *
+         * `srvpanel` wechselt per `setpriv` auf den Dienstbenutzer, bevor
+         * artisan startet — gelesen wird also **nicht** als root. Ein privater
+         * Schlüssel, den ein Betreiber gerade mit `openssl req -keyout`
+         * angelegt hat, gehört root und steht auf 0600; dieses Kommando kommt
+         * nicht heran, und zwar immer.
+         *
+         * Ohne den Namen des Benutzers ist der naheliegende nächste Griff
+         * `chmod 644` auf einen privaten Schlüssel. Deshalb steht er dabei, und
+         * deshalb steht dabei, dass das Kommando nicht als root läuft.
+         */
+        if (! is_readable($path)) {
+            $this->error(sprintf(
+                '--%s: %s ist für den Benutzer %s nicht lesbar — dieses Kommando läuft nicht als root.',
+                $option,
+                $path,
+                $this->serviceUser(),
+            ));
 
             return null;
         }
 
         $contents = file_get_contents($path);
 
-        return is_string($contents) && trim($contents) !== '' ? $contents : null;
+        if (! is_string($contents) || trim($contents) === '') {
+            $this->error(sprintf('--%s: Diese Datei ist leer: %s', $option, $path));
+
+            return null;
+        }
+
+        return $contents;
+    }
+
+    /**
+     * Als wer dieses Kommando gerade liest.
+     *
+     * `posix_geteuid()` und nicht `get_current_user()`: Das zweite nennt den
+     * Eigentümer der Skriptdatei und nicht den Benutzer des Prozesses — auf
+     * einem Panel, das per `setpriv` wechselt, sind das zwei verschiedene
+     * Antworten, und die falsche schickt den Betreiber in die Irre.
+     */
+    private function serviceUser(): string
+    {
+        if (! function_exists('posix_geteuid') || ! function_exists('posix_getpwuid')) {
+            return 'des Dienstes';
+        }
+
+        // `posix_getpwuid()` gibt `false`, wenn es den Eintrag nicht gibt —
+        // sonst steht `name` darin, und zwar als Zeichenkette. Eine zweite
+        // Prüfung darauf wäre ein Zweig, den nichts erreichen kann.
+        $user = posix_getpwuid(posix_geteuid());
+
+        return $user === false ? 'des Dienstes' : $user['name'];
     }
 
     private function storeAcme(AcmeSettings $settings, mixed $contact, mixed $directory): int

@@ -4510,3 +4510,40 @@ sie als **Fehler** und nicht als Auskunft: Wer den Lauf aus einem Skript fährt,
 sieht sonst nichts.
 
 Drei Wächter, zwei Brüche — die fehlende Angabe und der stille Rückschritt.
+
+#### Zwei Meldungen für eine Ursache, und die falsche stand unten
+
+**Aus dem Abnahmelauf, Schritt „verkehrte Kette".** `srvpanel tls --upload` mit
+einem frisch angelegten privaten Schlüssel:
+
+```
+--key: Diese Datei gibt es nicht oder sie ist nicht lesbar: /tmp/pk.pem
+Es fehlt eine Angabe: --domain, --certificate und --key gehören zusammen.
+```
+
+Der erste Satz war richtig, der zweite falsch — die Angabe war da. **Und der
+zweite ist der, den man glaubt:** Er steht zuletzt und klingt allgemeiner, also
+sucht man den Fehler in der Kommandozeile, wo alles stimmt.
+
+Ursache war eine Hilfsmethode, die `null` für zwei verschiedene Dinge zurückgab
+— „nicht angegeben" und „angegeben, aber nicht lesbar" —, und ein Aufrufer, der
+beides gleich behandelte. Geprüft werden jetzt erst die Angaben, dann die
+Dateien, und jede Ursache meldet sich einmal.
+
+**Der eigentliche Stolperstein steht jetzt in der Meldung.** `srvpanel` wechselt
+per `setpriv` auf den Dienstbenutzer, bevor artisan startet — gelesen wird also
+**nicht** als root. Ein privater Schlüssel, den ein Betreiber gerade mit
+`openssl req -keyout` angelegt hat, gehört root und steht auf 0600; dieses
+Kommando kommt nicht heran, und zwar immer. Ohne diesen Hinweis ist der
+naheliegende nächste Griff `chmod 644` auf einen privaten Schlüssel. Die Meldung
+nennt deshalb den Benutzer und sagt dazu, dass das Kommando nicht als root
+läuft.
+
+Der Name kommt aus `posix_geteuid()` und nicht aus `get_current_user()` — das
+zweite nennt den Eigentümer der Skriptdatei, und auf einem Panel, das die
+Rechte wechselt, sind das zwei verschiedene Antworten.
+
+**Was der Wächter nicht prüft:** den unlesbaren Fall selbst. Die Tests laufen in
+der CI als root, und root liest auch 0600. Geprüft werden die beiden Ausgänge,
+die sich herstellen lassen — fehlende Angabe und fehlende Datei —, und dass
+keiner die Meldung des anderen mitbringt.

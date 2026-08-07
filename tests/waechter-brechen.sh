@@ -2814,6 +2814,29 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateRenewalTest passed
 
 echo
+echo "── CertificateUploadCommandTest: zwei Meldungen für eine Ursache ──"
+#
+# **Aus dem Abnahmelauf, 7. August 2026.** Ein unlesbarer Schlüssel brachte zwei
+# Sätze: den richtigen („nicht lesbar") und darunter „Es fehlt eine Angabe" —
+# und der zweite ist der, den man glaubt. Er schickt zurück an die
+# Kommandozeile, wo alles stimmt, statt zu den Dateirechten.
+vorher_datei app/Console/Commands/EnsureTls.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/EnsureTls.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        // `contents()` hat schon gesagt, woran es liegt.\n        if (! is_string($name) || $chain === null || $key === null) {\n            return self::FAILURE;\n        }",
+    "        if (! is_string($name) || $chain === null || $key === null) {\n            $this->error('Es fehlt: eine Angabe.');\n\n            return self::FAILURE;\n        }",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/EnsureTls.php "Datei und Angabe in einem Topf" &&
+pruefe "Datei und Angabe in einem Topf" \
+  CertificateUploadCommandTest::test_a_missing_file_is_named_and_no_option_is_blamed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateUploadCommandTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

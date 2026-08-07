@@ -7,6 +7,7 @@ namespace SrvPanel\Agent;
 use SrvPanel\Agent\Ops\AcmeAccount;
 use SrvPanel\Agent\Ops\AcmeCertificate;
 use SrvPanel\Agent\Ops\AcmeCertificateInfo;
+use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
@@ -87,6 +88,7 @@ final class Registry
         $this->register(new AcmeAccount);
         $this->register(new AcmeCertificate);
         $this->register(new AcmeCertificateInfo);
+        $this->register(new AcmeCertificateRemove);
         $this->register(new CertificateUpload);
         $this->register(new DnsCredentialStore);
         $this->register(new DnsCredentialList);

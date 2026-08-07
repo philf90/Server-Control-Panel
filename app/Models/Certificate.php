@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\CertificateSource;
 use App\Enums\CertificateStatus;
 use App\Models\Concerns\BelongsToSubscription;
+use App\Support\Tenancy\Tenancy;
 use Database\Factories\CertificateFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,6 +33,7 @@ use SrvPanel\Agent\DomainName;
  *
  * @property int $id
  * @property int|null $subscription_id
+ * @property string|null $subscription_name
  * @property list<string>|null $names
  * @property string|null $storage_name
  * @property CertificateStatus $status
@@ -51,6 +53,14 @@ class Certificate extends Model
 
     /** @use HasFactory<CertificateFactory> */
     use HasFactory;
+
+    /*
+     * `subscription_name` steht mit Absicht **nicht** darin.
+     *
+     * Es ist eine Abschrift und keine Eingabe — dieselbe Regel wie bei
+     * {@see Operation::$fillable}. Geschrieben wird sie ausschliesslich in
+     * {@see self::booted()}.
+     */
 
     /** @var list<string> */
     protected $fillable = [
@@ -72,16 +82,59 @@ class Certificate extends Model
         ];
     }
 
+    /**
+     * Der Name des Abonnements wird beim Anlegen abgeschrieben.
+     *
+     * **Damit ein verwaistes Zertifikat nicht aussieht wie das der
+     * Oberfläche.** Beide tragen nach dem Rückbau `subscription_id = null`;
+     * unterschieden werden sie allein an dieser Abschrift. Ohne sie führe
+     * `srvpanel tls prune` das Zertifikat der Oberfläche als Waise — und
+     * entfernte den privaten Schlüssel, mit dem das Panel antwortet.
+     *
+     * Am Modell und nicht an den Aufrufern, aus demselben Grund wie bei
+     * {@see Operation}: Zertifikate entstehen an mehreren Stellen.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Certificate $certificate): void {
+            if ($certificate->subscription_id === null || $certificate->subscription_name !== null) {
+                return;
+            }
+
+            $name = app(Tenancy::class)->withoutRestriction(
+                static fn (): mixed => Subscription::query()
+                    ->whereKey($certificate->subscription_id)
+                    ->value('name'),
+            );
+
+            $certificate->subscription_name = is_string($name) ? $name : null;
+        });
+    }
+
     /** @return HasMany<Domain, $this> */
     public function domains(): HasMany
     {
         return $this->hasMany(Domain::class);
     }
 
-    /** Gehört dieses Zertifikat der Oberfläche und keinem Kunden? */
+    /**
+     * Gehört dieses Zertifikat der Oberfläche und keinem Kunden?
+     *
+     * **Die Abschrift gehört zur Frage, seit es Waisen gibt.** Bis August 2026
+     * reichte `subscription_id === null`; seit docs/35 ein zurückgebautes
+     * Abonnement hart gelöscht wird, trägt auch sein Zertifikat diese Null.
+     * Ohne den zweiten Teil hielte jede Aufräumfunktion das Zertifikat der
+     * Oberfläche für einen Rest — und umgekehrt.
+     */
     public function forPanel(): bool
     {
-        return $this->subscription_id === null;
+        return $this->subscription_id === null && $this->subscription_name === null;
+    }
+
+    /** Ein Zertifikat, dessen Abonnement zurückgebaut wurde — die Datei liegt noch. */
+    public function orphaned(): bool
+    {
+        return $this->subscription_id === null && $this->subscription_name !== null;
     }
 
     /**

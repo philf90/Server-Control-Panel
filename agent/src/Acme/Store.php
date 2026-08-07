@@ -116,6 +116,73 @@ final class Store
         ];
     }
 
+    /**
+     * Ein abgelegtes Zertifikat entfernen — Kette, Schlüssel, Verzeichnis.
+     *
+     * **Warum es das erst seit August 2026 gibt.** Bis dahin konnte dieses
+     * System ein Zertifikat anlegen und erneuern, aber nirgends löschen — weder
+     * im Panel noch hier. Ein zurückgebautes Abonnement liess seine
+     * Zertifikatsverzeichnisse liegen, **samt privatem Schlüssel**, und
+     * `subscription.remove` räumt sie nicht mit weg: Der Ablageort liegt
+     * ausserhalb des Abo-Verzeichnisses. Aufgefallen ist das erst, als die
+     * Migration aus docs/35 zwölf davon auf dem Zielserver fand.
+     *
+     * **Kein rekursives Löschen.** Entfernt werden genau die Dateien, die
+     * {@see self::write()} anlegt, plus die Zwischendatei eines abgebrochenen
+     * Schreibvorgangs. Danach `rmdir` — liegt dort noch etwas, bleibt das
+     * Verzeichnis stehen und der Rest wird gemeldet. Ein `rm -rf` auf einen
+     * Pfad, der aus einem Namen entsteht, wäre in einem Prozess mit
+     * Systemrechten genau die Freiheit, die dieses Projekt nirgends gewährt.
+     *
+     * **Wiederholbar**: Ein Zertifikat, das es nicht mehr gibt, ist der
+     * gewünschte Zustand.
+     *
+     * @return array{directory: string, removed: bool, left_behind: list<string>}
+     */
+    public function remove(string $name): array
+    {
+        $directory = $this->directory($name);
+
+        // **Die Eindämmung wird geprüft und nicht angenommen.** Sie folgt schon
+        // aus {@see CertificateName::normalize()} — ein Name mit `/` oder `..`
+        // kommt dort nicht durch. Hier löscht aber root, und eine Zusicherung,
+        // die nur woanders steht, ist die Sorte Beleg, die dieses Projekt
+        // mehrfach eingeholt hat.
+        if (dirname($directory) !== $this->root) {
+            throw AgentException::execFailed('Ablageort liegt nicht im Zertifikatsverzeichnis: '.$directory);
+        }
+
+        // Ein Symlink wird nicht verfolgt: `is_dir` täte es, und dann zeigte
+        // das Löschen woandershin als das Verzeichnis, das gemeint war.
+        if (is_link($directory)) {
+            throw AgentException::execFailed('Ablageort ist eine Verknüpfung: '.$directory);
+        }
+
+        if (! is_dir($directory)) {
+            return ['directory' => $directory, 'removed' => false, 'left_behind' => []];
+        }
+
+        foreach (['fullchain.pem', 'privkey.pem', 'fullchain.pem.neu', 'privkey.pem.neu'] as $file) {
+            $path = $directory.'/'.$file;
+
+            if (is_file($path) && ! is_link($path)) {
+                @unlink($path);
+            }
+        }
+
+        $left = array_values(array_diff(scandir($directory) ?: [], ['.', '..']));
+
+        if ($left !== []) {
+            return ['directory' => $directory, 'removed' => false, 'left_behind' => $left];
+        }
+
+        if (! @rmdir($directory)) {
+            throw AgentException::execFailed('Ablageort liess sich nicht entfernen: '.$directory);
+        }
+
+        return ['directory' => $directory, 'removed' => true, 'left_behind' => []];
+    }
+
     private function put(string $path, string $contents, int $mode): void
     {
         $temp = $path.'.neu';

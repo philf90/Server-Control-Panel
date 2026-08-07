@@ -4883,3 +4883,56 @@ Eingriff, der in `withdraw()` `delete()` statt `forceDelete()` schreibt. Ohne
 Wächter, der ihn überlebt, sähe gesund aus. An seiner Stelle stehen zwei
 Brüche, die es gibt: die Vorgänge, die am Abonnement hängen bleiben, und ein
 `Subscription`, das seinen Trait zurückbekommt.
+
+### Ein Zertifikat liess sich nicht löschen — vier Monate lang, unbemerkt
+
+Der Purge aus docs/35 ist auf dem Zielserver **abgebrochen**, und der Wächter
+hatte recht: An zurückgebauten Abonnements hingen noch zwölf Zertifikate.
+`certificates.subscription_id` stand auf `cascadeOnDelete` — die Zeilen wären
+mitgegangen, die Dateien unter `/etc/srvpanel/tls/certs` nicht. Die gehören dem
+Agenten. Zurückgeblieben wären zwölf Verzeichnisse mit **privaten Schlüsseln**,
+auf die nichts mehr zeigt.
+
+**Der eigentliche Fehler ist älter und grösser als der Abbruch.** Dieses System
+konnte ein Zertifikat anlegen und erneuern — aber **nirgends löschen**. Nicht im
+Panel, nicht im Agenten: `Acme\Store` kannte `write` und `existing` und sonst
+nichts. `subscription.remove` räumt drei Dinge ausserhalb des Abo-Verzeichnisses
+weg, den Ablageort der Zertifikate nicht. Jedes zurückgebaute Abonnement liess
+seinen privaten Schlüssel liegen, seit es Kundenzertifikate gibt. Aufgefallen
+ist es erst, als eine Migration danach fragte — vorher hielt der Grabstein die
+Zeile am Leben, und niemand hatte einen Anlass, sie anzusehen.
+
+Behoben mit `acme.certificate.remove` im Agenten und `srvpanel tls --prune`.
+Der Rückbau löst seine Zertifikate seitdem ab, statt sie kaskadieren zu lassen —
+dieselbe Form wie bei den Vorgängen, und aus demselben Grund: Die Zeile ist der
+einzige Wegweiser auf die Datei.
+
+**Und die Diagnose hat eine Falle gefunden, bevor sie zuschlug.** Zwei
+Zertifikate können denselben Ablageort nennen. Auf dem Server war
+`cloudlab24.de` genau so ein Fall: einmal an einem zurückgebauten Abonnement,
+einmal an einem **lebenden**. Ein `rm -rf` je Zeile hätte eine laufende Website
+abgeschossen. Aufgeräumt wird deshalb je Ablageort, und nur wenn ihn keine Zeile
+mehr nennt, die kein Waise ist. Auch unter den zwölf wiederholten sich
+Ablageorte — Erneuerungen legen eine zweite Zeile auf dasselbe Verzeichnis.
+
+**Das Zertifikat der Oberfläche ist die gefährlichste Verwechslung dabei.** Es
+trägt `subscription_id = null`, und ein verwaistes seit dem harten Löschen
+ebenfalls. Unterschieden werden sie allein an der Abschrift
+`subscription_name`; ohne sie hielte das Aufräumen den Schlüssel, mit dem das
+Panel antwortet, für einen Rest. `Certificate::forPanel()` fragte bis hierher
+nur nach der Null — die Methode war ungenutzt und wäre beim ersten Aufruf falsch
+gewesen.
+
+### Der zweite Befund: eine halb migrierte Datenbank
+
+Auf dem Server liefen Migration 1 und 2 durch, die dritte nicht — und der Code
+rollte auf die vorige Fassung zurück, die das Verzeichnis der Systembenutzer
+nicht kennt. Ein Abonnement, das in diesem Zustand entsteht, fehlt darin. Beim
+zweiten Anlauf wird Migration 1 übersprungen, denn sie gilt als erledigt, und
+der Name wäre für immer draussen: `nextSystemUser()` vergäbe ihn ein zweites
+Mal. **Der Umbau hätte sich durch seinen eigenen Fehlschlag genau den Fehler
+eingeschleppt, gegen den er gebaut ist.**
+
+Migration 3 gleicht deshalb erst ab — lebende Abonnements und Grabsteine — und
+prüft danach. Was sie nachträgt, schreibt sie hin; stillschweigend zu heilen
+wäre dieselbe Sorte Nebenwirkung, die diesen Umbau nötig gemacht hat.

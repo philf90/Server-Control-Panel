@@ -737,7 +737,14 @@ Ehrlich benannt, weil §7 es verlangt:
   Prüfungen in `SystemUserLedgerTest` und des geschärften
   `RestrictedDeleteTest`.
 
-- **Die Datenmigrationen sind damit noch immer nicht auf MariaDB gelaufen.**
+- **Nachtrag vom Abnahmelauf: das Schema ist auf MariaDB gelaufen.** Die
+  Installationsjobs der CI fahren `srvpanel setup`, und das ruft
+  `Artisan::call('migrate', ['--force' => true])` gegen eine frisch angelegte
+  MariaDB. `Schema::create('system_users')`, der `dropForeign`/`nullOnDelete`
+  auf `operations` und `dropSoftDeletes()` sind damit auf beiden Treibern
+  belegt. Die **Daten**migration nicht: Die Datenbank ist dabei leer.
+
+- **Die Datenmigrationen sind damit noch immer nicht auf echten Daten gelaufen.**
   Grün ist SQLite. Was auf dem Server anders ist — `dropForeign`, die
   Fremdschlüsselumstellung, `dropSoftDeletes` auf einer Tabelle mit Daten —,
   steht erst nach §10 fest. Die zentrale Invariante aus Kriterium 3 ist
@@ -942,3 +949,118 @@ mariadb srvpanel < /root/vor-35.sql
 
 Die `down()`-Methoden stellen die Spalten wieder her und **keine einzige Zeile**.
 Der Dump aus 10.1 ist der Rückweg.
+
+
+---
+
+## 11. Der erste Abnahmelauf — Abbruch, und was er zutage gebracht hat
+
+**7. August 2026, `v0.4.1-rc.1` auf `cloudsrv24`.** Migration 1 und 2 liefen
+durch, Migration 3 brach ab:
+
+    An zurückgebauten Abonnements hängen noch 12 Zertifikate.
+
+Der Rückweg griff, das Panel lief auf `0.4.0-rc.13` weiter, verloren ging
+nichts. Der Wächter hat getan, wofür er da war — und dabei zwei Dinge
+aufgedeckt, die grösser sind als der Abbruch.
+
+### 11.1 Ein Zertifikat liess sich in diesem System nicht löschen
+
+Nicht im Panel, nicht im Agenten. `Acme\Store` kannte `write()` und
+`existing()`; ein `remove()` gab es nicht, und `Certificate` hatte keinen
+Löschpfad. `subscription.remove` räumt drei Dinge ausserhalb des
+Abo-Verzeichnisses weg — nginx-Block, FPM-Pool, logrotate —, den Ablageort der
+Zertifikate nicht: Der liegt unter `/etc/srvpanel/tls/certs`.
+
+**Jedes zurückgebaute Abonnement liess damit seinen privaten Schlüssel
+liegen**, seit es Kundenzertifikate gibt. Unbemerkt, weil der Grabstein die
+Zeile am Leben hielt und niemand einen Anlass hatte, sie anzusehen. Erst die
+Frage dieser Migration hat es sichtbar gemacht.
+
+Das ist die dritte Stelle, an der der Plan nicht trug, und die teuerste: §4
+Schritt 0 sagt „anhalten und entscheiden", nimmt also an, dass es einen Weg
+gibt, es von Hand richtig zu machen. Den gab es nicht.
+
+### 11.2 Zwei Zertifikate können denselben Ablageort haben
+
+Die Diagnose hat das gefunden, bevor es zuschlug:
+
+    | storage_name  | zeilen | lebend | tot |
+    | cloudlab24.de |      2 |      1 |   1 |
+
+`cloudlab24.de` gehörte einem zurückgebauten **und** einem lebenden Abonnement.
+Ein `rm -rf` je Zeile hätte eine laufende Website abgeschossen. Auch unter den
+zwölf selbst wiederholten sich Ablageorte — `cloudlab24.ipv64.de` bei zwei
+Zeilen, `_wildcard.cloudlab24.ipv64.de` ebenfalls: Erneuerungen legen eine neue
+Zeile auf dasselbe Verzeichnis.
+
+**Aufgeräumt wird deshalb je Ablageort und nur, wenn ihn keine Zeile mehr nennt,
+die kein Waise ist.** Das Zertifikat der Oberfläche zählt dabei mit: Es trägt
+ebenfalls `subscription_id = null`, und ohne die Abschrift `subscription_name`
+wäre es von einem Waisen nicht zu unterscheiden.
+
+### 11.3 Eine halb migrierte Datenbank ist eine eigene Gefahr
+
+Nach dem Abbruch war Migration 1 angewandt und vermerkt, 3 nicht, und der Code
+zurückgerollt auf eine Fassung, die `system_users` nicht kennt. Ein Abonnement,
+das in diesem Zustand entsteht, fehlt im Verzeichnis — und beim zweiten Anlauf
+wird Migration 1 übersprungen. Der Name wäre für immer draussen und würde ein
+zweites Mal vergeben.
+
+Migration 3 gleicht deshalb ab, bevor sie prüft. **Bis das Update durch ist,
+werden auf dem Server keine Abonnements angelegt oder zurückgebaut.**
+
+### 11.4 Was daraus gebaut wurde
+
+| | |
+|---|---|
+| `agent/src/Acme/Store.php` | `remove()` — kein `rm -rf`, kein Symlink, Eindämmung geprüft |
+| `agent/src/Ops/AcmeCertificateRemove.php` | `acme.certificate.remove` |
+| `..._100150_certificates_survive_a_deleted_subscription.php` | Abschrift + `nullOnDelete` |
+| `..._100200_withdrawn_subscriptions_are_gone.php` | gleicht das Verzeichnis ab, löst Zertifikate ab |
+| `App\Support\Tls\CertificatePrune` | die Auswahl, an einer Stelle |
+| `srvpanel tls --prune` | räumt auf, mit `--dry-run` |
+| `Certificate::forPanel()` | fragt jetzt auch die Abschrift |
+
+Wächter: `CertificatePruneTest` (fünf Prüfungen, darunter der geteilte Ablageort
+und das Zertifikat der Oberfläche) und `CertificateStoreTest` (Eindämmung,
+Symlink, Fremddatei, sechs Ausbruchsversuche). Vier neue Brüche.
+
+### 11.5 Der zweite Anlauf
+
+```bash
+# 1. Sicherung — der Purge hat weiterhin keinen Rückweg.
+mariadb-dump srvpanel > /root/vor-35-zweiter-anlauf.sql
+
+# 2. Vorflug wie in §10.1. Zusätzlich, weil jetzt bekannt ist, wonach zu sehen ist:
+mariadb srvpanel -e "
+SELECT c.storage_name, COUNT(*) zeilen,
+       SUM(s.deleted_at IS NULL) lebend, SUM(s.deleted_at IS NOT NULL) tot
+FROM certificates c JOIN subscriptions s ON s.id = c.subscription_id
+GROUP BY c.storage_name HAVING tot > 0;
+"
+
+# 3. Update. Migration 1 und 2 gelten als erledigt, es läuft nur noch 100150
+#    und 100200. Die Zeile „Verzeichnis nachgezogen: …" ist keine Warnung,
+#    sondern die Auskunft, dass der Abgleich gegriffen hat.
+srvpanel update
+
+# 4. Die zwölf aufräumen — erst ansehen, dann tun.
+srvpanel tls --prune --dry-run
+srvpanel tls --prune
+
+# 5. Gegenprobe: kein privater Schlüssel eines zurückgebauten Abos mehr da.
+ls -la /etc/srvpanel/tls/certs/
+mariadb srvpanel -e "
+SELECT COUNT(*) verwaist FROM certificates
+WHERE subscription_id IS NULL AND subscription_name IS NOT NULL;
+"
+```
+
+Erwartet bei Schritt 4: `cloudlab24.de` erscheint als „Ablageort bleibt — er
+wird noch gebraucht"; die übrigen Ablageorte werden entfernt. Erwartet bei
+Schritt 5: `verwaist = 0`, und `cloudlab24.de` sowie `cloudsrv24.de` liegen
+noch im Verzeichnis — das eine für das lebende Abonnement, das andere für die
+Oberfläche.
+
+Danach die elf Kriterien aus §10.3.

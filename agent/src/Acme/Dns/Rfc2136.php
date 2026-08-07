@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Acme\Dns;
 
+use SrvPanel\Agent\Acme\Patience;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\DomainName;
 
@@ -42,6 +43,12 @@ final class Rfc2136 implements DnsProvider
     public const TTL = 60;
 
     public const PORT = 53;
+
+    /** Wie lange auf die Sichtbarkeit gewartet wird — die Zahl von lego (`docs/34 §11`). */
+    public const PATIENCE_SECONDS = 60;
+
+    /** Und in welchem Abstand nachgefragt wird. */
+    public const PATIENCE_INTERVAL = 2;
 
     /**
      * @param  list<string>  $zones  Die Zonen, die dieses Profil ändern darf
@@ -187,19 +194,15 @@ final class Rfc2136 implements DnsProvider
     /**
      * Zu welcher der hinterlegten Zonen gehört dieser Name?
      *
-     * Die längste gewinnt — siehe die Klassenbeschreibung. Gehört er zu keiner,
-     * ist das kein Grund, es trotzdem zu versuchen: Der Nameserver würde
-     * ablehnen, und die Meldung dazu nennt den Grund nicht.
+     * Die längste gewinnt, und der Abgleich steht in {@see Zones} — dieselbe
+     * Regel gilt bei jedem Anbieter, und sie stand hier einmal zu oft. Gehört
+     * der Name zu keiner Zone, ist das kein Grund, es trotzdem zu versuchen:
+     * Der Nameserver würde ablehnen, und die Meldung dazu nennt den Grund
+     * nicht.
      */
     private function zoneFor(string $record): string
     {
-        $found = null;
-
-        foreach ($this->zones as $zone) {
-            if (Name::within($record, $zone) && ($found === null || strlen($zone) > strlen($found))) {
-                $found = $zone;
-            }
-        }
+        $found = Zones::pick($record, $this->zones);
 
         if ($found === null) {
             throw AgentException::badRequest(
@@ -227,5 +230,15 @@ final class Rfc2136 implements DnsProvider
         }
 
         return $value;
+    }
+
+    /**
+     * Wie lange es hier dauert, bis der Eintrag draussen ist.
+     *
+     * Ein Nameserver, den der Betreiber selbst betreibt, liefert die Änderung sofort aus.
+     */
+    public function patience(): Patience
+    {
+        return new Patience(self::PATIENCE_SECONDS, self::PATIENCE_INTERVAL);
     }
 }

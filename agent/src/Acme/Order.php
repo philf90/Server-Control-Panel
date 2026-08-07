@@ -169,19 +169,41 @@ final class Order
         return ['domain' => $domain, 'token' => $token];
     }
 
+    /**
+     * Warten, bis die Aufgabe von aussen sichtbar ist.
+     *
+     * **Die Frist kommt von der Prüfung und nicht von hier.** Bis zum
+     * 7. August 2026 galten für jede Bestellung dieselben 120 Sekunden. Das ist
+     * kürzer, als lego für netcup und IONOS für nötig hält (900 Sekunden) und
+     * für INWX (360) — und eine Bestellung, die zu früh aufgibt, verbrennt
+     * einen der fünf Fehlversuche je Konto und Stunde, die für **jeden** Kunden
+     * dieses Servers gelten. Umgekehrt hiesse eine Frist von fünfzehn Minuten
+     * für alle, dass eine hängende Bestellung eine Operation des Agenten eine
+     * Viertelstunde festhält.
+     *
+     * **Das Warten auf die Zertifizierungsstelle bleibt davon unberührt** —
+     * dafür steht weiter {@see self::$timeoutSeconds}. Wie schnell ein
+     * DNS-Anbieter seine Zone ausliefert und wie schnell Let's Encrypt eine
+     * Autorisierung abschliesst, sind zwei verschiedene Fragen.
+     */
     private function awaitReady(string $domain, string $token, string $keyAuthorization): void
     {
-        $deadline = time() + $this->timeoutSeconds;
+        $patience = $this->challenge->patience();
+        $deadline = time() + $patience->seconds;
 
         while (! $this->challenge->ready($domain, $token, $keyAuthorization)) {
             if (time() >= $deadline) {
                 throw new AgentException(
                     AgentException::TIMEOUT,
-                    sprintf('Die Aufgabe für %s war nicht rechtzeitig von aussen sichtbar.', $domain),
+                    sprintf(
+                        'Die Aufgabe für %s war nicht innerhalb von %d Sekunden von aussen sichtbar.',
+                        $domain,
+                        $patience->seconds,
+                    ),
                 );
             }
 
-            sleep($this->pollSeconds);
+            sleep($patience->interval);
         }
     }
 

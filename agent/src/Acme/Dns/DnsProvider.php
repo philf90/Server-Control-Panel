@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Acme\Dns;
 
+use SrvPanel\Agent\Acme\Patience;
+
 /**
  * Wer für die Prüfung einen TXT-Eintrag anlegt und wieder abräumt.
  *
@@ -43,4 +45,18 @@ interface DnsProvider
      * zweiten verwandeln.
      */
     public function remove(string $record, string $value): void;
+
+    /**
+     * Wie lange es bei diesem Anbieter dauert, bis der Eintrag draussen ist.
+     *
+     * **Ohne Vorgabe in der Schnittstelle, und das ist der Punkt.** Bis zum
+     * 7. August wartete jede Bestellung dieselben 120 Sekunden — kürzer, als
+     * lego für netcup und IONOS für nötig hält (900) und für INWX (360). Eine
+     * Bestellung, die zu früh aufgibt, verbrennt einen der fünf Fehlversuche je
+     * Konto und Stunde, und die gelten für **jeden** Kunden dieses Servers.
+     *
+     * Eine geerbte Vorgabe wäre die, die beim nächsten Anbieter zu kurz ist.
+     * Also sagt es jeder selbst, und PHP besteht darauf.
+     */
+    public function patience(): Patience;
 }

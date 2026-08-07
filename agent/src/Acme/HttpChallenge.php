@@ -37,6 +37,11 @@ final class HttpChallenge implements Challenge
     /** Der Pfad aus der Adresse — er ist Teil des Ablageorts, siehe oben. */
     public const PREFIX = '/.well-known/acme-challenge';
 
+    /** Die Datei liegt sofort — hier zählen Sekunden, nicht Minuten. */
+    public const PATIENCE_SECONDS = 30;
+
+    public const PATIENCE_INTERVAL = 2;
+
     public function __construct(private readonly string $directory = self::DIRECTORY) {}
 
     public function type(): string
@@ -107,6 +112,19 @@ final class HttpChallenge implements Challenge
     public function ready(string $domain, string $token, string $keyAuthorization): bool
     {
         return is_file($this->file($token));
+    }
+
+    /**
+     * Die Datei liegt, sobald sie geschrieben ist.
+     *
+     * Gewartet wird trotzdem kurz: Zwischen dem Schreiben und dem ersten
+     * erfolgreichen Lesen liegt bei einem gemounteten Dateisystem
+     * gelegentlich ein Augenblick. Was hier zählt, ist der Unterschied zu
+     * DNS-01 — dort sind es Minuten, hier Sekunden.
+     */
+    public function patience(): Patience
+    {
+        return new Patience(self::PATIENCE_SECONDS, self::PATIENCE_INTERVAL);
     }
 
     public function cleanup(string $domain, string $token): void

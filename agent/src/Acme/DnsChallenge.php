@@ -68,6 +68,19 @@ final class DnsChallenge implements Challenge
     }
 
     /**
+     * Die Geduld kommt vom Anbieter.
+     *
+     * **Es gibt sie hier nicht als eigene Zahl**, weil sie keine Eigenschaft
+     * von DNS-01 ist, sondern eine des Anbieters: netcup braucht bis zu
+     * fünfzehn Minuten, IPv64.net eine. Eine Zahl an dieser Stelle wäre die,
+     * die für einen von beiden falsch ist.
+     */
+    public function patience(): Patience
+    {
+        return $this->provider->patience();
+    }
+
+    /**
      * Der Wert, den die Zertifizierungsstelle sehen will.
      *
      * Base64url über den SHA-256 der Schlüsselautorisierung, ohne die

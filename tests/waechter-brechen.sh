@@ -1488,21 +1488,25 @@ pruefe "Zone als Zeichenkette verglichen" \
 wiederherstellen
 
 echo
-echo "── Rfc2136Test: ein Anbieter ohne Umsetzung gilt als fertig ──"
+echo "── ProvidersTest: ein Anbieter ohne Umsetzung gilt als angeboten ──"
 #
-# Ein Schlüssel, der weder gebaut ist noch als offen dasteht, ist genau die
+# Ein Schlüssel, der weder gebaut ist noch zurückgehalten wird, ist genau die
 # Zeichenkette, die auf nichts zeigt — und sie fiele erst beim ersten
-# Zertifikat auf, mit einem Token, das längst auf der Platte liegt.
+# Zertifikat auf, mit einem Geheimnis, das längst auf der Platte liegt.
 vorher_datei agent/src/Acme/Dns/Providers.php
 python3 - <<'PY2'
 p = 'agent/src/Acme/Dns/Providers.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("        self::HETZNER,\n", "")
+# Ein neunter Schlüssel, den es nur als Etikett gibt: weder gebaut noch offen.
+s = s.replace(
+    "        self::DESEC => 'deSEC',\n",
+    "        self::DESEC => 'deSEC',\n        'erfunden' => 'Erfunden',\n",
+)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Acme/Dns/Providers.php "Anbieter ohne Umsetzung nicht als offen geführt" &&
 pruefe "Anbieter ohne Umsetzung nicht als offen geführt" \
-  Rfc2136Test::test_every_provider_key_points_at_something failed
+  ProvidersTest::test_every_provider_key_points_at_something failed
 wiederherstellen
 
 echo
@@ -1776,6 +1780,788 @@ pruefe "Release anlegen ohne Fallunterscheidung" \
   PackagingTest::test_the_release_can_run_a_second_time failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
+
+echo
+echo "── OutboundSourceTest: eine Zusage der Aussenverbindung fällt weg ──"
+#
+# Der Agent läuft als root. Ohne `FOLLOWLOCATION => false` trägt eine Umleitung
+# die signierte ACME-Anfrage — oder ein DNS-Token — an eine Adresse, die
+# niemand hinterlegt hat. Die vier Zusagen standen bis Schritt 9 nur als
+# Kommentar da.
+vorher_datei agent/src/Acme/Curl.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Curl.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('CURLOPT_FOLLOWLOCATION => false,', 'CURLOPT_FOLLOWLOCATION => true,')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Curl.php "Aussenverbindung folgt Umleitungen" &&
+pruefe "Aussenverbindung folgt Umleitungen" \
+  OutboundSourceTest::test_the_one_place_keeps_its_promises failed
+wiederherstellen
+
+echo
+echo "── OutboundSourceTest: eine zweite Stelle spricht nach draussen ──"
+#
+# Genau der Fall, der beim Bauen des ersten DNS-Anbieters gedroht hat: eine
+# zweite Umsetzung derselben vier Optionen. Die zweite ist die, in der eine
+# davon irgendwann fehlt — und nichts meldet es.
+vorher_datei agent/src/Acme/CurlTransport.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/CurlTransport.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    public function get(string $url): Response\n    {",
+              "    public function get(string $url): Response\n    {\n        $handle = curl_init();")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/CurlTransport.php "Zweite Stelle mit curl" &&
+pruefe "Zweite Stelle mit curl" \
+  OutboundSourceTest::test_only_one_place_reaches_out failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutboundSourceTest passed
+
+echo
+echo "── DnsProviderReachTest: ein Anbieterschlüssel im Formular zeigt ins Leere ──"
+#
+# Das Formular schaltet seine Felder am Anbieter um. Ein Tippfehler in der
+# Zeichenkette zeigt nie ein Feld — und niemand sieht, dass etwas fehlt.
+vorher_datei resources/js/Components/DnsCredentials.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/DnsCredentials.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("const IPV64 = 'ipv64'", "const IPV64 = 'ipvierundsechzig'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/DnsCredentials.vue "Anbieterschlüssel zeigt ins Leere" &&
+pruefe "Anbieterschlüssel zeigt ins Leere" \
+  DnsProviderReachTest::test_every_provider_key_in_the_form_exists failed
+wiederherstellen
+
+echo
+echo "── DnsProviderReachTest: ein benutzbarer Anbieter ohne Formular ──"
+#
+# Er stünde im Auswahlfeld, und wer ihn wählte, bekäme nichts zum Ausfüllen —
+# abgeschickt endete er in einer Abweisung, die von Feldern spricht, die
+# niemand sieht.
+vorher_datei resources/js/Components/DnsCredentials.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/DnsCredentials.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('form.provider === IPV64', 'form.provider === RFC2136')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/DnsCredentials.vue "Benutzbarer Anbieter ohne Formular" &&
+pruefe "Benutzbarer Anbieter ohne Formular" \
+  DnsProviderReachTest::test_every_usable_provider_has_a_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsProviderReachTest passed
+
+echo
+echo "── Ipv64Test: die Zone wird gerechnet statt gefragt ──"
+#
+# Der Fehler, an dem sich dieser Anbieter entscheidet. Bei IPv64.net ist die
+# Zone häufig selbst eine Unterdomain; wer sie aus dem Namen ableitet, legt den
+# Eintrag in der falschen Zone an — und das ist kein Fehler, er wird nur nie
+# gefunden.
+vorher_datei agent/src/Acme/Dns/Ipv64.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Ipv64.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $zone = Zones::pick($record, $this->knownZones());",
+    "        $zone = implode('.', array_slice(explode('.', strtolower(trim($record))), -2));",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Ipv64.php "Zone aus dem Namen gerechnet" &&
+pruefe "Zone aus dem Namen gerechnet" \
+  Ipv64Test::test_the_zone_comes_from_the_account_and_not_from_the_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" Ipv64Test passed
+
+echo
+echo "── ZoneSourceTest: eine zweite Stelle entscheidet über die Zone ──"
+#
+# Die Regel „die längste passende Zone gewinnt" stand vor Hetzner zweimal als
+# eigene Schleife da. Eine dritte daneben nimmt irgendwann die erste passende
+# statt der längsten — und legt den Eintrag eine Ebene zu hoch an, ohne dass
+# irgendetwas es meldet.
+vorher_datei agent/src/Acme/Dns/Hetzner.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Hetzner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $zone = Zones::pick($record, $this->knownZones());",
+    "        $zone = null;\n\n        foreach ($this->knownZones() as $candidate) {\n            if (Name::within($record, $candidate)) {\n                $zone = $candidate;\n            }\n        }",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Hetzner.php "zweite Stelle entscheidet über die Zone" &&
+pruefe "zweite Stelle entscheidet über die Zone" \
+  ZoneSourceTest::test_only_one_place_decides_which_zone_a_name_belongs_to failed
+wiederherstellen
+
+echo
+echo "── ZonesTest: die erste passende Zone statt der längsten ──"
+#
+# Die Regel selbst. Führt jemand `example.de` und `kunde.example.de` beim
+# selben Anbieter, gehört der Eintrag in die engere; wer die erste nimmt, legt
+# ihn eine Ebene zu hoch an.
+vorher_datei agent/src/Acme/Dns/Zones.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Zones.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (Name::within($record, $zone) && ($found === null || strlen($zone) > strlen($found))) {",
+    "            if (Name::within($record, $zone) && $found === null) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Zones.php "erste passende Zone statt der längsten" &&
+pruefe "erste passende Zone statt der längsten" \
+  ZonesTest::test_the_longest_matching_zone_wins failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ZonesTest passed
+
+echo
+echo "── HetznerTest: der Auftrag gilt als erledigt, sobald geantwortet wird ──"
+#
+# Die Cloud-API antwortet mit einer Action, die auf `error` stehen kann. Wer
+# nur auf den HTTP-Code sieht, hält den Fehlschlag für einen Erfolg — und
+# wartet danach zwei Minuten auf einen Eintrag, den niemand mehr anlegt.
+vorher_datei agent/src/Acme/Dns/Hetzner.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Hetzner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (($action['status'] ?? null) !== 'error') {",
+    "        if (true) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Hetzner.php "Auftrag gilt ungelesen als erledigt" &&
+pruefe "Auftrag gilt ungelesen als erledigt" \
+  HetznerTest::test_a_failed_action_says_why failed
+wiederherstellen
+
+echo
+echo "── HetznerTest: die Blätterschleife hört still auf ──"
+#
+# **Was hier absichtlich nicht gebrochen wird.** Der Deckel selbst — die
+# Bedingung, die die Runden zählt — lässt sich nicht automatisiert brechen:
+# Die erste Fassung verglich die Seitennummer mit der Obergrenze, und ein
+# `next_page`, das auf die laufende Seite zurückzeigt, hielt sie damit für
+# immer erfüllt. Ein Bruch dieser Art hinge, statt rot zu werden, und ein
+# hängender Lauf ist schlimmer als ein fehlender. Gefunden hat den Fehler eine
+# Wegwerfprobe, die nicht zurückkam.
+#
+# Gebrochen wird die Hälfte, die still zurückfallen kann: das Melden. Wer hier
+# einfach aufhört, sagt gleich darauf „für diesen Namen keine Zone" — und nennt
+# damit einen Grund, der nicht stimmt.
+vorher_datei agent/src/Acme/Dns/Hetzner.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Hetzner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """                throw AgentException::execFailed(
+                    'Die Zonenliste von Hetzner hört nach '.self::MAX_PAGES.' Seiten nicht auf.',
+                );""",
+    "                break;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Hetzner.php "Blätterschleife hört still auf" &&
+pruefe "Blätterschleife hört still auf" \
+  HetznerTest::test_a_pagination_that_points_in_circles_is_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" HetznerTest passed
+
+echo
+echo "── TxtValueSourceTest: eine zweite Stelle setzt die Anführungszeichen ──"
+#
+# Ein TXT-Wert steht in Anführungszeichen (RFC 1035 §3.3.14), und Hetzner wie
+# Cloudflare nehmen ihn so entgegen. Die zweite Fassung vergisst die Abweisung:
+# den Wert mit einem Anführungszeichen darin, oder den zu langen, den der
+# Anbieter dann stillschweigend in zwei character-strings teilt.
+vorher_datei agent/src/Acme/Dns/Cloudflare.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Cloudflare.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                    'content' => TxtValue::quoted($value),",
+    "                    'content' => '\"'.$value.'\"',",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Cloudflare.php "zweite Stelle mit Anführungszeichen" &&
+pruefe "zweite Stelle mit Anführungszeichen" \
+  TxtValueSourceTest::test_only_one_place_wraps_a_value_in_quotes failed
+wiederherstellen
+
+echo
+echo "── TxtValueTest: ein zu langer Wert geht durch ──"
+#
+# Anbieter teilen einen Wert über 255 Zeichen stillschweigend in zwei
+# character-strings auf, und ein TXT-Satz aus zwei Teilen ist für die Prüfung
+# der Zertifizierungsstelle ein anderer Wert.
+vorher_datei agent/src/Acme/Dns/TxtValue.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/TxtValue.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($value === '' || strlen($value) > self::MAX_LENGTH) {",
+    "        if ($value === '') {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/TxtValue.php "zu langer TXT-Wert geht durch" &&
+pruefe "zu langer TXT-Wert geht durch" \
+  TxtValueTest failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TxtValueTest passed
+
+echo
+echo "── CloudflareTest: nach dem Namen allein gelöscht ──"
+#
+# Laufen zwei Bestellungen für dieselbe Zone, stehen zwei
+# `_acme-challenge`-Einträge unter demselben Namen. Wer den Wert beim Suchen
+# nicht mit vergleicht, räumt die Prüfung des anderen Vorgangs mit ab — und der
+# scheitert dann an einer Ursache, die nirgends steht.
+vorher_datei agent/src/Acme/Dns/Cloudflare.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Cloudflare.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (is_string($id) && $id !== '' && is_string($content) && TxtValue::matches($content, $value)) {",
+    "            if (is_string($id) && $id !== '') {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Cloudflare.php "nach dem Namen allein gelöscht" &&
+pruefe "nach dem Namen allein gelöscht" \
+  CloudflareTest::test_removing_deletes_only_the_matching_record failed
+wiederherstellen
+
+echo
+echo "── CloudflareTest: nur der HTTP-Code gelesen ──"
+#
+# Cloudflare antwortet auf einen abgelehnten Vorgang durchaus mit 200 und
+# `"success": false`. Wer nur den Code liest, hält das für erledigt und wartet
+# danach zwei Minuten auf einen Eintrag, den es nicht gibt.
+vorher_datei agent/src/Acme/Dns/Cloudflare.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Cloudflare.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! $response->successful() || ($data['success'] ?? null) !== true) {",
+    "        if (! $response->successful()) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Cloudflare.php "nur der HTTP-Code gelesen" &&
+pruefe "nur der HTTP-Code gelesen" \
+  CloudflareTest::test_success_false_counts_even_with_http_200 failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CloudflareTest passed
+
+echo
+echo "── CloudflareTest: der globale API-Schlüssel wird angenommen ──"
+#
+# Er öffnet das ganze Cloudflare-Konto — alle Zonen, alle Einstellungen, den
+# Zugriffsschutz. Ein Formularfeld dafür ist keines, dessen Fehlen jemand
+# vermisst; ihn stillschweigend fallenzulassen wäre genauso falsch, denn dann
+# käme die Abweisung von Cloudflare, mit einem Satz ohne Grund.
+vorher_datei agent/src/Acme/Dns/Cloudflare.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Cloudflare.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (isset($config['email']) && $config['email'] !== '') {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Cloudflare.php "globaler API-Schlüssel angenommen" &&
+pruefe "globaler API-Schlüssel angenommen" \
+  CloudflareTest::test_an_account_address_is_refused failed
+wiederherstellen
+
+echo
+echo "── NetcupTest: die Sitzung bleibt nach einem Fehlschlag offen ──"
+#
+# Abgemeldet wird im `finally` — sonst bliebe eine Sitzung bei einem fremden
+# Anbieter genau dann liegen, wenn der Zugriff dazwischen scheitert. Das ist der
+# Fall, der sich häuft: Jeder Fehlversuch einer Bestellung liesse eine zurück.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        try {
+            $work($session);
+        } finally {
+            try {""",
+    """        $work($session);
+
+        if (true) {
+            try {""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "Sitzung bleibt nach einem Fehlschlag offen" &&
+pruefe "Sitzung bleibt nach einem Fehlschlag offen" \
+  NetcupTest::test_the_session_is_closed_after_a_failure failed
+wiederherstellen
+
+echo
+echo "── NetcupTest: ein gescheitertes Abmelden wird zum Fehlschlag ──"
+#
+# Die Gegenrichtung. Wer den Fehler des Abmeldens durchreicht, macht aus einem
+# gesetzten Eintrag einen Fehlschlag — und der Vorgang wird wiederholt, obwohl
+# er durchgelaufen ist. Bei Let's Encrypt zählt jeder Fehlversuch für alle
+# Kunden dieses Servers.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            try {
+                $this->call('logout', ['apisessionid' => $session], 'Das Abmelden bei netcup ist gescheitert');
+            } catch (AgentException) {
+                // Siehe oben: Die Sitzung läuft bei netcup ohnehin ab.
+            }""",
+    "            $this->call('logout', ['apisessionid' => $session], 'Das Abmelden bei netcup ist gescheitert');",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "gescheitertes Abmelden wird zum Fehlschlag" &&
+pruefe "gescheitertes Abmelden wird zum Fehlschlag" \
+  NetcupTest::test_a_failed_logout_does_not_fail_the_operation failed
+wiederherstellen
+
+echo
+echo "── NetcupTest: die ganze Zone wird zurückgeschrieben ──"
+#
+# lego liest an dieser Stelle alle Einträge, hängt den neuen an und schickt
+# alles zurück. Für ein Panel, das fremde Zonen anfasst, ist das der teure Weg:
+# Geht beim Lesen etwas schief oder ändert jemand dazwischen etwas, steht der
+# Bestand eines Kunden auf dem Spiel.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            $this->call('updateDnsRecords', [
+                'domainname' => $zone,
+                'apisessionid' => $session,
+                'dnsrecordset' => ['dnsrecords' => [[
+                    'hostname' => $host,""",
+    """            $this->call('infoDnsRecords', [
+                'domainname' => $zone,
+                'apisessionid' => $session,
+            ], 'Die Einträge von netcup ließen sich nicht abfragen');
+
+            $this->call('updateDnsRecords', [
+                'domainname' => $zone,
+                'apisessionid' => $session,
+                'dnsrecordset' => ['dnsrecords' => [[
+                    'hostname' => $host,""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "ganze Zone wird gelesen" &&
+pruefe "ganze Zone wird gelesen" \
+  NetcupTest::test_only_the_one_record_is_written failed
+wiederherstellen
+
+echo
+echo "── NetcupTest: beim Löschen zählt nur der Wert ──"
+#
+# Stehen zwei Prüfeinträge mit demselben Wert unter verschiedenen Namen, ist
+# das der falsche Satz — genau so vergleicht lego, und genau so löscht man die
+# Prüfung eines anderen Vorgangs mit ab.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                && strtolower($entry['hostname']) === $host\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "beim Löschen zählt nur der Wert" &&
+pruefe "beim Löschen zählt nur der Wert" \
+  NetcupTest::test_removing_matches_name_and_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NetcupTest passed
+
+echo
+echo "── IonosTest: der halbe Schlüssel geht durch ──"
+#
+# Der Schlüssel von IONOS besteht aus Präfix und Geheimnis, verbunden mit einem
+# Punkt; IONOS zeigt beide getrennt an, und der Präfix steht obenan. Wer nur ihn
+# einträgt, bekommt ohne diese Prüfung erst nachts bei einer Erneuerung eine
+# Abweisung — mit einem Satz, der von einem ungültigen Schlüssel spricht.
+vorher_datei agent/src/Acme/Dns/Ionos.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Ionos.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Ionos.php "halber IONOS-Schlüssel geht durch" &&
+pruefe "halber IONOS-Schlüssel geht durch" \
+  IonosTest::test_a_key_that_is_not_two_parts_is_refused failed
+wiederherstellen
+
+echo
+echo "── IonosTest: der Filter wird für einen Namen gehalten ──"
+#
+# `suffix` von IONOS ist ein Suffix. Ohne den zweiten Abgleich wandert
+# `x._acme-challenge.example.de` in die Liste, die zurückgeschickt wird — und
+# beim Löschen in die Auswahl.
+vorher_datei agent/src/Acme/Dns/Ionos.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Ionos.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (is_array($entry) && is_string($entry['name'] ?? null) && strtolower($entry['name']) === $name) {",
+    "            if (is_array($entry)) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Ionos.php "IONOS-Filter als Name gelesen" &&
+pruefe "IONOS-Filter als Name gelesen" \
+  IonosTest::test_a_name_that_merely_ends_the_same_is_dropped failed
+wiederherstellen
+
+echo
+echo "── IonosTest: nichts zu löschen gilt als Fehlschlag ──"
+#
+# lego wirft an dieser Stelle. `cleanup()` läuft aber auch nach einer
+# gescheiterten Bestellung, und dann gibt es den Eintrag gar nicht — aus einem
+# Fehlschlag würden zwei.
+vorher_datei agent/src/Acme/Dns/Ionos.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Ionos.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            if (! is_string($id) || $id === '' || ! is_string($content) || ! TxtValue::matches($content, $value)) {
+                continue;
+            }""",
+    """            if (! is_string($id) || $id === '') {
+                continue;
+            }""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Ionos.php "IONOS löscht nach dem Namen allein" &&
+pruefe "IONOS löscht nach dem Namen allein" \
+  IonosTest::test_removing_deletes_only_the_matching_record failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IonosTest passed
+
+echo
+echo "── DesecTest: der RRset wird überschrieben statt ergänzt ──"
+#
+# deSEC führt RRsets: Alle TXT-Werte zu einem Namen sind ein Gegenstand mit
+# einer Liste. Wer beim Anlegen die Liste ersetzt, nimmt einer gleichzeitig
+# laufenden Bestellung ihre Prüfung weg — und die scheitert dann an einer
+# Ursache, die nirgends steht.
+vorher_datei agent/src/Acme/Dns/Desec.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Desec.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $this->patch($domain, $subname, [...$existing, $quoted], $record);",
+    "        $this->patch($domain, $subname, [$quoted], $record);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Desec.php "deSEC-RRset überschrieben" &&
+pruefe "deSEC-RRset überschrieben" \
+  DesecTest::test_an_existing_rrset_gets_the_value_appended failed
+wiederherstellen
+
+echo
+echo "── DesecTest: beim Abräumen wird die ganze Liste geleert ──"
+#
+# Dieselbe Grenze aus der anderen Richtung. Die Liste zu leeren ist am Ende
+# einer einzelnen Bestellung richtig und bei zwei gleichzeitigen falsch.
+vorher_datei agent/src/Acme/Dns/Desec.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Desec.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (! TxtValue::matches($entry, $value)) {\n                $left[] = $entry;\n            }",
+    "            unset($entry);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Desec.php "deSEC-Liste geleert" &&
+pruefe "deSEC-Liste geleert" \
+  DesecTest::test_removing_takes_out_only_the_own_value failed
+wiederherstellen
+
+echo
+echo "── DesecTest: 204 gilt als Fehlschlag ──"
+#
+# Nimmt man den letzten Wert heraus, verschwindet der RRset, und deSEC quittiert
+# das mit 204. Wer nur 200 gelten lässt, macht aus dem Normalfall am Ende jeder
+# Bestellung einen Fehlschlag — und der Vorgang wird wiederholt.
+#
+# Gebrochen wird `Response::successful()` und nicht der Anbieter: Die Regel
+# „2xx ist Erfolg" steht dort für alle, und deSEC ist der erste, bei dem sie
+# einen anderen Code als 200 tragen muss.
+vorher_datei agent/src/Acme/Response.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Response.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $this->status >= 200 && $this->status < 300;",
+    "        return $this->status === 200 || $this->status === 201;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Response.php "204 gilt als Fehlschlag" &&
+pruefe "204 gilt als Fehlschlag" \
+  DesecTest::test_emptying_the_rrset_is_a_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DesecTest passed
+
+echo
+echo "── XmlRpcTest: der Parser darf Entitäten auflösen ──"
+#
+# Eine Antwort mit einer externen Entität holt sonst eine Datei vom Rechner —
+# in einem Prozess, der als root läuft. Gemessen: Mit LIBXML_NOENT steht der
+# Inhalt von /etc/hostname im Wert, mit den Marken der Klasse nicht.
+vorher_datei agent/src/Acme/Dns/XmlRpc.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/XmlRpc.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("LIBXML_NONET | LIBXML_NOCDATA", "LIBXML_NOENT")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/XmlRpc.php "Parser löst Entitäten auf" &&
+pruefe "Parser löst Entitäten auf" \
+  XmlRpcTest::test_an_external_entity_fetches_nothing failed
+wiederherstellen
+
+echo
+echo "── XmlRpcTest: die Verschachtelung ist nicht gedeckelt ──"
+#
+# Eine Antwort, die sich tausendfach ineinander schachtelt, ist keine Antwort,
+# sondern ein Weg, den Speicher dieses Prozesses zu füllen.
+vorher_datei agent/src/Acme/Dns/XmlRpc.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/XmlRpc.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if ($depth > self::MAX_DEPTH) {", "        if (false) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/XmlRpc.php "Verschachtelung nicht gedeckelt" &&
+pruefe "Verschachtelung nicht gedeckelt" \
+  XmlRpcTest::test_a_response_that_nests_too_deeply_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" XmlRpcTest passed
+
+echo
+echo "── InwxTest: je Aufruf angemeldet statt je Bestellung ──"
+#
+# INWX nimmt denselben TAN kein zweites Mal. Zwei Anmeldungen im selben
+# Zeitschritt hätten denselben — und die zweite würde abgewiesen. Anlegen und
+# Abräumen teilen sich deshalb eine Sitzung.
+vorher_datei agent/src/Acme/Dns/Inwx.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Inwx.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if ($this->session !== null) {
+            return;
+        }
+
+        $response = $this->post(XmlRpc::request('account.login', [""",
+    """        $response = $this->post(XmlRpc::request('account.login', [""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Inwx.php "je Aufruf angemeldet" &&
+pruefe "je Aufruf angemeldet" \
+  InwxTest::test_one_login_carries_the_whole_order failed
+wiederherstellen
+
+echo
+echo "── InwxTest: beim Löschen zählt nur der Wert ──"
+#
+# Der Fehler, den beim Bauen die Wegwerfprobe gefunden hat: Der Kommentar
+# versprach den Namensabgleich, der Code machte ihn nicht. Gefiltert wurde
+# allein über den Parameter, den INWX bekommt — und was ein Anbieter als Filter
+# versteht, ist seine Sache; was gelöscht wird, ist unsere.
+vorher_datei agent/src/Acme/Dns/Inwx.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Inwx.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                && strtolower($found) === $full\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Inwx.php "beim Löschen zählt nur der Wert" &&
+pruefe "beim Löschen zählt nur der Wert" \
+  InwxTest::test_removing_matches_the_name_as_well failed
+wiederherstellen
+
+echo
+echo "── InwxTest: die abgeschnittene Zonenliste wird verschwiegen ──"
+#
+# Hat ein Konto mehr Zonen, als eine Seite trägt, fehlte still die gesuchte —
+# und die Meldung spräche von einem Namen ausserhalb aller Zonen, also von
+# einem Grund, der nicht stimmt.
+vorher_datei agent/src/Acme/Dns/Inwx.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Inwx.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (is_int($count) && $count > count($zones)) {", "        if (false) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Inwx.php "abgeschnittene Zonenliste verschwiegen" &&
+pruefe "abgeschnittene Zonenliste verschwiegen" \
+  InwxTest::test_a_truncated_zone_list_is_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InwxTest passed
+
+echo
+echo "── ProvidersTest: ein Zurückgehaltener wird stumm abgewiesen ──"
+#
+# Seit dem 7. August gibt es zwei Gründe, warum ein Anbieter fehlt: „noch nicht
+# gebaut" und „gebaut, aber nicht angeboten". Eine Abweisung ohne Grund lässt
+# den Betreiber im zweiten Fall auf etwas warten, das nicht kommt.
+vorher_datei agent/src/Acme/Dns/Providers.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Providers.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        self::INWX => 'Die Zugangsdaten sind dort Benutzername und Passwort des Registrarkontos '.\n            'und nicht ein Token für eine Zone.',",
+    "        self::INWX => '',",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Providers.php "Zurückgehaltener ohne Grund" &&
+pruefe "Zurückgehaltener ohne Grund" \
+  ProvidersTest::test_every_provider_key_points_at_something failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ProvidersTest passed
+
+echo
+echo "── PatienceTest: eine Frist für alle Anbieter ──"
+#
+# Der Zustand bis zum 7. August: 120 Sekunden für jede Bestellung. Das ist
+# kürzer, als lego für netcup und IONOS für nötig hält (900) und für INWX (360)
+# — und eine Bestellung, die zu früh aufgibt, verbrennt einen der fünf
+# Fehlversuche je Konto und Stunde, die für jeden Kunden dieses Servers gelten.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    public const PATIENCE_SECONDS = 900;", "    public const PATIENCE_SECONDS = 120;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "eine Frist für alle Anbieter" &&
+pruefe "eine Frist für alle Anbieter" \
+  PatienceTest::test_every_provider_names_its_own_patience failed
+wiederherstellen
+
+echo
+echo "── PatienceTest: ein Anbieter fehlt in der Liste ──"
+#
+# Ohne die Gegenrichtung bekäme ein neunter Anbieter seine Zahl nie geprüft: Der
+# Wächter liefe über acht Einträge und meldete Grün.
+vorher_datei agent/src/Acme/Dns/Providers.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Providers.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        self::DESEC => 'deSEC',\n",
+    "        self::DESEC => 'deSEC',\n        'erfunden' => 'Erfunden',\n",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Providers.php "Anbieter fehlt in der Geduldsliste" &&
+pruefe "Anbieter fehlt in der Geduldsliste" \
+  PatienceTest::test_every_built_provider_is_listed failed
+wiederherstellen
+
+echo
+echo "── PatienceTest: die Prüfung reicht die Frist nicht durch ──"
+#
+# Eine Zahl, die im Anbieter steht und bei der Prüfung nicht ankommt, ist keine.
+#
+# **Was hier absichtlich nicht gebrochen wird:** die Stelle in `Order`, die
+# `patience()` fragt. Ein Bruch dort bliebe unbemerkt, weil der einzige Test,
+# der eine Bestellung fährt, HTTP-01 benutzt — und dort liegt die Prüfdatei
+# sofort, `awaitReady` wartet also nie. Ein Bruch, der nichts rot macht, sieht
+# aus wie ein Wächter und ist keiner; er gehört benannt statt geschrieben.
+vorher_datei agent/src/Acme/DnsChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/DnsChallenge.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $this->provider->patience();",
+    "        return new Patience(120, 2);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/DnsChallenge.php "Frist nicht durchgereicht" &&
+pruefe "Frist nicht durchgereicht" \
+  PatienceTest::test_every_provider_names_its_own_patience failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PatienceTest passed
+
+echo
+echo "── CertificateChoiceTest: der Rückfall bleibt still ──"
+#
+# Der laute Rückfall (`docs/34 §8`): Ein Block, der die Wahl übergeht, gehört
+# ins Prüfprotokoll. Ohne den Eintrag bleibt nur der Hinweis auf der
+# Domainseite — und der beantwortet nicht, seit wann.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $this->recordOverride($domain);\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "übergangene Wahl nicht protokolliert" &&
+pruefe "übergangene Wahl nicht protokolliert" \
+  CertificateChoiceTest::test_an_overridden_choice_lands_in_the_audit_trail failed
+wiederherstellen
+
+echo
+echo "── CertificateChoiceTest: der Rückfall meldet auch, wenn nichts war ──"
+#
+# **Die wichtigere Richtung.** Der naheliegende Fehler ist nicht der fehlende
+# Eintrag, sondern der bei jedem angewandten Block — eine Meldung, die immer
+# kommt, bedeutet nichts, und die Automatik hängt eine Domain regelmässig um,
+# ohne dass jemand übergangen wird.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! $this->choice->overridden($domain)) {\n            return;\n        }\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "jeder Block meldet einen Rückfall" &&
+pruefe "jeder Block meldet einen Rückfall" \
+  CertificateChoiceTest::test_a_valid_choice_leaves_the_audit_trail_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateChoiceTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use SrvPanel\Agent\Acme\Dns\DnsProvider;
+use SrvPanel\Agent\Acme\Patience;
 
 /**
  * Ein DNS-Anbieter, der nichts tut und alles behält.
@@ -32,5 +33,20 @@ final class RecordingDnsProvider implements DnsProvider
     public function remove(string $record, string $value): void
     {
         $this->removed[] = [$record, $value];
+    }
+
+    /**
+     * Eine Sekunde, damit ein Test, der doch einmal wartet, nicht wartet.
+     *
+     * **Der Wert ist beliebig, die Methode nicht.** `DnsProvider::patience()`
+     * steht ohne Vorgabe in der Schnittstelle — genau deshalb muss auch das
+     * Testdoppel eine Zahl nennen. Am 7. August hat das eine CI-Runde gekostet:
+     * Die Schnittstelle bekam die Methode, dieses Doppel nicht, und die Tests
+     * starben mit „Premature end of PHP process", weil eine nicht ladbare
+     * Klasse kein Fehlschlag ist, sondern ein Abbruch.
+     */
+    public function patience(): Patience
+    {
+        return new Patience(1, 1);
     }
 }

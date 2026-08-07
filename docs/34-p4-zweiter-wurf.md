@@ -274,7 +274,8 @@ bei den Verzeichnisnamen der Systembenutzer.
 > womöglich gar nicht öffnet, und die Fehlermeldung dazu käme vom Anbieter
 > statt von hier.
 >
-> **`Providers` führt die fünf Schlüssel und sonst nichts.** Eine Fabrikmethode,
+> **`Providers` führt die Schlüssel und sonst nichts** (fünf beim Schreiben
+> dieses Absatzes, acht seit der Erweiterung vom 7. August). Eine Fabrikmethode,
 > die für jeden von ihnen eine Ausnahme wirft, wäre genau die Sorte
 > Zeichenkette, die auf nichts zeigt; sie kommt mit der ersten Umsetzung in
 > Schritt 7. Die Oberfläche zu den Zugangsdaten steht als 6b aus.
@@ -283,17 +284,290 @@ bei den Verzeichnisnamen der Systembenutzer.
 
 ## 6. Die Anbieter
 
-Entschieden am 6. August 2026. Jeder Anbieter ist eine eigene Umsetzung, eigene
-Fehlerfälle und ein eigener Wächter — deshalb einer nach dem anderen und nicht
-fünf auf einmal:
+Entschieden am 6. August 2026, **erweitert am 7. August auf sieben**. Jeder
+Anbieter ist eine eigene Umsetzung, eigene Fehlerfälle und ein eigener Wächter
+— deshalb einer nach dem anderen und nicht sieben auf einmal:
 
 | Anbieter | Warum | Wann |
 |---|---|---|
-| **RFC 2136** (TSIG) | Der Standard, kein Anbietercode — er bedient BIND, Knot und PowerDNS, und **damit die eigene Zone aus P7** ohne zweite Umsetzung. | 1. |
-| **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | 2. |
-| **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | 3. |
-| **Netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | 4. |
-| **IPv64.net** | Kleiner deutscher Anbieter mit Token-API; deckt den Fall ab, in dem jemand seine Zone dort und nicht beim Registrar führt. | 5. |
+| **RFC 2136** (TSIG) | Der Standard, kein Anbietercode — er bedient BIND, Knot und PowerDNS, und **damit die eigene Zone aus P7** ohne zweite Umsetzung. | gebaut |
+| **IPv64.net** | Kleiner deutscher Anbieter mit Token-API; deckt den Fall ab, in dem jemand seine Zone dort und nicht beim Registrar führt. **Vorgezogen**, weil sich an ihm die Zonenauflösung beweist (unten). | gebaut |
+| **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | gebaut |
+| **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | gebaut |
+| **netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | gebaut |
+| **IONOS** | Der grösste deutsche Massenhoster; wer dort seine Domain hat, hat sie meist auch dort delegiert. | gebaut |
+| **INWX** | Der Registrar, den deutsche Wiederverkäufer benutzen — und der einzige der sieben mit einer Anmeldung statt eines Tokens. | gebaut |
+| **deSEC** | Gemeinnütziger deutscher DNS-Betreiber, DNSSEC ab Werk, kostenfrei. Er ist der **Ausweg für alle, deren Anbieter keine API hat** — die Zone zieht um, die Domain bleibt. | gebaut |
+
+### Der zweite Beschluss: sieben statt vier
+
+Vor dem Bauen des zweiten Anbieters wurde die Liste noch einmal gegen die
+vollständige gehalten: **222 Anbieter unter `providers/dns/` in lego**,
+durchgesehen am 7. August 2026. Aus dem deutschsprachigen Markt kamen drei
+dazu, und jeder aus einem eigenen Grund:
+
+- **IONOS** schliesst die grösste Lücke der ursprünglichen vier. Ein Token,
+  eine REST-Schnittstelle — von der Bauart her der einfachste der drei.
+- **INWX** ist der teuerste und steht deshalb hinten. Er ist der einzige mit
+  Benutzername und Passwort statt eines Tokens, er spricht **XML-RPC** statt
+  JSON, er führt eine Sitzung über ein Cookie, und wer sein Konto mit einem
+  zweiten Faktor gesichert hat, muss das gemeinsame Geheimnis mit hinterlegen —
+  der Agent rechnet dann bei jeder Anmeldung einen TOTP-Code aus. Das ist ein
+  Passwort in den Zugangsdaten, das ein ganzes Registrarkonto öffnet, und nicht
+  nur eine Zone. Es gehört gesagt, bevor jemand es einträgt.
+- **deSEC** ist weniger ein Anbieter als eine Antwort. Wessen Anbieter keine
+  API hat, kann die Zone dorthin delegieren, ohne die Domain umzuziehen — und
+  bekommt Platzhalter, die es sonst für ihn nicht gäbe.
+
+Nicht aufgenommen und ausdrücklich verworfen: die grossen Wolkenanbieter (Route
+53, Azure, Google Cloud DNS) — sie haben eine eigene Art von Zugangsdaten mit
+eigener Signatur, und wer sie benutzt, betreibt kein Panel dieser Grösse.
+
+### Die Zugangsdaten je Anbieter — nachgesehen, nicht angenommen
+
+Aus lego am 7. August 2026, aus den `*.toml`-Beschreibungen und dem Code
+daneben. Was der Betreiber einträgt, steht links; rechts steht, was daran beim
+Bauen teuer wird:
+
+| Anbieter | Adresse | Felder | Was daran teuer wird |
+|---|---|---|---|
+| IPv64.net | `https://ipv64.net/api` | `token` | Die Zone ist oft selbst eine Unterdomain — **gefragt, nicht gerechnet**. Drosselt mit 429. |
+| Hetzner | `https://api.hetzner.cloud/v1` (gebaut) — daneben die alte `https://dns.hetzner.com` | `token` | **Zwei Schnittstellen nebeneinander.** lego hält beide vor (`HETZNER_API_KEY` für die alte DNS-Konsole, `HETZNER_API_TOKEN` für die Cloud-API). Ein Token der einen gilt bei der anderen nicht, und die Abweisung sagt das nicht deutlich. |
+| Cloudflare | `https://api.cloudflare.com/client/v4` (gebaut) | `token`; `email` + `api_key` wird **abgewiesen** | Der alte Weg über den globalen Schlüssel öffnet **das ganze Konto**. Genommen wird nur das Token, mit `Zone:Read` und `DNS:Edit`. Gelöscht wird über eine Eintragskennung, die erst gesucht werden muss. |
+| netcup | `https://ccp.netcup.net/run/webservice/servers/endpoint.php?JSON` (gebaut) | `customer_number` + `api_key` + `api_password` + **`zones`** | **Der einzige mit einer Sitzung** und der einzige, dem die Zonen genannt werden müssen — seine Schnittstelle zählt die Domains eines Kontos nicht auf. |
+| IONOS | `https://api.hosting.ionos.com/dns/v1` (gebaut) | `api_key` in der Form `<prefix>.<secret>` | Ein Feld, das in Wahrheit zwei ist — geprüft beim Hinterlegen. Und `suffix` im Filter ist ein Suffix, kein Name. |
+| INWX | `https://api.domrobot.com/xmlrpc/` | `username` + `password`, wahlweise `shared_secret` | XML-RPC, Sitzungscookie, TOTP. **Und das Passwort öffnet das Registrarkonto**, nicht eine Zone. Der einzige, bei dem ein Kunde besser nicht seine eigenen Zugangsdaten hinterlegt. |
+| deSEC | `https://desec.io/api/v1` (gebaut) | `token` | Der geradlinigste, und der **einzige, der die Zonenfrage selbst beantwortet** (`owns_qname`). Führt RRsets statt einzelner Sätze. Sein TTL ist mit 3600 der höchste der sieben — `ready()` darf hier nicht nach zwei Minuten aufgeben. |
+
+Was **keiner** von ihnen bekommt: eine Zonenliste aus dem Formular. Die stand
+bei RFC 2136 zu Recht darin — ein TSIG-Schlüssel ist im Nameserver ohnehin auf
+Zonen eingegrenzt, und die Liste bildet das ab. Bei einer API-Schnittstelle
+kennt der Anbieter seine Zonen selbst; ein zweites, von Hand gepflegtes
+Verzeichnis daneben wäre die zweite Fassung derselben Auskunft, und die zweite
+ist die, die veraltet.
+
+### Strato hat keine öffentliche DNS-Schnittstelle
+
+Nachgesehen am 7. August 2026: **Strato steht weder in lego noch in acme.sh.**
+Das ist kein Versäumnis der beiden — es gibt schlicht keine Schnittstelle, über
+die sich ein TXT-Eintrag setzen lässt. Für einen Kunden, der seine Domain bei
+Strato hat, heisst das: **kein Platzhalter über DNS-01**, solange die Zone dort
+liegt. HTTP-01 für einzelne Namen geht weiter.
+
+Das gehört so gesagt, weil die naheliegende Antwort — „bauen wir eben Strato
+dazu" — hier nicht existiert. Der Ausweg ist die Zone, nicht das Panel: Sie
+lässt sich zu deSEC delegieren, ohne dass die Domain umzieht. Deshalb steht
+deSEC überhaupt auf der Liste.
+
+### INWX im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego und in dessen Client
+([`nrdcg/goinwx`](https://github.com/nrdcg/goinwx)). **Die Seiten von INWX sind
+aus diesem Container nicht erreichbar.**
+
+- **Adresse:** `https://api.domrobot.com/xmlrpc/` (Testbetrieb:
+  `api.ote.domrobot.com`)
+- **Bauart:** XML-RPC, ein Aufruf mit genau einem Parameter — einer flachen
+  Ablage
+- **Anmelden:** `account.login` mit `user`, `pass`, `lang`; die Sitzung kommt als
+  Cookie `domrobot=…`
+- **Zweiter Faktor:** Antwortet die Anmeldung mit `tfa: GOOGLE-AUTH`, folgt
+  `account.unlock` mit einem TAN aus dem gemeinsamen Geheimnis
+- **Zonen:** `nameserver.list` → `resData.domains[].domain`, dazu `count`
+- **Lesen:** `nameserver.info` mit `domain`, `name`, `type` →
+  `resData.record[]` mit `id`, `name`, `content`
+- **Schreiben:** `nameserver.createRecord`, **Löschen:**
+  `nameserver.deleteRecord` mit `id`
+- **Abmelden:** `account.logout`
+- **Antwort:** `code` 1000 oder 1500 ist Erfolg, dazu `msg` und `reason` —
+  **auch bei HTTP 200**
+- Der Wert geht **ohne** Anführungszeichen hinaus
+
+**Der TAN entscheidet den Entwurf.** INWX nimmt denselben kein zweites Mal; lego
+wartet notfalls dreissig Sekunden auf den nächsten Zeitschritt. Hier wird einmal
+je Bestellung angemeldet — Anlegen und Abräumen benutzen dieselbe Instanz —,
+also gibt es genau einen TAN und keinen Schlaf im Agenten.
+
+**Was hinterlegt wird, öffnet ein Registrarkonto.** Das steht als Satz über den
+Feldern; die offene Frage dazu ist die aus §11.
+
+**`Object exists` beim Anlegen ist kein Fehlschlag** — der Eintrag steht dann
+schon da, etwa weil ein früherer Versuch abgebrochen ist, nachdem er ihn gesetzt
+hatte.
+
+**Und XML-RPC steht in `XmlRpc`, nicht hier.** Gebaut ist nur, was gebraucht
+wird; beim Lesen sind zwei Vorkehrungen fest: kein Auflösen von Entitäten und
+eine gedeckelte Verschachtelung. Die erste ist gemessen — mit `LIBXML_NOENT`
+steht der Inhalt von `/etc/hostname` im Wert, mit den Marken der Klasse nicht.
+
+### deSEC im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego und in dessen Client
+([`nrdcg/desec`](https://github.com/nrdcg/desec)).
+
+- **Adresse:** `https://desec.io/api/v1`
+- **Anmeldung:** Kopfzeile `Authorization: Token <token>`
+- **Zuständige Domain:** `GET /domains/?owns_qname=<voller name>` → eine Liste
+  mit genau der Domain, die für den Namen zuständig ist
+- **Lesen:** `GET /domains/<domain>/rrsets/<subname>/TXT/` → `{"records":[…]}`;
+  `404`, wenn es den RRset noch nicht gibt
+- **Anlegen:** `POST /domains/<domain>/rrsets/` mit `subname`, `type`, `records`
+  und `ttl` → `201`
+- **Ändern:** `PATCH /domains/<domain>/rrsets/<subname>/TXT/` mit `records`;
+  eine leere Liste löscht den RRset, quittiert mit **`204`**
+- Der Name der Domain selbst heisst `@`
+- Der Wert steht **in** Anführungszeichen
+
+**Die Zonenfrage stellt sich hier nicht — sie wird gestellt.** `owns_qname` ist
+die einzige Auskunft dieser Art unter den sieben; überall sonst nennt der
+Anbieter seine Zonen, und die längste passende wird gesucht.
+
+**RRsets statt einzelner Sätze.** Alle TXT-Werte zu einem Namen sind ein
+Gegenstand. Beim Anlegen wird deshalb angehängt, beim Abräumen nur der eigene
+Wert herausgenommen; beides ist die Grenze zu einer gleichzeitig laufenden
+Bestellung.
+
+### IONOS im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego. **Die Seiten von IONOS sind aus diesem
+Container nicht erreichbar**; die offene Frage unten gehört beim ersten Zugriff
+geklärt.
+
+- **Adresse:** `https://api.hosting.ionos.com/dns/v1`
+- **Anmeldung:** Kopfzeile `X-Api-Key: <präfix>.<geheimnis>`
+- **Zonen:** `GET /zones` → eine **schlichte Liste** `[{"id":…,"name":…}]`, ohne
+  Blätterauskunft
+- **Lesen:** `GET /zones/<id>?suffix=<name>&recordType=TXT` → `{"records":[…]}`
+- **Schreiben:** `PATCH /zones/<id>` mit einem **Feld** von Sätzen
+- **Löschen:** `DELETE /zones/<id>/records/<satz-id>`
+- **Fehler:** `{"errors":[{"code":…,"message":…}]}`
+- Der Wert geht **ohne** Anführungszeichen hinaus
+
+**Der Schlüssel besteht aus zwei Teilen.** IONOS zeigt sie getrennt an, und der
+Präfix steht obenan. Genau einen Punkt und zwei nicht leere Hälften zu verlangen
+kostet zwei Zeilen und erspart eine nächtliche Erneuerung, die an einer Meldung
+scheitert, die den Grund nicht nennt.
+
+**Die offene Frage: was `PATCH` mit den Sätzen macht.** Fügt es sie hinzu oder
+ersetzt es den Bestand zu diesem Namen? legos Code sagt es nicht, und anders als
+bei netcup gibt es keinen zweiten Aufruf, der es verrät. Gebaut ist deshalb der
+Weg, der unter beiden Lesarten richtig ist: die vorhandenen Sätze **zu diesem
+Namen** mitschicken. Gelesen wird dabei nichts ausser dem, was auf denselben
+Namen zeigt.
+
+**Und `suffix` ist ein Suffix.** Der Filter liefert auch `x.<name>` mit; was
+nicht genau dieser Name ist, gehört weder in die Liste, die zurückgeht, noch in
+die Auswahl beim Löschen.
+
+### netcup im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego. **Die Seiten von netcup selbst waren aus
+diesem Container nicht abrufbar** — weder das Wiki noch der Endpunkt; was hier
+steht, stammt aus legos Umsetzung und gehört beim ersten Zugriff dagegen
+gehalten.
+
+- **Adresse:** `https://ccp.netcup.net/run/webservice/servers/endpoint.php?JSON`
+- **Bauart:** alles `POST` mit JSON `{"action":"…","param":{…}}`; Kundennummer
+  und API-Schlüssel stehen in **jedem** Rumpf
+- **Anmelden:** `login` mit `apipassword` → `responsedata.apisessionid`
+- **Abmelden:** `logout` mit `apisessionid`
+- **Lesen:** `infoDnsRecords` mit `domainname`
+- **Schreiben:** `updateDnsRecords` mit `dnsrecordset.dnsrecords`; ein Satz ohne
+  `id` wird angelegt, einer mit `deleterecord: true` gelöscht
+- **Antwort:** `status` ist `success` oder `error`, dazu `statuscode`,
+  `shortmessage`, `longmessage` — **auch bei HTTP 200**
+- Der TXT-Wert geht **ohne** Anführungszeichen hinaus, anders als bei Hetzner
+  und Cloudflare
+
+**Die Zonen stehen in den Zugangsdaten.** Es gibt keine Auskunft, die die
+Domains eines Kontos aufzählt; lego fragt dafür die autoritativen Nameserver
+nach dem SOA-Satz. Das wäre eine dritte Quelle für dieselbe Frage — stattdessen
+gilt dieselbe Antwort wie bei RFC 2136: eine Positivliste, die der Betreiber
+aufschreibt. Ein Name ausserhalb kostet damit nicht einmal eine Anmeldung.
+
+**Angemeldet wird je Vorgang, abgemeldet im `finally`, und das Ergebnis des
+Abmeldens wird nicht geprüft.** Das erste, damit keine Sitzung liegenbleibt,
+wenn der Zugriff dazwischen scheitert; das zweite, damit ein gescheitertes
+Abmelden aus einem gesetzten Eintrag keinen Fehlschlag macht.
+
+**Geschrieben wird nur der eine Satz.** lego liest hier die ganze Zone, hängt an
+und schickt alles zurück — ein Lesen-Ändern-Schreiben über den Bestand eines
+Kunden. Dass `updateDnsRecords` nicht ersetzt, sondern anlegt und löscht, zeigt
+legos eigenes `CleanUp`: Es schickt genau einen Satz, und wäre der Aufruf ein
+Ersetzen, nähme er jedem netcup-Nutzer beim Abräumen die Zone.
+
+### Hetzner im Einzelnen
+
+Nachgesehen am 7. August 2026 — und zwar **nicht in lego**, sondern in Hetzners
+eigenem Go-SDK
+([`hetznercloud/hcloud-go`](https://github.com/hetznercloud/hcloud-go)). lego
+löst die Zone hier über den SOA-Satz der autoritativen Nameserver auf und
+benutzt `GET /zones` gar nicht; das SDK zeigt, dass es den Endpunkt gibt, samt
+Blätterauskunft und Feldnamen.
+
+- **Adresse:** `https://api.hetzner.cloud/v1`
+- **Anmeldung:** `Authorization: Bearer <Token>`
+- **Zonen:** `GET /zones?page=<n>&per_page=50` → `{"zones":[{"name":…}],
+  "meta":{"pagination":{"next_page":…}}}`; `next_page` steht auf `null`, sobald
+  die letzte Seite erreicht ist
+- **Anlegen:** `POST /zones/<zone>/rrsets/<praefix>/TXT/actions/add_records`,
+  JSON, `{"ttl":60,"records":[{"value":"\"…\""}]}`
+- **Löschen:** dasselbe auf `remove_records`, ohne `ttl`
+- **Antwort:** eine *Action* mit `status` aus `running`, `success`, `error` —
+  der Schreibvorgang ist beim Antworten also **nicht** zwingend fertig
+- **Fehler:** `{"error":{"code":…,"message":…}}`; Drosselung mit HTTP 429
+
+**Der Name der RRSet ist der Präfix, nicht der volle Name.** Wer den vollen
+schickt, legt den Eintrag unter `_acme-challenge.example.de.example.de` an —
+angenommen wird das, gefunden wird es nie.
+
+**Gewartet wird auf die Action nicht.** Ob der Eintrag ausgeliefert wird,
+beantwortet ohnehin nur `DnsChallenge` durch Fragen der autoritativen
+Nameserver, und das ist die strengere Frage. Gelesen wird der Zustand einmal,
+und zwar wegen `error`: Der steht sofort da und spart eine Prüfung, die zwei
+Minuten auf einen Eintrag wartet, den niemand mehr anlegt.
+
+**Und die Blätterschleife zählt Runden, nicht Seitennummern.** Beim Bauen lief
+sie endlos, weil sie die Seitennummer mit der Obergrenze verglich und
+`next_page` mit `1` zurückkam, während `page` auf `1` stand. Das Ende wird
+gemeldet und nicht verschwiegen — wer still abschneidet, sagt gleich darauf
+„für diesen Namen keine Zone" und nennt einen Grund, der nicht stimmt.
+
+### Cloudflare im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego und — für die Filter beim Suchen — in
+Cloudflares eigenem Go-SDK
+([`cloudflare/cloudflare-go`](https://github.com/cloudflare/cloudflare-go)).
+
+- **Adresse:** `https://api.cloudflare.com/client/v4`
+- **Anmeldung:** `Authorization: Bearer <Token>`. Der ältere Weg über
+  `X-Auth-Email` und `X-Auth-Key` wird **nicht angeboten** — siehe unten.
+- **Zonen:** `GET /zones?page=<n>&per_page=50` mit
+  `{"success":true,"result":[{"id":…,"name":…}],"result_info":{"total_pages":…}}`
+- **Anlegen:** `POST /zones/<zonen-id>/dns_records`, JSON, mit `type`, `name`
+  (dem **vollen** Namen), `content` (in Anführungszeichen) und `ttl`
+- **Suchen:** `GET /zones/<zonen-id>/dns_records?type=TXT&name.exact=<name>`
+- **Löschen:** `DELETE /zones/<zonen-id>/dns_records/<eintrags-id>`
+- **Fehler:** `{"success":false,"errors":[{"code":…,"message":…}]}` — und zwar
+  **auch mit HTTP 200**
+
+**Der volle Name, nicht der Präfix.** Das ist der Unterschied zu Hetzner: Dort
+adressiert der Pfad die RRSet über den Präfix, hier steht der ganze Name im
+Rumpf.
+
+**Der globale API-Schlüssel wird abgewiesen, nicht bloss nicht angeboten.** Er
+öffnet das ganze Konto. lego nimmt ihn entgegen und rät im Kommentar davon ab;
+ein Rat in einem Kommentar ist zu wenig für ein Formularfeld auf einem Server,
+auf dem Kunden Websites betreiben. Wer eine Kontoadresse mitschickt, bekommt
+einen Satz dazu — sie stillschweigend fallenzulassen hiesse, etwas anderes
+entgegenzunehmen, als der Betreiber gemeint hat.
+
+**Gelöscht wird über eine Eintragskennung.** lego merkt sie sich beim Anlegen;
+wir suchen sie beim Abräumen, weil `cleanup()` auch nach einem Fehlschlag läuft
+und die Ablage dann leer wäre — lego bricht dort mit „unknown record ID" ab und
+macht aus einem Fehlschlag zwei. Und der Wert wird nach dem Suchen **noch
+einmal** verglichen: Cloudflares Filter sind ausdrücklich nicht auf Gross- und
+Kleinschreibung bedacht, ein ACME-Prüfwert ist es sehr wohl.
 
 ### IPv64.net im Einzelnen
 
@@ -315,21 +589,34 @@ Dokumentation des Anbieters gehalten, nicht blind übernommen.
 - Erfolg erkennt acme.sh an `"info":"success"`, und es wartet bei **HTTP 429**
   zehn Sekunden — der Anbieter drosselt also.
 
-**Ein Fund, der die Bauart bestätigt.** lego zerlegt den Namen und verlangt
-mindestens drei Bestandteile: Bei IPv64.net ist die Zone häufig selbst eine
-Unterdomain (`meinname.ipv64.net`), also **nicht** die registrierbare Domain.
-Wer die Zone aus dem Namen errechnet, liegt hier falsch. Deshalb steht in §4,
-dass die Zone **abgefragt** und nicht abgeleitet wird — `get_domains` ist genau
-dafür da, und acme.sh macht es ebenso. Was als Vorsicht in den Plan geschrieben
-war, ist bei diesem Anbieter der Normalfall.
+**Ein Fund, der die Bauart bestätigt.** Bei IPv64.net ist die Zone häufig selbst
+eine Unterdomain (`meinname.ipv64.de`), also **nicht** die registrierbare
+Domain. Wer die Zone aus dem Namen errechnet, liegt hier falsch. Deshalb steht
+in §4, dass die Zone **abgefragt** und nicht abgeleitet wird — `get_domains` ist
+genau dafür da. Was als Vorsicht in den Plan geschrieben war, ist bei diesem
+Anbieter der Normalfall.
+
+> **Berichtigung vom 7. August.** Hier stand, `get_domains` sei „genau dafür da,
+> und acme.sh macht es ebenso", und lego „verlange mindestens drei
+> Bestandteile". Beim Bauen nachgesehen: lego benutzt `get_domains` **nicht**
+> zur Zonenauflösung. Sein `splitDomain` nimmt schlicht die **letzten drei**
+> Bestandteile des Namens. Für `meinname.ipv64.de` kommt dabei dasselbe heraus
+> wie bei uns; für eine eigene Domain mit zwei Bestandteilen, die jemand zu
+> IPv64.net bringt, nicht mehr — `example.de` als Zone ergäbe dort
+> `_acme-challenge.example.de`, also den Namen selbst.
+>
+> Die Abfrage ist damit **unsere** Wahl und nicht die von lego, und sie ist die
+> bessere. Das gehört richtiggestellt, weil eine Begründung, die sich auf einen
+> anderen beruft, beim nächsten Anbieter wieder herangezogen wird — und dann
+> für etwas, das dort nicht stimmt.
 
 Der Feldname `praefix` ist deutsch geschrieben, weil der Anbieter ihn so nennt.
 Das ist eine echte Schnittstelle nach aussen — `docs/19 §4a` lässt sie, wie sie
 ist; übersetzt wird sie nicht.
 
-Die Liste ist eine Positivliste im Code. Ein sechster Anbieter ist eine
-Änderung, die jemand liest, kein Feld in einem Formular — dieselbe Haltung wie
-bei den Zertifizierungsstellen in `Directories`.
+Die Liste ist eine Positivliste im Code. Ein achter Anbieter ist eine Änderung,
+die jemand liest, kein Feld in einem Formular — dieselbe Haltung wie bei den
+Zertifizierungsstellen in `Directories`.
 
 **Die Abnahme läuft gegen eine Zone, die der Betreiber selbst führt.** Ein
 fremder Dienst im Abnahmelauf ist ein Lauf, der irgendwann aus einem Grund rot
@@ -480,6 +767,12 @@ ein gültiges, deckendes Zertifikat vor, liefert der Block dieses aus**; die
 Wahl bleibt eingetragen, greift wieder, sobald sie gilt, und die Domainseite
 sagt in einer Meldung, dass sie gerade übergangen wird.
 
+> **Und das Prüfprotokoll sagt es auch — nachgetragen am 7. August 2026.** Die
+> Meldung auf der Seite beantwortet „gilt meine Wahl gerade?"; sie beantwortet
+> nicht „seit wann nicht mehr?". Dafür gibt es
+> `domain.certificate.overridden`, geschrieben nach jedem `web.site.apply`, das
+> die Wahl übergeht. Die Einzelheiten in §11.2.
+
 > **Erledigt in Schritt 4.** Die Antwort auf „welches liefert dieser Block
 > aus?" steht in `CertificateChoice` und nirgends sonst — `effective()` für den
 > Server-Block und die Seite, `satisfied()` für die Frage, ob bestellt werden
@@ -555,10 +848,25 @@ Bruch in `tests/waechter-brechen.sh` mit.
    der Namen, die fehlenden Zugangsdaten, der Platzhalter zu einer Subdomain,
    die gewöhnliche Bestellung ohne DNS-01, und die Fähigkeit, die im Payload
    ankommt.
-9. **Hetzner, Cloudflare, Netcup, IPv64.net** — einer nach dem anderen, jeder
-   mit seinem Wächter und seinen Fehlerfällen. IPv64.net bringt dabei den Fall
-   mit, an dem sich die Zonenauflösung beweist: Die Zone ist dort oft selbst
-   eine Unterdomain (§6).
+9. **Die sieben Anbieter** — einer nach dem anderen, jeder mit seinem Wächter
+   und seinen Fehlerfällen. **IPv64.net vorgezogen und gebaut:** Er bringt den
+   Fall mit, an dem sich die Zonenauflösung beweist — die Zone ist dort oft
+   selbst eine Unterdomain (§6). **Hetzner ebenfalls gebaut**, gegen die
+   Cloud-API und nicht gegen die auslaufende DNS-Konsole. **Cloudflare
+   ebenfalls gebaut**, nur mit API-Token; der globale Schlüssel wird abgewiesen.
+   **netcup ebenfalls gebaut** — der erste mit einer Sitzung und der erste, dem
+   die Zonen genannt werden müssen. **IONOS und deSEC ebenfalls gebaut** — deSEC
+   als einziger ohne `Zones`, weil er die Zonenfrage selbst beantwortet.
+   **INWX zuletzt und ebenfalls gebaut** — XML-RPC, Sitzungscookie, TOTP und ein
+   Kontopasswort statt eines Tokens. Damit stehen alle acht, und
+   `Providers::PENDING` ist leer.
+
+   Vorweg kam eine Grenze, die es schon gab, aber nur als Prosa: **Der Agent
+   spricht an genau einer Stelle nach draussen** (`Acme\Curl`), und ihre vier
+   Zusagen — keine Umleitung, Zertifikat geprüft, Name geprüft, zwei Zeitlimits
+   — stehen jetzt in `OutboundSourceTest`. Gefunden beim ersten Anbieter, also
+   genau in dem Moment, in dem die zweite Stelle mit `curl_setopt` entstanden
+   wäre.
 
 ---
 
@@ -589,7 +897,10 @@ Gemessen auf einem echten Server, nicht geschätzt (Plan §8):
 Getroffen am 6. August 2026, alle vier:
 
 1. **Anbieter und Reihenfolge:** RFC 2136, Hetzner, Cloudflare, Netcup,
-   IPv64.net (§6).
+   IPv64.net (§6). **Am 7. August erweitert:** Nach einer Durchsicht aller 222
+   Anbieter in lego kamen IONOS, INWX und deSEC dazu — sieben mit eigener
+   Schnittstelle plus RFC 2136. deSEC ist dabei die Antwort auf Strato, das
+   überhaupt keine öffentliche DNS-Schnittstelle hat (§6).
 2. **Zugangsdaten am Abonnement** — über `Feature::DnsEdit` aus dem Plan, mit
    dem Profil des Betreibers als Grundfall (§5).
 3. **Der Kunde darf einen Platzhalter bestellen** — für Basisdomains, die ihm
@@ -602,13 +913,77 @@ Zertifikate da, wird gewählt** (§8) — die Auswahl ist `domains.certificate_i
 und sie bekommt mit `certificate_pinned_at` ein Kennzeichen, damit die
 Automatik sie nicht still zurücknimmt.
 
-**Was daraus offen bleibt und beim Bauen beantwortet wird**, nicht vorher:
+**Was beim Bauen offenblieb — am 7. August 2026 beantwortet, alle fünf:**
 
-- Der Rückfall, wenn die Wahl abläuft (§8). Vorschlag steht dort: laut
-  zurückfallen statt die Website vom Netz zu nehmen.
-- Der Endpunktsatz von IPv64.net (§6) — beim ersten Zugriff gegen die
-  Dokumentation des Anbieters zu halten.
-- Die Frist, nach der `ready()` aufgibt, und wie oft dazwischen gefragt wird.
-  Sie hängt an dem, was die Anbieter tatsächlich tun, und gehört gemessen statt
-  geraten.
-- Die Obergrenze für eine hochgeladene Datei (§7).
+1. ~~Der Endpunktsatz von IPv64.net (§6)~~ — gebaut wie beschrieben; die
+   Zonenauflösung über `get_domains` ist unsere Wahl und nicht die von lego,
+   siehe die Berichtigung in §6.
+
+2. ~~**Der Rückfall, wenn die Wahl abläuft (§8): laut zurückfallen.**~~ —
+   umgesetzt am 7. August 2026. Ist die
+   gewählte Zuweisung abgelaufen und deckt ein anderes gültiges Zertifikat alle
+   Namen, wird gewechselt — aber mit einem Eintrag im Prüfprotokoll und einem
+   Hinweis auf der Domainseite, dass die Wahl überholt ist. Die Website bleibt
+   erreichbar, und die Entscheidung verschwindet nicht unbemerkt. Ein stiller
+   Wechsel wäre bequemer und würde genau das tun, wogegen
+   `certificate_pinned_at` überhaupt eingeführt wurde.
+
+   **Der Eintrag entsteht nach dem Vorgang und nicht beim Einreihen**
+   (`WebLifecycle::afterSuccess()`, Aufgabe `web.site.apply`): Erst dann
+   liefert der Block wirklich etwas anderes aus. Damit deckt er auch beide
+   Wege, auf denen ein Block geschrieben wird — das Formular und die Erneuerung
+   —, ohne dass ein Haken an zwei Stellen hängt. Er heisst
+   `domain.certificate.overridden`, steht als **Fehlschlag** darin (jemand
+   durfte wählen, und die Wahl liess sich nicht einlösen) und trägt das
+   Abonnement, damit der Kunde ihn sieht. **Er wiederholt sich bei jedem
+   angewandten Block**, und das ist Absicht: So steht im Protokoll die Spanne
+   und nicht ein Punkt, und es braucht keinen zweiten Zustand „schon gesagt".
+
+3. ~~**INWX wird nicht angeboten.**~~ — umgesetzt am 7. August 2026. Die Liste
+   heisst jetzt `Providers::WITHHELD` und trägt den Grund als Wert; er geht bis
+   ins Formular. Bei den übrigen sieben sind die Zugangsdaten
+   ein Token, das sich auf Zonen eingrenzen lässt; bei INWX sind es
+   Benutzername und Passwort desselben Zugangs, mit dem man Domains kauft,
+   überträgt und löscht. Ein Panel soll niemanden dazu bringen, sein
+   Registrarkonto auf einem fremden Server abzulegen — auch den Betreiber
+   nicht. **Der Code bleibt** — an allen drei Stellen, im Agenten, in der
+   Formularprüfung und im Formular selbst; kommt bei INWX eines Tages ein
+   eingrenzbares Token, ist es eine Zeile in `WITHHELD`.
+
+   **Damit ändert sich, was diese Liste bedeutet.** Bisher hiess sie `PENDING`
+   und meinte „noch nicht gebaut", jetzt heisst sie `WITHHELD` und meint „nicht
+   angeboten" — und der Unterschied gehört in die Oberfläche: „Noch nicht
+   verfügbar: INWX" wäre schlicht falsch. Jeder zurückgehaltene Anbieter trägt
+   deshalb seinen Grund als Wert, und der wird angezeigt: im Formular neben dem
+   Namen, im Kommando als eigene Zeile. Aus demselben Grund heisst die
+   Abweisung am Feld nicht mehr „Diesen Anbieter gibt es noch nicht", sondern
+   „hier nicht" — sie gilt für jeden abgewiesenen Wert und kann den Einzelfall
+   nicht erklären.
+
+4. ~~**Die Frist für `ready()` kommt vom Anbieter, nicht aus einer
+   Konstante.**~~ — umgesetzt am 7. August 2026 als `Patience`.
+   Bis dahin wartete `Order` für alle 120 Sekunden und fragte alle 2 Sekunden
+   nach. Das ist kürzer, als lego für drei der acht Anbieter für nötig hält:
+
+   | | RFC 2136 | IPv64 | Hetzner | Cloudflare | deSEC | INWX | netcup | IONOS |
+   |---|---|---|---|---|---|---|---|---|
+   | Frist | 60 s | 60 s | 60 s | 120 s | 120 s | 360 s | 900 s | 900 s |
+   | Abstand | 2 s | 2 s | 2 s | 2 s | 4 s | 2 s | 30 s | 2 s |
+
+   **Diese Tabelle ist die Quelle, gegen die `PatienceTest` jede Zahl einzeln
+   prüft** — und zwar auch die von INWX, obwohl er nicht angeboten wird. RFC
+   2136 steht hier ohne lego-Vorbild: Ein Nameserver, der die Aktualisierung
+   selbst bestätigt hat, braucht nicht länger als die schnellsten.
+
+   Bei netcup und IONOS bricht eine Bestellung damit nach zwei Minuten ab, wo
+   lego fünfzehn zugesteht — und **jeder Fehlversuch zählt bei Let's Encrypt
+   für alle Kunden dieses Servers**. Jeder Anbieter bringt deshalb seine eigene
+   Frist und seinen eigenen Abstand mit. Die Zahlen sind die von lego, weil sie
+   aus dem Einsatz kommen; die Frist für das Warten auf die
+   Zertifizierungsstelle bleibt davon unberührt.
+
+5. **Die Obergrenzen fürs Hochladen bleiben, wie sie gebaut sind:** 64 KiB für
+   die Kette, 32 KiB für den Schlüssel (`Bundle::MAX_CHAIN_BYTES`,
+   `MAX_KEY_BYTES`), geprüft im Controller und noch einmal im Agenten. Eine
+   übliche Kette liegt bei vier bis acht Kilobyte; die Grenze steht nicht da,
+   weil eine echte ihr nahekäme, sondern weil das Gegenüber als root schreibt.

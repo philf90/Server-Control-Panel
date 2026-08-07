@@ -8,9 +8,9 @@ use App\Models\Account;
 use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Support\Auth\RecoveryCodes;
-use App\Support\Auth\Totp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use SrvPanel\Agent\Totp;
 use Tests\TestCase;
 
 final class TwoFactorTest extends TestCase

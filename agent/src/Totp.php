@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Support\Auth;
+namespace SrvPanel\Agent;
 
 /**
  * Zeitbasierte Einmalkennwörter nach RFC 6238.
@@ -23,6 +23,16 @@ namespace App\Support\Auth;
  * **Sechs Stellen, dreißig Sekunden, SHA1.** Nicht weil es das Beste wäre,
  * sondern weil jede Authenticator-App genau das erwartet. Ein Panel, dessen
  * zweiter Faktor nur mit einer bestimmten App funktioniert, hat keinen.
+ *
+ * **Warum diese Klasse im Agenten liegt und nicht in `app/`.** Sie hat dort
+ * angefangen, für den zweiten Faktor der Anmeldung. Mit INWX braucht sie ein
+ * zweiter Aufrufer: Dessen Schnittstelle verlangt bei einem gesicherten Konto
+ * einen TAN, und der entsteht aus einem Geheimnis, das der Agent hält und die
+ * Anwendung nach dem Speichern nie wiedersieht. Der Agent kann nicht auf `app/`
+ * zugreifen — die andere Richtung geht, `SrvPanel\Agent\` ist von dort
+ * autoladbar. Es hier zu haben ist deshalb der einzige Weg, es **einmal** zu
+ * haben; eine zweite Umsetzung im Agenten wäre genau das Muster, an dem dieses
+ * Projekt am häufigsten verloren hat. `TotpSourceTest` besteht darauf.
  */
 final class Totp
 {

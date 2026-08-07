@@ -3607,3 +3607,634 @@ ein Release anlegt, vorher fragt, ob es schon eines gibt.
 dazu ändert eine Datei dort; ein Bruch in einem Verzeichnis, das
 `wiederherstellen` nicht kennt, ist keine Probe, sondern eine Änderung. Genau
 aus diesem Grund war `packaging/` in P4 dazugekommen.
+
+#### Schritt 9 beginnt mit einer Grenze, die es schon gab
+
+**Vor dem ersten DNS-Anbieter kam ein Fund.** Der Agent läuft als root; alles,
+was er tut, geht über einen Unix-Socket mit Aufruferprüfung oder über Programme
+von einer Positivliste. Eine Verbindung zu einem fremden Rechner ist eine
+eigene Art von Oberfläche, und ihre vier Zusagen — nur https, keine
+Umleitungen, gedeckelte Antwort, Zeitlimit — standen seit P4 **nur als
+Kommentar** in `CurlTransport`. Kein Test nannte sie.
+
+Aufgefallen ist das im ungünstigsten denkbaren Moment und deshalb gerade
+rechtzeitig: Mit den Anbietern aus Schritt 9 kommt eine zweite Gegenstelle
+dazu, und eine zweite Stelle, die dieselben vier Optionen setzt, ist genau das
+Muster, an dem dieses Projekt am häufigsten verloren hat — die zweite ist die,
+in der eine davon irgendwann fehlt.
+
+Die Grenze steht deshalb jetzt an einer Stelle (`Acme\Curl`), und darüber
+liegen zwei Formen: die ACME-förmige (`CurlTransport`, zwei Verben und
+`application/jose+json`) und die der Anbieter. `Acme\Outbound` ist die Naht, an
+der beide gegen ein Drehbuch geprüft werden können — dieselbe Machart wie
+`Transport` für ACME, nur eine Ebene tiefer gezogen.
+
+**`CUSTOMREQUEST` statt `POST`.** Beim Zusammenziehen fiel eine Falle auf, die
+vorher nicht bestand: `CURLOPT_POST` und `CURLOPT_CUSTOMREQUEST` zusammen
+gesetzt schreiben die Methode zweimal, und welche gewinnt, hängt an der
+Reihenfolge im Array. Da die Anbieter `DELETE` brauchen, hängt die Methode
+jetzt allein an `CUSTOMREQUEST` und der Rumpf allein an `POSTFIELDS`.
+
+`OutboundSourceTest` prüft beides: dass keine andere Datei unter `agent/` curl
+anfasst, und dass die vier Zusagen dort wörtlich stehen. Zwei neue Brüche — eine
+Zusage fällt weg, und eine zweite Stelle spricht nach draussen.
+
+#### Schritt 9, erster Anbieter: IPv64.net
+
+**Er ist der erste der fünf, obwohl der Plan ihn zuletzt nennt** — und das aus
+einem Grund, der ihn zum besten Prüfstein macht: Bei IPv64.net ist die Zone
+häufig selbst eine Unterdomain. `meinname.ipv64.de` ist eine ganze Zone, nicht
+ein Name darin. Jede Regel, die sie aus dem Namen errechnet, liegt hier
+irgendwann falsch — und zwar **still**, denn ein TXT-Eintrag in der falschen
+Zone ist kein Fehler, er wird nur nie gefunden.
+
+**Deshalb wird gefragt und nicht gerechnet.** `get_domains` nennt die Zonen des
+Kontos; die längste, die auf den Namen passt, gewinnt. Das ist bewusst eine
+andere Wahl als bei lego, dessen `splitDomain` die **letzten drei** Bestandteile
+nimmt — nachgesehen im geklonten Quelltext, nicht aus der Erinnerung. Für
+`meinname.ipv64.de` kommt dasselbe heraus; für eine eigene Domain, die jemand
+zu IPv64.net bringt, nicht mehr: `example.de` hat zwei Bestandteile, und die
+Regel gäbe `_acme-challenge.example.de` als Zone aus.
+
+Damit ist auch eine Angabe in `docs/34 §6` genauer geworden: Dort stand,
+`get_domains` sei „genau dafür da, und acme.sh macht es ebenso". Die
+Schnittstelle stimmt, die Zonenauflösung über sie ist aber **unsere** Wahl und
+nicht die von lego.
+
+**Die Zonen werden einmal je Vorgang geholt.** Der Anbieter drosselt und sagt
+es mit HTTP 429; das steht als eigene Meldung da, weil ein Vorgang, der ohne
+Grund scheitert, wiederholt wird — und einer, der „zu schnell" sagt, abgewartet.
+
+**`null` ist ein Fehlschlag und kein leeres Ergebnis.** Der Anbieter antwortet
+in diesem Fall mit dem vier Zeichen langen Rumpf `null`, und `json_decode` macht
+daraus brav ein PHP-`null`. Wer das als „nichts gefunden" liest, hält einen
+Fehlschlag für einen Normalfall. Ebenso steht die Begründung je nach Aufruf in
+`add_record` oder `del_record`, während `info` ein allgemeines Wort trägt — wer
+nur `info` liest, bekommt „Nope" und weiss nichts.
+
+**`praefix` ist deutsch geschrieben, weil der Anbieter es so nennt** — eine
+echte Schnittstelle nach aussen, die `docs/19 §4a` ausdrücklich lässt, wie sie
+ist.
+
+**Und das Formular folgt jetzt dem Anbieter.** RFC 2136 braucht Nameserver,
+Zonen, Schlüsselnamen und ein Base64-Geheimnis; IPv64.net ein Token und sonst
+nichts. Ein gemeinsames Formular mit lauter freiwilligen Feldern hiesse, dass
+beide alles annehmen und die Hälfte ignorieren. `DnsCredentialInput` verzweigt
+an derselben Stelle wie das Markup, und `DnsProviderReachTest` prüft beide
+Richtungen: Jeder Schlüssel im Markup ist ein Anbieter, den es gibt, und jeder
+benutzbare Anbieter hat ein Formular.
+
+Drei neue Brüche: ein Anbieterschlüssel, der ins Leere zeigt · ein benutzbarer
+Anbieter ohne Formular · eine Zone, die gerechnet statt gefragt wird.
+
+#### Ein anbieterübergreifender Wächter, der im Test eines Anbieters wohnte
+
+`test_every_provider_key_points_at_something` — der Wächter, der prüft, dass
+jeder Anbieterschlüssel entweder gebaut ist oder als offen dasteht — stand in
+`Rfc2136Test` und hat sich von dort seine Annahmen geliehen: Er hielt **jedem**
+Anbieter denselben Satz Zugangsdaten hin, und das war der eines TSIG-Schlüssels.
+Solange RFC 2136 der einzige gebaute war, ging das auf. Mit IPv64.net fiel er —
+„Für IPv64.net fehlt das Token." —, und zwar an der Stelle, an der er eigentlich
+grün werden sollte.
+
+Er steht jetzt als `ProvidersTest` für sich, mit einem Satz Zugangsdaten **je**
+Anbieter. Wer einen baut und die Zeile vergisst, liest einen Satz dazu statt
+eines Zugriffs auf einen fehlenden Schlüssel — sonst bliebe der neue Anbieter
+einfach ungeprüft, und das fiele erst beim ersten Zertifikat auf. Für die sechs,
+die noch kommen, hätte die alte Form sechsmal dasselbe gekostet.
+
+**Und `league/commonmark` steht auf 2.9.0.** Am 6. August kamen zwei Meldungen
+für 2.8.3 — eine quadratische Laufzeit beim Zerlegen von Markdown (hoch) und ein
+Weg, den Linkfilter der `AttributesExtension` mit Steuerzeichen zu umgehen
+(mittel). Das Paket ist eine mittelbare Abhängigkeit und nichts, was dieses
+Projekt selbst aufruft; die CI meldet es trotzdem, und genau dafür gibt es den
+Lauf „Schwachstellen und Lizenzen". Nur die Sperrdatei wandert, der Rest bleibt.
+
+#### Sieben Anbieter statt vier — und ein achter, den es nicht geben kann
+
+Vor dem zweiten Anbieter wurde die Liste noch einmal gegen die vollständige
+gehalten: **222 Anbieter unter `providers/dns/` in lego**, durchgesehen am
+7. August. Aus dem deutschsprachigen Markt kamen drei dazu, jeder aus einem
+eigenen Grund — **IONOS** (der grösste deutsche Massenhoster, ein Token, eine
+REST-Schnittstelle), **INWX** (der Registrar der Wiederverkäufer) und **deSEC**
+(gemeinnützig, DNSSEC ab Werk, kostenfrei).
+
+**Der Fund, der deSEC auf die Liste gebracht hat: Strato hat keine öffentliche
+DNS-Schnittstelle.** Weder lego noch acme.sh können ihn, und das ist kein
+Versäumnis der beiden — es gibt schlicht nichts, worüber sich ein TXT-Eintrag
+setzen liesse. Für einen Kunden mit Domain bei Strato heisst das: kein
+Platzhalter über DNS-01, solange die Zone dort liegt. Der Ausweg ist die Zone
+und nicht das Panel; sie lässt sich zu deSEC delegieren, ohne dass die Domain
+umzieht. Das gehört gesagt, weil die naheliegende Antwort — „bauen wir eben
+Strato dazu" — hier nicht existiert.
+
+**INWX steht zuletzt, und das ist keine Reihenfolge nach Bequemlichkeit.** Er
+ist der einzige der sieben mit Benutzername und Passwort statt eines Tokens, er
+spricht XML-RPC statt JSON, er führt eine Sitzung über ein Cookie, und bei
+gesichertem Konto rechnet der Agent bei jeder Anmeldung einen TOTP-Code aus.
+Vor allem aber öffnet das, was dort hinterlegt wird, ein ganzes Registrarkonto
+und nicht eine Zone. Ob ein **Kunde** dort überhaupt etwas hinterlegen soll,
+steht als offene Frage in `docs/34 §11`.
+
+Die drei stehen jetzt als offen in `Providers::PENDING` — die Entscheidung ist
+damit im Code und nicht nur im Plan, und `ProvidersTest` hält sie fest: Jeder
+Schlüssel ist entweder gebaut oder offen, und wer offen ist, lässt sich nicht
+hinterlegen. Die Zugangsdatenformen aller sieben sind in `docs/34 §6`
+tabelliert — nachgesehen und nicht angenommen. Drei Stellen darin sind teurer,
+als sie aussehen: Hetzner führt **zwei** Schnittstellen nebeneinander (alte
+DNS-Konsole und Cloud-API, und ein Token der einen gilt bei der anderen nicht),
+netcup ist der einzige mit einer Sitzung aus `login`/`logout`, und der eine
+IONOS-Schlüssel ist in Wahrheit zwei Felder in der Form `<prefix>.<secret>`.
+
+**Und eine Berichtigung.** `docs/34 §6` schrieb, `get_domains` sei „genau dafür
+da, und acme.sh macht es ebenso", lego „verlange mindestens drei Bestandteile".
+Beim Bauen nachgesehen: lego benutzt `get_domains` zur Zonenauflösung **nicht**
+— sein `splitDomain` nimmt die letzten drei Bestandteile des Namens. Die
+Abfrage ist damit unsere Wahl und nicht die von lego, und sie ist die bessere.
+Das gehört richtiggestellt, weil eine Begründung, die sich auf einen anderen
+beruft, beim nächsten Anbieter wieder herangezogen wird — und dann für etwas,
+das dort nicht stimmt.
+
+#### Schritt 9, dritter Anbieter: Hetzner — gegen die Cloud-API
+
+Hetzner führt **zwei** Schnittstellen für dasselbe: die ältere der DNS-Konsole
+(`dns.hetzner.com/api/v1`, Kopfzeile `Auth-API-Token`) und die neuere als Teil
+der Cloud-API (`api.hetzner.cloud/v1`, `Authorization: Bearer`). Gebaut ist die
+**Cloud-API**, weil Hetzner die DNS-Verwaltung dorthin überführt hat und ein
+Panel, das gegen die auslaufende Strecke baut, sie zweimal bauen muss. Belegt
+ist der Endpunktsatz nicht aus lego, sondern aus Hetzners eigenem Go-SDK
+(`hetznercloud/hcloud-go`) — `GET /zones` mit Blätterauskunft,
+`POST /zones/{zone}/rrsets/{name}/TXT/actions/add_records` und `remove_records`.
+
+**Ein Token der einen gilt bei der anderen nicht, und an der Form lassen sie
+sich nicht unterscheiden.** Nachgesehen und nicht gefunden — also steht der
+Hinweis dort, wo er ankommt: im Formular vor der Eingabe, und in der Meldung zu
+401 und 403. Eine Abweisung, die nur „unauthorized" sagt, führt dazu, dass
+jemand dasselbe Token ein zweites Mal einträgt.
+
+**Der Schreibvorgang ist beim Antworten nicht fertig.** Die Cloud-API antwortet
+mit einer *Action*, die auf `running` stehen kann. Gewartet wird trotzdem nicht:
+Ob der Eintrag ausgeliefert wird, beantwortet ohnehin nur `DnsChallenge` durch
+Fragen der autoritativen Nameserver, und das ist die strengere Frage. Gelesen
+wird der Zustand **einmal**, und zwar wegen `error` — der steht sofort da und
+spart eine Prüfung, die zwei Minuten auf einen Eintrag wartet, den niemand mehr
+anlegt.
+
+**Der TXT-Wert geht in Anführungszeichen hinaus**, wie eine Zonendatei ihn
+schreibt. Ein Wert mit einem Anführungszeichen oder Rückstrich darin bräuchte
+eine Fluchtregel — eine eigene kleine Sprache mit eigenen Fehlern. Ein
+ACME-Prüfwert ist Base64 ohne Polster und enthält beides nie; was es doch
+enthält, wird abgewiesen statt halb richtig verpackt.
+
+**Der Fund, den kein Test gemacht hat.** Die Blätterschleife lief endlos. Sie
+verglich die *Seitennummer* mit der Obergrenze — kommt `next_page` mit `1`
+zurück, während `page` auf `1` steht, ist „Seite kleiner als die Obergrenze"
+für immer erfüllt. Gefunden hat es eine Wegwerfprobe, die nicht zurückkam;
+ein Test an dieser Stelle hätte die CI blockiert statt rot zu werden. Gezählt
+werden jetzt die **Runden**, und das Ende wird gemeldet statt still
+abgeschnitten: Wer hier einfach aufhört, sagt gleich darauf „für diesen Namen
+keine Zone" und nennt damit einen Grund, der nicht stimmt.
+
+Der Bruch dazu bricht deshalb bewusst nur die Hälfte, die still zurückfallen
+kann — das Melden. Ein Bruch des Deckels selbst hinge, und ein hängender Lauf
+ist schlimmer als ein fehlender; das steht als Absatz im Bruchskript.
+
+#### Die Zonenauflösung stand zweimal da und wäre dreimal geworden
+
+Die Regel ist bei jedem Anbieter dieselbe: Von allen Zonen, in denen ein Name
+liegt, gewinnt die **längste**. Sie stand als eigene Schleife bei RFC 2136 und
+noch einmal bei IPv64.net. Mit Hetzner wäre sie zum dritten Mal geschrieben
+worden — dasselbe Muster wie beim Rechnernamen, den dieses Projekt viermal neu
+erfunden hat, bis `HostnameSourceTest` dazwischenging.
+
+Sie steht jetzt in `Zones`, und `ZoneSourceTest` besteht darauf: `Name::within()`
+ruft nur diese eine Stelle. Der Fehler wäre still gewesen — eine Schleife, die
+die erste statt der längsten passenden Zone nimmt, legt den Eintrag eine Ebene
+zu hoch an. Der Anbieter nimmt das an, es gibt keine Meldung; die Prüfung findet
+ihn nur nie. Die zwei Richtungen haben zwei Tests: `erste gewinnt` bricht den
+einen, `letzte gewinnt` den anderen, und beide wurden gegengeprüft.
+
+#### Ein Satz in einer Zelle, die nicht umbricht — 128px, ausgeliefert im PR
+
+Die Zonenzeile der Auskunft trug im Leerfall einen Satz: „aus dem Konto bei
+IPv64.net — dieses Profil ändert, was dort geführt wird". Bei 390px sind das
+**128px Überlauf**. `table.pairs td.right` steht auf `nowrap` und `flex: none`;
+ein Satz darin wird weder umbrochen noch zusammengedrückt, und die Ausnahme
+dafür hängt an `ident` — also an einer Kennung, die ein Satz nicht ist.
+
+**Er war grün getestet und gemessen.** Gemessen wurde die Seite *ohne*
+hinterlegte Zugangsdaten, und in diesem Zustand gibt es die Zeile nicht. Das ist
+dieselbe Lücke wie bei den drei Fehlern aus `v0.4.0-rc.4`: Eine Aufnahme prüft
+den Zustand, den sie zeigt, und keinen anderen.
+
+In der Zelle steht jetzt nur noch der Wert — `vom Anbieter`, `keine` oder die
+Zonen —, die Sätze stehen als `hint` unter der Tabelle. Nachgemessen bei 390px
+in beiden Themes: 0px, auch mit einer dreigliedrigen Zonenliste.
+
+#### Schritt 9, vierter Anbieter: Cloudflare — und die Anmeldung, die fehlt
+
+Cloudflare kennt zwei Arten von Zugangsdaten. Die ältere ist der globale
+API-Schlüssel samt Kontoadresse (`X-Auth-Email`, `X-Auth-Key`) und öffnet **das
+ganze Konto** — alle Zonen, alle Einstellungen, den Zugriffsschutz. Die neuere
+ist ein API-Token, eingrenzbar auf einzelne Zonen und auf zwei Rechte:
+`Zone:Read`, um die Zonen zu finden, und `DNS:Edit`, um den Prüfeintrag zu
+setzen.
+
+**Angeboten wird nur das Token.** lego nimmt beide entgegen und rät im
+Kommentar vom globalen Schlüssel ab. Ein Rat in einem Kommentar ist hier zu
+wenig: Was in einem Formular steht, wird ausgefüllt, und was ausgefüllt wird,
+liegt danach als Geheimnis auf einem Server, auf dem Kunden Websites
+betreiben. Eine mitgeschickte Kontoadresse wird deshalb **abgewiesen** und
+nicht stillschweigend fallengelassen — sonst käme die Abweisung von Cloudflare,
+mit einem Satz, der den Grund nicht nennt.
+
+**Gelöscht wird über eine Eintragskennung, nicht über den Wert** — der
+Unterschied zu Hetzner und IPv64.net. lego merkt sich die Kennung beim Anlegen
+in einer Ablage; wir suchen sie beim Abräumen. Der Grund steht in
+`DnsProvider::remove()`: Der Aufruf läuft auch nach einem Fehlschlag, und dann
+ist die Ablage leer. lego bricht an dieser Stelle mit „unknown record ID" ab
+und macht aus einem Fehlschlag zwei.
+
+**Gefiltert wird zweimal, und das ist Absicht.** Cloudflare grenzt serverseitig
+ein (`type`, `name.exact`), aber seine Filter sind ausdrücklich *nicht* auf
+Gross- und Kleinschreibung bedacht — nachgesehen in Cloudflares eigenem Go-SDK.
+Ein ACME-Prüfwert ist Base64 und damit sehr wohl. Deshalb wird der Wert nach
+dem Suchen noch einmal Zeichen für Zeichen verglichen: Ohne das löschte eine
+Bestellung den Eintrag einer anderen, die sich nur in der Schreibweise
+unterscheidet.
+
+**Und `success` zählt, nicht nur der HTTP-Code.** Cloudflare antwortet auf einen
+abgelehnten Vorgang durchaus mit 200 und `"success": false`. Wer nur den Code
+liest, hält das für erledigt und wartet danach zwei Minuten auf einen Eintrag,
+den es nicht gibt.
+
+Fünf neue Brüche, alle gegengeprüft.
+
+#### Der TXT-Wert stand zweimal da — diesmal beim zweiten Mal bemerkt
+
+Ein TXT-Eintrag besteht aus „character-strings" in Anführungszeichen
+(RFC 1035 §3.3.14), und Hetzner wie Cloudflare nehmen den Wert genau so
+entgegen. Bei Hetzner stand die Regel als private Methode; mit Cloudflare wäre
+sie zum zweiten Mal geschrieben worden.
+
+Sie steht jetzt in `TxtValue`, und `TxtValueSourceTest` besteht darauf. Das ist
+dieselbe Sorte Fund wie bei der Zonenauflösung eine Runde vorher — nur früher:
+Dort stand die Regel dreimal, bevor jemand hinsah.
+
+**Dabei ist eine Abweisung dazugekommen, die vorher fehlte: die Länge.** Ein
+Anbieter teilt einen Wert über 255 Zeichen stillschweigend in zwei
+character-strings, und ein TXT-Satz aus zwei Teilen ist für die
+Zertifizierungsstelle ein anderer Wert — der Vorgang scheitert dann an einer
+Ursache, die nirgends steht. Ein ACME-Prüfwert ist 43 Zeichen lang; was länger
+ankommt, ist keiner.
+
+`TxtValue::matches()` ist die Gegenrichtung und ebenfalls neu: Beim Abräumen
+zählen beide Formen, weil Cloudflare die Anführungszeichen ablegt und
+zurückgibt, andere aber den nackten Wert liefern. Wer nur die eine Form
+vergleicht, findet seinen eigenen Eintrag nicht — und lässt eine Aussage über
+die Zone stehen, die niemand mehr zurücknimmt.
+
+#### Schritt 9, fünfter Anbieter: netcup — der erste mit einer Sitzung
+
+Drei Dinge sind bei netcup anders als bei allen bisherigen.
+
+**Erstens: eine Sitzung.** Vor jedem Zugriff steht ein `login`, danach ein
+`logout`. An- und abgemeldet wird **je Vorgang** und nicht einmal für die
+Lebensdauer des Objekts: Ein Abmelden im Destruktor wäre Netzverkehr zu einem
+Zeitpunkt, den niemand bestimmt, und eine Ausnahme darin ist in PHP ein fataler
+Fehler. Zwei Regeln hängen daran, und beide haben ihren Bruch:
+
+- Das Abmelden steht im `finally` — sonst bliebe eine Sitzung bei einem fremden
+  Anbieter genau dann liegen, wenn der Zugriff dazwischen scheitert. Das ist
+  der Fall, der sich häuft.
+- Sein Ergebnis wird **nicht** geprüft. Ein gescheitertes Abmelden machte sonst
+  aus einem gesetzten Eintrag einen Fehlschlag, und der Vorgang würde
+  wiederholt, obwohl er durchgelaufen ist — bei Let's Encrypt zählt jeder
+  Fehlversuch für alle Kunden dieses Servers.
+
+**Zweitens: die Zonen stehen in den Zugangsdaten.** Die DNS-Schnittstelle von
+netcup kennt keine Auskunft, die die Domains eines Kontos aufzählt; lego fragt
+dafür die autoritativen Nameserver nach dem SOA-Satz. Das wäre eine dritte
+Quelle für dieselbe Frage. Stattdessen gilt dieselbe Antwort wie bei RFC 2136
+und aus demselben Grund: eine Positivliste, die der Betreiber aufschreibt. Ein
+Name ausserhalb kostet damit nicht einmal eine Anmeldung.
+
+Dabei ist eine Stelle in der Oberfläche aufgefallen, die still falsch geworden
+wäre: Die Auskunft entschied mit „alles ausser RFC 2136", ob die Zonen vom
+Anbieter kommen. netcup wäre auf der falschen Seite gelandet — die Seite hätte
+„vom Anbieter" gesagt, wo der Betreiber sie selbst eingetragen hat. Die beiden
+stehen jetzt als Liste da, und wer einen Anbieter baut, muss ihn einordnen.
+
+**Drittens: geschrieben wird nur der eine Satz.** lego liest an dieser Stelle
+**die ganze Zone**, hängt den neuen Eintrag an und schickt alles zurück. Das ist
+ein Lesen-Ändern-Schreiben über den Bestand eines Kunden. Es ist auch unnötig:
+`updateDnsRecords` legt an, was keine Kennung hat, und löscht, was
+`deleterecord` trägt — es ersetzt den Bestand nicht. Belegt ist das aus legos
+eigenem `CleanUp`, das genau einen Satz schickt; wäre der Aufruf ein Ersetzen,
+nähme er jedem netcup-Nutzer beim Abräumen die Zone. Beim ersten echten Zugriff
+gehört das gegen netcups Dokumentation gehalten, so wie beim Endpunktsatz von
+IPv64.net — die Seiten von netcup sind aus diesem Container nicht erreichbar.
+
+**Und beim Löschen zählt der Name mit.** lego vergleicht nur Wert und Art;
+stehen zwei Prüfeinträge mit demselben Wert unter verschiedenen Namen, ist das
+der falsche Satz.
+
+**Der Fund, den hier sonst nichts findet.** Der Abschluss in `add()` nahm
+`$record` nicht mit, und die Fehlermeldung hätte den Namen der Domain verloren.
+Gefunden hat es die Wegwerfprobe über `agent/src/autoload.php` — PHP warnt zur
+Laufzeit, wo `php -l` nichts sieht und PHPStan erst in der CI läuft.
+
+Vier neue Brüche, alle rot und grün gegengeprüft.
+
+#### Schritt 9, sechster Anbieter: IONOS — ein Feld, das in Wahrheit zwei ist
+
+Der Schlüssel hat die Form `<präfix>.<geheimnis>`, und IONOS zeigt beide Teile
+**getrennt** an — der Präfix steht dort obenan und sieht aus wie der Schlüssel.
+Wer nur ihn einträgt, bekommt ohne Prüfung erst nachts bei einer Erneuerung eine
+Abweisung, die von einem ungültigen Schlüssel spricht. `configure()` verlangt
+deshalb genau einen Punkt und zwei nicht leere Hälften, das Formular sagt es
+vorher, und die Meldung zu 401 und 403 nennt es noch einmal.
+
+**`suffix` ist ein Suffix und kein Name.** Der Filter von IONOS
+(`?suffix=<name>&recordType=TXT`) liefert auch `x.<name>` mit. Ohne einen
+zweiten Abgleich wanderte ein fremder Name in die Liste, die zurückgeschickt
+wird — und beim Löschen in die Auswahl.
+
+**Beim Anlegen folgen wir lego, und das ist hier die Entscheidung.** `PATCH
+/zones/<id>` bekommt eine Liste von Sätzen; ob der Aufruf sie *hinzufügt* oder
+den Bestand zu diesem Namen *ersetzt*, geht aus legos Code nicht hervor, und die
+Seiten von IONOS sind aus diesem Container nicht erreichbar. Bei netcup liess
+sich dieselbe Frage aus legos eigenem `CleanUp` beantworten — hier nicht.
+Solange das offen ist, gilt der Weg, der unter **beiden** Lesarten richtig ist:
+erst die vorhandenen Sätze zu diesem Namen holen, den neuen anhängen, alles
+schicken. Gelesen wird dabei nur, was auf denselben Namen zeigt, und nicht die
+ganze Zone — der Einwand von netcup trifft hier also nicht mit derselben Wucht.
+
+**Und eine Unstimmigkeit in lego, die uns nichts kostet:** Sein `Present`
+schickt den Wert nackt, sein `CleanUp` sucht ihn in Anführungszeichen. Eines von
+beidem stimmt nicht, und welches, hängt daran, ob IONOS beim Ablegen umschreibt.
+`TxtValue::matches()` nimmt beide Formen — genau dafür ist es eine Runde vorher
+entstanden.
+
+Nebenbei zwei kleinere Unterschiede zu lego: Dessen `findZone` vergleicht mit
+`strings.HasSuffix`, also als Zeichenkette — `boesexample.de` endet auf
+`example.de` und gehört trotzdem jemand anderem; `Zones` vergleicht
+beschriftungsweise. Und sein `CleanUp` wirft, wenn es nichts findet, obwohl es
+auch nach einer gescheiterten Bestellung läuft — aus einem Fehlschlag würden
+zwei.
+
+`ScriptedOutbound::json()` nimmt jetzt auch eine schlichte Liste: IONOS
+antwortet auf `GET /zones` mit einem Feld und nicht mit einer Ablage, und ein
+Drehbuch, das nur Ablagen kennt, könnte diesen Anbieter gar nicht nachstellen.
+
+Drei neue Brüche, alle rot und grün gegengeprüft.
+
+#### Schritt 9, siebter Anbieter: deSEC — der einzige, der die Zonenfrage beantwortet
+
+**`owns_qname` ist die beste Auskunft der sieben.** Alle anderen nennen ihre
+Zonen, und dieses Panel sucht sich die längste passende heraus (`Zones`); deSEC
+nimmt den vollen Namen entgegen und antwortet mit genau der Domain, die für ihn
+zuständig ist. Eine Anfrage statt einer Liste, kein Blättern — und die Regel
+„die längste gewinnt" steht hier gar nicht zur Debatte, weil sie beim Anbieter
+liegt. Das ist der einzige Anbieter, der ohne `Zones` auskommt, und
+`ZoneSourceTest` bleibt davon unberührt: Es wird nicht verglichen, sondern
+gefragt.
+
+**deSEC führt RRsets, keine einzelnen Sätze.** Alle TXT-Werte zu einem Namen
+sind ein Gegenstand mit einer Liste. Einen Prüfwert hinzuzufügen heisst deshalb
+lesen, anhängen, zurückschreiben — anders als bei netcup ist das
+Lesen-Ändern-Schreiben hier keine Bequemlichkeit, sondern die Form der
+Schnittstelle. Zwei Grenzen hängen daran, jede mit ihrem Bruch: Beim Anlegen
+wird **angehängt** und nicht ersetzt, beim Abräumen fällt **nur der eigene
+Wert** heraus. Wer eines von beidem übersieht, nimmt einer gleichzeitig
+laufenden Bestellung ihre Prüfung weg.
+
+**Und `204` ist Erfolg.** Nimmt man den letzten Wert heraus, verschwindet der
+RRset, und deSEC quittiert das mit `204` — der Normalfall am Ende jeder
+Bestellung. Der Bruch dazu geht bewusst an `Response::successful()` und nicht an
+den Anbieter: Die Regel „2xx ist Erfolg" steht dort für alle, und deSEC ist der
+erste, bei dem sie einen anderen Code als 200 tragen muss.
+
+Ein RRset, den es noch nicht gibt, antwortet mit `404`. Das ist kein Fehler,
+sondern die Auskunft, dass angelegt statt geändert werden muss — und beim
+Abräumen, dass nichts zu tun ist.
+
+Der TTL ist mit 3600 der höchste der sieben; deSEC nimmt für ein gewöhnliches
+Konto nichts Kürzeres. Das steht als Kommentar an der Konstante, weil daran
+hängt, dass `ready()` hier nicht nach zwei Minuten aufgeben darf.
+
+Drei neue Brüche, alle rot und grün gegengeprüft. **Damit ist deSEC der
+Anbieter, wegen dem Strato auf der Liste fehlen darf:** Wessen Anbieter keine
+Schnittstelle hat, delegiert die Zone hierher, ohne die Domain umzuziehen.
+
+#### `Totp` zieht in den Agenten — damit es ihn nur einmal gibt
+
+Die Klasse für zeitbasierte Einmalkennwörter stand in `app/Support/Auth`, für
+den zweiten Faktor der Anmeldung. Mit INWX kommt ein zweiter Aufrufer: Dessen
+Schnittstelle verlangt bei einem gesicherten Konto einen TAN, und der entsteht
+aus einem Geheimnis, das der Agent hält und die Anwendung nach dem Speichern
+nie wiedersieht.
+
+**Der Agent kann nicht auf `app/` zugreifen** — die andere Richtung geht,
+`SrvPanel\Agent\` ist von dort autoladbar. Die naheliegende Antwort wäre also
+eine zweite Umsetzung im Agenten gewesen, und damit genau das Muster, an dem
+dieses Projekt am häufigsten verloren hat. Sie im Agenten zu haben ist der
+einzige Weg, sie **einmal** zu haben.
+
+**Der Fehler wäre teuer und still zugleich.** Eine zweite Fassung, die die
+Abschneideregel aus RFC 4226 §5.3 um ein Byte danebenlegt, erzeugt Codes, die
+*manchmal* stimmen — immer dann, wenn das Versatz-Halbbyte klein genug ist. Ein
+Anbieter, der sich alle paar Stunden nicht anmelden lässt, ist schwerer zu
+finden als einer, der es nie tut. `TotpSourceTest` besteht deshalb darauf, dass
+`hash_hmac` mit SHA1 nur an dieser einen Stelle vorkommt — und prüft die Stelle
+gegen den Testvektor aus RFC 6238 Anhang B.
+
+Die Klasse ist unverändert; es wandert nur der Namensraum, und mit ihm fünf
+Verweise.
+
+#### Schritt 9, achter Anbieter: INWX — und damit sind alle acht gebaut
+
+INWX ist der teuerste der Liste, und zwar aus vier Gründen auf einmal.
+
+**Erstens: XML-RPC.** Er ist der einzige, der kein JSON spricht, und PHPs eigene
+`xmlrpc`-Erweiterung gibt es seit PHP 8 nicht mehr. Der Umgang damit steht in
+`XmlRpc` und nicht im Anbieter — gebaut ist nur, was gebraucht wird: ein Aufruf
+mit einem flachen Parametersatz. **Beim Lesen ist es die gefährliche Richtung**,
+denn was hereinkommt, bestimmt die Gegenstelle, und dieser Prozess läuft als
+root. Zwei Vorkehrungen, jede mit ihrem Bruch: kein Auflösen von Entitäten
+(`LIBXML_NONET`, keine `NOENT`) und eine gedeckelte Verschachtelung.
+
+Die erste ist **gemessen und nicht angenommen**: Mit `LIBXML_NOENT` steht der
+Inhalt von `/etc/hostname` im Wert, mit den Marken dieser Klasse ist er leer.
+
+**Zweitens: eine Sitzung über ein Cookie**, und die Entscheidung dazu hängt am
+dritten Punkt.
+
+**Drittens: der zweite Faktor — und INWX nimmt denselben TAN kein zweites Mal.**
+lego wartet deshalb notfalls dreissig Sekunden auf den nächsten Zeitschritt.
+Hier wird stattdessen **einmal je Bestellung** angemeldet: Anlegen und Abräumen
+benutzen dieselbe Instanz des Anbieters, also gibt es genau eine Anmeldung und
+genau einen TAN. Ein Schlaf im Agenten wäre eine halbe Minute, in der ein
+Prozess mit Systemrechten nichts tut und sein Zeitlimit näherkommt.
+
+**Viertens: was hier hinterlegt wird, öffnet ein Registrarkonto und nicht eine
+Zone.** Bei allen anderen ist es ein Token, das sich einschränken lässt. Das
+steht als Satz **über** den Feldern und nicht in einer Fussnote; ob ein Kunde
+das überhaupt hinterlegen soll, bleibt die offene Frage aus `docs/34 §11`.
+
+**Der Fund, den die Wegwerfprobe gemacht hat und kein Test:** Der Kommentar an
+`recordsOf()` versprach, dass beim Suchen der Name mitzählt — der Code machte es
+nicht und verliess sich auf den Filter, den INWX bekommt. Dieselbe Lehre wie bei
+IONOS: Was ein Anbieter als Filter versteht, ist seine Sache; was gelöscht wird,
+ist unsere.
+
+Fünf neue Brüche, alle rot und grün gegengeprüft.
+
+#### `Providers::PENDING` ist leer — und was das an zwei Stellen ändert
+
+Mit dem achten Anbieter hat die Regel „was noch nicht gebaut ist, lässt sich
+nicht hinterlegen" keinen Gegenstand mehr. Zwei Stellen mussten das beantworten
+statt es zu überdecken:
+
+**`usable()` fragt jetzt gegen `available()` und nicht gegen `PENDING`.** Beides
+ist dieselbe Aussage, aber ein `in_array` gegen eine leere Konstante ist ein
+Zweig, den nichts erreichen kann — PHPStan sagt das auch so, und ihn stehen zu
+lassen hiesse, die Meldung wegzudrücken statt sie zu beantworten. Dieselbe
+Umstellung in `ProvidersTest`; der Bruch dazu legt jetzt einen neunten Schlüssel
+an, den es nur als Etikett gibt, statt einen aus `PENDING` zu nehmen.
+
+**Und `DnsCredentialsTest` prüft die Regel, die immer einen Gegenstand hat.**
+Der Test hatte drei Fassungen: erst `Providers::CLOUDFLARE` wörtlich — der fiel,
+als Cloudflare gebaut wurde; dann `PENDING[0]` ohne Auffangzweig, damit er
+auffällt, wenn der letzte Anbieter kommt. Genau das ist passiert. Geprüft wird
+jetzt, dass ein Schlüssel, den es gar nicht gibt, abgewiesen wird; die Variante
+für offene Anbieter steht in `ProvidersTest` und bekommt ihren Gegenstand mit
+dem neunten Anbieter von selbst zurück.
+
+#### Die Frist für `ready()` kommt vom Anbieter und nicht aus einer Konstante
+
+Bis zum 7. August 2026 wartete jede Bestellung dieselben 120 Sekunden darauf,
+dass der TXT-Eintrag von aussen sichtbar wird, und fragte alle zwei. **Das ist
+kürzer, als lego für drei der acht Anbieter für nötig hält** — netcup und IONOS
+bekommen dort 900 Sekunden, INWX 360. Eine Bestellung, die zu früh aufgibt,
+verbrennt einen der fünf Fehlversuche je Konto und Stunde, **und die gelten für
+jeden Kunden dieses Servers**, nicht nur für den, dessen Domain gerade dran war.
+
+Umgekehrt wäre eine Viertelstunde für alle genauso falsch: Eine hängende
+Bestellung hielte dann eine Operation des Agenten fünfzehn Minuten fest, statt
+nach einer Minute mit einer brauchbaren Meldung zurückzukommen. Jeder Anbieter
+nennt deshalb seine eigene Frist und seinen eigenen Abstand (`Patience`),
+`DnsChallenge` reicht sie durch, und `Order::awaitReady()` nimmt sie. Die Zahlen
+sind die von lego, weil sie aus dem Einsatz stammen und nicht aus einer
+Schätzung; sie stehen in `docs/34 §11` und werden von `PatienceTest` einzeln
+dagegen geprüft.
+
+**Das Warten auf die Zertifizierungsstelle bleibt unberührt.** Wie schnell ein
+DNS-Anbieter ausliefert und wie schnell Let's Encrypt eine Autorisierung
+abschliesst, sind zwei verschiedene Fragen — `awaitAuthorization()` behält seine
+120 Sekunden. `Challenge::patience()` und `DnsProvider::patience()` stehen ohne
+Vorgabe in den Schnittstellen: Eine geerbte Zahl wäre die, die beim nächsten
+Anbieter zu kurz ist.
+
+**Und ein Nachtrag, den die CI gefunden hat:** `RecordingDnsProvider`, das
+Testdoppel, bekam die neue Methode nicht. Das ist kein Fehlschlag, sondern ein
+Abbruch — eine Klasse, die sich nicht laden lässt, beendet den Lauf mit
+„Premature end of PHP process", und alles danach bleibt ungeprüft. Lokal
+auffindbar wäre es gewesen: PHPStan läuft in diesem Container über `agent/src`
+**und** `tests/Support` sauber durch, weil die Doppel dort am Agenten hängen und
+nicht am Framework. Steht jetzt so in `CLAUDE.md`.
+
+**Ein Bruch fehlt im Skript, und zwar mit Begründung dort.** Der naheliegende —
+`Order::awaitReady()` die Frist des Anbieters wegnehmen — zeigt auf
+`AcmeProtocolTest`, und der fährt HTTP-01, wo die Prüfdatei sofort liegt. Ein
+Bruch, der nicht rot werden kann, ist kein Wächter; geprüft wird stattdessen,
+dass `DnsChallenge` die Zahl durchreicht.
+
+#### INWX wird nicht angeboten — gebaut, und trotzdem nicht in der Liste
+
+Die Entscheidung des Betreibers vom 7. August 2026 zur vierten offenen Frage aus
+`docs/34 §11`: **Was hier hinterlegt würde, sind Benutzername und Passwort des
+Registrarkontos** und nicht ein Token für eine Zone. Bei den übrigen sieben
+lässt sich der Zugang auf die Zonen einschränken, für die er gebraucht wird;
+bei INWX öffnet er alles, was dem Kunden dort gehört — Domainübertragungen
+eingeschlossen. Ein Panel, das das entgegennimmt, verwahrt danach ein Geheimnis
+auf der Platte eines Servers, auf dem Kunden Websites betreiben.
+
+**Die Liste hiess `PENDING` und meint jetzt `WITHHELD` — mit dem Grund als
+Wert.** Das ist der eigentliche Punkt dieser Runde: Bis heute gab es genau einen
+Grund zu fehlen, „noch nicht gebaut", und die Oberfläche konnte ihn als festen
+Satz schreiben. Jetzt gibt es zwei, und **„Noch nicht verfügbar" wäre bei INWX
+eine Zusage, die niemand einlöst.** Der Grund steht deshalb im Agenten neben dem
+Schlüssel, geht als `reason` durch `DnsCredentialAccess::providers()` bis ins
+Formular und steht dort neben dem Namen; das Kommando schreibt ihn ebenso. Zwei
+Sätze in der Oberfläche wären eine zweite Fassung dessen, was in `WITHHELD`
+steht — und die zweite ist die, die veraltet.
+
+Aus demselben Grund heisst die Abweisung am Feld nicht mehr „Diesen Anbieter
+gibt es noch nicht", sondern „hier nicht": Sie gilt für jeden abgewiesenen Wert
+und kann den Einzelfall nicht erklären.
+
+**Der Code bleibt stehen, an allen drei Stellen** — `Providers::make()`,
+`DnsCredentialInput::config()` und der Zweig im Formular. Er ist gebaut,
+gegengeprüft und von sechs Wächtern gedeckt; ihn zu löschen hiesse, ihn beim
+nächsten Sinneswandel neu zu schreiben. Erreichbar ist er nicht mehr: `usable()`
+weist ab, bevor gebaut wird, und die Auswahl im Formular kennt ihn nicht.
+`PatienceTest` baut ihn deshalb an der Werkstatt vorbei, damit seine Zahl
+weiter geprüft wird und nicht erst am Tag seiner Rückkehr auffällt.
+
+**Ein neuer Bruch:** ein Zurückgehaltener ohne Grund. Er war beim ersten Anlauf
+grün — die Wegwerfprobe fragte nur, *ob* abgewiesen wird, nicht *ob der Grund
+dabeisteht*. Genau die Lücke, die der Wächter schliessen soll, hatte er selbst.
+
+#### Der laute Rückfall wird laut — der Eintrag im Prüfprotokoll fehlte
+
+Die erste offene Entscheidung aus `docs/34 §11`, beschlossen am 6. August 2026:
+Läuft die gewählte Zuweisung ab und deckt ein anderes gültiges Zertifikat alle
+Namen, liefert der Block dieses aus — „aber mit einem Eintrag im Prüfprotokoll
+und einem Hinweis auf der Domainseite". **Der Hinweis stand seit Schritt 4, der
+Eintrag nicht.** Und die beiden beantworten verschiedene Fragen: Die Seite sagt
+dem, der gerade hinsieht, dass seine Wahl nicht gilt; seit wann sie nicht mehr
+gilt, sagt nur ein Eintrag mit Zeitstempel.
+
+**Er entsteht nach dem Vorgang und nicht beim Einreihen.** Der Zustand folgt
+dem Agenten (CLAUDE.md, zweite Grenze) — erst wenn `web.site.apply` durch ist,
+liefert dieser Block wirklich etwas anderes aus als das Eingestellte. Ein
+Eintrag beim Absenden behauptete es früher, als es stimmt, und bliebe stehen,
+wenn der Vorgang scheitert.
+
+**Und das löst nebenbei ein Problem, das ein Haken am Einreihen gehabt hätte.**
+`web.site.apply` wird an zwei Stellen eingereiht: von `WebLifecycle::apply()`
+und von `CertificateLifecycle::install()` nach jeder Erneuerung. Die zweite ist
+genau der Weg, auf dem eine abgelaufene Wahl auffällt — und die, die man beim
+Verhaken vergisst. In `afterSuccess()` laufen beide zusammen, weil jeder
+abgeschlossene Vorgang durch `Lifecycles::afterSuccess()` geht.
+
+Drei Entscheidungen am Eintrag selbst, jede mit einem Grund:
+
+- **Als Fehlschlag, nicht als Erfolg.** Jemand durfte wählen, und die Wahl
+  liess sich nicht einlösen — genau der Fall, für den es diesen Ausgang gibt.
+  „Erfolgreich" stünde neben einem Ereignis, das für den, der es eingestellt
+  hat, das Gegenteil bedeutet, und niemand fände es beim Filtern nach dem, was
+  Aufmerksamkeit braucht.
+- **Mit dem Abonnement.** `AuditQuery::visibleTo()` zeigt einem Kunden sein
+  eigenes Konto und seine Abonnements; geschrieben hat den Eintrag der
+  Arbeiter. Ohne die Angabe stünde er nur dem Betreiber offen — und es ist die
+  Wahl des Kunden, die übergangen wird.
+- **Er wiederholt sich, und das ist Absicht.** Jeder geschriebene Block, der
+  die Wahl übergeht, ist ein eigener Vorgang. Wer nur den ersten protokolliert,
+  braucht einen Vermerk „schon gesagt" — also einen zweiten Zustand neben der
+  Wahl, und der veraltet. So steht im Protokoll die Spanne und nicht ein Punkt.
+
+**Zwei Brüche, und der zweite ist der wichtigere.** Der naheliegende Fehler ist
+nicht der fehlende Eintrag, sondern der bei jedem angewandten Block: Die
+Automatik hängt eine Domain regelmässig um — auf das mit der längsten Laufzeit
+—, und das ist kein Übergehen, sondern ihre Aufgabe. Ein Protokoll, das sie
+meldet, meldet nichts. Deshalb prüft `CertificateChoiceTest` beide Richtungen
+und dazu ausdrücklich den Fall ohne Wahl.
+
+**Rot-Grün steht aus.** Dieser Container hat kein `vendor/` — `composer
+install` scheitert am Proxy —, und beide Brüche hängen an PHPUnit mit
+Datenbank. Geprüft ist hier nur, dass die Eingriffe greifen (beide Muster
+finden ihre Stelle) und dass das Ergebnis lädt; der Biss selbst gehört
+nachgeholt, sobald `vendor/` da ist. Das steht hier, weil „nachher noch" in
+diesem Projekt schon einmal eine ausgelieferte Fassung gekostet hat.

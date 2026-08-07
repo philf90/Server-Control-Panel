@@ -9,9 +9,9 @@ use App\Enums\AccountType;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Support\Auth\RecoveryCodes;
-use App\Support\Auth\Totp;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
+use SrvPanel\Agent\Totp;
 
 /**
  * @extends Factory<Account>

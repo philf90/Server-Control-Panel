@@ -41,6 +41,16 @@ interface Challenge
     public function ready(string $domain, string $token, string $keyAuthorization): bool;
 
     /**
+     * Wie lange auf diese Sichtbarkeit gewartet wird.
+     *
+     * **Ohne Vorgabe, und das ist Absicht.** Wer eine Art von Prüfung baut,
+     * muss sagen, wie lange sie braucht — eine geerbte Vorgabe wäre die, die
+     * beim nächsten Anbieter zu kurz ist, und zu kurz heisst hier: ein
+     * verbrauchter Fehlversuch für jeden Kunden dieses Servers.
+     */
+    public function patience(): Patience;
+
+    /**
      * Wieder abräumen.
      *
      * Läuft auch, wenn die Bestellung gescheitert ist — eine liegengebliebene

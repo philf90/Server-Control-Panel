@@ -42,10 +42,12 @@ final class SubscriptionDnsController extends Controller
     ): RedirectResponse {
         $input = $request->all();
 
+        $provider = DnsCredentialInput::provider($input, $access->usable());
+
         $stored = $access->store(
             $profiles->forSubscription($subscription),
-            DnsCredentialInput::provider($input, $access->usable()),
-            DnsCredentialInput::config($input),
+            $provider,
+            DnsCredentialInput::config($input, $provider),
         );
 
         // Die Zonen stehen im Eintrag, das Geheimnis nie. Ein Prüfprotokoll

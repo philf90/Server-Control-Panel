@@ -72,7 +72,7 @@ const props = defineProps<{
       stored_at: number
       zones: string[]
     } | null
-    providers: { value: string; label: string; usable: boolean }[]
+    providers: { value: string; label: string; usable: boolean; reason: string | null }[]
   } | null
   operations: { id: number; task: string | null; status_label: string; created_at: string | null }[]
 }>()

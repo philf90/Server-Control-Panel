@@ -256,31 +256,56 @@ final class DnsCredentialsTest extends TestCase
     /**
      * Die Anbieter stehen fest — und zwar in dieser Reihenfolge.
      *
-     * Sie ist eine Entscheidung des Betreibers vom 6. August 2026 und steht in
-     * `docs/34 §6`. Ein sechster ist eine Änderung an dieser Datei, die jemand
-     * liest, und kein Feld in einem Formular.
+     * Eine Entscheidung des Betreibers vom 6. August 2026 über fünf, am
+     * 7. August um IONOS, INWX und deSEC erweitert; sie steht in `docs/34 §6`.
+     * Ein neunter ist eine Änderung an dieser Datei, die jemand liest, und kein
+     * Feld in einem Formular.
+     *
+     * **Die Reihenfolge zählt mit**, denn sie ist die des Auswahlfelds und
+     * damit die, in der gebaut wird. IPv64.net steht vor Hetzner, weil er
+     * vorgezogen wurde; INWX steht zuletzt, weil er als einziger XML-RPC, eine
+     * Sitzung und ein Kontopasswort mitbringt.
+     *
+     * Der Unterschied zu `ProvidersTest`: Dort steht, was **gebaut** ist, hier
+     * steht, was **beschlossen** ist. Ein Anbieter, der aus dieser Liste fällt,
+     * ist keine Umsetzung weniger, sondern eine zurückgenommene Entscheidung.
      */
     public function test_the_providers_are_the_agreed_ones(): void
     {
         $this->assertSame(
-            ['rfc2136', 'hetzner', 'cloudflare', 'netcup', 'ipv64'],
+            ['rfc2136', 'ipv64', 'hetzner', 'cloudflare', 'netcup', 'ionos', 'inwx', 'desec'],
             Providers::keys(),
         );
     }
 
     /**
-     * Und was es noch nicht gibt, lässt sich auch nicht hinterlegen.
+     * Was sich nicht benutzen lässt, lässt sich auch nicht hinterlegen.
      *
      * **Sonst läge ein Geheimnis auf der Platte, das nichts benutzt.** Ein
-     * Formular, das ein Cloudflare-Token annimmt, sagt dem Betreiber, dass es
-     * geht — und die Wahrheit erfährt er beim ersten Zertifikat.
+     * Formular, das ein Token annimmt, sagt dem Betreiber, dass es geht — und
+     * die Wahrheit erfährt er beim ersten Zertifikat.
+     *
+     * **Die Geschichte dieses Tests ist der Grund für seine heutige Form.**
+     * Zuerst stand hier `Providers::CLOUDFLARE` wörtlich, als Beispiel für
+     * einen noch nicht gebauten Anbieter; als Cloudflare gebaut wurde, prüfte
+     * der Test nicht mehr die Regel, sondern die Tokenform eines fertigen
+     * Anbieters. Dann stand hier `Providers::PENDING[0]`, bewusst ohne
+     * Auffangzweig — damit er auffällt, wenn der letzte Anbieter gebaut ist.
+     * Genau das ist am 7. August 2026 passiert, und im selben Zug bekam die
+     * Liste eine neue Bedeutung: Sie heisst {@see Providers::WITHHELD} und
+     * meint „wird nicht angeboten", mit einem Grund je Eintrag.
+     *
+     * **Geprüft wird deshalb die Regel, die immer einen hat:** Ein Schlüssel,
+     * den es gar nicht gibt, wird abgewiesen. Die Variante für offene Anbieter
+     * steht in `ProvidersTest`; sie läuft heute über eine leere Liste und
+     * bekommt ihren Gegenstand mit dem neunten Anbieter zurück.
      */
-    public function test_a_provider_without_an_implementation_is_refused(): void
+    public function test_a_provider_that_cannot_be_used_is_refused(): void
     {
         $this->expectException(AgentException::class);
-        $this->expectExceptionMessage('noch nicht umgesetzt');
+        $this->expectExceptionMessage('Unbekannter DNS-Anbieter');
 
-        $this->credentials()->store('betrieb', Providers::CLOUDFLARE, ['token' => 'x']);
+        $this->credentials()->store('betrieb', 'gibtesnicht', ['token' => 'x']);
     }
 
     /** Die Zugangsdaten werden beim Hinterlegen geprüft, nicht beim Bestellen. */

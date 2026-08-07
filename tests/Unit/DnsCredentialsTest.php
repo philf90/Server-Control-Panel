@@ -279,30 +279,32 @@ final class DnsCredentialsTest extends TestCase
     }
 
     /**
-     * Und was es noch nicht gibt, lässt sich auch nicht hinterlegen.
+     * Was sich nicht benutzen lässt, lässt sich auch nicht hinterlegen.
      *
      * **Sonst läge ein Geheimnis auf der Platte, das nichts benutzt.** Ein
      * Formular, das ein Token annimmt, sagt dem Betreiber, dass es geht — und
      * die Wahrheit erfährt er beim ersten Zertifikat.
      *
-     * **Der offene Anbieter wird genommen und nicht genannt.** Hier stand
-     * einmal `Providers::CLOUDFLARE` wörtlich, und als der gebaut wurde, prüfte
-     * dieser Test nicht mehr die Regel, sondern die Tokenform eines fertigen
-     * Anbieters — er fiel mit „enthält Zeichen, die in einer Kopfzeile nicht
-     * stehen dürfen". Das ist derselbe Fehler, gegen den dieses Projekt seine
-     * Wächter stellt, nur in einem Wächter selbst: eine Zeichenkette, die auf
-     * etwas zeigt, ohne dass jemand den Bezug prüft.
+     * **Die Geschichte dieses Tests ist der Grund für seine heutige Form.**
+     * Zuerst stand hier `Providers::CLOUDFLARE` wörtlich, als Beispiel für
+     * einen noch nicht gebauten Anbieter; als Cloudflare gebaut wurde, prüfte
+     * der Test nicht mehr die Regel, sondern die Tokenform eines fertigen
+     * Anbieters. Dann stand hier `Providers::PENDING[0]`, bewusst ohne
+     * Auffangzweig — damit er auffällt, wenn der letzte Anbieter gebaut ist.
+     * Genau das ist am 7. August 2026 passiert: {@see Providers::PENDING} ist
+     * leer, und die Regel „noch nicht umgesetzt" hat keinen Gegenstand mehr.
+     *
+     * **Geprüft wird deshalb die Regel, die immer einen hat:** Ein Schlüssel,
+     * den es gar nicht gibt, wird abgewiesen. Die Variante für offene Anbieter
+     * steht in `ProvidersTest`; sie läuft heute über eine leere Liste und
+     * bekommt ihren Gegenstand mit dem neunten Anbieter zurück.
      */
-    public function test_a_provider_without_an_implementation_is_refused(): void
+    public function test_a_provider_that_cannot_be_used_is_refused(): void
     {
         $this->expectException(AgentException::class);
-        $this->expectExceptionMessage('noch nicht umgesetzt');
+        $this->expectExceptionMessage('Unbekannter DNS-Anbieter');
 
-        // **Der Zugriff ohne Auffangzweig ist Absicht.** Ist eines Tages der
-        // letzte Anbieter gebaut, fällt dieser Test mit einem Fehler statt
-        // still grün zu bleiben — dann gibt es die Regel nicht mehr, und wer
-        // sie ausbaut, soll darüber stolpern.
-        $this->credentials()->store('betrieb', Providers::PENDING[0], ['token' => 'x']);
+        $this->credentials()->store('betrieb', 'gibtesnicht', ['token' => 'x']);
     }
 
     /** Die Zugangsdaten werden beim Hinterlegen geprüft, nicht beim Bestellen. */

@@ -1497,7 +1497,11 @@ vorher_datei agent/src/Acme/Dns/Providers.php
 python3 - <<'PY2'
 p = 'agent/src/Acme/Dns/Providers.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("        self::HETZNER,\n", "")
+# Ein neunter Schlüssel, den es nur als Etikett gibt: weder gebaut noch offen.
+s = s.replace(
+    "        self::DESEC => 'deSEC',\n",
+    "        self::DESEC => 'deSEC',\n        'erfunden' => 'Erfunden',\n",
+)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Acme/Dns/Providers.php "Anbieter ohne Umsetzung nicht als offen geführt" &&
@@ -2328,6 +2332,105 @@ pruefe "204 gilt als Fehlschlag" \
   DesecTest::test_emptying_the_rrset_is_a_success failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DesecTest passed
+
+echo
+echo "── XmlRpcTest: der Parser darf Entitäten auflösen ──"
+#
+# Eine Antwort mit einer externen Entität holt sonst eine Datei vom Rechner —
+# in einem Prozess, der als root läuft. Gemessen: Mit LIBXML_NOENT steht der
+# Inhalt von /etc/hostname im Wert, mit den Marken der Klasse nicht.
+vorher_datei agent/src/Acme/Dns/XmlRpc.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/XmlRpc.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("LIBXML_NONET | LIBXML_NOCDATA", "LIBXML_NOENT")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/XmlRpc.php "Parser löst Entitäten auf" &&
+pruefe "Parser löst Entitäten auf" \
+  XmlRpcTest::test_an_external_entity_fetches_nothing failed
+wiederherstellen
+
+echo
+echo "── XmlRpcTest: die Verschachtelung ist nicht gedeckelt ──"
+#
+# Eine Antwort, die sich tausendfach ineinander schachtelt, ist keine Antwort,
+# sondern ein Weg, den Speicher dieses Prozesses zu füllen.
+vorher_datei agent/src/Acme/Dns/XmlRpc.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/XmlRpc.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if ($depth > self::MAX_DEPTH) {", "        if (false) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/XmlRpc.php "Verschachtelung nicht gedeckelt" &&
+pruefe "Verschachtelung nicht gedeckelt" \
+  XmlRpcTest::test_a_response_that_nests_too_deeply_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" XmlRpcTest passed
+
+echo
+echo "── InwxTest: je Aufruf angemeldet statt je Bestellung ──"
+#
+# INWX nimmt denselben TAN kein zweites Mal. Zwei Anmeldungen im selben
+# Zeitschritt hätten denselben — und die zweite würde abgewiesen. Anlegen und
+# Abräumen teilen sich deshalb eine Sitzung.
+vorher_datei agent/src/Acme/Dns/Inwx.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Inwx.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if ($this->session !== null) {
+            return;
+        }
+
+        $response = $this->post(XmlRpc::request('account.login', [""",
+    """        $response = $this->post(XmlRpc::request('account.login', [""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Inwx.php "je Aufruf angemeldet" &&
+pruefe "je Aufruf angemeldet" \
+  InwxTest::test_one_login_carries_the_whole_order failed
+wiederherstellen
+
+echo
+echo "── InwxTest: beim Löschen zählt nur der Wert ──"
+#
+# Der Fehler, den beim Bauen die Wegwerfprobe gefunden hat: Der Kommentar
+# versprach den Namensabgleich, der Code machte ihn nicht. Gefiltert wurde
+# allein über den Parameter, den INWX bekommt — und was ein Anbieter als Filter
+# versteht, ist seine Sache; was gelöscht wird, ist unsere.
+vorher_datei agent/src/Acme/Dns/Inwx.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Inwx.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                && strtolower($found) === $full\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Inwx.php "beim Löschen zählt nur der Wert" &&
+pruefe "beim Löschen zählt nur der Wert" \
+  InwxTest::test_removing_matches_the_name_as_well failed
+wiederherstellen
+
+echo
+echo "── InwxTest: die abgeschnittene Zonenliste wird verschwiegen ──"
+#
+# Hat ein Konto mehr Zonen, als eine Seite trägt, fehlte still die gesuchte —
+# und die Meldung spräche von einem Namen ausserhalb aller Zonen, also von
+# einem Grund, der nicht stimmt.
+vorher_datei agent/src/Acme/Dns/Inwx.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Inwx.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (is_int($count) && $count > count($zones)) {", "        if (false) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Inwx.php "abgeschnittene Zonenliste verschwiegen" &&
+pruefe "abgeschnittene Zonenliste verschwiegen" \
+  InwxTest::test_a_truncated_zone_list_is_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InwxTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

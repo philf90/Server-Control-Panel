@@ -76,6 +76,7 @@ final class DnsCredentialInput
             Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE, Providers::DESEC => self::tokenOnly($input),
             Providers::NETCUP => self::netcup($input),
             Providers::IONOS => self::ionos($input),
+            Providers::INWX => self::inwx($input),
             // Unerreichbar, solange {@see self::provider()} davor steht — und
             // deshalb steht der Zweig hier: Ein `match` ohne ihn wirft einen
             // UnhandledMatchError, und der landet als „interner Fehler" im
@@ -101,6 +102,45 @@ final class DnsCredentialInput
         ], [], ['token' => 'Token'])->validate();
 
         return ['token' => (string) $data['token']];
+    }
+
+    /**
+     * INWX — Benutzername, Passwort und wahlweise das gemeinsame Geheimnis.
+     *
+     * **Der einzige Anbieter mit einem Kontopasswort.** Was hier hinterlegt
+     * wird, öffnet ein Registrarkonto und nicht eine Zone; das steht als Satz
+     * im Formular, damit es niemand beiläufig einträgt.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    private static function inwx(array $input): array
+    {
+        $data = Validator::make($input, [
+            'username' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string', 'max:512'],
+            'shared_secret' => ['nullable', 'string', 'max:512'],
+        ], [], [
+            'username' => 'Benutzername',
+            'password' => 'Passwort',
+            'shared_secret' => 'Gemeinsames Geheimnis',
+        ])->validate();
+
+        $config = [
+            'username' => (string) $data['username'],
+            'password' => (string) $data['password'],
+        ];
+
+        // Leer weglassen statt leer mitschicken: Ein Konto ohne zweiten Faktor
+        // braucht kein Geheimnis, und der Agent unterscheidet „keines" von
+        // „eines, das nicht taugt".
+        if (isset($data['shared_secret']) && is_string($data['shared_secret']) && $data['shared_secret'] !== '') {
+            $config['shared_secret'] = $data['shared_secret'];
+        }
+
+        return $config;
     }
 
     /**

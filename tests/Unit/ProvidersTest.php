@@ -66,12 +66,22 @@ final class ProvidersTest extends TestCase
         Providers::DESEC => [
             'token' => 'ein-token-mit-genug-zeichen',
         ],
+        Providers::INWX => [
+            'username' => 'wer',
+            'password' => 'geheim',
+        ],
     ];
 
     public function test_every_provider_key_points_at_something(): void
     {
         foreach (Providers::keys() as $key) {
-            if (in_array($key, Providers::PENDING, true)) {
+            // **Gefragt wird gegen `available()` und nicht gegen `PENDING`.**
+            // Seit alle acht gebaut sind, ist `PENDING` leer, und ein
+            // `in_array` gegen eine leere Konstante ist ein Zweig, den nichts
+            // erreichen kann — PHPStan sagt das auch so. Diese Form prüft
+            // dieselbe Sache und bekommt ihren Gegenstand mit dem neunten
+            // Anbieter von selbst zurück.
+            if (! in_array($key, Providers::available(), true)) {
                 try {
                     Providers::make($key, []);
                     $this->fail($key.' steht als offen und lässt sich trotzdem bauen.');
@@ -97,6 +107,12 @@ final class ProvidersTest extends TestCase
         // PENDING, ohne dass es die Umsetzung gibt, wäre er in beiden Listen
         // gleichzeitig richtig. Wer einen Anbieter baut, ändert diese Zeile —
         // und das ist der Punkt.
+        //
+        // **Seit dem achten Anbieter ist sie dieselbe wie die in
+        // `DnsCredentialsTest`**, weil alles Beschlossene gebaut ist. Das ist
+        // ein Zustand und keine Verdopplung: Dort steht, was beschlossen ist,
+        // hier, was gebaut ist. Mit dem neunten Anbieter laufen sie wieder
+        // auseinander, und dann zählt der Unterschied wieder.
         $this->assertSame(
             [
                 Providers::RFC2136,
@@ -105,6 +121,7 @@ final class ProvidersTest extends TestCase
                 Providers::CLOUDFLARE,
                 Providers::NETCUP,
                 Providers::IONOS,
+                Providers::INWX,
                 Providers::DESEC,
             ],
             Providers::available(),

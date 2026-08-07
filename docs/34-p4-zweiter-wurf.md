@@ -296,7 +296,7 @@ Anbieter ist eine eigene Umsetzung, eigene Fehlerfälle und ein eigener Wächter
 | **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | gebaut |
 | **netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | gebaut |
 | **IONOS** | Der grösste deutsche Massenhoster; wer dort seine Domain hat, hat sie meist auch dort delegiert. | gebaut |
-| **INWX** | Der Registrar, den deutsche Wiederverkäufer benutzen — und der einzige der sieben mit einer Anmeldung statt eines Tokens. | 7. |
+| **INWX** | Der Registrar, den deutsche Wiederverkäufer benutzen — und der einzige der sieben mit einer Anmeldung statt eines Tokens. | gebaut |
 | **deSEC** | Gemeinnütziger deutscher DNS-Betreiber, DNSSEC ab Werk, kostenfrei. Er ist der **Ausweg für alle, deren Anbieter keine API hat** — die Zone zieht um, die Domain bleibt. | gebaut |
 
 ### Der zweite Beschluss: sieben statt vier
@@ -358,6 +358,47 @@ Das gehört so gesagt, weil die naheliegende Antwort — „bauen wir eben Strat
 dazu" — hier nicht existiert. Der Ausweg ist die Zone, nicht das Panel: Sie
 lässt sich zu deSEC delegieren, ohne dass die Domain umzieht. Deshalb steht
 deSEC überhaupt auf der Liste.
+
+### INWX im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego und in dessen Client
+([`nrdcg/goinwx`](https://github.com/nrdcg/goinwx)). **Die Seiten von INWX sind
+aus diesem Container nicht erreichbar.**
+
+- **Adresse:** `https://api.domrobot.com/xmlrpc/` (Testbetrieb:
+  `api.ote.domrobot.com`)
+- **Bauart:** XML-RPC, ein Aufruf mit genau einem Parameter — einer flachen
+  Ablage
+- **Anmelden:** `account.login` mit `user`, `pass`, `lang`; die Sitzung kommt als
+  Cookie `domrobot=…`
+- **Zweiter Faktor:** Antwortet die Anmeldung mit `tfa: GOOGLE-AUTH`, folgt
+  `account.unlock` mit einem TAN aus dem gemeinsamen Geheimnis
+- **Zonen:** `nameserver.list` → `resData.domains[].domain`, dazu `count`
+- **Lesen:** `nameserver.info` mit `domain`, `name`, `type` →
+  `resData.record[]` mit `id`, `name`, `content`
+- **Schreiben:** `nameserver.createRecord`, **Löschen:**
+  `nameserver.deleteRecord` mit `id`
+- **Abmelden:** `account.logout`
+- **Antwort:** `code` 1000 oder 1500 ist Erfolg, dazu `msg` und `reason` —
+  **auch bei HTTP 200**
+- Der Wert geht **ohne** Anführungszeichen hinaus
+
+**Der TAN entscheidet den Entwurf.** INWX nimmt denselben kein zweites Mal; lego
+wartet notfalls dreissig Sekunden auf den nächsten Zeitschritt. Hier wird einmal
+je Bestellung angemeldet — Anlegen und Abräumen benutzen dieselbe Instanz —,
+also gibt es genau einen TAN und keinen Schlaf im Agenten.
+
+**Was hinterlegt wird, öffnet ein Registrarkonto.** Das steht als Satz über den
+Feldern; die offene Frage dazu ist die aus §11.
+
+**`Object exists` beim Anlegen ist kein Fehlschlag** — der Eintrag steht dann
+schon da, etwa weil ein früherer Versuch abgebrochen ist, nachdem er ihn gesetzt
+hatte.
+
+**Und XML-RPC steht in `XmlRpc`, nicht hier.** Gebaut ist nur, was gebraucht
+wird; beim Lesen sind zwei Vorkehrungen fest: kein Auflösen von Entitäten und
+eine gedeckelte Verschachtelung. Die erste ist gemessen — mit `LIBXML_NOENT`
+steht der Inhalt von `/etc/hostname` im Wert, mit den Marken der Klasse nicht.
 
 ### deSEC im Einzelnen
 
@@ -809,9 +850,10 @@ Bruch in `tests/waechter-brechen.sh` mit.
    ebenfalls gebaut**, nur mit API-Token; der globale Schlüssel wird abgewiesen.
    **netcup ebenfalls gebaut** — der erste mit einer Sitzung und der erste, dem
    die Zonen genannt werden müssen. **IONOS und deSEC ebenfalls gebaut** — deSEC
-   als einziger ohne `Zones`, weil er die Zonenfrage selbst beantwortet. Es
-   fehlt INWX; er steht zuletzt, weil er als einziger
-   XML-RPC, eine Sitzung und ein Kontopasswort statt eines Tokens mitbringt.
+   als einziger ohne `Zones`, weil er die Zonenfrage selbst beantwortet.
+   **INWX zuletzt und ebenfalls gebaut** — XML-RPC, Sitzungscookie, TOTP und ein
+   Kontopasswort statt eines Tokens. Damit stehen alle acht, und
+   `Providers::PENDING` ist leer.
 
    Vorweg kam eine Grenze, die es schon gab, aber nur als Prosa: **Der Agent
    spricht an genau einer Stelle nach draussen** (`Acme\Curl`), und ihre vier

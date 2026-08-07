@@ -84,11 +84,14 @@ final class Providers
      * hier, und wer hier steht, hat keine Umsetzung. Ein Schlüssel, der aus
      * dieser Liste fällt, ohne dass es ihn gibt, fällt beim nächsten Lauf auf.
      *
+     * **Seit dem 7. August 2026 ist sie leer** — alle acht sind gebaut. Sie
+     * bleibt trotzdem stehen: Ein neunter Anbieter beginnt hier, und der
+     * Unterschied zwischen „beschlossen" und „gebaut" ist der, den dieses
+     * Panel dem Betreiber im Formular zeigt.
+     *
      * @var list<string>
      */
-    public const PENDING = [
-        self::INWX,
-    ];
+    public const PENDING = [];
 
     /** @return list<string> */
     public static function keys(): array
@@ -122,6 +125,7 @@ final class Providers
             self::NETCUP => Netcup::configure($config),
             self::IONOS => Ionos::configure($config),
             self::DESEC => Desec::configure($config),
+            self::INWX => Inwx::configure($config),
             default => throw self::missing($name),
         };
     }
@@ -141,6 +145,7 @@ final class Providers
             self::NETCUP => Netcup::fromConfig($config),
             self::IONOS => Ionos::fromConfig($config),
             self::DESEC => Desec::fromConfig($config),
+            self::INWX => Inwx::fromConfig($config),
             default => throw self::missing($name),
         };
     }
@@ -163,12 +168,22 @@ final class Providers
         );
     }
 
-    /** Ein Schlüssel, hinter dem auch etwas steht. */
+    /**
+     * Ein Schlüssel, hinter dem auch etwas steht.
+     *
+     * **Gefragt wird gegen {@see self::available()} und nicht gegen
+     * {@see self::PENDING}.** Beides ist dieselbe Aussage — aber seit alle acht
+     * gebaut sind, ist `PENDING` leer, und ein `in_array` gegen eine leere
+     * Konstante ist ein Zweig, den nichts erreichen kann. PHPStan sagt das auch
+     * so; es hier stehen zu lassen hiesse, seine Meldung wegzudrücken statt sie
+     * zu beantworten. Die Frage „steht dieser Schlüssel auf der Liste der
+     * benutzbaren" ist ausserdem die direktere.
+     */
     public static function usable(mixed $key): string
     {
         $name = self::normalize($key);
 
-        if (in_array($name, self::PENDING, true)) {
+        if (! in_array($name, self::available(), true)) {
             throw AgentException::badRequest(
                 'Dieser DNS-Anbieter ist noch nicht umgesetzt.',
                 ['provider' => $name, 'available' => self::available()],

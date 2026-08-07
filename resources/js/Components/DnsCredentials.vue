@@ -61,6 +61,7 @@ const CLOUDFLARE = 'cloudflare'
 const NETCUP = 'netcup'
 const IONOS = 'ionos'
 const DESEC = 'desec'
+const INWX = 'inwx'
 
 /*
  * Wer seine Zonen selbst führt, bekommt hier kein Feld dafür.
@@ -86,6 +87,9 @@ const form = useForm({
   provider: usable.value[0]?.value ?? '',
   token: '',
   api_key: '',
+  username: '',
+  password: '',
+  shared_secret: '',
   customer_number: '',
   api_password: '',
   server: '',
@@ -101,7 +105,7 @@ const revealed = ref(false)
 function submit(): void {
   form.put(props.action, {
     preserveScroll: true,
-    onSuccess: () => form.reset('secret', 'token', 'api_key', 'api_password'),
+    onSuccess: () => form.reset('secret', 'token', 'api_key', 'api_password', 'password', 'shared_secret'),
   })
 }
 
@@ -282,6 +286,74 @@ function moment(seconds: number): string {
           Ein API-Token mit den Rechten Zone:Read und DNS:Edit. Der globale
           API-Schlüssel wird nicht angenommen: Er öffnet das ganze Konto, ein
           Token nur die Zonen, für die es ausgestellt ist.
+        </p>
+      </template>
+
+      <!--
+        **INWX ist der einzige mit einem Kontopasswort.** Was hier hinterlegt
+        wird, öffnet ein Registrarkonto und nicht eine Zone — das gehört vor die
+        Felder und nicht in eine Fussnote. Das gemeinsame Geheimnis ist
+        freiwillig: Nur ein Konto mit zweitem Faktor braucht es.
+      -->
+      <template v-if="form.provider === INWX">
+        <p class="hint">
+          Achtung: Benutzername und Passwort öffnen bei INWX das ganze
+          Registrarkonto, nicht nur die Zone — anders als bei den übrigen
+          Anbietern, die ein eingrenzbares Token vergeben.
+        </p>
+
+        <label class="field">
+          <span>Benutzername</span>
+          <input v-model="form.username" type="text" autocomplete="off" required>
+        </label>
+        <p v-if="form.errors.username" class="error">{{ form.errors.username }}</p>
+
+        <label class="field">
+          <span>Passwort</span>
+          <span class="with-reveal">
+            <input
+              v-model="form.password"
+              :type="revealed ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            >
+            <button
+              type="button"
+              class="reveal"
+              :aria-label="revealed ? 'Angaben verbergen' : 'Angaben anzeigen'"
+              :aria-pressed="revealed"
+              @click.prevent="revealed = !revealed"
+            >
+              <EyeIcon :off="revealed" />
+            </button>
+          </span>
+        </label>
+        <p v-if="form.errors.password" class="error">{{ form.errors.password }}</p>
+
+        <label class="field">
+          <span>Gemeinsames Geheimnis</span>
+          <span class="with-reveal">
+            <input
+              v-model="form.shared_secret"
+              :type="revealed ? 'text' : 'password'"
+              autocomplete="new-password"
+            >
+            <button
+              type="button"
+              class="reveal"
+              :aria-label="revealed ? 'Angaben verbergen' : 'Angaben anzeigen'"
+              :aria-pressed="revealed"
+              @click.prevent="revealed = !revealed"
+            >
+              <EyeIcon :off="revealed" />
+            </button>
+          </span>
+        </label>
+        <p v-if="form.errors.shared_secret" class="error">{{ form.errors.shared_secret }}</p>
+        <p class="hint">
+          Nur nötig, wenn das Konto einen zweiten Faktor hat — dann dasselbe
+          Base32, das in der Authenticator-App steht. Ohne zweiten Faktor bleibt
+          das Feld leer.
         </p>
       </template>
 

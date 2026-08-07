@@ -4051,3 +4051,62 @@ gegen den Testvektor aus RFC 6238 Anhang B.
 
 Die Klasse ist unverändert; es wandert nur der Namensraum, und mit ihm fünf
 Verweise.
+
+#### Schritt 9, achter Anbieter: INWX — und damit sind alle acht gebaut
+
+INWX ist der teuerste der Liste, und zwar aus vier Gründen auf einmal.
+
+**Erstens: XML-RPC.** Er ist der einzige, der kein JSON spricht, und PHPs eigene
+`xmlrpc`-Erweiterung gibt es seit PHP 8 nicht mehr. Der Umgang damit steht in
+`XmlRpc` und nicht im Anbieter — gebaut ist nur, was gebraucht wird: ein Aufruf
+mit einem flachen Parametersatz. **Beim Lesen ist es die gefährliche Richtung**,
+denn was hereinkommt, bestimmt die Gegenstelle, und dieser Prozess läuft als
+root. Zwei Vorkehrungen, jede mit ihrem Bruch: kein Auflösen von Entitäten
+(`LIBXML_NONET`, keine `NOENT`) und eine gedeckelte Verschachtelung.
+
+Die erste ist **gemessen und nicht angenommen**: Mit `LIBXML_NOENT` steht der
+Inhalt von `/etc/hostname` im Wert, mit den Marken dieser Klasse ist er leer.
+
+**Zweitens: eine Sitzung über ein Cookie**, und die Entscheidung dazu hängt am
+dritten Punkt.
+
+**Drittens: der zweite Faktor — und INWX nimmt denselben TAN kein zweites Mal.**
+lego wartet deshalb notfalls dreissig Sekunden auf den nächsten Zeitschritt.
+Hier wird stattdessen **einmal je Bestellung** angemeldet: Anlegen und Abräumen
+benutzen dieselbe Instanz des Anbieters, also gibt es genau eine Anmeldung und
+genau einen TAN. Ein Schlaf im Agenten wäre eine halbe Minute, in der ein
+Prozess mit Systemrechten nichts tut und sein Zeitlimit näherkommt.
+
+**Viertens: was hier hinterlegt wird, öffnet ein Registrarkonto und nicht eine
+Zone.** Bei allen anderen ist es ein Token, das sich einschränken lässt. Das
+steht als Satz **über** den Feldern und nicht in einer Fussnote; ob ein Kunde
+das überhaupt hinterlegen soll, bleibt die offene Frage aus `docs/34 §11`.
+
+**Der Fund, den die Wegwerfprobe gemacht hat und kein Test:** Der Kommentar an
+`recordsOf()` versprach, dass beim Suchen der Name mitzählt — der Code machte es
+nicht und verliess sich auf den Filter, den INWX bekommt. Dieselbe Lehre wie bei
+IONOS: Was ein Anbieter als Filter versteht, ist seine Sache; was gelöscht wird,
+ist unsere.
+
+Fünf neue Brüche, alle rot und grün gegengeprüft.
+
+#### `Providers::PENDING` ist leer — und was das an zwei Stellen ändert
+
+Mit dem achten Anbieter hat die Regel „was noch nicht gebaut ist, lässt sich
+nicht hinterlegen" keinen Gegenstand mehr. Zwei Stellen mussten das beantworten
+statt es zu überdecken:
+
+**`usable()` fragt jetzt gegen `available()` und nicht gegen `PENDING`.** Beides
+ist dieselbe Aussage, aber ein `in_array` gegen eine leere Konstante ist ein
+Zweig, den nichts erreichen kann — PHPStan sagt das auch so, und ihn stehen zu
+lassen hiesse, die Meldung wegzudrücken statt sie zu beantworten. Dieselbe
+Umstellung in `ProvidersTest`; der Bruch dazu legt jetzt einen neunten Schlüssel
+an, den es nur als Etikett gibt, statt einen aus `PENDING` zu nehmen.
+
+**Und `DnsCredentialsTest` prüft die Regel, die immer einen Gegenstand hat.**
+Der Test hatte drei Fassungen: erst `Providers::CLOUDFLARE` wörtlich — der fiel,
+als Cloudflare gebaut wurde; dann `PENDING[0]` ohne Auffangzweig, damit er
+auffällt, wenn der letzte Anbieter kommt. Genau das ist passiert. Geprüft wird
+jetzt, dass ein Schlüssel, den es gar nicht gibt, abgewiesen wird; die Variante
+für offene Anbieter steht in `ProvidersTest` und bekommt ihren Gegenstand mit
+dem neunten Anbieter von selbst zurück.

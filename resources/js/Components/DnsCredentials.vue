@@ -60,6 +60,7 @@ const HETZNER = 'hetzner'
 const CLOUDFLARE = 'cloudflare'
 const NETCUP = 'netcup'
 const IONOS = 'ionos'
+const DESEC = 'desec'
 
 /*
  * Wer seine Zonen selbst führt, bekommt hier kein Feld dafür.
@@ -229,7 +230,7 @@ function moment(seconds: number): string {
         eine richtige Eingabe ab. Geprüft wird derselbe Satz Felder auf der
         Serverseite — `DnsCredentialInput` verzweigt an derselben Stelle.
       -->
-      <template v-if="form.provider === IPV64 || form.provider === HETZNER || form.provider === CLOUDFLARE">
+      <template v-if="form.provider === IPV64 || form.provider === HETZNER || form.provider === CLOUDFLARE || form.provider === DESEC">
         <label class="field">
           <span>Token</span>
           <span class="with-reveal">
@@ -273,6 +274,10 @@ function moment(seconds: number): string {
           einzelne Zonen eingrenzen. Ein Feld, das es nicht gibt, wird nicht
           ausgefüllt — ein Rat im Kleingedruckten schon.
         -->
+        <p v-if="form.provider === DESEC" class="hint">
+          Ein Token aus dem Konto bei deSEC, mit Schreibrecht auf die Domain.
+          Die zuständige Domain fragt der Agent bei jedem Vorgang selbst ab.
+        </p>
         <p v-if="form.provider === CLOUDFLARE" class="hint">
           Ein API-Token mit den Rechten Zone:Read und DNS:Edit. Der globale
           API-Schlüssel wird nicht angenommen: Er öffnet das ganze Konto, ein

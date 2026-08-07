@@ -3988,3 +3988,41 @@ antwortet auf `GET /zones` mit einem Feld und nicht mit einer Ablage, und ein
 Drehbuch, das nur Ablagen kennt, könnte diesen Anbieter gar nicht nachstellen.
 
 Drei neue Brüche, alle rot und grün gegengeprüft.
+
+#### Schritt 9, siebter Anbieter: deSEC — der einzige, der die Zonenfrage beantwortet
+
+**`owns_qname` ist die beste Auskunft der sieben.** Alle anderen nennen ihre
+Zonen, und dieses Panel sucht sich die längste passende heraus (`Zones`); deSEC
+nimmt den vollen Namen entgegen und antwortet mit genau der Domain, die für ihn
+zuständig ist. Eine Anfrage statt einer Liste, kein Blättern — und die Regel
+„die längste gewinnt" steht hier gar nicht zur Debatte, weil sie beim Anbieter
+liegt. Das ist der einzige Anbieter, der ohne `Zones` auskommt, und
+`ZoneSourceTest` bleibt davon unberührt: Es wird nicht verglichen, sondern
+gefragt.
+
+**deSEC führt RRsets, keine einzelnen Sätze.** Alle TXT-Werte zu einem Namen
+sind ein Gegenstand mit einer Liste. Einen Prüfwert hinzuzufügen heisst deshalb
+lesen, anhängen, zurückschreiben — anders als bei netcup ist das
+Lesen-Ändern-Schreiben hier keine Bequemlichkeit, sondern die Form der
+Schnittstelle. Zwei Grenzen hängen daran, jede mit ihrem Bruch: Beim Anlegen
+wird **angehängt** und nicht ersetzt, beim Abräumen fällt **nur der eigene
+Wert** heraus. Wer eines von beidem übersieht, nimmt einer gleichzeitig
+laufenden Bestellung ihre Prüfung weg.
+
+**Und `204` ist Erfolg.** Nimmt man den letzten Wert heraus, verschwindet der
+RRset, und deSEC quittiert das mit `204` — der Normalfall am Ende jeder
+Bestellung. Der Bruch dazu geht bewusst an `Response::successful()` und nicht an
+den Anbieter: Die Regel „2xx ist Erfolg" steht dort für alle, und deSEC ist der
+erste, bei dem sie einen anderen Code als 200 tragen muss.
+
+Ein RRset, den es noch nicht gibt, antwortet mit `404`. Das ist kein Fehler,
+sondern die Auskunft, dass angelegt statt geändert werden muss — und beim
+Abräumen, dass nichts zu tun ist.
+
+Der TTL ist mit 3600 der höchste der sieben; deSEC nimmt für ein gewöhnliches
+Konto nichts Kürzeres. Das steht als Kommentar an der Konstante, weil daran
+hängt, dass `ready()` hier nicht nach zwei Minuten aufgeben darf.
+
+Drei neue Brüche, alle rot und grün gegengeprüft. **Damit ist deSEC der
+Anbieter, wegen dem Strato auf der Liste fehlen darf:** Wessen Anbieter keine
+Schnittstelle hat, delegiert die Zone hierher, ohne die Domain umzuziehen.

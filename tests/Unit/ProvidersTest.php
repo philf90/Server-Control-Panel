@@ -63,6 +63,9 @@ final class ProvidersTest extends TestCase
         Providers::IONOS => [
             'api_key' => 'praefix.geheimnis',
         ],
+        Providers::DESEC => [
+            'token' => 'ein-token-mit-genug-zeichen',
+        ],
     ];
 
     public function test_every_provider_key_points_at_something(): void
@@ -102,6 +105,7 @@ final class ProvidersTest extends TestCase
                 Providers::CLOUDFLARE,
                 Providers::NETCUP,
                 Providers::IONOS,
+                Providers::DESEC,
             ],
             Providers::available(),
         );

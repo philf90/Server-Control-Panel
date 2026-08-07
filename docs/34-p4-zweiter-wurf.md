@@ -297,7 +297,7 @@ Anbieter ist eine eigene Umsetzung, eigene Fehlerfälle und ein eigener Wächter
 | **netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | gebaut |
 | **IONOS** | Der grösste deutsche Massenhoster; wer dort seine Domain hat, hat sie meist auch dort delegiert. | gebaut |
 | **INWX** | Der Registrar, den deutsche Wiederverkäufer benutzen — und der einzige der sieben mit einer Anmeldung statt eines Tokens. | 7. |
-| **deSEC** | Gemeinnütziger deutscher DNS-Betreiber, DNSSEC ab Werk, kostenfrei. Er ist der **Ausweg für alle, deren Anbieter keine API hat** — die Zone zieht um, die Domain bleibt. | 8. |
+| **deSEC** | Gemeinnütziger deutscher DNS-Betreiber, DNSSEC ab Werk, kostenfrei. Er ist der **Ausweg für alle, deren Anbieter keine API hat** — die Zone zieht um, die Domain bleibt. | gebaut |
 
 ### Der zweite Beschluss: sieben statt vier
 
@@ -337,7 +337,7 @@ Bauen teuer wird:
 | netcup | `https://ccp.netcup.net/run/webservice/servers/endpoint.php?JSON` (gebaut) | `customer_number` + `api_key` + `api_password` + **`zones`** | **Der einzige mit einer Sitzung** und der einzige, dem die Zonen genannt werden müssen — seine Schnittstelle zählt die Domains eines Kontos nicht auf. |
 | IONOS | `https://api.hosting.ionos.com/dns/v1` (gebaut) | `api_key` in der Form `<prefix>.<secret>` | Ein Feld, das in Wahrheit zwei ist — geprüft beim Hinterlegen. Und `suffix` im Filter ist ein Suffix, kein Name. |
 | INWX | `https://api.domrobot.com/xmlrpc/` | `username` + `password`, wahlweise `shared_secret` | XML-RPC, Sitzungscookie, TOTP. **Und das Passwort öffnet das Registrarkonto**, nicht eine Zone. Der einzige, bei dem ein Kunde besser nicht seine eigenen Zugangsdaten hinterlegt. |
-| deSEC | `https://desec.io/api/v1` | `token` | Der geradlinigste: REST, Token, Zonen abfragbar. Sein TTL ist mit 3600 der höchste der sieben — `ready()` darf hier nicht nach zwei Minuten aufgeben. |
+| deSEC | `https://desec.io/api/v1` (gebaut) | `token` | Der geradlinigste, und der **einzige, der die Zonenfrage selbst beantwortet** (`owns_qname`). Führt RRsets statt einzelner Sätze. Sein TTL ist mit 3600 der höchste der sieben — `ready()` darf hier nicht nach zwei Minuten aufgeben. |
 
 Was **keiner** von ihnen bekommt: eine Zonenliste aus dem Formular. Die stand
 bei RFC 2136 zu Recht darin — ein TSIG-Schlüssel ist im Nameserver ohnehin auf
@@ -358,6 +358,33 @@ Das gehört so gesagt, weil die naheliegende Antwort — „bauen wir eben Strat
 dazu" — hier nicht existiert. Der Ausweg ist die Zone, nicht das Panel: Sie
 lässt sich zu deSEC delegieren, ohne dass die Domain umzieht. Deshalb steht
 deSEC überhaupt auf der Liste.
+
+### deSEC im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego und in dessen Client
+([`nrdcg/desec`](https://github.com/nrdcg/desec)).
+
+- **Adresse:** `https://desec.io/api/v1`
+- **Anmeldung:** Kopfzeile `Authorization: Token <token>`
+- **Zuständige Domain:** `GET /domains/?owns_qname=<voller name>` → eine Liste
+  mit genau der Domain, die für den Namen zuständig ist
+- **Lesen:** `GET /domains/<domain>/rrsets/<subname>/TXT/` → `{"records":[…]}`;
+  `404`, wenn es den RRset noch nicht gibt
+- **Anlegen:** `POST /domains/<domain>/rrsets/` mit `subname`, `type`, `records`
+  und `ttl` → `201`
+- **Ändern:** `PATCH /domains/<domain>/rrsets/<subname>/TXT/` mit `records`;
+  eine leere Liste löscht den RRset, quittiert mit **`204`**
+- Der Name der Domain selbst heisst `@`
+- Der Wert steht **in** Anführungszeichen
+
+**Die Zonenfrage stellt sich hier nicht — sie wird gestellt.** `owns_qname` ist
+die einzige Auskunft dieser Art unter den sieben; überall sonst nennt der
+Anbieter seine Zonen, und die längste passende wird gesucht.
+
+**RRsets statt einzelner Sätze.** Alle TXT-Werte zu einem Namen sind ein
+Gegenstand. Beim Anlegen wird deshalb angehängt, beim Abräumen nur der eigene
+Wert herausgenommen; beides ist die Grenze zu einer gleichzeitig laufenden
+Bestellung.
 
 ### IONOS im Einzelnen
 
@@ -781,8 +808,9 @@ Bruch in `tests/waechter-brechen.sh` mit.
    Cloud-API und nicht gegen die auslaufende DNS-Konsole. **Cloudflare
    ebenfalls gebaut**, nur mit API-Token; der globale Schlüssel wird abgewiesen.
    **netcup ebenfalls gebaut** — der erste mit einer Sitzung und der erste, dem
-   die Zonen genannt werden müssen. **IONOS ebenfalls gebaut.** Es folgen INWX
-   und deSEC; INWX steht zuletzt, weil er als einziger
+   die Zonen genannt werden müssen. **IONOS und deSEC ebenfalls gebaut** — deSEC
+   als einziger ohne `Zones`, weil er die Zonenfrage selbst beantwortet. Es
+   fehlt INWX; er steht zuletzt, weil er als einziger
    XML-RPC, eine Sitzung und ein Kontopasswort statt eines Tokens mitbringt.
 
    Vorweg kam eine Grenze, die es schon gab, aber nur als Prosa: **Der Agent

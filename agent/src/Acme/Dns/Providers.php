@@ -88,7 +88,6 @@ final class Providers
      */
     public const PENDING = [
         self::INWX,
-        self::DESEC,
     ];
 
     /** @return list<string> */
@@ -122,6 +121,7 @@ final class Providers
             self::CLOUDFLARE => Cloudflare::configure($config),
             self::NETCUP => Netcup::configure($config),
             self::IONOS => Ionos::configure($config),
+            self::DESEC => Desec::configure($config),
             default => throw self::missing($name),
         };
     }
@@ -140,6 +140,7 @@ final class Providers
             self::CLOUDFLARE => Cloudflare::fromConfig($config),
             self::NETCUP => Netcup::fromConfig($config),
             self::IONOS => Ionos::fromConfig($config),
+            self::DESEC => Desec::fromConfig($config),
             default => throw self::missing($name),
         };
     }

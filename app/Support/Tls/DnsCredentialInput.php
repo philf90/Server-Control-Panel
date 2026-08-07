@@ -73,7 +73,7 @@ final class DnsCredentialInput
             // Token; was sie unterscheidet, prüft der Agent. Zwei Methoden mit
             // demselben Rumpf wären zwei Orte für dieselbe Regel, und der
             // zweite ist der, der veraltet.
-            Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE => self::tokenOnly($input),
+            Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE, Providers::DESEC => self::tokenOnly($input),
             Providers::NETCUP => self::netcup($input),
             Providers::IONOS => self::ionos($input),
             // Unerreichbar, solange {@see self::provider()} davor steht — und
@@ -87,7 +87,7 @@ final class DnsCredentialInput
     }
 
     /**
-     * Ein Token, mehr nicht — IPv64.net, Hetzner und Cloudflare.
+     * Ein Token, mehr nicht — IPv64.net, Hetzner, Cloudflare und deSEC.
      *
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>

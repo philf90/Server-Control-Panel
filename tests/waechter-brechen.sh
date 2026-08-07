@@ -2262,6 +2262,74 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" IonosTest passed
 
 echo
+echo "── DesecTest: der RRset wird überschrieben statt ergänzt ──"
+#
+# deSEC führt RRsets: Alle TXT-Werte zu einem Namen sind ein Gegenstand mit
+# einer Liste. Wer beim Anlegen die Liste ersetzt, nimmt einer gleichzeitig
+# laufenden Bestellung ihre Prüfung weg — und die scheitert dann an einer
+# Ursache, die nirgends steht.
+vorher_datei agent/src/Acme/Dns/Desec.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Desec.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $this->patch($domain, $subname, [...$existing, $quoted], $record);",
+    "        $this->patch($domain, $subname, [$quoted], $record);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Desec.php "deSEC-RRset überschrieben" &&
+pruefe "deSEC-RRset überschrieben" \
+  DesecTest::test_an_existing_rrset_gets_the_value_appended failed
+wiederherstellen
+
+echo
+echo "── DesecTest: beim Abräumen wird die ganze Liste geleert ──"
+#
+# Dieselbe Grenze aus der anderen Richtung. Die Liste zu leeren ist am Ende
+# einer einzelnen Bestellung richtig und bei zwei gleichzeitigen falsch.
+vorher_datei agent/src/Acme/Dns/Desec.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Desec.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (! TxtValue::matches($entry, $value)) {\n                $left[] = $entry;\n            }",
+    "            unset($entry);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Desec.php "deSEC-Liste geleert" &&
+pruefe "deSEC-Liste geleert" \
+  DesecTest::test_removing_takes_out_only_the_own_value failed
+wiederherstellen
+
+echo
+echo "── DesecTest: 204 gilt als Fehlschlag ──"
+#
+# Nimmt man den letzten Wert heraus, verschwindet der RRset, und deSEC quittiert
+# das mit 204. Wer nur 200 gelten lässt, macht aus dem Normalfall am Ende jeder
+# Bestellung einen Fehlschlag — und der Vorgang wird wiederholt.
+#
+# Gebrochen wird `Response::successful()` und nicht der Anbieter: Die Regel
+# „2xx ist Erfolg" steht dort für alle, und deSEC ist der erste, bei dem sie
+# einen anderen Code als 200 tragen muss.
+vorher_datei agent/src/Acme/Response.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Response.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $this->status >= 200 && $this->status < 300;",
+    "        return $this->status === 200 || $this->status === 201;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Response.php "204 gilt als Fehlschlag" &&
+pruefe "204 gilt als Fehlschlag" \
+  DesecTest::test_emptying_the_rrset_is_a_success failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DesecTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -236,23 +236,33 @@ final class DomainTest extends TestCase
     }
 
     /**
-     * Auch der Rückbau leert die Abschrift — er ist der vierte Weg.
+     * Der Rückbau nimmt die Domainzeilen mit — und seit docs/35 auch die eigene.
      *
-     * **Der Test darüber hat drei Ereignisse geprüft und den einen Weg
-     * übersehen, der nicht über das Modell geht.** `Lifecycle::withdraw()`
-     * löschte die Domains mit einem Massenlöschen über den Erbauer, und das
-     * feuert keine Modellereignisse. Ein gekündigtes Abonnement behielt seine
-     * Hauptdomain damit für immer.
-     *
-     * Sichtbar wurde es erst auf dem Zielserver, und nicht als schiefe
-     * Anzeige, sondern als Absturz: `subscriptions.main_domain` war in P1 als
-     * eindeutig angelegt worden, und der zweite Abnahmelauf lief mit
-     * demselben Namen in den Index.
+     * **Was dieser Test einmal bewachte.** `Lifecycle::withdraw()` löschte die
+     * Domains mit einem Massenlöschen über den Erbauer, und das feuert keine
+     * Modellereignisse. Ein gekündigtes Abonnement blieb damals als Zeile
+     * liegen und behielt seine Hauptdomain für immer; sichtbar wurde das erst
+     * auf dem Zielserver, und nicht als schiefe Anzeige, sondern als Absturz —
+     * `subscriptions.main_domain` war in P1 als eindeutig angelegt worden:
      *
      *     Duplicate entry 'abnahme-web-2.invalid'
      *     for key 'subscriptions_main_domain_unique'
+     *
+     * **Warum die Behauptung sich umgedreht hat.** Seit docs/35 gibt es die
+     * liegenbleibende Zeile nicht mehr; der Systembenutzer ist in
+     * `system_users` reserviert. Eine Abschrift auf einer Zeile, die es nicht
+     * gibt, kann nichts mehr festhalten — die Frage ist damit beantwortet und
+     * nicht verschwunden. Was bleibt, ist der Weg selbst: Die Domainzeilen
+     * müssen fort sein, sonst hielten sie ihre Namen belegt. Dass ein Name
+     * danach wieder zu haben ist, steht im Test darunter.
+     *
+     * **Und dieser Test ist der einzige der Umstellung gewesen, den kein
+     * `grep` gefunden hat.** docs/35 §5.4 nennt `withTrashed` und `onlyTrashed`
+     * als Suchmuster; hier stand weder das eine noch das andere, sondern ein
+     * `DB::table('subscriptions')->first()` und eine Behauptung im Meldungstext.
+     * Gefunden hat ihn die CI.
      */
-    public function test_withdrawing_a_subscription_clears_the_copy(): void
+    public function test_withdrawing_a_subscription_takes_the_rows_with_it(): void
     {
         $subscription = Subscription::factory()->create();
         Domain::factory()->main()->for($subscription)->create(['name' => 'beispiel.de']);
@@ -261,14 +271,16 @@ final class DomainTest extends TestCase
 
         $this->withdraw($subscription);
 
-        $zeile = DB::table('subscriptions')->where('id', $subscription->id)->first();
+        $this->assertNull(
+            DB::table('subscriptions')->where('id', $subscription->id)->first(),
+            'Das Abonnement soll hart gelöscht sein — sein Name steht im Verzeichnis und nicht in dieser Zeile.',
+        );
 
-        $this->assertNotNull($zeile, 'Das Abonnement ist hart fort — es soll weich gelöscht bleiben.');
-        $this->assertNull($zeile->main_domain, implode(' ', [
-            'Das gekündigte Abonnement hält seine Hauptdomain fest.',
-            'Ein Massenlöschen über den Erbauer feuert keine Modellereignisse,',
-            'und an einem davon hängt die Abschrift.',
-        ]));
+        $this->assertSame(
+            0,
+            DB::table('domains')->where('subscription_id', $subscription->id)->count(),
+            'Eine übriggebliebene Domainzeile hielte ihren Namen belegt, auf einem Server, auf dem von ihr nichts mehr liegt.',
+        );
     }
 
     /**

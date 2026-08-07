@@ -4861,10 +4861,21 @@ Zielserver. Der Wächter dazu prüft die Regel und nicht den Fall: Jeder
 Systembenutzer, der in eine Zeile geschrieben wird, muss aus einem `claim()`
 kommen.
 
-Dazu zwei kleinere: `Rule::unique('subscriptions', 'name')->withoutTrashed()`
+Dazu drei kleinere: `Rule::unique('subscriptions', 'name')->withoutTrashed()`
 hängt eine Bedingung auf `deleted_at` an und wäre ab der Migration ein
-SQL-Fehler auf jedem Anlegen; und `WebLifecycleTest` behauptete, nach dem
-Rückbau stehe die Zeile noch da.
+SQL-Fehler auf jedem Anlegen; und zwei Tests behaupteten, nach dem Rückbau
+stehe die Zeile noch da.
+
+**Der letzte davon ist der lehrreiche, und er kostete den einen roten Lauf.**
+`DomainTest::test_withdrawing_a_subscription_clears_the_copy` benutzte weder
+`withTrashed` noch `onlyTrashed` noch `deleted_at` — nur ein
+`DB::table('subscriptions')->first()` und ein `assertNotNull`. Die Annahme „die
+Zeile bleibt liegen" stand allein im Meldungstext der Behauptung, und kein
+`grep` über die Vokabeln der weichen Löschung holt so etwas heraus. Daraus die
+Lehre, die neben der aus dem TLS-Lauf steht:
+
+> **Eine Annahme, die nur in einem Meldungstext steht, ist mit keinem
+> Suchmuster zu finden. Die einzige Suche, die sie hergibt, ist der Lauf.**
 
 **Und ein Bruch aus dem Plan beisst nicht.** `docs/35 §5.3` verlangt einen
 Eingriff, der in `withdraw()` `delete()` statt `forceDelete()` schreibt. Ohne

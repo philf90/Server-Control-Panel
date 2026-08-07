@@ -653,12 +653,21 @@ Abonnements hätten `p1000` bekommen, und das zweite wäre am eindeutigen Index
 gescheitert. Der Wächter dazu prüft die Regel und nicht den Fall — jeder
 Systembenutzer, der in eine Zeile geschrieben wird, kommt aus einem `claim()`.
 
-Dazu zwei kleinere Funde: `Rule::unique('subscriptions', 'name')
+Dazu drei kleinere Funde: `Rule::unique('subscriptions', 'name')
 ->withoutTrashed()` in `SubscriptionController` hängt eine Bedingung auf
 `deleted_at` an und wäre ab der Migration ein SQL-Fehler auf jedem Anlegen; und
+zwei Tests behaupteten, nach dem Rückbau stehe die Zeile noch da —
 `WebLifecycleTest::test_the_teardown_of_a_subscription_frees_its_domain_names`
-behauptete, nach dem Rückbau stehe die Zeile noch da (§5.4 nennt nur
-`withTrashed`/`onlyTrashed` als Suchmuster — `deleted_at` gehört dazu).
+und `DomainTest::test_withdrawing_a_subscription_clears_the_copy`.
+
+**Der zweite davon ist der lehrreiche: Er war mit keinem Suchmuster zu
+finden.** §5.4 nennt `withTrashed` und `onlyTrashed`; dieser Test benutzte
+weder das eine noch das andere, sondern ein
+`DB::table('subscriptions')->where('id', …)->first()` und ein
+`assertNotNull` — die Annahme „die Zeile bleibt liegen" stand nur im
+Meldungstext der Behauptung. Kein `grep` über Vokabeln der weichen Löschung
+holt so etwas heraus. Gefunden hat ihn die CI, und zwar als einzigen
+Fehlschlag von 1292 Tests.
 
 ### 9.3 Ein Bruch aus §5.3, der nicht beisst
 
@@ -704,14 +713,40 @@ Code sorgt dafür, dass er es auch dann tut, wenn er den Vorflug übersprungen h
 
 Ehrlich benannt, weil §7 es verlangt:
 
-- **Kein `php artisan migrate`, kein `php artisan test`.** Zum Zeitpunkt der
-  Umsetzung fehlte `vendor/` (`composer install` scheitert am Proxy). Die
-  Datenmigrationen sind konstruiert und gelesen, nicht gelaufen. Sie sind genau
-  die Sorte Code, die §7 als lokal nicht prüfbar benennt.
+- **Im Container lief weder `php artisan migrate` noch `php artisan test`.**
+  `vendor/` fehlt, und `composer install` scheitert nicht an einer Laune,
+  sondern an einer Regel: Der Proxy dieses Containers gibt GitHub nur für die
+  Repositorys frei, die der Sitzung zugeordnet sind. Jedes Paket eines Dritten
+  antwortet mit `403 GitHub access to this repository is not enabled for this
+  session`. Es gibt keinen Weg daran vorbei, der nicht hiesse, die
+  Abhängigkeiten aus einer fremden Quelle zu ziehen — und dieses Projekt prüft
+  seine Lieferkette in der CI.
+
+- **Gelaufen ist die Testsuite trotzdem, und zwar dort, wo sie hingehört.** Die
+  CI kennt `workflow_dispatch`; ein Lauf auf dem Zweig bringt dasselbe Ergebnis
+  wie ein PR, ohne einen zu öffnen. Ergebnis des zweiten Laufs: **1292 Tests
+  grün**, Pint grün, PHPStan Stufe 6 grün, Typen und Bündel grün, `composer
+  audit`, `npm audit` und die Lizenzprüfung grün. Der erste Lauf hatte genau
+  einen Fehlschlag, und das war der `DomainTest` aus §9.2 — der Fund, den kein
+  Suchmuster hergab.
+
+- **Die Datenmigrationen sind damit noch immer nicht auf MariaDB gelaufen.**
+  Grün ist SQLite. Was auf dem Server anders ist — `dropForeign`, die
+  Fremdschlüsselumstellung, `dropSoftDeletes` auf einer Tabelle mit Daten —,
+  steht erst nach §10 fest. Die zentrale Invariante aus Kriterium 3 ist
+  zusätzlich gegen eine SQLite-Datenbank mit der Form der Serverdaten
+  nachgerechnet worden (121 Namen, höchste 1120, die höchsten davon
+  Grabsteine): `p1121` vor und nach der Migration, und ohne das Verzeichnis
+  wäre es `p1100` gewesen. Das ist eine Probe der Rechnung, kein Ersatz für den
+  Lauf auf dem Server.
 - **`waechter-brechen.sh` ist nur zur Hälfte gelaufen.** Jeder der acht neuen
   Eingriffe ist gegen eine Kopie der Zieldatei gefahren worden und ändert sie
-  auch wirklich — die `griff_datei`-Hälfte ist damit belegt. Ob der jeweilige
-  Test danach rot wird, braucht PHPUnit und steht aus.
+  auch wirklich — die `griff_datei`-Hälfte ist damit belegt, und für
+  `test_every_written_name_was_claimed` ist zusätzlich die Testlogik nachgebaut
+  und gezeigt worden, dass sie mit dem Bruch genau einen Befund meldet. Ob die
+  übrigen sieben Wächter danach rot werden, braucht ein lokales PHPUnit und
+  steht aus; das Skript ändert Dateien und lässt sich nicht über die CI fahren.
+  **Wer als Nächstes an diesem Repo mit `vendor/` sitzt, holt das nach.**
 - **Was lief:** `php -l` über alle geänderten Dateien, `pint --test` (grün),
   PHPStan Stufe 6 über `agent/src` und `tests/Support` sowie über die neuen
   Dateien einzeln, `npm run types` (grün) und `npm run build`.

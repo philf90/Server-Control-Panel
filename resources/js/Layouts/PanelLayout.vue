@@ -79,7 +79,24 @@ const navigation = computed(() => {
          * Knopf, und das ist eine Sackgasse mit Einladung.
          */
         ...(account.value?.has_active_subscription
-          ? [{ name: 'Domains', href: '/domains', icon: 'domains' }]
+          ? [
+              { name: 'Domains', href: '/domains', icon: 'domains' },
+
+              /*
+               * **Datenbanken an derselben Bedingung wie Domains** (P5): Ohne
+               * ein benutzbares Abonnement gibt es keinen Ort, an dem eine
+               * Datenbank entstehen könnte, und der Menüpunkt führte auf eine
+               * leere Liste ohne Knopf — eine Sackgasse mit Einladung.
+               *
+               * Ob der Plan überhaupt Datenbanken vorsieht, steht hier
+               * bewusst **nicht**: Das Kontingent kann `0` sein, und dann ist
+               * die Liste leer und der Knopf weist ab. Ein Menüpunkt, der je
+               * nach Plan verschwindet, wäre eine zweite Fassung der Regel aus
+               * `Databases::guardQuota()` — und die zweite ist die, die
+               * veraltet.
+               */
+              { name: 'Datenbanken', href: '/databases', icon: 'databases' },
+            ]
           : []),
 
         { name: 'Vorgänge', href: '/operations', icon: 'operations' },
@@ -101,6 +118,10 @@ const navigation = computed(() => {
       // Domains an seinem Abonnement — für ihn wäre eine zweite Liste
       // derselben drei Zeilen nur ein zweiter Weg zum selben Ort.
       { name: 'Domains', href: '/domains', icon: 'domains' },
+
+      // Serverweit und aus demselben Grund wie die Domains: „Welche Datenbank
+      // liegt in welchem Abonnement" ist eine Frage des Betreibers.
+      { name: 'Datenbanken', href: '/databases', icon: 'databases' },
     ] },
     { group: 'Server', items: [
       { name: 'Vorgänge', href: '/operations', icon: 'operations' },

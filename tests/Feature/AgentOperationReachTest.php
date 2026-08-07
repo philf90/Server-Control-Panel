@@ -79,6 +79,28 @@ final class AgentOperationReachTest extends TestCase
         'dns.credential.store' => 'Dasselbe für ein DNS-Token: Es überquert den Socket genau einmal und liegt danach im Agenten, nicht im Panel.',
         'dns.credential.list' => 'Zeigt, welche DNS-Profile hinterlegt sind; im Bestand des Panels steht dazu nichts.',
         'dns.credential.forget' => 'Entfernt ein DNS-Profil im Agenten; im Bestand des Panels steht dazu nichts.',
+
+        /*
+         * P5 — Datenbanken (docs/36 §8).
+         *
+         * Zwei Gründe, und sie stehen je Eintrag. Der erste ist der bekannte:
+         * Ein eingereihter Vorgang legt seine Argumente in `operations.payload`
+         * ab, und ein Datenbankpasswort gehört dort nicht hin — dieselbe Regel
+         * wie bei `tls.certificate.upload` und `dns.credential.store`. Der
+         * zweite ist neu: Eine Operation, die Millisekunden dauert, braucht
+         * keinen Vorgang, und ihre Zeile schreibt der Dienst, nachdem der Agent
+         * geantwortet hat.
+         *
+         * `db.database.remove` und `db.user.lock` stehen **nicht** hier — sie
+         * laufen über die Warteschlange und werden von
+         * `App\Support\Databases\DbLifecycle` beantwortet.
+         */
+        'db.server.info' => 'Liest Version, Horchadresse und liegengebliebene befristete Zugänge; im Bestand des Panels steht dazu nichts.',
+        'db.database.create' => 'CREATE DATABASE dauert Millisekunden. Die Zeile schreibt App\Support\Databases\Databases, nachdem der Agent geantwortet hat — derselbe Weg wie bei CertificateRecord nach einem Hochladen.',
+        'db.user.create' => 'Das Passwort darf nicht in operations.payload liegen (docs/36 §4). Der Dienst ruft unmittelbar auf und schreibt den Bestand selbst.',
+        'db.user.password' => 'Dasselbe für das Zurücksetzen: Es überquert den Socket genau einmal und liegt danach nirgends — weder im Panel noch im Agenten.',
+        'db.user.grant' => 'Vergibt oder nimmt ein Recht für genau ein Paar. Die Zuordnungstabelle schreibt der Dienst, nachdem der Agent geantwortet hat.',
+        'db.user.remove' => 'Entfernt einen Zugang. DROP USER dauert Millisekunden, und die Zeile geht danach im selben Aufruf.',
     ];
 
     private function registry(): Registry

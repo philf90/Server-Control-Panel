@@ -36,9 +36,23 @@ Dateisystem und nimmt jedes andere mit, ein FPM-Pool ohne Obergrenze belegt den
 Arbeitsspeicher und ebenso. Die übrigen kosten im schlimmsten Fall Ordnung.
 
 Ein leeres Feld wird deshalb bei diesen beiden abgewiesen und fällt nicht auf
-„unbegrenzt" — die Prüfregel lässt `null` dort gar nicht zu. Kommt eine dritte
-Ausnahme dazu, zwingt `test_the_two_shared_resources_have_no_unlimited` dazu,
-den Grund aufzuschreiben.
+„unbegrenzt" — die Prüfregel lässt `null` dort gar nicht zu. Kommt eine weitere
+Ausnahme dazu, zwingt `test_only_shared_resources_have_no_unlimited` dazu, den
+Grund aufzuschreiben.
+
+**Inzwischen sind es fünf**, nicht zwei: Mit P3 kamen die drei PHP-Deckel dazu
+(`php_memory_mb`, `php_upload_mb`, `php_execution_seconds`), aus demselben
+Grund. Der Test heisst seitdem `test_only_shared_resources_have_no_unlimited`;
+in dieser Zeile stand bis P5 sein alter Name. Folgenlos, aber es ist genau das
+Muster aus CLAUDE.md — *eine Zeichenkette, die auf etwas verweist, ohne dass
+etwas den Bezug prüft* —, diesmal in einem Dokument statt im Quelltext.
+
+**`database_mb` ist ausdrücklich keine dritte Ausnahme** (P5, `docs/36 §9`): Es
+darf unbegrenzt sein, weil es nichts durchsetzt. MariaDB kennt keine Obergrenze
+je Schema. Was den Datenträger begrenzt, ist `disk_mb` — und `/var/lib/mysql`
+liegt ausserhalb der Dateisystem-Quota des Systembenutzers. Ein Kunde kann
+seinen Speicherplatz einhalten und den Datenträger über seine Datenbank füllen;
+P5 misst es und macht es sichtbar, erzwungen wird es dort nicht.
 
 ## 4. Der Standardplan
 

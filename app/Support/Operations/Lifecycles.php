@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Operations;
 
 use App\Models\Operation;
+use App\Support\Databases\DbLifecycle;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tls\CertificateLifecycle;
 use App\Support\Web\WebLifecycle;
@@ -24,11 +25,20 @@ use App\Support\Web\WebLifecycle;
  */
 final class Lifecycles
 {
-    /** @var list<class-string<AfterOperation>> */
+    /**
+     * **Die Reihenfolge ist keine Aufzählung, sondern eine Zusage.**
+     * {@see Lifecycle} steht zuerst, weil er den Zustand des Abonnements setzt;
+     * alle danach lesen ihn frisch aus der Datenbank. Liefe es umgekehrt, trüge
+     * jeder Server-Block und jede Datenbanksperre noch den Zustand von vorher —
+     * die Sperre stünde im Panel und die Webseite antwortete weiter.
+     *
+     * @var list<class-string<AfterOperation>>
+     */
     public const HANDLERS = [
         Lifecycle::class,
         WebLifecycle::class,
         CertificateLifecycle::class,
+        DbLifecycle::class,
     ];
 
     /**

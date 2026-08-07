@@ -12,6 +12,7 @@ use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
+use App\Support\Databases\Databases;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
@@ -506,9 +507,34 @@ final class SubscriptionController extends Controller
      * Operation, die sichert *und* löscht, sichert im Fehlerfall vielleicht
      * nicht und löscht trotzdem. Solange es keine Sicherungen gibt, ist der
      * Rückbau endgültig — und die Rückfrage in der Oberfläche sagt das.
+     *
+     * **Die Datenbanken gehen zuerst, und das ist keine Kosmetik** (`docs/36
+     * §5`). Ein Schema liegt in `/var/lib/mysql` und damit ausserhalb von
+     * allem, was `subscription.remove` anfasst — genau wie ein
+     * Zertifikatsverzeichnis unter `/etc/srvpanel/tls/certs`, und genau dieser
+     * Fall hat den Abnahmelauf von `docs/35` angehalten: zwölf private
+     * Schlüssel ohne Zeile, die auf sie zeigt. Hier wären es die Daten eines
+     * Kunden.
+     *
+     * Die Reihenfolge trägt die Warteschlange: Sie hat einen Arbeiter, und der
+     * arbeitet der Reihe nach — dasselbe Mittel wie in `WebLifecycle::apply()`,
+     * wo der FPM-Pool vor dem Server-Block liegen muss.
+     *
+     * **Scheitert einer der Vorgänge, bleibt seine Zeile auffindbar.**
+     * `databases.subscription_id` steht auf `nullOnDelete` und der Name ist
+     * abgeschrieben; `srvpanel db prune` findet, was liegengeblieben ist. Die
+     * Alternative wäre gewesen, `subscription.remove` selbst alles mit dem
+     * Präfix wegwerfen zu lassen — und das ist die eine Stelle, an der ein
+     * Fehler in der Präfixbildung die Daten eines fremden Kunden kostet.
      */
-    public function destroy(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
-    {
+    public function destroy(
+        Subscription $subscription,
+        Audit $audit,
+        Lifecycle $lifecycle,
+        Databases $databases,
+    ): RedirectResponse {
+        $databases->removeAllFor($subscription);
+
         return redirect()->route('operations.show', $this->start(
             $subscription, 'subscription.remove', 'Abonnement zurückbauen', $audit, $lifecycle,
         ));

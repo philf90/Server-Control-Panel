@@ -11,6 +11,14 @@ use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
+use SrvPanel\Agent\Ops\DbDatabaseCreate;
+use SrvPanel\Agent\Ops\DbDatabaseRemove;
+use SrvPanel\Agent\Ops\DbServerInfo;
+use SrvPanel\Agent\Ops\DbUserCreate;
+use SrvPanel\Agent\Ops\DbUserGrant;
+use SrvPanel\Agent\Ops\DbUserLock;
+use SrvPanel\Agent\Ops\DbUserPassword;
+use SrvPanel\Agent\Ops\DbUserRemove;
 use SrvPanel\Agent\Ops\DnsCredentialForget;
 use SrvPanel\Agent\Ops\DnsCredentialList;
 use SrvPanel\Agent\Ops\DnsCredentialStore;
@@ -93,6 +101,24 @@ final class Registry
         $this->register(new DnsCredentialStore);
         $this->register(new DnsCredentialList);
         $this->register(new DnsCredentialForget);
+
+        /*
+         * P5 — Datenbanken (docs/36).
+         *
+         * Die `remove`-Hälften stehen zuerst, und nicht aus Ordnungsliebe:
+         * docs/35 hat freigelegt, dass dieses System ein Zertifikat nie löschen
+         * konnte — ein Jahr lang, weil `create` zuerst gebaut wurde und danach
+         * funktionierte. `RemovalPathTest` hält diese Reihenfolge ab jetzt für
+         * die ganze Registratur fest.
+         */
+        $this->register(new DbServerInfo);
+        $this->register(new DbDatabaseRemove);
+        $this->register(new DbDatabaseCreate);
+        $this->register(new DbUserRemove);
+        $this->register(new DbUserCreate);
+        $this->register(new DbUserPassword);
+        $this->register(new DbUserGrant);
+        $this->register(new DbUserLock);
     }
 
     public function register(Op $op): void

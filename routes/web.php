@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DatabaseController;
 use App\Http\Controllers\DnsSettingsController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\ImpersonationController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\SubscriptionDnsController;
 use App\Http\Controllers\TlsSettingsController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
+use App\Models\Database;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Plan;
@@ -369,6 +371,72 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/domains/{domain}/logs', [DomainController::class, 'logs'])
         ->middleware('can:viewLogs,domain')
         ->name('domains.logs');
+
+    /*
+     * Datenbanken (P5, docs/36).
+     *
+     * **Angelegt wird am Abonnement, alles Weitere an der Datenbank** —
+     * dieselbe Aufteilung wie bei den Domains in P3, und sie steht in der
+     * Adresse: `can:create` fragt am Abonnement, in dem die Datenbank entstehen
+     * soll. Ohne es liesse sich nur fragen, ob dieses Konto *irgendwo*
+     * Datenbanken anlegen darf.
+     *
+     * `viewAny` lässt jedes Konto auf die Liste; was darauf steht, entscheidet
+     * die Mandantenklammer.
+     */
+    Route::get('/databases', [DatabaseController::class, 'index'])
+        ->middleware('can:viewAny,'.Database::class)
+        ->name('databases.index');
+
+    Route::get('/subscriptions/{subscription}/databases/create', [DatabaseController::class, 'create'])
+        ->middleware('can:create,'.Database::class.',subscription')
+        ->name('databases.create');
+
+    Route::post('/subscriptions/{subscription}/databases', [DatabaseController::class, 'store'])
+        ->middleware('can:create,'.Database::class.',subscription')
+        ->name('databases.store');
+
+    Route::get('/databases/{database}', [DatabaseController::class, 'show'])
+        ->middleware('can:view,database')
+        ->name('databases.show');
+
+    /*
+     * Entfernen nimmt die Daten mit, und die Rückfrage sagt das.
+     *
+     * Es gibt keine Sicherung davor — dieselbe Lage wie beim Rückbau eines
+     * Abonnements (`docs/26 §6` und `§13`): Sie kommt mit P8, und solange es
+     * sie nicht gibt, ist das Entfernen endgültig.
+     */
+    Route::delete('/databases/{database}', [DatabaseController::class, 'destroy'])
+        ->middleware('can:delete,database')
+        ->name('databases.destroy');
+
+    /*
+     * Die Zugänge einer Datenbank.
+     *
+     * `can:update` und nicht `can:delete`: Einen Zugang anzulegen oder zu
+     * entfernen ändert die Datenbank, es wirft sie nicht weg. Wer die eine
+     * Fähigkeit hat, hat auch die andere — die Trennung steht trotzdem da,
+     * damit sie sich später auseinandernehmen lässt, ohne dass jemand eine
+     * Route umschreiben muss.
+     */
+    Route::post('/databases/{database}/users', [DatabaseController::class, 'storeUser'])
+        ->middleware('can:update,database')
+        ->name('databases.users.store');
+
+    /*
+     * Ein neues Passwort — der einzige Weg zurück zu einem verlorenen.
+     *
+     * Es liegt nirgends (`docs/36 §4`), also gibt es kein Nachschlagen. Die
+     * Route heisst deshalb `password` und nicht `password.show`.
+     */
+    Route::post('/databases/{database}/users/{user}/password', [DatabaseController::class, 'resetPassword'])
+        ->middleware('can:update,database')
+        ->name('databases.users.password');
+
+    Route::delete('/databases/{database}/users/{user}', [DatabaseController::class, 'destroyUser'])
+        ->middleware('can:update,database')
+        ->name('databases.users.destroy');
 
     /*
      * Die PHP-Versionen des Servers (§4.3).

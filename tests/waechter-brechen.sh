@@ -2910,24 +2910,29 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SectionSpacingTest passed
 
 echo
-echo "── RestrictedDeleteTest: die Prüfung sieht die Grabsteine nicht ──"
+echo "── RestrictedDeleteTest: Subscription trägt wieder SoftDeletes ──"
 #
-# **Der gemeldete Fehler, 7. August 2026.** `restrictOnDelete` zählt Zeilen;
-# `$plan->subscriptions()` sieht sie durch zwei Filter, die die Datenbank nicht
-# kennt. Ohne `onlyTrashed()` zählt das Panel wieder null, wo der
-# Fremdschlüssel eins zählt — und der Knopf antwortet mit einem 500er.
-vorher_datei app/Http/Controllers/PlanController.php
+# **Die Richtung, die der Umbau fast unbewacht gelassen hätte.** Seit docs/35
+# filtert `Subscription` nur noch über die Mandantenklammer; der Zweig für die
+# Grabsteine im Wächter wird von keinem Modell mehr ausgelöst. Ein Zweig, den
+# nichts erreicht, ist kein Wächter. Kommt der Trait zurück, muss `destroy()`
+# wieder ein `withTrashed()` zeigen — und tut es nicht.
+vorher_datei app/Models/Subscription.php
 python3 - <<'PY2'
-p = 'app/Http/Controllers/PlanController.php'
+p = 'app/Models/Subscription.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "                $plan->subscriptions()->onlyTrashed()->count(),\n            ],\n        );\n\n        if ($bound > 0) {",
-    "                0,\n            ],\n        );\n\n        if ($bound > 0) {",
+    "use Illuminate\\Database\\Eloquent\\Relations\\HasOne;",
+    "use Illuminate\\Database\\Eloquent\\Relations\\HasOne;\nuse Illuminate\\Database\\Eloquent\\SoftDeletes;",
+)
+s = s.replace(
+    "    /** @var list<string> */\n    protected $fillable = [\n        'customer_id', 'plan_id', 'name', 'system_user',",
+    "    use SoftDeletes;\n\n    /** @var list<string> */\n    protected $fillable = [\n        'customer_id', 'plan_id', 'name', 'system_user',",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Http/Controllers/PlanController.php "Grabsteine werden nicht gezählt" &&
-pruefe "Grabsteine werden nicht gezählt" \
+griff_datei app/Models/Subscription.php "Subscription filtert wieder weich" &&
+pruefe "Subscription filtert wieder weich" \
   RestrictedDeleteTest::test_a_destroy_counts_what_the_foreign_key_counts failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RestrictedDeleteTest passed
@@ -2942,20 +2947,8 @@ python3 - <<'PY2'
 p = 'app/Http/Controllers/PlanController.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    """        [$bound, $withdrawn] = $tenancy->withoutRestriction(
-            static fn (): array => [
-                $plan->subscriptions()->count(),
-                $plan->subscriptions()->onlyTrashed()->count(),
-            ],
-        );
-
-        if ($bound > 0) {""",
-    """        [$bound, $withdrawn] = [
-            $plan->subscriptions()->count(),
-            $plan->subscriptions()->onlyTrashed()->count(),
-        ];
-
-        if ($bound > 0) {""",
+    "        $bound = $tenancy->withoutRestriction(static fn (): int => $plan->subscriptions()->count());\n\n        if ($bound > 0) {",
+    "        $bound = $plan->subscriptions()->count();\n\n        if ($bound > 0) {",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -2966,47 +2959,164 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RestrictedDeleteTest passed
 
 echo
-echo "── PlanTest: gelöscht wird ohne Rückfrage ──"
+echo "── SystemUserLedgerTest: die Vergabe fragt wieder die Abonnements ──"
 #
-# Die Regression selbst: Wird nicht nach einem Ziel gefragt, bleiben die
-# Grabsteine liegen, `DELETE` läuft in den Fremdschlüssel und endet als
-# SQLSTATE 23000 — kein Formularfehler, sondern ein 500er.
-vorher_datei app/Http/Controllers/PlanController.php
+# **Der Kern des Umbaus aus docs/35.** Ein Test, der nur das Verhalten prüft,
+# bliebe grün, wenn jemand später „zur Sicherheit" wieder `Subscription`
+# dazunimmt — und dann zählt eine Quelle mit, die leer laufen kann: Die
+# Mandantenklammer liegt auf dem Modell, und ohne gesetzten Mandanten sähe die
+# Vergabe kein einziges Abonnement.
+vorher_datei app/Support/Subscriptions/Lifecycle.php
 python3 - <<'PY2'
-p = 'app/Http/Controllers/PlanController.php'
+p = 'app/Support/Subscriptions/Lifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "        $target = $withdrawn > 0 ? $this->transferTarget($request, $plan, $withdrawn, $audit) : null;",
-    "        $target = null;",
+    "        return $this->name(max(self::FIRST_USER, ((int) SystemUser::query()->max('number')) + 1));",
+    "        return $this->name(max(self::FIRST_USER, ((int) Subscription::query()->max('id')) + 1));",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Http/Controllers/PlanController.php "kein Ziel erfragt" &&
-pruefe "kein Ziel erfragt" \
-  PlanTest::test_a_withdrawn_subscription_is_not_moved_without_being_asked failed
+griff_datei app/Support/Subscriptions/Lifecycle.php "Vergabe liest die Abonnements" &&
+pruefe "Vergabe liest die Abonnements" \
+  SystemUserLedgerTest::test_the_allocation_reads_only_the_ledger failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" PlanTest passed
+pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
 
 echo
-echo "── PlanTest: der Plan selbst ist ein zulässiges Ziel ──"
+echo "── SystemUserLedgerTest: claim() schreibt nichts ins Verzeichnis ──"
 #
-# `transfer_to` auf den zu löschenden Plan: Die Zeilen blieben, wo sie sind,
-# und das DELETE liefe in denselben Fremdschlüssel wie vor der Behebung.
-vorher_datei app/Http/Controllers/PlanController.php
+# Ohne die Zeile im Verzeichnis ist der Name nicht verbraucht: Der Rückbau
+# nimmt die Zeile des Abonnements mit, und der nächste Kunde bekommt `p1000`
+# ein zweites Mal — samt allem, was auf dem Dateisystem noch dieser UID gehört.
+vorher_datei app/Support/Subscriptions/Lifecycle.php
 python3 - <<'PY2'
-p = 'app/Http/Controllers/PlanController.php'
+p = 'app/Support/Subscriptions/Lifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "        $others = Plan::query()->whereKeyNot($plan->getKey())->orderBy('name')->get();",
-    "        $others = Plan::query()->orderBy('name')->get();",
+    """                SystemUser::query()->create([
+                    'number' => $number,
+                    'subscription' => $subscription,
+                    'claimed_at' => now(),
+                ]);
+
+                return $this->name($number);""",
+    """                return $this->name($number);""",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Http/Controllers/PlanController.php "der Plan als eigenes Ziel" &&
-pruefe "der Plan als eigenes Ziel" \
-  PlanTest::test_the_plan_itself_is_no_target failed
+griff_datei app/Support/Subscriptions/Lifecycle.php "claim() verbraucht nichts" &&
+pruefe "claim() verbraucht nichts" \
+  SystemUserLedgerTest::test_the_next_name_never_repeats_a_claimed_one failed
 wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" PlanTest passed
+pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
+
+echo
+echo "── SystemUserLedgerTest: claim() steht ausserhalb der Transaktion ──"
+#
+# Eine Zeile im Verzeichnis verschwindet nie wieder. Steht die Vergabe vor der
+# Transaktion, frisst jeder fehlgeschlagene Anlageversuch eine Nummer — und die
+# Lücke im Zähler ist später nicht mehr zu erklären.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        $subscription = DB::transaction(function () use ($data, $lifecycle): Subscription {
+            return Subscription::query()->create([
+                'customer_id' => (int) $data['customer_id'],
+                'plan_id' => (int) $data['plan_id'],
+                'name' => $data['name'],
+                'system_user' => $lifecycle->claim($data['name']),""",
+    """        $verbrannt = $lifecycle->claim($data['name']);
+
+        $subscription = DB::transaction(function () use ($data, $verbrannt): Subscription {
+            return Subscription::query()->create([
+                'customer_id' => (int) $data['customer_id'],
+                'plan_id' => (int) $data['plan_id'],
+                'name' => $data['name'],
+                'system_user' => $verbrannt,""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "claim() vor der Transaktion" &&
+pruefe "claim() vor der Transaktion" \
+  SystemUserLedgerTest::test_a_failed_creation_does_not_burn_a_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
+
+echo
+echo "── SystemUserLedgerTest: der Rückbau lässt die Vorgänge hängen ──"
+#
+# **Der Bruch, der auf SQLite etwas anderes tut als auf dem Server.** Auf
+# MariaDB steht `operations.subscription_id` seit docs/35 auf `nullOnDelete`;
+# auf SQLite lässt sich ein Fremdschlüssel überhaupt nicht ändern und bleibt
+# `cascadeOnDelete`. Löst der Rückbau die Vorgänge nicht selbst ab, nimmt das
+# harte Löschen im Test das ganze Protokoll mit — und auf dem Server nicht.
+vorher_datei app/Support/Subscriptions/Lifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Subscriptions/Lifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        Operation::query()
+            ->where('subscription_id', $subscription->id)
+            ->update(['subscription_id' => null]);
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Subscriptions/Lifecycle.php "Vorgänge bleiben am Abonnement" &&
+pruefe "Vorgänge bleiben am Abonnement" \
+  SystemUserLedgerTest::test_the_operations_survive_the_removal failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
+
+echo
+echo "── SystemUserLedgerTest: der Vorgang schreibt den Namen nicht ab ──"
+#
+# Die Datenmigration hat die Namen des Bestands nachgetragen. Für alles, was
+# danach entsteht, gibt es nur diese eine Stelle — und ohne sie wäre jeder
+# Vorgang nach dem nächsten Rückbau namenlos. Ein Fehler, der erst beim
+# zurückgebauten Abonnement auffiele und dann nicht mehr zu heilen wäre.
+vorher_datei app/Models/Operation.php
+python3 - <<'PY2'
+p = 'app/Models/Operation.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if ($operation->subscription_id === null || $operation->subscription_name !== null) {",
+    "            if (true || $operation->subscription_id === null) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Operation.php "Vorgang ohne Abschrift" &&
+pruefe "Vorgang ohne Abschrift" \
+  SystemUserLedgerTest::test_an_operation_copies_the_subscription_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
+
+echo
+echo "── SystemUserLedgerTest: der Abnahmelauf vergibt ohne zu verbrauchen ──"
+#
+# **Der Fehler, den der Wächter beim Bauen gefunden hat.** `nextSystemUser()`
+# sagt nur, was der nächste *wäre*. In der Schleife von `srvpanel acceptance`
+# bekämen alle Abonnements denselben Namen, und das zweite scheiterte am
+# eindeutigen Index — auf dem Zielserver, im Abnahmelauf, nicht hier.
+vorher_datei app/Console/Commands/Acceptance.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Acceptance.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                'system_user' => $lifecycle->claim($name),",
+    "                'system_user' => $lifecycle->nextSystemUser(),",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/Acceptance.php "Abnahmelauf vergibt ohne claim()" &&
+pruefe "Abnahmelauf vergibt ohne claim()" \
+  SystemUserLedgerTest::test_every_written_name_was_claimed failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

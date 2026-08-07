@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -53,7 +52,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $suspended_at
  * @property bool $suspended_with_customer
  * @property Carbon|null $cancelled_at
- * @property Carbon|null $deleted_at
  * @property-read Customer|null $customer
  * @property-read Plan|null $plan
  * @property-read Collection<int, Account> $additionalAccounts
@@ -66,11 +64,26 @@ class Subscription extends Model
     use HasFactory;
 
     /*
-     * Zurückgezogen statt gelöscht — siehe die Migration. Der Systembenutzer
-     * bleibt damit verbraucht, und kein zweites Abonnement bekommt eine UID,
-     * unter der auf dem Dateisystem noch etwas liegt.
+     * **Hier stand `use SoftDeletes` — bis August 2026, und der Grund dafür
+     * war richtig.** Ein zurückgebautes Abonnement blieb als Zeile liegen,
+     * damit sein Systembenutzer verbraucht blieb: `userdel` gibt die UID frei,
+     * das nächste `useradd` vergibt sie wieder, und dann erbte ein neuer Kunde
+     * alles, was auf dem Dateisystem noch der alten UID gehört.
+     *
+     * Das Mittel war zu grob. Gelesen wurde der Grabstein im ganzen Panel von
+     * genau einer Abfrage; 121 Zeilen auf dem Zielserver existierten für ein
+     * einzelnes `MAX()`. Dabei hielten sie einen Fremdschlüssel auf `plans`
+     * fest — das war der 500er vom 7. August 2026 — und zwangen jede Zählung,
+     * zwei Filter abzuziehen, die die Datenbank nicht kennt.
+     *
+     * Die Reservierung steht seit docs/35 in {@see SystemUser}. Ein Abonnement
+     * enthält jetzt nur noch, was es gibt.
+     *
+     * **Kunden behalten ihre weiche Löschung**, und das ist keine
+     * Inkonsequenz: Ihr Grabstein wird von zwei Stellen gelesen, an ihm hängen
+     * ihre Konten, und ihre Nummer steht in Rechnungen. Der
+     * Abonnementgrabstein trug eine Zahl.
      */
-    use SoftDeletes;
 
     /** @var list<string> */
     protected $fillable = [

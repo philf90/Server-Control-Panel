@@ -168,7 +168,14 @@ final class Acceptance extends Command
                 'customer_id' => $customer->id,
                 'plan_id' => $plan->id,
                 'name' => $name,
-                'system_user' => $lifecycle->nextSystemUser(),
+
+                // `claim()` und nicht `nextSystemUser()`: Der zweite sagt nur,
+                // was der nächste wäre, und verbraucht ihn nicht. In dieser
+                // Schleife bekämen sonst alle Abonnements denselben Namen und
+                // das zweite scheiterte am eindeutigen Index — der Abnahmelauf
+                // ist die einzige Stelle im Panel, die in einem Zug mehrere
+                // anlegt.
+                'system_user' => $lifecycle->claim($name),
                 'status' => SubscriptionStatus::Provisioning,
             ]);
 

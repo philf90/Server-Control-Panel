@@ -131,27 +131,22 @@ final class SubscriptionTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * Der Zähler läuft hoch, und ein vergebener Name kommt nicht zurück.
+     *
+     * **Der Beweis steht seit docs/35 woanders.** Bis August 2026 hing er an
+     * der Zeile selbst: Nach dem Rückbau blieb sie zurückgezogen stehen, und
+     * die Vergabe sah sie mit `withTrashed()`. Jetzt hängt er am Verzeichnis —
+     * ausführlich in `SystemUserLedgerTest`. Was hier bleibt, ist die Frage,
+     * die das Anlegen eines Abonnements stellt: Zählt der nächste Name hoch?
+     */
     public function test_the_system_user_counts_up_and_stays_used(): void
     {
-        $customer = Customer::factory()->create();
-        $plan = $this->plan();
         $lifecycle = app(Lifecycle::class);
 
-        $first = Subscription::factory()->for($customer)->for($plan)->create(['system_user' => 'p1000']);
+        $this->assertSame('p1000', $lifecycle->nextSystemUser());
+        $this->assertSame('p1000', $lifecycle->claim('eins.invalid'));
         $this->assertSame('p1001', $lifecycle->nextSystemUser());
-
-        // **Der Kern.** Nach dem Rückbau bleibt die Zeile zurückgezogen
-        // stehen; ihr Name bleibt damit verbraucht. Ohne das bekäme das
-        // nächste Abonnement `p1000` und damit alles, was auf dem Dateisystem
-        // noch dieser UID gehört.
-        $first->delete();
-
-        $this->assertSame('p1001', $lifecycle->nextSystemUser());
-
-        // Die Zeile ist für jede gewöhnliche Abfrage weg und für die Vergabe da.
-        $tenancy = app(Tenancy::class);
-        $this->assertSame(0, $tenancy->withoutRestriction(fn (): int => Subscription::query()->count()));
-        $this->assertSame(1, $tenancy->withoutRestriction(fn (): int => Subscription::query()->withTrashed()->count()));
     }
 
     public function test_suspending_changes_nothing_before_the_agent_answered(): void
@@ -211,9 +206,21 @@ final class SubscriptionTest extends TestCase
         $this->assertNull($subscription->suspended_at);
     }
 
-    public function test_the_removal_withdraws_the_row(): void
+    /**
+     * Der Rückbau nimmt die Zeile mit — vollständig.
+     *
+     * Hier stand bis August 2026 die Gegenprobe: Die Zeile blieb mit
+     * `deleted_at` liegen und trug `status = cancelled`. Gelesen hat diesen
+     * Zustand nie jemand wieder; er stand auf einer Zeile, die im selben
+     * Atemzug unsichtbar wurde. Seit docs/35 ist sie fort, und der
+     * Systembenutzer bleibt trotzdem verbraucht — nachgewiesen in
+     * `SystemUserLedgerTest`.
+     */
+    public function test_the_removal_deletes_the_row(): void
     {
-        $subscription = Subscription::factory()->create(['system_user' => 'p1000']);
+        $subscription = Subscription::factory()->create([
+            'system_user' => app(Lifecycle::class)->claim('rueckbau.invalid'),
+        ]);
 
         $operation = Operation::query()->create([
             'subscription_id' => $subscription->id,
@@ -228,12 +235,7 @@ final class SubscriptionTest extends TestCase
         $tenancy = app(Tenancy::class);
 
         $this->assertNull($tenancy->withoutRestriction(fn () => Subscription::query()->find($subscription->id)));
-
-        $withdrawn = $tenancy->withoutRestriction(
-            fn (): Subscription => Subscription::query()->withTrashed()->findOrFail($subscription->id),
-        );
-        $this->assertSame(SubscriptionStatus::Cancelled, $withdrawn->status);
-        $this->assertNotNull($withdrawn->cancelled_at);
+        $this->assertSame(0, $tenancy->withoutRestriction(fn (): int => Subscription::query()->count()));
     }
 
     public function test_a_foreign_operation_changes_nothing(): void

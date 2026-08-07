@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Plan;
-use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
@@ -85,8 +84,6 @@ final class PlanController extends Controller
             ],
             'catalog' => Quotas::catalog(),
             'subscriptions' => 0,
-            'withdrawn' => 0,
-            'targets' => [],
         ]);
     }
 
@@ -115,16 +112,11 @@ final class PlanController extends Controller
 
     public function edit(Plan $plan, Tenancy $tenancy): Response
     {
-        // Beide Zahlen mit denselben Augen wie `destroy()` — sonst zeigt das
-        // Formular einen Knopf an, den der Aufruf danach abweist. Ein Knopf,
-        // der an einer anderen Frage hängt als die Prüfung dahinter, ist in
-        // diesem Projekt schon mehrfach teuer gewesen.
-        [$bound, $withdrawn] = $tenancy->withoutRestriction(
-            static fn (): array => [
-                $plan->subscriptions()->count(),
-                $plan->subscriptions()->onlyTrashed()->count(),
-            ],
-        );
+        // Mit denselben Augen wie `destroy()` — sonst zeigt das Formular einen
+        // Knopf an, den der Aufruf danach abweist. Ein Knopf, der an einer
+        // anderen Frage hängt als die Prüfung dahinter, ist in diesem Projekt
+        // schon mehrfach teuer gewesen.
+        $bound = $tenancy->withoutRestriction(static fn (): int => $plan->subscriptions()->count());
 
         return Inertia::render('Plans/Form', [
             'plan' => ['id' => (int) $plan->id, 'name' => $plan->name],
@@ -143,20 +135,6 @@ final class PlanController extends Controller
             ],
             'catalog' => Quotas::catalog(),
             'subscriptions' => $bound,
-            'withdrawn' => $withdrawn,
-
-            // Nur wenn wirklich Grabsteine da sind. Eine Liste, die immer
-            // mitfährt, ist eine Auswahl, die die Seite immer bauen muss —
-            // und ein Feld, das ohne Anlass dasteht, liest niemand.
-            'targets' => $withdrawn === 0 ? [] : Plan::query()
-                ->whereKeyNot($plan->getKey())
-                ->orderBy('name')
-                ->get()
-                ->map(static fn (Plan $other): array => [
-                    'id' => (int) $other->id,
-                    'name' => $other->name,
-                ])
-                ->all(),
         ]);
     }
 
@@ -198,35 +176,34 @@ final class PlanController extends Controller
      * ist dieselbe Aussage in verständlich.
      *
      * **Und sie zählt mit denselben Augen wie der Fremdschlüssel.** Das war
-     * der Fehler, der bis August 2026 einen 500er warf: `Subscription` trägt
+     * der Fehler, der bis August 2026 einen 500er warf: `Subscription` trug
      * zwei Filter, die der Datenbank fremd sind — die Mandantenklammer und
-     * `SoftDeletes`. Ein zurückgebautes Abonnement verschwindet damit aus
-     * `$plan->subscriptions()`, hält aber seine Zeile und darin `plan_id`.
+     * `SoftDeletes`. Ein zurückgebautes Abonnement verschwand damit aus
+     * `$plan->subscriptions()`, hielt aber seine Zeile und darin `plan_id`.
      * Das Panel zählte null, der Fremdschlüssel zählte eins, und `DELETE`
-     * endete als SQLSTATE 23000. Gezählt wird deshalb ohne Klammer und mit
-     * den Grabsteinen; `RestrictedDeleteTest` besteht darauf.
+     * endete als SQLSTATE 23000.
      *
-     * **Zurückgebaute Abonnements werden übertragen, nicht abgewiesen.** Ihre
-     * Zeilen bleiben liegen, damit ihr Systembenutzer nicht neu vergeben wird;
-     * am Plan hängen sie nur, weil die Spalte einen verlangt. Eine Abweisung
-     * hätte bedeutet, dass so ein Plan nie wieder verschwindet — und im Panel
-     * gibt es keinen Weg, einen Grabstein loszuwerden. Wohin sie gehen, sagt
-     * der Betreiber; still auf den Standardplan zu schieben wäre eine Änderung,
-     * die niemand sieht und deshalb niemand prüft.
+     * **Hier stand deshalb einmal eine Übertragung**, und sie ist mit docs/35
+     * weggefallen — nicht vergessen worden. Ein zurückgebautes Abonnement
+     * bleibt seit dem Verzeichnis der Systembenutzer nicht mehr als Zeile
+     * liegen; es wird hart gelöscht, und sein Name steht in `system_users`.
+     * Damit hängt am Plan nichts Unsichtbares mehr, es gibt nichts zu
+     * übertragen, und der Betreiber wird nach keinem Ziel mehr gefragt. Was
+     * `destroy()` sieht, ist wieder das, was der Fremdschlüssel sieht.
+     *
+     * **Was bleibt, ist `withoutRestriction()` um die Zählung.** Die
+     * Mandantenklammer liegt weiter auf `Subscription`, und ein Kommando ohne
+     * gesetzten Mandanten zählte sonst null — der zweite der beiden Filter,
+     * und der stillere. `RestrictedDeleteTest` besteht darauf.
      *
      * War es der Standardplan, rückt der älteste verbliebene nach. Die
      * Alternative wäre, das Löschen zu verweigern, bis jemand anderswo einen
      * neuen Standard setzt — das ist ein Umweg für einen Zustand, den das
      * Panel selbst auflösen kann.
      */
-    public function destroy(Request $request, Plan $plan, Audit $audit, Tenancy $tenancy): RedirectResponse
+    public function destroy(Plan $plan, Audit $audit, Tenancy $tenancy): RedirectResponse
     {
-        [$bound, $withdrawn] = $tenancy->withoutRestriction(
-            static fn (): array => [
-                $plan->subscriptions()->count(),
-                $plan->subscriptions()->onlyTrashed()->count(),
-            ],
-        );
+        $bound = $tenancy->withoutRestriction(static fn (): int => $plan->subscriptions()->count());
 
         if ($bound > 0) {
             $audit->denied('plan.deleted', $plan, ['reason' => 'gebundene Abonnements', 'subscriptions' => $bound]);
@@ -238,22 +215,10 @@ final class PlanController extends Controller
             ]);
         }
 
-        // **Ein Grabstein ist kein Kunde, und trotzdem hält er den Plan.**
-        // Ein zurückgebautes Abonnement bleibt als Zeile liegen, damit sein
-        // Systembenutzer nicht ein zweites Mal vergeben wird (siehe
-        // `Lifecycle::nextSystemUser()`) — und diese Zeile zeigt weiter auf
-        // ihren Plan. Sie muss also irgendwohin, bevor der Plan verschwinden
-        // kann, und wohin, entscheidet der Betreiber.
-        $target = $withdrawn > 0 ? $this->transferTarget($request, $plan, $withdrawn, $audit) : null;
-
         $name = $plan->name;
         $wasDefault = (bool) $plan->is_default;
 
-        $successor = DB::transaction(function () use ($plan, $wasDefault, $target, $tenancy): ?Plan {
-            if ($target !== null) {
-                $this->carryOver($plan, $target, $tenancy);
-            }
-
+        $successor = DB::transaction(function () use ($plan, $wasDefault): ?Plan {
             $plan->delete();
 
             if (! $wasDefault) {
@@ -269,91 +234,15 @@ final class PlanController extends Controller
         $audit->success('plan.deleted', context: [
             'name' => $name,
             'successor' => $successor?->name,
-            'withdrawn' => $withdrawn,
-            'transferred_to' => $target?->name,
         ]);
 
-        // Zwei Sätze und nicht einer mit Nebensatz: Die Übertragung ist eine
-        // eigene Tatsache, und der Betreiber soll sie noch lesen können, wenn
-        // er die Meldung nur überfliegt.
         $message = "Plan {$name} gelöscht.";
-
-        if ($target !== null) {
-            $message .= $withdrawn === 1
-                ? " Ein zurückgebautes Abonnement hängt jetzt an {$target->name}."
-                : " {$withdrawn} zurückgebaute Abonnements hängen jetzt an {$target->name}.";
-        }
 
         if ($successor !== null) {
             $message .= " {$successor->name} ist jetzt der Standardplan.";
         }
 
         return redirect()->route('plans.index')->with('success', $message);
-    }
-
-    /**
-     * Wohin die Grabsteine sollen — gefragt und nicht angenommen.
-     *
-     * **Warum überhaupt gefragt wird.** Ein zurückgebautes Abonnement ist im
-     * Panel unsichtbar; sein Plan wird nirgends angezeigt. Man könnte die
-     * Zeilen also still auf irgendeinen Plan schieben, und niemand sähe einen
-     * Unterschied. Genau das ist der Grund, es nicht zu tun: Eine Änderung, die
-     * niemand sieht, ist eine, die niemand prüft. Der Betreiber nennt das Ziel,
-     * und es steht danach im Protokoll.
-     *
-     * **Der Standardplan wird hier nicht als Vorgabe eingesetzt.** Ein Ziel,
-     * das der Aufruf sich selbst aussucht, wäre wieder die stille Fassung —
-     * nur mit einem plausibleren Namen.
-     */
-    private function transferTarget(Request $request, Plan $plan, int $withdrawn, Audit $audit): Plan
-    {
-        $others = Plan::query()->whereKeyNot($plan->getKey())->orderBy('name')->get();
-
-        // Der einzige Fall, der auch mit Rückfrage nicht aufgeht: Es gibt
-        // keinen zweiten Plan, an den die Zeilen könnten. Ein Abonnement ohne
-        // Plan gibt es nicht — die Spalte ist nicht nullable, und „unbegrenzt"
-        // wäre die Bedeutung, die ein leerer Plan bekäme.
-        if ($others->isEmpty()) {
-            $audit->denied('plan.deleted', $plan, ['reason' => 'kein Ziel für die Grabsteine', 'withdrawn' => $withdrawn]);
-
-            throw ValidationException::withMessages([
-                'plan' => 'An diesem Plan hängen noch zurückgebaute Abonnements, und es gibt keinen zweiten Plan, an den sie könnten. Legen Sie zuerst einen weiteren Plan an.',
-            ]);
-        }
-
-        $target = $others->firstWhere('id', $request->integer('transfer_to'));
-
-        if (! $target instanceof Plan) {
-            $audit->denied('plan.deleted', $plan, ['reason' => 'kein Ziel genannt', 'withdrawn' => $withdrawn]);
-
-            throw ValidationException::withMessages([
-                'transfer_to' => $withdrawn === 1
-                    ? 'An diesem Plan hängt noch ein zurückgebautes Abonnement. Es ist aus dem Panel verschwunden, seine Zeile bleibt aber liegen, damit sein Systembenutzer nicht neu vergeben wird. Bitte wählen Sie, an welchen Plan sie übergeht.'
-                    : "An diesem Plan hängen noch {$withdrawn} zurückgebaute Abonnements. Sie sind aus dem Panel verschwunden, ihre Zeilen bleiben aber liegen, damit ihre Systembenutzer nicht neu vergeben werden. Bitte wählen Sie, an welchen Plan sie übergehen.",
-            ]);
-        }
-
-        return $target;
-    }
-
-    /**
-     * Die Grabsteine übertragen.
-     *
-     * `onlyTrashed()` und nicht `withTrashed()`: Lebende Abonnements sind an
-     * dieser Stelle bereits ausgeschlossen, und ein Aufruf, der sie trotzdem
-     * mitnähme, würde bei einem Fehler weiter oben stillschweigend Kunden
-     * umhängen. Die engere Abfrage ist hier die Sicherung.
-     *
-     * Ohne Mandantenklammer aus demselben Grund wie beim Zählen — sonst trifft
-     * das `UPDATE` je nach anfragendem Konto keine einzige Zeile, und das
-     * `DELETE` danach liefe in denselben Fremdschlüssel wie zuvor.
-     */
-    private function carryOver(Plan $plan, Plan $target, Tenancy $tenancy): void
-    {
-        $tenancy->withoutRestriction(static fn (): int => Subscription::query()
-            ->onlyTrashed()
-            ->where('plan_id', $plan->getKey())
-            ->update(['plan_id' => $target->getKey()]));
     }
 
     /**

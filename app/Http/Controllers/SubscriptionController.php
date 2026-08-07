@@ -130,7 +130,13 @@ final class SubscriptionController extends Controller
             // Der Name ist der Verzeichnisname unter /var/www/vhosts. Die
             // Form prüft gleich darunter der Agent selbst; hier steht nur,
             // dass er einmalig sein muss.
-            'name' => ['required', 'string', 'max:63', Rule::unique('subscriptions', 'name')->withoutTrashed()],
+            //
+            // Ohne `withoutTrashed()`, seit `subscriptions` kein `deleted_at`
+            // mehr hat (docs/35): Die Regel hängt genau eine Bedingung auf
+            // diese Spalte an, und ohne sie wäre das ab der Migration ein
+            // SQL-Fehler auf jedem Anlegen. Sie fällt nicht auf, weil ein
+            // Aufruf sie verlangt, sondern weil eine Spalte verschwand.
+            'name' => ['required', 'string', 'max:63', Rule::unique('subscriptions', 'name')],
         ]);
 
         /*
@@ -174,12 +180,17 @@ final class SubscriptionController extends Controller
             ]);
         }
 
+        // **`claim()` steht innerhalb der Transaktion und nicht davor.** Es
+        // verbraucht den Namen — schreibt also eine Zeile ins Verzeichnis, die
+        // nie wieder verschwindet. Scheitert das Anlegen danach, soll auch die
+        // Reservierung zurückgerollt werden; sonst frisst jeder Fehlversuch
+        // eine Nummer, und die Lücke im Zähler ist nicht mehr zu erklären.
         $subscription = DB::transaction(function () use ($data, $lifecycle): Subscription {
             return Subscription::query()->create([
                 'customer_id' => (int) $data['customer_id'],
                 'plan_id' => (int) $data['plan_id'],
                 'name' => $data['name'],
-                'system_user' => $lifecycle->nextSystemUser(),
+                'system_user' => $lifecycle->claim($data['name']),
                 'status' => SubscriptionStatus::Provisioning,
             ]);
         });

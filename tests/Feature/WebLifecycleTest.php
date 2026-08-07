@@ -121,11 +121,17 @@ final class WebLifecycleTest extends TestCase
     /**
      * **Die Lücke, die beim Nachfragen aufgefallen ist.**
      *
-     * Ein zurückgebautes Abonnement wird weich gelöscht — sein Systembenutzer
-     * muss verbraucht bleiben. Der Fremdschlüssel der Domains hat
-     * `cascadeOnDelete`, und das greift dabei nicht: Die Zeilen blieben stehen
-     * und hielten ihre Namen belegt, auf einem Server, auf dem von ihnen
-     * nichts mehr liegt.
+     * Ein zurückgebautes Abonnement wurde bis August 2026 weich gelöscht — sein
+     * Systembenutzer musste verbraucht bleiben. Der Fremdschlüssel der Domains
+     * hat `cascadeOnDelete`, und das griff dabei nicht: Die Zeilen blieben
+     * stehen und hielten ihre Namen belegt, auf einem Server, auf dem von ihnen
+     * nichts mehr liegt. Deshalb löscht der Rückbau sie einzeln.
+     *
+     * **Seit docs/35 fällt die Zeile des Abonnements selbst mit**, und die
+     * Kaskade täte das Ihre. Das einzelne Löschen bleibt trotzdem: Daran hängt
+     * das Modellereignis, das `subscriptions.main_domain` nachzieht — der Grund
+     * steht ausführlich in `Lifecycle::withdraw()`. Dieser Test prüft weiter
+     * das Ergebnis und nicht den Weg.
      */
     public function test_the_teardown_of_a_subscription_frees_its_domain_names(): void
     {
@@ -149,8 +155,10 @@ final class WebLifecycleTest extends TestCase
         app(Lifecycles::class)->afterSuccess($operation);
         $this->tenancy()->allowAll();
 
-        $this->assertSame(SubscriptionStatus::Cancelled, $subscription->refresh()->status);
-        $this->assertNotNull($subscription->deleted_at);
+        // Die Zeile ist fort — vollständig und nicht nur für die gewöhnliche
+        // Abfrage. Der Systembenutzer bleibt trotzdem verbraucht; er steht seit
+        // docs/35 im Verzeichnis (siehe `SystemUserLedgerTest`).
+        $this->assertNull(Subscription::query()->find($subscription->id));
 
         // Keine verwaiste Domainzeile …
         $this->assertSame(0, Domain::query()->where('subscription_id', $subscription->id)->count());

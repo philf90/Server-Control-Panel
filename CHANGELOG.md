@@ -3607,3 +3607,34 @@ ein Release anlegt, vorher fragt, ob es schon eines gibt.
 dazu ändert eine Datei dort; ein Bruch in einem Verzeichnis, das
 `wiederherstellen` nicht kennt, ist keine Probe, sondern eine Änderung. Genau
 aus diesem Grund war `packaging/` in P4 dazugekommen.
+
+#### Schritt 9 beginnt mit einer Grenze, die es schon gab
+
+**Vor dem ersten DNS-Anbieter kam ein Fund.** Der Agent läuft als root; alles,
+was er tut, geht über einen Unix-Socket mit Aufruferprüfung oder über Programme
+von einer Positivliste. Eine Verbindung zu einem fremden Rechner ist eine
+eigene Art von Oberfläche, und ihre vier Zusagen — nur https, keine
+Umleitungen, gedeckelte Antwort, Zeitlimit — standen seit P4 **nur als
+Kommentar** in `CurlTransport`. Kein Test nannte sie.
+
+Aufgefallen ist das im ungünstigsten denkbaren Moment und deshalb gerade
+rechtzeitig: Mit den Anbietern aus Schritt 9 kommt eine zweite Gegenstelle
+dazu, und eine zweite Stelle, die dieselben vier Optionen setzt, ist genau das
+Muster, an dem dieses Projekt am häufigsten verloren hat — die zweite ist die,
+in der eine davon irgendwann fehlt.
+
+Die Grenze steht deshalb jetzt an einer Stelle (`Acme\Curl`), und darüber
+liegen zwei Formen: die ACME-förmige (`CurlTransport`, zwei Verben und
+`application/jose+json`) und die der Anbieter. `Acme\Outbound` ist die Naht, an
+der beide gegen ein Drehbuch geprüft werden können — dieselbe Machart wie
+`Transport` für ACME, nur eine Ebene tiefer gezogen.
+
+**`CUSTOMREQUEST` statt `POST`.** Beim Zusammenziehen fiel eine Falle auf, die
+vorher nicht bestand: `CURLOPT_POST` und `CURLOPT_CUSTOMREQUEST` zusammen
+gesetzt schreiben die Methode zweimal, und welche gewinnt, hängt an der
+Reihenfolge im Array. Da die Anbieter `DELETE` brauchen, hängt die Methode
+jetzt allein an `CUSTOMREQUEST` und der Rumpf allein an `POSTFIELDS`.
+
+`OutboundSourceTest` prüft beides: dass keine andere Datei unter `agent/` curl
+anfasst, und dass die vier Zusagen dort wörtlich stehen. Zwei neue Brüche — eine
+Zusage fällt weg, und eine zweite Stelle spricht nach draussen.

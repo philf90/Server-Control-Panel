@@ -1778,6 +1778,45 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
 echo
+echo "── OutboundSourceTest: eine Zusage der Aussenverbindung fällt weg ──"
+#
+# Der Agent läuft als root. Ohne `FOLLOWLOCATION => false` trägt eine Umleitung
+# die signierte ACME-Anfrage — oder ein DNS-Token — an eine Adresse, die
+# niemand hinterlegt hat. Die vier Zusagen standen bis Schritt 9 nur als
+# Kommentar da.
+vorher_datei agent/src/Acme/Curl.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Curl.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('CURLOPT_FOLLOWLOCATION => false,', 'CURLOPT_FOLLOWLOCATION => true,')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Curl.php "Aussenverbindung folgt Umleitungen" &&
+pruefe "Aussenverbindung folgt Umleitungen" \
+  OutboundSourceTest::test_the_one_place_keeps_its_promises failed
+wiederherstellen
+
+echo
+echo "── OutboundSourceTest: eine zweite Stelle spricht nach draussen ──"
+#
+# Genau der Fall, der beim Bauen des ersten DNS-Anbieters gedroht hat: eine
+# zweite Umsetzung derselben vier Optionen. Die zweite ist die, in der eine
+# davon irgendwann fehlt — und nichts meldet es.
+vorher_datei agent/src/Acme/CurlTransport.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/CurlTransport.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    public function get(string $url): Response\n    {",
+              "    public function get(string $url): Response\n    {\n        $handle = curl_init();")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/CurlTransport.php "Zweite Stelle mit curl" &&
+pruefe "Zweite Stelle mit curl" \
+  OutboundSourceTest::test_only_one_place_reaches_out failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OutboundSourceTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

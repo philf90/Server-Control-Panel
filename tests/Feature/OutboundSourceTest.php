@@ -40,19 +40,17 @@ final class OutboundSourceTest extends TestCase
      * @var array<string, string>
      */
     private const PROMISES = [
-        'CURLOPT_FOLLOWLOCATION => false' =>
-            'Ohne diese Zeile trägt eine Umleitung die signierte Anfrage — oder das DNS-Token — '.
-            'an eine Adresse, die niemand hinterlegt hat.',
-        'CURLOPT_SSL_VERIFYPEER => true' =>
-            'Ohne Zertifikatsprüfung ist https nur noch Verschlüsselung ohne Gegenüber.',
-        'CURLOPT_SSL_VERIFYHOST => 2' =>
-            'Ein gültiges Zertifikat für einen anderen Namen ist kein gültiges Zertifikat.',
-        'CURLOPT_CONNECTTIMEOUT' =>
-            'Eine Gegenstelle, die nicht antwortet, hielte den Vorgang bis zu seinem eigenen Zeitlimit fest.',
-        'CURLOPT_TIMEOUT' =>
-            'Dasselbe für eine, die annimmt und dann schweigt.',
-        "str_starts_with(\$url, 'https://')" =>
-            'Eine Adresse ohne TLS muss abgelehnt werden, bevor curl sie sieht.',
+        'CURLOPT_FOLLOWLOCATION => false' => 'Ohne diese Zeile trägt eine Umleitung die signierte Anfrage — '.
+            'oder das DNS-Token — an eine Adresse, die niemand hinterlegt hat.',
+        'CURLOPT_SSL_VERIFYPEER => true' => 'Ohne Zertifikatsprüfung ist https nur noch Verschlüsselung '.
+            'ohne Gegenüber.',
+        'CURLOPT_SSL_VERIFYHOST => 2' => 'Ein gültiges Zertifikat für einen anderen Namen ist kein gültiges '.
+            'Zertifikat.',
+        'CURLOPT_CONNECTTIMEOUT' => 'Eine Gegenstelle, die nicht antwortet, hielte den Vorgang bis zu seinem '.
+            'eigenen Zeitlimit fest.',
+        'CURLOPT_TIMEOUT' => 'Dasselbe für eine, die annimmt und dann schweigt.',
+        "str_starts_with(\$url, 'https://')" => 'Eine Adresse ohne TLS muss abgelehnt werden, bevor curl '.
+            'sie sieht.',
     ];
 
     /** @return list<string> */

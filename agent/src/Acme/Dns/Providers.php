@@ -58,7 +58,7 @@ final class Providers
      * Die, die noch kommen — Schritt 9 des Plans.
      *
      * **Sie stehen hier und nicht in einem Kommentar**, damit
-     * `Rfc2136Test::test_every_provider_key_points_at_something` beide
+     * `ProvidersTest::test_every_provider_key_points_at_something` beide
      * Richtungen prüfen kann: Jeder Schlüssel ist entweder gebaut oder steht
      * hier, und wer hier steht, hat keine Umsetzung. Ein Schlüssel, der aus
      * dieser Liste fällt, ohne dass es ihn gibt, fällt beim nächsten Lauf auf.
@@ -124,7 +124,7 @@ final class Providers
      * landet als „interner Fehler" im Panel, ohne zu sagen, woran es liegt.
      * Erreichbar ist er nur über einen Schlüssel, der aus {@see self::PENDING}
      * gefallen ist, ohne dass es die Umsetzung gibt; genau das prüft
-     * `Rfc2136Test::test_every_provider_key_points_at_something`.
+     * `ProvidersTest::test_every_provider_key_points_at_something`.
      */
     private static function missing(string $key): AgentException
     {

@@ -6,9 +6,7 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use SrvPanel\Agent\Acme\Dns\DnsProvider;
 use SrvPanel\Agent\Acme\Dns\Exchange;
-use SrvPanel\Agent\Acme\Dns\Providers;
 use SrvPanel\Agent\Acme\Dns\Rfc2136;
 use SrvPanel\Agent\Acme\Dns\Tsig;
 use SrvPanel\Agent\Acme\Dns\UpdateMessage;
@@ -260,40 +258,6 @@ final class Rfc2136Test extends TestCase
         $this->assertSame(Rfc2136::PORT, $checked['port']);
         $this->assertSame('srvpanel-key', $checked['key_name']);
         $this->assertSame(Tsig::DEFAULT_ALGORITHM, $checked['algorithm']);
-    }
-
-    /**
-     * Die Werkstatt: Jeder Schlüssel zeigt auf etwas — oder sagt, dass es fehlt.
-     *
-     * **Das ist der Wächter zu der Regel, die dieses Projekt trägt.** Ein
-     * Anbieter, der in {@see Providers::keys()} steht und weder gebaut ist noch
-     * in {@see Providers::PENDING}, wäre genau die Zeichenkette, die auf nichts
-     * zeigt — und sie würde erst beim ersten Zertifikat auffallen.
-     */
-    public function test_every_provider_key_points_at_something(): void
-    {
-        foreach (Providers::keys() as $key) {
-            if (in_array($key, Providers::PENDING, true)) {
-                try {
-                    Providers::make($key, []);
-                    $this->fail($key.' steht als offen und lässt sich trotzdem bauen.');
-                } catch (AgentException $exception) {
-                    $this->assertStringContainsString('noch nicht umgesetzt', $exception->getMessage());
-                }
-
-                continue;
-            }
-
-            $this->assertNotSame([], Providers::configure($key, $this->config()));
-            $this->assertInstanceOf(DnsProvider::class, Providers::make($key, $this->config()));
-        }
-
-        // **Die Liste steht hier wörtlich und nicht als Abzug von PENDING.**
-        // Sonst prüfte der Test seine eigene Rechnung: Fällt ein Schlüssel aus
-        // PENDING, ohne dass es die Umsetzung gibt, wäre er in beiden Listen
-        // gleichzeitig richtig. Wer einen Anbieter baut, ändert diese Zeile —
-        // und das ist der Punkt.
-        $this->assertSame([Providers::RFC2136, Providers::IPV64], Providers::available());
     }
 
     /**

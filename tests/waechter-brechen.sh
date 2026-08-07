@@ -1488,7 +1488,7 @@ pruefe "Zone als Zeichenkette verglichen" \
 wiederherstellen
 
 echo
-echo "── Rfc2136Test: ein Anbieter ohne Umsetzung gilt als fertig ──"
+echo "── ProvidersTest: ein Anbieter ohne Umsetzung gilt als fertig ──"
 #
 # Ein Schlüssel, der weder gebaut ist noch als offen dasteht, ist genau die
 # Zeichenkette, die auf nichts zeigt — und sie fiele erst beim ersten
@@ -1502,7 +1502,7 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Acme/Dns/Providers.php "Anbieter ohne Umsetzung nicht als offen geführt" &&
 pruefe "Anbieter ohne Umsetzung nicht als offen geführt" \
-  Rfc2136Test::test_every_provider_key_points_at_something failed
+  ProvidersTest::test_every_provider_key_points_at_something failed
 wiederherstellen
 
 echo

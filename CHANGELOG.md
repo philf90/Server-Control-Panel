@@ -3686,3 +3686,26 @@ benutzbare Anbieter hat ein Formular.
 
 Drei neue Brüche: ein Anbieterschlüssel, der ins Leere zeigt · ein benutzbarer
 Anbieter ohne Formular · eine Zone, die gerechnet statt gefragt wird.
+
+#### Ein anbieterübergreifender Wächter, der im Test eines Anbieters wohnte
+
+`test_every_provider_key_points_at_something` — der Wächter, der prüft, dass
+jeder Anbieterschlüssel entweder gebaut ist oder als offen dasteht — stand in
+`Rfc2136Test` und hat sich von dort seine Annahmen geliehen: Er hielt **jedem**
+Anbieter denselben Satz Zugangsdaten hin, und das war der eines TSIG-Schlüssels.
+Solange RFC 2136 der einzige gebaute war, ging das auf. Mit IPv64.net fiel er —
+„Für IPv64.net fehlt das Token." —, und zwar an der Stelle, an der er eigentlich
+grün werden sollte.
+
+Er steht jetzt als `ProvidersTest` für sich, mit einem Satz Zugangsdaten **je**
+Anbieter. Wer einen baut und die Zeile vergisst, liest einen Satz dazu statt
+eines Zugriffs auf einen fehlenden Schlüssel — sonst bliebe der neue Anbieter
+einfach ungeprüft, und das fiele erst beim ersten Zertifikat auf. Für die sechs,
+die noch kommen, hätte die alte Form sechsmal dasselbe gekostet.
+
+**Und `league/commonmark` steht auf 2.9.0.** Am 6. August kamen zwei Meldungen
+für 2.8.3 — eine quadratische Laufzeit beim Zerlegen von Markdown (hoch) und ein
+Weg, den Linkfilter der `AttributesExtension` mit Steuerzeichen zu umgehen
+(mittel). Das Paket ist eine mittelbare Abhängigkeit und nichts, was dieses
+Projekt selbst aufruft; die CI meldet es trotzdem, und genau dafür gibt es den
+Lauf „Schwachstellen und Lizenzen". Nur die Sperrdatei wandert, der Rest bleibt.

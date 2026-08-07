@@ -71,12 +71,7 @@ final class SystemUserLedgerTest extends TestCase
         return $operation;
     }
 
-    /**
-     * @template T
-     *
-     * @param  callable(): T  $work
-     * @return T
-     */
+    /** Eine Abfrage ohne Mandantenklammer — der Arbeiter hat auch keine. */
     private function unrestricted(callable $work): mixed
     {
         return app(Tenancy::class)->withoutRestriction($work);

@@ -110,11 +110,17 @@ class Operation extends Model
                 return;
             }
 
-            $operation->subscription_name = app(Tenancy::class)->withoutRestriction(
-                static fn (): ?string => Subscription::query()
+            $name = app(Tenancy::class)->withoutRestriction(
+                static fn (): mixed => Subscription::query()
                     ->whereKey($operation->subscription_id)
                     ->value('name'),
             );
+
+            // `is_string` und nicht `(string)`: Findet die Abfrage nichts —
+            // ein Vorgang, dessen Abonnement zwischen zwei Anfragen
+            // verschwunden ist —, käme aus der Umwandlung ein leerer Name
+            // heraus. Der sieht aus wie eine Abschrift und ist keine.
+            $operation->subscription_name = is_string($name) ? $name : null;
         });
     }
 

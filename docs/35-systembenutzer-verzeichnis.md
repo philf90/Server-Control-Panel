@@ -724,11 +724,18 @@ Ehrlich benannt, weil §7 es verlangt:
 
 - **Gelaufen ist die Testsuite trotzdem, und zwar dort, wo sie hingehört.** Die
   CI kennt `workflow_dispatch`; ein Lauf auf dem Zweig bringt dasselbe Ergebnis
-  wie ein PR, ohne einen zu öffnen. Ergebnis des zweiten Laufs: **1292 Tests
-  grün**, Pint grün, PHPStan Stufe 6 grün, Typen und Bündel grün, `composer
-  audit`, `npm audit` und die Lizenzprüfung grün. Der erste Lauf hatte genau
-  einen Fehlschlag, und das war der `DomainTest` aus §9.2 — der Fund, den kein
-  Suchmuster hergab.
+  wie ein PR, ohne einen zu öffnen. **Das ist der Weg, wenn `composer install`
+  im Container nicht geht** — und er hat hier zwei Runden gebraucht:
+
+  | Lauf | Tests | Statische Prüfung | Oberfläche | Lieferkette |
+  |---|---|---|---|---|
+  | 385 | 1291 grün, **1 rot** | Pint + PHPStan grün | grün | grün |
+  | 386 | **1292 grün** (4631 Behauptungen, 92,6s) | Pint + PHPStan grün | grün | grün |
+
+  Der eine rote Test in 385 war der `DomainTest` aus §9.2 — der Fund, den kein
+  Suchmuster hergab. Danach ist die Suite grün, einschliesslich der zehn neuen
+  Prüfungen in `SystemUserLedgerTest` und des geschärften
+  `RestrictedDeleteTest`.
 
 - **Die Datenmigrationen sind damit noch immer nicht auf MariaDB gelaufen.**
   Grün ist SQLite. Was auf dem Server anders ist — `dropForeign`, die

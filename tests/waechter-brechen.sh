@@ -2608,6 +2608,51 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WildcardOrderTest passed
 
 echo
+echo "── TableStyleTest: eine Kennung bleibt auf dem Schreibtisch unteilbar ──"
+#
+# **Der Befund vom Zielserver, 7. August 2026.** Auf der Domainseite lief
+# /var/www/vhosts/cloudlab24.ipv64.de/logs/… aus dem Bereich „Stammdaten" heraus
+# und legte sich über den Nachbarbereich — 173px bei 1440px Fensterbreite. Der
+# Seitenüberlauf war dabei 0: Die Seite rollt nicht, sie überlappt.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "table.pairs td.ident {\n  white-space: normal;\n  overflow-wrap: anywhere;\n}",
+    "table.pairs td.ident {\n  white-space: nowrap;\n}",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Kennung in der Bezeichnungstabelle wieder unteilbar" &&
+pruefe "Kennung in der Bezeichnungstabelle wieder unteilbar" \
+  TableStyleTest::test_an_identifier_in_a_pairs_table_may_break_on_the_desktop failed
+wiederherstellen
+
+echo
+echo "── TableStyleTest: die Ausnahme nur im Haltepunkt ──"
+#
+# **Die zweite Richtung, und sie ist die Geschichte dieses Fundes.** Genau diese
+# Ausnahme gab es schon einmal — im @media-Block für 390px, für den einen Ort,
+# an dem der Überlauf auffiel, statt für die Regel. Eine Regel, die es nur dort
+# gibt, wirkt genau dort nicht, wo dieser Fund entstanden ist.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "table.pairs td.ident {\n  white-space: normal;\n  overflow-wrap: anywhere;\n}\n\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Ausnahme nur im Haltepunkt" &&
+pruefe "Ausnahme nur im Haltepunkt" \
+  TableStyleTest::test_an_identifier_in_a_pairs_table_may_break_on_the_desktop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

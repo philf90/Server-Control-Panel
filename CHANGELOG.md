@@ -4286,3 +4286,44 @@ hat; geprüft ist, dass beide Eingriffe ihre Stelle finden.
 Bestandteil bekommen, und `WildcardOrderTest` baut die Klasse von Hand. Ohne die
 mitgezogene Zeile wäre das kein Fehlschlag gewesen, sondern ein Abbruch beim
 Laden — dieselbe Falle wie beim Testdoppel des DNS-Anbieters zwei Tage zuvor.
+
+#### Eine Kennung überschrieb den Nachbarbereich — auf dem Schreibtisch
+
+**Im Screenshot des Betreibers gesehen, nicht im Test.** Auf der Domainseite von
+`cloudlab24.ipv64.de` lief `/var/www/vhosts/cloudlab24.ipv64.de/logs/…` aus dem
+Bereich „Stammdaten" heraus und legte sich über „Gilt für" im Bereich
+„Zertifikat". Nachgemessen: **173px bei 1440px Fensterbreite, 134px bei 1024px,
+6px bei 1280px.**
+
+**Und der Seitenüberlauf war dabei die ganze Zeit 0.** Das ist der Grund, warum
+nichts es gemeldet hat — und warum meine eigene Messung einen Tag zuvor „kein
+Überlauf" ergab: Sie lief bei 390px, wo die Bereiche untereinander stehen. Die
+Seite rollt nicht, sie überlappt. Ein Wächter, der `scrollWidth - clientWidth`
+misst, sieht davon nichts; gemessen wird deshalb die Zelle gegen ihren Bereich.
+
+**Die Begründung für `nowrap` war richtig gedacht und hier falsch.** Sie steht
+seit dem Optik-Rework in app.css: Ein Pfad, der mitten im Verzeichnisnamen
+umbricht, sei schwerer zu lesen als einer, „für den man die Tabelle schiebt —
+und schieben kann man dort". In einer Bezeichnungstabelle kann man das nicht:
+Sie steht in einem Bereich mit `min-width: 0` neben zwei weiteren, und es gibt
+keinen Rollbehälter. Die Wahl ist nicht „umbrechen oder schieben", sondern
+**umbrechen oder den Nachbarn überschreiben** — und das Zweite ist eindeutig
+schlechter.
+
+**Es ist derselbe Fund zum dritten Mal, und zum zweiten Mal am selben Ort
+halb behoben.** Die Ausnahme gab es schon: `table.pairs td.right.ident` im
+`@media`-Block für 390px — für den einen Ort, an dem der Überlauf auffiel,
+statt für die Regel. Genau diese Lehre steht als Kommentar zwei Zeilen darüber.
+Sie gilt jetzt unbedingt.
+
+**Der Wächter sitzt in `TableStyleTest` und nicht in `MobileLayoutTest`.** Dort
+steht bereits einer zu `.ident`, und der lässt `nowrap` an einer Zellenauswahl
+ausdrücklich zu — aus genau der Annahme, die dieser Fund widerlegt. Er soll das
+weiter tun: Eine Tabelle mit `.scrolls` rollt wirklich. Geprüft wird deshalb
+gezielt die Bezeichnungstabelle, und ausserhalb der Haltepunkte.
+
+**Zwei Brüche, und beide sind gegengeprüft** — hier ausnahmsweise vollständig,
+weil dieser Wächter reine Textprüfung ist und ohne Datenbank auskommt: `nowrap`
+zurückgeholt (rot) und die Ausnahme in den `@media`-Block zurückgeschoben (rot);
+ohne Bruch grün. Nachgemessen im Browser bei 1440, 1280, 1024 und 390px: kein
+Zellenüberhang mehr, in beiden Themes.

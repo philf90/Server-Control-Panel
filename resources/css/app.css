@@ -392,6 +392,37 @@ th.ident {
 }
 
 /*
+ * … ausser in einer Bezeichnungstabelle. Auch auf dem Schreibtisch.
+ *
+ * **Die Annahme über dieser Zeile war falsch, und zwar genau in ihrer
+ * Begründung.** Dort steht: ein Pfad, der mitten im Verzeichnisnamen umbricht,
+ * sei schwerer zu lesen als einer, „für den man die Tabelle schiebt — und
+ * schieben kann man dort". In einer Bezeichnungstabelle kann man das nicht: Sie
+ * steht in einem Bereich mit `min-width: 0` neben zwei weiteren, und es gibt
+ * keinen Rollbehälter. Die Wahl ist also nicht „umbrechen oder schieben",
+ * sondern **umbrechen oder den Nachbarn überschreiben** — und das Zweite ist
+ * eindeutig schlechter.
+ *
+ * **Am 7. August 2026 auf dem Zielserver gesehen**, auf der Domainseite von
+ * `cloudlab24.ipv64.de`: `/var/www/vhosts/cloudlab24.ipv64.de/logs/…` lief aus
+ * dem Bereich „Stammdaten" heraus und legte sich über „Gilt für" im Bereich
+ * „Zertifikat". Nachgemessen 173px bei 1440px Fensterbreite, 134px bei 1024px.
+ *
+ * **Und es ist derselbe Fund wie unten im `@media`-Block**, dort für 390px
+ * behoben — für den einen Ort, an dem er auffiel, statt für die Regel. Genau
+ * das steht als Lehre schon über der Zeile darüber. Deshalb steht die Ausnahme
+ * jetzt hier und nicht noch einmal eine Ebene tiefer.
+ *
+ * Der Seitenüberlauf war dabei die ganze Zeit 0 — die Seite rollt nicht, sie
+ * überlappt. Ein Wächter, der nur `scrollWidth - clientWidth` misst, sieht
+ * davon nichts; gemessen wird deshalb die Zelle gegen ihren Bereich.
+ */
+table.pairs td.ident {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/*
  * Der Fokusrahmen — auch an Eingabefeldern.
  *
  * Die Anmeldemaske hatte dafür eine eigene Zeile, jedes andere Formular nicht:

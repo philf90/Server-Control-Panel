@@ -1354,3 +1354,96 @@ Getroffen am 7. August 2026, alle vier vorgelegten:
 Geschätzt zwei bis drei Wochen — dieselbe Grössenordnung, die `docs/20 §9` für
 P5 nennt. **PostgreSQL ist darin nicht enthalten**; es ist mit Entscheidung 1
 eine eigene Stufe P5b mit eigenem Plan, eigenem Umfang und eigener Abnahme.
+
+---
+
+## 22. Umsetzung — was beim Bauen anders war als im Plan
+
+Geschrieben am 7. August 2026, nach Schritt 1 bis 3 und den Wächtern. Der Plan
+oben steht unverändert; hier steht, was er nicht wusste.
+
+### 22.1 Fünf Funde, die der Plan nicht vorhergesehen hat
+
+1. **Die Form des befristeten Benutzers war für Kunden wählbar.** §10.2 nennt
+   `p1001_r<8 Hexziffern>`; die Zusatzregel aus §3 lässt `r3f9a20c1` zu —
+   Kleinbuchstaben und Ziffern, beginnend mit einem Buchstaben. Ein Kunde hätte
+   seinen Zugang so nennen dürfen, `db.server.info` hätte ihn eine Stunde später
+   als Rest eines abgebrochenen Zurückspielens gemeldet, und `srvpanel db prune`
+   hätte ihn weggeworfen. **Ohne dass irgendetwas falsch programmiert wäre.**
+   Die Form ist jetzt in `Names::suffix()` reserviert.
+
+   Aufgefallen ist es beim **Schreiben des Tests**, nicht beim Schreiben des
+   Codes: `DbNameTest` sollte behaupten, `p1001_r12345678` sei ein befristeter
+   Name — und dabei fiel auf, dass genau dieser Name auch aus dem Formular
+   kommen kann.
+
+2. **Ein Name, der der Basisklasse gehört — zweimal.** `DatabaseFactory::for()`
+   (Laravels `Factory::for()` hat eine andere Signatur) und
+   `GrantPatternTest::matches()` (`PHPUnit\Framework\Assert::matches()` ist
+   `final` und `static`). Beide brechen beim **Laden** der Klasse. Den ersten
+   hat ein Blick in die Basisklasse gefangen, den zweiten nicht — und er hat
+   `php artisan test` mit Rückgabewert 255 beendet, bevor ein einziger Test
+   lief. Nicht eine Datei stand still, sondern alle vierundsiebzig.
+
+3. **`RemovalPathTest` musste eine Ausnahme mehr tragen, als der Plan
+   annahm**, und eine weniger: `php.version.install` findet über die Wurzel von
+   selbst `php.version.remove` (die Endungen sind verschieden, die Wurzel ist
+   dieselbe), und `acme.account.ensure` braucht einen Eintrag in `PAIRS`, weil
+   ein ACME-Konto nicht entfernt wird, sein Zertifikat aber schon.
+
+4. **Der Bruch für das Schema fasst `database/` an**, und `wiederherstellen()`
+   in `tests/waechter-brechen.sh` kannte nur `resources/ app/ agent/ packaging/
+   .github/`. CLAUDE.md benennt genau das: *„Ein Bruch in einem Verzeichnis, das
+   `wiederherstellen` nicht kennt, ist keine Probe, sondern eine Änderung."*
+   `database/` steht jetzt in beiden Listen.
+
+5. **`docs/23 §3` nannte einen Wächter unter seinem alten Namen** (§9). Kleiner
+   Fund, dasselbe Muster.
+
+### 22.2 Zwei Abweichungen vom Plan, bewusst
+
+- **Die Abschrift `subscription_name` steht in `booted()` und nicht in einem
+  Trait** — jetzt an vier Modellen (`Operation`, `Certificate`, `Database`,
+  `DbUser`). Vier Fassungen derselben Schleife sind in diesem Projekt sonst der
+  Anlass, sie einzusammeln. Der Grund dagegen steht in `Operation::booted()`:
+  `BelongsToSubscription` setzt `subscription_id` selbst, wenn genau ein Mandant
+  aktiv ist, und das muss vorher geschehen sein. Ein Trait hinge damit an der
+  Reihenfolge zweier `creating`-Zuhörer — an einer Eigenschaft, die niemand beim
+  Lesen sieht und die ein umsortiertes `use` still kippt. **Aufgeschrieben statt
+  behoben:** Der Weg wäre ein Trait, dessen Reihenfolge ein Wächter festhält.
+  Das ist eine eigene Änderung an vier Modellen.
+
+- **Der Zeichensatz ist nur `utf8mb4`**, statt einer Auswahl. `utf8` in MySQL
+  ist drei Byte breit und kann kein Emoji speichern — es ist der Zeichensatz,
+  der eine Anwendung genau einmal überrascht, und zwar in der Produktion.
+  Gewählt wird nur die Sortierung.
+
+### 22.3 Was noch fehlt
+
+Schritt 4 bis 10 aus §15 stehen aus: die Sperre ist **gebaut**
+(`DbLifecycle`), die Messung (§9), Sichern und Zurückspielen (§10), die
+Screenshots (§11), `srvpanel db` und `acceptance-db` (§17) sowie der Fernzugriff
+(§12) nicht. Das Abnahmekriterium von P5 ist damit **nicht** erfüllt: Anlegen
+und Benutzen gehen, Sichern und Zurückspielen nicht, und die Gegenprobe zur
+Mandantentrennung ist bisher eine Eigenschaft der erzeugten Zeichenkette
+(`DbIsolationTest`, `GrantPatternTest`) und keine Verbindung, die MariaDB
+abgewiesen hat.
+
+**Und die Bringschuld aus §20 Punkt 1 ist gewachsen.** Alle acht neuen Eingriffe
+in `tests/waechter-brechen.sh` greifen nachweislich in ihre Zieldatei — gemessen
+mit einem Wegwerfskript, das jeden einzeln anwendet und `cmp` gegen die Fassung
+davor hält. Ob die Wächter danach rot werden, braucht weiterhin ein lokales
+PHPUnit.
+
+### 22.4 Eine Umgebungsnotiz, die künftig Runden spart
+
+**`pint.phar` lässt sich von den GitHub-Releases holen, und es *ist* Pint.**
+CLAUDE.md stand bis hierher auf `php-cs-fixer.phar` als Behelf, mit der
+richtigen Warnung, dass das nicht dasselbe ist. `pint.phar` in der Fassung, die
+`composer.json` verlangt, sagt über das ganze Repo dasselbe wie die CI —
+gegengeprüft, beide grün. Damit fällt eine ganze Klasse von CI-Runden weg.
+
+Und die Trennlinie des Proxys ist jetzt vermessen statt vermutet: packagist
+antwortet mit **200**, `codeload.github.com` mit **403**. Composer löst auf und
+scheitert beim Herunterladen — deshalb kein `vendor/`, und deshalb funktionieren
+einzelne `.phar`-Dateien trotzdem.

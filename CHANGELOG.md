@@ -4967,3 +4967,94 @@ einen Zustand ab, der sich jederzeit wiederholen kann.
 zur Hälfte geprüft. Alle zwölf Eingriffe dieses Umbaus greifen nachweislich in
 ihre Zieldatei; ob die Wächter danach rot werden, braucht ein lokales PHPUnit.
 Wer als Nächstes mit `vendor/` an diesem Repo sitzt, holt das nach.
+
+### P5 — Datenbanken
+
+Der Plan steht als [`docs/36`](docs/36-datenbanken.md), die Entscheidungen des
+Betreibers als §19 darin. Was hier steht, ist das, was beim Bauen gelernt wurde.
+
+**Das Präfix ist der Systembenutzer und nicht der Abonnementname.** `p1001_shop`
+statt `kunde.example.de_shop`, und der Grund ist erst seit `docs/35` verfügbar:
+Eine Nummer aus `system_users` wird nie zweimal vergeben. Damit kann der
+Schemaname eines neuen Abonnements niemals auf ein Verzeichnis unter
+`/var/lib/mysql` treffen, das ein zurückgebautes hinterlassen hat. Mit dem
+Abonnementnamen wäre genau das möglich, seit ein zurückgebautes Abonnement hart
+gelöscht wird und seinen Namen freigibt. Dazu kommt das Praktische: `p` plus
+Ziffern ist bereits ein Bezeichner ohne Anführung, ein Domainname müsste an
+jeder Stelle in Backticks stehen — und „an jeder Stelle" ist die Formulierung,
+aus der Lücken entstehen.
+
+**In `GRANT … ON <db>.*` ist `<db>` ein Muster und kein Name.** Das ist der
+teuerste Fund des Entwurfs, und er wäre im Betrieb nie aufgefallen. `_` steht
+dort für ein beliebiges Zeichen: Der naheliegende Weg, einem Abonnement seine
+Datenbanken freizugeben — `GRANT … ON \`p1001_%\`.*` —, trifft auch
+`p10012_shop`. Fünf Zeichen `p1001`, dann `_` für die `2`, dann `%` für den
+Rest. **Das ist ein Zugriff über die Mandantengrenze hinweg, und zwar genau
+der, den das Abnahmekriterium von P5 ausschliesst.**
+
+Deshalb wird nie auf ein Muster berechtigt, immer auf genau eine Datenbank, und
+der Unterstrich wird maskiert (`` `p1001\_shop` ``). Ohne die Maskierung träfe
+auch ein Name noch `p1001Xshop` — ein solcher Name kann heute nicht entstehen,
+aber eine Regel, die *zufällig* gilt, gilt bis zur nächsten Änderung an einer
+ganz anderen Stelle. `GrantPatternTest` rechnet **erst vor, dass die Falle echt
+ist**, und prüft danach, dass sie zugeht: Eine Regel, deren Grund niemand mehr
+nachvollziehen kann, wird beim nächsten Aufräumen entfernt.
+
+**`RemovalPathTest` — der Wächter, den `docs/35` verdient hätte.** Dort fiel
+auf, dass sich Zertifikate in diesem System nie löschen liessen: `create` wurde
+zuerst gebaut, funktionierte danach, und `remove` wurde zur Nacharbeit, an die
+ein Jahr lang niemand dachte. Zwölf private Schlüssel lagen deshalb auf dem
+Zielserver. Der neue Wächter ist **nicht datenbankspezifisch**: Zu jeder
+Operation der Registratur, die etwas anlegt, muss es eine geben, die es
+entfernt — sonst steht der Grund in `WITHOUT_REMOVAL`, mit Begründung je
+Eintrag. Er hätte die Lücke ein Jahr früher gemeldet. Die `remove`-Hälften von
+P5 sind entsprechend **vor** ihren `create`-Hälften geschrieben.
+
+**Das Datenbankpasswort liegt nirgends** (Entscheidung 3 des Betreibers). Das
+Panel erzeugt es, schickt es in einem unmittelbaren Aufruf an den Agenten, zeigt
+es genau einmal an und vergisst es. Der Massstab ist das siebte Kriterium aus
+dem Abnahmelauf von P4: *„und das DNS-Token steht nirgends."* Zur Wahl standen
+eine `encrypted`-Spalte im Panel — dann enthielte jede Sicherung der
+Panel-Datenbank die Datenbankpasswörter aller Kunden, und der `APP_KEY` liegt
+auf demselben Server — und eine Datei im Agenten wie bei den DNS-Zugangsdaten.
+Der Preis ist ehrlich: Wer sein Passwort verliert, setzt es zurück.
+
+Daraus folgt `SecretsStayOutOfTheQueueTest`. Die Regel, dass ein Geheimnis nicht
+in `operations.payload` gehört, gilt seit P4 für den privaten Schlüssel und das
+DNS-Token — durchgesetzt hat sie nichts. P5 macht sie zum dritten und vierten
+Mal nötig; beim dritten Mal wird aus einer Gewohnheit ein Wächter. Er prüft
+beide Hälften: den Weg (keine dieser Operationen wird eingereiht) und die Ablage
+(keine Spalte, in die ein Geheimnis passte).
+
+**Die Sperre eines Abonnements erreicht jetzt seine Datenbank.** Bis P4 nahm
+`subscription.suspend` dem Abo-Verzeichnis das Ausführungsbit und schrieb die
+Server-Blöcke auf 503 um — die Datenbank bediente jede Anwendung weiter, die die
+Zugangsdaten hat. Auf demselben Server über den Socket, und bei
+freigeschaltetem Fernzugriff von überall. Das ist keine Sperre, sondern eine
+abgeschaltete Webseite. `DbLifecycle` beantwortet deshalb
+`subscription.suspend` und `subscription.resume` mit `ALTER USER … ACCOUNT
+LOCK`; das Schema bleibt unberührt, die Daten bleiben, `UNLOCK` ist die
+vollständige Umkehrung. Ein `REVOKE` wäre die Alternative gewesen und die
+schlechtere: Es müsste sich merken, was es weggenommen hat.
+
+**Ein Kunde hätte seinen Zugang `r3f9a20c1` nennen dürfen.** Das ist die Form,
+die das Zurückspielen einer Sicherung für ein paar Minuten anlegt;
+`db.server.info` meldet sie nach einer Stunde als Rest eines abgebrochenen
+Laufs. Der Kunde hätte seinen Zugang beim nächsten Aufräumen verloren, ohne dass
+irgendetwas falsch programmiert wäre. Die Form ist jetzt reserviert, und
+`DbNameTest` prüft beide Richtungen — sie lässt sich nicht wählen, und sie wird
+als befristet erkannt. Gefunden beim Schreiben des Tests, nicht im Betrieb.
+
+**Und zweimal derselbe Fehler: ein Name, der der Basisklasse gehört.**
+`DatabaseFactory::for()` und `GrantPatternTest::matches()` — beide brechen beim
+**Laden** der Klasse und nicht beim Ausführen, `php -l` sieht davon nichts. Der
+erste fiel beim Schreiben auf, der zweite erst in der CI, und dort mit
+Rückgabewert 255: Nicht ein Test stand still, sondern alle vierundsiebzig
+Dateien. CLAUDE.md nennt diese Falle seit P4 — sie zu kennen hat beim Formular
+geholfen und beim Testfall nicht.
+
+**Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
+Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
+P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und
+eigener Abnahme, statt „zweiter Schritt der Stufe"). `docs/20 §9` und `§15` sind
+nachgezogen.

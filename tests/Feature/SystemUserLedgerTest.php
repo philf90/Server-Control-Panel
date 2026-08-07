@@ -301,6 +301,12 @@ final class SystemUserLedgerTest extends TestCase
      * mehrere Abonnements an, alle hätten `p1000` bekommen, und das zweite
      * wäre am eindeutigen Index gescheitert — auf dem Zielserver, im
      * Abnahmelauf, nicht hier.
+     *
+     * **Gesucht wird im Rumpf eines `create()`/`update()` und nicht in der
+     * ganzen Datei.** Ein `'system_user' => $s->system_user` gibt es auch —
+     * dreimal, in den Ablagen für Inertia —, und das ist ein Lesen und kein
+     * Vergeben. Der erste Entwurf dieses Wächters hat sie mitgezählt und wäre
+     * für eine völlig gesunde Zeile rot gewesen.
      */
     public function test_every_written_name_was_claimed(): void
     {
@@ -310,13 +316,22 @@ final class SystemUserLedgerTest extends TestCase
         foreach ($this->sources() as $path) {
             $source = (string) file_get_contents($path);
 
-            preg_match_all("/'system_user' => ([^,\n]+)/", $source, $matches, PREG_SET_ORDER);
+            preg_match_all(
+                '/Subscription::query\(\)->(?:create|update)\(\[(.*?)\n(\s*)\]\)/s',
+                $source,
+                $blocks,
+                PREG_SET_ORDER,
+            );
 
-            foreach ($matches as $match) {
-                $found++;
+            foreach ($blocks as $block) {
+                preg_match_all("/'system_user' => ([^,\n]+)/", $block[1], $matches, PREG_SET_ORDER);
 
-                if (! str_contains($match[1], 'claim(')) {
-                    $offenders[] = '  '.basename($path).': '.trim($match[1]);
+                foreach ($matches as $match) {
+                    $found++;
+
+                    if (! str_contains($match[1], 'claim(')) {
+                        $offenders[] = '  '.basename($path).': '.trim($match[1]);
+                    }
                 }
             }
         }

@@ -158,7 +158,13 @@ return new class extends Migration
                 // Der Zeitpunkt der Anlage und nicht `now()`: Das Verzeichnis
                 // soll sagen, wann ein Name vergeben wurde, nicht wann diese
                 // Migration lief.
-                'claimed_at' => $row->created_at,
+                //
+                // Der Rückfall ist keine Zierde: `$table->timestamps()` legt
+                // `created_at` **nullable** an, `claimed_at` ist es nicht. Eine
+                // einzige Zeile ohne Zeitstempel — von Hand eingefügt, aus einer
+                // Fremdmigration — brächte die ganze Migration zum Abbruch, und
+                // zwar wegen einer Angabe, an der nichts hängt.
+                'claimed_at' => $row->created_at ?? now(),
             ];
         }
 

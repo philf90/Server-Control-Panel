@@ -75,6 +75,7 @@ final class DnsCredentialInput
             // zweite ist der, der veraltet.
             Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE => self::tokenOnly($input),
             Providers::NETCUP => self::netcup($input),
+            Providers::IONOS => self::ionos($input),
             // Unerreichbar, solange {@see self::provider()} davor steht — und
             // deshalb steht der Zweig hier: Ein `match` ohne ihn wirft einen
             // UnhandledMatchError, und der landet als „interner Fehler" im
@@ -100,6 +101,27 @@ final class DnsCredentialInput
         ], [], ['token' => 'Token'])->validate();
 
         return ['token' => (string) $data['token']];
+    }
+
+    /**
+     * IONOS — ein Feld, das in Wahrheit zwei ist.
+     *
+     * Der Schlüssel hat die Form `<präfix>.<geheimnis>`; geprüft wird das im
+     * Agenten, weil die Form eine Eigenschaft des Anbieters ist und nicht die
+     * eines Formulars.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    private static function ionos(array $input): array
+    {
+        $data = Validator::make($input, [
+            'api_key' => ['required', 'string', 'max:512'],
+        ], [], ['api_key' => 'API-Schlüssel'])->validate();
+
+        return ['api_key' => (string) $data['api_key']];
     }
 
     /**

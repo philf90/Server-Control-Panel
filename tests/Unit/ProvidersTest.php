@@ -60,6 +60,9 @@ final class ProvidersTest extends TestCase
             'api_password' => 'passwort-xyz',
             'zones' => ['example.de'],
         ],
+        Providers::IONOS => [
+            'api_key' => 'praefix.geheimnis',
+        ],
     ];
 
     public function test_every_provider_key_points_at_something(): void
@@ -98,6 +101,7 @@ final class ProvidersTest extends TestCase
                 Providers::HETZNER,
                 Providers::CLOUDFLARE,
                 Providers::NETCUP,
+                Providers::IONOS,
             ],
             Providers::available(),
         );

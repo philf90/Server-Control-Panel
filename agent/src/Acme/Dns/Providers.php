@@ -87,7 +87,6 @@ final class Providers
      * @var list<string>
      */
     public const PENDING = [
-        self::IONOS,
         self::INWX,
         self::DESEC,
     ];
@@ -122,6 +121,7 @@ final class Providers
             self::HETZNER => Hetzner::configure($config),
             self::CLOUDFLARE => Cloudflare::configure($config),
             self::NETCUP => Netcup::configure($config),
+            self::IONOS => Ionos::configure($config),
             default => throw self::missing($name),
         };
     }
@@ -139,6 +139,7 @@ final class Providers
             self::HETZNER => Hetzner::fromConfig($config),
             self::CLOUDFLARE => Cloudflare::fromConfig($config),
             self::NETCUP => Netcup::fromConfig($config),
+            self::IONOS => Ionos::fromConfig($config),
             default => throw self::missing($name),
         };
     }

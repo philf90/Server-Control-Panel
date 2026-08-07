@@ -2193,6 +2193,75 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NetcupTest passed
 
 echo
+echo "── IonosTest: der halbe Schlüssel geht durch ──"
+#
+# Der Schlüssel von IONOS besteht aus Präfix und Geheimnis, verbunden mit einem
+# Punkt; IONOS zeigt beide getrennt an, und der Präfix steht obenan. Wer nur ihn
+# einträgt, bekommt ohne diese Prüfung erst nachts bei einer Erneuerung eine
+# Abweisung — mit einem Satz, der von einem ungültigen Schlüssel spricht.
+vorher_datei agent/src/Acme/Dns/Ionos.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Ionos.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Ionos.php "halber IONOS-Schlüssel geht durch" &&
+pruefe "halber IONOS-Schlüssel geht durch" \
+  IonosTest::test_a_key_that_is_not_two_parts_is_refused failed
+wiederherstellen
+
+echo
+echo "── IonosTest: der Filter wird für einen Namen gehalten ──"
+#
+# `suffix` von IONOS ist ein Suffix. Ohne den zweiten Abgleich wandert
+# `x._acme-challenge.example.de` in die Liste, die zurückgeschickt wird — und
+# beim Löschen in die Auswahl.
+vorher_datei agent/src/Acme/Dns/Ionos.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Ionos.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if (is_array($entry) && is_string($entry['name'] ?? null) && strtolower($entry['name']) === $name) {",
+    "            if (is_array($entry)) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Ionos.php "IONOS-Filter als Name gelesen" &&
+pruefe "IONOS-Filter als Name gelesen" \
+  IonosTest::test_a_name_that_merely_ends_the_same_is_dropped failed
+wiederherstellen
+
+echo
+echo "── IonosTest: nichts zu löschen gilt als Fehlschlag ──"
+#
+# lego wirft an dieser Stelle. `cleanup()` läuft aber auch nach einer
+# gescheiterten Bestellung, und dann gibt es den Eintrag gar nicht — aus einem
+# Fehlschlag würden zwei.
+vorher_datei agent/src/Acme/Dns/Ionos.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Ionos.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            if (! is_string($id) || $id === '' || ! is_string($content) || ! TxtValue::matches($content, $value)) {
+                continue;
+            }""",
+    """            if (! is_string($id) || $id === '') {
+                continue;
+            }""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Ionos.php "IONOS löscht nach dem Namen allein" &&
+pruefe "IONOS löscht nach dem Namen allein" \
+  IonosTest::test_removing_deletes_only_the_matching_record failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IonosTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

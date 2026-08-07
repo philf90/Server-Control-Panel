@@ -43,9 +43,14 @@ final class ScriptedOutbound implements Outbound
     /**
      * Eine Antwort mit JSON-Rumpf.
      *
-     * @param  array<string, mixed>|string  $fields  Ein Feldsatz — oder roher
-     *                                               Text für die Fälle, die
-     *                                               kein JSON sind (`null`).
+     * **Auch eine schlichte Liste geht.** IONOS antwortet auf `GET /zones` mit
+     * einem Feld und nicht mit einer Ablage; ein Drehbuch, das nur Ablagen
+     * kennt, könnte diesen Anbieter gar nicht nachstellen.
+     *
+     * @param  array<array-key, mixed>|string  $fields  Ein Feldsatz, eine Liste
+     *                                                  — oder roher Text für
+     *                                                  die Fälle, die kein JSON
+     *                                                  sind (`null`).
      */
     public static function json(array|string $fields, int $status = 200): Response
     {

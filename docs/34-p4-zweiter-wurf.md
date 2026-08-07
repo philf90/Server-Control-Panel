@@ -295,7 +295,7 @@ Anbieter ist eine eigene Umsetzung, eigene Fehlerfälle und ein eigener Wächter
 | **Hetzner DNS** | Einfaches Token, im deutschen Markt sehr verbreitet. | gebaut |
 | **Cloudflare** | Der häufigste Fall überhaupt, Token je Zone einschränkbar. | gebaut |
 | **netcup** | Deutscher Registrar mit API, viele Kunden bringen ihn mit. | gebaut |
-| **IONOS** | Der grösste deutsche Massenhoster; wer dort seine Domain hat, hat sie meist auch dort delegiert. | 6. |
+| **IONOS** | Der grösste deutsche Massenhoster; wer dort seine Domain hat, hat sie meist auch dort delegiert. | gebaut |
 | **INWX** | Der Registrar, den deutsche Wiederverkäufer benutzen — und der einzige der sieben mit einer Anmeldung statt eines Tokens. | 7. |
 | **deSEC** | Gemeinnütziger deutscher DNS-Betreiber, DNSSEC ab Werk, kostenfrei. Er ist der **Ausweg für alle, deren Anbieter keine API hat** — die Zone zieht um, die Domain bleibt. | 8. |
 
@@ -335,7 +335,7 @@ Bauen teuer wird:
 | Hetzner | `https://api.hetzner.cloud/v1` (gebaut) — daneben die alte `https://dns.hetzner.com` | `token` | **Zwei Schnittstellen nebeneinander.** lego hält beide vor (`HETZNER_API_KEY` für die alte DNS-Konsole, `HETZNER_API_TOKEN` für die Cloud-API). Ein Token der einen gilt bei der anderen nicht, und die Abweisung sagt das nicht deutlich. |
 | Cloudflare | `https://api.cloudflare.com/client/v4` (gebaut) | `token`; `email` + `api_key` wird **abgewiesen** | Der alte Weg über den globalen Schlüssel öffnet **das ganze Konto**. Genommen wird nur das Token, mit `Zone:Read` und `DNS:Edit`. Gelöscht wird über eine Eintragskennung, die erst gesucht werden muss. |
 | netcup | `https://ccp.netcup.net/run/webservice/servers/endpoint.php?JSON` (gebaut) | `customer_number` + `api_key` + `api_password` + **`zones`** | **Der einzige mit einer Sitzung** und der einzige, dem die Zonen genannt werden müssen — seine Schnittstelle zählt die Domains eines Kontos nicht auf. |
-| IONOS | `https://api.hosting.ionos.com` | `api_key` in der Form `<prefix>.<secret>` | Ein Feld, das in Wahrheit zwei ist. Wer nur den Präfix einträgt, bekommt eine Abweisung, die von einem ungültigen Schlüssel spricht. Das gehört beim Hinterlegen geprüft. |
+| IONOS | `https://api.hosting.ionos.com/dns/v1` (gebaut) | `api_key` in der Form `<prefix>.<secret>` | Ein Feld, das in Wahrheit zwei ist — geprüft beim Hinterlegen. Und `suffix` im Filter ist ein Suffix, kein Name. |
 | INWX | `https://api.domrobot.com/xmlrpc/` | `username` + `password`, wahlweise `shared_secret` | XML-RPC, Sitzungscookie, TOTP. **Und das Passwort öffnet das Registrarkonto**, nicht eine Zone. Der einzige, bei dem ein Kunde besser nicht seine eigenen Zugangsdaten hinterlegt. |
 | deSEC | `https://desec.io/api/v1` | `token` | Der geradlinigste: REST, Token, Zonen abfragbar. Sein TTL ist mit 3600 der höchste der sieben — `ready()` darf hier nicht nach zwei Minuten aufgeben. |
 
@@ -358,6 +358,38 @@ Das gehört so gesagt, weil die naheliegende Antwort — „bauen wir eben Strat
 dazu" — hier nicht existiert. Der Ausweg ist die Zone, nicht das Panel: Sie
 lässt sich zu deSEC delegieren, ohne dass die Domain umzieht. Deshalb steht
 deSEC überhaupt auf der Liste.
+
+### IONOS im Einzelnen
+
+Nachgesehen am 7. August 2026 in lego. **Die Seiten von IONOS sind aus diesem
+Container nicht erreichbar**; die offene Frage unten gehört beim ersten Zugriff
+geklärt.
+
+- **Adresse:** `https://api.hosting.ionos.com/dns/v1`
+- **Anmeldung:** Kopfzeile `X-Api-Key: <präfix>.<geheimnis>`
+- **Zonen:** `GET /zones` → eine **schlichte Liste** `[{"id":…,"name":…}]`, ohne
+  Blätterauskunft
+- **Lesen:** `GET /zones/<id>?suffix=<name>&recordType=TXT` → `{"records":[…]}`
+- **Schreiben:** `PATCH /zones/<id>` mit einem **Feld** von Sätzen
+- **Löschen:** `DELETE /zones/<id>/records/<satz-id>`
+- **Fehler:** `{"errors":[{"code":…,"message":…}]}`
+- Der Wert geht **ohne** Anführungszeichen hinaus
+
+**Der Schlüssel besteht aus zwei Teilen.** IONOS zeigt sie getrennt an, und der
+Präfix steht obenan. Genau einen Punkt und zwei nicht leere Hälften zu verlangen
+kostet zwei Zeilen und erspart eine nächtliche Erneuerung, die an einer Meldung
+scheitert, die den Grund nicht nennt.
+
+**Die offene Frage: was `PATCH` mit den Sätzen macht.** Fügt es sie hinzu oder
+ersetzt es den Bestand zu diesem Namen? legos Code sagt es nicht, und anders als
+bei netcup gibt es keinen zweiten Aufruf, der es verrät. Gebaut ist deshalb der
+Weg, der unter beiden Lesarten richtig ist: die vorhandenen Sätze **zu diesem
+Namen** mitschicken. Gelesen wird dabei nichts ausser dem, was auf denselben
+Namen zeigt.
+
+**Und `suffix` ist ein Suffix.** Der Filter liefert auch `x.<name>` mit; was
+nicht genau dieser Name ist, gehört weder in die Liste, die zurückgeht, noch in
+die Auswahl beim Löschen.
 
 ### netcup im Einzelnen
 
@@ -749,8 +781,8 @@ Bruch in `tests/waechter-brechen.sh` mit.
    Cloud-API und nicht gegen die auslaufende DNS-Konsole. **Cloudflare
    ebenfalls gebaut**, nur mit API-Token; der globale Schlüssel wird abgewiesen.
    **netcup ebenfalls gebaut** — der erste mit einer Sitzung und der erste, dem
-   die Zonen genannt werden müssen. Es folgen IONOS, INWX und deSEC; INWX steht
-   zuletzt, weil er als einziger
+   die Zonen genannt werden müssen. **IONOS ebenfalls gebaut.** Es folgen INWX
+   und deSEC; INWX steht zuletzt, weil er als einziger
    XML-RPC, eine Sitzung und ein Kontopasswort statt eines Tokens mitbringt.
 
    Vorweg kam eine Grenze, die es schon gab, aber nur als Prosa: **Der Agent

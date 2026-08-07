@@ -3945,3 +3945,46 @@ Gefunden hat es die Wegwerfprobe über `agent/src/autoload.php` — PHP warnt zu
 Laufzeit, wo `php -l` nichts sieht und PHPStan erst in der CI läuft.
 
 Vier neue Brüche, alle rot und grün gegengeprüft.
+
+#### Schritt 9, sechster Anbieter: IONOS — ein Feld, das in Wahrheit zwei ist
+
+Der Schlüssel hat die Form `<präfix>.<geheimnis>`, und IONOS zeigt beide Teile
+**getrennt** an — der Präfix steht dort obenan und sieht aus wie der Schlüssel.
+Wer nur ihn einträgt, bekommt ohne Prüfung erst nachts bei einer Erneuerung eine
+Abweisung, die von einem ungültigen Schlüssel spricht. `configure()` verlangt
+deshalb genau einen Punkt und zwei nicht leere Hälften, das Formular sagt es
+vorher, und die Meldung zu 401 und 403 nennt es noch einmal.
+
+**`suffix` ist ein Suffix und kein Name.** Der Filter von IONOS
+(`?suffix=<name>&recordType=TXT`) liefert auch `x.<name>` mit. Ohne einen
+zweiten Abgleich wanderte ein fremder Name in die Liste, die zurückgeschickt
+wird — und beim Löschen in die Auswahl.
+
+**Beim Anlegen folgen wir lego, und das ist hier die Entscheidung.** `PATCH
+/zones/<id>` bekommt eine Liste von Sätzen; ob der Aufruf sie *hinzufügt* oder
+den Bestand zu diesem Namen *ersetzt*, geht aus legos Code nicht hervor, und die
+Seiten von IONOS sind aus diesem Container nicht erreichbar. Bei netcup liess
+sich dieselbe Frage aus legos eigenem `CleanUp` beantworten — hier nicht.
+Solange das offen ist, gilt der Weg, der unter **beiden** Lesarten richtig ist:
+erst die vorhandenen Sätze zu diesem Namen holen, den neuen anhängen, alles
+schicken. Gelesen wird dabei nur, was auf denselben Namen zeigt, und nicht die
+ganze Zone — der Einwand von netcup trifft hier also nicht mit derselben Wucht.
+
+**Und eine Unstimmigkeit in lego, die uns nichts kostet:** Sein `Present`
+schickt den Wert nackt, sein `CleanUp` sucht ihn in Anführungszeichen. Eines von
+beidem stimmt nicht, und welches, hängt daran, ob IONOS beim Ablegen umschreibt.
+`TxtValue::matches()` nimmt beide Formen — genau dafür ist es eine Runde vorher
+entstanden.
+
+Nebenbei zwei kleinere Unterschiede zu lego: Dessen `findZone` vergleicht mit
+`strings.HasSuffix`, also als Zeichenkette — `boesexample.de` endet auf
+`example.de` und gehört trotzdem jemand anderem; `Zones` vergleicht
+beschriftungsweise. Und sein `CleanUp` wirft, wenn es nichts findet, obwohl es
+auch nach einer gescheiterten Bestellung läuft — aus einem Fehlschlag würden
+zwei.
+
+`ScriptedOutbound::json()` nimmt jetzt auch eine schlichte Liste: IONOS
+antwortet auf `GET /zones` mit einem Feld und nicht mit einer Ablage, und ein
+Drehbuch, das nur Ablagen kennt, könnte diesen Anbieter gar nicht nachstellen.
+
+Drei neue Brüche, alle rot und grün gegengeprüft.

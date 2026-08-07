@@ -59,6 +59,7 @@ const IPV64 = 'ipv64'
 const HETZNER = 'hetzner'
 const CLOUDFLARE = 'cloudflare'
 const NETCUP = 'netcup'
+const IONOS = 'ionos'
 
 /*
  * Wer seine Zonen selbst führt, bekommt hier kein Feld dafür.
@@ -83,8 +84,8 @@ const asked = computed(
 const form = useForm({
   provider: usable.value[0]?.value ?? '',
   token: '',
-  customer_number: '',
   api_key: '',
+  customer_number: '',
   api_password: '',
   server: '',
   port: '',
@@ -276,6 +277,41 @@ function moment(seconds: number): string {
           Ein API-Token mit den Rechten Zone:Read und DNS:Edit. Der globale
           API-Schlüssel wird nicht angenommen: Er öffnet das ganze Konto, ein
           Token nur die Zonen, für die es ausgestellt ist.
+        </p>
+      </template>
+
+      <!--
+        IONOS: ein Feld, und das ist der Punkt. Der Schlüssel besteht aus zwei
+        Teilen, die IONOS getrennt anzeigt — wer nur den Präfix einträgt,
+        bekommt sonst nachts eine Abweisung, die von einem ungültigen Schlüssel
+        spricht.
+      -->
+      <template v-if="form.provider === IONOS">
+        <label class="field">
+          <span>API-Schlüssel</span>
+          <span class="with-reveal">
+            <input
+              v-model="form.api_key"
+              :type="revealed ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            >
+            <button
+              type="button"
+              class="reveal"
+              :aria-label="revealed ? 'Schlüssel verbergen' : 'Schlüssel anzeigen'"
+              :aria-pressed="revealed"
+              @click.prevent="revealed = !revealed"
+            >
+              <EyeIcon :off="revealed" />
+            </button>
+          </span>
+        </label>
+        <p v-if="form.errors.api_key" class="error">{{ form.errors.api_key }}</p>
+        <p class="hint">
+          Beide Teile zusammen, verbunden mit einem Punkt: erst der Präfix, dann
+          das Geheimnis. IONOS zeigt sie getrennt an; der Präfix allein wird
+          nicht angenommen.
         </p>
       </template>
 

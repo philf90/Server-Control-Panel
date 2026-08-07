@@ -4370,3 +4370,57 @@ Der Bruch nimmt `--token` wieder weg. Und eine Meldung aus der Gegenprobe steht
 als Kommentar an der Sammlung im Test: PHPStan liest die Form einer Konstanten
 genauer, als eine `@var`-Angabe sie beschreiben kann, und weist jede zurück, die
 weiter ist.
+
+#### Der Platzhalter erreichte nur den Block, der ihn bestellt hat
+
+**Im Abnahmelauf auf `cloudlab24.ipv64.de` gefunden — dem Lauf, für den das
+alles gebaut wurde.** Der Platzhalter war ausgestellt und trug beide Namen; die
+Hauptdomain lieferte ihn aus. Die drei Unterdomains behielten ihre einzelnen
+Zertifikate, vier verschiedene Seriennummern. Der Betreiber musste auf jeder
+Unterdomain den Platzhalter von Hand auswählen oder „Übernehmen" drücken.
+
+**Das ist Abnahmekriterium 2** (`docs/34 §10`): „Alle Server-Blöcke dieses
+Abonnements liefern es aus." Es war nicht erfüllt.
+
+`CertificateChoice` antwortete für die Unterdomains die ganze Zeit richtig — der
+Platzhalter deckt sie, läuft am längsten und gewinnt. **Nur fragte niemand.**
+`CertificateLifecycle::install()` reihte genau einen `web.site.apply` ein: für
+die Domain, die bestellt hat. Bis dahin trägt nginx, was beim letzten Anwenden
+dastand, und deshalb wirkte „Übernehmen" — der Knopf schreibt den Block neu.
+
+**Die Annahme dahinter war: ein Zertifikat betrifft die Domain, die es bestellt
+hat.** Das gilt, solange jedes für einen Namen ausgestellt wird. Ein Platzhalter
+ändert die Antwort für **jede** Domain der Zone. Es ist derselbe Bruch derselben
+Annahme wie zweimal am selben Tag: erst beim Kästchen, das an „gibt es schon
+eines" hing, dann beim Kommando, das nur RFC 2136 kannte.
+
+**Verglichen wird der Ablageort und nicht die Kennung** — das ist die
+Entscheidung, an der die Kosten hängen. Vor dem Ablegen wird gemerkt, was jeder
+Block ausliefert; danach wird nur der neu geschrieben, für den jetzt ein anderer
+Ablageort gilt. Eine Erneuerung legt eine neue Zeile an mit **derselben** Datei
+`_wildcard.example.de`: Der Vergleich über die Kennung hielte jeden Nachbarblock
+für veraltet und reihte bei einem Abonnement mit vierzig Domains alle sechzig
+Tage vierzig Vorgänge ein, für eine Datei, die genauso heisst wie vorher.
+Entschieden vom Betreiber am 7. August 2026.
+
+**Eine Wahl wird dabei nicht angefasst.** Die Zuordnung bleibt stehen; der Block
+wird trotzdem geschrieben, wenn sich der Ablageort geändert hat — genau dann ist
+die Wahl abgelaufen und der laute Rückfall greift, und der greift nur, wenn ihn
+jemand aufschreibt.
+
+#### Und der Platzhalter ist in der Auswahl als solcher zu erkennen
+
+Zweiter Fund desselben Laufs, vom Betreiber gemeldet. In der Liste „Ausgeliefert
+wird" stand die Herkunft und das Datum — **bei zwei Zertifikaten von Let's
+Encrypt also zweimal dasselbe Wort.** Ob ein Eintrag eine Domain deckt oder jede
+Unterdomain der Zone, musste man am Datum erraten; und das ist genau die Frage,
+wegen der man dort überhaupt wählt.
+
+`Certificate::isWildcard()` beantwortet sie, der Eintrag heisst jetzt
+„Let's Encrypt · Platzhalter — bis 5.11.2026". Die gedeckten Namen stehen
+weiter nicht dabei: Ein `<select>` bricht nicht um, es schneidet ab (`docs/24
+§8`). Bei 390px gemessen, beide Themes, kein Überlauf.
+
+**Zwei Brüche:** die Nachbarblöcke gar nicht angefasst — wörtlich der Zustand
+aus dem Abnahmelauf — und die Kennung statt des Ablageorts verglichen, was jede
+Erneuerung zu einem Rundumschlag machte.

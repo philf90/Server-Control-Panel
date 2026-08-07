@@ -2677,6 +2677,52 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DnsProviderReachTest passed
 
 echo
+echo "── CertificateReapplyTest: nur der Besteller bekommt seinen Block ──"
+#
+# **Der Fund aus dem Abnahmelauf, 7. August 2026.** Auf cloudlab24.ipv64.de war
+# der Platzhalter ausgestellt, die Hauptdomain lieferte ihn aus — die drei
+# Unterdomains behielten ihre einzelnen Zertifikate. CertificateChoice
+# antwortete für sie längst richtig; nur fragte niemand, weil install() genau
+# eine Domain anwandte.
+vorher_datei app/Support/Tls/CertificateLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $this->spread($domain, $operation, $vorher);\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateLifecycle.php "Nachbarblöcke bleiben stehen" &&
+pruefe "Nachbarblöcke bleiben stehen" \
+  CertificateReapplyTest::test_a_wildcard_reaches_every_block_of_the_subscription failed
+wiederherstellen
+
+echo
+echo "── CertificateReapplyTest: jede Erneuerung schreibt alle Blöcke neu ──"
+#
+# **Die Gegenrichtung, und sie ist die teurere.** Verglichen wird der Ablageort
+# und nicht die Kennung: Eine Erneuerung legt eine neue Zeile an — andere
+# Kennung, derselbe Ablageort. Wer über die Kennung vergleicht, reiht bei einem
+# Abonnement mit vierzig Domains alle sechzig Tage vierzig Vorgänge ein.
+vorher_datei app/Support/Tls/CertificateLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            $orte[(int) $nachbar->id] = $this->choice->effective($nachbar)?->storage_name;",
+    "            $orte[(int) $nachbar->id] = (string) $this->choice->effective($nachbar)?->id;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateLifecycle.php "Kennung statt Ablageort verglichen" &&
+pruefe "Kennung statt Ablageort verglichen" \
+  CertificateReapplyTest::test_a_renewal_leaves_the_neighbours_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateReapplyTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

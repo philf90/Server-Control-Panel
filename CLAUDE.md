@@ -188,7 +188,9 @@ schon dasteht, was fehlt, und die Falle, die dabei aussperrt — · **`33` der
 Abnahmelauf für 0.3.1**, der davor kommt · und **`34` der zweite Wurf von P4**:
 DNS-01, Platzhalter, eigene Zertifikate — mit den drei Stellen, an denen der
 erste Wurf der Erweiterung nicht standhält, und den vier Fragen, die der
-Betreiber vorher beantwortet. Die Entwürfe zum Gestaltungssystem stehen
+Betreiber vorher beantwortet · und **`35` das Verzeichnis der Systembenutzer** —
+beschlossen, noch nicht gebaut: Abonnements hart löschen, die verbrauchten
+Namen in einer eigenen Tabelle sperren. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".

@@ -216,6 +216,88 @@ final class TableStyleTest extends TestCase
     }
 
     /**
+     * In einer Bezeichnungstabelle bricht eine Kennung — auch auf dem Schreibtisch.
+     *
+     * **Der Befund vom 7. August 2026, auf dem Zielserver.** Auf der
+     * Domainseite von `cloudlab24.ipv64.de` lief
+     * `/var/www/vhosts/cloudlab24.ipv64.de/logs/…` aus dem Bereich
+     * „Stammdaten" heraus und legte sich über den Bereich „Zertifikat".
+     * Nachgemessen: 173px bei 1440px Fensterbreite, 134px bei 1024px.
+     *
+     * **Die Begründung für `nowrap` war richtig gedacht und hier falsch.** Sie
+     * lautet: Ein Pfad, der mitten im Verzeichnisnamen umbricht, ist schwerer
+     * zu lesen als einer, „für den man die Tabelle schiebt — und schieben kann
+     * man dort". In einer Bezeichnungstabelle kann man das nicht: Sie steht in
+     * einem Bereich mit `min-width: 0` neben zwei weiteren, und es gibt keinen
+     * Rollbehälter. Die Wahl ist nicht „umbrechen oder schieben", sondern
+     * **umbrechen oder den Nachbarn überschreiben**.
+     *
+     * **Warum das kein Fall für `MobileLayoutTest` ist.** Dort steht schon ein
+     * Wächter zu `.ident`, und der lässt `nowrap` an einer Zellenauswahl
+     * ausdrücklich zu — aus genau dieser Annahme. Er hat deshalb nichts
+     * gemeldet, und er soll es auch weiter nicht: Eine Tabelle mit `.scrolls`
+     * rollt wirklich. Was hier geprüft wird, gilt der Bezeichnungstabelle.
+     *
+     * **Und geprüft wird ausserhalb der Haltepunkte.** Die Ausnahme gab es
+     * schon einmal — im `@media`-Block für 390px, für den einen Ort, an dem
+     * der Überlauf auffiel, statt für die Regel. Eine Regel, die es nur im
+     * `@media`-Block gibt, wirkt genau dort nicht, wo dieser Fund entstanden
+     * ist.
+     */
+    public function test_an_identifier_in_a_pairs_table_may_break_on_the_desktop(): void
+    {
+        $css = $this->withoutMediaBlocks(
+            (string) preg_replace('#/\*.*?\*/#su', '', (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css')),
+        );
+
+        preg_match_all('/([^{}]*)\{([^{}]*)\}/s', $css, $rules, PREG_SET_ORDER);
+
+        $gelesen = 0;
+        $bricht = false;
+
+        foreach ($rules as $rule) {
+            $selector = trim($rule[1]);
+
+            if (! str_contains($selector, 'table.pairs') || ! str_contains($selector, '.ident')) {
+                continue;
+            }
+
+            $gelesen++;
+
+            $this->assertDoesNotMatchRegularExpression(
+                '/white-space:\s*nowrap/',
+                $rule[2],
+                sprintf(
+                    '„%s" hält eine Kennung in einer Bezeichnungstabelle vom Umbruch ab. Dort gibt es nichts '.
+                    'zu schieben — der Wert läuft in den Nachbarbereich und legt sich über dessen Text.',
+                    $selector,
+                ),
+            );
+
+            if (str_contains($rule[2], 'overflow-wrap: anywhere')) {
+                $bricht = true;
+            }
+        }
+
+        // Die Untergrenze zählt, wo die Regel stehen *darf*: Fällt sie beim
+        // Aufräumen mit einer anderen zusammen, meldet dieser Wächter sonst Rot
+        // für genau die Ordnung, die er durchsetzen soll.
+        $this->assertGreaterThanOrEqual(
+            1,
+            $gelesen,
+            'Es wird keine Regel zu `table.pairs … .ident` ausserhalb der Haltepunkte gelesen — dann prüft '.
+            'dieser Test nichts.',
+        );
+
+        $this->assertTrue(
+            $bricht,
+            'In einer Bezeichnungstabelle braucht eine Kennung `overflow-wrap: anywhere`, und zwar ausserhalb '.
+            'der Haltepunkte. Ein Pfad ohne Leerzeichen bleibt sonst so breit, wie er ist, und die Tabelle '.
+            'wird breiter als ihr Bereich — gemessen 173px bei 1440px.',
+        );
+    }
+
+    /**
      * Das Stylesheet ohne seine `@media`-Blöcke.
      *
      * Über Klammern gezählt: Ein regulärer Ausdruck endet an der ersten

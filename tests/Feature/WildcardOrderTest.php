@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\DomainType;
+use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Setting;
 use App\Models\Subscription;
 use App\Support\Plans\Feature;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificateChoice;
 use App\Support\Tls\CertificateOrder;
 use App\Support\Tls\DnsProfile;
 use App\Support\Tls\WildcardOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\Support\ScriptedDnsCredentials;
 use Tests\TestCase;
 
@@ -40,7 +43,7 @@ final class WildcardOrderTest extends TestCase
     /** @param list<string> $profiles */
     private function wildcards(array $profiles = [DnsProfile::OPERATOR]): WildcardOrder
     {
-        return new WildcardOrder(new DnsProfile, new ScriptedDnsCredentials($profiles));
+        return new WildcardOrder(new DnsProfile, new ScriptedDnsCredentials($profiles), new CertificateChoice);
     }
 
     /**
@@ -212,5 +215,101 @@ final class WildcardOrderTest extends TestCase
             ['shop.intern.example.de', 'tief.er.example.de'],
             WildcardOrder::uncovered($domain->fresh() ?? $domain),
         );
+    }
+
+    /** Ein Zertifikat für diese Domain ablegen — mit den Namen, die es deckt. */
+    private function certificateFor(Domain $domain, string $names, string $bis = '+60 days'): Certificate
+    {
+        return Certificate::factory()->covering(explode(' ', $names))->create([
+            'subscription_id' => $domain->subscription_id,
+            'not_after' => Carbon::parse($bis),
+        ]);
+    }
+
+    /**
+     * **Der Fund vom Zielserver: Ein Einzelzertifikat ist kein Platzhalter.**
+     *
+     * Bis zum 7. August 2026 hing das Kästchen an „es gibt noch kein
+     * Zertifikat". Die Automatik bestellt aber, sobald der Server-Block steht,
+     * und der Arbeiter ist schneller als jeder Mensch — auf `cloudlab24` stand
+     * die Seite mit einem gültigen Zertifikat für die Hauptdomain da und bot
+     * weder Platzhalter noch Bestellung an. Der Weg von Einzelzertifikaten zu
+     * einem Platzhalter existierte über die Oberfläche nicht.
+     *
+     * **Was das Kästchen jetzt fragt, ist die Deckung** — und die Prüfung
+     * dahinter ist dieselbe wie überall sonst.
+     */
+    public function test_a_certificate_for_the_name_alone_is_not_a_wildcard(): void
+    {
+        $domain = $this->domain($this->subscription(), 'example.de');
+
+        $this->certificateFor($domain, 'example.de');
+
+        $this->assertFalse(
+            $this->wildcards()->covered($domain),
+            'Ein Zertifikat für die Hauptdomain allein gilt als Platzhalter — dann ist der Umstieg unerreichbar.',
+        );
+    }
+
+    /**
+     * Und liegt er, wird nicht noch einmal bestellt.
+     *
+     * **Die Gegenrichtung, und sie ist die teurere.** Ein Knopf, der einen
+     * Platzhalter nachbestellt, der schon daliegt, verbrennt einen der fünf
+     * Fehlversuche je Konto und Stunde — und die gelten für jeden Kunden
+     * dieses Servers, nicht nur für den, der geklickt hat.
+     */
+    public function test_an_existing_wildcard_takes_the_offer_away(): void
+    {
+        $domain = $this->domain($this->subscription(), 'example.de');
+
+        $this->certificateFor($domain, '*.example.de example.de');
+
+        $this->assertTrue($this->wildcards()->covered($domain));
+    }
+
+    /**
+     * Ein abgelaufener Platzhalter deckt nichts mehr.
+     *
+     * Ohne diese Richtung bliebe eine Domain mit abgelaufenem Platzhalter ohne
+     * Angebot stehen — und genau dann braucht sie eines.
+     */
+    public function test_an_expired_wildcard_does_not_count(): void
+    {
+        $domain = $this->domain($this->subscription(), 'example.de');
+
+        $this->certificateFor($domain, '*.example.de example.de', '-1 day');
+
+        $this->assertFalse($this->wildcards()->covered($domain));
+    }
+
+    /**
+     * Und der Platzhalter eines fremden Abonnements zählt hier nicht.
+     *
+     * Er deckt den Namen technisch — er gehört trotzdem nicht hierher. Dieselbe
+     * Grenze wie bei der Auswahl, und dieselbe Abfrage dahinter.
+     */
+    public function test_a_wildcard_of_another_subscription_does_not_count(): void
+    {
+        $domain = $this->domain($this->subscription(), 'example.de');
+
+        Certificate::factory()->covering(['*.example.de', 'example.de'])->create([
+            'not_after' => now()->addDays(60),
+        ]);
+
+        $this->assertFalse($this->wildcards()->covered($domain));
+    }
+
+    /** Zu einer Subdomain gibt es keinen Platzhalter — also auch keine Deckung. */
+    public function test_a_subdomain_is_never_covered(): void
+    {
+        $subscription = $this->subscription();
+        $this->domain($subscription, 'example.de');
+
+        $sub = $this->domain($subscription, 'blog.example.de', DomainType::Subdomain);
+
+        $this->certificateFor($sub, '*.blog.example.de blog.example.de');
+
+        $this->assertFalse($this->wildcards()->covered($sub));
     }
 }

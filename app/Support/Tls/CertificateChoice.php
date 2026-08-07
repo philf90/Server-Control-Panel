@@ -106,11 +106,8 @@ final class CertificateChoice
      * ihre Aliasse, steht nicht zur Wahl: Es erzeugte eine Warnung im Browser,
      * die im Panel grün aussieht. Die Prüfung dafür gibt es am Modell.
      *
-     * **Und was dem Abonnement gehört.** Die Abfrage läuft ohne
-     * Mandantenklammer — sie muss auch im Arbeiter funktionieren —, filtert
-     * dafür aber ausdrücklich auf das Abonnement der Domain. Das Zertifikat der
-     * Oberfläche (`subscription_id` null) fällt damit heraus, und das ist
-     * richtig: Es gehört keinem Kunden.
+     * Wem etwas gehört, beantwortet {@see self::owned()} — für diese Frage und
+     * für {@see self::covers()} dieselbe Abfrage, weil es dieselbe Frage ist.
      *
      * @return list<Certificate>
      */
@@ -119,21 +116,60 @@ final class CertificateChoice
         $names = $domain->serverNames();
         $found = [];
 
-        $rows = Certificate::query()
-            ->withoutGlobalScopes()
-            ->where('subscription_id', $domain->subscription_id)
-            ->where('status', CertificateStatus::Active)
-            ->orderByDesc('not_after')
-            ->orderByDesc('id')
-            ->get();
-
-        foreach ($rows as $certificate) {
+        foreach ($this->owned($domain) as $certificate) {
             if ($certificate->coversAll($names)) {
                 $found[] = $certificate;
             }
         }
 
         return $found;
+    }
+
+    /**
+     * Deckt schon eines dieser Domain diese Namen — gültig und ihr gehörend?
+     *
+     * **Die Frage stellt die Platzhalterbestellung**, und sie steht hier, weil
+     * hier alle Deckungsfragen stehen. Sie ist nicht {@see self::satisfied()}:
+     * Die fragt nach den Namen des Server-Blocks, diese nach einer Liste, die
+     * der Aufrufer mitbringt — bei einem Platzhalter `*.example.de` und
+     * `example.de`, und der erste steht in keinem `server_name`.
+     *
+     * **Wofür das gebraucht wird:** Ein Knopf, der ein Zertifikat bestellt, das
+     * längst daliegt, verbrennt einen der fünf Fehlversuche je Konto und
+     * Stunde — und die gelten für jeden Kunden dieses Servers.
+     *
+     * @param  list<string>  $names
+     */
+    public function covers(Domain $domain, array $names): bool
+    {
+        return $this->best($this->owned($domain), $names) instanceof Certificate;
+    }
+
+    /**
+     * Alles, was diesem Abonnement gehört und in Gebrauch ist.
+     *
+     * **Die Abfrage läuft ohne Mandantenklammer** — sie muss auch im Arbeiter
+     * funktionieren —, filtert dafür aber ausdrücklich auf das Abonnement der
+     * Domain. Das Zertifikat der Oberfläche (`subscription_id` null) fällt
+     * damit heraus, und das ist richtig: Es gehört keinem Kunden.
+     *
+     * Sortiert nach Laufzeit, damit {@see self::best()} das langlebigste
+     * zuerst sieht; die Kennung entscheidet bei Gleichstand, sonst wäre die
+     * Reihenfolge unbestimmt und die Antwort damit von Lauf zu Lauf anders.
+     *
+     * @return list<Certificate>
+     */
+    private function owned(Domain $domain): array
+    {
+        return Certificate::query()
+            ->withoutGlobalScopes()
+            ->where('subscription_id', $domain->subscription_id)
+            ->where('status', CertificateStatus::Active)
+            ->orderByDesc('not_after')
+            ->orderByDesc('id')
+            ->get()
+            ->values()
+            ->all();
     }
 
     /**

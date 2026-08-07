@@ -4238,3 +4238,135 @@ Datenbank. Geprüft ist hier nur, dass die Eingriffe greifen (beide Muster
 finden ihre Stelle) und dass das Ergebnis lädt; der Biss selbst gehört
 nachgeholt, sobald `vendor/` da ist. Das steht hier, weil „nachher noch" in
 diesem Projekt schon einmal eine ausgelieferte Fassung gekostet hat.
+
+#### Der Platzhalter war über die Oberfläche nicht erreichbar
+
+**Auf dem Zielserver aufgefallen, und nur dort.** Die Domainseite von
+`cloudlab24.ipv64.de` zeigte ein gültiges Let's-Encrypt-Zertifikat — und weder
+das Kästchen „Als Platzhalter bestellen" noch den Bestellknopf. Beide hingen an
+`!props.certificate`.
+
+**Das ist kein Randfall, sondern der Normalfall.** Die Automatik bestellt,
+sobald der Server-Block steht, und der Arbeiter ist schneller als jeder Mensch.
+Wer eine Domain anlegt, wartet und dann die Seite öffnet, findet dort immer
+schon ein Zertifikat — das Kästchen war damit praktisch nie zu sehen. Und weil
+der Bestellknopf an derselben Bedingung hing, gab es auch keinen Weg zurück:
+**Der Umstieg von Einzelzertifikaten auf einen Platzhalter existierte über die
+Oberfläche gar nicht**, obwohl die Route ihn annimmt und die Policy ihn erlaubt.
+
+Gefragt wird jetzt nach der **Deckung** statt nach dem Vorhandensein:
+`WildcardOrder::covered()` beantwortet, ob schon ein gültiges, dem Abonnement
+gehörendes Zertifikat `*.example.de` **und** `example.de` deckt. Das ist
+dieselbe Unterscheidung wie bei `CertificateChoice::satisfied()` — ein
+Zertifikat für `example.de` ist keines für `*.example.de`, und wer beide gleich
+behandelt, verwechselt „da ist etwas" mit „da ist das Richtige".
+
+**Die Frage steht in `CertificateChoice`**, wo alle Deckungsfragen stehen, als
+`covers()`. Sie teilt sich die Abfrage mit `candidates()` — wem ein Zertifikat
+gehört und ob es in Gebrauch ist, wird an einer Stelle beantwortet.
+
+**Der Bestellknopf hat jetzt zwei Anlässe statt einem.** Ohne Zertifikat ist er
+der Nachschlag zu einer gescheiterten Bestellung — falscher DNS-Eintrag, Port 80
+zu. Mit Zertifikat erscheint er erst, wenn das Kästchen gesetzt ist: Der einzige
+sinnvolle Anlass ist dann der Umstieg. Ein Knopf, der ohne Kästchen dasselbe
+noch einmal bestellt, verbrennt einen der fünf Fehlversuche je Konto und Stunde
+für nichts — und die gelten für jeden Kunden dieses Servers.
+
+Dazu ein Satz, der vorher fehlte und den man sonst durch zweimaliges Klicken
+lernt: Das bestehende Zertifikat wird nicht ersetzt. Der Platzhalter tritt als
+Kandidat daneben und übernimmt von selbst, weil er alles deckt und länger läuft.
+
+**Zwei Brüche.** Deckung durch Vorhandensein ersetzt — das ist wörtlich der
+ausgelieferte Fehler. Und die Laufzeit bei der Deckung nicht gefragt, denn ein
+abgelaufener Platzhalter darf das Angebot nicht wegnehmen; genau dann braucht
+die Domain eines. Rot-Grün steht aus, solange dieser Container kein `vendor/`
+hat; geprüft ist, dass beide Eingriffe ihre Stelle finden.
+
+**Und ein Nachtrag zur Prüfung selbst:** `WildcardOrder` hat einen dritten
+Bestandteil bekommen, und `WildcardOrderTest` baut die Klasse von Hand. Ohne die
+mitgezogene Zeile wäre das kein Fehlschlag gewesen, sondern ein Abbruch beim
+Laden — dieselbe Falle wie beim Testdoppel des DNS-Anbieters zwei Tage zuvor.
+
+#### Eine Kennung überschrieb den Nachbarbereich — auf dem Schreibtisch
+
+**Im Screenshot des Betreibers gesehen, nicht im Test.** Auf der Domainseite von
+`cloudlab24.ipv64.de` lief `/var/www/vhosts/cloudlab24.ipv64.de/logs/…` aus dem
+Bereich „Stammdaten" heraus und legte sich über „Gilt für" im Bereich
+„Zertifikat". Nachgemessen: **173px bei 1440px Fensterbreite, 134px bei 1024px,
+6px bei 1280px.**
+
+**Und der Seitenüberlauf war dabei die ganze Zeit 0.** Das ist der Grund, warum
+nichts es gemeldet hat — und warum meine eigene Messung einen Tag zuvor „kein
+Überlauf" ergab: Sie lief bei 390px, wo die Bereiche untereinander stehen. Die
+Seite rollt nicht, sie überlappt. Ein Wächter, der `scrollWidth - clientWidth`
+misst, sieht davon nichts; gemessen wird deshalb die Zelle gegen ihren Bereich.
+
+**Die Begründung für `nowrap` war richtig gedacht und hier falsch.** Sie steht
+seit dem Optik-Rework in app.css: Ein Pfad, der mitten im Verzeichnisnamen
+umbricht, sei schwerer zu lesen als einer, „für den man die Tabelle schiebt —
+und schieben kann man dort". In einer Bezeichnungstabelle kann man das nicht:
+Sie steht in einem Bereich mit `min-width: 0` neben zwei weiteren, und es gibt
+keinen Rollbehälter. Die Wahl ist nicht „umbrechen oder schieben", sondern
+**umbrechen oder den Nachbarn überschreiben** — und das Zweite ist eindeutig
+schlechter.
+
+**Es ist derselbe Fund zum dritten Mal, und zum zweiten Mal am selben Ort
+halb behoben.** Die Ausnahme gab es schon: `table.pairs td.right.ident` im
+`@media`-Block für 390px — für den einen Ort, an dem der Überlauf auffiel,
+statt für die Regel. Genau diese Lehre steht als Kommentar zwei Zeilen darüber.
+Sie gilt jetzt unbedingt.
+
+**Der Wächter sitzt in `TableStyleTest` und nicht in `MobileLayoutTest`.** Dort
+steht bereits einer zu `.ident`, und der lässt `nowrap` an einer Zellenauswahl
+ausdrücklich zu — aus genau der Annahme, die dieser Fund widerlegt. Er soll das
+weiter tun: Eine Tabelle mit `.scrolls` rollt wirklich. Geprüft wird deshalb
+gezielt die Bezeichnungstabelle, und ausserhalb der Haltepunkte.
+
+**Zwei Brüche, und beide sind gegengeprüft** — hier ausnahmsweise vollständig,
+weil dieser Wächter reine Textprüfung ist und ohne Datenbank auskommt: `nowrap`
+zurückgeholt (rot) und die Ausnahme in den `@media`-Block zurückgeschoben (rot);
+ohne Bruch grün. Nachgemessen im Browser bei 1440, 1280, 1024 und 390px: kein
+Zellenüberhang mehr, in beiden Themes.
+
+#### `srvpanel dns` kannte nur RFC 2136 — vier Anbieter waren aus dem Skript nicht zu setzen
+
+**Beim Zusammenstellen des Abnahmelaufs aufgefallen**, und zwar an der Frage, mit
+welchem Befehl der Betreiber sein IPv64-Token hinterlegt. Antwort: mit gar
+keinem. Das Kommando baute die Angaben selbst zusammen — `server`, `zones`,
+`key_name`, `secret` —, und in seiner Hilfe stand seit P4 unverändert „heute
+geht nur rfc2136". Ein `--token` gab es nicht.
+
+Schritt 9 hat sieben Anbieter gebaut, das Formular verzweigt seither an ihnen.
+**Das Kommando ist die zweite Fassung derselben Regel gewesen, und die zweite
+ist die, die veraltet** — genau das Muster, an dem dieses Projekt am häufigsten
+verliert. Gemerkt hat es niemand, weil nichts danach fragte.
+
+Die Angaben baut jetzt `DnsCredentialInput::config()`, dieselbe Stelle, an der
+auch das Formular prüft; im Kommando steht nur noch, wie eine Angabe von der
+Kommandozeile dorthin kommt. Dazu `--token`, `--customer-number`, `--api-key`
+und `--api-password`.
+
+**Zwei Dinge, die dabei mit falsch waren.** Die Zone stand in der Bedingung, ob
+überhaupt etwas hinterlegt werden soll — wer für IPv64 kein `--zone` mitgab,
+landete in der Anzeige statt in der Eingabe, obwohl fünf der sieben Anbieter
+ihre Zonen aus ihrer eigenen Auskunft mitbringen. Und die Erfolgsmeldung
+schrieb die Zonen immer; sie steht jetzt nur noch, wenn das Profil wirklich eine
+Liste trägt. „Zonen: —" behauptete eine Einschränkung, die es nicht gibt.
+
+**Gefragt wird weiter nach dem, was fehlt**, aber nur nach dem, was der Anbieter
+braucht: das TSIG-Geheimnis bei RFC 2136, das API-Passwort bei netcup, das Token
+bei den vier mit Token. Ein Prompt für ein Geheimnis, das der Agent gar nicht
+annimmt, liesse den Betreiber etwas eintippen, das verworfen wird. IONOS trägt
+sein Geheimnis im Schlüssel selbst und bekommt deshalb keinen zweiten.
+
+**Der Wächter steht in `DnsProviderReachTest`**, wo schon „jeder benutzbare
+Anbieter hat ein Formular" steht — die Kommandozeile ist dieselbe Frage. Für
+jeden Anbieter läuft ein Satz Angaben durch `DnsCredentialInput::config()`, und
+für jeden Schlüssel der geprüften Fassung muss das Kommando eine Angabe
+anbieten. Ein achter Anbieter mit einem neuen Feld fällt damit dort auf und
+nicht beim ersten Einrichtungsskript.
+
+Der Bruch nimmt `--token` wieder weg. Und eine Meldung aus der Gegenprobe steht
+als Kommentar an der Sammlung im Test: PHPStan liest die Form einer Konstanten
+genauer, als eine `@var`-Angabe sie beschreiben kann, und weist jede zurück, die
+weiter ist.

@@ -196,6 +196,13 @@ final class DomainController extends Controller
                 'obstacle' => $this->wildcards->obstacle($domain),
                 'names' => WildcardOrder::names($domain),
                 'uncovered' => WildcardOrder::uncovered($domain),
+
+                // **Liegt er schon?** Danach richtet sich, ob das Kästchen
+                // überhaupt gezeigt wird — nicht danach, ob es irgendein
+                // Zertifikat gibt. Der Unterschied ist der Weg von
+                // Einzelzertifikaten zu einem Platzhalter, und den gab es bis
+                // zum 7. August 2026 über die Oberfläche nicht.
+                'covered' => $this->wildcards->covered($domain),
             ],
 
             // **`can` und nicht `may`.** Diese Seite hiess als einzige anders

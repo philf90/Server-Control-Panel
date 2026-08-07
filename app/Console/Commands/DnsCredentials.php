@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Support\Tls\DnsCredentialInput;
 use Illuminate\Console\Command;
+use Illuminate\Validation\ValidationException;
 use SrvPanel\Agent\Acme\Dns\Providers;
-use SrvPanel\Agent\Acme\Dns\Rfc2136;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 
@@ -27,27 +28,39 @@ use SrvPanel\Agent\Client;
  * das hier der Weg, und er ist keiner, der später wegfällt: Ein Betreiber, der
  * ein Profil aus einem Skript setzt, will keine Seite dafür öffnen.
  *
- * **Und die Angaben sind die von RFC 2136**, weil das der einzige Anbieter ist,
- * den es heute gibt. Ein `--token` für Hetzner oder Cloudflare stünde hier als
- * Angebot, das der Agent abweist — genau die Sorte Zeichenkette, die auf nichts
- * zeigt. Es kommt mit Schritt 9 des Plans, zusammen mit den vier Anbietern.
+ * **Welche Angabe zu welchem Anbieter gehört, steht nicht hier.** Bis zum
+ * 7. August 2026 baute dieses Kommando die Angaben selbst zusammen — und zwar
+ * ausschliesslich die von RFC 2136, weil das beim Schreiben der einzige
+ * Anbieter war. Schritt 9 hat sieben gebaut, das Formular verzweigt seither an
+ * ihnen, und hier stand weiter „heute geht nur rfc2136": **Ein Betreiber, der
+ * IPv64 aus einem Skript setzen wollte, hatte keinen Weg.** Genau das Muster,
+ * an dem dieses Projekt am häufigsten verliert — zwei Fassungen derselben
+ * Regel, und die zweite ist die, die veraltet.
  *
- * **Das Geheimnis wird gefragt, wenn es nicht dasteht.** Was in der
+ * Gebaut werden die Angaben deshalb von {@see DnsCredentialInput}, derselben
+ * Stelle, an der auch das Formular fragt. Hier steht nur noch, wie eine Angabe
+ * von der Kommandozeile dorthin kommt.
+ *
+ * **Geheimnisse werden gefragt, wenn sie nicht dastehen.** Was in der
  * Kommandozeile steht, steht danach in der Verlaufsdatei der Shell und in
- * `ps` — bei einem Schlüssel, der eine ganze Zone öffnet, ist das kein
+ * `ps` — bei einem Token, das eine ganze Zone öffnet, ist das kein
  * Schönheitsfehler.
  */
 final class DnsCredentials extends Command
 {
     protected $signature = 'srvpanel:dns
         {--profile= : Der Profilname — betrieb oder abo-<nummer>}
-        {--provider=rfc2136 : Der Anbieter; heute geht nur rfc2136}
-        {--server= : Der Nameserver, der die Aktualisierung annimmt}
-        {--port= : Sein Port, sofern nicht 53}
-        {--zone=* : Eine Zone, die dieses Profil ändern darf — mehrfach möglich}
-        {--key= : Der Name des TSIG-Schlüssels}
-        {--secret= : Sein Geheimnis in Base64; ohne diese Angabe wird gefragt}
-        {--algorithm= : Das TSIG-Verfahren, sonst hmac-sha256}
+        {--provider=rfc2136 : Der Anbieter — srvpanel dns nennt ohne Angaben alle}
+        {--token= : Das Token; ohne diese Angabe wird gefragt (IPv64.net, Hetzner, Cloudflare, deSEC)}
+        {--server= : Der Nameserver, der die Aktualisierung annimmt (RFC 2136)}
+        {--port= : Sein Port, sofern nicht 53 (RFC 2136)}
+        {--zone=* : Eine Zone, die dieses Profil ändern darf — mehrfach möglich (RFC 2136, netcup)}
+        {--key= : Der Name des TSIG-Schlüssels (RFC 2136)}
+        {--secret= : Sein Geheimnis in Base64; ohne diese Angabe wird gefragt (RFC 2136)}
+        {--algorithm= : Das TSIG-Verfahren, sonst hmac-sha256 (RFC 2136)}
+        {--customer-number= : Die Kundennummer (netcup)}
+        {--api-key= : Der API-Schlüssel; bei IONOS <präfix>.<geheimnis> (netcup, IONOS)}
+        {--api-password= : Das API-Passwort; ohne diese Angabe wird gefragt (netcup)}
         {--forget= : Ein Profil wieder entfernen}';
 
     protected $description = 'Zugangsdaten für DNS-01 hinterlegen — ohne Angaben zeigt es, was hinterlegt ist';
@@ -61,22 +74,41 @@ final class DnsCredentials extends Command
         }
 
         $profile = $this->option('profile');
-        $provider = $this->option('provider');
-        $zones = $this->option('zone');
 
-        // Ohne Profil und Zone ist das hier keine Eingabe, sondern die Frage
-        // „was ist eigentlich hinterlegt?".
-        if (! is_string($profile) || $profile === '' || ! is_string($provider) || ! is_array($zones) || $zones === []) {
+        // Ohne Profil ist das hier keine Eingabe, sondern die Frage „was ist
+        // eigentlich hinterlegt?".
+        //
+        // **Die Zone gehört nicht mehr in diese Bedingung.** Sie stand hier,
+        // solange es nur RFC 2136 gab; seit Schritt 9 bringen fünf der sieben
+        // Anbieter ihre Zonen aus ihrer eigenen Auskunft mit. Wer für sie
+        // `--zone` mitgeben musste, um überhaupt anzukommen, bekam eine
+        // Positivliste, die der Agent gar nicht liest.
+        if (! is_string($profile) || $profile === '') {
             return $this->show($agent);
         }
 
-        $names = array_values(array_map(strval(...), $zones));
+        try {
+            $provider = DnsCredentialInput::provider(
+                ['provider' => $this->option('provider')],
+                Providers::available(),
+            );
+
+            $config = DnsCredentialInput::config($this->inputFor($provider), $provider);
+        } catch (ValidationException $error) {
+            foreach ($error->errors() as $messages) {
+                foreach ($messages as $message) {
+                    $this->error('Zugangsdaten: '.$message);
+                }
+            }
+
+            return self::FAILURE;
+        }
 
         try {
             $result = $agent->call('dns.credential.store', [
                 'profile' => $profile,
                 'provider' => $provider,
-                'config' => $this->configFor($names),
+                'config' => $config,
             ], $this->actor());
         } catch (AgentException $error) {
             $this->error('Zugangsdaten: '.$error->getMessage());
@@ -90,42 +122,91 @@ final class DnsCredentials extends Command
             Providers::label($result['provider'] ?? $provider),
         ));
 
-        $this->line('  Zonen: '.implode(', ', $names));
+        // **Die Zeile steht nur, wenn das Profil wirklich eine Liste trägt.**
+        // Bei fünf der sieben Anbieter gibt es keine: Ihre Zonen kommen aus
+        // ihrer eigenen Auskunft, und der Agent fragt danach erst beim
+        // Bestellen. „Zonen: —" zu schreiben hiesse, eine Einschränkung zu
+        // behaupten, die es nicht gibt.
+        $zones = $config['zones'] ?? null;
+
+        if (is_array($zones) && $zones !== []) {
+            $this->line('  Zonen: '.implode(', ', array_map(strval(...), $zones)));
+        }
 
         return self::SUCCESS;
     }
 
     /**
-     * Die Angaben zu RFC 2136 — geprüft wird sie der Agent.
+     * Die Angaben aus der Kommandozeile — in der Form, die das Formular liefert.
      *
-     * Hier steht nur, was aus welcher Angabe wird; ob es zusammenpasst,
-     * entscheidet {@see Rfc2136::configure()}. Zwei Fassungen derselben Prüfung
-     * wären eine zu viel, und die zweite ist die, die veraltet.
+     * **Was zu welchem Anbieter gehört, steht nicht hier.** Diese Methode
+     * sammelt ein, was dasteht, und fragt nach den Geheimnissen, die fehlen;
+     * ob der Satz zusammenpasst, entscheidet {@see DnsCredentialInput::config()}
+     * — dieselbe Stelle, die auch das Formular prüft. Eine zweite Fassung
+     * dieser Verzweigung wäre genau die, die beim achten Anbieter veraltet.
      *
-     * @param  list<string>  $zones
+     * **Gefragt wird nur, was gebraucht wird.** Ein `secret`-Prompt bei einem
+     * Anbieter mit Token wäre eine Frage nach etwas, das der Agent gar nicht
+     * annimmt — und der Betreiber tippt ein Geheimnis in eine Zeile, die es
+     * verwirft.
+     *
      * @return array<string, mixed>
      */
-    private function configFor(array $zones): array
+    private function inputFor(string $provider): array
     {
-        $config = [
+        $input = [
             'server' => $this->optionText('server'),
-            'zones' => $zones,
             'key_name' => $this->optionText('key'),
-            'secret' => $this->keySecret(),
+            'algorithm' => $this->optionText('algorithm'),
+            'customer_number' => $this->optionText('customer-number'),
+            'api_key' => $this->optionText('api-key'),
+
+            // `zones` ist beim Formular ein Textfeld und hier eine Angabe, die
+            // mehrfach stehen darf. Zusammengesetzt wird sie mit Zeilenumbruch,
+            // weil `DnsCredentialInput::zones()` daran ohnehin trennt — so
+            // bleibt die Zerlegung an einer Stelle.
+            'zones' => implode("\n", array_map(strval(...), (array) $this->option('zone'))),
         ];
 
         $port = $this->optionText('port');
-        $algorithm = $this->optionText('algorithm');
 
         if ($port !== '') {
-            $config['port'] = (int) $port;
+            $input['port'] = (int) $port;
         }
 
-        if ($algorithm !== '') {
-            $config['algorithm'] = $algorithm;
+        return $input + $this->secretsFor($provider);
+    }
+
+    /**
+     * Die Geheimnisse — aus der Kommandozeile oder aus der Rückfrage.
+     *
+     * @return array<string, string>
+     */
+    private function secretsFor(string $provider): array
+    {
+        $gefragt = match ($provider) {
+            Providers::RFC2136 => ['secret' => 'Das Geheimnis des TSIG-Schlüssels (Base64)'],
+            Providers::NETCUP => ['api_password' => 'Das API-Passwort'],
+            Providers::IPV64, Providers::HETZNER, Providers::CLOUDFLARE, Providers::DESEC => [
+                'token' => 'Das Token',
+            ],
+
+            // IONOS trägt sein Geheimnis im Schlüssel selbst (`<präfix>.<…>`),
+            // und `--api-key` steht oben schon in der Sammlung. Ein zweiter
+            // Prompt dafür fragte dasselbe noch einmal.
+            default => [],
+        };
+
+        $secrets = [];
+
+        foreach ($gefragt as $key => $frage) {
+            $option = str_replace('_', '-', $key);
+            $wert = $this->optionText($option);
+
+            $secrets[$key] = $wert !== '' ? $wert : (string) $this->secret($frage);
         }
 
-        return $config;
+        return $secrets;
     }
 
     /**
@@ -141,18 +222,6 @@ final class DnsCredentials extends Command
         $value = $this->option($option);
 
         return is_string($value) ? trim($value) : '';
-    }
-
-    /** Steht es nicht in der Kommandozeile, wird danach gefragt — siehe oben. */
-    private function keySecret(): string
-    {
-        $secret = $this->optionText('secret');
-
-        if ($secret !== '') {
-            return $secret;
-        }
-
-        return (string) $this->secret('Das Geheimnis des TSIG-Schlüssels (Base64)');
     }
 
     /** Was hinterlegt ist — ohne jeden Ausschnitt des Geheimnisses. */

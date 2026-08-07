@@ -2564,6 +2564,119 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateChoiceTest passed
 
 echo
+echo "── WildcardOrderTest: Vorhandensein statt Deckung ──"
+#
+# **Der Fund vom Zielserver, 7. August 2026.** Das Kästchen „Als Platzhalter
+# bestellen" hing an „es gibt noch kein Zertifikat". Die Automatik bestellt
+# aber, sobald der Server-Block steht — die Seite stand also mit einem
+# gültigen Einzelzertifikat da und bot den Platzhalter nie an. Der Bruch stellt
+# genau diese Frage wieder her.
+vorher_datei app/Support/Tls/WildcardOrder.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/WildcardOrder.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return self::isBase($domain) && $this->choice->covers($domain, self::names($domain));",
+    "        return self::isBase($domain) && $this->choice->effective($domain) !== null;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/WildcardOrder.php "Platzhalter gilt als gedeckt, sobald irgendetwas liegt" &&
+pruefe "Platzhalter gilt als gedeckt, sobald irgendetwas liegt" \
+  WildcardOrderTest::test_a_certificate_for_the_name_alone_is_not_a_wildcard failed
+wiederherstellen
+
+echo
+echo "── WildcardOrderTest: ein abgelaufener Platzhalter zählt mit ──"
+#
+# Die Gegenrichtung: Wer die Laufzeit nicht prüft, lässt eine Domain mit
+# abgelaufenem Platzhalter ohne Angebot stehen — und genau dann braucht sie eines.
+vorher_datei app/Support/Tls/CertificateChoice.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificateChoice.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $this->best($this->owned($domain), $names) instanceof Certificate;",
+    "        foreach ($this->owned($domain) as $c) { if ($c->coversAll($names)) { return true; } }\n\n        return false;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificateChoice.php "Laufzeit bei der Deckung nicht gefragt" &&
+pruefe "Laufzeit bei der Deckung nicht gefragt" \
+  WildcardOrderTest::test_an_expired_wildcard_does_not_count failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WildcardOrderTest passed
+
+echo
+echo "── TableStyleTest: eine Kennung bleibt auf dem Schreibtisch unteilbar ──"
+#
+# **Der Befund vom Zielserver, 7. August 2026.** Auf der Domainseite lief
+# /var/www/vhosts/cloudlab24.ipv64.de/logs/… aus dem Bereich „Stammdaten" heraus
+# und legte sich über den Nachbarbereich — 173px bei 1440px Fensterbreite. Der
+# Seitenüberlauf war dabei 0: Die Seite rollt nicht, sie überlappt.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "table.pairs td.ident {\n  white-space: normal;\n  overflow-wrap: anywhere;\n}",
+    "table.pairs td.ident {\n  white-space: nowrap;\n}",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Kennung in der Bezeichnungstabelle wieder unteilbar" &&
+pruefe "Kennung in der Bezeichnungstabelle wieder unteilbar" \
+  TableStyleTest::test_an_identifier_in_a_pairs_table_may_break_on_the_desktop failed
+wiederherstellen
+
+echo
+echo "── TableStyleTest: die Ausnahme nur im Haltepunkt ──"
+#
+# **Die zweite Richtung, und sie ist die Geschichte dieses Fundes.** Genau diese
+# Ausnahme gab es schon einmal — im @media-Block für 390px, für den einen Ort,
+# an dem der Überlauf auffiel, statt für die Regel. Eine Regel, die es nur dort
+# gibt, wirkt genau dort nicht, wo dieser Fund entstanden ist.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "table.pairs td.ident {\n  white-space: normal;\n  overflow-wrap: anywhere;\n}\n\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Ausnahme nur im Haltepunkt" &&
+pruefe "Ausnahme nur im Haltepunkt" \
+  TableStyleTest::test_an_identifier_in_a_pairs_table_may_break_on_the_desktop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
+
+echo
+echo "── DnsProviderReachTest: das Kommando kennt einen Anbieter nicht ──"
+#
+# **Der Fund vom 7. August 2026.** `srvpanel dns` baute die Angaben selbst
+# zusammen — und zwar nur die von RFC 2136, weil das beim Schreiben der einzige
+# Anbieter war. Schritt 9 hat sieben gebaut, das Formular verzweigt seither an
+# ihnen, und in der Hilfe stand weiter „heute geht nur rfc2136". Der Bruch nimmt
+# die Angabe wieder weg, die vier Anbieter brauchen.
+vorher_datei app/Console/Commands/DnsCredentials.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/DnsCredentials.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        {--token= : Das Token; ohne diese Angabe wird gefragt (IPv64.net, Hetzner, Cloudflare, deSEC)}\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/DnsCredentials.php "Anbieter ohne Angabe auf der Kommandozeile" &&
+pruefe "Anbieter ohne Angabe auf der Kommandozeile" \
+  DnsProviderReachTest::test_every_usable_provider_can_be_set_from_the_command_line failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsProviderReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

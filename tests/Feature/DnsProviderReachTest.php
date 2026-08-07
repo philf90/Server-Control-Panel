@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use PHPUnit\Framework\TestCase;
+use App\Support\Tls\DnsCredentialInput;
 use SrvPanel\Agent\Acme\Dns\Providers;
+use Tests\TestCase;
 
 /**
  * Jeder Anbieterschlüssel in der Oberfläche zeigt auf einen, den es gibt.
@@ -20,11 +21,51 @@ use SrvPanel\Agent\Acme\Dns\Providers;
  *
  * Der Fehler wäre still in beide Richtungen — ein Tippfehler im Markup zeigt
  * das falsche Formular, ein umbenannter Schlüssel im Agenten gar keines.
+ *
+ * **Seit dem 7. August 2026 gilt dasselbe für die Kommandozeile**, und dort war
+ * der Fehler schon eingetreten: `srvpanel dns` kannte nur RFC 2136, während das
+ * Formular längst sieben Anbieter bediente.
  */
 final class DnsProviderReachTest extends TestCase
 {
     /** Wo die Schlüssel im Markup stehen. */
     public const COMPONENT = 'resources/js/Components/DnsCredentials.vue';
+
+    /** Und wo die Angaben der Kommandozeile stehen. */
+    public const COMMAND = 'app/Console/Commands/DnsCredentials.php';
+
+    /**
+     * Ein Satz Angaben je Anbieter — die Form, nicht die Gültigkeit.
+     *
+     * Sie sind die des Formulars: `zones` ist ein Textfeld, kein Feld je Zone.
+     * Wer einen Anbieter baut, trägt hier eine Zeile ein; wer es vergisst,
+     * bekommt den Satz aus dem Durchgang zu lesen statt einen Zugriff auf einen
+     * fehlenden Schlüssel.
+     *
+     * **Ohne `@var`, und das ist kein Vergessen.** PHPStan liest die Form
+     * dieser Sammlung genauer, als eine Angabe sie beschreiben könnte, und
+     * weist jede zurück, die weiter ist — `array<string, array<string, mixed>>`
+     * ist kein Untertyp der Formen, die hier wirklich stehen.
+     */
+    private const INPUTS = [
+        Providers::RFC2136 => [
+            'server' => '192.0.2.53',
+            'zones' => 'example.de',
+            'key_name' => 'srvpanel-key',
+            'secret' => 'Z2VoZWlt',
+        ],
+        Providers::IPV64 => ['token' => 'ein-token-mit-genug-zeichen'],
+        Providers::HETZNER => ['token' => 'ein-token-mit-genug-zeichen'],
+        Providers::CLOUDFLARE => ['token' => 'ein-token-mit-genug-zeichen'],
+        Providers::NETCUP => [
+            'customer_number' => '12345',
+            'api_key' => 'schluessel-abc',
+            'api_password' => 'passwort-xyz',
+            'zones' => 'example.de',
+        ],
+        Providers::IONOS => ['api_key' => 'praefix.geheimnis'],
+        Providers::DESEC => ['token' => 'ein-token-mit-genug-zeichen'],
+    ];
 
     public function test_every_provider_key_in_the_form_exists(): void
     {
@@ -86,5 +127,72 @@ final class DnsProviderReachTest extends TestCase
             self::COMPONENT,
             implode("\n  ", $missing),
         ));
+    }
+
+    /**
+     * Das Kommando, wo die Angabe anders heisst als das Feld.
+     *
+     * Zwei Namen für dieselbe Angabe sind hier die Ausnahme und stehen deshalb
+     * an einer Stelle: `--key` ist kürzer als `--key-name`, und `--zone` steht
+     * mehrfach, wo das Formular ein Textfeld hat.
+     *
+     * @var array<string, string>
+     */
+    private const OPTION_NAMES = [
+        'key_name' => 'key',
+        'zones' => 'zone',
+    ];
+
+    /**
+     * Und jeder benutzbare Anbieter lässt sich auch von der Kommandozeile setzen.
+     *
+     * **Der Fund vom 7. August 2026.** `srvpanel dns` baute die Angaben selbst
+     * zusammen — und zwar ausschliesslich die von RFC 2136, weil das beim
+     * Schreiben der einzige Anbieter war. Schritt 9 hat sieben gebaut, das
+     * Formular verzweigt seither an ihnen, und in der Hilfe stand weiter „heute
+     * geht nur rfc2136". Ein Betreiber, der IPv64 aus einem Skript setzen
+     * wollte, hatte keinen Weg; gemerkt hat es niemand, weil nichts danach
+     * fragt.
+     *
+     * **Geprüft wird gegen das, was der Agent wirklich ablegt.** Für jeden
+     * Anbieter läuft ein Satz Angaben durch {@see DnsCredentialInput::config()}
+     * — dieselbe Stelle, die auch das Formular prüft —, und für jeden Schlüssel
+     * der geprüften Fassung muss das Kommando eine Angabe anbieten. Ein achter
+     * Anbieter mit einem neuen Feld fällt damit hier auf und nicht beim ersten
+     * Einrichtungsskript.
+     *
+     * **Warum die Sammlung hier steht und nicht abgeleitet wird:** Wer einen
+     * Anbieter baut, trägt eine Zeile ein. Ein Test, der sich seine Eingaben
+     * selbst ausdenkt, prüft die Regel gegen seine eigene Rechnung.
+     */
+    public function test_every_usable_provider_can_be_set_from_the_command_line(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2).'/'.self::COMMAND);
+
+        preg_match_all('/\{--([a-z0-9-]+)=/', $source, $matches);
+
+        $options = $matches[1];
+
+        $this->assertContains('provider', $options, 'Die Angaben des Kommandos werden nicht mehr gelesen.');
+
+        foreach (Providers::available() as $key) {
+            $this->assertArrayHasKey($key, self::INPUTS, sprintf(
+                'Für %s gibt es hier keine Angaben — dann bleibt der Anbieter auf der Kommandozeile ungeprüft.',
+                $key,
+            ));
+
+            foreach (array_keys(DnsCredentialInput::config(self::INPUTS[$key], $key)) as $field) {
+                $option = self::OPTION_NAMES[$field] ?? str_replace('_', '-', (string) $field);
+
+                $this->assertContains($option, $options, sprintf(
+                    '%s legt für %s den Wert „%s" ab; `srvpanel dns` kennt dafür keine Angabe --%s. '.
+                    'Über die Kommandozeile ist dieser Anbieter damit nicht einzurichten.',
+                    'DnsCredentialInput',
+                    $key,
+                    $field,
+                    $option,
+                ));
+            }
+        }
     }
 }

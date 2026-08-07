@@ -2966,21 +2966,45 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RestrictedDeleteTest passed
 
 echo
-echo "── PlanTest: ein Grabstein hält den Plan nicht mehr ──"
+echo "── PlanTest: gelöscht wird ohne Rückfrage ──"
 #
-# Die Regression selbst: Ohne die zweite Abweisung geht `DELETE` an die
-# Datenbank und endet als SQLSTATE 23000 — kein Formularfehler, sondern ein
-# 500er.
+# Die Regression selbst: Wird nicht nach einem Ziel gefragt, bleiben die
+# Grabsteine liegen, `DELETE` läuft in den Fremdschlüssel und endet als
+# SQLSTATE 23000 — kein Formularfehler, sondern ein 500er.
 vorher_datei app/Http/Controllers/PlanController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/PlanController.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace('        if ($withdrawn > 0) {', '        if (false) {')
+s = s.replace(
+    "        $target = $withdrawn > 0 ? $this->transferTarget($request, $plan, $withdrawn, $audit) : null;",
+    "        $target = null;",
+)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Http/Controllers/PlanController.php "Grabstein hält den Plan nicht mehr" &&
-pruefe "Grabstein hält den Plan nicht mehr" \
-  PlanTest::test_a_withdrawn_subscription_still_holds_its_plan failed
+griff_datei app/Http/Controllers/PlanController.php "kein Ziel erfragt" &&
+pruefe "kein Ziel erfragt" \
+  PlanTest::test_a_withdrawn_subscription_is_not_moved_without_being_asked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlanTest passed
+
+echo
+echo "── PlanTest: der Plan selbst ist ein zulässiges Ziel ──"
+#
+# `transfer_to` auf den zu löschenden Plan: Die Zeilen blieben, wo sie sind,
+# und das DELETE liefe in denselben Fremdschlüssel wie vor der Behebung.
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $others = Plan::query()->whereKeyNot($plan->getKey())->orderBy('name')->get();",
+    "        $others = Plan::query()->orderBy('name')->get();",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/PlanController.php "der Plan als eigenes Ziel" &&
+pruefe "der Plan als eigenes Ziel" \
+  PlanTest::test_the_plan_itself_is_no_target failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PlanTest passed
 

@@ -4716,8 +4716,38 @@ Gefunden hat ihn der Probelauf, nicht das Lesen. Und im Hinweis auf der Seite
 stand „1 zurückgebaute Abonnements"; gefunden hat das der Screenshot bei 390px,
 den es für diesen Fall sonst nicht gegeben hätte.
 
-**Was offen bleibt:** Ein Plan mit Grabsteinen lässt sich weiterhin nicht
-löschen — es gibt im Panel keinen Weg, einen Grabstein zu entfernen, und jeder
-technische Ausweg hat einen Preis. Der 500er ist fort, die Auskunft ist da; die
-Frage, ob so ein Plan trotzdem verschwinden können soll, ist eine
-Produktentscheidung und keine Fehlerbehebung.
+### Und der Plan geht doch — die Grabsteine werden übertragen
+
+Die offene Frage aus dem Eintrag darüber ist entschieden: Ein Plan mit
+Grabsteinen lässt sich löschen, und beim Löschen wird gefragt, wohin sie gehen.
+
+**Warum gefragt und nicht angenommen.** Der Plan eines zurückgebauten
+Abonnements wird nirgends im Panel angezeigt. Man könnte die Zeilen also still
+auf den Standardplan schieben, und niemand sähe einen Unterschied — genau
+deshalb nicht: Eine Änderung, die niemand sieht, ist eine, die niemand prüft.
+Der Betreiber nennt das Ziel, es steht in der Rückfrage, in der Erfolgsmeldung
+und im Protokoll (`transferred_to`).
+
+**Warum übertragen und nicht auflösen.** Drei Auswege wurden geprüft und
+verworfen. Den Plan weich zu löschen scheitert am `unique`-Index auf dem Namen:
+Er wäre für immer verbraucht, und ihn zu lockern nähme eine echte Zusage
+zurück. `plan_id` nullbar zu machen hiesse, dass ein Abonnement ohne Plan
+möglich wird — und ein fehlender Plan bedeutet in diesem Panel „unbegrenzt",
+also ausgerechnet beim Speicherplatz das Gegenteil dessen, was gemeint wäre.
+Und die Zeile mitzulöschen gäbe ihren Systembenutzer wieder frei, womit ein
+neuer Kunde `p1000` samt fremder UID bekäme.
+
+Bleibt ein Fall, der auch mit Rückfrage nicht aufgeht: Es gibt keinen zweiten
+Plan. Dann wird abgewiesen, und die Meldung sagt, was fehlt.
+
+`onlyTrashed()` beim Übertragen und nicht `withTrashed()`: Lebende Abonnements
+sind an dieser Stelle längst ausgeschlossen, und ein Aufruf, der sie trotzdem
+mitnähme, würde bei einem Fehler weiter oben stillschweigend Kunden umhängen.
+Die engere Abfrage ist hier die Sicherung.
+
+**Und wieder hat das Bild etwas gefunden, das der Fliesstext nicht zeigte.** Im
+Hinweis stand „Beim Löschen gehen sie an den Plan über" hinter einem Satz in der
+Einzahl — ein Numerusfehler, sichtbar erst im Screenshot bei 390px. Dort ist
+auch aufgefallen, dass die Beschriftung neben dem Löschknopf zweizeilig stand
+und die Knopfreihe auseinanderschob; `.field.inline > span` bricht seitdem
+nicht mehr.

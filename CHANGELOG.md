@@ -4751,3 +4751,36 @@ Einzahl — ein Numerusfehler, sichtbar erst im Screenshot bei 390px. Dort ist
 auch aufgefallen, dass die Beschriftung neben dem Löschknopf zweizeilig stand
 und die Knopfreihe auseinanderschob; `.field.inline > span` bricht seitdem
 nicht mehr.
+
+### Beschlossen: die Grabsteine der Abonnements werden abgeschafft (docs/35)
+
+Beim Nachsehen, warum ein Plan sich nicht löschen liess, ist ein Befund
+herausgefallen, der grösser ist als der Fehler: **`withTrashed()` auf
+`Subscription` kommt in `app/` genau einmal vor** — in
+`Lifecycle::nextSystemUser()`. Sonst liest nichts im Panel ein zurückgebautes
+Abonnement. Das `status = cancelled`, das der Rückbau vorher noch setzt, wird
+von keiner Stelle je wieder gelesen.
+
+121 Zeilen auf dem Zielserver existieren damit für eine einzige `MAX()`-Abfrage
+— und halten dabei einen Fremdschlüssel auf `plans` fest, zwingen jede Zählung,
+zwei Filter abzuziehen, die die Datenbank nicht kennt, und machen die
+Reservierung eines Systembenutzers zu einem Nebeneffekt von `deleted_at`.
+
+`docs/35-systembenutzer-verzeichnis.md` ist der Plan dagegen: eine eigene
+Tabelle für verbrauchte Namen, harte Löschung der Abonnements, der Zähler
+bleibt lückenlos und monoton. Er nennt jede Datei, die Reihenfolge der
+Migrationen, die Wächter samt ihren Brüchen und elf Abnahmekriterien, die auf
+dem Server messbar sind — das wichtigste davon: `nextSystemUser()` muss vor und
+nach der Migration dieselbe Zahl liefern.
+
+**Kunden behalten ihre weiche Löschung**, und das ist keine Inkonsequenz: Ihr
+Grabstein wird von zwei Stellen gelesen, an ihm hängen die Konten, und ihre
+Nummer steht in Rechnungen. Der Abonnementgrabstein trägt eine Zahl. Nur der
+zweite lässt sich ersetzen, ohne etwas zu verlieren.
+
+**Und der Plan hat einen Fehler in einem frischen Wächter gefunden.**
+`RestrictedDeleteTest` verlangt heute beide Filterabschaltungen, sobald ein
+Kindmodell *irgendwie* gefiltert ist. Verliert `Subscription` seine weiche
+Löschung, verlangt er weiter ein `withTrashed()`, das es nicht mehr geben kann
+— ein Wächter, der beim Aufräumen zubeisst, genau die Falle, in die dieses
+Vorgehen schon dreimal gelaufen ist. Die Aufteilung steht als Schritt 8 im Plan.

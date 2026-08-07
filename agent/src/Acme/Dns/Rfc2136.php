@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Acme\Dns;
 
+use SrvPanel\Agent\Acme\Patience;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\DomainName;
 
@@ -42,6 +43,12 @@ final class Rfc2136 implements DnsProvider
     public const TTL = 60;
 
     public const PORT = 53;
+
+    /** Wie lange auf die Sichtbarkeit gewartet wird — die Zahl von lego (`docs/34 §11`). */
+    public const PATIENCE_SECONDS = 60;
+
+    /** Und in welchem Abstand nachgefragt wird. */
+    public const PATIENCE_INTERVAL = 2;
 
     /**
      * @param  list<string>  $zones  Die Zonen, die dieses Profil ändern darf
@@ -223,5 +230,15 @@ final class Rfc2136 implements DnsProvider
         }
 
         return $value;
+    }
+
+    /**
+     * Wie lange es hier dauert, bis der Eintrag draussen ist.
+     *
+     * Ein Nameserver, den der Betreiber selbst betreibt, liefert die Änderung sofort aus.
+     */
+    public function patience(): Patience
+    {
+        return new Patience(self::PATIENCE_SECONDS, self::PATIENCE_INTERVAL);
     }
 }

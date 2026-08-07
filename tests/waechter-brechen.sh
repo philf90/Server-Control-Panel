@@ -2433,6 +2433,71 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InwxTest passed
 
 echo
+echo "── PatienceTest: eine Frist für alle Anbieter ──"
+#
+# Der Zustand bis zum 7. August: 120 Sekunden für jede Bestellung. Das ist
+# kürzer, als lego für netcup und IONOS für nötig hält (900) und für INWX (360)
+# — und eine Bestellung, die zu früh aufgibt, verbrennt einen der fünf
+# Fehlversuche je Konto und Stunde, die für jeden Kunden dieses Servers gelten.
+vorher_datei agent/src/Acme/Dns/Netcup.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Netcup.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    public const PATIENCE_SECONDS = 900;", "    public const PATIENCE_SECONDS = 120;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Netcup.php "eine Frist für alle Anbieter" &&
+pruefe "eine Frist für alle Anbieter" \
+  PatienceTest::test_every_provider_names_its_own_patience failed
+wiederherstellen
+
+echo
+echo "── PatienceTest: ein Anbieter fehlt in der Liste ──"
+#
+# Ohne die Gegenrichtung bekäme ein neunter Anbieter seine Zahl nie geprüft: Der
+# Wächter liefe über acht Einträge und meldete Grün.
+vorher_datei agent/src/Acme/Dns/Providers.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Providers.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        self::DESEC => 'deSEC',\n",
+    "        self::DESEC => 'deSEC',\n        'erfunden' => 'Erfunden',\n",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Providers.php "Anbieter fehlt in der Geduldsliste" &&
+pruefe "Anbieter fehlt in der Geduldsliste" \
+  PatienceTest::test_every_built_provider_is_listed failed
+wiederherstellen
+
+echo
+echo "── PatienceTest: die Prüfung reicht die Frist nicht durch ──"
+#
+# Eine Zahl, die im Anbieter steht und bei der Prüfung nicht ankommt, ist keine.
+#
+# **Was hier absichtlich nicht gebrochen wird:** die Stelle in `Order`, die
+# `patience()` fragt. Ein Bruch dort bliebe unbemerkt, weil der einzige Test,
+# der eine Bestellung fährt, HTTP-01 benutzt — und dort liegt die Prüfdatei
+# sofort, `awaitReady` wartet also nie. Ein Bruch, der nichts rot macht, sieht
+# aus wie ein Wächter und ist keiner; er gehört benannt statt geschrieben.
+vorher_datei agent/src/Acme/DnsChallenge.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/DnsChallenge.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $this->provider->patience();",
+    "        return new Patience(120, 2);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/DnsChallenge.php "Frist nicht durchgereicht" &&
+pruefe "Frist nicht durchgereicht" \
+  PatienceTest::test_every_provider_names_its_own_patience failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PatienceTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Acme\Dns;
 
 use SrvPanel\Agent\Acme\Curl;
 use SrvPanel\Agent\Acme\Outbound;
+use SrvPanel\Agent\Acme\Patience;
 use SrvPanel\Agent\Acme\Response;
 use SrvPanel\Agent\AgentException;
 
@@ -51,6 +52,12 @@ final class Desec implements DnsProvider
 
     /** Wie deSEC den Namen der Zone selbst schreibt. */
     public const APEX = '@';
+
+    /** Wie lange auf die Sichtbarkeit gewartet wird — die Zahl von lego (`docs/34 §11`). */
+    public const PATIENCE_SECONDS = 120;
+
+    /** Und in welchem Abstand nachgefragt wird. */
+    public const PATIENCE_INTERVAL = 4;
 
     public function __construct(
         private readonly string $token,
@@ -373,5 +380,15 @@ final class Desec implements DnsProvider
         }
 
         return 'ohne Begründung (HTTP '.$status.').';
+    }
+
+    /**
+     * Wie lange es hier dauert, bis der Eintrag draussen ist.
+     *
+     * lego setzt 120 Sekunden an und fragt alle vier — deSEC verteilt über mehrere Sekundäre.
+     */
+    public function patience(): Patience
+    {
+        return new Patience(self::PATIENCE_SECONDS, self::PATIENCE_INTERVAL);
     }
 }

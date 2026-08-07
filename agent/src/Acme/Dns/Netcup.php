@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Acme\Dns;
 
 use SrvPanel\Agent\Acme\Curl;
 use SrvPanel\Agent\Acme\Outbound;
+use SrvPanel\Agent\Acme\Patience;
 use SrvPanel\Agent\Acme\Response;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\DomainName;
@@ -47,6 +48,12 @@ final class Netcup implements DnsProvider
 
     /** Der Satz, den netcup bei Erfolg im Feld `status` zurückgibt. */
     public const OK = 'success';
+
+    /** Wie lange auf die Sichtbarkeit gewartet wird — die Zahl von lego (`docs/34 §11`). */
+    public const PATIENCE_SECONDS = 900;
+
+    /** Und in welchem Abstand nachgefragt wird. */
+    public const PATIENCE_INTERVAL = 30;
 
     public function __construct(
         private readonly string $customerNumber,
@@ -372,5 +379,15 @@ final class Netcup implements DnsProvider
         }
 
         return 'ohne Begründung (HTTP '.$status.').';
+    }
+
+    /**
+     * Wie lange es hier dauert, bis der Eintrag draussen ist.
+     *
+     * **Der langsamste der acht.** lego wartet fünfzehn Minuten und fragt nur alle dreissig Sekunden — beides gehört zusammen, denn häufiger zu fragen hiesse hier nur, den Anbieter zu drosseln.
+     */
+    public function patience(): Patience
+    {
+        return new Patience(self::PATIENCE_SECONDS, self::PATIENCE_INTERVAL);
     }
 }

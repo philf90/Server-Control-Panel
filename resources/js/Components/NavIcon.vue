@@ -64,6 +64,11 @@ const PATHS: Record<string, string> = {
   // Zertifikat: ein Schild.
   tls: 'M12 3l7 2.6v5.6c0 4.2-2.8 7.6-7 9.8-4.2-2.2-7-5.6-7-9.8V5.6z',
 
+  // DNS-Zugangsdaten: ein Schlüssel — der Bart rechts, der Griff als Ring.
+  // Nicht noch ein Globus: `domains` ist schon einer, und zwei Kreise
+  // nebeneinander im selben Menü unterscheidet im Vorbeigehen niemand.
+  dns: 'M7.5 14.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM10.9 10.2H20M17 10.2v3M20 10.2v2.4',
+
   // Mein Konto: eine Person.
   account: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4.5 20a7.5 7.5 0 0115 0',
 }

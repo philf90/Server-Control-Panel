@@ -123,12 +123,27 @@ final class Credentials
     /**
      * Was über ein Profil gesagt werden darf.
      *
-     * Anbieter und Zeitpunkt — nichts, was jemandem nützt, der die Antwort
-     * abfängt. **Kein Ausschnitt des Tokens**, auch keine vier letzten Zeichen:
-     * Bei einem kurzen Token ist das ein spürbarer Teil davon, und der Nutzen
-     * ist eine Bequemlichkeit beim Wiedererkennen.
+     * Anbieter, Zeitpunkt und Zonen — nichts, was jemandem nützt, der die
+     * Antwort abfängt. **Kein Ausschnitt des Tokens**, auch keine vier letzten
+     * Zeichen: Bei einem kurzen Token ist das ein spürbarer Teil davon, und der
+     * Nutzen ist eine Bequemlichkeit beim Wiedererkennen.
      *
-     * @return array{profile: string, provider: string, stored_at: int}|null
+     * **Die Zonen kamen mit der Oberfläche dazu (Schritt 6b).** Sie sind kein
+     * Geheimnis — es sind öffentliche DNS-Namen — und sie beantworten die eine
+     * Frage, die man vor dem Bestellen hat: Deckt dieses Profil die Zone dieser
+     * Domain überhaupt? Ohne sie sagt der Agent das erst beim Bestellen
+     * („Für diesen Namen ist in den Zugangsdaten keine Zone hinterlegt"), und
+     * dann ist ein Fehlversuch verbraucht, der bei Let's Encrypt für **jeden**
+     * Kunden dieses Servers zählt.
+     *
+     * **Gelesen wird über eine Positivliste und nicht über eine Sperrliste.**
+     * Das Geheimnis heisst je Anbieter anders — `secret` bei RFC 2136, bei den
+     * vier aus Schritt 9 wird es `token` oder `api_key` heissen. Eine Liste
+     * dessen, was *nicht* hinaus darf, ist beim fünften Anbieter unvollständig,
+     * und niemandem fällt es auf. Andersherum fällt eine Angabe, die hinaus
+     * soll, sofort auf: Sie fehlt.
+     *
+     * @return array{profile: string, provider: string, stored_at: int, zones: list<string>}|null
      */
     public function describe(mixed $profile): ?array
     {
@@ -147,12 +162,37 @@ final class Credentials
         }
 
         $stored = $data['stored_at'] ?? 0;
+        $config = $data['config'] ?? null;
 
         return [
             'profile' => $name,
             'provider' => is_string($data['provider'] ?? null) ? $data['provider'] : '?',
             'stored_at' => is_int($stored) ? $stored : 0,
+            'zones' => self::zonesOf(is_array($config) ? $config : []),
         ];
+    }
+
+    /**
+     * Die Zonen aus einer abgelegten Angabe — und sonst nichts daraus.
+     *
+     * Jeder Eintrag wird einzeln geprüft, statt die Liste durchzureichen: Was
+     * hier herausgeht, landet in einer Antwort der Oberfläche, und eine Zone
+     * ist eine Zeichenkette und keine verschachtelte Angabe.
+     *
+     * @param  array<string, mixed>  $config
+     * @return list<string>
+     */
+    private static function zonesOf(array $config): array
+    {
+        $zones = [];
+
+        foreach (is_array($config['zones'] ?? null) ? $config['zones'] : [] as $zone) {
+            if (is_string($zone) && $zone !== '') {
+                $zones[] = $zone;
+            }
+        }
+
+        return $zones;
     }
 
     /** Ein Profil wieder entfernen. */

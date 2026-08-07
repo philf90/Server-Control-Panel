@@ -3502,3 +3502,108 @@ und die Marke gesetzt ohne nachgezogene Vorgabe.
 Was auf `gh-pages` unter `dists/stable/` und als `apt/asylum-archive-keyring.gpg`
 liegt, gehört gelöscht; ein Kanal, den es nicht gibt, meldet sich klar, einer
 mit fremdem Index nicht.
+
+#### Schritt 6b: die Oberfläche zu den Zugangsdaten
+
+**Bis hierher ging DNS-01 nur über `srvpanel dns`.** Für den Betreiber ist die
+Kommandozeile oft der bequemere Weg — wer einen Server einrichtet, hat den
+Schlüssel gerade im Terminal. Für einen Kunden ist sie kein Weg: Gibt sein Plan
+`dns_edit` frei, führt er seine Zone selbst und hält den Schlüssel dazu ohnehin
+in den Händen, hätte ihn aber nur loswerden können, indem er ihn dem Betreiber
+schickt. Damit wäre die Freigabe im Plan ein Etikett gewesen.
+
+Es sind zwei Orte für dieselbe Sache (`docs/34 §5`): `/settings/dns` für das
+Profil `betrieb`, und ein Bereich am Abonnement für `abo-<nummer>`. Beide
+benutzen dieselbe Komponente und denselben Zugang (`DnsCredentialAccess`,
+`DnsCredentialInput`) — zwei Fassungen davon wären das Muster, an dem dieses
+Projekt am häufigsten verloren hat.
+
+**Der Profilname kommt nie aus dem Formular.** Er wird aus dem Abonnement
+abgeleitet; käme er aus der Anfrage, könnte ein Kunde `abo-7` eintragen und die
+Zone eines anderen bearbeiten lassen. Dieselbe Haltung wie bei den
+Verzeichnisnamen der Systembenutzer. Die Berechtigung hängt an
+`SubscriptionPolicy::manageDns` — `Feature::DnsEdit` **und**
+`Permission::Dns`, und ausdrücklich nicht am Kontotyp: Auch ein Admin bekommt
+das Formular nicht an einem Abonnement ohne die Freigabe, denn dort gäbe es
+kein Profil, das je gefragt würde.
+
+**Ohne Warteschlange, mit Absicht.** Ein eingereihter Vorgang legt seine
+Argumente in `operations.payload` ab; ein DNS-Token läge damit dauerhaft im
+Klartext in der Datenbank. Es überquert den Socket genau einmal, beim
+Hinterlegen.
+
+**Der Agent gibt jetzt die Zonen heraus — und nur die.** Sie sind kein
+Geheimnis, und sie beantworten die Frage, die man vor dem Bestellen hat: Deckt
+dieses Profil die Zone dieser Domain überhaupt? Ohne sie sagt der Agent das
+erst beim Bestellen, und dann ist ein Fehlversuch verbraucht, der bei
+Let's Encrypt für **jeden** Kunden dieses Servers zählt.
+
+Gelesen wird über eine **Positivliste** und nicht über eine Sperrliste: Das
+Geheimnis heisst je Anbieter anders — `secret` bei RFC 2136, bei den vier aus
+Schritt 9 wird es `token` oder `api_key` heissen. Eine Liste dessen, was nicht
+hinaus darf, ist beim fünften Anbieter unvollständig, und niemandem fällt es
+auf. Der Wächter prüft deshalb den **Schlüsselsatz** von `describe()` und nicht
+die Abwesenheit eines Wortes; der Bruch dazu reicht die ganze Konfiguration
+durch.
+
+**Und dieser Schritt hat eine Lücke im eigenen Wächterwerk aufgedeckt.**
+`FormErrorTest` suchte in den Seiten nach `useForm`. Das Formular für die
+Zugangsdaten steht als Komponente unter `Components/`; die Abonnementseite
+bindet es ein und enthält das Wort nirgends — sie galt damit als formularlos
+und wäre ohne die Zusammenfassung durchgegangen. Genau der Fehler, den
+`FormErrors` beheben sollte, hätte sich an der ersten Seite wiederholt, die
+danach entstand. Der Wächter sammelt jetzt zuerst die Komponenten, die selbst
+ein Formular abschicken, und rechnet eine Seite dazu, die eine davon einbindet.
+Die Gegenprobe zeigt beides: Der Bruch wird von der neuen Fassung gemeldet und
+von der alten nicht.
+
+Zwei neue Brüche: eine Seite, die ihr Formular aus einer Komponente holt, ohne
+Zusammenfassung — und eine Auskunft, die die Konfiguration durchreicht.
+
+**Und der Blick bei 390px hat wieder etwas gefunden, das grün getestet war:**
+305px Überlauf an der Zonenliste. Zwei Regeln greifen dabei ineinander —
+`td .ident` steht auf `nowrap` (in einer Tabelle richtig, man kann sie
+schieben), und `table.pairs td.right` bekommt auf schmaler Fläche `flex: none`,
+behält also seine Inhaltsbreite. Die Ausnahme, die es dafür längst gibt, hängt
+an `table.pairs td.right.ident` — an der **Zelle**. Eine Liste in einem Span
+*innerhalb* einer gewöhnlichen Zelle fällt durch beide Maschen. Behoben im
+Markup und nicht in der Regel: Die Zelle trägt die Kennung, dann bricht die
+Liste an ihren Leerzeichen um.
+
+**Dabei ist die Messung selbst zuerst falsch gewesen.** Playwrights
+`colorScheme: 'dark'` sah aus wie eine Umschaltung und tat nichts — das Theme
+dieses Panels hängt an `[data-theme]` und nicht an `prefers-color-scheme`.
+Beide Aufnahmen waren hell, und die dunkle Fassung wäre ungeprüft
+durchgegangen. Gesetzt wird das Attribut jetzt ausdrücklich, und die Probe
+liest zur Kontrolle die Hintergrundfarbe zurück: `#fff` gegen `#0f1116`.
+
+#### Ein Freigabelauf, der ein zweites Mal laufen darf
+
+**Der 6. August hat es vorgeführt.** GitHubs Warteschlange liess fünf Anläufe
+des Freigabelaufs ohne Runner verhungern — `runner_id: 0`, kein einziger
+Schritt, nach fünfzehn Minuten abgeräumt. Der sechste kam durch: gebaut,
+signiert, `v0.4.0-rc.8` als Release angelegt. Der siebte brach an
+`gh release create` ab, mit „a release with the same tag name already exists".
+
+Diese Abweisung ist für sich richtig; ein fertiges Release soll niemand
+versehentlich überschreiben. **Der Schaden lag daneben:** Der Job `package`
+galt als gescheitert, und damit wurde `repository` übersprungen. Die
+Paketquelle blieb ohne die Fassung, die als GitHub-Release längst dastand — ein
+halber Zustand, den an einer Meldung über das Release niemand erkennt.
+
+Der Fall wird jetzt unterschieden statt verboten: Gibt es das Release schon,
+werden die Dateien ersetzt. Das ist gewollt und nicht bloss geduldet — der Lauf
+baut aus einem Tag, der Inhalt ist derselbe, und Prüfsumme wie Signatur werden
+im selben Zug mit ausgetauscht. Ein Release, das zur Hälfte aus dem einen und
+zur Hälfte aus dem anderen Lauf stammt, wäre schlimmer.
+
+**Warum daraus ein Wächter wurde.** Ein Freigabelauf läuft selten und wird
+genau dann wiederholt, wenn ohnehin etwas schiefging. Ein Schritt, der beim
+zweiten Mal abbricht, ist deshalb nicht selten, sondern verlässlich im
+ungünstigsten Moment im Weg. `PackagingTest` verlangt, dass jeder Ablauf, der
+ein Release anlegt, vorher fragt, ob es schon eines gibt.
+
+**Und `tests/waechter-brechen.sh` klammert jetzt auch `.github/`.** Der Bruch
+dazu ändert eine Datei dort; ein Bruch in einem Verzeichnis, das
+`wiederherstellen` nicht kennt, ist keine Probe, sondern eine Änderung. Genau
+aus diesem Grund war `packaging/` in P4 dazugekommen.

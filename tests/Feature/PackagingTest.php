@@ -148,6 +148,63 @@ final class PackagingTest extends TestCase
         ));
     }
 
+    /**
+     * Ein zweiter Anlauf des Freigabelaufs bricht nicht daran ab, dass der
+     * erste gelungen ist.
+     *
+     * **Der Fall dahinter, vom 6. August.** GitHubs Warteschlange liess fünf
+     * Anläufe ohne Runner verhungern. Der sechste kam durch: gebaut, signiert,
+     * Release angelegt. Der siebte brach an `gh release create` ab — „a release
+     * with the same tag name already exists".
+     *
+     * Für sich ist diese Abweisung richtig; ein fertiges Release soll niemand
+     * versehentlich überschreiben. **Der Schaden lag daneben:** Der Job
+     * `package` galt als gescheitert, und damit wurde `repository`
+     * übersprungen. Die Paketquelle blieb ohne die Fassung, die als
+     * GitHub-Release längst dastand — ein halber Zustand, den an einer Meldung
+     * über das Release niemand erkennt.
+     *
+     * **Warum das ein Wächter ist.** Ein Freigabelauf läuft selten und wird
+     * genau dann wiederholt, wenn ohnehin etwas schiefging. Ein Schritt, der
+     * beim zweiten Mal abbricht, ist deshalb nicht selten, sondern
+     * verlässlich im ungünstigsten Moment im Weg — und ihn zu bemerken kostet
+     * einen Abend.
+     */
+    public function test_the_release_can_run_a_second_time(): void
+    {
+        $workflows = glob(dirname(__DIR__, 2).'/.github/workflows/*.yml') ?: [];
+
+        $this->assertGreaterThanOrEqual(3, count($workflows), 'Das Glob findet keine Arbeitsabläufe mehr.');
+
+        $found = [];
+        $seen = 0;
+
+        foreach ($workflows as $path) {
+            $source = (string) file_get_contents($path);
+
+            if (! str_contains($source, 'gh release create')) {
+                continue;
+            }
+
+            $seen++;
+
+            // Der Unterschied ist die Fallunterscheidung: Wer anlegt, ohne
+            // vorher zu fragen, hat beim zweiten Lauf keine Wahl mehr.
+            if (! str_contains($source, 'gh release view')) {
+                $found[] = basename($path);
+            }
+        }
+
+        $this->assertSame(1, $seen, 'Genau ein Arbeitsablauf legt ein Release an — findet der Test keinen oder zwei, prüft er das Falsche.');
+
+        $this->assertSame([], $found, sprintf(
+            "Diese Arbeitsabläufe legen ein Release an, ohne den Fall zu behandeln, dass es schon eines gibt:\n  %s\n\n".
+            "`gh release create` bricht dann ab, der Job gilt als gescheitert, und alles, was von ihm abhängt,\n".
+            'wird übersprungen — auch die Paketquelle. Erst `gh release view` fragen, dann anlegen oder ersetzen.',
+            implode("\n  ", $found),
+        ));
+    }
+
     public function test_the_release_publishes_every_file_the_installer_fetches(): void
     {
         $root = dirname(__DIR__, 2);

@@ -26,6 +26,10 @@
 # Vorlage" wohnt in ihm. Ein Bruch in einem Verzeichnis, das `wiederherstellen`
 # nicht kennt, ist keine Probe, sondern eine Änderung.
 #
+# `.github/` kam mit dem Wächter dazu, der prüft, dass ein Freigabelauf ein
+# zweites Mal laufen darf. Auch dort steht eine Regel als Text in einer Datei,
+# und auch dort gilt: Wer sie zum Prüfen bricht, muss sie zurückbekommen.
+#
 # **`git checkout` stellt nur wieder her, was git kennt.** Ein Wächter für Code,
 # der noch nicht eingecheckt ist, wird hier nicht gebrochen, sondern gelöscht.
 # Deshalb der Abbruch oben — und deshalb kommt ein neuer Bruch erst nach dem
@@ -35,14 +39,14 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/; then
-  echo "resources/, app/, agent/ oder packaging/ hat ungesicherte Änderungen. Erst committen" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/; then
+  echo "resources/, app/, agent/, packaging/ oder .github/ hat ungesicherte Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -1704,6 +1708,74 @@ pruefe "Formular ohne Zusammenfassung" \
   FormErrorTest::test_every_page_with_a_form_shows_what_went_wrong failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" FormErrorTest passed
+
+echo
+echo "── FormErrorTest: eine Seite, die ihr Formular aus einer Komponente holt ──"
+#
+# **Die Lücke, aus der dieser Bruch entstand.** Der Wächter suchte in den Seiten
+# nach `useForm`. `DnsCredentials.vue` trägt das Formular für die
+# DNS-Zugangsdaten und steht unter `Components/`; die Abonnementseite bindet es
+# ein und enthält das Wort nirgends — sie galt damit als formularlos und wäre
+# ohne Zusammenfassung durchgegangen. Ein Wächter, der grün meldet, weil die
+# Regel umgezogen ist, ist der Fehler, der in diesem Projekt am häufigsten
+# wiederkehrt.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("    <FormErrors />\n\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "Formular aus einer Komponente, ohne Zusammenfassung" &&
+pruefe "Formular aus einer Komponente, ohne Zusammenfassung" \
+  FormErrorTest::test_every_page_with_a_form_shows_what_went_wrong failed
+wiederherstellen
+
+echo
+echo "── DnsCredentialsTest: die Auskunft reicht die Konfiguration durch ──"
+#
+# Der Weg, auf dem ein DNS-Token die Oberfläche erreichen würde: nicht als
+# `secret` — daran denkt jeder —, sondern weil `describe()` eines Tages die
+# ganze Konfiguration durchreicht. Bei Hetzner, Cloudflare, Netcup und
+# IPv64.net heisst das Geheimnis `token` oder `api_key`, und keiner dieser
+# Namen stünde in einer Sperrliste. Deshalb prüft der Wächter den Schlüsselsatz
+# und nicht die Abwesenheit eines Wortes.
+vorher_datei agent/src/Acme/Dns/Credentials.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Credentials.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'zones' => self::zonesOf(is_array($config) ? $config : []),\n        ];",
+    "            'zones' => self::zonesOf(is_array($config) ? $config : []),\n            'config' => $config,\n        ];",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Credentials.php "Auskunft mit der ganzen Konfiguration" &&
+pruefe "Auskunft mit der ganzen Konfiguration" \
+  DnsCredentialsTest::test_the_description_says_these_four_things_and_no_more failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsCredentialsTest passed
+
+echo
+echo "── PackagingTest: der Freigabelauf legt an, ohne vorher zu fragen ──"
+#
+# Am 6. August hat GitHubs Warteschlange fünf Anläufe ohne Runner verhungern
+# lassen; der sechste kam durch und legte das Release an, der siebte brach
+# genau hier ab. Für sich richtig — nur galt damit `package` als gescheitert,
+# und `repository` wurde übersprungen. Die Paketquelle blieb ohne die Fassung,
+# die als Release längst dastand.
+vorher_datei .github/workflows/release.yml
+python3 - <<'PY2'
+p = '.github/workflows/release.yml'
+s = open(p, encoding='utf-8').read()
+s = s.replace('gh release view', 'gh release ansehen')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/release.yml "Release anlegen ohne Fallunterscheidung" &&
+pruefe "Release anlegen ohne Fallunterscheidung" \
+  PackagingTest::test_the_release_can_run_a_second_time failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PackagingTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -72,6 +72,31 @@ final class SubscriptionPolicy
     }
 
     /**
+     * Die eigenen DNS-Zugangsdaten hinterlegen (`docs/34 §5`).
+     *
+     * **Warum das eine eigene Fähigkeit ist und nicht `useFeature(Dns)`.** Es
+     * ist dieselbe Freigabe — `Feature::DnsEdit` mit `Permission::Dns` —, aber
+     * die Frage lautet hier nicht „darf dieses Konto DNS-Einträge bearbeiten",
+     * sondern „gibt es für dieses Abonnement überhaupt ein eigenes Profil".
+     * Ohne die Freigabe im Plan gilt das Profil des Betreibers, und dann gibt
+     * es hier nichts zu hinterlegen — kein Formular, kein Knopf, keine Route.
+     *
+     * **Der Admin ist hier ausdrücklich nicht pauschal dabei.** Er darf sonst
+     * alles, aber ein Abonnement ohne `DnsEdit` hat kein eigenes Profil; ein
+     * Formular, das für ihn erscheint und ein Profil anlegt, das nie gefragt
+     * wird, wäre eine Ablage ohne Leser. Was der Betreiber hinterlegen will,
+     * gehört unter `betrieb` — dafür gibt es die Seite in den Einstellungen.
+     */
+    public function manageDns(Account $account, Subscription $subscription): bool
+    {
+        if (! $subscription->feature(Feature::DnsEdit->value)) {
+            return false;
+        }
+
+        return $this->useFeature($account, $subscription, Permission::Dns);
+    }
+
+    /**
      * Eine Fachfunktion innerhalb des Abonnements.
      *
      * Der Einstieg für alles, was ab P2 dazukommt: Datenbanken, DNS, Cron,

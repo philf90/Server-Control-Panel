@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DnsSettingsController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\ImpersonationController;
 use App\Http\Controllers\MailSettingsController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\PhpSettingsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\SubscriptionDnsController;
 use App\Http\Controllers\TlsSettingsController;
 use App\Models\AuditEvent;
 use App\Models\Customer;
@@ -258,6 +260,25 @@ Route::middleware('auth')->group(function (): void {
         ->name('subscriptions.destroy');
 
     /*
+     * Die eigenen DNS-Zugangsdaten eines Abonnements (docs/34 §5, Schritt 6b).
+     *
+     * `can:manageDns` und nicht `can:update`: Es geht nicht um die Stammdaten
+     * des Abonnements — die gehören dem Betreiber —, sondern um die Freigabe
+     * `dns_edit` aus dem Plan. Ohne sie gilt das Profil des Betreibers, und
+     * dann gibt es hier nichts zu hinterlegen.
+     *
+     * Das Profil steht nicht in der Adresse: Es wird aus dem Abonnement
+     * abgeleitet, sonst könnte ein Kunde das eines anderen nennen.
+     */
+    Route::put('/subscriptions/{subscription}/dns', [SubscriptionDnsController::class, 'store'])
+        ->middleware('can:manageDns,subscription')
+        ->name('subscriptions.dns.store');
+
+    Route::delete('/subscriptions/{subscription}/dns', [SubscriptionDnsController::class, 'destroy'])
+        ->middleware('can:manageDns,subscription')
+        ->name('subscriptions.dns.forget');
+
+    /*
      * Domains (P3, §9).
      *
      * **Angelegt wird am Abonnement, alles Weitere an der Domain.** Der
@@ -444,6 +465,29 @@ Route::middleware('auth')->group(function (): void {
     Route::put('/settings/tls/acme', [TlsSettingsController::class, 'acme'])
         ->middleware('can:manage-settings')
         ->name('settings.tls.acme');
+
+    /*
+     * Die DNS-Zugangsdaten des Betreibers (docs/34 §5, Schritt 6b).
+     *
+     * Dieselbe Fähigkeit wie beim Mailversand und beim Panel-Zertifikat: Es
+     * gibt kein Modell, dem diese Einstellung gehört. Das Profil `betrieb`
+     * steht nicht in der Adresse — es wird abgeleitet, nicht entgegengenommen.
+     *
+     * **Ohne Warteschlange, mit Absicht.** Ein eingereihter Vorgang legt seine
+     * Argumente in `operations.payload` ab; ein DNS-Token läge damit dauerhaft
+     * im Klartext in der Datenbank.
+     */
+    Route::get('/settings/dns', [DnsSettingsController::class, 'show'])
+        ->middleware('can:manage-settings')
+        ->name('settings.dns');
+
+    Route::put('/settings/dns', [DnsSettingsController::class, 'store'])
+        ->middleware('can:manage-settings')
+        ->name('settings.dns.store');
+
+    Route::delete('/settings/dns', [DnsSettingsController::class, 'destroy'])
+        ->middleware('can:manage-settings')
+        ->name('settings.dns.forget');
 
     /*
      * Den zweiten Faktor einrichten oder abschalten.

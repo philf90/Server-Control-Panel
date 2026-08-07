@@ -3638,3 +3638,51 @@ jetzt allein an `CUSTOMREQUEST` und der Rumpf allein an `POSTFIELDS`.
 `OutboundSourceTest` prüft beides: dass keine andere Datei unter `agent/` curl
 anfasst, und dass die vier Zusagen dort wörtlich stehen. Zwei neue Brüche — eine
 Zusage fällt weg, und eine zweite Stelle spricht nach draussen.
+
+#### Schritt 9, erster Anbieter: IPv64.net
+
+**Er ist der erste der fünf, obwohl der Plan ihn zuletzt nennt** — und das aus
+einem Grund, der ihn zum besten Prüfstein macht: Bei IPv64.net ist die Zone
+häufig selbst eine Unterdomain. `meinname.ipv64.de` ist eine ganze Zone, nicht
+ein Name darin. Jede Regel, die sie aus dem Namen errechnet, liegt hier
+irgendwann falsch — und zwar **still**, denn ein TXT-Eintrag in der falschen
+Zone ist kein Fehler, er wird nur nie gefunden.
+
+**Deshalb wird gefragt und nicht gerechnet.** `get_domains` nennt die Zonen des
+Kontos; die längste, die auf den Namen passt, gewinnt. Das ist bewusst eine
+andere Wahl als bei lego, dessen `splitDomain` die **letzten drei** Bestandteile
+nimmt — nachgesehen im geklonten Quelltext, nicht aus der Erinnerung. Für
+`meinname.ipv64.de` kommt dasselbe heraus; für eine eigene Domain, die jemand
+zu IPv64.net bringt, nicht mehr: `example.de` hat zwei Bestandteile, und die
+Regel gäbe `_acme-challenge.example.de` als Zone aus.
+
+Damit ist auch eine Angabe in `docs/34 §6` genauer geworden: Dort stand,
+`get_domains` sei „genau dafür da, und acme.sh macht es ebenso". Die
+Schnittstelle stimmt, die Zonenauflösung über sie ist aber **unsere** Wahl und
+nicht die von lego.
+
+**Die Zonen werden einmal je Vorgang geholt.** Der Anbieter drosselt und sagt
+es mit HTTP 429; das steht als eigene Meldung da, weil ein Vorgang, der ohne
+Grund scheitert, wiederholt wird — und einer, der „zu schnell" sagt, abgewartet.
+
+**`null` ist ein Fehlschlag und kein leeres Ergebnis.** Der Anbieter antwortet
+in diesem Fall mit dem vier Zeichen langen Rumpf `null`, und `json_decode` macht
+daraus brav ein PHP-`null`. Wer das als „nichts gefunden" liest, hält einen
+Fehlschlag für einen Normalfall. Ebenso steht die Begründung je nach Aufruf in
+`add_record` oder `del_record`, während `info` ein allgemeines Wort trägt — wer
+nur `info` liest, bekommt „Nope" und weiss nichts.
+
+**`praefix` ist deutsch geschrieben, weil der Anbieter es so nennt** — eine
+echte Schnittstelle nach aussen, die `docs/19 §4a` ausdrücklich lässt, wie sie
+ist.
+
+**Und das Formular folgt jetzt dem Anbieter.** RFC 2136 braucht Nameserver,
+Zonen, Schlüsselnamen und ein Base64-Geheimnis; IPv64.net ein Token und sonst
+nichts. Ein gemeinsames Formular mit lauter freiwilligen Feldern hiesse, dass
+beide alles annehmen und die Hälfte ignorieren. `DnsCredentialInput` verzweigt
+an derselben Stelle wie das Markup, und `DnsProviderReachTest` prüft beide
+Richtungen: Jeder Schlüssel im Markup ist ein Anbieter, den es gibt, und jeder
+benutzbare Anbieter hat ein Formular.
+
+Drei neue Brüche: ein Anbieterschlüssel, der ins Leere zeigt · ein benutzbarer
+Anbieter ohne Formular · eine Zone, die gerechnet statt gefragt wird.

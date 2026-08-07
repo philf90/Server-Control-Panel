@@ -288,7 +288,12 @@ final class Rfc2136Test extends TestCase
             $this->assertInstanceOf(DnsProvider::class, Providers::make($key, $this->config()));
         }
 
-        $this->assertSame([Providers::RFC2136], Providers::available());
+        // **Die Liste steht hier wörtlich und nicht als Abzug von PENDING.**
+        // Sonst prüfte der Test seine eigene Rechnung: Fällt ein Schlüssel aus
+        // PENDING, ohne dass es die Umsetzung gibt, wäre er in beiden Listen
+        // gleichzeitig richtig. Wer einen Anbieter baut, ändert diese Zeile —
+        // und das ist der Punkt.
+        $this->assertSame([Providers::RFC2136, Providers::IPV64], Providers::available());
     }
 
     /**

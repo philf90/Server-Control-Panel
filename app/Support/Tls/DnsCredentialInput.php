@@ -6,6 +6,7 @@ namespace App\Support\Tls;
 
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use SrvPanel\Agent\Acme\Dns\Providers;
 
 /**
  * Was aus dem Formular für DNS-Zugangsdaten wird.
@@ -42,21 +43,68 @@ final class DnsCredentialInput
         $data = Validator::make($input, [
             'provider' => ['required', 'string', 'in:'.implode(',', $usable)],
         ], [
-            'provider.in' => 'Diesen Anbieter gibt es noch nicht. Heute geht nur RFC 2136 (TSIG).',
+            'provider.in' => 'Diesen Anbieter gibt es noch nicht.',
         ])->validate();
 
         return (string) $data['provider'];
     }
 
     /**
-     * Die Angaben zu RFC 2136 — in der Form, die der Agent erwartet.
+     * Die Angaben des gewählten Anbieters — in der Form, die der Agent erwartet.
+     *
+     * **Jeder Anbieter hat sein eigenes Formular.** RFC 2136 braucht
+     * Nameserver, Zonen, Schlüsselnamen und ein Base64-Geheimnis; IPv64.net
+     * braucht ein Token und sonst nichts — seine Zonen kommen aus seiner
+     * eigenen Auskunft. Ein gemeinsames Formular mit lauter freiwilligen
+     * Feldern hiesse, dass beide Anbieter alles annehmen und die Hälfte
+     * ignorieren; wer dann etwas Falsches einträgt, erfährt es nie.
      *
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      *
      * @throws ValidationException
      */
-    public static function config(array $input): array
+    public static function config(array $input, string $provider): array
+    {
+        return match ($provider) {
+            Providers::RFC2136 => self::rfc2136($input),
+            Providers::IPV64 => self::ipv64($input),
+            // Unerreichbar, solange {@see self::provider()} davor steht — und
+            // deshalb steht der Zweig hier: Ein `match` ohne ihn wirft einen
+            // UnhandledMatchError, und der landet als „interner Fehler" im
+            // Panel, ohne zu sagen, woran es liegt.
+            default => throw ValidationException::withMessages([
+                'provider' => 'Für diesen Anbieter gibt es kein Formular.',
+            ]),
+        };
+    }
+
+    /**
+     * IPv64.net — ein Token, mehr nicht.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    private static function ipv64(array $input): array
+    {
+        $data = Validator::make($input, [
+            'token' => ['required', 'string', 'max:512'],
+        ], [], ['token' => 'Token'])->validate();
+
+        return ['token' => (string) $data['token']];
+    }
+
+    /**
+     * RFC 2136 — Nameserver, Zonen, Schlüssel.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    private static function rfc2136(array $input): array
     {
         $data = Validator::make($input, [
             'server' => ['required', 'string', 'max:255'],

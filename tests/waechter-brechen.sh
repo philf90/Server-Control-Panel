@@ -1817,6 +1817,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OutboundSourceTest passed
 
 echo
+echo "── DnsProviderReachTest: ein Anbieterschlüssel im Formular zeigt ins Leere ──"
+#
+# Das Formular schaltet seine Felder am Anbieter um. Ein Tippfehler in der
+# Zeichenkette zeigt nie ein Feld — und niemand sieht, dass etwas fehlt.
+vorher_datei resources/js/Components/DnsCredentials.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/DnsCredentials.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("const IPV64 = 'ipv64'", "const IPV64 = 'ipvierundsechzig'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/DnsCredentials.vue "Anbieterschlüssel zeigt ins Leere" &&
+pruefe "Anbieterschlüssel zeigt ins Leere" \
+  DnsProviderReachTest::test_every_provider_key_in_the_form_exists failed
+wiederherstellen
+
+echo
+echo "── DnsProviderReachTest: ein benutzbarer Anbieter ohne Formular ──"
+#
+# Er stünde im Auswahlfeld, und wer ihn wählte, bekäme nichts zum Ausfüllen —
+# abgeschickt endete er in einer Abweisung, die von Feldern spricht, die
+# niemand sieht.
+vorher_datei resources/js/Components/DnsCredentials.vue
+python3 - <<'PY2'
+p = 'resources/js/Components/DnsCredentials.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('form.provider === IPV64', 'form.provider === RFC2136')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Components/DnsCredentials.vue "Benutzbarer Anbieter ohne Formular" &&
+pruefe "Benutzbarer Anbieter ohne Formular" \
+  DnsProviderReachTest::test_every_usable_provider_has_a_form failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DnsProviderReachTest passed
+
+echo
+echo "── Ipv64Test: die Zone wird gerechnet statt gefragt ──"
+#
+# Der Fehler, an dem sich dieser Anbieter entscheidet. Bei IPv64.net ist die
+# Zone häufig selbst eine Unterdomain; wer sie aus dem Namen ableitet, legt den
+# Eintrag in der falschen Zone an — und das ist kein Fehler, er wird nur nie
+# gefunden.
+vorher_datei agent/src/Acme/Dns/Ipv64.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Dns/Ipv64.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        foreach ($this->knownZones() as $candidate) {",
+    "        foreach ([implode('.', array_slice(explode('.', $name), -2))] as $candidate) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Dns/Ipv64.php "Zone aus dem Namen gerechnet" &&
+pruefe "Zone aus dem Namen gerechnet" \
+  Ipv64Test::test_the_zone_comes_from_the_account_and_not_from_the_name failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" Ipv64Test passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

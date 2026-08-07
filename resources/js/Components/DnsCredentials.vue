@@ -46,8 +46,20 @@ const props = defineProps<{
 const usable = computed(() => props.providers.filter((p) => p.usable))
 const pending = computed(() => props.providers.filter((p) => !p.usable))
 
+/*
+ * Ein Formular für alle Anbieter, aber nicht alle Felder für alle.
+ *
+ * Die Schlüssel stehen hier wörtlich, weil das Markup sie zum Umschalten
+ * braucht. Dass es sie beim Agenten gibt, prüft `DnsProviderReachTest` — eine
+ * Zeichenkette, die auf einen Anbieter zeigt, den es nicht gibt, wäre genau
+ * der Fehler, gegen den dieses Projekt seine Wächter stellt.
+ */
+const RFC2136 = 'rfc2136'
+const IPV64 = 'ipv64'
+
 const form = useForm({
   provider: usable.value[0]?.value ?? '',
+  token: '',
   server: '',
   port: '',
   zones: '',
@@ -61,7 +73,7 @@ const revealed = ref(false)
 function submit(): void {
   form.put(props.action, {
     preserveScroll: true,
-    onSuccess: () => form.reset('secret'),
+    onSuccess: () => form.reset('secret', 'token'),
   })
 }
 
@@ -137,6 +149,9 @@ function moment(seconds: number): string {
           <td class="quiet">Zonen</td>
           <td class="right" :class="{ ident: props.credential.zones.length > 0 }">
             <template v-if="props.credential.zones.length > 0">{{ props.credential.zones.join(' ') }}</template>
+            <span v-else-if="props.credential.provider === IPV64" class="quiet">
+              aus dem Konto bei IPv64.net — dieses Profil ändert, was dort geführt wird
+            </span>
             <span v-else class="quiet">keine — so ändert dieses Profil nichts</span>
           </td>
         </tr>
@@ -166,68 +181,105 @@ function moment(seconds: number): string {
         Noch nicht verfügbar: {{ pending.map((p) => p.label).join(', ') }}.
       </p>
 
-      <label class="field">
-        <span>Nameserver</span>
-        <input v-model="form.server" type="text" autocomplete="off" placeholder="ns1.example.de" required>
-      </label>
-      <p v-if="form.errors.server" class="error">{{ form.errors.server }}</p>
-      <p class="hint">Der Server, der die Aktualisierung annimmt — nicht der, der die Zone ausliefert.</p>
+      <!--
+        Ab hier hängen die Felder am Anbieter. Ein Anbieter mit Token braucht
+        keinen Nameserver, und ein Formular, das ihn trotzdem verlangt, weist
+        eine richtige Eingabe ab. Geprüft wird derselbe Satz Felder auf der
+        Serverseite — `DnsCredentialInput` verzweigt an derselben Stelle.
+      -->
+      <template v-if="form.provider === IPV64">
+        <label class="field">
+          <span>Token</span>
+          <span class="with-reveal">
+            <input
+              v-model="form.token"
+              :type="revealed ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            >
+            <button
+              type="button"
+              class="reveal"
+              :aria-label="revealed ? 'Token verbergen' : 'Token anzeigen'"
+              :aria-pressed="revealed"
+              @click.prevent="revealed = !revealed"
+            >
+              <EyeIcon :off="revealed" />
+            </button>
+          </span>
+        </label>
+        <p v-if="form.errors.token" class="error">{{ form.errors.token }}</p>
+        <p class="hint">
+          Aus dem Konto bei IPv64.net. Die Zonen kommen von dort und werden
+          nicht hier eingetragen — der Anbieter führt sie selbst, und bei ihm
+          ist eine Zone häufig schon eine Unterdomain.
+        </p>
+      </template>
 
-      <label class="field">
-        <span>Port</span>
-        <input v-model="form.port" type="number" inputmode="numeric" placeholder="53">
-      </label>
-      <p v-if="form.errors.port" class="error">{{ form.errors.port }}</p>
+      <template v-if="form.provider === RFC2136">
+        <label class="field">
+          <span>Nameserver</span>
+          <input v-model="form.server" type="text" autocomplete="off" placeholder="ns1.example.de" required>
+        </label>
+        <p v-if="form.errors.server" class="error">{{ form.errors.server }}</p>
+        <p class="hint">Der Server, der die Aktualisierung annimmt — nicht der, der die Zone ausliefert.</p>
 
-      <label class="field">
-        <span>Zonen</span>
-        <textarea v-model="form.zones" rows="3" placeholder="example.de&#10;example.net" required />
-      </label>
-      <p v-if="form.errors.zones" class="error">{{ form.errors.zones }}</p>
-      <p class="hint">
-        Eine je Zeile. Nur diese Zonen darf das Profil ändern; für einen Namen
-        ausserhalb wird gar nicht erst ein Versuch verbraucht.
-      </p>
+        <label class="field">
+          <span>Port</span>
+          <input v-model="form.port" type="number" inputmode="numeric" placeholder="53">
+        </label>
+        <p v-if="form.errors.port" class="error">{{ form.errors.port }}</p>
 
-      <label class="field">
-        <span>Schlüsselname</span>
-        <input v-model="form.key_name" type="text" autocomplete="off" placeholder="srvpanel-acme" required>
-      </label>
-      <p v-if="form.errors.key_name" class="error">{{ form.errors.key_name }}</p>
+        <label class="field">
+          <span>Zonen</span>
+          <textarea v-model="form.zones" rows="3" placeholder="example.de&#10;example.net" required />
+        </label>
+        <p v-if="form.errors.zones" class="error">{{ form.errors.zones }}</p>
+        <p class="hint">
+          Eine je Zeile. Nur diese Zonen darf das Profil ändern; für einen Namen
+          ausserhalb wird gar nicht erst ein Versuch verbraucht.
+        </p>
 
-      <label class="field">
-        <span>Verfahren</span>
-        <input v-model="form.algorithm" type="text" autocomplete="off" placeholder="hmac-sha256">
-      </label>
-      <p v-if="form.errors.algorithm" class="error">{{ form.errors.algorithm }}</p>
-      <p class="hint">Leer lassen für hmac-sha256. Zugelassen sind ausserdem hmac-sha384 und hmac-sha512.</p>
+        <label class="field">
+          <span>Schlüsselname</span>
+          <input v-model="form.key_name" type="text" autocomplete="off" placeholder="srvpanel-acme" required>
+        </label>
+        <p v-if="form.errors.key_name" class="error">{{ form.errors.key_name }}</p>
 
-      <label class="field">
-        <span>Geheimnis</span>
-        <span class="with-reveal">
-          <input
-            v-model="form.secret"
-            :type="revealed ? 'text' : 'password'"
-            autocomplete="new-password"
-            required
-          >
-          <button
-            type="button"
-            class="reveal"
-            :aria-label="revealed ? 'Geheimnis verbergen' : 'Geheimnis anzeigen'"
-            :aria-pressed="revealed"
-            @click.prevent="revealed = !revealed"
-          >
-            <EyeIcon :off="revealed" />
-          </button>
-        </span>
-      </label>
-      <p v-if="form.errors.secret" class="error">{{ form.errors.secret }}</p>
-      <p class="hint">
-        Das Base64 aus der Schlüsseldatei des Nameservers. Es überquert die
-        Grenze zum Agenten genau einmal — beim Speichern — und wird danach nie
-        wieder herausgegeben.
-      </p>
+        <label class="field">
+          <span>Verfahren</span>
+          <input v-model="form.algorithm" type="text" autocomplete="off" placeholder="hmac-sha256">
+        </label>
+        <p v-if="form.errors.algorithm" class="error">{{ form.errors.algorithm }}</p>
+        <p class="hint">Leer lassen für hmac-sha256. Zugelassen sind ausserdem hmac-sha384 und hmac-sha512.</p>
+
+        <label class="field">
+          <span>Geheimnis</span>
+          <span class="with-reveal">
+            <input
+              v-model="form.secret"
+              :type="revealed ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            >
+            <button
+              type="button"
+              class="reveal"
+              :aria-label="revealed ? 'Geheimnis verbergen' : 'Geheimnis anzeigen'"
+              :aria-pressed="revealed"
+              @click.prevent="revealed = !revealed"
+            >
+              <EyeIcon :off="revealed" />
+            </button>
+          </span>
+        </label>
+        <p v-if="form.errors.secret" class="error">{{ form.errors.secret }}</p>
+        <p class="hint">
+          Das Base64 aus der Schlüsseldatei des Nameservers. Es überquert die
+          Grenze zum Agenten genau einmal — beim Speichern — und wird danach nie
+          wieder herausgegeben.
+        </p>
+      </template>
 
       <div class="button-row">
         <button type="submit" class="button" :disabled="form.processing || usable.length === 0">

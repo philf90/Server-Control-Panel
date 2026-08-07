@@ -21,8 +21,8 @@ use SrvPanel\Agent\AgentException;
  * sechsten braucht, ändert diese Datei; das ist eine Änderung, die jemand
  * liest, und kein Feld in einem Formular.
  *
- * **Und was noch nicht gebaut ist, lässt sich auch nicht hinterlegen.** Vier
- * der fünf stehen in {@see self::PENDING} und werden beim Ablegen der
+ * **Und was noch nicht gebaut ist, lässt sich auch nicht hinterlegen.** Die
+ * noch offenen stehen in {@see self::PENDING} und werden beim Ablegen der
  * Zugangsdaten abgewiesen. Das ist der Unterschied zu einer Liste, die schon
  * einmal alles anbietet: Ein Token, das im Formular angenommen wird und von
  * nichts benutzt werden kann, ist genau die Sorte Zeichenkette, die auf nichts
@@ -55,7 +55,7 @@ final class Providers
     ];
 
     /**
-     * Die vier, die noch kommen — Schritt 9 des Plans.
+     * Die, die noch kommen — Schritt 9 des Plans.
      *
      * **Sie stehen hier und nicht in einem Kommentar**, damit
      * `Rfc2136Test::test_every_provider_key_points_at_something` beide
@@ -69,7 +69,6 @@ final class Providers
         self::HETZNER,
         self::CLOUDFLARE,
         self::NETCUP,
-        self::IPV64,
     ];
 
     /** @return list<string> */
@@ -98,6 +97,7 @@ final class Providers
     {
         return match ($name = self::usable($key)) {
             self::RFC2136 => Rfc2136::configure($config),
+            self::IPV64 => Ipv64::configure($config),
             default => throw self::missing($name),
         };
     }
@@ -111,6 +111,7 @@ final class Providers
     {
         return match ($name = self::usable($key)) {
             self::RFC2136 => Rfc2136::fromConfig($config),
+            self::IPV64 => Ipv64::fromConfig($config),
             default => throw self::missing($name),
         };
     }

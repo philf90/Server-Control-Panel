@@ -57,10 +57,12 @@ final class DnsSettingsController extends Controller
     {
         $input = $request->all();
 
+        $provider = DnsCredentialInput::provider($input, $access->usable());
+
         $stored = $access->store(
             DnsProfile::OPERATOR,
-            DnsCredentialInput::provider($input, $access->usable()),
-            DnsCredentialInput::config($input),
+            $provider,
+            DnsCredentialInput::config($input, $provider),
         );
 
         // **Der Eintrag nennt die Zonen und nie das Geheimnis.** Ein

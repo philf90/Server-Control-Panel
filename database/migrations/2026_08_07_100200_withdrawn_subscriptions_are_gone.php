@@ -16,20 +16,28 @@ use Illuminate\Support\Facades\Schema;
  *
  *     mariadb-dump srvpanel > /root/vor-35.sql
  *
- * **Und deshalb prüft diese Migration zweimal, bevor sie etwas anfasst.** Erst,
- * dass jeder Name eines Grabsteins im Verzeichnis steht — sonst wäre eine UID
- * wieder frei, und genau das soll nie passieren. Dann, dass an keinem Grabstein
- * ein Zertifikat hängt: `certificates.subscription_id` kaskadiert, die Zeilen
- * gingen mit, und die Dateien auf der Platte gehören dem Agenten und
- * verschwänden dadurch **nicht**. Das ist ein eigener Punkt im Rückbau und
- * nichts, was nebenbei in dieser Migration passieren darf.
+ * **Und deshalb wird abgeglichen und geprüft, bevor etwas angefasst wird.**
+ * Erst zieht {@see self::syncTheLedger()} jeden Namen nach, der noch fehlt —
+ * der Grund dafür steht dort und ist der Fehlschlag vom 7. August selbst. Dann
+ * prüft {@see self::everyNameIsInTheLedger()}, dass jeder Grabstein wirklich
+ * eingetragen ist; sonst wäre eine UID wieder frei, und genau das soll nie
+ * passieren. Heilen und danach nachsehen, nicht das eine statt des anderen.
+ *
+ * **Hier stand ein dritter Wächter, und der Zielserver hat ihn ausgelöst.** Er
+ * brach ab, sobald an einem Grabstein noch ein Zertifikat hing — bei zwölf
+ * Stück. Sein Grund war richtig: `certificates.subscription_id` kaskadierte,
+ * die Zeilen gingen mit, und die Dateien gehören dem Agenten und blieben
+ * liegen, samt privatem Schlüssel. Nur war Abbrechen die falsche Antwort, weil
+ * es keinen Weg gab, es von Hand richtig zu machen. Seit der vorigen Migration
+ * tragen die Zertifikate ihre Abschrift, werden hier abgelöst statt gelöscht,
+ * und `srvpanel tls prune` räumt danach auf — je Ablageort und mit dem Agenten.
  */
 return new class extends Migration
 {
     public function up(): void
     {
+        $this->syncTheLedger();
         $this->everyNameIsInTheLedger();
-        $this->noCertificateHangsOnATombstone();
 
         /*
          * **Die Vorgänge ablösen, bevor die Zeile fällt — in PHP.**
@@ -47,6 +55,27 @@ return new class extends Migration
 
         if ($tombstones !== []) {
             DB::table('operations')
+                ->whereIn('subscription_id', $tombstones)
+                ->update(['subscription_id' => null]);
+
+            // **Und die Zertifikate genauso.** Hier stand bis zum 7. August ein
+            // Wächter, der abgebrochen hat, sobald an einem Grabstein noch ein
+            // Zertifikat hing — und auf dem Zielserver hat er das auch getan,
+            // bei zwölf Stück. Er hatte recht: `cascadeOnDelete` hätte die
+            // Zeilen genommen und die Dateien liegen lassen, samt privatem
+            // Schlüssel und ohne irgendetwas, das noch auf sie zeigt.
+            //
+            // Abbrechen war trotzdem die falsche Antwort, weil es keinen Weg
+            // gab, es von Hand richtig zu machen: Zwei Zertifikate können
+            // denselben Ablageort haben, und auf dem Server war einer davon
+            // zwischen einem toten und einem **lebenden** geteilt. Wer dort
+            // `rm -rf` sagt, nimmt eine laufende Website mit.
+            //
+            // Die Zeilen werden deshalb abgelöst statt gelöscht — die
+            // vorige Migration hat ihnen dafür die Abschrift gegeben. Aufgeräumt
+            // wird danach mit `srvpanel tls prune`, das je Ablageort entscheidet
+            // und den Agenten fragt.
+            DB::table('certificates')
                 ->whereIn('subscription_id', $tombstones)
                 ->update(['subscription_id' => null]);
         }
@@ -70,6 +99,63 @@ return new class extends Migration
         Schema::table('subscriptions', function (Blueprint $table) {
             $table->softDeletes();
         });
+    }
+
+    /**
+     * Das Verzeichnis nachziehen, bevor gelöscht wird.
+     *
+     * **Der Grund dafür ist ein Abbruch, und er hat eine Falle sichtbar
+     * gemacht.** Am 7. August lief auf dem Zielserver Migration 1 und 2 durch
+     * und diese hier nicht — die Datenbank stand halb migriert da, mit dem
+     * gefüllten Verzeichnis und ohne Purge, während das Panel auf die vorige
+     * Fassung zurückrollte. Diese Fassung schreibt beim Anlegen aber **nichts**
+     * ins Verzeichnis; sie kennt es nicht.
+     *
+     * Ein Abonnement, das in diesem Zustand entsteht, fehlt damit im
+     * Verzeichnis. Beim zweiten Anlauf wird Migration 1 übersprungen — sie gilt
+     * als erledigt —, und der Name wäre für immer draussen. `nextSystemUser()`
+     * vergliche danach gegen ein Verzeichnis, das ihn nicht kennt, und vergäbe
+     * ihn ein zweites Mal. Genau der Fehler, gegen den dieser ganze Umbau
+     * gebaut ist, eingeschleppt durch seinen eigenen Fehlschlag.
+     *
+     * Deshalb wird hier abgeglichen und nicht nur geprüft: **lebende
+     * Abonnements und Grabsteine**, jeder Name, der noch fehlt. Was nachgetragen
+     * wurde, steht danach in der Ausgabe — stillschweigend zu heilen wäre
+     * dieselbe Sorte Nebenwirkung, die diesen Umbau nötig gemacht hat.
+     */
+    private function syncTheLedger(): void
+    {
+        $added = [];
+
+        $rows = DB::table('subscriptions')
+            ->whereNotNull('system_user')
+            ->where('system_user', 'like', 'p%')
+            ->orderBy('id')
+            ->get(['system_user', 'name', 'created_at']);
+
+        foreach ($rows as $row) {
+            $number = (int) mb_substr((string) $row->system_user, 1);
+
+            if ($number <= 0) {
+                continue;
+            }
+
+            if (DB::table('system_users')->where('number', $number)->exists()) {
+                continue;
+            }
+
+            DB::table('system_users')->insertOrIgnore([
+                'number' => $number,
+                'subscription' => $row->name === null ? null : (string) $row->name,
+                'claimed_at' => $row->created_at ?? now(),
+            ]);
+
+            $added[] = (string) $row->system_user;
+        }
+
+        if ($added !== []) {
+            echo '  Verzeichnis nachgezogen: '.implode(', ', $added)."\n";
+        }
     }
 
     /**
@@ -106,33 +192,6 @@ return new class extends Migration
                 '',
                 'Gelöscht wird nichts, solange das so ist — die Zeilen sind der',
                 'einzige Ort, an dem diese Namen noch stehen.',
-            ]));
-        }
-    }
-
-    /**
-     * Hängt an einem Grabstein noch ein Zertifikat?
-     *
-     * `certificates.subscription_id` kaskadiert. Für ein zurückgebautes
-     * Abonnement ist das richtig — nur gehören die Dateien dem Agenten und
-     * bleiben liegen. docs/35 Schritt 0 lässt den Betreiber hier anhalten und
-     * entscheiden; diese Prüfung sorgt dafür, dass er es auch dann tut, wenn er
-     * den Vorflug übersprungen hat.
-     */
-    private function noCertificateHangsOnATombstone(): void
-    {
-        $count = DB::table('certificates')
-            ->join('subscriptions', 'subscriptions.id', '=', 'certificates.subscription_id')
-            ->whereNotNull('subscriptions.deleted_at')
-            ->count();
-
-        if ($count > 0) {
-            throw new RuntimeException(implode("\n", [
-                "An zurückgebauten Abonnements hängen noch {$count} Zertifikate.",
-                '',
-                'Sie gingen mit dem Purge verloren, die Dateien auf der Platte aber',
-                'nicht — die gehören dem Agenten. Siehe docs/35, Schritt 0: Das',
-                'gehört in den Rückbau und nicht in diese Migration.',
             ]));
         }
     }

@@ -7,6 +7,7 @@ namespace App\Support\Subscriptions;
 use App\Enums\OperationStatus;
 use App\Enums\SubscriptionStatus;
 use App\Jobs\RunAgentOperation;
+use App\Models\Certificate;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
@@ -300,6 +301,22 @@ final class Lifecycle implements AfterOperation
             ->each(static fn (Domain $domain): ?bool => $domain->delete());
 
         Operation::query()
+            ->where('subscription_id', $subscription->id)
+            ->update(['subscription_id' => null]);
+
+        // **Und die Zertifikate genauso — aus einem schärferen Grund.** Ein
+        // Zertifikatsverzeichnis liegt unter `/etc/srvpanel/tls/certs` und
+        // damit ausserhalb des Abo-Verzeichnisses; `subscription.remove` räumt
+        // es nicht mit weg. Kaskadierte die Zeile hier, bliebe die Datei
+        // liegen — **samt privatem Schlüssel** — und nichts zeigte mehr auf
+        // sie. Zwölf solcher Verzeichnisse lagen auf dem Zielserver, als die
+        // Migration aus docs/35 danach fragte.
+        //
+        // Entfernt werden die Dateien nicht hier: Welcher Ablageort fort darf,
+        // hängt daran, ob ihn noch ein anderes Zertifikat nennt, und das ist
+        // eine Frage an den Bestand und nicht an diesen einen Rückbau. Das tut
+        // `srvpanel tls prune`. Bis dahin bleibt die Zeile als Wegweiser.
+        Certificate::query()
             ->where('subscription_id', $subscription->id)
             ->update(['subscription_id' => null]);
 

@@ -3119,6 +3119,111 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SystemUserLedgerTest passed
 
 echo
+echo "── CertificatePruneTest: der geteilte Ablageort wird mitgenommen ──"
+#
+# **Der Fehler, den der Zielserver am 7. August fast bekommen hätte.** Auf ihm
+# teilte sich `cloudlab24.de` seinen Ablageort zwischen einem zurückgebauten und
+# einem LEBENDEN Abonnement. Wer beim Aufräumen je Zeile entscheidet statt je
+# Ablageort — oder die lebenden Zeilen nicht mitzählt —, löscht den privaten
+# Schlüssel einer laufenden Website.
+vorher_datei app/Support/Tls/CertificatePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Tls/CertificatePrune.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """                if (array_key_exists($name, $spoken)) {
+                    $shared[$name] = true;
+
+                    continue;
+                }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Tls/CertificatePrune.php "geteilter Ablageort wird entfernt" &&
+pruefe "geteilter Ablageort wird entfernt" \
+  CertificatePruneTest::test_a_storage_name_shared_with_a_living_certificate_is_kept failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: das Zertifikat der Oberfläche gilt als Waise ──"
+#
+# Beide tragen `subscription_id = null`; unterschieden werden sie allein an der
+# Abschrift. Fällt sie aus der Frage, hält das Aufräumen das Zertifikat der
+# Oberfläche für einen Rest — und entfernt den Schlüssel, mit dem das Panel
+# antwortet.
+vorher_datei app/Models/Certificate.php
+python3 - <<'PY2'
+p = 'app/Models/Certificate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return $this->subscription_id === null && $this->subscription_name === null;",
+    "        return $this->subscription_id === null;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Certificate.php "forPanel kennt die Abschrift nicht" &&
+pruefe "forPanel kennt die Abschrift nicht" \
+  CertificatePruneTest::test_the_panel_certificate_is_not_an_orphan failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificatePruneTest: der Rückbau lässt die Zertifikate kaskadieren ──"
+#
+# Ohne das Ablösen nimmt der harte Löschvorgang die Zeilen mit — und die
+# Dateien bleiben liegen, samt privatem Schlüssel und ohne irgendetwas, das
+# noch auf sie zeigt. Genau der Zustand, in dem der Zielserver war.
+vorher_datei app/Support/Subscriptions/Lifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Subscriptions/Lifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        Certificate::query()
+            ->where('subscription_id', $subscription->id)
+            ->update(['subscription_id' => null]);
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Subscriptions/Lifecycle.php "Zertifikate bleiben am Abonnement" &&
+pruefe "Zertifikate bleiben am Abonnement" \
+  CertificatePruneTest::test_a_removed_subscription_leaves_its_certificate_findable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificatePruneTest passed
+
+echo
+echo "── CertificateStoreTest: das Löschen folgt einer Verknüpfung ──"
+#
+# `is_dir()` folgt einem Symlink, `is_link()` nicht. Fällt die Prüfung weg,
+# zeigt ein als root laufendes Löschen woandershin als das Verzeichnis, das
+# gemeint war.
+vorher_datei agent/src/Acme/Store.php
+python3 - <<'PY2'
+p = 'agent/src/Acme/Store.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if (is_link($directory)) {
+            throw AgentException::execFailed('Ablageort ist eine Verknüpfung: '.$directory);
+        }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Acme/Store.php "Verknüpfung wird verfolgt" &&
+pruefe "Verknüpfung wird verfolgt" \
+  CertificateStoreTest::test_a_symlink_is_refused_and_its_target_survives failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CertificateStoreTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

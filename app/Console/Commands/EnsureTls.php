@@ -8,6 +8,7 @@ use App\Enums\CertificateSource;
 use App\Models\Domain;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\AcmeSettings;
+use App\Support\Tls\CertificatePrune;
 use App\Support\Tls\CertificateRecord;
 use App\Support\Tls\CertificateRenewal;
 use App\Support\Web\WebLifecycle;
@@ -51,7 +52,9 @@ final class EnsureTls extends Command
         {--upload : Ein eigenes Zertifikat ablegen — mit --domain, --certificate und --key}
         {--domain= : Für welche Domain das hochgeladene Zertifikat gilt}
         {--certificate= : Pfad zur PEM-Kette: erst das eigene, dann die ausstellenden}
-        {--key= : Pfad zum privaten Schlüssel, ohne Passwort}';
+        {--key= : Pfad zum privaten Schlüssel, ohne Passwort}
+        {--prune : Zertifikate zurückgebauter Abonnements entfernen — Dateien und Zeilen}
+        {--dry-run : Mit --prune: nur zeigen, was entfernt würde}';
 
     protected $description = 'Prüft das Zertifikat der Oberfläche und erneuert es, bevor es abläuft';
 
@@ -62,9 +65,14 @@ final class EnsureTls extends Command
         Tenancy $tenancy,
         CertificateRecord $record,
         WebLifecycle $web,
+        CertificatePrune $prune,
     ): int {
         if ($this->option('upload') === true) {
             return $this->upload($agent, $tenancy, $record, $web);
+        }
+
+        if ($this->option('prune') === true) {
+            return $this->prune($agent, $prune);
         }
 
         $contact = $this->option('contact');
@@ -216,6 +224,93 @@ final class EnsureTls extends Command
     private function actor(): array
     {
         return ['source' => 'cli', 'command' => 'srvpanel:tls'];
+    }
+
+    /**
+     * Die Zertifikate zurückgebauter Abonnements entfernen — Dateien und Zeilen.
+     *
+     * **Warum es das gibt.** Bis August 2026 konnte dieses System ein
+     * Zertifikat anlegen und erneuern, aber nirgends löschen. Ein
+     * zurückgebautes Abonnement liess sein Verzeichnis unter
+     * `/etc/srvpanel/tls/certs` liegen — **samt privatem Schlüssel** —, denn
+     * `subscription.remove` räumt nur auf, was zum Abo-Verzeichnis gehört. Auf
+     * dem Zielserver waren es zwölf, und aufgefallen sind sie erst, als die
+     * Migration aus docs/35 danach fragte.
+     *
+     * **Was fort darf, entscheidet {@see CertificatePrune} und nicht dieses
+     * Kommando.** Die Auswahl ist die ganze Sicherheit des Vorgangs; sie steht
+     * an einer Stelle, damit ein Test sie prüfen kann, ohne sie nachzubauen.
+     *
+     * **Erst die Datei, dann die Zeile.** Bricht der Agent ab, bleibt die Zeile
+     * stehen und zeigt weiter auf ihr Verzeichnis — ein zweiter Lauf holt es
+     * nach. Andersherum wäre die Datei danach unauffindbar.
+     */
+    private function prune(Client $agent, CertificatePrune $prune): int
+    {
+        $plan = $prune->plan();
+
+        if ($plan['orphans'] === 0) {
+            $this->info('Keine verwaisten Zertifikate.');
+
+            return self::SUCCESS;
+        }
+
+        $this->line(sprintf(
+            '%d verwaiste Zeile(n), %d Ablageort(e) zu entfernen.',
+            $plan['orphans'],
+            count($plan['removable']),
+        ));
+
+        foreach ($plan['shared'] as $name) {
+            $this->warn("  {$name}: Ablageort bleibt — er wird noch gebraucht. Nur die Zeile geht.");
+        }
+
+        foreach ($plan['removable'] as $name) {
+            $this->line("  {$name}: Ablageort und Zeile(n)");
+        }
+
+        if ($this->option('dry-run') === true) {
+            $this->info('--dry-run: es wurde nichts angefasst.');
+
+            return self::SUCCESS;
+        }
+
+        // Vorgabe `false`: Ohne Rückfrage — etwa unter `--no-interaction` —
+        // wird nichts gelöscht. Bei einem Kommando, das private Schlüssel von
+        // der Platte nimmt, ist das die richtige Richtung.
+        if (! $this->confirm('Diese Zertifikate entfernen? Der Vorgang ist nicht rückgängig zu machen.', false)) {
+            $this->line('Abgebrochen.');
+
+            return self::SUCCESS;
+        }
+
+        foreach ($plan['removable'] as $name) {
+            try {
+                $result = $agent->call('acme.certificate.remove', ['name' => $name], $this->actor());
+            } catch (AgentException $error) {
+                $this->error("  {$name}: {$error->getMessage()}");
+
+                continue;
+            }
+
+            $this->line(sprintf(
+                '  %s: %s',
+                $name,
+                ($result['removed'] ?? false) === true ? 'entfernt' : 'war schon fort',
+            ));
+
+            $prune->forget($name);
+        }
+
+        // Die geteilten Ablageorte behalten ihre Datei und verlieren ihre
+        // verwaiste Zeile — die Datei gehört ab jetzt dem, der sie noch nennt.
+        foreach ($plan['shared'] as $name) {
+            $prune->forget($name);
+        }
+
+        $this->info('Aufgeräumt.');
+
+        return self::SUCCESS;
     }
 
     /**

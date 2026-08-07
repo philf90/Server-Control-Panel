@@ -2910,6 +2910,105 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SectionSpacingTest passed
 
 echo
+echo "── RestrictedDeleteTest: die Prüfung sieht die Grabsteine nicht ──"
+#
+# **Der gemeldete Fehler, 7. August 2026.** `restrictOnDelete` zählt Zeilen;
+# `$plan->subscriptions()` sieht sie durch zwei Filter, die die Datenbank nicht
+# kennt. Ohne `onlyTrashed()` zählt das Panel wieder null, wo der
+# Fremdschlüssel eins zählt — und der Knopf antwortet mit einem 500er.
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                $plan->subscriptions()->onlyTrashed()->count(),\n            ],\n        );\n\n        if ($bound > 0) {",
+    "                0,\n            ],\n        );\n\n        if ($bound > 0) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/PlanController.php "Grabsteine werden nicht gezählt" &&
+pruefe "Grabsteine werden nicht gezählt" \
+  RestrictedDeleteTest::test_a_destroy_counts_what_the_foreign_key_counts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RestrictedDeleteTest passed
+
+echo
+echo "── RestrictedDeleteTest: die Mandantenklammer bleibt zu ──"
+#
+# Der zweite Filter, und er ist der stillere: Ein Kommando ohne gesetzten
+# Mandanten sieht überhaupt kein Abonnement und hielte jeden Plan für löschbar.
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        [$bound, $withdrawn] = $tenancy->withoutRestriction(
+            static fn (): array => [
+                $plan->subscriptions()->count(),
+                $plan->subscriptions()->onlyTrashed()->count(),
+            ],
+        );
+
+        if ($bound > 0) {""",
+    """        [$bound, $withdrawn] = [
+            $plan->subscriptions()->count(),
+            $plan->subscriptions()->onlyTrashed()->count(),
+        ];
+
+        if ($bound > 0) {""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/PlanController.php "Klammer bleibt beim Zählen zu" &&
+pruefe "Klammer bleibt beim Zählen zu" \
+  RestrictedDeleteTest::test_a_destroy_counts_what_the_foreign_key_counts failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RestrictedDeleteTest passed
+
+echo
+echo "── PlanTest: gelöscht wird ohne Rückfrage ──"
+#
+# Die Regression selbst: Wird nicht nach einem Ziel gefragt, bleiben die
+# Grabsteine liegen, `DELETE` läuft in den Fremdschlüssel und endet als
+# SQLSTATE 23000 — kein Formularfehler, sondern ein 500er.
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $target = $withdrawn > 0 ? $this->transferTarget($request, $plan, $withdrawn, $audit) : null;",
+    "        $target = null;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/PlanController.php "kein Ziel erfragt" &&
+pruefe "kein Ziel erfragt" \
+  PlanTest::test_a_withdrawn_subscription_is_not_moved_without_being_asked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlanTest passed
+
+echo
+echo "── PlanTest: der Plan selbst ist ein zulässiges Ziel ──"
+#
+# `transfer_to` auf den zu löschenden Plan: Die Zeilen blieben, wo sie sind,
+# und das DELETE liefe in denselben Fremdschlüssel wie vor der Behebung.
+vorher_datei app/Http/Controllers/PlanController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/PlanController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $others = Plan::query()->whereKeyNot($plan->getKey())->orderBy('name')->get();",
+    "        $others = Plan::query()->orderBy('name')->get();",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/PlanController.php "der Plan als eigenes Ziel" &&
+pruefe "der Plan als eigenes Ziel" \
+  PlanTest::test_the_plan_itself_is_no_target failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PlanTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

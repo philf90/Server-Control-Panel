@@ -269,6 +269,129 @@ final class PlanTest extends TestCase
         );
     }
 
+    /**
+     * Ein zurückgebautes Abonnement wird nicht stillschweigend umgehängt.
+     *
+     * **Der gemeldete Fehler, 7. August 2026.** Der Betreiber wollte einen Plan
+     * löschen, an dem „keine Abos mehr" hingen, und bekam einen 500er.
+     *
+     * `Subscription` trägt zwei Filter, die die Datenbank nicht kennt: die
+     * Mandantenklammer und `SoftDeletes`. Ein zurückgebautes Abonnement fällt
+     * damit aus `$plan->subscriptions()` heraus, seine Zeile bleibt aber liegen
+     * — sie muss es, sonst bekäme der nächste Kunde denselben Systembenutzer.
+     * Das Panel zählte null, `restrictOnDelete` zählte eins, und `DELETE`
+     * endete als SQLSTATE 23000 statt in einer Meldung.
+     *
+     * Geprüft wird beides: dass der Plan noch da ist **und** dass die Antwort
+     * ein Formularfehler ist. Ohne die zweite Behauptung bliebe der Test grün,
+     * wenn wieder ein 500er käme — der Plan überlebt einen Absturz schliesslich
+     * auch.
+     */
+    public function test_a_withdrawn_subscription_is_not_moved_without_being_asked(): void
+    {
+        $plan = Plan::factory()->create();
+        Plan::factory()->create(['name' => 'Ziel']);
+        $subscription = Subscription::factory()->for($plan)->create();
+        $subscription->delete();
+
+        $this->assertSame(0, $plan->subscriptions()->count(), 'Der Grabstein soll unsichtbar sein — sonst prüft dieser Test etwas anderes.');
+
+        $this->actingAs($this->admin())
+            ->delete("/plans/{$plan->id}")
+            ->assertSessionHasErrors('transfer_to');
+
+        $this->assertNotNull(Plan::query()->find($plan->id));
+    }
+
+    /**
+     * Und mit genanntem Ziel geht er dorthin — samt Plan.
+     *
+     * Die Zeile wandert, sie verschwindet nicht: Ihr Systembenutzer bleibt
+     * damit belegt, und das ist der einzige Grund, aus dem sie überhaupt liegt.
+     */
+    public function test_a_withdrawn_subscription_moves_to_the_named_plan(): void
+    {
+        $plan = Plan::factory()->create();
+        $target = Plan::factory()->create(['name' => 'Ziel']);
+        $subscription = Subscription::factory()->for($plan)->create();
+        $subscription->delete();
+
+        $this->actingAs($this->admin())
+            ->delete("/plans/{$plan->id}", ['transfer_to' => $target->id])
+            ->assertRedirect('/plans');
+
+        $this->assertNull(Plan::query()->find($plan->id));
+
+        $this->assertSame(
+            $target->id,
+            Subscription::withoutGlobalScopes()->withTrashed()->find($subscription->id)?->plan_id,
+        );
+    }
+
+    /**
+     * Ein fremder Plan als Ziel geht nicht — auch nicht der zu löschende.
+     *
+     * Ohne diese Richtung liesse sich `transfer_to` auf den Plan selbst setzen:
+     * Die Zeilen blieben, wo sie sind, und das `DELETE` liefe in denselben
+     * Fremdschlüssel wie vor der Behebung.
+     */
+    public function test_the_plan_itself_is_no_target(): void
+    {
+        $plan = Plan::factory()->create();
+        Plan::factory()->create(['name' => 'Ziel']);
+        $subscription = Subscription::factory()->for($plan)->create();
+        $subscription->delete();
+
+        $this->actingAs($this->admin())
+            ->delete("/plans/{$plan->id}", ['transfer_to' => $plan->id])
+            ->assertSessionHasErrors('transfer_to');
+
+        $this->assertNotNull(Plan::query()->find($plan->id));
+    }
+
+    /**
+     * Und ohne zweiten Plan bleibt er, wo er ist.
+     *
+     * Der einzige Fall, der auch mit Rückfrage nicht aufgeht: Es gibt kein
+     * Ziel. Ein Abonnement ohne Plan gibt es nicht — die Spalte ist nicht
+     * nullable, und ein leerer Plan hiesse „unbegrenzt".
+     */
+    public function test_the_last_plan_with_a_withdrawn_subscription_stays(): void
+    {
+        $plan = Plan::factory()->create();
+        $subscription = Subscription::factory()->for($plan)->create();
+        $subscription->delete();
+
+        $this->actingAs($this->admin())
+            ->delete("/plans/{$plan->id}")
+            ->assertSessionHasErrors('plan');
+
+        $this->assertNotNull(Plan::query()->find($plan->id));
+    }
+
+    /**
+     * Und das Formular kennt beide Zahlen und die Ziele.
+     *
+     * Dieselbe Frage wie in `destroy()`, an derselben Stelle beantwortet — die
+     * Seite bekommt sie vom Server und leitet sie nicht aus dem ab, was sie
+     * sonst noch weiss.
+     */
+    public function test_the_form_names_the_withdrawn_subscriptions(): void
+    {
+        $plan = Plan::factory()->create();
+        $target = Plan::factory()->create(['name' => 'Ziel']);
+        $subscription = Subscription::factory()->for($plan)->create();
+        $subscription->delete();
+
+        $this->actingAs($this->admin())
+            ->get("/plans/{$plan->id}/edit")
+            ->assertInertia(fn ($page) => $page
+                ->where('subscriptions', 0)
+                ->where('withdrawn', 1)
+                ->where('targets', [['id' => $target->id, 'name' => 'Ziel']])
+                ->etc());
+    }
+
     public function test_deleting_the_default_promotes_the_oldest_remaining(): void
     {
         $standard = Plan::factory()->default()->create(['name' => 'Standard']);

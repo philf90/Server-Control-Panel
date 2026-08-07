@@ -1281,6 +1281,19 @@ table.pairs {
 }
 
 /*
+ * Die Beschriftung eines nebenstehenden Feldes bricht nicht.
+ *
+ * Ohne diese Zeile stand „Übertragen auf" neben dem Löschknopf zweizeilig und
+ * schob die Knopfreihe auseinander — die Beschriftung nimmt sich in einem
+ * Flexfluss die schmalste Breite, die geht. Bei 390px ist gemessen, dass sie
+ * trotzdem nicht überläuft; wer hier eine längere Beschriftung einsetzt, misst
+ * nach.
+ */
+.field.inline > span {
+  white-space: nowrap;
+}
+
+/*
  * `.with-unit input` steht hier mit, und das ist im Browser aufgefallen.
  *
  * Die Kontingente eines Plans tragen ihre Beschriftung als eigene Zeile und

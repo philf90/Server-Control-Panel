@@ -4673,3 +4673,81 @@ Gemessen statt geschätzt: 0px vorher, 44px Spaltenlücke bei 1440px (die beiden
 Bereiche stehen dort jetzt nebeneinander wie überall sonst im Panel) und 26px
 Zeilenlücke bei 390px, kein waagerechter Überlauf. Alle drei Brüche stehen in
 `tests/waechter-brechen.sh` und beissen.
+
+### Ein Plan ohne Abonnements liess sich nicht löschen — 500 statt Meldung
+
+Der Betreiber wollte einen Plan entfernen, an dem „keine Abos mehr" hingen. Der
+Knopf antwortete mit **Error 500**.
+
+Die Ursache ist eine Asymmetrie, die man beim Lesen nicht sieht:
+`$plan->subscriptions()->count()` sieht **weniger** als der Fremdschlüssel.
+`Subscription` trägt zwei Filter, die die Datenbank nicht kennt, und beide sind
+für sich richtig — `SoftDeletes`, damit ein zurückgebautes Abonnement aus dem
+Panel verschwindet, und die Mandantenklammer, die zeigt, was das anfragende
+Konto sehen darf. `ON DELETE RESTRICT` kennt weder das eine noch das andere; es
+zählt Zeilen.
+
+Ein zurückgebautes Abonnement ist genau so eine Zeile. Sie bleibt liegen, weil
+sie liegen bleiben **muss**: Ihr Systembenutzer darf nicht ein zweites Mal
+vergeben werden, sonst bekäme ein neuer Kunde `p1000` samt allem, was auf dem
+Dateisystem noch der alten UID gehört (`Lifecycle::nextSystemUser()`). Und diese
+Zeile zeigt weiter auf ihren Plan.
+
+Das Panel zählte also null, die Datenbank zählte eins, `DELETE` endete als
+SQLSTATE 23000 — und daraus wurde eine weisse Seite statt einer Auskunft.
+
+Gezählt wird jetzt mit denselben Augen wie der Fremdschlüssel: ohne
+Mandantenklammer und mit den Grabsteinen. Daraus folgt eine zweite, eigene
+Abweisung — „es hängt kein Abonnement daran" und „der Plan lässt sich löschen"
+sind seitdem zwei verschiedene Aussagen, und die Meldung sagt, welche gilt. Das
+Formular fragt dieselbe Frage: Der Löschknopf erscheint gar nicht erst, und an
+seiner Stelle steht, was ihn festhält — ein Knopf, der wortlos verschwindet, ist
+für den Betreiber dasselbe wie einer, der nicht funktioniert.
+
+`RestrictedDeleteTest` prüft die Regel und nicht den Einzelfall: Zu jedem
+`restrictOnDelete()`, dessen Kindmodell weich löscht oder eine Mandantenklammer
+trägt, gehört ein `destroy()`, das beide Filter ausdrücklich abschaltet. Heute
+gibt es genau einen solchen Fremdschlüssel; der nächste wird nicht daran denken.
+
+**Zwei Funde aus dem Bauen selbst.** Der erste Ausdruck des Wächters las über
+das Semikolon hinweg und meldete `customers` statt `plans` — er hätte den
+`destroy()` eines unbeteiligten Controllers geprüft und wäre grün geblieben.
+Gefunden hat ihn der Probelauf, nicht das Lesen. Und im Hinweis auf der Seite
+stand „1 zurückgebaute Abonnements"; gefunden hat das der Screenshot bei 390px,
+den es für diesen Fall sonst nicht gegeben hätte.
+
+### Und der Plan geht doch — die Grabsteine werden übertragen
+
+Die offene Frage aus dem Eintrag darüber ist entschieden: Ein Plan mit
+Grabsteinen lässt sich löschen, und beim Löschen wird gefragt, wohin sie gehen.
+
+**Warum gefragt und nicht angenommen.** Der Plan eines zurückgebauten
+Abonnements wird nirgends im Panel angezeigt. Man könnte die Zeilen also still
+auf den Standardplan schieben, und niemand sähe einen Unterschied — genau
+deshalb nicht: Eine Änderung, die niemand sieht, ist eine, die niemand prüft.
+Der Betreiber nennt das Ziel, es steht in der Rückfrage, in der Erfolgsmeldung
+und im Protokoll (`transferred_to`).
+
+**Warum übertragen und nicht auflösen.** Drei Auswege wurden geprüft und
+verworfen. Den Plan weich zu löschen scheitert am `unique`-Index auf dem Namen:
+Er wäre für immer verbraucht, und ihn zu lockern nähme eine echte Zusage
+zurück. `plan_id` nullbar zu machen hiesse, dass ein Abonnement ohne Plan
+möglich wird — und ein fehlender Plan bedeutet in diesem Panel „unbegrenzt",
+also ausgerechnet beim Speicherplatz das Gegenteil dessen, was gemeint wäre.
+Und die Zeile mitzulöschen gäbe ihren Systembenutzer wieder frei, womit ein
+neuer Kunde `p1000` samt fremder UID bekäme.
+
+Bleibt ein Fall, der auch mit Rückfrage nicht aufgeht: Es gibt keinen zweiten
+Plan. Dann wird abgewiesen, und die Meldung sagt, was fehlt.
+
+`onlyTrashed()` beim Übertragen und nicht `withTrashed()`: Lebende Abonnements
+sind an dieser Stelle längst ausgeschlossen, und ein Aufruf, der sie trotzdem
+mitnähme, würde bei einem Fehler weiter oben stillschweigend Kunden umhängen.
+Die engere Abfrage ist hier die Sicherung.
+
+**Und wieder hat das Bild etwas gefunden, das der Fliesstext nicht zeigte.** Im
+Hinweis stand „Beim Löschen gehen sie an den Plan über" hinter einem Satz in der
+Einzahl — ein Numerusfehler, sichtbar erst im Screenshot bei 390px. Dort ist
+auch aufgefallen, dass die Beschriftung neben dem Löschknopf zweizeilig stand
+und die Knopfreihe auseinanderschob; `.field.inline > span` bricht seitdem
+nicht mehr.

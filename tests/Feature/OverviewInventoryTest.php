@@ -10,7 +10,6 @@ use App\Models\Domain;
 use App\Models\Subscription;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
@@ -27,11 +26,11 @@ use Tests\TestCase;
  * der Zählung nähme, weil sie zu keinem Abonnement mehr gehört, bekäme genau
  * dann eine zu kleine Zahl, wenn etwas nicht stimmt.
  *
- * **Und die Verweise werden mitgeprüft.** „Kunden", „Abonnements", „Domains",
- * „Datenbanken" sind Links, damit man von der Zahl zur Liste kommt. Eine
- * Adresse in einem Template ist wortwörtlich das Muster aus CLAUDE.md — *eine
- * Zeichenkette, die auf etwas verweist, ohne dass ein Typ, ein Test oder ein
- * Werkzeug den Bezug prüft.*
+ * **Und die Verweise werden mitgeprüft, indem sie aufgerufen werden.** „Kunden",
+ * „Abonnements", „Domains", „Datenbanken" sind Links, damit man von der Zahl zur
+ * Liste kommt. Eine Adresse in einem Template ist wortwörtlich das Muster aus
+ * CLAUDE.md — *eine Zeichenkette, die auf etwas verweist, ohne dass ein Typ, ein
+ * Test oder ein Werkzeug den Bezug prüft.*
  */
 final class OverviewInventoryTest extends TestCase
 {
@@ -99,12 +98,16 @@ final class OverviewInventoryTest extends TestCase
     }
 
     /**
-     * Jeder Verweis im Bestand zeigt auf eine Adresse, die es gibt.
+     * Jeder Verweis im Bestand lässt sich auch öffnen.
      *
-     * Geprüft am Router und nicht an einer Liste im Test: Eine zweite Liste
-     * wäre eine zweite Fassung derselben Auskunft, und die veraltet.
+     * **Aufgerufen und nicht im Router nachgeschlagen.** Der erste Anlauf
+     * verglich die Adressen mit `Route::getRoutes()` — das beantwortet nur, ob
+     * eine Route registriert ist, und nicht, ob der Betreiber sie öffnen darf.
+     * Ein Verweis auf eine Seite, die mit 403 antwortet, wäre nach jener Prüfung
+     * in Ordnung gewesen. Vier Aufrufe kosten wenig und beantworten die Frage,
+     * die man wirklich hat.
      */
-    public function test_every_link_in_the_inventory_points_at_a_route(): void
+    public function test_every_link_in_the_inventory_can_be_opened(): void
     {
         $section = $this->inventorySection();
         $found = preg_match_all('/href="(\/[a-z\/-]*)"/', $section, $matches);
@@ -115,16 +118,10 @@ final class OverviewInventoryTest extends TestCase
             'Ohne gefundene Verweise prüft dieser Wächter nichts.',
         );
 
-        $known = [];
-
-        foreach (Route::getRoutes() as $route) {
-            if (in_array('GET', $route->methods(), true)) {
-                $known[] = '/'.ltrim($route->uri(), '/');
-            }
-        }
+        $admin = Account::factory()->admin()->create();
 
         foreach ($matches[1] as $href) {
-            $this->assertContains($href, $known, $href.' steht im Bestand und ist keine Adresse dieses Panels.');
+            $this->actingAs($admin)->get($href)->assertOk();
         }
     }
 

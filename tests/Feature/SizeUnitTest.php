@@ -65,12 +65,25 @@ final class SizeUnitTest extends TestCase
         );
     }
 
-    private function measure(Database $database, int $bytes): void
+    /**
+     * Eine Messung für alle — und nicht eine je Datenbank.
+     *
+     * **Der erste Anlauf dieses Tests hat genau hier danebengegriffen** und
+     * `apply()` viermal mit je einer Datenbank aufgerufen. Das ist nicht bloss
+     * unnötig, es ist etwas anderes: Ein Lauf schreibt *jede* Zeile, und was
+     * nicht in der Antwort steht, ist eine gemessene Null. Vier Aufrufe setzen
+     * also drei Zeilen wieder auf null zurück, und übrig bleibt die letzte —
+     * die Summe war 300 KB statt 1,2 MB, und der Test meldete einen Fehler in
+     * einer Rechnung, die stimmte.
+     *
+     * Der Agent liefert eine Antwort für alle (docs/36 §9); ein Test, der das
+     * anders macht, prüft eine Lage, die es nicht gibt.
+     *
+     * @param  array<string, int>  $bytes  Name der Datenbank => gemessene Bytes
+     */
+    private function measure(array $bytes): void
     {
-        app(DatabaseUsage::class)->apply([
-            'available' => true,
-            'databases' => [$database->name => $bytes],
-        ]);
+        app(DatabaseUsage::class)->apply(['available' => true, 'databases' => $bytes]);
     }
 
     /**
@@ -84,7 +97,7 @@ final class SizeUnitTest extends TestCase
     {
         $database = Database::factory()->forSubscription($this->subscription(), 'klein')->create();
 
-        $this->measure($database, 307_200);
+        $this->measure([$database->name => 307_200]);
 
         $this->assertSame(307_200, (int) $database->refresh()->size_bytes);
     }
@@ -116,13 +129,14 @@ final class SizeUnitTest extends TestCase
     public function test_the_subscription_sums_before_it_divides(): void
     {
         $subscription = $this->subscription();
+        $gemessen = [];
 
         foreach (['eins', 'zwei', 'drei', 'vier'] as $label) {
-            $this->measure(
-                Database::factory()->forSubscription($subscription, $label)->create(),
-                307_200,
-            );
+            $name = Database::factory()->forSubscription($subscription, $label)->create()->name;
+            $gemessen[(string) $name] = 307_200;
         }
+
+        $this->measure($gemessen);
 
         $this->assertSame(1, $this->usedMb($subscription));
     }

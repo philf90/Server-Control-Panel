@@ -245,6 +245,14 @@ final class Databases
      * Regel — die zweite ist die, die veraltet. Hier steht die Frage einmal:
      * ein Benutzer, dessen einzige Datenbank diese ist.
      *
+     * **Und wer bleibt, wird trotzdem genannt.** `DROP DATABASE` nimmt in
+     * MariaDB die Rechte auf das Schema nicht mit; ein Zugang, der an einer
+     * zweiten Datenbank hängt und darum überlebt, behielt bis zum 8. August
+     * 2026 sein `GRANT ALL` auf die entfernte (`docs/36 §22.3p`). Deshalb
+     * stehen beide Listen im Auftrag: `users` geht, `revoke` bleibt und
+     * verliert das Recht. Die Aufteilung fällt hier und nicht im Agenten — aus
+     * demselben Grund wie oben.
+     *
      * **Der Zustand wird auf `Removing` gesetzt, bevor der Vorgang läuft** —
      * das ist kein Widerspruch zu „der Zustand folgt dem Agenten": `Removing`
      * ist keine Behauptung über das System, sondern die Aussage, dass ein
@@ -255,7 +263,7 @@ final class Databases
     {
         $subscription = $this->subscriptionOf($database);
 
-        $doomed = $this->usersOnlyOn($database);
+        [$doomed, $staying] = $this->usersOf($database);
 
         $operation = Operation::query()->create([
             'subscription_id' => $database->subscription_id,
@@ -267,10 +275,8 @@ final class Databases
             'payload' => [
                 'user' => (string) $subscription?->system_user,
                 'name' => $database->name,
-                'users' => array_map(
-                    static fn (DbUser $u): array => ['name' => $u->name, 'host' => $u->host],
-                    $doomed,
-                ),
+                'users' => self::accounts($doomed),
+                'revoke' => self::accounts($staying),
             ],
             'status' => OperationStatus::Queued,
             'progress' => 0,
@@ -364,14 +370,20 @@ final class Databases
     }
 
     /**
-     * Die Benutzer, deren einzige Datenbank diese ist.
+     * Die Zugänge dieser Datenbank, aufgeteilt: die mitgehen, und die bleiben.
      *
-     * @return list<DbUser>
+     * **Jeder verbundene Zugang steht in genau einer der beiden Listen.** Das
+     * ist die Eigenschaft, an der `OrphanedGrantTest` hängt: Wer aus der ersten
+     * herausfällt, landet in der zweiten und verliert dort sein Recht — es gibt
+     * keinen dritten Ausgang, an dem einer unerwähnt bleibt.
+     *
+     * @return array{0: list<DbUser>, 1: list<DbUser>}
      */
-    private function usersOnlyOn(Database $database): array
+    private function usersOf(Database $database): array
     {
         return $this->tenancy->withoutRestriction(function () use ($database): array {
             $doomed = [];
+            $staying = [];
 
             foreach ($database->users()->get() as $user) {
                 // `count()` über die Zuordnungstabelle und nicht über die
@@ -385,11 +397,29 @@ final class Databases
 
                 if ($others === 0) {
                     $doomed[] = $user;
+
+                    continue;
                 }
+
+                $staying[] = $user;
             }
 
-            return $doomed;
+            return [$doomed, $staying];
         });
+    }
+
+    /**
+     * Zugänge, wie der Agent sie erwartet.
+     *
+     * @param  list<DbUser>  $users
+     * @return list<array{name: string, host: string}>
+     */
+    private static function accounts(array $users): array
+    {
+        return array_map(
+            static fn (DbUser $u): array => ['name' => $u->name, 'host' => $u->host],
+            $users,
+        );
     }
 
     /**

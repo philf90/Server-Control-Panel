@@ -5359,6 +5359,77 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Das Abnahmekriterium von P5 ist am Server belegt, alle sieben Punkte.**
+Anlegen, Benutzen, Sichern, Zurückspielen — und ein Datenbankbenutzer, der keine
+fremde Datenbank sieht, mit den Fehlernummern von MariaDB 10.11.14 statt mit
+einer geprüften Zeichenkette. Der Rückbau kam zuletzt dazu, und er hat zwei
+Läufe gebraucht: Beim ersten hatte das zurückgebaute Abonnement nie gesichert,
+also entstand kein `db.dump.remove`, und „das Verzeichnis ist nicht vorhanden"
+stand da, **ohne dass je etwas entfernt wurde** — eine Abwesenheit ohne
+Vorgeschichte, wortwörtlich die Falle, vor der derselbe Abschnitt zwei
+Kriterien weiter oben warnt. Die Anleitung selbst hatte sie gestellt: Sie
+verlangte Sicherungen für Kriterium 5 und 6 und liess offen, dass Kriterium 7
+dieselben braucht. Der zweite Lauf holte es an einem eigenen Abonnement mit
+genau einer Sicherung nach. `docs/36 §17` sagt das jetzt an der Stelle, an der
+es zählt, und hat zwei Erwartungen dazubekommen: `mysql.db` muss leer sein — ein
+Recht überlebt sein Schema, und `mysql.user` allein zeigt das nie —, und
+`srvpanel db` muss „Nichts liegengeblieben" melden.
+
+**Auf dem Schreibtisch musste man schieben, um einen Knopf zu treffen.** Die
+Datenbankseite stellte „Zugänge" und „Sicherungen" in den Grundriss, und beide
+tragen eine Aktionsspalte mit drei Knöpfen. `.scrolls > table` hält eine Tabelle
+auf `max-content` — richtig, dafür gibt es den Rollbehälter —, und damit war die
+Breite dieser Tabellen die Summe ihrer Knopfbeschriftungen: 755px und 923px, bei
+548px Bereichsbreite auf einem 1440px-Bildschirm. Der letzte Knopf lag
+ausserhalb. **Der Fehler wurde auf einem breiteren Bildschirm schlimmer:** Bis
+1440px wich „Sicherungen" in eine eigene Zeile aus und stand richtig, ab 1600px
+passten alle drei Bereiche nebeneinander und beide Tabellen rollten. Wer bei
+1440px nachsah, sah die Hälfte. Beide Bereiche stehen jetzt über die volle
+Zeile; der Überlauf ist von 1280px bis 1920px in beiden Dichtestufen 0.
+`ActionColumnTest` verlangt das für jede Tabelle mit einer Knopfreihe in einer
+Zelle — nicht für jede mit vier Spalten, denn vier Spalten sind kein Maß: Was
+die Breite erzwingt, sind Knöpfe. Zum Lesen genügt Schieben, zum Drücken nicht.
+
+**Der Rückbau nahm die Sicherungsdateien mit, ihre Zeilen aber nicht.**
+`DbLifecycle::afterDump()` trug dazu einen Kommentar, der das Gegenteil
+behauptete — „dort verschwinden die Zeilen mit dem Abonnement" —, und
+`database_dumps.subscription_id` steht mit Absicht auf `nullOnDelete`, damit
+eine Sicherung ihre Datenbank überlebt: Die Zeile ist der Wegweiser zu einer
+Datei, auf die sonst nichts mehr zeigt, und davon lebt `srvpanel db --prune`.
+Nach einem *erfolgreichen* Rückbau ist die Datei aber fort, und der Wegweiser
+zeigt ins Leere. Auf dem Zielserver zählte der Bestand danach drei Sicherungen,
+während zwei auf der Platte lagen. Das ist die teurere Hälfte des Fehlers: Ein
+Rückbau, der sauber gelaufen ist, meldet einen Rest — und ein Melder, der jedes
+Mal Alarm gibt, wird bald gelesen wie ein Rauschen. Ein `db.dump.remove` ohne
+Gegenstand ist immer der Rückbau eines ganzen Abonnements, und der Vorgang trägt
+zu diesem Zeitpunkt noch sein `subscription_id`; die Zeilen gehen jetzt im
+selben Zug. Wer vor dieser Fassung zurückgebaut hat, wird die Zeile mit
+`srvpanel db --prune` los.
+
+**Eine entfernte Datenbank liess ihr Recht liegen.** `DROP DATABASE` nimmt in
+MariaDB die auf das Schema vergebenen Rechte nicht mit — sie stehen in
+`mysql.db` und bleiben dort —, und die Anwendung nannte dem Agenten nur die
+Zugänge, die *mitgehen*. Wer an einer zweiten Datenbank hing und darum
+überlebte, behielt sein `GRANT ALL` auf die entfernte. Auf `cloudsrv24` gefunden
+als eine Rechtezeile für `p1118_demo`, ein Schema, das es seit Tagen nicht mehr
+gab; entsteht der Name später wieder, hätte dieser Zugang sofort alle Rechte
+darauf, ohne dass sie ihm jemand gegeben hat. Seit `db.user.grant` das Verbinden
+zu einer ausdrücklichen Handlung macht, wich damit der Bestand des Panels von
+dem ab, was MariaDB erlaubt. Der Auftrag trägt jetzt beide Listen: `users` geht,
+`revoke` bleibt und verliert das Recht. Die Reihenfolge im Agenten ist Rechte,
+Zugänge, Schema — `Session::execute()` bleibt beim ersten Fehler stehen, und von
+den beiden Zwischenzuständen ist ein Schema ohne Zugang der harmlosere.
+`OrphanedGrantTest` prüft beide Hälften des Weges und dazu die Eigenschaft, die
+keine der Listen allein hat: kein verbundener Zugang fällt aus beiden heraus.
+Gefunden hat das niemand beim Bauen, sondern der Betreiber beim Lesen einer
+Ausgabe, die zu einem ganz anderen Kriterium gehörte.
+
+**„Noch keine Ausgabe." stand unter einem fertigen Vorgang.** Das Wort sagt zu,
+dass etwas kommt; an einem abgeschlossenen Vorgang kommt nichts mehr. Die Seite
+kannte den Zustand und benutzte ihn für diesen Satz nicht. Auf einer leeren
+Liste bleibt „Noch keine Domain" richtig — dort kann eine dazukommen, und genau
+dieser Unterschied ist die Regel, die `WordChoiceTest` jetzt hält.
+
 **Ein vorhandener Zugang lässt sich mit einer weiteren Datenbank verbinden.**
 `Databases::grant()` und die Operation `db.user.grant` lagen seit P5 fertig da,
 und kein Controller, keine Route und kein Test riefen sie auf — aufgefallen erst,

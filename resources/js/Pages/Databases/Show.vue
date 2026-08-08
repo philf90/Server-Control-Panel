@@ -278,7 +278,17 @@ function size(): string {
         </table>
       </Section>
 
-      <Section title="Zugänge">
+      <!--
+        **`full` und nicht der Grundriss.** Diese Tabelle trägt eine
+        Aktionsspalte mit drei Knöpfen; ihre Breite ist damit die Summe der
+        Beschriftungen und nicht eine Frage der Schriftgrösse. Gemessen am
+        gebauten Stylesheet braucht sie 755px, „Sicherungen" darunter 923px —
+        ein Bereich im Grundriss bekommt bei 1440px aber 548px, und
+        `.scrolls > table` hält die Tabelle auf `max-content`. Die Knöpfe
+        standen deshalb ausserhalb des Bereichs, und man musste waagerecht
+        schieben, um sie zu treffen (docs/36 §22.3s).
+      -->
+      <Section title="Zugänge" full>
         <div class="scrolls">
           <table class="stacks">
             <thead>
@@ -364,7 +374,7 @@ function size(): string {
         </form>
       </Section>
 
-      <Section title="Sicherungen">
+      <Section title="Sicherungen" full>
         <div class="scrolls">
           <table class="stacks">
             <thead>

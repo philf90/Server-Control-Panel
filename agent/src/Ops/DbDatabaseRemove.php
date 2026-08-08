@@ -42,6 +42,16 @@ use SrvPanel\Agent\Op;
  * weiss nur der Bestand des Panels. Eine Operation, die selbst in `mysql.db`
  * nachsähe, wäre eine zweite Fassung dieser Regel — und die zweite ist die, die
  * veraltet. Wörtlich dieselbe Begründung wie in {@see AcmeCertificateRemove}.
+ *
+ * **Und wer bleibt, verliert sein Recht auf dieses Schema.** `DROP DATABASE`
+ * entfernt in MariaDB die auf das Schema vergebenen Rechte **nicht**; sie
+ * stehen in `mysql.db` und bleiben dort. Bis zum 8. August 2026 nannte die
+ * Anwendung nur die Benutzer, die mitgehen, und ein Zugang, der an einer
+ * zweiten Datenbank hing, behielt sein `GRANT ALL` auf die entfernte — auf
+ * `cloudsrv24` gefunden als eine Rechtezeile für `p1118_demo`, ein Schema, das
+ * es nicht mehr gab (`docs/36 §22.3p`). Entsteht der Name später wieder, hätte
+ * dieser Zugang sofort alle Rechte darauf, ohne dass sie ihm jemand gegeben
+ * hat.
  */
 final class DbDatabaseRemove implements Op
 {
@@ -74,7 +84,8 @@ final class DbDatabaseRemove implements Op
             ));
         }
 
-        $accounts = $this->accounts($args['users'] ?? [], $prefix);
+        $accounts = $this->accounts($args['users'] ?? [], $prefix, 'users');
+        $staying = $this->accounts($args['revoke'] ?? [], $prefix, 'revoke');
 
         // **Der Server wird hier nicht verlangt.** `Server::require()` steht vor
         // dem Anlegen und nicht vor dem Entfernen: Wer eine Datenbank auf einem
@@ -85,45 +96,70 @@ final class DbDatabaseRemove implements Op
 
         $context->progress(30, $existed ? 'Datenbank entfernen' : 'Datenbank ist bereits fort');
 
-        $statements = ['DROP DATABASE IF EXISTS '.Sql::identifier($database)];
-
-        foreach ($accounts as [$user, $host]) {
-            $statements[] = 'DROP USER IF EXISTS '.Sql::account($user, $host);
-        }
-
-        $this->session->execute($context, $statements);
+        $this->session->execute($context, self::statements($database, $accounts, $staying));
 
         $context->progress(100, 'fertig');
 
         return [
             'name' => $database,
             'removed' => $existed,
-            'users_removed' => array_map(
-                static fn (array $account): string => $account[0].'@'.$account[1],
-                $accounts,
-            ),
+            'users_removed' => self::labels($accounts),
+            'users_revoked' => self::labels($staying),
         ];
     }
 
     /**
-     * Die Benutzer, die mitgehen — jeder einzeln geprüft.
+     * Die Anweisungen — als reine Funktion, aus demselben Grund wie in
+     * {@see DbUserGrant::statement()}: Der Schutz ist eine Eigenschaft des
+     * erzeugten Textes, und geprüft wird er ohne Datenbank.
+     *
+     * **Die Reihenfolge ist Rechte, Zugänge, Schema** — die aus `docs/36
+     * §22.3e`, und sie zählt, weil `Session::execute()` beim ersten Fehler
+     * stehenbleibt: Ein Schema ohne Zugang ist ein Rest ohne Weg dorthin, ein
+     * Zugang auf einem noch stehenden Schema ist ein offener Weg zu Daten. Von
+     * den beiden Zwischenzuständen nach einem Abbruch ist der erste der
+     * harmlosere.
+     *
+     * @param  list<array{0: string, 1: string}>  $doomed
+     * @param  list<array{0: string, 1: string}>  $staying
+     * @return list<string>
+     */
+    public static function statements(string $database, array $doomed, array $staying): array
+    {
+        $statements = [];
+
+        foreach ($staying as [$user, $host]) {
+            $statements[] = DbUserGrant::statement($user, $host, $database, false);
+        }
+
+        foreach ($doomed as [$user, $host]) {
+            $statements[] = 'DROP USER IF EXISTS '.Sql::account($user, $host);
+        }
+
+        $statements[] = 'DROP DATABASE IF EXISTS '.Sql::identifier($database);
+
+        return $statements;
+    }
+
+    /**
+     * Die Benutzer einer Liste — jeder einzeln geprüft.
      *
      * @return list<array{0: string, 1: string}>
      */
-    private function accounts(mixed $value, string $prefix): array
+    private function accounts(mixed $value, string $prefix, string $field): array
     {
         if (! is_array($value)) {
-            throw AgentException::badRequest('users muss eine Liste sein.');
+            throw AgentException::badRequest($field.' muss eine Liste sein.');
         }
 
         $accounts = [];
 
         foreach ($value as $entry) {
             if (! is_array($entry)) {
-                throw AgentException::badRequest('Jeder Eintrag in users ist eine Ablage aus name und host.');
+                throw AgentException::badRequest('Jeder Eintrag in '.$field.' ist eine Ablage aus name und host.');
             }
 
-            $user = Names::existing($entry['name'] ?? null, 'users.name');
+            $user = Names::existing($entry['name'] ?? null, $field.'.name');
 
             if (! Names::belongsTo($user, $prefix)) {
                 throw AgentException::denied(sprintf(
@@ -137,6 +173,18 @@ final class DbDatabaseRemove implements Op
         }
 
         return $accounts;
+    }
+
+    /**
+     * @param  list<array{0: string, 1: string}>  $accounts
+     * @return list<string>
+     */
+    private static function labels(array $accounts): array
+    {
+        return array_map(
+            static fn (array $account): string => $account[0].'@'.$account[1],
+            $accounts,
+        );
     }
 
     private function exists(Context $context, string $database): bool

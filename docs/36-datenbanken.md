@@ -1283,6 +1283,13 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 #                HTTP nicht erreichbar.
 #    BELEG:  Der Download liefert eine Datei. Ein 404 heisst nicht „fehlt",
 #            sondern meist: das Panel kommt an den Pfad nicht heran (§22.3l).
+#            Am 8. August 2026 gefahren und erfüllt (§22.3p): der Knopf lieferte
+#            eine Datei, /var/lib/srvpanel/dumps ist drwx--x--- root:srvpanel,
+#            die Sicherungen -rw-r----- root:srvpanel, INSERT > 0, DEFINER = 0.
+#    Und das Unterverzeichnis trägt den ABONNEMENTNAMEN, nicht den
+#    Systembenutzer: Dump::directory() bildet ihn über
+#    SubscriptionProvision::subscriptionName(), dieselbe Quelle wie
+#    /var/www/vhosts/<name>. Also .../dumps/kunde.de/ und nicht .../dumps/p1118/.
 
 # 5  ZURÜCKSPIELEN
 #    Die Tabelle löschen, den Dump im Panel zurückspielen.
@@ -1297,6 +1304,15 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 #            das Aufräumen und nicht den Lauf. Am 8. August 2026 ist genau das
 #            passiert: Vorbereitung und Nachprüfung standen da, der Vorgang
 #            dazwischen fehlte, und beides sah grün aus (§22.3m).
+#            Am 8. August 2026 gefahren und erfüllt (§22.3p): Vorgang 449,
+#            db.restore, Zustand fertig, 18:51:21. Vorher 5120/1280/2 Zeilen in
+#            bestellungen/kunden/notizen, nach dem DROP kein SHOW TABLES mehr,
+#            danach wieder 5120/1280/2.
+#    Und die Zahlen gehören dazu, je Tabelle und auf beiden Seiten. „Die
+#    Tabellen sind wieder da" ist keine Erfüllung: Ein Dump, der vor dem
+#    Löschen aus einem leeren Schema entstand, spielt genauso erfolgreich
+#    zurück. Beim ersten Anlauf (Vorgang 448) fehlten beide Zählungen, und der
+#    Vorgang sah vollständig richtig aus.
 
 # 6  DER DUMP DARF KEINE RECHTE VERGEBEN
 #    Einen Dump von Hand um eine Zeile ergänzen — er liegt gepackt:
@@ -1324,15 +1340,37 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 
 # 7  DER RÜCKBAU LÄSST NICHTS LIEGEN
 #    Abo A zurückbauen, warten bis alle Vorgänge durch sind.
-#    erwartet, alle drei:
+#    erwartet, alle vier:
 #      SHOW DATABASES LIKE 'p<A>\\_%';                        → leer
 #      SELECT user,host FROM mysql.user WHERE user LIKE 'p<A>\\_%';  → leer
+#      SELECT user,host,db FROM mysql.db WHERE user LIKE 'p<A>\\_%'; → leer
 #      ls /var/lib/srvpanel/dumps/<abo>/                      → nicht vorhanden
+#    Die dritte Zeile kam am 8. August 2026 dazu (§22.3p): Ein Recht überlebt
+#    in mysql.db sein Schema, und mysql.user allein zeigt das nie.
 #    Und die Gegenprobe, dass Abo B unberührt ist:
 #      SHOW DATABASES LIKE 'p<B>\\_%';                        → p<B>_shop
+#      ls /var/lib/srvpanel/dumps/<abo B>/                    → unverändert
+#      srvpanel db                                            → „Nichts liegengeblieben."
+#    Die letzte Zeile hat am 8. August 2026 als einzige einen Rest gezeigt, den
+#    vier Abfragen und zwei Verzeichnisse übersehen haben (§22.3r): Die Datei
+#    war fort, ihre Zeile im Bestand nicht. Sie prüft den Bestand gegen die
+#    Platte, und das kann keine Abfrage an MariaDB.
 #    Der letzte ist der, den man ohne Werkzeug übersieht: Ein Rückbau, der zu
 #    viel wegnimmt, sieht genauso erfolgreich aus wie einer, der es richtig
 #    macht.
+#
+#    BELEG:  die Nummern aller Vorgänge des Rückbaus und ihre Zustände. Es sind
+#            je Datenbank einer, einer für die Sicherungen und einer für das
+#            Abonnement — und WELCHE davon entstehen, ist selbst ein Befund:
+#            Dumps::removeAllFor() reiht keinen ein, wenn nie gesichert wurde.
+#            Am 8. August 2026 gefahren (§22.3q): 450 und 451 db.database.remove,
+#            452 subscription.remove, alle fertig — und kein db.dump.remove.
+#
+#    ACHTUNG, DIE ZEILE OBEN IST DIE FALLE: Ein Abonnement ohne Sicherung
+#    erfüllt „das Verzeichnis ist nicht vorhanden", ohne dass je etwas entfernt
+#    wurde. Der Rückbau ist an einem Abo zu fahren, das MINDESTENS EINE
+#    Sicherung hat; sonst ist die vierte Erwartung eine Abwesenheit ohne
+#    Vorgeschichte — genau das, wovor der Kasten oben warnt.
 ```
 
 **Kriterium 6 ist neu gegenüber dem Wortlaut des Plans**, und es gehört dazu:
@@ -2346,6 +2384,289 @@ oder entfernt wird, ist eine Entscheidung mit TLS-Folgen und gehört dem
 Betreiber.** Ein zweiter Wächter sorgt dafür, dass dieser Eintrag nicht still
 altert: Wird die Operation wieder aufgerufen, muss er weg.
 
+### 22.3p Kriterium 5 belegt — und zwei Funde daneben, die nicht dazugehören
+
+**Gefahren am 8. August 2026 auf `cloudsrv24` gegen `v0.5.0-rc.6`**, Abo
+`p1118` / `cloudlab24.de`, Schema `p1118_dummy` mit den drei Tabellen
+`bestellungen`, `kunden`, `notizen`.
+
+| | bestellungen | kunden | notizen |
+| --- | --- | --- | --- |
+| vorher | 5120 | 1280 | 2 |
+| nach `DROP TABLE` | — | — | — |
+| nach Vorgang 449 | 5120 | 1280 | 2 |
+
+Vorgang **449**, `db.restore`, Zustand `fertig`, begonnen und beendet 18:51:21,
+Sicherung `p1118-dummy-20260808-183752-05cb158a` (68 KB). Der befristete
+Benutzer `p1118_r…` war danach fort, und `SHOW GRANTS` nannte dieselben Rechte
+wie vorher.
+
+**Der erste Anlauf war Vorgang 448, und er belegt nichts.** Er lief durch, war
+`fertig`, die Tabellen standen danach wieder da — aber gezählt wurde weder
+vorher noch nachher, weil in der Anleitung an den Betreiber dreimal ein
+wörtliches `<tabelle>` stand und `mysql` es dreimal mit `ERROR 1064` abwies. Die
+Lehre ist dieselbe wie in §22.3m, eine Ebene tiefer: **Eine Anleitung mit einem
+Platzhalter darin ist kein Befehl, sondern eine Bitte um Aufmerksamkeit** — und
+in einem Ablauf aus zwölf Zeilen fällt die eine, die noch ausgefüllt werden
+muss, nicht auf. Was hier trug, war der zweite Durchgang ohne jede Variable.
+
+**Kriterium 4 ist im selben Durchgang fertig geworden.** Der Knopf
+*Herunterladen* lieferte eine Datei — der Weg, der bis `v0.5.0-rc.5` mit 404
+antwortete (§22.3l). Dazu die Rechte: `/var/lib/srvpanel/dumps` ist
+`drwx--x---` (0710) root:srvpanel, das Unterverzeichnis ebenso, die Sicherungen
+`-rw-r-----` (0640) root:srvpanel; `INSERT` = 6, `DEFINER` = 0.
+
+**Das Unterverzeichnis trägt den Abonnementnamen und nicht den Systembenutzer.**
+`Dump::directory()` bildet ihn über `SubscriptionProvision::subscriptionName()`,
+dieselbe Quelle wie `/var/www/vhosts/<name>` — also `dumps/cloudlab24.de/` und
+nicht `dumps/p1118/`. Die Anleitung an den Betreiber las `<abo>` in §17 als
+Systembenutzer und schickte ihn ins Leere; §17 sagt es jetzt ausdrücklich.
+
+**Fund 1: Eine entfernte Datenbank lässt ihr Recht liegen.** In derselben
+Ausgabe stand:
+
+```
+GRANT ALL PRIVILEGES ON `p1118\_dummy`.* TO `p1118_user`@`localhost`
+GRANT ALL PRIVILEGES ON `p1118\_demo`.*  TO `p1118_user`@`localhost`
+```
+
+`p1118_demo` gibt es nicht mehr. `DROP DATABASE` entfernt in MariaDB die auf
+das Schema vergebenen Rechte **nicht** — sie bleiben in `mysql.db` stehen. Und
+`Databases::remove()` nennt dem Agenten nur die Zugänge, die *mitgelöscht*
+werden (`usersOnlyOn()`); ein Zugang, der an einer weiteren Datenbank hängt und
+darum überlebt, behält sein Recht auf das verschwundene Schema.
+
+Das ist mehr als eine hässliche Zeile: Entsteht später wieder ein
+`p1118_demo`, hat dieser Zugang sofort alle Rechte darauf, **ohne dass sie ihm
+jemand gegeben hätte**. Seit §22.3o ist das Verbinden eine ausdrückliche
+Handlung im Panel — hier weicht der Bestand des Panels von dem ab, was MariaDB
+erlaubt, und das ist genau die Sorte Abweichung, gegen die die zweite Fassung
+einer Regel immer verliert. `srvpanel db` meldet dabei „Nichts liegengeblieben",
+weil es diese Frage nicht stellt.
+
+**Behoben.** `remove()` nennt zusätzlich die Zugänge, die **bleiben**, und
+`DbDatabaseRemove` setzt für die je ein `REVOKE IF EXISTS ALL PRIVILEGES ON
+<schema>.*` — dieselbe Anweisung, die `db.user.grant` beim Entziehen schickt,
+also keine zweite Fassung der Maskierungsregel. Die Reihenfolge ist Rechte,
+Zugänge, Schema: `Session::execute()` bleibt beim ersten Fehler stehen, und von
+den beiden Zwischenzuständen ist ein Schema ohne Zugang der harmlosere
+(§22.3e). `OrphanedGrantTest` prüft beide Hälften des Weges und dazu die
+Eigenschaft, die keine der Listen allein hat — kein verbundener Zugang fällt aus
+beiden heraus.
+
+**Was das nicht tut: aufräumen.** Die Rechte, die vor dieser Fassung
+liegengeblieben sind, kennt niemand — der Bestand des Panels hat die Zeile beim
+Entfernen mitgenommen, und `srvpanel db` fragt `mysql.db` nicht. Auf
+`cloudsrv24` ist das eine Zeile von Hand:
+
+```sql
+REVOKE ALL PRIVILEGES ON `p1118\_demo`.* FROM 'p1118_user'@'localhost';
+```
+
+**Ein Melder dafür ist ein eigener Schritt und steht hier als Vorschlag, nicht
+als Zusage:** eine lesende Operation, die `mysql.db` gegen
+`information_schema.schemata` hält, und eine Zeile in `srvpanel db` neben
+„Nichts liegengeblieben". Sie ist deshalb nicht Teil dieses Beitrags, weil sie
+den Agenten um einen Lesezugriff erweitert, den es bisher nicht gibt — und weil
+ein Melder ohne den Wächter oben nur den Zustand beschriebe, statt ihn zu
+verhindern.
+
+**Fund 2: „Noch keine Ausgabe." bei einem fertigen Vorgang.** Das Wort *noch*
+sagt zu, dass etwas kommt. Bei einem abgeschlossenen Vorgang ohne Ausgabe ist
+das falsch; die Seite kannte den Zustand und benutzte ihn für diesen Satz nicht.
+Behoben, und die Regel dazu ist enger gefasst als „das Wort ist verboten": Auf
+einer leeren Liste bleibt „Noch keine Domain" richtig, weil eine dazukommen
+kann. Ein abgeschlossener Vorgang kann das nicht — deshalb verlangt
+`WordChoiceTest::test_the_operation_page_promises_nothing_after_the_end()` genau
+den offenen Zustand als Bedingung und nicht das Fehlen des Wortes.
+
+Beide Funde gehören nicht in den Abnahmelauf und stehen hier, damit sie nicht
+mit ihm verschwinden.
+
+### 22.3q Kriterium 7 — und die Abwesenheit, die nichts belegt
+
+**Gefahren am 8. August 2026 auf `cloudsrv24` gegen `v0.5.0-rc.6`.**
+Zurückgebaut wurde `p1121` / `cloudlab24.ipv64.de` mit den Schemata
+`p1121_demo` und `p1121_trololo` und dem Zugang `p1121_user`; Nachbar war
+`p1118` / `cloudlab24.de`. **Der Betreiber hat A und B gegenüber der Anleitung
+getauscht, und das war die bessere Wahl:** Der überlebende Nachbar ist damit
+der mit den Sicherungen, und die Gegenprobe „das Verzeichnis des Nachbarn ist
+unberührt" wird zum ersten Mal an einem Verzeichnis gefahren, das es gibt.
+
+| | vorher | nachher |
+| --- | --- | --- |
+| `SHOW DATABASES LIKE 'p1121\_%'` | `p1121_demo`, `p1121_trololo` | leer |
+| `mysql.user LIKE 'p1121\_%'` | `p1121_user@localhost` | leer |
+| `mysql.db LIKE 'p1121\_%'` | — | leer |
+| `id p1121` | — | „no such user" |
+| `/var/www/vhosts/cloudlab24.ipv64.de` | — | nicht vorhanden |
+| Nachbar `p1118` | `p1118_dummy`, `p1118_user` | unverändert |
+| `dumps/cloudlab24.de/` | zwei Dateien | unverändert |
+| `srvpanel db` | — | 1 Datenbank, 1 Zugang, 2 Sicherungen, *Nichts liegengeblieben* |
+| `system_users` 1121 | — | steht weiter da, mit `cloudlab24.ipv64.de` |
+
+Vorgänge **450** und **451** (`db.database.remove`, je ein Schema) und **452**
+(`subscription.remove`), alle `fertig`, 19:18:36 bis 19:18:37.
+
+**Und ein `db.dump.remove` war nicht dabei — richtig so, und genau darum ist
+das Kriterium nur zu drei Vierteln belegt.** `p1121` hatte nie gesichert, also
+reiht `Dumps::removeAllFor()` keinen Vorgang ein („kein Vorgang für ein
+Abonnement, das nie gesichert hat"). Damit ist die Erwartung *„`ls
+/var/lib/srvpanel/dumps/<abo>/` → nicht vorhanden"* erfüllt worden, **ohne dass
+je etwas entfernt wurde**. Das ist wortwörtlich der Satz aus dem Kasten in §17:
+*Der Beleg ist nie eine Abwesenheit allein.* Bemerkenswert daran ist, dass die
+Anleitung selbst die Falle gestellt hat — sie verlangte für Kriterium 5 und 6
+Sicherungen an Abo A und liess offen, dass Kriterium 7 dieselben braucht.
+
+**Die fehlende Zeile ist im zweiten Lauf nachgeholt worden** — an einem eigenen
+Abonnement, weil der Preis (ein verbrauchter Systembenutzer) kleiner ist als ein
+unbelegter Rückbauweg. Siehe §22.3r.
+
+**Der Rest des Abnahmekriteriums steht.** Der Wortlaut des Plans — *anlegen,
+benutzen, sichern, zurückspielen, und keine fremde Datenbank sehen* — ist
+vollständig am echten Server gemessen (Kriterium 1 bis 6). Kriterium 7 ist die
+Ergänzung aus §17, und von seinen vier Erwartungen sind drei belegt.
+
+### 22.3r Das Sicherungsverzeichnis geht mit — und eine Zeile bleibt
+
+**Gefahren am 8. August 2026, eigens dafür.** Ein Wegwerf-Abonnement
+`abnahme-dump.invalid` (`p1123`), eine Datenbank `demo`, **eine** Sicherung
+`p1123-demo-20260808-195222-d6225fed.sql.gz` (535 B) — Daten braucht es dafür
+nicht, geprüft wird die Datei und nicht ihr Inhalt.
+
+| | vorher | nachher |
+| --- | --- | --- |
+| `dumps/abnahme-dump.invalid/` | eine `.sql.gz`, `-rw-r-----` root:srvpanel | „No such file or directory" |
+| `dumps/` | zwei Verzeichnisse | nur noch `cloudlab24.de` |
+| `/var/www/vhosts/abnahme-dump.invalid` | vorhanden | fort |
+| Schemata, Zugänge, `mysql.db` | `p1123_*` und `p1118_*` | nur noch `p1118_*`, Zeile für Zeile wie vorher |
+| `system_users` 1123 | — | steht weiter da, mit `abnahme-dump.invalid` |
+
+**Damit ist die vierte Erwartung belegt**, und zwar an einem Verzeichnis, das
+es gab: `subscription.remove` fasst `/var/lib/srvpanel/dumps` nicht an, also
+kann nur `db.dump.remove` es entfernt haben.
+
+**Und derselbe Lauf hat gefunden, wofür er nicht gedacht war.** `srvpanel db`
+sagt danach:
+
+```
+1 Datenbank(en), 1 Zugang/Zugänge, 3 Sicherung(en) im Bestand.
+1 Zeile(n) ohne Abonnement — siehe `srvpanel db --prune`.
+  Sicherung p1123-demo-20260808-195222-d6225fed (abnahme-dump.invalid, 535 B)
+```
+
+**Die Datei ist fort, die Zeile ist geblieben** — und der Bestand zählt drei
+Sicherungen, während zwei auf der Platte liegen. `DbLifecycle::afterDump()` hat
+dazu einen Kommentar, der genau das Gegenteil behauptet:
+
+```php
+if ($dump === null) {
+    // Der Rückbau eines ganzen Abonnements trägt keinen Gegenstand
+    // — dort verschwinden die Zeilen mit dem Abonnement.
+    return;
+}
+```
+
+Sie verschwinden nicht. `database_dumps.subscription_id` steht mit Absicht auf
+`nullOnDelete` (§7.2), damit eine Sicherung ihre Datenbank überlebt: Die Zeile
+ist der Wegweiser zu einer Datei, auf die sonst nichts mehr zeigt, und genau
+davon lebt `srvpanel db --prune`. Nach einem **erfolgreichen** Rückbau ist die
+Datei aber weg, und der Wegweiser zeigt ins Leere.
+
+**Das ist derselbe Fehler wie zweimal an diesem Tag, nur in der Gegenrichtung.**
+Bei den Rechten überlebte die Sache ihre Zeile; hier überlebt die Zeile ihre
+Sache. Beide Male stand die Zusage in einem Kommentar, und beide Male hat sie
+niemand geprüft. Und die Folge ist die teurere von beiden: Ein Rückbau, der
+sauber gelaufen ist, meldet einen Rest — und ein Melder, der nach jedem Rückbau
+Alarm gibt, wird gelesen wie ein Rauschen. *Ein Wächter, der Fehlalarm gibt,
+wird abgeschaltet*, steht schon in `ClassReachTest`.
+
+**Behoben, und der Weg lag an derselben Stelle.** Ein `db.dump.remove` ohne
+Gegenstand ist immer der Rückbau eines ganzen Abonnements
+(`Dumps::removeAllFor()` ist der einzige Erzeuger), und der Vorgang trägt zu
+diesem Zeitpunkt noch sein `subscription_id`: `subscription.remove` steht hinter
+ihm in derselben Warteschlange mit einem Arbeiter, und erst dort werden die
+Vorgänge abgekoppelt. `DbLifecycle::removedAllDumps()` löscht die Zeilen dieses
+Abonnements im selben Zug — die Bedingung hängt damit an einem *Zustand*
+(`subject_id` fehlt, `subscription_id` steht) und nicht an einer Absicht.
+
+`DumpTeardownTest` prüft vier Dinge, und drei davon sind Gegenproben: dass die
+Zeilen gehen; dass `DatabasePrune` danach nichts meldet — **die Behauptung, die
+auf dem Server fehlgeschlagen ist**; dass sie *ohne* den Vorgang bleiben und
+gemeldet werden, damit „nichts gemeldet" nicht auch für Zeilen gilt, die es nie
+gab; dass der Nachbar seine behält, denn ein `delete()` über die ganze Tabelle
+bestünde jeden anderen Test; und dass das Entfernen einer *einzelnen* Sicherung
+weiter genau eine trifft — griffe die neue Bedingung eine Zeile zu früh, nähme
+ein Klick alle anderen mit.
+
+**Und `srvpanel db` gehört als Erwartung in §17.** Vier Abfragen und ein
+Verzeichnis haben diesen Rest nicht gezeigt; gezeigt hat ihn das Kommando, das
+den Bestand gegen die Platte hält. Es steht seit diesem Lauf in Kriterium 7.
+
+### 22.3s Auf dem Schreibtisch musste man schieben, um einen Knopf zu treffen
+
+**Gemeldet vom Betreiber am 8. August 2026, mit einer Aufnahme:** Auf der
+Datenbankseite stand „Zugriff en…" — der Knopf war abgeschnitten, und die
+Tabellen „Zugänge" und „Sicherungen" liessen sich nur waagerecht schieben, um
+an ihre Knöpfe zu kommen.
+
+**Die Ursache ist eine Kette aus drei Regeln, von denen jede für sich richtig
+ist.** `.scrolls > table` setzt `width: max-content` — dafür gibt es den
+Rollbehälter, und auf dem Telefon ist er die Antwort. Ein Bereich ohne
+Breitenangabe bekommt `--bereich-min`, also 400px, und wächst mit der Zeile.
+Und eine Aktionsspalte mit drei Knöpfen macht die Breite einer Tabelle zur
+Summe ihrer Beschriftungen. Gemessen am gebauten Stylesheet:
+
+| Tabelle | braucht |
+| --- | --- |
+| Zugänge | 755px |
+| Sicherungen | 923px |
+
+Ein Bereich im Grundriss bekommt bei 1440px 548px.
+
+**Der Überlauf, nach Bildschirmbreite** — und die Reihe ist der eigentliche
+Fund:
+
+| Breite | Zugänge | Sicherungen |
+| --- | --- | --- |
+| 1280 | 286px | 0 |
+| 1366 | 243px | 0 |
+| 1440 | 206px | 0 |
+| **1600** | **350px** | **518px** |
+| 1920 | 243px | 411px |
+
+**Er wird auf einem breiteren Bildschirm schlimmer.** Bis 1440px weicht
+„Sicherungen" in eine eigene Zeile aus und steht richtig; ab 1600px passen alle
+drei Bereiche nebeneinander, und damit rollen beide Tabellen. Wer bei 1440px
+nachsieht — die übliche Breite —, sieht die Hälfte des Fehlers und hält die
+andere für behoben.
+
+**Behoben mit `full` an beiden Bereichen**, der Klasse, die es dafür gibt. Nach
+der Änderung ist der Überlauf bei 1280, 1366, 1440, 1600 und 1920 in beiden
+Dichtestufen **0**. Bei 1024 bleibt er (45px und 213px): Dort ist die Fläche
+schmaler als der Bedarf, und der Rollbehälter ist genau dafür da. Unter 720px
+ändert sich nichts, denn `--bereich-min` ist dort ohnehin `100%`.
+
+**Die Regel dahinter hängt an der Aktionsspalte und nicht an der Spaltenzahl.**
+Vier Spalten sind kein Maß — „Konten" beim Kunden hat vier und passt bequem,
+weil in jeder Zelle ein Wort steht. Was die Breite erzwingt, sind Knöpfe: Ihre
+Beschriftung ist unverkürzbar, sie brechen nicht um, und sie sind der einzige
+Inhalt einer Tabelle, den man *treffen* muss. **Zum Lesen genügt Schieben, zum
+Drücken nicht.**
+
+`ActionColumnTest` liest alle Bereiche aller Seiten und verlangt `full` für
+jeden, dessen Tabelle eine Zelle mit einer Knopfreihe hat. Als er entstand, gab
+es im ganzen Panel genau zwei solche Tabellen, und beide standen falsch; die
+Regel ist also keine Verallgemeinerung aus einem Fall, sondern die Beschreibung
+des einzigen Falls, den es gibt. Seine Untergrenze zählt **Bereiche** und nicht
+Fundstellen — ein Zähler auf den Fundstellen stünde auf null, sobald jemand die
+letzte Aktionstabelle umbaut, und meldete Rot für genau die Ordnung, die er
+durchsetzen soll.
+
+**Und die Lehre für das Nachsehen selbst:** Eine Breite reicht nicht. Der
+Bildschirm des Betreibers zeigte weniger als das Bild, das ein zweiter Blick
+bei 1600px ergeben hätte.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -2368,20 +2689,40 @@ nächsten Lauf.
 **Kriterium 6 ist gefahren und erfüllt** (§22.3m): Ein Dump, der Rechte vergeben
 will, prallt am befristeten Benutzer ab, und die Rechtezeile bleibt unverändert.
 
-**Kriterium 4 ist halb belegt.** Die Sicherung entsteht und liegt richtig — der
-Download hat mit 404 geantwortet, das ist behoben (§22.3l), aber **ein
-erfolgreicher Download ist seither nicht niedergeschrieben.** Genau die Sorte
-Lücke, die dieser Abschnitt beschreibt: Der Fehler ist erklärt, der Beleg fehlt.
+**Kriterium 4 ist gefahren und erfüllt** (§22.3p): Die Sicherung entsteht, liegt
+mit den richtigen Rechten, enthält die Zeilen und keine `DEFINER`-Angabe — und
+der Download liefert eine Datei. Bis dahin war es halb belegt, und die Hälfte,
+die fehlte, war genau die, an der der 404 hing.
 
-**Kriterium 5 und 7 stehen aus:** das Zurückspielen mit der Wiederkehr der Zeilen
-und der Rückbau samt Gegenprobe am Nachbarn.
+**Kriterium 5 ist gefahren und erfüllt** (§22.3p): Vorgang 449, `db.restore`,
+Zustand `fertig` — und je Tabelle dieselbe Zeilenzahl wie vor dem Löschen.
 
-Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
-benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur
-Mandantentrennung ist bisher eine Eigenschaft der erzeugten Zeichenkette
-(`DbIsolationTest`, `GrantPatternTest`) und keine Verbindung, die MariaDB
-abgewiesen hat. Genau dafür gibt es §17, und genau deshalb gibt
-`db.isolation.probe` **Namen** zurück und keine Zahl.
+**Kriterium 7 ist gefahren und in allen vier Erwartungen erfüllt** — die ersten
+drei am Rückbau von `p1121` (§22.3q), die vierte an einem eigenen Abonnement mit
+genau einer Sicherung (§22.3r), weil `p1121` nie gesichert hatte und „das
+Verzeichnis ist nicht vorhanden" dort eine Abwesenheit ohne Vorgeschichte war.
+
+**Damit ist das Abnahmekriterium von P5 in allen sieben Punkten belegt.**
+
+Der Fund aus dem letzten Lauf — nach dem Rückbau blieb die *Zeile* einer
+Sicherung stehen, deren Datei fort war — ist behoben (§22.3r). Auf einem Server,
+der vor dieser Fassung zurückgebaut hat, liegt die Zeile weiter da; sie geht mit
+`srvpanel db --prune`.
+
+**Das Abnahmekriterium ist erfüllt** — *„ein Kunde legt eine Datenbank an,
+benutzt sie, sichert und spielt zurück, und ein Datenbankbenutzer sieht
+nachweislich keine fremde Datenbank"*, alle sieben Kriterien aus §17, gemessen
+an MariaDB 10.11.14 auf `cloudsrv24` und nicht an einer erzeugten Zeichenkette.
+**Fertig ist P5 damit nicht:** Gebaut sind die Schritte 1 bis 9; es fehlen der
+Fernzugriff (§12, Schritt 10) und das Hochladen einer Sicherung (§10.3,
+Schritt 11). Der Satz des Plans — *anlegen, benutzen, sichern,
+zurückspielen, und keine fremde Datenbank sehen* — ist ansonsten am echten
+Server gemessen, mit den Fehlernummern von MariaDB und nicht als Eigenschaft
+einer erzeugten Zeichenkette. Bis zum 8. August stand hier das Gegenteil, weil
+dieser Absatz vor den Läufen geschrieben und danach nicht nachgezogen wurde;
+`DbIsolationTest` und `GrantPatternTest` prüfen weiter die Zeichenkette, aber
+sie sind seit §22.3h nicht mehr der einzige Beleg. Genau dafür gibt es §17, und
+genau deshalb gibt `db.isolation.probe` **Namen** zurück und keine Zahl.
 
 **Und die Bringschuld aus §20 Punkt 1 ist gewachsen.** Jeder neue Eingriff in
 `tests/waechter-brechen.sh` greift nachweislich in seine Zieldatei — und das ist

@@ -4244,6 +4244,120 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DbTenancyTest passed
 
 echo
+echo "── OrphanedGrantTest: der bleibende Zugang wird nicht genannt ──"
+#
+# `DROP DATABASE` nimmt die Rechte auf das Schema nicht mit. Nennt die Anwendung
+# nur die Zugänge, die mitgehen, behält jeder überlebende sein `GRANT ALL` auf
+# eine Datenbank, die es nicht mehr gibt — auf cloudsrv24 gefunden (docs/36
+# §22.3p).
+vorher_datei app/Support/Databases/Databases.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                'revoke' => self::accounts($staying),\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Databases.php "bleibender Zugang nicht genannt" &&
+pruefe "bleibender Zugang nicht genannt" \
+  OrphanedGrantTest::test_an_access_that_stays_is_named_for_the_revoke failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OrphanedGrantTest passed
+
+echo
+echo "── OrphanedGrantTest: die Nennung erreicht keine Anweisung ──"
+#
+# Die andere Hälfte desselben Weges: Eine Liste im Auftrag, die der Agent nicht
+# in ein REVOKE übersetzt, ist genau die Sorte Zeichenkette, die auf etwas
+# verweist, ohne dass es sie erreicht.
+vorher_datei agent/src/Ops/DbDatabaseRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbDatabaseRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        foreach ($staying as [$user, $host]) {\n"
+    "            $statements[] = DbUserGrant::statement($user, $host, $database, false);\n"
+    "        }\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbDatabaseRemove.php "Nennung ohne Anweisung" &&
+pruefe "Nennung ohne Anweisung" \
+  OrphanedGrantTest::test_every_named_account_reaches_a_statement failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OrphanedGrantTest passed
+
+echo
+echo "── WordChoiceTest: „Noch" an einem fertigen Vorgang ──"
+#
+# Das Wort verspricht, dass etwas kommt. An einem abgeschlossenen Vorgang kommt
+# nichts mehr — Vorgang 449 stand am 8. August 2026 auf „fertig" und darunter
+# „Noch keine Ausgabe.".
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "const emptyOutput = computed(() => (open.value ? 'Noch keine Ausgabe.' : 'Keine Ausgabe.'))",
+    "const emptyOutput = computed(() => 'Noch keine Ausgabe.')",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Zusage an einem fertigen Vorgang" &&
+pruefe "Zusage an einem fertigen Vorgang" \
+  WordChoiceTest::test_the_operation_page_promises_nothing_after_the_end failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
+
+echo
+echo "── DumpTeardownTest: die Zeile überlebt ihre Datei ──"
+#
+# Nach dem Rückbau eines Abonnements ist die Sicherungsdatei fort, und ohne
+# diesen Zweig bleibt ihre Zeile stehen: srvpanel db meldet dann einen Rest nach
+# einem Rückbau, der sauber gelaufen ist (docs/36 §22.3r).
+vorher_datei app/Support/Databases/DbLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DbLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                $this->removedAllDumps($operation, $task);\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DbLifecycle.php "Zeile überlebt ihre Datei" &&
+pruefe "Zeile überlebt ihre Datei" \
+  DumpTeardownTest::test_nothing_is_left_over_after_the_subscription_is_gone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DumpTeardownTest passed
+
+echo
+echo "── ActionColumnTest: eine Aktionsspalte im Grundriss ──"
+#
+# Die Breite einer Tabelle mit Knöpfen ist die Summe ihrer Beschriftungen, und
+# `.scrolls > table` hält sie auf max-content. Im Grundriss liegt der letzte
+# Knopf ausserhalb des Bereichs — man muss schieben, um ihn zu treffen
+# (docs/36 §22.3s).
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<Section title="Sicherungen" full>',
+    '<Section title="Sicherungen">',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "Aktionsspalte im Grundriss" &&
+pruefe "Aktionsspalte im Grundriss" \
+  ActionColumnTest::test_a_table_with_an_action_column_takes_the_whole_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionColumnTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

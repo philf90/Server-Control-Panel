@@ -508,7 +508,7 @@ function size(): string {
           <p class="hint">
             Eine gepackte Sicherung (<span class="ident">.sql.gz</span>) bis
             {{ props.import_limit }}. Sie wird übernommen und liegt danach in dieser Liste
-            — <b>eingespielt wird sie erst, wenn du sie zurückspielst</b>, und dabei wird
+            — <b>in die Datenbank kommt sie erst, wenn du sie zurückspielst</b>, und dabei wird
             der jetzige Stand von <span class="ident">{{ props.database.name }}</span>
             überschrieben.
           </p>

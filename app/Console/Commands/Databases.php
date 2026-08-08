@@ -443,6 +443,11 @@ final class Databases extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Wer den Aufruf ausgelöst hat — für das Protokoll des Agenten.
+     *
+     * @return array<string, string>
+     */
     private function actor(): array
     {
         return ['source' => 'cli', 'command' => 'srvpanel:db'];

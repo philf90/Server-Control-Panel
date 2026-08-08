@@ -146,7 +146,7 @@ final class DatabaseController extends Controller
                 ->with('status', 'Datenbank '.$database->name.' angelegt.');
         }
 
-        return $this->createUserFor($database, $subscription, (string) $data['user_label'], 'user_label');
+        return $this->createUserFor($database, $subscription, (string) $data['user_label'], field: 'user_label');
     }
 
     public function show(Request $request, Database $database): Response
@@ -492,8 +492,8 @@ final class DatabaseController extends Controller
             $database,
             $subscription,
             (string) $data['label'],
-            'label',
-            $this->host($data['host'] ?? null),
+            field: 'label',
+            host: $this->host($data['host'] ?? null),
         );
     }
 

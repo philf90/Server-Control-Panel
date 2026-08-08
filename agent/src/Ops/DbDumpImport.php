@@ -37,7 +37,7 @@ use SrvPanel\Agent\Op;
  *    von jedem fälschbar, der die Datei schreibt.
  * 3. **Der freie Platz.** Nicht dort, wo die Datei liegt, sondern dort, wo die
  *    Daten hinkommen: Ein Zurückspielen füllt das Datenverzeichnis des
- *    Datenbankservers, und ein volles Dateisystem mitten im Einspielen ist der
+ *    Datenbankservers, und ein volles Dateisystem mitten im Zurückspielen ist der
  *    Zustand, in dem eine Datenbank halb ist.
  * 4. **Die Herkunft bleibt sichtbar.** Der Bestand des Panels führt `kind`, und
  *    diese Operation liefert `imported` zurück — eine mitgebrachte Sicherung
@@ -230,8 +230,8 @@ final class DbDumpImport implements Op
 
         if ($free < $unpacked) {
             throw AgentException::denied(sprintf(
-                'Auf %s sind %d MB frei, die Sicherung braucht ausgepackt %d MB. Ein Einspielen, dem '
-                .'mittendrin der Platz ausgeht, hinterlässt eine halbe Datenbank.',
+                'Auf %s sind %d MB frei, die Sicherung braucht ausgepackt %d MB. Ein Zurückspielen, '
+                .'dem mittendrin der Platz ausgeht, hinterlässt eine halbe Datenbank.',
                 self::DATA_DIRECTORY,
                 intdiv((int) $free, 1024 * 1024),
                 intdiv($unpacked, 1024 * 1024),

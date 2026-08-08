@@ -138,15 +138,27 @@ final class RemoteAccessTest extends TestCase
     /**
      * Ohne Rückfrage passiert nichts.
      *
-     * **Vorgabe `false`, wie bei `--prune`.** Der Datenbankserver trägt auch
-     * das Panel; ein `--remote` unter `--no-interaction` wäre eine
-     * Unterbrechung, die niemand angesagt hat. Der Lauf endet erfolgreich und
-     * hat nichts getan — der Agent wird gar nicht erst gerufen, was in diesem
-     * Container ohnehin scheitern würde.
+     * **Vorgabe `nein`, wie bei `--prune`.** Der Datenbankserver trägt auch das
+     * Panel; ein `--remote` ohne Rückfrage wäre eine Unterbrechung, die niemand
+     * angesagt hat. Der Lauf endet erfolgreich und hat nichts getan — der Agent
+     * wird gar nicht erst gerufen, was in diesem Container ohnehin scheitern
+     * würde.
      */
     public function test_nothing_happens_without_a_confirmation(): void
     {
-        $this->artisan('srvpanel:db --remote=off --no-interaction')
+        /*
+         * **Die Rückfrage wird beantwortet und nicht übergangen.**
+         * `--no-interaction` allein reicht nicht: Der Testläufer legt eine
+         * Attrappe über die Ausgabe, und die verlangt für jede Frage eine
+         * Erwartung — sonst endet der Lauf mit „no expectations were
+         * specified" statt mit dem, was das Kommando tut. Beantwortet wird mit
+         * `nein`, denn genau das ist auch die Vorgabe.
+         */
+        $this->artisan('srvpanel:db --remote=off')
+            ->expectsConfirmation(
+                'Dafür wird der Datenbankserver neu gestartet. Das Panel ist dabei kurz ohne Datenbank. Weiter?',
+                'no',
+            )
             ->expectsOutputToContain('Abgebrochen.')
             ->assertSuccessful();
     }

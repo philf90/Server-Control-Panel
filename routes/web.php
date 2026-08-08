@@ -472,6 +472,16 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:update,database')
         ->name('databases.dumps.store');
 
+    /*
+     * Eine mitgebrachte Sicherung — die einzige Stelle in P5, an der eine
+     * Datei von aussen hereinkommt (docs/36 §22.3u). Sie landet im
+     * Schreibbereich des Panels, und der Agent holt sie von dort ab; über den
+     * Socket geht ein halbes Gigabyte nicht.
+     */
+    Route::post('/databases/{database}/dumps/import', [DatabaseController::class, 'import'])
+        ->middleware('can:update,database')
+        ->name('databases.dumps.import');
+
     Route::get('/databases/{database}/dumps/{dump}', [DatabaseController::class, 'download'])
         ->middleware('can:view,database')
         ->name('databases.dumps.download');

@@ -14,6 +14,7 @@ use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use SrvPanel\Agent\Ops\DbDatabaseRemove;
 use SrvPanel\Agent\Ops\DbDumpCreate;
+use SrvPanel\Agent\Ops\DbDumpImport;
 use SrvPanel\Agent\Ops\DbDumpRemove;
 use SrvPanel\Agent\Ops\DbIsolationProbe;
 use SrvPanel\Agent\Ops\DbRemoteAccess;
@@ -119,6 +120,7 @@ final class Registry
          */
         $this->register(new DbServerInfo);
         $this->register(new DbRemoteAccess);
+        $this->register(new DbDumpImport);
         $this->register(new DbDatabaseRemove);
         $this->register(new DbDatabaseCreate);
         $this->register(new DbUserRemove);

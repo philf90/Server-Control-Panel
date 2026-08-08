@@ -70,9 +70,30 @@ const props = defineProps<{
    * (docs/36 §12) — und wenn nicht, steht der Grund daneben statt nichts.
    */
   remote: { possible: boolean; bind_address: string | null; reason: string | null }
+
+  /* Wie gross eine hochgeladene Sicherung sein darf — aus ImportLimit. */
+  import_limit: string
 }>()
 
 const userForm = useForm({ label: '', host: '' })
+
+/*
+ * Das Hochladen einer mitgebrachten Sicherung.
+ *
+ * **`forceFormData`, weil eine Datei mitgeht.** Ohne das schickt Inertia JSON,
+ * und die Datei käme als leeres Objekt an — ein Fehler, den man erst am Server
+ * sieht.
+ */
+const importForm = useForm<{ dump: File | null }>({ dump: null })
+
+function chooseDump(event: Event): void {
+  const input = event.target as HTMLInputElement
+  importForm.dump = input.files?.[0] ?? null
+}
+
+function uploadDump(): void {
+  importForm.post(`/databases/${props.database.id}/dumps/import`, { forceFormData: true })
+}
 
 /*
  * Die Rückfrage verlangt den Namen zum Abtippen.
@@ -414,7 +435,17 @@ function size(): string {
             </thead>
             <tbody>
               <tr v-for="dump in props.dumps" :key="dump.id">
-                <td data-column="Sicherung" class="ident name">{{ dump.name }}</td>
+                <td data-column="Sicherung" class="ident name">
+                  {{ dump.name }}
+                  <!--
+                    **Woher sie kommt, steht an ihr.** Eine mitgebrachte
+                    Sicherung ist etwas anderes als eine, die dieser Server
+                    geschrieben hat: Beim Zurückspielen wird die Datenbank
+                    geleert, und wer die beiden nicht unterscheiden kann, trifft
+                    die Wahl blind (docs/36 §22.3u).
+                  -->
+                  <Badge v-if="dump.kind === 'imported'" kind="neutral">mitgebracht</Badge>
+                </td>
                 <td data-column="Grösse">{{ bytes(dump.bytes) }}</td>
                 <!--
                   `multiline` nur, wenn ein Grund dasteht: Unter 720px ist eine
@@ -449,14 +480,6 @@ function size(): string {
           </table>
         </div>
 
-        <!--
-          **Hier stand ein zweiter Satz über hochgeladene Dateien.** Es gibt
-          kein Hochladen — keine Route, keine Methode, kein Formularfeld. Der
-          Satz war eine Zusage der Oberfläche an etwas, das nicht existiert;
-          das ist teurer als eine fehlende Funktion, weil ein Kunde danach
-          sucht. Er kommt mit dem Schritt wieder, der das Hochladen baut
-          (docs/36 §15 Schritt 11).
-        -->
         <p class="hint">
           Eine Sicherung wird gepackt abgelegt und liegt ausserhalb des
           Verzeichnisses dieses Abonnements — sie ist über die Webseite nicht
@@ -468,6 +491,34 @@ function size(): string {
             Jetzt sichern
           </button>
         </div>
+
+        <!--
+          **Hier stand ein Satz über hochgeladene Dateien, bevor es das
+          Hochladen gab** — eine Zusage der Oberfläche an etwas, das nicht
+          existierte. Sie ist am 8. August 2026 zurückgenommen worden und kommt
+          mit diesem Formular zurück, diesmal mit einer Route dahinter
+          (docs/36 §22.3f und §22.3u).
+        -->
+        <form v-if="props.can.update" class="form" @submit.prevent="uploadDump()">
+          <label class="field">
+            <span>Sicherung hochladen</span>
+            <input type="file" accept=".gz,application/gzip" @change="chooseDump">
+          </label>
+          <p v-if="importForm.errors.dump" class="error">{{ importForm.errors.dump }}</p>
+          <p class="hint">
+            Eine gepackte Sicherung (<span class="ident">.sql.gz</span>) bis
+            {{ props.import_limit }}. Sie wird übernommen und liegt danach in dieser Liste
+            — <b>eingespielt wird sie erst, wenn du sie zurückspielst</b>, und dabei wird
+            der jetzige Stand von <span class="ident">{{ props.database.name }}</span>
+            überschrieben.
+          </p>
+
+          <div class="button-row">
+            <button type="submit" class="button" :disabled="importForm.processing || importForm.dump === null">
+              Hochladen
+            </button>
+          </div>
+        </form>
       </Section>
 
       <Section v-if="props.can.delete" title="Entfernen">

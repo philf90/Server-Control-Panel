@@ -14,10 +14,12 @@ use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
+use App\Support\Databases\ImportLimit;
 use App\Support\Plans\Quota;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -27,6 +29,7 @@ use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Db\Names;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
+use SrvPanel\Agent\Ops\DbDumpImport;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -200,6 +203,11 @@ final class DatabaseController extends Controller
              * halten.
              */
             'remote' => $this->remoteAccess(),
+
+            // Was ein Hochladen annimmt — die Zahl kommt aus der Quelle, damit
+            // die Oberfläche nicht etwas anderes verspricht als die Prüfregel
+            // (docs/36 §10.3).
+            'import_limit' => ImportLimit::label(),
         ]);
     }
 
@@ -257,6 +265,117 @@ final class DatabaseController extends Controller
 
         return to_route('operations.show', $operation)
             ->with('status', 'Die Sicherung wird erstellt.');
+    }
+
+    /**
+     * Eine mitgebrachte Sicherung entgegennehmen.
+     *
+     * **Die Datei geht nicht über den Socket.** Sie landet im Schreibbereich
+     * des Panels, und der Agent holt sie von dort ab — wortgleich der Grund,
+     * aus dem eine Sicherung beim Herunterladen nicht zurückgereicht wird.
+     *
+     * **Die Magic Bytes werden hier schon geprüft, obwohl der Agent es noch
+     * einmal tut.** Das ist keine zweite Fassung derselben Regel, sondern die
+     * Reihenfolge: Wer eine ZIP-Datei hochlädt, soll die Meldung sofort am Feld
+     * sehen — und nicht eine Zeile im Bestand bekommen, die auf einen Vorgang
+     * wartet, der gleich scheitert. Was gilt, entscheidet trotzdem der Agent;
+     * er sieht die Datei, die tatsächlich bei ihm ankommt.
+     *
+     * **Und die Zeile entsteht erst, wenn die Datei liegt.** Andersherum stünde
+     * bei einem Fehlschlag beim Verschieben eine Sicherung im Bestand, zu der
+     * es nie eine Datei gab.
+     */
+    public function import(Request $request, Database $database): RedirectResponse
+    {
+        $request->validate([
+            'dump' => ['required', 'file', ImportLimit::rule()],
+        ], [], ['dump' => 'Sicherung']);
+
+        $file = $request->file('dump');
+
+        if (! $file instanceof UploadedFile) {
+            throw ValidationException::withMessages(['dump' => 'Es ist keine Datei angekommen.']);
+        }
+
+        if (! $this->looksLikeGzip($file->getRealPath())) {
+            throw ValidationException::withMessages([
+                'dump' => 'Das ist keine gzip-Datei. Erwartet wird eine Sicherung, wie dieses Panel sie '
+                    .'schreibt (.sql.gz) — die Endung allein genügt nicht.',
+            ]);
+        }
+
+        /*
+         * **Der Name kommt von hier und nicht vom Absender.** Ein hochgeladener
+         * Dateiname ist eine Zeichenkette aus dem Netz; sie in einen Pfad zu
+         * setzen ist der Vorgang, den die Positivliste des Agenten verhindert.
+         * Wie die Sicherung später heisst, entscheidet ohnehin
+         * `Dumps::record()` gegen den Bestand.
+         */
+        $name = bin2hex(random_bytes(16)).'.sql.gz';
+        $staging = self::staging();
+        $source = $staging.'/'.$name;
+
+        try {
+            $file->move($staging, $name);
+            $operation = $this->dumps->import($database, $source);
+        } catch (RuntimeException|AgentException $error) {
+            @unlink($source);
+
+            throw ValidationException::withMessages(['dump' => $error->getMessage()]);
+        }
+
+        $this->audit->record('database.dump.imported', target: $database, subscriptionId: (int) $database->subscription_id);
+
+        return to_route('operations.show', $operation)
+            ->with('status', 'Die Sicherung wird übernommen.');
+    }
+
+    /**
+     * Die Übergabe: der Schreibbereich des Panels, den der Agent erwartet.
+     *
+     * **Zwei Pfade, die derselbe sein müssen** — `storage_path()` hier und
+     * {@see DbDumpImport::STAGING_ROOT} dort. In der Auslieferung ist
+     * `storage` ein Verweis nach `/var/lib/srvpanel/storage`, und beide zeigen
+     * auf dasselbe Verzeichnis; im Test zeigt `storage_path()` woandershin, und
+     * das ist richtig so — dort läuft kein Agent. Dass die beiden in der
+     * Auslieferung zusammenpassen, prüft `UploadLimitTest`.
+     */
+    private static function staging(): string
+    {
+        $path = storage_path('app/private/imports');
+
+        if (! is_dir($path)) {
+            // 0700: Der Inhalt ist die Datenbank eines Kunden, und ausser dem
+            // Panel und dem Agenten muss dort niemand hineinsehen.
+            @mkdir($path, 0o700, true);
+        }
+
+        return $path;
+    }
+
+    /**
+     * Die ersten beiden Bytes — mehr sagt über eine Datei nichts Billigeres.
+     *
+     * `1f 8b` steht am Anfang jedes gzip-Stroms (RFC 1952). Ob dahinter SQL
+     * steht, entscheidet der Datenbankserver beim Einspielen; ein Panel, das
+     * SQL zu erkennen versucht, baut einen Parser, den niemand geprüft hat.
+     */
+    private function looksLikeGzip(string|false $path): bool
+    {
+        if ($path === false) {
+            return false;
+        }
+
+        $handle = @fopen($path, 'rb');
+
+        if ($handle === false) {
+            return false;
+        }
+
+        $head = (string) fread($handle, 2);
+        fclose($handle);
+
+        return $head === "\x1f\x8b";
     }
 
     /**

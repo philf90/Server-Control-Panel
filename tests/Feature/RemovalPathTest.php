@@ -39,9 +39,14 @@ final class RemovalPathTest extends TestCase
      * vergisst, ist genau die, die dieser Test finden soll. Die Endungen sind
      * die Verben, die dieses Projekt benutzt.
      *
+     * `.import` kam mit Schritt 11 dazu: Eine mitgebrachte Sicherung legt eine
+     * Datei ab wie eine selbst geschriebene, und ihr Weg zurück ist derselbe —
+     * `db.dump.remove`. Sie als Ausnahme zu führen wäre bequemer und falsch:
+     * Sie *ist* eine anlegende Operation, sie hiess nur nicht so.
+     *
      * @var list<string>
      */
-    private const CREATING = ['.create', '.apply', '.provision', '.install', '.store', '.upload', '.ensure', '.issue'];
+    private const CREATING = ['.create', '.apply', '.provision', '.install', '.store', '.upload', '.ensure', '.issue', '.import'];
 
     /**
      * Und was eine entfernende ausmacht.

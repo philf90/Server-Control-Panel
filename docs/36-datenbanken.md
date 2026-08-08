@@ -750,13 +750,14 @@ laut und mit der Meldung des Systems.
 
 ### 10.3 Die Grössenbegrenzung
 
-> **Dieser Abschnitt beschreibt Schritt 11 und ist in P5 nicht umgesetzt.** Er
-> stand hier als Teil von Schritt 6 und ist beim Bauen zu weit gekommen: Die
-> drei Zahlen wurden gesetzt, `ImportLimit` geschrieben, `UploadLimitTest`
-> dazu — **und das Hochladen selbst nie gebaut.** Was blieb, war eine Zusage in
-> der Oberfläche („Hochgeladene Dateien dürfen bis 512 MB gross sein") ohne
-> Route dahinter, dazu zwei aufgeweitete Grenzen, die nichts brauchte. Beides
-> ist am 8. August zurückgenommen; die Begründung steht in §22.3f.
+> **Umgesetzt mit Schritt 11 (§22.3u).** Der Abschnitt stand hier zuerst als
+> Teil von Schritt 6 und ist beim Bauen zu weit gekommen: Die drei Zahlen wurden
+> gesetzt, `ImportLimit` geschrieben, `UploadLimitTest` dazu — **und das
+> Hochladen selbst nie gebaut.** Am 8. August ist beides zurückgenommen worden
+> (§22.3f) und mit der Funktion zusammen wiedergekommen. `UploadLimitTest`
+> vergleicht seitdem nicht nur die drei Zahlen, sondern fährt einen Aufruf durch
+> die Prüfregel: *Ein Wächter, der drei Werte gegeneinander hält, prüft nicht,
+> dass sie gelten.*
 
 Der Plan verlangt sie („mit Größenbegrenzung"), und sie ist der Ort, an dem drei
 Zahlen zusammenpassen müssen, die an drei Stellen stehen:
@@ -2739,6 +2740,55 @@ ab, das liegenbleibt — und heisst er nicht danach, sagt er in
 IP-Beschränkung gilt in MariaDB und nicht im Paketfilter. Die Firewall kommt mit
 P9 (§12).
 
+### 22.3u Schritt 11 — eine Sicherung hochladen, und der Test, der zurückkommt
+
+**Die Datei geht nicht über den Socket.** Das Panel legt sie in seinem eigenen
+Schreibbereich ab (`storage/app/private/imports`), und `db.dump.import` holt
+sie von dort — wortgleich der Grund, aus dem eine Sicherung beim Herunterladen
+nicht zurückgereicht wird: Ein halbes Gigabyte durch den Unix-Socket ist der
+Weg, auf dem der Agent den Speicher des Servers füllt. Der Pfad geht durch
+`Guard::pathInside()`, das ihn **auflöst** und danach prüft; ein Symlink, der
+aus dem Bereich herauszeigt, ist genau der Ausbruch, den die Auflösung
+verhindert.
+
+**Die vier Prüfungen, die §22.3f als fehlend benannt hat, sind gebaut:**
+
+| Prüfung | wo | warum dort |
+|---|---|---|
+| Magic Bytes `1f 8b` | Panel **und** Agent | Das Panel, damit die Meldung sofort am Feld steht; der Agent, weil er die Datei sieht, die tatsächlich ankommt |
+| ausgepackte Grösse | Agent | 400 MB gepackt können 40 GB werden — gezählt beim Auspacken, mit Deckel bei 20 GiB |
+| freier Platz | Agent | auf `/var/lib/mysql` und nicht dort, wo die Datei liegt: Das Einspielen füllt das Datenverzeichnis |
+| Herkunft | Panel | `kind = imported`, und die Liste zeigt es als Marke |
+
+**Die ausgepackte Grösse wird gezählt und nicht abgelesen.** Im Gzip-Trailer
+steht sie modulo 2³² und ist von jedem fälschbar, der die Datei schreibt. Der
+Agent packt deshalb nach nirgendwo aus und zählt mit; über dem Deckel bricht er
+ab, ohne den Rest zu lesen — eine Zip-Bombe soll Sekunden kosten und nicht
+Stunden.
+
+**Die Herkunft ist keine Kosmetik.** Beim Zurückspielen wird die Datenbank
+geleert. Wer in der Liste nicht unterscheiden kann, was dieser Server
+geschrieben hat und was jemand mitgebracht hat, trifft die Wahl blind — deshalb
+steht `mitgebracht` als Marke an der Zeile.
+
+**Und der Test kommt zurück, diesmal mit einer zweiten Hälfte.**
+`UploadLimitTest` hielt bis zum 8. August drei Zahlen gegeneinander, während es
+das Hochladen nicht gab. Er vergleicht sie weiter — nginx 544m ≥ `post_max_size`
+544M ≥ `upload_max_filesize` 512M ≥ `ImportLimit` 512 MB —, **und er fährt einen
+Aufruf durch die Prüfregel**: eine Anfrage ohne Datei muss an `dump` scheitern,
+eine ZIP-Datei mit `.sql.gz` am Namen ebenfalls, und eine echte gzip-Datei muss
+im Bestand landen, mit `kind = imported` und einer Datei in der Übergabe. Ohne
+diese zweite Hälfte wäre er wieder das, was er war.
+
+**Ein Fund am Rand, der nicht zu Schritt 11 gehört:** Ein Sicherungsvorgang, der
+**scheitert**, lässt seine Zeile auf `pending` stehen. `DumpStatus::Failed`
+existiert, die Oberfläche zeigt `last_error` an — gesetzt wird beides nirgends,
+weil es zu `AfterOperation` keine Gegenrichtung gibt. Das gilt seit Schritt 6
+für jede fehlgeschlagene Sicherung und ist mit dem Hochladen nur sichtbarer
+geworden; deshalb prüft das Panel die Magic Bytes selbst, bevor eine Zeile
+entsteht. Der Weg dahin ist ein `afterFailure` am Vertrag — eigener Beitrag,
+weil er jeden Lebenslauf betrifft und nicht nur Datenbanken.
+
 ### 22.5a Bei 390px wird hier nicht bei 390px gemessen
 
 **Gefunden am 8. August 2026 beim Nachmessen des Fernzugriff-Feldes**, und der
@@ -2792,9 +2842,10 @@ Korrektur aus §22.3) und die Messung (§9, siehe §22.3c). Die Screenshots aus
 Schritt 7 sind für beide gemacht und haben insgesamt fünf Fehler gefunden, drei
 davon ausserhalb von P5 (§22.3a).
 
-**Es fehlt** das Hochladen einer Sicherung (Schritt 11, §22.3f); der
-Fernzugriff (§12, Schritt 10) ist gebaut (§22.3t) und auf einem echten Server
-noch nicht eingeschaltet worden. `srvpanel db` und `srvpanel db --prune` stehen seit
+**Gebaut sind alle elf Schritte.** Der Fernzugriff steht seit §22.3t, das
+Hochladen einer Sicherung seit §22.3u. **Auf einem echten Server erprobt ist
+keiner von beiden** — hier gibt es keinen Datenbankserver, dessen Horchadresse
+sich ändern liesse, und keinen Agenten, der eine hochgeladene Datei abholt. `srvpanel db` und `srvpanel db --prune` stehen seit
 §22.3e, `db.isolation.probe` und `srvpanel acceptance-db` seit §22.3g.
 
 **Der Abnahmelauf ist am 8. August dreimal gefahren** (§22.3h, §22.3i, §22.3j).
@@ -2832,9 +2883,9 @@ der vor dieser Fassung zurückgebaut hat, liegt die Zeile weiter da; sie geht mi
 benutzt sie, sichert und spielt zurück, und ein Datenbankbenutzer sieht
 nachweislich keine fremde Datenbank"*, alle sieben Kriterien aus §17, gemessen
 an MariaDB 10.11.14 auf `cloudsrv24` und nicht an einer erzeugten Zeichenkette.
-**Fertig ist P5 damit nicht:** Gebaut sind die Schritte 1 bis 10 — der
-Fernzugriff steht seit §22.3t —, es fehlt das Hochladen einer Sicherung (§10.3,
-Schritt 11). Der Satz des Plans — *anlegen, benutzen, sichern,
+**Gebaut sind damit alle elf Schritte** (§22.3t und §22.3u). Was fehlt, ist
+nicht mehr Bauarbeit, sondern der Nachweis: Fernzugriff und Hochladen sind auf
+einem echten Server noch nicht gelaufen. Der Satz des Plans — *anlegen, benutzen, sichern,
 zurückspielen, und keine fremde Datenbank sehen* — ist ansonsten am echten
 Server gemessen, mit den Fehlernummern von MariaDB und nicht als Eigenschaft
 einer erzeugten Zeichenkette. Bis zum 8. August stand hier das Gegenteil, weil

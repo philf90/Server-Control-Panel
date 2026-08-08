@@ -86,6 +86,36 @@ final class Dumps
         ), $accountId, ['name' => $database->name]);
     }
 
+    /**
+     * Eine mitgebrachte Sicherung übernehmen.
+     *
+     * **Die Datei liegt schon im Schreibbereich des Panels**; hier wird nur der
+     * Pfad weitergereicht. Über den Socket geht ein halbes Gigabyte nicht —
+     * wortgleich der Grund, aus dem eine Sicherung beim Herunterladen nicht
+     * zurückgereicht wird.
+     *
+     * **`kind` ist `imported` und nicht `export`, und das ist keine Kosmetik.**
+     * Eine Sicherung, die dieser Server geschrieben hat, ist etwas anderes als
+     * eine, die jemand mitgebracht hat: Beim Zurückspielen wird die Datenbank
+     * geleert, und wer dabei zwischen den beiden nicht unterscheiden kann,
+     * trifft die Wahl blind.
+     */
+    public function import(Database $database, string $source, ?int $accountId = null): Operation
+    {
+        $subscription = $this->subscriptionOf($database);
+
+        if ($subscription === null) {
+            throw new RuntimeException('Zu dieser Datenbank gibt es kein Abonnement mehr.');
+        }
+
+        $dump = $this->record($database, 'imported');
+
+        return $this->dispatch($dump, $subscription, 'db.dump.import', sprintf(
+            'Sicherung für %s wird übernommen',
+            $database->name,
+        ), $accountId, ['source' => $source]);
+    }
+
     /** Eine Sicherung entfernen — die Datei zuerst, die Zeile danach. */
     public function remove(DatabaseDump $dump, ?int $accountId = null): Operation
     {

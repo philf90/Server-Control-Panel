@@ -4420,6 +4420,48 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
 
 echo
+echo "── UploadLimitTest: eine Datei, die keine gzip-Datei ist ──"
+#
+# Eine Datei heisst .sql.gz, weil jemand sie so genannt hat. Ohne die Prüfung
+# der Magic Bytes läge sie im Verzeichnis der Sicherungen, sähe dort aus wie
+# eine, und der Fehler käme beim Zurückspielen — an einer Datenbank, die dabei
+# schon geleert ist (docs/36 §22.3u).
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! $this->looksLikeGzip($file->getRealPath())) {\n",
+    "        if (false) {\n",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Datei ohne Magic Bytes" &&
+pruefe "Datei ohne Magic Bytes" \
+  UploadLimitTest::test_a_file_that_is_not_gzip_is_refused failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadLimitTest passed
+
+echo
+echo "── UploadLimitTest: nginx nimmt weniger an als PHP ──"
+#
+# Drei Zahlen an drei Orten. Ist die des Webservers die engste, bricht der
+# Upload bei 90 % ab — mit einer nginx-Fehlerseite, die von PHP nichts weiss
+# (docs/36 §10.3).
+vorher_datei agent/src/Ops/PanelVhost.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelVhost.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('client_max_body_size 544m;', 'client_max_body_size 64m;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PanelVhost.php "nginx enger als PHP" &&
+pruefe "nginx enger als PHP" \
+  UploadLimitTest::test_the_three_numbers_fit_together failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadLimitTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

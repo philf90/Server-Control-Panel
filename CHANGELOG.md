@@ -5375,6 +5375,28 @@ es zählt, und hat zwei Erwartungen dazubekommen: `mysql.db` muss leer sein — 
 Recht überlebt sein Schema, und `mysql.user` allein zeigt das nie —, und
 `srvpanel db` muss „Nichts liegengeblieben" melden.
 
+**Eine mitgebrachte Sicherung lässt sich hochladen — Schritt 11 aus `docs/36
+§10.3`.** Die Datei geht nicht über den Socket: Das Panel legt sie in seinem
+Schreibbereich ab, und `db.dump.import` holt sie von dort, durch
+`Guard::pathInside()` aufgelöst und geprüft. Die vier Prüfungen, die §22.3f als
+fehlend benannt hatte, sind gebaut — die Magic Bytes (im Panel für die schnelle
+Meldung, im Agenten für das, was tatsächlich ankommt), die **ausgepackte**
+Grösse (gezählt beim Auspacken, nicht aus dem Gzip-Trailer abgelesen: dort steht
+sie modulo 2³² und ist fälschbar), der freie Platz auf dem Datenverzeichnis des
+Datenbankservers, und die Herkunft. Letztere ist keine Kosmetik: Beim
+Zurückspielen wird die Datenbank geleert, und wer nicht sieht, was dieser Server
+geschrieben hat und was jemand mitgebracht hat, trifft die Wahl blind — die
+Liste zeigt `mitgebracht` als Marke.
+
+**Und `UploadLimitTest` kommt zurück, diesmal mit einer zweiten Hälfte.** Er
+war gelöscht worden, weil er drei Zahlen gegeneinander hielt, während es das
+Hochladen gar nicht gab — *ein Wächter, der drei Werte gegeneinander hält, prüft
+nicht, dass sie gelten*. Er vergleicht sie weiter (nginx 544m ≥ `post_max_size`
+544M ≥ `upload_max_filesize` 512M ≥ Prüfregel 512 MB, die engste zuletzt, damit
+die Meldung vom Panel kommt und nicht vom Webserver) — **und fährt jetzt einen
+Aufruf durch die Prüfregel**: ohne Datei, mit einer ZIP-Datei, die `.sql.gz`
+heisst, und mit einer echten gzip-Datei, die im Bestand landen muss.
+
 **Fernzugriff auf den Datenbankserver — Schritt 10 aus `docs/36 §12`.**
 `srvpanel db --remote=on|off` schreibt über den Agenten eine eigene Datei
 (`60-srvpanel.cnf`) in das Include-Verzeichnis des Servers und startet ihn neu.

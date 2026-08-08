@@ -74,7 +74,35 @@ final class MeasureUsage extends Command
             return true;
         }
 
-        $this->info(sprintf('%d Abonnement(s) gemessen.', $result['measured']));
+        /*
+         * **Dieselben drei Zahlen wie unten, und aus demselben Anlass.** Der
+         * Befund kam bei den Datenbanken (siehe {@see measureDatabases()}), die
+         * Lücke stand aber in beiden Messungen: `measured` sind die
+         * geschriebenen Zeilen, und ein Abonnement ohne Eintrag in der
+         * Quota-Datei bekommt eine gemessene Null. „N Abonnement(s) gemessen"
+         * hätte also auch eine Quota-Datei bestätigt, aus der nichts zu lesen
+         * war.
+         */
+        $this->info(sprintf(
+            '%d Abonnement(s) geschrieben; die Quota-Datei nannte %d Systembenutzer, %d davon zugeordnet.',
+            $result['measured'],
+            $result['reported'],
+            $result['matched'],
+        ));
+
+        /*
+         * **Ohne Verweis auf ein Werkzeug, weil es keines gibt.** Für ein
+         * Schema ohne Zeile ist `srvpanel db --prune` der Weg; für einen
+         * Systembenutzer, den kein Abonnement kennt, gibt es kein Gegenstück —
+         * sein Heimatverzeichnis liegt dann noch da. Der Verweis auf ein
+         * Kommando, das nicht hilft, wäre schlimmer als keiner.
+         */
+        if ($result['reported'] !== $result['matched']) {
+            $this->warn(sprintf(
+                '%d Systembenutzer der Quota-Datei waren keinem Abonnement zuzuordnen.',
+                $result['reported'] - $result['matched'],
+            ));
+        }
 
         return true;
     }
@@ -96,7 +124,38 @@ final class MeasureUsage extends Command
             return true;
         }
 
-        $this->info(sprintf('%d Datenbank(en) gemessen.', $result['measured']));
+        /*
+         * **Drei Zahlen, und die erste allein war kein Beleg.** Der Abnahmelauf
+         * vom 8. August 2026 meldete „2 Datenbank(en) gemessen" — und genau das
+         * hätte auch dagestanden, wenn die Abfrage gar nichts geliefert hätte:
+         * Eine Datenbank ohne Treffer bekommt `size_mb = 0` als gemessene Null.
+         * Nach zwei Läufen war damit unbelegt, ob `db.usage` überhaupt etwas
+         * liest.
+         *
+         * `gemeldet` ist, was der Server genannt hat, `zugeordnet`, wie viel
+         * davon zu einer Zeile des Panels passte. Eine Null bei `gemeldet` neben
+         * einer Zwei bei `geschrieben` fällt jetzt auf.
+         */
+        $this->info(sprintf(
+            '%d Datenbank(en) geschrieben; der Server meldete %d Schema(ta), %d davon zugeordnet.',
+            $result['measured'],
+            $result['reported'],
+            $result['matched'],
+        ));
+
+        /*
+         * **Ein Missverhältnis ist eine Warnung und kein Fehlschlag.** Ein
+         * Schema, das der Server nennt und das Panel nicht kennt, ist ein
+         * Befund für `srvpanel db` — kein Grund, den Zeitgeber rot zu machen.
+         * Umgekehrt ist eine Zeile ohne Treffer der Normalfall bei einer
+         * frischen, leeren Datenbank.
+         */
+        if ($result['reported'] !== $result['matched']) {
+            $this->warn(sprintf(
+                '%d Schema(ta) des Panels waren keiner Zeile zuzuordnen — mit `srvpanel db` nachsehen.',
+                $result['reported'] - $result['matched'],
+            ));
+        }
 
         return true;
     }

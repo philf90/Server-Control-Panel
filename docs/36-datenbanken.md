@@ -1892,6 +1892,68 @@ Abonnement „nicht gemessen" — seit P2. Der Agent behandelt das richtig (kein
 Fehlschlag, Grund im Journal), aber die Zahl, gegen die `docs/36 §9` die
 Datenbankgrösse abgrenzt, gibt es auf diesem Server gar nicht.
 
+### 22.3i Der zweite Lauf, und derselbe Fund eine Stelle weiter
+
+**Gefahren am 8. August 2026, nach der Behebung aus §22.3h.** Der Lauf hat
+belegt, was der erste offen liess: Die Fehlernummern stehen jetzt in der
+Ausgabe, `ERROR 1044` beim `USE` und `ERROR 1142` beim `SELECT`, in beide
+Richtungen. **Kriterium 1 bis 3 sind damit an einem echten Server gemessen.**
+
+Und wieder stand eine grüne Zeile da, die nichts belegt:
+
+```
+2 Datenbank(en) gemessen.
+```
+
+Zwei war die richtige Zahl — es gab genau zwei Datenbanken. Gezählt wurden aber
+die **geschriebenen Zeilen**. Eine Datenbank ohne Treffer bekommt `size_mb = 0`
+als gemessene Null, und das ist richtig: `information_schema` führt ein leeres
+Schema nicht auf (§22.3c). Die Folge: Dieselbe Zeile wäre erschienen, wenn
+`db.usage` **gar nichts** geliefert hätte. Ein Tippfehler in der Abfrage, ein
+`GROUP BY` an der falschen Stelle, eine Aussonderung, die zu viel aussondert —
+jeder dieser Fälle liest sich als Erfolg. Nach zwei Läufen war `db.usage` damit
+weiter unbelegt, obwohl es beide Male mitgelaufen ist.
+
+**Das ist wortwörtlich der Fund von §22.3h, eine Stelle weiter** — und damit das
+dritte Mal in zwei Ausbaustufen, dass eine Zahl über dem, was *wir getan haben*,
+mit einer Aussage über das, was *geschehen ist*, verwechselt wurde. P4: „1
+fällig, 1 bestellt", und bestellt war das falsche Zertifikat. §22.3h: `refused`
+von jeder Ausnahme gesetzt. Hier: `measured` als Beleg für eine Messung.
+
+> **Eine Zahl über der eigenen Arbeit ist kein Messwert.** Wer eine Messung
+> ausgibt, nennt neben dem, was er geschrieben hat, auch das, was er gelesen
+> hat — und die Zuordnung dazwischen. Erst der Unterschied der drei Zahlen ist
+> ein Befund.
+
+Behoben in **beiden** Messungen: `Usage::apply()` gibt `measured` (geschriebene
+Zeilen), `reported` (was der Server genannt hat) und `matched` (was zuzuordnen
+war) zurück; `srvpanel usage` zeigt alle drei und warnt, wenn `reported` und
+`matched` auseinandergehen. Dass der Zwilling für die Dateisystem-Quota
+mitkommt, ist keine Zugabe: Die Lücke stand dort genauso, gefunden wurde sie an
+einer von zwei gleichen Stellen, und ein Wächter, der nur die eine hält, ist
+der, den die nächste Abschrift umgeht.
+
+**`UsageEvidenceTest` prüft es am Verhalten und nicht am Text** — eine leere
+Antwort gegen zwei Zeilen, und `reported` muss null sein. Genau dafür ist
+`apply()` vom Holen getrennt (§9): Ohne diese Trennung bräuchte der Wächter
+einen laufenden MariaDB.
+
+**Und ein Bruch hat den Wächter noch verbessert.** Seine letzte Behauptung —
+dass der Zeitgeber die drei Zahlen auch *zeigt* — suchte zuerst im ganzen
+Methodenrumpf. Der Bruch nahm die Zahlen aus der Erfolgsmeldung, und der Test
+blieb grün: Sie stehen weiter in der Warnung darunter, die aber nur im
+Ausnahmefall kommt. Geprüft wird seitdem die Meldung selbst. *Ein Wächter, der
+nie rot war, ist kein Wächter* — hier hat der Beweis eine halbe Minute gekostet
+und eine Lücke gefunden, die genau so lange gehalten hätte wie die davor.
+
+**Was der zweite Lauf sonst gezeigt hat:** Der Rückbau räumt vollständig auf
+(`srvpanel db` meldet 0/0/0 und „Nichts liegengeblieben"), und dabei ist eine
+Fehlinformation von meiner Seite aufgefallen, die hier stehen bleibt, weil die
+Software recht hatte: `--prune` räumt **Waisen** auf und nicht Datenbanken, die
+mit `--keep` absichtlich stehengelassen wurden — die gehören noch einem
+lebenden Abonnement. Wer sie los will, entfernt sie im Panel oder fährt den Lauf
+ohne `--keep`.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -1903,9 +1965,13 @@ davon ausserhalb von P5 (§22.3a).
 (Schritt 11, §22.3f). `srvpanel db` und `srvpanel db --prune` stehen seit
 §22.3e, `db.isolation.probe` und `srvpanel acceptance-db` seit §22.3g.
 
-**Der Abnahmelauf ist am 8. August gefahren** (§22.3h) und hat Kriterium 1 bis 3
-belegt — nachdem der Fund darin behoben war. Kriterium 4 bis 7 stehen aus, und
-`db.usage` ist gegen einen leeren Server gelaufen und damit praktisch ungeprüft.
+**Der Abnahmelauf ist am 8. August zweimal gefahren** (§22.3h und §22.3i).
+Kriterium 1 bis 3 sind belegt — die Abschottung mit den richtigen Fehlernummern,
+gemessen an MariaDB 10.11.14. Kriterium 4 bis 7 stehen aus. **`db.usage` ist
+weiter unbelegt**, aber aus einem anderen Grund als vorher: Die Messung lief mit
+zwei Datenbanken, ihre Ausgabe konnte einen Erfolg nur nicht von einer leeren
+Antwort unterscheiden (§22.3i). Dafür gibt es jetzt drei Zahlen statt einer, und
+der nächste Lauf entscheidet es.
 
 Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
 benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur
@@ -1914,10 +1980,10 @@ Mandantentrennung ist bisher eine Eigenschaft der erzeugten Zeichenkette
 abgewiesen hat. Genau dafür gibt es §17, und genau deshalb gibt
 `db.isolation.probe` **Namen** zurück und keine Zahl.
 
-**Und die Bringschuld aus §20 Punkt 1 ist gewachsen.** Alle acht neuen Eingriffe
-in `tests/waechter-brechen.sh` greifen nachweislich in ihre Zieldatei — gemessen
-mit einem Wegwerfskript, das jeden einzeln anwendet und `cmp` gegen die Fassung
-davor hält. Ob die Wächter danach rot werden, braucht weiterhin ein lokales
+**Und die Bringschuld aus §20 Punkt 1 ist gewachsen.** Jeder neue Eingriff in
+`tests/waechter-brechen.sh` greift nachweislich in seine Zieldatei — und das ist
+inzwischen kein Wegwerfskript mehr, sondern `BreakScriptTest`, der jeden Eingriff
+des Skripts prüft. Ob die Wächter rot werden, braucht weiterhin ein lokales
 PHPUnit.
 
 ### 22.5 Eine Umgebungsnotiz, die künftig Runden spart

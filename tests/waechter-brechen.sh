@@ -3827,6 +3827,74 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DbErrorCodeTest passed
 
 echo
+echo "── UsageEvidenceTest: die Messung zählt, was sie geschrieben hat ──"
+#
+# Der Befund des Abnahmelaufs vom 8. August, als Bruch: `reported` bekommt
+# dieselbe Zahl wie `measured`. Damit steht wieder eine Zahl über dem, was wir
+# getan haben, statt über dem, was der Server geliefert hat — und der Lauf mit
+# leerer Antwort sieht aus wie einer, der zwei Schemata gelesen hat.
+vorher_datei app/Support/Databases/Usage.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Usage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'reported' => count($sizes),", "'reported' => $measured,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Usage.php "gemeldet ist geschrieben" &&
+pruefe "gemeldet ist geschrieben" \
+  UsageEvidenceTest::test_a_database_measurement_that_read_nothing_says_so failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  UsageEvidenceTest::test_a_database_measurement_that_read_nothing_says_so passed
+
+echo
+echo "── UsageEvidenceTest: derselbe Griff am Zwilling ──"
+#
+# Die Lücke stand in beiden Messungen, gefunden wurde sie an einer. Ein Wächter,
+# der nur die eine hält, ist der, den die nächste Abschrift umgeht — deshalb
+# derselbe Bruch an der Quota-Messung.
+vorher_datei app/Support/Subscriptions/Usage.php
+python3 - <<'PY2'
+p = 'app/Support/Subscriptions/Usage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'reported' => count($users),", "'reported' => $measured,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Subscriptions/Usage.php "gemeldet ist geschrieben, Platte" &&
+pruefe "gemeldet ist geschrieben, Platte" \
+  UsageEvidenceTest::test_a_disk_measurement_that_read_nothing_says_so failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  UsageEvidenceTest::test_a_disk_measurement_that_read_nothing_says_so passed
+
+echo
+echo "── UsageEvidenceTest: gerechnet, aber nicht gezeigt ──"
+#
+# **Dieser Bruch hat den Wächter schon einmal verbessert.** Sein erster Anlauf
+# suchte die drei Zahlen im ganzen Methodenrumpf — und blieb grün, als sie aus
+# der Erfolgsmeldung verschwanden: Sie stehen weiter in der Warnung darunter,
+# die aber nur im Ausnahmefall kommt. Geprüft wird seitdem die Meldung selbst.
+vorher_datei app/Console/Commands/MeasureUsage.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/MeasureUsage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            '%d Abonnement(s) geschrieben; die Quota-Datei nannte %d Systembenutzer, %d davon zugeordnet.',\n"
+    "            $result['measured'],\n"
+    "            $result['reported'],\n"
+    "            $result['matched'],\n",
+    "            '%d Abonnement(s) gemessen.',\n"
+    "            $result['measured'],\n",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/MeasureUsage.php "Zahlen gerechnet, nicht gezeigt" &&
+pruefe "Zahlen gerechnet, nicht gezeigt" \
+  UsageEvidenceTest::test_both_measurements_print_all_three_numbers failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UsageEvidenceTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

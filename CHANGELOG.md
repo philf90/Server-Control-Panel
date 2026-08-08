@@ -5359,18 +5359,21 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
-**Der Wortlaut des Abnahmekriteriums von P5 ist am Server belegt.** Anlegen,
-Benutzen, Sichern, Zurückspielen — und ein Datenbankbenutzer, der keine fremde
-Datenbank sieht, mit den Fehlernummern von MariaDB 10.11.14 statt mit einer
-geprüften Zeichenkette. Der Rückbau (`docs/36 §17`, Kriterium 7) ist zu drei
-Vierteln dazugekommen: Schemata, Zugänge, Rechte, Systembenutzer und
-Abo-Verzeichnis sind fort, der Nachbar ist unberührt, der verbrauchte Name steht
-weiter in `system_users`. **Die vierte Erwartung hat sich als Abwesenheit ohne
-Vorgeschichte entpuppt** — das zurückgebaute Abonnement hatte nie gesichert,
+**Das Abnahmekriterium von P5 ist am Server belegt, alle sieben Punkte.**
+Anlegen, Benutzen, Sichern, Zurückspielen — und ein Datenbankbenutzer, der keine
+fremde Datenbank sieht, mit den Fehlernummern von MariaDB 10.11.14 statt mit
+einer geprüften Zeichenkette. Der Rückbau kam zuletzt dazu, und er hat zwei
+Läufe gebraucht: Beim ersten hatte das zurückgebaute Abonnement nie gesichert,
 also entstand kein `db.dump.remove`, und „das Verzeichnis ist nicht vorhanden"
-stand da, ohne dass je etwas entfernt wurde. §17 sagt das jetzt an der Stelle,
-an der es zählt: Der Rückbau ist an einem Abonnement mit mindestens einer
-Sicherung zu fahren. Die Anleitung selbst hatte die Falle gestellt.
+stand da, **ohne dass je etwas entfernt wurde** — eine Abwesenheit ohne
+Vorgeschichte, wortwörtlich die Falle, vor der derselbe Abschnitt zwei
+Kriterien weiter oben warnt. Die Anleitung selbst hatte sie gestellt: Sie
+verlangte Sicherungen für Kriterium 5 und 6 und liess offen, dass Kriterium 7
+dieselben braucht. Der zweite Lauf holte es an einem eigenen Abonnement mit
+genau einer Sicherung nach. `docs/36 §17` sagt das jetzt an der Stelle, an der
+es zählt, und hat zwei Erwartungen dazubekommen: `mysql.db` muss leer sein — ein
+Recht überlebt sein Schema, und `mysql.user` allein zeigt das nie —, und
+`srvpanel db` muss „Nichts liegengeblieben" melden.
 
 **Eine entfernte Datenbank liess ihr Recht liegen.** `DROP DATABASE` nimmt in
 MariaDB die auf das Schema vergebenen Rechte nicht mit — sie stehen in

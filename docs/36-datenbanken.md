@@ -1350,6 +1350,11 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 #    Und die Gegenprobe, dass Abo B unberührt ist:
 #      SHOW DATABASES LIKE 'p<B>\\_%';                        → p<B>_shop
 #      ls /var/lib/srvpanel/dumps/<abo B>/                    → unverändert
+#      srvpanel db                                            → „Nichts liegengeblieben."
+#    Die letzte Zeile hat am 8. August 2026 als einzige einen Rest gezeigt, den
+#    vier Abfragen und zwei Verzeichnisse übersehen haben (§22.3r): Die Datei
+#    war fort, ihre Zeile im Bestand nicht. Sie prüft den Bestand gegen die
+#    Platte, und das kann keine Abfrage an MariaDB.
 #    Der letzte ist der, den man ohne Werkzeug übersieht: Ein Rückbau, der zu
 #    viel wegnimmt, sieht genauso erfolgreich aus wie einer, der es richtig
 #    macht.
@@ -2513,18 +2518,80 @@ je etwas entfernt wurde**. Das ist wortwörtlich der Satz aus dem Kasten in §17
 Anleitung selbst die Falle gestellt hat — sie verlangte für Kriterium 5 und 6
 Sicherungen an Abo A und liess offen, dass Kriterium 7 dieselben braucht.
 
-**Offen bleibt also genau eine Zeile:** dass der Rückbau ein Sicherungs­verzeichnis
-mitnimmt, das es gibt. Das ist nicht nachrangig, sondern die Lage aus `docs/35`
-in neuer Form — ein Dump ist die vollständige Datenbank eines Kunden, er liegt
-ausserhalb des Abo-Verzeichnisses, und `subscription.remove` fasst ihn nicht an.
-Gefahren wird das an einem eigenen Abonnement mit genau einer Sicherung; ein
-verbrauchter Systembenutzer ist der Preis, und er ist kleiner als ein
-unbelegter Rückbauweg.
+**Die fehlende Zeile ist im zweiten Lauf nachgeholt worden** — an einem eigenen
+Abonnement, weil der Preis (ein verbrauchter Systembenutzer) kleiner ist als ein
+unbelegter Rückbauweg. Siehe §22.3r.
 
 **Der Rest des Abnahmekriteriums steht.** Der Wortlaut des Plans — *anlegen,
 benutzen, sichern, zurückspielen, und keine fremde Datenbank sehen* — ist
 vollständig am echten Server gemessen (Kriterium 1 bis 6). Kriterium 7 ist die
 Ergänzung aus §17, und von seinen vier Erwartungen sind drei belegt.
+
+### 22.3r Das Sicherungsverzeichnis geht mit — und eine Zeile bleibt
+
+**Gefahren am 8. August 2026, eigens dafür.** Ein Wegwerf-Abonnement
+`abnahme-dump.invalid` (`p1123`), eine Datenbank `demo`, **eine** Sicherung
+`p1123-demo-20260808-195222-d6225fed.sql.gz` (535 B) — Daten braucht es dafür
+nicht, geprüft wird die Datei und nicht ihr Inhalt.
+
+| | vorher | nachher |
+| --- | --- | --- |
+| `dumps/abnahme-dump.invalid/` | eine `.sql.gz`, `-rw-r-----` root:srvpanel | „No such file or directory" |
+| `dumps/` | zwei Verzeichnisse | nur noch `cloudlab24.de` |
+| `/var/www/vhosts/abnahme-dump.invalid` | vorhanden | fort |
+| Schemata, Zugänge, `mysql.db` | `p1123_*` und `p1118_*` | nur noch `p1118_*`, Zeile für Zeile wie vorher |
+| `system_users` 1123 | — | steht weiter da, mit `abnahme-dump.invalid` |
+
+**Damit ist die vierte Erwartung belegt**, und zwar an einem Verzeichnis, das
+es gab: `subscription.remove` fasst `/var/lib/srvpanel/dumps` nicht an, also
+kann nur `db.dump.remove` es entfernt haben.
+
+**Und derselbe Lauf hat gefunden, wofür er nicht gedacht war.** `srvpanel db`
+sagt danach:
+
+```
+1 Datenbank(en), 1 Zugang/Zugänge, 3 Sicherung(en) im Bestand.
+1 Zeile(n) ohne Abonnement — siehe `srvpanel db --prune`.
+  Sicherung p1123-demo-20260808-195222-d6225fed (abnahme-dump.invalid, 535 B)
+```
+
+**Die Datei ist fort, die Zeile ist geblieben** — und der Bestand zählt drei
+Sicherungen, während zwei auf der Platte liegen. `DbLifecycle::afterDump()` hat
+dazu einen Kommentar, der genau das Gegenteil behauptet:
+
+```php
+if ($dump === null) {
+    // Der Rückbau eines ganzen Abonnements trägt keinen Gegenstand
+    // — dort verschwinden die Zeilen mit dem Abonnement.
+    return;
+}
+```
+
+Sie verschwinden nicht. `database_dumps.subscription_id` steht mit Absicht auf
+`nullOnDelete` (§7.2), damit eine Sicherung ihre Datenbank überlebt: Die Zeile
+ist der Wegweiser zu einer Datei, auf die sonst nichts mehr zeigt, und genau
+davon lebt `srvpanel db --prune`. Nach einem **erfolgreichen** Rückbau ist die
+Datei aber weg, und der Wegweiser zeigt ins Leere.
+
+**Das ist derselbe Fehler wie zweimal an diesem Tag, nur in der Gegenrichtung.**
+Bei den Rechten überlebte die Sache ihre Zeile; hier überlebt die Zeile ihre
+Sache. Beide Male stand die Zusage in einem Kommentar, und beide Male hat sie
+niemand geprüft. Und die Folge ist die teurere von beiden: Ein Rückbau, der
+sauber gelaufen ist, meldet einen Rest — und ein Melder, der nach jedem Rückbau
+Alarm gibt, wird gelesen wie ein Rauschen. *Ein Wächter, der Fehlalarm gibt,
+wird abgeschaltet*, steht schon in `ClassReachTest`.
+
+**Der Weg zurück ist klein und liegt an derselben Stelle.** Ein `db.dump.remove`
+ohne Gegenstand ist immer der Rückbau eines ganzen Abonnements
+(`Dumps::removeAllFor()` ist der einzige Erzeuger), und der Vorgang trägt zu
+diesem Zeitpunkt noch sein `subscription_id`: `subscription.remove` steht hinter
+ihm in derselben Warteschlange mit einem Arbeiter. Es fehlen also die Zeilen
+dieses Abonnements, gelöscht im selben Zug — plus ein Wächter, der nach einem
+Rückbau mit Sicherung sowohl die Datei als auch die Zeile vermisst.
+
+**Und `srvpanel db` gehört als Erwartung in §17.** Vier Abfragen und ein
+Verzeichnis haben diesen Rest nicht gezeigt; gezeigt hat ihn das Kommando, das
+den Bestand gegen die Platte hält. Es steht seit diesem Lauf in Kriterium 7.
 
 ### 22.4 Was noch fehlt
 
@@ -2556,20 +2623,25 @@ die fehlte, war genau die, an der der 404 hing.
 **Kriterium 5 ist gefahren und erfüllt** (§22.3p): Vorgang 449, `db.restore`,
 Zustand `fertig` — und je Tabelle dieselbe Zeilenzahl wie vor dem Löschen.
 
-**Kriterium 7 ist zu drei Vierteln belegt** (§22.3q): Schemata, Zugänge und
-Rechte des zurückgebauten Abonnements sind fort, der Systembenutzer und das
-Abo-Verzeichnis auch, der Nachbar ist unberührt bis auf sein
-Sicherungs­verzeichnis — und der verbrauchte Name steht weiter in
-`system_users`. **Nicht belegt ist, dass der Rückbau ein Sicherungs­verzeichnis
-mitnimmt:** Das zurückgebaute Abonnement hatte nie gesichert, also entstand kein
-`db.dump.remove`, und die Erwartung war eine Abwesenheit ohne Vorgeschichte.
+**Kriterium 7 ist gefahren und in allen vier Erwartungen erfüllt** — die ersten
+drei am Rückbau von `p1121` (§22.3q), die vierte an einem eigenen Abonnement mit
+genau einer Sicherung (§22.3r), weil `p1121` nie gesichert hatte und „das
+Verzeichnis ist nicht vorhanden" dort eine Abwesenheit ohne Vorgeschichte war.
 
-**Der Wortlaut des Plans ist damit erfüllt** — *„ein Kunde legt eine Datenbank
-an, benutzt sie, sichert und spielt zurück, und ein Datenbankbenutzer sieht
-nachweislich keine fremde Datenbank"*, Kriterium 1 bis 6, gemessen an MariaDB
-10.11.14 auf `cloudsrv24` und nicht an einer erzeugten Zeichenkette. **Fertig
-ist P5 damit nicht:** Von Kriterium 7 fehlt die vierte Erwartung, und gebaut
-sind erst die Schritte 1 bis 9. Der Satz des Plans — *anlegen, benutzen, sichern,
+**Damit ist das Abnahmekriterium von P5 in allen sieben Punkten belegt.**
+
+**Offen ist ein Fund aus dem letzten Lauf**, der nicht zu den sieben gehört:
+Nach dem Rückbau bleibt die *Zeile* einer Sicherung stehen, deren Datei fort ist
+(§22.3r). `srvpanel db` meldet sie als Rest, und ein Melder, der nach jedem
+sauberen Rückbau Alarm gibt, wird bald nicht mehr gelesen.
+
+**Das Abnahmekriterium ist erfüllt** — *„ein Kunde legt eine Datenbank an,
+benutzt sie, sichert und spielt zurück, und ein Datenbankbenutzer sieht
+nachweislich keine fremde Datenbank"*, alle sieben Kriterien aus §17, gemessen
+an MariaDB 10.11.14 auf `cloudsrv24` und nicht an einer erzeugten Zeichenkette.
+**Fertig ist P5 damit nicht:** Gebaut sind die Schritte 1 bis 9; es fehlen der
+Fernzugriff (§12, Schritt 10) und das Hochladen einer Sicherung (§10.3,
+Schritt 11). Der Satz des Plans — *anlegen, benutzen, sichern,
 zurückspielen, und keine fremde Datenbank sehen* — ist ansonsten am echten
 Server gemessen, mit den Fehlernummern von MariaDB und nicht als Eigenschaft
 einer erzeugten Zeichenkette. Bis zum 8. August stand hier das Gegenteil, weil

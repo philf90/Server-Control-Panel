@@ -3764,6 +3764,69 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" IsolationVerdictTest passed
 
 echo
+echo "── IsolationVerdictTest: eine fehlende Tabelle gilt als Abschottung ──"
+#
+# Der Fund des Abnahmelaufs vom 8. August 2026: Der Lauf prüfte, *dass* der
+# Zugriff scheiterte, nicht *woran*. `ERROR 1146 Table doesn't exist` — ein
+# Tippfehler im Tabellennamen — las sich damit wie eine funktionierende
+# Abschottung. docs/36 §17 nennt die Nummern seit jeher.
+vorher_datei app/Console/Commands/AcceptanceDb.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/AcceptanceDb.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "'select_refused' => ['SELECT', [1142, 1044]],",
+    "'select_refused' => ['SELECT', [1142, 1044, 1146]],",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/AcceptanceDb.php "fehlende Tabelle gilt als Abschottung" &&
+pruefe "fehlende Tabelle gilt als Abschottung" \
+  IsolationVerdictTest::test_the_acceptance_run_checks_which_error_it_was failed
+wiederherstellen
+
+echo
+echo "── IsolationVerdictTest: die Meldung wird an einer Stelle vermutet ──"
+#
+# Am 8. August gab der `mysql`-Client die gescheiterte Anweisung zwischen
+# Strichzeilen aus. Die erste Zeile lautete `--------------`, und genau das
+# stand in der Meldung des Laufs — an der sicherheitsrelevantesten Stelle der
+# ganzen Ausgabe.
+vorher_datei app/Console/Commands/AcceptanceDb.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/AcceptanceDb.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if (str_contains($line, 'ERROR ')) {", "if (false) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/AcceptanceDb.php "Meldung an einer Stelle vermutet" &&
+pruefe "Meldung an einer Stelle vermutet" \
+  IsolationVerdictTest::test_the_error_line_is_searched_and_not_assumed failed
+wiederherstellen
+
+echo
+echo "── DbErrorCodeTest: die Nummer wird in der ersten Zeile gesucht ──"
+#
+# Die Gegenrichtung im Agenten: Wo die `ERROR`-Zeile in der Ausgabe steht,
+# entscheidet der Client. Der Test führt beide Ausgaben mit, die der Server am
+# 8. August wirklich geliefert hat — eine mit Strichzeilen davor, eine ohne.
+vorher_datei agent/src/Ops/DbIsolationProbe.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbIsolationProbe.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "return preg_match('/\\bERROR\\s+(\\d{4})\\b/', $message, $match) === 1 ? (int) $match[1] : null;",
+    "return preg_match('/^ERROR\\s+(\\d{4})\\b/', $message, $match) === 1 ? (int) $match[1] : null;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbIsolationProbe.php "Nummer nur in der ersten Zeile" &&
+pruefe "Nummer nur in der ersten Zeile" \
+  DbErrorCodeTest::test_the_code_is_found_behind_the_dashes failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbErrorCodeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

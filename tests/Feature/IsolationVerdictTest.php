@@ -33,6 +33,27 @@ use SrvPanel\Agent\Ops\DbIsolationProbe;
  */
 final class IsolationVerdictTest extends TestCase
 {
+    /**
+     * Nur die Konstante mit den erwarteten Fehlernummern.
+     *
+     * Von `EXPECTED = [` bis zur schliessenden Klammer auf Feldebene. Findet
+     * der Ausdruck sie nicht, ist das ein Fehlschlag und keine leere
+     * Zeichenkette: Eine Prüfung auf „enthält 1146 nicht" wäre sonst grün,
+     * gerade weil sie nichts gelesen hat.
+     */
+    private function expectedCodes(string $source): string
+    {
+        $this->assertMatchesRegularExpression(
+            '/EXPECTED = \[.*?\n    \];/s',
+            $source,
+            'Die Konstante mit den erwarteten Fehlernummern ist nicht zu finden.',
+        );
+
+        preg_match('/EXPECTED = \[.*?\n    \];/s', $source, $match);
+
+        return $match[0];
+    }
+
     private function source(string $class): string
     {
         $file = (new ReflectionClass($class))->getFileName();
@@ -100,6 +121,85 @@ final class IsolationVerdictTest extends TestCase
     }
 
     /**
+     * Abgewiesen genügt nicht — es muss die richtige Abweisung sein.
+     *
+     * **Der Anlass ist der Abnahmelauf vom 8. August 2026.** Er meldete alle
+     * Kriterien erfüllt, und für das `SELECT` auf die fremde Datenbank stand da:
+     * „abgewiesen — Die Datenbank hat abgewiesen: `--------------`". Keine
+     * Fehlernummer, keine Meldung; der Lauf prüfte nur, *dass* etwas
+     * scheiterte. Ein `ERROR 1146 Table doesn't exist` — ein Tippfehler im
+     * Tabellennamen — hätte sich genauso gelesen wie eine funktionierende
+     * Abschottung.
+     *
+     * docs/36 §17 nennt die Nummern seit jeher: `1044` beim `USE`, `1142` oder
+     * `1044` beim `SELECT`. Gebaut war „es ist gescheitert". Das ist die Lehre
+     * aus P4 eine Ebene tiefer — dort eine Zahl statt der Namen, hier ein
+     * Fehlschlag statt des richtigen Fehlschlags.
+     */
+    public function test_the_acceptance_run_checks_which_error_it_was(): void
+    {
+        $source = $this->source(AcceptanceDb::class);
+
+        foreach (['1044', '1142'] as $code) {
+            $this->assertStringContainsString(
+                $code,
+                $source,
+                sprintf('Der Lauf muss ERROR %s als erwartete Nummer nennen (docs/36 §17).', $code),
+            );
+        }
+
+        $this->assertStringContainsString(
+            'in_array($code, $codes, true)',
+            $source,
+            'Der Lauf muss die gemeldete Fehlernummer gegen die erwarteten halten.',
+        );
+
+        /*
+         * Und die Gegenrichtung: 1146 ist „Tabelle gibt es nicht". Stünde sie
+         * in der Erwartung, wäre ein Tippfehler wieder ein Beleg für
+         * Abschottung — genau der Zustand, aus dem dieser Test entstanden ist.
+         *
+         * **Ausgeschnitten und nicht mit einem Ausdruck über die ganze Datei
+         * gesucht.** Der erste Anlauf war `/EXPECTED = \[.*?1146.*?\];/s`, und
+         * er schlug an: `.*?` ist zwar faul, aber unbegrenzt — er lief über das
+         * Ende der Konstante hinaus bis in den Kommentar weiter unten, der
+         * `ERROR 1146` erklärt. Ein Wächter, der Fehlalarm gibt, wird
+         * abgeschaltet; derselbe Satz steht in `BreakScriptTest`, aus demselben
+         * Tag.
+         */
+        $this->assertStringNotContainsString(
+            '1146',
+            $this->expectedCodes($source),
+            'ERROR 1146 („Tabelle gibt es nicht") darf nicht als Abschottung durchgehen.',
+        );
+    }
+
+    /**
+     * Und die Meldung wird gesucht, nicht an einer Stelle vermutet.
+     *
+     * `explode("\n", $message)[0]` stand hier und lieferte am 8. August
+     * `--------------`: Der `mysql`-Client gab die gescheiterte Anweisung
+     * zwischen Strichzeilen aus. Wo die `ERROR`-Zeile steht, entscheidet der
+     * Client.
+     */
+    public function test_the_error_line_is_searched_and_not_assumed(): void
+    {
+        $source = $this->source(AcceptanceDb::class);
+
+        $this->assertStringContainsString(
+            "str_contains(\$line, 'ERROR ')",
+            $source,
+            'Die Meldung muss nach der ERROR-Zeile durchsucht werden.',
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/private function firstLine/',
+            $source,
+            'firstLine() nahm die erste Zeile — und die war die Strichzeile.',
+        );
+    }
+
+    /**
      * Drei Fragen und nicht eine.
      *
      * `SHOW DATABASES` ist eine Anzeige, `USE` der Wechsel, das `SELECT` der
@@ -132,9 +232,15 @@ final class IsolationVerdictTest extends TestCase
         $source = $this->source(DbIsolationProbe::class);
 
         $this->assertMatchesRegularExpression(
-            "/return \['refused' => true, 'error' => \\\$error->getMessage\(\)\];/",
+            "/'refused' => true, 'code' => self::errorCode\(\\\$message\), 'error' => \\\$message/",
             $source,
             'Der abgewiesene Zugriff muss als Befund zurückkommen und nicht als Ergebnis.',
+        );
+
+        $this->assertStringContainsString(
+            "'code' => self::errorCode(\$message)",
+            $source,
+            'Die Probe muss die Fehlernummer melden — sonst kann der Lauf sie nicht prüfen.',
         );
 
         $this->assertDoesNotMatchRegularExpression(

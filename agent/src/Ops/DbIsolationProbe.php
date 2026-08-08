@@ -199,23 +199,55 @@ final class DbIsolationProbe implements Op
     }
 
     /**
-     * Eine Anweisung, die scheitern soll — und die Meldung, mit der sie das tut.
+     * Eine Anweisung, die scheitern soll — und **woran** sie scheitert.
      *
      * **Ein Erfolg ist hier der Befund und kein Ergebnis.** Deshalb wird das
-     * Ergebnis der Abfrage weggeworfen und nur `refused` gemeldet: Käme die
-     * Zeile mit heraus, stünde bei einem Fehlschlag der Abschottung genau das
-     * im Vorgang, wovor sie schützen soll.
+     * Ergebnis der Abfrage weggeworfen und nur gemeldet, ob und woran es
+     * scheiterte: Käme die Zeile mit heraus, stünde bei einem Fehlschlag der
+     * Abschottung genau das im Vorgang, wovor sie schützen soll.
      *
-     * @return array{refused: bool, error: string}
+     * **`code` ist mit dem Abnahmelauf vom 8. August dazugekommen, und der
+     * Grund ist ein grüner Lauf.** Vorher stand hier nur `refused`, gesetzt von
+     * *jeder* Ausnahme — und der Lauf meldete brav „SELECT abgewiesen", ohne
+     * dass irgendjemand hätte sagen können, weshalb. Ein `ERROR 1146 Table
+     * doesn't exist`, also ein Tippfehler im Tabellennamen, hätte sich
+     * genauso gelesen wie eine funktionierende Abschottung. docs/36 §17
+     * verlangt ausdrücklich `1044` beim `USE` und `1142` oder `1044` beim
+     * `SELECT`; gebaut war „es ist gescheitert".
+     *
+     * Das ist die Lehre aus dem P4-Abnahmelauf eine Ebene tiefer: dort eine
+     * Zahl statt der Namen, hier ein Fehlschlag statt des richtigen
+     * Fehlschlags.
+     *
+     * @return array{refused: bool, code: int|null, error: string}
      */
     private function refused(Context $context, Credentials $as, string $sql): array
     {
         try {
             $this->session->query($context, $sql, $as);
         } catch (AgentException $error) {
-            return ['refused' => true, 'error' => $error->getMessage()];
+            $message = $error->getMessage();
+
+            return ['refused' => true, 'code' => self::errorCode($message), 'error' => $message];
         }
 
-        return ['refused' => false, 'error' => ''];
+        return ['refused' => false, 'code' => null, 'error' => ''];
+    }
+
+    /**
+     * Die Fehlernummer aus der Meldung von MariaDB.
+     *
+     * **Gesucht wird im ganzen Text und nicht in der ersten Zeile.** Genau
+     * daran ist die Meldung des Abnahmelaufs gescheitert: Der `mysql`-Client
+     * gab die gescheiterte Anweisung zwischen Strichzeilen aus, und die erste
+     * Zeile lautete `--------------`. Wo in der Ausgabe die `ERROR`-Zeile
+     * steht, entscheidet der Client und nicht diese Datei.
+     *
+     * `null` heisst „keine Nummer gefunden" und ist etwas anderes als eine
+     * unerwartete Nummer — der Abnahmelauf muss beides melden können.
+     */
+    public static function errorCode(string $message): ?int
+    {
+        return preg_match('/\bERROR\s+(\d{4})\b/', $message, $match) === 1 ? (int) $match[1] : null;
     }
 }

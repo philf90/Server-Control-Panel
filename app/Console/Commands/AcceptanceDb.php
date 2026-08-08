@@ -54,6 +54,26 @@ final class AcceptanceDb extends Command
     /** Die Bezeichnung, unter der Datenbank und Zugang angelegt werden. */
     private const LABEL = 'abnahme';
 
+    /**
+     * Die Fehlernummern, die docs/36 §17 Kriterium 3 verlangt.
+     *
+     * **Sie stehen hier, weil „abgewiesen" zu wenig ist.** `1044` ist „Access
+     * denied for user … to database", `1142` ist „SELECT command denied to
+     * user … for table". Beim `USE` gibt es nur den einen Weg; beim `SELECT`
+     * hängt es davon ab, ob der Server zuerst über die Datenbank oder über die
+     * Tabelle entscheidet, deshalb dort beide.
+     *
+     * Was ausdrücklich **nicht** dazugehört: `1146` (Tabelle gibt es nicht).
+     * Das ist ein Tippfehler und keine Abschottung — und genau die
+     * Verwechslung war im Lauf vom 8. August nicht auszuschliessen.
+     *
+     * @var array<string, array{0: string, 1: list<int>}>
+     */
+    private const EXPECTED = [
+        'use_refused' => ['USE', [1044]],
+        'select_refused' => ['SELECT', [1142, 1044]],
+    ];
+
     public function handle(Client $agent, Databases $databases, Tenancy $tenancy): int
     {
         $a = (string) $this->option('a');
@@ -309,7 +329,7 @@ final class AcceptanceDb extends Command
                 $this->line(sprintf('  ok  %s sieht genau {%s}', $set['user']->name, implode(', ', $visible)));
             }
 
-            foreach (['use_refused' => 'USE', 'select_refused' => 'SELECT'] as $key => $label) {
+            foreach (self::EXPECTED as $key => [$label, $codes]) {
                 $entry = is_array($result[$key] ?? null) ? $result[$key] : [];
 
                 if (($entry['refused'] ?? false) !== true) {
@@ -323,12 +343,48 @@ final class AcceptanceDb extends Command
                     continue;
                 }
 
+                /*
+                 * **Abgewiesen genügt nicht — es muss die richtige Abweisung
+                 * sein.** Der Abnahmelauf vom 8. August meldete hier grün und
+                 * konnte nicht sagen, woran das `SELECT` gescheitert war: Ein
+                 * `ERROR 1146 Table doesn't exist`, also ein Tippfehler im
+                 * Tabellennamen, hätte sich genauso gelesen. docs/36 §17 nennt
+                 * die Nummern, und ab jetzt werden sie geprüft.
+                 */
+                $code = $entry['code'] ?? null;
+
+                if (! is_int($code)) {
+                    $failures[] = sprintf(
+                        '%s: %s auf %s wurde abgewiesen, aber ohne erkennbare Fehlernummer — %s',
+                        $set['user']->name,
+                        $label,
+                        $foreign['database']->name,
+                        $this->errorLine((string) ($entry['error'] ?? '')),
+                    );
+
+                    continue;
+                }
+
+                if (! in_array($code, $codes, true)) {
+                    $failures[] = sprintf(
+                        '%s: %s auf %s scheiterte mit ERROR %d, erwartet war %s — das belegt keine Abschottung.',
+                        $set['user']->name,
+                        $label,
+                        $foreign['database']->name,
+                        $code,
+                        implode(' oder ', array_map('strval', $codes)),
+                    );
+
+                    continue;
+                }
+
                 $this->line(sprintf(
-                    '  ok  %s: %s auf %s abgewiesen — %s',
+                    '  ok  %s: %s auf %s abgewiesen mit ERROR %d — %s',
                     $set['user']->name,
                     $label,
                     $foreign['database']->name,
-                    $this->firstLine((string) ($entry['error'] ?? '')),
+                    $code,
+                    $this->errorLine((string) ($entry['error'] ?? '')),
                 ));
             }
         }
@@ -381,9 +437,26 @@ final class AcceptanceDb extends Command
         return self::FAILURE;
     }
 
-    /** Die Meldung von MariaDB ist mehrzeilig; für die Liste genügt die erste. */
-    private function firstLine(string $message): string
+    /**
+     * Die Zeile der Meldung, die den Fehler nennt.
+     *
+     * **Hier stand `explode("\n", …)[0]`, und das war falsch.** Beim
+     * Abnahmelauf vom 8. August gab der `mysql`-Client die gescheiterte
+     * Anweisung zwischen Strichzeilen aus; die erste Zeile lautete
+     * `--------------`, und genau das stand dann in der Meldung des Laufs — an
+     * der sicherheitsrelevantesten Stelle der ganzen Ausgabe.
+     *
+     * Wo die `ERROR`-Zeile steht, entscheidet der Client. Gesucht wird sie
+     * deshalb, statt sie an einer Stelle zu vermuten.
+     */
+    private function errorLine(string $message): string
     {
+        foreach (explode("\n", $message) as $line) {
+            if (str_contains($line, 'ERROR ')) {
+                return trim($line);
+            }
+        }
+
         return trim(explode("\n", $message)[0]);
     }
 

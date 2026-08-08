@@ -5190,6 +5190,36 @@ mit den meisten Gegenschrägstrichen im Repo als tot, weil seine Entschlüsselun
 der Python-Literale über eine Kette von `str_replace` lief — die sucht auf dem
 schon veränderten Text weiter. Jetzt ein Scanner von links nach rechts.
 
+**Zurückgenommen: eine Zusage in der Oberfläche ohne Funktion dahinter.**
+Schritt 6 hatte das Hochladen einer Sicherung vorbereitet und nie gebaut — es
+gab `ImportLimit` mit drei abgestimmten Zahlen, einen aufgeweiteten
+`client_max_body_size`, einen aufgeweiteten FPM-Pool, die Spalte `kind` mit dem
+Wert `import` und den Satz „Hochgeladene Dateien dürfen bis 512 MB gross sein".
+Es gab keine Route, keine Methode und kein Formularfeld.
+
+**Kein Wächter hat es gemeldet, und das ist die Lehre.** `UploadLimitTest` war
+grün und hatte recht: Die drei Zahlen passten zueinander. Er prüfte die
+Verträglichkeit einer Vorbereitung und nirgends, dass sie jemand benutzt — der
+Satz aus dem P4-Abnahmelauf in neuer Gestalt: Ein Wächter, der drei Werte
+gegeneinander hält, prüft nicht, dass sie gelten. Gefunden hat es eine Frage des
+Betreibers, nicht ein Lauf.
+
+Eine Zusage in der Oberfläche ist teurer als eine fehlende Funktion: Wer den Satz
+liest, sucht das Feld und hält das Panel für kaputt. Und 544 MB Anfragekörper
+anzunehmen ist für ein Panel, das keine Datei entgegennimmt, eine
+Vergrösserung der Angriffsfläche für nichts. Die Grenzen stehen wieder auf
+256m/256M wie vor P5.
+
+Das Hochladen steht als eigener Schritt im Plan, samt den vier Prüfungen, die
+heute nirgends stehen: die Magic Bytes `1f 8b`, eine Grenze für die
+**ausgepackte** Grösse (400 MB gepackt können 40 GB werden, und `decompress()`
+schreibt sie ohne Obergrenze auf denselben Datenträger wie die
+Kundenverzeichnisse), der freie Platz vorher statt der Meldung hinterher, und
+`kind = 'import'` als Färbung der Liste. Was er **nicht** braucht, ist ein
+Filter über das SQL: Die Eindämmung ist der befristete Benutzer, und sie gilt
+für eine mitgebrachte Datei wie für eine selbst erzeugte. Ein Filter wäre die
+zweite, schwächere Fassung derselben Zusage.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

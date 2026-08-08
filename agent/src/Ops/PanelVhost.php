@@ -246,21 +246,7 @@ final class PanelVhost implements Op
             add_header Referrer-Policy no-referrer always;
             add_header X-Robots-Tag "noindex, nofollow" always;
 
-            # **Die grösste Anfrage, die das Panel annimmt.**
-            #
-            # Sie richtet sich nach dem Grössten, was jemand hochlädt, und das
-            # ist seit P5 ein Datenbank-Dump: `App\Support\Databases\ImportLimit`
-            # nennt 512 MB, und hier steht dieselbe Zahl mit Luft für den Rest
-            # der Anfrage — ein `multipart/form-data` trägt neben der Datei noch
-            # Feldnamen, Grenzen und den CSRF-Wert. Wären beide Zahlen gleich,
-            # bräche eine Datei von genau 512 MB an der Kopfzeile ab, und die
-            # Meldung käme von nginx statt vom Panel.
-            #
-            # `UploadLimitTest` hält diese Zahl gegen die beiden anderen: die
-            # des FPM-Pools in `packaging/etc/fpm.conf` und die Prüfregel am
-            # Formular. Eine davon zu ändern und die anderen nicht ergibt einen
-            # Upload, der bei 90 % abbricht.
-            client_max_body_size 544m;
+            client_max_body_size 256m;
 
             location / {
                 try_files \$uri \$uri/ /index.php?\$query_string;

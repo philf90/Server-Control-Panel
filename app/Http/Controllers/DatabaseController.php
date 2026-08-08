@@ -14,7 +14,6 @@ use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
-use App\Support\Databases\ImportLimit;
 use App\Support\Plans\Quota;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
@@ -164,7 +163,6 @@ final class DatabaseController extends Controller
             'secret' => session('database.secret'),
 
             'dumps' => $this->dumpRows($database),
-            'import_limit_mb' => ImportLimit::MEGABYTES,
         ]);
     }
 

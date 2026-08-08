@@ -742,6 +742,14 @@ laut und mit der Meldung des Systems.
 
 ### 10.3 Die Grössenbegrenzung
 
+> **Dieser Abschnitt beschreibt Schritt 11 und ist in P5 nicht umgesetzt.** Er
+> stand hier als Teil von Schritt 6 und ist beim Bauen zu weit gekommen: Die
+> drei Zahlen wurden gesetzt, `ImportLimit` geschrieben, `UploadLimitTest`
+> dazu — **und das Hochladen selbst nie gebaut.** Was blieb, war eine Zusage in
+> der Oberfläche („Hochgeladene Dateien dürfen bis 512 MB gross sein") ohne
+> Route dahinter, dazu zwei aufgeweitete Grenzen, die nichts brauchte. Beides
+> ist am 8. August zurückgenommen; die Begründung steht in §22.3f.
+
 Der Plan verlangt sie („mit Größenbegrenzung"), und sie ist der Ort, an dem drei
 Zahlen zusammenpassen müssen, die an drei Stellen stehen:
 
@@ -981,12 +989,13 @@ agent/src/Db/Dump.php          agent/src/Db/Ephemeral.php
 agent/src/Ops/DbDumpRemove.php ← wieder zuerst
 agent/src/Ops/DbDump.php
 agent/src/Ops/DbRestore.php
-app/Support/Databases/ImportLimit.php
-app/Console/Commands/Databases.php      (`srvpanel db list|prune|remote`)
+app/Console/Commands/Databases.php      (`srvpanel db list|prune`)
 packaging/bin/srvpanel                  (`db`, `acceptance-db`)
 tests/Unit/DefinerStripTest.php
-tests/Feature/UploadLimitTest.php
 ```
+
+**`ImportLimit` und `UploadLimitTest` standen hier und gehören nach Schritt 11.**
+Sie sind in Schritt 6 gebaut worden, das Hochladen dazu nicht — siehe §22.3f.
 
 ### Schritt 7 — Die Oberfläche und die Screenshots (§11)
 
@@ -1015,6 +1024,57 @@ agent/src/Ops/DbRemoteAccess.php     schreibt /etc/mysql/mariadb.conf.d/60-srvpa
 app/Console/Commands/Databases.php   `srvpanel db --remote=on|off`
 packaging/                           der Include-Punkt in PackagingTest
 ```
+
+### Schritt 11 — Eine Sicherung hochladen (§10.3)
+
+**Nach dem Fernzugriff und als eigener Beitrag**, weil er als einziger Schritt
+eine Datei entgegennimmt, die von aussen kommt, und weil P5 ohne ihn abnehmbar
+ist: Sichern, Zurückspielen und Entfernen gehen, das Zurückspielen einer
+*mitgebrachten* Datei ist die Erweiterung.
+
+**Der Anlass, ihn als eigenen Schritt zu führen**, steht in §22.3f: Er war in
+Schritt 6 mitgemeint, seine Vorbereitung ist gebaut worden, die Funktion nicht —
+und niemandem ist es aufgefallen, weil `UploadLimitTest` prüfte, dass drei
+Zahlen zueinander passen, und nicht, dass sie jemand benutzt.
+
+```
+app/Http/Controllers/DatabaseController.php   `import`, die Route, die Prüfregel
+app/Support/Databases/ImportLimit.php         die drei Zahlen
+app/Support/Databases/Dumps.php               `import()` neben `export()`
+agent/src/Ops/PanelVhost.php                  client_max_body_size
+packaging/etc/fpm.conf                        upload_max_filesize, post_max_size
+resources/js/Pages/Databases/Show.vue         das Feld und der Satz dazu
+tests/Feature/UploadLimitTest.php             die drei Zahlen gegeneinander
+tests/Feature/DumpUploadTest.php              dass die Regeln greifen
+```
+
+**Was dabei zu prüfen ist, und keines davon steht heute irgendwo:**
+
+1. **Die Endung entscheidet nichts.** Sie ist ein Vorschlag des Absenders. Der
+   Ablagename entsteht wie beim Sichern im Panel (`Dumps::record()`), die Endung
+   hängt `Dump::path()` an — der hochgeladene Name erreicht die Platte nie. Eine
+   Prüfung auf `.sql.gz` gehört trotzdem an das Formular, aber als *Hinweis für
+   den Menschen* und nicht als Sicherheitsmassnahme.
+2. **Ist es überhaupt gzip?** Heute merkt es erst `Dump::decompress()`, und dann
+   heisst die Meldung „Die Sicherung ist beschädigt" — für eine Datei, die nie
+   eine war. Die zwei Magic Bytes `1f 8b` sind vor dem Ablegen zu lesen.
+3. **Die ausgepackte Grösse ist die gefährliche.** 400 MB gepackt können 40 GB
+   werden; `decompress()` schreibt sie ohne Obergrenze auf denselben
+   Datenträger, auf dem die Kundenverzeichnisse liegen. Es braucht eine Grenze
+   beim Auspacken und einen Abbruch, der die Teildatei wegräumt — die
+   Zip-Bombe ist hier kein exotischer Angriff, sondern ein schlecht
+   konfiguriertes `mysqldump | gzip`.
+4. **Der Platz auf dem Datenträger** wird vorher gefragt und nicht hinterher
+   gemeldet.
+5. **`kind = 'import'`** steht in der Liste und färbt sie: Eine hochgeladene
+   Datei hat niemand geprüft, und was beim Zurückspielen scheitert, scheitert
+   bei ihr häufiger.
+
+**Was der Schritt nicht braucht:** eine Prüfung des SQL-Inhalts. Die Eindämmung
+ist der befristete Benutzer aus §10.2, und sie gilt für eine mitgebrachte Datei
+genauso wie für eine selbst erzeugte. Ein Filter über fremdes SQL wäre eine
+zweite, schwächere Fassung derselben Zusage — und die zweite ist die, die man
+umgeht.
 
 ### Nicht mehr in P5
 
@@ -1080,12 +1140,19 @@ enthält.
 *Bruch:* `db.user.create` in `DbLifecycle::handles()` eintragen und über
 `dispatch()` einreihen → rot.
 
-### 16.5 `tests/Feature/UploadLimitTest.php`
+### 16.5 `tests/Feature/UploadLimitTest.php` — **gehört zu Schritt 11**
 
 Die drei Grenzen aus §10.3 passen zusammen, und die Prüfregel am Formular ist die
 kleinste.
 
 *Bruch:* `client_max_body_size` in `PanelVhost` halbieren → rot.
+
+> **Er hat in P5 existiert und ist zurückgenommen worden**, weil das Hochladen
+> nicht gebaut wurde (§22.3f). Er war dabei grün und hatte recht — und genau das
+> ist die Lehre: Er prüfte, dass drei Zahlen zueinander passen, und nirgends,
+> dass sie jemand benutzt. **Wenn er mit Schritt 11 wiederkommt, gehört eine
+> zweite Behauptung dazu**: dass die Prüfregel auch an der Route hängt. Sonst
+> ist er wieder ein Wächter über eine Vorbereitung.
 
 ### 16.6 `tests/Unit/DefinerStripTest.php`
 
@@ -1691,6 +1758,46 @@ Zwischenzuständen nach einem Abbruch ist der erste der harmlosere.
 schon dasteht und nichts tut, wäre die Sorte Zusage, die dieses Projekt Wächter
 gekostet hat.
 
+### 22.3f Eine Zusage in der Oberfläche ohne Funktion dahinter
+
+**Schritt 6 hat das Hochladen vorbereitet und nie gebaut, und drei Wochen lang
+hat das niemand gemerkt.** Gefunden wurde es durch eine Frage des Betreibers —
+welche Prüfungen beim Zurückspielen greifen und ob Dateiendungen beschränkt
+sind —, nicht durch einen Lauf.
+
+Da war: `ImportLimit` mit drei aufeinander abgestimmten Zahlen,
+`client_max_body_size 544m` im Server-Block, `upload_max_filesize 528M` im
+FPM-Pool, `DumpStatus`, die Spalte `kind` mit dem Wert `import`, ein
+Factory-Zustand `upload()` — und in der Oberfläche der Satz
+
+> Hochgeladene Dateien dürfen bis 512 MB gross sein.
+
+Nicht da war: eine Route, eine Controller-Methode, ein Formularfeld. `kind`
+stand nirgends auf `import`, `ImportLimit::rule()` und `::bytes()` wurden von
+nichts ausser ihrem eigenen Test aufgerufen.
+
+**Warum kein Wächter das gemeldet hat, ist die eigentliche Lehre.**
+`UploadLimitTest` war grün und hatte recht: Die drei Zahlen passten zueinander.
+Er prüfte die *Verträglichkeit* einer Vorbereitung und nirgends, dass sie jemand
+**benutzt**. Das ist der Satz aus dem P4-Abnahmelauf in neuer Gestalt — *ein
+Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt wurde* —, hier
+als: *Ein Wächter, der drei Werte gegeneinander hält, prüft nicht, dass sie
+gelten.* Verwandt mit `UsageReachTest` aus Schritt 5, nur habe ich dort an den
+Aufrufer gedacht und hier nicht.
+
+**Eine Zusage in der Oberfläche ist teurer als eine fehlende Funktion.** Wer den
+Satz liest, sucht das Feld; wer es nicht findet, hält das Panel für kaputt. Und
+die beiden aufgeweiteten Grenzen sind eine Vergrösserung der Angriffsfläche für
+nichts: 544 MB Anfragekörper nimmt ein Panel an, das keine Datei entgegennimmt.
+
+Zurückgenommen sind deshalb der Satz, `ImportLimit`, `UploadLimitTest` samt
+seinen zwei Brüchen, der Factory-Zustand und die beiden Grenzen (zurück auf
+256m/256M, den Stand vor P5). Der `kind`-Spalte bleibt ihr Platz, mit einem
+Kommentar, der sagt, dass es den zweiten Wert noch nicht gibt. Das Hochladen
+steht als **Schritt 11** im Plan, samt den vier Prüfungen, die heute nirgends
+stehen — die Magic Bytes, die Grenze für die *ausgepackte* Grösse (400 MB
+gepackt können 40 GB werden), der freie Platz und die Färbung der Liste.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -1698,8 +1805,9 @@ Korrektur aus §22.3) und die Messung (§9, siehe §22.3c). Die Screenshots aus
 Schritt 7 sind für beide gemacht und haben insgesamt fünf Fehler gefunden, drei
 davon ausserhalb von P5 (§22.3a).
 
-**Es fehlen:** `db.isolation.probe` und `srvpanel acceptance-db` (§17) sowie der
-Fernzugriff (§12). `srvpanel db` und `srvpanel db --prune` stehen seit §22.3e.
+**Es fehlen:** `db.isolation.probe` und `srvpanel acceptance-db` (§17), der
+Fernzugriff (§12) und das Hochladen einer Sicherung (Schritt 11, §22.3f).
+`srvpanel db` und `srvpanel db --prune` stehen seit §22.3e.
 
 Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
 benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur

@@ -53,10 +53,4 @@ class DatabaseDumpFactory extends Factory
             'last_error' => $reason,
         ]);
     }
-
-    /** Eine hochgeladene Datei — niemand hat sie geprüft. */
-    public function upload(): self
-    {
-        return $this->state(fn (): array => ['kind' => 'import']);
-    }
 }

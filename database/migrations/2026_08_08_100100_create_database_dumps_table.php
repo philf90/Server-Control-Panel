@@ -42,10 +42,12 @@ return new class extends Migration
 
             $table->string('storage_name', 96)->unique();
 
-            // 'export' — vom Panel erzeugt; 'import' — hochgeladen.
-            // Der Unterschied steht in der Liste: Eine hochgeladene Datei hat
-            // niemand geprüft, und was beim Einspielen scheitert, scheitert bei
-            // ihr häufiger.
+            // 'export' — vom Panel erzeugt. Das ist in P5 der einzige Wert:
+            // Ein Hochladen gibt es noch nicht (docs/36 §15 Schritt 11), und
+            // die Spalte steht hier, weil sie dann 'import' aufnimmt. Der
+            // Unterschied gehört in die Liste, sobald es ihn gibt — eine
+            // hochgeladene Datei hat niemand geprüft, und was beim
+            // Zurückspielen scheitert, scheitert bei ihr häufiger.
             $table->string('kind', 16);
 
             $table->string('status', 24)->default('pending');

@@ -57,7 +57,6 @@ const props = defineProps<{
   secret: { user: string; password: string } | null
 
   dumps: DumpRow[]
-  import_limit_mb: number
 }>()
 
 const userForm = useForm({ label: '' })
@@ -322,11 +321,18 @@ function size(): string {
           </table>
         </div>
 
+        <!--
+          **Hier stand ein zweiter Satz über hochgeladene Dateien.** Es gibt
+          kein Hochladen — keine Route, keine Methode, kein Formularfeld. Der
+          Satz war eine Zusage der Oberfläche an etwas, das nicht existiert;
+          das ist teurer als eine fehlende Funktion, weil ein Kunde danach
+          sucht. Er kommt mit dem Schritt wieder, der das Hochladen baut
+          (docs/36 §15 Schritt 11).
+        -->
         <p class="hint">
           Eine Sicherung wird gepackt abgelegt und liegt ausserhalb des
           Verzeichnisses dieses Abonnements — sie ist über die Webseite nicht
-          erreichbar. Hochgeladene Dateien dürfen bis
-          {{ props.import_limit_mb }} MB gross sein.
+          erreichbar.
         </p>
 
         <div v-if="props.can.update" class="button-row">

@@ -3482,44 +3482,6 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DefinerStripTest passed
 
 echo
-echo "── UploadLimitTest: nginx lässt weniger durch als das Formular annimmt ──"
-#
-# Drei Zahlen an drei Orten, und keiner weiss von den anderen. Passen sie nicht
-# zusammen, läuft eine Datei bis 90 % und bricht mit einer nginx-Fehlerseite ab,
-# die von diesem Panel nichts weiss — der Kunde sieht einen Abbruch ohne Grund.
-vorher_datei agent/src/Ops/PanelVhost.php
-python3 - <<'PY2'
-p = 'agent/src/Ops/PanelVhost.php'
-s = open(p, encoding='utf-8').read()
-s = s.replace('client_max_body_size 544m;', 'client_max_body_size 64m;')
-open(p, 'w', encoding='utf-8').write(s)
-PY2
-griff_datei agent/src/Ops/PanelVhost.php "nginx enger als das Formular" &&
-pruefe "nginx enger als das Formular" \
-  UploadLimitTest::test_the_form_rule_is_the_tightest_of_the_three failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" UploadLimitTest passed
-
-echo
-echo "── UploadLimitTest: die Klasse sagt etwas anderes als die Dateien ──"
-#
-# Die Gegenrichtung: ImportLimit ist eine Behauptung über zwei Dateien. Ohne
-# diese Hälfte wäre es eine Zeichenkette, die auf etwas verweist, ohne dass
-# jemand den Bezug prüft.
-vorher_datei packaging/etc/fpm.conf
-python3 - <<'PY2'
-p = 'packaging/etc/fpm.conf'
-s = open(p, encoding='utf-8').read()
-s = s.replace('php_admin_value[post_max_size] = 528M', 'php_admin_value[post_max_size] = 999M')
-open(p, 'w', encoding='utf-8').write(s)
-PY2
-griff_datei packaging/etc/fpm.conf "fpm.conf und ImportLimit gehen auseinander" &&
-pruefe "fpm.conf und ImportLimit gehen auseinander" \
-  UploadLimitTest::test_the_class_names_the_same_numbers_as_the_files failed
-wiederherstellen
-pruefe "  … zurückgesetzt wieder grün" UploadLimitTest passed
-
-echo
 echo "── RemovalPathTest: die Sicherung lässt sich nicht entfernen ──"
 #
 # Eine Sicherung ist das, was P5 auf dem System hinterlässt und was beliebig

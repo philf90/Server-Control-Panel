@@ -1226,6 +1226,14 @@ sowie `srvpanel acceptance-db` gehören in `packaging/bin/srvpanel`, sonst melde
 Agenten. Das Kriterium fragt nach dem Gegenteil — nach einer echten Verbindung,
 die MariaDB abweist.
 
+> **Jedes Kriterium nennt seinen Beleg, und der Beleg ist nie eine Abwesenheit
+> allein.** Nachgetragen am 8. August 2026 (§22.3m), nachdem zwei Kriterien
+> vollständig „grün" durchgelaufen sind, ohne dass der Vorgang dazwischen
+> stattgefunden hatte. Eine leere Ergebnismenge, eine unveränderte Rechtezeile,
+> eine Datei, die nicht da ist — all das steht genauso da, wenn niemand etwas
+> getan hat. Wo ein Kriterium an einer Aktion hängt, gehört die Aktion selbst in
+> die Niederschrift: die Nummer des Vorgangs, sein Zustand, seine Meldung.
+
 ```bash
 # Voraussetzung: zwei Abonnements desselben oder verschiedener Kunden.
 # Der Lauf legt sie NICHT selbst an — eine Kundennummer ist auf Dauer
@@ -1265,24 +1273,52 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 # 4  SICHERN
 #    Im Panel exportieren, warten bis der Vorgang durch ist, herunterladen.
 #    erwartet: die Datei liegt unter /var/lib/srvpanel/dumps/<abo>/ mit
-#              root:srvpanel 0640, und sie enthält die Zeilen aus Kriterium 2.
+#              root:srvpanel 0640, das Verzeichnis root:srvpanel 0710.
+#              Sie enthält die Zeilen aus Kriterium 2:
+#                zcat <datei> | grep -c INSERT   → > 0
+#                zcat <datei> | grep -c DEFINER  → 0
 #    Gegenprobe: sie liegt NICHT unter /var/www/vhosts/<abo>/ und ist über
 #                HTTP nicht erreichbar.
+#    BELEG:  Der Download liefert eine Datei. Ein 404 heisst nicht „fehlt",
+#            sondern meist: das Panel kommt an den Pfad nicht heran (§22.3l).
 
 # 5  ZURÜCKSPIELEN
-#    Die Tabelle löschen, den Dump im Panel wieder einspielen.
-#    erwartet: die Zeilen sind zurück, Byte für Byte.
+#    Die Tabelle löschen, den Dump im Panel zurückspielen.
+#    erwartet: die Zeilen sind zurück — dieselben Zahlen wie vor dem Löschen.
 #    Und: während des Laufs entsteht ein Benutzer p<A>_r<zufall> und ist
 #    danach fort:
 #      SELECT user FROM mysql.user WHERE user LIKE 'p%\\_r%';  → 0 Zeilen.
+#
+#    BELEG:  die Nummer des Vorgangs und sein Zustand „erledigt".
+#            OHNE DIESE ZEILE IST DAS KRITERIUM NICHT GEFAHREN. Die Abfrage
+#            oben ist auch dann leer, wenn nie ein Restore lief — sie belegt
+#            das Aufräumen und nicht den Lauf. Am 8. August 2026 ist genau das
+#            passiert: Vorbereitung und Nachprüfung standen da, der Vorgang
+#            dazwischen fehlte, und beides sah grün aus (§22.3m).
 
 # 6  DER DUMP DARF KEINE RECHTE VERGEBEN
-#    Einen Dump von Hand um eine Zeile ergänzen:
-#      GRANT ALL PRIVILEGES ON *.* TO 'p<A>_web'@'localhost';
-#    und einspielen.
-#    erwartet: der Vorgang SCHEITERT mit „Access denied", und
+#    Einen Dump von Hand um eine Zeile ergänzen — er liegt gepackt:
+#      zcat <datei> > /tmp/probe.sql
+#      echo "GRANT ALL PRIVILEGES ON *.* TO 'p<A>_web'@'localhost';" >> /tmp/probe.sql
+#      gzip -c /tmp/probe.sql > <datei> && rm /tmp/probe.sql
+#      chown root:srvpanel <datei> && chmod 0640 <datei>
+#    und zurückspielen. NICHT denselben Dump wie in Kriterium 5 nehmen: sonst
+#    sind beide Kriterien ein Lauf, und hinterher weiss niemand, welcher was
+#    gezeigt hat.
+#    erwartet: der Vorgang SCHEITERT, und
 #      SHOW GRANTS FOR 'p<A>_web'@'localhost';
-#    nennt danach unverändert genau eine Datenbank.
+#    nennt danach unverändert genau eine Datenbank — `GRANT USAGE ON *.*` ist
+#    die Zeile „dieses Konto existiert" und kein Recht.
+#
+#    BELEG:  die Fehlermeldung des Vorgangs, wörtlich. Sie muss den Benutzer
+#            p<A>_r<zufall> und ein „Access denied" nennen. „Fehlgeschlagen"
+#            allein ist wieder eine Aussage über uns und nicht über den Server;
+#            ein Tippfehler im Dateinamen scheitert genauso.
+#            Am 8. August gemessen: ERROR 1045 (28000) at line 6520,
+#            Access denied for user 'p1118_r9023706e'@'localhost'.
+#            Die Zeilennummer ist Absicht: Sie zeigt, dass die Datenzeilen
+#            davor gelaufen sind und erst die angehängte GRANT-Zeile abprallt.
+#    Und: der befristete Benutzer ist auch nach dem Fehlschlag fort.
 
 # 7  DER RÜCKBAU LÄSST NICHTS LIEGEN
 #    Abo A zurückbauen, warten bis alle Vorgänge durch sind.
@@ -2108,6 +2144,74 @@ das in zehn anderen Dateien anders aussieht. Kein Test hat je gefragt, ob der
 Modus seinen Zweck erfüllt oder ob die elfte Tabelle wie die zehn davor gebaut
 ist.
 
+### 22.3m Kriterium 6 belegt — und eine Lücke in der Anleitung selbst
+
+**Kriterium 6 ist am 8. August 2026 gefahren und erfüllt.** Ein Dump mit
+angehängter Zeile
+
+```sql
+GRANT ALL PRIVILEGES ON *.* TO 'p1118_user'@'localhost';
+```
+
+wurde zurückgespielt. Vorgang 444 steht auf **fehlgeschlagen**, und zwar mit der
+Meldung, auf die es ankommt:
+
+```
+ERROR 1045 (28000) at line 6520: Access denied for user
+'p1118_r9023706e'@'localhost' (using password: YES)
+```
+
+Drei Dinge stehen in dieser einen Zeile. Der befristete Benutzer hat den Lauf
+gefahren — nicht der Kunde und nicht root. Die Zeilennummer 6520 zeigt, dass die
+Datenzeilen davor durchgelaufen sind und erst die angehängte `GRANT`-Zeile
+abprallt; kein `--force`, also endet der Lauf dort. Und `SHOW GRANTS` nennt
+danach unverändert nur die Datenbanken des Kunden. **Ein Kunde kann sich mit
+einer selbst geschriebenen Sicherungsdatei keine Rechte verschaffen.**
+
+Der Aufräumer hält auch im Fehlerfall: `SELECT user FROM mysql.user WHERE user
+LIKE 'p%\_r%'` ist danach leer.
+
+**Und jetzt der Fund, der nicht im Code steckt, sondern in §17.**
+
+Der Betreiber ist bei Kriterium 5 *und* 6 bis zur Nachprüfung gekommen, ohne den
+Vorgang dazwischen auszulösen — und beide Male sah das Ergebnis nach Erfolg aus:
+
+- Kriterium 5: `… WHERE user LIKE 'p%\_r%'` → leer. Der befristete Benutzer war
+  aber auch vorher nicht da. Die Abfrage belegt das Aufräumen, nicht den Lauf.
+- Kriterium 6: `SHOW GRANTS` unverändert. Unverändert ist die Rechtevergabe auch
+  dann, wenn niemand sie angegriffen hat.
+
+Beide Kriterien prüften eine **Abwesenheit**, und eine Abwesenheit ist ohne die
+Aktion davor keine Aussage. Das ist dasselbe Muster wie bei `refused` (§22.3h)
+und bei `measured` (§22.3i), nur eine Ebene weiter aussen: **diesmal hatte nicht
+der Code die Lücke, sondern die Anleitung, mit der wir ihn abnehmen.** Und dass
+sie zweimal hintereinander zugeschlagen hat, ist kein Zufall — sie ist der
+bequemste Weg durch beide Kriterien.
+
+§17 nennt seitdem für jedes Kriterium ausdrücklich seinen **Beleg**, und die
+Regel steht im Kopf des Abschnitts: *Der Beleg ist nie eine Abwesenheit allein.*
+Wo ein Kriterium an einer Aktion hängt, gehören Nummer, Zustand und Meldung des
+Vorgangs in die Niederschrift.
+
+**Zwei Beobachtungen aus der Vorgangsseite, die keine Kriterien betreffen:**
+
+1. **Die Meldung beginnt mit `--------------`.** Der `mysql`-Client stellt der
+   Fehlermeldung die gescheiterte Anweisung zwischen Strichzeilen voran — genau
+   die Zeichenfolge, die in §22.3h eine ganze Prüfung unlesbar gemacht hat. Hier
+   ist sie harmlos, weil die vollständige Ausgabe durchgereicht wird und das
+   `ERROR` mit dabeisteht. Sie wörtlich stehen zu lassen ist ausserdem Leitbild 2
+   („die Meldung des Systems, nicht eine Umschreibung davon"). Wer sie kürzt,
+   entscheidet gegen dieses Leitbild und sollte es begründen.
+2. **„Begonnen —", „Beendet —", „Fortschritt 0 %" an einem fehlgeschlagenen
+   Vorgang.** Das ist ein Zustand, den es nie gab: `OperationRecorder::start()`
+   setzt `started_at`, `finish()` setzt `finished_at`. Die Seite zeigt trotzdem
+   Striche, weil der SSE-Kanal `status`, `label`, `progress` und `message`
+   nachführt — **und die Zeitstempel nicht.** Sie stammen aus der ersten
+   Inertia-Antwort, und zu dem Zeitpunkt stand der Vorgang noch in der
+   Warteschlange. Ein Neuladen zeigt die richtigen Werte. Zwei Quellen für
+   dieselbe Angabe, und eine davon wird nicht nachgezogen — das ist die Sorte
+   Abweichung, die dieses Projekt sonst überall vermeidet.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -2127,8 +2231,16 @@ Aussonderung hält, beide Schemata finden ihre Zeile (§22.3j). Die *Zahl* daneb
 war dabei falsch gerundet, und das ist behoben — nachgemessen ist sie beim
 nächsten Lauf.
 
-**Kriterium 4 bis 7 stehen aus:** sichern, herunterladen, zurückspielen, der Dump
-mit eingefügter `GRANT`-Zeile und der Rückbau samt Gegenprobe am Nachbarn.
+**Kriterium 6 ist gefahren und erfüllt** (§22.3m): Ein Dump, der Rechte vergeben
+will, prallt am befristeten Benutzer ab, und die Rechtezeile bleibt unverändert.
+
+**Kriterium 4 ist halb belegt.** Die Sicherung entsteht und liegt richtig — der
+Download hat mit 404 geantwortet, das ist behoben (§22.3l), aber **ein
+erfolgreicher Download ist seither nicht niedergeschrieben.** Genau die Sorte
+Lücke, die dieser Abschnitt beschreibt: Der Fehler ist erklärt, der Beleg fehlt.
+
+**Kriterium 5 und 7 stehen aus:** das Zurückspielen mit der Wiederkehr der Zeilen
+und der Rückbau samt Gegenprobe am Nachbarn.
 
 Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
 benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur

@@ -42,11 +42,17 @@ const live = props.operation.open ? useOperationStream(props.operation.id) : nul
 const output = computed(() => props.operation.output + (live?.output.value ?? ''))
 
 const status = computed(() => live?.state.value?.status ?? props.operation.status)
-const label = computed(() => live?.state.value?.label ?? props.operation.status_label)
+const label = computed(() => live?.state.value?.status_label ?? props.operation.status_label)
 const progress = computed(() => live?.state.value?.progress ?? props.operation.progress)
 const message = computed(() => live?.state.value?.message ?? props.operation.message)
 
 const open = computed(() => live?.state.value?.open ?? props.operation.open)
+
+// Auch die Zeiten kommen aus dem Kanal, sobald er etwas geschickt hat. Ohne das
+// stünde an einem fertigen Vorgang „Begonnen —": Die erste Antwort entsteht,
+// während er noch in der Warteschlange steht (docs/36 §22.3m).
+const startedAt = computed(() => live?.state.value?.started_at ?? props.operation.started_at)
+const finishedAt = computed(() => live?.state.value?.finished_at ?? props.operation.finished_at)
 
 const rang = computed<'ok' | 'warn' | 'critical' | 'neutral'>(() => {
   if (status.value === 'succeeded') return 'ok'
@@ -117,8 +123,8 @@ watch(output, () => {
               <td class="right"><Badge :kind="rang" :running="open">{{ label }}</Badge></td>
             </tr>
             <tr><td class="quiet">Ausgelöst von</td><td class="right name">{{ props.operation.account ?? '—' }}</td></tr>
-            <tr><td class="quiet">Begonnen</td><td class="right">{{ props.operation.started_at ?? '—' }}</td></tr>
-            <tr><td class="quiet">Beendet</td><td class="right">{{ props.operation.finished_at ?? '—' }}</td></tr>
+            <tr><td class="quiet">Begonnen</td><td class="right">{{ startedAt ?? '—' }}</td></tr>
+            <tr><td class="quiet">Beendet</td><td class="right">{{ finishedAt ?? '—' }}</td></tr>
           </tbody>
         </table>
 

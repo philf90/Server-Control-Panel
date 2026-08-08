@@ -4081,6 +4081,42 @@ pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_a_pairs_table_labels_its_rows_the_same_way_everywhere passed
 
 echo
+echo "── OperationStreamTest: die Zeiten fehlen im Ereignis ──"
+#
+# Der Zustand vom 8. August 2026: Der Kanal führt Zustand, Fortschritt und
+# Meldung nach, die Zeitstempel nicht — und ein fertiger Vorgang zeigt
+# „Begonnen —", weil die Erstantwort aus der Warteschlange stammt.
+vorher_datei app/Http/Controllers/OperationStreamController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OperationStreamController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    'started_at' => $operation->started_at?->toDateTimeString(),\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/OperationStreamController.php "Zeitstempel nicht im Kanal" &&
+pruefe "Zeitstempel nicht im Kanal" \
+  OperationStreamTest::test_the_state_event_carries_the_times failed
+wiederherstellen
+
+echo
+echo "── OperationStreamTest: die Vorlage druckt aus der Erstantwort ──"
+#
+# Die Gegenrichtung, und der eigentliche Fehler: Der Kanal darf schicken, was er
+# will, solange die Vorlage den Wert der ersten Antwort ausgibt.
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("{{ startedAt ?? '—' }}", "{{ props.operation.started_at ?? '—' }}")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Zeit aus der Erstantwort gedruckt" &&
+pruefe "Zeit aus der Erstantwort gedruckt" \
+  OperationStreamTest::test_the_page_does_not_print_a_live_field_from_the_first_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationStreamTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

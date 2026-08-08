@@ -5359,6 +5359,26 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Ein fehlgeschlagener Vorgang zeigte „Begonnen —" und „Beendet —".** Beide
+Zeitstempel waren gesetzt; die Seite zeigte die Werte aus der ersten
+Inertia-Antwort, und zu dem Zeitpunkt stand der Vorgang in der Warteschlange.
+Der SSE-Kanal führte Zustand, Fortschritt und Meldung nach — die Zeiten nicht.
+Zwei Quellen für dieselbe Angabe, und eine wird nicht nachgezogen; ein Neuladen
+zeigte die richtigen Werte, wer zusah, sah einen Zustand, den es nie gab.
+
+Der Kanal schickt jetzt beide Zeiten, und die Vorlage liest sie von dort.
+`OperationStreamTest` prüft beide Richtungen: dass das Ereignis sie trägt (am
+ausgelieferten Strom, nicht am Quelltext), und dass die Vorlage **kein** Feld
+aus der Erstantwort druckt, das der Kanal nachführt — die Namen dafür kommen aus
+dem Controller und nicht aus einer gepflegten Liste. Der zweite ist der
+wichtigere: Der Kanal hätte die Zeiten schicken können, und solange die Vorlage
+`props.operation.started_at` ausgibt, ändert das nichts.
+
+Dabei ist ein Namenskonflikt aufgefallen und mitbehoben: Im Ereignis hiess
+`label` der **Zustand** („fehlgeschlagen"), in der Seitennutzlast heisst `label`
+die **Aufgabe** („db.restore"). Zwei Bedeutungen für einen Namen auf derselben
+Seite; das Ereignis nennt es jetzt `status_label`.
+
 **Eine fertige Sicherung liess sich nicht herunterladen — 404.** Gefunden vom
 Betreiber beim Durchgehen der Kriterien 4 bis 7. Die Datei lag als
 `root:srvpanel 0640`, die Gruppe des Panels durfte sie also lesen; ihr

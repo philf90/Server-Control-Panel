@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\Customer;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Support\Operations\OperationRecorder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -72,6 +73,110 @@ final class OperationStreamTest extends TestCase
 
         // Das Ende ist der Punkt: Ohne `done` wartete der Browser weiter.
         $this->assertStringContainsString('event: done', $body);
+    }
+
+    /**
+     * Was die Seite laufend zeigt, schickt der Kanal auch.
+     *
+     * **Der Anlass ist eine Aufnahme vom 8. August 2026.** Ein fehlgeschlagener
+     * Vorgang stand mit „Begonnen —" und „Beendet —" auf dem Bildschirm. Beide
+     * Zeitstempel *waren* gesetzt — `OperationRecorder` schreibt sie —, aber
+     * die Seite zeigte die Werte aus der ersten
+     * Inertia-Antwort, und zu dem Zeitpunkt stand der Vorgang in der
+     * Warteschlange. Der Kanal führte Zustand, Fortschritt und Meldung nach und
+     * die Zeiten nicht.
+     *
+     * **Zwei Quellen für dieselbe Angabe, und eine wird nicht nachgezogen** —
+     * dasselbe Muster wie überall in diesem Projekt, hier zwischen Server und
+     * Browser. Ein Neuladen zeigte die richtigen Werte; wer zusieht, sah einen
+     * Zustand, den es nie gab.
+     *
+     * Geprüft wird am ausgelieferten Ereignis und nicht am Quelltext: Was der
+     * Browser bekommt, ist die Frage.
+     */
+    public function test_the_state_event_carries_the_times(): void
+    {
+        [$account, $subscription] = $this->customerWithSubscription();
+
+        $operation = Operation::factory()->for($subscription)->create([
+            'status' => OperationStatus::Queued,
+            'progress' => 0,
+        ]);
+
+        // Über den Schreiber und nicht mit `forceFill`: So entstehen die
+        // Zeitstempel im Betrieb, und die beiden Spalten sind mit Absicht nicht
+        // in `$fillable` — gemessen wird und nicht eingegeben.
+        $recorder = new OperationRecorder($operation);
+        $recorder->start();
+        $recorder->fail('Das Zurückspielen ist gescheitert.');
+
+        $operation->refresh();
+
+        $this->assertNotNull($operation->started_at, 'Ohne gesetzte Zeit prüft der Rest nichts.');
+        $this->assertNotNull($operation->finished_at);
+
+        $body = $this->actingAs($account)
+            ->get("/operations/{$operation->id}/stream")
+            ->streamedContent();
+
+        foreach (['started_at', 'finished_at'] as $feld) {
+            $this->assertStringContainsString(
+                '"'.$feld.'":"',
+                $body,
+                sprintf(
+                    'Der Kanal schickt `%s` nicht — dann zeigt die Vorgangsseite dafür den Wert '.
+                    'aus der ersten Antwort, und der stammt aus der Warteschlange.',
+                    $feld,
+                ),
+            );
+        }
+    }
+
+    /**
+     * Und die Seite liest es auch von dort.
+     *
+     * **Die Gegenrichtung, und sie ist der eigentliche Fehler von damals.** Der
+     * Kanal hätte die Zeiten schicken können, und solange die Vorlage
+     * `props.operation.started_at` ausgibt, ändert das nichts: Das ist der Wert
+     * aus der ersten Antwort. Was der Kanal laufend nachführt, darf die Vorlage
+     * nicht aus der Erstantwort drucken.
+     *
+     * **Nur die Vorlage, nicht das Skript.** Im `<script>` steht
+     * `live?.state.value?.x ?? props.operation.x` — das ist der richtige
+     * Rückfall für den Augenblick, bevor das erste Ereignis da ist.
+     *
+     * Die Namen kommen aus dem Controller und nicht aus einer Liste hier: Eine
+     * Liste müsste jemand pflegen, und wer sie pflegt, denkt auch an die
+     * Vorlage.
+     */
+    public function test_the_page_does_not_print_a_live_field_from_the_first_answer(): void
+    {
+        $controller = (string) file_get_contents(base_path('app/Http/Controllers/OperationStreamController.php'));
+
+        $this->assertSame(
+            1,
+            preg_match("/send\('state'.*?\]\);/s", $controller, $treffer),
+            'Die Nutzlast des Ereignisses ist nicht auffindbar — dann prüft dieser Wächter nichts.',
+        );
+
+        preg_match_all("/'([a-z_]+)' =>/", $treffer[0], $namen);
+        $live = array_unique($namen[1]);
+
+        $this->assertGreaterThan(4, count($live), 'Es werden kaum Felder gefunden.');
+
+        $page = (string) file_get_contents(base_path('resources/js/Pages/Operations/Show.vue'));
+
+        $this->assertSame(1, preg_match('#<template>(.*)</template>#s', $page, $vorlage));
+
+        preg_match_all('/props\.operation\.([a-z_]+)/', $vorlage[1], $gedruckt);
+
+        $this->assertSame(
+            [],
+            array_values(array_intersect(array_unique($gedruckt[1]), $live)),
+            'Diese Angabe führt der Kanal nach, und die Vorlage druckt sie aus der ersten '.
+            'Antwort. Solange der Vorgang läuft, zeigt die Seite damit einen Zustand, den es '.
+            'nicht mehr gibt — dafür gibt es im <script> den Rückfall mit `??`.',
+        );
     }
 
     public function test_the_stream_resumes_where_it_left_off(): void

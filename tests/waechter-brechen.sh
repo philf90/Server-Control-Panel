@@ -4022,6 +4022,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OverviewInventoryTest passed
 
 echo
+echo "── DumpAccessTest: das Verzeichnis gehört wieder root allein ──"
+#
+# Der Zustand, mit dem „Herunterladen" am 8. August 2026 mit 404 antwortete:
+# Die Datei war für die Gruppe lesbar, ihr Verzeichnis für die Gruppe nicht
+# durchsuchbar — und ohne x auf dem Weg nützt das r am Ziel nichts.
+vorher_datei agent/src/Db/Dump.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Dump.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            if ($group) {\n                chgrp($path, self::GROUP);\n            }\n\n",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Dump.php "Verzeichnis ohne Gruppe des Panels" &&
+pruefe "Verzeichnis ohne Gruppe des Panels" \
+  DumpAccessTest::test_every_directory_belongs_to_the_group_that_reads_the_files failed
+wiederherstellen
+
+echo
+echo "── DumpAccessTest: das Verzeichnis wird auflistbar ──"
+#
+# Die andere Richtung, und sie ist der Grund, warum 0710 und nicht 0750 dasteht:
+# Ein Verzeichnis mit r für die Gruppe verrät, welche Sicherungen es gibt.
+vorher_datei agent/src/Db/Dump.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Dump.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('public const DIRECTORY_MODE = 0710;', 'public const DIRECTORY_MODE = 0750;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Dump.php "Verzeichnis auflistbar" &&
+pruefe "Verzeichnis auflistbar" \
+  DumpAccessTest::test_the_group_may_not_list_the_directory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DumpAccessTest passed
+
+echo
+echo "── MobileLayoutTest: eine Paar-Tabelle beschriftet mit th ──"
+#
+# Die schmale Fläche setzt `table.pairs td` zurück und `th` nicht — das `th`
+# behält seinen Rand aus der Tabellengestaltung, und der ist so breit wie die
+# Beschriftung. Auf 390px stehen dann zwei Striche versetzt untereinander.
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<td class="quiet">Sortierung</td>', '<th>Sortierung</th>')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "Paar-Tabelle mit th" &&
+pruefe "Paar-Tabelle mit th" \
+  MobileLayoutTest::test_a_pairs_table_labels_its_rows_the_same_way_everywhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  MobileLayoutTest::test_a_pairs_table_labels_its_rows_the_same_way_everywhere passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

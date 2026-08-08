@@ -5359,6 +5359,36 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Eine fertige Sicherung liess sich nicht herunterladen — 404.** Gefunden vom
+Betreiber beim Durchgehen der Kriterien 4 bis 7. Die Datei lag als
+`root:srvpanel 0640`, die Gruppe des Panels durfte sie also lesen; ihr
+Verzeichnis lag als `root:root 0750`, und damit fiel das Panel in „andere".
+Unter Unix öffnet man eine Datei über ihren Pfad, und dafür braucht es das
+`x`-Bit auf **jedem** Verzeichnis darüber — das `r` an der Datei war wertlos.
+
+Der Kommentar am Code hat den Fehler begründet statt ihn zu verhindern: *„Nicht
+der Gruppe des Panels: Sie soll die Dateien lesen dürfen und nicht das
+Verzeichnis durchsuchen."* Die Absicht ist richtig und lässt sich so nur nicht
+ausdrücken — wer nicht durchsuchen darf, liest auch nicht. Und `docs/36 §10`
+hatte `root:srvpanel 0750` dastehen: **Der Plan war richtig, die Umsetzung ist
+davon abgewichen**, mit einer Erklärung statt mit einer Frage.
+
+Jetzt `0710` mit der Gruppe des Panels — enger als die ursprüngliche Angabe und
+näher an ihrem Zweck: hingehen darf, wer den Namen kennt, auflisten niemand.
+Gesetzt werden beide Ebenen und bei jedem Lauf, damit eine ältere Installation
+sich mit der nächsten Sicherung selbst berichtigt. `DumpAccessTest` rechnet die
+Unix-Regel nach, statt die Zahl ein zweites Mal hinzuschreiben: `x` auf jedem
+Verzeichnis des Pfades, `r` an der Datei, kein `r` an den Verzeichnissen, nichts
+für „andere" — und alles für dieselbe Gruppe. Die letzte Behauptung ist die, die
+den Fehler gefunden hätte.
+
+**Und die Datenbankseite hatte auf dem Telefon versetzte Striche.** Sie
+beschriftete ihre Paar-Tabelle als einzige im Panel mit `<th>`. Die schmale
+Fläche macht aus jeder Zeile eine Flexzeile und setzt dafür `table.pairs td`
+zurück; ein `th` fällt unter keine dieser Regeln und behielt seinen Rand aus der
+Tabellengestaltung — so breit wie die Beschriftung. `MobileLayoutTest` besteht
+jetzt auf einer Form für alle elf Paar-Tabellen.
+
 **Der Bestand auf der Übersicht führt Domains und Datenbanken.** Bis dahin
 standen dort Kunden und Abonnements — also, wer und was gebucht. Das Gehostete
 selbst, die Namen, unter denen jemand erreichbar ist, und die Daten dahinter,

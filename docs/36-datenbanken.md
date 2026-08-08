@@ -1798,6 +1798,37 @@ steht als **Schritt 11** im Plan, samt den vier Prüfungen, die heute nirgends
 stehen — die Magic Bytes, die Grenze für die *ausgepackte* Grösse (400 MB
 gepackt können 40 GB werden), der freie Platz und die Färbung der Liste.
 
+### 22.3g Schritt 9 — die Selbstprobe, und was sie nicht kann
+
+`db.isolation.probe` und `srvpanel acceptance-db` stehen. Drei Entscheidungen
+daran sind erklärungsbedürftig:
+
+**Das Passwort überquert den Socket, und das ist hier richtig.** Es gibt keinen
+anderen Weg, eine Verbindung *als dieser Benutzer* aufzubauen — und genau die
+ist das Kriterium. `SHOW GRANTS` als root zu lesen wäre die bequeme Antwort und
+die falsche: Sie zeigt, was dasteht, nicht was MariaDB anwendet. Wortgleich der
+Grund, aus dem `web.isolation.probe` für P3 ein Skript ausführt statt die
+Pool-Vorlage zu lesen. Was **nicht** passiert: Der Aufruf geht unmittelbar und
+nie über die Warteschlange, sonst läge das Passwort in `operations.payload`.
+
+**Der Lauf legt keine Abonnements an**, anders als `acceptance-web`. Das ist die
+Lehre aus `docs/35`: `system_users` gibt eine Nummer nie wieder her, und ein
+Abnahmelauf, den man zehnmal fährt, verbrauchte zwanzig. Er bekommt zwei
+bestehende genannt und legt darin nur an, was sich rückstandsfrei entfernen
+lässt.
+
+**Die Probe meldet Namen und keine Zahl**, und `IsolationVerdictTest` hält beide
+Hälften fest — die Operation gibt die Liste heraus, der Lauf vergleicht sie als
+Menge. Der Grund ist der teuerste Fund des P4-Abnahmelaufs: `count($visible) === 1`
+wäre auch dann grün, wenn ein Benutzer *eine fremde* Datenbank sieht und die
+eigene nicht.
+
+**Was der Lauf nicht kann, steht in seiner eigenen Schlussmeldung.** Er prüft
+Kriterium 1 bis 3. Kriterium 4 bis 7 — sichern, zurückspielen, der Dump, der
+Rechte vergeben will, und der Rückbau, der nichts liegenlässt — laufen von Hand
+nach §17. Sie zu automatisieren hiesse, ein Abonnement zurückzubauen, und das
+ist genau das, was dieser Lauf nicht tut.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -1805,9 +1836,13 @@ Korrektur aus §22.3) und die Messung (§9, siehe §22.3c). Die Screenshots aus
 Schritt 7 sind für beide gemacht und haben insgesamt fünf Fehler gefunden, drei
 davon ausserhalb von P5 (§22.3a).
 
-**Es fehlen:** `db.isolation.probe` und `srvpanel acceptance-db` (§17), der
-Fernzugriff (§12) und das Hochladen einer Sicherung (Schritt 11, §22.3f).
-`srvpanel db` und `srvpanel db --prune` stehen seit §22.3e.
+**Es fehlen:** der Fernzugriff (§12) und das Hochladen einer Sicherung
+(Schritt 11, §22.3f). `srvpanel db` und `srvpanel db --prune` stehen seit
+§22.3e, `db.isolation.probe` und `srvpanel acceptance-db` seit §22.3g.
+
+**Und der Abnahmelauf selbst ist nicht gefahren.** Er braucht einen Server mit
+MariaDB und zwei bestehenden Abonnements; dieser Container hat weder das eine
+noch das andere. Was hier steht, ist das Werkzeug — der Nachweis ist es nicht.
 
 Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
 benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur

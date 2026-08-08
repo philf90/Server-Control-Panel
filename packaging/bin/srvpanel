@@ -22,7 +22,7 @@ set -eu
 COMMAND="${1:-list}"
 
 case "${COMMAND}" in
-    setup|update|metrics|usage|tls|dns|db|vhost|acceptance|acceptance-web|admin)
+    setup|update|metrics|usage|tls|dns|db|vhost|acceptance|acceptance-web|acceptance-db|admin)
         shift
         set -- "srvpanel:${COMMAND}" "$@"
         ;;

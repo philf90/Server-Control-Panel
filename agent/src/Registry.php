@@ -15,6 +15,7 @@ use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use SrvPanel\Agent\Ops\DbDatabaseRemove;
 use SrvPanel\Agent\Ops\DbDumpCreate;
 use SrvPanel\Agent\Ops\DbDumpRemove;
+use SrvPanel\Agent\Ops\DbIsolationProbe;
 use SrvPanel\Agent\Ops\DbRestore;
 use SrvPanel\Agent\Ops\DbServerInfo;
 use SrvPanel\Agent\Ops\DbUsage;
@@ -137,6 +138,12 @@ final class Registry
         // `AgentOperationReachTest::WITHOUT_LIFECYCLE` wie `subscription.usage`:
         // Sie läuft am Zeitgeber und nicht an einem Lebenslauf.
         $this->register(new DbUsage);
+
+        // Die Selbstprobe des Abnahmelaufs. Sie legt eine Tabelle an und räumt
+        // nichts weg — das tut `srvpanel acceptance-db`, indem es die
+        // Datenbanken danach entfernt. Ohne Lebenslauf: Im Bestand des Panels
+        // steht zu ihr nichts.
+        $this->register(new DbIsolationProbe);
     }
 
     public function register(Op $op): void

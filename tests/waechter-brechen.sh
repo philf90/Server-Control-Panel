@@ -3706,6 +3706,64 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DatabasePruneTest passed
 
 echo
+echo "── IsolationVerdictTest: die Probe zählt statt zu nennen ──"
+#
+# Der teuerste Fund des P4-Abnahmelaufs, eine Stufe weiter: „1 fällig, 1
+# bestellt" war die richtige Zahl über der falschen Sache. Für P5 hiesse das:
+# `count($visible) === 1` ist auch dann grün, wenn der Benutzer *eine fremde*
+# Datenbank sieht und die eigene nicht.
+vorher_datei agent/src/Ops/DbIsolationProbe.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbIsolationProbe.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'visible' => $visible,", "'visible' => count($visible),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbIsolationProbe.php "Probe zählt statt zu nennen" &&
+pruefe "Probe zählt statt zu nennen" \
+  IsolationVerdictTest::test_the_probe_returns_names failed
+wiederherstellen
+
+echo
+echo "── IsolationVerdictTest: der Abnahmelauf vergleicht die Grösse ──"
+#
+# Die andere Hälfte derselben Regel: Zwei sichtbare Namen sind zwei sichtbare
+# Namen, gleichgültig welche.
+vorher_datei app/Console/Commands/AcceptanceDb.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/AcceptanceDb.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'if ($visible !== $expected) {',
+    'if (count($visible) !== count($expected)) {',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/AcceptanceDb.php "Abnahmelauf vergleicht die Grösse" &&
+pruefe "Abnahmelauf vergleicht die Grösse" \
+  IsolationVerdictTest::test_the_acceptance_run_compares_the_set_and_not_its_size failed
+wiederherstellen
+
+echo
+echo "── IsolationVerdictTest: nur noch die Anzeige wird geprüft ──"
+#
+# `SHOW DATABASES` ist eine Anzeige, `USE` der Wechsel, das `SELECT` der
+# Zugriff. Ein Server kann die Anzeige filtern und den Zugriff zulassen — wer
+# nur die Liste prüft, hat die Anzeige geprüft.
+vorher_datei agent/src/Ops/DbIsolationProbe.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbIsolationProbe.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'SELECT COUNT(*) FROM %s.%s',", "'SHOW TABLES FROM %s -- %s',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbIsolationProbe.php "nur die Anzeige geprüft" &&
+pruefe "nur die Anzeige geprüft" \
+  IsolationVerdictTest::test_all_three_questions_are_asked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IsolationVerdictTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

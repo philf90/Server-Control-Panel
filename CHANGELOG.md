@@ -5242,6 +5242,37 @@ nachzutragen ginge nicht, weil das Skript selbst darin liegt und ein
 liest. Der Kopf des Skripts hält das jetzt fest, die Befehlsfolgen stehen in den
 betroffenen Tests.
 
+**Schritt 9: `db.isolation.probe` und `srvpanel acceptance-db`.** Die
+Selbstprobe baut eine echte Verbindung als der Datenbankbenutzer des Kunden auf
+und stellt drei Fragen: `SHOW DATABASES` (die Anzeige), `USE` (der Wechsel),
+`SELECT` (der Zugriff). Ein Server kann die Anzeige filtern und den Zugriff
+zulassen — wer nur die Liste prüft, hat die Anzeige geprüft.
+
+**Sie meldet Namen und keine Zahl**, und `IsolationVerdictTest` hält beide
+Hälften fest: die Operation gibt die Liste heraus, der Lauf vergleicht sie als
+Menge. Der Grund ist der teuerste Fund des P4-Abnahmelaufs — `count($visible) === 1`
+wäre auch dann grün, wenn ein Benutzer eine *fremde* Datenbank sieht und die
+eigene nicht.
+
+Das Passwort überquert dafür den Socket, und das ist hier richtig: Es gibt
+keinen anderen Weg, eine Verbindung als dieser Benutzer aufzubauen, und genau
+die ist das Kriterium. `SHOW GRANTS` als root zu lesen zeigt, was dasteht, nicht
+was MariaDB anwendet — derselbe Grund, aus dem die Selbstprobe von P3 ein Skript
+ausführt statt die Pool-Vorlage zu lesen. Der Aufruf geht unmittelbar und nie
+über die Warteschlange, sonst läge das Passwort in `operations.payload`.
+
+**Der Lauf legt keine Abonnements an**, anders als `acceptance-web`. `system_users`
+gibt eine Nummer nie wieder her; ein Abnahmelauf, den man zehnmal fährt,
+verbrauchte zwanzig. Er bekommt zwei bestehende genannt, legt darin zwei
+Datenbanken mit Zugängen an und räumt sie im `finally` wieder weg — auch wenn
+ein Kriterium scheitert, denn sonst hinterliesse er genau die Reste, die
+`srvpanel db --prune` danach wegräumen müsste.
+
+Geprüft werden damit Kriterium 1 bis 3. Kriterium 4 bis 7 laufen von Hand: Sie
+zu automatisieren hiesse, ein Abonnement zurückzubauen, und das ist genau das,
+was dieser Lauf nicht tut. **Gefahren ist er noch nicht** — er braucht einen
+Server mit MariaDB und zwei bestehenden Abonnements.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

@@ -128,7 +128,7 @@ final class MeasureUsage extends Command
          * **Drei Zahlen, und die erste allein war kein Beleg.** Der Abnahmelauf
          * vom 8. August 2026 meldete „2 Datenbank(en) gemessen" — und genau das
          * hätte auch dagestanden, wenn die Abfrage gar nichts geliefert hätte:
-         * Eine Datenbank ohne Treffer bekommt `size_mb = 0` als gemessene Null.
+         * Eine Datenbank ohne Treffer bekommt `size_bytes = 0` als gemessene Null.
          * Nach zwei Läufen war damit unbelegt, ob `db.usage` überhaupt etwas
          * liest.
          *

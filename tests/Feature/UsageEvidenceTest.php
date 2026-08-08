@@ -24,7 +24,7 @@ use Tests\TestCase;
  *
  * Zwei ist die richtige Zahl — es gab genau zwei Datenbanken. Und dieselbe
  * Zeile wäre erschienen, wenn `db.usage` **gar nichts** geliefert hätte: Eine
- * Datenbank ohne Treffer bekommt `size_mb = 0` als gemessene Null, und das ist
+ * Datenbank ohne Treffer bekommt `size_bytes = 0` als gemessene Null, und das ist
  * richtig (`information_schema` führt ein leeres Schema nicht auf). Gezählt
  * wurden aber die *geschriebenen Zeilen*, nicht die gelesenen Schemata. Ein
  * Tippfehler in der Abfrage, ein `GROUP BY` an der falschen Stelle, eine
@@ -124,7 +124,7 @@ final class UsageEvidenceTest extends TestCase
         $this->assertSame(2, $result['reported']);
         $this->assertSame(1, $result['matched'], 'Die zweite Datenbank stand nicht in der Antwort.');
 
-        $this->assertSame(50, (int) $eins->refresh()->size_mb);
+        $this->assertSame(52_428_800, (int) $eins->refresh()->size_bytes);
     }
 
     /** Ohne Datenbankserver sind alle drei Zahlen null — und keine geraten. */

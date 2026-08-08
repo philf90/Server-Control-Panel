@@ -54,7 +54,7 @@ final class DatabasePrune
      * die Operation danach bekommt.
      *
      * @return array{
-     *     databases: list<array{id: int, name: string, subscription: string, size_mb: int|null}>,
+     *     databases: list<array{id: int, name: string, subscription: string, size_bytes: int|null}>,
      *     users: list<array{id: int, name: string, host: string, subscription: string}>,
      *     dumps: list<array{id: int, name: string, subscription: string, bytes: int|null}>,
      *     total: int,
@@ -67,12 +67,12 @@ final class DatabasePrune
                 ->whereNull('subscription_id')
                 ->whereNotNull('subscription_name')
                 ->orderBy('name')
-                ->get(['id', 'name', 'subscription_name', 'size_mb'])
+                ->get(['id', 'name', 'subscription_name', 'size_bytes'])
                 ->map(static fn (Database $row): array => [
                     'id' => (int) $row->id,
                     'name' => $row->name,
                     'subscription' => (string) $row->subscription_name,
-                    'size_mb' => $row->size_mb === null ? null : (int) $row->size_mb,
+                    'size_bytes' => $row->size_bytes === null ? null : (int) $row->size_bytes,
                 ])
                 ->all();
 

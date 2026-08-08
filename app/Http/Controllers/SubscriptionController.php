@@ -265,7 +265,7 @@ final class SubscriptionController extends Controller
                  * frischen Abonnement „braucht einen erreichbaren
                  * Datenbankserver" — ein Satz, der nach einem Defekt klingt, wo
                  * schlicht nichts anzulegen war. Dieselbe Unterscheidung wie
-                 * zwischen `null` und `0` bei `size_mb`, nur eine Ebene höher.
+                 * zwischen `null` und `0` bei `size_bytes`, nur eine Ebene höher.
                  */
                 'count' => $subscription->databases()->count(),
                 'used_mb' => $subscription->databaseUsedMb(),

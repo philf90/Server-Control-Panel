@@ -392,8 +392,10 @@ return new class extends Migration
             // Zwei Spalten und nicht eine, aus dem Grund aus docs/26 §8: Eine
             // Grösse ohne Zeitpunkt sieht aus wie eine Messung von vorhin, auch
             // wenn sie drei Tage alt ist. `null` heisst „noch nie gemessen" und
-            // ist etwas anderes als 0 MB.
-            $table->unsignedBigInteger('size_mb')->nullable();
+            // ist etwas anderes als eine gemessene Null.
+            //
+            // Hier stand `size_mb`, und das war ein Fehler — siehe §22.3j.
+            $table->unsignedBigInteger('size_bytes')->nullable();
             $table->timestamp('size_measured_at')->nullable();
 
             $table->timestamps();
@@ -1669,7 +1671,7 @@ Die Nutzlast trägt deshalb `count`. Der Hinweis „gemessen und nicht erzwungen
 steht nur dort, wo es etwas zu messen gibt: Er schränkt eine Grenze ein, und
 ohne Datenbanken ist keine Grenze im Blick.
 
-**Die Summe je Abonnement wird nicht abgelegt.** Sie steht als `SUM(size_mb)`
+**Die Summe je Abonnement wird nicht abgelegt.** Sie steht als `SUM(size_bytes)`
 über den Datenbanken. Eine mitgeführte Spalte am Abonnement wäre ein zweiter
 Wahrheitsort, der auseinandergeht, sobald eine Datenbank entfernt wird, ohne
 dass jemand nachrechnet — und beide Zahlen sähen für sich plausibel aus. Der
@@ -1954,6 +1956,89 @@ mit `--keep` absichtlich stehengelassen wurden — die gehören noch einem
 lebenden Abonnement. Wer sie los will, entfernt sie im Panel oder fährt den Lauf
 ohne `--keep`.
 
+### 22.3j Der dritte Lauf: `db.usage` belegt — und die Zahl daneben falsch gerundet
+
+**Gefahren am 8. August 2026 mit `v0.5.0-rc.3`.** Kriterium 1 bis 3 stehen jetzt
+vollständig: `SHOW DATABASES` nennt in beiden Richtungen genau
+`{information_schema, p<N>_abnahme}`, das `USE` wird mit **ERROR 1044**
+abgewiesen, das `SELECT` mit **ERROR 1142** — beide Nummern in der Ausgabe, beide
+gegen `EXPECTED` geprüft. Und die Messung sagt endlich etwas:
+
+```
+2 Datenbank(en) geschrieben; der Server meldete 2 Schema(ta), 2 davon zugeordnet.
+```
+
+Damit ist belegt, was zwei Läufe lang offen war: Die Abfrage läuft am echten
+Server, die Aussonderung lässt genau die zwei Panel-Schemata durch — nicht
+`mysql`, nicht `srvpanel` selbst — und beide finden ihre Zeile.
+
+**Und dann steht da die Zahl, die niemand sieht.** Die Selbsttest-Tabelle hat
+eine Zeile; InnoDB belegt dafür rund 16 KB. `Usage::apply()` rechnete
+`intdiv(bytes, 1024 * 1024)` — also **0** —, und die Oberfläche zeigte „0 MB".
+Der Beleg reicht also bis zur Zuordnung und keinen Schritt weiter: Ein
+vertauschtes Spaltenpaar, ein `NULL` statt der Summe, ein Faktor daneben — jedes
+davon hätte dieselbe Null ergeben.
+
+**Der Fund ist nicht die Null, sondern der Widerspruch dahinter.**
+`DbUsageScopeTest` begründet seit Schritt 6, warum der Agent Bytes liefert:
+
+> Wer hier durch 1024² teilte, verlöre für jede Datenbank unter einem Megabyte
+> die Unterscheidung zwischen „leer" und „klein" — und das ist genau die
+> Unterscheidung, nach der jemand sucht, der eine Sicherung vermisst.
+
+Genau diese Division stand eine Zeile später im Panel. Die Regel galt bis zum
+Socket und wurde dahinter gebrochen — und niemandem fiel es auf, weil beide
+Seiten für sich stimmig aussahen. **Eine Begründung im Test ist kein Wächter.**
+
+Behoben, und zwar in der Breite, in der der Fehler stand:
+
+- `size_mb` heisst `size_bytes` und trägt, was der Agent liefert. Die Umbenennung
+  ist eine **eigene Migration**: Die Tabelle steht seit `v0.5.0-rc.1` auf einem
+  laufenden Server, und eine ausgelieferte Migration nachträglich zu ändern
+  hiesse, zwei Installationen mit gleichem Stand hätten verschiedene Schemata.
+  Die vorhandenen Werte werden mal 1024² genommen — zu grob, aber nicht falsch,
+  und in einer Viertelstunde von selbst genau.
+- `Subscription::databaseUsedMb()` summiert **vor** dem Teilen. Hundert
+  Datenbanken zu je 300 KB sind 29 MB und nicht hundertmal null. Die Zahl bleibt
+  in MB, weil sie neben einem Kontingent in MB steht.
+- Gerundet wird an **einer** Stelle: `resources/js/bytes.ts`. Vorher waren es
+  drei Fassungen — Liste, Einzelansicht, Sicherungen — und die dritte war die
+  beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel:
+  nicht dadurch, dass eine falsch wird, sondern dadurch, dass eine besser wird
+  und niemand die andere nachzieht. Auf der Kommandozeile stand dieselbe Rechnung
+  noch zweimal; `srvpanel db` hat sie jetzt auch nur einmal.
+
+**`SizeUnitTest` hält beide Hälften**, und die zweite hat sich sofort gelohnt.
+Der Ausdruck sucht den *Faktor* im Quelltext der Oberfläche — und bliebe grün,
+wenn eine Seite die rohe Byte-Zahl ausgäbe, denn `314572800` enthält keinen
+Faktor. Deshalb die Gegenrichtung: Jede Seite, die eine Grösse zeigt, importiert
+`bytes.ts`. Beide Brüche sind gefahren, und **jeder trifft genau eine der beiden
+Behauptungen** — das ist der Beleg dafür, dass keine die andere mitträgt.
+
+Nachgesehen wurde auch im Browser: `1.023,9 MB`, `300 KB`, `0 B` und `1,5 GB` in
+beiden Themes bei 390 px und 1440 px, Überlauf 0 px. Ohne `vendor/` ging das über
+das gebaute Stylesheet und eine eigene HTML-Datei — der Weg aus CLAUDE.md.
+
+### 22.3k Der Bestand auf der Übersicht
+
+Eine Ergänzung des Betreibers nach dem dritten Lauf, und sie gehört zu P5, weil
+sie erst mit den Datenbanken vollständig ist: Der Abschnitt **Bestand** führt
+neben Kunden und Abonnements jetzt auch **Domains und Datenbanken** — jeweils mit
+der Zahl je Zustand, und die Zeilen für „gesperrt", „werden angelegt" und
+„werden entfernt" nur, wenn es sie gibt. Ein Betreiber liest damit von aussen
+nach innen: wer, was gebucht, worunter erreichbar, welche Daten dahinter.
+
+**Die eine Entscheidung, die nicht offensichtlich ist:** Gezählt wird, was die
+verlinkte Liste zeigt — also **auch die verwaiste Datenbank**. Wer sie ausnähme,
+weil sie zu keinem Abonnement mehr gehört, bekäme eine zu kleine Zahl genau dann,
+wenn ein Rückbau steckengeblieben ist und ein Schema mit Kundendaten liegt.
+
+`OverviewInventoryTest` hält beides: die Zählung samt Sonderfall und die
+Verweise. Letztere in beide Richtungen — jede Adresse im Bestand kennt der
+Router, und jede der vier Arten ist verlinkt. Ohne die zweite Behauptung bliebe
+der Wächter grün, wenn ein Verweis ersatzlos verschwände; dann stünde die Zahl
+da, und wer sie liest, müsste den Weg zur Liste selbst suchen.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -1965,13 +2050,16 @@ davon ausserhalb von P5 (§22.3a).
 (Schritt 11, §22.3f). `srvpanel db` und `srvpanel db --prune` stehen seit
 §22.3e, `db.isolation.probe` und `srvpanel acceptance-db` seit §22.3g.
 
-**Der Abnahmelauf ist am 8. August zweimal gefahren** (§22.3h und §22.3i).
-Kriterium 1 bis 3 sind belegt — die Abschottung mit den richtigen Fehlernummern,
-gemessen an MariaDB 10.11.14. Kriterium 4 bis 7 stehen aus. **`db.usage` ist
-weiter unbelegt**, aber aus einem anderen Grund als vorher: Die Messung lief mit
-zwei Datenbanken, ihre Ausgabe konnte einen Erfolg nur nicht von einer leeren
-Antwort unterscheiden (§22.3i). Dafür gibt es jetzt drei Zahlen statt einer, und
-der nächste Lauf entscheidet es.
+**Der Abnahmelauf ist am 8. August dreimal gefahren** (§22.3h, §22.3i, §22.3j).
+**Kriterium 1 bis 3 sind belegt** — die Abschottung in beiden Richtungen, mit den
+richtigen Fehlernummern, gemessen an MariaDB 10.11.14. **`db.usage` ist belegt**,
+soweit es die Zuordnung betrifft: Die Abfrage liest am echten Server, die
+Aussonderung hält, beide Schemata finden ihre Zeile (§22.3j). Die *Zahl* daneben
+war dabei falsch gerundet, und das ist behoben — nachgemessen ist sie beim
+nächsten Lauf.
+
+**Kriterium 4 bis 7 stehen aus:** sichern, herunterladen, zurückspielen, der Dump
+mit eingefügter `GRANT`-Zeile und der Rückbau samt Gegenprobe am Nachbarn.
 
 Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
 benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur

@@ -290,6 +290,16 @@ final class PanelWalkthroughTest extends TestCase
                  */
                 ->has('hosting.customers')
                 ->has('hosting.subscriptions')
+
+                /*
+                 * Domains und Datenbanken kamen mit P5 dazu — dieselbe
+                 * Überlegung eine Ebene weiter: Wer wissen will, ob mit dem
+                 * Gehosteten etwas nicht stimmt, meint die Namen, unter denen
+                 * jemand erreichbar ist, und die Daten dahinter. Was die Zahlen
+                 * zählen, prüft `OverviewInventoryTest`.
+                 */
+                ->has('hosting.domains')
+                ->has('hosting.databases')
                 ->has('hosting.storage'));
     }
 

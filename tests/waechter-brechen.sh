@@ -3895,6 +3895,133 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UsageEvidenceTest passed
 
 echo
+echo "── SizeUnitTest: die Messung rundet wieder beim Ablegen ──"
+#
+# Die Division, gegen die `DbUsageScopeTest` eine Ebene tiefer argumentiert —
+# an der Stelle, an der sie bis zum 8. August 2026 wirklich stand. Damit sind
+# 300 KB und eine leere Datenbank wieder dasselbe.
+vorher_datei app/Support/Databases/Usage.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Usage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "'size_bytes' => max(0, (int) ($bytes ?? 0)),",
+    "'size_bytes' => intdiv(max(0, (int) ($bytes ?? 0)), 1024 * 1024),",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Usage.php "gerundet beim Ablegen" &&
+pruefe "gerundet beim Ablegen" \
+  SizeUnitTest::test_a_small_database_is_not_stored_as_zero failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SizeUnitTest::test_a_small_database_is_not_stored_as_zero passed
+
+echo
+echo "── SizeUnitTest: die Summe teilt je Zeile statt am Ende ──"
+#
+# Vier Datenbanken zu je 300 KB sind 1 MB. Wer je Zeile teilt, bekommt vier
+# Nullen — und eine Null neben einem Kontingent von 2048 MB sieht plausibel aus.
+vorher_datei app/Models/Subscription.php
+python3 - <<'PY2'
+p = 'app/Models/Subscription.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "return $databases->exists() ? intdiv((int) $databases->sum('size_bytes'), 1024 * 1024) : null;",
+    "return $databases->exists() ? (int) $databases->get()"
+    "->sum(static fn ($row): int => intdiv((int) $row->size_bytes, 1024 * 1024)) : null;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Subscription.php "je Zeile geteilt" &&
+pruefe "je Zeile geteilt" \
+  SizeUnitTest::test_the_subscription_sums_before_it_divides failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  SizeUnitTest::test_the_subscription_sums_before_it_divides passed
+
+echo
+echo "── SizeUnitTest: eine zweite Umrechnung in der Oberfläche ──"
+#
+# Vor dem Wächter gab es drei Fassungen davon, und die dritte war die beste.
+# Der Bruch stellt eine vierte daneben.
+vorher_datei resources/js/Pages/Databases/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "  return formatBytes(row.size_bytes)",
+    "  return `${Math.round(row.size_bytes / 1024)} KB`",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Index.vue "zweite Umrechnung in der Liste" &&
+pruefe "zweite Umrechnung in der Liste" \
+  SizeUnitTest::test_only_one_place_in_the_interface_turns_bytes_into_a_unit failed
+wiederherstellen
+
+echo
+echo "── SizeUnitTest: die Seite zeigt die rohe Zahl ──"
+#
+# Die Gegenrichtung, und sie ist der Grund für die zweite Behauptung: Ohne
+# Faktor im Quelltext bleibt der Ausdruck oben grün, und die Seite zeigt
+# „314572800" — richtig und unlesbar.
+vorher_datei resources/js/Pages/Databases/Index.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Index.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("import { formatBytes } from '../../bytes'\n", '')
+s = s.replace("  return formatBytes(row.size_bytes)", "  return `${row.size_bytes} Bytes`")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Index.vue "rohe Zahl ohne Faktor" &&
+pruefe "rohe Zahl ohne Faktor" \
+  SizeUnitTest::test_every_page_that_shows_a_size_uses_that_one_place failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SizeUnitTest passed
+
+echo
+echo "── OverviewInventoryTest: die verwaiste Datenbank fällt aus der Zählung ──"
+#
+# Die Liste unter /databases führt sie als verwaist, die Übersicht liesse sie
+# weg — und die Zahl wäre ausgerechnet dann zu klein, wenn ein Rückbau
+# steckengeblieben ist und ein Schema mit Kundendaten liegt.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OverviewController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "$databases = $this->countByStatus(Database::query());",
+    "$databases = $this->countByStatus(Database::query()->whereNotNull('subscription_id'));",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "verwaiste Datenbank nicht gezählt" &&
+pruefe "verwaiste Datenbank nicht gezählt" \
+  OverviewInventoryTest::test_an_orphaned_database_is_counted_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OverviewInventoryTest::test_an_orphaned_database_is_counted_too passed
+
+echo
+echo "── OverviewInventoryTest: eine Zahl ohne Weg zur Liste ──"
+#
+# Die Zahl bleibt stehen, der Verweis fällt weg. Wer sie liest, will als
+# Nächstes wissen, welche das sind — und müsste dann in die Navigation greifen.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<Link href="/databases" class="link">Datenbanken</Link>', 'Datenbanken')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Overview.vue "Bestandszahl ohne Verweis" &&
+pruefe "Bestandszahl ohne Verweis" \
+  OverviewInventoryTest::test_all_four_kinds_are_linked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverviewInventoryTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -5,12 +5,19 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\CustomerStatus;
+use App\Enums\DatabaseStatus;
+use App\Enums\DomainStatus;
 use App\Enums\SubscriptionStatus;
 use App\Models\Account;
 use App\Models\Customer;
+use App\Models\Database;
+use App\Models\Domain;
 use App\Models\Subscription;
 use App\Support\Metrics\Store;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
@@ -54,7 +61,7 @@ final class OverviewController extends Controller
     }
 
     /**
-     * Der Bestand: Kunden, Abonnements, Zustand, Verbrauch.
+     * Der Bestand: Kunden, Abonnements, Domains, Datenbanken, Verbrauch.
      *
      * **Warum das auf die Übersicht gehört.** Sie zeigte bis August 2026
      * ausschliesslich die Maschine — Auslastung, Dienste, Dateisysteme,
@@ -66,21 +73,23 @@ final class OverviewController extends Controller
      *
      * **Gezählt wird in der Datenbank und nicht in PHP.** Bei zwanzig
      * Abonnements ist das gleichgültig, bei zweitausend nicht — und die
-     * Übersicht ist die Seite, die jeder Aufruf des Panels zuerst lädt.
+     * Übersicht ist die Seite, die jeder Aufruf des Panels zuerst lädt. Vier
+     * Zählungen sind vier `GROUP BY` und nicht vier geladene Tabellen.
+     *
+     * **Domains und Datenbanken kamen mit P5 dazu**, und der Grund ist derselbe
+     * wie für die beiden anderen: Ein Betreiber sieht auf der Übersicht, was er
+     * hostet. Bis dahin standen Kunden und Abonnements da, und das Gehostete
+     * selbst — die Namen, unter denen jemand erreichbar ist, und die Daten
+     * dahinter — fand man nur, wenn man den Verdacht schon hatte.
      *
      * @return array<string, mixed>
      */
     private function hosting(): array
     {
-        $customers = Customer::query()
-            ->selectRaw('status, count(*) as anzahl')
-            ->groupBy('status')
-            ->pluck('anzahl', 'status');
-
-        $subscriptions = Subscription::query()
-            ->selectRaw('status, count(*) as anzahl')
-            ->groupBy('status')
-            ->pluck('anzahl', 'status');
+        $customers = $this->countByStatus(Customer::query());
+        $subscriptions = $this->countByStatus(Subscription::query());
+        $domains = $this->countByStatus(Domain::query());
+        $databases = $this->countByStatus(Database::query());
 
         return [
             'customers' => [
@@ -93,8 +102,50 @@ final class OverviewController extends Controller
                 'suspended' => (int) ($subscriptions[SubscriptionStatus::Suspended->value] ?? 0),
                 'provisioning' => (int) ($subscriptions[SubscriptionStatus::Provisioning->value] ?? 0),
             ],
+
+            /*
+             * **Gezählt wird alles, was die verlinkte Liste auch zeigt.** Beide
+             * Seiten führen auch, was zu keinem Abonnement mehr gehört — eine
+             * Datenbank, deren Rückbau steckengeblieben ist, steht dort als
+             * verwaist (docs/36 §5). Sie hier auszunehmen hiesse: Die Zahl auf
+             * der Übersicht und die Zahl der Zeilen dahinter gehen auseinander,
+             * und zwar genau dann, wenn etwas nicht stimmt.
+             */
+            'domains' => [
+                'total' => (int) $domains->sum(),
+                'active' => (int) ($domains[DomainStatus::Active->value] ?? 0),
+                'suspended' => (int) ($domains[DomainStatus::Suspended->value] ?? 0),
+                'provisioning' => (int) ($domains[DomainStatus::Provisioning->value] ?? 0),
+            ],
+            'databases' => [
+                'total' => (int) $databases->sum(),
+                'active' => (int) ($databases[DatabaseStatus::Active->value] ?? 0),
+                'provisioning' => (int) ($databases[DatabaseStatus::Provisioning->value] ?? 0),
+                'removing' => (int) ($databases[DatabaseStatus::Removing->value] ?? 0),
+            ],
+
             'storage' => $this->storage(),
         ];
+    }
+
+    /**
+     * Wie viele je Zustand — eine Abfrage statt einer geladenen Tabelle.
+     *
+     * Herausgelöst, als aus zwei Zählungen vier wurden: Viermal dieselben drei
+     * Zeilen nebeneinander sind die Sorte Abschrift, bei der die vierte
+     * irgendwann `count(*)` ohne `groupBy` macht und niemandem auffällt.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Collection<array-key, mixed>
+     */
+    private function countByStatus(Builder $query): Collection
+    {
+        return $query
+            ->selectRaw('status, count(*) as anzahl')
+            ->groupBy('status')
+            ->pluck('anzahl', 'status');
     }
 
     /**

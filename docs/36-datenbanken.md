@@ -1297,6 +1297,15 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 #            das Aufräumen und nicht den Lauf. Am 8. August 2026 ist genau das
 #            passiert: Vorbereitung und Nachprüfung standen da, der Vorgang
 #            dazwischen fehlte, und beides sah grün aus (§22.3m).
+#            Am 8. August 2026 gefahren und erfüllt (§22.3p): Vorgang 449,
+#            db.restore, Zustand fertig, 18:51:21. Vorher 5120/1280/2 Zeilen in
+#            bestellungen/kunden/notizen, nach dem DROP kein SHOW TABLES mehr,
+#            danach wieder 5120/1280/2.
+#    Und die Zahlen gehören dazu, je Tabelle und auf beiden Seiten. „Die
+#    Tabellen sind wieder da" ist keine Erfüllung: Ein Dump, der vor dem
+#    Löschen aus einem leeren Schema entstand, spielt genauso erfolgreich
+#    zurück. Beim ersten Anlauf (Vorgang 448) fehlten beide Zählungen, und der
+#    Vorgang sah vollständig richtig aus.
 
 # 6  DER DUMP DARF KEINE RECHTE VERGEBEN
 #    Einen Dump von Hand um eine Zeile ergänzen — er liegt gepackt:
@@ -2346,6 +2355,68 @@ oder entfernt wird, ist eine Entscheidung mit TLS-Folgen und gehört dem
 Betreiber.** Ein zweiter Wächter sorgt dafür, dass dieser Eintrag nicht still
 altert: Wird die Operation wieder aufgerufen, muss er weg.
 
+### 22.3p Kriterium 5 belegt — und zwei Funde daneben, die nicht dazugehören
+
+**Gefahren am 8. August 2026 auf `cloudsrv24` gegen `v0.5.0-rc.6`**, Abo
+`p1118` / `cloudlab24.de`, Schema `p1118_dummy` mit den drei Tabellen
+`bestellungen`, `kunden`, `notizen`.
+
+| | bestellungen | kunden | notizen |
+| --- | --- | --- | --- |
+| vorher | 5120 | 1280 | 2 |
+| nach `DROP TABLE` | — | — | — |
+| nach Vorgang 449 | 5120 | 1280 | 2 |
+
+Vorgang **449**, `db.restore`, Zustand `fertig`, begonnen und beendet 18:51:21,
+Sicherung `p1118-dummy-20260808-183752-05cb158a` (68 KB). Der befristete
+Benutzer `p1118_r…` war danach fort, und `SHOW GRANTS` nannte dieselben Rechte
+wie vorher.
+
+**Der erste Anlauf war Vorgang 448, und er belegt nichts.** Er lief durch, war
+`fertig`, die Tabellen standen danach wieder da — aber gezählt wurde weder
+vorher noch nachher, weil in der Anleitung an den Betreiber dreimal ein
+wörtliches `<tabelle>` stand und `mysql` es dreimal mit `ERROR 1064` abwies. Die
+Lehre ist dieselbe wie in §22.3m, eine Ebene tiefer: **Eine Anleitung mit einem
+Platzhalter darin ist kein Befehl, sondern eine Bitte um Aufmerksamkeit** — und
+in einem Ablauf aus zwölf Zeilen fällt die eine, die noch ausgefüllt werden
+muss, nicht auf. Was hier trug, war der zweite Durchgang ohne jede Variable.
+
+**Fund 1: Eine entfernte Datenbank lässt ihr Recht liegen.** In derselben
+Ausgabe stand:
+
+```
+GRANT ALL PRIVILEGES ON `p1118\_dummy`.* TO `p1118_user`@`localhost`
+GRANT ALL PRIVILEGES ON `p1118\_demo`.*  TO `p1118_user`@`localhost`
+```
+
+`p1118_demo` gibt es nicht mehr. `DROP DATABASE` entfernt in MariaDB die auf
+das Schema vergebenen Rechte **nicht** — sie bleiben in `mysql.db` stehen. Und
+`Databases::remove()` nennt dem Agenten nur die Zugänge, die *mitgelöscht*
+werden (`usersOnlyOn()`); ein Zugang, der an einer weiteren Datenbank hängt und
+darum überlebt, behält sein Recht auf das verschwundene Schema.
+
+Das ist mehr als eine hässliche Zeile: Entsteht später wieder ein
+`p1118_demo`, hat dieser Zugang sofort alle Rechte darauf, **ohne dass sie ihm
+jemand gegeben hätte**. Seit §22.3o ist das Verbinden eine ausdrückliche
+Handlung im Panel — hier weicht der Bestand des Panels von dem ab, was MariaDB
+erlaubt, und das ist genau die Sorte Abweichung, gegen die die zweite Fassung
+einer Regel immer verliert. `srvpanel db` meldet dabei „Nichts liegengeblieben",
+weil es diese Frage nicht stellt.
+
+Der Weg zurück ist klein und steht schon zur Hälfte da: `remove()` nennt
+zusätzlich die Zugänge, die **bleiben**, und `DbDatabaseRemove` setzt für die je
+ein `REVOKE ALL PRIVILEGES ON <schema>.*` — dieselbe Anweisung, die
+`db.user.grant` beim Entziehen schickt. Dazu ein Wächter, dass nach einem
+`remove` kein Recht auf das Schema übrigbleibt, und eine Zeile in `srvpanel db`,
+damit ein verwaistes Recht überhaupt auffällt.
+
+**Fund 2: „Noch keine Ausgabe." bei einem fertigen Vorgang.** Das Wort *noch*
+sagt zu, dass etwas kommt. Bei einem abgeschlossenen Vorgang ohne Ausgabe ist
+das falsch; die Seite kennt den Zustand und benutzt ihn für diesen Satz nicht.
+
+Beide Funde gehören nicht in den Abnahmelauf und sind hier festgehalten, damit
+sie nicht mit ihm verschwinden.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -2373,15 +2444,21 @@ Download hat mit 404 geantwortet, das ist behoben (§22.3l), aber **ein
 erfolgreicher Download ist seither nicht niedergeschrieben.** Genau die Sorte
 Lücke, die dieser Abschnitt beschreibt: Der Fehler ist erklärt, der Beleg fehlt.
 
-**Kriterium 5 und 7 stehen aus:** das Zurückspielen mit der Wiederkehr der Zeilen
-und der Rückbau samt Gegenprobe am Nachbarn.
+**Kriterium 5 ist gefahren und erfüllt** (§22.3p): Vorgang 449, `db.restore`,
+Zustand `fertig` — und je Tabelle dieselbe Zeilenzahl wie vor dem Löschen.
 
-Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
-benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur
-Mandantentrennung ist bisher eine Eigenschaft der erzeugten Zeichenkette
-(`DbIsolationTest`, `GrantPatternTest`) und keine Verbindung, die MariaDB
-abgewiesen hat. Genau dafür gibt es §17, und genau deshalb gibt
-`db.isolation.probe` **Namen** zurück und keine Zahl.
+**Kriterium 7 steht aus:** der Rückbau samt Gegenprobe am Nachbarn.
+
+Das Abnahmekriterium von P5 ist damit **noch nicht** erfüllt, und die Lücke ist
+klein und benannt: Es fehlen der niedergeschriebene Download (Kriterium 4) und
+der Rückbau (Kriterium 7). Der Satz des Plans — *anlegen, benutzen, sichern,
+zurückspielen, und keine fremde Datenbank sehen* — ist ansonsten am echten
+Server gemessen, mit den Fehlernummern von MariaDB und nicht als Eigenschaft
+einer erzeugten Zeichenkette. Bis zum 8. August stand hier das Gegenteil, weil
+dieser Absatz vor den Läufen geschrieben und danach nicht nachgezogen wurde;
+`DbIsolationTest` und `GrantPatternTest` prüfen weiter die Zeichenkette, aber
+sie sind seit §22.3h nicht mehr der einzige Beleg. Genau dafür gibt es §17, und
+genau deshalb gibt `db.isolation.probe` **Namen** zurück und keine Zahl.
 
 **Und die Bringschuld aus §20 Punkt 1 ist gewachsen.** Jeder neue Eingriff in
 `tests/waechter-brechen.sh` greift nachweislich in seine Zieldatei — und das ist

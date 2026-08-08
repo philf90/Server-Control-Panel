@@ -1633,6 +1633,64 @@ berechtigt: Ein Haken, an dem nichts hängt, ist kein Haken, sondern eine Zusage
 Geblieben ist die Anweisung im Kommentar statt des Mechanismus. Zweiter Fund
 dieser Art in P5; lokal gefunden, nicht in der CI.
 
+### 22.3d Vier tote Eingriffe im Werkzeug gegen tote Verweise
+
+`srvpanel db` brauchte einen Eintrag in `packaging/bin/srvpanel`, und der Bruch
+dazu gibt es längst — er sucht `|tls|vhost|`. **Zwischen `tls` und `vhost`
+stehen seit P4 `dns` und seit heute `db`.** Der Eingriff greift also seit P4 ins
+Leere, und niemand hat es gemerkt: Das Skript hat dafür `griff_datei`, aber der
+läuft erst, wenn das Skript läuft, und dafür braucht es ein `vendor/`.
+
+Ein statischer Durchgang über alle 129 Eingriffe fand **vier**:
+
+| Zieldatei | gesucht | tatsächlich |
+|---|---|---|
+| `packaging/bin/srvpanel` | `\|tls\|vhost\|` | seit P4 mit `dns` dazwischen |
+| `app/Support/Tls/CertificateLifecycle.php` | `'renew_after' => …` | steht in `CertificateRecord` |
+| `app/Support/Tls/CertificateLifecycle.php` | `coversAll(…)` | steht in `CertificateChoice::usable()` |
+| `agent/src/Acme/Dns/Packet.php` | `($marker & 0xC0)` | steht in `Dns\Name` als `POINTER_MASK` |
+
+**Keiner war ein Fehler beim Schreiben.** In allen vier Fällen ist der Code
+umgezogen und der Eingriff stehengeblieben — das Muster aus CLAUDE.md an der
+letzten Stelle, an der man es vermutet: im Werkzeug gegen genau dieses Muster.
+
+**Und der Preis ist höher als bei einem fehlenden Eingriff.** Ein toter sieht
+aus, als wäre die Regel abgesichert. Der Wächter dahinter war vielleicht nie
+rot — bei `Packet`/`0xC0` heisst das: Ob `DnsPacketTest` den Namenszeiger
+wirklich prüft, ist seit dem Umzug unbelegt.
+
+`BreakScriptTest` prüft das ab jetzt in der CI, in Millisekunden. Sein eigener
+Bruch kann **nicht** im Skript stehen: Er müsste das Skript selbst ändern, und
+`wiederherstellen()` fasst `tests/` nicht an — täte es das, nähme es sich mitten
+im Lauf die eigene Grundlage weg. Die Befehlsfolge für den Bruch von Hand steht
+im Kopf des Tests; sie ist am 8. August gefahren worden.
+
+**Der Test hat sich beim ersten Lauf selbst überführt.** Er meldete den Eingriff
+zu `agent/src/Db/Sql.php` als tot, obwohl er greift — ausgerechnet die Zeile,
+in der die Unterstrich-Falle maskiert wird, also die mit den meisten
+Gegenschrägstrichen im Repo. Die Entschlüsselung der Python-Literale lief über
+eine Kette von `str_replace`, und die sucht auf dem schon veränderten Text
+weiter. Ersetzt durch einen Scanner von links nach rechts. *Ein Wächter, der
+Fehlalarm gibt, wird abgeschaltet* — dieser Satz steht in `ClassReachTest` schon
+einmal.
+
+### 22.3e `srvpanel db` — der Weg zurück auf der Kommandozeile
+
+`srvpanel db` liest (Version, Horchadresse, Bestand, liegengebliebene
+befristete Zugänge), `srvpanel db --prune` räumt auf. Die Auswahl steht in
+`DatabasePrune` und nicht im Kommando — wortgleich die Begründung von
+`CertificatePrune`: Sie entscheidet, ob die Daten eines Kunden von der Platte
+gehen, und ein Test soll sie prüfen können, ohne sie nachzubauen.
+
+**Die Reihenfolge ist Zugänge, dann Schemata, dann Sicherungen.** Ein Zugang,
+dessen Schema schon weg ist, ist ein Zugang auf nichts; ein Schema, dessen
+Zugang noch da ist, ist ein offener Weg zu Daten. Von den beiden
+Zwischenzuständen nach einem Abbruch ist der erste der harmlosere.
+
+**`--remote` steht bewusst noch nicht da** (§15 Schritt 10). Ein Schalter, der
+schon dasteht und nichts tut, wäre die Sorte Zusage, die dieses Projekt Wächter
+gekostet hat.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -1640,9 +1698,8 @@ Korrektur aus §22.3) und die Messung (§9, siehe §22.3c). Die Screenshots aus
 Schritt 7 sind für beide gemacht und haben insgesamt fünf Fehler gefunden, drei
 davon ausserhalb von P5 (§22.3a).
 
-**Es fehlen:** `srvpanel db list|prune` und der Eintrag in `packaging/bin/srvpanel`
-(Schritt 6, letzte zwei Zeilen der Dateiliste), `db.isolation.probe` und
-`srvpanel acceptance-db` (§17), sowie der Fernzugriff (§12).
+**Es fehlen:** `db.isolation.probe` und `srvpanel acceptance-db` (§17) sowie der
+Fernzugriff (§12). `srvpanel db` und `srvpanel db --prune` stehen seit §22.3e.
 
 Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
 benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur

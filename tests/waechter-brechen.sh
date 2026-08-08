@@ -797,14 +797,24 @@ echo "── CertificateReapplyTest: das Zertifikat kommt ohne Termin in den Bes
 #
 # Ein Zertifikat ohne Frist findet der Erneuerungslauf nie. Auffallen würde das
 # in neunzig Tagen, und zwar im Browser.
-vorher_datei app/Support/Tls/CertificateLifecycle.php
+#
+# **Der Eingriff ist in P5 nachgezogen worden.** Er suchte diese Zeile in
+# `CertificateLifecycle` — dorthin gehörte sie bis P4, seitdem steht sie in
+# `CertificateRecord`. Der Bruch griff ins Leere, und das fällt erst auf, wenn
+# das Skript läuft: Genau der Fall, vor dem sein eigener Kopf warnt.
+vorher_datei app/Support/Tls/CertificateRecord.php
 python3 - <<'PY2'
-p = 'app/Support/Tls/CertificateLifecycle.php'
+p = 'app/Support/Tls/CertificateRecord.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("            'renew_after' => CertificateRenewal::due($notAfter),", "            'renew_after' => null,")
+s = s.replace(
+    """            'renew_after' => $source === CertificateSource::Acme
+                ? CertificateRenewal::due($notAfter)
+                : null,""",
+    "            'renew_after' => null,",
+)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Tls/CertificateLifecycle.php "Zertifikat ohne Erneuerungstermin" &&
+griff_datei app/Support/Tls/CertificateRecord.php "Zertifikat ohne Erneuerungstermin" &&
 pruefe "Zertifikat ohne Erneuerungstermin" \
   CertificateReapplyTest::test_an_installed_certificate_is_followed_by_a_new_server_block failed
 wiederherstellen
@@ -970,7 +980,7 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-s = s.replace('|tls|vhost|', '|tls|')
+s = s.replace('|db|vhost|', '|db|')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei packaging/bin/srvpanel "Kommando fehlt im Wrapper" &&
@@ -1165,17 +1175,21 @@ echo "── CertificateReapplyTest: der Verweis genügt wieder statt der Deckun
 # im Zertifikat. Der Browser warnt bei ihm, und im Panel sieht alles grün aus —
 # der Fall, den `covers_all` seit Schritt 6 anzeigt und den bis hierher niemand
 # behob.
-vorher_datei app/Support/Tls/CertificateLifecycle.php
+#
+# **Auch dieser Eingriff ist in P5 nachgezogen worden** — dieselbe Umbenennung
+# wie oben: Die Deckungsprüfung ist aus `CertificateLifecycle` nach
+# `CertificateChoice::usable()` gezogen.
+vorher_datei app/Support/Tls/CertificateChoice.php
 python3 - <<'PY2'
-p = 'app/Support/Tls/CertificateLifecycle.php'
+p = 'app/Support/Tls/CertificateChoice.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "        return $certificate instanceof Certificate && $certificate->coversAll($domain->serverNames());",
-    "        return $certificate instanceof Certificate;",
+    "        return $certificate->coversAll($names);",
+    "        return true;",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Tls/CertificateLifecycle.php "Verweis statt Deckung" &&
+griff_datei app/Support/Tls/CertificateChoice.php "Verweis statt Deckung" &&
 pruefe "Verweis statt Deckung" \
   CertificateReapplyTest::test_a_certificate_that_misses_a_name_is_ordered_again failed
 wiederherstellen
@@ -1337,17 +1351,20 @@ echo "── DnsPacketTest: der Namenszeiger wird nicht erkannt ──"
 # Ein Name in einer DNS-Antwort steht selten ausgeschrieben da; meistens sind es
 # zwei Bytes, die auf eine frühere Stelle zeigen. Wer das nicht erkennt, liest
 # die folgenden Felder verschoben — und bekommt Werte, die fast stimmen.
-vorher_datei agent/src/Acme/Dns/Packet.php
+#
+# **Und dieser dritte ist in P5 nachgezogen worden**: Das Lesen eines Namens ist
+# aus `Packet` nach `Dns\Name` gezogen, samt der Marke als `POINTER_MASK`.
+vorher_datei agent/src/Acme/Dns/Name.php
 python3 - <<'PY2'
-p = 'agent/src/Acme/Dns/Packet.php'
+p = 'agent/src/Acme/Dns/Name.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "            if (($marker & 0xC0) === 0xC0) {",
+    "            if (($marker & self::POINTER_MASK) === self::POINTER_MASK) {",
     "            if (false) {",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei agent/src/Acme/Dns/Packet.php "Namenszeiger nicht erkannt" &&
+griff_datei agent/src/Acme/Dns/Name.php "Namenszeiger nicht erkannt" &&
 pruefe "Namenszeiger nicht erkannt" \
   DnsPacketTest::test_a_compressed_name_is_read_correctly failed
 wiederherstellen
@@ -3666,6 +3683,55 @@ pruefe "Messung, die niemand aufruft" \
   UsageReachTest::test_the_timer_calls_every_measurement failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UsageReachTest passed
+
+echo
+echo "── DatabasePruneTest: das Aufräumen greift nach jeder Zeile ──"
+#
+# Die Auswahl entscheidet, ob die Daten eines Kunden von der Platte gehen. Ohne
+# die Waisenbedingung nähme `srvpanel db --prune` **jede** Datenbank des Servers
+# mit — und ein Aufräumen, das zu viel wegnimmt, sieht genauso erfolgreich aus
+# wie eines, das es richtig macht (docs/36 §17, Kriterium 7).
+vorher_datei app/Support/Databases/DatabasePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DatabasePrune.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            $databases = Database::query()
+                ->whereNull('subscription_id')
+                ->whereNotNull('subscription_name')""",
+    """            $databases = Database::query()""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DatabasePrune.php "Aufräumen ohne Waisenbedingung" &&
+pruefe "Aufräumen ohne Waisenbedingung" \
+  DatabasePruneTest::test_the_neighbour_is_left_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DatabasePruneTest passed
+
+echo
+echo "── DatabasePruneTest: die Bedingung fehlt beim Löschen ──"
+#
+# Die Gegenrichtung: Zwischen `plan()` und dem Löschen kann eine Zeile wieder zu
+# einem Abonnement gehören. Ohne die Bedingung löscht ein Aufräumen eine
+# Kennung von vorhin blind — und trifft eine lebende Datenbank.
+vorher_datei app/Support/Databases/DatabasePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DatabasePrune.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            ->whereKey($id)
+            ->whereNull('subscription_id')
+            ->whereNotNull('subscription_name')""",
+    """            ->whereKey($id)""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DatabasePrune.php "Löschen ohne Waisenbedingung" &&
+pruefe "Löschen ohne Waisenbedingung" \
+  DatabasePruneTest::test_forgetting_removes_only_the_orphan failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DatabasePruneTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -5156,6 +5156,40 @@ dabei nicht abgelegt, sondern über die Datenbanken summiert: Eine mitgeführte
 Spalte ginge auseinander, sobald eine Datenbank entfernt wird, ohne dass jemand
 nachrechnet, und beide Zahlen sähen für sich plausibel aus.
 
+**`srvpanel db` und `srvpanel db --prune` — der Weg zurück auf der
+Kommandozeile.** Das Lesen zeigt Version, Horchadresse, den Bestand und die
+befristeten Zugänge, die ein abgebrochenes Zurückspielen stehenliess; das
+Aufräumen nimmt weg, was ein misslungener Rückbau hinterlassen hat. Die Auswahl
+steht in `DatabasePrune` und nicht im Kommando — sie entscheidet, ob die Daten
+eines Kunden von der Platte gehen, und ein Test soll sie prüfen können, ohne sie
+nachzubauen. Zugänge vor Schemata vor Sicherungen: Ein Zugang ohne Schema ist
+ein Zugang auf nichts, ein Schema mit Zugang ein offener Weg zu Daten.
+
+**Und dabei ein Fund im Werkzeug selbst: vier von 129 Eingriffen in
+`tests/waechter-brechen.sh` griffen ins Leere.** Der Bruch für den
+Kommando-Wrapper suchte `|tls|vhost|` — zwischen den beiden steht seit P4 `dns`.
+Dazu zwei Eingriffe, die auf `CertificateLifecycle` zeigten, obwohl der Code
+längst in `CertificateRecord` und `CertificateChoice` steht, und einer auf
+`Packet`, obwohl das Lesen eines Namenszeigers in `Dns\Name` gezogen ist.
+
+Keiner war ein Fehler beim Schreiben: In allen vier Fällen ist der Code
+umgezogen und der Eingriff stehengeblieben — das Muster aus CLAUDE.md an der
+letzten Stelle, an der man es vermutet, nämlich im Werkzeug gegen genau dieses
+Muster. Gemerkt hat es niemand, weil `griff_datei` erst beim Lauf des Skripts
+greift und das Skript ein `vendor/` braucht.
+
+Ein toter Eingriff ist dabei schlimmer als ein fehlender: Er sieht aus, als wäre
+die Regel abgesichert, und der Wächter dahinter war vielleicht nie rot.
+`BreakScriptTest` prüft den Bezug ab jetzt in der CI. Sein eigener Bruch kann
+nicht im Skript stehen — er müsste das Skript ändern, und `wiederherstellen()`
+nähme sich mitten im Lauf die Grundlage weg —, also steht die Befehlsfolge dafür
+im Kopf des Tests.
+
+Beim ersten Lauf hat er sich selbst überführt: Er meldete ausgerechnet die Zeile
+mit den meisten Gegenschrägstrichen im Repo als tot, weil seine Entschlüsselung
+der Python-Literale über eine Kette von `str_replace` lief — die sucht auf dem
+schon veränderten Text weiter. Jetzt ein Scanner von links nach rechts.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

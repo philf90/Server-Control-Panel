@@ -47,7 +47,7 @@ use SrvPanel\Agent\DomainName;
  * @property DatabaseStatus $status
  * @property string $charset
  * @property string $collation
- * @property int|null $size_mb
+ * @property int|null $size_bytes
  * @property Carbon|null $size_measured_at
  * @property-read Subscription|null $subscription
  * @property-read Collection<int, DbUser> $users
@@ -69,7 +69,7 @@ class Database extends Model
     /** @var list<string> */
     protected $fillable = [
         'subscription_id', 'name', 'label', 'status', 'charset', 'collation',
-        'size_mb', 'size_measured_at',
+        'size_bytes', 'size_measured_at',
     ];
 
     /** @return array<string, string> */

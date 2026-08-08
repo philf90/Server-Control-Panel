@@ -271,12 +271,19 @@ class Subscription extends Model
      * `null` heisst „noch nie gemessen" und ist etwas anderes als 0 MB: Ein
      * Abonnement ohne Datenbanken hat nichts zu messen, eines mit Datenbanken
      * vor dem ersten Lauf des Zeitgebers hat es noch nicht.
+     *
+     * **Abgelegt sind Bytes, herausgegeben werden Megabyte** (docs/36 §22.3j).
+     * Hier ist das Runden richtig und nicht dieselbe Rundung wie die, die an der
+     * einzelnen Datenbank ein Fehler war: Diese Zahl steht neben einem
+     * Kontingent, und das Kontingent ist in MB angegeben (`database_mb`,
+     * Voreinstellung 2048). Summiert wird **vor** dem Teilen — hundert
+     * Datenbanken zu je 300 KB sind 29 MB und nicht hundertmal null.
      */
     public function databaseUsedMb(): ?int
     {
-        $databases = $this->databases()->whereNotNull('size_mb');
+        $databases = $this->databases()->whereNotNull('size_bytes');
 
-        return $databases->exists() ? (int) $databases->sum('size_mb') : null;
+        return $databases->exists() ? intdiv((int) $databases->sum('size_bytes'), 1024 * 1024) : null;
     }
 
     /**

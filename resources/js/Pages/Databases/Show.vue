@@ -5,6 +5,7 @@ import Badge from '../../Components/Badge.vue'
 import FormErrors from '../../Components/FormErrors.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
+import { formatBytes } from '../../bytes'
 
 interface User {
   id: number
@@ -34,7 +35,7 @@ interface Row {
   status: string
   status_label: string
   collation: string
-  size_mb: number | null
+  size_bytes: number | null
   size_measured_at: string | null
   subscription: string | null
   subscription_id: number | null
@@ -105,11 +106,19 @@ function removeDump(dump: DumpRow): void {
   router.delete(`/databases/${props.database.id}/dumps/${dump.id}`)
 }
 
+/*
+ * Die Grösse einer Sicherung — dieselbe Fassung wie die der Datenbank.
+ *
+ * Hier stand eine dritte Rechnung mit denselben Faktoren, und sie war schon
+ * feiner als die der Datenbank darüber: Sie kannte KB. Genau daran sieht man,
+ * warum zwei Fassungen einer Regel keine zwei Fassungen bleiben — sie driften,
+ * und welche die bessere ist, merkt man erst, wenn jemand die schlechtere liest
+ * (docs/36 §22.3j).
+ */
 function bytes(value: number | null): string {
   if (value === null) return '—'
-  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`
 
-  return `${(value / 1048576).toFixed(1)} MB`
+  return formatBytes(value)
 }
 
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
@@ -121,10 +130,9 @@ function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
 }
 
 function size(): string {
-  if (props.database.size_mb === null) return 'nicht gemessen'
-  if (props.database.size_mb < 1024) return `${props.database.size_mb} MB`
+  if (props.database.size_bytes === null) return 'nicht gemessen'
 
-  return `${(props.database.size_mb / 1024).toFixed(1)} GB`
+  return formatBytes(props.database.size_bytes)
 }
 </script>
 
@@ -212,7 +220,7 @@ function size(): string {
               <!-- „nicht gemessen" ist etwas anderes als „0 MB" — ohne den
                    Zeitpunkt daneben sähe eine drei Tage alte Zahl aus wie eine
                    Messung von vorhin (docs/26 §8). -->
-              <td :class="props.database.size_mb === null ? 'quiet' : ''">
+              <td :class="props.database.size_bytes === null ? 'quiet' : ''">
                 {{ size() }}
                 <span v-if="props.database.size_measured_at" class="quiet">
                   (gemessen {{ new Date(props.database.size_measured_at).toLocaleString('de-DE') }})

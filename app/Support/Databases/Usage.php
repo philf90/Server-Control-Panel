@@ -16,7 +16,7 @@ use SrvPanel\Agent\Client;
  * Mandantenklammer. Wer den einen liest, hat den anderen verstanden.
  *
  * **Die Summe je Abonnement wird nicht abgelegt.** Sie steht als
- * `SUM(size_mb)` über den Datenbanken des Abonnements — und das ist kein
+ * `SUM(size_bytes)` über den Datenbanken des Abonnements — und das ist kein
  * Sparen, sondern eine Entscheidung gegen einen zweiten Wahrheitsort: Eine
  * abgelegte Summe geht auseinander, sobald eine Datenbank entfernt wird, ohne
  * dass jemand nachrechnet. Genau diese Sorte Abweichung findet niemand, weil
@@ -96,9 +96,17 @@ final class Usage
                      * `size_measured_at` wird mitgeschrieben — „noch nie
                      * gemessen" ist der Zustand *vor* dem ersten Lauf und nicht
                      * der einer leeren Datenbank.
+                     *
+                     * **Und die Zahl bleibt eine Byte-Zahl.** Hier stand bis zum
+                     * 8. August 2026 `intdiv(…, 1024 * 1024)` — und damit genau
+                     * die Division, gegen die `DbUsageScopeTest` eine Ebene
+                     * tiefer argumentiert: Sie kostet für jede Datenbank unter
+                     * einem Megabyte die Unterscheidung zwischen „leer" und
+                     * „klein". Gerundet wird erst bei der Anzeige, und dort
+                     * bleibt die Einheit sichtbar (docs/36 §22.3j).
                      */
                     $database->forceFill([
-                        'size_mb' => intdiv(max(0, (int) ($bytes ?? 0)), 1024 * 1024),
+                        'size_bytes' => max(0, (int) ($bytes ?? 0)),
                         'size_measured_at' => $now,
                     ])->saveQuietly();
 
@@ -112,7 +120,7 @@ final class Usage
              * *geschriebenen* Zeilen. Der Abnahmelauf meldete „2 Datenbank(en)
              * gemessen", und genau dieselbe Zeile wäre erschienen, wenn die
              * Abfrage **gar nichts** geliefert hätte: Eine Datenbank ohne
-             * Treffer bekommt `size_mb = 0` als gemessene Null, und das ist
+             * Treffer bekommt `size_bytes = 0` als gemessene Null, und das ist
              * richtig — aber es macht die Zahl als Beleg wertlos.
              *
              * `reported` ist, was der Server genannt hat; `matched`, wie viel

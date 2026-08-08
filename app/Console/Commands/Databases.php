@@ -276,7 +276,7 @@ final class Databases extends Command
 
     /**
      * @param  array{
-     *     databases: list<array{id: int, name: string, subscription: string, size_mb: int|null}>,
+     *     databases: list<array{id: int, name: string, subscription: string, size_bytes: int|null}>,
      *     users: list<array{id: int, name: string, host: string, subscription: string}>,
      *     dumps: list<array{id: int, name: string, subscription: string, bytes: int|null}>,
      *     total: int,
@@ -289,7 +289,7 @@ final class Databases extends Command
                 '  Datenbank %s (%s, %s)',
                 $database['name'],
                 $database['subscription'],
-                $database['size_mb'] === null ? 'nicht gemessen' : $database['size_mb'].' MB',
+                $this->size($database['size_bytes'], 'nicht gemessen'),
             ));
         }
 
@@ -302,9 +302,40 @@ final class Databases extends Command
                 '  Sicherung %s (%s, %s)',
                 $dump['name'],
                 $dump['subscription'],
-                $dump['bytes'] === null ? 'Grösse unbekannt' : intdiv($dump['bytes'], 1024 * 1024).' MB',
+                $this->size($dump['bytes'], 'Grösse unbekannt'),
             ));
         }
+    }
+
+    /**
+     * Eine Byte-Zahl in der Einheit, die sie noch unterscheidbar lässt.
+     *
+     * **Hier stand zweimal `intdiv($bytes, 1024 * 1024).' MB'`,** und das ist
+     * genau die Rundung, die der dritte Abnahmelauf als Fehler gezeigt hat: Eine
+     * Datenbank mit 300 KB und eine leere lesen sich beide als „0 MB". Wer diese
+     * Liste ansieht, sucht meist nach etwas, das er vermisst — und dann ist der
+     * Unterschied zwischen „leer" und „klein" die ganze Auskunft (docs/36
+     * §22.3j).
+     */
+    private function size(?int $bytes, string $whenNull): string
+    {
+        if ($bytes === null) {
+            return $whenNull;
+        }
+
+        if ($bytes < 1024) {
+            return $bytes.' B';
+        }
+
+        if ($bytes < 1024 * 1024) {
+            return intdiv($bytes, 1024).' KB';
+        }
+
+        if ($bytes < 1024 * 1024 * 1024) {
+            return number_format($bytes / (1024 * 1024), 1, ',', '.').' MB';
+        }
+
+        return number_format($bytes / (1024 * 1024 * 1024), 1, ',', '.').' GB';
     }
 
     /** @return array<string, string> */

@@ -428,7 +428,7 @@ final class DatabaseController extends Controller
             'status' => $database->status->value,
             'status_label' => $database->status->label(),
             'collation' => $database->collation,
-            'size_mb' => $database->size_mb,
+            'size_bytes' => $database->size_bytes,
             'size_measured_at' => $database->size_measured_at?->toIso8601String(),
 
             // Die Abschrift und nicht die Beziehung: Ist das Abonnement

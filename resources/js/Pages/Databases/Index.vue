@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Pager from '../../Components/Pager.vue'
+import { formatBytes } from '../../bytes'
 
 interface User {
   id: number
@@ -21,7 +22,7 @@ interface Row {
   status: string
   status_label: string
   collation: string
-  size_mb: number | null
+  size_bytes: number | null
   size_measured_at: string | null
   subscription: string | null
   subscription_id: number | null
@@ -62,10 +63,9 @@ function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
  * Stelle, an der aus einer fehlenden Messung eine leere Datenbank wird.
  */
 function size(row: Row): string {
-  if (row.size_mb === null) return 'nicht gemessen'
-  if (row.size_mb < 1024) return `${row.size_mb} MB`
+  if (row.size_bytes === null) return 'nicht gemessen'
 
-  return `${(row.size_mb / 1024).toFixed(1)} GB`
+  return formatBytes(row.size_bytes)
 }
 </script>
 
@@ -124,7 +124,7 @@ function size(row: Row): string {
               <span v-else class="ident">{{ row.users.length }}</span>
             </td>
 
-            <td data-column="Belegt" :class="row.size_mb === null ? 'quiet' : ''">{{ size(row) }}</td>
+            <td data-column="Belegt" :class="row.size_bytes === null ? 'quiet' : ''">{{ size(row) }}</td>
 
             <td data-column="Zustand">
               <Badge :kind="rang(row.status)">{{ row.status_label }}</Badge>

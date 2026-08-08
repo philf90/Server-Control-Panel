@@ -5332,6 +5332,33 @@ Ausbaustufen: **Eine Zahl über der eigenen Arbeit ist kein Messwert.** „1 fä
 1 bestellt" (P4, falsches Zertifikat bestellt), `refused` von jeder Ausnahme
 (oben), `measured` als Beleg für eine Messung (hier).
 
+**Der dritte Lauf hat `db.usage` belegt — und die Zahl daneben als falsch
+gerundet gezeigt.** Kriterium 1 bis 3 stehen jetzt vollständig, in beide
+Richtungen und mit den Nummern in der Ausgabe. Die Messung meldete „2
+Datenbank(en) geschrieben; der Server meldete 2 Schema(ta), 2 davon zugeordnet" —
+damit ist die Abfrage am echten Server, die Aussonderung fremder Schemata und die
+Zuordnung zu den Zeilen des Panels belegt.
+
+Die *Grösse* war es nicht. Die Selbsttest-Tabelle mit einer Zeile belegt rund 16
+KB, `Usage::apply()` rechnete `intdiv(bytes, 1024 * 1024)`, und die Oberfläche
+zeigte „0 MB" — dasselbe wie für eine leere Datenbank. Dahinter stand ein
+Widerspruch im eigenen Werk: `DbUsageScopeTest` begründet seit Schritt 6, warum
+der Agent **Bytes** liefert — *„wer hier durch 1024² teilte, verlöre für jede
+Datenbank unter einem Megabyte die Unterscheidung zwischen ‚leer' und ‚klein'"* —
+und genau diese Division stand eine Zeile später im Panel. **Eine Begründung im
+Test ist kein Wächter.**
+
+`size_mb` heisst deshalb `size_bytes` und trägt, was der Agent liefert; die
+Umbenennung ist eine eigene Migration, weil die Tabelle seit `v0.5.0-rc.1` auf
+einem laufenden Server steht. `Subscription::databaseUsedMb()` summiert vor dem
+Teilen — hundert Datenbanken zu je 300 KB sind 29 MB und nicht hundertmal null.
+Gerundet wird an einer Stelle (`resources/js/bytes.ts`) statt an dreien: Liste,
+Einzelansicht und Sicherungen hatten je ihre eigene Fassung, und die dritte war
+die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
+— nicht dadurch, dass eine falsch wird, sondern dadurch, dass eine besser wird
+und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
+Brüche dazu treffen je genau eine seiner Behauptungen.
+
 Beide Messungen geben jetzt drei Zahlen: `measured` (geschriebene Zeilen),
 `reported` (was der Server genannt hat) und `matched` (was zuzuordnen war);
 `srvpanel usage` zeigt alle drei und warnt beim Missverhältnis — ein Schema, das

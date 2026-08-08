@@ -57,6 +57,9 @@ const props = defineProps<{
    */
   secret: { user: string; password: string } | null
 
+  /* Die Zugänge des Abonnements, die diese Datenbank nicht erreichen. */
+  unlinked: { id: number; name: string; host: string }[]
+
   dumps: DumpRow[]
 }>()
 
@@ -75,6 +78,36 @@ function remove(): void {
   if (confirmation.value !== props.database.name) return
 
   router.delete(`/databases/${props.database.id}`)
+}
+
+/*
+ * Einen vorhandenen Zugang verbinden — die Auswahl steht nur da, wenn es etwas
+ * auszuwählen gibt.
+ *
+ * **Eine Auswahlliste und keine Kästchenspalte.** Gemessen mit dem gebauten
+ * Stylesheet bei 390px: Eine Spalte über *alle* Zugänge macht diesen Abschnitt
+ * 1109px hoch statt 657px — und stellt neben jeden unbeteiligten Zugang einen
+ * Knopf „Entfernen", der ihn ganz löscht, obwohl diese Seite von einer
+ * Datenbank handelt (docs/36 §22.3o).
+ */
+const linkForm = useForm({ granted: true })
+const chosenUser = ref<number>(props.unlinked[0]?.id ?? 0)
+
+function link(): void {
+  linkForm.put(`/databases/${props.database.id}/users/${chosenUser.value}`, { preserveScroll: true })
+}
+
+/*
+ * Und die Gegenrichtung mit Rückfrage.
+ *
+ * Ein entzogenes Recht sperrt eine laufende Anwendung aus, und zwar sofort.
+ * Der Unterschied zum „Entfernen" daneben steht in der Frage: Der Zugang
+ * bleibt bestehen, nur diese Datenbank erreicht er nicht mehr.
+ */
+function revoke(user: User): void {
+  if (!confirm(`${user.name} den Zugriff auf ${props.database.name} entziehen? Der Zugang bleibt bestehen und erreicht diese Datenbank danach nicht mehr.`)) return
+
+  router.put(`/databases/${props.database.id}/users/${user.id}`, { granted: false }, { preserveScroll: true })
 }
 
 function removeUser(user: User): void {
@@ -263,6 +296,9 @@ function size(): string {
                     <button type="button" class="button" @click="resetPassword(user)">
                       Neues Passwort
                     </button>
+                    <button type="button" class="button" @click="revoke(user)">
+                      Zugriff entziehen
+                    </button>
                     <button type="button" class="button danger" @click="removeUser(user)">
                       Entfernen
                     </button>
@@ -277,6 +313,34 @@ function size(): string {
             </tbody>
           </table>
         </div>
+
+        <!--
+          Verbinden steht vor Anlegen: Wer schon einen Zugang hat, soll ihn
+          nehmen und keinen zweiten erzeugen — das Anlegen weist einen
+          vergebenen Namen inzwischen ab (docs/36 §22.3n).
+        -->
+        <form
+          v-if="props.can.update && props.unlinked.length > 0"
+          class="form"
+          @submit.prevent="link()"
+        >
+          <label class="field">
+            <span>Vorhandenen Zugang verbinden</span>
+            <select v-model="chosenUser">
+              <option v-for="user in props.unlinked" :key="user.id" :value="user.id">
+                {{ user.name }}@{{ user.host }}
+              </option>
+            </select>
+          </label>
+          <p class="hint">
+            Der Zugang bekommt alle Rechte auf
+            <span class="ident">{{ props.database.name }}</span> und behält sein Passwort.
+          </p>
+
+          <div class="button-row">
+            <button type="submit" class="button" :disabled="linkForm.processing">Verbinden</button>
+          </div>
+        </form>
 
         <form
           v-if="props.can.update"

@@ -180,6 +180,26 @@ final class AgentOperationReachTest extends TestCase
         return $found;
     }
 
+    /**
+     * Operationen mit Begründung, die trotzdem niemand aufruft.
+     *
+     * **Ein Eintrag hier ist eine offene Entscheidung und kein Freibrief.** Er
+     * gehört mit Datum und Grund hinein, und der nächste, der ihn liest, soll
+     * ihn auflösen können — entweder wird die Operation angeschlossen oder sie
+     * geht.
+     *
+     * @var array<string, string>
+     */
+    private const UNREACHED = [
+        'acme.account.ensure' => 'Gefunden am 8. August 2026, als dieser Wächter entstand. Der '
+            .'Kommentar der Operation sagt, die Oberfläche zeige die Adresse an dem Knopf, der '
+            .'sie auslöst — diesen Knopf gibt es nicht, und `app/` nennt den Namen nirgends. In '
+            .'der Praxis entsteht das ACME-Konto beim Bestellen mit (`AcmeCertificate` öffnet die '
+            .'Sitzung mit einem `Account`), die Operation ist also überflüssig geworden statt '
+            .'vergessen. Ob sie angeschlossen oder entfernt wird, ist eine Entscheidung mit '
+            .'TLS-Folgen und gehört dem Betreiber.',
+    ];
+
     public function test_every_operation_the_panel_sends_exists_in_the_agent(): void
     {
         $known = $this->registry()->names();
@@ -297,6 +317,90 @@ final class AgentOperationReachTest extends TestCase
      * Genau so gefunden: `php.pool.remove` und `web.logrotate.apply` waren in
      * P3 gebaut und von nichts aufgerufen.
      */
+    /**
+     * Eine Erklärung ist noch kein Aufruf.
+     *
+     * **Der Wächter darunter hatte eine Lücke, und sie hat drei Monate
+     * gehalten.** Er nimmt eine Operation als „benutzt" an, sobald sie in
+     * {@see self::WITHOUT_LIFECYCLE} steht — und dort steht sie, weil erklärt
+     * ist, *warum sie keinen Lebenslauf hat*. Das ist eine andere Frage als
+     * die, ob jemand sie aufruft. `db.user.grant` hatte seit P5 einen Eintrag,
+     * eine fertige Methode in `Databases` und keinen einzigen Aufrufer: kein
+     * Controller, keine Route, kein Test. Aufgefallen ist es einer Frage des
+     * Betreibers, nicht diesem Test (docs/36 §22.3o).
+     *
+     * Deshalb die zweite Hälfte: Wer erklärt, dass ein Dienst unmittelbar
+     * aufruft, muss zeigen, dass es diesen Dienst gibt. Gesucht wird der Name
+     * im Quelltext unter `app/` — das ist grob, aber es ist die Frage, um die
+     * es geht: Führt ein Weg dorthin?
+     *
+     * @return list<string>
+     */
+    private function calledInThePanel(): array
+    {
+        $source = '';
+
+        /** @var SplFileInfo $file */
+        foreach (new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/app', FilesystemIterator::SKIP_DOTS),
+        ) as $file) {
+            if ($file->isFile() && $file->getExtension() === 'php') {
+                $source .= (string) file_get_contents($file->getPathname());
+            }
+        }
+
+        $called = [];
+
+        foreach ($this->registry()->names() as $name) {
+            if (str_contains($source, "'".$name."'")) {
+                $called[] = $name;
+            }
+        }
+
+        return $called;
+    }
+
+    public function test_every_operation_without_a_lifecycle_is_called_somewhere(): void
+    {
+        $called = $this->calledInThePanel();
+        $unreached = [];
+
+        foreach (array_keys(self::WITHOUT_LIFECYCLE) as $name) {
+            if (! in_array($name, $called, true) && ! array_key_exists($name, self::UNREACHED)) {
+                $unreached[] = $name;
+            }
+        }
+
+        $this->assertSame([], $unreached, sprintf(
+            "Diese Operationen haben eine Begründung, warum sie keinen Lebenslauf brauchen —\n".
+            "und niemand ruft sie auf:\n  %s\n\n".
+            'Die Begründung sagt „der Dienst ruft unmittelbar auf". Dann muss es diesen Dienst '.
+            'geben. Code, der als root läuft und zu dem kein Weg führt, ist Angriffsfläche ohne '.
+            'Nutzen.',
+            implode("\n  ", $unreached),
+        ));
+    }
+
+    /**
+     * Und die Ausnahmeliste altert nicht still vor sich hin.
+     *
+     * Steht ein Name in {@see self::UNREACHED} und wird er wieder aufgerufen,
+     * gehört der Eintrag entfernt — sonst nimmt er die Operation dauerhaft von
+     * der Prüfung aus.
+     */
+    public function test_the_list_of_unreached_operations_does_not_outlive_them(): void
+    {
+        $called = $this->calledInThePanel();
+
+        foreach (array_keys(self::UNREACHED) as $name) {
+            $this->assertNotContains(
+                $name,
+                $called,
+                $name.' steht in UNREACHED und wird wieder aufgerufen. Der Eintrag gehört entfernt.',
+            );
+        }
+    }
+
     public function test_every_operation_of_the_agent_is_used(): void
     {
         $erklärt = array_merge(Lifecycles::handled(), array_keys(self::WITHOUT_LIFECYCLE));

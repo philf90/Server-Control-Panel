@@ -2288,6 +2288,64 @@ Muster wie die zwei ungenutzten Operationen aus P3 — `AgentOperationReachTest`
 prüft, dass jeder Name auf eine Operation zeigt, nicht, dass jede Operation
 erreicht wird.
 
+### 22.3o Einen vorhandenen Zugang verbinden — und wie die Form gemessen wurde
+
+**Der Anlass ist Fund 1 aus §22.3n.** Seit ein vergebener Zugangsname abgewiesen
+wird, hat ein Kunde mit einer Anwendung auf zwei Datenbanken keinen Weg mehr —
+und `Databases::grant()` samt `db.user.grant` lag seit P5 fertig da, ohne dass
+etwas sie aufrief. Beides ist jetzt angeschlossen: `PUT
+/databases/{database}/users/{user}` mit `granted` als Schalter, eine Adresse für
+beide Richtungen.
+
+**Die Form ist gemessen und nicht geschätzt.** Zur Wahl standen eine Spalte mit
+Kontrollkästchen über alle Zugänge, eine Auswahlliste, und die echte Matrix
+(Zugänge × Datenbanken). Gerendert mit dem gebauten Stylesheet, beide Themes:
+
+| Entwurf | 390 px | 1440 px | zeigt |
+|---|---:|---:|---|
+| Kästchenspalte über alle Zugänge | **1109 px** | 221 px | auch Zugänge, die diese Datenbank nichts angehen — samt Knopf „Entfernen" |
+| Auswahlliste + Entziehen je Zeile | **837 px** | 295 px | wer hereinkommt, und wer verbunden werden kann |
+| echte Matrix (Zugänge × Datenbanken) | **626 px** | 221 px | alles, beide Richtungen, an einem Ort |
+
+Überlauf überall 0 px.
+
+**Die Matrix ist die kompakteste und trotzdem nicht die richtige Wahl — für
+diese Seite.** Sie ist kompakt, weil sie die Knöpfe je Zeile gar nicht hat, und
+sie beantwortet eine Frage, die diese Seite nicht stellt: Es geht hier um *eine*
+Datenbank. Eine Matrix gehört an das Abonnement, wo alle Datenbanken stehen; als
+Abschnitt auf der Datenbankseite wäre sie eine Übersicht am falschen Ort. Das ist
+kein Geschmacksurteil, sondern dasselbe Kriterium wie bei `.stacks` gegen
+`.scrolls` in `docs/24 §5`: Was ist der Gegenstand der Seite?
+
+**Die Kästchenspalte ist ausgeschieden, weil die Messung etwas gezeigt hat, das
+im Entwurf nicht zu sehen war:** Sie muss *alle* Zugänge auflisten, damit man
+einen unverbundenen ankreuzen kann — und auf 390px wird aus jedem ein Kärtchen
+mit fünf Zeilen samt „Neues Passwort" und „Entfernen". Neben einem Zugang, der
+mit dieser Datenbank nichts zu tun hat, steht dann ein Knopf, der ihn ganz
+löscht. 69 % mehr Höhe war das kleinere Problem.
+
+**Geblieben ist die Auswahlliste**, ergänzt um „Zugriff entziehen" je Zeile —
+die Gegenrichtung gehört an die Zeile, weil sie von *dieser* Datenbank handelt.
+Die Auswahl steht nur da, wenn es etwas auszuwählen gibt; im Normalfall (ein
+Zugang, eine Datenbank) kostet sie nichts.
+
+**Und ein Wächter mit einer Lücke, die drei Monate gehalten hat.**
+`AgentOperationReachTest::test_every_operation_of_the_agent_is_used()` nimmt eine
+Operation als benutzt an, sobald sie in `WITHOUT_LIFECYCLE` steht — und dort
+steht sie, weil erklärt ist, *warum sie keinen Lebenslauf hat*. Das ist eine
+andere Frage. `db.user.grant` hatte den Eintrag, die Methode und keinen
+Aufrufer. Seitdem gibt es die zweite Hälfte: Wer erklärt, dass ein Dienst
+unmittelbar aufruft, muss zeigen, dass es einen Weg dorthin gibt.
+
+Sie hat sofort eine zweite gefunden: **`acme.account.ensure` ruft niemand auf.**
+Der Kommentar der Operation sagt, die Oberfläche zeige die Adresse an dem Knopf,
+der sie auslöst — diesen Knopf gibt es nicht. In der Praxis entsteht das
+ACME-Konto beim Bestellen mit, die Operation ist also überflüssig geworden statt
+vergessen. Sie steht mit Datum und Grund in `UNREACHED`; **ob sie angeschlossen
+oder entfernt wird, ist eine Entscheidung mit TLS-Folgen und gehört dem
+Betreiber.** Ein zweiter Wächter sorgt dafür, dass dieser Eintrag nicht still
+altert: Wird die Operation wieder aufgerufen, muss er weg.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der

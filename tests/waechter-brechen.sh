@@ -4193,6 +4193,57 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DbTenancyTest passed
 
 echo
+echo "── AgentOperationReachTest: eine Begründung ohne Aufrufer ──"
+#
+# Der Zustand von P5 bis zum 8. August 2026: `db.user.grant` hatte einen
+# Eintrag in WITHOUT_LIFECYCLE, eine fertige Methode in `Databases` — und kein
+# Controller, keine Route, kein Test rief sie auf. Der alte Wächter nahm den
+# Eintrag als Beleg für Benutzung.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('$this->databases->grant($user, $database, $granted);', '$granted = $granted;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'db.user.grant'", "'db.user.grant.abgeschaltet'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Operation ohne Aufrufer" &&
+pruefe "Operation ohne Aufrufer" \
+  AgentOperationReachTest::test_every_operation_without_a_lifecycle_is_called_somewhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AgentOperationReachTest passed
+
+echo
+echo "── DbTenancyTest: ein fremder Zugang lässt sich verbinden ──"
+#
+# Die Klammer hält einen Kunden schon an der Modellbindung auf; ein Admin ist
+# unbeschränkt. Ohne die ausdrückliche Prüfung entstünde ein Recht über
+# Abonnementgrenzen hinweg — durch eine Zahl in der Adresse.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        abort_unless(\n"
+    "            $user->subscription_id !== null && $user->subscription_id === $database->subscription_id,\n"
+    "            404,\n"
+    "        );\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "fremder Zugang verbindbar" &&
+pruefe "fremder Zugang verbindbar" \
+  DbTenancyTest::test_not_even_the_operator_links_a_foreign_access failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbTenancyTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

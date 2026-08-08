@@ -129,6 +129,30 @@ final class DbTenancyTest extends TestCase
     }
 
     /**
+     * Auch der Betreiber verbindet keinen fremden Zugang mit dieser Datenbank.
+     *
+     * **Der Fall, den die Mandantenklammer nicht abdeckt.** Einen Kunden hält
+     * schon die Modellbindung auf; ein Admin ist unbeschränkt und könnte die
+     * Nummer eines Zugangs aus einem anderen Abonnement eintragen. Ein Recht
+     * über Abonnementgrenzen hinweg ist genau das, was `docs/36 §3.1`
+     * ausschliesst — und es entstünde hier ohne einen einzigen Fehler im
+     * Agenten, nur durch eine Zahl in der Adresse.
+     */
+    public function test_not_even_the_operator_links_a_foreign_access(): void
+    {
+        [, $own, $foreign] = $this->neighbours();
+
+        [$database, $user] = $this->tenancy()->withoutRestriction(fn (): array => [
+            Database::factory()->forSubscription($own, 'shop')->create(),
+            DbUser::factory()->forSubscription($foreign, 'web')->create(),
+        ]);
+
+        $this->actingAs(Account::factory()->admin()->create())
+            ->put("/databases/{$database->id}/users/{$user->id}", ['granted' => true])
+            ->assertNotFound();
+    }
+
+    /**
      * Und eine fremde Sicherung lädt er auch nicht herunter.
      *
      * Der Weg, der am 8. August mit 404 antwortete, weil das Panel an den Pfad

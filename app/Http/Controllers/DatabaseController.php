@@ -171,6 +171,19 @@ final class DatabaseController extends Controller
             'secret' => session('database.secret'),
 
             'dumps' => $this->dumpRows($database),
+
+            /*
+             * **Die Zugänge dieses Abonnements, die diese Datenbank *nicht*
+             * erreichen.** Nur sie, und nicht alle: Diese Seite handelt von
+             * einer Datenbank, und wer hier steht, soll etwas mit ihr zu tun
+             * haben.
+             *
+             * Gemessen statt geschätzt (docs/36 §22.3o): Eine Spalte mit
+             * Kontrollkästchen über *alle* Zugänge macht die Seite auf 390px um
+             * 69 % höher und stellt neben jeden unbeteiligten Zugang einen
+             * Knopf „Entfernen", der ihn ganz löscht.
+             */
+            'unlinked' => $this->unlinkedUsers($database),
         ]);
     }
 
@@ -317,6 +330,84 @@ final class DatabaseController extends Controller
 
         return to_route('databases.show', $database)
             ->with('database.secret', ['user' => $user->name, 'password' => $secret]);
+    }
+
+    /**
+     * Die Zugänge des Abonnements ohne Recht auf diese Datenbank.
+     *
+     * @return list<array{id: int, name: string, host: string}>
+     */
+    private function unlinkedUsers(Database $database): array
+    {
+        if ($database->subscription_id === null) {
+            // Eine verwaiste Datenbank hat kein Abonnement, aus dem ein Zugang
+            // kommen könnte — und ihre Zeile ist ohnehin der Rest eines
+            // Rückbaus (docs/36 §5).
+            return [];
+        }
+
+        $linked = $database->users->pluck('id')->all();
+
+        return DbUser::query()
+            ->where('subscription_id', $database->subscription_id)
+            ->whereNotIn('id', $linked)
+            ->orderBy('name')
+            ->get()
+            ->map(static fn (DbUser $user): array => [
+                'id' => (int) $user->id,
+                'name' => $user->name,
+                'host' => $user->host,
+            ])
+            ->all();
+    }
+
+    /**
+     * Einen vorhandenen Zugang verbinden oder die Verbindung lösen.
+     *
+     * **Warum es das erst seit dem 8. August 2026 gibt.**
+     * {@see Databases::grant()} und die Operation `db.user.grant` waren seit P5
+     * gebaut, registriert und begründet — und kein Controller, keine Route und
+     * kein Test hat sie je aufgerufen. Aufgefallen ist es, als das Anlegen
+     * einen vergebenen Zugangsnamen abzuweisen begann: Damit hatte ein Kunde
+     * mit einer Anwendung auf zwei Datenbanken plötzlich gar keinen Weg mehr
+     * (docs/36 §22.3o).
+     *
+     * **Der fremde Zugang wird ausdrücklich abgewiesen.** Die Mandantenklammer
+     * hält einen Kunden schon an der Modellbindung auf; ein Betreiber ist
+     * unbeschränkt und könnte die Nummer eines Zugangs aus einem anderen
+     * Abonnement eintragen. Ein Recht über Abonnementgrenzen hinweg ist genau
+     * das, was `docs/36 §3.1` ausschliesst.
+     */
+    public function access(Request $request, Database $database, DbUser $user): RedirectResponse
+    {
+        $data = $request->validate(['granted' => ['required', 'boolean']]);
+
+        abort_unless(
+            $user->subscription_id !== null && $user->subscription_id === $database->subscription_id,
+            404,
+        );
+
+        $granted = (bool) $data['granted'];
+
+        try {
+            $this->databases->grant($user, $database, $granted);
+        } catch (RuntimeException|AgentException $error) {
+            throw ValidationException::withMessages(['granted' => $error->getMessage()]);
+        }
+
+        $this->audit->record(
+            $granted ? 'database.user.granted' : 'database.user.revoked',
+            target: $database,
+            subscriptionId: (int) $database->subscription_id,
+            context: ['user' => $user->name],
+        );
+
+        return to_route('databases.show', $database)->with(
+            'status',
+            $granted
+                ? sprintf('%s hat jetzt Zugriff auf %s.', $user->name, $database->name)
+                : sprintf('%s hat keinen Zugriff mehr auf %s.', $user->name, $database->name),
+        );
     }
 
     public function destroyUser(Database $database, DbUser $user): RedirectResponse

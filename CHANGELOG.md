@@ -5359,6 +5359,35 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Ein vorhandener Zugang lässt sich mit einer weiteren Datenbank verbinden.**
+`Databases::grant()` und die Operation `db.user.grant` lagen seit P5 fertig da,
+und kein Controller, keine Route und kein Test riefen sie auf — aufgefallen erst,
+als das Anlegen einen vergebenen Namen abzuweisen begann und ein Kunde mit einer
+Anwendung auf zwei Datenbanken damit gar keinen Weg mehr hatte. Jetzt über eine
+Adresse für beide Richtungen, mit „Zugriff entziehen" an der Zeile und einer
+Rückfrage davor.
+
+**Die Form ist gemessen worden, nicht geschätzt.** Drei Entwürfe, gerendert mit
+dem gebauten Stylesheet in beiden Themes: eine Kästchenspalte über alle Zugänge
+(390 px: 1109 px hoch), eine Auswahlliste mit Entziehen je Zeile (837 px) und die
+echte Matrix aus Zugängen und Datenbanken (626 px). Die Matrix ist die
+kompakteste — und trotzdem nicht die Wahl für diese Seite: Sie beantwortet eine
+Frage über *alle* Datenbanken, und diese Seite handelt von einer. Die
+Kästchenspalte ist an etwas gescheitert, das erst in der Aufnahme zu sehen war:
+Sie muss alle Zugänge auflisten, und auf dem Telefon steht dann neben einem
+Zugang, der mit dieser Datenbank nichts zu tun hat, ein Knopf, der ihn ganz
+löscht.
+
+**Und ein Wächter mit einer Lücke, die drei Monate gehalten hat.**
+`AgentOperationReachTest` nahm eine Operation als benutzt an, sobald sie in
+`WITHOUT_LIFECYCLE` steht — dort steht sie aber, weil erklärt ist, *warum sie
+keinen Lebenslauf hat*. Das ist eine andere Frage. Wer erklärt, dass ein Dienst
+unmittelbar aufruft, muss jetzt zeigen, dass es einen Weg dorthin gibt. Der
+strengere Test fand sofort eine zweite: `acme.account.ensure` ruft niemand auf —
+das ACME-Konto entsteht beim Bestellen mit. Sie steht mit Datum und Grund in
+`UNREACHED`; ob sie angeschlossen oder entfernt wird, ist eine Entscheidung mit
+TLS-Folgen.
+
 **Ein zweiter Zugang mit demselben Namen ersetzte das Passwort des ersten.** Der
 Agent baut `CREATE USER IF NOT EXISTS` und danach `ALTER USER … IDENTIFIED BY` —
 richtig für den Wiederholungslauf eines abgebrochenen Vorgangs, und derselbe Weg

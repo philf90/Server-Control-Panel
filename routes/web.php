@@ -434,6 +434,20 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:update,database')
         ->name('databases.users.password');
 
+    /*
+     * Einen vorhandenen Zugang mit dieser Datenbank verbinden oder die
+     * Verbindung lösen — dieselbe Adresse, die Richtung steht im Rumpf.
+     *
+     * **Zwei Knöpfe, ein Weg.** `db.user.grant` kennt `grant` und `revoke` als
+     * einen Aufruf mit einem Schalter; zwei Adressen dafür wären zwei Fassungen
+     * derselben Regel, und die eine driftet. Die Operation und
+     * `Databases::grant()` gab es seit P5 — nur hat sie bis zum 8. August 2026
+     * niemand aufgerufen (docs/36 §22.3o).
+     */
+    Route::put('/databases/{database}/users/{user}', [DatabaseController::class, 'access'])
+        ->middleware('can:update,database')
+        ->name('databases.users.access');
+
     Route::delete('/databases/{database}/users/{user}', [DatabaseController::class, 'destroyUser'])
         ->middleware('can:update,database')
         ->name('databases.users.destroy');

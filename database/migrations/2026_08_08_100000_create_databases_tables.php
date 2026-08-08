@@ -20,9 +20,10 @@ use Illuminate\Support\Facades\Schema;
  *
  * **Keine Spalte, die ein Passwort aufnehmen könnte.** Das Passwort wird
  * erzeugt, einmal angezeigt und vergessen (docs/36 §4, Entscheidung 3 des
- * Betreibers). `SecretsStayOutOfTheStoreTest` besteht darauf — und zwar am
- * Schema und nicht an einer Absicht: Eine Spalte, die es nicht gibt, lässt sich
- * nicht versehentlich füllen.
+ * Betreibers). `SecretsStayOutOfTheQueueTest` besteht darauf — mit
+ * `test_the_database_tables_have_no_place_for_a_secret()`, und zwar am Schema
+ * und nicht an einer Absicht: Eine Spalte, die es nicht gibt, lässt sich nicht
+ * versehentlich füllen.
  *
  * **`name` ist der vollständige Name samt Präfix und serverweit eindeutig.**
  * Nicht nur je Abonnement: Der Name ist ein Schema in MariaDB, und MariaDB

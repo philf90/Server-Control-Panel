@@ -358,7 +358,7 @@ use Illuminate\Support\Facades\Schema;
  *
  * **Kein `password` und keine Spalte, die eines aufnehmen könnte.** Das
  * Passwort wird erzeugt, einmal angezeigt und vergessen (docs/36 §4).
- * `SecretsStayOutOfTheStoreTest` besteht darauf.
+ * `SecretsStayOutOfTheQueueTest` besteht darauf.
  *
  * **`name` ist der vollständige Name samt Präfix und ist serverweit
  * eindeutig.** Nicht nur je Abonnement: Der Name ist ein Schema in MariaDB, und
@@ -1141,9 +1141,11 @@ zusammen: die erklärte Liste der geheimnistragenden Operationen und alles, was
 `Lifecycles::handled()`, `Task::operation()` und die `dispatch`-Pfade abschicken
 können. Die Schnittmenge muss leer sein.
 
-Dazu die zweite Hälfte, `SecretsStayOutOfTheStoreTest`: Weder `db_users` noch
-`databases` hat eine Spalte, deren Name `password`, `secret` oder `token`
-enthält.
+Dazu die zweite Hälfte — sie ist beim Bauen in denselben Test gewandert und
+heisst dort `test_the_database_tables_have_no_place_for_a_secret()`: Weder
+`db_users` noch `databases` hat eine Spalte, deren Name `password`, `secret`
+oder `token` enthält. Der Name `SecretsStayOutOfTheStoreTest` blieb danach in
+einem Kommentar der Migration stehen und zeigte ins Leere (§22.3n).
 
 *Bruch:* `db.user.create` in `DbLifecycle::handles()` eintragen und über
 `dispatch()` einreihen → rot.
@@ -2211,6 +2213,80 @@ Vorgangs in die Niederschrift.
    Warteschlange. Ein Neuladen zeigt die richtigen Werte. Zwei Quellen für
    dieselbe Angabe, und eine davon wird nicht nachgezogen — das ist die Sorte
    Abweichung, die dieses Projekt sonst überall vermeidet.
+
+### 22.3n Eine Frage des Betreibers, und fünf Funde daran
+
+**Die Frage lautete:** Ist es gewollt, dass beim Anlegen einer Datenbank weder
+ein Passwort noch ein Vorgang erscheint? Die erste Hälfte ist gewollt und
+begründet — `db.database.create` und `db.user.create` laufen unmittelbar und
+nicht über die Warteschlange, weil ein Passwort nicht in `operations.payload`
+liegen darf (§4). Beim Nachsehen, warum die zweite Hälfte nicht stimmt, kamen
+fünf Dinge heraus, und keines davon hat je ein Test gemeldet.
+
+**1. Ein zweiter Zugang mit demselben Namen ersetzt das Passwort des ersten.**
+Der Agent baut `CREATE USER IF NOT EXISTS` und danach `ALTER USER … IDENTIFIED
+BY`. Der `ALTER` ist dort richtig und begründet: Ein zweiter Anlauf nach einem
+abgebrochenen Vorgang bekäme sonst den Benutzer mit dem *alten* Passwort,
+während der Kunde das neue in der Hand hält. **Nur gilt derselbe Weg auch für
+den ganz normalen zweiten Klick.** Das Feld „Benutzername" ist mit `user`
+vorbelegt; wer eine zweite Datenbank anlegt und es stehen lässt, bekommt keinen
+zweiten Zugang, sondern denselben mit einem neuen Passwort — und die Anwendung,
+die das alte in ihrer Konfigurationsdatei hat, ist ausgesperrt. Das Panel meldete
+dazu „Zugang angelegt".
+
+Auf `cloudsrv24` ist genau das passiert, und es steht in einer Ausgabe, die
+vorher schon zweimal durchgelesen wurde: Der Passworthash von `p1118_user`
+wechselte zwischen zwei `SHOW GRANTS`, und das Konto hatte plötzlich zwei
+Schemata. Entschieden hat der Betreiber: **abweisen.** `Databases::createUser()`
+prüft den Namen, bevor der Agent gefragt wird — dort ist eine Absicht bekannt,
+im Agenten nur ein Auftrag.
+
+**2. Die Meldung landete am falschen Feld.** `createUserFor()` schrieb sie fest
+auf `user_label` — den Namen im Formular „Datenbank anlegen". Das Formular
+„Weiterer Zugang" schickt `label` und liest `errors.label`. Unsichtbar war die
+Meldung nicht (`FormErrors` zeigt oben alles), aber die Zeile *am* Feld sagt,
+welches gemeint ist. Der Feldname kommt jetzt vom Aufrufer.
+
+**3. `DatabaseFormTest` gab es nicht.** In `DatabaseController::store()` stand
+seit P5: *„Die Gegenprobe, dass beide dasselbe sagen, steht in
+`DatabaseFormTest`."* Die Datei war nie geschrieben worden. Ein Kommentar, der
+eine Absicherung behauptet, ist schlimmer als keiner — wer ihn liest, hört auf zu
+suchen.
+
+**4. Und der Test fand bei seinem ersten Lauf, wofür er versprochen war.** Die
+Prüfregel des Formulars lautete `/^[a-z][a-z0-9_]{0,15}$/` — **ohne `D`.** In
+PCRE passt `$` auch vor einem abschliessenden Zeilenumbruch; `"shop\n"` kam
+also durch das Formular und prallte am Agenten ab, mit einer Meldung, die
+niemand deuten kann. Das ist wortwörtlich der Fund aus P3, den CLAUDE.md für
+neun Muster festhält — nur las `AnchoredPatternTest` bis dahin ausschliesslich
+unter `agent/`. Er liest jetzt auch die `regex:`-Regeln der Formulare; drei
+davon waren betroffen, alle drei in derselben Datei.
+
+**5. `DbTenancyTest` gab es auch nicht.** `docs/36 §16.7` sieht ihn seit dem
+Plan vor: *„Ein Kunde sieht die Datenbanken eines fremden Abonnements nicht."*
+Das ist **die Hälfte des Abnahmekriteriums, die im Panel spielt** — die andere,
+die an MariaDB, ist dreimal gemessen worden. Die Regel galt die ganze Zeit
+(`BelongsToSubscription`, `can:` an jeder Route); ungeprüft war, ob sie hält.
+Jetzt geprüft, in beide Richtungen: dass die Klammer greift und dass sie nicht
+mehr wegnimmt als nötig, dazu vier Adressen, die ein fremder Kunde nicht bekommt.
+
+**Der Wächter, der 3 und 5 gefunden hat, ist der eigentliche Ertrag.**
+`GuardReachTest` prüft: Jeder Testname, der irgendwo im Code steht, gehört zu
+einer Datei, die es gibt — Ausnahmen kommen aus `ChangelogTest::REMOVED`, wo sie
+ohnehin mit Begründung stehen. Beim ersten Lauf waren es drei Namen; der dritte
+war `SecretsStayOutOfTheStoreTest`, dessen Regel längst als Methode in
+`SecretsStayOutOfTheQueueTest` lebt. **Ein toter Verweis auf eine Klasse fällt
+beim nächsten Aufruf auf, einer auf einen Test niemals.**
+
+**Was offen bleibt und eine Entscheidung braucht:** `Databases::grant()` und die
+Agent-Operation `db.user.grant` sind gebaut, registriert und begründet — und
+**kein Controller, keine Route und kein Test ruft sie auf.** Es gibt im Panel
+also keinen Weg, einen vorhandenen Zugang mit einer zweiten Datenbank zu
+verbinden. Mit der Abweisung aus Fund 1 ist das jetzt sichtbar: Wer eine
+Anwendung auf zwei Datenbanken hat, muss zwei Zugänge nehmen. Das ist dasselbe
+Muster wie die zwei ungenutzten Operationen aus P3 — `AgentOperationReachTest`
+prüft, dass jeder Name auf eine Operation zeigt, nicht, dass jede Operation
+erreicht wird.
 
 ### 22.4 Was noch fehlt
 

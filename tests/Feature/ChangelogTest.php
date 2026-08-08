@@ -70,6 +70,11 @@ final class ChangelogTest extends TestCase
             .'grün, im Recht, und blind für das Fehlen dessen, was er absichern sollte. Kommt mit '
             .'docs/36 Schritt 11 wieder, dann mit einer zweiten Behauptung: dass die Prüfregel an '
             .'der Route hängt.',
+
+        'SecretsStayOutOfTheStoreTest' => 'Beim Bauen in SecretsStayOutOfTheQueueTest aufgegangen '
+            .'(P5): Die Regel lebt dort als test_the_database_tables_have_no_place_for_a_secret(). '
+            .'Der Name blieb in einem Kommentar der Migration und im Plan stehen und zeigte ins '
+            .'Leere — gefunden am 8. August 2026 von GuardReachTest, der genau dafür entstand.',
     ];
 
     private function root(): string

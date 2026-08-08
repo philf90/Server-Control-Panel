@@ -5359,6 +5359,34 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Ein zweiter Zugang mit demselben Namen ersetzte das Passwort des ersten.** Der
+Agent baut `CREATE USER IF NOT EXISTS` und danach `ALTER USER … IDENTIFIED BY` —
+richtig für den Wiederholungslauf eines abgebrochenen Vorgangs, und derselbe Weg
+galt für den ganz normalen zweiten Klick. Das Feld „Benutzername" ist mit `user`
+vorbelegt; wer eine zweite Datenbank anlegte und es stehen liess, bekam keinen
+zweiten Zugang, sondern denselben mit einem neuen Passwort. Die Anwendung, die
+das alte in ihrer Konfigurationsdatei hatte, war ab da ausgesperrt, und das Panel
+meldete „Zugang angelegt". Der Name wird jetzt abgewiesen, bevor der Agent
+gefragt wird — dort ist eine Absicht bekannt, im Agenten nur ein Auftrag.
+
+**Und drei Funde, die daran hingen.** Die Fehlermeldung landete fest auf
+`user_label`, obwohl das Formular „Weiterer Zugang" `label` schickt — der
+Feldname kommt jetzt vom Aufrufer. `DatabaseFormTest`, den ein Kommentar seit P5
+versprach, gab es nicht; er ist geschrieben und fand bei seinem ersten Lauf, wofür
+er versprochen war: Die Prüfregel des Formulars endete auf `$` ohne `D` und liess
+damit einen Zeilenumbruch durch, den der Agent abweist. `AnchoredPatternTest` las
+bis dahin nur unter `agent/` und liest jetzt auch die `regex:`-Regeln der
+Formulare.
+
+**`GuardReachTest`** ist der Ertrag daraus: Jeder Testname, der irgendwo im Code
+steht, gehört zu einer Datei, die es gibt; Ausnahmen kommen aus
+`ChangelogTest::REMOVED`. Beim ersten Lauf waren es drei — neben
+`DatabaseFormTest` noch `DbTenancyTest` (im Plan §16.7 vorgesehen, nie
+geschrieben: die Hälfte des Abnahmekriteriums, die im Panel spielt — jetzt
+geschrieben) und `SecretsStayOutOfTheStoreTest`, dessen Regel längst als Methode
+in `SecretsStayOutOfTheQueueTest` lebt. Ein toter Verweis auf eine Klasse fällt
+beim nächsten Aufruf auf, einer auf einen Test niemals.
+
 **Ein fehlgeschlagener Vorgang zeigte „Begonnen —" und „Beendet —".** Beide
 Zeitstempel waren gesetzt; die Seite zeigte die Werte aus der ersten
 Inertia-Antwort, und zu dem Zeitpunkt stand der Vorgang in der Warteschlange.

@@ -100,15 +100,23 @@ final class DatabaseController extends Controller
              * — was der Agent abweist, weist dieses Formular vorher ab, mit
              * demselben Ergebnis und einem lesbaren Grund.
              *
+             * **Und das `D` am Ende gehört dazu.** Ohne es passt `$` in PCRE
+             * auch vor einem abschliessenden Zeilenumbruch — `"shop\n"` käme
+             * durch dieses Formular und prallte am Agenten ab, mit einer
+             * Meldung, die niemand deuten kann. Genau der Fund, den CLAUDE.md
+             * für neun Muster unter `agent/` festhält; `AnchoredPatternTest`
+             * las bis zum 8. August 2026 nur dort und nicht hier.
+             *
              * Die Gegenprobe, dass beide dasselbe sagen, steht in
-             * `DatabaseFormTest`.
+             * `DatabaseFormTest` — und sie hat diesen Unterschied bei ihrem
+             * ersten Lauf gefunden.
              */
-            'label' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/'],
+            'label' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/D'],
             'collation' => ['required', 'string', Rule::in($this->collations())],
 
             // Ein Zugang gleich dazu — der Normalfall. Ohne ihn ist eine
             // Datenbank ein Schema, in das niemand hineinkommt.
-            'user_label' => ['nullable', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/'],
+            'user_label' => ['nullable', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/D'],
         ]);
 
         try {
@@ -132,7 +140,7 @@ final class DatabaseController extends Controller
                 ->with('status', 'Datenbank '.$database->name.' angelegt.');
         }
 
-        return $this->createUserFor($database, $subscription, (string) $data['user_label']);
+        return $this->createUserFor($database, $subscription, (string) $data['user_label'], 'user_label');
     }
 
     public function show(Request $request, Database $database): Response
@@ -277,7 +285,7 @@ final class DatabaseController extends Controller
     public function storeUser(Request $request, Database $database): RedirectResponse
     {
         $data = $request->validate([
-            'label' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/'],
+            'label' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/D'],
         ]);
 
         $subscription = $database->subscription;
@@ -288,7 +296,7 @@ final class DatabaseController extends Controller
             ]);
         }
 
-        return $this->createUserFor($database, $subscription, (string) $data['label']);
+        return $this->createUserFor($database, $subscription, (string) $data['label'], 'label');
     }
 
     /**
@@ -345,12 +353,28 @@ final class DatabaseController extends Controller
     }
 
     /** Anlegen und danach das Passwort genau einmal zeigen. */
-    private function createUserFor(Database $database, Subscription $subscription, string $label): RedirectResponse
-    {
+    /**
+     * @param  string  $field  Das Feld, an dem die Meldung erscheint
+     *
+     * **Der Name des Feldes kommt vom Aufrufer und steht nicht hier.** Er war
+     * fest auf `user_label` verdrahtet — und das ist der Name im Formular
+     * „Datenbank anlegen". Das Formular „Weiterer Zugang" auf der
+     * Datenbankseite schickt `label`, und seine Zeile unter dem Feld liest
+     * `errors.label`. Eine Meldung von dort landete also an einem Feld, das
+     * diese Seite gar nicht hat. Unsichtbar war sie nicht — {@see FormErrors}
+     * zeigt oben alles, was ankommt —, aber die Zeile *am* Feld sagt, welches
+     * gemeint ist, und genau die fehlte (docs/36 §22.3n).
+     */
+    private function createUserFor(
+        Database $database,
+        Subscription $subscription,
+        string $label,
+        string $field,
+    ): RedirectResponse {
         try {
             [$user, $password] = $this->databases->createUser($subscription, $label, [$database]);
         } catch (RuntimeException|AgentException $error) {
-            throw ValidationException::withMessages(['user_label' => $error->getMessage()]);
+            throw ValidationException::withMessages([$field => $error->getMessage()]);
         }
 
         $this->audit->record('database.user.created', target: $user, subscriptionId: (int) $subscription->id);

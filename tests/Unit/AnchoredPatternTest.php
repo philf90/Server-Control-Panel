@@ -86,11 +86,58 @@ final class AnchoredPatternTest extends TestCase
         $this->assertSame(0, preg_match('/^[a-z]+$/D', "abc\n"));
     }
 
-    /** @return list<string> */
-    private function phpFiles(): array
+    /**
+     * Und dieselbe Regel für die Prüfregeln der Formulare.
+     *
+     * **Der Wächter las bis zum 8. August 2026 nur unter `agent/`**, und genau
+     * dort war der Fund von P3 entstanden. Die Anwendung schreibt dieselben
+     * Muster aber ein zweites Mal — als `regex:`-Regel im Formular, damit ein
+     * Kunde eine Meldung am Feld bekommt statt eines Abbruchs vom Agenten. Drei
+     * davon standen ohne `D`: `"shop\n"` kam durch das Formular und prallte am
+     * Agenten ab, mit einer Meldung, die niemand deuten kann.
+     *
+     * Gefunden hat es `DatabaseFormTest`, der Formular und Agent an Beispielen
+     * vergleicht — der Wächter hier ist die allgemeine Fassung davon.
+     */
+    public function test_every_anchored_rule_in_a_form_ends_only_at_the_end(): void
+    {
+        $offenders = [];
+        $checked = 0;
+
+        foreach ($this->phpFiles(dirname(__DIR__, 2).'/app') as $path) {
+            $source = (string) file_get_contents($path);
+
+            preg_match_all("/'regex:([\/#])((?:[^'\\\\]|\\\\.)*)\\\$\\1([a-zA-Z]*)'/", $source, $matches, PREG_SET_ORDER);
+
+            foreach ($matches as $match) {
+                $checked++;
+
+                if (str_contains($match[3], 'D') || str_contains($match[3], 'm')) {
+                    continue;
+                }
+
+                $offenders[] = basename($path).'  '.mb_substr($match[2], 0, 60);
+            }
+        }
+
+        $this->assertGreaterThan(2, $checked, 'Es werden kaum Prüfregeln gelesen — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $offenders, sprintf(
+            "Diese Prüfregel eines Formulars endet mit \$ ohne D.\n\n  %s\n\n".
+            'Sie lässt damit einen abschliessenden Zeilenumbruch durch, den der Agent abweist — '.
+            'und der Kunde bekommt keinen lesbaren Grund, sondern einen Abbruch.',
+            implode("\n  ", $offenders),
+        ));
+    }
+
+    /**
+     * @param  string|null  $root  Voreinstellung: der Agent
+     * @return list<string>
+     */
+    private function phpFiles(?string $root = null): array
     {
         $found = [];
-        $root = dirname(__DIR__, 2).'/agent/src';
+        $root ??= dirname(__DIR__, 2).'/agent/src';
 
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),

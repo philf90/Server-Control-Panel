@@ -5105,6 +5105,15 @@ eigene Begründung sagte, in `<script>` stehe kein Anzeigetext — „sollte sic
 Knopf, den dieselbe CI-Runde beanstandet hat. Ein Wächter mit einer Annahme über
 den *Ort* hat einen toten Winkel, und der wächst mit dem Projekt.
 
+**Eine offene Schuld ist eingelöst: `nanoid` 3.3.16 → 3.3.18.** Die Meldung
+GHSA-2v37-7h3g-55p8 (hoch) hing seit Wochen im Lauf „Schwachstellen und
+Lizenzen" und war der einzige rote Job — ein eigener Beitrag, weil sie
+`package-lock.json` anfasst und mit P5 nichts zu tun hat. Sie kostet genau
+diese eine Zeile: `nanoid` kommt über `postcss` aus `vite`, `package.json`
+bleibt unberührt, und nichts anderes im Baum wandert mit. Ein Lauf, der aus
+einem bekannten Grund rot ist, hört irgendwann auf, gelesen zu werden — und
+dann fällt der nächste, unbekannte Grund nicht mehr auf.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

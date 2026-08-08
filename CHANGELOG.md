@@ -5359,6 +5359,19 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Der Wortlaut des Abnahmekriteriums von P5 ist am Server belegt.** Anlegen,
+Benutzen, Sichern, Zurückspielen — und ein Datenbankbenutzer, der keine fremde
+Datenbank sieht, mit den Fehlernummern von MariaDB 10.11.14 statt mit einer
+geprüften Zeichenkette. Der Rückbau (`docs/36 §17`, Kriterium 7) ist zu drei
+Vierteln dazugekommen: Schemata, Zugänge, Rechte, Systembenutzer und
+Abo-Verzeichnis sind fort, der Nachbar ist unberührt, der verbrauchte Name steht
+weiter in `system_users`. **Die vierte Erwartung hat sich als Abwesenheit ohne
+Vorgeschichte entpuppt** — das zurückgebaute Abonnement hatte nie gesichert,
+also entstand kein `db.dump.remove`, und „das Verzeichnis ist nicht vorhanden"
+stand da, ohne dass je etwas entfernt wurde. §17 sagt das jetzt an der Stelle,
+an der es zählt: Der Rückbau ist an einem Abonnement mit mindestens einer
+Sicherung zu fahren. Die Anleitung selbst hatte die Falle gestellt.
+
 **Eine entfernte Datenbank liess ihr Recht liegen.** `DROP DATABASE` nimmt in
 MariaDB die auf das Schema vergebenen Rechte nicht mit — sie stehen in
 `mysql.db` und bleiben dort —, und die Anwendung nannte dem Agenten nur die

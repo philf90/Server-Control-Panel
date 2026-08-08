@@ -1340,15 +1340,32 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 
 # 7  DER RÜCKBAU LÄSST NICHTS LIEGEN
 #    Abo A zurückbauen, warten bis alle Vorgänge durch sind.
-#    erwartet, alle drei:
+#    erwartet, alle vier:
 #      SHOW DATABASES LIKE 'p<A>\\_%';                        → leer
 #      SELECT user,host FROM mysql.user WHERE user LIKE 'p<A>\\_%';  → leer
+#      SELECT user,host,db FROM mysql.db WHERE user LIKE 'p<A>\\_%'; → leer
 #      ls /var/lib/srvpanel/dumps/<abo>/                      → nicht vorhanden
+#    Die dritte Zeile kam am 8. August 2026 dazu (§22.3p): Ein Recht überlebt
+#    in mysql.db sein Schema, und mysql.user allein zeigt das nie.
 #    Und die Gegenprobe, dass Abo B unberührt ist:
 #      SHOW DATABASES LIKE 'p<B>\\_%';                        → p<B>_shop
+#      ls /var/lib/srvpanel/dumps/<abo B>/                    → unverändert
 #    Der letzte ist der, den man ohne Werkzeug übersieht: Ein Rückbau, der zu
 #    viel wegnimmt, sieht genauso erfolgreich aus wie einer, der es richtig
 #    macht.
+#
+#    BELEG:  die Nummern aller Vorgänge des Rückbaus und ihre Zustände. Es sind
+#            je Datenbank einer, einer für die Sicherungen und einer für das
+#            Abonnement — und WELCHE davon entstehen, ist selbst ein Befund:
+#            Dumps::removeAllFor() reiht keinen ein, wenn nie gesichert wurde.
+#            Am 8. August 2026 gefahren (§22.3q): 450 und 451 db.database.remove,
+#            452 subscription.remove, alle fertig — und kein db.dump.remove.
+#
+#    ACHTUNG, DIE ZEILE OBEN IST DIE FALLE: Ein Abonnement ohne Sicherung
+#    erfüllt „das Verzeichnis ist nicht vorhanden", ohne dass je etwas entfernt
+#    wurde. Der Rückbau ist an einem Abo zu fahren, das MINDESTENS EINE
+#    Sicherung hat; sonst ist die vierte Erwartung eine Abwesenheit ohne
+#    Vorgeschichte — genau das, wovor der Kasten oben warnt.
 ```
 
 **Kriterium 6 ist neu gegenüber dem Wortlaut des Plans**, und es gehört dazu:
@@ -2461,6 +2478,54 @@ den offenen Zustand als Bedingung und nicht das Fehlen des Wortes.
 Beide Funde gehören nicht in den Abnahmelauf und stehen hier, damit sie nicht
 mit ihm verschwinden.
 
+### 22.3q Kriterium 7 — und die Abwesenheit, die nichts belegt
+
+**Gefahren am 8. August 2026 auf `cloudsrv24` gegen `v0.5.0-rc.6`.**
+Zurückgebaut wurde `p1121` / `cloudlab24.ipv64.de` mit den Schemata
+`p1121_demo` und `p1121_trololo` und dem Zugang `p1121_user`; Nachbar war
+`p1118` / `cloudlab24.de`. **Der Betreiber hat A und B gegenüber der Anleitung
+getauscht, und das war die bessere Wahl:** Der überlebende Nachbar ist damit
+der mit den Sicherungen, und die Gegenprobe „das Verzeichnis des Nachbarn ist
+unberührt" wird zum ersten Mal an einem Verzeichnis gefahren, das es gibt.
+
+| | vorher | nachher |
+| --- | --- | --- |
+| `SHOW DATABASES LIKE 'p1121\_%'` | `p1121_demo`, `p1121_trololo` | leer |
+| `mysql.user LIKE 'p1121\_%'` | `p1121_user@localhost` | leer |
+| `mysql.db LIKE 'p1121\_%'` | — | leer |
+| `id p1121` | — | „no such user" |
+| `/var/www/vhosts/cloudlab24.ipv64.de` | — | nicht vorhanden |
+| Nachbar `p1118` | `p1118_dummy`, `p1118_user` | unverändert |
+| `dumps/cloudlab24.de/` | zwei Dateien | unverändert |
+| `srvpanel db` | — | 1 Datenbank, 1 Zugang, 2 Sicherungen, *Nichts liegengeblieben* |
+| `system_users` 1121 | — | steht weiter da, mit `cloudlab24.ipv64.de` |
+
+Vorgänge **450** und **451** (`db.database.remove`, je ein Schema) und **452**
+(`subscription.remove`), alle `fertig`, 19:18:36 bis 19:18:37.
+
+**Und ein `db.dump.remove` war nicht dabei — richtig so, und genau darum ist
+das Kriterium nur zu drei Vierteln belegt.** `p1121` hatte nie gesichert, also
+reiht `Dumps::removeAllFor()` keinen Vorgang ein („kein Vorgang für ein
+Abonnement, das nie gesichert hat"). Damit ist die Erwartung *„`ls
+/var/lib/srvpanel/dumps/<abo>/` → nicht vorhanden"* erfüllt worden, **ohne dass
+je etwas entfernt wurde**. Das ist wortwörtlich der Satz aus dem Kasten in §17:
+*Der Beleg ist nie eine Abwesenheit allein.* Bemerkenswert daran ist, dass die
+Anleitung selbst die Falle gestellt hat — sie verlangte für Kriterium 5 und 6
+Sicherungen an Abo A und liess offen, dass Kriterium 7 dieselben braucht.
+
+**Offen bleibt also genau eine Zeile:** dass der Rückbau ein Sicherungs­verzeichnis
+mitnimmt, das es gibt. Das ist nicht nachrangig, sondern die Lage aus `docs/35`
+in neuer Form — ein Dump ist die vollständige Datenbank eines Kunden, er liegt
+ausserhalb des Abo-Verzeichnisses, und `subscription.remove` fasst ihn nicht an.
+Gefahren wird das an einem eigenen Abonnement mit genau einer Sicherung; ein
+verbrauchter Systembenutzer ist der Preis, und er ist kleiner als ein
+unbelegter Rückbauweg.
+
+**Der Rest des Abnahmekriteriums steht.** Der Wortlaut des Plans — *anlegen,
+benutzen, sichern, zurückspielen, und keine fremde Datenbank sehen* — ist
+vollständig am echten Server gemessen (Kriterium 1 bis 6). Kriterium 7 ist die
+Ergänzung aus §17, und von seinen vier Erwartungen sind drei belegt.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -2491,10 +2556,20 @@ die fehlte, war genau die, an der der 404 hing.
 **Kriterium 5 ist gefahren und erfüllt** (§22.3p): Vorgang 449, `db.restore`,
 Zustand `fertig` — und je Tabelle dieselbe Zeilenzahl wie vor dem Löschen.
 
-**Kriterium 7 steht aus:** der Rückbau samt Gegenprobe am Nachbarn.
+**Kriterium 7 ist zu drei Vierteln belegt** (§22.3q): Schemata, Zugänge und
+Rechte des zurückgebauten Abonnements sind fort, der Systembenutzer und das
+Abo-Verzeichnis auch, der Nachbar ist unberührt bis auf sein
+Sicherungs­verzeichnis — und der verbrauchte Name steht weiter in
+`system_users`. **Nicht belegt ist, dass der Rückbau ein Sicherungs­verzeichnis
+mitnimmt:** Das zurückgebaute Abonnement hatte nie gesichert, also entstand kein
+`db.dump.remove`, und die Erwartung war eine Abwesenheit ohne Vorgeschichte.
 
-Das Abnahmekriterium von P5 ist damit **noch nicht** erfüllt, und die Lücke ist
-klein und benannt: Es fehlt der Rückbau (Kriterium 7). Der Satz des Plans — *anlegen, benutzen, sichern,
+**Der Wortlaut des Plans ist damit erfüllt** — *„ein Kunde legt eine Datenbank
+an, benutzt sie, sichert und spielt zurück, und ein Datenbankbenutzer sieht
+nachweislich keine fremde Datenbank"*, Kriterium 1 bis 6, gemessen an MariaDB
+10.11.14 auf `cloudsrv24` und nicht an einer erzeugten Zeichenkette. **Fertig
+ist P5 damit nicht:** Von Kriterium 7 fehlt die vierte Erwartung, und gebaut
+sind erst die Schritte 1 bis 9. Der Satz des Plans — *anlegen, benutzen, sichern,
 zurückspielen, und keine fremde Datenbank sehen* — ist ansonsten am echten
 Server gemessen, mit den Fehlernummern von MariaDB und nicht als Eigenschaft
 einer erzeugten Zeichenkette. Bis zum 8. August stand hier das Gegenteil, weil

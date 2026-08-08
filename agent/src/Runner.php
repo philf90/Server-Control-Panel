@@ -103,9 +103,23 @@ final class Runner
     /**
      * Führt ein Programm aus der Positivliste aus.
      *
+     * **`$input` ist eine Zeichenkette und liegt damit vollständig im
+     * Speicher.** Für SQL-Anweisungen ist das richtig; für eine Sicherung von
+     * zwei Gigabyte wäre es der Weg, auf dem der Agent den Arbeitsspeicher des
+     * Servers füllt. Dafür gibt es `$inputFile` — der Kernel liest die Datei
+     * dann selbst, und im Agenten steht davon nichts.
+     *
+     * Dazugekommen mit P5 (`docs/36 §10`), aus einem Fund beim Bauen: Es ist
+     * dieselbe Grenze wie auf der Ausgabeseite, wo {@see self::OUTPUT_MAX} bei
+     * 4 MiB deckelt. Wer einen Dump durch dieses Rohr schickt, bekommt ihn
+     * abgeschnitten zurück — und eine abgeschnittene Sicherung ist schlimmer
+     * als keine, weil sie aussieht wie eine.
+     *
      * @param  list<string>  $args
      * @param  null|callable(string,string):void  $onOutput  Erhält Ausgabezeilen, sobald sie anfallen
+     * @param  null|string  $input  Standardeingabe als Zeichenkette — nur für Kleines
      * @param  null|callable():bool  $abort  Wird in der Warteschleife befragt; `true` beendet das Programm
+     * @param  null|string  $inputFile  Standardeingabe aus einer Datei — für alles Grosse
      */
     public function run(
         string $program,
@@ -114,6 +128,7 @@ final class Runner
         ?callable $onOutput = null,
         ?string $input = null,
         ?callable $abort = null,
+        ?string $inputFile = null,
     ): Result {
         $path = self::PROGRAMS[$program] ?? null;
 
@@ -135,9 +150,29 @@ final class Runner
             }
         }
 
+        if ($input !== null && $inputFile !== null) {
+            throw AgentException::badRequest('Standardeingabe entweder als Zeichenkette oder als Datei, nicht beides.');
+        }
+
+        // Der Pfad wird vom Aufrufer gebaut und nicht entgegengenommen (`Db\Dump`);
+        // hier steht die Gegenprobe, dass es ihn gibt — sonst öffnete `proc_open`
+        // die Standardeingabe still auf nichts, und das Programm liefe mit einer
+        // leeren Eingabe erfolgreich durch.
+        if ($inputFile !== null && ! is_file($inputFile)) {
+            throw new AgentException(
+                AgentException::NOT_FOUND,
+                'Die Datei für die Standardeingabe gibt es nicht.',
+                ['path' => $inputFile],
+            );
+        }
+
         $command = array_merge([$path], array_values($args));
         $descriptors = [
-            0 => $input === null ? ['file', '/dev/null', 'r'] : ['pipe', 'r'],
+            0 => match (true) {
+                $input !== null => ['pipe', 'r'],
+                $inputFile !== null => ['file', $inputFile, 'r'],
+                default => ['file', '/dev/null', 'r'],
+            },
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
         ];

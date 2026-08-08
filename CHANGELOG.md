@@ -5053,6 +5053,47 @@ Rückgabewert 255: Nicht ein Test stand still, sondern alle vierundsiebzig
 Dateien. CLAUDE.md nennt diese Falle seit P4 — sie zu kennen hat beim Formular
 geholfen und beim Testfall nicht.
 
+**Und ein Fund, den P5 nicht verursacht, aber ausgelöst hat: jede gestapelte
+Tabelle des Panels stand auf dem Telefon seitlich aus dem Bildschirm.** Alle
+zehn, seit es `.scrolls` gibt. `.scrolls > table { width: max-content }` wiegt
+0,1,1 und schlägt `.stacks { width: 100% }` mit 0,1,0 — eine Tabelle, die unter
+720px zu Kärtchen zerfällt, war so breit wie ihr breitestes Kärtchen, und der
+Rollbehälter machte daraus keinen Fehler, sondern eine Rollbewegung. Gemessen
+bei 390px: **553px Tabelle in 358px Behälter, 195px waagerecht.**
+
+Unsichtbar war das, weil es an der Länge einer Kennung hängt: Kürzere Kärtchen
+passten zufällig. Der Ablagename einer Sicherung ist mit 52 Zeichen der erste,
+der nicht mehr passt. Gefunden im Screenshot zu Schritt 6, nicht in einem Test.
+
+Drei Dinge daran sind wichtiger als die CSS-Zeile:
+
+- **Der vorhandene Wächter fragte nach dem Falschen.** Er prüft, dass eine
+  Tabelle *eines von drei* Mustern trägt — nach `docs/24 §5` klang das nach
+  Alternativen, und die naheliegende Verschärfung auf „genau eines" wäre falsch
+  gewesen: `.stacks` wirkt erst unter 720px, darüber will dieselbe Tabelle
+  rollen dürfen. Es sind zwei Antworten auf zwei Breiten. Was sich ausschliesst,
+  ist `max-content` und ein Kärtchen — eine Frage an die **Kaskade**, nicht an
+  das Markup. Die drei neuen Wächter rechnen sie deshalb nach und nennen den
+  Selektor, der gewinnt.
+- **Die Breite allein war ein Fix, der wie einer aussah:** 195px wurden 180px.
+  Die Kennung trägt `nowrap`, und ein Kärtchen hat keinen Rand, an dem etwas
+  hängenbliebe. Denselben Zweischritt hält `docs/24 §5` für die Paartabelle
+  schon fest — es ist die dritte Fassung derselben Ausnahme.
+- **Der neue Wächter war beim ersten Anlauf blind, und nur sein Bruch hat ihn
+  überführt.** Sein Selektorvergleich kannte „passt" und „unbekannt, also
+  Abbruch"; damit zählte `table.pairs td.ident` als Treffer — eine Regel für
+  eine ganz andere Tabelle, Gewicht 0,2,2, die gewann und `white-space: normal`
+  sagte. Der Bruch, der die Regel aus `app.css` entfernt, blieb grün. Die
+  Trefferprüfung hat seitdem drei Ausgänge: passt, meint etwas anderes,
+  unbekannt.
+
+Ein dritter, leiserer Fund derselben Aufnahme: `.stacks td.multiline` dehnt
+seine Kinder, und eine Zustandsmarke darin wurde 328px breit statt 116px — eine
+farbige Fläche über die ganze Zeile. Nichts lief über, nichts wurde
+abgeschnitten; es sah nur falsch aus, und deshalb hat es niemand gemeldet.
+Sichtbar auf der Planseite, seit es `.multiline` gibt. `docs/24 §5` ist für alle
+drei berichtigt.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

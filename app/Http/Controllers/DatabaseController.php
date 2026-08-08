@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DumpStatus;
 use App\Enums\SubscriptionStatus;
 use App\Models\Account;
 use App\Models\Database;
+use App\Models\DatabaseDump;
 use App\Models\DbUser;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Databases\Databases;
+use App\Support\Databases\Dumps;
+use App\Support\Databases\ImportLimit;
 use App\Support\Plans\Quota;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +26,7 @@ use Inertia\Response;
 use RuntimeException;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Datenbanken ansehen, anlegen, Zugänge verwalten, entfernen.
@@ -41,6 +46,7 @@ final class DatabaseController extends Controller
 {
     public function __construct(
         private readonly Databases $databases,
+        private readonly Dumps $dumps,
         private readonly Audit $audit,
     ) {}
 
@@ -156,7 +162,117 @@ final class DatabaseController extends Controller
             // Das Passwort eines gerade angelegten Zugangs — genau einmal, aus
             // der Sitzung, und danach ist es fort.
             'secret' => session('database.secret'),
+
+            'dumps' => $this->dumpRows($database),
+            'import_limit_mb' => ImportLimit::MEGABYTES,
         ]);
+    }
+
+    /**
+     * Sichern — als Vorgang, weil ein mysqldump dauern kann.
+     *
+     * Nach dem Absenden landet man auf dem Vorgang und sieht zu; die Zeile
+     * steht bis dahin auf „läuft" ({@see DumpStatus}).
+     */
+    public function export(Database $database): RedirectResponse
+    {
+        try {
+            $operation = $this->dumps->export($database);
+        } catch (RuntimeException|AgentException $error) {
+            throw ValidationException::withMessages(['dump' => $error->getMessage()]);
+        }
+
+        $this->audit->record('database.dump.created', target: $database, subscriptionId: (int) $database->subscription_id);
+
+        return to_route('operations.show', $operation)
+            ->with('status', 'Die Sicherung wird erstellt.');
+    }
+
+    /**
+     * Herunterladen — das Panel liest die Datei, der Agent reicht sie nicht durch.
+     *
+     * Eine Datei von zwei Gigabyte über den Unix-Socket zurückzugeben wäre der
+     * Weg, auf dem der Agent den Speicher des Servers füllt. Sie gehört deshalb
+     * `root:srvpanel 0640`: Er schreibt, das Panel liest.
+     */
+    public function download(Database $database, DatabaseDump $dump): BinaryFileResponse
+    {
+        abort_unless($dump->database_id === $database->id, 404);
+        abort_unless($dump->status->usable(), 404);
+
+        $path = $dump->path();
+
+        abort_if($path === null || ! is_file($path), 404);
+
+        $this->audit->record('database.dump.downloaded', target: $dump, subscriptionId: (int) $database->subscription_id);
+
+        return response()->download($path, $dump->storage_name.'.sql.gz');
+    }
+
+    /**
+     * Zurückspielen — unter einem befristeten Datenbankbenutzer.
+     *
+     * Warum das der sicherheitsrelevanteste Weg von P5 ist, steht in
+     * `agent/src/Ops/DbRestore.php`: Ein Dump ist beliebiges SQL, und als
+     * Datenbank-root eingespielt wäre ein `GRANT … ON *.*` darin genau der
+     * Ausbruch, den das Abnahmekriterium ausschliesst.
+     */
+    public function restore(Database $database, DatabaseDump $dump): RedirectResponse
+    {
+        abort_unless($dump->database_id === $database->id, 404);
+
+        try {
+            $operation = $this->dumps->restore($dump, $database);
+        } catch (RuntimeException|AgentException $error) {
+            throw ValidationException::withMessages(['dump' => $error->getMessage()]);
+        }
+
+        $this->audit->record('database.dump.restored', target: $dump, subscriptionId: (int) $database->subscription_id);
+
+        return to_route('operations.show', $operation)
+            ->with('status', 'Die Sicherung wird eingespielt.');
+    }
+
+    public function destroyDump(Database $database, DatabaseDump $dump): RedirectResponse
+    {
+        abort_unless($dump->database_id === $database->id, 404);
+
+        try {
+            $operation = $this->dumps->remove($dump);
+        } catch (RuntimeException|AgentException $error) {
+            throw ValidationException::withMessages(['dump' => $error->getMessage()]);
+        }
+
+        $this->audit->record('database.dump.removed', target: $database, subscriptionId: (int) $database->subscription_id);
+
+        return to_route('operations.show', $operation)
+            ->with('status', 'Die Sicherung wird entfernt.');
+    }
+
+    /**
+     * Die Sicherungen einer Datenbank — die jüngste zuerst.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function dumpRows(Database $database): array
+    {
+        return DatabaseDump::query()
+            ->where('database_id', $database->id)
+            ->orderByDesc('id')
+            ->get()
+            ->map(static fn (DatabaseDump $dump): array => [
+                'id' => (int) $dump->id,
+                'name' => $dump->storage_name,
+                'kind' => $dump->kind,
+                'status' => $dump->status->value,
+                'status_label' => $dump->status->label(),
+                'usable' => $dump->status->usable(),
+                'bytes' => $dump->bytes,
+                'created_at' => $dump->created_at?->toIso8601String(),
+                'last_error' => $dump->last_error,
+            ])
+            ->values()
+            ->all();
     }
 
     /** Einen weiteren Zugang zu dieser Datenbank. */

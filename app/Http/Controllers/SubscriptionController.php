@@ -13,6 +13,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Databases\Databases;
+use App\Support\Databases\Dumps;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
@@ -532,8 +533,17 @@ final class SubscriptionController extends Controller
         Audit $audit,
         Lifecycle $lifecycle,
         Databases $databases,
+        Dumps $dumps,
     ): RedirectResponse {
         $databases->removeAllFor($subscription);
+
+        // **Und das Verzeichnis der Sicherungen.** Es liegt unter
+        // `/var/lib/srvpanel/dumps/<abo>` und damit ausserhalb von allem, was
+        // `subscription.remove` anfasst — dieselbe Lage wie bei den
+        // Zertifikatsverzeichnissen, die docs/35 zutage gebracht hat. Ein Dump
+        // ist die vollständige Datenbank eines Kunden; einer, auf den nichts
+        // mehr zeigt, ist genau der Rest, den P5 nicht hinterlassen darf.
+        $dumps->removeAllFor($subscription);
 
         return redirect()->route('operations.show', $this->start(
             $subscription, 'subscription.remove', 'Abonnement zurückbauen', $audit, $lifecycle,

@@ -439,6 +439,38 @@ Route::middleware('auth')->group(function (): void {
         ->name('databases.users.destroy');
 
     /*
+     * Sichern, herunterladen, zurückspielen (docs/36 §10).
+     *
+     * **Alles an `can:update`, auch das Zurückspielen.** Es liegt nahe, dafür
+     * `can:delete` zu verlangen — es überschreibt schliesslich Daten. Nur wäre
+     * das eine zweite Fassung derselben Frage: Wer die Datenbank ändern darf,
+     * darf ihre Tabellen ohnehin leeren. Die Schranke, die zählt, sitzt
+     * woanders — der Dump läuft unter einem befristeten Benutzer mit Rechten
+     * auf genau diese eine Datenbank, und ein `GRANT … ON *.*` darin scheitert.
+     *
+     * **Das Herunterladen ist die Ausnahme und trägt `can:view`.** Es ändert
+     * nichts; wer die Datenbank sehen darf, darf ihre Sicherung holen. Sie
+     * enthält allerdings alles, was in der Datenbank steht — deshalb steht die
+     * Datei unter `/var/lib/srvpanel/dumps` und nicht im Abo-Verzeichnis, wo
+     * ein Webserver sie ausliefern könnte.
+     */
+    Route::post('/databases/{database}/dumps', [DatabaseController::class, 'export'])
+        ->middleware('can:update,database')
+        ->name('databases.dumps.store');
+
+    Route::get('/databases/{database}/dumps/{dump}', [DatabaseController::class, 'download'])
+        ->middleware('can:view,database')
+        ->name('databases.dumps.download');
+
+    Route::post('/databases/{database}/dumps/{dump}/restore', [DatabaseController::class, 'restore'])
+        ->middleware('can:update,database')
+        ->name('databases.dumps.restore');
+
+    Route::delete('/databases/{database}/dumps/{dump}', [DatabaseController::class, 'destroyDump'])
+        ->middleware('can:update,database')
+        ->name('databases.dumps.destroy');
+
+    /*
      * Die PHP-Versionen des Servers (§4.3).
      *
      * Dieselbe Fähigkeit wie Mailversand und Zertifikat: Es gibt kein Modell,

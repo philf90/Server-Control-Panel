@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Enums;
 
 use App\Models\Database;
+use App\Models\DatabaseDump;
 use App\Models\Domain;
 use Illuminate\Database\Eloquent\Model;
 
@@ -32,12 +33,21 @@ enum OperationSubject: string
      */
     case Database = 'database';
 
+    /**
+     * Und die Sicherung — der Gegenstand, an dem ein `db.dump.*` hängt.
+     *
+     * Sie ist nicht die Datenbank: Ein Zurückspielen handelt von *dieser*
+     * Sicherung, und welche es war, ist genau die Frage, die man später stellt.
+     */
+    case Dump = 'dump';
+
     /** @return class-string<Model> */
     public function modelClass(): string
     {
         return match ($this) {
             self::Domain => Domain::class,
             self::Database => Database::class,
+            self::Dump => DatabaseDump::class,
         };
     }
 
@@ -46,6 +56,7 @@ enum OperationSubject: string
         return match ($this) {
             self::Domain => 'Domain',
             self::Database => 'Datenbank',
+            self::Dump => 'Sicherung',
         };
     }
 

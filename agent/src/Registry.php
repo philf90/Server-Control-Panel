@@ -13,6 +13,9 @@ use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use SrvPanel\Agent\Ops\DbDatabaseRemove;
+use SrvPanel\Agent\Ops\DbDumpCreate;
+use SrvPanel\Agent\Ops\DbDumpRemove;
+use SrvPanel\Agent\Ops\DbRestore;
 use SrvPanel\Agent\Ops\DbServerInfo;
 use SrvPanel\Agent\Ops\DbUserCreate;
 use SrvPanel\Agent\Ops\DbUserGrant;
@@ -119,6 +122,13 @@ final class Registry
         $this->register(new DbUserPassword);
         $this->register(new DbUserGrant);
         $this->register(new DbUserLock);
+
+        // Sichern und Zurückspielen — auch hier `remove` zuerst. Eine Sicherung
+        // ist das, was P5 auf dem System hinterlässt und was beliebig gross
+        // wird.
+        $this->register(new DbDumpRemove);
+        $this->register(new DbDumpCreate);
+        $this->register(new DbRestore);
     }
 
     public function register(Op $op): void

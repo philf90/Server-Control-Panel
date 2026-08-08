@@ -15,6 +15,18 @@ interface User {
   status_label: string
 }
 
+interface DumpRow {
+  id: number
+  name: string
+  kind: string
+  status: string
+  status_label: string
+  usable: boolean
+  bytes: number | null
+  created_at: string | null
+  last_error: string | null
+}
+
 interface Row {
   id: number
   name: string
@@ -43,6 +55,9 @@ const props = defineProps<{
    * vorhanden: Es wird nirgends gespeichert (docs/36 §4).
    */
   secret: { user: string; password: string } | null
+
+  dumps: DumpRow[]
+  import_limit_mb: number
 }>()
 
 const userForm = useForm({ label: '' })
@@ -70,10 +85,38 @@ function resetPassword(user: User): void {
   router.post(`/databases/${props.database.id}/users/${user.id}/password`)
 }
 
+function exportDump(): void {
+  router.post(`/databases/${props.database.id}/dumps`)
+}
+
+/*
+ * Das Zurückspielen überschreibt Daten und fragt deshalb nach.
+ *
+ * Ein `confirm()` und keine Seite mit Eingabefeld: Anders als beim Entfernen
+ * der Datenbank gibt es hier einen Weg zurück — die Sicherung, die man gerade
+ * einspielt, bleibt liegen. Was verlorengeht, ist der Stand von jetzt.
+ */
+function restoreDump(dump: DumpRow): void {
+  if (!confirm(`Die Sicherung ${dump.name} einspielen? Der aktuelle Stand von ${props.database.name} wird dabei überschrieben.`)) return
+
+  router.post(`/databases/${props.database.id}/dumps/${dump.id}/restore`)
+}
+
+function removeDump(dump: DumpRow): void {
+  router.delete(`/databases/${props.database.id}/dumps/${dump.id}`)
+}
+
+function bytes(value: number | null): string {
+  if (value === null) return '—'
+  if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`
+
+  return `${(value / 1048576).toFixed(1)} MB`
+}
+
 function rang(status: string): 'ok' | 'warn' | 'critical' | 'neutral' {
-  if (status === 'active') return 'ok'
-  if (status === 'provisioning' || status === 'removing') return 'warn'
-  if (status === 'locked') return 'critical'
+  if (status === 'active' || status === 'ready') return 'ok'
+  if (status === 'provisioning' || status === 'removing' || status === 'pending') return 'warn'
+  if (status === 'locked' || status === 'failed') return 'critical'
 
   return 'neutral'
 }
@@ -234,6 +277,63 @@ function size(): string {
             <button type="submit" class="button" :disabled="userForm.processing">Zugang anlegen</button>
           </div>
         </form>
+      </Section>
+
+      <Section title="Sicherungen">
+        <div class="scrolls">
+          <table class="stacks">
+            <thead>
+              <tr><th>Sicherung</th><th>Grösse</th><th>Zustand</th><th v-if="props.can.update">Aktion</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="dump in props.dumps" :key="dump.id">
+                <td data-column="Sicherung" class="ident name">{{ dump.name }}</td>
+                <td data-column="Grösse">{{ bytes(dump.bytes) }}</td>
+                <!--
+                  `multiline` nur, wenn ein Grund dasteht: Unter 720px ist eine
+                  Zelle eine Flexzeile mit Beschriftung links und Wert rechts,
+                  und ein zweiter Wert darin würde die Marke zusammendrücken.
+                  Die Klasse dreht die Zelle auf eine Spalte — dafür gibt es sie.
+                -->
+                <td data-column="Zustand" :class="{ multiline: !!dump.last_error }">
+                  <Badge :kind="rang(dump.status)">{{ dump.status_label }}</Badge>
+                  <!-- Der Grund steht unter dem Zustand und nicht nur im
+                       Vorgang: Wer die Liste ansieht, fragt genau hier. -->
+                  <span v-if="dump.last_error" class="quiet">{{ dump.last_error }}</span>
+                </td>
+                <td v-if="props.can.update" data-column="Aktion">
+                  <div class="button-row">
+                    <a v-if="dump.usable" :href="`/databases/${props.database.id}/dumps/${dump.id}`" class="button">
+                      Herunterladen
+                    </a>
+                    <button v-if="dump.usable" type="button" class="button" @click="restoreDump(dump)">
+                      Einspielen
+                    </button>
+                    <button type="button" class="button danger" @click="removeDump(dump)">
+                      Entfernen
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="props.dumps.length === 0">
+                <td :colspan="props.can.update ? 4 : 3" class="quiet">Noch keine Sicherung.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="hint">
+          Eine Sicherung wird gepackt abgelegt und liegt ausserhalb des
+          Verzeichnisses dieses Abonnements — sie ist über die Webseite nicht
+          erreichbar. Hochgeladene Dateien dürfen bis
+          {{ props.import_limit_mb }} MB gross sein.
+        </p>
+
+        <div v-if="props.can.update" class="button-row">
+          <button type="button" class="button" :disabled="props.database.status !== 'active'" @click="exportDump">
+            Jetzt sichern
+          </button>
+        </div>
       </Section>
 
       <Section v-if="props.can.delete" title="Entfernen">

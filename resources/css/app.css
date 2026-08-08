@@ -739,6 +739,24 @@ td.quiet {
   color: var(--text-muted);
 }
 
+/*
+ * Der Grund unter dem Zustand.
+ *
+ * **Er steht unter der Marke und nicht daneben.** In der schmalen Ansicht ist
+ * eine Zelle rund 200px breit; „Zu wenig Platz auf dem Datenträger" neben einer
+ * Marke bräche um sie herum um und stünde in zwei Stücken links und rechts.
+ * Untereinander behält jedes seine eigene Zeile.
+ *
+ * Und die Zeile bekommt `height` nicht mit: `td` setzt eine feste Zeilenhöhe,
+ * damit die Dichtestufe greift — eine zweite Textzeile in der Zelle wächst
+ * darüber hinaus, und das ist hier gewollt und nicht der Regelfall.
+ */
+td .quiet {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+}
+
 th.right,
 td.right {
   text-align: right;
@@ -769,6 +787,15 @@ table.pairs {
  * Für Verzeichnisse: Kunden, Pläne, Vorgänge, Protokoll. Dort ist die Zeile
  * der Gegenstand, und man liest sie einzeln. Der Spaltenkopf verschwindet;
  * seinen Text trägt jede Zelle als `data-column` bei sich.
+ *
+ * **Und sie kommen zusammen vor, docs/24 §5 zum Trotz.** Dort stehen sie als
+ * Alternativen, und das Beispiel zu `.stacks` hat keinen Rollbehälter — im
+ * Panel trägt trotzdem jede der zehn gestapelten Tabellen einen. Das ist
+ * richtig und die Beschreibung war zu knapp: `.stacks` wirkt erst unter 720px.
+ * Darüber ist die Tabelle eine Tabelle, und eine Tabelle mit sechs Spalten
+ * will auch auf 1024px rollen können statt sich zu quetschen. Die beiden
+ * Muster sind also nicht Alternativen, sondern zwei Antworten auf zwei
+ * Breiten.
  */
 .scrolls {
   overflow-x: auto;
@@ -827,6 +854,63 @@ table.pairs {
   .stacks td {
     display: block;
     width: 100%;
+  }
+
+  /*
+   * Was zu Kärtchen zerfällt, hat keine eigene Breite mehr.
+   *
+   * **Die Zeile darüber sah aus, als täte sie das schon, und tat es nicht.**
+   * `.scrolls > table` setzt `width: max-content` und wiegt 0,1,1; `.stacks`
+   * wiegt 0,1,0 und verliert. Eine gestapelte Tabelle im Rollbehälter war
+   * damit so breit wie ihr breitestes Kärtchen — die Kärtchen standen
+   * seitlich aus dem Bildschirm, und `.scrolls` machte daraus keinen Fehler,
+   * sondern eine Rollbewegung.
+   *
+   * **Gemerkt hat es niemand, weil es an der Länge einer Kennung hing.** Die
+   * Zugänge-Tabelle mass 358px und passte; erst der Ablagename einer Sicherung
+   * (`p1001-shop-20260808-141500-9f3ac21b`, 52 Zeichen) trieb dieselbe Tabelle
+   * auf 553px bei 358px Behälter — **195px waagerecht**, gemessen bei 390px im
+   * Browser, nicht geschätzt. Der Mechanismus ist so alt wie `.scrolls`, P5
+   * ist der erste Ort, an dem er zubeisst.
+   *
+   * `min-width` bleibt beim Rollbehälter: Über 720px soll die Tabelle rollen
+   * dürfen, hier soll sie es nicht müssen.
+   */
+  .scrolls > table.stacks {
+    width: 100%;
+  }
+
+  /*
+   * … und dazu darf die Kennung im Kärtchen brechen.
+   *
+   * **Die Breite allein reichte nicht** — von 195px blieben 180px stehen. Das
+   * ist wörtlich der Fund, der über `table.pairs td.right.ident` schon
+   * zweimal steht: Die Erlaubnis zu brechen nützt nichts, solange die Zelle
+   * ihre Inhaltsbreite behalten darf. `min-width: 0` nimmt sie ihr; erst
+   * damit steht der Überlauf auf 0.
+   *
+   * Dass es die dritte Fassung derselben Ausnahme ist, ist der Grund für
+   * `MobileLayoutTest::test_a_stacked_table_has_no_width_of_its_own`: Ab hier
+   * rechnet ein Wächter die Kaskade nach, statt dass jemand sie liest.
+   */
+  .stacks td .ident,
+  .stacks td.ident {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /*
+   * Eine Marke bleibt eine Marke, auch in einer gestapelten Zelle.
+   *
+   * `.multiline` stellt Beschriftung und Inhalt untereinander und dehnt seine
+   * Kinder dabei (`align-items: stretch`). Für Text ist das richtig; eine
+   * Zustandsmarke wurde damit 328px breit statt 116px — eine Fläche über die
+   * ganze Zeile, die aussieht wie eine Meldung. Zu sehen auf der Planseite,
+   * seit es `.multiline` gibt.
+   */
+  .stacks td.multiline .badge {
+    align-self: flex-start;
   }
 
   .stacks tr {

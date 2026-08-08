@@ -3416,6 +3416,181 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
 
 echo
+echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
+#
+# Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine
+# Tabelle mit dem Text `DEFINER=` in einer Spalte käme verstümmelt zurück, und
+# das fiele erst auf, wenn ein Kunde seine Daten vermisst. Das ist die
+# gefährlichere der beiden Richtungen: zu wenig streichen erzeugt einen
+# Fehlschlag, zu viel streichen einen Erfolg mit falschen Daten.
+vorher_datei agent/src/Db/Dump.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Dump.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if (! str_starts_with($trimmed, '/*!5') && ! str_starts_with($trimmed, 'CREATE ')) {
+            return $line;
+        }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Dump.php "Filter ohne Rücksicht auf die Zeilenart" &&
+pruefe "Filter ohne Rücksicht auf die Zeilenart" \
+  DefinerStripTest::test_a_data_line_is_returned_byte_for_byte failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DefinerStripTest passed
+
+echo
+echo "── DefinerStripTest: der Ablagename wird nicht geprüft ──"
+#
+# Aus dem Namen entsteht im Agenten ein Pfad. Ohne die Positivliste stünde
+# `../../etc/passwd` darin.
+vorher_datei agent/src/Db/Dump.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Dump.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! preg_match('/^[a-z0-9][a-z0-9_\\-]{0,95}$/D', $value)) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Dump.php "Ablagename ohne Positivliste" &&
+pruefe "Ablagename ohne Positivliste" \
+  DefinerStripTest::test_a_storage_name_is_checked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DefinerStripTest passed
+
+echo
+echo "── UploadLimitTest: nginx lässt weniger durch als das Formular annimmt ──"
+#
+# Drei Zahlen an drei Orten, und keiner weiss von den anderen. Passen sie nicht
+# zusammen, läuft eine Datei bis 90 % und bricht mit einer nginx-Fehlerseite ab,
+# die von diesem Panel nichts weiss — der Kunde sieht einen Abbruch ohne Grund.
+vorher_datei agent/src/Ops/PanelVhost.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PanelVhost.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('client_max_body_size 544m;', 'client_max_body_size 64m;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PanelVhost.php "nginx enger als das Formular" &&
+pruefe "nginx enger als das Formular" \
+  UploadLimitTest::test_the_form_rule_is_the_tightest_of_the_three failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadLimitTest passed
+
+echo
+echo "── UploadLimitTest: die Klasse sagt etwas anderes als die Dateien ──"
+#
+# Die Gegenrichtung: ImportLimit ist eine Behauptung über zwei Dateien. Ohne
+# diese Hälfte wäre es eine Zeichenkette, die auf etwas verweist, ohne dass
+# jemand den Bezug prüft.
+vorher_datei packaging/etc/fpm.conf
+python3 - <<'PY2'
+p = 'packaging/etc/fpm.conf'
+s = open(p, encoding='utf-8').read()
+s = s.replace('php_admin_value[post_max_size] = 528M', 'php_admin_value[post_max_size] = 999M')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/etc/fpm.conf "fpm.conf und ImportLimit gehen auseinander" &&
+pruefe "fpm.conf und ImportLimit gehen auseinander" \
+  UploadLimitTest::test_the_class_names_the_same_numbers_as_the_files failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UploadLimitTest passed
+
+echo
+echo "── RemovalPathTest: die Sicherung lässt sich nicht entfernen ──"
+#
+# Eine Sicherung ist das, was P5 auf dem System hinterlässt und was beliebig
+# gross wird. Fällt db.dump.remove weg, füllt sie den Datenträger und nimmt
+# jeden anderen Kunden mit.
+vorher_datei agent/src/Registry.php
+python3 - <<'PY2'
+p = 'agent/src/Registry.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->register(new DbDumpRemove);\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Registry.php "db.dump.create ohne remove" &&
+pruefe "db.dump.create ohne remove" \
+  RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
+
+echo
+echo "── MobileLayoutTest: das Kärtchen behält seine eigene Breite ──"
+#
+# Der Fund, mit dem dieser Wächter entstanden ist. `.scrolls > table` wiegt
+# 0,1,1 und `.stacks` 0,1,0 — die gestapelte Tabelle war so breit wie ihr
+# breitestes Kärtchen und stand seitlich aus dem Bildschirm. Gemessen 553px in
+# 358px Behälter bei 390px Fenster.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  .scrolls > table.stacks {\n    width: 100%;\n  }\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Kärtchen mit eigener Breite" &&
+pruefe "Kärtchen mit eigener Breite" \
+  MobileLayoutTest::test_a_stacked_table_has_no_width_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest::test_a_stacked_table_has_no_width_of_its_own passed
+
+echo
+echo "── MobileLayoutTest: die Kennung im Kärtchen bricht nicht ──"
+#
+# Die zweite Hälfte desselben Fundes: Von 195px waagerecht blieben nach der
+# Breite allein noch 180px stehen. **Dieser Bruch hat den Wächter selbst
+# überführt** — beim ersten Anlauf blieb er grün, weil `table.pairs td.ident`
+# als Treffer zählte. Eine Regel für eine ganz andere Tabelle stand in der
+# Kaskade für ein Kärtchen.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """  .stacks td .ident,
+  .stacks td.ident {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Kennung im Kärtchen ohne Umbruch" &&
+pruefe "Kennung im Kärtchen ohne Umbruch" \
+  MobileLayoutTest::test_an_identifier_in_a_stacked_card_may_break failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest::test_an_identifier_in_a_stacked_card_may_break passed
+
+echo
+echo "── MobileLayoutTest: die Marke wird zur Fläche ──"
+#
+# Der leiseste der drei: Nichts läuft über, nichts wird abgeschnitten. Eine
+# Zustandsmarke wird nur 328px breit statt 116px und sieht damit aus wie eine
+# Meldung.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  .stacks td.multiline .badge {\n    align-self: flex-start;\n  }\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Marke ohne Gegenwehr gegen die Dehnung" &&
+pruefe "Marke ohne Gegenwehr gegen die Dehnung" \
+  MobileLayoutTest::test_a_badge_in_a_stacked_cell_keeps_its_width failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest::test_a_badge_in_a_stacked_cell_keeps_its_width passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

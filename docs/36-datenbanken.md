@@ -1497,6 +1497,71 @@ richtig. `onOutput` heisst „Ausgabezeilen, sobald sie anfallen" — der Kommen
 im Quelltext sagt genau das, und er sagt nirgends, dass eine Zeile eine Zeile
 ist.
 
+### 22.3a Der teuerste Fund des Laufs, und er gehört nicht zu P5
+
+**Jede gestapelte Tabelle dieses Panels stand auf dem Telefon seitlich aus dem
+Bildschirm — alle zehn, seit es `.scrolls` gibt.**
+
+Gefunden beim Screenshot zu den Sicherungen, nicht im Entwurf und nicht in
+einem Test. `.scrolls > table { width: max-content }` wiegt 0,1,1;
+`.stacks { width: 100% }` wiegt 0,1,0 und verliert. Eine Tabelle, die unter
+720px zu Kärtchen zerfällt, war damit so breit wie ihr breitestes Kärtchen, und
+der Rollbehälter machte daraus keinen Fehler, sondern eine Rollbewegung.
+Gemessen bei 390px im vorinstallierten Chromium:
+
+| | Tabelle | Behälter | rollt seitlich |
+|---|---|---|---|
+| wie gebaut | 553px | 358px | **195px** |
+| `width: 100%` allein | 358px | 358px | 180px |
+| … plus Umbruch der Kennung | 358px | 358px | **0px** |
+
+**Warum es Jahre unsichtbar war: Es hängt an der Länge einer Kennung.** Die
+Zugänge-Tabelle misst 358px und passt — ihr Benutzername ist 27 Zeichen lang.
+Der Ablagename einer Sicherung (`p1001-shop-20260808-141500-9f3ac21b`, 52
+Zeichen) ist der erste im Panel, der nicht mehr passt. P5 hat den Fehler nicht
+gemacht, P5 hat ihn ausgelöst.
+
+Drei Dinge sind daran bemerkenswert, und keines davon ist die CSS-Zeile:
+
+1. **Der Wächter fragte nach dem Falschen.**
+   `test_every_table_carries_one_of_the_patterns` prüft `stacks || scrolls ||
+   pairs` — *eines von dreien*. Nach `docs/24 §5` klang das nach Alternativen,
+   und die naheliegende Verschärfung wäre „genau eines" gewesen. **Sie wäre
+   falsch.** `.stacks` wirkt erst unter 720px; darüber will dieselbe Tabelle
+   rollen dürfen. Die beiden sind zwei Antworten auf zwei Breiten. Was sich
+   ausschliesst, ist `max-content` und ein Kärtchen — und das ist eine Frage an
+   die **Kaskade**, nicht an das Markup. `docs/24 §5` ist entsprechend
+   berichtigt; der Beispielschnipsel dort trägt den Behälter jetzt.
+
+2. **Die Breite allein war ein Fix, der wie einer aussah.** 195px wurden zu
+   180px. Die Kennung trägt `nowrap`, und ein Kärtchen hat keinen Rand, an dem
+   etwas hängenbliebe. Das ist wörtlich derselbe Zweischritt, den `docs/24 §5`
+   für die Paartabelle schon aufgeschrieben hat: *„Zwei Messungen, ein Fund —
+   der erste Fix sah aus wie einer und war keiner."* Es ist die dritte Fassung
+   derselben Ausnahme.
+
+3. **Der neue Wächter war beim ersten Anlauf blind, und nur der Bruch hat ihn
+   überführt.** `MobileLayoutTest::test_an_identifier_in_a_stacked_card_may_break`
+   rechnet die Kaskade nach; sein Selektor-Vergleich kannte nur „passt" und
+   „unbekannt, also Abbruch". Damit zählte `table.pairs td.ident` als Treffer —
+   eine Regel für eine ganz andere Tabelle, mit dem Gewicht 0,2,2. Sie gewann,
+   sagte `white-space: normal`, und der Wächter meldete Grün. Der Bruch, der
+   die Regel aus `app.css` entfernt, blieb grün. **Ein Wächter, der nie rot war,
+   ist kein Wächter** — hier hat der Satz eine Fassung erwischt, die eine Stunde
+   alt war. Die Trefferprüfung hat seitdem drei Ausgänge: passt, meint etwas
+   anderes, unbekannt.
+
+Ein dritter, leiserer Fund aus derselben Aufnahme: `.stacks td.multiline` dehnt
+seine Kinder, und eine Zustandsmarke darin wurde 328px breit statt 116px — eine
+farbige Fläche über die ganze Zeile. Nichts lief über, nichts wurde
+abgeschnitten; es sah nur falsch aus, und deshalb hat es niemand gemeldet.
+Sichtbar auf der Planseite, seit es `.multiline` gibt.
+
+Drei Regeln in `app.css`, drei Wächter, drei Brüche in
+`tests/waechter-brechen.sh`. Alle drei Brüche beissen — nachgewiesen ohne
+PHPUnit, indem die Basisklasse untergeschoben und die echte Testdatei geladen
+wurde (siehe §22.5).
+
 ### 22.4 Was noch fehlt
 
 Schritt 4 ist **gebaut** (die Sperre, `DbLifecycle`), die Screenshots aus
@@ -1526,3 +1591,30 @@ Und die Trennlinie des Proxys ist jetzt vermessen statt vermutet: packagist
 antwortet mit **200**, `codeload.github.com` mit **403**. Composer löst auf und
 scheitert beim Herunterladen — deshalb kein `vendor/`, und deshalb funktionieren
 einzelne `.phar`-Dateien trotzdem.
+
+**Und ein Testfall lässt sich ohne PHPUnit fahren, wenn man die Basisklasse
+unterschiebt.** Für `agent/` gibt es dafür `agent/src/autoload.php`; für einen
+Test unter `tests/`, der nur Dateien liest und nichts vom Framework braucht,
+geht mehr, als es aussieht:
+
+```php
+namespace PHPUnit\Framework {
+    class AssertionFailedError extends \Exception {}
+    class TestCase { /* assertSame, assertTrue, … als Wegwerf-Fassungen */ }
+}
+
+namespace {
+    require 'tests/Feature/MobileLayoutTest.php';
+    (new Tests\Feature\MobileLayoutTest)->test_...();
+}
+```
+
+Der Unterschied zu einer abgeschriebenen Fassung des Algorithmus ist der ganze
+Punkt: **Gefahren wird der Code, der auch in der CI läuft**, nicht seine Kopie —
+zwei Fassungen desselben Tests, und die zweite veraltet. Das Skript gehört in
+den Scratchpad und nicht ins Repo.
+
+Ohne diesen Weg wäre §22.3a nicht gefunden worden: Der blinde Wächter dort hat
+sich erst gezeigt, als sein Bruch grün blieb, und das war eine Frage von
+Sekunden statt einer CI-Runde. Für die elf Methoden von `MobileLayoutTest`
+brauchte die Wegwerf-Basisklasse acht `assert…`-Fassungen.

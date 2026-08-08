@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Support\Databases;
 
 use App\Enums\DbUserStatus;
+use App\Enums\DumpStatus;
 use App\Enums\OperationStatus;
 use App\Jobs\RunAgentOperation;
 use App\Models\Database;
+use App\Models\DatabaseDump;
 use App\Models\DbUser;
 use App\Models\Operation;
 use App\Models\Subscription;
@@ -61,6 +63,9 @@ final class DbLifecycle implements AfterOperation
         return [
             'db.database.remove',
             'db.user.lock',
+            'db.dump.create',
+            'db.dump.remove',
+            'db.restore',
             'subscription.suspend',
             'subscription.resume',
         ];
@@ -78,6 +83,12 @@ final class DbLifecycle implements AfterOperation
 
         if ($task === 'db.user.lock') {
             $this->locked($operation);
+
+            return;
+        }
+
+        if (str_starts_with($task, 'db.dump.') || $task === 'db.restore') {
+            $this->afterDump($operation, $task);
 
             return;
         }
@@ -121,6 +132,50 @@ final class DbLifecycle implements AfterOperation
             }
 
             $database->delete();
+        });
+    }
+
+    /**
+     * Was ein Sicherungsvorgang an der Zeile ändert.
+     *
+     * **Die Grösse kommt aus der Antwort des Agenten und nicht aus einer
+     * Schätzung.** Er hat die Datei geschrieben; das Panel hat sie nie gesehen.
+     * Dieselbe Entscheidung wie in `CertificateRecord`: Was gilt, steht in der
+     * Antwort.
+     *
+     * **Und `db.restore` ändert an der Sicherung nichts.** Sie war vorher
+     * fertig und ist es danach — was sich geändert hat, ist die *Datenbank*.
+     * Ein Zustand „eingespielt" an der Sicherung wäre eine Aussage über etwas
+     * anderes als über sie.
+     */
+    private function afterDump(Operation $operation, string $task): void
+    {
+        if ($task === 'db.restore') {
+            return;
+        }
+
+        $this->tenancy->withoutRestriction(function () use ($operation, $task): void {
+            $dump = DatabaseDump::query()->find($operation->subject_id);
+
+            if ($dump === null) {
+                // Der Rückbau eines ganzen Abonnements trägt keinen Gegenstand
+                // — dort verschwinden die Zeilen mit dem Abonnement.
+                return;
+            }
+
+            if ($task === 'db.dump.remove') {
+                $dump->delete();
+
+                return;
+            }
+
+            $bytes = $operation->result['bytes'] ?? null;
+
+            $dump->forceFill([
+                'status' => DumpStatus::Ready,
+                'bytes' => is_numeric($bytes) ? (int) $bytes : null,
+                'last_error' => null,
+            ])->save();
         });
     }
 

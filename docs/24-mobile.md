@@ -143,23 +143,55 @@ das Auge (nicht für den Screenreader); seinen Text trägt jede Zelle als
 `data-column` bei sich.
 
 ```html
-<table class="stacks">
-  <thead><tr><th>Nummer</th><th>Name</th></tr></thead>
-  <tbody>
-    <tr>
-      <td data-column="Nummer">K10001</td>
-      <td data-column="Name">Musterfirma</td>
-      <td><button>Anmelden als</button></td>  <!-- ohne: eine Aktion -->
-    </tr>
-  </tbody>
-</table>
+<div class="scrolls">
+  <table class="stacks">
+    <thead><tr><th>Nummer</th><th>Name</th></tr></thead>
+    <tbody>
+      <tr>
+        <td data-column="Nummer">K10001</td>
+        <td data-column="Name">Musterfirma</td>
+        <td><button>Anmelden als</button></td>  <!-- ohne: eine Aktion -->
+      </tr>
+    </tbody>
+  </table>
+</div>
 ```
+
+**Und ja, mit dem Rollbehälter — die drei Muster schliessen sich nicht aus.**
+Bis August 2026 stand hier ein `.stacks` ohne `<div class="scrolls">`, und die
+Überschrift dieses Abschnitts las sich wie eine Wahl zwischen dreien. Im Panel
+tragen alle zehn gestapelten Tabellen beides, und das ist richtig: `.stacks`
+wirkt erst unter 720px. Darüber ist die Tabelle eine Tabelle, und eine mit
+sechs Spalten will auch auf 1024px rollen dürfen statt sich zu quetschen. Die
+beiden sind **zwei Antworten auf zwei Breiten** und keine Alternativen.
+
+> **Das war nicht bloss eine ungenaue Formulierung.** `.scrolls > table` setzt
+> `width: max-content` und wiegt 0,1,1; `.stacks` setzt `width: 100%` und wiegt
+> 0,1,0. Die gestapelte Tabelle war damit so breit wie ihr breitestes Kärtchen,
+> und der Rollbehälter machte daraus keinen Fehler, sondern eine Rollbewegung.
+> Gemessen bei 390px: **553px Tabelle in 358px Behälter, 195px waagerecht.**
+> Sichtbar wurde es erst mit P5 — es hängt an der Länge einer Kennung, und der
+> Ablagename einer Sicherung ist mit 52 Zeichen der erste, der nicht mehr
+> passte. Zwei Zeilen mussten dazu: die Breite zurücknehmen **und** der Kennung
+> im Kärtchen den Umbruch erlauben. Die Breite allein liess 180px stehen —
+> derselbe Zweischritt wie unten bei der Paartabelle, und wieder sah der erste
+> Fix aus wie einer.
+>
+> Nachgerechnet wird das seitdem, nicht nachgelesen:
+> `MobileLayoutTest::test_a_stacked_table_has_no_width_of_its_own` und
+> `::test_an_identifier_in_a_stacked_card_may_break` stellen die Kaskade nach
+> und nennen den Selektor, der gewinnt.
 
 Eine Zelle **ohne** `data-column` gilt als Aktion und steht linksbündig über
 die volle Breite. Steht in einer Zelle mehr als ein Wert — Name, Marke und
 Beschreibung zusammen —, bekommt sie zusätzlich `class="multiline"`:
 Beschriftung und Inhalt stehen dann untereinander statt nebeneinander, sonst
-rutscht der Rest an den rechten Rand und bricht dort um. Der Test prüft, dass in einer `.stacks`-Tabelle jede Zelle
+rutscht der Rest an den rechten Rand und bricht dort um. **Eine Zustandsmarke
+darin behält ihre Breite** (`align-self: flex-start`) — die Zelle dehnt ihre
+Kinder, und ohne diese Zeile war die Marke 328px breit statt 116px: eine
+farbige Fläche über die ganze Zeile, wo ein Wort mit einem Punkt stehen soll.
+Nichts lief dabei über, es sah nur falsch aus, und deshalb hat es niemand
+gemeldet. Der Test prüft, dass in einer `.stacks`-Tabelle jede Zelle
 entweder ein `data-column` trägt oder ein Bedienelement enthält — eine Zelle,
 die beides nicht hat, steht auf dem Telefon ohne Beschriftung da.
 

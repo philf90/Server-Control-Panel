@@ -36,7 +36,7 @@ final class Usage
     /**
      * Einmal messen und schreiben.
      *
-     * @return array{measured: int, available: bool, reason?: string}
+     * @return array{measured: int, reported: int, matched: int, available: bool, reason?: string}
      */
     public function measure(): array
     {
@@ -53,7 +53,7 @@ final class Usage
      * laufendem MariaDB zu prüfen.
      *
      * @param  array<string, mixed>  $result
-     * @return array{measured: int, available: bool, reason?: string}
+     * @return array{measured: int, reported: int, matched: int, available: bool, reason?: string}
      */
     public function apply(array $result): array
     {
@@ -63,6 +63,8 @@ final class Usage
             // zu verwerfen. Der Zeitstempel daneben sagt, wie alt sie ist.
             return [
                 'measured' => 0,
+                'reported' => 0,
+                'matched' => 0,
                 'available' => false,
                 'reason' => (string) ($result['reason'] ?? 'kein Grund genannt'),
             ];
@@ -73,10 +75,15 @@ final class Usage
 
         return $this->tenancy->withoutRestriction(function () use ($sizes, $now): array {
             $measured = 0;
+            $matched = 0;
 
-            Database::query()->chunkById(200, function ($databases) use ($sizes, $now, &$measured): void {
+            Database::query()->chunkById(200, function ($databases) use ($sizes, $now, &$measured, &$matched): void {
                 foreach ($databases as $database) {
                     $bytes = $sizes[(string) $database->name] ?? null;
+
+                    if ($bytes !== null) {
+                        $matched++;
+                    }
 
                     /*
                      * **Ein Schema ohne Eintrag ist eine gemessene Null.**
@@ -99,7 +106,30 @@ final class Usage
                 }
             });
 
-            return ['measured' => $measured, 'available' => true];
+            /*
+             * **Drei Zahlen und nicht eine, und der Anlass ist ein grüner Lauf.**
+             * Bis zum 8. August 2026 stand hier nur `measured` — die Zahl der
+             * *geschriebenen* Zeilen. Der Abnahmelauf meldete „2 Datenbank(en)
+             * gemessen", und genau dieselbe Zeile wäre erschienen, wenn die
+             * Abfrage **gar nichts** geliefert hätte: Eine Datenbank ohne
+             * Treffer bekommt `size_mb = 0` als gemessene Null, und das ist
+             * richtig — aber es macht die Zahl als Beleg wertlos.
+             *
+             * `reported` ist, was der Server genannt hat; `matched`, wie viel
+             * davon einer Zeile des Panels zuzuordnen war. Weichen sie
+             * auseinander, sieht man es. Vorher war ein Tippfehler in der
+             * Abfrage von einem erfolgreichen Lauf nicht zu unterscheiden.
+             *
+             * Wortwörtlich derselbe Fehler wie bei `refused` im
+             * Abnahmelauf desselben Tages — eine Zahl über dem, was wir getan
+             * haben, statt über dem, was geschehen ist.
+             */
+            return [
+                'measured' => $measured,
+                'reported' => count($sizes),
+                'matched' => $matched,
+                'available' => true,
+            ];
         });
     }
 }

@@ -250,7 +250,15 @@ final class SubscriptionQuotaTest extends TestCase
             'users' => ['p1000' => ['used_mb' => 412, 'limit_mb' => 5_120]],
         ]);
 
-        $this->assertSame(['measured' => 1, 'available' => true], $result);
+        // Drei Zahlen seit dem 8. August 2026: `measured` sind die
+        // geschriebenen Zeilen, `reported` die Einträge der Quota-Datei,
+        // `matched` die Zuordnung. Warum das nicht eine Zahl sein darf, steht in
+        // `UsageEvidenceTest` — hier zählt, dass alle drei stimmen, wenn die
+        // Messung aufgeht.
+        $this->assertSame(
+            ['measured' => 1, 'reported' => 1, 'matched' => 1, 'available' => true],
+            $result,
+        );
 
         $subscription->refresh();
 

@@ -5313,6 +5313,38 @@ Server ist keine Dateisystem-Quota eingerichtet (`repquota: Cannot find
 mountpoint for device /dev/vda3`), `disk_used_mb` ist dort also seit P2 für jedes
 Abonnement „nicht gemessen".
 
+**Der zweite Lauf hat die Abschottung belegt — und denselben Fehler eine Stelle
+weiter gezeigt.** Die Fehlernummern stehen jetzt in der Ausgabe (ERROR 1044 beim
+`USE`, ERROR 1142 beim `SELECT`, in beide Richtungen); Kriterium 1 bis 3 sind
+damit an MariaDB 10.11.14 gemessen. Grün stand aber auch dies:
+
+    2 Datenbank(en) gemessen.
+
+Zwei war die richtige Zahl — gezählt waren die **geschriebenen Zeilen**. Eine
+Datenbank ohne Treffer bekommt `size_mb = 0` als gemessene Null, und das ist
+richtig: `information_schema` führt ein leeres Schema nicht auf. Also wäre genau
+diese Zeile auch erschienen, wenn `db.usage` **gar nichts** geliefert hätte. Ein
+Tippfehler in der Abfrage hätte sich als Erfolg gelesen, und `db.usage` war nach
+zwei Läufen weiter unbelegt.
+
+Das ist dasselbe Muster wie oben und wie in P4 — das dritte Mal in zwei
+Ausbaustufen: **Eine Zahl über der eigenen Arbeit ist kein Messwert.** „1 fällig,
+1 bestellt" (P4, falsches Zertifikat bestellt), `refused` von jeder Ausnahme
+(oben), `measured` als Beleg für eine Messung (hier).
+
+Beide Messungen geben jetzt drei Zahlen: `measured` (geschriebene Zeilen),
+`reported` (was der Server genannt hat) und `matched` (was zuzuordnen war);
+`srvpanel usage` zeigt alle drei und warnt beim Missverhältnis — ein Schema, das
+der Server nennt und das Panel nicht kennt, ist ein Befund für `srvpanel db`.
+Dass die Quota-Messung mitkommt, ist keine Zugabe: Die Lücke stand dort genauso,
+und ein Wächter, der nur eine von zwei gleichen Stellen hält, ist der, den die
+nächste Abschrift umgeht. `UsageEvidenceTest` prüft es am Verhalten — leere
+Antwort gegen zwei Zeilen, `reported` muss null sein — und der Bruch dazu hat
+seine letzte Behauptung gleich noch verbessert: Sie suchte die drei Zahlen im
+ganzen Methodenrumpf und blieb grün, als sie aus der Erfolgsmeldung
+verschwanden. Sie stehen weiter in der Warnung darunter, die aber nur im
+Ausnahmefall kommt.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

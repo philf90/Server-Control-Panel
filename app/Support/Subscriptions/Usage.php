@@ -38,7 +38,7 @@ final class Usage
     /**
      * Einmal messen und schreiben.
      *
-     * @return array{measured: int, available: bool, reason?: string}
+     * @return array{measured: int, reported: int, matched: int, available: bool, reason?: string}
      */
     public function measure(): array
     {
@@ -56,7 +56,7 @@ final class Usage
      * eingerichteter Quota zu prüfen.
      *
      * @param  array<string, mixed>  $result
-     * @return array{measured: int, available: bool, reason?: string}
+     * @return array{measured: int, reported: int, matched: int, available: bool, reason?: string}
      */
     public function apply(array $result): array
     {
@@ -67,6 +67,8 @@ final class Usage
             // ohnehin, wie alt sie ist.
             return [
                 'measured' => 0,
+                'reported' => 0,
+                'matched' => 0,
                 'available' => false,
                 'reason' => (string) ($result['reason'] ?? 'kein Grund genannt'),
             ];
@@ -77,15 +79,20 @@ final class Usage
 
         return $this->tenancy->withoutRestriction(function () use ($users, $now): array {
             $measured = 0;
+            $matched = 0;
 
             // In Schritten und nicht alle auf einmal: Bei hundert Abonnements
             // ist das gleichgültig, bei zehntausend nicht, und der Unterschied
             // kostet hier eine Zeile.
             Subscription::query()
                 ->whereNotNull('system_user')
-                ->chunkById(200, function ($subscriptions) use ($users, $now, &$measured): void {
+                ->chunkById(200, function ($subscriptions) use ($users, $now, &$measured, &$matched): void {
                     foreach ($subscriptions as $subscription) {
                         $entry = $users[(string) $subscription->system_user] ?? null;
+
+                        if (is_array($entry)) {
+                            $matched++;
+                        }
 
                         // Ein Abonnement ohne Eintrag hat noch nie etwas
                         // geschrieben — die Quota-Datei kennt einen Benutzer
@@ -102,7 +109,25 @@ final class Usage
                     }
                 });
 
-            return ['measured' => $measured, 'available' => true];
+            /*
+             * **Drei Zahlen, und `measured` allein war keine davon.** Der
+             * Abnahmelauf vom 8. August 2026 hat die Lücke am Zwilling gezeigt
+             * ({@see \App\Support\Databases\Usage}), und sie steht hier
+             * genauso: `measured` zählt die *geschriebenen* Zeilen. Ein
+             * Abonnement ohne Eintrag bekommt eine gemessene Null — richtig,
+             * aber damit steht „N Abonnement(s) gemessen" auch dann da, wenn
+             * die Quota-Datei **gar nichts** hergegeben hat.
+             *
+             * `reported` ist, was der Server genannt hat; `matched`, wie viel
+             * davon einer Zeile zuzuordnen war. Erst der Unterschied belegt,
+             * dass gelesen wurde und nicht nur geschrieben.
+             */
+            return [
+                'measured' => $measured,
+                'reported' => count($users),
+                'matched' => $matched,
+                'available' => true,
+            ];
         });
     }
 }

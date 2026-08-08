@@ -5359,6 +5359,21 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Der Bestand auf der Übersicht führt Domains und Datenbanken.** Bis dahin
+standen dort Kunden und Abonnements — also, wer und was gebucht. Das Gehostete
+selbst, die Namen, unter denen jemand erreichbar ist, und die Daten dahinter,
+fand man nur, wenn man den Verdacht schon hatte. Die Zahlen stehen nach Zustand,
+und die Zeilen für „gesperrt", „werden angelegt" und „werden entfernt" erscheinen
+nur, wenn es sie gibt.
+
+**Gezählt wird, was die verlinkte Liste zeigt** — einschliesslich der verwaisten
+Datenbank, deren Rückbau steckengeblieben ist. Sie auszunehmen, weil sie zu
+keinem Abonnement mehr gehört, ergäbe eine zu kleine Zahl ausgerechnet dann,
+wenn etwas nicht stimmt. `OverviewInventoryTest` prüft das an der Zählung und
+zusätzlich die Verweise: Jede Adresse im Bestand ist eine Adresse, die der Router
+kennt, und jede der vier Arten ist verlinkt. Beide Richtungen, weil die erste
+Behauptung auch grün bliebe, wenn ein Verweis ersatzlos verschwände.
+
 Beide Messungen geben jetzt drei Zahlen: `measured` (geschriebene Zeilen),
 `reported` (was der Server genannt hat) und `matched` (was zuzuordnen war);
 `srvpanel usage` zeigt alle drei und warnt beim Missverhältnis — ein Schema, das

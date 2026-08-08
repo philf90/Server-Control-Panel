@@ -2019,6 +2019,26 @@ Nachgesehen wurde auch im Browser: `1.023,9 MB`, `300 KB`, `0 B` und `1,5 GB` in
 beiden Themes bei 390 px und 1440 px, Überlauf 0 px. Ohne `vendor/` ging das über
 das gebaute Stylesheet und eine eigene HTML-Datei — der Weg aus CLAUDE.md.
 
+### 22.3k Der Bestand auf der Übersicht
+
+Eine Ergänzung des Betreibers nach dem dritten Lauf, und sie gehört zu P5, weil
+sie erst mit den Datenbanken vollständig ist: Der Abschnitt **Bestand** führt
+neben Kunden und Abonnements jetzt auch **Domains und Datenbanken** — jeweils mit
+der Zahl je Zustand, und die Zeilen für „gesperrt", „werden angelegt" und
+„werden entfernt" nur, wenn es sie gibt. Ein Betreiber liest damit von aussen
+nach innen: wer, was gebucht, worunter erreichbar, welche Daten dahinter.
+
+**Die eine Entscheidung, die nicht offensichtlich ist:** Gezählt wird, was die
+verlinkte Liste zeigt — also **auch die verwaiste Datenbank**. Wer sie ausnähme,
+weil sie zu keinem Abonnement mehr gehört, bekäme eine zu kleine Zahl genau dann,
+wenn ein Rückbau steckengeblieben ist und ein Schema mit Kundendaten liegt.
+
+`OverviewInventoryTest` hält beides: die Zählung samt Sonderfall und die
+Verweise. Letztere in beide Richtungen — jede Adresse im Bestand kennt der
+Router, und jede der vier Arten ist verlinkt. Ohne die zweite Behauptung bliebe
+der Wächter grün, wenn ein Verweis ersatzlos verschwände; dann stünde die Zahl
+da, und wer sie liest, müsste den Weg zur Liste selbst suchen.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der

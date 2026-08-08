@@ -55,6 +55,8 @@ const props = defineProps<{
   hosting: {
     customers: { total: number; suspended: number }
     subscriptions: { total: number; active: number; suspended: number; provisioning: number }
+    domains: { total: number; active: number; suspended: number; provisioning: number }
+    databases: { total: number; active: number; provisioning: number; removing: number }
     storage: { id: number; name: string; used_mb: number; percent: number; measured_at: string | null }[]
   }
   tiles: TileData[]
@@ -170,6 +172,58 @@ const headline = props.server.reachable
             <tr v-if="props.hosting.subscriptions.provisioning > 0">
               <td class="quiet">werden angelegt</td>
               <td class="right name">{{ props.hosting.subscriptions.provisioning }}</td>
+              <td class="right"><Badge kind="warn" running>läuft</Badge></td>
+            </tr>
+
+            <!--
+              Domains und Datenbanken stehen darunter und nicht daneben: Sie
+              hängen an einem Abonnement, und die Reihenfolge ist die, in der
+              etwas entsteht. Ein Betreiber liest hier von aussen nach innen —
+              wer, was gebucht, worunter erreichbar, welche Daten dahinter.
+            -->
+            <tr>
+              <td class="quiet"><Link href="/domains" class="link">Domains</Link></td>
+              <td class="right name">{{ props.hosting.domains.total }}</td>
+              <td class="right">
+                <Badge v-if="props.hosting.domains.active > 0" kind="ok">
+                  {{ props.hosting.domains.active }} aktiv
+                </Badge>
+              </td>
+            </tr>
+            <tr v-if="props.hosting.domains.suspended > 0">
+              <td class="quiet">davon gesperrt</td>
+              <td class="right name">{{ props.hosting.domains.suspended }}</td>
+              <td class="right"><Badge kind="warn">gesperrt</Badge></td>
+            </tr>
+            <tr v-if="props.hosting.domains.provisioning > 0">
+              <td class="quiet">werden angelegt</td>
+              <td class="right name">{{ props.hosting.domains.provisioning }}</td>
+              <td class="right"><Badge kind="warn" running>läuft</Badge></td>
+            </tr>
+
+            <tr>
+              <td class="quiet"><Link href="/databases" class="link">Datenbanken</Link></td>
+              <td class="right name">{{ props.hosting.databases.total }}</td>
+              <td class="right">
+                <Badge v-if="props.hosting.databases.active > 0" kind="ok">
+                  {{ props.hosting.databases.active }} aktiv
+                </Badge>
+              </td>
+            </tr>
+            <tr v-if="props.hosting.databases.provisioning > 0">
+              <td class="quiet">werden angelegt</td>
+              <td class="right name">{{ props.hosting.databases.provisioning }}</td>
+              <td class="right"><Badge kind="warn" running>läuft</Badge></td>
+            </tr>
+            <!--
+              „Wird entfernt" gehört dazu und ist nicht die Umkehrung von „wird
+              angelegt": Ein Rückbau, der hängenbleibt, lässt ein Schema mit
+              Kundendaten auf dem Datenträger liegen (docs/36 §5). Genau das ist die
+              Zeile, wegen der jemand auf diese Seite sieht.
+            -->
+            <tr v-if="props.hosting.databases.removing > 0">
+              <td class="quiet">werden entfernt</td>
+              <td class="right name">{{ props.hosting.databases.removing }}</td>
               <td class="right"><Badge kind="warn" running>läuft</Badge></td>
             </tr>
           </tbody>

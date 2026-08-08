@@ -3981,6 +3981,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SizeUnitTest passed
 
 echo
+echo "── OverviewInventoryTest: die verwaiste Datenbank fällt aus der Zählung ──"
+#
+# Die Liste unter /databases führt sie als verwaist, die Übersicht liesse sie
+# weg — und die Zahl wäre ausgerechnet dann zu klein, wenn ein Rückbau
+# steckengeblieben ist und ein Schema mit Kundendaten liegt.
+vorher_datei app/Http/Controllers/OverviewController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OverviewController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "$databases = $this->countByStatus(Database::query());",
+    "$databases = $this->countByStatus(Database::query()->whereNotNull('subscription_id'));",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/OverviewController.php "verwaiste Datenbank nicht gezählt" &&
+pruefe "verwaiste Datenbank nicht gezählt" \
+  OverviewInventoryTest::test_an_orphaned_database_is_counted_too failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  OverviewInventoryTest::test_an_orphaned_database_is_counted_too passed
+
+echo
+echo "── OverviewInventoryTest: eine Zahl ohne Weg zur Liste ──"
+#
+# Die Zahl bleibt stehen, der Verweis fällt weg. Wer sie liest, will als
+# Nächstes wissen, welche das sind — und müsste dann in die Navigation greifen.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<Link href="/databases" class="link">Datenbanken</Link>', 'Datenbanken')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Overview.vue "Bestandszahl ohne Verweis" &&
+pruefe "Bestandszahl ohne Verweis" \
+  OverviewInventoryTest::test_all_four_kinds_are_linked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OverviewInventoryTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

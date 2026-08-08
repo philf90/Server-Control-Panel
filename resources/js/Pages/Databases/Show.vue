@@ -97,7 +97,7 @@ function exportDump(): void {
  * einspielt, bleibt liegen. Was verlorengeht, ist der Stand von jetzt.
  */
 function restoreDump(dump: DumpRow): void {
-  if (!confirm(`Die Sicherung ${dump.name} einspielen? Der aktuelle Stand von ${props.database.name} wird dabei überschrieben.`)) return
+  if (!confirm(`Die Sicherung ${dump.name} zurückspielen? Der aktuelle Stand von ${props.database.name} wird dabei überschrieben.`)) return
 
   router.post(`/databases/${props.database.id}/dumps/${dump.id}/restore`)
 }
@@ -307,7 +307,7 @@ function size(): string {
                       Herunterladen
                     </a>
                     <button v-if="dump.usable" type="button" class="button" @click="restoreDump(dump)">
-                      Einspielen
+                      Zurückspielen
                     </button>
                     <button type="button" class="button danger" @click="removeDump(dump)">
                       Entfernen

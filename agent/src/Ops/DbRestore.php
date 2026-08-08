@@ -89,7 +89,7 @@ final class DbRestore implements Op
             $context->progress(20, 'Sicherung auspacken');
             Dump::decompress($source, $plain);
 
-            $context->progress(45, 'einspielen');
+            $context->progress(45, 'zurückspielen');
 
             $this->ephemeral->with(
                 $context,

@@ -3591,6 +3591,34 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest::test_a_badge_in_a_stacked_cell_keeps_its_width passed
 
 echo
+echo "── WordChoiceTest: das verbrauchte Wort steht nur im <script> ──"
+#
+# Der Wächter für die Wortwahl las den `<template>`-Block und die
+# PHP-Literale — nicht aber die Zeichenketten im `<script>` einer Seite. Seine
+# eigene Begründung sagte, dort stehe kein Anzeigetext, „und sollte sich das
+# ändern, ist diese Zeile die Stelle, an der es nachzuziehen ist". Mit der
+# ersten Rückfrage per `confirm()` hat es sich geändert: Der Knopf mit
+# demselben Wort fiel in der CI auf, der Satz daneben nicht.
+#
+# Der Bruch prüft genau diesen toten Winkel — die alte Hälfte muss grün
+# bleiben, die neue zubeissen.
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'Die Sicherung ${dump.name} zurückspielen?',
+    'Die Sicherung ${dump.name} einspielen?',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "verbrauchtes Wort in einer Rückfrage" &&
+pruefe "verbrauchtes Wort in einer Rückfrage" \
+  WordChoiceTest::test_no_vue_script_string_uses_a_spent_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

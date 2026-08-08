@@ -5094,6 +5094,17 @@ abgeschnitten; es sah nur falsch aus, und deshalb hat es niemand gemeldet.
 Sichtbar auf der Planseite, seit es `.multiline` gibt. `docs/24 §5` ist für alle
 drei berichtigt.
 
+**Und ein toter Winkel, den der Wächter selbst angekündigt hatte.** „Einspielen"
+steht in docs/19 §3 auf der Liste der verbrauchten Wörter; für eine Sicherung
+heisst es **zurückspielen**, und genau so hiess es überall ausser auf dem Knopf
+und in der Rückfrage daneben. Den Knopf hat `WordChoiceTest` gemeldet, die
+Rückfrage nicht: Er liest PHP-Literale und den `<template>`-Block, und seine
+eigene Begründung sagte, in `<script>` stehe kein Anzeigetext — „sollte sich das
+ändern, ist diese Zeile die Stelle, an der es nachzuziehen ist". Mit dem ersten
+`confirm()` hat es sich geändert. Der Satz wäre ausgeliefert worden, neben einem
+Knopf, den dieselbe CI-Runde beanstandet hat. Ein Wächter mit einer Annahme über
+den *Ort* hat einen toten Winkel, und der wächst mit dem Projekt.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

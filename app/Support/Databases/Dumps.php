@@ -80,7 +80,7 @@ final class Dumps
         }
 
         return $this->dispatch($dump, $subscription, 'db.restore', sprintf(
-            'Sicherung %s wird in %s eingespielt',
+            'Sicherung %s wird in %s zurückgespielt',
             $dump->storage_name,
             $database->name,
         ), $accountId, ['name' => $database->name]);

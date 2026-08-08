@@ -230,7 +230,7 @@ final class DatabaseController extends Controller
         $this->audit->record('database.dump.restored', target: $dump, subscriptionId: (int) $database->subscription_id);
 
         return to_route('operations.show', $operation)
-            ->with('status', 'Die Sicherung wird eingespielt.');
+            ->with('status', 'Die Sicherung wird zurückgespielt.');
     }
 
     public function destroyDump(Database $database, DatabaseDump $dump): RedirectResponse

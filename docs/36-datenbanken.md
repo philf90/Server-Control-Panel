@@ -1562,6 +1562,31 @@ Drei Regeln in `app.css`, drei Wächter, drei Brüche in
 PHPUnit, indem die Basisklasse untergeschoben und die echte Testdatei geladen
 wurde (siehe §22.5).
 
+### 22.3b Ein toter Winkel, den der Wächter selbst angekündigt hatte
+
+**„Einspielen" steht in `docs/19 §3` auf der Liste der verbrauchten Wörter** —
+es kommt von Tonbändern, ein Panel *installiert*. Für eine Sicherung passt
+weder das eine noch das andere; richtig ist **zurückspielen**, und genau so
+heisst es in diesem Plan, in `db.restore` und in jedem Kommentar. Nur der Knopf
+und die Rückfrage daneben hatten das andere Wort. Beide sind ersetzt, zusammen
+mit zwei Meldungen („wird eingespielt" → „wird zurückgespielt").
+
+Interessant ist nicht der Fund, sondern **wie viel davon der Wächter gesehen
+hat**: den Knopf ja, die Rückfrage nein. `WordChoiceTest` liest PHP-Literale und
+den `<template>`-Block; sein eigener Kommentar begründete die Auslassung so —
+in `<script>` stehe in diesem Projekt kein Anzeigetext, „sollte sich das ändern,
+ist diese Zeile die Stelle, an der es nachzuziehen ist".
+
+Mit dem ersten `confirm()` hat es sich geändert. Der Satz „Die Sicherung …
+einspielen? Der aktuelle Stand … wird dabei überschrieben" ist Anzeigetext, er
+steht in keinem Template, und er wäre so ausgeliefert worden — **neben** einem
+Knopf, den die CI im selben Lauf beanstandet hat. Ein Wächter mit einer Annahme
+über den *Ort* hat einen toten Winkel, und der wächst mit dem Projekt.
+
+`test_no_vue_script_string_uses_a_spent_word` liest jetzt auch die Literale des
+`<script>`-Blocks. Der Bruch dazu prüft beide Hälften: Steht das Wort nur in der
+Rückfrage, bleibt die alte grün und die neue wird rot — nachgemessen, genau so.
+
 ### 22.4 Was noch fehlt
 
 Schritt 4 ist **gebaut** (die Sperre, `DbLifecycle`), die Screenshots aus

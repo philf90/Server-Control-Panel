@@ -71,6 +71,32 @@ final class Dump
     public const GROUP = 'srvpanel';
 
     /**
+     * Die Datei: lesbar für die Gruppe, für sonst niemanden.
+     *
+     * Der Agent schreibt sie als root; das Panel liest sie über die Gruppe. Ein
+     * Dump von zwei Gigabyte durch den Unix-Socket zurückzureichen wäre der
+     * Weg, auf dem der Agent den Speicher des Servers füllt.
+     */
+    public const FILE_MODE = 0640;
+
+    /**
+     * Das Verzeichnis: **durchsuchbar** für die Gruppe, nicht auflistbar.
+     *
+     * **Hier stand `0750` mit der Gruppe `root`, und damit war das Herunterladen
+     * kaputt** — gefunden am 8. August 2026 auf `cloudsrv24`, als das Panel auf
+     * eine fertige Sicherung mit 404 antwortete. Die Absicht stand richtig da
+     * („die Dateien lesen dürfen und nicht das Verzeichnis durchsuchen"), aber
+     * unter Unix öffnet man eine Datei über ihren Pfad: Ohne `x` auf **jedem**
+     * Verzeichnis darüber nützt das `r` an der Datei nichts. Der Modus sagte
+     * also das Gegenteil dessen, was er sollte.
+     *
+     * `0710` mit der Gruppe des Panels trifft die Absicht genau: `--x` heisst
+     * hingehen, wenn man den Namen kennt, und `ls` bleibt verwehrt. Wer eine
+     * Sicherung herunterlädt, kennt ihren Namen aus dem Bestand.
+     */
+    public const DIRECTORY_MODE = 0710;
+
+    /**
      * Wie viele Zeilen am Stück gelesen werden, bevor der Abbruch geprüft wird.
      *
      * Ein Dump von vierzig Gigabyte hat Millionen Zeilen; den Abbruch je Zeile
@@ -236,29 +262,47 @@ final class Dump
     }
 
     /**
-     * Das Verzeichnis eines Abonnements anlegen — `root:root 0750`.
+     * Das Verzeichnis eines Abonnements anlegen — `root:srvpanel 0710`.
      *
-     * Nicht der Gruppe des Panels: Sie soll die **Dateien** lesen dürfen und
-     * nicht das Verzeichnis durchsuchen. Wer eine Sicherung herunterlädt, kennt
-     * ihren Namen aus dem Bestand; wer ihn nicht kennt, hat dort nichts zu
-     * suchen.
+     * **Beide Ebenen, und jedes Mal.** Die Wurzel bekommt denselben Modus wie
+     * das Verzeichnis darunter: Ein `x` auf dem einen nützt nichts, wenn es auf
+     * dem anderen fehlt — der Pfad wird ganz durchlaufen. Und gesetzt wird bei
+     * jedem Lauf und nicht nur beim Anlegen, damit eine Installation, die den
+     * alten Modus hat, sich mit der nächsten Sicherung selbst berichtigt (siehe
+     * {@see self::DIRECTORY_MODE}).
      */
     public static function prepare(string $subscription): string
     {
         $directory = self::directory($subscription);
 
-        if (! is_dir(self::ROOT) && ! @mkdir(self::ROOT, 0750, true) && ! is_dir(self::ROOT)) {
+        if (! is_dir(self::ROOT) && ! @mkdir(self::ROOT, self::DIRECTORY_MODE, true) && ! is_dir(self::ROOT)) {
             throw AgentException::execFailed('Die Wurzel der Sicherungen liess sich nicht anlegen.');
         }
 
-        if (! is_dir($directory) && ! @mkdir($directory, 0750, true) && ! is_dir($directory)) {
+        if (! is_dir($directory) && ! @mkdir($directory, self::DIRECTORY_MODE, true) && ! is_dir($directory)) {
             throw AgentException::execFailed('Das Verzeichnis der Sicherungen liess sich nicht anlegen.', [
                 'path' => $directory,
             ]);
         }
 
-        chown($directory, 'root');
-        chmod($directory, 0750);
+        // Eine Gruppe, die es nicht gibt, ist kein Grund zum Abbruch — dieselbe
+        // Vorsicht wie in `DbDumpCreate::handOver()`. Ohne sie bleibt das
+        // Verzeichnis root allein: enger als vorgesehen, nicht weiter.
+        $group = posix_getgrnam(self::GROUP) !== false;
+
+        foreach ([self::ROOT, $directory] as $path) {
+            chown($path, 'root');
+
+            if ($group) {
+                chgrp($path, self::GROUP);
+            }
+
+            // Nach `chown`/`chgrp`, nicht davor: Beide löschen unter Linux die
+            // setuid- und setgid-Bits, und ein `chmod` davor wäre damit halb
+            // wirkungslos. Hier stehen sie ohnehin nicht — aber die Reihenfolge
+            // ist die, die immer stimmt.
+            chmod($path, self::DIRECTORY_MODE);
+        }
 
         return $directory;
     }

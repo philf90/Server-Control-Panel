@@ -177,7 +177,7 @@ final class DbDumpCreate implements Op
         }
 
         chown($path, 'root');
-        chmod($path, 0640);
+        chmod($path, Dump::FILE_MODE);
     }
 
     /**

@@ -186,6 +186,70 @@ final class MobileLayoutTest extends TestCase
         $this->assertGreaterThan(4, $tables, 'Es werden kaum Tabellen gefunden — dann prüft dieser Test nichts.');
     }
 
+    /**
+     * Eine Paar-Tabelle beschriftet ihre Zeilen mit `td.quiet` und nicht mit `th`.
+     *
+     * **Der Anlass ist eine Aufnahme vom 8. August 2026.** Die Datenbankseite
+     * schrieb als einzige `<th>` für die Beschriftung, und auf 390px sah man es:
+     * Die schmale Fläche macht aus jeder Zeile eine Flexzeile und setzt dafür
+     * `table.pairs td` zurück — Anzeige, Polster, Höhe, Rand. Ein `th` fällt
+     * unter keine dieser Regeln, behielt also seinen Rand aus der
+     * Tabellengestaltung, und der ist so breit wie die Beschriftung. Unter jeder
+     * Zeile standen zwei Striche verschiedener Länge, versetzt gegeneinander.
+     *
+     * **Die Regel ist nicht „`th` ist falsch".** Für eine Zeilenbeschriftung
+     * wäre `th` das genauere Markup. Aber zehn Paar-Tabellen schreiben
+     * `td.quiet` und eine schrieb `th` — und zwei Formen für dieselbe Sache
+     * heissen: Eine wird gepflegt und die andere nicht. Wer das umdreht, ändert
+     * die CSS-Regeln mit und stellt hier auf `th` um.
+     *
+     * Der Gegenbeweis dazu ist die Aufnahme selbst: dieselbe Zeile einmal mit
+     * `th` und einmal mit `td.quiet`, gerendert mit dem gebauten Stylesheet.
+     */
+    public function test_a_pairs_table_labels_its_rows_the_same_way_everywhere(): void
+    {
+        $offenders = [];
+        $tables = 0;
+
+        foreach ($this->files('resources/js', 'vue') as $path) {
+            $template = $this->template((string) file_get_contents($path));
+
+            foreach ($this->pairsTables($template) as $body) {
+                $tables++;
+
+                if (str_contains($body, '<th')) {
+                    $offenders[] = $this->relative($path);
+                }
+            }
+        }
+
+        $this->assertGreaterThan(
+            4,
+            $tables,
+            'Es werden kaum Paar-Tabellen gefunden — dann prüft dieser Test nichts.',
+        );
+
+        $this->assertSame(
+            [],
+            $offenders,
+            'Eine Paar-Tabelle beschriftet ihre Zeilen mit <td class="quiet">. Ein <th> behält auf '.
+            '390px seinen Rand aus der Tabellengestaltung, weil die schmale Fläche nur `td` '.
+            'zurücksetzt — und der Rand ist dann so breit wie die Beschriftung.',
+        );
+    }
+
+    /**
+     * Die Rümpfe aller `table.pairs` einer Seite.
+     *
+     * @return list<string>
+     */
+    private function pairsTables(string $template): array
+    {
+        preg_match_all('#<table class="pairs">(.*?)</table>#s', $template, $matches);
+
+        return $matches[1];
+    }
+
     public function test_every_cell_of_a_stacked_table_is_labelled(): void
     {
         // Im Stapel verschwindet der Spaltenkopf. Eine Zelle ohne

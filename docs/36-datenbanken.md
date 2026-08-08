@@ -665,7 +665,13 @@ Das ist die Hälfte des Abnahmekriteriums („sichert und zurückspielt") und de
 Teil mit den meisten Fallen.
 
 **Die Ablage:** `/var/lib/srvpanel/dumps/<abonnement>/<storage_name>.sql.gz`,
-Verzeichnis `root:srvpanel 0750`, Dateien `root:srvpanel 0640`.
+Verzeichnisse `root:srvpanel 0710`, Dateien `root:srvpanel 0640`.
+
+> **Berichtigt am 8. August 2026, siehe §22.3l.** Hier stand `0750` für das
+> Verzeichnis, und die Umsetzung hat daraus `root:root 0750` gemacht — womit
+> das Herunterladen nicht ging. `0710` mit der Gruppe des Panels ist enger als
+> die ursprüngliche Angabe und erfüllt ihren Zweck genauer: durchsuchbar für
+> das Panel, nicht auflistbar.
 
 - **Nicht unter `/var/www/vhosts/<abo>/`.** Ein Dump ist die vollständige
   Datenbank des Kunden; im Abo-Verzeichnis läge er einen Verzeichniswechsel vom
@@ -2038,6 +2044,69 @@ Verweise. Letztere in beide Richtungen — jede Adresse im Bestand kennt der
 Router, und jede der vier Arten ist verlinkt. Ohne die zweite Behauptung bliebe
 der Wächter grün, wenn ein Verweis ersatzlos verschwände; dann stünde die Zahl
 da, und wer sie liest, müsste den Weg zur Liste selbst suchen.
+
+### 22.3l Zwei Funde aus der Bedienung — und einer davon war ein 404
+
+**Gefunden vom Betreiber am 8. August 2026 mit `v0.5.0-rc.4`**, beim Durchgehen
+der Kriterien 4 bis 7 im Panel. Beide Male hat kein Test etwas gemeldet, und
+beide Male stand die richtige Absicht als Kommentar daneben.
+
+**1. „Herunterladen" antwortete mit 404, obwohl die Sicherung fertig war.**
+
+Die Datei lag als `root:srvpanel 0640` — die Gruppe des Panels durfte sie lesen.
+Ihr Verzeichnis lag als `root:root 0750`, und damit fiel das Panel in „andere":
+keine Rechte. **Unter Unix öffnet man eine Datei über ihren Pfad**, und dafür
+braucht es das `x`-Bit auf *jedem* Verzeichnis darüber. Das `r` an der Datei war
+wertlos, `is_file()` schlug fehl, und der Controller wies ordnungsgemäss mit 404
+ab.
+
+Der Kommentar am Code hat den Fehler nicht nur nicht verhindert, er hat ihn
+begründet:
+
+> Nicht der Gruppe des Panels: Sie soll die **Dateien** lesen dürfen und nicht
+> das Verzeichnis durchsuchen.
+
+Die Absicht ist richtig — wer eine Sicherung herunterlädt, kennt ihren Namen aus
+dem Bestand. Nur lässt sie sich so nicht ausdrücken: Wer nicht durchsuchen darf,
+liest auch nicht. **Und §10 dieses Plans hatte `root:srvpanel 0750` dastehen.**
+Der Plan war richtig, die Umsetzung ist davon abgewichen, und die Abweichung kam
+mit einer Erklärung statt mit einer Frage. Das ist die teuerste Sorte Kommentar:
+einer, der eine Abweichung plausibel macht.
+
+Behoben mit `0710` und der Gruppe des Panels — enger als die ursprüngliche
+Angabe und näher an ihrem Zweck: `--x` heisst hingehen, wenn man den Namen
+kennt, `ls` bleibt verwehrt. Gesetzt werden **beide** Ebenen (Wurzel und
+Abonnementverzeichnis) und bei **jedem** Lauf, damit eine Installation mit dem
+alten Modus sich mit der nächsten Sicherung selbst berichtigt.
+
+`DumpAccessTest` rechnet statt abzuschreiben: Für jedes Verzeichnis des Pfades
+das `x`-Bit, für die Datei das `r`-Bit, für die Verzeichnisse **kein** `r`, für
+„andere" nichts — und alles für dieselbe Gruppe. Die letzte Behauptung ist die,
+die den Fehler gefunden hätte: Die Bits stimmten schon vorher, falsch war, wem
+sie gehörten. Beide Brüche beissen, und **jeder trifft genau eine Behauptung.**
+
+**2. Die mobile Ansicht der Datenbankseite hatte versetzte Striche.**
+
+Unter jeder Zeile des Abschnitts „Datenbank" standen zwei Linien verschiedener
+Länge. Ursache: Diese eine Paar-Tabelle beschriftete ihre Zeilen mit `<th>` — als
+einzige im Panel. Die schmale Fläche macht aus jeder Zeile eine Flexzeile und
+setzt dafür `table.pairs td` zurück; ein `th` fällt unter keine dieser Regeln
+und behielt seinen Rand aus der Tabellengestaltung, so breit wie die
+Beschriftung.
+
+Für eine Zeilenbeschriftung wäre `th` das genauere Markup. Aber zehn andere
+Paar-Tabellen schreiben `td.quiet`, und zwei Formen für dieselbe Sache heissen:
+Eine wird gepflegt und die andere nicht. Diese hier war die andere.
+`MobileLayoutTest` besteht jetzt auf einer Form; nachgesehen wurde mit dem
+gebauten Stylesheet bei 390 px in beiden Themes, einmal mit `th` und einmal mit
+`td.quiet` — der Fehler ist auf der Aufnahme so zu sehen wie auf dem Telefon des
+Betreibers.
+
+**Was beide Funde verbindet:** Sie sind an einer Stelle entstanden, an der etwas
+*aussieht* wie geprüft. Ein Modus mit einem begründenden Kommentar; ein Markup,
+das in zehn anderen Dateien anders aussieht. Kein Test hat je gefragt, ob der
+Modus seinen Zweck erfüllt oder ob die elfte Tabelle wie die zehn davor gebaut
+ist.
 
 ### 22.4 Was noch fehlt
 

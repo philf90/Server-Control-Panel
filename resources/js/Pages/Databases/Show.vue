@@ -201,26 +201,40 @@ function size(): string {
           Gefunden beim Nachbau mit dem gebauten Stylesheet bei 390px, nicht von
           einem Test.
         -->
+        <!--
+          **Die Beschriftung ist ein `td.quiet` und kein `th`.** Hier stand ein
+          `<th>` — als einzige Paar-Tabelle des Panels —, und auf 390px war das
+          sichtbar falsch: Die schmale Fläche macht aus jeder Zeile eine
+          Flexzeile und setzt dafür `table.pairs td` zurück. Ein `th` fällt
+          nicht darunter, behielt also seinen Rand aus der Tabellengestaltung —
+          und der ist so breit wie die Beschriftung. Unter jeder Zeile standen
+          damit zwei Striche verschiedener Länge, versetzt gegeneinander.
+
+          Ein `th` wäre für eine Zeilenbeschriftung das genauere Markup. Aber
+          zehn andere Paar-Tabellen schreiben `td.quiet`, und zwei Formen für
+          dieselbe Sache heissen: Eine wird gepflegt und die andere nicht. Diese
+          hier war die andere. `MobileLayoutTest` besteht jetzt darauf.
+        -->
         <table class="pairs">
           <tbody>
             <tr>
-              <th>Name auf dem Server</th>
-              <td class="ident">{{ props.database.name }}</td>
+              <td class="quiet">Name auf dem Server</td>
+              <td class="right ident">{{ props.database.name }}</td>
             </tr>
             <tr>
-              <th>Sortierung</th>
-              <td class="ident">{{ props.database.collation }}</td>
+              <td class="quiet">Sortierung</td>
+              <td class="right ident">{{ props.database.collation }}</td>
             </tr>
             <tr>
-              <th>Zustand</th>
-              <td><Badge :kind="rang(props.database.status)">{{ props.database.status_label }}</Badge></td>
+              <td class="quiet">Zustand</td>
+              <td class="right"><Badge :kind="rang(props.database.status)">{{ props.database.status_label }}</Badge></td>
             </tr>
             <tr>
-              <th>Belegt</th>
+              <td class="quiet">Belegt</td>
               <!-- „nicht gemessen" ist etwas anderes als „0 MB" — ohne den
                    Zeitpunkt daneben sähe eine drei Tage alte Zahl aus wie eine
                    Messung von vorhin (docs/26 §8). -->
-              <td :class="props.database.size_bytes === null ? 'quiet' : ''">
+              <td class="right" :class="props.database.size_bytes === null ? 'quiet' : ''">
                 {{ size() }}
                 <span v-if="props.database.size_measured_at" class="quiet">
                   (gemessen {{ new Date(props.database.size_measured_at).toLocaleString('de-DE') }})

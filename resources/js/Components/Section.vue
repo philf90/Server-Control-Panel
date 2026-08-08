@@ -27,7 +27,17 @@ withDefaults(defineProps<{
   /** Anderthalb Grundrisse — für eine Tabelle mit mehr als drei Spalten. */
   wide?: boolean
 
-  /** Die ganze Zeile — für die lange Liste am Ende einer Seite. */
+  /**
+   * Die ganze Zeile — für die lange Liste am Ende einer Seite, **und für jede
+   * Tabelle mit einer Aktionsspalte.**
+   *
+   * Der zweite Grund ist am 8. August 2026 dazugekommen. Eine Aktionsspalte
+   * mit drei Knöpfen macht die Breite einer Tabelle zur Summe ihrer
+   * Beschriftungen — 755px und 923px auf der Datenbankseite —, und
+   * `.scrolls > table` hält sie auf `max-content`. In einem Grundriss (400px,
+   * bei 1440px gewachsen auf 548px) steht der letzte Knopf dann ausserhalb des
+   * Bereichs. `ActionColumnTest` besteht darauf.
+   */
   full?: boolean
 
   /** Ein Satz unter der Überschrift, der die Zahlen darunter einordnet. */

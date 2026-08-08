@@ -2603,6 +2603,70 @@ ein Klick alle anderen mit.
 Verzeichnis haben diesen Rest nicht gezeigt; gezeigt hat ihn das Kommando, das
 den Bestand gegen die Platte hält. Es steht seit diesem Lauf in Kriterium 7.
 
+### 22.3s Auf dem Schreibtisch musste man schieben, um einen Knopf zu treffen
+
+**Gemeldet vom Betreiber am 8. August 2026, mit einer Aufnahme:** Auf der
+Datenbankseite stand „Zugriff en…" — der Knopf war abgeschnitten, und die
+Tabellen „Zugänge" und „Sicherungen" liessen sich nur waagerecht schieben, um
+an ihre Knöpfe zu kommen.
+
+**Die Ursache ist eine Kette aus drei Regeln, von denen jede für sich richtig
+ist.** `.scrolls > table` setzt `width: max-content` — dafür gibt es den
+Rollbehälter, und auf dem Telefon ist er die Antwort. Ein Bereich ohne
+Breitenangabe bekommt `--bereich-min`, also 400px, und wächst mit der Zeile.
+Und eine Aktionsspalte mit drei Knöpfen macht die Breite einer Tabelle zur
+Summe ihrer Beschriftungen. Gemessen am gebauten Stylesheet:
+
+| Tabelle | braucht |
+| --- | --- |
+| Zugänge | 755px |
+| Sicherungen | 923px |
+
+Ein Bereich im Grundriss bekommt bei 1440px 548px.
+
+**Der Überlauf, nach Bildschirmbreite** — und die Reihe ist der eigentliche
+Fund:
+
+| Breite | Zugänge | Sicherungen |
+| --- | --- | --- |
+| 1280 | 286px | 0 |
+| 1366 | 243px | 0 |
+| 1440 | 206px | 0 |
+| **1600** | **350px** | **518px** |
+| 1920 | 243px | 411px |
+
+**Er wird auf einem breiteren Bildschirm schlimmer.** Bis 1440px weicht
+„Sicherungen" in eine eigene Zeile aus und steht richtig; ab 1600px passen alle
+drei Bereiche nebeneinander, und damit rollen beide Tabellen. Wer bei 1440px
+nachsieht — die übliche Breite —, sieht die Hälfte des Fehlers und hält die
+andere für behoben.
+
+**Behoben mit `full` an beiden Bereichen**, der Klasse, die es dafür gibt. Nach
+der Änderung ist der Überlauf bei 1280, 1366, 1440, 1600 und 1920 in beiden
+Dichtestufen **0**. Bei 1024 bleibt er (45px und 213px): Dort ist die Fläche
+schmaler als der Bedarf, und der Rollbehälter ist genau dafür da. Unter 720px
+ändert sich nichts, denn `--bereich-min` ist dort ohnehin `100%`.
+
+**Die Regel dahinter hängt an der Aktionsspalte und nicht an der Spaltenzahl.**
+Vier Spalten sind kein Maß — „Konten" beim Kunden hat vier und passt bequem,
+weil in jeder Zelle ein Wort steht. Was die Breite erzwingt, sind Knöpfe: Ihre
+Beschriftung ist unverkürzbar, sie brechen nicht um, und sie sind der einzige
+Inhalt einer Tabelle, den man *treffen* muss. **Zum Lesen genügt Schieben, zum
+Drücken nicht.**
+
+`ActionColumnTest` liest alle Bereiche aller Seiten und verlangt `full` für
+jeden, dessen Tabelle eine Zelle mit einer Knopfreihe hat. Als er entstand, gab
+es im ganzen Panel genau zwei solche Tabellen, und beide standen falsch; die
+Regel ist also keine Verallgemeinerung aus einem Fall, sondern die Beschreibung
+des einzigen Falls, den es gibt. Seine Untergrenze zählt **Bereiche** und nicht
+Fundstellen — ein Zähler auf den Fundstellen stünde auf null, sobald jemand die
+letzte Aktionstabelle umbaut, und meldete Rot für genau die Ordnung, die er
+durchsetzen soll.
+
+**Und die Lehre für das Nachsehen selbst:** Eine Breite reicht nicht. Der
+Bildschirm des Betreibers zeigte weniger als das Bild, das ein zweiter Blick
+bei 1600px ergeben hätte.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der

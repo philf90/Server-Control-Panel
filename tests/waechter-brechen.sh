@@ -4335,6 +4335,29 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DumpTeardownTest passed
 
 echo
+echo "── ActionColumnTest: eine Aktionsspalte im Grundriss ──"
+#
+# Die Breite einer Tabelle mit Knöpfen ist die Summe ihrer Beschriftungen, und
+# `.scrolls > table` hält sie auf max-content. Im Grundriss liegt der letzte
+# Knopf ausserhalb des Bereichs — man muss schieben, um ihn zu treffen
+# (docs/36 §22.3s).
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    '<Section title="Sicherungen" full>',
+    '<Section title="Sicherungen">',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "Aktionsspalte im Grundriss" &&
+pruefe "Aktionsspalte im Grundriss" \
+  ActionColumnTest::test_a_table_with_an_action_column_takes_the_whole_row failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ActionColumnTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

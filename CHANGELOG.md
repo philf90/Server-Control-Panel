@@ -5359,6 +5359,30 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Eine entfernte Datenbank liess ihr Recht liegen.** `DROP DATABASE` nimmt in
+MariaDB die auf das Schema vergebenen Rechte nicht mit — sie stehen in
+`mysql.db` und bleiben dort —, und die Anwendung nannte dem Agenten nur die
+Zugänge, die *mitgehen*. Wer an einer zweiten Datenbank hing und darum
+überlebte, behielt sein `GRANT ALL` auf die entfernte. Auf `cloudsrv24` gefunden
+als eine Rechtezeile für `p1118_demo`, ein Schema, das es seit Tagen nicht mehr
+gab; entsteht der Name später wieder, hätte dieser Zugang sofort alle Rechte
+darauf, ohne dass sie ihm jemand gegeben hat. Seit `db.user.grant` das Verbinden
+zu einer ausdrücklichen Handlung macht, wich damit der Bestand des Panels von
+dem ab, was MariaDB erlaubt. Der Auftrag trägt jetzt beide Listen: `users` geht,
+`revoke` bleibt und verliert das Recht. Die Reihenfolge im Agenten ist Rechte,
+Zugänge, Schema — `Session::execute()` bleibt beim ersten Fehler stehen, und von
+den beiden Zwischenzuständen ist ein Schema ohne Zugang der harmlosere.
+`OrphanedGrantTest` prüft beide Hälften des Weges und dazu die Eigenschaft, die
+keine der Listen allein hat: kein verbundener Zugang fällt aus beiden heraus.
+Gefunden hat das niemand beim Bauen, sondern der Betreiber beim Lesen einer
+Ausgabe, die zu einem ganz anderen Kriterium gehörte.
+
+**„Noch keine Ausgabe." stand unter einem fertigen Vorgang.** Das Wort sagt zu,
+dass etwas kommt; an einem abgeschlossenen Vorgang kommt nichts mehr. Die Seite
+kannte den Zustand und benutzte ihn für diesen Satz nicht. Auf einer leeren
+Liste bleibt „Noch keine Domain" richtig — dort kann eine dazukommen, und genau
+dieser Unterschied ist die Regel, die `WordChoiceTest` jetzt hält.
+
 **Ein vorhandener Zugang lässt sich mit einer weiteren Datenbank verbinden.**
 `Databases::grant()` und die Operation `db.user.grant` lagen seit P5 fertig da,
 und kein Controller, keine Route und kein Test riefen sie auf — aufgefallen erst,

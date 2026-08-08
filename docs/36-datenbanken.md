@@ -1283,6 +1283,13 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 #                HTTP nicht erreichbar.
 #    BELEG:  Der Download liefert eine Datei. Ein 404 heisst nicht „fehlt",
 #            sondern meist: das Panel kommt an den Pfad nicht heran (§22.3l).
+#            Am 8. August 2026 gefahren und erfüllt (§22.3p): der Knopf lieferte
+#            eine Datei, /var/lib/srvpanel/dumps ist drwx--x--- root:srvpanel,
+#            die Sicherungen -rw-r----- root:srvpanel, INSERT > 0, DEFINER = 0.
+#    Und das Unterverzeichnis trägt den ABONNEMENTNAMEN, nicht den
+#    Systembenutzer: Dump::directory() bildet ihn über
+#    SubscriptionProvision::subscriptionName(), dieselbe Quelle wie
+#    /var/www/vhosts/<name>. Also .../dumps/kunde.de/ und nicht .../dumps/p1118/.
 
 # 5  ZURÜCKSPIELEN
 #    Die Tabelle löschen, den Dump im Panel zurückspielen.
@@ -2381,6 +2388,18 @@ Platzhalter darin ist kein Befehl, sondern eine Bitte um Aufmerksamkeit** — un
 in einem Ablauf aus zwölf Zeilen fällt die eine, die noch ausgefüllt werden
 muss, nicht auf. Was hier trug, war der zweite Durchgang ohne jede Variable.
 
+**Kriterium 4 ist im selben Durchgang fertig geworden.** Der Knopf
+*Herunterladen* lieferte eine Datei — der Weg, der bis `v0.5.0-rc.5` mit 404
+antwortete (§22.3l). Dazu die Rechte: `/var/lib/srvpanel/dumps` ist
+`drwx--x---` (0710) root:srvpanel, das Unterverzeichnis ebenso, die Sicherungen
+`-rw-r-----` (0640) root:srvpanel; `INSERT` = 6, `DEFINER` = 0.
+
+**Das Unterverzeichnis trägt den Abonnementnamen und nicht den Systembenutzer.**
+`Dump::directory()` bildet ihn über `SubscriptionProvision::subscriptionName()`,
+dieselbe Quelle wie `/var/www/vhosts/<name>` — also `dumps/cloudlab24.de/` und
+nicht `dumps/p1118/`. Die Anleitung an den Betreiber las `<abo>` in §17 als
+Systembenutzer und schickte ihn ins Leere; §17 sagt es jetzt ausdrücklich.
+
 **Fund 1: Eine entfernte Datenbank lässt ihr Recht liegen.** In derselben
 Ausgabe stand:
 
@@ -2403,19 +2422,44 @@ erlaubt, und das ist genau die Sorte Abweichung, gegen die die zweite Fassung
 einer Regel immer verliert. `srvpanel db` meldet dabei „Nichts liegengeblieben",
 weil es diese Frage nicht stellt.
 
-Der Weg zurück ist klein und steht schon zur Hälfte da: `remove()` nennt
-zusätzlich die Zugänge, die **bleiben**, und `DbDatabaseRemove` setzt für die je
-ein `REVOKE ALL PRIVILEGES ON <schema>.*` — dieselbe Anweisung, die
-`db.user.grant` beim Entziehen schickt. Dazu ein Wächter, dass nach einem
-`remove` kein Recht auf das Schema übrigbleibt, und eine Zeile in `srvpanel db`,
-damit ein verwaistes Recht überhaupt auffällt.
+**Behoben.** `remove()` nennt zusätzlich die Zugänge, die **bleiben**, und
+`DbDatabaseRemove` setzt für die je ein `REVOKE IF EXISTS ALL PRIVILEGES ON
+<schema>.*` — dieselbe Anweisung, die `db.user.grant` beim Entziehen schickt,
+also keine zweite Fassung der Maskierungsregel. Die Reihenfolge ist Rechte,
+Zugänge, Schema: `Session::execute()` bleibt beim ersten Fehler stehen, und von
+den beiden Zwischenzuständen ist ein Schema ohne Zugang der harmlosere
+(§22.3e). `OrphanedGrantTest` prüft beide Hälften des Weges und dazu die
+Eigenschaft, die keine der Listen allein hat — kein verbundener Zugang fällt aus
+beiden heraus.
+
+**Was das nicht tut: aufräumen.** Die Rechte, die vor dieser Fassung
+liegengeblieben sind, kennt niemand — der Bestand des Panels hat die Zeile beim
+Entfernen mitgenommen, und `srvpanel db` fragt `mysql.db` nicht. Auf
+`cloudsrv24` ist das eine Zeile von Hand:
+
+```sql
+REVOKE ALL PRIVILEGES ON `p1118\_demo`.* FROM 'p1118_user'@'localhost';
+```
+
+**Ein Melder dafür ist ein eigener Schritt und steht hier als Vorschlag, nicht
+als Zusage:** eine lesende Operation, die `mysql.db` gegen
+`information_schema.schemata` hält, und eine Zeile in `srvpanel db` neben
+„Nichts liegengeblieben". Sie ist deshalb nicht Teil dieses Beitrags, weil sie
+den Agenten um einen Lesezugriff erweitert, den es bisher nicht gibt — und weil
+ein Melder ohne den Wächter oben nur den Zustand beschriebe, statt ihn zu
+verhindern.
 
 **Fund 2: „Noch keine Ausgabe." bei einem fertigen Vorgang.** Das Wort *noch*
 sagt zu, dass etwas kommt. Bei einem abgeschlossenen Vorgang ohne Ausgabe ist
-das falsch; die Seite kennt den Zustand und benutzt ihn für diesen Satz nicht.
+das falsch; die Seite kannte den Zustand und benutzte ihn für diesen Satz nicht.
+Behoben, und die Regel dazu ist enger gefasst als „das Wort ist verboten": Auf
+einer leeren Liste bleibt „Noch keine Domain" richtig, weil eine dazukommen
+kann. Ein abgeschlossener Vorgang kann das nicht — deshalb verlangt
+`WordChoiceTest::test_the_operation_page_promises_nothing_after_the_end()` genau
+den offenen Zustand als Bedingung und nicht das Fehlen des Wortes.
 
-Beide Funde gehören nicht in den Abnahmelauf und sind hier festgehalten, damit
-sie nicht mit ihm verschwinden.
+Beide Funde gehören nicht in den Abnahmelauf und stehen hier, damit sie nicht
+mit ihm verschwinden.
 
 ### 22.4 Was noch fehlt
 
@@ -2439,10 +2483,10 @@ nächsten Lauf.
 **Kriterium 6 ist gefahren und erfüllt** (§22.3m): Ein Dump, der Rechte vergeben
 will, prallt am befristeten Benutzer ab, und die Rechtezeile bleibt unverändert.
 
-**Kriterium 4 ist halb belegt.** Die Sicherung entsteht und liegt richtig — der
-Download hat mit 404 geantwortet, das ist behoben (§22.3l), aber **ein
-erfolgreicher Download ist seither nicht niedergeschrieben.** Genau die Sorte
-Lücke, die dieser Abschnitt beschreibt: Der Fehler ist erklärt, der Beleg fehlt.
+**Kriterium 4 ist gefahren und erfüllt** (§22.3p): Die Sicherung entsteht, liegt
+mit den richtigen Rechten, enthält die Zeilen und keine `DEFINER`-Angabe — und
+der Download liefert eine Datei. Bis dahin war es halb belegt, und die Hälfte,
+die fehlte, war genau die, an der der 404 hing.
 
 **Kriterium 5 ist gefahren und erfüllt** (§22.3p): Vorgang 449, `db.restore`,
 Zustand `fertig` — und je Tabelle dieselbe Zeilenzahl wie vor dem Löschen.
@@ -2450,8 +2494,7 @@ Zustand `fertig` — und je Tabelle dieselbe Zeilenzahl wie vor dem Löschen.
 **Kriterium 7 steht aus:** der Rückbau samt Gegenprobe am Nachbarn.
 
 Das Abnahmekriterium von P5 ist damit **noch nicht** erfüllt, und die Lücke ist
-klein und benannt: Es fehlen der niedergeschriebene Download (Kriterium 4) und
-der Rückbau (Kriterium 7). Der Satz des Plans — *anlegen, benutzen, sichern,
+klein und benannt: Es fehlt der Rückbau (Kriterium 7). Der Satz des Plans — *anlegen, benutzen, sichern,
 zurückspielen, und keine fremde Datenbank sehen* — ist ansonsten am echten
 Server gemessen, mit den Fehlernummern von MariaDB und nicht als Eigenschaft
 einer erzeugten Zeichenkette. Bis zum 8. August stand hier das Gegenteil, weil

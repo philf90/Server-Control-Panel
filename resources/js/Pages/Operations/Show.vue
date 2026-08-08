@@ -48,6 +48,12 @@ const message = computed(() => live?.state.value?.message ?? props.operation.mes
 
 const open = computed(() => live?.state.value?.open ?? props.operation.open)
 
+// „Noch" ist eine Zusage, dass etwas kommt, und an einem fertigen Vorgang ist
+// sie falsch: Vorgang 449 stand am 8. August 2026 auf „fertig" und darunter
+// „Noch keine Ausgabe." — die Seite kannte den Zustand und benutzte ihn für
+// diesen Satz nicht (docs/36 §22.3p).
+const emptyOutput = computed(() => (open.value ? 'Noch keine Ausgabe.' : 'Keine Ausgabe.'))
+
 // Auch die Zeiten kommen aus dem Kanal, sobald er etwas geschickt hat. Ohne das
 // stünde an einem fertigen Vorgang „Begonnen —": Die erste Antwort entsteht,
 // während er noch in der Warteschlange steht (docs/36 §22.3m).
@@ -137,7 +143,7 @@ watch(output, () => {
       </Section>
 
       <Section title="Ausgabe" full>
-        <pre ref="box" class="output long">{{ output || 'Noch keine Ausgabe.' }}</pre>
+        <pre ref="box" class="output long">{{ output || emptyOutput }}</pre>
       </Section>
 
       <Section v-if="props.operation.result" title="Ergebnis" full>

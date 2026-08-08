@@ -266,6 +266,55 @@ final class WordChoiceTest extends TestCase
         ));
     }
 
+    /**
+     * „Noch" ist eine Zusage, und an einem fertigen Vorgang ist sie falsch.
+     *
+     * **Gefunden am 8. August 2026 an Vorgang 449.** Er stand auf „fertig", und
+     * darunter stand „Noch keine Ausgabe." — das Wort versprach etwas, das
+     * nicht mehr kommen konnte. Die Seite kannte den Zustand und benutzte ihn
+     * für diesen Satz nicht (`docs/36 §22.3p`).
+     *
+     * **Warum die Regel hier eng ist und nicht für jede Seite gilt:** „Noch
+     * keine Domain" ist auf einer leeren Liste richtig, weil eine Domain
+     * dazukommen kann. Ein abgeschlossener Vorgang kann das nicht — das ist der
+     * Unterschied, und er hängt am offenen Zustand. Deshalb wird genau der
+     * verlangt: Ein Platzhalter mit „Noch" steht auf der Vorgangsseite nur
+     * dort, wo `open` mitentscheidet.
+     */
+    public function test_the_operation_page_promises_nothing_after_the_end(): void
+    {
+        $path = dirname(__DIR__, 2).'/resources/js/Pages/Operations/Show.vue';
+        $lines = explode("\n", (string) file_get_contents($path));
+
+        $found = [];
+        $seen = 0;
+
+        foreach ($lines as $number => $line) {
+            if (preg_match('/(\'|"|>)Noch /u', $line) !== 1) {
+                continue;
+            }
+
+            // Die Zeile, die die Regel erklärt, ist keine Ausgabe.
+            if (str_starts_with(trim($line), '//')) {
+                continue;
+            }
+
+            $seen++;
+
+            if (! str_contains($line, 'open')) {
+                $found[] = sprintf('%d  %s', $number + 1, trim($line));
+            }
+        }
+
+        $this->assertSame(1, $seen, 'Der Platzhalter mit „Noch" ist auf der Vorgangsseite nicht mehr zu finden — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $found, sprintf(
+            "Auf der Vorgangsseite verspricht ein Platzhalter etwas, ohne den offenen Zustand zu fragen:\n  %s\n\n".
+            'An einem abgeschlossenen Vorgang kommt nichts mehr — dort heisst es „Keine Ausgabe.".',
+            implode("\n  ", $found),
+        ));
+    }
+
     public function test_the_list_matches_the_document(): void
     {
         $document = (string) file_get_contents(dirname(__DIR__, 2).'/docs/19-sprache-der-oberflaeche.md');

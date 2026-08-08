@@ -158,8 +158,8 @@ final class DbLifecycle implements AfterOperation
             $dump = DatabaseDump::query()->find($operation->subject_id);
 
             if ($dump === null) {
-                // Der Rückbau eines ganzen Abonnements trägt keinen Gegenstand
-                // — dort verschwinden die Zeilen mit dem Abonnement.
+                $this->removedAllDumps($operation, $task);
+
                 return;
             }
 
@@ -177,6 +177,39 @@ final class DbLifecycle implements AfterOperation
                 'last_error' => null,
             ])->save();
         });
+    }
+
+    /**
+     * Der Rückbau eines ganzen Abonnements — ein Vorgang ohne Gegenstand.
+     *
+     * **Hier stand ein Kommentar, der das Gegenteil versprach.** „Dort
+     * verschwinden die Zeilen mit dem Abonnement" — sie verschwinden nicht:
+     * `database_dumps.subscription_id` steht mit Absicht auf `nullOnDelete`
+     * (§7.2), damit eine Sicherung ihre Datenbank überlebt. Die Zeile ist der
+     * Wegweiser zu einer Datei, auf die sonst nichts mehr zeigt, und genau
+     * davon lebt `srvpanel db --prune`.
+     *
+     * **Nach einem erfolgreichen Rückbau ist die Datei aber fort.** Am
+     * 8. August 2026 gemessen: `srvpanel db` zählte danach drei Sicherungen,
+     * während zwei auf der Platte lagen, und meldete eine Zeile ohne
+     * Abonnement (`docs/36 §22.3r`). Ein Melder, der nach jedem sauberen
+     * Rückbau Alarm gibt, wird bald gelesen wie ein Rauschen — dieselbe
+     * Begründung wie in `ClassReachTest`.
+     *
+     * **Das `subscription_id` steht zu diesem Zeitpunkt noch am Vorgang.**
+     * `subscription.remove` reiht sich hinter diesem ein, und die
+     * Warteschlange hat einen Arbeiter; erst dort werden die Vorgänge
+     * abgekoppelt. Ohne diese Reihenfolge wäre nicht mehr zu sagen, wessen
+     * Zeilen gemeint sind — die Bedingung hängt deshalb an einem Zustand und
+     * nicht an einer Absicht.
+     */
+    private function removedAllDumps(Operation $operation, string $task): void
+    {
+        if ($task !== 'db.dump.remove' || $operation->subscription_id === null) {
+            return;
+        }
+
+        DatabaseDump::query()->where('subscription_id', $operation->subscription_id)->delete();
     }
 
     /** Die Zugänge sind zu — jetzt erst steht es auch im Panel. */

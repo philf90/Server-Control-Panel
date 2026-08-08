@@ -4313,6 +4313,28 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
 
 echo
+echo "── DumpTeardownTest: die Zeile überlebt ihre Datei ──"
+#
+# Nach dem Rückbau eines Abonnements ist die Sicherungsdatei fort, und ohne
+# diesen Zweig bleibt ihre Zeile stehen: srvpanel db meldet dann einen Rest nach
+# einem Rückbau, der sauber gelaufen ist (docs/36 §22.3r).
+vorher_datei app/Support/Databases/DbLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DbLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                $this->removedAllDumps($operation, $task);\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DbLifecycle.php "Zeile überlebt ihre Datei" &&
+pruefe "Zeile überlebt ihre Datei" \
+  DumpTeardownTest::test_nothing_is_left_over_after_the_subscription_is_gone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DumpTeardownTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

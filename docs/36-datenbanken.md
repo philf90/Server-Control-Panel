@@ -2581,13 +2581,23 @@ sauber gelaufen ist, meldet einen Rest — und ein Melder, der nach jedem Rückb
 Alarm gibt, wird gelesen wie ein Rauschen. *Ein Wächter, der Fehlalarm gibt,
 wird abgeschaltet*, steht schon in `ClassReachTest`.
 
-**Der Weg zurück ist klein und liegt an derselben Stelle.** Ein `db.dump.remove`
-ohne Gegenstand ist immer der Rückbau eines ganzen Abonnements
+**Behoben, und der Weg lag an derselben Stelle.** Ein `db.dump.remove` ohne
+Gegenstand ist immer der Rückbau eines ganzen Abonnements
 (`Dumps::removeAllFor()` ist der einzige Erzeuger), und der Vorgang trägt zu
 diesem Zeitpunkt noch sein `subscription_id`: `subscription.remove` steht hinter
-ihm in derselben Warteschlange mit einem Arbeiter. Es fehlen also die Zeilen
-dieses Abonnements, gelöscht im selben Zug — plus ein Wächter, der nach einem
-Rückbau mit Sicherung sowohl die Datei als auch die Zeile vermisst.
+ihm in derselben Warteschlange mit einem Arbeiter, und erst dort werden die
+Vorgänge abgekoppelt. `DbLifecycle::removedAllDumps()` löscht die Zeilen dieses
+Abonnements im selben Zug — die Bedingung hängt damit an einem *Zustand*
+(`subject_id` fehlt, `subscription_id` steht) und nicht an einer Absicht.
+
+`DumpTeardownTest` prüft vier Dinge, und drei davon sind Gegenproben: dass die
+Zeilen gehen; dass `DatabasePrune` danach nichts meldet — **die Behauptung, die
+auf dem Server fehlgeschlagen ist**; dass sie *ohne* den Vorgang bleiben und
+gemeldet werden, damit „nichts gemeldet" nicht auch für Zeilen gilt, die es nie
+gab; dass der Nachbar seine behält, denn ein `delete()` über die ganze Tabelle
+bestünde jeden anderen Test; und dass das Entfernen einer *einzelnen* Sicherung
+weiter genau eine trifft — griffe die neue Bedingung eine Zeile zu früh, nähme
+ein Klick alle anderen mit.
 
 **Und `srvpanel db` gehört als Erwartung in §17.** Vier Abfragen und ein
 Verzeichnis haben diesen Rest nicht gezeigt; gezeigt hat ihn das Kommando, das
@@ -2630,10 +2640,10 @@ Verzeichnis ist nicht vorhanden" dort eine Abwesenheit ohne Vorgeschichte war.
 
 **Damit ist das Abnahmekriterium von P5 in allen sieben Punkten belegt.**
 
-**Offen ist ein Fund aus dem letzten Lauf**, der nicht zu den sieben gehört:
-Nach dem Rückbau bleibt die *Zeile* einer Sicherung stehen, deren Datei fort ist
-(§22.3r). `srvpanel db` meldet sie als Rest, und ein Melder, der nach jedem
-sauberen Rückbau Alarm gibt, wird bald nicht mehr gelesen.
+Der Fund aus dem letzten Lauf — nach dem Rückbau blieb die *Zeile* einer
+Sicherung stehen, deren Datei fort war — ist behoben (§22.3r). Auf einem Server,
+der vor dieser Fassung zurückgebaut hat, liegt die Zeile weiter da; sie geht mit
+`srvpanel db --prune`.
 
 **Das Abnahmekriterium ist erfüllt** — *„ein Kunde legt eine Datenbank an,
 benutzt sie, sichert und spielt zurück, und ein Datenbankbenutzer sieht

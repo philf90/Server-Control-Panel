@@ -5375,6 +5375,22 @@ es zählt, und hat zwei Erwartungen dazubekommen: `mysql.db` muss leer sein — 
 Recht überlebt sein Schema, und `mysql.user` allein zeigt das nie —, und
 `srvpanel db` muss „Nichts liegengeblieben" melden.
 
+**Der Rückbau nahm die Sicherungsdateien mit, ihre Zeilen aber nicht.**
+`DbLifecycle::afterDump()` trug dazu einen Kommentar, der das Gegenteil
+behauptete — „dort verschwinden die Zeilen mit dem Abonnement" —, und
+`database_dumps.subscription_id` steht mit Absicht auf `nullOnDelete`, damit
+eine Sicherung ihre Datenbank überlebt: Die Zeile ist der Wegweiser zu einer
+Datei, auf die sonst nichts mehr zeigt, und davon lebt `srvpanel db --prune`.
+Nach einem *erfolgreichen* Rückbau ist die Datei aber fort, und der Wegweiser
+zeigt ins Leere. Auf dem Zielserver zählte der Bestand danach drei Sicherungen,
+während zwei auf der Platte lagen. Das ist die teurere Hälfte des Fehlers: Ein
+Rückbau, der sauber gelaufen ist, meldet einen Rest — und ein Melder, der jedes
+Mal Alarm gibt, wird bald gelesen wie ein Rauschen. Ein `db.dump.remove` ohne
+Gegenstand ist immer der Rückbau eines ganzen Abonnements, und der Vorgang trägt
+zu diesem Zeitpunkt noch sein `subscription_id`; die Zeilen gehen jetzt im
+selben Zug. Wer vor dieser Fassung zurückgebaut hat, wird die Zeile mit
+`srvpanel db --prune` los.
+
 **Eine entfernte Datenbank liess ihr Recht liegen.** `DROP DATABASE` nimmt in
 MariaDB die auf das Schema vergebenen Rechte nicht mit — sie stehen in
 `mysql.db` und bleiben dort —, und die Anwendung nannte dem Agenten nur die

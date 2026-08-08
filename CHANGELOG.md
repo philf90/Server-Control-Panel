@@ -5273,6 +5273,46 @@ zu automatisieren hiesse, ein Abonnement zurückzubauen, und das ist genau das,
 was dieser Lauf nicht tut. **Gefahren ist er noch nicht** — er braucht einen
 Server mit MariaDB und zwei bestehenden Abonnements.
 
+**Der Abnahmelauf ist gefahren — und der Fund darin ist der wichtigste dieses
+Beitrags.** Am 8. August 2026 auf `cloudsrv24`, MariaDB 10.11.14. Der Lauf
+meldete alle geprüften Kriterien erfüllt, und eine seiner Zeilen lautete:
+„SELECT auf p1121_abnahme abgewiesen — Die Datenbank hat abgewiesen:
+`--------------`".
+
+`--------------` ist keine Fehlermeldung; der `mysql`-Client hatte die
+gescheiterte Anweisung zwischen Strichzeilen ausgegeben, und der Lauf nahm die
+erste Zeile. Dahinter stand das grössere Problem: `refused` wurde von **jeder**
+Ausnahme gesetzt. `docs/36 §17` nennt die Nummern seit jeher — 1044 beim `USE`,
+1142 oder 1044 beim `SELECT` —, gebaut war „es ist gescheitert". Ein
+`ERROR 1146 Table doesn't exist`, also ein Tippfehler im Tabellennamen, hätte
+sich gelesen wie eine funktionierende Abschottung. **Das Kriterium war nicht
+belegt, obwohl es grün stand.**
+
+Das ist die Lehre aus dem P4-Abnahmelauf eine Ebene tiefer: dort eine Zahl statt
+der Namen, hier ein Fehlschlag statt des richtigen Fehlschlags. Und wieder hat
+kein Test es gefunden, sondern der Blick auf eine grüne Ausgabe.
+
+Die Probe meldet jetzt die Fehlernummer, der Lauf hält sie gegen die erwarteten,
+und die Meldung wird nach der `ERROR`-Zeile durchsucht statt an einer Stelle
+vermutet. `DbErrorCodeTest` führt beide Ausgaben mit, die der Server wirklich
+geliefert hat — abgeschrieben und nicht nachgebildet: Eine Nachbildung dessen,
+was der Client ausgeben *sollte*, hätte den Fall gerade nicht getroffen.
+
+**Belegt hat der Lauf trotzdem viel**, und zwar an echtem MariaDB: dass
+`db.server.info` Fassung und Horchadresse richtig liest, dass Anlegen,
+Rechtevergabe und Benutzen laufen, dass das Passwort in keiner Vorgangsnutzlast
+steht, dass `SHOW DATABASES` genau die eigene Datenbank und
+`information_schema` zeigt — die Maskierung des Unterstrichs hält also am
+Server —, dass das `USE` mit ERROR 1044 abgewiesen wird, und dass der Rückbau
+nichts liegenlässt.
+
+**Ungeprüft geblieben:** `db.usage` lief gegen einen Server ohne eine einzige
+Datenbank und hat damit kein Schema getroffen — die Zerlegung seiner Ausgabe ist
+weiter unbelegt. Kriterium 4 bis 7 stehen aus. Und ausserhalb von P5: Auf diesem
+Server ist keine Dateisystem-Quota eingerichtet (`repquota: Cannot find
+mountpoint for device /dev/vda3`), `disk_used_mb` ist dort also seit P2 für jedes
+Abonnement „nicht gemessen".
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

@@ -1829,6 +1829,69 @@ Rechte vergeben will, und der Rückbau, der nichts liegenlässt — laufen von H
 nach §17. Sie zu automatisieren hiesse, ein Abonnement zurückzubauen, und das
 ist genau das, was dieser Lauf nicht tut.
 
+### 22.3h Der Abnahmelauf, gefahren — und der Fund darin
+
+**Gefahren am 8. August 2026 auf `cloudsrv24`**, MariaDB 10.11.14 unter Ubuntu
+24.04, gegen die Abonnements `cloudlab24.de` (p1118) und `cloudlab24.ipv64.de`
+(p1121). Der Lauf meldete **alle geprüften Kriterien erfüllt**. Genau deshalb
+ist er Zeile für Zeile gelesen worden, und eine hielt nicht, was sie behauptete:
+
+```
+ok  p1118_abnahme: SELECT auf p1121_abnahme abgewiesen —
+    Die Datenbank hat abgewiesen: --------------
+```
+
+`--------------` ist keine Fehlermeldung. Der `mysql`-Client gab die
+gescheiterte Anweisung zwischen Strichzeilen aus, und `AcceptanceDb::firstLine()`
+nahm Zeile 0. Das ist die harmlose Hälfte.
+
+**Die andere: `refused: true` wurde von *jeder* Ausnahme gesetzt.** §17 nennt
+die Nummern seit jeher — `1044` beim `USE`, `1142` oder `1044` beim `SELECT` —,
+gebaut war „es ist gescheitert". Ein `ERROR 1146 Table doesn't exist`, also ein
+Tippfehler im Tabellennamen, hätte sich gelesen wie eine funktionierende
+Abschottung. **Das Kriterium war damit nicht belegt, obwohl es grün stand.**
+
+Das ist die Lehre aus dem P4-Abnahmelauf eine Ebene tiefer. Dort: *eine Zahl
+statt der Namen.* Hier: *ein Fehlschlag statt des richtigen Fehlschlags.* Und
+wieder hat kein Test es gefunden, sondern der Blick auf eine grüne Ausgabe.
+
+Behoben: Die Probe meldet `code`, der Lauf hält ihn gegen `EXPECTED`, und die
+Meldung wird nach der `ERROR`-Zeile **durchsucht** statt an einer Stelle
+vermutet. `DbErrorCodeTest` führt beide Ausgaben mit, die der Server wirklich
+geliefert hat — abgeschrieben, nicht nachgebildet: Eine Nachbildung dessen, was
+der Client ausgeben *sollte*, hätte den Fall gerade nicht getroffen.
+
+**Was der Lauf sonst gezeigt hat, und es ist viel:**
+
+- `db.server.info` liest Geschmack, Fassung und Horchadresse richtig
+  (`mariadb 10.11.14 — nutzbar`, `127.0.0.1`, Fernzugriff aus).
+- `db.database.create`, `db.user.create` und die Rechtevergabe laufen; der
+  Systembenutzer wird zum Präfix (`p1118_abnahme`).
+- Das Passwort steht in **keiner** Vorgangsnutzlast — gesucht nach dem Passwort,
+  nicht nach der Zahl der Vorgänge.
+- Anlegen, Schreiben und Lesen unter den Zugangsdaten des Kunden gehen.
+- `SHOW DATABASES` liefert genau `{information_schema, p<N>_abnahme}` — die
+  Maskierung des Unterstrichs hält, und zwar an einem echten Server.
+- Das `USE` wird mit `ERROR 1044` abgewiesen, in beide Richtungen.
+- Der Rückbau läuft durch: `srvpanel db` meldet danach wieder 0/0/0 und
+  „Nichts liegengeblieben."
+
+**Zwei Dinge sind ungeprüft geblieben, und sie gehören in den nächsten Lauf:**
+
+1. **`db.usage` ist praktisch nicht gefahren.** `srvpanel usage` lief, als es
+   auf dem Server keine einzige Datenbank gab — die Abfrage hat also kein Schema
+   getroffen, und die Zerlegung ihrer Ausgabe ist weiter unbelegt. Der Lauf
+   gehört wiederholt, **während** eine Datenbank mit Inhalt existiert.
+2. **Kriterium 4 bis 7** (sichern, zurückspielen, der Dump mit `GRANT`, der
+   Rückbau samt Gegenprobe am Nachbarn) sind nicht gefahren.
+
+**Und ein Befund ausserhalb von P5:** `srvpanel usage` meldet
+`repquota: Cannot find mountpoint for device /dev/vda3`. Die Dateisystem-Quota
+ist auf diesem Server nicht eingerichtet, also ist `disk_used_mb` für **jedes**
+Abonnement „nicht gemessen" — seit P2. Der Agent behandelt das richtig (kein
+Fehlschlag, Grund im Journal), aber die Zahl, gegen die `docs/36 §9` die
+Datenbankgrösse abgrenzt, gibt es auf diesem Server gar nicht.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -1840,9 +1903,9 @@ davon ausserhalb von P5 (§22.3a).
 (Schritt 11, §22.3f). `srvpanel db` und `srvpanel db --prune` stehen seit
 §22.3e, `db.isolation.probe` und `srvpanel acceptance-db` seit §22.3g.
 
-**Und der Abnahmelauf selbst ist nicht gefahren.** Er braucht einen Server mit
-MariaDB und zwei bestehenden Abonnements; dieser Container hat weder das eine
-noch das andere. Was hier steht, ist das Werkzeug — der Nachweis ist es nicht.
+**Der Abnahmelauf ist am 8. August gefahren** (§22.3h) und hat Kriterium 1 bis 3
+belegt — nachdem der Fund darin behoben war. Kriterium 4 bis 7 stehen aus, und
+`db.usage` ist gegen einen leeren Server gelaufen und damit praktisch ungeprüft.
 
 Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
 benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur

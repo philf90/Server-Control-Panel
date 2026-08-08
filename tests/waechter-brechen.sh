@@ -4358,6 +4358,68 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ActionColumnTest passed
 
 echo
+echo "── RemoteAccessTest: das purge nimmt die Include-Datei nicht mit ──"
+#
+# Der Dateiname steht in DbRemoteAccess und im Entfernungsskript — zwei Stellen,
+# und kein Compiler dazwischen. Ohne die Zeile im Skript hinterlässt ein
+# entferntes Panel einen Datenbankserver, der auf einer erreichbaren Adresse
+# horcht (docs/36 §22.3t).
+vorher_datei packaging/scripts/postremove.sh
+python3 - <<'PY2'
+p = 'packaging/scripts/postremove.sh'
+s = open(p, encoding='utf-8').read()
+s = s.replace('60-srvpanel.cnf', '60-srvpanel.conf')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei packaging/scripts/postremove.sh "purge ohne Include-Datei" &&
+pruefe "purge ohne Include-Datei" \
+  RemoteAccessTest::test_the_purge_takes_the_include_file_along failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemoteAccessTest passed
+
+echo
+echo "── RemoteAccessTest: ein fremder Wirt ohne Sperre ──"
+#
+# Das Feld für eine fremde Adresse erscheint nur, wenn der Server auch darauf
+# horcht — aber ein Formular ist keine Sperre. Ohne die Prüfung entstünde ein
+# Zugang, der nie zustande kommt und den niemand mehr zuordnet, sobald der
+# Fernzugriff eingeschaltet wird.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if ($this->remoteAccess()['possible'] !== true) {\n",
+    "        if (false) {\n",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "fremder Wirt ohne Sperre" &&
+pruefe "fremder Wirt ohne Sperre" \
+  RemoteAccessTest::test_a_foreign_host_is_refused_while_the_server_listens_locally failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemoteAccessTest passed
+
+echo
+echo "── RemovalPathTest: eine schreibende Operation ohne Weg zurück ──"
+#
+# Die Verb-Regel erkennt `create`, `apply`, `provision`. Eine Operation mit
+# einem Schalter trägt keines davon — und schreibt trotzdem nach /etc. Genau
+# diese Lücke hat der Fernzugriff freigelegt (docs/36 §22.3t).
+vorher_datei agent/src/Ops/DbRemoteAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbRemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return 'db.remote.access';", "return 'db.remote.switch';")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbRemoteAccess.php "schreibende Operation ohne Weg zurück" &&
+pruefe "schreibende Operation ohne Weg zurück" \
+  RemovalPathTest::test_every_operation_that_writes_a_file_says_how_it_goes_away failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

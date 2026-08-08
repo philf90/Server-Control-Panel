@@ -24,6 +24,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Client;
+use SrvPanel\Agent\Db\Names;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -47,6 +49,7 @@ final class DatabaseController extends Controller
         private readonly Databases $databases,
         private readonly Dumps $dumps,
         private readonly Audit $audit,
+        private readonly Client $agent,
     ) {}
 
     /**
@@ -184,7 +187,56 @@ final class DatabaseController extends Controller
              * Knopf „Entfernen", der ihn ganz löscht.
              */
             'unlinked' => $this->unlinkedUsers($database),
+
+            /*
+             * **Ob ein Zugang für eine fremde Adresse überhaupt etwas nützt.**
+             * Die Antwort kommt vom Server und nicht aus einer Einstellung des
+             * Panels: Der Betreiber kann die Horchadresse jederzeit von Hand
+             * ändern, und eine im Panel gemerkte Fassung wäre die, die veraltet
+             * — dieselbe Begründung wie bei `db.user.grant` (docs/36 §12).
+             *
+             * Und **angezeigt statt ausgeblendet**: Wer das Feld sucht, soll
+             * lesen, warum es nicht da ist, statt es für einen Fehler zu
+             * halten.
+             */
+            'remote' => $this->remoteAccess(),
         ]);
+    }
+
+    /**
+     * Horcht der Datenbankserver auf einer erreichbaren Adresse?
+     *
+     * **Ein Aufruf je Seitenaufruf, und das ist Absicht.** Der Wert liesse sich
+     * zwischenspeichern; dann stünde nach einem `srvpanel db --remote=on` für
+     * die Dauer des Zwischenspeichers das Gegenteil auf der Seite, und der
+     * Betreiber suchte den Fehler bei sich. Der Agent sitzt auf demselben
+     * Rechner hinter einem Unix-Socket.
+     *
+     * **Ein Fehler ist hier kein Fehler der Seite.** Antwortet der Agent nicht,
+     * ist die Antwort „kein Fernzugriff" mit dem Grund daneben — die
+     * Datenbankseite selbst funktioniert weiter.
+     *
+     * @return array{possible: bool, bind_address: string|null, reason: string|null}
+     */
+    private function remoteAccess(): array
+    {
+        try {
+            $info = $this->agent->call('db.server.info', []);
+        } catch (AgentException $error) {
+            return ['possible' => false, 'bind_address' => null, 'reason' => $error->getMessage()];
+        }
+
+        $bind = is_string($info['bind_address'] ?? null) ? $info['bind_address'] : null;
+
+        return [
+            'possible' => ($info['remote'] ?? false) === true,
+            'bind_address' => $bind,
+            'reason' => ($info['remote'] ?? false) === true ? null : sprintf(
+                'Der Datenbankserver horcht auf %s und ist damit nur lokal erreichbar. '
+                .'Einschalten kann das nur der Betreiber, auf dem Server: srvpanel db --remote=on',
+                $bind ?? 'einer lokalen Adresse',
+            ),
+        ];
     }
 
     /**
@@ -299,6 +351,14 @@ final class DatabaseController extends Controller
     {
         $data = $request->validate([
             'label' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/D'],
+
+            // Der Wirt wird hier **nicht** mit einem eigenen Ausdruck geprüft:
+            // Was zulässig ist, steht in `Names::host()`, und eine zweite
+            // Formulierung wäre die, die beim nächsten Mal auseinanderläuft
+            // (dieselbe Entscheidung wie bei `SubscriptionProvision::
+            // subscriptionName()` im Abonnementformular). Geprüft wird unten,
+            // mit der Regel des Agenten und einer lesbaren Meldung.
+            'host' => ['nullable', 'string'],
         ]);
 
         $subscription = $database->subscription;
@@ -309,7 +369,45 @@ final class DatabaseController extends Controller
             ]);
         }
 
-        return $this->createUserFor($database, $subscription, (string) $data['label'], 'label');
+        return $this->createUserFor(
+            $database,
+            $subscription,
+            (string) $data['label'],
+            'label',
+            $this->host($data['host'] ?? null),
+        );
+    }
+
+    /**
+     * Der Wirt eines neuen Zugangs — geprüft mit der Regel des Agenten.
+     *
+     * **Und die Sperre sitzt hier und nicht nur im Formular.** Das Feld
+     * erscheint nur, wenn der Server auf einer erreichbaren Adresse horcht;
+     * eine Anfrage, die es trotzdem mitschickt, ist damit noch nicht abgewiesen
+     * — sie kommt nicht aus dem Formular. Ein Zugang für eine fremde Adresse an
+     * einem Server, der nur lokal horcht, wäre ein Konto, das nichts kann und
+     * das niemand mehr zuordnet, sobald der Fernzugriff eingeschaltet wird.
+     */
+    private function host(mixed $value): string
+    {
+        $host = is_string($value) ? trim($value) : '';
+
+        if ($host === '' || $host === 'localhost') {
+            return 'localhost';
+        }
+
+        if ($this->remoteAccess()['possible'] !== true) {
+            throw ValidationException::withMessages([
+                'host' => 'Der Datenbankserver ist nur lokal erreichbar — ein Zugang für eine fremde '
+                    .'Adresse käme nie zustande. Einschalten kann das nur der Betreiber.',
+            ]);
+        }
+
+        try {
+            return Names::host($host);
+        } catch (AgentException $error) {
+            throw ValidationException::withMessages(['host' => $error->getMessage()]);
+        }
     }
 
     /**
@@ -461,9 +559,10 @@ final class DatabaseController extends Controller
         Subscription $subscription,
         string $label,
         string $field,
+        string $host = 'localhost',
     ): RedirectResponse {
         try {
-            [$user, $password] = $this->databases->createUser($subscription, $label, [$database]);
+            [$user, $password] = $this->databases->createUser($subscription, $label, [$database], $host);
         } catch (RuntimeException|AgentException $error) {
             throw ValidationException::withMessages([$field => $error->getMessage()]);
         }

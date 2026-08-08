@@ -72,6 +72,7 @@ final class AgentOperationReachTest extends TestCase
         'panel.tls.ensure' => 'Stellt das Zertifikat der Oberfläche aus; es steht nicht im Bestand.',
         'panel.tls.info' => 'Liest das Zertifikat der Oberfläche.',
         'panel.vhost.apply' => 'Schreibt den Server-Block des Panels.',
+        'db.remote.access' => 'Schaltet die Horchadresse des Datenbankservers um; sie ist eine Eigenschaft des Servers und steht im Panel in keinem Bestand — gefragt wird sie über db.server.info.',
         'acme.account.ensure' => 'Legt das ACME-Konto an; der Kontoschlüssel bleibt im Agenten und steht im Panel nirgends.',
         'acme.certificate.info' => 'Liest ein abgelegtes Zertifikat; der Erneuerungslauf fragt damit nach, ohne etwas zu ändern.',
         'acme.certificate.remove' => 'Entfernt den Ablageort eines verwaisten Zertifikats. `srvpanel tls --prune` ruft unmittelbar auf und löscht die Zeile danach selbst (App\Support\Tls\CertificatePrune) — ein Lebenslauf hätte hier nichts zu beantworten, denn welcher Ablageort fort darf, ist eine Frage an den Bestand und nicht an einen einzelnen Vorgang.',

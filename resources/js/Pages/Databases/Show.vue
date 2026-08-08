@@ -61,9 +61,18 @@ const props = defineProps<{
   unlinked: { id: number; name: string; host: string }[]
 
   dumps: DumpRow[]
+
+  /**
+   * Ob der Datenbankserver auf einer erreichbaren Adresse horcht.
+   *
+   * **Die Auskunft kommt vom Server und nicht aus einer Einstellung.** Sie
+   * entscheidet, ob das Feld für eine fremde Adresse überhaupt angeboten wird
+   * (docs/36 §12) — und wenn nicht, steht der Grund daneben statt nichts.
+   */
+  remote: { possible: boolean; bind_address: string | null; reason: string | null }
 }>()
 
-const userForm = useForm({ label: '' })
+const userForm = useForm({ label: '', host: '' })
 
 /*
  * Die Rückfrage verlangt den Namen zum Abtippen.
@@ -362,6 +371,29 @@ function size(): string {
             <input v-model="userForm.label" type="text" placeholder="user2" autocomplete="off" required>
           </label>
           <p v-if="userForm.errors.label" class="error">{{ userForm.errors.label }}</p>
+
+          <!--
+            **Der Wirt steht nur da, wenn er etwas bewirkt.** Ein Feld für eine
+            fremde Adresse an einem Server, der nur lokal horcht, verspricht
+            einen Zugang, der nie zustande kommt (docs/36 §12). Ausgeblendet
+            wird es trotzdem nicht: Darunter steht, warum es fehlt und wer es
+            einschalten kann — ein Feld, das ohne Erklärung verschwindet, sieht
+            aus wie ein Fehler.
+          -->
+          <label v-if="props.remote.possible" class="field">
+            <span>Erreichbar von</span>
+            <input v-model="userForm.host" type="text" placeholder="localhost" autocomplete="off">
+          </label>
+          <p v-if="userForm.errors.host" class="error">{{ userForm.errors.host }}</p>
+          <p v-if="props.remote.possible" class="hint">
+            Leer oder <span class="ident">localhost</span> für den Zugriff vom Server selbst.
+            Sonst eine IP-Adresse oder ein Netz in der Schreibweise von MariaDB
+            (<span class="ident">203.0.113.0/255.255.255.0</span>). Zwei Adressen sind zwei
+            Zugänge mit eigenen Passwörtern, und <span class="ident">%</span> wird abgewiesen.
+            <b>Die Beschränkung gilt in MariaDB und nicht im Paketfilter.</b>
+          </p>
+          <p v-else class="hint">{{ props.remote.reason }}</p>
+
           <p class="hint">
             Heisst auf dem Server
             <span class="ident">{{ props.subscription?.prefix ?? '…' }}_{{ userForm.label || '…' }}</span>.

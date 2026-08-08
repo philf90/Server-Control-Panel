@@ -2339,13 +2339,18 @@ beide Richtungen.
 Kontrollkästchen über alle Zugänge, eine Auswahlliste, und die echte Matrix
 (Zugänge × Datenbanken). Gerendert mit dem gebauten Stylesheet, beide Themes:
 
-| Entwurf | 390 px | 1440 px | zeigt |
+| Entwurf | schmal¹ | 1440 px | zeigt |
 |---|---:|---:|---|
 | Kästchenspalte über alle Zugänge | **1109 px** | 221 px | auch Zugänge, die diese Datenbank nichts angehen — samt Knopf „Entfernen" |
 | Auswahlliste + Entziehen je Zeile | **837 px** | 295 px | wer hereinkommt, und wer verbunden werden kann |
 | echte Matrix (Zugänge × Datenbanken) | **626 px** | 221 px | alles, beide Richtungen, an einem Ort |
 
 Überlauf überall 0 px.
+
+¹ Hier stand „390 px", und das war falsch: Das Chromium dieses Containers klemmt
+seine Fensterbreite bei 500 ab, gemessen wurde also bei 500 px (§22.5a). Die
+Rangfolge bleibt — alle drei unter denselben Bedingungen, alle drei unterhalb
+des Haltepunkts von 720 px.
 
 **Die Matrix ist die kompakteste und trotzdem nicht die richtige Wahl — für
 diese Seite.** Sie ist kompakt, weil sie die Knöpfe je Zeile gar nicht hat, und
@@ -2667,6 +2672,119 @@ durchsetzen soll.
 Bildschirm des Betreibers zeigte weniger als das Bild, das ein zweiter Blick
 bei 1600px ergeben hätte.
 
+### 22.3t Schritt 10 — Fernzugriff, und eine Lücke im Wächter darüber
+
+**Gebaut wie in §12 entschieden**, mit einer Stelle, an der der Plan schärfer
+werden musste.
+
+`db.remote.access` schreibt `60-srvpanel.cnf` in das Include-Verzeichnis des
+Datenbankservers und startet ihn neu. Die `60` ist kein Geschmack: Debian und
+Ubuntu legen ihre `bind-address` in `50-server.cnf` ab, und die Dateien werden
+lexikalisch gelesen — eine `40-` würde überschrieben, und die Operation meldete
+Erfolg, während sich nichts geändert hat.
+
+**Was zurückgeht, ist die Antwort des Servers und nicht die Datei.** Nach dem
+Neustart wird `@@bind_address` gelesen; weicht sie von dem ab, was angefordert
+war, meldet `srvpanel db --remote` einen Fehlschlag und nennt den
+wahrscheinlichen Grund. Eine geschriebene Zeile ist eine Absicht, `@@bind_address`
+ist ein Zustand — derselbe Unterschied wie zwischen „1 bestellt" und der
+Seriennummer im Zertifikat.
+
+**Der Neustart ist die gefährliche Stelle, und sie ist zweimal abgesichert.**
+Der Datenbankserver trägt auch das Panel: Startet er mit der neuen Datei nicht,
+ist nicht der Fernzugriff aus, sondern alles. Deshalb merkt sich die Operation
+den vorherigen Inhalt und stellt ihn bei einem gescheiterten Neustart wieder her
+— mit einem zweiten Start hinterher. Und deshalb fragt das Kommando vorher, mit
+Vorgabe `false` wie bei `--prune`.
+
+**Die Adresse kommt aus einer Positivliste** (`0.0.0.0` und `::`). Sie landet in
+einer Konfigurationsdatei, und ein freier Wert dorthin ist genau das, wovor die
+Positivliste des Agenten schützt. `::` ist die ausdrückliche Wahl und nicht die
+Vorgabe: Auf einem Rechner ohne IPv6 scheitert der Start damit, und ein
+Neustart, der erst scheitert und dann zurückrollt, ist ein schlechter erster
+Eindruck für etwas, das der Betreiber gerade eingeschaltet hat.
+
+**Im Panel erscheint das Feld für eine fremde Adresse nur, wenn der Server auch
+darauf horcht** — und wenn nicht, steht der Grund darunter statt nichts. Die
+Auskunft kommt bei jedem Seitenaufruf vom Server und nicht aus einer Einstellung
+des Panels: Der Betreiber kann die Horchadresse von Hand ändern, und eine
+gemerkte Fassung wäre die, die veraltet. **Die Sperre sitzt trotzdem im
+Steuerungscode**, denn ein Formular ist keine Sperre; geprüft wird der Wirt mit
+`Names::host()`, also mit der Regel des Agenten und nicht mit einer zweiten
+Formulierung davon.
+
+**Und beim `purge` geht die Datei mit.** Sie gehört nicht zum Paket, dpkg räumt
+sie also nicht weg — ein entferntes Panel, das einen offenen Datenbankport
+hinterlässt, ist die Lage aus `docs/35` mit schlimmerer Folge.
+`packaging/scripts/postremove.sh` entfernt sie bei `purge` und **nur** dort; der
+laufende Server horcht bis zu seinem nächsten Start weiter, und der Befehl dafür
+steht in der Ausgabe. Ihn mitten in einem `apt purge` selbst neu zu starten wäre
+ein Eingriff in einen Dienst, den das Paket gerade nicht mehr verwaltet.
+
+**Die Lücke, die dabei auffiel, gehört nicht zu P5.** `RemovalPathTest` erkennt
+eine anlegende Operation an ihrem Verb — `create`, `apply`, `provision`. Eine
+Operation mit einem *Schalter* trägt keines davon: `db.remote.access` schreibt
+eine Datei nach `/etc`, wenn man sie mit `on` ruft, und war für die Verb-Regel
+unsichtbar. Ausgerechnet die Datei, deren Wirkung ein offener Datenbankport ist,
+wäre an dem Wächter vorbeigegangen, den es wegen `docs/35` gibt.
+
+Er prüft jetzt zusätzlich die Sache statt des Namens: Wer im Agenten
+`file_put_contents`, `mkdir`, `touch`, `copy` oder `rename` aufruft, legt etwas
+ab, das liegenbleibt — und heisst er nicht danach, sagt er in
+`WRITES_WITHOUT_VERB`, wo der Weg zurück ist. Im ganzen Agenten trifft das auf
+**zwei** Operationen zu, und beide haben einen: `db.remote.access` über
+`mode: off` und das `purge`, `web.isolation.probe` über ihr eigenes `finally`.
+
+**Was der Fernzugriff *nicht* tut, steht in der Oberfläche:** Die
+IP-Beschränkung gilt in MariaDB und nicht im Paketfilter. Die Firewall kommt mit
+P9 (§12).
+
+### 22.5a Bei 390px wird hier nicht bei 390px gemessen
+
+**Gefunden am 8. August 2026 beim Nachmessen des Fernzugriff-Feldes**, und der
+Fund entwertet eine Zahl, die in diesem Dokument mehrfach steht.
+
+Das vorinstallierte Chromium **klemmt seine Fensterbreite bei 500 CSS-Pixeln
+ab**. `--window-size=390,800` ergibt einen Viewport von 500; `--window-size=320`
+ebenfalls. Gemessen:
+
+| `--window-size` | `document.documentElement.clientWidth` |
+| --- | --- |
+| 320 | 500 |
+| 390 | 500 |
+| 450 | 500 |
+| 500 | 500 |
+| 600 | 600 |
+| 1440 | 1440 |
+
+`--headless=new`, `--force-device-scale-factor=1` und `--hide-scrollbars`
+ändern daran nichts. Der Bildschirmschuss wird auf 390 *beschnitten*, und
+deshalb sieht er aus wie 390 — Text, der abgeschnitten aussieht, ist dann ein
+Zuschnitt und kein Überlauf. Genau daran wäre diese Notiz beinahe gescheitert.
+
+**Was das für die bisherigen Zahlen heisst.** Alles unter 500px in diesem
+Dokument ist bei 500px entstanden, insbesondere die drei Entwürfe in §22.3o
+(1109px, 837px, 626px). Die *Rangfolge* der drei stimmt weiter — sie sind alle
+unter denselben Bedingungen gemessen, und alle drei lagen unterhalb des
+Haltepunkts von 720px, also im richtigen Zweig. Die absoluten Höhen gehören zu
+500px und nicht zu 390px.
+
+**Der Weg zu echten 390px ohne Playwright: ein `<iframe width="390">`.** Ein
+Rahmen hat seinen eigenen Viewport, und Medienabfragen darin werten gegen seine
+Breite aus — nachgeprüft mit einer Regel auf `max-width: 720px`, die im Rahmen
+greift. Gemessen wird dann `contentDocument.documentElement`:
+
+```bash
+# rahmen.html lädt die Probe in einem 390px breiten Rahmen und liest
+# clientWidth und scrollWidth aus dem Rahmendokument.
+chromium --headless --no-sandbox --allow-file-access-from-files \
+  --window-size=900,1000 --virtual-time-budget=3000 --dump-dom file://…/rahmen.html
+```
+
+`--allow-file-access-from-files` gehört dazu: Ohne das Flag darf das äussere
+Dokument das `contentDocument` des Rahmens nicht lesen, und die Messung liefert
+still gar nichts.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -2674,8 +2792,9 @@ Korrektur aus §22.3) und die Messung (§9, siehe §22.3c). Die Screenshots aus
 Schritt 7 sind für beide gemacht und haben insgesamt fünf Fehler gefunden, drei
 davon ausserhalb von P5 (§22.3a).
 
-**Es fehlen:** der Fernzugriff (§12) und das Hochladen einer Sicherung
-(Schritt 11, §22.3f). `srvpanel db` und `srvpanel db --prune` stehen seit
+**Es fehlt** das Hochladen einer Sicherung (Schritt 11, §22.3f); der
+Fernzugriff (§12, Schritt 10) ist gebaut (§22.3t) und auf einem echten Server
+noch nicht eingeschaltet worden. `srvpanel db` und `srvpanel db --prune` stehen seit
 §22.3e, `db.isolation.probe` und `srvpanel acceptance-db` seit §22.3g.
 
 **Der Abnahmelauf ist am 8. August dreimal gefahren** (§22.3h, §22.3i, §22.3j).
@@ -2713,8 +2832,8 @@ der vor dieser Fassung zurückgebaut hat, liegt die Zeile weiter da; sie geht mi
 benutzt sie, sichert und spielt zurück, und ein Datenbankbenutzer sieht
 nachweislich keine fremde Datenbank"*, alle sieben Kriterien aus §17, gemessen
 an MariaDB 10.11.14 auf `cloudsrv24` und nicht an einer erzeugten Zeichenkette.
-**Fertig ist P5 damit nicht:** Gebaut sind die Schritte 1 bis 9; es fehlen der
-Fernzugriff (§12, Schritt 10) und das Hochladen einer Sicherung (§10.3,
+**Fertig ist P5 damit nicht:** Gebaut sind die Schritte 1 bis 10 — der
+Fernzugriff steht seit §22.3t —, es fehlt das Hochladen einer Sicherung (§10.3,
 Schritt 11). Der Satz des Plans — *anlegen, benutzen, sichern,
 zurückspielen, und keine fremde Datenbank sehen* — ist ansonsten am echten
 Server gemessen, mit den Fehlernummern von MariaDB und nicht als Eigenschaft

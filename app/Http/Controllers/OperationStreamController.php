@@ -80,11 +80,34 @@ final class OperationStreamController extends Controller
             if ($fresh !== '' || $signature !== $lastSignature) {
                 $this->send('state', $offset, [
                     'status' => $operation->status->value,
-                    'label' => $operation->status->label(),
+
+                    /*
+                     * `status_label` und nicht `label`: In der Nutzlast der
+                     * Seite heisst `label` die **Aufgabe** („db.restore"), hier
+                     * hiess es der **Zustand** („fehlgeschlagen"). Zwei
+                     * Bedeutungen für einen Namen auf derselben Seite, und der
+                     * Wächter unten hätte sie für dieselbe Angabe gehalten.
+                     */
+                    'status_label' => $operation->status->label(),
                     'progress' => $operation->progress,
                     'message' => $operation->message,
                     'output' => $fresh,
                     'open' => $operation->open(),
+
+                    /*
+                     * **Die Zeitstempel gehören mit, und der Grund ist eine
+                     * Aufnahme vom 8. August 2026.** Ein fehlgeschlagener
+                     * Vorgang zeigte „Begonnen —" und „Beendet —": Der Kanal
+                     * führte Zustand und Meldung nach, die Zeiten kamen aus
+                     * der ersten Antwort — und zu dem Zeitpunkt stand der
+                     * Vorgang in der Warteschlange. Die Seite zeigte damit
+                     * einen Zustand, den es nie gab (docs/36 §22.3m).
+                     *
+                     * Die Signatur unten braucht sie nicht: Beide ändern sich
+                     * genau dann, wenn auch der Zustand sich ändert.
+                     */
+                    'started_at' => $operation->started_at?->toDateTimeString(),
+                    'finished_at' => $operation->finished_at?->toDateTimeString(),
                 ]);
 
                 $lastSignature = $signature;

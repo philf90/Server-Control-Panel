@@ -115,6 +115,8 @@ final class Databases
      */
     public function createUser(Subscription $subscription, string $label, array $databases, string $host = 'localhost'): array
     {
+        $this->guardFreeName($subscription, $label, $host);
+
         $password = $this->secret->generate();
 
         $result = $this->agent->call('db.user.create', [
@@ -153,6 +155,53 @@ final class Databases
         ]);
 
         return $password;
+    }
+
+    /**
+     * Einen Zugangsnamen, den es schon gibt, gar nicht erst anlegen.
+     *
+     * **Der Anlass steht in einer Rechtezeile vom 8. August 2026.** Der Agent
+     * baut `CREATE USER IF NOT EXISTS` und danach `ALTER USER … IDENTIFIED BY`.
+     * Der `ALTER` ist dort richtig und begründet: Ein zweiter Anlauf nach einem
+     * abgebrochenen Vorgang bekäme sonst den Benutzer mit dem *alten* Passwort,
+     * während der Kunde das neue in der Hand hält.
+     *
+     * **Nur gilt derselbe Weg auch für den ganz normalen zweiten Klick.** Wer
+     * eine zweite Datenbank anlegt und den vorbelegten Namen `user` stehen
+     * lässt, bekommt keinen zweiten Zugang, sondern denselben mit einem neuen
+     * Passwort — und die Anwendung, die das alte in ihrer Konfigurationsdatei
+     * hat, ist ab diesem Moment ausgesperrt. Das Panel meldete dazu „Zugang
+     * angelegt". Auf `cloudsrv24` ist genau das passiert; gesehen hat es
+     * niemand, weil nichts danach fragt (docs/36 §22.3n).
+     *
+     * **Geprüft wird vor dem Aufruf und nicht danach.** Der Agent ist
+     * absichtlich wiederholbar; die Frage „gibt es diesen Namen schon" gehört
+     * dorthin, wo eine Absicht bekannt ist — und das ist hier.
+     *
+     * **Ohne Mandantenklammer, und das ist keine Bequemlichkeit.** Der Name ist
+     * serverweit eindeutig, weil er das Präfix des Systembenutzers trägt. Ob er
+     * frei ist, darf nicht davon abhängen, wer gerade fragt: Ein Kunde, dem die
+     * Klammer die Zeile verbirgt, bekäme sonst ein „ja, frei" und danach ein
+     * ersetztes Passwort.
+     */
+    private function guardFreeName(Subscription $subscription, string $label, string $host): void
+    {
+        $name = Names::user((string) $subscription->system_user, $label);
+
+        $vergeben = $this->tenancy->withoutRestriction(
+            static fn (): bool => DbUser::query()->where('name', $name)->where('host', $host)->exists(),
+        );
+
+        if ($vergeben !== true) {
+            return;
+        }
+
+        throw new RuntimeException(sprintf(
+            'Den Zugang %s gibt es schon. Ein zweiter mit demselben Namen würde sein Passwort '.
+            'ersetzen — und die Anwendung, die das alte benutzt, wäre ausgesperrt. Wähle einen '.
+            'anderen Namen; ein neues Passwort für den vorhandenen setzt man an ihm selbst.',
+            $name,
+        ));
     }
 
     /** Ein Recht vergeben oder zurücknehmen — ein Paar je Aufruf. */

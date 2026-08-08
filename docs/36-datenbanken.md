@@ -358,7 +358,7 @@ use Illuminate\Support\Facades\Schema;
  *
  * **Kein `password` und keine Spalte, die eines aufnehmen könnte.** Das
  * Passwort wird erzeugt, einmal angezeigt und vergessen (docs/36 §4).
- * `SecretsStayOutOfTheStoreTest` besteht darauf.
+ * `SecretsStayOutOfTheQueueTest` besteht darauf.
  *
  * **`name` ist der vollständige Name samt Präfix und ist serverweit
  * eindeutig.** Nicht nur je Abonnement: Der Name ist ein Schema in MariaDB, und
@@ -1141,9 +1141,11 @@ zusammen: die erklärte Liste der geheimnistragenden Operationen und alles, was
 `Lifecycles::handled()`, `Task::operation()` und die `dispatch`-Pfade abschicken
 können. Die Schnittmenge muss leer sein.
 
-Dazu die zweite Hälfte, `SecretsStayOutOfTheStoreTest`: Weder `db_users` noch
-`databases` hat eine Spalte, deren Name `password`, `secret` oder `token`
-enthält.
+Dazu die zweite Hälfte — sie ist beim Bauen in denselben Test gewandert und
+heisst dort `test_the_database_tables_have_no_place_for_a_secret()`: Weder
+`db_users` noch `databases` hat eine Spalte, deren Name `password`, `secret`
+oder `token` enthält. Der Name `SecretsStayOutOfTheStoreTest` blieb danach in
+einem Kommentar der Migration stehen und zeigte ins Leere (§22.3n).
 
 *Bruch:* `db.user.create` in `DbLifecycle::handles()` eintragen und über
 `dispatch()` einreihen → rot.
@@ -1226,6 +1228,14 @@ sowie `srvpanel acceptance-db` gehören in `packaging/bin/srvpanel`, sonst melde
 Agenten. Das Kriterium fragt nach dem Gegenteil — nach einer echten Verbindung,
 die MariaDB abweist.
 
+> **Jedes Kriterium nennt seinen Beleg, und der Beleg ist nie eine Abwesenheit
+> allein.** Nachgetragen am 8. August 2026 (§22.3m), nachdem zwei Kriterien
+> vollständig „grün" durchgelaufen sind, ohne dass der Vorgang dazwischen
+> stattgefunden hatte. Eine leere Ergebnismenge, eine unveränderte Rechtezeile,
+> eine Datei, die nicht da ist — all das steht genauso da, wenn niemand etwas
+> getan hat. Wo ein Kriterium an einer Aktion hängt, gehört die Aktion selbst in
+> die Niederschrift: die Nummer des Vorgangs, sein Zustand, seine Meldung.
+
 ```bash
 # Voraussetzung: zwei Abonnements desselben oder verschiedener Kunden.
 # Der Lauf legt sie NICHT selbst an — eine Kundennummer ist auf Dauer
@@ -1265,24 +1275,52 @@ Die sieben Kriterien, die der Lauf einzeln meldet:
 # 4  SICHERN
 #    Im Panel exportieren, warten bis der Vorgang durch ist, herunterladen.
 #    erwartet: die Datei liegt unter /var/lib/srvpanel/dumps/<abo>/ mit
-#              root:srvpanel 0640, und sie enthält die Zeilen aus Kriterium 2.
+#              root:srvpanel 0640, das Verzeichnis root:srvpanel 0710.
+#              Sie enthält die Zeilen aus Kriterium 2:
+#                zcat <datei> | grep -c INSERT   → > 0
+#                zcat <datei> | grep -c DEFINER  → 0
 #    Gegenprobe: sie liegt NICHT unter /var/www/vhosts/<abo>/ und ist über
 #                HTTP nicht erreichbar.
+#    BELEG:  Der Download liefert eine Datei. Ein 404 heisst nicht „fehlt",
+#            sondern meist: das Panel kommt an den Pfad nicht heran (§22.3l).
 
 # 5  ZURÜCKSPIELEN
-#    Die Tabelle löschen, den Dump im Panel wieder einspielen.
-#    erwartet: die Zeilen sind zurück, Byte für Byte.
+#    Die Tabelle löschen, den Dump im Panel zurückspielen.
+#    erwartet: die Zeilen sind zurück — dieselben Zahlen wie vor dem Löschen.
 #    Und: während des Laufs entsteht ein Benutzer p<A>_r<zufall> und ist
 #    danach fort:
 #      SELECT user FROM mysql.user WHERE user LIKE 'p%\\_r%';  → 0 Zeilen.
+#
+#    BELEG:  die Nummer des Vorgangs und sein Zustand „erledigt".
+#            OHNE DIESE ZEILE IST DAS KRITERIUM NICHT GEFAHREN. Die Abfrage
+#            oben ist auch dann leer, wenn nie ein Restore lief — sie belegt
+#            das Aufräumen und nicht den Lauf. Am 8. August 2026 ist genau das
+#            passiert: Vorbereitung und Nachprüfung standen da, der Vorgang
+#            dazwischen fehlte, und beides sah grün aus (§22.3m).
 
 # 6  DER DUMP DARF KEINE RECHTE VERGEBEN
-#    Einen Dump von Hand um eine Zeile ergänzen:
-#      GRANT ALL PRIVILEGES ON *.* TO 'p<A>_web'@'localhost';
-#    und einspielen.
-#    erwartet: der Vorgang SCHEITERT mit „Access denied", und
+#    Einen Dump von Hand um eine Zeile ergänzen — er liegt gepackt:
+#      zcat <datei> > /tmp/probe.sql
+#      echo "GRANT ALL PRIVILEGES ON *.* TO 'p<A>_web'@'localhost';" >> /tmp/probe.sql
+#      gzip -c /tmp/probe.sql > <datei> && rm /tmp/probe.sql
+#      chown root:srvpanel <datei> && chmod 0640 <datei>
+#    und zurückspielen. NICHT denselben Dump wie in Kriterium 5 nehmen: sonst
+#    sind beide Kriterien ein Lauf, und hinterher weiss niemand, welcher was
+#    gezeigt hat.
+#    erwartet: der Vorgang SCHEITERT, und
 #      SHOW GRANTS FOR 'p<A>_web'@'localhost';
-#    nennt danach unverändert genau eine Datenbank.
+#    nennt danach unverändert genau eine Datenbank — `GRANT USAGE ON *.*` ist
+#    die Zeile „dieses Konto existiert" und kein Recht.
+#
+#    BELEG:  die Fehlermeldung des Vorgangs, wörtlich. Sie muss den Benutzer
+#            p<A>_r<zufall> und ein „Access denied" nennen. „Fehlgeschlagen"
+#            allein ist wieder eine Aussage über uns und nicht über den Server;
+#            ein Tippfehler im Dateinamen scheitert genauso.
+#            Am 8. August gemessen: ERROR 1045 (28000) at line 6520,
+#            Access denied for user 'p1118_r9023706e'@'localhost'.
+#            Die Zeilennummer ist Absicht: Sie zeigt, dass die Datenzeilen
+#            davor gelaufen sind und erst die angehängte GRANT-Zeile abprallt.
+#    Und: der befristete Benutzer ist auch nach dem Fehlschlag fort.
 
 # 7  DER RÜCKBAU LÄSST NICHTS LIEGEN
 #    Abo A zurückbauen, warten bis alle Vorgänge durch sind.
@@ -2108,6 +2146,206 @@ das in zehn anderen Dateien anders aussieht. Kein Test hat je gefragt, ob der
 Modus seinen Zweck erfüllt oder ob die elfte Tabelle wie die zehn davor gebaut
 ist.
 
+### 22.3m Kriterium 6 belegt — und eine Lücke in der Anleitung selbst
+
+**Kriterium 6 ist am 8. August 2026 gefahren und erfüllt.** Ein Dump mit
+angehängter Zeile
+
+```sql
+GRANT ALL PRIVILEGES ON *.* TO 'p1118_user'@'localhost';
+```
+
+wurde zurückgespielt. Vorgang 444 steht auf **fehlgeschlagen**, und zwar mit der
+Meldung, auf die es ankommt:
+
+```
+ERROR 1045 (28000) at line 6520: Access denied for user
+'p1118_r9023706e'@'localhost' (using password: YES)
+```
+
+Drei Dinge stehen in dieser einen Zeile. Der befristete Benutzer hat den Lauf
+gefahren — nicht der Kunde und nicht root. Die Zeilennummer 6520 zeigt, dass die
+Datenzeilen davor durchgelaufen sind und erst die angehängte `GRANT`-Zeile
+abprallt; kein `--force`, also endet der Lauf dort. Und `SHOW GRANTS` nennt
+danach unverändert nur die Datenbanken des Kunden. **Ein Kunde kann sich mit
+einer selbst geschriebenen Sicherungsdatei keine Rechte verschaffen.**
+
+Der Aufräumer hält auch im Fehlerfall: `SELECT user FROM mysql.user WHERE user
+LIKE 'p%\_r%'` ist danach leer.
+
+**Und jetzt der Fund, der nicht im Code steckt, sondern in §17.**
+
+Der Betreiber ist bei Kriterium 5 *und* 6 bis zur Nachprüfung gekommen, ohne den
+Vorgang dazwischen auszulösen — und beide Male sah das Ergebnis nach Erfolg aus:
+
+- Kriterium 5: `… WHERE user LIKE 'p%\_r%'` → leer. Der befristete Benutzer war
+  aber auch vorher nicht da. Die Abfrage belegt das Aufräumen, nicht den Lauf.
+- Kriterium 6: `SHOW GRANTS` unverändert. Unverändert ist die Rechtevergabe auch
+  dann, wenn niemand sie angegriffen hat.
+
+Beide Kriterien prüften eine **Abwesenheit**, und eine Abwesenheit ist ohne die
+Aktion davor keine Aussage. Das ist dasselbe Muster wie bei `refused` (§22.3h)
+und bei `measured` (§22.3i), nur eine Ebene weiter aussen: **diesmal hatte nicht
+der Code die Lücke, sondern die Anleitung, mit der wir ihn abnehmen.** Und dass
+sie zweimal hintereinander zugeschlagen hat, ist kein Zufall — sie ist der
+bequemste Weg durch beide Kriterien.
+
+§17 nennt seitdem für jedes Kriterium ausdrücklich seinen **Beleg**, und die
+Regel steht im Kopf des Abschnitts: *Der Beleg ist nie eine Abwesenheit allein.*
+Wo ein Kriterium an einer Aktion hängt, gehören Nummer, Zustand und Meldung des
+Vorgangs in die Niederschrift.
+
+**Zwei Beobachtungen aus der Vorgangsseite, die keine Kriterien betreffen:**
+
+1. **Die Meldung beginnt mit `--------------`.** Der `mysql`-Client stellt der
+   Fehlermeldung die gescheiterte Anweisung zwischen Strichzeilen voran — genau
+   die Zeichenfolge, die in §22.3h eine ganze Prüfung unlesbar gemacht hat. Hier
+   ist sie harmlos, weil die vollständige Ausgabe durchgereicht wird und das
+   `ERROR` mit dabeisteht. Sie wörtlich stehen zu lassen ist ausserdem Leitbild 2
+   („die Meldung des Systems, nicht eine Umschreibung davon"). Wer sie kürzt,
+   entscheidet gegen dieses Leitbild und sollte es begründen.
+2. **„Begonnen —", „Beendet —", „Fortschritt 0 %" an einem fehlgeschlagenen
+   Vorgang.** Das ist ein Zustand, den es nie gab: `OperationRecorder::start()`
+   setzt `started_at`, `finish()` setzt `finished_at`. Die Seite zeigt trotzdem
+   Striche, weil der SSE-Kanal `status`, `label`, `progress` und `message`
+   nachführt — **und die Zeitstempel nicht.** Sie stammen aus der ersten
+   Inertia-Antwort, und zu dem Zeitpunkt stand der Vorgang noch in der
+   Warteschlange. Ein Neuladen zeigt die richtigen Werte. Zwei Quellen für
+   dieselbe Angabe, und eine davon wird nicht nachgezogen — das ist die Sorte
+   Abweichung, die dieses Projekt sonst überall vermeidet.
+
+### 22.3n Eine Frage des Betreibers, und fünf Funde daran
+
+**Die Frage lautete:** Ist es gewollt, dass beim Anlegen einer Datenbank weder
+ein Passwort noch ein Vorgang erscheint? Die erste Hälfte ist gewollt und
+begründet — `db.database.create` und `db.user.create` laufen unmittelbar und
+nicht über die Warteschlange, weil ein Passwort nicht in `operations.payload`
+liegen darf (§4). Beim Nachsehen, warum die zweite Hälfte nicht stimmt, kamen
+fünf Dinge heraus, und keines davon hat je ein Test gemeldet.
+
+**1. Ein zweiter Zugang mit demselben Namen ersetzt das Passwort des ersten.**
+Der Agent baut `CREATE USER IF NOT EXISTS` und danach `ALTER USER … IDENTIFIED
+BY`. Der `ALTER` ist dort richtig und begründet: Ein zweiter Anlauf nach einem
+abgebrochenen Vorgang bekäme sonst den Benutzer mit dem *alten* Passwort,
+während der Kunde das neue in der Hand hält. **Nur gilt derselbe Weg auch für
+den ganz normalen zweiten Klick.** Das Feld „Benutzername" ist mit `user`
+vorbelegt; wer eine zweite Datenbank anlegt und es stehen lässt, bekommt keinen
+zweiten Zugang, sondern denselben mit einem neuen Passwort — und die Anwendung,
+die das alte in ihrer Konfigurationsdatei hat, ist ausgesperrt. Das Panel meldete
+dazu „Zugang angelegt".
+
+Auf `cloudsrv24` ist genau das passiert, und es steht in einer Ausgabe, die
+vorher schon zweimal durchgelesen wurde: Der Passworthash von `p1118_user`
+wechselte zwischen zwei `SHOW GRANTS`, und das Konto hatte plötzlich zwei
+Schemata. Entschieden hat der Betreiber: **abweisen.** `Databases::createUser()`
+prüft den Namen, bevor der Agent gefragt wird — dort ist eine Absicht bekannt,
+im Agenten nur ein Auftrag.
+
+**2. Die Meldung landete am falschen Feld.** `createUserFor()` schrieb sie fest
+auf `user_label` — den Namen im Formular „Datenbank anlegen". Das Formular
+„Weiterer Zugang" schickt `label` und liest `errors.label`. Unsichtbar war die
+Meldung nicht (`FormErrors` zeigt oben alles), aber die Zeile *am* Feld sagt,
+welches gemeint ist. Der Feldname kommt jetzt vom Aufrufer.
+
+**3. `DatabaseFormTest` gab es nicht.** In `DatabaseController::store()` stand
+seit P5: *„Die Gegenprobe, dass beide dasselbe sagen, steht in
+`DatabaseFormTest`."* Die Datei war nie geschrieben worden. Ein Kommentar, der
+eine Absicherung behauptet, ist schlimmer als keiner — wer ihn liest, hört auf zu
+suchen.
+
+**4. Und der Test fand bei seinem ersten Lauf, wofür er versprochen war.** Die
+Prüfregel des Formulars lautete `/^[a-z][a-z0-9_]{0,15}$/` — **ohne `D`.** In
+PCRE passt `$` auch vor einem abschliessenden Zeilenumbruch; `"shop\n"` kam
+also durch das Formular und prallte am Agenten ab, mit einer Meldung, die
+niemand deuten kann. Das ist wortwörtlich der Fund aus P3, den CLAUDE.md für
+neun Muster festhält — nur las `AnchoredPatternTest` bis dahin ausschliesslich
+unter `agent/`. Er liest jetzt auch die `regex:`-Regeln der Formulare; drei
+davon waren betroffen, alle drei in derselben Datei.
+
+**5. `DbTenancyTest` gab es auch nicht.** `docs/36 §16.7` sieht ihn seit dem
+Plan vor: *„Ein Kunde sieht die Datenbanken eines fremden Abonnements nicht."*
+Das ist **die Hälfte des Abnahmekriteriums, die im Panel spielt** — die andere,
+die an MariaDB, ist dreimal gemessen worden. Die Regel galt die ganze Zeit
+(`BelongsToSubscription`, `can:` an jeder Route); ungeprüft war, ob sie hält.
+Jetzt geprüft, in beide Richtungen: dass die Klammer greift und dass sie nicht
+mehr wegnimmt als nötig, dazu vier Adressen, die ein fremder Kunde nicht bekommt.
+
+**Der Wächter, der 3 und 5 gefunden hat, ist der eigentliche Ertrag.**
+`GuardReachTest` prüft: Jeder Testname, der irgendwo im Code steht, gehört zu
+einer Datei, die es gibt — Ausnahmen kommen aus `ChangelogTest::REMOVED`, wo sie
+ohnehin mit Begründung stehen. Beim ersten Lauf waren es drei Namen; der dritte
+war `SecretsStayOutOfTheStoreTest`, dessen Regel längst als Methode in
+`SecretsStayOutOfTheQueueTest` lebt. **Ein toter Verweis auf eine Klasse fällt
+beim nächsten Aufruf auf, einer auf einen Test niemals.**
+
+**Was offen bleibt und eine Entscheidung braucht:** `Databases::grant()` und die
+Agent-Operation `db.user.grant` sind gebaut, registriert und begründet — und
+**kein Controller, keine Route und kein Test ruft sie auf.** Es gibt im Panel
+also keinen Weg, einen vorhandenen Zugang mit einer zweiten Datenbank zu
+verbinden. Mit der Abweisung aus Fund 1 ist das jetzt sichtbar: Wer eine
+Anwendung auf zwei Datenbanken hat, muss zwei Zugänge nehmen. Das ist dasselbe
+Muster wie die zwei ungenutzten Operationen aus P3 — `AgentOperationReachTest`
+prüft, dass jeder Name auf eine Operation zeigt, nicht, dass jede Operation
+erreicht wird.
+
+### 22.3o Einen vorhandenen Zugang verbinden — und wie die Form gemessen wurde
+
+**Der Anlass ist Fund 1 aus §22.3n.** Seit ein vergebener Zugangsname abgewiesen
+wird, hat ein Kunde mit einer Anwendung auf zwei Datenbanken keinen Weg mehr —
+und `Databases::grant()` samt `db.user.grant` lag seit P5 fertig da, ohne dass
+etwas sie aufrief. Beides ist jetzt angeschlossen: `PUT
+/databases/{database}/users/{user}` mit `granted` als Schalter, eine Adresse für
+beide Richtungen.
+
+**Die Form ist gemessen und nicht geschätzt.** Zur Wahl standen eine Spalte mit
+Kontrollkästchen über alle Zugänge, eine Auswahlliste, und die echte Matrix
+(Zugänge × Datenbanken). Gerendert mit dem gebauten Stylesheet, beide Themes:
+
+| Entwurf | 390 px | 1440 px | zeigt |
+|---|---:|---:|---|
+| Kästchenspalte über alle Zugänge | **1109 px** | 221 px | auch Zugänge, die diese Datenbank nichts angehen — samt Knopf „Entfernen" |
+| Auswahlliste + Entziehen je Zeile | **837 px** | 295 px | wer hereinkommt, und wer verbunden werden kann |
+| echte Matrix (Zugänge × Datenbanken) | **626 px** | 221 px | alles, beide Richtungen, an einem Ort |
+
+Überlauf überall 0 px.
+
+**Die Matrix ist die kompakteste und trotzdem nicht die richtige Wahl — für
+diese Seite.** Sie ist kompakt, weil sie die Knöpfe je Zeile gar nicht hat, und
+sie beantwortet eine Frage, die diese Seite nicht stellt: Es geht hier um *eine*
+Datenbank. Eine Matrix gehört an das Abonnement, wo alle Datenbanken stehen; als
+Abschnitt auf der Datenbankseite wäre sie eine Übersicht am falschen Ort. Das ist
+kein Geschmacksurteil, sondern dasselbe Kriterium wie bei `.stacks` gegen
+`.scrolls` in `docs/24 §5`: Was ist der Gegenstand der Seite?
+
+**Die Kästchenspalte ist ausgeschieden, weil die Messung etwas gezeigt hat, das
+im Entwurf nicht zu sehen war:** Sie muss *alle* Zugänge auflisten, damit man
+einen unverbundenen ankreuzen kann — und auf 390px wird aus jedem ein Kärtchen
+mit fünf Zeilen samt „Neues Passwort" und „Entfernen". Neben einem Zugang, der
+mit dieser Datenbank nichts zu tun hat, steht dann ein Knopf, der ihn ganz
+löscht. 69 % mehr Höhe war das kleinere Problem.
+
+**Geblieben ist die Auswahlliste**, ergänzt um „Zugriff entziehen" je Zeile —
+die Gegenrichtung gehört an die Zeile, weil sie von *dieser* Datenbank handelt.
+Die Auswahl steht nur da, wenn es etwas auszuwählen gibt; im Normalfall (ein
+Zugang, eine Datenbank) kostet sie nichts.
+
+**Und ein Wächter mit einer Lücke, die drei Monate gehalten hat.**
+`AgentOperationReachTest::test_every_operation_of_the_agent_is_used()` nimmt eine
+Operation als benutzt an, sobald sie in `WITHOUT_LIFECYCLE` steht — und dort
+steht sie, weil erklärt ist, *warum sie keinen Lebenslauf hat*. Das ist eine
+andere Frage. `db.user.grant` hatte den Eintrag, die Methode und keinen
+Aufrufer. Seitdem gibt es die zweite Hälfte: Wer erklärt, dass ein Dienst
+unmittelbar aufruft, muss zeigen, dass es einen Weg dorthin gibt.
+
+Sie hat sofort eine zweite gefunden: **`acme.account.ensure` ruft niemand auf.**
+Der Kommentar der Operation sagt, die Oberfläche zeige die Adresse an dem Knopf,
+der sie auslöst — diesen Knopf gibt es nicht. In der Praxis entsteht das
+ACME-Konto beim Bestellen mit, die Operation ist also überflüssig geworden statt
+vergessen. Sie steht mit Datum und Grund in `UNREACHED`; **ob sie angeschlossen
+oder entfernt wird, ist eine Entscheidung mit TLS-Folgen und gehört dem
+Betreiber.** Ein zweiter Wächter sorgt dafür, dass dieser Eintrag nicht still
+altert: Wird die Operation wieder aufgerufen, muss er weg.
+
 ### 22.4 Was noch fehlt
 
 Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
@@ -2127,8 +2365,16 @@ Aussonderung hält, beide Schemata finden ihre Zeile (§22.3j). Die *Zahl* daneb
 war dabei falsch gerundet, und das ist behoben — nachgemessen ist sie beim
 nächsten Lauf.
 
-**Kriterium 4 bis 7 stehen aus:** sichern, herunterladen, zurückspielen, der Dump
-mit eingefügter `GRANT`-Zeile und der Rückbau samt Gegenprobe am Nachbarn.
+**Kriterium 6 ist gefahren und erfüllt** (§22.3m): Ein Dump, der Rechte vergeben
+will, prallt am befristeten Benutzer ab, und die Rechtezeile bleibt unverändert.
+
+**Kriterium 4 ist halb belegt.** Die Sicherung entsteht und liegt richtig — der
+Download hat mit 404 geantwortet, das ist behoben (§22.3l), aber **ein
+erfolgreicher Download ist seither nicht niedergeschrieben.** Genau die Sorte
+Lücke, die dieser Abschnitt beschreibt: Der Fehler ist erklärt, der Beleg fehlt.
+
+**Kriterium 5 und 7 stehen aus:** das Zurückspielen mit der Wiederkehr der Zeilen
+und der Rückbau samt Gegenprobe am Nachbarn.
 
 Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
 benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur

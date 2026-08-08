@@ -5359,6 +5359,83 @@ die beste, weil sie als einzige KB kannte. So driften zwei Fassungen einer Regel
 und niemand die andere nachzieht. `SizeUnitTest` hält beide Hälften, und die
 Brüche dazu treffen je genau eine seiner Behauptungen.
 
+**Ein vorhandener Zugang lässt sich mit einer weiteren Datenbank verbinden.**
+`Databases::grant()` und die Operation `db.user.grant` lagen seit P5 fertig da,
+und kein Controller, keine Route und kein Test riefen sie auf — aufgefallen erst,
+als das Anlegen einen vergebenen Namen abzuweisen begann und ein Kunde mit einer
+Anwendung auf zwei Datenbanken damit gar keinen Weg mehr hatte. Jetzt über eine
+Adresse für beide Richtungen, mit „Zugriff entziehen" an der Zeile und einer
+Rückfrage davor.
+
+**Die Form ist gemessen worden, nicht geschätzt.** Drei Entwürfe, gerendert mit
+dem gebauten Stylesheet in beiden Themes: eine Kästchenspalte über alle Zugänge
+(390 px: 1109 px hoch), eine Auswahlliste mit Entziehen je Zeile (837 px) und die
+echte Matrix aus Zugängen und Datenbanken (626 px). Die Matrix ist die
+kompakteste — und trotzdem nicht die Wahl für diese Seite: Sie beantwortet eine
+Frage über *alle* Datenbanken, und diese Seite handelt von einer. Die
+Kästchenspalte ist an etwas gescheitert, das erst in der Aufnahme zu sehen war:
+Sie muss alle Zugänge auflisten, und auf dem Telefon steht dann neben einem
+Zugang, der mit dieser Datenbank nichts zu tun hat, ein Knopf, der ihn ganz
+löscht.
+
+**Und ein Wächter mit einer Lücke, die drei Monate gehalten hat.**
+`AgentOperationReachTest` nahm eine Operation als benutzt an, sobald sie in
+`WITHOUT_LIFECYCLE` steht — dort steht sie aber, weil erklärt ist, *warum sie
+keinen Lebenslauf hat*. Das ist eine andere Frage. Wer erklärt, dass ein Dienst
+unmittelbar aufruft, muss jetzt zeigen, dass es einen Weg dorthin gibt. Der
+strengere Test fand sofort eine zweite: `acme.account.ensure` ruft niemand auf —
+das ACME-Konto entsteht beim Bestellen mit. Sie steht mit Datum und Grund in
+`UNREACHED`; ob sie angeschlossen oder entfernt wird, ist eine Entscheidung mit
+TLS-Folgen.
+
+**Ein zweiter Zugang mit demselben Namen ersetzte das Passwort des ersten.** Der
+Agent baut `CREATE USER IF NOT EXISTS` und danach `ALTER USER … IDENTIFIED BY` —
+richtig für den Wiederholungslauf eines abgebrochenen Vorgangs, und derselbe Weg
+galt für den ganz normalen zweiten Klick. Das Feld „Benutzername" ist mit `user`
+vorbelegt; wer eine zweite Datenbank anlegte und es stehen liess, bekam keinen
+zweiten Zugang, sondern denselben mit einem neuen Passwort. Die Anwendung, die
+das alte in ihrer Konfigurationsdatei hatte, war ab da ausgesperrt, und das Panel
+meldete „Zugang angelegt". Der Name wird jetzt abgewiesen, bevor der Agent
+gefragt wird — dort ist eine Absicht bekannt, im Agenten nur ein Auftrag.
+
+**Und drei Funde, die daran hingen.** Die Fehlermeldung landete fest auf
+`user_label`, obwohl das Formular „Weiterer Zugang" `label` schickt — der
+Feldname kommt jetzt vom Aufrufer. `DatabaseFormTest`, den ein Kommentar seit P5
+versprach, gab es nicht; er ist geschrieben und fand bei seinem ersten Lauf, wofür
+er versprochen war: Die Prüfregel des Formulars endete auf `$` ohne `D` und liess
+damit einen Zeilenumbruch durch, den der Agent abweist. `AnchoredPatternTest` las
+bis dahin nur unter `agent/` und liest jetzt auch die `regex:`-Regeln der
+Formulare.
+
+**`GuardReachTest`** ist der Ertrag daraus: Jeder Testname, der irgendwo im Code
+steht, gehört zu einer Datei, die es gibt; Ausnahmen kommen aus
+`ChangelogTest::REMOVED`. Beim ersten Lauf waren es drei — neben
+`DatabaseFormTest` noch `DbTenancyTest` (im Plan §16.7 vorgesehen, nie
+geschrieben: die Hälfte des Abnahmekriteriums, die im Panel spielt — jetzt
+geschrieben) und `SecretsStayOutOfTheStoreTest`, dessen Regel längst als Methode
+in `SecretsStayOutOfTheQueueTest` lebt. Ein toter Verweis auf eine Klasse fällt
+beim nächsten Aufruf auf, einer auf einen Test niemals.
+
+**Ein fehlgeschlagener Vorgang zeigte „Begonnen —" und „Beendet —".** Beide
+Zeitstempel waren gesetzt; die Seite zeigte die Werte aus der ersten
+Inertia-Antwort, und zu dem Zeitpunkt stand der Vorgang in der Warteschlange.
+Der SSE-Kanal führte Zustand, Fortschritt und Meldung nach — die Zeiten nicht.
+Zwei Quellen für dieselbe Angabe, und eine wird nicht nachgezogen; ein Neuladen
+zeigte die richtigen Werte, wer zusah, sah einen Zustand, den es nie gab.
+
+Der Kanal schickt jetzt beide Zeiten, und die Vorlage liest sie von dort.
+`OperationStreamTest` prüft beide Richtungen: dass das Ereignis sie trägt (am
+ausgelieferten Strom, nicht am Quelltext), und dass die Vorlage **kein** Feld
+aus der Erstantwort druckt, das der Kanal nachführt — die Namen dafür kommen aus
+dem Controller und nicht aus einer gepflegten Liste. Der zweite ist der
+wichtigere: Der Kanal hätte die Zeiten schicken können, und solange die Vorlage
+`props.operation.started_at` ausgibt, ändert das nichts.
+
+Dabei ist ein Namenskonflikt aufgefallen und mitbehoben: Im Ereignis hiess
+`label` der **Zustand** („fehlgeschlagen"), in der Seitennutzlast heisst `label`
+die **Aufgabe** („db.restore"). Zwei Bedeutungen für einen Namen auf derselben
+Seite; das Ereignis nennt es jetzt `status_label`.
+
 **Eine fertige Sicherung liess sich nicht herunterladen — 404.** Gefunden vom
 Betreiber beim Durchgehen der Kriterien 4 bis 7. Die Datei lag als
 `root:srvpanel 0640`, die Gruppe des Panels durfte sie also lesen; ihr

@@ -4081,6 +4081,169 @@ pruefe "  … zurückgesetzt wieder grün" \
   MobileLayoutTest::test_a_pairs_table_labels_its_rows_the_same_way_everywhere passed
 
 echo
+echo "── OperationStreamTest: die Zeiten fehlen im Ereignis ──"
+#
+# Der Zustand vom 8. August 2026: Der Kanal führt Zustand, Fortschritt und
+# Meldung nach, die Zeitstempel nicht — und ein fertiger Vorgang zeigt
+# „Begonnen —", weil die Erstantwort aus der Warteschlange stammt.
+vorher_datei app/Http/Controllers/OperationStreamController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/OperationStreamController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    'started_at' => $operation->started_at?->toDateTimeString(),\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/OperationStreamController.php "Zeitstempel nicht im Kanal" &&
+pruefe "Zeitstempel nicht im Kanal" \
+  OperationStreamTest::test_the_state_event_carries_the_times failed
+wiederherstellen
+
+echo
+echo "── OperationStreamTest: die Vorlage druckt aus der Erstantwort ──"
+#
+# Die Gegenrichtung, und der eigentliche Fehler: Der Kanal darf schicken, was er
+# will, solange die Vorlage den Wert der ersten Antwort ausgibt.
+vorher_datei resources/js/Pages/Operations/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Operations/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("{{ startedAt ?? '—' }}", "{{ props.operation.started_at ?? '—' }}")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Operations/Show.vue "Zeit aus der Erstantwort gedruckt" &&
+pruefe "Zeit aus der Erstantwort gedruckt" \
+  OperationStreamTest::test_the_page_does_not_print_a_live_field_from_the_first_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" OperationStreamTest passed
+
+echo
+echo "── GuardReachTest: ein Kommentar nennt einen Wächter, den es nicht gibt ──"
+#
+# Der Zustand, den dieser Wächter am 8. August 2026 vorgefunden hat: In
+# DatabaseController stand „die Gegenprobe steht in DatabaseFormTest", und die
+# Datei gab es nicht. Ein toter Verweis auf eine Klasse fällt beim nächsten
+# Aufruf auf, einer auf einen Test niemals.
+vorher_datei app/Support/Databases/Databases.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('(docs/36 §22.3n).', '(docs/36 §22.3n). `ErfundenerWaechterTest` prüft das.', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Databases.php "Kommentar nennt einen Test ohne Datei" &&
+pruefe "Kommentar nennt einen Test ohne Datei" \
+  GuardReachTest::test_every_test_named_in_the_code_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" GuardReachTest passed
+
+echo
+echo "── DatabaseFormTest: das Formular lässt durch, was der Agent abweist ──"
+#
+# Das `D` am Ende des Musters: Ohne es passt `$` auch vor einem abschliessenden
+# Zeilenumbruch. Genau so stand es bis zum 8. August dreimal im Controller —
+# gefunden hat es dieser Test bei seinem ersten Lauf.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'regex:/^[a-z][a-z0-9_]{0,15}$/D'", "'regex:/^[a-z][a-z0-9_]{0,15}$/'", 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Formularmuster ohne D" &&
+pruefe "Formularmuster ohne D" \
+  DatabaseFormTest::test_the_form_allows_exactly_what_the_agent_allows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" \
+  AnchoredPatternTest::test_every_anchored_rule_in_a_form_ends_only_at_the_end passed
+
+echo
+echo "── DatabaseFormTest: ein vergebener Zugangsname wird wieder überschrieben ──"
+#
+# Ohne die Prüfung baut der Agent `CREATE USER IF NOT EXISTS` plus `ALTER USER`
+# — und der zweite Klick ersetzt das Passwort eines Zugangs, den ein Kunde schon
+# in seiner Konfigurationsdatei stehen hat.
+vorher_datei app/Support/Databases/Databases.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->guardFreeName($subscription, $label, $host);\n\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Databases.php "Zugangsname ohne Prüfung" &&
+pruefe "Zugangsname ohne Prüfung" \
+  DatabaseFormTest::test_an_existing_access_name_is_refused_before_the_agent_is_asked failed
+wiederherstellen
+
+echo
+echo "── DbTenancyTest: die Klammer am Datenbankmodell fällt weg ──"
+#
+# Die Hälfte des Abnahmekriteriums, die im Panel spielt. Der Plan sieht diesen
+# Test seit §16.7 vor; geschrieben war er bis zum 8. August 2026 nicht.
+vorher_datei app/Models/Database.php
+python3 - <<'PY2'
+p = 'app/Models/Database.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    use BelongsToSubscription;\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Models/Database.php "Datenbank ohne Mandantenklammer" &&
+pruefe "Datenbank ohne Mandantenklammer" \
+  DbTenancyTest::test_without_a_tenant_no_database_is_visible failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbTenancyTest passed
+
+echo
+echo "── AgentOperationReachTest: eine Begründung ohne Aufrufer ──"
+#
+# Der Zustand von P5 bis zum 8. August 2026: `db.user.grant` hatte einen
+# Eintrag in WITHOUT_LIFECYCLE, eine fertige Methode in `Databases` — und kein
+# Controller, keine Route, kein Test rief sie auf. Der alte Wächter nahm den
+# Eintrag als Beleg für Benutzung.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('$this->databases->grant($user, $database, $granted);', '$granted = $granted;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'db.user.grant'", "'db.user.grant.abgeschaltet'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Operation ohne Aufrufer" &&
+pruefe "Operation ohne Aufrufer" \
+  AgentOperationReachTest::test_every_operation_without_a_lifecycle_is_called_somewhere failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AgentOperationReachTest passed
+
+echo
+echo "── DbTenancyTest: ein fremder Zugang lässt sich verbinden ──"
+#
+# Die Klammer hält einen Kunden schon an der Modellbindung auf; ein Admin ist
+# unbeschränkt. Ohne die ausdrückliche Prüfung entstünde ein Recht über
+# Abonnementgrenzen hinweg — durch eine Zahl in der Adresse.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        abort_unless(\n"
+    "            $user->subscription_id !== null && $user->subscription_id === $database->subscription_id,\n"
+    "            404,\n"
+    "        );\n\n",
+    '',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "fremder Zugang verbindbar" &&
+pruefe "fremder Zugang verbindbar" \
+  DbTenancyTest::test_not_even_the_operator_links_a_foreign_access failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbTenancyTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

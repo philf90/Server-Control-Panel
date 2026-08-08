@@ -20,10 +20,16 @@ import { onUnmounted, ref, type Ref } from 'vue'
 
 export interface OperationState {
   status: string
-  label: string
+
+  /* Der Zustand als Text — `label` heisst in der Seitennutzlast die Aufgabe. */
+  status_label: string
   progress: number
   message: string | null
   open: boolean
+
+  /* Ohne sie zeigte ein fertiger Vorgang „Begonnen —" (docs/36 §22.3m). */
+  started_at: string | null
+  finished_at: string | null
 }
 
 export interface OperationStream {
@@ -51,10 +57,12 @@ export function useOperationStream(operationId: number): OperationStream {
 
     state.value = {
       status: payload.status,
-      label: payload.label,
+      status_label: payload.status_label,
       progress: payload.progress,
       message: payload.message,
       open: payload.open,
+      started_at: payload.started_at,
+      finished_at: payload.finished_at,
     }
 
     // Angehängt, nicht ersetzt: Der Server schickt nur, was seit der letzten

@@ -5220,6 +5220,28 @@ Filter über das SQL: Die Eindämmung ist der befristete Benutzer, und sie gilt
 für eine mitgebrachte Datei wie für eine selbst erzeugte. Ein Filter wäre die
 zweite, schwächere Fassung derselben Zusage.
 
+**Und dieser Eintrag hat gleich den nächsten Wächter gefunden.** `ChangelogTest`
+verlangt, dass jeder genannte Test existiert — und machte damit genau die Sorte
+Eintrag unmöglich, die am meisten erklärt: den, der etwas **zurücknimmt**. Der
+Changelog ist der Ort, an dem steht, was vorher falsch war; er muss das
+Zurückgenommene benennen können.
+
+Zwei Auswege wären schlechter gewesen: den Namen ohne Rückstriche zu schreiben,
+dann greift der Ausdruck nicht und der Wächter ist umgangen statt erweitert —
+oder ihn zu umschreiben, dann findet ihn niemand mehr in der Historie. Statt
+dessen `ChangelogTest::REMOVED`, mit Datum und Grund je Eintrag, und dazu die
+Gegenrichtung: Ein Eintrag, dessen Test wieder existiert, nähme ihn dauerhaft
+von der Prüfung aus — `test_the_list_of_removed_tests_does_not_outlive_them`
+meldet das. Dieselbe Falle, die dieses Projekt dreimal an Zählern erwischt hat,
+nur in einer Ausnahmeliste.
+
+Die Brüche dazu stehen **nicht** im Skript: Sie müssten eine Datei unter
+`tests/` ändern, und `wiederherstellen()` fasst das Verzeichnis nicht an — es
+nachzutragen ginge nicht, weil das Skript selbst darin liegt und ein
+`git checkout -- tests/` irgendwann die Datei zurückschriebe, die bash gerade
+liest. Der Kopf des Skripts hält das jetzt fest, die Befehlsfolgen stehen in den
+betroffenen Tests.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

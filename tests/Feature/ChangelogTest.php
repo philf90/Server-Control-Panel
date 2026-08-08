@@ -31,6 +31,47 @@ use SplFileInfo;
  */
 final class ChangelogTest extends TestCase
 {
+    /**
+     * Tests, die es gab und nicht mehr gibt — mit dem Eintrag, der sie nennt.
+     *
+     * **Der Anlass ist ein Eintrag, den es geben muss.** Der Changelog ist der
+     * Ort, an dem steht, *was vorher falsch war*; ein Beitrag, der etwas
+     * zurücknimmt, muss das Zurückgenommene benennen können. Bis hierher
+     * verlangte die Prüfung unten, dass jeder genannte Test **existiert** — und
+     * damit war die eine Sorte Eintrag unmöglich, die am meisten erklärt.
+     *
+     * Ohne diese Liste blieben zwei Auswege, und beide sind schlechter: den Test
+     * im Fliesstext ohne Rückstriche zu nennen (dann greift der Ausdruck nicht,
+     * und der Wächter ist umgangen statt erweitert), oder ihn zu umschreiben
+     * (dann findet ihn niemand mehr in der Historie).
+     *
+     * **Wer hier einträgt, schreibt dazu, wann und warum.** Der Eintrag ist das,
+     * was jemand liest, der dem Namen im Changelog folgt und ihn unter `tests/`
+     * nicht findet.
+     *
+     * **Die zwei Brüche dazu stehen nicht in `tests/waechter-brechen.sh`.** Sie
+     * müssten diese Datei ändern, und `wiederherstellen()` fasst `tests/` nicht
+     * an — das Verzeichnis nachzutragen ginge nicht, weil das Skript selbst
+     * darin liegt. Von Hand also, und so:
+     *
+     *     # 1 — der Eintrag fehlt, der Changelog nennt den Test trotzdem
+     *     #     erwartet: test_every_named_test_exists wird rot
+     *     # 2 — ein zweiter Eintrag für einen Test, den es gibt
+     *     #     erwartet: test_the_list_of_removed_tests_does_not_outlive_them wird rot
+     *     git checkout -- tests/Feature/ChangelogTest.php
+     *
+     * Am 8. August 2026 beide gefahren, beide rot, danach wieder grün.
+     *
+     * @var array<string, string>
+     */
+    private const REMOVED = [
+        'UploadLimitTest' => 'Mit dem Hochladen zurückgenommen (P5, 8. August 2026): Er hielt drei '
+            .'Grössengrenzen gegeneinander, die zu einer Funktion gehörten, die nie gebaut wurde — '
+            .'grün, im Recht, und blind für das Fehlen dessen, was er absichern sollte. Kommt mit '
+            .'docs/36 Schritt 11 wieder, dann mit einer zweiten Behauptung: dass die Prüfregel an '
+            .'der Route hängt.',
+    ];
+
     private function root(): string
     {
         return dirname(__DIR__, 2);
@@ -95,10 +136,46 @@ final class ChangelogTest extends TestCase
         $this->assertGreaterThanOrEqual(4, count($names), 'Der Ausdruck findet keine Testverweise mehr.');
 
         foreach ($names as $name) {
+            if (array_key_exists($name, self::REMOVED)) {
+                continue;
+            }
+
             $this->assertArrayHasKey(
                 $name.'.php',
                 $files,
-                "Der Changelog nennt {$name}; eine Datei dieses Namens gibt es unter tests/ nicht.",
+                sprintf(
+                    'Der Changelog nennt %s; eine Datei dieses Namens gibt es unter tests/ nicht. '
+                    .'Wurde der Test entfernt, gehört er mit Datum und Grund in '
+                    .'ChangelogTest::REMOVED — ihn im Fliesstext ohne Rückstriche zu nennen wäre '
+                    .'kein Ausweg, sondern eine Umgehung dieses Wächters.',
+                    $name,
+                ),
+            );
+        }
+    }
+
+    /**
+     * Und die Gegenrichtung: Die Liste läuft nicht mit.
+     *
+     * **Dieselbe Falle, die dieses Projekt dreimal erwischt hat**, nur in einer
+     * Ausnahmeliste statt in einem Zähler: Ein Eintrag, der einen Test nennt,
+     * den es wieder gibt, weicht die Prüfung für ihn dauerhaft auf — und
+     * gemerkt hätte es niemand, denn `REMOVED` steht auf der grünen Seite.
+     * Kommt `UploadLimitTest` mit Schritt 11 zurück, meldet diese Zeile es.
+     */
+    public function test_the_list_of_removed_tests_does_not_outlive_them(): void
+    {
+        $files = $this->filesUnder('tests', 'php');
+
+        foreach (array_keys(self::REMOVED) as $name) {
+            $this->assertArrayNotHasKey(
+                $name.'.php',
+                $files,
+                sprintf(
+                    '%s steht in ChangelogTest::REMOVED und gibt es wieder. Der Eintrag gehört '
+                    .'entfernt, sonst ist der Test dauerhaft von der Prüfung ausgenommen.',
+                    $name,
+                ),
             );
         }
     }

@@ -41,6 +41,16 @@
 # der noch nicht eingecheckt ist, wird hier nicht gebrochen, sondern gelöscht.
 # Deshalb der Abbruch oben — und deshalb kommt ein neuer Bruch erst nach dem
 # Commit dazu, den er prüft.
+#
+# **Und `tests/` steht in keiner der beiden Listen, mit Absicht.** Ein Bruch,
+# der eine Testdatei ändert, liesse sie hier geändert stehen — er wäre keine
+# Probe, sondern eine Änderung. Das Verzeichnis nachzutragen ginge nicht:
+# Dieses Skript liegt selbst darin, und ein `git checkout -- tests/` würde
+# irgendwann die Datei zurückschreiben, die bash gerade liest.
+#
+# Betroffen sind die Wächter, deren Regel *im Test* steht statt im Code —
+# `BreakScriptTest` und `ChangelogTest::REMOVED`. Ihre Brüche werden von Hand
+# gefahren; die Befehlsfolge steht jeweils im Kopf des Tests.
 
 set -uo pipefail
 

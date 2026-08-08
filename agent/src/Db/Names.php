@@ -162,7 +162,7 @@ final class Names
     {
         $name = Guard::string($value, $field);
 
-        if (! preg_match('/^p[0-9]{4,9}_[a-z][a-z0-9_]{0,15}$/D', $name)) {
+        if (! self::isPanelName($name)) {
             throw AgentException::badRequest(
                 'Unzulässiger Name — erwartet wird das Präfix des Abonnements, ein Unterstrich und der Zusatz.',
                 [$field => $name],
@@ -170,6 +170,27 @@ final class Names
         }
 
         return $name;
+    }
+
+    /**
+     * Trägt dieser Name die Form, die dieses Panel vergibt?
+     *
+     * **Dieselbe Frage wie in {@see self::existing()}, nur ohne Ausnahme** —
+     * und deshalb steht das Muster jetzt einmal statt zweimal. Der Anlass ist
+     * `db.usage`: `information_schema` gibt jedes Schema des Servers aus, auch
+     * `mysql` und das der Panel-Datenbank, und herausgegeben wird nur, was dem
+     * Panel gehört. Wer diese Frage dort mit einem eigenen Ausdruck beantwortet
+     * hätte, hätte die Regel ein zweites Mal geschrieben — und die zweite
+     * Fassung ist die, die veraltet. Genau dieser Fehler steht in CLAUDE.md
+     * unter `srvpanel dns`, das nur RFC 2136 kannte.
+     *
+     * Der Unterschied zu {@see self::belongsTo()}: Dort ist bekannt, *wem* der
+     * Name gehören soll. Hier ist nur die Frage, ob überhaupt jemand aus diesem
+     * Panel dahintersteht.
+     */
+    public static function isPanelName(string $name): bool
+    {
+        return preg_match('/^p[0-9]{4,9}_[a-z][a-z0-9_]{0,15}$/D', $name) === 1;
     }
 
     /** Gehört dieser Name zu diesem Abonnement? */

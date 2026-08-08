@@ -101,6 +101,7 @@ final class AgentOperationReachTest extends TestCase
         'db.user.password' => 'Dasselbe für das Zurücksetzen: Es überquert den Socket genau einmal und liegt danach nirgends — weder im Panel noch im Agenten.',
         'db.user.grant' => 'Vergibt oder nimmt ein Recht für genau ein Paar. Die Zuordnungstabelle schreibt der Dienst, nachdem der Agent geantwortet hat.',
         'db.user.remove' => 'Entfernt einen Zugang. DROP USER dauert Millisekunden, und die Zeile geht danach im selben Aufruf.',
+        'db.usage' => 'Die Messung schreibt ihr Ergebnis selbst (App\Support\Databases\Usage) — wortwörtlich derselbe Grund wie bei subscription.usage: Sie läuft am Zeitgeber, niemand hat sie ausgelöst, und alle fünfzehn Minuten ein Vorgang je Abonnement wäre ein Protokoll, das niemand mehr liest.',
     ];
 
     private function registry(): Registry

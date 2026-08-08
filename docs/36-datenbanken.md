@@ -1587,16 +1587,69 @@ Knopf, den die CI im selben Lauf beanstandet hat. Ein Wächter mit einer Annahme
 `<script>`-Blocks. Der Bruch dazu prüft beide Hälften: Steht das Wort nur in der
 Rückfrage, bleibt die alte grün und die neue wird rot — nachgemessen, genau so.
 
+### 22.3c Die Messung, und ein dritter Zustand, den der Plan nicht kannte
+
+§9 nennt zwei Zustände für die Anzeige: gemessen und „noch nicht gemessen".
+**Es sind drei.** Ein Abonnement ohne Datenbanken hat nichts zu messen — mit nur
+zwei Zuständen stünde bei jedem frisch angelegten Abonnement „Noch nicht
+gemessen. Die Messung läuft im Viertelstundentakt und braucht einen erreichbaren
+Datenbankserver": ein Satz, der nach einem Defekt klingt, wo schlicht nichts
+anzulegen war. Das ist dieselbe Unterscheidung, die `docs/26 §8` für `null`
+gegen `0` schon trifft, nur eine Ebene höher — und sie fehlte, weil der Plan die
+Anzeige von der Zahl her gedacht hat und nicht vom Bestand.
+
+Die Nutzlast trägt deshalb `count`. Der Hinweis „gemessen und nicht erzwungen"
+steht nur dort, wo es etwas zu messen gibt: Er schränkt eine Grenze ein, und
+ohne Datenbanken ist keine Grenze im Blick.
+
+**Die Summe je Abonnement wird nicht abgelegt.** Sie steht als `SUM(size_mb)`
+über den Datenbanken. Eine mitgeführte Spalte am Abonnement wäre ein zweiter
+Wahrheitsort, der auseinandergeht, sobald eine Datenbank entfernt wird, ohne
+dass jemand nachrechnet — und beide Zahlen sähen für sich plausibel aus. Der
+Gegenfall bleibt: `disk_used_mb` ist abgelegt, weil es dort keine Zeilen gibt,
+über die man summieren könnte.
+
+**Zwei Wächter, und der zweite ist der wichtigere.**
+
+- `DbUsageScopeTest` — `db.usage` gibt nur die Schemata dieses Panels heraus.
+  `information_schema` kennt `mysql` mit der Benutzertabelle, `sys`,
+  `performance_schema` und die Datenbank des Panels selbst. Das Muster dafür
+  stand in `Names::existing()` und ist jetzt `Names::isPanelName()`: **eine
+  Regel, nicht zwei.** Hätte `DbUsage` die Frage mit einem eigenen Ausdruck
+  beantwortet, wäre das die zweite Fassung gewesen — und die zweite ist die,
+  die veraltet (CLAUDE.md, `srvpanel dns`).
+- `UsageReachTest` — jede registrierte `*.usage` wird vom Zeitgeber auch
+  aufgerufen. **Der Ausfall, gegen den er steht, ist stumm:** Eine Messung, die
+  niemand aufruft, lässt den Zeitgeber grün und die Oberfläche dauerhaft „noch
+  nicht gemessen" zeigen. Das sieht aus wie ein Server, auf dem nichts liegt.
+  Geprüft wird über zwei Sprünge — welcher Dienst ruft die Operation, und nennt
+  das Kommando diesen Dienst —, damit die Prüfung eine Umbenennung übersteht.
+
+**Und ein PHPStan-Fund, den CLAUDE.md schon kennt.** `UsageReachTest` hatte
+zuerst eine leere Ausnahmeliste, damit eine künftige Ausnahme eine Begründung
+tragen muss. `array_key_exists($name, self::LEER)` ist ein
+`function.impossibleType` — der Zweig kann nicht laufen. Der Hinweis ist
+berechtigt: Ein Haken, an dem nichts hängt, ist kein Haken, sondern eine Zusage.
+Geblieben ist die Anweisung im Kommentar statt des Mechanismus. Zweiter Fund
+dieser Art in P5; lokal gefunden, nicht in der CI.
+
 ### 22.4 Was noch fehlt
 
-Schritt 4 ist **gebaut** (die Sperre, `DbLifecycle`), die Screenshots aus
-Schritt 7 sind gemacht und haben zwei Fehler gefunden. Es fehlen: die Messung
-(§9), Sichern und Zurückspielen (§10 — mit der Korrektur aus §22.3 zuerst),
-`srvpanel db` und `acceptance-db` (§17) sowie der Fernzugriff (§12). Das Abnahmekriterium von P5 ist damit **nicht** erfüllt: Anlegen
-und Benutzen gehen, Sichern und Zurückspielen nicht, und die Gegenprobe zur
+Gebaut sind Schritt 1 bis 6 — zuletzt Sichern und Zurückspielen (§10, mit der
+Korrektur aus §22.3) und die Messung (§9, siehe §22.3c). Die Screenshots aus
+Schritt 7 sind für beide gemacht und haben insgesamt fünf Fehler gefunden, drei
+davon ausserhalb von P5 (§22.3a).
+
+**Es fehlen:** `srvpanel db list|prune` und der Eintrag in `packaging/bin/srvpanel`
+(Schritt 6, letzte zwei Zeilen der Dateiliste), `db.isolation.probe` und
+`srvpanel acceptance-db` (§17), sowie der Fernzugriff (§12).
+
+Das Abnahmekriterium von P5 ist damit **nicht** erfüllt, und die Lücke ist
+benannt: Anlegen, Benutzen, Sichern und Zurückspielen gehen; die Gegenprobe zur
 Mandantentrennung ist bisher eine Eigenschaft der erzeugten Zeichenkette
 (`DbIsolationTest`, `GrantPatternTest`) und keine Verbindung, die MariaDB
-abgewiesen hat.
+abgewiesen hat. Genau dafür gibt es §17, und genau deshalb gibt
+`db.isolation.probe` **Namen** zurück und keine Zahl.
 
 **Und die Bringschuld aus §20 Punkt 1 ist gewachsen.** Alle acht neuen Eingriffe
 in `tests/waechter-brechen.sh` greifen nachweislich in ihre Zieldatei — gemessen

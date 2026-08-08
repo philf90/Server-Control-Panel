@@ -5114,6 +5114,48 @@ bleibt unberührt, und nichts anderes im Baum wandert mit. Ein Lauf, der aus
 einem bekannten Grund rot ist, hört irgendwann auf, gelesen zu werden — und
 dann fällt der nächste, unbekannte Grund nicht mehr auf.
 
+**Die Messung (§9): `db.usage`, ein Aufruf für alle Datenbanken.** Wörtlich
+dieselbe Entscheidung wie bei `subscription.usage` — bei hundert Abonnements
+wären hundert Prozessgründungen je Viertelstunde auf einem Server, der nebenbei
+Webseiten ausliefert, und `information_schema` weiss ohnehin alles auf einmal.
+Die Operation nimmt keine Argumente. Gemessen wird `data_length + index_length`,
+also der **belegte** Platz einschliesslich des Freiraums nach gelöschten Zeilen;
+deshalb sagt die Oberfläche „belegt" und nicht „Daten". Ein Zeitgeber und nicht
+zwei: `srvpanel usage` misst seit P5 beides.
+
+**Sie gibt nur die Schemata dieses Panels heraus.** `information_schema` kennt
+`mysql` mit der Benutzertabelle, `sys`, `performance_schema` und die Datenbank
+des Panels selbst — eine Operation, die die Schemaliste des Servers ausliefert,
+wäre eine Auskunft, die niemand bestellt hat. Das Muster dafür stand schon in
+`Names::existing()` und heisst jetzt `Names::isPanelName()`: eine Regel und
+nicht zwei. Ein eigener Ausdruck in `DbUsage` wäre die zweite Fassung gewesen,
+und die zweite ist die, die veraltet.
+
+**`UsageReachTest` steht gegen einen Ausfall, der stumm ist.** Eine künftige
+Messung — Postfach, Cronlauf — wird registriert, bekommt ihren Dienst, und
+niemand ruft sie auf. Der Zeitgeber bleibt grün, die Oberfläche zeigt dauerhaft
+„noch nicht gemessen", und das sieht aus wie ein Server, auf dem nichts liegt.
+Geprüft wird über zwei Sprünge — welcher Dienst ruft die Operation, und nennt
+das Kommando diesen Dienst —, damit eine Umbenennung die Prüfung nicht aushebelt.
+
+**Ein dritter Zustand, den der Plan nicht kannte.** docs/36 §9 nennt „gemessen"
+und „noch nicht gemessen". Ein Abonnement ohne Datenbanken hat nichts zu messen:
+Mit zwei Zuständen stünde bei jedem frischen Abonnement „braucht einen
+erreichbaren Datenbankserver" — ein Satz, der nach einem Defekt klingt, wo
+nichts anzulegen war. Dieselbe Unterscheidung wie zwischen `null` und `0` bei
+einer Grösse, nur eine Ebene höher; sie fehlte, weil der Plan die Anzeige von
+der Zahl her gedacht hat und nicht vom Bestand.
+
+**`database_mb` wird gemessen und nicht erzwungen**, und das steht in der
+Oberfläche und nicht nur im Kommentar. MariaDB kennt keine Obergrenze je Schema,
+und `/var/lib/mysql` liegt ausserhalb der Dateisystem-Quota des Systembenutzers:
+Ein Kunde kann seinen Speicherplatz einhalten und den Datenträger über seine
+Datenbank füllen. Das ist eine Lücke, und sie gehört benannt statt kaschiert —
+Schwellen und Benachrichtigungen entstehen mit P9. Die Summe je Abonnement wird
+dabei nicht abgelegt, sondern über die Datenbanken summiert: Eine mitgeführte
+Spalte ginge auseinander, sobald eine Datenbank entfernt wird, ohne dass jemand
+nachrechnet, und beide Zahlen sähen für sich plausibel aus.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

@@ -17,6 +17,7 @@ use SrvPanel\Agent\Ops\DbDumpCreate;
 use SrvPanel\Agent\Ops\DbDumpRemove;
 use SrvPanel\Agent\Ops\DbRestore;
 use SrvPanel\Agent\Ops\DbServerInfo;
+use SrvPanel\Agent\Ops\DbUsage;
 use SrvPanel\Agent\Ops\DbUserCreate;
 use SrvPanel\Agent\Ops\DbUserGrant;
 use SrvPanel\Agent\Ops\DbUserLock;
@@ -129,6 +130,13 @@ final class Registry
         $this->register(new DbDumpRemove);
         $this->register(new DbDumpCreate);
         $this->register(new DbRestore);
+
+        // Die Messung. Sie steht ausserhalb der Paare oben, weil sie nichts
+        // anlegt — `RemovalPathTest` fragt sie deshalb nicht nach einem
+        // Gegenstück, und `db.usage` steht mit derselben Begründung in
+        // `AgentOperationReachTest::WITHOUT_LIFECYCLE` wie `subscription.usage`:
+        // Sie läuft am Zeitgeber und nicht an einem Lebenslauf.
+        $this->register(new DbUsage);
     }
 
     public function register(Op $op): void

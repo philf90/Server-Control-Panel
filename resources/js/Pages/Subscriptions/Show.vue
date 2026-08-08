@@ -26,6 +26,17 @@ const props = defineProps<{
     percent: number | null
     measured_at: string | null
   }
+  database_usage: {
+    count: number
+    used_mb: number | null
+    limit_mb: number | null
+    percent: number | null
+
+    /* Immer `false` in P5 — siehe den Bereich unten und docs/36 §9. Als Feld
+       und nicht als fester Text, damit die Oberfläche nicht umgeschrieben
+       werden muss, falls P9 daraus eine Grenze macht. */
+    enforced: boolean
+  }
   quotas: { key: string; label: string; value: string; differs: boolean }[]
   features: { label: string; granted: boolean }[]
   domains: {
@@ -235,6 +246,58 @@ function remove(): void {
 
           <p class="section-note">Gemessen am {{ props.usage.measured_at ?? '—' }}</p>
         </template>
+      </Section>
+
+      <!--
+        Die Datenbanken bekommen einen eigenen Bereich und nicht eine zweite
+        Farbe im Balken darüber: Die beiden Zahlen messen verschiedene Stellen
+        des Datenträgers — /var/www/vhosts hier, /var/lib/mysql dort — und ihre
+        Summe stünde gegen keine Grenze.
+      -->
+      <Section title="Datenbanken">
+        <!-- Ein Abonnement ohne Datenbanken hat nichts zu messen. Der Satz
+             darunter würde sonst einen ausstehenden Lauf melden, wo alles
+             erledigt ist. -->
+        <p v-if="props.database_usage.count === 0" class="empty">
+          Keine Datenbanken angelegt.
+        </p>
+
+        <p v-else-if="props.database_usage.used_mb === null" class="empty">
+          Noch nicht gemessen. Die Messung läuft im selben Viertelstundentakt
+          (<span class="ident">srvpanel-usage.timer</span>) und braucht einen
+          erreichbaren Datenbankserver.
+        </p>
+
+        <template v-else>
+          <p class="usage">
+            <strong>{{ props.database_usage.used_mb.toLocaleString('de-DE') }} MB</strong>
+            <span v-if="props.database_usage.limit_mb !== null">
+              von {{ props.database_usage.limit_mb.toLocaleString('de-DE') }} MB
+            </span>
+            <span v-else>ohne Grenze</span>
+          </p>
+
+          <Bar
+            v-if="props.database_usage.percent !== null"
+            :percent="props.database_usage.percent"
+            :tight="props.database_usage.percent >= 90 && props.database_usage.percent <= 100"
+            :over="props.database_usage.percent > 100"
+            breit
+          />
+        </template>
+
+        <!--
+          **Der Satz steht immer da, auch vor der ersten Messung.** Er ist keine
+          Erläuterung der Zahl, sondern die Einschränkung des Kontingents: Wer
+          hier eine Grenze sieht, soll nicht annehmen, dass sie zuschlägt.
+        -->
+        <p v-if="!props.database_usage.enforced && props.database_usage.count > 0" class="hint">
+          Diese Grenze wird <b>gemessen und nicht erzwungen</b>. MariaDB kennt
+          keine Obergrenze je Schema, und
+          <span class="ident">/var/lib/mysql</span> liegt ausserhalb der
+          Dateisystem-Quota des Abonnements — ein überschrittener Wert füllt den
+          Datenträger weiter.
+        </p>
       </Section>
 
       <Section title="Kontingente">

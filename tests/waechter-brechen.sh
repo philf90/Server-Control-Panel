@@ -3619,6 +3619,55 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
 
 echo
+echo "── DbUsageScopeTest: die Messung siebt fremde Schemata nicht aus ──"
+#
+# `information_schema.tables` kennt jedes Schema des Servers: `mysql` mit der
+# Benutzertabelle, `sys`, `performance_schema` — und die Datenbank des Panels
+# selbst, in der Konten, Sitzungen und Zertifikatszeilen liegen. Das Ergebnis
+# von `db.usage` geht an die Anwendung zurück; eine Operation, die die
+# Schemaliste des Servers ausliefert, ist eine Auskunft, die niemand bestellt
+# hat.
+vorher_datei agent/src/Ops/DbUsage.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbUsage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            if (! Names::isPanelName($name)) {
+                continue;
+            }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbUsage.php "Messung ohne Aussonderung fremder Schemata" &&
+pruefe "Messung ohne Aussonderung fremder Schemata" \
+  DbUsageScopeTest::test_only_the_schemas_of_this_panel_are_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbUsageScopeTest passed
+
+echo
+echo "── UsageReachTest: der Zeitgeber misst die Datenbanken nicht mehr ──"
+#
+# Zwei Messungen hängen am selben Zeitgeber, weil zwei Zeitgeber zwei Dinge
+# wären, die jemand überwachen muss. Fällt eine aus dem Kommando, läuft der
+# Zeitgeber weiter **grün** und die Oberfläche zeigt dauerhaft „noch nicht
+# gemessen" — das sieht aus wie ein Server, auf dem nichts liegt.
+vorher_datei app/Console/Commands/MeasureUsage.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/MeasureUsage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("use App\\Support\\Databases\\Usage as DatabaseUsage;\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/MeasureUsage.php "Messung, die niemand aufruft" &&
+pruefe "Messung, die niemand aufruft" \
+  UsageReachTest::test_the_timer_calls_every_measurement failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UsageReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

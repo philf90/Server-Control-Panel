@@ -55,6 +55,7 @@ use Illuminate\Support\Carbon;
  * @property-read Plan|null $plan
  * @property-read Collection<int, Account> $additionalAccounts
  * @property-read Collection<int, Domain> $domains
+ * @property-read Collection<int, Database> $databases
  * @property-read Domain|null $mainDomain
  */
 class Subscription extends Model
@@ -171,6 +172,20 @@ class Subscription extends Model
     }
 
     /**
+     * Die Datenbanken des Abonnements (P5).
+     *
+     * Ohne Gegenstück in {@see Database}: Dort steht `subscription()` schon
+     * über {@see BelongsToSubscription}. Hier fehlte die Richtung,
+     * weil bis zur Messung niemand vom Abonnement aus danach gefragt hat.
+     *
+     * @return HasMany<Database, $this>
+     */
+    public function databases(): HasMany
+    {
+        return $this->hasMany(Database::class);
+    }
+
+    /**
      * Die eine Hauptdomain (§5.1).
      *
      * Als Beziehung und nicht über `main_domain`: Die Spalte trägt den Namen,
@@ -242,6 +257,48 @@ class Subscription extends Model
         }
 
         return round($this->disk_used_mb / (int) $limit * 100, 1);
+    }
+
+    /**
+     * Der belegte Platz aller Datenbanken dieses Abonnements — in MB.
+     *
+     * **Gerechnet und nicht abgelegt.** Die Zahl steht als Summe über den
+     * Datenbanken; eine zweite, mitgeführte Spalte am Abonnement wäre ein
+     * zweiter Wahrheitsort, der auseinandergeht, sobald eine Datenbank entfernt
+     * wird, ohne dass jemand nachrechnet. Beide Zahlen sähen dann für sich
+     * plausibel aus — und genau solche Abweichungen findet niemand.
+     *
+     * `null` heisst „noch nie gemessen" und ist etwas anderes als 0 MB: Ein
+     * Abonnement ohne Datenbanken hat nichts zu messen, eines mit Datenbanken
+     * vor dem ersten Lauf des Zeitgebers hat es noch nicht.
+     */
+    public function databaseUsedMb(): ?int
+    {
+        $databases = $this->databases()->whereNotNull('size_mb');
+
+        return $databases->exists() ? (int) $databases->sum('size_mb') : null;
+    }
+
+    /**
+     * Und ins Verhältnis zum Kontingent — dieselben Regeln wie beim Speicher.
+     *
+     * Auch hier nicht bei 100 abgeschnitten, und hier ist der Grund noch
+     * deutlicher: `database_mb` wird **gemessen und nicht erzwungen** (docs/36
+     * §9). MariaDB kennt keine Obergrenze je Schema, und `/var/lib/mysql` liegt
+     * ausserhalb der Dateisystem-Quota des Systembenutzers. Eine Überschreitung
+     * ist hier also kein Randfall, sondern der zu erwartende Verlauf — ein
+     * gedeckelter Balken verspräche eine Grenze, die es nicht gibt.
+     */
+    public function databaseUsagePercent(): ?float
+    {
+        $limit = $this->quota(Quota::DatabaseMb->value);
+        $used = $this->databaseUsedMb();
+
+        if ($used === null || ! is_numeric($limit) || (int) $limit <= 0) {
+            return null;
+        }
+
+        return round($used / (int) $limit * 100, 1);
     }
 
     public function feature(string $key): bool

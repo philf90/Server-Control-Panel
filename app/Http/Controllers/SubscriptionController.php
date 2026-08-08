@@ -240,6 +240,40 @@ final class SubscriptionController extends Controller
                 'measured_at' => $subscription->disk_usage_measured_at?->toDateTimeString(),
             ],
 
+            /*
+             * Und der Platz der Datenbanken — daneben und nicht darin.
+             *
+             * **Zwei Zahlen und kein Balken mit zwei Farben.** Sie messen
+             * verschiedene Datenträgerbereiche: `disk_mb` das Abo-Verzeichnis
+             * unter `/var/www/vhosts`, `database_mb` die Schemata unter
+             * `/var/lib/mysql`. Sie zu addieren ergäbe eine Zahl, die gegen
+             * keine Grenze steht.
+             *
+             * **`enforced: false` geht mit und ist keine Nebensache.** Der
+             * Speicher ist eine Quota, die zuschlägt; die Datenbankgrösse wird
+             * gemessen und nicht erzwungen (docs/36 §9). Ein Balken, der beides
+             * gleich zeichnet, verspricht eine Grenze, die es nicht gibt — und
+             * genau das wäre die Sorte Zusage, die ein Betreiber erst im
+             * Ernstfall als falsch erkennt.
+             */
+            'database_usage' => [
+                /*
+                 * **Drei Zustände und nicht zwei.** „Noch nicht gemessen" und
+                 * „keine Datenbanken" sehen in einer Zahl gleich aus und
+                 * bedeuten Verschiedenes: Das eine ist ein ausstehender Lauf,
+                 * das andere ein fertiger Befund. Ohne `count` stünde bei jedem
+                 * frischen Abonnement „braucht einen erreichbaren
+                 * Datenbankserver" — ein Satz, der nach einem Defekt klingt, wo
+                 * schlicht nichts anzulegen war. Dieselbe Unterscheidung wie
+                 * zwischen `null` und `0` bei `size_mb`, nur eine Ebene höher.
+                 */
+                'count' => $subscription->databases()->count(),
+                'used_mb' => $subscription->databaseUsedMb(),
+                'limit_mb' => is_numeric($dbLimit = $subscription->quota(Quota::DatabaseMb->value)) ? (int) $dbLimit : null,
+                'percent' => $subscription->databaseUsagePercent(),
+                'enforced' => false,
+            ],
+
             // Der Stand, nicht die Vorlage: Was am Abonnement abweicht, ist
             // markiert. Ein Kunde sieht hier seine Grenzen und nicht den Plan,
             // aus dem sie kommen.

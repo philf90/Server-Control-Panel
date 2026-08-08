@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Support\Databases\Usage as DatabaseUsage;
 use App\Support\Subscriptions\Usage;
 use Illuminate\Console\Command;
 use SrvPanel\Agent\AgentException;
@@ -22,21 +23,42 @@ use SrvPanel\Agent\AgentException;
  * diesem Server nicht gibt. Der Timer ruft dieses Kommando direkt auf; was
  * ihn startet, steht in `packaging/systemd/srvpanel-usage.timer` und ist von
  * aussen sichtbar.
+ *
+ * **Seit P5 misst es zweierlei, und trotzdem gibt es einen Timer.** Der belegte
+ * Platz der Datenbanken kommt aus `information_schema` und nicht aus der
+ * Quota-Datei; das sind zwei Quellen, aber derselbe Anlass. Zwei Zeitgeber im
+ * Viertelstundentakt wären zwei Dinge, die jemand überwachen muss, für eine
+ * Messung, die dieselbe Frage beantwortet (`docs/36 §9`).
  */
 final class MeasureUsage extends Command
 {
     protected $signature = 'srvpanel:usage';
 
-    protected $description = 'Misst den belegten Speicher aller Abonnements über die Dateisystem-Quota';
+    protected $description = 'Misst den belegten Speicher aller Abonnements und den Platz ihrer Datenbanken';
 
-    public function handle(Usage $usage): int
+    public function handle(Usage $usage, DatabaseUsage $databases): int
+    {
+        /*
+         * **Die zweite Messung läuft auch dann, wenn die erste nichts liefert.**
+         * Sie hängen an verschiedenen Voraussetzungen — `usrquota` am Mount
+         * hier, ein laufender MariaDB dort. Ein Server ohne Quota hätte sonst
+         * auch keine Datenbankgrössen, und der Grund dafür stünde nirgends.
+         */
+        $quota = $this->measureDisk($usage);
+        $schemas = $this->measureDatabases($databases);
+
+        return $quota && $schemas ? self::SUCCESS : self::FAILURE;
+    }
+
+    /** Der belegte Speicher über die Dateisystem-Quota. */
+    private function measureDisk(Usage $usage): bool
     {
         try {
             $result = $usage->measure();
         } catch (AgentException $error) {
             $this->error('Messung scheiterte: '.$error->getMessage());
 
-            return self::FAILURE;
+            return false;
         }
 
         if ($result['available'] === false) {
@@ -49,11 +71,33 @@ final class MeasureUsage extends Command
              */
             $this->warn('Keine Dateisystem-Quota: '.($result['reason'] ?? ''));
 
-            return self::SUCCESS;
+            return true;
         }
 
         $this->info(sprintf('%d Abonnement(s) gemessen.', $result['measured']));
 
-        return self::SUCCESS;
+        return true;
+    }
+
+    /** Der belegte Platz der Datenbanken — dieselbe Nachsicht, anderer Grund. */
+    private function measureDatabases(DatabaseUsage $databases): bool
+    {
+        try {
+            $result = $databases->measure();
+        } catch (AgentException $error) {
+            $this->error('Messung der Datenbanken scheiterte: '.$error->getMessage());
+
+            return false;
+        }
+
+        if ($result['available'] === false) {
+            $this->warn('Kein Datenbankserver: '.($result['reason'] ?? ''));
+
+            return true;
+        }
+
+        $this->info(sprintf('%d Datenbank(en) gemessen.', $result['measured']));
+
+        return true;
     }
 }

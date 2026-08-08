@@ -222,6 +222,382 @@ final class MobileLayoutTest extends TestCase
     }
 
     /**
+     * Was unter 720px zu Kärtchen zerfällt, hat dort keine eigene Breite mehr.
+     *
+     * **Dieser Wächter liest die Regel nicht, er rechnet die Kaskade nach** —
+     * und das ist der ganze Punkt. Die Regel stand nämlich schon da und galt
+     * trotzdem nicht: `.stacks { width: 100% }` wiegt 0,1,0,
+     * `.scrolls > table { width: max-content }` wiegt 0,1,1 und gewinnt. Eine
+     * gestapelte Tabelle in einem Rollbehälter war damit so breit wie ihr
+     * breitestes Kärtchen. Beide Zeilen einzeln gelesen sehen richtig aus;
+     * falsch ist erst ihr Zusammentreffen, und genau das sieht kein Blick auf
+     * eine Datei.
+     *
+     * **Gemessen, bevor es diesen Test gab:** 553px Tabelle in 358px Behälter
+     * bei 390px Fenster — 195px waagerecht, im vorinstallierten Chromium. Es
+     * hing an der Länge einer Kennung und blieb deshalb jahrelang unsichtbar:
+     * Kürzere Kärtchen passten zufällig. Der Ablagename einer Sicherung
+     * (52 Zeichen) war der erste, der nicht mehr passte.
+     *
+     * **Warum nicht `test_every_table_carries_one_of_the_patterns` erweitert
+     * wurde.** Der prüft `stacks || scrolls || pairs` — *eines von dreien*.
+     * Nach docs/24 §5 klingt das nach Alternativen, und man käme auf die Idee,
+     * hier auf „genau eines" zu verschärfen. Das wäre falsch: `.stacks` wirkt
+     * erst unter 720px, darüber will dieselbe Tabelle rollen dürfen. Die
+     * beiden Muster sind zwei Antworten auf zwei Breiten und schliessen sich
+     * nicht aus. Was sich ausschliesst, ist `max-content` und ein Kärtchen —
+     * und das ist eine Frage an die Kaskade, nicht an das Markup.
+     */
+    public function test_a_stacked_table_has_no_width_of_its_own(): void
+    {
+        [$selector, $value, $seen] = $this->winner('width', $this->selectsStackedTable(...));
+
+        $this->assertGreaterThanOrEqual(
+            2,
+            $seen,
+            'Es wird kaum eine Breitenregel gefunden, die eine gestapelte Tabelle erreicht — '.
+            'dann rechnet dieser Test an nichts mehr nach.',
+        );
+
+        $this->assertSame(
+            '100%',
+            $value,
+            sprintf(
+                'Unter 720px gewinnt „%s" mit `width: %s` an einer gestapelten Tabelle. Eine Tabelle, '.
+                'die zu Kärtchen zerfällt, muss die Breite ihres Behälters annehmen — sonst stehen die '.
+                'Kärtchen seitlich aus dem Bildschirm, und der Rollbehälter macht daraus keinen Fehler, '.
+                'sondern eine Rollbewegung (docs/24 §5).',
+                $selector,
+                $value,
+            ),
+        );
+    }
+
+    /**
+     * Und die Kennung im Kärtchen bricht.
+     *
+     * **Die Breite allein reichte nicht.** Von 195px waagerecht blieben nach
+     * `width: 100%` noch 180px stehen — die Kennung trägt `nowrap`, und ein
+     * Kärtchen hat keinen Rand, an dem etwas hängenbliebe. Genau dieser
+     * Zweischritt steht in docs/24 §5 schon für die Paartabelle: „Zwei
+     * Messungen, ein Fund — der erste Fix sah aus wie einer und war keiner."
+     *
+     * Deshalb steht die zweite Hälfte hier und nicht als zweite Behauptung im
+     * Test darüber: Wer nur die Breite zurücknimmt, soll einen Wächter sehen,
+     * der die *zweite* Frage stellt, und nicht einen, der zweimal dieselbe
+     * meldet.
+     */
+    public function test_an_identifier_in_a_stacked_card_may_break(): void
+    {
+        [$selector, $value, $seen] = $this->winner('white-space', $this->selectsStackedIdentifier(...));
+
+        $this->assertGreaterThanOrEqual(
+            2,
+            $seen,
+            'Es wird kaum eine Umbruchregel gefunden, die eine Kennung im Kärtchen erreicht — '.
+            'dann rechnet dieser Test an nichts mehr nach.',
+        );
+
+        $this->assertNotSame(
+            'nowrap',
+            $value,
+            sprintf(
+                'Unter 720px gewinnt „%s" mit `white-space: nowrap` an einer Kennung in einem Kärtchen. '.
+                'Auf dem Schreibtisch ist das richtig — dort kann man die Tabelle schieben. In einem '.
+                'Kärtchen gibt es nichts zu schieben: Die Kennung läuft aus dem Bildschirm (docs/24 §5).',
+                (string) $selector,
+            ),
+        );
+    }
+
+    /**
+     * Eine Zustandsmarke bleibt eine Marke, auch in einer gestapelten Zelle.
+     *
+     * **Der dritte Fund derselben Aufnahme, und der leiseste.** `.multiline`
+     * stellt Beschriftung und Inhalt untereinander und dehnt seine Kinder dabei
+     * (`align-items: stretch`) — für Text ist das genau richtig. Eine Marke
+     * wurde damit 328px breit statt 116px: eine farbige Fläche über die ganze
+     * Zeile, die aussieht wie eine Meldung und eine Marke sein sollte. Nichts
+     * lief über, nichts wurde abgeschnitten; es sah nur falsch aus. Gemessen
+     * bei 390px, zu sehen auf der Planseite, seit es `.multiline` gibt.
+     *
+     * Geprüft wird der Zusammenhang und nicht die Zeile: Erst wenn die Zelle
+     * ihre Kinder dehnt, braucht die Marke ihre Gegenwehr. Wer `.multiline`
+     * eines Tages auf `align-items: start` umstellt, bekommt hier kein Rot für
+     * eine Regel, die dann überflüssig ist.
+     */
+    public function test_a_badge_in_a_stacked_cell_keeps_its_width(): void
+    {
+        [, $stretches, $cells] = $this->winner('align-items', $this->selectsMultilineCell(...));
+
+        $this->assertGreaterThanOrEqual(
+            1,
+            $cells,
+            'Es wird keine Regel zu `.multiline` gefunden — dann rechnet dieser Test an nichts nach.',
+        );
+
+        if ($stretches !== 'stretch') {
+            return;
+        }
+
+        [$selector, $value] = $this->winner('align-self', $this->selectsBadgeInMultilineCell(...));
+
+        $this->assertNotNull(
+            $value,
+            'Unter 720px dehnt `.stacks td.multiline` seine Kinder, und für eine Marke darin sagt das '.
+            'niemand ab. Sie wird dann so breit wie die Zelle — eine Fläche über die ganze Zeile, wo '.
+            'ein Wort mit einem Punkt stehen sollte (docs/24 §5).',
+        );
+
+        $this->assertNotSame(
+            'stretch',
+            $value,
+            sprintf('„%s" setzt `align-self: stretch` — das ist die Dehnung, gegen die es steht.', (string) $selector),
+        );
+    }
+
+    /**
+     * Die stärkste Regel für eine Eigenschaft auf schmaler Fläche.
+     *
+     * Gewicht vor Reihenfolge — dieselbe Rechnung, die der Browser anstellt.
+     * `$reaches` entscheidet, ob ein einzelner Selektor das gesuchte Element
+     * trifft; was er nicht versteht, lässt er scheitern statt es zu übergehen.
+     *
+     * @param  callable(string): bool  $reaches
+     * @return array{?string, ?string, int} Selektor, Wert, Zahl der Fundstellen
+     */
+    private function winner(string $property, callable $reaches): array
+    {
+        $selector = null;
+        $value = null;
+        $best = [-1, -1, -1, -1];
+        $order = 0;
+        $seen = 0;
+
+        foreach ($this->narrowRules() as [$rule, $declarations]) {
+            $order++;
+
+            if (preg_match('/(?:^|[;{\s])'.preg_quote($property, '/').':\s*([^;]+)/', $declarations, $match) !== 1) {
+                continue;
+            }
+
+            foreach (explode(',', $rule) as $single) {
+                $single = trim($single);
+
+                if (! $reaches($single)) {
+                    continue;
+                }
+
+                $seen++;
+                $weight = [...$this->specificity($single), $order];
+
+                if ($weight > $best) {
+                    $best = $weight;
+                    $selector = $single;
+                    $value = trim($match[1]);
+                }
+            }
+        }
+
+        return [$selector, $value, $seen];
+    }
+
+    /**
+     * Jede Regel, die auf einer schmalen Fläche gilt — in Quelltextreihenfolge.
+     *
+     * Das sind die Regeln ausserhalb jeder Mediaabfrage und die aus den
+     * `max-width`-Blöcken. `min-width` und `prefers-*` bleiben draussen: Sie
+     * gelten dort gerade nicht.
+     *
+     * @return list<array{string, string}>
+     */
+    private function narrowRules(): array
+    {
+        $css = $this->withoutComments((string) file_get_contents(
+            dirname(__DIR__, 2).'/resources/css/app.css',
+        ));
+
+        $rules = [];
+
+        /*
+         * Erst die Blöcke herauslösen, dann den Rest — sonst läse der Ausdruck
+         * für gewöhnliche Regeln `@media (max-width: 720px) {` als Selektor
+         * und die erste Regel darin als seine Deklarationen.
+         */
+        preg_match_all('/@media([^{]*)\{((?:[^{}]|\{[^{}]*\})*)\}/s', $css, $blocks, PREG_SET_ORDER);
+
+        $outside = $css;
+
+        foreach ($blocks as $block) {
+            $outside = str_replace($block[0], '', $outside);
+        }
+
+        foreach ($this->declarations($outside) as $rule) {
+            $rules[] = $rule;
+        }
+
+        foreach ($blocks as $block) {
+            if (! str_contains($block[1], 'max-width')) {
+                continue;
+            }
+
+            foreach ($this->declarations($block[2]) as $rule) {
+                $rules[] = $rule;
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Selektor und Deklarationen eines Stücks CSS.
+     *
+     * @return list<array{string, string}>
+     */
+    private function declarations(string $css): array
+    {
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/s', $css, $matches, PREG_SET_ORDER);
+
+        $rules = [];
+
+        foreach ($matches as $match) {
+            $rules[] = [trim($match[1]), $match[2]];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Trifft dieser Selektor die `<table class="stacks">` in `.scrolls`?
+     *
+     * **Der Wächter versteht absichtlich nur wenig CSS**, und was er nicht
+     * versteht, lässt er durchfallen statt es zu übergehen: Ein Selektor, der
+     * rechts auf einer Tabelle endet, aber links etwas Unbekanntes stehen hat,
+     * bringt den Test zum Scheitern. Ein Wächter, der bei einer unbekannten
+     * Form still weitergeht, meldet Grün für genau den Fall, den er nicht
+     * geprüft hat.
+     */
+    private function selectsStackedTable(string $selector): bool
+    {
+        // Rechts muss die Tabelle selbst stehen — nicht ihre Zellen, nicht ihr
+        // Behälter. Eine Breite an `.stacks td` ist eine andere Frage.
+        return $this->reaches(
+            $selector,
+            ['table', '.stacks', 'table.stacks'],
+            ['div', '.scrolls', '.panel', 'body'],
+            ['.pairs', 'table.pairs'],
+        );
+    }
+
+    /** Trifft er eine Kennung in einer Zelle dieser Tabelle? */
+    private function selectsStackedIdentifier(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['.ident', 'td.ident', 'th.ident', 'span.ident'],
+            ['div', 'table', 'tbody', 'tr', 'td', 'th', '.scrolls', '.stacks', '.multiline', 'td.multiline'],
+            ['.pairs', 'table.pairs', 'td.right', 'th.right', '.tile', '.notice', '.field', '.hint'],
+        );
+    }
+
+    /** Trifft er die gestapelte Zelle, in der mehr als ein Wert steht? */
+    private function selectsMultilineCell(string $selector): bool
+    {
+        return $this->reaches(
+            $selector,
+            ['.multiline', 'td.multiline'],
+            ['div', 'table', 'tbody', 'tr', '.scrolls', '.stacks'],
+            ['.pairs', 'table.pairs'],
+        );
+    }
+
+    /** Und die Marke darin? */
+    private function selectsBadgeInMultilineCell(string $selector): bool
+    {
+        $parts = preg_split('/\s*>\s*|\s+/', trim($selector)) ?: [];
+
+        // Ohne die Zelle im Selektor ist es eine Regel für jede Marke — und
+        // eine allgemeine `align-self` an `.badge` wäre eine Antwort auf eine
+        // Frage, die nur diese Zelle stellt.
+        if (! array_intersect($parts, ['.multiline', 'td.multiline'])) {
+            return false;
+        }
+
+        return $this->reaches(
+            $selector,
+            ['.badge', 'span.badge'],
+            ['div', 'table', 'tbody', 'tr', 'td', '.scrolls', '.stacks', '.multiline', 'td.multiline'],
+            ['.pairs', 'table.pairs'],
+        );
+    }
+
+    /**
+     * Der gemeinsame Nenner der beiden darüber.
+     *
+     * **Drei Ausgänge und nicht zwei, und das war der Fehler des ersten
+     * Anlaufs.** Dort gab es nur „trifft" und „unbekannt, also Abbruch"; alles
+     * Bekannte galt als Treffer. `table.pairs td.ident` stand damit in der
+     * Kaskade für ein Kärtchen — eine Regel für eine ganz andere Tabelle, mit
+     * dem Gewicht 0,2,2. Sie gewann, sagte `white-space: normal`, und der
+     * Wächter war zufrieden: **Der Bruch, der die Regel aus app.css nahm, blieb
+     * grün.** Aufgefallen ist es nur, weil der Bruch dazugehört.
+     *
+     * Deshalb `$foreign`: Formen, die dieser Test kennt und die das gesuchte
+     * Element gerade *ausschliessen*. Was weder das eine noch das andere ist,
+     * lässt den Test scheitern — ein Wächter, der bei einer unbekannten Form
+     * still weitergeht, meldet Grün für genau den Fall, den er nicht geprüft
+     * hat.
+     *
+     * @param  list<string>  $leaf  erlaubte Formen ganz rechts
+     * @param  list<string>  $ancestors  Formen davor, die passen
+     * @param  list<string>  $foreign  Formen davor, die etwas anderes meinen
+     */
+    private function reaches(string $selector, array $leaf, array $ancestors, array $foreign): bool
+    {
+        $parts = preg_split('/\s*>\s*|\s+/', trim($selector)) ?: [];
+        $last = (string) array_pop($parts);
+
+        if (! in_array($last, $leaf, true)) {
+            return false;
+        }
+
+        foreach ($parts as $part) {
+            if (in_array($part, $foreign, true)) {
+                return false;
+            }
+
+            $this->assertContains(
+                $part,
+                $ancestors,
+                sprintf(
+                    'Der Selektor „%s" trifft „%s", und dieser Test versteht „%s" davor nicht. '.
+                    'Entweder gehört die Form in reaches() aufgenommen — als passende oder als '.
+                    'fremde — oder die Regel gehört nicht dorthin.',
+                    $selector,
+                    $last,
+                    $part,
+                ),
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Das Gewicht eines Selektors — Kennungen, Klassen, Elemente.
+     *
+     * @return list<int>
+     */
+    private function specificity(string $selector): array
+    {
+        preg_match_all('/#[\w-]+/', $selector, $ids);
+        preg_match_all('/\.[\w-]+|\[[^\]]+\]|:[\w-]+\([^)]*\)|:(?!:)[\w-]+/', $selector, $classes);
+        preg_match_all('/(?:^|[\s>+~])([a-z][\w-]*)/i', $selector, $elements);
+
+        return [count($ids[0]), count($classes[0]), count($elements[1])];
+    }
+
+    /**
      * Das Gerüst der schmalen Fläche ist eine Spalte und kein Raster.
      *
      * **Der Fehler, den das festhält, hing von einem Kind ab.** Das Gerüst war

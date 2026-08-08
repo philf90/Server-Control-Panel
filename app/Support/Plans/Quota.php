@@ -54,6 +54,21 @@ enum Quota: string
     case Domains = 'domains';
     case Subdomains = 'subdomains';
     case Databases = 'databases';
+
+    /*
+     * Die Grösse aller Datenbanken zusammen — „Kontingent: Anzahl, Größe
+     * (gemessen)" aus §9 P5.
+     *
+     * **Gemessen und nicht erzwungen**, und das ist keine Bequemlichkeit:
+     * MariaDB kennt keine Obergrenze je Schema. Was den Datenträger tatsächlich
+     * begrenzt, ist `disk_mb` als Dateisystem-Quota des Systembenutzers — nur
+     * liegt `/var/lib/mysql` ausserhalb des Abo-Verzeichnisses und damit
+     * ausserhalb dieser Quota. **Das ist eine Lücke, und sie gehört benannt
+     * statt kaschiert:** Ein Kunde kann seinen Speicherplatz einhalten und den
+     * Datenträger über seine Datenbank füllen. Hier wird es gemessen und
+     * sichtbar; Schwellen und Benachrichtigungen entstehen mit P9 (docs/36 §9).
+     */
+    case DatabaseMb = 'database_mb';
     case FtpAccounts = 'ftp_accounts';
     case CronJobs = 'cron_jobs';
     case FpmProcesses = 'fpm_processes';
@@ -81,6 +96,7 @@ enum Quota: string
             self::Domains => 'Domains',
             self::Subdomains => 'Subdomains',
             self::Databases => 'Datenbanken',
+            self::DatabaseMb => 'Datenbankgröße',
             self::FtpAccounts => 'FTP-Konten',
             self::CronJobs => 'Cronjobs',
             self::FpmProcesses => 'FPM-Prozesse',
@@ -106,6 +122,7 @@ enum Quota: string
             self::Domains => 'Zählt Haupt- und Addon-Domains. Aliasse zählen nicht mit.',
             self::Subdomains => 'Über alle Domains des Abonnements zusammen.',
             self::Databases => 'MariaDB-Schemata. Der zugehörige Datenbankbenutzer zählt nicht getrennt.',
+            self::DatabaseMb => 'Über alle Datenbanken des Abonnements zusammen. Gemessen, nicht erzwungen — MariaDB kennt keine Obergrenze je Schema, und /var/lib/mysql liegt ausserhalb der Dateisystem-Quota.',
             self::FtpAccounts => 'Zusätzliche FTP-Konten. Der Systembenutzer des Abonnements zählt nicht mit.',
             self::CronJobs => 'Einträge in der Crontab des Systembenutzers.',
             self::FpmProcesses => 'Obergrenze des PHP-FPM-Pools (pm.max_children). Bestimmt, wie viele Anfragen gleichzeitig laufen.',
@@ -122,6 +139,7 @@ enum Quota: string
         return match ($this) {
             self::DiskMb => 'MB',
             self::TrafficGb => 'GB',
+            self::DatabaseMb => 'MB',
             self::PhpMemoryMb, self::PhpUploadMb => 'MB',
             self::PhpExecutionSeconds => 's',
             default => null,
@@ -193,6 +211,7 @@ enum Quota: string
     public function maximum(): int
     {
         return match ($this) {
+            self::DatabaseMb => 10_000_000,  // 10 TB
             self::DiskMb => 100_000_000,   // 100 TB
             self::TrafficGb => 1_000_000,  // 1 PB
             self::FpmProcesses => 512,
@@ -225,6 +244,7 @@ enum Quota: string
             self::Domains => 5,
             self::Subdomains => 25,
             self::Databases => 5,
+            self::DatabaseMb => 2_048,
             self::FtpAccounts => 5,
             self::CronJobs => 10,
             self::FpmProcesses => 10,

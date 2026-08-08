@@ -11,6 +11,19 @@ use SrvPanel\Agent\Ops\AcmeCertificateRemove;
 use SrvPanel\Agent\Ops\AgentPing;
 use SrvPanel\Agent\Ops\CertificateUpload;
 use SrvPanel\Agent\Ops\ConfigValidate;
+use SrvPanel\Agent\Ops\DbDatabaseCreate;
+use SrvPanel\Agent\Ops\DbDatabaseRemove;
+use SrvPanel\Agent\Ops\DbDumpCreate;
+use SrvPanel\Agent\Ops\DbDumpRemove;
+use SrvPanel\Agent\Ops\DbIsolationProbe;
+use SrvPanel\Agent\Ops\DbRestore;
+use SrvPanel\Agent\Ops\DbServerInfo;
+use SrvPanel\Agent\Ops\DbUsage;
+use SrvPanel\Agent\Ops\DbUserCreate;
+use SrvPanel\Agent\Ops\DbUserGrant;
+use SrvPanel\Agent\Ops\DbUserLock;
+use SrvPanel\Agent\Ops\DbUserPassword;
+use SrvPanel\Agent\Ops\DbUserRemove;
 use SrvPanel\Agent\Ops\DnsCredentialForget;
 use SrvPanel\Agent\Ops\DnsCredentialList;
 use SrvPanel\Agent\Ops\DnsCredentialStore;
@@ -93,6 +106,44 @@ final class Registry
         $this->register(new DnsCredentialStore);
         $this->register(new DnsCredentialList);
         $this->register(new DnsCredentialForget);
+
+        /*
+         * P5 — Datenbanken (docs/36).
+         *
+         * Die `remove`-Hälften stehen zuerst, und nicht aus Ordnungsliebe:
+         * docs/35 hat freigelegt, dass dieses System ein Zertifikat nie löschen
+         * konnte — ein Jahr lang, weil `create` zuerst gebaut wurde und danach
+         * funktionierte. `RemovalPathTest` hält diese Reihenfolge ab jetzt für
+         * die ganze Registratur fest.
+         */
+        $this->register(new DbServerInfo);
+        $this->register(new DbDatabaseRemove);
+        $this->register(new DbDatabaseCreate);
+        $this->register(new DbUserRemove);
+        $this->register(new DbUserCreate);
+        $this->register(new DbUserPassword);
+        $this->register(new DbUserGrant);
+        $this->register(new DbUserLock);
+
+        // Sichern und Zurückspielen — auch hier `remove` zuerst. Eine Sicherung
+        // ist das, was P5 auf dem System hinterlässt und was beliebig gross
+        // wird.
+        $this->register(new DbDumpRemove);
+        $this->register(new DbDumpCreate);
+        $this->register(new DbRestore);
+
+        // Die Messung. Sie steht ausserhalb der Paare oben, weil sie nichts
+        // anlegt — `RemovalPathTest` fragt sie deshalb nicht nach einem
+        // Gegenstück, und `db.usage` steht mit derselben Begründung in
+        // `AgentOperationReachTest::WITHOUT_LIFECYCLE` wie `subscription.usage`:
+        // Sie läuft am Zeitgeber und nicht an einem Lebenslauf.
+        $this->register(new DbUsage);
+
+        // Die Selbstprobe des Abnahmelaufs. Sie legt eine Tabelle an und räumt
+        // nichts weg — das tut `srvpanel acceptance-db`, indem es die
+        // Datenbanken danach entfernt. Ohne Lebenslauf: Im Bestand des Panels
+        // steht zu ihr nichts.
+        $this->register(new DbIsolationProbe);
     }
 
     public function register(Op $op): void

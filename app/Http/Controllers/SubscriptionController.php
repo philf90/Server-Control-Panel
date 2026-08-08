@@ -12,6 +12,8 @@ use App\Models\Operation;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
+use App\Support\Databases\Databases;
+use App\Support\Databases\Dumps;
 use App\Support\Plans\Feature;
 use App\Support\Plans\Quota;
 use App\Support\Plans\Quotas;
@@ -236,6 +238,40 @@ final class SubscriptionController extends Controller
                 'limit_mb' => is_numeric($limit = $subscription->quota(Quota::DiskMb->value)) ? (int) $limit : null,
                 'percent' => $subscription->diskUsagePercent(),
                 'measured_at' => $subscription->disk_usage_measured_at?->toDateTimeString(),
+            ],
+
+            /*
+             * Und der Platz der Datenbanken — daneben und nicht darin.
+             *
+             * **Zwei Zahlen und kein Balken mit zwei Farben.** Sie messen
+             * verschiedene Datenträgerbereiche: `disk_mb` das Abo-Verzeichnis
+             * unter `/var/www/vhosts`, `database_mb` die Schemata unter
+             * `/var/lib/mysql`. Sie zu addieren ergäbe eine Zahl, die gegen
+             * keine Grenze steht.
+             *
+             * **`enforced: false` geht mit und ist keine Nebensache.** Der
+             * Speicher ist eine Quota, die zuschlägt; die Datenbankgrösse wird
+             * gemessen und nicht erzwungen (docs/36 §9). Ein Balken, der beides
+             * gleich zeichnet, verspricht eine Grenze, die es nicht gibt — und
+             * genau das wäre die Sorte Zusage, die ein Betreiber erst im
+             * Ernstfall als falsch erkennt.
+             */
+            'database_usage' => [
+                /*
+                 * **Drei Zustände und nicht zwei.** „Noch nicht gemessen" und
+                 * „keine Datenbanken" sehen in einer Zahl gleich aus und
+                 * bedeuten Verschiedenes: Das eine ist ein ausstehender Lauf,
+                 * das andere ein fertiger Befund. Ohne `count` stünde bei jedem
+                 * frischen Abonnement „braucht einen erreichbaren
+                 * Datenbankserver" — ein Satz, der nach einem Defekt klingt, wo
+                 * schlicht nichts anzulegen war. Dieselbe Unterscheidung wie
+                 * zwischen `null` und `0` bei `size_mb`, nur eine Ebene höher.
+                 */
+                'count' => $subscription->databases()->count(),
+                'used_mb' => $subscription->databaseUsedMb(),
+                'limit_mb' => is_numeric($dbLimit = $subscription->quota(Quota::DatabaseMb->value)) ? (int) $dbLimit : null,
+                'percent' => $subscription->databaseUsagePercent(),
+                'enforced' => false,
             ],
 
             // Der Stand, nicht die Vorlage: Was am Abonnement abweicht, ist
@@ -506,9 +542,43 @@ final class SubscriptionController extends Controller
      * Operation, die sichert *und* löscht, sichert im Fehlerfall vielleicht
      * nicht und löscht trotzdem. Solange es keine Sicherungen gibt, ist der
      * Rückbau endgültig — und die Rückfrage in der Oberfläche sagt das.
+     *
+     * **Die Datenbanken gehen zuerst, und das ist keine Kosmetik** (`docs/36
+     * §5`). Ein Schema liegt in `/var/lib/mysql` und damit ausserhalb von
+     * allem, was `subscription.remove` anfasst — genau wie ein
+     * Zertifikatsverzeichnis unter `/etc/srvpanel/tls/certs`, und genau dieser
+     * Fall hat den Abnahmelauf von `docs/35` angehalten: zwölf private
+     * Schlüssel ohne Zeile, die auf sie zeigt. Hier wären es die Daten eines
+     * Kunden.
+     *
+     * Die Reihenfolge trägt die Warteschlange: Sie hat einen Arbeiter, und der
+     * arbeitet der Reihe nach — dasselbe Mittel wie in `WebLifecycle::apply()`,
+     * wo der FPM-Pool vor dem Server-Block liegen muss.
+     *
+     * **Scheitert einer der Vorgänge, bleibt seine Zeile auffindbar.**
+     * `databases.subscription_id` steht auf `nullOnDelete` und der Name ist
+     * abgeschrieben; `srvpanel db prune` findet, was liegengeblieben ist. Die
+     * Alternative wäre gewesen, `subscription.remove` selbst alles mit dem
+     * Präfix wegwerfen zu lassen — und das ist die eine Stelle, an der ein
+     * Fehler in der Präfixbildung die Daten eines fremden Kunden kostet.
      */
-    public function destroy(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
-    {
+    public function destroy(
+        Subscription $subscription,
+        Audit $audit,
+        Lifecycle $lifecycle,
+        Databases $databases,
+        Dumps $dumps,
+    ): RedirectResponse {
+        $databases->removeAllFor($subscription);
+
+        // **Und das Verzeichnis der Sicherungen.** Es liegt unter
+        // `/var/lib/srvpanel/dumps/<abo>` und damit ausserhalb von allem, was
+        // `subscription.remove` anfasst — dieselbe Lage wie bei den
+        // Zertifikatsverzeichnissen, die docs/35 zutage gebracht hat. Ein Dump
+        // ist die vollständige Datenbank eines Kunden; einer, auf den nichts
+        // mehr zeigt, ist genau der Rest, den P5 nicht hinterlassen darf.
+        $dumps->removeAllFor($subscription);
+
         return redirect()->route('operations.show', $this->start(
             $subscription, 'subscription.remove', 'Abonnement zurückbauen', $audit, $lifecycle,
         ));

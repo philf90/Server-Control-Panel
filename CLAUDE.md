@@ -269,17 +269,27 @@ Testen berücksichtigen:
   abgebrochenes `composer install`, das aussieht wie ein fertiges. Gefragt wird
   nach `vendor/autoload.php`, nicht nach dem Verzeichnis.
 
-  **Und es gibt zwei Werkzeuge, die der Proxy durchlässt — sie haben in P4
-  eine Runde gespart und hätten zwei weitere gespart.** `php-cs-fixer.phar`
-  und `phpstan.phar` lassen sich von den GitHub-Releases herunterladen; was
-  scheitert, ist `composer install`, nicht jedes HTTPS. Beide sind aber
-  **nicht dasselbe** wie der CI-Lauf:
+  **Und es gibt Werkzeuge, die der Proxy durchlässt.** Was scheitert, ist
+  `composer install`, nicht jedes HTTPS — und die Trennlinie ist in P5 genau
+  vermessen worden: Die Metadaten von packagist antworten mit **200**,
+  `codeload.github.com` mit **403**. Composer löst also auf und scheitert beim
+  Herunterladen.
 
-  - **php-cs-fixer ist nicht Pint.** Pints Laravel-Voreinstellung ist ein
-    eigener Regelsatz; wer hier alles anschaltet, bekommt Meldungen zu Stellen,
-    die Pint in Ruhe lässt (`) {}` an einem leeren Konstruktor zum Beispiel).
-    Brauchbar ist es, wenn man **genau die Regeln** anschaltet, die die CI
-    gemeldet hat — dann findet man die Fundstelle, statt sie zu raten.
+  - **`pint.phar` gibt es von den GitHub-Releases, und es *ist* Pint.** In P4
+    stand hier, man müsse sich mit `php-cs-fixer.phar` behelfen und dessen
+    Regeln von Hand nachbauen; das war ein Umweg um etwas herum, das es gibt.
+    `curl -sSL -o pint.phar
+    https://github.com/laravel/pint/releases/latest/download/pint.phar` holt
+    dieselbe Fassung, die `composer.json` verlangt (`^1.27`), und
+    `php pint.phar --test` über das ganze Repo sagt dasselbe wie die CI —
+    am 7. August 2026 gegengeprüft, beide grün. **Damit fällt eine ganze
+    Klasse von CI-Runden weg:** Formatierung wird hier gemessen, nicht
+    geraten.
+  - **php-cs-fixer ist nicht Pint** — die Notiz bleibt für den Fall, dass
+    `pint.phar` einmal nicht zu holen ist. Pints Laravel-Voreinstellung ist
+    ein eigener Regelsatz; wer dort alles anschaltet, bekommt Meldungen zu
+    Stellen, die Pint in Ruhe lässt (`) {}` an einem leeren Konstruktor zum
+    Beispiel).
   - **PHPStan taugt nur für `agent/`.** Ohne `vendor/` fehlt larastan, und
     jedes `Model::query()` und jede Spalte gilt als undefiniert — hunderte
     Meldungen, die nichts bedeuten. Unterhalb von `agent/` gibt es kein
@@ -326,14 +336,22 @@ Testen berücksichtigen:
   erst in der CI. Marken stehen auf einer eigenen Zeile; `/** @return
   list<string> */` allein geht, mit Text davor nicht.
 
-  **Und eine zweite, die an einem Tag zweimal zugeschlagen hat: ein Name, der
-  der Basisklasse gehört.** `count()` in einem PHPUnit-Testfall (dort `final`)
-  und `configure()` in einem Artisan-Kommando (dort `protected`) — beide
+  **Und eine zweite, die inzwischen viermal zugeschlagen hat: ein Name, der
+  der Basisklasse gehört.** `count()` in einem PHPUnit-Testfall (dort `final`),
+  `configure()` in einem Artisan-Kommando (dort `protected`), und in P5 gleich
+  zweimal: `for()` in einer `Factory` und `matches()` wieder in einem Testfall
+  (`PHPUnit\Framework\Assert::matches()`, `final` **und** `static`). Alle
   brechen beim **Laden** der Klasse und nicht beim Ausführen. `php -l` sieht
-  davon nichts, die Meldung kommt als fataler Fehler, und im zweiten Fall stand
-  damit nicht ein Kommando still, sondern `artisan` mit allen. Wer in einer
-  abgeleiteten Klasse eine private Hilfsmethode einzieht, sieht vorher in der
-  Basisklasse nach.
+  davon nichts, die Meldung kommt als fataler Fehler — bei `matches()` endete
+  `php artisan test` mit Rückgabewert 255, bevor ein einziger Test lief: Nicht
+  eine Datei stand still, sondern alle vierundsiebzig.
+
+  Bemerkenswert ist, wie P5 sie erlebt hat: Beim `for()` in der Factory hat der
+  Blick in die Basisklasse sie gefangen, beim `matches()` im Testfall nicht —
+  **die Regel zu kennen genügt nicht, wenn man nicht daran denkt, dass ein
+  Testfall auch eine abgeleitete Klasse ist.** Wer in einer abgeleiteten Klasse
+  eine private Hilfsmethode einzieht, sieht vorher in der Basisklasse nach; ein
+  Testfall zählt dazu.
 - **Der Hostname ist kurz.** `php_uname('n')` liefert nicht den vollen Namen —
   dafür gibt es `SrvPanel\Agent\Names::fqdn()` (oder `host()`, wenn ein Name
   gebraucht wird und `null` nicht taugt), und die ist die *einzige* Stelle, die

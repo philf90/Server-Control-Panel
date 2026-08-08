@@ -126,6 +126,65 @@ final class WordChoiceTest extends TestCase
     }
 
     /**
+     * Und der `<script>`-Block, denn dort steht inzwischen Anzeigetext.
+     *
+     * **Diese Zeile ist genau die, die der Kommentar oben angekündigt hat.**
+     * Dort stand: Was in `<script>` als Zeichenkette steht, bleibt aussen vor,
+     * „dort steht in diesem Projekt kein Anzeigetext, sondern er kommt vom
+     * Server" — und weiter: *„Sollte sich das ändern, ist diese Zeile die
+     * Stelle, an der es nachzuziehen ist."*
+     *
+     * Geändert hat es die erste Rückfrage per `confirm()`: „Die Sicherung …
+     * einspielen?" — ein Satz, den ein Kunde liest, der in keinem Template
+     * steht und den deshalb kein Lauf gesehen hat. Der Knopf daneben trug
+     * dasselbe Wort und ist in der CI aufgefallen; der Satz nicht. **Ein
+     * Wächter mit einer Annahme über den Ort ist ein Wächter mit einem toten
+     * Winkel**, und der wächst mit dem Projekt.
+     *
+     * Gelesen werden Zeichenkettenliterale und Template-Literale ohne
+     * Kommentare. Bezeichner können hier nicht anschlagen: Sie sind englisch
+     * (`ClassNameTest`), und die Wortliste ist deutsch.
+     */
+    #[DataProvider('words')]
+    public function test_no_vue_script_string_uses_a_spent_word(string $pattern, string $instead): void
+    {
+        $found = [];
+        $files = $this->files(dirname(__DIR__, 2).'/resources/js', 'vue');
+        $read = 0;
+
+        foreach ($files as $path) {
+            $source = (string) file_get_contents($path);
+
+            if (preg_match('#<script[^>]*>(.*?)</script>#su', $source, $match) !== 1) {
+                continue;
+            }
+
+            $script = (string) preg_replace('#/\*.*?\*/#su', '', $match[1]);
+            $script = (string) preg_replace('#^\s*//.*$#mu', '', $script);
+
+            preg_match_all('/\'[^\'\n]*\'|"[^"\n]*"|`[^`]*`/su', $script, $literals);
+
+            foreach ($literals[0] as $literal) {
+                $read++;
+
+                if (preg_match($pattern, $literal) === 1) {
+                    $found[] = sprintf('%s  %s', $this->relative($path), mb_substr($literal, 0, 90));
+                }
+            }
+        }
+
+        $this->assertGreaterThan(50, $read, 'Es werden kaum Literale gelesen — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $found, sprintf(
+            "docs/19 §3: dieses Wort ist verbraucht, es heißt %s.\n\n  %s\n\n".
+            'Steht es in einer Rückfrage oder Meldung, gehört es ersetzt. Steht es in einem '.
+            'Bezeichner, ist der Bezeichner nicht englisch — dann meldet ClassNameTest dasselbe.',
+            $instead,
+            implode("\n  ", $found),
+        ));
+    }
+
+    /**
      * Kein Emoji in der Oberfläche.
      *
      * **Warum das eine Regel ist.** Im Passwortfeld standen 👁 und 🙈. Ein

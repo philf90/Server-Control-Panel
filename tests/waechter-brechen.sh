@@ -30,23 +30,41 @@
 # zweites Mal laufen darf. Auch dort steht eine Regel als Text in einer Datei,
 # und auch dort gilt: Wer sie zum Prüfen bricht, muss sie zurückbekommen.
 #
+# `database/` kam mit P5 dazu, und der Anlass ist genau der Satz darüber: Ein
+# Wächter prüft dort am **Schema**, dass es keine Spalte für ein Passwort gibt
+# (`SecretsStayOutOfTheQueueTest`), und der Bruch dazu fügt eine ein. Ohne diese
+# Zeile wäre er keine Probe, sondern eine Änderung — die Migration bliebe mit
+# der Spalte stehen, und der nächste Lauf des Skripts fände ein schmutziges
+# Verzeichnis vor, das er sich selbst gemacht hat.
+#
 # **`git checkout` stellt nur wieder her, was git kennt.** Ein Wächter für Code,
 # der noch nicht eingecheckt ist, wird hier nicht gebrochen, sondern gelöscht.
 # Deshalb der Abbruch oben — und deshalb kommt ein neuer Bruch erst nach dem
 # Commit dazu, den er prüft.
+#
+# **Und `tests/` steht in keiner der beiden Listen, mit Absicht.** Ein Bruch,
+# der eine Testdatei ändert, liesse sie hier geändert stehen — er wäre keine
+# Probe, sondern eine Änderung. Das Verzeichnis nachzutragen ginge nicht:
+# Dieses Skript liegt selbst darin, und ein `git checkout -- tests/` würde
+# irgendwann die Datei zurückschreiben, die bash gerade liest.
+#
+# Betroffen sind die Wächter, deren Regel *im Test* steht statt im Code —
+# `BreakScriptTest` und `ChangelogTest::REMOVED`. Ihre Brüche werden von Hand
+# gefahren; die Befehlsfolge steht jeweils im Kopf des Tests.
 
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/; then
-  echo "resources/, app/, agent/, packaging/ oder .github/ hat ungesicherte Änderungen. Erst committen" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/; then
+  echo "resources/, app/, agent/, packaging/, .github/ oder database/ hat ungesicherte" >&2
+  echo "Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -789,14 +807,24 @@ echo "── CertificateReapplyTest: das Zertifikat kommt ohne Termin in den Bes
 #
 # Ein Zertifikat ohne Frist findet der Erneuerungslauf nie. Auffallen würde das
 # in neunzig Tagen, und zwar im Browser.
-vorher_datei app/Support/Tls/CertificateLifecycle.php
+#
+# **Der Eingriff ist in P5 nachgezogen worden.** Er suchte diese Zeile in
+# `CertificateLifecycle` — dorthin gehörte sie bis P4, seitdem steht sie in
+# `CertificateRecord`. Der Bruch griff ins Leere, und das fällt erst auf, wenn
+# das Skript läuft: Genau der Fall, vor dem sein eigener Kopf warnt.
+vorher_datei app/Support/Tls/CertificateRecord.php
 python3 - <<'PY2'
-p = 'app/Support/Tls/CertificateLifecycle.php'
+p = 'app/Support/Tls/CertificateRecord.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("            'renew_after' => CertificateRenewal::due($notAfter),", "            'renew_after' => null,")
+s = s.replace(
+    """            'renew_after' => $source === CertificateSource::Acme
+                ? CertificateRenewal::due($notAfter)
+                : null,""",
+    "            'renew_after' => null,",
+)
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Tls/CertificateLifecycle.php "Zertifikat ohne Erneuerungstermin" &&
+griff_datei app/Support/Tls/CertificateRecord.php "Zertifikat ohne Erneuerungstermin" &&
 pruefe "Zertifikat ohne Erneuerungstermin" \
   CertificateReapplyTest::test_an_installed_certificate_is_followed_by_a_new_server_block failed
 wiederherstellen
@@ -962,7 +990,7 @@ vorher_datei packaging/bin/srvpanel
 python3 - <<'PY2'
 p = 'packaging/bin/srvpanel'
 s = open(p, encoding='utf-8').read()
-s = s.replace('|tls|vhost|', '|tls|')
+s = s.replace('|db|vhost|', '|db|')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei packaging/bin/srvpanel "Kommando fehlt im Wrapper" &&
@@ -1157,17 +1185,21 @@ echo "── CertificateReapplyTest: der Verweis genügt wieder statt der Deckun
 # im Zertifikat. Der Browser warnt bei ihm, und im Panel sieht alles grün aus —
 # der Fall, den `covers_all` seit Schritt 6 anzeigt und den bis hierher niemand
 # behob.
-vorher_datei app/Support/Tls/CertificateLifecycle.php
+#
+# **Auch dieser Eingriff ist in P5 nachgezogen worden** — dieselbe Umbenennung
+# wie oben: Die Deckungsprüfung ist aus `CertificateLifecycle` nach
+# `CertificateChoice::usable()` gezogen.
+vorher_datei app/Support/Tls/CertificateChoice.php
 python3 - <<'PY2'
-p = 'app/Support/Tls/CertificateLifecycle.php'
+p = 'app/Support/Tls/CertificateChoice.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "        return $certificate instanceof Certificate && $certificate->coversAll($domain->serverNames());",
-    "        return $certificate instanceof Certificate;",
+    "        return $certificate->coversAll($names);",
+    "        return true;",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Tls/CertificateLifecycle.php "Verweis statt Deckung" &&
+griff_datei app/Support/Tls/CertificateChoice.php "Verweis statt Deckung" &&
 pruefe "Verweis statt Deckung" \
   CertificateReapplyTest::test_a_certificate_that_misses_a_name_is_ordered_again failed
 wiederherstellen
@@ -1329,17 +1361,20 @@ echo "── DnsPacketTest: der Namenszeiger wird nicht erkannt ──"
 # Ein Name in einer DNS-Antwort steht selten ausgeschrieben da; meistens sind es
 # zwei Bytes, die auf eine frühere Stelle zeigen. Wer das nicht erkennt, liest
 # die folgenden Felder verschoben — und bekommt Werte, die fast stimmen.
-vorher_datei agent/src/Acme/Dns/Packet.php
+#
+# **Und dieser dritte ist in P5 nachgezogen worden**: Das Lesen eines Namens ist
+# aus `Packet` nach `Dns\Name` gezogen, samt der Marke als `POINTER_MASK`.
+vorher_datei agent/src/Acme/Dns/Name.php
 python3 - <<'PY2'
-p = 'agent/src/Acme/Dns/Packet.php'
+p = 'agent/src/Acme/Dns/Name.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "            if (($marker & 0xC0) === 0xC0) {",
+    "            if (($marker & self::POINTER_MASK) === self::POINTER_MASK) {",
     "            if (false) {",
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei agent/src/Acme/Dns/Packet.php "Namenszeiger nicht erkannt" &&
+griff_datei agent/src/Acme/Dns/Name.php "Namenszeiger nicht erkannt" &&
 pruefe "Namenszeiger nicht erkannt" \
   DnsPacketTest::test_a_compressed_name_is_read_correctly failed
 wiederherstellen
@@ -3222,6 +3257,511 @@ pruefe "Verknüpfung wird verfolgt" \
   CertificateStoreTest::test_a_symlink_is_refused_and_its_target_survives failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" CertificateStoreTest passed
+
+echo
+echo "── GrantPatternTest: der Unterstrich im GRANT-Ziel wird nicht maskiert ──"
+#
+# In `GRANT … ON <db>.*` ist `<db>` ein Muster. Ohne die Maskierung trifft
+# `p1001_shop` auch `p1001Xshop` — und der naheliegende Weg, `p1001_%`, träfe
+# die Datenbanken eines fremden Abonnements. Das ist genau der Zugriff, den das
+# Abnahmekriterium von P5 ausschliesst.
+vorher_datei agent/src/Db/Sql.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Sql.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $escaped = str_replace(['\\\\', '_'], ['\\\\\\\\', '\\\\_'], $database);",
+    "        $escaped = $database;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Sql.php "GRANT-Ziel ohne Maskierung" &&
+pruefe "GRANT-Ziel ohne Maskierung" \
+  GrantPatternTest::test_the_underscore_is_escaped failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" GrantPatternTest passed
+
+echo
+echo "── GrantPatternTest: auf ein Muster wird berechtigt ──"
+#
+# Die Maskierung allein reicht nicht: Sie macht aus einem Namen einen Namen,
+# hindert aber niemanden daran, `p1001_%` zu schicken.
+vorher_datei agent/src/Db/Sql.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Sql.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if (str_contains($database, '%')) {
+            throw AgentException::denied('Auf ein Muster wird nicht berechtigt.');
+        }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Sql.php "Muster als GRANT-Ziel erlaubt" &&
+pruefe "Muster als GRANT-Ziel erlaubt" \
+  GrantPatternTest::test_a_pattern_is_refused_outright failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" GrantPatternTest passed
+
+echo
+echo "── DbIsolationTest: die Rechtevergabe reicht das Weiterreichen mit ──"
+#
+# `WITH GRANT OPTION` lässt einen Kunden Rechte weiterreichen — und damit sich
+# selbst welche geben. Dieser Container hat keine MariaDB; geprüft wird deshalb
+# der erzeugte Text, wie bei den nginx-Vorlagen.
+vorher_datei agent/src/Ops/DbUserCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbUserCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "                'GRANT ALL PRIVILEGES ON %s TO %s',",
+    "                'GRANT ALL PRIVILEGES ON %s TO %s WITH GRANT OPTION',",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbUserCreate.php "Rechte lassen sich weiterreichen" &&
+pruefe "Rechte lassen sich weiterreichen" \
+  DbIsolationTest::test_no_statement_hands_the_grant_option_on failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbIsolationTest passed
+
+echo
+echo "── DbNameTest: die Form des befristeten Benutzers ist nicht reserviert ──"
+#
+# Ein Kunde dürfte seinen Zugang `r3f9a20c1` nennen. Das ist die Form, die das
+# Zurückspielen einer Sicherung für ein paar Minuten anlegt; db.server.info
+# meldet sie nach einer Stunde als Rest, und das Aufräumen wirft sie weg. Der
+# Kunde verlöre seinen Zugang, ohne dass irgendetwas falsch programmiert wäre.
+vorher_datei agent/src/Db/Names.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Names.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if (preg_match(self::EPHEMERAL_SUFFIX, $suffix)) {
+            throw AgentException::badRequest(
+                'Dieser Name ist für die Zugänge reserviert, die das Zurückspielen einer Sicherung '
+                .'für ein paar Minuten anlegt — er würde danach von selbst wieder verschwinden.',
+                ['suffix' => $suffix],
+            );
+        }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Names.php "befristete Form frei wählbar" &&
+pruefe "befristete Form frei wählbar" \
+  DbNameTest::test_the_ephemeral_shape_is_reserved failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbNameTest passed
+
+echo
+echo "── DbNameTest: die Mandantengrenze verwechselt p1001 mit p10012 ──"
+#
+# Ohne den Unterstrich im Vergleich wäre `p1001` ein Präfix von `p10012_shop` —
+# und das Abonnement p1001 dürfte die Datenbanken von p10012 entfernen.
+vorher_datei agent/src/Db/Names.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Names.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        return str_starts_with($name, $systemUser.'_');",
+    "        return str_starts_with($name, $systemUser);",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Names.php "Präfixvergleich ohne Unterstrich" &&
+pruefe "Präfixvergleich ohne Unterstrich" \
+  DbNameTest::test_a_foreign_prefix_is_not_a_prefix failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbNameTest passed
+
+echo
+echo "── RemovalPathTest: eine Operation legt an, und nichts entfernt es ──"
+#
+# Der Wächter, der die Zertifikatslücke aus docs/35 ein Jahr früher gemeldet
+# hätte. Gebrochen wird er, indem eine remove-Hälfte aus der Registratur fällt.
+vorher_datei agent/src/Registry.php
+python3 - <<'PY2'
+p = 'agent/src/Registry.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->register(new DbDatabaseRemove);\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Registry.php "db.database.create ohne remove" &&
+pruefe "db.database.create ohne remove" \
+  RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: ein Passwort landet in der Warteschlange ──"
+#
+# Ein eingereihter Vorgang legt seine Argumente in `operations.payload` ab —
+# dauerhaft und im Klartext in der Datenbank des Panels. Die Regel gilt seit P4
+# für den privaten Schlüssel und das DNS-Token; P5 macht sie zum dritten Mal
+# nötig und damit zum Wächter.
+vorher_datei app/Support/Databases/DbLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DbLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'type' => 'db.user.lock',",
+    "            'type' => 'db.user.create',",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DbLifecycle.php "db.user.create wird eingereiht" &&
+pruefe "db.user.create wird eingereiht" \
+  SecretsStayOutOfTheQueueTest::test_no_secret_carrying_operation_is_queued failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── SecretsStayOutOfTheQueueTest: eine Spalte für das Passwort ──"
+#
+# Die zweite Hälfte, am Schema statt am Weg: Eine Spalte, die es nicht gibt,
+# lässt sich nicht versehentlich füllen.
+vorher_datei database/migrations/2026_08_08_100000_create_databases_tables.php
+python3 - <<'PY2'
+p = 'database/migrations/2026_08_08_100000_create_databases_tables.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            $table->string('host', 64)->default('localhost');",
+    "            $table->string('host', 64)->default('localhost');\n            $table->string('password')->nullable();",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei database/migrations/2026_08_08_100000_create_databases_tables.php "Spalte für ein Passwort" &&
+pruefe "Spalte für ein Passwort" \
+  SecretsStayOutOfTheQueueTest::test_the_database_tables_have_no_place_for_a_secret failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SecretsStayOutOfTheQueueTest passed
+
+echo
+echo "── DefinerStripTest: der Filter fasst auch Datenzeilen an ──"
+#
+# Ein blindes Suchen-und-Ersetzen über den ganzen Dump verändert Nutzdaten. Eine
+# Tabelle mit dem Text `DEFINER=` in einer Spalte käme verstümmelt zurück, und
+# das fiele erst auf, wenn ein Kunde seine Daten vermisst. Das ist die
+# gefährlichere der beiden Richtungen: zu wenig streichen erzeugt einen
+# Fehlschlag, zu viel streichen einen Erfolg mit falschen Daten.
+vorher_datei agent/src/Db/Dump.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Dump.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """        if (! str_starts_with($trimmed, '/*!5') && ! str_starts_with($trimmed, 'CREATE ')) {
+            return $line;
+        }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Dump.php "Filter ohne Rücksicht auf die Zeilenart" &&
+pruefe "Filter ohne Rücksicht auf die Zeilenart" \
+  DefinerStripTest::test_a_data_line_is_returned_byte_for_byte failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DefinerStripTest passed
+
+echo
+echo "── DefinerStripTest: der Ablagename wird nicht geprüft ──"
+#
+# Aus dem Namen entsteht im Agenten ein Pfad. Ohne die Positivliste stünde
+# `../../etc/passwd` darin.
+vorher_datei agent/src/Db/Dump.php
+python3 - <<'PY2'
+p = 'agent/src/Db/Dump.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        if (! preg_match('/^[a-z0-9][a-z0-9_\\-]{0,95}$/D', $value)) {",
+    "        if (false) {",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Db/Dump.php "Ablagename ohne Positivliste" &&
+pruefe "Ablagename ohne Positivliste" \
+  DefinerStripTest::test_a_storage_name_is_checked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DefinerStripTest passed
+
+echo
+echo "── RemovalPathTest: die Sicherung lässt sich nicht entfernen ──"
+#
+# Eine Sicherung ist das, was P5 auf dem System hinterlässt und was beliebig
+# gross wird. Fällt db.dump.remove weg, füllt sie den Datenträger und nimmt
+# jeden anderen Kunden mit.
+vorher_datei agent/src/Registry.php
+python3 - <<'PY2'
+p = 'agent/src/Registry.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->register(new DbDumpRemove);\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Registry.php "db.dump.create ohne remove" &&
+pruefe "db.dump.create ohne remove" \
+  RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
+
+echo
+echo "── MobileLayoutTest: das Kärtchen behält seine eigene Breite ──"
+#
+# Der Fund, mit dem dieser Wächter entstanden ist. `.scrolls > table` wiegt
+# 0,1,1 und `.stacks` 0,1,0 — die gestapelte Tabelle war so breit wie ihr
+# breitestes Kärtchen und stand seitlich aus dem Bildschirm. Gemessen 553px in
+# 358px Behälter bei 390px Fenster.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  .scrolls > table.stacks {\n    width: 100%;\n  }\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Kärtchen mit eigener Breite" &&
+pruefe "Kärtchen mit eigener Breite" \
+  MobileLayoutTest::test_a_stacked_table_has_no_width_of_its_own failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest::test_a_stacked_table_has_no_width_of_its_own passed
+
+echo
+echo "── MobileLayoutTest: die Kennung im Kärtchen bricht nicht ──"
+#
+# Die zweite Hälfte desselben Fundes: Von 195px waagerecht blieben nach der
+# Breite allein noch 180px stehen. **Dieser Bruch hat den Wächter selbst
+# überführt** — beim ersten Anlauf blieb er grün, weil `table.pairs td.ident`
+# als Treffer zählte. Eine Regel für eine ganz andere Tabelle stand in der
+# Kaskade für ein Kärtchen.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """  .stacks td .ident,
+  .stacks td.ident {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Kennung im Kärtchen ohne Umbruch" &&
+pruefe "Kennung im Kärtchen ohne Umbruch" \
+  MobileLayoutTest::test_an_identifier_in_a_stacked_card_may_break failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest::test_an_identifier_in_a_stacked_card_may_break passed
+
+echo
+echo "── MobileLayoutTest: die Marke wird zur Fläche ──"
+#
+# Der leiseste der drei: Nichts läuft über, nichts wird abgeschnitten. Eine
+# Zustandsmarke wird nur 328px breit statt 116px und sieht damit aus wie eine
+# Meldung.
+vorher
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  .stacks td.multiline .badge {\n    align-self: flex-start;\n  }\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff "Marke ohne Gegenwehr gegen die Dehnung" &&
+pruefe "Marke ohne Gegenwehr gegen die Dehnung" \
+  MobileLayoutTest::test_a_badge_in_a_stacked_cell_keeps_its_width failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" MobileLayoutTest::test_a_badge_in_a_stacked_cell_keeps_its_width passed
+
+echo
+echo "── WordChoiceTest: das verbrauchte Wort steht nur im <script> ──"
+#
+# Der Wächter für die Wortwahl las den `<template>`-Block und die
+# PHP-Literale — nicht aber die Zeichenketten im `<script>` einer Seite. Seine
+# eigene Begründung sagte, dort stehe kein Anzeigetext, „und sollte sich das
+# ändern, ist diese Zeile die Stelle, an der es nachzuziehen ist". Mit der
+# ersten Rückfrage per `confirm()` hat es sich geändert: Der Knopf mit
+# demselben Wort fiel in der CI auf, der Satz daneben nicht.
+#
+# Der Bruch prüft genau diesen toten Winkel — die alte Hälfte muss grün
+# bleiben, die neue zubeissen.
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'Die Sicherung ${dump.name} zurückspielen?',
+    'Die Sicherung ${dump.name} einspielen?',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "verbrauchtes Wort in einer Rückfrage" &&
+pruefe "verbrauchtes Wort in einer Rückfrage" \
+  WordChoiceTest::test_no_vue_script_string_uses_a_spent_word failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WordChoiceTest passed
+
+echo
+echo "── DbUsageScopeTest: die Messung siebt fremde Schemata nicht aus ──"
+#
+# `information_schema.tables` kennt jedes Schema des Servers: `mysql` mit der
+# Benutzertabelle, `sys`, `performance_schema` — und die Datenbank des Panels
+# selbst, in der Konten, Sitzungen und Zertifikatszeilen liegen. Das Ergebnis
+# von `db.usage` geht an die Anwendung zurück; eine Operation, die die
+# Schemaliste des Servers ausliefert, ist eine Auskunft, die niemand bestellt
+# hat.
+vorher_datei agent/src/Ops/DbUsage.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbUsage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            if (! Names::isPanelName($name)) {
+                continue;
+            }
+
+""",
+    "",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbUsage.php "Messung ohne Aussonderung fremder Schemata" &&
+pruefe "Messung ohne Aussonderung fremder Schemata" \
+  DbUsageScopeTest::test_only_the_schemas_of_this_panel_are_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbUsageScopeTest passed
+
+echo
+echo "── UsageReachTest: der Zeitgeber misst die Datenbanken nicht mehr ──"
+#
+# Zwei Messungen hängen am selben Zeitgeber, weil zwei Zeitgeber zwei Dinge
+# wären, die jemand überwachen muss. Fällt eine aus dem Kommando, läuft der
+# Zeitgeber weiter **grün** und die Oberfläche zeigt dauerhaft „noch nicht
+# gemessen" — das sieht aus wie ein Server, auf dem nichts liegt.
+vorher_datei app/Console/Commands/MeasureUsage.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/MeasureUsage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("use App\\Support\\Databases\\Usage as DatabaseUsage;\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/MeasureUsage.php "Messung, die niemand aufruft" &&
+pruefe "Messung, die niemand aufruft" \
+  UsageReachTest::test_the_timer_calls_every_measurement failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" UsageReachTest passed
+
+echo
+echo "── DatabasePruneTest: das Aufräumen greift nach jeder Zeile ──"
+#
+# Die Auswahl entscheidet, ob die Daten eines Kunden von der Platte gehen. Ohne
+# die Waisenbedingung nähme `srvpanel db --prune` **jede** Datenbank des Servers
+# mit — und ein Aufräumen, das zu viel wegnimmt, sieht genauso erfolgreich aus
+# wie eines, das es richtig macht (docs/36 §17, Kriterium 7).
+vorher_datei app/Support/Databases/DatabasePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DatabasePrune.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            $databases = Database::query()
+                ->whereNull('subscription_id')
+                ->whereNotNull('subscription_name')""",
+    """            $databases = Database::query()""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DatabasePrune.php "Aufräumen ohne Waisenbedingung" &&
+pruefe "Aufräumen ohne Waisenbedingung" \
+  DatabasePruneTest::test_the_neighbour_is_left_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DatabasePruneTest passed
+
+echo
+echo "── DatabasePruneTest: die Bedingung fehlt beim Löschen ──"
+#
+# Die Gegenrichtung: Zwischen `plan()` und dem Löschen kann eine Zeile wieder zu
+# einem Abonnement gehören. Ohne die Bedingung löscht ein Aufräumen eine
+# Kennung von vorhin blind — und trifft eine lebende Datenbank.
+vorher_datei app/Support/Databases/DatabasePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DatabasePrune.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    """            ->whereKey($id)
+            ->whereNull('subscription_id')
+            ->whereNotNull('subscription_name')""",
+    """            ->whereKey($id)""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DatabasePrune.php "Löschen ohne Waisenbedingung" &&
+pruefe "Löschen ohne Waisenbedingung" \
+  DatabasePruneTest::test_forgetting_removes_only_the_orphan failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DatabasePruneTest passed
+
+echo
+echo "── IsolationVerdictTest: die Probe zählt statt zu nennen ──"
+#
+# Der teuerste Fund des P4-Abnahmelaufs, eine Stufe weiter: „1 fällig, 1
+# bestellt" war die richtige Zahl über der falschen Sache. Für P5 hiesse das:
+# `count($visible) === 1` ist auch dann grün, wenn der Benutzer *eine fremde*
+# Datenbank sieht und die eigene nicht.
+vorher_datei agent/src/Ops/DbIsolationProbe.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbIsolationProbe.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'visible' => $visible,", "'visible' => count($visible),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbIsolationProbe.php "Probe zählt statt zu nennen" &&
+pruefe "Probe zählt statt zu nennen" \
+  IsolationVerdictTest::test_the_probe_returns_names failed
+wiederherstellen
+
+echo
+echo "── IsolationVerdictTest: der Abnahmelauf vergleicht die Grösse ──"
+#
+# Die andere Hälfte derselben Regel: Zwei sichtbare Namen sind zwei sichtbare
+# Namen, gleichgültig welche.
+vorher_datei app/Console/Commands/AcceptanceDb.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/AcceptanceDb.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'if ($visible !== $expected) {',
+    'if (count($visible) !== count($expected)) {',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/AcceptanceDb.php "Abnahmelauf vergleicht die Grösse" &&
+pruefe "Abnahmelauf vergleicht die Grösse" \
+  IsolationVerdictTest::test_the_acceptance_run_compares_the_set_and_not_its_size failed
+wiederherstellen
+
+echo
+echo "── IsolationVerdictTest: nur noch die Anzeige wird geprüft ──"
+#
+# `SHOW DATABASES` ist eine Anzeige, `USE` der Wechsel, das `SELECT` der
+# Zugriff. Ein Server kann die Anzeige filtern und den Zugriff zulassen — wer
+# nur die Liste prüft, hat die Anzeige geprüft.
+vorher_datei agent/src/Ops/DbIsolationProbe.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbIsolationProbe.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'SELECT COUNT(*) FROM %s.%s',", "'SHOW TABLES FROM %s -- %s',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbIsolationProbe.php "nur die Anzeige geprüft" &&
+pruefe "nur die Anzeige geprüft" \
+  IsolationVerdictTest::test_all_three_questions_are_asked failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" IsolationVerdictTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

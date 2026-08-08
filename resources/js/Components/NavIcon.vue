@@ -49,6 +49,11 @@ const PATHS: Record<string, string> = {
   // Domains: ein Globus mit Meridian und Äquator.
   domains: 'M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.5 2.4 3.8 5.4 3.8 9s-1.3 6.6-3.8 9c-2.5-2.4-3.8-5.4-3.8-9S9.5 5.4 12 3z',
 
+  // Datenbanken: der Stapel Scheiben. Das ist das eine Symbol, bei dem die
+  // Verkehrsform stärker ist als jede eigene Idee — wer drei gestapelte
+  // Ellipsen sieht, denkt an eine Datenbank und an nichts sonst.
+  databases: 'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+
   // Vorgänge: ein Kreislauf mit Pfeilspitze — etwas, das läuft.
   operations: 'M20 12a8 8 0 11-2.4-5.7M20 3v4h-4',
 

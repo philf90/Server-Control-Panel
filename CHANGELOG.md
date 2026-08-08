@@ -4967,3 +4967,314 @@ einen Zustand ab, der sich jederzeit wiederholen kann.
 zur Hälfte geprüft. Alle zwölf Eingriffe dieses Umbaus greifen nachweislich in
 ihre Zieldatei; ob die Wächter danach rot werden, braucht ein lokales PHPUnit.
 Wer als Nächstes mit `vendor/` an diesem Repo sitzt, holt das nach.
+
+### P5 — Datenbanken
+
+Der Plan steht als [`docs/36`](docs/36-datenbanken.md), die Entscheidungen des
+Betreibers als §19 darin. Was hier steht, ist das, was beim Bauen gelernt wurde.
+
+**Das Präfix ist der Systembenutzer und nicht der Abonnementname.** `p1001_shop`
+statt `kunde.example.de_shop`, und der Grund ist erst seit `docs/35` verfügbar:
+Eine Nummer aus `system_users` wird nie zweimal vergeben. Damit kann der
+Schemaname eines neuen Abonnements niemals auf ein Verzeichnis unter
+`/var/lib/mysql` treffen, das ein zurückgebautes hinterlassen hat. Mit dem
+Abonnementnamen wäre genau das möglich, seit ein zurückgebautes Abonnement hart
+gelöscht wird und seinen Namen freigibt. Dazu kommt das Praktische: `p` plus
+Ziffern ist bereits ein Bezeichner ohne Anführung, ein Domainname müsste an
+jeder Stelle in Backticks stehen — und „an jeder Stelle" ist die Formulierung,
+aus der Lücken entstehen.
+
+**In `GRANT … ON <db>.*` ist `<db>` ein Muster und kein Name.** Das ist der
+teuerste Fund des Entwurfs, und er wäre im Betrieb nie aufgefallen. `_` steht
+dort für ein beliebiges Zeichen: Der naheliegende Weg, einem Abonnement seine
+Datenbanken freizugeben — `GRANT … ON \`p1001_%\`.*` —, trifft auch
+`p10012_shop`. Fünf Zeichen `p1001`, dann `_` für die `2`, dann `%` für den
+Rest. **Das ist ein Zugriff über die Mandantengrenze hinweg, und zwar genau
+der, den das Abnahmekriterium von P5 ausschliesst.**
+
+Deshalb wird nie auf ein Muster berechtigt, immer auf genau eine Datenbank, und
+der Unterstrich wird maskiert (`` `p1001\_shop` ``). Ohne die Maskierung träfe
+auch ein Name noch `p1001Xshop` — ein solcher Name kann heute nicht entstehen,
+aber eine Regel, die *zufällig* gilt, gilt bis zur nächsten Änderung an einer
+ganz anderen Stelle. `GrantPatternTest` rechnet **erst vor, dass die Falle echt
+ist**, und prüft danach, dass sie zugeht: Eine Regel, deren Grund niemand mehr
+nachvollziehen kann, wird beim nächsten Aufräumen entfernt.
+
+**`RemovalPathTest` — der Wächter, den `docs/35` verdient hätte.** Dort fiel
+auf, dass sich Zertifikate in diesem System nie löschen liessen: `create` wurde
+zuerst gebaut, funktionierte danach, und `remove` wurde zur Nacharbeit, an die
+ein Jahr lang niemand dachte. Zwölf private Schlüssel lagen deshalb auf dem
+Zielserver. Der neue Wächter ist **nicht datenbankspezifisch**: Zu jeder
+Operation der Registratur, die etwas anlegt, muss es eine geben, die es
+entfernt — sonst steht der Grund in `WITHOUT_REMOVAL`, mit Begründung je
+Eintrag. Er hätte die Lücke ein Jahr früher gemeldet. Die `remove`-Hälften von
+P5 sind entsprechend **vor** ihren `create`-Hälften geschrieben.
+
+**Das Datenbankpasswort liegt nirgends** (Entscheidung 3 des Betreibers). Das
+Panel erzeugt es, schickt es in einem unmittelbaren Aufruf an den Agenten, zeigt
+es genau einmal an und vergisst es. Der Massstab ist das siebte Kriterium aus
+dem Abnahmelauf von P4: *„und das DNS-Token steht nirgends."* Zur Wahl standen
+eine `encrypted`-Spalte im Panel — dann enthielte jede Sicherung der
+Panel-Datenbank die Datenbankpasswörter aller Kunden, und der `APP_KEY` liegt
+auf demselben Server — und eine Datei im Agenten wie bei den DNS-Zugangsdaten.
+Der Preis ist ehrlich: Wer sein Passwort verliert, setzt es zurück.
+
+Daraus folgt `SecretsStayOutOfTheQueueTest`. Die Regel, dass ein Geheimnis nicht
+in `operations.payload` gehört, gilt seit P4 für den privaten Schlüssel und das
+DNS-Token — durchgesetzt hat sie nichts. P5 macht sie zum dritten und vierten
+Mal nötig; beim dritten Mal wird aus einer Gewohnheit ein Wächter. Er prüft
+beide Hälften: den Weg (keine dieser Operationen wird eingereiht) und die Ablage
+(keine Spalte, in die ein Geheimnis passte).
+
+**Die Sperre eines Abonnements erreicht jetzt seine Datenbank.** Bis P4 nahm
+`subscription.suspend` dem Abo-Verzeichnis das Ausführungsbit und schrieb die
+Server-Blöcke auf 503 um — die Datenbank bediente jede Anwendung weiter, die die
+Zugangsdaten hat. Auf demselben Server über den Socket, und bei
+freigeschaltetem Fernzugriff von überall. Das ist keine Sperre, sondern eine
+abgeschaltete Webseite. `DbLifecycle` beantwortet deshalb
+`subscription.suspend` und `subscription.resume` mit `ALTER USER … ACCOUNT
+LOCK`; das Schema bleibt unberührt, die Daten bleiben, `UNLOCK` ist die
+vollständige Umkehrung. Ein `REVOKE` wäre die Alternative gewesen und die
+schlechtere: Es müsste sich merken, was es weggenommen hat.
+
+**Ein Kunde hätte seinen Zugang `r3f9a20c1` nennen dürfen.** Das ist die Form,
+die das Zurückspielen einer Sicherung für ein paar Minuten anlegt;
+`db.server.info` meldet sie nach einer Stunde als Rest eines abgebrochenen
+Laufs. Der Kunde hätte seinen Zugang beim nächsten Aufräumen verloren, ohne dass
+irgendetwas falsch programmiert wäre. Die Form ist jetzt reserviert, und
+`DbNameTest` prüft beide Richtungen — sie lässt sich nicht wählen, und sie wird
+als befristet erkannt. Gefunden beim Schreiben des Tests, nicht im Betrieb.
+
+**Und zweimal derselbe Fehler: ein Name, der der Basisklasse gehört.**
+`DatabaseFactory::for()` und `GrantPatternTest::matches()` — beide brechen beim
+**Laden** der Klasse und nicht beim Ausführen, `php -l` sieht davon nichts. Der
+erste fiel beim Schreiben auf, der zweite erst in der CI, und dort mit
+Rückgabewert 255: Nicht ein Test stand still, sondern alle vierundsiebzig
+Dateien. CLAUDE.md nennt diese Falle seit P4 — sie zu kennen hat beim Formular
+geholfen und beim Testfall nicht.
+
+**Und ein Fund, den P5 nicht verursacht, aber ausgelöst hat: jede gestapelte
+Tabelle des Panels stand auf dem Telefon seitlich aus dem Bildschirm.** Alle
+zehn, seit es `.scrolls` gibt. `.scrolls > table { width: max-content }` wiegt
+0,1,1 und schlägt `.stacks { width: 100% }` mit 0,1,0 — eine Tabelle, die unter
+720px zu Kärtchen zerfällt, war so breit wie ihr breitestes Kärtchen, und der
+Rollbehälter machte daraus keinen Fehler, sondern eine Rollbewegung. Gemessen
+bei 390px: **553px Tabelle in 358px Behälter, 195px waagerecht.**
+
+Unsichtbar war das, weil es an der Länge einer Kennung hängt: Kürzere Kärtchen
+passten zufällig. Der Ablagename einer Sicherung ist mit 52 Zeichen der erste,
+der nicht mehr passt. Gefunden im Screenshot zu Schritt 6, nicht in einem Test.
+
+Drei Dinge daran sind wichtiger als die CSS-Zeile:
+
+- **Der vorhandene Wächter fragte nach dem Falschen.** Er prüft, dass eine
+  Tabelle *eines von drei* Mustern trägt — nach `docs/24 §5` klang das nach
+  Alternativen, und die naheliegende Verschärfung auf „genau eines" wäre falsch
+  gewesen: `.stacks` wirkt erst unter 720px, darüber will dieselbe Tabelle
+  rollen dürfen. Es sind zwei Antworten auf zwei Breiten. Was sich ausschliesst,
+  ist `max-content` und ein Kärtchen — eine Frage an die **Kaskade**, nicht an
+  das Markup. Die drei neuen Wächter rechnen sie deshalb nach und nennen den
+  Selektor, der gewinnt.
+- **Die Breite allein war ein Fix, der wie einer aussah:** 195px wurden 180px.
+  Die Kennung trägt `nowrap`, und ein Kärtchen hat keinen Rand, an dem etwas
+  hängenbliebe. Denselben Zweischritt hält `docs/24 §5` für die Paartabelle
+  schon fest — es ist die dritte Fassung derselben Ausnahme.
+- **Der neue Wächter war beim ersten Anlauf blind, und nur sein Bruch hat ihn
+  überführt.** Sein Selektorvergleich kannte „passt" und „unbekannt, also
+  Abbruch"; damit zählte `table.pairs td.ident` als Treffer — eine Regel für
+  eine ganz andere Tabelle, Gewicht 0,2,2, die gewann und `white-space: normal`
+  sagte. Der Bruch, der die Regel aus `app.css` entfernt, blieb grün. Die
+  Trefferprüfung hat seitdem drei Ausgänge: passt, meint etwas anderes,
+  unbekannt.
+
+Ein dritter, leiserer Fund derselben Aufnahme: `.stacks td.multiline` dehnt
+seine Kinder, und eine Zustandsmarke darin wurde 328px breit statt 116px — eine
+farbige Fläche über die ganze Zeile. Nichts lief über, nichts wurde
+abgeschnitten; es sah nur falsch aus, und deshalb hat es niemand gemeldet.
+Sichtbar auf der Planseite, seit es `.multiline` gibt. `docs/24 §5` ist für alle
+drei berichtigt.
+
+**Und ein toter Winkel, den der Wächter selbst angekündigt hatte.** „Einspielen"
+steht in docs/19 §3 auf der Liste der verbrauchten Wörter; für eine Sicherung
+heisst es **zurückspielen**, und genau so hiess es überall ausser auf dem Knopf
+und in der Rückfrage daneben. Den Knopf hat `WordChoiceTest` gemeldet, die
+Rückfrage nicht: Er liest PHP-Literale und den `<template>`-Block, und seine
+eigene Begründung sagte, in `<script>` stehe kein Anzeigetext — „sollte sich das
+ändern, ist diese Zeile die Stelle, an der es nachzuziehen ist". Mit dem ersten
+`confirm()` hat es sich geändert. Der Satz wäre ausgeliefert worden, neben einem
+Knopf, den dieselbe CI-Runde beanstandet hat. Ein Wächter mit einer Annahme über
+den *Ort* hat einen toten Winkel, und der wächst mit dem Projekt.
+
+**Eine offene Schuld ist eingelöst: `nanoid` 3.3.16 → 3.3.18.** Die Meldung
+GHSA-2v37-7h3g-55p8 (hoch) hing seit Wochen im Lauf „Schwachstellen und
+Lizenzen" und war der einzige rote Job — ein eigener Beitrag, weil sie
+`package-lock.json` anfasst und mit P5 nichts zu tun hat. Sie kostet genau
+diese eine Zeile: `nanoid` kommt über `postcss` aus `vite`, `package.json`
+bleibt unberührt, und nichts anderes im Baum wandert mit. Ein Lauf, der aus
+einem bekannten Grund rot ist, hört irgendwann auf, gelesen zu werden — und
+dann fällt der nächste, unbekannte Grund nicht mehr auf.
+
+**Die Messung (§9): `db.usage`, ein Aufruf für alle Datenbanken.** Wörtlich
+dieselbe Entscheidung wie bei `subscription.usage` — bei hundert Abonnements
+wären hundert Prozessgründungen je Viertelstunde auf einem Server, der nebenbei
+Webseiten ausliefert, und `information_schema` weiss ohnehin alles auf einmal.
+Die Operation nimmt keine Argumente. Gemessen wird `data_length + index_length`,
+also der **belegte** Platz einschliesslich des Freiraums nach gelöschten Zeilen;
+deshalb sagt die Oberfläche „belegt" und nicht „Daten". Ein Zeitgeber und nicht
+zwei: `srvpanel usage` misst seit P5 beides.
+
+**Sie gibt nur die Schemata dieses Panels heraus.** `information_schema` kennt
+`mysql` mit der Benutzertabelle, `sys`, `performance_schema` und die Datenbank
+des Panels selbst — eine Operation, die die Schemaliste des Servers ausliefert,
+wäre eine Auskunft, die niemand bestellt hat. Das Muster dafür stand schon in
+`Names::existing()` und heisst jetzt `Names::isPanelName()`: eine Regel und
+nicht zwei. Ein eigener Ausdruck in `DbUsage` wäre die zweite Fassung gewesen,
+und die zweite ist die, die veraltet.
+
+**`UsageReachTest` steht gegen einen Ausfall, der stumm ist.** Eine künftige
+Messung — Postfach, Cronlauf — wird registriert, bekommt ihren Dienst, und
+niemand ruft sie auf. Der Zeitgeber bleibt grün, die Oberfläche zeigt dauerhaft
+„noch nicht gemessen", und das sieht aus wie ein Server, auf dem nichts liegt.
+Geprüft wird über zwei Sprünge — welcher Dienst ruft die Operation, und nennt
+das Kommando diesen Dienst —, damit eine Umbenennung die Prüfung nicht aushebelt.
+
+**Ein dritter Zustand, den der Plan nicht kannte.** docs/36 §9 nennt „gemessen"
+und „noch nicht gemessen". Ein Abonnement ohne Datenbanken hat nichts zu messen:
+Mit zwei Zuständen stünde bei jedem frischen Abonnement „braucht einen
+erreichbaren Datenbankserver" — ein Satz, der nach einem Defekt klingt, wo
+nichts anzulegen war. Dieselbe Unterscheidung wie zwischen `null` und `0` bei
+einer Grösse, nur eine Ebene höher; sie fehlte, weil der Plan die Anzeige von
+der Zahl her gedacht hat und nicht vom Bestand.
+
+**`database_mb` wird gemessen und nicht erzwungen**, und das steht in der
+Oberfläche und nicht nur im Kommentar. MariaDB kennt keine Obergrenze je Schema,
+und `/var/lib/mysql` liegt ausserhalb der Dateisystem-Quota des Systembenutzers:
+Ein Kunde kann seinen Speicherplatz einhalten und den Datenträger über seine
+Datenbank füllen. Das ist eine Lücke, und sie gehört benannt statt kaschiert —
+Schwellen und Benachrichtigungen entstehen mit P9. Die Summe je Abonnement wird
+dabei nicht abgelegt, sondern über die Datenbanken summiert: Eine mitgeführte
+Spalte ginge auseinander, sobald eine Datenbank entfernt wird, ohne dass jemand
+nachrechnet, und beide Zahlen sähen für sich plausibel aus.
+
+**`srvpanel db` und `srvpanel db --prune` — der Weg zurück auf der
+Kommandozeile.** Das Lesen zeigt Version, Horchadresse, den Bestand und die
+befristeten Zugänge, die ein abgebrochenes Zurückspielen stehenliess; das
+Aufräumen nimmt weg, was ein misslungener Rückbau hinterlassen hat. Die Auswahl
+steht in `DatabasePrune` und nicht im Kommando — sie entscheidet, ob die Daten
+eines Kunden von der Platte gehen, und ein Test soll sie prüfen können, ohne sie
+nachzubauen. Zugänge vor Schemata vor Sicherungen: Ein Zugang ohne Schema ist
+ein Zugang auf nichts, ein Schema mit Zugang ein offener Weg zu Daten.
+
+**Und dabei ein Fund im Werkzeug selbst: vier von 129 Eingriffen in
+`tests/waechter-brechen.sh` griffen ins Leere.** Der Bruch für den
+Kommando-Wrapper suchte `|tls|vhost|` — zwischen den beiden steht seit P4 `dns`.
+Dazu zwei Eingriffe, die auf `CertificateLifecycle` zeigten, obwohl der Code
+längst in `CertificateRecord` und `CertificateChoice` steht, und einer auf
+`Packet`, obwohl das Lesen eines Namenszeigers in `Dns\Name` gezogen ist.
+
+Keiner war ein Fehler beim Schreiben: In allen vier Fällen ist der Code
+umgezogen und der Eingriff stehengeblieben — das Muster aus CLAUDE.md an der
+letzten Stelle, an der man es vermutet, nämlich im Werkzeug gegen genau dieses
+Muster. Gemerkt hat es niemand, weil `griff_datei` erst beim Lauf des Skripts
+greift und das Skript ein `vendor/` braucht.
+
+Ein toter Eingriff ist dabei schlimmer als ein fehlender: Er sieht aus, als wäre
+die Regel abgesichert, und der Wächter dahinter war vielleicht nie rot.
+`BreakScriptTest` prüft den Bezug ab jetzt in der CI. Sein eigener Bruch kann
+nicht im Skript stehen — er müsste das Skript ändern, und `wiederherstellen()`
+nähme sich mitten im Lauf die Grundlage weg —, also steht die Befehlsfolge dafür
+im Kopf des Tests.
+
+Beim ersten Lauf hat er sich selbst überführt: Er meldete ausgerechnet die Zeile
+mit den meisten Gegenschrägstrichen im Repo als tot, weil seine Entschlüsselung
+der Python-Literale über eine Kette von `str_replace` lief — die sucht auf dem
+schon veränderten Text weiter. Jetzt ein Scanner von links nach rechts.
+
+**Zurückgenommen: eine Zusage in der Oberfläche ohne Funktion dahinter.**
+Schritt 6 hatte das Hochladen einer Sicherung vorbereitet und nie gebaut — es
+gab `ImportLimit` mit drei abgestimmten Zahlen, einen aufgeweiteten
+`client_max_body_size`, einen aufgeweiteten FPM-Pool, die Spalte `kind` mit dem
+Wert `import` und den Satz „Hochgeladene Dateien dürfen bis 512 MB gross sein".
+Es gab keine Route, keine Methode und kein Formularfeld.
+
+**Kein Wächter hat es gemeldet, und das ist die Lehre.** `UploadLimitTest` war
+grün und hatte recht: Die drei Zahlen passten zueinander. Er prüfte die
+Verträglichkeit einer Vorbereitung und nirgends, dass sie jemand benutzt — der
+Satz aus dem P4-Abnahmelauf in neuer Gestalt: Ein Wächter, der drei Werte
+gegeneinander hält, prüft nicht, dass sie gelten. Gefunden hat es eine Frage des
+Betreibers, nicht ein Lauf.
+
+Eine Zusage in der Oberfläche ist teurer als eine fehlende Funktion: Wer den Satz
+liest, sucht das Feld und hält das Panel für kaputt. Und 544 MB Anfragekörper
+anzunehmen ist für ein Panel, das keine Datei entgegennimmt, eine
+Vergrösserung der Angriffsfläche für nichts. Die Grenzen stehen wieder auf
+256m/256M wie vor P5.
+
+Das Hochladen steht als eigener Schritt im Plan, samt den vier Prüfungen, die
+heute nirgends stehen: die Magic Bytes `1f 8b`, eine Grenze für die
+**ausgepackte** Grösse (400 MB gepackt können 40 GB werden, und `decompress()`
+schreibt sie ohne Obergrenze auf denselben Datenträger wie die
+Kundenverzeichnisse), der freie Platz vorher statt der Meldung hinterher, und
+`kind = 'import'` als Färbung der Liste. Was er **nicht** braucht, ist ein
+Filter über das SQL: Die Eindämmung ist der befristete Benutzer, und sie gilt
+für eine mitgebrachte Datei wie für eine selbst erzeugte. Ein Filter wäre die
+zweite, schwächere Fassung derselben Zusage.
+
+**Und dieser Eintrag hat gleich den nächsten Wächter gefunden.** `ChangelogTest`
+verlangt, dass jeder genannte Test existiert — und machte damit genau die Sorte
+Eintrag unmöglich, die am meisten erklärt: den, der etwas **zurücknimmt**. Der
+Changelog ist der Ort, an dem steht, was vorher falsch war; er muss das
+Zurückgenommene benennen können.
+
+Zwei Auswege wären schlechter gewesen: den Namen ohne Rückstriche zu schreiben,
+dann greift der Ausdruck nicht und der Wächter ist umgangen statt erweitert —
+oder ihn zu umschreiben, dann findet ihn niemand mehr in der Historie. Statt
+dessen `ChangelogTest::REMOVED`, mit Datum und Grund je Eintrag, und dazu die
+Gegenrichtung: Ein Eintrag, dessen Test wieder existiert, nähme ihn dauerhaft
+von der Prüfung aus — `test_the_list_of_removed_tests_does_not_outlive_them`
+meldet das. Dieselbe Falle, die dieses Projekt dreimal an Zählern erwischt hat,
+nur in einer Ausnahmeliste.
+
+Die Brüche dazu stehen **nicht** im Skript: Sie müssten eine Datei unter
+`tests/` ändern, und `wiederherstellen()` fasst das Verzeichnis nicht an — es
+nachzutragen ginge nicht, weil das Skript selbst darin liegt und ein
+`git checkout -- tests/` irgendwann die Datei zurückschriebe, die bash gerade
+liest. Der Kopf des Skripts hält das jetzt fest, die Befehlsfolgen stehen in den
+betroffenen Tests.
+
+**Schritt 9: `db.isolation.probe` und `srvpanel acceptance-db`.** Die
+Selbstprobe baut eine echte Verbindung als der Datenbankbenutzer des Kunden auf
+und stellt drei Fragen: `SHOW DATABASES` (die Anzeige), `USE` (der Wechsel),
+`SELECT` (der Zugriff). Ein Server kann die Anzeige filtern und den Zugriff
+zulassen — wer nur die Liste prüft, hat die Anzeige geprüft.
+
+**Sie meldet Namen und keine Zahl**, und `IsolationVerdictTest` hält beide
+Hälften fest: die Operation gibt die Liste heraus, der Lauf vergleicht sie als
+Menge. Der Grund ist der teuerste Fund des P4-Abnahmelaufs — `count($visible) === 1`
+wäre auch dann grün, wenn ein Benutzer eine *fremde* Datenbank sieht und die
+eigene nicht.
+
+Das Passwort überquert dafür den Socket, und das ist hier richtig: Es gibt
+keinen anderen Weg, eine Verbindung als dieser Benutzer aufzubauen, und genau
+die ist das Kriterium. `SHOW GRANTS` als root zu lesen zeigt, was dasteht, nicht
+was MariaDB anwendet — derselbe Grund, aus dem die Selbstprobe von P3 ein Skript
+ausführt statt die Pool-Vorlage zu lesen. Der Aufruf geht unmittelbar und nie
+über die Warteschlange, sonst läge das Passwort in `operations.payload`.
+
+**Der Lauf legt keine Abonnements an**, anders als `acceptance-web`. `system_users`
+gibt eine Nummer nie wieder her; ein Abnahmelauf, den man zehnmal fährt,
+verbrauchte zwanzig. Er bekommt zwei bestehende genannt, legt darin zwei
+Datenbanken mit Zugängen an und räumt sie im `finally` wieder weg — auch wenn
+ein Kriterium scheitert, denn sonst hinterliesse er genau die Reste, die
+`srvpanel db --prune` danach wegräumen müsste.
+
+Geprüft werden damit Kriterium 1 bis 3. Kriterium 4 bis 7 laufen von Hand: Sie
+zu automatisieren hiesse, ein Abonnement zurückzubauen, und das ist genau das,
+was dieser Lauf nicht tut. **Gefahren ist er noch nicht** — er braucht einen
+Server mit MariaDB und zwei bestehenden Abonnements.
+
+**Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
+Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
+P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und
+eigener Abnahme, statt „zweiter Schritt der Stufe"). `docs/20 §9` und `§15` sind
+nachgezogen.

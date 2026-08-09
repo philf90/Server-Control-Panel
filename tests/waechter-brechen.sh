@@ -5045,6 +5045,91 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" EngineScopeTest passed
 
 echo
+echo "── PgRestoreTest: psql laeuft ohne ON_ERROR_STOP ──"
+#
+# Der teuerste Schalter in P5b. `psql -f` gibt bei gescheitertem SQL 0 zurueck
+# und arbeitet weiter — gemessen an vier Anweisungen, deren dritte abgewiesen
+# wurde: Rueckgabewert 0, und die vierte lief. Ein Zurueckspielen, das
+# vollstaendig scheitert, meldete dann „erledigt". mysql macht es von selbst
+# richtig; wer aus P5 abschreibt, schreibt eine Vorsicht ab, die dort in der
+# Abwesenheit eines Schalters lag.
+vorher_datei agent/src/Pg/Session.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    '-v', 'ON_ERROR_STOP=1',\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Session.php "Zurueckspielen ohne Abbruch" &&
+pruefe "Zurueckspielen ohne Abbruch" \
+  PgRestoreTest::test_the_restore_stops_at_the_first_error failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
+echo "── PgRestoreTest: der DEFINER-Filter laeuft ueber PostgreSQL-Daten ──"
+#
+# Die Gegenrichtung, und sie ist die wichtigere. pg_dump schreibt keine
+# DEFINER-Angaben (gemessen: null Treffer). Ein Filter, der trotzdem ueber jede
+# Zeile laeuft, kommt an alles, was ein Kunde gespeichert hat — docs/36 §10.1
+# haelt fest, was ein zu breites Suchen-und-Ersetzen in einem Dump anrichtet.
+vorher_datei agent/src/Ops/PgDumpCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDumpCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$bytes = Dump::compress($raw, $target, fn (): bool => $context->abandoned());",
+              "$bytes = Dump::compress($raw, $target, fn (): bool => $context->abandoned(), Dump::withoutDefiner(...));")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDumpCreate.php "Filter ueber fremde Daten" &&
+pruefe "Filter ueber fremde Daten" \
+  PgRestoreTest::test_the_postgres_dump_is_written_through_unchanged failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
+echo "── PgRestoreTest: die pg_hba-Zeile steht unter der peer-Zeile ──"
+#
+# pg_hba.conf wird von oben nach unten gelesen, und die erste passende Zeile
+# entscheidet — auch wenn sie abweist. Unter `local all all peer` kaeme die neue
+# nie zum Zug, und die befristete Rolle bliebe draussen. Dieselbe Falle wie eine
+# Firewall-Regel hinter einem DROP.
+vorher_datei agent/src/Pg/Hba.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Hba.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('return self::MARK."\\n".self::RULE."\\n\\n".$content;',
+              'return $content."\\n".self::MARK."\\n".self::RULE."\\n";')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Hba.php "Zeile am Ende statt am Anfang" &&
+pruefe "Zeile am Ende statt am Anfang" \
+  PgRestoreTest::test_the_rule_goes_above_the_existing_ones failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
+echo "── PgRestoreTest: eine zweite Umgebungsvariable ──"
+#
+# Der Runner hat mit P5b zum ersten Mal ueberhaupt eine Ergaenzung seiner festen
+# Umgebung bekommen. Eine Umgebung ist dieselbe Angriffsflaeche wie eine
+# Kommandozeile: LD_PRELOAD laedt fremden Code in einen Prozess, der als root
+# laeuft. Die Liste bleibt kurz, oder sie ist keine.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("public const ENVIRONMENT_ALLOWED = ['PGPASSFILE'];",
+              "public const ENVIRONMENT_ALLOWED = ['PGPASSFILE', 'LD_PRELOAD'];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Runner.php "zweite Umgebungsvariable" &&
+pruefe "zweite Umgebungsvariable" \
+  PgRestoreTest::test_the_environment_stays_an_allowlist failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

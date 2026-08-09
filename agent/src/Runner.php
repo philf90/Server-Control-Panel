@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent;
 
+use SrvPanel\Agent\Pg\Credentials;
+
 /**
  * Die einzige Stelle, an der der Agent ein Programm startet.
  *
@@ -139,6 +141,34 @@ final class Runner
         'TERM' => 'dumb',
     ];
 
+    /**
+     * Die einzigen Namen, die ein Aufrufer zur festen Umgebung ergänzen darf.
+     *
+     * **Eine Positivliste, weil die Umgebung dieselbe Angriffsfläche ist wie
+     * die Kommandozeile.** `LD_PRELOAD` lädt eine fremde Bibliothek in einen
+     * Prozess, der als root läuft; `PATH` entscheidet, welches Programm
+     * startet; `IFS` ändert, wie eine Shell zerlegt. Ein `array_merge` mit dem,
+     * was ein Aufrufer mitbringt, hätte all das geöffnet — deshalb steht hier
+     * dieselbe Bauart wie bei {@see self::PROGRAMS}: Was nicht genannt ist,
+     * gibt es nicht.
+     *
+     * **`PGPASSFILE` ist mit P5b dazugekommen und der einzige Eintrag**
+     * (`docs/38 §13.4`). Er ist nötig geworden, weil eine befristete Rolle sich
+     * über den Unix-Socket nur mit Passwort anmelden kann und `psql` keinen
+     * Schalter für die Passwortdatei kennt — nur diese Variable. In der
+     * Umgebung steht dabei der **Pfad**; das Passwort liegt in einer Datei mit
+     * `0600` unter `/run` ({@see Credentials}).
+     *
+     * **Ohne diese Zeile stünde die Datei in `/root/.pgpass`**, weil `HOME`
+     * oben gesetzt ist und `psql` sie dort von selbst liest. Das wäre der Weg
+     * ohne jede Änderung hier — und der schlechtere: ein Passwort auf der
+     * Platte statt im Arbeitsspeicher, an einem Ort, an dem der Betreiber eine
+     * eigene Datei liegen haben kann, die wir überschrieben hätten.
+     *
+     * @var list<string>
+     */
+    public const ENVIRONMENT_ALLOWED = ['PGPASSFILE'];
+
     public function __construct(private readonly Journal $journal) {}
 
     /**
@@ -151,6 +181,37 @@ final class Runner
     public static function knows(string $program): bool
     {
         return isset(self::PROGRAMS[$program]);
+    }
+
+    /**
+     * Die feste Umgebung plus das, was der Aufrufer nennen darf.
+     *
+     * **Der Wert muss ein absoluter Pfad sein**, und das ist keine Vorsicht auf
+     * Verdacht: Die einzige erlaubte Variable nennt eine Datei, und der Runner
+     * läuft mit `/` als Arbeitsverzeichnis. Ein relativer Pfad zeigte damit auf
+     * die Wurzel des Dateisystems und wäre in der Fehlersuche die falsche Spur.
+     *
+     * @param  array<string,string>  $extra
+     * @return array<string,string>
+     */
+    private static function environment(array $extra): array
+    {
+        foreach ($extra as $name => $value) {
+            if (! in_array($name, self::ENVIRONMENT_ALLOWED, true)) {
+                throw AgentException::denied(
+                    sprintf('%s steht nicht auf der Positivliste der Umgebungsvariablen.', $name),
+                );
+            }
+
+            if (! str_starts_with($value, '/') || str_contains($value, "\0")) {
+                throw AgentException::badRequest(
+                    sprintf('%s muss ein absoluter Pfad sein.', $name),
+                    ['name' => $name],
+                );
+            }
+        }
+
+        return array_merge(self::ENVIRONMENT, $extra);
     }
 
     /**
@@ -173,6 +234,7 @@ final class Runner
      * @param  null|string  $input  Standardeingabe als Zeichenkette — nur für Kleines
      * @param  null|callable():bool  $abort  Wird in der Warteschleife befragt; `true` beendet das Programm
      * @param  null|string  $inputFile  Standardeingabe aus einer Datei — für alles Grosse
+     * @param  array<string,string>  $environment  Ergänzungen zur festen Umgebung; nur {@see self::ENVIRONMENT_ALLOWED}
      */
     public function run(
         string $program,
@@ -182,6 +244,7 @@ final class Runner
         ?string $input = null,
         ?callable $abort = null,
         ?string $inputFile = null,
+        array $environment = [],
     ): Result {
         $path = self::PROGRAMS[$program] ?? null;
 
@@ -220,6 +283,7 @@ final class Runner
         }
 
         $command = array_merge([$path], array_values($args));
+        $environment = self::environment($environment);
         $descriptors = [
             0 => match (true) {
                 $input !== null => ['pipe', 'r'],
@@ -232,7 +296,7 @@ final class Runner
 
         $startedAt = microtime(true);
         $pipes = [];
-        $process = proc_open($command, $descriptors, $pipes, '/', self::ENVIRONMENT);
+        $process = proc_open($command, $descriptors, $pipes, '/', $environment);
 
         if (! is_resource($process)) {
             throw AgentException::execFailed(sprintf('%s ließ sich nicht starten.', $program));

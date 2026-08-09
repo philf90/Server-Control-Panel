@@ -7193,3 +7193,92 @@ Wert im Speicher.
 
 Nachgetragen wurde bei der Gelegenheit der Bruch zu `EngineScopeTest` aus
 Schritt 5, der im Skript fehlte.
+
+### P5b Schritt 6, erste Hälfte — Sichern und Zurückspielen im Agenten
+
+`pg.dump.create`, `pg.restore` und `pg.dump.import` liegen unter
+`agent/src/Ops/`, dazu drei Bausteine: `SrvPanel\Agent\Pg\Hba`,
+`SrvPanel\Agent\Pg\Credentials` und `SrvPanel\Agent\Pg\Ephemeral`. Eingetragen
+in die Registratur werden sie mit dem Beitrag, der ihnen einen Aufrufer gibt —
+dieselbe Reihenfolge wie in Schritt 1.
+
+**Fünf Messungen standen vor der ersten Zeile Code, und zwei haben den Plan
+umgeworfen.**
+
+`docs/38 §13.1` hat sich bestätigt, wörtlich: `psql -f` gibt bei gescheitertem
+SQL **0** zurück und arbeitet weiter — vier Anweisungen, die dritte abgewiesen,
+Rückgabewert 0, und die vierte lief. Mit `ON_ERROR_STOP=1`: Rückgabewert 3,
+Abbruch, und eine Meldung mit Datei, Zeilennummer und Grund. `mysql` macht das
+von selbst richtig, und **genau darin liegt die Falle**: Wer aus P5 abschreibt,
+schreibt eine Vorsicht ab, die dort in der *Abwesenheit* eines Schalters lag.
+
+`§13.2` ebenfalls: null `DEFINER`-Angaben in einem `pg_dump`. Der Filter aus
+`docs/36 §10.1` entfällt — und weil er über jede Zeile eines Dumps läuft, ist
+„entfällt" hier mehr wert als „schadet nicht". `Dump::compress()` nimmt den
+Filter deshalb seit heute als Argument statt ihn zu setzen; `PgRestoreTest`
+prüft beide Richtungen.
+
+**Was §13.4 nicht wusste: Die befristete Rolle kommt über den Unix-Socket gar
+nicht herein.** Debians `pg_hba.conf` beginnt mit `local all all peer`, und
+`peer` verlangt einen gleichnamigen Unix-Benutzer — den hat
+`x7f3a…_r1a2b3c4d` nicht. In P5 meldet sich der befristete Benutzer über den
+Socket mit Passwort an, MariaDB lässt das zu, und §13.4 sagte „wie
+`docs/36 §10.2`". Der Fehlschlag sieht dabei wie ein Rechteproblem aus und
+steht in einer Datei, die mit Rechten nichts zu tun hat.
+
+Beide Auswege sind gemessen worden, bevor sie dem Betreiber vorlagen: TCP über
+`127.0.0.1` läuft ohne jede Konfigurationsänderung, hängt aber an
+`listen_addresses`. Der Betreiber hat den anderen gewählt — eine Gruppenrolle
+`srvpanel_restore` und eine Zeile in `pg_hba.conf`, die ihre Mitglieder über den
+Socket mit Passwort hereinlässt. Sie steht **ganz oben**, weil die erste
+passende Zeile entscheidet, auch wenn sie abweist.
+
+**Und der Runner hat zum ersten Mal überhaupt eine Ergänzung seiner festen
+Umgebung bekommen.** `psql` kennt keinen Schalter für die Passwortdatei, nur
+`PGPASSFILE`. Der erste Anlauf setzte sie mit `putenv()` — und lief in
+`fe_sendauth: no password supplied`, weil `Runner` die Umgebung fest vorgibt.
+Gemessen hatte ich ein nacktes `proc_open()`: **den Stellvertreter statt die
+Sache**, zum vierten Mal in dieser Stufe. Die Antwort ist eine Positivliste nach
+demselben Muster wie die für Programme, mit `PGPASSFILE` als einzigem Eintrag —
+eine Umgebung ist dieselbe Angriffsfläche wie eine Kommandozeile, und
+`LD_PRELOAD` lädt fremden Code in einen Prozess, der als root läuft.
+
+**Der teuerste Fund kam beim Laufenlassen und hätte das Zurückspielen
+unbrauchbar gemacht.** Ein `DROP ROLE` scheitert, solange der Rolle etwas
+gehört; der naheliegende Weg ist `DROP OWNED BY` im `finally` — und der wirft
+weg, was gerade eingespielt wurde. Der Lauf meldete Erfolg, und die Tabelle war
+fort. Was eine Rolle anlegt, gehört ihr, und beim Zurückspielen legt sie die
+ganze Datenbank an. In P5 gibt es dazu kein Gegenstück, weil MariaDB kein
+Eigentum an einer Tabelle kennt — der Plan hat die Frage deshalb nicht gestellt.
+`REASSIGN OWNED BY … TO` überträgt jetzt zuerst an den **Eigentümer der
+Datenbank**, gefragt und nicht angenommen.
+
+**Zwei Dinge, die es ausdrücklich nicht gibt.** Kein `pg.dump.remove`:
+`db.dump.remove` entfernt eine Datei, und eine Datei hat kein Datenbanksystem.
+Und keine zweite Fassung von `requireGzip`, `unpackedSize`, `requireSpace` und
+`moveInto` — die sind aus `DbDumpImport` nach `Dump` gezogen, weil sie mit
+MariaDB oder PostgreSQL nie etwas zu tun hatten. Beim Umzug hat `requireSpace()`
+das Datenverzeichnis als Argument bekommen: Für MariaDB ist es fest, für
+PostgreSQL steht es in `pg_lsclusters`.
+
+Neu gemessen dazu noch zweierlei. Die befristete Rolle braucht
+`GRANT ALL ON SCHEMA public` — seit PostgreSQL 15 darf `PUBLIC` dort nicht mehr
+schreiben, und ohne die Zeile bricht das Zurückspielen an der ersten
+`CREATE TABLE` ab. Und ein `pg_dump` einer einzelnen Datenbank enthält **kein**
+`\connect`; `pg_dumpall` schon. Die Falle aus §13.4 trifft also nur
+Mitgebrachtes, und dort greift der `REVOKE CONNECT` aus §10 ein zweites Mal.
+
+**Und ein Wächter aus Schritt 1 hat den ersten Anlauf zurückgewiesen.**
+`AgentIdentityTest` besteht darauf, dass `psql` an genau einer Stelle gerufen
+wird — `PgRestore` hatte den Lauf bei sich stehen. Die Regel ist richtig, und
+sie hat gehalten: Der Lauf ist nach `Pg\Session::restore()` gezogen, und damit
+stehen Socketpfad, Anmeldeweise und `ON_ERROR_STOP` weiter genau einmal da.
+
+**Eine zweite Regel war dagegen zu weit gefasst**, und das ist der seltenere
+Fall. `PgSessionTest` verbot `-c` **und** `-f` mit der Begründung „dann steht
+das SQL in der Kommandozeile" — für `-c` stimmt das, `-f` trägt einen
+Dateinamen. Mitverboten war es, weil es in Schritt 1 keinen Fall dafür gab und
+beide gleich aussahen. Eine solche Regel wird **geschärft und nicht
+abgeschaltet**: `-c` bleibt verboten, `-f` ist auf eine Stelle begrenzt und muss
+einen Pfad tragen, und daneben steht jetzt die Prüfung, um die es eigentlich
+ging — kein Passwort unter den Argumenten.

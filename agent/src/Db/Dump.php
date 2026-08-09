@@ -105,6 +105,36 @@ final class Dump
      */
     private const CHECK_EVERY = 20_000;
 
+    /**
+     * Woran eine gzip-Datei zu erkennen ist.
+     *
+     * `1f 8b` steht am Anfang jedes gzip-Stroms (RFC 1952). Mehr wird nicht
+     * geprüft: Ob der Inhalt danach SQL ist, entscheidet der Datenbankserver
+     * beim Einspielen, und ein Agent, der SQL zu erkennen versucht, baut einen
+     * Parser, den niemand geprüft hat.
+     */
+    private const MAGIC = "\x1f\x8b";
+
+    /**
+     * Der Deckel für die ausgepackte Grösse.
+     *
+     * Zwanzig Gibibyte sind mehr, als ein Formular sinnvoll entgegennimmt, und
+     * weniger, als ein Dateisystem stillschweigend verkraftet.
+     */
+    public const MAX_UNPACKED = 20 * 1024 * 1024 * 1024;
+
+    /** Wie viel am Stück ausgepackt wird, während gezählt wird. */
+    private const CHUNK = 1024 * 1024;
+
+    /**
+     * Der Bereich, aus dem eine hochgeladene Datei kommen darf.
+     *
+     * **Der Schreibbereich des Panels und kein eigenes Verzeichnis.** Dort darf
+     * das Panel ohnehin schreiben, dort liegt die Datei nach dem Upload, und
+     * das Paket legt ihn beim Einrichten schon an.
+     */
+    public const STAGING_ROOT = '/var/lib/srvpanel/storage/app/private/imports';
+
     /** Der Ablageort einer Sicherung — gebaut, nicht entgegengenommen. */
     public static function path(string $subscription, string $storageName): string
     {
@@ -180,11 +210,27 @@ final class Dump
      * stehen; sie zu entfernen ist Sache des Aufrufers, der auch weiss, ob der
      * Lauf durchgekommen ist.
      *
+     * **Der Filter wird übergeben und nicht angenommen.** Bis P5b stand
+     * {@see self::withoutDefiner()} fest in der Schleife — richtig, solange es
+     * ein Datenbanksystem gab. `pg_dump` schreibt keine `DEFINER`-Angaben
+     * (gemessen, `docs/38 §13.2`), und ein Filter, der über Kundendaten läuft
+     * und nichts zu suchen hat, ist ein Risiko ohne Gegenwert. `null` heisst
+     * deshalb *unverändert durchschreiben*; wer filtern will, sagt es.
+     *
+     * Ein Vorgabewert wäre hier falsch gewesen: Er hätte für das eine System
+     * gegolten und für das andere gegen die Absicht — der Aufruf soll die
+     * Entscheidung tragen und nicht die Signatur.
+     *
      * @param  null|callable():bool  $abort
+     * @param  null|callable(string):string  $filter  Je Zeile; `null` schreibt unverändert
      * @return int Die Grösse der komprimierten Datei in Byte
      */
-    public static function compress(string $rawPath, string $targetPath, ?callable $abort = null): int
-    {
+    public static function compress(
+        string $rawPath,
+        string $targetPath,
+        ?callable $abort = null,
+        ?callable $filter = null,
+    ): int {
         $in = @fopen($rawPath, 'rb');
 
         if ($in === false) {
@@ -203,7 +249,7 @@ final class Dump
 
         try {
             while (($line = fgets($in)) !== false) {
-                gzwrite($out, self::withoutDefiner($line));
+                gzwrite($out, $filter === null ? $line : $filter($line));
 
                 if (++$lines % self::CHECK_EVERY === 0 && $abort !== null && $abort()) {
                     throw new AgentException(
@@ -259,6 +305,132 @@ final class Dump
             fclose($out);
             gzclose($in);
         }
+    }
+
+    /**
+     * Die ersten Bytes — sonst ist es keine gzip-Datei, wie sie auch heisse.
+     *
+     * **Stand bis P5b in `DbDumpImport` und ist mit dem zweiten
+     * Datenbanksystem hierher gezogen.** Was diese drei Prüfungen tun, hat mit
+     * MariaDB oder PostgreSQL nichts zu tun: Es ist eine Datei, sie ist
+     * gepackt, sie ist zu gross oder sie liegt auf einem anderen Einhängepunkt.
+     * Sie ein zweites Mal zu schreiben wäre die zweite Fassung derselben Regel,
+     * und die zweite ist die, die veraltet.
+     */
+    public static function requireGzip(string $path): void
+    {
+        $handle = @fopen($path, 'rb');
+
+        if ($handle === false) {
+            throw AgentException::execFailed('Die hochgeladene Datei ist nicht lesbar: '.$path);
+        }
+
+        $head = (string) fread($handle, 2);
+        fclose($handle);
+
+        if ($head !== self::MAGIC) {
+            throw AgentException::badRequest(
+                'Das ist keine gzip-Datei. Erwartet wird eine Sicherung, wie dieses Panel sie schreibt '
+                .'(.sql.gz) — die Endung allein genügt nicht.',
+            );
+        }
+    }
+
+    /**
+     * Wie gross die Datei ausgepackt ist — gezählt, nicht abgelesen.
+     *
+     * Gelesen wird nach nirgendwo: Was zählt, ist die Zahl, und die entsteht
+     * beim Durchlauf. Über dem Deckel wird abgebrochen, ohne den Rest zu lesen
+     * — eine Zip-Bombe soll Sekunden kosten und nicht Stunden.
+     */
+    public static function unpackedSize(string $path): int
+    {
+        $handle = @gzopen($path, 'rb');
+
+        if ($handle === false) {
+            throw AgentException::badRequest('Die hochgeladene Datei liess sich nicht auspacken.');
+        }
+
+        $bytes = 0;
+
+        while (! gzeof($handle)) {
+            $chunk = gzread($handle, self::CHUNK);
+
+            if ($chunk === false) {
+                gzclose($handle);
+
+                throw AgentException::badRequest('Die hochgeladene Datei bricht mittendrin ab — sie ist unvollständig.');
+            }
+
+            $bytes += strlen($chunk);
+
+            if ($bytes > self::MAX_UNPACKED) {
+                gzclose($handle);
+
+                throw AgentException::denied(sprintf(
+                    'Ausgepackt ist die Sicherung grösser als %d GB. So etwas gehört nicht durch ein '
+                    .'Formularfeld — dafür gibt es Sicherungsziele.',
+                    intdiv(self::MAX_UNPACKED, 1024 * 1024 * 1024),
+                ));
+            }
+        }
+
+        gzclose($handle);
+
+        return $bytes;
+    }
+
+    /**
+     * Platz dort, wo die Daten hinkommen — und nicht dort, wo die Datei liegt.
+     *
+     * **Das Datenverzeichnis kommt als Argument**, und das ist der eine
+     * Unterschied zur Fassung aus P5: Für MariaDB ist es `/var/lib/mysql`, für
+     * PostgreSQL das Verzeichnis des Clusters, und das steht nicht fest — es
+     * kommt aus `pg_lsclusters`. Eine Konstante hier wäre eine Behauptung über
+     * fremde Einrichtung.
+     */
+    public static function requireSpace(int $unpacked, string $dataDirectory): void
+    {
+        $free = @disk_free_space($dataDirectory);
+
+        if ($free === false) {
+            // Keine Auskunft ist kein Grund abzuweisen: Der Pfad kann auf einem
+            // Server anders liegen, und ein Hochladen, das an einer fehlenden
+            // Messung scheitert, wäre eine Grenze ohne Gegenstand.
+            return;
+        }
+
+        if ($free < $unpacked) {
+            throw AgentException::denied(sprintf(
+                'Auf %s sind %d MB frei, die Sicherung braucht ausgepackt %d MB. Ein Zurückspielen, '
+                .'dem mittendrin der Platz ausgeht, hinterlässt eine halbe Datenbank.',
+                $dataDirectory,
+                intdiv((int) $free, 1024 * 1024),
+                intdiv($unpacked, 1024 * 1024),
+            ));
+        }
+    }
+
+    /**
+     * Verschieben, und wenn das nicht geht, kopieren.
+     *
+     * `rename()` scheitert über Dateisystemgrenzen hinweg — der Schreibbereich
+     * des Panels und `/var/lib/srvpanel/dumps` können auf verschiedenen
+     * Einhängepunkten liegen. Dann bleibt Kopieren, und die Quelle geht
+     * hinterher: Zwei Kopien eines halben Gigabytes sind ein voller Datenträger
+     * aus Versehen.
+     */
+    public static function moveInto(string $source, string $target): void
+    {
+        if (@rename($source, $target)) {
+            return;
+        }
+
+        if (! @copy($source, $target)) {
+            throw AgentException::execFailed('Die Sicherung liess sich nicht übernehmen: '.$target);
+        }
+
+        @unlink($source);
     }
 
     /**

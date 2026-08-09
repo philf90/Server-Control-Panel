@@ -88,17 +88,76 @@ final class PgSessionTest extends TestCase
      *
      * Wortgleich die Regel aus `Db\Session`, und sie hat hier denselben Grund:
      * Ein Passwort in der Kommandozeile stünde für jeden in der Prozessliste.
-     * `-c` und `-f` sind deshalb beide keine Wege.
+     *
+     * **`-f` stand hier bis Schritt 6 daneben, und das war zu weit gegriffen.**
+     * Die Regel heisst *kein SQL in der Kommandozeile* — `-c` trägt SQL, `-f`
+     * trägt einen Dateinamen. Verboten war es mitgemeint, weil es in Schritt 1
+     * keinen Fall dafür gab und beide gleich aussahen; mit dem Zurückspielen
+     * gibt es einen, und dann ist der Unterschied der ganze Punkt. Ein Pfad
+     * unter `/var/lib/srvpanel/dumps` steht ohnehin in der Prozessliste, egal
+     * wie er übergeben wird, und er ist kein Geheimnis.
+     *
+     * Eine Regel, die zu weit greift, wird geschärft und nicht abgeschaltet —
+     * deshalb steht unten die Prüfung, die den eigentlichen Zweck festhält:
+     * **kein Passwort unter den Argumenten.**
      */
     public function test_sql_goes_over_standard_input(): void
     {
+        $this->assertStringNotContainsString(
+            "'-c'",
+            $this->source(),
+            'Session ruft psql mit -c auf — dann steht das SQL in der Kommandozeile.',
+        );
+    }
+
+    /**
+     * Und `-f` gibt es an genau einer Stelle, mit einem Pfad statt SQL.
+     *
+     * Die Gegenprobe zur Lockerung darüber. Fiele sie weg, liesse sich der
+     * Schalter überall hinschreiben, und die geschärfte Regel wäre eine
+     * abgeschaffte.
+     */
+    public function test_the_file_switch_carries_a_path_and_only_in_the_restore(): void
+    {
         $source = $this->source();
 
-        foreach (["'-c'", "'-f'"] as $forbidden) {
+        $this->assertSame(
+            1,
+            substr_count($source, "'-f',"),
+            'psql wird an mehr als einer Stelle mit -f gerufen. Der Schalter gehört zum Zurückspielen '.
+            'und zu nichts sonst.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            "/'-f',\s*\\\$file,/",
+            $source,
+            '-f bekommt etwas anderes als den Pfad der ausgepackten Sicherung.',
+        );
+    }
+
+    /**
+     * Das Passwort der befristeten Rolle erreicht die Argumente nicht.
+     *
+     * **Das ist der Zweck, um den es die ganze Zeit ging.** Es geht über eine
+     * Datei mit `0600` und `PGPASSFILE`; stünde es in den Argumenten, sähe es
+     * jeder, der `ps` aufrufen kann — und zwar für die Dauer eines
+     * Zurückspielens, also unter Umständen stundenlang.
+     */
+    public function test_the_password_never_reaches_the_arguments(): void
+    {
+        $source = $this->source();
+
+        foreach (["'--password", "'-W'", 'password='] as $forbidden) {
             $this->assertStringNotContainsString($forbidden, $source, sprintf(
-                'Session ruft psql mit %s auf — dann steht das SQL in der Kommandozeile.',
+                'Session gibt %s an psql weiter — das Passwort stünde in der Prozessliste.',
                 trim($forbidden, "'"),
             ));
         }
+
+        $this->assertStringContainsString(
+            'Credentials::VARIABLE => $password',
+            $source,
+            'Das Passwort geht nicht mehr über die Passwortdatei — dann steht es woanders.',
+        );
     }
 }

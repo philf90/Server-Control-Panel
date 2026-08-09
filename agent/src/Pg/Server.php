@@ -295,6 +295,78 @@ final class Server
         }
     }
 
+    /**
+     * Der eine laufende Cluster — oder `null`, wenn es nicht genau einer ist.
+     *
+     * **Dieselbe Regel wie in {@see self::describe()}, nur als Antwort statt als
+     * Zustand:** Bei zwei laufenden Clustern wählt das Panel nicht, und bei
+     * keinem gibt es nichts zu wählen. Wer hier `null` bekommt, hat keine
+     * Auskunft bekommen, sondern eine Absage — und die gehört an den Betreiber
+     * weitergereicht und nicht mit einer Annahme überschrieben.
+     *
+     * @return null|array{version: int, name: string, port: int, running: bool, directory: string}
+     */
+    public function primaryCluster(Context $context): ?array
+    {
+        $clusters = $this->clusters->all($context) ?? [];
+        $running = array_values(array_filter($clusters, static fn (array $c): bool => $c['running']));
+
+        return count($running) === 1 ? $running[0] : null;
+    }
+
+    /**
+     * Die Hauptfassung des laufenden Clusters — oder `null`.
+     *
+     * **Aus `pg_lsclusters` und nicht aus einer Abfrage**, obwohl beides ginge.
+     * Der Aufrufer ist `pg.dump.import`, und der läuft, bevor jemand
+     * zurückspielt: Er soll auch dann eine Antwort bekommen, wenn der Cluster
+     * gerade steht. Ein `SELECT` bräuchte eine Verbindung.
+     */
+    public function majorOf(Context $context): ?int
+    {
+        $clusters = $this->clusters->all($context) ?? [];
+
+        if ($clusters === []) {
+            return null;
+        }
+
+        $running = array_values(array_filter($clusters, static fn (array $c): bool => $c['running']));
+
+        // Läuft genau einer, gilt seine Fassung. Läuft keiner, gilt die des
+        // einzigen vorhandenen — und bei mehreren gibt es keine Antwort, aus
+        // demselben Grund wie in {@see self::primaryCluster()}.
+        return match (true) {
+            count($running) === 1 => $running[0]['version'],
+            $running === [] && count($clusters) === 1 => $clusters[0]['version'],
+            default => null,
+        };
+    }
+
+    /**
+     * Wo `pg_hba.conf` liegt — **gefragt und nicht gebaut**.
+     *
+     * `/etc/postgresql/<fassung>/<cluster>/pg_hba.conf` wäre der Pfad, den
+     * Debian anlegt, und er stimmte hier fast immer. `SHOW hba_file` liefert
+     * den, den der laufende Server tatsächlich liest — auch dann, wenn jemand
+     * `hba_file` in `postgresql.conf` umgestellt hat oder der Cluster von Hand
+     * mit `initdb` entstanden ist.
+     *
+     * Das ist dieselbe Entscheidung wie bei `Names::fqdn()` und bei
+     * `Clusters::unit()`: **Ein Pfad, den man zusammensetzt, ist eine Vermutung
+     * über fremde Einrichtung.** In P5b war genau das dreimal der Fehler.
+     */
+    public function hbaFile(Context $context, Session $session): string
+    {
+        $rows = $session->query($context, 'SHOW hba_file');
+        $path = (string) ($rows[0][0] ?? '');
+
+        if ($path === '' || ! str_starts_with($path, '/')) {
+            throw AgentException::execFailed('Der Ort von pg_hba.conf liess sich nicht feststellen.');
+        }
+
+        return $path;
+    }
+
     /** @return array{0: bool, 1: string|null} */
     private static function usable(int $major): array
     {

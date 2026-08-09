@@ -28,6 +28,21 @@ use SplFileInfo;
  * **Und die Gegenrichtung:** Ein Ausdruck, der nichts findet, ist kein
  * bestandener Test. Jede Prüfung sagt deshalb auch, wie viele Verweise sie
  * gesehen hat.
+ *
+ * **Die Brüche zu {@see self::test_every_named_class_exists()} stehen ebenfalls
+ * nicht im Skript**, aus demselben Grund wie die zu {@see self::REMOVED}: Sie
+ * ändern `CHANGELOG.md`, und `wiederherstellen()` fasst die Datei nicht an. Von
+ * Hand also, und beide Richtungen, weil der Fall seit Lauf 463 zwei hat:
+ *
+ *     # 1 — ein Namensraum, den es nicht gibt
+ *     #     `App\Support\Databases\Engines\` → `App\Support\Databases\Motoren\`
+ *     #     erwartet: rot mit „nennt den Namensraum … das Verzeichnis"
+ *     # 2 — eine Klasse, den es nicht gibt (der abschliessende \ fällt weg)
+ *     #     `App\Support\Databases\Engines\` → `App\Support\Databases\Engines`
+ *     #     erwartet: rot mit „nennt … die Datei dazu gibt es nicht"
+ *     git checkout -- CHANGELOG.md
+ *
+ * Am 9. August 2026 beide gefahren, beide rot, danach wieder grün.
  */
 final class ChangelogTest extends TestCase
 {
@@ -185,20 +200,47 @@ final class ChangelogTest extends TestCase
 
     public function test_every_named_class_exists(): void
     {
-        // `App\Support\Plans\Quota` und Verwandte. Ein angehängtes `::methode`
-        // wird abgeschnitten — geprüft wird die Datei, nicht die Signatur.
-        preg_match_all('/`(App(?:\\\\[A-Z][A-Za-z0-9]*)+)/', $this->changelog(), $matches);
+        /*
+         * `App\Support\Plans\Quota` und Verwandte. Ein angehängtes `::methode`
+         * wird abgeschnitten — geprüft wird die Datei, nicht die Signatur.
+         *
+         * **Der abschliessende Backslash wird mitgefangen, und das ist der
+         * ganze Unterschied zwischen einer Klasse und einem Namensraum.**
+         * `App\Support\Databases\Engines\` ist die übliche Schreibweise für
+         * „alles unter diesem Namen" und hat Lauf 463 rot gemacht: Der
+         * Ausdruck sah eine Klasse, suchte `Engines.php` und fand ein
+         * Verzeichnis. Den Text stattdessen umzuschreiben hiesse, eine Regel
+         * einzuführen, die nirgends steht — man darf im Changelog keinen
+         * Namensraum nennen — und die der nächste Beitrag wieder bricht.
+         */
+        preg_match_all('/`(App(?:\\\\[A-Z][A-Za-z0-9]*)+)(\\\\)?/', $this->changelog(), $matches, PREG_SET_ORDER);
 
-        $classes = array_unique($matches[1]);
+        $named = [];
 
-        $this->assertGreaterThanOrEqual(3, count($classes), 'Der Ausdruck findet keine Klassenverweise mehr.');
+        foreach ($matches as $match) {
+            // Der Schlüssel trägt beides. Derselbe Name kann als Klasse und als
+            // Namensraum vorkommen — dann sind es zwei Prüfungen und nicht die,
+            // die zufällig zuletzt kam.
+            $named[$match[1].($match[2] ?? '')] = [$match[1], ($match[2] ?? '') === '\\'];
+        }
 
-        foreach ($classes as $class) {
-            $relative = 'app/'.str_replace('\\', '/', substr($class, 4)).'.php';
+        $this->assertGreaterThanOrEqual(3, count($named), 'Der Ausdruck findet keine Klassenverweise mehr.');
+
+        foreach ($named as [$name, $isNamespace]) {
+            $relative = 'app/'.str_replace('\\', '/', substr($name, 4));
+
+            if ($isNamespace) {
+                $this->assertDirectoryExists(
+                    $this->root().'/'.$relative,
+                    "Der Changelog nennt den Namensraum {$name}; das Verzeichnis dazu gibt es nicht.",
+                );
+
+                continue;
+            }
 
             $this->assertFileExists(
-                $this->root().'/'.$relative,
-                "Der Changelog nennt {$class}; die Datei dazu gibt es nicht.",
+                $this->root().'/'.$relative.'.php',
+                "Der Changelog nennt {$name}; die Datei dazu gibt es nicht.",
             );
         }
     }

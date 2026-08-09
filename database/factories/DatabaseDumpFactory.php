@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Models\Database;
@@ -25,10 +26,21 @@ class DatabaseDumpFactory extends Factory
             'subscription_id' => Subscription::factory(),
             'database_name' => 'p1001_shop',
             'storage_name' => 'p1001-shop-'.fake()->unique()->numberBetween(100000, 999999),
+
+            // Siehe {@see DatabaseFactory::definition()} — der Vorgabewert der
+            // Spalte erreicht das Modell im Speicher nicht.
+            'engine' => DatabaseEngine::MariaDb,
+
             'kind' => DumpKind::Export,
             'status' => DumpStatus::Ready,
             'bytes' => 4096,
         ];
+    }
+
+    /** Eine Sicherung aus PostgreSQL — siehe {@see DatabaseFactory::postgres()}. */
+    public function postgres(): self
+    {
+        return $this->state(fn (): array => ['engine' => DatabaseEngine::Postgres]);
     }
 
     /** Siehe {@see DatabaseFactory::forSubscription()} — `for()` gehört der Basisklasse. */

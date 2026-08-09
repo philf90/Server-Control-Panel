@@ -7139,3 +7139,57 @@ läuft **immer** über `app`, `agent/src` und `tests/Support`, fährt alle
 Attrappen und filtert nur noch namentlich genannte Zeilen heraus statt ganzer
 Meldungsklassen. Beim ersten Lauf hat es die drei Eingriffe gefunden, die ich
 nach Schritt 4 nicht mehr geprüft hatte — es hat sich sofort bezahlt.
+
+### Lauf 463 — vier rote Tests, und keiner zeigte auf die Ursache
+
+Der Lauf, der die drei Befunde von 462 bestätigen sollte, hat zwei neue
+gebracht. Beide zeigten woandershin, als sie herkamen.
+
+**`Databases::driver()` bekam `null`, wo der Übersetzer eine Aufzählung
+verlangt.** `OrphanedGrantTest` scheiterte dreimal mit einem `TypeError` in
+`app/Support/Databases/Databases.php` — an einer Zeile, die richtig ist. Die
+Ursache liegt drei Schritte davor: `engine` trägt `default('mariadb')` in der
+Migration, und ein `default` gilt beim `INSERT`. Was danach im Speicher steht,
+ist das, was hineingeschrieben wurde — Eloquent liest die Zeile nicht zurück.
+`DatabaseFactory` schrieb `engine` nicht mit, also war es `null`, obwohl das
+Modell die Spalte seit dem Fix von 462 als `@property DatabaseEngine $engine`
+führt: **ohne `null`.**
+
+Zwei wahre Aussagen, die zusammen nicht stimmten. Die Spalte ist `NOT NULL` und
+hat einen Vorgabewert; das Modell behauptet, sie sei immer da; die Factory baute
+eine Zeile, die es so nie gibt. Der Ausweg, der sich zuerst anbietet — ein
+`$attributes`-Vorgabewert im Modell — wäre die zweite Fassung dessen, was in der
+Migration steht, und die zweite ist die, die veraltet. Was fehlte, war nicht der
+Vorgabewert, sondern dass die Factory die Zeile so baut wie die Anwendung.
+
+`FactoryDefaultTest` hält das jetzt für alle Modelle fest: Eine Spalte, die das
+Modell als nicht-nullbare Aufzählung führt, wird von `definition()` gesetzt.
+Gelesen wird der `@property`-Block, weil dort steht, was das Modell über sich
+behauptet — und weil larastan dieselbe Stelle liest, ist sie gepflegt. Die
+Gegenrichtung steht daneben: `Domain::$redirect_kind` darf `null` sein, und eine
+Factory, die eine Weiterleitungsart erfände, wäre falscher als eine, die sie
+weglässt. Beim Bauen fiel dabei auf, dass `DatabaseDump` seine `engine`-Zeile im
+`@property`-Block überhaupt nicht hatte — derselbe Befund wie in 462, eine
+Datei weiter, und niemand hätte ihn gemeldet, weil noch niemand `$dump->engine`
+liest.
+
+**Und `ChangelogTest` hielt einen Namensraum für eine Klasse.** Der Eintrag zu
+Schritt 4 nennt `App\Support\Databases\Engines\` — mit abschliessendem
+Backslash, wie man einen Namensraum schreibt. Der Ausdruck sah eine Klasse,
+suchte `Engines.php` und fand ein Verzeichnis. Den Text umzuschreiben wäre der
+schnellere Weg gewesen und der schlechtere: Er hätte eine Regel eingeführt, die
+nirgends steht — *im Changelog darf kein Namensraum vorkommen* —, und der
+nächste Beitrag hätte sie wieder gebrochen. Der Wächter fängt den Backslash
+jetzt mit und prüft dann ein Verzeichnis statt einer Datei. Beide Richtungen
+gebrochen, beide rot; die Befehlsfolge steht im Kopf des Tests, weil
+`waechter-brechen.sh` `CHANGELOG.md` nicht wiederherstellt.
+
+**Was sie gemeinsam haben.** Beide Fehler standen an einer Stelle, an der die
+Regel *stimmte* — der `match` ohne `default`, der Ausdruck für Klassennamen —
+und kamen von einer Annahme darüber, was ihnen geliefert wird. Das ist derselbe
+Stellvertreter wie schon dreimal in P5b, nur eine Ebene höher: nicht ein
+Verzeichnis für einen Dienst, sondern ein Vorgabewert der Datenbank für einen
+Wert im Speicher.
+
+Nachgetragen wurde bei der Gelegenheit der Bruch zu `EngineScopeTest` aus
+Schritt 5, der im Skript fehlte.

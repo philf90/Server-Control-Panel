@@ -5001,6 +5001,50 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
 
 echo
+echo "── FactoryDefaultTest: eine Spalte, die die Factory nicht baut ──"
+#
+# Genau der Fehler aus Lauf 463. `engine` traegt `default('mariadb')` in der
+# Migration und steht im Modell als `@property DatabaseEngine` — ohne null. Die
+# Factory setzte sie nicht, und ein `default` gilt beim INSERT: Das Modell im
+# Speicher trug null, und `Databases::remove()` gab es an einen `match` weiter.
+# Vier rote Tests, und keiner davon zeigte auf die Factory.
+vorher_datei database/factories/DatabaseFactory.php
+python3 - <<'PY2'
+p = 'database/factories/DatabaseFactory.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'engine' => DatabaseEngine::MariaDb,\n\n            'status' => DatabaseStatus::Active,",
+              "            'status' => DatabaseStatus::Active,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei database/factories/DatabaseFactory.php "Spalte fehlt in der Factory" &&
+pruefe "Spalte fehlt in der Factory" \
+  FactoryDefaultTest::test_every_required_enum_column_is_built_by_its_factory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FactoryDefaultTest passed
+
+echo
+echo "── EngineScopeTest: ein Lebenslauf fasst das andere System an ──"
+#
+# Beide Lebenslaeufe hoeren auf `subscription.suspend`. Faellt die Einschraenkung
+# auf `engine`, schickt PgLifecycle die MariaDB-Zugaenge desselben Abonnements
+# als Rollennamen an `pg.role.lock` — und ueberschreibt danach einen Zustand, den
+# ein anderer Vorgang gerade gesetzt hat. Sichtbar wird das erst, wenn einer der
+# beiden scheitert.
+vorher_datei app/Support/Databases/PgLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/PgLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                ->where('engine', DatabaseEngine::Postgres)\n                ->orderBy('id')",
+              "                ->orderBy('id')")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/PgLifecycle.php "Abfrage ohne System" &&
+pruefe "Abfrage ohne System" \
+  EngineScopeTest::test_every_subscription_wide_query_names_its_engine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineScopeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

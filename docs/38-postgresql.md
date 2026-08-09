@@ -892,9 +892,22 @@ agent/src/Ops/PgRoleRemove.php
 agent/src/Ops/PgRoleCreate.php
 agent/src/Ops/PgRoleGrant.php
 agent/src/Ops/PgRoleLock.php
-agent/src/Registry.php
 tests/Unit/PgNameTest.php  PgShieldingTest.php  AgentIdentityTest.php
 ```
+
+> **`agent/src/Registry.php` stand hier und gehört nicht hierher.** Der erste
+> Anlauf hat `pg.server.info` in diesem Schritt eingetragen, und die CI war rot:
+> `AgentOperationReachTest::test_every_operation_without_a_lifecycle_is_called_somewhere`
+> verlangt zu jeder Operation ohne Lebenslauf einen **Aufrufer** und nicht nur
+> eine Begründung — *„Code, der als root läuft und zu dem kein Weg führt, ist
+> Angriffsfläche ohne Nutzen."*
+>
+> Die Regel ist älter als dieser Plan und wiegt schwerer als seine Dateiliste.
+> **Eine Operation wird in demselben Beitrag eingetragen, der ihr einen Aufrufer
+> gibt** — also in Schritt 3 für `pg.server.install` und in Schritt 4 für den
+> Rest. Bis dahin liegen die Klassen da und sind aus dem Agenten nicht
+> erreichbar, und das ist der richtige Zustand: Was niemand rufen kann, ist auch
+> keine Fläche.
 
 **Hier prüfbar, und diesmal richtig:** `agent/src/autoload.php` lädt ohne
 Framework, und in diesem Container läuft ein PostgreSQL 16. Ein Wegwerfskript im

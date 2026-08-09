@@ -6123,3 +6123,26 @@ zurückholte; hier holte es die eingecheckte Fassung von `Runner.php` zurück un
 nahm die noch nicht gesicherte Ergänzung der Positivliste mit. Beide Richtungen
 haben dieselbe Ursache und dieselbe Regel: **Ein Bruch gehört erst nach dem
 Commit dazu, den er prüft.**
+
+### Die CI hat eine Zeile gefunden, die der Plan verlangt hatte
+
+**Lauf 446: 1537 grün, einer rot** — und der eine ist ein echter Fund.
+`docs/38 §17` führte `agent/src/Registry.php` in Schritt 1 auf, also wurde
+`pg.server.info` dort eingetragen, mit einer Begründung in
+`AgentOperationReachTest::WITHOUT_LIFECYCLE`. Der Wächter ist strenger als
+angenommen: Er verlangt zu einer Operation ohne Lebenslauf einen **Aufrufer**
+und nicht nur einen Grund. *„Code, der als root läuft und zu dem kein Weg führt,
+ist Angriffsfläche ohne Nutzen."*
+
+Die Regel ist älter als dieser Plan und wiegt schwerer als seine Dateiliste —
+also ist der Plan nachgezogen worden und nicht der Wächter: **Eine Operation
+wird in demselben Beitrag eingetragen, der ihr einen Aufrufer gibt.** Die
+Klassen liegen bis dahin da und sind aus dem Agenten nicht erreichbar, und das
+ist der richtige Zustand.
+
+Bemerkenswert ist, wo der Fehler saass. Er stand in `docs/38 §17`, seit der Plan
+geschrieben wurde, und hat den ganzen Weg von `docs/36 §15` mitgenommen — dort
+steht `Registry.php` in Schritt 1 genauso. In P5 ist es nur deshalb nicht
+aufgefallen, weil dessen Schritt 1 bis 3 in einem Zug gebaut wurden und der
+Aufrufer damit im selben Lauf entstand. **Eine Reihenfolge, die zufällig
+funktioniert, funktioniert bis zu dem Tag, an dem jemand sie einzeln geht.**

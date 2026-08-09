@@ -196,7 +196,12 @@ final class DefinerStripTest extends TestCase
         ]));
 
         try {
-            $size = Dump::compress($raw, $gz);
+            // **Der Filter steht seit P5b im Aufruf** und nicht mehr fest in
+            // der Schleife (`docs/38 §13.2`) — `pg.dump.create` schreibt
+            // dieselbe Datei ohne ihn. Dieser Test hat den Umbau gefunden: Ohne
+            // das vierte Argument lief `compress()` hier durch und filterte
+            // nichts, und genau das soll er melden.
+            $size = Dump::compress($raw, $gz, null, Dump::withoutDefiner(...));
 
             $this->assertGreaterThan(0, $size);
 

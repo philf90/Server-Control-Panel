@@ -4820,6 +4820,83 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
 
 echo
+echo "── PgClusterTest: das Datenverzeichnis um ein Feld verfehlt ──"
+#
+# Genau der Fehler, den es gab: Feld 4 ist der Eigentümer und nicht das
+# Datenverzeichnis. Gefunden hat ihn kein Lesen, sondern ein Lauf gegen das
+# echte Werkzeug — ein Cluster mit dem Datenverzeichnis `postgres` sieht in
+# einer Ablage nicht falsch aus. Seit `parse()` eine Zeichenkette nimmt, ist er
+# ohne PostgreSQL zu haben.
+vorher_datei agent/src/Pg/Clusters.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Clusters.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'directory' => $fields[5],", "'directory' => $fields[4],")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Clusters.php "Datenverzeichnis ist Feld 4" &&
+pruefe "Datenverzeichnis ist Feld 4" \
+  PgClusterTest::test_the_data_directory_is_the_sixth_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
+
+echo
+echo "── PgClusterTest: fast-online gilt als laufend ──"
+#
+# Ein Cluster mitten im Start antwortet nicht. Wer `str_contains` statt `===`
+# nimmt, hält ihn für erreichbar — und die nächste Operation läuft in eine
+# Verbindung, die es nicht gibt.
+vorher_datei agent/src/Pg/Clusters.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Clusters.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'running' => $fields[3] === 'online',", "'running' => str_contains($fields[3], 'online'),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Clusters.php "online mit Beiwerk gilt als laufend" &&
+pruefe "online mit Beiwerk gilt als laufend" \
+  PgClusterTest::test_only_online_counts_as_running failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
+
+echo
+echo "── PgServerStateTest: ein achter Zustand, den niemand beantwortet ──"
+#
+# Der Fehlschlag, um den es geht, ist nicht der Tippfehler. Es ist der Zustand,
+# den jemand hinzufügt und in PgServerInstall vergisst: Dort fällt er in den
+# `default`-Zweig, und der heisst „PostgreSQL ist da, es ist nichts zu tun".
+vorher_datei agent/src/Pg/Server.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Server.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'state' => 'no_cluster',", "'state' => 'cluster_missing',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Server.php "unbekannter Zustand" &&
+pruefe "unbekannter Zustand" \
+  PgServerStateTest::test_the_vocabulary_is_the_documented_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgServerStateTest passed
+
+echo
+echo "── PgServerStateTest: der Installierer schweigt zu einem Zustand ──"
+#
+# Die Gegenrichtung desselben Wächters — hier bleibt die Aufzählung heil und
+# der Handgriff verschwindet.
+vorher_datei agent/src/Ops/PgServerInstall.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgServerInstall.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('not_handed_over', 'noch_nicht_uebergeben')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgServerInstall.php "Installierer kennt einen Zustand nicht" &&
+pruefe "Installierer kennt einen Zustand nicht" \
+  PgServerStateTest::test_every_state_is_answered_by_the_installer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgServerStateTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -72,11 +72,32 @@ final class Clusters
             throw $error;
         }
 
+        return self::parse($result->stdout);
+    }
+
+    /**
+     * Die Ausgabe lesen — ohne den Server, der sie erzeugt hat.
+     *
+     * **Getrennt, weil genau hier der Fehler sass und ein Test ihn nicht
+     * erreichen konnte.** Solange Aufruf und Auswertung in einer Methode
+     * standen, war die Feldnummer nur gegen ein laufendes `pg_lsclusters` zu
+     * prüfen — und das gibt es in der CI nicht. Eine Zeile als Zeichenkette
+     * hineinzugeben ist derselbe Zuschnitt, mit dem P3 seine Vorlagen prüft:
+     * Was gemessen werden soll, ist eine Eigenschaft der Zeichenkette.
+     *
+     * @return list<array{version: int, name: string, port: int, running: bool, directory: string}>
+     */
+    public static function parse(string $output): array
+    {
         $clusters = [];
 
-        foreach (explode("\n", trim($result->stdout)) as $line) {
+        foreach (explode("\n", trim($output)) as $line) {
             $fields = preg_split('/\s+/', trim($line)) ?: [];
 
+            // Die Kopfzeile fängt sich hier mit: `Ver` ist keine Zahl. Sie
+            // sollte bei `--no-header` gar nicht kommen — aber die Prüfung
+            // kostet nichts, und eine Fassung, die sie doch schreibt, ergäbe
+            // sonst einen Cluster mit der Fassung 0.
             if (count($fields) < 6 || ! ctype_digit($fields[0])) {
                 continue;
             }

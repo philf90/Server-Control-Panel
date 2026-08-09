@@ -6328,3 +6328,69 @@ Vorgang, den eine Positivliste verhindert.
 `Clusters::all()` das Feld 4 als Datenverzeichnis — das ist der Eigentümer.
 Aufgefallen beim Lauf gegen das echte Werkzeug, nicht beim Lesen; ein Cluster
 mit dem Datenverzeichnis `postgres` sieht in einer Ablage nicht falsch aus.
+
+### P5b Schritt 3 — PostgreSQL installieren, und zwei Wächter für eine Fussnote
+
+`pg.server.install` (`agent/src/Ops/PgServerInstall.php`), dazu `PgClusterTest`
+und `PgServerStateTest`.
+
+**Die Operation entscheidet nichts, was `describe()` nicht schon beantwortet
+hat.** Jeder der sieben Zustände hat genau einen Handgriff: `absent` wird
+installiert, `stopped` gestartet, `no_cluster` und `ambiguous` werden
+**abgewiesen** — mit dem Befehl im Klartext beziehungsweise mit dem Grund —, und
+die restlichen drei heissen „PostgreSQL ist da". Gefahren wurden am 9. August
+vier davon gegen einen echten Cluster: `stopped` → gestartet und `ready`,
+`ready` → `changed=false`, die Rolle `root` entzogen → `not_handed_over` **ohne
+Fehlschlag**, ein zweiter Cluster daneben → abgewiesen, alle Cluster entfernt →
+abgewiesen. Der fünfte Zustand ist `absent`, und ihn zu fahren hiesse hier, das
+Paket wirklich zu installieren.
+
+**Eine fehlende Übergabe ist kein Fehlschlag.** Nach der Installation läuft
+PostgreSQL und die Rolle `root` gibt es nicht; der Agent kann sie nicht anlegen,
+denn dafür bräuchte er genau die Verbindung, die ihm fehlt (`docs/38 §6.1`). Die
+Operation meldet deshalb Erfolg **und** den Befehl, den der Betreiber ausführt.
+Ihn zu verschweigen hiesse, nach einer geglückten Installation „fertig" zu
+sagen, während nichts geht.
+
+**`no_cluster` wird nicht repariert, und das ist eine Entscheidung.** Nach einer
+frischen Installation gibt es immer einen Cluster — das `postinst` legt ihn an.
+Keinen zu haben heisst also, dass jemand ihn entfernt hat, und einen neuen
+danebenzustellen wäre keine Reparatur, sondern eine zweite Meinung.
+
+**Und dann die Fussnote von gestern.** Der Eintrag darüber schliesst mit einem
+*„nebenbei, und nur der Vollständigkeit halber"*: `Clusters::all()` las Feld 4
+statt Feld 5, den Eigentümer statt des Datenverzeichnisses. Das war die falsche
+Einordnung. Es war kein Nebenbei, sondern eine Regel ohne Wächter — und dass sie
+gegen ein laufendes `pg_lsclusters` gefunden wurde, heisst nur, dass sie in der
+CI unauffindbar war.
+
+Die Auswertung ist deshalb aus dem Aufruf herausgezogen: `Clusters::parse()`
+nimmt eine Zeichenkette, und `PgClusterTest` hält echte Zeilen dagegen —
+gestoppt, zwei laufende, Kopfzeile, leere Ausgabe. Derselbe Zuschnitt, mit dem
+P3 seine Vorlagen prüft: *Was gemessen werden soll, ist eine Eigenschaft der
+Zeichenkette.* Der Wächter prüft ausdrücklich mit, dass dort **nicht**
+`postgres` steht — das ist der Wert, den die falsche Zählung lieferte, und er
+ist auf jedem System derselbe.
+
+**Der zweite Wächter hält eine Aufzählung zusammen, die es in drei Fassungen
+gibt.** Die sieben Zustandsnamen sind blosse Zeichenketten: `describe()` erzeugt
+sie, `PgServerInstall` verzweigt über sie, das Panel wird es gleich auch tun.
+Das ist wortwörtlich das Muster aus `CLAUDE.md`. Der Fehlschlag, um den es geht,
+ist nicht der Tippfehler — es ist der **achte** Zustand: Wer `describe()`
+erweitert und den Installierer vergisst, bekommt dort stillschweigend den
+`default`-Zweig, und der heisst „es ist nichts zu tun". Ein Server, der genau
+dann nicht läuft, meldete Erfolg.
+
+**Was PHPStan an einem der neuen Tests gefunden hat, gehört ebenfalls
+hierhin.** `test_only_online_counts_as_running` fuhr über `down`,
+`online,recovery` und `starting` — und prüfte damit ausschliesslich die
+Nein-Seite. Jeder Vergleich war falsch, jede Behauptung ging durch; eine
+Auswertung, die *nie* etwas als laufend liest, wäre grün geblieben. *Ein
+Wächter, der nur die Ablehnung prüft, prüft die Regel nicht.* Gefunden hat es
+`function.impossibleType` und nicht der Lauf — genau der tote Zweig, den
+`CLAUDE.md` in diesem Container als unauffindbar beschreibt, und ein Beleg
+dafür, dass der Einzeldateilauf über PHPStan die Runde wert ist.
+
+**`pg.server.install` steht noch in keiner Registratur.** Sie kommt mit dem
+Knopf, der sie auslöst — die Regel aus Lauf 446: *Eine Operation wird in
+demselben Beitrag eingetragen, der ihr einen Aufrufer gibt.*

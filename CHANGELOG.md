@@ -6197,3 +6197,55 @@ genannten Rollen es gibt, sperrt die vorhandenen und **meldet die fehlenden** �
 denn eine Sperre, die eine Rolle übergeht, ohne es zu sagen, sieht aus wie eine
 vollständige. Im Lauf gegen den Server: eine gesperrt, eine als fehlend
 gemeldet.
+
+### P5b Schritt 2 — `engine` als Aufzählung, und ein Präfix, das nie zurückkommt
+
+Die Migration, `App\Enums\DatabaseEngine` und `DatabaseEngineTest`. Dazu die
+zwei Korrekturen aus dem Messlauf auf `cloudsrv24` (`docs/38 §2.2c`).
+
+**Eine Aufzählung von Anfang an, und das ist die Lehre aus `DumpKind`.** Dort
+war der Wert bis zum 9. August eine nackte Spalte, deren Zeichenketten an vier
+Stellen verstreut standen — bis eine im Vue-Template landete, also über eine
+Grenze, die kein Typ prüft. `engine` wäre der nächste Kandidat gewesen: drei
+Tabellen, jede Verzweigung zwischen `db.*` und `pg.*`, und eine Marke in der
+Oberfläche.
+
+**Der Wächter hat beim ersten Trockenlauf zugebissen**, und zwar auf genau die
+Bauart, gegen die er entstand: `Settings/Database.vue` verglich
+`server.flavour === 'mariadb'` — ein Wert des Agenten, im Browser verglichen.
+Hinüber geht jetzt der fertige Text aus `DatabaseSettingsController::flavourLabel()`.
+Das Wort `mariadb` heisst in diesem Repo damit dreierlei: das System einer
+Kundendatenbank (die neue Aufzählung), der Verbindungstreiber des Panels
+selbst, und was `db.server.info` aus `@@version` gelesen hat. Die Ausnahmeliste
+nennt jede der drei Stellen mit ihrem Grund — und deckt seit dieser Änderung
+die **Übersetzung** statt des Vergleichs.
+
+**`db_prefix` wird bei `claim()` mitvergeben und nicht beim ersten Gebrauch.**
+Es hat dieselbe Eigenschaft wie die Nummer des Systembenutzers: Es kommt nie
+zurück. Ein Präfix, das erst entsteht, wenn jemand die erste
+PostgreSQL-Datenbank anlegt, bräuchte einen zweiten Weg — abgesichert gegen
+zwei gleichzeitige Anlagen, die beide dasselbe leere Feld sehen. So deckt der
+eindeutige Index beide Spalten, und die Wiederholungsschleife, die es für die
+Nummer schon gibt, deckt auch die Kollision hier.
+
+**Und es wird nicht hochgezählt, sondern gewürfelt.** `p1002_shop` sagt jedem
+Kunden des Servers, dass es ein Abonnement 1002 gibt — und in PostgreSQL sind
+die Namen aller Datenbanken für jeden lesbar (gemessen). Eine fortlaufende Zahl
+in anderer Schreibweise wäre dieselbe Auskunft mit einem Umweg.
+
+**`db_user_networks` ist die eine Stelle, an der das Datenmodell von P5 bricht**
+— `docs/37 §4` hat sie als „die teuerste Zeile" der Übergabetabelle
+angekündigt, und sie ist es geworden. In MariaDB sind
+`'p1001_web'@'localhost'` und `'p1001_web'@'203.0.113.5'` zwei Benutzer mit zwei
+Passwörtern, weshalb `(name, host)` dort eindeutig und richtig ist; in
+PostgreSQL ist es eine Rolle mit einem Passwort und mehreren erlaubten Netzen.
+
+**Zwei Korrekturen aus dem Messlauf.** `cloudsrv24` hat kein PostgreSQL — kein
+`psql`, kein Cluster, kein Benutzer `postgres` —, und der Kandidat von `apt`
+ist `16+257build1.1`, byteweise dieselbe Fassung wie im Entwicklungscontainer.
+**Die Messungen dieses Plans sind für den Zielserver damit keine Näherung,
+sondern dieselbe Konfiguration.** Und in `Pg\Server` stand, welche Fassung jede
+der vier Zielplattformen liefert — gemessen war davon eine. Die drei anderen
+Zahlen sind aus dem Gedächtnis geschrieben gewesen und stehen nicht mehr da;
+was zählt, ist die Grenze selbst. Für die Abnahme ist das folgenlos, weil sie
+auf `cloudsrv24` läuft; für die Freigabe steht es als offener Punkt.

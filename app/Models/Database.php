@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DatabaseStatus;
 use App\Models\Concerns\BelongsToSubscription;
 use App\Support\Tenancy\Tenancy;
@@ -68,7 +69,7 @@ class Database extends Model
 
     /** @var list<string> */
     protected $fillable = [
-        'subscription_id', 'name', 'label', 'status', 'charset', 'collation',
+        'subscription_id', 'name', 'label', 'engine', 'status', 'charset', 'collation',
         'size_bytes', 'size_measured_at',
     ];
 
@@ -76,6 +77,7 @@ class Database extends Model
     protected function casts(): array
     {
         return [
+            'engine' => DatabaseEngine::class,
             'status' => DatabaseStatus::class,
             'size_measured_at' => 'datetime',
         ];

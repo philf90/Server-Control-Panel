@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DatabaseEngine;
 use App\Models\DbUser;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -98,7 +99,7 @@ final class DatabaseSettingsController extends Controller
      * @return array{
      *     reachable: bool,
      *     error: string|null,
-     *     flavour: string|null,
+     *     flavour_label: string,
      *     version: string|null,
      *     usable: bool,
      *     reason: string|null,
@@ -106,6 +107,34 @@ final class DatabaseSettingsController extends Controller
      *     remote: bool,
      * }
      */
+    /** Was dasteht, wenn der Agent keine Geschmacksrichtung nennt. */
+    private const FLAVOUR_UNKNOWN = '—';
+
+    /**
+     * Aus der Auskunft des Agenten wird der Text für die Oberfläche.
+     *
+     * **Hier und nicht im Template**, und das ist die Lehre aus `DumpKind`
+     * (`docs/36 §22.3x`): Bis zum 9. August 2026 verglich `Settings/Database.vue`
+     * die Zeichenkette selbst — `flavour === 'mariadb'`. Das ist ein Wert über
+     * die Grenze zwischen PHP und Browser, und die prüft kein Typ: Nennt der
+     * Agent seine Geschmacksrichtung eines Tages anders, steht im Panel
+     * wortlos der Rohwert.
+     *
+     * Gefunden hat es `DatabaseEngineTest` beim ersten Lauf — er sucht nach
+     * genau diesen Zeichenketten, und `mariadb` heisst an dieser Stelle etwas
+     * Drittes: nicht das System einer Kundendatenbank
+     * ({@see DatabaseEngine}) und nicht der Verbindungstreiber des
+     * Panels, sondern was `db.server.info` aus `@@version` gelesen hat.
+     */
+    private static function flavourLabel(mixed $flavour): string
+    {
+        return match ($flavour) {
+            'mariadb' => 'MariaDB',
+            'mysql' => 'MySQL',
+            default => self::FLAVOUR_UNKNOWN,
+        };
+    }
+
     private function server(Client $agent): array
     {
         try {
@@ -114,7 +143,7 @@ final class DatabaseSettingsController extends Controller
             return [
                 'reachable' => false,
                 'error' => $error->getMessage(),
-                'flavour' => null,
+                'flavour_label' => self::FLAVOUR_UNKNOWN,
                 'version' => null,
                 'usable' => false,
                 'reason' => null,
@@ -126,7 +155,7 @@ final class DatabaseSettingsController extends Controller
         return [
             'reachable' => ($info['available'] ?? false) === true,
             'error' => null,
-            'flavour' => is_string($info['flavour'] ?? null) ? $info['flavour'] : null,
+            'flavour_label' => self::flavourLabel($info['flavour'] ?? null),
             'version' => is_string($info['version'] ?? null) ? $info['version'] : null,
             'usable' => ($info['usable'] ?? false) === true,
             'reason' => is_string($info['reason'] ?? null) ? $info['reason'] : null,

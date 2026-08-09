@@ -38,14 +38,24 @@ final class Server
     /**
      * Die kleinste Fassung, auf der dieses Panel arbeitet.
      *
-     * **PostgreSQL 14, und die Zahl kommt nicht aus einer Wunschliste, sondern
-     * von den Zielplattformen:** Ubuntu 22.04 liefert 14, Debian 12 liefert 15,
-     * Ubuntu 24.04 liefert 16, Debian 13 liefert 17.
-     *
      * Was an 14 anders ist, steht in {@see Shielding}: Bis dahin darf `PUBLIC`
      * im Schema `public` jeder Datenbank anlegen. Die Absperrung nimmt das Recht
      * ausdrücklich weg, statt sich auf die Vorgabe zu verlassen — deshalb ist 14
      * benutzbar und nicht bloss geduldet.
+     *
+     * **Und hier stand, welche Fassung jede der vier Zielplattformen liefert.
+     * Gemessen war davon eine.** Ubuntu 24.04 liefert 16.13 — zweimal belegt, im
+     * Entwicklungscontainer und über den apt-Kandidaten auf `cloudsrv24`
+     * (`docs/38 §2.2c`). Die Zahlen für Ubuntu 22.04, Debian 12 und Debian 13
+     * waren aus dem Gedächtnis geschrieben, und genau diese Sorte Satz hat in
+     * P5b viermal einen Abschnitt umgeworfen.
+     *
+     * Sie stehen deshalb nicht mehr da. Was zählt, ist die Grenze selbst: Eine
+     * Fassung darunter bekommt die Datenbankfläche nicht angeboten, und
+     * {@see self::usable()} sagt im Klartext, warum. **Für die Abnahme von P5b
+     * ist das folgenlos** — sie läuft auf `cloudsrv24`, und dort ist die Fassung
+     * gemessen. Für die Freigabe gehört sie auf allen vier Plattformen
+     * nachgesehen; sie steht als offener Punkt in `docs/38 §2.3`.
      */
     public const MIN_VERSION = 14;
 

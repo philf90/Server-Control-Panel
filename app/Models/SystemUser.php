@@ -35,6 +35,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $number
  * @property string|null $subscription
+ * @property string|null $db_prefix
  * @property Carbon $claimed_at
  */
 class SystemUser extends Model
@@ -52,7 +53,7 @@ class SystemUser extends Model
     public $timestamps = false;
 
     /** @var list<string> */
-    protected $fillable = ['number', 'subscription', 'claimed_at'];
+    protected $fillable = ['number', 'subscription', 'db_prefix', 'claimed_at'];
 
     /** @return array<string, string> */
     protected function casts(): array

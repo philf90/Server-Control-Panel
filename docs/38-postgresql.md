@@ -99,16 +99,47 @@ Nachgemessen, nachdem §6 in seiner ersten Fassung einen Kennungswechsel im
 | M26b | Erbt das Kind fremde Dateinummern? | **Ja**, den Socket des Agenten |
 | M27 | Kann root einen Cluster mit eigenem Bootstrap-Benutzer anlegen? | Ja: `pg_createcluster 16 probe -- --username=root`, und root verbindet sich danach sofort. **Nebenbefund:** In diesem Cluster gibt es *keine* Rolle `postgres`, und Debians Wartungswerkzeuge rechnen mit ihr |
 
+### 2.2c Der Ausgangszustand des Zielservers
+
+Gemessen auf `cloudsrv24` am 9. August 2026, **vor** dem ersten Schritt von P5b.
+
+| Frage | Befund |
+|---|---|
+| Ist PostgreSQL da? | **Nein.** Kein `psql`, kein `pg_lsclusters`, kein `/etc/postgresql`, und `sudo -u postgres` meldet `unknown user postgres` |
+| Was würde `apt` installieren? | **`16+257build1.1`** — byteweise dieselbe Fassung wie im Entwicklungscontainer |
+
+**Die zweite Zeile ist die wertvollere.** `cloudsrv24` ist Ubuntu 24.04 und
+bekommt PostgreSQL 16.13 — also genau die Fassung, gegen die §2.2, §2.2a und
+§2.2b gemessen wurden. **Die Messungen dieses Plans sind für den Zielserver
+keine Näherung, sondern dieselbe Konfiguration:** die dreizehn Kanäle, die
+`public`-Regel ab PG 15, `WITH (FORCE)`, `DROP OWNED BY` je Datenbank und der
+Rückgabewert von `psql -f` ohne `ON_ERROR_STOP`.
+
+**Und der Zustand „nichts installiert" bleibt stehen.** Er ist der Fall, für den
+`pg.server.info` und `pg.server.install` gebaut werden (§7) — wer ihn von Hand
+auflöst, nimmt der Operation ihren einzigen Prüfstein. Die erste Installation
+auf diesem Server macht das Panel.
+
+> **Der Messlauf hat dabei zwei eigene Fehler gezeigt, beide im Werkzeug und
+> nicht im Gegenstand.** Der erste: Die Befehlsfolge setzte voraus, dass
+> PostgreSQL installiert ist, und war für einen Server geschrieben, den es so
+> nicht gab. Der zweite: `mysql -p` liest sein Passwort von der Standardeingabe
+> — werden mehrere Zeilen zusammen eingefügt, nimmt es die **nächste Zeile** als
+> Passwort. Die Probe auf den Ratekanal von MariaDB (§2.3 Punkt 4) hat deshalb
+> zweimal `ERROR 1045` geliefert und die Frage nicht berührt; sie bleibt offen.
+
 ### 2.3 Was hier nicht zu messen war
 
 Diese Fragen gehören auf `cloudsrv24` und auf die vier Zielplattformen, **bevor
 Schritt 4 beginnt**:
 
-1. **Die Fassungsspanne.** Debian 12/13 und Ubuntu 22.04/24.04 liefern
-   verschiedene PostgreSQL-Fassungen, und die für uns wichtigste Regel hat sich
+1. **Die Fassungsspanne — für drei der vier Plattformen.** Ubuntu 24.04
+   liefert 16.13, zweimal belegt (§2.2c). Für Debian 12, Debian 13 und Ubuntu
+   22.04 steht die Zahl weiter aus, und die für uns wichtigste Regel hat sich
    mit **PG 15** geändert: Bis PG 14 darf `PUBLIC` im Schema `public` jeder
    Datenbank Objekte anlegen, ab PG 15 nicht mehr. Auf der älteren Fassung ist
-   das ein Loch in genau der Wand, die §5 baut.
+   das ein Loch in genau der Wand, die §5 baut. **Für die Abnahme von P5b ist
+   das folgenlos** — sie läuft auf `cloudsrv24` —, für die Freigabe nicht.
 2. **Ob das Metapaket `postgresql` überall die richtige Fassung zieht.**
 3. **Die Liste der elf Sichten ist fassungsabhängig** — PG 17 hat mehr
    `pg_stat_progress_*` als PG 14. Deshalb wird sie in §10 **erfragt und nicht

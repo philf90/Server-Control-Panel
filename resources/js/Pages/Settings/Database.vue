@@ -19,7 +19,7 @@ const props = defineProps<{
   server: {
     reachable: boolean
     error: string | null
-    flavour: string | null
+    flavour_label: string
     version: string | null
     usable: boolean
     reason: string | null
@@ -55,12 +55,9 @@ const zustand = computed(() => {
   return props.server.remote ? 'Fernzugriff möglich' : 'nur lokal'
 })
 
-const bezeichnung = computed(() => {
-  if (props.server.flavour === 'mariadb') return 'MariaDB'
-  if (props.server.flavour === 'mysql') return 'MySQL'
-
-  return props.server.flavour ?? '—'
-})
+// Der fertige Text kommt aus dem Panel, nicht der Wert — siehe
+// DatabaseSettingsController::flavourLabel().
+const bezeichnung = computed(() => props.server.flavour_label)
 </script>
 
 <template>

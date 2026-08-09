@@ -17,8 +17,20 @@ aus `docs/36 §17`**, dazu Schritt 10 und 11 am 9. August in zwölf Schritten
 (`docs/36 §22.3w` und `§22.3x`).
 
 **Als Nächstes kommt P5b — PostgreSQL**, als eigene Stufe mit eigenem Plan und
-eigener Abnahme. Die Übergabe dafür ist **`docs/37`**; sie nennt auch die eine
-Frage, die vor dem Planen beantwortet sein muss.
+eigener Abnahme. Die Übergabe dafür ist **`docs/37`**, der Plan **`docs/38`**.
+
+**Und die eine Frage, die `docs/37 §3` vor dem Planen verlangt hat, ist
+gemessen worden — sie hat das Abnahmekriterium umgeworfen.** „Ein
+Datenbankbenutzer kann die Namen fremder Datenbanken nicht aufzählen" ist in
+PostgreSQL nicht erfüllbar: Der Verbindungsaufbau verrät die Existenz, und der
+Entzug von `pg_database` nähme dem **Kunden** `pg_dump`. Dazu elf weitere
+lesbare Katalogsichten, die Namen führen, und eine Absperrung, die bei
+`TEMPLATE template0` lautlos zurückfällt. Das neue Kriterium steht in
+`docs/38 §3`. Daraus die Lehre neben der aus P4:
+
+> **Wissen aus zweiter Hand sieht aus wie Wissen.** Der Satz „`pg_database` ist
+> für jeden lesbar" stimmte — und war trotzdem die falsche Frage, weil er einen
+> von elf Kanälen nannte und den Preis der Antwort verschwieg.
 
 Ausgeliefert wird `v0.5.0-rc.10`.
 
@@ -217,7 +229,9 @@ Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 Und aus P5: **`36` Datenbanken** — der Plan, die sieben Abnahmekriterien als
 Befehlsfolge (§17), die Entscheidungen des Betreibers (§19) und ein langes
 Protokoll dessen, was beim Bauen anders war als im Plan (§22.3a–§22.3x) — sowie
-**`37` die Übergabe an P5b**.
+**`37` die Übergabe an P5b** und **`38` der Plan von P5b**: §2 die Messungen,
+die vor dem Plan kamen, §3 das neu gefasste Abnahmekriterium, §19 die
+Befehlsfolge dazu.
 
 ---
 
@@ -242,6 +256,15 @@ Auf dem Zielserver:
 Der Container ist **nicht** der Zielserver. Was hier fehlt, muss man beim
 Testen berücksichtigen:
 
+- **PostgreSQL gibt es hier, und zwar vollständig.** `postgresql-16` ist
+  installiert, Serverbinärdateien und alles — der Satz „dieser Container hat
+  keine Datenbank" gilt für MariaDB und **nicht** für PostgreSQL. Ein
+  Wegwerf-Cluster (`initdb` in den Scratchpad, `pg_ctl` auf einem eigenen Port)
+  hat in P5b das Abnahmekriterium umgeworfen, bevor eine Zeile Plan entstand.
+  Zwei Dinge dabei: Der Socketpfad muss **kurz** sein — der Scratchpad
+  überschreitet die Grenze von 107 Byte, und die Meldung nennt sie —, und
+  `postgres` läuft nicht als root, also `su postgres -c`. Was für MariaDB als
+  Textprüfung gebaut werden musste, lässt sich für PostgreSQL messen.
 - **kein nginx, kein PHP-FPM, kein Agent, kein systemd.** Operationen laufen
   gegen Attrappen. Zwei Fehler sind nur aufgefallen, weil die CI nginx *hat*
   und dieser Container nicht — Tests, die Systemzustand annehmen, gehören

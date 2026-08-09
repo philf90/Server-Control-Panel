@@ -1092,13 +1092,32 @@ Kunden die Rechtevergabe geschenkt ([36 §10.2](36-datenbanken.md)).
 
 ### P5b — PostgreSQL · 2–3 Wochen · (0.6.x)
 
-Aus P5 herausgelöst (§15 Punkt 5). PostgreSQL im Zuschnitt von P5, mit **eigener
-Abnahme** — denn „sieht keine fremde Datenbank" bedeutet dort etwas anderes:
-`pg_database` ist für jeden lesbar, und `REVOKE CONNECT ON DATABASE … FROM
-PUBLIC` nimmt die Verbindung und nicht die Sichtbarkeit des Namens.
+Aus P5 herausgelöst (§15 Punkt 5). Der Plan dazu ist [38](38-postgresql.md), die
+Übergabe [37](37-uebergabe-an-p5b.md).
 
-**Fertig, wenn** dasselbe gilt wie für P5 — und ein Datenbankbenutzer die
-**Namen** fremder Datenbanken nachweislich nicht aufzählen kann.
+- PostgreSQL im Zuschnitt von P5, mit **eigener Abnahme**
+- **Kein Fernzugriff** — die Wirtsbeschränkung steht in PostgreSQL in
+  `pg_hba.conf` und nicht am Benutzer, und diese Datei fasst das Panel nicht an
+  ([38 §14](38-postgresql.md))
+- PostgreSQL wird erkannt und auf Verlangen installiert, nie als
+  Paketabhängigkeit ([38 §7](38-postgresql.md))
+
+**Fertig, wenn** ein Kunde eine PostgreSQL-Datenbank anlegt, benutzt, sichert
+und zurückspielt — und die sieben Punkte aus [38 §3](38-postgresql.md) belegt
+sind.
+
+*Berichtigt am 9. August 2026, nach der Messung.* Hier stand: *„und ein
+Datenbankbenutzer die **Namen** fremder Datenbanken nachweislich nicht aufzählen
+kann."* Das ist auf einem echten PostgreSQL gemessen worden und in dieser Form
+**nicht erfüllbar**, aus zwei unabhängigen Gründen: Der Verbindungsaufbau
+unterscheidet „keine Berechtigung" von „gibt es nicht" und verrät damit die
+Existenz — das lässt sich durch keine Rechtevergabe schliessen. Und das
+Aufzählen liesse sich zwar schliessen, aber der Entzug von `pg_database` nimmt
+dem **Kunden** `pg_dump`, auch für seine eigene Datenbank. An die Stelle tritt
+das Kriterium aus [38 §3](38-postgresql.md): Namen, die nichts verraten, elf
+gesperrte Statistiksichten, kein Zugriff, eine Absperrung, die der Kunde nicht
+aufheben kann — und der verbleibende Ratekanal wird im Abnahmelauf ausdrücklich
+gefahren und protokolliert, statt verschwiegen zu werden.
 
 ### P6 — Dateien, Zugänge, Cron · 3–4 Wochen · (0.7)
 
@@ -1382,8 +1401,10 @@ Offen bleibt:
 | ~~3~~ | **Beantwortet in P3: `deb.sury.org` bleibt.** Die Abhängigkeit ist auf eine Stelle zusammengezogen — `srvpanel-php-source` trägt die Quelle ein, `PhpVersions::CATALOG` nennt die Versionen, `PhpVersions::EXTENSIONS` die Pakete. Ein Wechsel auf einen eigenen Spiegel ist damit eine neue Fassung eines Pakets und keine Umbauaktion. Die Schwelle bleibt die aus §4.3: zahlende Kunden, zehn bis zwanzig Euro im Monat für Objektspeicher. Bis dahin steht die Abhängigkeit in der Sicherheitsbetrachtung — und neu: **kein Freitext erreicht apt.** Der Paketname entsteht aus zwei Positivlisten im Agenten | erledigt |
 | 3a | **Den Schlüssel von sury im Paket mitliefern statt beim Einrichten zu holen?** `srvpanel-php-source` lädt ihn heute im `postinst` über das Netz — das braucht Netz zur Installationszeit und ist nicht reproduzierbar. Ihn einzubetten wäre besser, bindet aber einen fremden Schlüssel an unsere Fassung: Rotiert sury, ist jede ausgelieferte Fassung falsch, bis eine neue erscheint. Dieselbe Abwägung wie Punkt 2a, nur mit einem Schlüssel, der uns nicht gehört | vor 1.0 |
 | ~~4~~ | **Beantwortet in P3: dauerhaft nur nginx.** Zwei Webserver-Vorlagen zu pflegen verdoppelte genau die Fläche, die klein bleiben soll — und die Vorlagen sind die Stelle, an der ein Fehler `root` auf ein fremdes Verzeichnis zeigen lässt. Ein *laufender* fremder Webserver verweigert den Betrieb (`webserver.detect`), ein bloss installierter nicht: Auf manchen Systemen liegt Apache als Abhängigkeit herum, ohne je zu starten, und wer deswegen den Dienst verweigerte, verweigerte ihn auf einem Server, auf dem nichts im Weg ist | erledigt |
-| ~~5~~ | **Beantwortet vor P5: in der 1.0, aber als eigene Stufe P5b.** Nicht „nach hinten" und nicht „als zweiter Schritt der Stufe", wie §9 P5 es formuliert hatte — sondern getrennt abnehmbar, mit eigenem Plan ([37](37-postgresql.md)) und eigener Abnahme. Der Grund ist eine Überprüfbarkeit: [36 §14](36-datenbanken.md) behauptet, ein zweites Datenbanksystem sei eine Erweiterung und kein Umbau. Eine eigene Stufe ist die Bauform, in der sich das nachweisen lässt — muss P5b `agent/src/Db/` aufreissen, war die Trennung falsch, und es fällt auf, bevor MariaDB darunter leidet. **P5 baut dafür nichts vor:** keine `engine`-Spalte auf Verdacht, keine Schnittstelle mit einer einzigen Umsetzung. Die ganze Vorleistung ist eine Unterlassung — `Db\Session` bleibt die einzige Stelle, die `mysql` aufruft, und kein Modell, keine Tabelle und keine Spalte trägt `mysql` im Namen. Zu klären hat P5b vor allem eines: „sieht keine fremde Datenbank" heisst dort etwas anderes, weil `pg_database` für jeden lesbar ist und `REVOKE CONNECT` die Verbindung nimmt und nicht den **Namen** | erledigt |
+| ~~5~~ | **Beantwortet vor P5: in der 1.0, aber als eigene Stufe P5b.** Nicht „nach hinten" und nicht „als zweiter Schritt der Stufe", wie §9 P5 es formuliert hatte — sondern getrennt abnehmbar, mit eigener Übergabe ([37](37-uebergabe-an-p5b.md)), eigenem Plan ([38](38-postgresql.md)) und eigener Abnahme. Der Grund ist eine Überprüfbarkeit: [36 §14](36-datenbanken.md) behauptet, ein zweites Datenbanksystem sei eine Erweiterung und kein Umbau. Eine eigene Stufe ist die Bauform, in der sich das nachweisen lässt — muss P5b `agent/src/Db/` aufreissen, war die Trennung falsch, und es fällt auf, bevor MariaDB darunter leidet. **P5 baut dafür nichts vor:** keine `engine`-Spalte auf Verdacht, keine Schnittstelle mit einer einzigen Umsetzung. Die ganze Vorleistung ist eine Unterlassung — `Db\Session` bleibt die einzige Stelle, die `mysql` aufruft, und kein Modell, keine Tabelle und keine Spalte trägt `mysql` im Namen. Zu klären hat P5b vor allem eines: „sieht keine fremde Datenbank" heisst dort etwas anderes, weil `pg_database` für jeden lesbar ist und `REVOKE CONNECT` die Verbindung nimmt und nicht den **Namen** | erledigt |
 | 5a | **Adminer** — bauen, aufschieben oder streichen? §9 P5 nennt ihn („eingebettetes Werkzeug, Anmeldung ohne Passwortweitergabe"), er ist aber nicht Teil des Abnahmekriteriums. **Vor P5 aufgeschoben**, und der Grund ist derselbe, aus dem `certbot` mit P4 wieder von der Positivliste des Agenten verschwunden ist: fremder Code auf dem Panel-Host, den wir ab dann mit ausliefern und aktualisieren — hier mit Datenbankzugangsdaten. Dazu kommt, dass die Aufgabe sich mit P5b ändert: Ein eingebettetes Werkzeug für zwei Datenbanksysteme ist etwas anderes als eines für eines. **Zu entscheiden nach P5b**, und die Alternative gehört mitbetrachtet — eine schmale eigene Tabellenansicht deckt den Fall „ich will in meine Daten sehen" ab, ohne eine fremde Anwendung mit voller SQL-Fläche auszuliefern ([36 §13](36-datenbanken.md)) | nach P5b |
+| 5b | **PostgreSQL-Erweiterungen**: welche gehören auf die Positivliste? In P5b gehört die Datenbank dem Panel und nicht dem Kunden — das ist die einzige Bauform, in der der Kunde die Absperrung nicht selbst wieder aufheben kann ([38 §5](38-postgresql.md), gemessen). Der Preis ist, dass er kein `CREATE EXTENSION` bekommt, auch kein `pgcrypto`, das PostgreSQL selbst als vertraut einstuft. Der Ausweg ist eine Positivliste im Agenten und eine Operation, die daraus installiert — wörtlich die Form von `PhpVersions::EXTENSIONS`. **Welche Erweiterungen daraufgehören, ist eine Frage an den Betrieb und nicht an einen Plan**, und sie lässt sich erst beantworten, wenn jemand PostgreSQL im Panel benutzt hat | nach P5b |
+| 5c | **Fernzugriff auf PostgreSQL** — er entfällt in P5b, und zwar nicht aus Bequemlichkeit: Die Wirtsbeschränkung eines Kunden steht dort in `pg_hba.conf` und hat kein Gegenstück am Benutzer; die Datei bleibt unangetastet. Ein Include-Punkt für `pg_hba.conf` existiert erst ab **PG 16** und ist bei Debian auch dort nicht eingeschaltet — auf Ubuntu 22.04 und Debian 12 gibt es ihn gar nicht. Ein Fernzugriff, der auf der Hälfte der Zielplattformen anders gebaut wäre, sind zwei Umsetzungen für eine Zusage. Für `listen_addresses` gäbe es dagegen einen sauberen Include-Punkt (`include_dir = 'conf.d'`, in Debians Vorgabe aktiv). Zu entscheiden ist er zusammen mit der Frage, ab wann die Fassungsspanne der Zielplattformen bei PG 16 anfängt ([38 §14](38-postgresql.md)) | vor 1.0 |
 | 6 | **FTP** (unverschlüsselt/FTPS über vsftpd oder ProFTPD) neben SFTP wirklich nötig, oder reicht SFTP? | P6 |
 | 7 | **Testserver**: gibt es Hardware/VM für Integrationsläufe und Lasttests, oder muss die CI das leisten? | P1 |
 | 8 | **Datenschutz**: Auftragsverarbeitung, Aufbewahrungsfristen für Protokoll und Zugriffs-Logs, Löschkonzept für Kundendaten | P9 |

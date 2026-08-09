@@ -5746,3 +5746,119 @@ Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich m
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und
 eigener Abnahme, statt „zweiter Schritt der Stufe"). `docs/20 §9` und `§15` sind
 nachgezogen.
+
+### P5b — PostgreSQL: die Messung kam vor dem Plan (docs/38)
+
+**Das Abnahmekriterium von P5b war nicht erfüllbar, und das ist auf einem
+echten PostgreSQL gemessen worden, bevor eine Zeile Plan entstand.** `docs/20
+§9` verlangte, dass ein Datenbankbenutzer die *Namen* fremder Datenbanken nicht
+aufzählen kann. `docs/37 §3` hatte ausdrücklich verlangt, das zu messen statt
+aus dem Gedächtnis zu beantworten — und der Anlass dafür war die Lehre aus dem
+TLS-Abnahmelauf: Wissen aus zweiter Hand sieht wie Wissen aus.
+
+Gemessen wurde **in diesem Container**, und das war der erste Fund: `CLAUDE.md`
+und `docs/36 §18` halten fest, dass hier keine Datenbank läuft. Für MariaDB
+stimmt das, für PostgreSQL nicht — `postgresql-16` ist installiert, Server und
+alles. Ein Wegwerf-Cluster auf einem eigenen Port, die Lage aus `docs/36 §17`
+nachgebaut, zwei Abonnements. Damit ist der grösste Teil von P5b hier *fahrbar*
+und nicht nur übersetzbar; jeder Fund, der lokal fällt, spart eine CI-Runde.
+
+**Das Kriterium fällt aus zwei unabhängigen Gründen, und der zweite ist der
+teurere.** Der erste: Der Verbindungsaufbau unterscheidet „keine Berechtigung"
+von „gibt es nicht" und verrät damit die Existenz einer fremden Datenbank. Das
+lässt sich durch keine Rechtevergabe schliessen, es ist Teil des Protokolls. Der
+zweite: Das Aufzählen liesse sich schliessen — aber der Entzug von `pg_database`
+nimmt dem **Kunden** `pg_dump`, und zwar nicht nur `--create`, sondern den
+schlichten Export seiner eigenen Datenbank. Ein Panel, das die Abschottung
+durchsetzt, indem es dem Kunden das Sicherungswerkzeug wegnimmt, hat einen
+Sicherheitsgewinn gegen einen Datenverlust getauscht.
+
+**Und `pg_database` war gar nicht der einzige Kanal — nur der bekannteste.** Ein
+Rundgang durch den Katalog nach Spalten, die einen Datenbanknamen führen, fand
+dreizehn Relationen, **elf davon für jeden Kunden lesbar**. `pg_stat_database`
+nennt *alle* Datenbanken, auch die ohne jede Aktivität; `pg_stat_activity` gibt
+zusätzlich die Rollennamen fremder Sitzungen preis. Wer nur `pg_database`
+gesperrt hätte — also genau das, was `docs/37 §3` als „die" Frage benannte —,
+hätte einen Kanal geschlossen und zehn offengelassen, und das Kriterium hätte
+grün ausgesehen.
+
+**Der unangenehmste Fund ist eine Absperrung, die sich selbst aufhebt.** Der
+Entzug wirkt je Datenbank und nicht je Cluster. Eine mit `TEMPLATE template0`
+angelegte Datenbank — und `template0` ist Pflicht, sobald eine Sortierung
+gesetzt wird — kommt mit unveränderten Rechten zurück. Gemessen: dieselbe Rolle
+sah in der einen Datenbank nichts und in der nächsten sieben Namen, und beide
+sahen von aussen gleich aus. Deshalb läuft die Absperrung in P5b in derselben
+Operation wie das Anlegen, und deshalb wird die Liste der Sichten **erfragt und
+nicht verdrahtet**: Sie ist fassungsabhängig, und eine feste Liste wäre auf der
+nächsten Fassung ein offener Kanal, den niemand bemerkt.
+
+**An seine Stelle tritt ein Kriterium mit sieben Punkten** (`docs/38 §3`):
+Namen, die nichts verraten, elf gesperrte Statistiksichten, kein Zugriff, eine
+Absperrung, die der Kunde nicht aufheben kann, ein Dump, der nichts erzwingen
+kann — und ausdrücklich, dass `pg_dump` für den Kunden weiter funktioniert.
+Der letzte Punkt ist kein Zusatz, sondern die Gegenprobe zum ersten: Er
+verhindert, dass jemand die Abschottung später doch über den Entzug löst und
+dabei etwas kaputtmacht, das niemand prüft. Der verbleibende Ratekanal wird im
+Abnahmelauf **gefahren und protokolliert** — ein Kriterium, das seine eigene
+Grenze nicht misst, behauptet sie nur.
+
+**Der Kunde bekommt seine Datenbank nicht mehr zu eigen, und das ist gemessen
+und nicht vorsichtshalber.** Ein Eigentümer darf `GRANT CONNECT ON DATABASE …
+TO PUBLIC`; danach verbindet sich jeder andere Kunde des Servers. Er darf
+ausserdem `DROP DATABASE` auf die eigene — das Panel hätte danach eine Zeile und
+keine Datenbank. Ein Abnahmekriterium, das der Geprüfte mit einer Zeile SQL
+abschalten kann, ist keins. Der Preis ist ehrlich zu nennen: ohne Eigentum kein
+`CREATE EXTENSION`, auch kein `pgcrypto`. Die Positivliste dafür steht als
+Punkt 5b in `docs/20 §15`.
+
+**Die Falle, an der P5b sich am leichtesten hätte täuschen lassen:** `psql -f`
+gibt bei gescheitertem SQL **0** zurück und arbeitet weiter. Gemessen an vier
+Anweisungen, von denen die dritte abgewiesen wurde: Rückgabewert 0, und die
+vierte lief trotzdem. `mysql` bricht von selbst ab — genau darauf ruht der Beleg
+von Kriterium 6 in P5, wörtlich „ERROR 1045 at line 6520". Ohne
+`ON_ERROR_STOP=1` wäre in P5b ein vollständig gescheitertes Zurückspielen als
+„erledigt" gemeldet worden, und für den bösartigen Dump hätte es überhaupt keine
+Fehlermeldung gegeben, die man zitieren könnte. Das ist Lehre 3 aus `docs/37
+§6` an einer Stelle, an der das andere System sie von selbst einhält — und
+deshalb die gefährlichste Sorte: eine Regel, die man nur dort lernt, wo sie
+gebrochen wird.
+
+**Der Agent kommt als root nicht an PostgreSQL heran.** MariaDB erkennt root
+über den Socket, das kostete in P5 keine Zeile; PostgreSQL bildet Unix-Kennungen
+auf Rollen ab, und eine Rolle `root` gibt es nicht. Gebaut wird deshalb ein
+„läuft als"-Feld im `Runner` und **nicht** `runuser` auf der Positivliste:
+`runuser` ist ein Programm, das als root beliebige andere unter beliebiger
+Kennung startet — auf einer Liste, von der `certbot` in P4 mit der Begründung
+verschwunden ist, dass ein Programm mit Erlaubnisschein Angriffsfläche ist, wäre
+das die weiteste Zeile überhaupt. Das Feld bekommt eine eigene Positivliste mit
+genau einem Eintrag; ein `as`, das Freitext nimmt, wäre dieselbe Vollmacht eine
+Ebene tiefer.
+
+**`suggests: postgresql` stand seit P0 in `nfpm.yaml` und hat nie etwas
+bewirkt.** Es war das einzige Vorkommen des Wortes im ganzen Quelltext — ohne
+Kommentar, ohne Operation, ohne Prüfung, in einer Datei, deren übrige Zeilen
+jede einzeln begründet sind. `Suggests` installiert nichts. Wieder das Muster,
+das dieses Projekt am häufigsten trifft: eine Zeichenkette, die auf etwas
+verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug prüft; sie
+liest sich wie eine Abhängigkeit und ist eine Absichtserklärung. `Depends` wäre
+die falsche Korrektur — jede Installation bekäme einen zweiten Datenbankdienst,
+gemessen 6 Prozesse, ~108 MiB und 79 MB Platte, auch auf Servern, die nie eine
+PostgreSQL-Datenbank anlegen, und abwählbar wäre er nicht. Gebaut wird deshalb
+die Form aus P3: erkennen immer, installieren auf Verlangen, hinter einem
+Betreiberschalter. Ein vorhandener Cluster ist Bestand und wird benutzt.
+
+**Ein Verweis in einem Dokument zeigte ins Leere**, und der Wächter dafür
+existiert: `ChangelogTest::test_every_referenced_document_exists`. Er hätte es
+trotzdem nicht gefunden — er sieht in den `CHANGELOG` und prüft die *Nummer*
+über einen Glob, nicht den Dateinamen und nicht die Dokumente untereinander.
+`docs/20 §15` verwies auf `37-postgresql.md`; die Datei heisst
+`37-uebergabe-an-p5b.md`. Das ist die zweite Lehre über Wächter aus `docs/37
+§6` eine Ebene weiter: Sie dürfen `docs/` nicht auslassen. `DocLinkTest` kommt
+als Schritt 0 von P5b, und der Verweis ist berichtigt.
+
+**Was P5b ausdrücklich nicht baut:** Fernzugriff. Die Wirtsbeschränkung steht in
+PostgreSQL in `pg_hba.conf` und hat kein Gegenstück am Benutzer; die Datei
+bleibt unangetastet, und einen Include-Punkt kennt sie erst ab PG 16 — bei
+Debian auch dort nicht eingeschaltet. Zwei Umsetzungen für eine Zusage sind
+keine. Er steht als Punkt 5c in `docs/20 §15`. `docs/20 §9 P5b` ist mitsamt
+seinem Abnahmekriterium nachgezogen.

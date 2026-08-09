@@ -174,21 +174,36 @@ final class FrameContractTest extends TestCase
     {
         $this->assertNotSame([], Frame::KINDS, 'Es gibt keine Arten mehr — dann prüft dieser Test nichts.');
 
+        /*
+         * **Eine Zuordnung und kein `match`.** Hier stand eines, und die beiden
+         * Umgebungen haben sich darüber widersprochen: In der CI meldete
+         * PHPStan `match.alwaysTrue` (der `default`-Zweig sei unerreichbar,
+         * weil {@see Frame::KINDS} genau diese zwei Werte kennt), ohne larastan
+         * meldete er `match.unhandled` (der Wert sei `mixed`). Beide Male ging
+         * es um dieselbe Zeile, und beide Male hatte er nach seiner Sicht
+         * recht.
+         *
+         * Ein Feldzugriff wird von keiner der beiden Sichten auf
+         * Vollständigkeit geprüft — und die Meldung für eine neue Art steht
+         * damit wieder da, wo sie hingehört: in einer Behauptung, die sagt, was
+         * zu tun ist.
+         */
+        $bauplan = [
+            Frame::PROGRESS => Frame::progress(37, 'unterwegs'),
+            Frame::LOG => Frame::log('stdout', 'eine Zeile'),
+        ];
+
         foreach (Frame::KINDS as $kind) {
             $operation = $this->operation();
             $recorder = new OperationRecorder($operation);
 
-            $frame = match ($kind) {
-                Frame::PROGRESS => Frame::progress(37, 'unterwegs'),
-                Frame::LOG => Frame::log('stdout', 'eine Zeile'),
-                default => null,
-            };
-
-            $this->assertNotNull($frame, sprintf(
+            $this->assertArrayHasKey($kind, $bauplan, sprintf(
                 'Für die Art „%s" weiss dieser Test nichts zu bauen — wer eine Art dazunimmt, '
                 .'nimmt sie hier mit auf.',
                 $kind,
             ));
+
+            $frame = $bauplan[$kind];
 
             $recorder->consume($frame);
             $operation->refresh();

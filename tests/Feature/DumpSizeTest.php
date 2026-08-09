@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Support\Databases\DumpIntegrity;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
 /**
@@ -109,15 +110,46 @@ final class DumpSizeTest extends TestCase
         return $pfad;
     }
 
-    /** Eine fertige Sicherung ohne Datei ist der schlimmere Fall und wird genannt. */
+    /**
+     * Eine fertige Sicherung ohne Datei ist der schlimmere Fall und wird genannt.
+     *
+     * **Gefahren wird über `Artisan::call()` und nicht über `$this->artisan()`.**
+     * Der erste Anlauf benutzte `expectsOutputToContain()`, und der Lauf in der
+     * CI meldete, die Ausgabe enthalte den Ablagenamen nicht — obwohl er auf
+     * derselben Zeile steht wie „die Datei fehlt", die gefunden wurde, und im
+     * Pfad dahinter ein zweites Mal. Was `expectsOutputToContain()` dabei
+     * vergleicht, war von hier aus nicht zu klären; ohne `vendor/` lässt sich
+     * der Lauf lokal nicht nachstellen.
+     *
+     * `Artisan::output()` gibt den vollständigen Text zurück, und damit trägt
+     * die Behauptung ihn im Fehlerfall bei sich. **Eine Prüfung, die nur sagt
+     * „steht nicht drin", schickt einen auf die Suche; eine, die zeigt, was
+     * stattdessen dastand, beantwortet die Frage.**
+     */
     public function test_a_missing_file_is_reported(): void
     {
         $dump = $this->dump(4096);
 
-        $this->artisan('srvpanel:db')
-            ->expectsOutputToContain('die Datei fehlt')
-            ->expectsOutputToContain($dump->storage_name)
-            ->assertFailed();
+        $code = Artisan::call('srvpanel:db');
+        $ausgabe = Artisan::output();
+
+        // 1, weil in diesem Container kein Agent antwortet — die Prüfung der
+        // Sicherungen läuft trotzdem, und genau das ist hier der Gegenstand.
+        $this->assertSame(1, $code, "Ausgabe war:\n".$ausgabe);
+
+        $this->assertStringContainsString('die Datei fehlt', $ausgabe, implode("\n", [
+            'srvpanel db meldet eine Zeile nicht, deren Datei fehlt.',
+            '',
+            'Ausgabe war:',
+            $ausgabe,
+        ]));
+
+        $this->assertStringContainsString($dump->storage_name, $ausgabe, implode("\n", [
+            'Der Befund nennt die Sicherung nicht beim Namen — dann weiss niemand, welche gemeint ist.',
+            '',
+            'Ausgabe war:',
+            $ausgabe,
+        ]));
     }
 
     /**
@@ -138,8 +170,12 @@ final class DumpSizeTest extends TestCase
             ]);
         });
 
-        $this->artisan('srvpanel:db')
-            ->doesntExpectOutputToContain('die Datei fehlt')
-            ->assertFailed();
+        Artisan::call('srvpanel:db');
+
+        $this->assertStringNotContainsString(
+            'die Datei fehlt',
+            Artisan::output(),
+            'Eine Sicherung, die noch läuft, wird als fehlende Datei gemeldet.',
+        );
     }
 }

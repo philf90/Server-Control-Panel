@@ -107,34 +107,6 @@ final class DatabaseSettingsController extends Controller
      *     remote: bool,
      * }
      */
-    /** Was dasteht, wenn der Agent keine Geschmacksrichtung nennt. */
-    private const FLAVOUR_UNKNOWN = '—';
-
-    /**
-     * Aus der Auskunft des Agenten wird der Text für die Oberfläche.
-     *
-     * **Hier und nicht im Template**, und das ist die Lehre aus `DumpKind`
-     * (`docs/36 §22.3x`): Bis zum 9. August 2026 verglich `Settings/Database.vue`
-     * die Zeichenkette selbst — `flavour === 'mariadb'`. Das ist ein Wert über
-     * die Grenze zwischen PHP und Browser, und die prüft kein Typ: Nennt der
-     * Agent seine Geschmacksrichtung eines Tages anders, steht im Panel
-     * wortlos der Rohwert.
-     *
-     * Gefunden hat es `DatabaseEngineTest` beim ersten Lauf — er sucht nach
-     * genau diesen Zeichenketten, und `mariadb` heisst an dieser Stelle etwas
-     * Drittes: nicht das System einer Kundendatenbank
-     * ({@see DatabaseEngine}) und nicht der Verbindungstreiber des
-     * Panels, sondern was `db.server.info` aus `@@version` gelesen hat.
-     */
-    private static function flavourLabel(mixed $flavour): string
-    {
-        return match ($flavour) {
-            'mariadb' => 'MariaDB',
-            'mysql' => 'MySQL',
-            default => self::FLAVOUR_UNKNOWN,
-        };
-    }
-
     private function server(Client $agent): array
     {
         try {
@@ -162,6 +134,34 @@ final class DatabaseSettingsController extends Controller
             'bind_address' => is_string($info['bind_address'] ?? null) ? $info['bind_address'] : null,
             'remote' => ($info['remote'] ?? false) === true,
         ];
+    }
+
+    /** Was dasteht, wenn der Agent keine Geschmacksrichtung nennt. */
+    private const FLAVOUR_UNKNOWN = '—';
+
+    /**
+     * Aus der Auskunft des Agenten wird der Text für die Oberfläche.
+     *
+     * **Hier und nicht im Template**, und das ist die Lehre aus `DumpKind`
+     * (`docs/36 §22.3x`): Bis zum 9. August 2026 verglich `Settings/Database.vue`
+     * die Zeichenkette selbst — `flavour === 'mariadb'`. Das ist ein Wert über
+     * die Grenze zwischen PHP und Browser, und die prüft kein Typ: Nennt der
+     * Agent seine Geschmacksrichtung eines Tages anders, steht im Panel
+     * wortlos der Rohwert.
+     *
+     * Gefunden hat es `DatabaseEngineTest` beim ersten Lauf — er sucht nach
+     * genau diesen Zeichenketten, und `mariadb` heisst an dieser Stelle etwas
+     * Drittes: nicht das System einer Kundendatenbank
+     * ({@see DatabaseEngine}) und nicht der Verbindungstreiber des
+     * Panels, sondern was `db.server.info` aus `@@version` gelesen hat.
+     */
+    private static function flavourLabel(mixed $flavour): string
+    {
+        return match ($flavour) {
+            'mariadb' => 'MariaDB',
+            'mysql' => 'MySQL',
+            default => self::FLAVOUR_UNKNOWN,
+        };
     }
 
     /**

@@ -6249,3 +6249,32 @@ der vier Zielplattformen liefert — gemessen war davon eine. Die drei anderen
 Zahlen sind aus dem Gedächtnis geschrieben gewesen und stehen nicht mehr da;
 was zählt, ist die Grenze selbst. Für die Abnahme ist das folgenlos, weil sie
 auf `cloudsrv24` läuft; für die Freigabe steht es als offener Punkt.
+
+### Zwei Fehler in Schritt 2, und beide sagen etwas über das Vorgehen
+
+**Lauf 449: 1547 grün, zwei rot.**
+
+**Der erste war ein Dokumentationsblock, der die Klasse gewechselt hat.**
+`DatabaseSettingsController::server()` trägt seine Rückgabeform als
+`@return array{…}` — und die neue Methode `flavourLabel()` ist zwischen den
+Block und die Methode geraten, die er beschreibt. PHP stört das nicht, PHPStan
+schon: *„return type has no value type specified in iterable type array."*
+
+`CLAUDE.md` kennt diese Meldung, aber für einen anderen Anlass — einen
+einzeiligen Block, in dem `@return` zu Fliesstext wird. **Das ist derselbe
+Fehler eine Ebene höher:** Ein Dokumentationsblock gehört zu dem, was
+*unmittelbar* auf ihn folgt, und wer etwas dazwischenschiebt, nimmt ihn dem
+Eigentümer weg, ohne dass etwas fehlt.
+
+**Der zweite ist der Wächter über das Werkzeug, und er hat funktioniert.**
+`claim()` bekam eine Zeile — `'db_prefix' => Names::newPrefix()` —, und der
+Eingriff in `waechter-brechen.sh`, der `claim()` bricht, suchte den Block noch
+ohne sie. `BreakScriptTest` hat es gemeldet: *Ein Eingriff, der nichts ändert,
+prüft nichts — und sieht dabei aus, als wäre die Regel abgesichert.* Genau der
+Fall, für den er in P5 entstand, nur diesmal beim Hinzufügen statt beim Umziehen.
+
+**Und der Vorwurf dazu gehört hierhin:** Das Werkzeug, das ihn lokal gefunden
+hätte, lag bereit und wurde nicht benutzt. `BreakScriptTest` ist ohne `vendor/`
+über eine Attrappe fahrbar, und in dieser Sitzung ist er sechsmal gelaufen — nur
+nicht nach der letzten Änderung an `app/`. *Ein Wächter, den man am Ende nicht
+noch einmal fragt, ist eine Runde CI.*

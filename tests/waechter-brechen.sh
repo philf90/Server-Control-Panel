@@ -3042,6 +3042,7 @@ s = s.replace(
     """                SystemUser::query()->create([
                     'number' => $number,
                     'subscription' => $subscription,
+                    'db_prefix' => Names::newPrefix(),
                     'claimed_at' => now(),
                 ]);
 

@@ -7309,10 +7309,21 @@ meldete sie als verwaist.
 `DbLifecycle::afterFailure()` ist damit leer. Das ist ein Zustand und kein Rest
 — für Rückbau und Sperre gilt dieselbe Zurückhaltung wie in `PgLifecycle`.
 
-**Offen und ausdrücklich benannt: das Präfix fehlt im Auftrag.** `db.*` prüft
-gegen den Systembenutzer, `pg.*` gegen das Präfix aus `system_users` — und wo
-das herkommt, weiss heute nur der PostgreSQL-Treiber. Es in `Dumps` ein zweites
-Mal zu holen wäre die zweite Fassung, die veraltet. Solange das nicht aufgelöst
-ist, stehen `pg.dump.create`, `pg.restore` und `pg.dump.import` **nicht** in der
-Registratur: Es gibt keinen Weg, auf dem ein unvollständiger Auftrag den Agenten
-erreichte.
+**Das Präfix im Auftrag war der letzte offene Punkt, und er ist zu.** `db.*`
+prüft gegen den Systembenutzer, `pg.*` gegen das Präfix aus `system_users`;
+gewusst hat das nur der PostgreSQL-Treiber. Es in `Dumps` ein zweites Mal zu
+holen wäre die zweite Fassung gewesen — statt dessen ist die Abfrage als
+`PostgresDriver::prefixOf()` herausgezogen, und der Treiber ruft sie selbst.
+Eine Stelle, zwei Aufrufer. Damit stehen `pg.dump.create`, `pg.restore` und
+`pg.dump.import` in der Registratur, und `RemovalPathTest` führt die beiden
+Ausnahmen mit Begründung: Der Weg zurück heisst `db.dump.remove` und gilt für
+beide Systeme.
+
+**Zwei Wächter haben den Umbau gefunden, bevor die CI es tat.** `BreakScriptTest`
+meldete zwei Eingriffe, die auf Text zeigten, der mit den Methoden umgezogen
+ist — das erwartete Muster. Und `DatabaseEngineTest` hat die erste Fassung von
+`DumpLifecycle` zurückgewiesen: Sie führte die Aufgaben in einer Konstante, die
+beide Systeme als Zeichenkette benannte. Die Regel ist dieselbe wie in Lauf 451
+und richtig; die Tabelle ist jetzt ein `match` über das Enum, vollständig und
+ohne `default` — käme ein drittes System hinzu, meldete es der Übersetzer dort
+und nicht ein Kunde später.

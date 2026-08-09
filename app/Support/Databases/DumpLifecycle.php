@@ -21,7 +21,7 @@ use SrvPanel\Agent\Db\Dump;
  * keinem: Die Grösse kommt aus der Antwort, die Zeile geht auf `Ready` oder
  * `Failed`, beim Entfernen wird sie gelöscht, beim Zurückspielen nichts getan.
  * Nur die **Namen** der Aufgaben unterscheiden sich, und die stehen in
- * {@see self::TASKS}.
+ * {@see self::tasks()}.
  *
  * Die beiden Alternativen sind vorgelegt und verworfen worden. Dieselbe Logik
  * ein zweites Mal in {@see PgLifecycle} wäre die zweite Fassung, und die zweite
@@ -37,31 +37,44 @@ use SrvPanel\Agent\Db\Dump;
 final class DumpLifecycle implements AfterOperation
 {
     /**
-     * Die vier Aufgaben je System — und wofür sie stehen.
+     * Die vier Aufgaben eines Systems — als `match` und nicht als Tabelle.
      *
-     * Der Schlüssel ist die Handlung, der Wert die Aufgabe. Zwei Namen fallen
-     * dabei auf, und beide mit Grund: `restore` heisst in PostgreSQL
-     * `pg.restore` und nicht `pg.dump.restore`, weil das Gegenstück in P5 auch
-     * `db.restore` heisst; und **`remove` ist für beide dieselbe Aufgabe** —
-     * `db.dump.remove` entfernt eine Datei, und eine Datei hat kein
+     * **Der erste Entwurf war eine Konstante, die beide Systeme als
+     * Zeichenkette benannte, und `DatabaseEngineTest` hat sie zurückgewiesen.**
+     * Die
+     * Regel ist richtig und hat schon in Lauf 451 zugebissen: Die Werte eines
+     * Systems stehen im Enum und nirgends sonst — eine Zeichenkette daneben ist
+     * eine zweite Fassung, die beim Umbenennen stehen bleibt.
+     *
+     * Der `match` ist vollständig ohne `default`, wie {@see Databases::driver()}:
+     * Käme ein drittes System hinzu, meldete es der Übersetzer hier und nicht
+     * ein Kunde später.
+     *
+     * Zwei Namen fallen dabei auf, und beide mit Grund: `restore` heisst in
+     * PostgreSQL `pg.restore` und nicht `pg.dump.restore`, weil das Gegenstück
+     * in P5 auch `db.restore` heisst; und **`remove` ist für beide dieselbe
+     * Aufgabe** — `db.dump.remove` entfernt eine Datei, und eine Datei hat kein
      * Datenbanksystem (`docs/38 §13`).
      *
-     * @var array<string, array<string, string>>
+     * @return array<string, string>
      */
-    public const TASKS = [
-        'mariadb' => [
-            'create' => 'db.dump.create',
-            'import' => 'db.dump.import',
-            'restore' => 'db.restore',
-            'remove' => 'db.dump.remove',
-        ],
-        'postgres' => [
-            'create' => 'pg.dump.create',
-            'import' => 'pg.dump.import',
-            'restore' => 'pg.restore',
-            'remove' => 'db.dump.remove',
-        ],
-    ];
+    public static function tasks(DatabaseEngine $engine): array
+    {
+        return match ($engine) {
+            DatabaseEngine::MariaDb => [
+                'create' => 'db.dump.create',
+                'import' => 'db.dump.import',
+                'restore' => 'db.restore',
+                'remove' => 'db.dump.remove',
+            ],
+            DatabaseEngine::Postgres => [
+                'create' => 'pg.dump.create',
+                'import' => 'pg.dump.import',
+                'restore' => 'pg.restore',
+                'remove' => 'db.dump.remove',
+            ],
+        };
+    }
 
     public function __construct(private readonly Tenancy $tenancy) {}
 
@@ -74,7 +87,7 @@ final class DumpLifecycle implements AfterOperation
      */
     public static function task(DatabaseEngine $engine, string $action): string
     {
-        return self::TASKS[$engine->value][$action];
+        return self::tasks($engine)[$action];
     }
 
     /** @return list<string> */
@@ -82,8 +95,8 @@ final class DumpLifecycle implements AfterOperation
     {
         $tasks = [];
 
-        foreach (self::TASKS as $perEngine) {
-            foreach ($perEngine as $task) {
+        foreach (DatabaseEngine::cases() as $engine) {
+            foreach (self::tasks($engine) as $task) {
                 $tasks[$task] = true;
             }
         }
@@ -108,8 +121,7 @@ final class DumpLifecycle implements AfterOperation
     {
         $task = (string) ($operation->task ?? '');
 
-        if (! in_array($task, [self::TASKS['mariadb']['create'], self::TASKS['mariadb']['import'],
-            self::TASKS['postgres']['create'], self::TASKS['postgres']['import']], true)) {
+        if (! $this->isOneOf($task, ['create', 'import'])) {
             return;
         }
 
@@ -151,7 +163,7 @@ final class DumpLifecycle implements AfterOperation
     {
         $task = (string) ($operation->task ?? '');
 
-        if ($task === self::TASKS['mariadb']['restore'] || $task === self::TASKS['postgres']['restore']) {
+        if ($this->isOneOf($task, ['restore'])) {
             return;
         }
 
@@ -164,7 +176,7 @@ final class DumpLifecycle implements AfterOperation
                 return;
             }
 
-            if ($task === self::TASKS['mariadb']['remove']) {
+            if ($this->isOneOf($task, ['remove'])) {
                 $dump->delete();
 
                 return;
@@ -178,6 +190,24 @@ final class DumpLifecycle implements AfterOperation
                 'last_error' => null,
             ])->save();
         });
+    }
+
+    /**
+     * Ist diese Aufgabe eine der genannten Handlungen — in irgendeinem System?
+     *
+     * @param  list<string>  $actions
+     */
+    private function isOneOf(string $task, array $actions): bool
+    {
+        foreach (DatabaseEngine::cases() as $engine) {
+            foreach ($actions as $action) {
+                if (self::tasks($engine)[$action] === $task) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -207,7 +237,7 @@ final class DumpLifecycle implements AfterOperation
      */
     private function removedAllDumps(Operation $operation, string $task): void
     {
-        if ($task !== self::TASKS['mariadb']['remove'] || $operation->subscription_id === null) {
+        if (! $this->isOneOf($task, ['remove']) || $operation->subscription_id === null) {
             return;
         }
 

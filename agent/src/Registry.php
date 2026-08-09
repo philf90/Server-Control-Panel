@@ -36,6 +36,9 @@ use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
 use SrvPanel\Agent\Ops\PgDatabaseCreate;
 use SrvPanel\Agent\Ops\PgDatabaseRemove;
+use SrvPanel\Agent\Ops\PgDumpCreate;
+use SrvPanel\Agent\Ops\PgDumpImport;
+use SrvPanel\Agent\Ops\PgRestore;
 use SrvPanel\Agent\Ops\PgRoleCreate;
 use SrvPanel\Agent\Ops\PgRoleGrant;
 use SrvPanel\Agent\Ops\PgRoleLock;
@@ -192,6 +195,19 @@ final class Registry
         // Mit Schritt 5: die Sperre eines Abonnements erreicht die Rollen
         // (docs/38 §11). Der Aufrufer ist App\Support\Databases\PgLifecycle.
         $this->register(new PgRoleLock);
+
+        /*
+         * Mit Schritt 6: Sichern, Zurückspielen, Übernehmen. Ihr Aufrufer ist
+         * `App\Support\Databases\Dumps` über `DumpLifecycle::task()`.
+         *
+         * **Kein `pg.dump.remove` daneben, und das ist keine Auslassung.**
+         * `db.dump.remove` entfernt eine Datei, und eine Datei hat kein
+         * Datenbanksystem — eine zweite Operation wäre Zeile für Zeile
+         * dieselbe. `RemovalPathTest::WITHOUT_REMOVAL` führt die Begründung.
+         */
+        $this->register(new PgRestore);
+        $this->register(new PgDumpCreate);
+        $this->register(new PgDumpImport);
 
         // Die Messung — wie db.usage am Zeitgeber und ohne Lebenslauf.
         $this->register(new PgUsage);

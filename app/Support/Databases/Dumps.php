@@ -13,6 +13,7 @@ use App\Models\Database;
 use App\Models\DatabaseDump;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Support\Databases\Engines\PostgresDriver;
 use App\Support\Tenancy\Tenancy;
 use RuntimeException;
 
@@ -236,20 +237,19 @@ final class Dumps
             'task' => $task,
             'payload' => array_merge([
                 /*
-                 * **Hier fehlt `prefix`, und das ist der offene Rest von
-                 * Schritt 6.** `db.*` prüft gegen den Systembenutzer
-                 * (`p1001`), `pg.*` gegen das Präfix (`x7f3a…`) — dieselbe
-                 * Frage, zwei Antworten (`docs/38 §4`). Woher das Präfix kommt,
-                 * weiss heute nur {@see Engines\PostgresDriver::prefix()}, und
-                 * es hier ein zweites Mal aus `system_users` zu holen wäre die
-                 * zweite Fassung, die veraltet.
+                 * **Beide Kennungen, und der Agent nimmt die, die er kennt.**
+                 * `db.*` prüft gegen den Systembenutzer (`p1001`), `pg.*` gegen
+                 * das Präfix (`x7f3a…`) — dieselbe Frage, zwei Antworten
+                 * (`docs/38 §4`). Beide mitzuschicken ist ehrlicher als eine
+                 * Verzweigung: Was der Agent nicht liest, weist er nicht ab, und
+                 * was er liest, hat er selbst geprüft.
                  *
-                 * Solange das nicht aufgelöst ist, stehen `pg.dump.create`,
-                 * `pg.restore` und `pg.dump.import` **nicht** in der
-                 * Registratur — es gibt also keinen Weg, auf dem ein
-                 * unvollständiges Payload den Agenten erreichte.
+                 * Das Präfix kommt aus {@see PostgresDriver::prefixOf()} und
+                 * nicht aus einer eigenen Abfrage — es gibt genau eine Stelle,
+                 * die weiss, wo es steht.
                  */
                 'user' => (string) $subscription->system_user,
+                'prefix' => PostgresDriver::prefixOf($this->tenancy, $subscription),
                 'subscription' => (string) $subscription->name,
                 'name' => $dump->database_name,
                 'storage' => $dump->storage_name,

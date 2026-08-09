@@ -92,6 +92,8 @@ final class RemovalPathTest extends TestCase
         'panel.vhost.apply' => 'Der Server-Block der Oberfläche. Ihn zu entfernen hiesse, das Panel vom Netz zu nehmen — das tut das Paket beim Entfernen, nicht der Agent auf Zuruf.',
         'panel.tls.ensure' => 'Das Zertifikat der Oberfläche. Es hat kein Abonnement, an dem es hinge, und ohne es antwortet das Panel nicht mehr. `srvpanel tls prune` fasst es ausdrücklich nicht an (Certificate::forPanel).',
         'pg.server.install' => 'Installiert ein Paket der Distribution. Der Weg zurück ist `apt remove postgresql` und gehört dem Betreiber: Ein `pg.server.remove` im Panel würde mit dem Paket auch jede Kundendatenbank entfernen — und zwar hinter einem Knopf, dessen Beschriftung das nicht sagt. Die Fläche schliesst `srvpanel db --postgres=off`, ohne dass Daten verschwinden.',
+        'pg.dump.create' => 'Der Weg zurück ist `db.dump.remove`, und der gilt für beide Systeme: Diese Operation legt eine Datei an, und eine Datei hat kein Datenbanksystem. Ein `pg.dump.remove` wäre Zeile für Zeile dieselbe Operation (docs/38 §13).',
+        'pg.dump.import' => 'Übernimmt eine mitgebrachte Datei in dieselbe Ablage — der Weg zurück ist derselbe wie bei pg.dump.create.',
         'web.logrotate.apply' => 'Die Rotationsdatei eines Abonnements. Sie wird von `subscription.remove` entfernt, und zwar gesucht statt übergeben — eine eigene Operation hätte eine Liste zu führen, die nach einem abgebrochenen Lauf unvollständig ist.',
     ];
 

@@ -50,7 +50,7 @@ final class Lifecycles
          * **Eine Klasse je Gegenstand, nicht je System** (`docs/38 §21`,
          * Entscheidung 10). Was mit einer Sicherung geschieht, hängt an keinem
          * Datenbanksystem — nur die Namen der vier Aufgaben tun das, und die
-         * stehen in `DumpLifecycle::TASKS`.
+         * stehen in `DumpLifecycle::tasks()`.
          */
         DumpLifecycle::class,
     ];

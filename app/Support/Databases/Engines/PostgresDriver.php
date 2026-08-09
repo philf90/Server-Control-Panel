@@ -9,6 +9,7 @@ use App\Models\Database;
 use App\Models\DbUser;
 use App\Models\Subscription;
 use App\Models\SystemUser;
+use App\Support\Databases\Dumps;
 use App\Support\Tenancy\Tenancy;
 use RuntimeException;
 use SrvPanel\Agent\Client;
@@ -74,10 +75,26 @@ final class PostgresDriver implements EngineDriver
      */
     public function prefix(Subscription $subscription): string
     {
+        return self::prefixOf($this->tenancy, $subscription);
+    }
+
+    /**
+     * Dasselbe ohne Treiber — für {@see Dumps}.
+     *
+     * **Sie ist `static`, damit es die Frage nur einmal gibt.** `Dumps` braucht
+     * das Präfix für den Auftrag an `pg.dump.create` und hat keinen Treiber:
+     * Welche Aufgabe eine Sicherung auslöst, gehört zu dem, was mit ihr
+     * geschieht, und nicht dazu, wie eine Datenbank angelegt wird. Die Abfrage
+     * dort ein zweites Mal zu schreiben wäre die zweite Fassung, und die zweite
+     * ist die, die veraltet — genau der Grund, aus dem Schritt 6 sie zuerst
+     * offengelassen und im Code benannt hat.
+     */
+    public static function prefixOf(Tenancy $tenancy, Subscription $subscription): string
+    {
         $user = (string) $subscription->system_user;
         $number = (int) ltrim($user, 'p');
 
-        $prefix = $this->tenancy->withoutRestriction(
+        $prefix = $tenancy->withoutRestriction(
             static fn (): mixed => SystemUser::query()->where('number', $number)->value('db_prefix')
         );
 

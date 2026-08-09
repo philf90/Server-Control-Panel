@@ -4333,9 +4333,9 @@ echo "── DumpTeardownTest: die Zeile überlebt ihre Datei ──"
 # Nach dem Rückbau eines Abonnements ist die Sicherungsdatei fort, und ohne
 # diesen Zweig bleibt ihre Zeile stehen: srvpanel db meldet dann einen Rest nach
 # einem Rückbau, der sauber gelaufen ist (docs/36 §22.3r).
-vorher_datei app/Support/Databases/DbLifecycle.php
+vorher_datei app/Support/Databases/DumpLifecycle.php
 python3 - <<'PY2'
-p = 'app/Support/Databases/DbLifecycle.php'
+p = 'app/Support/Databases/DumpLifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
     "                $this->removedAllDumps($operation, $task);\n\n",
@@ -4343,7 +4343,7 @@ s = s.replace(
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Databases/DbLifecycle.php "Zeile überlebt ihre Datei" &&
+griff_datei app/Support/Databases/DumpLifecycle.php "Zeile überlebt ihre Datei" &&
 pruefe "Zeile überlebt ihre Datei" \
   DumpTeardownTest::test_nothing_is_left_over_after_the_subscription_is_gone failed
 wiederherstellen
@@ -4570,14 +4570,14 @@ echo "── ImportCleanupTest: ein gescheiterter Upload bleibt liegen ──"
 # Am 9. August lagen so 109 MB einer abgewiesenen Zip-Bombe in der Übergabe, und
 # nichts im System hätte sie je wieder angefasst — bis zu 512 MB je Versuch,
 # ausgelöst von einem Kunden (docs/36 §22.3w).
-vorher_datei app/Support/Databases/DbLifecycle.php
+vorher_datei app/Support/Databases/DumpLifecycle.php
 python3 - <<'PY2'
-p = 'app/Support/Databases/DbLifecycle.php'
+p = 'app/Support/Databases/DumpLifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace("            Staging::forget($operation->payload['source'] ?? null);", "            // hier stand das Aufräumen")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Databases/DbLifecycle.php "Upload bleibt liegen" &&
+griff_datei app/Support/Databases/DumpLifecycle.php "Upload bleibt liegen" &&
 pruefe "Upload bleibt liegen" \
   ImportCleanupTest::test_a_failed_import_removes_the_uploaded_file failed
 wiederherstellen
@@ -5128,6 +5128,28 @@ pruefe "zweite Umgebungsvariable" \
   PgRestoreTest::test_the_environment_stays_an_allowlist failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
+echo "── RemovalPathTest: eine Sicherung ohne Weg zurueck ──"
+#
+# Mit Schritt 6 gibt es pg.dump.create und kein pg.dump.remove — der Weg zurueck
+# heisst db.dump.remove und gilt fuer beide Systeme, weil er eine Datei
+# entfernt. Faellt die Begruendung aus der Liste, meldet der Waechter genau das,
+# wofuer er seit docs/35 da ist: etwas laesst sich anlegen und nirgends loeschen.
+vorher_datei tests/Feature/RemovalPathTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/RemovalPathTest.php'
+s = open(p, encoding='utf-8').read()
+start = s.index("        'pg.dump.create' =>")
+ende = s.index("        'pg.dump.import' =>")
+s = s[:start] + s[ende:]
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/RemovalPathTest.php "Sicherung ohne Weg zurueck" &&
+pruefe "Sicherung ohne Weg zurueck" \
+  RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
+git checkout -- tests/Feature/RemovalPathTest.php
+pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

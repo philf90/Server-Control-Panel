@@ -34,20 +34,15 @@ final class Context
 
     public function progress(int $percent, string $text): void
     {
-        ($this->send)([
-            'type' => 'progress',
-            'pct' => max(0, min(100, $percent)),
-            'text' => $text,
-        ]);
+        // Gebaut und nicht getippt: Die Namen der Felder stehen ausschliesslich
+        // in {@see Frame}, weil die Gegenseite sie zehn Monate lang anders
+        // gelesen hat (docs/36 §22.3w).
+        ($this->send)(Frame::progress($percent, $text));
     }
 
     public function output(string $channel, string $line): void
     {
-        ($this->send)([
-            'type' => 'log',
-            'stream' => $channel === 'stderr' ? 'stderr' : 'stdout',
-            'line' => $line,
-        ]);
+        ($this->send)(Frame::log($channel, $line));
     }
 
     /**

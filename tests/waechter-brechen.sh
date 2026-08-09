@@ -4536,6 +4536,63 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RemoteAccessTest::test_the_settings_page_only_reads passed
 
 echo
+echo "── FrameContractTest: der Agent benennt ein Feld um ──"
+#
+# Der teuerste Fund des P5-Abnahmelaufs, nachgestellt: Der Agent schickte `pct`,
+# das Panel las `percent`. Zehn Monate lang sprang jeder Fortschrittsbalken von
+# 0 auf 100, und niemand hat es gemerkt (docs/36 §22.3w).
+vorher_datei agent/src/Frame.php
+python3 - <<'PY2'
+p = 'agent/src/Frame.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'pct' => max(0, min(100, $percent)),", "            'percent' => max(0, min(100, $percent)),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Frame.php "Feld umbenannt" &&
+pruefe "Feld umbenannt" \
+  FrameContractTest::test_a_progress_frame_reaches_the_record failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FrameContractTest passed
+
+echo
+echo "── ImportCleanupTest: ein gescheiterter Upload bleibt liegen ──"
+#
+# Am 9. August lagen so 109 MB einer abgewiesenen Zip-Bombe in der Übergabe, und
+# nichts im System hätte sie je wieder angefasst — bis zu 512 MB je Versuch,
+# ausgelöst von einem Kunden (docs/36 §22.3w).
+vorher_datei app/Support/Databases/DbLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DbLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            Staging::forget($operation->payload['source'] ?? null);", "            // hier stand das Aufräumen")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DbLifecycle.php "Upload bleibt liegen" &&
+pruefe "Upload bleibt liegen" \
+  ImportCleanupTest::test_a_failed_import_removes_the_uploaded_file failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ImportCleanupTest passed
+
+echo
+echo "── DumpSizeTest: die Grösse wird nicht mehr verglichen ──"
+#
+# `bytes` ist die Zahl, die dem Kunden als „Grösse" angezeigt wird. Auf
+# cloudsrv24 wich sie bei einer von vier Sicherungen ab, und nichts im System
+# hielt die beiden je gegeneinander (docs/36 §22.3w).
+vorher_datei app/Support/Databases/DumpIntegrity.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DumpIntegrity.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        if (! is_file($path)) {", "        if (false) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DumpIntegrity.php "Grösse nicht verglichen" &&
+pruefe "Grösse nicht verglichen" \
+  DumpSizeTest::test_a_missing_file_is_reported failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DumpSizeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

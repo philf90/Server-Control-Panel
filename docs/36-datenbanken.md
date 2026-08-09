@@ -2884,6 +2884,137 @@ Schreibtisch ist `--bereich-min`, also 400px; bei 1600px Fensterbreite steht er
 genau dort. Gemessen: Bereich 404px, Wertzelle 295px, der Befehl 236px — eine
 Zeile, 59px Luft. Bei echten 390px sind es 251px Zelle zu 236px Text.
 
+### 22.3w Die Abnahme von Schritt 10 und 11 — und drei Funde, die keiner davon gehören
+
+**Gefahren am 9. August 2026 auf `cloudsrv24`** gegen MariaDB
+10.11.14-0ubuntu0.24.04.1, Panel `v0.5.0-rc.9`. Beide Abläufe stehen im
+Protokoll der Sitzung; hier steht, was sie ergeben haben.
+
+**Ablauf A — Fernzugriff — ist in acht Schritten durch.** Der Beleg für A2 ist
+nicht die Meldung „geschrieben", sondern `@@bind_address` nach dem Neustart und
+die gewechselte pid von `mariadbd` (876 → 160859 → 161507); der für A6 ist, dass
+`p1118_fern@203.0.113.5` nach dem Ausschalten **stehen bleibt** — die Warnung
+sagt genau das zu.
+
+**A5 ist der Schritt, für den es diesen Ablauf gibt.** Eine fremde
+`70-abnahme.cnf` mit `bind-address = 127.0.0.1` gewinnt gegen unsere `60-`, weil
+MariaDB die Include-Dateien lexikalisch liest. Die Operation hat die Datei
+**erfolgreich geschrieben** und das gemeldet; nach jedem Massstab, der die
+Absicht misst, war der Lauf grün. Erst die Rückfrage an den laufenden Server
+machte daraus Rückgabewert 1 mit Grund.
+
+> **Eine geschriebene Zeile ist eine Absicht; erst `@@bind_address` ist ein
+> Zustand.**
+
+**A8 hat den einzigen Pfad geprüft, der vorher nur Absicht war:** den Rückweg im
+Neustart. Mit einer unbekannten Variablen in `[mysqld]` startet MariaDB nicht;
+die Operation hat den vorherigen Zustand wiederhergestellt — `60-srvpanel.cnf`
+war danach **nicht** da, denn vorher gab es sie nicht — und mit Grund
+abgewiesen. Das Journal nennt `srvpanel-abnahme-kaputt`, der Server ist also an
+unserer Datei gescheitert und nicht an etwas anderem.
+
+**Und A8 hat einen Fehler in der Anleitung freigelegt, nicht im Code.**
+`systemctl is-active mariadb srvpanel-web` meldete `failed` / **`active`** — der
+Webdienst steht auf grün, während das Panel keine Datenbank hat. In A3 und A6
+stand diese Zeile als Beleg dafür, dass „das Panel den Neustart überlebt hat";
+sie wäre im guten wie im schlechten Fall grün gewesen. *Eine Prüfung, die im
+Fehlerfall dasselbe sagt wie im Erfolgsfall, belegt nichts.* Der echte Beleg
+waren die Bildschirmfotos der geladenen Seite — dieselbe Familie wie *„Der Beleg
+ist nie eine Abwesenheit allein"* aus §22.3q.
+
+**Ablauf B — Hochladen — ist ebenfalls durch**, mit einem zusätzlichen Beleg,
+den der Plan nicht vorgesehen hatte: Die heruntergeladene Datei wurde wieder
+hochgeladen, und die abgelegte Sicherung trug danach **dieselbe
+SHA-256-Prüfsumme** (`1d6cfbe7…0f7816`). Damit ist in einem Zug belegt, dass der
+Download byteexakt ist und dass die Datei verschoben und nicht neu gepackt wird.
+Die Übergabe war danach leer. Die Zip-Bombe — 109 MB gepackt, 25 GB ausgepackt —
+prallte nach **sechs Sekunden** am Deckel ab, weit vor dem Zeitlimit von 300 s.
+Das Zurückspielen der mitgebrachten Sicherung ergab je Tabelle exakt dieselbe
+Zeilenzahl (`bestellungen 5120`, `kunden 1280`, `notizen 2`, per `diff`
+verglichen) und liess keinen befristeten Benutzer zurück.
+
+---
+
+#### Fund 1 — Der Fortschritt und die Ausgabe kamen nie an
+
+**Der teuerste Fund des Laufs, und er gehört nicht zu P5.**
+
+Aufgefallen an einer Nebensächlichkeit: Der gescheiterte Import zeigte
+„Fortschritt 0 %", obwohl die Operation bis `progress(25, 'ausgepackte Grösse
+messen')` gekommen sein musste. Die Abfrage danach war eindeutig — **471
+Vorgänge, kein einziger mit einem Fortschrittswert zwischen 0 und 100.**
+
+Die Ursache steht in vier Zeichenketten über eine Prozessgrenze:
+
+| Der Agent sendet | Das Panel las |
+|---|---|
+| `type: 'progress'`, `pct`, `text` | `percent`, `message` |
+| `type: 'log'`, `line` | `type: 'output'` |
+
+Jeder Fortschrittsframe landete damit als `progress(0, null)` — die alte
+Leseseite setzte bei einem unbekannten Schlüssel stillschweigend `0` ein und
+**schrieb ihn**. Jeder Ausgabeframe fiel durch die Typprüfung. Folge: Der Balken
+jedes Vorgangs seit P0 sprang von 0 auf 100, und **die Ausgabe des Agenten hat
+nie ein Mensch gesehen** — auch nicht auf den Vorgangsseiten dieses
+Abnahmelaufs, wo überall „Keine Ausgabe." steht.
+
+Es ist wortwörtlich das Muster aus CLAUDE.md, nur an der Stelle, an der weder
+ein Aufrufgraph noch PHPStan hinsieht. **Die Antwort ist nicht, die Namen
+richtigzustellen, sondern sie nur noch einmal zu schreiben:**
+{@see SrvPanel\Agent\Frame} baut und liest, beide Seiten gehen hindurch, und
+`FrameContractTest` fährt einen echten Frame aus `Context` durch
+`OperationRecorder::consume()` bis in die Zeile.
+
+`consume()` stand dafür bis dahin als `private` im Arbeiter — kein Test kam an
+sie heran. Sie liegt jetzt am Recorder.
+
+#### Fund 2 — Ein gescheiterter Upload blieb liegen
+
+Nach der abgewiesenen Zip-Bombe lagen **109 MB in der Übergabe**, und nichts im
+System hätte sie je wieder angefasst: `srvpanel db --prune` sieht nur Zeilen
+ohne Abonnement an, die Paketskripte fassen das Verzeichnis nicht an, und über
+das Panel ist die Datei gar nicht erreichbar — die Bestandszeile zeigt auf
+`dumps/`, wo nie etwas ankam.
+
+Der Grund: Das `@unlink()` im Steuerungscode umschliesst das *Einreihen* des
+Vorgangs; der Agent weist erst später im Arbeiter ab. **Bis zu 512 MB je
+Versuch, ausgelöst von einem Kunden, ohne Weg zurück** — die Lehre aus `docs/35`
+an einer neuen Stelle.
+
+Der Weg dahin ist `AfterOperation::afterFailure()`, den §22.3u schon als eigenen
+Beitrag vorgemerkt hatte. Damit fällt derselbe Schönheitsfehler mit: Die Zeile
+einer gescheiterten Sicherung steht nicht mehr für immer auf „läuft", sondern
+auf `failed` mit dem Grund des Agenten in `last_error`. Drei der vier
+Lebensläufe haben dabei nichts zu tun und sagen das ausdrücklich — eine zweite,
+freiwillige Schnittstelle wäre die, an die beim fünften niemand denkt.
+
+#### Fund 3 — Die abgelegte Grösse wurde nie gegen die Datei gehalten
+
+Bei einer von vier Sicherungen wich `database_dumps.bytes` von der Datei ab
+(69255 gegen 69362); die Dateizeit lag 27 Minuten nach der im Namen, sie ist
+also nach ihrer Erzeugung noch einmal angefasst worden — vermutlich von Hand
+während der Fehlersuche am 8. August. **Der Fund ist nicht die Abweichung,
+sondern dass sie folgenlos war:** `bytes` ist die Zahl, die dem Kunden als
+„Grösse" angezeigt wird, und nichts hielt sie je gegen die Datei.
+
+Dieselbe Familie wie das `GRANT`, das sein Schema überlebte (§22.3p), und die
+Zeile, die ihre Datei überlebte (§22.3r). Keinen der drei hat ein Test gefunden,
+sondern ein Abnahmelauf. `srvpanel db` vergleicht jetzt beide und meldet
+Abweichung wie fehlende Datei — gemeldet und nicht repariert, denn das eine ist
+ein Schönheitsfehler und das andere ein Datenverlust.
+
+Dabei fiel auf, dass ein toter Agent das Kommando bisher **abbrach**, bevor es
+zum Bestand kam. Wer nachsieht, weil etwas kaputt ist, bekommt jetzt beides; der
+Rückgabewert bleibt 1.
+
+#### Kleiner, aber vorgemerkt
+
+`database_dumps.kind` kennt zwei Werte, `'export'` und `'imported'` —
+verschieden gebaut, als nackte Zeichenketten an vier Stellen verstreut, ohne
+Enum und ohne Wächter, während `DumpStatus` daneben ein Enum ist. Der Kommentar
+in der Migration behauptet ausserdem noch, `'export'` sei „in P5 der einzige
+Wert". Das ist seit Schritt 11 falsch.
+
 ### 22.5a Bei 390px wird hier nicht bei 390px gemessen
 
 **Gefunden am 8. August 2026 beim Nachmessen des Fernzugriff-Feldes**, und der
@@ -2937,11 +3068,12 @@ Korrektur aus §22.3) und die Messung (§9, siehe §22.3c). Die Screenshots aus
 Schritt 7 sind für beide gemacht und haben insgesamt fünf Fehler gefunden, drei
 davon ausserhalb von P5 (§22.3a).
 
-**Gebaut sind alle elf Schritte.** Der Fernzugriff steht seit §22.3t, das
-Hochladen einer Sicherung seit §22.3u, und der Ort, an dem sein Zustand im
-Panel steht, seit §22.3v. **Auf einem echten Server erprobt ist keiner von
-beiden** — hier gibt es keinen Datenbankserver, dessen Horchadresse sich ändern
-liesse, und keinen Agenten, der eine hochgeladene Datei abholt. `srvpanel db` und `srvpanel db --prune` stehen seit
+**Gebaut sind alle elf Schritte**, und **seit dem 9. August sind auch Schritt 10
+und 11 auf einem echten Server gefahren** (§22.3w): Fernzugriff in acht
+Schritten samt Rückweg im gescheiterten Neustart, Hochladen samt Zip-Bombe,
+Prüfsummenvergleich über den ganzen Weg und Zurückspielen einer mitgebrachten
+Sicherung. Der Fernzugriff steht seit §22.3t, das Hochladen seit §22.3u, der Ort
+für seinen Zustand im Panel seit §22.3v. `srvpanel db` und `srvpanel db --prune` stehen seit
 §22.3e, `db.isolation.probe` und `srvpanel acceptance-db` seit §22.3g.
 
 **Der Abnahmelauf ist am 8. August dreimal gefahren** (§22.3h, §22.3i, §22.3j).

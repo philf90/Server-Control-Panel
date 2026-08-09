@@ -91,9 +91,7 @@ final class RunAgentOperation implements ShouldQueue
                 $operation->type,
                 $operation->payload ?? [],
                 $this->actor($operation),
-                function (array $frame) use ($recorder): void {
-                    $this->consume($recorder, $frame);
-                },
+                $recorder->consume(...),
                 static fn (): bool => $operation->cancelRequested(),
             );
 
@@ -117,35 +115,31 @@ final class RunAgentOperation implements ShouldQueue
             // Der Agent hat geantwortet und abgelehnt. Seine Begründung ist
             // für den Betreiber lesbar und gehört an den Vorgang.
             $recorder->fail($error->getMessage(), ['code' => $error->errorCode]);
+
+            // Und dann wird aufgeräumt. Bis zum 9. August gab es diese Zeile
+            // nicht, und damit blieb nach jedem Fehlschlag der Bestand stehen,
+            // wie er beim Einreihen war — samt hochgeladener Datei in der
+            // Übergabe (docs/36 §22.3w).
+            $lifecycles->afterFailure($operation);
         } catch (Throwable $error) {
             // Alles andere: Socket weg, Agent tot, Fehler im Panel. Die
             // Meldung kann Pfade und Klassennamen enthalten, deshalb steht
             // sie im Protokoll und nicht im Vorgang.
             report($error);
             $recorder->fail('Der Vorgang ist unerwartet abgebrochen. Näheres im Protokoll des Panels.');
-        }
-    }
 
-    /**
-     * Eine Meldung des Agenten verarbeiten.
-     *
-     * @param  array<string,mixed>  $frame
-     */
-    private function consume(OperationRecorder $recorder, array $frame): void
-    {
-        $type = $frame['type'] ?? null;
-
-        if ($type === 'progress') {
-            $recorder->progress(
-                is_numeric($frame['percent'] ?? null) ? (int) $frame['percent'] : 0,
-                is_string($frame['message'] ?? null) ? $frame['message'] : null,
-            );
-
-            return;
-        }
-
-        if ($type === 'output' && is_string($frame['line'] ?? null)) {
-            $recorder->output($frame['line']);
+            /*
+             * **Auch hier, und in einem eigenen `try`.** Was diesen Zweig
+             * erreicht, ist bereits unerwartet; scheitert das Aufräumen
+             * ebenfalls, darf es den Vorgang nicht ein zweites Mal umwerfen —
+             * dann stünde er wieder auf „läuft", und zwar genau in dem Fall,
+             * in dem am wenigsten bekannt ist.
+             */
+            try {
+                $lifecycles->afterFailure($operation);
+            } catch (Throwable $cleanup) {
+                report($cleanup);
+            }
         }
     }
 

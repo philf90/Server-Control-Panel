@@ -48,4 +48,26 @@ interface AfterOperation
      * tut sonst nichts.
      */
     public function afterSuccess(Operation $operation): void;
+
+    /**
+     * Der Vorgang ist gescheitert.
+     *
+     * **Diese Richtung hat bis zum 9. August 2026 gefehlt, und das war teurer
+     * als es aussieht** (`docs/36 §22.3u` und `§22.3w`). Ein Vertrag, der nur
+     * den Erfolg kennt, lässt jeden Fehlschlag den Bestand unberührt — die
+     * Zeile einer gescheiterten Sicherung stand für immer auf „läuft", ihr
+     * `last_error` blieb leer, obwohl die Oberfläche eine Spalte dafür hat, und
+     * die hochgeladene Datei blieb in der Übergabe liegen. Bis zu 512 MB je
+     * Versuch, ausgelöst von einem Kunden, und nichts im System hat sie je
+     * wieder angefasst.
+     *
+     * **Sie ist Pflicht und nicht optional**, obwohl drei der vier Umsetzungen
+     * heute nichts zu tun haben. Eine zweite, freiwillige Schnittstelle wäre
+     * die, an die beim fünften Lebenslauf niemand denkt — dieselbe Begründung,
+     * aus der `handles()` hier steht und nicht in einem `match` im Rumpf.
+     *
+     * Ein *Abbruch* zählt nicht dazu: Wer abbricht, weiss, was er tut, und der
+     * Bestand soll dabei stehen bleiben, wie er ist.
+     */
+    public function afterFailure(Operation $operation): void;
 }

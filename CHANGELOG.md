@@ -5862,3 +5862,70 @@ bleibt unangetastet, und einen Include-Punkt kennt sie erst ab PG 16 — bei
 Debian auch dort nicht eingeschaltet. Zwei Umsetzungen für eine Zusage sind
 keine. Er steht als Punkt 5c in `docs/20 §15`. `docs/20 §9 P5b` ist mitsamt
 seinem Abnahmekriterium nachgezogen.
+
+### Der Fernzugriff auf PostgreSQL kommt doch — und warum er erst nicht kam
+
+**`docs/38 §14` hat in seiner ersten Fassung abgeraten, und die Begründung war
+eine wahre Aussage über etwas, das die Aufgabe nicht verlangt.** Sie lautete:
+Ein Include-Punkt für `pg_hba.conf` existiert erst ab PG 16 und ist bei Debian
+auch dort nicht eingeschaltet — auf Ubuntu 22.04 und Debian 12 gibt es ihn
+nicht, ein Fernzugriff wäre also auf der Hälfte der Zielplattformen anders
+gebaut. Jeder Halbsatz davon stimmt. Nur braucht ein **verwalteter Block
+zwischen Marken** überhaupt keinen Include-Punkt, und der ist auf PG 14 bis 17
+derselbe Bau.
+
+Das ist im selben Dokument zum zweiten Mal derselbe Fehler. `docs/38 §3` hält
+für `pg_database` fest, dass ein zutreffender Satz die falsche Frage beantworten
+kann — und §14 hat es dann selbst getan. Aufgefallen ist es nicht durch
+Nachdenken, sondern weil der Betreiber gefragt hat, was sich änderte, wenn der
+Fernzugriff doch gebaut würde, und daraufhin nachgemessen wurde. **Die Lehre ist
+nicht „besser nachdenken", sondern: Eine Begründung, die eine Stufe verkleinert,
+gehört genauso gemessen wie eine, die sie vergrössert.** Bisher galt der
+Massstab nur für Zusagen.
+
+**Was die Nachmessung dafür an echtem Risiko gefunden hat**, ist die
+unangenehmste Bauart von Fehler, die dieses Projekt kennt — einer mit einer
+Wartungsfrist zwischen Ursache und Wirkung:
+
+| | |
+|---|---|
+| kaputte `pg_hba.conf` + Reload | Server bedient weiter, alte Regeln bleiben, `pg_hba_file_rules` nennt den Fehler mit Zeilennummer |
+| kaputte `pg_hba.conf` + Neustart | `FATAL: could not load pg_hba.conf` — **der Cluster kommt nicht hoch** |
+
+Eine falsche Zeile ist beim Schreiben unsichtbar und wochenlang folgenlos; sie
+zündet beim nächsten Paketupdate oder Reboot, und dann sind alle Kunden ohne
+Datenbank wegen einer Datei aus dem letzten Monat. `pg.remote.access` schreibt
+deshalb, reloadet, liest `pg_hba_file_rules` auf Fehler — **und rollt die Datei
+zurück, statt zu melden.** Eine Operation, die eine kaputte Datei liegenlässt
+und darüber berichtet, hat den Server scharf gemacht und ein Protokoll
+geschrieben. `PgHbaRollbackTest` fährt das gegen einen echten Cluster, weil es
+in diesem Container einen gibt.
+
+Dass dieser Rückweg überhaupt möglich ist, ist Glück und gehört benannt: Der
+Reload ist gnädig, wo der Neustart es nicht ist. Es ist die Umkehrung der Lehre
+aus `docs/37 §6` — hier ist der gelesene Zustand nicht nur ehrlicher als die
+geschriebene Zeile, er ist die einzige Gelegenheit, den Fehler zu sehen, bevor
+er wirkt. Und weil ein Betreiber diese Datei auch von Hand ändert, liest
+`srvpanel db` sie bei **jedem** Lauf mit und meldet auch Fehler, die nicht von
+uns stammen.
+
+**Und eine Stelle, an der ein Datenmodell aus P5 wirklich bricht** — die erste,
+und `docs/37 §4` hatte sie als „die teuerste Zeile" der Übergabetabelle
+angekündigt. In MariaDB sind `'p1001_web'@'localhost'` und
+`'p1001_web'@'203.0.113.5'` zwei Benutzer mit zwei Passwörtern; deshalb ist
+`(name, host)` eindeutig und richtig. In PostgreSQL ist es eine Rolle, ein
+Passwort und mehrere erlaubte Netze. Zwei Zeilen mit demselben Namen wären dort
+nicht zwei Zugänge, sondern zwei Regeln für einen — und `pg.role.create` liefe
+zweimal und setzte ein zweites Passwort auf dieselbe Rolle. Die Netze bekommen
+deshalb eine eigene Tabelle; `db_users.host` bleibt stehen, weil die Spalte für
+MariaDB die Wahrheit sagt.
+
+Die Folge davon steht nicht im Code, sondern auf der Seite: **Ein
+PostgreSQL-Fernzugang hat kein eigenes Passwort.** Wer die Zugangsdaten
+verliert, verliert ihn für jedes erlaubte Netz. Ein Kunde, der P5 kennt, nimmt
+das Gegenteil an.
+
+**Die Zeile nennt die Datenbank und nicht `all`** — gemessen: Damit kommt die
+Rolle in ihre Datenbank und in `postgres` nicht. Das ist eine zweite Wand hinter
+dem `REVOKE CONNECT` und kostet eine Zeile je Datenbank × Rolle × Netz.
+`docs/20 §15` Punkt 5c ist damit erledigt, statt bis 1.0 offen zu bleiben.

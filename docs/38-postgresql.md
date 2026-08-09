@@ -69,6 +69,23 @@ beantwortet jede Frage, an der die *Bauform* hängt, und das war der Auftrag.
 | — | Hat Debian einen Include-Punkt? | **`postgresql.conf`: ja** — `include_dir = 'conf.d'` steht aktiv in der Vorgabe, das Verzeichnis existiert. **`pg_hba.conf`: nein** |
 | — | Was steht in `pg_hba.conf`? | `local all postgres peer` · `local all all peer` · `host all all 127.0.0.1/32 scram-sha-256` — ein Kunde kann sich über den Socket **gar nicht** anmelden, über `127.0.0.1` schon |
 
+### 2.2a Der zweite Durchgang: der Fernzugriff
+
+Nachgemessen am selben Tag, nachdem §14 in seiner ersten Fassung abgeraten
+hatte. **Die Messung hat die Empfehlung umgeworfen**, und zwar an ihrer
+Voraussetzung — siehe §14.
+
+| # | Frage | Befund |
+|---|---|---|
+| M15 | Braucht ein verwalteter Bereich in `pg_hba.conf` einen Include-Punkt? | **Nein.** Ein Block zwischen `# BEGIN srvpanel` und `# END srvpanel` ist auf jeder Fassung derselbe Bau. Die Include-Frage stellt sich gar nicht |
+| M18 | Lässt sich der Zustand zurücklesen? | **Ja, sauber.** `pg_hba_file_rules` gibt Regelnummer, Zeilennummer, Rolle, Adresse, Netzmaske, Methode — **und eine Spalte `error`**. Nur für Superuser lesbar, ein Kunde bekommt `permission denied` |
+| M16 | Kaputte `pg_hba.conf` + **Reload**? | Harmlos: Der Server bedient weiter, **behält die alten Regeln**, und `pg_hba_file_rules` nennt den Fehler mit Zeilennummer |
+| M17 | Kaputte `pg_hba.conf` + **Neustart**? | **`FATAL: could not load pg_hba.conf` — der Cluster kommt nicht hoch.** Eine falsche Zeile ist beim Schreiben unsichtbar und zündet beim nächsten Neustart |
+| M19 | Eine Rolle, mehrere Netze? | Geht — zwei Zeilen, und `pg_hba_file_rules` liest beide samt Reihenfolge zurück |
+| M20 | `listen_addresses` — Reload oder Neustart? | Kontext `postmaster`, also **Neustart**. Wie `bind-address` in P5 |
+| M22 | Eine Zeile für eine Rolle, die es nicht gibt? | **Kein Fehler.** Sie bleibt liegen, und niemand meldet es |
+| M23 | Zeile je Datenbank statt `all`? | Geht: `host <db> <rolle> <netz>` lässt die Rolle in ihre Datenbank und in `postgres` nicht — `no pg_hba.conf entry for … database "postgres"` |
+
 ### 2.3 Was hier nicht zu messen war
 
 Diese Fragen gehören auf `cloudsrv24` und auf die vier Zielplattformen, **bevor
@@ -408,10 +425,44 @@ Spalte in `system_users`.
   redet dann über SQL-Syntax
 - `system_users.db_prefix` — `string(24)`, `nullable()`, `unique()`
 
-**`db_users.host` bleibt und bleibt leer.** Für PostgreSQL gibt es kein
-Gegenstück (§14); der eindeutige Index `(name, host)` trägt weiter, weil
-Rollennamen ohnehin clusterweit eindeutig sind. Eine Spalte zu entfernen, die
-für die Hälfte der Zeilen die Wahrheit sagt, wäre der teurere Weg.
+### `db_users.host` trägt für PostgreSQL nicht
+
+**Die einzige Stelle, an der ein Datenmodell aus P5 bricht** — und sie bricht
+aus einem Grund, der in `docs/37 §4` schon als „die teuerste Zeile" der
+Übergabetabelle stand.
+
+In MariaDB ist der Wirt Teil der Identität: `'p1001_web'@'localhost'` und
+`'p1001_web'@'203.0.113.5'` sind **zwei Benutzer mit zwei Passwörtern**, und
+deshalb ist `(name, host)` eindeutig und richtig. In PostgreSQL ist es eine
+Rolle mit einem Passwort, und die erlaubten Netze stehen in `pg_hba.conf` —
+mehrere je Rolle (M19). Zwei Zeilen mit demselben Namen wären hier nicht zwei
+Zugänge, sondern zwei Regeln für einen; `pg.role.create` liefe zweimal, und der
+zweite Lauf setzte ein zweites Passwort auf dieselbe Rolle.
+
+Deshalb eine eigene Tabelle:
+
+```php
+Schema::create('db_user_networks', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('db_user_id')->constrained('db_users')->cascadeOnDelete();
+
+    // Als Text und nicht als zwei Spalten: Was hier steht, geht Zeichen für
+    // Zeichen in eine Zeile von pg_hba.conf, und die Schreibweise ist die von
+    // PostgreSQL. Zerlegt und wieder zusammengesetzt wäre es eine zweite
+    // Fassung derselben Regel.
+    $table->string('cidr', 43);
+
+    $table->timestamps();
+    $table->unique(['db_user_id', 'cidr']);
+});
+```
+
+**`db_users.host` bleibt trotzdem stehen.** Für MariaDB sagt die Spalte die
+Wahrheit und trägt den eindeutigen Index; sie zu entfernen wäre eine Migration
+über Kundendaten, damit zwei Systeme dieselbe leere Spalte teilen. Für
+PostgreSQL steht dort `localhost`, und die Netze stehen daneben. Was die
+Oberfläche zeigt, entscheidet `engine` — nicht zwei Felder nebeneinander, von
+denen eines immer leer ist.
 
 **`databases.charset` und `collation` bekommen bei PostgreSQL andere Werte,
 nicht andere Spalten** — `UTF8` und `C.UTF-8` statt `utf8mb4` und
@@ -442,6 +493,7 @@ Unter `agent/src/Ops/`, eingetragen in `agent/src/Registry.php` unter
 | `pg.dump.import` | Eine mitgebrachte Sicherung ablegen | **ja** |
 | `pg.dump.remove` | Die Ablage wieder weg | **ja** |
 | `pg.restore` | Einspielen unter befristeter Rolle, `ON_ERROR_STOP=1` (§13) | **ja** |
+| `pg.remote.access` | `listen_addresses` über `conf.d`, der verwaltete Block in `pg_hba.conf`, mit Rückweg (§14) | **ja** — Reload, und bei Bedarf Neustart |
 | `pg.isolation.probe` | Die Gegenprobe zum Abnahmekriterium (§19) | nein |
 
 Bausteine unter `agent/src/Pg/`, im Schnitt von `agent/src/Db/`:
@@ -454,7 +506,13 @@ agent/src/Pg/Session.php    Ein Lauf gegen `psql`, als `postgres`
 agent/src/Pg/Dump.php       pg_dump/pg_restore und die Ablage
 agent/src/Pg/Ephemeral.php  Die befristete Rolle
 agent/src/Pg/Shielding.php  Die Absperrung einer neuen Datenbank
+agent/src/Pg/Hba.php        Der verwaltete Block, das Zurücklesen, der Rückweg
 ```
+
+**`Pg\Hba` ist eine eigene Klasse und keine Methode in der Operation.** Sie
+schreibt in eine Datei, deren Fehler erst beim nächsten Neustart wirkt (§14.2) —
+das ist die Sorte Code, die man einzeln prüfen können muss, und
+`PgHbaRollbackTest` fährt sie einzeln.
 
 **Neu auf `Runner::PROGRAMS`: `psql`, `pg_dump`, `pg_restore`** — alle drei als
 fassungsunabhängige Wrapper unter `/usr/bin`, gemessen. Das ist der sichtbare
@@ -587,33 +645,108 @@ zweites Mal, für einen anderen Zweck.
 
 ---
 
-## 14. Fernzugriff — hier kollidieren zwei Entscheidungen
+## 14. Fernzugriff — und ein Abschnitt, den seine eigene Messung umgeworfen hat
 
-**P5b baut keinen.** Das ist eine Verkleinerung gegenüber P5, und sie ist keine
-Bequemlichkeit, sondern die Folge zweier Festlegungen, die zusammen nichts
-übriglassen:
+> **Hier stand: „P5b baut keinen."** Die Begründung war, `pg_hba.conf` kenne
+> einen Include-Punkt erst ab PG 16, ein Fernzugriff wäre also auf der Hälfte
+> der Zielplattformen anders gebaut. Der Satz stimmt und war trotzdem die
+> falsche Frage: **Ein verwalteter Block zwischen Markern braucht keinen
+> Include** (M15) und ist auf PG 14 bis 17 derselbe Bau. Die Prämisse war
+> richtig, die Folgerung nicht.
+>
+> Das ist im selben Dokument zum zweiten Mal derselbe Fehler — §3 hält für
+> `pg_database` fest, dass ein zutreffender Satz die falsche Frage beantworten
+> kann. Er ist hier nicht durch Nachdenken aufgefallen, sondern dadurch, dass
+> jemand nachgemessen hat, was der Abschnitt behauptet.
 
-- Die Wirtsbeschränkung eines Kunden steht in PostgreSQL in `pg_hba.conf` — es
-  gibt kein Gegenstück am Benutzer (`docs/37 §4`).
-- `pg_hba.conf` wird nicht angefasst (Entscheidung des Betreibers, §21).
+**P5b baut den Fernzugriff**, im Zuschnitt von `docs/36 §12`. Der Betreiber
+schaltet ihn frei, `0.0.0.0/0` wird abgewiesen, und die Oberfläche sagt, dass
+die Beschränkung im Datenbankserver gilt und nicht im Paketfilter.
 
-Bliebe ein Include-Punkt. Den kennt `pg_hba.conf` erst **ab PG 16**, und Debian
-liefert ihn auch dort nicht eingeschaltet — gemessen. Auf Ubuntu 22.04 und
-Debian 12 gibt es ihn nicht. Ein Fernzugriff, der auf der Hälfte der
-Zielplattformen anders gebaut wäre, ist zwei Umsetzungen für eine Zusage.
+### 14.1 Die zwei Hälften, und nur eine ist neu
 
-**Was bleibt und was geht:**
+**`listen_addresses` hat einen sauberen Include-Punkt.**
+`include_dir = 'conf.d'` steht in Debians `postgresql.conf` **aktiv**, das
+Verzeichnis existiert — P5b schreibt `/etc/postgresql/<fassung>/main/conf.d/60-srvpanel.conf`
+und fasst keine Distributionsdatei an. Das ist dieselbe Form wie
+`60-srvpanel.cnf` in P5, nur muss diese Stufe den Include-Punkt nicht selbst
+schaffen. **Neustart, nicht Reload** — der Wert hat Kontext `postmaster` (M20),
+genau wie `bind-address`.
 
-- `listen_addresses` **hätte** einen sauberen Include-Punkt:
-  `include_dir = 'conf.d'` steht in Debians `postgresql.conf` aktiv, das
-  Verzeichnis existiert. Genutzt wird er in P5b nicht — ohne die
-  IP-Beschränkung wäre ein offener Port ein Zugang von überall, und `%` als
-  Wirt hat `docs/36 §12` mit Grund abgewiesen.
-- Die Oberfläche zeigt das Häkchen **nicht** und sagt daneben, warum — dieselbe
-  Form wie bei abgeschaltetem `bind-address` in P5 (`AbilityReachTest`).
+**`pg_hba.conf` ist die neue Hälfte**, denn dort und nur dort steht in
+PostgreSQL, von wo eine Rolle kommen darf. Ein verwalteter Block:
 
-Das gehört in `docs/20 §15` als offener Punkt, mit der Fassungsfrage als
-Bedingung.
+```
+# BEGIN srvpanel — verwaltet, nicht von Hand ändern
+host    p1001_shop   p1001_web   203.0.113.5/32     scram-sha-256
+host    p1001_shop   p1001_web   198.51.100.0/24    scram-sha-256
+# END srvpanel
+```
+
+**Die Zeile nennt die Datenbank und nicht `all`** (M23). Das ist eine zweite
+Wand hinter dem `REVOKE CONNECT` aus §10, und sie kostet eine Zeile je
+Datenbank × Rolle × Netz — bei hundert Abonnements mit je zwei Datenbanken und
+einem Netz rund zweihundert. Die Reihenfolge ist gemessen stabil.
+
+### 14.2 Die Landmine, und warum der Ablauf nicht verhandelbar ist
+
+| | |
+|---|---|
+| kaputte Datei + **Reload** | Server bedient weiter, alte Regeln bleiben, `pg_hba_file_rules` nennt den Fehler mit Zeilennummer (M16) |
+| kaputte Datei + **Neustart** | **`FATAL: could not load pg_hba.conf` — der Cluster kommt nicht hoch** (M17) |
+
+**Eine falsche Zeile ist beim Schreiben unsichtbar und wochenlang folgenlos.**
+Sie zündet beim nächsten Neustart, bei einem Paketupdate oder einem Reboot —
+alle Kunden ohne Datenbank, und die Ursache ist eine Datei, die vor einem Monat
+geschrieben wurde. Das ist die teuerste Bauart von Fehler, die dieses Projekt
+kennt: einer, der zwischen Ursache und Wirkung eine Wartungsfrist legt.
+
+Deshalb läuft `pg.remote.access` in fünf Schritten, und der vierte ist keine
+Meldung, sondern ein Rückweg:
+
+1. Die vorhandene Datei beiseitelegen.
+2. Den Block schreiben — **additiv**, alles ausserhalb der Marken bleibt Byte
+   für Byte stehen.
+3. `SELECT pg_reload_conf()`.
+4. **`SELECT … FROM pg_hba_file_rules WHERE error IS NOT NULL` lesen.** Steht
+   dort etwas: die beiseitegelegte Datei zurückschreiben, noch einmal reloaden,
+   und den Vorgang mit der Fehlermeldung samt Zeilennummer scheitern lassen.
+5. Erst danach, und nur wenn `listen_addresses` sich ändert, der Neustart.
+
+**Zurückrollen und nicht melden.** Eine Operation, die eine kaputte Datei
+liegenlässt und darüber berichtet, hat den Server scharf gemacht und ein
+Protokoll geschrieben. `PgHbaRollbackTest` besteht darauf (§18).
+
+Dass Schritt 4 überhaupt möglich ist, ist Glück und gehört benannt: Der Reload
+ist gnädig, wo der Neustart es nicht ist. Es ist die Umkehrung von Lehre 1 aus
+`docs/37 §6` — hier ist der gelesene Zustand nicht nur ehrlicher als die
+geschriebene Zeile, er ist die einzige Gelegenheit, den Fehler zu sehen, bevor
+er wirkt.
+
+### 14.3 Wo P5b nicht gleich ist, obwohl die Fläche gleich aussieht
+
+**Ein Fernzugang hat kein eigenes Passwort.** In MariaDB sind
+`'p1001_web'@'localhost'` und `'p1001_web'@'203.0.113.5'` zwei Benutzer mit zwei
+Passwörtern; wer das eine verliert, verliert nicht das andere. In PostgreSQL ist
+es **eine Rolle, ein Passwort, mehrere erlaubte Netze**. Das ist kein Baufehler,
+sondern die Bauart des Systems — und es gehört auf die Seite, weil ein Kunde,
+der P5 kennt, das Gegenteil annimmt.
+
+**Damit bricht `db_users.host`** (§9): Zwei Zeilen mit demselben Namen wären
+nicht zwei Zugänge, sondern zwei Regeln für einen — und `pg.role.create` liefe
+zweimal. Die Netze eines Zugangs stehen deshalb in einer eigenen Tabelle.
+
+### 14.4 Der Weg zurück
+
+Eine Zeile für eine Rolle, die es nicht mehr gibt, ist für PostgreSQL **kein
+Fehler** (M22) — sie bleibt liegen, und nichts meldet es. `pg_hba.conf` ist
+damit das Vierte, was diese Stufe auf der Platte hinterlässt, neben Datenbanken,
+Rollen und Sicherungen.
+
+- `pg.role.remove` nimmt die Zeilen der Rolle mit, im selben Vorgang.
+- `srvpanel db` gleicht den Block gegen den Bestand ab und meldet, was
+  übrigbleibt — **melden und nicht löschen**, wie `docs/36 §5` es festlegt.
+- `PgHbaReachTest` hält beide Richtungen (§18).
 
 ---
 
@@ -743,9 +876,30 @@ Und die sechs Textstellen aus §12.
 
 `tests/waechter-brechen.sh`, geprüft von `BreakScriptTest`.
 
-### Schritt 9 — Der Abnahmelauf (§19)
+### Schritt 9 — Der Abnahmelauf (§19), ohne Fernzugriff
 
 Auf `cloudsrv24`, mit zwei Abonnements. **Vorher §2.3 messen.**
+
+### Schritt 10 — Fernzugriff (§14)
+
+**Ans Ende, und zwar aus demselben Grund wie in `docs/36 §19` Entscheidung 5:**
+Ohne ihn ist die Stufe abnehmbar, mit ihm horcht ein Dienst auf einer
+erreichbaren Adresse. Das gehört nicht in denselben Beitrag wie das Anlegen der
+ersten Datenbank.
+
+```
+agent/src/Pg/Hba.php
+agent/src/Ops/PgRemoteAccess.php
+database/migrations/…_create_db_user_networks_table.php
+app/Console/Commands/Databases.php   (--remote=on für PostgreSQL)
+resources/js/Pages/Databases/Show.vue
+tests/Unit/PgHbaRollbackTest.php  tests/Feature/PgHbaReachTest.php
+```
+
+**`Pg\Hba` ist hier fahrbar**, und zwar vollständig: Ein Wegwerf-Cluster im
+Scratchpad nimmt eine kaputte Zeile entgegen, und ob der Rückweg greift, lässt
+sich sehen statt behaupten. Das ist der Schritt, bei dem sich die PostgreSQL im
+Container am meisten auszahlt.
 
 ---
 
@@ -761,6 +915,8 @@ Auf `cloudsrv24`, mit zwei Abonnements. **Vorher §2.3 messen.**
 | `DocLinkTest` | Jeder Verweis in `docs/` zeigt auf eine Datei, die es gibt | Eine Zieldatei umbenennen |
 | `PackagingTest` (erweitert) | Jede Zeile unter `depends`/`recommends`/`suggests` hat eine Begründung oder eine Stelle im Code, die sie einlöst | Eine Zeile ohne beides einfügen — der heutige Zustand |
 | `EngineReachTest` | Zu jeder `db.*`-Operation mit einem Gegenstück gibt es `pg.*`, oder ein begründeter Eintrag sagt warum nicht | Eine `pg.*`-Operation entfernen |
+| `PgHbaRollbackTest` | Eine ungültige Zeile führt zur **alten Datei** zurück, nicht zu einer Meldung — geprüft gegen einen echten Cluster, nicht am Quelltext | Den Rückweg durch ein `log()` ersetzen |
+| `PgHbaReachTest` | Jede Zeile im verwalteten Block zeigt auf eine Rolle, die es gibt — **und jede Rolle mit Netzen hat ihre Zeilen** | Eine Rolle entfernen und ihre Zeilen stehenlassen |
 
 **Vier laufen von selbst mit** und sind der eigentliche Grund, warum §8 so
 entschieden ist: `RemovalPathTest` (§15), `AgentOperationReachTest`,
@@ -903,6 +1059,40 @@ nicht wo sie stehen soll. Sonst meldet er Rot, sobald jemand aufräumt.
 #    ACHTUNG: Der Rückbau ist an einem Abo zu fahren, das MINDESTENS EINE
 #    Sicherung hat — sonst ist die dritte Erwartung eine Abwesenheit ohne
 #    Vorgeschichte.
+
+# 10 FERNZUGRIFF   ← Schritt 10, nach der Abnahme der übrigen neun
+#    (a) Solange nicht freigeschaltet, zeigt das Panel das Feld NICHT — mit dem
+#        Grund daneben, nicht ausgeblendet (AbilityReachTest).
+#    (b) srvpanel db --postgres --remote=on
+#        erwartet: /etc/postgresql/<fassung>/main/conf.d/60-srvpanel.conf
+#                  existiert, die Distributionsdateien sind UNVERÄNDERT:
+#          md5sum vorher/nachher von postgresql.conf   → gleich
+#        BELEG: SHOW listen_addresses; NACH dem Neustart — zurückgelesen und
+#               nicht geschrieben. „Datei geschrieben" ist eine Absicht
+#               (docs/37 §6, Lehre 1; in P5 genau hier gefunden, §22.3w A5).
+#    (c) Für <A>_web ein Netz eintragen. Dann:
+#          SELECT rule_number, database, user_name, address, error
+#            FROM pg_hba_file_rules WHERE error IS NOT NULL;
+#        erwartet: 0 Zeilen. UND die eigene Zeile taucht mit ihrer Datenbank
+#        auf — nicht mit `all`.
+#    (d) DIE PROBE, DIE DAS EIGENTLICHE RISIKO MISST — von Hand eine ungültige
+#        Zeile in den verwalteten Block schreiben und pg.remote.access erneut
+#        laufen lassen, ODER die Operation mit einem ungültigen Netz rufen.
+#        erwartet: der Vorgang SCHEITERT, die Fehlermeldung nennt die
+#        Zeilennummer, UND die Datei steht wieder wie vorher:
+#          md5sum pg_hba.conf   → wie vor dem Lauf
+#        DANN, UND DAS IST DER EIGENTLICHE BELEG:
+#          systemctl restart postgresql && systemctl is-active postgresql
+#        erwartet: aktiv. OHNE DIESEN NEUSTART IST (d) NICHT GEFAHREN — eine
+#        kaputte pg_hba.conf ist im laufenden Betrieb unsichtbar (M16) und
+#        verhindert erst den nächsten Start (M17). Wer nur prüft, dass der
+#        Server noch antwortet, prüft genau das, was auch im Fehlerfall gilt.
+#    (e) %/0.0.0.0/0 als Netz → abgewiesen, mit Meldung.
+#    (f) Und der Weg zurück: den Zugang löschen, dann
+#          grep -c "<A>_web" /etc/postgresql/*/main/pg_hba.conf   → 0
+#          srvpanel db                              → „Nichts liegengeblieben."
+#        Eine Zeile für eine gelöschte Rolle ist für PostgreSQL kein Fehler
+#        (M22) — sie fällt nur auf, wenn jemand danach fragt.
 ```
 
 ---
@@ -948,12 +1138,28 @@ vorgelegt:
    vorhandener Cluster ist Bestand und wird benutzt; `pg_hba.conf` bleibt
    unangetastet; Kunden verbinden sich über `127.0.0.1`.
 
+6. **Der Fernzugriff wird gebaut** (§14) — nachgetragen am selben Tag, nachdem
+   die Messung aus §2.2a die Empfehlung dieses Plans umgeworfen hatte.
+
+   Der Ablauf gehört zur Entscheidung, weil er zeigt, wozu die Regel „gemessen,
+   nicht geschätzt" da ist: Vorgelegt worden war *„P5b baut keinen Fernzugriff"*,
+   mit der Begründung, `pg_hba.conf` kenne einen Include-Punkt erst ab PG 16.
+   Auf die Frage des Betreibers, was sich änderte, wenn er doch gebaut würde,
+   ist nachgemessen worden — und dabei fiel auf, dass ein verwalteter Block
+   **keinen** Include-Punkt braucht. Die Begründung war eine wahre Aussage über
+   etwas, das die Aufgabe nicht verlangt.
+
+   **Damit wird `pg_hba.conf` doch angefasst**, und Entscheidung 5 ist insoweit
+   enger gefasst: Das Panel schreibt in einen verwalteten Block zwischen
+   Marken, additiv, und lässt alles ausserhalb Byte für Byte stehen. Was es
+   nicht tut, ist die Datei erzeugen oder Zeilen des Betreibers ändern.
+
 **Nicht vorgelegt, weil entscheidbar — und deshalb hier zum Widerspruch:**
 
-6. **Fernzugriff entfällt in P5b** (§14). Er folgt aus 5 und ist keine eigene
-   Entscheidung, aber er verkleinert den Umfang gegenüber P5 sichtbar und
-   gehört deshalb genannt.
 7. **Die Kontingente gelten für beide Systeme zusammen** (§12).
+8. **Die `pg_hba`-Zeile nennt die Datenbank und nicht `all`** (§14.1). Das ist
+   enger als P5 es kann und kostet Zeilen; wer die Datei lieber kurz hätte,
+   muss es sagen.
 
 ---
 
@@ -976,6 +1182,15 @@ vorgelegt:
 5. **Der Betreiber liest nichtssagende Namen** (§4). `srvpanel db list` löst
    das auf der Kommandozeile; wer `psql` von Hand benutzt, hat es schwerer als
    vorher.
+5a. **Eine kaputte `pg_hba.conf` verhindert den nächsten Start, nicht den
+   laufenden Betrieb** (M17). Der Rückweg aus §14.2 nimmt das Risiko, aber er
+   nimmt es nicht weg: Wer die Datei von Hand ändert — und sie ist eine Datei,
+   die Betreiber von Hand ändern —, bekommt dieselbe Bombe ohne unseren
+   Rückweg. `srvpanel db` liest deshalb `pg_hba_file_rules` bei **jedem** Lauf
+   mit und meldet Fehler, auch solche, die nicht von uns stammen.
+5b. **Ein Fernzugang hat kein eigenes Passwort** (§14.3). Wer die Zugangsdaten
+   eines PostgreSQL-Zugangs verliert, verliert ihn für jedes erlaubte Netz.
+   Bei MariaDB ist das anders, und die Oberfläche muss es sagen.
 6. **Der Abnahmelauf verbraucht zwei Systembenutzer**, endgültig (`docs/35`).
 7. **`waechter-brechen.sh` bleibt zur Hälfte ungeprüft.** `docs/36 §20` Punkt 1
    gilt unverändert; P5b legt acht weitere Brüche darauf. Der Rotbeweis braucht
@@ -987,16 +1202,19 @@ vorgelegt:
 
 | Bereich | neue Dateien | geänderte |
 |---|---|---|
-| `agent/` | 7 Bausteine, 15 Operationen | `Registry.php`, `Runner.php`, `ServiceAction.php` |
-| `app/` | 1 Dienst, 1 Lebenslauf | `Databases`, `Dumps`, `Usage`, `Quota`, `SubscriptionController`, `SystemUser`, `Lifecycle` |
-| `database/` | 1 Migration | — |
+| `agent/` | 8 Bausteine, 16 Operationen | `Registry.php`, `Runner.php`, `ServiceAction.php` |
+| `app/` | 1 Dienst, 1 Lebenslauf, 1 Modell | `Databases`, `Dumps`, `Usage`, `Quota`, `SubscriptionController`, `SystemUser`, `Lifecycle` |
+| `database/` | 2 Migrationen | — |
 | `resources/` | — | 4 Seiten |
-| `tests/` | 8 Wächter | `waechter-brechen.sh`, `RemovalPathTest`, `AgentOperationReachTest`, `PackagingTest` |
+| `tests/` | 10 Wächter | `waechter-brechen.sh`, `RemovalPathTest`, `AgentOperationReachTest`, `PackagingTest` |
 | `packaging/` | — | `nfpm.yaml`, `bin/srvpanel` |
 | `docs/` | dieses | `20 §9 P5b`, `20 §15`, `23`, `CHANGELOG`, `CLAUDE.md` |
 
 Geschätzt zwei bis drei Wochen, dieselbe Grössenordnung wie `docs/20 §9` sie
-nennt. **Der Fernzugriff ist nicht enthalten** (§14).
+nennt. **Der Fernzugriff ist enthalten** (§14) und steht als Schritt 10 am Ende;
+er kostet gegenüber der ersten Fassung dieses Plans rund eine halbe Woche, weil
+`pg.remote.access` sich weitgehend an `db.remote.access` entlangschreiben lässt
+— was neu ist, ist `Pg\Hba` und sein Rückweg.
 
 ---
 

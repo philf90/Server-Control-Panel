@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DatabaseStatus;
 use App\Enums\DbUserStatus;
 use App\Enums\OperationStatus;
@@ -13,13 +14,15 @@ use App\Models\Database;
 use App\Models\DbUser;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Support\Databases\Engines\EngineDriver;
+use App\Support\Databases\Engines\MariaDbDriver;
+use App\Support\Databases\Engines\PostgresDriver;
 use App\Support\Plans\Quota;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tls\CertificateRecord;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use SrvPanel\Agent\Client;
-use SrvPanel\Agent\Db\Names;
 
 /**
  * Anlegen, entfernen und berechtigen — der Dienst zwischen Panel und Agent.
@@ -64,6 +67,26 @@ final class Databases
     ) {}
 
     /**
+     * Die eine Stelle, an der über das Datenbanksystem entschieden wird.
+     *
+     * **`docs/38 §8` verlangt genau das:** ein Modell, eine Fläche, eine
+     * Verzweigung. Alles darunter — welcher Aufruf, welche Argumente, welches
+     * Präfix — steht in {@see EngineDriver} und seinen zwei Umsetzungen; alles
+     * darüber — Kontingent, Namensprüfung, Klammer, Bestand — steht in dieser
+     * Klasse genau einmal.
+     *
+     * Der `match` ist vollständig ohne `default`: Käme ein drittes System
+     * hinzu, meldete es der Übersetzer hier und nicht ein Kunde später.
+     */
+    private function driver(DatabaseEngine $engine): EngineDriver
+    {
+        return match ($engine) {
+            DatabaseEngine::MariaDb => new MariaDbDriver($this->agent),
+            DatabaseEngine::Postgres => new PostgresDriver($this->agent, $this->tenancy),
+        };
+    }
+
+    /**
      * Eine Datenbank anlegen — unmittelbar, und die Zeile danach.
      *
      * **Ohne Warteschlange, obwohl es eine Systemänderung ist.** Plan §5.3
@@ -74,26 +97,27 @@ final class Databases
      * hiesse, dass das Passwort entweder in der Warteschlange liegt oder der
      * Kunde auf eine zweite Seite wartet, um es zu sehen.
      */
-    public function create(Subscription $subscription, string $label, string $collation): Database
-    {
+    public function create(
+        Subscription $subscription,
+        string $label,
+        string $collation,
+        DatabaseEngine $engine = DatabaseEngine::MariaDb,
+    ): Database {
         $this->guardQuota($subscription);
 
-        $result = $this->agent->call('db.database.create', [
-            'user' => (string) $subscription->system_user,
-            'suffix' => $label,
-            'charset' => 'utf8mb4',
-            'collation' => $collation,
-        ]);
+        $driver = $this->driver($engine);
+        $result = $driver->createDatabase($driver->prefix($subscription), $label, $collation);
 
         // **Was gilt, steht in der Antwort des Agenten** und nicht in dem, was
         // das Panel bestellt hat. Er hat den Namen zusammengesetzt; ihn hier
         // ein zweites Mal zu bauen wäre die zweite Fassung derselben Regel.
         $database = new Database([
-            'name' => (string) ($result['name'] ?? Names::database((string) $subscription->system_user, $label)),
+            'name' => $result['name'],
             'label' => $label,
+            'engine' => $engine,
             'status' => DatabaseStatus::Active,
-            'charset' => (string) ($result['charset'] ?? 'utf8mb4'),
-            'collation' => (string) ($result['collation'] ?? $collation),
+            'charset' => $result['charset'],
+            'collation' => $result['collation'],
         ]);
 
         $database->subscription_id = (int) $subscription->id;
@@ -113,24 +137,33 @@ final class Databases
      * @param  list<Database>  $databases
      * @return array{0: DbUser, 1: string} Der Zugang und sein Passwort
      */
-    public function createUser(Subscription $subscription, string $label, array $databases, string $host = 'localhost'): array
-    {
-        $this->guardFreeName($subscription, $label, $host);
+    public function createUser(
+        Subscription $subscription,
+        string $label,
+        array $databases,
+        string $host = 'localhost',
+        DatabaseEngine $engine = DatabaseEngine::MariaDb,
+    ): array {
+        $driver = $this->driver($engine);
+        $prefix = $driver->prefix($subscription);
+
+        $this->guardFreeName($driver, $prefix, $label, $host);
 
         $password = $this->secret->generate();
 
-        $result = $this->agent->call('db.user.create', [
-            'user' => (string) $subscription->system_user,
-            'suffix' => $label,
-            'host' => $host,
-            'password' => $password,
-            'databases' => array_map(static fn (Database $d): string => $d->name, $databases),
-        ]);
+        $result = $driver->createUser(
+            $prefix,
+            $label,
+            array_map(static fn (Database $d): string => $d->name, $databases),
+            $host,
+            $password,
+        );
 
         $user = new DbUser([
-            'name' => (string) ($result['name'] ?? Names::user((string) $subscription->system_user, $label)),
+            'name' => $result['name'],
             'label' => $label,
-            'host' => (string) ($result['host'] ?? $host),
+            'engine' => $engine,
+            'host' => $result['host'],
             'status' => DbUserStatus::Active,
         ]);
 
@@ -146,15 +179,36 @@ final class Databases
     public function resetPassword(DbUser $user): string
     {
         $password = $this->secret->generate();
+        $driver = $this->driver($user->engine);
 
-        $this->agent->call('db.user.password', [
-            'user' => $this->prefix($user->subscription_id),
-            'name' => $user->name,
-            'host' => $user->host,
-            'password' => $password,
-        ]);
+        $driver->setPassword(
+            $this->prefix($driver, $user->subscription_id),
+            $user,
+            $this->databaseNamesOf($user),
+            $password,
+        );
 
         return $password;
+    }
+
+    /**
+     * Die Datenbanken, an denen ein Zugang gerade hängt — aus dem Bestand.
+     *
+     * Gebraucht von PostgreSQL, wo Passwort setzen und Freigeben dieselbe
+     * Operation sind ({@see PostgresDriver::setPassword()}), und beim Entfernen
+     * einer Rolle, die vorher aufgeräumt werden muss.
+     *
+     * **Ohne Mandantenklammer**, aus derselben Richtung wie überall hier: Der
+     * Zugang ist bereits durch sie gekommen, und im Arbeiter ist niemand
+     * angemeldet.
+     *
+     * @return list<string>
+     */
+    private function databaseNamesOf(DbUser $user): array
+    {
+        return $this->tenancy->withoutRestriction(
+            static fn (): array => $user->databases()->pluck('name')->all()
+        );
     }
 
     /**
@@ -184,9 +238,9 @@ final class Databases
      * Klammer die Zeile verbirgt, bekäme sonst ein „ja, frei" und danach ein
      * ersetztes Passwort.
      */
-    private function guardFreeName(Subscription $subscription, string $label, string $host): void
+    private function guardFreeName(EngineDriver $driver, string $prefix, string $label, string $host): void
     {
-        $name = Names::user((string) $subscription->system_user, $label);
+        $name = $driver->userName($prefix, $label);
 
         $vergeben = $this->tenancy->withoutRestriction(
             static fn (): bool => DbUser::query()->where('name', $name)->where('host', $host)->exists(),
@@ -207,13 +261,14 @@ final class Databases
     /** Ein Recht vergeben oder zurücknehmen — ein Paar je Aufruf. */
     public function grant(DbUser $user, Database $database, bool $granted): void
     {
-        $this->agent->call('db.user.grant', [
-            'user' => $this->prefix($user->subscription_id),
-            'name' => $user->name,
-            'host' => $user->host,
-            'database' => $database->name,
-            'mode' => $granted ? 'grant' : 'revoke',
-        ]);
+        $driver = $this->driver($user->engine);
+
+        $driver->grant(
+            $this->prefix($driver, $user->subscription_id),
+            $user,
+            $database->name,
+            $granted,
+        );
 
         if ($granted) {
             $user->databases()->syncWithoutDetaching([(int) $database->id]);
@@ -227,11 +282,13 @@ final class Databases
     /** Einen Zugang entfernen — unmittelbar; er trägt kein Geheimnis, aber auch keine Wartezeit. */
     public function removeUser(DbUser $user): void
     {
-        $this->agent->call('db.user.remove', [
-            'user' => $this->prefix($user->subscription_id),
-            'name' => $user->name,
-            'host' => $user->host,
-        ]);
+        $driver = $this->driver($user->engine);
+
+        $driver->removeUser(
+            $this->prefix($driver, $user->subscription_id),
+            $user,
+            $this->databaseNamesOf($user),
+        );
 
         $user->delete();
     }
@@ -263,21 +320,25 @@ final class Databases
     {
         $subscription = $this->subscriptionOf($database);
 
+        if ($subscription === null) {
+            throw new RuntimeException('Zu dieser Datenbank gibt es kein Abonnement mehr.');
+        }
+
+        $driver = $this->driver($database->engine);
+        $prefix = $driver->prefix($subscription);
+
         [$doomed, $staying] = $this->usersOf($database);
+
+        $task = $driver->removalTask();
 
         $operation = Operation::query()->create([
             'subscription_id' => $database->subscription_id,
             'subject_type' => OperationSubject::Database->value,
             'subject_id' => $database->id,
             'account_id' => $accountId ?? request()->user()?->getAuthIdentifier(),
-            'type' => 'db.database.remove',
-            'task' => 'db.database.remove',
-            'payload' => [
-                'user' => (string) $subscription?->system_user,
-                'name' => $database->name,
-                'users' => self::accounts($doomed),
-                'revoke' => self::accounts($staying),
-            ],
+            'type' => $task,
+            'task' => $task,
+            'payload' => $driver->removalPayload($prefix, $database, $doomed, $staying),
             'status' => OperationStatus::Queued,
             'progress' => 0,
             'message' => 'Datenbank '.$database->name.' wird entfernt',
@@ -409,20 +470,6 @@ final class Databases
     }
 
     /**
-     * Zugänge, wie der Agent sie erwartet.
-     *
-     * @param  list<DbUser>  $users
-     * @return list<array{name: string, host: string}>
-     */
-    private static function accounts(array $users): array
-    {
-        return array_map(
-            static fn (DbUser $u): array => ['name' => $u->name, 'host' => $u->host],
-            $users,
-        );
-    }
-
-    /**
      * Das Abonnement eines Gegenstands — **ohne Mandantenklammer**.
      *
      * Die Begründung ist die Richtung, wörtlich die aus
@@ -446,16 +493,16 @@ final class Databases
      * leere Zeichenkette und wiese sie ab, aber die Meldung führte an eine
      * Stelle, an der niemand nach der Mandantenklammer sucht. Deshalb hier.
      */
-    private function prefix(?int $subscriptionId): string
+    private function prefix(EngineDriver $driver, ?int $subscriptionId): string
     {
-        $user = $this->tenancy->withoutRestriction(
-            fn (): mixed => Subscription::query()->whereKey($subscriptionId)->value('system_user')
+        $subscription = $this->tenancy->withoutRestriction(
+            fn (): ?Subscription => Subscription::query()->find($subscriptionId)
         );
 
-        if (! is_string($user) || $user === '') {
+        if ($subscription === null) {
             throw new RuntimeException('Zu diesem Zugang gibt es kein Abonnement mehr.');
         }
 
-        return $user;
+        return $driver->prefix($subscription);
     }
 }

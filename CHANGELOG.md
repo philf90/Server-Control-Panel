@@ -6934,3 +6934,67 @@ habe, hatte beide Äste aus MariaDB gedacht — *„Rechte überleben ihr Schema
 dort wahr und hier falsch. Ich hätte sie nicht vorlegen sollen, ohne sie vorher
 zu messen; die Messung kostete vier Minuten und hat eine Liste, eine Operation
 und einen Lebenslauf erspart.
+
+### P5b Schritt 4 — ein Modell, eine Fläche, eine Verzweigung
+
+`App\Support\Databases\Engines\` mit `EngineDriver`, `MariaDbDriver` und
+`PostgresDriver`; `Databases` wählt den Treiber und bleibt sonst, was es war;
+`PgLifecycle` neben `DbLifecycle`; fünf `pg.*`-Operationen in der Registratur —
+sie haben jetzt einen Aufrufer.
+
+**Die Verzweigung steht an einer Stelle, und das ist wörtlich `docs/38 §8`.**
+`Databases::driver()` ist ein `match` über zwei Fälle, ohne `default`: Käme ein
+drittes System dazu, meldete es der Übersetzer dort und nicht ein Kunde später.
+Alles darüber — Kontingent, Namensprüfung, Mandantenklammer, das Schreiben der
+Zeile — steht weiterhin genau einmal da und gilt für beide Systeme.
+
+**Warum eine Schnittstelle und nicht fünf `match`.** Fünf Methoden mit je zwei
+Zweigen sind fünf Gelegenheiten, einen zu vergessen. Eine Schnittstelle mit zwei
+Umsetzungen macht daraus eine Liste, die vollständig sein *muss* — wer eine
+Methode ergänzt, bekommt vom Übersetzer gesagt, dass die andere Umsetzung fehlt.
+Das ist derselbe Gedanke wie bei `DatabaseEngine` selbst: nicht tippen, sondern
+gesagt bekommen.
+
+**`MariaDbDriver` bringt keine neue Regel mit.** Was dort steht, stand vorher
+wörtlich in `Databases`. Wer einen Unterschied zu P5 sucht, findet keinen.
+
+**Drei Unterschiede, und mehr sind es nicht.** Das Präfix (`p1001` gegen
+`x7f3a…` aus `system_users.db_prefix`), die Sortierung (`charset`/`collation`
+gegen `encoding`/`locale`, in denselben zwei Spalten) und der Zugang (`name` und
+`host` als Schlüssel gegen eine clusterweite Rolle). Alles andere aus der
+Tabelle in §8 liegt unterhalb des Agentenprotokolls.
+
+**Nachgeschlagen wird das Präfix über die Nummer und nicht über den Namen.**
+`docs/35` hat die Nummer zur bleibenden Kennung gemacht; ein Abonnement darf
+umbenannt werden, und ein Nachschlagen am Namen ergäbe irgendwann ein anderes
+Präfix — also fremde Datenbanken.
+
+**Passwort setzen und Anlegen sind in PostgreSQL dieselbe Operation.**
+`CREATE ROLE` kennt kein `IF NOT EXISTS`, also setzt `pg.role.create` an einer
+vorhandenen Rolle das Passwort — der gewünschte Zustand ist beide Male
+derselbe. Eine zweite Operation dafür wäre eine zweite Fassung derselben Regel.
+Deshalb reicht der Treiber beim Zurücksetzen die Datenbanken mit: Ohne sie
+verlöre der Zugang dabei seine Freigaben.
+
+**`PgLifecycle` ist ein eigener Lebenslauf und kürzer als `DbLifecycle`.** Die
+Antworten der beiden Rückbauoperationen haben nicht dieselbe Form —
+`users_removed` als `name@host` gegen `roles_removed` als blosse Rollennamen —,
+und ein gemeinsamer müsste in jeder Methode fragen, welches System gemeint ist.
+Sein `afterFailure()` ist bewusst leer, mit Begründung: Bricht der Rückbau ab,
+ist der Zustand der von vorher, und ein automatischer Rückweg auf `Active` wäre
+eine Behauptung über den Server, die niemand geprüft hat.
+
+**Eine Verhaltensänderung, die genannt gehört:** `Databases::remove()` wirft
+jetzt, wenn zur Datenbank kein Abonnement mehr gehört. Vorher schickte es eine
+leere Zeichenkette als Präfix an den Agenten, der sie abwies — die Meldung führte
+an eine Stelle, an der niemand nach der Mandantenklammer sucht. Der Weg für
+verwaiste Zeilen ist unverändert `srvpanel db --prune`.
+
+**`PgRoleLock` steht noch nicht in der Registratur.** Die Sperre eines
+Abonnements ist Schritt 5; dieselbe Regel wie für alle davor — eingetragen wird
+sie in dem Beitrag, der ihr einen Aufrufer gibt.
+
+**Und die Frage aus `docs/36 §14` hat eine Antwort.** Sie lautete: *„Muss P5b
+`agent/src/Db/` aufreissen, war die Trennung falsch."* Bis hierher ist keine
+Datei darunter geändert worden — `Runner` zählt nicht, der gehört keinem der
+beiden. Die Trennung trägt.

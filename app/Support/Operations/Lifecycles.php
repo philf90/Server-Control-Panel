@@ -6,6 +6,7 @@ namespace App\Support\Operations;
 
 use App\Models\Operation;
 use App\Support\Databases\DbLifecycle;
+use App\Support\Databases\PgLifecycle;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tls\CertificateLifecycle;
 use App\Support\Web\WebLifecycle;
@@ -39,6 +40,10 @@ final class Lifecycles
         WebLifecycle::class,
         CertificateLifecycle::class,
         DbLifecycle::class,
+
+        // P5b. Neben und nicht in DbLifecycle: Die Antworten der beiden
+        // Rückbauoperationen haben nicht dieselbe Form (docs/38 §8).
+        PgLifecycle::class,
     ];
 
     /**

@@ -115,6 +115,10 @@ final class AgentOperationReachTest extends TestCase
          * nachgebaut ist.
          */
         'pg.server.info' => 'Liest, ob PostgreSQL installiert ist, ob ein Cluster läuft und ob die Rolle für das Panel existiert; im Bestand des Panels steht dazu nichts — wortgleich der Grund von db.server.info.',
+        'pg.database.create' => 'CREATE DATABASE dauert Millisekunden. Die Zeile schreibt App\Support\Databases\Databases, nachdem der Agent geantwortet hat — wortgleich der Grund von db.database.create.',
+        'pg.role.create' => 'Das Passwort darf nicht in operations.payload liegen (docs/38 §4). Der Dienst ruft unmittelbar auf und schreibt den Bestand selbst — und dieselbe Operation setzt das Passwort an einer vorhandenen Rolle, weil CREATE ROLE kein IF NOT EXISTS kennt.',
+        'pg.role.grant' => 'Vergibt oder nimmt ein Recht für genau ein Paar. Die Zuordnungstabelle schreibt der Dienst, nachdem der Agent geantwortet hat.',
+        'pg.role.remove' => 'Entfernt einen Zugang. DROP ROLE dauert Millisekunden, und die Zeile geht danach im selben Aufruf. Der Rückbau einer ganzen Datenbank läuft dagegen über die Warteschlange und wird von App\Support\Databases\PgLifecycle beantwortet.',
     ];
 
     private function registry(): Registry

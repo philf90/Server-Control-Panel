@@ -4917,6 +4917,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgServerStateTest passed
 
 echo
+echo "── EngineExtensionTest: ein System ohne Weg vom PHP des Kunden ──"
+#
+# Genau der Zustand, den P5b drei Beiträge lang hatte: DatabaseEngine kennt
+# `postgres`, die Erweiterungsliste des Agenten kennt kein `pgsql`. Der Kunde
+# bekommt seine Datenbank und keine Verbindung dazu — im Panel sieht alles grün
+# aus, und die Website antwortet „could not find driver".
+vorher_datei agent/src/PhpVersions.php
+python3 - <<'PY2'
+p = 'agent/src/PhpVersions.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'fpm', 'mysql', 'pgsql', 'xml'", "'fpm', 'mysql', 'xml'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/PhpVersions.php "Datenbanksystem ohne PHP-Erweiterung" &&
+pruefe "Datenbanksystem ohne PHP-Erweiterung" \
+  EngineExtensionTest::test_every_engine_has_its_php_extension_installed_with_every_version failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineExtensionTest passed
+
+echo
+echo "── PhpExtensionTest: der Paketzustand wird nicht gelesen ──"
+#
+# Ein Paket mit `config-files` ist entfernt und seine Konfiguration liegt noch
+# da; `half-installed` ist ein abgebrochener Lauf. Beides ist nicht benutzbar.
+# Wer nur nach dem Namen sucht statt nach dem Zustand, hält beide für in
+# Ordnung — und lässt den Kunden mit einer Erweiterung zurück, die es nicht gibt.
+vorher_datei agent/src/PhpVersions.php
+python3 - <<'PY2'
+p = 'agent/src/PhpVersions.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if (count($fields) < 2 || $fields[1] !== 'installed') {", "if (count($fields) < 1) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/PhpVersions.php "Paketzustand wird nicht gelesen" &&
+pruefe "Paketzustand wird nicht gelesen" \
+  PhpExtensionTest::test_only_installed_counts_as_present failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpExtensionTest passed
+
+echo
+echo "── PhpExtensionTest: die Frage passt nicht mehr zur Auswertung ──"
+#
+# Ein anderes -f ergibt einen Parser, der nichts findet — und „nichts gefunden"
+# heisst hier „alles fehlt", also apt-get bei jedem Aufruf. Lautlos, weil ein
+# Lauf, der zu viel installiert, wie ein erfolgreicher aussieht.
+vorher_datei agent/src/PhpVersions.php
+python3 - <<'PY2'
+p = 'agent/src/PhpVersions.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'-f=${binary:Package} ${db:Status-Status}\\n'", "'-f=${db:Status-Status} ${binary:Package}\\n'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/PhpVersions.php "Frage und Auswertung getrennt" &&
+pruefe "Frage und Auswertung getrennt" \
+  PhpExtensionTest::test_the_query_asks_for_the_two_fields_it_reads failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpExtensionTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

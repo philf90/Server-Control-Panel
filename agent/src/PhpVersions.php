@@ -48,7 +48,7 @@ final class PhpVersions
      * @var list<string>
      */
     public const EXTENSIONS = [
-        'fpm', 'mysql', 'xml', 'mbstring', 'curl', 'gd',
+        'fpm', 'mysql', 'pgsql', 'xml', 'mbstring', 'curl', 'gd',
         'zip', 'intl', 'bcmath', 'opcache', 'readline', 'soap',
     ];
 
@@ -144,5 +144,68 @@ final class PhpVersions
     public static function available(): array
     {
         return array_values(array_filter(self::CATALOG, self::installed(...)));
+    }
+
+    /**
+     * Die Argumente für `dpkg-query`, mit denen {@see self::missing()} rechnet.
+     *
+     * **Als Konstante, damit Frage und Auswertung nicht auseinanderlaufen.**
+     * Das Ausgabeformat bestimmt, was der Parser unten liest; stünden die
+     * beiden an verschiedenen Stellen, wäre die erste Änderung am Format ein
+     * Parser, der nichts mehr findet und deshalb alles für installiert hält.
+     *
+     * @var list<string>
+     */
+    public const DPKG_ARGUMENTS = ['-W', '-f=${binary:Package} ${db:Status-Status}\n'];
+
+    /**
+     * Welche der gewünschten Pakete fehlen — aus der Ausgabe von `dpkg-query`.
+     *
+     * **Getrennt vom Aufruf, damit die Regel ohne Server prüfbar ist.**
+     * Derselbe Schnitt wie bei `Pg\Clusters::parse()`, und aus demselben
+     * Anlass: Was gemessen werden soll, ist eine Eigenschaft der Zeichenkette.
+     *
+     * ## Wie die Ausgabe aussieht, gemessen
+     *
+     * ```
+     * $ dpkg-query -W -f='${binary:Package} ${db:Status-Status}\n' a fehlt b
+     * a installed
+     * b installed                                    ← stdout, vollständig
+     * dpkg-query: no packages found matching fehlt   ← stderr
+     * rc=1
+     * ```
+     *
+     * **Der Rückgabewert 1 heisst „eines davon kennt dpkg nicht" und nicht
+     * „der Aufruf ist gescheitert".** Genau dafür ist er hier da; wer ihn als
+     * Fehlschlag liest, bekommt eine Operation, die immer dann abbricht, wenn
+     * sie etwas zu tun hätte. Deshalb wird `stdout` ausgewertet und der Code
+     * nicht angesehen.
+     *
+     * **Und gezählt wird, was `installed` meldet, nicht was fehlt.** Ein Paket
+     * kann `config-files` sein (entfernt, Konfiguration noch da) oder
+     * `half-installed`; beides ist nicht benutzbar. Wer auf „steht nicht in
+     * der Ausgabe" prüfte, hielte diese Zustände für in Ordnung.
+     *
+     * @param  list<string>  $wanted
+     * @return list<string>
+     */
+    public static function missing(array $wanted, string $output): array
+    {
+        $present = [];
+
+        foreach (explode("\n", $output) as $line) {
+            $fields = preg_split('/\s+/', trim($line)) ?: [];
+
+            if (count($fields) < 2 || $fields[1] !== 'installed') {
+                continue;
+            }
+
+            $present[] = $fields[0];
+        }
+
+        return array_values(array_filter(
+            $wanted,
+            static fn (string $package): bool => ! in_array($package, $present, true),
+        ));
     }
 }

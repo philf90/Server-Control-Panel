@@ -6501,3 +6501,101 @@ mit dieser Änderung erledigt, und der Grund steht in `docs/38 §24.2`:
 Erweiterung käme also auf keinem Server an, auf dem PHP schon liegt. Ob
 `php.version.install` fehlende Erweiterungen nachinstallieren soll, ist eine
 Änderung an P3 und gehört entschieden, nicht nebenbei gemacht.
+
+### P5b Schritt 6b — Kunden-PHP kann PostgreSQL ansprechen, und eine Prüfung fragte einen Stellvertreter
+
+`pgsql` in `PhpVersions::EXTENSIONS`, `dpkg-query` auf der Positivliste,
+`php.version.install` läuft auf den Paketsatz zu statt auf den Handler,
+„Ergänzen" in „Einstellungen → PHP-Versionen", `EngineExtensionTest` und
+`PhpExtensionTest`. Vorgezogen vor Schritt 7 auf Entscheidung des Betreibers.
+
+**Der Befund war eine Zeile, der Fehler ist eine Bauform.**
+`php.version.install` fing so an:
+
+    if (PhpVersions::installed($version)) {
+        return ['already' => true, 'packages' => [], …];
+    }
+
+`installed()` ist `is_executable('/usr/sbin/php-fpm8.2')`. Die Operation
+behauptet „der gewünschte Zustand ist schon da" und **prüft dabei einen
+Stellvertreter**: den Handler statt des Paketsatzes. Solange `EXTENSIONS` sich
+nie ändert, sind die beiden dasselbe — im Augenblick der ersten Änderung gehen
+sie auseinander, und niemand merkt es, weil die Operation Erfolg meldet.
+
+`pgsql` in die Liste zu schreiben ist ein Wort. Dass es auf einem Bestandsserver
+ankommt, war die Änderung. Die Operation *konvergiert* jetzt: fragen was fehlt,
+nur das installieren, denselben Satz zurücklesen. Fehlt nichts, ist sie in
+Millisekunden fertig — und `already` heisst dann, was es sagt.
+
+**Gefragt wird das Paketsystem und nicht `php-fpm -m`, und das ist gemessen.**
+`php -m` in diesem Container:
+
+    … mysqli mysqlnd … pdo_mysql pdo_pgsql … pgsql …
+
+Kein Modul heisst `mysql`. Paketname und Modulnamen sind verschiedene Dinge; es
+bräuchte je Eintrag eine Merkmalsangabe (`mysql → pdo_mysql`, `xml → dom`,
+`fpm → gar keins`) — eine zweite Liste, die veraltet und die kein Test hier
+prüfen kann. Dateien unter `mods-available/` haben dieselbe Lücke:
+`php8.2-mysql` legt `mysqli.ini`, `mysqlnd.ini` und `pdo_mysql.ini` ab und keine
+`mysql.ini`. **Die Frage ist eine Paketfrage, also antwortet dpkg.**
+
+**Ein Rückgabewert, der ungelesen bleibt — mit Begründung an beiden Aufrufen.**
+Gemessen:
+
+    $ dpkg-query -W -f='${binary:Package} ${db:Status-Status}\n' a fehlt b
+    a installed
+    b installed                                    ← stdout, vollständig
+    dpkg-query: no packages found matching fehlt   ← stderr
+    rc=1
+
+Der Code 1 heisst „eines davon kennt dpkg nicht" und nicht „der Aufruf ist
+gescheitert" — er ist genau dann 1, wenn diese Frage etwas zu melden hat. Wer
+ihn als Fehlschlag liest, bekommt eine Operation, die immer dann abbricht, wenn
+sie etwas zu tun hätte. Die Auswertung steht als `PhpVersions::missing()` neben
+dem Format, das sie liest, und ist ohne Server prüfbar — derselbe Schnitt wie
+`Pg\Clusters::parse()` zwei Beiträge davor, und aus demselben Anlass.
+
+**Gezählt wird `installed` und nicht „steht in der Ausgabe".** Ein Paket kann
+`config-files` sein (entfernt, Konfiguration noch da) oder `half-installed`;
+beides ist nicht benutzbar, und beides stünde in derselben Ausgabe.
+
+### Der Neustart, den der Plan nicht hatte
+
+**Ein laufender FPM lädt eine frisch installierte Erweiterung nicht von
+selbst.** Das `postinst` der Distribution ruft `phpenmod` und stösst über einen
+dpkg-Trigger einen Neustart an — *meistens*. „Meistens" ist in diesem Projekt
+kein Zustand: Bleibt er aus, liegt `pgsql` auf der Platte, im Panel steht
+„vollständig", und die Website des Kunden antwortet weiter *„could not find
+driver"*. Ein Fehler, den niemand sucht, weil alles grün aussieht — und damit
+genau dieselbe Klasse wie der, aus dem dieser Beitrag entstanden ist.
+
+`php.version.install` startet die Unit deshalb ausdrücklich neu, **wenn sie
+läuft**, und meldet es als `restarted`. Das kostet die Anfragen, die in diesem
+Augenblick unterwegs sind; die Alternative kostet jede Anfrage danach. Die
+Rückfrage im Panel sagt es vorher — wer es dort nicht liest, erfährt es aus dem
+Fehlerprotokoll seiner Kunden. Läuft sie nicht, gilt die Regel von vorher: ohne
+Pool bleibt sie stehen, mit einem wird sie gestartet.
+
+### Der Wächter sitzt an der Aufzählung und nicht an der Liste
+
+`DatabaseEngine::phpExtension()` nennt je System den Paketsuffix — `mariadb →
+mysql`, `postgres → pgsql` —, und `EngineExtensionTest` hält ihn gegen
+`PhpVersions::EXTENSIONS`. **Dieser Test wäre an dem Tag rot geworden, an dem
+die Aufzählung entstand**, also drei Beiträge vor dem Fund, und er beisst
+wieder, sobald ein drittes System dazukommt.
+
+Der Name steht an der Aufzählung und nicht als weitere Zeile im Agenten, weil
+das die Stelle ist, an der niemand vorbeikommt: Wer ein Datenbanksystem
+hinzufügt, ändert `DatabaseEngine` — die Erweiterungsliste des Agenten sieht er
+dabei nicht.
+
+**Nicht in `srvpanel update`.** Ein Update, das von selbst `apt-get install`
+fährt, kann an einer fremden Paketquelle scheitern und nimmt das Panel mit. Es
+bleibt eine Handlung mit einem Vorgang, den man ansehen kann.
+
+**Aufnahmen** wieder über das gebaute Stylesheet, beide Themes, 390px und
+1280px, Überlauf 0 — und wieder mit einem Befund: `php8.2-pgsql` brach neben der
+Marke als `php8.2-` / `pgsql` über zwei Zeilen. Die Oberfläche zeigt jetzt den
+Suffix, denn die Versionsnummer steht in derselben Zeile schon da; der Agent
+meldet weiter Paketnamen, weil das ist, was `apt-get` bekommt und was in sein
+Protokoll gehört.

@@ -38,7 +38,7 @@ final class PhpSettingsController extends Controller
         try {
             $answer = $agent->call('php.versions');
 
-            $live = is_array($answer['versions'] ?? null) ? $answer['versions'] : null;
+            $live = is_array($answer['versions'] ?? null) ? $this->shorten($answer['versions']) : null;
 
             if (is_array($answer['available'] ?? null)) {
                 $php->remember(array_values(array_filter($answer['available'], is_string(...))));
@@ -62,6 +62,42 @@ final class PhpSettingsController extends Controller
     }
 
     /**
+     * Aus `php8.2-pgsql` wird `pgsql` — für die Oberfläche und nur dort.
+     *
+     * **Der fertige Text kommt aus dem Panel, nicht der Rohwert.** Dieselbe
+     * Regel wie bei `DatabaseSettingsController::flavourLabel()`, und hier aus
+     * einem zweiten Grund: Die Zeile steht neben der Versionsnummer, also sagt
+     * `php8.2-` dort nichts, was nicht schon dasteht. Bei 390px war das
+     * messbar — der Name brach als `php8.2-` / `pgsql` über zwei Zeilen, weil
+     * die Marke daneben die halbe Zelle nimmt.
+     *
+     * **Der Agent meldet weiter Paketnamen**, und das bleibt so: Sie sind das,
+     * was `apt-get` bekommt, und das, was in seinem Protokoll stehen muss. Was
+     * die Oberfläche zeigt, ist eine Verkürzung für Menschen und keine zweite
+     * Wahrheit.
+     *
+     * @param  array<int, mixed>  $versions
+     * @return list<mixed>
+     */
+    private function shorten(array $versions): array
+    {
+        return array_values(array_map(static function (mixed $version): mixed {
+            if (! is_array($version) || ! is_array($version['missing'] ?? null)) {
+                return $version;
+            }
+
+            $version['missing'] = array_values(array_map(
+                static fn (mixed $package): string => is_string($package)
+                    ? (string) preg_replace('/^php\d+\.\d+-/', '', $package)
+                    : '?',
+                $version['missing'],
+            ));
+
+            return $version;
+        }, $versions));
+    }
+
+    /**
      * Der letzte bekannte Stand, wenn der Agent nicht antwortet.
      *
      * Bewusst in derselben Form wie die Antwort des Agenten, nur ohne die
@@ -82,6 +118,11 @@ final class PhpSettingsController extends Controller
             'active' => null,
             'pools' => null,
             'release' => null,
+
+            // `null` und nicht `[]`: Ohne Agent ist unbekannt, ob etwas fehlt
+            // — und eine leere Liste hiesse „nichts fehlt". Das ist derselbe
+            // Unterschied, den `live` für die ganze Seite macht.
+            'missing' => null,
         ], PhpVersions::CATALOG);
     }
 

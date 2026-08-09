@@ -59,6 +59,21 @@ final class Runner
         'setquota' => '/usr/sbin/setquota',
         'repquota' => '/usr/sbin/repquota',
         'apt-get' => '/usr/bin/apt-get',
+
+        // **Lesend, und es beantwortet die Frage, die `apt-get` sonst raten
+        // müsste:** Welche der Pakete einer PHP-Version liegen schon da? Bis
+        // P5b hat `php.version.install` das am Handler abgelesen —
+        // `/usr/sbin/php-fpm8.2` da, also alles da —, und das war ein
+        // Stellvertreter für eine Paketfrage. Als `pgsql` in die
+        // Erweiterungsliste kam, gingen die beiden auseinander, und niemand
+        // hat es gemerkt, weil die Operation Erfolg meldete (docs/38 §24.2).
+        //
+        // Gefragt wird das Paketsystem und nicht `php-fpm -m`: Die Modulnamen
+        // eines Pakets sind nicht sein Name — `php8.2-mysql` bringt `mysqli`,
+        // `mysqlnd` und `pdo_mysql` mit und kein Modul namens `mysql`
+        // (gemessen). Eine Zuordnung dafür wäre eine zweite Liste, die
+        // veraltet.
+        'dpkg-query' => '/usr/bin/dpkg-query',
         'mysql' => '/usr/bin/mysql',
         'mysqldump' => '/usr/bin/mysqldump',
 

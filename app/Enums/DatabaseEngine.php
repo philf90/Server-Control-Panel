@@ -60,4 +60,33 @@ enum DatabaseEngine: string
             self::Postgres => 'pg',
         };
     }
+
+    /**
+     * Die PHP-Erweiterung, mit der ein Kunde sich verbindet.
+     *
+     * **Der teuerste fehlende Bezug dieser Stufe, und er stand nirgends.**
+     * Diese Aufzählung ist am 9. August 2026 entstanden, und derselbe Tag hätte
+     * die Frage beantworten müssen: Womit spricht die Website des Kunden mit
+     * seiner Datenbank? `PhpVersions::EXTENSIONS` kannte `mysql` und kein
+     * `pgsql` — ein Kunde hätte seine PostgreSQL-Datenbank bekommen und keine
+     * Verbindung dazu. Gefunden hat es kein Test, sondern ein Blick in die
+     * Paketbeziehungen drei Beiträge später (`docs/38 §24.2`).
+     *
+     * Der Name steht deshalb hier, an der Aufzählung, und nicht als weitere
+     * Zeile in der Erweiterungsliste des Agenten: **Wer ein Datenbanksystem
+     * hinzufügt, kommt an dieser Methode nicht vorbei**, und `EngineExtensionTest`
+     * hält beide Seiten zusammen. Ein System ohne Weg vom PHP des Kunden ist
+     * ein Angebot, das an der ersten Verbindung scheitert.
+     *
+     * Es ist der Paketsuffix und nicht der Modulname: `php8.2-mysql` bringt
+     * `mysqli`, `mysqlnd` und `pdo_mysql` mit und kein Modul namens `mysql`.
+     * Installiert wird nach Paket.
+     */
+    public function phpExtension(): string
+    {
+        return match ($this) {
+            self::MariaDb => 'mysql',
+            self::Postgres => 'pgsql',
+        };
+    }
 }

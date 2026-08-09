@@ -1024,6 +1024,17 @@ verzweigt an genau einer Stelle auf `engine` und schickt `db.*` oder `pg.*`.
 
 `ON_ERROR_STOP=1` **zuerst**, dann alles andere.
 
+### Schritt 6b — Kunden-PHP kann PostgreSQL ansprechen (§24.2)
+
+Nicht im ursprünglichen Plan; eingeschoben, weil der Fund aus Schritt 3 sonst
+die Abnahme überlebt hätte. `pgsql` in `PhpVersions::EXTENSIONS`,
+`php.version.install` läuft auf den Paketsatz zu statt auf den Handler,
+`dpkg-query` auf der Positivliste, „Ergänzen" in „Einstellungen →
+PHP-Versionen", `EngineExtensionTest` und `PhpExtensionTest`.
+
+**Vor Schritt 7 und nicht danach:** Der Abnahmelauf prüft mit `psql`, also
+würde er die Lücke nicht bemerken.
+
 ### Schritt 7 — Die Oberfläche und die Screenshots (§16)
 
 Und die sechs Textstellen aus §12.
@@ -1410,7 +1421,10 @@ der Agent könne den Dienst sonst nicht starten — er startet ihn mit
 `pg_ctlcluster` und lädt mit `SELECT pg_reload_conf()`. Ein Allowlist-Eintrag,
 den niemand ruft, ist genau das, was `AgentOperationReachTest` verbietet.
 
-### 24.2 Kunden-PHP kann PostgreSQL nicht ansprechen (offen, Schritt 3 gefunden)
+### 24.2 Kunden-PHP kann PostgreSQL nicht ansprechen (gefunden in Schritt 3, behoben davor)
+
+> **Erledigt am 9. August 2026**, auf Entscheidung des Betreibers innerhalb von
+> P5b und vor Schritt 7. Was gebaut wurde, steht unter dem ursprünglichen Befund.
 
 **`PhpVersions::EXTENSIONS` kennt `mysql` und nicht `pgsql`.** Ein Kunde, der
 in diesem Panel eine PostgreSQL-Datenbank anlegt, bekommt sie — und seine
@@ -1432,3 +1446,50 @@ Es ist **kein** Einzeiler, und deshalb steht es hier statt im Code:
 Gehört vor Schritt 7 entschieden, spätestens vor der Abnahme: Ohne sie ist
 „der Kunde legt eine PostgreSQL-Datenbank an" ein Angebot, das an der ersten
 Verbindung scheitert.
+
+#### Was daraus geworden ist
+
+**Der Kern war nicht die fehlende Zeile, sondern eine Prüfung, die einen
+Stellvertreter gefragt hat.** `php.version.install` hielt eine Version für
+vollständig, sobald `/usr/sbin/php-fpm8.2` dalag — geprüft wurde der Handler,
+gemeint war der Paketsatz. Solange `EXTENSIONS` sich nie ändert, sind die beiden
+dasselbe. Die Operation läuft jetzt auf den gewünschten Satz **zu**: Sie fragt,
+was fehlt, installiert nur das, und liest denselben Satz danach zurück.
+
+**Gefragt wird `dpkg-query` und nicht `php-fpm -m`.** Gemessen in diesem
+Container: `php8.2-mysql` bringt die Module `mysqli`, `mysqlnd` und `pdo_mysql`
+mit und **kein** Modul namens `mysql`. Eine Zuordnung Paket → Merkmalsmodul wäre
+eine zweite Liste, die nichts prüft; die Frage ist eine Paketfrage, also
+antwortet das Paketsystem. Dasselbe gilt für `mods-available/*.ini`, wo dieselbe
+Lücke steht.
+
+**Der Rückgabewert von `dpkg-query` bleibt ungelesen, mit Begründung im Code:**
+Er ist 1, sobald eines der genannten Pakete unbekannt ist — also genau dann,
+wenn die Frage etwas zu melden hat. Die bekannten Namen stehen vollständig auf
+`stdout`, die unbekannten auf `stderr`. Wer den Code als Fehlschlag liest,
+bekommt eine Operation, die immer dann abbricht, wenn sie etwas zu tun hätte.
+
+**Und ein Punkt, den der Plan nicht hatte: der Neustart.** Ein laufender FPM
+lädt eine frisch installierte Erweiterung nicht von selbst. Das `postinst` der
+Distribution ruft `phpenmod` und stösst über einen dpkg-Trigger einen Neustart
+an — *meistens*, und „meistens" ist hier kein Zustand: Bleibt er aus, steht
+`pgsql` auf der Platte, im Panel steht „vollständig", und die Website antwortet
+weiter *„could not find driver"*. `php.version.install` startet die Unit deshalb
+ausdrücklich neu, **wenn sie läuft**, und meldet es als `restarted`. Das kostet
+die Anfragen, die in diesem Moment unterwegs sind; die Alternative kostet jede
+Anfrage danach. Die Rückfrage im Panel sagt es vorher.
+
+**Der Wächter, um den es eigentlich geht, sitzt an der Aufzählung.**
+`DatabaseEngine::phpExtension()` nennt je System den Paketsuffix, und
+`EngineExtensionTest` hält ihn gegen `PhpVersions::EXTENSIONS`. Dieser Test wäre
+an dem Tag rot geworden, an dem die Aufzählung entstand — also drei Beiträge vor
+dem Fund — und er beisst wieder, sobald ein drittes System dazukommt. Dazu
+`PhpExtensionTest` über die Auswertung der dpkg-Ausgabe, mit echten Zeilen und
+den Zuständen `config-files` und `half-installed`, die *nicht* als installiert
+zählen dürfen.
+
+**Was der Betreiber sieht:** `php.versions` meldet je installierter Version, was
+fehlt; „Einstellungen → PHP-Versionen" zeigt es neben dem Zustand und bietet
+**Ergänzen** an — dieselbe Aufgabe wie „Installieren", weil es dieselbe Regel
+ist. Nicht in `srvpanel update`: Ein Update, das von selbst `apt-get install`
+fährt, kann an einer fremden Paketquelle scheitern und nimmt das Panel mit.

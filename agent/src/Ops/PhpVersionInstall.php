@@ -51,7 +51,30 @@ final class PhpVersionInstall implements Op
     {
         $version = PhpVersions::normalize($args['php_version'] ?? null);
 
-        if (PhpVersions::installed($version)) {
+        /*
+         * **Gefragt wird der Paketsatz und nicht der Handler.**
+         *
+         * Hier stand bis zum 9. August 2026 `if (PhpVersions::installed(…))`,
+         * also `is_executable('/usr/sbin/php-fpm8.2')`, und darauf ein `return
+         * ['already' => true]`. Das ist ein **Stellvertreter**: Geprüft wurde
+         * der Handler, gemeint war der Paketsatz. Solange
+         * {@see PhpVersions::EXTENSIONS} sich nie ändert, sind die beiden
+         * dasselbe — in dem Augenblick, in dem sie sich ändert, gehen sie
+         * auseinander, und niemand merkt es, weil die Operation Erfolg meldet.
+         *
+         * Genau das ist passiert: `pgsql` kam mit P5b dazu, und auf jedem
+         * Server, auf dem PHP schon lag, wäre es nie angekommen. Ein Kunde
+         * hätte seine PostgreSQL-Datenbank bekommen und keine Verbindung
+         * dazu (`docs/38 §24.2`).
+         *
+         * Diese Operation läuft deshalb auf den gewünschten Satz **zu**, statt
+         * auf eine Ja/Nein-Frage zu antworten. Fehlt nichts, ist sie in
+         * Millisekunden fertig — und das `already` heisst dann, was es sagt.
+         */
+        $wanted = PhpVersions::packages($version);
+        $packages = $this->missing($context, $wanted);
+
+        if ($packages === []) {
             // Wiederholbar: Der gewünschte Zustand ist schon da. Der Pool der
             // Distribution wird trotzdem geprüft — er kann aus einer
             // Installation von Hand stammen.
@@ -64,8 +87,6 @@ final class PhpVersionInstall implements Op
                 'available' => PhpVersions::available(),
             ];
         }
-
-        $packages = PhpVersions::packages($version);
 
         $context->progress(10, 'Paketlisten auffrischen');
         $update = $context->stream('apt-get', ['update', '-qq'], 300);
@@ -89,32 +110,32 @@ final class PhpVersionInstall implements Op
         }
 
         /*
-         * **Gefragt wird die Bestandsliste, nicht noch einmal dieselbe
-         * Bedingung.** Oben stand schon `PhpVersions::installed($version)`,
-         * und für einen Prüfer, der das Dateisystem nicht kennt, kann eine
-         * Frage, die eben mit „nein" beantwortet wurde, kein zweites Ergebnis
-         * haben — er hielt diesen Wurf für unausweichlich und alles darunter
-         * für toten Code. Dazwischen lag `apt-get install`. Über
-         * `available()` steht dieselbe Prüfung als andere Frage da: Taucht die
-         * Version jetzt im Bestand auf?
+         * **Gefragt wird der Bestand, nicht noch einmal dieselbe Bedingung.**
+         * Oben stand schon eine Frage nach fehlenden Paketen, und für einen
+         * Prüfer, der das Dateisystem nicht kennt, kann eine Frage, die eben
+         * beantwortet wurde, kein zweites Ergebnis haben — er hielt diesen
+         * Wurf für unausweichlich und alles darunter für toten Code.
+         * Dazwischen lag `apt-get install`.
+         *
+         * **Und gefragt wird derselbe Satz und nicht nur der Handler.** Bis
+         * P5b stand hier `available()`, also wieder der Stellvertreter: `apt`
+         * konnte `php8.2-pgsql` stillschweigend auslassen, und die Prüfung
+         * war trotzdem zufrieden, weil `/usr/sbin/php-fpm8.2` dalag.
          */
-        if (! in_array($version, PhpVersions::available(), true)) {
+        $fehlend = $this->missing($context, $wanted);
+
+        if ($fehlend !== []) {
             throw AgentException::execFailed(
-                sprintf('apt meldet Erfolg, %s fehlt trotzdem.', PhpVersions::binary($version)),
+                sprintf('apt meldet Erfolg, %s fehlt trotzdem.', implode(', ', $fehlend)),
+                ['packages' => $fehlend],
             );
         }
 
         $context->progress(80, 'Standard-Pool abschalten');
         $disabled = $this->disableDistributionPool($version);
 
-        // Ohne eigenen Pool bleibt die Unit stehen; mit einem — etwa nach der
-        // erneuten Installation einer Version, deren Abonnements noch da
-        // sind — wird sie gestartet.
-        if (PhpPoolRemove::pools($version) === []) {
-            $context->runner->run('systemctl', ['disable', '--now', PhpVersions::unit($version)], 60);
-        } else {
-            $context->runner->run('systemctl', ['enable', '--now', PhpVersions::unit($version)], 60);
-        }
+        $context->progress(90, 'Handler übernehmen lassen');
+        $restarted = $this->handOver($context, $version);
 
         $context->progress(100, 'fertig');
 
@@ -124,8 +145,74 @@ final class PhpVersionInstall implements Op
             'already' => false,
             'distribution_pool' => $disabled,
             'packages' => $packages,
+            'restarted' => $restarted,
             'available' => PhpVersions::available(),
         ];
+    }
+
+    /**
+     * Welche der gewünschten Pakete auf diesem System fehlen.
+     *
+     * **Der Rückgabewert von `dpkg-query` wird nicht angesehen**, und das ist
+     * kein Versehen: Er ist 1, sobald eines der genannten Pakete unbekannt ist
+     * — also genau in dem Fall, für den diese Frage gestellt wird. Die Namen,
+     * die dpkg kennt, stehen vollständig auf `stdout`; die unbekannten meldet
+     * es auf `stderr`. Wer den Code als Fehlschlag liest, bekommt eine
+     * Operation, die immer dann abbricht, wenn sie etwas zu tun hätte.
+     *
+     * @param  list<string>  $wanted
+     * @return list<string>
+     */
+    private function missing(Context $context, array $wanted): array
+    {
+        $result = $context->runner->run(
+            'dpkg-query',
+            array_merge(PhpVersions::DPKG_ARGUMENTS, $wanted),
+            30,
+        );
+
+        return PhpVersions::missing($wanted, $result->stdout);
+    }
+
+    /**
+     * Den Handler übernehmen lassen — und was das mit einer Erweiterung zu tun
+     * hat.
+     *
+     * **Ein laufender FPM lädt eine neu installierte Erweiterung nicht von
+     * selbst.** Das Paket der Distribution ruft in seinem `postinst`
+     * `phpenmod` und stösst über einen dpkg-Trigger einen Neustart an — meistens.
+     * „Meistens" ist in diesem Projekt kein Zustand: Bleibt der Neustart aus,
+     * ist `pgsql` installiert, im Panel steht „vollständig", und die Website
+     * des Kunden bekommt weiter *„could not find driver"*. Ein Fehler, den
+     * niemand sucht, weil alles grün aussieht.
+     *
+     * Deshalb wird hier ausdrücklich neu gestartet, **wenn die Unit läuft** —
+     * und nur dann. Das kostet die Anfragen, die in diesem Moment unterwegs
+     * sind; die Alternative kostet jede Anfrage danach.
+     *
+     * Läuft sie nicht, gilt die Regel von vorher: Ohne eigenen Pool bleibt sie
+     * stehen (ein FPM ohne Pool meldet „no pool defined" und sähe in
+     * `systemctl` nach einem Fehler aus), mit einem wird sie gestartet.
+     *
+     * @return bool Wurde ein laufender Handler neu gestartet?
+     */
+    private function handOver(Context $context, string $version): bool
+    {
+        $unit = PhpVersions::unit($version);
+
+        if (trim($context->runner->run('systemctl', ['is-active', $unit], 15)->stdout) === 'active') {
+            $context->runner->run('systemctl', ['restart', $unit], 60);
+
+            return true;
+        }
+
+        if (PhpPoolRemove::pools($version) === []) {
+            $context->runner->run('systemctl', ['disable', '--now', $unit], 60);
+        } else {
+            $context->runner->run('systemctl', ['enable', '--now', $unit], 60);
+        }
+
+        return false;
     }
 
     /** @return bool Wurde der Pool der Distribution in diesem Lauf abgeschaltet? */

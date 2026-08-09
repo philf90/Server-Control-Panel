@@ -50,6 +50,24 @@ final class PhpVersionList implements Op
                 'active' => $installed && $this->active($context, PhpVersions::unit($version)),
                 'pools' => $installed ? count(PhpPoolRemove::pools($version)) : 0,
                 'release' => $installed ? $this->release($context, $version) : null,
+
+                /*
+                 * **Was einer installierten Version fehlt** (`docs/38 §24.2`).
+                 *
+                 * Der Anlass: `pgsql` kam mit P5b in
+                 * {@see PhpVersions::EXTENSIONS}, und auf jedem Server, auf dem
+                 * PHP schon lag, wäre es nie angekommen — `php.version.install`
+                 * hielt eine Version für vollständig, sobald ihr Handler dalag.
+                 * Ohne diese Zeile bliebe die Lücke unsichtbar: Der Betreiber
+                 * sähe „installiert", der Kunde bekäme *„could not find
+                 * driver"*.
+                 *
+                 * **Nur für installierte Versionen.** Bei einer, die es nicht
+                 * gibt, fehlt alles — das ist keine Auskunft, sondern
+                 * dieselbe wie `installed: false` in einer zweiten
+                 * Schreibweise.
+                 */
+                'missing' => $installed ? $this->missing($context, $version) : [],
             ];
         }
 
@@ -57,6 +75,33 @@ final class PhpVersionList implements Op
         // Liste in seinen Zwischenspeicher legt. Sie aus `versions`
         // herauszurechnen wäre dieselbe Aussage an einer zweiten Stelle.
         return ['versions' => $versions, 'available' => PhpVersions::available()];
+    }
+
+    /**
+     * Die Pakete dieser Version, die dpkg nicht als installiert führt.
+     *
+     * **Dieselbe Frage und dieselbe Auswertung wie in
+     * {@see PhpVersionInstall}** — hier lesend, dort handelnd. Sie zweimal
+     * verschieden zu stellen wäre der Fall, den `docs/36 §10.3` festhält: Zwei
+     * Fassungen einer Regel, und die zweite ist die, die veraltet.
+     *
+     * @return list<string>
+     */
+    private function missing(Context $context, string $version): array
+    {
+        $wanted = PhpVersions::packages($version);
+
+        // Der Rückgabewert bleibt ungelesen — er ist 1, sobald eines der
+        // genannten Pakete unbekannt ist, also genau dann, wenn diese Frage
+        // etwas zu melden hat. Die Begründung steht bei
+        // PhpVersions::missing().
+        $result = $context->runner->run(
+            'dpkg-query',
+            array_merge(PhpVersions::DPKG_ARGUMENTS, $wanted),
+            30,
+        );
+
+        return PhpVersions::missing($wanted, $result->stdout);
     }
 
     private function active(Context $context, string $unit): bool

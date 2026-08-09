@@ -6686,3 +6686,50 @@ Wäre es übersetzt, gälte **jedes** Paket als fehlend, und `php.version.instal
 liesse bei jedem Aufruf `apt-get` laufen — lautlos, denn ein Lauf, der zu viel
 installiert, sieht aus wie ein erfolgreicher. Die Messung steht jetzt als
 Kommentar an der Methode, damit der Nächste die Frage nicht noch einmal stellt.
+
+### Drei Befunde auf der Datenbankseite, und keinen davon hat ein Test gesehen
+
+**Der erste Blick auf die echte Seite**, nachdem `v0.5.1-rc.1` auf
+`cloudsrv24` lag. Sie war vollständig grün getestet, im Chromium dieses
+Containers gemessen und ohne waagerechten Überlauf. Trotzdem drei Fehler, und
+alle drei kommen daher, dass ein Baustein etwas über seine **Umgebung**
+annimmt.
+
+**1. Die Meldung stritt mit der Marke daneben.** Der Balken über der Tabelle
+warnte gelb — „PostgreSQL ist auf diesem Server nicht installiert" —, während
+die Marke in derselben Tabelle grau „nicht installiert" sagte. Beides auf einem
+Bildschirm, beides über denselben Zustand. Der Rang war fest verdrahtet
+(`class="notice warn"`) statt aus derselben Quelle wie die Marke zu kommen.
+
+Der Satz dagegen steht in diesem Repo schon, in `Settings/Php.vue`: *Eine
+Warnung schickt jemanden auf die Suche nach einem Problem, das keines ist.*
+Dass PostgreSQL nicht installiert ist, ist eine Auskunft — dieselbe
+Entscheidung, die `Pg\Server` für den Vorgang trifft und die im Klassenkommentar
+ausdrücklich dasteht. In der Oberfläche galt sie nicht.
+
+**2. Ein Text, der sich auf seinen Platz verliess.** Der Bereichshinweis lautete
+„Ein zweites Datenbanksystem, unabhängig **vom oben genannten**" — und im
+zweispaltigen Raster steht MariaDB nicht oben, sondern links. Auf dem Telefon
+stapeln die Bereiche und der Satz stimmt wieder. Ein Hinweis, der je nach
+Fensterbreite falsch ist.
+
+Das ist Zeichen für Zeichen die Bauart aus `docs/20 §15`: *ein Abstand, der aus
+der Reihenfolge der Seite abgeleitet war und mit der nächsten Ergänzung fiel.*
+Diesmal war es kein Abstand, sondern eine Ortsangabe im Fliesstext. Sie ist
+weg — „ein eigenständiges zweites Datenbanksystem" sagt dasselbe und zeigt
+nirgendwohin.
+
+**3. Und der Bereich, den die Ergänzung verschoben hat.** „Umschalten" gehört
+zum Fernzugriff von MariaDB. Vor P5b stand er unter „Server"; der neue Bereich
+dazwischen hat ihn im Raster neben PostgreSQL geschoben, wo sein eigener Text —
+„Der Datenbankserver wird dabei neu gestartet" — plötzlich mehrdeutig ist, weil
+es jetzt zwei gibt. Er heisst deshalb „Fernzugriff umschalten": Der Titel sagt,
+worum es geht, statt sich darauf zu verlassen, wo er steht.
+
+**Was daraus über das Vorgehen folgt.** Alle drei Fehler sind Eigenschaften des
+Zusammenhangs und nicht des Bausteins — und die drei Aufnahmen, die ich vorher
+gemacht habe, konnten sie nicht zeigen: Sie rendern den Baustein **allein** in
+einer eigenen HTML-Datei. Das war der richtige Weg für die Frage „läuft etwas
+über?", und es ist der falsche für „stimmt es neben dem, was daneben steht?".
+Der Ersatz für die echte Seite ist er nie gewesen, und `CLAUDE.md` sagt das
+auch; hier steht, was genau er nicht sieht.

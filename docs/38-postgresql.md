@@ -86,6 +86,19 @@ Voraussetzung — siehe §14.
 | M22 | Eine Zeile für eine Rolle, die es nicht gibt? | **Kein Fehler.** Sie bleibt liegen, und niemand meldet es |
 | M23 | Zeile je Datenbank statt `all`? | Geht: `host <db> <rolle> <netz>` lässt die Rolle in ihre Datenbank und in `postgres` nicht — `no pg_hba.conf entry for … database "postgres"` |
 
+### 2.2b Der dritte Durchgang: die Anmeldung des Agenten
+
+Nachgemessen, nachdem §6 in seiner ersten Fassung einen Kennungswechsel im
+`Runner` vorgesehen hatte. **Auch diese Empfehlung ist gefallen.**
+
+| # | Frage | Befund |
+|---|---|---|
+| M24 | Kommt root als `postgres` durch? | Nein — `Peer authentication failed` |
+| M25 | Und wenn es eine Rolle `root` gibt? | **Ja, als Superuser** — `local all all peer` steht in Debians Vorgabe, und peer bildet die Kennung auf die gleichnamige Rolle ab. Keine Datei wird angefasst |
+| M26 | Trägt `pcntl_fork` + `posix_setuid` + `pcntl_exec`? | **Nein.** Es läuft, aber die Umleitung der Dateinummern ist nicht verlässlich: Die Ausgabe von `psql` landete in der Datei für stderr, Rückgabewert 0. Dieselbe Reihenfolge stimmte in einem isolierten Fall — sie hängt davon ab, was der Prozess sonst offen hat |
+| M26b | Erbt das Kind fremde Dateinummern? | **Ja**, den Socket des Agenten |
+| M27 | Kann root einen Cluster mit eigenem Bootstrap-Benutzer anlegen? | Ja: `pg_createcluster 16 probe -- --username=root`, und root verbindet sich danach sofort. **Nebenbefund:** In diesem Cluster gibt es *keine* Rolle `postgres`, und Debians Wartungswerkzeuge rechnen mit ihr |
+
 ### 2.3 Was hier nicht zu messen war
 
 Diese Fragen gehören auf `cloudsrv24` und auf die vier Zielplattformen, **bevor
@@ -250,32 +263,78 @@ nicht ausgeblendet, mit dem Grund daneben.
 
 ---
 
-## 6. Wie der Agent sich anmeldet
+## 6. Wie der Agent sich anmeldet — es gibt eine Rolle `root`
 
-Bei MariaDB kostete das keine Zeile: Der Agent läuft als root, MariaDB erkennt
-root über den Socket. PostgreSQL bildet Unix-Kennungen auf Rollen ab, und eine
-Rolle `root` gibt es nicht (M9).
+> **Hier stand: „`Runner` lernt „läuft als"."** Der Abschnitt setzte einen
+> Mechanismus voraus, ohne ihn zu prüfen — und die Prüfung hat ihn nicht
+> getragen (§2.2b). Das ist im selben Dokument zum dritten Mal derselbe Fehler:
+> §3 für `pg_database`, §14 für den Include-Punkt, hier für den
+> Kennungswechsel. **Ein Plan, der eine Bauform nennt, hat sie noch nicht
+> gemessen.**
 
-**`Runner` lernt „läuft als".** Nicht `runuser` auf die Positivliste.
+Bei MariaDB kostete die Anmeldung keine Zeile: Der Agent läuft als root, MariaDB
+erkennt root über den Socket. PostgreSQL bildet Unix-Kennungen auf **Rollen** ab
+— und wenn es eine Rolle mit dem Namen der Kennung gibt, ist genau das die
+Antwort:
 
-Der Unterschied ist der zwischen einer Eigenschaft und einer Vollmacht:
-`runuser` ist ein Programm, das als root *beliebige* andere Programme unter
-*beliebiger* Kennung startet. Auf einer Liste, von der `certbot` in P4 mit der
-Begründung wieder verschwunden ist, dass ein Programm mit Erlaubnisschein
-Angriffsfläche ist, wäre das die weiteste Zeile überhaupt. Setzt der Runner die
-Kennung selbst, stehen auf der Liste weiter nur die drei Programme, die
-tatsächlich laufen, und „als `postgres`" ist ein Feld des Aufrufs.
+```
+psql -U postgres   → FATAL: Peer authentication failed for user "postgres"
+psql -U root       → root|t
+```
 
-**Und dieses Feld bekommt eine eigene Positivliste mit genau einem Eintrag.**
-Ein `as`-Feld, das eine Zeichenkette entgegennimmt, wäre wieder eine Vollmacht,
-nur eine Ebene tiefer. `RunnerUserTest` (§18) besteht darauf.
+**Debians Vorgabe enthält `local all all peer`.** Existiert die Rolle `root`,
+kommt der Agent als Superuser durch — ohne Änderung an `pg_hba.conf`, ohne
+zusätzliches Programm auf der Positivliste, ohne Eingriff in `Runner` und ohne
+ein Geheimnis, das irgendwo liegt. `Pg\Session` ruft `psql -U root` auf, sonst
+nichts.
 
-**Was nicht gebaut wird und offenbleibt:** eine eigene Superuser-Rolle
-`srvpanel` mit Passwort unter `/etc/srvpanel/db/`, die sich über `127.0.0.1`
-anmeldet. Sie würde den Kennungswechsel aus dem Alltag nehmen — aber angelegt
-werden muss sie einmal, und dafür braucht es ihn doch. Sie verkleinert die
-Frage, sie beantwortet sie nicht, und eine Ablage für ein Geheimnis anzulegen,
-die man nicht braucht, ist die Sorte Vorleistung, die `docs/36 §14` ablehnt.
+### 6.1 Wer die Rolle anlegt: der Betreiber, einmal
+
+Sie zu erzeugen braucht genau eine Verbindung als Superuser, und die hat der
+Agent vor ihr nicht. **Diesen einen Handgriff macht der Betreiber**, und das
+Panel zeigt ihm den Befehl:
+
+```
+sudo -u postgres psql -c "CREATE ROLE root SUPERUSER LOGIN"
+```
+
+Das ist dieselbe Form wie `srvpanel db --remote=on` (`docs/36 §19`,
+Entscheidung 5): Eine Übergabe, die den Server verändert, ist eine Handlung des
+Betreibers und kein Häkchen. Und es ist **ein** Weg für beide Fälle — den
+vorhandenen Cluster und den, den `pg.server.install` bringt.
+
+`pg.server.info` beantwortet die Frage „ist übergeben worden?" und meldet sie
+als **Auskunft und nicht als Fehlschlag**; solange sie offen ist, bietet das
+Panel PostgreSQL nicht an und zeigt den Befehl daneben.
+
+### 6.2 Was gemessen wurde und die erste Fassung umgeworfen hat
+
+- **`proc_open` kennt keine Option für eine fremde Kennung.** Sie ist die
+  einzige Stelle, an der der Agent ein Programm startet.
+- **`pcntl_fork` + `posix_setuid` + `pcntl_exec` läuft — und die Umleitung der
+  Dateinummern ist nicht verlässlich.** In einem Lauf landete die Ausgabe von
+  `psql` in der Datei für **stderr**, während dieselbe Reihenfolge in einem
+  isolierten Fall stimmte. Der Rückgabewert war beide Male 0. *Was Erfolg meldet
+  und die Daten woanders ablegt* ist genau die Sorte Fehler, gegen die dieses
+  Projekt seine Wächter baut — und hier stünde sie in der
+  sicherheitsempfindlichsten Klasse, durch die jede vorhandene Operation läuft.
+- **Der geforkte Prozess erbt den Socket des Agenten.** Ohne `CLOEXEC` hiesse
+  das, einem Prozess unter fremder Kennung den Panel-Socket mitzugeben.
+
+### 6.3 Was daraus für die Positivliste folgt
+
+Sie wächst um **drei Programme und keine Vollmacht**: `psql`, `pg_dump`,
+`pg_restore`. `runuser`, `su`, `setpriv` und `sudo` stehen nicht darauf und
+gehören nicht darauf — ein Programm, das als root beliebige andere unter
+beliebiger Kennung startet, wäre die weiteste Zeile der ganzen Liste, auf der
+`certbot` in P4 mit einer schwächeren Begründung keinen Platz mehr hatte.
+`AgentIdentityTest` (§18) hält beides fest: kein Programm, das die Kennung
+wechselt, und `psql` wird nur aus `Pg\Session` gerufen.
+
+**Was offenbleibt, und zwar bewusst:** eine eigene Superuser-Rolle `srvpanel`
+mit Passwort unter `/etc/srvpanel/db/`. Sie brächte gegenüber der Rolle `root`
+nichts, das sie nicht auch kostet — eine Ablage für ein Geheimnis, das es sonst
+nicht gäbe.
 
 ---
 
@@ -825,7 +884,7 @@ Zwei kleine Dinge, und beide sind dieselbe Sorte Fehler:
 agent/src/Pg/Names.php          agent/src/Pg/Sql.php
 agent/src/Pg/Server.php         agent/src/Pg/Session.php
 agent/src/Pg/Shielding.php
-agent/src/Runner.php            (das „läuft als"-Feld, §6)
+agent/src/Runner.php            (drei Programme auf die Positivliste, §6.3)
 agent/src/Ops/PgServerInfo.php
 agent/src/Ops/PgDatabaseRemove.php   ← vor …
 agent/src/Ops/PgDatabaseCreate.php   ← … dieser Zeile geschrieben
@@ -834,7 +893,7 @@ agent/src/Ops/PgRoleCreate.php
 agent/src/Ops/PgRoleGrant.php
 agent/src/Ops/PgRoleLock.php
 agent/src/Registry.php
-tests/Unit/PgNameTest.php  PgShieldingTest.php  RunnerUserTest.php
+tests/Unit/PgNameTest.php  PgShieldingTest.php  AgentIdentityTest.php
 ```
 
 **Hier prüfbar, und diesmal richtig:** `agent/src/autoload.php` lädt ohne
@@ -910,7 +969,7 @@ Container am meisten auszahlt.
 | `PgNameTest` | Ein Präfix ist nichtssagend und wird nie zweimal vergeben | Präfix aus der Abonnementnummer bilden |
 | `PgShieldingTest` | Jede neu angelegte Datenbank wird abgesperrt, **und die Sichtenliste wird erfragt** | Die Liste als Konstante verdrahten |
 | `PgRestoreTest` | Der Aufruf von `psql` trägt `ON_ERROR_STOP=1` — geprüft am erzeugten Aufruf, nicht an einer Konstanten | Den Schalter entfernen |
-| `RunnerUserTest` | Das `as`-Feld nimmt nur Namen aus einer Positivliste; keine Operation reicht Freitext durch | Die Positivliste durch eine Prüfung auf „nicht leer" ersetzen |
+| `AgentIdentityTest` | Der Agent wechselt seine Kennung nicht: kein `runuser`, `su`, `setpriv` oder `sudo` auf der Positivliste — und `psql` wird nur aus `Pg\Session` gerufen | `runuser` auf die Positivliste setzen |
 | `UnitReachTest` | Jeder Unitname, den eine Operation nennt, kommt durch `ServiceAction::allowed()` | `postgresql` aus `ALLOWED_UNITS` nehmen |
 | `DocLinkTest` | Jeder Verweis in `docs/` zeigt auf eine Datei, die es gibt | Eine Zieldatei umbenennen |
 | `PackagingTest` (erweitert) | Jede Zeile unter `depends`/`recommends`/`suggests` hat eine Begründung oder eine Stelle im Code, die sie einlöst | Eine Zeile ohne beides einfügen — der heutige Zustand |
@@ -1131,8 +1190,12 @@ vorgelegt:
    berichtigt.
 2. **Die Datenbank gehört dem Panel** (§5). Erweiterungen kommen später über
    eine Positivliste und stehen bis dahin in `docs/20 §15`.
-3. **`Runner` lernt „läuft als"** (§6), statt `runuser` auf die Positivliste zu
-   nehmen.
+3. **Der Agent meldet sich als Rolle `root` an** (§6) — nicht über einen
+   Kennungswechsel im `Runner`, wie dieser Plan zuerst vorsah. Die Rolle legt
+   der Betreiber einmal an; das Panel zeigt den Befehl und bietet PostgreSQL
+   bis dahin nicht an. Nachgetragen, nachdem die Messung aus §2.2b die erste
+   Fassung umgeworfen hat: `proc_open` kennt keinen Kennungswechsel, und der
+   Weg über `pcntl_fork` ist gemessen unzuverlässig.
 4. **Ein Datenmodell, eine Fläche, zwei Sätze Agent-Operationen** (§8).
 5. **PostgreSQL wird erkannt *und* auf Verlangen installiert** (§7). Ein
    vorhandener Cluster ist Bestand und wird benutzt; `pg_hba.conf` bleibt
@@ -1206,7 +1269,7 @@ vorgelegt:
 | `app/` | 1 Dienst, 1 Lebenslauf, 1 Modell | `Databases`, `Dumps`, `Usage`, `Quota`, `SubscriptionController`, `SystemUser`, `Lifecycle` |
 | `database/` | 2 Migrationen | — |
 | `resources/` | — | 4 Seiten |
-| `tests/` | 10 Wächter | `waechter-brechen.sh`, `RemovalPathTest`, `AgentOperationReachTest`, `PackagingTest` |
+| `tests/` | 11 Wächter | `waechter-brechen.sh`, `RemovalPathTest`, `AgentOperationReachTest`, `PackagingTest` |
 | `packaging/` | — | `nfpm.yaml`, `bin/srvpanel` |
 | `docs/` | dieses | `20 §9 P5b`, `20 §15`, `23`, `CHANGELOG`, `CLAUDE.md` |
 

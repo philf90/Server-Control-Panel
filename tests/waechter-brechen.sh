@@ -4719,6 +4719,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgShieldingTest passed
 
 echo
+echo "── AgentIdentityTest: runuser auf die Positivliste ──"
+#
+# Der erste Entwurf von docs/38 §6 wollte einen Kennungswechsel, weil
+# PostgreSQL Unix-Kennungen auf Rollen abbildet und root keine ist. Gemessen
+# wurde beides und beides faellt: proc_open kennt keinen Wechsel, und der Weg
+# ueber pcntl_fork legt die Ausgabe unzuverlaessig ab. Gebraucht wird er auch
+# nicht — eine Rolle namens root reicht.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        'psql' => '/usr/bin/psql',", "        'runuser' => '/usr/sbin/runuser',\n        'psql' => '/usr/bin/psql',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Runner.php "runuser auf der Positivliste" &&
+pruefe "runuser auf der Positivliste" \
+  AgentIdentityTest::test_no_program_on_the_allowlist_switches_identity failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AgentIdentityTest passed
+
+echo
+echo "── PgSessionTest: der Lauf meldet wieder Erfolg, wenn SQL scheitert ──"
+#
+# psql -f gibt bei gescheitertem SQL 0 zurueck und arbeitet weiter — am
+# 9. August nebeneinander gemessen. mysql bricht von selbst ab; genau darauf
+# ruht der Beleg von Kriterium 6 in P5. Ohne den Schalter waere ein
+# vollstaendig gescheitertes Zurueckspielen als „erledigt" gemeldet worden.
+vorher_datei agent/src/Pg/Session.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'-v', 'ON_ERROR_STOP=1'", "'-v', 'AUTOCOMMIT=on'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Session.php "Lauf ohne ON_ERROR_STOP" &&
+pruefe "Lauf ohne ON_ERROR_STOP" \
+  PgSessionTest::test_every_call_carries_on_error_stop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgSessionTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

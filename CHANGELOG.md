@@ -6059,3 +6059,67 @@ jetzt `WithoutPhpComments` über `token_get_all()`.
   Dateien mussten von Hand zurückgedreht werden. Genau deshalb verweigert
   `waechter-brechen.sh` den Start bei ungesicherten Änderungen, und genau deshalb
   gehört ein Bruch erst nach dem Commit dazu, den er prüft.
+
+### P5b Schritt 1 — der Agent meldet sich an, und §6 fiel dabei als Dritter
+
+`Pg\Session`, `Pg\Server`, `pg.server.info`, dazu `AgentIdentityTest` und
+`PgSessionTest`. Die Positivliste wächst um `psql`, `pg_dump` und `pg_restore`
+— **und um keine Vollmacht.**
+
+**`docs/38 §6` sah zuerst vor, dass `Runner` ein Feld „läuft als" bekommt.**
+PostgreSQL bildet Unix-Kennungen auf Rollen ab, und root ist keine: Als root
+scheitert `psql -U postgres` an `Peer authentication failed`. Der Plan nannte
+dafür eine Bauform, ohne sie zu messen — und das ist im selben Dokument zum
+dritten Mal derselbe Fehler, nach `pg_database` in §3 und dem Include-Punkt in
+§14. **Ein Plan, der eine Bauform nennt, hat sie noch nicht gemessen.**
+
+Gemessen wurde sie dann, und sie trägt nicht:
+
+- `proc_open` — die einzige Stelle, an der der Agent ein Programm startet —
+  kennt keine Option für eine fremde Kennung.
+- `pcntl_fork` mit `posix_setuid` und `pcntl_exec` **läuft**, und die Umleitung
+  der Dateinummern ist trotzdem unzuverlässig: Die Ausgabe von `psql` landete in
+  der Datei für stderr, bei Rückgabewert 0 — während dieselbe Reihenfolge in
+  einem isolierten Fall stimmte. Sie hängt davon ab, was der Prozess sonst offen
+  hat. *Was Erfolg meldet und die Daten woanders ablegt* ist die Sorte Fehler,
+  gegen die dieses Projekt seine Wächter baut, und sie stünde hier in der
+  Klasse, durch die jede vorhandene Operation läuft.
+- Der geforkte Prozess **erbt den Socket des Agenten**.
+
+**Gebraucht wird von alledem nichts.** Debians `pg_hba.conf` enthält
+`local all all peer`, und peer bildet die Unix-Kennung auf die *gleichnamige*
+Rolle ab: Gibt es eine PostgreSQL-Rolle `root`, kommt der Agent als Superuser
+durch — keine Datei wird angefasst, kein Programm wechselt die Kennung, kein
+Passwort liegt irgendwo. Angelegt wird sie vom **Betreiber**, einmal, mit einem
+Befehl, den das Panel anzeigt. Dieselbe Form wie `srvpanel db --remote=on`: Eine
+Übergabe, die den Server verändert, ist eine Handlung des Betreibers.
+
+**Daraus ein Zustand, den P5 nicht kennt.** Zwischen „läuft nicht" und „nutzbar"
+liegt „läuft, aber noch nicht übergeben" — der Dienst antwortet, und der Agent
+kommt trotzdem nicht hinein. Für den Betreiber sind das zwei verschiedene
+Handgriffe, und ein Panel, das ihm beide Male dasselbe sagt, hilft bei keinem.
+`Pg\Server` unterscheidet sie an der Meldung von `psql` und meldet beides als
+**Auskunft und nicht als Fehlschlag** — dieselbe Entscheidung wie bei
+„MariaDB läuft nicht".
+
+**Der Wächter über den angezeigten Befehl** hält `Session::ROLE` gegen
+`Server::HANDOVER`: Laufen die auseinander, legt der Betreiber eine Rolle an,
+die niemand benutzt, und das Panel sagt ihm weiter, PostgreSQL sei nicht
+übergeben. Ein abgedruckter Befehl, der ins Leere geht, hat `docs/36 §22.3v`
+schon einmal gekostet.
+
+**Und der Unterschied, der P5b beinahe still gekostet hätte, ist jetzt an
+beiden Enden festgenagelt.** Nebeneinander gemessen, dieselbe Anweisungsfolge:
+mit `ON_ERROR_STOP=1` bricht der Lauf ab und die dritte Anweisung läuft nicht
+mehr; ohne den Schalter gibt `psql` **0** zurück, meldet Erfolg und führt die
+vierte Anweisung trotzdem aus. `mysql` bricht von selbst ab — deshalb ist das
+eine Regel, die man nur dort lernt, wo sie gebrochen wird. Sie steht als
+Argument im Aufruf und nicht als Konstante daneben, und `PgSessionTest` prüft
+beides: dass der Wert dasteht **und** dass er in den Aufruf geht.
+
+**`git checkout` hat zum vierten Mal an einem Tag zugeschlagen, diesmal von der
+anderen Seite.** Bisher traf es nicht eingecheckte Dateien, die es nicht
+zurückholte; hier holte es die eingecheckte Fassung von `Runner.php` zurück und
+nahm die noch nicht gesicherte Ergänzung der Positivliste mit. Beide Richtungen
+haben dieselbe Ursache und dieselbe Regel: **Ein Bruch gehört erst nach dem
+Commit dazu, den er prüft.**

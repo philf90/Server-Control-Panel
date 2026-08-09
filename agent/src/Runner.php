@@ -62,6 +62,26 @@ final class Runner
         'mysql' => '/usr/bin/mysql',
         'mysqldump' => '/usr/bin/mysqldump',
 
+        // **P5b, und die Liste wächst um drei Programme und keine Vollmacht.**
+        // Alle drei sind fassungsunabhängige Wrapper von
+        // `postgresql-client-common`, die selbst entscheiden, welche
+        // Serverfassung sie ansprechen — deshalb steht hier keine Zahl, anders
+        // als bei php-fpm.
+        //
+        // **Was hier ausdrücklich nicht steht: `runuser`, `su`, `setpriv`,
+        // `sudo`.** PostgreSQL bildet Unix-Kennungen auf Rollen ab, und der
+        // erste Entwurf von docs/38 §6 wollte deshalb einen Kennungswechsel.
+        // Ein Programm, das als root beliebige andere unter beliebiger Kennung
+        // startet, wäre die weiteste Zeile dieser ganzen Liste — weiter als
+        // `certbot`, der unten mit einer schwächeren Begründung gehen musste.
+        // Gebraucht wird er auch nicht: Gibt es eine PostgreSQL-Rolle `root`,
+        // kommt der Agent über `local all all peer` als Superuser durch, ohne
+        // dass irgendeine Datei angefasst wird. `AgentIdentityTest` hält beides
+        // fest.
+        'psql' => '/usr/bin/psql',
+        'pg_dump' => '/usr/bin/pg_dump',
+        'pg_restore' => '/usr/bin/pg_restore',
+
         // **`certbot` stand hier und ist mit P4 wieder gegangen.** Er war für
         // TLS vorgesehen; gebaut wurde statt dessen ein eigener ACME-Client im
         // Agenten (`agent/src/Acme/`, Begründung in docs/32 §6). Ein Programm,

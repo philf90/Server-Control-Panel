@@ -34,6 +34,7 @@ use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
 use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
+use SrvPanel\Agent\Ops\PgServerInfo;
 use SrvPanel\Agent\Ops\PhpPoolApply;
 use SrvPanel\Agent\Ops\PhpPoolRemove;
 use SrvPanel\Agent\Ops\PhpVersionInstall;
@@ -128,6 +129,17 @@ final class Registry
         $this->register(new DbUserPassword);
         $this->register(new DbUserGrant);
         $this->register(new DbUserLock);
+
+        /*
+         * P5b — PostgreSQL (docs/38 §10).
+         *
+         * `pg.server.info` steht allein und zuerst, und das ist keine
+         * Reihenfolge, sondern eine Eigenschaft: Sie ist die einzige
+         * `pg.*`-Operation, die eine Antwort hat, wenn PostgreSQL fehlt, wenn
+         * der Dienst steht oder wenn die Rolle `root` noch nicht angelegt ist
+         * (docs/38 §6.1). Alle anderen setzen die Übergabe voraus.
+         */
+        $this->register(new PgServerInfo);
 
         // Sichern und Zurückspielen — auch hier `remove` zuerst. Eine Sicherung
         // ist das, was P5 auf dem System hinterlässt und was beliebig gross

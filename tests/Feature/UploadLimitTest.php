@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\DumpKind;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Models\Database;
@@ -166,7 +167,7 @@ final class UploadLimitTest extends TestCase
         );
 
         $this->assertNotNull($dump, 'Es ist keine Sicherung im Bestand entstanden.');
-        $this->assertSame('imported', $dump->kind, 'Die Herkunft steht nicht an der Zeile.');
+        $this->assertSame(DumpKind::Imported, $dump->kind, 'Die Herkunft steht nicht an der Zeile.');
 
         // Und die Datei liegt in der Übergabe, aus der der Agent sie holt.
         $source = $this->latestOperationSource();

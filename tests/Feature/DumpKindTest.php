@@ -16,11 +16,15 @@ use SplFileInfo;
  * Die Herkunft einer Sicherung wird nicht getippt.
  *
  * **Der Anlass ist eine Kleinigkeit aus dem P5-Abnahmelauf** (`docs/36
- * §22.3w`). `database_dumps.kind` kannte zwei Werte, `'export'` und
- * `'imported'` — verschieden gebaut, ein Stamm und ein Partizip —, und sie
- * standen als nackte Zeichenketten an vier Stellen: zweimal im Dienst, einmal
- * im Agenten, einmal im Vue-Template. Nebenan war {@see DumpStatus}
- * längst eine Aufzählung.
+ * §22.3w`). `database_dumps.kind` kannte zwei Werte — verschieden gebaut, ein
+ * Stamm und ein Partizip —, und sie standen als nackte Zeichenketten an vier
+ * Stellen: zweimal im Dienst, einmal im Agenten, einmal im Vue-Template.
+ * Nebenan war {@see DumpStatus} längst eine Aufzählung.
+ *
+ * (Ausgeschrieben stehen sie hier nicht: Dieser Test verbietet sie überall
+ * ausser in der Aufzählung, und ein Zitat ist auch ein Vorkommen. Er hat das
+ * schon zweimal an Kommentaren gezeigt, die beim Bauen dieses Beitrags
+ * entstanden sind.)
  *
  * **Was daran gefährlich ist, ist nicht die Asymmetrie, sondern das Tippen.**
  * Wer `'exported'` schreibt, trifft nichts — kein Fehler, keine Meldung, nur
@@ -55,7 +59,15 @@ final class DumpKindTest extends TestCase
     /**
      * Alles, was das Panel ausmacht — ohne den Agenten.
      *
-     * **`agent/` steht bewusst nicht darin.** Der Agent ist framework- und
+     * **`tests/` steht seit dem ersten roten Lauf darin, und das ist der
+     * Anlass.** Der erste Wurf dieses Wächters las nur `app/`, `resources/js/`
+     * und `database/` — und genau in `tests/` blieb eine Behauptung stehen, die
+     * den Wert als Zeichenkette gegen die Spalte hielt. Sie fiel erst in der
+     * CI auf, mit dem Cast auf die Aufzählung. *Ein Wächter, der den Ort
+     * auslässt, an dem die zweite Fassung einer Regel am häufigsten steht, ist
+     * der halbe Wächter.*
+     *
+     * **`agent/` steht dagegen bewusst nicht darin.** Der Agent ist framework- und
      * abhängigkeitsfrei; eine Aufzählung aus `app/` darf er nicht kennen
      * (CLAUDE.md, Leitbild 1). Er meldet `kind` in seiner Antwort, und das
      * Panel liest sie an dieser Stelle nicht — es weiss es besser, weil es die
@@ -67,7 +79,7 @@ final class DumpKindTest extends TestCase
     {
         $files = [];
 
-        foreach (['app', 'resources/js', 'database'] as $verzeichnis) {
+        foreach (['app', 'resources/js', 'database', 'tests'] as $verzeichnis) {
             /** @var SplFileInfo $file */
             foreach (new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($this->root().'/'.$verzeichnis, FilesystemIterator::SKIP_DOTS),
@@ -108,9 +120,9 @@ final class DumpKindTest extends TestCase
 
             foreach (file($file) ?: [] as $nummer => $zeile) {
                 foreach ($werte as $wert) {
-                    // In Anführungszeichen und für sich allein: `'export'`
-                    // trifft, `'exportiert'` nicht, und ein Wort im Fliesstext
-                    // eines Kommentars auch nicht.
+                    // In Anführungszeichen und für sich allein: ein längeres
+                    // Wort mit demselben Anfang trifft nicht, und ein Wort im
+                    // Fliesstext eines Kommentars auch nicht.
                     if (preg_match('/([\'"])'.preg_quote($wert, '/').'\1/', $zeile) === 1) {
                         $funde[] = sprintf('%s:%d  %s', $kurz, $nummer + 1, trim($zeile));
                     }
@@ -131,10 +143,10 @@ final class DumpKindTest extends TestCase
     /**
      * Und über die Grenze zum Browser geht die Marke, nicht der Wert.
      *
-     * **Bis zum 9. August stand im Template `dump.kind === 'imported'`.** Das
-     * ist derselbe Bau wie der Frame-Fehler, nur zwischen PHP und JavaScript:
-     * eine Zeichenkette über eine Grenze, die kein Typ prüft. Hinüber geht
-     * jetzt {@see DumpKind::label()}.
+     * **Bis zum 9. August verglich das Template die Herkunft selbst.** Das ist
+     * derselbe Bau wie der Frame-Fehler, nur zwischen PHP und JavaScript: ein
+     * Wert über eine Grenze, die kein Typ prüft. Hinüber geht jetzt
+     * {@see DumpKind::label()}.
      */
     public function test_the_interface_gets_the_label_and_not_the_value(): void
     {

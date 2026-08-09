@@ -154,7 +154,21 @@ final class DatabaseFormTest extends TestCase
         $seen = 0;
 
         foreach ($bodies as $body) {
-            if (preg_match("/createUserFor\([^;]*?'([a-z_]+)',?\s*\)/s", $body, $call) !== 1) {
+            /*
+             * **`$this->createUserFor(` und `field:` — beides mit Absicht.**
+             *
+             * Der Ausdruck stand hier ohne `$this->` und suchte den Feldnamen
+             * an der letzten Argumentstelle. Am 8. August 2026 bekam die
+             * Methode einen fünften Parameter mit Vorgabewert
+             * (`string $host = 'localhost'`), und der Ausdruck fand ihn — in
+             * der *Erklärung* der Methode statt in einem Aufruf. Der Test
+             * meldete daraufhin, `localhost` sei ein Feldname ohne Prüfregel.
+             *
+             * Ein benannter Parameter kann das nicht: `field:` steht nur dort,
+             * wo jemand ihn übergibt, und eine Vorgabe in der Erklärung sieht
+             * niemals so aus.
+             */
+            if (preg_match("/\\\$this->createUserFor\(.*?field: '([a-z_]+)'/s", $body, $call) !== 1) {
                 continue;
             }
 

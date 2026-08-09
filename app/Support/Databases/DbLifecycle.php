@@ -64,6 +64,7 @@ final class DbLifecycle implements AfterOperation
             'db.database.remove',
             'db.user.lock',
             'db.dump.create',
+            'db.dump.import',
             'db.dump.remove',
             'db.restore',
             'subscription.suspend',

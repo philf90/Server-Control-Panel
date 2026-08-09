@@ -65,12 +65,6 @@ final class ChangelogTest extends TestCase
      * @var array<string, string>
      */
     private const REMOVED = [
-        'UploadLimitTest' => 'Mit dem Hochladen zurückgenommen (P5, 8. August 2026): Er hielt drei '
-            .'Grössengrenzen gegeneinander, die zu einer Funktion gehörten, die nie gebaut wurde — '
-            .'grün, im Recht, und blind für das Fehlen dessen, was er absichern sollte. Kommt mit '
-            .'docs/36 Schritt 11 wieder, dann mit einer zweiten Behauptung: dass die Prüfregel an '
-            .'der Route hängt.',
-
         'SecretsStayOutOfTheStoreTest' => 'Beim Bauen in SecretsStayOutOfTheQueueTest aufgegangen '
             .'(P5): Die Regel lebt dort als test_the_database_tables_have_no_place_for_a_secret(). '
             .'Der Name blieb in einem Kommentar der Migration und im Plan stehen und zeigte ins '
@@ -166,7 +160,11 @@ final class ChangelogTest extends TestCase
      * Ausnahmeliste statt in einem Zähler: Ein Eintrag, der einen Test nennt,
      * den es wieder gibt, weicht die Prüfung für ihn dauerhaft auf — und
      * gemerkt hätte es niemand, denn `REMOVED` steht auf der grünen Seite.
-     * Kommt `UploadLimitTest` mit Schritt 11 zurück, meldet diese Zeile es.
+     *
+     * **Und sie hat zugebissen.** `UploadLimitTest` stand hier, weil er mit dem
+     * Hochladen zurückgenommen wurde; als Schritt 11 ihn zurückbrachte, meldete
+     * diese Zeile den Eintrag — genau wie angekündigt, in der CI und nicht
+     * Monate später (`docs/36 §22.3u`).
      */
     public function test_the_list_of_removed_tests_does_not_outlive_them(): void
     {

@@ -14,17 +14,22 @@ use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
+use App\Support\Databases\ImportLimit;
 use App\Support\Plans\Quota;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
 use SrvPanel\Agent\AgentException;
+use SrvPanel\Agent\Client;
+use SrvPanel\Agent\Db\Names;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
+use SrvPanel\Agent\Ops\DbDumpImport;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -47,6 +52,7 @@ final class DatabaseController extends Controller
         private readonly Databases $databases,
         private readonly Dumps $dumps,
         private readonly Audit $audit,
+        private readonly Client $agent,
     ) {}
 
     /**
@@ -140,7 +146,7 @@ final class DatabaseController extends Controller
                 ->with('status', 'Datenbank '.$database->name.' angelegt.');
         }
 
-        return $this->createUserFor($database, $subscription, (string) $data['user_label'], 'user_label');
+        return $this->createUserFor($database, $subscription, (string) $data['user_label'], field: 'user_label');
     }
 
     public function show(Request $request, Database $database): Response
@@ -184,7 +190,61 @@ final class DatabaseController extends Controller
              * Knopf „Entfernen", der ihn ganz löscht.
              */
             'unlinked' => $this->unlinkedUsers($database),
+
+            /*
+             * **Ob ein Zugang für eine fremde Adresse überhaupt etwas nützt.**
+             * Die Antwort kommt vom Server und nicht aus einer Einstellung des
+             * Panels: Der Betreiber kann die Horchadresse jederzeit von Hand
+             * ändern, und eine im Panel gemerkte Fassung wäre die, die veraltet
+             * — dieselbe Begründung wie bei `db.user.grant` (docs/36 §12).
+             *
+             * Und **angezeigt statt ausgeblendet**: Wer das Feld sucht, soll
+             * lesen, warum es nicht da ist, statt es für einen Fehler zu
+             * halten.
+             */
+            'remote' => $this->remoteAccess(),
+
+            // Was ein Hochladen annimmt — die Zahl kommt aus der Quelle, damit
+            // die Oberfläche nicht etwas anderes verspricht als die Prüfregel
+            // (docs/36 §10.3).
+            'import_limit' => ImportLimit::label(),
         ]);
+    }
+
+    /**
+     * Horcht der Datenbankserver auf einer erreichbaren Adresse?
+     *
+     * **Ein Aufruf je Seitenaufruf, und das ist Absicht.** Der Wert liesse sich
+     * zwischenspeichern; dann stünde nach einem `srvpanel db --remote=on` für
+     * die Dauer des Zwischenspeichers das Gegenteil auf der Seite, und der
+     * Betreiber suchte den Fehler bei sich. Der Agent sitzt auf demselben
+     * Rechner hinter einem Unix-Socket.
+     *
+     * **Ein Fehler ist hier kein Fehler der Seite.** Antwortet der Agent nicht,
+     * ist die Antwort „kein Fernzugriff" mit dem Grund daneben — die
+     * Datenbankseite selbst funktioniert weiter.
+     *
+     * @return array{possible: bool, bind_address: string|null, reason: string|null}
+     */
+    private function remoteAccess(): array
+    {
+        try {
+            $info = $this->agent->call('db.server.info', []);
+        } catch (AgentException $error) {
+            return ['possible' => false, 'bind_address' => null, 'reason' => $error->getMessage()];
+        }
+
+        $bind = is_string($info['bind_address'] ?? null) ? $info['bind_address'] : null;
+
+        return [
+            'possible' => ($info['remote'] ?? false) === true,
+            'bind_address' => $bind,
+            'reason' => ($info['remote'] ?? false) === true ? null : sprintf(
+                'Der Datenbankserver horcht auf %s und ist damit nur lokal erreichbar. '
+                .'Einschalten kann das nur der Betreiber, auf dem Server: srvpanel db --remote=on',
+                $bind ?? 'einer lokalen Adresse',
+            ),
+        ];
     }
 
     /**
@@ -205,6 +265,117 @@ final class DatabaseController extends Controller
 
         return to_route('operations.show', $operation)
             ->with('status', 'Die Sicherung wird erstellt.');
+    }
+
+    /**
+     * Eine mitgebrachte Sicherung entgegennehmen.
+     *
+     * **Die Datei geht nicht über den Socket.** Sie landet im Schreibbereich
+     * des Panels, und der Agent holt sie von dort ab — wortgleich der Grund,
+     * aus dem eine Sicherung beim Herunterladen nicht zurückgereicht wird.
+     *
+     * **Die Magic Bytes werden hier schon geprüft, obwohl der Agent es noch
+     * einmal tut.** Das ist keine zweite Fassung derselben Regel, sondern die
+     * Reihenfolge: Wer eine ZIP-Datei hochlädt, soll die Meldung sofort am Feld
+     * sehen — und nicht eine Zeile im Bestand bekommen, die auf einen Vorgang
+     * wartet, der gleich scheitert. Was gilt, entscheidet trotzdem der Agent;
+     * er sieht die Datei, die tatsächlich bei ihm ankommt.
+     *
+     * **Und die Zeile entsteht erst, wenn die Datei liegt.** Andersherum stünde
+     * bei einem Fehlschlag beim Verschieben eine Sicherung im Bestand, zu der
+     * es nie eine Datei gab.
+     */
+    public function import(Request $request, Database $database): RedirectResponse
+    {
+        $request->validate([
+            'dump' => ['required', 'file', ImportLimit::rule()],
+        ], [], ['dump' => 'Sicherung']);
+
+        $file = $request->file('dump');
+
+        if (! $file instanceof UploadedFile) {
+            throw ValidationException::withMessages(['dump' => 'Es ist keine Datei angekommen.']);
+        }
+
+        if (! $this->looksLikeGzip($file->getRealPath())) {
+            throw ValidationException::withMessages([
+                'dump' => 'Das ist keine gzip-Datei. Erwartet wird eine Sicherung, wie dieses Panel sie '
+                    .'schreibt (.sql.gz) — die Endung allein genügt nicht.',
+            ]);
+        }
+
+        /*
+         * **Der Name kommt von hier und nicht vom Absender.** Ein hochgeladener
+         * Dateiname ist eine Zeichenkette aus dem Netz; sie in einen Pfad zu
+         * setzen ist der Vorgang, den die Positivliste des Agenten verhindert.
+         * Wie die Sicherung später heisst, entscheidet ohnehin
+         * `Dumps::record()` gegen den Bestand.
+         */
+        $name = bin2hex(random_bytes(16)).'.sql.gz';
+        $staging = self::staging();
+        $source = $staging.'/'.$name;
+
+        try {
+            $file->move($staging, $name);
+            $operation = $this->dumps->import($database, $source);
+        } catch (RuntimeException|AgentException $error) {
+            @unlink($source);
+
+            throw ValidationException::withMessages(['dump' => $error->getMessage()]);
+        }
+
+        $this->audit->record('database.dump.imported', target: $database, subscriptionId: (int) $database->subscription_id);
+
+        return to_route('operations.show', $operation)
+            ->with('status', 'Die Sicherung wird übernommen.');
+    }
+
+    /**
+     * Die Übergabe: der Schreibbereich des Panels, den der Agent erwartet.
+     *
+     * **Zwei Pfade, die derselbe sein müssen** — `storage_path()` hier und
+     * {@see DbDumpImport::STAGING_ROOT} dort. In der Auslieferung ist
+     * `storage` ein Verweis nach `/var/lib/srvpanel/storage`, und beide zeigen
+     * auf dasselbe Verzeichnis; im Test zeigt `storage_path()` woandershin, und
+     * das ist richtig so — dort läuft kein Agent. Dass die beiden in der
+     * Auslieferung zusammenpassen, prüft `UploadLimitTest`.
+     */
+    private static function staging(): string
+    {
+        $path = storage_path('app/private/imports');
+
+        if (! is_dir($path)) {
+            // 0700: Der Inhalt ist die Datenbank eines Kunden, und ausser dem
+            // Panel und dem Agenten muss dort niemand hineinsehen.
+            @mkdir($path, 0o700, true);
+        }
+
+        return $path;
+    }
+
+    /**
+     * Die ersten beiden Bytes — mehr sagt über eine Datei nichts Billigeres.
+     *
+     * `1f 8b` steht am Anfang jedes gzip-Stroms (RFC 1952). Ob dahinter SQL
+     * steht, entscheidet der Datenbankserver beim Einspielen; ein Panel, das
+     * SQL zu erkennen versucht, baut einen Parser, den niemand geprüft hat.
+     */
+    private function looksLikeGzip(string|false $path): bool
+    {
+        if ($path === false) {
+            return false;
+        }
+
+        $handle = @fopen($path, 'rb');
+
+        if ($handle === false) {
+            return false;
+        }
+
+        $head = (string) fread($handle, 2);
+        fclose($handle);
+
+        return $head === "\x1f\x8b";
     }
 
     /**
@@ -299,6 +470,14 @@ final class DatabaseController extends Controller
     {
         $data = $request->validate([
             'label' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/D'],
+
+            // Der Wirt wird hier **nicht** mit einem eigenen Ausdruck geprüft:
+            // Was zulässig ist, steht in `Names::host()`, und eine zweite
+            // Formulierung wäre die, die beim nächsten Mal auseinanderläuft
+            // (dieselbe Entscheidung wie bei `SubscriptionProvision::
+            // subscriptionName()` im Abonnementformular). Geprüft wird unten,
+            // mit der Regel des Agenten und einer lesbaren Meldung.
+            'host' => ['nullable', 'string'],
         ]);
 
         $subscription = $database->subscription;
@@ -309,7 +488,45 @@ final class DatabaseController extends Controller
             ]);
         }
 
-        return $this->createUserFor($database, $subscription, (string) $data['label'], 'label');
+        return $this->createUserFor(
+            $database,
+            $subscription,
+            (string) $data['label'],
+            field: 'label',
+            host: $this->host($data['host'] ?? null),
+        );
+    }
+
+    /**
+     * Der Wirt eines neuen Zugangs — geprüft mit der Regel des Agenten.
+     *
+     * **Und die Sperre sitzt hier und nicht nur im Formular.** Das Feld
+     * erscheint nur, wenn der Server auf einer erreichbaren Adresse horcht;
+     * eine Anfrage, die es trotzdem mitschickt, ist damit noch nicht abgewiesen
+     * — sie kommt nicht aus dem Formular. Ein Zugang für eine fremde Adresse an
+     * einem Server, der nur lokal horcht, wäre ein Konto, das nichts kann und
+     * das niemand mehr zuordnet, sobald der Fernzugriff eingeschaltet wird.
+     */
+    private function host(mixed $value): string
+    {
+        $host = is_string($value) ? trim($value) : '';
+
+        if ($host === '' || $host === 'localhost') {
+            return 'localhost';
+        }
+
+        if ($this->remoteAccess()['possible'] !== true) {
+            throw ValidationException::withMessages([
+                'host' => 'Der Datenbankserver ist nur lokal erreichbar — ein Zugang für eine fremde '
+                    .'Adresse käme nie zustande. Einschalten kann das nur der Betreiber.',
+            ]);
+        }
+
+        try {
+            return Names::host($host);
+        } catch (AgentException $error) {
+            throw ValidationException::withMessages(['host' => $error->getMessage()]);
+        }
     }
 
     /**
@@ -461,9 +678,10 @@ final class DatabaseController extends Controller
         Subscription $subscription,
         string $label,
         string $field,
+        string $host = 'localhost',
     ): RedirectResponse {
         try {
-            [$user, $password] = $this->databases->createUser($subscription, $label, [$database]);
+            [$user, $password] = $this->databases->createUser($subscription, $label, [$database], $host);
         } catch (RuntimeException|AgentException $error) {
             throw ValidationException::withMessages([$field => $error->getMessage()]);
         }

@@ -246,7 +246,13 @@ final class PanelVhost implements Op
             add_header Referrer-Policy no-referrer always;
             add_header X-Robots-Tag "noindex, nofollow" always;
 
-            client_max_body_size 256m;
+            # 544m und nicht 512m: Die Grenze des Formulars ist die Datei
+            # (512 MB, App\Support\Databases\ImportLimit), und der
+            # Anfragekörper trägt sie plus die Felder drumherum. Wäre nginx die
+            # engste der drei Zahlen, sähe der Kunde beim Hochladen dessen
+            # Fehlerseite statt der Meldung des Panels — und die weiss von PHP
+            # nichts (docs/36 §10.3).
+            client_max_body_size 544m;
 
             location / {
                 try_files \$uri \$uri/ /index.php?\$query_string;

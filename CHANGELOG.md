@@ -5375,6 +5375,57 @@ es zählt, und hat zwei Erwartungen dazubekommen: `mysql.db` muss leer sein — 
 Recht überlebt sein Schema, und `mysql.user` allein zeigt das nie —, und
 `srvpanel db` muss „Nichts liegengeblieben" melden.
 
+**Eine mitgebrachte Sicherung lässt sich hochladen — Schritt 11 aus `docs/36
+§10.3`.** Die Datei geht nicht über den Socket: Das Panel legt sie in seinem
+Schreibbereich ab, und `db.dump.import` holt sie von dort, durch
+`Guard::pathInside()` aufgelöst und geprüft. Die vier Prüfungen, die §22.3f als
+fehlend benannt hatte, sind gebaut — die Magic Bytes (im Panel für die schnelle
+Meldung, im Agenten für das, was tatsächlich ankommt), die **ausgepackte**
+Grösse (gezählt beim Auspacken, nicht aus dem Gzip-Trailer abgelesen: dort steht
+sie modulo 2³² und ist fälschbar), der freie Platz auf dem Datenverzeichnis des
+Datenbankservers, und die Herkunft. Letztere ist keine Kosmetik: Beim
+Zurückspielen wird die Datenbank geleert, und wer nicht sieht, was dieser Server
+geschrieben hat und was jemand mitgebracht hat, trifft die Wahl blind — die
+Liste zeigt `mitgebracht` als Marke.
+
+**Und `UploadLimitTest` kommt zurück, diesmal mit einer zweiten Hälfte.** Er
+war gelöscht worden, weil er drei Zahlen gegeneinander hielt, während es das
+Hochladen gar nicht gab — *ein Wächter, der drei Werte gegeneinander hält, prüft
+nicht, dass sie gelten*. Er vergleicht sie weiter (nginx 544m ≥ `post_max_size`
+544M ≥ `upload_max_filesize` 512M ≥ Prüfregel 512 MB, die engste zuletzt, damit
+die Meldung vom Panel kommt und nicht vom Webserver) — **und fährt jetzt einen
+Aufruf durch die Prüfregel**: ohne Datei, mit einer ZIP-Datei, die `.sql.gz`
+heisst, und mit einer echten gzip-Datei, die im Bestand landen muss.
+
+**Fernzugriff auf den Datenbankserver — Schritt 10 aus `docs/36 §12`.**
+`srvpanel db --remote=on|off` schreibt über den Agenten eine eigene Datei
+(`60-srvpanel.cnf`) in das Include-Verzeichnis des Servers und startet ihn neu.
+Die `60` ist kein Geschmack: Debian und Ubuntu legen ihre `bind-address` in
+`50-server.cnf` ab, und die Dateien werden lexikalisch gelesen. **Zurück
+gemeldet wird, worauf der Server danach tatsächlich horcht** — `@@bind_address`
+nach dem Neustart, nicht die Zeile, die wir geschrieben haben; weicht sie ab,
+ist der Lauf ein Fehlschlag mit Grund und kein Erfolg. Der Neustart ist
+zweifach abgesichert: Er wird vorher angesagt (Vorgabe „nein", wie bei
+`--prune`), und scheitert er, stellt die Operation den vorherigen Inhalt wieder
+her und startet erneut — der Datenbankserver trägt auch das Panel. Die Adresse
+kommt aus einer Positivliste (`0.0.0.0`, `::`), weil ein freier Wert in einer
+Konfigurationsdatei genau das ist, wovor die Positivliste des Agenten schützt.
+Im Panel erscheint das Feld für eine fremde Adresse erst, wenn der Server
+darauf horcht — und wenn nicht, steht der Grund darunter statt nichts; die
+Sperre selbst sitzt im Steuerungscode, denn ein Formular ist keine Sperre.
+Beim `purge` nimmt das Paket die Datei mit: Ein entferntes Panel darf keinen
+offenen Datenbankport hinterlassen.
+
+**Und der Schritt hat eine Lücke im Wächter über ihm freigelegt.**
+`RemovalPathTest` erkennt eine anlegende Operation an ihrem Verb — `create`,
+`apply`, `provision`. Eine Operation mit einem *Schalter* trägt keines davon,
+und damit wäre ausgerechnet die Datei, deren Wirkung ein offener Datenbankport
+ist, an dem Wächter vorbeigegangen, den es wegen `docs/35` gibt. Er prüft jetzt
+zusätzlich die Sache statt des Namens: Wer im Agenten `file_put_contents`,
+`mkdir`, `touch`, `copy` oder `rename` ruft, legt etwas ab, das liegenbleibt —
+und heisst er nicht danach, sagt er, wo der Weg zurück ist. Im ganzen Agenten
+trifft das auf zwei Operationen zu, und beide haben einen.
+
 **Auf dem Schreibtisch musste man schieben, um einen Knopf zu treffen.** Die
 Datenbankseite stellte „Zugänge" und „Sicherungen" in den Grundriss, und beide
 tragen eine Aktionsspalte mit drei Knöpfen. `.scrolls > table` hält eine Tabelle

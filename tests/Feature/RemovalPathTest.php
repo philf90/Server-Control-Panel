@@ -39,9 +39,14 @@ final class RemovalPathTest extends TestCase
      * vergisst, ist genau die, die dieser Test finden soll. Die Endungen sind
      * die Verben, die dieses Projekt benutzt.
      *
+     * `.import` kam mit Schritt 11 dazu: Eine mitgebrachte Sicherung legt eine
+     * Datei ab wie eine selbst geschriebene, und ihr Weg zurück ist derselbe —
+     * `db.dump.remove`. Sie als Ausnahme zu führen wäre bequemer und falsch:
+     * Sie *ist* eine anlegende Operation, sie hiess nur nicht so.
+     *
      * @var list<string>
      */
-    private const CREATING = ['.create', '.apply', '.provision', '.install', '.store', '.upload', '.ensure', '.issue'];
+    private const CREATING = ['.create', '.apply', '.provision', '.install', '.store', '.upload', '.ensure', '.issue', '.import'];
 
     /**
      * Und was eine entfernende ausmacht.
@@ -88,6 +93,33 @@ final class RemovalPathTest extends TestCase
         'panel.tls.ensure' => 'Das Zertifikat der Oberfläche. Es hat kein Abonnement, an dem es hinge, und ohne es antwortet das Panel nicht mehr. `srvpanel tls prune` fasst es ausdrücklich nicht an (Certificate::forPanel).',
         'web.logrotate.apply' => 'Die Rotationsdatei eines Abonnements. Sie wird von `subscription.remove` entfernt, und zwar gesucht statt übergeben — eine eigene Operation hätte eine Liste zu führen, die nach einem abgebrochenen Lauf unvollständig ist.',
     ];
+
+    /**
+     * Operationen, die eine Datei schreiben, ohne ein anlegendes Verb zu heissen.
+     *
+     * **Die Lücke, die dieser Eintrag schliesst, hat der Fernzugriff
+     * freigelegt** (`docs/36 §22.3t`). Der Test darüber erkennt eine anlegende
+     * Operation an ihrem Verb — `create`, `apply`, `provision`. Eine Operation
+     * mit einem *Schalter* trägt keines davon: `db.remote.access` schreibt eine
+     * Datei nach `/etc`, wenn man sie mit `on` ruft, und nimmt sie mit `off`
+     * wieder weg. Für die Verb-Regel ist sie unsichtbar — und damit hätte
+     * genau die Datei, deren Wirkung ein offener Datenbankport ist, an der
+     * Prüfung vorbeigehen können, die es wegen `docs/35` gibt.
+     *
+     * Geprüft wird deshalb die Sache statt des Namens: Wer im Agenten
+     * `file_put_contents`, `mkdir`, `touch`, `copy` oder `rename` aufruft, legt
+     * etwas an, das liegenbleibt. Heisst er nicht danach, sagt er hier, wo der
+     * Weg zurück ist.
+     *
+     * @var array<string, string>
+     */
+    private const WRITES_WITHOUT_VERB = [
+        'db.remote.access' => 'Der Weg zurück ist dieselbe Operation mit `mode: off` — und beim `purge` nimmt packaging/scripts/postremove.sh die Datei mit, weil ein entferntes Panel keinen offenen Datenbankport hinterlassen darf.',
+        'web.isolation.probe' => 'Legt ihr Prüfskript im selben Lauf ab und entfernt es im `finally`; über die Operation hinaus bleibt nichts.',
+    ];
+
+    /** Was im Quelltext einer Operation bedeutet, dass sie etwas auf die Platte legt. */
+    private const WRITING_CALLS = '/\b(file_put_contents|mkdir|touch|copy|rename)\s*\(/';
 
     /**
      * Die Namen aller Operationen des Agenten.
@@ -172,6 +204,57 @@ final class RemovalPathTest extends TestCase
     }
 
     /**
+     * Wer eine Datei schreibt, sagt, wie sie wieder weggeht.
+     *
+     * **Die Verb-Regel darüber ist eine Abkürzung, und diese Prüfung ist die
+     * Sache selbst.** Sie liest den Quelltext jeder Operation: Ruft er
+     * `file_put_contents`, `mkdir`, `touch`, `copy` oder `rename`, bleibt etwas
+     * liegen. Trägt die Operation dann kein anlegendes Verb im Namen, sieht die
+     * Abkürzung sie nicht — und genau dort ist die Lücke, aus der `docs/35`
+     * entstanden ist, nur eine Ebene tiefer.
+     */
+    public function test_every_operation_that_writes_a_file_says_how_it_goes_away(): void
+    {
+        $ohne = [];
+        $gelesen = 0;
+
+        foreach (glob(dirname(__DIR__, 2).'/agent/src/Ops/*.php') ?: [] as $path) {
+            $gelesen++;
+            $source = (string) file_get_contents($path);
+
+            if (preg_match(self::WRITING_CALLS, $source) !== 1) {
+                continue;
+            }
+
+            if (preg_match('/public static function name\(\): string\s*\{\s*return \'([a-z0-9.]+)\';/s', $source, $m) !== 1) {
+                $ohne[] = basename($path).' — der Name der Operation ist nicht zu lesen';
+
+                continue;
+            }
+
+            $name = $m[1];
+
+            if ($this->stem($name) !== null || array_key_exists($name, self::WRITES_WITHOUT_VERB)) {
+                continue;
+            }
+
+            $ohne[] = $name.' ('.basename($path).')';
+        }
+
+        // Die Untergrenze zählt die gelesenen Dateien und nicht die Fundstellen
+        // — dieselbe Falle wie eine Zeile weiter oben.
+        $this->assertGreaterThan(20, $gelesen, 'Es werden kaum Operationen gelesen — dann prüft dieser Test nichts.');
+
+        $this->assertSame([], $ohne, sprintf(
+            "Diese Operationen legen eine Datei ab und heissen nicht danach:\n  %s\n\n"
+            ."Damit sieht sie die Verb-Regel nicht, und eine Datei ohne Weg zurück ist genau die Lücke\n"
+            .'aus docs/35. Entweder heisst die Operation nach dem, was sie tut — oder der Weg zurück '
+            .'steht mit Grund in RemovalPathTest::WRITES_WITHOUT_VERB.',
+            implode("\n  ", $ohne),
+        ));
+    }
+
+    /**
      * Und die Begründungen zeigen auf etwas Vorhandenes.
      *
      * Dieselbe Gegenrichtung wie in `RouteGuard` und in
@@ -193,6 +276,13 @@ final class RemovalPathTest extends TestCase
         foreach (self::PAIRS as $creating => $removing) {
             $this->assertContains($creating, $names, sprintf('PAIRS nennt %s als anlegend; die Operation gibt es nicht.', $creating));
             $this->assertContains($removing, $names, sprintf('PAIRS nennt %s als entfernend; die Operation gibt es nicht.', $removing));
+        }
+
+        foreach (array_keys(self::WRITES_WITHOUT_VERB) as $name) {
+            $this->assertContains($name, $names, sprintf(
+                'WRITES_WITHOUT_VERB nennt %s; diese Operation gibt es im Agenten nicht mehr.',
+                $name,
+            ));
         }
     }
 

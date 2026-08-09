@@ -165,6 +165,9 @@ scripts:
   preinstall: ./packaging/scripts/preinstall.sh
   postinstall: ./packaging/scripts/postinstall.sh
   preremove: ./packaging/scripts/preremove.sh
+  # Nimmt beim `purge` die Include-Datei des Fernzugriffs mit — sie gehört
+  # nicht zum Paket, und was sie bewirkt, ist ein offener Datenbankport.
+  postremove: ./packaging/scripts/postremove.sh
 
 deb:
   fields:

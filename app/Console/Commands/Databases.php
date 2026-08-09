@@ -31,17 +31,24 @@ use SrvPanel\Agent\Client;
  * zurück ist deshalb Teil desselben Beitrags und nicht die Nacharbeit, an die
  * ein Jahr später niemand denkt.
  *
- * **Der Fernzugriff (`--remote`) steht hier bewusst noch nicht.** Er ist der
- * einzige Schritt von P5, nach dem ein Dienst auf einer erreichbaren Adresse
- * horcht, und er gehört in einen eigenen Beitrag (docs/36 §12 und §15
- * Schritt 10). Ein Schalter, der schon dasteht und nichts tut, wäre die Sorte
- * Zusage, die dieses Projekt Wächter gekostet hat.
+ * **`--remote=on|off` ist der Schalter aus `docs/36 §12`**, und er steht hier
+ * und nicht im Panel: Er lässt einen Dienst auf einer erreichbaren Adresse
+ * horchen, und das ist eine serverweite Änderung. Leitbild 1 — „der Bestand ist
+ * Gesetz" — verbietet, sie nebenbei zu tun, weil ein Kunde ein Häkchen gesetzt
+ * hat. Erst wenn der Server tatsächlich horcht, bietet das Panel einem Kunden
+ * überhaupt an, einen Zugang für eine fremde Adresse anzulegen.
+ *
+ * **Und der Neustart wird angesagt, bevor er passiert.** Der Datenbankserver
+ * trägt auch das Panel; ein `--remote` ohne Rückfrage wäre eine Unterbrechung,
+ * die niemand erwartet hat.
  */
 final class Databases extends Command
 {
     protected $signature = 'srvpanel:db
         {--prune : Reste eines misslungenen Rückbaus entfernen — Schemata, Zugänge und Sicherungen}
-        {--dry-run : Mit --prune: nur zeigen, was entfernt würde}';
+        {--dry-run : Mit --prune: nur zeigen, was entfernt würde}
+        {--remote= : on oder off — ob der Datenbankserver auf einer erreichbaren Adresse horcht}
+        {--bind=0.0.0.0 : Mit --remote=on: 0.0.0.0 für IPv4 oder :: für beide Stapel}';
 
     protected $description = 'Zeigt den Datenbankserver und räumt auf, was ein Rückbau liegenliess';
 
@@ -49,6 +56,10 @@ final class Databases extends Command
     {
         if ($this->option('prune') === true) {
             return $this->prune($agent, $prune);
+        }
+
+        if ($this->option('remote') !== null) {
+            return $this->remote($agent, $tenancy);
         }
 
         return $this->showServer($agent, $prune, $tenancy);
@@ -339,6 +350,104 @@ final class Databases extends Command
     }
 
     /** @return array<string, string> */
+    /**
+     * Den Fernzugriff ein- oder ausschalten (`docs/36 §12`).
+     *
+     * **Drei Dinge stehen vor dem Aufruf, und jedes hat einen Anlass.**
+     *
+     * 1. **Wer ausschaltet, erfährt vorher, wen er aussperrt.** Ein Zugang für
+     *    eine fremde Adresse ist in MariaDB ein eigener Benutzer; nach
+     *    `--remote=off` erreicht ihn niemand mehr, und die Anwendung dahinter
+     *    steht. Die Zahl kommt aus dem Bestand des Panels — der Agent kennt sie
+     *    nicht, und er soll sie auch nicht kennen.
+     * 2. **Der Neustart wird angesagt.** Der Datenbankserver trägt auch das
+     *    Panel. Eine Rückfrage vor einer Unterbrechung ist das Mindeste;
+     *    Vorgabe `false`, wie bei `--prune`, damit `--no-interaction` nichts tut.
+     * 3. **Gemeldet wird, worauf der Server danach horcht** — seine Antwort und
+     *    nicht die Datei, die wir geschrieben haben. Genau hier fällt auf, wenn
+     *    eine andere Include-Datei gewinnt.
+     */
+    private function remote(Client $agent, Tenancy $tenancy): int
+    {
+        $mode = strtolower(trim((string) $this->option('remote')));
+
+        if (! in_array($mode, ['on', 'off'], true)) {
+            $this->error('--remote erwartet on oder off.');
+
+            return self::FAILURE;
+        }
+
+        $address = (string) $this->option('bind');
+
+        if ($mode === 'on' && ! in_array($address, ['0.0.0.0', '::'], true)) {
+            $this->error('--bind erwartet 0.0.0.0 (IPv4) oder :: (beide Stapel).');
+
+            return self::FAILURE;
+        }
+
+        $fern = $tenancy->withoutRestriction(
+            static fn (): int => DbUser::query()->where('host', '!=', 'localhost')->count(),
+        );
+
+        if ($mode === 'off' && $fern > 0) {
+            $this->warn(sprintf(
+                '%d Zugang/Zugänge sind für eine fremde Adresse angelegt. Nach dem Ausschalten '
+                .'erreicht sie niemand mehr — die Zeilen bleiben, die Verbindung nicht.',
+                $fern,
+            ));
+        }
+
+        $this->line($mode === 'on'
+            ? sprintf('Der Datenbankserver wird auf %s horchen. Die IP-Beschränkung gilt in MariaDB '
+                .'und nicht im Paketfilter — die Firewall kommt mit P9.', $address)
+            : 'Der Datenbankserver wird wieder nur lokal erreichbar sein.');
+
+        if (! $this->confirm('Dafür wird der Datenbankserver neu gestartet. Das Panel ist dabei kurz ohne Datenbank. Weiter?', false)) {
+            $this->line('Abgebrochen.');
+
+            return self::SUCCESS;
+        }
+
+        try {
+            $result = $agent->call('db.remote.access', ['mode' => $mode, 'address' => $address], $this->actor());
+        } catch (AgentException $error) {
+            $this->error('Der Agent hat abgewiesen: '.$error->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->line(sprintf('%s: %s', $result['path'] ?? '?', $mode === 'on' ? 'geschrieben' : 'entfernt'));
+
+        $this->line(sprintf(
+            'Horcht auf %s — Fernzugriff %s.',
+            $result['bind_address'] ?? 'unbekannt',
+            ($result['remote'] ?? false) === true ? 'möglich' : 'aus',
+        ));
+
+        /*
+         * **Die Gegenprobe, und sie ist der Grund für die Zeile darüber.** Der
+         * Agent meldet, was der Server nach dem Neustart sagt. Weicht das von
+         * dem ab, was gewünscht war, ist der Lauf nicht erfolgreich, sondern
+         * ein Befund — meistens eine andere Include-Datei, die später gelesen
+         * wird als unsere.
+         */
+        if ((bool) ($result['remote'] ?? false) !== ($mode === 'on')) {
+            $this->error(
+                'Der Server horcht nicht so, wie es angefordert wurde. Vermutlich setzt eine andere '
+                .'Include-Datei die Horchadresse später — sie werden lexikalisch gelesen.',
+            );
+
+            return self::FAILURE;
+        }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Wer den Aufruf ausgelöst hat — für das Protokoll des Agenten.
+     *
+     * @return array<string, string>
+     */
     private function actor(): array
     {
         return ['source' => 'cli', 'command' => 'srvpanel:db'];

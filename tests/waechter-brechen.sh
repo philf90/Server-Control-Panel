@@ -35,6 +35,12 @@
 # Sein Bruch legt eine schreibende Route an, und die steht in `routes/web.php` —
 # in keiner der beiden Listen wäre sie danach stehengeblieben.
 #
+# `docs/` kam mit P5b dazu, und der Anlass ist derselbe wie bei `routes/`: Ein
+# Wächter prüft dort, dass jeder Verweis eines Dokuments auf eine Datei zeigt,
+# die es gibt (`DocLinkTest`), und sein Bruch macht aus einem Verweis einen
+# toten. Ohne die Zeile bliebe er stehen — und der nächste Lauf fände ein
+# schmutziges Verzeichnis vor, das er sich selbst gemacht hat.
+#
 # `database/` kam mit P5 dazu, und der Anlass ist genau der Satz darüber: Ein
 # Wächter prüft dort am **Schema**, dass es keine Spalte für ein Passwort gibt
 # (`SecretsStayOutOfTheQueueTest`), und der Bruch dazu fügt eine ein. Ohne diese
@@ -61,15 +67,15 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/; then
-  echo "resources/, app/, agent/, packaging/, .github/, database/ oder routes/ hat ungesicherte" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/; then
+  echo "resources/, app/, agent/, packaging/, .github/, database/, routes/ oder docs/ hat ungesicherte" >&2
   echo "Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -4611,6 +4617,45 @@ pruefe "Herkunft wieder als Wert" \
   DumpKindTest::test_the_interface_gets_the_label_and_not_the_value failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DumpKindTest passed
+
+echo
+echo "── DocLinkTest: ein Verweis zeigt wieder ins Leere ──"
+#
+# Genau der Fehler, der diesen Wächter ausgelöst hat, zurückgedreht: docs/19
+# verwies bis zum 9. August 2026 auf 14-bestaetigungen.md — ein Dokument des
+# Vorgängers, das mit dem Repo-Übergang entfernt wurde. Der Verweis hat einen
+# Lizenzwechsel und einen Neuanfang überlebt, weil niemand ihn geprüft hat.
+vorher_datei docs/19-sprache-der-oberflaeche.md
+python3 - <<'PY2'
+p = 'docs/19-sprache-der-oberflaeche.md'
+s = open(p, encoding='utf-8').read()
+s = s.replace('[20 §7](20-hostingpanel-neuplan.md)', '[14](14-bestaetigungen.md)')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei docs/19-sprache-der-oberflaeche.md "Verweis auf ein entferntes Dokument" &&
+pruefe "Verweis auf ein entferntes Dokument" \
+  DocLinkTest::test_every_link_points_at_a_file_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
+
+echo
+echo "── DocLinkTest: eine Dokumentnummer, die es nicht gibt ──"
+#
+# Die andere Schreibweise, und die häufigere: `docs/36` ohne Verweisklammern.
+# ChangelogTest prüft sie im CHANGELOG, aber nirgends sonst — und der Verweis,
+# der P5b ausgelöst hat, stand in einem Dokument.
+vorher_datei docs/38-postgresql.md
+python3 - <<'PY2'
+p = 'docs/38-postgresql.md'
+s = open(p, encoding='utf-8').read()
+s = s.replace('im Zuschnitt von `docs/36 §12`', 'im Zuschnitt von `docs/39 §12`')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei docs/38-postgresql.md "Nummer eines Dokuments, das es nicht gibt" &&
+pruefe "Nummer eines Dokuments, das es nicht gibt" \
+  DocLinkTest::test_every_document_mentioned_by_number_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -5898,8 +5898,15 @@ Datenbank wegen einer Datei aus dem letzten Monat. `pg.remote.access` schreibt
 deshalb, reloadet, liest `pg_hba_file_rules` auf Fehler — **und rollt die Datei
 zurück, statt zu melden.** Eine Operation, die eine kaputte Datei liegenlässt
 und darüber berichtet, hat den Server scharf gemacht und ein Protokoll
-geschrieben. `PgHbaRollbackTest` fährt das gegen einen echten Cluster, weil es
-in diesem Container einen gibt.
+geschrieben. Der Wächter dazu steht in `docs/38 §18` und kommt mit Schritt 10;
+er fährt gegen einen echten Cluster, weil es in diesem Container einen gibt.
+
+*Hier stand sein Name in Rückstrichen, und das hat die CI rot gemacht:*
+`ChangelogTest::test_every_named_test_exists` besteht darauf, dass jeder so
+genannte Test existiert — und dieser entsteht erst mit dem Code, den er prüft.
+Der Changelog hält fest, was geschehen ist; ein Plan hält fest, was geschehen
+soll, und dort gehört der Name hin. Gefunden hat es der Wächter selbst, einen
+Commit später.
 
 Dass dieser Rückweg überhaupt möglich ist, ist Glück und gehört benannt: Der
 Reload ist gnädig, wo der Neustart es nicht ist. Es ist die Umkehrung der Lehre
@@ -5929,3 +5936,61 @@ das Gegenteil an.
 Rolle in ihre Datenbank und in `postgres` nicht. Das ist eine zweite Wand hinter
 dem `REVOKE CONNECT` und kostet eine Zeile je Datenbank × Rolle × Netz.
 `docs/20 §15` Punkt 5c ist damit erledigt, statt bis 1.0 offen zu bleiben.
+
+### P5b Schritt 0 — `DocLinkTest`: die Wächter dürfen `docs/` nicht auslassen
+
+**Ein Verweis in `docs/20` zeigte auf `37-postgresql.md`; die Datei heisst
+`37-uebergabe-an-p5b.md`.** Gefunden beim Planen von P5b, nicht von einem Test
+— obwohl es `ChangelogTest::test_every_referenced_document_exists` seit P4 gibt.
+Der sieht in den `CHANGELOG` und nirgendwo sonst, und er prüft die **Nummer**
+über ein Glob statt den Dateinamen. Beide Einschränkungen zusammen ergeben genau
+die Lücke, durch die der Verweis gefallen ist: Er stand in einem Dokument statt
+im Changelog, und er nannte einen Dateinamen statt einer Nummer.
+
+Das ist die zweite Lehre über Wächter aus `docs/37 §6` eine Ebene weiter. Dort
+steht, sie dürften `tests/` nicht auslassen, weil dort die zweite Fassung einer
+Regel am häufigsten steht. Hier: **sie dürfen `docs/` nicht auslassen** — ein
+Dokument enthält dieselben Zeichenketten wie Code, nur übersetzt sie niemand.
+
+**Der Beleg, dass die Regel nötig war, kam sofort:** Derselbe Durchgang fand
+einen zweiten Fall. `docs/19` verwies auf `14-bestaetigungen.md`, ein Dokument
+des Vorgängers, das mit dem Repo-Übergang entfernt wurde — ein Verweis, der
+einen Lizenzwechsel und einen Neuanfang überlebt hat, weil ihn nie jemand
+geprüft hat. `DocLinkTest` prüft beide Schreibweisen: den Verweis mit Klammern
+gegen den Dateinamen, und die blosse Nennung `docs/NN` gegen die Nummer. Den
+`CHANGELOG` lässt er aus, weil `ChangelogTest` ihn hat; zwei Fassungen derselben
+Regel sind der Fehler, gegen den dieses Projekt die meisten Wächter hat.
+
+**Beide Brüche stehen im Skript, und `docs/` steht jetzt in seinen zwei
+Listen.** Ohne diese Zeile wäre ein Bruch dort keine Probe, sondern eine
+Änderung — dasselbe Argument, mit dem `routes/` und `database/` dazugekommen
+sind. Gefahren am 9. August 2026, beide rot, danach wieder grün.
+
+**Drei Funde beim Bauen des Wächters, und keiner davon vom Wächter:**
+
+- **PHPStan hat einen toten Zweig gemeldet, und er hatte recht.** Der erste Wurf
+  hatte eine leere Ausnahmeliste „für den Fall, dass ein Dokument einmal auf
+  etwas zeigen muss, das es nicht gibt" — `isset()` auf `array{}`, also ein
+  Zweig, der nie läuft. Es ist derselbe Nullfall, den `docs/36 §14` an
+  `Feature::permission()` beschreibt: *in der falschen Richtung teurer als
+  keiner*, weil er wie eine Erlaubnis aussieht, die schon jemand gebraucht hat.
+  Die Liste ist wieder weg; wer den ersten echten Fall hat, legt sie mit ihm
+  zusammen an. Bemerkenswert ist der Weg: `CLAUDE.md` nennt genau diesen Fehler
+  als Beispiel dafür, dass ein PHPStan-Lauf über eine einzelne Datei sich lohnt
+  — er hat sich beim nächsten Mal sofort wieder gelohnt.
+- **`ChangelogTest` hat den Commit davor eingeholt — und diesen gleich noch
+  einmal.** Der P5b-Eintrag nannte den Wächter über den Rückweg von
+  `pg_hba.conf` (`docs/38 §18`) in Rückstrichen, und den gibt es erst mit
+  Schritt 10: `test_every_named_test_exists` wäre in der CI rot gewesen. Beim
+  Aufschreiben dieser Zeile ist derselbe Name ein zweites Mal in Rückstrichen
+  gelandet, und der Wächter hat auch das gemeldet — im Abstand von zwei Minuten,
+  in einem Absatz, der von genau diesem Fehler handelt. Der Changelog hält fest,
+  was geschehen ist; was geschehen soll, steht im Plan, und dort gehört der Name
+  hin.
+- **Und die Warnung aus `CLAUDE.md` über `git checkout` hat sich bestätigt**,
+  beim Gegenprüfen der Untergrenze: Der Bruch änderte die Testdatei selbst, und
+  die war noch nicht eingecheckt — `git checkout` stellt nur wieder her, was git
+  kennt, und hat sie nicht zurückgebracht, sondern gar nichts getan. Genau
+  deshalb verweigert `waechter-brechen.sh` den Start bei ungesicherten
+  Änderungen, und genau deshalb kommt ein Bruch erst nach dem Commit dazu, den
+  er prüft.

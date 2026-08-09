@@ -7282,3 +7282,37 @@ beide gleich aussahen. Eine solche Regel wird **geschärft und nicht
 abgeschaltet**: `-c` bleibt verboten, `-f` ist auf eine Stelle begrenzt und muss
 einen Pfad tragen, und daneben steht jetzt die Prüfung, um die es eigentlich
 ging — kein Passwort unter den Argumenten.
+
+### P5b Schritt 6, zweite Hälfte — ein Lebenslauf für Sicherungen
+
+`App\Support\Databases\DumpLifecycle` übernimmt die vier Dump-Aufgaben von
+`DbLifecycle` und bedient beide Systeme. **Eine Klasse je Gegenstand, nicht je
+System** — was mit einer Sicherung geschieht, hängt an keinem Datenbanksystem:
+Die Grösse kommt aus der Antwort, die Zeile geht auf fertig oder gescheitert,
+beim Entfernen wird sie gelöscht, beim Zurückspielen nichts getan. Nur die
+**Namen** der vier Aufgaben unterscheiden sich, und die stehen jetzt an einer
+Stelle.
+
+Derselbe Schnitt wie bei den vier Datei-Prüfungen, die in der ersten Hälfte aus
+`DbDumpImport` nach `Dump` gezogen sind, und dieselbe Begründung: Eine Sicherung
+ist eine Datei und eine Zeile, und beide wissen nichts von MariaDB oder
+PostgreSQL.
+
+**Eine Einschränkung fällt dabei weg, die es geben musste.** In
+`removedAllDumps()` stand `->where('engine', MariaDb)` — richtig, solange
+`db.dump.remove` zu `DbLifecycle` gehörte und sonst die PostgreSQL-Zeilen
+desselben Abonnements mitgelöscht hätte. Seit dieselbe Aufgabe **beide** Systeme
+bedient und der Agent beim Rückbau das ganze Verzeichnis entfernt, wäre die
+Zeile der Fehler: Sie liesse die PostgreSQL-Zeilen stehen, und `srvpanel db`
+meldete sie als verwaist.
+
+`DbLifecycle::afterFailure()` ist damit leer. Das ist ein Zustand und kein Rest
+— für Rückbau und Sperre gilt dieselbe Zurückhaltung wie in `PgLifecycle`.
+
+**Offen und ausdrücklich benannt: das Präfix fehlt im Auftrag.** `db.*` prüft
+gegen den Systembenutzer, `pg.*` gegen das Präfix aus `system_users` — und wo
+das herkommt, weiss heute nur der PostgreSQL-Treiber. Es in `Dumps` ein zweites
+Mal zu holen wäre die zweite Fassung, die veraltet. Solange das nicht aufgelöst
+ist, stehen `pg.dump.create`, `pg.restore` und `pg.dump.import` **nicht** in der
+Registratur: Es gibt keinen Weg, auf dem ein unvollständiger Auftrag den Agenten
+erreichte.

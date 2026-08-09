@@ -55,7 +55,7 @@ final class Dumps
 
         $dump = $this->record($database, DumpKind::Export);
 
-        return $this->dispatch($dump, $subscription, 'db.dump.create', sprintf(
+        return $this->dispatch($dump, $subscription, DumpLifecycle::task($database->engine, 'create'), sprintf(
             'Sicherung von %s wird erstellt',
             $database->name,
         ), $accountId);
@@ -80,7 +80,7 @@ final class Dumps
             throw new RuntimeException('Zu dieser Datenbank gibt es kein Abonnement mehr.');
         }
 
-        return $this->dispatch($dump, $subscription, 'db.restore', sprintf(
+        return $this->dispatch($dump, $subscription, DumpLifecycle::task($database->engine, 'restore'), sprintf(
             'Sicherung %s wird in %s zurückgespielt',
             $dump->storage_name,
             $database->name,
@@ -111,7 +111,7 @@ final class Dumps
 
         $dump = $this->record($database, DumpKind::Imported);
 
-        return $this->dispatch($dump, $subscription, 'db.dump.import', sprintf(
+        return $this->dispatch($dump, $subscription, DumpLifecycle::task($database->engine, 'import'), sprintf(
             'Sicherung für %s wird übernommen',
             $database->name,
         ), $accountId, ['source' => $source]);
@@ -128,7 +128,7 @@ final class Dumps
             throw new RuntimeException('Zu dieser Sicherung gibt es kein Abonnement mehr.');
         }
 
-        return $this->dispatch($dump, $subscription, 'db.dump.remove', sprintf(
+        return $this->dispatch($dump, $subscription, DumpLifecycle::task($dump->engine, 'remove'), sprintf(
             'Sicherung %s wird entfernt',
             $dump->storage_name,
         ), $accountId);
@@ -192,6 +192,13 @@ final class Dumps
             'database_id' => (int) $database->id,
             'database_name' => $database->name,
             'storage_name' => $name,
+
+            // **Das System der Datenbank und nicht der Vorgabewert der Spalte.**
+            // Eine Sicherung gehört zu dem System, das sie geschrieben hat —
+            // beim Zurückspielen entscheidet es, welche Operation läuft, und
+            // beim Rückbau, welche Zeilen mitgehen.
+            'engine' => $database->engine,
+
             'kind' => $kind,
             'status' => DumpStatus::Pending,
         ]);
@@ -228,6 +235,20 @@ final class Dumps
             'type' => $task,
             'task' => $task,
             'payload' => array_merge([
+                /*
+                 * **Hier fehlt `prefix`, und das ist der offene Rest von
+                 * Schritt 6.** `db.*` prüft gegen den Systembenutzer
+                 * (`p1001`), `pg.*` gegen das Präfix (`x7f3a…`) — dieselbe
+                 * Frage, zwei Antworten (`docs/38 §4`). Woher das Präfix kommt,
+                 * weiss heute nur {@see Engines\PostgresDriver::prefix()}, und
+                 * es hier ein zweites Mal aus `system_users` zu holen wäre die
+                 * zweite Fassung, die veraltet.
+                 *
+                 * Solange das nicht aufgelöst ist, stehen `pg.dump.create`,
+                 * `pg.restore` und `pg.dump.import` **nicht** in der
+                 * Registratur — es gibt also keinen Weg, auf dem ein
+                 * unvollständiges Payload den Agenten erreichte.
+                 */
                 'user' => (string) $subscription->system_user,
                 'subscription' => (string) $subscription->name,
                 'name' => $dump->database_name,

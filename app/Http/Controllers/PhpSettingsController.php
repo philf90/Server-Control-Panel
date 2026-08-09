@@ -115,9 +115,12 @@ final class PhpSettingsController extends Controller
             $packages,
         );
 
+        // `sort()` gibt die Schlüssel neu aus — was hier herauskommt, ist
+        // bereits eine Liste. Ein `array_values()` darum wäre nicht falsch,
+        // nur wirkungslos, und PHPStan hält genau das für einen Befund.
         sort($namen);
 
-        return array_values($namen);
+        return $namen;
     }
 
     /**

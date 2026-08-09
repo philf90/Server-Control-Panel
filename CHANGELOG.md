@@ -6871,3 +6871,16 @@ Marke darin steht.
 und beim Meldungsbalken der Satz aus `Settings/Php.vue`. Das ist kein Zufall,
 sondern die Kehrseite davon, einen Baustein allein zu bauen: Wer nur seine
 eigene Datei ansieht, findet die Regel nicht, die nebenan schon steht.
+
+### Lauf 458 — ein `array_values()` hinter einem `sort()`
+
+Ein Befund, und er wäre lokal auffindbar gewesen: `sort()` gibt die Schlüssel
+neu aus, das Ergebnis ist bereits eine Liste, und ein `array_values()` darum ist
+wirkungslos.
+
+**Der Grund, warum ich ihn nicht gesehen habe, ist der interessantere Teil.**
+Der letzte lokale Lauf ging über `agent/src` — und nur darüber. Die Änderung lag
+in `app/`. In dieser Sitzung ist PHPStan vorher fünfmal über die geänderten
+`app/`-Dateien gelaufen und beim sechsten Mal nicht mehr; ein Schritt, den man
+für erledigt hält, weil man ihn oft genug gemacht hat. *Eine Prüfung, die man
+nach Gefühl auswählt, prüft irgendwann das, woran man ohnehin gedacht hat.*

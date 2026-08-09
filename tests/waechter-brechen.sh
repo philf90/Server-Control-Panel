@@ -4760,6 +4760,65 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgSessionTest passed
 
 echo
+echo "── PgGrantTest: die Rolle bekommt CREATEDB ──"
+#
+# Ein Kunde mit CREATEDB legt Datenbanken an, die im Bestand des Panels fehlen
+# und deren Absperrung nie gelaufen ist — der Kanal, den docs/38 §3 schliesst,
+# waere damit an jeder selbst angelegten Datenbank wieder offen.
+vorher_datei agent/src/Ops/PgRoleCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRoleCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'CREATE ROLE %s WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION '",
+              "'CREATE ROLE %s WITH LOGIN NOSUPERUSER CREATEDB NOCREATEROLE NOINHERIT NOREPLICATION '")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRoleCreate.php "Rolle mit CREATEDB" &&
+pruefe "Rolle mit CREATEDB" \
+  PgGrantTest::test_no_statement_grants_anything_cluster_wide failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
+
+echo
+echo "── PgGrantTest: die Freigabe vergisst die Standardrechte ──"
+#
+# ALTER DEFAULT PRIVILEGES gibt es in MariaDB nicht: Dort gilt ein Schemarecht
+# fuer alles, was im Schema entsteht. In PostgreSQL gehoert jede Tabelle dem,
+# der sie angelegt hat — ohne diese Zeile saehe ein zweiter Zugang desselben
+# Abonnements die Tabellen des ersten nicht.
+vorher_datei agent/src/Ops/PgRoleGrant.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRoleGrant.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO '.$name,\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRoleGrant.php "Freigabe ohne Standardrechte" &&
+pruefe "Freigabe ohne Standardrechte" \
+  PgGrantTest::test_a_grant_reaches_database_schema_and_objects failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
+
+echo
+echo "── PgGrantTest: der Rückbau wartet auf offene Verbindungen ──"
+#
+# Ohne WITH (FORCE) scheitert DROP DATABASE an jedem Kunden mit einem
+# Verbindungspool — gemessen am 9. August: „database is being accessed by other
+# users". MariaDB kennt das nicht.
+vorher_datei agent/src/Ops/PgDatabaseRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(".' WITH (FORCE)'", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseRemove.php "Rückbau ohne FORCE" &&
+pruefe "Rückbau ohne FORCE" \
+  PgGrantTest::test_dropping_a_database_does_not_wait_for_idle_connections failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

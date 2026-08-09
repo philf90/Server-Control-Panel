@@ -6146,3 +6146,54 @@ steht `Registry.php` in Schritt 1 genauso. In P5 ist es nur deshalb nicht
 aufgefallen, weil dessen Schritt 1 bis 3 in einem Zug gebaut wurden und der
 Aufrufer damit im selben Lauf entstand. **Eine Reihenfolge, die zufällig
 funktioniert, funktioniert bis zu dem Tag, an dem jemand sie einzeln geht.**
+
+### P5b Schritt 1 abgeschlossen — sechs Operationen, und drei Unterschiede zu P5
+
+`pg.database.create`/`remove`, `pg.role.create`/`remove`/`grant`/`lock`, dazu
+`PgGrantTest`. `remove` steht in jedem Paar zuerst — die Mechanik aus
+`docs/36 §2`, aus der die Zertifikatslücke von `docs/35` entstanden ist.
+
+**Alle sechs sind gegen einen echten Cluster gefahren**, mit zwei Abonnements,
+und die Kriterien 1 bis 4 aus `docs/38 §3` sind dabei belegt: dreizehn Kanäle
+abgesperrt, `pg_stat_database` verschlossen, die sichtbaren Namen verraten
+nichts, die fremde Datenbank abgewiesen — und der Kunde bekommt weder
+`GRANT CONNECT … TO PUBLIC` noch `DROP DATABASE` auf seine eigene durch.
+
+**Drei Stellen, an denen PostgreSQL sich anders verhält als MariaDB, jede
+gemessen:**
+
+- **`DROP DATABASE` scheitert an einer offenen Verbindung.** *ERROR: database
+  „probe" is being accessed by other users.* MariaDB kennt das nicht; dort wirft
+  ein `DROP` das Schema unter jeder laufenden Anwendung weg. Ohne `WITH (FORCE)`
+  würde hier **jeder Rückbau an einem Kunden scheitern, dessen Anwendung einen
+  Verbindungspool offen hält** — also am Normalfall. Ein Rückbau, der davon
+  abhängt, ob gerade jemand verbunden ist, ist keiner.
+- **`DROP ROLE` verweigert, solange die Rolle irgendwo Rechte hat**, und
+  aufgeräumt wird das mit `DROP OWNED BY` — **je Datenbank.** Das ist die exakte
+  Umkehrung von P5: Dort lässt `DROP USER` seine Rechte in `mysql.db` stehen,
+  und `docs/36 §22.3p` hat auf `cloudsrv24` genau so eine Zeile für ein Schema
+  gefunden, das es nicht mehr gab. PostgreSQL ist unbequemer und ehrlicher.
+  Welche Datenbanken aufzuräumen sind, sagt die Anwendung — der Agent führt
+  keinen Bestand. **Und der Rückfall ist sicher:** Vergisst sie eine, scheitert
+  `DROP ROLE` mit einer Meldung, die sie beim Namen nennt. Beide Zweige sind
+  gefahren.
+- **`GRANT ALL ON DATABASE` reicht nicht.** In PostgreSQL sind Verbindung,
+  Schema und Objekte drei Ebenen, und die Rechte auf der Datenbank sind die
+  schwächste. Wer nur sie vergibt, hat einen Kunden, der sich verbindet und
+  nichts tun kann. Dazu kommt `ALTER DEFAULT PRIVILEGES`, das es in MariaDB
+  nicht gibt: Dort gilt ein Schemarecht für alles, was im Schema entsteht; hier
+  gehört jede Tabelle dem, der sie angelegt hat — ohne diese Zeile sähe ein
+  zweiter Zugang desselben Abonnements die Tabellen des ersten nicht. Genau das
+  ist der Grund, aus dem `docs/36 §14` verlangt hat, die Isolationszusage neu zu
+  **beweisen** statt zu übertragen.
+
+**Und eine, die still geblieben wäre:** PostgreSQL kennt `IF EXISTS` für
+`DROP ROLE` und `DROP DATABASE`, aber **nicht für `ALTER ROLE`, `REVOKE` und
+`DROP OWNED BY`** — dort ist eine fehlende Rolle ein Fehler. `docs/36 §6` löst
+dasselbe Problem mit `ALTER USER IF EXISTS` und schreibt dazu den Satz, auf den
+es ankommt: *Die Sperre ist wichtiger als die Vollständigkeit der Buchführung.*
+Hier muss der Code das selbst einlösen: `pg.role.lock` fragt, welche der
+genannten Rollen es gibt, sperrt die vorhandenen und **meldet die fehlenden** —
+denn eine Sperre, die eine Rolle übergeht, ohne es zu sagen, sieht aus wie eine
+vollständige. Im Lauf gegen den Server: eine gesperrt, eine als fehlend
+gemeldet.

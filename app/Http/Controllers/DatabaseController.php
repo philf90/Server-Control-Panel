@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Enums\SubscriptionStatus;
 use App\Models\Account;
@@ -430,7 +431,20 @@ final class DatabaseController extends Controller
             ->map(static fn (DatabaseDump $dump): array => [
                 'id' => (int) $dump->id,
                 'name' => $dump->storage_name,
-                'kind' => $dump->kind,
+                /*
+                 * **Die Marke und nicht der Wert.** Das Template verglich die
+                 * Herkunft bis zum 9. August selbst, als Zeichenkette — dieselbe
+                 * Familie wie der Frame-Fehler aus `docs/36 §22.3w`, nur
+                 * zwischen PHP und Browser: ein Wert über eine Grenze, die kein
+                 * Typ prüft. Hinüber geht jetzt der fertige Text aus
+                 * {@see DumpKind::label()}, genau wie `status_label` darüber.
+                 *
+                 * Der alte Vergleich steht hier bewusst nicht ausgeschrieben:
+                 * `DumpKindTest` verbietet den Wert überall ausser in der
+                 * Aufzählung, und ein Zitat in einem Kommentar ist auch ein
+                 * Vorkommen.
+                 */
+                'kind_label' => $dump->kind->label(),
                 'status' => $dump->status->value,
                 'status_label' => $dump->status->label(),
                 'usable' => $dump->status->usable(),

@@ -4593,6 +4593,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DumpSizeTest passed
 
 echo
+echo "── DumpKindTest: die Oberfläche vergleicht die Herkunft wieder selbst ──"
+#
+# Das Template verglich die Herkunft bis zum 9. August als Zeichenkette — eine
+# Grenze zwischen PHP und Browser, die kein Typ prüft. Dieselbe Bauart wie der
+# Frame-Fehler daneben (docs/36 §22.3x).
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('<Badge v-if="dump.kind_label" kind="neutral">{{ dump.kind_label }}</Badge>',
+              '<Badge v-if="dump.kind === \'imported\'" kind="neutral">mitgebracht</Badge>')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "Herkunft wieder als Wert" &&
+pruefe "Herkunft wieder als Wert" \
+  DumpKindTest::test_the_interface_gets_the_label_and_not_the_value failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DumpKindTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

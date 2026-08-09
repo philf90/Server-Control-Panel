@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Enums\OperationStatus;
 use App\Enums\OperationSubject;
@@ -52,7 +53,7 @@ final class Dumps
             throw new RuntimeException('Zu dieser Datenbank gibt es kein Abonnement mehr.');
         }
 
-        $dump = $this->record($database, 'export');
+        $dump = $this->record($database, DumpKind::Export);
 
         return $this->dispatch($dump, $subscription, 'db.dump.create', sprintf(
             'Sicherung von %s wird erstellt',
@@ -108,7 +109,7 @@ final class Dumps
             throw new RuntimeException('Zu dieser Datenbank gibt es kein Abonnement mehr.');
         }
 
-        $dump = $this->record($database, 'imported');
+        $dump = $this->record($database, DumpKind::Imported);
 
         return $this->dispatch($dump, $subscription, 'db.dump.import', sprintf(
             'Sicherung für %s wird übernommen',
@@ -178,7 +179,7 @@ final class Dumps
      * derselben Sekunde sich nicht überschreiben. Die Form ist die, die
      * `Dump::storageName()` im Agenten annimmt.
      */
-    private function record(Database $database, string $kind): DatabaseDump
+    private function record(Database $database, DumpKind $kind): DatabaseDump
     {
         $name = sprintf(
             '%s-%s-%s',

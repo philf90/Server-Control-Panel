@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Models\Database;
 use App\Models\DatabaseDump;
@@ -24,7 +25,7 @@ class DatabaseDumpFactory extends Factory
             'subscription_id' => Subscription::factory(),
             'database_name' => 'p1001_shop',
             'storage_name' => 'p1001-shop-'.fake()->unique()->numberBetween(100000, 999999),
-            'kind' => 'export',
+            'kind' => DumpKind::Export,
             'status' => DumpStatus::Ready,
             'bytes' => 4096,
         ];

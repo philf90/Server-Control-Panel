@@ -3015,6 +3015,75 @@ Enum und ohne Wächter, während `DumpStatus` daneben ein Enum ist. Der Kommenta
 in der Migration behauptet ausserdem noch, `'export'` sei „in P5 der einzige
 Wert". Das ist seit Schritt 11 falsch.
 
+### 22.3x Die drei Funde, auf dem Server nachgewiesen — und eine Aufzählung nachgezogen
+
+**`v0.5.0-rc.10` auf `cloudsrv24`, 9. August 2026.** §22.3w sagt, die drei Funde
+seien *behoben*. Das ist eine Aussage über Quelltext; hier steht, was der Server
+dazu sagt.
+
+**Fund 3 — die Grössenprüfung.** `srvpanel db` meldet:
+
+    1 von 4 Sicherung(en) weichen von ihrer Datei ab:
+      p1118-dummy-20260808-162945-ddbf8d2a — Bestand 69255 Byte, Datei 69362 Byte
+
+Genau die Zeile, die von Hand gefunden wurde. **Der zweite Beleg steckt in den
+Zahlen daneben:** *5 Sicherungen im Bestand, 4 geprüft.* Die fünfte ist eine
+`pending`-Zeile ohne Datei und wird bewusst übersprungen — dass die Differenz
+genau 1 ist, zeigt, dass die Auswahl greift und nicht alles durchlässt.
+
+**Fund 1 — der Fortschritt.** Zwei Belege, und der erste ist der unerwartete:
+
+Vorgang 473 (`db.dump.create`, erfolgreich) trägt als Meldung **„fertig"**. Das
+kann nur aus `progress(100, 'fertig')` stammen — `finish()` schreibt bei Erfolg
+*keine* Meldung, sondern behält die zuletzt gespeicherte. Vorher stand dort
+„Sicherung für p1118_dummy wird erstellt", der Text vom Einreihen. **Eine
+Sicherung von 69 KB ist in unter einer Sekunde fertig; am Balken wäre nichts zu
+sehen gewesen, an der stehengebliebenen Meldung schon.**
+
+Vorgang 474 (die Zip-Bombe, gescheitert) steht auf **25 %** — der Punkt, an dem
+`unpackedSize()` abbricht. Dort stand gestern 0, und genau diese Null hat den
+ganzen Fund ausgelöst.
+
+**Fund 2 — die Übergabe.** Nach dem gescheiterten Import ist
+`/var/lib/srvpanel/storage/app/private/imports/` leer, und die Zeile steht auf
+`failed` mit dem Grund des Agenten in `last_error` — womit zugleich der
+Schönheitsfehler aus §22.3u erledigt ist, der seit Schritt 6 offenstand.
+
+**Der feinste Beleg ist der Zeitstempel des Verzeichnisses.** Es trägt `13:53`,
+die Uhrzeit des gescheiterten Uploads, und nicht mehr `12:26` vom letzten
+erfolgreichen. Ein Verzeichnis, das nie angefasst wurde, hätte seine alte Zeit
+behalten: Es ist also etwas hineingeschrieben **und wieder entfernt** worden.
+Ein leeres Verzeichnis allein wäre eine Abwesenheit — und *der Beleg ist nie
+eine Abwesenheit allein* (§22.3q).
+
+**Was dabei offen blieb:** die Ausgabe-Hälfte von Fund 1. Sie braucht eine
+Operation mit `->stream()`; die Datenbankoperationen haben keine, weil sie über
+die Datenbankverbindung lesen und in PHP komprimieren. „Keine Ausgabe." auf den
+Vorgängen 473 und 474 ist deshalb richtig und kein Rest des Fehlers. Der Beleg
+fällt beim nächsten `subscription.provision` oder `php.version.install` von
+selbst an.
+
+#### Und die Kleinigkeit von §22.3w, nachgezogen
+
+`kind` ist jetzt {@see App\Enums\DumpKind}. Die Werte bleiben `export` und
+`imported`, so ungleich gebaut sie sind: Sie stehen in den Zeilen laufender
+Installationen, und eine Datenmigration über Kundendaten, damit zwei Wörter
+grammatisch zueinander passen, ist Unruhe ohne Gegenwert. **Der Fehler, der
+drohte, war nie die Asymmetrie — er war, dass man die Zeichenketten tippen
+musste.**
+
+Dabei kam eine vierte Stelle zum Vorschein, die in §22.3w noch als „kleiner
+Fund" durchging: Das Vue-Template verglich die Herkunft **selbst**, als
+Zeichenkette. Das ist derselbe Bau wie der Frame-Fehler, nur zwischen PHP und
+Browser. Hinüber geht jetzt der fertige Text aus `DumpKind::label()`, wie bei
+`status_label` daneben.
+
+Der Kommentar in der Migration behauptete ausserdem, `export` sei in P5 der
+einzige Wert und die Spalte nehme später `import` auf. Beides ist seit Schritt
+11 falsch, und der zweite Wert heisst `imported`. **Ein Kommentar, der eine
+Behauptung über die Zukunft macht, wird von dieser Zukunft nicht
+benachrichtigt.**
+
 ### 22.5a Bei 390px wird hier nicht bei 390px gemessen
 
 **Gefunden am 8. August 2026 beim Nachmessen des Fernzugriff-Feldes**, und der
@@ -3060,6 +3129,32 @@ chromium --headless --no-sandbox --allow-file-access-from-files \
 `--allow-file-access-from-files` gehört dazu: Ohne das Flag darf das äussere
 Dokument das `contentDocument` des Rahmens nicht lesen, und die Messung liefert
 still gar nichts.
+
+### 22.5b `expectsOutputToContain()` sagt nicht, was stattdessen dastand
+
+**Gefunden am 9. August 2026**, in der CI und nicht hier — und die Lehre ist
+allgemeiner als der Anlass.
+
+Ein Test fuhr `srvpanel db` über `$this->artisan()` und erwartete zwei Stücke in
+der Ausgabe: `die Datei fehlt` und den Ablagenamen der Sicherung. **Das erste
+wurde gefunden, das zweite nicht** — obwohl beide auf derselben Zeile stehen und
+der Name im Pfad dahinter ein zweites Mal vorkommt. Was
+`expectsOutputToContain()` dabei genau vergleicht, war von hier aus nicht zu
+klären; ohne `vendor/` lässt sich der Lauf nicht nachstellen.
+
+Der Test fährt seitdem über `Artisan::call()` und liest `Artisan::output()`.
+Damit trägt jede Behauptung den vollständigen Text bei sich:
+
+    $this->assertStringContainsString($erwartet, $ausgabe, "Ausgabe war:\n".$ausgabe);
+
+Beim nächsten Lauf war er grün — der Name steht also sehr wohl in der Ausgabe,
+und der Fehler lag nicht im Kommando.
+
+> **Eine Prüfung, die nur sagt „steht nicht drin", schickt einen auf die Suche;
+> eine, die zeigt, was stattdessen dastand, beantwortet die Frage.**
+
+Das wiegt in diesem Container doppelt: Jede Runde durch die CI kostet Minuten,
+und eine Fehlermeldung ohne Gegenstand kostet die nächste gleich mit.
 
 ### 22.4 Was noch fehlt
 

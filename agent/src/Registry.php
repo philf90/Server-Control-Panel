@@ -42,6 +42,7 @@ use SrvPanel\Agent\Ops\PgRoleLock;
 use SrvPanel\Agent\Ops\PgRoleRemove;
 use SrvPanel\Agent\Ops\PgServerInfo;
 use SrvPanel\Agent\Ops\PgServerInstall;
+use SrvPanel\Agent\Ops\PgUsage;
 use SrvPanel\Agent\Ops\PhpPoolApply;
 use SrvPanel\Agent\Ops\PhpPoolRemove;
 use SrvPanel\Agent\Ops\PhpVersionInstall;
@@ -191,6 +192,9 @@ final class Registry
         // Mit Schritt 5: die Sperre eines Abonnements erreicht die Rollen
         // (docs/38 §11). Der Aufrufer ist App\Support\Databases\PgLifecycle.
         $this->register(new PgRoleLock);
+
+        // Die Messung — wie db.usage am Zeitgeber und ohne Lebenslauf.
+        $this->register(new PgUsage);
     }
 
     public function register(Op $op): void

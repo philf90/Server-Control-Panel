@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use App\Enums\DatabaseEngine;
 use App\Models\Database;
 use App\Support\Tenancy\Tenancy;
 use SrvPanel\Agent\Client;
@@ -40,7 +41,34 @@ final class Usage
      */
     public function measure(): array
     {
-        return $this->apply($this->agent->call('db.usage'));
+        $mariadb = $this->apply($this->agent->call('db.usage'), DatabaseEngine::MariaDb);
+
+        /*
+         * **PostgreSQL wird immer gefragt und nicht nach dem Schalter.**
+         * `pg.usage` antwortet auf einem Server ohne PostgreSQL mit
+         * `available: false` und einem Grund — genau wie `db.usage` es tut,
+         * wenn MariaDB steht. Eine Bedingung an der Einstellung wäre eine
+         * zweite Fassung derselben Frage, und sie wäre die, die veraltet:
+         * Datenbanken, die vor dem Abschalten der Fläche entstanden sind,
+         * belegen weiter Platz und gehören weiter gemessen.
+         */
+        $postgres = $this->apply($this->agent->call('pg.usage'), DatabaseEngine::Postgres);
+
+        return [
+            'measured' => $mariadb['measured'] + $postgres['measured'],
+            'reported' => $mariadb['reported'] + $postgres['reported'],
+            'matched' => $mariadb['matched'] + $postgres['matched'],
+
+            // **Eines von beiden genügt nicht.** `available` sagt der
+            // Konsole, ob die Messung vollständig ist; ein Server, auf dem
+            // PostgreSQL fehlt, ist es nicht — und das gehört gesagt, nicht
+            // verrechnet.
+            'available' => $mariadb['available'] && $postgres['available'],
+            'reason' => trim(implode(' ', array_filter([
+                isset($mariadb['reason']) ? 'MariaDB: '.$mariadb['reason'] : '',
+                isset($postgres['reason']) ? 'PostgreSQL: '.$postgres['reason'] : '',
+            ]))),
+        ];
     }
 
     /**
@@ -55,7 +83,7 @@ final class Usage
      * @param  array<string, mixed>  $result
      * @return array{measured: int, reported: int, matched: int, available: bool, reason?: string}
      */
-    public function apply(array $result): array
+    public function apply(array $result, DatabaseEngine $engine = DatabaseEngine::MariaDb): array
     {
         if (($result['available'] ?? false) !== true) {
             // Kein Wert wird zurückgesetzt: Ohne Antwort weiss das Panel nichts
@@ -77,7 +105,15 @@ final class Usage
             $measured = 0;
             $matched = 0;
 
-            Database::query()->chunkById(200, function ($databases) use ($sizes, $now, &$measured, &$matched): void {
+            /*
+             * **Nur die Zeilen des gemessenen Systems.** Ohne diese
+             * Einschränkung bekäme eine PostgreSQL-Datenbank aus der
+             * MariaDB-Messung eine `size_bytes` von 0 — sie steht in deren
+             * Antwort ja nicht — und das wäre eine *gemessene* Null für etwas,
+             * das niemand gemessen hat. Genau der Unterschied, den
+             * `size_measured_at` sonst festhält.
+             */
+            Database::query()->where('engine', $engine)->chunkById(200, function ($databases) use ($sizes, $now, &$measured, &$matched): void {
                 foreach ($databases as $database) {
                     $bytes = $sizes[(string) $database->name] ?? null;
 

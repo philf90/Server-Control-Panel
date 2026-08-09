@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use SrvPanel\Agent\Ops\PgUsage;
 use SrvPanel\Agent\Pg\Names;
 use SrvPanel\Agent\Pg\Shielding;
 use Tests\Support\WithoutPhpComments;
@@ -184,5 +185,50 @@ final class PgShieldingTest extends TestCase
 
             $this->assertMatchesRegularExpression('/"[^"]+"/', $statement, $statement.' führt keinen Bezeichner an.');
         }
+    }
+
+    /**
+     * Die Messung nennt nur, was dem Panel gehört.
+     *
+     * **Der Fehlschlag, den das verhindert, ist kein Absturz, sondern eine
+     * Zahl.** `pg.usage` fragt alle Datenbanken des Clusters — auch die des
+     * Betreibers und die Vorlagen. Käme davon etwas durch, stünde die Grösse
+     * fremder Daten in der Antwort des Agenten, und von dort ginge sie an
+     * `Usage` und in einen Kundenbericht.
+     *
+     * Ausgesondert wird über {@see Names::isPanelName()}
+     * und nicht über einen zweiten regulären Ausdruck in der Abfrage. Der Plan
+     * (`docs/38 §12`) schreibt ihn dort hin; das wäre die zweite Fassung
+     * desselben Musters, und die zweite ist die, die veraltet.
+     */
+    public function test_the_measurement_only_names_what_belongs_to_the_panel(): void
+    {
+        $rows = [
+            ['postgres', '8000000'],
+            ['template1', '7000000'],
+            ['xdeadbeefdeadbeef_shop', '1234'],
+            ['betreiber_eigenes', '9999'],
+            ['xdeadbeefdeadbeef_r1a2b3c4d', '42'],
+        ];
+
+        $gemessen = PgUsage::parse($rows);
+
+        /*
+         * **Der befristete Name bleibt drin, und das ist eine Berichtigung.**
+         * Dieser Wächter erwartete zuerst, dass `…_r1a2b3c4d` — die Datenbank,
+         * die ein Zurückspielen anlegt — herausfällt. Das war meine Annahme und
+         * keine Regel: Sie gehört dem Panel, belegt Platz, und im Bestand gibt
+         * es keine Zeile, auf die sie passt — sie läuft also ins Leere und
+         * kostet einen Eintrag in einer Ablage.
+         *
+         * Worum es hier geht, ist die andere Richtung: `postgres`, `template1`
+         * und die Datenbank des Betreibers dürfen **nicht** in der Antwort
+         * stehen. Ihre Grösse ginge sonst an `Usage` und von dort in einen
+         * Kundenbericht.
+         */
+        $this->assertSame([
+            'xdeadbeefdeadbeef_shop' => 1234,
+            'xdeadbeefdeadbeef_r1a2b3c4d' => 42,
+        ], $gemessen);
     }
 }

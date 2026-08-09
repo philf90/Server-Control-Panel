@@ -7050,3 +7050,56 @@ der ihn gebaut hat.*
 **Was von Schritt 5 noch fehlt:** die Messung (`docs/38 §12`) — `pg.usage` als
 Operation und `srvpanel usage`, das ab P5b drei Dinge misst und weiter aus einem
 Timer startet.
+
+### P5b Schritt 5, zweite Hälfte — die Messung
+
+`pg.usage` als Operation, `Usage` misst beide Systeme, `Database::query()` ist
+dabei auf das gemessene System eingeschränkt.
+
+**Beide werden immer gefragt, und nicht nach dem Schalter.** `pg.usage`
+antwortet auf einem Server ohne PostgreSQL mit `available: false` und einem
+Grund — genau wie `db.usage` es tut, wenn MariaDB steht. Eine Bedingung an der
+Einstellung wäre eine zweite Fassung derselben Frage; und Datenbanken, die vor
+dem Abschalten der Fläche entstanden sind, belegen weiter Platz und gehören
+weiter gemessen.
+
+**`apply()` fasst nur die Zeilen des gemessenen Systems an.** Ohne diese
+Einschränkung bekäme eine PostgreSQL-Datenbank aus der MariaDB-Messung eine
+`size_bytes` von 0 — sie steht in deren Antwort ja nicht —, und das wäre eine
+**gemessene** Null für etwas, das niemand gemessen hat. Genau der Unterschied,
+den `size_measured_at` sonst festhält.
+
+**Und eine Abweichung vom Plan, mit Grund.** `docs/38 §12` schreibt die Abfrage
+mit `WHERE datname ~ '^x[0-9a-f]{16}_'`. Das wäre die zweite Fassung des
+Musters — die erste steht in `Pg\Names`. Ausgesondert wird deshalb in
+`PgUsage::parse()` über `Names::isPanelName()`, dieselbe Stelle, die auch beim
+Anlegen und beim Rückbau entscheidet, was zum Panel gehört. In der Abfrage steht
+nur `datallowconn`, weil `pg_database_size()` an `template0` sonst einen
+Verbindungsfehler auslöst.
+
+**Gemessen gegen den echten Cluster:** eine Datenbank angelegt, `pg.usage`
+gefragt — 7.683.095 Byte, und `postgres` und `template1` stehen nicht in der
+Antwort. `pg_database_size()` zählt die Datenbank auf der Platte,
+`data_length + index_length` in MariaDB die logische Grösse der Tabellen; die
+Zahlen sind nicht vergleichbar, aber sie beantworten dieselbe Frage.
+
+**Das Kontingent brauchte keine Zeile.** `Quota::Databases` zählt über
+`Database::query()->where('subscription_id', …)` ohne `engine` — drei MariaDB-
+und zwei PostgreSQL-Datenbanken sind damit fünf, wie `docs/38 §12` es verlangt.
+Das war schon richtig und ist es geblieben.
+
+### Und der neue Wächter hat mich korrigiert, nicht den Code
+
+`test_the_measurement_only_names_what_belongs_to_the_panel` erwartete zuerst,
+dass die befristete Datenbank eines Zurückspielens (`…_r1a2b3c4d`) aus der
+Messung herausfällt. Sie tut es nicht — und sie soll es auch nicht: Sie gehört
+dem Panel, belegt Platz, und im Bestand gibt es keine Zeile, auf die sie passt;
+sie läuft also ins Leere und kostet einen Eintrag in einer Ablage.
+
+Die Erwartung war meine Annahme und keine Regel. Worum es dem Wächter geht, ist
+die andere Richtung: `postgres`, `template1` und die Datenbank des Betreibers
+dürfen **nicht** in der Antwort stehen — ihre Grösse ginge sonst an `Usage` und
+von dort in einen Kundenbericht.
+
+*Ein Wächter, der beim ersten Lauf rot wird, hat zwei mögliche Ursachen, und die
+erste, an die man denkt, ist der Code.*

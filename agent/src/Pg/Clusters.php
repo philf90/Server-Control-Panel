@@ -6,6 +6,7 @@ namespace SrvPanel\Agent\Pg;
 
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
+use SrvPanel\Agent\Runner;
 
 /**
  * Welche PostgreSQL-Cluster es auf diesem Server gibt.
@@ -118,6 +119,34 @@ final class Clusters
         }
 
         return $clusters;
+    }
+
+    /**
+     * Die systemd-Unit, die diesen einen Cluster trägt.
+     *
+     * **Und die Unit, die es *nicht* ist: `postgresql.service`.** Die ist
+     * Debians Sammelunit; sie startet die Instanzen und bleibt danach mit
+     * `RemainAfterExit` auf `active` stehen — auch wenn jeder Cluster darunter
+     * längst steht. Am 9. August 2026 auf `cloudsrv24` genau so gemessen:
+     * `systemctl stop postgresql@16-main.service`, und die Übersicht meldete
+     * PostgreSQL weiter als `active`, während die Datenbankseite „läuft nicht"
+     * sagte.
+     *
+     * Das ist zum dritten Mal in P5b dasselbe Muster — `is_dir()` auf das
+     * Socketverzeichnis, `is_executable()` auf den PHP-Handler, und jetzt eine
+     * Sammelunit: **ein Stellvertreter, der im Erfolgsfall dasselbe sagt wie im
+     * Fehlerfall.**
+     *
+     * Der Name wird deshalb hier gebaut und nirgends sonst. Aus zwei Werten
+     * einen Unitnamen zusammenzusetzen ist genau der Vorgang, den die
+     * Positivliste des {@see Runner} verhindert — und dass es
+     * hier trotzdem passiert, ist kein Widerspruch: `service.status` liest nur,
+     * und die beiden Werte kommen aus {@see self::all()} und nicht aus einer
+     * Anfrage. Für das *Starten* wird weiterhin `pg_ctlcluster` genommen.
+     */
+    public static function unit(int $version, string $name): string
+    {
+        return sprintf('postgresql@%d-%s.service', $version, $name);
     }
 
     /**

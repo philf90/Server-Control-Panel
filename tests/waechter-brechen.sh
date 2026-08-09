@@ -4976,6 +4976,28 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PhpExtensionTest passed
 
 echo
+echo "── PgClusterTest: die Sammelunit statt der Instanz ──"
+#
+# Genau der Fehler, den der Betreiber am 9. August auf cloudsrv24 gefunden hat:
+# postgresql.service startet die Instanzen und bleibt mit RemainAfterExit auf
+# active stehen, auch wenn kein Cluster mehr laeuft. Die Uebersicht meldete
+# gruen, waehrend der Dienst stand — an der Stelle, an der jemand nach
+# Stoerungen sucht.
+vorher_datei agent/src/Pg/Clusters.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Clusters.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return sprintf('postgresql@%d-%s.service', $version, $name);",
+              "return 'postgresql.service';")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Clusters.php "Sammelunit statt Instanz" &&
+pruefe "Sammelunit statt Instanz" \
+  PgClusterTest::test_the_unit_is_the_instance_and_not_the_collective failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

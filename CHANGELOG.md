@@ -6780,3 +6780,39 @@ hängt an der Hauptfassung — die dreizehn Kanäle, die `public`-Regel ab PG 15
 `WITH (FORCE)`, `DROP OWNED BY` je Datenbank, der Rückgabewert von `psql -f`.
 Beide sind 16. Der Satz „dieselbe Konfiguration" gilt weiter; nur seine
 Begründung war eine andere, als dastand.
+
+### Der Betreiber fand den dritten Stellvertreter — diesmal in der Übersicht
+
+**Punkt 6 lief durch, und daneben fiel ein Fehler auf, den ich eingebaut habe.**
+Nach `systemctl stop postgresql@16-main.service` meldete die Datenbankseite
+korrekt „läuft nicht" — und die **Übersicht zeigte PostgreSQL weiter als
+`active`**.
+
+Grund: Dort stand `postgresql.service`. Das ist Debians **Sammelunit**; sie
+startet die Instanzen und bleibt danach mit `RemainAfterExit` auf `active`
+stehen, unabhängig davon, ob darunter noch etwas läuft. Sie beantwortet „ist die
+Sammelunit einmal gestartet worden" und nicht „läuft ein Cluster".
+
+**Das ist in diesem Zweig zum dritten Mal dasselbe Muster.** `is_dir()` auf das
+Socketverzeichnis, `is_executable()` auf den PHP-Handler, jetzt eine
+Sammelunit — jedes Mal eine Prüfung, die im Fehlerfall dasselbe sagt wie im
+Erfolgsfall. Und jedes Mal habe ich den Stellvertreter **nicht gemessen**,
+sondern für die Sache gehalten: Dieser Container hat kein systemd, also gab es
+nichts, was mir widersprochen hätte.
+
+**Die Übersicht ist die Stelle, an der jemand nach Störungen sucht.** Eine
+grüne Zeile neben einem stehenden Dienst ist dort schlechter als gar keine
+Zeile — sie beendet die Suche an der falschen Stelle.
+
+Gefragt wird jetzt die Instanzunit, `postgresql@16-main.service`, und welche das
+ist, sagt `pg.server.info`: Fassung und Clustername kommen aus derselben Zeile
+von `pg_lsclusters`, aus der auch Port und Zustand kommen. Der Name entsteht in
+`Clusters::unit()` und nirgends sonst; `PgClusterTest` prüft beide Richtungen —
+dass die Instanzunit entsteht **und** dass es nicht die Sammelunit ist. Zwei
+Agent-Aufrufe statt einem, mit dem Grund im Kommentar.
+
+**Was Punkt 6 im Übrigen belegt hat:** Der Knopf heisst im Zustand `stopped`
+**Starten** und nicht „Installieren", der Vorgang lief in zwei Sekunden durch
+(18:48:59 bis 18:49:01) und ohne eine Zeile `apt-get` — der Weg über
+`pg_ctlcluster` also, nicht über die Paketverwaltung. Danach war der Cluster
+wieder `online`.

@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSetupController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DatabaseController;
+use App\Http\Controllers\DatabaseSettingsController;
 use App\Http\Controllers\DnsSettingsController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\ImpersonationController;
@@ -504,6 +505,20 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/settings/php', [PhpSettingsController::class, 'show'])
         ->middleware('can:manage-settings')
         ->name('settings.php');
+
+    /*
+     * Der Datenbankserver (`docs/36 §22.3v`).
+     *
+     * **Nur `get`, und das ist die ganze Aussage dieser Route.** Der
+     * Fernzugriff wird auf der Kommandozeile geschaltet, weil sein Neustart den
+     * Datenbankserver mitnimmt, auf dem dieses Panel selbst arbeitet — die
+     * Begründung steht im Kopf von {@see DatabaseSettingsController}. Was hier
+     * fehlte, war nicht der Schalter, sondern der Ort, an dem der Zustand
+     * steht.
+     */
+    Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])
+        ->middleware('can:manage-settings')
+        ->name('settings.database');
 
     /*
      * „Anmelden als" (§6.3).

@@ -30,6 +30,11 @@
 # zweites Mal laufen darf. Auch dort steht eine Regel als Text in einer Datei,
 # und auch dort gilt: Wer sie zum Prüfen bricht, muss sie zurückbekommen.
 #
+# `routes/` kam mit dem Wächter dazu, der prüft, dass „Einstellungen →
+# Datenbankserver" nur liest (`RemoteAccessTest::test_the_settings_page_only_reads`).
+# Sein Bruch legt eine schreibende Route an, und die steht in `routes/web.php` —
+# in keiner der beiden Listen wäre sie danach stehengeblieben.
+#
 # `database/` kam mit P5 dazu, und der Anlass ist genau der Satz darüber: Ein
 # Wächter prüft dort am **Schema**, dass es keine Spalte für ein Passwort gibt
 # (`SecretsStayOutOfTheQueueTest`), und der Bruch dazu fügt eine ein. Ohne diese
@@ -56,15 +61,15 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/; then
-  echo "resources/, app/, agent/, packaging/, .github/ oder database/ hat ungesicherte" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/; then
+  echo "resources/, app/, agent/, packaging/, .github/, database/ oder routes/ hat ungesicherte" >&2
   echo "Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -4460,6 +4465,75 @@ pruefe "nginx enger als PHP" \
   UploadLimitTest::test_the_three_numbers_fit_together failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" UploadLimitTest passed
+
+echo
+echo "── CommandReachTest: ein Wort, das nach einer Option aussieht ──"
+#
+# Der Anlass ist kein erfundener: Auf der Datenbankseite stand seit P5
+# `srvpanel db prune`, und das Kommando nimmt kein Argument. Wer die Zeile
+# abtippt, bekommt „Too many arguments" (docs/36 §22.3v).
+vorher_datei resources/js/Pages/Databases/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Databases/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('srvpanel db --prune', 'srvpanel db prune')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Databases/Show.vue "Wort statt Option" &&
+pruefe "Wort statt Option" \
+  CommandReachTest::test_a_command_printed_in_the_interface_consists_of_options_only failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CommandReachTest passed
+
+echo
+echo "── CommandReachTest: eine Option, die es nicht gibt ──"
+#
+# Dieselbe Familie, eine Ebene tiefer: Der Befehl auf „Einstellungen →
+# Datenbankserver" steht als Konstante im Steuerungscode. Ein Buchstabe daneben,
+# und die Seite druckt eine Zeile ab, die Symfony abweist.
+vorher_datei app/Http/Controllers/DatabaseSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseSettingsController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'sudo srvpanel db --remote=on'", "'sudo srvpanel db --remotes=on'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseSettingsController.php "erfundene Option" &&
+pruefe "erfundene Option" CommandReachTest::test_every_printed_option_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" CommandReachTest passed
+
+echo
+echo "── RemoteAccessTest: ein Schalter auf der Einstellungsseite ──"
+#
+# Der Fernzugriff wird auf der Kommandozeile geschaltet, weil sein Neustart den
+# Datenbankserver mitnimmt, auf dem dieses Panel arbeitet (docs/36 §22.3v). Eine
+# schreibende Route unter /settings/database wäre genau der Klick, den es dort
+# nicht geben soll.
+#
+# **Dieser Eingriff ist der Grund, warum `routes/` oben in beiden Listen
+# steht.** Vorher stand es in keiner: `wiederherstellen` hätte die Datei nicht
+# zurückgeholt, und der Bruch wäre keine Probe gewesen, sondern eine Änderung —
+# genau die Falle, die im Kopf dieses Skripts für `packaging/` und `database/`
+# schon beschrieben ist.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "    Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])",
+    "    Route::put('/settings/database', [DatabaseSettingsController::class, 'show'])\n"
+    "        ->middleware('can:manage-settings')\n"
+    "        ->name('settings.database.switch');\n\n"
+    "    Route::get('/settings/database', [DatabaseSettingsController::class, 'show'])",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei routes/web.php "Schalter auf der Einstellungsseite" &&
+pruefe "Schalter auf der Einstellungsseite" \
+  RemoteAccessTest::test_the_settings_page_only_reads failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemoteAccessTest::test_the_settings_page_only_reads passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

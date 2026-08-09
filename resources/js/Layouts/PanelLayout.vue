@@ -127,6 +127,15 @@ const navigation = computed(() => {
       { name: 'Vorgänge', href: '/operations', icon: 'operations' },
       { name: 'Protokoll', href: '/audit', icon: 'log' },
       { name: 'PHP-Versionen', href: '/settings/php', icon: 'php' },
+
+      /*
+       * **Dasselbe Zeichen wie „Datenbanken", und mit Absicht.** Die beiden
+       * Einträge stehen in verschiedenen Gruppen — „Verwaltung" führt zu den
+       * Datenbanken der Kunden, „Server" zu dem Dienst, auf dem sie liegen.
+       * Ein zweites, ähnliches Zeichen zu zeichnen hiesse, einen Unterschied
+       * anzudeuten, den die Gruppe schon macht.
+       */
+      { name: 'Datenbankserver', href: '/settings/database', icon: 'databases' },
       { name: 'Mailversand', href: '/settings/mail', icon: 'mail' },
       { name: 'Zertifikat', href: '/settings/tls', icon: 'tls' },
       { name: 'DNS-Zugang', href: '/settings/dns', icon: 'dns' },

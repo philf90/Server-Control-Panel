@@ -15,6 +15,7 @@ use App\Support\Audit\Audit;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
 use App\Support\Databases\ImportLimit;
+use App\Support\Databases\Staging;
 use App\Support\Plans\Quota;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +30,6 @@ use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Db\Names;
 use SrvPanel\Agent\Ops\DbDatabaseCreate;
-use SrvPanel\Agent\Ops\DbDumpImport;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -312,7 +312,7 @@ final class DatabaseController extends Controller
          * `Dumps::record()` gegen den Bestand.
          */
         $name = bin2hex(random_bytes(16)).'.sql.gz';
-        $staging = self::staging();
+        $staging = Staging::ensure();
         $source = $staging.'/'.$name;
 
         try {
@@ -328,29 +328,6 @@ final class DatabaseController extends Controller
 
         return to_route('operations.show', $operation)
             ->with('status', 'Die Sicherung wird übernommen.');
-    }
-
-    /**
-     * Die Übergabe: der Schreibbereich des Panels, den der Agent erwartet.
-     *
-     * **Zwei Pfade, die derselbe sein müssen** — `storage_path()` hier und
-     * {@see DbDumpImport::STAGING_ROOT} dort. In der Auslieferung ist
-     * `storage` ein Verweis nach `/var/lib/srvpanel/storage`, und beide zeigen
-     * auf dasselbe Verzeichnis; im Test zeigt `storage_path()` woandershin, und
-     * das ist richtig so — dort läuft kein Agent. Dass die beiden in der
-     * Auslieferung zusammenpassen, prüft `UploadLimitTest`.
-     */
-    private static function staging(): string
-    {
-        $path = storage_path('app/private/imports');
-
-        if (! is_dir($path)) {
-            // 0700: Der Inhalt ist die Datenbank eines Kunden, und ausser dem
-            // Panel und dem Agenten muss dort niemand hineinsehen.
-            @mkdir($path, 0o700, true);
-        }
-
-        return $path;
     }
 
     /**

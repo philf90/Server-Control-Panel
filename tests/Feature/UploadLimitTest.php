@@ -11,6 +11,7 @@ use App\Models\DatabaseDump;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Support\Databases\ImportLimit;
+use App\Support\Databases\Staging;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -178,22 +179,29 @@ final class UploadLimitTest extends TestCase
     /**
      * Panel und Agent meinen dieselbe Übergabe.
      *
-     * Das Panel schreibt nach `storage_path('app/private/imports')`, der Agent
-     * nimmt nur Pfade unterhalb von {@see DbDumpImport::STAGING_ROOT} entgegen.
-     * In der Auslieferung ist `storage` ein Verweis nach
-     * `/var/lib/srvpanel/storage` — zwei Zeichenketten, die dasselbe meinen
-     * müssen, und genau dafür gibt es diese Prüfung.
+     * Das Panel schreibt nach {@see Staging::root()}, der Agent nimmt nur Pfade
+     * unterhalb von {@see DbDumpImport::STAGING_ROOT} entgegen. In der
+     * Auslieferung ist `storage` ein Verweis nach `/var/lib/srvpanel/storage` —
+     * zwei Zeichenketten, die dasselbe meinen müssen.
+     *
+     * **Hier stand ein `grep` auf den Steuerungscode, und er wäre beim
+     * Aufräumen zum Fehlschlag geworden:** Der Pfad ist am 9. August nach
+     * {@see Staging} umgezogen, weil dort auch der Weg zurück wohnt, und der
+     * Ausdruck suchte weiter in `DatabaseController.php`. Das ist die Falle,
+     * die CLAUDE.md für drei Wächter dieses Projekts festhält — *ein Wächter,
+     * der beim Aufräumen zubeisst, wird beim Aufräumen abgeschaltet.*
+     *
+     * Verglichen werden deshalb die **Werte** beider Seiten und nicht mehr der
+     * Quelltext einer bestimmten Datei. Wo der Pfad gebaut wird, ist damit
+     * gleichgültig; dass beide Seiten denselben meinen, bleibt geprüft.
      */
     public function test_the_panel_and_the_agent_mean_the_same_handover(): void
     {
-        $this->assertStringEndsWith('storage/app/private/imports', DbDumpImport::STAGING_ROOT);
-        $this->assertStringStartsWith('/var/lib/srvpanel/', DbDumpImport::STAGING_ROOT);
+        $suffix = '/storage/app/private/imports';
 
-        $this->assertStringContainsString(
-            "storage_path('app/private/imports')",
-            $this->readFile('app/Http/Controllers/DatabaseController.php'),
-            'Das Panel legt die Datei woanders ab, als der Agent sie erwartet.',
-        );
+        $this->assertStringEndsWith($suffix, Staging::root(), 'Das Panel legt die Datei woanders ab.');
+        $this->assertStringEndsWith($suffix, DbDumpImport::STAGING_ROOT, 'Der Agent erwartet sie woanders.');
+        $this->assertStringStartsWith('/var/lib/srvpanel/', DbDumpImport::STAGING_ROOT);
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Models\Database;
 use App\Models\DatabaseDump;
 use App\Models\DbUser;
 use App\Support\Databases\DatabasePrune;
+use App\Support\Databases\DumpIntegrity;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Console\Command;
 use SrvPanel\Agent\AgentException;
@@ -76,12 +77,22 @@ final class Databases extends Command
      */
     private function showServer(Client $agent, DatabasePrune $prune, Tenancy $tenancy): int
     {
+        /*
+         * **Ein toter Agent beendet dieses Kommando nicht mehr.** Hier stand
+         * ein `return self::FAILURE`, und damit war alles Weitere unerreichbar
+         * — auch das, was das Panel ganz allein beantworten kann: sein eigener
+         * Bestand und die Frage, ob die Sicherungen noch zu ihren Dateien
+         * passen. Wer nachsieht, weil etwas kaputt ist, bekommt jetzt beides
+         * statt einer Zeile. Der Rückgabewert bleibt trotzdem 1.
+         */
+        $info = [];
+        $agentFehlt = false;
+
         try {
             $info = $agent->call('db.server.info', [], $this->actor());
         } catch (AgentException $error) {
             $this->error('Der Agent hat abgewiesen: '.$error->getMessage());
-
-            return self::FAILURE;
+            $agentFehlt = true;
         }
 
         if (($info['available'] ?? false) !== true) {
@@ -144,18 +155,90 @@ final class Databases extends Command
             $this->line('Sie gehen mit `srvpanel db --prune`.');
         }
 
+        $this->reportDumpSizes($tenancy);
+
         $plan = $prune->plan();
 
         if ($plan['total'] === 0) {
             $this->info('Nichts liegengeblieben.');
-
-            return self::SUCCESS;
         }
 
-        $this->warn(sprintf('%d Zeile(n) ohne Abonnement — siehe `srvpanel db --prune`.', $plan['total']));
-        $this->printPlan($plan);
+        if ($plan['total'] > 0) {
+            $this->warn(sprintf('%d Zeile(n) ohne Abonnement — siehe `srvpanel db --prune`.', $plan['total']));
+            $this->printPlan($plan);
+        }
 
-        return self::SUCCESS;
+        return $agentFehlt ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * Was der Bestand über eine Sicherung sagt, gegen die Datei gehalten.
+     *
+     * **Der Anlass ist eine Zahl, die niemand je geprüft hätte.** Am 9. August
+     * 2026 stand auf `cloudsrv24` in `database_dumps.bytes` für eine Sicherung
+     * 69255, auf der Platte lagen 69362 — und `bytes` ist genau die Zahl, die
+     * dem Kunden als „Grösse" angezeigt wird. Woher die Abweichung dieser einen
+     * Zeile kam, war nicht mehr zu klären; **der Fund ist, dass es keine Rolle
+     * spielte, weil nichts die beiden je gegeneinander hielt**
+     * (`docs/36 §22.3w`).
+     *
+     * Dieselbe Familie wie das `GRANT`, das sein Schema überlebte, und die
+     * Zeile, die ihre Datei überlebte: eine Angabe im Bestand, die auf etwas
+     * ausserhalb zeigt, ohne dass jemand nachsieht. Keinen der drei hat ein
+     * Test gefunden, sondern ein Abnahmelauf.
+     *
+     * **Gemeldet und nicht repariert.** Was hier auffällt, ist entweder eine
+     * falsche Zahl oder eine fehlende Datei — das eine ein Schönheitsfehler,
+     * das andere ein Datenverlust. Wer löscht, weiss, was er löscht; dieselbe
+     * Entscheidung wie bei den befristeten Zugängen oben.
+     */
+    private function reportDumpSizes(Tenancy $tenancy): void
+    {
+        /** @var list<array{name: string, grund: string}> $befunde */
+        $befunde = [];
+        $geprueft = 0;
+
+        /** @var list<DatabaseDump> $dumps */
+        $dumps = $tenancy->withoutRestriction(
+            static fn (): array => DatabaseDump::query()->with('subscription')->get()->all()
+        );
+
+        foreach ($dumps as $dump) {
+            // Nur fertige: Eine Sicherung, die noch läuft oder gescheitert ist,
+            // hat noch keine Datei. Sie hier zu melden wäre eine Warnung für den
+            // Regelfall, und die liest nach zwei Tagen niemand mehr.
+            if (! $dump->status->usable()) {
+                continue;
+            }
+
+            $path = $dump->path();
+
+            if ($path === null) {
+                continue;
+            }
+
+            $geprueft++;
+
+            $grund = DumpIntegrity::reason($dump->bytes === null ? null : (int) $dump->bytes, $path);
+
+            if ($grund !== null) {
+                $befunde[] = ['name' => $dump->storage_name, 'grund' => $grund];
+            }
+        }
+
+        if ($befunde === []) {
+            if ($geprueft > 0) {
+                $this->line(sprintf('%d Sicherung(en) geprüft: Grösse und Datei stimmen überein.', $geprueft));
+            }
+
+            return;
+        }
+
+        $this->warn(sprintf('%d von %d Sicherung(en) weichen von ihrer Datei ab:', count($befunde), $geprueft));
+
+        foreach ($befunde as $befund) {
+            $this->line(sprintf('  %s — %s', $befund['name'], $befund['grund']));
+        }
     }
 
     /**

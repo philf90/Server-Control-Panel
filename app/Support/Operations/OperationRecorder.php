@@ -6,6 +6,7 @@ namespace App\Support\Operations;
 
 use App\Enums\OperationStatus;
 use App\Models\Operation;
+use SrvPanel\Agent\Frame;
 
 /**
  * Schreibt den Verlauf eines Vorgangs fort.
@@ -47,6 +48,47 @@ final class OperationRecorder
         ])->save();
 
         $this->lastFlush = microtime(true);
+    }
+
+    /**
+     * Einen Frame des Agenten verarbeiten.
+     *
+     * **Diese Methode stand bis zum 9. August 2026 als `private` im Arbeiter,
+     * und genau deshalb war der Fehler unsichtbar** (`docs/36 §22.3w`): Sie las
+     * `percent` und `message`, wo der Agent `pct` und `text` schickt, und
+     * prüfte auf `type === 'output'`, wo er `log` sendet. Kein Test kam an sie
+     * heran, und ihr Fehlverhalten war eine Anzeige, die stillstand.
+     *
+     * Jetzt liest sie über {@see Frame} — dieselbe Klasse, mit der die
+     * Gegenseite baut — und sie ist erreichbar, damit `FrameContractTest` einen
+     * echten Frame hindurchschicken kann.
+     *
+     * @param  array<string, mixed>  $frame
+     */
+    public function consume(array $frame): void
+    {
+        $kind = Frame::kindOf($frame);
+
+        if ($kind === Frame::PROGRESS) {
+            $percent = Frame::percentOf($frame);
+
+            // Ohne Prozentzahl wird nichts geschrieben. Die alte Fassung setzte
+            // hier `0` ein — und schrieb damit bei jedem einzelnen Frame den
+            // Fortschritt auf null zurück.
+            if ($percent !== null) {
+                $this->progress($percent, Frame::textOf($frame));
+            }
+
+            return;
+        }
+
+        if ($kind === Frame::LOG) {
+            $line = Frame::lineOf($frame);
+
+            if ($line !== null && $line !== '') {
+                $this->output($line);
+            }
+        }
     }
 
     public function progress(int $percent, ?string $message = null): void

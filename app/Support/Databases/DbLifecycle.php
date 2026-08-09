@@ -72,6 +72,54 @@ final class DbLifecycle implements AfterOperation
         ];
     }
 
+    /**
+     * Was nach einem gescheiterten Vorgang aufzuräumen ist.
+     *
+     * **Zwei Dinge, und beide hat der Abnahmelauf vom 9. August gefunden**
+     * (`docs/36 §22.3w`):
+     *
+     * 1. **Die Zeile stand für immer auf „läuft".** `DumpStatus::Failed` gibt
+     *    es seit Schritt 6, die Oberfläche zeigt `last_error` an — gesetzt hat
+     *    beides nie jemand, weil es zu {@see AfterOperation} keine
+     *    Gegenrichtung gab. Ein Kunde sah einen Vorgang, der nie fertig wurde.
+     * 2. **Die hochgeladene Datei blieb in der Übergabe liegen.** Der Grund
+     *    steht bei {@see Staging}: Das `@unlink()` im Steuerungscode umschliesst
+     *    das Einreihen, der Agent weist aber erst im Arbeiter ab.
+     *
+     * **Der Grund kommt aus dem Vorgang und nicht aus einer Vermutung.**
+     * `message` trägt die Begründung des Agenten, wortgleich mit dem, was auf
+     * der Vorgangsseite steht — zwei Formulierungen desselben Fehlschlags wären
+     * zwei Auskünfte, und die zweite ist die, die veraltet.
+     */
+    public function afterFailure(Operation $operation): void
+    {
+        $task = (string) ($operation->task ?? '');
+
+        if ($task !== 'db.dump.create' && $task !== 'db.dump.import') {
+            return;
+        }
+
+        // Die Datei zuerst: Sie liegt unabhängig davon in der Übergabe, ob es
+        // die Zeile noch gibt — und ein Rückbau zwischendurch soll nicht dazu
+        // führen, dass ein halbes Gigabyte stehenbleibt.
+        if ($task === 'db.dump.import') {
+            Staging::forget($operation->payload['source'] ?? null);
+        }
+
+        $this->tenancy->withoutRestriction(function () use ($operation): void {
+            $dump = DatabaseDump::query()->find($operation->subject_id);
+
+            if ($dump === null) {
+                return;
+            }
+
+            $dump->forceFill([
+                'status' => DumpStatus::Failed,
+                'last_error' => $operation->message,
+            ])->save();
+        });
+    }
+
     public function afterSuccess(Operation $operation): void
     {
         $task = (string) ($operation->task ?? '');

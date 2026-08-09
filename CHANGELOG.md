@@ -5660,6 +5660,53 @@ Wort, das nach einer aussieht. Sein Bruch ist zugleich der Anlass, aus dem
 hätte `wiederherstellen` die Datei nicht zurückgeholt, und die Probe wäre eine
 Änderung gewesen.
 
+**Der Fortschritt eines Vorgangs kam nie an, und die Ausgabe des Agenten auch
+nicht.** Der Agent schickt seit P0 Zwischenmeldungen der Form
+`['type' => 'progress', 'pct' => …, 'text' => …]`; der Arbeiter las daraus
+`percent` und `message` und setzte bei einem unbekannten Schlüssel
+stillschweigend `0` ein — **also bei jedem einzelnen Frame**. Für die Ausgabe
+dasselbe eine Ebene höher: gesendet wurde `type: log`, geprüft wurde auf
+`type: output`. Vier Zeichenketten über eine Prozessgrenze hinweg, keine davon
+passend, und beide Seiten sahen für sich richtig aus. Die Folge war eine
+Abwesenheit und deshalb unsichtbar: **Der Balken jedes Vorgangs sprang von 0 auf
+100, und die Ausgabe des Agenten hat nie ein Mensch gesehen.** Aufgefallen ist
+es an einem gescheiterten Import, der „Fortschritt 0 %" zeigte, obwohl er
+nachweislich weiter gekommen war; die Gegenprobe über 471 Vorgänge fand keinen
+einzigen mit einem Wert dazwischen. Die Antwort ist nicht, die Namen
+richtigzustellen, sondern sie nur noch einmal zu schreiben: `Frame` baut und
+liest, `Context` und `OperationRecorder` gehen beide hindurch, und
+`FrameContractTest` fährt einen echten Frame aus dem Agenten bis in die Zeile
+der Datenbank. `consume()` stand dafür bis dahin als `private` im Arbeiter — kein
+Test kam an sie heran; sie liegt jetzt am Recorder.
+
+**Ein gescheiterter Upload blieb liegen.** Das `@unlink()` im Steuerungscode
+umschliesst das Einreihen des Vorgangs, der Agent weist aber erst später im
+Arbeiter ab — und dort gab es überhaupt keine Gegenrichtung. Nach einer
+abgewiesenen Zip-Bombe lagen 109 MB in der Übergabe, die nichts im System je
+wieder angefasst hätte: `srvpanel db --prune` sieht nur Zeilen ohne Abonnement
+an, die Paketskripte fassen das Verzeichnis nicht an, und über das Panel ist die
+Datei gar nicht erreichbar. Bis zu 512 MB je Versuch, ausgelöst von einem
+Kunden. `AfterOperation` hat deshalb jetzt ein `afterFailure()` — die Richtung,
+die seit Schritt 6 fehlte —, und damit fällt derselbe Schönheitsfehler mit: Die
+Zeile einer gescheiterten Sicherung steht nicht mehr für immer auf „läuft",
+sondern auf `failed` mit dem Grund des Agenten in `last_error`. Gelöscht wird
+nur innerhalb der Übergabe: Der Pfad kommt aus einer Zeile in der Datenbank, und
+ein `unlink()` darauf ohne Wurzelprüfung wäre die Sorte Zeile, mit der ein Panel
+sich selbst löscht.
+
+**Und die abgelegte Grösse einer Sicherung wurde nie gegen die Datei gehalten.**
+Auf dem Zielserver wich sie bei einer von vier Sicherungen ab — 69255 im Bestand,
+69362 auf der Platte —, und `bytes` ist genau die Zahl, die dem Kunden als
+„Grösse" angezeigt wird. Woher die Abweichung dieser einen Zeile kam, war nicht
+mehr zu klären; der Fund ist, dass es folgenlos blieb. Dieselbe Familie wie das
+`GRANT`, das sein Schema überlebte, und die Zeile, die ihre Datei überlebte —
+keinen der drei hat ein Test gefunden, sondern ein Abnahmelauf. `srvpanel db`
+vergleicht jetzt beides und meldet Abweichung wie fehlende Datei, gemeldet und
+nicht repariert: Das eine ist ein Schönheitsfehler, das andere ein
+Datenverlust. Dabei fiel auf, dass ein toter Agent das Kommando bisher abbrach,
+bevor es überhaupt zum Bestand kam — wer nachsieht, weil etwas kaputt ist,
+bekommt jetzt beides.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

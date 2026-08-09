@@ -210,6 +210,17 @@ final class Lifecycle implements AfterOperation
     }
 
     /**
+     * Nach einem gescheiterten Vorgang bleibt der Zustand, wie er war.
+     *
+     * **Nichts zu tun, und das ist die Aussage.** Der Zustand eines
+     * Abonnements folgt ausschliesslich der Antwort des Agenten
+     * ({@see self::afterSuccess()}); ohne Antwort gibt es nichts nachzuziehen.
+     * Ein Rückbau, der scheitert, lässt das Abonnement bestehen — genau
+     * richtig, denn auf dem System steht es dann auch noch.
+     */
+    public function afterFailure(Operation $operation): void {}
+
+    /**
      * Was ein erfolgreicher Vorgang am Abonnement ändert.
      *
      * Aufgerufen aus dem Arbeiter, nachdem der Agent geantwortet hat.

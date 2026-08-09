@@ -240,6 +240,16 @@ final class WebLifecycle implements AfterOperation
     }
 
     /**
+     * Nach einem gescheiterten Vorgang bleibt der Server-Block, wie er ist.
+     *
+     * **Nichts zu tun.** Was nginx ausliefert, entscheidet die Datei auf der
+     * Platte, und die hat der Agent bei einem Fehlschlag nicht geändert. Eine
+     * Zeile im Bestand zurückzunehmen, die dem System weiter entspricht, wäre
+     * die zweite Auskunft — und die falsche.
+     */
+    public function afterFailure(Operation $operation): void {}
+
+    /**
      * Die Aufgaben, nach denen sich an einer Website etwas ändert.
      *
      * Die drei Abonnementaufgaben stehen mit darin, und das ist keine

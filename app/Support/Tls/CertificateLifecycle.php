@@ -47,6 +47,15 @@ final class CertificateLifecycle implements AfterOperation
         private readonly CertificateChoice $choice,
     ) {}
 
+    /**
+     * Nach einem gescheiterten Vorgang bleibt das Zertifikat, wie es ist.
+     *
+     * **Nichts zu tun.** Eine gescheiterte Bestellung nimmt dem Abonnement
+     * nicht das Zertifikat, das es schon hat; der Grund steht am Vorgang, und
+     * der nächste Lauf versucht es erneut.
+     */
+    public function afterFailure(Operation $operation): void {}
+
     /** @return list<string> */
     public static function handles(): array
     {

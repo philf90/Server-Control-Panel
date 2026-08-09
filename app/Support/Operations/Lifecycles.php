@@ -68,4 +68,22 @@ final class Lifecycles
             $lifecycle->afterSuccess($operation);
         }
     }
+
+    /**
+     * Und dasselbe, wenn der Vorgang gescheitert ist.
+     *
+     * **Die Reihenfolge ist hier nicht dieselbe Zusage wie oben.** Beim Erfolg
+     * baut einer auf dem Zustand des vorigen auf; beim Fehlschlag räumt jeder
+     * nur sein eigenes auf. Sie bleibt trotzdem gleich, weil zwei Reihenfolgen
+     * für dieselbe Liste eine Einladung sind, die falsche zu lesen.
+     */
+    public function afterFailure(Operation $operation): void
+    {
+        foreach (self::HANDLERS as $handler) {
+            /** @var AfterOperation $lifecycle */
+            $lifecycle = app($handler);
+
+            $lifecycle->afterFailure($operation);
+        }
+    }
 }

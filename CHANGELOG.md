@@ -5994,3 +5994,68 @@ sind. Gefahren am 9. August 2026, beide rot, danach wieder grün.
   deshalb verweigert `waechter-brechen.sh` den Start bei ungesicherten
   Änderungen, und genau deshalb kommt ein Bruch erst nach dem Commit dazu, den
   er prüft.
+
+### P5b Schritt 1 — die Bausteine, gegen einen echten PostgreSQL geprüft
+
+`Pg\Names`, `Pg\Sql` und `Pg\Shielding`, dazu `PgNameTest` und
+`PgShieldingTest`. **Und zum ersten Mal in diesem Projekt sind die erzeugten
+Anweisungen nicht nur als Text geprüft, sondern gefahren:** Dieser Container hat
+ein PostgreSQL 16.13, und die Absperrung ist gegen einen Wegwerf-Cluster
+gelaufen, bevor eine Zeile in die CI ging. Für MariaDB musste jede solche
+Behauptung eine Textprüfung bleiben (`docs/36 §3.1`).
+
+**Der Name ist die Abschottung.** Das Präfix ist nicht mehr der Systembenutzer,
+sondern sechzehn Hexziffern aus `random_bytes`, je Abonnement einmal vergeben —
+denn PostgreSQL zeigt jedem Kunden die Namen aller Datenbanken, und
+`p1002_shop` verriete damit, dass es ein Abonnement 1002 mit einem Shop gibt.
+Der Wächter dafür prüft die **Form statt des Ergebnisses**: `newPrefix()` nimmt
+keinen Parameter, und was keinen Wert bekommt, kann keinen verraten. Ein Test,
+der nur nachsähe, dass keine Abonnementnummer im Präfix *vorkommt*, wäre grün,
+sobald jemand sie durch eine Prüfsumme schickt.
+
+**Ein Präfix bleibt es trotzdem**, und das ist kein Rest aus P5: `belongsTo()`
+prüft im Agenten, ob ein Name zu dem Abonnement gehört, in dessen Auftrag die
+Operation läuft. Ein durchweg zufälliger Name nähme dem Agenten diese Prüfung
+ersatzlos, weil er keinen Zustand führt, aus dem er sie rekonstruieren könnte.
+
+**Vier Eigenschaften von PostgreSQL wurden gemessen statt übernommen**, und eine
+davon hebt den teuersten Fund von P5 auf:
+
+- **Die Unterstrich-Falle gibt es hier nicht.** `docs/36 §3.1` musste in MariaDB
+  `p1001\_shop` maskieren, weil das Ziel eines `GRANT` dort ein **Muster** ist und
+  `p1001_%` auch `p10012_shop` trifft. In PostgreSQL ist es ein Bezeichner:
+  Gemessen gibt `GRANT CONNECT ON DATABASE m29_a` Zugang zu `m29_a` und **nicht**
+  zu `m29xa`. `Pg\Sql` hat deshalb kein `grantTarget()` — und das ist ein Befund
+  und keine Auslassung. Wer eine Maskierung nachbaut, die es nicht braucht, baut
+  eine Regel, die niemand mehr erklären kann.
+- **Der Backslash maskiert nicht** (`standard_conforming_strings = on`). Zu
+  verdoppeln ist nur das Anführungszeichen. Die Regel aus `Db\Sql` zu übernehmen
+  ergäbe Passwörter mit einem Backslash zu viel.
+- **Ein zu langer Bezeichner wird abgeschnitten und nicht abgewiesen** (63
+  Zeichen). Zwei Namen, die sich erst danach unterscheiden, wären hinterher
+  derselbe.
+- **Die Absperrung wirkt je Datenbank.** Gefahren gegen eine Datenbank aus
+  `TEMPLATE template0` — also im Fallenfall: vorher sah die Kundenrolle acht
+  Datenbanken in `pg_stat_database`, danach `permission denied`, `pg_database`
+  blieb offen, Arbeiten ging weiter, und `pg_dump` des Kunden lief.
+
+**Die Kanalliste wird erfragt und nicht verdrahtet**, und der Wächter darüber
+hat beim ersten Lauf zugebissen — auf den Klassenkopf, der `pg_stat_database` als
+Beispiel nennt, um die Regel zu erklären. Ein Wächter, der verbietet, seine
+eigene Regel zu erklären, wird umformuliert statt befolgt; die Frage beantwortet
+jetzt `WithoutPhpComments` über `token_get_all()`.
+
+**Zwei Funde, die kein Wächter gefunden hat:**
+
+- **PHPStan hat wieder einen toten Zweig gemeldet**, diesmal ein
+  `method_exists()` auf eine Methode, die es nicht gibt — zur Übersetzungszeit
+  entscheidbar, also `function.impossibleType` und in der CI rot. Eine Behauptung
+  über den Bestand einer Klasse muss zur Laufzeit gestellt werden, sonst ist sie
+  kein Test, sondern ein Ausdruck. Reflection beantwortet sie.
+- **Die Warnung über `git checkout` bei nicht eingecheckten Dateien hat zum
+  dritten Mal an einem Tag zugeschlagen** — beim Gegenprüfen der drei neuen
+  Brüche stand `agent/src/Pg/` noch nicht unter Versionskontrolle, und der
+  Rückweg holte nichts zurück. Alle drei Wächter waren rot, wie sie sollten; die
+  Dateien mussten von Hand zurückgedreht werden. Genau deshalb verweigert
+  `waechter-brechen.sh` den Start bei ungesicherten Änderungen, und genau deshalb
+  gehört ein Bruch erst nach dem Commit dazu, den er prüft.

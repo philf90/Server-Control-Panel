@@ -4658,6 +4658,67 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
 
 echo
+echo "── PgNameTest: das Präfix haengt wieder am Abonnement ──"
+#
+# Die Abschottung von P5b ist der Name selbst: PostgreSQL zeigt jedem Kunden
+# die Namen aller Datenbanken (gemessen, docs/38 §2.2), und `p1002_shop`
+# verriete damit, dass es ein Abonnement 1002 mit einem Shop gibt. Der Waechter
+# prueft die Form statt des Ergebnisses — eine Methode ohne Parameter kann aus
+# keinem Wert des Abonnements etwas ableiten.
+vorher_datei agent/src/Pg/Names.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Names.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    public static function newPrefix(): string', '    public static function newPrefix(string $systemUser = \'p1001\'): string')
+s = s.replace("return 'x'.bin2hex(random_bytes(8));", "return 'x'.substr(hash('sha256', $systemUser), 0, 16);")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Names.php "Praefix aus dem Abonnement abgeleitet" &&
+pruefe "Praefix aus dem Abonnement abgeleitet" \
+  PgNameTest::test_a_prefix_cannot_be_derived_from_anything failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgNameTest passed
+
+echo
+echo "── PgShieldingTest: pg_database wird doch entzogen ──"
+#
+# Der Entzug schloesse das Aufzaehlen vollstaendig — und nimmt dem KUNDEN
+# pg_dump, auch fuer den schlichten Export seiner eigenen Datenbank (gemessen,
+# docs/38 §2.2 M6). Wer die Ausnahme streicht, tauscht einen Sicherheitsgewinn
+# gegen einen Datenverlust.
+vorher_datei agent/src/Pg/Shielding.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Shielding.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            if (isset(self::EXEMPT[$channel])) {', '            if (false) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Shielding.php "pg_database doch entzogen" &&
+pruefe "pg_database doch entzogen" \
+  PgShieldingTest::test_pg_database_stays_readable_with_a_reason failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgShieldingTest passed
+
+echo
+echo "── PgShieldingTest: die Kanalliste wird wieder verdrahtet ──"
+#
+# Sie ist fassungsabhaengig — PG 17 hat mehr pg_stat_progress_* als PG 14, und
+# die Zielplattformen spannen 14 bis 17. Eine feste Liste ist auf der naechsten
+# Fassung unvollstaendig, und unvollstaendig heisst hier: ein offener Kanal.
+vorher_datei agent/src/Pg/Shielding.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Shielding.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        foreach ($channels as $channel) {', "        foreach (array_merge($channels, ['pg_stat_replication']) as $channel) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Shielding.php "Kanalliste verdrahtet" &&
+pruefe "Kanalliste verdrahtet" \
+  PgShieldingTest::test_the_channels_are_asked_for_and_not_written_down failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgShieldingTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

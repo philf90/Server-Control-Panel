@@ -14,6 +14,9 @@ interface Version {
 
   // `null` heisst „unbekannt" (kein Agent), `[]` heisst „nichts fehlt".
   missing: string[] | null
+
+  // Die andere Hälfte derselben Antwort: was da ist.
+  present: string[] | null
 }
 
 const props = defineProps<{
@@ -141,7 +144,20 @@ function zustand(v: Version): string {
             <td data-column="Version" class="ident name">{{ v.version }}</td>
             <td data-column="Ausgabe" class="ident quiet">{{ v.release ?? '—' }}</td>
 
-            <td data-column="Zustand">
+            <!--
+              **`multiline`, sobald mehr als die Marke darin steht.** Die
+              Klasse gibt es seit dem Optik-Rework, und ihr Kommentar in
+              app.css beschreibt genau diesen Fehler: *Beschriftung und Inhalt
+              nebeneinander lassen den Rest an den rechten Rand rutschen und
+              dort umbrechen; sie gehören untereinander.* Ohne sie standen bei
+              390px „fehlt" und „vorhanden" nebeneinander in je einer schmalen
+              Spalte, und `bcmath` brach als `bcma` / `th` — eine Kennung
+              mitten im Wort.
+
+              Bedingt und nicht immer: Eine Zelle mit nur einer Marke ist keine
+              mehrzeilige.
+            -->
+            <td data-column="Zustand" :class="{ multiline: !!(v.missing?.length || v.present?.length) }">
               <Badge :kind="rang(v)">{{ zustand(v) }}</Badge>
 
               <!--
@@ -152,6 +168,17 @@ function zustand(v: Version): string {
               -->
               <p v-if="v.installed && v.missing && v.missing.length > 0" class="quiet">
                 fehlt: <span class="ident">{{ v.missing.join(', ') }}</span>
+              </p>
+
+              <!--
+                **Und was da ist, steht daneben.** „Fehlt: pgsql" verschwindet,
+                sobald es getan ist — und danach sagte diese Spalte nichts mehr
+                darüber, was die Version kann. Eine Zustandsspalte, die nur den
+                Mangel kennt, ist bei jedem gesunden Zustand leer; der
+                Betreiber hat es am 9. August 2026 auf dem Server verlangt.
+              -->
+              <p v-if="v.installed && v.present && v.present.length > 0" class="quiet">
+                vorhanden: <span class="ident">{{ v.present.join(', ') }}</span>
               </p>
             </td>
 
@@ -168,34 +195,42 @@ function zustand(v: Version): string {
                 **Und „Ergänzen" steht vor „Entfernen".** Eine Version, der
                 etwas fehlt, ist installiert — der Knopf, der sie vollständig
                 macht, gehört an dieselbe Stelle wie der, der sie geholt hätte.
+
+                **Die Reihe kam mit dem zweiten Knopf.** Bis P5b trug jede
+                Zeile genau einen, und der Abstand war nie eine Frage; mit
+                „Ergänzen" neben „Entfernen" klebten sie aneinander.
+                `.button-row` ist die Antwort, die dieses Repo dafür schon hat
+                — dieselbe wie in `Customers/Index.vue`.
               -->
-              <button
-                v-if="v.installed && v.missing && v.missing.length > 0"
-                type="button"
-                class="button small"
-                :disabled="läuft !== null"
-                @click="ergaenzen(v)"
-              >
-                {{ läuft === v.version ? 'wird angelegt …' : 'Ergänzen' }}
-              </button>
-              <button
-                v-if="!v.installed"
-                type="button"
-                class="button small"
-                :disabled="läuft !== null"
-                @click="installieren(v)"
-              >
-                {{ läuft === v.version ? 'wird angelegt …' : 'Installieren' }}
-              </button>
-              <button
-                v-else
-                type="button"
-                class="button small danger"
-                :disabled="läuft !== null"
-                @click="entfernen(v)"
-              >
-                {{ läuft === v.version ? 'wird angelegt …' : 'Entfernen' }}
-              </button>
+              <div class="button-row">
+                <button
+                  v-if="v.installed && v.missing && v.missing.length > 0"
+                  type="button"
+                  class="button small"
+                  :disabled="läuft !== null"
+                  @click="ergaenzen(v)"
+                >
+                  {{ läuft === v.version ? 'wird angelegt …' : 'Ergänzen' }}
+                </button>
+                <button
+                  v-if="!v.installed"
+                  type="button"
+                  class="button small"
+                  :disabled="läuft !== null"
+                  @click="installieren(v)"
+                >
+                  {{ läuft === v.version ? 'wird angelegt …' : 'Installieren' }}
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="button small danger"
+                  :disabled="läuft !== null"
+                  @click="entfernen(v)"
+                >
+                  {{ läuft === v.version ? 'wird angelegt …' : 'Entfernen' }}
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>

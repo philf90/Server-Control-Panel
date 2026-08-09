@@ -86,15 +86,38 @@ final class PhpSettingsController extends Controller
                 return $version;
             }
 
-            $version['missing'] = array_values(array_map(
-                static fn (mixed $package): string => is_string($package)
-                    ? (string) preg_replace('/^php\d+\.\d+-/', '', $package)
-                    : '?',
-                $version['missing'],
-            ));
+            $version['missing'] = self::suffixes($version['missing']);
+
+            if (is_array($version['present'] ?? null)) {
+                $version['present'] = self::suffixes($version['present']);
+            }
 
             return $version;
         }, $versions));
+    }
+
+    /**
+     * Aus Paketnamen werden Endungen — sortiert, damit sie sich lesen lassen.
+     *
+     * **Alphabetisch und nicht in der Reihenfolge des Katalogs.** Bei einem
+     * fehlenden Paket ist das gleichgültig; bei zwölf vorhandenen ist eine
+     * Liste ohne Ordnung eine, in der man nachzählt.
+     *
+     * @param  array<int, mixed>  $packages
+     * @return list<string>
+     */
+    private static function suffixes(array $packages): array
+    {
+        $namen = array_map(
+            static fn (mixed $package): string => is_string($package)
+                ? (string) preg_replace('/^php\d+\.\d+-/', '', $package)
+                : '?',
+            $packages,
+        );
+
+        sort($namen);
+
+        return array_values($namen);
     }
 
     /**
@@ -123,6 +146,7 @@ final class PhpSettingsController extends Controller
             // — und eine leere Liste hiesse „nichts fehlt". Das ist derselbe
             // Unterschied, den `live` für die ganze Seite macht.
             'missing' => null,
+            'present' => null,
         ], PhpVersions::CATALOG);
     }
 

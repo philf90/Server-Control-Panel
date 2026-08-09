@@ -6816,3 +6816,58 @@ Agent-Aufrufe statt einem, mit dem Grund im Kommentar.
 (18:48:59 bis 18:49:01) und ohne eine Zeile `apt-get` — der Weg über
 `pg_ctlcluster` also, nicht über die Paketverwaltung. Danach war der Cluster
 wieder `online`.
+
+### Punkt 7 auf `cloudsrv24` — der Neustart ist belegt, und zwei Befunde des Betreibers
+
+**Die letzte unbelegte Behauptung ist erledigt.** PID vor dem Ergänzen
+**66286**, danach **180618** — der Handler ist ein anderer Prozess, und
+`php-fpm8.4 -m` führt `bcmath`, `gd`, `intl`, `pdo_pgsql`, `pgsql`, `soap`,
+`zip`. `dpkg-query` meldet alle sechs als `installed`, Rückgabewert **0** statt
+1. Der Vorgang lief in sechs Sekunden.
+
+**Was der Lauf nicht beweist, gehört dazu:** In der Ausgabe steht auch
+*„Processing triggers for php8.4-fpm"*. Der dpkg-Trigger hat also ebenfalls
+gefeuert, und welcher von beiden die PID gewechselt hat, sagt dieser Lauf
+nicht. Belegt ist die Eigenschaft, auf die es ankommt — **nach der Operation
+hat der laufende Handler die Erweiterungen** —, und der ausdrückliche Neustart
+bleibt, weil „der Trigger tut es meistens" kein Zustand ist.
+
+**Und ein Nebenbefund, der die Vermutung von vorhin bestätigt:** Auf dem Server
+liegt auch PHP 8.3, und dort fehlte **nur** `pgsql`. 8.3 ist also durch
+`php.version.install` gegangen und hat alles bekommen; 8.4 kam als Abhängigkeit
+des Panels und hatte sechs Lücken. Dieselbe Operation, zwei Wege auf den
+Server, zwei sehr verschiedene Ergebnisse — und sichtbar wurde der Unterschied
+erst, als jemand nach dem Paketsatz fragte statt nach dem Handler.
+
+### Zwei Verbesserungen aus derselben Runde
+
+**1. Zwei Knöpfe ohne Abstand.** Bis P5b trug jede Zeile der PHP-Seite genau
+einen Knopf; mit „Ergänzen" neben „Entfernen" klebten sie aneinander.
+`.button-row` ist die Antwort, die dieses Repo dafür längst hat — dieselbe wie
+in `Customers/Index.vue`. Dazu eine Regel in `app.css`: `td.right` setzt
+`text-align`, und das erreicht ein Flexkind nicht, also rutschte die Reihe nach
+links. **Gefunden hat es der Betreiber am Server, nicht die Aufnahme** — im
+nachgebauten Markup standen die beiden Knöpfe genauso eng und sahen normal aus.
+
+**2. Die Zustandsspalte kannte nur den Mangel.** „Fehlt: pgsql" verschwindet,
+sobald es getan ist, und danach stand nirgends mehr, was eine Version
+überhaupt kann. `php.versions` meldet jetzt beide Hälften — aus **einem**
+dpkg-Aufruf und derselben Auswertung, denn zweimal zu fragen hiesse, zwei
+Antworten zu bekommen, die auseinandergehen können. Die Oberfläche zeigt
+„fehlt:" und „vorhanden:", beide alphabetisch: Bei einem Namen ist die
+Reihenfolge gleichgültig, bei zwölf ist eine Liste ohne Ordnung eine, in der
+man nachzählt.
+
+**Und dabei fiel der dritte Fehler auf, diesmal in der Aufnahme.** Bei 390px
+standen „fehlt" und „vorhanden" **nebeneinander** in je einer schmalen Spalte,
+und `bcmath` brach als `bcma` / `th` — eine Kennung mitten im Wort. Die Klasse
+dagegen gibt es seit dem Optik-Rework, und ihr Kommentar in `app.css`
+beschreibt den Fall wörtlich: *Beschriftung und Inhalt nebeneinander lassen den
+Rest an den rechten Rand rutschen und dort umbrechen; sie gehören
+untereinander.* Die Zustandszelle trägt jetzt `multiline`, sobald mehr als die
+Marke darin steht.
+
+*Dreimal in Folge lag die Lösung schon im Repo* — `.button-row`, `.multiline`,
+und beim Meldungsbalken der Satz aus `Settings/Php.vue`. Das ist kein Zufall,
+sondern die Kehrseite davon, einen Baustein allein zu bauen: Wer nur seine
+eigene Datei ansieht, findet die Regel nicht, die nebenan schon steht.

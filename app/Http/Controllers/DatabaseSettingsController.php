@@ -75,16 +75,16 @@ final class DatabaseSettingsController extends Controller
      * und niemandem bricht die Verbindung weg — deshalb darf das ein Knopf
      * sein (Entscheidung 10).
      */
-    public const POSTGRES_ON = 'sudo srvpanel db --postgres=on';
+    public const POSTGRES_ON = 'sudo srvpanel db --postgresql=on';
 
     /** Und der, der sie wieder schliesst. */
-    public const POSTGRES_OFF = 'sudo srvpanel db --postgres=off';
+    public const POSTGRES_OFF = 'sudo srvpanel db --postgresql=off';
 
     public function show(Client $agent, Settings $settings): Response
     {
         return Inertia::render('Settings/Database', [
             'server' => $this->server($agent),
-            'postgres' => $this->postgres($agent, $settings),
+            'postgresql' => $this->postgres($agent, $settings),
 
             /*
              * **Wie viele Zugänge auf eine fremde Adresse lauten.** Die Zahl
@@ -103,8 +103,8 @@ final class DatabaseSettingsController extends Controller
             'commands' => [
                 'on' => self::COMMAND_ON,
                 'off' => self::COMMAND_OFF,
-                'postgres_on' => self::POSTGRES_ON,
-                'postgres_off' => self::POSTGRES_OFF,
+                'postgresql_on' => self::POSTGRES_ON,
+                'postgresql_off' => self::POSTGRES_OFF,
             ],
         ]);
     }

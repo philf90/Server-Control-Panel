@@ -435,7 +435,7 @@ statt geglaubt, die Vorgabe der Distribution entschärft, Bestand erkannt statt
    `pg_lsclusters` **nachgelesen**.
 3. **Der Betreiberschalter.** Ein zweiter Datenbankdienst ist eine serverweite
    Änderung; `docs/36 §19` Entscheidung 5 hat für diese Sorte die Form schon
-   festgelegt. Hier: `srvpanel db --postgres=on`. Nie ein Kundenhäkchen.
+   festgelegt. Hier: `srvpanel db --postgresql=on`. Nie ein Kundenhäkchen.
 
 ### Ein vorhandener Cluster ist Bestand
 
@@ -1104,7 +1104,7 @@ nicht wo sie stehen soll. Sonst meldet er Rot, sobald jemand aufräumt.
 # (docs/35). A und B stehen unten für ihre Präfixe aus §4.
 
 # 0  DER SERVER
-#    srvpanel db --postgres=on, dann Einstellungen → Datenbankserver.
+#    srvpanel db --postgresql=on, dann Einstellungen → Datenbankserver.
 #    erwartet: Fassung, Cluster und Port stehen da.
 #    Gegenprobe, falls schon ein Cluster lief: Er ist unverändert —
 #      md5sum /etc/postgresql/*/main/pg_hba.conf   vorher und nachher gleich.
@@ -1341,7 +1341,7 @@ vorgelegt:
    Fühler dafür, ob PostgreSQL überhaupt installiert ist.
 
 10. **Installiert wird über einen Knopf im Panel**, nicht über
-    `srvpanel db --postgres=on`. Der Schalter schaltet die Fläche frei, die
+    `srvpanel db --postgresql=on`. Der Schalter schaltet die Fläche frei, die
     Installation ist eine eigene Handlung mit eigenem Vorgang.
 
 **Nicht vorgelegt, weil entscheidbar — und deshalb hier zum Widerspruch:**

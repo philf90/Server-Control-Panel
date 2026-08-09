@@ -6399,7 +6399,7 @@ demselben Beitrag eingetragen, der ihr einen Aufrufer gibt.*
 
 `pg.server.info` und `pg.server.install` stehen in der Registratur,
 `Task::PostgresInstall` im Aufgabenkatalog, der Knopf in „Einstellungen →
-Datenbankserver", `srvpanel db --postgres=on|off` auf der Kommandozeile.
+Datenbankserver", `srvpanel db --postgresql=on|off` auf der Kommandozeile.
 
 **Zwei Dinge, und sie sind ausdrücklich getrennt.** Der Schalter sagt, ob das
 Panel PostgreSQL *anbietet*; der Knopf *installiert*. Das ist keine Symmetrie
@@ -6478,7 +6478,7 @@ eigenen HTML-Datei, gerendert im vorinstallierten Chromium bei 390px,
 390px und 1280px — Überlauf überall 0.
 
 **Der zweite Fund derselben Runde war ein Befehl im Fliesstext.** Bei 390px
-brach `sudo srvpanel db --postgres=off` mitten in der Option um, und `sudo -u
+brach `sudo srvpanel db --postgresql=off` mitten in der Option um, und `sudo -u
 postgres psql -c "CREATE ROLE root SUPERUSER LOGIN"` mitten im Anführungszeichen
 — beides in laufenden Sätzen, wo niemand mehr sieht, wo die Zeile anfängt und
 wo sie aufhört. Beide stehen jetzt in einer Bezeichnungstabelle, jeder in
@@ -6599,3 +6599,48 @@ Marke als `php8.2-` / `pgsql` über zwei Zeilen. Die Oberfläche zeigt jetzt den
 Suffix, denn die Versionsnummer steht in derselben Zeile schon da; der Agent
 meldet weiter Paketnamen, weil das ist, was `apt-get` bekommt und was in sein
 Protokoll gehört.
+
+### Lauf 451 und 452 — zwei Wächter, und beide hatten in der Sache recht
+
+**1556 grün, zwei rot, in beiden Läufen dieselben zwei.** Keiner davon war ein
+Fehlalarm, und keiner liess sich mit einem Eintrag in einer Ausnahmeliste
+erledigen — das war jeweils der erste Reflex und jeweils die schlechtere Antwort.
+
+**`DatabaseEngineTest` fand `'postgres'` an drei Stellen**, an denen es nicht der
+Wert der Aufzählung war: als Name der Kommandozeilenoption (`--postgres`) und als
+Schlüssel der Einstellung. Die naheliegende Antwort wären zwei weitere Einträge
+in `ALLOWED` gewesen — und die hätten den Wächter über zwei Dateien stumpf
+gemacht, in denen ab Schritt 4 die echte Verzweigung zwischen `db.*` und `pg.*`
+steht.
+
+Umbenannt wurde stattdessen: Der Schalter heisst `srvpanel db --postgresql=on`,
+der Einstellungsschlüssel `postgresql`, die Ablage im Inertia-Payload ebenso.
+**Das ist keine Umgehung des Tests, sondern die Auflösung einer Zweideutigkeit,
+die er richtig gerochen hat.** Ein Optionsname und ein Einstellungsschlüssel sind
+keine Werte der Aufzählung; sie so zu schreiben, als wären sie es, hätte
+irgendwann jemanden dazu gebracht, sie aneinander zu koppeln — und dann benennt
+eine Änderung an `DatabaseEngine` still eine Kommandozeilenoption und einen
+gespeicherten Schlüssel um. In `app/` steht `'postgres'` jetzt an genau einer
+Stelle: in der Aufzählung selbst.
+
+**`WordChoiceTest` fand „Fläche"**, und `docs/19 §3` führt das Wort als
+verbraucht. Es stand als „Fläche freischalten" und „Fläche schliessen" in der
+neuen Bezeichnungstabelle. Auch hier war die Ersetzung besser als die Ausnahme:
+Die Zeilen heissen jetzt „Anbieten einschalten" und „Anbieten abschalten" — und
+damit genauso wie die Zeile darüber, die „Wird angeboten" heisst. Der Wächter hat
+nicht nur ein Wort gefunden, sondern eine Beschriftung, die zu ihrer eigenen
+Tabelle nicht passte.
+
+**Beide waren lokal auffindbar, und beide sind es nicht gewesen.** In diesem
+Container laufen weder PHPUnit noch `vendor/`; was hier fährt, sind
+handgeschriebene Attrappen für einzelne Wächter — und für diese beiden gab es
+keine. Nachgeholt wurde es als Wegwerfskript im Scratchpad: derselbe Ausdruck,
+dieselben Verzeichnisse, beide jetzt ohne Fundstelle. *Ein Wächter, den man vor
+dem Commit nicht fragen kann, wird zu einer Runde CI* — die Antwort darauf ist
+nicht, weniger Wächter zu bauen, sondern die Attrappe mitzuschreiben.
+
+**Nebenbei, und ohne Zutun:** Der Lauf 451 hatte einen dritten roten Job,
+„Installation auf Ubuntu 22.04", gescheitert beim Bereitstellen von nfpm nach
+null Sekunden. In 452 lief derselbe Job durch. Ein Download, der einmal nicht
+kam — kein Befund, und hier festgehalten, damit ihn beim nächsten Mal niemand für
+einen hält.

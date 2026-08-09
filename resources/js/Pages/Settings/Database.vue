@@ -26,7 +26,7 @@ const props = defineProps<{
     bind_address: string | null
     remote: boolean
   }
-  postgres: {
+  postgresql: {
     offered: boolean
     reachable: boolean
     error: string | null
@@ -45,7 +45,7 @@ const props = defineProps<{
     total: number
     hosts: { host: string; count: number }[]
   }
-  commands: { on: string; off: string; postgres_on: string; postgres_off: string }
+  commands: { on: string; off: string; postgresql_on: string; postgresql_off: string }
 }>()
 
 /*
@@ -66,11 +66,11 @@ const zustandstexte: Record<string, string> = {
   ready: 'bereit',
 }
 
-const pgZustand = computed(() => zustandstexte[props.postgres.state] ?? 'unbekannt')
+const pgZustand = computed(() => zustandstexte[props.postgresql.state] ?? 'unbekannt')
 
 const pgMarke = computed<'ok' | 'warn' | 'neutral'>(() => {
-  if (props.postgres.state === 'ready') return 'ok'
-  if (props.postgres.state === 'absent') return 'neutral'
+  if (props.postgresql.state === 'ready') return 'ok'
+  if (props.postgresql.state === 'absent') return 'neutral'
 
   return 'warn'
 })
@@ -212,8 +212,8 @@ const bezeichnung = computed(() => props.server.flavour_label)
         title="PostgreSQL"
         note="Ein zweites Datenbanksystem, unabhängig vom oben genannten. Kunden verbinden sich darauf über 127.0.0.1 und nicht über den Socket."
       >
-        <p v-if="props.postgres.error" class="notice warn">
-          <span>Der Agent antwortet nicht: {{ props.postgres.error }}</span>
+        <p v-if="props.postgresql.error" class="notice warn">
+          <span>Der Agent antwortet nicht: {{ props.postgresql.error }}</span>
         </p>
 
         <!--
@@ -225,7 +225,7 @@ const bezeichnung = computed(() => props.server.flavour_label)
           Wertzelle bricht sie auch, aber sie hat die Zeile für sich. Dieselbe
           Entscheidung wie im Bereich „Umschalten" darunter.
         -->
-        <p v-else-if="props.postgres.state === 'not_handed_over'" class="notice warn">
+        <p v-else-if="props.postgresql.state === 'not_handed_over'" class="notice warn">
           <span>
             PostgreSQL läuft, aber die Rolle, unter der sich das Panel anmeldet,
             gibt es noch nicht. Sie wird einmal auf dem Server angelegt — der
@@ -234,10 +234,10 @@ const bezeichnung = computed(() => props.server.flavour_label)
         </p>
 
         <p
-          v-else-if="props.postgres.reason && props.postgres.state !== 'ready'"
+          v-else-if="props.postgresql.reason && props.postgresql.state !== 'ready'"
           class="notice warn"
         >
-          <span>{{ props.postgres.reason }}</span>
+          <span>{{ props.postgresql.reason }}</span>
         </p>
 
         <table class="pairs">
@@ -250,27 +250,27 @@ const bezeichnung = computed(() => props.server.flavour_label)
             </tr>
             <tr>
               <td class="quiet">Version</td>
-              <td class="right ident">{{ props.postgres.version ?? '—' }}</td>
+              <td class="right ident">{{ props.postgresql.version ?? '—' }}</td>
             </tr>
             <tr>
               <td class="quiet">Cluster</td>
-              <td class="right ident">{{ props.postgres.cluster ?? '—' }}</td>
+              <td class="right ident">{{ props.postgresql.cluster ?? '—' }}</td>
             </tr>
             <tr>
               <td class="quiet">Port</td>
-              <td class="right ident">{{ props.postgres.port ?? '—' }}</td>
+              <td class="right ident">{{ props.postgresql.port ?? '—' }}</td>
             </tr>
             <tr>
               <td class="quiet">Wird angeboten</td>
               <td class="right">
-                <Badge :kind="props.postgres.offered ? 'ok' : 'neutral'">
-                  {{ props.postgres.offered ? 'ja' : 'nein' }}
+                <Badge :kind="props.postgresql.offered ? 'ok' : 'neutral'">
+                  {{ props.postgresql.offered ? 'ja' : 'nein' }}
                 </Badge>
               </td>
             </tr>
             <tr>
               <td class="quiet">Datenbanken</td>
-              <td class="right">{{ props.postgres.databases }}</td>
+              <td class="right">{{ props.postgresql.databases }}</td>
             </tr>
           </tbody>
         </table>
@@ -281,9 +281,9 @@ const bezeichnung = computed(() => props.server.flavour_label)
           dort durchgereicht — hier wird nichts verglichen, sonst gäbe es die
           Regel zweimal.
         -->
-        <div v-if="props.postgres.can_install" class="button-row">
+        <div v-if="props.postgresql.can_install" class="button-row">
           <button type="button" class="button small" :disabled="installiert" @click="installiere">
-            {{ installiert ? 'wird angelegt …' : props.postgres.state === 'stopped' ? 'Starten' : 'Installieren' }}
+            {{ installiert ? 'wird angelegt …' : props.postgresql.state === 'stopped' ? 'Starten' : 'Installieren' }}
           </button>
         </div>
 
@@ -295,17 +295,17 @@ const bezeichnung = computed(() => props.server.flavour_label)
 
         <table class="pairs">
           <tbody>
-            <tr v-if="!props.postgres.handed_over && props.postgres.reachable">
+            <tr v-if="!props.postgresql.handed_over && props.postgresql.reachable">
               <td class="quiet">Rolle anlegen</td>
-              <td class="right ident">{{ props.postgres.handover }}</td>
+              <td class="right ident">{{ props.postgresql.handover }}</td>
             </tr>
             <tr>
-              <td class="quiet">Fläche freischalten</td>
-              <td class="right ident">{{ props.commands.postgres_on }}</td>
+              <td class="quiet">Anbieten einschalten</td>
+              <td class="right ident">{{ props.commands.postgresql_on }}</td>
             </tr>
             <tr>
-              <td class="quiet">Fläche schliessen</td>
-              <td class="right ident">{{ props.commands.postgres_off }}</td>
+              <td class="quiet">Anbieten abschalten</td>
+              <td class="right ident">{{ props.commands.postgresql_off }}</td>
             </tr>
           </tbody>
         </table>

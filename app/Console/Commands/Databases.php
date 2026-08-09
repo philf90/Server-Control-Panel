@@ -53,7 +53,7 @@ final class Databases extends Command
         {--dry-run : Mit --prune: nur zeigen, was entfernt würde}
         {--remote= : on oder off — ob der Datenbankserver auf einer erreichbaren Adresse horcht}
         {--bind=0.0.0.0 : Mit --remote=on: 0.0.0.0 für IPv4 oder :: für beide Stapel}
-        {--postgres= : on oder off — ob das Panel PostgreSQL-Datenbanken anbietet}';
+        {--postgresql= : on oder off — ob das Panel PostgreSQL-Datenbanken anbietet}';
 
     protected $description = 'Zeigt den Datenbankserver und räumt auf, was ein Rückbau liegenliess';
 
@@ -67,7 +67,7 @@ final class Databases extends Command
             return $this->remote($agent, $tenancy);
         }
 
-        if ($this->option('postgres') !== null) {
+        if ($this->option('postgresql') !== null) {
             return $this->postgres($agent, $settings, $tenancy);
         }
 
@@ -558,10 +558,10 @@ final class Databases extends Command
      */
     private function postgres(Client $agent, Settings $settings, Tenancy $tenancy): int
     {
-        $mode = strtolower(trim((string) $this->option('postgres')));
+        $mode = strtolower(trim((string) $this->option('postgresql')));
 
         if (! in_array($mode, ['on', 'off'], true)) {
-            $this->error('--postgres erwartet on oder off.');
+            $this->error('--postgresql erwartet on oder off.');
 
             return self::FAILURE;
         }

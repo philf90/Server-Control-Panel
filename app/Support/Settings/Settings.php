@@ -57,7 +57,7 @@ final class Settings
      * Kundendatenbank landete in einem Cluster, den niemand dafür vorgesehen
      * hat.
      */
-    private const POSTGRES = 'postgres';
+    private const POSTGRES = 'postgresql';
 
     private ?MailSettings $mail = null;
 
@@ -143,7 +143,7 @@ final class Settings
     }
 
     /**
-     * Den Schalter umlegen — aus `srvpanel db --postgres=on|off`.
+     * Den Schalter umlegen — aus `srvpanel db --postgresql=on|off`.
      *
      * Wann, steht mit dabei. Nicht aus Ordnungsliebe: Wer auf einer stillen
      * Kundenfläche steht und wissen will, seit wann sie still ist, hat sonst

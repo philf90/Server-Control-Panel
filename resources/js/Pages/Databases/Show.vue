@@ -235,7 +235,7 @@ function size(): string {
         Zu dieser Datenbank gibt es kein Abonnement mehr — sie ist der Rest
         eines Rückbaus, der nicht durchgelaufen ist. Das Schema liegt weiter auf
         dem Server. Aufgeräumt wird sie über
-        <span class="ident">srvpanel db prune</span>.
+        <span class="ident">srvpanel db --prune</span>.
       </span>
     </p>
 

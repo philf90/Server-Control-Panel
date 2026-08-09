@@ -5616,6 +5616,50 @@ ganzen Methodenrumpf und blieb grün, als sie aus der Erfolgsmeldung
 verschwanden. Sie stehen weiter in der Warnung darunter, die aber nur im
 Ausnahmefall kommt.
 
+**Der Fernzugriff hatte im Panel keinen Ort, an dem sein Zustand steht.**
+`docs/36 §19` legt den Schalter auf `srvpanel db --remote=on` und begründet das
+damit, dass eine serverweite Horchadresse keine Folge eines Kundenhäkchens sein
+darf — das ist eine Regel darüber, *wer schalten* darf, und war nie eine
+darüber, *wer nachsehen* darf. Wer im Panel wissen wollte, ob der Server nach
+aussen horcht, musste sich auf den Server einloggen; und wer auf einer
+Datenbankseite las „nur lokal erreichbar", stand vor einem Satz, der einen
+Befehl nennt, den er nicht ausführen darf. Neu ist **„Einstellungen →
+Datenbankserver"** (`Database.vue`, hinter `can:manage-settings`): Art und
+Version, Horchadresse, Fernzugriff an/aus, wie viele Zugänge auf eine fremde
+Adresse lauten — nach Adresse aufgeschlüsselt —, und die beiden Befehle zum
+Abtippen. **Kein Schalter, und das ist die Entscheidung und nicht ihre
+Auslassung:** Ein Umschalten startet den Datenbankserver neu, auf dem dieses
+Panel selbst arbeitet — die Anfrage verlöre ihre Verbindung mitten im Lauf, der
+Arbeiter ebenso, und übrig bliebe ein Vorgang, der für immer auf „läuft" steht,
+ausgerechnet der, an dem man ablesen will, ob es geklappt hat. Auf der
+Kommandozeile gibt es das Problem nicht, weil `srvpanel db --remote` nach dem
+Neustart selbst nachliest. `RemoteAccessTest` verlangt deshalb, dass unter
+`/settings/database` keine schreibende Route liegt — wer dort doch einen Knopf
+will, macht ihn rot und liest dabei den Grund. Der Zustand, der die Seite trägt,
+ist der fünfte: Zugänge für fremde Adressen an einem Server, der nur lokal
+horcht. Anlegen lassen sie sich so nicht, aber sie entstehen, wenn der
+Fernzugriff *nachträglich* abgeschaltet wird — danach sehen sie aus wie jeder
+andere Zugang und funktionieren nicht.
+
+**Und dabei fiel ein ausgelieferter Fehler auf, den kein Test fangen konnte.**
+Auf der Datenbankseite stand seit P5 in der Meldung zu einer verwaisten
+Datenbank: „Aufgeräumt wird sie über `srvpanel db prune`." Das Kommando nimmt
+kein Argument; wer die Zeile abtippt, bekommt „Too many arguments" und sonst
+nichts. Der Befehl heisst `srvpanel db --prune` und steht drei Zeilen entfernt
+im Quelltext des Kommandos richtig. **Das ist wortwörtlich das Muster, an dem
+dieses Projekt sechsmal hängengeblieben ist** — eine Zeichenkette, die auf etwas
+verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug prüft —,
+diesmal im Text, den ein Betreiber abtippt. `CommandReachTest` prüft ihn in zwei
+Richtungen, weil eine nicht genügt hätte: Jede Option neben einem
+`srvpanel`-Befehl muss in der `$signature` des Kommandos stehen und das
+Unterkommando im `case`-Zweig des Aufrufers — und ein Befehl, den die Oberfläche
+in einer Kennung abdruckt, muss **ganz** aus Optionen bestehen. Nur die zweite
+fängt `prune` ohne Striche: Das ist kein Fehler *in* einer Option, sondern ein
+Wort, das nach einer aussieht. Sein Bruch ist zugleich der Anlass, aus dem
+`routes/` jetzt in beiden Listen von `tests/waechter-brechen.sh` steht — vorher
+hätte `wiederherstellen` die Datei nicht zurückgeholt, und die Probe wäre eine
+Änderung gewesen.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

@@ -2789,6 +2789,101 @@ geworden; deshalb prüft das Panel die Magic Bytes selbst, bevor eine Zeile
 entsteht. Der Weg dahin ist ein `afterFailure` am Vertrag — eigener Beitrag,
 weil er jeden Lebenslauf betrifft und nicht nur Datenbanken.
 
+### 22.3v Der Zustand hatte im Panel keinen Ort — und ein abgedruckter Befehl, den es nicht gab
+
+**Die Frage des Betreibers, am 9. August 2026:** *„Gibt es das zentrale
+Einschalten des Fernzugriffs nur als Agent-Befehl `sudo srvpanel db
+--remote=on`? Ich dachte, das wird auch als zentraler Schalter für Admins im
+Panel abgebildet."*
+
+Die Antwort auf die erste Hälfte steht in §19, Entscheidung 5: Der Schalter ist
+`srvpanel db --remote=on`, und das Häkchen im Panel meint nur das Wirtsfeld des
+einzelnen Zugangs. Gebaut ist also, was der Plan sagt.
+
+**Die Erwartung war trotzdem begründet, und der Grund ist lehrreich.**
+„Serverweit ⇒ nur Kommandozeile" ist in diesem System keine Regel:
+`Settings/Php.vue` installiert PHP-Versionen über den Agenten, aus dem Panel
+heraus, und das ist mindestens so serverweit. Der Unterschied ist nicht die
+Reichweite, sondern der Neustart:
+
+> `db.remote.access` startet den Datenbankserver neu. Auf ihm arbeitet auch das
+> Panel. Die Anfrage, die den Vorgang anstösst, verliert ihre Verbindung mitten
+> im Lauf; der Arbeiter, der das Ergebnis zurückschreiben soll, ebenfalls. Übrig
+> bliebe ein Vorgang, der für immer auf „läuft" steht — **ausgerechnet der, an
+> dem man ablesen will, ob es geklappt hat.**
+
+Auf der Kommandozeile gibt es das Problem nicht: Dort liest `srvpanel db
+--remote` nach dem Neustart selbst nach und scheitert, wenn der Server etwas
+anderes meldet als bestellt (§22.3t).
+
+**Was der Plan nicht gesagt hat, ist der eigentliche Fund.** §19 legt fest, *wo
+geschaltet* wird, und sagt nichts darüber, *wo der Zustand steht* — und er stand
+nirgends. Wer im Panel wissen wollte, ob der Server nach aussen horcht, musste
+sich auf den Server einloggen. Und wer auf einer Datenbankseite las „nur lokal
+erreichbar", hatte keinen Ort, an dem er das nachprüfen oder ändern konnte: Der
+Satz nannte den Befehl, aber die Seite gehört dem Kunden, und der darf ihn nicht
+ausführen. *Eine Regel darüber, wer etwas tun darf, ist keine Regel darüber, wer
+es sehen darf.*
+
+Gebaut ist deshalb **„Einstellungen → Datenbankserver"**, hinter
+`can:manage-settings`, mit vier Angaben und keinem Knopf: Art und Version,
+Horchadresse, Fernzugriff an/aus, und wie viele Zugänge auf eine fremde Adresse
+lauten — nach Adresse aufgeschlüsselt. Dazu die beiden Befehle zum Abtippen.
+
+**Der Zustand, der die Seite trägt**, ist der fünfte: Zugänge für fremde
+Adressen an einem Server, der nur lokal horcht. Anlegen lassen sie sich in
+diesem Zustand nicht (§22.3t), aber sie entstehen — wenn der Fernzugriff
+*nachträglich* abgeschaltet wird. Danach sehen sie im Panel aus wie jeder andere
+Zugang und funktionieren nicht. Diese Zahl war vorher nirgends zu sehen.
+
+**Und beim Bauen fiel ein ausgelieferter Fehler auf, den kein Test hatte fangen
+können.** Auf `Databases/Show.vue` stand seit P5, in der Meldung zu einer
+verwaisten Datenbank:
+
+    Aufgeräumt wird sie über srvpanel db prune.
+
+`srvpanel:db` nimmt kein Argument. Wer die Zeile abtippt, bekommt
+`Too many arguments` und sonst nichts; der Befehl heisst `srvpanel db --prune`
+und steht drei Zeilen entfernt im Quelltext des Kommandos richtig. **Das ist
+wortwörtlich das Muster aus CLAUDE.md** — eine Zeichenkette, die auf etwas
+verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug prüft — und
+diesmal im Text, den ein Betreiber abtippt.
+
+Der Wächter dazu ist `CommandReachTest`, und er hat zwei Richtungen, weil eine
+nicht genügt hätte:
+
+1. **Jede Option neben einem `srvpanel`-Befehl gibt es.** Gelesen wird die
+   `$signature` des Kommandos und der `case`-Zweig in `packaging/bin/srvpanel` —
+   nicht eine Liste im Test.
+2. **Ein Befehl, den die Oberfläche abdruckt, besteht nur aus Optionen.** Genau
+   diese Richtung fängt `prune` ohne Striche: Es ist kein Fehler *in* einer
+   Option, sondern ein Wort, das nach einer aussieht. Geprüft wird deshalb der
+   ganze Inhalt jeder `class="ident"` — in „Kontor" die einzige Auszeichnung für
+   „hier steht etwas zum Abtippen".
+
+Über `app/` und `resources/js/` findet er heute 18 Befehle und 33 Kennungen; die
+Untergrenzen zählen beide Verzeichnisse zusammen, damit ein Befehl umziehen darf,
+ohne den Wächter rot zu machen.
+
+**Dazu ein zweiter Wächter, der eine Entscheidung festhält statt einer
+Eigenschaft:** `RemoteAccessTest::test_the_settings_page_only_reads` verlangt,
+dass unter `/settings/database` keine schreibende Route liegt. Wer dort einmal
+doch einen Schalter will, macht ihn rot und liest dabei den Grund. Sein Bruch ist
+der Anlass, aus dem `routes/` jetzt in beiden Listen von
+`tests/waechter-brechen.sh` steht — vorher hätte `wiederherstellen` die Datei
+nicht zurückgeholt, und die Probe wäre eine Änderung gewesen.
+
+**Die Form ist gemessen und nicht geschätzt**, mit dem Weg aus §22.5a (gebautes
+Stylesheet, eigenes Markup, echte 390px im `<iframe>`): Seitenüberlauf 0 bei
+390, 1024, 1440 und 1600px, in beiden Themes, und keine Zelle ausserhalb ihres
+Bereichs. Der Bereich „Umschalten" trägt **kein** `full`, und auch das ist eine
+Messung: Ein Befehl, der mitten in der Option umbricht, ist keine Zeile zum
+Abtippen mehr — in einer Bezeichnungstabelle bricht `.ident` ausdrücklich um,
+statt den Nachbarn zu überschreiben. Sein schmalster Zustand auf dem
+Schreibtisch ist `--bereich-min`, also 400px; bei 1600px Fensterbreite steht er
+genau dort. Gemessen: Bereich 404px, Wertzelle 295px, der Befehl 236px — eine
+Zeile, 59px Luft. Bei echten 390px sind es 251px Zelle zu 236px Text.
+
 ### 22.5a Bei 390px wird hier nicht bei 390px gemessen
 
 **Gefunden am 8. August 2026 beim Nachmessen des Fernzugriff-Feldes**, und der
@@ -2843,9 +2938,10 @@ Schritt 7 sind für beide gemacht und haben insgesamt fünf Fehler gefunden, dre
 davon ausserhalb von P5 (§22.3a).
 
 **Gebaut sind alle elf Schritte.** Der Fernzugriff steht seit §22.3t, das
-Hochladen einer Sicherung seit §22.3u. **Auf einem echten Server erprobt ist
-keiner von beiden** — hier gibt es keinen Datenbankserver, dessen Horchadresse
-sich ändern liesse, und keinen Agenten, der eine hochgeladene Datei abholt. `srvpanel db` und `srvpanel db --prune` stehen seit
+Hochladen einer Sicherung seit §22.3u, und der Ort, an dem sein Zustand im
+Panel steht, seit §22.3v. **Auf einem echten Server erprobt ist keiner von
+beiden** — hier gibt es keinen Datenbankserver, dessen Horchadresse sich ändern
+liesse, und keinen Agenten, der eine hochgeladene Datei abholt. `srvpanel db` und `srvpanel db --prune` stehen seit
 §22.3e, `db.isolation.probe` und `srvpanel acceptance-db` seit §22.3g.
 
 **Der Abnahmelauf ist am 8. August dreimal gefahren** (§22.3h, §22.3i, §22.3j).

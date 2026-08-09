@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\DatabaseSettingsController;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Models\Database;
+use App\Models\DbUser;
 use App\Models\Subscription;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route as Router;
 use SrvPanel\Agent\Ops\DbRemoteAccess;
 use Tests\TestCase;
 
@@ -31,6 +34,8 @@ use Tests\TestCase;
  *    ist.
  * 3. **Der Neustart passiert nicht ungefragt.** Der Datenbankserver trägt auch
  *    das Panel.
+ * 4. **Der Zustand steht im Panel, der Schalter nicht.** Seit `docs/36 §22.3v`
+ *    gibt es „Einstellungen → Datenbankserver"; sie liest und schreibt nicht.
  */
 final class RemoteAccessTest extends TestCase
 {
@@ -177,5 +182,106 @@ final class RemoteAccessTest extends TestCase
         $this->artisan('srvpanel:db --remote=on --bind=203.0.113.5 --no-interaction')
             ->expectsOutputToContain('--bind erwartet')
             ->assertFailed();
+    }
+
+    /**
+     * Die Seite zeigt den Zustand, auch wenn der Agent nicht antwortet.
+     *
+     * **Und das ist hier der Regelfall und kein Sonderfall.** In diesem
+     * Container läuft kein Agent; eine Seite, die auf seine Antwort angewiesen
+     * wäre, gäbe eine Fehlerseite statt einer Auskunft. Geprüft wird deshalb
+     * genau das: `error` ist gesetzt, `remote` ist `false` — und die Seite
+     * steht.
+     */
+    public function test_the_operator_sees_the_state_even_without_an_agent(): void
+    {
+        $this->actingAs(Account::factory()->admin()->create())
+            ->get('/settings/database')
+            ->assertOk()
+            /*
+             * **`etc()` ist hier keine Nachlässigkeit, sondern Pflicht.**
+             * `AssertableInertia` prüft beim Aufräumen, dass jede Eigenschaft
+             * der obersten Ebene angefasst wurde — ohne diesen Aufruf
+             * scheitert der Test an `remote_users`, das er gar nicht meint.
+             */
+            ->assertInertia(fn ($page) => $page
+                ->component('Settings/Database')
+                ->where('server.remote', false)
+                ->where('commands.on', DatabaseSettingsController::COMMAND_ON)
+                ->has('server.error')
+                ->etc());
+    }
+
+    /** Und ein Kunde sieht sie nicht — sie beschreibt den ganzen Server. */
+    public function test_a_customer_does_not_reach_the_page(): void
+    {
+        [$account] = $this->customerWithDatabase();
+
+        $this->actingAs($account)->get('/settings/database')->assertForbidden();
+    }
+
+    /**
+     * Gezählt werden die Zugänge auf fremde Adressen — und nur die.
+     *
+     * **Die Zahl ist der einzige Rechenschritt der Seite**, und sie ist der
+     * Grund, warum es sie gibt: Aus ihr folgt die Warnung, dass Zugänge
+     * bestehen, die an einem nur lokal horchenden Server nie zustande kommen.
+     * Eine Zahl, die auch `localhost` mitzählt, wäre auf jedem Server grösser
+     * als null und die Warnung damit dauerhaft an — genau die Sorte Meldung,
+     * die man nach zwei Tagen nicht mehr liest.
+     */
+    public function test_only_foreign_hosts_are_counted(): void
+    {
+        app(Tenancy::class)->withoutRestriction(static function (): void {
+            $subscription = Subscription::factory()->create(['system_user' => 'p1001']);
+
+            // Zwei Wirte sind zwei Benutzer, und derselbe Wirt zweimal sind
+            // zwei Zeilen — beides muss die Zahl unten aushalten.
+            DbUser::factory()->forSubscription($subscription, 'lokal')->create();
+            DbUser::factory()->forSubscription($subscription, 'ferne')->from('203.0.113.5')->create();
+            DbUser::factory()->forSubscription($subscription, 'zweite')->from('203.0.113.5')->create();
+        });
+
+        $this->actingAs(Account::factory()->admin()->create())
+            ->get('/settings/database')
+            ->assertInertia(fn ($page) => $page
+                ->where('remote_users.total', 2)
+                ->where('remote_users.hosts', [['host' => '203.0.113.5', 'count' => 2]])
+                ->etc());
+    }
+
+    /**
+     * Und die Seite schaltet nichts.
+     *
+     * **Das ist eine Entscheidung und keine Auslassung** (`docs/36 §22.3v`): Ein
+     * Umschalten startet den Datenbankserver neu, auf dem dieses Panel selbst
+     * arbeitet — die Anfrage, die den Vorgang anstösst, verlöre ihre
+     * Verbindung mitten im Lauf, und übrig bliebe ein Vorgang, der für immer
+     * auf „läuft" steht. Deshalb steht dort der Befehl und kein Knopf.
+     *
+     * Wer das ändern will, ändert diesen Test mit — und liest dabei den Grund.
+     */
+    public function test_the_settings_page_only_reads(): void
+    {
+        $schreibend = [];
+
+        foreach (Router::getRoutes()->getRoutes() as $route) {
+            if (! str_starts_with($route->uri(), 'settings/database')) {
+                continue;
+            }
+
+            foreach ($route->methods() as $method) {
+                if (! in_array($method, ['GET', 'HEAD'], true)) {
+                    $schreibend[] = $method.' /'.$route->uri();
+                }
+            }
+        }
+
+        $this->assertSame([], $schreibend, sprintf(
+            "Unter /settings/database liegt eine schreibende Route:\n  %s\n\n".
+            "Der Fernzugriff wird auf der Kommandozeile geschaltet, weil sein Neustart den\n".
+            'Datenbankserver mitnimmt, auf dem dieses Panel arbeitet (docs/36 §22.3v).',
+            implode("\n  ", $schreibend),
+        ));
     }
 }

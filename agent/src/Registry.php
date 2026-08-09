@@ -38,6 +38,7 @@ use SrvPanel\Agent\Ops\PgDatabaseCreate;
 use SrvPanel\Agent\Ops\PgDatabaseRemove;
 use SrvPanel\Agent\Ops\PgRoleCreate;
 use SrvPanel\Agent\Ops\PgRoleGrant;
+use SrvPanel\Agent\Ops\PgRoleLock;
 use SrvPanel\Agent\Ops\PgRoleRemove;
 use SrvPanel\Agent\Ops\PgServerInfo;
 use SrvPanel\Agent\Ops\PgServerInstall;
@@ -180,17 +181,16 @@ final class Registry
          * Mit Schritt 4 bekommen sie ihren Aufrufer — `App\Support\Databases`
          * und seine zwei Treiber. `remove` steht auch hier zuerst, aus dem
          * Grund, den `docs/35` teuer bezahlt hat.
-         *
-         * **`PgRoleLock` steht noch nicht dabei.** Die Sperre eines
-         * Abonnements ist Schritt 5 (`docs/38 §11`), und dieselbe Regel gilt
-         * für sie wie für alle davor: eingetragen wird sie in dem Beitrag, der
-         * ihr einen Aufrufer gibt.
          */
         $this->register(new PgDatabaseRemove);
         $this->register(new PgDatabaseCreate);
         $this->register(new PgRoleRemove);
         $this->register(new PgRoleCreate);
         $this->register(new PgRoleGrant);
+
+        // Mit Schritt 5: die Sperre eines Abonnements erreicht die Rollen
+        // (docs/38 §11). Der Aufrufer ist App\Support\Databases\PgLifecycle.
+        $this->register(new PgRoleLock);
     }
 
     public function register(Op $op): void

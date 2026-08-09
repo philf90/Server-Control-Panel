@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DbUserStatus;
 use App\Enums\DumpStatus;
 use App\Enums\OperationStatus;
@@ -258,7 +259,24 @@ final class DbLifecycle implements AfterOperation
             return;
         }
 
-        DatabaseDump::query()->where('subscription_id', $operation->subscription_id)->delete();
+        /*
+         * **Auch hier `engine`, und diesmal bevor es gebraucht wird.** Heute
+         * sind alle Sicherungen MariaDB-Sicherungen, die Zeile ändert also
+         * nichts. Ab Schritt 6 gibt es `pg.dump.*`, und dann löschte ein
+         * `db.dump.remove` ohne diese Einschränkung auch die
+         * PostgreSQL-Sicherungen desselben Abonnements — Zeilen für Dateien,
+         * die noch auf der Platte liegen.
+         *
+         * Gefunden hat es `EngineScopeTest` beim ersten Lauf, an einer Stelle,
+         * an der ich nicht gesucht hatte: Der Wächter fragt nach
+         * `subscription_id` und nicht nach `DbUser`, weil es um die Richtung
+         * geht — wer alle Zeilen eines Abonnements holt, holt seit Schritt 4
+         * beide Systeme.
+         */
+        DatabaseDump::query()
+            ->where('subscription_id', $operation->subscription_id)
+            ->where('engine', DatabaseEngine::MariaDb)
+            ->delete();
     }
 
     /** Die Zugänge sind zu — jetzt erst steht es auch im Panel. */
@@ -269,6 +287,7 @@ final class DbLifecycle implements AfterOperation
         $this->tenancy->withoutRestriction(function () use ($operation, $locked): void {
             DbUser::query()
                 ->where('subscription_id', $operation->subscription_id)
+                ->where('engine', DatabaseEngine::MariaDb)
                 ->get()
                 ->each(static fn (DbUser $user): bool => $user->forceFill([
                     'status' => $locked ? DbUserStatus::Locked : DbUserStatus::Active,
@@ -298,9 +317,22 @@ final class DbLifecycle implements AfterOperation
             return;
         }
 
+        /*
+         * **`engine` seit P5b, und ohne die Zeile wäre es ein Fehler mit
+         * Ansage.** Diese Abfrage holte alle Zugänge des Abonnements — ab
+         * Schritt 4 sind darunter auch PostgreSQL-Rollen, und die gingen als
+         * `name@host` an `db.user.lock`. Der Agent wiese sie ab, und ein
+         * gesperrtes Abonnement behielte seine MariaDB-Zugänge, weil der
+         * ganze Vorgang scheitert.
+         *
+         * Die Trennung liegt in `engine` und nicht in der Aufgabe: Beide
+         * Lebensläufe hören auf `subscription.suspend`, und jeder fasst nur
+         * seine eigenen Zeilen an ({@see PgLifecycle}).
+         */
         $users = $this->tenancy->withoutRestriction(
             fn (): array => DbUser::query()
                 ->where('subscription_id', $subscription->id)
+                ->where('engine', DatabaseEngine::MariaDb)
                 ->orderBy('id')
                 ->get()
                 ->all()

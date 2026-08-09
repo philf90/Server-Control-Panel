@@ -6998,3 +6998,55 @@ sie in dem Beitrag, der ihr einen Aufrufer gibt.
 `agent/src/Db/` aufreissen, war die Trennung falsch."* Bis hierher ist keine
 Datei darunter geändert worden — `Runner` zählt nicht, der gehört keinem der
 beiden. Die Trennung trägt.
+
+### P5b Schritt 5, erste Hälfte — die Sperre erreicht beide Systeme
+
+`PgLifecycle` beantwortet jetzt `subscription.suspend`, `subscription.resume`
+und `pg.role.lock`; `PgRoleLock` steht in der Registratur, weil es seinen
+Aufrufer hat. `NOLOGIN` statt `ACCOUNT LOCK` (`docs/38 §11`).
+
+**Beide Lebensläufe hören auf dieselben zwei Aufgaben, und das ist keine
+Doppelung.** Ein gesperrtes Abonnement soll seine Zugänge in *jedem* System
+verlieren. Jeder reiht seinen eigenen Folgevorgang ein und fasst nur seine
+eigenen Zeilen an — die Trennung liegt in `engine` und nicht in der Aufgabe.
+
+**Ohne diese Trennung wäre Schritt 4 ein Fehler mit Ansage gewesen.**
+`DbLifecycle::afterSubscription()` holte alle Zugänge eines Abonnements; seit
+Schritt 4 sind darunter PostgreSQL-Rollen, und die gingen als `name@host` an
+`db.user.lock`. Der Agent wiese sie ab — und ein gesperrtes Abonnement behielte
+seine **MariaDB**-Zugänge, weil der ganze Vorgang scheitert. Beim Nachziehen
+dasselbe von der anderen Seite: Zwei Vorgänge schrieben denselben Zustand, der
+zweite gewänne, und auffallen würde es erst, wenn einer scheitert.
+
+**Die Grenze, die P5 nie aufgeschrieben hat, steht jetzt im Code.** `NOLOGIN`
+nimmt die Anmeldung und beendet **keine** bestehende Sitzung — `ACCOUNT LOCK`
+tut das auch nicht. Eine Anwendung mit offenem Verbindungspool arbeitet nach der
+Sperre weiter, bis sie neu verbindet. Wer das schliessen wollte, bräuchte
+`pg_terminate_backend`, und dann sähe ein Kunde mitten in einer Transaktion
+einen Abbruch. P5b sperrt und beendet nicht.
+
+**Kein leerer Folgevorgang.** Ein Abonnement ohne PostgreSQL-Zugang bekommt
+keinen — er stünde in der Liste, täte nichts, und wäre auf jedem Server ohne
+PostgreSQL die Hälfte aller Zeilen.
+
+### Und der neue Wächter hat sofort etwas gefunden, das ich nicht gesucht habe
+
+`EngineScopeTest` verlangt, dass jede Abfrage über *alle* Zeilen eines
+Abonnements auch das System nennt. Beim ersten Lauf meldete er eine Stelle, an
+die ich nicht gedacht hatte: `DbLifecycle::removedAllDumps()` löscht bei
+`db.dump.remove` alle Sicherungen des Abonnements — ohne `engine`.
+
+Heute ist das folgenlos, weil alle Sicherungen MariaDB-Sicherungen sind. Ab
+Schritt 6 gibt es `pg.dump.*`, und dann löschte dieser Aufruf auch die
+PostgreSQL-Sicherungen: **Zeilen für Dateien, die noch auf der Platte liegen.**
+Die Einschränkung steht jetzt da, bevor sie gebraucht wird.
+
+Bemerkenswert ist, *warum* er sie gefunden hat: Der Wächter fragt nach
+`subscription_id` und nicht nach `DbUser`. Hätte ich ihn auf die Tabelle
+zugeschnitten, um die es mir ging, wäre die Sicherungszeile durchgerutscht —
+*ein Wächter, der die Richtung prüft statt des Gegenstands, findet mehr als der,
+der ihn gebaut hat.*
+
+**Was von Schritt 5 noch fehlt:** die Messung (`docs/38 §12`) — `pg.usage` als
+Operation und `srvpanel usage`, das ab P5b drei Dinge misst und weiter aus einem
+Timer startet.

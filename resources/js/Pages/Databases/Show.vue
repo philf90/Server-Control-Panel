@@ -19,7 +19,7 @@ interface User {
 interface DumpRow {
   id: number
   name: string
-  kind: string
+  kind_label: string | null
   status: string
   status_label: string
   usable: boolean
@@ -444,7 +444,7 @@ function size(): string {
                     geleert, und wer die beiden nicht unterscheiden kann, trifft
                     die Wahl blind (docs/36 §22.3u).
                   -->
-                  <Badge v-if="dump.kind === 'imported'" kind="neutral">mitgebracht</Badge>
+                  <Badge v-if="dump.kind_label" kind="neutral">{{ dump.kind_label }}</Badge>
                 </td>
                 <td data-column="Grösse">{{ bytes(dump.bytes) }}</td>
                 <!--

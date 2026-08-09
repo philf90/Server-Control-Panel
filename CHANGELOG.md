@@ -5707,6 +5707,40 @@ Datenverlust. Dabei fiel auf, dass ein toter Agent das Kommando bisher abbrach,
 bevor es überhaupt zum Bestand kam — wer nachsieht, weil etwas kaputt ist,
 bekommt jetzt beides.
 
+**Die drei Funde aus dem Abnahmelauf sind auf dem Server nachgewiesen, nicht nur
+gebaut.** `srvpanel db` meldet auf `cloudsrv24` genau die Sicherung, deren
+abgelegte Grösse von der Datei abweicht — und prüft dabei 4 von 5 Zeilen, weil
+die fünfte noch keine Datei hat. Ein erfolgreicher Sicherungsvorgang trägt jetzt
+„fertig" als Meldung statt des Textes vom Einreihen; das ist der Beleg, dass die
+Fortschrittsframes ankommen, und er funktioniert auch bei einer Sicherung, die in
+unter einer Sekunde durchläuft und am Balken nichts zu sehen gibt. Der
+gescheiterte Import steht auf 25 % — dem Punkt, an dem die Prüfung der
+ausgepackten Grösse abbricht — und seine Übergabe ist leer, mit `failed` und
+gefülltem `last_error` an der Zeile. Der feinste Beleg ist der Zeitstempel des
+Übergabeverzeichnisses: Er ist auf die Uhrzeit des gescheiterten Uploads
+gesprungen, es ist dort also etwas angelegt **und wieder entfernt** worden. Ein
+leeres Verzeichnis allein wäre eine Abwesenheit gewesen.
+
+**Und `kind` ist eine Aufzählung geworden.** Die Herkunft einer Sicherung stand
+als nackte Zeichenkette an vier Stellen, während `DumpStatus` daneben längst
+eine Aufzählung war — und die beiden Werte sind ungleich gebaut, ein Stamm und
+ein Partizip. Gefährlich daran ist nicht die Asymmetrie, sondern das Tippen: Wer
+sich vertippt, bekommt eine Bedingung, die nie zutrifft, und keine Meldung. Die
+Werte selbst bleiben, wie sie sind — sie stehen in den Zeilen laufender
+Installationen, und eine Datenmigration über Kundendaten, damit zwei Wörter
+grammatisch zueinander passen, ist Unruhe ohne Gegenwert. Dabei kam eine vierte
+Stelle zum Vorschein: Das Vue-Template verglich die Herkunft selbst, als
+Zeichenkette über die Grenze zwischen PHP und Browser — dieselbe Bauart wie der
+Frame-Fehler. Hinüber geht jetzt der fertige Text, wie bei `status_label`
+daneben. `DumpKindTest` verbietet den Wert überall ausser in der Aufzählung und
+der Migration, die die Spalte anlegt; er hat beim ersten Lauf sofort zugebissen,
+und zwar auf einen Kommentar, der den alten Vergleich zitierte.
+
+Der Kommentar in der Migration behauptete ausserdem, es gebe in P5 nur einen
+Wert und die Spalte nehme später `import` auf. Beides ist seit Schritt 11 falsch,
+und der zweite Wert heisst anders. Ein Kommentar, der eine Behauptung über die
+Zukunft macht, wird von dieser Zukunft nicht benachrichtigt.
+
 **Was in P5 ausdrücklich nicht gebaut wird:** Adminer (aufgeschoben,
 Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich mit
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und

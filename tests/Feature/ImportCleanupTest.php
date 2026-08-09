@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Enums\OperationStatus;
 use App\Models\Database;
@@ -56,7 +57,7 @@ final class ImportCleanupTest extends TestCase
                 'database_id' => $database->id,
                 'database_name' => $database->name,
                 'subscription_id' => $subscription->id,
-                'kind' => 'imported',
+                'kind' => DumpKind::Imported,
                 'status' => DumpStatus::Pending,
             ]);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Models\Concerns\BelongsToSubscription;
 use App\Support\Tenancy\Tenancy;
@@ -32,7 +33,7 @@ use SrvPanel\Agent\Db\Dump;
  * @property int|null $database_id
  * @property string $database_name
  * @property string $storage_name
- * @property string $kind
+ * @property DumpKind $kind
  * @property DumpStatus $status
  * @property int|null $bytes
  * @property string|null $last_error
@@ -56,7 +57,7 @@ class DatabaseDump extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['status' => DumpStatus::class];
+        return ['status' => DumpStatus::class, 'kind' => DumpKind::class];
     }
 
     /** Der Name des Abonnements wird beim Anlegen abgeschrieben — siehe {@see Database::booted()}. */

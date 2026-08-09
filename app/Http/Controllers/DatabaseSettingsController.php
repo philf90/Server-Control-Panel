@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\DatabaseEngine;
+use App\Models\Database;
 use App\Models\DbUser;
+use App\Support\Settings\Settings;
 use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Db\Server;
+use SrvPanel\Agent\Ops\PgServerInstall;
+use SrvPanel\Agent\Pg\Server as PgServer;
 
 /**
  * Der Datenbankserver, wie er gerade steht — nachsehen, nicht schalten.
@@ -59,10 +63,28 @@ final class DatabaseSettingsController extends Controller
     /** Und der, der ihn wieder abschaltet. */
     public const COMMAND_OFF = 'sudo srvpanel db --remote=off';
 
-    public function show(Client $agent): Response
+    /**
+     * Der Befehl, der die PostgreSQL-Fläche freischaltet.
+     *
+     * **Ein Schalter auf der Kommandozeile und ein Knopf auf dieser Seite —
+     * und das ist kein Widerspruch, sondern die Trennung aus `docs/38 §7`.**
+     * Freischalten heisst: Kunden dürfen PostgreSQL-Datenbanken anlegen. Das
+     * ist eine Aussage über das Angebot dieses Servers und gehört dem
+     * Betreiber, wie `--remote`. Installieren heisst: ein Paket der
+     * Distribution kommt auf die Platte, MariaDB wird dabei nicht angefasst,
+     * und niemandem bricht die Verbindung weg — deshalb darf das ein Knopf
+     * sein (Entscheidung 10).
+     */
+    public const POSTGRES_ON = 'sudo srvpanel db --postgres=on';
+
+    /** Und der, der sie wieder schliesst. */
+    public const POSTGRES_OFF = 'sudo srvpanel db --postgres=off';
+
+    public function show(Client $agent, Settings $settings): Response
     {
         return Inertia::render('Settings/Database', [
             'server' => $this->server($agent),
+            'postgres' => $this->postgres($agent, $settings),
 
             /*
              * **Wie viele Zugänge auf eine fremde Adresse lauten.** Die Zahl
@@ -81,7 +103,97 @@ final class DatabaseSettingsController extends Controller
             'commands' => [
                 'on' => self::COMMAND_ON,
                 'off' => self::COMMAND_OFF,
+                'postgres_on' => self::POSTGRES_ON,
+                'postgres_off' => self::POSTGRES_OFF,
             ],
+        ]);
+    }
+
+    /**
+     * Was das Panel über PostgreSQL sagen kann.
+     *
+     * **Zwei voneinander unabhängige Dinge, und sie stehen getrennt.**
+     * `offered` ist die Absicht des Betreibers und kommt aus den Einstellungen;
+     * `state` ist der Zustand des Servers und kommt bei jedem Aufruf frisch vom
+     * Agenten. Sie zusammenzulegen wäre genau der Fehler, den `docs/37 §6`
+     * Lehre 1 beschreibt: *Eine geschriebene Zeile ist eine Absicht, erst der
+     * gelesene Zustand ist ein Zustand.*
+     *
+     * **Gefragt wird auch, wenn nicht freigeschaltet ist.** Der Betreiber soll
+     * auf dieser Seite sehen können, was ihn erwartet, bevor er den Schalter
+     * umlegt — und wer ein PostgreSQL auf dem Server hat, das ihm selbst
+     * gehört, soll es hier stehen sehen statt zu raten, warum das Panel nichts
+     * anbietet.
+     *
+     * @return array{
+     *     offered: bool,
+     *     reachable: bool,
+     *     error: string|null,
+     *     state: string,
+     *     version: string|null,
+     *     cluster: string|null,
+     *     port: int|null,
+     *     usable: bool,
+     *     reason: string|null,
+     *     handover: string,
+     *     handed_over: bool,
+     *     databases: int,
+     *     can_install: bool,
+     * }
+     */
+    private function postgres(Client $agent, Settings $settings): array
+    {
+        $blank = [
+            'offered' => $settings->postgres(),
+            'reachable' => false,
+            'error' => null,
+            'state' => 'absent',
+            'version' => null,
+            'cluster' => null,
+            'port' => null,
+            'usable' => false,
+            'reason' => null,
+            'handover' => PgServer::HANDOVER,
+            'handed_over' => false,
+            'databases' => Database::query()->where('engine', DatabaseEngine::Postgres)->count(),
+
+            // Ohne Antwort des Agenten wird nichts angeboten: Ein Knopf,
+            // der auf eine Vermutung drückt, ist schlechter als keiner.
+            'can_install' => false,
+        ];
+
+        try {
+            $info = $agent->call('pg.server.info', []);
+        } catch (AgentException $error) {
+            return array_merge($blank, ['error' => $error->getMessage()]);
+        }
+
+        $state = is_string($info['state'] ?? null) ? $info['state'] : 'absent';
+
+        return array_merge($blank, [
+            'reachable' => ($info['available'] ?? false) === true,
+            'state' => $state,
+            'version' => is_string($info['version'] ?? null) && $info['version'] !== '' ? $info['version'] : null,
+            'cluster' => is_string($info['cluster'] ?? null) ? $info['cluster'] : null,
+            'port' => is_int($info['port'] ?? null) ? $info['port'] : null,
+            'usable' => ($info['usable'] ?? false) === true,
+            'reason' => is_string($info['reason'] ?? null) ? $info['reason'] : null,
+
+            // Der Befehl kommt aus der Antwort und nicht aus der Konstanten
+            // daneben — dieselbe Regel wie bei jedem abgedruckten Befehl
+            // (`docs/36 §22.3v`): Was hier steht, soll das sein, was der Agent
+            // meint, und nicht das, was das Panel darüber glaubt.
+            'handover' => is_string($info['handover'] ?? null) ? $info['handover'] : PgServer::HANDOVER,
+            'handed_over' => ($info['handed_over'] ?? false) === true,
+
+            /*
+             * **Die Liste gehört der Operation und nicht dieser Seite.**
+             * `no_cluster` und `ambiguous` weist der Agent ab; ein Knopf
+             * dafür wäre ein Knopf, der eine Fehlermeldung auslöst. Und in
+             * `ready`, `not_handed_over` und `unusable` ist PostgreSQL da —
+             * „installieren" hiesse dort etwas Falsches.
+             */
+            'can_install' => in_array($state, PgServerInstall::ACTIONABLE, true),
         ]);
     }
 

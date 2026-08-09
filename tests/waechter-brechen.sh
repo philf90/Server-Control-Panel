@@ -4897,6 +4897,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgServerStateTest passed
 
 echo
+echo "── PgServerStateTest: ein Knopf, der nur eine Fehlermeldung auslöst ──"
+#
+# ACTIONABLE ist die Liste, aus der die Oberfläche liest, ob sie den Knopf
+# zeigt. Steht `no_cluster` darin, weist der Agent ab — und der Betreiber
+# drückt auf etwas, dessen einzige Wirkung eine rote Zeile ist.
+vorher_datei agent/src/Ops/PgServerInstall.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgServerInstall.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("public const ACTIONABLE = ['absent', 'stopped'];",
+              "public const ACTIONABLE = ['absent', 'stopped', 'no_cluster'];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgServerInstall.php "Knopf für einen abgewiesenen Zustand" &&
+pruefe "Knopf für einen abgewiesenen Zustand" \
+  PgServerStateTest::test_the_actionable_states_are_states_that_act failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgServerStateTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

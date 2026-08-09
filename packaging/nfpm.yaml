@@ -54,6 +54,22 @@ depends:
 recommends:
   - fail2ban
 suggests:
+  # PostgreSQL ist keine Abhängigkeit und soll keine werden: Ein `Depends`
+  # brächte jeder Installation einen zweiten Datenbankdienst — gemessen sechs
+  # Prozesse, ~108 MiB und 79 MB Platte — auch auf jedem Server, der nie eine
+  # PostgreSQL-Datenbank anlegt, und wer ihn nicht will, könnte `srvpanel` dann
+  # gar nicht installieren.
+  #
+  # **Diese Zeile stand bis P5b ohne Begründung da und ohne dass etwas
+  # dahinterhing** — das einzige Vorkommen des Wortes im ganzen Quelltext, in
+  # einer Datei, deren übrige Zeilen jede einzeln begründet sind. Sie las sich
+  # wie eine Abhängigkeit und war eine Absichtserklärung.
+  #
+  # Jetzt hängt etwas dahinter: `pg.server.install` holt das Paket auf
+  # Verlangen, ausgelöst vom Knopf in „Einstellungen → Datenbankserver"
+  # (docs/38 §7). `Suggests` bleibt trotzdem richtig — es ist die Angabe, die
+  # apt und aptitude anzeigen, und sie sagt genau das Zutreffende: nützlich,
+  # nicht nötig.
   - postgresql
 
 contents:

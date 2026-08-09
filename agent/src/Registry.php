@@ -34,6 +34,8 @@ use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
 use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
+use SrvPanel\Agent\Ops\PgServerInfo;
+use SrvPanel\Agent\Ops\PgServerInstall;
 use SrvPanel\Agent\Ops\PhpPoolApply;
 use SrvPanel\Agent\Ops\PhpPoolRemove;
 use SrvPanel\Agent\Ops\PhpVersionInstall;
@@ -148,6 +150,26 @@ final class Registry
         // Datenbanken danach entfernt. Ohne Lebenslauf: Im Bestand des Panels
         // steht zu ihr nichts.
         $this->register(new DbIsolationProbe);
+
+        /*
+         * P5b — PostgreSQL (docs/38 §7).
+         *
+         * **Nur diese beiden, und das ist kein Zwischenstand, sondern die
+         * Regel.** Die übrigen `pg.*`-Klassen liegen seit Schritt 1 unter
+         * `agent/src/Ops/` und sind aus dem Agenten nicht erreichbar; sie
+         * werden in dem Beitrag eingetragen, der ihnen einen Aufrufer gibt.
+         * Der erste Anlauf hat `pg.server.info` schon in Schritt 1 registriert
+         * und die CI rot gemacht: *Code, der als root läuft und zu dem kein Weg
+         * führt, ist Angriffsfläche ohne Nutzen*
+         * ({@see \Tests\Feature\AgentOperationReachTest}).
+         *
+         * Kein `remove` davor, und hier ausnahmsweise mit Grund statt mit
+         * Reihenfolge: `pg.server.install` legt nichts an, was einem
+         * Abonnement gehört — es installiert ein Paket der Distribution. Der
+         * Weg zurück gehört dem Betreiber und steht in `RemovalPathTest`.
+         */
+        $this->register(new PgServerInfo);
+        $this->register(new PgServerInstall);
     }
 
     public function register(Op $op): void

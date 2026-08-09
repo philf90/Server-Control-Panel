@@ -186,10 +186,24 @@ final class Server
         }
 
         try {
+            /*
+             * **`server_version` und nicht `version()`.** Die zweite liefert
+             * einen ganzen Satz — „PostgreSQL 16.13 (Ubuntu
+             * 16.13-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc
+             * (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit" —, und der stand
+             * bis zum 9. August 2026 als Kennung in einer Wertzelle der
+             * Oberfläche. Genau diese Bauart hat `docs/20 §15` bezahlt: eine
+             * Kennung im Fliesstext, die die Seite um 83px aus dem Bildschirm
+             * schob, vollständig grün getestet und ausgeliefert.
+             *
+             * `server_version` sagt dasselbe, was jemanden angeht — Fassung und
+             * Paketierung —, in einem Drittel der Zeichen. Der Compiler und die
+             * Architektur beantworten keine Frage, die man vor einem Panel hat.
+             */
             $rows = $session->query(
                 $context,
-                "SELECT current_setting('server_version_num'), version(), current_setting('data_directory'), "
-                ."current_setting('port')",
+                "SELECT current_setting('server_version_num'), current_setting('server_version'), "
+                ."current_setting('data_directory'), current_setting('port')",
             );
         } catch (AgentException $error) {
             /*

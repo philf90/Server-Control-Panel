@@ -65,6 +65,25 @@ final class PgServerInstall implements Op
      */
     private const PACKAGE = 'postgresql';
 
+    /**
+     * Die Zustände, in denen diese Operation etwas tut.
+     *
+     * **Sie steht hier, damit die Oberfläche sie nicht nachbaut.** Ein Knopf,
+     * den der Betrachter drücken darf und der danach abgewiesen wird, ist
+     * derselbe Fehler wie ein Knopf, den er nicht drücken darf und trotzdem
+     * sieht — `CLAUDE.md`: *Wer eine Aktion zeigt, fragt vorher dieselbe
+     * Stelle, die sie später abweist.* Die zweite Fassung ist die, die
+     * veraltet.
+     *
+     * Bewusst **nicht** die Umkehrung der Ablehnungen: `ready`,
+     * `not_handed_over` und `unusable` stehen ebenfalls nicht darin, obwohl sie
+     * nicht abgewiesen werden. In ihnen ist PostgreSQL da, und ein Knopf, der
+     * dann „installieren" heisst und nichts tut, sagt etwas Falsches.
+     *
+     * @var list<string>
+     */
+    public const ACTIONABLE = ['absent', 'stopped'];
+
     public function __construct(
         private readonly Session $session = new Session,
         private readonly Server $server = new Server,

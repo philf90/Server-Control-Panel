@@ -139,6 +139,50 @@ final class PgServerStateTest extends TestCase
     }
 
     /**
+     * `ACTIONABLE` nennt nur Zustände, in denen die Operation wirklich handelt.
+     *
+     * **Der Knopf im Panel liest diese Liste**, und das ist der ganze Zweck:
+     * `CLAUDE.md` verlangt, dass die Oberfläche dieselbe Stelle fragt, die
+     * später abweist — sonst gibt es die Regel zweimal, und die zweite ist die,
+     * die veraltet. Geprüft wird beides:
+     *
+     * - Jeder Name darin ist ein Zustand, den es gibt.
+     * - Keiner davon ist einer, den `execute()` abweist. Ein `no_cluster` in
+     *   dieser Liste wäre ein Knopf, dessen einzige Wirkung eine Fehlermeldung
+     *   ist.
+     */
+    public function test_the_actionable_states_are_states_that_act(): void
+    {
+        $source = (string) file_get_contents(
+            dirname(__DIR__, 2).'/agent/src/Ops/PgServerInstall.php',
+        );
+
+        $this->assertNotSame([], PgServerInstall::ACTIONABLE);
+
+        foreach (PgServerInstall::ACTIONABLE as $state) {
+            $this->assertContains($state, self::KNOWN, sprintf('ACTIONABLE nennt „%s"; den Zustand gibt es nicht.', $state));
+
+            $this->assertStringContainsString(
+                sprintf("'%s' => \$this->", $state),
+                $source,
+                sprintf(
+                    'ACTIONABLE nennt „%s", aber execute() ruft dafür nichts auf — der Knopf im Panel '
+                    .'täte dann nichts.',
+                    $state,
+                ),
+            );
+        }
+
+        foreach (['no_cluster', 'ambiguous'] as $refused) {
+            $this->assertNotContains(
+                $refused,
+                PgServerInstall::ACTIONABLE,
+                sprintf('„%s" wird abgewiesen; ein Knopf dafür löst nur eine Fehlermeldung aus.', $refused),
+            );
+        }
+    }
+
+    /**
      * Der Befehl für die Übergabe steht an einer Stelle.
      *
      * `docs/36 §22.3v` hat einen abgedruckten Befehl teuer bezahlt, den es so

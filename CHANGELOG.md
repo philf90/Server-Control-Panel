@@ -6394,3 +6394,110 @@ dafür, dass der Einzeldateilauf über PHPStan die Runde wert ist.
 **`pg.server.install` steht noch in keiner Registratur.** Sie kommt mit dem
 Knopf, der sie auslöst — die Regel aus Lauf 446: *Eine Operation wird in
 demselben Beitrag eingetragen, der ihr einen Aufrufer gibt.*
+
+### P5b Schritt 3 abgeschlossen — der Knopf, der Schalter, und zwei Zeilen des Plans, die beim Bauen fielen
+
+`pg.server.info` und `pg.server.install` stehen in der Registratur,
+`Task::PostgresInstall` im Aufgabenkatalog, der Knopf in „Einstellungen →
+Datenbankserver", `srvpanel db --postgres=on|off` auf der Kommandozeile.
+
+**Zwei Dinge, und sie sind ausdrücklich getrennt.** Der Schalter sagt, ob das
+Panel PostgreSQL *anbietet*; der Knopf *installiert*. Das ist keine Symmetrie
+um ihrer selbst willen: Ein Server kann ein PostgreSQL tragen, das dem
+Betreiber gehört — für sein eigenes Zeug, mit seinen eigenen Rollen. Eine
+Kundenfläche, die von selbst aufgeht, sobald `pg_lsclusters` etwas findet,
+schriebe die erste Kundendatenbank in einen Cluster, den niemand dafür
+vorgesehen hat. Der Grundzustand ist deshalb „nein", auch nach einem Update.
+
+**Warum das Installieren ein Knopf sein darf und der Fernzugriff nicht.**
+`DatabaseSettingsController` trägt seit P5 den Satz, dass hier kein Schalter
+steht, und die Begründung ist nicht die Reichweite, sondern der Neustart:
+`db.remote.access` startet den Datenbankserver neu, und der trägt auch das
+Panel — die Anfrage, die den Vorgang anstösst, verlöre ihre Verbindung mitten
+im Lauf. `apt-get install postgresql` fasst MariaDB nicht an. Der Unterschied
+war schon aufgeschrieben; er musste nur gelesen werden.
+
+**`ACTIONABLE` steht im Agenten und nicht in der Oberfläche.** Der Knopf
+erscheint in `absent` und `stopped` — den beiden Zuständen, in denen die
+Operation etwas tut. Nicht in `no_cluster` und `ambiguous`, wo sie abweist
+(ein Knopf, dessen einzige Wirkung eine Fehlermeldung ist), und nicht in
+`ready`, `not_handed_over` und `unusable`, wo PostgreSQL da ist (ein Knopf, der
+„installieren" heisst und nichts tut). `CLAUDE.md` verlangt genau das: *Wer eine
+Aktion zeigt, fragt vorher dieselbe Stelle, die sie später abweist.*
+
+### Und zwei Zeilen des Plans, die beim Bauen nicht getragen haben
+
+**`docs/38 §7` verlangte `postgresql.service` in `ServiceAction::ALLOWED_UNITS`
+— mit der Begründung, der Agent könne den Dienst sonst nicht starten. Er
+startet ihn mit `pg_ctlcluster`** (Entscheidung 9, zwei Tage jünger als der
+Abschnitt) **und lädt in §14 mit `SELECT pg_reload_conf()`.** `systemctl` kommt
+in keinem der beiden Wege vor, und `service.action` wird im ganzen Panel von
+zwei Stellen gerufen — `webserver.reload` und `srvpanel setup`.
+
+Der Eintrag entfällt. Ein Allowlist-Eintrag ohne Aufrufer ist nicht Vorsorge,
+sondern wortwörtlich das, was `AgentOperationReachTest` verbietet: *Code, der
+als root läuft und zu dem kein Weg führt, ist Angriffsfläche ohne Nutzen.* Und
+das ist die allgemeinere Lehre daraus: **Eine Begründung altert mit dem, was
+sie begründet.** Sie stand im Plan, sie war beim Schreiben richtig, und die
+Entscheidung, die sie umwarf, steht drei Abschnitte weiter unten im selben
+Dokument.
+
+In der Unitliste der Übersicht steht `postgresql.service` dagegen sehr wohl —
+dort geht es ums Sehen, und `service.status` führt keine Positivliste. **Die
+Zeile erscheint nur, wenn es die Unit gibt.** Ein dauerhaftes „nicht vorhanden"
+auf jedem Server ohne PostgreSQL wäre Rauschen an genau der Stelle, an der man
+Störungen sucht — und Rauschen dort ist der Grund, warum irgendwann niemand
+mehr hinsieht.
+
+**`suggests: postgresql` in `nfpm.yaml` bekommt seine Begründung und bleibt.**
+Bis P5b stand die Zeile ohne Kommentar da und ohne dass etwas dahinterhing — das
+einzige Vorkommen des Wortes im ganzen Quelltext, in einer Datei, deren übrige
+Zeilen jede einzeln begründet sind. Sie las sich wie eine Abhängigkeit und war
+eine Absichtserklärung. Jetzt hängt `pg.server.install` dahinter, und `Suggests`
+sagt weiterhin das Zutreffende: nützlich, nicht nötig.
+
+### Ein `version()`, das die Seite gesprengt hätte
+
+**`Pg\Server::describe()` meldete die volle Ausgabe von `version()`** —
+„PostgreSQL 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu,
+compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit", 130 Zeichen —
+und die wären als Kennung in eine Wertzelle der Oberfläche gegangen. Das ist
+Zeichen für Zeichen die Bauart, die `docs/20 §15` bezahlt hat: eine Kennung im
+Fliesstext, die die Seite um 83px aus dem Bildschirm schob, vollständig grün
+getestet und ausgeliefert.
+
+Gemeldet wird jetzt `current_setting('server_version')` — 37 Zeichen, dieselbe
+Auskunft, soweit sie jemanden vor einem Panel angeht. Der Compiler und die
+Architektur beantworten dort keine Frage.
+
+**Gefunden hat es die Aufnahme und nicht der Test**, und zwar auf dem Weg, den
+`CLAUDE.md` für den Fall beschreibt, dass `artisan serve` nicht läuft: das
+gebaute Stylesheet aus `public/build`, das Markup des Bausteins in einer
+eigenen HTML-Datei, gerendert im vorinstallierten Chromium bei 390px,
+`scrollWidth - clientWidth` als Text auf der Seite. Vier Läufe, beide Themes,
+390px und 1280px — Überlauf überall 0.
+
+**Der zweite Fund derselben Runde war ein Befehl im Fliesstext.** Bei 390px
+brach `sudo srvpanel db --postgres=off` mitten in der Option um, und `sudo -u
+postgres psql -c "CREATE ROLE root SUPERUSER LOGIN"` mitten im Anführungszeichen
+— beides in laufenden Sätzen, wo niemand mehr sieht, wo die Zeile anfängt und
+wo sie aufhört. Beide stehen jetzt in einer Bezeichnungstabelle, jeder in
+seiner eigenen Zelle. Dieselbe Entscheidung, die im Bereich „Umschalten"
+darunter schon steht — sie war da und wurde beim Danebenbauen nicht gelesen.
+
+### Zwei Wächter mehr, und ein offener Punkt, der vor der Abnahme entschieden gehört
+
+`PgServerStateTest` hält jetzt auch `ACTIONABLE` gegen den Quelltext: Jeder
+Name darin muss ein Zustand sein, den es gibt, **und** einer, für den
+`execute()` wirklich etwas aufruft. Der Bruch dazu trägt `no_cluster` in die
+Liste ein und prüft, dass es auffällt.
+
+**`PhpVersions::EXTENSIONS` kennt `mysql` und nicht `pgsql`.** Ein Kunde, der in
+diesem Panel eine PostgreSQL-Datenbank anlegt, bekommt sie — und seine Website
+kann sich nicht damit verbinden. Das steht in `docs/38` nirgends und ist beim
+Durchsehen der Paketbeziehungen für §7 aufgefallen. Es ist ausdrücklich **nicht**
+mit dieser Änderung erledigt, und der Grund steht in `docs/38 §24.2`:
+`PhpVersionInstall` kehrt bei einer installierten Version früh zurück, die neue
+Erweiterung käme also auf keinem Server an, auf dem PHP schon liegt. Ob
+`php.version.install` fehlende Erweiterungen nachinstallieren soll, ist eine
+Änderung an P3 und gehört entschieden, nicht nebenbei gemacht.

@@ -453,10 +453,26 @@ einer davon geht nicht.
 
 ### Zwei Nebenwirkungen, die dazugehören
 
-- **`postgresql.service` und `postgresql@*-main.service` fehlen in
-  `ServiceAction::ALLOWED_UNITS`** und in der Unitliste von
-  `OverviewController`. Ohne den Eintrag kann der Agent den Dienst, den er
-  gerade installiert hat, nicht starten.
+- **~~`postgresql.service` und `postgresql@*-main.service` fehlen in
+  `ServiceAction::ALLOWED_UNITS`~~ — die Begründung ist beim Bauen
+  weggefallen.** Sie lautete: „Ohne den Eintrag kann der Agent den Dienst, den
+  er gerade installiert hat, nicht starten." Er startet ihn mit
+  `pg_ctlcluster` (Entscheidung 9) und lädt in §14 mit
+  `SELECT pg_reload_conf()` — `systemctl` kommt in beiden Wegen nicht vor.
+
+  **Ein Eintrag ohne Aufrufer ist deshalb keine Vorsorge, sondern das, was
+  `AgentOperationReachTest` verbietet:** *Code, der als root läuft und zu dem
+  kein Weg führt, ist Angriffsfläche ohne Nutzen.* `service.action` wird im
+  ganzen Panel von genau zwei Stellen gerufen — `webserver.reload` und
+  `srvpanel setup` —, und keine davon meint PostgreSQL. Der Eintrag entfällt;
+  wenn ein Knopf entsteht, der PostgreSQL über systemd steuert, kommt er in
+  demselben Beitrag dazu.
+
+  **In der Unitliste von `OverviewController` steht `postgresql.service`
+  dagegen**, denn dort geht es ums Sehen und nicht ums Schalten:
+  `service.status` führt keine Positivliste. Die Zeile erscheint nur, wenn es
+  die Unit gibt — ein dauerhaftes „nicht vorhanden" auf jedem Server ohne
+  PostgreSQL wäre Rauschen an der Stelle, an der man Störungen sucht.
 - **`pg.server.install` wäre die erste Datenbankoperation mit `->stream()`.**
   `docs/37 §8` hält fest, dass die Ausgabe-Hälfte des Frame-Fundes auf dem
   Server nie belegt wurde, weil keine `db.*`-Operation streamt. `apt-get` läuft
@@ -977,9 +993,22 @@ draufgeht.
 
 ### Schritt 3 — PostgreSQL kommt auf den Server (§7)
 
-`PgServerInstall`, der Betreiberschalter, die zwei Unitlisten, und
-`nfpm.yaml` — die Zeile `suggests: postgresql` bekommt ihre Begründung oder
-verschwindet.
+`PgServerInstall`, der Betreiberschalter, ~~die zwei Unitlisten~~ **die eine
+Unitliste** (§24.1), und `nfpm.yaml` — die Zeile `suggests: postgresql` bekommt
+ihre Begründung oder verschwindet.
+
+> **Und der Knopf, der die Operation auslöst — in demselben Beitrag.** Das ist
+> die Regel aus Lauf 446, hier zum ersten Mal angewandt: `pg.server.info` und
+> `pg.server.install` werden mit dem Aufrufer eingetragen und nicht davor.
+> Konkret heisst das für diesen Schritt vier Stellen: die Registratur,
+> `Task::PostgresInstall` (der Knopf schickt eine Aufgabe, keinen Namen),
+> `DatabaseSettingsController::postgres()` (der unmittelbare Aufruf) und
+> `Settings/Database.vue`.
+>
+> **Welche Zustände der Knopf zeigt, entscheidet der Agent** —
+> `PgServerInstall::ACTIONABLE`. Ein `no_cluster` dort wäre ein Knopf, dessen
+> einzige Wirkung eine Fehlermeldung ist; ein `ready` dort wäre einer, der
+> „installieren" heisst und nichts tut.
 
 ### Schritt 4 — Die Anwendung
 
@@ -1370,6 +1399,36 @@ er kostet gegenüber der ersten Fassung dieses Plans rund eine halbe Woche, weil
 
 ## 24. Umsetzung — was beim Bauen anders war als im Plan
 
-*Noch leer. Hier steht später, wo dieser Plan nicht getragen hat — und
-insbesondere die Antwort auf die Frage aus §8: Musste `agent/src/Db/` doch
-aufgerissen werden?*
+*Die Antwort auf die Frage aus §8 — musste `agent/src/Db/` doch aufgerissen
+werden? — steht am Ende dieses Abschnitts, wenn es sie gibt. Bis Schritt 3 ist
+keine Datei darunter angefasst worden.*
+
+### 24.1 Der Eintrag in `ServiceAction::ALLOWED_UNITS` entfällt (Schritt 3)
+
+Steht in §7 durchgestrichen samt Grund. Kurz: Die Begründung des Plans war,
+der Agent könne den Dienst sonst nicht starten — er startet ihn mit
+`pg_ctlcluster` und lädt mit `SELECT pg_reload_conf()`. Ein Allowlist-Eintrag,
+den niemand ruft, ist genau das, was `AgentOperationReachTest` verbietet.
+
+### 24.2 Kunden-PHP kann PostgreSQL nicht ansprechen (offen, Schritt 3 gefunden)
+
+**`PhpVersions::EXTENSIONS` kennt `mysql` und nicht `pgsql`.** Ein Kunde, der
+in diesem Panel eine PostgreSQL-Datenbank anlegt, bekommt sie — und seine
+Website kann sich nicht damit verbinden, weil `phpX.Y-pgsql` auf dem Server
+nicht installiert ist. Das steht in diesem Plan nirgends; gefunden beim
+Durchsehen der Paketbeziehungen für §7.
+
+Es ist **kein** Einzeiler, und deshalb steht es hier statt im Code:
+
+1. `EXTENSIONS` zu erweitern ändert, was `php.version.install` künftig holt.
+2. **Bestehende Installationen bekommen es nicht nach.**
+   `PhpVersionInstall::execute()` kehrt bei einer installierten Version früh
+   zurück (`already => true`) — die neue Erweiterung käme auf keinem Server an,
+   auf dem PHP schon liegt. Das ist dieselbe Sorte Lücke wie die aus `docs/35`:
+   Etwas ist vorgesehen, und der Weg dorthin fehlt.
+3. Damit hängt die Frage dran, ob `php.version.install` eine fehlende
+   Erweiterung nachinstallieren soll — eine Änderung an P3 und nicht an P5b.
+
+Gehört vor Schritt 7 entschieden, spätestens vor der Abnahme: Ohne sie ist
+„der Kunde legt eine PostgreSQL-Datenbank an" ein Angebot, das an der ersten
+Verbindung scheitert.

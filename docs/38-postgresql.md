@@ -128,6 +128,30 @@ auf diesem Server macht das Panel.
 > Passwort. Die Probe auf den Ratekanal von MariaDB (§2.3 Punkt 4) hat deshalb
 > zweimal `ERROR 1045` geliefert und die Frage nicht berührt; sie bleibt offen.
 
+### 2.2d Der Zustandsraum eines vorhandenen Clusters
+
+Gemessen am 9. August 2026, nachdem der Betreiber gefragt hatte, was
+`pg.server.install` tun soll, wenn schon ein Cluster da ist (§7).
+
+| # | Frage | Befund |
+|---|---|---|
+| M42 | Paket installiert, Cluster **gestoppt** — wie sieht das aus? | **`/var/run/postgresql` fehlt** — genau wie bei „gar nicht installiert" |
+| M43 | Zwei Cluster nebeneinander? | Gehen; der zweite bekommt automatisch 5433. `pg_lsclusters` nennt beide mit Fassung, Name, Port, Status und Verzeichnis |
+| M44 | Welchen Cluster spricht eine Verbindung an? | `current_setting('data_directory')` und `port` sagen es — **von innen, zurückgelesen** |
+
+**M42 ist ein Fehler in Code, der schon eingecheckt war.** `Pg\Server::describe()`
+unterschied „nicht installiert" von „läuft nicht" an `is_dir()` auf das
+Socketverzeichnis — und das fehlt in beiden Fällen. Zwei verschiedene Handgriffe
+des Betreibers, eine Meldung: wörtlich Lehre 3 aus `docs/37 §6`. Der Abschnitt,
+der in §6 als Fortschritt gegenüber P5 steht („ein Zustand, den P5 nicht kennt"),
+hat die Unterscheidung nicht getroffen, die er behauptet.
+
+**Die Entscheidung des Betreibers dazu (§21, Punkt 9):** `pg_lsclusters` fragen,
+bevor verbunden wird, und bei mehreren *laufenden* Clustern nicht wählen. Daraus
+sieben Zustände, jeder mit genau einem Handgriff — `absent`, `no_cluster`,
+`stopped`, `ambiguous`, `not_handed_over`, `unusable`, `ready`. Alle sieben sind
+gegen einen echten Server gefahren.
+
 ### 2.3 Was hier nicht zu messen war
 
 Diese Fragen gehören auf `cloudsrv24` und auf die vier Zielplattformen, **bevor
@@ -1260,6 +1284,25 @@ vorgelegt:
    enger gefasst: Das Panel schreibt in einen verwalteten Block zwischen
    Marken, additiv, und lässt alles ausserhalb Byte für Byte stehen. Was es
    nicht tut, ist die Datei erzeugen oder Zeilen des Betreibers ändern.
+
+9. **Ein vorhandener Cluster wird benutzt, nicht umgebaut — und bei mehreren
+   laufenden wählt das Panel nicht.** Gefragt wird `pg_lsclusters`, bevor
+   irgendetwas verbunden wird; ohne dieses Werkzeug lässt sich „installiert,
+   aber gestoppt" von „gar nicht installiert" nicht unterscheiden (§2.2d).
+   Ein gestoppter Cluster wird gestartet — derselbe Handgriff, den `apt` beim
+   Installieren macht und den das Panel für `mariadb.service` seit P5 tut. Zwei
+   *laufende* sind dagegen der eine Fall, in dem Raten Kundendaten kostet:
+   Sie heissen fast immer, dass der Betreiber einen davon selbst betreibt.
+   **Gezählt werden die laufenden und nicht alle** — dieselbe feinere Fassung,
+   die `docs/20 §15` Punkt 4 für nginx festhält.
+
+   Die Positivliste wächst dafür um `pg_lsclusters` und `pg_ctlcluster`. Beide
+   sind Debian-Werkzeuge, die genau eine Sache tun; das erste ist zugleich der
+   Fühler dafür, ob PostgreSQL überhaupt installiert ist.
+
+10. **Installiert wird über einen Knopf im Panel**, nicht über
+    `srvpanel db --postgres=on`. Der Schalter schaltet die Fläche frei, die
+    Installation ist eine eigene Handlung mit eigenem Vorgang.
 
 **Nicht vorgelegt, weil entscheidbar — und deshalb hier zum Widerspruch:**
 

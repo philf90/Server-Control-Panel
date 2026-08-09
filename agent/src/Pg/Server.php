@@ -26,6 +26,8 @@ use SrvPanel\Agent\Db\Server as DbServer;
  */
 final class Server
 {
+    public function __construct(private readonly Clusters $clusters = new Clusters) {}
+
     /**
      * Wo der Socket liegt.
      *
@@ -72,7 +74,28 @@ final class Server
     /**
      * Was hier steht — in einem Lauf.
      *
+     * **Die Reihenfolge ist Absicht: erst die Cluster, dann die Verbindung.**
+     * Bis zum 9. August 2026 stand hier ein `is_dir()` auf das
+     * Socketverzeichnis, und das unterschied „nicht installiert" von „läuft
+     * nicht" — gemessen tut es das nicht, denn das Verzeichnis fehlt in beiden
+     * Fällen. {@see Clusters} fragt statt dessen Debians eigenes Werkzeug und
+     * beantwortet damit vier Fragen, bevor irgendetwas verbunden wird.
+     *
+     * `state` sagt, was der Betreiber als Nächstes tun muss — und jeder Wert
+     * steht für genau einen Handgriff:
+     *
+     * | `state` | was zu tun ist |
+     * |---|---|
+     * | `absent` | PostgreSQL installieren (der Knopf im Panel) |
+     * | `no_cluster` | installiert, aber kein Cluster — `pg_createcluster` |
+     * | `stopped` | ein Cluster, gestoppt — starten |
+     * | `ambiguous` | mehrere laufen; das Panel wählt nicht (docs/38 §7) |
+     * | `not_handed_over` | die Rolle `root` fehlt — {@see self::HANDOVER} |
+     * | `unusable` | Fassung zu alt |
+     * | `ready` | nichts |
+     *
      * @return array{
+     *     state: string,
      *     available: bool,
      *     handed_over: bool,
      *     version: string,
@@ -80,11 +103,16 @@ final class Server
      *     usable: bool,
      *     reason: string|null,
      *     handover: string,
+     *     cluster: string|null,
+     *     directory: string|null,
+     *     port: int|null,
+     *     clusters: list<array{version: int, name: string, port: int, running: bool, directory: string}>,
      * }
      */
     public function describe(Context $context, Session $session): array
     {
         $blank = [
+            'state' => 'absent',
             'available' => false,
             'handed_over' => false,
             'version' => '',
@@ -92,47 +120,142 @@ final class Server
             'usable' => false,
             'reason' => null,
             'handover' => self::HANDOVER,
+            'cluster' => null,
+            'directory' => null,
+            'port' => null,
+            'clusters' => [],
         ];
 
-        if (! is_dir(self::SOCKET_DIRECTORY)) {
+        $clusters = $this->clusters->all($context);
+
+        if ($clusters === null) {
             return array_merge($blank, [
-                'reason' => 'PostgreSQL ist auf diesem Server nicht eingerichtet — es gibt kein Socketverzeichnis.',
+                'reason' => 'PostgreSQL ist auf diesem Server nicht installiert.',
+            ]);
+        }
+
+        $blank['clusters'] = $clusters;
+
+        if ($clusters === []) {
+            return array_merge($blank, [
+                'state' => 'no_cluster',
+                'reason' => 'PostgreSQL ist installiert, aber es gibt keinen Cluster.',
+            ]);
+        }
+
+        $running = array_values(array_filter($clusters, static fn (array $c): bool => $c['running']));
+
+        /*
+         * **Bei mehreren laufenden Clustern wählt das Panel nicht.** Das ist
+         * die eine Stelle, an der Raten Kundendaten kostet: Zwei Cluster
+         * heissen fast immer, dass der Betreiber einen davon selbst betreibt —
+         * und in den schrieben wir dann Kundendatenbanken.
+         *
+         * **Gezählt werden die laufenden und nicht alle.** `docs/20 §15`
+         * Punkt 4 hält für nginx die feinere Fassung fest: Ein *laufender*
+         * fremder Webserver verweigert den Betrieb, ein bloss installierter
+         * nicht — auf manchen Systemen liegt einer als Abhängigkeit herum, ohne
+         * je zu starten. Ein gestoppter zweiter Cluster ist dasselbe.
+         */
+        if (count($running) > 1) {
+            return array_merge($blank, [
+                'state' => 'ambiguous',
+                'available' => true,
+                'reason' => sprintf(
+                    'Auf diesem Server laufen %d PostgreSQL-Cluster (%s). Welcher die Kundendatenbanken '
+                    .'aufnehmen soll, entscheidet nicht das Panel.',
+                    count($running),
+                    implode(', ', array_map(
+                        static fn (array $c): string => sprintf('%d/%s auf Port %d', $c['version'], $c['name'], $c['port']),
+                        $running,
+                    )),
+                ),
+            ]);
+        }
+
+        if ($running === []) {
+            $first = $clusters[0];
+
+            return array_merge($blank, [
+                'state' => 'stopped',
+                'available' => true,
+                'cluster' => sprintf('%d/%s', $first['version'], $first['name']),
+                'port' => $first['port'],
+                'reason' => 'Der PostgreSQL-Cluster läuft nicht.',
             ]);
         }
 
         try {
-            $rows = $session->query($context, 'SELECT current_setting(\'server_version_num\'), version()');
+            $rows = $session->query(
+                $context,
+                "SELECT current_setting('server_version_num'), version(), current_setting('data_directory'), "
+                ."current_setting('port')",
+            );
         } catch (AgentException $error) {
             /*
-             * **Hier wird die Meldung gelesen und nicht nur weitergereicht.**
-             * „Der Dienst läuft nicht" und „die Rolle root fehlt" sehen für den
-             * Agenten gleich aus — beides ist ein `psql`, das mit einem
-             * Rückgabewert ungleich null endet. Für den Betreiber sind es zwei
-             * verschiedene Handgriffe, und ein Panel, das ihm beide Male
-             * dasselbe sagt, hilft bei keinem.
+             * **Ein laufender Cluster, der abweist, ist die fehlende
+             * Übergabe.** Dass er läuft, steht schon fest — das hat
+             * `pg_lsclusters` beantwortet. Was `psql` hier meldet, ist deshalb
+             * nicht mehr „der Dienst ist tot", sondern „die Rolle root gibt es
+             * nicht" (docs/38 §6.1).
              */
             return array_merge($blank, [
-                'available' => ! self::saysServerIsDown($error->getMessage()),
+                'state' => 'not_handed_over',
+                'available' => true,
+                'cluster' => sprintf('%d/%s', $running[0]['version'], $running[0]['name']),
+                'port' => $running[0]['port'],
                 'reason' => $error->getMessage(),
             ]);
         }
 
         $row = $rows[0] ?? [];
-        $number = (int) ($row[0] ?? 0);
-        $version = (string) ($row[1] ?? '');
-        $major = intdiv($number, 10000);
+        $major = intdiv((int) ($row[0] ?? 0), 10000);
+        $directory = (string) ($row[2] ?? '');
 
         [$usable, $reason] = self::usable($major);
 
-        return [
+        /*
+         * **Und hier wird das Gewählte gegen das Erreichte gehalten.** Der
+         * Cluster oben kommt aus `pg_lsclusters`, das Datenverzeichnis unten
+         * aus der Verbindung selbst. Stimmen sie nicht überein, hat `psql` mit
+         * einem anderen geredet als dem, den wir gemeint haben — etwa weil in
+         * einer `~/.psqlrc` oder in der Umgebung ein Port steht.
+         *
+         * Das ist keine ausgedachte Sorge: Es ist genau die Bauart, die
+         * `docs/36 §22.3w` beim Fernzugriff gekostet hat — geschrieben wurde
+         * das eine, gewirkt hat das andere, und gemerkt hat es niemand, weil
+         * nichts zurückgelesen wurde. Ein Fehlschlag ist es nicht; das Panel
+         * soll es sehen und sagen können.
+         */
+        if ($directory !== '' && $directory !== $running[0]['directory']) {
+            $reason = sprintf(
+                'Erwartet war der Cluster unter %s, geantwortet hat der unter %s.',
+                $running[0]['directory'],
+                $directory,
+            );
+            $usable = false;
+        }
+
+        /*
+         * **Was gemeldet wird, kommt aus der Verbindung zurück und nicht aus
+         * der Auswahl.** `data_directory` und `port` sagen, welcher Cluster
+         * tatsächlich geantwortet hat — Lehre 1 aus `docs/37 §6`: Eine
+         * geschriebene Zeile ist eine Absicht, erst der gelesene Zustand ist
+         * ein Zustand. Weichen die beiden ab, steht es hier und nicht in einem
+         * Rätsel drei Wochen später.
+         */
+        return array_merge($blank, [
+            'state' => $usable ? 'ready' : 'unusable',
             'available' => true,
             'handed_over' => true,
-            'version' => $version,
+            'version' => (string) ($row[1] ?? ''),
             'major' => $major,
             'usable' => $usable,
             'reason' => $reason,
-            'handover' => self::HANDOVER,
-        ];
+            'cluster' => sprintf('%d/%s', $running[0]['version'], $running[0]['name']),
+            'directory' => $directory,
+            'port' => (int) ($row[3] ?? 0),
+        ]);
     }
 
     /**
@@ -149,31 +272,6 @@ final class Server
                 'Auf diesem PostgreSQL arbeitet srvpanel nicht: '.($info['reason'] ?? 'unbekannter Grund'),
             );
         }
-    }
-
-    /**
-     * Sagt diese Meldung, dass der Dienst gar nicht läuft?
-     *
-     * `psql` unterscheidet die beiden Fälle im Text und nirgends sonst: Ein
-     * Server, der nicht antwortet, liefert „could not connect to server" oder
-     * „No such file or directory" auf den Socket; ein Server, der antwortet und
-     * die Rolle nicht kennt, liefert „role … does not exist" oder
-     * „Peer authentication failed".
-     *
-     * **Gesucht wird nach dem Nichtlaufen und nicht nach der fehlenden Rolle.**
-     * Der Rückfall ist damit „der Server läuft" — und das ist die Richtung, in
-     * der ein Irrtum billiger ist: Das Panel zeigt dann den Übergabebefehl an,
-     * statt zu behaupten, PostgreSQL sei nicht installiert.
-     */
-    private static function saysServerIsDown(string $message): bool
-    {
-        foreach (['could not connect to server', 'No such file or directory', 'Connection refused'] as $needle) {
-            if (str_contains($message, $needle)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /** @return array{0: bool, 1: string|null} */

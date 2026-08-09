@@ -82,6 +82,24 @@ final class Runner
         'pg_dump' => '/usr/bin/pg_dump',
         'pg_restore' => '/usr/bin/pg_restore',
 
+        // **Zwei Werkzeuge von `postgresql-common`, und beide tun genau eine
+        // Sache.** `pg_lsclusters` liest, welche Cluster es gibt; `pg_ctlcluster`
+        // startet einen vorhandenen. Sie stehen hier, weil sich die Frage
+        // „installiert, aber gestoppt" von „gar nicht installiert" ohne sie
+        // nicht beantworten lässt — gemessen am 9. August 2026: Das
+        // Socketverzeichnis fehlt in beiden Fällen (docs/38 §2.2d).
+        //
+        // **`pg_lsclusters` ist dabei selbst der Fühler.** Fehlt das Programm,
+        // wirft der Runner `not_found`, und genau das heisst „PostgreSQL ist
+        // nicht installiert". Eine Prüfung auf eine Datei wäre eine zweite
+        // Fassung derselben Frage.
+        //
+        // Nicht `systemctl` für den Start: Der Unitname hängt an Fassung und
+        // Clustername (`postgresql@16-main.service`), und ihn aus zwei Werten
+        // zusammenzusetzen ist der Vorgang, den eine Positivliste verhindert.
+        'pg_lsclusters' => '/usr/bin/pg_lsclusters',
+        'pg_ctlcluster' => '/usr/bin/pg_ctlcluster',
+
         // **`certbot` stand hier und ist mit P4 wieder gegangen.** Er war für
         // TLS vorgesehen; gebaut wurde statt dessen ein eigener ACME-Client im
         // Agenten (`agent/src/Acme/`, Begründung in docs/32 §6). Ein Programm,

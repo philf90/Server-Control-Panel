@@ -6278,3 +6278,53 @@ hätte, lag bereit und wurde nicht benutzt. `BreakScriptTest` ist ohne `vendor/`
 über eine Attrappe fahrbar, und in dieser Sitzung ist er sechsmal gelaufen — nur
 nicht nach der letzten Änderung an `app/`. *Ein Wächter, den man am Ende nicht
 noch einmal fragt, ist eine Runde CI.*
+
+### `Pg\Server` konnte „nicht installiert" nicht von „läuft nicht" unterscheiden
+
+**Der Fehler stand seit Schritt 1 im Repo, und gefunden hat ihn eine Frage des
+Betreibers.** Auf „was tut die Installation, wenn schon ein Cluster da ist?"
+folgte eine Messung — und die erste Zeile davon war: Bei einem installierten,
+aber gestoppten PostgreSQL **fehlt `/var/run/postgresql` genauso wie bei einem
+nicht installierten.** Genau daran hat `describe()` die beiden auseinandergehalten.
+
+Zwei verschiedene Handgriffe des Betreibers — installieren oder starten —
+hätten dieselbe Meldung bekommen. Das ist Lehre 3 aus `docs/37 §6`, und
+besonders unangenehm ist, wo sie zugeschlagen hat: in dem Abschnitt, der als
+Fortschritt gegenüber P5 aufgeschrieben war („ein Zustand, den P5 nicht kennt").
+**Ein Zustand, den man benennt, ist noch keiner, den man messen kann.**
+
+**Gefragt wird jetzt `pg_lsclusters`**, bevor irgendetwas verbunden wird —
+Debians eigenes Werkzeug beantwortet in einem Aufruf, was sonst vier Fragen
+wären: installiert? wie viele? läuft er? welcher Port? Sich das aus
+`/etc/postgresql` zusammenzusuchen wäre eine zweite Fassung dieses Werkzeugs.
+Und es ist zugleich der Fühler: Fehlt das Programm, ist PostgreSQL nicht
+installiert — eine Prüfung auf eine Datei wäre wieder dieselbe Frage zweimal.
+
+Daraus sieben Zustände statt zweier, jeder mit **genau einem** Handgriff:
+`absent`, `no_cluster`, `stopped`, `ambiguous`, `not_handed_over`, `unusable`,
+`ready`. Alle sieben sind gegen einen echten Cluster gefahren.
+
+**Bei mehreren laufenden Clustern wählt das Panel nicht.** Das ist die eine
+Stelle, an der Raten Kundendaten kostet — zwei Cluster heissen fast immer, dass
+der Betreiber einen davon selbst betreibt. Gezählt werden dabei die
+**laufenden** und nicht alle: `docs/20 §15` Punkt 4 hält für nginx dieselbe
+feinere Fassung fest, weil auf manchen Systemen ein Dienst als Abhängigkeit
+herumliegt, ohne je zu starten.
+
+**Und das Gewählte wird gegen das Erreichte gehalten.** Der Cluster kommt aus
+`pg_lsclusters`, das Datenverzeichnis aus der Verbindung selbst. Weichen sie ab,
+hat `psql` mit einem anderen geredet als dem, den wir gemeint haben — und das
+steht dann da, statt drei Wochen später ein Rätsel zu sein. Es ist dieselbe
+Bauart, die `docs/36 §22.3w` beim Fernzugriff gekostet hat: geschrieben das
+eine, gewirkt das andere, zurückgelesen nichts.
+
+**Zwei Programme mehr auf der Positivliste**, `pg_lsclusters` und
+`pg_ctlcluster` — beide von `postgresql-common`, beide mit genau einer Aufgabe.
+Nicht `systemctl` für den Start: Der Unitname hängt an Fassung und Clustername
+(`postgresql@16-main.service`), und ihn aus zwei Werten zusammenzusetzen ist der
+Vorgang, den eine Positivliste verhindert.
+
+*Nebenbei, und nur der Vollständigkeit halber:* Beim ersten Wurf las
+`Clusters::all()` das Feld 4 als Datenverzeichnis — das ist der Eigentümer.
+Aufgefallen beim Lauf gegen das echte Werkzeug, nicht beim Lesen; ein Cluster
+mit dem Datenverzeichnis `postgres` sieht in einer Ablage nicht falsch aus.

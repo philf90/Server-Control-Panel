@@ -10,17 +10,17 @@ Architektur (§4), Rechtemodell (§6), Gestaltung (§7.2) und die Ausbaustufen
 Die Oberfläche folgt seit August 2026 dem Gestaltungssystem **„Kontor"**
 (Plan §7.2) — hell entworfen, keine Karten, Monospace nur für Kennungen.
 
-Stand: **P0 bis P4 abgenommen, beide Würfe.** Der zweite brachte DNS-01 mit
-sieben Anbietern, Platzhalterzertifikate, das Hochladen eigener Zertifikate und
-die Auswahl, welches eine Domain ausliefert. Nachgewiesen am 7. August 2026 auf
-`cloudlab24.ipv64.de` gegen IPv64.net: **alle sieben Kriterien aus `docs/34
-§10`** — ein Platzhalter über DNS-01, alle Blöcke des Abonnements liefern ihn
-aus, ein fremdes Abonnement in derselben Zone bekommt ihn nicht, die Erneuerung
-ist eine Bestellung und bleibt ein Platzhalter, eine verkehrt sortierte Kette
-wird mit dem richtigen Grund abgewiesen, ein hochgeladenes bleibt liegen, und
-das DNS-Token steht nirgends.
+Stand: **P0 bis P5 abgenommen.** P5 brachte Datenbanken, Zugänge, Sicherungen,
+Zurückspielen, Fernzugriff und das Hochladen mitgebrachter Sicherungen.
+Nachgewiesen auf `cloudsrv24` gegen MariaDB 10.11.14: **alle sieben Kriterien
+aus `docs/36 §17`**, dazu Schritt 10 und 11 am 9. August in zwölf Schritten
+(`docs/36 §22.3w` und `§22.3x`).
 
-Ausgeliefert wird `v0.4.0-rc.11`.
+**Als Nächstes kommt P5b — PostgreSQL**, als eigene Stufe mit eigenem Plan und
+eigener Abnahme. Die Übergabe dafür ist **`docs/37`**; sie nennt auch die eine
+Frage, die vor dem Planen beantwortet sein muss.
+
+Ausgeliefert wird `v0.5.0-rc.10`.
 
 **Der Abnahmelauf hat sechs Fehler gefunden, und keinen davon ein Test.** Drei
 betrafen ein Kriterium, drei die Bedienung. Der teuerste sah aus wie ein Erfolg:
@@ -213,6 +213,11 @@ die Messwerte. Die Entwürfe zum Gestaltungssystem stehen
 unter `docs/entwuerfe/`: `20` die Wahl von 2026 („Leitstand"), `29` der erste
 Rework-Plan, `30` die zwei neuen Richtungen, `31` das bediente Muster zu
 „Kontor".
+
+Und aus P5: **`36` Datenbanken** — der Plan, die sieben Abnahmekriterien als
+Befehlsfolge (§17), die Entscheidungen des Betreibers (§19) und ein langes
+Protokoll dessen, was beim Bauen anders war als im Plan (§22.3a–§22.3x) — sowie
+**`37` die Übergabe an P5b**.
 
 ---
 

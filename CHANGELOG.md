@@ -6884,3 +6884,53 @@ in `app/`. In dieser Sitzung ist PHPStan vorher fünfmal über die geänderten
 `app/`-Dateien gelaufen und beim sechsten Mal nicht mehr; ein Schritt, den man
 für erledigt hält, weil man ihn oft genug gemacht hat. *Eine Prüfung, die man
 nach Gefühl auswählt, prüft irgendwann das, woran man ohnehin gedacht hat.*
+
+### P5b Schritt 4 beginnt mit einer Messung, die den Rückbau vereinfacht
+
+**Vorgelegt war eine Gabelung, und die Messung hat beide Äste verkürzt.**
+`db.database.remove` macht in einem Vorgang drei Dinge — Schema werfen, die nur
+daran hängenden Zugänge entfernen, den bleibenden das Recht nehmen.
+`pg.database.remove` nahm nur einen Namen, und die Vermutung war: Rollen müssen
+**vor** der Datenbank aufgeräumt werden, weil `DROP ROLE` verweigert, solange
+eine Rolle etwas besitzt.
+
+**Gemessen am 9. August 2026 gegen PostgreSQL 16.13:**
+
+    vor  DROP DATABASE   pg_shdepend für die Rolle: dbid 0 → 1, dbid 24581 → 2
+    nach DROP DATABASE   pg_shdepend für die Rolle: 0 Zeilen
+    DROP ROLE ohne DROP OWNED BY → geht
+
+`DROP DATABASE` nimmt **alles** mit, was in ihr wurzelt: die Eigentümerzeilen
+der Objekte darin und den Eintrag auf die Datenbank selbst. Die Reihenfolge ist
+also genau umgekehrt zur Vermutung — **erst die Datenbank, dann die Rollen** —,
+und `DROP OWNED BY` ist dabei überflüssig.
+
+**Und die zweite Liste entfällt ganz.** In MariaDB gibt es `revoke` für die
+Zugänge, die bleiben, weil eine Rechtezeile in `mysql.db` ihr Schema überlebt
+(`docs/36 §22.3p`, auf `cloudsrv24` gefunden). In PostgreSQL liegt dasselbe
+Recht in `pg_database.datacl` und geht mit der Datenbank — gemessen: Nach dem
+Werfen stand die bleibende Rolle nur noch an der Datenbank, die es noch gibt.
+Eine `revoke`-Liste wäre Arbeit für einen Zustand, den es nicht gibt, und sähe
+aus wie eine Zusage.
+
+**Ein Vorgang statt zweier, und der Grund ist der Abbruch.** Rollen unmittelbar
+zu entfernen und die Datenbank danach einzureihen hiesse: Bricht das
+`DROP DATABASE` ab, sind die Zugänge fort und die Daten da — der Kunde sieht
+seine Datenbank und kommt nicht mehr hinein. So bleibt bei einem Abbruch der
+Zustand von vorher.
+
+`DROP OWNED BY` bleibt, wo es hingehört: in `pg.role.remove`, für den anderen
+Fall — eine Rolle, die entfernt wird, während ihre übrigen Datenbanken bestehen
+bleiben. Dort verweigert `DROP ROLE` tatsächlich, und dort ist es gemessen.
+
+**Gefahren gegen den echten Cluster:** Datenbank und zwei Rollen angelegt, in
+einem Aufruf zurückgebaut — beide fort, wiederholbar (`removed=false` beim
+zweiten Lauf), und eine Rolle mit fremdem Präfix abgewiesen. Der Wächter dazu
+liest die **Reihenfolge** im Quelltext, weil sie sich sonst nur gegen einen
+laufenden Server prüfen liesse.
+
+**Die Lehre, die über den Rückbau hinausgeht:** Die Gabelung, die ich vorgelegt
+habe, hatte beide Äste aus MariaDB gedacht — *„Rechte überleben ihr Schema"* ist
+dort wahr und hier falsch. Ich hätte sie nicht vorlegen sollen, ohne sie vorher
+zu messen; die Messung kostete vier Minuten und hat eine Liste, eine Operation
+und einen Lebenslauf erspart.

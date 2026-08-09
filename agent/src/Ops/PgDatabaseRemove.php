@@ -54,15 +54,44 @@ use SrvPanel\Agent\Pg\Sql;
  * hinge ein fehlgeschlagener Rückbau für immer, weil sein zweiter Versuch an
  * dem scheitert, was der erste schon geschafft hat.
  *
- * **Die Rollen gehen hier nicht mit** — anders als bei
- * {@see DbDatabaseRemove}, wo `DROP USER` im selben Lauf steht. In PostgreSQL
- * verweigert `DROP ROLE`, solange die Rolle irgendwo Rechte hat oder etwas
- * besitzt, und aufgeräumt wird das je Datenbank ({@see PgRoleRemove}). Diese
- * Reihenfolge — erst die Datenbanken, dann die Rollen — kann nur die Anwendung
- * kennen, die den Bestand führt.
+ * ## Die Rollen gehen mit — **nach** der Datenbank
+ *
+ * Hier stand, sie gingen *nicht* mit, weil `DROP ROLE` verweigert, solange eine
+ * Rolle irgendwo etwas besitzt. Das stimmt — und für die Rollen, die mit dieser
+ * Datenbank verschwinden, ist es gegenstandslos. **Gemessen am 9. August 2026:**
+ *
+ *     vor DROP DATABASE   pg_shdepend: dbid 0 → 1 Zeile, dbid 24581 → 2 Zeilen
+ *     nach DROP DATABASE  pg_shdepend: 0 Zeilen
+ *     DROP ROLE ohne DROP OWNED BY → geht
+ *
+ * `DROP DATABASE` nimmt **alle** Abhängigkeiten mit, die in ihr wurzeln: die
+ * Eigentümerzeilen der Objekte darin und den Eintrag auf die Datenbank selbst.
+ * Danach ist eine Rolle, die nur an ihr hing, frei.
+ *
+ * **Und das ist zugleich der Unterschied zu MariaDB, der eine zweite Liste
+ * überflüssig macht.** Dort überlebt eine Rechtezeile in `mysql.db` ihr Schema
+ * — `docs/36 §22.3p` hat das auf `cloudsrv24` gefunden —, weshalb
+ * {@see DbDatabaseRemove} neben `users` auch `revoke` bekommt: die Zugänge, die
+ * bleiben und ihr Recht verlieren müssen. In PostgreSQL liegt dasselbe Recht in
+ * `pg_database.datacl` und geht mit der Datenbank. Gemessen: Nach dem Werfen
+ * stand die bleibende Rolle nur noch an der Datenbank, die es noch gibt.
+ *
+ * **Ein Vorgang statt zweier, und das ist der Grund.** Rollen zuerst
+ * unmittelbar zu entfernen und die Datenbank danach einzureihen hiesse: Bricht
+ * das `DROP DATABASE` ab, sind die Zugänge fort und die Daten da — der Kunde
+ * sieht seine Datenbank und kommt nicht mehr hinein. So bleibt bei einem
+ * Abbruch der Zustand von vorher.
+ *
+ * **`DROP OWNED BY` bleibt trotzdem, wo es hingehört:** in
+ * {@see PgRoleRemove}, für den anderen Fall — eine Rolle, die entfernt wird,
+ * während ihre übrigen Datenbanken bestehen bleiben. Dort verweigert `DROP
+ * ROLE` tatsächlich, und dort ist es gemessen.
  */
 final class PgDatabaseRemove implements Op
 {
+    /** Wie viele Rollen ein Aufruf mitnehmen darf. */
+    private const MAX_ROLES = 64;
+
     public function __construct(private readonly Session $session = new Session) {}
 
     public static function name(): string
@@ -97,15 +126,76 @@ final class PgDatabaseRemove implements Op
         // einem Server loswerden will, dessen Fassung wir inzwischen für zu alt
         // halten, soll das können. Eine Vorbedingung, die den Rückbau
         // blockiert, hinterlässt genau das, was sie verhindern soll.
+        $roles = $this->roles($args['roles'] ?? [], $prefix);
+
         $existed = $this->exists($context, $database);
 
         $context->progress(30, $existed ? 'Datenbank entfernen' : 'Datenbank ist bereits fort');
 
         $this->session->execute($context, [self::statement($database)]);
 
+        /*
+         * **Erst danach.** Vorher verweigerte `DROP ROLE` — die Rolle besitzt
+         * ja noch, was in der Datenbank liegt. Danach ist sie frei, und zwar
+         * ohne `DROP OWNED BY` (gemessen, siehe Klassenkommentar).
+         *
+         * `IF EXISTS`, weil ein zweiter Anlauf nach einem abgebrochenen Lauf
+         * hier ankommt und die Rolle dann schon fort ist.
+         */
+        $removed = [];
+
+        foreach ($roles as $index => $role) {
+            $context->progress(50 + intdiv(40 * $index, max(1, count($roles))), 'Rolle entfernen: '.$role);
+            $this->session->execute($context, [PgRoleRemove::statement($role)]);
+            $removed[] = $role;
+        }
+
         $context->progress(100, 'fertig');
 
-        return ['name' => $database, 'removed' => $existed];
+        return ['name' => $database, 'removed' => $existed, 'roles_removed' => $removed];
+    }
+
+    /**
+     * Die Rollen, die mit dieser Datenbank gehen.
+     *
+     * **Welche das sind, sagt die Anwendung** — dieselbe Entscheidung wie in
+     * {@see DbDatabaseRemove}: Der Agent führt keinen Bestand, und eine
+     * Operation, die selbst in `pg_shdepend` nachsähe, wäre eine zweite Fassung
+     * dieser Regel.
+     *
+     * Jeder Name wird gegen das Präfix gehalten. Ohne diese Prüfung wäre ein
+     * Fehler in der Anwendung ein `DROP ROLE` auf den Zugang eines fremden
+     * Kunden.
+     *
+     * @return list<string>
+     */
+    private function roles(mixed $value, string $prefix): array
+    {
+        if (! is_array($value)) {
+            throw AgentException::badRequest('roles muss eine Liste sein.');
+        }
+
+        if (count($value) > self::MAX_ROLES) {
+            throw AgentException::badRequest(sprintf(
+                'Zu viele Rollen in einem Aufruf: %d, erlaubt sind %d.',
+                count($value),
+                self::MAX_ROLES,
+            ));
+        }
+
+        $names = [];
+
+        foreach ($value as $entry) {
+            $name = Names::existing($entry, 'roles');
+
+            if (! Names::belongsTo($name, $prefix)) {
+                throw AgentException::denied(sprintf('Die Rolle %s gehört nicht zum Abonnement %s.', $name, $prefix));
+            }
+
+            $names[] = $name;
+        }
+
+        return array_values(array_unique($names));
     }
 
     /**

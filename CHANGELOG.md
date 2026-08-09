@@ -6644,3 +6644,45 @@ nicht, weniger Wächter zu bauen, sondern die Attrappe mitzuschreiben.
 null Sekunden. In 452 lief derselbe Job durch. Ein Download, der einmal nicht
 kam — kein Befund, und hier festgehalten, damit ihn beim nächsten Mal niemand für
 einen hält.
+
+### Die Messung zu Schritt 6b: sechs von dreizehn Paketen fehlten auf dem Zielserver
+
+**Gesucht war `pgsql`, gefunden wurden sechs.** Am 9. August 2026 auf
+`cloudsrv24` gegen die einzige dort installierte Version, PHP 8.4:
+
+    vorhanden  fpm  mysql  xml  mbstring  curl  opcache  readline
+    fehlt      pgsql  gd  zip  intl  bcmath  soap
+
+Die sieben vorhandenen sind genau die, die `packaging/nfpm.yaml` als
+Abhängigkeit des **Panels** nennt, plus was daran hängt. PHP 8.4 ist also nie
+durch `php.version.install` gegangen — es kam als Abhängigkeit mit. Und die
+Operation hätte es auch nie ergänzt: `/usr/sbin/php-fpm8.4` lag da, also meldete
+sie `already => true` und tat nichts.
+
+**Der Befund ist damit grösser als PostgreSQL.** Das Panel führt 8.4 als
+installiert und bietet sie Kunden an; eine Website darauf hat kein `gd`, kein
+`zip`, kein `intl`, kein `bcmath` und kein `soap` — die fünf, die eine übliche
+Anwendung als Erstes verlangt. Das steht seit P3 so auf einem Server im Betrieb,
+und gesehen hat es niemand, weil die einzige Stelle, die danach hätte fragen
+können, einen Stellvertreter fragte. *Ein Stellvertreter verdeckt nicht nur den
+Fall, für den man ihn bemerkt.*
+
+**Was daraus nicht folgt:** dass eine unvollständige Version aus dem Auswahlfeld
+der Domains verschwindet. `PhpSelection::installed()` bleibt bei „der Handler ist
+da" — einem Kunden eine funktionierende PHP-Version wegen eines fehlenden `soap`
+zu entziehen, wäre die härtere Änderung mit dem grösseren Schaden. Die richtige
+Ebene ist, dass der Betreiber es sieht und ergänzt. Entscheidung, nicht
+Auslassung; sie steht in `docs/38 §24.2`.
+
+### Und eine Annahme, die nur ein deutsches System widerlegen konnte
+
+`PhpVersions::missing()` vergleicht das Statusfeld von `dpkg-query` gegen die
+Zeichenkette `installed`. Dieser Container spricht englisch — der Vergleich hätte
+hier in jedem Fall gepasst. Auf `cloudsrv24` ist die *Meldung* deutsch („Kein
+Paket gefunden, das auf php8.4-pgsql passt"), das Feld `${db:Status-Status}`
+nicht.
+
+Wäre es übersetzt, gälte **jedes** Paket als fehlend, und `php.version.install`
+liesse bei jedem Aufruf `apt-get` laufen — lautlos, denn ein Lauf, der zu viel
+installiert, sieht aus wie ein erfolgreicher. Die Messung steht jetzt als
+Kommentar an der Methode, damit der Nächste die Frage nicht noch einmal stellt.

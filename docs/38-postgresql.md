@@ -1493,3 +1493,32 @@ fehlt; „Einstellungen → PHP-Versionen" zeigt es neben dem Zustand und bietet
 **Ergänzen** an — dieselbe Aufgabe wie „Installieren", weil es dieselbe Regel
 ist. Nicht in `srvpanel update`: Ein Update, das von selbst `apt-get install`
 fährt, kann an einer fremden Paketquelle scheitern und nimmt das Panel mit.
+
+#### Was die Messung auf `cloudsrv24` dazu ergeben hat
+
+**Sechs von dreizehn Paketen fehlen, nicht eines.** Am 9. August 2026 gegen die
+einzige dort installierte Version, PHP 8.4:
+
+| vorhanden | fehlt |
+|---|---|
+| `fpm`, `mysql`, `xml`, `mbstring`, `curl`, `opcache`, `readline` | `pgsql`, `gd`, `zip`, `intl`, `bcmath`, `soap` |
+
+Die sieben vorhandenen sind genau die, die `packaging/nfpm.yaml` als
+Abhängigkeit des **Panels** nennt, plus was daran hängt. **PHP 8.4 ist also nie
+durch `php.version.install` gegangen** — es kam als Abhängigkeit mit, und die
+Operation hätte es auch nie ergänzt: `is_executable('/usr/sbin/php-fpm8.4')` war
+wahr, also meldete sie `already => true`.
+
+**Damit ist der Befund grösser als PostgreSQL.** Das Panel führt 8.4 als
+installiert, bietet sie Kunden an, und eine Website darauf hat kein `gd`, kein
+`zip`, kein `intl`, kein `bcmath` und kein `soap` — die fünf, die eine übliche
+Anwendung als Erstes verlangt. Das steht seit P3 so auf dem Server, und niemand
+hat es gesehen, weil die einzige Stelle, die danach hätte fragen können, einen
+Stellvertreter fragte.
+
+**Was daraus *nicht* folgt:** dass eine unvollständige Version aus dem
+Auswahlfeld der Domains verschwindet. `PhpSelection::installed()` bleibt bei
+„der Handler ist da". Einem Kunden eine funktionierende PHP-Version wegen eines
+fehlenden `soap` zu entziehen, wäre die härtere Änderung mit dem grösseren
+Schaden; die richtige Ebene ist, dass der Betreiber es **sieht** und ergänzt.
+Das ist eine Entscheidung und keine Auslassung.

@@ -46,11 +46,18 @@ final class Server
      * benutzbar und nicht bloss geduldet.
      *
      * **Und hier stand, welche Fassung jede der vier Zielplattformen liefert.
-     * Gemessen war davon eine.** Ubuntu 24.04 liefert 16.13 — zweimal belegt, im
-     * Entwicklungscontainer und über den apt-Kandidaten auf `cloudsrv24`
-     * (`docs/38 §2.2c`). Die Zahlen für Ubuntu 22.04, Debian 12 und Debian 13
-     * waren aus dem Gedächtnis geschrieben, und genau diese Sorte Satz hat in
-     * P5b viermal einen Abschnitt umgeworfen.
+     * Gemessen war davon eine.** Die Zahlen für Ubuntu 22.04, Debian 12 und
+     * Debian 13 waren aus dem Gedächtnis geschrieben, und genau diese Sorte
+     * Satz hat in P5b viermal einen Abschnitt umgeworfen.
+     *
+     * **Und die eine gemessene stimmte auch nicht ganz.** Hier stand „Ubuntu
+     * 24.04 liefert 16.13, zweimal belegt" — belegt war es einmal, im
+     * Entwicklungscontainer. Der zweite Beleg sollte der apt-Kandidat auf
+     * `cloudsrv24` sein, und `16+257build1.1` ist die Nummer des *Metapakets*;
+     * über die Serverfassung dahinter sagt sie nichts. Die erste Installation
+     * dort brachte am 9. August 2026 **16.14**. Ein Wartungsstand Unterschied,
+     * folgenlos für alles, was hier zählt — und trotzdem eine Zahl, die
+     * niemand gemessen hatte.
      *
      * Sie stehen deshalb nicht mehr da. Was zählt, ist die Grenze selbst: Eine
      * Fassung darunter bekommt die Datenbankfläche nicht angeboten, und

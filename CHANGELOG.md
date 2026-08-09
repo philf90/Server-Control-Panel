@@ -6242,7 +6242,7 @@ PostgreSQL ist es eine Rolle mit einem Passwort und mehreren erlaubten Netzen.
 
 **Zwei Korrekturen aus dem Messlauf.** `cloudsrv24` hat kein PostgreSQL — kein
 `psql`, kein Cluster, kein Benutzer `postgres` —, und der Kandidat von `apt`
-ist `16+257build1.1`, byteweise dieselbe Fassung wie im Entwicklungscontainer.
+ist `16+257build1.1` — die Nummer des Metapakets.
 **Die Messungen dieses Plans sind für den Zielserver damit keine Näherung,
 sondern dieselbe Konfiguration.** Und in `Pg\Server` stand, welche Fassung jede
 der vier Zielplattformen liefert — gemessen war davon eine. Die drei anderen
@@ -6733,3 +6733,50 @@ einer eigenen HTML-Datei. Das war der richtige Weg für die Frage „läuft etwa
 über?", und es ist der falsche für „stimmt es neben dem, was daneben steht?".
 Der Ersatz für die echte Seite ist er nie gewesen, und `CLAUDE.md` sagt das
 auch; hier steht, was genau er nicht sieht.
+
+### Punkt 3 bis 5 auf `cloudsrv24` — und eine Zahl, die niemand gemessen hatte
+
+**Die drei unbelegten Behauptungen aus dem Pull Request sind zwei.**
+
+`pg.server.install` hat im Zustand `absent` installiert: `apt-get` lief, das
+`postinst` legte den Cluster an, `pg_lsclusters` meldet `16 main 5432 online`.
+Der Zweig, den dieser Container nicht fahren konnte, trägt.
+
+**Und die Ausgabe kam fortlaufend.** Damit ist der offene Punkt aus
+`docs/37 §8` geschlossen: Die Ausgabe-Hälfte des Frame-Funds war seit Monaten
+unbelegt, weil keine `db.*`-Operation streamt. `apt-get` ist die erste, die
+lange genug läuft, um es zu zeigen — an etwas Harmlosem statt an einem
+Zurückspielen während der Abnahme.
+
+**Der Zustand danach war `not_handed_over`, und der Vorgang meldete Erfolg** —
+die Entscheidung aus §6.1, im Betrieb bestätigt. Cluster und Port stehen dabei
+in der Oberfläche, die Version nicht: Sie kommt aus der Verbindung, und die gibt
+es ohne die Rolle nicht. Dass dort `—` steht, ist die Regel dieses Beitrags und
+kein Loch — *gemeldet wird, was der Server geantwortet hat, nicht was wir über
+ihn wissen.* Nach `CREATE ROLE root SUPERUSER LOGIN` steht sie da, kurz und
+einzeilig.
+
+`--postgresql=on|off|on` schaltet wie beschrieben, und `postgresql.service`
+erscheint in der Dienstliste der Übersicht — die Zeile, die nur da ist, wenn es
+die Unit gibt.
+
+### Die Zahl
+
+**`cloudsrv24` liefert PostgreSQL 16.14 und nicht 16.13.** In `Pg\Server` stand
+von mir: *„Ubuntu 24.04 liefert 16.13 — zweimal belegt, im
+Entwicklungscontainer und über den apt-Kandidaten auf `cloudsrv24`."* Belegt war
+es **einmal**. Der zweite Beleg sollte `16+257build1.1` sein, und das ist die
+Nummer des *Metapakets*; über die Serverfassung dahinter sagt sie nichts. 16.13
+war die Zahl aus diesem Container, nicht vom Server.
+
+Das ist wörtlich die Lehre, die in `CLAUDE.md` über P5b steht — *Wissen aus
+zweiter Hand sieht aus wie Wissen* —, und diesmal steht sie in dem Dokument, das
+sie aufgeschrieben hat. Bemerkenswert ist die Form: Der Satz war nicht falsch
+geraten, sondern **falsch gezählt**. „Zweimal belegt" klingt nach mehr Sorgfalt
+als „einmal gemessen" und war weniger.
+
+**Folgenlos ist es, und zwar nachprüfbar:** Was §2.2 bis §2.2b gemessen haben,
+hängt an der Hauptfassung — die dreizehn Kanäle, die `public`-Regel ab PG 15,
+`WITH (FORCE)`, `DROP OWNED BY` je Datenbank, der Rückgabewert von `psql -f`.
+Beide sind 16. Der Satz „dieselbe Konfiguration" gilt weiter; nur seine
+Begründung war eine andere, als dastand.

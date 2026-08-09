@@ -146,7 +146,7 @@ Diese Wörter sind kein Versehen, sondern das Vokabular des Projekts. Sie sind
 gebräuchlich, eindeutig und im Panel durchgehalten:
 
 **Vorgang** (für einen Job mit Live-Ausgabe), **Rückfrage** (für die
-Bestätigungsstufen aus [14](14-bestaetigungen.md)), **Prüfer**,
+Bestätigungsstufen aus [20 §7](20-hostingpanel-neuplan.md)), **Prüfer**,
 **Handlungsbedarf**, **Einhängepunkt**, **Sperrliste**, **verwaltet / fremd**,
 **Zeitplan**, **Zugang**, **Anmeldung**, **Geheimnis** (für das TOTP-Secret,
 weil die Authenticator-Apps es so nennen).

@@ -11,6 +11,9 @@ interface Version {
   active: boolean | null
   pools: number | null
   release: string | null
+
+  // `null` heisst „unbekannt" (kein Agent), `[]` heisst „nichts fehlt".
+  missing: string[] | null
 }
 
 const props = defineProps<{
@@ -40,6 +43,29 @@ function installieren(v: Version): void {
     'php.version.install',
     v.version,
     `PHP ${v.version} installieren?\n\nDie Pakete kommen aus deb.sury.org. Der geteilte Standard-Pool der Distribution wird danach abgeschaltet.`,
+  )
+}
+
+/*
+ * Nachinstallieren, was einer vorhandenen Version fehlt.
+ *
+ * **Dieselbe Aufgabe wie beim Installieren, und das ist Absicht.**
+ * `php.version.install` läuft seit P5b auf den gewünschten Paketsatz zu, statt
+ * beim vorhandenen Handler abzubrechen — ein zweiter Knopf mit einer zweiten
+ * Operation wäre dieselbe Regel ein zweites Mal.
+ *
+ * **Der Neustart steht in der Rückfrage.** Ein laufender FPM lädt eine neu
+ * installierte Erweiterung nicht von selbst; er wird dabei neu gestartet, und
+ * das kostet die Anfragen, die gerade unterwegs sind. Wer das nicht vorher
+ * liest, erfährt es aus dem Fehlerprotokoll seiner Kunden.
+ */
+function ergaenzen(v: Version): void {
+  const fehlt = (v.missing ?? []).join(', ')
+
+  starte(
+    'php.version.install',
+    v.version,
+    `PHP ${v.version} ergänzen?\n\nEs fehlt: ${fehlt}\n\nLäuft der Handler dieser Version, wird er dabei neu gestartet — sonst lädt er die Erweiterung nicht.`,
   )
 }
 
@@ -117,6 +143,16 @@ function zustand(v: Version): string {
 
             <td data-column="Zustand">
               <Badge :kind="rang(v)">{{ zustand(v) }}</Badge>
+
+              <!--
+                **Was fehlt, steht neben dem Zustand und nicht nur am Knopf.**
+                Ein Knopf „Ergänzen" ohne die Angabe, was ergänzt wird, ist
+                eine Aufforderung ohne Auskunft — und die Frage, die jemand
+                hier hat, lautet „warum ist die Version nicht vollständig".
+              -->
+              <p v-if="v.installed && v.missing && v.missing.length > 0" class="quiet">
+                fehlt: <span class="ident">{{ v.missing.join(', ') }}</span>
+              </p>
             </td>
 
             <td data-column="Pools" class="right">{{ v.pools ?? '—' }}</td>
@@ -128,7 +164,20 @@ function zustand(v: Version): string {
                 andersherum, und im Browser sah man sofort, dass es falsch ist:
                 Eine Version dazuzunehmen kostet Platz, eine wegzunehmen kann
                 Websites stilllegen.
+
+                **Und „Ergänzen" steht vor „Entfernen".** Eine Version, der
+                etwas fehlt, ist installiert — der Knopf, der sie vollständig
+                macht, gehört an dieselbe Stelle wie der, der sie geholt hätte.
               -->
+              <button
+                v-if="v.installed && v.missing && v.missing.length > 0"
+                type="button"
+                class="button small"
+                :disabled="läuft !== null"
+                @click="ergaenzen(v)"
+              >
+                {{ läuft === v.version ? 'wird angelegt …' : 'Ergänzen' }}
+              </button>
               <button
                 v-if="!v.installed"
                 type="button"

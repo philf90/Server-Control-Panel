@@ -55,6 +55,20 @@ enum Task: string
     case PhpVersionInstall = 'php.version.install';
     case PhpVersionRemove = 'php.version.remove';
 
+    /*
+     * P5b — PostgreSQL (docs/38 §7).
+     *
+     * **Die erste Aufgabe dieses Katalogs, die einen zweiten Dienst auf den
+     * Server bringt.** Sie steht hier und nicht auf der Kommandozeile, weil
+     * der Betreiber es so entschieden hat (`docs/38 §21`, Entscheidung 10) —
+     * und weil der Grund, aus dem `--remote` ein Befehl bleibt, hier nicht
+     * gilt: Der Fernzugriff startet den Datenbankserver neu, auf dem dieses
+     * Panel selbst arbeitet. `apt-get install postgresql` fasst MariaDB nicht
+     * an; die Anfrage, die den Vorgang anstösst, verliert ihre Verbindung
+     * nicht.
+     */
+    case PostgresInstall = 'pg.server.install';
+
     /**
      * Beschriftung und Beschreibung sind Text, den ein Browser anzeigt — für
      * sie gilt docs/19: technisch vor literarisch.
@@ -82,6 +96,7 @@ enum Task: string
             self::PhpVersionList => 'PHP-Versionen nachsehen',
             self::PhpVersionInstall => 'PHP-Version installieren',
             self::PhpVersionRemove => 'PHP-Version entfernen',
+            self::PostgresInstall => 'PostgreSQL installieren',
         };
     }
 
@@ -98,6 +113,7 @@ enum Task: string
             self::PhpVersionList => 'php.versions. Liest, welche PHP-Versionen installiert sind, ob ihr FPM läuft und wie viele Pools daran hängen. Füllt zugleich die Auswahl in den Domainformularen.',
             self::PhpVersionInstall => 'apt-get install phpX.Y-fpm samt Erweiterungen aus deb.sury.org, danach wird der geteilte Standard-Pool der Distribution abgeschaltet.',
             self::PhpVersionRemove => 'apt-get remove phpX.Y-*. Wird abgewiesen, solange ein Abonnement einen Pool in dieser Version hat.',
+            self::PostgresInstall => 'apt-get install postgresql aus der Distribution, danach wird über pg_lsclusters nachgelesen, ob ein Cluster läuft. Ein vorhandener Cluster wird benutzt und nicht umgebaut; ein gestoppter wird gestartet. pg_hba.conf bleibt unangetastet.',
         };
     }
 
@@ -113,6 +129,7 @@ enum Task: string
             self::PhpVersionList => 'php.versions',
             self::PhpVersionInstall => 'php.version.install',
             self::PhpVersionRemove => 'php.version.remove',
+            self::PostgresInstall => 'pg.server.install',
         };
     }
 
@@ -130,7 +147,7 @@ enum Task: string
     public function payload(?string $argument = null): array
     {
         return match ($this) {
-            self::AgentPing, self::WebserverDetect, self::PhpVersionList => [],
+            self::AgentPing, self::WebserverDetect, self::PhpVersionList, self::PostgresInstall => [],
             self::AgentStatus => ['unit' => 'srvpanel-agentd.service'],
             self::WorkerStatus => ['unit' => 'srvpanel-worker.service'],
             self::WebserverStatus => ['unit' => 'nginx.service'],
@@ -209,6 +226,7 @@ enum Task: string
             self::WebserverReload,
             self::PhpVersionInstall,
             self::PhpVersionRemove,
+            self::PostgresInstall,
         ], true);
     }
 

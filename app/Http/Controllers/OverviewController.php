@@ -477,19 +477,40 @@ final class OverviewController extends Controller
     private function services(Client $agent): array
     {
         $units = ['srvpanel-agentd.service', 'nginx.service', 'mariadb.service'];
+
+        /*
+         * **PostgreSQL steht daneben, aber nur wenn es da ist** (`docs/38 §7`).
+         * Die drei darüber gehören zu jeder Installation — fehlt eine, ist das
+         * eine Störung und gehört gemeldet. PostgreSQL ist optional; eine
+         * dauerhafte Zeile „nicht vorhanden" wäre Rauschen an genau der Stelle,
+         * an der jemand Störungen sucht, und Rauschen an dieser Stelle ist der
+         * Grund, warum niemand mehr hinsieht.
+         *
+         * Gefragt wird trotzdem immer: Ob die Unit existiert, beantwortet der
+         * Agent und keine gemerkte Einstellung. `service.status` führt dafür
+         * keine Positivliste — im Gegensatz zu `service.action`, die PostgreSQL
+         * bewusst nicht kennt (`docs/38 §24.1`).
+         */
+        $optional = ['postgresql.service'];
         $rows = [];
 
-        foreach ($units as $unit) {
+        foreach (array_merge($units, $optional) as $unit) {
             try {
-                $rows[] = $agent->call('service.status', ['unit' => $unit]);
+                $status = $agent->call('service.status', ['unit' => $unit]);
             } catch (AgentException $error) {
-                $rows[] = [
+                $status = [
                     'unit' => $unit,
                     'present' => false,
                     'active_state' => 'unbekannt',
                     'description' => $error->getMessage(),
                 ];
             }
+
+            if (in_array($unit, $optional, true) && ($status['present'] ?? false) !== true) {
+                continue;
+            }
+
+            $rows[] = $status;
         }
 
         return $rows;

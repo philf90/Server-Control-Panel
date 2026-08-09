@@ -5746,3 +5746,901 @@ Entscheidung 4 — grösste neue Angriffsfläche, und die Aufgabe ändert sich m
 P5b) und PostgreSQL (Entscheidung 1: eigene Stufe P5b mit eigenem Plan und
 eigener Abnahme, statt „zweiter Schritt der Stufe"). `docs/20 §9` und `§15` sind
 nachgezogen.
+
+### P5b — PostgreSQL: die Messung kam vor dem Plan (docs/38)
+
+**Das Abnahmekriterium von P5b war nicht erfüllbar, und das ist auf einem
+echten PostgreSQL gemessen worden, bevor eine Zeile Plan entstand.** `docs/20
+§9` verlangte, dass ein Datenbankbenutzer die *Namen* fremder Datenbanken nicht
+aufzählen kann. `docs/37 §3` hatte ausdrücklich verlangt, das zu messen statt
+aus dem Gedächtnis zu beantworten — und der Anlass dafür war die Lehre aus dem
+TLS-Abnahmelauf: Wissen aus zweiter Hand sieht wie Wissen aus.
+
+Gemessen wurde **in diesem Container**, und das war der erste Fund: `CLAUDE.md`
+und `docs/36 §18` halten fest, dass hier keine Datenbank läuft. Für MariaDB
+stimmt das, für PostgreSQL nicht — `postgresql-16` ist installiert, Server und
+alles. Ein Wegwerf-Cluster auf einem eigenen Port, die Lage aus `docs/36 §17`
+nachgebaut, zwei Abonnements. Damit ist der grösste Teil von P5b hier *fahrbar*
+und nicht nur übersetzbar; jeder Fund, der lokal fällt, spart eine CI-Runde.
+
+**Das Kriterium fällt aus zwei unabhängigen Gründen, und der zweite ist der
+teurere.** Der erste: Der Verbindungsaufbau unterscheidet „keine Berechtigung"
+von „gibt es nicht" und verrät damit die Existenz einer fremden Datenbank. Das
+lässt sich durch keine Rechtevergabe schliessen, es ist Teil des Protokolls. Der
+zweite: Das Aufzählen liesse sich schliessen — aber der Entzug von `pg_database`
+nimmt dem **Kunden** `pg_dump`, und zwar nicht nur `--create`, sondern den
+schlichten Export seiner eigenen Datenbank. Ein Panel, das die Abschottung
+durchsetzt, indem es dem Kunden das Sicherungswerkzeug wegnimmt, hat einen
+Sicherheitsgewinn gegen einen Datenverlust getauscht.
+
+**Und `pg_database` war gar nicht der einzige Kanal — nur der bekannteste.** Ein
+Rundgang durch den Katalog nach Spalten, die einen Datenbanknamen führen, fand
+dreizehn Relationen, **elf davon für jeden Kunden lesbar**. `pg_stat_database`
+nennt *alle* Datenbanken, auch die ohne jede Aktivität; `pg_stat_activity` gibt
+zusätzlich die Rollennamen fremder Sitzungen preis. Wer nur `pg_database`
+gesperrt hätte — also genau das, was `docs/37 §3` als „die" Frage benannte —,
+hätte einen Kanal geschlossen und zehn offengelassen, und das Kriterium hätte
+grün ausgesehen.
+
+**Der unangenehmste Fund ist eine Absperrung, die sich selbst aufhebt.** Der
+Entzug wirkt je Datenbank und nicht je Cluster. Eine mit `TEMPLATE template0`
+angelegte Datenbank — und `template0` ist Pflicht, sobald eine Sortierung
+gesetzt wird — kommt mit unveränderten Rechten zurück. Gemessen: dieselbe Rolle
+sah in der einen Datenbank nichts und in der nächsten sieben Namen, und beide
+sahen von aussen gleich aus. Deshalb läuft die Absperrung in P5b in derselben
+Operation wie das Anlegen, und deshalb wird die Liste der Sichten **erfragt und
+nicht verdrahtet**: Sie ist fassungsabhängig, und eine feste Liste wäre auf der
+nächsten Fassung ein offener Kanal, den niemand bemerkt.
+
+**An seine Stelle tritt ein Kriterium mit sieben Punkten** (`docs/38 §3`):
+Namen, die nichts verraten, elf gesperrte Statistiksichten, kein Zugriff, eine
+Absperrung, die der Kunde nicht aufheben kann, ein Dump, der nichts erzwingen
+kann — und ausdrücklich, dass `pg_dump` für den Kunden weiter funktioniert.
+Der letzte Punkt ist kein Zusatz, sondern die Gegenprobe zum ersten: Er
+verhindert, dass jemand die Abschottung später doch über den Entzug löst und
+dabei etwas kaputtmacht, das niemand prüft. Der verbleibende Ratekanal wird im
+Abnahmelauf **gefahren und protokolliert** — ein Kriterium, das seine eigene
+Grenze nicht misst, behauptet sie nur.
+
+**Der Kunde bekommt seine Datenbank nicht mehr zu eigen, und das ist gemessen
+und nicht vorsichtshalber.** Ein Eigentümer darf `GRANT CONNECT ON DATABASE …
+TO PUBLIC`; danach verbindet sich jeder andere Kunde des Servers. Er darf
+ausserdem `DROP DATABASE` auf die eigene — das Panel hätte danach eine Zeile und
+keine Datenbank. Ein Abnahmekriterium, das der Geprüfte mit einer Zeile SQL
+abschalten kann, ist keins. Der Preis ist ehrlich zu nennen: ohne Eigentum kein
+`CREATE EXTENSION`, auch kein `pgcrypto`. Die Positivliste dafür steht als
+Punkt 5b in `docs/20 §15`.
+
+**Die Falle, an der P5b sich am leichtesten hätte täuschen lassen:** `psql -f`
+gibt bei gescheitertem SQL **0** zurück und arbeitet weiter. Gemessen an vier
+Anweisungen, von denen die dritte abgewiesen wurde: Rückgabewert 0, und die
+vierte lief trotzdem. `mysql` bricht von selbst ab — genau darauf ruht der Beleg
+von Kriterium 6 in P5, wörtlich „ERROR 1045 at line 6520". Ohne
+`ON_ERROR_STOP=1` wäre in P5b ein vollständig gescheitertes Zurückspielen als
+„erledigt" gemeldet worden, und für den bösartigen Dump hätte es überhaupt keine
+Fehlermeldung gegeben, die man zitieren könnte. Das ist Lehre 3 aus `docs/37
+§6` an einer Stelle, an der das andere System sie von selbst einhält — und
+deshalb die gefährlichste Sorte: eine Regel, die man nur dort lernt, wo sie
+gebrochen wird.
+
+**Der Agent kommt als root nicht an PostgreSQL heran.** MariaDB erkennt root
+über den Socket, das kostete in P5 keine Zeile; PostgreSQL bildet Unix-Kennungen
+auf Rollen ab, und eine Rolle `root` gibt es nicht. Gebaut wird deshalb ein
+„läuft als"-Feld im `Runner` und **nicht** `runuser` auf der Positivliste:
+`runuser` ist ein Programm, das als root beliebige andere unter beliebiger
+Kennung startet — auf einer Liste, von der `certbot` in P4 mit der Begründung
+verschwunden ist, dass ein Programm mit Erlaubnisschein Angriffsfläche ist, wäre
+das die weiteste Zeile überhaupt. Das Feld bekommt eine eigene Positivliste mit
+genau einem Eintrag; ein `as`, das Freitext nimmt, wäre dieselbe Vollmacht eine
+Ebene tiefer.
+
+**`suggests: postgresql` stand seit P0 in `nfpm.yaml` und hat nie etwas
+bewirkt.** Es war das einzige Vorkommen des Wortes im ganzen Quelltext — ohne
+Kommentar, ohne Operation, ohne Prüfung, in einer Datei, deren übrige Zeilen
+jede einzeln begründet sind. `Suggests` installiert nichts. Wieder das Muster,
+das dieses Projekt am häufigsten trifft: eine Zeichenkette, die auf etwas
+verweist, ohne dass ein Typ, ein Test oder ein Werkzeug den Bezug prüft; sie
+liest sich wie eine Abhängigkeit und ist eine Absichtserklärung. `Depends` wäre
+die falsche Korrektur — jede Installation bekäme einen zweiten Datenbankdienst,
+gemessen 6 Prozesse, ~108 MiB und 79 MB Platte, auch auf Servern, die nie eine
+PostgreSQL-Datenbank anlegen, und abwählbar wäre er nicht. Gebaut wird deshalb
+die Form aus P3: erkennen immer, installieren auf Verlangen, hinter einem
+Betreiberschalter. Ein vorhandener Cluster ist Bestand und wird benutzt.
+
+**Ein Verweis in einem Dokument zeigte ins Leere**, und der Wächter dafür
+existiert: `ChangelogTest::test_every_referenced_document_exists`. Er hätte es
+trotzdem nicht gefunden — er sieht in den `CHANGELOG` und prüft die *Nummer*
+über einen Glob, nicht den Dateinamen und nicht die Dokumente untereinander.
+`docs/20 §15` verwies auf `37-postgresql.md`; die Datei heisst
+`37-uebergabe-an-p5b.md`. Das ist die zweite Lehre über Wächter aus `docs/37
+§6` eine Ebene weiter: Sie dürfen `docs/` nicht auslassen. `DocLinkTest` kommt
+als Schritt 0 von P5b, und der Verweis ist berichtigt.
+
+**Was P5b ausdrücklich nicht baut:** Fernzugriff. Die Wirtsbeschränkung steht in
+PostgreSQL in `pg_hba.conf` und hat kein Gegenstück am Benutzer; die Datei
+bleibt unangetastet, und einen Include-Punkt kennt sie erst ab PG 16 — bei
+Debian auch dort nicht eingeschaltet. Zwei Umsetzungen für eine Zusage sind
+keine. Er steht als Punkt 5c in `docs/20 §15`. `docs/20 §9 P5b` ist mitsamt
+seinem Abnahmekriterium nachgezogen.
+
+### Der Fernzugriff auf PostgreSQL kommt doch — und warum er erst nicht kam
+
+**`docs/38 §14` hat in seiner ersten Fassung abgeraten, und die Begründung war
+eine wahre Aussage über etwas, das die Aufgabe nicht verlangt.** Sie lautete:
+Ein Include-Punkt für `pg_hba.conf` existiert erst ab PG 16 und ist bei Debian
+auch dort nicht eingeschaltet — auf Ubuntu 22.04 und Debian 12 gibt es ihn
+nicht, ein Fernzugriff wäre also auf der Hälfte der Zielplattformen anders
+gebaut. Jeder Halbsatz davon stimmt. Nur braucht ein **verwalteter Block
+zwischen Marken** überhaupt keinen Include-Punkt, und der ist auf PG 14 bis 17
+derselbe Bau.
+
+Das ist im selben Dokument zum zweiten Mal derselbe Fehler. `docs/38 §3` hält
+für `pg_database` fest, dass ein zutreffender Satz die falsche Frage beantworten
+kann — und §14 hat es dann selbst getan. Aufgefallen ist es nicht durch
+Nachdenken, sondern weil der Betreiber gefragt hat, was sich änderte, wenn der
+Fernzugriff doch gebaut würde, und daraufhin nachgemessen wurde. **Die Lehre ist
+nicht „besser nachdenken", sondern: Eine Begründung, die eine Stufe verkleinert,
+gehört genauso gemessen wie eine, die sie vergrössert.** Bisher galt der
+Massstab nur für Zusagen.
+
+**Was die Nachmessung dafür an echtem Risiko gefunden hat**, ist die
+unangenehmste Bauart von Fehler, die dieses Projekt kennt — einer mit einer
+Wartungsfrist zwischen Ursache und Wirkung:
+
+| | |
+|---|---|
+| kaputte `pg_hba.conf` + Reload | Server bedient weiter, alte Regeln bleiben, `pg_hba_file_rules` nennt den Fehler mit Zeilennummer |
+| kaputte `pg_hba.conf` + Neustart | `FATAL: could not load pg_hba.conf` — **der Cluster kommt nicht hoch** |
+
+Eine falsche Zeile ist beim Schreiben unsichtbar und wochenlang folgenlos; sie
+zündet beim nächsten Paketupdate oder Reboot, und dann sind alle Kunden ohne
+Datenbank wegen einer Datei aus dem letzten Monat. `pg.remote.access` schreibt
+deshalb, reloadet, liest `pg_hba_file_rules` auf Fehler — **und rollt die Datei
+zurück, statt zu melden.** Eine Operation, die eine kaputte Datei liegenlässt
+und darüber berichtet, hat den Server scharf gemacht und ein Protokoll
+geschrieben. Der Wächter dazu steht in `docs/38 §18` und kommt mit Schritt 10;
+er fährt gegen einen echten Cluster, weil es in diesem Container einen gibt.
+
+*Hier stand sein Name in Rückstrichen, und das hat die CI rot gemacht:*
+`ChangelogTest::test_every_named_test_exists` besteht darauf, dass jeder so
+genannte Test existiert — und dieser entsteht erst mit dem Code, den er prüft.
+Der Changelog hält fest, was geschehen ist; ein Plan hält fest, was geschehen
+soll, und dort gehört der Name hin. Gefunden hat es der Wächter selbst, einen
+Commit später.
+
+Dass dieser Rückweg überhaupt möglich ist, ist Glück und gehört benannt: Der
+Reload ist gnädig, wo der Neustart es nicht ist. Es ist die Umkehrung der Lehre
+aus `docs/37 §6` — hier ist der gelesene Zustand nicht nur ehrlicher als die
+geschriebene Zeile, er ist die einzige Gelegenheit, den Fehler zu sehen, bevor
+er wirkt. Und weil ein Betreiber diese Datei auch von Hand ändert, liest
+`srvpanel db` sie bei **jedem** Lauf mit und meldet auch Fehler, die nicht von
+uns stammen.
+
+**Und eine Stelle, an der ein Datenmodell aus P5 wirklich bricht** — die erste,
+und `docs/37 §4` hatte sie als „die teuerste Zeile" der Übergabetabelle
+angekündigt. In MariaDB sind `'p1001_web'@'localhost'` und
+`'p1001_web'@'203.0.113.5'` zwei Benutzer mit zwei Passwörtern; deshalb ist
+`(name, host)` eindeutig und richtig. In PostgreSQL ist es eine Rolle, ein
+Passwort und mehrere erlaubte Netze. Zwei Zeilen mit demselben Namen wären dort
+nicht zwei Zugänge, sondern zwei Regeln für einen — und `pg.role.create` liefe
+zweimal und setzte ein zweites Passwort auf dieselbe Rolle. Die Netze bekommen
+deshalb eine eigene Tabelle; `db_users.host` bleibt stehen, weil die Spalte für
+MariaDB die Wahrheit sagt.
+
+Die Folge davon steht nicht im Code, sondern auf der Seite: **Ein
+PostgreSQL-Fernzugang hat kein eigenes Passwort.** Wer die Zugangsdaten
+verliert, verliert ihn für jedes erlaubte Netz. Ein Kunde, der P5 kennt, nimmt
+das Gegenteil an.
+
+**Die Zeile nennt die Datenbank und nicht `all`** — gemessen: Damit kommt die
+Rolle in ihre Datenbank und in `postgres` nicht. Das ist eine zweite Wand hinter
+dem `REVOKE CONNECT` und kostet eine Zeile je Datenbank × Rolle × Netz.
+`docs/20 §15` Punkt 5c ist damit erledigt, statt bis 1.0 offen zu bleiben.
+
+### P5b Schritt 0 — `DocLinkTest`: die Wächter dürfen `docs/` nicht auslassen
+
+**Ein Verweis in `docs/20` zeigte auf `37-postgresql.md`; die Datei heisst
+`37-uebergabe-an-p5b.md`.** Gefunden beim Planen von P5b, nicht von einem Test
+— obwohl es `ChangelogTest::test_every_referenced_document_exists` seit P4 gibt.
+Der sieht in den `CHANGELOG` und nirgendwo sonst, und er prüft die **Nummer**
+über ein Glob statt den Dateinamen. Beide Einschränkungen zusammen ergeben genau
+die Lücke, durch die der Verweis gefallen ist: Er stand in einem Dokument statt
+im Changelog, und er nannte einen Dateinamen statt einer Nummer.
+
+Das ist die zweite Lehre über Wächter aus `docs/37 §6` eine Ebene weiter. Dort
+steht, sie dürften `tests/` nicht auslassen, weil dort die zweite Fassung einer
+Regel am häufigsten steht. Hier: **sie dürfen `docs/` nicht auslassen** — ein
+Dokument enthält dieselben Zeichenketten wie Code, nur übersetzt sie niemand.
+
+**Der Beleg, dass die Regel nötig war, kam sofort:** Derselbe Durchgang fand
+einen zweiten Fall. `docs/19` verwies auf `14-bestaetigungen.md`, ein Dokument
+des Vorgängers, das mit dem Repo-Übergang entfernt wurde — ein Verweis, der
+einen Lizenzwechsel und einen Neuanfang überlebt hat, weil ihn nie jemand
+geprüft hat. `DocLinkTest` prüft beide Schreibweisen: den Verweis mit Klammern
+gegen den Dateinamen, und die blosse Nennung `docs/NN` gegen die Nummer. Den
+`CHANGELOG` lässt er aus, weil `ChangelogTest` ihn hat; zwei Fassungen derselben
+Regel sind der Fehler, gegen den dieses Projekt die meisten Wächter hat.
+
+**Beide Brüche stehen im Skript, und `docs/` steht jetzt in seinen zwei
+Listen.** Ohne diese Zeile wäre ein Bruch dort keine Probe, sondern eine
+Änderung — dasselbe Argument, mit dem `routes/` und `database/` dazugekommen
+sind. Gefahren am 9. August 2026, beide rot, danach wieder grün.
+
+**Drei Funde beim Bauen des Wächters, und keiner davon vom Wächter:**
+
+- **PHPStan hat einen toten Zweig gemeldet, und er hatte recht.** Der erste Wurf
+  hatte eine leere Ausnahmeliste „für den Fall, dass ein Dokument einmal auf
+  etwas zeigen muss, das es nicht gibt" — `isset()` auf `array{}`, also ein
+  Zweig, der nie läuft. Es ist derselbe Nullfall, den `docs/36 §14` an
+  `Feature::permission()` beschreibt: *in der falschen Richtung teurer als
+  keiner*, weil er wie eine Erlaubnis aussieht, die schon jemand gebraucht hat.
+  Die Liste ist wieder weg; wer den ersten echten Fall hat, legt sie mit ihm
+  zusammen an. Bemerkenswert ist der Weg: `CLAUDE.md` nennt genau diesen Fehler
+  als Beispiel dafür, dass ein PHPStan-Lauf über eine einzelne Datei sich lohnt
+  — er hat sich beim nächsten Mal sofort wieder gelohnt.
+- **`ChangelogTest` hat den Commit davor eingeholt — und diesen gleich noch
+  einmal.** Der P5b-Eintrag nannte den Wächter über den Rückweg von
+  `pg_hba.conf` (`docs/38 §18`) in Rückstrichen, und den gibt es erst mit
+  Schritt 10: `test_every_named_test_exists` wäre in der CI rot gewesen. Beim
+  Aufschreiben dieser Zeile ist derselbe Name ein zweites Mal in Rückstrichen
+  gelandet, und der Wächter hat auch das gemeldet — im Abstand von zwei Minuten,
+  in einem Absatz, der von genau diesem Fehler handelt. Der Changelog hält fest,
+  was geschehen ist; was geschehen soll, steht im Plan, und dort gehört der Name
+  hin.
+- **Und die Warnung aus `CLAUDE.md` über `git checkout` hat sich bestätigt**,
+  beim Gegenprüfen der Untergrenze: Der Bruch änderte die Testdatei selbst, und
+  die war noch nicht eingecheckt — `git checkout` stellt nur wieder her, was git
+  kennt, und hat sie nicht zurückgebracht, sondern gar nichts getan. Genau
+  deshalb verweigert `waechter-brechen.sh` den Start bei ungesicherten
+  Änderungen, und genau deshalb kommt ein Bruch erst nach dem Commit dazu, den
+  er prüft.
+
+### P5b Schritt 1 — die Bausteine, gegen einen echten PostgreSQL geprüft
+
+`Pg\Names`, `Pg\Sql` und `Pg\Shielding`, dazu `PgNameTest` und
+`PgShieldingTest`. **Und zum ersten Mal in diesem Projekt sind die erzeugten
+Anweisungen nicht nur als Text geprüft, sondern gefahren:** Dieser Container hat
+ein PostgreSQL 16.13, und die Absperrung ist gegen einen Wegwerf-Cluster
+gelaufen, bevor eine Zeile in die CI ging. Für MariaDB musste jede solche
+Behauptung eine Textprüfung bleiben (`docs/36 §3.1`).
+
+**Der Name ist die Abschottung.** Das Präfix ist nicht mehr der Systembenutzer,
+sondern sechzehn Hexziffern aus `random_bytes`, je Abonnement einmal vergeben —
+denn PostgreSQL zeigt jedem Kunden die Namen aller Datenbanken, und
+`p1002_shop` verriete damit, dass es ein Abonnement 1002 mit einem Shop gibt.
+Der Wächter dafür prüft die **Form statt des Ergebnisses**: `newPrefix()` nimmt
+keinen Parameter, und was keinen Wert bekommt, kann keinen verraten. Ein Test,
+der nur nachsähe, dass keine Abonnementnummer im Präfix *vorkommt*, wäre grün,
+sobald jemand sie durch eine Prüfsumme schickt.
+
+**Ein Präfix bleibt es trotzdem**, und das ist kein Rest aus P5: `belongsTo()`
+prüft im Agenten, ob ein Name zu dem Abonnement gehört, in dessen Auftrag die
+Operation läuft. Ein durchweg zufälliger Name nähme dem Agenten diese Prüfung
+ersatzlos, weil er keinen Zustand führt, aus dem er sie rekonstruieren könnte.
+
+**Vier Eigenschaften von PostgreSQL wurden gemessen statt übernommen**, und eine
+davon hebt den teuersten Fund von P5 auf:
+
+- **Die Unterstrich-Falle gibt es hier nicht.** `docs/36 §3.1` musste in MariaDB
+  `p1001\_shop` maskieren, weil das Ziel eines `GRANT` dort ein **Muster** ist und
+  `p1001_%` auch `p10012_shop` trifft. In PostgreSQL ist es ein Bezeichner:
+  Gemessen gibt `GRANT CONNECT ON DATABASE m29_a` Zugang zu `m29_a` und **nicht**
+  zu `m29xa`. `Pg\Sql` hat deshalb kein `grantTarget()` — und das ist ein Befund
+  und keine Auslassung. Wer eine Maskierung nachbaut, die es nicht braucht, baut
+  eine Regel, die niemand mehr erklären kann.
+- **Der Backslash maskiert nicht** (`standard_conforming_strings = on`). Zu
+  verdoppeln ist nur das Anführungszeichen. Die Regel aus `Db\Sql` zu übernehmen
+  ergäbe Passwörter mit einem Backslash zu viel.
+- **Ein zu langer Bezeichner wird abgeschnitten und nicht abgewiesen** (63
+  Zeichen). Zwei Namen, die sich erst danach unterscheiden, wären hinterher
+  derselbe.
+- **Die Absperrung wirkt je Datenbank.** Gefahren gegen eine Datenbank aus
+  `TEMPLATE template0` — also im Fallenfall: vorher sah die Kundenrolle acht
+  Datenbanken in `pg_stat_database`, danach `permission denied`, `pg_database`
+  blieb offen, Arbeiten ging weiter, und `pg_dump` des Kunden lief.
+
+**Die Kanalliste wird erfragt und nicht verdrahtet**, und der Wächter darüber
+hat beim ersten Lauf zugebissen — auf den Klassenkopf, der `pg_stat_database` als
+Beispiel nennt, um die Regel zu erklären. Ein Wächter, der verbietet, seine
+eigene Regel zu erklären, wird umformuliert statt befolgt; die Frage beantwortet
+jetzt `WithoutPhpComments` über `token_get_all()`.
+
+**Zwei Funde, die kein Wächter gefunden hat:**
+
+- **PHPStan hat wieder einen toten Zweig gemeldet**, diesmal ein
+  `method_exists()` auf eine Methode, die es nicht gibt — zur Übersetzungszeit
+  entscheidbar, also `function.impossibleType` und in der CI rot. Eine Behauptung
+  über den Bestand einer Klasse muss zur Laufzeit gestellt werden, sonst ist sie
+  kein Test, sondern ein Ausdruck. Reflection beantwortet sie.
+- **Die Warnung über `git checkout` bei nicht eingecheckten Dateien hat zum
+  dritten Mal an einem Tag zugeschlagen** — beim Gegenprüfen der drei neuen
+  Brüche stand `agent/src/Pg/` noch nicht unter Versionskontrolle, und der
+  Rückweg holte nichts zurück. Alle drei Wächter waren rot, wie sie sollten; die
+  Dateien mussten von Hand zurückgedreht werden. Genau deshalb verweigert
+  `waechter-brechen.sh` den Start bei ungesicherten Änderungen, und genau deshalb
+  gehört ein Bruch erst nach dem Commit dazu, den er prüft.
+
+### P5b Schritt 1 — der Agent meldet sich an, und §6 fiel dabei als Dritter
+
+`Pg\Session`, `Pg\Server`, `pg.server.info`, dazu `AgentIdentityTest` und
+`PgSessionTest`. Die Positivliste wächst um `psql`, `pg_dump` und `pg_restore`
+— **und um keine Vollmacht.**
+
+**`docs/38 §6` sah zuerst vor, dass `Runner` ein Feld „läuft als" bekommt.**
+PostgreSQL bildet Unix-Kennungen auf Rollen ab, und root ist keine: Als root
+scheitert `psql -U postgres` an `Peer authentication failed`. Der Plan nannte
+dafür eine Bauform, ohne sie zu messen — und das ist im selben Dokument zum
+dritten Mal derselbe Fehler, nach `pg_database` in §3 und dem Include-Punkt in
+§14. **Ein Plan, der eine Bauform nennt, hat sie noch nicht gemessen.**
+
+Gemessen wurde sie dann, und sie trägt nicht:
+
+- `proc_open` — die einzige Stelle, an der der Agent ein Programm startet —
+  kennt keine Option für eine fremde Kennung.
+- `pcntl_fork` mit `posix_setuid` und `pcntl_exec` **läuft**, und die Umleitung
+  der Dateinummern ist trotzdem unzuverlässig: Die Ausgabe von `psql` landete in
+  der Datei für stderr, bei Rückgabewert 0 — während dieselbe Reihenfolge in
+  einem isolierten Fall stimmte. Sie hängt davon ab, was der Prozess sonst offen
+  hat. *Was Erfolg meldet und die Daten woanders ablegt* ist die Sorte Fehler,
+  gegen die dieses Projekt seine Wächter baut, und sie stünde hier in der
+  Klasse, durch die jede vorhandene Operation läuft.
+- Der geforkte Prozess **erbt den Socket des Agenten**.
+
+**Gebraucht wird von alledem nichts.** Debians `pg_hba.conf` enthält
+`local all all peer`, und peer bildet die Unix-Kennung auf die *gleichnamige*
+Rolle ab: Gibt es eine PostgreSQL-Rolle `root`, kommt der Agent als Superuser
+durch — keine Datei wird angefasst, kein Programm wechselt die Kennung, kein
+Passwort liegt irgendwo. Angelegt wird sie vom **Betreiber**, einmal, mit einem
+Befehl, den das Panel anzeigt. Dieselbe Form wie `srvpanel db --remote=on`: Eine
+Übergabe, die den Server verändert, ist eine Handlung des Betreibers.
+
+**Daraus ein Zustand, den P5 nicht kennt.** Zwischen „läuft nicht" und „nutzbar"
+liegt „läuft, aber noch nicht übergeben" — der Dienst antwortet, und der Agent
+kommt trotzdem nicht hinein. Für den Betreiber sind das zwei verschiedene
+Handgriffe, und ein Panel, das ihm beide Male dasselbe sagt, hilft bei keinem.
+`Pg\Server` unterscheidet sie an der Meldung von `psql` und meldet beides als
+**Auskunft und nicht als Fehlschlag** — dieselbe Entscheidung wie bei
+„MariaDB läuft nicht".
+
+**Der Wächter über den angezeigten Befehl** hält `Session::ROLE` gegen
+`Server::HANDOVER`: Laufen die auseinander, legt der Betreiber eine Rolle an,
+die niemand benutzt, und das Panel sagt ihm weiter, PostgreSQL sei nicht
+übergeben. Ein abgedruckter Befehl, der ins Leere geht, hat `docs/36 §22.3v`
+schon einmal gekostet.
+
+**Und der Unterschied, der P5b beinahe still gekostet hätte, ist jetzt an
+beiden Enden festgenagelt.** Nebeneinander gemessen, dieselbe Anweisungsfolge:
+mit `ON_ERROR_STOP=1` bricht der Lauf ab und die dritte Anweisung läuft nicht
+mehr; ohne den Schalter gibt `psql` **0** zurück, meldet Erfolg und führt die
+vierte Anweisung trotzdem aus. `mysql` bricht von selbst ab — deshalb ist das
+eine Regel, die man nur dort lernt, wo sie gebrochen wird. Sie steht als
+Argument im Aufruf und nicht als Konstante daneben, und `PgSessionTest` prüft
+beides: dass der Wert dasteht **und** dass er in den Aufruf geht.
+
+**`git checkout` hat zum vierten Mal an einem Tag zugeschlagen, diesmal von der
+anderen Seite.** Bisher traf es nicht eingecheckte Dateien, die es nicht
+zurückholte; hier holte es die eingecheckte Fassung von `Runner.php` zurück und
+nahm die noch nicht gesicherte Ergänzung der Positivliste mit. Beide Richtungen
+haben dieselbe Ursache und dieselbe Regel: **Ein Bruch gehört erst nach dem
+Commit dazu, den er prüft.**
+
+### Die CI hat eine Zeile gefunden, die der Plan verlangt hatte
+
+**Lauf 446: 1537 grün, einer rot** — und der eine ist ein echter Fund.
+`docs/38 §17` führte `agent/src/Registry.php` in Schritt 1 auf, also wurde
+`pg.server.info` dort eingetragen, mit einer Begründung in
+`AgentOperationReachTest::WITHOUT_LIFECYCLE`. Der Wächter ist strenger als
+angenommen: Er verlangt zu einer Operation ohne Lebenslauf einen **Aufrufer**
+und nicht nur einen Grund. *„Code, der als root läuft und zu dem kein Weg führt,
+ist Angriffsfläche ohne Nutzen."*
+
+Die Regel ist älter als dieser Plan und wiegt schwerer als seine Dateiliste —
+also ist der Plan nachgezogen worden und nicht der Wächter: **Eine Operation
+wird in demselben Beitrag eingetragen, der ihr einen Aufrufer gibt.** Die
+Klassen liegen bis dahin da und sind aus dem Agenten nicht erreichbar, und das
+ist der richtige Zustand.
+
+Bemerkenswert ist, wo der Fehler saass. Er stand in `docs/38 §17`, seit der Plan
+geschrieben wurde, und hat den ganzen Weg von `docs/36 §15` mitgenommen — dort
+steht `Registry.php` in Schritt 1 genauso. In P5 ist es nur deshalb nicht
+aufgefallen, weil dessen Schritt 1 bis 3 in einem Zug gebaut wurden und der
+Aufrufer damit im selben Lauf entstand. **Eine Reihenfolge, die zufällig
+funktioniert, funktioniert bis zu dem Tag, an dem jemand sie einzeln geht.**
+
+### P5b Schritt 1 abgeschlossen — sechs Operationen, und drei Unterschiede zu P5
+
+`pg.database.create`/`remove`, `pg.role.create`/`remove`/`grant`/`lock`, dazu
+`PgGrantTest`. `remove` steht in jedem Paar zuerst — die Mechanik aus
+`docs/36 §2`, aus der die Zertifikatslücke von `docs/35` entstanden ist.
+
+**Alle sechs sind gegen einen echten Cluster gefahren**, mit zwei Abonnements,
+und die Kriterien 1 bis 4 aus `docs/38 §3` sind dabei belegt: dreizehn Kanäle
+abgesperrt, `pg_stat_database` verschlossen, die sichtbaren Namen verraten
+nichts, die fremde Datenbank abgewiesen — und der Kunde bekommt weder
+`GRANT CONNECT … TO PUBLIC` noch `DROP DATABASE` auf seine eigene durch.
+
+**Drei Stellen, an denen PostgreSQL sich anders verhält als MariaDB, jede
+gemessen:**
+
+- **`DROP DATABASE` scheitert an einer offenen Verbindung.** *ERROR: database
+  „probe" is being accessed by other users.* MariaDB kennt das nicht; dort wirft
+  ein `DROP` das Schema unter jeder laufenden Anwendung weg. Ohne `WITH (FORCE)`
+  würde hier **jeder Rückbau an einem Kunden scheitern, dessen Anwendung einen
+  Verbindungspool offen hält** — also am Normalfall. Ein Rückbau, der davon
+  abhängt, ob gerade jemand verbunden ist, ist keiner.
+- **`DROP ROLE` verweigert, solange die Rolle irgendwo Rechte hat**, und
+  aufgeräumt wird das mit `DROP OWNED BY` — **je Datenbank.** Das ist die exakte
+  Umkehrung von P5: Dort lässt `DROP USER` seine Rechte in `mysql.db` stehen,
+  und `docs/36 §22.3p` hat auf `cloudsrv24` genau so eine Zeile für ein Schema
+  gefunden, das es nicht mehr gab. PostgreSQL ist unbequemer und ehrlicher.
+  Welche Datenbanken aufzuräumen sind, sagt die Anwendung — der Agent führt
+  keinen Bestand. **Und der Rückfall ist sicher:** Vergisst sie eine, scheitert
+  `DROP ROLE` mit einer Meldung, die sie beim Namen nennt. Beide Zweige sind
+  gefahren.
+- **`GRANT ALL ON DATABASE` reicht nicht.** In PostgreSQL sind Verbindung,
+  Schema und Objekte drei Ebenen, und die Rechte auf der Datenbank sind die
+  schwächste. Wer nur sie vergibt, hat einen Kunden, der sich verbindet und
+  nichts tun kann. Dazu kommt `ALTER DEFAULT PRIVILEGES`, das es in MariaDB
+  nicht gibt: Dort gilt ein Schemarecht für alles, was im Schema entsteht; hier
+  gehört jede Tabelle dem, der sie angelegt hat — ohne diese Zeile sähe ein
+  zweiter Zugang desselben Abonnements die Tabellen des ersten nicht. Genau das
+  ist der Grund, aus dem `docs/36 §14` verlangt hat, die Isolationszusage neu zu
+  **beweisen** statt zu übertragen.
+
+**Und eine, die still geblieben wäre:** PostgreSQL kennt `IF EXISTS` für
+`DROP ROLE` und `DROP DATABASE`, aber **nicht für `ALTER ROLE`, `REVOKE` und
+`DROP OWNED BY`** — dort ist eine fehlende Rolle ein Fehler. `docs/36 §6` löst
+dasselbe Problem mit `ALTER USER IF EXISTS` und schreibt dazu den Satz, auf den
+es ankommt: *Die Sperre ist wichtiger als die Vollständigkeit der Buchführung.*
+Hier muss der Code das selbst einlösen: `pg.role.lock` fragt, welche der
+genannten Rollen es gibt, sperrt die vorhandenen und **meldet die fehlenden** —
+denn eine Sperre, die eine Rolle übergeht, ohne es zu sagen, sieht aus wie eine
+vollständige. Im Lauf gegen den Server: eine gesperrt, eine als fehlend
+gemeldet.
+
+### P5b Schritt 2 — `engine` als Aufzählung, und ein Präfix, das nie zurückkommt
+
+Die Migration, `App\Enums\DatabaseEngine` und `DatabaseEngineTest`. Dazu die
+zwei Korrekturen aus dem Messlauf auf `cloudsrv24` (`docs/38 §2.2c`).
+
+**Eine Aufzählung von Anfang an, und das ist die Lehre aus `DumpKind`.** Dort
+war der Wert bis zum 9. August eine nackte Spalte, deren Zeichenketten an vier
+Stellen verstreut standen — bis eine im Vue-Template landete, also über eine
+Grenze, die kein Typ prüft. `engine` wäre der nächste Kandidat gewesen: drei
+Tabellen, jede Verzweigung zwischen `db.*` und `pg.*`, und eine Marke in der
+Oberfläche.
+
+**Der Wächter hat beim ersten Trockenlauf zugebissen**, und zwar auf genau die
+Bauart, gegen die er entstand: `Settings/Database.vue` verglich
+`server.flavour === 'mariadb'` — ein Wert des Agenten, im Browser verglichen.
+Hinüber geht jetzt der fertige Text aus `DatabaseSettingsController::flavourLabel()`.
+Das Wort `mariadb` heisst in diesem Repo damit dreierlei: das System einer
+Kundendatenbank (die neue Aufzählung), der Verbindungstreiber des Panels
+selbst, und was `db.server.info` aus `@@version` gelesen hat. Die Ausnahmeliste
+nennt jede der drei Stellen mit ihrem Grund — und deckt seit dieser Änderung
+die **Übersetzung** statt des Vergleichs.
+
+**`db_prefix` wird bei `claim()` mitvergeben und nicht beim ersten Gebrauch.**
+Es hat dieselbe Eigenschaft wie die Nummer des Systembenutzers: Es kommt nie
+zurück. Ein Präfix, das erst entsteht, wenn jemand die erste
+PostgreSQL-Datenbank anlegt, bräuchte einen zweiten Weg — abgesichert gegen
+zwei gleichzeitige Anlagen, die beide dasselbe leere Feld sehen. So deckt der
+eindeutige Index beide Spalten, und die Wiederholungsschleife, die es für die
+Nummer schon gibt, deckt auch die Kollision hier.
+
+**Und es wird nicht hochgezählt, sondern gewürfelt.** `p1002_shop` sagt jedem
+Kunden des Servers, dass es ein Abonnement 1002 gibt — und in PostgreSQL sind
+die Namen aller Datenbanken für jeden lesbar (gemessen). Eine fortlaufende Zahl
+in anderer Schreibweise wäre dieselbe Auskunft mit einem Umweg.
+
+**`db_user_networks` ist die eine Stelle, an der das Datenmodell von P5 bricht**
+— `docs/37 §4` hat sie als „die teuerste Zeile" der Übergabetabelle
+angekündigt, und sie ist es geworden. In MariaDB sind
+`'p1001_web'@'localhost'` und `'p1001_web'@'203.0.113.5'` zwei Benutzer mit zwei
+Passwörtern, weshalb `(name, host)` dort eindeutig und richtig ist; in
+PostgreSQL ist es eine Rolle mit einem Passwort und mehreren erlaubten Netzen.
+
+**Zwei Korrekturen aus dem Messlauf.** `cloudsrv24` hat kein PostgreSQL — kein
+`psql`, kein Cluster, kein Benutzer `postgres` —, und der Kandidat von `apt`
+ist `16+257build1.1`, byteweise dieselbe Fassung wie im Entwicklungscontainer.
+**Die Messungen dieses Plans sind für den Zielserver damit keine Näherung,
+sondern dieselbe Konfiguration.** Und in `Pg\Server` stand, welche Fassung jede
+der vier Zielplattformen liefert — gemessen war davon eine. Die drei anderen
+Zahlen sind aus dem Gedächtnis geschrieben gewesen und stehen nicht mehr da;
+was zählt, ist die Grenze selbst. Für die Abnahme ist das folgenlos, weil sie
+auf `cloudsrv24` läuft; für die Freigabe steht es als offener Punkt.
+
+### Zwei Fehler in Schritt 2, und beide sagen etwas über das Vorgehen
+
+**Lauf 449: 1547 grün, zwei rot.**
+
+**Der erste war ein Dokumentationsblock, der die Klasse gewechselt hat.**
+`DatabaseSettingsController::server()` trägt seine Rückgabeform als
+`@return array{…}` — und die neue Methode `flavourLabel()` ist zwischen den
+Block und die Methode geraten, die er beschreibt. PHP stört das nicht, PHPStan
+schon: *„return type has no value type specified in iterable type array."*
+
+`CLAUDE.md` kennt diese Meldung, aber für einen anderen Anlass — einen
+einzeiligen Block, in dem `@return` zu Fliesstext wird. **Das ist derselbe
+Fehler eine Ebene höher:** Ein Dokumentationsblock gehört zu dem, was
+*unmittelbar* auf ihn folgt, und wer etwas dazwischenschiebt, nimmt ihn dem
+Eigentümer weg, ohne dass etwas fehlt.
+
+**Der zweite ist der Wächter über das Werkzeug, und er hat funktioniert.**
+`claim()` bekam eine Zeile — `'db_prefix' => Names::newPrefix()` —, und der
+Eingriff in `waechter-brechen.sh`, der `claim()` bricht, suchte den Block noch
+ohne sie. `BreakScriptTest` hat es gemeldet: *Ein Eingriff, der nichts ändert,
+prüft nichts — und sieht dabei aus, als wäre die Regel abgesichert.* Genau der
+Fall, für den er in P5 entstand, nur diesmal beim Hinzufügen statt beim Umziehen.
+
+**Und der Vorwurf dazu gehört hierhin:** Das Werkzeug, das ihn lokal gefunden
+hätte, lag bereit und wurde nicht benutzt. `BreakScriptTest` ist ohne `vendor/`
+über eine Attrappe fahrbar, und in dieser Sitzung ist er sechsmal gelaufen — nur
+nicht nach der letzten Änderung an `app/`. *Ein Wächter, den man am Ende nicht
+noch einmal fragt, ist eine Runde CI.*
+
+### `Pg\Server` konnte „nicht installiert" nicht von „läuft nicht" unterscheiden
+
+**Der Fehler stand seit Schritt 1 im Repo, und gefunden hat ihn eine Frage des
+Betreibers.** Auf „was tut die Installation, wenn schon ein Cluster da ist?"
+folgte eine Messung — und die erste Zeile davon war: Bei einem installierten,
+aber gestoppten PostgreSQL **fehlt `/var/run/postgresql` genauso wie bei einem
+nicht installierten.** Genau daran hat `describe()` die beiden auseinandergehalten.
+
+Zwei verschiedene Handgriffe des Betreibers — installieren oder starten —
+hätten dieselbe Meldung bekommen. Das ist Lehre 3 aus `docs/37 §6`, und
+besonders unangenehm ist, wo sie zugeschlagen hat: in dem Abschnitt, der als
+Fortschritt gegenüber P5 aufgeschrieben war („ein Zustand, den P5 nicht kennt").
+**Ein Zustand, den man benennt, ist noch keiner, den man messen kann.**
+
+**Gefragt wird jetzt `pg_lsclusters`**, bevor irgendetwas verbunden wird —
+Debians eigenes Werkzeug beantwortet in einem Aufruf, was sonst vier Fragen
+wären: installiert? wie viele? läuft er? welcher Port? Sich das aus
+`/etc/postgresql` zusammenzusuchen wäre eine zweite Fassung dieses Werkzeugs.
+Und es ist zugleich der Fühler: Fehlt das Programm, ist PostgreSQL nicht
+installiert — eine Prüfung auf eine Datei wäre wieder dieselbe Frage zweimal.
+
+Daraus sieben Zustände statt zweier, jeder mit **genau einem** Handgriff:
+`absent`, `no_cluster`, `stopped`, `ambiguous`, `not_handed_over`, `unusable`,
+`ready`. Alle sieben sind gegen einen echten Cluster gefahren.
+
+**Bei mehreren laufenden Clustern wählt das Panel nicht.** Das ist die eine
+Stelle, an der Raten Kundendaten kostet — zwei Cluster heissen fast immer, dass
+der Betreiber einen davon selbst betreibt. Gezählt werden dabei die
+**laufenden** und nicht alle: `docs/20 §15` Punkt 4 hält für nginx dieselbe
+feinere Fassung fest, weil auf manchen Systemen ein Dienst als Abhängigkeit
+herumliegt, ohne je zu starten.
+
+**Und das Gewählte wird gegen das Erreichte gehalten.** Der Cluster kommt aus
+`pg_lsclusters`, das Datenverzeichnis aus der Verbindung selbst. Weichen sie ab,
+hat `psql` mit einem anderen geredet als dem, den wir gemeint haben — und das
+steht dann da, statt drei Wochen später ein Rätsel zu sein. Es ist dieselbe
+Bauart, die `docs/36 §22.3w` beim Fernzugriff gekostet hat: geschrieben das
+eine, gewirkt das andere, zurückgelesen nichts.
+
+**Zwei Programme mehr auf der Positivliste**, `pg_lsclusters` und
+`pg_ctlcluster` — beide von `postgresql-common`, beide mit genau einer Aufgabe.
+Nicht `systemctl` für den Start: Der Unitname hängt an Fassung und Clustername
+(`postgresql@16-main.service`), und ihn aus zwei Werten zusammenzusetzen ist der
+Vorgang, den eine Positivliste verhindert.
+
+*Nebenbei, und nur der Vollständigkeit halber:* Beim ersten Wurf las
+`Clusters::all()` das Feld 4 als Datenverzeichnis — das ist der Eigentümer.
+Aufgefallen beim Lauf gegen das echte Werkzeug, nicht beim Lesen; ein Cluster
+mit dem Datenverzeichnis `postgres` sieht in einer Ablage nicht falsch aus.
+
+### P5b Schritt 3 — PostgreSQL installieren, und zwei Wächter für eine Fussnote
+
+`pg.server.install` (`agent/src/Ops/PgServerInstall.php`), dazu `PgClusterTest`
+und `PgServerStateTest`.
+
+**Die Operation entscheidet nichts, was `describe()` nicht schon beantwortet
+hat.** Jeder der sieben Zustände hat genau einen Handgriff: `absent` wird
+installiert, `stopped` gestartet, `no_cluster` und `ambiguous` werden
+**abgewiesen** — mit dem Befehl im Klartext beziehungsweise mit dem Grund —, und
+die restlichen drei heissen „PostgreSQL ist da". Gefahren wurden am 9. August
+vier davon gegen einen echten Cluster: `stopped` → gestartet und `ready`,
+`ready` → `changed=false`, die Rolle `root` entzogen → `not_handed_over` **ohne
+Fehlschlag**, ein zweiter Cluster daneben → abgewiesen, alle Cluster entfernt →
+abgewiesen. Der fünfte Zustand ist `absent`, und ihn zu fahren hiesse hier, das
+Paket wirklich zu installieren.
+
+**Eine fehlende Übergabe ist kein Fehlschlag.** Nach der Installation läuft
+PostgreSQL und die Rolle `root` gibt es nicht; der Agent kann sie nicht anlegen,
+denn dafür bräuchte er genau die Verbindung, die ihm fehlt (`docs/38 §6.1`). Die
+Operation meldet deshalb Erfolg **und** den Befehl, den der Betreiber ausführt.
+Ihn zu verschweigen hiesse, nach einer geglückten Installation „fertig" zu
+sagen, während nichts geht.
+
+**`no_cluster` wird nicht repariert, und das ist eine Entscheidung.** Nach einer
+frischen Installation gibt es immer einen Cluster — das `postinst` legt ihn an.
+Keinen zu haben heisst also, dass jemand ihn entfernt hat, und einen neuen
+danebenzustellen wäre keine Reparatur, sondern eine zweite Meinung.
+
+**Und dann die Fussnote von gestern.** Der Eintrag darüber schliesst mit einem
+*„nebenbei, und nur der Vollständigkeit halber"*: `Clusters::all()` las Feld 4
+statt Feld 5, den Eigentümer statt des Datenverzeichnisses. Das war die falsche
+Einordnung. Es war kein Nebenbei, sondern eine Regel ohne Wächter — und dass sie
+gegen ein laufendes `pg_lsclusters` gefunden wurde, heisst nur, dass sie in der
+CI unauffindbar war.
+
+Die Auswertung ist deshalb aus dem Aufruf herausgezogen: `Clusters::parse()`
+nimmt eine Zeichenkette, und `PgClusterTest` hält echte Zeilen dagegen —
+gestoppt, zwei laufende, Kopfzeile, leere Ausgabe. Derselbe Zuschnitt, mit dem
+P3 seine Vorlagen prüft: *Was gemessen werden soll, ist eine Eigenschaft der
+Zeichenkette.* Der Wächter prüft ausdrücklich mit, dass dort **nicht**
+`postgres` steht — das ist der Wert, den die falsche Zählung lieferte, und er
+ist auf jedem System derselbe.
+
+**Der zweite Wächter hält eine Aufzählung zusammen, die es in drei Fassungen
+gibt.** Die sieben Zustandsnamen sind blosse Zeichenketten: `describe()` erzeugt
+sie, `PgServerInstall` verzweigt über sie, das Panel wird es gleich auch tun.
+Das ist wortwörtlich das Muster aus `CLAUDE.md`. Der Fehlschlag, um den es geht,
+ist nicht der Tippfehler — es ist der **achte** Zustand: Wer `describe()`
+erweitert und den Installierer vergisst, bekommt dort stillschweigend den
+`default`-Zweig, und der heisst „es ist nichts zu tun". Ein Server, der genau
+dann nicht läuft, meldete Erfolg.
+
+**Was PHPStan an einem der neuen Tests gefunden hat, gehört ebenfalls
+hierhin.** `test_only_online_counts_as_running` fuhr über `down`,
+`online,recovery` und `starting` — und prüfte damit ausschliesslich die
+Nein-Seite. Jeder Vergleich war falsch, jede Behauptung ging durch; eine
+Auswertung, die *nie* etwas als laufend liest, wäre grün geblieben. *Ein
+Wächter, der nur die Ablehnung prüft, prüft die Regel nicht.* Gefunden hat es
+`function.impossibleType` und nicht der Lauf — genau der tote Zweig, den
+`CLAUDE.md` in diesem Container als unauffindbar beschreibt, und ein Beleg
+dafür, dass der Einzeldateilauf über PHPStan die Runde wert ist.
+
+**`pg.server.install` steht noch in keiner Registratur.** Sie kommt mit dem
+Knopf, der sie auslöst — die Regel aus Lauf 446: *Eine Operation wird in
+demselben Beitrag eingetragen, der ihr einen Aufrufer gibt.*
+
+### P5b Schritt 3 abgeschlossen — der Knopf, der Schalter, und zwei Zeilen des Plans, die beim Bauen fielen
+
+`pg.server.info` und `pg.server.install` stehen in der Registratur,
+`Task::PostgresInstall` im Aufgabenkatalog, der Knopf in „Einstellungen →
+Datenbankserver", `srvpanel db --postgresql=on|off` auf der Kommandozeile.
+
+**Zwei Dinge, und sie sind ausdrücklich getrennt.** Der Schalter sagt, ob das
+Panel PostgreSQL *anbietet*; der Knopf *installiert*. Das ist keine Symmetrie
+um ihrer selbst willen: Ein Server kann ein PostgreSQL tragen, das dem
+Betreiber gehört — für sein eigenes Zeug, mit seinen eigenen Rollen. Eine
+Kundenfläche, die von selbst aufgeht, sobald `pg_lsclusters` etwas findet,
+schriebe die erste Kundendatenbank in einen Cluster, den niemand dafür
+vorgesehen hat. Der Grundzustand ist deshalb „nein", auch nach einem Update.
+
+**Warum das Installieren ein Knopf sein darf und der Fernzugriff nicht.**
+`DatabaseSettingsController` trägt seit P5 den Satz, dass hier kein Schalter
+steht, und die Begründung ist nicht die Reichweite, sondern der Neustart:
+`db.remote.access` startet den Datenbankserver neu, und der trägt auch das
+Panel — die Anfrage, die den Vorgang anstösst, verlöre ihre Verbindung mitten
+im Lauf. `apt-get install postgresql` fasst MariaDB nicht an. Der Unterschied
+war schon aufgeschrieben; er musste nur gelesen werden.
+
+**`ACTIONABLE` steht im Agenten und nicht in der Oberfläche.** Der Knopf
+erscheint in `absent` und `stopped` — den beiden Zuständen, in denen die
+Operation etwas tut. Nicht in `no_cluster` und `ambiguous`, wo sie abweist
+(ein Knopf, dessen einzige Wirkung eine Fehlermeldung ist), und nicht in
+`ready`, `not_handed_over` und `unusable`, wo PostgreSQL da ist (ein Knopf, der
+„installieren" heisst und nichts tut). `CLAUDE.md` verlangt genau das: *Wer eine
+Aktion zeigt, fragt vorher dieselbe Stelle, die sie später abweist.*
+
+### Und zwei Zeilen des Plans, die beim Bauen nicht getragen haben
+
+**`docs/38 §7` verlangte `postgresql.service` in `ServiceAction::ALLOWED_UNITS`
+— mit der Begründung, der Agent könne den Dienst sonst nicht starten. Er
+startet ihn mit `pg_ctlcluster`** (Entscheidung 9, zwei Tage jünger als der
+Abschnitt) **und lädt in §14 mit `SELECT pg_reload_conf()`.** `systemctl` kommt
+in keinem der beiden Wege vor, und `service.action` wird im ganzen Panel von
+zwei Stellen gerufen — `webserver.reload` und `srvpanel setup`.
+
+Der Eintrag entfällt. Ein Allowlist-Eintrag ohne Aufrufer ist nicht Vorsorge,
+sondern wortwörtlich das, was `AgentOperationReachTest` verbietet: *Code, der
+als root läuft und zu dem kein Weg führt, ist Angriffsfläche ohne Nutzen.* Und
+das ist die allgemeinere Lehre daraus: **Eine Begründung altert mit dem, was
+sie begründet.** Sie stand im Plan, sie war beim Schreiben richtig, und die
+Entscheidung, die sie umwarf, steht drei Abschnitte weiter unten im selben
+Dokument.
+
+In der Unitliste der Übersicht steht `postgresql.service` dagegen sehr wohl —
+dort geht es ums Sehen, und `service.status` führt keine Positivliste. **Die
+Zeile erscheint nur, wenn es die Unit gibt.** Ein dauerhaftes „nicht vorhanden"
+auf jedem Server ohne PostgreSQL wäre Rauschen an genau der Stelle, an der man
+Störungen sucht — und Rauschen dort ist der Grund, warum irgendwann niemand
+mehr hinsieht.
+
+**`suggests: postgresql` in `nfpm.yaml` bekommt seine Begründung und bleibt.**
+Bis P5b stand die Zeile ohne Kommentar da und ohne dass etwas dahinterhing — das
+einzige Vorkommen des Wortes im ganzen Quelltext, in einer Datei, deren übrige
+Zeilen jede einzeln begründet sind. Sie las sich wie eine Abhängigkeit und war
+eine Absichtserklärung. Jetzt hängt `pg.server.install` dahinter, und `Suggests`
+sagt weiterhin das Zutreffende: nützlich, nicht nötig.
+
+### Ein `version()`, das die Seite gesprengt hätte
+
+**`Pg\Server::describe()` meldete die volle Ausgabe von `version()`** —
+„PostgreSQL 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu,
+compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit", 130 Zeichen —
+und die wären als Kennung in eine Wertzelle der Oberfläche gegangen. Das ist
+Zeichen für Zeichen die Bauart, die `docs/20 §15` bezahlt hat: eine Kennung im
+Fliesstext, die die Seite um 83px aus dem Bildschirm schob, vollständig grün
+getestet und ausgeliefert.
+
+Gemeldet wird jetzt `current_setting('server_version')` — 37 Zeichen, dieselbe
+Auskunft, soweit sie jemanden vor einem Panel angeht. Der Compiler und die
+Architektur beantworten dort keine Frage.
+
+**Gefunden hat es die Aufnahme und nicht der Test**, und zwar auf dem Weg, den
+`CLAUDE.md` für den Fall beschreibt, dass `artisan serve` nicht läuft: das
+gebaute Stylesheet aus `public/build`, das Markup des Bausteins in einer
+eigenen HTML-Datei, gerendert im vorinstallierten Chromium bei 390px,
+`scrollWidth - clientWidth` als Text auf der Seite. Vier Läufe, beide Themes,
+390px und 1280px — Überlauf überall 0.
+
+**Der zweite Fund derselben Runde war ein Befehl im Fliesstext.** Bei 390px
+brach `sudo srvpanel db --postgresql=off` mitten in der Option um, und `sudo -u
+postgres psql -c "CREATE ROLE root SUPERUSER LOGIN"` mitten im Anführungszeichen
+— beides in laufenden Sätzen, wo niemand mehr sieht, wo die Zeile anfängt und
+wo sie aufhört. Beide stehen jetzt in einer Bezeichnungstabelle, jeder in
+seiner eigenen Zelle. Dieselbe Entscheidung, die im Bereich „Umschalten"
+darunter schon steht — sie war da und wurde beim Danebenbauen nicht gelesen.
+
+### Zwei Wächter mehr, und ein offener Punkt, der vor der Abnahme entschieden gehört
+
+`PgServerStateTest` hält jetzt auch `ACTIONABLE` gegen den Quelltext: Jeder
+Name darin muss ein Zustand sein, den es gibt, **und** einer, für den
+`execute()` wirklich etwas aufruft. Der Bruch dazu trägt `no_cluster` in die
+Liste ein und prüft, dass es auffällt.
+
+**`PhpVersions::EXTENSIONS` kennt `mysql` und nicht `pgsql`.** Ein Kunde, der in
+diesem Panel eine PostgreSQL-Datenbank anlegt, bekommt sie — und seine Website
+kann sich nicht damit verbinden. Das steht in `docs/38` nirgends und ist beim
+Durchsehen der Paketbeziehungen für §7 aufgefallen. Es ist ausdrücklich **nicht**
+mit dieser Änderung erledigt, und der Grund steht in `docs/38 §24.2`:
+`PhpVersionInstall` kehrt bei einer installierten Version früh zurück, die neue
+Erweiterung käme also auf keinem Server an, auf dem PHP schon liegt. Ob
+`php.version.install` fehlende Erweiterungen nachinstallieren soll, ist eine
+Änderung an P3 und gehört entschieden, nicht nebenbei gemacht.
+
+### P5b Schritt 6b — Kunden-PHP kann PostgreSQL ansprechen, und eine Prüfung fragte einen Stellvertreter
+
+`pgsql` in `PhpVersions::EXTENSIONS`, `dpkg-query` auf der Positivliste,
+`php.version.install` läuft auf den Paketsatz zu statt auf den Handler,
+„Ergänzen" in „Einstellungen → PHP-Versionen", `EngineExtensionTest` und
+`PhpExtensionTest`. Vorgezogen vor Schritt 7 auf Entscheidung des Betreibers.
+
+**Der Befund war eine Zeile, der Fehler ist eine Bauform.**
+`php.version.install` fing so an:
+
+    if (PhpVersions::installed($version)) {
+        return ['already' => true, 'packages' => [], …];
+    }
+
+`installed()` ist `is_executable('/usr/sbin/php-fpm8.2')`. Die Operation
+behauptet „der gewünschte Zustand ist schon da" und **prüft dabei einen
+Stellvertreter**: den Handler statt des Paketsatzes. Solange `EXTENSIONS` sich
+nie ändert, sind die beiden dasselbe — im Augenblick der ersten Änderung gehen
+sie auseinander, und niemand merkt es, weil die Operation Erfolg meldet.
+
+`pgsql` in die Liste zu schreiben ist ein Wort. Dass es auf einem Bestandsserver
+ankommt, war die Änderung. Die Operation *konvergiert* jetzt: fragen was fehlt,
+nur das installieren, denselben Satz zurücklesen. Fehlt nichts, ist sie in
+Millisekunden fertig — und `already` heisst dann, was es sagt.
+
+**Gefragt wird das Paketsystem und nicht `php-fpm -m`, und das ist gemessen.**
+`php -m` in diesem Container:
+
+    … mysqli mysqlnd … pdo_mysql pdo_pgsql … pgsql …
+
+Kein Modul heisst `mysql`. Paketname und Modulnamen sind verschiedene Dinge; es
+bräuchte je Eintrag eine Merkmalsangabe (`mysql → pdo_mysql`, `xml → dom`,
+`fpm → gar keins`) — eine zweite Liste, die veraltet und die kein Test hier
+prüfen kann. Dateien unter `mods-available/` haben dieselbe Lücke:
+`php8.2-mysql` legt `mysqli.ini`, `mysqlnd.ini` und `pdo_mysql.ini` ab und keine
+`mysql.ini`. **Die Frage ist eine Paketfrage, also antwortet dpkg.**
+
+**Ein Rückgabewert, der ungelesen bleibt — mit Begründung an beiden Aufrufen.**
+Gemessen:
+
+    $ dpkg-query -W -f='${binary:Package} ${db:Status-Status}\n' a fehlt b
+    a installed
+    b installed                                    ← stdout, vollständig
+    dpkg-query: no packages found matching fehlt   ← stderr
+    rc=1
+
+Der Code 1 heisst „eines davon kennt dpkg nicht" und nicht „der Aufruf ist
+gescheitert" — er ist genau dann 1, wenn diese Frage etwas zu melden hat. Wer
+ihn als Fehlschlag liest, bekommt eine Operation, die immer dann abbricht, wenn
+sie etwas zu tun hätte. Die Auswertung steht als `PhpVersions::missing()` neben
+dem Format, das sie liest, und ist ohne Server prüfbar — derselbe Schnitt wie
+`Pg\Clusters::parse()` zwei Beiträge davor, und aus demselben Anlass.
+
+**Gezählt wird `installed` und nicht „steht in der Ausgabe".** Ein Paket kann
+`config-files` sein (entfernt, Konfiguration noch da) oder `half-installed`;
+beides ist nicht benutzbar, und beides stünde in derselben Ausgabe.
+
+### Der Neustart, den der Plan nicht hatte
+
+**Ein laufender FPM lädt eine frisch installierte Erweiterung nicht von
+selbst.** Das `postinst` der Distribution ruft `phpenmod` und stösst über einen
+dpkg-Trigger einen Neustart an — *meistens*. „Meistens" ist in diesem Projekt
+kein Zustand: Bleibt er aus, liegt `pgsql` auf der Platte, im Panel steht
+„vollständig", und die Website des Kunden antwortet weiter *„could not find
+driver"*. Ein Fehler, den niemand sucht, weil alles grün aussieht — und damit
+genau dieselbe Klasse wie der, aus dem dieser Beitrag entstanden ist.
+
+`php.version.install` startet die Unit deshalb ausdrücklich neu, **wenn sie
+läuft**, und meldet es als `restarted`. Das kostet die Anfragen, die in diesem
+Augenblick unterwegs sind; die Alternative kostet jede Anfrage danach. Die
+Rückfrage im Panel sagt es vorher — wer es dort nicht liest, erfährt es aus dem
+Fehlerprotokoll seiner Kunden. Läuft sie nicht, gilt die Regel von vorher: ohne
+Pool bleibt sie stehen, mit einem wird sie gestartet.
+
+### Der Wächter sitzt an der Aufzählung und nicht an der Liste
+
+`DatabaseEngine::phpExtension()` nennt je System den Paketsuffix — `mariadb →
+mysql`, `postgres → pgsql` —, und `EngineExtensionTest` hält ihn gegen
+`PhpVersions::EXTENSIONS`. **Dieser Test wäre an dem Tag rot geworden, an dem
+die Aufzählung entstand**, also drei Beiträge vor dem Fund, und er beisst
+wieder, sobald ein drittes System dazukommt.
+
+Der Name steht an der Aufzählung und nicht als weitere Zeile im Agenten, weil
+das die Stelle ist, an der niemand vorbeikommt: Wer ein Datenbanksystem
+hinzufügt, ändert `DatabaseEngine` — die Erweiterungsliste des Agenten sieht er
+dabei nicht.
+
+**Nicht in `srvpanel update`.** Ein Update, das von selbst `apt-get install`
+fährt, kann an einer fremden Paketquelle scheitern und nimmt das Panel mit. Es
+bleibt eine Handlung mit einem Vorgang, den man ansehen kann.
+
+**Aufnahmen** wieder über das gebaute Stylesheet, beide Themes, 390px und
+1280px, Überlauf 0 — und wieder mit einem Befund: `php8.2-pgsql` brach neben der
+Marke als `php8.2-` / `pgsql` über zwei Zeilen. Die Oberfläche zeigt jetzt den
+Suffix, denn die Versionsnummer steht in derselben Zeile schon da; der Agent
+meldet weiter Paketnamen, weil das ist, was `apt-get` bekommt und was in sein
+Protokoll gehört.
+
+### Lauf 451 und 452 — zwei Wächter, und beide hatten in der Sache recht
+
+**1556 grün, zwei rot, in beiden Läufen dieselben zwei.** Keiner davon war ein
+Fehlalarm, und keiner liess sich mit einem Eintrag in einer Ausnahmeliste
+erledigen — das war jeweils der erste Reflex und jeweils die schlechtere Antwort.
+
+**`DatabaseEngineTest` fand `'postgres'` an drei Stellen**, an denen es nicht der
+Wert der Aufzählung war: als Name der Kommandozeilenoption (`--postgres`) und als
+Schlüssel der Einstellung. Die naheliegende Antwort wären zwei weitere Einträge
+in `ALLOWED` gewesen — und die hätten den Wächter über zwei Dateien stumpf
+gemacht, in denen ab Schritt 4 die echte Verzweigung zwischen `db.*` und `pg.*`
+steht.
+
+Umbenannt wurde stattdessen: Der Schalter heisst `srvpanel db --postgresql=on`,
+der Einstellungsschlüssel `postgresql`, die Ablage im Inertia-Payload ebenso.
+**Das ist keine Umgehung des Tests, sondern die Auflösung einer Zweideutigkeit,
+die er richtig gerochen hat.** Ein Optionsname und ein Einstellungsschlüssel sind
+keine Werte der Aufzählung; sie so zu schreiben, als wären sie es, hätte
+irgendwann jemanden dazu gebracht, sie aneinander zu koppeln — und dann benennt
+eine Änderung an `DatabaseEngine` still eine Kommandozeilenoption und einen
+gespeicherten Schlüssel um. In `app/` steht `'postgres'` jetzt an genau einer
+Stelle: in der Aufzählung selbst.
+
+**`WordChoiceTest` fand „Fläche"**, und `docs/19 §3` führt das Wort als
+verbraucht. Es stand als „Fläche freischalten" und „Fläche schliessen" in der
+neuen Bezeichnungstabelle. Auch hier war die Ersetzung besser als die Ausnahme:
+Die Zeilen heissen jetzt „Anbieten einschalten" und „Anbieten abschalten" — und
+damit genauso wie die Zeile darüber, die „Wird angeboten" heisst. Der Wächter hat
+nicht nur ein Wort gefunden, sondern eine Beschriftung, die zu ihrer eigenen
+Tabelle nicht passte.
+
+**Beide waren lokal auffindbar, und beide sind es nicht gewesen.** In diesem
+Container laufen weder PHPUnit noch `vendor/`; was hier fährt, sind
+handgeschriebene Attrappen für einzelne Wächter — und für diese beiden gab es
+keine. Nachgeholt wurde es als Wegwerfskript im Scratchpad: derselbe Ausdruck,
+dieselben Verzeichnisse, beide jetzt ohne Fundstelle. *Ein Wächter, den man vor
+dem Commit nicht fragen kann, wird zu einer Runde CI* — die Antwort darauf ist
+nicht, weniger Wächter zu bauen, sondern die Attrappe mitzuschreiben.
+
+**Nebenbei, und ohne Zutun:** Der Lauf 451 hatte einen dritten roten Job,
+„Installation auf Ubuntu 22.04", gescheitert beim Bereitstellen von nfpm nach
+null Sekunden. In 452 lief derselbe Job durch. Ein Download, der einmal nicht
+kam — kein Befund, und hier festgehalten, damit ihn beim nächsten Mal niemand für
+einen hält.

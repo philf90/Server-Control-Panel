@@ -39,6 +39,26 @@ final class Settings
      */
     private const PHP_VERSIONS = 'php_versions';
 
+    /**
+     * Ob dieses Panel PostgreSQL überhaupt anbietet.
+     *
+     * **Das ist der Betreiberschalter aus `docs/38 §7` und nicht der Zustand
+     * des Servers.** Die beiden auseinanderzuhalten ist der ganze Punkt: Ob
+     * ein Cluster läuft, beantwortet `pg.server.info` und niemand sonst — eine
+     * im Panel gemerkte Fassung wäre die, die veraltet — dieselbe Begründung
+     * wie bei `bind-address` im `DatabaseSettingsController`.
+     * Was hier steht, ist die Absicht: *Kunden dürfen PostgreSQL-Datenbanken
+     * anlegen.*
+     *
+     * Der Unterschied ist nicht theoretisch. Ein Server kann ein PostgreSQL
+     * tragen, das dem Betreiber gehört — für sein eigenes Zeug, mit seinen
+     * eigenen Rollen. Ohne diesen Schalter fiele die Kundenfläche in dem
+     * Augenblick auf, in dem `pg_lsclusters` etwas findet, und die erste
+     * Kundendatenbank landete in einem Cluster, den niemand dafür vorgesehen
+     * hat.
+     */
+    private const POSTGRES = 'postgresql';
+
     private ?MailSettings $mail = null;
 
     /** @var list<string>|null */
@@ -107,6 +127,34 @@ final class Settings
         $at = $this->read(self::PHP_VERSIONS)['checked_at'] ?? null;
 
         return is_string($at) ? $at : null;
+    }
+
+    /**
+     * Bietet dieses Panel PostgreSQL an?
+     *
+     * **Der Grundzustand ist „nein", und zwar auch nach einem Update.** Ein
+     * Bestandsserver, auf dem P5b ankommt, bekommt keine zweite
+     * Datenbankfläche, weil jemand ein Paket aktualisiert hat — dieselbe
+     * Richtung wie die Mandantenklammer: im Zweifel nichts.
+     */
+    public function postgres(): bool
+    {
+        return ($this->read(self::POSTGRES)['offered'] ?? false) === true;
+    }
+
+    /**
+     * Den Schalter umlegen — aus `srvpanel db --postgresql=on|off`.
+     *
+     * Wann, steht mit dabei. Nicht aus Ordnungsliebe: Wer auf einer stillen
+     * Kundenfläche steht und wissen will, seit wann sie still ist, hat sonst
+     * keine Antwort ausser dem Prüfpfad.
+     */
+    public function savePostgres(bool $offered): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::POSTGRES],
+            ['value' => ['offered' => $offered, 'changed_at' => now()->toDateTimeString()]],
+        );
     }
 
     /**

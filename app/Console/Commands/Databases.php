@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\DatabaseEngine;
 use App\Models\Database;
 use App\Models\DatabaseDump;
 use App\Models\DbUser;
 use App\Support\Databases\DatabasePrune;
 use App\Support\Databases\DumpIntegrity;
+use App\Support\Settings\Settings;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Console\Command;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
+use SrvPanel\Agent\Pg\Server;
 
 /**
  * Der Datenbankserver von der Kommandozeile — nachsehen und aufräumen.
@@ -49,11 +52,12 @@ final class Databases extends Command
         {--prune : Reste eines misslungenen Rückbaus entfernen — Schemata, Zugänge und Sicherungen}
         {--dry-run : Mit --prune: nur zeigen, was entfernt würde}
         {--remote= : on oder off — ob der Datenbankserver auf einer erreichbaren Adresse horcht}
-        {--bind=0.0.0.0 : Mit --remote=on: 0.0.0.0 für IPv4 oder :: für beide Stapel}';
+        {--bind=0.0.0.0 : Mit --remote=on: 0.0.0.0 für IPv4 oder :: für beide Stapel}
+        {--postgresql= : on oder off — ob das Panel PostgreSQL-Datenbanken anbietet}';
 
     protected $description = 'Zeigt den Datenbankserver und räumt auf, was ein Rückbau liegenliess';
 
-    public function handle(Client $agent, DatabasePrune $prune, Tenancy $tenancy): int
+    public function handle(Client $agent, DatabasePrune $prune, Tenancy $tenancy, Settings $settings): int
     {
         if ($this->option('prune') === true) {
             return $this->prune($agent, $prune);
@@ -61,6 +65,10 @@ final class Databases extends Command
 
         if ($this->option('remote') !== null) {
             return $this->remote($agent, $tenancy);
+        }
+
+        if ($this->option('postgresql') !== null) {
+            return $this->postgres($agent, $settings, $tenancy);
         }
 
         return $this->showServer($agent, $prune, $tenancy);
@@ -522,6 +530,89 @@ final class Databases extends Command
 
             return self::FAILURE;
         }
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Die PostgreSQL-Fläche freischalten oder wieder schliessen (`docs/38 §7`).
+     *
+     * **Dieser Schalter installiert nichts.** Er sagt, ob das Panel
+     * PostgreSQL-Datenbanken *anbietet* — installiert wird über den Knopf in
+     * „Einstellungen → Datenbankserver" (`docs/38 §21`, Entscheidung 10). Die
+     * beiden zu trennen ist der Punkt: Ein Server kann ein PostgreSQL tragen,
+     * das dem Betreiber gehört, und eine Fläche, die von selbst aufgeht, sobald
+     * `pg_lsclusters` etwas findet, schriebe Kundendatenbanken in einen
+     * Cluster, den niemand dafür vorgesehen hat.
+     *
+     * **Deshalb ist auch kein Neustart im Spiel** — und deshalb steht die
+     * Installation, anders als `--remote`, hinter einem Knopf: `apt-get install
+     * postgresql` fasst MariaDB nicht an, und die Anfrage, die den Vorgang
+     * anstösst, verliert ihre Verbindung nicht.
+     *
+     * **Was beim Abschalten passiert, steht vorher da.** Vorhandene
+     * PostgreSQL-Datenbanken werden nicht angerührt; sie laufen weiter, und der
+     * Kunde erreicht sie mit seinen Zugangsdaten. Was verschwindet, ist die
+     * Fläche im Panel. Das ist ein Unterschied, den man gesagt bekommen muss,
+     * bevor man ihn macht.
+     */
+    private function postgres(Client $agent, Settings $settings, Tenancy $tenancy): int
+    {
+        $mode = strtolower(trim((string) $this->option('postgresql')));
+
+        if (! in_array($mode, ['on', 'off'], true)) {
+            $this->error('--postgresql erwartet on oder off.');
+
+            return self::FAILURE;
+        }
+
+        $an = $mode === 'on';
+
+        if ($an) {
+            /*
+             * **Der Zustand des Servers wird gezeigt und nicht geprüft.** Der
+             * Schalter ist eine Absicht, und eine Absicht darf einem Zustand
+             * vorausgehen: Wer erst freischaltet und dann installiert, soll
+             * dabei nicht in eine Fehlermeldung laufen. Gesagt wird es
+             * trotzdem, sonst steht am Ende eine offene Fläche ohne Server
+             * dahinter und niemand weiss es.
+             */
+            try {
+                $info = $agent->call('pg.server.info', [], $this->actor());
+
+                $this->line(match ($info['state'] ?? '') {
+                    'ready' => sprintf('PostgreSQL läuft: %s.', $info['version'] ?? '?'),
+                    'absent' => 'PostgreSQL ist nicht installiert. Der Knopf in „Einstellungen → '
+                        .'Datenbankserver" holt es nach.',
+                    'not_handed_over' => 'PostgreSQL läuft, aber die Rolle für das Panel fehlt noch: '
+                        .Server::HANDOVER,
+                    default => 'PostgreSQL: '.($info['reason'] ?? 'unklarer Zustand'),
+                });
+            } catch (AgentException $error) {
+                $this->warn('Der Agent hat nicht geantwortet: '.$error->getMessage());
+            }
+        } else {
+            // Ohne Mandantenklammer, und ausdrücklich: Auf der Kommandozeile ist
+            // niemand angemeldet, und der Grundzustand der Klammer ist „nichts" —
+            // die Warnung zählte sonst immer null.
+            $bestand = $tenancy->withoutRestriction(
+                static fn (): int => Database::query()->where('engine', DatabaseEngine::Postgres)->count(),
+            );
+
+            if ($bestand > 0) {
+                $this->warn(sprintf(
+                    '%d PostgreSQL-Datenbank(en) stehen im Bestand. Sie bleiben, wo sie sind, und ihre '
+                    .'Zugänge funktionieren weiter — im Panel sind sie danach nicht mehr zu sehen.',
+                    $bestand,
+                ));
+            }
+        }
+
+        $settings->savePostgres($an);
+
+        $this->line($an
+            ? 'PostgreSQL wird jetzt angeboten.'
+            : 'PostgreSQL wird nicht mehr angeboten.');
 
         return self::SUCCESS;
     }

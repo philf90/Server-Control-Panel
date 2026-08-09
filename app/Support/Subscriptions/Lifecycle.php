@@ -17,6 +17,7 @@ use App\Support\Plans\Quota;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Database\UniqueConstraintViolationException;
 use RuntimeException;
+use SrvPanel\Agent\Pg\Names;
 
 /**
  * Der Lebenslauf eines Abonnements — und wer den Zustand setzt.
@@ -93,6 +94,21 @@ final class Lifecycle implements AfterOperation
      * bleibt eine Restwahrscheinlichkeit, dass fünf Versuche nicht reichen —
      * für ein Panel auf einem einzelnen Server ist das die richtige
      * Grössenordnung, und der Fehlschlag ist wenigstens lesbar.
+     *
+     * **Das Datenbankpräfix wird hier mitvergeben** (P5b, `docs/38 §4`) und
+     * nicht beim ersten Gebrauch. Es steht in derselben Zeile und derselben
+     * Transaktion, weil es dieselbe Eigenschaft hat wie die Nummer: Es wird nie
+     * zurückgegeben. Ein Präfix, das erst entsteht, wenn jemand die erste
+     * PostgreSQL-Datenbank anlegt, bräuchte einen zweiten Weg — und der müsste
+     * gegen zwei gleichzeitige Anlagen abgesichert sein, die beide dasselbe
+     * leere Feld sehen. Der eindeutige Index deckt beide Spalten ab, also deckt
+     * die Wiederholungsschleife oben auch die Kollision hier.
+     *
+     * **Warum es nicht wie die Nummer aus dem Bestand hochgezählt wird:** Es
+     * soll nichts verraten. `p1002_shop` sagt jedem Kunden des Servers, dass es
+     * ein Abonnement 1002 gibt — und in PostgreSQL sind die Namen der
+     * Datenbanken für jeden lesbar (gemessen, `docs/38 §2.2`). Eine fortlaufende
+     * Zahl in anderer Schreibweise wäre dieselbe Auskunft mit einem Umweg.
      */
     public function claim(string $subscription): string
     {
@@ -103,6 +119,7 @@ final class Lifecycle implements AfterOperation
                 SystemUser::query()->create([
                     'number' => $number,
                     'subscription' => $subscription,
+                    'db_prefix' => Names::newPrefix(),
                     'claimed_at' => now(),
                 ]);
 

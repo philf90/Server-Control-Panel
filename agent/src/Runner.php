@@ -59,8 +59,61 @@ final class Runner
         'setquota' => '/usr/sbin/setquota',
         'repquota' => '/usr/sbin/repquota',
         'apt-get' => '/usr/bin/apt-get',
+
+        // **Lesend, und es beantwortet die Frage, die `apt-get` sonst raten
+        // müsste:** Welche der Pakete einer PHP-Version liegen schon da? Bis
+        // P5b hat `php.version.install` das am Handler abgelesen —
+        // `/usr/sbin/php-fpm8.2` da, also alles da —, und das war ein
+        // Stellvertreter für eine Paketfrage. Als `pgsql` in die
+        // Erweiterungsliste kam, gingen die beiden auseinander, und niemand
+        // hat es gemerkt, weil die Operation Erfolg meldete (docs/38 §24.2).
+        //
+        // Gefragt wird das Paketsystem und nicht `php-fpm -m`: Die Modulnamen
+        // eines Pakets sind nicht sein Name — `php8.2-mysql` bringt `mysqli`,
+        // `mysqlnd` und `pdo_mysql` mit und kein Modul namens `mysql`
+        // (gemessen). Eine Zuordnung dafür wäre eine zweite Liste, die
+        // veraltet.
+        'dpkg-query' => '/usr/bin/dpkg-query',
         'mysql' => '/usr/bin/mysql',
         'mysqldump' => '/usr/bin/mysqldump',
+
+        // **P5b, und die Liste wächst um drei Programme und keine Vollmacht.**
+        // Alle drei sind fassungsunabhängige Wrapper von
+        // `postgresql-client-common`, die selbst entscheiden, welche
+        // Serverfassung sie ansprechen — deshalb steht hier keine Zahl, anders
+        // als bei php-fpm.
+        //
+        // **Was hier ausdrücklich nicht steht: `runuser`, `su`, `setpriv`,
+        // `sudo`.** PostgreSQL bildet Unix-Kennungen auf Rollen ab, und der
+        // erste Entwurf von docs/38 §6 wollte deshalb einen Kennungswechsel.
+        // Ein Programm, das als root beliebige andere unter beliebiger Kennung
+        // startet, wäre die weiteste Zeile dieser ganzen Liste — weiter als
+        // `certbot`, der unten mit einer schwächeren Begründung gehen musste.
+        // Gebraucht wird er auch nicht: Gibt es eine PostgreSQL-Rolle `root`,
+        // kommt der Agent über `local all all peer` als Superuser durch, ohne
+        // dass irgendeine Datei angefasst wird. `AgentIdentityTest` hält beides
+        // fest.
+        'psql' => '/usr/bin/psql',
+        'pg_dump' => '/usr/bin/pg_dump',
+        'pg_restore' => '/usr/bin/pg_restore',
+
+        // **Zwei Werkzeuge von `postgresql-common`, und beide tun genau eine
+        // Sache.** `pg_lsclusters` liest, welche Cluster es gibt; `pg_ctlcluster`
+        // startet einen vorhandenen. Sie stehen hier, weil sich die Frage
+        // „installiert, aber gestoppt" von „gar nicht installiert" ohne sie
+        // nicht beantworten lässt — gemessen am 9. August 2026: Das
+        // Socketverzeichnis fehlt in beiden Fällen (docs/38 §2.2d).
+        //
+        // **`pg_lsclusters` ist dabei selbst der Fühler.** Fehlt das Programm,
+        // wirft der Runner `not_found`, und genau das heisst „PostgreSQL ist
+        // nicht installiert". Eine Prüfung auf eine Datei wäre eine zweite
+        // Fassung derselben Frage.
+        //
+        // Nicht `systemctl` für den Start: Der Unitname hängt an Fassung und
+        // Clustername (`postgresql@16-main.service`), und ihn aus zwei Werten
+        // zusammenzusetzen ist der Vorgang, den eine Positivliste verhindert.
+        'pg_lsclusters' => '/usr/bin/pg_lsclusters',
+        'pg_ctlcluster' => '/usr/bin/pg_ctlcluster',
 
         // **`certbot` stand hier und ist mit P4 wieder gegangen.** Er war für
         // TLS vorgesehen; gebaut wurde statt dessen ein eigener ACME-Client im

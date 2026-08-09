@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Models\Concerns\BelongsToSubscription;
@@ -51,13 +52,13 @@ class DatabaseDump extends Model
     /** @var list<string> */
     protected $fillable = [
         'subscription_id', 'database_id', 'database_name', 'storage_name',
-        'kind', 'status', 'bytes', 'last_error',
+        'engine', 'kind', 'status', 'bytes', 'last_error',
     ];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['status' => DumpStatus::class, 'kind' => DumpKind::class];
+        return ['engine' => DatabaseEngine::class, 'status' => DumpStatus::class, 'kind' => DumpKind::class];
     }
 
     /** Der Name des Abonnements wird beim Anlegen abgeschrieben — siehe {@see Database::booted()}. */

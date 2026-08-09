@@ -35,6 +35,12 @@
 # Sein Bruch legt eine schreibende Route an, und die steht in `routes/web.php` —
 # in keiner der beiden Listen wäre sie danach stehengeblieben.
 #
+# `docs/` kam mit P5b dazu, und der Anlass ist derselbe wie bei `routes/`: Ein
+# Wächter prüft dort, dass jeder Verweis eines Dokuments auf eine Datei zeigt,
+# die es gibt (`DocLinkTest`), und sein Bruch macht aus einem Verweis einen
+# toten. Ohne die Zeile bliebe er stehen — und der nächste Lauf fände ein
+# schmutziges Verzeichnis vor, das er sich selbst gemacht hat.
+#
 # `database/` kam mit P5 dazu, und der Anlass ist genau der Satz darüber: Ein
 # Wächter prüft dort am **Schema**, dass es keine Spalte für ein Passwort gibt
 # (`SecretsStayOutOfTheQueueTest`), und der Bruch dazu fügt eine ein. Ohne diese
@@ -61,15 +67,15 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/; then
-  echo "resources/, app/, agent/, packaging/, .github/, database/ oder routes/ hat ungesicherte" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/; then
+  echo "resources/, app/, agent/, packaging/, .github/, database/, routes/ oder docs/ hat ungesicherte" >&2
   echo "Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -3036,6 +3042,7 @@ s = s.replace(
     """                SystemUser::query()->create([
                     'number' => $number,
                     'subscription' => $subscription,
+                    'db_prefix' => Names::newPrefix(),
                     'claimed_at' => now(),
                 ]);
 
@@ -4611,6 +4618,362 @@ pruefe "Herkunft wieder als Wert" \
   DumpKindTest::test_the_interface_gets_the_label_and_not_the_value failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DumpKindTest passed
+
+echo
+echo "── DocLinkTest: ein Verweis zeigt wieder ins Leere ──"
+#
+# Genau der Fehler, der diesen Wächter ausgelöst hat, zurückgedreht: docs/19
+# verwies bis zum 9. August 2026 auf 14-bestaetigungen.md — ein Dokument des
+# Vorgängers, das mit dem Repo-Übergang entfernt wurde. Der Verweis hat einen
+# Lizenzwechsel und einen Neuanfang überlebt, weil niemand ihn geprüft hat.
+vorher_datei docs/19-sprache-der-oberflaeche.md
+python3 - <<'PY2'
+p = 'docs/19-sprache-der-oberflaeche.md'
+s = open(p, encoding='utf-8').read()
+s = s.replace('[20 §7](20-hostingpanel-neuplan.md)', '[14](14-bestaetigungen.md)')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei docs/19-sprache-der-oberflaeche.md "Verweis auf ein entferntes Dokument" &&
+pruefe "Verweis auf ein entferntes Dokument" \
+  DocLinkTest::test_every_link_points_at_a_file_that_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
+
+echo
+echo "── DocLinkTest: eine Dokumentnummer, die es nicht gibt ──"
+#
+# Die andere Schreibweise, und die häufigere: `docs/36` ohne Verweisklammern.
+# ChangelogTest prüft sie im CHANGELOG, aber nirgends sonst — und der Verweis,
+# der P5b ausgelöst hat, stand in einem Dokument.
+vorher_datei docs/38-postgresql.md
+python3 - <<'PY2'
+p = 'docs/38-postgresql.md'
+s = open(p, encoding='utf-8').read()
+s = s.replace('im Zuschnitt von `docs/36 §12`', 'im Zuschnitt von `docs/39 §12`')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei docs/38-postgresql.md "Nummer eines Dokuments, das es nicht gibt" &&
+pruefe "Nummer eines Dokuments, das es nicht gibt" \
+  DocLinkTest::test_every_document_mentioned_by_number_exists failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DocLinkTest passed
+
+echo
+echo "── PgNameTest: das Präfix haengt wieder am Abonnement ──"
+#
+# Die Abschottung von P5b ist der Name selbst: PostgreSQL zeigt jedem Kunden
+# die Namen aller Datenbanken (gemessen, docs/38 §2.2), und `p1002_shop`
+# verriete damit, dass es ein Abonnement 1002 mit einem Shop gibt. Der Waechter
+# prueft die Form statt des Ergebnisses — eine Methode ohne Parameter kann aus
+# keinem Wert des Abonnements etwas ableiten.
+vorher_datei agent/src/Pg/Names.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Names.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('    public static function newPrefix(): string', '    public static function newPrefix(string $systemUser = \'p1001\'): string')
+s = s.replace("return 'x'.bin2hex(random_bytes(8));", "return 'x'.substr(hash('sha256', $systemUser), 0, 16);")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Names.php "Praefix aus dem Abonnement abgeleitet" &&
+pruefe "Praefix aus dem Abonnement abgeleitet" \
+  PgNameTest::test_a_prefix_cannot_be_derived_from_anything failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgNameTest passed
+
+echo
+echo "── PgShieldingTest: pg_database wird doch entzogen ──"
+#
+# Der Entzug schloesse das Aufzaehlen vollstaendig — und nimmt dem KUNDEN
+# pg_dump, auch fuer den schlichten Export seiner eigenen Datenbank (gemessen,
+# docs/38 §2.2 M6). Wer die Ausnahme streicht, tauscht einen Sicherheitsgewinn
+# gegen einen Datenverlust.
+vorher_datei agent/src/Pg/Shielding.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Shielding.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('            if (isset(self::EXEMPT[$channel])) {', '            if (false) {')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Shielding.php "pg_database doch entzogen" &&
+pruefe "pg_database doch entzogen" \
+  PgShieldingTest::test_pg_database_stays_readable_with_a_reason failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgShieldingTest passed
+
+echo
+echo "── PgShieldingTest: die Kanalliste wird wieder verdrahtet ──"
+#
+# Sie ist fassungsabhaengig — PG 17 hat mehr pg_stat_progress_* als PG 14, und
+# die Zielplattformen spannen 14 bis 17. Eine feste Liste ist auf der naechsten
+# Fassung unvollstaendig, und unvollstaendig heisst hier: ein offener Kanal.
+vorher_datei agent/src/Pg/Shielding.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Shielding.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        foreach ($channels as $channel) {', "        foreach (array_merge($channels, ['pg_stat_replication']) as $channel) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Shielding.php "Kanalliste verdrahtet" &&
+pruefe "Kanalliste verdrahtet" \
+  PgShieldingTest::test_the_channels_are_asked_for_and_not_written_down failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgShieldingTest passed
+
+echo
+echo "── AgentIdentityTest: runuser auf die Positivliste ──"
+#
+# Der erste Entwurf von docs/38 §6 wollte einen Kennungswechsel, weil
+# PostgreSQL Unix-Kennungen auf Rollen abbildet und root keine ist. Gemessen
+# wurde beides und beides faellt: proc_open kennt keinen Wechsel, und der Weg
+# ueber pcntl_fork legt die Ausgabe unzuverlaessig ab. Gebraucht wird er auch
+# nicht — eine Rolle namens root reicht.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        'psql' => '/usr/bin/psql',", "        'runuser' => '/usr/sbin/runuser',\n        'psql' => '/usr/bin/psql',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Runner.php "runuser auf der Positivliste" &&
+pruefe "runuser auf der Positivliste" \
+  AgentIdentityTest::test_no_program_on_the_allowlist_switches_identity failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AgentIdentityTest passed
+
+echo
+echo "── PgSessionTest: der Lauf meldet wieder Erfolg, wenn SQL scheitert ──"
+#
+# psql -f gibt bei gescheitertem SQL 0 zurueck und arbeitet weiter — am
+# 9. August nebeneinander gemessen. mysql bricht von selbst ab; genau darauf
+# ruht der Beleg von Kriterium 6 in P5. Ohne den Schalter waere ein
+# vollstaendig gescheitertes Zurueckspielen als „erledigt" gemeldet worden.
+vorher_datei agent/src/Pg/Session.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'-v', 'ON_ERROR_STOP=1'", "'-v', 'AUTOCOMMIT=on'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Session.php "Lauf ohne ON_ERROR_STOP" &&
+pruefe "Lauf ohne ON_ERROR_STOP" \
+  PgSessionTest::test_every_call_carries_on_error_stop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgSessionTest passed
+
+echo
+echo "── PgGrantTest: die Rolle bekommt CREATEDB ──"
+#
+# Ein Kunde mit CREATEDB legt Datenbanken an, die im Bestand des Panels fehlen
+# und deren Absperrung nie gelaufen ist — der Kanal, den docs/38 §3 schliesst,
+# waere damit an jeder selbst angelegten Datenbank wieder offen.
+vorher_datei agent/src/Ops/PgRoleCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRoleCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'CREATE ROLE %s WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION '",
+              "'CREATE ROLE %s WITH LOGIN NOSUPERUSER CREATEDB NOCREATEROLE NOINHERIT NOREPLICATION '")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRoleCreate.php "Rolle mit CREATEDB" &&
+pruefe "Rolle mit CREATEDB" \
+  PgGrantTest::test_no_statement_grants_anything_cluster_wide failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
+
+echo
+echo "── PgGrantTest: die Freigabe vergisst die Standardrechte ──"
+#
+# ALTER DEFAULT PRIVILEGES gibt es in MariaDB nicht: Dort gilt ein Schemarecht
+# fuer alles, was im Schema entsteht. In PostgreSQL gehoert jede Tabelle dem,
+# der sie angelegt hat — ohne diese Zeile saehe ein zweiter Zugang desselben
+# Abonnements die Tabellen des ersten nicht.
+vorher_datei agent/src/Ops/PgRoleGrant.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRoleGrant.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO '.$name,\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRoleGrant.php "Freigabe ohne Standardrechte" &&
+pruefe "Freigabe ohne Standardrechte" \
+  PgGrantTest::test_a_grant_reaches_database_schema_and_objects failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
+
+echo
+echo "── PgGrantTest: der Rückbau wartet auf offene Verbindungen ──"
+#
+# Ohne WITH (FORCE) scheitert DROP DATABASE an jedem Kunden mit einem
+# Verbindungspool — gemessen am 9. August: „database is being accessed by other
+# users". MariaDB kennt das nicht.
+vorher_datei agent/src/Ops/PgDatabaseRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(".' WITH (FORCE)'", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseRemove.php "Rückbau ohne FORCE" &&
+pruefe "Rückbau ohne FORCE" \
+  PgGrantTest::test_dropping_a_database_does_not_wait_for_idle_connections failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
+
+echo
+echo "── PgClusterTest: das Datenverzeichnis um ein Feld verfehlt ──"
+#
+# Genau der Fehler, den es gab: Feld 4 ist der Eigentümer und nicht das
+# Datenverzeichnis. Gefunden hat ihn kein Lesen, sondern ein Lauf gegen das
+# echte Werkzeug — ein Cluster mit dem Datenverzeichnis `postgres` sieht in
+# einer Ablage nicht falsch aus. Seit `parse()` eine Zeichenkette nimmt, ist er
+# ohne PostgreSQL zu haben.
+vorher_datei agent/src/Pg/Clusters.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Clusters.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'directory' => $fields[5],", "'directory' => $fields[4],")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Clusters.php "Datenverzeichnis ist Feld 4" &&
+pruefe "Datenverzeichnis ist Feld 4" \
+  PgClusterTest::test_the_data_directory_is_the_sixth_field failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
+
+echo
+echo "── PgClusterTest: fast-online gilt als laufend ──"
+#
+# Ein Cluster mitten im Start antwortet nicht. Wer `str_contains` statt `===`
+# nimmt, hält ihn für erreichbar — und die nächste Operation läuft in eine
+# Verbindung, die es nicht gibt.
+vorher_datei agent/src/Pg/Clusters.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Clusters.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'running' => $fields[3] === 'online',", "'running' => str_contains($fields[3], 'online'),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Clusters.php "online mit Beiwerk gilt als laufend" &&
+pruefe "online mit Beiwerk gilt als laufend" \
+  PgClusterTest::test_only_online_counts_as_running failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
+
+echo
+echo "── PgServerStateTest: ein achter Zustand, den niemand beantwortet ──"
+#
+# Der Fehlschlag, um den es geht, ist nicht der Tippfehler. Es ist der Zustand,
+# den jemand hinzufügt und in PgServerInstall vergisst: Dort fällt er in den
+# `default`-Zweig, und der heisst „PostgreSQL ist da, es ist nichts zu tun".
+vorher_datei agent/src/Pg/Server.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Server.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'state' => 'no_cluster',", "'state' => 'cluster_missing',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Server.php "unbekannter Zustand" &&
+pruefe "unbekannter Zustand" \
+  PgServerStateTest::test_the_vocabulary_is_the_documented_one failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgServerStateTest passed
+
+echo
+echo "── PgServerStateTest: der Installierer schweigt zu einem Zustand ──"
+#
+# Die Gegenrichtung desselben Wächters — hier bleibt die Aufzählung heil und
+# der Handgriff verschwindet.
+vorher_datei agent/src/Ops/PgServerInstall.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgServerInstall.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('not_handed_over', 'noch_nicht_uebergeben')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgServerInstall.php "Installierer kennt einen Zustand nicht" &&
+pruefe "Installierer kennt einen Zustand nicht" \
+  PgServerStateTest::test_every_state_is_answered_by_the_installer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgServerStateTest passed
+
+echo
+echo "── PgServerStateTest: ein Knopf, der nur eine Fehlermeldung auslöst ──"
+#
+# ACTIONABLE ist die Liste, aus der die Oberfläche liest, ob sie den Knopf
+# zeigt. Steht `no_cluster` darin, weist der Agent ab — und der Betreiber
+# drückt auf etwas, dessen einzige Wirkung eine rote Zeile ist.
+vorher_datei agent/src/Ops/PgServerInstall.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgServerInstall.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("public const ACTIONABLE = ['absent', 'stopped'];",
+              "public const ACTIONABLE = ['absent', 'stopped', 'no_cluster'];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgServerInstall.php "Knopf für einen abgewiesenen Zustand" &&
+pruefe "Knopf für einen abgewiesenen Zustand" \
+  PgServerStateTest::test_the_actionable_states_are_states_that_act failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgServerStateTest passed
+
+echo
+echo "── EngineExtensionTest: ein System ohne Weg vom PHP des Kunden ──"
+#
+# Genau der Zustand, den P5b drei Beiträge lang hatte: DatabaseEngine kennt
+# `postgres`, die Erweiterungsliste des Agenten kennt kein `pgsql`. Der Kunde
+# bekommt seine Datenbank und keine Verbindung dazu — im Panel sieht alles grün
+# aus, und die Website antwortet „could not find driver".
+vorher_datei agent/src/PhpVersions.php
+python3 - <<'PY2'
+p = 'agent/src/PhpVersions.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'fpm', 'mysql', 'pgsql', 'xml'", "'fpm', 'mysql', 'xml'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/PhpVersions.php "Datenbanksystem ohne PHP-Erweiterung" &&
+pruefe "Datenbanksystem ohne PHP-Erweiterung" \
+  EngineExtensionTest::test_every_engine_has_its_php_extension_installed_with_every_version failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineExtensionTest passed
+
+echo
+echo "── PhpExtensionTest: der Paketzustand wird nicht gelesen ──"
+#
+# Ein Paket mit `config-files` ist entfernt und seine Konfiguration liegt noch
+# da; `half-installed` ist ein abgebrochener Lauf. Beides ist nicht benutzbar.
+# Wer nur nach dem Namen sucht statt nach dem Zustand, hält beide für in
+# Ordnung — und lässt den Kunden mit einer Erweiterung zurück, die es nicht gibt.
+vorher_datei agent/src/PhpVersions.php
+python3 - <<'PY2'
+p = 'agent/src/PhpVersions.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if (count($fields) < 2 || $fields[1] !== 'installed') {", "if (count($fields) < 1) {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/PhpVersions.php "Paketzustand wird nicht gelesen" &&
+pruefe "Paketzustand wird nicht gelesen" \
+  PhpExtensionTest::test_only_installed_counts_as_present failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpExtensionTest passed
+
+echo
+echo "── PhpExtensionTest: die Frage passt nicht mehr zur Auswertung ──"
+#
+# Ein anderes -f ergibt einen Parser, der nichts findet — und „nichts gefunden"
+# heisst hier „alles fehlt", also apt-get bei jedem Aufruf. Lautlos, weil ein
+# Lauf, der zu viel installiert, wie ein erfolgreicher aussieht.
+vorher_datei agent/src/PhpVersions.php
+python3 - <<'PY2'
+p = 'agent/src/PhpVersions.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'-f=${binary:Package} ${db:Status-Status}\\n'", "'-f=${db:Status-Status} ${binary:Package}\\n'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/PhpVersions.php "Frage und Auswertung getrennt" &&
+pruefe "Frage und Auswertung getrennt" \
+  PhpExtensionTest::test_the_query_asks_for_the_two_fields_it_reads failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PhpExtensionTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

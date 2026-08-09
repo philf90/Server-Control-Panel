@@ -104,6 +104,17 @@ final class AgentOperationReachTest extends TestCase
         'db.user.remove' => 'Entfernt einen Zugang. DROP USER dauert Millisekunden, und die Zeile geht danach im selben Aufruf.',
         'db.isolation.probe' => 'Die Selbstprobe des Abnahmelaufs (docs/36 §17). Sie läuft aus `srvpanel acceptance-db`, und zwar unmittelbar: Ihr Argument ist das Passwort eines Kundenzugangs, und das gehört nicht in operations.payload — dieselbe Regel wie bei tls.certificate.upload. Im Bestand des Panels steht zu ihr nichts.',
         'db.usage' => 'Die Messung schreibt ihr Ergebnis selbst (App\Support\Databases\Usage) — wortwörtlich derselbe Grund wie bei subscription.usage: Sie läuft am Zeitgeber, niemand hat sie ausgelöst, und alle fünfzehn Minuten ein Vorgang je Abonnement wäre ein Protokoll, das niemand mehr liest.',
+
+        /*
+         * P5b — PostgreSQL (docs/38 §7).
+         *
+         * Nur `pg.server.info` steht hier: Sie wird unmittelbar gerufen und
+         * ändert am Bestand des Panels nichts. `pg.server.install` läuft über
+         * den Aufgabenkatalog ({@see Task::PostgresInstall}) und braucht
+         * deshalb keinen Eintrag — genau wie `php.version.install`, der sie
+         * nachgebaut ist.
+         */
+        'pg.server.info' => 'Liest, ob PostgreSQL installiert ist, ob ein Cluster läuft und ob die Rolle für das Panel existiert; im Bestand des Panels steht dazu nichts — wortgleich der Grund von db.server.info.',
     ];
 
     private function registry(): Registry

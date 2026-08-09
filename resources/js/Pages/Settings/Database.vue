@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Head, router } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 import Badge from '../../Components/Badge.vue'
 import PanelLayout from '../../Layouts/PanelLayout.vue'
 import Section from '../../Components/Section.vue'
@@ -19,19 +19,85 @@ const props = defineProps<{
   server: {
     reachable: boolean
     error: string | null
-    flavour: string | null
+    flavour_label: string
     version: string | null
     usable: boolean
     reason: string | null
     bind_address: string | null
     remote: boolean
   }
+  postgresql: {
+    offered: boolean
+    reachable: boolean
+    error: string | null
+    state: string
+    version: string | null
+    cluster: string | null
+    port: number | null
+    usable: boolean
+    reason: string | null
+    handover: string
+    handed_over: boolean
+    databases: number
+    can_install: boolean
+  }
   remote_users: {
     total: number
     hosts: { host: string; count: number }[]
   }
-  commands: { on: string; off: string }
+  commands: { on: string; off: string; postgresql_on: string; postgresql_off: string }
 }>()
+
+/*
+ * Was der Zustand des PostgreSQL bedeutet — ein Satz je Wert.
+ *
+ * **Die Namen kommen aus `Pg\Server::describe()` und werden hier nur
+ * übersetzt.** Entschieden wird nichts: Ob der Knopf erscheint, hat der
+ * Steuerungscode aus `PgServerInstall::ACTIONABLE` beantwortet. Diese Ablage
+ * ist Text und keine zweite Fassung der Regel — verglichen wird nirgends.
+ */
+const zustandstexte: Record<string, string> = {
+  absent: 'nicht installiert',
+  no_cluster: 'installiert, kein Cluster',
+  stopped: 'läuft nicht',
+  ambiguous: 'mehrere Cluster',
+  not_handed_over: 'Rolle fehlt',
+  unusable: 'nicht nutzbar',
+  ready: 'bereit',
+}
+
+const pgZustand = computed(() => zustandstexte[props.postgresql.state] ?? 'unbekannt')
+
+const pgMarke = computed<'ok' | 'warn' | 'neutral'>(() => {
+  if (props.postgresql.state === 'ready') return 'ok'
+  if (props.postgresql.state === 'absent') return 'neutral'
+
+  return 'warn'
+})
+
+const installiert = ref(false)
+
+function installiere(): void {
+  if (installiert.value) return
+  if (
+    !window.confirm(
+      'PostgreSQL installieren?\n\nDie Pakete kommen aus der Distribution. Ein vorhandener Cluster wird benutzt und nicht umgebaut, pg_hba.conf bleibt unangetastet.',
+    )
+  ) {
+    return
+  }
+
+  installiert.value = true
+  router.post(
+    '/operations',
+    { task: 'pg.server.install' },
+    {
+      onFinish: () => {
+        installiert.value = false
+      },
+    },
+  )
+}
 
 /*
  * Der Zustand, der beide Zahlen zusammenbringt.
@@ -55,12 +121,9 @@ const zustand = computed(() => {
   return props.server.remote ? 'Fernzugriff möglich' : 'nur lokal'
 })
 
-const bezeichnung = computed(() => {
-  if (props.server.flavour === 'mariadb') return 'MariaDB'
-  if (props.server.flavour === 'mysql') return 'MySQL'
-
-  return props.server.flavour ?? '—'
-})
+// Der fertige Text kommt aus dem Panel, nicht der Wert — siehe
+// DatabaseSettingsController::flavourLabel().
+const bezeichnung = computed(() => props.server.flavour_label)
 </script>
 
 <template>
@@ -134,6 +197,115 @@ const bezeichnung = computed(() => {
                   {{ props.server.remote ? 'an' : 'aus' }}
                 </Badge>
               </td>
+            </tr>
+          </tbody>
+        </table>
+      </Section>
+
+      <!--
+        **PostgreSQL steht neben MariaDB und nicht auf einer eigenen Seite.**
+        Die Frage, die jemand hierher führt, heisst „was für Datenbanken kann
+        dieser Server?" — und zwei Seiten dafür wären zwei Orte, an denen die
+        Antwort halb ist.
+      -->
+      <Section
+        title="PostgreSQL"
+        note="Ein zweites Datenbanksystem, unabhängig vom oben genannten. Kunden verbinden sich darauf über 127.0.0.1 und nicht über den Socket."
+      >
+        <p v-if="props.postgresql.error" class="notice warn">
+          <span>Der Agent antwortet nicht: {{ props.postgresql.error }}</span>
+        </p>
+
+        <!--
+          Die fehlende Rolle steht oben: Sie ist der Zustand, aus dem für den
+          Betreiber unmittelbar etwas folgt. **Der Befehl selbst steht unten in
+          der Tabelle und nicht in diesem Satz** — bei 390px gemessen bricht
+          eine 52 Zeichen lange Kommandozeile mitten im Fliesstext um, und dann
+          sieht niemand mehr, wo sie anfängt und wo sie aufhört. In einer
+          Wertzelle bricht sie auch, aber sie hat die Zeile für sich. Dieselbe
+          Entscheidung wie im Bereich „Umschalten" darunter.
+        -->
+        <p v-else-if="props.postgresql.state === 'not_handed_over'" class="notice warn">
+          <span>
+            PostgreSQL läuft, aber die Rolle, unter der sich das Panel anmeldet,
+            gibt es noch nicht. Sie wird einmal auf dem Server angelegt — der
+            Befehl steht unten.
+          </span>
+        </p>
+
+        <p
+          v-else-if="props.postgresql.reason && props.postgresql.state !== 'ready'"
+          class="notice warn"
+        >
+          <span>{{ props.postgresql.reason }}</span>
+        </p>
+
+        <table class="pairs">
+          <tbody>
+            <tr>
+              <td class="quiet">Zustand</td>
+              <td class="right">
+                <Badge :kind="pgMarke">{{ pgZustand }}</Badge>
+              </td>
+            </tr>
+            <tr>
+              <td class="quiet">Version</td>
+              <td class="right ident">{{ props.postgresql.version ?? '—' }}</td>
+            </tr>
+            <tr>
+              <td class="quiet">Cluster</td>
+              <td class="right ident">{{ props.postgresql.cluster ?? '—' }}</td>
+            </tr>
+            <tr>
+              <td class="quiet">Port</td>
+              <td class="right ident">{{ props.postgresql.port ?? '—' }}</td>
+            </tr>
+            <tr>
+              <td class="quiet">Wird angeboten</td>
+              <td class="right">
+                <Badge :kind="props.postgresql.offered ? 'ok' : 'neutral'">
+                  {{ props.postgresql.offered ? 'ja' : 'nein' }}
+                </Badge>
+              </td>
+            </tr>
+            <tr>
+              <td class="quiet">Datenbanken</td>
+              <td class="right">{{ props.postgresql.databases }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!--
+          **Der Knopf erscheint nur, wenn die Operation etwas tut.** Welche
+          Zustände das sind, steht in `PgServerInstall::ACTIONABLE` und wird von
+          dort durchgereicht — hier wird nichts verglichen, sonst gäbe es die
+          Regel zweimal.
+        -->
+        <div v-if="props.postgresql.can_install" class="button-row">
+          <button type="button" class="button small" :disabled="installiert" @click="installiere">
+            {{ installiert ? 'wird angelegt …' : props.postgresql.state === 'stopped' ? 'Starten' : 'Installieren' }}
+          </button>
+        </div>
+
+        <p class="section-note">
+          Ob Kunden PostgreSQL-Datenbanken anlegen dürfen, ist eine eigene
+          Entscheidung und wird auf dem Server geschaltet. Vorhandene
+          Datenbanken bleiben dabei, wo sie sind.
+        </p>
+
+        <table class="pairs">
+          <tbody>
+            <tr v-if="!props.postgresql.handed_over && props.postgresql.reachable">
+              <td class="quiet">Rolle anlegen</td>
+              <td class="right ident">{{ props.postgresql.handover }}</td>
+            </tr>
+            <tr>
+              <td class="quiet">Anbieten einschalten</td>
+              <td class="right ident">{{ props.commands.postgresql_on }}</td>
+            </tr>
+            <tr>
+              <td class="quiet">Anbieten abschalten</td>
+              <td class="right ident">{{ props.commands.postgresql_off }}</td>
             </tr>
           </tbody>
         </table>

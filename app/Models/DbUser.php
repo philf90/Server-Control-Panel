@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DbUserStatus;
 use App\Models\Concerns\BelongsToSubscription;
 use App\Support\Tenancy\Tenancy;
@@ -51,12 +52,13 @@ class DbUser extends Model
     use HasFactory;
 
     /** @var list<string> */
-    protected $fillable = ['subscription_id', 'name', 'label', 'host', 'status', 'locked_at'];
+    protected $fillable = ['subscription_id', 'name', 'label', 'engine', 'host', 'status', 'locked_at'];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
+            'engine' => DatabaseEngine::class,
             'status' => DbUserStatus::class,
             'locked_at' => 'datetime',
         ];

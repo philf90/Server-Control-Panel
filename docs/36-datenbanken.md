@@ -942,6 +942,22 @@ tests/Unit/GrantPatternTest.php
 tests/Unit/DbIsolationTest.php
 ```
 
+> **Nachgetragen am 9. August 2026, aus P5b:** `agent/src/Registry.php` steht in
+> dieser Liste falsch, und für P5 ist es folgenlos geblieben. `docs/38` hat den
+> Zuschnitt dieses Plans übernommen — samt der Zeile —, und die CI war rot:
+> `AgentOperationReachTest::test_every_operation_without_a_lifecycle_is_called_somewhere`
+> verlangt zu jeder eingetragenen Operation ohne Lebenslauf einen **Aufrufer**
+> und nicht nur eine Begründung. *„Code, der als root läuft und zu dem kein Weg
+> führt, ist Angriffsfläche ohne Nutzen."*
+>
+> **In P5 ist das nie aufgefallen, weil Schritt 1 bis 3 in einem Zug gebaut
+> wurden** — der Aufrufer entstand im selben Lauf, und die Reihenfolge hat
+> zufällig funktioniert. *Eine Reihenfolge, die zufällig funktioniert,
+> funktioniert bis zu dem Tag, an dem jemand sie einzeln geht.* Richtig ist:
+> **Eine Operation wird in demselben Beitrag eingetragen, der ihr einen Aufrufer
+> gibt.** Wer diesen Plan als Vorlage nimmt — und `docs/38` hat genau das getan
+> —, nimmt die Zeile nicht mit.
+
 Die Reihenfolge in der Dateiliste ist keine Koketterie. Wer `create` zuerst
 schreibt, hat danach etwas, das funktioniert, und `remove` wird zur Nacharbeit —
 das ist die Mechanik, aus der die Zertifikatslücke entstanden ist.

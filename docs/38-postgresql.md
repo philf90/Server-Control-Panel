@@ -759,6 +759,12 @@ richtig macht.
 Absicht** — ein Wächter, der eine Konstante `ON_ERROR_STOP` findet, hat eine
 Konstante gefunden.
 
+> Gemessen und bestätigt am 9. August 2026: ohne den Schalter Rückgabewert 0 und
+> die vierte Anweisung lief, mit ihm Rückgabewert 3 und Abbruch. Der Aufruf
+> selbst steht in `Pg\Session::restore()` und nicht in der Operation —
+> `AgentIdentityTest` besteht darauf, dass `psql` an genau einer Stelle gerufen
+> wird, und hat den ersten Anlauf zurückgewiesen.
+
 ### 13.2 Es gibt keine DEFINER-Falle, dafür eine Eigentümer-Falle
 
 `pg_dump` schreibt keine `DEFINER`-Angaben; der Filter aus `docs/36 §10.1`
@@ -778,7 +784,31 @@ Kopf des Dumps und weist ab, wenn sie über der des Servers liegt.
 ### 13.4 Die befristete Rolle
 
 Wie `docs/36 §10.2`, mit dem Präfix aus §4: `x7f3a91c2_r<8 Zeichen>`, Rechte auf
-genau eine Datenbank, `DROP` im `finally`. **Und sie trägt die halbe
+genau eine Datenbank, `DROP` im `finally`.
+
+> **Drei Sätze dieses Abschnitts hat das Bauen umgeworfen** (9. August 2026).
+>
+> **Sie kommt über den Socket gar nicht herein.** Debians `pg_hba.conf` beginnt
+> mit `local all all peer`, und `peer` verlangt einen gleichnamigen
+> Unix-Benutzer. „Wie `docs/36 §10.2`" trägt hier nicht — MariaDB lässt die
+> Anmeldung mit Passwort über den Socket zu, PostgreSQL nicht. Die Antwort ist
+> Entscheidung 9 in §21: eine Gruppenrolle `srvpanel_restore` und eine Zeile
+> ganz oben in `pg_hba.conf`.
+>
+> **Sie braucht `GRANT ALL ON SCHEMA public`.** Seit PostgreSQL 15 darf `PUBLIC`
+> dort nicht mehr schreiben; ohne die Zeile bricht das Zurückspielen an der
+> ersten `CREATE TABLE` ab, also nach dem halben Vorspann. In MariaDB gibt es
+> dazu kein Gegenstück, weil ein Schema dort die Datenbank *ist*.
+>
+> **`DROP` im `finally` allein wirft die Daten weg.** Was eine Rolle anlegt,
+> gehört ihr, und beim Zurückspielen legt sie die ganze Datenbank an; ein
+> `DROP OWNED BY` nimmt sie wieder mit. Der Lauf meldete Erfolg, und die Tabelle
+> war fort. Davor steht deshalb ein `REASSIGN OWNED BY … TO` auf den Eigentümer
+> der Datenbank — gefragt, nicht angenommen.
+>
+> Und eine Beruhigung: Ein `pg_dump` **einer** Datenbank enthält kein
+> `\connect` (gemessen: null Vorkommen, `pg_dumpall` drei). Die Falle unten
+> trifft nur Mitgebrachtes. **Und sie trägt die halbe
 Kriterium-6-Last**, weil `\connect` in einem Klartext-Dump an ihrem fehlenden
 `CONNECT` scheitert (M8) — der `REVOKE CONNECT` aus §10 arbeitet hier ein
 zweites Mal, für einen anderen Zweck.
@@ -1316,8 +1346,16 @@ vorgelegt:
    Weg über `pcntl_fork` ist gemessen unzuverlässig.
 4. **Ein Datenmodell, eine Fläche, zwei Sätze Agent-Operationen** (§8).
 5. **PostgreSQL wird erkannt *und* auf Verlangen installiert** (§7). Ein
-   vorhandener Cluster ist Bestand und wird benutzt; `pg_hba.conf` bleibt
-   unangetastet; Kunden verbinden sich über `127.0.0.1`.
+   vorhandener Cluster ist Bestand und wird benutzt; Kunden verbinden sich über
+   `127.0.0.1`.
+
+   > **Berichtigt am 9. August 2026.** Hier stand „`pg_hba.conf` bleibt
+   > unangetastet". Das hält Entscheidung 9 nicht mehr, und es hätte auch §14
+   > nie gehalten — der Fernzugriff schreibt ohnehin in diese Datei. Der Satz
+   > war als Zusage über den *Bestand* gemeint (nichts Vorhandenes wird
+   > geändert) und las sich als Zusage über die *Datei*. Beides steht jetzt
+   > getrennt da: Vorhandene Zeilen werden nicht angefasst, ergänzt wird oben
+   > und mit einer Marke.
 
 6. **Der Fernzugriff wird gebaut** (§14) — nachgetragen am selben Tag, nachdem
    die Messung aus §2.2a die Empfehlung dieses Plans umgeworfen hatte.
@@ -1360,6 +1398,41 @@ vorgelegt:
 8. **Die `pg_hba`-Zeile nennt die Datenbank und nicht `all`** (§14.1). Das ist
    enger als P5 es kann und kostet Zeilen; wer die Datei lieber kurz hätte,
    muss es sagen.
+
+**Nachgetragen am 9. August 2026, beide beim Bauen von Schritt 6 vorgelegt:**
+
+9. **Die befristete Rolle meldet sich über den Socket an, mit einer
+   Gruppenrolle und einer Zeile in `pg_hba.conf`** (§13.4). Der Anlass ist eine
+   Messung, die §13.4 umgeworfen hat: Debians `pg_hba.conf` beginnt mit
+   `local all all peer`, und `peer` verlangt einen gleichnamigen
+   Unix-Benutzer — den hat `x7f3a…_r1a2b3c4d` nicht. In P5 trägt MariaDB das,
+   und §13.4 sagte „wie `docs/36 §10.2`".
+
+   Der andere Weg war gemessen und vorgelegt: TCP über `127.0.0.1` läuft ohne
+   jede Änderung an der Konfiguration, hängt dafür an `listen_addresses` — ein
+   Betreiber, der PostgreSQL auf den Socket beschränkt, verlöre das
+   Zurückspielen lautlos und erst dann, wenn er es braucht.
+
+   Die Zeile steht **ganz oben**, weil die erste passende entscheidet, auch
+   wenn sie abweist. Vorhandene Zeilen werden nicht verändert.
+
+10. **Was mit einer Sicherung geschieht, bekommt einen eigenen Lebenslauf**
+    (`DumpLifecycle`, Schritt 6, zweite Hälfte). Die vier Dump-Aufgaben ziehen
+    aus `DbLifecycle` dorthin um und gelten für beide Systeme; `PgLifecycle`
+    und `DbLifecycle` behalten Rückbau und Sperre.
+
+    Der Grund ist derselbe wie bei `Dump::requireGzip()` und den drei anderen
+    Helfern, die in Schritt 6 aus `DbDumpImport` nach `Dump` gezogen sind: Eine
+    Sicherung ist eine Datei und eine Zeile, und was mit ihr geschieht — Bytes
+    aus der Antwort, `Ready` oder `Failed`, beim Entfernen löschen, beim
+    Zurückspielen nichts — hängt nicht am Datenbanksystem. Nur die vier
+    Aufgabennamen tun das.
+
+    Die beiden Alternativen sind vorgelegt und verworfen worden: dieselbe Logik
+    ein zweites Mal in `PgLifecycle` wäre die zweite Fassung, die veraltet; sie
+    in `DbLifecycle` für beide Systeme laufen zu lassen hiesse, dass der Name
+    lügt und die `engine`-Einschränkungen darin eine unsichtbare Ausnahme
+    bekommen. **Eine Klasse je Gegenstand, nicht je System.**
 
 ---
 

@@ -7103,3 +7103,39 @@ von dort in einen Kundenbericht.
 
 *Ein Wächter, der beim ersten Lauf rot wird, hat zwei mögliche Ursachen, und die
 erste, an die man denkt, ist der Code.*
+
+### Lauf 460 bis 462 — drei Fehler, und einer davon ist ein Absturz
+
+**Der teuerste war eine `use`-Klausel.** `Usage::apply()` bekam mit Schritt 5
+den Parameter `$engine`, die Abfrage darunter steht aber in einer Closure — und
+die Closure bekam ihn nicht. `Undefined variable $engine`, zehn rote Tests, und
+im Betrieb wäre es die Messung gewesen, die alle fünfzehn Minuten abbricht.
+
+**Zwei fehlende `@property`-Zeilen.** `DbUser` und `Database` haben `engine`
+seit Schritt 2 in `$fillable` und in `casts()` — die Modellbeschreibung kannte
+die Spalte nicht. Für PHP ist das gleichgültig, für larastan nicht.
+
+**Und `BreakScriptTest`, wie er soll:** Drei Eingriffe in
+`waechter-brechen.sh` zeigten auf Text, der mit den Treibern umgezogen ist —
+der Zugangsnamensschutz hat andere Argumente bekommen, `'db.user.grant'` und
+die `revoke`-Liste stehen jetzt in `MariaDbDriver`. Der Test sagt für genau
+diesen Fall: *Meistens ist der Code umgezogen; dann zeigt der Eingriff auf
+seinen neuen Ort.*
+
+### Warum ich die ersten beiden nicht gesehen habe — zum zweiten Mal an einem Abend
+
+Der lokale PHPStan-Lauf ging über `agent/src`. Die Änderung lag in `app/`.
+
+**Dasselbe wie in Lauf 458**, wo `array_values()` hinter einem `sort()` durch
+kam, aus demselben Grund: Ich habe den Teilbaum geprüft, an den ich *dachte*,
+nicht den, den ich *geändert* hatte. Und beim `Access to an undefined property`
+kommt eine zweite Schicht dazu — mein Filter gegen larastan-Rauschen enthielt
+`Access to an undefined`, weil ohne larastan jedes `Model::query()` so aussieht.
+Er hat damit einen echten Befund verschluckt: *Ein Filter, der Rauschen
+entfernt, entfernt auch Befunde, die wie Rauschen aussehen.*
+
+Die Antwort ist kein Vorsatz, sondern ein Skript. `pruefe.sh` im Scratchpad
+läuft **immer** über `app`, `agent/src` und `tests/Support`, fährt alle
+Attrappen und filtert nur noch namentlich genannte Zeilen heraus statt ganzer
+Meldungsklassen. Beim ersten Lauf hat es die drei Eingriffe gefunden, die ich
+nach Schritt 4 nicht mehr geprüft hatte — es hat sich sofort bezahlt.

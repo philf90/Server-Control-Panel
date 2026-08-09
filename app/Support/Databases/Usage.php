@@ -101,7 +101,7 @@ final class Usage
         $sizes = is_array($result['databases'] ?? null) ? $result['databases'] : [];
         $now = now();
 
-        return $this->tenancy->withoutRestriction(function () use ($sizes, $now): array {
+        return $this->tenancy->withoutRestriction(function () use ($sizes, $now, $engine): array {
             $measured = 0;
             $matched = 0;
 

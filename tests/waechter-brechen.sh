@@ -4178,7 +4178,7 @@ vorher_datei app/Support/Databases/Databases.php
 python3 - <<'PY2'
 p = 'app/Support/Databases/Databases.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("        $this->guardFreeName($subscription, $label, $host);\n\n", '')
+s = s.replace("        $this->guardFreeName($driver, $prefix, $label, $host);\n\n", '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Databases/Databases.php "Zugangsname ohne Prüfung" &&
@@ -4219,7 +4219,8 @@ s = s.replace('$this->databases->grant($user, $database, $granted);', '$granted 
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 python3 - <<'PY2'
-p = 'app/Support/Databases/Databases.php'
+# Seit Schritt 4 baut den Aufruf der Treiber und nicht mehr Databases.
+p = 'app/Support/Databases/Engines/MariaDbDriver.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace("'db.user.grant'", "'db.user.grant.abgeschaltet'")
 open(p, 'w', encoding='utf-8').write(s)
@@ -4262,17 +4263,19 @@ echo "── OrphanedGrantTest: der bleibende Zugang wird nicht genannt ──"
 # nur die Zugänge, die mitgehen, behält jeder überlebende sein `GRANT ALL` auf
 # eine Datenbank, die es nicht mehr gibt — auf cloudsrv24 gefunden (docs/36
 # §22.3p).
-vorher_datei app/Support/Databases/Databases.php
+# Seit Schritt 4 steht die Nutzlast im Treiber — und die zweite Liste gibt es
+# nur dort: PostgreSQL braucht sie nicht, weil das Recht mit der Datenbank geht.
+vorher_datei app/Support/Databases/Engines/MariaDbDriver.php
 python3 - <<'PY2'
-p = 'app/Support/Databases/Databases.php'
+p = 'app/Support/Databases/Engines/MariaDbDriver.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "                'revoke' => self::accounts($staying),\n",
+    "            'revoke' => self::accounts($staying),\n",
     '',
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Databases/Databases.php "bleibender Zugang nicht genannt" &&
+griff_datei app/Support/Databases/Engines/MariaDbDriver.php "bleibender Zugang nicht genannt" &&
 pruefe "bleibender Zugang nicht genannt" \
   OrphanedGrantTest::test_an_access_that_stays_is_named_for_the_revoke failed
 wiederherstellen

@@ -564,6 +564,57 @@ meldet **keine** verwaisten Sicherungen.
 
 ---
 
+## 12a. Das Ergebnis — gefahren am 10. August 2026
+
+**Punkt 1 bis 9 durchgelaufen, gegen `v0.5.1-rc.6` auf `cloudsrv24`.** Was der
+Lauf gekostet hat, steht im `CHANGELOG`; hier nur, was am Ende gemessen wurde.
+
+| Punkt | gemessen |
+|---|---|
+| 1 | Eigentümerrolle, Mitgliedschaft, Sitzungsrolle: dreimal `0` |
+| 3–5 | Datenbank, Zugang, Kontingent — wie in `docs/38 §19` |
+| 6 | Sperre und Freigabe erreichen die Rolle |
+| 7 | `kunden -> <präfix>_owner`, `spaeter` fort, Kunde liest und schreibt |
+| 7 | `current_user\|session_user` = `<präfix>_owner\|<zugang>` |
+| 7d-2 | zweites Zurückspielen in die **volle** Datenbank: grün |
+| 7e | zweiter Zugang: lesen, `INSERT`, **`ALTER TABLE`** |
+| 7f | keine befristete Rolle, keine `pgpass-*` |
+| 8 | mitgebrachte Sicherung: zwei Dateien `root:srvpanel 0640`, Inhalt zurück |
+| 9 | keine Datenbank, **0 Rollen**, kein Verzeichnis |
+
+**Die `0` in Punkt 9 ist die teuerste Zahl des Laufs.** Sie schliesst die
+Eigentümerrolle ein — sie entsteht mit der ersten Datenbank und geht mit der
+letzten. Ohne den Weg zurück hätte hier `1` gestanden, und niemand hätte es
+gemerkt.
+
+**Vier Fehler hat dieser Lauf gefunden, keinen davon ein Test**, und drei davon
+erst beim zweiten Anlauf desselben Punktes. Der teuerste sah aus wie ein
+Bedienfehler: Ein `DROP TABLE IF EXISTS` meldete „skipping" für eine Tabelle,
+die es gibt.
+
+### Was der Lauf offengelassen hat
+
+**`srvpanel db` sieht PostgreSQL nicht.** Die Zahlen stimmen — sie zählen Zeilen
+ohne Rücksicht auf `engine` —, die Reichweite nicht:
+
+- `showServer()` ruft nur `db.server.info`; über den PostgreSQL-Cluster steht
+  keine Zeile in der Ausgabe.
+- `pg.server.info` liefert `stale_roles`, und **niemand liest das Feld**. Eine
+  befristete Rolle, die ein abgebrochenes Zurückspielen stehenliess, wird nie
+  gemeldet.
+- `--prune` räumt mit `db.user.remove`, `db.database.remove`, `db.dump.remove` —
+  drei MariaDB-Operationen. Für eine liegengebliebene PostgreSQL-Zeile gibt es
+  keinen Weg.
+
+> **Ein Werkzeug, das Entwarnung gibt, muss die ganze Fläche sehen können, über
+> die es Entwarnung gibt.**
+
+Deshalb musste Punkt 7f von Hand mit `SELECT … FROM pg_roles` messen. Dieselbe
+Familie wie `docs/36 §22.3r` — ein Melder, der grundlos Alarm gibt — nur
+andersherum, und damit die unangenehmere Richtung.
+
+---
+
 ## 13. Was zurückkommen soll
 
 Die Ausgaben **aller** Punkte, die Screenshots aus Punkt 4 — und vor allem: wo

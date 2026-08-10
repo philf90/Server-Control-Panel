@@ -8405,3 +8405,29 @@ Gefunden hat den Fehler der Abnahmelauf, und zwar an einer Stelle, an der er nur
 wie ein Bedienfehler aussah: Ein `DROP TABLE IF EXISTS` meldete „skipping" für
 eine Tabelle, die es gibt. *Ein `IF EXISTS`, das „skipping" sagt, hat nicht
 nachgesehen, ob es das Ding gibt — sondern ob es ihm sichtbar ist.*
+
+### `docs/39` ist durchgelaufen — und hat vier Fehler gefunden, keinen davon ein Test
+
+Punkt 1 bis 9 gegen `v0.5.1-rc.6` auf `cloudsrv24`. Das Ergebnis steht in
+`docs/39 §12a`; die vier Fehler stehen einzeln weiter oben. Drei davon hat erst
+der **zweite** Anlauf desselben Punktes gezeigt, und der teuerste sah aus wie ein
+Bedienfehler: Ein `DROP TABLE IF EXISTS` meldete „skipping" für eine Tabelle, die
+es gibt — der Zugang sah sein eigenes Schema nicht mehr.
+
+Die teuerste Zahl des Laufs ist die `0` in Punkt 9. Sie schliesst die
+Eigentümerrolle ein: Sie entsteht mit der ersten Datenbank und geht mit der
+letzten. Ohne den Weg zurück hätte dort `1` gestanden, und niemand hätte es
+gemerkt — genau die Lücke, die `docs/35` einmal zwölf private Schlüssel gekostet
+hat.
+
+**Und der Lauf hat etwas offengelassen, das er selbst freigelegt hat.**
+`srvpanel db` meldet „Nichts liegengeblieben", kann diese Frage für PostgreSQL
+aber gar nicht stellen: Der Statusteil ruft nur `db.server.info`, das Feld
+`stale_roles` aus `pg.server.info` liest niemand, und `--prune` räumt mit drei
+MariaDB-Operationen. Die Zahlen stimmen — sie zählen Zeilen ohne Rücksicht auf
+`engine` —, die Reichweite nicht.
+
+> **Ein Werkzeug, das Entwarnung gibt, muss die ganze Fläche sehen können, über
+> die es Entwarnung gibt.**
+
+Deshalb musste Punkt 7f von Hand mit `SELECT … FROM pg_roles` messen.

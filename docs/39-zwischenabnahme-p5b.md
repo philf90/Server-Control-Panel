@@ -95,6 +95,66 @@ sudo -u postgres psql -tAc "SELECT count(*) FROM pg_roles WHERE rolname='srvpane
 **Erwartet:** beides `0`. Das Panel legt Zeile und Gruppenrolle erst an, wenn
 zum ersten Mal zurückgespielt wird.
 
+Und, wenn die Datenbank aus der Zeit **vor** `v0.5.1-rc.5` stammt, dazu die
+Gegenprobe zur Nachrüstung. Sie besteht aus drei Fragen, und **die letzten
+beiden sind die belastbaren**:
+
+```bash
+sudo -u postgres psql -tAc "SELECT count(*) FROM pg_roles WHERE rolname = '<präfix>_owner'"
+
+sudo -u postgres psql -tAc \
+  "SELECT count(*) FROM pg_auth_members m JOIN pg_roles g ON g.oid = m.roleid
+    WHERE g.rolname = '<präfix>_owner'"
+sudo -u postgres psql -tAc \
+  "SELECT count(*) FROM pg_db_role_setting s JOIN pg_roles r ON r.oid = s.setrole
+    WHERE r.rolname LIKE '<präfix>\_%'"
+```
+
+**Erwartet: dreimal `0`.** Nach Punkt 7 steht dort die Eigentümerrolle, mindestens
+ein Mitglied und mindestens ein `role=<präfix>_owner` — **das ist der Beleg dafür,
+dass die Nachrüstung gelaufen ist**, und ohne diese Messung davor wäre er nur
+eine Beobachtung. Dieselbe Falle wie bei `pg_hba.conf` eine Zeile höher.
+
+> **Hier stand `rolname LIKE '%\_owner'`, und die Zeile hat auf `cloudsrv24` am
+> 10. August 2026 eine `1` gemeldet, wo eine `0` stehen sollte.** Getroffen hat
+> sie `pg_database_owner` — eine **eingebaute** Rolle (gemessen: `oid < 16384`),
+> die es seit PostgreSQL 14 in jedem Cluster gibt. Gefragt wird deshalb nach dem
+> Namen, den dieses Panel vergibt, und nicht nach einer Endung.
+>
+> **Und darunter stand die Erwartung `root` für den Eigentümer des Schemas. Auch
+> die war falsch:** Seit PostgreSQL 15 gehört `public` der Rolle
+> `pg_database_owner` — gemessen an einer frisch angelegten Datenbank auf 16.13.
+> Ein Ablauf, der `root` verlangt, meldet auf jeder Zielplattform ausser
+> Ubuntu 22.04 einen Fehlschlag, den es nicht gibt.
+>
+> *Ein Wächter, der nach einer Endung fragt, findet, was so endet.* Beide Zeilen
+> haben eine Abweichung erzeugt, die keine war — und zwar in dem Dokument, das
+> Abweichungen erkennen soll.
+
+Wer den Eigentümer des Schemas trotzdem sehen will, prüft die **Eigenschaft** und
+nicht den Namen:
+
+```bash
+sudo -u postgres psql -d <db> -tAc \
+  "SELECT pg_get_userbyid(nspowner) = '<präfix>_owner' FROM pg_namespace WHERE nspname='public'"
+```
+
+**Erwartet:** `f` vorher, `t` nach Punkt 7. Was davor dasteht — `pg_database_owner`
+ab PG 15, `postgres` oder `root` darunter —, ist für diese Frage gleichgültig.
+
+> **Hier stand `nspowner::regrole = '<präfix>_owner'::regrole`, und diese Zeile
+> hat sich am 10. August 2026 selbst widerlegt:** `ERROR: role
+> "x90d271df69287335_owner" does not exist`. Der Cast nach `regrole` schlägt
+> fehl, wenn es die Rolle nicht gibt — und *dass* es sie noch nicht gibt, ist
+> genau die Vorbedingung, unter der die Messung laufen soll.
+>
+> **Eine Prüfung, die ihre eigene Vorbedingung nicht überlebt, ist keine.** Das
+> ist im selben Abschnitt der dritte Anlauf: erst eine Endung, die eine
+> eingebaute Rolle traf, dann ein Erwartungswert, den PostgreSQL 15 überholt hat,
+> jetzt ein Cast, der einen Fehler wirft statt `f` zu sagen.
+> `pg_get_userbyid()` gibt einen Namen als Text zurück und vergleicht sich mit
+> einer Zeichenkette — gemessen: `f`, und nach dem Übertragen `t`.
+
 Und die Prüfsumme, weil `38 §19` Punkt 0 sie später vergleicht:
 
 ```bash
@@ -286,10 +346,21 @@ Lauf nur, dass irgendetwas nicht ging.
 Der Kern dieses Laufs. Hier passiert am meisten zum ersten Mal auf einem echten
 System.
 
+> **Dieser Abschnitt ist am 10. August 2026 neu geschrieben worden, und der
+> Grund ist ein Erfolg gewesen.** Der erste Anlauf hat drei Fehler gefunden —
+> das Zurückspielen kam in eine Datenbank mit Tabellen gar nicht hinein, was
+> hineinkam gehörte `root`, und ein zweiter Zugang sah die Tabellen des ersten
+> nicht. Alle drei sind dieselbe Frage: *Wem gehört, was in dieser Datenbank
+> steht?* Die Antwort ist seit `v0.5.1-rc.5` eine **Eigentümerrolle je
+> Abonnement** (`<präfix>_owner`, `docs/38 §21` Entscheidung 11).
+>
+> Damit ändert sich, was hier erwartet wird: Wo „Eigentümer: `root`" stand,
+> steht jetzt `<präfix>_owner`. **Ein Ablauf, dessen Erwartung nicht mit dem
+> Entwurf mitzieht, prüft die vorige Fassung.**
+
 Erst Inhalt anlegen — **als Kunde und nicht als `postgres`.** Wer die Tabelle
 als Superuser anlegt, misst hinterher einen Fall, den es auf keinem echten
-Server gibt: Dort legt der Kunde seine Tabellen selbst an, und ihm gehören sie
-auch.
+Server gibt: Dort legt der Kunde seine Tabellen selbst an.
 
 ```bash
 PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
@@ -299,9 +370,17 @@ PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
 sudo -u postgres psql -d <db> -tAc "SELECT tableowner FROM pg_tables WHERE tablename='kunden'"
 ```
 
-**Erwartet:** Das Anlegen geht durch (`GRANT ALL ON SCHEMA public` steht seit
-PostgreSQL 15 nicht mehr für alle), und der Eigentümer ist die **Kundenrolle**.
-Notier ihn — nach dem Zurückspielen steht dort ein anderer.
+**Erwartet:** Das Anlegen geht durch — und beim Eigentümer gibt es **zwei
+richtige Antworten**, je nachdem, wann die Datenbank entstanden ist:
+
+| Datenbank angelegt | Eigentümer von `kunden` |
+|---|---|
+| mit `v0.5.1-rc.5` oder später | `<präfix>_owner` |
+| davor | die **Kundenrolle** selbst |
+
+Notier, welche der beiden dasteht. Im zweiten Fall misst dieser Punkt zusätzlich
+die **Nachrüstung**: Das Zurückspielen zieht die Eigentümerrolle nach, und nach
+7d steht dort die erste Antwort.
 
 ### 7a — Sicherung erstellen (im Panel)
 
@@ -332,52 +411,91 @@ einer Beobachtung.
 
 ### 7d — Zurückspielen
 
-Vorher etwas kaputtmachen, damit der Erfolg sichtbar ist:
+Vorher zweierlei kaputtmachen, damit der Erfolg sichtbar wird — **eine Zeile
+löschen und eine Tabelle dazulegen:**
 
 ```bash
 sudo -u postgres psql -d <db> -c "DELETE FROM kunden WHERE id=2"
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "CREATE TABLE spaeter (id int)"
 ```
+
+> **Die zweite Zeile ist die neue, und sie prüft den Fehler, an dem der erste
+> Anlauf hängengeblieben ist.** `pg_dump --format=plain` schreibt kein `DROP`,
+> `mysqldump` bringt sein `DROP TABLE IF EXISTS` von selbst mit — P5b hat diese
+> stillschweigende Vorgabe geerbt. Ein Zurückspielen in eine Datenbank, in der
+> noch Tabellen stehen, endete deshalb mit
+> `ERROR: relation "kunden" already exists`. Seit rc.5 leert das Panel das
+> Schema **privilegiert**, bevor es einspielt.
 
 Dann im Panel zurückspielen, danach:
 
 ```bash
 sudo -u postgres psql -d <db> -tAc "SELECT count(*) FROM kunden"
-sudo -u postgres psql -d <db> -tAc "SELECT tableowner FROM pg_tables WHERE tablename='kunden'"
+sudo -u postgres psql -d <db> -tAc \
+  "SELECT tablename||' -> '||tableowner FROM pg_tables WHERE schemaname='public' ORDER BY 1"
 ```
 
-**Erwartet:** `2` — und der Eigentümer ist **`root`**, nicht die befristete
-Rolle.
+**Erwartet:** `2` — die Tabelle `spaeter` ist **fort** (sie stand nicht in der
+Sicherung), und der Eigentümer von `kunden` ist **`<präfix>_owner`**. Weder
+`root` noch die befristete Rolle.
 
-**Und dann die Frage, auf die es dem Kunden ankommt:**
+**Und dann die drei Fragen, auf die es dem Kunden ankommt:**
 
 ```bash
+# 1. Kommt er an seine Daten?
 PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "SELECT count(*) FROM kunden"
+
+# 2. Darf er sie auch ändern?
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "INSERT INTO kunden VALUES (3,'c')"
+
+# 3. Und als wer arbeitet er dabei?
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -tAc "SELECT current_user, session_user"
+```
+
+**Erwartet:** `2`, dann `INSERT 0 1`, dann `<präfix>_owner|<rolle>`.
+
+> **Die dritte Zeile ist die Erklärung für die ersten beiden.** Jede Sitzung des
+> Kunden läuft als die Eigentümerrolle (`ALTER ROLE … IN DATABASE … SET role`),
+> und was er anlegt, gehört ihr. `session_user` bleibt er selbst — **wer
+> verbunden war, steht weiter im Protokoll von PostgreSQL.** Stünde in beiden
+> Feldern dasselbe, wäre die Sitzungsrolle nicht gesetzt und die Nachrüstung
+> nicht gelaufen.
+>
+> **Wer nur die Zeilen zählt, sieht davon nichts:** `sudo -u postgres` ist
+> Superuser und darf immer. Genau deshalb hat der erste Anlauf einen grünen
+> Vorgang und einen ausgesperrten Kunden nebeneinander stehengehabt.
+
+### 7d-2 — Und ein zweites Mal, ohne etwas kaputtzumachen
+
+```bash
+# im Panel dieselbe Sicherung noch einmal zurückspielen, danach:
+sudo -u postgres psql -d <db> -tAc "SELECT count(*) FROM kunden"
+```
+
+**Erwartet:** `2` — die Zeile aus Frage 2 ist wieder fort, und der Vorgang ist
+grün. **Das ist die eigentliche Wiederholbarkeit:** Der erste Lauf lief in eine
+leere Datenbank, dieser in eine volle. Scheitert er, ist das Leeren nicht
+gelaufen, und der erste Erfolg war einer aus Zufall.
+
+### 7e — Der zweite Zugang sieht dasselbe
+
+Nur, wenn es einen zweiten gibt (Punkt 5). Sonst überspringen.
+
+```bash
+PGPASSWORD='<passwort2>' psql -h 127.0.0.1 -U <rolle2> -d <db> \
   -c "SELECT count(*) FROM kunden"
 ```
 
-> **Diese Zeile stand bis zum 10. August 2026 nicht in diesem Ablauf, und sie
-> ist die wichtigste von Punkt 7.** Der Weg beim Zurückspielen ist:
-> `pg_dump --no-owner --no-privileges` wirft Eigentum und Rechte weg, die
-> befristete Rolle legt alles neu an, und `REASSIGN OWNED BY … TO` überträgt es
-> an den **Eigentümer der Datenbank** — an `root`.
->
-> Was dabei **nicht** mitkommt, sind die Rechte des Kunden. Hatte er die Tabelle
-> vorher selbst angelegt, gehörte sie ihm; danach gehört sie `root`. Ob er sie
-> noch lesen kann, entscheidet sich an den Vorgaberechten des Schemas — und das
-> ist keine Frage, die man aus dem Code beantwortet, sondern eine, die man
-> misst.
->
-> **Wer nur die Zeilen zählt, sieht davon nichts:** `sudo -u postgres` ist
-> Superuser und darf immer.
+**Erwartet:** dieselbe Zahl. **Das war der dritte Fehler des ersten Anlaufs** —
+`permission denied for table`, weil in PostgreSQL eine Tabelle dem gehört, der
+sie angelegt hat, und der zweite Zugang ein anderer ist. Über die gemeinsame
+Eigentümerrolle ist er es nicht mehr.
 
-> **Die zweite Zeile ist die wichtigere.** Was eine Rolle anlegt, gehört ihr;
-> das `DROP OWNED BY` beim Aufräumen nahm deshalb im ersten Anlauf genau die
-> Daten mit, die gerade eingespielt worden waren. Der Vorgang meldete Erfolg,
-> und die Tabelle war fort. Jetzt überträgt `REASSIGN OWNED BY … TO` zuerst an
-> den Eigentümer der Datenbank — gefragt statt angenommen. Wer nur die Zeilen
-> zählt, sieht davon nichts.
-
-### 7e — Keine Reste
+### 7f — Keine Reste
 
 ```bash
 sudo -u postgres psql -tAc "SELECT count(*) FROM pg_roles WHERE rolname LIKE '%\_r%'"
@@ -385,6 +503,13 @@ sudo ls -la /run/srvpanel/ 2>/dev/null
 ```
 
 **Erwartet:** `0`, und keine `pgpass-*`-Datei.
+
+> **Und die befristete Rolle besitzt nichts mehr, bevor sie geht.** Im ersten
+> Entwurf übertrug ein `REASSIGN OWNED BY … TO` ihr Eigentum an den Eigentümer
+> der *Datenbank* — an `root`, und genau daran hing Fehler 2. Seit sie **als**
+> die Eigentümerrolle arbeitet, gehört ihr am Ende ohnehin nichts: gemessen
+> 0 Objekte, `DROP ROLE` geht ohne Übertragung. Ein Entwurf, der eine Fallgrube
+> überflüssig macht, ist besser als einer, der sie umgeht.
 
 ---
 
@@ -422,6 +547,13 @@ srvpanel db
 
 **Erwartet:** keine Datenbank, keine Rolle, kein Verzeichnis — und `srvpanel db`
 meldet **keine** verwaisten Sicherungen.
+
+> **Die Rollenzahl schliesst die Eigentümerrolle ein**, und das ist seit rc.5
+> die Zeile, die am ehesten `1` statt `0` liefert. Sie entsteht beim Anlegen der
+> ersten Datenbank und geht mit der **letzten** — der Weg zurück, den `docs/35`
+> erzwingt: *Etwas, das sich anlegen, aber nirgends löschen lässt, bleibt Jahre
+> stehen und fällt erst einer Datenmigration auf.* Bleibt sie stehen, ist der
+> Rückbau unvollständig, auch wenn er grün gemeldet hat.
 
 > **Die letzte Zeile prüft etwas, das keine Abfrage an PostgreSQL prüfen kann:**
 > den Bestand des Panels gegen die Platte (`docs/36 §22.3r`). Und sie prüft

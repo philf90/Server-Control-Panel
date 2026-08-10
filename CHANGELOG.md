@@ -8273,3 +8273,135 @@ Beide Marken werden jetzt gelesen, mit einer Rückreferenz statt einer zweiten
 Alternative — sonst endete ein `PY2`-Block an der ersten Zeile `PY` darin. Der
 Bestand wächst damit von 225 auf 244 Blöcke und von 246 auf 247 geprüfte
 Eingriffe; tot ist keiner mehr.
+
+### `docs/39` Punkt 7 zieht mit dem Entwurf mit
+
+Der Ablauf erwartete nach dem Zurückspielen `root` als Eigentümer, beschrieb
+`REASSIGN OWNED BY … TO` als den Weg dorthin und kannte den Fall „Zurückspielen
+in eine Datenbank, in der schon Tabellen stehen" gar nicht. Alle drei sind seit
+`v0.5.1-rc.5` überholt.
+
+> **Ein Ablauf, dessen Erwartung nicht mit dem Entwurf mitzieht, prüft die
+> vorige Fassung.**
+
+Neu gefasst: der Eigentümer ist `<präfix>_owner` (mit der Tabelle, welche der
+zwei Antworten bei welchem Alter der Datenbank richtig ist), das Kaputtmachen vor
+7d legt zusätzlich eine Tabelle **dazu**, und drei Fragen prüfen, was dem Kunden
+gehört — lesen, schreiben, und `current_user`/`session_user` als Erklärung für
+die ersten beiden. Dazu drei neue Schritte: **7d-2** spielt ein zweites Mal
+zurück, diesmal in eine volle Datenbank (der erste Lauf lief in eine leere — ein
+Erfolg, der nichts über die Wiederholbarkeit sagt), **7e** prüft den zweiten
+Zugang, und Punkt 1 misst vorher, dass es die Eigentümerrolle **noch nicht**
+gibt und `public` noch `root` gehört. Ohne diese Vormessung wäre die Nachrüstung
+eine Beobachtung statt eines Belegs.
+
+Punkt 9 zählt die Eigentümerrolle jetzt mit: Sie entsteht mit der ersten
+Datenbank und geht mit der letzten. Bleibt sie stehen, ist der Rückbau
+unvollständig — auch wenn er grün gemeldet hat.
+
+### Zwei Abweichungen im Abnahmeablauf, die keine waren
+
+Punkt 1 von `docs/39` fragte `rolname LIKE '%\_owner'` und erwartete `0`. Auf
+`cloudsrv24` kam `1` — getroffen hat die Zeile `pg_database_owner`, eine
+**eingebaute** Rolle (gemessen: `oid < 16384`), die es seit PostgreSQL 14 in
+jedem Cluster gibt. Und die Zeile darunter erwartete `root` als Eigentümer des
+Schemas `public`; seit PostgreSQL 15 gehört es `pg_database_owner` — gemessen an
+einer frisch angelegten Datenbank auf 16.13.
+
+> **Ein Wächter, der nach einer Endung fragt, findet, was so endet.**
+
+Beide Zeilen haben eine Abweichung erzeugt, die keine war — in dem Dokument, das
+Abweichungen erkennen soll. Gefragt wird jetzt nach dem Namen, den dieses Panel
+vergibt (`<präfix>_owner`, exakt), und der Eigentümer des Schemas wird als
+**Eigenschaft** geprüft (`nspowner = '<präfix>_owner'::regrole`) statt als Name:
+Was davor dasteht, unterscheidet sich zwischen den vier Zielplattformen, und die
+Frage lautet ohnehin nur „gehört es schon dem Abonnement".
+
+Der Beleg für die Nachrüstung wandert damit auf die zwei Zeilen, die auf
+`cloudsrv24` leer geblieben sind und deshalb tragen: Mitgliedschaft und
+`pg_db_role_setting`. Sie sind das, was die Nachrüstung an einer
+Bestandsdatenbank wirklich ändert.
+
+**Der Code ist davon nicht betroffen.** `Owner::roles()` fragt mit
+`starts_with(rolname, '<präfix>_')` **und** `rolcanlogin`, `Owner::ensure()` und
+der Rückbau fragen den Namen exakt — eingebaute Rollen tragen weder das Präfix
+noch ein Anmelderecht.
+
+### `docs/40`: die Anzeige steht in UTC, und das war niemandem gesagt
+
+Der Betreiber hat im Protokoll einen Eintrag um `12:31:26` gesehen und gefragt,
+ob das deutsche Zeit sei. Es war UTC — `config/app.php` setzt sie so, und
+`toDateTimeString()` geht als Zeichenkette in die Seite, die der Browser nicht
+umrechnet. In der Sommerzeit sind das zwei Stunden.
+
+**Ein Zeitstempel, den man falsch liest, ist schlimmer als keiner** — er sieht
+aus wie eine Auskunft. Und die Filter „Von"/„Bis" im Protokoll vergleichen
+ebenfalls gegen UTC: Wer abends nach 22:00 Uhr „heute" filtert, bekommt einen
+Tag, der zwei Stunden vorher zu Ende ging. Die Seite zeigt dann eine Zeile, die
+ihr eigener Filter nicht findet.
+
+Entschieden sind die drei Fragen, an denen der Zuschnitt hängt: **serverweit**
+statt je Konto, die **Filter rechnen mit**, und das **CSV bleibt UTC** — ein
+Zeitstempel ohne Zone in einer Datei, die drei Jahre liegt, ist eine Falle.
+Gemessen ist auch der Umfang: achtzehn Stellen, alle in Controllern, keine in
+einer Vue-Komponente.
+
+Gebaut wird nach P5b. Eine Änderung, die während einer Abnahme jede Zeitangabe
+verschiebt, erklärt eine Messung, statt sie zu bestätigen.
+
+### `v0.5.1-rc.5` hat einen Kunden ausgesperrt — mit einem Passwortwechsel
+
+Der teuerste Fehler dieser Runde, und er stammt aus der Behebung von vorgestern.
+`PgRoleCreate` setzte `ALTER ROLE … IN DATABASE … SET role = <präfix>_owner` und
+liess das Schema, wie es war. Der Kunde arbeitete fortan als eine Rolle, die an
+`public` **kein einziges Recht** hat. Gemessen auf `cloudsrv24`:
+
+    current_user      → x90d271df69287335_owner
+    current_schemas() → {pg_catalog}                    public fehlt
+    CREATE TABLE      → ERROR: no schema has been selected to create in
+    DROP TABLE IF EXISTS kunden → „does not exist, skipping"
+
+Ausgelöst hat es ein **Passwortwechsel** — der harmloseste Vorgang, den dieses
+Panel kennt. Und die Meldung zeigt nicht auf die Ursache: PostgreSQL überspringt
+in `search_path` jedes Schema, in dem die Rolle nicht anlegen darf, und meldet
+erst, wenn keines übrig ist. Kein `permission denied`, sondern
+„kein Schema ausgewählt".
+
+> **Wer umstellt, als wer jemand arbeitet, schuldet ihm alles, was er vorher
+> hatte.**
+
+**Die Bauform des Fehlers ist die bekannte:** `PgRoleGrant` hatte die fehlende
+Zeile, `PgRoleCreate` nicht — zwei Stellen, dieselbe Aufgabe, eine nachgezogen.
+Deshalb steht die Übereignung jetzt einmal in `Owner::adopt()` und wird von allen
+vier Operationen gerufen, statt dreimal abgeschrieben zu werden.
+
+**Und das Schema allein reicht nicht.** Für eine Datenbank, die es vor der
+Eigentümerrolle gab, gehören die Tabellen dem einzelnen Zugang. Gemessen, beide
+Wege:
+
+    GRANT ALL ON ALL TABLES TO <owner>  → lesen ja, ALTER TABLE:
+                                          „must be owner of table"
+    REASSIGN OWNED BY <zugang> TO …     → lesen ja, ALTER TABLE ja
+
+> **Ein Recht ersetzt kein Eigentum.** `ALTER` und `DROP` fragen nach dem
+> Eigentümer, nicht nach der Rechtezeile.
+
+`Owner::adoption()` schickt deshalb `ALTER SCHEMA public OWNER TO`,
+`REVOKE ALL ON SCHEMA public FROM PUBLIC` und ein `REASSIGN OWNED BY` über alle
+Zugänge der Datenbank. Dass dasselbe `REASSIGN` in `Pg\Ephemeral` entfallen ist,
+ist kein Widerspruch: Dort zeigte es auf den Eigentümer der **Datenbank** — das
+Panel —, und genau das war Fehler 2 aus Punkt 7. Hier zeigt es auf das
+Abonnement.
+
+**Der Wächter, der gefehlt hat**, prüft jetzt das Paar und nicht die einzelne
+Zeile: `test_whoever_sets_the_session_role_hands_over_the_database` — eine
+Methode, die `Owner::sessionRole(…, true)` schickt und kein `adopt()`, ist genau
+der ausgelieferte Zustand. Dazu
+`test_the_adoption_takes_ownership_and_not_only_a_privilege`, weil ein `GRANT`
+an derselben Stelle grün aussähe und den Kunden seine eigene Tabelle nicht
+ändern liesse.
+
+Gefunden hat den Fehler der Abnahmelauf, und zwar an einer Stelle, an der er nur
+wie ein Bedienfehler aussah: Ein `DROP TABLE IF EXISTS` meldete „skipping" für
+eine Tabelle, die es gibt. *Ein `IF EXISTS`, das „skipping" sagt, hat nicht
+nachgesehen, ob es das Ding gibt — sondern ob es ihm sichtbar ist.*

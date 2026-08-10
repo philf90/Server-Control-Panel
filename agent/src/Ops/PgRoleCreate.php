@@ -118,10 +118,18 @@ final class PgRoleCreate implements Op
         foreach ($databases as $index => $database) {
             $context->progress(50 + intdiv(40 * $index, max(1, count($databases))), 'freigeben: '.$database);
 
+            /*
+             * **`CONNECT` zuerst, dann übereignen.** {@see Owner::adopt()}
+             * fragt den Katalog, welche Zugänge dieser Datenbank es gibt — wer
+             * nicht hineindarf, kommt nicht vor. Stünde die Übereignung vorher,
+             * fehlte in ihrer Liste ausgerechnet die Rolle, die dieser Aufruf
+             * gerade anlegt.
+             */
             $this->session->execute($context, [
                 PgRoleGrant::databaseStatement($role, $database, true),
                 Owner::sessionRole($owner, $role, $database, true),
             ]);
+            $this->owner->adopt($context, $prefix, $database);
             $this->session->execute($context, PgRoleGrant::schemaStatements($role, true), $database);
         }
 

@@ -7438,3 +7438,29 @@ die Abschnitte zusammen umbrechen und ob eine Marke im Zusammenspiel kippt,
 sagen erst Aufnahmen der laufenden Anwendung. Sie stehen aus und sind **nicht
 abgehakt** — P4 Schritt 6 ist genau so ausgeliefert worden, und die nachgeholte
 Runde fand drei Fehler auf einer vollständig grün getesteten Seite.
+
+### Lauf 466 — der erste Lauf des Pull Requests, und zwei echte Fehler
+
+**Vier Imports fehlten**, und alle vier aus demselben Grund: Ich habe sie mit
+einem Skript hinter einer Zeile eingefügt, die es in dieser Datei nicht gab. Das
+Skript meldete nichts, PHP meldete nichts, und lokal fiel es nicht auf, weil
+PHPStan hier ohne Autoload läuft und `class.notFound` deshalb als Rauschen
+gefiltert wird. **Ein Filter, der Rauschen entfernt, entfernt auch Befunde, die
+wie Rauschen aussehen** — dieselbe Lehre wie in Lauf 462, an einer anderen
+Stelle.
+
+**Und ein Fehler, der Kunden getroffen hätte:** `Dumps::dispatch()` holte das
+PostgreSQL-Präfix für **jede** Sicherung. Ein Abonnement ohne Präfix — Testdaten
+oder eine Installation, deren Migration noch aussteht — konnte damit keine
+**MariaDB**-Sicherung mehr anlegen: `PostgresDriver::prefixOf()` wirft, und der
+Vorgang kam nie in die Warteschlange. Eine Angabe, die das eine System nicht
+braucht, darf das andere nicht aufhalten. Das Präfix geht jetzt nur mit, wenn
+die Sicherung zu PostgreSQL gehört.
+
+**Der dritte Befund war ein Test, der auf den alten Ort zeigte.**
+`DumpTeardownTest` rief `DbLifecycle::afterSuccess()` unmittelbar, und dort steht
+die Regel seit dem Umzug nicht mehr — er meldete Rot für genau die Ordnung, die
+er absichern soll. Dasselbe Muster wie bei den Eingriffen in
+`waechter-brechen.sh`, nur in einem Test. Er geht jetzt über `Lifecycles`, also
+über den Weg, den die Anwendung nimmt: Zieht die Regel noch einmal um, bleibt er
+richtig.

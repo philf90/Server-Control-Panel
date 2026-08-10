@@ -10,8 +10,8 @@ use App\Models\DatabaseDump;
 use App\Models\Operation;
 use App\Models\Subscription;
 use App\Support\Databases\DatabasePrune;
-use App\Support\Databases\DbLifecycle;
 use App\Support\Databases\Dumps;
+use App\Support\Operations\Lifecycles;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -21,12 +21,13 @@ use Tests\TestCase;
  * Der Rückbau nimmt die Sicherungen mit — die Dateien **und** ihre Zeilen.
  *
  * **Der Anlass ist ein Kommentar, der das Gegenteil versprach.**
- * `DbLifecycle::afterDump()` sagte: „Der Rückbau eines ganzen Abonnements trägt
+ * `DbLifecycle::afterDump()` sagte damals: „Der Rückbau eines ganzen Abonnements trägt
  * keinen Gegenstand — dort verschwinden die Zeilen mit dem Abonnement." Sie
  * verschwanden nicht. `database_dumps.subscription_id` steht mit Absicht auf
  * `nullOnDelete` (§7.2), damit eine Sicherung ihre Datenbank überlebt; nach
  * einem erfolgreichen Rückbau ist die Datei aber fort, und der Wegweiser zeigt
- * ins Leere.
+ * ins Leere. (Die Methode heisst seit Schritt 6 `DumpLifecycle::afterSuccess()`
+ * und gilt für beide Datenbanksysteme.)
  *
  * **Gefunden am 8. August 2026 auf `cloudsrv24`**, und zwar nicht von einer
  * Abfrage an MariaDB, sondern von `srvpanel db`: Es zählte drei Sicherungen,
@@ -88,7 +89,17 @@ final class DumpTeardownTest extends TestCase
 
         $operation->forceFill(['status' => OperationStatus::Succeeded, 'result' => []])->save();
 
-        app(DbLifecycle::class)->afterSuccess($operation);
+        /*
+         * **Über {@see Lifecycles} und nicht über einen Handler unmittelbar.**
+         * Bis Schritt 6 stand hier `DbLifecycle`, und mit dem Umzug der
+         * Dump-Aufgaben nach `DumpLifecycle` zeigte der Test auf einen Ort, an
+         * dem die Regel nicht mehr steht — er meldete Rot für eine Ordnung, die
+         * er absichern soll.
+         *
+         * Der Weg über die Sammelstelle ist ausserdem der, den die Anwendung
+         * geht: Zieht die Regel noch einmal um, bleibt dieser Test richtig.
+         */
+        app(Lifecycles::class)->afterSuccess($operation);
 
         return $operation;
     }
@@ -187,7 +198,17 @@ final class DumpTeardownTest extends TestCase
         $operation = app(Dumps::class)->remove($dump);
         $operation->forceFill(['status' => OperationStatus::Succeeded, 'result' => []])->save();
 
-        app(DbLifecycle::class)->afterSuccess($operation);
+        /*
+         * **Über {@see Lifecycles} und nicht über einen Handler unmittelbar.**
+         * Bis Schritt 6 stand hier `DbLifecycle`, und mit dem Umzug der
+         * Dump-Aufgaben nach `DumpLifecycle` zeigte der Test auf einen Ort, an
+         * dem die Regel nicht mehr steht — er meldete Rot für eine Ordnung, die
+         * er absichern soll.
+         *
+         * Der Weg über die Sammelstelle ist ausserdem der, den die Anwendung
+         * geht: Zieht die Regel noch einmal um, bleibt dieser Test richtig.
+         */
+        app(Lifecycles::class)->afterSuccess($operation);
 
         $this->assertSame(1, $this->unrestricted(fn (): int => DatabaseDump::query()->count()));
 

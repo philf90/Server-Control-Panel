@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Enums\OperationStatus;
@@ -237,23 +238,23 @@ final class Dumps
             'task' => $task,
             'payload' => array_merge([
                 /*
-                 * **Beide Kennungen, und der Agent nimmt die, die er kennt.**
-                 * `db.*` prüft gegen den Systembenutzer (`p1001`), `pg.*` gegen
-                 * das Präfix (`x7f3a…`) — dieselbe Frage, zwei Antworten
-                 * (`docs/38 §4`). Beide mitzuschicken ist ehrlicher als eine
-                 * Verzweigung: Was der Agent nicht liest, weist er nicht ab, und
-                 * was er liest, hat er selbst geprüft.
+                 * **Der Systembenutzer immer, das Präfix nur für das System,
+                 * das es braucht.** `db.*` prüft gegen `p1001`, `pg.*` gegen
+                 * `x7f3a…` — dieselbe Frage, zwei Antworten (`docs/38 §4`).
                  *
-                 * Das Präfix kommt aus {@see PostgresDriver::prefixOf()} und
-                 * nicht aus einer eigenen Abfrage — es gibt genau eine Stelle,
-                 * die weiss, wo es steht.
+                 * **Der erste Entwurf schickte beide unbedingt mit, und das
+                 * hat vier Tests rot gemacht.** Ein Abonnement ohne Präfix —
+                 * Testdaten, oder eine Installation, deren Migration noch
+                 * aussteht — liess damit keine **MariaDB**-Sicherung mehr zu:
+                 * `PostgresDriver::prefixOf()` wirft, und der Vorgang kam nie
+                 * in die Warteschlange. Eine Angabe, die das eine System nicht
+                 * braucht, darf das andere nicht aufhalten.
                  */
                 'user' => (string) $subscription->system_user,
-                'prefix' => PostgresDriver::prefixOf($this->tenancy, $subscription),
                 'subscription' => (string) $subscription->name,
                 'name' => $dump->database_name,
                 'storage' => $dump->storage_name,
-            ], $extra),
+            ], $this->prefixFor($dump, $subscription), $extra),
             'status' => OperationStatus::Queued,
             'progress' => 0,
             'message' => $message,
@@ -262,6 +263,24 @@ final class Dumps
         RunAgentOperation::dispatch((int) $operation->id);
 
         return $operation;
+    }
+
+    /**
+     * Das Präfix — nur für das System, das damit arbeitet.
+     *
+     * Ein leeres Feld wäre die dritte Möglichkeit und die schlechteste: Der
+     * Agent bekäme `''`, `Names::prefix()` wiese es ab, und der Grund stünde in
+     * einer Meldung über eine Zeichenkette statt in einer über den Bestand.
+     *
+     * @return array<string, string>
+     */
+    private function prefixFor(DatabaseDump $dump, Subscription $subscription): array
+    {
+        if ($dump->engine === DatabaseEngine::MariaDb) {
+            return [];
+        }
+
+        return ['prefix' => PostgresDriver::prefixOf($this->tenancy, $subscription)];
     }
 
     /**

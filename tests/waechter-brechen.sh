@@ -5468,6 +5468,29 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
 
 echo
+echo "── InertiaPropsTest: eine Seite liest, was ihr niemand schickt ──"
+#
+# Der Fund aus Punkt 4 der Zwischenabnahme (docs/39): Databases/Index.vue liest
+# props.shows_engine seit Schritt 7, und der Steuerungscode hat es nie
+# mitgeschickt. In JavaScript ist undefined falsch — die Spalte „System" blieb
+# immer aus, und auf cloudsrv24 stand eine PostgreSQL-Datenbank in der Liste,
+# ohne dass irgendwo stand, dass sie eine ist. vue-tsc sieht die Vorlage,
+# PHPStan sieht das Feld; die Bruecke dazwischen sah niemand.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+i = s.index("            'shows_engine' => Database::query()")
+j = s.index('->exists(),', i) + len('->exists(),')
+open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Seite ohne ihre Eigenschaft" &&
+pruefe "Seite ohne ihre Eigenschaft" \
+  InertiaPropsTest::test_every_page_gets_the_props_it_declares failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InertiaPropsTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

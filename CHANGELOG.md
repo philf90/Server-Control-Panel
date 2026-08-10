@@ -7841,3 +7841,42 @@ Bedingung von einer *Absicht* („welches System ist das?") auf einen *Zustand*
 kommt, ist ein Gebietsschema wie `de_DE.UTF-8` — elf Zeichen gegen die achtzehn
 von `utf8mb4_unicode_ci`, die dort seit P5 stehen. Die Aufnahmen der laufenden
 Seite kommen mit Punkt 4 der Zwischenabnahme.
+
+### Punkt 4: die Spalte „System" hat es nie gegeben
+
+Auf `cloudsrv24` stand am 10. August 2026 eine PostgreSQL-Datenbank in der
+Liste, **ohne dass irgendwo stand, dass sie eine ist.** Gefunden auf einer
+Aufnahme vom Telefon, hell und dunkel; die Kartenansicht zeigt fünf Zeilen, und
+„System" ist keine davon.
+
+`Databases/Index.vue` liest `props.shows_engine` seit Schritt 7. Der
+Steuerungscode hat die Angabe **nie mitgeschickt**. In JavaScript ist
+`undefined` falsch, also blieb `v-if="props.shows_engine"` immer aus — die
+Spalte war gebaut, geprüft und unsichtbar.
+
+**Es ist der Musterfehler dieses Projekts an einer Stelle, an der es ihn noch
+nicht gab:** eine Zeichenkette, die auf etwas verweist, ohne dass ein Typ, ein
+Test oder ein Werkzeug den Bezug prüft. Und diesmal liegt er genau *zwischen*
+den Werkzeugen: `vue-tsc` prüft die Vorlage gegen ihre eigene Deklaration,
+PHPStan prüft das Feld im Steuerungscode — die Brücke dazwischen ist eine
+Zeichenkette in einem Array, und die sieht keiner von beiden.
+
+**`DatabaseEngineTest` hat hier sogar zugebissen und trotzdem nichts gefunden.**
+Er hat in Schritt 7 verlangt, dass die Frage „welches System?" vom Server
+beantwortet wird und nicht im Template als Zeichenkette steht. Genau das ist
+passiert — die Antwort wurde im Server *formuliert* und nie *abgeschickt*. Ein
+Wächter, der die richtige Regel durchsetzt, sagt nichts darüber, ob sie
+angekommen ist.
+
+`InertiaPropsTest` vergleicht jetzt für jede Seite die Pflichteigenschaften aus
+`defineProps<{…}>()` mit den Schlüsseln, die ein `Inertia::render()` mitgibt —
+klammerweise auf der obersten Ebene, ohne Kommentare, abzüglich dessen, was
+`share()` für alle beisteuert. **Er läuft über 31 Seiten und hatte genau einen
+Befund:** diesen. Zwei Brüche sind gefahren worden, einer davon an einer ganz
+anderen Seite (`Domains/Index`), damit die Regel nicht nur für ihren Anlass
+gilt.
+
+**Und das ist der Grund, warum dieser Testlauf auf Aufnahmen besteht.** Die
+Seite war vollständig grün: Die Spalte stand im Markup, der Wert kam aus dem
+Enum, das Kartenlayout trug `data-column`. Sichtbar war der Fehler erst auf
+einem Telefon.

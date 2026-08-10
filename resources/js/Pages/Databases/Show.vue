@@ -294,10 +294,17 @@ function size(): string {
               <td class="right"><Badge kind="neutral">{{ props.database.engine_label }}</Badge></td>
             </tr>
 
-            <!-- Die Zeile fehlt, wo es nichts zu sagen gibt: In PostgreSQL
-                 entstehen Zeichensatz und Sortierung aus der Vorlage des
-                 Servers, und der Wert in der Zeile wäre der Vorgabewert aus P5
-                 — eine Angabe über eine Datenbank, die ihn nie gesehen hat. -->
+            <!-- Die Zeile fehlt, wo es nichts zu wählen gibt: In PostgreSQL
+                 wählt dieses Panel die Sortierung nicht, sie kommt aus der
+                 Vorgabe des Clusters (docs/38 §5). Der Wert in der Zeile wäre
+                 für PostgreSQL der Vorgabewert aus P5 — eine Angabe über eine
+                 Datenbank, die ihn nie gesehen hat.
+
+                 Hier stand „entstehen … aus der Vorlage des Servers". Das war
+                 falsch: Der Agent legt immer mit TEMPLATE template0 an und
+                 schreibt LC_COLLATE ausdrücklich hin. Seit dem 10. August 2026
+                 fragt er dafür den Cluster; vorher stand dort ein festes
+                 C.UTF-8. -->
             <tr v-if="props.database.collation !== null">
               <td class="quiet">Sortierung</td>
               <td class="right ident">{{ props.database.collation }}</td>

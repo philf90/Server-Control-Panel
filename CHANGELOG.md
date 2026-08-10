@@ -7774,3 +7774,45 @@ den ganzen Lauf. Diese Begründung galt für *ein* Unterverzeichnis, und der
 Durchgang ist bei ihm stehengeblieben, während die Wächter woanders wuchsen. Er
 liest jetzt `tests` im Ganzen; vier Altbefunde daraus, die nur ohne larastan
 entstehen, sind benannt statt stillschweigend geschluckt.
+
+### Punkt 3, nachgemessen: die Sortierung kam aus einer Zeile statt aus dem Cluster
+
+**Der fünfte Fehler derselben Bauform an einem Tag — und er stand in der Behebung
+des vierten.** Seit das Panel für PostgreSQL kein Gebietsschema mehr mitschickt,
+griff im Agenten `$args['locale'] ?? 'C.UTF-8'`. Diese Zeile war vorher nie
+erreicht worden; ab dem Beitrag davor **war sie die Antwort.**
+
+Gemessen auf `cloudsrv24`:
+
+```
+postgres / template0 / template1     de_DE.UTF-8
+x90d271df69287335_kundendatenbank    C.UTF-8      ← die erste Kundendatenbank
+```
+
+`C.UTF-8` sortiert nach Bytes: In `ORDER BY name` steht „Äpfel" damit **hinter**
+„Zebra". Für einen deutschen Kunden ist das sichtbar falsch — und anders als das,
+was er in MariaDB bekommt.
+
+**Gefragt statt angenommen, entschieden vom Betreiber.** Das Gebietsschema kommt
+jetzt aus `template0`, also aus dem, was `initdb` gesetzt hat. Aus `template0`
+und nicht aus `template1`, weil daraus auch angelegt wird: Ein Gebietsschema, das
+zur Vorlage passt, ist immer zulässig. **Ohne Antwort wird nichts erfunden** —
+ein Ersatzwert an dieser Stelle wäre derselbe Fehler noch einmal, er stünde still
+da und würde eines Tages die Antwort.
+
+Die Gegenrede gehört dazu: `C.UTF-8` ist stabil über Betriebssystem-Upgrades,
+glibc ändert Sortierregeln zwischen Fassungen und macht damit Textindizes still
+unbrauchbar. Der Betreiber hat die vertraute Sortierung vorgezogen; die
+Entscheidung steht damit an einer Stelle, an der sie jemand getroffen hat.
+
+**Gemessen wurde gegen einen Wegwerf-Cluster in diesem Container**, nicht
+behauptet: die Abfrage nach `datcollate`, dass die Antwort das Muster passiert,
+und dass `CREATE DATABASE … TEMPLATE template0 LC_COLLATE …` damit durchläuft und
+die neue Datenbank den Wert trägt.
+
+**Und ein Kommentar, der etwas Falsches sagte, ist mit weg.** In `Show.vue` stand
+als Begründung für die fehlende Zeile „Sortierung": *„In PostgreSQL entstehen
+Zeichensatz und Sortierung aus der Vorlage des Servers."* Das stimmte nicht — der
+Agent legt immer mit `TEMPLATE template0` an und schreibt `LC_COLLATE`
+ausdrücklich hin. Die Zeile fehlt weiter, aber jetzt aus dem Grund, der wirklich
+gilt: Dieses Panel *wählt* die Sortierung für PostgreSQL nicht.

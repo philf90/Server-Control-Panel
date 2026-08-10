@@ -5406,6 +5406,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
 
 echo
+echo "── PgLocaleTest: das Gebietsschema wird wieder verdrahtet ──"
+#
+# Der fuenfte Fehler derselben Bauform an einem Tag, und er stand in der
+# Behebung des vierten: Seit das Panel kein Gebietsschema mehr schickt, griff
+# `?? 'C.UTF-8'` — und C.UTF-8 sortiert nach Bytes. Auf cloudsrv24 bekam die
+# erste Kundendatenbank so eine andere Sortierung als der ganze Rest des
+# Servers.
+vorher_datei agent/src/Ops/PgDatabaseCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$args['locale'] ?? $this->clusterLocale($context)", "$args['locale'] ?? 'C.UTF-8'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseCreate.php "Gebietsschema verdrahtet" &&
+pruefe "Gebietsschema verdrahtet" \
+  PgLocaleTest::test_the_locale_is_not_a_literal failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgLocaleTest passed
+
+echo
+echo "── PgLocaleTest: LC_COLLATE faellt aus der Anweisung ──"
+#
+# Die Untergrenze. Ohne sie waere der Waechter oben zufrieden, und die Datenbank
+# bekaeme das Gebietsschema der Vorlage — hier zufaellig dasselbe, bis jemand
+# template0 aendert.
+vorher_datei agent/src/Ops/PgDatabaseCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'CREATE DATABASE %s TEMPLATE template0 ENCODING %s LC_COLLATE %s LC_CTYPE %s'",
+              "'CREATE DATABASE %s TEMPLATE template0 ENCODING %s'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseCreate.php "Anweisung ohne LC_COLLATE" &&
+pruefe "Anweisung ohne LC_COLLATE" \
+  PgLocaleTest::test_the_statement_still_writes_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgLocaleTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

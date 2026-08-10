@@ -5326,6 +5326,45 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" EngineDefaultTest passed
 
 echo
+echo "── EngineCollationTest: der Ersatzwert fuer die Sortierung kehrt zurueck ──"
+#
+# Der Fehler, an dem P5b auf dem Server haengengeblieben ist (docs/39, Punkt 3):
+# `?? $this->collations()[0]` schob PostgreSQL die erste MariaDB-Sortierung als
+# LC_COLLATE unter, und keine PostgreSQL-Datenbank liess sich anlegen.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                $data['collation'] ?? null,",
+              "                (string) ($data['collation'] ?? $this->collations()[0]),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Ersatzwert fuer die Sortierung" &&
+pruefe "Ersatzwert fuer die Sortierung" \
+  EngineCollationTest::test_the_controller_invents_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
+
+echo
+echo "── EngineCollationTest: Postgres schickt wieder ein Gebietsschema ──"
+#
+# Die Richtung, die zaehlt. Was in dieser Nutzlast landet, kann nur aus dem
+# Formular stammen — und das Formular fragt fuer PostgreSQL nicht danach.
+vorher_datei app/Support/Databases/Engines/PostgresDriver.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Engines/PostgresDriver.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'encoding' => 'UTF8',\n        ]);",
+              "            'encoding' => 'UTF8',\n            'locale' => $collation,\n        ]);")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Engines/PostgresDriver.php "Gebietsschema an Postgres" &&
+pruefe "Gebietsschema an Postgres" \
+  EngineCollationTest::test_postgres_sends_no_locale failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -7672,3 +7672,61 @@ bekommt, an der er hängt, und nicht aus einem festen Wert eine Zeile weiter.
 Zwischenabnahme, nachdem MariaDB durchlief und PostgreSQL nicht. Kein Test hat
 es gesehen — alle Tests, die einen Zugang anlegen, meinen MariaDB, und für die
 war die Vorgabe richtig.
+
+### Punkt 3, der eigentliche Fehler: PostgreSQL bekam eine MariaDB-Sortierung
+
+```
+ERROR: invalid LC_COLLATE locale name: "utf8mb4_unicode_ci"
+```
+
+**Keine einzige PostgreSQL-Datenbank liess sich anlegen — seit es die Funktion
+gibt.** `DatabaseController::store()` füllte eine fehlende Sortierung mit
+`?? $this->collations()[0]`, also mit der ersten **MariaDB**-Sortierung. Für
+PostgreSQL zeigt das Formular das Feld gar nicht (`docs/38 §5`), es schickt also
+nie eine — der Ersatzwert griff damit **immer**, und `pg.database.create` bekam
+`utf8mb4_unicode_ci` als `LC_COLLATE`.
+
+> **Ein Ersatzwert für etwas, das es nicht gibt, ist keine Vorsicht — er ist eine
+> Behauptung.**
+
+Der vierte Fehler derselben Bauform an einem Tag. Alle vier haben dieselbe
+Herkunft: **ein zweites System, das die Ersatzwerte des ersten geerbt hat.**
+
+| | |
+|---|---|
+| `env('SRVPANEL_VERSION', '0.1.0-dev')` | eine Variable, die niemand setzt |
+| `'handed_over' => false` im Grundzustand | ein Zustand, den niemand gemessen hat |
+| `DatabaseEngine $engine = MariaDb` | ein System, das niemand genannt hat |
+| `?? $this->collations()[0]` | eine Sortierung, die es nicht gibt |
+
+Die Sortierung ist jetzt `?string`, und **der Typ ist der Wächter**: Ein `string`
+verlangt einen Wert, und wer keinen hat, erfindet einen — die Lücke *erzwang*
+den Ersatzwert. `null` heisst „dieses System wählt sie nicht", und jeder Treiber
+sagt selbst, was er daraus macht: MariaDB nimmt seine Vorgabe (dort, wo sie
+gilt), PostgreSQL schickt gar kein `locale` und überlässt es dem Agenten, der es
+neben `CREATE DATABASE` stehen hat.
+
+**Kein Test hat es gesehen, und der Grund ist derselbe wie beim Vorgabewert für
+das System:** Jeder Test, der eine Datenbank anlegt, gibt eine Sortierung mit,
+weil er MariaDB meint. Für den war der Ersatzwert richtig.
+
+### Und warum die Meldung niemanden erreichte
+
+Der Fehler stand die ganze Zeit in einer `ValidationException` am Feld — nur
+sichtbar wurde er nicht. Laravel leitet dabei **zurück**, und „zurück" ist die
+letzte GET-Anfrage der Sitzung. Der Vorgangskanal `/operations/{id}/stream` ist
+eine solche: `EventSource` schickt kein `X-Requested-With`, gilt damit nicht als
+XHR und wird als vorige Seite gemerkt.
+
+**Jeder Formularfehler landete deshalb auf einem Ereigniskanal statt auf dem
+Formular** — und wenn der Vorgang einem anderen gehörte, mit einer 403. Der
+Betreiber sah „nichts passiert", eine 403 ohne Auslöser und eine Flut von
+`stream`-Anfragen; die Meldung, die alles erklärt hätte, kam nie an. Sichtbar
+wurde sie erst in einem frischen Tab, in dem keine Vorgangsseite offen gewesen
+war.
+
+`CLAUDE.md` warnt seit P4 vor genau dieser Weiterleitung, und `RedirectTargetTest`
+setzt es durch — **aber nur für `back()` im eigenen Code.** Die Weiterleitung
+einer `ValidationException` macht das Framework. *Eine Regel mit Wächter, und
+daneben eine Tür, durch die dieselbe Regel gebrochen wird.* Der Kanal darf die
+vorige Seite nicht mehr überschreiben; das kommt als eigener Beitrag.

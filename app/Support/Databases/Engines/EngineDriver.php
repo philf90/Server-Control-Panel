@@ -64,9 +64,24 @@ interface EngineDriver
      *
      * Was zurückkommt, ist die Antwort des Agenten und nicht das Bestellte.
      *
+     * **`$collation` darf `null` sein, und das ist der Kern.** Nicht jedes
+     * System lässt eine Sortierung wählen: In PostgreSQL entstehen Zeichensatz
+     * und Sortierung beim Anlegen der Datenbank und werden von diesem Panel
+     * nicht gewählt (`docs/38 §5`) — das Formular zeigt das Feld dort gar nicht.
+     *
+     * Vorher stand hier `string`, und der Steuerungscode füllte die Lücke mit
+     * `?? $this->collations()[0]` — also mit der ersten **MariaDB**-Sortierung.
+     * PostgreSQL bekam `utf8mb4_unicode_ci` als `LC_COLLATE` und wies jedes
+     * Anlegen ab: *invalid LC_COLLATE locale name*. Gefunden am 10. August 2026
+     * auf einem echten Server (`docs/39`, Punkt 3).
+     *
+     * **Ein Ersatzwert für etwas, das es nicht gibt, ist keine Vorsicht — er ist
+     * eine Behauptung.** `null` heisst „dieses System wählt sie nicht", und
+     * jeder Treiber sagt selbst, was er daraus macht.
+     *
      * @return array{name: string, charset: string, collation: string}
      */
-    public function createDatabase(string $prefix, string $label, string $collation): array;
+    public function createDatabase(string $prefix, string $label, ?string $collation): array;
 
     /**
      * Einen Zugang anlegen und ihm die genannten Datenbanken freigeben.

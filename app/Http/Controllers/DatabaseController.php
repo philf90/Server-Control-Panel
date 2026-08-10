@@ -211,7 +211,18 @@ final class DatabaseController extends Controller
             $database = $this->databases->create(
                 $subscription,
                 $data['label'],
-                (string) ($data['collation'] ?? $this->collations()[0]),
+                /*
+                 * **Kein Ersatzwert.** Hier stand `?? $this->collations()[0]`,
+                 * also die erste **MariaDB**-Sortierung — und für PostgreSQL
+                 * schickte das Formular keine, weil es das Feld dort nicht
+                 * zeigt. Der Ersatzwert griff also genau dort, wo er nicht
+                 * hingehörte, und PostgreSQL wies jedes Anlegen ab
+                 * (`docs/39`, Punkt 3).
+                 *
+                 * `null` heisst „nicht gewählt"; was daraus wird, weiss der
+                 * Treiber und nicht dieser Ort.
+                 */
+                $data['collation'] ?? null,
                 $engine,
             );
         } catch (RuntimeException|AgentException $error) {

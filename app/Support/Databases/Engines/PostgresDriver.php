@@ -125,13 +125,27 @@ final class PostgresDriver implements EngineDriver
      * `utf8mb4_unicode_ci` → `C.UTF-8` wäre eine Behauptung über zwei
      * Sortierordnungen, die einander nicht entsprechen.
      */
-    public function createDatabase(string $prefix, string $label, string $collation): array
+    /**
+     * **`$collation` wird hier nicht benutzt, und das ist der ganze Punkt.**
+     *
+     * In PostgreSQL entstehen Zeichensatz und Sortierung beim Anlegen und
+     * werden von diesem Panel nicht gewählt (`docs/38 §5`); das Formular zeigt
+     * das Feld gar nicht. Was hier ankam, war deshalb nie eine Wahl des Kunden
+     * — es war der Ersatzwert des Steuerungscodes, und der lautete
+     * `utf8mb4_unicode_ci`. Jedes Anlegen scheiterte an
+     * *invalid LC_COLLATE locale name*, gefunden am 10. August 2026 auf
+     * `cloudsrv24` (`docs/39`, Punkt 3).
+     *
+     * **Ohne `locale` setzt der Agent sein eigenes Gebietsschema** — die
+     * Entscheidung gehört dorthin, wo `CREATE DATABASE` geschrieben wird, und
+     * nicht in einen Ersatzwert zwei Schichten darüber.
+     */
+    public function createDatabase(string $prefix, string $label, ?string $collation): array
     {
         $result = $this->agent->call('pg.database.create', [
             'prefix' => $prefix,
             'suffix' => $label,
             'encoding' => 'UTF8',
-            'locale' => $collation,
         ]);
 
         return [

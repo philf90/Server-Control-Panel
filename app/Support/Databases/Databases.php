@@ -100,7 +100,7 @@ final class Databases
     public function create(
         Subscription $subscription,
         string $label,
-        string $collation,
+        ?string $collation,
 
         /*
          * **Ohne Vorgabewert, und das ist die Lehre des 10. August 2026.**

@@ -751,6 +751,16 @@ final class DatabaseController extends Controller
             'label' => $database->label,
             'status' => $database->status->value,
             'status_label' => $database->status->label(),
+
+            // **Das System, und zwar in jeder Zeile.** Ob die Liste es zeigt,
+            // entscheidet sie selbst — an einem Zustand und nicht an einer
+            // Einstellung: Solange keine PostgreSQL-Datenbank da ist, wäre eine
+            // Spalte, in der überall dasselbe steht, nur eine Spalte weniger
+            // Platz für den Namen. Und der ist hier siebzehn Zeichen länger als
+            // in P5 (`docs/38 §16`).
+            'engine' => $database->engine->value,
+            'engine_label' => $database->engine->label(),
+
             'collation' => $database->collation,
             'size_bytes' => $database->size_bytes,
             'size_measured_at' => $database->size_measured_at?->toIso8601String(),

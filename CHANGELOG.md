@@ -7341,3 +7341,23 @@ Grenze nicht betrifft.
 benennen. Der Pfad `/var/lib/mysql` fällt dabei aus dem Text: Er war das
 Beispiel für „liegt ausserhalb der Quota", und zwei Pfade nebeneinander erklären
 weniger als die Aussage selbst.
+
+### Und die Spalte „System" — zweimal falsch beim ersten Versuch
+
+`Databases/Index.vue` zeigt das System als Marke, sobald es eine Datenbank gibt,
+die nicht MariaDB ist. Der erste Entwurf beantwortete das im Template, mit einem
+`some()` über die geladenen Zeilen, und war dabei gleich zweifach daneben.
+
+**`DatabaseEngineTest` hat den Wert als Zeichenkette abgewiesen** — die Werte
+eines Systems stehen im Enum und nirgends sonst, dieselbe Regel wie schon bei
+`DumpLifecycle` eine Stunde vorher. Und beim Umbau fiel der zweite Fehler auf,
+den kein Wächter gemeldet hätte: **`some()` läuft über eine Seite.** Bei zwanzig
+Zeilen je Seite wäre die Spalte beim Blättern verschwunden, sobald eine Seite
+nur MariaDB enthält — eine Tabelle, deren Spalten sich beim Weiterklicken
+ändern.
+
+Beides löst dieselbe Zeile: Der Server beantwortet die Frage, über den ganzen
+Bestand und innerhalb der Mandantenklammer. **Gefragt wird nach einem Zustand
+und nicht nach einer Einstellung** — „PostgreSQL ist angeboten" wäre die Absicht
+des Betreibers; ob die Spalte etwas erklärt, entscheidet, ob es eine Datenbank
+gibt, die sie braucht.

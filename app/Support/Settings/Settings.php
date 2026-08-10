@@ -59,6 +59,9 @@ final class Settings
      */
     private const POSTGRES = 'postgresql';
 
+    /** Was der Messlauf über die Dateisystem-Quota gesehen hat. */
+    private const DISK_QUOTA = 'usage.disk_quota';
+
     private ?MailSettings $mail = null;
 
     /** @var list<string>|null */
@@ -154,6 +157,51 @@ final class Settings
         Setting::query()->updateOrCreate(
             ['key' => self::POSTGRES],
             ['value' => ['offered' => $offered, 'changed_at' => now()->toDateTimeString()]],
+        );
+    }
+
+    /**
+     * Ob das Dateisystem unter `/var/www/vhosts` eine Benutzerquota führt.
+     *
+     * **Gemessen wird das nicht hier, sondern jede Viertelstunde ohnehin.**
+     * `subscription.usage` liest die Quota-Datei mit `repquota`; scheitert das,
+     * kommt `available: false` samt Grund zurück. Diese Antwort stand bis zum
+     * 10. August 2026 nur im Journal des Messlaufs — die Übersicht wusste
+     * nichts davon, und ein Betreiber erfuhr vom fehlenden Quota-System erst,
+     * wenn er ein Abonnement anlegte.
+     *
+     * **Die Mount-Option beweist nichts, und das ist gemessen.** Auf
+     * `cloudsrv24` stand `rw,relatime,quota,usrquota` in `/proc/mounts` und
+     * `quotaon -p /` sagte trotzdem `is off`: Die Quotadatei war nie angelegt
+     * worden. Wer nur die Optionen liest, meldet Bereitschaft, wo keine ist —
+     * deshalb steht hier das Ergebnis eines Leseversuchs und keine Ableitung.
+     *
+     * @return array{available: bool|null, reason: string|null, checked_at: string|null}
+     */
+    public function diskQuota(): array
+    {
+        $value = $this->read(self::DISK_QUOTA);
+
+        return [
+            // Drei Werte. `null` heisst „noch nie gemessen" — der Timer läuft
+            // im Viertelstundentakt, und vor seinem ersten Lauf soll die
+            // Übersicht schweigen statt Entwarnung zu geben.
+            'available' => is_bool($value['available'] ?? null) ? $value['available'] : null,
+            'reason' => is_string($value['reason'] ?? null) ? $value['reason'] : null,
+            'checked_at' => is_string($value['checked_at'] ?? null) ? $value['checked_at'] : null,
+        ];
+    }
+
+    /** Was der Messlauf gesehen hat — mit Zeitstempel, wie bei den PHP-Fassungen. */
+    public function saveDiskQuota(bool $available, ?string $reason): void
+    {
+        Setting::query()->updateOrCreate(
+            ['key' => self::DISK_QUOTA],
+            ['value' => [
+                'available' => $available,
+                'reason' => $available ? null : $reason,
+                'checked_at' => now()->toDateTimeString(),
+            ]],
         );
     }
 

@@ -269,6 +269,24 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:suspend,subscription')
         ->name('subscriptions.resume');
 
+    /*
+     * **Die Speichergrenze noch einmal anwenden — ohne sie zu ändern.**
+     *
+     * `update()` reiht `subscription.quota` nur ein, wenn sich der Wert
+     * unterscheidet, und das ist richtig: Ein Vorgang für eine Änderung, die
+     * keine ist, wäre eine Zeile im Protokoll über ein System, das gleich
+     * bleibt. Nur gibt es einen Fall, in dem sich der Wert **nicht** ändert und
+     * das System trotzdem — den Betreiber, der die Quota des Dateisystems
+     * einschaltet. Bis zum 10. August 2026 musste er die Grenze umstellen und
+     * zurückstellen, damit sie greift.
+     *
+     * `can:update` und nicht `can:suspend`: Es ist dieselbe Fähigkeit wie das
+     * Ändern des Kontingents, nur ohne Änderung.
+     */
+    Route::post('/subscriptions/{subscription}/quota', [SubscriptionController::class, 'reapplyQuota'])
+        ->middleware('can:update,subscription')
+        ->name('subscriptions.quota');
+
     Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy'])
         ->middleware('can:delete,subscription')
         ->name('subscriptions.destroy');

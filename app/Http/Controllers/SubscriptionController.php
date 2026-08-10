@@ -238,6 +238,21 @@ final class SubscriptionController extends Controller
                 'limit_mb' => is_numeric($limit = $subscription->quota(Quota::DiskMb->value)) ? (int) $limit : null,
                 'percent' => $subscription->diskUsagePercent(),
                 'measured_at' => $subscription->disk_usage_measured_at?->toDateTimeString(),
+
+                /*
+                 * **Ob die Grenze überhaupt gilt** — drei Werte, und `null`
+                 * heisst „nicht nachgesehen". Ein Abonnement aus der Zeit vor
+                 * dieser Spalte hat keine Auskunft, und dann schweigt die Seite
+                 * statt Entwarnung zu geben.
+                 *
+                 * Auf `cloudsrv24` stand hier bis zum 10. August 2026 eine
+                 * Grenze von 15360 MB, die nichts begrenzte: `setquota` war
+                 * gescheitert, der Agent hatte es gemeldet, und niemand las es.
+                 */
+                'enforced' => is_bool($subscription->disk_quota_enforced)
+                    ? $subscription->disk_quota_enforced
+                    : null,
+                'note' => $subscription->disk_quota_note,
             ],
 
             /*
@@ -488,6 +503,49 @@ final class SubscriptionController extends Controller
             return redirect()->route('subscriptions.show', $subscription)
                 ->with('success', 'Abonnement gespeichert.');
         }
+
+        return redirect()->route('operations.show', $this->start(
+            $subscription, 'subscription.quota', 'Speichergrenze anwenden', $audit, $lifecycle,
+        ));
+    }
+
+    /**
+     * Die Speichergrenze noch einmal anwenden — ohne sie zu ändern.
+     *
+     * **Der Anlass steht in `docs/41`.** Auf `cloudsrv24` war die
+     * Dateisystem-Quota nicht eingeschaltet; beide Abonnements bekamen ihre
+     * Grenze nie. Nach dem Einschalten gab es keinen Weg, sie anzuwenden:
+     * {@see self::update()} reiht `subscription.quota` nur ein, wenn sich der
+     * Wert *unterscheidet* — und er unterschied sich nicht. Der Betreiber hätte
+     * die Grenze umstellen und zurückstellen müssen.
+     *
+     * > **Eine Einstellung, die sich nur durch eine Änderung anwenden lässt,
+     * > hat keinen Weg zurück in einen Zustand, den jemand anderes verändert
+     * > hat.**
+     *
+     * **Kein Knopf für alle Abonnements auf einmal.** Der wäre bequemer und
+     * hiesse: ein Klick, hundert Vorgänge. Wer die Quota gerade eingeschaltet
+     * hat, hat auch die Kommandozeile — `srvpanel usage` misst danach ohnehin
+     * neu, und was fehlt, sieht er in der Übersicht.
+     */
+    public function reapplyQuota(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
+    {
+        /*
+         * **Nur wo es ein Konto gibt.** Dieselbe Bedingung wie in
+         * {@see self::update()}: Während des Anlegens setzt
+         * `subscription.provision` die Grenze gleich mit, und nach dem Rückbau
+         * gibt es niemanden mehr, dem sie gälte.
+         */
+        if (! in_array($subscription->status, [SubscriptionStatus::Active, SubscriptionStatus::Suspended], true)) {
+            throw ValidationException::withMessages([
+                'subscription' => 'Dieses Abonnement hat keinen Systembenutzer, dem eine Grenze gälte.',
+            ]);
+        }
+
+        $audit->success('subscription.quota_reapplied', $subscription, [
+            'name' => $subscription->name,
+            'disk_mb' => $subscription->quota(Quota::DiskMb->value),
+        ]);
 
         return redirect()->route('operations.show', $this->start(
             $subscription, 'subscription.quota', 'Speichergrenze anwenden', $audit, $lifecycle,

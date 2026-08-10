@@ -8493,3 +8493,128 @@ nicht vor jeden Pull Request.
 
 Der Wächter dazu steht in `BreakScriptTest` und sucht den **Aufruf**, nicht den
 Dateinamen: Ein Kommentar, der das Skript erwähnt, ist keine Ausführung.
+
+### Eine Speichergrenze, die nichts begrenzte
+
+Der Betreiber hat am 10. August zwei Abonnements angelegt. Beide Vorgänge
+meldeten „fertig, 100 %", und in ihrer Ausgabe stand:
+
+    setquota: Cannot find mountpoint for device
+    setquota: No correct mountpoint specified.
+
+**Die Ursache liegt nicht im Code.** Gemessen: `/var/www/vhosts` liegt auf `/`
+(`/dev/vda3`, ext4), und die Mount-Optionen sind `rw,relatime` — **ohne
+`usrquota`**. Die Quota ist auf diesem Server nicht eingeschaltet, und das darf
+der Betreiber so wollen. `Mounts::deviceFor()` hat richtig gearbeitet.
+
+**Der Fehler ist das Verschweigen.** `DiskQuota::apply()` gibt seit jeher
+`['enforced' => false, 'reason' => …]` zurück und bricht ausdrücklich nicht ab —
+ein Abonnement soll nicht scheitern, weil ein Dateisystem keine Quota kann. Nur
+hat diese Antwort in `app/` **niemand gelesen**. Im Panel stand „15360 MB" und
+meinte es nicht; die Wahrheit stand als rohes `stderr` neben einer grünen
+Fortschrittsleiste.
+
+Die Auskunft steht jetzt in zwei Spalten am Abonnement — dreiwertig, `null`
+heisst „nicht nachgesehen" —, und die Seite sagt es **über** den Zahlen: Wer eine
+Grenze liest, hat sie geglaubt, bevor er weiterliest. Der Grund kommt wörtlich
+vom System; ein „konnte nicht gesetzt werden" hülfe beim Beheben nicht.
+
+### Und der Wächter darüber, weil es das dritte Mal war
+
+`handed_over`, `stale_roles`, `quota.enforced` — dreimal an einem Tag dieselbe
+Bauform: **Der Agent meldet einen Fehlschlag innerhalb eines erfolgreichen
+Vorgangs, und die Meldung kommt nirgends an.** Alle drei sahen im Panel aus wie
+Erfolg.
+
+> **Ein Feld, das niemand liest, ist keine Auskunft, sondern Rechenzeit.**
+
+`AgentAnswerReachTest` führt sie als Liste mit Begründung **je Eintrag** —
+dieselbe Form wie `Pg\Shielding::EXEMPT`, damit sie nicht wächst, bis sie alles
+enthält. Geprüft werden **beide Richtungen**: Fehlt die Antwort im Agenten, ist
+der Leser ein Griff ins Leere; fehlt der Leser, ist die Antwort Rechenzeit.
+
+Ein Ausdruck über *alle* Schlüssel wäre in einer Woche abgeschaltet — die meisten
+sind Belege fürs Protokoll und gehören in keine Oberfläche. Was der Test
+ausdrücklich **nicht** prüft, ist, ob die lesende Methode gerufen wird; alle drei
+Leser sind privat, und das meldet PHPStan auf Stufe 6 bereits. Eine zweite
+Fassung derselben Regel wäre die, die veraltet.
+
+### Die Quota an drei Stellen — und `docs/41`
+
+Der Betreiber hat nach dem Befund oben `usrquota` in die `fstab` genommen und
+neu eingehängt. Danach stand in `/proc/mounts` `rw,relatime,quota,usrquota` —
+und `quotaon -p /` sagte weiter **`is off`**. Die Quotadatei war nie angelegt
+worden.
+
+> **Eine Option, die etwas erlaubt, ist nicht dasselbe wie ein Zustand, in dem
+> es geschieht.**
+
+Genau darauf wäre der erste Entwurf hereingefallen: Er sollte die Mount-Optionen
+lesen. Gemessen wird jetzt der **Leseversuch** — `repquota` scheitert, solange
+die Quota nicht läuft, und dieses Scheitern *ist* die Antwort.
+
+**Drei Stellen, drei Fragen.** Die Übersicht sagt, ob der Server überhaupt Quota
+führt (aus dem Messlauf, der ohnehin jede Viertelstunde läuft — kein neues
+Programm, keine neue Operation, kein Aufruf beim Seitenaufbau). Die
+Abonnementseite sagt, ob *diese* Grenze gilt. Der Vorgang zeigt wörtlich, was
+`setquota` gesagt hat. Alle drei schweigen, solange nichts gemessen wurde.
+
+**Und ein Weg, die Grenze anzuwenden, ohne sie zu ändern.** `update()` reiht
+`subscription.quota` nur bei einem *anderen* Wert ein — richtig, aber es liess
+den Betreiber, der gerade die Quota eingeschaltet hat, ohne Ausweg: Er hätte die
+Grenze umstellen und zurückstellen müssen.
+
+> **Eine Einstellung, die sich nur durch eine Änderung anwenden lässt, hat
+> keinen Weg zurück in einen Zustand, den jemand anderes verändert hat.**
+
+Der Knopf steht **beim Befund** und nicht bei den anderen: Er erscheint genau
+dann, wenn die Grenze nachweislich nicht gilt. Und es gibt ihn nicht für alle
+Abonnements auf einmal — das wäre ein Klick und hundert Vorgänge.
+
+`docs/41` trägt die Anleitung, samt der Zeile, die man vergisst (`quotacheck`),
+und dem Hinweis auf den Rettungszugang: Eine falsche `fstab` ist der klassische
+Weg zu einem Server, der nicht mehr hochkommt.
+
+Die vierte Antwort steht jetzt in `AgentAnswerReachTest`: `subscription.usage`
+meldet `available: false` samt Grund, und das stand bis heute nur im Journal des
+Timers.
+
+### Der erste vollständige Bruchlauf hat 473 gesunde Wächter als kaputt gemeldet
+
+Und der Fehler lag im Werkzeug. `pruefe()` las die Ausgabe von PHPUnit als
+**JSON** — ein `python3 -c` mit `json.load` auf die Standardeingabe, das den
+Schlüssel `result` erwartet. `vendor/bin/phpunit` schreibt kein JSON und hat es
+nie getan; die Fassung ist gegen eine Umgebung entstanden, die Werkzeugaufrufe
+in `{"tool":…,"result":…}` verpackt.
+
+In der CI fiel damit **jede einzelne** der 473 Prüfungen in den Zweig „kein
+Ergebnis", und die Schlusszeile las sich als Urteil über zweihundert fremde
+Regeln: *„473 Prüfung(en) ohne Biss — diese Wächter halten ihre Regel nicht."*
+
+> **Ein Parser, der nie zum Ziel passt, meldet nicht „ich kann das nicht" — er
+> meldet, was er stattdessen findet.**
+
+Gelesen wird jetzt, was PHPUnit wirklich schreibt, in **vier** Fällen: `passed`
+(`OK (` und `OK, but there were issues!`), `failed` (`FAILURES!`, `ERRORS!`),
+**`kein Test`** — das fängt einen vertippten Filter, der sonst als Biss
+durchginge — und **`unlesbar`**, das auffällt, statt still zu sein.
+
+**Und das Skript beweist zuerst, dass es messen kann.** `vorpruefung` fährt vor
+dem ersten Eingriff einen Test, von dem feststeht, dass er grün ist, und bricht
+sonst mit der Ausgabe von PHPUnit ab.
+
+> **Ein Werkzeug, das über Wächter urteilt, muss zuerst beweisen, dass es messen
+> kann.**
+
+Die Schlusszeile unterscheidet jetzt außerdem: Steht hinter jedem Fehlschlag eine
+fehlende Messung, sagt sie *„dieses Skript hat nichts gemessen, und über die
+Wächter ist damit nichts gesagt"* — statt an 473 Stellen einen Fehler zu
+behaupten, an denen keiner ist.
+
+**Der Wächter darüber hat sich beim Schreiben selbst gefangen.** Er verlangt,
+dass der JSON-Ausdruck nicht im Skript steht — und war rot, weil der Kommentar,
+der den alten Ausdruck erklärt, ihn wörtlich zitierte. Zum vierten Mal in dieser
+Woche liest ein Wächter die Erklärung statt des Codes.
+
+Der Lauf hat damit genau das getan, wofür er gebaut wurde: Er hat beim ersten
+Mal einen Fehler gefunden. Nur einen anderen als erwartet.

@@ -25,6 +25,11 @@ const props = defineProps<{
     limit_mb: number | null
     percent: number | null
     measured_at: string | null
+
+    /* Drei Werte: `null` heisst „nicht nachgesehen" und ist weder ja noch
+       nein — dieselbe Form wie `handed_over` und der Kernel. */
+    enforced: boolean | null
+    note: string | null
   }
   database_usage: {
     count: number
@@ -103,6 +108,15 @@ function suspend(): void {
 
 function resume(): void {
   router.post(`/subscriptions/${props.subscription.id}/resume`)
+}
+
+/*
+ * **Ohne Rückfrage.** Sie setzt dieselbe Grenze noch einmal, die schon
+ * dasteht — es gibt nichts zu verlieren und nichts zu bestätigen. Die
+ * Rückfragen daneben hängen an Verlust (Sperren, Zurückbauen).
+ */
+function reapplyQuota(): void {
+  router.post(`/subscriptions/${props.subscription.id}/quota`)
 }
 
 /*
@@ -221,6 +235,40 @@ function remove(): void {
         verschiedene Dinge gleich aussehen zu lassen.
       -->
       <Section title="Speicher">
+        <!--
+          **Die Grenze steht ganz oben, wenn sie nicht gilt.** Sie gehört vor
+          die Zahlen und nicht darunter: Wer eine Grenze liest, hat sie
+          geglaubt, bevor er weiterliest.
+
+          Auf `cloudsrv24` stand hier am 10. August 2026 „15360 MB", und
+          `setquota` war beim Anlegen gescheitert — gemeldet vom Agenten, von
+          niemandem gelesen. Der Grund kommt wörtlich vom System; ein
+          „konnte nicht gesetzt werden" hülfe beim Beheben nicht.
+        -->
+        <p v-if="props.usage.enforced === false" class="notice warn">
+          Diese Grenze ist <strong>nicht in Kraft</strong>. Das Dateisystem unter
+          <span class="ident">/var/www/vhosts</span> führt keine Quota für
+          Benutzer.
+          <template v-if="props.usage.note">
+            Das System meldet: <span class="ident">{{ props.usage.note }}</span>
+          </template>
+          Der Weg dorthin steht in
+          <span class="ident">docs/41-dateisystem-quota.md</span>.
+        </p>
+
+        <!--
+          **Der Knopf steht beim Befund und nicht bei den anderen.** Er ist die
+          Antwort auf genau diese Meldung: Ist die Quota des Dateisystems
+          eingeschaltet worden, greift die Grenze erst, wenn sie noch einmal
+          gesetzt wird — und `Bearbeiten` reicht dafür nicht, weil sich der Wert
+          nicht ändert (siehe `SubscriptionController::reapplyQuota()`).
+        -->
+        <div v-if="props.usage.enforced === false && props.can.update" class="button-row">
+          <button type="button" class="button" @click="reapplyQuota">
+            Grenze erneut anwenden
+          </button>
+        </div>
+
         <p v-if="props.usage.used_mb === null" class="empty">
           Noch nicht gemessen. Die Messung läuft im Viertelstundentakt
           (<span class="ident">srvpanel-usage.timer</span>) und braucht eine

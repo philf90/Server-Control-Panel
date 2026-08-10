@@ -121,6 +121,11 @@ class Subscription extends Model
             'suspended_at' => 'datetime',
             'suspended_with_customer' => 'boolean',
             'disk_usage_measured_at' => 'datetime',
+
+            // Drei Werte: ja, nein, **nicht nachgesehen**. Der Guss auf
+            // `boolean` macht aus `null` keine `false` — genau das ist der
+            // Punkt (siehe die Wanderung).
+            'disk_quota_enforced' => 'boolean',
         ];
     }
 

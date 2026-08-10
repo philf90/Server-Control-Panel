@@ -238,7 +238,12 @@ in einem Sitzungsverlauf stand: **Was man zweimal braucht, gehört ins Repo —
 auch wenn es keine Zeile Code ist.** Aus demselben Grund gibt es **`40` die
 Zeitzone der Anzeige**: entschieden am 10. August, gebaut nach P5b. Das Panel
 zeigt Zeiten in UTC, und der Betreiber liest sie auf einer Uhr, die zwei Stunden
-weiter ist.
+weiter ist. Und **`41` die Dateisystem-Quota** — wie sie eingeschaltet wird, und
+warum das Panel den *Leseversuch* misst statt der Mount-Option: Auf `cloudsrv24`
+stand `usrquota` in den Optionen und `quotaon -p /` sagte `is off`.
+
+> **Eine Option, die etwas erlaubt, ist nicht dasselbe wie ein Zustand, in dem
+> es geschieht.**
 
 ---
 

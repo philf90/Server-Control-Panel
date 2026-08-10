@@ -60,10 +60,16 @@ enum Quota: string
      * (gemessen)" aus §9 P5.
      *
      * **Gemessen und nicht erzwungen**, und das ist keine Bequemlichkeit:
-     * MariaDB kennt keine Obergrenze je Schema. Was den Datenträger tatsächlich
-     * begrenzt, ist `disk_mb` als Dateisystem-Quota des Systembenutzers — nur
-     * liegt `/var/lib/mysql` ausserhalb des Abo-Verzeichnisses und damit
-     * ausserhalb dieser Quota. **Das ist eine Lücke, und sie gehört benannt
+     * Keines der beiden Datenbanksysteme kennt eine Obergrenze je Datenbank.
+     * Was den Datenträger tatsächlich begrenzt, ist `disk_mb` als
+     * Dateisystem-Quota des Systembenutzers — nur liegen die Daten beider
+     * Server ausserhalb des Abo-Verzeichnisses und damit ausserhalb dieser
+     * Quota.
+     *
+     * **Mit P5b gilt der Satz für zwei Systeme statt für eines**, und die
+     * Zahlen darüber zählen beide zusammen (`docs/38 §12`). Ein Text, der nur
+     * MariaDB nennt, sagt einem PostgreSQL-Kunden das Gegenteil dessen, was
+     * gemeint ist: dass ihn die Grenze nicht betrifft. **Das ist eine Lücke, und sie gehört benannt
      * statt kaschiert:** Ein Kunde kann seinen Speicherplatz einhalten und den
      * Datenträger über seine Datenbank füllen. Hier wird es gemessen und
      * sichtbar; Schwellen und Benachrichtigungen entstehen mit P9 (docs/36 §9).
@@ -121,8 +127,8 @@ enum Quota: string
             self::TrafficGb => 'Gemessen, nicht erzwungen. Die Überschreitung erscheint in der Übersicht und löst keine Sperre aus.',
             self::Domains => 'Zählt Haupt- und Addon-Domains. Aliasse zählen nicht mit.',
             self::Subdomains => 'Über alle Domains des Abonnements zusammen.',
-            self::Databases => 'MariaDB-Schemata. Der zugehörige Datenbankbenutzer zählt nicht getrennt.',
-            self::DatabaseMb => 'Über alle Datenbanken des Abonnements zusammen. Gemessen, nicht erzwungen — MariaDB kennt keine Obergrenze je Schema, und /var/lib/mysql liegt ausserhalb der Dateisystem-Quota.',
+            self::Databases => 'Über beide Datenbanksysteme zusammen. Der zugehörige Zugang zählt nicht getrennt.',
+            self::DatabaseMb => 'Über alle Datenbanken des Abonnements zusammen, in beiden Systemen. Gemessen, nicht erzwungen — keiner der beiden Server kennt eine Obergrenze je Datenbank, und ihre Daten liegen ausserhalb der Dateisystem-Quota.',
             self::FtpAccounts => 'Zusätzliche FTP-Konten. Der Systembenutzer des Abonnements zählt nicht mit.',
             self::CronJobs => 'Einträge in der Crontab des Systembenutzers.',
             self::FpmProcesses => 'Obergrenze des PHP-FPM-Pools (pm.max_children). Bestimmt, wie viele Anfragen gleichzeitig laufen.',

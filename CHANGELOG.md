@@ -7327,3 +7327,17 @@ beide Systeme als Zeichenkette benannte. Die Regel ist dieselbe wie in Lauf 451
 und richtig; die Tabelle ist jetzt ein `match` über das Enum, vollständig und
 ohne `default` — käme ein drittes System hinzu, meldete es der Übersetzer dort
 und nicht ein Kunde später.
+
+### P5b Schritt 7 beginnt bei den Sätzen, die nur ein System kennen
+
+Drei Stellen der Oberfläche erklärten ein Kontingent mit MariaDB, und seit
+Schritt 4 zählt es über beide Systeme (`docs/38 §12`). Der Satz „MariaDB kennt
+keine Obergrenze je Schema" ist dabei nicht bloss unvollständig — **er sagt
+einem PostgreSQL-Kunden das Gegenteil dessen, was gemeint ist:** dass ihn die
+Grenze nicht betrifft.
+
+`Quota::hint()` für Anzahl und Grösse, der Kommentar darüber und der Hinweis in
+`Subscriptions/Show.vue` nennen jetzt beide Server, ohne einen davon zu
+benennen. Der Pfad `/var/lib/mysql` fällt dabei aus dem Text: Er war das
+Beispiel für „liegt ausserhalb der Quota", und zwei Pfade nebeneinander erklären
+weniger als die Aussage selbst.

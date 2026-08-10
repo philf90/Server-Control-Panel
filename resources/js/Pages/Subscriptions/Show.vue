@@ -292,11 +292,10 @@ function remove(): void {
           hier eine Grenze sieht, soll nicht annehmen, dass sie zuschlägt.
         -->
         <p v-if="!props.database_usage.enforced && props.database_usage.count > 0" class="hint">
-          Diese Grenze wird <b>gemessen und nicht erzwungen</b>. MariaDB kennt
-          keine Obergrenze je Schema, und
-          <span class="ident">/var/lib/mysql</span> liegt ausserhalb der
-          Dateisystem-Quota des Abonnements — ein überschrittener Wert füllt den
-          Datenträger weiter.
+          Diese Grenze wird <b>gemessen und nicht erzwungen</b>. Keiner der
+          beiden Datenbankserver kennt eine Obergrenze je Datenbank, und ihre
+          Daten liegen ausserhalb der Dateisystem-Quota des Abonnements — ein
+          überschrittener Wert füllt den Datenträger weiter.
         </p>
       </Section>
 

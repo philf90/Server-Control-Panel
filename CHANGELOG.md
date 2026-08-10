@@ -8131,3 +8131,38 @@ eingespielten Daten hingen, entfällt ersatzlos.
 
 Bestandsdatenbanken zieht das Zurückspielen nach — es leert das Schema ohnehin
 privilegiert, und die Rolle dort anzulegen kostet keine eigene Wanderung.
+
+### Eine Domain, die sich selbst gesperrt hielt
+
+Der Betreiber hat am 10. August ein Abonnement entsperrt, und die Domain darunter
+blieb „gesperrt" — dauerhaft, ohne Knopf, der sie zurückgeholt hätte.
+
+Der Weg dahin ist ein Kreis. `subscription.suspend` schreibt jeden Server-Block
+neu, der Agent antwortet `suspended: true`, und der Web-Lebenslauf setzt die
+Domain daraufhin auf `suspended`. Beim Entsperren baute derselbe Lebenslauf die
+Argumente neu — und las dabei **genau diesen Zustand** wieder mit:
+
+    'suspended' => $domain->status === DomainStatus::Suspended
+        || $subscription?->status->usable() === false,
+
+Das Abonnement war frei, die Domain nicht, also ging sie erneut gesperrt hinaus
+und kam gesperrt zurück. Jeder weitere Versuch bestätigte nur, was der erste
+hinterlassen hatte.
+
+> **Ein Zustand, der aus dem Ergebnis der eigenen Entscheidung abgeleitet wird,
+> hält sich selbst am Leben.**
+
+`DomainStatus::Suspended` ist die *Anzeige* dieser Entscheidung und nicht ihre
+Quelle — einen Weg, eine einzelne Domain zu sperren, gibt es nicht: keine Route,
+keinen Knopf. Gefragt wird jetzt nur noch das Abonnement. Dieselbe Richtung, die
+`DbLifecycle` für die Datenbankzugänge längst hat: Dort kommt `mode` aus der
+*Aufgabe* und nie aus der Zeile, die sie ändert — deshalb kamen die Zugänge
+zurück und die Website nicht.
+
+**Und der Wächter war da, er zeigte nur in eine Richtung.**
+`test_suspending_a_subscription_reapplies_its_sites` prüfte das Sperren, und das
+Sperren war nie kaputt. Der Rückweg lief in keinem Test. Zum zweiten Mal in
+dieser Woche derselbe Satz: *Ein Wächter deckt einen Weg ab, keine Wirkung.* Es
+gibt jetzt zwei — einen auf die Argumente einer gesperrten Domain unter einem
+freien Abonnement, einen auf den ganzen Weg von `subscription.resume` bis zum
+Folgevorgang.

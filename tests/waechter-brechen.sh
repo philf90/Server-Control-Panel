@@ -5575,6 +5575,32 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AccountUnlockTest passed
 
 echo
+echo "── WebLifecycleTest: die Domain leitet ihre Sperre aus sich selbst ab ──"
+#
+# Der Zustand einer Domain ist das Ergebnis des letzten Laufs mit genau diesen
+# Argumenten. Steht er wieder in den Argumenten, kommt eine einmal gesperrte
+# Domain nie zurueck — das Abonnement war frei, die Domain blieb gesperrt.
+# Gemeldet vom Betreiber am 10. August 2026.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'suspended' => $subscription?->status->usable() === false,",
+    "            'suspended' => $domain->status === DomainStatus::Suspended\n"
+    "                || $subscription?->status->usable() === false,",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "Sperre aus dem eigenen Zustand" &&
+pruefe "Sperre aus dem eigenen Zustand" \
+  WebLifecycleTest::test_a_suspended_site_of_an_active_subscription_comes_back failed
+pruefe "  … und der ganze Rückweg auch" \
+  WebLifecycleTest::test_resuming_a_subscription_frees_its_sites failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WebLifecycleTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

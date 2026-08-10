@@ -7638,3 +7638,37 @@ eine Änderung an einer Datei, die der Bruch der Seite schon erreicht.
 `inactive` — über die Instanzunit `postgresql@16-main.service` und nicht über die
 Sammelunit, die aktiv bleibt, wenn der Cluster steht. Der Fund vom 9. August ist
 damit auf dem Server bestätigt und nicht nur repariert.
+
+### Punkt 3 der Zwischenabnahme: jeder PostgreSQL-Zugang entstand in MariaDB
+
+**Der teuerste Fund dieses Laufs, und der dritte derselben Bauform an einem
+Tag.** `Databases::createUser()` trug
+`DatabaseEngine $engine = DatabaseEngine::MariaDb`, und
+`DatabaseController::createUserFor()` rief sie ohne dieses Argument. Wer zu
+einer PostgreSQL-Datenbank einen Zugang anlegte, bekam deshalb `db.user.create`
+— eine **MariaDB**-Kennung mit dem Systembenutzer als Präfix und dem
+PostgreSQL-Namen in der Rechteliste.
+
+Beide Zeilen sehen für sich richtig aus. Die Signatur ist sinnvoll, der Aufruf
+ist sinnvoll, und in einer Welt mit einem Datenbanksystem waren sie es auch:
+`MariaDb` war dort keine Annahme, sondern eine Tatsache. **Mit dem zweiten System
+wurde aus derselben Zeile eine stille Wahl** — und niemand musste sie treffen.
+
+> **Wer ein zweites Etwas einführt, erbt die Vorgabewerte des ersten.**
+
+Die anderen beiden desselben Tages: `env('SRVPANEL_VERSION', '0.1.0-dev')` und
+`handed_over => false` im Grundzustand von `Pg\Server::describe()`. Dreimal
+derselbe Satz, dreimal an einer anderen Sprachstelle — Konfiguration,
+Array-Grundzustand, Parametervorgabe. Es ist keine Nachlässigkeit, sondern eine
+Bauform, und sie hat eine gemeinsame Gegenmassnahme:
+
+**Der Vorgabewert ist weg, und der Wächter dagegen ist der Übersetzer.** Ohne
+ihn kann kein Aufrufer die Frage übersehen — auch keiner, den es heute noch
+nicht gibt. `EngineDefaultTest` hält nur fest, dass er nicht zurückkommt, und
+prüft die Gegenrichtung mit: dass der Zugang sein System von der Datenbank
+bekommt, an der er hängt, und nicht aus einem festen Wert eine Zeile weiter.
+
+**Gefunden hat es der Betreiber auf einem echten Server**, in Punkt 3 der
+Zwischenabnahme, nachdem MariaDB durchlief und PostgreSQL nicht. Kein Test hat
+es gesehen — alle Tests, die einen Zugang anlegen, meinen MariaDB, und für die
+war die Vorgabe richtig.

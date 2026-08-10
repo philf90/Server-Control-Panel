@@ -5283,6 +5283,49 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgHandoverTest passed
 
 echo
+echo "── EngineDefaultTest: der Vorgabewert fuer das Datenbanksystem kehrt zurueck ──"
+#
+# Der teuerste Fund der Zwischenabnahme (docs/39, Punkt 3): Databases::createUser()
+# hatte `= DatabaseEngine::MariaDb`, und der Steuerungscode liess das Argument
+# weg — jeder Zugang zu einer PostgreSQL-Datenbank entstand damit in MariaDB.
+# Der eigentliche Waechter ist der Uebersetzer; dieser Bruch prueft, dass die
+# Vorgabe nicht zurueckkommt.
+vorher_datei app/Support/Databases/Databases.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        DatabaseEngine $engine,
+    ): array {",
+              "        DatabaseEngine $engine = DatabaseEngine::MariaDb,
+    ): array {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Databases.php "Vorgabewert fuer das System" &&
+pruefe "Vorgabewert fuer das System" \
+  EngineDefaultTest::test_no_method_guesses_the_engine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineDefaultTest passed
+
+echo
+echo "── EngineDefaultTest: der Zugang bekommt einen festen Wert ──"
+#
+# Die Gegenrichtung. Ohne sie liesse sich derselbe Fehler wiederholen, indem
+# der Steuerungscode `DatabaseEngine::MariaDb` einsetzt statt zu fragen, woran
+# der Zugang haengt — die Signatur waere zufrieden, das Ergebnis dasselbe.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                $database->engine,", "                DatabaseEngine::MariaDb,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "fester Wert statt Frage" &&
+pruefe "fester Wert statt Frage" \
+  EngineDefaultTest::test_the_access_follows_its_database failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineDefaultTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

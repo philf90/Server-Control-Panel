@@ -101,7 +101,26 @@ final class Databases
         Subscription $subscription,
         string $label,
         string $collation,
-        DatabaseEngine $engine = DatabaseEngine::MariaDb,
+
+        /*
+         * **Ohne Vorgabewert, und das ist die Lehre des 10. August 2026.**
+         * Hier stand `= DatabaseEngine::MariaDb`, und in {@see self::createUser()}
+         * ebenso — dort hat es zugeschlagen: `DatabaseController::createUserFor()`
+         * rief sie ohne dieses Argument, und **jeder Zugang zu einer
+         * PostgreSQL-Datenbank entstand damit in MariaDB.** Kein Test hat es
+         * gemerkt, weil beide Wege für sich richtig aussehen.
+         *
+         * Es ist derselbe Fehler wie `env('SRVPANEL_VERSION', '0.1.0-dev')` und
+         * wie `handed_over => false` im Grundzustand von `Pg\Server::describe()`
+         * — drei an einem Tag, und immer dieselbe Bauform: *Ein Vorgabewert, den
+         * niemand überschreibt, ist kein Vorgabewert, sondern die Antwort.*
+         *
+         * **Der Wächter dagegen ist kein Test, sondern der Übersetzer.** Ohne
+         * Vorgabewert kann kein Aufrufer die Frage übersehen; ein Test hätte
+         * jeden künftigen Aufrufer einzeln erwischen müssen. `EngineDefaultTest`
+         * hält nur fest, dass der Vorgabewert nicht zurückkommt.
+         */
+        DatabaseEngine $engine,
     ): Database {
         $this->guardQuota($subscription);
 
@@ -141,8 +160,12 @@ final class Databases
         Subscription $subscription,
         string $label,
         array $databases,
-        string $host = 'localhost',
-        DatabaseEngine $engine = DatabaseEngine::MariaDb,
+        string $host,
+
+        // Ohne Vorgabewert — die Begründung steht an {@see self::create()}.
+        // Genau hier ist der Zugang einer PostgreSQL-Datenbank in MariaDB
+        // gelandet, weil der Aufrufer das Argument nicht mitgab.
+        DatabaseEngine $engine,
     ): array {
         $driver = $this->driver($engine);
         $prefix = $driver->prefix($subscription);

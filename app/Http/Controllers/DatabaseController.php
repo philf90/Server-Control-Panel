@@ -843,7 +843,37 @@ final class DatabaseController extends Controller
             'engine' => $database->engine->value,
             'engine_label' => $database->engine->label(),
 
-            'collation' => $database->collation,
+            /*
+             * **Ob der Kunde dieses System über TCP erreicht.** In MariaDB
+             * verbindet eine Anwendung auf demselben Server über den
+             * Unix-Socket, in PostgreSQL nicht: `local all all peer` verlangt
+             * eine Rolle, die wie der Unix-Benutzer heisst, und
+             * `p1001_web` ist keiner (`docs/38 §14`). Der Kunde verbindet
+             * deshalb über `127.0.0.1`.
+             *
+             * **Als Eigenschaft und nicht als Name des Systems.** Die
+             * Oberfläche soll den Satz an dem festmachen, was er behauptet —
+             * Ein Vergleich mit dem Wert des Systems im Template wäre eine
+             * Zeichenkette aus dem Enum, und `DatabaseEngineTest` weist sie ab
+             * — er hat diesen Satz hier auch gleich mit erwischt, weil ein
+             * Kommentar mit einem Beispiel dasselbe Wort trägt wie der Code.
+             */
+            'over_tcp' => $database->engine !== DatabaseEngine::MariaDb,
+
+            /*
+             * **`null` für PostgreSQL, und das ist keine fehlende Angabe,
+             * sondern die richtige.** Die Spalte trägt dort weiterhin
+             * `utf8mb4_unicode_ci` — den Vorgabewert aus P5 —, und das ist eine
+             * Behauptung über eine Datenbank, die diesen Wert nie gesehen hat.
+             * Zeichensatz und Sortierung entstehen in PostgreSQL aus der
+             * Vorlage und werden von diesem Panel nicht gewählt
+             * (`docs/38 §5`); die Oberfläche zeigt die Zeile deshalb gar nicht.
+             *
+             * Die Unterscheidung steht hier und nicht im Template: Dort wäre
+             * sie ein Vergleich mit dem Wert des Systems als Zeichenkette, und
+             * `DatabaseEngineTest` weist den zu Recht ab.
+             */
+            'collation' => $database->engine === DatabaseEngine::MariaDb ? $database->collation : null,
             'size_bytes' => $database->size_bytes,
             'size_measured_at' => $database->size_measured_at?->toIso8601String(),
 

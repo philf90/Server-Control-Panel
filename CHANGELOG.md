@@ -7388,3 +7388,26 @@ jetzt mit ihm.
 Geprüft wird beim Absenden gegen dieselbe Liste, die das Formular gezeigt hat,
 und nicht bloss gegen das Enum: `postgres` durchzulassen, während der Betreiber
 es nicht anbietet, wäre eine Wahl, die es in der Oberfläche nie gab.
+
+### `Databases/Show.vue` — und eine Angabe, die für PostgreSQL gelogen war
+
+Die Detailseite nennt das System als Marke und sagt bei PostgreSQL, was beim
+Eintragen der Verbindungsdaten gebraucht wird: **über `127.0.0.1` und nicht über
+einen Socket.** Der Satz steht dort und nicht in einer Anleitung, weil die
+Meldung im Fehlerfall auf etwas anderes zeigt als auf die Ursache — eine
+Anwendung, die auf `localhost` als Socket verbindet, bekommt
+„Peer authentication failed", und das liest sich wie ein Rechteproblem. Dazu der
+Hinweis zu Erweiterungen aus `docs/38 §5`.
+
+**Die Sortierung fällt weg, wo sie nichts bedeutet.** In der Zeile stand für
+jede PostgreSQL-Datenbank `utf8mb4_unicode_ci` — der Vorgabewert der Spalte aus
+P5, den diese Datenbank nie gesehen hat. Zeichensatz und Sortierung entstehen
+dort aus der Vorlage des Servers. Der Server liefert für sie jetzt `null`, und
+die Oberfläche zeigt die Zeile gar nicht: **eine fehlende Angabe ist ehrlicher
+als eine falsche.**
+
+Beide Bedingungen hängen an einer *Eigenschaft* und nicht am Namen des Systems
+— `over_tcp`, und `collation === null`. Ein Vergleich mit dem Wert des Systems
+im Template wäre eine Zeichenkette aus dem Enum; `DatabaseEngineTest` weist sie
+ab und hat dabei sogar einen Kommentar erwischt, der das Wort nur als Beispiel
+trug.

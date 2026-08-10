@@ -34,7 +34,12 @@ interface Row {
   label: string
   status: string
   status_label: string
-  collation: string
+  engine: string
+  engine_label: string
+
+  /** Ob der Kunde dieses System über 127.0.0.1 erreicht statt über den Socket. */
+  over_tcp: boolean
+  collation: string | null
   size_bytes: number | null
   size_measured_at: string | null
   subscription: string | null
@@ -285,6 +290,15 @@ function size(): string {
               <td class="right ident">{{ props.database.name }}</td>
             </tr>
             <tr>
+              <td class="quiet">System</td>
+              <td class="right"><Badge kind="neutral">{{ props.database.engine_label }}</Badge></td>
+            </tr>
+
+            <!-- Die Zeile fehlt, wo es nichts zu sagen gibt: In PostgreSQL
+                 entstehen Zeichensatz und Sortierung aus der Vorlage des
+                 Servers, und der Wert in der Zeile wäre der Vorgabewert aus P5
+                 — eine Angabe über eine Datenbank, die ihn nie gesehen hat. -->
+            <tr v-if="props.database.collation !== null">
               <td class="quiet">Sortierung</td>
               <td class="right ident">{{ props.database.collation }}</td>
             </tr>
@@ -306,6 +320,19 @@ function size(): string {
             </tr>
           </tbody>
         </table>
+
+        <!-- **Der Satz steht hier und nicht in der Dokumentation**, weil er
+             beim Eintragen der Verbindungsdaten gebraucht wird: Eine Anwendung,
+             die auf `localhost` als Socket verbindet, bekommt bei PostgreSQL
+             „Peer authentication failed" — eine Meldung, die auf eine
+             Authentifizierungsmethode zeigt und nicht auf den Wirt. -->
+        <p v-if="props.database.over_tcp" class="hint">
+          Anwendungen auf diesem Server verbinden sich über
+          <span class="ident">127.0.0.1</span> und den Port des Servers, nicht
+          über einen Socket. Erweiterungen — <span class="ident">postgis</span>,
+          <span class="ident">pgcrypto</span> und andere — richtet der Betreiber
+          ein; ein Zugang dieses Abonnements darf sie nicht selbst anlegen.
+        </p>
       </Section>
 
       <!--

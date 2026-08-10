@@ -7464,3 +7464,69 @@ er absichern soll. Dasselbe Muster wie bei den Eingriffen in
 `waechter-brechen.sh`, nur in einem Test. Er geht jetzt über `Lifecycles`, also
 über den Weg, den die Anwendung nimmt: Zieht die Regel noch einmal um, bleibt er
 richtig.
+
+### `srvpanel:version` — und ein Vorgabewert, der zwei Jahre die Antwort war
+
+Beim Testlauf von `v0.5.1-rc.2` fragte der Betreiber `srvpanel --version` und
+bekam „Laravel Framework 13.23.0". Richtig — `srvpanel` reicht alles an `artisan`
+durch, und `artisan --version` nennt die Fassung des Frameworks. Für die Frage
+„ist rc.2 installiert?" ist sie wertlos. **Das ist derselbe Stellvertreter, der
+in P5b schon zweimal zugeschlagen hat:** gemessen wurde etwas, das an der
+richtigen Stelle stand und die falsche Sache nannte.
+
+**Die Suche nach der richtigen Stelle hat einen Fehler freigelegt, der seit der
+ersten Woche ausgeliefert ist.** `config('app.version')` las
+`env('SRVPANEL_VERSION', '0.1.0-dev')`, und **diese Variable wird nirgends
+gesetzt** — nicht vom Paket, nicht von `srvpanel setup`, nicht in einer
+`.env.example`. Die Marke im Menü zeigte also auf jedem Server dieser Welt
+`0.1.0-dev`, und der Kommentar direkt daneben nennt sie „die erste Frage bei
+jedem Fehlerbericht". Gemerkt hat es niemand, weil nichts den Bezug prüfte —
+wortwörtlich das Muster, das `CLAUDE.md` als den teuersten Fehler dieses
+Projekts führt.
+
+> **Ein Vorgabewert für eine Variable, die niemand setzt, ist kein Vorgabewert —
+> er ist die Antwort.**
+
+Ein `env()` mit zweitem Argument sieht in jeder Durchsicht harmlos aus. Es wird
+nicht dadurch falsch, dass es dasteht, sondern dadurch, dass die Variable
+fehlt — und das steht nicht in der Zeile, sondern in ihrer Abwesenheit
+anderswo. Es gibt keinen Ort, an dem man beim Lesen darüber stolpert.
+
+**Die Fassung kommt jetzt aus dem Verzeichnisnamen.** Das Paket legt jede
+Auslieferung nach `/opt/srvpanel/releases/<fassung>` und lässt `current` darauf
+zeigen (`packaging/install.sh`); der Name ist damit nicht eine *Angabe über* die
+laufende Fassung, sondern sie selbst. Eine Datei daneben — `VERSION`, ein
+Eintrag in `srvpanel.php` — wäre eine zweite Fassung derselben Auskunft, und die
+zweite ist die, die beim nächsten Update stehen bleibt. Der Integrationslauf
+prüft denselben Zusammenhang längst von der anderen Seite („Das Verzeichnis der
+Fassung traegt die Fassung").
+
+**Im Quellbaum steht ein Wort und keine Nummer:** `aus dem Quellbaum`. Eine
+erfundene Zahl — `0.0.0`, `dev` — sähe in einem Fehlerbericht aus wie eine
+Auskunft und wäre keine; genau daran ist `0.1.0-dev` zwei Jahre lang
+vorbeigekommen.
+
+`srvpanel version` gibt die Fassung allein aus, ohne Satz drumherum: Der
+häufigste Gebrauch ist eine Zeile in einem Fehlerbericht oder ein Vergleich in
+einem Skript, und beides bricht an Zierrat. `--details` nennt dazu das
+Verzeichnis, aus dem die Auskunft stammt, und den Commit — leer, wenn kein
+Freigabelauf ihn gesetzt hat, denn eine erfundene Kennung wäre schlimmer als
+keine. **Die Abkürzung `-v` gab es im ersten Entwurf und geht nicht:** Symfony
+belegt sie für die Redseligkeit, und ein zweiter Anspruch darauf wirft beim
+Aufbau der Kommandoliste — also bei *jedem* `artisan`-Aufruf, nicht nur bei
+diesem. Derselbe Fehlertyp wie ein Methodenname, der der Basisklasse gehört.
+
+**Und `srvpanel --version` beantwortet die Frage jetzt selbst.** Der Wrapper
+reichte den Schalter an artisan durch; wer ihn tippt, meint aber das Programm,
+das er aufruft.
+
+**Der Wächter prüft die Zeile und nicht den Wert.** Ein Test gegen
+`config('app.version')` wäre grün, sobald irgendjemand `SRVPANEL_VERSION` in
+seiner eigenen `.env` setzt, und rot auf jedem Server, der das nicht tut — er
+prüfte die Umgebung des Prüfers. `ReleaseVersionTest` liest deshalb
+`config/app.php` als Text, verlangt dort `Release::version()`, verbietet `env(`
+und sieht in beide Richtungen nach, dass die Auskunft die Oberfläche und den
+Befehl erreicht. Beide Brüche stehen in `tests/waechter-brechen.sh`, und mit
+ihnen kommt `config/` in die Liste der Verzeichnisse, die das Skript
+wiederherstellt: Der eine Bruch baut die alte Zeile wieder ein, und ohne die
+Liste bliebe sie stehen.

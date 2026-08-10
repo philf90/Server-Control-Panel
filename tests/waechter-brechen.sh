@@ -41,6 +41,12 @@
 # toten. Ohne die Zeile bliebe er stehen — und der nächste Lauf fände ein
 # schmutziges Verzeichnis vor, das er sich selbst gemacht hat.
 #
+# `config/` kam mit dem Fassungsbefehl dazu, und der Anlass ist der teuerste
+# Bruch dieses Skripts: Er dreht `config/app.php` auf `env('SRVPANEL_VERSION',
+# '0.1.0-dev')` zurück — auf genau die Zeile, die zwei Jahre lang ausgeliefert
+# war. Stünde das Verzeichnis nicht in der Liste, bliebe sie stehen, und der
+# Bruch hätte den Fehler nicht geprüft, sondern wieder eingebaut.
+#
 # `database/` kam mit P5 dazu, und der Anlass ist genau der Satz darüber: Ein
 # Wächter prüft dort am **Schema**, dass es keine Spalte für ein Passwort gibt
 # (`SecretsStayOutOfTheQueueTest`), und der Bruch dazu fügt eine ein. Ohne diese
@@ -67,15 +73,15 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/; then
-  echo "resources/, app/, agent/, packaging/, .github/, database/, routes/ oder docs/ hat ungesicherte" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/; then
+  echo "resources/, app/, agent/, packaging/, .github/, database/, routes/, docs/ oder config/ hat ungesicherte" >&2
   echo "Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -5150,6 +5156,49 @@ pruefe "Sicherung ohne Weg zurueck" \
   RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
 git checkout -- tests/Feature/RemovalPathTest.php
 pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
+
+echo
+echo "── ReleaseVersionTest: die Fassung kommt wieder aus einer Umgebungsvariable ──"
+#
+# Der Zustand, der zwei Jahre ausgeliefert war. `SRVPANEL_VERSION` wird nirgends
+# gesetzt — nicht im Paket, nicht in der Einrichtung, nicht in der `.env` —, und
+# die Marke im Menue nannte deshalb den Vorgabewert. Die Zeile sieht in jeder
+# Durchsicht harmlos aus; falsch wird sie erst dadurch, dass niemand die
+# Variable setzt, und das sieht man ihr nicht an.
+vorher_datei config/app.php
+python3 - <<'PY2'
+p = 'config/app.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'version' => Release::version(),",
+              "'version' => env('SRVPANEL_VERSION', '0.1.0-dev'),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei config/app.php "Fassung aus der Umgebung" &&
+pruefe "Fassung aus der Umgebung" \
+  ReleaseVersionTest::test_the_version_does_not_come_from_an_unset_variable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseVersionTest passed
+
+echo
+echo "── ReleaseVersionTest: jedes Verzeichnis gilt als Fassung ──"
+#
+# Die Gegenrichtung, und sie ist die leisere. Ein zu weites Muster meldet keinen
+# Fehler — es nennt den Namen des Verzeichnisses, in dem die Anwendung gerade
+# liegt, und im Quellbaum heisst das `Server-Control-Panel`. Ein Fehlerbericht
+# traegt dann eine Angabe, die aussieht wie eine Fassung und keine ist.
+vorher_datei app/Support/Panel/Release.php
+python3 - <<'PY2'
+p = 'app/Support/Panel/Release.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("private const PATTERN = '/^\\d+\\.\\d+\\.\\d+(-[a-z]+(\\.\\d+)?)?$/D';",
+              "private const PATTERN = '/./D';")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Panel/Release.php "Muster ohne Form" &&
+pruefe "Muster ohne Form" \
+  ReleaseVersionTest::test_a_release_directory_names_its_version failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseVersionTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

@@ -8298,3 +8298,31 @@ eine Beobachtung statt eines Belegs.
 Punkt 9 zählt die Eigentümerrolle jetzt mit: Sie entsteht mit der ersten
 Datenbank und geht mit der letzten. Bleibt sie stehen, ist der Rückbau
 unvollständig — auch wenn er grün gemeldet hat.
+
+### Zwei Abweichungen im Abnahmeablauf, die keine waren
+
+Punkt 1 von `docs/39` fragte `rolname LIKE '%\_owner'` und erwartete `0`. Auf
+`cloudsrv24` kam `1` — getroffen hat die Zeile `pg_database_owner`, eine
+**eingebaute** Rolle (gemessen: `oid < 16384`), die es seit PostgreSQL 14 in
+jedem Cluster gibt. Und die Zeile darunter erwartete `root` als Eigentümer des
+Schemas `public`; seit PostgreSQL 15 gehört es `pg_database_owner` — gemessen an
+einer frisch angelegten Datenbank auf 16.13.
+
+> **Ein Wächter, der nach einer Endung fragt, findet, was so endet.**
+
+Beide Zeilen haben eine Abweichung erzeugt, die keine war — in dem Dokument, das
+Abweichungen erkennen soll. Gefragt wird jetzt nach dem Namen, den dieses Panel
+vergibt (`<präfix>_owner`, exakt), und der Eigentümer des Schemas wird als
+**Eigenschaft** geprüft (`nspowner = '<präfix>_owner'::regrole`) statt als Name:
+Was davor dasteht, unterscheidet sich zwischen den vier Zielplattformen, und die
+Frage lautet ohnehin nur „gehört es schon dem Abonnement".
+
+Der Beleg für die Nachrüstung wandert damit auf die zwei Zeilen, die auf
+`cloudsrv24` leer geblieben sind und deshalb tragen: Mitgliedschaft und
+`pg_db_role_setting`. Sie sind das, was die Nachrüstung an einer
+Bestandsdatenbank wirklich ändert.
+
+**Der Code ist davon nicht betroffen.** `Owner::roles()` fragt mit
+`starts_with(rolname, '<präfix>_')` **und** `rolcanlogin`, `Owner::ensure()` und
+der Rückbau fragen den Namen exakt — eingebaute Rollen tragen weder das Präfix
+noch ein Anmelderecht.

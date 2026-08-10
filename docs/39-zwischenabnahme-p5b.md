@@ -96,17 +96,51 @@ sudo -u postgres psql -tAc "SELECT count(*) FROM pg_roles WHERE rolname='srvpane
 zum ersten Mal zurückgespielt wird.
 
 Und, wenn die Datenbank aus der Zeit **vor** `v0.5.1-rc.5` stammt, dazu die
-Gegenprobe zur Nachrüstung:
+Gegenprobe zur Nachrüstung. Sie besteht aus drei Fragen, und **die letzten
+beiden sind die belastbaren**:
 
 ```bash
-sudo -u postgres psql -tAc "SELECT count(*) FROM pg_roles WHERE rolname LIKE '%\_owner'"
-sudo -u postgres psql -d <db> -tAc "SELECT nspowner::regrole FROM pg_namespace WHERE nspname='public'"
+sudo -u postgres psql -tAc "SELECT count(*) FROM pg_roles WHERE rolname = '<präfix>_owner'"
+
+sudo -u postgres psql -tAc \
+  "SELECT count(*) FROM pg_auth_members m JOIN pg_roles g ON g.oid = m.roleid
+    WHERE g.rolname = '<präfix>_owner'"
+sudo -u postgres psql -tAc \
+  "SELECT count(*) FROM pg_db_role_setting s JOIN pg_roles r ON r.oid = s.setrole
+    WHERE r.rolname LIKE '<präfix>\_%'"
 ```
 
-**Erwartet:** `0` und `root`. Nach Punkt 7 steht dort die Eigentümerrolle des
-Abonnements — **das ist der Beleg dafür, dass die Nachrüstung gelaufen ist**,
-und ohne diese Messung davor wäre er nur eine Beobachtung. Dieselbe Falle wie
-bei `pg_hba.conf` eine Zeile höher.
+**Erwartet: dreimal `0`.** Nach Punkt 7 steht dort die Eigentümerrolle, mindestens
+ein Mitglied und mindestens ein `role=<präfix>_owner` — **das ist der Beleg dafür,
+dass die Nachrüstung gelaufen ist**, und ohne diese Messung davor wäre er nur
+eine Beobachtung. Dieselbe Falle wie bei `pg_hba.conf` eine Zeile höher.
+
+> **Hier stand `rolname LIKE '%\_owner'`, und die Zeile hat auf `cloudsrv24` am
+> 10. August 2026 eine `1` gemeldet, wo eine `0` stehen sollte.** Getroffen hat
+> sie `pg_database_owner` — eine **eingebaute** Rolle (gemessen: `oid < 16384`),
+> die es seit PostgreSQL 14 in jedem Cluster gibt. Gefragt wird deshalb nach dem
+> Namen, den dieses Panel vergibt, und nicht nach einer Endung.
+>
+> **Und darunter stand die Erwartung `root` für den Eigentümer des Schemas. Auch
+> die war falsch:** Seit PostgreSQL 15 gehört `public` der Rolle
+> `pg_database_owner` — gemessen an einer frisch angelegten Datenbank auf 16.13.
+> Ein Ablauf, der `root` verlangt, meldet auf jeder Zielplattform ausser
+> Ubuntu 22.04 einen Fehlschlag, den es nicht gibt.
+>
+> *Ein Wächter, der nach einer Endung fragt, findet, was so endet.* Beide Zeilen
+> haben eine Abweichung erzeugt, die keine war — und zwar in dem Dokument, das
+> Abweichungen erkennen soll.
+
+Wer den Eigentümer des Schemas trotzdem sehen will, prüft die **Eigenschaft** und
+nicht den Namen:
+
+```bash
+sudo -u postgres psql -d <db> -tAc \
+  "SELECT nspowner::regrole = '<präfix>_owner'::regrole FROM pg_namespace WHERE nspname='public'"
+```
+
+**Erwartet:** `f` vorher, `t` nach Punkt 7. Was davor dasteht — `pg_database_owner`
+ab PG 15, `postgres` oder `root` darunter —, ist für diese Frage gleichgültig.
 
 Und die Prüfsumme, weil `38 §19` Punkt 0 sie später vergleicht:
 

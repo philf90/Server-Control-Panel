@@ -8273,3 +8273,28 @@ Beide Marken werden jetzt gelesen, mit einer Rückreferenz statt einer zweiten
 Alternative — sonst endete ein `PY2`-Block an der ersten Zeile `PY` darin. Der
 Bestand wächst damit von 225 auf 244 Blöcke und von 246 auf 247 geprüfte
 Eingriffe; tot ist keiner mehr.
+
+### `docs/39` Punkt 7 zieht mit dem Entwurf mit
+
+Der Ablauf erwartete nach dem Zurückspielen `root` als Eigentümer, beschrieb
+`REASSIGN OWNED BY … TO` als den Weg dorthin und kannte den Fall „Zurückspielen
+in eine Datenbank, in der schon Tabellen stehen" gar nicht. Alle drei sind seit
+`v0.5.1-rc.5` überholt.
+
+> **Ein Ablauf, dessen Erwartung nicht mit dem Entwurf mitzieht, prüft die
+> vorige Fassung.**
+
+Neu gefasst: der Eigentümer ist `<präfix>_owner` (mit der Tabelle, welche der
+zwei Antworten bei welchem Alter der Datenbank richtig ist), das Kaputtmachen vor
+7d legt zusätzlich eine Tabelle **dazu**, und drei Fragen prüfen, was dem Kunden
+gehört — lesen, schreiben, und `current_user`/`session_user` als Erklärung für
+die ersten beiden. Dazu drei neue Schritte: **7d-2** spielt ein zweites Mal
+zurück, diesmal in eine volle Datenbank (der erste Lauf lief in eine leere — ein
+Erfolg, der nichts über die Wiederholbarkeit sagt), **7e** prüft den zweiten
+Zugang, und Punkt 1 misst vorher, dass es die Eigentümerrolle **noch nicht**
+gibt und `public` noch `root` gehört. Ohne diese Vormessung wäre die Nachrüstung
+eine Beobachtung statt eines Belegs.
+
+Punkt 9 zählt die Eigentümerrolle jetzt mit: Sie entsteht mit der ersten
+Datenbank und geht mit der letzten. Bleibt sie stehen, ist der Rückbau
+unvollständig — auch wenn er grün gemeldet hat.

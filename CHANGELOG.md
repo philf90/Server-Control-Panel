@@ -7411,3 +7411,30 @@ Beide Bedingungen hängen an einer *Eigenschaft* und nicht am Namen des Systems
 im Template wäre eine Zeichenkette aus dem Enum; `DatabaseEngineTest` weist sie
 ab und hat dabei sogar einen Kommentar erwischt, der das Wort nur als Beispiel
 trug.
+
+### Die Aufnahmen zu Schritt 7 — gemessen, aber nicht an der echten Seite
+
+`vendor/` gibt es in diesem Container nicht, also läuft `artisan serve` nicht.
+Gemessen wurde deshalb auf dem Weg, den `CLAUDE.md` für genau diesen Fall
+beschreibt: das gebaute Stylesheet aus `public/build`, das Markup der drei
+geänderten Bausteine in einer eigenen Datei, gerendert im vorinstallierten
+Chromium.
+
+**Und zwar mit dem längsten Namen, den dieses Panel vergeben kann.** Der erste
+Lauf nahm `x7f3a91c2b40e15d6_shop` — zweiundzwanzig Zeichen —, und in der
+Detailseite stand die Kennung sichtbar knapp am Rand. Erlaubt sind aber
+vierunddreissig: siebzehn Präfix, ein Unterstrich, sechzehn Zusatz. Eine
+Messung am bequemen Beispiel ist keine Messung; genau daran ist `v0.4.0-rc.4`
+gescheitert.
+
+Ergebnis mit dem Härtefall: **`scrollWidth - clientWidth` ist 0 px** — bei
+390 px und bei 1280 px, hell und dunkel. Die Kennung bricht in der mobilen
+Ansicht mitten im Wort und im Fliesstext an der Wortgrenze; beides ist hässlicher
+als ein kurzer Name und besser als eine Seite, die sich schieben lässt.
+
+**Was das nicht belegt, gehört dazu:** Der Weg zeigt einen Baustein und nicht
+die Seite. Wie sich die Spalte „System" neben den übrigen Spalten verhält, wie
+die Abschnitte zusammen umbrechen und ob eine Marke im Zusammenspiel kippt,
+sagen erst Aufnahmen der laufenden Anwendung. Sie stehen aus und sind **nicht
+abgehakt** — P4 Schritt 6 ist genau so ausgeliefert worden, und die nachgeholte
+Runde fand drei Fehler auf einer vollständig grün getesteten Seite.

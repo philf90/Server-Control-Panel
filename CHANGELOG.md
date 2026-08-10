@@ -8075,3 +8075,24 @@ die Regel selbst: Rutschte `--expiredate` in denselben Zweig wie `--unlock`,
 bliebe ein freigegebenes Abonnement abgelaufen — auf jedem Server, denn kein
 Systembenutzer hat ein Passwort. Aus einer stillen Warnung würde eine stille
 Sperre.
+
+### `docs/39` Punkt 7: die Prüfung, die dem Kunden gehört
+
+Der Ablauf liess die Tabelle als `postgres` anlegen und prüfte nach dem
+Zurückspielen die Zeilenzahl und den Eigentümer. **Beides beantwortet die Frage
+des Betreibers und nicht die des Kunden.**
+
+Der Weg beim Zurückspielen ist: `pg_dump --no-owner --no-privileges` wirft
+Eigentum und Rechte weg, die befristete Rolle legt alles neu an, und
+`REASSIGN OWNED BY … TO` überträgt es an den Eigentümer der Datenbank — an
+`root`. Hatte der Kunde die Tabelle vorher selbst angelegt, gehörte sie ihm;
+danach gehört sie `root`. **Ob er sie noch lesen kann, steht damit offen** — und
+`sudo -u postgres` sieht davon nichts, weil ein Superuser immer darf.
+
+Der Ablauf legt die Tabelle jetzt **als Kunde** an — so, wie es auf einem echten
+Server zugeht — und liest sie nach dem Zurückspielen **als Kunde** wieder. Das
+ist die Zeile, die entscheidet, ob eine wiederhergestellte Datenbank für ihren
+Besitzer benutzbar ist.
+
+> **Wer eine Wiederherstellung als Superuser prüft, prüft die Wiederherstellung
+> und nicht ihren Zweck.**

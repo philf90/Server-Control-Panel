@@ -286,12 +286,22 @@ Lauf nur, dass irgendetwas nicht ging.
 Der Kern dieses Laufs. Hier passiert am meisten zum ersten Mal auf einem echten
 System.
 
-Erst Inhalt anlegen:
+Erst Inhalt anlegen — **als Kunde und nicht als `postgres`.** Wer die Tabelle
+als Superuser anlegt, misst hinterher einen Fall, den es auf keinem echten
+Server gibt: Dort legt der Kunde seine Tabellen selbst an, und ihm gehören sie
+auch.
 
 ```bash
-sudo -u postgres psql -d <db> -c "CREATE TABLE kunden (id int primary key, name text)"
-sudo -u postgres psql -d <db> -c "INSERT INTO kunden VALUES (1,'a'),(2,'b')"
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "CREATE TABLE kunden (id int primary key, name text)"
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "INSERT INTO kunden VALUES (1,'a'),(2,'b')"
+sudo -u postgres psql -d <db> -tAc "SELECT tableowner FROM pg_tables WHERE tablename='kunden'"
 ```
+
+**Erwartet:** Das Anlegen geht durch (`GRANT ALL ON SCHEMA public` steht seit
+PostgreSQL 15 nicht mehr für alle), und der Eigentümer ist die **Kundenrolle**.
+Notier ihn — nach dem Zurückspielen steht dort ein anderer.
 
 ### 7a — Sicherung erstellen (im Panel)
 
@@ -337,6 +347,28 @@ sudo -u postgres psql -d <db> -tAc "SELECT tableowner FROM pg_tables WHERE table
 
 **Erwartet:** `2` — und der Eigentümer ist **`root`**, nicht die befristete
 Rolle.
+
+**Und dann die Frage, auf die es dem Kunden ankommt:**
+
+```bash
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "SELECT count(*) FROM kunden"
+```
+
+> **Diese Zeile stand bis zum 10. August 2026 nicht in diesem Ablauf, und sie
+> ist die wichtigste von Punkt 7.** Der Weg beim Zurückspielen ist:
+> `pg_dump --no-owner --no-privileges` wirft Eigentum und Rechte weg, die
+> befristete Rolle legt alles neu an, und `REASSIGN OWNED BY … TO` überträgt es
+> an den **Eigentümer der Datenbank** — an `root`.
+>
+> Was dabei **nicht** mitkommt, sind die Rechte des Kunden. Hatte er die Tabelle
+> vorher selbst angelegt, gehörte sie ihm; danach gehört sie `root`. Ob er sie
+> noch lesen kann, entscheidet sich an den Vorgaberechten des Schemas — und das
+> ist keine Frage, die man aus dem Code beantwortet, sondern eine, die man
+> misst.
+>
+> **Wer nur die Zeilen zählt, sieht davon nichts:** `sudo -u postgres` ist
+> Superuser und darf immer.
 
 > **Die zweite Zeile ist die wichtigere.** Was eine Rolle anlegt, gehört ihr;
 > das `DROP OWNED BY` beim Aufräumen nahm deshalb im ersten Anlauf genau die

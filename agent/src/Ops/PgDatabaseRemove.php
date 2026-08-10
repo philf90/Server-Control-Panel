@@ -150,9 +150,59 @@ final class PgDatabaseRemove implements Op
             $removed[] = $role;
         }
 
+        $context->progress(95, 'Eigentümerrolle prüfen');
+        $owner = $this->removeOwner($context, $prefix);
+
         $context->progress(100, 'fertig');
 
-        return ['name' => $database, 'removed' => $existed, 'roles_removed' => $removed];
+        return [
+            'name' => $database,
+            'removed' => $existed,
+            'roles_removed' => $removed,
+            'owner_removed' => $owner,
+        ];
+    }
+
+    /**
+     * Und die Eigentümerrolle geht mit der **letzten** Datenbank.
+     *
+     * **Ohne diese Zeile gäbe es hier genau die Lücke, die `docs/35` teuer
+     * gelernt hat:** etwas, das sich anlegen, aber nirgends löschen lässt. Sie
+     * entsteht in {@see PgDatabaseCreate}, überlebt jeden Rückbau und bliebe
+     * für immer in `pg_roles` stehen — sichtbar für jeden, der den Katalog
+     * lesen darf, und damit ein Grabstein, der ein Abonnement nennt, das es
+     * nicht mehr gibt.
+     *
+     * **Gefragt wird der Katalog und nicht die Anwendung.** Das ist die
+     * Ausnahme von der Regel eine Methode weiter unten, und der Grund ist die
+     * Richtung des Fehlschlags: Eine Anwendung, die sich um eine Datenbank
+     * verzählt, liesse hier `DROP ROLE` auf eine Rolle laufen, der noch ein
+     * Schema gehört — PostgreSQL verweigert das, und der ganze Rückbau wäre
+     * rot. Der Katalog weiss es sicher.
+     *
+     * **`DROP OWNED BY` steht nicht dabei, und das ist gemessen.**
+     * `DROP DATABASE` nimmt alle Abhängigkeiten mit, die in ihr wurzeln — auch
+     * das Eigentum am Schema `public`. Ist die letzte Datenbank fort, hängt an
+     * der Rolle nichts mehr (siehe Klassenkopf, 9. August 2026).
+     *
+     * @return string|null Der Name, wenn sie ging — sonst `null`
+     */
+    private function removeOwner(Context $context, string $prefix): ?string
+    {
+        $remaining = $this->session->query($context, sprintf(
+            'SELECT 1 FROM pg_database WHERE starts_with(datname, %s)',
+            Sql::text($prefix.'_'),
+        ));
+
+        if ($remaining !== []) {
+            return null;
+        }
+
+        $owner = Names::owner($prefix);
+
+        $this->session->execute($context, [PgRoleRemove::statement($owner)]);
+
+        return $owner;
     }
 
     /**

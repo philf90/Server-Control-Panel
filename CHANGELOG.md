@@ -8166,3 +8166,62 @@ dieser Woche derselbe Satz: *Ein Wächter deckt einen Weg ab, keine Wirkung.* Es
 gibt jetzt zwei — einen auf die Argumente einer gesperrten Domain unter einem
 freien Abonnement, einen auf den ganzen Weg von `subscription.resume` bis zum
 Folgevorgang.
+
+### Die Eigentümerrolle ist gebaut — und ein Kommentar war zwei Fassungen lang falsch
+
+`docs/38 §21` Entscheidung 11 steht jetzt im Agenten: `Pg\Owner`, eine Rolle je
+Abonnement (`<präfix>_owner`, `NOLOGIN`, ohne Passwort), der das Schema `public`
+gehört. Jeder Zugang ist Mitglied, und **jede seiner Sitzungen läuft als sie** —
+`ALTER ROLE … IN DATABASE … SET role`. Was ein Zugang anlegt, gehört damit dem
+Abonnement; `session_user` bleibt der Zugang selbst, wer verbunden war steht
+weiter im Protokoll von PostgreSQL.
+
+Sechs Stellen: `pg.database.create` (Rolle anlegen, Schema übergeben),
+`pg.role.create` (Mitgliedschaft), `pg.role.grant` (Sitzungsrolle je Datenbank,
+`RESET` beim Entzug), `Pg\Ephemeral` (Mitglied und Sitzungsrolle),
+`pg.restore` (Nachrüstung, privilegiertes Leeren) und `pg.database.remove` —
+**der Weg zurück**, den `docs/35` erzwingt: Die Rolle geht mit der letzten
+Datenbank ihres Abonnements, und ob es die letzte war, sagt der Katalog.
+
+Gemessen am 10. August 2026 gegen PostgreSQL 16.13, mit den Anweisungen, die der
+Code selbst erzeugt: `x_cron` liest, ändert und löscht, was `x_web` angelegt
+hat; ein Zurückspielen in eine Datenbank mit Tabellen gelingt (vorher
+`ERROR: relation "kunden" already exists`, Rückgabewert 3); die eingespielte
+Tabelle gehört `x…_owner`; die befristete Rolle besitzt danach **0** Objekte,
+und `DROP ROLE` geht ohne `REASSIGN OWNED BY`. Das `REASSIGN` ist deshalb weg —
+es übertrug das Eingespielte an den Eigentümer der *Datenbank*, und die gehört
+dem Panel.
+
+**Und der teuerste Fund dieser Runde ist ein Kommentar.** In `PgRoleGrant` stand
+seit zwei Fassungen `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON
+TABLES TO <rolle>` mit der Erklärung, das löse das Problem des zweiten Zugangs.
+Es hat es nie gelöst: Ohne `FOR ROLE` gilt die Anweisung nur für Objekte, die
+die **ausführende** Rolle anlegt — den Agenten. `PgGrantTest` hat sie geprüft und
+dabei die Begründung mitgeprüft.
+
+> **Ein Kommentar, der eine Wirkung behauptet, ist keine Messung — und ein
+> Wächter, der ihn abschreibt, macht ihn zur Regel.**
+
+Die zwei `GRANT`-Zeilen sind weg, die zwei `REVOKE` bleiben: Auf Servern einer
+früheren Fassung stehen die Einträge noch in `pg_default_acl`. *Wer etwas nicht
+mehr anlegt, baut den Weg zurück trotzdem.*
+
+**Der Gegenbruch hat zwei neue Wächter als blind entlarvt**, bevor sie eine
+Fassung erlebt haben. `PgOwnerTest` liest im Quelltext, ob das Leeren vor dem
+Einspielen steht — und fand `Owner::reset(` zuerst in einem `{@see …}` im
+Kommentar darüber. Der Test blieb grün, als die Reihenfolge absichtlich
+vertauscht wurde. Seitdem geht der Quelltext durch `WithoutPhpComments`:
+
+> **Ein Wächter, der im Quelltext liest, liest auch, was jemand über den
+> Quelltext geschrieben hat.** Und in diesem Projekt steht darüber viel.
+
+### Und die Freigabe eines Abonnements hat jetzt einen Wächter für alle drei
+
+`SubscriptionResumeReachTest`. Ein Abonnement hat drei Sorten Untergebene —
+Websites, MariaDB-Zugänge, PostgreSQL-Rollen —, und geprüft war bisher von
+keinem, dass die *Freigabe* sie erreicht: `EngineScopeTest` sieht nach, ob die
+Lebensläufe die Aufgabe kennen (`handles()`), nicht ob danach ein Vorgang mit
+`mode: unlock` entsteht. Genau in dieser Lücke sass der Domainfehler darüber.
+Beide Richtungen stehen jetzt in einem Test, und in einem: Drei getrennte
+liessen offen, ob *zusammen* alles herauskommt — und genau das war der Fall, der
+schiefging.

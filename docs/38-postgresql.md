@@ -795,16 +795,15 @@ genau eine Datenbank, `DROP` im `finally`.
 > Entscheidung 9 in §21: eine Gruppenrolle `srvpanel_restore` und eine Zeile
 > ganz oben in `pg_hba.conf`.
 >
-> **Sie braucht `GRANT ALL ON SCHEMA public`.** Seit PostgreSQL 15 darf `PUBLIC`
-> dort nicht mehr schreiben; ohne die Zeile bricht das Zurückspielen an der
-> ersten `CREATE TABLE` ab, also nach dem halben Vorspann. In MariaDB gibt es
-> dazu kein Gegenstück, weil ein Schema dort die Datenbank *ist*.
+> **Sie braucht Rechte im Schema `public`.** Seit PostgreSQL 15 darf `PUBLIC`
+> dort nicht mehr schreiben; ohne sie bricht das Zurückspielen an der ersten
+> `CREATE TABLE` ab, also nach dem halben Vorspann. In MariaDB gibt es dazu kein
+> Gegenstück, weil ein Schema dort die Datenbank *ist*.
 >
 > **`DROP` im `finally` allein wirft die Daten weg.** Was eine Rolle anlegt,
 > gehört ihr, und beim Zurückspielen legt sie die ganze Datenbank an; ein
 > `DROP OWNED BY` nimmt sie wieder mit. Der Lauf meldete Erfolg, und die Tabelle
-> war fort. Davor steht deshalb ein `REASSIGN OWNED BY … TO` auf den Eigentümer
-> der Datenbank — gefragt, nicht angenommen.
+> war fort.
 >
 > Und eine Beruhigung: Ein `pg_dump` **einer** Datenbank enthält kein
 > `\connect` (gemessen: null Vorkommen, `pg_dumpall` drei). Die Falle unten
@@ -812,6 +811,59 @@ genau eine Datenbank, `DROP` im `finally`.
 Kriterium-6-Last**, weil `\connect` in einem Klartext-Dump an ihrem fehlenden
 `CONNECT` scheitert (M8) — der `REVOKE CONNECT` aus §10 arbeitet hier ein
 zweites Mal, für einen anderen Zweck.
+
+### 13.5 Und was hier stand, hat der Abnahmelauf umgeworfen — dreimal
+
+Die Antwort auf die beiden letzten Punkte war ein `GRANT ALL ON SCHEMA public`
+für die befristete Rolle und ein `REASSIGN OWNED BY … TO` auf den **Eigentümer
+der Datenbank**. Beides ist am 10. August 2026 in Punkt 7 der Zwischenabnahme
+(`docs/39`) gescheitert, und zwar so, dass es aussah, als ginge es:
+
+1. **In eine Datenbank mit Tabellen kam das Zurückspielen gar nicht hinein.**
+   `pg_dump --format=plain` schreibt kein `DROP`, `mysqldump` schreibt sein
+   `DROP TABLE IF EXISTS` von selbst. Gemessen:
+   `ERROR: relation "kunden" already exists`, Rückgabewert 3. **P5b hat diese
+   stillschweigende Vorgabe geerbt, ohne dass jemand sie treffen musste.**
+   `--clean` trägt nicht: Die befristete Rolle darf nicht wegräumen, was ihr
+   nicht gehört (`must be owner of table`). **Das Leeren ist ein privilegierter
+   Vorgang, das Einspielen nicht.**
+2. **Und was hineinkam, gehörte danach `root`.** Der Eigentümer der Datenbank
+   *ist* das Panel — Entscheidung 2. Der Kunde stand vor seinen eigenen Zeilen
+   und bekam `permission denied for table`; der Vorgang war grün.
+3. Dazu, unabhängig vom Zurückspielen: **Ein zweiter Zugang desselben
+   Abonnements sah die Tabellen des ersten nicht.**
+
+Alle drei sind dieselbe Frage — *wem gehört, was in dieser Datenbank steht?* —
+und die Antwort ist **Entscheidung 11 in §21**: eine Eigentümerrolle je
+Abonnement (`<präfix>_owner`, `NOLOGIN`), der das Schema `public` gehört, in der
+jeder Zugang Mitglied ist und als die jede seiner Sitzungen läuft.
+
+Das Zurückspielen sieht danach so aus:
+
+    privilegiert:  DROP SCHEMA public CASCADE; CREATE SCHEMA public;
+                   ALTER SCHEMA public OWNER TO <präfix>_owner;
+                   REVOKE ALL ON SCHEMA public FROM PUBLIC
+    befristet:     IN ROLE srvpanel_restore, <präfix>_owner
+                   ALTER ROLE … IN DATABASE … SET role = '<präfix>_owner'
+    danach:        DROP OWNED BY <befristet>; DROP ROLE <befristet>
+
+**Geleert wird nach dem Auspacken und nicht davor** — ist der Dump beschädigt
+oder die Platte voll, hat der Kunde nach einem Abbruch noch seine Daten.
+
+Und die schönste Zeile der Messung: Läuft die befristete Rolle als die
+Eigentümerrolle, gehört ihr am Ende **nichts** (gemessen: 0 Tabellen). Das
+`REASSIGN OWNED BY … TO`, an dem der Fehler hing, entfällt ersatzlos.
+
+> **Ein Entwurf, der eine Fallgrube überflüssig macht, ist besser als einer, der
+> sie umgeht.**
+
+**Bestandsdatenbanken zieht das Zurückspielen nach.** Es setzt das Schema
+ohnehin neu auf; die Rolle dort einzuziehen und jeden Zugang mit `CONNECT`
+aufzunehmen kostet keine eigene Wanderung. Welche Zugänge das sind, fragt der
+Agent ausnahmsweise den Katalog statt die Anwendung — die Richtung des
+Fehlschlags entscheidet: Eine zu kurze Liste wäre ein Kunde, der nach dem
+Zurückspielen nicht mehr an seine Daten kommt, und **eine Nachrüstung, die etwas
+auslässt, sieht aus wie eine, die durchgelaufen ist.**
 
 ---
 

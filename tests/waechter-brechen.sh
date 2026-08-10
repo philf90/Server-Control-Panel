@@ -5601,6 +5601,118 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" WebLifecycleTest passed
 
 echo
+echo "── PgOwnerTest: eine Operation bildet den Namen, statt die Rolle sicherzustellen ──"
+#
+# Ein Abonnement, das vor dieser Fassung entstanden ist, hat die Eigentuemerrolle
+# nicht. Wer nur ihren Namen bildet, schickt ihn an eine Rolle, die es nicht gibt
+# — und das faellt erst auf, wenn ein Kunde vor seinen eigenen Daten steht.
+vorher_datei agent/src/Ops/PgDatabaseCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('$owner = $this->owner->ensure($context, $prefix);',
+              '$owner = Names::owner($prefix);')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseCreate.php "Name statt Rolle" &&
+pruefe "Name statt Rolle" \
+  PgOwnerTest::test_every_creating_operation_ensures_the_role failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── PgOwnerTest: das neue Schema wird vergeben, bevor es da ist ──"
+#
+# `CREATE SCHEMA public` legt ein Schema an, das dem Agenten gehoert. Steht das
+# `ALTER SCHEMA … OWNER TO` davor, bezieht es sich auf das Schema, das eine
+# Zeile spaeter weggeworfen wird — und nach dem Zurueckspielen gehoert wieder
+# alles `root`. Genau der Fehler aus docs/39 Punkt 7, eine Zeile weiter.
+vorher_datei agent/src/Pg/Owner.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Owner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            ['DROP SCHEMA public CASCADE', 'CREATE SCHEMA public'],
+            self::schemaStatements($owner),""",
+              """            self::schemaStatements($owner),
+            ['DROP SCHEMA public CASCADE', 'CREATE SCHEMA public'],""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Owner.php "Eigentuemer vor dem Schema" &&
+pruefe "Eigentuemer vor dem Schema" \
+  PgOwnerTest::test_the_reset_hands_over_the_new_schema_and_not_the_old failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── PgOwnerTest: das Eigentum geht wieder an das Panel ──"
+#
+# `REASSIGN OWNED BY … TO <Eigentuemer der Datenbank>` war die Antwort auf die
+# richtige Frage und hat die falsche gegeben: Die Datenbank gehoert dem Panel.
+# Der Kunde stand danach vor seinen eigenen Zeilen, und der Vorgang war gruen.
+vorher_datei agent/src/Pg/Ephemeral.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Ephemeral.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    sprintf('DROP OWNED BY %s', Sql::identifier($role)),",
+              "                    sprintf('REASSIGN OWNED BY %s TO %s', Sql::identifier($role), 'root'),\n"
+              "                    sprintf('DROP OWNED BY %s', Sql::identifier($role)),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Ephemeral.php "Eigentum zurueck ans Panel" &&
+pruefe "Eigentum zurueck ans Panel" \
+  PgOwnerTest::test_nothing_reassigns_ownership_to_the_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── PgOwnerTest: erst eingespielt, dann geleert ──"
+#
+# Beide Aufrufe stehen da, und die Reihenfolge ist die ganze Aussage: So wirft
+# das Zurueckspielen seine eigene Arbeit weg — und meldet Erfolg.
+vorher_datei agent/src/Ops/PgRestore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRestore.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            $context->progress(40, 'Datenbank leeren');
+            $this->session->execute($context, Owner::reset($owner), $database);
+
+""", '')
+s = s.replace("""                },
+            );
+        } finally {""",
+              """                },
+            );
+
+            $this->session->execute($context, Owner::reset($owner), $database);
+        } finally {""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRestore.php "geleert nach dem Einspielen" &&
+pruefe "geleert nach dem Einspielen" \
+  PgOwnerTest::test_the_restore_empties_before_it_fills failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── SubscriptionResumeReachTest: die Freigabe sperrt die Zugänge ──"
+#
+# `mode` kommt aus der Aufgabe und nie aus der Zeile, die sie aendert — das ist
+# die Richtung, die der Web-Lebenslauf verloren hatte. Haengt sie an etwas
+# anderem, kommt ein entsperrtes Abonnement mit gesperrten Zugaengen zurueck.
+vorher_datei app/Support/Databases/DbLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DbLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                'mode' => $lock ? 'lock' : 'unlock',", "                'mode' => 'lock',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DbLifecycle.php "Freigabe sperrt die Zugaenge" &&
+pruefe "Freigabe sperrt die Zugaenge" \
+  SubscriptionResumeReachTest::test_resuming_reaches_everything_below_the_subscription failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SubscriptionResumeReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

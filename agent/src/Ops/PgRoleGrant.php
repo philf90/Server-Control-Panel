@@ -9,6 +9,7 @@ use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Pg\Names;
+use SrvPanel\Agent\Pg\Owner;
 use SrvPanel\Agent\Pg\Session;
 use SrvPanel\Agent\Pg\Shielding;
 use SrvPanel\Agent\Pg\Sql;
@@ -50,14 +51,32 @@ use SrvPanel\Agent\Pg\Sql;
  * ## Was nie vergeben wird
  *
  * `WITH GRANT OPTION` — ein Kunde, der Rechte weiterreichen darf, kann sich
- * selbst welche geben. Und nichts auf Clusterebene: Es gibt in dieser Datei
- * kein `ALTER ROLE`, keine Rolle als Mitglied einer anderen und kein
- * `SUPERUSER`. `PgGrantTest` liest die erzeugten Anweisungen als Text und
- * besteht darauf.
+ * selbst welche geben. Kein `SUPERUSER`, `CREATEDB`, `CREATEROLE`,
+ * `REPLICATION`, `BYPASSRLS`, und **keine Mitgliedschaft in einer fremden
+ * Rolle**. `PgGrantTest` liest die erzeugten Anweisungen als Text und besteht
+ * darauf.
+ *
+ * ## Eine vierte Ebene ist dazugekommen: als wer der Zugang arbeitet
+ *
+ * Hier stand, es gebe in dieser Datei „kein `ALTER ROLE` und keine Rolle als
+ * Mitglied einer anderen". Das ist seit der Eigentümerrolle nicht mehr wahr,
+ * und der Satz hat die Lücke gedeckt, die er beschrieb: **Die drei Ebenen
+ * reichten nicht.** Rechte lösen nicht, wem eine Tabelle gehört, und ein
+ * zweiter Zugang bekam `permission denied for table` auf alles, was der erste
+ * angelegt hatte (gemessen, `docs/39` Punkt 7).
+ *
+ * {@see Owner} kommt deshalb dazu — als Mitgliedschaft im **eigenen**
+ * Abonnement und einer Sitzungsrolle je Datenbank. Die Grenze verschiebt das
+ * nicht: Jeder Name, der hier durchkommt, trägt das Präfix des Abonnements, in
+ * dessen Auftrag die Operation läuft, und {@see self::owned()} weist alles
+ * andere ab.
  */
 final class PgRoleGrant implements Op
 {
-    public function __construct(private readonly Session $session = new Session) {}
+    public function __construct(
+        private readonly Session $session = new Session,
+        private readonly Owner $owner = new Owner,
+    ) {}
 
     public static function name(): string
     {
@@ -91,12 +110,34 @@ final class PgRoleGrant implements Op
          * Datenbank — und das fiele erst auf, wenn ein Kunde seine Tabellen
          * nicht sieht.
          */
-        $this->session->execute($context, [self::databaseStatement($role, $database, $granted)]);
+        /*
+         * **Die Sitzungsrolle wechselt mit der Freigabe, die Mitgliedschaft
+         * nicht.** Sie gilt clusterweit und hängt am Zugang
+         * ({@see PgRoleCreate}); was hier umgestellt wird, ist die Frage, *als
+         * wer* dieser Zugang in **dieser** Datenbank arbeitet. Ein Entzug, der
+         * die Mitgliedschaft nähme, träfe die übrigen Datenbanken desselben
+         * Abonnements mit.
+         *
+         * `ensure()` steht hier, weil eine Freigabe auch ein Abonnement
+         * erreichen kann, das vor dieser Fassung entstanden ist — dieselbe
+         * Regel wie in {@see PgRestore}: *Was eine Operation braucht, stellt sie
+         * selbst sicher.*
+         */
+        $owner = $this->owner->ensure($context, $prefix);
+
+        $this->session->execute($context, [
+            self::databaseStatement($role, $database, $granted),
+            Owner::sessionRole($owner, $role, $database, $granted),
+        ]);
         $this->session->execute($context, self::schemaStatements($role, $granted), $database);
+
+        if ($granted) {
+            $this->session->execute($context, Owner::schemaStatements($owner), $database);
+        }
 
         $context->progress(100, 'fertig');
 
-        return ['name' => $role, 'database' => $database, 'granted' => $granted];
+        return ['name' => $role, 'database' => $database, 'granted' => $granted, 'owner' => $owner];
     }
 
     /** Die Anweisung auf der Datenbank selbst. */
@@ -112,11 +153,35 @@ final class PgRoleGrant implements Op
     /**
      * Und die im Schema — sie laufen **in** der Datenbank.
      *
-     * `ALTER DEFAULT PRIVILEGES` ist die Zeile, die es in MariaDB nicht gibt:
-     * Ohne sie hätte ein zweiter Zugang desselben Abonnements keine Rechte an
-     * den Tabellen, die der erste anlegt. In MariaDB gilt ein Schemarecht für
-     * alles, was im Schema entsteht; in PostgreSQL gehört jede Tabelle dem, der
-     * sie angelegt hat, und die Rechte daran werden **beim Anlegen** vergeben.
+     * ## Hier stand `ALTER DEFAULT PRIVILEGES`, und der Kommentar daneben war
+     * falsch
+     *
+     * Er sagte, diese Zeile löse das Problem des zweiten Zugangs: Ohne sie habe
+     * er keine Rechte an den Tabellen, die der erste anlegt. **Gemessen am
+     * 10. August 2026 tat sie das nicht** — `x_cron` bekam `permission denied
+     * for table` auf alles von `x_web`. Der Grund steht im Handbuch und ist
+     * leicht zu überlesen: `ALTER DEFAULT PRIVILEGES` **ohne `FOR ROLE` gilt nur
+     * für Objekte, die die ausführende Rolle anlegt** — und das ist hier der
+     * Agent. Für Tabellen eines Kunden hat sie nie gegolten.
+     *
+     * > **Ein Kommentar, der eine Wirkung behauptet, ist keine Messung.** Er hat
+     * > zwei Fassungen lang wie eine ausgesehen.
+     *
+     * Was das Problem wirklich löst, ist {@see Owner}: Alle Zugänge eines
+     * Abonnements laufen als dieselbe Rolle, und was einer anlegt, gehört ihr.
+     *
+     * ## Was hier trotzdem bleibt, und warum
+     *
+     * Die drei `GRANT`-Zeilen. Sie decken den Fall, den die Eigentümerrolle
+     * nicht rückwirkend heilt: Tabellen, die vor ihr entstanden sind und einem
+     * einzelnen Zugang gehören. Sie erreichen sie über das Recht, nicht über das
+     * Eigentum — bis das nächste Zurückspielen das Schema neu aufsetzt.
+     *
+     * **Und die Rücknahme nimmt mehr weg, als diese Fassung vergibt.** Die zwei
+     * `ALTER DEFAULT PRIVILEGES … REVOKE` bleiben stehen, obwohl es die
+     * Gegenstücke nicht mehr gibt: Auf jedem Server, der von einer früheren
+     * Fassung stammt, stehen sie noch in `pg_default_acl`. Wer etwas nicht mehr
+     * anlegt, baut den Weg zurück trotzdem — sonst räumt es niemand mehr weg.
      *
      * @return list<string>
      */
@@ -138,8 +203,6 @@ final class PgRoleGrant implements Op
             'GRANT ALL ON SCHEMA public TO '.$name,
             'GRANT ALL ON ALL TABLES IN SCHEMA public TO '.$name,
             'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO '.$name,
-            'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO '.$name,
-            'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO '.$name,
         ];
     }
 

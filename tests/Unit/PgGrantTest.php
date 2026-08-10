@@ -10,6 +10,7 @@ use SrvPanel\Agent\Ops\PgRoleCreate;
 use SrvPanel\Agent\Ops\PgRoleGrant;
 use SrvPanel\Agent\Ops\PgRoleLock;
 use SrvPanel\Agent\Pg\Names;
+use SrvPanel\Agent\Pg\Owner;
 
 /**
  * Was eine Rolle bekommt — und was sie nie bekommt.
@@ -43,11 +44,20 @@ final class PgGrantTest extends TestCase
         $role = Names::role($prefix, 'web');
         $database = Names::database($prefix, 'shop');
 
+        $owner = Names::owner($prefix);
+
         return array_merge(
             [PgRoleCreate::statement($role, 'geheimesPasswort123', false)],
             [PgRoleCreate::statement($role, 'geheimesPasswort123', true)],
             [PgRoleGrant::databaseStatement($role, $database, true)],
             PgRoleGrant::schemaStatements($role, true),
+            // Seit der Eigentümerrolle kommen drei Anweisungen dazu, und sie
+            // gehören in **diese** Liste: Ein Wächter, der nur die alten liest,
+            // deckt einen Weg ab und keine Wirkung.
+            [Owner::creation($owner)],
+            [Owner::membership($owner, $role)],
+            [Owner::sessionRole($owner, $role, $database, true)],
+            Owner::schemaStatements($owner),
         );
     }
 
@@ -127,8 +137,14 @@ final class PgGrantTest extends TestCase
      * Die Freigabe deckt alle drei Ebenen.
      *
      * Wer nur die Datenbank freigibt, hat einen Kunden, der sich verbindet und
-     * nichts tun kann — und wer `ALTER DEFAULT PRIVILEGES` vergisst, hat einen
-     * zweiten Zugang, der die Tabellen des ersten nicht sieht.
+     * nichts tun kann.
+     *
+     * **Hier stand `ALTER DEFAULT PRIVILEGES` als vierte Zusicherung**, mit der
+     * Begründung, sie löse das Problem des zweiten Zugangs. Gemessen am
+     * 10. August 2026 tat sie das nie: Ohne `FOR ROLE` gilt sie nur für Objekte,
+     * die die *ausführende* Rolle anlegt — der Agent. Was das Problem löst,
+     * prüft `PgOwnerTest`; hier stünde sonst ein grüner Haken unter einer
+     * Anweisung, die nichts bewirkt.
      */
     public function test_a_grant_reaches_database_schema_and_objects(): void
     {
@@ -142,17 +158,17 @@ final class PgGrantTest extends TestCase
         );
         $this->assertStringContainsString('GRANT ALL ON SCHEMA public TO', $schema);
         $this->assertStringContainsString('GRANT ALL ON ALL TABLES IN SCHEMA public TO', $schema);
-        $this->assertStringContainsString('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO', $schema);
+        $this->assertStringContainsString('GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO', $schema);
     }
 
     /**
      * Und die Rücknahme nimmt dasselbe wieder weg.
      *
-     * **Beide Richtungen, und zwar auf denselben Ebenen.** Eine Rücknahme, die
-     * eine Ebene auslässt, ist der Zustand, in dem ein entzogener Zugang die
-     * Tabellen weiter liest — und `ALTER DEFAULT PRIVILEGES` ist die Ebene, die
-     * man dabei übersieht, weil sie erst für Objekte gilt, die es noch nicht
-     * gibt.
+     * **Und sie nimmt mehr weg, als diese Fassung vergibt.** Die zwei
+     * `ALTER DEFAULT PRIVILEGES … REVOKE` stehen hier ohne Gegenstück: Auf
+     * Servern, die von einer früheren Fassung stammen, liegen die Einträge noch
+     * in `pg_default_acl`. *Wer etwas nicht mehr anlegt, baut den Weg zurück
+     * trotzdem* — sonst räumt es niemand mehr weg.
      */
     public function test_a_revoke_reaches_the_same_three_levels(): void
     {

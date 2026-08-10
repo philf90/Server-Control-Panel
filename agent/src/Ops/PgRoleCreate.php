@@ -9,6 +9,7 @@ use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Pg\Names;
+use SrvPanel\Agent\Pg\Owner;
 use SrvPanel\Agent\Pg\Server;
 use SrvPanel\Agent\Pg\Session;
 use SrvPanel\Agent\Pg\Sql;
@@ -31,17 +32,26 @@ use SrvPanel\Agent\Pg\Sql;
  * `LOGIN` und sonst nichts. **Kein `CREATEDB`** — sonst legte ein Kunde
  * Datenbanken an, die im Bestand des Panels fehlen und deren Absperrung nie
  * gelaufen ist. **Kein `CREATEROLE`**, **kein `SUPERUSER`**, **kein
- * `BYPASSRLS`**, und die Rolle wird **kein Mitglied** einer anderen. Ein
- * `IN ROLE` oder `ADMIN` wäre der Weg, auf dem ein Kunde die Rechte eines
- * anderen erbt — `PgGrantTest` liest die erzeugte Anweisung als Text und
- * besteht darauf.
+ * `BYPASSRLS`**, kein `WITH ADMIN OPTION` und kein `WITH GRANT OPTION`.
+ * `PgGrantTest` liest die erzeugte Anweisung als Text und besteht darauf.
+ *
+ * ## Mitglied ist sie in genau einer Rolle: der ihres eigenen Abonnements
+ *
+ * Hier stand, sie werde „**kein Mitglied** einer anderen", und das war als
+ * Zusage gemeint. Sie hat einen Fehler gedeckt: In PostgreSQL gehört eine
+ * Tabelle dem, der sie angelegt hat, und ohne eine gemeinsame Rolle steht der
+ * zweite Zugang eines Abonnements vor den Daten des ersten
+ * (`permission denied for table`, gemessen am 10. August 2026). Die Zusage, die
+ * gilt, ist enger und wahr: **Mitglied in einer Rolle, die dasselbe Präfix
+ * trägt** — {@see Owner}, `NOLOGIN`, ohne Passwort, ohne `ADMIN OPTION`.
  *
  * ## Und sie besitzt ihre Datenbank nicht
  *
  * Die gehört dem Panel ({@see PgDatabaseCreate}), und das ist Entscheidung 2
  * aus `docs/38 §21`: Ein Eigentümer darf `GRANT CONNECT … TO PUBLIC` und macht
- * die Absperrung damit rückgängig. Was die Rolle bekommt, vergibt
- * {@see PgRoleGrant} — auf drei Ebenen, weil PostgreSQL drei hat.
+ * die Absperrung damit rückgängig. Das Schema darin gehört der Eigentümerrolle
+ * — sie kann damit nur die eigene Datenbank freigeben, in die ohnehin niemand
+ * hineinkommt. Was die Rolle sonst bekommt, vergibt {@see PgRoleGrant}.
  */
 final class PgRoleCreate implements Op
 {
@@ -51,6 +61,7 @@ final class PgRoleCreate implements Op
     public function __construct(
         private readonly Session $session = new Session,
         private readonly Server $server = new Server,
+        private readonly Owner $owner = new Owner,
     ) {}
 
     public static function name(): string
@@ -89,16 +100,34 @@ final class PgRoleCreate implements Op
 
         $this->session->execute($context, [self::statement($role, $password, $existed)]);
 
+        /*
+         * **Die Mitgliedschaft hängt am Zugang und nicht an einer Datenbank.**
+         * PostgreSQL kennt keine Mitgliedschaft mit Geltungsbereich; sie gilt
+         * clusterweit oder gar nicht. Sie wird deshalb hier vergeben und erst
+         * mit der Rolle wieder entfernt — was je Datenbank wechselt, ist die
+         * Sitzungsrolle in {@see PgRoleGrant}.
+         *
+         * Und sie steht **vor** der Schleife: Ein Zugang ohne eine einzige
+         * freigegebene Datenbank ist erlaubt, und er soll die Rolle trotzdem
+         * schon haben — sonst hinge die spätere Freigabe daran, dass jemand
+         * hier noch einmal vorbeikommt.
+         */
+        $owner = $this->owner->ensure($context, $prefix);
+        $this->session->execute($context, [Owner::membership($owner, $role)]);
+
         foreach ($databases as $index => $database) {
             $context->progress(50 + intdiv(40 * $index, max(1, count($databases))), 'freigeben: '.$database);
 
-            $this->session->execute($context, [PgRoleGrant::databaseStatement($role, $database, true)]);
+            $this->session->execute($context, [
+                PgRoleGrant::databaseStatement($role, $database, true),
+                Owner::sessionRole($owner, $role, $database, true),
+            ]);
             $this->session->execute($context, PgRoleGrant::schemaStatements($role, true), $database);
         }
 
         $context->progress(100, 'fertig');
 
-        return ['name' => $role, 'created' => ! $existed, 'databases' => $databases];
+        return ['name' => $role, 'created' => ! $existed, 'databases' => $databases, 'owner' => $owner];
     }
 
     /**

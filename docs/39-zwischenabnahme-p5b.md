@@ -208,9 +208,18 @@ PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
 > Dass die Zeile überhaupt kommt, ist dabei schon die halbe Antwort: Ein
 > Serverfehler heisst, dass die Anmeldung **stand**.
 
-Dann auf der Abonnement-Seite das Kontingent ansehen: **Die Zahl zählt beide
-Systeme zusammen**, und der Hinweistext darunter nennt keines der beiden
-namentlich.
+Dann das Kontingent ansehen — **auf der Seite „Datenbank anlegen" und nicht auf
+der Abonnement-Seite.** Dort oben steht *„Datenbanken: 2 von unbegrenzt.
+Datenbankbenutzer zählen nicht getrennt."*: **Die Zahl zählt beide Systeme
+zusammen**, und der Satz nennt keines der beiden namentlich.
+
+> **Die Abonnement-Seite zeigt keinen Verbrauch, und das ist Absicht.** Ihr
+> Abschnitt „Kontingente" listet, was der Plan erlaubt — er ist eine Auskunft
+> über den *Vertrag*, nicht über den *Bestand*. Der Verbrauch steht dort, wo er
+> eine Entscheidung beeinflusst: vor dem Anlegen.
+>
+> Diese Anleitung schickte am 10. August 2026 auf die falsche Seite, und der
+> Betreiber hat gemeldet, dass dort nur „unbegrenzt" steht. Er hatte recht.
 
 ---
 
@@ -225,6 +234,22 @@ sudo -u postgres psql -tAc \
 
 **Erwartet:** `rolcanlogin` ist `f` für die Kundenrolle, und im Panel steht der
 Zugang als gesperrt.
+
+**Und dasselbe für MariaDB**, denn die Sperre läuft über zwei Lebensläufe — einen
+je System —, die beide auf dasselbe Ereignis hören. Dass keiner die Zugänge des
+anderen anfasst, sichert `EngineScopeTest`; auf einem Server mit beidem ist es
+hier zum ersten Mal wirklich gefahren.
+
+```bash
+sudo mariadb -e "SELECT User, Host, JSON_VALUE(Priv, '\$.account_locked') AS gesperrt \
+                 FROM mysql.global_priv WHERE User LIKE '<systembenutzer>%'"
+```
+
+> **`mysql.user` hat keine Spalte `account_locked`.** Seit MariaDB 10.4 ist
+> `mysql.user` nur noch eine Sicht auf `mysql.global_priv`, und die Sperre steht
+> dort im JSON-Feld `Priv`. Ein `SELECT account_locked FROM mysql.user` endet mit
+> `ERROR 1054 Unknown column` — am 10. August 2026 genau so gemessen, weil diese
+> Anleitung es zuerst falsch nannte.
 
 **Und die Probe, die zählt** — mit dem Passwort aus Punkt 5:
 

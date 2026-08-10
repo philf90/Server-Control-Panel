@@ -7990,3 +7990,23 @@ an dieser Stelle schon die halbe Antwort ist:** Er heisst, dass die Anmeldung
 Dazu zwei Spalten mehr in der Rollenabfrage: `rolsuper` und `rolcreatedb`, beide
 `f`. Sie kosten nichts und belegen, dass die Rolle nichts kann, was sie nicht
 soll — auf `cloudsrv24` gemessen.
+
+### `docs/39` Punkt 5 und 6: zwei Befehle auf die falsche Sache gerichtet
+
+**Das Kontingent steht nicht auf der Abonnement-Seite.** Diese Anleitung schickte
+dorthin; dort listet der Abschnitt „Kontingente" aber nur, was der Plan erlaubt —
+eine Auskunft über den *Vertrag*, nicht über den *Bestand*. Der Verbrauch steht
+da, wo er eine Entscheidung beeinflusst: auf der Seite „Datenbank anlegen", als
+*„Datenbanken: 2 von unbegrenzt. Datenbankbenutzer zählen nicht getrennt."* Der
+Betreiber hat gemeldet, dass dort nur „unbegrenzt" steht — er hatte recht, und
+die Anleitung nicht.
+
+**Und `mysql.user` hat keine Spalte `account_locked`.** Seit MariaDB 10.4 ist
+`mysql.user` nur noch eine Sicht auf `mysql.global_priv`, und die Sperre steht
+dort im JSON-Feld `Priv`. Der Aufruf endet mit `ERROR 1054 Unknown column`.
+
+Beides ist berichtigt, mitsamt dem Grund — **eine Anleitung, die auf die falsche
+Seite zeigt, kostet denselben Umweg wie ein falscher Befehl**, und beide Male
+merkt es nur, wer sie fährt. Das ist der dritte und vierte Befehl in `docs/39`,
+den erst der Lauf selbst geradegezogen hat; genau dafür steht das Dokument im
+Repo und nicht in einem Verlauf.

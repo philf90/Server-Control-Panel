@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use SrvPanel\Agent\Pg\Server;
 
 /**
@@ -158,13 +159,26 @@ final class PgHandoverTest extends TestCase
     }
 
     /**
-     * Und `Server` ist wirklich die Klasse, um die es geht.
+     * Und die Datei, die hier als Text gelesen wird, ist wirklich die von
+     * {@see Server}.
      *
-     * Ein Wächter, der nur Dateien als Text liest, überlebt jede Umbenennung
-     * der Klasse darin. Diese Zeile bindet ihn an den Typ.
+     * **Ein Wächter, der nur Dateien als Text liest, überlebt jeden Umzug der
+     * Klasse darin** — er läse danach eine Datei, die es noch gibt, und wäre
+     * mit ihr einverstanden. Diese Zeile bindet den Pfad an den Typ.
+     *
+     * **Hier stand `method_exists(Server::class, 'describe')`, und PHPStan hat
+     * recht behalten:** Beide Namen sind zur Übersetzungszeit bekannt, der
+     * Aufruf ist immer wahr — `function.alreadyNarrowedType`. Er prüfte nichts
+     * und sah aus wie eine Prüfung. Gekostet hat es drei CI-Läufe, weil der
+     * lokale PHPStan-Durchgang `tests/` nicht mitliest; er tut es jetzt.
      */
-    public function test_the_guard_watches_the_class_it_names(): void
+    public function test_the_guard_reads_the_file_of_the_class_it_names(): void
     {
-        $this->assertTrue(method_exists(Server::class, 'describe'));
+        $this->assertSame(
+            realpath(dirname(__DIR__, 2).'/agent/src/Pg/Server.php'),
+            (new ReflectionClass(Server::class))->getFileName(),
+            'Server ist umgezogen. Die Textprüfungen oben lesen dann eine andere Datei — '.
+            'und sind mit ihr einverstanden.',
+        );
     }
 }

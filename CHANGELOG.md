@@ -7748,3 +7748,29 @@ läuft" aus dem Abnahmelauf von P4.
 Frage, die das Framework stellt: welche Kopfzeile sie beantwortet, ist seine
 Sache. Ein Test gegen `X-Requested-With` prüfte unsere Umsetzung gegen sich
 selbst.
+
+### Drei rote CI-Läufe für eine Zeile, die nichts geprüft hat
+
+`PgHandoverTest` band sich mit `method_exists(Server::class, 'describe')` an die
+Klasse, um die es ihm geht. Beide Namen stehen zur Übersetzungszeit fest, der
+Aufruf ist immer wahr — PHPStan meldet `function.alreadyNarrowedType`, und er hat
+recht: **Die Zeile prüfte nichts und sah aus wie eine Prüfung.**
+
+Sie steht jetzt als Vergleich des Dateipfads gegen `ReflectionClass::getFileName()`
+da und tut damit, was sie sollte: Zieht `Server` um, lesen die Textprüfungen
+darüber eine andere Datei und wären mit ihr einverstanden.
+
+**Teuer war nicht der Fehler, sondern dass er dreimal durchkam.** Der lokale
+PHPStan-Durchgang lief über `app`, `agent/src` und `tests/Support` — nicht über
+`tests/Unit` und `tests/Feature`. Genau dort sind an diesem Tag fünf neue Wächter
+entstanden.
+
+> **Ein Durchgang, der nicht überall läuft, wo geschrieben wird, ist kein
+> Durchgang.**
+
+`tests/Support` stand in der Liste, weil `CLAUDE.md` es ausdrücklich empfiehlt —
+die Testdoppel dort hängen am Agenten, und ein fehlendes `method.abstract` bricht
+den ganzen Lauf. Diese Begründung galt für *ein* Unterverzeichnis, und der
+Durchgang ist bei ihm stehengeblieben, während die Wächter woanders wuchsen. Er
+liest jetzt `tests` im Ganzen; vier Altbefunde daraus, die nur ohne larastan
+entstehen, sind benannt statt stillschweigend geschluckt.

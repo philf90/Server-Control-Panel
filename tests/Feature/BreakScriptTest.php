@@ -230,6 +230,76 @@ final class BreakScriptTest extends TestCase
             .'dieser Ausdruck trifft nie und meldet statt dessen „kein Ergebnis".');
     }
 
+    /**
+     * Und jeder eingebettete Block ist überhaupt lauffähig.
+     *
+     * **Der Fund des zweiten vollständigen Laufs.** Der Eingriff zu
+     * `EngineDefaultTest` enthielt eine Zeichenkette mit einem echten
+     * Zeilenumbruch zwischen einfachen Anführungszeichen — kein gültiges
+     * Python. Der Block brach mit einem Syntaxfehler ab, die Datei blieb
+     * unberührt, und das Skript meldete „Eingriff hat nichts geändert".
+     *
+     * **Der Test darüber sah davon nichts.** Er prüft, ob der gesuchte Text in
+     * der Zieldatei vorkommt — und weil sein Ausdruck über Zeilen hinweg passt,
+     * fand er ihn. Ein Eingriff kann also gleichzeitig „greift" und „läuft
+     * nicht" sein.
+     *
+     * > **Ein Wächter, der den Inhalt prüft, hat nichts über die Ausführbarkeit
+     * > gesagt.**
+     *
+     * Gefragt wird deshalb der Interpreter selbst: `ast.parse` sagt, ob der
+     * Block Python ist. Fehlt `python3`, ist das kein Grund zu schweigen —
+     * dann kann das Bruchskript ohnehin nichts ausrichten.
+     */
+    public function test_every_embedded_block_is_valid_python(): void
+    {
+        $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        preg_match_all("/python3 - <<'(PY2?)'\n(.*?)\n\\1\n/s", $script, $blocks);
+
+        $this->assertNotSame([], $blocks[2], 'Es werden keine Blöcke gefunden — dann prüft dieser Test nichts.');
+
+        $broken = [];
+
+        foreach ($blocks[2] as $index => $block) {
+            $file = tempnam(sys_get_temp_dir(), 'waechter');
+
+            if ($file === false) {
+                $this->fail('Kein Platz für die Zwischendatei.');
+            }
+
+            file_put_contents($file, $block);
+
+            $output = [];
+            $status = 0;
+            exec(sprintf('python3 -c %s 2>&1', escapeshellarg(
+                'import ast,sys; ast.parse(open(sys.argv[1], encoding="utf-8").read())'
+            )).' '.escapeshellarg($file), $output, $status);
+
+            @unlink($file);
+
+            if ($status === 127) {
+                $this->fail('python3 fehlt — ohne ihn kann tests/waechter-brechen.sh nichts brechen.');
+            }
+
+            if ($status !== 0) {
+                $broken[] = sprintf(
+                    'Block %d (%s): %s',
+                    $index + 1,
+                    trim(explode("\n", $block)[0]),
+                    implode(' ', $output),
+                );
+            }
+        }
+
+        $this->assertSame([], $broken, sprintf(
+            "Diese Blöcke in tests/waechter-brechen.sh sind kein gültiges Python:\n  %s\n\n".
+            'Ein Block, der nicht läuft, ändert nichts — und der Wächter darüber meldet dann '.
+            '„Eingriff hat nichts geändert", ohne den Grund zu nennen.',
+            implode("\n  ", $broken),
+        ));
+    }
+
     public function test_every_intervention_still_grips_its_file(): void
     {
         $interventions = $this->interventions();

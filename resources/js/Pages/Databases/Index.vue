@@ -43,15 +43,6 @@ const props = defineProps<{
    */
   creatable: { id: number; name: string }[]
 
-  /**
-   * Ob die Spalte „System" gezeigt wird.
-   *
-   * **Die Antwort kommt vom Server**, und beides daran ist Absicht: Der Wert
-   * eines Systems ist eine Sache des Enums und gehört nicht als Zeichenkette
-   * ins Template, und die Frage geht über den ganzen Bestand statt über die
-   * gerade geladene Seite — sonst verschwände die Spalte beim Blättern.
-   */
-  shows_engine: boolean
 }>()
 
 const chosen = ref<number | null>(props.creatable[0]?.id ?? null)
@@ -115,7 +106,19 @@ function size(row: Row): string {
         <thead>
           <tr>
             <th>Datenbank</th>
-            <th v-if="props.shows_engine">System</th>
+            <!--
+              **Die Spalte steht immer da, auch wenn nur ein System benutzt
+              wird.** Bis rc.4 hing sie an `shows_engine`: einer Frage an den
+              Bestand, die der Server beantwortete. Die Spalte kam damit erst
+              dazu, wenn die erste PostgreSQL-Datenbank entstand — und sie
+              verschwände wieder, wenn die letzte gelöscht wird.
+
+              **Eine Tabelle, deren Spalten vom Inhalt abhängen, ist zweimal
+              dieselbe Tabelle.** Wer sie kennt, muss sie neu lesen; wer eine
+              Aufnahme davon hat, hat eine von zweien. Der Betreiber hat das
+              beim Testlauf zu rc.4 entschieden.
+            -->
+            <th>System</th>
             <th>Abonnement</th><th>Zugänge</th><th>Belegt</th><th>Zustand</th>
           </tr>
         </thead>
@@ -125,7 +128,7 @@ function size(row: Row): string {
               <Link :href="`/databases/${row.id}`" class="link">{{ row.name }}</Link>
             </td>
 
-            <td v-if="props.shows_engine" data-column="System">
+            <td data-column="System">
               <Badge kind="neutral">{{ row.engine_label }}</Badge>
             </td>
 
@@ -151,7 +154,7 @@ function size(row: Row): string {
             </td>
           </tr>
           <tr v-if="props.databases.data.length === 0">
-            <td :colspan="props.shows_engine ? 6 : 5" class="quiet">Noch keine Datenbank.</td>
+            <td colspan="6" class="quiet">Noch keine Datenbank.</td>
           </tr>
         </tbody>
       </table>

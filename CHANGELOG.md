@@ -7948,3 +7948,28 @@ einer Methode einfügt, fügt vor ihrem Dokumentationsblock ein — nicht vor ih
 Namen.**
 
 Gefunden hat ihn genau der Filter, den diese Runde geschärft hat.
+
+### Die Spalte „System" steht jetzt immer da
+
+Entschieden vom Betreiber beim Testlauf zu `rc.4`. Bis dahin hing sie an
+`shows_engine` — einer Frage an den Bestand, die der Server beantwortete: Die
+Spalte kam dazu, sobald die erste PostgreSQL-Datenbank entstand, und sie
+verschwände wieder, wenn die letzte gelöscht wird.
+
+> **Eine Tabelle, deren Spalten vom Inhalt abhängen, ist zweimal dieselbe
+> Tabelle.**
+
+Wer sie kennt, muss sie neu lesen; wer eine Aufnahme davon hat, hat eine von
+zweien. Und die Spalte beantwortet auch dort eine Frage, wo alle Zeilen
+dasselbe sagen — nämlich *welches* dieses eine System ist.
+
+`shows_engine` ist damit ganz weg: aus dem Steuerungscode, aus der Vorlage, aus
+der Eigenschaftsliste. **Eine Angabe weniger, die zwischen Server und Vorlage
+verabredet sein muss** — und das ist der eigentliche Gewinn, denn genau an dieser
+Verabredung ist sie vorgestern gescheitert.
+
+**Der Bruch in `tests/waechter-brechen.sh` ist mitgezogen.** Er hat bis eben
+`shows_engine` entfernt, um `InertiaPropsTest` zubeissen zu lassen; die Zeile
+gibt es nicht mehr. Er greift jetzt `creatable` an — ein Eingriff, der auf eine
+gelöschte Zeile zeigt, ist genau das Muster, gegen das `BreakScriptTest` da ist,
+und es wäre peinlich, ihn im selben Beitrag zu erzeugen, der die Regel feiert.

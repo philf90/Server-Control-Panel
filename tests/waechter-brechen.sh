@@ -5470,19 +5470,23 @@ pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
 echo
 echo "── InertiaPropsTest: eine Seite liest, was ihr niemand schickt ──"
 #
-# Der Fund aus Punkt 4 der Zwischenabnahme (docs/39): Databases/Index.vue liest
+# Der Fund aus Punkt 4 der Zwischenabnahme (docs/39): Databases/Index.vue las
 # props.shows_engine seit Schritt 7, und der Steuerungscode hat es nie
 # mitgeschickt. In JavaScript ist undefined falsch — die Spalte „System" blieb
 # immer aus, und auf cloudsrv24 stand eine PostgreSQL-Datenbank in der Liste,
 # ohne dass irgendwo stand, dass sie eine ist. vue-tsc sieht die Vorlage,
 # PHPStan sieht das Feld; die Bruecke dazwischen sah niemand.
+#
+# Gebrochen wird an `creatable` und nicht mehr an `shows_engine`: Die Spalte
+# steht seit rc.4 immer da, die Eigenschaft gibt es nicht mehr. Ein Eingriff,
+# der auf eine geloeschte Zeile zeigt, ist genau das Muster, gegen das
+# BreakScriptTest da ist.
 vorher_datei app/Http/Controllers/DatabaseController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/DatabaseController.php'
 s = open(p, encoding='utf-8').read()
-i = s.index("            'shows_engine' => Database::query()")
-j = s.index('->exists(),', i) + len('->exists(),')
-open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+s = s.replace("            'creatable' => $this->creatable($request->user()),\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Http/Controllers/DatabaseController.php "Seite ohne ihre Eigenschaft" &&
 pruefe "Seite ohne ihre Eigenschaft" \

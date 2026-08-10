@@ -7361,3 +7361,30 @@ Bestand und innerhalb der Mandantenklammer. **Gefragt wird nach einem Zustand
 und nicht nach einer Einstellung** — „PostgreSQL ist angeboten" wäre die Absicht
 des Betreibers; ob die Spalte etwas erklärt, entscheidet, ob es eine Datenbank
 gibt, die sie braucht.
+
+### Die Wahl des Systems — und ein Präfix, das nicht mitgezogen wäre
+
+`Databases/Create.vue` zeigt das System zur Auswahl, **nur wenn es etwas zu
+wählen gibt**: MariaDB steht immer da, PostgreSQL, wenn der Betreiber es
+anbietet. Das ist die eine Stelle in P5b, an der eine *Absicht* die richtige
+Bedingung ist und kein Zustand — ob PostgreSQL läuft, sagt `pg.server.info`; ob
+es Kunden angeboten wird, entscheidet der Betreiber.
+
+**Der Fund beim Bauen war das Präfix.** Es steht im Formular, während getippt
+wird, damit der Kunde den fertigen Namen sieht — und es ist in den beiden
+Systemen ein anderes: der Systembenutzer (`p1001`) gegen die gewürfelte Kennung
+(`x7f3a…`). Ein Formular, das weiter `subscription.prefix` anzeigt, zeigt nach
+dem Umschalten den falschen Namen an, und der Kunde trägt ihn in seine Anwendung
+ein. Jeder Eintrag der Auswahl bringt sein Präfix deshalb selbst mit. Der Satz
+„das Präfix ist der Systembenutzer des Abonnements" ist damit auch weg — für
+PostgreSQL war er schlicht falsch.
+
+**Und einmal mehr ein Stellvertreter, diesmal in meinem eigenen Entwurf.** Ob
+das Formular eine Sortierung anbietet, hing an `engines[0]` — „der erste Eintrag
+ist MariaDB". Eine Annahme über die Reihenfolge einer Liste, die beim ersten
+Umsortieren still falsch geworden wäre. Die Frage gehört zum System und wandert
+jetzt mit ihm.
+
+Geprüft wird beim Absenden gegen dieselbe Liste, die das Formular gezeigt hat,
+und nicht bloss gegen das Enum: `postgres` durchzulassen, während der Betreiber
+es nicht anbietet, wäre eine Wahl, die es in der Oberfläche nie gab.

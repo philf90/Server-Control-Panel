@@ -92,7 +92,58 @@ final class DatabaseController extends Controller
             ],
             'collations' => $this->collations(),
             'quota' => $this->quota($subscription),
+            'engines' => $this->engines($subscription),
         ]);
+    }
+
+    /**
+     * Die Systeme, in denen dieses Abonnement eine Datenbank anlegen darf.
+     *
+     * **MariaDB steht immer da, PostgreSQL nur wenn der Betreiber es anbietet**
+     * (`docs/38 §16`). Das ist die eine Stelle in P5b, an der eine *Absicht*
+     * die richtige Bedingung ist und kein Zustand: Ob PostgreSQL läuft, sagt
+     * `pg.server.info`; ob es Kunden angeboten wird, entscheidet der Betreiber
+     * auf der Seite „Datenbankserver". Ein laufender Server, den er nicht
+     * anbieten will, gehört nicht in dieses Formular.
+     *
+     * **Jedes System bringt sein eigenes Präfix mit.** In MariaDB ist es der
+     * Systembenutzer (`p1001`), in PostgreSQL die gewürfelte Kennung aus
+     * `system_users` (`x7f3a…`) — und der Unterschied ist nicht kosmetisch: Der
+     * Satz „das Präfix ist der Systembenutzer des Abonnements" wäre für
+     * PostgreSQL schlicht falsch, und der Name im Formular auch.
+     *
+     * **Und jedes sagt selbst, ob es eine Sortierung wählen lässt.** Der erste
+     * Entwurf hat das im Formular an „der erste Eintrag ist MariaDB"
+     * festgemacht — eine Annahme über die Reihenfolge dieser Liste, also
+     * derselbe Stellvertreter, den P5b schon viermal erwischt hat. Die Frage
+     * gehört zum System und wandert mit ihm.
+     *
+     * @return list<array{value: string, label: string, prefix: string, collations: bool}>
+     */
+    private function engines(Subscription $subscription): array
+    {
+        $engines = [[
+            'value' => DatabaseEngine::MariaDb->value,
+            'label' => DatabaseEngine::MariaDb->label(),
+            'prefix' => (string) $subscription->system_user,
+            'collations' => true,
+        ]];
+
+        if (! app(Settings::class)->postgres()) {
+            return $engines;
+        }
+
+        $engines[] = [
+            'value' => DatabaseEngine::Postgres->value,
+            'label' => DatabaseEngine::Postgres->label(),
+            'prefix' => PostgresDriver::prefixOf(app(Tenancy::class), $subscription),
+
+            // In PostgreSQL entstehen Zeichensatz und Sortierung aus der
+            // Vorlage; dieses Panel wählt sie nicht (`docs/38 §5`).
+            'collations' => false,
+        ];
+
+        return $engines;
     }
 
     public function store(Request $request, Subscription $subscription): RedirectResponse
@@ -119,7 +170,31 @@ final class DatabaseController extends Controller
              * ersten Lauf gefunden.
              */
             'label' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/D'],
-            'collation' => ['required', 'string', Rule::in($this->collations())],
+
+            /*
+             * **Geprüft wird gegen die Liste, die das Formular gezeigt hat**,
+             * und nicht bloss gegen das Enum. Ein `Rule::enum()` allein liesse
+             * `postgres` auch dann durch, wenn der Betreiber es gar nicht
+             * anbietet — die Angabe kommt aus einer Anfrage, und was in der
+             * Oberfläche nicht wählbar war, ist keine gültige Wahl.
+             *
+             * Fehlt sie ganz, ist es MariaDB: Ein Formular ohne Auswahl —
+             * weil PostgreSQL nicht angeboten wird — schickt das Feld nicht
+             * mit, und ein Pflichtfeld daraus zu machen hiesse, jeden
+             * bestehenden Aufruf zu brechen.
+             */
+            'engine' => ['nullable', 'string', Rule::in(array_column($this->engines($subscription), 'value'))],
+
+            /*
+             * **Nur MariaDB kennt eine Sortierung in diesem Sinn.** In
+             * PostgreSQL entstehen Zeichensatz und Sortierung aus der Vorlage
+             * und werden von diesem Panel nicht gewählt (`docs/38 §5`); das
+             * Formular zeigt das Feld dort gar nicht erst.
+             */
+            'collation' => [
+                Rule::requiredIf(fn (): bool => ($request->input('engine') ?? DatabaseEngine::MariaDb->value) === DatabaseEngine::MariaDb->value),
+                'nullable', 'string', Rule::in($this->collations()),
+            ],
 
             // Ein Zugang gleich dazu — der Normalfall. Ohne ihn ist eine
             // Datenbank ein Schema, in das niemand hineinkommt.
@@ -127,7 +202,14 @@ final class DatabaseController extends Controller
         ]);
 
         try {
-            $database = $this->databases->create($subscription, $data['label'], $data['collation']);
+            $engine = DatabaseEngine::from($data['engine'] ?? DatabaseEngine::MariaDb->value);
+
+            $database = $this->databases->create(
+                $subscription,
+                $data['label'],
+                (string) ($data['collation'] ?? $this->collations()[0]),
+                $engine,
+            );
         } catch (RuntimeException|AgentException $error) {
             /*
              * **Als Fehler am Feld und nicht als Weiterleitung.** `back()`

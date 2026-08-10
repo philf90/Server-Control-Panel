@@ -235,7 +235,10 @@ Befehlsfolge dazu — und **`39` die Zwischenabnahme**, neun Punkte auf einem
 echten Server gegen `v0.5.1-rc.2`, weil die Schritte 4 bis 7 nur gegen einen
 Wegwerf-Cluster im Container gemessen sind. Sie steht dort, weil sie zuerst nur
 in einem Sitzungsverlauf stand: **Was man zweimal braucht, gehört ins Repo —
-auch wenn es keine Zeile Code ist.**
+auch wenn es keine Zeile Code ist.** Aus demselben Grund gibt es **`40` die
+Zeitzone der Anzeige**: entschieden am 10. August, gebaut nach P5b. Das Panel
+zeigt Zeiten in UTC, und der Betreiber liest sie auf einer Uhr, die zwei Stunden
+weiter ist.
 
 ---
 

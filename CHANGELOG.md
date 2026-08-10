@@ -8326,3 +8326,25 @@ Bestandsdatenbank wirklich ändert.
 `starts_with(rolname, '<präfix>_')` **und** `rolcanlogin`, `Owner::ensure()` und
 der Rückbau fragen den Namen exakt — eingebaute Rollen tragen weder das Präfix
 noch ein Anmelderecht.
+
+### `docs/40`: die Anzeige steht in UTC, und das war niemandem gesagt
+
+Der Betreiber hat im Protokoll einen Eintrag um `12:31:26` gesehen und gefragt,
+ob das deutsche Zeit sei. Es war UTC — `config/app.php` setzt sie so, und
+`toDateTimeString()` geht als Zeichenkette in die Seite, die der Browser nicht
+umrechnet. In der Sommerzeit sind das zwei Stunden.
+
+**Ein Zeitstempel, den man falsch liest, ist schlimmer als keiner** — er sieht
+aus wie eine Auskunft. Und die Filter „Von"/„Bis" im Protokoll vergleichen
+ebenfalls gegen UTC: Wer abends nach 22:00 Uhr „heute" filtert, bekommt einen
+Tag, der zwei Stunden vorher zu Ende ging. Die Seite zeigt dann eine Zeile, die
+ihr eigener Filter nicht findet.
+
+Entschieden sind die drei Fragen, an denen der Zuschnitt hängt: **serverweit**
+statt je Konto, die **Filter rechnen mit**, und das **CSV bleibt UTC** — ein
+Zeitstempel ohne Zone in einer Datei, die drei Jahre liegt, ist eine Falle.
+Gemessen ist auch der Umfang: achtzehn Stellen, alle in Controllern, keine in
+einer Vue-Komponente.
+
+Gebaut wird nach P5b. Eine Änderung, die während einer Abnahme jede Zeitangabe
+verschiebt, erklärt eine Messung, statt sie zu bestätigen.

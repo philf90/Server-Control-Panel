@@ -7973,3 +7973,20 @@ Verabredung ist sie vorgestern gescheitert.
 gibt es nicht mehr. Er greift jetzt `creatable` an — ein Eingriff, der auf eine
 gelöschte Zeile zeigt, ist genau das Muster, gegen das `BreakScriptTest` da ist,
 und es wäre peinlich, ihn im selben Beitrag zu erzeugen, der die Regel feiert.
+
+### `docs/39` Punkt 5: eine Probe, die nach etwas fragte, das es nicht gibt
+
+`current_setting('lc_collate')` antwortet auf PostgreSQL 16 mit
+`ERROR: unrecognized configuration parameter`. **PostgreSQL 15 hat `lc_collate`
+und `lc_ctype` als Laufzeitparameter entfernt** — sie sind seitdem nur noch
+Eigenschaften einer Datenbank, zu lesen in `pg_database.datcollate`.
+
+Wieder ein Stellvertreter: gefragt war „welche Sortierung hat diese Datenbank",
+gefragt *wurde* eine Einstellung, die es in dieser Fassung nicht mehr gibt. Die
+Probe steht berichtigt in `docs/39 §8` — mit dem Hinweis, dass ein **Serverfehler
+an dieser Stelle schon die halbe Antwort ist:** Er heisst, dass die Anmeldung
+über `127.0.0.1` gestanden hat.
+
+Dazu zwei Spalten mehr in der Rollenabfrage: `rolsuper` und `rolcreatedb`, beide
+`f`. Sie kosten nichts und belegen, dass die Rolle nichts kann, was sie nicht
+soll — auf `cloudsrv24` gemessen.

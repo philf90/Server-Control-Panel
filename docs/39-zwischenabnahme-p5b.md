@@ -184,8 +184,29 @@ Zugang anlegen. **Das Passwort erscheint genau einmal.**
 
 ```bash
 sudo -u postgres psql -tAc \
-  "SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname LIKE '<präfix>%'"
+  "SELECT rolname, rolcanlogin, rolsuper, rolcreatedb FROM pg_roles WHERE rolname LIKE '<präfix>%'"
 ```
+
+**Erwartet:** eine Zeile, `rolcanlogin = t`, und **`rolsuper` und `rolcreatedb`
+beide `f`** — die Rolle kann nichts, was sie nicht soll.
+
+Und die Probe, dass der Zugang trägt und die Sortierung dort ankommt, wo der
+Kunde sie sieht:
+
+```bash
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "SELECT current_user, datcollate FROM pg_database WHERE datname = current_database()"
+```
+
+> **`current_setting('lc_collate')` steht hier nicht, und zwar nicht aus
+> Geschmack.** PostgreSQL 15 hat `lc_collate` und `lc_ctype` als
+> Laufzeitparameter **entfernt**; sie sind seitdem nur noch Eigenschaften einer
+> Datenbank. Der Aufruf antwortet mit
+> `ERROR: unrecognized configuration parameter` — am 10. August 2026 genau so
+> gemessen, weil dieser Ablauf ihn zuerst nannte. Gefragt wird der Katalog.
+>
+> Dass die Zeile überhaupt kommt, ist dabei schon die halbe Antwort: Ein
+> Serverfehler heisst, dass die Anmeldung **stand**.
 
 Dann auf der Abonnement-Seite das Kontingent ansehen: **Die Zahl zählt beide
 Systeme zusammen**, und der Hinweistext darunter nennt keines der beiden

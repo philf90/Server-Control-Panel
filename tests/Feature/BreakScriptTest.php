@@ -200,6 +200,36 @@ final class BreakScriptTest extends TestCase
         ));
     }
 
+    /**
+     * Und es beweist zuerst, dass es messen kann.
+     *
+     * **Der erste vollständige Lauf hat 473 gesunde Wächter als kaputt
+     * gemeldet.** `pruefe()` las die Ausgabe von PHPUnit als JSON — die Fassung
+     * war gegen eine Umgebung geschrieben, die Werkzeugaufrufe in
+     * `{"tool":…,"result":…}` verpackt, und `vendor/bin/phpunit` tut das nicht.
+     * Jede Prüfung fiel in den Zweig „kein Ergebnis", und die Schlusszeile las
+     * sich als Urteil über zweihundert fremde Regeln.
+     *
+     * > **Ein Werkzeug, das über Wächter urteilt, muss zuerst beweisen, dass es
+     * > messen kann.**
+     *
+     * `vorpruefung` fährt deshalb vor dem ersten Eingriff einen Test, von dem
+     * feststeht, dass er grün ist, und bricht sonst ab — mit der Ausgabe von
+     * PHPUnit statt mit einem Befund.
+     */
+    public function test_the_script_proves_it_can_measure(): void
+    {
+        $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
+
+        $this->assertStringContainsString('vorpruefung()', $script,
+            'Die Selbstprobe ist weg. Ohne sie meldet ein kaputter Testaufruf jeden Wächter '
+            .'dieses Projekts als gebrochen — genau so am 10. August 2026 geschehen.');
+
+        $this->assertStringNotContainsString("json.load(sys.stdin)['result']", $script,
+            'Die Ausgabe von PHPUnit wird wieder als JSON gelesen. PHPUnit schreibt kein JSON; '
+            .'dieser Ausdruck trifft nie und meldet statt dessen „kein Ergebnis".');
+    }
+
     public function test_every_intervention_still_grips_its_file(): void
     {
         $interventions = $this->interventions();

@@ -8578,3 +8578,43 @@ Weg zu einem Server, der nicht mehr hochkommt.
 Die vierte Antwort steht jetzt in `AgentAnswerReachTest`: `subscription.usage`
 meldet `available: false` samt Grund, und das stand bis heute nur im Journal des
 Timers.
+
+### Der erste vollständige Bruchlauf hat 473 gesunde Wächter als kaputt gemeldet
+
+Und der Fehler lag im Werkzeug. `pruefe()` las die Ausgabe von PHPUnit als
+**JSON** — ein `python3 -c` mit `json.load` auf die Standardeingabe, das den
+Schlüssel `result` erwartet. `vendor/bin/phpunit` schreibt kein JSON und hat es
+nie getan; die Fassung ist gegen eine Umgebung entstanden, die Werkzeugaufrufe
+in `{"tool":…,"result":…}` verpackt.
+
+In der CI fiel damit **jede einzelne** der 473 Prüfungen in den Zweig „kein
+Ergebnis", und die Schlusszeile las sich als Urteil über zweihundert fremde
+Regeln: *„473 Prüfung(en) ohne Biss — diese Wächter halten ihre Regel nicht."*
+
+> **Ein Parser, der nie zum Ziel passt, meldet nicht „ich kann das nicht" — er
+> meldet, was er stattdessen findet.**
+
+Gelesen wird jetzt, was PHPUnit wirklich schreibt, in **vier** Fällen: `passed`
+(`OK (` und `OK, but there were issues!`), `failed` (`FAILURES!`, `ERRORS!`),
+**`kein Test`** — das fängt einen vertippten Filter, der sonst als Biss
+durchginge — und **`unlesbar`**, das auffällt, statt still zu sein.
+
+**Und das Skript beweist zuerst, dass es messen kann.** `vorpruefung` fährt vor
+dem ersten Eingriff einen Test, von dem feststeht, dass er grün ist, und bricht
+sonst mit der Ausgabe von PHPUnit ab.
+
+> **Ein Werkzeug, das über Wächter urteilt, muss zuerst beweisen, dass es messen
+> kann.**
+
+Die Schlusszeile unterscheidet jetzt außerdem: Steht hinter jedem Fehlschlag eine
+fehlende Messung, sagt sie *„dieses Skript hat nichts gemessen, und über die
+Wächter ist damit nichts gesagt"* — statt an 473 Stellen einen Fehler zu
+behaupten, an denen keiner ist.
+
+**Der Wächter darüber hat sich beim Schreiben selbst gefangen.** Er verlangt,
+dass der JSON-Ausdruck nicht im Skript steht — und war rot, weil der Kommentar,
+der den alten Ausdruck erklärt, ihn wörtlich zitierte. Zum vierten Mal in dieser
+Woche liest ein Wächter die Erklärung statt des Codes.
+
+Der Lauf hat damit genau das getan, wofür er gebaut wurde: Er hat beim ersten
+Mal einen Fehler gefunden. Nur einen anderen als erwartet.

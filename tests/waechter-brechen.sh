@@ -86,6 +86,12 @@ trap wiederherstellen EXIT INT TERM
 
 fehler=0
 
+# **Getrennt gezaehlt, weil sie etwas anderes bedeuten.** Ein Waechter ohne Biss
+# ist ein Befund ueber eine Regel; ein vertippter Filter und eine unlesbare
+# Ausgabe sind Befunde ueber dieses Skript. Am 10. August 2026 hat die
+# Vermischung 473 gesunde Waechter als kaputt gemeldet.
+stumm=0
+
 # Vor jedem Eingriff merken, wie die Datei aussah — danach prüfen, dass sie
 # anders aussieht.
 #
@@ -129,26 +135,78 @@ griff() {
   return 0
 }
 
+# Bevor irgendetwas gebrochen wird: laeuft der Testaufruf ueberhaupt?
+#
+# **Das ist der Fund des ersten vollstaendigen Laufs, und er trifft dieses
+# Skript selbst.** Am 10. August 2026 meldeten in der CI alle 473 Pruefungen
+# „kein Ergebnis", und die Schlusszeile las sich als „473 Waechter halten ihre
+# Regel nicht". Keiner davon war kaputt — `pruefe()` konnte die Ausgabe von
+# PHPUnit nicht lesen (siehe dort).
+#
+# > **Ein Werkzeug, das ueber Waechter urteilt, muss zuerst beweisen, dass es
+# > messen kann.**
+#
+# Deshalb laeuft hier ein Test, von dem feststeht, dass er gruen ist. Kommt
+# nichts Lesbares zurueck, bricht das Skript ab — mit der Ausgabe von PHPUnit
+# und nicht mit einem Urteil ueber zweihundert fremde Regeln.
+vorpruefung() {
+  local roh
+
+  roh=$(./vendor/bin/phpunit --filter BreakScriptTest --do-not-cache-result 2>&1)
+
+  case "$roh" in
+    *'OK ('*|*'OK, but'*) return 0 ;;
+  esac
+
+  echo "Der Testaufruf liefert nichts Lesbares — dieses Skript kann nichts messen." >&2
+  echo "Gepruefte Zeile: ./vendor/bin/phpunit --filter BreakScriptTest" >&2
+  echo >&2
+  printf '%s\n' "$roh" | tail -20 >&2
+
+  exit 2
+}
+
+vorpruefung
+
 # name | filter | erwartetes Ergebnis
 pruefe() {
   local name="$1" filter="$2" erwartung="$3" ergebnis roh
 
-  # Erst laufen lassen, dann auswerten. Ein rot laufender Test ist hier der
-  # Normalfall, und mit `pipefail` reisst sein Rückgabewert die ganze Pipeline
-  # hoch — die Auswertung käme dann nie zum Zug und jede Prüfung meldete
-  # „kein Ergebnis". Genau so ist es beim ersten Lauf passiert.
-  roh=$(./vendor/bin/phpunit --filter "$filter" 2>/dev/null) || true
+  # **Hier stand ein JSON-Leser, und PHPUnit schreibt kein JSON.**
+  #
+  # Ein `python3 -c` mit `json.load` auf die Standardeingabe — das hat nie zu
+  # `vendor/bin/phpunit` gepasst; die Fassung entstand gegen eine Umgebung, die
+  # Werkzeugaufrufe in `{"tool":…,"result":…}` verpackt. In der CI fiel jede
+  # einzelne Pruefung in den Zweig „kein Ergebnis", und das Skript meldete
+  # daraufhin 473 gebrochene Waechter.
+  #
+  # > **Ein Parser, der nie zum Ziel passt, meldet nicht „ich kann das nicht"
+  # > — er meldet, was er stattdessen findet.**
+  #
+  # Gelesen wird jetzt, was PHPUnit wirklich schreibt. Vier Faelle, und jeder
+  # bedeutet etwas anderes: `kein Test` faengt einen vertippten Filter, der
+  # sonst als Biss durchginge, und `unlesbar` faellt auf, statt still zu sein.
+  roh=$(./vendor/bin/phpunit --filter "$filter" --do-not-cache-result 2>&1)
 
-  ergebnis=$(printf '%s' "$roh" \
-    | python3 -c "import json,sys; print(json.load(sys.stdin)['result'])" 2>/dev/null) \
-    || ergebnis="kein Ergebnis"
+  case "$roh" in
+    *'No tests executed'*|*'No tests found'*) ergebnis='kein Test' ;;
+    *'FAILURES!'*|*'ERRORS!'*)               ergebnis='failed' ;;
+    *'OK ('*|*'OK, but'*)                    ergebnis='passed' ;;
+    *)                                       ergebnis='unlesbar' ;;
+  esac
 
   if [ "$ergebnis" = "$erwartung" ]; then
     printf '  ok     %-56s %s\n' "$name" "$ergebnis"
-  else
-    printf '  FEHLT  %-56s %s (erwartet: %s)\n' "$name" "$ergebnis" "$erwartung"
-    fehler=$((fehler + 1))
+
+    return 0
   fi
+
+  printf '  FEHLT  %-56s %s (erwartet: %s)\n' "$name" "$ergebnis" "$erwartung"
+  fehler=$((fehler + 1))
+
+  case "$ergebnis" in
+    'kein Test'|'unlesbar') stumm=$((stumm + 1)) ;;
+  esac
 }
 
 echo "── ClassReachTest: eine Klasse, die es nicht gibt ──"
@@ -5888,8 +5946,17 @@ pruefe "  … zurückgesetzt wieder grün" AgentAnswerReachTest passed
 echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
+elif [ "$stumm" -eq "$fehler" ]; then
+  # **Die Unterscheidung, die dem ersten vollstaendigen Lauf gefehlt hat.**
+  # Steht hinter jedem Fehlschlag ein vertippter Filter oder eine unlesbare
+  # Ausgabe, ist nicht eine einzige Regel gebrochen — dieses Skript hat nur
+  # nichts gemessen. Wer das verwechselt, sucht den Fehler an 473 Stellen, an
+  # denen keiner ist.
+  echo "$fehler Prüfung(en) ohne Messung — dieses Skript hat nichts gemessen," >&2
+  echo "und über die Wächter ist damit nichts gesagt." >&2
 else
-  echo "$fehler Prüfung(en) ohne Biss — diese Wächter halten ihre Regel nicht." >&2
+  echo "$fehler Prüfung(en) ohne Biss, davon $stumm ohne Messung." >&2
+  echo "Die übrigen sind Wächter, die ihre Regel nicht halten." >&2
 fi
 
 exit "$fehler"

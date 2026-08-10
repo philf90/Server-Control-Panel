@@ -231,7 +231,11 @@ Befehlsfolge (§17), die Entscheidungen des Betreibers (§19) und ein langes
 Protokoll dessen, was beim Bauen anders war als im Plan (§22.3a–§22.3x) — sowie
 **`37` die Übergabe an P5b** und **`38` der Plan von P5b**: §2 die Messungen,
 die vor dem Plan kamen, §3 das neu gefasste Abnahmekriterium, §19 die
-Befehlsfolge dazu.
+Befehlsfolge dazu — und **`39` die Zwischenabnahme**, neun Punkte auf einem
+echten Server gegen `v0.5.1-rc.2`, weil die Schritte 4 bis 7 nur gegen einen
+Wegwerf-Cluster im Container gemessen sind. Sie steht dort, weil sie zuerst nur
+in einem Sitzungsverlauf stand: **Was man zweimal braucht, gehört ins Repo —
+auch wenn es keine Zeile Code ist.**
 
 ---
 

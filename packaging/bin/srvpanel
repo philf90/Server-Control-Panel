@@ -21,8 +21,20 @@ set -eu
 
 COMMAND="${1:-list}"
 
+# "srvpanel --version" fragt nach dem Panel, nicht nach Laravel.
+#
+# Ohne diese Zeile reicht der Wrapper den Schalter durch, und artisan nennt die
+# Fassung des Frameworks: Am 10. August 2026 stand auf cloudsrv24 „Laravel
+# Framework 13.23.0" — richtig, und für die Frage „ist rc.2 installiert?"
+# wertlos. Wer den Schalter tippt, meint das Programm, das er aufruft.
 case "${COMMAND}" in
-    setup|update|metrics|usage|tls|dns|db|vhost|acceptance|acceptance-web|acceptance-db|admin)
+    --version)
+        COMMAND="version"
+        ;;
+esac
+
+case "${COMMAND}" in
+    setup|update|metrics|usage|tls|dns|db|vhost|acceptance|acceptance-web|acceptance-db|admin|version)
         shift
         set -- "srvpanel:${COMMAND}" "$@"
         ;;

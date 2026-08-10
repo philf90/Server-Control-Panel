@@ -136,7 +136,7 @@ final class DatabaseSettingsController extends Controller
      *     usable: bool,
      *     reason: string|null,
      *     handover: string,
-     *     handed_over: bool,
+     *     handed_over: bool|null,
      *     databases: int,
      *     can_install: bool,
      * }
@@ -154,7 +154,9 @@ final class DatabaseSettingsController extends Controller
             'usable' => false,
             'reason' => null,
             'handover' => PgServer::HANDOVER,
-            'handed_over' => false,
+
+            // Ohne Antwort des Agenten ist nichts nachgesehen — siehe unten.
+            'handed_over' => null,
             'databases' => Database::query()->where('engine', DatabaseEngine::Postgres)->count(),
 
             // Ohne Antwort des Agenten wird nichts angeboten: Ein Knopf,
@@ -184,7 +186,18 @@ final class DatabaseSettingsController extends Controller
             // (`docs/36 §22.3v`): Was hier steht, soll das sein, was der Agent
             // meint, und nicht das, was das Panel darüber glaubt.
             'handover' => is_string($info['handover'] ?? null) ? $info['handover'] : PgServer::HANDOVER,
-            'handed_over' => ($info['handed_over'] ?? false) === true,
+            /*
+             * **Dreiwertig durchgereicht und nicht auf `false` eingeebnet.**
+             * Hier stand `($info['handed_over'] ?? false) === true`, und das
+             * machte aus dem `null` des Agenten — „konnte nicht nachsehen" —
+             * ein `nein`. Bei gestopptem Cluster zeigte die Seite daraufhin den
+             * Hinweis „Rolle anlegen" mit einem Befehl, der in diesem Zustand
+             * nicht laufen kann.
+             *
+             * Eine fehlende Angabe ist ehrlicher als eine falsche; dieselbe
+             * Entscheidung wie bei der Sortierung einer PostgreSQL-Datenbank.
+             */
+            'handed_over' => is_bool($info['handed_over'] ?? null) ? $info['handed_over'] : null,
 
             /*
              * **Die Liste gehört der Operation und nicht dieser Seite.**

@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\Panel\Release;
+
 return [
 
     /*
@@ -13,7 +15,20 @@ return [
     |
     */
 
-    'version' => env('SRVPANEL_VERSION', '0.1.0-dev'),
+    /*
+     * **Die Fassung kommt aus dem Dateisystem und nicht aus der Umgebung.**
+     *
+     * Hier stand `env('SRVPANEL_VERSION', '0.1.0-dev')`, und die Variable wird
+     * nirgends gesetzt — nicht im Paket, nicht in der Einrichtung, nicht in der
+     * `.env`. Das Panel meldete damit seit seiner ersten Woche `0.1.0-dev`, und
+     * zwar sichtbar: Die Marke im Menü zeigt diesen Wert, und der Kommentar
+     * dort nennt sie „die erste Frage bei jedem Fehlerbericht".
+     *
+     * Ein Vorgabewert für eine Variable, die niemand setzt, ist kein
+     * Vorgabewert — er ist die Antwort. Die Begründung für den neuen Weg steht
+     * in {@see \App\Support\Panel\Release}.
+     */
+    'version' => Release::version(),
 
     'name' => env('APP_NAME', 'Laravel'),
 

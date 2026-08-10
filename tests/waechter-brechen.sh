@@ -41,6 +41,12 @@
 # toten. Ohne die Zeile bliebe er stehen — und der nächste Lauf fände ein
 # schmutziges Verzeichnis vor, das er sich selbst gemacht hat.
 #
+# `config/` kam mit dem Fassungsbefehl dazu, und der Anlass ist der teuerste
+# Bruch dieses Skripts: Er dreht `config/app.php` auf `env('SRVPANEL_VERSION',
+# '0.1.0-dev')` zurück — auf genau die Zeile, die zwei Jahre lang ausgeliefert
+# war. Stünde das Verzeichnis nicht in der Liste, bliebe sie stehen, und der
+# Bruch hätte den Fehler nicht geprüft, sondern wieder eingebaut.
+#
 # `database/` kam mit P5 dazu, und der Anlass ist genau der Satz darüber: Ein
 # Wächter prüft dort am **Schema**, dass es keine Spalte für ein Passwort gibt
 # (`SecretsStayOutOfTheQueueTest`), und der Bruch dazu fügt eine ein. Ohne diese
@@ -67,15 +73,15 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 
-if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/; then
-  echo "resources/, app/, agent/, packaging/, .github/, database/, routes/ oder docs/ hat ungesicherte" >&2
+if ! git diff --quiet -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/; then
+  echo "resources/, app/, agent/, packaging/, .github/, database/, routes/, docs/ oder config/ hat ungesicherte" >&2
   echo "Änderungen. Erst committen" >&2
   echo "oder verwerfen — dieses Skript ändert dort Dateien und stellt sie über" >&2
   echo "git wieder her." >&2
   exit 1
 fi
 
-wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ 2>/dev/null; }
+wiederherstellen() { git checkout -- resources/ app/ agent/ packaging/ .github/ database/ routes/ docs/ config/ 2>/dev/null; }
 trap wiederherstellen EXIT INT TERM
 
 fehler=0
@@ -5150,6 +5156,254 @@ pruefe "Sicherung ohne Weg zurueck" \
   RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
 git checkout -- tests/Feature/RemovalPathTest.php
 pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
+
+echo
+echo "── ReleaseVersionTest: die Fassung kommt wieder aus einer Umgebungsvariable ──"
+#
+# Der Zustand, der zwei Jahre ausgeliefert war. `SRVPANEL_VERSION` wird nirgends
+# gesetzt — nicht im Paket, nicht in der Einrichtung, nicht in der `.env` —, und
+# die Marke im Menue nannte deshalb den Vorgabewert. Die Zeile sieht in jeder
+# Durchsicht harmlos aus; falsch wird sie erst dadurch, dass niemand die
+# Variable setzt, und das sieht man ihr nicht an.
+vorher_datei config/app.php
+python3 - <<'PY2'
+p = 'config/app.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'version' => Release::version(),",
+              "'version' => env('SRVPANEL_VERSION', '0.1.0-dev'),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei config/app.php "Fassung aus der Umgebung" &&
+pruefe "Fassung aus der Umgebung" \
+  ReleaseVersionTest::test_the_version_does_not_come_from_an_unset_variable failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseVersionTest passed
+
+echo
+echo "── ReleaseVersionTest: jedes Verzeichnis gilt als Fassung ──"
+#
+# Die Gegenrichtung, und sie ist die leisere. Ein zu weites Muster meldet keinen
+# Fehler — es nennt den Namen des Verzeichnisses, in dem die Anwendung gerade
+# liegt, und im Quellbaum heisst das `Server-Control-Panel`. Ein Fehlerbericht
+# traegt dann eine Angabe, die aussieht wie eine Fassung und keine ist.
+vorher_datei app/Support/Panel/Release.php
+python3 - <<'PY2'
+p = 'app/Support/Panel/Release.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("private const PATTERN = '/^\\d+\\.\\d+\\.\\d+(-[a-z]+(\\.\\d+)?)?$/D';",
+              "private const PATTERN = '/./D';")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Panel/Release.php "Muster ohne Form" &&
+pruefe "Muster ohne Form" \
+  ReleaseVersionTest::test_a_release_directory_names_its_version failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" ReleaseVersionTest passed
+
+echo
+echo "── SourceLinkTest: die Fusszeile faellt wieder auf das Repository zurueck ──"
+#
+# Der Zustand, den die AGPL nicht meint. Ohne den Rueckgriff auf den Tag der
+# Freigabe haengt der Quelltext-Link allein an SRVPANEL_COMMIT — und die setzt
+# niemand. Der Bruch nimmt die Zeile heraus; danach zeigt jede Fusszeile auf
+# main statt auf den Stand, der laeuft.
+vorher_datei app/Support/Panel/Source.php
+python3 - <<'PY2'
+p = 'app/Support/Panel/Source.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        return $repository.'/tree/v'.$version;", "        return $repository;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Panel/Source.php "Fusszeile ohne Tag" &&
+pruefe "Fusszeile ohne Tag" \
+  SourceLinkTest::test_without_a_commit_the_release_tag_carries_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceLinkTest passed
+
+echo
+echo "── SourceLinkTest: die Vorlage baut die Adresse wieder selbst ──"
+#
+# Die Regel stand bis zum 10. August 2026 genau so im Template, als Bedingung
+# ueber den Commit. Zwei Fassungen derselben Entscheidung, und die im Template
+# ist die, die beim naechsten Umbau stehen bleibt — gemerkt hat es niemand,
+# weil sie ja funktionierte, nur eben immer im selben Zweig.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(':href="source.url"',
+              ':href="source.commit ? `${source.repository}/tree/${source.commit}` : source.repository"')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Adresse in der Vorlage" &&
+pruefe "Adresse in der Vorlage" \
+  SourceLinkTest::test_the_template_only_shows_what_the_server_decided failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceLinkTest passed
+
+echo
+echo "── PgHandoverTest: der Vorgabewert wird wieder als Messung gelesen ──"
+#
+# Der Fund aus Punkt 2 der Zwischenabnahme (docs/39), gefunden auf einem Bild.
+# `handed_over` stand im Grundzustand auf false, und drei der sieben Zustaende
+# ueberschreiben es nie — sie kommen gar nicht dazu, sich anzumelden. Bei
+# gestopptem Cluster zeigte die Seite daraufhin „Rolle anlegen" mit einem
+# Befehl, der genau dort nicht laufen kann.
+vorher_datei agent/src/Pg/Server.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Server.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'handed_over' => null,", "            'handed_over' => false,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Server.php "Vorgabewert als Messung" &&
+pruefe "Vorgabewert als Messung" \
+  PgHandoverTest::test_the_default_is_not_an_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHandoverTest passed
+
+echo
+echo "── PgHandoverTest: die Seite prueft wieder auf Falschheit ──"
+#
+# Die leisere Haelfte, und die, die den Fehler zurueckbringt, ohne dass am
+# Agenten etwas falsch waere: `!handed_over` ist in JavaScript fuer null UND
+# fuer false wahr. Die Bedingung sieht richtig aus.
+vorher_datei resources/js/Pages/Settings/Database.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Database.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('props.postgresql.handed_over === false',
+              '!props.postgresql.handed_over && props.postgresql.reachable')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Database.vue "Seite prueft auf Falschheit" &&
+pruefe "Seite prueft auf Falschheit" \
+  PgHandoverTest::test_the_page_distinguishes_unknown_from_no failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHandoverTest passed
+
+echo
+echo "── EngineDefaultTest: der Vorgabewert fuer das Datenbanksystem kehrt zurueck ──"
+#
+# Der teuerste Fund der Zwischenabnahme (docs/39, Punkt 3): Databases::createUser()
+# hatte `= DatabaseEngine::MariaDb`, und der Steuerungscode liess das Argument
+# weg — jeder Zugang zu einer PostgreSQL-Datenbank entstand damit in MariaDB.
+# Der eigentliche Waechter ist der Uebersetzer; dieser Bruch prueft, dass die
+# Vorgabe nicht zurueckkommt.
+vorher_datei app/Support/Databases/Databases.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        DatabaseEngine $engine,
+    ): array {",
+              "        DatabaseEngine $engine = DatabaseEngine::MariaDb,
+    ): array {")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Databases.php "Vorgabewert fuer das System" &&
+pruefe "Vorgabewert fuer das System" \
+  EngineDefaultTest::test_no_method_guesses_the_engine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineDefaultTest passed
+
+echo
+echo "── EngineDefaultTest: der Zugang bekommt einen festen Wert ──"
+#
+# Die Gegenrichtung. Ohne sie liesse sich derselbe Fehler wiederholen, indem
+# der Steuerungscode `DatabaseEngine::MariaDb` einsetzt statt zu fragen, woran
+# der Zugang haengt — die Signatur waere zufrieden, das Ergebnis dasselbe.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                $database->engine,", "                DatabaseEngine::MariaDb,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "fester Wert statt Frage" &&
+pruefe "fester Wert statt Frage" \
+  EngineDefaultTest::test_the_access_follows_its_database failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineDefaultTest passed
+
+echo
+echo "── EngineCollationTest: der Ersatzwert fuer die Sortierung kehrt zurueck ──"
+#
+# Der Fehler, an dem P5b auf dem Server haengengeblieben ist (docs/39, Punkt 3):
+# `?? $this->collations()[0]` schob PostgreSQL die erste MariaDB-Sortierung als
+# LC_COLLATE unter, und keine PostgreSQL-Datenbank liess sich anlegen.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                $data['collation'] ?? null,",
+              "                (string) ($data['collation'] ?? $this->collations()[0]),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Ersatzwert fuer die Sortierung" &&
+pruefe "Ersatzwert fuer die Sortierung" \
+  EngineCollationTest::test_the_controller_invents_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
+
+echo
+echo "── EngineCollationTest: Postgres schickt wieder ein Gebietsschema ──"
+#
+# Die Richtung, die zaehlt. Was in dieser Nutzlast landet, kann nur aus dem
+# Formular stammen — und das Formular fragt fuer PostgreSQL nicht danach.
+vorher_datei app/Support/Databases/Engines/PostgresDriver.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Engines/PostgresDriver.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'encoding' => 'UTF8',\n        ]);",
+              "            'encoding' => 'UTF8',\n            'locale' => $collation,\n        ]);")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Engines/PostgresDriver.php "Gebietsschema an Postgres" &&
+pruefe "Gebietsschema an Postgres" \
+  EngineCollationTest::test_postgres_sends_no_locale failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
+
+echo
+echo "── PreviousUrlTest: der Ereigniskanal wird wieder eine Seite ──"
+#
+# Der Fehler, der die Zwischenabnahme eine Stunde gekostet hat (docs/39): Laravel
+# merkt sich jede GET-Anfrage als „vorige Seite", und ValidationException leitet
+# dorthin zurueck. Ohne die Kennzeichnung landet jeder Formularfehler des Panels
+# auf dem Vorgangskanal, sobald irgendwo ein Vorgang laeuft.
+vorher_datei app/Http/Middleware/KeepPreviousUrl.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/KeepPreviousUrl.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $request->headers->set('X-Requested-With', 'XMLHttpRequest');\n\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Middleware/KeepPreviousUrl.php "Kanal wird wieder eine Seite" &&
+pruefe "Kanal wird wieder eine Seite" \
+  PreviousUrlTest::test_the_stream_does_not_look_like_a_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
+
+echo
+echo "── PreviousUrlTest: die Kennzeichnung steht eine Zeile zu spaet ──"
+#
+# storeCurrentUrl() laeuft auch dann, wenn can: abweist. Steht die
+# Kennzeichnung dahinter, kapert eine 403 auf dem Kanal weiterhin das „Zurueck"
+# der naechsten Formularseite — dieselbe Sorte Fehler wie die Kettenreihenfolge
+# im Abnahmelauf von P4.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("->middleware([KeepPreviousUrl::class, 'can:view,operation'])",
+              "->middleware(['can:view,operation', KeepPreviousUrl::class])")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei routes/web.php "Kennzeichnung zu spaet" &&
+pruefe "Kennzeichnung zu spaet" \
+  PreviousUrlTest::test_the_route_carries_it_before_the_policy failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

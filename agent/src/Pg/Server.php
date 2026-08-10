@@ -104,7 +104,7 @@ final class Server
      * @return array{
      *     state: string,
      *     available: bool,
-     *     handed_over: bool,
+     *     handed_over: bool|null,
      *     version: string,
      *     major: int|null,
      *     usable: bool,
@@ -121,7 +121,24 @@ final class Server
         $blank = [
             'state' => 'absent',
             'available' => false,
-            'handed_over' => false,
+
+            /*
+             * **`null` und nicht `false` — „nicht nachgesehen" ist keine
+             * Antwort mit `nein`.** Ob es die Rolle `root` gibt, weiss nur, wer
+             * sich anmelden konnte; in `stopped`, `ambiguous`, `no_cluster` und
+             * `absent` ist niemand dazu gekommen. Stand hier `false`, las das
+             * Panel den Vorgabewert als Messung und zeigte bei gestopptem
+             * Cluster den Hinweis „Rolle anlegen" — mit einem Befehl, der in
+             * genau diesem Zustand nicht laufen *kann*, weil `psql` niemanden
+             * erreicht.
+             *
+             * Gefunden am 10. August 2026 in Punkt 2 der Zwischenabnahme
+             * (`docs/39`), auf einem Bild und nicht von einem Test. Es ist
+             * derselbe Fehler wie `env('SRVPANEL_VERSION', '0.1.0-dev')` zwei
+             * Tage davor: **Ein Vorgabewert, den niemand überschreibt, ist kein
+             * Vorgabewert — er ist die Antwort.**
+             */
+            'handed_over' => null,
             'version' => '',
             'major' => null,
             'usable' => false,
@@ -223,6 +240,9 @@ final class Server
             return array_merge($blank, [
                 'state' => 'not_handed_over',
                 'available' => true,
+
+                // Hier ist es gemessen: Der Cluster läuft und hat abgewiesen.
+                'handed_over' => false,
                 'cluster' => sprintf('%d/%s', $running[0]['version'], $running[0]['name']),
                 'port' => $running[0]['port'],
                 'reason' => $error->getMessage(),

@@ -22,6 +22,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SubscriptionDnsController;
 use App\Http\Controllers\TlsSettingsController;
+use App\Http\Middleware\KeepPreviousUrl;
 use App\Models\AuditEvent;
 use App\Models\Customer;
 use App\Models\Database;
@@ -109,8 +110,18 @@ Route::middleware('auth')->group(function (): void {
      * Policy gar nicht erst. Sie steht trotzdem da: zwei Schichten, und
      * wenn eine ausfällt, hält die andere.
      */
+    /*
+     * **`KeepPreviousUrl` steht vor `can:`, und zwar mit Grund.** Laravel merkt
+     * sich jede GET-Anfrage als „vorige Seite" und leitet Formularfehler
+     * dorthin zurück; ein Ereigniskanal ist aber keine Seite. Ohne diese Zeile
+     * landete jeder Formularfehler des Panels auf diesem Kanal, sobald irgendwo
+     * ein Vorgang lief — die Begründung steht in der Klasse.
+     *
+     * Vor `can:`, weil das Merken auch dann läuft, wenn der Zugriff abgewiesen
+     * wird.
+     */
     Route::get('/operations/{operation}/stream', OperationStreamController::class)
-        ->middleware('can:view,operation')
+        ->middleware([KeepPreviousUrl::class, 'can:view,operation'])
         ->name('operations.stream');
 
     /*

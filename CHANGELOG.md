@@ -7464,3 +7464,313 @@ er absichern soll. Dasselbe Muster wie bei den Eingriffen in
 `waechter-brechen.sh`, nur in einem Test. Er geht jetzt über `Lifecycles`, also
 über den Weg, den die Anwendung nimmt: Zieht die Regel noch einmal um, bleibt er
 richtig.
+
+### `srvpanel:version` — und ein Vorgabewert, der zwei Jahre die Antwort war
+
+Beim Testlauf von `v0.5.1-rc.2` fragte der Betreiber `srvpanel --version` und
+bekam „Laravel Framework 13.23.0". Richtig — `srvpanel` reicht alles an `artisan`
+durch, und `artisan --version` nennt die Fassung des Frameworks. Für die Frage
+„ist rc.2 installiert?" ist sie wertlos. **Das ist derselbe Stellvertreter, der
+in P5b schon zweimal zugeschlagen hat:** gemessen wurde etwas, das an der
+richtigen Stelle stand und die falsche Sache nannte.
+
+**Die Suche nach der richtigen Stelle hat einen Fehler freigelegt, der seit der
+ersten Woche ausgeliefert ist.** `config('app.version')` las
+`env('SRVPANEL_VERSION', '0.1.0-dev')`, und **diese Variable wird nirgends
+gesetzt** — nicht vom Paket, nicht von `srvpanel setup`, nicht in einer
+`.env.example`. Die Marke im Menü zeigte also auf jedem Server dieser Welt
+`0.1.0-dev`, und der Kommentar direkt daneben nennt sie „die erste Frage bei
+jedem Fehlerbericht". Gemerkt hat es niemand, weil nichts den Bezug prüfte —
+wortwörtlich das Muster, das `CLAUDE.md` als den teuersten Fehler dieses
+Projekts führt.
+
+> **Ein Vorgabewert für eine Variable, die niemand setzt, ist kein Vorgabewert —
+> er ist die Antwort.**
+
+Ein `env()` mit zweitem Argument sieht in jeder Durchsicht harmlos aus. Es wird
+nicht dadurch falsch, dass es dasteht, sondern dadurch, dass die Variable
+fehlt — und das steht nicht in der Zeile, sondern in ihrer Abwesenheit
+anderswo. Es gibt keinen Ort, an dem man beim Lesen darüber stolpert.
+
+**Die Fassung kommt jetzt aus dem Verzeichnisnamen.** Das Paket legt jede
+Auslieferung nach `/opt/srvpanel/releases/<fassung>` und lässt `current` darauf
+zeigen (`packaging/install.sh`); der Name ist damit nicht eine *Angabe über* die
+laufende Fassung, sondern sie selbst. Eine Datei daneben — `VERSION`, ein
+Eintrag in `srvpanel.php` — wäre eine zweite Fassung derselben Auskunft, und die
+zweite ist die, die beim nächsten Update stehen bleibt. Der Integrationslauf
+prüft denselben Zusammenhang längst von der anderen Seite („Das Verzeichnis der
+Fassung traegt die Fassung").
+
+**Im Quellbaum steht ein Wort und keine Nummer:** `Quellbaum`. Eine
+erfundene Zahl — `0.0.0`, `dev` — sähe in einem Fehlerbericht aus wie eine
+Auskunft und wäre keine; genau daran ist `0.1.0-dev` zwei Jahre lang
+vorbeigekommen.
+
+`srvpanel version` gibt die Fassung allein aus, ohne Satz drumherum: Der
+häufigste Gebrauch ist eine Zeile in einem Fehlerbericht oder ein Vergleich in
+einem Skript, und beides bricht an Zierrat. `--details` nennt dazu das
+Verzeichnis, aus dem die Auskunft stammt, und den Commit — leer, wenn kein
+Freigabelauf ihn gesetzt hat, denn eine erfundene Kennung wäre schlimmer als
+keine. **Die Abkürzung `-v` gab es im ersten Entwurf und geht nicht:** Symfony
+belegt sie für die Redseligkeit, und ein zweiter Anspruch darauf wirft beim
+Aufbau der Kommandoliste — also bei *jedem* `artisan`-Aufruf, nicht nur bei
+diesem. Derselbe Fehlertyp wie ein Methodenname, der der Basisklasse gehört.
+
+**Und `srvpanel --version` beantwortet die Frage jetzt selbst.** Der Wrapper
+reichte den Schalter an artisan durch; wer ihn tippt, meint aber das Programm,
+das er aufruft.
+
+**Der Wächter prüft die Zeile und nicht den Wert.** Ein Test gegen
+`config('app.version')` wäre grün, sobald irgendjemand `SRVPANEL_VERSION` in
+seiner eigenen `.env` setzt, und rot auf jedem Server, der das nicht tut — er
+prüfte die Umgebung des Prüfers. `ReleaseVersionTest` liest deshalb
+`config/app.php` als Text, verlangt dort `Release::version()`, verbietet `env(`
+und sieht in beide Richtungen nach, dass die Auskunft die Oberfläche und den
+Befehl erreicht. Beide Brüche stehen in `tests/waechter-brechen.sh`, und mit
+ihnen kommt `config/` in die Liste der Verzeichnisse, die das Skript
+wiederherstellt: Der eine Bruch baut die alte Zeile wieder ein, und ohne die
+Liste bliebe sie stehen.
+
+### Der Quelltext-Link zeigt jetzt auf den Stand, der läuft
+
+**Derselbe Fund wie beim Fassungsbefehl, eine Datei weiter — und er betrifft die
+Lizenz.** Abschnitt 13 der AGPL verlangt, dass wer die Software über das Netz
+benutzt, an ihren Quelltext kommt; die Begründung über `config('srvpanel.source')`
+sagt ausdrücklich „den der laufenden Fassung, nicht bloß das Repository". Genau
+das war nicht eingelöst: Der Link hing an `SRVPANEL_COMMIT`, und diese Variable
+setzt niemand — nicht das Paket, nicht der Freigabelauf. Die Fusszeile zeigte auf
+jedem Server auf `main`.
+
+**Bemerkenswert ist, wie es gefunden wurde.** Nicht durch Lesen, sondern durch
+Suchen: Nachdem `SRVPANEL_VERSION` aufgefallen war, blieb die Frage, ob es die
+Bauart noch einmal gibt. Es gab sie, ein `grep` entfernt. Ein Fehler, den man nur
+findet, wenn man nach ihm sucht, wird nicht durch Aufmerksamkeit gefunden,
+sondern durch die Frage „wo noch?".
+
+Die Adresse kommt jetzt aus der Version, wenn kein Commit dasteht:
+`…/tree/v0.5.1-rc.3`. Eine Freigabe ist ein annotierter Tag auf `main`, und das
+Verzeichnis der Auslieferung trägt dieselbe Nummer — **die Angabe entsteht aus
+dem, was ohnehin da ist, und kann deshalb nicht vergessen werden.** Der Commit
+behält den Vorrang, falls ihn eines Tages jemand setzt; im Quellbaum steht das
+Repository selbst, denn ein toter Link löst keine Auflage ein.
+
+**Die Wahl ist dabei aus der Vorlage in den Server gezogen.** `PanelLayout.vue`
+baute die Adresse aus `commit` und `repository` selbst zusammen — dieselbe Regel
+ein zweites Mal, an der Stelle, an der man sie am wenigsten sucht. Die
+Oberfläche bekommt jetzt eine fertige Adresse und keine Zutaten.
+
+### Und was erst die Aufnahme gezeigt hat
+
+`Release::UNRELEASED` hiess zuerst **„aus dem Quellbaum"** — ein Satz, und er
+liest sich auf der Kommandozeile gut. Nur landet derselbe Wert in der
+Versionsmarke neben dem Schriftzug, und die ist eine **Monospace-Marke für
+Kennungen**. Ein deutscher Satz in Schreibmaschinenschrift, in einem Kästchen,
+das sonst `0.5.1-rc.3` trägt.
+
+Gemessen war nichts falsch: `scrollWidth - clientWidth` ist 0 px, bei 390 px und
+1280 px, hell und dunkel, auch mit `0.10.0-rc.12` als längstem denkbaren Namen.
+**Es sah nur falsch aus, und genau das findet kein Test.** Zwei Sekunden
+Aufnahme, ein Wort statt eines Satzes: `Quellbaum`.
+
+### `docs/39` — die Zwischenabnahme steht jetzt im Repo und nicht in einem Verlauf
+
+Der Testlauf gegen `v0.5.1-rc.2` — neun Punkte auf `cloudsrv24`, mit der Frage,
+ob die Schritte 4 bis 7 auf einem echten Server überhaupt tragen — stand zuerst
+nur als Nachricht in einer Sitzung. **Das ist genau das Muster, das `CLAUDE.md`
+als teuersten Fehler dieses Projekts führt, nur an der letzten Stelle, an der man
+es sucht: in der Anleitung selbst.** Ein Verlauf lässt sich nicht durchsuchen,
+nicht berichtigen, und `DocLinkTest` sieht ihn nicht.
+
+Der Beleg kam am selben Tag. Punkt 0 enthielt zwei falsche Befehle:
+`srvpanel --version` nannte die Fassung von Laravel, und ein `| head -2` schnitt
+die Ausgabe von `psql` ab, bevor sie kam. Der Betreiber ist an beiden
+hängengeblieben — und die Berichtigung stand danach wieder nur im Verlauf.
+
+> **Was man zweimal braucht, gehört ins Repo — auch wenn es keine Zeile Code
+> ist.**
+
+Was das Dokument über die Sammlung von Befehlen hinaus festhält, ist jeweils der
+Grund: warum die Ausgangsmessung in Punkt 1 *vor* Punkt 7 stattfinden muss (eine
+Abwesenheit ohne Vorgeschichte belegt nichts), warum die Gegenprobe zur Sperre
+zwei Hälften hat (sonst belegt sie nur, dass irgendetwas nicht ging), und warum
+in Punkt 7d der **Eigentümer** der Tabelle wichtiger ist als ihre Zeilenzahl.
+
+### Punkt 2 der Zwischenabnahme: ein Hinweis, der nicht befolgt werden kann
+
+**Gefunden auf einem Bild, nicht von einem Test.** Bei gestopptem Cluster zeigte
+„Einstellungen → Datenbankserver" den Hinweis *Rolle anlegen* mit dem Befehl
+`sudo -u postgres psql -c "CREATE ROLE root SUPERUSER LOGIN"`. Der kann in genau
+diesem Zustand nicht laufen: `psql` erreicht keinen Server. Die Seite gab also
+eine Anweisung, deren einziges mögliches Ergebnis eine Fehlermeldung war —
+gezeigt ausgerechnet dem, der gerade nicht weiterkommt.
+
+Die Ursache war kein falscher Zweig. `Server::describe()` legte `handed_over` im
+Grundzustand auf `false`, und drei der sieben Zustände überschreiben ihn nie:
+`stopped`, `ambiguous` und `no_cluster` kommen gar nicht dazu, sich anzumelden.
+Das Panel las `false` und schloss daraus „die Rolle fehlt", während die Wahrheit
+**„nicht nachgesehen"** war.
+
+> **Ein Vorgabewert, den niemand überschreibt, ist kein Vorgabewert — er ist die
+> Antwort.**
+
+Derselbe Satz stand zwei Tage vorher schon einmal hier, für
+`env('SRVPANEL_VERSION', '0.1.0-dev')`. Dass er innerhalb einer Woche zweimal
+zutrifft, ist der eigentliche Befund: Es ist kein Ausrutscher, sondern eine
+Bauform. Ein Vorgabewert in einem `array_merge`-Grundzustand sieht genauso
+harmlos aus wie ein zweites Argument an `env()`, und beide werden erst dadurch
+falsch, dass die Überschreibung **anderswo** fehlt.
+
+Die Angabe ist jetzt dreiwertig — `true`, `false`, `null` für „konnte nicht
+nachsehen" —, und alle drei Stellen führen sie so: der Agent, der Controller
+(`is_bool(…) ? … : null` statt `(… ?? false) === true`, was drei Werte auf zwei
+einebnete) und die Vorlage (`=== false` statt `!handed_over`, denn `null` ist in
+JavaScript ebenfalls falsch). **Eine fehlende Angabe ist ehrlicher als eine
+falsche**, dieselbe Entscheidung wie bei der Sortierung einer
+PostgreSQL-Datenbank.
+
+`PgHandoverTest` prüft alle drei Stellen und beide Richtungen: dass der
+Grundzustand nichts behauptet, **und** dass die gemessenen Fälle es ausdrücklich
+sagen — ohne die zweite Hälfte wäre der Hinweis nie erschienen, auch dort nicht,
+wo er hingehört. Zwei Brüche stehen im Skript, der dritte (der Controller) wäre
+eine Änderung an einer Datei, die der Bruch der Seite schon erreicht.
+
+**Was der Lauf sonst belegt hat:** Der gestoppte Cluster meldet sich als
+`inactive` — über die Instanzunit `postgresql@16-main.service` und nicht über die
+Sammelunit, die aktiv bleibt, wenn der Cluster steht. Der Fund vom 9. August ist
+damit auf dem Server bestätigt und nicht nur repariert.
+
+### Punkt 3 der Zwischenabnahme: jeder PostgreSQL-Zugang entstand in MariaDB
+
+**Der teuerste Fund dieses Laufs, und der dritte derselben Bauform an einem
+Tag.** `Databases::createUser()` trug
+`DatabaseEngine $engine = DatabaseEngine::MariaDb`, und
+`DatabaseController::createUserFor()` rief sie ohne dieses Argument. Wer zu
+einer PostgreSQL-Datenbank einen Zugang anlegte, bekam deshalb `db.user.create`
+— eine **MariaDB**-Kennung mit dem Systembenutzer als Präfix und dem
+PostgreSQL-Namen in der Rechteliste.
+
+Beide Zeilen sehen für sich richtig aus. Die Signatur ist sinnvoll, der Aufruf
+ist sinnvoll, und in einer Welt mit einem Datenbanksystem waren sie es auch:
+`MariaDb` war dort keine Annahme, sondern eine Tatsache. **Mit dem zweiten System
+wurde aus derselben Zeile eine stille Wahl** — und niemand musste sie treffen.
+
+> **Wer ein zweites Etwas einführt, erbt die Vorgabewerte des ersten.**
+
+Die anderen beiden desselben Tages: `env('SRVPANEL_VERSION', '0.1.0-dev')` und
+`handed_over => false` im Grundzustand von `Pg\Server::describe()`. Dreimal
+derselbe Satz, dreimal an einer anderen Sprachstelle — Konfiguration,
+Array-Grundzustand, Parametervorgabe. Es ist keine Nachlässigkeit, sondern eine
+Bauform, und sie hat eine gemeinsame Gegenmassnahme:
+
+**Der Vorgabewert ist weg, und der Wächter dagegen ist der Übersetzer.** Ohne
+ihn kann kein Aufrufer die Frage übersehen — auch keiner, den es heute noch
+nicht gibt. `EngineDefaultTest` hält nur fest, dass er nicht zurückkommt, und
+prüft die Gegenrichtung mit: dass der Zugang sein System von der Datenbank
+bekommt, an der er hängt, und nicht aus einem festen Wert eine Zeile weiter.
+
+**Gefunden hat es der Betreiber auf einem echten Server**, in Punkt 3 der
+Zwischenabnahme, nachdem MariaDB durchlief und PostgreSQL nicht. Kein Test hat
+es gesehen — alle Tests, die einen Zugang anlegen, meinen MariaDB, und für die
+war die Vorgabe richtig.
+
+### Punkt 3, der eigentliche Fehler: PostgreSQL bekam eine MariaDB-Sortierung
+
+```
+ERROR: invalid LC_COLLATE locale name: "utf8mb4_unicode_ci"
+```
+
+**Keine einzige PostgreSQL-Datenbank liess sich anlegen — seit es die Funktion
+gibt.** `DatabaseController::store()` füllte eine fehlende Sortierung mit
+`?? $this->collations()[0]`, also mit der ersten **MariaDB**-Sortierung. Für
+PostgreSQL zeigt das Formular das Feld gar nicht (`docs/38 §5`), es schickt also
+nie eine — der Ersatzwert griff damit **immer**, und `pg.database.create` bekam
+`utf8mb4_unicode_ci` als `LC_COLLATE`.
+
+> **Ein Ersatzwert für etwas, das es nicht gibt, ist keine Vorsicht — er ist eine
+> Behauptung.**
+
+Der vierte Fehler derselben Bauform an einem Tag. Alle vier haben dieselbe
+Herkunft: **ein zweites System, das die Ersatzwerte des ersten geerbt hat.**
+
+| | |
+|---|---|
+| `env('SRVPANEL_VERSION', '0.1.0-dev')` | eine Variable, die niemand setzt |
+| `'handed_over' => false` im Grundzustand | ein Zustand, den niemand gemessen hat |
+| `DatabaseEngine $engine = MariaDb` | ein System, das niemand genannt hat |
+| `?? $this->collations()[0]` | eine Sortierung, die es nicht gibt |
+
+Die Sortierung ist jetzt `?string`, und **der Typ ist der Wächter**: Ein `string`
+verlangt einen Wert, und wer keinen hat, erfindet einen — die Lücke *erzwang*
+den Ersatzwert. `null` heisst „dieses System wählt sie nicht", und jeder Treiber
+sagt selbst, was er daraus macht: MariaDB nimmt seine Vorgabe (dort, wo sie
+gilt), PostgreSQL schickt gar kein `locale` und überlässt es dem Agenten, der es
+neben `CREATE DATABASE` stehen hat.
+
+**Kein Test hat es gesehen, und der Grund ist derselbe wie beim Vorgabewert für
+das System:** Jeder Test, der eine Datenbank anlegt, gibt eine Sortierung mit,
+weil er MariaDB meint. Für den war der Ersatzwert richtig.
+
+### Und warum die Meldung niemanden erreichte
+
+Der Fehler stand die ganze Zeit in einer `ValidationException` am Feld — nur
+sichtbar wurde er nicht. Laravel leitet dabei **zurück**, und „zurück" ist die
+letzte GET-Anfrage der Sitzung. Der Vorgangskanal `/operations/{id}/stream` ist
+eine solche: `EventSource` schickt kein `X-Requested-With`, gilt damit nicht als
+XHR und wird als vorige Seite gemerkt.
+
+**Jeder Formularfehler landete deshalb auf einem Ereigniskanal statt auf dem
+Formular** — und wenn der Vorgang einem anderen gehörte, mit einer 403. Der
+Betreiber sah „nichts passiert", eine 403 ohne Auslöser und eine Flut von
+`stream`-Anfragen; die Meldung, die alles erklärt hätte, kam nie an. Sichtbar
+wurde sie erst in einem frischen Tab, in dem keine Vorgangsseite offen gewesen
+war.
+
+`CLAUDE.md` warnt seit P4 vor genau dieser Weiterleitung, und `RedirectTargetTest`
+setzt es durch — **aber nur für `back()` im eigenen Code.** Die Weiterleitung
+einer `ValidationException` macht das Framework.
+
+> **Eine Regel mit Wächter, und daneben eine Tür, durch die dieselbe Regel
+> gebrochen wird.**
+
+Das ist die Lehre über Wächter, die dieser Tag den bisherigen hinzufügt: **Ein
+Wächter deckt einen *Weg* ab, keine *Wirkung*.** Wer die Wirkung meint, sucht
+nach dem zweiten Weg dorthin — und in diesem Fall lag er nicht im eigenen Code.
+
+`KeepPreviousUrl` kennzeichnet den Kanal jetzt als das, was er ist: keine Seite,
+zu der jemand zurückkehren könnte. Die Kennzeichnung ist die, die Laravel selbst
+liest (`storeCurrentUrl()` überspringt XHR), und sie steht **vor** `can:` —
+`storeCurrentUrl()` läuft auch dann, wenn der Zugriff abgewiesen wird, und eine
+403 auf dem Kanal kaperte sonst weiterhin das „Zurück" der nächsten
+Formularseite. Dieselbe Sorte Fehler wie „eine Prüfung, die eine Zeile zu spät
+läuft" aus dem Abnahmelauf von P4.
+
+`PreviousUrlTest` prüft die **Wirkung** und nicht die Kopfzeile: `ajax()` ist die
+Frage, die das Framework stellt: welche Kopfzeile sie beantwortet, ist seine
+Sache. Ein Test gegen `X-Requested-With` prüfte unsere Umsetzung gegen sich
+selbst.
+
+### Drei rote CI-Läufe für eine Zeile, die nichts geprüft hat
+
+`PgHandoverTest` band sich mit `method_exists(Server::class, 'describe')` an die
+Klasse, um die es ihm geht. Beide Namen stehen zur Übersetzungszeit fest, der
+Aufruf ist immer wahr — PHPStan meldet `function.alreadyNarrowedType`, und er hat
+recht: **Die Zeile prüfte nichts und sah aus wie eine Prüfung.**
+
+Sie steht jetzt als Vergleich des Dateipfads gegen `ReflectionClass::getFileName()`
+da und tut damit, was sie sollte: Zieht `Server` um, lesen die Textprüfungen
+darüber eine andere Datei und wären mit ihr einverstanden.
+
+**Teuer war nicht der Fehler, sondern dass er dreimal durchkam.** Der lokale
+PHPStan-Durchgang lief über `app`, `agent/src` und `tests/Support` — nicht über
+`tests/Unit` und `tests/Feature`. Genau dort sind an diesem Tag fünf neue Wächter
+entstanden.
+
+> **Ein Durchgang, der nicht überall läuft, wo geschrieben wird, ist kein
+> Durchgang.**
+
+`tests/Support` stand in der Liste, weil `CLAUDE.md` es ausdrücklich empfiehlt —
+die Testdoppel dort hängen am Agenten, und ein fehlendes `method.abstract` bricht
+den ganzen Lauf. Diese Begründung galt für *ein* Unterverzeichnis, und der
+Durchgang ist bei ihm stehengeblieben, während die Wächter woanders wuchsen. Er
+liest jetzt `tests` im Ganzen; vier Altbefunde daraus, die nur ohne larastan
+entstehen, sind benannt statt stillschweigend geschluckt.

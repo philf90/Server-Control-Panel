@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\DatabaseEngine;
 use App\Models\Database;
 use App\Models\DbUser;
 use App\Models\Operation;
@@ -179,8 +180,24 @@ final class AcceptanceDb extends Command
     private function provision(Subscription $subscription, Databases $databases): ?array
     {
         try {
-            $database = $databases->create($subscription, self::LABEL, 'utf8mb4_unicode_ci');
-            [$user, $password] = $databases->createUser($subscription, self::LABEL, [$database]);
+            // Der Abnahmelauf prüft MariaDB; PostgreSQL hat seinen eigenen
+            // (`docs/38 §19`). Das System steht seit dem 10. August 2026
+            // ausdrücklich da — es hatte einen Vorgabewert, und der ist genau
+            // dort zur Antwort geworden, wo niemand ihn gemeint hat.
+            $database = $databases->create(
+                $subscription,
+                self::LABEL,
+                'utf8mb4_unicode_ci',
+                DatabaseEngine::MariaDb,
+            );
+
+            [$user, $password] = $databases->createUser(
+                $subscription,
+                self::LABEL,
+                [$database],
+                'localhost',
+                DatabaseEngine::MariaDb,
+            );
         } catch (AgentException $error) {
             $this->error(sprintf('  %s: %s', $subscription->name, $error->getMessage()));
 

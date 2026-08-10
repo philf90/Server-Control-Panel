@@ -211,7 +211,18 @@ final class DatabaseController extends Controller
             $database = $this->databases->create(
                 $subscription,
                 $data['label'],
-                (string) ($data['collation'] ?? $this->collations()[0]),
+                /*
+                 * **Kein Ersatzwert.** Hier stand `?? $this->collations()[0]`,
+                 * also die erste **MariaDB**-Sortierung — und für PostgreSQL
+                 * schickte das Formular keine, weil es das Feld dort nicht
+                 * zeigt. Der Ersatzwert griff also genau dort, wo er nicht
+                 * hingehörte, und PostgreSQL wies jedes Anlegen ab
+                 * (`docs/39`, Punkt 3).
+                 *
+                 * `null` heisst „nicht gewählt"; was daraus wird, weiss der
+                 * Treiber und nicht dieser Ort.
+                 */
+                $data['collation'] ?? null,
                 $engine,
             );
         } catch (RuntimeException|AgentException $error) {
@@ -758,7 +769,25 @@ final class DatabaseController extends Controller
         string $host = 'localhost',
     ): RedirectResponse {
         try {
-            [$user, $password] = $this->databases->createUser($subscription, $label, [$database], $host);
+            /*
+             * **Das System kommt aus der Datenbank, an der der Zugang hängt.**
+             * Hier stand dieser Aufruf ohne das letzte Argument, und
+             * {@see Databases::createUser()} hatte `MariaDb` als Vorgabe: Jeder
+             * Zugang zu einer PostgreSQL-Datenbank entstand damit in MariaDB —
+             * `db.user.create` mit dem Systembenutzer als Präfix und dem
+             * PostgreSQL-Namen in der Rechteliste.
+             *
+             * Gefunden am 10. August 2026 in Punkt 3 der Zwischenabnahme
+             * (`docs/39`), auf einem echten Server. Die Vorgabe ist deshalb
+             * fort; PHP verlangt das Argument jetzt.
+             */
+            [$user, $password] = $this->databases->createUser(
+                $subscription,
+                $label,
+                [$database],
+                $host,
+                $database->engine,
+            );
         } catch (RuntimeException|AgentException $error) {
             throw ValidationException::withMessages([$field => $error->getMessage()]);
         }

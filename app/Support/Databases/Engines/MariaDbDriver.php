@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use RuntimeException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Db\Names;
+use SrvPanel\Agent\Ops\DbDatabaseCreate;
 
 /**
  * MariaDB — unverändert das, was P5 gebaut hat.
@@ -63,8 +64,20 @@ final class MariaDbDriver implements EngineDriver
         return Names::user($prefix, $label);
     }
 
-    public function createDatabase(string $prefix, string $label, string $collation): array
+    /**
+     * **Die Vorgabe steht hier und nicht im Steuerungscode.** Sie gilt für
+     * MariaDB und nur für MariaDB; als `?? $this->collations()[0]` im
+     * Controller galt sie für *jedes* System und hat PostgreSQL eine
+     * MariaDB-Sortierung als `LC_COLLATE` untergeschoben (`docs/39`, Punkt 3).
+     *
+     * Erreicht wird sie im Normalfall nie: Das Formular verlangt die Sortierung
+     * für MariaDB (`Rule::requiredIf`). Sie steht da für Aufrufer ohne
+     * Formular — und trägt denselben Wert, den das Formular als ersten anbietet.
+     */
+    public function createDatabase(string $prefix, string $label, ?string $collation): array
     {
+        $collation ??= DbDatabaseCreate::charsets()['utf8mb4'][0];
+
         $result = $this->agent->call('db.database.create', [
             'user' => $prefix,
             'suffix' => $label,

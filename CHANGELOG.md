@@ -8682,3 +8682,58 @@ Skript lief weiter, als wäre der Eingriff erfolgt.
 Der bestehende Wächter prüfte bis dahin, dass jede Nadel in ihrer Zieldatei
 **steht** — was sie tat. Dass der Block, der sie ersetzt, nie lief, hat er nicht
 gesehen. Beide Fragen gehören zusammen, und sie stehen jetzt nebeneinander.
+
+### Ein Knopf, der genau dort fehlte, wofür er gebaut war
+
+`disk_quota_enforced` kam am 10. August 2026 ohne Backfill dazu, und die
+Abonnementseite hängte den Knopf „Grenze erneut anwenden" an `=== false` — also
+an eine **Messung**. Für die beiden Abonnements auf `cloudsrv24` gab es die nie:
+Sie waren angelegt worden, bevor es die Spalte gab, und standen damit auf
+`null`. Das Panel zeigte eine Speichergrenze, wandte sie nicht an und bot
+keinen Weg, das zu ändern — ausser die Grenze zu *ändern*, weil
+`SubscriptionController::update()` `subscription.quota` nur bei einem
+abweichenden Wert einreiht.
+
+> **Ein Knopf, der an einer Messung hängt, fehlt dort, wo nie gemessen wurde.**
+
+Der dreiwertige Wert war richtig; falsch war, eine **Handlung** an genau einem
+seiner drei Werte aufzuhängen. `null` führt jetzt zum selben Knopf, aber nicht
+zum selben Satz: „gilt nicht" ist ein Befund und wird gewarnt, „nicht
+nachgesehen" ist eine Auskunft und bleibt nüchtern. Ein Abonnement aus der Zeit
+vor der Spalte bekäme sonst eine Warnung über einen Zustand, den niemand
+gemessen hat — dieselbe Sorte Meldung wie die, die im August bei jeder Freigabe
+erschien. Beide Hälften haben einen Wächter, die Seite und die Route: Ein
+sichtbarer Knopf, den die Route abweist, ist die Falle aus `AbilityReachTest` in
+der anderen Richtung.
+
+### Und die Meldung daneben war 65px zu breit — ausgeliefert
+
+Auf der Abonnementseite standen in `<p class="notice warn">` vier direkte
+Kinder: ein `strong` und drei Kennungen. `.notice` ist `display: flex` ohne
+`flex-wrap`, und damit ist jedes davon ein Flex-Item, das **neben** den anderen
+steht statt mit ihnen umzubrechen. Bei 390px schob die Meldung die Seite um
+**65px** aus dem Bild. Einzeln lief keine der drei Kennungen über — erst
+zusammen.
+
+Das ist derselbe Fehler wie der aus P4, der 83px gekostet hat, und er ist auf
+demselben Weg gefunden worden: von einer Messung bei 390px, nicht von einem
+Test. Der Bereich war vollständig grün. Ausgeliefert war er mit
+`v0.5.1-rc.7` — die Screenshot-Runde war beim Bauen der Quota übersprungen
+worden, weil ohne `vendor/` kein `artisan serve` läuft. Der Weg dafür stand seit
+P4 in `CLAUDE.md` und ist diesmal gegangen worden: das gebaute Stylesheet aus
+`public/build`, das Markup in einer eigenen Datei, gerendert im
+vorinstallierten Chromium.
+
+> **Eine Regel, die nur eine Seite befolgt, ist keine Regel, sondern ein
+> Zufall.** `Overview.vue` wickelte seinen Text am selben Tag richtig ein.
+
+`NoticeShapeTest` prüft jetzt alle 44 Meldungen der Oberfläche: Wer mehr als ein
+Kind in eine Meldung setzt, wickelt sie in ein `span`. Geprüft wird die **Form**
+und nicht die Breite — ob etwas überläuft, beantwortet nur ein Rendering, und
+hier läuft kein Browser. Dieselbe Wahl wie bei `SiteTemplateTest`.
+
+**Und derselbe Screenshot hat einen zweiten Fehler gezeigt**, den kein Test
+findet: Der Absatz las sich als „…for device Der Weg dorthin steht in…". Eine
+wörtlich übernommene Systemmeldung endet nicht verlässlich mit einem Punkt, und
+was danach kommt, klebt an ihr. Sie steht jetzt am Satzende — auf beiden
+Seiten, denn `Overview.vue` hatte dieselbe Reihenfolge.

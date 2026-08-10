@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import Bar from '../../Components/Bar.vue'
 import DnsCredentials from '../../Components/DnsCredentials.vue'
@@ -118,6 +119,37 @@ function resume(): void {
 function reapplyQuota(): void {
   router.post(`/subscriptions/${props.subscription.id}/quota`)
 }
+
+/*
+ * Die Grenze gilt nachweislich nicht — der Agent hat es gemeldet.
+ */
+const quotaBroken = computed(() => props.usage.enforced === false)
+
+/**
+ * Über die Grenze ist nichts bekannt, und es gibt eine.
+ *
+ * **Der Fall, den die erste Fassung übersehen hat.** `disk_quota_enforced` kam
+ * am 10. August 2026 ohne Backfill dazu; jedes Abonnement von davor steht auf
+ * `null`. Der Knopf hing an `=== false` — und fehlte damit ausgerechnet den
+ * beiden Abonnements auf `cloudsrv24`, für die er gebaut worden war. Ihre
+ * Grenze liess sich nur anwenden, indem man sie *änderte*.
+ *
+ * > **Ein Knopf, der an einer Messung hängt, fehlt dort, wo nie gemessen
+ * > wurde.**
+ *
+ * `limit_mb` gehört in die Bedingung: Ohne Grenze ist die Frage, ob sie gilt,
+ * gegenstandslos, und ein Knopf dafür wäre eine Handlung ohne Gegenstand.
+ */
+const quotaUnknown = computed(() => props.usage.enforced === null && props.usage.limit_mb !== null)
+
+/*
+ * **Beide Zustände führen zum selben Knopf, aber nicht zum selben Satz.**
+ * „Gilt nicht" ist ein Befund und wird gewarnt; „nicht nachgesehen" ist eine
+ * Auskunft und bleibt nüchtern. Ein Abonnement aus der Zeit vor der Spalte
+ * bekäme sonst eine Warnung über einen Zustand, den niemand gemessen hat —
+ * dieselbe Sorte Meldung wie die, die im August bei jeder Freigabe erschien.
+ */
+const quotaActionable = computed(() => quotaBroken.value || quotaUnknown.value)
 
 /*
  * Zwei Rückfragen und nicht eine.
@@ -245,15 +277,46 @@ function remove(): void {
           niemandem gelesen. Der Grund kommt wörtlich vom System; ein
           „konnte nicht gesetzt werden" hülfe beim Beheben nicht.
         -->
-        <p v-if="props.usage.enforced === false" class="notice warn">
-          Diese Grenze ist <strong>nicht in Kraft</strong>. Das Dateisystem unter
-          <span class="ident">/var/www/vhosts</span> führt keine Quota für
-          Benutzer.
-          <template v-if="props.usage.note">
-            Das System meldet: <span class="ident">{{ props.usage.note }}</span>
-          </template>
-          Der Weg dorthin steht in
-          <span class="ident">docs/41-dateisystem-quota.md</span>.
+        <!--
+          **Der ganze Text in einem `span`, und das ist keine Kosmetik.**
+          `.notice` ist eine Flexbox; jedes direkte Kind wird ein Flex-Item und
+          steht neben den anderen, statt mit ihnen umzubrechen. Mit vier Kindern
+          — `strong` und drei Kennungen — schob diese Meldung die Seite bei
+          390px um **65px** aus dem Bild. Gemessen am 10. August 2026 im
+          Chromium, nachdem sie mit `v0.5.1-rc.7` schon ausgeliefert war.
+
+          Es ist derselbe Fehler wie der aus P4, der 83px gekostet hat, und er
+          ist auf demselben Weg gefunden worden: nicht von einem Test, sondern
+          von einer Messung bei 390px. `Overview.vue` macht es seit demselben
+          Tag richtig — wieder eine Seite, die es kann, und die nächste nicht.
+        -->
+        <p v-if="quotaBroken" class="notice warn">
+          <!--
+            **Die Systemmeldung steht am Schluss**, und der Grund stand auf dem
+            Bildschirm: Davor las sich der Absatz als „…for device Der Weg
+            dorthin steht in…". Eine wörtlich übernommene Meldung endet nicht
+            verlässlich mit einem Punkt, und was danach kommt, klebt an ihr.
+            Am Satzende braucht sie keinen.
+          -->
+          <span>
+            Diese Grenze ist <strong>nicht in Kraft</strong>. Das Dateisystem
+            unter <span class="ident">/var/www/vhosts</span> führt keine Quota
+            für Benutzer; der Weg dorthin steht in
+            <span class="ident">docs/41-dateisystem-quota.md</span>.
+            <template v-if="props.usage.note">
+              Das System meldet: <span class="ident">{{ props.usage.note }}</span>
+            </template>
+          </span>
+        </p>
+
+        <!--
+          **Keine Warnung, sondern eine Auskunft.** Hier ist nichts gemessen
+          worden — weder dass die Grenze gilt noch dass sie fehlgeht. Ein
+          `notice warn` behauptete einen Befund, den es nicht gibt.
+        -->
+        <p v-else-if="quotaUnknown" class="hint">
+          Ob diese Grenze im Dateisystem gilt, ist nicht nachgesehen worden. Sie
+          wird angewandt, sobald sie sich ändert — oder gleich hier.
         </p>
 
         <!--
@@ -263,9 +326,9 @@ function remove(): void {
           gesetzt wird — und `Bearbeiten` reicht dafür nicht, weil sich der Wert
           nicht ändert (siehe `SubscriptionController::reapplyQuota()`).
         -->
-        <div v-if="props.usage.enforced === false && props.can.update" class="button-row">
+        <div v-if="quotaActionable && props.can.update" class="button-row">
           <button type="button" class="button" @click="reapplyQuota">
-            Grenze erneut anwenden
+            {{ quotaBroken ? 'Grenze erneut anwenden' : 'Grenze anwenden' }}
           </button>
         </div>
 

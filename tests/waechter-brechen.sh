@@ -5979,6 +5979,87 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AgentAnswerReachTest passed
 
 echo
+echo "── QuotaActionReachTest: der Knopf haengt wieder allein am gemessenen Fehlschlag ──"
+#
+# Der Fehler, der diesen Waechter ausgeloest hat, zurueckgedreht: Der Knopf
+# „Grenze anwenden" stand unter `enforced === false` — also unter einer
+# Messung. `disk_quota_enforced` kam ohne Backfill dazu, und damit hatte jedes
+# Abonnement von davor `null`. Auf cloudsrv24 fehlte der Knopf genau den beiden
+# Abonnements, fuer die er gebaut worden war.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    'const quotaActionable = computed(() => quotaBroken.value || quotaUnknown.value)',
+    'const quotaActionable = computed(() => quotaBroken.value)',
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "Knopf nur beim gemessenen Fehlschlag" &&
+pruefe "Knopf nur beim gemessenen Fehlschlag" \
+  QuotaActionReachTest::test_the_button_is_offered_in_every_state_but_yes failed
+wiederherstellen
+
+echo
+echo "── QuotaActionReachTest: die Route weist ein Abo ohne Auskunft ab ──"
+#
+# Die andere Haelfte. Ein sichtbarer Knopf, den die Route abweist, ist dieselbe
+# Falle wie ein Knopf ohne Recht — nur andersherum. Wer die Route „absichert",
+# indem er einen unbekannten Zustand ausschliesst, nimmt genau den Abonnements
+# den Weg, die ihn brauchen.
+vorher_datei app/Http/Controllers/SubscriptionController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/SubscriptionController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $audit->success('subscription.quota_reapplied', $subscription, [",
+    """        if ($subscription->disk_quota_enforced === null) {
+            throw ValidationException::withMessages([
+                'subscription' => 'Ueber diese Grenze ist nichts bekannt.',
+            ]);
+        }
+
+        $audit->success('subscription.quota_reapplied', $subscription, [""",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/SubscriptionController.php "Route weist unbekannten Zustand ab" &&
+pruefe "Route weist unbekannten Zustand ab" \
+  QuotaActionReachTest::test_a_subscription_without_an_answer_can_apply_its_limit failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" QuotaActionReachTest passed
+
+echo
+echo "── NoticeShapeTest: eine Meldung setzt ihre Teile nebeneinander ──"
+#
+# Der ausgelieferte Fehler aus v0.5.1-rc.7, zurueckgedreht: `.notice` ist eine
+# Flexbox ohne `flex-wrap`, und vier direkte Kinder stehen darin in einer Reihe
+# statt umzubrechen. Gemessen im Chromium bei 390px: 65px waagerechter
+# Ueberlauf. Einzeln lief keine der drei Kennungen ueber — erst zusammen.
+vorher_datei resources/js/Pages/Subscriptions/Show.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Subscriptions/Show.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""        <p v-if="quotaBroken" class="notice warn">
+          <span>
+            Diese Grenze ist""",
+              """        <p v-if="quotaBroken" class="notice warn">
+            Diese Grenze ist""")
+s = s.replace("""            <span class="ident">docs/41-dateisystem-quota.md</span>.
+          </span>
+        </p>""",
+              """            <span class="ident">docs/41-dateisystem-quota.md</span>.
+        </p>""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Subscriptions/Show.vue "Meldung ohne Wickel" &&
+pruefe "Meldung ohne Wickel" \
+  NoticeShapeTest::test_a_notice_with_more_than_one_child_wraps_its_text failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeShapeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

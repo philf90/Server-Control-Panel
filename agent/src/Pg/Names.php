@@ -134,6 +134,14 @@ final class Names
             );
         }
 
+        if ($suffix === self::OWNER_SUFFIX) {
+            throw AgentException::badRequest(
+                'Dieser Name gehört der Eigentümerrolle des Abonnements — ihr gehört alles, was in '
+                .'seinen Datenbanken steht, und ein zweiter Träger dieses Namens nähme ihr das.',
+                ['suffix' => $suffix],
+            );
+        }
+
         if (preg_match(self::EPHEMERAL_SUFFIX, $suffix) === 1) {
             throw AgentException::badRequest(
                 'Dieser Name ist für die Zugänge reserviert, die das Zurückspielen einer Sicherung '
@@ -164,6 +172,46 @@ final class Names
     public static function role(mixed $prefix, mixed $suffix): string
     {
         return self::compose(self::prefix($prefix), self::suffix($suffix), 'Rollenname');
+    }
+
+    /**
+     * Der Zusatz der Eigentümerrolle — reserviert, damit ihn kein Zugang bekommt.
+     */
+    public const OWNER_SUFFIX = 'owner';
+
+    /**
+     * Die Eigentümerrolle eines Abonnements.
+     *
+     * ## Warum es sie gibt
+     *
+     * **Weil zwei Zugänge desselben Abonnements sonst nicht an dieselben Daten
+     * kommen.** In MariaDB haben alle Zugänge eines Abonnements dieselben Rechte
+     * auf dasselbe Schema; in PostgreSQL gehört eine Tabelle dem, der sie
+     * angelegt hat, und ein zweiter Zugang bekommt `permission denied`. Am
+     * 10. August 2026 gemessen: `x_cron` konnte weder lesen noch ändern, was
+     * `x_web` angelegt hatte.
+     *
+     * **Und weil eine Wiederherstellung dem Kunden sonst seine Daten wegnimmt.**
+     * Das Zurückspielen lief unter einer befristeten Rolle, und das Eigentum
+     * ging danach an den Eigentümer der *Datenbank* — an `root`. Der Kunde stand
+     * vor seinen eigenen Zeilen und bekam `permission denied for table`
+     * (`docs/39`, Punkt 7).
+     *
+     * ## Wie sie wirkt
+     *
+     * Ihr gehört das Schema `public`; jeder Zugang des Abonnements ist Mitglied,
+     * und **jede seiner Sitzungen läuft als sie** — `ALTER ROLE … IN DATABASE …
+     * SET role`. Was ein Zugang anlegt, gehört damit der Gruppe, und jedes
+     * andere Mitglied darf es lesen, ändern und löschen. `session_user` bleibt
+     * der Zugang selbst; wer verbunden ist, steht weiter im Protokoll von
+     * PostgreSQL.
+     *
+     * **Sie meldet sich nirgends an** (`NOLOGIN`) und hat kein Passwort. Sie ist
+     * ein Name für „was diesem Abonnement gehört" und kein Zugang.
+     */
+    public static function owner(mixed $prefix): string
+    {
+        return self::compose(self::prefix($prefix), self::OWNER_SUFFIX, 'Rollenname');
     }
 
     /**

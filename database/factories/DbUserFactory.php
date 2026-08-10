@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DbUserStatus;
 use App\Models\DbUser;
 use App\Models\Subscription;
@@ -27,8 +28,28 @@ class DbUserFactory extends Factory
             'name' => Names::user('p1001', $label),
             'label' => $label,
             'host' => 'localhost',
+
+            // Siehe {@see DatabaseFactory::definition()} — der Vorgabewert der
+            // Spalte erreicht das Modell im Speicher nicht.
+            'engine' => DatabaseEngine::MariaDb,
+
             'status' => DbUserStatus::Active,
         ];
+    }
+
+    /**
+     * Eine PostgreSQL-Rolle.
+     *
+     * **`host` bleibt `localhost`, und das ist keine Nachlässigkeit.** In
+     * MariaDB gehört der Wirt zum Benutzer; in PostgreSQL ist die Rolle
+     * clusterweit eindeutig und die erlaubten Netze stehen in
+     * `db_user_networks` (`docs/38 §14.3`). Die Spalte trägt die Zeile nur,
+     * weil das Datenmodell eines ist — sie hier auf etwas anderes zu setzen
+     * hiesse, ihr eine Bedeutung zu geben, die sie für dieses System nicht hat.
+     */
+    public function postgres(): self
+    {
+        return $this->state(fn (): array => ['engine' => DatabaseEngine::Postgres]);
     }
 
     /** Siehe {@see DatabaseFactory::forSubscription()} — `for()` gehört der Basisklasse. */

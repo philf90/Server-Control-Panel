@@ -186,6 +186,18 @@ final class PhpVersions
      * `half-installed`; beides ist nicht benutzbar. Wer auf „steht nicht in
      * der Ausgabe" prüfte, hielte diese Zustände für in Ordnung.
      *
+     * **`installed` ist englisch und bleibt es, auch auf einem deutschen
+     * System — gemessen und nicht angenommen.** Der Entwicklungscontainer
+     * spricht englisch, dieser Vergleich hätte dort also in jedem Fall
+     * gepasst. Am 9. August 2026 auf `cloudsrv24` nachgesehen, dessen Locale
+     * deutsch ist: Die *Meldung* ist übersetzt — „Kein Paket gefunden, das auf
+     * php8.4-pgsql passt" —, das Feld `${db:Status-Status}` nicht.
+     *
+     * Der Unterschied wäre teuer gewesen und lautlos: Ein übersetztes
+     * Statuswort hiesse, dass **jedes** Paket als fehlend gilt, und
+     * `php.version.install` liesse bei jedem Aufruf `apt-get` laufen. Ein Lauf,
+     * der zu viel installiert, sieht aus wie ein erfolgreicher.
+     *
      * @param  list<string>  $wanted
      * @return list<string>
      */

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use SrvPanel\Agent\Db\Dump;
 use SrvPanel\Agent\Guard;
-use SrvPanel\Agent\Ops\DbDumpImport;
 
 /**
  * Die Übergabe für hochgeladene Sicherungen — anlegen und wieder leeren.
@@ -39,7 +39,7 @@ final class Staging
      * nach `/var/lib/srvpanel/storage` ist; im Test zeigt `storage_path()`
      * woandershin, und das ist richtig so — dort läuft kein Agent. Dass die
      * beiden in der Auslieferung zusammenfallen, prüft `UploadLimitTest`, und
-     * {@see DbDumpImport::STAGING_ROOT} ist die Gegenseite davon.
+     * {@see Dump::STAGING_ROOT} ist die Gegenseite davon.
      */
     public static function ensure(): string
     {

@@ -109,7 +109,15 @@ final class DbDumpCreate implements Op
             $this->run($context, $database, $raw);
 
             $context->progress(70, 'DEFINER streichen und komprimieren');
-            $bytes = Dump::compress($raw, $target, fn (): bool => $context->abandoned());
+            // Der Filter steht seit P5b im Aufruf und nicht in der Schleife —
+            // `pg.dump.create` schreibt dieselbe Datei ohne ihn. Die Begründung
+            // steht bei {@see Dump::compress()}.
+            $bytes = Dump::compress(
+                $raw,
+                $target,
+                fn (): bool => $context->abandoned(),
+                Dump::withoutDefiner(...),
+            );
 
             $this->handOver($target);
         } finally {

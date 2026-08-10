@@ -4178,7 +4178,7 @@ vorher_datei app/Support/Databases/Databases.php
 python3 - <<'PY2'
 p = 'app/Support/Databases/Databases.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("        $this->guardFreeName($subscription, $label, $host);\n\n", '')
+s = s.replace("        $this->guardFreeName($driver, $prefix, $label, $host);\n\n", '')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Databases/Databases.php "Zugangsname ohne Prüfung" &&
@@ -4219,7 +4219,8 @@ s = s.replace('$this->databases->grant($user, $database, $granted);', '$granted 
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 python3 - <<'PY2'
-p = 'app/Support/Databases/Databases.php'
+# Seit Schritt 4 baut den Aufruf der Treiber und nicht mehr Databases.
+p = 'app/Support/Databases/Engines/MariaDbDriver.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace("'db.user.grant'", "'db.user.grant.abgeschaltet'")
 open(p, 'w', encoding='utf-8').write(s)
@@ -4262,17 +4263,19 @@ echo "── OrphanedGrantTest: der bleibende Zugang wird nicht genannt ──"
 # nur die Zugänge, die mitgehen, behält jeder überlebende sein `GRANT ALL` auf
 # eine Datenbank, die es nicht mehr gibt — auf cloudsrv24 gefunden (docs/36
 # §22.3p).
-vorher_datei app/Support/Databases/Databases.php
+# Seit Schritt 4 steht die Nutzlast im Treiber — und die zweite Liste gibt es
+# nur dort: PostgreSQL braucht sie nicht, weil das Recht mit der Datenbank geht.
+vorher_datei app/Support/Databases/Engines/MariaDbDriver.php
 python3 - <<'PY2'
-p = 'app/Support/Databases/Databases.php'
+p = 'app/Support/Databases/Engines/MariaDbDriver.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    "                'revoke' => self::accounts($staying),\n",
+    "            'revoke' => self::accounts($staying),\n",
     '',
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Databases/Databases.php "bleibender Zugang nicht genannt" &&
+griff_datei app/Support/Databases/Engines/MariaDbDriver.php "bleibender Zugang nicht genannt" &&
 pruefe "bleibender Zugang nicht genannt" \
   OrphanedGrantTest::test_an_access_that_stays_is_named_for_the_revoke failed
 wiederherstellen
@@ -4330,9 +4333,9 @@ echo "── DumpTeardownTest: die Zeile überlebt ihre Datei ──"
 # Nach dem Rückbau eines Abonnements ist die Sicherungsdatei fort, und ohne
 # diesen Zweig bleibt ihre Zeile stehen: srvpanel db meldet dann einen Rest nach
 # einem Rückbau, der sauber gelaufen ist (docs/36 §22.3r).
-vorher_datei app/Support/Databases/DbLifecycle.php
+vorher_datei app/Support/Databases/DumpLifecycle.php
 python3 - <<'PY2'
-p = 'app/Support/Databases/DbLifecycle.php'
+p = 'app/Support/Databases/DumpLifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
     "                $this->removedAllDumps($operation, $task);\n\n",
@@ -4340,7 +4343,7 @@ s = s.replace(
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Databases/DbLifecycle.php "Zeile überlebt ihre Datei" &&
+griff_datei app/Support/Databases/DumpLifecycle.php "Zeile überlebt ihre Datei" &&
 pruefe "Zeile überlebt ihre Datei" \
   DumpTeardownTest::test_nothing_is_left_over_after_the_subscription_is_gone failed
 wiederherstellen
@@ -4567,14 +4570,14 @@ echo "── ImportCleanupTest: ein gescheiterter Upload bleibt liegen ──"
 # Am 9. August lagen so 109 MB einer abgewiesenen Zip-Bombe in der Übergabe, und
 # nichts im System hätte sie je wieder angefasst — bis zu 512 MB je Versuch,
 # ausgelöst von einem Kunden (docs/36 §22.3w).
-vorher_datei app/Support/Databases/DbLifecycle.php
+vorher_datei app/Support/Databases/DumpLifecycle.php
 python3 - <<'PY2'
-p = 'app/Support/Databases/DbLifecycle.php'
+p = 'app/Support/Databases/DumpLifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace("            Staging::forget($operation->payload['source'] ?? null);", "            // hier stand das Aufräumen")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei app/Support/Databases/DbLifecycle.php "Upload bleibt liegen" &&
+griff_datei app/Support/Databases/DumpLifecycle.php "Upload bleibt liegen" &&
 pruefe "Upload bleibt liegen" \
   ImportCleanupTest::test_a_failed_import_removes_the_uploaded_file failed
 wiederherstellen
@@ -4974,6 +4977,179 @@ pruefe "Frage und Auswertung getrennt" \
   PhpExtensionTest::test_the_query_asks_for_the_two_fields_it_reads failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PhpExtensionTest passed
+
+echo
+echo "── PgClusterTest: die Sammelunit statt der Instanz ──"
+#
+# Genau der Fehler, den der Betreiber am 9. August auf cloudsrv24 gefunden hat:
+# postgresql.service startet die Instanzen und bleibt mit RemainAfterExit auf
+# active stehen, auch wenn kein Cluster mehr laeuft. Die Uebersicht meldete
+# gruen, waehrend der Dienst stand — an der Stelle, an der jemand nach
+# Stoerungen sucht.
+vorher_datei agent/src/Pg/Clusters.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Clusters.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("return sprintf('postgresql@%d-%s.service', $version, $name);",
+              "return 'postgresql.service';")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Clusters.php "Sammelunit statt Instanz" &&
+pruefe "Sammelunit statt Instanz" \
+  PgClusterTest::test_the_unit_is_the_instance_and_not_the_collective failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgClusterTest passed
+
+echo
+echo "── FactoryDefaultTest: eine Spalte, die die Factory nicht baut ──"
+#
+# Genau der Fehler aus Lauf 463. `engine` traegt `default('mariadb')` in der
+# Migration und steht im Modell als `@property DatabaseEngine` — ohne null. Die
+# Factory setzte sie nicht, und ein `default` gilt beim INSERT: Das Modell im
+# Speicher trug null, und `Databases::remove()` gab es an einen `match` weiter.
+# Vier rote Tests, und keiner davon zeigte auf die Factory.
+vorher_datei database/factories/DatabaseFactory.php
+python3 - <<'PY2'
+p = 'database/factories/DatabaseFactory.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'engine' => DatabaseEngine::MariaDb,\n\n            'status' => DatabaseStatus::Active,",
+              "            'status' => DatabaseStatus::Active,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei database/factories/DatabaseFactory.php "Spalte fehlt in der Factory" &&
+pruefe "Spalte fehlt in der Factory" \
+  FactoryDefaultTest::test_every_required_enum_column_is_built_by_its_factory failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" FactoryDefaultTest passed
+
+echo
+echo "── EngineScopeTest: ein Lebenslauf fasst das andere System an ──"
+#
+# Beide Lebenslaeufe hoeren auf `subscription.suspend`. Faellt die Einschraenkung
+# auf `engine`, schickt PgLifecycle die MariaDB-Zugaenge desselben Abonnements
+# als Rollennamen an `pg.role.lock` — und ueberschreibt danach einen Zustand, den
+# ein anderer Vorgang gerade gesetzt hat. Sichtbar wird das erst, wenn einer der
+# beiden scheitert.
+vorher_datei app/Support/Databases/PgLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/PgLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                ->where('engine', DatabaseEngine::Postgres)\n                ->orderBy('id')",
+              "                ->orderBy('id')")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/PgLifecycle.php "Abfrage ohne System" &&
+pruefe "Abfrage ohne System" \
+  EngineScopeTest::test_every_subscription_wide_query_names_its_engine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineScopeTest passed
+
+echo
+echo "── PgRestoreTest: psql laeuft ohne ON_ERROR_STOP ──"
+#
+# Der teuerste Schalter in P5b. `psql -f` gibt bei gescheitertem SQL 0 zurueck
+# und arbeitet weiter — gemessen an vier Anweisungen, deren dritte abgewiesen
+# wurde: Rueckgabewert 0, und die vierte lief. Ein Zurueckspielen, das
+# vollstaendig scheitert, meldete dann „erledigt". mysql macht es von selbst
+# richtig; wer aus P5 abschreibt, schreibt eine Vorsicht ab, die dort in der
+# Abwesenheit eines Schalters lag.
+vorher_datei agent/src/Pg/Session.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Session.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    '-v', 'ON_ERROR_STOP=1',\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Session.php "Zurueckspielen ohne Abbruch" &&
+pruefe "Zurueckspielen ohne Abbruch" \
+  PgRestoreTest::test_the_restore_stops_at_the_first_error failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
+echo "── PgRestoreTest: der DEFINER-Filter laeuft ueber PostgreSQL-Daten ──"
+#
+# Die Gegenrichtung, und sie ist die wichtigere. pg_dump schreibt keine
+# DEFINER-Angaben (gemessen: null Treffer). Ein Filter, der trotzdem ueber jede
+# Zeile laeuft, kommt an alles, was ein Kunde gespeichert hat — docs/36 §10.1
+# haelt fest, was ein zu breites Suchen-und-Ersetzen in einem Dump anrichtet.
+vorher_datei agent/src/Ops/PgDumpCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDumpCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$bytes = Dump::compress($raw, $target, fn (): bool => $context->abandoned());",
+              "$bytes = Dump::compress($raw, $target, fn (): bool => $context->abandoned(), Dump::withoutDefiner(...));")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDumpCreate.php "Filter ueber fremde Daten" &&
+pruefe "Filter ueber fremde Daten" \
+  PgRestoreTest::test_the_postgres_dump_is_written_through_unchanged failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
+echo "── PgRestoreTest: die pg_hba-Zeile steht unter der peer-Zeile ──"
+#
+# pg_hba.conf wird von oben nach unten gelesen, und die erste passende Zeile
+# entscheidet — auch wenn sie abweist. Unter `local all all peer` kaeme die neue
+# nie zum Zug, und die befristete Rolle bliebe draussen. Dieselbe Falle wie eine
+# Firewall-Regel hinter einem DROP.
+vorher_datei agent/src/Pg/Hba.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Hba.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('return self::MARK."\\n".self::RULE."\\n\\n".$content;',
+              'return $content."\\n".self::MARK."\\n".self::RULE."\\n";')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Hba.php "Zeile am Ende statt am Anfang" &&
+pruefe "Zeile am Ende statt am Anfang" \
+  PgRestoreTest::test_the_rule_goes_above_the_existing_ones failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
+echo "── PgRestoreTest: eine zweite Umgebungsvariable ──"
+#
+# Der Runner hat mit P5b zum ersten Mal ueberhaupt eine Ergaenzung seiner festen
+# Umgebung bekommen. Eine Umgebung ist dieselbe Angriffsflaeche wie eine
+# Kommandozeile: LD_PRELOAD laedt fremden Code in einen Prozess, der als root
+# laeuft. Die Liste bleibt kurz, oder sie ist keine.
+vorher_datei agent/src/Runner.php
+python3 - <<'PY2'
+p = 'agent/src/Runner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("public const ENVIRONMENT_ALLOWED = ['PGPASSFILE'];",
+              "public const ENVIRONMENT_ALLOWED = ['PGPASSFILE', 'LD_PRELOAD'];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Runner.php "zweite Umgebungsvariable" &&
+pruefe "zweite Umgebungsvariable" \
+  PgRestoreTest::test_the_environment_stays_an_allowlist failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgRestoreTest passed
+
+echo
+echo "── RemovalPathTest: eine Sicherung ohne Weg zurueck ──"
+#
+# Mit Schritt 6 gibt es pg.dump.create und kein pg.dump.remove — der Weg zurueck
+# heisst db.dump.remove und gilt fuer beide Systeme, weil er eine Datei
+# entfernt. Faellt die Begruendung aus der Liste, meldet der Waechter genau das,
+# wofuer er seit docs/35 da ist: etwas laesst sich anlegen und nirgends loeschen.
+vorher_datei tests/Feature/RemovalPathTest.php
+python3 - <<'PY2'
+p = 'tests/Feature/RemovalPathTest.php'
+s = open(p, encoding='utf-8').read()
+start = s.index("        'pg.dump.create' =>")
+ende = s.index("        'pg.dump.import' =>")
+s = s[:start] + s[ende:]
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei tests/Feature/RemovalPathTest.php "Sicherung ohne Weg zurueck" &&
+pruefe "Sicherung ohne Weg zurueck" \
+  RemovalPathTest::test_every_creating_operation_has_a_removing_one failed
+git checkout -- tests/Feature/RemovalPathTest.php
+pruefe "  … zurückgesetzt wieder grün" RemovalPathTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

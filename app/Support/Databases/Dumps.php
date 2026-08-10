@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Enums\OperationStatus;
@@ -13,6 +14,7 @@ use App\Models\Database;
 use App\Models\DatabaseDump;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Support\Databases\Engines\PostgresDriver;
 use App\Support\Tenancy\Tenancy;
 use RuntimeException;
 
@@ -55,7 +57,7 @@ final class Dumps
 
         $dump = $this->record($database, DumpKind::Export);
 
-        return $this->dispatch($dump, $subscription, 'db.dump.create', sprintf(
+        return $this->dispatch($dump, $subscription, DumpLifecycle::task($database->engine, 'create'), sprintf(
             'Sicherung von %s wird erstellt',
             $database->name,
         ), $accountId);
@@ -80,7 +82,7 @@ final class Dumps
             throw new RuntimeException('Zu dieser Datenbank gibt es kein Abonnement mehr.');
         }
 
-        return $this->dispatch($dump, $subscription, 'db.restore', sprintf(
+        return $this->dispatch($dump, $subscription, DumpLifecycle::task($database->engine, 'restore'), sprintf(
             'Sicherung %s wird in %s zurückgespielt',
             $dump->storage_name,
             $database->name,
@@ -111,7 +113,7 @@ final class Dumps
 
         $dump = $this->record($database, DumpKind::Imported);
 
-        return $this->dispatch($dump, $subscription, 'db.dump.import', sprintf(
+        return $this->dispatch($dump, $subscription, DumpLifecycle::task($database->engine, 'import'), sprintf(
             'Sicherung für %s wird übernommen',
             $database->name,
         ), $accountId, ['source' => $source]);
@@ -128,7 +130,7 @@ final class Dumps
             throw new RuntimeException('Zu dieser Sicherung gibt es kein Abonnement mehr.');
         }
 
-        return $this->dispatch($dump, $subscription, 'db.dump.remove', sprintf(
+        return $this->dispatch($dump, $subscription, DumpLifecycle::task($dump->engine, 'remove'), sprintf(
             'Sicherung %s wird entfernt',
             $dump->storage_name,
         ), $accountId);
@@ -192,6 +194,13 @@ final class Dumps
             'database_id' => (int) $database->id,
             'database_name' => $database->name,
             'storage_name' => $name,
+
+            // **Das System der Datenbank und nicht der Vorgabewert der Spalte.**
+            // Eine Sicherung gehört zu dem System, das sie geschrieben hat —
+            // beim Zurückspielen entscheidet es, welche Operation läuft, und
+            // beim Rückbau, welche Zeilen mitgehen.
+            'engine' => $database->engine,
+
             'kind' => $kind,
             'status' => DumpStatus::Pending,
         ]);
@@ -228,11 +237,24 @@ final class Dumps
             'type' => $task,
             'task' => $task,
             'payload' => array_merge([
+                /*
+                 * **Der Systembenutzer immer, das Präfix nur für das System,
+                 * das es braucht.** `db.*` prüft gegen `p1001`, `pg.*` gegen
+                 * `x7f3a…` — dieselbe Frage, zwei Antworten (`docs/38 §4`).
+                 *
+                 * **Der erste Entwurf schickte beide unbedingt mit, und das
+                 * hat vier Tests rot gemacht.** Ein Abonnement ohne Präfix —
+                 * Testdaten, oder eine Installation, deren Migration noch
+                 * aussteht — liess damit keine **MariaDB**-Sicherung mehr zu:
+                 * `PostgresDriver::prefixOf()` wirft, und der Vorgang kam nie
+                 * in die Warteschlange. Eine Angabe, die das eine System nicht
+                 * braucht, darf das andere nicht aufhalten.
+                 */
                 'user' => (string) $subscription->system_user,
                 'subscription' => (string) $subscription->name,
                 'name' => $dump->database_name,
                 'storage' => $dump->storage_name,
-            ], $extra),
+            ], $this->prefixFor($dump, $subscription), $extra),
             'status' => OperationStatus::Queued,
             'progress' => 0,
             'message' => $message,
@@ -241,6 +263,24 @@ final class Dumps
         RunAgentOperation::dispatch((int) $operation->id);
 
         return $operation;
+    }
+
+    /**
+     * Das Präfix — nur für das System, das damit arbeitet.
+     *
+     * Ein leeres Feld wäre die dritte Möglichkeit und die schlechteste: Der
+     * Agent bekäme `''`, `Names::prefix()` wiese es ab, und der Grund stünde in
+     * einer Meldung über eine Zeichenkette statt in einer über den Bestand.
+     *
+     * @return array<string, string>
+     */
+    private function prefixFor(DatabaseDump $dump, Subscription $subscription): array
+    {
+        if ($dump->engine === DatabaseEngine::MariaDb) {
+            return [];
+        }
+
+        return ['prefix' => PostgresDriver::prefixOf($this->tenancy, $subscription)];
     }
 
     /**

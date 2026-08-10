@@ -106,14 +106,22 @@ Gemessen auf `cloudsrv24` am 9. August 2026, **vor** dem ersten Schritt von P5b.
 | Frage | Befund |
 |---|---|
 | Ist PostgreSQL da? | **Nein.** Kein `psql`, kein `pg_lsclusters`, kein `/etc/postgresql`, und `sudo -u postgres` meldet `unknown user postgres` |
-| Was würde `apt` installieren? | **`16+257build1.1`** — byteweise dieselbe Fassung wie im Entwicklungscontainer |
+| Was würde `apt` installieren? | Das Metapaket `postgresql` in **`16+257build1.1`** |
 
-**Die zweite Zeile ist die wertvollere.** `cloudsrv24` ist Ubuntu 24.04 und
-bekommt PostgreSQL 16.13 — also genau die Fassung, gegen die §2.2, §2.2a und
-§2.2b gemessen wurden. **Die Messungen dieses Plans sind für den Zielserver
-keine Näherung, sondern dieselbe Konfiguration:** die dreizehn Kanäle, die
-`public`-Regel ab PG 15, `WITH (FORCE)`, `DROP OWNED BY` je Datenbank und der
-Rückgabewert von `psql -f` ohne `ON_ERROR_STOP`.
+**Und was daraus wurde, ist am 9. August 2026 nachgemessen worden: `16.14
+(Ubuntu 16.14-0ubuntu0.24.04.1)`.** Hier stand vorher, `cloudsrv24` bekomme
+16.13 — „byteweise dieselbe Fassung wie im Entwicklungscontainer". Das war
+**falsch geschlossen**: `16+257build1.1` ist die Nummer des *Metapakets* und
+sagt nichts über die Serverfassung dahinter; 16.13 war die Zahl aus dem
+Container, nicht vom Server. Wörtlich die Falle aus `CLAUDE.md` — *Wissen aus
+zweiter Hand sieht aus wie Wissen* —, diesmal in diesem Plan selbst.
+
+**Folgenlos ist es trotzdem, und zwar nachprüfbar:** Was §2.2, §2.2a und §2.2b
+gemessen haben, hängt an der **Hauptfassung** und nicht am Wartungsstand — die
+dreizehn Kanäle, die `public`-Regel ab PG 15, `WITH (FORCE)`, `DROP OWNED BY` je
+Datenbank, der Rückgabewert von `psql -f` ohne `ON_ERROR_STOP`. Beide sind 16.
+Der Satz „dieselbe Konfiguration" gilt also weiter; nur seine Begründung war
+eine andere, als hier stand.
 
 **Und der Zustand „nichts installiert" bleibt stehen.** Er ist der Fall, für den
 `pg.server.info` und `pg.server.install` gebaut werden (§7) — wer ihn von Hand
@@ -158,7 +166,9 @@ Diese Fragen gehören auf `cloudsrv24` und auf die vier Zielplattformen, **bevor
 Schritt 4 beginnt**:
 
 1. **Die Fassungsspanne — für drei der vier Plattformen.** Ubuntu 24.04
-   liefert 16.13, zweimal belegt (§2.2c). Für Debian 12, Debian 13 und Ubuntu
+   liefert 16.14, gemessen auf `cloudsrv24` nach der ersten Installation
+   (§2.2c) — im Entwicklungscontainer sind es 16.13, und der Unterschied ist
+   ein Wartungsstand derselben Hauptfassung. Für Debian 12, Debian 13 und Ubuntu
    22.04 steht die Zahl weiter aus, und die für uns wichtigste Regel hat sich
    mit **PG 15** geändert: Bis PG 14 darf `PUBLIC` im Schema `public` jeder
    Datenbank Objekte anlegen, ab PG 15 nicht mehr. Auf der älteren Fassung ist
@@ -749,6 +759,12 @@ richtig macht.
 Absicht** — ein Wächter, der eine Konstante `ON_ERROR_STOP` findet, hat eine
 Konstante gefunden.
 
+> Gemessen und bestätigt am 9. August 2026: ohne den Schalter Rückgabewert 0 und
+> die vierte Anweisung lief, mit ihm Rückgabewert 3 und Abbruch. Der Aufruf
+> selbst steht in `Pg\Session::restore()` und nicht in der Operation —
+> `AgentIdentityTest` besteht darauf, dass `psql` an genau einer Stelle gerufen
+> wird, und hat den ersten Anlauf zurückgewiesen.
+
 ### 13.2 Es gibt keine DEFINER-Falle, dafür eine Eigentümer-Falle
 
 `pg_dump` schreibt keine `DEFINER`-Angaben; der Filter aus `docs/36 §10.1`
@@ -768,7 +784,31 @@ Kopf des Dumps und weist ab, wenn sie über der des Servers liegt.
 ### 13.4 Die befristete Rolle
 
 Wie `docs/36 §10.2`, mit dem Präfix aus §4: `x7f3a91c2_r<8 Zeichen>`, Rechte auf
-genau eine Datenbank, `DROP` im `finally`. **Und sie trägt die halbe
+genau eine Datenbank, `DROP` im `finally`.
+
+> **Drei Sätze dieses Abschnitts hat das Bauen umgeworfen** (9. August 2026).
+>
+> **Sie kommt über den Socket gar nicht herein.** Debians `pg_hba.conf` beginnt
+> mit `local all all peer`, und `peer` verlangt einen gleichnamigen
+> Unix-Benutzer. „Wie `docs/36 §10.2`" trägt hier nicht — MariaDB lässt die
+> Anmeldung mit Passwort über den Socket zu, PostgreSQL nicht. Die Antwort ist
+> Entscheidung 9 in §21: eine Gruppenrolle `srvpanel_restore` und eine Zeile
+> ganz oben in `pg_hba.conf`.
+>
+> **Sie braucht `GRANT ALL ON SCHEMA public`.** Seit PostgreSQL 15 darf `PUBLIC`
+> dort nicht mehr schreiben; ohne die Zeile bricht das Zurückspielen an der
+> ersten `CREATE TABLE` ab, also nach dem halben Vorspann. In MariaDB gibt es
+> dazu kein Gegenstück, weil ein Schema dort die Datenbank *ist*.
+>
+> **`DROP` im `finally` allein wirft die Daten weg.** Was eine Rolle anlegt,
+> gehört ihr, und beim Zurückspielen legt sie die ganze Datenbank an; ein
+> `DROP OWNED BY` nimmt sie wieder mit. Der Lauf meldete Erfolg, und die Tabelle
+> war fort. Davor steht deshalb ein `REASSIGN OWNED BY … TO` auf den Eigentümer
+> der Datenbank — gefragt, nicht angenommen.
+>
+> Und eine Beruhigung: Ein `pg_dump` **einer** Datenbank enthält kein
+> `\connect` (gemessen: null Vorkommen, `pg_dumpall` drei). Die Falle unten
+> trifft nur Mitgebrachtes. **Und sie trägt die halbe
 Kriterium-6-Last**, weil `\connect` in einem Klartext-Dump an ihrem fehlenden
 `CONNECT` scheitert (M8) — der `REVOKE CONNECT` aus §10 arbeitet hier ein
 zweites Mal, für einen anderen Zweck.
@@ -1306,8 +1346,16 @@ vorgelegt:
    Weg über `pcntl_fork` ist gemessen unzuverlässig.
 4. **Ein Datenmodell, eine Fläche, zwei Sätze Agent-Operationen** (§8).
 5. **PostgreSQL wird erkannt *und* auf Verlangen installiert** (§7). Ein
-   vorhandener Cluster ist Bestand und wird benutzt; `pg_hba.conf` bleibt
-   unangetastet; Kunden verbinden sich über `127.0.0.1`.
+   vorhandener Cluster ist Bestand und wird benutzt; Kunden verbinden sich über
+   `127.0.0.1`.
+
+   > **Berichtigt am 9. August 2026.** Hier stand „`pg_hba.conf` bleibt
+   > unangetastet". Das hält Entscheidung 9 nicht mehr, und es hätte auch §14
+   > nie gehalten — der Fernzugriff schreibt ohnehin in diese Datei. Der Satz
+   > war als Zusage über den *Bestand* gemeint (nichts Vorhandenes wird
+   > geändert) und las sich als Zusage über die *Datei*. Beides steht jetzt
+   > getrennt da: Vorhandene Zeilen werden nicht angefasst, ergänzt wird oben
+   > und mit einer Marke.
 
 6. **Der Fernzugriff wird gebaut** (§14) — nachgetragen am selben Tag, nachdem
    die Messung aus §2.2a die Empfehlung dieses Plans umgeworfen hatte.
@@ -1350,6 +1398,41 @@ vorgelegt:
 8. **Die `pg_hba`-Zeile nennt die Datenbank und nicht `all`** (§14.1). Das ist
    enger als P5 es kann und kostet Zeilen; wer die Datei lieber kurz hätte,
    muss es sagen.
+
+**Nachgetragen am 9. August 2026, beide beim Bauen von Schritt 6 vorgelegt:**
+
+9. **Die befristete Rolle meldet sich über den Socket an, mit einer
+   Gruppenrolle und einer Zeile in `pg_hba.conf`** (§13.4). Der Anlass ist eine
+   Messung, die §13.4 umgeworfen hat: Debians `pg_hba.conf` beginnt mit
+   `local all all peer`, und `peer` verlangt einen gleichnamigen
+   Unix-Benutzer — den hat `x7f3a…_r1a2b3c4d` nicht. In P5 trägt MariaDB das,
+   und §13.4 sagte „wie `docs/36 §10.2`".
+
+   Der andere Weg war gemessen und vorgelegt: TCP über `127.0.0.1` läuft ohne
+   jede Änderung an der Konfiguration, hängt dafür an `listen_addresses` — ein
+   Betreiber, der PostgreSQL auf den Socket beschränkt, verlöre das
+   Zurückspielen lautlos und erst dann, wenn er es braucht.
+
+   Die Zeile steht **ganz oben**, weil die erste passende entscheidet, auch
+   wenn sie abweist. Vorhandene Zeilen werden nicht verändert.
+
+10. **Was mit einer Sicherung geschieht, bekommt einen eigenen Lebenslauf**
+    (`DumpLifecycle`, Schritt 6, zweite Hälfte). Die vier Dump-Aufgaben ziehen
+    aus `DbLifecycle` dorthin um und gelten für beide Systeme; `PgLifecycle`
+    und `DbLifecycle` behalten Rückbau und Sperre.
+
+    Der Grund ist derselbe wie bei `Dump::requireGzip()` und den drei anderen
+    Helfern, die in Schritt 6 aus `DbDumpImport` nach `Dump` gezogen sind: Eine
+    Sicherung ist eine Datei und eine Zeile, und was mit ihr geschieht — Bytes
+    aus der Antwort, `Ready` oder `Failed`, beim Entfernen löschen, beim
+    Zurückspielen nichts — hängt nicht am Datenbanksystem. Nur die vier
+    Aufgabennamen tun das.
+
+    Die beiden Alternativen sind vorgelegt und verworfen worden: dieselbe Logik
+    ein zweites Mal in `PgLifecycle` wäre die zweite Fassung, die veraltet; sie
+    in `DbLifecycle` für beide Systeme laufen zu lassen hiesse, dass der Name
+    lügt und die `engine`-Einschränkungen darin eine unsichtbare Ausnahme
+    bekommen. **Eine Klasse je Gegenstand, nicht je System.**
 
 ---
 
@@ -1493,3 +1576,32 @@ fehlt; „Einstellungen → PHP-Versionen" zeigt es neben dem Zustand und bietet
 **Ergänzen** an — dieselbe Aufgabe wie „Installieren", weil es dieselbe Regel
 ist. Nicht in `srvpanel update`: Ein Update, das von selbst `apt-get install`
 fährt, kann an einer fremden Paketquelle scheitern und nimmt das Panel mit.
+
+#### Was die Messung auf `cloudsrv24` dazu ergeben hat
+
+**Sechs von dreizehn Paketen fehlen, nicht eines.** Am 9. August 2026 gegen die
+einzige dort installierte Version, PHP 8.4:
+
+| vorhanden | fehlt |
+|---|---|
+| `fpm`, `mysql`, `xml`, `mbstring`, `curl`, `opcache`, `readline` | `pgsql`, `gd`, `zip`, `intl`, `bcmath`, `soap` |
+
+Die sieben vorhandenen sind genau die, die `packaging/nfpm.yaml` als
+Abhängigkeit des **Panels** nennt, plus was daran hängt. **PHP 8.4 ist also nie
+durch `php.version.install` gegangen** — es kam als Abhängigkeit mit, und die
+Operation hätte es auch nie ergänzt: `is_executable('/usr/sbin/php-fpm8.4')` war
+wahr, also meldete sie `already => true`.
+
+**Damit ist der Befund grösser als PostgreSQL.** Das Panel führt 8.4 als
+installiert, bietet sie Kunden an, und eine Website darauf hat kein `gd`, kein
+`zip`, kein `intl`, kein `bcmath` und kein `soap` — die fünf, die eine übliche
+Anwendung als Erstes verlangt. Das steht seit P3 so auf dem Server, und niemand
+hat es gesehen, weil die einzige Stelle, die danach hätte fragen können, einen
+Stellvertreter fragte.
+
+**Was daraus *nicht* folgt:** dass eine unvollständige Version aus dem
+Auswahlfeld der Domains verschwindet. `PhpSelection::installed()` bleibt bei
+„der Handler ist da". Einem Kunden eine funktionierende PHP-Version wegen eines
+fehlenden `soap` zu entziehen, wäre die härtere Änderung mit dem grösseren
+Schaden; die richtige Ebene ist, dass der Betreiber es **sieht** und ergänzt.
+Das ist eine Entscheidung und keine Auslassung.

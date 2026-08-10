@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DumpKind;
 use App\Enums\DumpStatus;
 use App\Enums\SubscriptionStatus;
@@ -15,9 +16,12 @@ use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
+use App\Support\Databases\Engines\PostgresDriver;
 use App\Support\Databases\ImportLimit;
 use App\Support\Databases\Staging;
 use App\Support\Plans\Quota;
+use App\Support\Settings\Settings;
+use App\Support\Tenancy\Tenancy;
 use App\Support\Web\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -92,7 +96,58 @@ final class DatabaseController extends Controller
             ],
             'collations' => $this->collations(),
             'quota' => $this->quota($subscription),
+            'engines' => $this->engines($subscription),
         ]);
+    }
+
+    /**
+     * Die Systeme, in denen dieses Abonnement eine Datenbank anlegen darf.
+     *
+     * **MariaDB steht immer da, PostgreSQL nur wenn der Betreiber es anbietet**
+     * (`docs/38 §16`). Das ist die eine Stelle in P5b, an der eine *Absicht*
+     * die richtige Bedingung ist und kein Zustand: Ob PostgreSQL läuft, sagt
+     * `pg.server.info`; ob es Kunden angeboten wird, entscheidet der Betreiber
+     * auf der Seite „Datenbankserver". Ein laufender Server, den er nicht
+     * anbieten will, gehört nicht in dieses Formular.
+     *
+     * **Jedes System bringt sein eigenes Präfix mit.** In MariaDB ist es der
+     * Systembenutzer (`p1001`), in PostgreSQL die gewürfelte Kennung aus
+     * `system_users` (`x7f3a…`) — und der Unterschied ist nicht kosmetisch: Der
+     * Satz „das Präfix ist der Systembenutzer des Abonnements" wäre für
+     * PostgreSQL schlicht falsch, und der Name im Formular auch.
+     *
+     * **Und jedes sagt selbst, ob es eine Sortierung wählen lässt.** Der erste
+     * Entwurf hat das im Formular an „der erste Eintrag ist MariaDB"
+     * festgemacht — eine Annahme über die Reihenfolge dieser Liste, also
+     * derselbe Stellvertreter, den P5b schon viermal erwischt hat. Die Frage
+     * gehört zum System und wandert mit ihm.
+     *
+     * @return list<array{value: string, label: string, prefix: string, collations: bool}>
+     */
+    private function engines(Subscription $subscription): array
+    {
+        $engines = [[
+            'value' => DatabaseEngine::MariaDb->value,
+            'label' => DatabaseEngine::MariaDb->label(),
+            'prefix' => (string) $subscription->system_user,
+            'collations' => true,
+        ]];
+
+        if (! app(Settings::class)->postgres()) {
+            return $engines;
+        }
+
+        $engines[] = [
+            'value' => DatabaseEngine::Postgres->value,
+            'label' => DatabaseEngine::Postgres->label(),
+            'prefix' => PostgresDriver::prefixOf(app(Tenancy::class), $subscription),
+
+            // In PostgreSQL entstehen Zeichensatz und Sortierung aus der
+            // Vorlage; dieses Panel wählt sie nicht (`docs/38 §5`).
+            'collations' => false,
+        ];
+
+        return $engines;
     }
 
     public function store(Request $request, Subscription $subscription): RedirectResponse
@@ -119,7 +174,31 @@ final class DatabaseController extends Controller
              * ersten Lauf gefunden.
              */
             'label' => ['required', 'string', 'regex:/^[a-z][a-z0-9_]{0,15}$/D'],
-            'collation' => ['required', 'string', Rule::in($this->collations())],
+
+            /*
+             * **Geprüft wird gegen die Liste, die das Formular gezeigt hat**,
+             * und nicht bloss gegen das Enum. Ein `Rule::enum()` allein liesse
+             * `postgres` auch dann durch, wenn der Betreiber es gar nicht
+             * anbietet — die Angabe kommt aus einer Anfrage, und was in der
+             * Oberfläche nicht wählbar war, ist keine gültige Wahl.
+             *
+             * Fehlt sie ganz, ist es MariaDB: Ein Formular ohne Auswahl —
+             * weil PostgreSQL nicht angeboten wird — schickt das Feld nicht
+             * mit, und ein Pflichtfeld daraus zu machen hiesse, jeden
+             * bestehenden Aufruf zu brechen.
+             */
+            'engine' => ['nullable', 'string', Rule::in(array_column($this->engines($subscription), 'value'))],
+
+            /*
+             * **Nur MariaDB kennt eine Sortierung in diesem Sinn.** In
+             * PostgreSQL entstehen Zeichensatz und Sortierung aus der Vorlage
+             * und werden von diesem Panel nicht gewählt (`docs/38 §5`); das
+             * Formular zeigt das Feld dort gar nicht erst.
+             */
+            'collation' => [
+                Rule::requiredIf(fn (): bool => ($request->input('engine') ?? DatabaseEngine::MariaDb->value) === DatabaseEngine::MariaDb->value),
+                'nullable', 'string', Rule::in($this->collations()),
+            ],
 
             // Ein Zugang gleich dazu — der Normalfall. Ohne ihn ist eine
             // Datenbank ein Schema, in das niemand hineinkommt.
@@ -127,7 +206,14 @@ final class DatabaseController extends Controller
         ]);
 
         try {
-            $database = $this->databases->create($subscription, $data['label'], $data['collation']);
+            $engine = DatabaseEngine::from($data['engine'] ?? DatabaseEngine::MariaDb->value);
+
+            $database = $this->databases->create(
+                $subscription,
+                $data['label'],
+                (string) ($data['collation'] ?? $this->collations()[0]),
+                $engine,
+            );
         } catch (RuntimeException|AgentException $error) {
             /*
              * **Als Fehler am Feld und nicht als Weiterleitung.** `back()`
@@ -751,7 +837,47 @@ final class DatabaseController extends Controller
             'label' => $database->label,
             'status' => $database->status->value,
             'status_label' => $database->status->label(),
-            'collation' => $database->collation,
+
+            // **Das System, und zwar in jeder Zeile.** Ob die Liste es zeigt,
+            // entscheidet sie selbst — an einem Zustand und nicht an einer
+            // Einstellung: Solange keine PostgreSQL-Datenbank da ist, wäre eine
+            // Spalte, in der überall dasselbe steht, nur eine Spalte weniger
+            // Platz für den Namen. Und der ist hier siebzehn Zeichen länger als
+            // in P5 (`docs/38 §16`).
+            'engine' => $database->engine->value,
+            'engine_label' => $database->engine->label(),
+
+            /*
+             * **Ob der Kunde dieses System über TCP erreicht.** In MariaDB
+             * verbindet eine Anwendung auf demselben Server über den
+             * Unix-Socket, in PostgreSQL nicht: `local all all peer` verlangt
+             * eine Rolle, die wie der Unix-Benutzer heisst, und
+             * `p1001_web` ist keiner (`docs/38 §14`). Der Kunde verbindet
+             * deshalb über `127.0.0.1`.
+             *
+             * **Als Eigenschaft und nicht als Name des Systems.** Die
+             * Oberfläche soll den Satz an dem festmachen, was er behauptet —
+             * Ein Vergleich mit dem Wert des Systems im Template wäre eine
+             * Zeichenkette aus dem Enum, und `DatabaseEngineTest` weist sie ab
+             * — er hat diesen Satz hier auch gleich mit erwischt, weil ein
+             * Kommentar mit einem Beispiel dasselbe Wort trägt wie der Code.
+             */
+            'over_tcp' => $database->engine !== DatabaseEngine::MariaDb,
+
+            /*
+             * **`null` für PostgreSQL, und das ist keine fehlende Angabe,
+             * sondern die richtige.** Die Spalte trägt dort weiterhin
+             * `utf8mb4_unicode_ci` — den Vorgabewert aus P5 —, und das ist eine
+             * Behauptung über eine Datenbank, die diesen Wert nie gesehen hat.
+             * Zeichensatz und Sortierung entstehen in PostgreSQL aus der
+             * Vorlage und werden von diesem Panel nicht gewählt
+             * (`docs/38 §5`); die Oberfläche zeigt die Zeile deshalb gar nicht.
+             *
+             * Die Unterscheidung steht hier und nicht im Template: Dort wäre
+             * sie ein Vergleich mit dem Wert des Systems als Zeichenkette, und
+             * `DatabaseEngineTest` weist den zu Recht ab.
+             */
+            'collation' => $database->engine === DatabaseEngine::MariaDb ? $database->collation : null,
             'size_bytes' => $database->size_bytes,
             'size_measured_at' => $database->size_measured_at?->toIso8601String(),
 

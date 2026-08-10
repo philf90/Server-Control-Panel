@@ -22,6 +22,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
+use SrvPanel\Agent\Pg\Clusters;
 
 /**
  * Die Übersicht — zwei verschiedene Seiten unter einer Adresse.
@@ -477,42 +478,90 @@ final class OverviewController extends Controller
     private function services(Client $agent): array
     {
         $units = ['srvpanel-agentd.service', 'nginx.service', 'mariadb.service'];
-
-        /*
-         * **PostgreSQL steht daneben, aber nur wenn es da ist** (`docs/38 §7`).
-         * Die drei darüber gehören zu jeder Installation — fehlt eine, ist das
-         * eine Störung und gehört gemeldet. PostgreSQL ist optional; eine
-         * dauerhafte Zeile „nicht vorhanden" wäre Rauschen an genau der Stelle,
-         * an der jemand Störungen sucht, und Rauschen an dieser Stelle ist der
-         * Grund, warum niemand mehr hinsieht.
-         *
-         * Gefragt wird trotzdem immer: Ob die Unit existiert, beantwortet der
-         * Agent und keine gemerkte Einstellung. `service.status` führt dafür
-         * keine Positivliste — im Gegensatz zu `service.action`, die PostgreSQL
-         * bewusst nicht kennt (`docs/38 §24.1`).
-         */
-        $optional = ['postgresql.service'];
         $rows = [];
 
-        foreach (array_merge($units, $optional) as $unit) {
-            try {
-                $status = $agent->call('service.status', ['unit' => $unit]);
-            } catch (AgentException $error) {
-                $status = [
-                    'unit' => $unit,
-                    'present' => false,
-                    'active_state' => 'unbekannt',
-                    'description' => $error->getMessage(),
-                ];
-            }
+        foreach ($units as $unit) {
+            $rows[] = $this->status($agent, $unit);
+        }
 
-            if (in_array($unit, $optional, true) && ($status['present'] ?? false) !== true) {
+        return array_merge($rows, $this->postgresUnits($agent));
+    }
+
+    /**
+     * Die PostgreSQL-Cluster als Zeilen — je Cluster eine, und nur wenn es sie gibt.
+     *
+     * **Hier stand `postgresql.service`, und das war nicht falsch gemessen,
+     * sondern gar nicht.** Die Sammelunit von Debian startet die Instanzen und
+     * bleibt danach mit `RemainAfterExit` auf `active` stehen, auch wenn kein
+     * Cluster mehr läuft. Auf `cloudsrv24` am 9. August 2026 aufgefallen, und
+     * zwar dem Betreiber: Er stoppte den Cluster, die Datenbankseite meldete
+     * „läuft nicht", und diese Übersicht sagte weiter `active`.
+     *
+     * **Das ist zum dritten Mal in P5b dasselbe Muster** — `is_dir()` auf das
+     * Socketverzeichnis, `is_executable()` auf den PHP-Handler, und jetzt eine
+     * Sammelunit: ein Stellvertreter, der im Fehlerfall dasselbe sagt wie im
+     * Erfolgsfall. Und die Übersicht ist die Stelle, an der jemand nach
+     * Störungen sucht; eine Zeile, die dort grün ist, während der Dienst steht,
+     * ist schlechter als gar keine.
+     *
+     * Gefragt wird deshalb die Instanzunit ({@see Clusters::unit()}), und
+     * welche das ist, sagt `pg.server.info`. **Zwei Aufrufe statt einem, mit
+     * Grund:** Ohne die Auskunft wüsste diese Seite Fassung und Clusternamen
+     * nicht, und beides zu raten hiesse, wieder eine Zeichenkette zu bauen, die
+     * auf etwas zeigt, das niemand prüft.
+     *
+     * Fehlt PostgreSQL, kommt keine Zeile. Ein dauerhaftes „nicht vorhanden"
+     * auf jedem Server ohne PostgreSQL wäre das Rauschen, das dazu führt, dass
+     * niemand mehr hinsieht.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function postgresUnits(Client $agent): array
+    {
+        try {
+            $info = $agent->call('pg.server.info', []);
+        } catch (AgentException) {
+            /*
+             * Ohne Antwort keine Zeile. Dass der Agent nicht erreichbar ist,
+             * steht schon in der ersten Zeile dieser Tabelle — es hier ein
+             * zweites Mal zu melden hiesse, eine Störung doppelt zu zählen.
+             */
+            return [];
+        }
+
+        $clusters = is_array($info['clusters'] ?? null) ? $info['clusters'] : [];
+        $rows = [];
+
+        foreach ($clusters as $cluster) {
+            if (! is_array($cluster) || ! isset($cluster['version'], $cluster['name'])) {
                 continue;
             }
 
-            $rows[] = $status;
+            $rows[] = $this->status($agent, Clusters::unit((int) $cluster['version'], (string) $cluster['name']));
         }
 
         return $rows;
+    }
+
+    /**
+     * Eine Unit fragen — und die Antwort, wenn der Agent schweigt.
+     *
+     * Herausgezogen, weil zwei Stellen sie brauchen und die zweite Fassung die
+     * ist, die veraltet.
+     *
+     * @return array<string,mixed>
+     */
+    private function status(Client $agent, string $unit): array
+    {
+        try {
+            return $agent->call('service.status', ['unit' => $unit]);
+        } catch (AgentException $error) {
+            return [
+                'unit' => $unit,
+                'present' => false,
+                'active_state' => 'unbekannt',
+                'description' => $error->getMessage(),
+            ];
+        }
     }
 }

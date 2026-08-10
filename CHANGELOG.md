@@ -6242,7 +6242,7 @@ PostgreSQL ist es eine Rolle mit einem Passwort und mehreren erlaubten Netzen.
 
 **Zwei Korrekturen aus dem Messlauf.** `cloudsrv24` hat kein PostgreSQL — kein
 `psql`, kein Cluster, kein Benutzer `postgres` —, und der Kandidat von `apt`
-ist `16+257build1.1`, byteweise dieselbe Fassung wie im Entwicklungscontainer.
+ist `16+257build1.1` — die Nummer des Metapakets.
 **Die Messungen dieses Plans sind für den Zielserver damit keine Näherung,
 sondern dieselbe Konfiguration.** Und in `Pg\Server` stand, welche Fassung jede
 der vier Zielplattformen liefert — gemessen war davon eine. Die drei anderen
@@ -6644,3 +6644,823 @@ nicht, weniger Wächter zu bauen, sondern die Attrappe mitzuschreiben.
 null Sekunden. In 452 lief derselbe Job durch. Ein Download, der einmal nicht
 kam — kein Befund, und hier festgehalten, damit ihn beim nächsten Mal niemand für
 einen hält.
+
+### Die Messung zu Schritt 6b: sechs von dreizehn Paketen fehlten auf dem Zielserver
+
+**Gesucht war `pgsql`, gefunden wurden sechs.** Am 9. August 2026 auf
+`cloudsrv24` gegen die einzige dort installierte Version, PHP 8.4:
+
+    vorhanden  fpm  mysql  xml  mbstring  curl  opcache  readline
+    fehlt      pgsql  gd  zip  intl  bcmath  soap
+
+Die sieben vorhandenen sind genau die, die `packaging/nfpm.yaml` als
+Abhängigkeit des **Panels** nennt, plus was daran hängt. PHP 8.4 ist also nie
+durch `php.version.install` gegangen — es kam als Abhängigkeit mit. Und die
+Operation hätte es auch nie ergänzt: `/usr/sbin/php-fpm8.4` lag da, also meldete
+sie `already => true` und tat nichts.
+
+**Der Befund ist damit grösser als PostgreSQL.** Das Panel führt 8.4 als
+installiert und bietet sie Kunden an; eine Website darauf hat kein `gd`, kein
+`zip`, kein `intl`, kein `bcmath` und kein `soap` — die fünf, die eine übliche
+Anwendung als Erstes verlangt. Das steht seit P3 so auf einem Server im Betrieb,
+und gesehen hat es niemand, weil die einzige Stelle, die danach hätte fragen
+können, einen Stellvertreter fragte. *Ein Stellvertreter verdeckt nicht nur den
+Fall, für den man ihn bemerkt.*
+
+**Was daraus nicht folgt:** dass eine unvollständige Version aus dem Auswahlfeld
+der Domains verschwindet. `PhpSelection::installed()` bleibt bei „der Handler ist
+da" — einem Kunden eine funktionierende PHP-Version wegen eines fehlenden `soap`
+zu entziehen, wäre die härtere Änderung mit dem grösseren Schaden. Die richtige
+Ebene ist, dass der Betreiber es sieht und ergänzt. Entscheidung, nicht
+Auslassung; sie steht in `docs/38 §24.2`.
+
+### Und eine Annahme, die nur ein deutsches System widerlegen konnte
+
+`PhpVersions::missing()` vergleicht das Statusfeld von `dpkg-query` gegen die
+Zeichenkette `installed`. Dieser Container spricht englisch — der Vergleich hätte
+hier in jedem Fall gepasst. Auf `cloudsrv24` ist die *Meldung* deutsch („Kein
+Paket gefunden, das auf php8.4-pgsql passt"), das Feld `${db:Status-Status}`
+nicht.
+
+Wäre es übersetzt, gälte **jedes** Paket als fehlend, und `php.version.install`
+liesse bei jedem Aufruf `apt-get` laufen — lautlos, denn ein Lauf, der zu viel
+installiert, sieht aus wie ein erfolgreicher. Die Messung steht jetzt als
+Kommentar an der Methode, damit der Nächste die Frage nicht noch einmal stellt.
+
+### Drei Befunde auf der Datenbankseite, und keinen davon hat ein Test gesehen
+
+**Der erste Blick auf die echte Seite**, nachdem `v0.5.1-rc.1` auf
+`cloudsrv24` lag. Sie war vollständig grün getestet, im Chromium dieses
+Containers gemessen und ohne waagerechten Überlauf. Trotzdem drei Fehler, und
+alle drei kommen daher, dass ein Baustein etwas über seine **Umgebung**
+annimmt.
+
+**1. Die Meldung stritt mit der Marke daneben.** Der Balken über der Tabelle
+warnte gelb — „PostgreSQL ist auf diesem Server nicht installiert" —, während
+die Marke in derselben Tabelle grau „nicht installiert" sagte. Beides auf einem
+Bildschirm, beides über denselben Zustand. Der Rang war fest verdrahtet
+(`class="notice warn"`) statt aus derselben Quelle wie die Marke zu kommen.
+
+Der Satz dagegen steht in diesem Repo schon, in `Settings/Php.vue`: *Eine
+Warnung schickt jemanden auf die Suche nach einem Problem, das keines ist.*
+Dass PostgreSQL nicht installiert ist, ist eine Auskunft — dieselbe
+Entscheidung, die `Pg\Server` für den Vorgang trifft und die im Klassenkommentar
+ausdrücklich dasteht. In der Oberfläche galt sie nicht.
+
+**2. Ein Text, der sich auf seinen Platz verliess.** Der Bereichshinweis lautete
+„Ein zweites Datenbanksystem, unabhängig **vom oben genannten**" — und im
+zweispaltigen Raster steht MariaDB nicht oben, sondern links. Auf dem Telefon
+stapeln die Bereiche und der Satz stimmt wieder. Ein Hinweis, der je nach
+Fensterbreite falsch ist.
+
+Das ist Zeichen für Zeichen die Bauart aus `docs/20 §15`: *ein Abstand, der aus
+der Reihenfolge der Seite abgeleitet war und mit der nächsten Ergänzung fiel.*
+Diesmal war es kein Abstand, sondern eine Ortsangabe im Fliesstext. Sie ist
+weg — „ein eigenständiges zweites Datenbanksystem" sagt dasselbe und zeigt
+nirgendwohin.
+
+**3. Und der Bereich, den die Ergänzung verschoben hat.** „Umschalten" gehört
+zum Fernzugriff von MariaDB. Vor P5b stand er unter „Server"; der neue Bereich
+dazwischen hat ihn im Raster neben PostgreSQL geschoben, wo sein eigener Text —
+„Der Datenbankserver wird dabei neu gestartet" — plötzlich mehrdeutig ist, weil
+es jetzt zwei gibt. Er heisst deshalb „Fernzugriff umschalten": Der Titel sagt,
+worum es geht, statt sich darauf zu verlassen, wo er steht.
+
+**Was daraus über das Vorgehen folgt.** Alle drei Fehler sind Eigenschaften des
+Zusammenhangs und nicht des Bausteins — und die drei Aufnahmen, die ich vorher
+gemacht habe, konnten sie nicht zeigen: Sie rendern den Baustein **allein** in
+einer eigenen HTML-Datei. Das war der richtige Weg für die Frage „läuft etwas
+über?", und es ist der falsche für „stimmt es neben dem, was daneben steht?".
+Der Ersatz für die echte Seite ist er nie gewesen, und `CLAUDE.md` sagt das
+auch; hier steht, was genau er nicht sieht.
+
+### Punkt 3 bis 5 auf `cloudsrv24` — und eine Zahl, die niemand gemessen hatte
+
+**Die drei unbelegten Behauptungen aus dem Pull Request sind zwei.**
+
+`pg.server.install` hat im Zustand `absent` installiert: `apt-get` lief, das
+`postinst` legte den Cluster an, `pg_lsclusters` meldet `16 main 5432 online`.
+Der Zweig, den dieser Container nicht fahren konnte, trägt.
+
+**Und die Ausgabe kam fortlaufend.** Damit ist der offene Punkt aus
+`docs/37 §8` geschlossen: Die Ausgabe-Hälfte des Frame-Funds war seit Monaten
+unbelegt, weil keine `db.*`-Operation streamt. `apt-get` ist die erste, die
+lange genug läuft, um es zu zeigen — an etwas Harmlosem statt an einem
+Zurückspielen während der Abnahme.
+
+**Der Zustand danach war `not_handed_over`, und der Vorgang meldete Erfolg** —
+die Entscheidung aus §6.1, im Betrieb bestätigt. Cluster und Port stehen dabei
+in der Oberfläche, die Version nicht: Sie kommt aus der Verbindung, und die gibt
+es ohne die Rolle nicht. Dass dort `—` steht, ist die Regel dieses Beitrags und
+kein Loch — *gemeldet wird, was der Server geantwortet hat, nicht was wir über
+ihn wissen.* Nach `CREATE ROLE root SUPERUSER LOGIN` steht sie da, kurz und
+einzeilig.
+
+`--postgresql=on|off|on` schaltet wie beschrieben, und `postgresql.service`
+erscheint in der Dienstliste der Übersicht — die Zeile, die nur da ist, wenn es
+die Unit gibt.
+
+### Die Zahl
+
+**`cloudsrv24` liefert PostgreSQL 16.14 und nicht 16.13.** In `Pg\Server` stand
+von mir: *„Ubuntu 24.04 liefert 16.13 — zweimal belegt, im
+Entwicklungscontainer und über den apt-Kandidaten auf `cloudsrv24`."* Belegt war
+es **einmal**. Der zweite Beleg sollte `16+257build1.1` sein, und das ist die
+Nummer des *Metapakets*; über die Serverfassung dahinter sagt sie nichts. 16.13
+war die Zahl aus diesem Container, nicht vom Server.
+
+Das ist wörtlich die Lehre, die in `CLAUDE.md` über P5b steht — *Wissen aus
+zweiter Hand sieht aus wie Wissen* —, und diesmal steht sie in dem Dokument, das
+sie aufgeschrieben hat. Bemerkenswert ist die Form: Der Satz war nicht falsch
+geraten, sondern **falsch gezählt**. „Zweimal belegt" klingt nach mehr Sorgfalt
+als „einmal gemessen" und war weniger.
+
+**Folgenlos ist es, und zwar nachprüfbar:** Was §2.2 bis §2.2b gemessen haben,
+hängt an der Hauptfassung — die dreizehn Kanäle, die `public`-Regel ab PG 15,
+`WITH (FORCE)`, `DROP OWNED BY` je Datenbank, der Rückgabewert von `psql -f`.
+Beide sind 16. Der Satz „dieselbe Konfiguration" gilt weiter; nur seine
+Begründung war eine andere, als dastand.
+
+### Der Betreiber fand den dritten Stellvertreter — diesmal in der Übersicht
+
+**Punkt 6 lief durch, und daneben fiel ein Fehler auf, den ich eingebaut habe.**
+Nach `systemctl stop postgresql@16-main.service` meldete die Datenbankseite
+korrekt „läuft nicht" — und die **Übersicht zeigte PostgreSQL weiter als
+`active`**.
+
+Grund: Dort stand `postgresql.service`. Das ist Debians **Sammelunit**; sie
+startet die Instanzen und bleibt danach mit `RemainAfterExit` auf `active`
+stehen, unabhängig davon, ob darunter noch etwas läuft. Sie beantwortet „ist die
+Sammelunit einmal gestartet worden" und nicht „läuft ein Cluster".
+
+**Das ist in diesem Zweig zum dritten Mal dasselbe Muster.** `is_dir()` auf das
+Socketverzeichnis, `is_executable()` auf den PHP-Handler, jetzt eine
+Sammelunit — jedes Mal eine Prüfung, die im Fehlerfall dasselbe sagt wie im
+Erfolgsfall. Und jedes Mal habe ich den Stellvertreter **nicht gemessen**,
+sondern für die Sache gehalten: Dieser Container hat kein systemd, also gab es
+nichts, was mir widersprochen hätte.
+
+**Die Übersicht ist die Stelle, an der jemand nach Störungen sucht.** Eine
+grüne Zeile neben einem stehenden Dienst ist dort schlechter als gar keine
+Zeile — sie beendet die Suche an der falschen Stelle.
+
+Gefragt wird jetzt die Instanzunit, `postgresql@16-main.service`, und welche das
+ist, sagt `pg.server.info`: Fassung und Clustername kommen aus derselben Zeile
+von `pg_lsclusters`, aus der auch Port und Zustand kommen. Der Name entsteht in
+`Clusters::unit()` und nirgends sonst; `PgClusterTest` prüft beide Richtungen —
+dass die Instanzunit entsteht **und** dass es nicht die Sammelunit ist. Zwei
+Agent-Aufrufe statt einem, mit dem Grund im Kommentar.
+
+**Was Punkt 6 im Übrigen belegt hat:** Der Knopf heisst im Zustand `stopped`
+**Starten** und nicht „Installieren", der Vorgang lief in zwei Sekunden durch
+(18:48:59 bis 18:49:01) und ohne eine Zeile `apt-get` — der Weg über
+`pg_ctlcluster` also, nicht über die Paketverwaltung. Danach war der Cluster
+wieder `online`.
+
+### Punkt 7 auf `cloudsrv24` — der Neustart ist belegt, und zwei Befunde des Betreibers
+
+**Die letzte unbelegte Behauptung ist erledigt.** PID vor dem Ergänzen
+**66286**, danach **180618** — der Handler ist ein anderer Prozess, und
+`php-fpm8.4 -m` führt `bcmath`, `gd`, `intl`, `pdo_pgsql`, `pgsql`, `soap`,
+`zip`. `dpkg-query` meldet alle sechs als `installed`, Rückgabewert **0** statt
+1. Der Vorgang lief in sechs Sekunden.
+
+**Was der Lauf nicht beweist, gehört dazu:** In der Ausgabe steht auch
+*„Processing triggers for php8.4-fpm"*. Der dpkg-Trigger hat also ebenfalls
+gefeuert, und welcher von beiden die PID gewechselt hat, sagt dieser Lauf
+nicht. Belegt ist die Eigenschaft, auf die es ankommt — **nach der Operation
+hat der laufende Handler die Erweiterungen** —, und der ausdrückliche Neustart
+bleibt, weil „der Trigger tut es meistens" kein Zustand ist.
+
+**Und ein Nebenbefund, der die Vermutung von vorhin bestätigt:** Auf dem Server
+liegt auch PHP 8.3, und dort fehlte **nur** `pgsql`. 8.3 ist also durch
+`php.version.install` gegangen und hat alles bekommen; 8.4 kam als Abhängigkeit
+des Panels und hatte sechs Lücken. Dieselbe Operation, zwei Wege auf den
+Server, zwei sehr verschiedene Ergebnisse — und sichtbar wurde der Unterschied
+erst, als jemand nach dem Paketsatz fragte statt nach dem Handler.
+
+### Zwei Verbesserungen aus derselben Runde
+
+**1. Zwei Knöpfe ohne Abstand.** Bis P5b trug jede Zeile der PHP-Seite genau
+einen Knopf; mit „Ergänzen" neben „Entfernen" klebten sie aneinander.
+`.button-row` ist die Antwort, die dieses Repo dafür längst hat — dieselbe wie
+in `Customers/Index.vue`. Dazu eine Regel in `app.css`: `td.right` setzt
+`text-align`, und das erreicht ein Flexkind nicht, also rutschte die Reihe nach
+links. **Gefunden hat es der Betreiber am Server, nicht die Aufnahme** — im
+nachgebauten Markup standen die beiden Knöpfe genauso eng und sahen normal aus.
+
+**2. Die Zustandsspalte kannte nur den Mangel.** „Fehlt: pgsql" verschwindet,
+sobald es getan ist, und danach stand nirgends mehr, was eine Version
+überhaupt kann. `php.versions` meldet jetzt beide Hälften — aus **einem**
+dpkg-Aufruf und derselben Auswertung, denn zweimal zu fragen hiesse, zwei
+Antworten zu bekommen, die auseinandergehen können. Die Oberfläche zeigt
+„fehlt:" und „vorhanden:", beide alphabetisch: Bei einem Namen ist die
+Reihenfolge gleichgültig, bei zwölf ist eine Liste ohne Ordnung eine, in der
+man nachzählt.
+
+**Und dabei fiel der dritte Fehler auf, diesmal in der Aufnahme.** Bei 390px
+standen „fehlt" und „vorhanden" **nebeneinander** in je einer schmalen Spalte,
+und `bcmath` brach als `bcma` / `th` — eine Kennung mitten im Wort. Die Klasse
+dagegen gibt es seit dem Optik-Rework, und ihr Kommentar in `app.css`
+beschreibt den Fall wörtlich: *Beschriftung und Inhalt nebeneinander lassen den
+Rest an den rechten Rand rutschen und dort umbrechen; sie gehören
+untereinander.* Die Zustandszelle trägt jetzt `multiline`, sobald mehr als die
+Marke darin steht.
+
+*Dreimal in Folge lag die Lösung schon im Repo* — `.button-row`, `.multiline`,
+und beim Meldungsbalken der Satz aus `Settings/Php.vue`. Das ist kein Zufall,
+sondern die Kehrseite davon, einen Baustein allein zu bauen: Wer nur seine
+eigene Datei ansieht, findet die Regel nicht, die nebenan schon steht.
+
+### Lauf 458 — ein `array_values()` hinter einem `sort()`
+
+Ein Befund, und er wäre lokal auffindbar gewesen: `sort()` gibt die Schlüssel
+neu aus, das Ergebnis ist bereits eine Liste, und ein `array_values()` darum ist
+wirkungslos.
+
+**Der Grund, warum ich ihn nicht gesehen habe, ist der interessantere Teil.**
+Der letzte lokale Lauf ging über `agent/src` — und nur darüber. Die Änderung lag
+in `app/`. In dieser Sitzung ist PHPStan vorher fünfmal über die geänderten
+`app/`-Dateien gelaufen und beim sechsten Mal nicht mehr; ein Schritt, den man
+für erledigt hält, weil man ihn oft genug gemacht hat. *Eine Prüfung, die man
+nach Gefühl auswählt, prüft irgendwann das, woran man ohnehin gedacht hat.*
+
+### P5b Schritt 4 beginnt mit einer Messung, die den Rückbau vereinfacht
+
+**Vorgelegt war eine Gabelung, und die Messung hat beide Äste verkürzt.**
+`db.database.remove` macht in einem Vorgang drei Dinge — Schema werfen, die nur
+daran hängenden Zugänge entfernen, den bleibenden das Recht nehmen.
+`pg.database.remove` nahm nur einen Namen, und die Vermutung war: Rollen müssen
+**vor** der Datenbank aufgeräumt werden, weil `DROP ROLE` verweigert, solange
+eine Rolle etwas besitzt.
+
+**Gemessen am 9. August 2026 gegen PostgreSQL 16.13:**
+
+    vor  DROP DATABASE   pg_shdepend für die Rolle: dbid 0 → 1, dbid 24581 → 2
+    nach DROP DATABASE   pg_shdepend für die Rolle: 0 Zeilen
+    DROP ROLE ohne DROP OWNED BY → geht
+
+`DROP DATABASE` nimmt **alles** mit, was in ihr wurzelt: die Eigentümerzeilen
+der Objekte darin und den Eintrag auf die Datenbank selbst. Die Reihenfolge ist
+also genau umgekehrt zur Vermutung — **erst die Datenbank, dann die Rollen** —,
+und `DROP OWNED BY` ist dabei überflüssig.
+
+**Und die zweite Liste entfällt ganz.** In MariaDB gibt es `revoke` für die
+Zugänge, die bleiben, weil eine Rechtezeile in `mysql.db` ihr Schema überlebt
+(`docs/36 §22.3p`, auf `cloudsrv24` gefunden). In PostgreSQL liegt dasselbe
+Recht in `pg_database.datacl` und geht mit der Datenbank — gemessen: Nach dem
+Werfen stand die bleibende Rolle nur noch an der Datenbank, die es noch gibt.
+Eine `revoke`-Liste wäre Arbeit für einen Zustand, den es nicht gibt, und sähe
+aus wie eine Zusage.
+
+**Ein Vorgang statt zweier, und der Grund ist der Abbruch.** Rollen unmittelbar
+zu entfernen und die Datenbank danach einzureihen hiesse: Bricht das
+`DROP DATABASE` ab, sind die Zugänge fort und die Daten da — der Kunde sieht
+seine Datenbank und kommt nicht mehr hinein. So bleibt bei einem Abbruch der
+Zustand von vorher.
+
+`DROP OWNED BY` bleibt, wo es hingehört: in `pg.role.remove`, für den anderen
+Fall — eine Rolle, die entfernt wird, während ihre übrigen Datenbanken bestehen
+bleiben. Dort verweigert `DROP ROLE` tatsächlich, und dort ist es gemessen.
+
+**Gefahren gegen den echten Cluster:** Datenbank und zwei Rollen angelegt, in
+einem Aufruf zurückgebaut — beide fort, wiederholbar (`removed=false` beim
+zweiten Lauf), und eine Rolle mit fremdem Präfix abgewiesen. Der Wächter dazu
+liest die **Reihenfolge** im Quelltext, weil sie sich sonst nur gegen einen
+laufenden Server prüfen liesse.
+
+**Die Lehre, die über den Rückbau hinausgeht:** Die Gabelung, die ich vorgelegt
+habe, hatte beide Äste aus MariaDB gedacht — *„Rechte überleben ihr Schema"* ist
+dort wahr und hier falsch. Ich hätte sie nicht vorlegen sollen, ohne sie vorher
+zu messen; die Messung kostete vier Minuten und hat eine Liste, eine Operation
+und einen Lebenslauf erspart.
+
+### P5b Schritt 4 — ein Modell, eine Fläche, eine Verzweigung
+
+`App\Support\Databases\Engines\` mit `EngineDriver`, `MariaDbDriver` und
+`PostgresDriver`; `Databases` wählt den Treiber und bleibt sonst, was es war;
+`PgLifecycle` neben `DbLifecycle`; fünf `pg.*`-Operationen in der Registratur —
+sie haben jetzt einen Aufrufer.
+
+**Die Verzweigung steht an einer Stelle, und das ist wörtlich `docs/38 §8`.**
+`Databases::driver()` ist ein `match` über zwei Fälle, ohne `default`: Käme ein
+drittes System dazu, meldete es der Übersetzer dort und nicht ein Kunde später.
+Alles darüber — Kontingent, Namensprüfung, Mandantenklammer, das Schreiben der
+Zeile — steht weiterhin genau einmal da und gilt für beide Systeme.
+
+**Warum eine Schnittstelle und nicht fünf `match`.** Fünf Methoden mit je zwei
+Zweigen sind fünf Gelegenheiten, einen zu vergessen. Eine Schnittstelle mit zwei
+Umsetzungen macht daraus eine Liste, die vollständig sein *muss* — wer eine
+Methode ergänzt, bekommt vom Übersetzer gesagt, dass die andere Umsetzung fehlt.
+Das ist derselbe Gedanke wie bei `DatabaseEngine` selbst: nicht tippen, sondern
+gesagt bekommen.
+
+**`MariaDbDriver` bringt keine neue Regel mit.** Was dort steht, stand vorher
+wörtlich in `Databases`. Wer einen Unterschied zu P5 sucht, findet keinen.
+
+**Drei Unterschiede, und mehr sind es nicht.** Das Präfix (`p1001` gegen
+`x7f3a…` aus `system_users.db_prefix`), die Sortierung (`charset`/`collation`
+gegen `encoding`/`locale`, in denselben zwei Spalten) und der Zugang (`name` und
+`host` als Schlüssel gegen eine clusterweite Rolle). Alles andere aus der
+Tabelle in §8 liegt unterhalb des Agentenprotokolls.
+
+**Nachgeschlagen wird das Präfix über die Nummer und nicht über den Namen.**
+`docs/35` hat die Nummer zur bleibenden Kennung gemacht; ein Abonnement darf
+umbenannt werden, und ein Nachschlagen am Namen ergäbe irgendwann ein anderes
+Präfix — also fremde Datenbanken.
+
+**Passwort setzen und Anlegen sind in PostgreSQL dieselbe Operation.**
+`CREATE ROLE` kennt kein `IF NOT EXISTS`, also setzt `pg.role.create` an einer
+vorhandenen Rolle das Passwort — der gewünschte Zustand ist beide Male
+derselbe. Eine zweite Operation dafür wäre eine zweite Fassung derselben Regel.
+Deshalb reicht der Treiber beim Zurücksetzen die Datenbanken mit: Ohne sie
+verlöre der Zugang dabei seine Freigaben.
+
+**`PgLifecycle` ist ein eigener Lebenslauf und kürzer als `DbLifecycle`.** Die
+Antworten der beiden Rückbauoperationen haben nicht dieselbe Form —
+`users_removed` als `name@host` gegen `roles_removed` als blosse Rollennamen —,
+und ein gemeinsamer müsste in jeder Methode fragen, welches System gemeint ist.
+Sein `afterFailure()` ist bewusst leer, mit Begründung: Bricht der Rückbau ab,
+ist der Zustand der von vorher, und ein automatischer Rückweg auf `Active` wäre
+eine Behauptung über den Server, die niemand geprüft hat.
+
+**Eine Verhaltensänderung, die genannt gehört:** `Databases::remove()` wirft
+jetzt, wenn zur Datenbank kein Abonnement mehr gehört. Vorher schickte es eine
+leere Zeichenkette als Präfix an den Agenten, der sie abwies — die Meldung führte
+an eine Stelle, an der niemand nach der Mandantenklammer sucht. Der Weg für
+verwaiste Zeilen ist unverändert `srvpanel db --prune`.
+
+**`PgRoleLock` steht noch nicht in der Registratur.** Die Sperre eines
+Abonnements ist Schritt 5; dieselbe Regel wie für alle davor — eingetragen wird
+sie in dem Beitrag, der ihr einen Aufrufer gibt.
+
+**Und die Frage aus `docs/36 §14` hat eine Antwort.** Sie lautete: *„Muss P5b
+`agent/src/Db/` aufreissen, war die Trennung falsch."* Bis hierher ist keine
+Datei darunter geändert worden — `Runner` zählt nicht, der gehört keinem der
+beiden. Die Trennung trägt.
+
+### P5b Schritt 5, erste Hälfte — die Sperre erreicht beide Systeme
+
+`PgLifecycle` beantwortet jetzt `subscription.suspend`, `subscription.resume`
+und `pg.role.lock`; `PgRoleLock` steht in der Registratur, weil es seinen
+Aufrufer hat. `NOLOGIN` statt `ACCOUNT LOCK` (`docs/38 §11`).
+
+**Beide Lebensläufe hören auf dieselben zwei Aufgaben, und das ist keine
+Doppelung.** Ein gesperrtes Abonnement soll seine Zugänge in *jedem* System
+verlieren. Jeder reiht seinen eigenen Folgevorgang ein und fasst nur seine
+eigenen Zeilen an — die Trennung liegt in `engine` und nicht in der Aufgabe.
+
+**Ohne diese Trennung wäre Schritt 4 ein Fehler mit Ansage gewesen.**
+`DbLifecycle::afterSubscription()` holte alle Zugänge eines Abonnements; seit
+Schritt 4 sind darunter PostgreSQL-Rollen, und die gingen als `name@host` an
+`db.user.lock`. Der Agent wiese sie ab — und ein gesperrtes Abonnement behielte
+seine **MariaDB**-Zugänge, weil der ganze Vorgang scheitert. Beim Nachziehen
+dasselbe von der anderen Seite: Zwei Vorgänge schrieben denselben Zustand, der
+zweite gewänne, und auffallen würde es erst, wenn einer scheitert.
+
+**Die Grenze, die P5 nie aufgeschrieben hat, steht jetzt im Code.** `NOLOGIN`
+nimmt die Anmeldung und beendet **keine** bestehende Sitzung — `ACCOUNT LOCK`
+tut das auch nicht. Eine Anwendung mit offenem Verbindungspool arbeitet nach der
+Sperre weiter, bis sie neu verbindet. Wer das schliessen wollte, bräuchte
+`pg_terminate_backend`, und dann sähe ein Kunde mitten in einer Transaktion
+einen Abbruch. P5b sperrt und beendet nicht.
+
+**Kein leerer Folgevorgang.** Ein Abonnement ohne PostgreSQL-Zugang bekommt
+keinen — er stünde in der Liste, täte nichts, und wäre auf jedem Server ohne
+PostgreSQL die Hälfte aller Zeilen.
+
+### Und der neue Wächter hat sofort etwas gefunden, das ich nicht gesucht habe
+
+`EngineScopeTest` verlangt, dass jede Abfrage über *alle* Zeilen eines
+Abonnements auch das System nennt. Beim ersten Lauf meldete er eine Stelle, an
+die ich nicht gedacht hatte: `DbLifecycle::removedAllDumps()` löscht bei
+`db.dump.remove` alle Sicherungen des Abonnements — ohne `engine`.
+
+Heute ist das folgenlos, weil alle Sicherungen MariaDB-Sicherungen sind. Ab
+Schritt 6 gibt es `pg.dump.*`, und dann löschte dieser Aufruf auch die
+PostgreSQL-Sicherungen: **Zeilen für Dateien, die noch auf der Platte liegen.**
+Die Einschränkung steht jetzt da, bevor sie gebraucht wird.
+
+Bemerkenswert ist, *warum* er sie gefunden hat: Der Wächter fragt nach
+`subscription_id` und nicht nach `DbUser`. Hätte ich ihn auf die Tabelle
+zugeschnitten, um die es mir ging, wäre die Sicherungszeile durchgerutscht —
+*ein Wächter, der die Richtung prüft statt des Gegenstands, findet mehr als der,
+der ihn gebaut hat.*
+
+**Was von Schritt 5 noch fehlt:** die Messung (`docs/38 §12`) — `pg.usage` als
+Operation und `srvpanel usage`, das ab P5b drei Dinge misst und weiter aus einem
+Timer startet.
+
+### P5b Schritt 5, zweite Hälfte — die Messung
+
+`pg.usage` als Operation, `Usage` misst beide Systeme, `Database::query()` ist
+dabei auf das gemessene System eingeschränkt.
+
+**Beide werden immer gefragt, und nicht nach dem Schalter.** `pg.usage`
+antwortet auf einem Server ohne PostgreSQL mit `available: false` und einem
+Grund — genau wie `db.usage` es tut, wenn MariaDB steht. Eine Bedingung an der
+Einstellung wäre eine zweite Fassung derselben Frage; und Datenbanken, die vor
+dem Abschalten der Fläche entstanden sind, belegen weiter Platz und gehören
+weiter gemessen.
+
+**`apply()` fasst nur die Zeilen des gemessenen Systems an.** Ohne diese
+Einschränkung bekäme eine PostgreSQL-Datenbank aus der MariaDB-Messung eine
+`size_bytes` von 0 — sie steht in deren Antwort ja nicht —, und das wäre eine
+**gemessene** Null für etwas, das niemand gemessen hat. Genau der Unterschied,
+den `size_measured_at` sonst festhält.
+
+**Und eine Abweichung vom Plan, mit Grund.** `docs/38 §12` schreibt die Abfrage
+mit `WHERE datname ~ '^x[0-9a-f]{16}_'`. Das wäre die zweite Fassung des
+Musters — die erste steht in `Pg\Names`. Ausgesondert wird deshalb in
+`PgUsage::parse()` über `Names::isPanelName()`, dieselbe Stelle, die auch beim
+Anlegen und beim Rückbau entscheidet, was zum Panel gehört. In der Abfrage steht
+nur `datallowconn`, weil `pg_database_size()` an `template0` sonst einen
+Verbindungsfehler auslöst.
+
+**Gemessen gegen den echten Cluster:** eine Datenbank angelegt, `pg.usage`
+gefragt — 7.683.095 Byte, und `postgres` und `template1` stehen nicht in der
+Antwort. `pg_database_size()` zählt die Datenbank auf der Platte,
+`data_length + index_length` in MariaDB die logische Grösse der Tabellen; die
+Zahlen sind nicht vergleichbar, aber sie beantworten dieselbe Frage.
+
+**Das Kontingent brauchte keine Zeile.** `Quota::Databases` zählt über
+`Database::query()->where('subscription_id', …)` ohne `engine` — drei MariaDB-
+und zwei PostgreSQL-Datenbanken sind damit fünf, wie `docs/38 §12` es verlangt.
+Das war schon richtig und ist es geblieben.
+
+### Und der neue Wächter hat mich korrigiert, nicht den Code
+
+`test_the_measurement_only_names_what_belongs_to_the_panel` erwartete zuerst,
+dass die befristete Datenbank eines Zurückspielens (`…_r1a2b3c4d`) aus der
+Messung herausfällt. Sie tut es nicht — und sie soll es auch nicht: Sie gehört
+dem Panel, belegt Platz, und im Bestand gibt es keine Zeile, auf die sie passt;
+sie läuft also ins Leere und kostet einen Eintrag in einer Ablage.
+
+Die Erwartung war meine Annahme und keine Regel. Worum es dem Wächter geht, ist
+die andere Richtung: `postgres`, `template1` und die Datenbank des Betreibers
+dürfen **nicht** in der Antwort stehen — ihre Grösse ginge sonst an `Usage` und
+von dort in einen Kundenbericht.
+
+*Ein Wächter, der beim ersten Lauf rot wird, hat zwei mögliche Ursachen, und die
+erste, an die man denkt, ist der Code.*
+
+### Lauf 460 bis 462 — drei Fehler, und einer davon ist ein Absturz
+
+**Der teuerste war eine `use`-Klausel.** `Usage::apply()` bekam mit Schritt 5
+den Parameter `$engine`, die Abfrage darunter steht aber in einer Closure — und
+die Closure bekam ihn nicht. `Undefined variable $engine`, zehn rote Tests, und
+im Betrieb wäre es die Messung gewesen, die alle fünfzehn Minuten abbricht.
+
+**Zwei fehlende `@property`-Zeilen.** `DbUser` und `Database` haben `engine`
+seit Schritt 2 in `$fillable` und in `casts()` — die Modellbeschreibung kannte
+die Spalte nicht. Für PHP ist das gleichgültig, für larastan nicht.
+
+**Und `BreakScriptTest`, wie er soll:** Drei Eingriffe in
+`waechter-brechen.sh` zeigten auf Text, der mit den Treibern umgezogen ist —
+der Zugangsnamensschutz hat andere Argumente bekommen, `'db.user.grant'` und
+die `revoke`-Liste stehen jetzt in `MariaDbDriver`. Der Test sagt für genau
+diesen Fall: *Meistens ist der Code umgezogen; dann zeigt der Eingriff auf
+seinen neuen Ort.*
+
+### Warum ich die ersten beiden nicht gesehen habe — zum zweiten Mal an einem Abend
+
+Der lokale PHPStan-Lauf ging über `agent/src`. Die Änderung lag in `app/`.
+
+**Dasselbe wie in Lauf 458**, wo `array_values()` hinter einem `sort()` durch
+kam, aus demselben Grund: Ich habe den Teilbaum geprüft, an den ich *dachte*,
+nicht den, den ich *geändert* hatte. Und beim `Access to an undefined property`
+kommt eine zweite Schicht dazu — mein Filter gegen larastan-Rauschen enthielt
+`Access to an undefined`, weil ohne larastan jedes `Model::query()` so aussieht.
+Er hat damit einen echten Befund verschluckt: *Ein Filter, der Rauschen
+entfernt, entfernt auch Befunde, die wie Rauschen aussehen.*
+
+Die Antwort ist kein Vorsatz, sondern ein Skript. `pruefe.sh` im Scratchpad
+läuft **immer** über `app`, `agent/src` und `tests/Support`, fährt alle
+Attrappen und filtert nur noch namentlich genannte Zeilen heraus statt ganzer
+Meldungsklassen. Beim ersten Lauf hat es die drei Eingriffe gefunden, die ich
+nach Schritt 4 nicht mehr geprüft hatte — es hat sich sofort bezahlt.
+
+### Lauf 463 — vier rote Tests, und keiner zeigte auf die Ursache
+
+Der Lauf, der die drei Befunde von 462 bestätigen sollte, hat zwei neue
+gebracht. Beide zeigten woandershin, als sie herkamen.
+
+**`Databases::driver()` bekam `null`, wo der Übersetzer eine Aufzählung
+verlangt.** `OrphanedGrantTest` scheiterte dreimal mit einem `TypeError` in
+`app/Support/Databases/Databases.php` — an einer Zeile, die richtig ist. Die
+Ursache liegt drei Schritte davor: `engine` trägt `default('mariadb')` in der
+Migration, und ein `default` gilt beim `INSERT`. Was danach im Speicher steht,
+ist das, was hineingeschrieben wurde — Eloquent liest die Zeile nicht zurück.
+`DatabaseFactory` schrieb `engine` nicht mit, also war es `null`, obwohl das
+Modell die Spalte seit dem Fix von 462 als `@property DatabaseEngine $engine`
+führt: **ohne `null`.**
+
+Zwei wahre Aussagen, die zusammen nicht stimmten. Die Spalte ist `NOT NULL` und
+hat einen Vorgabewert; das Modell behauptet, sie sei immer da; die Factory baute
+eine Zeile, die es so nie gibt. Der Ausweg, der sich zuerst anbietet — ein
+`$attributes`-Vorgabewert im Modell — wäre die zweite Fassung dessen, was in der
+Migration steht, und die zweite ist die, die veraltet. Was fehlte, war nicht der
+Vorgabewert, sondern dass die Factory die Zeile so baut wie die Anwendung.
+
+`FactoryDefaultTest` hält das jetzt für alle Modelle fest: Eine Spalte, die das
+Modell als nicht-nullbare Aufzählung führt, wird von `definition()` gesetzt.
+Gelesen wird der `@property`-Block, weil dort steht, was das Modell über sich
+behauptet — und weil larastan dieselbe Stelle liest, ist sie gepflegt. Die
+Gegenrichtung steht daneben: `Domain::$redirect_kind` darf `null` sein, und eine
+Factory, die eine Weiterleitungsart erfände, wäre falscher als eine, die sie
+weglässt. Beim Bauen fiel dabei auf, dass `DatabaseDump` seine `engine`-Zeile im
+`@property`-Block überhaupt nicht hatte — derselbe Befund wie in 462, eine
+Datei weiter, und niemand hätte ihn gemeldet, weil noch niemand `$dump->engine`
+liest.
+
+**Und `ChangelogTest` hielt einen Namensraum für eine Klasse.** Der Eintrag zu
+Schritt 4 nennt `App\Support\Databases\Engines\` — mit abschliessendem
+Backslash, wie man einen Namensraum schreibt. Der Ausdruck sah eine Klasse,
+suchte `Engines.php` und fand ein Verzeichnis. Den Text umzuschreiben wäre der
+schnellere Weg gewesen und der schlechtere: Er hätte eine Regel eingeführt, die
+nirgends steht — *im Changelog darf kein Namensraum vorkommen* —, und der
+nächste Beitrag hätte sie wieder gebrochen. Der Wächter fängt den Backslash
+jetzt mit und prüft dann ein Verzeichnis statt einer Datei. Beide Richtungen
+gebrochen, beide rot; die Befehlsfolge steht im Kopf des Tests, weil
+`waechter-brechen.sh` `CHANGELOG.md` nicht wiederherstellt.
+
+**Was sie gemeinsam haben.** Beide Fehler standen an einer Stelle, an der die
+Regel *stimmte* — der `match` ohne `default`, der Ausdruck für Klassennamen —
+und kamen von einer Annahme darüber, was ihnen geliefert wird. Das ist derselbe
+Stellvertreter wie schon dreimal in P5b, nur eine Ebene höher: nicht ein
+Verzeichnis für einen Dienst, sondern ein Vorgabewert der Datenbank für einen
+Wert im Speicher.
+
+Nachgetragen wurde bei der Gelegenheit der Bruch zu `EngineScopeTest` aus
+Schritt 5, der im Skript fehlte.
+
+### P5b Schritt 6, erste Hälfte — Sichern und Zurückspielen im Agenten
+
+`pg.dump.create`, `pg.restore` und `pg.dump.import` liegen unter
+`agent/src/Ops/`, dazu drei Bausteine: `SrvPanel\Agent\Pg\Hba`,
+`SrvPanel\Agent\Pg\Credentials` und `SrvPanel\Agent\Pg\Ephemeral`. Eingetragen
+in die Registratur werden sie mit dem Beitrag, der ihnen einen Aufrufer gibt —
+dieselbe Reihenfolge wie in Schritt 1.
+
+**Fünf Messungen standen vor der ersten Zeile Code, und zwei haben den Plan
+umgeworfen.**
+
+`docs/38 §13.1` hat sich bestätigt, wörtlich: `psql -f` gibt bei gescheitertem
+SQL **0** zurück und arbeitet weiter — vier Anweisungen, die dritte abgewiesen,
+Rückgabewert 0, und die vierte lief. Mit `ON_ERROR_STOP=1`: Rückgabewert 3,
+Abbruch, und eine Meldung mit Datei, Zeilennummer und Grund. `mysql` macht das
+von selbst richtig, und **genau darin liegt die Falle**: Wer aus P5 abschreibt,
+schreibt eine Vorsicht ab, die dort in der *Abwesenheit* eines Schalters lag.
+
+`§13.2` ebenfalls: null `DEFINER`-Angaben in einem `pg_dump`. Der Filter aus
+`docs/36 §10.1` entfällt — und weil er über jede Zeile eines Dumps läuft, ist
+„entfällt" hier mehr wert als „schadet nicht". `Dump::compress()` nimmt den
+Filter deshalb seit heute als Argument statt ihn zu setzen; `PgRestoreTest`
+prüft beide Richtungen.
+
+**Was §13.4 nicht wusste: Die befristete Rolle kommt über den Unix-Socket gar
+nicht herein.** Debians `pg_hba.conf` beginnt mit `local all all peer`, und
+`peer` verlangt einen gleichnamigen Unix-Benutzer — den hat
+`x7f3a…_r1a2b3c4d` nicht. In P5 meldet sich der befristete Benutzer über den
+Socket mit Passwort an, MariaDB lässt das zu, und §13.4 sagte „wie
+`docs/36 §10.2`". Der Fehlschlag sieht dabei wie ein Rechteproblem aus und
+steht in einer Datei, die mit Rechten nichts zu tun hat.
+
+Beide Auswege sind gemessen worden, bevor sie dem Betreiber vorlagen: TCP über
+`127.0.0.1` läuft ohne jede Konfigurationsänderung, hängt aber an
+`listen_addresses`. Der Betreiber hat den anderen gewählt — eine Gruppenrolle
+`srvpanel_restore` und eine Zeile in `pg_hba.conf`, die ihre Mitglieder über den
+Socket mit Passwort hereinlässt. Sie steht **ganz oben**, weil die erste
+passende Zeile entscheidet, auch wenn sie abweist.
+
+**Und der Runner hat zum ersten Mal überhaupt eine Ergänzung seiner festen
+Umgebung bekommen.** `psql` kennt keinen Schalter für die Passwortdatei, nur
+`PGPASSFILE`. Der erste Anlauf setzte sie mit `putenv()` — und lief in
+`fe_sendauth: no password supplied`, weil `Runner` die Umgebung fest vorgibt.
+Gemessen hatte ich ein nacktes `proc_open()`: **den Stellvertreter statt die
+Sache**, zum vierten Mal in dieser Stufe. Die Antwort ist eine Positivliste nach
+demselben Muster wie die für Programme, mit `PGPASSFILE` als einzigem Eintrag —
+eine Umgebung ist dieselbe Angriffsfläche wie eine Kommandozeile, und
+`LD_PRELOAD` lädt fremden Code in einen Prozess, der als root läuft.
+
+**Der teuerste Fund kam beim Laufenlassen und hätte das Zurückspielen
+unbrauchbar gemacht.** Ein `DROP ROLE` scheitert, solange der Rolle etwas
+gehört; der naheliegende Weg ist `DROP OWNED BY` im `finally` — und der wirft
+weg, was gerade eingespielt wurde. Der Lauf meldete Erfolg, und die Tabelle war
+fort. Was eine Rolle anlegt, gehört ihr, und beim Zurückspielen legt sie die
+ganze Datenbank an. In P5 gibt es dazu kein Gegenstück, weil MariaDB kein
+Eigentum an einer Tabelle kennt — der Plan hat die Frage deshalb nicht gestellt.
+`REASSIGN OWNED BY … TO` überträgt jetzt zuerst an den **Eigentümer der
+Datenbank**, gefragt und nicht angenommen.
+
+**Zwei Dinge, die es ausdrücklich nicht gibt.** Kein `pg.dump.remove`:
+`db.dump.remove` entfernt eine Datei, und eine Datei hat kein Datenbanksystem.
+Und keine zweite Fassung von `requireGzip`, `unpackedSize`, `requireSpace` und
+`moveInto` — die sind aus `DbDumpImport` nach `Dump` gezogen, weil sie mit
+MariaDB oder PostgreSQL nie etwas zu tun hatten. Beim Umzug hat `requireSpace()`
+das Datenverzeichnis als Argument bekommen: Für MariaDB ist es fest, für
+PostgreSQL steht es in `pg_lsclusters`.
+
+Neu gemessen dazu noch zweierlei. Die befristete Rolle braucht
+`GRANT ALL ON SCHEMA public` — seit PostgreSQL 15 darf `PUBLIC` dort nicht mehr
+schreiben, und ohne die Zeile bricht das Zurückspielen an der ersten
+`CREATE TABLE` ab. Und ein `pg_dump` einer einzelnen Datenbank enthält **kein**
+`\connect`; `pg_dumpall` schon. Die Falle aus §13.4 trifft also nur
+Mitgebrachtes, und dort greift der `REVOKE CONNECT` aus §10 ein zweites Mal.
+
+**Und ein Wächter aus Schritt 1 hat den ersten Anlauf zurückgewiesen.**
+`AgentIdentityTest` besteht darauf, dass `psql` an genau einer Stelle gerufen
+wird — `PgRestore` hatte den Lauf bei sich stehen. Die Regel ist richtig, und
+sie hat gehalten: Der Lauf ist nach `Pg\Session::restore()` gezogen, und damit
+stehen Socketpfad, Anmeldeweise und `ON_ERROR_STOP` weiter genau einmal da.
+
+**Eine zweite Regel war dagegen zu weit gefasst**, und das ist der seltenere
+Fall. `PgSessionTest` verbot `-c` **und** `-f` mit der Begründung „dann steht
+das SQL in der Kommandozeile" — für `-c` stimmt das, `-f` trägt einen
+Dateinamen. Mitverboten war es, weil es in Schritt 1 keinen Fall dafür gab und
+beide gleich aussahen. Eine solche Regel wird **geschärft und nicht
+abgeschaltet**: `-c` bleibt verboten, `-f` ist auf eine Stelle begrenzt und muss
+einen Pfad tragen, und daneben steht jetzt die Prüfung, um die es eigentlich
+ging — kein Passwort unter den Argumenten.
+
+### P5b Schritt 6, zweite Hälfte — ein Lebenslauf für Sicherungen
+
+`App\Support\Databases\DumpLifecycle` übernimmt die vier Dump-Aufgaben von
+`DbLifecycle` und bedient beide Systeme. **Eine Klasse je Gegenstand, nicht je
+System** — was mit einer Sicherung geschieht, hängt an keinem Datenbanksystem:
+Die Grösse kommt aus der Antwort, die Zeile geht auf fertig oder gescheitert,
+beim Entfernen wird sie gelöscht, beim Zurückspielen nichts getan. Nur die
+**Namen** der vier Aufgaben unterscheiden sich, und die stehen jetzt an einer
+Stelle.
+
+Derselbe Schnitt wie bei den vier Datei-Prüfungen, die in der ersten Hälfte aus
+`DbDumpImport` nach `Dump` gezogen sind, und dieselbe Begründung: Eine Sicherung
+ist eine Datei und eine Zeile, und beide wissen nichts von MariaDB oder
+PostgreSQL.
+
+**Eine Einschränkung fällt dabei weg, die es geben musste.** In
+`removedAllDumps()` stand `->where('engine', MariaDb)` — richtig, solange
+`db.dump.remove` zu `DbLifecycle` gehörte und sonst die PostgreSQL-Zeilen
+desselben Abonnements mitgelöscht hätte. Seit dieselbe Aufgabe **beide** Systeme
+bedient und der Agent beim Rückbau das ganze Verzeichnis entfernt, wäre die
+Zeile der Fehler: Sie liesse die PostgreSQL-Zeilen stehen, und `srvpanel db`
+meldete sie als verwaist.
+
+`DbLifecycle::afterFailure()` ist damit leer. Das ist ein Zustand und kein Rest
+— für Rückbau und Sperre gilt dieselbe Zurückhaltung wie in `PgLifecycle`.
+
+**Das Präfix im Auftrag war der letzte offene Punkt, und er ist zu.** `db.*`
+prüft gegen den Systembenutzer, `pg.*` gegen das Präfix aus `system_users`;
+gewusst hat das nur der PostgreSQL-Treiber. Es in `Dumps` ein zweites Mal zu
+holen wäre die zweite Fassung gewesen — statt dessen ist die Abfrage als
+`PostgresDriver::prefixOf()` herausgezogen, und der Treiber ruft sie selbst.
+Eine Stelle, zwei Aufrufer. Damit stehen `pg.dump.create`, `pg.restore` und
+`pg.dump.import` in der Registratur, und `RemovalPathTest` führt die beiden
+Ausnahmen mit Begründung: Der Weg zurück heisst `db.dump.remove` und gilt für
+beide Systeme.
+
+**Zwei Wächter haben den Umbau gefunden, bevor die CI es tat.** `BreakScriptTest`
+meldete zwei Eingriffe, die auf Text zeigten, der mit den Methoden umgezogen
+ist — das erwartete Muster. Und `DatabaseEngineTest` hat die erste Fassung von
+`DumpLifecycle` zurückgewiesen: Sie führte die Aufgaben in einer Konstante, die
+beide Systeme als Zeichenkette benannte. Die Regel ist dieselbe wie in Lauf 451
+und richtig; die Tabelle ist jetzt ein `match` über das Enum, vollständig und
+ohne `default` — käme ein drittes System hinzu, meldete es der Übersetzer dort
+und nicht ein Kunde später.
+
+### P5b Schritt 7 beginnt bei den Sätzen, die nur ein System kennen
+
+Drei Stellen der Oberfläche erklärten ein Kontingent mit MariaDB, und seit
+Schritt 4 zählt es über beide Systeme (`docs/38 §12`). Der Satz „MariaDB kennt
+keine Obergrenze je Schema" ist dabei nicht bloss unvollständig — **er sagt
+einem PostgreSQL-Kunden das Gegenteil dessen, was gemeint ist:** dass ihn die
+Grenze nicht betrifft.
+
+`Quota::hint()` für Anzahl und Grösse, der Kommentar darüber und der Hinweis in
+`Subscriptions/Show.vue` nennen jetzt beide Server, ohne einen davon zu
+benennen. Der Pfad `/var/lib/mysql` fällt dabei aus dem Text: Er war das
+Beispiel für „liegt ausserhalb der Quota", und zwei Pfade nebeneinander erklären
+weniger als die Aussage selbst.
+
+### Und die Spalte „System" — zweimal falsch beim ersten Versuch
+
+`Databases/Index.vue` zeigt das System als Marke, sobald es eine Datenbank gibt,
+die nicht MariaDB ist. Der erste Entwurf beantwortete das im Template, mit einem
+`some()` über die geladenen Zeilen, und war dabei gleich zweifach daneben.
+
+**`DatabaseEngineTest` hat den Wert als Zeichenkette abgewiesen** — die Werte
+eines Systems stehen im Enum und nirgends sonst, dieselbe Regel wie schon bei
+`DumpLifecycle` eine Stunde vorher. Und beim Umbau fiel der zweite Fehler auf,
+den kein Wächter gemeldet hätte: **`some()` läuft über eine Seite.** Bei zwanzig
+Zeilen je Seite wäre die Spalte beim Blättern verschwunden, sobald eine Seite
+nur MariaDB enthält — eine Tabelle, deren Spalten sich beim Weiterklicken
+ändern.
+
+Beides löst dieselbe Zeile: Der Server beantwortet die Frage, über den ganzen
+Bestand und innerhalb der Mandantenklammer. **Gefragt wird nach einem Zustand
+und nicht nach einer Einstellung** — „PostgreSQL ist angeboten" wäre die Absicht
+des Betreibers; ob die Spalte etwas erklärt, entscheidet, ob es eine Datenbank
+gibt, die sie braucht.
+
+### Die Wahl des Systems — und ein Präfix, das nicht mitgezogen wäre
+
+`Databases/Create.vue` zeigt das System zur Auswahl, **nur wenn es etwas zu
+wählen gibt**: MariaDB steht immer da, PostgreSQL, wenn der Betreiber es
+anbietet. Das ist die eine Stelle in P5b, an der eine *Absicht* die richtige
+Bedingung ist und kein Zustand — ob PostgreSQL läuft, sagt `pg.server.info`; ob
+es Kunden angeboten wird, entscheidet der Betreiber.
+
+**Der Fund beim Bauen war das Präfix.** Es steht im Formular, während getippt
+wird, damit der Kunde den fertigen Namen sieht — und es ist in den beiden
+Systemen ein anderes: der Systembenutzer (`p1001`) gegen die gewürfelte Kennung
+(`x7f3a…`). Ein Formular, das weiter `subscription.prefix` anzeigt, zeigt nach
+dem Umschalten den falschen Namen an, und der Kunde trägt ihn in seine Anwendung
+ein. Jeder Eintrag der Auswahl bringt sein Präfix deshalb selbst mit. Der Satz
+„das Präfix ist der Systembenutzer des Abonnements" ist damit auch weg — für
+PostgreSQL war er schlicht falsch.
+
+**Und einmal mehr ein Stellvertreter, diesmal in meinem eigenen Entwurf.** Ob
+das Formular eine Sortierung anbietet, hing an `engines[0]` — „der erste Eintrag
+ist MariaDB". Eine Annahme über die Reihenfolge einer Liste, die beim ersten
+Umsortieren still falsch geworden wäre. Die Frage gehört zum System und wandert
+jetzt mit ihm.
+
+Geprüft wird beim Absenden gegen dieselbe Liste, die das Formular gezeigt hat,
+und nicht bloss gegen das Enum: `postgres` durchzulassen, während der Betreiber
+es nicht anbietet, wäre eine Wahl, die es in der Oberfläche nie gab.
+
+### `Databases/Show.vue` — und eine Angabe, die für PostgreSQL gelogen war
+
+Die Detailseite nennt das System als Marke und sagt bei PostgreSQL, was beim
+Eintragen der Verbindungsdaten gebraucht wird: **über `127.0.0.1` und nicht über
+einen Socket.** Der Satz steht dort und nicht in einer Anleitung, weil die
+Meldung im Fehlerfall auf etwas anderes zeigt als auf die Ursache — eine
+Anwendung, die auf `localhost` als Socket verbindet, bekommt
+„Peer authentication failed", und das liest sich wie ein Rechteproblem. Dazu der
+Hinweis zu Erweiterungen aus `docs/38 §5`.
+
+**Die Sortierung fällt weg, wo sie nichts bedeutet.** In der Zeile stand für
+jede PostgreSQL-Datenbank `utf8mb4_unicode_ci` — der Vorgabewert der Spalte aus
+P5, den diese Datenbank nie gesehen hat. Zeichensatz und Sortierung entstehen
+dort aus der Vorlage des Servers. Der Server liefert für sie jetzt `null`, und
+die Oberfläche zeigt die Zeile gar nicht: **eine fehlende Angabe ist ehrlicher
+als eine falsche.**
+
+Beide Bedingungen hängen an einer *Eigenschaft* und nicht am Namen des Systems
+— `over_tcp`, und `collation === null`. Ein Vergleich mit dem Wert des Systems
+im Template wäre eine Zeichenkette aus dem Enum; `DatabaseEngineTest` weist sie
+ab und hat dabei sogar einen Kommentar erwischt, der das Wort nur als Beispiel
+trug.
+
+### Die Aufnahmen zu Schritt 7 — gemessen, aber nicht an der echten Seite
+
+`vendor/` gibt es in diesem Container nicht, also läuft `artisan serve` nicht.
+Gemessen wurde deshalb auf dem Weg, den `CLAUDE.md` für genau diesen Fall
+beschreibt: das gebaute Stylesheet aus `public/build`, das Markup der drei
+geänderten Bausteine in einer eigenen Datei, gerendert im vorinstallierten
+Chromium.
+
+**Und zwar mit dem längsten Namen, den dieses Panel vergeben kann.** Der erste
+Lauf nahm `x7f3a91c2b40e15d6_shop` — zweiundzwanzig Zeichen —, und in der
+Detailseite stand die Kennung sichtbar knapp am Rand. Erlaubt sind aber
+vierunddreissig: siebzehn Präfix, ein Unterstrich, sechzehn Zusatz. Eine
+Messung am bequemen Beispiel ist keine Messung; genau daran ist `v0.4.0-rc.4`
+gescheitert.
+
+Ergebnis mit dem Härtefall: **`scrollWidth - clientWidth` ist 0 px** — bei
+390 px und bei 1280 px, hell und dunkel. Die Kennung bricht in der mobilen
+Ansicht mitten im Wort und im Fliesstext an der Wortgrenze; beides ist hässlicher
+als ein kurzer Name und besser als eine Seite, die sich schieben lässt.
+
+**Was das nicht belegt, gehört dazu:** Der Weg zeigt einen Baustein und nicht
+die Seite. Wie sich die Spalte „System" neben den übrigen Spalten verhält, wie
+die Abschnitte zusammen umbrechen und ob eine Marke im Zusammenspiel kippt,
+sagen erst Aufnahmen der laufenden Anwendung. Sie stehen aus und sind **nicht
+abgehakt** — P4 Schritt 6 ist genau so ausgeliefert worden, und die nachgeholte
+Runde fand drei Fehler auf einer vollständig grün getesteten Seite.
+
+### Lauf 466 — der erste Lauf des Pull Requests, und zwei echte Fehler
+
+**Vier Imports fehlten**, und alle vier aus demselben Grund: Ich habe sie mit
+einem Skript hinter einer Zeile eingefügt, die es in dieser Datei nicht gab. Das
+Skript meldete nichts, PHP meldete nichts, und lokal fiel es nicht auf, weil
+PHPStan hier ohne Autoload läuft und `class.notFound` deshalb als Rauschen
+gefiltert wird. **Ein Filter, der Rauschen entfernt, entfernt auch Befunde, die
+wie Rauschen aussehen** — dieselbe Lehre wie in Lauf 462, an einer anderen
+Stelle.
+
+**Und ein Fehler, der Kunden getroffen hätte:** `Dumps::dispatch()` holte das
+PostgreSQL-Präfix für **jede** Sicherung. Ein Abonnement ohne Präfix — Testdaten
+oder eine Installation, deren Migration noch aussteht — konnte damit keine
+**MariaDB**-Sicherung mehr anlegen: `PostgresDriver::prefixOf()` wirft, und der
+Vorgang kam nie in die Warteschlange. Eine Angabe, die das eine System nicht
+braucht, darf das andere nicht aufhalten. Das Präfix geht jetzt nur mit, wenn
+die Sicherung zu PostgreSQL gehört.
+
+**Der dritte Befund war ein Test, der auf den alten Ort zeigte.**
+`DumpTeardownTest` rief `DbLifecycle::afterSuccess()` unmittelbar, und dort steht
+die Regel seit dem Umzug nicht mehr — er meldete Rot für genau die Ordnung, die
+er absichern soll. Dasselbe Muster wie bei den Eingriffen in
+`waechter-brechen.sh`, nur in einem Test. Er geht jetzt über `Lifecycles`, also
+über den Weg, den die Anwendung nimmt: Zieht die Regel noch einmal um, bleibt er
+richtig.

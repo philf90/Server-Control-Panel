@@ -6,6 +6,8 @@ namespace App\Support\Operations;
 
 use App\Models\Operation;
 use App\Support\Databases\DbLifecycle;
+use App\Support\Databases\DumpLifecycle;
+use App\Support\Databases\PgLifecycle;
 use App\Support\Subscriptions\Lifecycle;
 use App\Support\Tls\CertificateLifecycle;
 use App\Support\Web\WebLifecycle;
@@ -39,6 +41,18 @@ final class Lifecycles
         WebLifecycle::class,
         CertificateLifecycle::class,
         DbLifecycle::class,
+
+        // P5b. Neben und nicht in DbLifecycle: Die Antworten der beiden
+        // Rückbauoperationen haben nicht dieselbe Form (docs/38 §8).
+        PgLifecycle::class,
+
+        /*
+         * **Eine Klasse je Gegenstand, nicht je System** (`docs/38 §21`,
+         * Entscheidung 10). Was mit einer Sicherung geschieht, hängt an keinem
+         * Datenbanksystem — nur die Namen der vier Aufgaben tun das, und die
+         * stehen in `DumpLifecycle::tasks()`.
+         */
+        DumpLifecycle::class,
     ];
 
     /**

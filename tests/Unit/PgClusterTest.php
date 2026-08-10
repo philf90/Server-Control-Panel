@@ -141,6 +141,47 @@ final class PgClusterTest extends TestCase
     }
 
     /**
+     * Die Unit ist die des Clusters und nicht die Sammelunit.
+     *
+     * **Der Fund gehört dem Betreiber.** Am 9. August 2026 auf `cloudsrv24`:
+     * Cluster gestoppt, die Datenbankseite meldete „läuft nicht", und die
+     * Übersicht zeigte PostgreSQL weiter als `active`. Grund ist
+     * `postgresql.service` — Debians Sammelunit startet die Instanzen und
+     * bleibt danach mit `RemainAfterExit` stehen, unabhängig davon, ob darunter
+     * noch etwas läuft.
+     *
+     * Das ist zum dritten Mal in P5b dasselbe Muster: ein Stellvertreter, der
+     * im Fehlerfall dasselbe sagt wie im Erfolgsfall. Deshalb prüft dieser
+     * Wächter **beides** — dass die Instanzunit entsteht *und* dass es nicht
+     * die Sammelunit ist.
+     */
+    public function test_the_unit_is_the_instance_and_not_the_collective(): void
+    {
+        $this->assertSame('postgresql@16-main.service', Clusters::unit(16, 'main'));
+        $this->assertSame('postgresql@14-zweit.service', Clusters::unit(14, 'zweit'));
+
+        $this->assertNotSame('postgresql.service', Clusters::unit(16, 'main'));
+        $this->assertStringContainsString('@', Clusters::unit(16, 'main'));
+    }
+
+    /**
+     * Und sie entsteht aus dem, was `pg_lsclusters` gemeldet hat.
+     *
+     * Die beiden Werte werden nicht geraten: Wer die Unit braucht, nimmt
+     * Fassung und Namen aus derselben Zeile, aus der auch Port und Zustand
+     * kommen.
+     */
+    public function test_the_unit_is_built_from_the_parsed_line(): void
+    {
+        $cluster = Clusters::parse(self::ONE)[0];
+
+        $this->assertSame(
+            'postgresql@16-main.service',
+            Clusters::unit($cluster['version'], $cluster['name']),
+        );
+    }
+
+    /**
      * Eine Kopfzeile ist kein Cluster.
      *
      * `--no-header` soll sie verhindern; eine Fassung, die sie doch schreibt,

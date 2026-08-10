@@ -21,6 +21,8 @@ interface Row {
   label: string
   status: string
   status_label: string
+  engine: string
+  engine_label: string
   collation: string
   size_bytes: number | null
   size_measured_at: string | null
@@ -40,9 +42,21 @@ const props = defineProps<{
    * Abkürzung führt in ein bestimmtes Abonnement, und er hat davon Hunderte.
    */
   creatable: { id: number; name: string }[]
+
+  /**
+   * Ob die Spalte „System" gezeigt wird.
+   *
+   * **Die Antwort kommt vom Server**, und beides daran ist Absicht: Der Wert
+   * eines Systems ist eine Sache des Enums und gehört nicht als Zeichenkette
+   * ins Template, und die Frage geht über den ganzen Bestand statt über die
+   * gerade geladene Seite — sonst verschwände die Spalte beim Blättern.
+   */
+  shows_engine: boolean
 }>()
 
 const chosen = ref<number | null>(props.creatable[0]?.id ?? null)
+
+
 
 function createDatabase(): void {
   if (chosen.value !== null) router.visit(`/subscriptions/${chosen.value}/databases/create`)
@@ -100,13 +114,19 @@ function size(row: Row): string {
       <table class="stacks">
         <thead>
           <tr>
-            <th>Datenbank</th><th>Abonnement</th><th>Zugänge</th><th>Belegt</th><th>Zustand</th>
+            <th>Datenbank</th>
+            <th v-if="props.shows_engine">System</th>
+            <th>Abonnement</th><th>Zugänge</th><th>Belegt</th><th>Zustand</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in props.databases.data" :key="row.id">
             <td data-column="Datenbank" class="ident name">
               <Link :href="`/databases/${row.id}`" class="link">{{ row.name }}</Link>
+            </td>
+
+            <td v-if="props.shows_engine" data-column="System">
+              <Badge kind="neutral">{{ row.engine_label }}</Badge>
             </td>
 
             <td data-column="Abonnement">
@@ -131,7 +151,7 @@ function size(row: Row): string {
             </td>
           </tr>
           <tr v-if="props.databases.data.length === 0">
-            <td colspan="5" class="quiet">Noch keine Datenbank.</td>
+            <td :colspan="props.shows_engine ? 6 : 5" class="quiet">Noch keine Datenbank.</td>
           </tr>
         </tbody>
       </table>

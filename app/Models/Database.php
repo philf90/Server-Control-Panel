@@ -45,6 +45,7 @@ use SrvPanel\Agent\DomainName;
  * @property string|null $subscription_name
  * @property string $name
  * @property string $label
+ * @property DatabaseEngine $engine
  * @property DatabaseStatus $status
  * @property string $charset
  * @property string $collation

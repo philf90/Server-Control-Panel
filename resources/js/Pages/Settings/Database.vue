@@ -210,7 +210,7 @@ const bezeichnung = computed(() => props.server.flavour_label)
       -->
       <Section
         title="PostgreSQL"
-        note="Ein zweites Datenbanksystem, unabhängig vom oben genannten. Kunden verbinden sich darauf über 127.0.0.1 und nicht über den Socket."
+        note="Ein eigenständiges zweites Datenbanksystem. Kunden verbinden sich darauf über 127.0.0.1 und nicht über den Socket."
       >
         <p v-if="props.postgresql.error" class="notice warn">
           <span>Der Agent antwortet nicht: {{ props.postgresql.error }}</span>
@@ -233,9 +233,20 @@ const bezeichnung = computed(() => props.server.flavour_label)
           </span>
         </p>
 
+        <!--
+          **Der Rang kommt aus derselben Quelle wie die Marke daneben.** Hier
+          stand `class="notice warn"` fest, und im Browser stritt die Seite mit
+          sich selbst: Die Marke sagte grau „nicht installiert", der Balken
+          darüber warnte gelb. `Settings/Php.vue` hält den Satz dazu schon fest
+          — *eine Warnung schickt jemanden auf die Suche nach einem Problem,
+          das keines ist* —, und „PostgreSQL ist nicht installiert" ist eine
+          Auskunft. Gemerkt hat es kein Test, sondern der erste Blick auf die
+          echte Seite.
+        -->
         <p
           v-else-if="props.postgresql.reason && props.postgresql.state !== 'ready'"
-          class="notice warn"
+          class="notice"
+          :class="pgMarke === 'neutral' ? 'neutral' : 'warn'"
         >
           <span>{{ props.postgresql.reason }}</span>
         </p>
@@ -337,7 +348,7 @@ const bezeichnung = computed(() => props.server.flavour_label)
         Zeile, 59px Luft. Darunter stapeln die Bereiche ohnehin auf volle
         Breite.
       -->
-      <Section title="Umschalten">
+      <Section title="Fernzugriff umschalten">
         <!--
           **Der Befehl steht abgedruckt und nicht beschrieben.** „Schalte es auf
           dem Server ein" ist keine Auskunft — wer hier steht, will die Zeile,

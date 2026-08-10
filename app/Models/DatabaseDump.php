@@ -34,6 +34,7 @@ use SrvPanel\Agent\Db\Dump;
  * @property int|null $database_id
  * @property string $database_name
  * @property string $storage_name
+ * @property DatabaseEngine $engine
  * @property DumpKind $kind
  * @property DumpStatus $status
  * @property int|null $bytes

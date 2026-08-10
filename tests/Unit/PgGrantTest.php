@@ -180,6 +180,64 @@ final class PgGrantTest extends TestCase
     }
 
     /**
+     * Die Datenbank geht **vor** den Rollen, und das ist die ganze Regel.
+     *
+     * **Gemessen am 9. August 2026, und die Messung hat die Bauform
+     * umgeworfen.** `DROP ROLE` verweigert, solange eine Rolle etwas besitzt —
+     * also müsste man erst aufräumen. Für die Rollen, die *mit dieser
+     * Datenbank* verschwinden, ist das gegenstandslos:
+     *
+     *     vor  DROP DATABASE   pg_shdepend: 3 Zeilen für die Rolle
+     *     nach DROP DATABASE   pg_shdepend: 0 Zeilen
+     *     DROP ROLE ohne DROP OWNED BY → geht
+     *
+     * `DROP DATABASE` nimmt alles mit, was in ihr wurzelt. Umgekehrt — Rollen
+     * zuerst — verweigerte PostgreSQL, und ein Rückbau in zwei Vorgängen liesse
+     * bei einem Abbruch die Daten ohne Zugang stehen.
+     *
+     * Der Wächter liest die Reihenfolge im Quelltext, weil sie sich sonst nur
+     * gegen einen laufenden Server prüfen liesse — und in der CI gibt es keinen.
+     */
+    public function test_the_database_goes_before_its_roles(): void
+    {
+        $source = (string) file_get_contents(
+            dirname(__DIR__, 2).'/agent/src/Ops/PgDatabaseRemove.php',
+        );
+
+        $datenbank = strpos($source, '$this->session->execute($context, [self::statement($database)])');
+        $rollen = strpos($source, 'PgRoleRemove::statement($role)');
+
+        $this->assertNotFalse($datenbank, 'Das DROP DATABASE steht nicht mehr da.');
+        $this->assertNotFalse($rollen, 'Das DROP ROLE steht nicht mehr da.');
+
+        $this->assertLessThan(
+            $rollen,
+            $datenbank,
+            'Die Rollen werden vor der Datenbank geworfen. PostgreSQL weist das ab, solange sie noch '
+            .'etwas darin besitzen — und in zwei Vorgängen getrennt hiesse: Bricht das DROP DATABASE '
+            .'ab, sind die Zugänge fort und die Daten da.',
+        );
+    }
+
+    /**
+     * Und es gibt keine zweite Liste für die Rollen, die bleiben.
+     *
+     * **In MariaDB gibt es sie**, und sie hat einen Anlass: Eine Rechtezeile in
+     * `mysql.db` überlebt ihr Schema (`docs/36 §22.3p`). In PostgreSQL liegt
+     * dasselbe Recht in `pg_database.datacl` und geht mit der Datenbank —
+     * gemessen. Eine `revoke`-Liste hier wäre Arbeit für einen Zustand, den es
+     * nicht gibt, und sie sähe aus wie eine Zusage.
+     */
+    public function test_no_second_list_for_the_roles_that_stay(): void
+    {
+        $source = (string) file_get_contents(
+            dirname(__DIR__, 2).'/agent/src/Ops/PgDatabaseRemove.php',
+        );
+
+        $this->assertStringNotContainsString("\$args['revoke']", $source);
+    }
+
+    /**
      * Die Sperre ist umkehrbar und lässt die Daten stehen.
      */
     public function test_the_lock_is_a_login_switch_and_nothing_else(): void

@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use App\Enums\DatabaseEngine;
 use App\Enums\DbUserStatus;
-use App\Enums\DumpStatus;
 use App\Enums\OperationStatus;
 use App\Jobs\RunAgentOperation;
 use App\Models\Database;
-use App\Models\DatabaseDump;
 use App\Models\DbUser;
 use App\Models\Operation;
 use App\Models\Subscription;
@@ -63,62 +62,24 @@ final class DbLifecycle implements AfterOperation
         return [
             'db.database.remove',
             'db.user.lock',
-            'db.dump.create',
-            'db.dump.import',
-            'db.dump.remove',
-            'db.restore',
             'subscription.suspend',
             'subscription.resume',
         ];
     }
 
     /**
-     * Was nach einem gescheiterten Vorgang aufzuräumen ist.
+     * Beim Fehlschlag bleibt alles stehen, wie es war.
      *
-     * **Zwei Dinge, und beide hat der Abnahmelauf vom 9. August gefunden**
-     * (`docs/36 §22.3w`):
+     * **Seit Schritt 6 ist diese Methode leer, und das ist ein Zustand und kein
+     * Rest.** Was hier stand, betraf ausschliesslich Sicherungen und ist mit
+     * ihnen nach {@see DumpLifecycle} gezogen (`docs/38 §21`, Entscheidung 10).
      *
-     * 1. **Die Zeile stand für immer auf „läuft".** `DumpStatus::Failed` gibt
-     *    es seit Schritt 6, die Oberfläche zeigt `last_error` an — gesetzt hat
-     *    beides nie jemand, weil es zu {@see AfterOperation} keine
-     *    Gegenrichtung gab. Ein Kunde sah einen Vorgang, der nie fertig wurde.
-     * 2. **Die hochgeladene Datei blieb in der Übergabe liegen.** Der Grund
-     *    steht bei {@see Staging}: Das `@unlink()` im Steuerungscode umschliesst
-     *    das Einreihen, der Agent weist aber erst im Arbeiter ab.
-     *
-     * **Der Grund kommt aus dem Vorgang und nicht aus einer Vermutung.**
-     * `message` trägt die Begründung des Agenten, wortgleich mit dem, was auf
-     * der Vorgangsseite steht — zwei Formulierungen desselben Fehlschlags wären
-     * zwei Auskünfte, und die zweite ist die, die veraltet.
+     * Für das, was übrig bleibt — Rückbau und Sperre —, gilt dieselbe
+     * Zurückhaltung wie in {@see PgLifecycle::afterFailure()}: Ein automatischer
+     * Rückweg auf den vorigen Zustand wäre eine Behauptung über den Server, die
+     * dieser Lebenslauf nicht geprüft hat.
      */
-    public function afterFailure(Operation $operation): void
-    {
-        $task = (string) ($operation->task ?? '');
-
-        if ($task !== 'db.dump.create' && $task !== 'db.dump.import') {
-            return;
-        }
-
-        // Die Datei zuerst: Sie liegt unabhängig davon in der Übergabe, ob es
-        // die Zeile noch gibt — und ein Rückbau zwischendurch soll nicht dazu
-        // führen, dass ein halbes Gigabyte stehenbleibt.
-        if ($task === 'db.dump.import') {
-            Staging::forget($operation->payload['source'] ?? null);
-        }
-
-        $this->tenancy->withoutRestriction(function () use ($operation): void {
-            $dump = DatabaseDump::query()->find($operation->subject_id);
-
-            if ($dump === null) {
-                return;
-            }
-
-            $dump->forceFill([
-                'status' => DumpStatus::Failed,
-                'last_error' => $operation->message,
-            ])->save();
-        });
-    }
+    public function afterFailure(Operation $operation): void {}
 
     public function afterSuccess(Operation $operation): void
     {
@@ -132,12 +93,6 @@ final class DbLifecycle implements AfterOperation
 
         if ($task === 'db.user.lock') {
             $this->locked($operation);
-
-            return;
-        }
-
-        if (str_starts_with($task, 'db.dump.') || $task === 'db.restore') {
-            $this->afterDump($operation, $task);
 
             return;
         }
@@ -184,83 +139,6 @@ final class DbLifecycle implements AfterOperation
         });
     }
 
-    /**
-     * Was ein Sicherungsvorgang an der Zeile ändert.
-     *
-     * **Die Grösse kommt aus der Antwort des Agenten und nicht aus einer
-     * Schätzung.** Er hat die Datei geschrieben; das Panel hat sie nie gesehen.
-     * Dieselbe Entscheidung wie in `CertificateRecord`: Was gilt, steht in der
-     * Antwort.
-     *
-     * **Und `db.restore` ändert an der Sicherung nichts.** Sie war vorher
-     * fertig und ist es danach — was sich geändert hat, ist die *Datenbank*.
-     * Ein Zustand „eingespielt" an der Sicherung wäre eine Aussage über etwas
-     * anderes als über sie.
-     */
-    private function afterDump(Operation $operation, string $task): void
-    {
-        if ($task === 'db.restore') {
-            return;
-        }
-
-        $this->tenancy->withoutRestriction(function () use ($operation, $task): void {
-            $dump = DatabaseDump::query()->find($operation->subject_id);
-
-            if ($dump === null) {
-                $this->removedAllDumps($operation, $task);
-
-                return;
-            }
-
-            if ($task === 'db.dump.remove') {
-                $dump->delete();
-
-                return;
-            }
-
-            $bytes = $operation->result['bytes'] ?? null;
-
-            $dump->forceFill([
-                'status' => DumpStatus::Ready,
-                'bytes' => is_numeric($bytes) ? (int) $bytes : null,
-                'last_error' => null,
-            ])->save();
-        });
-    }
-
-    /**
-     * Der Rückbau eines ganzen Abonnements — ein Vorgang ohne Gegenstand.
-     *
-     * **Hier stand ein Kommentar, der das Gegenteil versprach.** „Dort
-     * verschwinden die Zeilen mit dem Abonnement" — sie verschwinden nicht:
-     * `database_dumps.subscription_id` steht mit Absicht auf `nullOnDelete`
-     * (§7.2), damit eine Sicherung ihre Datenbank überlebt. Die Zeile ist der
-     * Wegweiser zu einer Datei, auf die sonst nichts mehr zeigt, und genau
-     * davon lebt `srvpanel db --prune`.
-     *
-     * **Nach einem erfolgreichen Rückbau ist die Datei aber fort.** Am
-     * 8. August 2026 gemessen: `srvpanel db` zählte danach drei Sicherungen,
-     * während zwei auf der Platte lagen, und meldete eine Zeile ohne
-     * Abonnement (`docs/36 §22.3r`). Ein Melder, der nach jedem sauberen
-     * Rückbau Alarm gibt, wird bald gelesen wie ein Rauschen — dieselbe
-     * Begründung wie in `ClassReachTest`.
-     *
-     * **Das `subscription_id` steht zu diesem Zeitpunkt noch am Vorgang.**
-     * `subscription.remove` reiht sich hinter diesem ein, und die
-     * Warteschlange hat einen Arbeiter; erst dort werden die Vorgänge
-     * abgekoppelt. Ohne diese Reihenfolge wäre nicht mehr zu sagen, wessen
-     * Zeilen gemeint sind — die Bedingung hängt deshalb an einem Zustand und
-     * nicht an einer Absicht.
-     */
-    private function removedAllDumps(Operation $operation, string $task): void
-    {
-        if ($task !== 'db.dump.remove' || $operation->subscription_id === null) {
-            return;
-        }
-
-        DatabaseDump::query()->where('subscription_id', $operation->subscription_id)->delete();
-    }
-
     /** Die Zugänge sind zu — jetzt erst steht es auch im Panel. */
     private function locked(Operation $operation): void
     {
@@ -269,6 +147,7 @@ final class DbLifecycle implements AfterOperation
         $this->tenancy->withoutRestriction(function () use ($operation, $locked): void {
             DbUser::query()
                 ->where('subscription_id', $operation->subscription_id)
+                ->where('engine', DatabaseEngine::MariaDb)
                 ->get()
                 ->each(static fn (DbUser $user): bool => $user->forceFill([
                     'status' => $locked ? DbUserStatus::Locked : DbUserStatus::Active,
@@ -298,9 +177,22 @@ final class DbLifecycle implements AfterOperation
             return;
         }
 
+        /*
+         * **`engine` seit P5b, und ohne die Zeile wäre es ein Fehler mit
+         * Ansage.** Diese Abfrage holte alle Zugänge des Abonnements — ab
+         * Schritt 4 sind darunter auch PostgreSQL-Rollen, und die gingen als
+         * `name@host` an `db.user.lock`. Der Agent wiese sie ab, und ein
+         * gesperrtes Abonnement behielte seine MariaDB-Zugänge, weil der
+         * ganze Vorgang scheitert.
+         *
+         * Die Trennung liegt in `engine` und nicht in der Aufgabe: Beide
+         * Lebensläufe hören auf `subscription.suspend`, und jeder fasst nur
+         * seine eigenen Zeilen an ({@see PgLifecycle}).
+         */
         $users = $this->tenancy->withoutRestriction(
             fn (): array => DbUser::query()
                 ->where('subscription_id', $subscription->id)
+                ->where('engine', DatabaseEngine::MariaDb)
                 ->orderBy('id')
                 ->get()
                 ->all()

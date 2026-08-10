@@ -1212,6 +1212,24 @@ table.pairs {
 }
 
 /*
+ * Eine Knopfreihe in einer rechtsbündigen Zelle bleibt rechtsbündig.
+ *
+ * **`td.right` setzt `text-align`, und das erreicht ein Flexkind nicht.** Ohne
+ * diese Regel rutschen zwei Knöpfe in der letzten Spalte einer Tabelle nach
+ * links, sobald man sie in eine Reihe legt — und in eine Reihe gehören sie,
+ * weil sie sonst ohne Abstand aneinanderkleben.
+ *
+ * Der Anlass steht in `docs/38 §24.2`: Auf der PHP-Seite trug jede Zeile bis
+ * P5b genau einen Knopf, und der Abstand war deshalb nie eine Frage. Mit
+ * „Ergänzen" neben „Entfernen" war er es, und gefunden hat es der Betreiber
+ * auf dem Server — nicht die Aufnahme, denn dort standen die beiden Knöpfe
+ * genauso eng und sahen normal aus.
+ */
+td.right > .button-row {
+  justify-content: flex-end;
+}
+
+/*
  * Eine Knopfreihe unter einem Formular bekommt Abstand — hier und nicht auf
  * der Seite.
  *

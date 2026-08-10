@@ -7,6 +7,7 @@ namespace SrvPanel\Agent\Pg;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Db\Session as DbSession;
+use SrvPanel\Agent\Ops\PgRestore;
 
 /**
  * Ein Lauf gegen PostgreSQL.
@@ -81,6 +82,15 @@ final class Session
     private const ARGUMENTS = ['-X', '-q', '-A', '-t', '-F', "\t", '-v', 'ON_ERROR_STOP=1'];
 
     /**
+     * Wie lange ein Zurückspielen dauern darf.
+     *
+     * Vier Stunden, wie in P5. Das Zeitlimit für Anweisungen darüber ist ein
+     * anderes und viel kürzer: Eine Abfrage, die eine Minute braucht, ist ein
+     * Problem — ein Dump von vierzig Gigabyte nicht.
+     */
+    private const RESTORE_TIMEOUT = 14_400;
+
+    /**
      * Anweisungen ausführen; die Ausgabe interessiert nicht.
      *
      * @param  list<string>  $statements
@@ -117,6 +127,63 @@ final class Session
         }
 
         return $rows;
+    }
+
+    /**
+     * Eine ganze Datei einspielen — unter einer fremden Rolle, mit Passwort.
+     *
+     * **Sie steht hier und nicht in {@see PgRestore}, weil
+     * `AgentIdentityTest` darauf besteht**, und die Regel ist richtig: `psql`
+     * wird an genau einer Stelle gerufen, damit der Socketpfad, die
+     * Anmeldeweise und `ON_ERROR_STOP` nicht in zwei Fassungen auseinanderlaufen.
+     * Der erste Anlauf von Schritt 6 hat den Lauf in die Operation geschrieben,
+     * und der Wächter hat zugebissen.
+     *
+     * **Drei Unterschiede zu {@see self::run()}, und jeder hat einen Grund.**
+     * Die Rolle kommt aus {@see Credentials} statt aus {@see self::ROLE} — das
+     * ist der ganze Zweck (`docs/38 §13.4`). Das SQL kommt aus einer Datei statt
+     * aus dem Speicher, weil ein Dump zwei Gigabyte haben kann. Und `-A -t -F`
+     * fallen weg: Sie formatieren eine Ausgabe, die hier niemand liest.
+     *
+     * **Der Rückgabewert ist die Meldung**, nicht der Erfolg. Was `psql` bei
+     * einem Abbruch schreibt, ist der Beleg für Kriterium 6 — Datei,
+     * Zeilennummer, Grund —, und der gehört wörtlich in den Vorgang und nicht
+     * in eine Umschreibung (Plan §2, Leitbild 2).
+     */
+    public function restore(Context $context, Credentials $as, string $database, string $file): void
+    {
+        $password = null;
+
+        try {
+            $password = $as->write();
+
+            $result = $context->runner->run(
+                'psql',
+                [
+                    '-X',
+                    '-q',
+                    '-v', 'ON_ERROR_STOP=1',
+                    '-h', Server::SOCKET_DIRECTORY,
+                    '-U', $as->role(),
+                    '-d', $database,
+                    '-f', $file,
+                ],
+                self::RESTORE_TIMEOUT,
+                null,
+                null,
+                fn (): bool => $context->abandoned(),
+                null,
+                [Credentials::VARIABLE => $password],
+            );
+        } finally {
+            if ($password !== null) {
+                @unlink($password);
+            }
+        }
+
+        if (! $result->successful()) {
+            throw AgentException::execFailed('Das Zurückspielen ist gescheitert: '.$result->message());
+        }
     }
 
     /**

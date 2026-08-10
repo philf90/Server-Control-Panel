@@ -17,7 +17,7 @@ use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
-use SrvPanel\Agent\Ops\DbDumpImport;
+use SrvPanel\Agent\Db\Dump;
 use Tests\TestCase;
 
 /**
@@ -181,7 +181,7 @@ final class UploadLimitTest extends TestCase
      * Panel und Agent meinen dieselbe Übergabe.
      *
      * Das Panel schreibt nach {@see Staging::root()}, der Agent nimmt nur Pfade
-     * unterhalb von {@see DbDumpImport::STAGING_ROOT} entgegen. In der
+     * unterhalb von {@see Dump::STAGING_ROOT} entgegen. In der
      * Auslieferung ist `storage` ein Verweis nach `/var/lib/srvpanel/storage` —
      * zwei Zeichenketten, die dasselbe meinen müssen.
      *
@@ -201,8 +201,8 @@ final class UploadLimitTest extends TestCase
         $suffix = '/storage/app/private/imports';
 
         $this->assertStringEndsWith($suffix, Staging::root(), 'Das Panel legt die Datei woanders ab.');
-        $this->assertStringEndsWith($suffix, DbDumpImport::STAGING_ROOT, 'Der Agent erwartet sie woanders.');
-        $this->assertStringStartsWith('/var/lib/srvpanel/', DbDumpImport::STAGING_ROOT);
+        $this->assertStringEndsWith($suffix, Dump::STAGING_ROOT, 'Der Agent erwartet sie woanders.');
+        $this->assertStringStartsWith('/var/lib/srvpanel/', Dump::STAGING_ROOT);
     }
 
     /**

@@ -34,8 +34,18 @@ use SrvPanel\Agent\Ops\PanelTls;
 use SrvPanel\Agent\Ops\PanelTlsInfo;
 use SrvPanel\Agent\Ops\PanelUpdate;
 use SrvPanel\Agent\Ops\PanelVhost;
+use SrvPanel\Agent\Ops\PgDatabaseCreate;
+use SrvPanel\Agent\Ops\PgDatabaseRemove;
+use SrvPanel\Agent\Ops\PgDumpCreate;
+use SrvPanel\Agent\Ops\PgDumpImport;
+use SrvPanel\Agent\Ops\PgRestore;
+use SrvPanel\Agent\Ops\PgRoleCreate;
+use SrvPanel\Agent\Ops\PgRoleGrant;
+use SrvPanel\Agent\Ops\PgRoleLock;
+use SrvPanel\Agent\Ops\PgRoleRemove;
 use SrvPanel\Agent\Ops\PgServerInfo;
 use SrvPanel\Agent\Ops\PgServerInstall;
+use SrvPanel\Agent\Ops\PgUsage;
 use SrvPanel\Agent\Ops\PhpPoolApply;
 use SrvPanel\Agent\Ops\PhpPoolRemove;
 use SrvPanel\Agent\Ops\PhpVersionInstall;
@@ -170,6 +180,37 @@ final class Registry
          */
         $this->register(new PgServerInfo);
         $this->register(new PgServerInstall);
+
+        /*
+         * Mit Schritt 4 bekommen sie ihren Aufrufer — `App\Support\Databases`
+         * und seine zwei Treiber. `remove` steht auch hier zuerst, aus dem
+         * Grund, den `docs/35` teuer bezahlt hat.
+         */
+        $this->register(new PgDatabaseRemove);
+        $this->register(new PgDatabaseCreate);
+        $this->register(new PgRoleRemove);
+        $this->register(new PgRoleCreate);
+        $this->register(new PgRoleGrant);
+
+        // Mit Schritt 5: die Sperre eines Abonnements erreicht die Rollen
+        // (docs/38 §11). Der Aufrufer ist App\Support\Databases\PgLifecycle.
+        $this->register(new PgRoleLock);
+
+        /*
+         * Mit Schritt 6: Sichern, Zurückspielen, Übernehmen. Ihr Aufrufer ist
+         * `App\Support\Databases\Dumps` über `DumpLifecycle::task()`.
+         *
+         * **Kein `pg.dump.remove` daneben, und das ist keine Auslassung.**
+         * `db.dump.remove` entfernt eine Datei, und eine Datei hat kein
+         * Datenbanksystem — eine zweite Operation wäre Zeile für Zeile
+         * dieselbe. `RemovalPathTest::WITHOUT_REMOVAL` führt die Begründung.
+         */
+        $this->register(new PgRestore);
+        $this->register(new PgDumpCreate);
+        $this->register(new PgDumpImport);
+
+        // Die Messung — wie db.usage am Zeitgeber und ohne Lebenslauf.
+        $this->register(new PgUsage);
     }
 
     public function register(Op $op): void

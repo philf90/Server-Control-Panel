@@ -43,6 +43,14 @@ final class PhpVersionList implements Op
         foreach (PhpVersions::CATALOG as $version) {
             $installed = PhpVersions::installed($version);
 
+            // Ein Aufruf je Version, nicht zwei: `missing` und `present` sind
+            // zwei Hälften derselben Antwort, und zweimal zu fragen hiesse,
+            // zwei Antworten zu bekommen, die auseinandergehen können. Der
+            // Kommentar unten sagt das — und der erste Wurf tat es trotzdem.
+            $packages = $installed
+                ? $this->packages($context, $version)
+                : ['missing' => [], 'present' => []];
+
             $versions[] = [
                 'version' => $version,
                 'installed' => $installed,
@@ -67,7 +75,21 @@ final class PhpVersionList implements Op
                  * dieselbe wie `installed: false` in einer zweiten
                  * Schreibweise.
                  */
-                'missing' => $installed ? $this->missing($context, $version) : [],
+                'missing' => $packages['missing'],
+
+                /*
+                 * **Und die andere Hälfte.** „Fehlt: pgsql" sagt, was zu tun
+                 * ist, und verschwindet, sobald es getan ist — danach steht
+                 * nirgends mehr, was die Version überhaupt kann. Der Betreiber
+                 * hat es am 9. August 2026 auf `cloudsrv24` verlangt, und er
+                 * hat recht: Eine Zustandsspalte, die nur den Mangel kennt,
+                 * ist bei jedem gesunden Zustand leer.
+                 *
+                 * Beide kommen aus **einem** Aufruf und derselben Auswertung;
+                 * zwei Fragen an dpkg wären zwei Antworten, die auseinander
+                 * gehen können.
+                 */
+                'present' => $packages['present'],
             ];
         }
 
@@ -78,16 +100,20 @@ final class PhpVersionList implements Op
     }
 
     /**
-     * Die Pakete dieser Version, die dpkg nicht als installiert führt.
+     * Die Pakete dieser Version — was fehlt und was da ist, in einem Aufruf.
      *
      * **Dieselbe Frage und dieselbe Auswertung wie in
      * {@see PhpVersionInstall}** — hier lesend, dort handelnd. Sie zweimal
      * verschieden zu stellen wäre der Fall, den `docs/36 §10.3` festhält: Zwei
      * Fassungen einer Regel, und die zweite ist die, die veraltet.
      *
-     * @return list<string>
+     * **`present` wird gerechnet und nicht gefragt.** Was nicht fehlt, ist da —
+     * ein zweiter Durchgang durch die Ausgabe wäre eine zweite Gelegenheit,
+     * anders zu antworten als die erste.
+     *
+     * @return array{missing: list<string>, present: list<string>}
      */
-    private function missing(Context $context, string $version): array
+    private function packages(Context $context, string $version): array
     {
         $wanted = PhpVersions::packages($version);
 
@@ -101,7 +127,12 @@ final class PhpVersionList implements Op
             30,
         );
 
-        return PhpVersions::missing($wanted, $result->stdout);
+        $missing = PhpVersions::missing($wanted, $result->stdout);
+
+        return [
+            'missing' => $missing,
+            'present' => array_values(array_diff($wanted, $missing)),
+        ];
     }
 
     private function active(Context $context, string $unit): bool

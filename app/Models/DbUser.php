@@ -39,6 +39,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $label
  * @property string $host
+ * @property DatabaseEngine $engine
  * @property DbUserStatus $status
  * @property Carbon|null $locked_at
  * @property-read Subscription|null $subscription

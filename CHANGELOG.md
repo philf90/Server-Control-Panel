@@ -8431,3 +8431,43 @@ MariaDB-Operationen. Die Zahlen stimmen — sie zählen Zeilen ohne Rücksicht a
 > die es Entwarnung gibt.**
 
 Deshalb musste Punkt 7f von Hand mit `SELECT … FROM pg_roles` messen.
+
+### `srvpanel db` sieht jetzt beide Systeme
+
+Der Abnahmelauf hat es freigelegt: Das Kommando meldete `Nichts liegengeblieben.`
+und konnte diese Frage für PostgreSQL gar nicht stellen. Drei Stellen, drei
+verschiedene Arten von Blindheit:
+
+- **Der Statusteil** rief nur `db.server.info`. In der Ausgabe stand
+  `mariadb 10.11.14 — nutzbar` und keine Zeile über den PostgreSQL-Cluster.
+- **`stale_roles`** gab es im Agenten seit Schritt 6 — bei jedem Aufruf
+  gerechnet und von niemandem gelesen. Eine befristete Rolle, die ein
+  abgebrochenes Zurückspielen stehenliess, wurde nie gemeldet. *Ein Feld, das
+  niemand liest, ist keine Auskunft, sondern Rechenzeit.*
+- **`--prune`** räumte mit `db.user.remove`, `db.database.remove` und
+  `db.dump.remove`. Eine liegengebliebene PostgreSQL-Rolle wäre an
+  `Db\Names::existing()` abgewiesen worden — und hätte den ganzen Lauf
+  mitgenommen.
+
+> **Ein Werkzeug, das Entwarnung gibt, muss die ganze Fläche sehen können, über
+> die es Entwarnung gibt.**
+
+Der Rückbauplan trägt jetzt `engine` je Zeile, und die Verzweigung ist ein
+`match` ohne Vorgabe: Kommt ein drittes System dazu, will diese Stelle einen
+Fehler und keine stille Einordnung unter MariaDB. Die **Sicherungen** bleiben bei
+`db.dump.remove` — ein Dump ist eine Datei, die Operation kennt kein SQL, und
+eine Verzweigung wäre dort die zweite Fassung derselben Sache.
+
+`DbCommandReachTest` ist der Wächter, und er ist die stillere Schwester von
+`AgentOperationReachTest`: Dort wird eine Operation gebaut und nicht gerufen,
+hier wird sie gerufen und eine ihrer Antworten nicht gelesen.
+
+**Und der Gegenbruch hat ihn sofort als blind entlarvt — zum dritten Mal in
+dieser Woche.** Der erste Entwurf hängte beide Methodenrümpfe aneinander und
+suchte darin nach `pg.server.info`; er blieb grün, als der *Aufruf* aus
+`showServer()` verschwand, weil `reportPostgres()` weiter dastand.
+
+> **Eine Methode, die niemand ruft, beantwortet keine Frage.**
+
+Geprüft wird jetzt das Paar: der Aufruf in `showServer()` **und** die Frage in
+`reportPostgres()`.

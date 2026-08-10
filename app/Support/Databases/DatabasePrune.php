@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Databases;
 
+use App\Enums\DatabaseEngine;
 use App\Models\Database;
 use App\Models\DatabaseDump;
 use App\Models\DbUser;
@@ -54,8 +55,8 @@ final class DatabasePrune
      * die Operation danach bekommt.
      *
      * @return array{
-     *     databases: list<array{id: int, name: string, subscription: string, size_bytes: int|null}>,
-     *     users: list<array{id: int, name: string, host: string, subscription: string}>,
+     *     databases: list<array{id: int, name: string, subscription: string, size_bytes: int|null, engine: DatabaseEngine}>,
+     *     users: list<array{id: int, name: string, host: string, subscription: string, engine: DatabaseEngine}>,
      *     dumps: list<array{id: int, name: string, subscription: string, bytes: int|null}>,
      *     total: int,
      * }
@@ -67,12 +68,18 @@ final class DatabasePrune
                 ->whereNull('subscription_id')
                 ->whereNotNull('subscription_name')
                 ->orderBy('name')
-                ->get(['id', 'name', 'subscription_name', 'size_bytes'])
+                ->get(['id', 'name', 'subscription_name', 'size_bytes', 'engine'])
                 ->map(static fn (Database $row): array => [
                     'id' => (int) $row->id,
                     'name' => $row->name,
                     'subscription' => (string) $row->subscription_name,
                     'size_bytes' => $row->size_bytes === null ? null : (int) $row->size_bytes,
+
+                    // **Seit P5b steht das System in jeder Zeile des Plans.**
+                    // Ohne es schickte `srvpanel db --prune` eine
+                    // PostgreSQL-Datenbank an `db.database.remove`, und der
+                    // Agent wiese den ganzen Lauf ab — der Rest bliebe liegen.
+                    'engine' => $row->engine,
                 ])
                 ->all();
 
@@ -80,12 +87,13 @@ final class DatabasePrune
                 ->whereNull('subscription_id')
                 ->whereNotNull('subscription_name')
                 ->orderBy('name')
-                ->get(['id', 'name', 'host', 'subscription_name'])
+                ->get(['id', 'name', 'host', 'subscription_name', 'engine'])
                 ->map(static fn (DbUser $row): array => [
                     'id' => (int) $row->id,
                     'name' => $row->name,
                     'host' => $row->host,
                     'subscription' => (string) $row->subscription_name,
+                    'engine' => $row->engine,
                 ])
                 ->all();
 

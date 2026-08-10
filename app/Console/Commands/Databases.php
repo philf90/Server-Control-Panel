@@ -151,17 +151,27 @@ final class Databases extends Command
          * fünf Minuten gehört sehr wahrscheinlich zu einem Lauf, der gerade
          * arbeitet.
          */
-        $stale = is_array($info['stale_users'] ?? null) ? $info['stale_users'] : [];
+        $this->reportStale(
+            is_array($info['stale_users'] ?? null) ? $info['stale_users'] : [],
+            'MariaDB',
+        );
 
-        if ($stale !== []) {
-            $this->warn(sprintf('%d befristete(r) Zugang/Zugänge blieben stehen:', count($stale)));
-
-            foreach ($stale as $user) {
-                $this->line('  '.$user);
-            }
-
-            $this->line('Sie gehen mit `srvpanel db --prune`.');
-        }
+        /*
+         * **Und dasselbe für PostgreSQL.** Hier stand nichts, und die Ausgabe
+         * dieses Kommandos endete trotzdem mit „Nichts liegengeblieben." —
+         * über eine Fläche, die sie nie angesehen hat. Gefunden hat es der
+         * Abnahmelauf am 10. August 2026, weil Punkt 7f seine Reste von Hand
+         * mit `SELECT … FROM pg_roles` zählen musste (`docs/39 §12a`).
+         *
+         * > **Ein Werkzeug, das Entwarnung gibt, muss die ganze Fläche sehen
+         * > können, über die es Entwarnung gibt.**
+         *
+         * `stale_roles` gab es im Agenten seit Schritt 6 — gerechnet und von
+         * niemandem gelesen. Das ist die stillere Schwester des Musters, für
+         * das es `AgentOperationReachTest` gibt: Dort wird eine Operation nicht
+         * gerufen, hier wird ihre Antwort nicht gelesen.
+         */
+        $this->reportPostgres($agent);
 
         $this->reportDumpSizes($tenancy);
 
@@ -297,26 +307,77 @@ final class Databases extends Command
 
         $failed = 0;
 
+        /*
+         * **Die Operation hängt am System der Zeile, nicht am Kommando.**
+         * Bis zum Abnahmelauf von P5b standen hier drei feste Namen, alle drei
+         * für MariaDB. Eine liegengebliebene PostgreSQL-Rolle wäre damit an
+         * `db.user.remove` gegangen — der Agent hätte sie an
+         * `Db\Names::existing()` abgewiesen, und mit ihr den ganzen Lauf. Der
+         * Rest bliebe liegen, und das Kommando meldete einen Fehlschlag über
+         * etwas, das es nie konnte.
+         *
+         * `match` und keine Vorgabe: Kommt ein drittes System dazu, will ich
+         * hier einen Fehler und keine stille Einordnung unter MariaDB.
+         */
         foreach ($plan['users'] as $user) {
+            [$operation, $arguments] = match ($user['engine']) {
+                DatabaseEngine::MariaDb => ['db.user.remove', [
+                    'name' => $user['name'],
+                    'host' => $user['host'],
+                    'user' => $this->prefixOf($user['name']),
+                ]],
+                DatabaseEngine::Postgres => ['pg.role.remove', [
+                    'name' => $user['name'],
+                    'prefix' => $this->prefixOf($user['name']),
+
+                    // **Leer, und das ist gemessen.** `DROP OWNED BY` braucht
+                    // es je Datenbank — nur gibt es die hier nicht mehr, sonst
+                    // stünde die Rolle nicht ohne Abonnement da. Nach einem
+                    // `DROP DATABASE` hängt an ihr nichts mehr (`docs/38 §15`),
+                    // und `DROP ROLE` geht ohne Vorarbeit. Bleibt doch etwas
+                    // hängen, sagt es der Agent und die Zeile bleibt stehen.
+                    'databases' => [],
+                ]],
+            };
+
             $failed += $this->removeOne(
                 $agent,
-                'db.user.remove',
-                ['name' => $user['name'], 'host' => $user['host'], 'user' => $this->prefixOf($user['name'])],
-                $user['name'].'@'.$user['host'],
+                $operation,
+                $arguments,
+                $user['name'].($user['engine'] === DatabaseEngine::MariaDb ? '@'.$user['host'] : ''),
                 fn (): int => $prune->forgetUser($user['id']),
             );
         }
 
         foreach ($plan['databases'] as $database) {
+            [$operation, $arguments] = match ($database['engine']) {
+                DatabaseEngine::MariaDb => ['db.database.remove', [
+                    'name' => $database['name'],
+                    'user' => $this->prefixOf($database['name']),
+                ]],
+                DatabaseEngine::Postgres => ['pg.database.remove', [
+                    'name' => $database['name'],
+                    'prefix' => $this->prefixOf($database['name']),
+                    'roles' => [],
+                ]],
+            };
+
             $failed += $this->removeOne(
                 $agent,
-                'db.database.remove',
-                ['name' => $database['name'], 'user' => $this->prefixOf($database['name'])],
+                $operation,
+                $arguments,
                 $database['name'],
                 fn (): int => $prune->forgetDatabase($database['id']),
             );
         }
 
+        /*
+         * **Die Sicherungen gehen weiter über `db.dump.remove`, für beide
+         * Systeme.** Ein Dump ist eine Datei in `/var/lib/srvpanel/dumps`, und
+         * die Operation kennt kein SQL — hier wäre eine Verzweigung nach
+         * `engine` die zweite Fassung derselben Sache. `docs/39 §12` hält
+         * fest, dass genau diese Einschränkung in Schritt 6 **entfernt** wurde.
+         */
         foreach ($plan['dumps'] as $dump) {
             $failed += $this->removeOne(
                 $agent,
@@ -336,6 +397,72 @@ final class Databases extends Command
         $this->info('Aufgeräumt.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Befristete Zugänge, die stehengeblieben sind — für ein System.
+     *
+     * **Das Zurückspielen legt einen an und entfernt ihn im `finally`;** ein
+     * abgebrochener Lauf — Stromausfall, SIGKILL — kann trotzdem einen
+     * zurücklassen, und das wäre ein Zugang ohne Besitzer. Beide Agenten melden
+     * nur solche, die älter als eine Stunde sind: Einer von vor fünf Minuten
+     * gehört sehr wahrscheinlich zu einem Lauf, der gerade arbeitet.
+     *
+     * **Herausgelöst, weil es die Frage zweimal gibt.** Zwei Fassungen
+     * derselben Schleife hiessen: eine davon wird beim nächsten Mal nachgezogen,
+     * und erfahrungsgemäss ist es nicht beide.
+     *
+     * @param  list<mixed>  $stale
+     */
+    private function reportStale(array $stale, string $system): void
+    {
+        if ($stale === []) {
+            return;
+        }
+
+        $this->warn(sprintf(
+            '%d befristete(r) Zugang/Zugänge blieben in %s stehen:',
+            count($stale),
+            $system,
+        ));
+
+        foreach ($stale as $entry) {
+            $this->line('  '.(is_string($entry) ? $entry : json_encode($entry)));
+        }
+
+        $this->line('Sie gehen mit `srvpanel db --prune`.');
+    }
+
+    /**
+     * Der PostgreSQL-Cluster — Zustand und Reste.
+     *
+     * **Ohne Abbruch, wenn es ihn nicht gibt.** Auf einem Server ohne
+     * PostgreSQL soll dieses Kommando nicht scheitern und auch nicht warnen:
+     * `absent` ist dort der richtige Zustand und keine Auffälligkeit. Gemeldet
+     * wird er trotzdem — wer nachsieht, will wissen, was da ist und was nicht.
+     */
+    private function reportPostgres(Client $agent): void
+    {
+        try {
+            $info = $agent->call('pg.server.info', [], $this->actor());
+        } catch (AgentException $error) {
+            $this->warn('PostgreSQL: der Agent hat abgewiesen — '.$error->getMessage());
+
+            return;
+        }
+
+        $this->line(match ($info['state'] ?? '') {
+            'ready' => sprintf('postgresql %s — nutzbar', $info['version'] ?? '?'),
+            'absent' => 'postgresql — nicht installiert',
+            'not_handed_over' => 'postgresql '.($info['version'] ?? '?')
+                .' — die Rolle für das Panel fehlt: '.Server::HANDOVER,
+            default => 'postgresql — '.($info['reason'] ?? 'unklarer Zustand'),
+        });
+
+        $this->reportStale(
+            is_array($info['stale_roles'] ?? null) ? $info['stale_roles'] : [],
+            'PostgreSQL',
+        );
     }
 
     /**
@@ -378,8 +505,8 @@ final class Databases extends Command
 
     /**
      * @param  array{
-     *     databases: list<array{id: int, name: string, subscription: string, size_bytes: int|null}>,
-     *     users: list<array{id: int, name: string, host: string, subscription: string}>,
+     *     databases: list<array{id: int, name: string, subscription: string, size_bytes: int|null, engine: DatabaseEngine}>,
+     *     users: list<array{id: int, name: string, host: string, subscription: string, engine: DatabaseEngine}>,
      *     dumps: list<array{id: int, name: string, subscription: string, bytes: int|null}>,
      *     total: int,
      * }  $plan
@@ -387,16 +514,23 @@ final class Databases extends Command
     private function printPlan(array $plan): void
     {
         foreach ($plan['databases'] as $database) {
+            // **Das System steht mit dabei.** Wer den Plan liest, sieht sonst
+            // zwei Namen derselben Form und nicht, an welchen Agenten sie
+            // gleich gehen — und genau das ist die Stelle, an der dieser
+            // Rückbau bis P5b falsch abgebogen ist.
             $this->line(sprintf(
-                '  Datenbank %s (%s, %s)',
+                '  Datenbank %s (%s, %s, %s)',
                 $database['name'],
+                $database['engine']->label(),
                 $database['subscription'],
                 $this->size($database['size_bytes'], 'nicht gemessen'),
             ));
         }
 
         foreach ($plan['users'] as $user) {
-            $this->line(sprintf('  Zugang %s@%s (%s)', $user['name'], $user['host'], $user['subscription']));
+            $this->line($user['engine'] === DatabaseEngine::MariaDb
+                ? sprintf('  Zugang %s@%s (%s, %s)', $user['name'], $user['host'], $user['engine']->label(), $user['subscription'])
+                : sprintf('  Zugang %s (%s, %s)', $user['name'], $user['engine']->label(), $user['subscription']));
         }
 
         foreach ($plan['dumps'] as $dump) {

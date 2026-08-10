@@ -7919,3 +7919,32 @@ auf jedem Server ohne lesbares `/boot` einen Neustart, den es nicht braucht.
 `6.8.0-52` nach `6.8.0-51`, `6.11.0-9` nach `6.8.0-51`, `6.1.0-28` nach
 `6.1.0-9`. Ein Melder, der grundlos Alarm gibt, wird bald gelesen wie ein
 Rauschen.
+
+### Lauf 484: ein fehlender Werttyp — und der Filter, der ihn verschluckt hat
+
+`InertiaPropsTest::shared()` gab `array` ohne Werttyp zurück; PHPStan meldet das
+auf Stufe 6 als `missingType.iterableValue`. Eine Zeile, eine Marke, erledigt.
+
+**Interessant ist, warum es lokal nicht auffiel.** Der Durchgang in diesem
+Container filtert Meldungen, die nur entstehen, weil larastan fehlt — und der
+Ausdruck dafür strich `missingType` als Ganzes. Darunter fällt
+`missingType.property` (`$signature` und `$description` an jedem
+Artisan-Kommando, echtes Rauschen) — **und eben auch `missingType.iterableValue`,
+das kein Rauschen ist.**
+
+> **Ein Filter, der Rauschen entfernt, entfernt auch Befunde, die wie Rauschen
+> aussehen.**
+
+Derselbe Satz stand nach Lauf 466 schon einmal hier, damals für
+`class.notFound`. Er ist jetzt zum zweiten Mal wahr geworden, und der Filter
+nennt die Kennung ab sofort vollständig.
+
+**Und die Gegenprobe hat gleich einen zweiten Befund freigelegt.** Mein Eingriff
+in `SystemInfo` hatte an der *Signatur* von `distribution()` angesetzt und deren
+Dokumentationsblock davor stehen lassen — `@return array{name:string,version:string}`
+schwebte über der neuen Methode, und `distribution()` stand ohne. Das ist
+wortwörtlich der Fehler aus `65a5a2b` vom 7. August, zum zweiten Mal: **Wer vor
+einer Methode einfügt, fügt vor ihrem Dokumentationsblock ein — nicht vor ihrem
+Namen.**
+
+Gefunden hat ihn genau der Filter, den diese Runde geschärft hat.

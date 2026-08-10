@@ -92,7 +92,11 @@ final class InertiaPropsTest extends TestCase
         return array_values(array_unique($keys));
     }
 
-    /** Was jede Seite ohnehin bekommt. */
+    /**
+     * Was jede Seite ohnehin bekommt.
+     *
+     * @return list<string>
+     */
     private function shared(): array
     {
         $middleware = (string) file_get_contents(
@@ -102,7 +106,7 @@ final class InertiaPropsTest extends TestCase
         preg_match_all("/^ {12}'([a-z_]+)' =>/m", $middleware, $found);
 
         // `errors` und `flash` kommen von Inertia und Laravel selbst.
-        return array_merge($found[1], ['errors', 'flash', 'status']);
+        return array_values(array_merge($found[1], ['errors', 'flash', 'status']));
     }
 
     public function test_every_page_gets_the_props_it_declares(): void

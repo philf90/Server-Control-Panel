@@ -309,7 +309,6 @@ final class SystemInfo implements Op
         return trim(str_replace(' kB', '', $match[1]));
     }
 
-    /** @return array{name:string,version:string} */
     /**
      * Läuft ein älterer Kernel, als installiert ist?
      *
@@ -345,6 +344,7 @@ final class SystemInfo implements Op
         return false;
     }
 
+    /** @return array{name:string,version:string} */
     private function distribution(): array
     {
         $name = 'unbekannt';

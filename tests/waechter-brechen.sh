@@ -5826,6 +5826,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" DbCommandReachTest passed
 
 echo
+echo "── BreakScriptTest: das Bruchskript faehrt nirgends von selbst ──"
+#
+# Es steht seit dem Optik-Rework im Repo und ist als Ganzes nie gelaufen — in der
+# Entwicklungsumgebung fehlt `vendor/`. Von Hand und stueckweise gefahren war es
+# dreimal in einer Woche fuendig. Ein Werkzeug, das man nur von Hand faehrt,
+# faehrt irgendwann niemand mehr.
+vorher_datei .github/workflows/waechter.yml
+python3 - <<'PY2'
+p = '.github/workflows/waechter.yml'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        run: tests/waechter-brechen.sh\n', '        run: echo "spaeter"\n')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/waechter.yml "Bruchskript ohne Aufruf" &&
+pruefe "Bruchskript ohne Aufruf" \
+  BreakScriptTest::test_a_workflow_runs_the_script failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BreakScriptTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

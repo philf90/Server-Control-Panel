@@ -1,0 +1,65 @@
+name: Wächter brechen
+
+# **Warum das ein eigener Lauf ist und nicht ein Job in `ci.yml`.**
+#
+# Zwei Gründe, und beide sind praktischer Natur:
+#
+# 1. Das Skript **ändert Dateien** im Arbeitsbaum und stellt sie über git wieder
+#    her. In einem Lauf, der nebenher ein Paket baut, wäre das ein Wettlauf um
+#    denselben Baum.
+# 2. Es fährt die Testsuite einmal je Eingriff — über zweihundert Läufe. Das
+#    gehört nicht vor jeden Pull Request, sondern regelmässig und auf Zuruf.
+#
+# **Und warum es ihn überhaupt gibt.** CLAUDE.md verlangt: „Ein Wächter, der nie
+# rot war, ist kein Wächter." Das Skript stand seit dem Optik-Rework im Repo und
+# ist **nie vollständig gelaufen** — in der Entwicklungsumgebung fehlt `vendor/`,
+# also wurde es von Hand und stückweise gefahren. Genau dort ist es dreimal in
+# einer Woche fündig geworden.
+#
+# > **Ein Werkzeug, das man nur von Hand fährt, fährt irgendwann niemand mehr.**
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Montags um 04:00 UTC. Ein wöchentlicher Lauf reicht: Was er findet, ist
+    # kein Fehler von heute, sondern ein Wächter, der seine Regel schon länger
+    # nicht mehr hält.
+    - cron: '0 4 * * 1'
+
+permissions:
+  contents: read
+
+env:
+  PHP_VERSION: '8.4'
+
+jobs:
+  brechen:
+    name: Jede Regel absichtlich brechen
+    runs-on: ubuntu-latest
+
+    # Über zweihundert Eingriffe, jeder mit mindestens zwei Testläufen. Die
+    # Vorgabe von sechs Stunden wäre kein Schutz, sondern eine Rechnung.
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: sockets, pcntl, posix, mbstring, intl, zip, pdo_mysql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+
+      - name: Der Arbeitsbaum ist sauber
+        # Das Skript weigert sich bei ungesicherten Änderungen, weil es sie mit
+        # `git checkout --` wegwerfen würde. Hier kann das nicht passieren — die
+        # Zeile steht trotzdem da, damit ein Fehlschlag den Grund nennt und
+        # nicht bloss den Rückgabewert 1.
+        run: git diff --quiet || (echo "::error::Der Arbeitsbaum ist nicht sauber." && exit 1)
+
+      - name: tests/waechter-brechen.sh
+        run: tests/waechter-brechen.sh

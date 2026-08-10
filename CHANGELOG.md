@@ -8471,3 +8471,25 @@ suchte darin nach `pg.server.info`; er blieb grün, als der *Aufruf* aus
 
 Geprüft wird jetzt das Paar: der Aufruf in `showServer()` **und** die Frage in
 `reportPostgres()`.
+
+### Das Bruchskript fährt jetzt von selbst
+
+**`tests/waechter-brechen.sh` steht seit dem Optik-Rework im Repo und ist als
+Ganzes nie gelaufen.** In der Entwicklungsumgebung fehlt `vendor/`, also wurde es
+von Hand und stückweise gefahren — und genau dort war es allein in dieser Woche
+**dreimal** fündig: dreimal ein Wächter, der grün blieb, während seine Regel
+gebrochen war (`PgOwnerTest` fand `Owner::reset(` im Kommentar, `BreakScriptTest`
+las nur Blöcke mit der Marke `PY2`, `DbCommandReachTest` hängte zwei
+Methodenrümpfe aneinander).
+
+> **Ein Werkzeug, das man nur von Hand fährt, fährt irgendwann niemand mehr.**
+
+`.github/workflows/waechter.yml` fährt es auf Zuruf und montags um 04:00 UTC.
+Ein eigener Ablauf und kein Job in `ci.yml`, aus zwei praktischen Gründen: Das
+Skript **ändert Dateien** im Arbeitsbaum und stellt sie über git wieder her — in
+einem Lauf, der nebenher ein Paket baut, wäre das ein Wettlauf um denselben
+Baum —, und es fährt die Testsuite **473 Mal**, einmal je Prüfung. Das gehört
+nicht vor jeden Pull Request.
+
+Der Wächter dazu steht in `BreakScriptTest` und sucht den **Aufruf**, nicht den
+Dateinamen: Ein Kommentar, der das Skript erwähnt, ist keine Ausführung.

@@ -143,6 +143,15 @@ final class NetcupTest extends TestCase
      *
      * lego vergleicht beim Suchen nur Wert und Art. Stehen zwei Prüfeinträge
      * mit demselben Wert unter verschiedenen Namen, ist das der falsche Satz.
+     *
+     * **Der fremde Name steht vor dem eigenen, und das ist der ganze Test.**
+     * Bis zum 10. August 2026 stand er dahinter — und damit prüfte hier nichts
+     * mehr den Namen: `find()` gibt den ersten Treffer zurück, und der erste
+     * Treffer war auch ohne Namensabgleich der richtige. Der Bruch, der die
+     * Zeile aus `Netcup.php` entfernt, lief grün durch.
+     *
+     * > **Ein Test, dessen Beispiel in der richtigen Reihenfolge steht, prüft
+     * > die Reihenfolge und nicht die Regel.**
      */
     public function test_removing_matches_name_and_value(): void
     {
@@ -150,8 +159,8 @@ final class NetcupTest extends TestCase
             self::login(),
             self::records([
                 ['id' => '1', 'hostname' => '_acme-challenge', 'type' => 'TXT', 'destination' => 'ein-anderer'],
-                ['id' => '2', 'hostname' => '_acme-challenge', 'type' => 'TXT', 'destination' => 'genau-dieser'],
-                ['id' => '3', 'hostname' => 'www', 'type' => 'TXT', 'destination' => 'genau-dieser'],
+                ['id' => '2', 'hostname' => 'www', 'type' => 'TXT', 'destination' => 'genau-dieser'],
+                ['id' => '3', 'hostname' => '_acme-challenge', 'type' => 'TXT', 'destination' => 'genau-dieser'],
             ]),
             self::ok(),
             self::ok(),
@@ -162,7 +171,7 @@ final class NetcupTest extends TestCase
         $records = self::param($http->calls[2])['dnsrecordset']['dnsrecords'];
 
         $this->assertCount(1, $records);
-        $this->assertSame('2', $records[0]['id']);
+        $this->assertSame('3', $records[0]['id'], 'Gelöscht wurde der Satz unter dem fremden Namen.');
         $this->assertTrue($records[0]['deleterecord']);
     }
 

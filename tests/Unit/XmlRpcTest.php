@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use SrvPanel\Agent\Acme\Dns\XmlRpc;
 use SrvPanel\Agent\AgentException;
+use Tests\Support\WithoutPhpComments;
 
 /**
  * XML-RPC — so wenig davon wie nötig, und geprüft in beide Richtungen.
@@ -21,6 +22,8 @@ use SrvPanel\Agent\AgentException;
  */
 final class XmlRpcTest extends TestCase
 {
+    use WithoutPhpComments;
+
     private static function envelope(string $inner): string
     {
         return '<?xml version="1.0"?><methodResponse><params><param><value><struct>'.
@@ -170,6 +173,38 @@ final class XmlRpcTest extends TestCase
         }
 
         $this->assertSame('', (string) ($decoded['msg'] ?? ''));
+    }
+
+    /**
+     * Und der Parser bekommt die Marken dafür gesagt.
+     *
+     * **Der Fall darüber misst die Wirkung — nur nicht überall.** Am 10. August
+     * 2026 ist der Bruch dazu (`LIBXML_NONET | LIBXML_NOCDATA` gegen
+     * `LIBXML_NOENT` getauscht) in der CI grün durchgelaufen, und hier im
+     * Container nicht. Gemessen ist der Unterschied die Fassung von libxml:
+     * mit 2.9.14 steht der Inhalt von `/etc/hostname` im Wert, mit den neueren
+     * Fassungen der CI ist er auch mit `LIBXML_NOENT` leer, weil das Laden
+     * externer Entitäten dort schon in der Bibliothek abgeschaltet ist.
+     *
+     * > **Ein Wächter, dessen Befund an der Fassung einer Systembibliothek
+     * > hängt, misst die Maschine und nicht die Regel.**
+     *
+     * Die Regel gilt trotzdem, und zwar dort, wo dieses Panel läuft: Debian 12
+     * liefert libxml 2.9.14. Deshalb bleibt der Fall darüber stehen — er ist
+     * die Messung — und dieser hier kommt dazu: Er liest die Marken im
+     * Quelltext und beisst auf jeder Maschine.
+     */
+    public function test_the_parser_is_told_to_leave_entities_alone(): void
+    {
+        $file = dirname(__DIR__, 2).'/agent/src/Acme/Dns/XmlRpc.php';
+
+        // Ohne Kommentare gelesen: Über der Zeile steht ein Absatz, der beide
+        // Marken beim Namen nennt — ein Wächter, der ihn mitliest, prüft die
+        // Erklärung statt des Codes.
+        $code = $this->withoutComments((string) file_get_contents($file));
+
+        $this->assertStringContainsString('LIBXML_NONET', $code, 'Der Parser darf ins Netz.');
+        $this->assertStringNotContainsString('LIBXML_NOENT', $code, 'Der Parser löst Entitäten auf.');
     }
 
     /**

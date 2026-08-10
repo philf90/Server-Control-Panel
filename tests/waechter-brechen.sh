@@ -1270,14 +1270,23 @@ echo "── CertificateReapplyTest: der Verweis genügt wieder statt der Deckun
 # **Auch dieser Eingriff ist in P5 nachgezogen worden** — dieselbe Umbenennung
 # wie oben: Die Deckungsprüfung ist aus `CertificateLifecycle` nach
 # `CertificateChoice::usable()` gezogen.
+#
+# **Und am 10. August 2026 ein zweites Mal**, weil er grün durchlief. Er traf
+# nur das `usable()` am Ende der Datei — `candidates()` prüft dieselbe Deckung
+# noch einmal, und über `satisfied()` läuft der Weg durch beide. Wer eine von
+# zwei gleichlautenden Prüfungen entfernt, ändert nichts; der Bruch war keine
+# Regression, sondern eine Umformung.
+#
+# > **Eine Regel, die an zwei Stellen steht, wird von einem Bruch an einer
+# > Stelle nicht gebrochen.**
+#
+# Deshalb fällt hier jedes `coversAll` dieser Datei — das ist die Regel, und
+# der Bruch nimmt sie ganz weg.
 vorher_datei app/Support/Tls/CertificateChoice.php
 python3 - <<'PY2'
 p = 'app/Support/Tls/CertificateChoice.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace(
-    "        return $certificate->coversAll($names);",
-    "        return true;",
-)
+s = s.replace("$certificate->coversAll($names)", "true")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Tls/CertificateChoice.php "Verweis statt Deckung" &&
@@ -2296,6 +2305,12 @@ echo "── NetcupTest: beim Löschen zählt nur der Wert ──"
 # Stehen zwei Prüfeinträge mit demselben Wert unter verschiedenen Namen, ist
 # das der falsche Satz — genau so vergleicht lego, und genau so löscht man die
 # Prüfung eines anderen Vorgangs mit ab.
+#
+# **Dieser Bruch lief am 10. August 2026 grün durch, und schuld war das
+# Beispiel im Test.** Der fremde Name stand dort hinter dem eigenen, und
+# `find()` gibt den ersten Treffer zurück — ohne Namensabgleich kam derselbe
+# Satz heraus. Behoben ist es im Test, nicht hier: Das Beispiel führt den
+# fremden Namen jetzt zuerst.
 vorher_datei agent/src/Acme/Dns/Netcup.php
 python3 - <<'PY2'
 p = 'agent/src/Acme/Dns/Netcup.php'
@@ -2455,6 +2470,14 @@ echo "── XmlRpcTest: der Parser darf Entitäten auflösen ──"
 # Eine Antwort mit einer externen Entität holt sonst eine Datei vom Rechner —
 # in einem Prozess, der als root läuft. Gemessen: Mit LIBXML_NOENT steht der
 # Inhalt von /etc/hostname im Wert, mit den Marken der Klasse nicht.
+#
+# **Erwartet wird der Wächter, der die Marken liest, und nicht der, der die
+# Wirkung misst.** Am 10. August 2026 lief dieser Bruch in der CI grün durch
+# und im Container rot — der Unterschied ist die Fassung von libxml: 2.9.14
+# holt die Datei auch heute, die neueren Fassungen der CI lassen externe
+# Entitäten gar nicht erst zu. Der Fall, der die Wirkung misst, bleibt stehen
+# (Debian 12 liefert 2.9.14, und dort gilt die Gefahr), taugt hier aber nicht:
+# Ein Bruch, dessen Befund an der Maschine hängt, misst die Maschine.
 vorher_datei agent/src/Acme/Dns/XmlRpc.php
 python3 - <<'PY2'
 p = 'agent/src/Acme/Dns/XmlRpc.php'
@@ -2464,7 +2487,7 @@ open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei agent/src/Acme/Dns/XmlRpc.php "Parser löst Entitäten auf" &&
 pruefe "Parser löst Entitäten auf" \
-  XmlRpcTest::test_an_external_entity_fetches_nothing failed
+  XmlRpcTest::test_the_parser_is_told_to_leave_entities_alone failed
 wiederherstellen
 
 echo
@@ -4718,11 +4741,23 @@ echo "── DocLinkTest: eine Dokumentnummer, die es nicht gibt ──"
 # Die andere Schreibweise, und die häufigere: `docs/36` ohne Verweisklammern.
 # ChangelogTest prüft sie im CHANGELOG, aber nirgends sonst — und der Verweis,
 # der P5b ausgelöst hat, stand in einem Dokument.
+#
+# **Die Nummer war einmal `docs/39`, und der Bruch hat aufgehört zu beissen,
+# als es dieses Dokument gab** — geschrieben am 10. August 2026, im selben
+# Wurf. Ein Bruch, der eine Lücke im Bestand ausnutzt, hält genau so lange wie
+# die Lücke.
+#
+# > **Ein Bruch, dessen Gegenstand von aussen kommt, wird von aussen repariert
+# > — und meldet das nicht.**
+#
+# `docs/99` ist keine Lücke, sondern ausserhalb: Diese Nummer wird es nicht
+# geben, und wer sie doch vergibt, liest hier, warum das eine schlechte Idee
+# ist.
 vorher_datei docs/38-postgresql.md
 python3 - <<'PY2'
 p = 'docs/38-postgresql.md'
 s = open(p, encoding='utf-8').read()
-s = s.replace('im Zuschnitt von `docs/36 §12`', 'im Zuschnitt von `docs/39 §12`')
+s = s.replace('im Zuschnitt von `docs/36 §12`', 'im Zuschnitt von `docs/99 §12`')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei docs/38-postgresql.md "Nummer eines Dokuments, das es nicht gibt" &&
@@ -5364,10 +5399,10 @@ vorher_datei app/Support/Databases/Databases.php
 python3 - <<'PY2'
 p = 'app/Support/Databases/Databases.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("        DatabaseEngine $engine,
-    ): array {",
-              "        DatabaseEngine $engine = DatabaseEngine::MariaDb,
-    ): array {")
+s = s.replace("""        DatabaseEngine $engine,
+    ): array {""",
+              """        DatabaseEngine $engine = DatabaseEngine::MariaDb,
+    ): array {""")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Support/Databases/Databases.php "Vorgabewert fuer das System" &&

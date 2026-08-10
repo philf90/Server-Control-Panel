@@ -8618,3 +8618,67 @@ Woche liest ein Wächter die Erklärung statt des Codes.
 
 Der Lauf hat damit genau das getan, wofür er gebaut wurde: Er hat beim ersten
 Mal einen Fehler gefunden. Nur einen anderen als erwartet.
+
+### Und der erste Lauf, der wirklich gemessen hat, fand fünf blinde Stellen
+
+Nachdem `pruefe()` lesen konnte, was PHPUnit schreibt, ist derselbe Lauf noch
+einmal gefahren. Von 473 Prüfungen blieben **fünf** ohne Biss übrig — fünf
+Regeln, deren Bruch grün durchlief. Keine davon ist ein kaputter Wächter im
+üblichen Sinn; jede ist eine andere Art, an der Regel vorbeizuzielen.
+
+**Ein Beispiel in der richtigen Reihenfolge.** `NetcupTest` löscht aus drei
+Einträgen den einen, der Name *und* Wert trifft — nur stand der mit dem fremden
+Namen an dritter Stelle, und `find()` gibt den ersten Treffer zurück. Ohne den
+Namensabgleich kam derselbe Satz heraus.
+
+> **Ein Test, dessen Beispiel in der richtigen Reihenfolge steht, prüft die
+> Reihenfolge und nicht die Regel.**
+
+Der fremde Name steht jetzt vorn; gemessen ist beides, mit und ohne die Zeile
+in `Netcup.php`.
+
+**Eine Regel, die an zwei Stellen steht.** Der Bruch zu `CertificateChoice`
+ersetzte die Deckungsprüfung in `usable()` — und `candidates()` prüft dieselbe
+Deckung noch einmal. Über `satisfied()` läuft der Weg durch beide, der Bruch
+war also keine Regression, sondern eine Umformung. Er nimmt jetzt jedes
+`coversAll` dieser Datei.
+
+**Ein Befund, der an der Maschine hing.** `XmlRpcTest` misst, dass eine externe
+Entität nichts holt — mit `LIBXML_NOENT` statt der Marken der Klasse steht der
+Inhalt von `/etc/hostname` im Wert. Das gilt für libxml 2.9.14 und damit für
+Debian 12, wo dieses Panel läuft; die neueren Fassungen der CI lassen externe
+Entitäten gar nicht erst zu, und dort bleibt der Wert auch mit `LIBXML_NOENT`
+leer. Der Bruch lief deshalb im Container rot und in der CI grün.
+
+> **Ein Wächter, dessen Befund an der Fassung einer Systembibliothek hängt,
+> misst die Maschine und nicht die Regel.**
+
+Der messende Fall bleibt — er ist die Messung, und die Gefahr ist auf der
+Zielplattform echt. Dazu kommt einer, der die Marken im Quelltext liest und auf
+jeder Maschine beisst; der Bruch zielt ab jetzt auf ihn.
+
+**Ein Bruch, den jemand anderes repariert hat.** `DocLinkTest` sollte an einer
+Dokumentnummer scheitern, die es nicht gibt — die Nummer war `docs/39`, und
+dieses Dokument ist im selben Wurf entstanden.
+
+> **Ein Bruch, dessen Gegenstand von aussen kommt, wird von aussen repariert —
+> und meldet das nicht.**
+
+Der fünfte war kein Wächter, sondern der Eingriff selbst: ein Python-Block, den
+`python3` nicht lesen konnte. Er stand seit P5 im Skript.
+
+### Ein Bruchskript, dessen Eingriffe nicht laufen, misst nichts
+
+`BreakScriptTest::test_every_embedded_block_is_valid_python` fährt jeden der 252
+eingebetteten Blöcke durch `ast.parse` und meldet, was daran nicht lesbar ist.
+Gefunden hat er genau einen — den Eingriff zu `EngineDefaultTest`, dessen
+mehrzeilige Nadel als einfach begrenzte Zeichenkette geschrieben war. Der Block
+brach beim Übersetzen ab, `python3` schrieb seinen Fehler nach stderr, und das
+Skript lief weiter, als wäre der Eingriff erfolgt.
+
+> **Ein Wächter, der den Inhalt prüft, hat nichts über die Ausführbarkeit
+> gesagt.**
+
+Der bestehende Wächter prüfte bis dahin, dass jede Nadel in ihrer Zieldatei
+**steht** — was sie tat. Dass der Block, der sie ersetzt, nie lief, hat er nicht
+gesehen. Beide Fragen gehören zusammen, und sie stehen jetzt nebeneinander.

@@ -5365,6 +5365,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
 
 echo
+echo "── PreviousUrlTest: der Ereigniskanal wird wieder eine Seite ──"
+#
+# Der Fehler, der die Zwischenabnahme eine Stunde gekostet hat (docs/39): Laravel
+# merkt sich jede GET-Anfrage als „vorige Seite", und ValidationException leitet
+# dorthin zurueck. Ohne die Kennzeichnung landet jeder Formularfehler des Panels
+# auf dem Vorgangskanal, sobald irgendwo ein Vorgang laeuft.
+vorher_datei app/Http/Middleware/KeepPreviousUrl.php
+python3 - <<'PY2'
+p = 'app/Http/Middleware/KeepPreviousUrl.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $request->headers->set('X-Requested-With', 'XMLHttpRequest');\n\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Middleware/KeepPreviousUrl.php "Kanal wird wieder eine Seite" &&
+pruefe "Kanal wird wieder eine Seite" \
+  PreviousUrlTest::test_the_stream_does_not_look_like_a_page failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
+
+echo
+echo "── PreviousUrlTest: die Kennzeichnung steht eine Zeile zu spaet ──"
+#
+# storeCurrentUrl() laeuft auch dann, wenn can: abweist. Steht die
+# Kennzeichnung dahinter, kapert eine 403 auf dem Kanal weiterhin das „Zurueck"
+# der naechsten Formularseite — dieselbe Sorte Fehler wie die Kettenreihenfolge
+# im Abnahmelauf von P4.
+vorher_datei routes/web.php
+python3 - <<'PY2'
+p = 'routes/web.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("->middleware([KeepPreviousUrl::class, 'can:view,operation'])",
+              "->middleware(['can:view,operation', KeepPreviousUrl::class])")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei routes/web.php "Kennzeichnung zu spaet" &&
+pruefe "Kennzeichnung zu spaet" \
+  PreviousUrlTest::test_the_route_carries_it_before_the_policy failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

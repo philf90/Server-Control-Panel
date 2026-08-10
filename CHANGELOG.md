@@ -7727,6 +7727,24 @@ war.
 
 `CLAUDE.md` warnt seit P4 vor genau dieser Weiterleitung, und `RedirectTargetTest`
 setzt es durch — **aber nur für `back()` im eigenen Code.** Die Weiterleitung
-einer `ValidationException` macht das Framework. *Eine Regel mit Wächter, und
-daneben eine Tür, durch die dieselbe Regel gebrochen wird.* Der Kanal darf die
-vorige Seite nicht mehr überschreiben; das kommt als eigener Beitrag.
+einer `ValidationException` macht das Framework.
+
+> **Eine Regel mit Wächter, und daneben eine Tür, durch die dieselbe Regel
+> gebrochen wird.**
+
+Das ist die Lehre über Wächter, die dieser Tag den bisherigen hinzufügt: **Ein
+Wächter deckt einen *Weg* ab, keine *Wirkung*.** Wer die Wirkung meint, sucht
+nach dem zweiten Weg dorthin — und in diesem Fall lag er nicht im eigenen Code.
+
+`KeepPreviousUrl` kennzeichnet den Kanal jetzt als das, was er ist: keine Seite,
+zu der jemand zurückkehren könnte. Die Kennzeichnung ist die, die Laravel selbst
+liest (`storeCurrentUrl()` überspringt XHR), und sie steht **vor** `can:` —
+`storeCurrentUrl()` läuft auch dann, wenn der Zugriff abgewiesen wird, und eine
+403 auf dem Kanal kaperte sonst weiterhin das „Zurück" der nächsten
+Formularseite. Dieselbe Sorte Fehler wie „eine Prüfung, die eine Zeile zu spät
+läuft" aus dem Abnahmelauf von P4.
+
+`PreviousUrlTest` prüft die **Wirkung** und nicht die Kopfzeile: `ajax()` ist die
+Frage, die das Framework stellt: welche Kopfzeile sie beantwortet, ist seine
+Sache. Ein Test gegen `X-Requested-With` prüfte unsere Umsetzung gegen sich
+selbst.

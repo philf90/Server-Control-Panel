@@ -8096,3 +8096,38 @@ Besitzer benutzbar ist.
 
 > **Wer eine Wiederherstellung als Superuser prüft, prüft die Wiederherstellung
 > und nicht ihren Zweck.**
+
+### `docs/38` Entscheidung 11: eine Eigentümerrolle je Abonnement
+
+Zwei Fehler aus Punkt 7 der Zwischenabnahme, beide gegen einen echten Cluster
+gemessen, beide von demselben Unterschied zu MariaDB verursacht: Dort haben alle
+Zugänge eines Abonnements dieselben Rechte auf dasselbe Schema; **in PostgreSQL
+gehört eine Tabelle dem, der sie angelegt hat.**
+
+- Ein zweiter Zugang bekommt `permission denied for table` auf alles, was der
+  erste angelegt hat.
+- Nach einem Zurückspielen gehört alles `root`, und der Kunde steht vor seinen
+  eigenen Zeilen. Die Wiederherstellung meldete dabei „erledigt".
+
+Und ein dritter, davor: **Ein Zurückspielen in eine Datenbank, die noch Tabellen
+hat, scheitert überhaupt.** `pg_dump --format=plain` schreibt kein `DROP`;
+`mysqldump` schreibt `DROP TABLE IF EXISTS` von sich aus. **P5b hat diese
+stillschweigende Vorgabe geerbt, ohne dass jemand sie treffen musste** — dieselbe
+Bauform wie an fünf Stellen zuvor an diesem Tag, nur diesmal geerbt statt
+geschrieben.
+
+`--clean` allein trägt nicht: Die befristete Rolle darf nicht wegräumen, was ihr
+nicht gehört (`must be owner of table`, gemessen). **Das Leeren ist ein
+privilegierter Vorgang, das Einspielen nicht.**
+
+Die Entscheidung und ihre zwei verworfenen Alternativen stehen in `docs/38 §21`.
+Was der Entwurf nebenbei erledigt, ist die schönste Zeile der Messung: Ist die
+befristete Rolle Mitglied der Gruppe und läuft als sie, gehört ihr am Ende
+**nichts** — und das `REASSIGN OWNED BY … TO`, an dem in Schritt 6 die
+eingespielten Daten hingen, entfällt ersatzlos.
+
+> **Ein Entwurf, der eine Fallgrube überflüssig macht, ist besser als einer, der
+> sie umgeht.**
+
+Bestandsdatenbanken zieht das Zurückspielen nach — es leert das Schema ohnehin
+privilegiert, und die Rolle dort anzulegen kostet keine eigene Wanderung.

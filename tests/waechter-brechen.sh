@@ -5242,6 +5242,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SourceLinkTest passed
 
 echo
+echo "── PgHandoverTest: der Vorgabewert wird wieder als Messung gelesen ──"
+#
+# Der Fund aus Punkt 2 der Zwischenabnahme (docs/39), gefunden auf einem Bild.
+# `handed_over` stand im Grundzustand auf false, und drei der sieben Zustaende
+# ueberschreiben es nie — sie kommen gar nicht dazu, sich anzumelden. Bei
+# gestopptem Cluster zeigte die Seite daraufhin „Rolle anlegen" mit einem
+# Befehl, der genau dort nicht laufen kann.
+vorher_datei agent/src/Pg/Server.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Server.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'handed_over' => null,", "            'handed_over' => false,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Server.php "Vorgabewert als Messung" &&
+pruefe "Vorgabewert als Messung" \
+  PgHandoverTest::test_the_default_is_not_an_answer failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHandoverTest passed
+
+echo
+echo "── PgHandoverTest: die Seite prueft wieder auf Falschheit ──"
+#
+# Die leisere Haelfte, und die, die den Fehler zurueckbringt, ohne dass am
+# Agenten etwas falsch waere: `!handed_over` ist in JavaScript fuer null UND
+# fuer false wahr. Die Bedingung sieht richtig aus.
+vorher_datei resources/js/Pages/Settings/Database.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Settings/Database.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('props.postgresql.handed_over === false',
+              '!props.postgresql.handed_over && props.postgresql.reachable')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Settings/Database.vue "Seite prueft auf Falschheit" &&
+pruefe "Seite prueft auf Falschheit" \
+  PgHandoverTest::test_the_page_distinguishes_unknown_from_no failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHandoverTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

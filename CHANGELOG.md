@@ -7594,3 +7594,47 @@ Grund: warum die Ausgangsmessung in Punkt 1 *vor* Punkt 7 stattfinden muss (eine
 Abwesenheit ohne Vorgeschichte belegt nichts), warum die Gegenprobe zur Sperre
 zwei Hälften hat (sonst belegt sie nur, dass irgendetwas nicht ging), und warum
 in Punkt 7d der **Eigentümer** der Tabelle wichtiger ist als ihre Zeilenzahl.
+
+### Punkt 2 der Zwischenabnahme: ein Hinweis, der nicht befolgt werden kann
+
+**Gefunden auf einem Bild, nicht von einem Test.** Bei gestopptem Cluster zeigte
+„Einstellungen → Datenbankserver" den Hinweis *Rolle anlegen* mit dem Befehl
+`sudo -u postgres psql -c "CREATE ROLE root SUPERUSER LOGIN"`. Der kann in genau
+diesem Zustand nicht laufen: `psql` erreicht keinen Server. Die Seite gab also
+eine Anweisung, deren einziges mögliches Ergebnis eine Fehlermeldung war —
+gezeigt ausgerechnet dem, der gerade nicht weiterkommt.
+
+Die Ursache war kein falscher Zweig. `Server::describe()` legte `handed_over` im
+Grundzustand auf `false`, und drei der sieben Zustände überschreiben ihn nie:
+`stopped`, `ambiguous` und `no_cluster` kommen gar nicht dazu, sich anzumelden.
+Das Panel las `false` und schloss daraus „die Rolle fehlt", während die Wahrheit
+**„nicht nachgesehen"** war.
+
+> **Ein Vorgabewert, den niemand überschreibt, ist kein Vorgabewert — er ist die
+> Antwort.**
+
+Derselbe Satz stand zwei Tage vorher schon einmal hier, für
+`env('SRVPANEL_VERSION', '0.1.0-dev')`. Dass er innerhalb einer Woche zweimal
+zutrifft, ist der eigentliche Befund: Es ist kein Ausrutscher, sondern eine
+Bauform. Ein Vorgabewert in einem `array_merge`-Grundzustand sieht genauso
+harmlos aus wie ein zweites Argument an `env()`, und beide werden erst dadurch
+falsch, dass die Überschreibung **anderswo** fehlt.
+
+Die Angabe ist jetzt dreiwertig — `true`, `false`, `null` für „konnte nicht
+nachsehen" —, und alle drei Stellen führen sie so: der Agent, der Controller
+(`is_bool(…) ? … : null` statt `(… ?? false) === true`, was drei Werte auf zwei
+einebnete) und die Vorlage (`=== false` statt `!handed_over`, denn `null` ist in
+JavaScript ebenfalls falsch). **Eine fehlende Angabe ist ehrlicher als eine
+falsche**, dieselbe Entscheidung wie bei der Sortierung einer
+PostgreSQL-Datenbank.
+
+`PgHandoverTest` prüft alle drei Stellen und beide Richtungen: dass der
+Grundzustand nichts behauptet, **und** dass die gemessenen Fälle es ausdrücklich
+sagen — ohne die zweite Hälfte wäre der Hinweis nie erschienen, auch dort nicht,
+wo er hingehört. Zwei Brüche stehen im Skript, der dritte (der Controller) wäre
+eine Änderung an einer Datei, die der Bruch der Seite schon erreicht.
+
+**Was der Lauf sonst belegt hat:** Der gestoppte Cluster meldet sich als
+`inactive` — über die Instanzunit `postgresql@16-main.service` und nicht über die
+Sammelunit, die aktiv bleibt, wenn der Cluster steht. Der Fund vom 9. August ist
+damit auf dem Server bestätigt und nicht nur repariert.

@@ -37,7 +37,7 @@ const props = defineProps<{
     usable: boolean
     reason: string | null
     handover: string
-    handed_over: boolean
+    handed_over: boolean | null
     databases: number
     can_install: boolean
   }
@@ -306,7 +306,15 @@ const bezeichnung = computed(() => props.server.flavour_label)
 
         <table class="pairs">
           <tbody>
-            <tr v-if="!props.postgresql.handed_over && props.postgresql.reachable">
+            <!--
+              **`=== false` und nicht `!handed_over`.** Die Angabe ist
+              dreiwertig: `null` heisst „konnte nicht nachsehen" — bei
+              gestopptem oder mehrdeutigem Cluster erreicht der Agent niemanden,
+              der die Frage beantworten könnte. Die alte Bedingung las das als
+              „nein" und zeigte den Befehl bei stehendem Cluster an, wo er
+              nicht laufen *kann*. Gefunden am 10. August 2026 auf einem Bild.
+            -->
+            <tr v-if="props.postgresql.handed_over === false">
               <td class="quiet">Rolle anlegen</td>
               <td class="right ident">{{ props.postgresql.handover }}</td>
             </tr>

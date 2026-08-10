@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import Bar from '../Components/Bar.vue'
 import Section from '../Components/Section.vue'
 import Badge from '../Components/Badge.vue'
@@ -49,6 +50,9 @@ const props = defineProps<{
     hostname?: string
     distribution?: string
     kernel?: string
+
+    /* Dreiwertig: `null` heisst „konnte nicht nachsehen", nicht „ist aktuell". */
+    kernel_stale?: boolean | null
     uptime_s?: number
     error?: string
   }
@@ -93,8 +97,29 @@ function dienstRang(service: Service): 'ok' | 'critical' | 'neutral' {
   return service.active_state === 'active' ? 'ok' : 'critical'
 }
 
+/*
+ * Der Kernel steht in der Kopfzeile — und der Hinweis nur, wenn er einer ist.
+ *
+ * **Warum er überhaupt dasteht.** Bis zum 10. August 2026 reichte der Agent ihn
+ * durch, der Steuerungscode gab ihn weiter, die Seite erklärte ihn als
+ * Eigenschaft — und zeigte ihn nie. Eine Angabe, die den ganzen Weg geht und am
+ * Ende in keiner Zeile landet, ist Arbeit ohne Wirkung.
+ *
+ * **Und `=== true` und nicht `kernel_stale`.** Die Angabe ist dreiwertig:
+ * `null` heisst, dass `/boot` sich nicht lesen liess. Ein Hinweis, der auf
+ * „nicht nachgesehen" hin erscheint, behauptet etwas über den Server, das
+ * niemand gemessen hat.
+ */
+const kernelText = computed(() => {
+  const kernel = props.server.kernel
+
+  if (!kernel) return null
+
+  return props.server.kernel_stale === true ? `${kernel} — ein neuerer ist installiert` : kernel
+})
+
 const headline = props.server.reachable
-  ? [props.server.hostname, props.server.distribution, uptimeText(props.server.uptime_s ?? 0)]
+  ? [props.server.hostname, props.server.distribution, kernelText.value, uptimeText(props.server.uptime_s ?? 0)]
       .filter(Boolean)
       .join(' · ')
   : 'Agent nicht erreichbar'

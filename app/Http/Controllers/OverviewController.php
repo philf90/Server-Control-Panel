@@ -252,6 +252,14 @@ final class OverviewController extends Controller
             'hostname' => $info['hostname'] ?? '',
             'distribution' => trim(($distribution['name'] ?? '').' '.($distribution['version'] ?? '')),
             'kernel' => $info['kernel'] ?? '',
+
+            /*
+             * **Dreiwertig durchgereicht: `null` heisst „nicht nachgesehen".**
+             * Ein `(… ?? false) === true` machte hier aus drei Werten zwei —
+             * derselbe Fehler, der am 10. August 2026 den Hinweis „Rolle
+             * anlegen" bei stehendem Cluster gezeigt hat.
+             */
+            'kernel_stale' => is_bool($info['kernel_stale'] ?? null) ? $info['kernel_stale'] : null,
             'uptime_s' => (int) ($info['uptime_s'] ?? 0),
         ];
     }

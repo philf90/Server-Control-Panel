@@ -294,10 +294,18 @@ function size(): string {
               <td class="right"><Badge kind="neutral">{{ props.database.engine_label }}</Badge></td>
             </tr>
 
-            <!-- Die Zeile fehlt, wo es nichts zu sagen gibt: In PostgreSQL
-                 entstehen Zeichensatz und Sortierung aus der Vorlage des
-                 Servers, und der Wert in der Zeile wäre der Vorgabewert aus P5
-                 — eine Angabe über eine Datenbank, die ihn nie gesehen hat. -->
+            <!-- Die Sortierung steht für beide Systeme da — seit dem
+                 10. August 2026 auch für PostgreSQL.
+
+                 Vorher fehlte die Zeile dort, und das war richtig: Es hätte der
+                 Vorgabewert aus P5 dringestanden, eine Angabe über eine
+                 Datenbank, die ihn nie gesehen hat. Seit der Agent das
+                 Gebietsschema beim Cluster erfragt und zurückmeldet, ist der
+                 Wert gemessen — und dann ist Verschweigen schlechter als
+                 Zeigen.
+
+                 Die Bedingung bleibt, aber sie hängt an der Angabe und nicht am
+                 System: Wo nichts steht, steht keine Zeile. -->
             <tr v-if="props.database.collation !== null">
               <td class="quiet">Sortierung</td>
               <td class="right ident">{{ props.database.collation }}</td>

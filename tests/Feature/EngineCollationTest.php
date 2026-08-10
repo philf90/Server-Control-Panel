@@ -114,6 +114,39 @@ final class EngineCollationTest extends TestCase
     }
 
     /**
+     * Und die Oberfläche versteckt die Sortierung nicht mehr nach System.
+     *
+     * **Der Grund für das Verstecken ist weggefallen, und damit das
+     * Verstecken.** Bis zum 10. August 2026 stand in `row()` ein
+     * `=== MariaDb ? … : null`, weil für PostgreSQL sonst der Vorgabewert aus
+     * P5 in der Zeile gestanden hätte — eine Angabe über eine Datenbank, die
+     * ihn nie gesehen hat. Seit der Agent das Gebietsschema beim Cluster
+     * erfragt, ist der Wert gemessen.
+     *
+     * **Eine fehlende Angabe ist ehrlicher als eine falsche — eine
+     * unterschlagene ist beides nicht.** Die Zeile hängt jetzt daran, ob es
+     * etwas zu sagen gibt, und nicht daran, welches System gemeint ist.
+     */
+    public function test_the_page_does_not_hide_the_collation_by_engine(): void
+    {
+        $controller = $this->source('app/Http/Controllers/DatabaseController.php');
+
+        $this->assertStringContainsString(
+            "'collation' => (\$database->collation ?? '') === '' ? null : \$database->collation,",
+            $controller,
+            'Die Zeile „Sortierung" hängt wieder am Datenbanksystem statt an der Angabe.',
+        );
+
+        $this->assertStringNotContainsString(
+            '$database->engine === DatabaseEngine::MariaDb ? $database->collation : null',
+            $controller,
+            'Die Sortierung wird wieder nach System versteckt. Für PostgreSQL steht dort '.
+            'seit dem 10. August 2026 ein gemessener Wert — ihn zu verschweigen ist '.
+            'schlechter, als ihn zu zeigen.',
+        );
+    }
+
+    /**
      * MariaDB behält seine Vorgabe — dort, wo sie gilt.
      *
      * Die Gegenrichtung. Ein `null`, das nirgends aufgefangen wird, wäre der

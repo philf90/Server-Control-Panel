@@ -5406,6 +5406,131 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PreviousUrlTest passed
 
 echo
+echo "── PgLocaleTest: das Gebietsschema wird wieder verdrahtet ──"
+#
+# Der fuenfte Fehler derselben Bauform an einem Tag, und er stand in der
+# Behebung des vierten: Seit das Panel kein Gebietsschema mehr schickt, griff
+# `?? 'C.UTF-8'` — und C.UTF-8 sortiert nach Bytes. Auf cloudsrv24 bekam die
+# erste Kundendatenbank so eine andere Sortierung als der ganze Rest des
+# Servers.
+vorher_datei agent/src/Ops/PgDatabaseCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$args['locale'] ?? $this->clusterLocale($context)", "$args['locale'] ?? 'C.UTF-8'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseCreate.php "Gebietsschema verdrahtet" &&
+pruefe "Gebietsschema verdrahtet" \
+  PgLocaleTest::test_the_locale_is_not_a_literal failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgLocaleTest passed
+
+echo
+echo "── PgLocaleTest: LC_COLLATE faellt aus der Anweisung ──"
+#
+# Die Untergrenze. Ohne sie waere der Waechter oben zufrieden, und die Datenbank
+# bekaeme das Gebietsschema der Vorlage — hier zufaellig dasselbe, bis jemand
+# template0 aendert.
+vorher_datei agent/src/Ops/PgDatabaseCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("'CREATE DATABASE %s TEMPLATE template0 ENCODING %s LC_COLLATE %s LC_CTYPE %s'",
+              "'CREATE DATABASE %s TEMPLATE template0 ENCODING %s'")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseCreate.php "Anweisung ohne LC_COLLATE" &&
+pruefe "Anweisung ohne LC_COLLATE" \
+  PgLocaleTest::test_the_statement_still_writes_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgLocaleTest passed
+
+echo
+echo "── EngineCollationTest: die Sortierung wird wieder nach System versteckt ──"
+#
+# Bis zum 10. August 2026 war das richtig: Fuer PostgreSQL haette der
+# Vorgabewert aus P5 in der Zeile gestanden. Seit der Agent das Gebietsschema
+# beim Cluster erfragt, ist der Wert gemessen — und Verschweigen ist dann
+# schlechter als Zeigen.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'collation' => ($database->collation ?? '') === '' ? null : $database->collation,",
+              "            'collation' => $database->engine === DatabaseEngine::MariaDb ? $database->collation : null,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Sortierung nach System versteckt" &&
+pruefe "Sortierung nach System versteckt" \
+  EngineCollationTest::test_the_page_does_not_hide_the_collation_by_engine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
+
+echo
+echo "── InertiaPropsTest: eine Seite liest, was ihr niemand schickt ──"
+#
+# Der Fund aus Punkt 4 der Zwischenabnahme (docs/39): Databases/Index.vue liest
+# props.shows_engine seit Schritt 7, und der Steuerungscode hat es nie
+# mitgeschickt. In JavaScript ist undefined falsch — die Spalte „System" blieb
+# immer aus, und auf cloudsrv24 stand eine PostgreSQL-Datenbank in der Liste,
+# ohne dass irgendwo stand, dass sie eine ist. vue-tsc sieht die Vorlage,
+# PHPStan sieht das Feld; die Bruecke dazwischen sah niemand.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+i = s.index("            'shows_engine' => Database::query()")
+j = s.index('->exists(),', i) + len('->exists(),')
+open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Seite ohne ihre Eigenschaft" &&
+pruefe "Seite ohne ihre Eigenschaft" \
+  InertiaPropsTest::test_every_page_gets_the_props_it_declares failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" InertiaPropsTest passed
+
+echo
+echo "── KernelStaleTest: ein unlesbares /boot behauptet „aktuell" ──"
+#
+# `null` heisst „nicht nachgesehen" und nicht „nein". Derselbe Satz hat am
+# 10. August 2026 dreimal Geld gekostet; hier steht er von Anfang an im Code.
+# Faellt er, meldet das Panel „der Kernel ist aktuell" fuer einen Server, auf
+# dem niemand nachgesehen hat.
+vorher_datei agent/src/Ops/SystemInfo.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemInfo.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if ($images === false || $images === []) {\n            return null;",
+              "if ($images === false || $images === []) {\n            return false;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SystemInfo.php "unlesbares /boot behauptet etwas" &&
+pruefe "unlesbares /boot behauptet etwas" \
+  KernelStaleTest::test_an_unreadable_boot_says_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KernelStaleTest passed
+
+echo
+echo "── KernelStaleTest: die Seite prueft auf Wahrheit statt auf das Ja ──"
+#
+# `!kernel_stale` waere fuer null UND fuer false wahr — die Bedingung sieht
+# richtig aus und behauptet auf jedem Server ohne lesbares /boot einen
+# ausstehenden Neustart.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('props.server.kernel_stale === true', 'props.server.kernel_stale')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Overview.vue "Seite prueft auf Wahrheit" &&
+pruefe "Seite prueft auf Wahrheit" \
+  KernelStaleTest::test_the_page_distinguishes_unknown_from_current failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KernelStaleTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

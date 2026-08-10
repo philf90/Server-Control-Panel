@@ -7774,3 +7774,177 @@ den ganzen Lauf. Diese Begründung galt für *ein* Unterverzeichnis, und der
 Durchgang ist bei ihm stehengeblieben, während die Wächter woanders wuchsen. Er
 liest jetzt `tests` im Ganzen; vier Altbefunde daraus, die nur ohne larastan
 entstehen, sind benannt statt stillschweigend geschluckt.
+
+### Punkt 3, nachgemessen: die Sortierung kam aus einer Zeile statt aus dem Cluster
+
+**Der fünfte Fehler derselben Bauform an einem Tag — und er stand in der Behebung
+des vierten.** Seit das Panel für PostgreSQL kein Gebietsschema mehr mitschickt,
+griff im Agenten `$args['locale'] ?? 'C.UTF-8'`. Diese Zeile war vorher nie
+erreicht worden; ab dem Beitrag davor **war sie die Antwort.**
+
+Gemessen auf `cloudsrv24`:
+
+```
+postgres / template0 / template1     de_DE.UTF-8
+x90d271df69287335_kundendatenbank    C.UTF-8      ← die erste Kundendatenbank
+```
+
+`C.UTF-8` sortiert nach Bytes: In `ORDER BY name` steht „Äpfel" damit **hinter**
+„Zebra". Für einen deutschen Kunden ist das sichtbar falsch — und anders als das,
+was er in MariaDB bekommt.
+
+**Gefragt statt angenommen, entschieden vom Betreiber.** Das Gebietsschema kommt
+jetzt aus `template0`, also aus dem, was `initdb` gesetzt hat. Aus `template0`
+und nicht aus `template1`, weil daraus auch angelegt wird: Ein Gebietsschema, das
+zur Vorlage passt, ist immer zulässig. **Ohne Antwort wird nichts erfunden** —
+ein Ersatzwert an dieser Stelle wäre derselbe Fehler noch einmal, er stünde still
+da und würde eines Tages die Antwort.
+
+Die Gegenrede gehört dazu: `C.UTF-8` ist stabil über Betriebssystem-Upgrades,
+glibc ändert Sortierregeln zwischen Fassungen und macht damit Textindizes still
+unbrauchbar. Der Betreiber hat die vertraute Sortierung vorgezogen; die
+Entscheidung steht damit an einer Stelle, an der sie jemand getroffen hat.
+
+**Gemessen wurde gegen einen Wegwerf-Cluster in diesem Container**, nicht
+behauptet: die Abfrage nach `datcollate`, dass die Antwort das Muster passiert,
+und dass `CREATE DATABASE … TEMPLATE template0 LC_COLLATE …` damit durchläuft und
+die neue Datenbank den Wert trägt.
+
+**Und ein Kommentar, der etwas Falsches sagte, ist mit weg.** In `Show.vue` stand
+als Begründung für die fehlende Zeile „Sortierung": *„In PostgreSQL entstehen
+Zeichensatz und Sortierung aus der Vorlage des Servers."* Das stimmte nicht — der
+Agent legt immer mit `TEMPLATE template0` an und schreibt `LC_COLLATE`
+ausdrücklich hin. Die Zeile fehlt weiter, aber jetzt aus dem Grund, der wirklich
+gilt: Dieses Panel *wählt* die Sortierung für PostgreSQL nicht.
+
+### Und die Zeile „Sortierung" steht jetzt auch für PostgreSQL da
+
+**Der Grund für das Verstecken ist weggefallen, und damit das Verstecken.** In
+`DatabaseController::row()` stand ein `=== MariaDb ? … : null`, und er war
+richtig: Für PostgreSQL hätte dort der Vorgabewert aus P5 gestanden —
+`utf8mb4_unicode_ci`, eine Angabe über eine Datenbank, die ihn nie gesehen hat.
+
+Seit der Agent das Gebietsschema beim Cluster erfragt und in seiner Antwort
+zurückmeldet, steht dort ein **gemessener** Wert. Und Sortierung ist keine
+Nebensache: Sie ist die Frage, wegen der jemand seine Anwendung umschreibt.
+
+> **Eine fehlende Angabe ist ehrlicher als eine falsche — eine unterschlagene ist
+> beides nicht.**
+
+Die Bedingung bleibt, hängt aber an der Angabe statt am System: Wo nichts steht,
+steht keine Zeile. Das ist derselbe Gedanke wie vorher, nur an der richtigen
+Frage festgemacht — und es ist der dritte Fall an diesem Tag, in dem eine
+Bedingung von einer *Absicht* („welches System ist das?") auf einen *Zustand*
+(„gibt es etwas zu sagen?") umgestellt wurde.
+
+**Gemessen ist hier nichts nachzuholen:** Der längste Wert, der neu in die Zeile
+kommt, ist ein Gebietsschema wie `de_DE.UTF-8` — elf Zeichen gegen die achtzehn
+von `utf8mb4_unicode_ci`, die dort seit P5 stehen. Die Aufnahmen der laufenden
+Seite kommen mit Punkt 4 der Zwischenabnahme.
+
+### Punkt 4: die Spalte „System" hat es nie gegeben
+
+Auf `cloudsrv24` stand am 10. August 2026 eine PostgreSQL-Datenbank in der
+Liste, **ohne dass irgendwo stand, dass sie eine ist.** Gefunden auf einer
+Aufnahme vom Telefon, hell und dunkel; die Kartenansicht zeigt fünf Zeilen, und
+„System" ist keine davon.
+
+`Databases/Index.vue` liest `props.shows_engine` seit Schritt 7. Der
+Steuerungscode hat die Angabe **nie mitgeschickt**. In JavaScript ist
+`undefined` falsch, also blieb `v-if="props.shows_engine"` immer aus — die
+Spalte war gebaut, geprüft und unsichtbar.
+
+**Es ist der Musterfehler dieses Projekts an einer Stelle, an der es ihn noch
+nicht gab:** eine Zeichenkette, die auf etwas verweist, ohne dass ein Typ, ein
+Test oder ein Werkzeug den Bezug prüft. Und diesmal liegt er genau *zwischen*
+den Werkzeugen: `vue-tsc` prüft die Vorlage gegen ihre eigene Deklaration,
+PHPStan prüft das Feld im Steuerungscode — die Brücke dazwischen ist eine
+Zeichenkette in einem Array, und die sieht keiner von beiden.
+
+**`DatabaseEngineTest` hat hier sogar zugebissen und trotzdem nichts gefunden.**
+Er hat in Schritt 7 verlangt, dass die Frage „welches System?" vom Server
+beantwortet wird und nicht im Template als Zeichenkette steht. Genau das ist
+passiert — die Antwort wurde im Server *formuliert* und nie *abgeschickt*. Ein
+Wächter, der die richtige Regel durchsetzt, sagt nichts darüber, ob sie
+angekommen ist.
+
+`InertiaPropsTest` vergleicht jetzt für jede Seite die Pflichteigenschaften aus
+`defineProps<{…}>()` mit den Schlüsseln, die ein `Inertia::render()` mitgibt —
+klammerweise auf der obersten Ebene, ohne Kommentare, abzüglich dessen, was
+`share()` für alle beisteuert. **Er läuft über 31 Seiten und hatte genau einen
+Befund:** diesen. Zwei Brüche sind gefahren worden, einer davon an einer ganz
+anderen Seite (`Domains/Index`), damit die Regel nicht nur für ihren Anlass
+gilt.
+
+**Und das ist der Grund, warum dieser Testlauf auf Aufnahmen besteht.** Die
+Seite war vollständig grün: Die Spalte stand im Markup, der Wert kam aus dem
+Enum, das Kartenlayout trug `data-column`. Sichtbar war der Fehler erst auf
+einem Telefon.
+
+### Der Kernel steht jetzt in der Übersicht — und sagt, ob er der aktuelle ist
+
+Auf Wunsch des Betreibers. Die interessante Angabe ist dabei nicht die Nummer,
+sondern ob sie noch die richtige ist: **Nach einem `apt upgrade` läuft der alte
+Kernel weiter, bis jemand neu startet**, und dem Panel sah man das bisher nicht
+an.
+
+**Der Kernel war schon da.** `SystemInfo` meldet ihn seit P1, der Steuerungscode
+reicht ihn durch, `Overview.vue` erklärt ihn als Eigenschaft — und keine Zeile
+hat ihn je gezeigt. Eine Angabe, die den ganzen Weg geht und am Ende nirgends
+landet, ist Arbeit ohne Wirkung; aufgefallen ist es erst beim Bauen dieser Zeile.
+
+**Gelesen wird `/boot` und kein Programm gerufen.** `uname -a` wäre ein Eintrag
+mehr auf der Positivliste des Agenten — für eine Zeile in der Übersicht der
+falsche Preis — und ausserdem ein Satz, aus dem man den Kernel erst
+herausschneidet. Was als `vmlinuz-…` in `/boot` liegt, kann starten; das ist die
+ehrliche Antwort auf „es gäbe einen neueren". `/lib/modules` wäre der schlechtere
+Kandidat: Dort bleiben Verzeichnisse zurück, wenn ein Paket entfernt wird, und
+ein Kernel ohne Abbild startet nicht.
+
+**Und die Angabe ist von Anfang an dreiwertig.** Ist `/boot` leer oder unlesbar,
+meldet der Agent `null` — nicht `false`. Die Oberfläche schweigt dann, statt „ist
+aktuell" zu behaupten.
+
+> **`null` heisst „nicht nachgesehen" und nicht „nein".**
+
+Derselbe Satz hat an diesem Tag dreimal Geld gekostet: bei `handed_over` im
+Grundzustand von `Pg\Server::describe()`, beim Vorgabewert für das
+Datenbanksystem und beim Gebietsschema. Hier steht er im Code, bevor ihn jemand
+bezahlen musste — und `KernelStaleTest` hält beide Enden fest: dass der Agent
+nichts behauptet, und dass die Seite `=== true` prüft statt auf Wahrheit. `null`
+ist in JavaScript ebenfalls falsch; `!kernel_stale` sähe richtig aus und meldete
+auf jedem Server ohne lesbares `/boot` einen Neustart, den es nicht braucht.
+
+**Der Vergleich ist an echten Namen gemessen**, nicht an ausgedachten:
+`6.8.0-52` nach `6.8.0-51`, `6.11.0-9` nach `6.8.0-51`, `6.1.0-28` nach
+`6.1.0-9`. Ein Melder, der grundlos Alarm gibt, wird bald gelesen wie ein
+Rauschen.
+
+### Lauf 484: ein fehlender Werttyp — und der Filter, der ihn verschluckt hat
+
+`InertiaPropsTest::shared()` gab `array` ohne Werttyp zurück; PHPStan meldet das
+auf Stufe 6 als `missingType.iterableValue`. Eine Zeile, eine Marke, erledigt.
+
+**Interessant ist, warum es lokal nicht auffiel.** Der Durchgang in diesem
+Container filtert Meldungen, die nur entstehen, weil larastan fehlt — und der
+Ausdruck dafür strich `missingType` als Ganzes. Darunter fällt
+`missingType.property` (`$signature` und `$description` an jedem
+Artisan-Kommando, echtes Rauschen) — **und eben auch `missingType.iterableValue`,
+das kein Rauschen ist.**
+
+> **Ein Filter, der Rauschen entfernt, entfernt auch Befunde, die wie Rauschen
+> aussehen.**
+
+Derselbe Satz stand nach Lauf 466 schon einmal hier, damals für
+`class.notFound`. Er ist jetzt zum zweiten Mal wahr geworden, und der Filter
+nennt die Kennung ab sofort vollständig.
+
+**Und die Gegenprobe hat gleich einen zweiten Befund freigelegt.** Mein Eingriff
+in `SystemInfo` hatte an der *Signatur* von `distribution()` angesetzt und deren
+Dokumentationsblock davor stehen lassen — `@return array{name:string,version:string}`
+schwebte über der neuen Methode, und `distribution()` stand ohne. Das ist
+wortwörtlich der Fehler aus `65a5a2b` vom 7. August, zum zweiten Mal: **Wer vor
+einer Methode einfügt, fügt vor ihrem Dokumentationsblock ein — nicht vor ihrem
+Namen.**
+
+Gefunden hat ihn genau der Filter, den diese Runde geschärft hat.

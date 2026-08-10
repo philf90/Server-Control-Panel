@@ -101,7 +101,20 @@ final class PgDatabaseCreate implements Op
         $prefix = Names::prefix($args['prefix'] ?? null);
         $database = Names::database($prefix, $args['suffix'] ?? null);
         $encoding = Guard::enum($args['encoding'] ?? 'UTF8', self::ENCODINGS, 'encoding');
-        $locale = self::locale($args['locale'] ?? 'C.UTF-8');
+        /*
+         * **Das Gebietsschema wird erfragt und nicht gesetzt.**
+         *
+         * Hier stand `?? 'C.UTF-8'`, und solange das Panel eines mitschickte,
+         * griff die Zeile nie. Seit es keines mehr schickt (`docs/39`, Punkt 3),
+         * **war sie die Antwort** — und `C.UTF-8` sortiert nach Bytes: „Äpfel"
+         * steht dann hinter „Zebra". Auf `cloudsrv24` bekam die erste
+         * Kundendatenbank so eine andere Sortierung als jede andere Datenbank
+         * des Servers. Gemessen am 10. August 2026, entschieden vom Betreiber.
+         *
+         * *Ein Vorgabewert, den niemand überschreibt, ist kein Vorgabewert — er
+         * ist die Antwort.* Zum fünften Mal an einem Tag, diesmal im Agenten.
+         */
+        $locale = self::locale($args['locale'] ?? $this->clusterLocale($context));
 
         $existed = $this->exists($context, $database);
 
@@ -174,5 +187,38 @@ final class PgDatabaseCreate implements Op
             $context,
             'SELECT 1 FROM pg_database WHERE datname = '.Sql::text($database),
         ) !== [];
+    }
+
+    /**
+     * Die Sortierung, mit der dieser Cluster eingerichtet wurde.
+     *
+     * **Gefragt wird `template0` und nicht `template1`.** Zwei Gründe, und
+     * beide zählen: `template0` trägt unverändert, was `initdb` gesetzt hat —
+     * das ist „die Vorgabe des Clusters" im Wortsinn. Und es ist die Vorlage,
+     * aus der {@see self::statement()} anlegt; ein Gebietsschema, das zu ihr
+     * passt, ist immer zulässig.
+     *
+     * **Ohne Antwort wird nichts erfunden.** Ein Ersatzwert an dieser Stelle
+     * wäre genau der Fehler, den diese Änderung behebt — er stünde still da und
+     * würde eines Tages die Antwort. Kommt der Katalog nicht, bricht das
+     * Anlegen ab und sagt warum.
+     */
+    private function clusterLocale(Context $context): string
+    {
+        $rows = $this->session->query(
+            $context,
+            "SELECT datcollate FROM pg_database WHERE datname = 'template0'",
+        );
+
+        $locale = (string) ($rows[0][0] ?? '');
+
+        if ($locale === '') {
+            throw AgentException::execFailed(
+                'Der Katalog nennt die Sortierung von template0 nicht — ohne sie lässt sich keine '
+                .'Datenbank anlegen, die zum Cluster passt.',
+            );
+        }
+
+        return $locale;
     }
 }

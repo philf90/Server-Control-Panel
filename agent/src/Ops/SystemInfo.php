@@ -35,6 +35,26 @@ final class SystemInfo implements Op
         return [
             'hostname' => php_uname('n'),
             'kernel' => php_uname('r'),
+
+            /*
+             * **Ob ein neuerer Kernel installiert ist, aber nicht läuft.**
+             *
+             * Das ist die Frage, wegen der man den Kernel überhaupt anzeigt:
+             * Nach einem `apt upgrade` läuft der alte weiter, bis jemand neu
+             * startet, und dem Panel sieht man das sonst nicht an.
+             *
+             * **Gelesen wird `/boot` und kein Programm gerufen.** Was dort als
+             * `vmlinuz-…` liegt, kann starten — das ist die ehrliche Antwort auf
+             * „es gäbe einen neueren". `/lib/modules` wäre der zweite Kandidat
+             * und der schlechtere: Dort bleiben Verzeichnisse zurück, wenn ein
+             * Paket entfernt wird, und ein Kernel ohne Abbild startet nicht.
+             *
+             * **Und `null` heisst „nicht nachgesehen".** Ist `/boot` leer oder
+             * unlesbar, steht hier kein `false` — das wäre eine Aussage über den
+             * Zustand, wo nur eine über unsere Sicht darauf möglich ist. Die
+             * Lehre vom 10. August 2026, gleich dreimal an einem Tag bezahlt.
+             */
+            'kernel_stale' => $this->kernelStale(),
             'distribution' => $this->distribution(),
             'uptime_s' => $this->uptime(),
             'load' => $this->load(),
@@ -290,6 +310,41 @@ final class SystemInfo implements Op
     }
 
     /** @return array{name:string,version:string} */
+    /**
+     * Läuft ein älterer Kernel, als installiert ist?
+     *
+     * `true` — in `/boot` liegt ein neuerer als der laufende.
+     * `false` — der laufende ist der neueste, den es hier gibt.
+     * `null` — `/boot` liess sich nicht lesen; dann wird nichts behauptet.
+     *
+     * **Verglichen werden Namen, und das ist genau genug.** Debian und Ubuntu
+     * vergeben `6.8.0-51-generic`; `version_compare` liest die Zahlen darin
+     * numerisch und ordnet `-51` vor `-52` und `6.8` vor `6.11`. Ein
+     * Vergleich, der die Paketverwaltung fragt, wäre genauer und brauchte ein
+     * Programm auf der Positivliste — für eine Zeile in der Übersicht ist das
+     * der falsche Preis.
+     */
+    private function kernelStale(): ?bool
+    {
+        $images = glob('/boot/vmlinuz-*');
+
+        if ($images === false || $images === []) {
+            return null;
+        }
+
+        $running = php_uname('r');
+
+        foreach ($images as $image) {
+            $installed = substr(basename($image), strlen('vmlinuz-'));
+
+            if (version_compare($installed, $running, '>')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function distribution(): array
     {
         $name = 'unbekannt';

@@ -5491,6 +5491,46 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" InertiaPropsTest passed
 
 echo
+echo "── KernelStaleTest: ein unlesbares /boot behauptet „aktuell" ──"
+#
+# `null` heisst „nicht nachgesehen" und nicht „nein". Derselbe Satz hat am
+# 10. August 2026 dreimal Geld gekostet; hier steht er von Anfang an im Code.
+# Faellt er, meldet das Panel „der Kernel ist aktuell" fuer einen Server, auf
+# dem niemand nachgesehen hat.
+vorher_datei agent/src/Ops/SystemInfo.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SystemInfo.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("if ($images === false || $images === []) {\n            return null;",
+              "if ($images === false || $images === []) {\n            return false;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SystemInfo.php "unlesbares /boot behauptet etwas" &&
+pruefe "unlesbares /boot behauptet etwas" \
+  KernelStaleTest::test_an_unreadable_boot_says_nothing failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KernelStaleTest passed
+
+echo
+echo "── KernelStaleTest: die Seite prueft auf Wahrheit statt auf das Ja ──"
+#
+# `!kernel_stale` waere fuer null UND fuer false wahr — die Bedingung sieht
+# richtig aus und behauptet auf jedem Server ohne lesbares /boot einen
+# ausstehenden Neustart.
+vorher_datei resources/js/Pages/Overview.vue
+python3 - <<'PY2'
+p = 'resources/js/Pages/Overview.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace('props.server.kernel_stale === true', 'props.server.kernel_stale')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Pages/Overview.vue "Seite prueft auf Wahrheit" &&
+pruefe "Seite prueft auf Wahrheit" \
+  KernelStaleTest::test_the_page_distinguishes_unknown_from_current failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" KernelStaleTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

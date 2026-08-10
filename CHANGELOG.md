@@ -7880,3 +7880,42 @@ gilt.
 Seite war vollständig grün: Die Spalte stand im Markup, der Wert kam aus dem
 Enum, das Kartenlayout trug `data-column`. Sichtbar war der Fehler erst auf
 einem Telefon.
+
+### Der Kernel steht jetzt in der Übersicht — und sagt, ob er der aktuelle ist
+
+Auf Wunsch des Betreibers. Die interessante Angabe ist dabei nicht die Nummer,
+sondern ob sie noch die richtige ist: **Nach einem `apt upgrade` läuft der alte
+Kernel weiter, bis jemand neu startet**, und dem Panel sah man das bisher nicht
+an.
+
+**Der Kernel war schon da.** `SystemInfo` meldet ihn seit P1, der Steuerungscode
+reicht ihn durch, `Overview.vue` erklärt ihn als Eigenschaft — und keine Zeile
+hat ihn je gezeigt. Eine Angabe, die den ganzen Weg geht und am Ende nirgends
+landet, ist Arbeit ohne Wirkung; aufgefallen ist es erst beim Bauen dieser Zeile.
+
+**Gelesen wird `/boot` und kein Programm gerufen.** `uname -a` wäre ein Eintrag
+mehr auf der Positivliste des Agenten — für eine Zeile in der Übersicht der
+falsche Preis — und ausserdem ein Satz, aus dem man den Kernel erst
+herausschneidet. Was als `vmlinuz-…` in `/boot` liegt, kann starten; das ist die
+ehrliche Antwort auf „es gäbe einen neueren". `/lib/modules` wäre der schlechtere
+Kandidat: Dort bleiben Verzeichnisse zurück, wenn ein Paket entfernt wird, und
+ein Kernel ohne Abbild startet nicht.
+
+**Und die Angabe ist von Anfang an dreiwertig.** Ist `/boot` leer oder unlesbar,
+meldet der Agent `null` — nicht `false`. Die Oberfläche schweigt dann, statt „ist
+aktuell" zu behaupten.
+
+> **`null` heisst „nicht nachgesehen" und nicht „nein".**
+
+Derselbe Satz hat an diesem Tag dreimal Geld gekostet: bei `handed_over` im
+Grundzustand von `Pg\Server::describe()`, beim Vorgabewert für das
+Datenbanksystem und beim Gebietsschema. Hier steht er im Code, bevor ihn jemand
+bezahlen musste — und `KernelStaleTest` hält beide Enden fest: dass der Agent
+nichts behauptet, und dass die Seite `=== true` prüft statt auf Wahrheit. `null`
+ist in JavaScript ebenfalls falsch; `!kernel_stale` sähe richtig aus und meldete
+auf jedem Server ohne lesbares `/boot` einen Neustart, den es nicht braucht.
+
+**Der Vergleich ist an echten Namen gemessen**, nicht an ausgedachten:
+`6.8.0-52` nach `6.8.0-51`, `6.11.0-9` nach `6.8.0-51`, `6.1.0-28` nach
+`6.1.0-9`. Ein Melder, der grundlos Alarm gibt, wird bald gelesen wie ein
+Rauschen.

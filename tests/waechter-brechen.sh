@@ -5866,6 +5866,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" AgentAnswerReachTest passed
 
 echo
+echo "── AgentAnswerReachTest: der Messlauf behaelt fuer sich, dass es keine Quota gibt ──"
+#
+# `subscription.usage` meldet `available: false` samt Grund, wenn das
+# Dateisystem keine Benutzerquota fuehrt. Bis zum 10. August 2026 stand das nur
+# im Journal des Timers — die Uebersicht wusste nichts davon, und der Betreiber
+# erfuhr es erst beim Anlegen eines Abonnements (docs/41).
+vorher_datei app/Console/Commands/MeasureUsage.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/MeasureUsage.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$result['available']", "$result['measured']")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/MeasureUsage.php "Quota-Zustand ungelesen" &&
+pruefe "Quota-Zustand ungelesen" \
+  AgentAnswerReachTest::test_every_answer_about_a_failure_is_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AgentAnswerReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

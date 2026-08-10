@@ -14,6 +14,7 @@ use App\Models\Database;
 use App\Models\Domain;
 use App\Models\Subscription;
 use App\Support\Metrics\Store;
+use App\Support\Settings\Settings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -38,7 +39,7 @@ use SrvPanel\Agent\Pg\Clusters;
  */
 final class OverviewController extends Controller
 {
-    public function __invoke(Request $request, Client $agent, Store $store): Response
+    public function __invoke(Request $request, Client $agent, Store $store, Settings $settings): Response
     {
         $account = $request->user();
 
@@ -52,7 +53,7 @@ final class OverviewController extends Controller
         $info = $this->systemInfo($agent);
 
         return Inertia::render('Overview', [
-            'server' => $this->server($info),
+            'server' => $this->server($info, $settings),
             'hosting' => $this->hosting(),
             'tiles' => $this->tiles($store, $this->cores($info)),
             'services' => $this->services($agent),
@@ -238,7 +239,7 @@ final class OverviewController extends Controller
      * @param  array{ok:bool,data:array<string,mixed>,error:string}  $result
      * @return array<string,mixed>
      */
-    private function server(array $result): array
+    private function server(array $result, Settings $settings): array
     {
         if (! $result['ok']) {
             return ['reachable' => false, 'error' => $result['error']];
@@ -261,6 +262,19 @@ final class OverviewController extends Controller
              */
             'kernel_stale' => is_bool($info['kernel_stale'] ?? null) ? $info['kernel_stale'] : null,
             'uptime_s' => (int) ($info['uptime_s'] ?? 0),
+
+            /*
+             * **Die Dateisystem-Quota gehört zum Server und nicht zum
+             * Abonnement.** Man erfuhr von ihrem Fehlen bis zum 10. August 2026
+             * erst, wenn man ein Abonnement anlegte — und dann als rohes
+             * `stderr` neben einer grünen Fortschrittsleiste.
+             *
+             * **Gemessen wird sie hier nicht.** `system.info` ruft kein
+             * Programm auf, und diese Frage lässt sich nur durch einen
+             * Leseversuch beantworten (`repquota`). Den macht der Messlauf
+             * ohnehin jede Viertelstunde; was hier steht, ist sein Ergebnis.
+             */
+            'disk_quota' => $settings->diskQuota(),
         ];
     }
 

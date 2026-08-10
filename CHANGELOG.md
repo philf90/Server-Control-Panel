@@ -8538,3 +8538,43 @@ sind Belege fürs Protokoll und gehören in keine Oberfläche. Was der Test
 ausdrücklich **nicht** prüft, ist, ob die lesende Methode gerufen wird; alle drei
 Leser sind privat, und das meldet PHPStan auf Stufe 6 bereits. Eine zweite
 Fassung derselben Regel wäre die, die veraltet.
+
+### Die Quota an drei Stellen — und `docs/41`
+
+Der Betreiber hat nach dem Befund oben `usrquota` in die `fstab` genommen und
+neu eingehängt. Danach stand in `/proc/mounts` `rw,relatime,quota,usrquota` —
+und `quotaon -p /` sagte weiter **`is off`**. Die Quotadatei war nie angelegt
+worden.
+
+> **Eine Option, die etwas erlaubt, ist nicht dasselbe wie ein Zustand, in dem
+> es geschieht.**
+
+Genau darauf wäre der erste Entwurf hereingefallen: Er sollte die Mount-Optionen
+lesen. Gemessen wird jetzt der **Leseversuch** — `repquota` scheitert, solange
+die Quota nicht läuft, und dieses Scheitern *ist* die Antwort.
+
+**Drei Stellen, drei Fragen.** Die Übersicht sagt, ob der Server überhaupt Quota
+führt (aus dem Messlauf, der ohnehin jede Viertelstunde läuft — kein neues
+Programm, keine neue Operation, kein Aufruf beim Seitenaufbau). Die
+Abonnementseite sagt, ob *diese* Grenze gilt. Der Vorgang zeigt wörtlich, was
+`setquota` gesagt hat. Alle drei schweigen, solange nichts gemessen wurde.
+
+**Und ein Weg, die Grenze anzuwenden, ohne sie zu ändern.** `update()` reiht
+`subscription.quota` nur bei einem *anderen* Wert ein — richtig, aber es liess
+den Betreiber, der gerade die Quota eingeschaltet hat, ohne Ausweg: Er hätte die
+Grenze umstellen und zurückstellen müssen.
+
+> **Eine Einstellung, die sich nur durch eine Änderung anwenden lässt, hat
+> keinen Weg zurück in einen Zustand, den jemand anderes verändert hat.**
+
+Der Knopf steht **beim Befund** und nicht bei den anderen: Er erscheint genau
+dann, wenn die Grenze nachweislich nicht gilt. Und es gibt ihn nicht für alle
+Abonnements auf einmal — das wäre ein Klick und hundert Vorgänge.
+
+`docs/41` trägt die Anleitung, samt der Zeile, die man vergisst (`quotacheck`),
+und dem Hinweis auf den Rettungszugang: Eine falsche `fstab` ist der klassische
+Weg zu einem Server, der nicht mehr hochkommt.
+
+Die vierte Antwort steht jetzt in `AgentAnswerReachTest`: `subscription.usage`
+meldet `available: false` samt Grund, und das stand bis heute nur im Journal des
+Timers.

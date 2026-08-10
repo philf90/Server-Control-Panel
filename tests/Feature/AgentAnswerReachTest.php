@@ -19,6 +19,7 @@ use Tests\Support\WithoutPhpComments;
  * | `handed_over` | die Rolle für das Panel fehlt | einen Hinweis, immer |
  * | `stale_roles` | eine befristete Rolle blieb stehen | „Nichts liegengeblieben." |
  * | `quota.enforced` | `setquota` ist gescheitert | „15360 MB" |
+ * | `usage.available` | das Dateisystem führt keine Quota | „noch nicht gemessen" |
  *
  * Alle drei haben **eine Gemeinsamkeit**, und die macht sie so teuer: Sie melden
  * einen Fehlschlag **innerhalb eines erfolgreichen Vorgangs**. Der Vorgang ist
@@ -68,6 +69,14 @@ final class AgentAnswerReachTest extends TestCase
             'why' => 'Eine befristete Rolle, die ein abgebrochenes Zurückspielen stehenliess, ist '
                 .'ein Zugang ohne Besitzer. Ungelesen meldete `srvpanel db` „Nichts '
                 .'liegengeblieben." über eine Fläche, die es nie angesehen hat.',
+        ],
+        'subscription.usage → available' => [
+            'agent' => 'agent/src/Ops/SubscriptionUsage.php',
+            'reader' => 'app/Console/Commands/MeasureUsage.php',
+            'key' => 'available',
+            'why' => 'Ohne Quota auf dem Dateisystem misst niemand den belegten Platz, und keine '
+                .'Grenze gilt. Ungelesen stand diese Auskunft nur im Journal des Timers — die '
+                .'Übersicht wusste nichts davon (`docs/41`).',
         ],
         'subscription.provision → quota.enforced' => [
             'agent' => 'agent/src/DiskQuota.php',
@@ -123,7 +132,7 @@ final class AgentAnswerReachTest extends TestCase
      */
     public function test_every_answer_about_a_failure_is_read(): void
     {
-        $this->assertGreaterThanOrEqual(3, count(self::ANSWERS), 'Die Liste ist zu kurz geworden.');
+        $this->assertGreaterThanOrEqual(4, count(self::ANSWERS), 'Die Liste ist zu kurz geworden.');
 
         foreach (self::ANSWERS as $label => $answer) {
             $key = "'".$answer['key']."'";

@@ -53,6 +53,10 @@ const props = defineProps<{
 
     /* Dreiwertig: `null` heisst „konnte nicht nachsehen", nicht „ist aktuell". */
     kernel_stale?: boolean | null
+
+    /* Drei Werte: `null` heisst „noch nie gemessen". Der Messlauf kommt im
+       Viertelstundentakt; vor seinem ersten Lauf schweigt die Seite. */
+    disk_quota?: { available: boolean | null; reason: string | null; checked_at: string | null }
     uptime_s?: number
     error?: string
   }
@@ -133,6 +137,30 @@ const headline = props.server.reachable
         {{ server.error }}
         Zustand nachsehen mit
         <span class="ident">systemctl status srvpanel-agentd</span>.
+      </span>
+    </p>
+
+    <!--
+      **Die Dateisystem-Quota, wenn sie fehlt.** Sie steht hier oben und nicht
+      unter den Kacheln: Ohne sie zeigt jedes Abonnement eine Speichergrenze,
+      die nichts begrenzt, und jede gemessene Belegung fehlt.
+
+      **Nur bei `false`.** Ein Hinweis, der immer erscheint, erzieht dazu, die
+      Seite nicht zu lesen — bezahlt am 10. August 2026 an einer Warnung, die
+      bei jeder Freigabe eines Abonnements kam. `null` heisst „noch nie
+      gemessen" und schweigt.
+    -->
+    <p v-if="server.disk_quota?.available === false" class="notice warn">
+      <span>
+        <b>Das Dateisystem führt keine Benutzerquota.</b>
+        Speichergrenzen stehen im Panel, gelten aber nicht, und der belegte
+        Platz wird nicht gemessen.
+        <template v-if="server.disk_quota.reason">
+          Das System meldet:
+          <span class="ident">{{ server.disk_quota.reason }}</span>
+        </template>
+        Der Weg dorthin steht in
+        <span class="ident">docs/41-dateisystem-quota.md</span>.
       </span>
     </p>
 

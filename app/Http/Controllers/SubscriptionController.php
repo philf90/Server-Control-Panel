@@ -509,6 +509,49 @@ final class SubscriptionController extends Controller
         ));
     }
 
+    /**
+     * Die Speichergrenze noch einmal anwenden — ohne sie zu ändern.
+     *
+     * **Der Anlass steht in `docs/41`.** Auf `cloudsrv24` war die
+     * Dateisystem-Quota nicht eingeschaltet; beide Abonnements bekamen ihre
+     * Grenze nie. Nach dem Einschalten gab es keinen Weg, sie anzuwenden:
+     * {@see self::update()} reiht `subscription.quota` nur ein, wenn sich der
+     * Wert *unterscheidet* — und er unterschied sich nicht. Der Betreiber hätte
+     * die Grenze umstellen und zurückstellen müssen.
+     *
+     * > **Eine Einstellung, die sich nur durch eine Änderung anwenden lässt,
+     * > hat keinen Weg zurück in einen Zustand, den jemand anderes verändert
+     * > hat.**
+     *
+     * **Kein Knopf für alle Abonnements auf einmal.** Der wäre bequemer und
+     * hiesse: ein Klick, hundert Vorgänge. Wer die Quota gerade eingeschaltet
+     * hat, hat auch die Kommandozeile — `srvpanel usage` misst danach ohnehin
+     * neu, und was fehlt, sieht er in der Übersicht.
+     */
+    public function reapplyQuota(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
+    {
+        /*
+         * **Nur wo es ein Konto gibt.** Dieselbe Bedingung wie in
+         * {@see self::update()}: Während des Anlegens setzt
+         * `subscription.provision` die Grenze gleich mit, und nach dem Rückbau
+         * gibt es niemanden mehr, dem sie gälte.
+         */
+        if (! in_array($subscription->status, [SubscriptionStatus::Active, SubscriptionStatus::Suspended], true)) {
+            throw ValidationException::withMessages([
+                'subscription' => 'Dieses Abonnement hat keinen Systembenutzer, dem eine Grenze gälte.',
+            ]);
+        }
+
+        $audit->success('subscription.quota_reapplied', $subscription, [
+            'name' => $subscription->name,
+            'disk_mb' => $subscription->quota(Quota::DiskMb->value),
+        ]);
+
+        return redirect()->route('operations.show', $this->start(
+            $subscription, 'subscription.quota', 'Speichergrenze anwenden', $audit, $lifecycle,
+        ));
+    }
+
     public function suspend(Subscription $subscription, Audit $audit, Lifecycle $lifecycle): RedirectResponse
     {
         if ($subscription->status === SubscriptionStatus::Provisioning) {

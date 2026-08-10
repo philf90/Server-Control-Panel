@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Support\Databases\Usage as DatabaseUsage;
+use App\Support\Settings\Settings;
 use App\Support\Subscriptions\Usage;
 use Illuminate\Console\Command;
 use SrvPanel\Agent\AgentException;
@@ -36,8 +37,17 @@ final class MeasureUsage extends Command
 
     protected $description = 'Misst den belegten Speicher aller Abonnements und den Platz ihrer Datenbanken';
 
-    public function handle(Usage $usage, DatabaseUsage $databases): int
+    /**
+     * **Als Feld und nicht als Parameter durchgereicht.** {@see self::measureDisk()}
+     * ist privat und wird von genau einer Stelle gerufen; ein zweiter Parameter
+     * dort hiesse, ihn durch eine Kette zu tragen, die nichts damit zu tun hat.
+     */
+    private Settings $settings;
+
+    public function handle(Usage $usage, DatabaseUsage $databases, Settings $settings): int
     {
+        $this->settings = $settings;
+
         /*
          * **Die zweite Messung läuft auch dann, wenn die erste nichts liefert.**
          * Sie hängen an verschiedenen Voraussetzungen — `usrquota` am Mount
@@ -60,6 +70,18 @@ final class MeasureUsage extends Command
 
             return false;
         }
+
+        /*
+         * **Was der Lauf gesehen hat, bleibt stehen.** Bis zum 10. August 2026
+         * stand diese Antwort nur im Journal des Timers — die Übersicht wusste
+         * nichts vom fehlenden Quota-System, und der Betreiber erfuhr davon
+         * erst, wenn er ein Abonnement anlegte und in dessen Vorgangsausgabe
+         * `setquota: Cannot find mountpoint for device` las. Neben „fertig".
+         */
+        $this->settings->saveDiskQuota(
+            $result['available'],
+            $result['available'] ? null : (string) ($result['reason'] ?? ''),
+        );
 
         if ($result['available'] === false) {
             /*

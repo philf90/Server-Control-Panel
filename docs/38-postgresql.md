@@ -1079,6 +1079,17 @@ würde er die Lücke nicht bemerken.
 
 Und die sechs Textstellen aus §12.
 
+> **Und dazwischen ein Lauf auf einem echten Server: `39-zwischenabnahme-p5b.md`.**
+> Nicht die Abnahme — die ist §19 und kommt in Schritt 9. Neun Punkte gegen
+> `v0.5.1-rc.2` mit der Frage, ob die Schritte 4 bis 7 überhaupt tragen: Sie
+> sind gegen einen Wegwerf-Cluster im Container gemessen und auf einem Server
+> mit systemd, Agent und Panel nie im Ganzen gelaufen.
+>
+> Er steht als eigenes Dokument, weil er zuerst nur in einem Sitzungsverlauf
+> stand — und Punkt 0 enthielt zwei falsche Befehle, an denen der Betreiber
+> hängengeblieben ist. Ein Verlauf lässt sich nicht berichtigen und `DocLinkTest`
+> sieht ihn nicht.
+
 ### Schritt 8 — Die Wächter brechen
 
 `tests/waechter-brechen.sh`, geprüft von `BreakScriptTest`.

@@ -7571,3 +7571,26 @@ Gemessen war nichts falsch: `scrollWidth - clientWidth` ist 0 px, bei 390 px und
 1280 px, hell und dunkel, auch mit `0.10.0-rc.12` als längstem denkbaren Namen.
 **Es sah nur falsch aus, und genau das findet kein Test.** Zwei Sekunden
 Aufnahme, ein Wort statt eines Satzes: `Quellbaum`.
+
+### `docs/39` — die Zwischenabnahme steht jetzt im Repo und nicht in einem Verlauf
+
+Der Testlauf gegen `v0.5.1-rc.2` — neun Punkte auf `cloudsrv24`, mit der Frage,
+ob die Schritte 4 bis 7 auf einem echten Server überhaupt tragen — stand zuerst
+nur als Nachricht in einer Sitzung. **Das ist genau das Muster, das `CLAUDE.md`
+als teuersten Fehler dieses Projekts führt, nur an der letzten Stelle, an der man
+es sucht: in der Anleitung selbst.** Ein Verlauf lässt sich nicht durchsuchen,
+nicht berichtigen, und `DocLinkTest` sieht ihn nicht.
+
+Der Beleg kam am selben Tag. Punkt 0 enthielt zwei falsche Befehle:
+`srvpanel --version` nannte die Fassung von Laravel, und ein `| head -2` schnitt
+die Ausgabe von `psql` ab, bevor sie kam. Der Betreiber ist an beiden
+hängengeblieben — und die Berichtigung stand danach wieder nur im Verlauf.
+
+> **Was man zweimal braucht, gehört ins Repo — auch wenn es keine Zeile Code
+> ist.**
+
+Was das Dokument über die Sammlung von Befehlen hinaus festhält, ist jeweils der
+Grund: warum die Ausgangsmessung in Punkt 1 *vor* Punkt 7 stattfinden muss (eine
+Abwesenheit ohne Vorgeschichte belegt nichts), warum die Gegenprobe zur Sperre
+zwei Hälften hat (sonst belegt sie nur, dass irgendetwas nicht ging), und warum
+in Punkt 7d der **Eigentümer** der Tabelle wichtiger ist als ihre Zeilenzahl.

@@ -198,7 +198,7 @@ final class PgRestore implements Op
      */
     private function retrofit(Context $context, string $prefix, string $database): string
     {
-        $owner = $this->owner->ensure($context, $prefix);
+        $owner = $this->owner->adopt($context, $prefix, $database);
 
         foreach ($this->owner->roles($context, $prefix, $database) as $role) {
             $this->session->execute($context, [

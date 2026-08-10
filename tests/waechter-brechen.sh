@@ -5622,7 +5622,7 @@ vorher_datei agent/src/Ops/PgDatabaseCreate.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/PgDatabaseCreate.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace('$owner = $this->owner->ensure($context, $prefix);',
+s = s.replace('$owner = $this->owner->adopt($context, $prefix, $database);',
               '$owner = Names::owner($prefix);')
 open(p, 'w', encoding='utf-8').write(s)
 PY2
@@ -5723,6 +5723,46 @@ pruefe "Freigabe sperrt die Zugaenge" \
   SubscriptionResumeReachTest::test_resuming_reaches_everything_below_the_subscription failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" SubscriptionResumeReachTest passed
+
+echo
+echo "── PgOwnerTest: die Sitzungsrolle wird gesetzt, die Datenbank nicht uebereignet ──"
+#
+# **Das ist der Zustand, den v0.5.1-rc.5 ausgeliefert hat.** `PgRoleCreate`
+# setzte `SET role = <praefix>_owner` und liess das Schema, wie es war — der
+# Kunde arbeitete fortan als eine Rolle ohne jedes Recht daran. Ausgeloest hat es
+# ein Passwortwechsel: `current_schemas()` war `{pg_catalog}`, und jedes
+# `CREATE TABLE` endete mit „no schema has been selected to create in".
+vorher_datei agent/src/Ops/PgRoleCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRoleCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $this->owner->adopt($context, $prefix, $database);\n", '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRoleCreate.php "Sitzungsrolle ohne Uebereignung" &&
+pruefe "Sitzungsrolle ohne Uebereignung" \
+  PgOwnerTest::test_whoever_sets_the_session_role_hands_over_the_database failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── PgOwnerTest: die Uebereignung gibt ein Recht statt des Eigentums ──"
+#
+# Gemessen: `GRANT ALL ON ALL TABLES` an die Eigentuemerrolle laesst den Kunden
+# lesen und scheitert bei `ALTER TABLE` mit „must be owner of table". `ALTER` und
+# `DROP` fragen nach dem Eigentuemer — ein Recht ersetzt kein Eigentum.
+vorher_datei agent/src/Pg/Owner.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Owner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                'REASSIGN OWNED BY %s TO %s',", "                'GRANT ALL ON ALL TABLES IN SCHEMA public TO %2$s -- %1$s',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Owner.php "Recht statt Eigentum" &&
+pruefe "Recht statt Eigentum" \
+  PgOwnerTest::test_the_adoption_takes_ownership_and_not_only_a_privilege failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

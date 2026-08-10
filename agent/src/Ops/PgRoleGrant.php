@@ -109,8 +109,7 @@ final class PgRoleGrant implements Op
          * einem Lauf schickt, berechtigt am Schema `public` der falschen
          * Datenbank — und das fiele erst auf, wenn ein Kunde seine Tabellen
          * nicht sieht.
-         */
-        /*
+         *
          * **Die Sitzungsrolle wechselt mit der Freigabe, die Mitgliedschaft
          * nicht.** Sie gilt clusterweit und hängt am Zugang
          * ({@see PgRoleCreate}); was hier umgestellt wird, ist die Frage, *als
@@ -132,7 +131,7 @@ final class PgRoleGrant implements Op
         $this->session->execute($context, self::schemaStatements($role, $granted), $database);
 
         if ($granted) {
-            $this->session->execute($context, Owner::schemaStatements($owner), $database);
+            $this->owner->adopt($context, $prefix, $database);
         }
 
         $context->progress(100, 'fertig');
@@ -172,10 +171,10 @@ final class PgRoleGrant implements Op
      *
      * ## Was hier trotzdem bleibt, und warum
      *
-     * Die drei `GRANT`-Zeilen. Sie decken den Fall, den die Eigentümerrolle
-     * nicht rückwirkend heilt: Tabellen, die vor ihr entstanden sind und einem
-     * einzelnen Zugang gehören. Sie erreichen sie über das Recht, nicht über das
-     * Eigentum — bis das nächste Zurückspielen das Schema neu aufsetzt.
+     * Die drei `GRANT`-Zeilen — als **zweiter Boden**, nicht als Mechanik. Was
+     * einem einzelnen Zugang noch gehört, holt {@see Owner::adoption()} mit
+     * einem `REASSIGN OWNED BY` ins Abonnement; die Rechte hier greifen
+     * dazwischen und für alles, was ausserhalb von `public` liegt.
      *
      * **Und die Rücknahme nimmt mehr weg, als diese Fassung vergibt.** Die zwei
      * `ALTER DEFAULT PRIVILEGES … REVOKE` bleiben stehen, obwohl es die

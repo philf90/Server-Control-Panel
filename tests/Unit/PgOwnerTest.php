@@ -14,6 +14,7 @@ use SrvPanel\Agent\Ops\PgRoleGrant;
 use SrvPanel\Agent\Pg\Ephemeral;
 use SrvPanel\Agent\Pg\Names;
 use SrvPanel\Agent\Pg\Owner;
+use SrvPanel\Agent\Pg\Sql;
 use Tests\Support\ReadsMethodSource;
 use Tests\Support\WithoutPhpComments;
 
@@ -201,8 +202,8 @@ final class PgOwnerTest extends TestCase
         foreach ($sites as [$class, $method, $why]) {
             $source = $this->code($class, $method);
 
-            $this->assertStringContainsString('owner->ensure(', $source, sprintf(
-                '%s::%s() ruft Owner::ensure() nicht auf. %s',
+            $this->assertMatchesRegularExpression('/owner->(ensure|adopt)\(/', $source, sprintf(
+                '%s::%s() sorgt nicht für die Eigentümerrolle. %s',
                 $class,
                 $method,
                 $why,
@@ -216,6 +217,80 @@ final class PgOwnerTest extends TestCase
             $this->code(PgRestore::class, 'execute'),
             'Das Zurückspielen ruft die Nachrüstung nicht mehr auf.',
         );
+    }
+
+    /**
+     * Wer die Sitzungsrolle setzt, übereignet vorher die Datenbank.
+     *
+     * **Das ist der Wächter zu dem Fehler, der `v0.5.1-rc.5` ausgeliefert hat.**
+     * `PgRoleCreate` setzte `SET role = <präfix>_owner` und liess das Schema,
+     * wie es war. Auf `cloudsrv24` hat ein **Passwortwechsel** damit einen
+     * Kunden ausgesperrt: `current_schemas()` war `{pg_catalog}`, und jedes
+     * `CREATE TABLE` endete mit `no schema has been selected to create in`.
+     *
+     * `PgRoleGrant` hatte die fehlende Zeile — zwei Stellen, dieselbe Aufgabe,
+     * eine nachgezogen. Genau dagegen zählt dieser Test.
+     *
+     * > **Wer umstellt, als wer jemand arbeitet, schuldet ihm alles, was er
+     * > vorher hatte.**
+     *
+     * Geprüft wird das Paar und nicht die einzelne Zeile: Ein `sessionRole(…,
+     * true)` ohne `adopt()` in derselben Methode ist der Zustand, der ausgeliefert
+     * wurde. {@see Ephemeral} steht nicht in der Liste, und zwar mit Grund — die
+     * befristete Rolle arbeitet in einer Datenbank, die {@see PgRestore} eine
+     * Zeile vorher übereignet hat; das prüft
+     * {@see self::test_the_restore_empties_before_it_fills()} über die
+     * Reihenfolge.
+     */
+    public function test_whoever_sets_the_session_role_hands_over_the_database(): void
+    {
+        $sites = [
+            [PgRoleCreate::class, 'execute'],
+            [PgRoleGrant::class, 'execute'],
+            [PgRestore::class, 'retrofit'],
+        ];
+
+        foreach ($sites as [$class, $method]) {
+            $source = $this->code($class, $method);
+
+            if (! str_contains($source, 'Owner::sessionRole(')) {
+                continue;
+            }
+
+            $this->assertStringContainsString('owner->adopt(', $source, sprintf(
+                '%s::%s() stellt um, als wer ein Zugang arbeitet, übereignet der Eigentümerrolle aber '
+                .'weder das Schema noch das, was schon darin steht. Genau so hat rc.5 einen Kunden '
+                .'ausgesperrt — `no schema has been selected to create in`.',
+                $class,
+                $method,
+            ));
+        }
+    }
+
+    /**
+     * Und die Übereignung nimmt das Eigentum, nicht bloss ein Recht.
+     *
+     * **Gemessen, beide Wege, am 10. August 2026:** Ein `GRANT ALL ON ALL
+     * TABLES` an die Eigentümerrolle lässt den Kunden lesen und scheitert bei
+     * `ALTER TABLE` mit `must be owner of table`. Erst `REASSIGN OWNED BY`
+     * bringt beides. *Ein Recht ersetzt kein Eigentum* — `ALTER` und `DROP`
+     * fragen nach dem Eigentümer.
+     */
+    public function test_the_adoption_takes_ownership_and_not_only_a_privilege(): void
+    {
+        $prefix = $this->prefix();
+        $owner = Names::owner($prefix);
+        $role = Names::role($prefix, 'web');
+
+        $ohne = Owner::adoption($owner, []);
+        $mit = Owner::adoption($owner, [$role]);
+
+        $this->assertSame($ohne, array_slice($mit, 0, count($ohne)),
+            'Die Übereignung ändert die Schemazeilen, statt sie zu ergänzen.');
+
+        $this->assertCount(count($ohne) + 1, $mit);
+        $this->assertStringStartsWith('REASSIGN OWNED BY ', $mit[count($ohne)]);
+        $this->assertStringEndsWith('TO '.Sql::identifier($owner), $mit[count($ohne)]);
     }
 
     /**

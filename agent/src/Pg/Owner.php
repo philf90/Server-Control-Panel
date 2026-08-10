@@ -139,6 +139,82 @@ final class Owner
     }
 
     /**
+     * Diese Datenbank gehört dem Abonnement — Schema **und** was schon darin
+     * steht.
+     *
+     * **Das ist die Zeile, die `v0.5.1-rc.5` gefehlt hat, und sie hat auf
+     * `cloudsrv24` einen Kunden ausgesperrt.** `PgRoleCreate` setzte die
+     * Sitzungsrolle und liess das Schema, wie es war — der Kunde arbeitete
+     * fortan als eine Rolle ohne jedes Recht daran. Ausgelöst hat es ein
+     * **Passwortwechsel**, also der harmloseste Vorgang, den dieses Panel
+     * kennt. Gemessen am 10. August 2026:
+     *
+     *     current_user      → x…_owner
+     *     current_schemas() → {pg_catalog}          public fehlt
+     *     CREATE TABLE      → ERROR: no schema has been selected to create in
+     *
+     * > **Wer umstellt, als wer jemand arbeitet, schuldet ihm alles, was er
+     * > vorher hatte.**
+     *
+     * ## `REASSIGN` und nicht `GRANT`
+     *
+     * Für eine Datenbank, die es vor der Eigentümerrolle gab, genügt das Schema
+     * nicht: Ihre Tabellen gehören dem einzelnen Zugang, und der Kunde arbeitet
+     * jetzt als die Gruppe. Gemessen, beide Wege:
+     *
+     *     GRANT ALL ON ALL TABLES TO <owner>  → lesen ja, ALTER TABLE:
+     *                                           „must be owner of table"
+     *     REASSIGN OWNED BY <zugang> TO …     → lesen ja, ALTER TABLE ja
+     *
+     * **Ein Recht ersetzt kein Eigentum.** `ALTER` und `DROP` fragen nach dem
+     * Eigentümer, nicht nach der Rechtezeile — ein Kunde, der seine eigene
+     * Tabelle nicht mehr ändern darf, hat kein halbes Problem, sondern eines.
+     *
+     * Dass dasselbe `REASSIGN OWNED BY` in {@see Ephemeral} **entfallen** ist,
+     * ist kein Widerspruch: Dort zeigte es auf den Eigentümer der *Datenbank* —
+     * das Panel —, und genau das war der Fehler. Hier zeigt es auf das
+     * Abonnement.
+     *
+     * @param  list<string>  $roles  Die Zugänge, deren Besitz übergeht
+     * @return list<string>
+     */
+    public static function adoption(string $owner, array $roles): array
+    {
+        $statements = self::schemaStatements($owner);
+
+        if ($roles !== []) {
+            $statements[] = sprintf(
+                'REASSIGN OWNED BY %s TO %s',
+                implode(', ', array_map(Sql::identifier(...), $roles)),
+                Sql::identifier($owner),
+            );
+        }
+
+        return $statements;
+    }
+
+    /**
+     * Dasselbe, ausgeführt — **in** der Datenbank, und mit der Rolle davor.
+     *
+     * Die eine Stelle, die „diese Datenbank gehört diesem Abonnement" herstellt.
+     * Sie steht hier und nicht dreimal in den Operationen, weil genau diese
+     * Doppelung den Fehler erzeugt hat: `PgRoleGrant` hatte die Schemazeile,
+     * `PgRoleCreate` nicht.
+     */
+    public function adopt(Context $context, string $prefix, string $database): string
+    {
+        $owner = $this->ensure($context, $prefix);
+
+        $this->session->execute(
+            $context,
+            self::adoption($owner, $this->roles($context, $prefix, $database)),
+            $database,
+        );
+
+        return $owner;
+    }
+
+    /**
      * Ein leeres Schema, das ihr gehört — **privilegiert**.
      *
      * **Das ist der dritte Fund aus Punkt 7, und der überraschendste.** Ein

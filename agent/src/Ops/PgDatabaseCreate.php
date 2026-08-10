@@ -170,8 +170,7 @@ final class PgDatabaseCreate implements Op
          * wäre die Sorte Abhängigkeit, die niemand liest.
          */
         $context->progress(90, 'Eigentümerrolle');
-        $owner = $this->owner->ensure($context, $prefix);
-        $this->session->execute($context, Owner::schemaStatements($owner), $database);
+        $owner = $this->owner->adopt($context, $prefix, $database);
 
         $context->progress(100, 'fertig');
 

@@ -8348,3 +8348,60 @@ einer Vue-Komponente.
 
 Gebaut wird nach P5b. Eine Änderung, die während einer Abnahme jede Zeitangabe
 verschiebt, erklärt eine Messung, statt sie zu bestätigen.
+
+### `v0.5.1-rc.5` hat einen Kunden ausgesperrt — mit einem Passwortwechsel
+
+Der teuerste Fehler dieser Runde, und er stammt aus der Behebung von vorgestern.
+`PgRoleCreate` setzte `ALTER ROLE … IN DATABASE … SET role = <präfix>_owner` und
+liess das Schema, wie es war. Der Kunde arbeitete fortan als eine Rolle, die an
+`public` **kein einziges Recht** hat. Gemessen auf `cloudsrv24`:
+
+    current_user      → x90d271df69287335_owner
+    current_schemas() → {pg_catalog}                    public fehlt
+    CREATE TABLE      → ERROR: no schema has been selected to create in
+    DROP TABLE IF EXISTS kunden → „does not exist, skipping"
+
+Ausgelöst hat es ein **Passwortwechsel** — der harmloseste Vorgang, den dieses
+Panel kennt. Und die Meldung zeigt nicht auf die Ursache: PostgreSQL überspringt
+in `search_path` jedes Schema, in dem die Rolle nicht anlegen darf, und meldet
+erst, wenn keines übrig ist. Kein `permission denied`, sondern
+„kein Schema ausgewählt".
+
+> **Wer umstellt, als wer jemand arbeitet, schuldet ihm alles, was er vorher
+> hatte.**
+
+**Die Bauform des Fehlers ist die bekannte:** `PgRoleGrant` hatte die fehlende
+Zeile, `PgRoleCreate` nicht — zwei Stellen, dieselbe Aufgabe, eine nachgezogen.
+Deshalb steht die Übereignung jetzt einmal in `Owner::adopt()` und wird von allen
+vier Operationen gerufen, statt dreimal abgeschrieben zu werden.
+
+**Und das Schema allein reicht nicht.** Für eine Datenbank, die es vor der
+Eigentümerrolle gab, gehören die Tabellen dem einzelnen Zugang. Gemessen, beide
+Wege:
+
+    GRANT ALL ON ALL TABLES TO <owner>  → lesen ja, ALTER TABLE:
+                                          „must be owner of table"
+    REASSIGN OWNED BY <zugang> TO …     → lesen ja, ALTER TABLE ja
+
+> **Ein Recht ersetzt kein Eigentum.** `ALTER` und `DROP` fragen nach dem
+> Eigentümer, nicht nach der Rechtezeile.
+
+`Owner::adoption()` schickt deshalb `ALTER SCHEMA public OWNER TO`,
+`REVOKE ALL ON SCHEMA public FROM PUBLIC` und ein `REASSIGN OWNED BY` über alle
+Zugänge der Datenbank. Dass dasselbe `REASSIGN` in `Pg\Ephemeral` entfallen ist,
+ist kein Widerspruch: Dort zeigte es auf den Eigentümer der **Datenbank** — das
+Panel —, und genau das war Fehler 2 aus Punkt 7. Hier zeigt es auf das
+Abonnement.
+
+**Der Wächter, der gefehlt hat**, prüft jetzt das Paar und nicht die einzelne
+Zeile: `test_whoever_sets_the_session_role_hands_over_the_database` — eine
+Methode, die `Owner::sessionRole(…, true)` schickt und kein `adopt()`, ist genau
+der ausgelieferte Zustand. Dazu
+`test_the_adoption_takes_ownership_and_not_only_a_privilege`, weil ein `GRANT`
+an derselben Stelle grün aussähe und den Kunden seine eigene Tabelle nicht
+ändern liesse.
+
+Gefunden hat den Fehler der Abnahmelauf, und zwar an einer Stelle, an der er nur
+wie ein Bedienfehler aussah: Ein `DROP TABLE IF EXISTS` meldete „skipping" für
+eine Tabelle, die es gibt. *Ein `IF EXISTS`, das „skipping" sagt, hat nicht
+nachgesehen, ob es das Ding gibt — sondern ob es ihm sichtbar ist.*

@@ -136,11 +136,24 @@ nicht den Namen:
 
 ```bash
 sudo -u postgres psql -d <db> -tAc \
-  "SELECT nspowner::regrole = '<präfix>_owner'::regrole FROM pg_namespace WHERE nspname='public'"
+  "SELECT pg_get_userbyid(nspowner) = '<präfix>_owner' FROM pg_namespace WHERE nspname='public'"
 ```
 
 **Erwartet:** `f` vorher, `t` nach Punkt 7. Was davor dasteht — `pg_database_owner`
 ab PG 15, `postgres` oder `root` darunter —, ist für diese Frage gleichgültig.
+
+> **Hier stand `nspowner::regrole = '<präfix>_owner'::regrole`, und diese Zeile
+> hat sich am 10. August 2026 selbst widerlegt:** `ERROR: role
+> "x90d271df69287335_owner" does not exist`. Der Cast nach `regrole` schlägt
+> fehl, wenn es die Rolle nicht gibt — und *dass* es sie noch nicht gibt, ist
+> genau die Vorbedingung, unter der die Messung laufen soll.
+>
+> **Eine Prüfung, die ihre eigene Vorbedingung nicht überlebt, ist keine.** Das
+> ist im selben Abschnitt der dritte Anlauf: erst eine Endung, die eine
+> eingebaute Rolle traf, dann ein Erwartungswert, den PostgreSQL 15 überholt hat,
+> jetzt ein Cast, der einen Fehler wirft statt `f` zu sagen.
+> `pg_get_userbyid()` gibt einen Namen als Text zurück und vergleicht sich mit
+> einer Zeichenkette — gemessen: `f`, und nach dem Übertragen `t`.
 
 Und die Prüfsumme, weil `38 §19` Punkt 0 sie später vergleicht:
 

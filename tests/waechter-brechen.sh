@@ -5535,6 +5535,46 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" KernelStaleTest passed
 
 echo
+echo "── AccountUnlockTest: entsperrt wieder ohne nachzusehen ──"
+#
+# Der Systembenutzer eines Abonnements hat kein Passwort. `usermod --unlock`
+# weigert sich dann und schreibt eine Warnung — bei JEDER Freigabe JEDES
+# Abonnements. Ein Hinweis, der immer erscheint, erzieht dazu, die Ausgabe nicht
+# zu lesen; gemeldet vom Betreiber aus Vorgang 492 (docs/39, Punkt 6).
+vorher_datei agent/src/Ops/SubscriptionResume.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionResume.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $secret = ltrim($fields[1] ?? '', '!');\n\n            return $secret !== '' && $secret !== '*';",
+              '            return true;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SubscriptionResume.php "entsperrt ohne nachzusehen" &&
+pruefe "entsperrt ohne nachzusehen" \
+  AccountUnlockTest::test_an_account_without_a_password_is_left_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountUnlockTest passed
+
+echo
+echo "── AccountUnlockTest: das Ablaufdatum rutscht in die Bedingung ──"
+#
+# Die Untergrenze. `--expiredate` ist die Schranke, die SSH und SFTP pruefen —
+# haengt sie am Passwort, bleibt ein freigegebenes Abonnement abgelaufen, und
+# zwar auf jedem Server. Aus einer stillen Warnung wuerde eine stille Sperre.
+vorher_datei agent/src/Ops/SubscriptionResume.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionResume.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $args = ['--expiredate', '', $user];", '        $args = [$user];')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SubscriptionResume.php "Ablaufdatum an einer Bedingung" &&
+pruefe "Ablaufdatum an einer Bedingung" \
+  AccountUnlockTest::test_the_expiry_is_lifted_unconditionally failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountUnlockTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

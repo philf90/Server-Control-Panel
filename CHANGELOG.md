@@ -8035,3 +8035,43 @@ nichts" — richtig, und nutzlos.
 Geschenkt bekommen hat der Lauf dabei einen Beleg, der nicht auf dem Plan stand:
 „Zugriff entziehen" und „Zugriff geben" arbeiten für PostgreSQL sauber und
 verlustfrei — zweimal hin und zurück, `datacl` jedes Mal richtig.
+
+### Eine Warnung, die bei jeder Freigabe erschien
+
+Gemeldet vom Betreiber aus Vorgang 492:
+
+```
+usermod: unlocking the user's password would result in a passwordless account.
+You should set a password with usermod -p to unlock this user's password.
+```
+
+**`usermod` hat sich geweigert, und das war richtig.** Der Systembenutzer eines
+Abonnements hat kein Passwort — er wird ohne eines angelegt, seine Shell ist
+`nologin`, der Zugang läuft über SFTP mit Schlüssel. Ein `--unlock` liesse das
+Feld leer, und ein leeres Feld ist ein Konto ohne Passwort.
+
+**Nur erschien die Meldung immer.** Kein Systembenutzer hat je ein Passwort, also
+war das nicht der Ausnahmefall, sondern jeder Fall.
+
+> **Ein Hinweis, der immer erscheint, erzieht dazu, die Ausgabe nicht zu lesen.**
+
+Und die Ausgabe eines Vorgangs ist genau die Stelle, an der ein echter Fehler
+auffallen soll — dasselbe Muster wie ein Melder, der grundlos Alarm gibt
+(`docs/36 §22.3r`).
+
+`subscription.resume` sieht jetzt vorher in `/etc/shadow` nach und entsperrt nur,
+wo ein Passwort steht. **Die Sperre wird dadurch kein Stück schwächer:** `--lock`
+beim Sperren bleibt, und `--expiredate` steht auf beiden Seiten **ohne
+Bedingung** — das ist die Schranke, die SSH und SFTP tatsächlich prüfen.
+
+Die Entscheidung ist eine reine Funktion über den Inhalt der Datei, damit sie
+sich ohne `/etc/shadow` prüfen lässt. Die Felder darin sind gemessen und nicht
+ausgedacht: `!` ist der Fall auf `cloudsrv24`, `!!` legt `useradd` an, `!*` ist
+das ausdrückliche „keines". **Ist die Datei nicht lesbar, wird nichts
+entsperrt** — `null` heisst „nicht nachgesehen", zum dritten Mal an diesem Tag.
+
+**Und `AccountUnlockTest` hält die Untergrenze fest**, die hier teurer wäre als
+die Regel selbst: Rutschte `--expiredate` in denselben Zweig wie `--unlock`,
+bliebe ein freigegebenes Abonnement abgelaufen — auf jedem Server, denn kein
+Systembenutzer hat ein Passwort. Aus einer stillen Warnung würde eine stille
+Sperre.

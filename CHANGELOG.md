@@ -8405,3 +8405,91 @@ Gefunden hat den Fehler der Abnahmelauf, und zwar an einer Stelle, an der er nur
 wie ein Bedienfehler aussah: Ein `DROP TABLE IF EXISTS` meldete „skipping" für
 eine Tabelle, die es gibt. *Ein `IF EXISTS`, das „skipping" sagt, hat nicht
 nachgesehen, ob es das Ding gibt — sondern ob es ihm sichtbar ist.*
+
+### `docs/39` ist durchgelaufen — und hat vier Fehler gefunden, keinen davon ein Test
+
+Punkt 1 bis 9 gegen `v0.5.1-rc.6` auf `cloudsrv24`. Das Ergebnis steht in
+`docs/39 §12a`; die vier Fehler stehen einzeln weiter oben. Drei davon hat erst
+der **zweite** Anlauf desselben Punktes gezeigt, und der teuerste sah aus wie ein
+Bedienfehler: Ein `DROP TABLE IF EXISTS` meldete „skipping" für eine Tabelle, die
+es gibt — der Zugang sah sein eigenes Schema nicht mehr.
+
+Die teuerste Zahl des Laufs ist die `0` in Punkt 9. Sie schliesst die
+Eigentümerrolle ein: Sie entsteht mit der ersten Datenbank und geht mit der
+letzten. Ohne den Weg zurück hätte dort `1` gestanden, und niemand hätte es
+gemerkt — genau die Lücke, die `docs/35` einmal zwölf private Schlüssel gekostet
+hat.
+
+**Und der Lauf hat etwas offengelassen, das er selbst freigelegt hat.**
+`srvpanel db` meldet „Nichts liegengeblieben", kann diese Frage für PostgreSQL
+aber gar nicht stellen: Der Statusteil ruft nur `db.server.info`, das Feld
+`stale_roles` aus `pg.server.info` liest niemand, und `--prune` räumt mit drei
+MariaDB-Operationen. Die Zahlen stimmen — sie zählen Zeilen ohne Rücksicht auf
+`engine` —, die Reichweite nicht.
+
+> **Ein Werkzeug, das Entwarnung gibt, muss die ganze Fläche sehen können, über
+> die es Entwarnung gibt.**
+
+Deshalb musste Punkt 7f von Hand mit `SELECT … FROM pg_roles` messen.
+
+### `srvpanel db` sieht jetzt beide Systeme
+
+Der Abnahmelauf hat es freigelegt: Das Kommando meldete `Nichts liegengeblieben.`
+und konnte diese Frage für PostgreSQL gar nicht stellen. Drei Stellen, drei
+verschiedene Arten von Blindheit:
+
+- **Der Statusteil** rief nur `db.server.info`. In der Ausgabe stand
+  `mariadb 10.11.14 — nutzbar` und keine Zeile über den PostgreSQL-Cluster.
+- **`stale_roles`** gab es im Agenten seit Schritt 6 — bei jedem Aufruf
+  gerechnet und von niemandem gelesen. Eine befristete Rolle, die ein
+  abgebrochenes Zurückspielen stehenliess, wurde nie gemeldet. *Ein Feld, das
+  niemand liest, ist keine Auskunft, sondern Rechenzeit.*
+- **`--prune`** räumte mit `db.user.remove`, `db.database.remove` und
+  `db.dump.remove`. Eine liegengebliebene PostgreSQL-Rolle wäre an
+  `Db\Names::existing()` abgewiesen worden — und hätte den ganzen Lauf
+  mitgenommen.
+
+> **Ein Werkzeug, das Entwarnung gibt, muss die ganze Fläche sehen können, über
+> die es Entwarnung gibt.**
+
+Der Rückbauplan trägt jetzt `engine` je Zeile, und die Verzweigung ist ein
+`match` ohne Vorgabe: Kommt ein drittes System dazu, will diese Stelle einen
+Fehler und keine stille Einordnung unter MariaDB. Die **Sicherungen** bleiben bei
+`db.dump.remove` — ein Dump ist eine Datei, die Operation kennt kein SQL, und
+eine Verzweigung wäre dort die zweite Fassung derselben Sache.
+
+`DbCommandReachTest` ist der Wächter, und er ist die stillere Schwester von
+`AgentOperationReachTest`: Dort wird eine Operation gebaut und nicht gerufen,
+hier wird sie gerufen und eine ihrer Antworten nicht gelesen.
+
+**Und der Gegenbruch hat ihn sofort als blind entlarvt — zum dritten Mal in
+dieser Woche.** Der erste Entwurf hängte beide Methodenrümpfe aneinander und
+suchte darin nach `pg.server.info`; er blieb grün, als der *Aufruf* aus
+`showServer()` verschwand, weil `reportPostgres()` weiter dastand.
+
+> **Eine Methode, die niemand ruft, beantwortet keine Frage.**
+
+Geprüft wird jetzt das Paar: der Aufruf in `showServer()` **und** die Frage in
+`reportPostgres()`.
+
+### Das Bruchskript fährt jetzt von selbst
+
+**`tests/waechter-brechen.sh` steht seit dem Optik-Rework im Repo und ist als
+Ganzes nie gelaufen.** In der Entwicklungsumgebung fehlt `vendor/`, also wurde es
+von Hand und stückweise gefahren — und genau dort war es allein in dieser Woche
+**dreimal** fündig: dreimal ein Wächter, der grün blieb, während seine Regel
+gebrochen war (`PgOwnerTest` fand `Owner::reset(` im Kommentar, `BreakScriptTest`
+las nur Blöcke mit der Marke `PY2`, `DbCommandReachTest` hängte zwei
+Methodenrümpfe aneinander).
+
+> **Ein Werkzeug, das man nur von Hand fährt, fährt irgendwann niemand mehr.**
+
+`.github/workflows/waechter.yml` fährt es auf Zuruf und montags um 04:00 UTC.
+Ein eigener Ablauf und kein Job in `ci.yml`, aus zwei praktischen Gründen: Das
+Skript **ändert Dateien** im Arbeitsbaum und stellt sie über git wieder her — in
+einem Lauf, der nebenher ein Paket baut, wäre das ein Wettlauf um denselben
+Baum —, und es fährt die Testsuite **473 Mal**, einmal je Prüfung. Das gehört
+nicht vor jeden Pull Request.
+
+Der Wächter dazu steht in `BreakScriptTest` und sucht den **Aufruf**, nicht den
+Dateinamen: Ein Kommentar, der das Skript erwähnt, ist keine Ausführung.

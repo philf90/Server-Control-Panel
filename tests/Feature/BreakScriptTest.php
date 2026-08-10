@@ -163,6 +163,43 @@ final class BreakScriptTest extends TestCase
         return $out;
     }
 
+    /**
+     * Und irgendwo fährt das Skript von selbst.
+     *
+     * **Die Regel, die diesem Test drei Jahre gefehlt hätte.** `waechter-brechen.sh`
+     * steht seit dem Optik-Rework im Repo, `BreakScriptTest` prüft seit P4, dass
+     * jeder Eingriff seinen Text findet — **gelaufen ist das Skript als Ganzes
+     * nie.** In der Entwicklungsumgebung fehlt `vendor/`, also wurde es von Hand
+     * und stückweise gefahren, und genau dort war es dreimal in einer Woche
+     * fündig: dreimal ein Wächter, der grün blieb, während seine Regel gebrochen
+     * war.
+     *
+     * > **Ein Werkzeug, das man nur von Hand fährt, fährt irgendwann niemand
+     * > mehr.**
+     *
+     * Gesucht wird der **Aufruf** und nicht der Dateiname: Ein Kommentar, der
+     * das Skript erwähnt, ist keine Ausführung — dieselbe Unterscheidung, an der
+     * `DbCommandReachTest` beim Gegenbruch gescheitert wäre.
+     */
+    public function test_a_workflow_runs_the_script(): void
+    {
+        $workflows = glob($this->root().'/.github/workflows/*.yml') ?: [];
+
+        $this->assertNotSame([], $workflows, 'Es gibt keine Abläufe — dann prüft dieser Test nichts.');
+
+        $running = array_filter($workflows, fn (string $file): bool => str_contains(
+            (string) file_get_contents($file),
+            'run: tests/waechter-brechen.sh',
+        ));
+
+        $this->assertNotSame([], $running, sprintf(
+            "Kein Ablauf in .github/workflows/ führt tests/waechter-brechen.sh aus.\n\n".
+            'Das Skript prüft, ob die Wächter dieses Projekts ihre Regel halten — und ist damit '.
+            'selbst einer. Einer, den niemand fährt, meldet nie etwas: %s',
+            implode(', ', array_map('basename', $workflows)),
+        ));
+    }
+
     public function test_every_intervention_still_grips_its_file(): void
     {
         $interventions = $this->interventions();

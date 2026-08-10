@@ -5765,6 +5765,87 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
 
 echo
+echo "── DbCommandReachTest: srvpanel db fragt PostgreSQL nicht mehr ──"
+#
+# Am Ende des Abnahmelaufs von P5b meldete das Kommando „Nichts liegengeblieben."
+# und konnte diese Frage fuer PostgreSQL gar nicht stellen. Punkt 7f musste seine
+# Reste von Hand mit `SELECT … FROM pg_roles` zaehlen — neben einem Kommando, das
+# genau dafuer da ist.
+vorher_datei app/Console/Commands/Databases.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        $this->reportPostgres($agent);\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/Databases.php "Status ohne PostgreSQL" &&
+pruefe "Status ohne PostgreSQL" \
+  DbCommandReachTest::test_the_status_asks_both_servers failed
+pruefe "  … und die Reste liest auch niemand" \
+  DbCommandReachTest::test_both_stale_lists_are_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbCommandReachTest passed
+
+echo
+echo "── DbCommandReachTest: der Rückbau schickt alles an MariaDB ──"
+#
+# Drei feste Operationsnamen, alle drei fuer MariaDB — der Zustand bis P5b. Eine
+# liegengebliebene PostgreSQL-Rolle ginge an `db.user.remove`, der Agent wiese sie
+# ab, und der ganze Lauf endete rot ueber etwas, das er nie konnte.
+vorher_datei app/Console/Commands/Databases.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                DatabaseEngine::Postgres => ['pg.role.remove', [", "                DatabaseEngine::Postgres => ['db.user.remove', [")
+s = s.replace("                DatabaseEngine::Postgres => ['pg.database.remove', [", "                DatabaseEngine::Postgres => ['db.database.remove', [")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/Databases.php "Rückbau ohne PostgreSQL" &&
+pruefe "Rückbau ohne PostgreSQL" \
+  DbCommandReachTest::test_prune_names_an_operation_for_every_engine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbCommandReachTest passed
+
+echo
+echo "── DbCommandReachTest: der Plan verschweigt das System ──"
+#
+# Die Verzweigung liest `$user['engine']`. Fehlt der Schluessel im Plan, gibt es
+# keinen Fehlschlag beim Lesen der Datei, sondern einen zur Laufzeit — an dem Tag,
+# an dem tatsaechlich etwas liegengeblieben ist.
+vorher_datei app/Support/Databases/DatabasePrune.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DatabasePrune.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    'engine' => $row->engine,\n                ])\n                ->all();\n\n            $dumps", "                ])\n                ->all();\n\n            $dumps")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DatabasePrune.php "Plan ohne System" &&
+pruefe "Plan ohne System" \
+  DbCommandReachTest::test_the_plan_carries_the_engine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" DbCommandReachTest passed
+
+echo
+echo "── BreakScriptTest: das Bruchskript faehrt nirgends von selbst ──"
+#
+# Es steht seit dem Optik-Rework im Repo und ist als Ganzes nie gelaufen — in der
+# Entwicklungsumgebung fehlt `vendor/`. Von Hand und stueckweise gefahren war es
+# dreimal in einer Woche fuendig. Ein Werkzeug, das man nur von Hand faehrt,
+# faehrt irgendwann niemand mehr.
+vorher_datei .github/workflows/waechter.yml
+python3 - <<'PY2'
+p = '.github/workflows/waechter.yml'
+s = open(p, encoding='utf-8').read()
+s = s.replace('        run: tests/waechter-brechen.sh\n', '        run: echo "spaeter"\n')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei .github/workflows/waechter.yml "Bruchskript ohne Aufruf" &&
+pruefe "Bruchskript ohne Aufruf" \
+  BreakScriptTest::test_a_workflow_runs_the_script failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" BreakScriptTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

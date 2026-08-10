@@ -62,11 +62,26 @@ final class SubscriptionStateTest extends TestCase
         $this->assertSame('p1001', end($args));
     }
 
-    public function test_resuming_unlocks_and_clears_the_expiry(): void
+    /**
+     * Die Freigabe nimmt das Ablaufdatum zurück — **ohne Bedingung**.
+     *
+     * Hier stand zusätzlich `assertContains('--unlock', $args)`, und dieser
+     * Test ist mit `v0.5.1-rc.4` rot geworden: `--unlock` hängt seitdem daran,
+     * ob es überhaupt ein Passwort zu entsperren gibt. Der Systembenutzer eines
+     * Abonnements hat keines, und `usermod` schrieb bei **jeder** Freigabe eine
+     * Warnung (`AccountUnlockTest`, gemeldet aus Vorgang 492).
+     *
+     * **Die Zusicherung ist damit nicht weggefallen, sondern umgezogen.** Was
+     * hier bleibt, ist die Schranke, die SSH und SFTP wirklich prüfen — sie
+     * fällt bei jeder Freigabe, auf jedem Server. Ob dazu ein `--unlock`
+     * gehört, beantwortet `SubscriptionResume::unlocks()` aus `/etc/shadow`,
+     * und **dort** ist es geprüft, in beide Richtungen. Auf dem CI-Läufer gibt
+     * es kein `p1001`, also käme hier nie eines heraus.
+     */
+    public function test_resuming_clears_the_expiry(): void
     {
         $args = $this->value(new SubscriptionResume, 'accountArgs', 'p1001');
 
-        $this->assertContains('--unlock', $args);
         $this->assertContains('--expiredate', $args);
 
         // Leer und nicht „0": `--expiredate 0` wäre der 1. Januar 1970 und
@@ -101,6 +116,14 @@ final class SubscriptionStateTest extends TestCase
         // Mechanik und unterscheiden sich in genau drei Werten. Käme ein
         // vierter dazu, ohne dass jemand hier nachzieht, wäre die Umkehrung
         // wieder eine Behauptung.
+        //
+        // **`unlocks()` steht ausdrücklich dabei und nicht als Ausnahme.** Es
+        // ist kein vierter Unterschied, sondern die Hilfsmethode zu einem der
+        // drei — sie liest `/etc/shadow` und beantwortet, ob `--unlock` in
+        // `accountArgs` gehört (`AccountUnlockTest`). Sie hier zu nennen statt
+        // den Vergleich aufzuweichen, ist der Unterschied zwischen „diese eine
+        // kennen wir" und „vier sind auch in Ordnung": Eine fünfte beisst
+        // weiter.
         $suspend = new \ReflectionClass(SubscriptionSuspend::class);
         $resume = new \ReflectionClass(SubscriptionResume::class);
 
@@ -121,7 +144,10 @@ final class SubscriptionStateTest extends TestCase
         sort($suspendMethods);
         sort($resumeMethods);
 
+        $expectedForResume = [...$expected, 'unlocks'];
+        sort($expectedForResume);
+
         $this->assertSame($expected, $suspendMethods);
-        $this->assertSame($expected, $resumeMethods);
+        $this->assertSame($expectedForResume, $resumeMethods);
     }
 }

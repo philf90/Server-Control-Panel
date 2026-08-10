@@ -72,11 +72,27 @@ final class BreakScriptTest extends TestCase
     {
         $script = (string) file_get_contents($this->root().'/tests/waechter-brechen.sh');
 
-        preg_match_all("/python3 - <<'PY2'\n(.*?)\nPY2/s", $script, $blocks);
+        /*
+         * **Beide Marken, und das ist ein Fund dieses Tests über sich selbst.**
+         * Hier stand nur `PY2`. Neunzehn Blöcke im Skript tragen `PY` — und die
+         * waren für diesen Wächter nicht vorhanden. Aufgefallen ist es am
+         * 10. August 2026 beim Nachrechnen von Hand: Ein Eingriff in
+         * `CertificateLifecycle` suchte eine Bedingung, die der zweite Wurf von
+         * P4 längst durch `choice->satisfied()` ersetzt hatte, und dieser Test
+         * war grün.
+         *
+         * > **Ein Wächter, der einen Teil seines Gegenstands nicht liest, meldet
+         * > für den Rest „alles in Ordnung".**
+         *
+         * Die Rückreferenz `\1` schliesst den Block mit derselben Marke, mit der
+         * er aufging — sonst endete ein `PY2`-Block an der ersten Zeile `PY`
+         * darin.
+         */
+        preg_match_all("/python3 - <<'(PY2?)'\n(.*?)\n\\1\n/s", $script, $blocks);
 
         $found = [];
 
-        foreach ($blocks[1] as $block) {
+        foreach ($blocks[2] as $block) {
             if (preg_match("/^p = '([^']+)'$/m", $block, $target) !== 1) {
                 continue;
             }

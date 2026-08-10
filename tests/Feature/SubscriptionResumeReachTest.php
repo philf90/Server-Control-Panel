@@ -11,9 +11,11 @@ use App\Models\DbUser;
 use App\Models\Domain;
 use App\Models\Operation;
 use App\Models\Subscription;
+use App\Models\SystemUser;
 use App\Support\Operations\Lifecycles;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use SrvPanel\Agent\Pg\Names;
 use Tests\TestCase;
 
 /**
@@ -62,6 +64,8 @@ final class SubscriptionResumeReachTest extends TestCase
                 'system_user' => 'p1077',
             ]);
 
+            $this->claim($subscription);
+
             Domain::factory()->for($subscription)->create(['status' => DomainStatus::Suspended]);
 
             DbUser::factory()->forSubscription($subscription, 'web')
@@ -72,6 +76,30 @@ final class SubscriptionResumeReachTest extends TestCase
 
             return $subscription;
         });
+    }
+
+    /**
+     * Die Zeile im Verzeichnis der Systembenutzer — mit dem Präfix.
+     *
+     * **Ohne sie bricht der PostgreSQL-Lebenslauf ab**, und zwar mit
+     * `RuntimeException: Zum Systembenutzer p1077 gibt es kein
+     * Datenbankpräfix`. Auf einem echten Server entsteht die Zeile in
+     * `Lifecycle::claim()` zusammen mit dem Systembenutzer; die Fabrik kennt sie
+     * nicht, weil sie nicht zum Abonnement gehört, sondern zum Server
+     * (`docs/35`).
+     *
+     * Das ist keine Umgehung des Fehlschlags, sondern der Aufbau, den der Test
+     * meint: **ein Abonnement, das PostgreSQL benutzen kann.** Ohne Präfix gäbe
+     * es keine Rolle, die sich entsperren liesse.
+     */
+    private function claim(Subscription $subscription): void
+    {
+        SystemUser::query()->create([
+            'number' => (int) ltrim((string) $subscription->system_user, 'p'),
+            'subscription' => $subscription->name,
+            'db_prefix' => Names::newPrefix(),
+            'claimed_at' => now(),
+        ]);
     }
 
     private function finish(Subscription $subscription, string $task): void
@@ -143,6 +171,8 @@ final class SubscriptionResumeReachTest extends TestCase
                 'name' => 'unterbau.de',
                 'system_user' => 'p1078',
             ]);
+
+            $this->claim($subscription);
 
             Domain::factory()->for($subscription)->create(['status' => DomainStatus::Active]);
             DbUser::factory()->forSubscription($subscription, 'web')->create();

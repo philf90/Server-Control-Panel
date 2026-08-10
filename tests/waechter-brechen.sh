@@ -653,13 +653,19 @@ echo "── CertificateReapplyTest: die beiden Regeln jagen einander ──"
 #
 # Bestellung, Zuordnung, Block neu, Bestellung. Ohne die Bedingung läuft die
 # Warteschlange, bis die Ratenbegrenzung sie anhält.
+#
+# **Dieser Eingriff war tot und hat es zwei Wuerfe lang nicht gesagt.** Er suchte
+# `$domain->certificate_id !== null || ! $this->settings->configured()`; der
+# zweite Wurf von P4 hat daraus `choice->satisfied()` gemacht. Gemeldet hat es
+# niemand, weil `BreakScriptTest` nur Bloecke mit der Marke `PY2` las — dieser
+# traegt `PY`. Beides ist am 10. August 2026 behoben.
 vorher_datei app/Support/Tls/CertificateLifecycle.php
 python3 - <<'PY'
 p = 'app/Support/Tls/CertificateLifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    'if ($domain->certificate_id !== null || ! $this->settings->configured()) {',
-    'if (! $this->settings->configured()) {',
+    'if ($this->choice->satisfied($domain) || $this->ordering($domain)) {',
+    'if ($this->ordering($domain)) {',
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY
@@ -4790,21 +4796,27 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
 
 echo
-echo "── PgGrantTest: die Freigabe vergisst die Standardrechte ──"
+echo "── PgGrantTest: die Freigabe vergisst die Zähler ──"
 #
-# ALTER DEFAULT PRIVILEGES gibt es in MariaDB nicht: Dort gilt ein Schemarecht
-# fuer alles, was im Schema entsteht. In PostgreSQL gehoert jede Tabelle dem,
-# der sie angelegt hat — ohne diese Zeile saehe ein zweiter Zugang desselben
-# Abonnements die Tabellen des ersten nicht.
+# Hier stand ein Bruch fuer `ALTER DEFAULT PRIVILEGES … GRANT ALL ON TABLES`,
+# mit der Begruendung, ohne die Zeile saehe ein zweiter Zugang die Tabellen des
+# ersten nicht. **Die Zeile hat das nie geleistet** — ohne `FOR ROLE` gilt sie
+# nur fuer Objekte, die der Agent selbst anlegt (gemessen, 10. August 2026). Der
+# Bruch hat also zwei Fassungen lang eine Wirkung geprueft, die es nicht gab.
+# Was das Problem loest, bricht `PgOwnerTest` weiter unten.
+#
+# Geblieben ist die Ebene, die wirklich traegt: Ein Zugang ohne Recht an den
+# Zaehlern bekommt `permission denied for sequence` beim ersten INSERT in eine
+# Tabelle mit `serial` — und das ist die Haelfte aller Tabellen.
 vorher_datei agent/src/Ops/PgRoleGrant.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/PgRoleGrant.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("            'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO '.$name,\n", "")
+s = s.replace("            'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO '.$name,\n", "")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei agent/src/Ops/PgRoleGrant.php "Freigabe ohne Standardrechte" &&
-pruefe "Freigabe ohne Standardrechte" \
+griff_datei agent/src/Ops/PgRoleGrant.php "Freigabe ohne Zaehler" &&
+pruefe "Freigabe ohne Zaehler" \
   PgGrantTest::test_a_grant_reaches_database_schema_and_objects failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed

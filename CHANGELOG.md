@@ -8225,3 +8225,51 @@ Lebensläufe die Aufgabe kennen (`handles()`), nicht ob danach ein Vorgang mit
 Beide Richtungen stehen jetzt in einem Test, und in einem: Drei getrennte
 liessen offen, ob *zusammen* alles herauskommt — und genau das war der Fall, der
 schiefging.
+
+### Lauf 491: fünf rote Tests, vier Ursachen — und zwei davon lagen schon da
+
+**Zwei stammen aus `v0.5.1-rc.4` und sind mit ihm ausgeliefert worden.**
+`SubscriptionStateTest` verlangte `--unlock` in den Argumenten der Freigabe und
+zählte, dass Sperren und Entsperren sich in genau drei Methoden unterscheiden.
+Beides hat die Behebung der Dauerwarnung aus Vorgang 492 umgeworfen: `--unlock`
+hängt seitdem daran, ob es ein Passwort zu entsperren gibt, und `unlocks()` ist
+eine vierte eigene Methode. Der Zweig hat danach keinen vollen Lauf mehr
+gesehen — deshalb fiel es erst jetzt auf.
+
+Die Zusicherung ist nicht weggefallen, sondern umgezogen: Was `SubscriptionStateTest`
+prüft, ist die Schranke, die SSH und SFTP wirklich lesen (`--expiredate`, ohne
+Bedingung); ob ein `--unlock` dazugehört, prüft `AccountUnlockTest` in beide
+Richtungen. Und `unlocks()` steht im Methodenvergleich jetzt **namentlich** statt
+als aufgeweichte Grenze — eine fünfte beisst weiter.
+
+**Der dritte ist der Preis der Ehrlichkeit von oben.** Der Bruch zu
+`ALTER DEFAULT PRIVILEGES … GRANT` suchte eine Zeile, die es nicht mehr gibt;
+`BreakScriptTest` hat ihn gemeldet, wie er soll. Er zeigt jetzt auf die Ebene,
+die wirklich trägt: `GRANT ALL ON ALL SEQUENCES` — ohne sie bekommt ein Zugang
+`permission denied for sequence` beim ersten `INSERT` in eine Tabelle mit
+`serial`.
+
+**Der vierte war ein Aufbaufehler im neuen Test**, und er hat etwas Richtiges
+gezeigt: `SubscriptionResumeReachTest` legte ein Abonnement ohne Zeile in
+`system_users` an, und der PostgreSQL-Lebenslauf brach mit „Zum Systembenutzer
+p1077 gibt es kein Datenbankpräfix" ab. Auf einem echten Server entsteht sie in
+`Lifecycle::claim()`; die Fabrik kennt sie nicht, weil sie zum **Server** gehört
+und nicht zum Abonnement (`docs/35`). Der Test baut sie jetzt selbst — das ist
+der Aufbau, den er meint: ein Abonnement, das PostgreSQL benutzen kann.
+
+### Und `BreakScriptTest` hat einen Teil seines Gegenstands nie gelesen
+
+Beim Nachrechnen von Hand fiel ein **zweiter** toter Eingriff auf, den der Lauf
+nicht gemeldet hatte: Der Bruch zu `CertificateLifecycle` suchte
+`$domain->certificate_id !== null || ! $this->settings->configured()` — eine
+Bedingung, die der zweite Wurf von P4 durch `choice->satisfied()` ersetzt hat.
+Der Grund für die Stille ist banal und teuer: Der Ausdruck las nur Blöcke mit der
+Heredoc-Marke `PY2`, und **neunzehn Blöcke im Skript tragen `PY`**.
+
+> **Ein Wächter, der einen Teil seines Gegenstands nicht liest, meldet für den
+> Rest „alles in Ordnung".**
+
+Beide Marken werden jetzt gelesen, mit einer Rückreferenz statt einer zweiten
+Alternative — sonst endete ein `PY2`-Block an der ersten Zeile `PY` darin. Der
+Bestand wächst damit von 225 auf 244 Blöcke und von 246 auf 247 geprüfte
+Eingriffe; tot ist keiner mehr.

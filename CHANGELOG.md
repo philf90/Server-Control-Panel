@@ -7816,3 +7816,28 @@ Zeichensatz und Sortierung aus der Vorlage des Servers."* Das stimmte nicht — 
 Agent legt immer mit `TEMPLATE template0` an und schreibt `LC_COLLATE`
 ausdrücklich hin. Die Zeile fehlt weiter, aber jetzt aus dem Grund, der wirklich
 gilt: Dieses Panel *wählt* die Sortierung für PostgreSQL nicht.
+
+### Und die Zeile „Sortierung" steht jetzt auch für PostgreSQL da
+
+**Der Grund für das Verstecken ist weggefallen, und damit das Verstecken.** In
+`DatabaseController::row()` stand ein `=== MariaDb ? … : null`, und er war
+richtig: Für PostgreSQL hätte dort der Vorgabewert aus P5 gestanden —
+`utf8mb4_unicode_ci`, eine Angabe über eine Datenbank, die ihn nie gesehen hat.
+
+Seit der Agent das Gebietsschema beim Cluster erfragt und in seiner Antwort
+zurückmeldet, steht dort ein **gemessener** Wert. Und Sortierung ist keine
+Nebensache: Sie ist die Frage, wegen der jemand seine Anwendung umschreibt.
+
+> **Eine fehlende Angabe ist ehrlicher als eine falsche — eine unterschlagene ist
+> beides nicht.**
+
+Die Bedingung bleibt, hängt aber an der Angabe statt am System: Wo nichts steht,
+steht keine Zeile. Das ist derselbe Gedanke wie vorher, nur an der richtigen
+Frage festgemacht — und es ist der dritte Fall an diesem Tag, in dem eine
+Bedingung von einer *Absicht* („welches System ist das?") auf einen *Zustand*
+(„gibt es etwas zu sagen?") umgestellt wurde.
+
+**Gemessen ist hier nichts nachzuholen:** Der längste Wert, der neu in die Zeile
+kommt, ist ein Gebietsschema wie `de_DE.UTF-8` — elf Zeichen gegen die achtzehn
+von `utf8mb4_unicode_ci`, die dort seit P5 stehen. Die Aufnahmen der laufenden
+Seite kommen mit Punkt 4 der Zwischenabnahme.

@@ -906,7 +906,25 @@ final class DatabaseController extends Controller
              * sie ein Vergleich mit dem Wert des Systems als Zeichenkette, und
              * `DatabaseEngineTest` weist den zu Recht ab.
              */
-            'collation' => $database->engine === DatabaseEngine::MariaDb ? $database->collation : null,
+            /*
+             * **Die Sortierung wird nicht mehr nach System versteckt.**
+             *
+             * Hier stand ein `=== MariaDb ? … : null`, und der Grund war gut:
+             * Für PostgreSQL hätte in der Zeile der Vorgabewert aus P5 gestanden
+             * — `utf8mb4_unicode_ci`, eine Angabe über eine Datenbank, die ihn
+             * nie gesehen hat.
+             *
+             * **Der Grund ist mit dem 10. August 2026 weggefallen.** Seit der
+             * Agent das Gebietsschema beim Cluster erfragt und in seiner Antwort
+             * zurückmeldet, steht dort ein *gemessener* Wert — `de_DE.UTF-8`.
+             * Ihn zu verschweigen wäre jetzt schlechter als ihn zu zeigen:
+             * Sortierung ist die Frage, wegen der jemand seine Anwendung
+             * umschreibt.
+             *
+             * Leer bleibt leer: Eine Zeile ohne Angabe soll die Oberfläche
+             * weglassen und nicht als leeres Feld zeigen.
+             */
+            'collation' => ($database->collation ?? '') === '' ? null : $database->collation,
             'size_bytes' => $database->size_bytes,
             'size_measured_at' => $database->size_measured_at?->toIso8601String(),
 

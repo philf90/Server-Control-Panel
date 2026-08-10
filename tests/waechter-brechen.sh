@@ -5447,6 +5447,27 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgLocaleTest passed
 
 echo
+echo "── EngineCollationTest: die Sortierung wird wieder nach System versteckt ──"
+#
+# Bis zum 10. August 2026 war das richtig: Fuer PostgreSQL haette der
+# Vorgabewert aus P5 in der Zeile gestanden. Seit der Agent das Gebietsschema
+# beim Cluster erfragt, ist der Wert gemessen — und Verschweigen ist dann
+# schlechter als Zeigen.
+vorher_datei app/Http/Controllers/DatabaseController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            'collation' => ($database->collation ?? '') === '' ? null : $database->collation,",
+              "            'collation' => $database->engine === DatabaseEngine::MariaDb ? $database->collation : null,")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseController.php "Sortierung nach System versteckt" &&
+pruefe "Sortierung nach System versteckt" \
+  EngineCollationTest::test_the_page_does_not_hide_the_collation_by_engine failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

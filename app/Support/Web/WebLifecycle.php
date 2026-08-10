@@ -72,12 +72,30 @@ final class WebLifecycle implements AfterOperation
             'redirect_target' => $domain->redirect_target,
             'redirect_code' => $domain->redirect_kind?->statusCode(),
 
-            // **Die Sperre des Abonnements schlägt auf jede seiner Domains
-            // durch.** Sie steht am Abonnement und wird hier eingerechnet;
-            // stünde sie nur am Abonnement, lieferte eine erneut angewandte
-            // Domain eines gesperrten Abonnements wieder aus.
-            'suspended' => $domain->status === DomainStatus::Suspended
-                || $subscription?->status->usable() === false,
+            /*
+             * **Die Sperre steht am Abonnement, und nur dort.**
+             *
+             * Hier stand zusätzlich `$domain->status === DomainStatus::Suspended`
+             * — und das war eine Schleife, aus der eine Domain nicht mehr
+             * herauskam. Der Weg: `subscription.suspend` schreibt den
+             * Server-Block sperrend, {@see self::appliedStatus()} setzt die
+             * Domain daraufhin auf `suspended`. Beim Entsperren las diese Zeile
+             * genau diesen Zustand wieder — das Abonnement war frei, die Domain
+             * nicht, also ging sie erneut gesperrt hinaus und kam gesperrt
+             * zurück. Gemeldet vom Betreiber am 10. August 2026: Abonnement
+             * `cloudlab24.de` aktiv, die Domain darunter dauerhaft „gesperrt".
+             *
+             * > **Ein Zustand, der aus dem Ergebnis der eigenen Entscheidung
+             * > abgeleitet wird, hält sich selbst am Leben.**
+             *
+             * `DomainStatus::Suspended` ist die *Anzeige* dieser Entscheidung
+             * und nicht ihre Quelle; einen Weg, eine einzelne Domain zu sperren,
+             * gibt es nicht (keine Route, kein Knopf). Gefragt wird deshalb das
+             * Abonnement — dieselbe Richtung, die {@see \App\Support\Databases\DbLifecycle}
+             * für die Zugänge schon hat: Dort kommt `mode` aus der *Aufgabe* und
+             * nie aus der Zeile, die sie ändert.
+             */
+            'suspended' => $subscription?->status->usable() === false,
 
             // **Eine Erlaubnis, keine Anweisung.** Ob HSTS gewollt ist, weiss
             // nur das Panel — es kennt den Testbetrieb, dessen Wurzel kein

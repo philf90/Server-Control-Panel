@@ -653,13 +653,19 @@ echo "── CertificateReapplyTest: die beiden Regeln jagen einander ──"
 #
 # Bestellung, Zuordnung, Block neu, Bestellung. Ohne die Bedingung läuft die
 # Warteschlange, bis die Ratenbegrenzung sie anhält.
+#
+# **Dieser Eingriff war tot und hat es zwei Wuerfe lang nicht gesagt.** Er suchte
+# `$domain->certificate_id !== null || ! $this->settings->configured()`; der
+# zweite Wurf von P4 hat daraus `choice->satisfied()` gemacht. Gemeldet hat es
+# niemand, weil `BreakScriptTest` nur Bloecke mit der Marke `PY2` las — dieser
+# traegt `PY`. Beides ist am 10. August 2026 behoben.
 vorher_datei app/Support/Tls/CertificateLifecycle.php
 python3 - <<'PY'
 p = 'app/Support/Tls/CertificateLifecycle.php'
 s = open(p, encoding='utf-8').read()
 s = s.replace(
-    'if ($domain->certificate_id !== null || ! $this->settings->configured()) {',
-    'if (! $this->settings->configured()) {',
+    'if ($this->choice->satisfied($domain) || $this->ordering($domain)) {',
+    'if ($this->ordering($domain)) {',
 )
 open(p, 'w', encoding='utf-8').write(s)
 PY
@@ -4790,21 +4796,27 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
 
 echo
-echo "── PgGrantTest: die Freigabe vergisst die Standardrechte ──"
+echo "── PgGrantTest: die Freigabe vergisst die Zähler ──"
 #
-# ALTER DEFAULT PRIVILEGES gibt es in MariaDB nicht: Dort gilt ein Schemarecht
-# fuer alles, was im Schema entsteht. In PostgreSQL gehoert jede Tabelle dem,
-# der sie angelegt hat — ohne diese Zeile saehe ein zweiter Zugang desselben
-# Abonnements die Tabellen des ersten nicht.
+# Hier stand ein Bruch fuer `ALTER DEFAULT PRIVILEGES … GRANT ALL ON TABLES`,
+# mit der Begruendung, ohne die Zeile saehe ein zweiter Zugang die Tabellen des
+# ersten nicht. **Die Zeile hat das nie geleistet** — ohne `FOR ROLE` gilt sie
+# nur fuer Objekte, die der Agent selbst anlegt (gemessen, 10. August 2026). Der
+# Bruch hat also zwei Fassungen lang eine Wirkung geprueft, die es nicht gab.
+# Was das Problem loest, bricht `PgOwnerTest` weiter unten.
+#
+# Geblieben ist die Ebene, die wirklich traegt: Ein Zugang ohne Recht an den
+# Zaehlern bekommt `permission denied for sequence` beim ersten INSERT in eine
+# Tabelle mit `serial` — und das ist die Haelfte aller Tabellen.
 vorher_datei agent/src/Ops/PgRoleGrant.php
 python3 - <<'PY2'
 p = 'agent/src/Ops/PgRoleGrant.php'
 s = open(p, encoding='utf-8').read()
-s = s.replace("            'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO '.$name,\n", "")
+s = s.replace("            'GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO '.$name,\n", "")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
-griff_datei agent/src/Ops/PgRoleGrant.php "Freigabe ohne Standardrechte" &&
-pruefe "Freigabe ohne Standardrechte" \
+griff_datei agent/src/Ops/PgRoleGrant.php "Freigabe ohne Zaehler" &&
+pruefe "Freigabe ohne Zaehler" \
   PgGrantTest::test_a_grant_reaches_database_schema_and_objects failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
@@ -5470,19 +5482,23 @@ pruefe "  … zurückgesetzt wieder grün" EngineCollationTest passed
 echo
 echo "── InertiaPropsTest: eine Seite liest, was ihr niemand schickt ──"
 #
-# Der Fund aus Punkt 4 der Zwischenabnahme (docs/39): Databases/Index.vue liest
+# Der Fund aus Punkt 4 der Zwischenabnahme (docs/39): Databases/Index.vue las
 # props.shows_engine seit Schritt 7, und der Steuerungscode hat es nie
 # mitgeschickt. In JavaScript ist undefined falsch — die Spalte „System" blieb
 # immer aus, und auf cloudsrv24 stand eine PostgreSQL-Datenbank in der Liste,
 # ohne dass irgendwo stand, dass sie eine ist. vue-tsc sieht die Vorlage,
 # PHPStan sieht das Feld; die Bruecke dazwischen sah niemand.
+#
+# Gebrochen wird an `creatable` und nicht mehr an `shows_engine`: Die Spalte
+# steht seit rc.4 immer da, die Eigenschaft gibt es nicht mehr. Ein Eingriff,
+# der auf eine geloeschte Zeile zeigt, ist genau das Muster, gegen das
+# BreakScriptTest da ist.
 vorher_datei app/Http/Controllers/DatabaseController.php
 python3 - <<'PY2'
 p = 'app/Http/Controllers/DatabaseController.php'
 s = open(p, encoding='utf-8').read()
-i = s.index("            'shows_engine' => Database::query()")
-j = s.index('->exists(),', i) + len('->exists(),')
-open(p, 'w', encoding='utf-8').write(s[:i] + s[j:])
+s = s.replace("            'creatable' => $this->creatable($request->user()),\n", '', 1)
+open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei app/Http/Controllers/DatabaseController.php "Seite ohne ihre Eigenschaft" &&
 pruefe "Seite ohne ihre Eigenschaft" \
@@ -5529,6 +5545,184 @@ pruefe "Seite prueft auf Wahrheit" \
   KernelStaleTest::test_the_page_distinguishes_unknown_from_current failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" KernelStaleTest passed
+
+echo
+echo "── AccountUnlockTest: entsperrt wieder ohne nachzusehen ──"
+#
+# Der Systembenutzer eines Abonnements hat kein Passwort. `usermod --unlock`
+# weigert sich dann und schreibt eine Warnung — bei JEDER Freigabe JEDES
+# Abonnements. Ein Hinweis, der immer erscheint, erzieht dazu, die Ausgabe nicht
+# zu lesen; gemeldet vom Betreiber aus Vorgang 492 (docs/39, Punkt 6).
+vorher_datei agent/src/Ops/SubscriptionResume.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionResume.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            $secret = ltrim($fields[1] ?? '', '!');\n\n            return $secret !== '' && $secret !== '*';",
+              '            return true;')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SubscriptionResume.php "entsperrt ohne nachzusehen" &&
+pruefe "entsperrt ohne nachzusehen" \
+  AccountUnlockTest::test_an_account_without_a_password_is_left_alone failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountUnlockTest passed
+
+echo
+echo "── AccountUnlockTest: das Ablaufdatum rutscht in die Bedingung ──"
+#
+# Die Untergrenze. `--expiredate` ist die Schranke, die SSH und SFTP pruefen —
+# haengt sie am Passwort, bleibt ein freigegebenes Abonnement abgelaufen, und
+# zwar auf jedem Server. Aus einer stillen Warnung wuerde eine stille Sperre.
+vorher_datei agent/src/Ops/SubscriptionResume.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/SubscriptionResume.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $args = ['--expiredate', '', $user];", '        $args = [$user];')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/SubscriptionResume.php "Ablaufdatum an einer Bedingung" &&
+pruefe "Ablaufdatum an einer Bedingung" \
+  AccountUnlockTest::test_the_expiry_is_lifted_unconditionally failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AccountUnlockTest passed
+
+echo
+echo "── WebLifecycleTest: die Domain leitet ihre Sperre aus sich selbst ab ──"
+#
+# Der Zustand einer Domain ist das Ergebnis des letzten Laufs mit genau diesen
+# Argumenten. Steht er wieder in den Argumenten, kommt eine einmal gesperrte
+# Domain nie zurueck — das Abonnement war frei, die Domain blieb gesperrt.
+# Gemeldet vom Betreiber am 10. August 2026.
+vorher_datei app/Support/Web/WebLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Web/WebLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            'suspended' => $subscription?->status->usable() === false,",
+    "            'suspended' => $domain->status === DomainStatus::Suspended\n"
+    "                || $subscription?->status->usable() === false,",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Web/WebLifecycle.php "Sperre aus dem eigenen Zustand" &&
+pruefe "Sperre aus dem eigenen Zustand" \
+  WebLifecycleTest::test_a_suspended_site_of_an_active_subscription_comes_back failed
+pruefe "  … und der ganze Rückweg auch" \
+  WebLifecycleTest::test_resuming_a_subscription_frees_its_sites failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" WebLifecycleTest passed
+
+echo
+echo "── PgOwnerTest: eine Operation bildet den Namen, statt die Rolle sicherzustellen ──"
+#
+# Ein Abonnement, das vor dieser Fassung entstanden ist, hat die Eigentuemerrolle
+# nicht. Wer nur ihren Namen bildet, schickt ihn an eine Rolle, die es nicht gibt
+# — und das faellt erst auf, wenn ein Kunde vor seinen eigenen Daten steht.
+vorher_datei agent/src/Ops/PgDatabaseCreate.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseCreate.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace('$owner = $this->owner->ensure($context, $prefix);',
+              '$owner = Names::owner($prefix);')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseCreate.php "Name statt Rolle" &&
+pruefe "Name statt Rolle" \
+  PgOwnerTest::test_every_creating_operation_ensures_the_role failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── PgOwnerTest: das neue Schema wird vergeben, bevor es da ist ──"
+#
+# `CREATE SCHEMA public` legt ein Schema an, das dem Agenten gehoert. Steht das
+# `ALTER SCHEMA … OWNER TO` davor, bezieht es sich auf das Schema, das eine
+# Zeile spaeter weggeworfen wird — und nach dem Zurueckspielen gehoert wieder
+# alles `root`. Genau der Fehler aus docs/39 Punkt 7, eine Zeile weiter.
+vorher_datei agent/src/Pg/Owner.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Owner.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            ['DROP SCHEMA public CASCADE', 'CREATE SCHEMA public'],
+            self::schemaStatements($owner),""",
+              """            self::schemaStatements($owner),
+            ['DROP SCHEMA public CASCADE', 'CREATE SCHEMA public'],""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Owner.php "Eigentuemer vor dem Schema" &&
+pruefe "Eigentuemer vor dem Schema" \
+  PgOwnerTest::test_the_reset_hands_over_the_new_schema_and_not_the_old failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── PgOwnerTest: das Eigentum geht wieder an das Panel ──"
+#
+# `REASSIGN OWNED BY … TO <Eigentuemer der Datenbank>` war die Antwort auf die
+# richtige Frage und hat die falsche gegeben: Die Datenbank gehoert dem Panel.
+# Der Kunde stand danach vor seinen eigenen Zeilen, und der Vorgang war gruen.
+vorher_datei agent/src/Pg/Ephemeral.php
+python3 - <<'PY2'
+p = 'agent/src/Pg/Ephemeral.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                    sprintf('DROP OWNED BY %s', Sql::identifier($role)),",
+              "                    sprintf('REASSIGN OWNED BY %s TO %s', Sql::identifier($role), 'root'),\n"
+              "                    sprintf('DROP OWNED BY %s', Sql::identifier($role)),")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Pg/Ephemeral.php "Eigentum zurueck ans Panel" &&
+pruefe "Eigentum zurueck ans Panel" \
+  PgOwnerTest::test_nothing_reassigns_ownership_to_the_panel failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── PgOwnerTest: erst eingespielt, dann geleert ──"
+#
+# Beide Aufrufe stehen da, und die Reihenfolge ist die ganze Aussage: So wirft
+# das Zurueckspielen seine eigene Arbeit weg — und meldet Erfolg.
+vorher_datei agent/src/Ops/PgRestore.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRestore.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            $context->progress(40, 'Datenbank leeren');
+            $this->session->execute($context, Owner::reset($owner), $database);
+
+""", '')
+s = s.replace("""                },
+            );
+        } finally {""",
+              """                },
+            );
+
+            $this->session->execute($context, Owner::reset($owner), $database);
+        } finally {""")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRestore.php "geleert nach dem Einspielen" &&
+pruefe "geleert nach dem Einspielen" \
+  PgOwnerTest::test_the_restore_empties_before_it_fills failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgOwnerTest passed
+
+echo
+echo "── SubscriptionResumeReachTest: die Freigabe sperrt die Zugänge ──"
+#
+# `mode` kommt aus der Aufgabe und nie aus der Zeile, die sie aendert — das ist
+# die Richtung, die der Web-Lebenslauf verloren hatte. Haengt sie an etwas
+# anderem, kommt ein entsperrtes Abonnement mit gesperrten Zugaengen zurueck.
+vorher_datei app/Support/Databases/DbLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/DbLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("                'mode' => $lock ? 'lock' : 'unlock',", "                'mode' => 'lock',")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/DbLifecycle.php "Freigabe sperrt die Zugaenge" &&
+pruefe "Freigabe sperrt die Zugaenge" \
+  SubscriptionResumeReachTest::test_resuming_reaches_everything_below_the_subscription failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SubscriptionResumeReachTest passed
 
 echo
 if [ "$fehler" -eq 0 ]; then

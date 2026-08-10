@@ -7948,3 +7948,328 @@ einer Methode einfügt, fügt vor ihrem Dokumentationsblock ein — nicht vor ih
 Namen.**
 
 Gefunden hat ihn genau der Filter, den diese Runde geschärft hat.
+
+### Die Spalte „System" steht jetzt immer da
+
+Entschieden vom Betreiber beim Testlauf zu `rc.4`. Bis dahin hing sie an
+`shows_engine` — einer Frage an den Bestand, die der Server beantwortete: Die
+Spalte kam dazu, sobald die erste PostgreSQL-Datenbank entstand, und sie
+verschwände wieder, wenn die letzte gelöscht wird.
+
+> **Eine Tabelle, deren Spalten vom Inhalt abhängen, ist zweimal dieselbe
+> Tabelle.**
+
+Wer sie kennt, muss sie neu lesen; wer eine Aufnahme davon hat, hat eine von
+zweien. Und die Spalte beantwortet auch dort eine Frage, wo alle Zeilen
+dasselbe sagen — nämlich *welches* dieses eine System ist.
+
+`shows_engine` ist damit ganz weg: aus dem Steuerungscode, aus der Vorlage, aus
+der Eigenschaftsliste. **Eine Angabe weniger, die zwischen Server und Vorlage
+verabredet sein muss** — und das ist der eigentliche Gewinn, denn genau an dieser
+Verabredung ist sie vorgestern gescheitert.
+
+**Der Bruch in `tests/waechter-brechen.sh` ist mitgezogen.** Er hat bis eben
+`shows_engine` entfernt, um `InertiaPropsTest` zubeissen zu lassen; die Zeile
+gibt es nicht mehr. Er greift jetzt `creatable` an — ein Eingriff, der auf eine
+gelöschte Zeile zeigt, ist genau das Muster, gegen das `BreakScriptTest` da ist,
+und es wäre peinlich, ihn im selben Beitrag zu erzeugen, der die Regel feiert.
+
+### `docs/39` Punkt 5: eine Probe, die nach etwas fragte, das es nicht gibt
+
+`current_setting('lc_collate')` antwortet auf PostgreSQL 16 mit
+`ERROR: unrecognized configuration parameter`. **PostgreSQL 15 hat `lc_collate`
+und `lc_ctype` als Laufzeitparameter entfernt** — sie sind seitdem nur noch
+Eigenschaften einer Datenbank, zu lesen in `pg_database.datcollate`.
+
+Wieder ein Stellvertreter: gefragt war „welche Sortierung hat diese Datenbank",
+gefragt *wurde* eine Einstellung, die es in dieser Fassung nicht mehr gibt. Die
+Probe steht berichtigt in `docs/39 §8` — mit dem Hinweis, dass ein **Serverfehler
+an dieser Stelle schon die halbe Antwort ist:** Er heisst, dass die Anmeldung
+über `127.0.0.1` gestanden hat.
+
+Dazu zwei Spalten mehr in der Rollenabfrage: `rolsuper` und `rolcreatedb`, beide
+`f`. Sie kosten nichts und belegen, dass die Rolle nichts kann, was sie nicht
+soll — auf `cloudsrv24` gemessen.
+
+### `docs/39` Punkt 5 und 6: zwei Befehle auf die falsche Sache gerichtet
+
+**Das Kontingent steht nicht auf der Abonnement-Seite.** Diese Anleitung schickte
+dorthin; dort listet der Abschnitt „Kontingente" aber nur, was der Plan erlaubt —
+eine Auskunft über den *Vertrag*, nicht über den *Bestand*. Der Verbrauch steht
+da, wo er eine Entscheidung beeinflusst: auf der Seite „Datenbank anlegen", als
+*„Datenbanken: 2 von unbegrenzt. Datenbankbenutzer zählen nicht getrennt."* Der
+Betreiber hat gemeldet, dass dort nur „unbegrenzt" steht — er hatte recht, und
+die Anleitung nicht.
+
+**Und `mysql.user` hat keine Spalte `account_locked`.** Seit MariaDB 10.4 ist
+`mysql.user` nur noch eine Sicht auf `mysql.global_priv`, und die Sperre steht
+dort im JSON-Feld `Priv`. Der Aufruf endet mit `ERROR 1054 Unknown column`.
+
+Beides ist berichtigt, mitsamt dem Grund — **eine Anleitung, die auf die falsche
+Seite zeigt, kostet denselben Umweg wie ein falscher Befehl**, und beide Male
+merkt es nur, wer sie fährt. Das ist der dritte und vierte Befehl in `docs/39`,
+den erst der Lauf selbst geradegezogen hat; genau dafür steht das Dokument im
+Repo und nicht in einem Verlauf.
+
+### `docs/39` Punkt 6: „Sperren" und „Zugriff entziehen" sind zwei Knöpfe
+
+Die Anleitung sagte nur „Abonnement sperren". Der Betreiber hat **„Zugriff
+entziehen"** auf der Datenbank-Detailseite gedrückt, und das Ergebnis sah eine
+halbe Stunde lang nach einem schweren Fehler aus: CONNECT weg, `rolcanlogin`
+unverändert, kein Vorgang in der Liste, MariaDB ungesperrt.
+
+**Es war alles richtig.** „Zugriff entziehen" nimmt einer Rolle das CONNECT auf
+*eine* Datenbank (`pg.role.grant`), unmittelbar und ohne Vorgang; „Sperren" nimmt
+allen Rollen des Abonnements die Anmeldung (`pg.role.lock` → `NOLOGIN`) und läuft
+über die Warteschlange. Zwei Knöpfe, zwei Mechanismen — und die Anleitung nannte
+keinen von beiden beim Namen.
+
+**Aufgeklärt hat es das Protokoll und nicht die Vorgangsliste.** Vorgänge zeigen,
+was in der Warteschlange lief; das Protokoll zeigt, was *jemand getan hat*. Ich
+habe zweimal nach Vorgängen gefragt, und beide Male war die Antwort „da steht
+nichts" — richtig, und nutzlos.
+
+> **Wenn eine Messung nicht zum Code passt, ist die nächste Frage nicht „was hat
+> die Maschine getan", sondern „was hat der Mensch gedrückt".**
+
+Geschenkt bekommen hat der Lauf dabei einen Beleg, der nicht auf dem Plan stand:
+„Zugriff entziehen" und „Zugriff geben" arbeiten für PostgreSQL sauber und
+verlustfrei — zweimal hin und zurück, `datacl` jedes Mal richtig.
+
+### Eine Warnung, die bei jeder Freigabe erschien
+
+Gemeldet vom Betreiber aus Vorgang 492:
+
+```
+usermod: unlocking the user's password would result in a passwordless account.
+You should set a password with usermod -p to unlock this user's password.
+```
+
+**`usermod` hat sich geweigert, und das war richtig.** Der Systembenutzer eines
+Abonnements hat kein Passwort — er wird ohne eines angelegt, seine Shell ist
+`nologin`, der Zugang läuft über SFTP mit Schlüssel. Ein `--unlock` liesse das
+Feld leer, und ein leeres Feld ist ein Konto ohne Passwort.
+
+**Nur erschien die Meldung immer.** Kein Systembenutzer hat je ein Passwort, also
+war das nicht der Ausnahmefall, sondern jeder Fall.
+
+> **Ein Hinweis, der immer erscheint, erzieht dazu, die Ausgabe nicht zu lesen.**
+
+Und die Ausgabe eines Vorgangs ist genau die Stelle, an der ein echter Fehler
+auffallen soll — dasselbe Muster wie ein Melder, der grundlos Alarm gibt
+(`docs/36 §22.3r`).
+
+`subscription.resume` sieht jetzt vorher in `/etc/shadow` nach und entsperrt nur,
+wo ein Passwort steht. **Die Sperre wird dadurch kein Stück schwächer:** `--lock`
+beim Sperren bleibt, und `--expiredate` steht auf beiden Seiten **ohne
+Bedingung** — das ist die Schranke, die SSH und SFTP tatsächlich prüfen.
+
+Die Entscheidung ist eine reine Funktion über den Inhalt der Datei, damit sie
+sich ohne `/etc/shadow` prüfen lässt. Die Felder darin sind gemessen und nicht
+ausgedacht: `!` ist der Fall auf `cloudsrv24`, `!!` legt `useradd` an, `!*` ist
+das ausdrückliche „keines". **Ist die Datei nicht lesbar, wird nichts
+entsperrt** — `null` heisst „nicht nachgesehen", zum dritten Mal an diesem Tag.
+
+**Und `AccountUnlockTest` hält die Untergrenze fest**, die hier teurer wäre als
+die Regel selbst: Rutschte `--expiredate` in denselben Zweig wie `--unlock`,
+bliebe ein freigegebenes Abonnement abgelaufen — auf jedem Server, denn kein
+Systembenutzer hat ein Passwort. Aus einer stillen Warnung würde eine stille
+Sperre.
+
+### `docs/39` Punkt 7: die Prüfung, die dem Kunden gehört
+
+Der Ablauf liess die Tabelle als `postgres` anlegen und prüfte nach dem
+Zurückspielen die Zeilenzahl und den Eigentümer. **Beides beantwortet die Frage
+des Betreibers und nicht die des Kunden.**
+
+Der Weg beim Zurückspielen ist: `pg_dump --no-owner --no-privileges` wirft
+Eigentum und Rechte weg, die befristete Rolle legt alles neu an, und
+`REASSIGN OWNED BY … TO` überträgt es an den Eigentümer der Datenbank — an
+`root`. Hatte der Kunde die Tabelle vorher selbst angelegt, gehörte sie ihm;
+danach gehört sie `root`. **Ob er sie noch lesen kann, steht damit offen** — und
+`sudo -u postgres` sieht davon nichts, weil ein Superuser immer darf.
+
+Der Ablauf legt die Tabelle jetzt **als Kunde** an — so, wie es auf einem echten
+Server zugeht — und liest sie nach dem Zurückspielen **als Kunde** wieder. Das
+ist die Zeile, die entscheidet, ob eine wiederhergestellte Datenbank für ihren
+Besitzer benutzbar ist.
+
+> **Wer eine Wiederherstellung als Superuser prüft, prüft die Wiederherstellung
+> und nicht ihren Zweck.**
+
+### `docs/38` Entscheidung 11: eine Eigentümerrolle je Abonnement
+
+Zwei Fehler aus Punkt 7 der Zwischenabnahme, beide gegen einen echten Cluster
+gemessen, beide von demselben Unterschied zu MariaDB verursacht: Dort haben alle
+Zugänge eines Abonnements dieselben Rechte auf dasselbe Schema; **in PostgreSQL
+gehört eine Tabelle dem, der sie angelegt hat.**
+
+- Ein zweiter Zugang bekommt `permission denied for table` auf alles, was der
+  erste angelegt hat.
+- Nach einem Zurückspielen gehört alles `root`, und der Kunde steht vor seinen
+  eigenen Zeilen. Die Wiederherstellung meldete dabei „erledigt".
+
+Und ein dritter, davor: **Ein Zurückspielen in eine Datenbank, die noch Tabellen
+hat, scheitert überhaupt.** `pg_dump --format=plain` schreibt kein `DROP`;
+`mysqldump` schreibt `DROP TABLE IF EXISTS` von sich aus. **P5b hat diese
+stillschweigende Vorgabe geerbt, ohne dass jemand sie treffen musste** — dieselbe
+Bauform wie an fünf Stellen zuvor an diesem Tag, nur diesmal geerbt statt
+geschrieben.
+
+`--clean` allein trägt nicht: Die befristete Rolle darf nicht wegräumen, was ihr
+nicht gehört (`must be owner of table`, gemessen). **Das Leeren ist ein
+privilegierter Vorgang, das Einspielen nicht.**
+
+Die Entscheidung und ihre zwei verworfenen Alternativen stehen in `docs/38 §21`.
+Was der Entwurf nebenbei erledigt, ist die schönste Zeile der Messung: Ist die
+befristete Rolle Mitglied der Gruppe und läuft als sie, gehört ihr am Ende
+**nichts** — und das `REASSIGN OWNED BY … TO`, an dem in Schritt 6 die
+eingespielten Daten hingen, entfällt ersatzlos.
+
+> **Ein Entwurf, der eine Fallgrube überflüssig macht, ist besser als einer, der
+> sie umgeht.**
+
+Bestandsdatenbanken zieht das Zurückspielen nach — es leert das Schema ohnehin
+privilegiert, und die Rolle dort anzulegen kostet keine eigene Wanderung.
+
+### Eine Domain, die sich selbst gesperrt hielt
+
+Der Betreiber hat am 10. August ein Abonnement entsperrt, und die Domain darunter
+blieb „gesperrt" — dauerhaft, ohne Knopf, der sie zurückgeholt hätte.
+
+Der Weg dahin ist ein Kreis. `subscription.suspend` schreibt jeden Server-Block
+neu, der Agent antwortet `suspended: true`, und der Web-Lebenslauf setzt die
+Domain daraufhin auf `suspended`. Beim Entsperren baute derselbe Lebenslauf die
+Argumente neu — und las dabei **genau diesen Zustand** wieder mit:
+
+    'suspended' => $domain->status === DomainStatus::Suspended
+        || $subscription?->status->usable() === false,
+
+Das Abonnement war frei, die Domain nicht, also ging sie erneut gesperrt hinaus
+und kam gesperrt zurück. Jeder weitere Versuch bestätigte nur, was der erste
+hinterlassen hatte.
+
+> **Ein Zustand, der aus dem Ergebnis der eigenen Entscheidung abgeleitet wird,
+> hält sich selbst am Leben.**
+
+`DomainStatus::Suspended` ist die *Anzeige* dieser Entscheidung und nicht ihre
+Quelle — einen Weg, eine einzelne Domain zu sperren, gibt es nicht: keine Route,
+keinen Knopf. Gefragt wird jetzt nur noch das Abonnement. Dieselbe Richtung, die
+`DbLifecycle` für die Datenbankzugänge längst hat: Dort kommt `mode` aus der
+*Aufgabe* und nie aus der Zeile, die sie ändert — deshalb kamen die Zugänge
+zurück und die Website nicht.
+
+**Und der Wächter war da, er zeigte nur in eine Richtung.**
+`test_suspending_a_subscription_reapplies_its_sites` prüfte das Sperren, und das
+Sperren war nie kaputt. Der Rückweg lief in keinem Test. Zum zweiten Mal in
+dieser Woche derselbe Satz: *Ein Wächter deckt einen Weg ab, keine Wirkung.* Es
+gibt jetzt zwei — einen auf die Argumente einer gesperrten Domain unter einem
+freien Abonnement, einen auf den ganzen Weg von `subscription.resume` bis zum
+Folgevorgang.
+
+### Die Eigentümerrolle ist gebaut — und ein Kommentar war zwei Fassungen lang falsch
+
+`docs/38 §21` Entscheidung 11 steht jetzt im Agenten: `Pg\Owner`, eine Rolle je
+Abonnement (`<präfix>_owner`, `NOLOGIN`, ohne Passwort), der das Schema `public`
+gehört. Jeder Zugang ist Mitglied, und **jede seiner Sitzungen läuft als sie** —
+`ALTER ROLE … IN DATABASE … SET role`. Was ein Zugang anlegt, gehört damit dem
+Abonnement; `session_user` bleibt der Zugang selbst, wer verbunden war steht
+weiter im Protokoll von PostgreSQL.
+
+Sechs Stellen: `pg.database.create` (Rolle anlegen, Schema übergeben),
+`pg.role.create` (Mitgliedschaft), `pg.role.grant` (Sitzungsrolle je Datenbank,
+`RESET` beim Entzug), `Pg\Ephemeral` (Mitglied und Sitzungsrolle),
+`pg.restore` (Nachrüstung, privilegiertes Leeren) und `pg.database.remove` —
+**der Weg zurück**, den `docs/35` erzwingt: Die Rolle geht mit der letzten
+Datenbank ihres Abonnements, und ob es die letzte war, sagt der Katalog.
+
+Gemessen am 10. August 2026 gegen PostgreSQL 16.13, mit den Anweisungen, die der
+Code selbst erzeugt: `x_cron` liest, ändert und löscht, was `x_web` angelegt
+hat; ein Zurückspielen in eine Datenbank mit Tabellen gelingt (vorher
+`ERROR: relation "kunden" already exists`, Rückgabewert 3); die eingespielte
+Tabelle gehört `x…_owner`; die befristete Rolle besitzt danach **0** Objekte,
+und `DROP ROLE` geht ohne `REASSIGN OWNED BY`. Das `REASSIGN` ist deshalb weg —
+es übertrug das Eingespielte an den Eigentümer der *Datenbank*, und die gehört
+dem Panel.
+
+**Und der teuerste Fund dieser Runde ist ein Kommentar.** In `PgRoleGrant` stand
+seit zwei Fassungen `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON
+TABLES TO <rolle>` mit der Erklärung, das löse das Problem des zweiten Zugangs.
+Es hat es nie gelöst: Ohne `FOR ROLE` gilt die Anweisung nur für Objekte, die
+die **ausführende** Rolle anlegt — den Agenten. `PgGrantTest` hat sie geprüft und
+dabei die Begründung mitgeprüft.
+
+> **Ein Kommentar, der eine Wirkung behauptet, ist keine Messung — und ein
+> Wächter, der ihn abschreibt, macht ihn zur Regel.**
+
+Die zwei `GRANT`-Zeilen sind weg, die zwei `REVOKE` bleiben: Auf Servern einer
+früheren Fassung stehen die Einträge noch in `pg_default_acl`. *Wer etwas nicht
+mehr anlegt, baut den Weg zurück trotzdem.*
+
+**Der Gegenbruch hat zwei neue Wächter als blind entlarvt**, bevor sie eine
+Fassung erlebt haben. `PgOwnerTest` liest im Quelltext, ob das Leeren vor dem
+Einspielen steht — und fand `Owner::reset(` zuerst in einem `{@see …}` im
+Kommentar darüber. Der Test blieb grün, als die Reihenfolge absichtlich
+vertauscht wurde. Seitdem geht der Quelltext durch `WithoutPhpComments`:
+
+> **Ein Wächter, der im Quelltext liest, liest auch, was jemand über den
+> Quelltext geschrieben hat.** Und in diesem Projekt steht darüber viel.
+
+### Und die Freigabe eines Abonnements hat jetzt einen Wächter für alle drei
+
+`SubscriptionResumeReachTest`. Ein Abonnement hat drei Sorten Untergebene —
+Websites, MariaDB-Zugänge, PostgreSQL-Rollen —, und geprüft war bisher von
+keinem, dass die *Freigabe* sie erreicht: `EngineScopeTest` sieht nach, ob die
+Lebensläufe die Aufgabe kennen (`handles()`), nicht ob danach ein Vorgang mit
+`mode: unlock` entsteht. Genau in dieser Lücke sass der Domainfehler darüber.
+Beide Richtungen stehen jetzt in einem Test, und in einem: Drei getrennte
+liessen offen, ob *zusammen* alles herauskommt — und genau das war der Fall, der
+schiefging.
+
+### Lauf 491: fünf rote Tests, vier Ursachen — und zwei davon lagen schon da
+
+**Zwei stammen aus `v0.5.1-rc.4` und sind mit ihm ausgeliefert worden.**
+`SubscriptionStateTest` verlangte `--unlock` in den Argumenten der Freigabe und
+zählte, dass Sperren und Entsperren sich in genau drei Methoden unterscheiden.
+Beides hat die Behebung der Dauerwarnung aus Vorgang 492 umgeworfen: `--unlock`
+hängt seitdem daran, ob es ein Passwort zu entsperren gibt, und `unlocks()` ist
+eine vierte eigene Methode. Der Zweig hat danach keinen vollen Lauf mehr
+gesehen — deshalb fiel es erst jetzt auf.
+
+Die Zusicherung ist nicht weggefallen, sondern umgezogen: Was `SubscriptionStateTest`
+prüft, ist die Schranke, die SSH und SFTP wirklich lesen (`--expiredate`, ohne
+Bedingung); ob ein `--unlock` dazugehört, prüft `AccountUnlockTest` in beide
+Richtungen. Und `unlocks()` steht im Methodenvergleich jetzt **namentlich** statt
+als aufgeweichte Grenze — eine fünfte beisst weiter.
+
+**Der dritte ist der Preis der Ehrlichkeit von oben.** Der Bruch zu
+`ALTER DEFAULT PRIVILEGES … GRANT` suchte eine Zeile, die es nicht mehr gibt;
+`BreakScriptTest` hat ihn gemeldet, wie er soll. Er zeigt jetzt auf die Ebene,
+die wirklich trägt: `GRANT ALL ON ALL SEQUENCES` — ohne sie bekommt ein Zugang
+`permission denied for sequence` beim ersten `INSERT` in eine Tabelle mit
+`serial`.
+
+**Der vierte war ein Aufbaufehler im neuen Test**, und er hat etwas Richtiges
+gezeigt: `SubscriptionResumeReachTest` legte ein Abonnement ohne Zeile in
+`system_users` an, und der PostgreSQL-Lebenslauf brach mit „Zum Systembenutzer
+p1077 gibt es kein Datenbankpräfix" ab. Auf einem echten Server entsteht sie in
+`Lifecycle::claim()`; die Fabrik kennt sie nicht, weil sie zum **Server** gehört
+und nicht zum Abonnement (`docs/35`). Der Test baut sie jetzt selbst — das ist
+der Aufbau, den er meint: ein Abonnement, das PostgreSQL benutzen kann.
+
+### Und `BreakScriptTest` hat einen Teil seines Gegenstands nie gelesen
+
+Beim Nachrechnen von Hand fiel ein **zweiter** toter Eingriff auf, den der Lauf
+nicht gemeldet hatte: Der Bruch zu `CertificateLifecycle` suchte
+`$domain->certificate_id !== null || ! $this->settings->configured()` — eine
+Bedingung, die der zweite Wurf von P4 durch `choice->satisfied()` ersetzt hat.
+Der Grund für die Stille ist banal und teuer: Der Ausdruck las nur Blöcke mit der
+Heredoc-Marke `PY2`, und **neunzehn Blöcke im Skript tragen `PY`**.
+
+> **Ein Wächter, der einen Teil seines Gegenstands nicht liest, meldet für den
+> Rest „alles in Ordnung".**
+
+Beide Marken werden jetzt gelesen, mit einer Rückreferenz statt einer zweiten
+Alternative — sonst endete ein `PY2`-Block an der ersten Zeile `PY` darin. Der
+Bestand wächst damit von 225 auf 244 Blöcke und von 246 auf 247 geprüfte
+Eingriffe; tot ist keiner mehr.

@@ -79,28 +79,6 @@ final class DatabaseController extends Controller
         return Inertia::render('Databases/Index', [
             'databases' => Page::from($databases, fn (Database $database): array => $this->row($database)),
             'creatable' => $this->creatable($request->user()),
-
-            /*
-             * **Ob die Spalte „System" gezeigt wird — und sie fehlte hier
-             * schlicht.** Die Vorlage liest `props.shows_engine` seit Schritt 7,
-             * und dieser Aufruf hat die Angabe nie mitgeschickt: In JavaScript
-             * ist `undefined` falsch, also blieb die Spalte **immer** aus. Auf
-             * `cloudsrv24` stand am 10. August 2026 eine PostgreSQL-Datenbank in
-             * der Liste, ohne dass irgendwo stand, dass sie eine ist.
-             *
-             * **Der Musterfehler dieses Projekts** (`CLAUDE.md`): eine
-             * Zeichenkette, die auf etwas verweist, ohne dass ein Typ, ein Test
-             * oder ein Werkzeug den Bezug prüft. `vue-tsc` sieht die Vorlage,
-             * PHPStan sieht das Feld — die Brücke dazwischen sah niemand.
-             * Gefunden hat es eine Aufnahme, gefunden hätte es kein Test.
-             * Seitdem gibt es {@see \Tests\Feature\InertiaPropsTest}.
-             *
-             * Gefragt wird der Bestand und nicht der Kontotyp: Wer nur MariaDB
-             * hat, soll keine Spalte sehen, die für ihn immer dasselbe sagt.
-             */
-            'shows_engine' => Database::query()
-                ->where('engine', '!=', DatabaseEngine::MariaDb)
-                ->exists(),
         ]);
     }
 

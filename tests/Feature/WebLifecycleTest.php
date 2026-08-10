@@ -248,6 +248,38 @@ final class WebLifecycleTest extends TestCase
         $this->assertTrue(app(WebLifecycle::class)->payload($domain)['suspended']);
     }
 
+    /**
+     * Und die Gegenrichtung, ohne die die erste eine Falle war.
+     *
+     * **Der Fehler, den es hier gab, hielt sich selbst am Leben.** In den
+     * Argumenten stand `$domain->status === DomainStatus::Suspended` neben der
+     * Frage nach dem Abonnement — und dieser Zustand ist das *Ergebnis* des
+     * letzten Laufs mit genau diesen Argumenten ({@see WebLifecycle} und
+     * `appliedStatus()`). Eine einmal gesperrte Domain ging damit auch dann
+     * gesperrt hinaus, wenn ihr Abonnement längst wieder frei war, und kam
+     * gesperrt zurück. Gemeldet vom Betreiber am 10. August 2026.
+     *
+     * Der Wächter darüber deckte den Weg ab und nicht die Wirkung: Er prüft
+     * das Sperren, und das Sperren war nie kaputt.
+     */
+    public function test_a_suspended_site_of_an_active_subscription_comes_back(): void
+    {
+        $domain = $this->tenancy()->withoutRestriction(function (): Domain {
+            $subscription = Subscription::factory()->create([
+                'name' => 'beispiel.de',
+                'system_user' => 'p1001',
+            ]);
+
+            return Domain::factory()->for($subscription)->create(['status' => DomainStatus::Suspended]);
+        });
+
+        $this->assertFalse(
+            app(WebLifecycle::class)->payload($domain)['suspended'],
+            'Eine Domain, deren Abonnement frei ist, darf nicht aus ihrem eigenen Zustand '
+            .'heraus gesperrt bleiben — sonst kommt sie nie zurück.',
+        );
+    }
+
     /** Nach einer Installation weiß das Panel, was auf dem Server liegt. */
     public function test_the_installed_versions_are_remembered(): void
     {
@@ -298,6 +330,54 @@ final class WebLifecycleTest extends TestCase
 
         $this->assertSame((int) $domain->id, $follow->subject_id);
         $this->assertTrue($follow->payload['suspended'] ?? null, 'Der Server-Block muss sperren.');
+    }
+
+    /**
+     * Und das Entsperren holt sie zurück — der ganze Weg, nicht nur die
+     * Argumente.
+     *
+     * **Dieser Test hat gefehlt, und genau in der Lücke sass der Fehler.** Es
+     * gab einen Wächter für das Sperren und keinen für das Entsperren; der
+     * Rückweg lief nie durch. Auf `cloudsrv24` blieb die Domain danach für
+     * immer gesperrt, und im Panel stand darüber ein aktives Abonnement.
+     *
+     * Aufgesetzt wird deshalb der Zustand, den ein Sperren hinterlässt:
+     * Abonnement gesperrt, Domain gesperrt. Was der Lebenslauf des Abonnements
+     * daraus macht, liest der Web-Lebenslauf frisch — die Reihenfolge dafür
+     * prüft {@see self::test_the_subscription_lifecycle_runs_first()}.
+     */
+    public function test_resuming_a_subscription_frees_its_sites(): void
+    {
+        $domain = $this->tenancy()->withoutRestriction(function (): Domain {
+            $subscription = Subscription::factory()->suspended()->create([
+                'name' => 'zurueck.de',
+                'system_user' => 'p1042',
+            ]);
+
+            return Domain::factory()->for($subscription)->create(['status' => DomainStatus::Suspended]);
+        });
+
+        $operation = $this->tenancy()->withoutRestriction(fn (): Operation => Operation::query()->create([
+            'subscription_id' => $domain->subscription_id,
+            'account_id' => null,
+            'type' => 'subscription.resume',
+            'task' => 'subscription.resume',
+            'status' => OperationStatus::Succeeded,
+            'progress' => 100,
+        ]));
+
+        $this->tenancy()->reset();
+        app(Lifecycles::class)->afterSuccess($operation);
+        $this->tenancy()->allowAll();
+
+        $follow = Operation::query()->where('task', 'web.site.apply')->latest('id')->firstOrFail();
+
+        $this->assertSame((int) $domain->id, $follow->subject_id);
+        $this->assertFalse(
+            $follow->payload['suspended'] ?? null,
+            'Der Server-Block muss wieder ausliefern — sonst bleibt die Domain gesperrt, '
+            .'obwohl das Abonnement frei ist.',
+        );
     }
 
     /**

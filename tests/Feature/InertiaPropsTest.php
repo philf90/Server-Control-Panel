@@ -21,6 +21,10 @@ use SplFileInfo;
  * PostgreSQL-Datenbank in der Liste, ohne dass irgendwo stand, dass sie eine
  * ist (`docs/39`, Punkt 4).
  *
+ * **Die Spalte steht seit `rc.4` immer da** — der Betreiber wollte keine
+ * Tabelle, deren Spalten vom Inhalt abhängen —, und `shows_engine` gibt es
+ * nicht mehr. Der Wächter bleibt: Er hat die Lücke gefunden, nicht die Spalte.
+ *
  * **Es ist der Musterfehler dieses Projekts, an einer neuen Stelle:** *eine
  * Zeichenkette, die auf etwas verweist, ohne dass ein Typ, ein Test oder ein
  * Werkzeug den Bezug prüft.* Und diesmal liegt er genau zwischen den Werkzeugen:

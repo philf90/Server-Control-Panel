@@ -9,6 +9,7 @@ use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Guard;
 use SrvPanel\Agent\Op;
 use SrvPanel\Agent\Pg\Names;
+use SrvPanel\Agent\Pg\Owner;
 use SrvPanel\Agent\Pg\Server;
 use SrvPanel\Agent\Pg\Session;
 use SrvPanel\Agent\Pg\Shielding;
@@ -34,6 +35,16 @@ use SrvPanel\Agent\Pg\Sql;
  * `GRANT CONNECT … TO PUBLIC` und macht damit die Absperrung rückgängig, und er
  * darf seine Datenbank löschen. **Ein Abnahmekriterium, das der Geprüfte mit
  * einer Zeile SQL abschalten kann, ist keins.**
+ *
+ * ## Das Schema `public` darin gehört dem Abonnement
+ *
+ * Und das ist kein Widerspruch dazu, sondern die Antwort auf die Frage, die P5
+ * nie stellen musste: *Wem gehört, was in dieser Datenbank entsteht?* In
+ * PostgreSQL gehört eine Tabelle dem, der sie angelegt hat — ein zweiter Zugang
+ * desselben Abonnements bekäme `permission denied`. Die Eigentümerrolle aus
+ * {@see Owner} nimmt diese Frage aus den Zugängen heraus. Sie kann nichts
+ * freigeben, was die Absperrung berührte: `GRANT CONNECT` steht an der
+ * Datenbank, und die gehört weiter dem Panel.
  *
  * ## `TEMPLATE template0`, immer
  *
@@ -78,6 +89,7 @@ final class PgDatabaseCreate implements Op
     public function __construct(
         private readonly Session $session = new Session,
         private readonly Server $server = new Server,
+        private readonly Owner $owner = new Owner,
     ) {}
 
     public static function name(): string
@@ -141,8 +153,25 @@ final class PgDatabaseCreate implements Op
             );
         }
 
-        $context->progress(80, 'absperren');
+        $context->progress(75, 'absperren');
         $this->session->execute($context, Shielding::statements($database, $channels), $database);
+
+        /*
+         * **Das Schema gehört dem Abonnement und nicht dem Panel** — anders als
+         * die Datenbank darüber, und das ist kein Widerspruch, sondern die
+         * Grenze aus {@see Owner}: Wer eine Datenbank besitzt, kann
+         * `GRANT CONNECT … TO PUBLIC` und hebt damit die Absperrung auf; wer
+         * ihr Schema besitzt, kann das nicht.
+         *
+         * **Läuft nach der Absperrung.** `Shielding::statements()` enthält
+         * `REVOKE ALL ON SCHEMA public FROM PUBLIC`, und {@see Owner} setzt es
+         * gleich noch einmal — die Reihenfolge ist deshalb gleichgültig, aber
+         * eine Absperrung, die auf ein Schema mit fremdem Eigentümer trifft,
+         * wäre die Sorte Abhängigkeit, die niemand liest.
+         */
+        $context->progress(90, 'Eigentümerrolle');
+        $owner = $this->owner->ensure($context, $prefix);
+        $this->session->execute($context, Owner::schemaStatements($owner), $database);
 
         $context->progress(100, 'fertig');
 
@@ -152,6 +181,7 @@ final class PgDatabaseCreate implements Op
             'encoding' => $encoding,
             'locale' => $locale,
             'shielded' => count($channels),
+            'owner' => $owner,
         ];
     }
 

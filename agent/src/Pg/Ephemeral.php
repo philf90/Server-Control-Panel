@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Pg;
 
-use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Db\Ephemeral as DbEphemeral;
 use Throwable;
@@ -27,19 +26,23 @@ use Throwable;
  *
  * ## Drei Unterschiede zu P5, jeder gemessen
  *
- * **1. Sie braucht `GRANT ALL ON SCHEMA public`.** Seit PostgreSQL 15 darf
- * `PUBLIC` in `public` nicht mehr schreiben; ohne diese Zeile scheitert das
- * Zurückspielen an der ersten `CREATE TABLE` mit `permission denied for schema
- * public` — und zwar erst dort, also nach dem halben Vorspann des Dumps. In
- * MariaDB gab es dazu kein Gegenstück, weil ein Schema dort die Datenbank
- * *ist*.
+ * **1. Sie arbeitet als die Eigentümerrolle des Abonnements** ({@see Owner}).
+ * Zwei Fliegen: Seit PostgreSQL 15 darf `PUBLIC` in `public` nicht mehr
+ * schreiben — als Eigentümer des Schemas braucht sie dafür keine eigene
+ * Freigabe —, und was sie einspielt, gehört hinterher dem Kunden statt ihr.
+ * Hier stand ein `GRANT ALL ON SCHEMA public TO <befristete Rolle>`; es hat das
+ * erste gelöst und das zweite verdeckt (`docs/39` Punkt 7). In MariaDB gab es
+ * zu beidem kein Gegenstück, weil ein Schema dort die Datenbank *ist* und
+ * niemandem gehört.
  *
  * **2. Sie ist Mitglied in {@see Hba::GROUP}**, sonst kommt sie über den Socket
  * gar nicht herein. Der Grund steht dort.
  *
- * **3. `SET` statt eines zweiten `GRANT`.** `CREATE ROLE … IN ROLE` macht sie
- * zum Mitglied; `INHERIT` steht dabei nicht, weil sie aus der Gruppe nichts
- * erben soll — die Gruppe hat nichts. Was sie darf, bekommt sie einzeln.
+ * **3. Mitgliedschaft allein genügt nicht — es braucht `SET role`.** Ein
+ * Mitglied *darf*, was der Gruppe gehört; was es selbst anlegt, gehört aber
+ * weiter ihm. Für ein Zurückspielen ist genau das die falsche Hälfte: Die Rolle
+ * legt die ganze Datenbank an, und beim Aufräumen ginge sie mit. Erst
+ * {@see Owner::sessionRole()} macht die Gruppe zum Eigentümer des Neuen.
  *
  * **`finally` und nicht am Ende des Erfolgspfads**, wie in P5. Und weil auch
  * ein `finally` einen Stromausfall nicht überlebt, erkennt
@@ -61,32 +64,33 @@ final class Ephemeral
     {
         $role = Names::ephemeral($prefix);
         $password = self::password();
+        $owner = Names::owner($prefix);
 
+        /*
+         * **Zwei Mitgliedschaften, und beide sind nötig.** {@see Hba::GROUP}
+         * bringt sie über den Socket herein; die Eigentümerrolle des
+         * Abonnements macht sie zu jemandem, der in dieser Datenbank arbeiten
+         * darf — und, mit der Zeile darunter, dafür sorgt, dass das
+         * Eingespielte hinterher dem **Kunden** gehört und nicht ihr.
+         *
+         * Dass es die Eigentümerrolle gibt, stellt
+         * {@see \SrvPanel\Agent\Ops\PgRestore} vor diesem Aufruf sicher.
+         */
         $this->session->execute($context, [
             sprintf(
-                'CREATE ROLE %s LOGIN PASSWORD %s IN ROLE %s',
+                'CREATE ROLE %s LOGIN PASSWORD %s IN ROLE %s, %s',
                 Sql::identifier($role),
                 Sql::text($password),
                 Sql::identifier(Hba::GROUP),
+                Sql::identifier($owner),
             ),
             sprintf(
                 'GRANT CONNECT ON DATABASE %s TO %s',
                 Sql::identifier($database),
                 Sql::identifier($role),
             ),
+            Owner::sessionRole($owner, $role, $database, true),
         ]);
-
-        /*
-         * **Das Schema wird in der Zieldatenbank vergeben und nicht in
-         * `postgres`.** `GRANT … ON DATABASE` ist eine clusterweite Angabe;
-         * `GRANT … ON SCHEMA public` gilt für das Schema *der Datenbank, in der
-         * die Anweisung läuft*. Dieselbe Trennung wie in
-         * {@see \SrvPanel\Agent\Ops\PgRoleGrant}, und derselbe Fehler wäre hier
-         * teurer: Er fiele erst mitten im Zurückspielen auf.
-         */
-        $this->session->execute($context, [
-            sprintf('GRANT ALL ON SCHEMA public TO %s', Sql::identifier($role)),
-        ], $database);
 
         try {
             return $work(new Credentials($role, $password));
@@ -97,33 +101,38 @@ final class Ephemeral
              * die des Laufs, und dann stünde im Vorgang „Rolle liess sich nicht
              * entfernen" statt „der Dump hat an Zeile 40312 abgebrochen".
              *
-             * ## Warum hier zwei Anweisungen stehen und nicht eine
+             * ## Hier stand ein `REASSIGN OWNED BY`, und der Entwurf hat es
+             * überflüssig gemacht
              *
              * Ein `DROP ROLE` scheitert, solange der Rolle etwas gehört oder
              * jemand ihr ein Recht gegeben hat. Der naheliegende Weg ist
              * `DROP OWNED BY` — und **er wirft weg, was gerade eingespielt
              * wurde.** Gemessen am 9. August 2026: Der Lauf meldete Erfolg, und
-             * danach gab es die Tabelle nicht. Was eine Rolle anlegt, gehört
-             * ihr, und beim Zurückspielen legt sie die ganze Datenbank an.
+             * danach gab es die Tabelle nicht.
              *
-             * Der Fund hat kein Gegenstück in P5: MariaDB kennt kein Eigentum
-             * an einer Tabelle, also gab es dort nichts zu übertragen, und
-             * `docs/38 §13.4` hat die Frage deshalb nicht gestellt.
+             * Die Antwort war ein `REASSIGN OWNED BY … TO` an den Eigentümer
+             * der *Datenbank* — und genau daran hing der Fehler aus `docs/39`
+             * Punkt 7: Die Datenbank gehört dem Panel, also gehörte danach alles
+             * `root`, und der Kunde stand vor seinen eigenen Zeilen.
              *
-             * `REASSIGN OWNED BY … TO` überträgt das Eigentum deshalb zuerst,
-             * und zwar an den **Eigentümer der Datenbank** — dieselbe Rolle,
-             * der sie ohnehin gehört. Damit steht die Datenbank hinterher so
-             * da, als hätte der Agent selbst eingespielt. Das `DROP OWNED BY`
-             * danach räumt dann nur noch die Rechte weg, die diesem Lauf
-             * gegeben wurden.
+             * Seit die Rolle **als** die Eigentümerrolle des Abonnements
+             * arbeitet, entsteht das Problem nicht mehr. Gemessen am 10. August
+             * 2026 nach einem vollständigen Zurückspielen:
+             *
+             *     Tabellen im Besitz der befristeten Rolle → 0
+             *     Eigentümer der eingespielten Tabelle     → x…_owner
+             *     DROP ROLE ohne REASSIGN                  → geht
+             *
+             * > **Ein Entwurf, der eine Fallgrube überflüssig macht, ist besser
+             * > als einer, der sie umgeht.**
+             *
+             * `DROP OWNED BY` bleibt und räumt nur noch die Rechte weg, die
+             * diesem Lauf gegeben wurden — ohne es verweigert `DROP ROLE` wegen
+             * des `GRANT CONNECT`. Was es wegwerfen könnte, besitzt die Rolle
+             * nicht mehr.
              */
             try {
                 $this->session->execute($context, [
-                    sprintf(
-                        'REASSIGN OWNED BY %s TO %s',
-                        Sql::identifier($role),
-                        Sql::identifier($this->owner($context, $database)),
-                    ),
                     sprintf('DROP OWNED BY %s', Sql::identifier($role)),
                 ], $database);
             } catch (Throwable $error) {
@@ -178,35 +187,6 @@ final class Ephemeral
         $this->session->execute($context, [
             sprintf('CREATE ROLE %s NOLOGIN', Sql::identifier(Hba::GROUP)),
         ]);
-    }
-
-    /**
-     * Wem die Datenbank gehört — gefragt und nicht angenommen.
-     *
-     * `PgDatabaseCreate` legt sie ohne `OWNER`-Zusatz an, Eigentümer wird also
-     * die Rolle, unter der der Agent verbunden ist. Das ist heute `root` und
-     * wäre als Konstante hier eine Behauptung über die Einrichtung des Servers
-     * — genau die Sorte, die dieses Projekt in P5b schon dreimal als
-     * Stellvertreter erwischt hat. Eine Datenbank, die von einem Umzug stammt,
-     * kann jemand anderem gehören.
-     */
-    private function owner(Context $context, string $database): string
-    {
-        $rows = $this->session->query($context, sprintf(
-            'SELECT pg_catalog.pg_get_userbyid(datdba) FROM pg_database WHERE datname = %s',
-            Sql::text($database),
-        ));
-
-        $owner = $rows[0][0] ?? '';
-
-        if ($owner === '') {
-            throw AgentException::execFailed(
-                'Der Eigentümer der Datenbank liess sich nicht feststellen.',
-                ['database' => $database],
-            );
-        }
-
-        return $owner;
     }
 
     /**

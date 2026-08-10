@@ -184,18 +184,66 @@ Zugang anlegen. **Das Passwort erscheint genau einmal.**
 
 ```bash
 sudo -u postgres psql -tAc \
-  "SELECT rolname, rolcanlogin FROM pg_roles WHERE rolname LIKE '<präfix>%'"
+  "SELECT rolname, rolcanlogin, rolsuper, rolcreatedb FROM pg_roles WHERE rolname LIKE '<präfix>%'"
 ```
 
-Dann auf der Abonnement-Seite das Kontingent ansehen: **Die Zahl zählt beide
-Systeme zusammen**, und der Hinweistext darunter nennt keines der beiden
-namentlich.
+**Erwartet:** eine Zeile, `rolcanlogin = t`, und **`rolsuper` und `rolcreatedb`
+beide `f`** — die Rolle kann nichts, was sie nicht soll.
+
+Und die Probe, dass der Zugang trägt und die Sortierung dort ankommt, wo der
+Kunde sie sieht:
+
+```bash
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "SELECT current_user, datcollate FROM pg_database WHERE datname = current_database()"
+```
+
+> **`current_setting('lc_collate')` steht hier nicht, und zwar nicht aus
+> Geschmack.** PostgreSQL 15 hat `lc_collate` und `lc_ctype` als
+> Laufzeitparameter **entfernt**; sie sind seitdem nur noch Eigenschaften einer
+> Datenbank. Der Aufruf antwortet mit
+> `ERROR: unrecognized configuration parameter` — am 10. August 2026 genau so
+> gemessen, weil dieser Ablauf ihn zuerst nannte. Gefragt wird der Katalog.
+>
+> Dass die Zeile überhaupt kommt, ist dabei schon die halbe Antwort: Ein
+> Serverfehler heisst, dass die Anmeldung **stand**.
+
+Dann das Kontingent ansehen — **auf der Seite „Datenbank anlegen" und nicht auf
+der Abonnement-Seite.** Dort oben steht *„Datenbanken: 2 von unbegrenzt.
+Datenbankbenutzer zählen nicht getrennt."*: **Die Zahl zählt beide Systeme
+zusammen**, und der Satz nennt keines der beiden namentlich.
+
+> **Die Abonnement-Seite zeigt keinen Verbrauch, und das ist Absicht.** Ihr
+> Abschnitt „Kontingente" listet, was der Plan erlaubt — er ist eine Auskunft
+> über den *Vertrag*, nicht über den *Bestand*. Der Verbrauch steht dort, wo er
+> eine Entscheidung beeinflusst: vor dem Anlegen.
+>
+> Diese Anleitung schickte am 10. August 2026 auf die falsche Seite, und der
+> Betreiber hat gemeldet, dass dort nur „unbegrenzt" steht. Er hatte recht.
 
 ---
 
 ## 9. Punkt 6 — Die Sperre erreicht die Rolle
 
-Abonnement sperren.
+**Der Knopf „Sperren" oben rechts auf der Abonnement-Seite** — und nicht
+„Zugriff entziehen" auf der Detailseite einer Datenbank.
+
+> **Die beiden sehen von aussen ähnlich aus und tun Verschiedenes.** „Zugriff
+> entziehen" nimmt einer Rolle das CONNECT auf *eine* Datenbank
+> (`pg.role.grant`), unmittelbar und ohne Vorgang. „Sperren" nimmt allen Rollen
+> des Abonnements die Anmeldung (`pg.role.lock` → `ALTER ROLE … NOLOGIN`) und
+> läuft über die Warteschlange.
+>
+> Am 10. August 2026 hat diese Anleitung nur „Abonnement sperren" gesagt, der
+> Betreiber hat den anderen Knopf gedrückt, und das Ergebnis sah eine halbe
+> Stunde lang nach einem schweren Fehler aus: CONNECT weg, `rolcanlogin`
+> unverändert, kein Vorgang in der Liste. Es war alles richtig — nur nicht das,
+> was hier gemeint war.
+>
+> **Aufgeklärt hat es das Protokoll und nicht die Vorgangsliste.** Vorgänge
+> zeigen, was in der Warteschlange lief; das Protokoll zeigt, was *jemand getan
+> hat*. Wenn eine Messung nicht zum Code passt, ist die zweite Frage die
+> richtige.
 
 ```bash
 sudo -u postgres psql -tAc \
@@ -204,6 +252,22 @@ sudo -u postgres psql -tAc \
 
 **Erwartet:** `rolcanlogin` ist `f` für die Kundenrolle, und im Panel steht der
 Zugang als gesperrt.
+
+**Und dasselbe für MariaDB**, denn die Sperre läuft über zwei Lebensläufe — einen
+je System —, die beide auf dasselbe Ereignis hören. Dass keiner die Zugänge des
+anderen anfasst, sichert `EngineScopeTest`; auf einem Server mit beidem ist es
+hier zum ersten Mal wirklich gefahren.
+
+```bash
+sudo mariadb -e "SELECT User, Host, JSON_VALUE(Priv, '\$.account_locked') AS gesperrt \
+                 FROM mysql.global_priv WHERE User LIKE '<systembenutzer>%'"
+```
+
+> **`mysql.user` hat keine Spalte `account_locked`.** Seit MariaDB 10.4 ist
+> `mysql.user` nur noch eine Sicht auf `mysql.global_priv`, und die Sperre steht
+> dort im JSON-Feld `Priv`. Ein `SELECT account_locked FROM mysql.user` endet mit
+> `ERROR 1054 Unknown column` — am 10. August 2026 genau so gemessen, weil diese
+> Anleitung es zuerst falsch nannte.
 
 **Und die Probe, die zählt** — mit dem Passwort aus Punkt 5:
 
@@ -222,12 +286,22 @@ Lauf nur, dass irgendetwas nicht ging.
 Der Kern dieses Laufs. Hier passiert am meisten zum ersten Mal auf einem echten
 System.
 
-Erst Inhalt anlegen:
+Erst Inhalt anlegen — **als Kunde und nicht als `postgres`.** Wer die Tabelle
+als Superuser anlegt, misst hinterher einen Fall, den es auf keinem echten
+Server gibt: Dort legt der Kunde seine Tabellen selbst an, und ihm gehören sie
+auch.
 
 ```bash
-sudo -u postgres psql -d <db> -c "CREATE TABLE kunden (id int primary key, name text)"
-sudo -u postgres psql -d <db> -c "INSERT INTO kunden VALUES (1,'a'),(2,'b')"
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "CREATE TABLE kunden (id int primary key, name text)"
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "INSERT INTO kunden VALUES (1,'a'),(2,'b')"
+sudo -u postgres psql -d <db> -tAc "SELECT tableowner FROM pg_tables WHERE tablename='kunden'"
 ```
+
+**Erwartet:** Das Anlegen geht durch (`GRANT ALL ON SCHEMA public` steht seit
+PostgreSQL 15 nicht mehr für alle), und der Eigentümer ist die **Kundenrolle**.
+Notier ihn — nach dem Zurückspielen steht dort ein anderer.
 
 ### 7a — Sicherung erstellen (im Panel)
 
@@ -273,6 +347,28 @@ sudo -u postgres psql -d <db> -tAc "SELECT tableowner FROM pg_tables WHERE table
 
 **Erwartet:** `2` — und der Eigentümer ist **`root`**, nicht die befristete
 Rolle.
+
+**Und dann die Frage, auf die es dem Kunden ankommt:**
+
+```bash
+PGPASSWORD='<passwort>' psql -h 127.0.0.1 -U <rolle> -d <db> \
+  -c "SELECT count(*) FROM kunden"
+```
+
+> **Diese Zeile stand bis zum 10. August 2026 nicht in diesem Ablauf, und sie
+> ist die wichtigste von Punkt 7.** Der Weg beim Zurückspielen ist:
+> `pg_dump --no-owner --no-privileges` wirft Eigentum und Rechte weg, die
+> befristete Rolle legt alles neu an, und `REASSIGN OWNED BY … TO` überträgt es
+> an den **Eigentümer der Datenbank** — an `root`.
+>
+> Was dabei **nicht** mitkommt, sind die Rechte des Kunden. Hatte er die Tabelle
+> vorher selbst angelegt, gehörte sie ihm; danach gehört sie `root`. Ob er sie
+> noch lesen kann, entscheidet sich an den Vorgaberechten des Schemas — und das
+> ist keine Frage, die man aus dem Code beantwortet, sondern eine, die man
+> misst.
+>
+> **Wer nur die Zeilen zählt, sieht davon nichts:** `sudo -u postgres` ist
+> Superuser und darf immer.
 
 > **Die zweite Zeile ist die wichtigere.** Was eine Rolle anlegt, gehört ihr;
 > das `DROP OWNED BY` beim Aufräumen nahm deshalb im ersten Anlauf genau die

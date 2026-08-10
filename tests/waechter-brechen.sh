@@ -5846,6 +5846,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" BreakScriptTest passed
 
 echo
+echo "── AgentAnswerReachTest: die Speichergrenze meldet ihr Scheitern an niemanden ──"
+#
+# `DiskQuota::apply()` bricht bei einem gescheiterten `setquota` ausdruecklich
+# nicht ab und gibt `enforced: false` mit Grund zurueck. Liest das niemand, steht
+# im Panel eine Grenze, die nichts begrenzt — genau so am 10. August 2026 auf
+# cloudsrv24: „fertig, 100 %" und daneben „Cannot find mountpoint for device".
+vorher_datei app/Support/Subscriptions/Lifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Subscriptions/Lifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$quota['enforced']", "$quota['limit_mb']")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Subscriptions/Lifecycle.php "Quota-Antwort ungelesen" &&
+pruefe "Quota-Antwort ungelesen" \
+  AgentAnswerReachTest::test_every_answer_about_a_failure_is_read failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" AgentAnswerReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

@@ -238,6 +238,21 @@ final class SubscriptionController extends Controller
                 'limit_mb' => is_numeric($limit = $subscription->quota(Quota::DiskMb->value)) ? (int) $limit : null,
                 'percent' => $subscription->diskUsagePercent(),
                 'measured_at' => $subscription->disk_usage_measured_at?->toDateTimeString(),
+
+                /*
+                 * **Ob die Grenze überhaupt gilt** — drei Werte, und `null`
+                 * heisst „nicht nachgesehen". Ein Abonnement aus der Zeit vor
+                 * dieser Spalte hat keine Auskunft, und dann schweigt die Seite
+                 * statt Entwarnung zu geben.
+                 *
+                 * Auf `cloudsrv24` stand hier bis zum 10. August 2026 eine
+                 * Grenze von 15360 MB, die nichts begrenzte: `setquota` war
+                 * gescheitert, der Agent hatte es gemeldet, und niemand las es.
+                 */
+                'enforced' => is_bool($subscription->disk_quota_enforced)
+                    ? $subscription->disk_quota_enforced
+                    : null,
+                'note' => $subscription->disk_quota_note,
             ],
 
             /*

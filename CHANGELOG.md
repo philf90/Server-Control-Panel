@@ -8493,3 +8493,48 @@ nicht vor jeden Pull Request.
 
 Der Wächter dazu steht in `BreakScriptTest` und sucht den **Aufruf**, nicht den
 Dateinamen: Ein Kommentar, der das Skript erwähnt, ist keine Ausführung.
+
+### Eine Speichergrenze, die nichts begrenzte
+
+Der Betreiber hat am 10. August zwei Abonnements angelegt. Beide Vorgänge
+meldeten „fertig, 100 %", und in ihrer Ausgabe stand:
+
+    setquota: Cannot find mountpoint for device
+    setquota: No correct mountpoint specified.
+
+**Die Ursache liegt nicht im Code.** Gemessen: `/var/www/vhosts` liegt auf `/`
+(`/dev/vda3`, ext4), und die Mount-Optionen sind `rw,relatime` — **ohne
+`usrquota`**. Die Quota ist auf diesem Server nicht eingeschaltet, und das darf
+der Betreiber so wollen. `Mounts::deviceFor()` hat richtig gearbeitet.
+
+**Der Fehler ist das Verschweigen.** `DiskQuota::apply()` gibt seit jeher
+`['enforced' => false, 'reason' => …]` zurück und bricht ausdrücklich nicht ab —
+ein Abonnement soll nicht scheitern, weil ein Dateisystem keine Quota kann. Nur
+hat diese Antwort in `app/` **niemand gelesen**. Im Panel stand „15360 MB" und
+meinte es nicht; die Wahrheit stand als rohes `stderr` neben einer grünen
+Fortschrittsleiste.
+
+Die Auskunft steht jetzt in zwei Spalten am Abonnement — dreiwertig, `null`
+heisst „nicht nachgesehen" —, und die Seite sagt es **über** den Zahlen: Wer eine
+Grenze liest, hat sie geglaubt, bevor er weiterliest. Der Grund kommt wörtlich
+vom System; ein „konnte nicht gesetzt werden" hülfe beim Beheben nicht.
+
+### Und der Wächter darüber, weil es das dritte Mal war
+
+`handed_over`, `stale_roles`, `quota.enforced` — dreimal an einem Tag dieselbe
+Bauform: **Der Agent meldet einen Fehlschlag innerhalb eines erfolgreichen
+Vorgangs, und die Meldung kommt nirgends an.** Alle drei sahen im Panel aus wie
+Erfolg.
+
+> **Ein Feld, das niemand liest, ist keine Auskunft, sondern Rechenzeit.**
+
+`AgentAnswerReachTest` führt sie als Liste mit Begründung **je Eintrag** —
+dieselbe Form wie `Pg\Shielding::EXEMPT`, damit sie nicht wächst, bis sie alles
+enthält. Geprüft werden **beide Richtungen**: Fehlt die Antwort im Agenten, ist
+der Leser ein Griff ins Leere; fehlt der Leser, ist die Antwort Rechenzeit.
+
+Ein Ausdruck über *alle* Schlüssel wäre in einer Woche abgeschaltet — die meisten
+sind Belege fürs Protokoll und gehören in keine Oberfläche. Was der Test
+ausdrücklich **nicht** prüft, ist, ob die lesende Methode gerufen wird; alle drei
+Leser sind privat, und das meldet PHPStan auf Stufe 6 bereits. Eine zweite
+Fassung derselben Regel wäre die, die veraltet.

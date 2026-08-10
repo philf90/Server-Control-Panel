@@ -223,6 +223,20 @@ final class Lifecycle implements AfterOperation
             'subscription.suspend',
             'subscription.resume',
             'subscription.remove',
+
+            /*
+             * **`subscription.quota` steht seit dem 10. August 2026 dabei**, und
+             * die Begründung darüber galt trotzdem: Ein Kontingent ändert nichts
+             * am *Zustand* des Abonnements. Es ändert etwas anderes — ob die
+             * Grenze überhaupt in Kraft ist, und das beantwortet nur der Agent.
+             *
+             * Auf `cloudsrv24` meldeten beide Anlagevorgänge „fertig, 100 %",
+             * und in ihrer Ausgabe stand `setquota: Cannot find mountpoint for
+             * device`. Die Quota ist dort nicht eingeschaltet (`rw,relatime`
+             * ohne `usrquota`), der Agent hat es gesagt — und niemand hat es
+             * gelesen.
+             */
+            'subscription.quota',
         ];
     }
 
@@ -257,6 +271,15 @@ final class Lifecycle implements AfterOperation
                 return;
             }
 
+            /*
+             * **Die Auskunft über die Quota kommt aus jedem Vorgang, der sie
+             * setzt** — beim Anlegen wie beim Ändern. Sie steht vor dem `match`,
+             * weil sie keine Zustandsänderung ist, sondern eine Beobachtung:
+             * Was der Agent über die Wirkung seiner eigenen Arbeit sagt, gehört
+             * aufgeschrieben, egal welche Aufgabe es war.
+             */
+            $this->rememberQuota($subscription, $operation);
+
             match ($task) {
                 'subscription.provision' => $subscription->forceFill([
                     'status' => SubscriptionStatus::Active,
@@ -282,6 +305,45 @@ final class Lifecycle implements AfterOperation
                 default => null,
             };
         });
+    }
+
+    /**
+     * Was der Agent über die Speichergrenze gesagt hat.
+     *
+     * **`DiskQuota::apply()` bricht bei einem Fehlschlag ausdrücklich nicht
+     * ab** — ein Abonnement soll nicht scheitern, weil ein Dateisystem keine
+     * Quota kann. Es gibt statt dessen `enforced: false` mit dem Grund zurück,
+     * wörtlich aus `setquota`. Bis zum 10. August 2026 hat diese Antwort in
+     * `app/` niemand gelesen: Im Panel stand eine Grenze, die nicht in Kraft
+     * war, und die Wahrheit stand als rohes `stderr` in der Vorgangsausgabe —
+     * neben „fertig, 100 %".
+     *
+     * > **Ein Feld, das niemand liest, ist keine Auskunft, sondern Rechenzeit.**
+     *
+     * **Ohne Antwort wird nichts geschrieben.** Ein Vorgang, der keine Auskunft
+     * mitbringt, darf die vorige nicht löschen — „nicht nachgesehen" ist weder
+     * ja noch nein, und ein `false` an dieser Stelle wäre eine Warnung ohne
+     * Messung. Dieselbe Regel wie bei `handed_over` und beim Kernel.
+     */
+    private function rememberQuota(Subscription $subscription, Operation $operation): void
+    {
+        $quota = $operation->result['quota'] ?? null;
+
+        if (! is_array($quota) || ! is_bool($quota['enforced'] ?? null)) {
+            return;
+        }
+
+        $reason = $quota['reason'] ?? null;
+
+        $subscription->forceFill([
+            'disk_quota_enforced' => $quota['enforced'],
+
+            // Der Grund geht mit, **auch wenn er leer ist**: Eine Grenze, die
+            // wieder greift, darf den Satz von gestern nicht behalten.
+            'disk_quota_note' => is_string($reason) && trim($reason) !== ''
+                ? mb_substr(trim($reason), 0, 255)
+                : null,
+        ])->save();
     }
 
     /**

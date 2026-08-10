@@ -25,6 +25,11 @@ const props = defineProps<{
     limit_mb: number | null
     percent: number | null
     measured_at: string | null
+
+    /* Drei Werte: `null` heisst „nicht nachgesehen" und ist weder ja noch
+       nein — dieselbe Form wie `handed_over` und der Kernel. */
+    enforced: boolean | null
+    note: string | null
   }
   database_usage: {
     count: number
@@ -221,6 +226,25 @@ function remove(): void {
         verschiedene Dinge gleich aussehen zu lassen.
       -->
       <Section title="Speicher">
+        <!--
+          **Die Grenze steht ganz oben, wenn sie nicht gilt.** Sie gehört vor
+          die Zahlen und nicht darunter: Wer eine Grenze liest, hat sie
+          geglaubt, bevor er weiterliest.
+
+          Auf `cloudsrv24` stand hier am 10. August 2026 „15360 MB", und
+          `setquota` war beim Anlegen gescheitert — gemeldet vom Agenten, von
+          niemandem gelesen. Der Grund kommt wörtlich vom System; ein
+          „konnte nicht gesetzt werden" hülfe beim Beheben nicht.
+        -->
+        <p v-if="props.usage.enforced === false" class="notice warn">
+          Diese Grenze ist <strong>nicht in Kraft</strong>. Das Dateisystem unter
+          <span class="ident">/var/www/vhosts</span> führt keine Quota für
+          Benutzer.
+          <template v-if="props.usage.note">
+            Das System meldet: <span class="ident">{{ props.usage.note }}</span>
+          </template>
+        </p>
+
         <p v-if="props.usage.used_mb === null" class="empty">
           Noch nicht gemessen. Die Messung läuft im Viertelstundentakt
           (<span class="ident">srvpanel-usage.timer</span>) und braucht eine

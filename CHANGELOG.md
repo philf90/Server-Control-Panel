@@ -8010,3 +8010,28 @@ Seite zeigt, kostet denselben Umweg wie ein falscher Befehl**, und beide Male
 merkt es nur, wer sie fährt. Das ist der dritte und vierte Befehl in `docs/39`,
 den erst der Lauf selbst geradegezogen hat; genau dafür steht das Dokument im
 Repo und nicht in einem Verlauf.
+
+### `docs/39` Punkt 6: „Sperren" und „Zugriff entziehen" sind zwei Knöpfe
+
+Die Anleitung sagte nur „Abonnement sperren". Der Betreiber hat **„Zugriff
+entziehen"** auf der Datenbank-Detailseite gedrückt, und das Ergebnis sah eine
+halbe Stunde lang nach einem schweren Fehler aus: CONNECT weg, `rolcanlogin`
+unverändert, kein Vorgang in der Liste, MariaDB ungesperrt.
+
+**Es war alles richtig.** „Zugriff entziehen" nimmt einer Rolle das CONNECT auf
+*eine* Datenbank (`pg.role.grant`), unmittelbar und ohne Vorgang; „Sperren" nimmt
+allen Rollen des Abonnements die Anmeldung (`pg.role.lock` → `NOLOGIN`) und läuft
+über die Warteschlange. Zwei Knöpfe, zwei Mechanismen — und die Anleitung nannte
+keinen von beiden beim Namen.
+
+**Aufgeklärt hat es das Protokoll und nicht die Vorgangsliste.** Vorgänge zeigen,
+was in der Warteschlange lief; das Protokoll zeigt, was *jemand getan hat*. Ich
+habe zweimal nach Vorgängen gefragt, und beide Male war die Antwort „da steht
+nichts" — richtig, und nutzlos.
+
+> **Wenn eine Messung nicht zum Code passt, ist die nächste Frage nicht „was hat
+> die Maschine getan", sondern „was hat der Mensch gedrückt".**
+
+Geschenkt bekommen hat der Lauf dabei einen Beleg, der nicht auf dem Plan stand:
+„Zugriff entziehen" und „Zugriff geben" arbeiten für PostgreSQL sauber und
+verlustfrei — zweimal hin und zurück, `datacl` jedes Mal richtig.

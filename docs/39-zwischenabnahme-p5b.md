@@ -225,7 +225,25 @@ zusammen**, und der Satz nennt keines der beiden namentlich.
 
 ## 9. Punkt 6 — Die Sperre erreicht die Rolle
 
-Abonnement sperren.
+**Der Knopf „Sperren" oben rechts auf der Abonnement-Seite** — und nicht
+„Zugriff entziehen" auf der Detailseite einer Datenbank.
+
+> **Die beiden sehen von aussen ähnlich aus und tun Verschiedenes.** „Zugriff
+> entziehen" nimmt einer Rolle das CONNECT auf *eine* Datenbank
+> (`pg.role.grant`), unmittelbar und ohne Vorgang. „Sperren" nimmt allen Rollen
+> des Abonnements die Anmeldung (`pg.role.lock` → `ALTER ROLE … NOLOGIN`) und
+> läuft über die Warteschlange.
+>
+> Am 10. August 2026 hat diese Anleitung nur „Abonnement sperren" gesagt, der
+> Betreiber hat den anderen Knopf gedrückt, und das Ergebnis sah eine halbe
+> Stunde lang nach einem schweren Fehler aus: CONNECT weg, `rolcanlogin`
+> unverändert, kein Vorgang in der Liste. Es war alles richtig — nur nicht das,
+> was hier gemeint war.
+>
+> **Aufgeklärt hat es das Protokoll und nicht die Vorgangsliste.** Vorgänge
+> zeigen, was in der Warteschlange lief; das Protokoll zeigt, was *jemand getan
+> hat*. Wenn eine Messung nicht zum Code passt, ist die zweite Frage die
+> richtige.
 
 ```bash
 sudo -u postgres psql -tAc \

@@ -49,8 +49,15 @@ final class Release
      * **Ein Wort und keine Nummer.** Eine erfundene Zahl — `0.0.0`, `dev`,
      * `unbekannt-1.0` — sähe in einem Fehlerbericht aus wie eine Auskunft und
      * wäre keine. Genau daran ist `0.1.0-dev` zwei Jahre lang vorbeigekommen.
+     *
+     * **Und ein Wort, kein Satz — das hat erst der Screenshot gezeigt.** Hier
+     * stand „aus dem Quellbaum", und dieser Wert landet in der Versionsmarke
+     * neben dem Schriftzug: einer Marke in Monospace, die nach `docs/19` und
+     * dem Gestaltungssystem ausschliesslich Kennungen trägt. Gemessen ist
+     * dabei nichts übergelaufen — es sah nur falsch aus, und genau das findet
+     * kein Test. Die Aufnahme bei 390px hat es in zwei Sekunden gezeigt.
      */
-    public const UNRELEASED = 'aus dem Quellbaum';
+    public const UNRELEASED = 'Quellbaum';
 
     /**
      * Die Form eines Fassungsnamens, wie ihn das Paket vergibt.

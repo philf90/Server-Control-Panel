@@ -28,7 +28,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 defineProps<{ title: string; subline?: string }>()
 
 const page = usePage()
-const source = computed(() => page.props.source as { repository: string; version: string; commit: string })
+const source = computed(() => page.props.source as { url: string; version: string })
 const account = computed(
   () => page.props.account as { name: string; is_admin: boolean; has_active_subscription: boolean } | null,
 )
@@ -288,8 +288,14 @@ onBeforeUnmount(() => {
 
       <!--
         Abschnitt 13 der AGPL: Wer die Software über das Netz benutzt, muss an
-        den Quelltext der laufenden Fassung kommen. Deshalb Version und Commit
-        im Link und nicht bloß die Adresse des Repositorys.
+        den Quelltext der laufenden Version kommen — nicht bloß an die Adresse
+        des Repositorys.
+
+        Wohin genau, entscheidet der Server (App\Support\Panel\Source). Hier
+        stand die Wahl als Bedingung über den Commit, und die war zweierlei
+        falsch: Sie war eine zweite Fassung derselben Regel an der Stelle, an
+        der man sie am wenigsten sucht — und der Commit wird nirgends gesetzt,
+        also fiel sie seit jeher auf die Adresse des Repositorys zurück.
       -->
       <div class="rail-foot">
         <div v-if="account" class="account">
@@ -297,12 +303,7 @@ onBeforeUnmount(() => {
           <button type="button" class="signout" @click="signOut">Abmelden</button>
         </div>
 
-        <a
-          class="source"
-          :href="source.commit ? `${source.repository}/tree/${source.commit}` : source.repository"
-        >
-          Quelltext · {{ source.version }}
-        </a>
+        <a class="source" :href="source.url">Quelltext · {{ source.version }}</a>
       </div>
     </aside>
 

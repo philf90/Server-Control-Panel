@@ -7501,7 +7501,7 @@ zweite ist die, die beim nächsten Update stehen bleibt. Der Integrationslauf
 prüft denselben Zusammenhang längst von der anderen Seite („Das Verzeichnis der
 Fassung traegt die Fassung").
 
-**Im Quellbaum steht ein Wort und keine Nummer:** `aus dem Quellbaum`. Eine
+**Im Quellbaum steht ein Wort und keine Nummer:** `Quellbaum`. Eine
 erfundene Zahl — `0.0.0`, `dev` — sähe in einem Fehlerbericht aus wie eine
 Auskunft und wäre keine; genau daran ist `0.1.0-dev` zwei Jahre lang
 vorbeigekommen.
@@ -7530,3 +7530,44 @@ Befehl erreicht. Beide Brüche stehen in `tests/waechter-brechen.sh`, und mit
 ihnen kommt `config/` in die Liste der Verzeichnisse, die das Skript
 wiederherstellt: Der eine Bruch baut die alte Zeile wieder ein, und ohne die
 Liste bliebe sie stehen.
+
+### Der Quelltext-Link zeigt jetzt auf den Stand, der läuft
+
+**Derselbe Fund wie beim Fassungsbefehl, eine Datei weiter — und er betrifft die
+Lizenz.** Abschnitt 13 der AGPL verlangt, dass wer die Software über das Netz
+benutzt, an ihren Quelltext kommt; die Begründung über `config('srvpanel.source')`
+sagt ausdrücklich „den der laufenden Fassung, nicht bloß das Repository". Genau
+das war nicht eingelöst: Der Link hing an `SRVPANEL_COMMIT`, und diese Variable
+setzt niemand — nicht das Paket, nicht der Freigabelauf. Die Fusszeile zeigte auf
+jedem Server auf `main`.
+
+**Bemerkenswert ist, wie es gefunden wurde.** Nicht durch Lesen, sondern durch
+Suchen: Nachdem `SRVPANEL_VERSION` aufgefallen war, blieb die Frage, ob es die
+Bauart noch einmal gibt. Es gab sie, ein `grep` entfernt. Ein Fehler, den man nur
+findet, wenn man nach ihm sucht, wird nicht durch Aufmerksamkeit gefunden,
+sondern durch die Frage „wo noch?".
+
+Die Adresse kommt jetzt aus der Version, wenn kein Commit dasteht:
+`…/tree/v0.5.1-rc.3`. Eine Freigabe ist ein annotierter Tag auf `main`, und das
+Verzeichnis der Auslieferung trägt dieselbe Nummer — **die Angabe entsteht aus
+dem, was ohnehin da ist, und kann deshalb nicht vergessen werden.** Der Commit
+behält den Vorrang, falls ihn eines Tages jemand setzt; im Quellbaum steht das
+Repository selbst, denn ein toter Link löst keine Auflage ein.
+
+**Die Wahl ist dabei aus der Vorlage in den Server gezogen.** `PanelLayout.vue`
+baute die Adresse aus `commit` und `repository` selbst zusammen — dieselbe Regel
+ein zweites Mal, an der Stelle, an der man sie am wenigsten sucht. Die
+Oberfläche bekommt jetzt eine fertige Adresse und keine Zutaten.
+
+### Und was erst die Aufnahme gezeigt hat
+
+`Release::UNRELEASED` hiess zuerst **„aus dem Quellbaum"** — ein Satz, und er
+liest sich auf der Kommandozeile gut. Nur landet derselbe Wert in der
+Versionsmarke neben dem Schriftzug, und die ist eine **Monospace-Marke für
+Kennungen**. Ein deutscher Satz in Schreibmaschinenschrift, in einem Kästchen,
+das sonst `0.5.1-rc.3` trägt.
+
+Gemessen war nichts falsch: `scrollWidth - clientWidth` ist 0 px, bei 390 px und
+1280 px, hell und dunkel, auch mit `0.10.0-rc.12` als längstem denkbaren Namen.
+**Es sah nur falsch aus, und genau das findet kein Test.** Zwei Sekunden
+Aufnahme, ein Wort statt eines Satzes: `Quellbaum`.

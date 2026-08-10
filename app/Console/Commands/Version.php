@@ -34,7 +34,14 @@ final class Version extends Command
 {
     protected $signature = 'srvpanel:version {--details : Dazu Verzeichnis und Commit}';
 
-    protected $description = 'Zeigt die laufende Fassung des Panels';
+    /*
+     * „Version" und nicht „Fassung" — `docs/19 §3` hat das Wort verbraucht, und
+     * `WordChoiceTest` hat genau diese Zeile gemeldet. Bemerkenswert daran ist,
+     * *welche* Zeile: Kommentare und Changelog dürfen „Fassung" sagen, weil sie
+     * niemand in der Oberfläche liest. Die Beschreibung eines Kommandos steht in
+     * `artisan list`, also vor den Augen des Betreibers.
+     */
+    protected $description = 'Zeigt die laufende Version des Panels';
 
     public function handle(): int
     {

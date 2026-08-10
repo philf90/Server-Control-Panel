@@ -5201,6 +5201,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" ReleaseVersionTest passed
 
 echo
+echo "── SourceLinkTest: die Fusszeile faellt wieder auf das Repository zurueck ──"
+#
+# Der Zustand, den die AGPL nicht meint. Ohne den Rueckgriff auf den Tag der
+# Freigabe haengt der Quelltext-Link allein an SRVPANEL_COMMIT — und die setzt
+# niemand. Der Bruch nimmt die Zeile heraus; danach zeigt jede Fusszeile auf
+# main statt auf den Stand, der laeuft.
+vorher_datei app/Support/Panel/Source.php
+python3 - <<'PY2'
+p = 'app/Support/Panel/Source.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        return $repository.'/tree/v'.$version;", "        return $repository;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Panel/Source.php "Fusszeile ohne Tag" &&
+pruefe "Fusszeile ohne Tag" \
+  SourceLinkTest::test_without_a_commit_the_release_tag_carries_it failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceLinkTest passed
+
+echo
+echo "── SourceLinkTest: die Vorlage baut die Adresse wieder selbst ──"
+#
+# Die Regel stand bis zum 10. August 2026 genau so im Template, als Bedingung
+# ueber den Commit. Zwei Fassungen derselben Entscheidung, und die im Template
+# ist die, die beim naechsten Umbau stehen bleibt — gemerkt hat es niemand,
+# weil sie ja funktionierte, nur eben immer im selben Zweig.
+vorher_datei resources/js/Layouts/PanelLayout.vue
+python3 - <<'PY2'
+p = 'resources/js/Layouts/PanelLayout.vue'
+s = open(p, encoding='utf-8').read()
+s = s.replace(':href="source.url"',
+              ':href="source.commit ? `${source.repository}/tree/${source.commit}` : source.repository"')
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/js/Layouts/PanelLayout.vue "Adresse in der Vorlage" &&
+pruefe "Adresse in der Vorlage" \
+  SourceLinkTest::test_the_template_only_shows_what_the_server_decided failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SourceLinkTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 else

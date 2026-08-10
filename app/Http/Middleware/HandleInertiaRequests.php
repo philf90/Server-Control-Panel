@@ -8,6 +8,7 @@ use App\Enums\SubscriptionStatus;
 use App\Models\Account;
 use App\Models\Subscription;
 use App\Support\Audit\Impersonation;
+use App\Support\Panel\Source;
 use App\Support\Passwords\Policy;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -30,9 +31,15 @@ final class HandleInertiaRequests extends Middleware
         $account = $request->user();
 
         return array_merge(parent::share($request), [
+            /*
+             * **Eine fertige Adresse und keine Zutaten.** Hier standen
+             * `repository` und `commit`, und die Vorlage setzte daraus den Link
+             * zusammen — eine zweite Fassung der Regel, und zwar in einem
+             * Template. {@see Source::url()} entscheidet jetzt, und die
+             * Oberfläche zeigt nur noch an.
+             */
             'source' => [
-                'repository' => config('srvpanel.source.repository'),
-                'commit' => config('srvpanel.source.commit'),
+                'url' => Source::url(),
                 'version' => config('app.version'),
             ],
 

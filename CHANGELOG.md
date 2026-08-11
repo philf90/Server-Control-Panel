@@ -9552,3 +9552,39 @@ das einen zweiten Zugang braucht, den Punkt 8 vorher entfernt; und `--bind=*`
 unquotiert samt `$(hostname -f)` statt der Adresse, unter der das Panel bedient.
 
 > **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**
+
+### Bestand und `pg_hba.conf` laufen nicht mehr auseinander
+
+Der erste der fünf offenen Befunde aus `docs/45 §5`, und der einzige mit Folgen.
+
+**Ein gescheiterter Netz-Eintrag liess seine Zeile im Bestand stehen.**
+`RemoteAccess::add()` legte sie an und rief danach `sync()`; wirft der — im
+Abnahmelauf am Rückweg des Agenten —, blieb sie. Im Panel stand danach
+„erreichbar von 198.51.100.0/24" für ein Netz, das in `pg_hba.conf` nicht
+existierte.
+
+> **Ein Vorgang, der seinen Bestand vor dem Server ändert, hat zwei Ergebnisse —
+> und ein Fehlschlag kennt sonst nur eines.**
+
+Die Zeile **muss** vor dem Schreiben da sein, denn `rules()` liest sie: Der
+Sollzustand entsteht aus dem Bestand. Also hilft kein Umstellen der Reihenfolge,
+sondern nur die Klammer — beide stehen jetzt in einer Transaktion, beim
+Eintragen wie beim Zurücknehmen.
+
+**Und gemeldet hat es niemand.** `srvpanel db` fragte nur nach Zeilen ohne
+Bestand; für die Gegenrichtung stand dort sogar ein früher Ausstieg bei leerem
+Block — also genau für den Fall, in dem der Bestand etwas führt und die Datei
+nichts hat.
+
+> **Ein Abgleich, der nur eine Richtung kennt, ist eine halbe Frage.**
+
+`RemoteAccess::missing()` beantwortet sie jetzt, und `srvpanel db` meldet beide
+Richtungen getrennt. **Die neue ist die gefährlichere:** Eine Zeile ohne Bestand
+lässt jemanden herein, den niemand mehr kennt — schlecht, aber sichtbar, sobald
+man hinsieht. Ein Bestand ohne Zeile sperrt aus, während die Anzeige das
+Gegenteil verspricht; wer den Fehler sucht, sucht ihn am Netz, an der Firewall,
+am Passwort — nur nicht an einer Zeile, die laut Panel da ist.
+
+`NetworkDriftTest` hält beides fest, mit der Untergrenze im selben Test: Eine
+Zeile, die in Datei und Bestand steht, darf nicht als fehlend gelten, sonst
+meldete die Abfrage jede und sagte nichts.

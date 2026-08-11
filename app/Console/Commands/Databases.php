@@ -477,7 +477,7 @@ final class Databases extends Command
             'PostgreSQL',
         );
 
-        $this->reportOrphanRules(
+        $this->reportRuleDrift(
             is_array($info['hba_rules'] ?? null) ? array_values(array_filter($info['hba_rules'], 'is_string')) : [],
         );
     }
@@ -498,36 +498,69 @@ final class Databases extends Command
      * abgebrochenen Rückbau oder aus einer Zeile, die jemand von Hand in den
      * Block geschrieben hat. Beides gehört angesehen und nicht weggeräumt.
      *
+     * **Und seit dem 11. August 2026 wird in beide Richtungen gefragt.** Bis
+     * dahin sah dieser Abgleich nur Zeilen ohne Bestand — die harmlosere
+     * Hälfte. Die andere entstand im Abnahmelauf (`docs/45 §5`): Ein
+     * gescheiterter Schreibvorgang liess seine Zeile im Bestand stehen, das
+     * Panel zeigte „erreichbar von …", und in `pg_hba.conf` stand nichts.
+     * **Gemeldet hat das niemand**, denn hier stand ein früher Ausstieg für den
+     * leeren Block — also genau für den Fall, in dem der Bestand etwas führt und
+     * die Datei nichts hat.
+     *
+     * > **Ein Abgleich, der nur eine Richtung kennt, ist eine halbe Frage.**
+     *
      * @param  list<string>  $managed
      */
-    private function reportOrphanRules(array $managed): void
+    private function reportRuleDrift(array $managed): void
     {
-        if ($managed === []) {
+        $remote = app(RemoteAccess::class);
+        $orphans = $remote->orphans($managed);
+        $missing = $remote->missing($managed);
+
+        // Kein Block und kein Bestand: Dieser Server hat keinen Fernzugriff, und
+        // eine Zeile darüber wäre auf den allermeisten eine Zeile für nichts.
+        if ($managed === [] && $missing === []) {
             return;
         }
 
-        $orphans = app(RemoteAccess::class)->orphans($managed);
-
-        if ($orphans === []) {
+        if ($orphans === [] && $missing === []) {
             $this->line(sprintf('%d Zugangsregel(n) in pg_hba.conf, alle im Bestand.', count($managed)));
 
             return;
         }
 
-        $this->warn(sprintf(
-            '%d von %d Zugangsregel(n) in pg_hba.conf zeigen auf nichts im Bestand:',
-            count($orphans),
-            count($managed),
-        ));
+        if ($orphans !== []) {
+            $this->warn(sprintf(
+                '%d von %d Zugangsregel(n) in pg_hba.conf zeigen auf nichts im Bestand:',
+                count($orphans),
+                count($managed),
+            ));
 
-        foreach ($orphans as $line) {
-            $this->line('  '.$line);
+            foreach ($orphans as $line) {
+                $this->line('  '.$line);
+            }
+
+            $this->line(
+                '  Sie werden nicht von selbst entfernt. Der nächste Lauf von `srvpanel db --remote=on` '
+                .'schreibt den Block neu und nimmt sie mit.',
+            );
         }
 
-        $this->line(
-            '  Sie werden nicht von selbst entfernt. Der nächste Lauf von `srvpanel db --remote=on` '
-            .'schreibt den Block neu und nimmt sie mit.',
-        );
+        if ($missing !== []) {
+            $this->warn(sprintf(
+                '%d Zugangsregel(n) fehlen in pg_hba.conf, obwohl der Bestand sie führt:',
+                count($missing),
+            ));
+
+            foreach ($missing as $line) {
+                $this->line('  '.$line);
+            }
+
+            $this->line(
+                '  Im Panel steht damit ein Netz, das niemanden hereinlässt. Der nächste Lauf von '
+                .'`srvpanel db --remote=on` schreibt den Block neu und trägt sie nach.',
+            );
+        }
     }
 
     /**

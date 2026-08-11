@@ -6635,6 +6635,47 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
 
 echo
+echo "── NetworkDriftTest: ein gescheitertes Schreiben laesst die Zeile stehen ──"
+#
+# Der Zustand von vor diesem Wächter, gemessen im Abnahmelauf: Der Vorgang
+# scheiterte am Rückweg des Agenten, die Zeile blieb im Bestand, und im Panel
+# stand „erreichbar von …" für ein Netz, das in pg_hba.conf nicht existierte.
+vorher_datei app/Support/Databases/RemoteAccess.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/RemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $network = DB::transaction(function () use ($user, $cidr): DbUserNetwork {",
+              "        $network = (function () use ($user, $cidr): DbUserNetwork {")
+s = s.replace("            return $network;\n        });\n\n        return $network;",
+              "            return $network;\n        })();\n\n        return $network;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/RemoteAccess.php "Eintrag ohne Klammer" &&
+pruefe "Eintrag ohne Klammer" \
+  NetworkDriftTest::test_a_failed_write_leaves_no_network_behind failed
+wiederherstellen
+
+echo
+echo "── NetworkDriftTest: der Abgleich kennt nur eine Richtung ──"
+#
+# Eine Zeile ohne Bestand laesst jemanden herein, den niemand mehr kennt —
+# sichtbar. Ein Bestand ohne Zeile sperrt aus, waehrend die Anzeige das
+# Gegenteil verspricht. Die zweite Richtung hat vier Monate lang niemand
+# gefragt.
+vorher_datei app/Console/Commands/Databases.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $missing = $remote->missing($managed);", "        $missing = [];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/Databases.php "Abgleich ohne Gegenrichtung" &&
+pruefe "Abgleich ohne Gegenrichtung" \
+  NetworkDriftTest::test_the_reconciliation_asks_both_directions failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NetworkDriftTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

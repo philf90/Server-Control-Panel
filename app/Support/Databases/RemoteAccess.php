@@ -9,6 +9,7 @@ use App\Enums\DbUserStatus;
 use App\Models\DbUser;
 use App\Models\DbUserNetwork;
 use App\Support\Tenancy\Tenancy;
+use Illuminate\Support\Facades\DB;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 use SrvPanel\Agent\Pg\Hba;
@@ -213,6 +214,46 @@ final class RemoteAccess
     }
 
     /**
+     * Und die Gegenrichtung: **was der Bestand führt und die Datei nicht hat.**
+     *
+     * **Diese Frage hat vier Monate lang niemand gestellt**, und sie ist die
+     * gefährlichere von beiden. Eine Zeile ohne Bestand ist ein Rest: Sie lässt
+     * jemanden herein, den niemand mehr kennt — schlecht, aber sichtbar, sobald
+     * man hinsieht. Ein Bestand ohne Zeile ist das Gegenteil: Das Panel sagt
+     * „erreichbar von …", und die Anwendung kommt nicht herein. Wer den Fehler
+     * sucht, sucht ihn am Netz, an der Firewall, am Passwort — nur nicht dort,
+     * wo eine Zeile fehlt, die laut Anzeige da ist.
+     *
+     * Entstanden am 11. August 2026 aus einem gescheiterten Schreibvorgang
+     * (`docs/45 §5`). {@see self::add()} lässt sie seitdem nicht mehr entstehen;
+     * diese Abfrage findet die, die es schon gibt — und jede andere Ursache,
+     * an die noch niemand gedacht hat.
+     *
+     * @param  list<string>  $managed  die Zeilen, wie sie in der Datei stehen
+     * @return list<string>
+     */
+    public function missing(array $managed): array
+    {
+        $vorhanden = [];
+
+        foreach ($managed as $line) {
+            $vorhanden[$line] = true;
+        }
+
+        $fehlend = [];
+
+        foreach ($this->rules() as $rule) {
+            $line = Hba::rule($rule['database'], $rule['role'], $rule['cidr']);
+
+            if (! isset($vorhanden[$line])) {
+                $fehlend[$line] = true;
+            }
+        }
+
+        return array_keys($fehlend);
+    }
+
+    /**
      * Ein Netz eintragen — geprüft mit der Regel des Agenten.
      *
      * **Und die Prüfung ist die des Agenten und keine zweite hier.**
@@ -226,25 +267,59 @@ final class RemoteAccess
      * self::orphans()} jede Zeile fremd, deren Kunde `203.0.113.5` statt
      * `203.0.113.5/32` getippt hat.
      *
-     * @throws AgentException wenn das Netz nicht taugt
+     * **Die Zeile und die Datei stehen und fallen zusammen.** Sie muss vor dem
+     * Schreiben da sein, denn {@see self::rules()} liest sie — der Sollzustand
+     * entsteht aus dem Bestand. Scheitert das Schreiben danach, darf sie nicht
+     * stehenbleiben, und dafür gibt es nur einen Weg: die Transaktion.
+     *
+     * **Gemessen am 11. August 2026 auf `cloudsrv24`** (`docs/45 §5`): Der
+     * Vorgang scheiterte am Rückweg des Agenten, die Zeile blieb, und im Panel
+     * stand danach „erreichbar von 198.51.100.0/24" — für ein Netz, das in
+     * `pg_hba.conf` nicht existierte. Das ist dieselbe Lage wie der Fehler, für
+     * den es `rc.2` gab, nur von der anderen Seite: Die Anzeige verspricht
+     * einen Zugang, den es nicht gibt.
+     *
+     * > **Ein Vorgang, der seinen Bestand vor dem Server ändert, hat zwei
+     * > Ergebnisse — und ein Fehlschlag kennt sonst nur eines.**
+     *
+     * @throws AgentException wenn das Netz nicht taugt oder das Schreiben scheitert
      */
     public function add(DbUser $user, string $cidr): DbUserNetwork
     {
-        $network = DbUserNetwork::query()->firstOrCreate([
-            'db_user_id' => (int) $user->id,
-            'cidr' => Hba::cidr($cidr),
-        ]);
+        // Vor der Transaktion: Ein untaugliches Netz soll gar nicht erst eine
+        // aufmachen, und die Meldung ist dieselbe.
+        $cidr = Hba::cidr($cidr);
 
-        $this->sync();
+        /** @var DbUserNetwork $network */
+        $network = DB::transaction(function () use ($user, $cidr): DbUserNetwork {
+            /** @var DbUserNetwork $network */
+            $network = DbUserNetwork::query()->firstOrCreate([
+                'db_user_id' => (int) $user->id,
+                'cidr' => $cidr,
+            ]);
+
+            $this->sync();
+
+            return $network;
+        });
 
         return $network;
     }
 
-    /** Ein Netz zurücknehmen — und den Block sofort nachziehen. */
+    /**
+     * Ein Netz zurücknehmen — und den Block sofort nachziehen.
+     *
+     * **Dieselbe Klammer wie beim Eintragen, und aus demselben Grund.** Hier
+     * fällt die Abweichung zwar auf — eine Zeile in der Datei ohne Bestand
+     * meldet {@see self::orphans()} —, aber „fällt später auf" ist keine
+     * Begründung dafür, sie entstehen zu lassen.
+     */
     public function remove(DbUserNetwork $network): void
     {
-        $network->delete();
+        DB::transaction(function () use ($network): void {
+            $network->delete();
 
-        $this->sync();
+            $this->sync();
+        });
     }
 }

@@ -6531,6 +6531,27 @@ pruefe "Leseversuch ohne dritten Wert" \
 wiederherstellen
 
 echo
+echo "── SettingsProbeTest: der dritte Wert verschluckt den harmlosen Fall ──"
+#
+# Die fehlende Tabelle vor der ersten Migration ist wirklich „nichts abgelegt".
+# Wer sie in dieselbe Antwort legt wie den nicht erreichbaren Datenbankserver,
+# hat den Unterschied nur verschoben — und der erste Anlauf dieses Wächters ist
+# genau darauf hereingefallen: Er nahm die Tabelle weg und erwartete „nicht
+# nachgesehen".
+vorher_datei app/Support/Settings/Settings.php
+python3 - <<'PY2'
+p = 'app/Support/Settings/Settings.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if (! Schema::hasTable('settings')) {\n                return [];\n            }",
+              "            if (! Schema::hasTable('settings')) {\n                return null;\n            }")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Settings/Settings.php "fehlende Tabelle als Unsicherheit" &&
+pruefe "fehlende Tabelle als Unsicherheit" \
+  SettingsProbeTest::test_a_missing_table_is_a_no failed
+wiederherstellen
+
+echo
 echo "── SettingsProbeTest: die Kommandozeile fragt wieder zweiwertig ──"
 #
 # Der dritte Wert nützt nichts, wenn die Stelle, die den Fehler ausgegeben hat,

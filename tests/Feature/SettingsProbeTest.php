@@ -8,6 +8,7 @@ use App\Console\Commands\Databases as DatabasesCommand;
 use App\Models\Setting;
 use App\Support\Settings\Settings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\Support\ReadsMethodSource;
 use Tests\Support\WithoutPhpComments;
@@ -75,12 +76,40 @@ final class SettingsProbeTest extends TestCase
     }
 
     /**
+     * Eine fehlende Tabelle heisst „nein" — **und das ist kein Widerspruch.**
+     *
+     * Vor der ersten Migration gibt es `settings` nicht, und dann ist „nichts
+     * abgelegt" die wahre Auskunft. Dieser Fall steht hier, weil der Test
+     * darunter fast genauso aussieht und etwas anderes misst; ohne ihn liesse
+     * sich die dritte Antwort nachträglich über beide legen, und niemand
+     * merkte, dass sie den harmlosen Fall mitgenommen hat.
+     *
+     * **Und dieser Test ist beim ersten Lauf entstanden, weil der Wächter
+     * darunter genau hier falsch lag.** Er nahm die Tabelle weg und erwartete
+     * `null` — bekommen hat er `false`, denn `Schema::hasTable()` wirft dabei
+     * gar nicht. Auf `cloudsrv24` war die Tabelle da und der Datenbankserver
+     * fort; das ist eine andere Stelle im selben `try`.
+     *
+     * > Ein Wächter, der die falsche Ursache herstellt, prüft die falsche Regel
+     * > — auch wenn er dieselbe Zeile trifft.
+     */
+    public function test_a_missing_table_is_a_no(): void
+    {
+        Schema::drop('settings');
+
+        $this->assertFalse(
+            app(Settings::class)->postgresOffered(),
+            'Vor der ersten Migration ist „nichts abgelegt" die wahre Auskunft und keine Unsicherheit.',
+        );
+    }
+
+    /**
      * **Und ein gescheiterter Leseversuch heisst gar nichts.**
      *
-     * Die Tabelle wird wirklich weggenommen und nicht nachgestellt: Auf dem
-     * Server war es keine Attrappe, die eine Ausnahme warf, sondern ein
-     * Datenbankserver, der niemanden mehr hereinliess. Beide Male scheitert
-     * derselbe Aufruf an derselben Stelle.
+     * Hergestellt wird der Fall vom Server: nicht eine fehlende Tabelle,
+     * sondern eine Verbindung, die es nicht gibt. `Schema::hasTable()` wirft
+     * dann, und genau dieses Werfen hat auf `cloudsrv24` im `catch` geendet und
+     * ist als „der Betreiber bietet PostgreSQL nicht an" wieder herausgekommen.
      *
      * `postgres()` bleibt dabei `false`, und das ist Absicht — die beiden
      * Lesestellen im Panel entscheiden über eine Kundenfläche, und die Richtung
@@ -91,20 +120,43 @@ final class SettingsProbeTest extends TestCase
      */
     public function test_a_failed_look_is_not_a_no(): void
     {
-        Schema::drop('settings');
+        $vorher = (string) config('database.default');
 
-        $settings = app(Settings::class);
+        /*
+         * Eine SQLite-Datei in einem Verzeichnis, das es nicht gibt. Das wirft
+         * beim Verbinden und braucht weder Netz noch Wartezeit — ein falscher
+         * Wirt liefe in eine Zeitüberschreitung, und ein Test, der zehn
+         * Sekunden wartet, wird irgendwann übersprungen.
+         */
+        config(['database.connections.unerreichbar' => [
+            'driver' => 'sqlite',
+            'database' => '/gibt-es-nicht/srvpanel.sqlite',
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ]]);
 
-        $this->assertNull(
-            $settings->postgresOffered(),
-            'Ein gescheiterter Leseversuch kommt als „nein" zurück. Dann behauptet jede Meldung darüber '
-            .'eine Absicht des Betreibers, die niemand gelesen hat.',
-        );
+        config(['database.default' => 'unerreichbar']);
+        DB::purge('unerreichbar');
 
-        $this->assertFalse(
-            $settings->postgres(),
-            'Im Zweifel wird nichts angeboten — das ist die Richtung der Mandantenklammer.',
-        );
+        try {
+            $settings = app(Settings::class);
+
+            $this->assertNull(
+                $settings->postgresOffered(),
+                'Ein gescheiterter Leseversuch kommt als „nein" zurück. Dann behauptet jede Meldung '
+                .'darüber eine Absicht des Betreibers, die niemand gelesen hat.',
+            );
+
+            $this->assertFalse(
+                $settings->postgres(),
+                'Im Zweifel wird nichts angeboten — das ist die Richtung der Mandantenklammer.',
+            );
+        } finally {
+            // Ohne diese Zeile räumt {@see RefreshDatabase} auf einer Verbindung
+            // auf, die es nicht gibt, und der Fehlschlag stünde im nächsten Test.
+            config(['database.default' => $vorher]);
+            DB::purge('unerreichbar');
+        }
     }
 
     /**

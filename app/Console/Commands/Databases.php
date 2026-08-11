@@ -858,7 +858,7 @@ final class Databases extends Command
             $this->line('Zurückgenommen — der Datenbankserver horcht wieder nur lokal.');
         } catch (AgentException $error) {
             $this->error(sprintf(
-                'Und der Rückweg ist ebenfalls gescheitert: %s — von Hand: rm -f %s && systemctl restart mariadb',
+                'Und das Zurücksetzen ist ebenfalls gescheitert: %s — von Hand: rm -f %s && systemctl restart mariadb',
                 $error->getMessage(),
                 $path !== '' ? $path : '/etc/mysql/mariadb.conf.d/'.DbRemoteAccess::FILE,
             ));

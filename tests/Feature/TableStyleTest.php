@@ -390,14 +390,28 @@ final class TableStyleTest extends TestCase
         preg_match_all('/([^{}]*)\\{([^{}]*)\\}/s', $css, $rules, PREG_SET_ORDER);
 
         $ausrichtung = false;
+        $polster = false;
         $abstand = false;
 
         foreach ($rules as $rule) {
             $selector = trim($rule[1]);
 
-            if (str_contains($selector, ':has(td.multiline)')
-                && preg_match('/vertical-align:\\s*top/', $rule[2]) === 1) {
-                $ausrichtung = true;
+            if (str_contains($selector, ':has(td.multiline)')) {
+                if (preg_match('/vertical-align:\\s*top/', $rule[2]) === 1) {
+                    $ausrichtung = true;
+                }
+
+                /*
+                 * **Und sie gibt den Abstand zurück, den sie wegnimmt.** `td`
+                 * setzt kein senkrechtes Polster; der Abstand zur Linie darüber
+                 * kam allein daraus, dass eine Zeile hohe Zelle in
+                 * `--row-height` mittig sass. Wer nur die Ausrichtung umstellt,
+                 * lässt die erste Zeile an der Trennlinie kleben — so gemeldet,
+                 * eine Fassung nach der Ausrichtung.
+                 */
+                if (preg_match('/padding-top:\\s*calc/', $rule[2]) === 1) {
+                    $polster = true;
+                }
             }
 
             if (str_contains($selector, '.button-row + .button-row')
@@ -410,6 +424,12 @@ final class TableStyleTest extends TestCase
             'Eine Zeile mit gestapelter Zelle richtet ihre Zellen nicht oben aus. Ab dem zweiten '
             .'Eintrag steht der Benutzername in der Mitte neben dem Stapel, und je mehr Einträge, '
             .'desto falscher liest sich die Zeile.');
+
+        $this->assertTrue($polster,
+            'Die Regel richtet oben aus, ohne den Abstand zu ersetzen, den die mittige Lage gegeben '
+            .'hat. `td` hat kein senkrechtes Polster — die erste Zeile klebt dann an der Trennlinie '
+            .'darüber. Gerechnet aus --row-height und der Zeilenhöhe, damit es in jeder Dichtestufe '
+            .'stimmt und nicht nur in der, in der jemand nachgesehen hat.');
 
         $this->assertTrue($abstand,
             'Zwei Knopfreihen übereinander bekommen keinen Abstand — sie kleben aneinander. '

@@ -6605,11 +6605,31 @@ vorher_datei resources/css/app.css
 python3 - <<'PY2'
 p = 'resources/css/app.css'
 s = open(p, encoding='utf-8').read()
-s = s.replace("tr:has(td.multiline) > td {\n  vertical-align: top;\n}", "")
+s = s.replace("tr:has(td.multiline) > td {", "tr.gibt-es-nicht > td {")
 open(p, 'w', encoding='utf-8').write(s)
 PY2
 griff_datei resources/css/app.css "gestapelte Zelle ohne Ausrichtung" &&
 pruefe "gestapelte Zelle ohne Ausrichtung" \
+  TableStyleTest::test_a_stacked_cell_aligns_its_row_and_spaces_its_rows failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed
+
+echo
+echo "── TableStyleTest: oben ausgerichtet, aber ohne Polster ──"
+#
+# `td` setzt kein senkrechtes Polster; der Abstand zur Linie darüber kam allein
+# daraus, dass eine Zeile hohe Zelle mittig sass. Wer nur die Ausrichtung
+# umstellt, lässt die erste Zeile an der Trennlinie kleben — genau so gemeldet,
+# eine Fassung nach der Ausrichtung.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  padding-top: calc((var(--row-height) - 1lh) / 2);\n", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Ausrichtung ohne Polster" &&
+pruefe "Ausrichtung ohne Polster" \
   TableStyleTest::test_a_stacked_cell_aligns_its_row_and_spaces_its_rows failed
 wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" TableStyleTest passed

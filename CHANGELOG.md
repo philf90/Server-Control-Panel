@@ -9494,3 +9494,61 @@ hinweg wieder ausgleicht.
 Python-Blöcke liest, und die waren in Ordnung — nur unerreichbar. `bootstrap/`
 steht ausserdem in `wiederherstellen()`, sonst käme die entfernte Middleware
 nach ihrem Bruch nicht zurück.
+
+### Oben ausgerichtet — und der Abstand war weg
+
+Die Zeile mit der gestapelten Zelle richtete ihre Zellen oben aus, und damit
+klebte die erste Zeile an der Trennlinie darüber. **`td` setzt kein senkrechtes
+Polster** (`padding: 0 14px 0 0`); der Abstand entstand ausschliesslich daraus,
+dass eine Zeile hohe Zelle in `--row-height` mittig sass. Wer nur die
+Ausrichtung umstellt, nimmt ihn weg.
+
+> **Wer eine Eigenschaft umstellt, erbt alles, was bisher als Nebenwirkung
+> daran hing.**
+
+Der Ersatz ist gerechnet und nicht geraten: der Versatz, den eine mittig
+gesetzte einzelne Zeile ohnehin hat, aus `--row-height` und der tatsächlichen
+Zeilenhöhe. Gemessen im Chromium gegen das gebaute Stylesheet — mittig 12px,
+hiermit 12px, mit einem festen `12px` dagegen 15px, weil der Knopf die
+Zeilenbox höher macht als den Text. Ein fester Wert hätte ausserdem nur in der
+Dichtestufe gestimmt, in der jemand nachgesehen hat.
+
+Bei einem und bei drei Netzen jetzt derselbe Versatz oben (12px) und derselbe
+unten (10px), kein waagerechter Überlauf.
+
+**Und der Wächter über die Eingriffe hat sofort zugebissen:** Der Bruch zur
+Ausrichtungsregel zeigte auf den alten Regeltext und lief nach dieser Änderung
+ins Leere — `BreakScriptTest` meldete ihn als tot, bevor er zum zweiten Mal
+grün blieb, ohne etwas zu prüfen.
+
+### Der Fernzugriff ist abgenommen (docs/45)
+
+**Gefahren am 11. August 2026 auf `cloudsrv24`**, alle sechzehn Punkte aus
+`docs/43`. Beide Prüfsummen sind danach bytegleich die von vor dem Lauf — nach
+Freischalten, vier Netzen, einer zweiten Datenbank, zwei Rückbauten, einer
+kaputten Zeile, einem Rückweg und zwei Neustarts bleibt nichts liegen.
+
+**Zwölf Fehler gefunden, keinen davon ein Test.** Zwei haben den Lauf
+unterbrochen, bis sie behoben und ausgeliefert waren (`docs/44` und
+`RememberPageUrl`), fünf steckten im Abnahmelauf selbst, fünf bleiben als
+Befunde am Produkt offen und stehen benannt in `docs/45 §5`.
+
+**Der teuerste Fund gilt dem Lauf und nicht dem Produkt.** Punkt 6 — sein Kern —
+baute die kaputte Zeile mit `sed` in die *verwaltete* Zeile ein. Die setzt
+`Hba::render()` bei jedem Schreiben neu; der Eingriff war fort, bevor ihn etwas
+bemerken konnte, die Datei war fehlerfrei, und der Vorgang meldete Erfolg.
+
+> **Ein Eingriff, den der Prüfling selbst überschreibt, prüft nichts.**
+
+Die Zeile gehört ausserhalb des Blocks; dort steht sie jetzt, und mit ihr ist
+der Rückweg zum ersten Mal wirklich gefahren: Die Datei war kaputt, das Panel
+lief hinein, der Rückweg legte den vorgefundenen Stand bytegenau zurück, die
+Meldung nannte Zeile und Grund, und der Cluster startete danach.
+
+**Vier weitere Stellen von `docs/43` sind beim Fahren gerissen** und korrigiert:
+ein `sed` mit `#` als Trenner *und* im Suchmuster, der nie laufen konnte; ein
+Punkt 9, dessen Warnung der später ergänzte Punkt 8b unmöglich macht; ein 8b,
+das einen zweiten Zugang braucht, den Punkt 8 vorher entfernt; und `--bind=*`
+unquotiert samt `$(hostname -f)` statt der Adresse, unter der das Panel bedient.
+
+> **Ein Abnahmelauf ist Code, den niemand ausführt, bis es darauf ankommt.**

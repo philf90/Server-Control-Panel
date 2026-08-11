@@ -8837,3 +8837,76 @@ an keinen dieser Vorgänge und bliebe weiter stehen. Der Weg dorthin ist eine
 gelöste Zuordnung; ob es ihn im Panel überhaupt gibt, ist ungeprüft. Er wird
 hier nicht mitbehoben — ein Code, dessen Fall niemand gemessen hat, ist die
 zweite Fassung einer Regel, und die veraltet.
+
+### Erst hatte diese Meldung keinen Weg ins Panel, dann keinen Platz darin
+
+Der Nachlauf zu Punkt 8 auf `cloudsrv24`: Mit `v0.5.1-rc.8` kommt die Begründung
+des Agenten am Vorgang an — wörtlich, mit Zeilennummer, wie das Kriterium es
+verlangt. Sie lautet:
+
+    Das Zurückspielen ist gescheitert: psql:/var/lib/srvpanel/dumps/
+    cloudlab24.de/.x729e5e5e3cc7e369-shop-20260811-083543-471485f4.restore.sql:67:
+    ERROR:  permission denied to alter role …
+
+Der Pfad darin ist **hundert Zeichen ohne ein einziges Leerzeichen**, und
+`.notice` ist eine Flexbox. Bei 390px schob die Vorgangsseite damit **110px**
+aus dem Bild — gemessen unmittelbar nachdem die Meldung überhaupt erst ankam.
+
+`overflow-wrap: anywhere` steht jetzt an der Meldung selbst und nicht an einer
+einzelnen Stelle:
+
+> **Was in einer Meldung steht, kommt von aussen.** Vom Agenten, vom
+> Betriebssystem, von einem fremden Anbieter — und keine dieser Quellen kennt
+> die Breite eines Telefons.
+
+`anywhere` und nicht `break-word`, aus demselben Grund wie bei `.ident`: Nur
+`anywhere` verkleinert auch die min-content-Breite, und die hält ein Flex-Kind
+sonst auf seiner Inhaltsbreite fest. Gemessen im Chromium, beide Themes:
+110 → 0.
+
+**Das ist der dritte Umbruchfehler dieser Art** — nach den 83px aus P4 und den
+65px von gestern. Alle drei waren vollständig grün getestet, und alle drei hat
+dieselbe Handbewegung gefunden: das gebaute Stylesheet, das Markup in einer
+eigenen Datei, `scrollWidth - clientWidth` bei 390px.
+
+### Punkt 9, zweiter Anlauf: die Rolle ging, die Zeile blieb
+
+Der Rückbau eines Abonnements mit zwei Datenbanken auf `cloudsrv24`, gegen
+`v0.5.1-rc.8`. Die Rolle `x729e5e5e3cc7e369_web` war diesmal **fort** — der Fix
+von gestern wirkt. Dafür stand nun eine Zeile im Panel: die Datenbank
+`x729e5e5e3cc7e369_shop`, ohne Abonnement. Gemeldet hat es wieder `srvpanel db`.
+
+Die Ursache steht in der Fehlermeldung des Vorgangs, und die gibt es nur, weil
+`operations.message` seit rc.8 `text` ist:
+
+    553  pg.database.remove  failed
+         ERROR:  role "…_web" cannot be dropped because some objects depend on it
+         DETAIL:  privileges for database …_blog
+
+Seit gestern nennt beim Rückbau **jeder** Datenbankvorgang alle Zugänge — sonst
+bliebe einer stehen, der an zweien hängt. Damit lief der **erste** Vorgang in
+ein `DROP ROLE`, das PostgreSQL verweigert, solange die Rolle an der zweiten
+Datenbank noch Rechte hat. Er scheiterte **nach** dem `DROP DATABASE`: Der
+Cluster war sauber, seine Zeile blieb. Ein Fehler war durch einen kleineren
+ersetzt.
+
+> **Eine Reihenfolge, die erst beim Ausführen entsteht, kann beim Einreihen
+> niemand kennen.**
+
+Das Panel entscheidet weiterhin, **ob** ein Zugang mitgehen soll — das ist eine
+Frage an seinen Bestand. Ob er es **jetzt kann**, ist eine Frage an den Zustand
+des Clusters, und die beantwortet der Agent unmittelbar vor dem `DROP ROLE`:
+Hängt an der Rolle noch etwas, überspringt er sie und meldet sie nicht als
+entfernt. Das Panel behält ihre Zeile, und der Vorgang der nächsten Datenbank
+nimmt sie mit — beim Rückbau ist das die letzte.
+
+**Gemessen gegen einen echten Cluster** statt geglaubt: Nach dem Werfen der
+ersten Datenbank liefert die Abfrage `1`, und `DROP ROLE` scheitert mit genau
+der Meldung von oben; nach der zweiten liefert sie nichts, und `DROP ROLE`
+gelingt. Sie sagt voraus, was der Server tun wird, statt einen Fehler zu deuten
+— eine Textprüfung auf eine englische Fehlermeldung wäre bei der ersten
+lokalisierten Ausgabe still gescheitert.
+
+Verbunden wird über `pg_roles` und nicht über `::regrole`: Die Umwandlung wirft,
+sobald es die Rolle nicht mehr gibt, und in genau dem Fall lautet die Antwort
+„nein" und nicht „Fehler". Derselbe Fallstrick wie in `docs/39`.

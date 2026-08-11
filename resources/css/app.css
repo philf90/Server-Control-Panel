@@ -1900,6 +1900,28 @@ td.right > .button-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+
+  /*
+   * Eine Meldung bricht, bevor sie die Seite schiebt.
+   *
+   * **Der Anlass ist die Meldung eines fehlgeschlagenen Vorgangs.** Sie trägt
+   * den Pfad des Dumps, und der ist hundert Zeichen ohne ein einziges
+   * Leerzeichen: `psql:/var/lib/srvpanel/dumps/…-471485f4.restore.sql:67:`.
+   * Bei 390px schob sie die Vorgangsseite um **110px** aus dem Bild — gemessen
+   * am 11. August 2026, unmittelbar nachdem diese Meldung überhaupt erst
+   * ankam.
+   *
+   * `anywhere` und nicht `break-word`, aus demselben Grund wie bei `.ident`:
+   * Nur `anywhere` verkleinert auch die min-content-Breite, und genau die
+   * hält ein Flex-Kind sonst auf seiner Inhaltsbreite fest. Die Erlaubnis zu
+   * brechen nützt nichts, solange nichts sie erzwingt.
+   *
+   * Es steht hier und nicht an einer einzelnen Meldung: **Was in einer
+   * Meldung steht, kommt von aussen** — vom Agenten, vom Betriebssystem, von
+   * einem fremden Anbieter. Eine Regel, die jede Meldung einzeln bräuchte,
+   * gilt für die nächste nicht.
+   */
+  overflow-wrap: anywhere;
   padding: 13px 16px;
   margin-bottom: var(--block-gap);
   font-size: var(--text-table);

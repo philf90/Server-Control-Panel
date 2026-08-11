@@ -6145,6 +6145,50 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OrphanedGrantTest passed
 
 echo
+echo "── NoticeShapeTest: eine Meldung darf nicht mehr brechen ──"
+#
+# Der Fund vom 11. August 2026: Die Meldung eines fehlgeschlagenen Vorgangs
+# traegt den Pfad des Dumps — hundert Zeichen ohne Leerzeichen — und schob die
+# Vorgangsseite bei 390px um 110px aus dem Bild. Erst hatte diese Meldung
+# keinen Weg ins Panel, dann keinen Platz darin.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  overflow-wrap: anywhere;\n  padding: 13px 16px;", "  padding: 13px 16px;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Meldung ohne Umbrucherlaubnis" &&
+pruefe "Meldung ohne Umbrucherlaubnis" \
+  NoticeShapeTest::test_a_notice_may_break_where_there_is_no_space failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeShapeTest passed
+
+echo
+echo "── PgGrantTest: die Rolle faellt ohne Blick auf ihre Abhaengigkeiten ──"
+#
+# Der Fund aus Punkt 9, zweiter Anlauf: Beim Rueckbau nennt jeder Vorgang alle
+# Zugaenge, und der erste lief in „role … cannot be dropped because some objects
+# depend on it". Er scheiterte nach dem DROP DATABASE, und seine Zeile blieb im
+# Panel stehen, waehrend der Cluster sauber war.
+vorher_datei agent/src/Ops/PgDatabaseRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            if ($this->stillNeeded($context, $role)) {
+                continue;
+            }
+
+""", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseRemove.php "DROP ROLE ohne Abhaengigkeitspruefung" &&
+pruefe "DROP ROLE ohne Abhaengigkeitspruefung" \
+  PgGrantTest::test_the_dependency_is_checked_before_the_drop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

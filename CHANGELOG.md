@@ -9494,3 +9494,29 @@ hinweg wieder ausgleicht.
 Python-Blöcke liest, und die waren in Ordnung — nur unerreichbar. `bootstrap/`
 steht ausserdem in `wiederherstellen()`, sonst käme die entfernte Middleware
 nach ihrem Bruch nicht zurück.
+
+### Oben ausgerichtet — und der Abstand war weg
+
+Die Zeile mit der gestapelten Zelle richtete ihre Zellen oben aus, und damit
+klebte die erste Zeile an der Trennlinie darüber. **`td` setzt kein senkrechtes
+Polster** (`padding: 0 14px 0 0`); der Abstand entstand ausschliesslich daraus,
+dass eine Zeile hohe Zelle in `--row-height` mittig sass. Wer nur die
+Ausrichtung umstellt, nimmt ihn weg.
+
+> **Wer eine Eigenschaft umstellt, erbt alles, was bisher als Nebenwirkung
+> daran hing.**
+
+Der Ersatz ist gerechnet und nicht geraten: der Versatz, den eine mittig
+gesetzte einzelne Zeile ohnehin hat, aus `--row-height` und der tatsächlichen
+Zeilenhöhe. Gemessen im Chromium gegen das gebaute Stylesheet — mittig 12px,
+hiermit 12px, mit einem festen `12px` dagegen 15px, weil der Knopf die
+Zeilenbox höher macht als den Text. Ein fester Wert hätte ausserdem nur in der
+Dichtestufe gestimmt, in der jemand nachgesehen hat.
+
+Bei einem und bei drei Netzen jetzt derselbe Versatz oben (12px) und derselbe
+unten (10px), kein waagerechter Überlauf.
+
+**Und der Wächter über die Eingriffe hat sofort zugebissen:** Der Bruch zur
+Ausrichtungsregel zeigte auf den alten Regeltext und lief nach dieser Änderung
+ins Leere — `BreakScriptTest` meldete ihn als tot, bevor er zum zweiten Mal
+grün blieb, ohne etwas zu prüfen.

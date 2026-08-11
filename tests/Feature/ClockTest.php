@@ -169,13 +169,32 @@ final class ClockTest extends TestCase
         $this->useZone('Europe/Berlin');
 
         // 22:30 UTC ist in Berlin bereits der nächste Tag, 00:30 Ortszeit.
+        $at = CarbonImmutable::parse('2026-08-11 22:30:00', 'UTC');
+
+        /*
+         * **`created_at` geht nicht durch `create()`.** Es steht nicht in
+         * `$fillable`, und die Massenzuweisung lässt es wortlos fallen — der
+         * erste Anlauf legte die Zeile mit `now()` an und prüfte damit einen
+         * anderen Tag als den gemeinten. `forceFill()` umgeht die Wache; die
+         * Zeitstempel-Automatik lässt den Wert stehen, weil er schmutzig ist.
+         */
         $event = AuditEvent::query()->create([
             'action' => 'auth.login',
             'result' => AuditResult::Success,
-            'created_at' => CarbonImmutable::parse('2026-08-11 22:30:00', 'UTC'),
         ]);
 
-        $shown = AuditQuery::toArrayRow($event->refresh());
+        $event->forceFill(['created_at' => $at])->save();
+
+        $event->refresh();
+
+        $this->assertSame($at->format('Y-m-d H:i:s'), $event->created_at->utc()->format('Y-m-d H:i:s'), sprintf(
+            'Der Aufbau hat eine andere Zeile hergestellt als die gemeinte: %s statt %s.'
+            ."\n\n".'Ein Testaufbau, der nicht prüft, was er hergestellt hat, prüft den Zufall.',
+            $event->created_at->utc()->format('Y-m-d H:i:s'),
+            $at->format('Y-m-d H:i:s'),
+        ));
+
+        $shown = AuditQuery::toArrayRow($event);
 
         $this->assertSame('2026-08-12 00:30:00', $shown['created_at'], 'Die Anzeige rechnet nicht um.');
 

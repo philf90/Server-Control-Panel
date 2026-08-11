@@ -23,7 +23,7 @@ const props = defineProps<{
 
 const form = useForm({ timezone: props.timezone })
 
-function save(): void {
+function submit(): void {
   form.put('/settings/general', { preserveScroll: true })
 }
 </script>
@@ -34,54 +34,60 @@ function save(): void {
   <PanelLayout title="Allgemein" subline="Was für den ganzen Server gilt">
     <FormErrors />
 
-    <Section title="Anzeigezeit">
-      <!--
-        Der Satz oben und nicht am Feld: Wer hierherkommt, will zuerst wissen,
-        was sich ändert — und was ausdrücklich nicht.
-      -->
-      <p class="hint">
-        Zeitpunkte werden im Panel in dieser Zone angezeigt. <strong>Gespeichert
-        wird weiter in UTC</strong>, und der Export des Protokolls bleibt
-        ebenfalls UTC: Ein Zeitstempel ohne Zone in einer Datei, die drei Jahre
-        liegt, wird gelesen, wenn der Server längst umgezogen ist.
-      </p>
+    <form class="form" @submit.prevent="submit">
+      <Section title="Anzeigezeit">
+        <!--
+          Der Satz oben und nicht am Feld: Wer hierherkommt, will zuerst wissen,
+          was sich ändert — und was ausdrücklich nicht.
+        -->
+        <p class="hint">
+          Zeitpunkte werden im Panel in dieser Zone angezeigt. <strong>Gespeichert
+          wird weiter in UTC</strong>, und der Export des Protokolls bleibt
+          ebenfalls UTC: Ein Zeitstempel ohne Zone in einer Datei, die drei Jahre
+          liegt, wird gelesen, wenn der Server längst umgezogen ist.
+        </p>
 
-      <div class="field">
-        <label for="timezone">Zeitzone</label>
         <!--
           Eine Auswahl und kein Freitext: Der Wert geht in `setTimezone()`, und
           ein unbekannter Name wirft dort — mitten im Aufbau einer Seite
           (docs/40 §4).
+
+          Und das Feld steht **in** seiner Beschriftung, nicht daneben
+          (`FormLabelTest`): Ein `<select>` zeigt immer einen gültigen Wert und
+          sieht deshalb nie leer aus — wer es überliest, trifft seine Vorgabe.
         -->
-        <select id="timezone" v-model="form.timezone">
-          <option v-for="zone in props.zones" :key="zone" :value="zone">{{ zone }}</option>
-        </select>
-      </div>
+        <label class="field">
+          <span>Zeitzone</span>
+          <select v-model="form.timezone">
+            <option v-for="zone in props.zones" :key="zone" :value="zone">{{ zone }}</option>
+          </select>
+        </label>
 
-      <!--
-        **Die Gegenprobe steht neben dem Feld.** Dieselbe Zeit zweimal — was in
-        der Datenbank steht und was auf der Seite stünde. Ohne sie ist die
-        Auswahl eine Behauptung; genau daran hing der Anlass für diese Seite:
-        Ein Zeitstempel, den man falsch liest, sieht aus wie eine Auskunft.
-      -->
-      <table class="pairs">
-        <tbody>
-          <tr>
-            <td>Gespeichert</td>
-            <td class="right ident">{{ props.example.utc }} UTC</td>
-          </tr>
-          <tr>
-            <td>Angezeigt</td>
-            <td class="right ident">{{ props.example.display ?? '—' }} {{ props.label }}</td>
-          </tr>
-        </tbody>
-      </table>
+        <!--
+          **Die Gegenprobe steht neben dem Feld.** Dieselbe Zeit zweimal — was in
+          der Datenbank steht und was auf der Seite stünde. Ohne sie ist die
+          Auswahl eine Behauptung; genau daran hing der Anlass für diese Seite:
+          Ein Zeitstempel, den man falsch liest, sieht aus wie eine Auskunft.
+        -->
+        <table class="pairs">
+          <tbody>
+            <tr>
+              <td>Gespeichert</td>
+              <td class="right ident">{{ props.example.utc }} UTC</td>
+            </tr>
+            <tr>
+              <td>Angezeigt</td>
+              <td class="right ident">{{ props.example.display ?? '—' }} {{ props.label }}</td>
+            </tr>
+          </tbody>
+        </table>
 
-      <div class="button-row">
-        <button type="button" class="button" :disabled="form.processing" @click="save">
-          Speichern
-        </button>
-      </div>
-    </Section>
+        <div class="button-row">
+          <button type="submit" class="button primary" :disabled="form.processing">
+            {{ form.processing ? 'Wird gespeichert …' : 'Speichern' }}
+          </button>
+        </div>
+      </Section>
+    </form>
   </PanelLayout>
 </template>

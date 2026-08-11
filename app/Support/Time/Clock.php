@@ -98,12 +98,20 @@ final class Clock
      * `MESZ (UTC+2)` statt `Europe/Berlin`: Der Kürzel wechselt mit der
      * Sommerzeit, und genau das ist die Auskunft, die fehlt, wenn jemand einen
      * Zeitstempel von gestern mit einem von heute vergleicht.
+     *
+     * **`UTC` steht allein**, und der erste Anlauf hat daraus `UTC (UTC)`
+     * gemacht: Die Klammern standen im Formatstring, die Bedingung nur um den
+     * Versatz herum. Ein Kürzel, das seinen eigenen Versatz benennt, braucht
+     * keinen zweiten daneben — `GMT` bekommt ihn, weil es ihn nicht nennt.
      */
     public static function label(): string
     {
         $now = CarbonImmutable::now(self::zone());
+        $abbreviation = $now->format('T');
 
-        return sprintf('%s (UTC%s)', $now->format('T'), $now->format('P') === '+00:00' ? '' : $now->format('P'));
+        return $abbreviation === 'UTC'
+            ? $abbreviation
+            : sprintf('%s (UTC%s)', $abbreviation, $now->format('P'));
     }
 
     /**

@@ -6363,6 +6363,45 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" EngineReachTest passed
 
 echo
+echo "── PgHbaFollowTest: eine Rechteänderung zieht den Block nicht mehr nach ──"
+#
+# docs/38 §14: Der Sollzustand ist Datenbank × Rolle × Netz. Wird eine zweite
+# Datenbank mit einer Rolle verbunden, die schon ein Netz hat, braucht sie eine
+# eigene Zeile — die Zeile nennt die Datenbank und nicht `all`. Fehlt sie, steht
+# im Panel „erreichbar von …" und die Anwendung kommt nicht herein: ein Fehler,
+# der wie ein kaputter Fernzugriff aussieht und keiner ist.
+vorher_datei app/Support/Databases/Databases.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->remote->follow($user->engine);", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/Databases.php "Verbinden ohne Nachziehung" &&
+pruefe "Verbinden ohne Nachziehung" \
+  PgHbaFollowTest::test_every_place_that_links_a_database_follows_up failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgHbaFollowTest passed
+
+echo
+echo "── PgHbaFollowTest: der Rückbau schluckt seinen Fehlschlag ──"
+#
+# Ein `catch` ohne Meldung ist die Bauart, für die es in diesem Projekt die
+# meisten Narben gibt. Der Rückbau darf nicht umfallen, wenn der Abgleich
+# scheitert — aber still darf er dabei nicht sein.
+vorher_datei app/Support/Databases/PgLifecycle.php
+python3 - <<'PY2'
+p = 'app/Support/Databases/PgLifecycle.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            report($error);", "            // geschluckt")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Databases/PgLifecycle.php "Nachziehung ohne Meldung" &&
+pruefe "Nachziehung ohne Meldung" \
+  PgHbaFollowTest::test_a_failed_follow_up_is_reported_and_not_swallowed failed
+wiederherstellen
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

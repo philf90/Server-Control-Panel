@@ -15,6 +15,7 @@ use App\Models\Subscription;
 use App\Support\Databases\Engines\PostgresDriver;
 use App\Support\Operations\AfterOperation;
 use App\Support\Tenancy\Tenancy;
+use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Client;
 
 /**
@@ -175,6 +176,8 @@ final class PgLifecycle implements AfterOperation
                     'locked_at' => $locked ? now() : null,
                 ])->save());
         });
+
+        $this->follow();
     }
 
     /**
@@ -231,5 +234,45 @@ final class PgLifecycle implements AfterOperation
 
             $database->delete();
         });
+
+        $this->follow();
+    }
+
+    /**
+     * Den verwalteten Block nachziehen — **ohne den Vorgang mitzureissen**.
+     *
+     * Zwei Wege dieses Lebenslaufs ändern den Sollzustand des Blocks, ohne
+     * dass jemand ein Netz angefasst hätte (`docs/38 §14`):
+     *
+     * - **Eine Datenbank ist fort und ihre Rolle überlebt**, weil sie an einer
+     *   zweiten hängt. `pg.role.remove` räumt nur die Zeilen der Rollen weg,
+     *   die mitgehen — die Zeile der überlebenden zeigt danach auf eine
+     *   Datenbank, die es nicht mehr gibt.
+     * - **Ein Abonnement wird gesperrt.** {@see RemoteAccess::rules()} nimmt
+     *   gesperrte Zugänge heraus; ohne diesen Aufruf stünden ihre Zeilen
+     *   weiter in der Datei.
+     *
+     * **Und hier darf ein Fehlschlag den Vorgang nicht umwerfen.** Der Rückbau
+     * *ist* gelaufen: Die Datenbank ist weg, die Rollen sind weg, die Zeilen im
+     * Panel sind weg. Ihn nachträglich als gescheitert zu melden, weil eine
+     * Aufräumarbeit danach nicht ging, wäre eine Behauptung über das System,
+     * die nicht stimmt — und der Kunde suchte den Fehler an der falschen
+     * Stelle.
+     *
+     * **Still ist es trotzdem nicht**, und das ist die Bedingung dafür, dass
+     * dieses `catch` hier stehen darf. Der Fehler geht an `report()` wie in
+     * {@see RunAgentOperation}, und was liegenbleibt, ist genau die
+     * Sorte Rest, für die es den Abgleich gibt: `srvpanel db` hält den Block
+     * gegen den Bestand und meldet, was übrigbleibt
+     * ({@see RemoteAccess::orphans()}). **Melden und nicht löschen**, wie
+     * `docs/36 §5` es festlegt.
+     */
+    private function follow(): void
+    {
+        try {
+            app(RemoteAccess::class)->follow(DatabaseEngine::Postgres);
+        } catch (AgentException $error) {
+            report($error);
+        }
     }
 }

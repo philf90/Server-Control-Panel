@@ -124,6 +124,66 @@ final class RemoteAccess
     }
 
     /**
+     * Den Block nachziehen, nachdem sich der Bestand geändert hat.
+     *
+     * ## Warum es diese Methode gibt
+     *
+     * Der Sollzustand ist **Datenbank × Rolle × Netz** ({@see self::rules()}),
+     * und bis zum 11. August 2026 schrieb ihn nur, wer ein *Netz* anfasste.
+     * Die Datenbanken einer Rolle ändern sich aber auch anderswo:
+     *
+     * | Weg | ohne diese Methode |
+     * |---|---|
+     * | „Vorhandenen Zugang verbinden" | die Zeile für die neue Datenbank fehlt |
+     * | Zugriff entziehen | die Zeile bleibt stehen |
+     * | Datenbank entfernt, Rolle überlebt | Zeile für eine Datenbank, die es nicht mehr gibt |
+     * | Abonnement gesperrt | Datei und Bestand laufen auseinander |
+     *
+     * **Der erste ist der ernste**, und er ist kein Sicherheitsloch, sondern
+     * das Gegenteil: Die fehlende Zeile sperrt aus. Im Panel steht „erreichbar
+     * von 203.0.113.5", und die Anwendung kommt nicht herein — ein Fehler, der
+     * wie ein kaputter Fernzugriff aussieht und keiner ist.
+     *
+     * ## Unmittelbar und nicht über die Warteschlange
+     *
+     * Das ist hier keine Bequemlichkeit, sondern die Lehre aus `docs/42`:
+     *
+     * > **Eine Frage an den Bestand, die beim Einreihen gestellt wird, kennt
+     * > die anderen Vorgänge derselben Reihe nicht.**
+     *
+     * Ein eingereihter Vorgang trüge den Sollzustand von *jetzt* in seiner
+     * Nutzlast; bis er liefe, hätten zwei weitere Änderungen stattgefunden, und
+     * er schriebe einen Stand zurück, den niemand mehr wollte. Berechnet wird
+     * er deshalb beim Ausführen — und das heisst: im selben Aufruf.
+     *
+     * ## Ohne ein einziges Netz passiert gar nichts
+     *
+     * Auf den allermeisten Servern gibt es keinen Fernzugriff. Ohne eine Zeile
+     * in `db_user_networks` ist der Block leer und bleibt leer, und dieser
+     * Aufruf spart sich den Weg zum Agenten. Ein `pg.remote.access` bei jedem
+     * Verbinden einer MariaDB-Datenbank wäre ein Gang zum Datenbankserver für
+     * nichts — auf einem Server, der PostgreSQL vielleicht gar nicht hat.
+     *
+     * **Der Vorbehalt dazu, damit ihn niemand für einen Fehler hält:** Bleibt
+     * nach dem Entfernen des letzten Netzes eine Zeile liegen, räumt dieser
+     * Weg sie nicht mehr weg. Das kann nicht passieren — {@see self::remove()}
+     * schreibt den Block, *bevor* die letzte Zeile fehlt — und falls doch,
+     * meldet `srvpanel db` sie als verwaist ({@see self::orphans()}).
+     */
+    public function follow(DatabaseEngine $engine): void
+    {
+        if ($engine !== DatabaseEngine::Postgres) {
+            return;
+        }
+
+        if (! DbUserNetwork::query()->exists()) {
+            return;
+        }
+
+        $this->sync();
+    }
+
+    /**
      * Was im Block steht und im Bestand nicht — **gemeldet und nicht gelöscht**.
      *
      * `docs/36 §5`, wörtlich: Wer löscht, weiss, was er löscht. Eine Zeile für

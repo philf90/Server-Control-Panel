@@ -8837,3 +8837,34 @@ an keinen dieser Vorgänge und bliebe weiter stehen. Der Weg dorthin ist eine
 gelöste Zuordnung; ob es ihn im Panel überhaupt gibt, ist ungeprüft. Er wird
 hier nicht mitbehoben — ein Code, dessen Fall niemand gemessen hat, ist die
 zweite Fassung einer Regel, und die veraltet.
+
+### Erst hatte diese Meldung keinen Weg ins Panel, dann keinen Platz darin
+
+Der Nachlauf zu Punkt 8 auf `cloudsrv24`: Mit `v0.5.1-rc.8` kommt die Begründung
+des Agenten am Vorgang an — wörtlich, mit Zeilennummer, wie das Kriterium es
+verlangt. Sie lautet:
+
+    Das Zurückspielen ist gescheitert: psql:/var/lib/srvpanel/dumps/
+    cloudlab24.de/.x729e5e5e3cc7e369-shop-20260811-083543-471485f4.restore.sql:67:
+    ERROR:  permission denied to alter role …
+
+Der Pfad darin ist **hundert Zeichen ohne ein einziges Leerzeichen**, und
+`.notice` ist eine Flexbox. Bei 390px schob die Vorgangsseite damit **110px**
+aus dem Bild — gemessen unmittelbar nachdem die Meldung überhaupt erst ankam.
+
+`overflow-wrap: anywhere` steht jetzt an der Meldung selbst und nicht an einer
+einzelnen Stelle:
+
+> **Was in einer Meldung steht, kommt von aussen.** Vom Agenten, vom
+> Betriebssystem, von einem fremden Anbieter — und keine dieser Quellen kennt
+> die Breite eines Telefons.
+
+`anywhere` und nicht `break-word`, aus demselben Grund wie bei `.ident`: Nur
+`anywhere` verkleinert auch die min-content-Breite, und die hält ein Flex-Kind
+sonst auf seiner Inhaltsbreite fest. Gemessen im Chromium, beide Themes:
+110 → 0.
+
+**Das ist der dritte Umbruchfehler dieser Art** — nach den 83px aus P4 und den
+65px von gestern. Alle drei waren vollständig grün getestet, und alle drei hat
+dieselbe Handbewegung gefunden: das gebaute Stylesheet, das Markup in einer
+eigenen Datei, `scrollWidth - clientWidth` bei 390px.

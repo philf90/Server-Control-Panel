@@ -121,4 +121,41 @@ final class NoticeShapeTest extends TestCase
          */
         $this->assertGreaterThan(30, $seen, 'Der Ausdruck findet keine Meldungen mehr.');
     }
+
+    /**
+     * Und eine Meldung darf brechen, wo kein Leerzeichen steht.
+     *
+     * **Der Anlass ist die Meldung, die Kriterium 5 belegt.** Sie trägt den
+     * Pfad des Dumps — hundert Zeichen ohne ein einziges Leerzeichen —, und bei
+     * 390px schob sie die Vorgangsseite um **110px** aus dem Bild. Gemessen am
+     * 11. August 2026, unmittelbar nachdem diese Meldung überhaupt erst ankam:
+     * Erst hatte sie keinen Weg ins Panel, dann keinen Platz darin.
+     *
+     * `anywhere` und nicht `break-word`, aus demselben Grund wie bei `.ident`:
+     * Nur `anywhere` verkleinert auch die min-content-Breite, und die hält ein
+     * Flex-Kind sonst auf seiner Inhaltsbreite fest.
+     *
+     * > **Was in einer Meldung steht, kommt von aussen.** Vom Agenten, vom
+     * > Betriebssystem, von einem fremden Anbieter — und keine dieser Quellen
+     * > kennt die Breite eines Telefons.
+     */
+    public function test_a_notice_may_break_where_there_is_no_space(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2).'/resources/css/app.css');
+
+        $start = strpos($css, '.notice {');
+
+        $this->assertNotFalse($start, 'Die Regel .notice gibt es nicht mehr.');
+
+        $block = substr($css, $start, (int) (strpos($css, '}', $start) - $start));
+
+        $this->assertStringContainsString('overflow-wrap: anywhere', $block, sprintf(
+            "Die Regel .notice erlaubt keinen Umbruch mehr.\n\n"
+            .'Eine Meldung trägt, was der Agent oder das System sagt — Pfade, Kennungen, '
+            .'Kommandozeilen. Ohne Umbrucherlaubnis steht so eine Zeichenkette in einer Flexbox '
+            ."und schiebt die Seite waagerecht aus dem Bild; bei 390px waren es 110px.\n\n"
+            .'Gefunden hat sich der aktuelle Block so: %s',
+            mb_substr(preg_replace('~\s+~', ' ', $block) ?? '', 0, 80),
+        ));
+    }
 }

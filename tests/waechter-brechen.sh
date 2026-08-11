@@ -6145,6 +6145,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" OrphanedGrantTest passed
 
 echo
+echo "── NoticeShapeTest: eine Meldung darf nicht mehr brechen ──"
+#
+# Der Fund vom 11. August 2026: Die Meldung eines fehlgeschlagenen Vorgangs
+# traegt den Pfad des Dumps — hundert Zeichen ohne Leerzeichen — und schob die
+# Vorgangsseite bei 390px um 110px aus dem Bild. Erst hatte diese Meldung
+# keinen Weg ins Panel, dann keinen Platz darin.
+vorher_datei resources/css/app.css
+python3 - <<'PY2'
+p = 'resources/css/app.css'
+s = open(p, encoding='utf-8').read()
+s = s.replace("  overflow-wrap: anywhere;\n  padding: 13px 16px;", "  padding: 13px 16px;")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei resources/css/app.css "Meldung ohne Umbrucherlaubnis" &&
+pruefe "Meldung ohne Umbrucherlaubnis" \
+  NoticeShapeTest::test_a_notice_may_break_where_there_is_no_space failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" NoticeShapeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

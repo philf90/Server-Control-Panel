@@ -6343,6 +6343,26 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" PgHbaReachTest passed
 
 echo
+echo "── EngineReachTest: eine pg.*-Operation verschwindet ──"
+#
+# docs/38 §18: Zu jeder db.*-Operation mit einem Gegenstueck gibt es pg.*, oder
+# ein begruendeter Eintrag sagt warum nicht. Was hier still schiefgeht, ist eine
+# Flaeche, die es fuer das eine System gibt und fuer das andere nicht — und
+# auffallen wuerde das dem Kunden, der es versucht.
+vorher_datei agent/src/Registry.php
+python3 - <<'PY2'
+p = 'agent/src/Registry.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        $this->register(new PgRemoteAccess);", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Registry.php "pg.remote.access fehlt" &&
+pruefe "pg.remote.access fehlt" \
+  EngineReachTest::test_every_mariadb_operation_has_a_postgresql_counterpart failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" EngineReachTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

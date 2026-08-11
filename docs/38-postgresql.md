@@ -624,17 +624,44 @@ Unter `agent/src/Ops/`, eingetragen in `agent/src/Registry.php` unter
 | `pg.database.create` | `CREATE DATABASE`, danach die Absperrung (unten) | **ja** — `template0` und elf `REVOKE` |
 | `pg.database.remove` | `DROP DATABASE`, danach die Rollen, die nur daran hingen | **ja** |
 | `pg.role.create` | `CREATE ROLE … LOGIN`, `GRANT CONNECT`, Rechte im Schema | nein — **Passwort** |
-| `pg.role.password` | `ALTER ROLE … PASSWORD` | nein — **Passwort** |
+| ~~`pg.role.password`~~ | **nicht gebaut** — `pg.role.create` setzt es mit (siehe unten) | — |
 | `pg.role.grant` | Rechte für ein Paar | nein |
 | `pg.role.remove` | `REASSIGN`/`DROP OWNED`, dann `DROP ROLE` | nein |
 | `pg.role.lock` | `NOLOGIN` / `LOGIN` (§11) | **ja** |
 | `pg.usage` | Grössen aller Datenbanken in einem Aufruf | nein |
 | `pg.dump.create` | `pg_dump` in die Ablage | **ja** |
 | `pg.dump.import` | Eine mitgebrachte Sicherung ablegen | **ja** |
-| `pg.dump.remove` | Die Ablage wieder weg | **ja** |
+| ~~`pg.dump.remove`~~ | **nicht gebaut** — `db.dump.remove` gilt für beide (siehe unten) | — |
 | `pg.restore` | Einspielen unter befristeter Rolle, `ON_ERROR_STOP=1` (§13) | **ja** |
 | `pg.remote.access` | `listen_addresses` über `conf.d`, der verwaltete Block in `pg_hba.conf`, mit Rückweg (§14) | **ja** — Reload, und bei Bedarf Neustart |
-| `pg.isolation.probe` | Die Gegenprobe zum Abnahmekriterium (§19) | nein |
+| ~~`pg.isolation.probe`~~ | **nicht gebaut** — das Kriterium ist ein anderes geworden (siehe unten) | — |
+
+**Drei Zeilen dieser Tabelle sind Absichten geblieben, und das ist erst am
+11. August 2026 aufgefallen** — beim Bau von `EngineReachTest`, der zu jeder
+`db.*`-Operation ihr `pg.*`-Gegenstück verlangt. Zwei der drei hatten ihre
+Begründung im Code stehen, eine hatte gar keine:
+
+- **`pg.role.password`.** `pg.role.create` ist wiederholbar und setzt das
+  Passwort an einer vorhandenen Rolle mit `ALTER ROLE` — `CREATE ROLE` kennt
+  kein `IF NOT EXISTS`, die Operation *muss* diesen Fall ohnehin können. Eine
+  zweite wäre eine zweite Fassung derselben Regel. Stand in
+  `PostgresDriver::setPassword()`, hier nicht.
+- **`pg.dump.remove`.** Entfernt eine Datei, und eine Datei hat kein
+  Datenbanksystem. Stand in `Registry` und in `RemovalPathTest`, hier nicht.
+- **`pg.isolation.probe` — und die hatte nirgends eine.** Sie sollte das
+  Abnahmekriterium von P5 gegenprüfen; **§3 hat genau dieses Kriterium
+  umgeworfen**, weil „ein Datenbankbenutzer kann fremde Datenbanknamen nicht
+  aufzählen" in PostgreSQL nicht erfüllbar ist. An seine Stelle sind die elf
+  `REVOKE` aus `Pg\Shielding` und die Punkte 3 und 3b des Abnahmelaufs getreten.
+  Die Operation wurde damit gegenstandslos — nur stand das nirgends, und die
+  Zeile hier behauptete weiter, es gebe sie.
+
+> **Ein Plan, dessen Tabelle nach dem Bau niemand zurückliest, wird zur
+> Behauptung über den Code.**
+
+Die drei Begründungen stehen jetzt in `EngineReachTest::WITHOUT_COUNTERPART`,
+also an einer Stelle, die rot wird, sobald jemand das Gegenstück doch baut und
+den Eintrag stehenlässt.
 
 Bausteine unter `agent/src/Pg/`, im Schnitt von `agent/src/Db/`:
 

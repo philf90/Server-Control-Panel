@@ -9183,3 +9183,53 @@ schon steht, und die Zuordnung trägt der Name in seiner Beschriftung. Die
 Herkunftsspalte bekommt `multiline`, damit zwei Netze mit ihren Knöpfen
 untereinander stehen statt rechts in 180px. Gemessen im Chromium bei 390px und
 1440px, beide Themes: kein Überlauf, nichts abgeschnitten.
+
+### `EngineReachTest` — und drei Zeilen des Plans, die Absichten geblieben sind
+
+Der letzte Wächter aus `docs/38 §18`, den P5b vorgesehen und nicht gebaut hatte.
+Er verlangt zu jeder `db.*`-Operation ihr `pg.*`-Gegenstück, oder einen
+begründeten Eintrag, der sagt warum nicht. Die Lücke, die er fängt, ist eine
+**Abwesenheit**: Nicht dass eine Operation fehlt — dann bricht der Vorgang mit
+„Unbekannte Operation", und das sieht man —, sondern dass eine Fläche für das
+eine System gebaut wird und für das andere nicht. Ein Kunde mit MariaDB kann
+seine Sicherung löschen, einer mit PostgreSQL nicht, und auffallen würde das
+dem, der es versucht.
+
+**Er hat beim ersten Lauf drei Zeilen aus der Tabelle in `docs/38 §10`
+gefunden, die nie gebaut wurden** — `pg.role.password`, `pg.dump.remove`,
+`pg.isolation.probe`. Zwei davon zu Recht, mit ihrer Begründung im Code:
+`pg.role.create` ist wiederholbar und setzt das Passwort mit (`CREATE ROLE`
+kennt kein `IF NOT EXISTS`), und `db.dump.remove` entfernt eine Datei, die kein
+Datenbanksystem hat.
+
+**Die dritte hatte nirgends eine.** `pg.isolation.probe` sollte das
+Abnahmekriterium von P5 gegenprüfen — und §3 hat genau dieses Kriterium
+umgeworfen, weil „ein Datenbankbenutzer kann fremde Datenbanknamen nicht
+aufzählen" in PostgreSQL nicht erfüllbar ist. Die Operation wurde damit
+gegenstandslos; nur stand das nirgends, und die Zeile im Plan behauptete
+weiter, es gebe sie.
+
+> **Ein Plan, dessen Tabelle nach dem Bau niemand zurückliest, wird zur
+> Behauptung über den Code.**
+
+**Die beiden Systeme nennen dasselbe verschieden**, und der Wächter muss das
+wissen: In MariaDB heisst es Benutzer, in PostgreSQL Rolle. `db.user.create`
+sucht deshalb `pg.role.create` und nicht `pg.user.create` — Letzteres wäre nicht
+das gesuchte Gegenstück, sondern ein falscher Name. Die Zuordnung wird
+mitgeprüft, damit sie nicht ins Leere zeigt.
+
+**Zwei Untergrenzen, und die erste sitzt dort, wo die Regel stehen *darf*** —
+die Falle, in die dieses Vorgehen dreimal gelaufen ist. Gezählt werden die
+`db.*`-Operationen und nicht die gefundenen Paare, sonst meldete der Wächter
+Rot, sobald jemand aufräumt. Die zweite zählt die Paare, die tatsächlich
+aufgehen: Trüge die Ausnahmeliste irgendwann jede Operation, wäre jede Schleife
+erfüllt und nichts gemessen — eine Ausnahmeliste, die alles enthält, ist keine
+mehr.
+
+Vier Brüche gefahren, jeder rot: eine `pg.*`-Operation aus der Registratur
+nehmen (der Bruch aus §18, im Skript), das Gegenstück bauen und den
+Ausnahmeeintrag stehenlassen, die Begriffszuordnung entfernen, einen Eintrag
+für eine Operation eintragen, die es nicht gibt. Die letzten drei ändern
+`tests/` oder legen eine Datei unter `agent/src/Ops/` an — beides nimmt
+`wiederherstellen()` nicht zurück, sie stehen deshalb von Hand im Kopf des
+Tests.

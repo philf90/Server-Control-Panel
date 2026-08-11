@@ -331,8 +331,21 @@ final class RemoteAccessTest extends TestCase
              * deshalb seinen eigenen Kommentar gemeldet. `token_get_all()`
              * unterscheidet die beiden; ein regulärer Ausdruck nie.
              */
+            /*
+             * **Das `<?php` gehört dazu, und ohne es prüft dieser Test nichts.**
+             * {@see WithoutPhpComments} fragt `token_get_all()`, und der
+             * Tokenizer beginnt ausserhalb von PHP: Ein Rumpf ohne öffnende
+             * Marke ist für ihn ein einziges `T_INLINE_HTML`, in dem kein
+             * Kommentar vorkommt. Die Kommentare blieben also stehen, und die
+             * Prüfung darunter meldete den eigenen Erklärtext als Fund.
+             *
+             * Gemerkt hat das die CI und nicht der Lauf davor — der prüfte
+             * dieselbe Regel mit einem regulären Ausdruck statt mit diesem
+             * Aufruf. **Zwei Fassungen derselben Prüfung, und die grüne war die
+             * falsche.**
+             */
             $quelle = $this->withoutComments(
-                (string) $this->methodSource(DatabaseSettingsController::class, $methode),
+                "<?php\n".(string) $this->methodSource(DatabaseSettingsController::class, $methode),
             );
 
             $this->assertStringContainsString($eigene, $quelle, sprintf(

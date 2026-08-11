@@ -83,16 +83,24 @@ final class PgRemoteAccess implements Op
      *
      * `*` ist die Vorgabe und deckt jede Adresse, die der Rechner hat —
      * PostgreSQL geht die Familien einzeln durch und stört sich nicht daran,
-     * wenn IPv6 fehlt. Das ist der Unterschied zu MariaDB, wo `::` auf einem
-     * Rechner ohne IPv6 beim Start scheitert und deshalb die ausdrückliche Wahl
-     * sein musste ({@see DbRemoteAccess}). `0.0.0.0` bleibt für den Betreiber,
-     * der ausdrücklich nur IPv4 will.
+     * wenn IPv6 fehlt. `0.0.0.0` bleibt für den Betreiber, der ausdrücklich nur
+     * IPv4 will, `::` für den, der ausdrücklich nur IPv6 will.
+     *
+     * **Dieselben drei Werte wie in {@see DbRemoteAccess::ADDRESSES}, und seit
+     * dem 11. August 2026 bedeuten sie in beiden Systemen dasselbe.** Hier
+     * stand vorher, `::` sei „der Unterschied zu MariaDB" — das beruhte auf der
+     * Annahme, MariaDBs `::` binde einen Doppelstapel. Gemessen bindet es
+     * IPv6-only, genau wie PostgreSQLs `::`. Damit ist die Übersetzung zwischen
+     * den beiden Systemen weggefallen: Das Kommando reicht die Adresse durch,
+     * statt sie umzurechnen.
      *
      * **Die Adresse kommt aus einer Positivliste und nicht aus dem Aufruf** —
      * in eine Konfigurationsdatei geschrieben zu werden ist genau das, wovor
      * die Positivliste des Agenten schützt.
+     *
+     * @var list<string>
      */
-    private const ADDRESSES = ['*', '0.0.0.0'];
+    public const ADDRESSES = ['*', '0.0.0.0', '::'];
 
     /**
      * Wie viele Zeilen der Block tragen darf.

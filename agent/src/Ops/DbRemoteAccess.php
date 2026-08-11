@@ -44,6 +44,21 @@ use SrvPanel\Agent\Op;
  * gemerkt und bei einem gescheiterten Neustart wiederhergestellt — mit einem
  * zweiten Neustart hinterher, damit der Server nicht mit einer Datei steht,
  * die niemand mehr will.
+ *
+ * **Und der Rückweg fängt nur den Neustart, der scheitert** — am 11. August
+ * 2026 auf `cloudsrv24` gemessen. `bind-address = ::` startete MariaDB
+ * anstandslos, IPv6-only, und schnitt damit das Panel von seiner eigenen
+ * Datenbank ab: `SQLSTATE[HY000] [2002] Connection refused (Host: 127.0.0.1)`.
+ * Für diese Operation war das ein Erfolg, denn sie fragt danach über den
+ * Unix-Socket ({@see Session}) — über eine Strecke also, die gar nicht kaputt
+ * gehen kann, wenn TCP kaputt geht.
+ *
+ * > Eine Gegenprobe über einen anderen Weg als den benutzten prüft den
+ * > falschen Weg.
+ *
+ * Die Frage „erreicht das Panel seine Datenbank noch" gehört deshalb ins
+ * Panel und nicht hierher: Nur dort steht, über welchen Wirt und welchen Port
+ * es verbindet. Sie steht in `Databases::remote()`, samt Rückweg.
  */
 final class DbRemoteAccess implements Op
 {
@@ -65,14 +80,34 @@ final class DbRemoteAccess implements Op
     /**
      * Worauf gehorcht werden darf.
      *
-     * `0.0.0.0` ist die Vorgabe und deckt IPv4. `::` deckt auf einem
-     * Doppelstapel beides — und scheitert auf einem Rechner, auf dem IPv6
-     * abgeschaltet ist, beim Start. Deshalb ist es die ausdrückliche Wahl und
-     * nicht die Vorgabe: Der Rückweg unten fängt es auf, aber ein Neustart, der
-     * erst scheitert und dann zurückrollt, ist ein schlechter erster Eindruck
-     * für etwas, das der Betreiber gerade eingeschaltet hat.
+     * - `*` deckt beide Stapel. **Das ist der Wert für „von überall".**
+     * - `0.0.0.0` deckt IPv4.
+     * - `::` deckt IPv6 — und ausschliesslich IPv6.
+     *
+     * **Die dritte Zeile stand hier bis zum 11. August 2026 falsch**, und der
+     * Satz lautete „`::` deckt auf einem Doppelstapel beides". Gemessen auf
+     * `cloudsrv24` gegen MariaDB 10.11.14 stimmt das nicht: Nach
+     * `bind-address = ::` steht in `ss -tlnp` genau ein Eintrag, `[::]:3306`,
+     * und eine Verbindung auf `127.0.0.1:3306` läuft in ein `Connection
+     * refused`. MariaDB setzt für eine ausdrücklich genannte IPv6-Adresse
+     * `IPV6_V6ONLY`; den Doppelstapel gibt es nur unter `*`.
+     *
+     * **Das Panel verbindet sich über `127.0.0.1`.** Der Wert `::` hat es
+     * deshalb von seiner eigenen Datenbank abgeschnitten — und weil der
+     * Neustart *gelang*, hat der Rückweg weiter unten nicht gegriffen. Wer die
+     * Liste hier erweitert, denkt an diese Reihenfolge: Erst ist der Server neu
+     * gestartet, dann merkt jemand, dass er niemanden mehr bedient.
+     *
+     * > Ein Wert, den nur die Dokumentation kennt, ist eine Vermutung mit
+     * > Fussnote.
+     *
+     * **Öffentlich, weil `srvpanel db --bind` dieselbe Liste braucht.** Sie dort
+     * ein zweites Mal hinzuschreiben wäre die zweite Fassung derselben Regel,
+     * und die zweite ist die, die veraltet.
+     *
+     * @var list<string>
      */
-    private const ADDRESSES = ['0.0.0.0', '::'];
+    public const ADDRESSES = ['*', '0.0.0.0', '::'];
 
     public function __construct(
         private readonly Session $session = new Session,

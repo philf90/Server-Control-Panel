@@ -6424,6 +6424,152 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" RemoteAccessTest passed
 
 echo
+echo "── RemoteAccessTest: der Rückweg zählt erst den Bestand ──"
+#
+# Der Zustand von vor diesem Wächter, gemessen am 11. August 2026 auf
+# cloudsrv24: `--remote=on --bind=::` hatte das Panel von seiner Datenbank
+# abgeschnitten, und `--remote=off` starb an dieser Zählung, bevor es zum
+# Agenten kam. Der Griff gegen den Ausfall brauchte genau das, was der Ausfall
+# weggenommen hatte.
+vorher_datei app/Console/Commands/Databases.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "        $fern = $mode === 'off' ? $this->foreignAccess($tenancy) : null;",
+    "        $fern = $tenancy->withoutRestriction(\n"
+    "            static fn (): int => DbUser::query()->where('host', '!=', 'localhost')->count()\n"
+    "                + DbUserNetwork::query()->count(),\n"
+    "        );",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/Databases.php "Rückweg braucht den Bestand" &&
+pruefe "Rückweg braucht den Bestand" \
+  RemoteAccessTest::test_the_way_back_does_not_need_the_inventory failed
+wiederherstellen
+
+echo
+echo "── RemoteAccessTest: der Schalter fragt nicht, ob das Panel noch hereinkommt ──"
+#
+# Der Agent meldete „Horcht auf :: — Fernzugriff möglich.", das Kommando
+# verglich die Antwort mit der Absicht und war zufrieden — während das Panel
+# schon auf jeder Seite einen 500er gab. Seine Gegenprobe läuft über den
+# Unix-Socket und kann einen kaputten TCP-Weg gar nicht sehen.
+vorher_datei app/Console/Commands/Databases.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace(
+    "            $fehlt = $this->panelDatabaseUnreachable();",
+    "            $fehlt = null;",
+)
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/Databases.php "Umschalten ohne eigene Gegenprobe" &&
+pruefe "Umschalten ohne eigene Gegenprobe" \
+  RemoteAccessTest::test_the_switch_checks_that_the_panel_still_gets_in failed
+wiederherstellen
+
+echo
+echo "── RemoteAccessTest: kein Wert für „von überall", der das Panel verschont ──"
+#
+# `bind-address = ::` bindet in MariaDB ausschliesslich IPv6 — gemessen, nicht
+# gelesen. Ohne `*` bleibt für „von überall" nur ein Wert übrig, der das Panel
+# aussperrt, und der Abnahmelauf schreibt ihn dann vor.
+vorher_datei agent/src/Ops/DbRemoteAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/DbRemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("public const ADDRESSES = ['*', '0.0.0.0', '::'];",
+              "public const ADDRESSES = ['0.0.0.0', '::'];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/DbRemoteAccess.php "Doppelstapel ohne eigenen Wert" &&
+pruefe "Doppelstapel ohne eigenen Wert" \
+  RemoteAccessTest::test_the_dual_stack_address_is_the_star failed
+wiederherstellen
+
+echo
+echo "── RemoteAccessTest: die beiden Systeme nehmen verschiedene Adressen ──"
+#
+# Das Kommando reicht die Adresse unübersetzt an beide weiter. Ein Wert, den nur
+# eines von beiden kennt, wird dort abgewiesen — nachdem das andere schon neu
+# gestartet hat.
+vorher_datei agent/src/Ops/PgRemoteAccess.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgRemoteAccess.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("public const ADDRESSES = ['*', '0.0.0.0', '::'];",
+              "public const ADDRESSES = ['*', '0.0.0.0'];")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgRemoteAccess.php "zwei Listen von Horchadressen" &&
+pruefe "zwei Listen von Horchadressen" \
+  RemoteAccessTest::test_both_systems_take_the_same_addresses failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemoteAccessTest passed
+
+echo
+echo "── SettingsProbeTest: ein gescheiterter Leseversuch heisst „nein" ──"
+#
+# Der Zustand von vor diesem Wächter: `catch (Throwable) { return []; }` machte
+# aus „der Datenbankserver antwortet nicht" eine leere Ablage, und das Kommando
+# meldete daraufhin, der Betreiber biete PostgreSQL nicht an. Die Betreiberseite
+# sagte zur selben Zeit das Gegenteil, und sie hatte recht.
+vorher_datei app/Support/Settings/Settings.php
+python3 - <<'PY2'
+p = 'app/Support/Settings/Settings.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("        } catch (Throwable) {\n            return null;\n        }",
+              "        } catch (Throwable) {\n            return [];\n        }")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Settings/Settings.php "Leseversuch ohne dritten Wert" &&
+pruefe "Leseversuch ohne dritten Wert" \
+  SettingsProbeTest::test_a_failed_look_is_not_a_no failed
+wiederherstellen
+
+echo
+echo "── SettingsProbeTest: der dritte Wert verschluckt den harmlosen Fall ──"
+#
+# Die fehlende Tabelle vor der ersten Migration ist wirklich „nichts abgelegt".
+# Wer sie in dieselbe Antwort legt wie den nicht erreichbaren Datenbankserver,
+# hat den Unterschied nur verschoben — und der erste Anlauf dieses Wächters ist
+# genau darauf hereingefallen: Er nahm die Tabelle weg und erwartete „nicht
+# nachgesehen".
+vorher_datei app/Support/Settings/Settings.php
+python3 - <<'PY2'
+p = 'app/Support/Settings/Settings.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("            if (! Schema::hasTable('settings')) {\n                return [];\n            }",
+              "            if (! Schema::hasTable('settings')) {\n                return null;\n            }")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Support/Settings/Settings.php "fehlende Tabelle als Unsicherheit" &&
+pruefe "fehlende Tabelle als Unsicherheit" \
+  SettingsProbeTest::test_a_missing_table_is_a_no failed
+wiederherstellen
+
+echo
+echo "── SettingsProbeTest: die Kommandozeile fragt wieder zweiwertig ──"
+#
+# Der dritte Wert nützt nichts, wenn die Stelle, die den Fehler ausgegeben hat,
+# ihn nicht liest.
+vorher_datei app/Console/Commands/Databases.php
+python3 - <<'PY2'
+p = 'app/Console/Commands/Databases.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("app(Settings::class)->postgresOffered();", "app(Settings::class)->postgres();")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Console/Commands/Databases.php "Kommandozeile wieder zweiwertig" &&
+pruefe "Kommandozeile wieder zweiwertig" \
+  SettingsProbeTest::test_the_command_line_asks_the_three_valued_question failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" SettingsProbeTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

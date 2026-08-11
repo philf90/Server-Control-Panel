@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Console\Commands\Databases as DatabasesCommand;
 use App\Http\Controllers\DatabaseSettingsController;
 use App\Models\Account;
 use App\Models\Customer;
@@ -13,7 +14,9 @@ use App\Models\Subscription;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route as Router;
+use Illuminate\Support\Facades\Schema;
 use SrvPanel\Agent\Ops\DbRemoteAccess;
+use SrvPanel\Agent\Ops\PgRemoteAccess;
 use Tests\Support\ReadsMethodSource;
 use Tests\Support\WithoutPhpComments;
 use Tests\TestCase;
@@ -386,5 +389,159 @@ final class RemoteAccessTest extends TestCase
                 $feld,
             ));
         }
+    }
+
+    /**
+     * **Der Rückweg braucht den Bestand nicht.**
+     *
+     * Am 11. August 2026 auf `cloudsrv24`: `srvpanel db --remote=on --bind=::`
+     * hatte MariaDB IPv6-only gebunden und damit das Panel von seiner eigenen
+     * Datenbank abgeschnitten. Der Griff dagegen — `srvpanel db --remote=off` —
+     * starb an der Zählung der ausgesperrten Zugänge, *bevor* er den Agenten
+     * rief. Der Betreiber musste die Include-Datei von Hand löschen.
+     *
+     * > Ein Rückweg, der den Bestand braucht, ist keiner für den Fall, dass der
+     * > Bestand weg ist.
+     *
+     * **Die Tabellen werden wirklich weggenommen und nicht nachgestellt.** Eine
+     * Attrappe, die eine Ausnahme wirft, prüfte, ob dieses Kommando `catch`
+     * schreibt; hier scheitert dieselbe Abfrage aus demselben Grund wie auf dem
+     * Server — die Tabelle ist nicht da. Die Rückfrage danach ist der Beleg: Sie
+     * kommt erst, nachdem die Zählung durch ist.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): das `try` in
+     * `Databases::foreignAccess()` entfernen und unbedingt zählen.
+     */
+    public function test_the_way_back_does_not_need_the_inventory(): void
+    {
+        Schema::drop('db_user_networks');
+        Schema::drop('db_users');
+
+        $this->artisan('srvpanel:db --remote=off')
+            ->expectsOutputToContain('der Bestand ist nicht lesbar')
+            ->expectsConfirmation(
+                'Dafür wird der Datenbankserver neu gestartet. Das Panel ist dabei kurz ohne Datenbank. Weiter?',
+                'no',
+            )
+            ->expectsOutputToContain('Abgebrochen.')
+            ->assertSuccessful();
+    }
+
+    /**
+     * Und die erlaubten Horchadressen stehen an **einer** Stelle.
+     *
+     * Das Kommando prüft `--bind`, damit die Meldung lesbar ist, und der Agent
+     * prüft denselben Wert noch einmal, weil er die Regel hält. Solange beide
+     * dieselbe Liste lesen, ist das kein Widerspruch — schreibt eine von beiden
+     * ihre eigene, ist es die zweite Fassung derselben Regel. Bis zum
+     * 11. August 2026 war es genau das: `['0.0.0.0', '::']` stand wörtlich im
+     * Kommando **und** im Agenten.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): `*` aus
+     * `DbRemoteAccess::ADDRESSES` streichen.
+     */
+    public function test_both_systems_take_the_same_addresses(): void
+    {
+        $this->assertSame(
+            DbRemoteAccess::ADDRESSES,
+            PgRemoteAccess::ADDRESSES,
+            'MariaDB und PostgreSQL nehmen nicht mehr dieselben Horchadressen. Das Kommando reicht sie '
+            .'unübersetzt an beide weiter — ein Wert, den nur eines von beiden kennt, wird dort '
+            .'abgewiesen, nachdem das andere schon neu gestartet hat.',
+        );
+
+        $quelle = $this->withoutComments(
+            "<?php\n".(string) $this->methodSource(DatabasesCommand::class, 'remote'),
+        );
+
+        $this->assertStringContainsString('DbRemoteAccess::ADDRESSES', $quelle,
+            'Databases::remote() prüft --bind gegen eine eigene Liste statt gegen die des Agenten.');
+
+        foreach (DbRemoteAccess::ADDRESSES as $adresse) {
+            $this->assertStringNotContainsString(
+                "'".$adresse."'",
+                $quelle,
+                sprintf('Databases::remote() nennt %s wörtlich — die zweite Fassung derselben Liste.', $adresse),
+            );
+        }
+    }
+
+    /**
+     * Und `*` ist der Wert, der beide Stapel bedient.
+     *
+     * **Gemessen und nicht gelesen** (`docs/44`): Nach `bind-address = ::`
+     * meldet `ss -tlnp` auf MariaDB 10.11.14 genau `[::]:3306`, und eine
+     * Verbindung auf `127.0.0.1:3306` endet in `Connection refused`. Das Panel
+     * verbindet sich über `127.0.0.1`. Vorher stand im Quelltext, `::` decke
+     * „auf einem Doppelstapel beides" — daraus wurde eine Anweisung im
+     * Abnahmelauf, und die hat das Panel abgeschaltet.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): in
+     * `DbRemoteAccess::content()` das `*` gegen `::` tauschen.
+     */
+    public function test_the_dual_stack_address_is_the_star(): void
+    {
+        $this->assertContains('*', DbRemoteAccess::ADDRESSES,
+            'Ohne * gibt es keinen Wert für „von überall", der das Panel nicht aussperrt.');
+
+        $this->assertStringContainsString('bind-address = *', DbRemoteAccess::content('*'));
+
+        /*
+         * Und `srvpanel db --bind=*` kommt durch die Prüfung des Kommandos.
+         * Ohne diese Zeile wäre die Liste erweitert und der Weg dahin zu.
+         *
+         * **Ohne `--no-interaction`, wie im Test über die Rückfrage.** Mit dem
+         * Schalter beantwortet Symfony die Frage selbst mit der Vorgabe, die
+         * Attrappe wird nie gerufen, und der Lauf scheitert an einer Erwartung,
+         * die nichts mit dieser Regel zu tun hat.
+         */
+        $this->artisan('srvpanel:db --remote=on --bind=*')
+            ->expectsConfirmation(
+                'Dafür wird der Datenbankserver neu gestartet. Das Panel ist dabei kurz ohne Datenbank. Weiter?',
+                'no',
+            )
+            ->expectsOutputToContain('Abgebrochen.')
+            ->assertSuccessful();
+    }
+
+    /**
+     * Nach dem Umschalten wird gefragt, ob das Panel noch hereinkommt.
+     *
+     * **Das ist der Fehler vom 11. August, und er sah wie ein Erfolg aus.** Der
+     * Agent meldete `Horcht auf :: — Fernzugriff möglich.`, das Kommando
+     * verglich die Antwort mit der Absicht, fand sie stimmig und war fertig.
+     * Zu diesem Zeitpunkt gab das Panel bereits auf jeder Seite einen 500er.
+     *
+     * Die Gegenprobe des Agenten läuft über den Unix-Socket ({@see
+     * \SrvPanel\Agent\Db\Session}) — eine Strecke, die nicht kaputtgeht, wenn
+     * TCP kaputtgeht. Deshalb steht die Frage im Panel.
+     *
+     * Geprüft wird im Quelltext, weil der Fall einen laufenden Agenten und
+     * einen echten Neustart bräuchte. Was hier festgehalten wird, ist die
+     * **Reihenfolge**: erst umschalten, dann selbst anklopfen, und bei einem
+     * Fehlschlag zurücknehmen.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): den Aufruf von
+     * `panelDatabaseUnreachable()` aus `Databases::remote()` entfernen.
+     */
+    public function test_the_switch_checks_that_the_panel_still_gets_in(): void
+    {
+        $quelle = $this->withoutComments(
+            "<?php\n".(string) $this->methodSource(DatabasesCommand::class, 'remote'),
+        );
+
+        $this->assertStringContainsString('panelDatabaseUnreachable', $quelle,
+            'Databases::remote() fragt nach dem Umschalten nicht, ob das Panel seine eigene Datenbank '
+            .'noch erreicht — dann meldet es Erfolg, während jede Seite einen 500er gibt.');
+
+        $this->assertStringContainsString('undoRemote', $quelle,
+            'Es gibt keinen Rückweg für den Fall, dass es sie nicht mehr erreicht.');
+
+        $rueckweg = $this->withoutComments(
+            "<?php\n".(string) $this->methodSource(DatabasesCommand::class, 'undoRemote'),
+        );
+
+        $this->assertStringContainsString("'off'", $rueckweg,
+            'Der Rückweg nimmt den Fernzugriff nicht zurück.');
     }
 }

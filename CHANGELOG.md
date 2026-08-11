@@ -9345,3 +9345,71 @@ Fassung fährt, misst diesen Unterschied und nicht den Fernzugriff.
 Dazu §5 — was zurückkommen soll, mit vier Dingen, die sonst untergehen — und §6,
 was der Lauf ausdrücklich *nicht* prüft: Paketfilter, Fassungsspanne,
 Dauerbetrieb, Last.
+
+### Der Ausfall vom 11. August 2026 — `--bind=::` (docs/44)
+
+**Der Abnahmelauf aus `docs/43` hat auf `cloudsrv24` das Panel abgeschaltet, und
+zwar an der Stelle, an der er es vorschrieb.** Punkt 3 lautete
+`srvpanel db --remote=on --bind=::`. Danach gab jede Seite einen 500er.
+
+**MariaDB bindet `bind-address = ::` ausschliesslich IPv6** — gemessen auf
+10.11.14: `ss -tlnp` zeigt nur `[::]:3306`, und eine Verbindung auf
+`127.0.0.1:3306` endet in `Connection refused`. Das Panel verbindet sich über
+`127.0.0.1`. Im Quelltext stand seit P5 das Gegenteil: *„`::` deckt auf einem
+Doppelstapel beides."* Der Doppelstapel liegt auf `*`.
+
+> **Ein Wert, den nur die Dokumentation kennt, ist eine Vermutung mit Fussnote.**
+
+**Drei weitere Fehler hingen daran, und jeder hätte den Ausfall verhindert oder
+wenigstens erklärt.**
+
+**Die Gegenprobe lief über den falschen Weg.** Die Operation fragt nach dem
+Neustart, worauf der Server horcht — über den Unix-Socket, weil der Agent dafür
+kein Passwort braucht. Über den Socket bleibt ein Server erreichbar, der auf TCP
+niemanden mehr hereinlässt; gemeldet wurde `Horcht auf :: — Fernzugriff
+möglich`, und das war richtig und nutzlos. Der vorhandene Rückweg greift nur bei
+einem *gescheiterten* `systemctl restart`; dieser gelang.
+
+> **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den falschen
+> Weg.**
+
+Die Frage „erreicht das Panel seine eigene Datenbank noch" steht deshalb jetzt
+im Panel und nicht im Agenten — nur dort steht, über welchen Wirt und welchen
+Port es verbindet. Fünf Anläufe, weil systemd die Unit als aktiv meldet, bevor
+MariaDB die erste Verbindung annimmt; bei einem Fehlschlag wird zurückgenommen.
+
+**Der Rückweg brauchte, was der Hinweg weggenommen hatte.** `srvpanel db
+--remote=off` starb an der Zählung der ausgesperrten Zugänge, bevor es zum
+Agenten kam — sie stand unbedingt am Anfang, für beide Richtungen, obwohl nur
+das Ausschalten sie braucht. Der Betreiber musste die Include-Datei von Hand
+löschen.
+
+> **Ein Rückweg, der den Bestand braucht, ist keiner für den Fall, dass der
+> Bestand weg ist.**
+
+**Und „nicht nachgesehen" kam als „nein" zurück.** `Settings::read()` fing jeden
+`Throwable` und gab eine leere Ablage zurück; daraus wurde
+`PostgreSQL: übersprungen — das Panel bietet es nicht an`, während die
+Betreiberseite „Wird angeboten: ja" zeigte. Beide lasen dieselbe Methode. Der
+Leseversuch ist jetzt dreiwertig: `null` heisst „konnte nicht nachsehen", und
+die Kommandozeile scheitert damit, statt eine Absicht zu behaupten.
+
+> **Ein Wert, der „nein" und „ich weiss es nicht" nicht auseinanderhält,
+> behauptet das eine, wenn das andere gilt.**
+
+Das Teuerste daran war nicht die falsche Zeile, sondern ihre Plausibilität: Sie
+nannte sogar den Befehl zur Abhilfe und hat die Diagnose in die falsche Richtung
+geschickt, während das Panel unten war.
+
+**Die Positivliste der Horchadressen steht ab jetzt einmal** — in
+`DbRemoteAccess::ADDRESSES`, gelesen auch vom Kommando. Beide Systeme nehmen
+dieselben drei Werte (`*`, `0.0.0.0`, `::`), und sie bedeuten in beiden
+dasselbe; die Umrechnung im Kommando ist damit weg. Sechs neue Eingriffe in
+`tests/waechter-brechen.sh`, alle greifen.
+
+`docs/43` Punkt 3 fährt `--bind=*` und ruft danach das Panel über HTTP auf —
+den Datenbankserver zu fragen, ob er horcht, war genau die Gegenprobe, die den
+Ausfall nicht gesehen hat.
+
+> **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+> nicht — er führt sie aus.**

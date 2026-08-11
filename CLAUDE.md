@@ -17,6 +17,28 @@ PostgreSQL** — abgenommen am 11. August 2026 auf `cloudsrv24` gegen
 PostgreSQL 16.14: **alle sieben Kriterien aus `docs/38 §3`**, das Protokoll
 steht in **`docs/42`**. Die Übergabe dafür war `docs/37`, der Plan `docs/38`.
 
+**Und der Abnahmelauf des Fernzugriffs hat das Panel abgeschaltet — an der
+Stelle, an der er es vorschrieb.** `docs/43` Punkt 3 lautete `srvpanel db
+--remote=on --bind=::`; danach gab jede Seite einen 500er. **MariaDB bindet `::`
+ausschliesslich IPv6** (gemessen, 10.11.14), das Panel verbindet über
+`127.0.0.1`, und im Quelltext stand seit P5 das Gegenteil. Das Protokoll ist
+**`docs/44`**, mit den drei weiteren Fehlern, die daran hingen: eine Gegenprobe
+über den Unix-Socket, die einen kaputten TCP-Weg nicht sehen kann; ein
+`--remote=off`, das an der Bestandsabfrage starb, bevor es zum Agenten kam; und
+ein `catch (Throwable) { return []; }`, das aus „nicht erreichbar" ein „der
+Betreiber bietet es nicht an" machte. Die vier Sätze dazu:
+
+> **Ein Wert, den nur die Dokumentation kennt, ist eine Vermutung mit Fussnote.**
+
+> **Eine Gegenprobe über einen anderen Weg als den benutzten prüft den falschen
+> Weg.**
+
+> **Ein Rückweg, der den Bestand braucht, ist keiner für den Fall, dass der
+> Bestand weg ist.**
+
+> **Ein Abnahmelauf, der eine ungeprüfte Annahme als Anweisung führt, prüft sie
+> nicht — er führt sie aus.**
+
 **Der Lauf hat sechs Fehler gefunden, und keinen davon ein Test** — vier fand
 ein echter Server, zwei eine Messung im Browser bei 390px. Die drei teuersten
 hingen aneinander, und das ist die Lehre dieser Stufe:

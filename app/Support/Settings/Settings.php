@@ -6,6 +6,7 @@ namespace App\Support\Settings;
 
 use App\Models\Setting;
 use App\Support\Web\PhpSelection;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -139,10 +140,46 @@ final class Settings
      * Bestandsserver, auf dem P5b ankommt, bekommt keine zweite
      * Datenbankfläche, weil jemand ein Paket aktualisiert hat — dieselbe
      * Richtung wie die Mandantenklammer: im Zweifel nichts.
+     *
+     * **`false` heisst hier auch „nicht nachgesehen".** Die beiden Lesestellen
+     * im Panel entscheiden über eine Kundenfläche, und die Richtung im Zweifel
+     * ist dieselbe wie bei der Mandantenklammer: nichts. Wer den Unterschied
+     * braucht, fragt {@see self::postgresOffered()} — auf der Kommandozeile ist
+     * er der ganze Punkt.
      */
     public function postgres(): bool
     {
-        return ($this->read(self::POSTGRES)['offered'] ?? false) === true;
+        return $this->postgresOffered() === true;
+    }
+
+    /**
+     * Dasselbe, dreiwertig — `null` heisst „konnte nicht nachgesehen werden".
+     *
+     * **Der Anlass ist gemessen, am 11. August 2026 auf `cloudsrv24`.**
+     * `srvpanel db --remote=on --bind=::` hatte MariaDB gerade IPv6-only
+     * gebunden und damit das Panel von seiner Datenbank abgeschnitten. Der
+     * PostgreSQL-Teil desselben Laufs kam unmittelbar danach hierher, der
+     * Leseversuch scheiterte, {@see self::probe()} machte daraus eine leere
+     * Ablage — und das Kommando meldete *„PostgreSQL: übersprungen — das Panel
+     * bietet es nicht an"*. Auf der Betreiberseite stand zur selben Zeit „Wird
+     * angeboten: ja", und das war die richtige Auskunft.
+     *
+     * > Ein Wert, der „nein" und „ich weiss es nicht" nicht auseinanderhält,
+     * > behauptet das eine, wenn das andere gilt.
+     *
+     * Der Schaden war nicht die falsche Zeile, sondern die Zeit: Sie klang
+     * plausibel, nannte sogar den Befehl zur Abhilfe, und hat die Suche nach
+     * dem eigentlichen Fehler in die falsche Richtung geschickt.
+     */
+    public function postgresOffered(): ?bool
+    {
+        $value = $this->probe(self::POSTGRES);
+
+        if ($value === null) {
+            return null;
+        }
+
+        return ($value['offered'] ?? false) === true;
     }
 
     /**
@@ -206,11 +243,31 @@ final class Settings
     }
 
     /**
-     * @return array<string, mixed>
+     * Der Leseversuch — `null`, wenn er gescheitert ist.
+     *
+     * **Bis zum 11. August 2026 war der `catch` die ganze Antwort**, und er hat
+     * drei verschiedene Lagen auf denselben Rückgabewert abgebildet: die
+     * Tabelle gibt es noch nicht, der `APP_KEY` hat gewechselt, der
+     * Datenbankserver ist nicht erreichbar. Die ersten beiden sind wirklich
+     * „nichts abgelegt" und stehen weiter drin. Die dritte ist es nicht — sie
+     * heisst „ich konnte nicht nachsehen", und sie kommt jetzt als `null`
+     * heraus.
+     *
+     * > Ein Fehlerweg, der jeden Fehler in dieselbe Antwort legt, hat aufgehört,
+     * > einer zu sein.
+     *
+     * {@see self::read()} legt das `null` für die Aufrufer wieder auf `[]` um,
+     * die den Unterschied nicht brauchen — Mailversand, PHP-Fassungen, Quota.
+     * Sie werden beim Hochfahren gelesen, und dort ist „leer" die einzige
+     * Antwort, die weiterlaufen lässt.
+     *
+     * @return array<string, mixed>|null
      */
-    private function read(string $key): array
+    private function probe(string $key): ?array
     {
         try {
+            // Vor der ersten Migration gibt es die Tabelle nicht. Das ist kein
+            // Fehler, sondern der Grund, aus dem es diese Klasse gibt.
             if (! Schema::hasTable('settings')) {
                 return [];
             }
@@ -218,8 +275,21 @@ final class Settings
             $value = Setting::query()->find($key)?->value;
 
             return is_array($value) ? $value : [];
-        } catch (Throwable) {
+        } catch (DecryptException) {
+            // Der gewechselte APP_KEY aus dem Klassenkopf: Die Zeile ist da und
+            // ihr Inhalt fort. „Leer" ist dafür die richtige Auskunft — es gibt
+            // nichts mehr zu holen, und ein zweiter Versuch ändert daran nichts.
             return [];
+        } catch (Throwable) {
+            return null;
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function read(string $key): array
+    {
+        return $this->probe($key) ?? [];
     }
 }

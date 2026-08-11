@@ -9659,3 +9659,21 @@ Datenbank Objekte anlegen" — ein Satz, der 14 einschliesst, während die Grenz
 14 zulässt. Wer das liest, korrigiert irgendwann die Zahl statt des Satzes.
 Richtig ist die Zahl: Was darunter liegt, ist nicht gefährlicher, sondern
 **ungemessen**.
+
+### Und der Cluster, der installiert war und nicht lief
+
+Der erste Lauf des neuen Schritts scheiterte auf **allen vier Plattformen** an
+derselben Zeile: `psql` fand keinen Socket. `pg_lsclusters` sagte es im selben
+Log, zwei Zeilen darüber — `15 main 5432 down`. Nach `apt-get install
+postgresql` steht der Cluster in diesem Container still; auf einem Zielserver
+startet das Paket ihn mit.
+
+> **Ein installiertes Paket ist kein laufender Dienst.**
+
+Der Schritt startet ihn jetzt selbst — und wartet auf `pg_isready` statt auf den
+Rückgabewert von `systemctl`. Der sagt, dass die Unit angenommen wurde, nicht
+dass jemand auf dem Socket antwortet; es ist derselbe Unterschied wie bei der
+Quota aus `docs/41`, wo `usrquota` in den Optionen stand und `quotaon -p` `is
+off` sagte. Bleibt er aus, stehen `pg_lsclusters`, der Zustand der Units und die
+letzten Zeilen des Cluster-Protokolls im Lauf — Zustand vor Ausgabe, wie beim
+Warten auf systemd.

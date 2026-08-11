@@ -320,6 +320,40 @@ jobs:
           docker exec target pg_lsclusters
           docker exec target dpkg-query -W -f='Metapaket postgresql: ${Version}\n' postgresql
 
+          # **Ein installiertes Paket ist kein laufender Dienst.** Nach
+          # `apt-get install postgresql` stand der Cluster auf allen vier
+          # Plattformen auf `down`, und der erste `psql` scheiterte am
+          # fehlenden Socket. Auf einem Zielserver startet das Paket den
+          # Cluster mit; in diesem Container tut es das nicht.
+          #
+          # Gestartet wird er deshalb hier — und **gemessen wird die
+          # Bereitschaft und nicht der Rückgabewert von `systemctl`.** Der
+          # sagt, dass die Unit angenommen wurde, nicht dass jemand auf dem
+          # Socket antwortet. Derselbe Unterschied wie bei der Quota in
+          # `docs/41`: Eine Option, die etwas erlaubt, ist nicht dasselbe wie
+          # ein Zustand, in dem es geschieht.
+          docker exec target systemctl start postgresql || true
+
+          bereit=nein
+          for i in $(seq 1 60); do
+            if docker exec target pg_isready -q; then
+              bereit=ja
+              echo "::notice::PostgreSQL war nach $((i * 2)) s bereit."
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$bereit" != ja ]; then
+            echo "::error::PostgreSQL im Container nimmt keine Verbindungen an."
+            # Zustand vor Ausgabe, wie beim Warten auf systemd: drei sehr
+            # verschiedene Lagen sähen sonst gleich aus.
+            docker exec target pg_lsclusters || true
+            docker exec target systemctl --no-pager status 'postgresql*' || true
+            docker exec target sh -c 'tail -40 /var/log/postgresql/*.log' || true
+            exit 1
+          fi
+
           # **Die Grenze kommt aus dem Quelltext und nicht aus dieser Datei.**
           # Eine Zahl hier wäre die zweite Fassung derselben Regel, und die
           # zweite ist die, die veraltet.

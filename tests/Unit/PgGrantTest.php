@@ -263,4 +263,67 @@ final class PgGrantTest extends TestCase
         $this->assertSame('ALTER ROLE "'.$role.'" NOLOGIN', PgRoleLock::statement($role, true));
         $this->assertSame('ALTER ROLE "'.$role.'" LOGIN', PgRoleLock::statement($role, false));
     }
+
+    /**
+     * Eine Rolle, die woanders noch etwas hat, bleibt — und das ist kein
+     * Fehlschlag.
+     *
+     * **Der Fund aus dem Abnahmelauf, Punkt 9, zweiter Anlauf.** Seit dem
+     * 11. August nennt beim Rückbau jeder Datenbankvorgang alle Zugänge des
+     * Abonnements — sonst bliebe ein Zugang an zwei Datenbanken stehen. Damit
+     * lief der **erste** Vorgang in:
+     *
+     *     ERROR:  role "…_web" cannot be dropped because some objects depend on it
+     *     DETAIL:  privileges for database …_blog
+     *
+     * Er scheiterte nach dem `DROP DATABASE`, und seine Zeile blieb im Panel
+     * stehen, während der Cluster sauber war. Ein Fehler war durch einen
+     * kleineren ersetzt.
+     *
+     * > **Eine Reihenfolge, die erst beim Ausführen entsteht, kann beim
+     * > Einreihen niemand kennen.**
+     *
+     * **Gemessen gegen einen echten Cluster** (Wegwerf-Instanz, 11. August
+     * 2026): Nach `DROP DATABASE xprobe_shop` liefert diese Abfrage `1`, und
+     * `DROP ROLE` scheitert mit genau der Meldung oben. Nach der zweiten
+     * Datenbank liefert sie nichts, und `DROP ROLE` gelingt. Sie sagt also
+     * voraus, was der Server tun wird — statt es zu versuchen und den Fehler zu
+     * deuten.
+     */
+    public function test_a_role_that_is_still_needed_elsewhere_is_recognised(): void
+    {
+        $query = PgDatabaseRemove::dependencyQuery('x729e5e5e3cc7e369_web');
+
+        $this->assertStringContainsString('pg_shdepend', $query);
+        $this->assertStringContainsString("'x729e5e5e3cc7e369_web'", $query);
+
+        /*
+         * **Verbunden über `pg_roles` und nicht über `::regrole`.** Die
+         * Umwandlung wirft eine Ausnahme, sobald es die Rolle nicht mehr gibt —
+         * und in genau dem Fall lautet die Antwort „nein" und nicht „Fehler".
+         * Derselbe Fallstrick wie in `docs/39`, dort bei einer Messung von Hand.
+         */
+        $this->assertStringNotContainsString('::regrole', $query);
+        $this->assertStringContainsString('pg_roles', $query);
+    }
+
+    /**
+     * Und die Prüfung steht **vor** dem `DROP ROLE`, nicht daneben.
+     *
+     * Dieselbe Form wie {@see self::test_the_database_goes_before_its_roles()}:
+     * Was zählt, ist die Reihenfolge im Quelltext, denn hier läuft kein Server.
+     */
+    public function test_the_dependency_is_checked_before_the_drop(): void
+    {
+        $source = (string) file_get_contents(
+            dirname(__DIR__, 2).'/agent/src/Ops/PgDatabaseRemove.php',
+        );
+
+        $check = strpos($source, 'if ($this->stillNeeded($context, $role))');
+        $drop = strpos($source, '$this->session->execute($context, [PgRoleRemove::statement($role)]);');
+
+        $this->assertNotFalse($check, 'Die Abhängigkeit wird nicht mehr geprüft — der Vorgang scheitert dann daran.');
+        $this->assertNotFalse($drop);
+        $this->assertLessThan($drop, $check, 'Geprüft wird nach dem Werfen — dann ist der Fehler schon passiert.');
+    }
 }

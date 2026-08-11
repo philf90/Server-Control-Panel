@@ -6165,6 +6165,30 @@ wiederherstellen
 pruefe "  … zurückgesetzt wieder grün" NoticeShapeTest passed
 
 echo
+echo "── PgGrantTest: die Rolle faellt ohne Blick auf ihre Abhaengigkeiten ──"
+#
+# Der Fund aus Punkt 9, zweiter Anlauf: Beim Rueckbau nennt jeder Vorgang alle
+# Zugaenge, und der erste lief in „role … cannot be dropped because some objects
+# depend on it". Er scheiterte nach dem DROP DATABASE, und seine Zeile blieb im
+# Panel stehen, waehrend der Cluster sauber war.
+vorher_datei agent/src/Ops/PgDatabaseRemove.php
+python3 - <<'PY2'
+p = 'agent/src/Ops/PgDatabaseRemove.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("""            if ($this->stillNeeded($context, $role)) {
+                continue;
+            }
+
+""", "")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei agent/src/Ops/PgDatabaseRemove.php "DROP ROLE ohne Abhaengigkeitspruefung" &&
+pruefe "DROP ROLE ohne Abhaengigkeitspruefung" \
+  PgGrantTest::test_the_dependency_is_checked_before_the_drop failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" PgGrantTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

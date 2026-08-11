@@ -484,6 +484,29 @@ Route::middleware('auth')->group(function (): void {
         ->name('databases.users.destroy');
 
     /*
+     * Die Netze eines PostgreSQL-Zugangs (docs/38 §14).
+     *
+     * **`can:update` auf die Datenbank, wie bei allem anderen an einem
+     * Zugang** — und die drei Fragen, die diese Policy *nicht* beantwortet,
+     * stellt `DatabaseController::guardNetwork()`: ob der Zugang zu dieser
+     * Datenbank gehört, ob er überhaupt PostgreSQL ist, und ob der Server auf
+     * einer erreichbaren Adresse horcht.
+     *
+     * **Kein `put` mit einer Liste, sondern anlegen und entfernen einzeln.**
+     * Eine Liste im Rumpf wäre der Sollzustand aus dem Browser — und dann
+     * entschiede das zuletzt geladene Formular, welche Netze ein Kunde hat.
+     * Der Sollzustand steht in der Tabelle; was hier ankommt, ist eine
+     * Änderung daran.
+     */
+    Route::post('/databases/{database}/users/{user}/networks', [DatabaseController::class, 'storeNetwork'])
+        ->middleware('can:update,database')
+        ->name('databases.users.networks.store');
+
+    Route::delete('/databases/{database}/users/{user}/networks/{network}', [DatabaseController::class, 'destroyNetwork'])
+        ->middleware('can:update,database')
+        ->name('databases.users.networks.destroy');
+
+    /*
      * Sichern, herunterladen, zurückspielen (docs/36 §10).
      *
      * **Alles an `can:update`, auch das Zurückspielen.** Es liegt nahe, dafür

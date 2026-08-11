@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace SrvPanel\Agent\Ops;
 
+use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
+use SrvPanel\Agent\Pg\Hba;
 use SrvPanel\Agent\Pg\Names;
 use SrvPanel\Agent\Pg\Server;
 use SrvPanel\Agent\Pg\Session;
@@ -69,13 +71,50 @@ final class PgServerInfo implements Op
         if ($info['handed_over']) {
             $context->progress(75, 'nachsehen, ob etwas zurückblieb');
             $info['stale_roles'] = $this->staleRoles($context);
+            $info['hba_rules'] = $this->hbaRules($context);
         } else {
             $info['stale_roles'] = [];
+            $info['hba_rules'] = [];
         }
 
         $context->progress(100, 'fertig');
 
         return $info;
+    }
+
+    /**
+     * Der verwaltete Block aus `pg_hba.conf`, Zeile für Zeile.
+     *
+     * **Damit `srvpanel db` ihn gegen den Bestand halten kann** (`docs/38
+     * §14.4`). Eine Zeile für eine Rolle, die es nicht mehr gibt, ist für
+     * PostgreSQL kein Fehler (M22) — sie bleibt liegen, und ohne diese Antwort
+     * meldete es niemand. **Gemeldet und nicht gelöscht**, wie bei den
+     * befristeten Rollen darunter: Wer löscht, weiss, was er löscht.
+     *
+     * @return list<string>
+     */
+    private function hbaRules(Context $context): array
+    {
+        try {
+            $path = $this->server->hbaFile($context, $this->session);
+
+            return Hba::locked($path, static fn (): array => Hba::managed(Hba::read($path)));
+        } catch (AgentException) {
+            /*
+             * **Eine unlesbare `pg_hba.conf` macht diese Auskunft nicht
+             * kaputt.** Sie ist die einzige Operation, die auch dann antwortet,
+             * wenn wenig steht — das ist ihr Zweck (siehe Klassenkopf). Wer
+             * fragt, weil etwas nicht stimmt, soll Fassung, Cluster und Reste
+             * bekommen und nicht eine Fehlermeldung über eine Datei, nach der
+             * er gar nicht gefragt hat.
+             *
+             * Der Fall, der das auslöst, ist real und nicht theoretisch: Ein
+             * `# BEGIN` ohne `# END` lässt {@see Hba::managed()} zwar durch,
+             * aber ein Betreiber, der die Datei gerade von Hand repariert, hat
+             * sie einen Augenblick lang gar nicht.
+             */
+            return [];
+        }
     }
 
     /**

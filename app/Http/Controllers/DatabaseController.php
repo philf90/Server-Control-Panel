@@ -12,12 +12,14 @@ use App\Models\Account;
 use App\Models\Database;
 use App\Models\DatabaseDump;
 use App\Models\DbUser;
+use App\Models\DbUserNetwork;
 use App\Models\Subscription;
 use App\Support\Audit\Audit;
 use App\Support\Databases\Databases;
 use App\Support\Databases\Dumps;
 use App\Support\Databases\Engines\PostgresDriver;
 use App\Support\Databases\ImportLimit;
+use App\Support\Databases\RemoteAccess;
 use App\Support\Databases\Staging;
 use App\Support\Plans\Quota;
 use App\Support\Settings\Settings;
@@ -59,6 +61,7 @@ final class DatabaseController extends Controller
         private readonly Dumps $dumps,
         private readonly Audit $audit,
         private readonly Client $agent,
+        private readonly RemoteAccess $remote,
     ) {}
 
     /**
@@ -252,6 +255,10 @@ final class DatabaseController extends Controller
     {
         $subscription = $database->subscription;
 
+        // Ohne das eine Abfrage je Zugang für die Netze — bei zehn Zugängen elf
+        // Abfragen für eine Seite, die eine braucht.
+        $database->loadMissing('users.networks');
+
         return Inertia::render('Databases/Show', [
             'database' => $this->row($database),
             'subscription' => $subscription === null ? null : [
@@ -301,7 +308,7 @@ final class DatabaseController extends Controller
              * lesen, warum es nicht da ist, statt es für einen Fehler zu
              * halten.
              */
-            'remote' => $this->remoteAccess(),
+            'remote' => $this->remoteAccess($database->engine),
 
             // Was ein Hochladen annimmt — die Zahl kommt aus der Quelle, damit
             // die Oberfläche nicht etwas anderes verspricht als die Prüfregel
@@ -325,15 +332,35 @@ final class DatabaseController extends Controller
      *
      * @return array{possible: bool, bind_address: string|null, reason: string|null}
      */
-    private function remoteAccess(): array
+    private function remoteAccess(DatabaseEngine $engine = DatabaseEngine::MariaDb): array
     {
+        /*
+         * **Gefragt wird das System, um das es geht.** Bis zum 11. August 2026
+         * stand hier `db.server.info` ohne Fallunterscheidung — auch auf der
+         * Seite einer PostgreSQL-Datenbank. Die Antwort war dann die
+         * `bind-address` von *MariaDB*, und daraus wurde entschieden, ob ein
+         * PostgreSQL-Zugang ein Netz eintragen darf. Auf einem Server, der nur
+         * eines der beiden von aussen erreichbar hat, ist das genau falsch
+         * herum — und es fiele niemandem auf, weil beide Antworten dieselbe
+         * Form haben.
+         */
+        $operation = $engine === DatabaseEngine::Postgres ? 'pg.server.info' : 'db.server.info';
+
         try {
-            $info = $this->agent->call('db.server.info', []);
+            $info = $this->agent->call($operation, []);
         } catch (AgentException $error) {
             return ['possible' => false, 'bind_address' => null, 'reason' => $error->getMessage()];
         }
 
-        $bind = is_string($info['bind_address'] ?? null) ? $info['bind_address'] : null;
+        // MariaDB meldet eine Adresse (`bind_address`), PostgreSQL eine Liste
+        // (`listen_addresses`). Beides beantwortet dieselbe Frage, und die
+        // Oberfläche zeigt es an derselben Stelle — deshalb steht hier ein
+        // Feld und nicht zwei.
+        $bind = match (true) {
+            is_string($info['listen_addresses'] ?? null) && $info['listen_addresses'] !== '' => $info['listen_addresses'],
+            is_string($info['bind_address'] ?? null) => $info['bind_address'],
+            default => null,
+        };
 
         return [
             'possible' => ($info['remote'] ?? false) === true,
@@ -344,6 +371,96 @@ final class DatabaseController extends Controller
                 $bind ?? 'einer lokalen Adresse',
             ),
         ];
+    }
+
+    /**
+     * Ein Netz eintragen, aus dem dieser Zugang hereindarf — **nur PostgreSQL**.
+     *
+     * **Und der Zugang muss zu dieser Datenbank gehören.** Die Route prüft
+     * `can:update` auf die *Datenbank*; ein Zugang aus einem anderen
+     * Abonnement wäre damit noch nicht abgewiesen. Dieselbe Überlegung und
+     * dieselbe Prüfung wie in {@see self::access()}.
+     */
+    public function storeNetwork(Request $request, Database $database, DbUser $user): RedirectResponse
+    {
+        $data = $request->validate([
+            // Wie beim Wirt in {@see self::storeUser()}: Was zulässig ist,
+            // steht in `Hba::cidr()` — der Stelle, die die Zeile später
+            // schreibt. Eine zweite Formulierung hier wäre die, die
+            // auseinanderläuft.
+            'cidr' => ['required', 'string'],
+        ]);
+
+        $this->guardNetwork($database, $user);
+
+        try {
+            $this->remote->add($user, (string) $data['cidr']);
+        } catch (AgentException $error) {
+            throw ValidationException::withMessages(['cidr' => $error->getMessage()]);
+        }
+
+        $this->audit->record('database.user.network', target: $user, subscriptionId: (int) $database->subscription_id);
+
+        return to_route('databases.show', $database);
+    }
+
+    /** Ein Netz zurücknehmen. */
+    public function destroyNetwork(Database $database, DbUser $user, DbUserNetwork $network): RedirectResponse
+    {
+        $this->guardNetwork($database, $user);
+
+        if ((int) $network->db_user_id !== (int) $user->id) {
+            throw ValidationException::withMessages([
+                'cidr' => 'Dieses Netz gehört zu einem anderen Zugang.',
+            ]);
+        }
+
+        try {
+            $this->remote->remove($network);
+        } catch (AgentException $error) {
+            throw ValidationException::withMessages(['cidr' => $error->getMessage()]);
+        }
+
+        $this->audit->record('database.user.network', target: $user, subscriptionId: (int) $database->subscription_id);
+
+        return to_route('databases.show', $database);
+    }
+
+    /**
+     * Darf an den Netzen dieses Zugangs überhaupt etwas geändert werden?
+     *
+     * Drei Bedingungen, und jede fängt einen anderen Fall:
+     *
+     * 1. **Der Zugang gehört zur Datenbank.** Sonst schriebe eine Anfrage über
+     *    die Seite der einen Datenbank an einem Zugang, der zu einer anderen
+     *    gehört — die Policy der Route sieht das nicht.
+     * 2. **Es ist PostgreSQL.** In MariaDB steht der Wirt im Benutzernamen; ein
+     *    Netz an einem MariaDB-Zugang wäre eine Zeile, die nirgends ankommt.
+     * 3. **Der Server horcht erreichbar.** Wie beim Wirt in
+     *    {@see self::host()}: Das Formular zeigt sich nur dann, aber eine
+     *    Anfrage, die es trotzdem schickt, kommt nicht aus dem Formular.
+     */
+    private function guardNetwork(Database $database, DbUser $user): void
+    {
+        if (! $database->users->contains('id', $user->id)) {
+            throw ValidationException::withMessages([
+                'cidr' => 'Dieser Zugang gehört nicht zu dieser Datenbank.',
+            ]);
+        }
+
+        if ($user->engine !== DatabaseEngine::Postgres) {
+            throw ValidationException::withMessages([
+                'cidr' => 'Für MariaDB steht die Herkunft im Benutzernamen — ein zweiter Wirt ist dort '
+                    .'ein zweiter Zugang mit eigenem Passwort.',
+            ]);
+        }
+
+        if ($this->remoteAccess(DatabaseEngine::Postgres)['possible'] !== true) {
+            throw ValidationException::withMessages([
+                'cidr' => 'Der Datenbankserver ist nur lokal erreichbar — eine Zugangsregel für eine '
+                    .'fremde Adresse käme nie zustande. Einschalten kann das nur der Betreiber.',
+            ]);
+        }
     }
 
     /**
@@ -961,6 +1078,23 @@ final class DatabaseController extends Controller
                 'remote' => $user->remote(),
                 'status' => $user->status->value,
                 'status_label' => $user->status->label(),
+
+                /*
+                 * **Die Netze, und für MariaDB eine leere Liste.** Nicht `null`
+                 * und keine fehlende Ablage: Die Seite zeigt bei PostgreSQL
+                 * eine Zeile je Netz, und „dieser Zugang hat noch keins" ist
+                 * eine Auskunft, „hier gibt es das Feld nicht" eine andere. Was
+                 * die beiden Systeme unterscheidet, entscheidet `over_tcp`
+                 * weiter oben — im Template stünde sonst ein Vergleich mit dem
+                 * Wert des Systems als Zeichenkette, und `DatabaseEngineTest`
+                 * weist den zu Recht ab.
+                 */
+                'networks' => $user->networks
+                    ->sortBy('cidr')
+                    ->map(static fn (DbUserNetwork $network): array => [
+                        'id' => (int) $network->id,
+                        'cidr' => $network->cidr,
+                    ])->values()->all(),
             ])->values()->all(),
         ];
     }

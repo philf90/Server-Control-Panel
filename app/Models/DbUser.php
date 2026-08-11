@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -44,6 +45,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $locked_at
  * @property-read Subscription|null $subscription
  * @property-read Collection<int, Database> $databases
+ * @property-read Collection<int, DbUserNetwork> $networks
  */
 class DbUser extends Model
 {
@@ -87,6 +89,20 @@ class DbUser extends Model
     public function databases(): BelongsToMany
     {
         return $this->belongsToMany(Database::class, 'database_db_user');
+    }
+
+    /**
+     * Die Netze, aus denen dieser Zugang hereindarf — **nur PostgreSQL**.
+     *
+     * Für MariaDB steht der Wirt in `host` und die Beziehung hier ist leer.
+     * Warum die beiden Systeme das verschieden lösen müssen, steht bei
+     * {@see DbUserNetwork}.
+     *
+     * @return HasMany<DbUserNetwork, $this>
+     */
+    public function networks(): HasMany
+    {
+        return $this->hasMany(DbUserNetwork::class, 'db_user_id');
     }
 
     /** `'p1001_web'@'localhost'` — die Kennung, wie MariaDB sie schreibt. */

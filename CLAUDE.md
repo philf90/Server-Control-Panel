@@ -62,9 +62,35 @@ der neuen Seite **„Allgemein"** — den Ort gab es vorher nicht.
 > Grenzfalltest an *beiden* Enden des Tages bekommen, weil die Richtung am
 > Vorzeichen des Versatzes hängt.
 
-**Als Nächstes:** Schritt 10 aus `docs/38 §19` (Fernzugriff, nicht gebaut — die
-Stufe ist ohne ihn abnahmefähig). Was offen blieb, steht benannt in
-`docs/42 §5`.
+**Schritt 10 aus `docs/38 §17` ist gebaut** (der Fernzugriff): `pg.remote.access`
+schreibt `listen_addresses` nach `conf.d/60-srvpanel.conf` und den verwalteten
+Block nach `pg_hba.conf`, die Netze eines Zugangs stehen in `db_user_networks`,
+und `srvpanel db --remote=on` schaltet beide Systeme. **Abgenommen ist er
+nicht** — die Befehlsfolge dafür steht in `docs/38 §19a` und gehört auf
+`cloudsrv24`. Was sonst offen blieb, steht benannt in `docs/42 §5`.
+
+**Und der Fund dieses Schritts stand in keinem Plan:** In `pg_hba.conf` schrieb
+schon jemand — `Hba::ensure()` seit Schritt 6 —, und der **Rückweg** des
+Fernzugriffs warf dessen Zeile weg. Der Griff, der den Server vor einer kaputten
+Datei retten soll, beschädigt sie also selbst, und zwar unsichtbar: Erst das
+nächste Zurückspielen scheitert, Wochen später, an einer Meldung über
+peer-Authentifizierung. Gefunden hat das kein Nachdenken, sondern ein
+Wegwerf-Cluster.
+
+> **Ein zweiter Schreiber in derselben Datei ist kein zweiter Schreiber, solange
+> nur einer die Sperre nimmt.**
+
+Zwei weitere Sätze aus demselben Lauf. Der erste, weil `flock` je *offener
+Datei* sperrt und nicht je Prozess — die verschachtelte Sperre wartete auf sich
+selbst, ohne Fehler und ohne Meldung:
+
+> **Eine Sperre, die man zweimal nimmt, ist ein Stillstand ohne Fehlermeldung.**
+
+Der zweite, weil die Messung, die seit `v0.4.0-rc.4` jede Aufnahme begleitet,
+hier auf 0 stand, während das Formular abgeschnitten war:
+
+> **Eine Zahl, die am Dokument misst, sagt nichts über eine Zelle, die selbst
+> scrollen darf.**
 
 **Und die eine Frage, die `docs/37 §3` vor dem Planen verlangt hat, ist
 gemessen worden — sie hat das Abnahmekriterium umgeworfen.** „Ein

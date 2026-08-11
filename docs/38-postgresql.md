@@ -970,6 +970,65 @@ Rollen und Sicherungen.
   übrigbleibt — **melden und nicht löschen**, wie `docs/36 §5` es festlegt.
 - `PgHbaReachTest` hält beide Richtungen (§18).
 
+### 14.5 Der zweite Schreiber in derselben Datei — gebaut am 11. August 2026
+
+**In `pg_hba.conf` schrieb schon jemand, und in §14 stand er nicht.**
+`Pg\Hba::ensure()` gibt es seit Schritt 6: Sie stellt der Datei eine einzelne
+Zeile voran, ohne die das Zurückspielen nicht anfangen kann (§13.4). Der Block
+aus §14.1 wäre damit der **zweite** verwaltete Bereich in derselben Datei — und
+die vier Fragen davor sind vor dem Bauen an einem echten Cluster gemessen
+worden, nicht geschlossen.
+
+| # | Frage | Befund |
+|---|---|---|
+| M45 | Streiten sich die beiden um die Reihenfolge? | **Nein.** Die Zeile ist `local`, der Block ist `host`; die erste passende Zeile gewinnt, aber eine `local`-Zeile passt auf keine TCP-Verbindung. Beide gleichzeitig gemessen: Fernzugriff und Zurückspielen gehen nebeneinander |
+| M46 | Wo muss jede stehen? | **Entgegengesetzt.** Die Zeile über Debians `local all all peer` — darunter: `FATAL: Peer authentication failed for user "…"`. Der Block hinter allem, was der Betreiber selbst eingetragen hat, sonst gewänne er über dessen `reject` |
+| M47 | Verlieren sie sich gegenseitig? | **Ja, auf drei Wegen — und der teuerste ist der Rückweg selbst.** Siehe unten |
+| M48 | Lässt sich `pg_hba_file_rules` vor dem Reload lesen? | **Ja.** Die Sicht liest die *Datei* und nicht die geladenen Regeln — der Fehler stand dort, bevor irgendetwas neu geladen war. Schritt 4 belegt damit, dass die **Datei** trägt, und nicht, dass der Server sie übernommen hat |
+| M49 | Nimmt `pg_hba.conf` eine Adresse ohne Präfixlänge? | **Nein**, und die Zeile ist danach kaputt: `host … 203.0.113.5 scram-sha-256` → `invalid IP mask "scram-sha-256"`. Die zweispaltige Form (`adresse maske methode`) frisst die Methode als Maske |
+| M50 | Und mit gesetzten Wirtsbits? | **Klaglos.** `198.51.100.5/24` erzeugt keinen Fehler; PostgreSQL liest stillschweigend `198.51.100.0/24` und lässt 254 Rechner herein, wo jemand einen gemeint hat |
+| M51 | Lässt sich `include_dir` erfragen? | **Nein** — `unrecognized configuration parameter "include_dir"`. Es ist eine Anweisung an den Parser und kein Parameter; ob der Include-Punkt greift, sagt nur das zurückgelesene `listen_addresses` |
+| M52 | Und M17 auf einem echten Debian-Cluster? | **Bestätigt.** Mit der Datei, die ohne Schritt 4 liegenbliebe: `pg_ctl: could not start server`, `16 main 5432 down` |
+
+**M47 ist der Fund, der den Bau geändert hat.** Nachgestellt, drei Verläufe,
+jeder verliert etwas:
+
+| wer schreibt | was verschwindet |
+|---|---|
+| `pg.remote.access` schreibt seinen Block auf einem Stand von vor `ensure()` | die Zeile |
+| `ensure()` schreibt seinen Stand von vor dem Block | der Block |
+| **der Rückweg** legt den Stand von Schritt 1 zurück | die Zeile |
+
+Der dritte ist der teuerste, denn er ist der *Fehlerweg*: Genau der Griff, der
+den Server vor einer kaputten Datei retten soll, wirft dabei die Zeile weg, an
+der das Zurückspielen hängt — **und niemand merkt es.** Der Fernzugriff meldet
+einen sauberen Fehlschlag, der Server läuft, und erst das nächste Zurückspielen
+scheitert, Wochen später, an einer Meldung über peer-Authentifizierung.
+
+> **Ein Fehlerweg, der selbst fehlschlagen kann, ist kein Fehlerweg.**
+
+**Daraus drei Festlegungen, die §14.2 ergänzen und nicht ersetzen:**
+
+1. **Jeder Zugriff auf `pg_hba.conf` geht durch `Hba::locked()`** — ein `flock`
+   auf eine Sperrdatei daneben, gehalten über Lesen, Schreiben, Nachladen,
+   Nachsehen und Rückweg. Der Agent gabelt je Verbindung; zwei Operationen sind
+   zwei Prozesse, und ein Merker im Speicher hilft nicht.
+2. **Zwei Marken, nicht eine.** Sie haben entgegengesetzte Platzansprüche
+   (M46), und beide Seiten lassen den jeweils anderen Bereich Byte für Byte
+   stehen.
+3. **Geschrieben wird über eine Nachbardatei und `rename`.** Ein
+   `file_put_contents` kürzt erst und schreibt dann; ein Abbruch dazwischen
+   liesse eine **leere** `pg_hba.conf` zurück — fehlerfrei, `pg_hba_file_rules`
+   schweigt, der Cluster startet, und niemand kommt mehr herein.
+
+**Und ein vierter Fund, den erst der Lauf gezeigt hat:** Die Sperre war
+verschachtelt — `execute()` nahm sie, und `apply()` nahm sie noch einmal.
+`flock` sperrt je *offener Datei* und nicht je Prozess, der zweite Aufruf
+wartete also auf den ersten und damit auf sich selbst. Kein Fehler, keine
+Meldung, nur nichts; aufgefallen nach zwei Minuten Stillstand gegen einen
+echten Cluster. `Hba::locked()` zählt seitdem mit, und
+`PgHbaRollbackTest::test_the_lock_does_not_block_itself` hält es fest.
+
 ---
 
 ## 15. Der Rückbau
@@ -1362,39 +1421,177 @@ nicht wo sie stehen soll. Sonst meldet er Rot, sobald jemand aufräumt.
 #    Sicherung hat — sonst ist die dritte Erwartung eine Abwesenheit ohne
 #    Vorgeschichte.
 
-# 10 FERNZUGRIFF   ← Schritt 10, nach der Abnahme der übrigen neun
-#    (a) Solange nicht freigeschaltet, zeigt das Panel das Feld NICHT — mit dem
-#        Grund daneben, nicht ausgeblendet (AbilityReachTest).
-#    (b) srvpanel db --postgres --remote=on
-#        erwartet: /etc/postgresql/<fassung>/main/conf.d/60-srvpanel.conf
-#                  existiert, die Distributionsdateien sind UNVERÄNDERT:
-#          md5sum vorher/nachher von postgresql.conf   → gleich
-#        BELEG: SHOW listen_addresses; NACH dem Neustart — zurückgelesen und
-#               nicht geschrieben. „Datei geschrieben" ist eine Absicht
-#               (docs/37 §6, Lehre 1; in P5 genau hier gefunden, §22.3w A5).
-#    (c) Für <A>_web ein Netz eintragen. Dann:
-#          SELECT rule_number, database, user_name, address, error
-#            FROM pg_hba_file_rules WHERE error IS NOT NULL;
-#        erwartet: 0 Zeilen. UND die eigene Zeile taucht mit ihrer Datenbank
-#        auf — nicht mit `all`.
-#    (d) DIE PROBE, DIE DAS EIGENTLICHE RISIKO MISST — von Hand eine ungültige
-#        Zeile in den verwalteten Block schreiben und pg.remote.access erneut
-#        laufen lassen, ODER die Operation mit einem ungültigen Netz rufen.
-#        erwartet: der Vorgang SCHEITERT, die Fehlermeldung nennt die
-#        Zeilennummer, UND die Datei steht wieder wie vorher:
-#          md5sum pg_hba.conf   → wie vor dem Lauf
-#        DANN, UND DAS IST DER EIGENTLICHE BELEG:
-#          systemctl restart postgresql && systemctl is-active postgresql
-#        erwartet: aktiv. OHNE DIESEN NEUSTART IST (d) NICHT GEFAHREN — eine
-#        kaputte pg_hba.conf ist im laufenden Betrieb unsichtbar (M16) und
-#        verhindert erst den nächsten Start (M17). Wer nur prüft, dass der
-#        Server noch antwortet, prüft genau das, was auch im Fehlerfall gilt.
-#    (e) %/0.0.0.0/0 als Netz → abgewiesen, mit Meldung.
-#    (f) Und der Weg zurück: den Zugang löschen, dann
-#          grep -c "<A>_web" /etc/postgresql/*/main/pg_hba.conf   → 0
-#          srvpanel db                              → „Nichts liegengeblieben."
-#        Eine Zeile für eine gelöschte Rolle ist für PostgreSQL kein Fehler
-#        (M22) — sie fällt nur auf, wenn jemand danach fragt.
+# 10 FERNZUGRIFF   ← Schritt 10, eigener Lauf nach der Abnahme der übrigen neun
+#    Die Befehlsfolge dazu steht ausgeschrieben in §19a. Sie gehört nicht
+#    hierher, weil sie einen Zustand herstellt, den die neun Punkte darüber
+#    nicht voraussetzen dürfen: einen Dienst auf einer erreichbaren Adresse.
+```
+
+---
+
+## 19a. Schritt 10 als Befehlsfolge — der Fernzugriff
+
+Gefahren wird das auf `cloudsrv24`, **nach** §19 und als eigener Lauf: Danach
+horcht ein Dienst auf einer erreichbaren Adresse, und das darf keiner der neun
+Punkte davor voraussetzen (`docs/36 §19`, Entscheidung 5).
+
+**Zwei Werte stehen hier nicht ausgeschrieben, weil sie es nicht können.** Das
+Präfix eines Abonnements wird gewürfelt (§4), und das Passwort einer Rolle steht
+genau einmal auf dem Bildschirm (§4). Beide stammen aus Punkt 1 von §19 und sind
+dem Betreiber zu diesem Zeitpunkt bekannt. Punkt 0 unten holt das Präfix zurück,
+falls es nicht mehr vorliegt; **alles andere ist wörtlich einzugeben.**
+
+```
+# 0  DIE NAMEN, MIT DENEN GEARBEITET WIRD
+sudo -u postgres psql -Atc "SELECT datname FROM pg_database WHERE datname LIKE 'x%' ORDER BY 1"
+sudo -u postgres psql -Atc "SELECT rolname FROM pg_roles WHERE rolname LIKE 'x%' AND rolcanlogin ORDER BY 1"
+#    erwartet: die Datenbank und die Rolle aus §19 Punkt 1.
+#    BELEG: beide Namen ins Protokoll — sie stehen unten als <DB> und <ROLLE>,
+#           und sie sind die EINZIGEN zwei Stellen, an denen etwas einzusetzen ist.
+
+# 1  DER AUSGANGSZUSTAND, GEMESSEN UND NICHT ANGENOMMEN
+md5sum /etc/postgresql/16/main/postgresql.conf /etc/postgresql/16/main/pg_hba.conf
+ls -l /etc/postgresql/16/main/conf.d/
+sudo -u postgres psql -Atc "SHOW listen_addresses"
+#    erwartet: listen_addresses = localhost, conf.d ist leer.
+#    BELEG: beide md5-Summen ins Protokoll — Punkt 6 vergleicht gegen sie.
+
+# 2  DAS FELD IST NICHT DA, UND ES STEHT DA, WARUM
+#    Im Panel: Datenbanken → die PostgreSQL-Datenbank → Zugänge.
+#    erwartet: KEIN Knopf „Netz eintragen", und darunter der Satz, dass der
+#              Server nur lokal erreichbar ist und wer das einschalten kann.
+#    Ein Feld, das ohne Erklärung fehlt, sieht aus wie ein Fehler
+#    (AbilityReachTest).
+#    BELEG: Screenshot.
+
+# 3  FREISCHALTEN
+srvpanel db --remote=on --bind=::
+#    Die Rückfrage mit „yes" beantworten — beide Datenbankserver werden neu
+#    gestartet, MariaDB zuerst.
+#    erwartet in der Ausgabe, WÖRTLICH:
+#      Horcht auf :: — Fernzugriff möglich.
+#      PostgreSQL horcht auf * — Fernzugriff möglich, 0 Zugangsregel(n) in
+#      /etc/postgresql/16/main/pg_hba.conf.
+#    „0" ist hier richtig: Es hat noch niemand ein Netz eingetragen.
+
+cat /etc/postgresql/16/main/conf.d/60-srvpanel.conf
+md5sum /etc/postgresql/16/main/postgresql.conf
+#    erwartet: die Datei existiert und enthält listen_addresses = '*';
+#              die md5-Summe von postgresql.conf ist DIE VON PUNKT 1.
+#    Keine Distributionsdatei wird angefasst — Leitbild 1.
+
+sudo -u postgres psql -Atc "SHOW listen_addresses"
+#    erwartet: *
+#    BELEG: DIESE ZEILE und nicht die Datei darüber. Ob der Include-Punkt
+#           greift, lässt sich nicht erfragen (M51) — nur hier ablesen. Eine
+#           geschriebene Zeile ist eine Absicht (docs/37 §6, Lehre 1).
+
+# 4  EIN NETZ EINTRAGEN   ← und hier wird gezählt, WAS gezählt wurde
+#    Im Panel, in der Zeile des Zugangs: „Netz eintragen" → 203.0.113.5/32.
+#    erwartet: die Zeile steht danach unter „Herkunft".
+
+sudo -u postgres psql -Atc \
+  "SELECT line_number, database, user_name, address, netmask, auth_method
+     FROM pg_hba_file_rules WHERE '<ROLLE>' = ANY(user_name)"
+#    erwartet GENAU EINE Zeile, und in ihrer Spalte `database` steht <DB> —
+#    NICHT `all`. Das ist die zweite Wand hinter dem REVOKE CONNECT aus §10.
+#
+#    > Ein Kriterium, das nach einer Anzahl fragt, prüft nicht, was gezählt
+#    > wurde.
+#
+#    BELEG: die AUSGEGEBENE ZEILE ins Protokoll, nicht ihre Anzahl.
+
+sudo -u postgres psql -Atc "SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL"
+#    erwartet: 0
+
+# 5  UND SIE WIRKT — von einem anderen Rechner aus
+#    Von einem Rechner mit der Adresse 203.0.113.5:
+#      psql "postgresql://<ROLLE>:<PASSWORT>@cloudsrv24:5432/<DB>" -c "SELECT 1"
+#    erwartet: geht.
+#      psql "postgresql://<ROLLE>:<PASSWORT>@cloudsrv24:5432/postgres" -c "SELECT 1"
+#    erwartet: FATAL: no pg_hba.conf entry for host "203.0.113.5", user
+#              "<ROLLE>", database "postgres"
+#    Die Meldung WÖRTLICH ins Protokoll — „scheitert" wäre auch ein Tippfehler
+#    im Datenbanknamen (docs/36 §22.3m).
+
+# 6  DIE PROBE, DIE DAS EIGENTLICHE RISIKO MISST
+#    0.0.0.0/0 im Panel eintragen.
+#    erwartet: abgewiesen, mit einer Meldung, die sagt warum. Der Block bleibt
+#              unverändert.
+#    Ebenso 198.51.100.5/24 — erwartet: abgewiesen mit dem Hinweis auf die
+#    gesetzten Wirtsbits und beiden gemeinten Auflösungen (M50: PostgreSQL
+#    selbst nimmt das klaglos an und lässt 254 Rechner herein).
+
+#    UND JETZT DER RÜCKWEG, VON HAND SCHARF GEMACHT:
+md5sum /etc/postgresql/16/main/pg_hba.conf
+sudo sed -i 's#^host    <DB>#host    <DB>   KAPUTT#' /etc/postgresql/16/main/pg_hba.conf
+#    Im Panel ein zweites Netz eintragen: 198.51.100.0/24
+#    erwartet: der Vorgang SCHEITERT, und die Meldung nennt die ZEILENNUMMER.
+md5sum /etc/postgresql/16/main/pg_hba.conf
+#    erwartet: DIE SUMME VON VOR DEM sed — der Rückweg hat den Stand
+#    zurückgelegt, den er vorgefunden hat, samt der von Hand eingebauten
+#    kaputten Zeile. Das ist richtig: Er stellt her, was da war, und repariert
+#    nicht, was jemand anders getan hat.
+
+sudo sed -i 's#^host    <DB>   KAPUTT#host    <DB>#' /etc/postgresql/16/main/pg_hba.conf
+sudo -u postgres psql -Atc "SELECT pg_reload_conf()"
+sudo -u postgres psql -Atc "SELECT count(*) FROM pg_hba_file_rules WHERE error IS NOT NULL"
+#    erwartet: 0
+
+#    DANN, UND DAS IST DER EIGENTLICHE BELEG:
+pg_ctlcluster 16 main restart && pg_lsclusters
+#    erwartet: online.
+#    OHNE DIESEN NEUSTART IST PUNKT 6 NICHT GEFAHREN. Eine kaputte
+#    pg_hba.conf ist im laufenden Betrieb unsichtbar (M16) und verhindert erst
+#    den nächsten Start (M17) — gemessen: „pg_ctl: could not start server".
+#    Wer nur prüft, dass der Server noch antwortet, prüft genau das, was auch
+#    im Fehlerfall gilt.
+
+# 7  DIE ZEILE FÜRS ZURÜCKSPIELEN HAT ALLES ÜBERLEBT   ← der zweite Bereich
+head -3 /etc/postgresql/16/main/pg_hba.conf
+#    erwartet: die Marke „# srvpanel: Zurückspielen einer Sicherung" und
+#              darunter „local   all   +srvpanel_restore   scram-sha-256" —
+#              GANZ OBEN, über „local all all peer".
+#    Und die Gegenprobe, dass sie nicht nur dasteht, sondern trägt:
+#      Im Panel eine Sicherung zurückspielen.
+#    erwartet: geht.
+#    OHNE PUNKT 7 IST DER TEUERSTE FEHLER DIESES SCHRITTS NICHT GEFAHREN
+#    (§14.5, M47): Der Rückweg aus Punkt 6 ist genau der Griff, der diese Zeile
+#    wegwerfen kann — und niemand merkt es, bis Wochen später ein
+#    Zurückspielen an „Peer authentication failed" scheitert.
+
+# 8  DER WEG ZURÜCK
+#    Im Panel das Netz zurücknehmen.
+grep -c "<ROLLE>" /etc/postgresql/16/main/pg_hba.conf
+#    erwartet: 0
+
+#    Und dasselbe über den Rückbau: den ZUGANG im Panel entfernen (mit einem
+#    zweiten, vorher eingetragenen Netz).
+grep -c "<ROLLE>" /etc/postgresql/16/main/pg_hba.conf
+#    erwartet: 0 — pg.role.remove nimmt die Zeilen im selben Vorgang mit.
+#    Eine Zeile für eine gelöschte Rolle ist für PostgreSQL kein Fehler (M22);
+#    sie fällt nur auf, wenn jemand danach fragt.
+
+srvpanel db
+#    erwartet: „0 Zugangsregel(n)…" bzw. „…alle im Bestand." und
+#              „Nichts liegengeblieben."
+
+#    UND DIE GEGENPROBE ZUR MELDUNG — sonst ist sie nie rot gewesen:
+sudo sed -i 's#^# END srvpanel#host    stillgelegt   x0000000000000000_web   198.51.100.0/24   scram-sha-256\n# END srvpanel#' /etc/postgresql/16/main/pg_hba.conf
+srvpanel db
+#    erwartet: „1 von 1 Zugangsregel(n) in pg_hba.conf zeigen auf nichts im
+#              Bestand:" und die Zeile darunter. GEMELDET UND NICHT GELÖSCHT.
+sudo sed -i '/x0000000000000000_web/d' /etc/postgresql/16/main/pg_hba.conf
+
+# 9  ABSCHALTEN
+srvpanel db --remote=off
+#    erwartet: die Warnung nennt die Zahl der Zugänge UND Netze, die danach
+#              niemand mehr erreicht.
+ls /etc/postgresql/16/main/conf.d/
+sudo -u postgres psql -Atc "SHOW listen_addresses"
+md5sum /etc/postgresql/16/main/postgresql.conf /etc/postgresql/16/main/pg_hba.conf
+#    erwartet: 60-srvpanel.conf ist fort, listen_addresses ist wieder
+#              localhost, und BEIDE md5-Summen sind die von Punkt 1.
 ```
 
 ---

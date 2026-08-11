@@ -38,6 +38,7 @@ use SrvPanel\Agent\Ops\PgDatabaseCreate;
 use SrvPanel\Agent\Ops\PgDatabaseRemove;
 use SrvPanel\Agent\Ops\PgDumpCreate;
 use SrvPanel\Agent\Ops\PgDumpImport;
+use SrvPanel\Agent\Ops\PgRemoteAccess;
 use SrvPanel\Agent\Ops\PgRestore;
 use SrvPanel\Agent\Ops\PgRoleCreate;
 use SrvPanel\Agent\Ops\PgRoleGrant;
@@ -211,6 +212,19 @@ final class Registry
 
         // Die Messung — wie db.usage am Zeitgeber und ohne Lebenslauf.
         $this->register(new PgUsage);
+
+        /*
+         * Mit Schritt 10: der Fernzugriff (docs/38 §14).
+         *
+         * **Zwei Aufrufer und nicht einer**, anders als bei `db.remote.access`.
+         * Der Schalter für die Horchadresse gehört dem Betreiber und steht in
+         * `srvpanel db --remote=on|off`; die Zeilen in `pg_hba.conf` gehören
+         * zum Zugang eines Kunden und kommen aus
+         * `App\Support\Databases\RemoteAccess`. Beide rufen dieselbe Operation,
+         * und der Unterschied liegt in `mode` — ein Kunde schickt `keep` und
+         * löst damit keinen Neustart aus.
+         */
+        $this->register(new PgRemoteAccess);
     }
 
     public function register(Op $op): void

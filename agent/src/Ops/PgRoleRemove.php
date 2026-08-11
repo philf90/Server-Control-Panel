@@ -7,7 +7,9 @@ namespace SrvPanel\Agent\Ops;
 use SrvPanel\Agent\AgentException;
 use SrvPanel\Agent\Context;
 use SrvPanel\Agent\Op;
+use SrvPanel\Agent\Pg\Hba;
 use SrvPanel\Agent\Pg\Names;
+use SrvPanel\Agent\Pg\Server;
 use SrvPanel\Agent\Pg\Session;
 use SrvPanel\Agent\Pg\Sql;
 
@@ -60,7 +62,10 @@ final class PgRoleRemove implements Op
     /** Wie viele Datenbanken ein Aufruf aufräumen darf. */
     private const MAX_DATABASES = 64;
 
-    public function __construct(private readonly Session $session = new Session) {}
+    public function __construct(
+        private readonly Session $session = new Session,
+        private readonly Server $server = new Server,
+    ) {}
 
     public static function name(): string
     {
@@ -105,12 +110,72 @@ final class PgRoleRemove implements Op
             $cleared[] = $database;
         }
 
-        $context->progress(90, 'Rolle entfernen');
+        $context->progress(85, 'Rolle entfernen');
         $this->session->execute($context, [self::statement($role)]);
+
+        $context->progress(95, 'Zugangsregeln aufräumen');
+        $dropped = $this->forgetRules($context, $role);
 
         $context->progress(100, 'fertig');
 
-        return ['name' => $role, 'removed' => true, 'cleared' => $cleared];
+        return ['name' => $role, 'removed' => true, 'cleared' => $cleared, 'hba_removed' => $dropped];
+    }
+
+    /**
+     * Die Zeilen dieser Rolle aus dem verwalteten Block in `pg_hba.conf`.
+     *
+     * **Im selben Vorgang, weil sonst niemand es täte** (`docs/38 §14.4`). Eine
+     * Zeile für eine Rolle, die es nicht mehr gibt, ist für PostgreSQL **kein
+     * Fehler** (M22): Sie bleibt liegen, `pg_hba_file_rules` schweigt, und
+     * nichts meldet es. Entsteht der Name irgendwann wieder — und ein Präfix
+     * wird nie zweimal vergeben, ein Suffix schon —, stünde die Erlaubnis
+     * schon da, bevor jemand sie erteilt hat.
+     *
+     * **Ein fehlender Block ist kein Fehlschlag.** Der Fernzugriff ist
+     * freiwillig; auf den meisten Servern gibt es diesen Block gar nicht, und
+     * ein Rückbau, der daran scheiterte, liesse eine Rolle stehen, weil eine
+     * Datei nichts enthielt.
+     *
+     * @return list<string>
+     */
+    private function forgetRules(Context $context, string $role): array
+    {
+        $path = $this->server->hbaFile($context, $this->session);
+
+        $dropped = Hba::locked($path, function () use ($path, $role): array {
+            $content = Hba::read($path);
+            $keep = [];
+            $gone = [];
+
+            foreach (Hba::managed($content) as $line) {
+                if (Hba::roleOf($line) === $role) {
+                    $gone[] = $line;
+
+                    continue;
+                }
+
+                $keep[] = $line;
+            }
+
+            if ($gone === []) {
+                return [];
+            }
+
+            Hba::put($path, Hba::render($content, $keep));
+
+            return $gone;
+        });
+
+        if ($dropped !== []) {
+            $this->session->execute($context, ['SELECT pg_reload_conf()']);
+
+            $context->journal->write('pg_hba.conf: Zugangsregeln einer entfernten Rolle genommen', [
+                'role' => $role,
+                'rules' => count($dropped),
+            ]);
+        }
+
+        return $dropped;
     }
 
     /** Die Anweisung — als reine Funktion, damit sie sich ohne Server prüfen lässt. */

@@ -8,6 +8,7 @@ use App\Models\Setting;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeZone;
+use InvalidArgumentException;
 use Throwable;
 
 /**
@@ -165,6 +166,24 @@ final class Clock
         return ($end ? $at->endOfDay() : $at->startOfDay())
             ->setTimezone('UTC')
             ->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * Die Zone setzen.
+     *
+     * **Geprüft wird hier und nicht beim Lesen** (siehe {@see self::zone()}):
+     * Ein unbekannter Name kommt gar nicht erst in die Tabelle, und die
+     * Anzeige muss ihn nie behandeln.
+     */
+    public static function store(string $zone): void
+    {
+        if (! self::isValid($zone)) {
+            throw new InvalidArgumentException('Unbekannte Zeitzone: '.$zone);
+        }
+
+        Setting::query()->updateOrCreate(['key' => self::KEY], ['value' => ['zone' => $zone]]);
+
+        self::forget();
     }
 
     /**

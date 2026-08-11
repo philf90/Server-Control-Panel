@@ -9015,3 +9015,31 @@ in Ordnung" für eine Fläche, die er nicht mehr liest.
 zu `OperationStreamTest` suchte `$operation->started_at?->toDateTimeString()` —
 genau die Zeile, die jetzt durch `Clock` geht. `BreakScriptTest` hätte das in
 der CI gemeldet; hier fand es die Gegenprobe vor dem Commit.
+
+### Und die Zone lässt sich einstellen — auf einer Seite, die es nicht gab
+
+`docs/40` verlangte „ein Feld in Einstellungen", und es gab keinen Ort dafür:
+Die fünf vorhandenen Seiten sind themengebunden — PHP, Datenbankserver,
+Mailversand, Zertifikat, DNS —, und das Profil gehört einem Konto. Die
+Anzeigezone ist serverweit und hat mit keinem Dienst zu tun.
+
+**Eine Seite mit einem Feld ist wenig, und das ist in Ordnung.** Der Ort für
+serverweite Anzeigeeinstellungen fehlte; ihn beim ersten Bedarf anzulegen ist
+billiger, als das Feld irgendwo unterzubringen, wo es niemand sucht.
+
+Die Auswahl kommt aus `DateTimeZone::listIdentifiers()` und ist **kein
+Freitextfeld**: Der Wert geht in `setTimezone()`, und ein unbekannter Name wirft
+dort — mitten im Aufbau einer Seite. Geprüft wird beim Setzen, nicht beim Lesen.
+
+**Und die Gegenprobe steht neben dem Feld:** dieselbe Zeit zweimal — was in der
+Datenbank steht und was auf der Seite stünde, mit der Zonenmarke dahinter. Ohne
+sie wäre die Auswahl eine Behauptung, und genau daran hing der Anlass:
+
+> **Ein Zeitstempel, den man falsch liest, ist schlimmer als keiner — er sieht
+> aus wie eine Auskunft.**
+
+Das Zeichen im Menü ist eine Uhr und kein Zahnrad — das steht auf jeder zweiten
+Oberfläche für „Einstellungen" überhaupt, und hier ist schon die ganze Gruppe
+eine.
+
+Gemessen im Chromium bei 390px, beide Themes: kein waagerechter Überlauf.

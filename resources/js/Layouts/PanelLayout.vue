@@ -126,6 +126,7 @@ const navigation = computed(() => {
     { group: 'Server', items: [
       { name: 'Vorgänge', href: '/operations', icon: 'operations' },
       { name: 'Protokoll', href: '/audit', icon: 'log' },
+      { name: 'Allgemein', href: '/settings/general', icon: 'general' },
       { name: 'PHP-Versionen', href: '/settings/php', icon: 'php' },
 
       /*

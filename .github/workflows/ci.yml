@@ -362,7 +362,25 @@ jobs:
           num="$(docker exec target su postgres -s /bin/sh -c "psql -XAtc 'SHOW server_version_num'")"
           haupt="$((num / 10000))"
 
+          paket="$(docker exec target dpkg-query -W -f='${Version}' postgresql)"
+
           echo "${{ matrix.name }}: PostgreSQL ${haupt} (${num}), Grenze des Panels: ${grenze}"
+
+          # **Die Zahl gehört auf die Übersicht des Laufs und nicht nur ins
+          # Protokoll.** Beim ersten grünen Lauf standen alle vier Messungen da
+          # — und um sie zu lesen, musste man vier Protokolle einzeln aufmachen
+          # und in jedem ein paar hundert Zeilen weit zurückblättern. Eine
+          # Messung, die niemand findet, ist so gut wie keine.
+          #
+          # Jeder Job der Reihe schreibt seine eigene Übersicht; eine
+          # gemeinsame Tabelle gibt es nicht, weil `GITHUB_STEP_SUMMARY` je
+          # Job existiert. Deshalb trägt jede Zeile ihre Kopfzeile mit.
+          {
+            echo "### PostgreSQL auf ${{ matrix.name }}"
+            echo
+            echo "| Metapaket | Fassung | Grenze des Panels | Abschottung |"
+            echo "|---|---|---|---|"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
           if [ "${haupt}" -lt "${grenze}" ]; then
             # Kein Fehlschlag: Das Panel weist diese Fassung ab, und genau das
@@ -370,6 +388,8 @@ jobs:
             # Punkte auslässt, ohne es zu sagen, sieht aus wie ein vollständiger.
             echo "::notice::${{ matrix.name }} liefert PostgreSQL ${haupt}, unter der Grenze ${grenze}."
             echo "::notice::Die Abschottung wird hier nicht gefahren — das Panel bietet die Fläche gar nicht an."
+            echo "| \`${paket}\` | ${haupt} (${num}) | ${grenze} | übersprungen — unter der Grenze |" \
+              >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
 
@@ -426,6 +446,9 @@ jobs:
             echo "::error::Die Abfrage der Katalogsichten findet auf PostgreSQL ${haupt} nichts."
             exit 1
           fi
+
+          echo "| \`${paket}\` | ${haupt} (${num}) | ${grenze} | gefahren, ${anzahl} Katalogsichten |" \
+            >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Ersteinrichtung und Oberfläche
         run: |

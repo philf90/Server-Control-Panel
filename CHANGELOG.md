@@ -9700,3 +9700,28 @@ die Frage im Raum, ob er die echte Sache überhaupt noch findet — und beantwor
 konnte sie niemand. Jetzt schon: Der Eingriff nimmt die Angabe aus der
 PostgreSQL-Installation, und der Wächter meldet sie. Fünfzehn apt-Aufrufe stehen
 in den Abläufen, alle mit Angabe.
+
+### Und die Messung stand an einer Stelle, an der sie niemand liest
+
+Der erste grüne Lauf hat alle vier Fassungen gemessen — und um sie zu lesen,
+musste man vier Protokolle einzeln aufmachen und in jedem ein paar hundert
+Zeilen weit zurückblättern. Zwei der vier Zahlen waren so nicht zu bekommen,
+ohne die halbe Ausgabe durchzusehen.
+
+> **Eine Messung, die niemand findet, ist so gut wie keine.**
+
+Jeder Job der Reihe schreibt seine Zahlen jetzt zusätzlich in die Übersicht des
+Laufs: Metapaket, Hauptfassung mit `server_version_num`, die Grenze des Panels
+und ob die Abschottung **gefahren** oder **übersprungen** wurde — mit der Anzahl
+der gefundenen Katalogsichten als Beleg dafür, dass sie wirklich lief. Gerade
+die letzte Spalte fehlte: Eine Plattform unter der Grenze lässt den Schritt mit
+0 enden, und ein grüner Haken sagt dann nichts darüber, ob gemessen oder
+ausgelassen wurde.
+
+**Was der erste Lauf gemessen hat**, mit dem Fund, der die Sorge aus
+`docs/38 §2.3` bestätigt: **Ubuntu 22.04 liefert PostgreSQL 14** — genau die
+Fassung an der Grenze, und genau die, bei der `PUBLIC` im Schema `public` von
+Haus aus anlegen darf. Die Untergrenze des Schritts hat das belegt, und nach
+`Shielding::statements()` antwortete dieselbe Anweisung mit
+`no schema has been selected to create in`. Die Wand steht dort also nicht,
+weil PostgreSQL sie baut, sondern weil das Panel sie baut. Debian 12 liefert 15.

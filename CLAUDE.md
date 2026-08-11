@@ -66,8 +66,9 @@ der neuen Seite **„Allgemein"** — den Ort gab es vorher nicht.
 schreibt `listen_addresses` nach `conf.d/60-srvpanel.conf` und den verwalteten
 Block nach `pg_hba.conf`, die Netze eines Zugangs stehen in `db_user_networks`,
 und `srvpanel db --remote=on` schaltet beide Systeme. **Abgenommen ist er
-nicht** — die Befehlsfolge dafür steht in `docs/38 §19a` und gehört auf
-`cloudsrv24`. Was sonst offen blieb, steht benannt in `docs/42 §5`.
+nicht** — der Lauf dafür steht in **`docs/43`** und gehört auf `cloudsrv24`;
+er braucht `v0.5.2-rc.3`, weil vier seiner Punkte an der Betreiberseite hängen.
+Was sonst offen blieb, steht benannt in `docs/42 §5`.
 
 **Und der Fund dieses Schritts stand in keinem Plan:** In `pg_hba.conf` schrieb
 schon jemand — `Hba::ensure()` seit Schritt 6 —, und der **Rückweg** des
@@ -315,7 +316,9 @@ Zeitzone der Anzeige**: entschieden am 10. August, gebaut nach P5b — und
 die sechs Fehler mit ihren Lehren, die drei Stellen, an denen der Plan nicht
 trug, und in §5 das, was offen blieb. Das Panel
 zeigt Zeiten in UTC, und der Betreiber liest sie auf einer Uhr, die zwei Stunden
-weiter ist. Und **`41` die Dateisystem-Quota** — wie sie eingeschaltet wird, und
+weiter ist. Und **`43` die Zwischenabnahme des Fernzugriffs** — der Lauf für `cloudsrv24`,
+zwölf Punkte, mit der Fassungstabelle in §3 und dem, was er ausdrücklich nicht
+prüft. Und **`41` die Dateisystem-Quota** — wie sie eingeschaltet wird, und
 warum das Panel den *Leseversuch* misst statt der Mount-Option: Auf `cloudsrv24`
 stand `usrquota` in den Optionen und `quotaon -p /` sagte `is off`.
 

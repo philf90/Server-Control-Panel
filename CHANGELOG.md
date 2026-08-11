@@ -9318,3 +9318,30 @@ trägt wie der Code.
 
 Gemessen im Chromium bei 390px und 1440px, beide Themes: kein waagerechter
 Überlauf. Ein `/128`-Netz in voller Länge bricht in seiner Zelle.
+
+### `docs/43` — die Zwischenabnahme des Fernzugriffs
+
+Der Lauf für `cloudsrv24` steht jetzt als eigenes Dokument, zwölf Punkte, etwa
+eine Stunde. **Er ist aus `docs/38 §19a` umgezogen, nicht abgeschrieben:** Zwei
+Fassungen derselben Befehlsfolge wären das Schlechtere — die zweite ist die, die
+veraltet, und bei einer Anleitung merkt man es erst, wenn jemand an ihr
+hängenbleibt (`docs/39 §1`). §19a ist ein Verweis mit der Begründung.
+
+**Vier Punkte sind dazugekommen, und sie prüfen die Betreiberseite:** 2b vor
+dem Einschalten, 4d mit einem eingetragenen Netz, 9b nach dem Abschalten — und
+**8b, der einzige Zustand, den der Lauf sonst gar nicht erreicht.** Netze an
+einem Server, der nur lokal horcht, entstehen nur auf einem Weg: ausschalten,
+während noch welche eingetragen sind. Ohne diesen Punkt bliebe die Warnung
+dafür ungefahren.
+
+**Und §3 nennt, welche Fassung welchen Punkt möglich macht.** Das ist keine
+Formsache: Gegen `v0.5.2-rc.1` schlägt Punkt 4b fehl, und zwar auf eine Art, die
+wie ein kaputter Fernzugriff aussieht und keiner ist — die Nachziehung kam erst
+mit `rc.2`, die Betreiberseite mit `rc.3`. Wer den Lauf gegen die falsche
+Fassung fährt, misst diesen Unterschied und nicht den Fernzugriff.
+
+> **Ein Abnahmelauf ohne die Fassung, gegen die er gilt, misst irgendetwas.**
+
+Dazu §5 — was zurückkommen soll, mit vier Dingen, die sonst untergehen — und §6,
+was der Lauf ausdrücklich *nicht* prüft: Paketfilter, Fassungsspanne,
+Dauerbetrieb, Last.

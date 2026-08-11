@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\DatabaseEngine;
 use App\Models\Database;
 use App\Models\DbUser;
+use App\Models\DbUserNetwork;
 use App\Support\Settings\Settings;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -100,6 +101,17 @@ final class DatabaseSettingsController extends Controller
              */
             'remote_users' => $this->remoteUsers(),
 
+            /*
+             * **Und dasselbe für PostgreSQL, getrennt gezählt.** Die beiden
+             * lassen sich nicht addieren: In MariaDB ist die fremde Adresse
+             * Teil des *Benutzers* (`'p1001_web'@'203.0.113.5'`), in PostgreSQL
+             * ist sie eine Zeile in `pg_hba.conf` neben einer Rolle, die auch
+             * ohne sie existiert (`docs/38 §14.3`). Eine gemeinsame Zahl hiesse
+             * „so viele Zugänge kommen von aussen" und stimmte für keines der
+             * beiden Systeme.
+             */
+            'remote_networks' => $this->remoteNetworks(),
+
             'commands' => [
                 'on' => self::COMMAND_ON,
                 'off' => self::COMMAND_OFF,
@@ -139,6 +151,8 @@ final class DatabaseSettingsController extends Controller
      *     handed_over: bool|null,
      *     databases: int,
      *     can_install: bool,
+     *     listen_addresses: string|null,
+     *     remote: bool,
      * }
      */
     private function postgres(Client $agent, Settings $settings): array
@@ -162,6 +176,22 @@ final class DatabaseSettingsController extends Controller
             // Ohne Antwort des Agenten wird nichts angeboten: Ein Knopf,
             // der auf eine Vermutung drückt, ist schlechter als keiner.
             'can_install' => false,
+
+            /*
+             * **Die Horchadresse, und sie fehlte bis zum 11. August 2026.**
+             * Diese Seite fragte `db.server.info` und zeigte damit die
+             * `bind-address` von *MariaDB* — über PostgreSQL stand nichts.
+             * Ein Betreiber, der `srvpanel db --remote=on` gefahren hat und
+             * hier nachsieht, bekam die Auskunft des anderen Servers.
+             *
+             * `null` heisst „nicht nachgesehen" und nicht „keine": In
+             * `absent`, `stopped`, `ambiguous` und `not_handed_over` ist
+             * niemand dazu gekommen, den Server zu fragen. Dieselbe
+             * Dreiwertigkeit wie bei `handed_over` darüber, und aus demselben
+             * Anlass.
+             */
+            'listen_addresses' => null,
+            'remote' => false,
         ];
 
         try {
@@ -207,6 +237,20 @@ final class DatabaseSettingsController extends Controller
              * „installieren" hiesse dort etwas Falsches.
              */
             'can_install' => in_array($state, PgServerInstall::ACTIONABLE, true),
+
+            /*
+             * **Der Zustand kommt vom laufenden Server, nicht aus einer
+             * Einstellung** — wortgleich die Begründung bei `bind_address`
+             * in {@see self::server()}. Der Betreiber kann `listen_addresses`
+             * jederzeit von Hand in `postgresql.conf` ändern; eine im Panel
+             * gemerkte Fassung wäre die, die veraltet.
+             *
+             * Die leere Zeichenkette wird zu `null`: Sie heisst „nur der
+             * Socket", und in einer Wertzelle in Monospace sähe sie aus wie
+             * eine fehlende Angabe. Was sie bedeutet, sagt die Marke daneben.
+             */
+            'listen_addresses' => ($info['listen_addresses'] ?? '') === '' ? null : (string) $info['listen_addresses'],
+            'remote' => ($info['remote'] ?? false) === true,
         ]);
     }
 
@@ -317,5 +361,40 @@ final class DatabaseSettingsController extends Controller
         }
 
         return ['total' => $total, 'hosts' => $hosts];
+    }
+
+    /**
+     * Die Netze, aus denen PostgreSQL-Zugänge hereindürfen.
+     *
+     * **Gezählt werden Netze und nicht Zugänge**, und das ist der Unterschied
+     * zu {@see self::remoteUsers()} darüber: Eine Rolle kann mehrere Netze
+     * haben — eine Rolle, ein Passwort, mehrere erlaubte Netze
+     * (`docs/38 §14.3`). „Drei Netze" heisst hier also nicht „drei Zugänge".
+     *
+     * **Gruppiert nach Netz und nicht nach Rolle**, wie oben nach Wirt: Was
+     * einen Betreiber auf dieser Seite angeht, ist, aus welchen Netzen sein
+     * Server erreichbar sein soll — die Zuordnung zu einzelnen Zugängen steht
+     * auf der Seite der Datenbank, wo sie hingehört.
+     *
+     * @return array{total: int, networks: list<array{cidr: string, count: int}>}
+     */
+    private function remoteNetworks(): array
+    {
+        $rows = DbUserNetwork::query()
+            ->selectRaw('cidr, COUNT(*) as anzahl')
+            ->groupBy('cidr')
+            ->orderBy('cidr')
+            ->get();
+
+        $networks = [];
+        $total = 0;
+
+        foreach ($rows as $row) {
+            $count = (int) $row->getAttribute('anzahl');
+            $total += $count;
+            $networks[] = ['cidr' => (string) $row->getAttribute('cidr'), 'count' => $count];
+        }
+
+        return ['total' => $total, 'networks' => $networks];
     }
 }

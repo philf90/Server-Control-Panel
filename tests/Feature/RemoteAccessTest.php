@@ -14,6 +14,8 @@ use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route as Router;
 use SrvPanel\Agent\Ops\DbRemoteAccess;
+use Tests\Support\ReadsMethodSource;
+use Tests\Support\WithoutPhpComments;
 use Tests\TestCase;
 
 /**
@@ -39,7 +41,9 @@ use Tests\TestCase;
  */
 final class RemoteAccessTest extends TestCase
 {
+    use ReadsMethodSource;
     use RefreshDatabase;
+    use WithoutPhpComments;
 
     /**
      * Ein Kunde mit einem Abonnement und einer Datenbank.
@@ -283,5 +287,91 @@ final class RemoteAccessTest extends TestCase
             'Datenbankserver mitnimmt, auf dem dieses Panel arbeitet (docs/36 §22.3v).',
             implode("\n  ", $schreibend),
         ));
+    }
+
+    /**
+     * **Jedes System wird nach seinem eigenen Zustand gefragt.**
+     *
+     * Der Fehler, den diese Prüfung festhält, ist schon zweimal passiert und
+     * beide Male auf dieselbe Art unsichtbar:
+     *
+     * - `DatabaseController::remoteAccess()` rief `db.server.info` ohne
+     *   Fallunterscheidung — auch auf der Seite einer PostgreSQL-Datenbank.
+     *   Daraus wurde entschieden, ob ein PostgreSQL-Zugang ein Netz eintragen
+     *   darf.
+     * - Diese Seite zeigte bis zum 11. August 2026 gar keine Horchadresse für
+     *   PostgreSQL; wer `srvpanel db --remote=on` gefahren hatte und hier
+     *   nachsah, bekam die Auskunft von MariaDB.
+     *
+     * **Beide Antworten haben dieselbe Form**, und genau deshalb fiele es
+     * niemandem auf: `remote` ist ein `bool`, die Adresse eine Zeichenkette.
+     * Auf einem Server, der nur eines der beiden von aussen erreichbar hat,
+     * steht dann das Gegenteil auf der Seite.
+     *
+     * Geprüft wird im Quelltext, weil die Verwechslung eine Frage der
+     * **Zuordnung** ist und nicht des Ergebnisses: Ein Testfall mit einem
+     * Agenten, der für beide Operationen dasselbe antwortet, wäre grün.
+     *
+     * **Der Bruch dazu** (`tests/waechter-brechen.sh`): `pg.server.info` in
+     * `DatabaseSettingsController::postgres()` durch `db.server.info` ersetzen.
+     */
+    public function test_each_system_is_asked_about_itself(): void
+    {
+        $paare = [
+            ['postgres', 'pg.server.info', 'db.server.info', 'PostgreSQL'],
+            ['server', 'db.server.info', 'pg.server.info', 'MariaDB'],
+        ];
+
+        foreach ($paare as [$methode, $eigene, $fremde, $system]) {
+            /*
+             * **Ohne Kommentare, und das hat dieser Wächter an sich selbst
+             * gelernt.** Die Erklärung, warum hier *nicht* das andere System
+             * gefragt wird, nennt dessen Operation beim Namen — Prosa, die für
+             * einen Ausdruck aussieht wie Code. Beim ersten Lauf hat er
+             * deshalb seinen eigenen Kommentar gemeldet. `token_get_all()`
+             * unterscheidet die beiden; ein regulärer Ausdruck nie.
+             */
+            $quelle = $this->withoutComments(
+                (string) $this->methodSource(DatabaseSettingsController::class, $methode),
+            );
+
+            $this->assertStringContainsString($eigene, $quelle, sprintf(
+                'DatabaseSettingsController::%s() fragt nicht %s — dann steht auf der Seite der '
+                .'Zustand eines anderen Servers.',
+                $methode,
+                $eigene,
+            ));
+
+            $this->assertStringNotContainsString($fremde, $quelle, sprintf(
+                'DatabaseSettingsController::%s() fragt %s und meldet damit für %s die Auskunft des '
+                .'anderen Systems. Beide Antworten haben dieselbe Form; auffallen würde es erst auf '
+                .'einem Server, der nur eines von beiden erreichbar hat.',
+                $methode,
+                $fremde,
+                $system,
+            ));
+        }
+    }
+
+    /**
+     * Und die Horchadresse von PostgreSQL steht auch wirklich auf der Seite.
+     *
+     * Die Brücke zwischen Steuerungscode und Vorlage hält {@see InertiaPropsTest}
+     * — er prüft, dass jede *verlangte* Eigenschaft geschickt wird. Die
+     * Gegenrichtung prüft er nicht: Eine Angabe, die der Controller schickt und
+     * die Seite nie liest, fällt niemandem auf. Genau das wäre hier der
+     * teuerste Fall, denn die Angabe ist der ganze Zweck dieser Änderung.
+     */
+    public function test_the_page_shows_what_postgresql_listens_on(): void
+    {
+        $seite = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/Pages/Settings/Database.vue');
+
+        foreach (['postgresql.listen_addresses', 'postgresql.remote', 'remote_networks'] as $feld) {
+            $this->assertStringContainsString($feld, $seite, sprintf(
+                'Die Seite liest %s nicht. Der Controller schickt die Angabe dann für nichts, und '
+                .'der Betreiber sieht über PostgreSQL weiter nur, dass es da ist.',
+                $feld,
+            ));
+        }
     }
 }

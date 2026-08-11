@@ -6402,6 +6402,28 @@ pruefe "Nachziehung ohne Meldung" \
 wiederherstellen
 
 echo
+echo "── RemoteAccessTest: die Einstellungsseite fragt den falschen Server ──"
+#
+# Beide Antworten haben dieselbe Form — `remote` ist ein bool, die Adresse eine
+# Zeichenkette. Auf einem Server, der nur eines der beiden von aussen erreichbar
+# hat, steht dann das Gegenteil auf der Seite, und auffallen wuerde es niemandem.
+# Genau dieser Fehler stand bis zum 11. August 2026 in
+# DatabaseController::remoteAccess().
+vorher_datei app/Http/Controllers/DatabaseSettingsController.php
+python3 - <<'PY2'
+p = 'app/Http/Controllers/DatabaseSettingsController.php'
+s = open(p, encoding='utf-8').read()
+s = s.replace("$info = $agent->call('pg.server.info', []);",
+              "$info = $agent->call('db.server.info', []);")
+open(p, 'w', encoding='utf-8').write(s)
+PY2
+griff_datei app/Http/Controllers/DatabaseSettingsController.php "Seite fragt das falsche System" &&
+pruefe "Seite fragt das falsche System" \
+  RemoteAccessTest::test_each_system_is_asked_about_itself failed
+wiederherstellen
+pruefe "  … zurückgesetzt wieder grün" RemoteAccessTest passed
+
+echo
 if [ "$fehler" -eq 0 ]; then
   echo "Alle Wächter beissen."
 elif [ "$stumm" -eq "$fehler" ]; then

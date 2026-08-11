@@ -1107,6 +1107,29 @@ zu Rollen schreibt, ruft die Nachziehung, oder ein begründeter Eintrag sagt
 warum nicht. Er liest im Quelltext, weil `Client` `final` ist und es dafür kein
 Testdoppel gibt; ob es zur Laufzeit wirkt, misst Punkt 4b des Abnahmelaufs.
 
+### 14.7 Was der Betreiber sieht
+
+„Einstellungen → Datenbankserver" nannte für PostgreSQL Zustand, Fassung,
+Cluster und Port — **aber keine Horchadresse.** Die Seite fragte für den
+Fernzugriff nur `db.server.info`; wer `srvpanel db --remote=on` gefahren hatte,
+bekam dort die Auskunft von MariaDB.
+
+Dazu kommen jetzt `listen_addresses`, der Fernzugriff als Marke, die
+eingetragenen Netze und die Warnung, wenn Netze dastehen und der Server nur
+lokal horcht.
+
+**Die Netze werden getrennt von den MariaDB-Zugängen gezählt.** Die beiden
+lassen sich nicht addieren (§14.3), und weil eine Rolle mehrere Netze haben
+kann, ist auch die Summe der Netze nicht die Zahl der Zugänge — der Satz dazu
+steht unter der Tabelle, sonst behauptete sie genau das.
+
+**Der Wächter prüft die Zuordnung und nicht das Ergebnis:** Jede der beiden
+Methoden ruft ihre eigene Operation und die des anderen Systems nicht. Ein
+Agent, der für beide dasselbe antwortet, machte jeden Ergebnistest grün.
+
+> **Zwei Auskünfte gleicher Form über verschiedene Dinge sind kein Datentyp,
+> sondern eine Falle.**
+
 ---
 
 ## 15. Der Rückbau
@@ -1149,7 +1172,7 @@ Keine neue Seite. Die vorhandenen bekommen dazu:
 | `Pages/Databases/Index.vue` | eine Spalte „System" — als Marke, nicht als Filter |
 | `Pages/Databases/Create.vue` | die Wahl des Systems, **nur wenn beide verfügbar sind** |
 | `Pages/Databases/Show.vue` | Verbindungsangaben je System; bei PostgreSQL der Satz über `127.0.0.1` und der über die Erweiterungen (§5) |
-| `Pages/Settings/Database.vue` | der zweite Server: installiert? Cluster? Fassung? Und der Knopf aus §7 |
+| `Pages/Settings/Database.vue` | der zweite Server: installiert? Cluster? Fassung? Und der Knopf aus §7 — dazu seit dem 11. August 2026 `listen_addresses`, der Fernzugriff als Marke und die eingetragenen Netze (§14.7) |
 
 **Der Name ist die Stelle, an der es weh tut.** `x7f3a91c2_shop` ist siebzehn
 Zeichen länger als `shop` und eine Kennung im Fliesstext — genau die Sorte, die
